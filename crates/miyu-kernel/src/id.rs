@@ -1,5 +1,5 @@
 //! 编号和名字：会话、序号、回合、命令、调用、账号、内容哈希，以及模块、驱动家族、场所、
-//! 外部身份、供应商、模型、媒体类型、文件名。
+//! 外部身份、供应商、模型、媒体类型、文件名、事件种类。
 //!
 //! 写法见 `docs/designs/03-事件模型.md` 第二节「编号和时间的写法」。
 //! 读和写一样严：写出去是什么样，读进来就只认什么样。
@@ -134,6 +134,13 @@ text_id!(
     check_file_name
 );
 
+text_id!(
+    /// 事件种类：用点分开的几段，例如 `message.user`、`ext.memory.recalled`。
+    EventKind,
+    "事件种类",
+    check_event_kind
+);
+
 fn is_lower_hex(b: u8) -> bool {
     matches!(b, b'0'..=b'9' | b'a'..=b'f')
 }
@@ -244,6 +251,28 @@ fn check_file_name(text: &str) -> Result<(), &'static str> {
     }
     if text == "." || text == ".." {
         return Err("不能是 . 或 ..");
+    }
+    Ok(())
+}
+
+fn check_event_kind(text: &str) -> Result<(), &'static str> {
+    if text.is_empty() {
+        return Err("不能是空的");
+    }
+    if text.len() > 128 {
+        return Err("最长 128 字节");
+    }
+    for part in text.split('.') {
+        let mut chars = part.chars();
+        if !matches!(chars.next(), Some('a'..='z')) {
+            return Err("每一段都要以小写字母开头");
+        }
+        if !chars.all(|c| matches!(c, 'a'..='z' | '0'..='9' | '_' | '-')) {
+            return Err("只能用小写字母、数字、_ 和 -");
+        }
+    }
+    if !text.contains('.') {
+        return Err("至少两段，用点分开");
     }
     Ok(())
 }

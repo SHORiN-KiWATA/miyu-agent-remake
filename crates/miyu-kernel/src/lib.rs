@@ -8,6 +8,7 @@
 //! 设计见 `docs/designs/02-内核.md`。
 
 pub mod block;
+pub mod event;
 mod format_error;
 pub mod id;
 pub mod origin;

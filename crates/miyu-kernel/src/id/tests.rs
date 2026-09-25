@@ -161,3 +161,22 @@ fn file_name_is_a_name_not_a_path() {
     rejected::<FileName>(r#""""#, "不能是空的");
     rejected::<FileName>(&format!("\"{}\"", "报".repeat(86)), "255 字节");
 }
+
+#[test]
+fn event_kind_is_dotted_lowercase() {
+    for good in [
+        "message.user",
+        "ext.memory.recalled",
+        "ext.my-module.did_it2",
+    ] {
+        assert!(EventKind::parse(good).is_ok(), "{good} 应该读得进来");
+    }
+    rejected::<EventKind>(r#""""#, "不能是空的");
+    rejected::<EventKind>(r#""message""#, "至少两段");
+    rejected::<EventKind>(r#""Message.user""#, "小写字母开头");
+    rejected::<EventKind>(r#"".user""#, "小写字母开头");
+    rejected::<EventKind>(r#""message..user""#, "小写字母开头");
+    rejected::<EventKind>(r#""message.9user""#, "小写字母开头");
+    rejected::<EventKind>(r#""message.us er""#, "只能用小写字母");
+    rejected::<EventKind>(&format!("\"a.{}\"", "b".repeat(127)), "128 字节");
+}
