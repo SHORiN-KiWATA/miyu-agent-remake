@@ -1,0 +1,1 @@
+{"seq":41,"at":"2026-09-25T07:04:05.123Z","kind":"message.user","by":{"kind":"person","account":"alice"},"cause":"cmd-7f3a","body":{"blocks":[{"type":"text","text":"看看 src 目录"}]}}

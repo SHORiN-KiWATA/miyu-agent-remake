@@ -13,10 +13,12 @@ use crate::time::Timestamp;
 
 mod message;
 mod session;
+mod tool;
 mod turn;
 
-pub use message::MessageUser;
+pub use message::{MessageAssistant, MessageUser};
 pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated};
+pub use tool::{ToolResult, ToolStatus};
 pub use turn::{EndReason, TurnEnded, TurnReverted, TurnStarted};
 
 /// 一条事件：已经发生的一件事。追加进日志以后不改、不删；撤销和压缩也是追加一条新事件
@@ -55,6 +57,10 @@ macro_rules! bodies {
         }
 
         impl Body {
+            /// 内核认识的全部种类名，照表里的先后。样本测试拿它查每一种都有样本
+            /// （03 第三节「样本文件」）。
+            pub const KINDS: &'static [&'static str] = &[$($kind,)+];
+
             /// 外壳里 `kind` 那一格写的名字。
             pub fn kind(&self) -> &str {
                 match self {
@@ -100,6 +106,10 @@ bodies! {
     TurnReverted = "turn.reverted",
     /// 人发来的消息，或者另一个会话发来的消息。
     MessageUser = "message.user",
+    /// 模型一次响应的完整内容，工具调用也在里面。
+    MessageAssistant = "message.assistant",
+    /// 一个工具调用的结果。
+    ToolResult = "tool.result",
 }
 
 impl Event {
