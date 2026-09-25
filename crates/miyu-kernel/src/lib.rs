@@ -6,3 +6,9 @@
 //! 真正的 I/O 由执行器完成，结果再作为新的输入送回来。
 //!
 //! 设计见 `docs/designs/02-内核.md`。
+
+mod format_error;
+pub mod id;
+pub mod time;
+
+pub use format_error::FormatError;
