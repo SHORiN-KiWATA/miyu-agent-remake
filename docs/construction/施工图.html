@@ -263,9 +263,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>5</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
-    <li><b>1-3</b><span>下一步：事件的外壳与编解码，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">929d7de</b><span>最近一步（1-2）的提交</span></li>
+    <li><b>6</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
+    <li><b>1-4</b><span>下一步：会话与回合的事件，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">284e102</b><span>最近一步（1-3）的提交</span></li>
   </ul>
 </header>
 
@@ -309,7 +309,7 @@ a.step:hover{border-color:var(--primary)}
       <ol class="chips">
         <li><a class="step done" href="#s1-1"><span class="n">1-1</span>编号与时间<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-2"><span class="n">1-2</span>「谁」和内容块<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">1-3</span>事件的外壳与编解码</span></li>
+        <li><a class="step done" href="#s1-3"><span class="n">1-3</span>事件的外壳与编解码<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">1-4</span>会话与回合的事件</span></li>
         <li><span class="step"><span class="n">1-5</span>消息、工具、提问的事件</span></li>
         <li><span class="step"><span class="n">1-6</span>其余的事件</span></li>
@@ -719,6 +719,64 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s1-3" aria-labelledby="h-s13">
+  <div class="sheet-head"><h2 id="h-s13"><span class="no">1-3</span>事件的外壳与编解码</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">一条事件能写成日志里的一行 JSON，也能从一行读回来。认识的种类读成对应的类型，不认识的 <code>body</code> 原样留着。先用 <code>message.user</code> 打通。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="dir">
+        <div class="dir-label"><span class="path">一行事件 · event.rs</span><span class="dir-note">字段的顺序固定，没有的可选字段不写</span></div>
+        <div class="files">
+          <div class="tile new"><span class="nm">seq</span><span class="rl mono">41</span></div>
+          <div class="tile new"><span class="nm">at</span><span class="rl mono">"2026-09-25T07:04:05.123Z"</span></div>
+          <div class="tile new"><span class="nm">kind</span><span class="rl mono">"message.user"</span></div>
+          <div class="tile new"><span class="nm">turn（可选）</span><span class="rl">所属回合</span></div>
+          <div class="tile new"><span class="nm">by</span><span class="rl mono">{"kind":"person","account":"alice"}</span></div>
+          <div class="tile new"><span class="nm">cause（可选）</span><span class="rl mono">"cmd-7f3a"</span></div>
+          <div class="tile new"><span class="nm">body</span><span class="rl">看过 kind 再照那一种读；不认识的原样留着</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">1-3</dd></div>
+        <div><dt>名称</dt><dd>事件的外壳与编解码</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">284e102</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>一条事件和日志里的一行 JSON 互相转换，字段顺序照图纸。</li>
+        <li>认识的种类 <code>body</code> 坏了就报错，写明是哪一种；不认识的原样留着。</li>
+        <li><code>message.user</code> 的 <code>body</code>：一串内容块。</li>
+        <li>事件种类的名字：用点分开的几段，模块自己的写成 <code>ext.&lt;模块&gt;.&lt;种类&gt;</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>39 个测试全过，新加 8 个：图纸上的两行读写一字不差，从代码造的事件写出来也一字不差</span></li>
+        <li><span class="ok">✓</span><span>故意改坏三处（字段顺序、种类名、可选字段），6 个测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，每台都跑完 39 个测试</span></li>
+        <li><span class="ok">✓</span><span>项目主人验收通过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/03-事件模型.md</code> 第二节「外壳的写法」。</li>
+        <li><code>docs/construction/1-3-事件的外壳与编解码.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -891,7 +949,7 @@ const TREE = {
 /* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
 const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
-  k_log: { by: '1-1', how: 'frame', note: '编号、谁、内容块' },
+  k_log: { by: '1-1', how: 'frame', note: '编号、谁、内容块、外壳' },
 };
 
 const svg = document.getElementById('bmap');
