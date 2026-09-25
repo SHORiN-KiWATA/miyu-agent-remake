@@ -1,0 +1,2 @@
+# 所有文本文件一律 LF：Windows 检出时不改换行，按字节比对的样本才对得上。
+* text=auto eol=lf

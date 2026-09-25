@@ -1,0 +1,26 @@
+# 三平台 CI：每台机器跑 cargo xtask check，和本地验收是同一条命令。
+# 为什么这样定，见 docs/construction/0-3-三平台CI.md。
+name: CI
+
+on:
+  push:
+    branches: [main, "step/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # Linux 钉 24.04：发行构建以 glibc 2.39 为基线（12-进程形态与分发 R11）。
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: 装上 rust-toolchain.toml 钉住的工具链
+        run: rustup toolchain install
+      - name: 门禁
+        run: cargo xtask check
