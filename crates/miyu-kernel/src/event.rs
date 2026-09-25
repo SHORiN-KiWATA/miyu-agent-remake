@@ -11,11 +11,13 @@ use crate::origin::By;
 use crate::raw::{self, RawJson};
 use crate::time::Timestamp;
 
+mod context;
 mod message;
 mod session;
 mod tool;
 mod turn;
 
+pub use context::{ContextCompacted, ContextInjected};
 pub use message::{MessageAssistant, MessageUser};
 pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated};
 pub use tool::{ToolResult, ToolStatus};
@@ -110,6 +112,10 @@ bodies! {
     MessageAssistant = "message.assistant",
     /// 一个工具调用的结果。
     ToolResult = "tool.result",
+    /// 注入进上下文的一块事实。
+    ContextInjected = "context.injected",
+    /// 压缩的检查点。
+    ContextCompacted = "context.compacted",
 }
 
 impl Event {

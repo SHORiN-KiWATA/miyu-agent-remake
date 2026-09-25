@@ -153,6 +153,14 @@ text_id!(
     check_event_kind
 );
 
+text_id!(
+    /// 事实块的类别：注入的一块事实属于哪一类，例如 `env`。环境和状态变了才注入，
+    /// 要找同一个模块、同一个类别的块来比（`08-上下文投影.md` C10）。给程序看的名字，规则和模块一样。
+    FactKind,
+    "事实块的类别",
+    check_name
+);
+
 fn is_lower_hex(b: u8) -> bool {
     matches!(b, b'0'..=b'9' | b'a'..=b'f')
 }

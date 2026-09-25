@@ -125,13 +125,15 @@ fn names_from_the_drawing_round_trip() {
     round_trip::<ModelName>(r#""deepseek-v4""#);
     round_trip::<MediaType>(r#""image/png""#);
     round_trip::<FileName>(r#""报告.pdf""#);
+    round_trip::<FactKind>(r#""env""#);
 }
 
 #[test]
-fn module_and_driver_names_follow_the_account_rule() {
+fn module_driver_and_fact_names_follow_the_account_rule() {
     rejected::<ModuleId>(r#""Memory""#, "小写英文字母开头");
     rejected::<DriverFamily>(r#""openai.chat""#, "只能用小写字母");
     rejected::<ModuleId>(r#""nul""#, "Windows 保留");
+    rejected::<FactKind>(r#""Env""#, "小写英文字母开头");
 }
 
 #[test]
