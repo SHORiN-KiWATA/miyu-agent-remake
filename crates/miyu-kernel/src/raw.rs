@@ -9,6 +9,9 @@ use serde::de::{DeserializeOwned, Error as _};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::value::RawValue;
 
+/// 原样的一块 JSON，一个字节都不改：空格、数字的写法（`1.50`）、字段的先后都留着。
+///
+/// 只能从 serde_json 读，因为它记下的是读到的原文；写出去就是这段原文。
 #[derive(Debug, Clone)]
 pub struct RawJson(Box<RawValue>);
 

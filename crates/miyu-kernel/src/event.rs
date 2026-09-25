@@ -19,28 +19,39 @@ pub use message::MessageUser;
 pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated};
 pub use turn::{EndReason, TurnEnded, TurnReverted, TurnStarted};
 
+/// 一条事件：已经发生的一件事。追加进日志以后不改、不删；撤销和压缩也是追加一条新事件
+/// （`03-事件模型.md` 第一节）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Event {
+    /// 会话内的序号，从 1 开始，连续递增。
     pub seq: Seq,
+    /// 发生的时刻，取自执行器送进来的时钟输入。
     pub at: Timestamp,
     /// 所属回合；不属于任何回合时没有。
     pub turn: Option<TurnId>,
+    /// 由谁引起，取自连接，不取自正文。
     pub by: By,
     /// 引起它的命令，用于去重和追踪。
     pub cause: Option<CommandId>,
+    /// 事件的种类，连同它自己的内容。
     pub body: Body,
 }
 
 /// 事件的种类：每一种写一行，类型和它在 JSON 里的名字。
 /// `Body` 本身、`kind`、按种类读、写出去，都照这一张表生成，加一种只加一行。
 macro_rules! bodies {
-    ($($variant:ident = $kind:literal,)+) => {
+    ($($(#[$doc:meta])* $variant:ident = $kind:literal,)+) => {
         /// 事件的种类，连同它自己的内容。
         #[derive(Debug, Clone, PartialEq, Eq)]
         pub enum Body {
-            $($variant($variant),)+
+            $($(#[$doc])* $variant($variant),)+
             /// 不认识的种类，包括不认识的 `ext.*`：`body` 原样留着，投影跳过它。
-            Unknown { kind: EventKind, body: RawJson },
+            Unknown {
+                /// 外壳里写的种类名。
+                kind: EventKind,
+                /// 原样的 `body`，写出去一字不差。
+                body: RawJson,
+            },
         }
 
         impl Body {
@@ -75,23 +86,40 @@ macro_rules! bodies {
 }
 
 bodies! {
+    /// 会话创建。
     SessionCreated = "session.created",
+    /// 换了策略快照，或者换了权限。
     PolicyChanged = "session.policy_changed",
+    /// 改了标题、置顶。
     MetaChanged = "session.meta_changed",
+    /// 回合开始。
     TurnStarted = "turn.started",
+    /// 回合结束。
     TurnEnded = "turn.ended",
+    /// 撤销了几个回合。
     TurnReverted = "turn.reverted",
+    /// 人发来的消息，或者另一个会话发来的消息。
     MessageUser = "message.user",
 }
 
 impl Event {
-    /// 写成日志里的一行：紧凑的 JSON，不带换行。
+    /// 写成日志里的一行：紧凑的 JSON，字段照图纸的顺序，不带换行。换行由存日志的那一层加。
+    ///
+    /// # Panics
+    ///
+    /// 实际不会 panic。serde_json 只在两种情况下写不出来：键不是字符串，或者某个 `Serialize`
+    /// 自己报错。事件里这两样都没有。
     pub fn to_line(&self) -> String {
         serde_json::to_string(self)
             .expect("事件里只有字符串、数字和原样的 JSON，写成 JSON 不会失败")
     }
 
-    /// 从日志里的一行读回来。
+    /// 从日志里的一行读回来。认识的种类读成对应的类型，不认识的 `body` 原样留着。
+    ///
+    /// # Errors
+    ///
+    /// 这一行不是 JSON、缺了外壳的字段、某个字段不合写法、认识的种类 `body` 读不出来，
+    /// 都返回错误，写明哪里错。
     pub fn from_line(line: &str) -> Result<Event, serde_json::Error> {
         serde_json::from_str(line)
     }

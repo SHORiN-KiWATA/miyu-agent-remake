@@ -16,19 +16,30 @@ const MIN: i64 = -62_167_219_200_000;
 /// 9999-12-31T23:59:59.999Z
 const MAX: i64 = 253_402_300_799_999;
 
-/// 从 1970-01-01T00:00:00.000Z 起的毫秒数。只收 0000 年到 9999 年，写出去永远是 24 个字符。
+/// 一个时刻：从 1970-01-01T00:00:00.000Z 起的毫秒数，UTC。
+///
+/// 只收 0000 年到 9999 年，所以写出去永远是 24 个字符。内核自己不读时钟：
+/// 事件的时间取自执行器送进来的输入（`02-内核.md` 第四节）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Timestamp(i64);
 
 impl Timestamp {
+    /// 由 Unix 毫秒数得到时刻。超出 0000 年到 9999 年返回 `None`。
     pub fn from_unix_millis(ms: i64) -> Option<Timestamp> {
         (MIN..=MAX).contains(&ms).then_some(Timestamp(ms))
     }
 
+    /// 从 1970-01-01T00:00:00.000Z 起的毫秒数；1970 年以前是负数。
     pub fn unix_millis(self) -> i64 {
         self.0
     }
 
+    /// 读 `2026-09-25T07:04:05.123Z` 这样的写法。
+    ///
+    /// # Errors
+    ///
+    /// 只认这一种写法：长度不是 24、分隔符不对、有不是数字的地方、日期或时刻不存在
+    /// （例如 2 月 30 日、24 点、闰秒 60 秒），都返回 [`FormatError`]。
     pub fn parse(text: &str) -> Result<Timestamp, FormatError> {
         let bad = |why| FormatError::new("时间", text, why);
         let b = text.as_bytes();

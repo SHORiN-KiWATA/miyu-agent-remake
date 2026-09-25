@@ -1,8 +1,13 @@
-//! 编号和名字：会话、序号、回合、命令、调用、账号、内容哈希，以及模块、驱动家族、场所、
-//! 外部身份、供应商、模型、媒体类型、文件名、事件种类。
+//! 编号和名字：事件里出现的每一种编号、每一种名字各是一种类型。
 //!
-//! 写法见 `docs/designs/03-事件模型.md` 第二节「编号和时间的写法」。
-//! 读和写一样严：写出去是什么样，读进来就只认什么样。
+//! - 数字：[`Seq`] 序号、[`TurnId`] 回合编号；
+//! - 内核分配的：[`CallId`] 调用编号，写成 `call_44_1`；
+//! - 字符串：会话编号、命令编号、账号、内容哈希、模块、驱动家族、场所、外部身份、供应商、模型、
+//!   媒体类型、文件名、事件种类。
+//!
+//! 各自的写法见 `docs/designs/03-事件模型.md` 第二节「编号和时间的写法」。
+//! 读和写一样严：写出去是什么样，读进来就只认什么样，对不上的报 [`FormatError`]。
+//! 每一种名字单独一种类型，是为了传错了编译器能拦下，例如把模型当成供应商传进去。
 
 use std::fmt;
 
@@ -11,8 +16,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::format_error::FormatError;
 
-/// 用字符串存的编号和名字。每一种只是检查的规则不同，其余都一样：
-/// `parse` 按规则检查，JSON 里是字符串，读的时候照样检查。
+/// 生成一种用字符串存的编号或名字。每一种只是检查的规则不同，其余都一样：
+/// `parse` 按规则检查；JSON 里写成字符串；从 JSON 读的时候照样检查。
+/// 规则是 `$check`，一个返回「错在哪」的函数；`$what` 是报错时怎么称呼它。
 macro_rules! text_id {
     ($(#[$doc:meta])* $name:ident, $what:literal, $check:path) => {
         $(#[$doc])*
@@ -20,11 +26,17 @@ macro_rules! text_id {
         pub struct $name(String);
 
         impl $name {
+            /// 按规则检查 `text`，合格就收下。
+            ///
+            /// # Errors
+            ///
+            /// 不合规则时返回 [`FormatError`]，写明读的是什么、错在哪、读到了什么。
             pub fn parse(text: &str) -> Result<Self, FormatError> {
                 $check(text).map_err(|why| FormatError::new($what, text, why))?;
                 Ok(Self(text.to_string()))
             }
 
+            /// 原样的文字，和 JSON 里写的一样。
             pub fn as_str(&self) -> &str {
                 &self.0
             }
@@ -278,21 +290,27 @@ fn check_event_kind(text: &str) -> Result<(), &'static str> {
 }
 
 /// 会话内的序号，从 1 开始，连续递增。JSON 里是数字。
+///
+/// 序号由内核在追加事件时分配，一个会话里不重复、不跳号（`02-内核.md` 不变量 1）。
+/// 回合编号、调用编号都从它推出来。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Seq(u64);
 
 impl Seq {
+    /// 一个会话的第一条事件的序号。
     pub const FIRST: Seq = Seq(1);
 
-    /// 0 不是序号。
+    /// 由数字得到序号。0 不是序号，给 0 返回 `None`。
     pub fn new(n: u64) -> Option<Seq> {
         (n >= 1).then_some(Seq(n))
     }
 
+    /// 序号的数字。
     pub fn get(self) -> u64 {
         self.0
     }
 
+    /// 紧接着的下一个序号。
     pub fn next(self) -> Seq {
         Seq(self.0 + 1)
     }
@@ -324,6 +342,7 @@ impl<'de> Deserialize<'de> for Seq {
 pub struct TurnId(Seq);
 
 impl TurnId {
+    /// 由这个回合 `turn.started` 的序号得到回合编号。
     pub fn new(started: Seq) -> TurnId {
         TurnId(started)
     }
@@ -359,10 +378,17 @@ impl CallId {
         self.message
     }
 
+    /// 这是那条助手消息里的第几个调用，从 1 数起。
     pub fn index(self) -> u32 {
         self.index
     }
 
+    /// 读 `call_44_1` 这样的写法。
+    ///
+    /// # Errors
+    ///
+    /// 只认内核自己写出去的样子。前缀不对、少了一段、数字不是从 1 开始的十进制写法
+    /// （例如 `0`、`01`、`+1`），都返回 [`FormatError`]。
     pub fn parse(text: &str) -> Result<CallId, FormatError> {
         let bad = |why| FormatError::new("调用编号", text, why);
         let rest = text
