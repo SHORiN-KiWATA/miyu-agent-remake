@@ -1,0 +1,3 @@
+[alias]
+# cargo xtask check：跑完全部门禁，见 xtask/src/main.rs。
+xtask = "run --quiet --package xtask --"
