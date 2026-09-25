@@ -157,6 +157,10 @@ a.step:hover{border-color:var(--primary)}
 .pipe .cmd{flex-basis:100%;background:transparent;padding:0 0 2px;font:600 12.5px/1.4 var(--mono)}
 .pipe .cmd::before,.pipe .cmd+li::before{content:none}
 
+/* 0-3 的图 */
+.d03{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;align-items:start}
+.d03-col{display:grid;gap:10px;align-content:start}
+
 /* 拼到哪了：照架构全图的布局，没拼的画虚线，拼上的画实 */
 .board{display:grid;gap:14px}
 .map-scroll{overflow-x:auto;border:1.5px solid var(--line);border-radius:6px;background:var(--panel);-webkit-overflow-scrolling:touch;
@@ -236,7 +240,7 @@ a.step:hover{border-color:var(--primary)}
 .foot p{margin:0;max-width:74ch}
 
 @media (max-width:900px){
-  .d01,.d02{grid-template-columns:1fr}
+  .d01,.d02,.d03{grid-template-columns:1fr}
   .notes{grid-template-columns:1fr}
 }
 @media (max-width:640px){
@@ -255,9 +259,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>2</b><span>/ 36 步<strong>已完成</strong>，M0 到 M3</span></li>
-    <li><b>0-3</b><span>下一步：三平台 CI，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">544d6fc</b><span>最近一步（0-2）的提交</span></li>
+    <li><b>3</b><span>/ 36 步<strong>已完成</strong>，M0 准备做完了</span></li>
+    <li><b>1-1</b><span>下一步：编号与时间，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">bbd9942</b><span>最近一步（0-3）的提交</span></li>
   </ul>
 </header>
 
@@ -275,7 +279,7 @@ a.step:hover{border-color:var(--primary)}
     <div class="piece"><span class="by">0-1</span><span class="nm">LICENSE · README · AGENTS.md</span></div>
     <div class="piece"><span class="by">0-2</span><span class="nm">代码的六层（图纸）</span></div>
     <div class="piece"><span class="by">0-2</span><span class="nm">门禁 xtask</span></div>
-    <div class="piece ghost"><span class="by">0-3</span><span class="nm">三平台 CI</span></div>
+    <div class="piece"><span class="by">0-3</span><span class="nm">三平台 CI</span></div>
   </div>
   <ul class="legend" aria-label="拼图的图例">
     <li><span class="sw ghost"></span>还没拼</li>
@@ -293,7 +297,7 @@ a.step:hover{border-color:var(--primary)}
       <ol class="chips">
         <li><a class="step done" href="#s0-1"><span class="n">0-1</span>仓库骨架<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s0-2"><span class="n">0-2</span>门禁<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">0-3</span>三平台 CI</span></li>
+        <li><a class="step done" href="#s0-3"><span class="n">0-3</span>三平台 CI<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -501,6 +505,71 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li><code>docs/designs/01-架构.md</code> 第九节「代码的分层」，这一步新画的，门禁直接读它。</li>
         <li><code>docs/construction/0-2-门禁.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s0-3" aria-labelledby="h-s03">
+  <div class="sheet-head"><h2 id="h-s03"><span class="no">0-3</span>三平台 CI</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">每次推送，GitHub 在 Linux、macOS、Windows 上各跑一遍 <code>cargo xtask check</code>。每一步的分支也推上去跑，三个平台全绿、验收通过，才合进 main。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d03">
+        <div class="d03-col">
+          <div class="tile"><span class="nm">本机</span><span class="rl">main，和每一步的 step/ 分支</span></div>
+          <div class="link">git push</div>
+          <div class="tile new"><span class="nm">GitHub：miyu-agent-remake</span><span class="rl">公开的临时仓库，做完并进 miyu-agent</span></div>
+        </div>
+        <div class="d03-col">
+          <p class="rules-title">ci.yml：三台机器各跑一遍</p>
+          <div class="tile new"><span class="nm">ubuntu-24.04</span><span class="rl">glibc 2.39，发行构建的基线</span></div>
+          <div class="tile new"><span class="nm">macos-latest</span><span class="rl">Apple 芯片</span></div>
+          <div class="tile new"><span class="nm">windows-latest</span><span class="rl">x64</span></div>
+          <ol class="pipe" aria-label="每台机器跑的检查">
+            <li class="cmd">cargo xtask check</li>
+            <li>格式</li><li>clippy</li><li>分层</li><li>纯逻辑</li><li>行数</li><li>测试</li>
+          </ol>
+        </div>
+        <div class="d03-col">
+          <div class="tile new"><span class="nm">.gitattributes</span><span class="rl">一律 LF：Windows 检出不改换行</span></div>
+          <div class="tile new"><span class="nm">施工规矩第 2 条</span><span class="rl">分支上的提交是草稿；三平台全绿、验收通过，才合进 main</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">0-3</dd></div>
+        <div><dt>名称</dt><dd>三平台 CI</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">bbd9942</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>新建公开的临时仓库，关掉 issue、wiki、projects。</li>
+        <li>公开前去掉本机路径和私有链接（提交 <code>a203c0c</code>）；提交历史没改。</li>
+        <li>CI：三台机器各跑一遍 <code>cargo xtask check</code>。</li>
+        <li><code>.gitattributes</code>：文本文件一律 LF。</li>
+        <li>规矩：每一步的分支推上去跑 CI，全绿算验收的一部分。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿：ubuntu-24.04、macOS 26（Apple 芯片）、Windows 2025，每台六项全跑</span></li>
+        <li><span class="ok">✓</span><span>项目主人验收通过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/0-3-三平台CI.md</code>：施工单就是这一步的图纸。</li>
       </ul>
     </div>
   </div>
