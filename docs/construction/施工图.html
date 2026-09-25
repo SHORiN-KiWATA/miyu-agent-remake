@@ -116,6 +116,7 @@ a.step:hover{border-color:var(--primary)}
 .tile{position:relative;display:grid;gap:1px;padding:8px 11px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel)}
 .tile .nm{font:600 13px/1.4 var(--mono)}
 .tile .rl{font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+.tile .rl.mono{word-break:break-all}
 .tile.new{border-color:var(--primary);background:var(--primary-soft)}
 .tile.new .rl{color:var(--primary-ink)}
 .tile.plan{border:1.5px dashed var(--secondary)}
@@ -191,6 +192,9 @@ a.step:hover{border-color:var(--primary)}
 #bmap .frame .shell{fill:var(--kernel-fill);stroke:var(--primary);stroke-width:1.6;stroke-dasharray:none}
 #bmap .frame .kernel-t{fill:var(--primary);opacity:1}
 #bmap .frame .kernel-s{fill:var(--ink-2);opacity:1}
+#bmap .node.frame .box{fill:var(--kernel-box);stroke:var(--primary);stroke-width:1.4;stroke-dasharray:none}
+#bmap .node.frame .t{fill:var(--ink);opacity:1}
+#bmap .node.frame .s{opacity:.85}
 /* 拼上了：照原图画 */
 #bmap .on .box{fill:var(--panel);stroke:var(--line);stroke-dasharray:none}
 #bmap .on.k-kernel .box{fill:var(--kernel-box);stroke:var(--primary)}
@@ -259,9 +263,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>3</b><span>/ 36 步<strong>已完成</strong>，M0 准备做完了</span></li>
-    <li><b>1-1</b><span>下一步：编号与时间，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">bbd9942</b><span>最近一步（0-3）的提交</span></li>
+    <li><b>4</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
+    <li><b>1-2</b><span>下一步：「谁」和内容块，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">16443c6</b><span>最近一步（1-1）的提交</span></li>
   </ul>
 </header>
 
@@ -269,7 +273,7 @@ a.step:hover{border-color:var(--primary)}
   <h2 id="h-board">拼到哪了</h2>
   <p class="sub">整个 Miyu 的架构图，先全画成虚线。每一步把做出来的那几块画实，块上标着是哪一步拼的；拼到最后，就是完整的一张。布局照 <code>docs/designs/架构全图.html</code>。</p>
   <div class="map-scroll"><div class="map-inner">
-    <svg id="bmap" viewBox="0 0 1400 1192" role="img" aria-label="Miyu 的架构图，拼好的部分画实线，还没拼的画虚线。现在只搭好了内核的框。"></svg>
+    <svg id="bmap" viewBox="0 0 1400 1192" role="img" aria-label="Miyu 的架构图，拼好的部分画实线，还没拼的画虚线。内核的框搭好了，事件日志开了个头。"></svg>
   </div></div>
   <div class="base" aria-label="地基与工具">
     <p class="base-cap">地基与工具 <span>· 不在架构图里，每一步都站在它上面</span></p>
@@ -303,7 +307,7 @@ a.step:hover{border-color:var(--primary)}
     <li>
       <div class="ms-head"><span class="ms-id">M1</span><span class="ms-name">日志与投影可信</span><span class="ms-goal">同样的日志一定投影出逐字节相同的请求</span></div>
       <ol class="chips">
-        <li><span class="step"><span class="n">1-1</span>编号与时间</span></li>
+        <li><a class="step done" href="#s1-1"><span class="n">1-1</span>编号与时间<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">1-2</span>「谁」和内容块</span></li>
         <li><span class="step"><span class="n">1-3</span>事件的外壳与编解码</span></li>
         <li><span class="step"><span class="n">1-4</span>会话与回合的事件</span></li>
@@ -575,6 +579,67 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s1-1" aria-labelledby="h-s11">
+  <div class="sheet-head"><h2 id="h-s11"><span class="no">1-1</span>编号与时间</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">内核有了最底层的几个类型：七种编号和时间。每一种都照图纸写成 JSON、从 JSON 读回来，写法不对的，读的时候就拦下。后面所有的事件都用它们。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="dir">
+        <div class="dir-label"><span class="path">miyu-kernel · id.rs、time.rs</span><span class="dir-note">JSON 里写成什么样</span></div>
+        <div class="files">
+          <div class="tile new"><span class="nm">会话编号</span><span class="rl mono">"0192f3a0-1111-7abc-8def-001122334455"</span></div>
+          <div class="tile new"><span class="nm">序号</span><span class="rl mono">45</span></div>
+          <div class="tile new"><span class="nm">回合编号</span><span class="rl mono">42</span></div>
+          <div class="tile new"><span class="nm">命令编号</span><span class="rl mono">"cmd-7f3a"</span></div>
+          <div class="tile new"><span class="nm">调用编号</span><span class="rl mono">"call_44_1"</span></div>
+          <div class="tile new"><span class="nm">账号</span><span class="rl mono">"alice"</span></div>
+          <div class="tile new"><span class="nm">内容哈希</span><span class="rl mono">"sha256:e3b0c442…b855"</span></div>
+          <div class="tile new"><span class="nm">时间</span><span class="rl mono">"2026-09-25T07:04:05.123Z"</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">1-1</dd></div>
+        <div><dt>名称</dt><dd>编号与时间</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">16443c6</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>七种编号和时间，都能写成 JSON、从 JSON 读回来。</li>
+        <li>读和写一样严：只认自己写出去的写法，对不上的报错说清哪里错。</li>
+        <li>账号照 Linux 的登录名：小写字母开头，避开 Windows 的保留名。</li>
+        <li>时间的换算自己写，没有引入日期库；内核的白名单加上 <code>serde</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>16 个测试全过：图纸上的例子读写一字不差，每条规则各有一个坏例子</span></li>
+        <li><span class="ok">✓</span><span>1600 到 2400 年一天一天数过去，和换算公式对得上</span></li>
+        <li><span class="ok">✓</span><span>故意改坏闰年规则和调用编号，5 个测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，每台都跑完 16 个测试</span></li>
+        <li><span class="ok">✓</span><span>项目主人验收通过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/03-事件模型.md</code> 第二节「编号和时间的写法」。</li>
+        <li><code>docs/designs/01-架构.md</code> 第九节的白名单。</li>
+        <li><code>docs/construction/1-1-编号与时间.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -746,7 +811,8 @@ const TREE = {
 
 /* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
 const BUILD = {
-  g_kernel: { by: '0-1', how: 'frame', note: '空壳' },
+  g_kernel: { by: '0-1', how: 'frame' },
+  k_log: { by: '1-1', how: 'frame', note: '编号与时间' },
 };
 
 const svg = document.getElementById('bmap');
