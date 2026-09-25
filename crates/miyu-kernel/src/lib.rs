@@ -7,8 +7,14 @@
 //!
 //! 设计见 `docs/designs/02-内核.md`。
 
+pub mod block;
 mod format_error;
 pub mod id;
+pub mod origin;
+pub mod raw;
 pub mod time;
+
+#[cfg(test)]
+mod test_support;
 
 pub use format_error::FormatError;

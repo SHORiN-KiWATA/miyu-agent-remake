@@ -1,21 +1,7 @@
-//! 编号的测试：图纸上的例子读写一字不差；每一条规则各有一个坏例子，证明读的时候拦得下。
-
-use serde::Serialize;
-use serde::de::DeserializeOwned;
+//! 编号和名字的测试：图纸上的例子读写一字不差；每一条规则各有一个坏例子，证明读的时候拦得下。
 
 use super::*;
-
-/// 从 JSON 读进来，再写出去，要和原文一字不差。
-fn round_trip<T: Serialize + DeserializeOwned>(json: &str) {
-    let value: T = serde_json::from_str(json).unwrap();
-    assert_eq!(serde_json::to_string(&value).unwrap(), json);
-}
-
-/// 从 JSON 读，要被拦下，报错里说清错在哪。
-fn rejected<T: DeserializeOwned + fmt::Debug>(json: &str, why: &str) {
-    let err = serde_json::from_str::<T>(json).unwrap_err().to_string();
-    assert!(err.contains(why), "{json} 的报错里没有「{why}」：{err}");
-}
+use crate::test_support::{rejected, round_trip};
 
 #[test]
 fn samples_from_the_drawing_round_trip() {
@@ -127,4 +113,51 @@ fn error_says_what_why_and_what_was_read() {
 fn long_text_in_errors_is_cut() {
     let err = CommandId::parse(&"x".repeat(200)).unwrap_err();
     assert_eq!(err.text, format!("{}…", "x".repeat(80)));
+}
+
+#[test]
+fn names_from_the_drawing_round_trip() {
+    round_trip::<ModuleId>(r#""memory""#);
+    round_trip::<DriverFamily>(r#""openai-chat""#);
+    round_trip::<VenueId>(r#""qq:group:123456""#);
+    round_trip::<ExternalId>(r#""qq:10086""#);
+    round_trip::<ProviderId>(r#""deepseek""#);
+    round_trip::<ModelName>(r#""deepseek-v4""#);
+    round_trip::<MediaType>(r#""image/png""#);
+    round_trip::<FileName>(r#""报告.pdf""#);
+}
+
+#[test]
+fn module_and_driver_names_follow_the_account_rule() {
+    rejected::<ModuleId>(r#""Memory""#, "小写英文字母开头");
+    rejected::<DriverFamily>(r#""openai.chat""#, "只能用小写字母");
+    rejected::<ModuleId>(r#""nul""#, "Windows 保留");
+}
+
+#[test]
+fn short_names_are_opaque_but_bounded() {
+    round_trip::<ModelName>(r#""qwen/qwen3-235b-a22b@2026-07""#);
+    rejected::<ProviderId>(r#""""#, "不能是空的");
+    rejected::<VenueId>(&format!("\"{}\"", "v".repeat(129)), "128 字节");
+    rejected::<ExternalId>(r#""qq:\u000710086""#, "控制字符");
+}
+
+#[test]
+fn media_type_is_lowercase_type_slash_subtype() {
+    round_trip::<MediaType>(
+        r#""application/vnd.openxmlformats-officedocument.wordprocessingml.document""#,
+    );
+    rejected::<MediaType>(r#""image""#, "类型/子类型");
+    rejected::<MediaType>(r#""Image/PNG""#, "小写字母");
+    rejected::<MediaType>(r#""image/png/x""#, "小写字母");
+    rejected::<MediaType>(r#""image/""#, "小写字母");
+}
+
+#[test]
+fn file_name_is_a_name_not_a_path() {
+    rejected::<FileName>(r#""../etc/passwd""#, "/");
+    rejected::<FileName>(r#""a\\b.txt""#, "/");
+    rejected::<FileName>(r#""..""#, ". 或 ..");
+    rejected::<FileName>(r#""""#, "不能是空的");
+    rejected::<FileName>(&format!("\"{}\"", "报".repeat(86)), "255 字节");
 }

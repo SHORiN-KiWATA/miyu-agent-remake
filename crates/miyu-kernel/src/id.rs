@@ -1,4 +1,5 @@
-//! 编号：会话、序号、回合、命令、调用、账号、内容哈希。
+//! 编号和名字：会话、序号、回合、命令、调用、账号、内容哈希，以及模块、驱动家族、场所、
+//! 外部身份、供应商、模型、媒体类型、文件名。
 //!
 //! 写法见 `docs/designs/03-事件模型.md` 第二节「编号和时间的写法」。
 //! 读和写一样严：写出去是什么样，读进来就只认什么样。
@@ -10,7 +11,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::format_error::FormatError;
 
-/// 用字符串存的编号。每一种只是检查的规则不同，其余都一样：
+/// 用字符串存的编号和名字。每一种只是检查的规则不同，其余都一样：
 /// `parse` 按规则检查，JSON 里是字符串，读的时候照样检查。
 macro_rules! text_id {
     ($(#[$doc:meta])* $name:ident, $what:literal, $check:path) => {
@@ -60,14 +61,14 @@ text_id!(
     /// 命令编号：发送方生成，1 到 128 字节，不含控制字符。它会写进每一条事件的 `cause`。
     CommandId,
     "命令编号",
-    check_command
+    check_short_text
 );
 
 text_id!(
     /// 账号：相当于 Linux 的登录名，会出现在路径 `home/<账号>/` 里。给人看的名字另起。
     AccountId,
     "账号",
-    check_account
+    check_name
 );
 
 text_id!(
@@ -75,6 +76,62 @@ text_id!(
     ContentHash,
     "内容哈希",
     check_content_hash
+);
+
+text_id!(
+    /// 模块：清单里的 `id`。会出现在路径 `home/<账号>/modules/<模块>/` 里，所以规则和账号一样。
+    ModuleId,
+    "模块",
+    check_name
+);
+
+text_id!(
+    /// 驱动家族：驱动用它认领属于自己的私有数据（`05-内核接口.md` 第七节）。
+    DriverFamily,
+    "驱动家族",
+    check_name
+);
+
+text_id!(
+    /// 场所：一个群、一个私聊、桌面语音这样的地方。内核不解读。
+    VenueId,
+    "场所",
+    check_short_text
+);
+
+text_id!(
+    /// 外部身份：通讯平台上说话的人，由桥担保。内核不解读。
+    ExternalId,
+    "外部身份",
+    check_short_text
+);
+
+text_id!(
+    /// 供应商：配置里 `[providers.<名字>]` 的名字。
+    ProviderId,
+    "供应商",
+    check_short_text
+);
+
+text_id!(
+    /// 模型：照供应商那边的叫法原样记。
+    ModelName,
+    "模型",
+    check_short_text
+);
+
+text_id!(
+    /// 媒体类型：小写的「类型/子类型」，例如 `image/png`。
+    MediaType,
+    "媒体类型",
+    check_media_type
+);
+
+text_id!(
+    /// 文件名：给人看的名字，不是路径。
+    FileName,
+    "文件名",
+    check_file_name
 );
 
 fn is_lower_hex(b: u8) -> bool {
@@ -97,7 +154,8 @@ fn check_session(text: &str) -> Result<(), &'static str> {
     Ok(())
 }
 
-fn check_command(text: &str) -> Result<(), &'static str> {
+/// 1 到 128 字节，不含控制字符。内核不解读的短名字都用它。
+fn check_short_text(text: &str) -> Result<(), &'static str> {
     if text.is_empty() {
         return Err("不能是空的");
     }
@@ -116,7 +174,9 @@ const WINDOWS_RESERVED: [&str; 22] = [
     "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
 ];
 
-fn check_account(text: &str) -> Result<(), &'static str> {
+/// 会出现在路径里的名字：小写英文字母开头，只用小写字母、数字、`-`、`_`，最长 32 个字符，
+/// 避开 Windows 的保留名。
+fn check_name(text: &str) -> Result<(), &'static str> {
     match text.chars().next() {
         None => return Err("不能是空的"),
         Some('a'..='z') => {}
@@ -146,6 +206,44 @@ fn check_content_hash(text: &str) -> Result<(), &'static str> {
     }
     if !hex.bytes().all(is_lower_hex) {
         return Err("只能用小写十六进制");
+    }
+    Ok(())
+}
+
+fn check_media_type(text: &str) -> Result<(), &'static str> {
+    let Some((kind, sub)) = text.split_once('/') else {
+        return Err("写成 类型/子类型");
+    };
+    let part = |p: &str| {
+        !p.is_empty()
+            && p.bytes().all(|b| {
+                matches!(b, b'a'..=b'z' | b'0'..=b'9' | b'!' | b'#' | b'$' | b'&' | b'^' | b'_' | b'.' | b'+' | b'-')
+            })
+    };
+    if !part(kind) || !part(sub) {
+        return Err("只能用小写字母、数字和 !#$&^_.+-");
+    }
+    if text.len() > 127 {
+        return Err("最长 127 个字符");
+    }
+    Ok(())
+}
+
+fn check_file_name(text: &str) -> Result<(), &'static str> {
+    if text.is_empty() {
+        return Err("不能是空的");
+    }
+    if text.len() > 255 {
+        return Err("最长 255 字节");
+    }
+    if text
+        .chars()
+        .any(|c| c.is_control() || c == '/' || c == '\\')
+    {
+        return Err("不能有控制字符、/ 或 \\");
+    }
+    if text == "." || text == ".." {
+        return Err("不能是 . 或 ..");
     }
     Ok(())
 }
