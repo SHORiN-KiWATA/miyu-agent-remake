@@ -263,9 +263,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>8</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
-    <li><b>1-6</b><span>现在：上下文的事件，<strong>施工中</strong></span></li>
-    <li><b class="mono">f8b4906</b><span>最近一步（1-5）的提交</span></li>
+    <li><b>9</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
+    <li><b>1-7</b><span>下一步：内存里的日志，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">d4f7d25</b><span>最近一步（1-6）的提交</span></li>
   </ul>
 </header>
 
@@ -312,7 +312,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s1-3"><span class="n">1-3</span>事件的外壳与编解码<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-4"><span class="n">1-4</span>会话与回合的事件<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-5"><span class="n">1-5</span>消息与工具结果的事件<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">1-6</span>上下文的事件</span></li>
+        <li><a class="step done" href="#s1-6"><span class="n">1-6</span>上下文的事件<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">1-7</span>内存里的日志</span></li>
         <li><span class="step"><span class="n">1-8</span>统一的请求</span></li>
         <li><span class="step"><span class="n">1-9</span>有效历史（上）</span></li>
@@ -932,6 +932,83 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s1-6" aria-labelledby="h-s16">
+  <div class="sheet-head"><h2 id="h-s16"><span class="no">1-6</span>上下文的事件</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">注入进上下文的事实和压缩的检查点能读写了。M1 后面几步要靠它们：有效历史从最近一次压缩算起，事实注入要和同类块比。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">上下文 · event/context.rs</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">context.injected</span><span class="rl">类别 kind，加发给模型的原文 text，以后一字不改地回放</span></div>
+              <div class="tile new"><span class="nm">context.compacted</span><span class="rl">替代到哪一条 upto，加摘要 summary</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">名字 · id.rs</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">FactKind</span><span class="rl">事实块的类别，规则和模块名一样</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">样本 · docs/designs/samples/events/</span><span class="dir-note">接着 1-5 的会话</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">43 号</span><span class="rl">回合开始时注入的环境</span></div>
+              <div class="tile new"><span class="nm">53 号</span><span class="rl">撤销之后的一次手动压缩，替代到 52</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">注入存原文</span><span class="rl">发过的原样回放，不存字段再套模板</span></div>
+          <div class="tile new"><span class="nm">位置不写进事件</span><span class="rl">从日志的先后、回合的触发和类别推出来</span></div>
+          <div class="tile new"><span class="nm">其余几种挪走</span><span class="rl">model.called 随 1-8，子会话和后台命令随 M7，瞬时事件随 2-2、2-4、3-5（项目主人定）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">1-6</dd></div>
+        <div><dt>名称</dt><dd>上下文的事件</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">d4f7d25</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>两种事件照图纸读写：<code>context.injected</code>、<code>context.compacted</code>。</li>
+        <li>加了一种名字：事实块的类别 <code>FactKind</code>。</li>
+        <li>两份新样本，一共 11 份。样本测试没改，自己就查到了新加的两种。</li>
+        <li>08 的渲染表补上 <code>job.reported</code> 一行，写法随 M7 定。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>64 个测试全过，新加 2 个；类别也补进了名字的两个测试</span></li>
+        <li><span class="ok">✓</span><span>故意改坏六处（类别的规矩、upto 的名字、种类名、原文可以不写、删一份样本、样本的时间倒了），每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 64 个测试）</span></li>
+        <li><span class="ok">✓</span><span>项目主人验收通过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/03-事件模型.md</code> 第三节「上下文的事件怎么写」。</li>
+        <li><code>docs/designs/samples/events/</code>：11 份样本。</li>
+        <li><code>docs/construction/1-6-上下文的事件.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -1104,7 +1181,7 @@ const TREE = {
 /* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
 const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
-  k_log: { by: '1-1', how: 'frame', note: '编号、谁、内容块、外壳，9 种事件' },
+  k_log: { by: '1-1', how: 'frame', note: '编号、谁、内容块、外壳，11 种事件' },
 };
 
 const svg = document.getElementById('bmap');
