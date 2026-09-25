@@ -1,0 +1,6 @@
+# 钉死版本，不跟着 stable 漂：clippy 每个版本都会加新的检查，跟着漂，没改代码 CI 也会变红。
+# 升级工具链单独做一步。
+[toolchain]
+channel = "1.97.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]

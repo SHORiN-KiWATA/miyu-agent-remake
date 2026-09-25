@@ -1,0 +1,24 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+publish = false
+
+# 每一条的理由见 docs/construction/0-1-仓库骨架.md「我定的」。
+[workspace.lints.rust]
+# 以后确实要用 unsafe 的 crate（例如沙盒助手），只在它自己那里放开。
+unsafe_code = "forbid"
+# 不吞错误：必须处理的返回值不许不理。
+unused_must_use = "deny"
+
+[workspace.lints.clippy]
+# 不吞错误：不许用 `let _ =` 或 `.ok()` 把错误悄悄扔掉。真要扔，写 #[expect(..., reason = "...")]。
+let_underscore_must_use = "deny"
+unused_result_ok = "deny"
+# 读到坏数据要报错，不能直接崩。测试里允许，见 clippy.toml。
+unwrap_used = "deny"

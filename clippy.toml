@@ -1,0 +1,2 @@
+# 测试里的 unwrap 就是断言，允许。非测试代码里仍然禁止，见 Cargo.toml。
+allow-unwrap-in-tests = true
