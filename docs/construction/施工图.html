@@ -263,9 +263,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>6</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
-    <li><b>1-4</b><span>下一步：会话与回合的事件，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">284e102</b><span>最近一步（1-3）的提交</span></li>
+    <li><b>7</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
+    <li><b>1-5</b><span>下一步：消息、工具、提问的事件，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">e85d891</b><span>最近一步（1-4）的提交</span></li>
   </ul>
 </header>
 
@@ -310,7 +310,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s1-1"><span class="n">1-1</span>编号与时间<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-2"><span class="n">1-2</span>「谁」和内容块<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-3"><span class="n">1-3</span>事件的外壳与编解码<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">1-4</span>会话与回合的事件</span></li>
+        <li><a class="step done" href="#s1-4"><span class="n">1-4</span>会话与回合的事件<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">1-5</span>消息、工具、提问的事件</span></li>
         <li><span class="step"><span class="n">1-6</span>其余的事件</span></li>
         <li><span class="step"><span class="n">1-7</span>内存里的日志</span></li>
@@ -488,6 +488,7 @@ a.step:hover{border-color:var(--primary)}
       <h3>做了什么</h3>
       <ul>
         <li>门禁程序 <code>xtask</code>：<code>cargo xtask check</code> 一条命令跑完格式、clippy、三道门禁、测试。</li>
+        <li>2026-09-26 补：1-4 在 clippy 后面加了一道「文档」，现在一共七项，见 1-4 那张。</li>
         <li>分层：每个 crate 都要登记，只能依赖同层和更低层，谁都不许依赖工具 crate。</li>
         <li>纯逻辑：内核和模块两层只用白名单里的外部 crate；<code>src/</code> 里不许读写文件、联网、读时钟、打印，也不许用 <code>HashMap</code>（施工中加的一条）。</li>
         <li>行数：每个 <code>.rs</code> 文件不超过 500 行。</li>
@@ -777,6 +778,83 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s1-4" aria-labelledby="h-s14">
+  <div class="sheet-head"><h2 id="h-s14"><span class="no">1-4</span>会话与回合的事件</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">六种事件能读写了。第一次出现用字符串写的取值，比如回合结束的原因；读到新版本才有的取值，原样留着。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">会话 · event/session.rs</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">session.created</span><span class="rl">属主、场所、策略快照、开始时的权限</span></div>
+              <div class="tile new"><span class="nm">session.policy_changed</span><span class="rl">换策略快照，或者换权限</span></div>
+              <div class="tile new"><span class="nm">session.meta_changed</span><span class="rl">标题、置顶</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">回合 · event/turn.rs</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">turn.started</span><span class="rl mono">{"trigger":41}</span></div>
+              <div class="tile new"><span class="nm">turn.ended</span><span class="rl">completed · interrupted · error · step_limit · aborted</span></div>
+              <div class="tile new"><span class="nm">turn.reverted</span><span class="rl mono">{"turns":[42,50]}</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">每一轮都由一条事件引起</span><span class="rl">trigger 只写那条事件的序号，是什么引起的看它的种类</span></div>
+          <div class="tile new"><span class="nm">不认识的取值原样留着</span><span class="rl">text_enum.rs：认识的读成对应的一种，不认识的留成 Other</span></div>
+          <div class="tile new"><span class="nm">事件的种类是一张表</span><span class="rl">一种一行；加一种只加一行，读写和名字照表生成</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">1-4</dd></div>
+        <div><dt>名称</dt><dd>会话与回合的事件</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">e85d891</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>三种会话事件、三种回合事件，都照图纸读写。</li>
+        <li>权限写成两格：常用的一级，加只读开关。</li>
+        <li>用字符串写的取值有了统一写法，读到不认识的原样留着。</li>
+        <li>事件的种类改成一张表，加一种只加一行。</li>
+        <li>顺带，单独一个提交（<code>f458cec</code>）：内核的注释照 Rust 文档注释惯例补齐，引用的设计文档逐条对过原文。缺注释、缺 <code># Errors</code>、缺 <code># Panics</code>，门禁都拦。</li>
+        <li>门禁在 clippy 后面多了一道「文档」（<code>12407c8</code>）：<code>cargo doc</code> 连私有的一起生成，有一条警告就报红。现在七项：格式、clippy、文档、分层、纯逻辑、行数、测试。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>51 个测试全过，新加 12 个：图纸上的每种读写一字不差、认得出种类，每个取值认得出</span></li>
+        <li><span class="ok">✓</span><span>故意改坏三处（不认识的取值、种类名、取值的写法），6 个测试变红</span></li>
+        <li><span class="ok">✓</span><span>故意删掉一处注释、一处 <code># Errors</code>、一处 <code># Panics</code>，门禁三处都报红</span></li>
+        <li><span class="ok">✓</span><span>故意在私有函数的注释里放一个断链、在公开类型的注释里写一个没闭合的 <code>Vec&lt;Event&gt;</code>，两次都只有「文档」一项报红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 51 个测试）</span></li>
+        <li><span class="ok">✓</span><span>项目主人验收通过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/03-事件模型.md</code> 第三节「会话与回合的事件怎么写」。</li>
+        <li><code>docs/construction/1-4-会话与回合的事件.md</code>：施工单。</li>
+        <li><code>docs/construction/0-2-门禁.md</code>「我定的」：门禁加「文档」的补记。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -949,7 +1027,7 @@ const TREE = {
 /* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
 const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
-  k_log: { by: '1-1', how: 'frame', note: '编号、谁、内容块、外壳' },
+  k_log: { by: '1-1', how: 'frame', note: '编号、谁、内容块、外壳、会话与回合的事件' },
 };
 
 const svg = document.getElementById('bmap');
