@@ -12,8 +12,12 @@ use crate::raw::{self, RawJson};
 use crate::time::Timestamp;
 
 mod message;
+mod session;
+mod turn;
 
 pub use message::MessageUser;
+pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated};
+pub use turn::{EndReason, TurnEnded, TurnReverted, TurnStarted};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Event {
@@ -27,36 +31,57 @@ pub struct Event {
     pub body: Body,
 }
 
-/// 事件的种类，连同它自己的内容。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Body {
-    MessageUser(MessageUser),
-    /// 不认识的种类，包括不认识的 `ext.*`：`body` 原样留着，投影跳过它。
-    Unknown {
-        kind: EventKind,
-        body: RawJson,
-    },
+/// 事件的种类：每一种写一行，类型和它在 JSON 里的名字。
+/// `Body` 本身、`kind`、按种类读、写出去，都照这一张表生成，加一种只加一行。
+macro_rules! bodies {
+    ($($variant:ident = $kind:literal,)+) => {
+        /// 事件的种类，连同它自己的内容。
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        pub enum Body {
+            $($variant($variant),)+
+            /// 不认识的种类，包括不认识的 `ext.*`：`body` 原样留着，投影跳过它。
+            Unknown { kind: EventKind, body: RawJson },
+        }
+
+        impl Body {
+            /// 外壳里 `kind` 那一格写的名字。
+            pub fn kind(&self) -> &str {
+                match self {
+                    $(Body::$variant(_) => $kind,)+
+                    Body::Unknown { kind, .. } => kind.as_str(),
+                }
+            }
+
+            /// 按种类读 `body`。认识的种类读不出来是坏数据，报错写明是哪一种。
+            fn read(kind: EventKind, body: RawJson) -> Result<Body, String> {
+                let read = match kind.as_str() {
+                    $($kind => raw::parse(body.get()).map(Body::$variant),)+
+                    _ => return Ok(Body::Unknown { kind, body }),
+                };
+                read.map_err(|e| format!("{kind} 的 body 读不出来：{e}"))
+            }
+        }
+
+        /// `body` 只写它自己的内容；种类写在外壳的 `kind` 里。
+        impl Serialize for Body {
+            fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+                match self {
+                    $(Body::$variant(body) => body.serialize(s),)+
+                    Body::Unknown { body, .. } => body.serialize(s),
+                }
+            }
+        }
+    };
 }
 
-impl Body {
-    /// 外壳里 `kind` 那一格写的名字。
-    pub fn kind(&self) -> &str {
-        match self {
-            Body::MessageUser(_) => "message.user",
-            Body::Unknown { kind, .. } => kind.as_str(),
-        }
-    }
-
-    /// 按种类读 `body`。认识的种类读不出来是坏数据，报错写明是哪一种。
-    fn read(kind: EventKind, body: RawJson) -> Result<Body, String> {
-        let known = |read: serde_json::Result<Body>| {
-            read.map_err(|e| format!("{kind} 的 body 读不出来：{e}"))
-        };
-        match kind.as_str() {
-            "message.user" => known(raw::parse(body.get()).map(Body::MessageUser)),
-            _ => Ok(Body::Unknown { kind, body }),
-        }
-    }
+bodies! {
+    SessionCreated = "session.created",
+    PolicyChanged = "session.policy_changed",
+    MetaChanged = "session.meta_changed",
+    TurnStarted = "turn.started",
+    TurnEnded = "turn.ended",
+    TurnReverted = "turn.reverted",
+    MessageUser = "message.user",
 }
 
 impl Event {
@@ -113,16 +138,6 @@ impl Serialize for Event {
             body: &self.body,
         }
         .serialize(s)
-    }
-}
-
-/// `body` 只写它自己的内容；种类写在外壳的 `kind` 里。
-impl Serialize for Body {
-    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        match self {
-            Body::MessageUser(body) => body.serialize(s),
-            Body::Unknown { body, .. } => body.serialize(s),
-        }
     }
 }
 

@@ -13,6 +13,7 @@ mod format_error;
 pub mod id;
 pub mod origin;
 pub mod raw;
+mod text_enum;
 pub mod time;
 
 #[cfg(test)]
