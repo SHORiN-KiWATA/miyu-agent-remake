@@ -263,9 +263,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>4</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
-    <li><b>1-2</b><span>下一步：「谁」和内容块，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">16443c6</b><span>最近一步（1-1）的提交</span></li>
+    <li><b>5</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
+    <li><b>1-3</b><span>下一步：事件的外壳与编解码，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">929d7de</b><span>最近一步（1-2）的提交</span></li>
   </ul>
 </header>
 
@@ -308,7 +308,7 @@ a.step:hover{border-color:var(--primary)}
       <div class="ms-head"><span class="ms-id">M1</span><span class="ms-name">日志与投影可信</span><span class="ms-goal">同样的日志一定投影出逐字节相同的请求</span></div>
       <ol class="chips">
         <li><a class="step done" href="#s1-1"><span class="n">1-1</span>编号与时间<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">1-2</span>「谁」和内容块</span></li>
+        <li><a class="step done" href="#s1-2"><span class="n">1-2</span>「谁」和内容块<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">1-3</span>事件的外壳与编解码</span></li>
         <li><span class="step"><span class="n">1-4</span>会话与回合的事件</span></li>
         <li><span class="step"><span class="n">1-5</span>消息、工具、提问的事件</span></li>
@@ -640,6 +640,85 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s1-2" aria-labelledby="h-s12">
+  <div class="sheet-head"><h2 id="h-s12"><span class="no">1-2</span>「谁」和内容块</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">事件的两块零件能读写了：<code>by</code>，这件事由谁引起；内容块，消息和工具结果由它们组成。读到新版本才有的种类，不报错，原样留着。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">by · origin.rs</span><span class="dir-note">用 kind 分开七种</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">person</span><span class="rl mono">"account":"alice"</span></div>
+              <div class="tile new"><span class="nm">external</span><span class="rl mono">"venue":"qq:group:123456","id":"qq:10086"</span></div>
+              <div class="tile new"><span class="nm">model</span><span class="rl mono">"endpoint":"deepseek","model":"deepseek-v4"</span></div>
+              <div class="tile new"><span class="nm">tool</span><span class="rl mono">"call_id":"call_44_1"</span></div>
+              <div class="tile new"><span class="nm">module</span><span class="rl mono">"id":"memory"</span></div>
+              <div class="tile new"><span class="nm">session</span><span class="rl mono">"id":"0192f3a0-…"</span></div>
+              <div class="tile new"><span class="nm">kernel</span><span class="rl">没有别的字段</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">内容块 · block.rs</span><span class="dir-note">用 type 分开五种</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">text</span><span class="rl">文本</span></div>
+              <div class="tile new"><span class="nm">reasoning</span><span class="rl">思考，可以带驱动私有数据</span></div>
+              <div class="tile new"><span class="nm">image</span><span class="rl">blob、媒体类型、宽和高</span></div>
+              <div class="tile new"><span class="nm">file</span><span class="rl">blob、文件名、媒体类型</span></div>
+              <div class="tile new"><span class="nm">tool_call</span><span class="rl">调用编号、工具名、参数原文</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">三条规矩</p>
+          <div class="tile new"><span class="nm">不认识的原样留着</span><span class="rl">新版本加的种类，读进来、写出去一字不差，投影跳过（raw.rs）</span></div>
+          <div class="tile new"><span class="nm">私有数据一个字节不改</span><span class="rl">例如思考块的签名，原样带回给同一类驱动</span></div>
+          <div class="tile new"><span class="nm">工具名和参数不检查</span><span class="rl">模型说了什么就记什么；错了是执行时报给模型的错</span></div>
+          <div class="tile new"><span class="nm">id.rs 补了八种名字</span><span class="rl">模块、驱动家族、场所、外部身份、供应商、模型、媒体类型、文件名</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">1-2</dd></div>
+        <div><dt>名称</dt><dd>「谁」和内容块</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">929d7de</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>by</code> 的七种、内容块的五种，都能照图纸写成 JSON、从 JSON 读回来。</li>
+        <li>读到不认识的种类，整块原样留着，写出去一字不差。</li>
+        <li>驱动私有数据用原样的 JSON 存，一个字节不改。</li>
+        <li>内核的白名单加上 <code>serde_json</code>，比原计划提前了一步。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>31 个测试全过，新加 15 个：图纸上每个例子读写一字不差，而且认得出种类</span></li>
+        <li><span class="ok">✓</span><span>故意改坏三处（种类名写错两处、原样的 JSON 被规整），7 个测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，每台都跑完 31 个测试</span></li>
+        <li><span class="ok">✓</span><span>项目主人验收通过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/03-事件模型.md</code> 第二节（<code>by</code>、补的几种名字）和第四节（内容块）。</li>
+        <li><code>docs/construction/1-2-谁和内容块.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -812,7 +891,7 @@ const TREE = {
 /* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
 const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
-  k_log: { by: '1-1', how: 'frame', note: '编号与时间' },
+  k_log: { by: '1-1', how: 'frame', note: '编号、谁、内容块' },
 };
 
 const svg = document.getElementById('bmap');
