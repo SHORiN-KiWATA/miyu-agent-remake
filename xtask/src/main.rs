@@ -1,4 +1,4 @@
-//! 门禁程序。`cargo xtask check` 依次跑格式、clippy、三道门禁和测试，最后打一张结果表。
+//! 门禁程序。`cargo xtask check` 依次跑格式、clippy、文档、三道门禁和测试，最后打一张结果表。
 //!
 //! 三道门禁都照图纸查：`docs/designs/01-架构.md` 第九节「代码的分层」。
 //! 里面的 cargo 一个接一个跑，不并行。
@@ -39,7 +39,7 @@ fn check() -> ExitCode {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
 
     let mut outcomes = vec![
-        cargo_step(&cargo, &root, "格式", &["fmt", "--all", "--check"]),
+        cargo_step(&cargo, &root, "格式", &["fmt", "--all", "--check"], &[]),
         cargo_step(
             &cargo,
             &root,
@@ -53,6 +53,22 @@ fn check() -> ExitCode {
                 "-D",
                 "warnings",
             ],
+            &[],
+        ),
+        // 注释里的链接断了、写法坏了，生成文档时才看得出来，所以警告也当错。
+        // 私有的也要生成：只生成公开的，私有代码注释里的断链查不出来。
+        cargo_step(
+            &cargo,
+            &root,
+            "文档",
+            &[
+                "doc",
+                "--workspace",
+                "--no-deps",
+                "--document-private-items",
+                "--quiet",
+            ],
+            &[("RUSTDOCFLAGS", "-D warnings")],
         ),
     ];
     outcomes.extend(gates(&cargo, &root));
@@ -61,14 +77,28 @@ fn check() -> ExitCode {
         &root,
         "测试",
         &["test", "--workspace", "--quiet"],
+        &[],
     ));
     report(&outcomes)
 }
 
-/// 跑一条 cargo 命令，输出照常打在终端上。
-fn cargo_step(cargo: &str, root: &Path, name: &'static str, args: &[&str]) -> Outcome {
-    println!("\n── {name}：cargo {} ──", args.join(" "));
-    let problems = match Command::new(cargo).args(args).current_dir(root).status() {
+/// 跑一条 cargo 命令，输出照常打在终端上。`env` 是只加给这一条命令的环境变量，
+/// 标题里照样打出来，方便照着手动重跑。
+fn cargo_step(
+    cargo: &str,
+    root: &Path,
+    name: &'static str,
+    args: &[&str],
+    env: &[(&str, &str)],
+) -> Outcome {
+    let shown: String = env.iter().map(|(k, v)| format!("{k}=\"{v}\" ")).collect();
+    println!("\n── {name}：{shown}cargo {} ──", args.join(" "));
+    let problems = match Command::new(cargo)
+        .args(args)
+        .envs(env.iter().copied())
+        .current_dir(root)
+        .status()
+    {
         Ok(status) if status.success() => Vec::new(),
         Ok(status) => vec![format!(
             "cargo {} 没通过（{status}），原因见上面的输出",

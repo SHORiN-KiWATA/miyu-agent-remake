@@ -37,7 +37,7 @@
   - 第一句说它是什么；接着写为什么这样、要守的规矩、容易踩的坑；照着设计文档写的，注明出处（文件名加节号或决定编号）。
   - 会出错的函数写 `# Errors` 一节，会 panic 的写 `# Panics` 一节。
   - 私有的代码，不直白的地方写「为什么」，不复述代码在做什么。
-  - 代码改了，注释一起改。门禁拦前三条（`missing_docs`、`missing_errors_doc`、`missing_panics_doc`）。
+  - 代码改了，注释一起改。门禁拦前三条（`missing_docs`、`missing_errors_doc`、`missing_panics_doc`）；注释里的链接断了、写法坏了，门禁的「文档」一项拦。
 
 ## 三个平台
 
