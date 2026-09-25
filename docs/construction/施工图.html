@@ -1,0 +1,805 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><style>body{margin:0}</style></head><body><!-- 本地外壳：这一行和最后一行只给直接打开用，发布到网上时去掉 -->
+<title>Miyu 施工图</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@700&display=swap">
+<style>
+/* 配色和字体跟 docs/designs/架构全图.html 是同一套 */
+:root{
+  color-scheme:light;
+  --bg:#f6f0e2;--panel:#fffdf6;--panel-2:#f1eada;
+  --ink:#34303a;--ink-2:#797064;--line:#c6b795;--line-2:#e3d8c1;
+  --primary:#7568b0;--on-primary:#ffffff;--primary-soft:#e6e1f6;--primary-ink:#372e66;
+  --secondary:#8f6b1e;--secondary-soft:#f3e2bb;
+  --ok:#3e8e5c;--ok-soft:#dcefe2;
+  --grid:rgba(117,104,176,.075);--pure:#ece8f5;
+  --tertiary:#a5495a;--on-tertiary:#ffffff;
+  --core-fill:#f0e8d6;--kernel-fill:#ece8f5;--kernel-box:#f9f7fd;--store-fill:#f5ebd2;
+  --sans:"Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  --serif:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;
+  --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --gutter:24px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#171821;--panel:#1f212c;--panel-2:#282b38;
+    --ink:#e9e6ef;--ink-2:#9993a5;--line:#4c5065;--line-2:#303341;
+    --primary:#aebde8;--on-primary:#1f2c55;--primary-soft:#2a3354;--primary-ink:#dce3f9;
+    --secondary:#e4bf79;--secondary-soft:#3d3217;
+    --ok:#7ccb96;--ok-soft:#1d3326;
+    --grid:rgba(174,189,232,.06);--pure:#222740;
+    --tertiary:#e38c9a;--on-tertiary:#55212e;
+    --core-fill:#1c1d28;--kernel-fill:#222740;--kernel-box:#292f4a;--store-fill:#221f18;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#171821;--panel:#1f212c;--panel-2:#282b38;
+  --ink:#e9e6ef;--ink-2:#9993a5;--line:#4c5065;--line-2:#303341;
+  --primary:#aebde8;--on-primary:#1f2c55;--primary-soft:#2a3354;--primary-ink:#dce3f9;
+  --secondary:#e4bf79;--secondary-soft:#3d3217;
+  --ok:#7ccb96;--ok-soft:#1d3326;
+  --grid:rgba(174,189,232,.06);--pure:#222740;
+  --tertiary:#e38c9a;--on-tertiary:#55212e;
+  --core-fill:#1c1d28;--kernel-fill:#222740;--kernel-box:#292f4a;--store-fill:#221f18;
+}
+@media (max-width:640px){:root{--gutter:16px}}
+
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:15px/1.7 var(--sans);-webkit-font-smoothing:antialiased}
+.page{max-width:1160px;margin:0 auto;padding-inline:var(--gutter);padding-block:36px 72px;display:grid;gap:52px}
+a{color:var(--primary)}
+a:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:4px}
+code,.mono{font-family:var(--mono);font-size:.9em}
+h2{font:700 24px/1.3 var(--serif);margin:0;text-wrap:balance}
+h3{font:600 14px/1.4 var(--sans);margin:0 0 8px;color:var(--ink-2);letter-spacing:.04em}
+
+/* 刊头 */
+.eyebrow{margin:0;font:600 12px/1.4 var(--mono);letter-spacing:.1em;color:var(--ink-2)}
+h1{font:700 clamp(32px,4.6vw,50px)/1.15 var(--serif);margin:.3em 0 .35em;letter-spacing:.01em;text-wrap:balance}
+.lede{margin:0;max-width:62ch;font-size:16.5px;line-height:1.8}
+.facts{display:flex;flex-wrap:wrap;gap:12px 34px;margin:22px 0 0;padding:0;list-style:none}
+.facts li{display:flex;align-items:baseline;gap:9px;color:var(--ink-2);font-size:13.5px;line-height:1.4}
+.facts b{font:700 26px/1 var(--serif);color:var(--primary);font-variant-numeric:tabular-nums}
+.facts b.mono{font:600 19px/1 var(--mono)}
+.facts strong{color:var(--ink);font-weight:600}
+
+/* 工程表 */
+.sched{display:grid;gap:14px}
+.sub{margin:0;color:var(--ink-2);font-size:14px}
+.ms{list-style:none;margin:0;padding:0;display:grid;gap:0;border-top:1px solid var(--line-2)}
+.ms>li{display:grid;grid-template-columns:minmax(170px,220px) 1fr;gap:6px 22px;padding:14px 0;border-bottom:1px solid var(--line-2);align-items:start}
+.ms-head{display:grid;grid-template-columns:auto 1fr;column-gap:10px;align-items:baseline}
+.ms-id{font:600 13px/1 var(--mono);color:var(--primary)}
+.ms-name{font-weight:600}
+.ms-goal{grid-column:2;color:var(--ink-2);font-size:13px;line-height:1.5}
+.chips{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.step{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;border-radius:7px;border:1px solid var(--line-2);background:var(--panel);color:var(--ink-2);font-size:13px;line-height:1.3;text-decoration:none}
+.step .n{font:600 11.5px/1 var(--mono);color:var(--ink-2)}
+.step .st{font-size:11.5px;font-weight:600}
+a.step:hover{border-color:var(--primary)}
+.step.done{border-color:var(--ok);background:var(--ok-soft);color:var(--ink)}
+.step.done .st{color:var(--ok)}
+.step.review{border-color:var(--secondary);background:var(--secondary-soft);color:var(--ink)}
+.step.review .st{color:var(--secondary)}
+.later{color:var(--ink-2);font-size:13.5px;margin:3px 0 0}
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;margin:0;padding:0;list-style:none;color:var(--ink-2);font-size:13px}
+.legend li{display:flex;align-items:center;gap:7px}
+.sw{width:12px;height:12px;border-radius:3px;border:1px solid var(--line-2);background:var(--panel);display:inline-block}
+.sw.done{border-color:var(--ok);background:var(--ok-soft)}
+.sw.review{border-color:var(--secondary);background:var(--secondary-soft)}
+.sw.new{border-color:var(--primary);background:var(--primary-soft)}
+.sw.plan{border:1.5px dashed var(--secondary);background:transparent}
+
+/* 一步一张图纸 */
+.sheet{display:grid;gap:16px}
+.sheet-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px}
+.sheet-head .no{font:600 .72em/1 var(--mono);color:var(--primary);margin-right:.5em;vertical-align:.12em}
+.pill{display:inline-block;font:600 12px/1 var(--sans);padding:5px 9px;border-radius:999px;border:1px solid}
+.pill.done{color:var(--ok);border-color:var(--ok);background:var(--ok-soft)}
+.pill.review{color:var(--secondary);border-color:var(--secondary);background:var(--secondary-soft)}
+.purpose{margin:0;max-width:66ch}
+.frame{margin:0;border:1.5px solid var(--line);border-radius:6px;background:var(--panel);overflow:hidden}
+.drawing{padding:22px;overflow-x:auto;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:24px 24px;background-position:-1px -1px}
+.titleblock{border-top:1.5px solid var(--line);display:flex;justify-content:flex-end}
+.titleblock dl{margin:0;display:grid;grid-template-columns:repeat(5,auto);border-left:1px solid var(--line-2)}
+.titleblock dl>div{padding:7px 14px;border-right:1px solid var(--line-2)}
+.titleblock dl>div:last-child{border-right:0}
+.titleblock dt{font:600 10.5px/1.3 var(--mono);letter-spacing:.08em;color:var(--ink-2)}
+.titleblock dd{margin:0;font-size:13.5px;line-height:1.5;white-space:nowrap}
+.titleblock dd.mono{font-family:var(--mono);font-size:12.5px}
+
+/* 图里的零件 */
+.tile{position:relative;display:grid;gap:1px;padding:8px 11px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel)}
+.tile .nm{font:600 13px/1.4 var(--mono)}
+.tile .rl{font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+.tile.new{border-color:var(--primary);background:var(--primary-soft)}
+.tile.new .rl{color:var(--primary-ink)}
+.tile.plan{border:1.5px dashed var(--secondary)}
+.tile.new::after,.tile.plan::after{position:absolute;top:-8px;right:8px;font:600 10.5px/1 var(--sans);padding:3px 6px;border-radius:5px}
+.tile.new::after{content:"新";background:var(--primary);color:var(--on-primary)}
+.tile.plan::after{content:"计划";background:var(--secondary);color:var(--panel)}
+.dir{display:grid;gap:10px;align-content:start;padding:12px;border:1px dashed var(--line);border-radius:8px;background:color-mix(in srgb,var(--panel) 70%,transparent)}
+.dir-label{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+.path{font:600 13px/1.3 var(--mono)}
+.dir-note{font-size:12.5px;color:var(--ink-2)}
+.files{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+
+/* 0-1 的图 */
+.d01{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(0,1fr);gap:18px;align-items:start;min-width:0}
+.d01-left{display:grid;gap:14px;min-width:0}
+.subdirs{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.rules{display:grid;gap:10px;align-content:start}
+.rules-title{margin:0;font-size:13px;font-weight:600;color:var(--ink-2)}
+
+/* 0-2 的图 */
+.d02{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:28px;align-items:start}
+.stack-wrap{display:grid;grid-template-columns:22px 1fr;gap:10px}
+.dep{display:grid;justify-items:center;grid-template-rows:auto 1fr auto;font-size:11.5px;color:var(--ink-2);writing-mode:vertical-rl;letter-spacing:.2em;text-align:center}
+.dep::after{content:"";width:1.5px;background:var(--line);margin:6px auto 0;min-height:40px;writing-mode:horizontal-tb}
+.stack{display:grid;gap:6px}
+.band{display:grid;grid-template-columns:28px 64px 1fr;align-items:center;gap:10px;min-height:46px;padding:7px 12px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel)}
+.band.pure{background:var(--pure);border-color:color-mix(in srgb,var(--primary) 35%,var(--line-2))}
+.lv{font:600 13px/1 var(--mono);color:var(--ink-2)}
+.lname{font-weight:600;font-size:14px;line-height:1.3}
+.lname small{display:block;font:500 11px/1.3 var(--sans);color:var(--primary);margin-top:2px}
+.slots{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.empty{font-size:12.5px;color:var(--ink-2)}
+.chip{font:600 12.5px/1 var(--mono);padding:6px 9px;border-radius:5px;border:1px solid var(--line);background:var(--panel)}
+.side{display:grid;gap:0;align-content:start}
+.link{display:grid;justify-items:start;padding:4px 0 4px 18px;margin-left:16px;border-left:1.5px solid var(--line);font-size:12.5px;color:var(--ink-2);min-height:34px;align-content:center}
+.pipe{list-style:none;margin:0;padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1px solid var(--primary);background:var(--primary-soft);border-radius:6px}
+.pipe li{font-size:12.5px;padding:4px 9px;border-radius:5px;background:var(--panel);color:var(--ink)}
+.pipe li+li::before{content:"→";margin-right:6px;color:var(--ink-2)}
+.pipe .cmd{flex-basis:100%;background:transparent;padding:0 0 2px;font:600 12.5px/1.4 var(--mono)}
+.pipe .cmd::before,.pipe .cmd+li::before{content:none}
+
+/* 拼到哪了：照架构全图的布局，没拼的画虚线，拼上的画实 */
+.board{display:grid;gap:14px}
+.map-scroll{overflow-x:auto;border:1.5px solid var(--line);border-radius:6px;background:var(--panel);-webkit-overflow-scrolling:touch;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:24px 24px;background-position:-1px -1px}
+.map-inner{min-width:920px;padding:10px}
+#bmap{display:block;width:100%;height:auto}
+#bmap text{font-family:var(--sans)}
+#bmap .gl{font-size:12px;font-weight:600}
+#bmap .core-tab-t{font-size:12px;font-weight:700}
+#bmap .kernel-t{font-size:18px;font-weight:700}
+#bmap .kernel-s,#bmap .s{font-size:12px}
+#bmap .t{font-size:14.5px;font-weight:600}
+#bmap .m,#bmap .plat,#bmap .tree-i{font-family:var(--mono);font-size:11px}
+#bmap .tree-h{font-family:var(--mono);font-size:11.5px;font-weight:600}
+#bmap .tree-n,#bmap .el{font-size:11px}
+#bmap .bt{font-size:12.5px}
+#bmap .cell-n{font-family:var(--mono);font-size:10px;font-weight:600}
+#bmap .cell-l{font-size:10.5px}
+/* 还没拼 */
+#bmap .box,#bmap .shell,#bmap .cell{fill:none;stroke:var(--line);stroke-width:1.1;stroke-dasharray:4 4}
+#bmap .tab{fill:none;stroke:var(--line);stroke-dasharray:3 3}
+#bmap text{fill:var(--ink-2);opacity:.5}
+#bmap .dot{fill:none;stroke:var(--line)}
+#bmap .ln{fill:none;stroke:var(--line);stroke-width:1.2;stroke-dasharray:3 4;stroke-linejoin:round;stroke-linecap:round}
+#bmap .mk{fill:var(--line)}
+/* 只搭好了框：里面还空着 */
+#bmap .frame .shell{fill:var(--kernel-fill);stroke:var(--primary);stroke-width:1.6;stroke-dasharray:none}
+#bmap .frame .kernel-t{fill:var(--primary);opacity:1}
+#bmap .frame .kernel-s{fill:var(--ink-2);opacity:1}
+/* 拼上了：照原图画 */
+#bmap .on .box{fill:var(--panel);stroke:var(--line);stroke-dasharray:none}
+#bmap .on.k-kernel .box{fill:var(--kernel-box);stroke:var(--primary)}
+#bmap .on.k-proc .box{stroke:var(--ink-2);stroke-width:1.5}
+#bmap .on.k-ext .box{stroke:var(--ink-2);stroke-dasharray:4 3}
+#bmap .on.k-bus .box{fill:var(--primary-soft);stroke:var(--primary)}
+#bmap .on text{opacity:1}
+#bmap .on .t,#bmap .on .m,#bmap .on .plat,#bmap .on .cell-l{fill:var(--ink)}
+#bmap .on .bt{fill:var(--primary-ink)}
+#bmap .on .cell{fill:var(--panel);stroke:var(--primary);stroke-dasharray:none}
+#bmap .on .cell-n{fill:var(--primary)}
+#bmap .edge.on .ln{stroke:var(--ink-2);stroke-width:1.5;stroke-dasharray:none}
+#bmap .edge.on.t-proto .ln{stroke:var(--primary)}
+#bmap .edge.on.t-store .ln{stroke:var(--secondary)}
+#bmap .edge.on.t-io .ln{stroke-dasharray:5 4}
+/* 这一步拼的，等验收 */
+#bmap .review .box,#bmap .review .shell{stroke:var(--secondary);stroke-width:1.6;stroke-dasharray:5 3}
+#bmap .review text{opacity:1}
+/* 步号标签 */
+#bmap .by rect{fill:var(--primary)}
+#bmap .by text{fill:var(--on-primary);font-family:var(--mono);font-size:10.5px;font-weight:600;opacity:1}
+#bmap .by.review rect{fill:var(--secondary)}
+#bmap .by.review text{fill:var(--panel)}
+/* 地基与工具：不在架构图里，每一步都站在它上面 */
+.base{display:flex;flex-wrap:wrap;gap:16px 10px;align-items:center;padding:18px 14px 14px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2)}
+.base-cap{margin:0 4px 0 0;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.base-cap span{font-weight:400}
+.piece{position:relative;display:inline-grid;padding:8px 11px 7px;border:1px solid var(--primary);border-radius:6px;background:var(--primary-soft)}
+.piece .nm{font:600 12.5px/1.4 var(--mono)}
+.piece .by{position:absolute;top:-9px;left:8px;font:600 10px/1 var(--mono);padding:3px 5px;border-radius:4px;background:var(--primary);color:var(--on-primary)}
+.piece.review{border:1.5px dashed var(--secondary);background:var(--panel)}
+.piece.review .by{background:var(--secondary);color:var(--panel)}
+.piece.ghost{border:1px dashed var(--line);background:transparent;color:var(--ink-2)}
+.piece.ghost .nm{opacity:.6}
+.piece.ghost .by{background:var(--line-2);color:var(--ink-2)}
+.sw.ghost{border:1px dashed var(--line);background:transparent}
+
+/* 图纸下面的三栏 */
+.notes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 28px}
+.notes ul{margin:0;padding-left:1.1em;font-size:14px;line-height:1.7}
+.notes li{margin:2px 0}
+.checks{list-style:none;padding-left:0!important}
+.checks li{display:grid;grid-template-columns:20px 1fr;gap:4px}
+.checks .ok{color:var(--ok);font-weight:700}
+.checks .wait{color:var(--secondary);font-weight:700}
+.foot{color:var(--ink-2);font-size:13px;border-top:1px solid var(--line-2);padding-top:16px}
+.foot p{margin:0;max-width:74ch}
+
+@media (max-width:900px){
+  .d01,.d02{grid-template-columns:1fr}
+  .notes{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .ms>li{grid-template-columns:1fr}
+  .titleblock dl{grid-template-columns:repeat(2,auto)}
+  .titleblock dl>div{border-bottom:1px solid var(--line-2)}
+  .drawing{padding:16px}
+}
+@media (prefers-reduced-motion:no-preference){a,.step{transition:border-color .15s}}
+</style>
+
+<div class="page">
+
+<header class="mast">
+  <p class="eyebrow">MIYU 重制版 · 施工图</p>
+  <h1>Miyu 施工图</h1>
+  <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
+  <ul class="facts">
+    <li><b>2</b><span>/ 36 步<strong>已完成</strong>，M0 到 M3</span></li>
+    <li><b>0-3</b><span>下一步：三平台 CI，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">544d6fc</b><span>最近一步（0-2）的提交</span></li>
+  </ul>
+</header>
+
+<section class="board" aria-labelledby="h-board">
+  <h2 id="h-board">拼到哪了</h2>
+  <p class="sub">整个 Miyu 的架构图，先全画成虚线。每一步把做出来的那几块画实，块上标着是哪一步拼的；拼到最后，就是完整的一张。布局照 <code>docs/designs/架构全图.html</code>。</p>
+  <div class="map-scroll"><div class="map-inner">
+    <svg id="bmap" viewBox="0 0 1400 1192" role="img" aria-label="Miyu 的架构图，拼好的部分画实线，还没拼的画虚线。现在只搭好了内核的框。"></svg>
+  </div></div>
+  <div class="base" aria-label="地基与工具">
+    <p class="base-cap">地基与工具 <span>· 不在架构图里，每一步都站在它上面</span></p>
+    <div class="piece"><span class="by">0-1</span><span class="nm">工作区</span></div>
+    <div class="piece"><span class="by">0-1</span><span class="nm">工具链 1.97.0</span></div>
+    <div class="piece"><span class="by">0-1</span><span class="nm">lint 三条</span></div>
+    <div class="piece"><span class="by">0-1</span><span class="nm">LICENSE · README · AGENTS.md</span></div>
+    <div class="piece"><span class="by">0-2</span><span class="nm">代码的六层（图纸）</span></div>
+    <div class="piece"><span class="by">0-2</span><span class="nm">门禁 xtask</span></div>
+    <div class="piece ghost"><span class="by">0-3</span><span class="nm">三平台 CI</span></div>
+  </div>
+  <ul class="legend" aria-label="拼图的图例">
+    <li><span class="sw ghost"></span>还没拼</li>
+    <li><span class="sw new"></span>拼上了，标签是哪一步</li>
+    <li><span class="sw plan"></span>这一步拼的，等验收</li>
+  </ul>
+</section>
+
+<section class="sched" aria-labelledby="h-sched">
+  <h2 id="h-sched">工程表</h2>
+  <p class="sub">M0 到 M3 拆到了每一步；M4 以后，到了跟前再拆。</p>
+  <ol class="ms">
+    <li>
+      <div class="ms-head"><span class="ms-id">M0</span><span class="ms-name">准备</span><span class="ms-goal">仓库有了规矩和门禁</span></div>
+      <ol class="chips">
+        <li><a class="step done" href="#s0-1"><span class="n">0-1</span>仓库骨架<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s0-2"><span class="n">0-2</span>门禁<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">0-3</span>三平台 CI</span></li>
+      </ol>
+    </li>
+    <li>
+      <div class="ms-head"><span class="ms-id">M1</span><span class="ms-name">日志与投影可信</span><span class="ms-goal">同样的日志一定投影出逐字节相同的请求</span></div>
+      <ol class="chips">
+        <li><span class="step"><span class="n">1-1</span>编号与时间</span></li>
+        <li><span class="step"><span class="n">1-2</span>「谁」和内容块</span></li>
+        <li><span class="step"><span class="n">1-3</span>事件的外壳与编解码</span></li>
+        <li><span class="step"><span class="n">1-4</span>会话与回合的事件</span></li>
+        <li><span class="step"><span class="n">1-5</span>消息、工具、提问的事件</span></li>
+        <li><span class="step"><span class="n">1-6</span>其余的事件</span></li>
+        <li><span class="step"><span class="n">1-7</span>内存里的日志</span></li>
+        <li><span class="step"><span class="n">1-8</span>统一的请求</span></li>
+        <li><span class="step"><span class="n">1-9</span>有效历史（上）</span></li>
+        <li><span class="step"><span class="n">1-10</span>有效历史（下）</span></li>
+        <li><span class="step"><span class="n">1-11</span>模板与转义</span></li>
+        <li><span class="step"><span class="n">1-12</span>组装请求</span></li>
+        <li><span class="step"><span class="n">1-13</span>事实注入</span></li>
+        <li><span class="step"><span class="n">1-14</span>请求形状探针</span></li>
+      </ol>
+    </li>
+    <li>
+      <div class="ms-head"><span class="ms-id">M2</span><span class="ms-name">回合可信</span><span class="ms-goal">一轮对话的各种走法都在内存里跑通</span></div>
+      <ol class="chips">
+        <li><span class="step"><span class="n">2-1</span>输入、动作、命令</span></li>
+        <li><span class="step"><span class="n">2-2</span>流式累积器</span></li>
+        <li><span class="step"><span class="n">2-3</span>最简单的一轮</span></li>
+        <li><span class="step"><span class="n">2-4</span>调工具</span></li>
+        <li><span class="step"><span class="n">2-5</span>打断</span></li>
+        <li><span class="step"><span class="n">2-6</span>中途来的消息与回报</span></li>
+        <li><span class="step"><span class="n">2-7</span>权限级别与确认</span></li>
+        <li><span class="step"><span class="n">2-8</span>载入、崩溃恢复、撤销</span></li>
+        <li><span class="step"><span class="n">2-9</span>场景测试</span></li>
+        <li><span class="step"><span class="n">2-10</span>随机测试</span></li>
+      </ol>
+    </li>
+    <li>
+      <div class="ms-head"><span class="ms-id">M3</span><span class="ms-name">第一次真对话</span><span class="ms-goal"><code>miyu ask</code> 跟真模型说上话，缓存命中有实测数字</span></div>
+      <ol class="chips">
+        <li><span class="step"><span class="n">3-1</span>数据根</span></li>
+        <li><span class="step"><span class="n">3-2</span>会话日志文件</span></li>
+        <li><span class="step"><span class="n">3-3</span>blob</span></li>
+        <li><span class="step"><span class="n">3-4</span>驱动接口与编解码</span></li>
+        <li><span class="step"><span class="n">3-5</span>HTTP 执行器</span></li>
+        <li><span class="step"><span class="n">3-6</span>策略快照</span></li>
+        <li><span class="step"><span class="n">3-7</span>会话 actor</span></li>
+        <li><span class="step"><span class="n">3-8</span>协议端点</span></li>
+        <li><span class="step"><span class="n">3-9</span>miyu ask</span></li>
+      </ol>
+    </li>
+    <li>
+      <div class="ms-head"><span class="ms-id">M4–M8</span><span class="ms-name">能干活 · 沙盒 · 长会话 · 分身 · 有界面</span></div>
+      <p class="later">到了跟前再拆。M8 的第一件事是先画界面的版式图纸。</p>
+    </li>
+  </ol>
+  <ul class="legend" aria-label="图例">
+    <li><span class="sw done"></span>已完成</li>
+    <li><span class="sw review"></span>待拍板、待验收</li>
+    <li><span class="sw"></span>未开工</li>
+  </ul>
+</section>
+
+<section class="sheet" id="s0-1" aria-labelledby="h-s01">
+  <div class="sheet-head"><h2 id="h-s01"><span class="no">0-1</span>仓库骨架</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">仓库变成一个能编译的 Rust 工作区，施工和写代码的规矩写进了仓库。这一步没有功能代码。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-agent-remake/</span><span class="dir-note">工作区的根目录</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">Cargo.toml</span><span class="rl">工作区：统一的版本、许可证和 lint</span></div>
+              <div class="tile new"><span class="nm">Cargo.lock</span><span class="rl">锁文件：每个人编出来的依赖都一样</span></div>
+              <div class="tile new"><span class="nm">rust-toolchain.toml</span><span class="rl">钉死 Rust 1.97.0</span></div>
+              <div class="tile new"><span class="nm">clippy.toml</span><span class="rl">测试里允许 unwrap</span></div>
+              <div class="tile new"><span class="nm">LICENSE</span><span class="rl">MIT · SHORiN-KiWATA</span></div>
+              <div class="tile new"><span class="nm">README.md</span><span class="rl">首页，先写中文版</span></div>
+              <div class="tile new"><span class="nm">AGENTS.md</span><span class="rl">给在这里干活的 AI 看的规矩</span></div>
+              <div class="tile new"><span class="nm">.gitignore</span><span class="rl">target/、.worktrees/、prototypes/</span></div>
+            </div>
+          </div>
+          <div class="subdirs">
+            <div class="dir">
+              <div class="dir-label"><span class="path">crates/</span><span class="dir-note">一个 crate 一个目录</span></div>
+              <div class="tile new"><span class="nm">miyu-kernel</span><span class="rl">内核。只有一段说明它是什么的注释，还没有代码</span></div>
+            </div>
+            <div class="dir">
+              <div class="dir-label"><span class="path">docs/</span></div>
+              <div class="tile"><span class="nm">designs/</span><span class="rl">设计文档 00 到 26；这一步新记了「设计有图纸」</span></div>
+              <div class="tile new"><span class="nm">construction/</span><span class="rl">施工方案和施工单，开工前单独提交</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">lint：从第一行代码起就生效</p>
+          <div class="tile new"><span class="nm">禁止 unsafe</span><span class="rl">以后只在沙盒助手自己的 crate 里放开</span></div>
+          <div class="tile new"><span class="nm">不许扔掉错误</span><span class="rl"><code>let _ =</code> 和 <code>.ok()</code> 都拦</span></div>
+          <div class="tile new"><span class="nm">非测试代码不许 unwrap</span><span class="rl">读到坏数据要报错，不能直接崩</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">0-1</dd></div>
+        <div><dt>名称</dt><dd>仓库骨架</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">69c2930</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>Cargo 工作区：edition 2024，依赖解析第 3 版，成员放在 <code>crates/</code> 下。</li>
+        <li>工具链钉死 1.97.0，不跟着 stable 漂。</li>
+        <li>第一个 crate <code>miyu-kernel</code>，只有文档注释。</li>
+        <li>许可证、首页、AGENTS.md、忽略名单。</li>
+        <li>顺带记下一条原则：每一个设计都有图纸（提交 <code>194a45d</code>）。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span><code>rustc</code> 是 1.97.0</span></li>
+        <li><span class="ok">✓</span><span>编译通过，没有警告</span></li>
+        <li><span class="ok">✓</span><span>测试通过（0 个）</span></li>
+        <li><span class="ok">✓</span><span>格式、clippy 都通过</span></li>
+        <li><span class="ok">✓</span><span>故意写四种违规，clippy 四个都拦下</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/0-1-仓库骨架.md</code>：文件表和 AGENTS.md 草稿就是这一步的图纸。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s0-2" aria-labelledby="h-s02">
+  <div class="sheet-head"><h2 id="h-s02"><span class="no">0-2</span>门禁</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">三条只写在文档里的约定，变成机器每次都查的门禁：依赖只朝一个方向，纯逻辑不碰 I/O，文件要小。以后每一步验收，只跑一条命令。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d02">
+        <div class="stack-wrap">
+          <div class="dep" aria-hidden="true">可以依赖</div>
+          <div class="stack" aria-label="代码的六层，上层可以依赖下层">
+            <div class="band"><span class="lv">6</span><span class="lname">主程序</span><div class="slots"><span class="empty">还没有 · 以后放 miyu</span></div></div>
+            <div class="band"><span class="lv">5</span><span class="lname">头</span><div class="slots"><span class="empty">还没有 · 终端界面、命令行</span></div></div>
+            <div class="band"><span class="lv">4</span><span class="lname">核心</span><div class="slots"><span class="empty">还没有 · 会话 actor、协议端点</span></div></div>
+            <div class="band"><span class="lv">3</span><span class="lname">执行器</span><div class="slots"><span class="empty">还没有 · 存储、HTTP、工具、沙盒</span></div></div>
+            <div class="band pure"><span class="lv">2</span><span class="lname">模块<small>纯逻辑</small></span><div class="slots"><span class="empty">还没有 · 请求组装、视图投影、驱动编解码</span></div></div>
+            <div class="band pure"><span class="lv">1</span><span class="lname">内核<small>纯逻辑</small></span><div class="slots"><span class="chip">miyu-kernel</span></div></div>
+          </div>
+        </div>
+        <div class="side">
+          <div class="tile new"><span class="nm">01-架构.md 第九节</span><span class="rl">图纸：六层、五条规则、白名单（还是空的）、每个文件最多 500 行</span></div>
+          <div class="link">门禁直接读图纸，代码里不另写一份</div>
+          <div class="tile new"><span class="nm">xtask</span><span class="rl">门禁本身，工具 crate，不属于任何一层。五个文件：读图纸、分层、纯逻辑、行数、找文件</span></div>
+          <div class="link">一条命令，一个接一个跑</div>
+          <ol class="pipe" aria-label="cargo xtask check 的顺序">
+            <li class="cmd">cargo xtask check</li>
+            <li>格式</li><li>clippy</li><li>分层</li><li>纯逻辑</li><li>行数</li><li>测试</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">0-2</dd></div>
+        <div><dt>名称</dt><dd>门禁</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">544d6fc</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>门禁程序 <code>xtask</code>：<code>cargo xtask check</code> 一条命令跑完格式、clippy、三道门禁、测试。</li>
+        <li>分层：每个 crate 都要登记，只能依赖同层和更低层，谁都不许依赖工具 crate。</li>
+        <li>纯逻辑：内核和模块两层只用白名单里的外部 crate；<code>src/</code> 里不许读写文件、联网、读时钟、打印，也不许用 <code>HashMap</code>（施工中加的一条）。</li>
+        <li>行数：每个 <code>.rs</code> 文件不超过 500 行。</li>
+        <li>施工图顶上换成照架构全图布局的拼图。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span><code>cargo xtask check</code> 六项全过</span></li>
+        <li><span class="ok">✓</span><span>门禁自己的 27 个测试全过</span></li>
+        <li><span class="ok">✓</span><span>故意违规：内核里加 <code>println!</code>，纯逻辑变红并指出第 9 行；多一个没登记的 crate，分层变红</span></li>
+        <li><span class="ok">✓</span><span>清理以后回到全绿</span></li>
+        <li><span class="ok">✓</span><span>项目主人验收通过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/01-架构.md</code> 第九节「代码的分层」，这一步新画的，门禁直接读它。</li>
+        <li><code>docs/construction/0-2-门禁.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
+</footer>
+
+</div>
+<script>
+/* 顶上的拼图。布局照抄 docs/designs/架构全图.html 的 W、H、GROUPS、NODES、EDGES、TREE，去掉了点开的说明；
+   几个自己画的块（核心协议、事件日志、自带软件、沙盒里的命令）里的字也照那边写。那边改了布局，这里照着改。
+   拼到哪了写在 BUILD 里：每一步合进 main 时，在这里加上它拼的那几块。 */
+(() => {
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  if (attrs) for (const k in attrs) { const v = attrs[k]; if (v !== undefined && v !== null) e.setAttribute(k, v); }
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function tx(parent, x, y, s, cls, anchor) {
+  const t = el('text', { x, y, class: cls, 'text-anchor': anchor || null }, parent);
+  t.textContent = s;
+  return t;
+}
+
+/* ↓ 布局：照抄架构全图 */
+const W = 1400, H = 1192;
+const GROUPS = [
+  { id: 'g_heads', x: 256, y: 14, w: 888, h: 128, label: '头 · 各自独立的进程，可以同时连好几个', tag: true },
+  { id: 'g_core', x: 256, y: 208, w: 888, h: 686, cls: 'core' },
+  { id: 'g_kernel', x: 472, y: 342, w: 456, h: 400, cls: 'kernel' },
+  { id: 'g_venue', x: 272, y: 342, w: 176, h: 294, label: '场所子系统 · 仿终端' },
+  { id: 'g_policy', x: 952, y: 342, w: 176, h: 400, label: '策略与模型' },
+  { id: 'g_drivers', x: 16, y: 208, w: 220, h: 532, label: '场所驱动 · 核心拉起，也是头' },
+  { id: 'g_net', x: 1164, y: 340, w: 220, h: 522, label: '外部 · 经网络' },
+  { id: 'g_dataroot', x: 16, y: 944, w: 388, h: 236, cls: 'store', label: '数据根 · 真相只有四种' },
+  { id: 'g_children', x: 420, y: 944, w: 964, h: 236, label: '核心的子进程 · 随核心退出' },
+];
+const NODES = [
+  // heads
+  { id: 'n_tui', x: 268, y: 42, w: 198, h: 88, k: 'proc', p: 'head', t: '终端界面', s: ['miyu · 全屏 TUI', '时间线 · 抽屉 · 会话树'] },
+  { id: 'n_web', x: 490, y: 42, w: 198, h: 88, k: 'proc', p: 'head', t: '网页', s: ['浏览器 · 原生 JS', '设置页照清单生成'] },
+  { id: 'n_cli', x: 712, y: 42, w: 198, h: 88, k: 'proc', p: 'head', t: '命令行', s: ['miyu ask · miyu stdio', '给人，也给别的程序'] },
+  { id: 'n_shell', x: 934, y: 42, w: 198, h: 88, k: 'proc', p: 'head', t: '终端无缝集成', s: ['fish 完整 · bash/zsh 兜底', '工作目录跟着 shell'] },
+  // bus
+  { id: 'n_bus', x: 256, y: 158, w: 888, h: 30, k: 'bus', p: 'core', t: '核心协议', custom: 'bus' },
+  // core top row
+  { id: 'n_view', x: 272, y: 236, w: 230, h: 90, k: 'module', p: 'core', t: '视图投影', s: ['事件 → 显示用的条目', '按头的语言和能力生成'] },
+  { id: 'n_http', x: 514, y: 236, w: 170, h: 90, k: 'module', p: 'core', t: 'HTTP 模块', s: ['开了网页才构造', '页面文件 · WebSocket'] },
+  { id: 'n_auth', x: 696, y: 236, w: 200, h: 90, k: 'module', p: 'core', t: '账号与权限', s: ['命令进入的第一道链', '属主 ∩ 能力 ∩ 强制策略'] },
+  { id: 'n_config', x: 908, y: 236, w: 220, h: 90, k: 'module', p: 'core', t: '配置服务', s: ['一份清单 · 七层 · 管理员锁', '只有核心写文件'] },
+  // venue subsystem
+  { id: 'n_rules', x: 280, y: 368, w: 160, h: 64, k: 'module', p: 'core', t: '场所规则', s: ['新场所出现时配置它', '像 udev · venues.d'] },
+  { id: 'n_inchain', x: 280, y: 438, w: 160, h: 48, k: 'module', p: 'core', t: '进站链', s: ['睡眠→禁言→准入→限流'] },
+  { id: 'n_ld', x: 280, y: 492, w: 160, h: 64, k: 'module', p: 'core', t: '线路规程', s: ['每条都回 · 叫她才回', '看情况插话：判官、冷静'] },
+  { id: 'n_out', x: 280, y: 562, w: 160, h: 64, k: 'module', p: 'core', t: '出站链 → 出站队列', s: ['清理 · 去重 · 引用和 @', '先记账再发，失败退回'] },
+  { id: 'n_voicesvc', x: 272, y: 652, w: 176, h: 64, k: 'module', p: 'core', t: '语音服务', s: ['识别 · 合成 · 播放', '桌面语音也是一个场所'] },
+  // kernel
+  { id: 'k_turn', x: 484, y: 376, w: 210, h: 66, k: 'kernel', p: 'core', t: '回合状态机', s: ['空闲 → 请求模型 → 执行工具', '→ 等待人 · 一次一个回合'] },
+  { id: 'k_sessions', x: 706, y: 376, w: 210, h: 66, k: 'kernel', p: 'core', t: '会话表', s: ['每个会话一个 actor', '自己的日志和收件箱'] },
+  { id: 'k_log', x: 484, y: 454, w: 432, h: 86, k: 'kernel', p: 'core', t: '事件日志', custom: 'log' },
+  { id: 'k_catalog', x: 484, y: 552, w: 210, h: 84, k: 'kernel', p: 'core', t: '目录与挂接点', s: ['驱动、工具、命令、事件种类', '挂接点：独占 · 链式 · 广播', '冻结成目录快照'] },
+  { id: 'k_ctx', x: 706, y: 552, w: 210, h: 84, k: 'kernel', p: 'core', t: '上下文投影', s: ['日志 + 冻结的策略 → 请求', '同样的输入，逐字节相同', '稳定区 → 历史区 → 本轮'] },
+  { id: 'k_sched', x: 484, y: 648, w: 210, h: 82, k: 'kernel', p: 'core', t: '资源调度', s: ['并发 · 限速 · 优先级', '有人在等的回合优先'] },
+  { id: 'k_tools', x: 706, y: 648, w: 210, h: 82, k: 'kernel', p: 'core', t: '工具调度', s: ['修正参数 → 执行前的链', '→ 派发 → 执行后的链', '最严者胜：拒绝 > 问人 > 放行'] },
+  // policy & models
+  { id: 'n_pkg', x: 960, y: 368, w: 160, h: 64, k: 'module', p: 'core', t: '软件包管理', s: ['装、停用、卸载', '按角色替换'] },
+  { id: 'n_compact', x: 960, y: 438, w: 160, h: 64, k: 'module', p: 'core', t: '压缩', s: ['不够用时整段压', '换出，不是删除'] },
+  { id: 'n_prompt', x: 960, y: 508, w: 160, h: 64, k: 'module', p: 'core', t: '提示词装配', tag: true, s: ['人格：她是谁', '预设：开哪些软件'] },
+  { id: 'n_models', x: 960, y: 578, w: 160, h: 64, k: 'module', p: 'core', t: '模型服务', s: ['供应商 · 模型 · 池', '四个挡位 · 五种用途'] },
+  { id: 'n_driver', x: 960, y: 656, w: 160, h: 64, k: 'module', p: 'core', t: '模型驱动', s: ['编解码与分类：纯函数', '执行器发出请求'] },
+  // bottom row
+  { id: 'n_store', x: 272, y: 758, w: 120, h: 120, k: 'module', p: 'core', t: '存储后端', s: ['JSONL 只追加', 'blob 按哈希存', '先落盘，后推送', '一个写者，不用锁'] },
+  { id: 'n_mem', x: 404, y: 758, w: 99, h: 120, k: 'module', p: 'core', t: '记忆', s: ['跟着人格走', '每轮开始召回', '按听众过滤'] },
+  { id: 'n_kb', x: 507, y: 758, w: 99, h: 120, k: 'module', p: 'core', t: '知识库', s: ['文档 + 索引', 'kb_search 等', '想起默认关'] },
+  { id: 'n_adapters', x: 618, y: 758, w: 156, h: 120, k: 'module', p: 'core', t: '扩展适配器', s: ['进程扩展：像 FUSE', 'MCP：只接工具', '外部只挂异步点', '每次调用都有超时'] },
+  { id: 'n_software', x: 786, y: 758, w: 214, h: 120, k: 'module', p: 'core', t: '自带软件', custom: 'software' },
+  { id: 'n_sandbox', x: 1012, y: 758, w: 116, h: 120, k: 'module', p: 'core', t: '沙盒与代理', s: ['管得住的不问人', '越界才问人', '网络只经代理'] },
+  // left column
+  { id: 'x_qq', x: 28, y: 244, w: 196, h: 64, k: 'ext', p: 'ext', t: 'QQ 群与私聊', s: ['OneBot v11 实现', 'NapCat、SnowLuma…'] },
+  { id: 'n_qqbridge', x: 28, y: 420, w: 196, h: 84, k: 'proc', p: 'child', t: 'QQ 桥', s: ['适配层 · quirk 表', '平台工具：像 ioctl', 'Miyu 协议 · 标准输入输出'] },
+  { id: 'x_mic', x: 28, y: 560, w: 196, h: 48, k: 'ext', p: 'ext', t: '麦克风与音箱', s: ['系统的声音服务'] },
+  { id: 'n_voice', x: 28, y: 642, w: 196, h: 84, k: 'proc', p: 'child', t: '语音 worker', s: ['miyu-voice · 单独下载', '人声检测 · 唤醒词', '本机识别 SenseVoice'] },
+  { id: 'x_editor', x: 28, y: 790, w: 196, h: 64, k: 'ext', p: 'ext', t: '你的编辑器', s: ['手改 TOML', '核心监视、重读'] },
+  // right column
+  { id: 'x_svc', x: 1176, y: 236, w: 196, h: 64, k: 'ext', p: 'ext', t: '系统服务管理器', s: ['systemd · launchd · Run 键', '要常驻时托管核心'] },
+  { id: 'x_pkgsrc', x: 1176, y: 368, w: 196, h: 64, k: 'ext', p: 'ext', t: '软件源', s: ['官方源 ed25519 签名', 'GitHub Releases'] },
+  { id: 'x_modelsdev', x: 1176, y: 580, w: 196, h: 46, k: 'ext', p: 'ext', t: 'models.dev', s: ['模型资料的来源之一'] },
+  { id: 'x_providers', x: 1176, y: 645, w: 196, h: 86, k: 'ext', p: 'ext', t: '模型供应商', s: ['DeepSeek · Anthropic', 'OpenAI · Gemini · Ollama', '借订阅的 CLI · 云端合成'] },
+  { id: 'x_web', x: 1176, y: 790, w: 196, h: 56, k: 'ext', p: 'ext', t: '网站', s: ['搜索 · 抓取 · 下载'] },
+  // children
+  { id: 'p_embed', x: 432, y: 980, w: 168, h: 84, k: 'proc', p: 'child', t: 'embedding worker', s: ['本机小模型', '第一次用时下载'] },
+  { id: 'p_ext', x: 612, y: 980, w: 88, h: 84, k: 'proc', p: 'child', t: '扩展进程', s: ['任何语言', '能力按清单'] },
+  { id: 'p_mcp', x: 710, y: 980, w: 88, h: 84, k: 'proc', p: 'child', t: 'MCP 服务器', s: ['只提供工具', '生态现成的'] },
+  { id: 'p_cmd', x: 812, y: 980, w: 560, h: 116, k: 'proc', p: 'child', t: '沙盒里的命令', custom: 'cmd' },
+];
+const EDGES = [
+  { id: 'e_h_tui', pts: [[367, 130], [367, 158]], t: 'proto', a: 'both', lab: { x: 374, y: 148, s: '套接字 + 令牌' } },
+  { id: 'e_h_web', pts: [[589, 130], [589, 158]], t: 'proto', a: 'both', lab: { x: 596, y: 148, s: 'WebSocket' } },
+  { id: 'e_h_cli', pts: [[811, 130], [811, 158]], t: 'proto', a: 'both', lab: { x: 818, y: 148, s: '套接字 + 令牌' } },
+  { id: 'e_h_shell', pts: [[1033, 130], [1033, 158]], t: 'proto', a: 'both', lab: { x: 1040, y: 148, s: '套接字 + 令牌' } },
+  { id: 'e_push', pts: [[387, 236], [387, 188]], t: 'proto', a: 'end', z: 'core', lab: { x: 395, y: 229, s: '推送 view.*' } },
+  { id: 'e_http', pts: [[599, 236], [599, 188]], t: 'proto', a: 'both', z: 'core', lab: { x: 607, y: 229, s: '页面 · WebSocket' } },
+  { id: 'e_cmd', pts: [[796, 188], [796, 236]], t: 'proto', a: 'end', z: 'core', lab: { x: 806, y: 229, s: '命令 · 查询' } },
+  { id: 'e_config_push', pts: [[1018, 236], [1018, 188]], t: 'proto', a: 'end', z: 'core', only: true, lab: { x: 1026, y: 229, s: 'config.changed' } },
+  { id: 'e_auth_sess', pts: [[796, 326], [796, 376]], t: 'int', a: 'end' },
+  { id: 'e_auth_config', pts: [[896, 281], [908, 281]], t: 'int', a: 'end', only: true },
+  { id: 'e_auth_pkg', pts: [[870, 326], [870, 334], [1040, 334], [1040, 368]], t: 'int', a: 'end', only: true },
+  { id: 'e_log_view', pts: [[460, 497], [460, 326]], t: 'int', a: 'end', z: 'core', lab: { x: 466, y: 337, s: '事件' } },
+  { id: 'e_log_store', pts: [[484, 497], [460, 497], [460, 750], [332, 750], [332, 758]], t: 'store', a: 'end', z: 'core', lab: { x: 452, y: 734, s: '先落盘', a: 'end' } },
+  { id: 'e_qq_bridge', pts: [[126, 308], [126, 420]], t: 'io', a: 'both', lab: { x: 134, y: 368, s: 'OneBot v11' } },
+  { id: 'e_bridge_in', pts: [[224, 462], [280, 462]], t: 'proto', a: 'end' },
+  { id: 'e_out_bridge', pts: [[280, 594], [246, 594], [246, 492], [224, 492]], t: 'proto', a: 'end' },
+  { id: 'e_mic_voice', pts: [[126, 608], [126, 642]], t: 'io', a: 'both' },
+  { id: 'e_voice_svc', pts: [[224, 684], [272, 684]], t: 'proto', a: 'both' },
+  { id: 'e_prompt_ctx', pts: [[960, 562], [916, 562]], t: 'int', a: 'end', z: 'core', lab: { x: 940, y: 556, s: '策略', a: 'middle' } },
+  { id: 'e_ctx_models', pts: [[916, 605], [960, 605]], t: 'int', a: 'both', z: 'core', lab: { x: 940, y: 599, s: '请求', a: 'middle' } },
+  { id: 'e_models_driver', pts: [[1040, 642], [1040, 656]], t: 'int', a: 'end' },
+  { id: 'e_driver_prov', pts: [[1120, 688], [1176, 688]], t: 'io', a: 'both', lab: { x: 1150, y: 681, s: 'HTTPS', a: 'middle' } },
+  { id: 'e_modelsdev', pts: [[1176, 603], [1120, 603]], t: 'io', a: 'end' },
+  { id: 'e_pkg_src', pts: [[1120, 400], [1176, 400]], t: 'io', a: 'both' },
+  { id: 'e_pkg_catalog', pts: [[960, 420], [940, 420], [940, 546], [589, 546], [589, 552]], t: 'int', a: 'end', only: true },
+  { id: 'e_svc', pts: [[1176, 268], [1144, 268]], t: 'io', a: 'end', lab: { x: 1160, y: 261, s: '托管', a: 'middle' } },
+  { id: 'e_mem_kernel', pts: [[488, 758], [488, 742]], t: 'int', a: 'end' },
+  { id: 'e_kb_kernel', pts: [[560, 758], [560, 742]], t: 'int', a: 'end' },
+  { id: 'e_tools_adapters', pts: [[740, 730], [740, 758]], t: 'int', a: 'end' },
+  { id: 'e_tools_software', pts: [[890, 730], [890, 758]], t: 'int', a: 'end' },
+  { id: 'e_software_sandbox', pts: [[1000, 818], [1012, 818]], t: 'int', a: 'end' },
+  { id: 'e_sandbox_web', pts: [[1128, 818], [1176, 818]], t: 'io', a: 'end', lab: { x: 1152, y: 811, s: '代理', a: 'middle' } },
+  { id: 'e_sandbox_cmd', pts: [[1070, 878], [1070, 980]], t: 'int', a: 'end', lab: { x: 1080, y: 934, s: '沙盒边界' } },
+  { id: 'e_store_root', pts: [[332, 878], [332, 944]], t: 'store', a: 'both', lab: { x: 340, y: 925, s: '追加 · 同步' } },
+  { id: 'e_editor_root', pts: [[126, 854], [126, 944]], t: 'store', a: 'end', lab: { x: 134, y: 903, s: '手改 TOML' } },
+  { id: 'e_mem_embed', pts: [[453, 878], [453, 980]], t: 'int', a: 'end', lab: { x: 461, y: 934, s: '向量' } },
+  { id: 'e_kb_embed', pts: [[556, 878], [556, 980]], t: 'int', a: 'end' },
+  { id: 'e_adapters_ext', pts: [[650, 878], [650, 980]], t: 'proto', a: 'both', lab: { x: 658, y: 934, s: 'stdio' } },
+  { id: 'e_adapters_mcp', pts: [[745, 878], [745, 980]], t: 'io', a: 'both', lab: { x: 753, y: 934, s: 'MCP' } },
+  // drawn last: crosses the event lane, so it gets a hop
+  { id: 'e_venue_kernel', pts: [[448, 409], [472, 409]], t: 'int', a: 'both', hop: true },
+];
+const TREE = {
+  home: [
+    ['sessions/<会话>/', 'truth', '会话日志：一个会话一个目录，按段存，只追加'],
+    ['blobs/<哈希>', 'truth', '附件、大输出、策略快照；按账号分开存'],
+    ['settings.toml', 'truth', '个人设置'],
+    ['secrets.toml', 'secret', '自己配的模型用的密钥'],
+    ['profile.md', 'truth', '「希望 AI 怎么认识你」'],
+    ['journal.jsonl', 'truth', '账号日志：不属于任何会话的事实'],
+    ['personas/ presets/', 'truth', '私有人格与预设'],
+    ['kb/<名字>/', 'truth', '自己的知识库：文档本身'],
+    ['packages/', 'soft', '自己装的软件包，只对自己生效'],
+    ['modules/<模块>/', 'truth', '模块在这个账号下的数据：事件日志是真相，索引是派生'],
+    ['workspace/', 'work', '成员工具的默认工作目录，也是沙盒边界'],
+    ['index/', 'derived', '派生：会话列表、全文搜索、投影缓存'],
+  ],
+  system: [
+    ['config.toml', 'truth', '核心配置'],
+    ['secrets.toml', 'secret', '密钥：只有本人可读写'],
+    ['journal.jsonl', 'truth', '系统日志：账号、组、权限、管理操作'],
+    ['personas/ presets/', 'truth', '共享人格与预设'],
+    ['packages/', 'soft', '系统级安装的软件包'],
+    ['venues.d/', 'truth', '场所规则'],
+  ],
+  other: [
+    ['state/', 'derived', '派生：全局索引、用量总表、运行日志'],
+    ['run/', 'run', '运行时：锁文件、套接字、本机令牌'],
+    ['系统缓存', 'cache', '缓存：模型文件，整台机器共用，换数据根也不重下'],
+  ],
+};
+/* ↑ 布局 */
+
+/* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
+const BUILD = {
+  g_kernel: { by: '0-1', how: 'frame', note: '空壳' },
+};
+
+const svg = document.getElementById('bmap');
+svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+const defs = el('defs', null, svg);
+['ghost', 'on'].forEach(kind => {
+  const m = el('marker', { id: 'bm-' + kind, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 9, markerHeight: 9, markerUnits: 'userSpaceOnUse', orient: 'auto-start-reverse' }, defs);
+  el('path', { d: 'M0,0.8 L10,5 L0,9.2 z', class: 'mk', style: kind === 'on' ? 'fill:var(--ink-2)' : null }, m);
+});
+const layer = { grp: el('g', null, svg), edge: el('g', null, svg), node: el('g', null, svg), by: el('g', null, svg) };
+
+function stateOf(id) { return BUILD[id] ? ' ' + BUILD[id].how : ''; }
+
+/* 步号标签；right 为真时 x 是标签的右边。 */
+function badge(id, x, y, right) {
+  const b = BUILD[id];
+  if (!b) return;
+  const label = b.note ? b.by + ' ' + b.note : b.by;
+  let w = 10;
+  for (const c of label) w += c.charCodeAt(0) > 255 ? 10.5 : 6.4;
+  const g = el('g', { class: 'by' + (b.how === 'review' ? ' review' : '') }, layer.by);
+  const left = right ? x - w : x;
+  el('rect', { x: left, y, width: w, height: 17, rx: 4 }, g);
+  tx(g, left + 5, y + 12.3, label, '');
+}
+
+function treeItem(g, x, y, item) {
+  el('circle', { cx: x + 4, cy: y - 3.6, r: 3.2, class: 'dot' }, g);
+  tx(g, x + 12, y, item[0], 'tree-i');
+}
+
+function renderGroup(gr) {
+  const g = el('g', { class: 'grp' + stateOf(gr.id) }, layer.grp);
+  if (gr.cls === 'core') {
+    el('rect', { x: gr.x, y: gr.y, width: gr.w, height: gr.h, rx: 18, class: 'shell' }, g);
+    el('rect', { x: gr.x + 8, y: gr.y - 9, width: 76, height: 19, rx: 5, class: 'tab' }, g);
+    tx(g, gr.x + 46, gr.y + 4.6, '核心进程', 'core-tab-t', 'middle');
+  } else if (gr.cls === 'kernel') {
+    el('rect', { x: gr.x, y: gr.y, width: gr.w, height: gr.h, rx: 14, class: 'shell' }, g);
+    tx(g, gr.x + 14, gr.y + 25, '内核', 'kernel-t');
+    tx(g, gr.x + 58, gr.y + 24, '只有机制 · 纯逻辑，不做 I/O', 'kernel-s');
+  } else {
+    el('rect', { x: gr.x, y: gr.y, width: gr.w, height: gr.h, rx: 12, class: 'shell' }, g);
+    tx(g, gr.x + 12, gr.y + 20, gr.label, 'gl');
+  }
+  if (gr.id === 'g_dataroot') {
+    const c1 = gr.x + 12, c2 = gr.x + 200, top = gr.y + 44, lh = 14;
+    tx(g, c1, top, 'home/<账号>/', 'tree-h');
+    TREE.home.forEach((it, i) => treeItem(g, c1 + 6, top + 16 + i * lh, it));
+    tx(g, c2, top, 'system/', 'tree-h');
+    TREE.system.forEach((it, i) => treeItem(g, c2 + 6, top + 16 + i * lh, it));
+    const oy = top + 16 + TREE.system.length * lh + 12;
+    TREE.other.forEach((it, i) => treeItem(g, c2, oy + i * 17, it));
+  }
+  if (gr.id === 'g_children') {
+    tx(g, gr.x + 12, gr.y + 216, '重型 worker 按需拉起、空闲退出 · 扩展按账号各一份 · 结束子进程只按核心记录的进程树，绝不按名字', 'tree-n');
+  }
+  badge(gr.id, gr.x + gr.w - 12, gr.y - 9, true);
+}
+
+function renderNode(n) {
+  const g = el('g', { class: 'node k-' + n.k + stateOf(n.id) }, layer.node);
+  el('rect', { x: n.x, y: n.y, width: n.w, height: n.h, rx: n.k === 'bus' ? 15 : 9, class: 'box' }, g);
+  if (n.custom === 'bus') {
+    const t = el('text', { x: n.x + n.w / 2, y: n.y + 19.5, class: 'bt', 'text-anchor': 'middle' }, g);
+    const a = el('tspan', { 'font-weight': 700 }, t); a.textContent = '核心协议 JSON-RPC 2.0';
+    const b = el('tspan', null, t); b.textContent = '　·　命令、查询向下，推送向上　·　本机套接字、命名管道、WebSocket、标准输入输出跑的都是这一套';
+  } else if (n.custom === 'log') {
+    tx(g, n.x + 14, n.y + 23, n.t, 't');
+    tx(g, n.x + 90, n.y + 22.5, '只增 · 带序号 · 先落盘，后推送 · 一切状态的真相源', 's');
+    [['41', '用户消息'], ['42', '回合开始'], ['43', '注入'], ['44', '助手消息'], ['45', '工具结果'], ['46', '…']].forEach((c, i) => {
+      const cx = n.x + 14 + i * 68, cy = n.y + 34;
+      el('rect', { x: cx, y: cy, width: 64, height: 40, rx: 5, class: 'cell' }, g);
+      tx(g, cx + 32, cy + 16, c[0], 'cell-n', 'middle');
+      tx(g, cx + 32, cy + 32, c[1], 'cell-l', 'middle');
+    });
+  } else if (n.custom === 'software') {
+    tx(g, n.x + 12, n.y + 21, n.t, 't');
+    tx(g, n.x + 12, n.y + 38, '基础系统 13 件', 's');
+    ['shell  jobs  read  edit  write', 'trash  grep  glob  history', 'ask_user  todo', 'agent  message_agent'].forEach((m, i) => tx(g, n.x + 12, n.y + 54 + i * 13, m, 'm'));
+    tx(g, n.x + 12, n.y + 110, '可选包由预设决定开不开', 's');
+  } else if (n.custom === 'cmd') {
+    tx(g, n.x + 14, n.y + 22, n.t, 't');
+    tx(g, n.x + 114, n.y + 21.5, 'shell 在这里跑：连不上核心，读不到本机令牌，碰不到数据根', 's');
+    [['Linux', 'Landlock 管文件 · 网络命名空间只通代理 · seccomp 禁 Unix 套接字'], ['macOS', 'Seatbelt：一份配置管文件、网络和套接字'], ['Windows', '专用沙盒用户 · 受限令牌 · 防火墙规则 · 单独的桌面']]
+      .forEach((r, i) => { tx(g, n.x + 14, n.y + 50 + i * 20, r[0], 'plat'); tx(g, n.x + 84, n.y + 50 + i * 20, r[1], 's'); });
+  } else {
+    const lines = n.s ? n.s.length : 0;
+    const tb = n.y + Math.max(20, (n.h - (16 * lines + 18)) / 2 + 14);
+    tx(g, n.x + 12, tb, n.t, 't');
+    (n.s || []).forEach((s, i) => tx(g, n.x + 12, tb + 17 + i * 16, s, 's'));
+  }
+  badge(n.id, n.x + 8, n.y - 9, false);
+}
+
+function pathD(pts) {
+  let d = 'M' + pts[0][0] + ',' + pts[0][1];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
+    const l1 = Math.hypot(x1 - x0, y1 - y0), l2 = Math.hypot(x2 - x1, y2 - y1);
+    const r = Math.min(8, l1 / 2, l2 / 2);
+    const ax = x1 - (x1 - x0) / l1 * r, ay = y1 - (y1 - y0) / l1 * r;
+    const bx = x1 + (x2 - x1) / l2 * r, by = y1 + (y2 - y1) / l2 * r;
+    d += ' L' + ax + ',' + ay + ' Q' + x1 + ',' + y1 + ' ' + bx + ',' + by;
+  }
+  const p = pts[pts.length - 1];
+  return d + ' L' + p[0] + ',' + p[1];
+}
+
+function renderEdge(e) {
+  if (e.only) return;
+  const g = el('g', { class: 'edge t-' + e.t + stateOf(e.id) }, layer.edge);
+  const arrow = 'url(#bm-' + (BUILD[e.id] ? 'on' : 'ghost') + ')';
+  el('path', { d: pathD(e.pts), class: 'ln',
+    'marker-end': (e.a === 'end' || e.a === 'both') ? arrow : null,
+    'marker-start': (e.a === 'start' || e.a === 'both') ? arrow : null }, g);
+  if (e.lab) tx(g, e.lab.x, e.lab.y, e.lab.s, 'el', e.lab.a);
+}
+
+GROUPS.forEach(renderGroup);
+EDGES.forEach(renderEdge);
+NODES.forEach(renderNode);
+})();
+</script>
+</body></html>

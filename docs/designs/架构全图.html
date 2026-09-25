@@ -380,6 +380,7 @@ function tx(parent, x, y, s, cls, anchor) {
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 /* ---------------- data: groups ---------------- */
+/* 施工图（docs/construction/施工图.html）顶上的拼图照抄这份布局：改了这里，那边照着改。 */
 const GROUPS = [
   { id: 'g_heads', x: 256, y: 14, w: 888, h: 128, label: '头 · 各自独立的进程，可以同时连好几个', tag: true,
     i: { k: '头', w: '可替换的组件。只经过核心协议和核心交互，不写业务逻辑；它们的差异只影响怎么显示，不影响模型看到什么。',
