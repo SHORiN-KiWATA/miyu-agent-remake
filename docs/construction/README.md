@@ -51,7 +51,7 @@ flowchart LR
 |---|---|---|
 | 0-1 | 仓库骨架 | Cargo 工作区、许可证、README、给 AI 看的 AGENTS.md、钉住工具链、第一个空 crate。施工单见 `0-1-仓库骨架.md` |
 | 0-2 | 门禁 | 层序表和检查（低层不许引用高层，纯逻辑的 crate 只许用白名单里的依赖）、文件行数上限。先故意违规一次，证明它拦得住。施工单见 `0-2-门禁.md` |
-| 0-3 | 三平台 CI | GitHub Actions 在 Linux、macOS、Windows 上跑格式、lint、测试、门禁。要先有 GitHub 仓库，到时候问你建在哪、公开还是私有 |
+| 0-3 | 三平台 CI | GitHub Actions 在 Linux、macOS、Windows 上跑格式、lint、测试、门禁。施工单见 `0-3-三平台CI.md` |
 
 **M1 日志与投影可信**（纯逻辑：`miyu-kernel`，以及组装请求的策略模块）
 
@@ -120,4 +120,4 @@ flowchart LR
 
 ### 五、下一张
 
-0-1、0-2 已完成。下一张是 0-3 三平台 CI，施工单待写。
+0-1、0-2 已完成。`0-3-三平台CI.md` 已拍板，施工中。
