@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>33</b><span>/ 41 步<strong>已完成</strong>，第一次碰到真的磁盘</span></li>
+    <li><b>34</b><span>/ 42 步<strong>已完成</strong>，数据根在 ~/.miyu，认不出的不碰</span></li>
     <li><b>3-2</b><span>下一步：会话日志文件，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">3558e1d</b><span>最近一步（3-1）的提交</span></li>
+    <li><b class="mono">3e4116b</b><span>最近一步（3-1 补）的提交</span></li>
   </ul>
 </header>
 
@@ -348,6 +348,7 @@ a.step:hover{border-color:var(--primary)}
       <div class="ms-head"><span class="ms-id">M3</span><span class="ms-name">第一次真对话</span><span class="ms-goal"><code>miyu ask</code> 跟真模型说上话，缓存命中有实测数字</span></div>
       <ol class="chips">
         <li><a class="step done" href="#s3-1"><span class="n">3-1</span>数据根<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s3-1b"><span class="n">3-1</span>数据根挪到 ~/.miyu（补）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-2</span>会话日志文件</span></li>
         <li><span class="step"><span class="n">3-3</span>blob</span></li>
         <li><span class="step"><span class="n">3-4</span>驱动接口与编解码</span></li>
@@ -2936,6 +2937,84 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-1b" aria-labelledby="h-s31b">
+  <div class="sheet-head"><h2 id="h-s31b"><span class="no">3-1</span>数据根挪到 ~/.miyu（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">数据根的默认位置从 XDG 那一套改到家目录的 <code>.miyu</code>，三个平台一个说法；顶层放一个标记文件，认不出是自己的数据根就不碰它。旧版 Miyu 也放在 <code>~/.miyu</code>：新版在这台机器上一个字节都不动它，直到迁过来。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">建骨架前先认标记 · root.rs</span><span class="dir-note">07 第二节「认得出自己的数据根才动它」</span></div>
+            <ol class="pipe" aria-label="认标记">
+              <li>目录不存在、是空的：先写下 .miyu-root，再建四个顶层目录</li>
+              <li>有标记的：照常用</li>
+              <li>不是空的又没有标记：一个字节都不动，报错停下</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">位置 · 你定的</span><span class="dir-note">「用xdg更好还是放.miyu？」</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">数据根：家目录的 .miyu</span><span class="rl">Linux、macOS、Windows 一个说法</span></div>
+              <div class="tile"><span class="nm">缓存照旧</span><span class="rl">系统的缓存目录，能删、能重下</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">认不出的两种</span><span class="dir-note">说清楚怎么办</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">像是旧版 Miyu 的数据</span><span class="rl">顶层有 config/：设 MIYU_HOME 指到别处，或者先迁过来</span></div>
+              <div class="tile new"><span class="nm">别的东西</span><span class="rl">连一个隐藏文件也算：设 MIYU_HOME 指到一个空目录</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">数据根放 ~/.miyu</span><span class="rl">好找、好备份、好搬家，和 ~/.claude、~/.codex 一个样子</span></div>
+          <div class="tile new"><span class="nm">标记文件 .miyu-root</span><span class="rl">MIYU_HOME 写错了也不会往别处建东西</span></div>
+          <div class="tile new"><span class="nm">顶层不放 config.toml</span><span class="rl">~/.miyu 不会被当成仓库的项目配置</span></div>
+          <div class="tile"><span class="nm">迁移另画图纸</span><span class="rl">先盘点旧版的数据，再带着选项问</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-1（补）</dd></div>
+        <div><dt>名称</dt><dd>数据根挪到 ~/.miyu（补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">3e4116b</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>root.rs</code>：三个平台的数据根都在家目录下的 <code>.miyu</code>；建骨架先认标记。</li>
+        <li><code>env.rs</code>：快照里去掉 <code>XDG_DATA_HOME</code>。</li>
+        <li>图纸：07 第二节、S6；12 第三节一句。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新加 3 个测试、改了 4 个：三个平台的位置、写下标记、不是我们的一个字节都不动（放随便的文件、像旧版的 config/、只有一个隐藏文件）</span></li>
+        <li><span class="ok">✓</span><span>故意改坏六处，每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/07-存储.md</code> 第二节，S6。</li>
+        <li><code>docs/designs/12-进程形态与分发.md</code> 第三节。</li>
+        <li><code>docs/construction/3-1-数据根挪到家目录（补）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -3112,7 +3191,7 @@ const BUILD = {
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
-  n_store: { by: '3-1', how: 'frame', note: '数据根：三个平台的位置、MIYU_HOME、骨架' },
+  n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记' },
 };
 
 const svg = document.getElementById('bmap');
