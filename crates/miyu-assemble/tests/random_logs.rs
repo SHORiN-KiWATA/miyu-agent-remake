@@ -98,13 +98,25 @@ impl Writer {
         }
     }
 
-    /// 一个回合，一到三步。第一次请求就出错的，只有一步。
+    /// 一个回合，一到三步。第一次请求就出错的，只有一步：不能重试的出错结束；能重试的再来，什么都没
+    /// 收到的原样再请求，说了一半断了的带着半截再请求；偶尔连着 6 次都不行（施工 3-5 下）。
     ///
     /// 替身一口气跑到底，所以这一轮模型、工具要说的，事先都排好；要人插手的地方开一个口子（停住）。
     /// 被打断的那一步以后的台词不排，那一步的调用也不排结果：它们派不出去，排了会漏到下一轮。
     fn turn(&mut self, s: &mut Stage) {
         if self.rng.chance(8) {
-            s.model([Line::fails(ErrorClass::Retryable, "503")]);
+            match self.rng.below(4) {
+                0 => s.model([Line::fails(ErrorClass::Auth, "401")]),
+                1 => s.model([
+                    Line::fails(ErrorClass::Retryable, "503"),
+                    Line::says("好了。"),
+                ]),
+                2 => s.model([
+                    Line::breaks("说到一半", ErrorClass::Retryable, "reset").thinking("想一想"),
+                    Line::says("接着说完。"),
+                ]),
+                _ => s.model(vec![Line::fails(ErrorClass::Retryable, "503"); 6]),
+            }
             self.say(s);
             return;
         }

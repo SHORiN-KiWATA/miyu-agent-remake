@@ -1,0 +1,1 @@
+{"at":"2026-09-25T07:04:07.200Z","kind":"status","turn":42,"by":{"kind":"kernel"},"cause":"cmd-7f3a","body":{"seen":44,"retry":{"attempt":1,"limit":5,"wait_ms":1000,"class":"rate_limited","message":"HTTP 429: Rate limit reached"}}}

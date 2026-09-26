@@ -205,24 +205,127 @@ fn the_next_turns_inject_only_what_changed() {
 }
 
 #[test]
-fn an_error_ends_the_turn_without_a_reply() {
+fn an_error_that_is_not_retried_ends_the_turn_and_keeps_the_half() {
+    // 认证失败不重试：这一轮以出错结束；收到的半截照样写成回复，带着 interrupted。施工 2-3 时
+    // 是「收到的半截不写成回复」，项目主人 2026-09-27 定了带上半截接着说，改了（施工 3-5 下）。
     let mut session = asking();
     session.handle(sent(5));
-    session.handle(delta(5, 41, words(0, "半截").remove(0)));
-    let actions = session.handle(failed(5, ErrorClass::RateLimited, "429 Too Many Requests"));
+    // 这一块开始了、来了字，还没收全就断了。
+    for piece in words(0, "半截").into_iter().take(2) {
+        session.handle(delta(5, 41, piece));
+    }
+    let actions = session.handle(failed(5, ErrorClass::Auth, "401 Unauthorized"));
     let events = appended_events(&actions);
-    assert_eq!(appended(&actions), seqs(&[6, 7]), "收到的半截不写成回复");
-    let called = called_of(&events[0]);
+    assert_eq!(appended(&actions), seqs(&[6, 7, 8]));
+    let Body::MessageAssistant(reply) = &events[0].body else {
+        panic!("先写半截回复：{:?}", events[0]);
+    };
+    assert!(reply.interrupted);
+    let called = called_of(&events[1]);
     assert_eq!(called.result, CallResult::Error);
     assert_eq!(
         called.error,
         Some(CallError {
-            class: ErrorClass::RateLimited,
-            message: "429 Too Many Requests".to_string(),
+            class: ErrorClass::Auth,
+            message: "401 Unauthorized".to_string(),
         })
     );
     assert_eq!(called.duration_ms, Some(5000));
-    assert_eq!(reason_of(&events[1]), &EndReason::Error);
+    assert_eq!(reason_of(&events[2]), &EndReason::Error);
+    assert!(
+        !actions
+            .iter()
+            .any(|action| matches!(action, Action::Wake { .. })),
+        "不重试"
+    );
+}
+
+#[test]
+fn a_finished_call_in_a_broken_reply_is_not_kept() {
+    // 一个调用收全了，流才断：回复没说完，这个调用也不派，半截里只留正文（施工 3-5 下）。
+    let mut session = asking();
+    session.handle(sent(5));
+    for piece in words(0, "我读一下") {
+        session.handle(delta(5, 41, piece));
+    }
+    session.handle(delta(
+        5,
+        42,
+        Delta::Start {
+            index: 1,
+            kind: Kind::ToolCall {
+                name: "read".to_string(),
+            },
+        },
+    ));
+    session.handle(delta(
+        5,
+        42,
+        Delta::Text {
+            index: 1,
+            text: "{}".to_string(),
+        },
+    ));
+    session.handle(delta(5, 42, Delta::End { index: 1 }));
+    let actions = session.handle(failed(5, ErrorClass::Retryable, "connection reset"));
+    let events = appended_events(&actions);
+    let Body::MessageAssistant(half) = &events[0].body else {
+        panic!("先写半截回复：{:?}", events[0]);
+    };
+    assert!(
+        half.blocks
+            .iter()
+            .all(|block| !matches!(block, Block::ToolCall(_))),
+        "{:?}",
+        half.blocks
+    );
+    assert!(
+        !actions
+            .iter()
+            .any(|action| matches!(action, Action::GuardTool { .. } | Action::RunTool { .. }))
+    );
+}
+
+#[test]
+fn a_retry_waits_then_asks_again() {
+    // 07:00:45 出错：1 秒以后叫醒；对不上的到点了不理；对得上的，照有效历史再请求一次（施工 3-5 下）。
+    let mut session = asking();
+    let actions = session.handle(failed(5, ErrorClass::Retryable, "503"));
+    assert!(
+        actions.contains(&Action::Wake {
+            at: at(46),
+            seen: seq(5)
+        }),
+        "{actions:?}"
+    );
+    session.handle(stored(6));
+    assert!(
+        session
+            .handle(Input::Woke {
+                at: at(46),
+                seen: seq(4)
+            })
+            .is_empty()
+    );
+    let actions = session.handle(Input::Woke {
+        at: at(46),
+        seen: seq(5),
+    });
+    assert!(
+        actions
+            .iter()
+            .any(|action| matches!(action, Action::CallModel { seen, .. } if *seen == seq(6))),
+        "{actions:?}"
+    );
+    // 到过一次了，再来也不理。
+    assert!(
+        session
+            .handle(Input::Woke {
+                at: at(47),
+                seen: seq(5)
+            })
+            .is_empty()
+    );
 }
 
 #[test]
@@ -238,7 +341,8 @@ fn a_failure_before_sending_has_no_endpoint_or_times() {
     assert_eq!(reason_of(&events[1]), &EndReason::Error);
 }
 
-/// 执行器和驱动违约：各按出错算，写明哪里错。增量出的错，叫执行器别再发了。
+/// 执行器和驱动违约：各按出错算，写明哪里错；这几类可以重试，等着再来（施工 3-5 下）。增量出的错，
+/// 叫执行器别再发了。
 #[test]
 fn broken_reports_are_errors() {
     let bad = |session: &mut Session, input: Input, cancel: bool, why: &str| {
@@ -247,7 +351,17 @@ fn broken_reports_are_errors() {
         let error = called_of(&events[0]).error.clone().unwrap();
         assert_eq!(error.class, ErrorClass::BadStream);
         assert!(error.message.contains(why), "{}", error.message);
-        assert_eq!(reason_of(&events[1]), &EndReason::Error);
+        assert_eq!(
+            events.len(),
+            1,
+            "什么都没收到的，只记一条 model.called，等着再来"
+        );
+        assert!(
+            actions
+                .iter()
+                .any(|action| matches!(action, Action::Wake { seen, .. } if *seen == seq(5))),
+            "{actions:?}"
+        );
         let cancelled = actions.contains(&Action::CancelModel { seen: seq(5) });
         assert_eq!(cancelled, cancel, "{actions:?}");
     };

@@ -139,6 +139,8 @@ impl Session {
                 stage: Stage::Settling,
                 cwd: self.environment.cwd.clone(),
                 requests: 0,
+                retries: 0,
+                retrying: false,
                 interjected: None,
                 queued: Vec::new(),
                 refresh: false,

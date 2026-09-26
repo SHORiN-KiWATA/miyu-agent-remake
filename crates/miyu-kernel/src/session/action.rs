@@ -5,6 +5,7 @@
 use crate::event::{Event, Permission, Response, Transient};
 use crate::id::{CallId, CommandId, Seq, TurnId};
 use crate::request::Request;
+use crate::time::Timestamp;
 
 /// 会话要执行器做的一件事。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,6 +41,14 @@ pub enum Action {
     /// 不要这次请求了：停下来，别再发它的增量。之后还来的回报，都当过时的不理。
     CancelModel {
         /// 哪一次请求。
+        seen: Seq,
+    },
+    /// 到点叫醒：到了 `at` 这一刻，送一条「到点了」回来（`02-内核.md` 第四节，施工 3-5 下：重试前
+    /// 等一会儿）。内核是纯逻辑，自己不睡。
+    Wake {
+        /// 什么时候叫醒。
+        at: Timestamp,
+        /// 为哪一次请求等的：出错的那一次，「到点了」照它对上。
         seen: Seq,
     },
     /// 跑回合结束的挂接点：广播给各模块，不等结果（`05-内核接口.md` 第五节）。

@@ -64,6 +64,7 @@ pub(super) fn ended(seen: u64) -> Input {
         seen: seq(seen),
         usage: Some(usage()),
         error: None,
+        wait_ms: None,
     }
 }
 
@@ -77,6 +78,7 @@ pub(super) fn failed(seen: u64, class: ErrorClass, message: &str) -> Input {
             class,
             message: message.to_string(),
         }),
+        wait_ms: None,
     }
 }
 

@@ -49,6 +49,9 @@ pub struct Stage {
     /// 停住的请求（它的 `seen` 和剩下的回复）、停住的调用。
     pub(super) held_model: Option<(Seq, Line)>,
     pub(super) held_tools: Vec<(CallId, Play)>,
+    /// 到点叫醒先扣着、不马上送回（[`Stage::hold_wakes`]），和扣着的那一个。
+    pub(super) hold_wakes: bool,
+    pub(super) held_wake: Option<(Timestamp, Seq)>,
     pub(super) now: Timestamp,
     /// 下一个命令编号。
     pub(super) next: u64,
@@ -93,6 +96,8 @@ impl Stage {
             verdicts: VecDeque::new(),
             injections: VecDeque::new(),
             held_model: None,
+            hold_wakes: false,
+            held_wake: None,
             held_tools: Vec::new(),
             now,
             next: 1,
@@ -210,6 +215,25 @@ impl Stage {
             .unwrap_or_else(|| panic!("没有停住的请求"));
         let ended = self.ended(seen, &line);
         self.run(ended);
+    }
+
+    /// 从现在起，到点叫醒先扣着，不马上送回：好在等着重试的时候插手（打断、重启）。
+    pub fn hold_wakes(&mut self) {
+        self.hold_wakes = true;
+    }
+
+    /// 送回扣着的那一次到点了：时钟拨到那一刻。
+    ///
+    /// # Panics
+    ///
+    /// 没有扣着的到点叫醒。
+    pub fn release_wake(&mut self) {
+        let (at, seen) = self
+            .held_wake
+            .take()
+            .unwrap_or_else(|| panic!("没有扣着的到点叫醒"));
+        let inputs = self.wake(at, seen);
+        self.drain(inputs.into());
     }
 
     /// 放行停住的调用 `call_id`：照它排好的回。
@@ -368,6 +392,7 @@ impl Stage {
     fn reload(&mut self) {
         self.held_model = None;
         self.held_tools.clear();
+        self.held_wake = None;
         let at = self.tick();
         let (session, actions) = Session::load(
             self.log.clone(),

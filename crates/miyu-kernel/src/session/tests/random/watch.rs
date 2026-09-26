@@ -10,6 +10,7 @@ mod approval;
 mod invariants;
 mod load;
 mod lookup;
+mod model;
 mod permission;
 mod question;
 mod queue;
@@ -70,6 +71,8 @@ pub(super) struct Watch {
     pub(super) undo: undo::Undo,
     /// 喂过的输入种类（`kinds.rs` 的清单）。
     pub(super) fed: BTreeSet<InputKind>,
+    /// 重试：该交出到点叫醒的、在等的、叫醒了的，这一步连着几次。
+    retries: model::Retries,
 }
 
 impl Watch {
@@ -108,7 +111,13 @@ impl Watch {
             restarts: load::Restarts::default(),
             undo: undo::Undo::default(),
             fed: BTreeSet::new(),
+            retries: model::Retries::default(),
         }
+    }
+
+    /// 交出了到点叫醒、还在等的那次请求（`watch/model.rs`）。
+    pub(super) fn waiting_retry(&self) -> Option<Seq> {
+        self.retries.waiting
     }
 
     /// 在路上、还没报发出去了的那次请求。
@@ -130,6 +139,7 @@ impl Watch {
     /// 被打断的 `turn.ended` 收尾；没开着的，拒绝，原因码 `not_running`。
     pub(super) fn feed(&mut self, session: &mut Session, input: Input) {
         self.fed.insert(InputKind::of(&input));
+        self.retry_fed(&input);
         let repeated = match &input {
             Input::Command(command) if !self.fresh(&command.id) => Some(command.id.clone()),
             _ => None,
@@ -245,6 +255,7 @@ impl Watch {
                 );
             }
             Action::CallModel { seen, request } => self.called(seen, &request),
+            Action::Wake { seen, .. } => self.retry_wake(seen),
             Action::PushTransient(transient) => self.transient(&transient),
             Action::CancelModel { seen } => {
                 self.seen_paths.insert("叫执行器别再发");
@@ -323,8 +334,11 @@ impl Watch {
         self.request_from_log(request);
         self.undo_request(seen);
         self.permission_request();
+        let retry = self.retry_request();
         let count = self.requests.entry(turn).or_default();
-        *count += 1;
+        if !retry {
+            *count += 1;
+        }
         assert!(
             *count <= STEP_LIMIT,
             "种子 {seed}：回合 {turn} 请求超过了上限"
@@ -364,11 +378,12 @@ impl Watch {
                     progress.call_id
                 );
             }
+            TransientBody::Status(status) => self.retry_status(status),
         }
     }
 
-    /// 追加的一批：序号连着；`model.called` 每次请求至多一条，排在它的回复后面，出错的后面
-    /// 紧跟着出错的 `turn.ended`；工具结果每个调用一条；步数上限只在请求满了的回合。
+    /// 追加的一批：序号连着；`model.called` 每次请求至多一条（`watch/model.rs`）；工具结果每个
+    /// 调用一条；步数上限只在请求满了的回合。
     fn appended(&mut self, events: Vec<Event>) {
         let seed = self.seed;
         for (k, event) in events.iter().enumerate() {
@@ -432,6 +447,7 @@ impl Watch {
                 Body::TurnEnded(ended) => {
                     self.all_resulted(self.open_turn());
                     self.note_ended(event, &ended.reason);
+                    self.retry_ended();
                 }
                 Body::TurnStarted(started) => {
                     self.one_turn();
@@ -445,55 +461,6 @@ impl Watch {
             self.approval_check(&events, k);
             self.question_check(&events, k);
             self.events.push(event.clone());
-        }
-    }
-
-    /// 一条 `model.called`：交给过执行器、只记一次；说完了的前面是它的回复，出错的后面
-    /// 紧跟着出错的回合结束。
-    fn model_called(&mut self, called: &crate::event::ModelCalled, events: &[Event], k: usize) {
-        let seed = self.seed;
-        assert!(
-            self.issued.contains(&called.seen),
-            "种子 {seed}：没交给执行器的请求 {} 记了一条",
-            called.seen
-        );
-        assert!(
-            self.recorded.insert(called.seen),
-            "种子 {seed}：请求 {} 记了两条",
-            called.seen
-        );
-        let before = k.checked_sub(1).map(|k| &events[k].body);
-        let after = events.get(k + 1).map(|event| &event.body);
-        let interrupted_later = events[k..].iter().any(|event| {
-            matches!(&event.body, Body::TurnEnded(ended)
-                if matches!(ended.reason, EndReason::Interrupted | EndReason::Restarted))
-        });
-        match called.result {
-            CallResult::Ok => {
-                self.seen_paths.insert("说完了");
-                assert!(
-                    matches!(before, Some(Body::MessageAssistant(reply)) if reply.seen == called.seen),
-                    "种子 {seed}：说完了的，前面是它的回复"
-                );
-            }
-            CallResult::Interrupted => {
-                self.seen_paths.insert("打断了请求");
-                assert!(
-                    interrupted_later,
-                    "种子 {seed}：被打断的请求，这一批里接着是被打断（或者被重启打断）的回合结束"
-                );
-            }
-            _ => {
-                self.seen_paths.insert("出错了");
-                assert!(
-                    matches!(after, Some(Body::TurnEnded(ended)) if ended.reason == EndReason::Error),
-                    "种子 {seed}：出错的，后面紧跟着出错的回合结束"
-                );
-            }
-        }
-        self.undo_called(called);
-        if self.asking == Some(called.seen) {
-            self.asking = None;
         }
     }
 }

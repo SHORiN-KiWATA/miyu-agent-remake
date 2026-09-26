@@ -30,6 +30,7 @@
 
 mod asking;
 mod kinds;
+mod paths;
 mod watch;
 
 use std::collections::BTreeSet;
@@ -50,6 +51,7 @@ use crate::raw::RawJson;
 use crate::tool::Access;
 use asking::{some_answer, some_question, some_reply, some_verdict};
 use kinds::InputKind;
+use paths::EXPECTED_PATHS;
 use watch::Watch;
 
 /// 随机测试的会话，一个回合最多请求几次模型。
@@ -172,11 +174,28 @@ fn scrambled_delta(rng: &mut Rng) -> Delta {
     }
 }
 
-fn some_ending(rng: &mut Rng) -> Option<CallError> {
-    (rng.below(4) == 0).then(|| CallError {
-        class: ErrorClass::Retryable,
-        message: "503".to_string(),
-    })
+/// 说完了的结局：四回里有一回出错，出错的带着供应商说的要等多久（施工 3-5 下）。多半是可以重试的
+/// 503；也有限速的（等 3 秒，或者 10 分钟：太久不等）、认证失败的（不重试）。
+fn some_ending(rng: &mut Rng) -> (Option<CallError>, Option<u64>) {
+    if rng.below(4) > 0 {
+        return (None, None);
+    }
+    let (class, message, wait) = match rng.below(8) {
+        0 => (ErrorClass::Auth, "401", None),
+        1 => (ErrorClass::RateLimited, "429", Some(3000)),
+        2 => (ErrorClass::RateLimited, "429", Some(600_000)),
+        _ => (ErrorClass::Retryable, "503", None),
+    };
+    let error = CallError {
+        class,
+        message: message.to_string(),
+    };
+    (Some(error), wait)
+}
+
+/// 到点了：为 `seen` 那次请求等的。
+fn woke(seen: Seq) -> Input {
+    Input::Woke { at: at(55), seen }
 }
 
 /// 一条随机的输入，照下面的权重抽（一共 30 份）。执行器替身多半守规矩：请求交给它以后，
@@ -203,6 +222,15 @@ fn some_ending(rng: &mut Rng) -> Option<CallError> {
 /// | 1 | 开关只读 |
 /// | 1 | 改常用的那一级，偶尔是不认识的 |
 fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
+    // 等着重试的，多半很快到点；偶尔来一个对不上的到点了，该不理（施工 3-5 下）。
+    if let Some(seen) = watch.waiting_retry()
+        && rng.below(2) == 0
+    {
+        return woke(seen);
+    }
+    if rng.below(80) == 0 {
+        return woke(watch.some_seen(rng));
+    }
     // 交给了链的，多半很快有结论；在等人的，偶尔回答。
     if !watch.approvals.guarding.is_empty() && rng.below(3) > 0 {
         return some_verdict(rng, watch);
@@ -263,12 +291,16 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
             seen: watch.some_seen(rng),
             delta: watch.some_delta(rng),
         },
-        20 | 21 => Input::ModelEnded {
-            at: at(45),
-            seen: watch.some_seen(rng),
-            usage: None,
-            error: some_ending(rng),
-        },
+        20 | 21 => {
+            let (error, wait_ms) = some_ending(rng);
+            Input::ModelEnded {
+                at: at(45),
+                seen: watch.some_seen(rng),
+                usage: None,
+                error,
+                wait_ms,
+            }
+        }
         22 => progress(watch.some_call(rng)),
         23..=25 => Input::ToolDone {
             at: at(50),
@@ -366,55 +398,6 @@ fn random_policy(attended: bool) -> Policy {
     limited.attended = attended;
     limited
 }
-
-/// 三百例里每条都要走到的路。
-const EXPECTED_PATHS: &[&str] = &[
-    "推了增量",
-    "叫执行器别再发",
-    "跑了回合结束的挂接点",
-    "说完了",
-    "出错了",
-    "回复里有工具调用",
-    "开了第二轮",
-    "派了工具",
-    "推了工具的输出",
-    "一步接一步",
-    "走到步数上限",
-    "打断了回合",
-    "打断了请求",
-    "打断了工具",
-    "空闲时打断被拒",
-    "急着插话跳过",
-    "排队的接着开了一轮",
-    "打断后排队的接着发",
-    "打断后排队的退回",
-    "回复到了只读拦下",
-    "收紧时拦下还没派的",
-    "要写入的请求只读拦下",
-    "切了级别以后注入",
-    "要问人",
-    "人允许了",
-    "人拒绝了",
-    "链拒绝了",
-    "没人能确认被拒",
-    "回答被拒",
-    "工具问人",
-    "人回答了",
-    "回答交给了工具",
-    "回答对不上被拒",
-    "来了一句话作废",
-    "打断时在等人回答",
-    "没人能回答",
-    "崩了以后收尾",
-    "有计划地重启",
-    "重启后接着干",
-    "撤销了",
-    "撤销被拒",
-    "撤销带走了上一轮排着的",
-    "恢复了",
-    "恢复被拒",
-    "恢复以后接着说",
-];
 
 /// 跑一段种子，每一例三百条输入，照看守的规矩查（[`watch`]）。返回走到过的路和喂过的输入种类。
 fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKind>) {

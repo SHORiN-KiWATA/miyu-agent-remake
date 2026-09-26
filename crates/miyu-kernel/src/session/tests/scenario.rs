@@ -3,6 +3,7 @@
 //! 结果）、谁、第几轮。组装用的是替身的 [`Listing`]：请求里一条事件一行。
 
 mod asking;
+mod retrying;
 mod stopping;
 
 use super::executor::call;
@@ -184,7 +185,8 @@ fn the_step_limit_and_a_failed_request() {
     stage.model([
         Line::calls("我看看。", &[("read", r#"{"path":"a"}"#)]),
         Line::calls("再看看。", &[("read", r#"{"path":"b"}"#)]),
-        Line::fails(ErrorClass::Retryable, "503 Service Unavailable"),
+        // 不能重试的错（认证失败）：这一轮以出错结束。能重试的见 `scenario/retrying.rs`。
+        Line::fails(ErrorClass::Auth, "401 Unauthorized"),
     ]);
     stage.tools([Play::done("A"), Play::Fails("no such file: b".to_string())]);
     stage.say("看看 a 和 b");

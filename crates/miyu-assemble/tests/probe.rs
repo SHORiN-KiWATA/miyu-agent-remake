@@ -12,6 +12,7 @@ mod support;
 use std::fs;
 use std::path::PathBuf;
 
+use miyu_kernel::block::Block;
 use miyu_kernel::event::ErrorClass;
 use miyu_kernel::session::Queued;
 use miyu_kernel::testkit::{Line, Play, Stage};
@@ -72,11 +73,15 @@ fn terminal() -> Stage {
     s.set_permission(None, Some(true));
     s.interrupt(Queued::Send);
 
-    // 5. 第一次请求就出错，没等到回复。
-    s.model([Line::fails(
-        ErrorClass::Retryable,
-        "503 Service Unavailable",
-    )]);
+    // 5. 出错了再来（施工 3-5 下）：第一次什么都没收到，原样再请求，一字不差；第二次想了一点、说了
+    //    一半断了，半截写成回复，跟一句被打断的提示再请求；第三次认证失败，不再来，这一轮以出错结束，
+    //    半截留着。
+    s.model([
+        Line::fails(ErrorClass::Retryable, "503 Service Unavailable"),
+        Line::breaks("我先列一下", ErrorClass::Retryable, "connection reset")
+            .thinking("用户要看 tests 目录。"),
+        Line::fails(ErrorClass::Auth, "401 Unauthorized"),
+    ]);
     s.say("列一下 tests 目录");
 
     // 6. 连着三次调工具，走到步数上限。
@@ -173,7 +178,21 @@ fn the_terminal_session_keeps_the_properties() {
     let triggered = sent.iter().filter(|sent| sent.trigger.is_some()).count();
     let rewritten: Vec<usize> = (0..sent.len()).filter(|&k| sent[k].rewritten).collect();
     assert_eq!(triggered, 8);
-    assert_eq!(rewritten, [12, 13], "第 13、14 次请求");
+    assert_eq!(rewritten, [14, 15], "第 15、16 次请求");
+    // 第 5 轮什么都没收到的那一次再来，和第一次一字不差：`model.called` 不进上下文。
+    let fifth = sent
+        .iter()
+        .position(|sent| {
+            sent.trigger.as_ref().is_some_and(
+                |trigger| matches!(trigger, Block::Text(text) if text.text == "列一下 tests 目录"),
+            )
+        })
+        .expect("第 5 轮由那一句开");
+    assert_eq!(
+        sent[fifth].request.canonical_bytes(),
+        sent[fifth + 1].request.canonical_bytes(),
+        "什么都没收到的再来，一字不差"
+    );
 }
 
 #[test]

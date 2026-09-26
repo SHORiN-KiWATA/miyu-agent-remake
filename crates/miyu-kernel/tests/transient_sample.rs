@@ -3,7 +3,8 @@
 //!
 //! - 代码里造出同样的几条，写出去和样本一字不差；
 //! - 这几段增量交给累积器，拼出来的就是样本里 45 号回复的内容块：推给头的和写进日志的对得上；
-//! - 45 号回复里那次 `read` 执行中的一段输出（`tool.progress`）。
+//! - 45 号回复里那次 `read` 执行中的一段输出（`tool.progress`）；
+//! - 44 号请求出了限速的错，等 1 秒再来的状态（`status`，施工 3-5 下）。
 //!
 //! 瞬时事件内核只推不读，所以样本在代码里照着造，不从文件读回来。
 
@@ -11,7 +12,10 @@ use std::fs;
 use std::path::PathBuf;
 
 use miyu_kernel::accumulate::{Accumulator, Delta, Kind};
-use miyu_kernel::event::{Body, Event, ModelDelta, Piece, ToolProgress, Transient, TransientBody};
+use miyu_kernel::event::{
+    Body, ErrorClass, Event, ModelDelta, Piece, Retry, Status, ToolProgress, Transient,
+    TransientBody,
+};
 use miyu_kernel::id::{CallId, CommandId, ModelName, ProviderId, Seq, TurnId};
 use miyu_kernel::origin::{By, Model, Tool};
 use miyu_kernel::time::Timestamp;
@@ -140,4 +144,25 @@ fn the_tool_progress_sample_is_written_exactly() {
         }),
     };
     assert_eq!(lines("transient/tool.progress.jsonl"), [progress.to_line()]);
+}
+
+#[test]
+fn the_status_sample_is_written_exactly() {
+    let status = Transient {
+        at: Timestamp::parse("2026-09-25T07:04:07.200Z").expect("样本的时刻合写法"),
+        turn: Some(TurnId::new(Seq::new(42).expect("42 是合法的序号"))),
+        by: By::Kernel,
+        cause: Some(CommandId::parse("cmd-7f3a").expect("命令编号合写法")),
+        body: TransientBody::Status(Status {
+            seen: Seq::new(44).expect("44 是合法的序号"),
+            retry: Retry {
+                attempt: 1,
+                limit: 5,
+                wait_ms: 1000,
+                class: ErrorClass::RateLimited,
+                message: "HTTP 429: Rate limit reached".to_string(),
+            },
+        }),
+    };
+    assert_eq!(lines("transient/status.jsonl"), [status.to_line()]);
 }

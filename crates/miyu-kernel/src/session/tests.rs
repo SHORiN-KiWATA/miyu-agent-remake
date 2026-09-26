@@ -224,6 +224,7 @@ fn policy() -> Policy {
         facts: FactTemplates::new(
             r#"<e t="{time}" z="{timezone}" d="{cwd}"/>"#,
             r#"<p l="{level}"/>"#,
+            "<reply-cut/>",
         )
         .unwrap(),
         tools: BTreeMap::from([

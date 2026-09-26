@@ -19,6 +19,7 @@ mod question;
 mod queue;
 mod recent;
 mod restart;
+mod retry;
 mod revert;
 mod step;
 mod tools;
@@ -136,7 +137,9 @@ impl Session {
                 seen,
                 usage,
                 error,
-            } => self.model_ended(at, seen, usage, error),
+                wait_ms,
+            } => self.model_ended(at, seen, usage, error, wait_ms),
+            Input::Woke { at, seen } => self.woke(at, seen),
             Input::ToolDone {
                 at,
                 call_id,

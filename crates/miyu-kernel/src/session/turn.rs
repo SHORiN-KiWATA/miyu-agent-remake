@@ -27,8 +27,12 @@ pub(super) struct Turn {
     pub(super) stage: Stage,
     /// 这一轮的工作目录：回合开始时的那一个，派工具时带上。
     pub(super) cwd: String,
-    /// 这一轮请求过几次模型，比步数上限用。
+    /// 这一轮请求过几次模型，比步数上限用。重试的不算（施工 3-5 下）。
     pub(super) requests: u32,
+    /// 这一步连着出了几次可以重试的错：说完了一次就清零（`retry.rs`）。
+    pub(super) retries: u32,
+    /// 下一次请求是重试：不算步数。
+    pub(super) retrying: bool,
     /// 急着插话的那句话是谁说的、哪个命令：下一次请求之前，还没跑的调用都跳过。
     pub(super) interjected: Option<Interjection>,
     /// 排着队的消息：回合进行中来的，还没被请求看到过。序号和它的命令，照先后。
@@ -58,6 +62,11 @@ pub(super) enum Stage {
     Ready,
     /// 请求在路上。
     Asking(Call),
+    /// 出了可以重试的错，等着再来（施工 3-5 下）：到点了回到「准备好」，照有效历史再组装一次。
+    Waiting {
+        /// 为哪一次请求等的：出错的那一次。「到点了」照它对上。
+        after: Seq,
+    },
     /// 这次请求刚说完，正在收拾：回复写好以后，要么结束回合，要么换成调工具。只在处理
     /// 一条输入的当中出现，什么输入都不收。
     Settling,
@@ -85,6 +94,8 @@ impl Session {
             },
             cwd: self.environment.cwd.clone(),
             requests: 0,
+            retries: 0,
+            retrying: false,
             interjected: None,
             queued: Vec::new(),
             refresh: false,
@@ -166,7 +177,9 @@ impl Session {
                     .as_ref()
                     .and_then(|before| fingerprint.first_difference(before));
                 self.last_request = Some(fingerprint);
-                turn.requests += 1;
+                if !std::mem::take(&mut turn.retrying) {
+                    turn.requests += 1;
+                }
                 turn.interjected = None;
                 turn.queued.clear();
                 turn.stage = Stage::Asking(Call::new(seen, request.messages.len(), difference));

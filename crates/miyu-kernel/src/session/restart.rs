@@ -41,7 +41,11 @@ impl Session {
                     call.id
                 })
                 .collect(),
-            Stage::Opening { .. } | Stage::Hooking | Stage::Ready | Stage::Settling => Vec::new(),
+            Stage::Opening { .. }
+            | Stage::Hooking
+            | Stage::Ready
+            | Stage::Waiting { .. }
+            | Stage::Settling => Vec::new(),
         };
         let text = self.policy.tool_texts.restarted();
         for call_id in unfinished {

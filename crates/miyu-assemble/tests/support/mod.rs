@@ -339,11 +339,12 @@ fn texts() -> Texts {
     }
 }
 
-/// 出厂的两个事实模板。
+/// 出厂的三个事实模板。
 fn templates() -> FactTemplates {
     FactTemplates::new(
         include_str!("../../../../resources/core/facts/env.txt"),
         include_str!("../../../../resources/core/facts/permission.txt"),
+        include_str!("../../../../resources/core/facts/reply-cut.txt"),
     )
     .expect("出厂的模板用得了")
 }

@@ -4,6 +4,9 @@
 //! 现在有两类，都由内核注入，一类一块：环境（`env`：时间、时区、工作目录）和权限级别
 //! （`permission`）。每个边界查一遍：每一块和有效历史里同一个来源、同一类的最近一块比，
 //! 逐字节相同就不注入（[`changed`]）。在哪些边界查，是回合状态机和压缩的事（施工 2-3、2-7、M6）。
+//!
+//! 还有一块不是环境和状态，是发生了的事：回复被出错打断了（`reply_cut`，施工 3-5 下）。它跟在
+//! 半截回复后面，每次都注入，不和以前的比。
 
 use std::collections::BTreeMap;
 
@@ -14,7 +17,8 @@ use crate::origin::By;
 use crate::template::{Template, TemplateError};
 use crate::time::{Timestamp, UtcOffset};
 
-/// 两类事实的模板：环境（`core/facts/env.txt`）和权限（`core/facts/permission.txt`）。
+/// 事实的模板：环境（`core/facts/env.txt`）、权限（`core/facts/permission.txt`），和回复被出错
+/// 打断的那一句（`core/facts/reply-cut.txt`）。
 ///
 /// 由执行器从资源目录读好交进来，造会话时读一次，冻结在会话上（内核 K3）。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,6 +27,8 @@ pub struct FactTemplates {
     env: Template,
     /// 权限那一块，字段是 `level`。
     permission: Template,
+    /// 回复被出错打断的那一句，没有字段。
+    reply_cut: Template,
 }
 
 /// 会话所在的环境：时区和工作目录（`02-内核.md` 第六节「回合怎么开、请求怎么发」第 6 条）。
@@ -37,19 +43,40 @@ pub struct Environment {
 }
 
 impl FactTemplates {
-    /// 读两个模板。读好以后拿全部字段试着换一次：少了字段当场报错，回合里就不会再出这种错。
+    /// 读三个模板。读好以后拿全部字段试着换一次：少了字段当场报错，回合里就不会再出这种错。
     ///
     /// # Errors
     ///
     /// 模板的写法坏了，或者要了这一类没有的字段，返回 [`TemplateError`]，写明哪里坏了。
-    pub fn new(env: &str, permission: &str) -> Result<FactTemplates, TemplateError> {
+    pub fn new(
+        env: &str,
+        permission: &str,
+        reply_cut: &str,
+    ) -> Result<FactTemplates, TemplateError> {
         let templates = FactTemplates {
             env: Template::parse(env)?,
             permission: Template::parse(permission)?,
+            reply_cut: Template::parse(reply_cut)?,
         };
         templates.env.render(&env_fields("", "", ""))?;
         templates.permission.render(&permission_fields(""))?;
+        templates.reply_cut.render(&BTreeMap::new())?;
         Ok(templates)
+    }
+
+    /// 回复被出错打断的那一块：跟在半截回复后面（施工 3-5 下）。
+    ///
+    /// # Panics
+    ///
+    /// 实际不会 panic：造的时候已经试换过；`reply_cut` 这个类别名也合写法。
+    pub fn reply_cut(&self) -> ContextInjected {
+        ContextInjected {
+            kind: kind("reply_cut"),
+            text: self
+                .reply_cut
+                .render(&BTreeMap::new())
+                .expect("造的时候试换过，没有字段"),
+        }
     }
 
     /// 环境那一块：此刻 `now` 到小时，时区，工作目录。

@@ -230,7 +230,12 @@ impl Assembler for Nothing {
 fn policy() -> Policy {
     Policy {
         assembler: Box::new(Nothing),
-        facts: FactTemplates::new(r#"<e t="{time}" d="{cwd}"/>"#, r#"<p l="{level}"/>"#).unwrap(),
+        facts: FactTemplates::new(
+            r#"<e t="{time}" d="{cwd}"/>"#,
+            r#"<p l="{level}"/>"#,
+            "<reply-cut/>",
+        )
+        .unwrap(),
         tools: BTreeMap::from([(
             "read".to_string(),
             ToolRule {

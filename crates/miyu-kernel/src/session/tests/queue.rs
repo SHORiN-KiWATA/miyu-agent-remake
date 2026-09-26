@@ -79,12 +79,12 @@ fn the_last_of_several_queued_messages_triggers() {
 
 #[test]
 fn a_failed_or_limited_turn_also_goes_on() {
-    // 出错结束。
+    // 出错结束：认证失败，不重试。
     let mut session = asking();
     allowing(&mut session, send(2, "还在吗"));
     let events = appended_events(&allowing(
         &mut session,
-        failed(5, crate::event::ErrorClass::RateLimited, "429"),
+        failed(5, crate::event::ErrorClass::Auth, "401"),
     ));
     assert_eq!(reason_of(&events[1]), &EndReason::Error);
     assert_eq!(started(&events[2]).1, seq(6));

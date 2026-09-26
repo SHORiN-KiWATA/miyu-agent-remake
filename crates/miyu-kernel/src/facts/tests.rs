@@ -16,6 +16,7 @@ fn templates() -> FactTemplates {
     FactTemplates::new(
         r#"<e t="{time}" z="{timezone}" d="{cwd}"/>"#,
         r#"<p l="{level}"/>"#,
+        "<cut/>",
     )
     .unwrap()
 }
@@ -132,15 +133,25 @@ impl Log {
 
 #[test]
 fn a_template_asking_for_a_field_it_does_not_have_is_refused() {
-    let env = FactTemplates::new(r#"<e w="{weather}"/>"#, r#"<p l="{level}"/>"#).unwrap_err();
+    let env =
+        FactTemplates::new(r#"<e w="{weather}"/>"#, r#"<p l="{level}"/>"#, "<cut/>").unwrap_err();
     assert!(env.why.contains("weather"), "{env}");
-    let permission = FactTemplates::new(r#"<e t="{time}"/>"#, r#"<p t="{time}"/>"#).unwrap_err();
+    let permission =
+        FactTemplates::new(r#"<e t="{time}"/>"#, r#"<p t="{time}"/>"#, "<cut/>").unwrap_err();
     assert!(permission.why.contains("time"), "{permission}");
+    // 被打断的那一句没有字段。
+    let cut = FactTemplates::new(
+        r#"<e t="{time}"/>"#,
+        r#"<p l="{level}"/>"#,
+        r#"<cut n="{count}"/>"#,
+    )
+    .unwrap_err();
+    assert!(cut.why.contains("count"), "{cut}");
 }
 
 #[test]
 fn a_broken_template_is_refused() {
-    assert!(FactTemplates::new(r#"<e t="{time"/>"#, r#"<p l="{level}"/>"#).is_err());
+    assert!(FactTemplates::new(r#"<e t="{time"/>"#, r#"<p l="{level}"/>"#, "<cut/>").is_err());
 }
 
 #[test]

@@ -8,6 +8,7 @@
 use serde::{Serialize, Serializer};
 
 use crate::accumulate::Kind;
+use crate::event::ErrorClass;
 use crate::id::{CallId, CommandId, Seq, TurnId};
 use crate::origin::By;
 use crate::time::Timestamp;
@@ -27,13 +28,40 @@ pub struct Transient {
     pub body: TransientBody,
 }
 
-/// 瞬时事件的种类，连同它自己的内容。还有一种 `status`，随施工 3-5。
+/// 瞬时事件的种类，连同它自己的内容。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TransientBody {
     /// `model.delta`：模型输出的一段增量。
     ModelDelta(ModelDelta),
     /// `tool.progress`：工具执行中的一段输出。
     ToolProgress(ToolProgress),
+    /// `status`：会话在干什么（施工 3-5 下）。现在只有一种：出了错，等着重试。
+    Status(Status),
+}
+
+/// `status` 的 `body`：哪一次请求出了错，等着重试（`03-事件模型.md` 第五节）。以后别的状态
+/// （等第一个字时的心跳）也用这一种，换一格。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Status {
+    /// 哪一次请求出了错。
+    pub seen: Seq,
+    /// 等多久再试第几次。
+    pub retry: Retry,
+}
+
+/// 等着重试：第几次、一共最多几次、等多久，出错的分类和原话。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Retry {
+    /// 这是第几次重试，从 1 数起。
+    pub attempt: u32,
+    /// 一共最多几次。
+    pub limit: u32,
+    /// 等多久，毫秒。
+    pub wait_ms: u64,
+    /// 出错的分类。
+    pub class: ErrorClass,
+    /// 出错的原话，给人看。
+    pub message: String,
 }
 
 /// `tool.progress` 的 `body`：哪一次调用、一段输出（`03-事件模型.md` 第五节）。结果以
@@ -74,6 +102,7 @@ impl TransientBody {
         match self {
             TransientBody::ModelDelta(_) => "model.delta",
             TransientBody::ToolProgress(_) => "tool.progress",
+            TransientBody::Status(_) => "status",
         }
     }
 }
@@ -121,6 +150,7 @@ impl Serialize for TransientBody {
         match self {
             TransientBody::ModelDelta(delta) => delta.serialize(s),
             TransientBody::ToolProgress(progress) => progress.serialize(s),
+            TransientBody::Status(status) => status.serialize(s),
         }
     }
 }

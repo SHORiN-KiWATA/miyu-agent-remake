@@ -94,12 +94,12 @@ enum Ending {
     CutOff,
 }
 
-/// 一次请求收拾完：追加的事件、写成的回复是第几条、回复里的调用、算不算出错。
+/// 一次请求收拾完：追加的事件、写成的回复是第几条、回复里的调用、出错的分类和原话。
 struct Settled {
     events: Vec<Event>,
     reply: Option<Seq>,
     calls: Vec<ToolCall>,
-    failed: bool,
+    error: Option<CallError>,
 }
 
 /// 要推给头的一段增量，和它的 `by`：那个模型。
@@ -149,31 +149,41 @@ impl Session {
                 body: TransientBody::ModelDelta(ModelDelta { seen, index, piece }),
             })],
             Err(error) => {
-                let mut actions = self.model_ended(at, seen, None, Some(error));
+                let mut actions = self.model_ended(at, seen, None, Some(error), None);
                 actions.push(Action::CancelModel { seen });
                 actions
             }
         }
     }
 
-    /// 模型说完了：正常说完的写成回复；出错的，收到的半截不写。都记一条 `model.called`。
-    /// 回复里没有工具调用、或者出错了，结束回合；有工具调用的，接着调工具。
+    /// 模型说完了：正常说完的写成回复；出错的，收到的半截也写成回复，只留思考和正文（施工 3-5 下）。
+    /// 都记一条 `model.called`。出了可以重试的错，等着再来（`retry.rs`）；不能重试的，结束回合；
+    /// 回复里没有工具调用的，结束回合；有工具调用的，接着调工具。
     pub(super) fn model_ended(
         &mut self,
         at: Timestamp,
         seen: Seq,
         usage: Option<Usage>,
         error: Option<CallError>,
+        wait_ms: Option<u64>,
     ) -> Vec<Action> {
         let Some((call, cause)) = self.take_call(seen) else {
             return Vec::new();
         };
         let settled = self.settle(at, call, cause.clone(), Ending::Said { usage, error });
         let mut events = settled.events;
-        match settled.reply {
-            _ if settled.failed => {
-                events.extend(self.finish_turn(at, By::Kernel, cause, EndReason::Error));
+        if let Some(error) = settled.error {
+            if let Some(wait) = self.retry_wait(&error, wait_ms) {
+                let cut = settled.reply.is_some();
+                return self.wait_to_retry(at, seen, cause, events, cut, error, wait);
             }
+            events.extend(self.finish_turn(at, By::Kernel, cause, EndReason::Error));
+            return vec![Action::Append(events)];
+        }
+        if let Some(turn) = self.turn.as_mut() {
+            turn.retries = 0;
+        }
+        match settled.reply {
             Some(reply) if !settled.calls.is_empty() => {
                 events.extend(self.start_tools(at, reply, settled.calls, cause));
             }
@@ -221,15 +231,21 @@ impl Session {
             None if !cut && error.is_none() => {
                 error = Some(bad_stream("请求还没发出去就说完了".to_string()));
             }
-            Some(sent) if cut || error.is_none() => {
+            Some(sent) => {
                 let seq = self.ledger.next_seq();
-                let blocks = if cut {
+                // 出错断了的，照打断的规矩留下半截，工具调用一个不留：没收全的执行不了，收全了的
+                // 也不派，回复没说完（02 第六节「回复怎么收」第 4 条）。
+                let failed = error.is_some();
+                let mut blocks = if cut || failed {
                     accumulator.cut_off(seq)
                 } else {
                     accumulator.finish(seq)
                 };
+                if failed {
+                    blocks.retain(|block| !matches!(block, Block::ToolCall(_)));
+                }
                 if blocks.is_empty() {
-                    if !cut {
+                    if !cut && !failed {
                         error = Some(CallError {
                             class: ErrorClass::EmptyReply,
                             message: "回复里一个块都没有".to_string(),
@@ -246,14 +262,14 @@ impl Session {
                     let body = MessageAssistant {
                         blocks,
                         seen,
-                        interrupted: cut,
+                        interrupted: cut || failed,
                     };
                     let by = By::Model(sent.model.clone());
                     events.push(self.record(at, by, cause.clone(), Body::MessageAssistant(body)));
                     reply = Some(seq);
                 }
             }
-            _ => {}
+            None => {}
         }
         let result = if cut {
             CallResult::Interrupted
@@ -283,7 +299,7 @@ impl Session {
             events,
             reply,
             calls,
-            failed: error.is_some(),
+            error,
         }
     }
 

@@ -58,7 +58,12 @@ impl Session {
                 events.extend(cancelled);
                 stops.extend(cancels);
             }
-            Stage::Opening { .. } | Stage::Hooking | Stage::Ready | Stage::Settling => {}
+            // 等着重试的：请求还没发，叫醒了也不理，直接结束。
+            Stage::Opening { .. }
+            | Stage::Hooking
+            | Stage::Ready
+            | Stage::Waiting { .. }
+            | Stage::Settling => {}
         }
         if queued == Queued::Return {
             events.extend(self.withdraw_queued(at, &by, &id));

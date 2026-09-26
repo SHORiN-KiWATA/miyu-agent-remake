@@ -10,6 +10,7 @@ use crate::id::{CallId, ModelName, ProviderId, Seq};
 use crate::origin::Model;
 use crate::request::Request;
 use crate::session::{Action, Input, Verdict};
+use crate::time::Timestamp;
 
 impl Stage {
     /// 照 02 第四节的表回一个动作，返回要送回去的输入。
@@ -37,6 +38,11 @@ impl Stage {
                 injected: self.injections.pop_front().unwrap_or_default(),
             }],
             Action::CallModel { seen, request } => self.call(seen, request),
+            Action::Wake { at, seen } if self.hold_wakes => {
+                self.held_wake = Some((at, seen));
+                Vec::new()
+            }
+            Action::Wake { at, seen } => self.wake(at, seen),
             Action::CancelModel { seen } => {
                 self.held_model.take_if(|(held, _)| *held == seen);
                 Vec::new()
@@ -69,6 +75,14 @@ impl Stage {
         }
     }
 
+    /// 到点叫醒：时钟拨到那一刻（已经过了的，就是现在），送回到点了。
+    pub(super) fn wake(&mut self, at: Timestamp, seen: Seq) -> Vec<Input> {
+        if at > self.now {
+            self.now = at;
+        }
+        vec![Input::Woke { at: self.now, seen }]
+    }
+
     /// 请求模型：先报发出去了，再一块块送增量；不停住的，最后送说完了。
     fn call(&mut self, seen: Seq, request: Request) -> Vec<Input> {
         let hash = request.hash();
@@ -85,7 +99,7 @@ impl Stage {
             model: model(),
             request: hash,
         }];
-        if line.error.is_none() {
+        if line.error.is_none() || line.says_something() {
             for delta in deltas(&line) {
                 inputs.push(Input::ModelDelta {
                     at: self.tick(),
@@ -114,6 +128,7 @@ impl Stage {
                 output: 10,
             }),
             error: line.error.clone(),
+            wait_ms: line.wait_ms,
         }
     }
 
@@ -158,30 +173,39 @@ fn model() -> Model {
 
 /// 一次回复的增量：正文一块，每个调用一块，每块一次送完（开始、全文、收全）。
 fn deltas(line: &Line) -> Vec<Delta> {
+    // 说了一半断了的，一块都不收全。
+    let ends = line.error.is_none();
     let mut deltas = Vec::new();
     let mut index = 0;
+    if !line.reasoning.is_empty() {
+        deltas.extend(block(index, Kind::Reasoning, &line.reasoning, ends));
+        index += 1;
+    }
     if !line.text.is_empty() {
-        deltas.extend(block(index, Kind::Text, &line.text));
+        deltas.extend(block(index, Kind::Text, &line.text, ends));
         index += 1;
     }
     for (name, args) in &line.calls {
         let kind = Kind::ToolCall { name: name.clone() };
-        deltas.extend(block(index, kind, args));
+        deltas.extend(block(index, kind, args, ends));
         index += 1;
     }
     deltas
 }
 
-/// 第 `index` 块：开始、全文、收全。
-fn block(index: usize, kind: Kind, text: &str) -> [Delta; 3] {
-    [
+/// 第 `index` 块：开始、全文；`ends` 的再收全。
+fn block(index: usize, kind: Kind, text: &str, ends: bool) -> Vec<Delta> {
+    let mut deltas = vec![
         Delta::Start { index, kind },
         Delta::Text {
             index,
             text: text.to_string(),
         },
-        Delta::End { index },
-    ]
+    ];
+    if ends {
+        deltas.push(Delta::End { index });
+    }
+    deltas
 }
 
 /// `ask_user` 拿到回答以后写的结果（真的写法随 M4 的 `ask_user` 定）：照题目的先后，选了的写标题，
