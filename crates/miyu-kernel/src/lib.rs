@@ -17,9 +17,11 @@
 //! - [`assemble`]：组装请求的接口，给一段有效历史，出一份统一的请求；
 //! - [`facts`]：环境和状态的事实，写成什么、该不该注入；
 //! - [`session`]：会话的状态机，送进一条输入，出来一串动作；
+//! - [`accumulate`]：流式累积器，模型输出的增量拼成完整的内容块；
 //! - [`raw`]：原样的 JSON，驱动私有数据和不认识的种类都用它；
 //! - [`template`]：模板与转义，给模型看的字怎么拼，不可信的字段怎么转。
 
+pub mod accumulate;
 pub mod assemble;
 pub mod block;
 pub mod event;
