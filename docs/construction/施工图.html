@@ -150,6 +150,7 @@ a.step:hover{border-color:var(--primary)}
 .slots{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .empty{font-size:12.5px;color:var(--ink-2)}
 .chip{font:600 12.5px/1 var(--mono);padding:6px 9px;border-radius:5px;border:1px solid var(--line);background:var(--panel)}
+.chip.new{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-ink)}
 .side{display:grid;gap:0;align-content:start}
 .link{display:grid;justify-items:start;padding:4px 0 4px 18px;margin-left:16px;border-left:1.5px solid var(--line);font-size:12.5px;color:var(--ink-2);min-height:34px;align-content:center}
 .pipe{list-style:none;margin:0;padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1px solid var(--primary);background:var(--primary-soft);border-radius:6px}
@@ -263,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>14</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
-    <li><b>1-12</b><span>现在：组装请求，<strong>施工中</strong></span></li>
-    <li><b class="mono">aa1a8ed</b><span>最近一步（1-11）的提交</span></li>
+    <li><b>15</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
+    <li><b>1-13</b><span>下一步：事实注入，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">b136e65</b><span>最近一步（1-12）的提交</span></li>
   </ul>
 </header>
 
@@ -318,7 +319,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s1-9"><span class="n">1-9</span>有效历史（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-10"><span class="n">1-10</span>有效历史（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-11"><span class="n">1-11</span>模板与转义<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">1-12</span>组装请求</span></li>
+        <li><a class="step done" href="#s1-12"><span class="n">1-12</span>组装请求<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">1-13</span>事实注入</span></li>
         <li><span class="step"><span class="n">1-14</span>请求形状探针</span></li>
       </ol>
@@ -1381,6 +1382,98 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s1-12" aria-labelledby="h-s112">
+  <div class="sheet-head"><h2 id="h-s112"><span class="no">1-12</span>组装请求</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">能从有效历史组装出发给模型的请求了。内核定了接口，默认的做法是第 2 层的第一个 crate：稳定区在前，检查点跟着，历史照先后一条条渲染，人这一边挨着的块合成一条。样本会话喂进去，出来的正是两份样本请求，一个字节不差。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="stack-wrap">
+            <div class="dep" aria-hidden="true">可以依赖</div>
+            <div class="stack" aria-label="代码的六层，第 2 层有了第一个 crate">
+              <div class="band"><span class="lv">6</span><span class="lname">主程序</span><div class="slots"><span class="empty">还没有 · 以后放 miyu</span></div></div>
+              <div class="band"><span class="lv">5</span><span class="lname">头</span><div class="slots"><span class="empty">还没有 · 终端界面、命令行</span></div></div>
+              <div class="band"><span class="lv">4</span><span class="lname">核心</span><div class="slots"><span class="empty">还没有 · 会话 actor、协议端点</span></div></div>
+              <div class="band"><span class="lv">3</span><span class="lname">执行器</span><div class="slots"><span class="empty">还没有 · 存储、HTTP、工具、沙盒</span></div></div>
+              <div class="band pure"><span class="lv">2</span><span class="lname">模块<small>纯逻辑</small></span><div class="slots"><span class="chip new">miyu-assemble</span><span class="empty">默认的组装</span></div></div>
+              <div class="band pure"><span class="lv">1</span><span class="lname">内核<small>纯逻辑</small></span><div class="slots"><span class="chip">miyu-kernel</span><span class="empty">新加 assemble.rs：组装请求的接口</span></div></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">一份请求 · 照这个先后</span><span class="dir-note">稳定区在造组装器时交进来，一个会话一个</span></div>
+            <ol class="pipe" aria-label="请求里的先后">
+              <li>工具面，照名字排</li>
+              <li>system</li>
+              <li>示范对话</li>
+              <li>检查点</li>
+              <li>历史</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">每种事件渲染成什么</span><span class="dir-note">照有效历史排好的先后</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">message.user</span><span class="rl">内容块放进 user 消息</span></div>
+              <div class="tile new"><span class="nm">message.assistant</span><span class="rl">一条 assistant 消息，块原样</span></div>
+              <div class="tile new"><span class="nm">tool.result</span><span class="rl">一条 tool 消息，状态不是 ok 就算出错</span></div>
+              <div class="tile new"><span class="nm">context.injected</span><span class="rl">一个文本块，就是它的原文</span></div>
+              <div class="tile new"><span class="nm">turn.ended 没走完</span><span class="rl">打断、出错、步数上限、重启，各说一句</span></div>
+              <div class="tile new"><span class="nm">其余的</span><span class="rl">回合开始、会话的事件、不认识的种类，不渲染</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">人这一边合成一条</span><span class="rl">检查点最前，事实其次，人的消息最后</span></div>
+          <div class="tile new"><span class="nm">检查点只说它是什么</span><span class="rl">「接着做」是 system 里的一行规则，3-6 拼进去</span></div>
+          <div class="tile new"><span class="nm">出厂的英文在 resources/core/</span><span class="rl">七个文件，原样用，行尾的换行也算</span></div>
+          <div class="tile new"><span class="nm">不认识的块跳过</span><span class="rl">日志里原样留着，投影不发</span></div>
+          <div class="tile new"><span class="nm">两份样本请求</span><span class="rl">工具结果回来以后那一次，和压缩以后</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">1-12</dd></div>
+        <div><dt>名称</dt><dd>组装请求</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">b136e65</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>内核的接口 <code>Assembler</code>：给一段有效历史，出一份统一的请求。只有一个方法。</li>
+        <li>新 crate <code>miyu-assemble</code>，第 2 层：<code>DefaultAssembler</code>，造的时候交进稳定区和出厂的英文。</li>
+        <li>分层表的第 2 层登记了它，门禁照表查。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>122 个测试全过，新加 17 个：每种事件的渲染、人这一边合成一条、检查点、回合没走完的四句、不认识的块、工具面照名字排、示范对话，和样本会话组装出两份样本请求</span></li>
+        <li><span class="ok">✓</span><span>故意改坏十四处（工具面不排序、stable 恒为 0、示范对话排到历史后面、人的消息排到事实前面、检查点丢了结尾、摘要被转义、检查点当成人的消息、只有 error 才算出错、正常走完也说一句、出错说成重启、不认识的块不跳过、换权限也渲染、回复前不合成人这一边、没攒东西也出空消息），每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 122 个测试）</span></li>
+        <li><span class="ok">✓</span><span>项目主人验收通过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/08-上下文投影.md</code> 第四节「默认的组装怎么写」。</li>
+        <li><code>docs/designs/09-压缩.md</code> 第四节、<code>26-提示词.md</code> 第二、四、八节：检查点照 J2 拆成标记和规则。</li>
+        <li><code>resources/core/</code>：给模型看的七个文件。</li>
+        <li><code>docs/designs/samples/requests/after-compaction.json</code>：压缩以后的样本请求。</li>
+        <li><code>docs/construction/1-12-组装请求.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -1554,7 +1647,7 @@ const TREE = {
 const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '11 种事件的写法、追加时的检查' },
-  k_ctx: { by: '1-8', how: 'frame', note: '统一的请求、有效历史、模板' },
+  k_ctx: { by: '1-8', how: 'frame', note: '统一的请求、有效历史、模板、默认的组装' },
 };
 
 const svg = document.getElementById('bmap');
