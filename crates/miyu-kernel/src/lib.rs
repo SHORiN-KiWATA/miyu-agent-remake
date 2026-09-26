@@ -11,12 +11,14 @@
 //! - [`origin`]：事件的 `by`，由谁引起；
 //! - [`block`]：内容块，消息和工具结果都由它组成；
 //! - [`event`]：事件本身，和日志里一行 JSON 之间的转换；
+//! - [`ledger`]：日志的账本，追加一条事件之前照规矩查一遍；
 //! - [`raw`]：原样的 JSON，驱动私有数据和不认识的种类都用它。
 
 pub mod block;
 pub mod event;
 mod format_error;
 pub mod id;
+pub mod ledger;
 pub mod origin;
 pub mod raw;
 mod text_enum;
