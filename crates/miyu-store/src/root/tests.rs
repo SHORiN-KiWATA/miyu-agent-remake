@@ -247,27 +247,29 @@ fn a_new_root_gets_the_marker() {
 
 #[test]
 fn a_directory_that_is_not_ours_is_left_alone() {
-    // 放了一个随便的文件的，和像旧版 Miyu 的（顶层有 config/）。
-    for old_miyu in [false, true] {
+    // 只放了一个文件的，和只放了一个目录的：里面是什么不去猜，都只说认不出。
+    for dir in [false, true] {
         let scratch = Scratch::new();
         let root = root_in(&scratch);
         fs::create_dir_all(root.path()).unwrap();
-        fs::write(root.path().join("notes.txt"), "我的笔记").unwrap();
-        if old_miyu {
-            fs::create_dir_all(root.path().join("config")).unwrap();
-            fs::write(root.path().join("config").join("miyu.jsonc"), "{}").unwrap();
+        if dir {
+            fs::create_dir_all(root.path().join("photos")).unwrap();
+            fs::write(root.path().join("photos").join("cat.png"), "猫").unwrap();
+        } else {
+            fs::write(root.path().join("notes.txt"), "我的笔记").unwrap();
         }
         let before = contents(root.path());
-        match root.prepare() {
-            Err(PrepareError::NotOurs {
-                path,
-                old_miyu: said,
-            }) => {
-                assert_eq!(path, root.path());
-                assert_eq!(said, old_miyu);
-            }
-            other => panic!("不是 Miyu 的数据根，应该拒绝：{other:?}"),
-        }
+        let Err(error) = root.prepare() else {
+            panic!("认不出是 Miyu 的数据根，应该拒绝");
+        };
+        let PrepareError::NotOurs(path) = &error else {
+            panic!("应该是认不出：{error:?}");
+        };
+        assert_eq!(path, root.path());
+        // 报错写明是哪个目录、为什么认不出。
+        let said = error.to_string();
+        assert!(said.contains(&root.path().display().to_string()), "{said}");
+        assert!(said.contains(".miyu-root"), "{said}");
         assert_eq!(contents(root.path()), before, "一个字节都不动");
     }
 }
@@ -279,13 +281,7 @@ fn a_hidden_file_also_makes_it_not_empty() {
     let root = root_in(&scratch);
     fs::create_dir_all(root.path()).unwrap();
     fs::write(root.path().join(".hidden"), "").unwrap();
-    assert!(matches!(
-        root.prepare(),
-        Err(PrepareError::NotOurs {
-            old_miyu: false,
-            ..
-        })
-    ));
+    assert!(matches!(root.prepare(), Err(PrepareError::NotOurs(_))));
     assert!(!root.run().exists());
 }
 

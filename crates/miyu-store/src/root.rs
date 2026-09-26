@@ -2,7 +2,8 @@
 //!
 //! 数据根装着全部真相和派生数据，一个数据根上只跑一个核心，默认在家目录的 `.miyu` 里；缓存目录
 //! 装模型文件这类大缓存，整台机器共用，换了数据根也不用重新下载。两样都照一份环境快照（[`Env`]）
-//! 找。数据根的顶层有一个标记文件，认不出是自己的数据根就不碰它：旧版 Miyu 也放在 `~/.miyu`。
+//! 找。数据根的顶层有一个标记文件，认不出是自己的数据根就不碰它：家目录里的 `.miyu` 不一定是
+//! 我们建的。
 
 use std::ffi::OsString;
 use std::fmt;
@@ -110,23 +111,20 @@ impl DataRoot {
     }
 
     /// 建骨架：先认标记。目录不存在、是空的，先写下标记；有标记的照常；不是空的又没有标记的，
-    /// 不是 Miyu 的数据根，里面什么都不建。然后四个顶层目录，缺的才建，建两次也不出错。
+    /// 认不出是 Miyu 的数据根，里面什么都不建。然后四个顶层目录，缺的才建，建两次也不出错。
     ///
     /// Unix 上新建的权限 0700，只有本人能进；已经有的不改：数据根可能是人自己建、自己设的，权限
     /// 不对由 `miyu doctor` 报告（`22-命令行.md` 第五节）。Windows 上靠用户目录本身的访问控制。
     ///
     /// # Errors
     ///
-    /// 不是 Miyu 的数据根；建不了目录、写不了标记，或者该是目录的地方是个文件。
+    /// 认不出是 Miyu 的数据根；建不了目录、写不了标记，或者该是目录的地方是个文件。
     pub fn prepare(&self) -> Result<(), PrepareError> {
         create(&self.path)?;
         let marker = self.path.join(MARKER);
         if fs::symlink_metadata(&marker).is_err() {
             if fs::read_dir(&self.path)?.next().is_some() {
-                return Err(PrepareError::NotOurs {
-                    path: self.path.clone(),
-                    old_miyu: looks_like_old_miyu(&self.path),
-                });
+                return Err(PrepareError::NotOurs(self.path.clone()));
             }
             let mut file = fs::OpenOptions::new()
                 .write(true)
@@ -145,14 +143,9 @@ impl DataRoot {
 /// 建骨架建不成。
 #[derive(Debug)]
 pub enum PrepareError {
-    /// 目录里有别的东西，又没有标记：不是 Miyu 的数据根，一个字节都不动它。`old_miyu`：里面有
-    /// 旧版 Miyu 特有的东西。
-    NotOurs {
-        /// 哪个目录。
-        path: PathBuf,
-        /// 看着像旧版 Miyu 的数据。
-        old_miyu: bool,
-    },
+    /// 目录里有别的东西，又没有标记：认不出是 Miyu 的数据根，一个字节都不动它。里面是什么不去猜，
+    /// 只有这一种说法。
+    NotOurs(PathBuf),
     /// 读写出错。
     Io(io::Error),
 }
@@ -160,20 +153,9 @@ pub enum PrepareError {
 impl fmt::Display for PrepareError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PrepareError::NotOurs {
-                path,
-                old_miyu: true,
-            } => write!(
+            PrepareError::NotOurs(path) => write!(
                 f,
-                "{} 里像是旧版 Miyu 的数据，新版不动它。设 MIYU_HOME 指到别处，或者先迁过来",
-                path.display()
-            ),
-            PrepareError::NotOurs {
-                path,
-                old_miyu: false,
-            } => write!(
-                f,
-                "{} 里有别的东西，不像 Miyu 的数据根，新版不动它。设 MIYU_HOME 指到一个空目录",
+                "{} 里有别的东西，认不出是 Miyu 的数据根（顶层没有 {MARKER}），不动它。设 MIYU_HOME 指到一个空目录",
                 path.display()
             ),
             PrepareError::Io(error) => error.fmt(f),
@@ -188,14 +170,6 @@ impl From<io::Error> for PrepareError {
         PrepareError::Io(error)
     }
 }
-
-/// 看着像旧版 Miyu 的数据：顶层有旧版特有的东西。只用来把报错说清楚，认不认得出都不碰它。
-fn looks_like_old_miyu(path: &Path) -> bool {
-    OLD_MIYU.iter().any(|name| path.join(name).exists())
-}
-
-/// 旧版 Miyu 的数据根顶层特有的几样（照旧版的代码和盘点，施工 3-1 补）。
-const OLD_MIYU: [&str; 1] = ["config"];
 
 /// 缓存目录：整台机器共用，不跟着 `MIYU_HOME` 变（`07-存储.md` 第二节）。只找，不建：用到它的
 /// 到时候建。
