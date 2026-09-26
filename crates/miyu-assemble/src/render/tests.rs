@@ -1,5 +1,6 @@
-//! 渲染的测试：每种事件渲染成什么；人这一边的块怎么合；检查点；回合没走完的那一句；
-//! 不认识的块和不进上下文的种类。日志都先交给账本查过（[`Log`]）。
+//! 渲染的测试：每种事件渲染成什么；人这一边的块怎么合：照先后，每个回合开始时注入的事实
+//! 和触发它的那条放到回合开始的地方；早到的触发；检查点；回合没走完的那一句；第一次请求
+//! 出错以后前缀接得上；不认识的块和不进上下文的种类。日志都先交给账本查过（[`Log`]）。
 
 use super::*;
 use crate::test_support::*;
@@ -23,13 +24,27 @@ fn the_facts_of_a_turn_come_before_its_trigger() {
 }
 
 #[test]
-fn messages_in_a_row_merge_in_order_after_the_facts() {
+fn messages_in_a_row_keep_their_order_and_the_facts_go_before_the_trigger() {
     let mut log = Log::new();
     log.say("one");
     let two = log.say("two");
     log.start(two);
     log.fact("<env/>");
-    assert_eq!(rendered(&log), ["user: <env/> | one | two"]);
+    assert_eq!(rendered(&log), ["user: one | <env/> | two"]);
+}
+
+#[test]
+fn facts_whose_trigger_is_not_rendered_keep_their_place() {
+    let mut log = Log::new();
+    log.say("hi");
+    let fired = log.push(
+        r#"{"kind":"module","id":"timer"}"#,
+        "ext.timer.fired",
+        r#"{"name":"standup"}"#,
+    );
+    log.start(fired);
+    log.fact("<env/>");
+    assert_eq!(rendered(&log), ["user: hi | <env/>"]);
 }
 
 #[test]
@@ -232,4 +247,87 @@ fn events_outside_the_context_are_not_rendered() {
     let hi = log.say("hi");
     log.start(hi);
     assert_eq!(rendered(&log), ["user: hi"]);
+}
+
+#[test]
+fn a_turn_whose_first_request_failed_keeps_what_it_sent_in_front() {
+    let mut log = Log::new();
+    let first = log.say("看看 src 目录");
+    log.start(first);
+    let sent = rendered(&log);
+    assert_eq!(sent, ["user: 看看 src 目录"]);
+    // 这次请求出了错，没等到回复，回合就结束了。
+    log.end("error");
+    let again = log.say("再试一次");
+    log.start(again);
+    assert_eq!(
+        rendered(&log),
+        ["user: 看看 src 目录 | <error/> | 再试一次"]
+    );
+}
+
+#[test]
+fn a_message_that_came_during_the_last_step_and_starts_the_next_turn_goes_last() {
+    let mut log = Log::new();
+    let first = log.say("看看 src 目录");
+    log.start(first);
+    let call = log.reply_calling("looking");
+    log.result(&call, "ok", "lib.rs");
+    let late = log.say("顺便看看 README");
+    log.end("step_limit");
+    log.start(late);
+    log.fact("<env/>");
+    assert_eq!(
+        rendered(&log)[3],
+        "user: <step-limit/> | <env/> | 顺便看看 README"
+    );
+}
+
+#[test]
+fn the_message_that_cut_a_turn_short_goes_last() {
+    let mut log = Log::new();
+    let first = log.say("改一下 main.rs");
+    log.start(first);
+    // 请求发出去以后，回复还在路上，人插了一句，这一轮就被打断了。
+    let seen = log.next() - 1;
+    let interjection = log.say("等等，先别改");
+    let call = format!("call_{}_1", log.next());
+    log.push(
+        r#"{"kind":"model","endpoint":"deepseek","model":"deepseek-v4"}"#,
+        "message.assistant",
+        &format!(
+            r#"{{"blocks":[{},{{"type":"tool_call","call_id":"{call}","name":"write","args":"{{}}"}}],"seen":{seen},"interrupted":true}}"#,
+            text_json("我先改")
+        ),
+    );
+    log.result(&call, "cancelled", "cancelled");
+    log.end("interrupted");
+    log.start(interjection);
+    log.fact("<env/>");
+    assert_eq!(
+        rendered(&log).last().map(String::as_str),
+        Some("user: <interrupted/> | <env/> | 等等，先别改")
+    );
+}
+
+#[test]
+fn an_early_trigger_stays_put_when_its_turn_fails() {
+    let mut log = Log::new();
+    let first = log.say("看看 src 目录");
+    log.start(first);
+    let call = log.reply_calling("looking");
+    log.result(&call, "ok", "lib.rs");
+    let late = log.say("顺便看看 README");
+    log.end("step_limit");
+    log.start(late);
+    let sent = rendered(&log);
+    assert_eq!(sent[3], "user: <step-limit/> | 顺便看看 README");
+    // 这一轮的第一次请求出了错，下一轮一开始，上一次发过的那几块还在原位。
+    log.end("error");
+    let next = log.say("再试一次");
+    log.start(next);
+    assert_eq!(
+        rendered(&log)[3],
+        "user: <step-limit/> | 顺便看看 README | <error/> | 再试一次"
+    );
 }
