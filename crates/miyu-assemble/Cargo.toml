@@ -1,0 +1,18 @@
+[package]
+name = "miyu-assemble"
+description = "默认的请求组装：从有效历史出一份统一的请求，纯逻辑"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+miyu-kernel = { path = "../miyu-kernel" }
+
+[dev-dependencies]
+# 测试里拼事件、读工具的参数格式（原样的 JSON 只能从 serde_json 读）。
+serde_json = { version = "1.0", features = ["raw_value"] }
+
+[lints]
+workspace = true
