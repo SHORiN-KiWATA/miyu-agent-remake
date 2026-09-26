@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>15</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
-    <li><b>1-13</b><span>现在：事实注入，<strong>施工中</strong></span></li>
-    <li><b class="mono">b136e65</b><span>最近一步（1-12）的提交</span></li>
+    <li><b>16</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
+    <li><b>1-14</b><span>下一步：请求形状探针，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">cca2aec</b><span>最近一步（1-13）的提交</span></li>
   </ul>
 </header>
 
@@ -320,7 +320,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s1-10"><span class="n">1-10</span>有效历史（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-11"><span class="n">1-11</span>模板与转义<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-12"><span class="n">1-12</span>组装请求<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">1-13</span>事实注入</span></li>
+        <li><a class="step done" href="#s1-13"><span class="n">1-13</span>事实注入<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">1-14</span>请求形状探针</span></li>
       </ol>
     </li>
@@ -1474,6 +1474,91 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s1-13" aria-labelledby="h-s113">
+  <div class="sheet-head"><h2 id="h-s113"><span class="no">1-13</span>事实注入</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">环境和状态的事实能写出来了，也知道该不该注入：每个边界查一遍，每一块和她最近看到的同一类比，一样就不注入。现在有两类：环境（时间、时区、工作目录）和权限级别。样本会话的四个时刻都对上了。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">两块事实 · resources/core/facts/</span><span class="dir-note">内核注入，一类一块</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">env</span><span class="rl mono">&lt;env time="Fri 2026-09-25 16:00" timezone="UTC+09:00" cwd="~/src/miyu"/&gt;</span></div>
+              <div class="tile new"><span class="nm">permission</span><span class="rl mono">&lt;permission level="workspace"/&gt;</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">该不该注入 · facts::changed</span><span class="dir-note">和有效历史里同一个来源、同一类的最近一块比</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">第一次</span><span class="rl">注入</span></div>
+              <div class="tile new"><span class="nm">和最近一块一样</span><span class="rl">不注入</span></div>
+              <div class="tile new"><span class="nm">隔着边界变回去</span><span class="rl">注入：她最近看到的是另一块</span></div>
+              <div class="tile new"><span class="nm">别的来源、别的类</span><span class="rl">不算</span></div>
+              <div class="tile new"><span class="nm">压缩、撤销掉的</span><span class="rl">不算，下一个边界重新注入</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">样本会话的四个时刻</span><span class="dir-note">tests/sample_facts.rs</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">42 回合开始</span><span class="rl">注入 43 环境、44 权限</span></div>
+              <div class="tile new"><span class="nm">51 换成只读</span><span class="rl">只注入权限：read_only</span></div>
+              <div class="tile new"><span class="nm">52 撤销那一轮</span><span class="rl">两块都重新注入</span></div>
+              <div class="tile new"><span class="nm">53 压缩以后</span><span class="rl">两块都重新注入</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">时间到小时</span><span class="rl">星期三个字母，分钟写 00；同一个小时里字节不变</span></div>
+          <div class="tile new"><span class="nm">时区写 UTC±时:分</span><span class="rl">零时区也写 UTC+00:00，字数固定</span></div>
+          <div class="tile new"><span class="nm">权限写实际生效的那一级</span><span class="rl">read_only、workspace、full；不认识的写 read_only</span></div>
+          <div class="tile new"><span class="nm">模板造会话时试换一次</span><span class="rl">少了字段当场报错</span></div>
+          <div class="tile new"><span class="nm">样本会话补上第一轮的权限块</span><span class="rl">回复挪到 45 号，调用编号 call_45_1</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">1-13</dd></div>
+        <div><dt>名称</dt><dd>事实注入</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">cca2aec</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>时区 <code>UtcOffset</code>，写成 <code>UTC+09:00</code>；<code>Timestamp::local_hour</code> 给出当地钟点，到小时。</li>
+        <li><code>facts.rs</code>：两块事实的模板 <code>FactTemplates</code>、环境那一块、权限那一块，和该注入哪几块的 <code>changed</code>。</li>
+        <li>样本会话：44 号补一块权限，回复挪到 45 号；环境那一块照模板行尾多一个换行；<code>second-step.json</code> 和读样本的测试跟着改。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>143 个测试全过，新加 21 个：时区和钟点、两块的写法和转义、不认识的级别、该不该注入的八种情况、样本会话的四个时刻</span></li>
+        <li><span class="ok">✓</span><span>故意改坏十五处（星期错一天、不换算时区、时区的正负写反、+14:00 不收、零时区写成 UTC、比最早的一块、不看来源、不看类别、忘了只读、不认识的级别当工作区、造的时候不试换、时区那格填了时间、一样的也注入、权限模板少了行尾换行、第一轮只注入环境），每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 143 个测试）</span></li>
+        <li><span class="ok">✓</span><span>项目主人验收通过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/08-上下文投影.md</code> 第五节「环境和状态的事实怎么写」。</li>
+        <li><code>resources/core/facts/</code>：两个模板。</li>
+        <li>样本会话 <code>docs/designs/samples/</code>，和 03 第二、三节、08 第二节里照着它写的例子。</li>
+        <li><code>docs/construction/1-13-事实注入.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -1647,7 +1732,7 @@ const TREE = {
 const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '11 种事件的写法、追加时的检查' },
-  k_ctx: { by: '1-8', how: 'frame', note: '统一的请求、有效历史、模板、默认的组装' },
+  k_ctx: { by: '1-8', how: 'frame', note: '请求、有效历史、模板、组装、事实注入' },
 };
 
 const svg = document.getElementById('bmap');
