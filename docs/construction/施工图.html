@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>17</b><span>/ 36 步<strong>已完成</strong>，M1 完成了</span></li>
-    <li><b>2-1</b><span>现在：输入、动作、命令，<strong>施工中</strong></span></li>
-    <li><b class="mono">d812828</b><span>最近一步（1-14）的提交</span></li>
+    <li><b>18</b><span>/ 36 步<strong>已完成</strong>，M2 开工了</span></li>
+    <li><b>2-2</b><span>下一步：流式累积器，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">4cfc46b</b><span>最近一步（2-1）的提交</span></li>
   </ul>
 </header>
 
@@ -327,7 +327,7 @@ a.step:hover{border-color:var(--primary)}
     <li>
       <div class="ms-head"><span class="ms-id">M2</span><span class="ms-name">回合可信</span><span class="ms-goal">一轮对话的各种走法都在内存里跑通</span></div>
       <ol class="chips">
-        <li><span class="step"><span class="n">2-1</span>输入、动作、命令</span></li>
+        <li><a class="step done" href="#s2-1"><span class="n">2-1</span>输入、动作、命令<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">2-2</span>流式累积器</span></li>
         <li><span class="step"><span class="n">2-3</span>最简单的一轮</span></li>
         <li><span class="step"><span class="n">2-4</span>调工具</span></li>
@@ -1644,6 +1644,80 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s2-1" aria-labelledby="h-s21">
+  <div class="sheet-head"><h2 id="h-s21"><span class="no">2-1</span>输入、动作、命令</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">会话有了骨架：送进一条输入，出来一串动作。每收到一次命令恰好回应一次；接受的等事件落了盘才回应、才推送；同一个编号只生效一次。现在只有「发一条消息」一种命令，开回合是 2-3。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">会话 · session.rs</span><span class="dir-note">纯逻辑，I/O 都写成动作交给执行器</span></div>
+            <ol class="pipe" aria-label="输入进，动作出">
+              <li>输入：收到命令、落盘了</li>
+              <li>会话</li>
+              <li>动作：追加事件、回应命令、推送事件</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">一个命令的一生</span><span class="dir-note">不变量 7、9，S4</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">收到「发一条消息」</span><span class="rl">追加 message.user：at、by、cause 取自命令</span></div>
+              <div class="tile new"><span class="nm">落盘了</span><span class="rl">先推送事件，再回应接受，附序号</span></div>
+              <div class="tile new"><span class="nm">一块内容都没有</span><span class="rl">当场拒绝：empty_message</span></div>
+              <div class="tile new"><span class="nm">同一个编号又来了</span><span class="rl">不再追加，照上一次回应；没落盘就等</span></div>
+              <div class="tile new"><span class="nm">拒绝过的又来了</span><span class="rl">重新判：它没生效过</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">会话从 session.created 开始</span><span class="rl">造会话就是追加第 1 条</span></div>
+          <div class="tile new"><span class="nm">每收到一次，回应一次</span><span class="rl">同一个编号收到两次，回两次</span></div>
+          <div class="tile new"><span class="nm">只记最近 1024 个编号</span><span class="rl">不随日志变长</span></div>
+          <div class="tile new"><span class="nm">内核的 bug 当场停下</span><span class="rl">自己造的事件过不了账本，不当成拒绝</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-1</dd></div>
+        <div><dt>名称</dt><dd>输入、动作、命令</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">4cfc46b</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>Session</code>：<code>create</code> 造会话，<code>handle</code> 送进一条输入、出来一串动作。</li>
+        <li>三组类型：<code>Input</code>、<code>Command</code>、<code>Action</code>，加上结局 <code>Outcome</code> 和原因码 <code>Reason</code>。</li>
+        <li>最近接受的命令编号 <code>Recent</code>：只记 1024 个。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>162 个测试全过，新加 10 个：造会话、发消息、空消息、落盘前后重发、拒绝过的再来、落盘到一半、落盘超出追加过的、只记 1024 个、随机一串输入（每收到一次恰好回应一次，接受的回应都在落盘以后）</span></li>
+        <li><span class="ok">✓</span><span>故意改坏九处（没落盘就回应、不去重、拒绝过的也记、先回应后推送、空消息也收、落盘超出的也算、只记 1023 个、重发的回应丢了、cause 没写），每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 162 个测试）</span></li>
+        <li><span class="ok">✓</span><span>项目主人验收通过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/02-内核.md</code> 第四节「输入、动作、命令怎么写」。</li>
+        <li><code>docs/construction/2-1-输入、动作、命令.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -1818,6 +1892,7 @@ const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '11 种事件的写法、追加时的检查' },
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
+  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架' },
 };
 
 const svg = document.getElementById('bmap');
