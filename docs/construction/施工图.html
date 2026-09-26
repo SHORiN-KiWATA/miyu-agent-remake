@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>28</b><span>/ 40 步<strong>已完成</strong>，关了再开，会话还在</span></li>
-    <li><b>2-8</b><span>下一步：撤销与恢复（下），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">adec15c</b><span>最近一步（2-8 上）的提交</span></li>
+    <li><b>29</b><span>/ 40 步<strong>已完成</strong>，撤错了还能恢复</span></li>
+    <li><b>2-9</b><span>下一步：场景测试，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">6a79161</b><span>最近一步（2-8 下）的提交</span></li>
   </ul>
 </header>
 
@@ -338,7 +338,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s2-7b"><span class="n">2-7</span>确认（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-7c"><span class="n">2-7</span>提问（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-8a"><span class="n">2-8</span>载入与崩溃恢复（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">2-8</span>撤销与恢复（下）</span></li>
+        <li><a class="step done" href="#s2-8b"><span class="n">2-8</span>撤销与恢复（下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">2-9</span>场景测试</span></li>
         <li><span class="step"><span class="n">2-10</span>随机测试</span></li>
       </ol>
@@ -2527,6 +2527,89 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s2-8b" aria-labelledby="h-s28b">
+  <div class="sheet-head"><h2 id="h-s28b"><span class="no">2-8</span>撤销与恢复（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">撤销：你选中一轮，这一轮和它以后的全撤掉，她从此看不到，就跟没说过一样。在你发下一句之前，撤错了还能恢复，撤掉的几轮原样回来，她看到的一个字节都不变。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">撤销 · session/revert.rs</span><span class="dir-note">02 第六节「撤销与恢复」</span></div>
+            <ol class="pipe" aria-label="撤销一轮">
+              <li>空闲时才撤：有回合在进行的拒绝，头先打断</li>
+              <li>从选中的那一轮起往后全撤，连同它们接过去的话</li>
+              <li>记一条 turn.reverted，她从此看不到</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">恢复 · 你定的</span><span class="dir-note">「undo掉undo这个操作」</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">发下一句之前能恢复</span><span class="rl">一次恢复一次撤销，从最近的一次往前</span></div>
+              <div class="tile new"><span class="nm">下一轮开始、压缩了，就不能了</span><span class="rl">恢复的几轮回到原来的位置，中间没发过请求才对得上</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">跟着撤的话 · history/undo.rs</span><span class="dir-note">按回合算</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">触发它的那句</span><span class="rl">你亲口说的，一起撤</span></div>
+              <div class="tile new"><span class="nm">上一轮排着、被它接过去的几句</span><span class="rl">带着上一轮的编号，可她是在这一轮才听到的</span></div>
+              <div class="tile"><span class="nm">别处来的</span><span class="rl">群里别人说的、子代理的回报，留着</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">恢复是一种新事件 turn.unreverted</span><span class="rl">revert、unrevert 是 opencode 的叫法</span></div>
+          <div class="tile new"><span class="nm">撤了又恢复，前缀一个字节不变</span><span class="rl">下一次请求接着上一次往下长，缓存照样命中</span></div>
+          <div class="tile new"><span class="nm">账本只许撤「某一轮和它以后的」</span><span class="rl">之前能单独撤中间一轮，也能撤两次</span></div>
+          <div class="tile new"><span class="nm">重启计数，你开口以后从头数</span><span class="rl">2-8（上）漏的，这一步补上</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-8（下）</dd></div>
+        <div><dt>名称</dt><dd>撤销与恢复（下）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">6a79161</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>session/revert.rs</code>：两个命令，撤销、恢复；四个原因码。</li>
+        <li><code>history/undo.rs</code>：撤掉的先放在一边，恢复时照序号放回原处；跟着撤的话按回合算。</li>
+        <li><code>ledger.rs</code>：撤销、恢复的规矩；记下还在有效历史里的回合、还能恢复的几次撤销。</li>
+        <li>新事件 <code>turn.unreverted</code>；样本会话 85 号撤销、86 号恢复。</li>
+        <li>顺带修的：重启计数你开口以后从头数；被重启打断以后又撤销过的，不接着干。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>331 个测试全过，新加 24 个：撤最后一轮、从中间撤、跟着撤的话、跑着时和压缩掉的拒绝、恢复以后前缀不断、一次恢复一次、开了下一轮不能恢复、载入以后照样能恢复；账本、有效历史各自的规矩；重启计数两条（先写测试，退回去看它红）</span></li>
+        <li><span class="ok">✓</span><span>随机测试加上撤销、恢复，看守在 <code>watch/undo.rs</code>；六条新的路各有六七十到三百个种子走到，最细的还是 4 个</span></li>
+        <li><span class="ok">✓</span><span>故意改坏二十八处，每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>请求形状探针的存档一个字节都没变</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 331 个测试）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/02-内核.md</code> 第六节「撤销与恢复」，第四节、第九节的表，「载入、崩溃、重启」第 4 条。</li>
+        <li><code>docs/designs/03-事件模型.md</code> 的 <code>turn.unreverted</code> 和第七节「有效历史」；<code>04-核心协议.md</code> 的 <code>session.unrevert</code>；<code>07</code>、<code>08</code>、<code>10</code>、<code>13</code>、<code>17</code> 各一句。</li>
+        <li><code>docs/construction/2-8-撤销与恢复（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -2699,9 +2782,9 @@ const TREE = {
 /* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
 const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
-  k_log: { by: '1-1', how: 'frame', note: '17 种事件的写法、瞬时事件、追加时的检查' },
+  k_log: { by: '1-1', how: 'frame', note: '18 种事件的写法、瞬时事件、追加时的检查' },
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
-  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复' },
+  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
 };
 
