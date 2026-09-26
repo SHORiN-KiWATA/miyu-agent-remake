@@ -1,5 +1,5 @@
-//! 数据根和缓存目录的测试：三个平台的默认位置；XDG；`MIYU_HOME`；空的、相对的；找不到家目录；
-//! 在临时目录里建骨架，Unix 上的权限；读进程环境的那一个只找、不建。
+//! 数据根和缓存目录的测试：三个平台的默认位置；缓存的 XDG；`MIYU_HOME`；空的、相对的；找不到
+//! 家目录；在临时目录里建骨架，认标记，Unix 上的权限；读进程环境的那一个只找、不建。
 //!
 //! 测试用的路径都拼在系统的临时目录下面：它在三台机器上都是绝对路径，换了平台，路径的写法
 //! 不一样，拼法一样。
@@ -24,7 +24,6 @@ fn env(platform: Platform) -> Env {
         platform,
         miyu_home: None,
         home: Some(alice()),
-        xdg_data_home: None,
         xdg_cache_home: None,
         local_app_data: Some(local().into_os_string()),
     }
@@ -36,51 +35,40 @@ fn data_of(env: &Env) -> PathBuf {
 
 #[test]
 fn each_platform_has_its_default_place() {
+    // 数据根三个平台都是家目录的 .miyu；缓存各有各的地方。
     let cases = [
-        (
-            Platform::Linux,
-            alice().join(".local").join("share").join("miyu"),
-            alice().join(".cache").join("miyu"),
-        ),
+        (Platform::Linux, alice().join(".cache").join("miyu")),
         (
             Platform::Macos,
-            alice()
-                .join("Library")
-                .join("Application Support")
-                .join("Miyu"),
             alice().join("Library").join("Caches").join("Miyu"),
         ),
-        (
-            Platform::Windows,
-            local().join("Miyu"),
-            local().join("Miyu").join("cache"),
-        ),
+        (Platform::Windows, local().join("Miyu").join("cache")),
     ];
-    for (platform, data, cache) in cases {
-        assert_eq!(data_of(&env(platform)), data, "{platform:?}");
+    for (platform, cache) in cases {
+        assert_eq!(
+            data_of(&env(platform)),
+            alice().join(".miyu"),
+            "{platform:?}"
+        );
         assert_eq!(cache_root(&env(platform)).unwrap(), cache, "{platform:?}");
     }
 }
 
 #[test]
-fn xdg_is_followed_on_linux_only() {
+fn xdg_moves_the_cache_on_linux_only() {
     let xdg = |platform| Env {
-        xdg_data_home: Some(std::env::temp_dir().join("data").into_os_string()),
         xdg_cache_home: Some(std::env::temp_dir().join("cache").into_os_string()),
         ..env(platform)
     };
-    assert_eq!(
-        data_of(&xdg(Platform::Linux)),
-        std::env::temp_dir().join("data").join("miyu")
-    );
     assert_eq!(
         cache_root(&xdg(Platform::Linux)).unwrap(),
         std::env::temp_dir().join("cache").join("miyu")
     );
     assert_eq!(
-        data_of(&xdg(Platform::Macos)),
-        data_of(&env(Platform::Macos))
+        cache_root(&xdg(Platform::Macos)).unwrap(),
+        cache_root(&env(Platform::Macos)).unwrap()
     );
+    assert_eq!(data_of(&xdg(Platform::Linux)), alice().join(".miyu"));
 }
 
 #[test]
@@ -106,10 +94,11 @@ fn empty_and_relative_settings() {
     // 空的当没设。
     let empty = Env {
         miyu_home: Some(OsString::new()),
-        xdg_data_home: Some(OsString::new()),
+        xdg_cache_home: Some(OsString::new()),
         ..linux.clone()
     };
     assert_eq!(data_of(&empty), data_of(&linux));
+    assert_eq!(cache_root(&empty).unwrap(), cache_root(&linux).unwrap());
     // MIYU_HOME 相对的拒绝。
     let relative = Env {
         miyu_home: Some(OsString::from("miyu-data")),
@@ -121,35 +110,39 @@ fn empty_and_relative_settings() {
     );
     // XDG 相对的当没设。
     let xdg = Env {
-        xdg_data_home: Some(OsString::from("data")),
         xdg_cache_home: Some(OsString::from("cache")),
         ..linux.clone()
     };
-    assert_eq!(data_of(&xdg), data_of(&linux));
     assert_eq!(cache_root(&xdg).unwrap(), cache_root(&linux).unwrap());
 }
 
 #[test]
 fn a_missing_home_is_an_error() {
-    for platform in [Platform::Linux, Platform::Macos] {
-        let homeless = Env {
-            home: None,
-            ..env(platform)
-        };
-        assert_eq!(DataRoot::locate(&homeless), Err(RootError::NoHome));
-        assert_eq!(cache_root(&homeless), Err(RootError::NoHome));
-        let relative = Env {
-            home: Some(PathBuf::from("alice")),
-            ..env(platform)
-        };
-        assert_eq!(DataRoot::locate(&relative), Err(RootError::NoHome));
+    for platform in [Platform::Linux, Platform::Macos, Platform::Windows] {
+        for home in [None, Some(PathBuf::from("alice"))] {
+            let homeless = Env {
+                home,
+                ..env(platform)
+            };
+            assert_eq!(
+                DataRoot::locate(&homeless),
+                Err(RootError::NoHome),
+                "{platform:?}"
+            );
+        }
     }
+    let homeless = Env {
+        home: None,
+        ..env(Platform::Linux)
+    };
+    assert_eq!(cache_root(&homeless), Err(RootError::NoHome));
+    // Windows 的缓存要 LOCALAPPDATA；数据根不要。
     for local_app_data in [None, Some(OsString::from("Local"))] {
         let windows = Env {
             local_app_data,
             ..env(Platform::Windows)
         };
-        assert_eq!(DataRoot::locate(&windows), Err(RootError::NoLocalAppData));
+        assert_eq!(data_of(&windows), alice().join(".miyu"));
         assert_eq!(cache_root(&windows), Err(RootError::NoLocalAppData));
     }
 }
@@ -231,6 +224,91 @@ fn existing_directories_keep_their_permissions() {
     let mode = |dir: &Path| fs::metadata(dir).unwrap().permissions().mode() & 0o777;
     assert_eq!(mode(root.path()), 0o755, "人自己建的，权限不改");
     assert_eq!(mode(&root.homes()), 0o700, "新建的照样 0700");
+}
+
+/// 这个目录里现在有哪些东西：相对的路径和文件内容，照名字排。
+fn contents(dir: &Path) -> Vec<(PathBuf, Vec<u8>)> {
+    let mut found = Vec::new();
+    let mut pending = vec![dir.to_path_buf()];
+    while let Some(next) = pending.pop() {
+        for entry in fs::read_dir(&next).unwrap() {
+            let path = entry.unwrap().path();
+            let relative = path.strip_prefix(dir).unwrap().to_path_buf();
+            match path.is_dir() {
+                true => {
+                    found.push((relative, Vec::new()));
+                    pending.push(path);
+                }
+                false => found.push((relative, fs::read(&path).unwrap())),
+            }
+        }
+    }
+    found.sort();
+    found
+}
+
+#[test]
+fn a_new_root_gets_the_marker() {
+    // 目录不存在、空目录：都写下标记，建好骨架。
+    for exists in [false, true] {
+        let scratch = Scratch::new();
+        let root = scratch.root();
+        if exists {
+            fs::create_dir_all(root.path()).unwrap();
+        }
+        root.prepare().unwrap();
+        assert_eq!(
+            fs::read_to_string(root.path().join(".miyu-root")).unwrap(),
+            "This directory is a Miyu data root (layout 1).\n"
+        );
+        assert!(root.run().is_dir());
+        // 有标记的照常用。
+        root.prepare().unwrap();
+    }
+}
+
+#[test]
+fn a_directory_that_is_not_ours_is_left_alone() {
+    // 放了一个随便的文件的，和像旧版 Miyu 的（顶层有 config/）。
+    for old_miyu in [false, true] {
+        let scratch = Scratch::new();
+        let root = scratch.root();
+        fs::create_dir_all(root.path()).unwrap();
+        fs::write(root.path().join("notes.txt"), "我的笔记").unwrap();
+        if old_miyu {
+            fs::create_dir_all(root.path().join("config")).unwrap();
+            fs::write(root.path().join("config").join("miyu.jsonc"), "{}").unwrap();
+        }
+        let before = contents(root.path());
+        match root.prepare() {
+            Err(PrepareError::NotOurs {
+                path,
+                old_miyu: said,
+            }) => {
+                assert_eq!(path, root.path());
+                assert_eq!(said, old_miyu);
+            }
+            other => panic!("不是 Miyu 的数据根，应该拒绝：{other:?}"),
+        }
+        assert_eq!(contents(root.path()), before, "一个字节都不动");
+    }
+}
+
+#[test]
+fn a_hidden_file_also_makes_it_not_empty() {
+    // 宁可多停一回，不往别人的目录里建东西：只有一个隐藏文件，也不算空的。
+    let scratch = Scratch::new();
+    let root = scratch.root();
+    fs::create_dir_all(root.path()).unwrap();
+    fs::write(root.path().join(".hidden"), "").unwrap();
+    assert!(matches!(
+        root.prepare(),
+        Err(PrepareError::NotOurs {
+            old_miyu: false,
+            ..
+        })
+    ));
+    assert!(!root.run().exists());
 }
 
 #[test]

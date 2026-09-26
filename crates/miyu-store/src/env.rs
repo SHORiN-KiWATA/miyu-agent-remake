@@ -7,10 +7,10 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-/// 平台：数据根、缓存目录的默认位置照它定。
+/// 平台：缓存目录的默认位置照它定；数据根三个平台都在家目录的 `.miyu` 里。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Platform {
-    /// Linux，和别的类 Unix 系统：照 XDG。
+    /// Linux，和别的类 Unix 系统：缓存照 XDG。
     Linux,
     /// macOS。
     Macos,
@@ -39,13 +39,11 @@ pub struct Env {
     pub platform: Platform,
     /// `MIYU_HOME`：把数据根指到别处。
     pub miyu_home: Option<OsString>,
-    /// 家目录。
+    /// 家目录：数据根在它下面的 `.miyu` 里。Windows 上是用户目录。
     pub home: Option<PathBuf>,
-    /// `XDG_DATA_HOME`（Linux）。
-    pub xdg_data_home: Option<OsString>,
-    /// `XDG_CACHE_HOME`（Linux）。
+    /// `XDG_CACHE_HOME`（Linux）：缓存目录照它。
     pub xdg_cache_home: Option<OsString>,
-    /// `LOCALAPPDATA`（Windows）。
+    /// `LOCALAPPDATA`（Windows）：缓存目录照它。
     pub local_app_data: Option<OsString>,
 }
 
@@ -56,7 +54,6 @@ impl Env {
             platform: Platform::current(),
             miyu_home: std::env::var_os("MIYU_HOME"),
             home: std::env::home_dir(),
-            xdg_data_home: std::env::var_os("XDG_DATA_HOME"),
             xdg_cache_home: std::env::var_os("XDG_CACHE_HOME"),
             local_app_data: std::env::var_os("LOCALAPPDATA"),
         }
