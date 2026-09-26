@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>20</b><span>/ 37 步<strong>已完成</strong>，M2 在做</span></li>
-    <li><b>2-3</b><span>下一步：最简单的一轮（下），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">f53735f</b><span>最近一步（2-3 上）的提交</span></li>
+    <li><b>21</b><span>/ 37 步<strong>已完成</strong>，一轮对话在内存里走通了</span></li>
+    <li><b>2-4</b><span>下一步：调工具，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">e1f0036</b><span>最近一步（2-3 下）的提交</span></li>
   </ul>
 </header>
 
@@ -330,7 +330,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s2-1"><span class="n">2-1</span>输入、动作、命令<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-2"><span class="n">2-2</span>流式累积器<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-3a"><span class="n">2-3</span>最简单的一轮（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">2-3</span>最简单的一轮（下）</span></li>
+        <li><a class="step done" href="#s2-3b"><span class="n">2-3</span>最简单的一轮（下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">2-4</span>调工具</span></li>
         <li><span class="step"><span class="n">2-5</span>打断</span></li>
         <li><span class="step"><span class="n">2-6</span>中途来的消息与回报</span></li>
@@ -1880,6 +1880,89 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s2-3b" aria-labelledby="h-s23b">
+  <div class="sheet-head"><h2 id="h-s23b"><span class="no">2-3</span>最简单的一轮（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">请求发出去以后，模型的增量一段段推给头，说完了写成回复；回复里没有工具调用，回合就结束。每次请求都记一条 model.called，出错的也记。一轮最简单的对话在内存里从头走到尾：发消息、开回合、请求、流式输出、回复、结束。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">请求在路上 · session/call.rs</span><span class="dir-note">02 第六节「回复怎么收、回合怎么结束」</span></div>
+            <ol class="pipe" aria-label="一次请求从发出去到说完">
+              <li>发出去了：哪个端点的哪个模型、请求字节的哈希</li>
+              <li>一段段增量：交给累积器，推 model.delta 给头</li>
+              <li>说完了：回复、model.called、回合结束，同一批追加</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">新的事件 · event/model.rs、event/transient.rs</span><span class="dir-note">03 第三节、第五节</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">model.called</span><span class="rl">seen、端点、请求哈希、消息条数、第一处不同、用量四项、两个用时、结果</span></div>
+              <div class="tile new"><span class="nm">瞬时事件的外壳</span><span class="rl">只少 seq；只写出去，头读的时候再写读的那一半</span></div>
+              <div class="tile new"><span class="nm">model.delta</span><span class="rl">一块开始、一段字、收全了；私有数据不推</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">出错</span><span class="dir-note">结果写 error，回合结束的原因也是出错</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">执行器报的出错</span><span class="rl">驱动分的六种；收到的半截不写成回复</span></div>
+              <div class="tile new"><span class="nm">内核查出来的</span><span class="rl">增量对不上、回报先后不对（bad_stream），一个块都没有（empty_reply）</span></div>
+              <div class="tile new"><span class="nm">不要这次请求了</span><span class="rl">增量出错时叫执行器别再发</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">seen 是请求的名字</span><span class="rl">对不上的回报是过时的，不理</span></div>
+          <div class="tile new"><span class="nm">每次请求一条 model.called</span><span class="rl">排在回复后面，没有回复就排在回合结束前面</span></div>
+          <div class="tile new"><span class="nm">用时拿回报的时刻相减</span><span class="rl">内核不读时钟，从发出去算起</span></div>
+          <div class="tile new"><span class="nm">样本会话重排号</span><span class="rl">model.called 占 46、49；补上 48 号回复</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-3 下</dd></div>
+        <div><dt>名称</dt><dd>最简单的一轮（下）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">e1f0036</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>event/model.rs</code>：<code>ModelCalled</code>、用量、第一处不同、出错的分类；<code>event/transient.rs</code>：瞬时事件和 <code>model.delta</code>。</li>
+        <li><code>session/call.rs</code>：请求在路上时记着的东西；三种回报怎么收；写回复、记 <code>model.called</code>。</li>
+        <li><code>session/turn.rs</code>：发请求时比出第一处不同；结束回合；<code>turn.ended</code> 落了盘跑回合结束的挂接点。</li>
+        <li>账本加一条规矩：<code>model.called</code> 的 <code>seen</code> 在它自己之前。</li>
+        <li>样本会话重排号，新加 <code>model.called</code> 和瞬时事件的样本。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>199 个测试全过，新加 22 个：一轮走到底、model.called 的每一格、只是接着加的不写第一处不同、换了 system 的写出来、第二轮只注入变了的、出错、没发出去就失败、执行器违约四种、过时的回报、私有数据不推、有工具调用的回复；model.called 和瞬时事件的写法；样本推的增量拼得回 45 号回复</span></li>
+        <li><span class="ok">✓</span><span>随机一串输入加上执行器的三种回报，还查自己走到了没有：第一次跑就查出三百例里一次都没说完过，改成执行器替身多半送像样的增量</span></li>
+        <li><span class="ok">✓</span><span>故意改坏十七处，每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 199 个测试）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/02-内核.md</code> 第六节「回复怎么收、回合怎么结束」，第四节、第九节的表。</li>
+        <li><code>docs/designs/03-事件模型.md</code> 第三节「模型调用怎么写」。</li>
+        <li><code>docs/construction/2-3-最简单的一轮（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -2052,9 +2135,9 @@ const TREE = {
 /* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
 const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
-  k_log: { by: '1-1', how: 'frame', note: '11 种事件的写法、追加时的检查' },
+  k_log: { by: '1-1', how: 'frame', note: '12 种事件的写法、瞬时事件、追加时的检查' },
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
-  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、开回合' },
+  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底' },
 };
 
 const svg = document.getElementById('bmap');
