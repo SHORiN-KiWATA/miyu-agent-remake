@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>26</b><span>/ 39 步<strong>已完成</strong>，越界的事先问你</span></li>
-    <li><b>2-7</b><span>下一步：提问（下），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">c616179</b><span>最近一步（2-7 中）的提交</span></li>
+    <li><b>27</b><span>/ 39 步<strong>已完成</strong>，她能问你了</span></li>
+    <li><b>2-8</b><span>下一步：载入、崩溃恢复、撤销，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">f270c86</b><span>最近一步（2-7 下）的提交</span></li>
   </ul>
 </header>
 
@@ -336,7 +336,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s2-6"><span class="n">2-6</span>排队的消息<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-7a"><span class="n">2-7</span>权限级别（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-7b"><span class="n">2-7</span>确认（中）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">2-7</span>提问（下）</span></li>
+        <li><a class="step done" href="#s2-7c"><span class="n">2-7</span>提问（下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">2-8</span>载入、崩溃恢复、撤销</span></li>
         <li><span class="step"><span class="n">2-9</span>场景测试</span></li>
         <li><span class="step"><span class="n">2-10</span>随机测试</span></li>
@@ -2364,6 +2364,88 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s2-7c" aria-labelledby="h-s27c">
+  <div class="sheet-head"><h2 id="h-s27c"><span class="no">2-7</span>提问（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">工具在跑的时候能请内核问你一组题，停下来等你回答，你的回答交回给工具。你不想答，就是打断，这一轮停下。她在等你回答（提问或者确认）的时候你直接发了一句话，等的那个作废，这句马上给她。没有人能回答的地方，她拿到「这里没有人能回答」。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">问人 · session/question.rs</span><span class="dir-note">02 第六节「提问怎么走」</span></div>
+            <ol class="pipe" aria-label="一次提问">
+              <li>在跑的工具交上一组题，记一条 question.asked，by 是那次调用</li>
+              <li>你回答：每道题选了哪几项、自己写了什么，对不上题目的拒绝</li>
+              <li>回答落了盘，交给工具，工具写成结果</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">等你的时候 · 你定的两条</span><span class="dir-note">13 第四节，键位随 M8</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">不回答就是打断</span><span class="rl">这一轮停下，那道题写「没回答：被打断了」</span></div>
+              <div class="tile new"><span class="nm">来了一句话，等的作废</span><span class="rl">提问写「没回答：你发了一句话」，确认算跳过，这句马上给她</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">两种新事件 · question.*</span><span class="dir-note">03 第三节，都不进上下文</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">question.asked</span><span class="rl">问的话、短名字、选项带一行说明、能不能多选</span></div>
+              <div class="tile new"><span class="nm">question.answered</span><span class="rl">照题目的先后，选了哪几项、自己写了什么</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">题数不设上限</span><span class="rl">你问「还要有上限吗」，内核不设，劝她少问写进工具说明</span></div>
+          <div class="tile new"><span class="nm">先答者胜</span><span class="rl">答过了再答，原因码 not_asking</span></div>
+          <div class="tile new"><span class="nm">没人能回答的当场跳过</span><span class="rl">不记题目，叫执行器停下这个调用</span></div>
+          <div class="tile new"><span class="nm">回答落了盘才交给工具</span><span class="rl">和允许了落了盘才派同一条</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-7（下）</dd></div>
+        <div><dt>名称</dt><dd>提问（下）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">f270c86</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>session/question.rs</code>：工具问人、人回答、回答落了盘交给工具；来了一句话，等人回答的都作废。</li>
+        <li><code>session/step.rs</code>：在跑的调用多了问着人、答完了等落盘两个状态；打断、急着插话都照顾到。</li>
+        <li>新事件 <code>question.asked</code>、<code>question.answered</code>；账本守两条新规矩；回答对不对得上题目。</li>
+        <li>命令「回答」分成确认、提问两种写法；输入 <code>ToolAsks</code>、动作 <code>AnswerTool</code>、原因码 <code>bad_answer</code>。</li>
+        <li>写给模型的三句：没回答，被打断了；没回答，你发了一句话；没回答，这里没有人能回答。</li>
+        <li>样本会话接着往下写到 84 号：她问你旧的 build 目录删不删，你选了保留，她接着回你。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>296 个测试全过，新加 18 个：问人、回答落了盘才交给工具、答完还能再问、回答被拒的几种、没人能回答、打断、来了一句话作废（提问和确认）、工具先交回结果、过时的提问；两种新事件的写法、账本；样本会话的续集</span></li>
+        <li><span class="ok">✓</span><span>随机测试加上问人和回答，看守的提问检查在 watch/question.rs，七条新的路都走到，最细的 4 个种子</span></li>
+        <li><span class="ok">✓</span><span>故意改坏二十七处，每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 296 个测试）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/02-内核.md</code> 第六节「提问怎么走」「确认怎么走」第 4 条，第四节、第九节的表。</li>
+        <li><code>docs/designs/03-事件模型.md</code> 第三节「提问的事件怎么写」；<code>04-核心协议.md</code> 的 <code>session.answer</code>；<code>10-自带软件.md</code> 的 <code>ask_user</code>；<code>13-终端界面.md</code> 第四节。</li>
+        <li><code>docs/construction/2-7-提问（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -2536,9 +2618,9 @@ const TREE = {
 /* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
 const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
-  k_log: { by: '1-1', how: 'frame', note: '15 种事件的写法、瞬时事件、追加时的检查' },
+  k_log: { by: '1-1', how: 'frame', note: '17 种事件的写法、瞬时事件、追加时的检查' },
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
-  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认' },
+  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
 };
 
