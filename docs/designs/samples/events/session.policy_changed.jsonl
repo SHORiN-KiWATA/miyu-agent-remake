@@ -1,1 +1,2 @@
 {"seq":52,"at":"2026-09-25T07:05:00.000Z","kind":"session.policy_changed","by":{"kind":"person","account":"alice"},"cause":"cmd-9e30","body":{"permission":{"level":"workspace","read_only":true}}}
+{"seq":63,"at":"2026-09-25T07:32:00.000Z","kind":"session.policy_changed","by":{"kind":"person","account":"alice"},"cause":"cmd-f906","body":{"permission":{"level":"workspace","read_only":false}}}

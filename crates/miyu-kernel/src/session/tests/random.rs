@@ -7,8 +7,11 @@
 //!   请求照的是那一刻的全部历史，`seen` 是最后一条；一个回合的请求不超过上限；
 //! - 每次请求至多一条 `model.called`：正常说完的排在它的回复后面，出错的后面紧跟着出错的
 //!   `turn.ended`；推给头的增量是在路上的那次请求的；叫执行器别再发的，这次请求已经记了出错；
-//! - 派工具时回复落了盘，每个调用只派一次，不是只读的不和别的一起跑、不越过前面还没结果的，
-//!   带着回合开始时的工作目录；每个调用一条结果；
+//! - 交给执行前的链时回复落了盘，每个调用只交一次，不是只读的不和别的占着位置的一起、不越过
+//!   前面还没结果的，带着回合开始时的工作目录和实际生效的那一级；派去跑的都被链放行过，或者被人
+//!   允许过、那条决定也落了盘；每个调用一条结果；
+//! - 确认：请求只在链说要问人时记；没人能确认的、只读时要写入的当场拒绝；回答照规矩接受或者
+//!   拒绝，接受的记一条决定，`by` 是回答的人；被拒绝的结果，谁拒的写成 `by`；
 //! - 回合结束的挂接点，等 `turn.ended` 落了盘才跑，一个回合一次；
 //! - 切权限级别：只读生效的时候不派写文件的调用，内核拦下的都是写文件的；回合中途注入的排在
 //!   这一步的全部工具结果后面；请求时最近一块权限事实写的是现在的那一级，环境那一块写的是
@@ -20,14 +23,18 @@ mod watch;
 
 use std::collections::BTreeSet;
 
+use super::approval::answer;
 use super::permission::{read_only, switch};
 use super::*;
 use crate::accumulate::{Delta, Kind};
 use crate::event::{
-    CallError, CallResult, EndReason, ErrorClass, Level, ToolStatus, Transient, TransientBody,
+    CallError, CallResult, Decision, EndReason, ErrorClass, Level, ToolStatus, Transient,
+    TransientBody,
 };
 use crate::id::{CallId, ContentHash, FactKind, ModelName, ModuleId, ProviderId};
 use crate::origin::Model;
+use crate::raw::RawJson;
+use crate::tool::Access;
 use watch::Watch;
 
 /// 随机测试的会话，一个回合最多请求几次模型。
@@ -61,11 +68,13 @@ impl Watch {
             None => {
                 let index = self.next_block;
                 self.next_block += 1;
-                let tool = rng.below(2) == 0;
+                let tool = rng.below(3) > 0;
                 self.open_block = Some((index, tool, false));
                 let kind = if tool {
                     Kind::ToolCall {
-                        name: ["read", "read", "write", "reed"][rng.below(4) as usize].to_string(),
+                        name: ["read", "read", "read", "write", "write", "reed"]
+                            [rng.below(6) as usize]
+                            .to_string(),
                     }
                 } else {
                     Kind::Text
@@ -156,7 +165,8 @@ fn some_ending(rng: &mut Rng) -> Option<CallError> {
 }
 
 /// 一条随机的输入，照下面的权重抽（一共 30 份）。执行器替身多半守规矩：请求交给它以后，
-/// 先报发出去了，再送增量和结局。
+/// 先报发出去了，再送增量和结局；交给了链的，三回里有两回先送回它的结论；有在等人的，四回里有
+/// 一回先回答（[`some_verdict`]、[`some_answer`]）。
 ///
 /// | 份数 | 输入 |
 /// |---|---|
@@ -177,11 +187,18 @@ fn some_ending(rng: &mut Rng) -> Option<CallError> {
 /// | 1 | 开关只读 |
 /// | 1 | 改常用的那一级，偶尔是不认识的 |
 fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
+    // 交给了链的，多半很快有结论；在等人的，偶尔回答。
+    if !watch.approvals.guarding.is_empty() && rng.below(3) > 0 {
+        return some_verdict(rng, watch);
+    }
+    if !watch.approvals.asking.is_empty() && rng.below(4) == 0 {
+        return some_answer(rng, watch, next_id);
+    }
     // 工具在跑的时候，偶尔打断、多送几段输出；有还没派的写文件调用时，偶尔开只读。这两个
     // 窗口都短，光靠均匀地抽难得碰上。
     if !watch.running.is_empty() {
         match rng.below(30) {
-            0 if !watch.calm => return some_interrupt(rng, next_id),
+            0 | 1 if !watch.calm => return some_interrupt(rng, next_id),
             1..=4 => return progress(watch.some_call(rng)),
             _ => {}
         }
@@ -240,6 +257,70 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
     }
 }
 
+/// 链的一个结论：多半是交给了链的那几个，偶尔是对不上的。多半放行，有时要问人、拒绝。问人时
+/// 要的多半是工具本来的那一类，读的偶尔要联网、要写入；一半提了放行规则。
+fn some_verdict(rng: &mut Rng, watch: &Watch) -> Input {
+    let guarding: Vec<CallId> = watch.approvals.guarding.iter().copied().collect();
+    let known = rng.below(6) > 0;
+    let call_id = if known {
+        guarding[rng.below(guarding.len() as u64) as usize]
+    } else {
+        CallId::new(seq(1 + rng.below(watch.last())), 1).unwrap()
+    };
+    let module = ModuleId::parse("permissions").unwrap();
+    // 没人能确认的会话里，链多问几次人：内核要当场拒绝的就是这些。
+    let asks = if watch.approvals.attended {
+        12..=16
+    } else {
+        6..=16
+    };
+    let verdict = match rng.below(20) {
+        k if asks.contains(&k) => Verdict::Ask {
+            module,
+            access: match (known && watch.name_of(call_id) == "write", rng.below(6)) {
+                (true, _) | (false, 0) => Access::Write,
+                (false, 1 | 2) => Access::Network,
+                _ => Access::Read,
+            },
+            rule: (rng.below(2) == 0).then(|| serde_json::from_str::<RawJson>("{}").unwrap()),
+            detail: None,
+        },
+        0..=11 => Verdict::Allow,
+        _ => Verdict::Deny {
+            module,
+            text: "blocked".to_string(),
+        },
+    };
+    Input::ToolGuarded {
+        at: at(48),
+        call_id,
+        verdict,
+    }
+}
+
+/// 一个回答：多半回答在等的那几个，偶尔是对不上的；选项多半认识，拒绝的有时带理由，也有空的理由。
+fn some_answer(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> Input {
+    let asking: Vec<CallId> = watch.approvals.asking.iter().copied().collect();
+    let call_id = if rng.below(8) > 0 {
+        asking[rng.below(asking.len() as u64) as usize]
+    } else {
+        CallId::new(seq(1 + rng.below(watch.last())), 1).unwrap()
+    };
+    let decision = match rng.below(12) {
+        0..=3 => Decision::Once,
+        4 | 5 => Decision::Session,
+        6 => Decision::Workspace,
+        7..=10 => Decision::Deny,
+        _ => Decision::Other("maybe".to_string()),
+    };
+    let reason = match rng.below(4) {
+        0 => Some("别动"),
+        1 => Some("  "),
+        _ => None,
+    };
+    answer(next_command(next_id), call_id, decision, reason)
+}
+
 /// 常用的那一级：多半是认识的，偶尔是不认识的，要被拒绝。
 fn some_level(rng: &mut Rng) -> Level {
     match rng.below(5) {
@@ -294,12 +375,16 @@ fn random_inputs_keep_the_rules() {
         let mut rng = Rng(seed);
         let mut limited = policy();
         limited.step_limit = Some(STEP_LIMIT);
+        // 五个种子里有一个没人能确认。
+        let attended = seed % 5 != 4;
+        limited.attended = attended;
         let mut session = session_with(limited);
         let mut watch = Watch::new(seed);
+        watch.approvals.attended = attended;
         // 双数的种子风平浪静：打断、乱来的增量少，一轮才走得深；单数的种子专门捣乱。
         watch.calm = seed % 2 == 0;
         let mut next_id = 1;
-        for _ in 0..150 {
+        for _ in 0..300 {
             let input = some_input(&mut rng, &mut watch, &mut next_id);
             watch.feed(&mut session, input);
         }
@@ -333,7 +418,14 @@ fn random_inputs_keep_the_rules() {
         "打断后排队的退回",
         "回复到了只读拦下",
         "收紧时拦下还没派的",
+        "要写入的请求只读拦下",
         "切了级别以后注入",
+        "要问人",
+        "人允许了",
+        "人拒绝了",
+        "链拒绝了",
+        "没人能确认被拒",
+        "回答被拒",
     ];
     for path in expected {
         assert!(paths.contains(path), "三百例里一次都没走到「{path}」");

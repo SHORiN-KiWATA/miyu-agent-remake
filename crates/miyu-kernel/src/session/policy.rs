@@ -18,8 +18,11 @@ pub struct Policy {
     pub tools: BTreeMap<String, ToolRule>,
     /// 一个回合最多请求几次模型；没有就是不限（`02-内核.md` 第六节「工具怎么调、下一步怎么走」）。
     pub step_limit: Option<u32>,
-    /// 内核在执行之前就拦下时，写给模型的那两句。
+    /// 内核替工具写给模型的那几句。
     pub tool_texts: ToolTexts,
+    /// 有没有人能确认：没有确认界面的场所、不是终端时的 `miyu ask` 没有。没有的，执行前的链说
+    /// 要问人时当场拒绝（`02-内核.md` 第六节「确认怎么走」第 2 条）。
+    pub attended: bool,
 }
 
 /// 组装器是外面交进来的，不一定能打印，跳过它。
@@ -30,6 +33,7 @@ impl fmt::Debug for Policy {
             .field("tools", &self.tools)
             .field("step_limit", &self.step_limit)
             .field("tool_texts", &self.tool_texts)
+            .field("attended", &self.attended)
             .finish_non_exhaustive()
     }
 }

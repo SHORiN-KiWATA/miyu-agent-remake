@@ -27,6 +27,9 @@ pub struct Ledger {
     /// 正在进行的回合里，还没有结果的调用。回合结束时它必须是空的，
     /// 所以这里只会有这一个回合的调用。
     pending: BTreeSet<CallId>,
+    /// 其中在等确认的：请人确认了，还没有决定，也还没有结果（`02-内核.md` 第六节
+    /// 「确认怎么走」）。
+    asking: BTreeSet<CallId>,
     /// 最近一次压缩替代到哪。
     compacted: Option<Seq>,
     /// 最近一次压缩以后开过的回合，撤销只能撤它们。压缩一次，更早的就丢掉。
@@ -43,6 +46,7 @@ impl Default for Ledger {
             open: None,
             last_reply: None,
             pending: BTreeSet::new(),
+            asking: BTreeSet::new(),
             compacted: None,
             turns: BTreeSet::new(),
             queued: BTreeSet::new(),
@@ -90,10 +94,20 @@ impl Ledger {
                 self.check_seen(seq, message.seen)?;
                 check_call_ids(seq, &message.blocks)
             }
-            Body::ToolResult(result) if !self.pending.contains(&result.call_id) => Err(format!(
-                "{} 不是一个还在等结果的调用：没有这个调用，或者它已经有了结果",
-                result.call_id
-            )),
+            Body::ToolResult(result) => self.check_pending(result.call_id),
+            Body::ApprovalRequested(requested) => {
+                self.check_pending(requested.call_id)?;
+                match self.asking.contains(&requested.call_id) {
+                    true => Err(format!("{} 已经有一个在等的请求", requested.call_id)),
+                    false => Ok(()),
+                }
+            }
+            Body::ApprovalDecided(decided) if !self.asking.contains(&decided.call_id) => {
+                Err(format!(
+                    "{} 不是在等确认的调用：没请人确认过、已经决定过，或者它已经有了结果",
+                    decided.call_id
+                ))
+            }
             Body::TurnEnded(_) => match self.pending.first() {
                 Some(call) => Err(format!("回合结束时，调用 {call} 还没有结果")),
                 None => Ok(()),
@@ -138,6 +152,16 @@ impl Ledger {
                 Err(format!("{} 只在回合里发生，要带上 turn", event.body.kind()))
             }
             _ => Ok(()),
+        }
+    }
+
+    /// 这个调用还在等结果。
+    fn check_pending(&self, call: CallId) -> Result<(), String> {
+        match self.pending.contains(&call) {
+            true => Ok(()),
+            false => Err(format!(
+                "{call} 不是一个还在等结果的调用：没有这个调用，或者它已经有了结果"
+            )),
         }
     }
 
@@ -212,6 +236,13 @@ impl Ledger {
             }
             Body::ToolResult(result) => {
                 self.pending.remove(&result.call_id);
+                self.asking.remove(&result.call_id);
+            }
+            Body::ApprovalRequested(requested) => {
+                self.asking.insert(requested.call_id);
+            }
+            Body::ApprovalDecided(decided) => {
+                self.asking.remove(&decided.call_id);
             }
             Body::TurnEnded(_) => {
                 self.open = None;
@@ -226,12 +257,15 @@ impl Ledger {
     }
 }
 
-/// 只在回合里发生的种类：模型的回复、工具的结果、撤回排着队的消息、回合结束。
+/// 只在回合里发生的种类：模型的回复、工具的结果、请人确认和人的决定、撤回排着队的消息、
+/// 回合结束。
 fn in_turn_only(body: &Body) -> bool {
     matches!(
         body,
         Body::MessageAssistant(_)
             | Body::ToolResult(_)
+            | Body::ApprovalRequested(_)
+            | Body::ApprovalDecided(_)
             | Body::MessageWithdrawn(_)
             | Body::TurnEnded(_)
     )

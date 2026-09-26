@@ -8,7 +8,7 @@ use super::Session;
 use super::action::Action;
 use super::call::Call;
 use super::input::Injection;
-use super::tools::Step;
+use super::step::Step;
 use crate::event::{Body, EndReason, Event, TurnEnded, TurnStarted};
 use crate::facts::changed;
 use crate::id::{CommandId, Seq, TurnId};

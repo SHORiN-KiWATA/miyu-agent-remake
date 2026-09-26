@@ -1,0 +1,1 @@
+{"seq":69,"at":"2026-09-25T07:33:03.420Z","kind":"tool.approval_requested","turn":65,"by":{"kind":"module","id":"permissions"},"cause":"cmd-0a17","body":{"call_id":"call_67_1","access":"write","rule":{"access":"write","path":"~/.editorconfig"},"detail":{"reason":"outside_workspace","path":"~/.editorconfig"}}}

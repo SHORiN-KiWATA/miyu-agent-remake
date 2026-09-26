@@ -2,7 +2,7 @@
 //!
 //! 会话自己不做 I/O：要追加的事件、要回应的命令、要推送的事件，都写成动作交给执行器。
 
-use crate::event::{Event, Transient};
+use crate::event::{Event, Permission, Transient};
 use crate::id::{CallId, CommandId, Seq, TurnId};
 use crate::request::Request;
 
@@ -52,6 +52,20 @@ pub enum Action {
         /// 哪一次调用。
         call_id: CallId,
     },
+    /// 过执行前的链：权限策略和各扩展的守卫，最严者胜，交回一个结论（`02-内核.md` 第六节
+    /// 「确认怎么走」）。守卫超时的按拒绝交回。
+    GuardTool {
+        /// 哪一次调用。
+        call_id: CallId,
+        /// 工具名。
+        name: String,
+        /// 修正过的参数：一个 JSON 对象的原文。
+        args: String,
+        /// 这一轮的工作目录：回合开始时的那一个。
+        cwd: String,
+        /// 实际生效的那一级：权限策略照它判。
+        permission: Permission,
+    },
     /// 执行一次工具调用。执行中的输出、执行完了，都带着调用编号回报
     /// （`02-内核.md` 第六节「工具怎么调、下一步怎么走」）。
     RunTool {
@@ -91,6 +105,14 @@ pub enum Reason {
     NotRunning,
     /// 要切到的级别不认识。
     UnknownLevel,
+    /// 这个调用不在等确认：没请人确认过、已经回答过，或者它已经有了结果。
+    NotAsking,
+    /// 确认的选项不认识。
+    UnknownDecision,
+    /// 请求没提放行规则，选不了本会话都允许、这个工作区以后都允许。
+    NoRule,
+    /// 只有拒绝能带理由。
+    UnexpectedReason,
 }
 
 impl Reason {
@@ -100,6 +122,10 @@ impl Reason {
             Reason::EmptyMessage => "empty_message",
             Reason::NotRunning => "not_running",
             Reason::UnknownLevel => "unknown_level",
+            Reason::NotAsking => "not_asking",
+            Reason::UnknownDecision => "unknown_decision",
+            Reason::NoRule => "no_rule",
+            Reason::UnexpectedReason => "unexpected_reason",
         }
     }
 }

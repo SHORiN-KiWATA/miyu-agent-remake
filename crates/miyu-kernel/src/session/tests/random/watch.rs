@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::*;
 
+mod approval;
 mod lookup;
 mod permission;
 mod queue;
@@ -29,8 +30,8 @@ pub(super) struct Watch {
     sent: BTreeSet<Seq>,
     recorded: BTreeSet<Seq>,
     pub(super) asking: Option<Seq>,
-    /// 派过的调用；在跑的调用；有了结果的调用；在跑时被打断、补了「已取消」的调用。
-    dispatched: BTreeSet<CallId>,
+    /// 交给了链的调用；在跑的调用；有了结果的调用；在跑时被打断、补了「已取消」的调用。
+    admitted: BTreeSet<CallId>,
     pub(super) running: BTreeSet<CallId>,
     resulted: BTreeSet<CallId>,
     stopped: BTreeSet<CallId>,
@@ -52,6 +53,8 @@ pub(super) struct Watch {
     /// 现在的权限，和看守照规矩推出来的实际生效的那一级。
     permission: Permission,
     effective: Permission,
+    /// 确认：交给链的、链的结论、在等人的、人允许了的。
+    pub(super) approvals: approval::Approvals,
 }
 
 impl Watch {
@@ -70,7 +73,7 @@ impl Watch {
             sent: BTreeSet::new(),
             recorded: BTreeSet::new(),
             asking: None,
-            dispatched: BTreeSet::new(),
+            admitted: BTreeSet::new(),
             running: BTreeSet::new(),
             resulted: BTreeSet::new(),
             stopped: BTreeSet::new(),
@@ -84,6 +87,7 @@ impl Watch {
             interrupting: None,
             permission: lookup::created_permission(),
             effective: lookup::created_permission(),
+            approvals: approval::Approvals::new(),
         }
     }
 
@@ -100,6 +104,7 @@ impl Watch {
     /// 送进一条输入之前记下它，送进去以后查吐出来的动作。新的打断：回合开着的，这一批以
     /// 被打断的 `turn.ended` 收尾；没开着的，拒绝，原因码 `not_running`。
     pub(super) fn feed(&mut self, session: &mut Session, input: Input) {
+        let judged = self.before_approval(&input);
         let fresh_interrupt = match &input {
             Input::Command(command) => match command.command {
                 Command::Interrupt { queued } if !self.received.contains_key(&command.id) => {
@@ -128,6 +133,7 @@ impl Watch {
         if fresh_interrupt.is_some() {
             self.interrupted(&actions, was_open);
         }
+        self.after_approval(&actions, judged);
         for action in actions {
             self.check(action);
         }
@@ -213,9 +219,14 @@ impl Watch {
                     "种子 {seed}：回合 {turn} 的结束挂接点跑了两次"
                 );
             }
-            Action::RunTool {
-                call_id, name, cwd, ..
-            } => self.run(call_id, &name, &cwd),
+            Action::GuardTool {
+                call_id,
+                name,
+                cwd,
+                permission,
+                ..
+            } => self.guard(call_id, &name, &cwd, &permission),
+            Action::RunTool { call_id, .. } => self.run(call_id),
             Action::CancelTool { call_id } => {
                 self.seen_paths.insert("打断了工具");
                 assert!(
@@ -317,45 +328,6 @@ impl Watch {
         }
     }
 
-    /// 派一个调用：回复落了盘；只派一次；不是只读的不和别的一起跑，前面的都有了结果；
-    /// 只读的不和不是只读的一起跑；带着回合开始时的工作目录。
-    fn run(&mut self, call_id: CallId, name: &str, cwd: &str) {
-        let seed = self.seed;
-        self.seen_paths.insert("派了工具");
-        let reply = call_id.message();
-        assert!(
-            self.pushed.contains(&reply),
-            "种子 {seed}：{call_id} 的回复还没落盘就派"
-        );
-        assert!(
-            self.dispatched.insert(call_id),
-            "种子 {seed}：{call_id} 派了两次"
-        );
-        let reads = |id: &CallId| self.name_of(*id) == "read";
-        if name == "read" {
-            assert!(
-                self.running.iter().all(reads),
-                "种子 {seed}：只读的 {call_id} 和不是只读的一起跑"
-            );
-        } else {
-            assert!(self.running.is_empty(), "种子 {seed}：{name} 和别的一起跑");
-        }
-        let earlier = self
-            .calls_of(reply)
-            .filter(|id| id.index() < call_id.index());
-        for id in earlier.collect::<Vec<_>>() {
-            let exclusive = name != "read" || self.name_of(id) != "read";
-            assert!(
-                !exclusive || self.resulted.contains(&id),
-                "种子 {seed}：{call_id} 越过了还没结果的 {id}"
-            );
-        }
-        let turn = self.open_turn();
-        assert_eq!(self.turn_cwd.get(&turn).map(String::as_str), Some(cwd));
-        self.permission_run(call_id, name);
-        self.running.insert(call_id);
-    }
-
     /// 追加的一批：序号连着；`model.called` 每次请求至多一条，排在它的回复后面，出错的后面
     /// 紧跟着出错的 `turn.ended`；工具结果每个调用一条；步数上限只在请求满了的回合。
     fn appended(&mut self, events: Vec<Event>) {
@@ -413,6 +385,7 @@ impl Watch {
             }
             self.queue_check(&events, k);
             self.permission_check(&events, k);
+            self.approval_check(&events, k);
             self.events.push(event.clone());
         }
     }

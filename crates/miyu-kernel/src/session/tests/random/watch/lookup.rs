@@ -70,7 +70,7 @@ impl Watch {
     }
 
     /// 调用 `call_id` 调的是哪件工具。
-    pub(super) fn name_of(&self, call_id: CallId) -> String {
+    pub(in super::super) fn name_of(&self, call_id: CallId) -> String {
         self.events
             .iter()
             .filter(|event| event.seq == call_id.message())

@@ -2,11 +2,13 @@
 
 use crate::accumulate::Delta;
 use crate::block::Block;
-use crate::event::{CallError, ContextInjected, Level, Usage};
+use crate::event::{CallError, ContextInjected, Decision, Level, Usage};
 use crate::facts::Environment;
 use crate::id::{CallId, CommandId, ContentHash, ModuleId, Seq, TurnId};
 use crate::origin::{By, Model};
+use crate::raw::RawJson;
 use crate::time::Timestamp;
+use crate::tool::Access;
 
 /// 送进会话的一件事。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -84,6 +86,40 @@ pub enum Input {
         /// 一段输出。
         text: String,
     },
+    /// 执行前的链判完了（`02-内核.md` 第六节「确认怎么走」）。
+    ToolGuarded {
+        /// 到的时刻，取自执行器的时钟。
+        at: Timestamp,
+        /// 哪一次调用。
+        call_id: CallId,
+        /// 链的结论。
+        verdict: Verdict,
+    },
+}
+
+/// 执行前的链交回的结论：几个守卫合起来，最严者胜（`05-内核接口.md` 第五节第 1 条）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Verdict {
+    /// 放行。
+    Allow,
+    /// 拒绝。
+    Deny {
+        /// 哪个模块拒的：写成被拒绝的结果的 `by`。
+        module: ModuleId,
+        /// 写给模型的那一句。
+        text: String,
+    },
+    /// 要问人。请求的另外几格照写进 `tool.approval_requested`，调用编号由内核填。
+    Ask {
+        /// 哪个模块问的：写成请求的 `by`。
+        module: ModuleId,
+        /// 要的是哪一类访问。
+        access: Access,
+        /// 提的放行规则；没提就没有。
+        rule: Option<RawJson>,
+        /// 给头看的：为什么要问。
+        detail: Option<RawJson>,
+    },
 }
 
 /// 收到的一个命令，连同它从哪里来、什么时候到的。
@@ -122,6 +158,16 @@ pub enum Command {
     Interrupt {
         /// 排着队的消息怎么办（`02-内核.md` 第六节「排队的消息」）。
         queued: Queued,
+    },
+    /// `session.answer`：回答一次权限确认（`02-内核.md` 第六节「确认怎么走」第 3 条）。回答
+    /// 提问随施工 2-7（下）。
+    Answer {
+        /// 回答的是哪一次调用的请求。
+        call_id: CallId,
+        /// 选了哪一项。
+        decision: Decision,
+        /// 拒绝的理由；只有拒绝能带，空的当没写。
+        reason: Option<String>,
     },
 }
 

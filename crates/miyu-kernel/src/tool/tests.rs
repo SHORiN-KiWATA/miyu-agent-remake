@@ -1,5 +1,5 @@
 //! 工具的测试：参数修正的每一种还原；还原不了的不换；字符串不碰；没写的当空对象；
-//! 不是对象的报错；参数格式读不了、没有 properties 的原样过；两句话的写法和转义。
+//! 不是对象的报错；参数格式读不了、没有 properties 的原样过；访问类别的写法，哪几类算写入。
 
 use super::*;
 
@@ -76,52 +76,36 @@ fn a_schema_without_properties_passes_arguments_through() {
     );
 }
 
-/// 替身的几句。
-fn sources<'a>(unknown: &'a str, skipped: &'a str) -> ToolTextSources<'a> {
-    ToolTextSources {
-        unknown,
-        not_an_object: "The arguments for \"{name}\" are not a JSON object.\n",
-        cancelled_before: "cancelled before",
-        cancelled_running: "cancelled running",
-        skipped,
-        read_only: "read only",
+#[test]
+fn access_is_written_as_text_and_unknown_kinds_are_kept() {
+    for (text, access) in [
+        ("read", Access::Read),
+        ("write", Access::Write),
+        ("execute", Access::Execute),
+        ("network", Access::Network),
+        ("outbound", Access::Outbound),
+    ] {
+        let json = format!("\"{text}\"");
+        assert_eq!(serde_json::from_str::<Access>(&json).unwrap(), access);
+        assert_eq!(serde_json::to_string(&access).unwrap(), json);
     }
+    let clipboard: Access = serde_json::from_str("\"clipboard\"").unwrap();
+    assert_eq!(clipboard, Access::Other("clipboard".to_string()));
+    assert_eq!(serde_json::to_string(&clipboard).unwrap(), "\"clipboard\"");
 }
 
 #[test]
-fn the_sentences_escape_the_name() {
-    let texts = ToolTexts::new(sources("There is no tool named \"{name}\".\n", "skipped")).unwrap();
-    assert_eq!(texts.unknown("reed"), "There is no tool named \"reed\".\n");
-    // 模型编的名字里带引号、尖括号，转义以后只剩模板自己的那两个引号。
-    let forged = texts.unknown("x\"><tool");
-    assert_eq!(forged.matches('"').count(), 2, "{forged}");
-    assert!(!forged.contains('<') && !forged.contains('>'), "{forged}");
-    assert_eq!(
-        texts.not_an_object("read"),
-        "The arguments for \"read\" are not a JSON object.\n"
-    );
-    assert_eq!(
-        (
-            texts.cancelled_before(),
-            texts.cancelled_running(),
-            texts.skipped()
-        ),
-        (
-            "cancelled before".to_string(),
-            "cancelled running".to_string(),
-            "skipped".to_string()
-        )
-    );
-}
-
-#[test]
-fn sentences_asking_for_other_fields_are_refused() {
-    assert!(
-        ToolTexts::new(sources("{tool}", "skipped")).is_err(),
-        "要了别的字段"
-    );
-    assert!(
-        ToolTexts::new(sources("{name}", "{name}")).is_err(),
-        "三句没有字段"
-    );
+fn writing_files_and_unknown_kinds_count_as_writing() {
+    let writes: Vec<bool> = [
+        Access::Read,
+        Access::Write,
+        Access::Execute,
+        Access::Network,
+        Access::Outbound,
+        Access::Other("clipboard".to_string()),
+    ]
+    .iter()
+    .map(Access::writes)
+    .collect();
+    assert_eq!(writes, [false, true, false, false, false, true]);
 }

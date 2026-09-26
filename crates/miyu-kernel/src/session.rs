@@ -8,6 +8,7 @@
 //! 每收到一次命令，恰好回应一次（不变量 7）；同一个编号只生效一次（不变量 9）。
 
 mod action;
+mod approval;
 mod call;
 mod input;
 mod interrupt;
@@ -15,11 +16,12 @@ mod permission;
 mod policy;
 mod queue;
 mod recent;
+mod step;
 mod tools;
 mod turn;
 
 pub use action::{Action, Outcome, Reason};
-pub use input::{Command, Injection, Input, Queued, Received};
+pub use input::{Command, Injection, Input, Queued, Received, Verdict};
 pub use policy::Policy;
 
 use crate::event::{Body, Event, MessageUser, Permission, SessionCreated};
@@ -138,6 +140,11 @@ impl Session {
                 duration_ms,
             } => self.tool_done(at, call_id, error, blocks, duration_ms),
             Input::ToolProgress { at, call_id, text } => self.tool_progress(at, call_id, text),
+            Input::ToolGuarded {
+                at,
+                call_id,
+                verdict,
+            } => self.tool_guarded(at, call_id, verdict),
         }
     }
 
@@ -177,6 +184,11 @@ impl Session {
             Command::SetPermission { level, read_only } => {
                 self.set_permission(id, by, at, level, read_only)
             }
+            Command::Answer {
+                call_id,
+                decision,
+                reason,
+            } => self.answer(id, by, at, call_id, decision, reason),
         }
     }
 

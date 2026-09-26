@@ -25,7 +25,7 @@ pub use model::{
     CallError, CallResult, ErrorClass, FirstDifference, MessageRole, ModelCalled, Part, Usage,
 };
 pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated};
-pub use tool::{ToolResult, ToolStatus};
+pub use tool::{ApprovalDecided, ApprovalRequested, Decision, ToolResult, ToolStatus};
 pub use transient::{ModelDelta, Piece, ToolProgress, Transient, TransientBody};
 pub use turn::{EndReason, TurnEnded, TurnReverted, TurnStarted};
 
@@ -120,6 +120,10 @@ bodies! {
     MessageWithdrawn = "message.withdrawn",
     /// 一个工具调用的结果。
     ToolResult = "tool.result",
+    /// 请人确认一次工具调用。
+    ApprovalRequested = "tool.approval_requested",
+    /// 人对确认请求的决定。
+    ApprovalDecided = "tool.approval_decided",
     /// 注入进上下文的一块事实。
     ContextInjected = "context.injected",
     /// 压缩的检查点。

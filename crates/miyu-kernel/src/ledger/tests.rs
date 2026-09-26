@@ -350,3 +350,67 @@ fn only_queued_messages_can_be_withdrawn() {
         "已经被请求看到过",
     );
 }
+
+#[test]
+fn requests_and_decisions_follow_the_calls() {
+    let requested = |seq: u64, call: &str| {
+        event(
+            seq,
+            Some(3),
+            "tool.approval_requested",
+            &format!(r#"{{"call_id":"{call}","access":"write"}}"#),
+        )
+    };
+    let decided = |seq: u64, call: &str| {
+        event(
+            seq,
+            Some(3),
+            "tool.approval_decided",
+            &format!(r#"{{"call_id":"{call}","decision":"once"}}"#),
+        )
+    };
+    // 前 5 条：第 5 条回复里有两个调用，都还没有结果。
+    let mut ledger = after(5);
+    refused(
+        &mut ledger,
+        &requested(6, "call_4_1"),
+        "call_4_1 不是一个还在等结果的调用",
+    );
+    refused(
+        &mut ledger,
+        &decided(6, "call_5_1"),
+        "call_5_1 不是在等确认的调用",
+    );
+    refused(
+        &mut ledger,
+        &event(
+            6,
+            None,
+            "tool.approval_requested",
+            r#"{"call_id":"call_5_1","access":"write"}"#,
+        ),
+        "tool.approval_requested 只在回合里发生",
+    );
+    ledger.append(&requested(6, "call_5_1")).unwrap();
+    refused(
+        &mut ledger,
+        &requested(7, "call_5_1"),
+        "已经有一个在等的请求",
+    );
+    ledger.append(&decided(7, "call_5_1")).unwrap();
+    refused(&mut ledger, &decided(8, "call_5_1"), "已经决定过");
+    // 结果了结请求：有了结果，就不能再决定，也不能再请求。
+    ledger.append(&requested(8, "call_5_2")).unwrap();
+    let skipped = event(9, Some(3), "tool.result", &result("call_5_2", "skipped"));
+    ledger.append(&skipped).unwrap();
+    refused(
+        &mut ledger,
+        &decided(10, "call_5_2"),
+        "call_5_2 不是在等确认的调用",
+    );
+    refused(
+        &mut ledger,
+        &requested(10, "call_5_2"),
+        "call_5_2 不是一个还在等结果的调用",
+    );
+}

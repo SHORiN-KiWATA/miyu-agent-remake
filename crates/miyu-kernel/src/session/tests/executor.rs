@@ -170,6 +170,40 @@ pub(super) fn done(call_id: CallId, text: &str) -> Input {
     }
 }
 
+/// 调用 `call_id` 过完了执行前的链，结论是 `verdict`，07:00:48 到的。
+pub(super) fn guarded(call_id: CallId, verdict: Verdict) -> Input {
+    Input::ToolGuarded {
+        at: at(48),
+        call_id,
+        verdict,
+    }
+}
+
+/// 送进一条输入；要过执行前的链的，都当场放行。不管确认的测试用它，派出去的就是执行工具。
+pub(super) fn allowing(session: &mut Session, input: Input) -> Vec<Action> {
+    let mut actions = session.handle(input);
+    let mut k = 0;
+    while k < actions.len() {
+        if let Action::GuardTool { call_id, .. } = actions[k] {
+            let more = session.handle(guarded(call_id, Verdict::Allow));
+            actions.extend(more);
+        }
+        k += 1;
+    }
+    actions
+}
+
+/// 交给执行前的链的调用的编号。
+pub(super) fn guards(actions: &[Action]) -> Vec<CallId> {
+    actions
+        .iter()
+        .filter_map(|action| match action {
+            Action::GuardTool { call_id, .. } => Some(*call_id),
+            _ => None,
+        })
+        .collect()
+}
+
 /// 派出去的调用：编号、工具名、修正过的参数、工作目录。
 pub(super) fn runs(actions: &[Action]) -> Vec<(CallId, String, String, String)> {
     actions

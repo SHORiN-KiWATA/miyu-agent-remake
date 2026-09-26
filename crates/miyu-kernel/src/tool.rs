@@ -1,29 +1,41 @@
 //! 内核眼里的工具（`docs/designs/05-内核接口.md` 第六节）：访问类别、参数格式；执行之前的
-//! 参数修正；内核自己拦下时写给模型的那两句（`02-内核.md` 第六节「工具怎么调、下一步怎么走」）。
+//! 参数修正；内核替工具写给模型的几句见 [`ToolTexts`]。
 //!
 //! 工具由软件包提供，内核不内置（`10-自带软件.md` 第一节）。内核只要知道两样：能不能和别的
 //! 一起跑（看访问类别），参数长什么样（修正畸形参数）。
 
-use std::collections::BTreeMap;
+mod texts;
 
 use serde_json::{Map, Value};
 
 use crate::raw::RawJson;
-use crate::template::{Template, TemplateError};
+use crate::text_enum::text_enum;
 
-/// 工具的访问类别。权限策略、能不能一起跑、撤销前要不要存档，都看它。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Access {
-    /// 只读：可以和别的只读调用一起跑。
-    Read,
-    /// 写文件。
-    Write,
-    /// 执行命令。
-    Execute,
-    /// 访问网络。
-    Network,
-    /// 对外发消息。
-    Outbound,
+pub use texts::{ToolTextSources, ToolTexts};
+
+text_enum!(
+    /// 工具的访问类别。权限策略、能不能一起跑、撤销前要不要存档，都看它。请人确认时，请求也
+    /// 写明要的是哪一类（`03-事件模型.md` 第三节「确认的事件怎么写」）。
+    Access {
+        /// 只读：可以和别的只读调用一起跑。
+        Read = "read",
+        /// 写文件。
+        Write = "write",
+        /// 执行命令。
+        Execute = "execute",
+        /// 访问网络。
+        Network = "network",
+        /// 对外发消息。
+        Outbound = "outbound",
+    }
+);
+
+impl Access {
+    /// 要不要写入：写文件的，和不认识的，按最严的算。只读时内核拦下的就是这些
+    /// （`02-内核.md` 第六节「权限级别怎么切」「确认怎么走」）。
+    pub fn writes(&self) -> bool {
+        matches!(self, Access::Write | Access::Other(_))
+    }
 }
 
 /// 内核要知道的一件工具：访问类别和参数格式。
@@ -102,135 +114,6 @@ fn restore(kind: &str, text: &str) -> Option<Value> {
         },
         _ => None,
     }
-}
-
-/// 内核替工具写给模型的几句（`resources/core/tool-results/`）：执行之前就拦下的两句，
-/// 字段是 `name`，模型说的工具名，照模板的规矩转义；打断、急着插话时补的三句，和只读时
-/// 拦下的一句，没有字段（`02-内核.md` 第六节「打断和急着插话」「权限级别怎么切」）。
-///
-/// 由执行器从资源目录读好交进来，造会话时读一次，冻结在会话上。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ToolTexts {
-    /// 工具面上没有这个名字。
-    unknown: Template,
-    /// 参数不是一个 JSON 对象。
-    not_an_object: Template,
-    /// 已取消，没跑过。
-    cancelled_before: Template,
-    /// 已取消，跑到一半。
-    cancelled_running: Template,
-    /// 已跳过。
-    skipped: Template,
-    /// 没派：会话是只读的。
-    read_only: Template,
-}
-
-/// 那几句的原文，各是一份模板。
-#[derive(Debug, Clone, Copy)]
-pub struct ToolTextSources<'a> {
-    /// 工具面上没有这个名字，字段 `name`。
-    pub unknown: &'a str,
-    /// 参数不是一个 JSON 对象，字段 `name`。
-    pub not_an_object: &'a str,
-    /// 已取消，没跑过。
-    pub cancelled_before: &'a str,
-    /// 已取消，跑到一半。
-    pub cancelled_running: &'a str,
-    /// 已跳过。
-    pub skipped: &'a str,
-    /// 没派：会话是只读的。
-    pub read_only: &'a str,
-}
-
-impl ToolTexts {
-    /// 读几份模板，读好以后拿字段试着换一次。
-    ///
-    /// # Errors
-    ///
-    /// 模板的写法坏了，或者要了不该有的字段，返回 [`TemplateError`]。
-    pub fn new(sources: ToolTextSources<'_>) -> Result<ToolTexts, TemplateError> {
-        let texts = ToolTexts {
-            unknown: Template::parse(sources.unknown)?,
-            not_an_object: Template::parse(sources.not_an_object)?,
-            cancelled_before: Template::parse(sources.cancelled_before)?,
-            cancelled_running: Template::parse(sources.cancelled_running)?,
-            skipped: Template::parse(sources.skipped)?,
-            read_only: Template::parse(sources.read_only)?,
-        };
-        texts.unknown.render(&fields(""))?;
-        texts.not_an_object.render(&fields(""))?;
-        for plain in [
-            &texts.cancelled_before,
-            &texts.cancelled_running,
-            &texts.skipped,
-            &texts.read_only,
-        ] {
-            plain.render(&BTreeMap::new())?;
-        }
-        Ok(texts)
-    }
-
-    /// 工具面上没有叫 `name` 的工具。
-    ///
-    /// # Panics
-    ///
-    /// 实际不会 panic：造的时候已经试换过。
-    pub fn unknown(&self, name: &str) -> String {
-        render(&self.unknown, &fields(name))
-    }
-
-    /// 给 `name` 的参数不是一个 JSON 对象。
-    ///
-    /// # Panics
-    ///
-    /// 实际不会 panic：造的时候已经试换过。
-    pub fn not_an_object(&self, name: &str) -> String {
-        render(&self.not_an_object, &fields(name))
-    }
-
-    /// 已取消，没跑过。
-    ///
-    /// # Panics
-    ///
-    /// 实际不会 panic：造的时候已经试换过。
-    pub fn cancelled_before(&self) -> String {
-        render(&self.cancelled_before, &BTreeMap::new())
-    }
-
-    /// 已取消，跑到一半。
-    ///
-    /// # Panics
-    ///
-    /// 实际不会 panic：造的时候已经试换过。
-    pub fn cancelled_running(&self) -> String {
-        render(&self.cancelled_running, &BTreeMap::new())
-    }
-
-    /// 已跳过。
-    ///
-    /// # Panics
-    ///
-    /// 实际不会 panic：造的时候已经试换过。
-    pub fn skipped(&self) -> String {
-        render(&self.skipped, &BTreeMap::new())
-    }
-
-    /// 没派：会话是只读的。
-    ///
-    /// # Panics
-    ///
-    /// 实际不会 panic：造的时候已经试换过。
-    pub fn read_only(&self) -> String {
-        render(&self.read_only, &BTreeMap::new())
-    }
-}
-
-fn render(template: &Template, fields: &BTreeMap<&str, &str>) -> String {
-    template.render(fields).expect("造的时候试换过，字段都有")
-}
-
-fn fields(name: &str) -> BTreeMap<&str, &str> {
-    BTreeMap::from([("name", name)])
 }
 
 #[cfg(test)]

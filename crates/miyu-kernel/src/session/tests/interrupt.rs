@@ -42,7 +42,7 @@ fn interrupted_by(event: &Event, n: u64) {
 fn interrupting_an_idle_session_is_refused() {
     let mut session = session();
     assert_eq!(
-        session.handle(interrupt(1)),
+        allowing(&mut session, interrupt(1)),
         [Action::Reply {
             id: id(1),
             outcome: Outcome::Rejected {
@@ -57,15 +57,15 @@ fn interrupting_an_idle_session_is_refused() {
 fn interrupting_before_the_request_just_ends_the_turn() {
     // 开头还没落盘。
     let mut session = session();
-    session.handle(send(1, "hi"));
-    let actions = session.handle(stop(2, 10));
+    allowing(&mut session, send(1, "hi"));
+    let actions = allowing(&mut session, stop(2, 10));
     let [Action::Append(events)] = actions.as_slice() else {
         panic!("{actions:?}");
     };
     assert_eq!(appended(&actions), seqs(&[6]));
     interrupted_by(&events[0], 2);
     assert_eq!(events[0].turn, Some(turn3()));
-    let actions = session.handle(stored(6));
+    let actions = allowing(&mut session, stored(6));
     assert!(actions.contains(&accepted_reply(2, &[6])));
     assert!(actions.contains(&Action::RunTurnEndHooks { turn: turn3() }));
     assert!(hooks(&actions).is_empty(), "打断了，不再跑回合开始的挂接点");
@@ -83,7 +83,7 @@ fn interrupting_before_the_request_just_ends_the_turn() {
 #[test]
 fn interrupting_a_request_keeps_what_came_and_cancels_its_calls() {
     let mut session = asking();
-    session.handle(sent(5));
+    allowing(&mut session, sent(5));
     let pieces = [
         Delta::Start {
             index: 0,
@@ -116,9 +116,9 @@ fn interrupting_a_request_keeps_what_came_and_cancels_its_calls() {
         },
     ];
     for piece in pieces {
-        session.handle(delta(5, 41, piece));
+        allowing(&mut session, delta(5, 41, piece));
     }
-    let actions = session.handle(stop(2, 47));
+    let actions = allowing(&mut session, stop(2, 47));
     let events = appended_events(&actions);
     assert_eq!(appended(&actions), seqs(&[6, 7, 8, 9]));
     assert_eq!(actions.last(), Some(&Action::CancelModel { seen: seq(5) }));
@@ -162,13 +162,13 @@ fn interrupting_a_request_keeps_what_came_and_cancels_its_calls() {
             .handle(delta(5, 48, Delta::End { index: 2 }))
             .is_empty()
     );
-    assert!(session.handle(ended(5)).is_empty());
+    assert!(allowing(&mut session, ended(5)).is_empty());
 }
 
 #[test]
 fn interrupting_a_request_that_got_nothing_writes_no_reply() {
     let mut session = asking();
-    let actions = session.handle(stop(2, 47));
+    let actions = allowing(&mut session, stop(2, 47));
     let events = appended_events(&actions);
     assert_eq!(appended(&actions), seqs(&[6, 7]));
     let called = called_of(&events[0]);
@@ -186,9 +186,12 @@ fn interrupting_tools_cancels_the_calls_without_results() {
         5,
         &[("read", "{}"), ("read", "{}"), ("write", "{}")],
     );
-    assert_eq!(ran(&session.handle(stored(7))), [call(6, 1), call(6, 2)]);
-    session.handle(done(call(6, 1), "a"));
-    let actions = session.handle(stop(2, 51));
+    assert_eq!(
+        ran(&allowing(&mut session, stored(7))),
+        [call(6, 1), call(6, 2)]
+    );
+    allowing(&mut session, done(call(6, 1), "a"));
+    let actions = allowing(&mut session, stop(2, 51));
     let events = appended_events(&actions);
     assert_eq!(appended(&actions), seqs(&[9, 10, 11]));
     assert_eq!(
@@ -211,7 +214,7 @@ fn interrupting_tools_cancels_the_calls_without_results() {
     assert_eq!(result_of(&events[1]).4, "cancelled before");
     interrupted_by(&events[2], 2);
     assert!(
-        session.handle(done(call(6, 2), "late")).is_empty(),
+        allowing(&mut session, done(call(6, 2), "late")).is_empty(),
         "之后到的结果不理"
     );
 }
@@ -220,8 +223,8 @@ fn interrupting_tools_cancels_the_calls_without_results() {
 fn an_urgent_message_skips_the_calls_not_yet_run() {
     let mut session = asking();
     call_tools(&mut session, 5, &[("write", "{}"), ("read", "{}")]);
-    assert_eq!(ran(&session.handle(stored(7))), [call(6, 1)]);
-    let actions = session.handle(urgent(2, "等等，先别往下做"));
+    assert_eq!(ran(&allowing(&mut session, stored(7))), [call(6, 1)]);
+    let actions = allowing(&mut session, urgent(2, "等等，先别往下做"));
     let events = appended_events(&actions);
     assert_eq!(appended(&actions), seqs(&[8, 9]));
     assert_eq!(events[0].turn, Some(turn3()));
@@ -237,10 +240,10 @@ fn an_urgent_message_skips_the_calls_not_yet_run() {
     );
     // 在跑的照常跑完，这一步齐了、落了盘，请求下一次，那句话在里面。
     assert_eq!(
-        appended(&session.handle(done(call(6, 1), "ok"))),
+        appended(&allowing(&mut session, done(call(6, 1), "ok"))),
         seqs(&[10])
     );
-    let calls = calls(&session.handle(stored(10)));
+    let calls = calls(&allowing(&mut session, stored(10)));
     assert_eq!(calls[0].0, seq(10));
     assert!(calls[0].1.contains("8 message.user"));
 }
@@ -248,25 +251,28 @@ fn an_urgent_message_skips_the_calls_not_yet_run() {
 #[test]
 fn an_urgent_message_during_a_request_skips_the_calls_of_its_reply() {
     let mut session = asking();
-    assert_eq!(appended(&session.handle(urgent(2, "换个做法"))), seqs(&[6]));
+    assert_eq!(
+        appended(&allowing(&mut session, urgent(2, "换个做法"))),
+        seqs(&[6])
+    );
     let actions = call_tools(&mut session, 5, &[("read", "{}"), ("reed", "{}")]);
     let events = appended_events(&actions);
     assert_eq!(appended(&actions), seqs(&[7, 8, 9, 10]));
     assert_eq!(result_of(&events[2]).1, ToolStatus::Skipped);
     assert_eq!(result_of(&events[3]).1, ToolStatus::Skipped, "全都跳过");
-    let actions = session.handle(stored(10));
+    let actions = allowing(&mut session, stored(10));
     assert!(ran(&actions).is_empty());
     assert_eq!(calls(&actions)[0].0, seq(10));
     // 插话用过了：下一次回复里的调用照常派。
     call_tools(&mut session, 10, &[("read", "{}")]);
-    assert_eq!(ran(&session.handle(stored(12))), [call(11, 1)]);
+    assert_eq!(ran(&allowing(&mut session, stored(12))), [call(11, 1)]);
 }
 
 #[test]
 fn an_urgent_message_to_an_idle_session_opens_a_turn() {
     let mut session = session();
     assert_eq!(
-        appended(&session.handle(urgent(1, "hi"))),
+        appended(&allowing(&mut session, urgent(1, "hi"))),
         seqs(&[2, 3, 4, 5])
     );
 }
@@ -276,14 +282,14 @@ fn an_urgent_message_before_any_call_ran_moves_straight_on() {
     let mut session = asking();
     // 回复还没落盘，一个调用都还没派。
     call_tools(&mut session, 5, &[("read", "{}"), ("read", "{}")]);
-    let actions = session.handle(urgent(2, "别读了"));
+    let actions = allowing(&mut session, urgent(2, "别读了"));
     assert_eq!(
         appended(&actions),
         seqs(&[8, 9, 10]),
         "消息和两条「已跳过」"
     );
     // 这一步当场就齐了：落了盘就请求下一次，一个调用都不派。
-    let actions = session.handle(stored(10));
+    let actions = allowing(&mut session, stored(10));
     assert!(ran(&actions).is_empty());
     assert_eq!(calls(&actions)[0].0, seq(10));
 }

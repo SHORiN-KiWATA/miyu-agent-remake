@@ -1,9 +1,11 @@
 //! 这一步的工具调用（`docs/designs/02-内核.md` 第六节「工具怎么调、下一步怎么走」）：先查、
-//! 修正参数，会话只读时写文件的当场拦下；回复落了盘才派；只读的一起跑，别的一个接一个；结果
-//! 齐了请求下一次，到了步数上限就结束回合。
+//! 修正参数，会话只读时写文件的当场拦下；回复落了盘，轮到的先过执行前的链（「确认怎么走」，
+//! 在 [`super::approval`]）；只读的一起跑，别的一个接一个；结果齐了请求下一次，到了步数上限
+//! 就结束回合。每个调用走到了哪，记在 [`super::step`]。
 
 use super::Session;
 use super::action::Action;
+use super::step::{Pending, State, Step};
 use super::turn::{Interjection, Stage};
 use crate::block::{Block, Text, ToolCall};
 use crate::event::{
@@ -12,69 +14,7 @@ use crate::event::{
 use crate::id::{CallId, CommandId, Seq};
 use crate::origin::{By, Tool};
 use crate::time::Timestamp;
-use crate::tool::{Access, repair};
-
-/// 这一步要跑的调用，照调用的先后。内核当场拦下的不在里面，它们已经有了结果。
-#[derive(Debug)]
-pub(super) struct Step {
-    /// 回复的序号：它落了盘才派。
-    reply: Seq,
-    calls: Vec<Pending>,
-}
-
-/// 一个要跑的调用。
-#[derive(Debug)]
-struct Pending {
-    id: CallId,
-    name: String,
-    /// 修正过的参数。
-    args: String,
-    access: Access,
-    state: State,
-}
-
-/// 一个调用走到了哪。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum State {
-    /// 还没派。
-    Waiting,
-    /// 派出去了，等结果。
-    Running,
-    /// 有了结果。
-    Done,
-}
-
-impl Step {
-    /// 现在能派的，照调用的先后：连着的只读调用一起派；不是只读的，等它前面的都有了结果，
-    /// 它没有结果，后面的都等着。
-    fn ready(&self) -> Vec<usize> {
-        let mut ready = Vec::new();
-        let mut earlier_pending = false;
-        let mut earlier_exclusive = false;
-        for (k, call) in self.calls.iter().enumerate() {
-            if call.state == State::Done {
-                continue;
-            }
-            let exclusive = call.access != Access::Read;
-            let free = if exclusive {
-                !earlier_pending
-            } else {
-                !earlier_exclusive
-            };
-            if call.state == State::Waiting && free {
-                ready.push(k);
-            }
-            earlier_pending = true;
-            earlier_exclusive |= exclusive;
-        }
-        ready
-    }
-
-    /// 这一步的调用都有了结果。
-    fn finished(&self) -> bool {
-        self.calls.iter().all(|call| call.state == State::Done)
-    }
-}
+use crate::tool::repair;
 
 impl Session {
     /// 回复里的工具调用，先查：工具面上没有这个名字、参数不是 JSON 对象的，当场记一条出错的
@@ -110,11 +50,11 @@ impl Session {
             let checked = match self.policy.tools.get(&call.name) {
                 None => Err(self.policy.tool_texts.unknown(&call.name)),
                 Some(rule) => repair(&rule.parameters, &call.args)
-                    .map(|args| (args, rule.access))
+                    .map(|args| (args, rule.access.clone()))
                     .map_err(|_| self.policy.tool_texts.not_an_object(&call.name)),
             };
             match checked {
-                Ok((_, Access::Write)) if self.read_only_now() => {
+                Ok((_, access)) if access.writes() && self.read_only_now() => {
                     let text = self.policy.tool_texts.read_only();
                     events.push(self.written_result(
                         at,
@@ -131,6 +71,7 @@ impl Session {
                     args,
                     access,
                     state: State::Waiting,
+                    asked: None,
                 }),
                 Err(sentence) => {
                     events.push(self.written_result(
@@ -158,7 +99,8 @@ impl Session {
         events
     }
 
-    /// 回复落了盘，派现在能派的，带上这一轮的工作目录。
+    /// 回复落了盘以后：人允许了的，那条决定也落了盘就派去跑；轮到的，先交给执行前的链，带上
+    /// 这一轮的工作目录和实际生效的那一级。
     pub(super) fn dispatch(&mut self) -> Vec<Action> {
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();
@@ -166,18 +108,32 @@ impl Session {
         let Stage::Tools(step) = &mut turn.stage else {
             return Vec::new();
         };
-        if self.stored.is_none_or(|stored| stored < step.reply) {
+        let Some(stored) = self.stored.filter(|stored| *stored >= step.reply) else {
             return Vec::new();
-        }
+        };
         let mut actions = Vec::new();
+        for call in &mut step.calls {
+            if let State::Approved { decided } = call.state
+                && decided <= stored
+            {
+                call.state = State::Running;
+                actions.push(Action::RunTool {
+                    call_id: call.id,
+                    name: call.name.clone(),
+                    args: call.args.clone(),
+                    cwd: turn.cwd.clone(),
+                });
+            }
+        }
         for k in step.ready() {
             let call = &mut step.calls[k];
-            call.state = State::Running;
-            actions.push(Action::RunTool {
+            call.state = State::Guarding;
+            actions.push(Action::GuardTool {
                 call_id: call.id,
                 name: call.name.clone(),
                 args: call.args.clone(),
                 cwd: turn.cwd.clone(),
+                permission: self.effective.clone(),
             });
         }
         actions
@@ -200,11 +156,7 @@ impl Session {
         let Stage::Tools(step) = &mut turn.stage else {
             return Vec::new();
         };
-        let Some(call) = step
-            .calls
-            .iter_mut()
-            .find(|call| call.id == call_id && call.state == State::Running)
-        else {
+        let Some(call) = step.find(call_id, State::Running) else {
             return Vec::new();
         };
         call.state = State::Done;
@@ -258,8 +210,9 @@ impl Session {
         })]
     }
 
-    /// 打断这一步：在跑的叫执行器停下，补「已取消，跑到一半」；还没派的补「已取消，没跑过」；
-    /// 有了结果的不动。补的结果 `by` 是打断的人，`cause` 是打断的命令。
+    /// 打断这一步：在跑的叫执行器停下，补「已取消，跑到一半」；还没跑过的（没轮到、在过链、
+    /// 在等人、人允许了还没派）补「已取消，没跑过」；有了结果的不动。补的结果 `by` 是打断的人，
+    /// `cause` 是打断的命令。
     pub(super) fn cancel_step(
         &mut self,
         at: Timestamp,
@@ -276,7 +229,7 @@ impl Session {
                     actions.push(Action::CancelTool { call_id: call.id });
                     self.policy.tool_texts.cancelled_running()
                 }
-                State::Waiting => self.policy.tool_texts.cancelled_before(),
+                _ => self.policy.tool_texts.cancelled_before(),
             };
             events.push(self.written_result(
                 at,
@@ -290,7 +243,7 @@ impl Session {
         (events, actions)
     }
 
-    /// 急着插话：记在回合上，下一次请求之前还没跑的调用都跳过。这一步还没派的，当场补
+    /// 急着插话：记在回合上，下一次请求之前还没跑的调用都跳过。这一步还没跑过的，当场补
     /// 「已跳过」，`by` 是说话的人；这一步因此齐了的，往下走。
     pub(super) fn interject(&mut self, at: Timestamp, by: By, cause: CommandId) -> Vec<Event> {
         let Some(turn) = self.turn.as_mut() else {
@@ -304,18 +257,10 @@ impl Session {
         let Stage::Tools(step) = &mut turn.stage else {
             return Vec::new();
         };
-        let waiting: Vec<CallId> = step
-            .calls
-            .iter_mut()
-            .filter(|call| call.state == State::Waiting)
-            .map(|call| {
-                call.state = State::Done;
-                call.id
-            })
-            .collect();
+        let skipped = settle(step, Pending::not_run);
         let finished = step.finished();
         let text = self.policy.tool_texts.skipped();
-        let mut events: Vec<Event> = waiting
+        let mut events: Vec<Event> = skipped
             .into_iter()
             .map(|call_id| {
                 self.written_result(
@@ -353,8 +298,8 @@ impl Session {
         self.record(at, by, cause, Body::ToolResult(result))
     }
 
-    /// 收紧成了只读：这一步里还没派的写文件调用当场拦下，`by` 是内核。这一步因此齐了的，
-    /// 往下走。已经在跑的不动：它已经跑了，沙盒管着（M5）。
+    /// 收紧成了只读：这一步里还没跑过、要写入的调用当场拦下，`by` 是内核：写文件的调用，和请人
+    /// 确认的是写入的。这一步因此齐了的，往下走。已经在跑的不动：它已经跑了，沙盒管着（M5）。
     pub(super) fn deny_waiting_writes(&mut self, at: Timestamp) -> Vec<Event> {
         if !self.read_only_now() {
             return Vec::new();
@@ -366,15 +311,7 @@ impl Session {
         let Stage::Tools(step) = &mut turn.stage else {
             return Vec::new();
         };
-        let denied: Vec<CallId> = step
-            .calls
-            .iter_mut()
-            .filter(|call| call.state == State::Waiting && call.access == Access::Write)
-            .map(|call| {
-                call.state = State::Done;
-                call.id
-            })
-            .collect();
+        let denied = settle(step, |call| call.not_run() && call.writes());
         let finished = step.finished();
         let text = self.policy.tool_texts.read_only();
         let mut events: Vec<Event> = denied
@@ -398,7 +335,7 @@ impl Session {
 
     /// 这一步齐了：到了步数上限，结束回合；不然这一轮里切过级别的先把事实查一遍，等追加过的
     /// 事件都落了盘，请求下一次。
-    fn finish_step(&mut self, at: Timestamp, cause: Option<CommandId>) -> Vec<Event> {
+    pub(super) fn finish_step(&mut self, at: Timestamp, cause: Option<CommandId>) -> Vec<Event> {
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();
         };
@@ -412,4 +349,16 @@ impl Session {
         turn.stage = Stage::Ready;
         self.refresh_facts(at)
     }
+}
+
+/// 这一步里合 `which` 的调用都记成有了结果，返回它们的编号，照调用的先后。
+fn settle(step: &mut Step, which: impl Fn(&Pending) -> bool) -> Vec<CallId> {
+    step.calls
+        .iter_mut()
+        .filter(|call| which(call))
+        .map(|call| {
+            call.state = State::Done;
+            call.id
+        })
+        .collect()
 }

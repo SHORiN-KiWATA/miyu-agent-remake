@@ -44,13 +44,15 @@ impl Watch {
                     );
                 }
             }
-            Body::ToolResult(result) if result.status == ToolStatus::Denied => {
+            Body::ToolResult(result)
+                if result.status == ToolStatus::Denied
+                    && approval::text_of(event) == "read only" =>
+            {
                 let call_id = result.call_id;
                 assert_eq!(event.by, By::Kernel, "种子 {seed}：拦下 {call_id} 的是内核");
-                assert_eq!(
-                    self.name_of(call_id),
-                    "write",
-                    "种子 {seed}：拦下的 {call_id} 不是写文件的"
+                assert!(
+                    self.writes(call_id),
+                    "种子 {seed}：拦下的 {call_id} 不是要写入的"
                 );
                 assert_eq!(
                     rank(&self.effective),
@@ -60,10 +62,13 @@ impl Watch {
                 let tightened = events[..k]
                     .iter()
                     .any(|event| matches!(event.body, Body::PolicyChanged(_)));
-                self.seen_paths.insert(if tightened {
-                    "收紧时拦下还没派的"
-                } else {
-                    "回复到了只读拦下"
+                let replied = events[..k]
+                    .iter()
+                    .any(|event| matches!(event.body, Body::MessageAssistant(_)));
+                self.seen_paths.insert(match (tightened, replied) {
+                    (true, _) => "收紧时拦下还没派的",
+                    (false, true) => "回复到了只读拦下",
+                    (false, false) => "要写入的请求只读拦下",
                 });
             }
             _ => {}
@@ -88,22 +93,27 @@ impl Watch {
         );
     }
 
-    /// 派一个调用：只读生效的时候不派写文件的。
-    pub(super) fn permission_run(&self, call_id: CallId, name: &str) {
+    /// 派一个调用：只读生效的时候不派要写入的。
+    pub(super) fn permission_run(&self, call_id: CallId, writes: bool) {
         assert!(
-            name != "write" || rank(&self.effective) > 0,
-            "种子 {}：只读生效的时候派了写文件的 {call_id}",
+            !writes || !self.read_only_in_effect(),
+            "种子 {}：只读生效的时候派了要写入的 {call_id}",
             self.seed
         );
     }
 
-    /// 这一步里有还没派的写文件调用，只读也没生效：收紧当场拦下的窗口。
+    /// 实际生效的是不是只读。
+    pub(super) fn read_only_in_effect(&self) -> bool {
+        rank(&self.effective) == 0
+    }
+
+    /// 这一步里有还没跑的写文件调用，只读也没生效：收紧当场拦下的窗口。
     pub(in super::super) fn write_waiting(&self) -> bool {
-        if rank(&self.effective) == 0 || !self.turn_open() {
+        if self.read_only_in_effect() || !self.turn_open() {
             return false;
         }
         self.calls_in(self.open_turn()).any(|call| {
-            !self.dispatched.contains(&call)
+            !self.running.contains(&call)
                 && !self.resulted.contains(&call)
                 && self.name_of(call) == "write"
         })
