@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>18</b><span>/ 36 步<strong>已完成</strong>，M2 开工了</span></li>
-    <li><b>2-2</b><span>现在：流式累积器，<strong>施工中</strong></span></li>
-    <li><b class="mono">4cfc46b</b><span>最近一步（2-1）的提交</span></li>
+    <li><b>19</b><span>/ 36 步<strong>已完成</strong>，M2 开工了</span></li>
+    <li><b>2-3</b><span>下一步：最简单的一轮，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">f761e0e</b><span>最近一步（2-2）的提交</span></li>
   </ul>
 </header>
 
@@ -328,7 +328,7 @@ a.step:hover{border-color:var(--primary)}
       <div class="ms-head"><span class="ms-id">M2</span><span class="ms-name">回合可信</span><span class="ms-goal">一轮对话的各种走法都在内存里跑通</span></div>
       <ol class="chips">
         <li><a class="step done" href="#s2-1"><span class="n">2-1</span>输入、动作、命令<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">2-2</span>流式累积器</span></li>
+        <li><a class="step done" href="#s2-2"><span class="n">2-2</span>流式累积器<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">2-3</span>最简单的一轮</span></li>
         <li><span class="step"><span class="n">2-4</span>调工具</span></li>
         <li><span class="step"><span class="n">2-5</span>打断</span></li>
@@ -1718,6 +1718,86 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s2-2" aria-labelledby="h-s22">
+  <div class="sheet-head"><h2 id="h-s22"><span class="no">2-2</span>流式累积器</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">模型的输出一段一段地来，累积器把它们拼成完整的内容块：正常说完，拼成一条回复的全部内容；被打断，只留收全了的部分。瞬时事件的外壳和 model.delta 画好了，推送它们的代码随 2-3 接上会话时写。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">四种增量 · Delta</span><span class="dir-note">驱动把各家的分片解码成这四种</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">一块开始</span><span class="rl">第几块；正文、思考、工具调用（带工具名）</span></div>
+              <div class="tile new"><span class="nm">一段字</span><span class="rl">正文、思考的一段，或工具调用参数原文的一段</span></div>
+              <div class="tile new"><span class="nm">私有数据</span><span class="rl">思考的签名、供应商自己的调用编号</span></div>
+              <div class="tile new"><span class="nm">一块收全了</span><span class="rl">工具调用收全了才执行得了</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">拼出来 · Accumulator</span><span class="dir-note">一次响应一个</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">正常说完</span><span class="rl">照收到的拼；调用编号 call_&lt;序号&gt;_&lt;第几个&gt;；空块不要</span></div>
+              <div class="tile new"><span class="nm">被打断</span><span class="rl">正文、思考留收到的；工具调用只留收全了的</span></div>
+              <div class="tile new"><span class="nm">对不上</span><span class="rl">驱动的错：报是哪一块、哪里对不上</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">瞬时事件的外壳（图纸）</span><span class="dir-note">03 第五节，代码随 2-3</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">和持久事件同一种写法</span><span class="rl">只少 seq；cause 留着，一路追得下去</span></div>
+              <div class="tile new"><span class="nm">model.delta</span><span class="rl">seen、第几块、这一段增量；私有数据不推</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">块一块接一块地开始</span><span class="rl">字可以交错着来</span></div>
+          <div class="tile new"><span class="nm">调用编号写成回复时才分配</span><span class="rl">要用那条回复的序号</span></div>
+          <div class="tile new"><span class="nm">空块不要</span><span class="rl">只有签名的思考块留着</span></div>
+          <div class="tile new"><span class="nm">随机切片拼出来都一样</span><span class="rl">三百份随机切、随机交错</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-2</dd></div>
+        <div><dt>名称</dt><dd>流式累积器</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">f761e0e</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>accumulate.rs</code>：增量 <code>Delta</code> 四种，累积器 <code>Accumulator</code>：<code>apply</code> 收增量，<code>finish</code> 正常说完，<code>cut_off</code> 被打断。</li>
+        <li>对不上的增量报 <code>DeltaError</code>，写明是哪一块、哪里对不上。</li>
+        <li>图纸：瞬时事件的外壳和 <code>model.delta</code> 的 <code>body</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>169 个测试全过，新加 7 个：三种块、调用编号、空块、交错的字、被打断、七种对不上的增量、随机切片三百份</span></li>
+        <li><span class="ok">✓</span><span>故意改坏十处（乱序开始、收全后还收、正文块收私有数据、私有数据来两次、空正文块留着、空思考块留着、只有签名的思考块也丢、被打断留没收全的调用、编号数所有块、字接反了），每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 169 个测试）</span></li>
+        <li><span class="ok">✓</span><span>项目主人验收通过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/03-事件模型.md</code> 第五节「增量和累积器怎么写」「瞬时事件的外壳」。</li>
+        <li><code>docs/construction/2-2-流式累积器.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -1892,7 +1972,7 @@ const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '11 种事件的写法、追加时的检查' },
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
-  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架' },
+  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器' },
 };
 
 const svg = document.getElementById('bmap');
