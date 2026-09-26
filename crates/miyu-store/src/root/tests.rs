@@ -4,9 +4,8 @@
 //! 测试用的路径都拼在系统的临时目录下面：它在三台机器上都是绝对路径，换了平台，路径的写法
 //! 不一样，拼法一样。
 
-use std::sync::atomic::{AtomicU64, Ordering};
-
 use super::*;
+use crate::test_support::Scratch;
 
 /// 家目录：<临时目录>/home/alice。
 fn alice() -> PathBuf {
@@ -147,40 +146,19 @@ fn a_missing_home_is_an_error() {
     }
 }
 
-/// 测试用的临时目录：进程号加序号，用完删掉。
-struct Scratch(PathBuf);
-
-impl Scratch {
-    fn new() -> Scratch {
-        static NEXT: AtomicU64 = AtomicU64::new(0);
-        let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        Scratch(std::env::temp_dir().join(format!("miyu-store-test-{}-{n}", std::process::id())))
-    }
-
-    /// 这个临时目录下的 `data`，当数据根。
-    fn root(&self) -> DataRoot {
-        DataRoot::locate(&Env {
-            miyu_home: Some(self.0.join("data").into_os_string()),
-            ..env(Platform::current())
-        })
-        .unwrap()
-    }
-}
-
-impl Drop for Scratch {
-    #[expect(
-        clippy::let_underscore_must_use,
-        reason = "删不掉就留在临时目录里，不影响测试"
-    )]
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
+/// 临时目录下的 `data`，当数据根。
+fn root_in(scratch: &Scratch) -> DataRoot {
+    DataRoot::locate(&Env {
+        miyu_home: Some(scratch.path().join("data").into_os_string()),
+        ..env(Platform::current())
+    })
+    .unwrap()
 }
 
 #[test]
 fn the_skeleton_is_built_and_building_it_again_is_fine() {
     let scratch = Scratch::new();
-    let root = scratch.root();
+    let root = root_in(&scratch);
     root.prepare().unwrap();
     let dirs = [
         root.path().to_path_buf(),
@@ -204,7 +182,7 @@ fn the_skeleton_is_built_and_building_it_again_is_fine() {
 fn new_directories_are_only_for_me() {
     use std::os::unix::fs::PermissionsExt;
     let scratch = Scratch::new();
-    let root = scratch.root();
+    let root = root_in(&scratch);
     root.prepare().unwrap();
     for dir in [root.path().to_path_buf(), root.system(), root.run()] {
         let mode = fs::metadata(&dir).unwrap().permissions().mode() & 0o777;
@@ -217,7 +195,7 @@ fn new_directories_are_only_for_me() {
 fn existing_directories_keep_their_permissions() {
     use std::os::unix::fs::PermissionsExt;
     let scratch = Scratch::new();
-    let root = scratch.root();
+    let root = root_in(&scratch);
     fs::create_dir_all(root.path()).unwrap();
     fs::set_permissions(root.path(), fs::Permissions::from_mode(0o755)).unwrap();
     root.prepare().unwrap();
@@ -252,7 +230,7 @@ fn a_new_root_gets_the_marker() {
     // 目录不存在、空目录：都写下标记，建好骨架。
     for exists in [false, true] {
         let scratch = Scratch::new();
-        let root = scratch.root();
+        let root = root_in(&scratch);
         if exists {
             fs::create_dir_all(root.path()).unwrap();
         }
@@ -272,7 +250,7 @@ fn a_directory_that_is_not_ours_is_left_alone() {
     // 放了一个随便的文件的，和像旧版 Miyu 的（顶层有 config/）。
     for old_miyu in [false, true] {
         let scratch = Scratch::new();
-        let root = scratch.root();
+        let root = root_in(&scratch);
         fs::create_dir_all(root.path()).unwrap();
         fs::write(root.path().join("notes.txt"), "我的笔记").unwrap();
         if old_miyu {
@@ -298,7 +276,7 @@ fn a_directory_that_is_not_ours_is_left_alone() {
 fn a_hidden_file_also_makes_it_not_empty() {
     // 宁可多停一回，不往别人的目录里建东西：只有一个隐藏文件，也不算空的。
     let scratch = Scratch::new();
-    let root = scratch.root();
+    let root = root_in(&scratch);
     fs::create_dir_all(root.path()).unwrap();
     fs::write(root.path().join(".hidden"), "").unwrap();
     assert!(matches!(

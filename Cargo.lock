@@ -92,6 +92,10 @@ dependencies = [
 [[package]]
 name = "miyu-store"
 version = "0.0.0"
+dependencies = [
+ "miyu-kernel",
+ "serde_json",
+]
 
 [[package]]
 name = "proc-macro2"

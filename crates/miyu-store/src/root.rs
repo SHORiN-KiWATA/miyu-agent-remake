@@ -10,6 +10,8 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
+use miyu_kernel::id::{AccountId, SessionId};
+
 use crate::env::{Env, Platform};
 
 /// 第一次用时建的四个顶层目录：系统区、家目录、状态区、运行时（`07-存储.md` 第二节）。
@@ -87,6 +89,14 @@ impl DataRoot {
     /// 放各个账号家目录的地方：`home/`。
     pub fn homes(&self) -> PathBuf {
         self.path.join("home")
+    }
+
+    /// 一个会话的目录：`home/<账号>/sessions/<会话编号>/`（`07-存储.md` 第三节）。
+    pub fn session_dir(&self, account: &AccountId, session: &SessionId) -> PathBuf {
+        self.homes()
+            .join(account.as_str())
+            .join("sessions")
+            .join(session.as_str())
     }
 
     /// 状态区：派生的全局索引、用量总表、运行日志。
@@ -230,7 +240,7 @@ fn local_app_data(env: &Env) -> Result<PathBuf, RootError> {
 }
 
 /// 缺的才建，连同缺的上级目录：Unix 上权限 0700。已经有的不动。
-fn create(path: &Path) -> io::Result<()> {
+pub(crate) fn create(path: &Path) -> io::Result<()> {
     let mut builder = fs::DirBuilder::new();
     builder.recursive(true);
     #[cfg(unix)]
