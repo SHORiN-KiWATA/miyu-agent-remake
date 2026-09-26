@@ -69,6 +69,19 @@ fn account_is_like_a_linux_login_name() {
     rejected::<AccountId>(r#""lpt9""#, "Windows 保留");
 }
 
+/// 算出来的内容哈希，和 SHA-256 公开的测试值一样（FIPS 180-2 的 "abc"，和空的内容）。
+#[test]
+fn content_hash_of_known_contents() {
+    assert_eq!(
+        ContentHash::of(b"abc").as_str(),
+        "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+    );
+    assert_eq!(
+        ContentHash::of(b"").as_str(),
+        "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    );
+}
+
 #[test]
 fn content_hash_is_sha256_in_lowercase_hex() {
     let hex = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";

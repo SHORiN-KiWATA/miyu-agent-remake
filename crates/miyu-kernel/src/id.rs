@@ -13,6 +13,7 @@ use std::fmt;
 
 use serde::de::Error as _;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use sha2::{Digest, Sha256};
 
 use crate::format_error::FormatError;
 
@@ -89,6 +90,21 @@ text_id!(
     "内容哈希",
     check_content_hash
 );
+
+impl ContentHash {
+    /// 由内容算出内容哈希：内容的 SHA-256，写成 `sha256:` 加 64 位小写十六进制。
+    pub fn of(content: &[u8]) -> ContentHash {
+        const HEX: &[u8; 16] = b"0123456789abcdef";
+        let digest: [u8; 32] = Sha256::digest(content).into();
+        let mut text = String::with_capacity(71);
+        text.push_str("sha256:");
+        for byte in digest {
+            text.push(char::from(HEX[usize::from(byte >> 4)]));
+            text.push(char::from(HEX[usize::from(byte & 0x0f)]));
+        }
+        ContentHash(text)
+    }
+}
 
 text_id!(
     /// 模块：清单里的 `id`。会出现在路径 `home/<账号>/modules/<模块>/` 里，所以规则和账号一样。
