@@ -15,6 +15,8 @@
 //! - 提问：题目只由在跑的调用问；回答照规矩接受或者拒绝，落了盘才交给工具；来了一句话作废、打断、
 //!   没人能回答，各自写对 `by` 和那一句；
 //! - 回合结束的挂接点，等 `turn.ended` 落了盘才跑，一个回合一次；
+//! - 偶尔崩一下，或者有计划地重启一下，从落了盘的日志载入：崩了的那一轮收尾、不接着开，重启打断
+//!   的接着开一轮；
 //! - 切权限级别：只读生效的时候不派写文件的调用，内核拦下的都是写文件的；回合中途注入的排在
 //!   这一步的全部工具结果后面；请求时最近一块权限事实写的是现在的那一级，环境那一块写的是
 //!   这一轮的工作目录。
@@ -170,7 +172,7 @@ fn some_ending(rng: &mut Rng) -> Option<CallError> {
 }
 
 /// 一条随机的输入，照下面的权重抽（一共 30 份）。执行器替身多半守规矩：请求交给它以后，
-/// 先报发出去了，再送增量和结局；交给了链的，三回里有两回先送回它的结论；有在等人确认的，四回里有
+/// 先报发出去了，再送增量和结局；交给了链的，三回里有两回先送回它的结论；有在等人确认的，两回里有
 /// 一回先回答（[`some_verdict`]、[`some_answer`]）；有问着人的，四回里有一回回答，捣乱的种子里还有
 /// 八回里三回打断（[`some_reply`]）；工具在跑的时候偶尔问人（[`some_question`]）。
 ///
@@ -197,7 +199,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
     if !watch.approvals.guarding.is_empty() && rng.below(3) > 0 {
         return some_verdict(rng, watch);
     }
-    if !watch.approvals.asking.is_empty() && rng.below(4) == 0 {
+    if !watch.approvals.asking.is_empty() && rng.below(2) == 0 {
         return some_answer(rng, watch, next_id);
     }
     if !watch.questions.asking.is_empty() {
@@ -323,23 +325,35 @@ fn sent_now(seen: Seq) -> Input {
     }
 }
 
+/// 随机测试的策略：一个回合最多请求 [`STEP_LIMIT`] 次；`attended` 是有没有人能确认、回答。
+fn random_policy(attended: bool) -> Policy {
+    let mut limited = policy();
+    limited.step_limit = Some(STEP_LIMIT);
+    limited.attended = attended;
+    limited
+}
+
 #[test]
 fn random_inputs_keep_the_rules() {
     let mut paths = BTreeSet::new();
     for seed in 0..300 {
         let mut rng = Rng(seed);
-        let mut limited = policy();
-        limited.step_limit = Some(STEP_LIMIT);
         // 五个种子里有一个没人能确认。
         let attended = seed % 5 != 4;
-        limited.attended = attended;
-        let mut session = session_with(limited);
+        let mut session = session_with(random_policy(attended));
         let mut watch = Watch::new(seed);
         watch.approvals.attended = attended;
         // 双数的种子风平浪静：打断、乱来的增量少，一轮才走得深；单数的种子专门捣乱。
         watch.calm = seed % 2 == 0;
         let mut next_id = 1;
+        // 崩不崩另用一串随机数：原来那串输入不跟着错开。
+        let mut crashes = Rng(seed ^ 0x00C0_FFEE);
         for _ in 0..300 {
+            if watch.all_stored() && crashes.below(200) == 0 {
+                let planned = crashes.below(2) == 0;
+                session = watch.reload(session, planned, random_policy(attended));
+                continue;
+            }
             let input = some_input(&mut rng, &mut watch, &mut next_id);
             watch.feed(&mut session, input);
         }
@@ -388,6 +402,9 @@ fn random_inputs_keep_the_rules() {
         "来了一句话作废",
         "打断时在等人回答",
         "没人能回答",
+        "崩了以后收尾",
+        "有计划地重启",
+        "重启后接着干",
     ];
     for path in expected {
         assert!(paths.contains(path), "三百例里一次都没走到「{path}」");

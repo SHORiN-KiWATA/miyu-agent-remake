@@ -24,6 +24,16 @@ impl Watch {
                 );
                 self.queued.clear();
             }
+            Body::TurnEnded(ended)
+                if matches!(ended.reason, EndReason::Restarted | EndReason::Aborted) =>
+            {
+                let next = events.get(k + 1).map(|event| &event.body);
+                assert!(
+                    !matches!(next, Some(Body::TurnStarted(_))),
+                    "种子 {seed}：重启、崩了结束的，排着队的也不接着开"
+                );
+                self.queued.clear();
+            }
             Body::TurnEnded(ended) => {
                 let next = events.get(k + 1).map(|event| &event.body);
                 match self.queued.last() {

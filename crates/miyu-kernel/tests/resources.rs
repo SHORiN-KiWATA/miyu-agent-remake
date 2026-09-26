@@ -27,6 +27,7 @@ fn the_tool_result_sentences_are_usable() {
         question_unattended: include_str!(
             "../../../resources/core/tool-results/question-unattended.txt"
         ),
+        restarted: include_str!("../../../resources/core/tool-results/restarted.txt"),
     })
     .expect("出厂的几句用得了");
     assert_eq!(texts.unknown("reed"), "There is no tool named \"reed\".\n");
@@ -43,6 +44,7 @@ fn the_tool_result_sentences_are_usable() {
         "The call was not run: the user denied it and said \"先别推\".\n"
     );
     assert!(texts.unattended().contains("approval"));
+    assert!(texts.restarted().contains("Miyu restarted"));
     for sentence in [
         texts.question_interrupted(),
         texts.question_voided(),

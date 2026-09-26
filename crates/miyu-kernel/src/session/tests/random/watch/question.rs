@@ -165,6 +165,7 @@ impl Watch {
                             "种子 {seed}：作废的是说话的人"
                         );
                     }
+                    "restarted" => {}
                     "question interrupted" => {
                         self.seen_paths.insert("打断时在等人回答");
                         assert!(

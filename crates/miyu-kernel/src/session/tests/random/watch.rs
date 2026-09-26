@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::*;
 
 mod approval;
+mod load;
 mod lookup;
 mod permission;
 mod question;
@@ -58,6 +59,8 @@ pub(super) struct Watch {
     pub(super) approvals: approval::Approvals,
     /// 提问：问着人的、答完了还没交给工具的。
     pub(super) questions: question::Questions,
+    /// 重启：连着几轮被有计划的重启打断，最后那一轮结束时排着队的。
+    restarts: load::Restarts,
 }
 
 impl Watch {
@@ -92,6 +95,7 @@ impl Watch {
             effective: lookup::created_permission(),
             approvals: approval::Approvals::new(),
             questions: question::Questions::new(),
+            restarts: load::Restarts::default(),
         }
     }
 
@@ -396,6 +400,11 @@ impl Watch {
                 }
                 _ => {}
             }
+            match &event.body {
+                Body::TurnEnded(ended) => self.note_ended(event, &ended.reason),
+                Body::TurnStarted(_) => self.note_started(),
+                _ => {}
+            }
             self.queue_check(&events, k);
             self.permission_check(&events, k);
             self.approval_check(&events, k);
@@ -421,7 +430,8 @@ impl Watch {
         let before = k.checked_sub(1).map(|k| &events[k].body);
         let after = events.get(k + 1).map(|event| &event.body);
         let interrupted_later = events[k..].iter().any(|event| {
-            matches!(&event.body, Body::TurnEnded(ended) if ended.reason == EndReason::Interrupted)
+            matches!(&event.body, Body::TurnEnded(ended)
+                if matches!(ended.reason, EndReason::Interrupted | EndReason::Restarted))
         });
         match called.result {
             CallResult::Ok => {
@@ -435,7 +445,7 @@ impl Watch {
                 self.seen_paths.insert("打断了请求");
                 assert!(
                     interrupted_later,
-                    "种子 {seed}：被打断的请求，这一批里接着是被打断的回合结束"
+                    "种子 {seed}：被打断的请求，这一批里接着是被打断（或者被重启打断）的回合结束"
                 );
             }
             _ => {

@@ -8,7 +8,8 @@
 //! - 确认的三句：被人拒绝了，没有字段；被人拒绝了、带上理由，字段是 `reason`；要人确认、这里没法
 //!   确认，没有字段（「确认怎么走」）；
 //! - 提问的三句：没回答，被打断了；没回答，你发了一句话；没回答，这里没有人能回答；都没有字段
-//!   （「提问怎么走」）。
+//!   （「提问怎么走」）；
+//! - 重启时没跑完的一句，没有字段（「载入、崩溃、重启」）。
 //!
 //! 字段照模板的规矩转义（`08-上下文投影.md` 第五节「模板与转义怎么写」）。由执行器从资源目录读好
 //! 交进来，造会话时读一次，冻结在会话上。
@@ -44,6 +45,8 @@ pub struct ToolTexts {
     question_voided: Template,
     /// 没回答：这里没有人能回答。
     question_unattended: Template,
+    /// 已取消：Miyu 重启了，没跑完。
+    restarted: Template,
 }
 
 /// 那几句的原文，各是一份模板。
@@ -73,6 +76,8 @@ pub struct ToolTextSources<'a> {
     pub question_voided: &'a str,
     /// 没回答：这里没有人能回答。
     pub question_unattended: &'a str,
+    /// 已取消：Miyu 重启了，没跑完。
+    pub restarted: &'a str,
 }
 
 impl ToolTexts {
@@ -95,6 +100,7 @@ impl ToolTexts {
             question_interrupted: Template::parse(sources.question_interrupted)?,
             question_voided: Template::parse(sources.question_voided)?,
             question_unattended: Template::parse(sources.question_unattended)?,
+            restarted: Template::parse(sources.restarted)?,
         };
         texts.unknown.render(&named(""))?;
         texts.not_an_object.render(&named(""))?;
@@ -109,6 +115,7 @@ impl ToolTexts {
             &texts.question_interrupted,
             &texts.question_voided,
             &texts.question_unattended,
+            &texts.restarted,
         ] {
             plain.render(&BTreeMap::new())?;
         }
@@ -215,6 +222,15 @@ impl ToolTexts {
     /// 实际不会 panic：造的时候已经试换过。
     pub fn question_unattended(&self) -> String {
         render(&self.question_unattended, &BTreeMap::new())
+    }
+
+    /// 已取消：Miyu 重启了，没跑完。
+    ///
+    /// # Panics
+    ///
+    /// 实际不会 panic：造的时候已经试换过。
+    pub fn restarted(&self) -> String {
+        render(&self.restarted, &BTreeMap::new())
     }
 }
 

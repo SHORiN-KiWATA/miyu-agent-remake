@@ -1,0 +1,1 @@
+<turn-ended reason="restarted">A planned restart of Miyu stopped this turn.</turn-ended>

@@ -23,6 +23,7 @@ pub(crate) fn texts() -> Texts {
             error: "<error/>".to_string(),
             step_limit: "<step-limit/>".to_string(),
             aborted: "<aborted/>".to_string(),
+            restarted: "<restarted/>".to_string(),
         },
     }
 }
@@ -143,10 +144,11 @@ impl Log {
         self.push(KERNEL, "tool.result", &body);
     }
 
-    /// 结束回合。
-    pub(crate) fn end(&mut self, reason: &str) {
-        self.push(KERNEL, "turn.ended", &format!(r#"{{"reason":"{reason}"}}"#));
+    /// 结束回合，返回那条 `turn.ended` 的序号。
+    pub(crate) fn end(&mut self, reason: &str) -> u64 {
+        let seq = self.push(KERNEL, "turn.ended", &format!(r#"{{"reason":"{reason}"}}"#));
         self.turn = None;
+        seq
     }
 
     /// 压缩：摘要替代到第 `upto` 条为止。

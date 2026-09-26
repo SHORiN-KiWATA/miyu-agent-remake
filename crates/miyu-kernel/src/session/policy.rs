@@ -23,6 +23,9 @@ pub struct Policy {
     /// 有没有人能确认：没有确认界面的场所、不是终端时的 `miyu ask` 没有。没有的，执行前的链说
     /// 要问人时当场拒绝（`02-内核.md` 第六节「确认怎么走」第 2 条）。
     pub attended: bool,
+    /// 有计划的重启打断了一轮，再起来时连着接着干几次；接够了还被打断，就等人开口（`02-内核.md`
+    /// 第六节「载入、崩溃、重启」第 4 条，初值 3）。
+    pub resumes: u32,
 }
 
 /// 组装器是外面交进来的，不一定能打印，跳过它。
@@ -34,6 +37,7 @@ impl fmt::Debug for Policy {
             .field("step_limit", &self.step_limit)
             .field("tool_texts", &self.tool_texts)
             .field("attended", &self.attended)
+            .field("resumes", &self.resumes)
             .finish_non_exhaustive()
     }
 }

@@ -102,6 +102,20 @@ fn every_status_but_ok_is_an_error() {
     }
 }
 
+/// 被有计划的重启打断的那一轮，由它的结束接着开一轮：为什么停了的那一句，放在新一轮开始的地方，
+/// 先事实、后触发（`02-内核.md` 第六节「载入、崩溃、重启」第 4 条）。
+#[test]
+fn a_turn_picked_up_after_a_restart_starts_with_why_it_stopped() {
+    let mut log = Log::new();
+    let first = log.say("run the tests");
+    log.start(first);
+    log.reply(&format!("[{}]", text_json("running")));
+    let ended = log.end("restarted");
+    log.start(ended);
+    log.fact("<env/>");
+    assert_eq!(rendered(&log)[2], "user: <env/> | <restarted/>");
+}
+
 #[test]
 fn a_turn_that_did_not_finish_says_so_before_the_next_message() {
     for (reason, said) in [
@@ -109,6 +123,7 @@ fn a_turn_that_did_not_finish_says_so_before_the_next_message() {
         ("error", Some("<error/>")),
         ("step_limit", Some("<step-limit/>")),
         ("aborted", Some("<aborted/>")),
+        ("restarted", Some("<restarted/>")),
         ("completed", None),
         ("vanished", None),
     ] {

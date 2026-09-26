@@ -37,6 +37,7 @@ fn texts() -> Texts {
             step_limit: include_str!("../../../resources/core/turn-ended/step_limit.txt")
                 .to_string(),
             aborted: include_str!("../../../resources/core/turn-ended/aborted.txt").to_string(),
+            restarted: include_str!("../../../resources/core/turn-ended/restarted.txt").to_string(),
         },
     }
 }

@@ -31,8 +31,10 @@ text_enum!(
         Error = "error",
         /// 走到了步数上限。
         StepLimit = "step_limit",
-        /// 核心崩溃或重启时没走完（`02-内核.md` 不变量 8）。
+        /// 核心崩了，没走完（`02-内核.md` 不变量 8）。载入时补上。
         Aborted = "aborted",
+        /// 被有计划的重启打断（`02-内核.md` 第六节「载入、崩溃、重启」）。再起来时接着干。
+        Restarted = "restarted",
     }
 );
 

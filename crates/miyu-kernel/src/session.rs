@@ -12,17 +12,20 @@ mod approval;
 mod call;
 mod input;
 mod interrupt;
+mod load;
 mod permission;
 mod policy;
 mod question;
 mod queue;
 mod recent;
+mod restart;
 mod step;
 mod tools;
 mod turn;
 
 pub use action::{Action, Outcome, Reason};
 pub use input::{Answer, Command, Injection, Input, Queued, Received, Verdict};
+pub use load::LoadError;
 pub use policy::Policy;
 
 use crate::event::{Body, Event, MessageUser, Permission, SessionCreated};
@@ -151,6 +154,7 @@ impl Session {
                 call_id,
                 questions,
             } => self.tool_asks(at, call_id, questions),
+            Input::Restarting { at } => self.restart(at),
         }
     }
 

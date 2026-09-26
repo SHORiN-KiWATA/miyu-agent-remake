@@ -17,6 +17,7 @@ fn sources<'a>(unknown: &'a str, skipped: &'a str) -> ToolTextSources<'a> {
         question_interrupted: "Interrupted.\n",
         question_voided: "A new message came.\n",
         question_unattended: "No one can answer here.\n",
+        restarted: "Restarted.\n",
     }
 }
 

@@ -63,6 +63,21 @@ impl Ledger {
         self.next
     }
 
+    /// 正在进行的回合；没有就是空闲。载入时看它，日志停在一个没结束的回合里，就是崩了。
+    pub fn open_turn(&self) -> Option<TurnId> {
+        self.open
+    }
+
+    /// 正在进行的回合里还没有结果的调用，照编号的先后。
+    pub fn pending_calls(&self) -> Vec<CallId> {
+        self.pending.iter().copied().collect()
+    }
+
+    /// 正在进行的回合里排着队的消息，照先后。
+    pub fn queued(&self) -> Vec<Seq> {
+        self.queued.iter().copied().collect()
+    }
+
     /// 查 `event` 能不能追加；能，就记下它带来的变化。
     ///
     /// # Errors

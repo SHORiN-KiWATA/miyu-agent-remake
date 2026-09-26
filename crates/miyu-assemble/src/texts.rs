@@ -17,7 +17,7 @@ pub struct Texts {
     pub turn_ended: TurnEndedTexts,
 }
 
-/// 回合没走完的四句，一种原因一句（`core/turn-ended/<原因>.txt`）。正常走完的不说。
+/// 回合没走完的五句，一种原因一句（`core/turn-ended/<原因>.txt`）。正常走完的不说。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TurnEndedTexts {
     /// 被人打断（`interrupted.txt`）。
@@ -26,8 +26,10 @@ pub struct TurnEndedTexts {
     pub error: String,
     /// 走到了步数上限（`step_limit.txt`）。
     pub step_limit: String,
-    /// 程序重启，没走完（`aborted.txt`）。
+    /// 程序崩了，没走完（`aborted.txt`）。
     pub aborted: String,
+    /// 被有计划的重启打断（`restarted.txt`）。
+    pub restarted: String,
 }
 
 impl TurnEndedTexts {
@@ -39,6 +41,7 @@ impl TurnEndedTexts {
             EndReason::Error => Some(&self.error),
             EndReason::StepLimit => Some(&self.step_limit),
             EndReason::Aborted => Some(&self.aborted),
+            EndReason::Restarted => Some(&self.restarted),
             EndReason::Completed | EndReason::Other(_) => None,
         }
     }
