@@ -55,12 +55,13 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
                 error: result.status != ToolStatus::Ok,
                 blocks: known(&result.blocks),
             }),
-            // 不进上下文的：会话的事件、模型调用的记录、不认识的种类。压缩和撤销已经由
+            // 不进上下文的：会话的事件、模型调用的记录、不认识的种类。压缩、撤销、撤回已经由
             // 有效历史用掉了，这里碰不到。一个个列出来，加一种事件时编译器会逼着决定它渲不渲染。
             Body::SessionCreated(_)
             | Body::PolicyChanged(_)
             | Body::MetaChanged(_)
             | Body::TurnReverted(_)
+            | Body::MessageWithdrawn(_)
             | Body::ContextCompacted(_)
             | Body::ModelCalled(_)
             | Body::Unknown { .. } => {}

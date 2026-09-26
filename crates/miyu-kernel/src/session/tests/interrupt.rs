@@ -7,14 +7,9 @@ use crate::accumulate::{Delta, Kind};
 use crate::event::{CallResult, EndReason, ToolStatus};
 use crate::id::CallId;
 
-/// alice 在 07:00:`second` 打断，命令编号是 `n`。
+/// alice 在 07:00:`second` 打断，命令编号是 `n`，排着队的接着发。
 fn stop(n: u64, second: u64) -> Input {
-    Input::Command(Received {
-        id: id(n),
-        by: alice(),
-        at: at(second),
-        command: Command::Interrupt,
-    })
+    stop_with(n, at(second), Queued::Send)
 }
 
 /// 一条工具结果：编号、状态、`by`、`cause`、内容。

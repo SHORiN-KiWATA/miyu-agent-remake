@@ -31,6 +31,8 @@ pub(super) struct Turn {
     pub(super) requests: u32,
     /// 急着插话的那句话是谁说的、哪个命令：下一次请求之前，还没跑的调用都跳过。
     pub(super) interjected: Option<Interjection>,
+    /// 排着队的消息：回合进行中来的，还没被请求看到过。序号和它的命令，照先后。
+    pub(super) queued: Vec<(Seq, Option<CommandId>)>,
 }
 
 /// 急着插话：谁说的，哪个命令。跳过的结果 `by` 是说话的人，`cause` 是这个命令。
@@ -81,6 +83,7 @@ impl Session {
             cwd: self.environment.cwd.clone(),
             requests: 0,
             interjected: None,
+            queued: Vec::new(),
         });
         let facts = vec![
             self.policy.facts.env(at, &self.environment),
@@ -159,6 +162,7 @@ impl Session {
                 self.last_request = Some(fingerprint);
                 turn.requests += 1;
                 turn.interjected = None;
+                turn.queued.clear();
                 turn.stage = Stage::Asking(Call::new(seen, request.messages.len(), difference));
                 vec![Action::CallModel { seen, request }]
             }

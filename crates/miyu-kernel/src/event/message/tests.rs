@@ -50,3 +50,24 @@ fn broken_assistant_bodies_say_which_kind() {
         rejected::<Event>(&line, "message.assistant 的 body 读不出来");
     }
 }
+
+#[test]
+fn a_withdrawal_from_the_drawing_round_trips() {
+    match read_body("message.withdrawn", r#"{"messages":[59]}"#) {
+        Body::MessageWithdrawn(withdrawn) => {
+            assert_eq!(
+                withdrawn
+                    .messages
+                    .iter()
+                    .map(|seq| seq.get())
+                    .collect::<Vec<_>>(),
+                [59]
+            );
+        }
+        other => panic!("{other:?}"),
+    }
+    rejected::<Event>(
+        &event_line("message.withdrawn", r#"{"messages":[0]}"#),
+        "message.withdrawn 的 body 读不出来",
+    );
+}

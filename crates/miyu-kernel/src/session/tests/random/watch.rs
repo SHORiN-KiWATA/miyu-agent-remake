@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::*;
 
 mod lookup;
+mod queue;
 
 /// 看守。
 pub(super) struct Watch {
@@ -43,6 +44,10 @@ pub(super) struct Watch {
     pub(super) open_block: Option<(usize, bool, bool)>,
     /// 风平浪静：打断、乱来的增量少，一轮才走得深。
     pub(super) calm: bool,
+    /// 排着队的消息：这一轮里来的，还没被请求看到过。
+    queued: Vec<Seq>,
+    /// 正在送进去的那次新的打断，排着队的怎么办。
+    interrupting: Option<Queued>,
 }
 
 impl Watch {
@@ -71,6 +76,8 @@ impl Watch {
             next_block: 0,
             open_block: None,
             calm: false,
+            queued: Vec::new(),
+            interrupting: None,
         }
     }
 
@@ -88,12 +95,15 @@ impl Watch {
     /// 被打断的 `turn.ended` 收尾；没开着的，拒绝，原因码 `not_running`。
     pub(super) fn feed(&mut self, session: &mut Session, input: Input) {
         let fresh_interrupt = match &input {
-            Input::Command(command) => {
-                matches!(command.command, Command::Interrupt)
-                    && !self.received.contains_key(&command.id)
-            }
-            _ => false,
+            Input::Command(command) => match command.command {
+                Command::Interrupt { queued } if !self.received.contains_key(&command.id) => {
+                    Some(queued)
+                }
+                _ => None,
+            },
+            _ => None,
         };
+        self.interrupting = fresh_interrupt;
         let was_open = self.turn_open();
         match &input {
             Input::Command(command) => {
@@ -109,12 +119,13 @@ impl Watch {
             _ => {}
         }
         let actions = session.handle(input);
-        if fresh_interrupt {
+        if fresh_interrupt.is_some() {
             self.interrupted(&actions, was_open);
         }
         for action in actions {
             self.check(action);
         }
+        self.interrupting = None;
     }
 
     /// 一次新的打断吐出来的动作。
@@ -122,12 +133,14 @@ impl Watch {
         let seed = self.seed;
         if was_open {
             self.seen_paths.insert("打断了回合");
-            let ended = actions.iter().find_map(|action| match action {
-                Action::Append(events) => events.last(),
-                _ => None,
+            let ended = actions.iter().any(|action| match action {
+                Action::Append(events) => events.iter().any(|event| {
+                    matches!(&event.body, Body::TurnEnded(ended) if ended.reason == EndReason::Interrupted)
+                }),
+                _ => false,
             });
             assert!(
-                matches!(ended.map(|event| &event.body), Some(Body::TurnEnded(ended)) if ended.reason == EndReason::Interrupted),
+                ended,
                 "种子 {seed}：打断以后回合没以被打断结束：{actions:?}"
             );
         } else {
@@ -228,12 +241,30 @@ impl Watch {
             "种子 {seed}：上一步还有调用没结果就请求"
         );
         assert_eq!(seen.get(), self.last(), "种子 {seed}：seen 是最后一条");
+        // 请求照的是全部历史，撤回的消息和撤回那一条除外。
+        let withdrawn: BTreeSet<Seq> = self
+            .events
+            .iter()
+            .filter_map(|event| match &event.body {
+                Body::MessageWithdrawn(withdrawn) => Some(withdrawn.messages.clone()),
+                _ => None,
+            })
+            .flatten()
+            .collect();
         let mut all = vec![self.created()];
-        all.extend(self.events.iter().cloned());
+        all.extend(
+            self.events
+                .iter()
+                .filter(|event| {
+                    !withdrawn.contains(&event.seq)
+                        && !matches!(event.body, Body::MessageWithdrawn(_))
+                })
+                .cloned(),
+        );
         assert_eq!(
             listed_request(request),
             listing(&all),
-            "种子 {seed}：请求照全部历史"
+            "种子 {seed}：请求照全部历史，撤回的除外"
         );
         let count = self.requests.entry(turn).or_default();
         *count += 1;
@@ -372,6 +403,7 @@ impl Watch {
                 }
                 _ => {}
             }
+            self.queue_check(&events, k);
             self.events.push(event.clone());
         }
     }
@@ -392,7 +424,9 @@ impl Watch {
         );
         let before = k.checked_sub(1).map(|k| &events[k].body);
         let after = events.get(k + 1).map(|event| &event.body);
-        let last = events.last().map(|event| &event.body);
+        let interrupted_later = events[k..].iter().any(|event| {
+            matches!(&event.body, Body::TurnEnded(ended) if ended.reason == EndReason::Interrupted)
+        });
         match called.result {
             CallResult::Ok => {
                 self.seen_paths.insert("说完了");
@@ -404,8 +438,8 @@ impl Watch {
             CallResult::Interrupted => {
                 self.seen_paths.insert("打断了请求");
                 assert!(
-                    matches!(last, Some(Body::TurnEnded(ended)) if ended.reason == EndReason::Interrupted),
-                    "种子 {seed}：被打断的请求，这一批以被打断的回合结束收尾"
+                    interrupted_later,
+                    "种子 {seed}：被打断的请求，这一批里接着是被打断的回合结束"
                 );
             }
             _ => {

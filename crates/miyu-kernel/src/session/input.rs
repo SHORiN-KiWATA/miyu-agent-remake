@@ -111,7 +111,19 @@ pub enum Command {
         urgent: bool,
     },
     /// `session.interrupt`：打断正在进行的回合。
-    Interrupt,
+    Interrupt {
+        /// 排着队的消息怎么办（`02-内核.md` 第六节「排队的消息」）。
+        queued: Queued,
+    },
+}
+
+/// 打断时，排着队的消息怎么办。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Queued {
+    /// 接着发：打断以后马上开一轮，由最后一条触发。
+    Send,
+    /// 退回：撤回来，交还给头，放回输入框。
+    Return,
 }
 
 /// 一个模块在回合开始时交回来的一块注入。

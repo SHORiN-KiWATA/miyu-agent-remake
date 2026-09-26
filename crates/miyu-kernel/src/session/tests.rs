@@ -1,12 +1,13 @@
 //! 会话的测试。这一份是命令这一层：造会话；发消息；空消息；同一个编号落盘前后再来；
 //! 拒绝过的再来；落盘到一半；落盘超出追加过的；只记最近 1024 个。开回合、发请求在
-//! [`turn`]；收回复、结束回合在 [`reply`]；调工具在 [`tools`]；打断在 [`interrupt`]；
-//! 随机一串输入在 [`random`]；执行器的替身在 [`executor`]。
+//! [`turn`]；收回复、结束回合在 [`reply`]；调工具在 [`tools`]；打断在 [`interrupt`]；排队的消息在
+//! [`queue`]；随机一串输入在 [`random`]；执行器的替身在 [`executor`]。
 //!
 //! 空闲时发的第一条消息会开一个回合，所以它后面紧跟着三条：`turn.started` 和两块事实。
 
 mod executor;
 mod interrupt;
+mod queue;
 mod random;
 mod reply;
 mod tools;
@@ -57,13 +58,23 @@ fn urgent(n: u64, words: &str) -> Input {
     message(n, words, true)
 }
 
-/// 编号是 `n` 的命令：alice 打断正在进行的回合。
+/// 编号是 `n` 的命令：alice 打断正在进行的回合，排着队的接着发。
 fn interrupt(n: u64) -> Input {
+    stop_with(n, at(n % 60), Queued::Send)
+}
+
+/// 编号是 `n` 的命令：alice 打断正在进行的回合，排着队的退回来。
+fn take_back(n: u64) -> Input {
+    stop_with(n, at(n % 60), Queued::Return)
+}
+
+/// alice 在 `at` 打断，排着队的照 `queued` 办。
+fn stop_with(n: u64, at: Timestamp, queued: Queued) -> Input {
     Input::Command(Received {
         id: id(n),
         by: alice(),
-        at: at(n % 60),
-        command: Command::Interrupt,
+        at,
+        command: Command::Interrupt { queued },
     })
 }
 

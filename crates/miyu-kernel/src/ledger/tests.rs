@@ -288,3 +288,65 @@ fn a_model_call_saw_what_came_before_it() {
         .append(&event(6, Some(3), "model.called", &called(4)))
         .unwrap();
 }
+
+/// 撤回的都是正在进行的回合里排着队的消息（02 第六节「排队的消息」）：撤了听到过的，
+/// 发出去过的请求前缀就断。
+#[test]
+fn only_queued_messages_can_be_withdrawn() {
+    let said = |seq: u64, turn: Option<u64>| event(seq, turn, "message.user", SAID);
+    let called = |seq: u64, seen: u64| {
+        event(
+            seq,
+            Some(3),
+            "model.called",
+            &format!(r#"{{"seen":{seen},"messages":1,"result":"ok"}}"#),
+        )
+    };
+    let withdraw = |seq: u64, turn: Option<u64>, messages: &str| {
+        event(
+            seq,
+            turn,
+            "message.withdrawn",
+            &format!(r#"{{"messages":{messages}}}"#),
+        )
+    };
+    // 1 创建、2 消息、3 回合开始、4 请求看到了 3、5 排着队的消息。
+    let opening = [
+        event(1, None, "session.created", CREATED),
+        said(2, None),
+        event(3, Some(3), "turn.started", r#"{"trigger":2}"#),
+        called(4, 3),
+        said(5, Some(3)),
+    ];
+    let fresh = || {
+        let mut ledger = Ledger::default();
+        for event in &opening {
+            ledger.append(event).unwrap();
+        }
+        ledger
+    };
+    let mut ledger = fresh();
+    refused(
+        &mut ledger,
+        &withdraw(6, Some(3), "[2]"),
+        "第 2 条不是正在进行的回合里排着队的消息",
+    );
+    refused(&mut ledger, &withdraw(6, Some(3), "[4]"), "第 4 条不是");
+    refused(&mut ledger, &withdraw(6, Some(3), "[]"), "撤回的列表是空的");
+    refused(&mut ledger, &withdraw(6, Some(3), "[5,5]"), "第 5 条不是");
+    refused(
+        &mut ledger,
+        &withdraw(6, None, "[5]"),
+        "message.withdrawn 只在回合里发生",
+    );
+    ledger.append(&withdraw(6, Some(3), "[5]")).unwrap();
+    refused(&mut ledger, &withdraw(7, Some(3), "[5]"), "撤回过了");
+    // 听到过的撤不了：请求看到了第 5 条。
+    let mut ledger = fresh();
+    ledger.append(&called(6, 5)).unwrap();
+    refused(
+        &mut ledger,
+        &withdraw(7, Some(3), "[5]"),
+        "已经被请求看到过",
+    );
+}

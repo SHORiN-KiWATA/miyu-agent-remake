@@ -27,5 +27,13 @@ pub struct MessageAssistant {
     pub interrupted: bool,
 }
 
+/// `message.withdrawn`：撤回排着队、她还没听到的消息（`02-内核.md` 第六节「排队的消息」）。
+/// 谁撤回的写在事件的 `by` 里。撤回的消息和这一条都不进有效历史（03 第七节）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MessageWithdrawn {
+    /// 撤回了哪几条 `message.user`，照序号的先后。
+    pub messages: Vec<Seq>,
+}
+
 #[cfg(test)]
 mod tests;

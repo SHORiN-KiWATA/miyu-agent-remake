@@ -174,7 +174,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
     // 工具在跑的时候，偶尔打断、多送几段输出：这个窗口短，光靠均匀地抽难得碰上。
     if !watch.running.is_empty() {
         match rng.below(30) {
-            0 if !watch.calm => return interrupt(next_command(next_id)),
+            0 if !watch.calm => return some_interrupt(rng, next_id),
             1..=4 => return progress(watch.some_call(rng)),
             _ => {}
         }
@@ -221,7 +221,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
             blocks: Vec::new(),
             duration_ms: Some(1),
         },
-        26 if !watch.calm || rng.below(10) == 0 => interrupt(next_command(next_id)),
+        26 if !watch.calm || rng.below(10) == 0 => some_interrupt(rng, next_id),
         26 => send(next_command(next_id), "hi"),
         _ if rng.below(2) == 0 => urgent(next_command(next_id), "等等"),
         _ => send(next_command(next_id), "hi"),
@@ -234,6 +234,16 @@ fn progress(call_id: CallId) -> Input {
         at: at(49),
         call_id,
         text: "…".to_string(),
+    }
+}
+
+/// 一次打断：一半接着发，一半退回。
+fn some_interrupt(rng: &mut Rng, next_id: &mut u64) -> Input {
+    let n = next_command(next_id);
+    if rng.below(2) == 0 {
+        interrupt(n)
+    } else {
+        take_back(n)
     }
 }
 
@@ -297,6 +307,9 @@ fn random_inputs_keep_the_rules() {
         "打断了工具",
         "空闲时打断被拒",
         "急着插话跳过",
+        "排队的接着开了一轮",
+        "打断后排队的接着发",
+        "打断后排队的退回",
     ];
     for path in expected {
         assert!(paths.contains(path), "三百例里一次都没走到「{path}」");

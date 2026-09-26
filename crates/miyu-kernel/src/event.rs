@@ -20,7 +20,7 @@ mod transient;
 mod turn;
 
 pub use context::{ContextCompacted, ContextInjected};
-pub use message::{MessageAssistant, MessageUser};
+pub use message::{MessageAssistant, MessageUser, MessageWithdrawn};
 pub use model::{
     CallError, CallResult, ErrorClass, FirstDifference, MessageRole, ModelCalled, Part, Usage,
 };
@@ -116,6 +116,8 @@ bodies! {
     MessageUser = "message.user",
     /// 模型一次响应的完整内容，工具调用也在里面。
     MessageAssistant = "message.assistant",
+    /// 撤回排着队、她还没听到的消息。
+    MessageWithdrawn = "message.withdrawn",
     /// 一个工具调用的结果。
     ToolResult = "tool.result",
     /// 注入进上下文的一块事实。

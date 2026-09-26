@@ -31,6 +31,9 @@ pub struct Ledger {
     compacted: Option<Seq>,
     /// 最近一次压缩以后开过的回合，撤销只能撤它们。压缩一次，更早的就丢掉。
     turns: BTreeSet<TurnId>,
+    /// 正在进行的回合里排着队的消息：回合中途来的 `message.user`，还没被哪次请求看到过。
+    /// 只有它们能撤回（`02-内核.md` 第六节「排队的消息」）。请求看到了、回合结束了，就清掉。
+    queued: BTreeSet<Seq>,
 }
 
 impl Default for Ledger {
@@ -42,6 +45,7 @@ impl Default for Ledger {
             pending: BTreeSet::new(),
             compacted: None,
             turns: BTreeSet::new(),
+            queued: BTreeSet::new(),
         }
     }
 }
@@ -98,6 +102,7 @@ impl Ledger {
             Body::ModelCalled(called) if called.seen >= seq => {
                 Err(format!("seen {} 应该在这一条之前", called.seen))
             }
+            Body::MessageWithdrawn(withdrawn) => self.check_withdrawal(&withdrawn.messages),
             Body::TurnReverted(reverted) => {
                 match reverted
                     .turns
@@ -150,6 +155,23 @@ impl Ledger {
         }
     }
 
+    /// 撤回的都是正在进行的回合里排着队的消息，一条不重复：听到过的撤了，发出去过的请求
+    /// 前缀就断。
+    fn check_withdrawal(&self, messages: &[Seq]) -> Result<(), String> {
+        if messages.is_empty() {
+            return Err("撤回的列表是空的".to_string());
+        }
+        let mut seen = BTreeSet::new();
+        for message in messages {
+            if !self.queued.contains(message) || !seen.insert(*message) {
+                return Err(format!(
+                    "第 {message} 条不是正在进行的回合里排着队的消息：不是消息、已经被请求看到过、不在这个回合里，或者撤回过了"
+                ));
+            }
+        }
+        Ok(())
+    }
+
     /// 压缩只前进：替代到的位置在这一条之前，而且不早于上一次。
     fn check_compaction(&self, seq: Seq, upto: Seq) -> Result<(), String> {
         if upto >= seq {
@@ -171,16 +193,30 @@ impl Ledger {
                 let turn = TurnId::new(event.seq);
                 self.open = Some(turn);
                 self.turns.insert(turn);
+                self.queued.clear();
             }
+            Body::MessageUser(_) if event.turn.is_some() && event.turn == self.open => {
+                self.queued.insert(event.seq);
+            }
+            Body::MessageWithdrawn(withdrawn) => {
+                for message in &withdrawn.messages {
+                    self.queued.remove(message);
+                }
+            }
+            Body::ModelCalled(called) => self.queued.retain(|queued| *queued > called.seen),
             Body::MessageAssistant(message) => {
                 self.last_reply = Some(event.seq);
+                self.queued.retain(|queued| *queued > message.seen);
                 self.pending
                     .extend(message.blocks.iter().filter_map(tool_call_id));
             }
             Body::ToolResult(result) => {
                 self.pending.remove(&result.call_id);
             }
-            Body::TurnEnded(_) => self.open = None,
+            Body::TurnEnded(_) => {
+                self.open = None;
+                self.queued.clear();
+            }
             Body::ContextCompacted(compacted) => {
                 self.compacted = Some(compacted.upto);
                 self.turns.retain(|turn| turn.started() > compacted.upto);
@@ -190,11 +226,14 @@ impl Ledger {
     }
 }
 
-/// 只在回合里发生的种类：模型的回复、工具的结果、回合结束。
+/// 只在回合里发生的种类：模型的回复、工具的结果、撤回排着队的消息、回合结束。
 fn in_turn_only(body: &Body) -> bool {
     matches!(
         body,
-        Body::MessageAssistant(_) | Body::ToolResult(_) | Body::TurnEnded(_)
+        Body::MessageAssistant(_)
+            | Body::ToolResult(_)
+            | Body::MessageWithdrawn(_)
+            | Body::TurnEnded(_)
     )
 }
 

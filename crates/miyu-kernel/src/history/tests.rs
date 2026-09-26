@@ -285,3 +285,37 @@ fn the_kept_tail_after_a_compaction_is_ordered_the_same_way() {
     assert_eq!(checkpoint(&history), Some(12));
     assert_eq!(ordered(&history), vec![9, 11, 10]);
 }
+
+/// 撤回排着队的消息：那几条和撤回这一条都不留，别的照先后留着（03 第七节）。
+#[test]
+fn withdrawn_messages_are_gone_and_so_is_the_withdrawal() {
+    let history = feed([
+        created(),
+        message(2, ALICE),
+        event(3, Some(3), KERNEL, "turn.started", r#"{"trigger":2}"#),
+        event(
+            4,
+            Some(3),
+            KERNEL,
+            "model.called",
+            r#"{"seen":3,"messages":1,"result":"interrupted"}"#,
+        ),
+        event(5, Some(3), ALICE, "message.user", r#"{"blocks":[]}"#),
+        event(6, Some(3), ALICE, "message.user", r#"{"blocks":[]}"#),
+        event(
+            7,
+            Some(3),
+            ALICE,
+            "message.withdrawn",
+            r#"{"messages":[5,6]}"#,
+        ),
+        event(
+            8,
+            Some(3),
+            ALICE,
+            "turn.ended",
+            r#"{"reason":"interrupted"}"#,
+        ),
+    ]);
+    assert_eq!(seqs(&history), [1, 2, 3, 4, 8]);
+}

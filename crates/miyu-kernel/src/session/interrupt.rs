@@ -1,7 +1,9 @@
-//! 打断（`docs/designs/02-内核.md` 第六节「打断和急着插话」）：回合走到哪一步都能打断，打断以后
-//! 会话空闲，还没有结果的调用各补一条「已取消」（不变量 2）。
+//! 打断（`docs/designs/02-内核.md` 第六节「打断和急着插话」「排队的消息」）：回合走到哪一步都能
+//! 打断，还没有结果的调用各补一条「已取消」（不变量 2）。排着队的消息，接着发就马上开一轮，
+//! 退回就撤回来。
 
 use super::action::{Action, Reason};
+use super::input::Queued;
 use super::turn::Stage;
 use super::{Session, rejected};
 use crate::event::{EndReason, ToolStatus};
@@ -17,9 +19,15 @@ impl Session {
     /// - 工具在跑：在跑的叫停，补「已取消，跑到一半」；还没派的补「已取消，没跑过」。
     /// - 别的阶段：什么都还没发出去，直接结束。
     ///
-    /// 补的结果和 `turn.ended`，`by` 是打断的人，`cause` 是这个命令；回应附上这一次追加的
-    /// 全部事件。
-    pub(super) fn interrupt(&mut self, id: CommandId, by: By, at: Timestamp) -> Vec<Action> {
+    /// 然后看排着队的：接着发的，马上开一轮；退回的，撤回来。补的结果、撤回和 `turn.ended`，
+    /// `by` 是打断的人，`cause` 是这个命令；回应附上这一次追加的全部事件。
+    pub(super) fn interrupt(
+        &mut self,
+        id: CommandId,
+        by: By,
+        at: Timestamp,
+        queued: Queued,
+    ) -> Vec<Action> {
         let Some(turn) = self.turn.as_mut() else {
             return vec![rejected(id, Reason::NotRunning)];
         };
@@ -52,7 +60,10 @@ impl Session {
             }
             Stage::Opening { .. } | Stage::Hooking | Stage::Ready | Stage::Settling => {}
         }
-        events.push(self.end_turn(at, by, Some(id.clone()), EndReason::Interrupted));
+        if queued == Queued::Return {
+            events.extend(self.withdraw_queued(at, &by, &id));
+        }
+        events.extend(self.finish_turn(at, by, Some(id.clone()), EndReason::Interrupted));
         self.accept(id, events.iter().map(|event| event.seq).collect());
         let mut actions = vec![Action::Append(events)];
         actions.extend(stops);

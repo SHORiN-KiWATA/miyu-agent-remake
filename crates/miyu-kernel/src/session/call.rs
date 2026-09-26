@@ -172,12 +172,12 @@ impl Session {
         let mut events = settled.events;
         match settled.reply {
             _ if settled.failed => {
-                events.push(self.end_turn(at, By::Kernel, cause, EndReason::Error));
+                events.extend(self.finish_turn(at, By::Kernel, cause, EndReason::Error));
             }
             Some(reply) if !settled.calls.is_empty() => {
                 events.extend(self.start_tools(at, reply, settled.calls, cause));
             }
-            _ => events.push(self.end_turn(at, By::Kernel, cause, EndReason::Completed)),
+            _ => events.extend(self.finish_turn(at, By::Kernel, cause, EndReason::Completed)),
         }
         vec![Action::Append(events)]
     }

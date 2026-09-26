@@ -352,7 +352,7 @@ impl Session {
             .step_limit
             .is_some_and(|limit| turn.requests >= limit)
         {
-            return vec![self.end_turn(at, By::Kernel, cause, EndReason::StepLimit)];
+            return self.finish_turn(at, By::Kernel, cause, EndReason::StepLimit);
         }
         turn.stage = Stage::Ready;
         Vec::new()

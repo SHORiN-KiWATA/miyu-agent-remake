@@ -61,8 +61,8 @@ impl History {
     /// 追加一条账本查过的事件。
     ///
     /// 压缩：换上新的检查点，序号在它 `upto` 之前的事件和旧的检查点一起丢掉，
-    /// 新摘要里已经包着它们。撤销：丢掉撤掉的回合；`turn.reverted` 本身用过就丢，
-    /// 它不进上下文。其余的照先后留着。
+    /// 新摘要里已经包着它们。撤销：丢掉撤掉的回合；撤回：丢掉撤回的消息。`turn.reverted`、
+    /// `message.withdrawn` 本身用过就丢，它们不进上下文。其余的照先后留着。
     pub fn append(&mut self, event: Event) {
         match &event.body {
             Body::ContextCompacted(compacted) => {
@@ -74,6 +74,12 @@ impl History {
                 let turns: BTreeSet<TurnId> = reverted.turns.iter().copied().collect();
                 let triggers = self.triggers_of(&turns);
                 self.events.retain(|kept| !undone(kept, &turns, &triggers));
+            }
+            Body::MessageWithdrawn(withdrawn) => {
+                let messages: BTreeSet<Seq> = withdrawn.messages.iter().copied().collect();
+                self.events.retain(|kept| {
+                    !(messages.contains(&kept.seq) && matches!(kept.body, Body::MessageUser(_)))
+                });
             }
             _ => self.events.push(event),
         }

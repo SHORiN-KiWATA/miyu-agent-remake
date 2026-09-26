@@ -4,7 +4,8 @@
 //!
 //! - 喂到 47 号为止，是 42 号回合里工具结果回来以后的那一次请求（`second-step.json`）。46 号是
 //!   第一次请求的 `model.called`，不渲染；
-//! - 全部喂进去，是整个会话压缩以后的样子，只剩检查点（`after-compaction.json`）。
+//! - 喂到 54 号为止，是压缩以后的样子，只剩检查点（`after-compaction.json`）；
+//! - 全部喂进去：压缩以后那一轮里排着队、又被撤回的那句话，不在请求里。
 //!
 //! 出厂的英文用资源目录里的真文件，在编译时拿进来。样本是图纸的一部分，住在设计文档旁边，
 //! 所以要读文件；纯逻辑门禁只扫 `src/`，集成测试可以读。样本的序号中间有空当（省掉了
@@ -108,6 +109,13 @@ fn the_session_up_to_the_tool_result_is_the_second_step() {
 }
 
 #[test]
-fn the_whole_session_is_the_checkpoint_alone() {
-    assert_eq!(assembled_upto(u64::MAX), sample("after-compaction.json"));
+fn the_session_up_to_the_compaction_is_the_checkpoint_alone() {
+    assert_eq!(assembled_upto(54), sample("after-compaction.json"));
+}
+
+#[test]
+fn the_withdrawn_message_never_reaches_the_request() {
+    let whole = assembled_upto(u64::MAX);
+    assert!(whole.contains("再看看 tests 目录"), "{whole}");
+    assert!(!whole.contains("README"), "撤回的那句不该在请求里：{whole}");
 }

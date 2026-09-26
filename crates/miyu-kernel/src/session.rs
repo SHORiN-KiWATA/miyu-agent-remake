@@ -12,12 +12,13 @@ mod call;
 mod input;
 mod interrupt;
 mod policy;
+mod queue;
 mod recent;
 mod tools;
 mod turn;
 
 pub use action::{Action, Outcome, Reason};
-pub use input::{Command, Injection, Input, Received};
+pub use input::{Command, Injection, Input, Queued, Received};
 pub use policy::Policy;
 
 use crate::event::{Body, Event, MessageUser, Permission, SessionCreated};
@@ -160,12 +161,15 @@ impl Session {
                 let mut events = vec![message];
                 if self.turn.is_none() {
                     events.extend(self.open_turn(at, trigger, Some(id)));
-                } else if urgent {
-                    events.extend(self.interject(at, by, id));
+                } else {
+                    self.enqueue(trigger, id.clone());
+                    if urgent {
+                        events.extend(self.interject(at, by, id));
+                    }
                 }
                 vec![Action::Append(events)]
             }
-            Command::Interrupt => self.interrupt(id, by, at),
+            Command::Interrupt { queued } => self.interrupt(id, by, at, queued),
         }
     }
 
