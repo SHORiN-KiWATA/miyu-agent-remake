@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>19</b><span>/ 36 步<strong>已完成</strong>，M2 开工了</span></li>
-    <li><b>2-3</b><span>下一步：最简单的一轮，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">f761e0e</b><span>最近一步（2-2）的提交</span></li>
+    <li><b>20</b><span>/ 37 步<strong>已完成</strong>，M2 在做</span></li>
+    <li><b>2-3</b><span>下一步：最简单的一轮（下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">f53735f</b><span>最近一步（2-3 上）的提交</span></li>
   </ul>
 </header>
 
@@ -329,7 +329,8 @@ a.step:hover{border-color:var(--primary)}
       <ol class="chips">
         <li><a class="step done" href="#s2-1"><span class="n">2-1</span>输入、动作、命令<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-2"><span class="n">2-2</span>流式累积器<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">2-3</span>最简单的一轮</span></li>
+        <li><a class="step done" href="#s2-3a"><span class="n">2-3</span>最简单的一轮（上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">2-3</span>最简单的一轮（下）</span></li>
         <li><span class="step"><span class="n">2-4</span>调工具</span></li>
         <li><span class="step"><span class="n">2-5</span>打断</span></li>
         <li><span class="step"><span class="n">2-6</span>中途来的消息与回报</span></li>
@@ -1798,6 +1799,87 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s2-3a" aria-labelledby="h-s23a">
+  <div class="sheet-head"><h2 id="h-s23a"><span class="no">2-3</span>最简单的一轮（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">空闲的会话来了一条消息，开一个回合：注入变了的环境和权限，跑回合开始的挂接点，等事件都落了盘，组装请求，交给执行器去请求模型。收回复、结束回合是 2-3（下）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">开一个回合 · session/turn.rs</span><span class="dir-note">02 第六节「回合怎么开、请求怎么发」</span></div>
+            <ol class="pipe" aria-label="一个回合从开到发请求">
+              <li>消息、回合开始、变了的事实，同一批追加</li>
+              <li>开头落了盘：跑回合开始的挂接点</li>
+              <li>挂接点跑完、全落了盘：组装请求，请求模型</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">新的输入和动作</span><span class="dir-note">02 第四节的表</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">输入：环境变了</span><span class="rl">时区、工作目录；到下一个边界再查</span></div>
+              <div class="tile new"><span class="nm">输入：挂接点跑完了</span><span class="rl">各模块的注入，照固定的先后；对不上的不理</span></div>
+              <div class="tile new"><span class="nm">动作：跑回合开始的挂接点</span><span class="rl">开头落了盘才叫，一个回合一次</span></div>
+              <div class="tile new"><span class="nm">动作：请求模型</span><span class="rl">seen 加统一的请求；seen 也是这次请求的名字</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">会话多了什么 · session.rs</span><span class="dir-note">冻结的策略在 policy.rs</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">有效历史</span><span class="rl">追加时就交给它，组装拿它</span></div>
+              <div class="tile new"><span class="nm">冻结的策略</span><span class="rl">组装器、两类事实的模板（K3）</span></div>
+              <div class="tile new"><span class="nm">环境、权限</span><span class="rl">造会话时交进来；权限取自 session.created</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">回应只附消息的序号</span><span class="rl">回合是内核接着开的</span></div>
+          <div class="tile new"><span class="nm">回合里的事件带上回合</span><span class="rl">中途来的消息也带，撤销时一起撤</span></div>
+          <div class="tile new"><span class="nm">一条输入，一个时刻</span><span class="rl">内核不读时钟；样本跟着改</span></div>
+          <div class="tile new"><span class="nm">先落盘，后请求</span><span class="rl">挂接点也只看落了盘的</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-3 上</dd></div>
+        <div><dt>名称</dt><dd>最简单的一轮（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">f53735f</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>session/turn.rs</code>：回合走到了哪一步（开头、跑挂接点、等落盘、请求在路上）；开回合、挂接点跑完了、往下走。</li>
+        <li><code>session/policy.rs</code>：冻结在会话上的策略 <code>Policy</code>。</li>
+        <li>输入 <code>Environment</code>、<code>TurnStartHooksDone</code>；动作 <code>RunTurnStartHooks</code>、<code>CallModel</code>。</li>
+        <li>事实模块的环境只剩时区和工作目录，时间在注入时交进来。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>177 个测试全过，新加 8 个：同一批开回合、开头落了盘才跑挂接点、挂接点跑完才请求、模块的注入、中途来的消息两种、对不上的挂接点结果、环境变了；随机一串输入改成连回合的规矩一起查（三百例）</span></li>
+        <li><span class="ok">✓</span><span>故意改坏十二处（不等落盘就请求、不等挂接点就请求、挂接点不等落盘就跑、开头落了盘也不叫、中途的消息开新回合、回合编号没带上、cause 没带上、seen 取错、一个回合请求两次、模块的注入写成内核的、对不上的挂接点结果也收、环境变了不换），每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 177 个测试）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/02-内核.md</code> 第六节「回合怎么开、请求怎么发」，第四节的表。</li>
+        <li><code>docs/construction/2-3-最简单的一轮（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -1972,7 +2054,7 @@ const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '11 种事件的写法、追加时的检查' },
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
-  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器' },
+  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、开回合' },
 };
 
 const svg = document.getElementById('bmap');
