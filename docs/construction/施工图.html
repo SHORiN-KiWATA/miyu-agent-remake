@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>34</b><span>/ 42 步<strong>已完成</strong>，数据根在 ~/.miyu，认不出的不碰</span></li>
-    <li><b>3-2</b><span>下一步：会话日志文件，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">3e4116b</b><span>最近一步（3-1 补）的提交</span></li>
+    <li><b>35</b><span>/ 42 步<strong>已完成</strong>，会话日志真的落了盘</span></li>
+    <li><b>3-3</b><span>下一步：blob，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">fbd2a73</b><span>最近一步（3-2）的提交</span></li>
   </ul>
 </header>
 
@@ -349,7 +349,7 @@ a.step:hover{border-color:var(--primary)}
       <ol class="chips">
         <li><a class="step done" href="#s3-1"><span class="n">3-1</span>数据根<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-1b"><span class="n">3-1</span>数据根挪到 ~/.miyu（补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-2</span>会话日志文件</span></li>
+        <li><a class="step done" href="#s3-2"><span class="n">3-2</span>会话日志文件<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-3</span>blob</span></li>
         <li><span class="step"><span class="n">3-4</span>驱动接口与编解码</span></li>
         <li><span class="step"><span class="n">3-5</span>HTTP 执行器</span></li>
@@ -3015,6 +3015,84 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-2" aria-labelledby="h-s32">
+  <div class="sheet-head"><h2 id="h-s32"><span class="no">3-2</span>会话日志文件</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">会话的日志真的写到磁盘上：一个会话一个目录，按段存成 JSONL；一批事件一次写入、一次同步，同步完了才算落盘；打开时自检，截掉崩溃留下的半行，别的不对就报错、不自动修。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">写 · miyu-store/src/log.rs</span><span class="dir-note">07 第三节「段怎么存」</span></div>
+            <ol class="pipe" aria-label="追加一批">
+              <li>内核交来一批事件：序号要接着上一批</li>
+              <li>这一段已经到了上限，先开下一段（名字是第一条的序号）</li>
+              <li>拼成一块一次写入，再同步：落了盘才回「落盘了」</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">打开 · log/open.rs</span><span class="dir-note">07 第四节「自检三件事」</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">最后一段末尾的半行</span><span class="rl">截掉：它一定从未被确认过</span></div>
+              <div class="tile new"><span class="nm">别的不对</span><span class="rl">读不出来、序号接不上、段名对不上：报错，写明哪一段第几行，不自动修</span></div>
+              <div class="tile"><span class="nm">空的段</span><span class="rl">当没有；最后一段是空的，接着往里写</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">一个会话的目录</span><span class="dir-note">home/&lt;账号&gt;/sessions/&lt;会话编号&gt;/</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">000000000001.jsonl</span><span class="rl">第一段</span></div>
+              <div class="tile new"><span class="nm">000000000512.jsonl …</span><span class="rl">满了（初值 64 MB）再开下一段，一批不拆开</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">一次 write，再 sync_data</span><span class="rl">同步数据和读得出数据要的文件长度</span></div>
+          <div class="tile new"><span class="nm">截掉的半行之前，写全了的照留</span><span class="rl">重发的命令照 cause 回应，不再生效一次</span></div>
+          <div class="tile new"><span class="nm">报错不自动修</span><span class="rl">日志是真相，修错了就是丢了</span></div>
+          <div class="tile"><span class="nm">真会话来回一趟</span><span class="rl">替身跑出的日志写进去、读回来、载入得了</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-2</dd></div>
+        <div><dt>名称</dt><dd>会话日志文件</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">fbd2a73</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>log.rs</code>：新建、追加一批，满了换段。</li>
+        <li><code>log/open.rs</code>：打开时自检、截尾；三种报错。</li>
+        <li><code>root.rs</code>：会话目录的路径；<code>miyu-store</code> 依赖内核。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新加 8 个测试：写几批再打开、换段、截半行、坏了的四种、空的最后一段、没有这个会话、序号接不上不写、真会话来回一趟</span></li>
+        <li><span class="ok">✓</span><span>故意改坏十一处，每一处都有测试变红；去掉同步测不出来（测试里没法断电）</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/07-存储.md</code> 第三节「段怎么存」、第四节「打开日志时自检三件事」。</li>
+        <li><code>docs/construction/3-2-会话日志文件.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -3191,7 +3269,7 @@ const BUILD = {
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
-  n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记' },
+  n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾' },
 };
 
 const svg = document.getElementById('bmap');
