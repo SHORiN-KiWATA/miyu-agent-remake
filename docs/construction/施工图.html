@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>37</b><span>/ 43 步<strong>已完成</strong>，大内容有了落脚处</span></li>
-    <li><b>3-4</b><span>下一步：驱动接口与编解码，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">3eaa791</b><span>最近一步（3-3）的提交</span></li>
+    <li><b>38</b><span>/ 44 步<strong>已完成</strong>，请求能编码成线上的字节了</span></li>
+    <li><b>3-4</b><span>下一步：流式解码、出错分类与驱动接口（下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">50da696</b><span>最近一步（3-4 上）的提交</span></li>
   </ul>
 </header>
 
@@ -352,7 +352,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-1c"><span class="n">3-1</span>数据根不认旧版（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-2"><span class="n">3-2</span>会话日志文件<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-3"><span class="n">3-3</span>blob<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-4</span>驱动接口与编解码</span></li>
+        <li><a class="step done" href="#s3-4a"><span class="n">3-4</span>OpenAI 兼容接口的编码（上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">3-4</span>流式解码、出错分类与驱动接口（下）</span></li>
         <li><span class="step"><span class="n">3-5</span>HTTP 执行器</span></li>
         <li><span class="step"><span class="n">3-6</span>策略快照</span></li>
         <li><span class="step"><span class="n">3-7</span>会话 actor</span></li>
@@ -3241,6 +3242,87 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-4a" aria-labelledby="h-s34a">
+  <div class="sheet-head"><h2 id="h-s34a"><span class="no">3-4</span>OpenAI 兼容接口的编码（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">统一的请求编码成 OpenAI 兼容对话接口的请求字节：纯函数，同样的输入字节一定一样，每一种写法都有固定的样本。探针的每一次请求另存一份编码以后的字节；随机日志在线上这一层也查前缀延伸：缓存命中看的是真发出去的字节。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">编码 · miyu-drivers/src/openai_chat.rs</span><span class="dir-note">05 第七节那张表</span></div>
+            <ol class="pipe" aria-label="编码">
+              <li>执行器照 blobs_needed 先取出图片、PDF 的字节</li>
+              <li>每条消息照线上的写法写：system、user、assistant、tool，挪出来的图片另成一条 user</li>
+              <li>顶层 model、messages、tools、stream、stream_options、输出上限，别的一概不发</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">几种消息 · openai_chat/messages.rs</span><span class="dir-note">照原样，只接不改</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">user</span><span class="rl">全是文字的拼成字符串，两块之间缺换行才补；有图片、PDF 的分段</span></div>
+              <div class="tile new"><span class="nm">assistant</span><span class="rl">正文、思考各自直接接上；只有工具调用的 content 是 null；编号用供应商自己的</span></div>
+              <div class="tile new"><span class="nm">工具调用的参数</span><span class="rl">原文照抄；不是 JSON 对象的写成 {}：本机服务要解析它</span></div>
+              <div class="tile new"><span class="nm">tool</span><span class="rl">只收文字：图片、PDF 挪到这串 tool 消息后面的一条 user 里</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">存档</span><span class="dir-note">docs/designs/samples/</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">drivers/openai-chat/</span><span class="rl">13 份样本，一种写法一份</span></div>
+              <div class="tile new"><span class="nm">probe/terminal/openai-chat/</span><span class="rl">探针的 14 次请求编码以后的字节，DeepSeek 那一套</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">三个开关，跟着供应商</span><span class="rl">输出上限的字段、思考怎么回传、报不报用量</span></div>
+          <div class="tile new"><span class="nm">DeepSeek 那一套</span><span class="rl">每条 assistant 都带 reasoning_content，没有就发空串</span></div>
+          <div class="tile new"><span class="nm">线上的前缀延伸</span><span class="rl">上一次最后一条之前一个字节不差，最后一条只能接着长</span></div>
+          <div class="tile new"><span class="nm">占位是资源，英文</span><span class="rl">resources/core/drivers/ 五句</span></div>
+          <div class="tile"><span class="nm">base64 自己写</span><span class="rl">只要编码，RFC 4648 的测试值查</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-4（上）</dd></div>
+        <div><dt>名称</dt><dd>OpenAI 兼容接口的编码（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">50da696</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>新 crate <code>miyu-drivers</code>（第 2 层）：一次调用、blob 的端口、占位、base64、<code>openai_chat</code> 的编码。</li>
+        <li>探针和随机日志：每一次请求再编码一份，存档、查线上的前缀延伸。</li>
+        <li>图纸：05 第七节补了编码的表，26 第八节登记占位，01 第九节登记新 crate。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>13 份样本逐字节比对；base64、占位、少了 blob、要哪些 blob、每条消息的位置</span></li>
+        <li><span class="ok">✓</span><span>探针多一组存档，统一请求那一组一个字节没变</span></li>
+        <li><span class="ok">✓</span><span>故意改坏十六处都有测试变红：多块的 user 消息改成分段发，随机日志和探针当场抓到前缀断了</span></li>
+        <li><span class="ok">✓</span><span>本地七项全过、clippy 查过 Windows 和 macOS；三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/05-内核接口.md</code> 第七节「OpenAI 兼容的对话接口怎么编码」。</li>
+        <li><code>docs/designs/26-提示词.md</code> 第八节；<code>docs/designs/01-架构.md</code> 第九节。</li>
+        <li><code>docs/construction/3-4-OpenAI兼容接口的编码（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -3418,6 +3500,7 @@ const BUILD = {
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
   n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对' },
+  n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口的编码：纯函数，每一种写法有样本；探针另存一份线上的字节，随机日志查线上的前缀延伸' },
 };
 
 const svg = document.getElementById('bmap');
