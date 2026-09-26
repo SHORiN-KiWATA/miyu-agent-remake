@@ -3,8 +3,9 @@
 //! 再查五条性质。
 //!
 //! 存档在 `docs/designs/samples/probe/terminal/`：`log.jsonl` 是真内核记下的日志，`requests/`
-//! 下一次请求一个文件，写的是规范字节，末尾一个换行。字节变了必须是有意的：设上
-//! `MIYU_PROBE_WRITE=1` 跑一遍，重写存档，提交说明里写为什么变。
+//! 下一次请求一个文件，写的是规范字节，末尾一个换行；`openai-chat/` 下是同一次请求编码成 OpenAI
+//! 兼容接口的字节（施工 3-4 上）。字节变了必须是有意的：设上 `MIYU_PROBE_WRITE=1` 跑一遍，重写
+//! 存档，提交说明里写为什么变。
 
 mod support;
 
@@ -14,7 +15,7 @@ use std::path::PathBuf;
 use miyu_kernel::event::ErrorClass;
 use miyu_kernel::session::Queued;
 use miyu_kernel::testkit::{Line, Play, Stage};
-use support::{check, lines, sent, stage};
+use support::{check, lines, sent, stage, wire};
 
 /// 终端会话的剧本，八个回合，1-12、1-13 画过的走法都走一遍。照真内核会怎么走写（施工 2-9 下）：
 /// 回合中途的那句话在工具还在跑时说；两轮之间换只读，改成请求还在路上时先切、再打断。
@@ -119,6 +120,8 @@ fn files(stage: &Stage) -> Vec<(String, String)> {
     for (index, (_, request)) in stage.requests().iter().enumerate() {
         let bytes = String::from_utf8(request.canonical_bytes()).expect("规范的字节是 UTF-8");
         files.push((format!("requests/{:02}.json", index + 1), bytes + "\n"));
+        let body = String::from_utf8(wire(request).body).expect("请求字节是 UTF-8");
+        files.push((format!("openai-chat/{:02}.json", index + 1), body + "\n"));
     }
     files
 }
@@ -132,6 +135,7 @@ fn the_terminal_session_matches_the_archive() {
             fs::remove_dir_all(&dir).expect("删得掉旧的存档");
         }
         fs::create_dir_all(dir.join("requests")).expect("建得了存档目录");
+        fs::create_dir_all(dir.join("openai-chat")).expect("建得了存档目录");
         for (name, content) in &files {
             fs::write(dir.join(name), content).expect("写得了存档");
         }
@@ -146,10 +150,16 @@ fn the_terminal_session_matches_the_archive() {
             "{name} 和存档不一样。要是有意改的，设上 MIYU_PROBE_WRITE=1 跑一遍重写存档，提交说明里写为什么变"
         );
     }
-    let archived = fs::read_dir(dir.join("requests"))
-        .expect("读得了存档的请求目录")
-        .count();
-    assert_eq!(archived, files.len() - 1, "存档里的请求数和这一次的不一样");
+    for folder in ["requests", "openai-chat"] {
+        let archived = fs::read_dir(dir.join(folder))
+            .expect("读得了存档的请求目录")
+            .count();
+        assert_eq!(
+            archived,
+            (files.len() - 1) / 2,
+            "存档 {folder}/ 里的请求数和这一次的不一样"
+        );
+    }
 }
 
 #[test]

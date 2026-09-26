@@ -9,10 +9,12 @@
 use std::collections::BTreeMap;
 
 use miyu_assemble::{DefaultAssembler, Stable, Texts, TurnEndedTexts};
+use miyu_drivers::openai_chat::{self, Compat, Encoded, ReasoningField, ReasoningReplay};
+use miyu_drivers::{Call, DriverTextSources, DriverTexts, Inputs};
 use miyu_kernel::block::Block;
 use miyu_kernel::event::{Body, Event};
 use miyu_kernel::facts::{Environment, FactTemplates};
-use miyu_kernel::id::{CallId, Seq};
+use miyu_kernel::id::{CallId, ModelName, Seq};
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::request::{Message, Request, ToolSpec};
 use miyu_kernel::session::Policy;
@@ -115,6 +117,9 @@ pub fn sent(stage: &Stage) -> Vec<Sent> {
 /// 是上一次的前缀延伸，除非中间压缩过、撤销过；工具调用和结果成对，结果按调用的先后紧跟着；
 /// 没有连着的两条 user 消息；每个回合第一次请求的最后一块，是触发它的那条消息。
 ///
+/// 前缀延伸在线上这一层也查：编码成 OpenAI 兼容接口的字节（[`wire`]），也是上一次的前缀延伸
+/// （施工 3-4 上）。缓存命中看的是真发出去的字节。
+///
 /// # Errors
 ///
 /// 哪一次请求、哪一条不成立，写成一句话。
@@ -128,8 +133,11 @@ pub fn check(sent: &[Sent]) -> Result<(), String> {
             ends_with(request, trigger).map_err(|why| format!("第 {number} 次请求：{why}"))?;
         }
         if index > 0 && !now.rewritten {
-            extends(request, &sent[index - 1].request)
+            let before = &sent[index - 1].request;
+            extends(request, before)
                 .map_err(|why| format!("第 {number} 次请求不是上一次的前缀延伸：{why}"))?;
+            wire_extends(&wire(request), &wire(before))
+                .map_err(|why| format!("第 {number} 次请求编码以后不是上一次的前缀延伸：{why}"))?;
         }
     }
     Ok(())
@@ -170,6 +178,67 @@ fn extends(now: &Request, before: &Request) -> Result<(), String> {
         }
         _ => Err(format!("第 {} 条消息变了", index + 1)),
     }
+}
+
+/// 编码成 OpenAI 兼容接口的字节，用 DeepSeek 那一套：模型 `deepseek-v4`，输出上限 8192，每条
+/// assistant 都带 `reasoning_content`。探针的线上存档也是它。
+pub fn wire(request: &Request) -> Encoded {
+    let call = Call {
+        model: ModelName::parse("deepseek-v4").expect("模型名合写法"),
+        max_output: Some(8192),
+        inputs: Inputs::default(),
+    };
+    let compat = Compat {
+        reasoning: ReasoningReplay::Replay {
+            field: ReasoningField::ReasoningContent,
+            always: true,
+        },
+        ..Compat::default()
+    };
+    openai_chat::encode(request, &call, &compat, &driver_texts(), &BTreeMap::new())
+        .expect("探针里没有图片、文件，不要 blob")
+}
+
+/// 线上的前缀延伸：上一次最后一条消息之前的字节一个不差；上一次的最后一条，要么一样，要么只在
+/// 后面接着长（去掉收尾的 `"}` 或 `]}` 以后，是这一次那一条的开头）；消息后面的工具面这些也一样。
+fn wire_extends(now: &Encoded, before: &Encoded) -> Result<(), String> {
+    let Some(last) = before.messages.last() else {
+        return Ok(());
+    };
+    if now.body.get(..last.start) != before.body.get(..last.start) {
+        return Err("上一次最后一条消息之前的字节变了".to_string());
+    }
+    let Some(grown) = now.messages.get(before.messages.len() - 1) else {
+        return Err("消息少了".to_string());
+    };
+    let then = &before.body[last.clone()];
+    let now_last = &now.body[grown.clone()];
+    let open = &then[..then.len().saturating_sub(2)];
+    if now_last != then && !now_last.starts_with(open) {
+        return Err("上一次的最后一条不是在后面接着长的".to_string());
+    }
+    let tail = |encoded: &Encoded| {
+        let end = encoded.messages.last().map_or(0, |range| range.end);
+        encoded.body[end..].to_vec()
+    };
+    if tail(now) != tail(before) {
+        return Err("消息后面的工具面、参数变了".to_string());
+    }
+    Ok(())
+}
+
+/// 出厂的驱动占位，从资源目录读。
+fn driver_texts() -> DriverTexts {
+    DriverTexts::new(DriverTextSources {
+        image_omitted: include_str!("../../../../resources/core/drivers/image-omitted.txt"),
+        file_omitted: include_str!("../../../../resources/core/drivers/file-omitted.txt"),
+        no_output: include_str!("../../../../resources/core/drivers/no-output.txt"),
+        tool_attachments: include_str!("../../../../resources/core/drivers/tool-attachments.txt"),
+        tool_attachments_only: include_str!(
+            "../../../../resources/core/drivers/tool-attachments-only.txt"
+        ),
+    })
+    .expect("出厂的占位用得了")
 }
 
 /// 工具调用和结果成对：每条回复里的调用，按先后各有一条结果紧跟在回复后面；没有落单的结果。

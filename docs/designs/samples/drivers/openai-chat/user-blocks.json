@@ -1,0 +1,1 @@
+{"model":"deepseek-v4","messages":[{"role":"system","content":"You are a helpful assistant."},{"role":"user","content":"<env time=\"Fri 2026-09-25 17:00\" timezone=\"UTC+09:00\" cwd=\"~/src\"/>\n<permission level=\"workspace\"/>\n第一句\n第二句"},{"role":"assistant","content":"嗯"},{"role":"user","content":"以换行结尾的\n下一句"}],"stream":true,"stream_options":{"include_usage":true}}

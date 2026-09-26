@@ -1,0 +1,16 @@
+[package]
+name = "miyu-drivers"
+description = "模型驱动的编码与解码：统一的请求和各家接口之间的翻译，纯逻辑"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+miyu-kernel = { path = "../miyu-kernel" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["raw_value"] }
+
+[lints]
+workspace = true
