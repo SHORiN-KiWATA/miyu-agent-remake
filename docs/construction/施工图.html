@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>40</b><span>/ 46 步<strong>已完成</strong>，请求真的发得出去、读得回来了</span></li>
-    <li><b>3-5</b><span>下一步：自动重试与接着说（下），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">8ec4d05</b><span>最近一步（3-5 上）的提交</span></li>
+    <li><b>41</b><span>/ 46 步<strong>已完成</strong>，出了错自己再来，说了一半的接着说</span></li>
+    <li><b>3-5</b><span>下一步：试玩台（补），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">90f7a68</b><span>最近一步（3-5 下）的提交</span></li>
   </ul>
 </header>
 
@@ -355,7 +355,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-4a"><span class="n">3-4</span>OpenAI 兼容接口的编码（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-4b"><span class="n">3-4</span>流式解码、出错分类与驱动接口（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-5a"><span class="n">3-5</span>发请求与读流（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-5</span>自动重试与接着说（下）</span></li>
+        <li><a class="step done" href="#s3-5b"><span class="n">3-5</span>自动重试与接着说（下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-5</span>试玩台（补）</span></li>
         <li><span class="step"><span class="n">3-6</span>策略快照</span></li>
         <li><span class="step"><span class="n">3-7</span>会话 actor</span></li>
@@ -3483,6 +3483,88 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-5b" aria-labelledby="h-s35b">
+  <div class="sheet-head"><h2 id="h-s35b"><span class="no">3-5</span>自动重试与接着说（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">出了可以重试的错，内核自己再来，最多 5 次：什么都没收到的，原样重发同一份请求；说了一半断了的，半截写成她的回复，后面跟一句被打断的提示，再请求一次，她看到自己说了一半，接着往下说。等多久照供应商说的，没说的越等越久；等的时候推一条状态，看得到第几次、几秒以后。全在内核里，纯逻辑，执行器替身跑得出来。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">出错以后 · miyu-kernel/src/session/retry.rs</span><span class="dir-note">02 第六节「回复怎么收」第 4 条</span></div>
+            <ol class="pipe" aria-label="出错以后">
+              <li>收到的半截写成回复：只留思考和正文，带 interrupted，工具调用一个不留</li>
+              <li>可以重试、这一步还没到 5 次、要等的不过 2 分钟：半截后面追加被打断的那一句，推 status，交出到点叫醒</li>
+              <li>到点了：等的时候切过级别的先查事实，再照有效历史组装一次；什么都没收到的，一字不差</li>
+              <li>不能重试、5 次都不行、说要等太久的：这一轮以出错结束，半截照样留下</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">哪几类、等多久</span><span class="dir-note">15 M5</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">再来</span><span class="rl">可重试、限速、增量对不上、回复里一个块都没有</span></div>
+              <div class="tile new"><span class="nm">不再来</span><span class="rl">上下文超长（以后先压缩，M6）、认证失败、内容策略、其他</span></div>
+              <div class="tile new"><span class="nm">等多久</span><span class="rl">供应商说了的照它，最多 2 分钟；没说的 1、2、4、8、16 秒</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">新的输入、动作、事件</span><span class="dir-note">内核的接口</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">到点叫醒 · 到点了</span><span class="rl">带着为哪一次请求等的；已经不在等了的不理</span></div>
+              <div class="tile new"><span class="nm">status</span><span class="rl">瞬时事件：第几次、最多几次、等多久、分类和原话</span></div>
+              <div class="tile new"><span class="nm">reply_cut</span><span class="rl">一条事实，跟在半截回复后面：<code>resources/core/facts/reply-cut.txt</code></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">接着说就是带着半截再请求</span><span class="rl">项目主人 2026-09-27 定；不用 DeepSeek 的前缀续写</span></div>
+          <div class="tile new"><span class="nm">重试由内核管</span><span class="rl">执行器每次只发一回；要不要再来、带不带半截，看日志才知道</span></div>
+          <div class="tile new"><span class="nm">再来的请求是前缀延伸</span><span class="rl">被打断的提示是事实，照常落盘，缓存照样命中</span></div>
+          <div class="tile new"><span class="nm">重试不算步数</span><span class="rl">说完一次，连着的次数从头数</span></div>
+          <div class="tile"><span class="nm">真的定时在会话 actor</span><span class="rl">这一步只有替身照「到点叫醒」送回（3-7）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-5（下）</dd></div>
+        <div><dt>名称</dt><dd>自动重试与接着说（下）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">90f7a68</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>内核：新的 <code>retry.rs</code>；回合多一个阶段「等着重试」；「说完了」带上要等多久；动作「到点叫醒」、输入「到点了」；瞬时事件 <code>status</code>；事实的模板多一份 <code>reply_cut</code>。</li>
+        <li>执行器替身：剧本能写「说了一半就断了」「出错，要等多久」；照「到点叫醒」送回「到点了」，也能扣着不送。</li>
+        <li>组装的探针多两次请求：什么都没收到的再来一字不差，带着半截再来的是前缀延伸。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>15 个新测试：原样再来、半截留下并跟一句提示、没收全的调用不留、收全了的也不派、照供应商说的等、等太久的不等、5 次都不行、认证失败不重试、等的时候被打断、等的时候重启、重试不算步数、重试以后往下走的照样算、说完一次从头数、等的时候切了级别先记事实、对不上的到点了不理，外加 status 的样本</span></li>
+        <li><span class="ok">✓</span><span>随机测试多四种走法，看守查重试的每一步；组装的随机日志里，带着半截再来的请求也是前缀延伸；量过每种走法出现的次数，变少的两种是出错不再结束回合本身</span></li>
+        <li><span class="ok">✓</span><span>故意改坏二十处都有测试变红（三处起初只有随机测试抓到，补了场景）</span></li>
+        <li><span class="ok">✓</span><span>本地七项全过；三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/02-内核.md</code> 第四节的表、第六节「回复怎么收」第 4 条。</li>
+        <li><code>docs/designs/03-事件模型.md</code>（<code>interrupted</code>、<code>status</code>）、<code>docs/designs/15-模型与供应商.md</code> M5、<code>docs/designs/26-提示词.md</code> 第八节。</li>
+        <li><code>docs/construction/3-5-自动重试与接着说（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -3657,7 +3739,7 @@ const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '18 种事件的写法、瞬时事件、追加时的检查' },
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
-  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完' },
+  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完；出了错自己再来，说了一半的带着半截接着说（3-5 下）' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
   n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对' },
   n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断' },
