@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>25</b><span>/ 39 步<strong>已完成</strong>，只读当场生效</span></li>
-    <li><b>2-7</b><span>下一步：确认（中），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">07e2665</b><span>最近一步（2-7 上）的提交</span></li>
+    <li><b>26</b><span>/ 39 步<strong>已完成</strong>，越界的事先问你</span></li>
+    <li><b>2-7</b><span>下一步：提问（下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">c616179</b><span>最近一步（2-7 中）的提交</span></li>
   </ul>
 </header>
 
@@ -335,7 +335,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s2-5"><span class="n">2-5</span>打断<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-6"><span class="n">2-6</span>排队的消息<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-7a"><span class="n">2-7</span>权限级别（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">2-7</span>确认（中）</span></li>
+        <li><a class="step done" href="#s2-7b"><span class="n">2-7</span>确认（中）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">2-7</span>提问（下）</span></li>
         <li><span class="step"><span class="n">2-8</span>载入、崩溃恢复、撤销</span></li>
         <li><span class="step"><span class="n">2-9</span>场景测试</span></li>
@@ -2282,6 +2282,88 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s2-7b" aria-labelledby="h-s27b">
+  <div class="sheet-head"><h2 id="h-s27b"><span class="no">2-7</span>确认（中）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">每个调用派之前先过一遍执行前的链：放行的派，拒绝的当场记下，要问人的停下来等你。你回答：允许这一次、本会话都允许、这个工作区以后都允许，或者拒绝。拒绝以后她接着干，写了理由的她能看到理由。没有人能确认的地方，要问人的一律拒绝。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">过执行前的链 · session/approval.rs</span><span class="dir-note">02 第六节「确认怎么走」</span></div>
+            <ol class="pipe" aria-label="一个调用派之前">
+              <li>轮到的先交给链，带上实际生效的那一级</li>
+              <li>放行的派；拒绝的记下，by 是拒绝的模块</li>
+              <li>要问人的记一条请求，调用停下来等你</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">你回答 · session.answer</span><span class="dir-note">11 第二节的四个选项</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">允许</span><span class="rl">这一次、本会话、这个工作区以后：记一条决定，落了盘再派</span></div>
+              <div class="tile new"><span class="nm">拒绝</span><span class="rl">记决定和被拒绝的结果，写了理由的带上，她接着干</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">两种新事件 · tool.approval_*</span><span class="dir-note">03 第三节，都不进上下文</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">tool.approval_requested</span><span class="rl">要的哪一类访问、提的放行规则、给头看的说明</span></div>
+              <div class="tile new"><span class="nm">tool.approval_decided</span><span class="rl">选了哪一项；拒绝的理由</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">拒绝以后她接着干</span><span class="rl">项目主人定（A13），三家都是停下，这里不同</span></div>
+          <div class="tile new"><span class="nm">没人能确认的当场拒绝</span><span class="rl">QQ、桌面语音、不是终端的 miyu ask</span></div>
+          <div class="tile new"><span class="nm">只读时要写入的请求拦下</span><span class="rl">照请求要的那一类判，不用再过一遍链</span></div>
+          <div class="tile new"><span class="nm">每个调用都过链</span><span class="rl">完全放开也过，等结论的占着位置</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-7（中）</dd></div>
+        <div><dt>名称</dt><dd>确认（中）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">c616179</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>session/approval.rs</code>：链的三种结论，人的回答；允许的落了盘再派，拒绝的记被拒绝的结果。</li>
+        <li><code>session/step.rs</code>：一步里每个调用走到了哪，从 <code>tools.rs</code> 拆出来，多了等结论、等人、人允许了三个状态。</li>
+        <li>新事件 <code>tool.approval_requested</code>、<code>tool.approval_decided</code>；账本守两条新规矩。</li>
+        <li>命令 <code>Answer</code>、输入 <code>ToolGuarded</code>、动作 <code>GuardTool</code>、四个原因码；策略里记有没有人能确认。</li>
+        <li>写给模型的三句：被人拒绝了、带上理由、这里没法确认；这几句挪进 <code>tool/texts.rs</code>。</li>
+        <li>样本会话接着往下写到 74 号：她要往家目录放一份文件，你拒绝并写了理由，她接着回你。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>278 个测试全过，新加 25 个：链的三种结论、等结论等人的占着位置、允许落了盘才派、拒绝以后接着干、回答被拒的四种、没人能确认、收紧成只读、打断、急着插话、过时的结论；两种新事件的写法、账本；样本会话的续集</span></li>
+        <li><span class="ok">✓</span><span>随机测试加上链的结论和回答，看守的确认检查在 watch/approval.rs，六条新的路都走到</span></li>
+        <li><span class="ok">✓</span><span>故意改坏二十六处，每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 278 个测试）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/02-内核.md</code> 第六节「确认怎么走」，第四节、第九节的表。</li>
+        <li><code>docs/designs/03-事件模型.md</code> 第三节「确认的事件怎么写」；<code>04-核心协议.md</code> 的 <code>session.answer</code>；<code>11-权限与沙盒.md</code> A13。</li>
+        <li><code>docs/construction/2-7-确认（中）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -2454,10 +2536,10 @@ const TREE = {
 /* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
 const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
-  k_log: { by: '1-1', how: 'frame', note: '13 种事件的写法、瞬时事件、追加时的检查' },
+  k_log: { by: '1-1', how: 'frame', note: '15 种事件的写法、瞬时事件、追加时的检查' },
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
-  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别' },
-  k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的' },
+  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认' },
+  k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
 };
 
 const svg = document.getElementById('bmap');
