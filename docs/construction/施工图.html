@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>16</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
-    <li><b>1-14</b><span>现在：请求形状探针，<strong>施工中</strong></span></li>
-    <li><b class="mono">cca2aec</b><span>最近一步（1-13）的提交</span></li>
+    <li><b>17</b><span>/ 36 步<strong>已完成</strong>，M1 完成了</span></li>
+    <li><b>2-1</b><span>下一步：输入、动作、命令，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">d812828</b><span>最近一步（1-14）的提交</span></li>
   </ul>
 </header>
 
@@ -321,7 +321,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s1-11"><span class="n">1-11</span>模板与转义<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-12"><span class="n">1-12</span>组装请求<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-13"><span class="n">1-13</span>事实注入<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">1-14</span>请求形状探针</span></li>
+        <li><a class="step done" href="#s1-14"><span class="n">1-14</span>请求形状探针<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -1559,6 +1559,91 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s1-14" aria-labelledby="h-s114">
+  <div class="sheet-head"><h2 id="h-s114"><span class="no">1-14</span>请求形状探针</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">同样的日志一定投影出逐字节相同的请求，由探针守住。一份终端会话的假日志，十三次请求逐字节存档；随机五百份日志，每一次请求查五条性质。探针还查出了人这一边的块怎么排的毛病，改好了。M1 到这里拼完。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">存档 · docs/designs/samples/probe/terminal/</span><span class="dir-note">字节变了要有意：MIYU_PROBE_WRITE=1 重写，写明为什么</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">log.jsonl</span><span class="rl">假日志，八个回合：两块事实、结果倒着回来、中途来话、插话打断、换只读、被拒绝、出错、步数上限、撤销、压缩</span></div>
+              <div class="tile new"><span class="nm">requests/01–13.json</span><span class="rl">每一次请求的规范字节</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">每一次请求查五条</span><span class="dir-note">终端会话一份，随机日志五百份</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">同样的日志，同样的字节</span><span class="rl">造两遍来比</span></div>
+              <div class="tile new"><span class="nm">是上一次的前缀延伸</span><span class="rl">除非中间压缩过、撤销过；按消息和块比</span></div>
+              <div class="tile new"><span class="nm">调用和结果成对</span><span class="rl">结果按调用的先后紧跟着</span></div>
+              <div class="tile new"><span class="nm">没有连着的两条 user</span><span class="rl">人这一边都合成了一条</span></div>
+              <div class="tile new"><span class="nm">触发消息在最后</span><span class="rl">每个回合第一次请求的最后一块（C2）</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">查出来的：人这一边怎么排</span><span class="dir-note">08 第四节第 4 条</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">第一次请求出错</span><span class="rl">事实一律往前排，发过的那句被挤到后面</span></div>
+              <div class="tile new"><span class="nm">早到的触发</span><span class="rl">排在上一轮结束的那一句前面（种子 5）</span></div>
+              <div class="tile new"><span class="nm">挪到最后也不行</span><span class="rl">那一轮出错，下一轮它又退回原位（种子 107）</span></div>
+              <div class="tile new"><span class="nm">最后定的</span><span class="rl">事实和触发放到回合开始的地方，先事实、后触发</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">前缀延伸按消息和块比</span><span class="rl">最后一条可以多出几块：上一次没等到回复</span></div>
+          <div class="tile new"><span class="nm">假内核在 tests/support/</span><span class="rl">照图纸造日志，2-x 有了真的换上</span></div>
+          <div class="tile new"><span class="nm">随机数自己写</span><span class="rl">SplitMix64，种子固定，不加依赖</span></div>
+          <div class="tile new"><span class="nm">工具面和 system 用假的</span><span class="rl">探针守拼法，真的等 3-6</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">1-14</dd></div>
+        <div><dt>名称</dt><dd>请求形状探针</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">d812828</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>拼法：人这一边的块照有效历史的先后，每个回合开始时注入的事实和触发它的那条，放到这个回合开始的地方。</li>
+        <li>假内核 <code>tests/support/</code>：造合规的日志、在边界上注入变了的事实、记下每一次请求，查五条性质。</li>
+        <li>探针 <code>tests/probe.rs</code>：终端会话的剧本和存档；随机日志 <code>tests/random_logs.rs</code>：五百份。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>152 个测试全过，新加 9 个：出错以后前缀接得上、早到的触发、插话打断、出错时早到的触发不动、触发不在这一段里；探针三个；随机日志五百份</span></li>
+        <li><span class="ok">✓</span><span>改拼法以前，先有测试红：出错的那个单元测试，随机日志的种子 5、种子 107</span></li>
+        <li><span class="ok">✓</span><span>故意改坏七处（事实不挪、那一组放到开头、一块一条消息、结果照到达的先后、不照请求看到的范围排、没变的事实也注入、出错那一句改了措辞），每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 152 个测试，存档在三台机器上都逐字节对上）</span></li>
+        <li><span class="ok">✓</span><span>项目主人验收通过：「我看中的是前缀稳定，缓存命中关乎金钱消耗必须重视。」</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/08-上下文投影.md</code> 第四节第 4 条、第七节「测试门禁」。</li>
+        <li><code>docs/designs/26-提示词.md</code> 第七节。</li>
+        <li><code>docs/designs/samples/probe/terminal/</code>：存档。</li>
+        <li><code>docs/construction/1-14-请求形状探针.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -1732,7 +1817,7 @@ const TREE = {
 const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '11 种事件的写法、追加时的检查' },
-  k_ctx: { by: '1-8', how: 'frame', note: '请求、有效历史、模板、组装、事实注入' },
+  k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
 };
 
 const svg = document.getElementById('bmap');
