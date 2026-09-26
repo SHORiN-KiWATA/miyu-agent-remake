@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>36</b><span>/ 43 步<strong>已完成</strong>，新版的代码里不认旧版</span></li>
-    <li><b>3-3</b><span>下一步：blob，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">28d51b0</b><span>最近一步（3-1 再补）的提交</span></li>
+    <li><b>37</b><span>/ 43 步<strong>已完成</strong>，大内容有了落脚处</span></li>
+    <li><b>3-4</b><span>下一步：驱动接口与编解码，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">3eaa791</b><span>最近一步（3-3）的提交</span></li>
   </ul>
 </header>
 
@@ -351,7 +351,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-1b"><span class="n">3-1</span>数据根挪到 ~/.miyu（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-1c"><span class="n">3-1</span>数据根不认旧版（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-2"><span class="n">3-2</span>会话日志文件<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-3</span>blob</span></li>
+        <li><a class="step done" href="#s3-3"><span class="n">3-3</span>blob<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-4</span>驱动接口与编解码</span></li>
         <li><span class="step"><span class="n">3-5</span>HTTP 执行器</span></li>
         <li><span class="step"><span class="n">3-6</span>策略快照</span></li>
@@ -3164,6 +3164,83 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-3" aria-labelledby="h-s33">
+  <div class="sheet-head"><h2 id="h-s33"><span class="no">3-3</span>blob</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">图片、文件、超长的工具输出、策略快照这些大内容有了落脚处：按内容哈希存成单独的文件，一个账号一份。先写临时文件、同步、再改名，磁盘上不会有写了一半的 blob；读的时候核对哈希。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">存 · miyu-store/src/blob.rs</span><span class="dir-note">07 第五节「写」</span></div>
+            <ol class="pipe" aria-label="存一份内容">
+              <li>算出 SHA-256：已经有了，只把修改时间刷成现在</li>
+              <li>写进 tmp/ 里的临时文件（只许新建），同步，关上</li>
+              <li>改名成它的哈希，同步目录：落了盘才回哈希，才写引用它的事件</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">一个账号的 blob</span><span class="dir-note">home/&lt;账号&gt;/blobs/，不跨账号去重</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">ba/ba7816bf…15ad</span><span class="rl">前两位一层目录，文件名是去掉 sha256: 的 64 位：Windows 不许有冒号</span></div>
+              <div class="tile new"><span class="nm">tmp/</span><span class="rl">临时文件；崩溃留下的不碍事，回收的时候再清</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">取</span><span class="dir-note">07 第五节「读的时候核对哈希」</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">核对哈希</span><span class="rl">对不上报错，写明是哪一个，不修也不删</span></div>
+              <div class="tile new"><span class="nm">没有</span><span class="rl">单独一种错，和读不了分开</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">已经有了的只刷修改时间</span><span class="rl">回收的宽限期按它算，和 git 的 freshen 一样</span></div>
+          <div class="tile new"><span class="nm">改名失败、目标已经有了，算成功</span><span class="rl">两个会话同时存同一张图</span></div>
+          <div class="tile new"><span class="nm">新建目录同步上一层</span><span class="rl">durable.rs 一处；顺手补上标记文件和新会话目录</span></div>
+          <div class="tile"><span class="nm">回收以后再做</span><span class="rl">删会话那一步，连同 tmp/ 的残留</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-3</dd></div>
+        <div><dt>名称</dt><dd>blob</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">3eaa791</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>blob.rs</code>：存、取、路径；三种错。</li>
+        <li><code>durable.rs</code>：同步目录、建目录，从 <code>root.rs</code>、<code>log.rs</code> 合过来。</li>
+        <li><code>root.rs</code>：账号的家目录、blob 目录；写完标记同步数据根。内核加 <code>ContentHash::hex</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新加 10 个测试：存了再取、放在哪（路径写死）、存两遍、崩溃留下的临时文件、撞名、改名时目标已经有了、读出来不对、两个账号各一份、一层层建目录、挡路的文件</span></li>
+        <li><span class="ok">✓</span><span>故意改坏十一处，每一处都有测试变红；去掉同步、不经临时文件测不出来（测试里没法断电）</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过；本机先用 <code>clippy --target</code> 查 Windows、macOS</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿（第一次 Windows 栽在只有 Unix 用得上的 mut）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/07-存储.md</code> 第四节「各平台的坑」、第五节「blob」。</li>
+        <li><code>docs/construction/3-3-blob.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -3340,7 +3417,7 @@ const BUILD = {
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
-  n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾' },
+  n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对' },
 };
 
 const svg = document.getElementById('bmap');
