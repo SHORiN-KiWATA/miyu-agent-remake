@@ -2,12 +2,13 @@
 //! 请求怎么发」「回复怎么收、回合怎么结束」）。
 //!
 //! 开头那一批落了盘，叫执行器跑回合开始的挂接点；挂接点跑完了、追加过的事件都落了盘，
-//! 组装请求，交给执行器去请求模型。请求在路上时的事在 [`super::call`]。
+//! 组装请求，交给执行器去请求模型。请求在路上时的事在 [`super::call`]，调工具在 [`super::tools`]。
 
 use super::Session;
 use super::action::Action;
 use super::call::Call;
 use super::input::Injection;
+use super::tools::Step;
 use crate::event::{Body, EndReason, Event, TurnEnded, TurnStarted};
 use crate::facts::changed;
 use crate::id::{CommandId, Seq, TurnId};
@@ -24,6 +25,10 @@ pub(super) struct Turn {
     pub(super) cause: Option<CommandId>,
     /// 走到了哪一步。
     pub(super) stage: Stage,
+    /// 这一轮的工作目录：回合开始时的那一个，派工具时带上。
+    pub(super) cwd: String,
+    /// 这一轮请求过几次模型，比步数上限用。
+    pub(super) requests: u32,
 }
 
 /// 回合走到了哪一步。
@@ -40,8 +45,11 @@ pub(super) enum Stage {
     Ready,
     /// 请求在路上。
     Asking(Call),
-    /// 回复里有工具调用，等它们的结果：执行工具是施工 2-4。
-    Tools,
+    /// 这次请求刚说完，正在收拾：回复写好以后，要么结束回合，要么换成调工具。只在处理
+    /// 一条输入的当中出现，什么输入都不收。
+    Settling,
+    /// 回复里有工具调用：这一步的调用走到了哪。
+    Tools(Step),
 }
 
 impl Session {
@@ -61,6 +69,8 @@ impl Session {
             stage: Stage::Opening {
                 opened: started.seq,
             },
+            cwd: self.environment.cwd.clone(),
+            requests: 0,
         });
         let facts = vec![
             self.policy.facts.env(at, &self.environment),
@@ -112,7 +122,12 @@ impl Session {
     /// 回合往下走：开头那一批落了盘，叫执行器跑回合开始的挂接点；挂接点跑完了、追加过的
     /// 事件都落了盘，拿有效历史组装请求，交给执行器去请求模型（`08-上下文投影.md` 第一节
     /// 第 2 条「先落盘，后请求」）。发请求时算出指纹，和上一次请求的比出第一处不同。
+    /// 回复里有工具调用的，回复落了盘就派。
     pub(super) fn advance(&mut self) -> Vec<Action> {
+        let dispatched = self.dispatch();
+        if !dispatched.is_empty() {
+            return dispatched;
+        }
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();
         };
@@ -132,6 +147,7 @@ impl Session {
                     .as_ref()
                     .and_then(|before| fingerprint.first_difference(before));
                 self.last_request = Some(fingerprint);
+                turn.requests += 1;
                 turn.stage = Stage::Asking(Call::new(seen, request.messages.len(), difference));
                 vec![Action::CallModel { seen, request }]
             }

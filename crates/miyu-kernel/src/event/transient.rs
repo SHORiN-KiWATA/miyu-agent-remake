@@ -8,7 +8,7 @@
 use serde::{Serialize, Serializer};
 
 use crate::accumulate::Kind;
-use crate::id::{CommandId, Seq, TurnId};
+use crate::id::{CallId, CommandId, Seq, TurnId};
 use crate::origin::By;
 use crate::time::Timestamp;
 
@@ -27,11 +27,23 @@ pub struct Transient {
     pub body: TransientBody,
 }
 
-/// 瞬时事件的种类，连同它自己的内容。另外两种（`tool.progress`、`status`）随施工 2-4、3-5。
+/// 瞬时事件的种类，连同它自己的内容。还有一种 `status`，随施工 3-5。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TransientBody {
     /// `model.delta`：模型输出的一段增量。
     ModelDelta(ModelDelta),
+    /// `tool.progress`：工具执行中的一段输出。
+    ToolProgress(ToolProgress),
+}
+
+/// `tool.progress` 的 `body`：哪一次调用、一段输出（`03-事件模型.md` 第五节）。结果以
+/// `tool.result` 为准，这些只是给人看着它在跑。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ToolProgress {
+    /// 哪一次调用。
+    pub call_id: CallId,
+    /// 一段输出。
+    pub text: String,
 }
 
 /// `model.delta` 的 `body`：哪次请求的、第几块、这一段增量。私有数据不推，头用不着。
@@ -61,6 +73,7 @@ impl TransientBody {
     pub fn kind(&self) -> &'static str {
         match self {
             TransientBody::ModelDelta(_) => "model.delta",
+            TransientBody::ToolProgress(_) => "tool.progress",
         }
     }
 }
@@ -107,6 +120,7 @@ impl Serialize for TransientBody {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         match self {
             TransientBody::ModelDelta(delta) => delta.serialize(s),
+            TransientBody::ToolProgress(progress) => progress.serialize(s),
         }
     }
 }

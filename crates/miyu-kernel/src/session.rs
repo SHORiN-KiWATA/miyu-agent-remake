@@ -12,6 +12,7 @@ mod call;
 mod input;
 mod policy;
 mod recent;
+mod tools;
 mod turn;
 
 pub use action::{Action, Outcome, Reason};
@@ -123,6 +124,14 @@ impl Session {
                 usage,
                 error,
             } => self.model_ended(at, seen, usage, error),
+            Input::ToolDone {
+                at,
+                call_id,
+                error,
+                blocks,
+                duration_ms,
+            } => self.tool_done(at, call_id, error, blocks, duration_ms),
+            Input::ToolProgress { at, call_id, text } => self.tool_progress(at, call_id, text),
         }
     }
 

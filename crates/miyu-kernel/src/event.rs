@@ -26,7 +26,7 @@ pub use model::{
 };
 pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated};
 pub use tool::{ToolResult, ToolStatus};
-pub use transient::{ModelDelta, Piece, Transient, TransientBody};
+pub use transient::{ModelDelta, Piece, ToolProgress, Transient, TransientBody};
 pub use turn::{EndReason, TurnEnded, TurnReverted, TurnStarted};
 
 /// 一条事件：已经发生的一件事。追加进日志以后不改、不删；撤销和压缩也是追加一条新事件

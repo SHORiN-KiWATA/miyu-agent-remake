@@ -1,124 +1,12 @@
 //! 收回复、结束回合（`docs/designs/02-内核.md` 第六节「回复怎么收、回合怎么结束」）：一轮走到底；
 //! `model.called` 的每一格；第二轮只注入变了的；出错；执行器违约；过时的回报；有工具调用的回复。
 
+use super::executor::*;
 use super::*;
 use crate::accumulate::{Delta, Kind};
 use crate::block::{Private, Reasoning};
-use crate::event::{
-    CallError, CallResult, EndReason, ErrorClass, ModelCalled, Part, Piece, TransientBody, Usage,
-};
-use crate::id::{ContentHash, ModelName, ProviderId};
-use crate::origin::Model;
-
-const REQUEST: &str = "sha256:2b2966577ceda0727f654b534396fc3e5967b14bb226cdc374b2d6e0013c25f6";
-
-fn deepseek() -> Model {
-    Model {
-        endpoint: ProviderId::parse("deepseek").unwrap(),
-        model: ModelName::parse("deepseek-v4").unwrap(),
-    }
-}
-
-fn usage() -> Usage {
-    Usage {
-        uncached: 1843,
-        cache_read: 0,
-        cache_write: 0,
-        output: 26,
-    }
-}
-
-/// 请求 `seen` 在 07:00:40 发出去了。
-fn sent(seen: u64) -> Input {
-    Input::RequestSent {
-        at: at(40),
-        seen: seq(seen),
-        model: deepseek(),
-        request: ContentHash::parse(REQUEST).unwrap(),
-    }
-}
-
-/// 请求 `seen` 在 07:00:`second` 来了一段增量。
-fn delta(seen: u64, second: u64, delta: Delta) -> Input {
-    Input::ModelDelta {
-        at: at(second),
-        seen: seq(seen),
-        delta,
-    }
-}
-
-/// 请求 `seen` 在 07:00:45 说完了，报了用量。
-fn ended(seen: u64) -> Input {
-    Input::ModelEnded {
-        at: at(45),
-        seen: seq(seen),
-        usage: Some(usage()),
-        error: None,
-    }
-}
-
-/// 请求 `seen` 在 07:00:45 出错了。
-fn failed(seen: u64, class: ErrorClass, message: &str) -> Input {
-    Input::ModelEnded {
-        at: at(45),
-        seen: seq(seen),
-        usage: None,
-        error: Some(CallError {
-            class,
-            message: message.to_string(),
-        }),
-    }
-}
-
-/// 一块正文的三段增量：开始、字、收全了。
-fn words(index: usize, text: &str) -> Vec<Delta> {
-    vec![
-        Delta::Start {
-            index,
-            kind: Kind::Text,
-        },
-        Delta::Text {
-            index,
-            text: text.to_string(),
-        },
-        Delta::End { index },
-    ]
-}
-
-/// 一个开了回合、请求 5 号已经交给执行器的会话。
-fn asking() -> Session {
-    let mut session = session();
-    session.handle(send(1, "hi"));
-    session.handle(stored(5));
-    assert_eq!(
-        calls(&session.handle(hooks_done(turn3(), Vec::new()))).len(),
-        1
-    );
-    session
-}
-
-/// 请求 `seen` 发出去、说了 `text`、说完了。返回说完了那一步的动作。
-fn answer(session: &mut Session, seen: u64, text: &str) -> Vec<Action> {
-    session.handle(sent(seen));
-    for piece in words(0, text) {
-        session.handle(delta(seen, 41, piece));
-    }
-    session.handle(ended(seen))
-}
-
-fn called_of(event: &Event) -> &ModelCalled {
-    match &event.body {
-        Body::ModelCalled(called) => called,
-        body => panic!("应该是 model.called：{body:?}"),
-    }
-}
-
-fn reason_of(event: &Event) -> &EndReason {
-    match &event.body {
-        Body::TurnEnded(ended) => &ended.reason,
-        body => panic!("应该是 turn.ended：{body:?}"),
-    }
-}
+use crate::event::{CallError, CallResult, EndReason, ErrorClass, Part, Piece, TransientBody};
+use crate::id::ContentHash;
 
 #[test]
 fn a_whole_turn_from_the_message_to_the_end() {
@@ -134,7 +22,9 @@ fn a_whole_turn_from_the_message_to_the_end() {
         assert_eq!(transient.turn, Some(turn3()));
         assert_eq!(transient.by, By::Model(deepseek()));
         assert_eq!(transient.cause, Some(id(1)));
-        let TransientBody::ModelDelta(body) = &transient.body;
+        let TransientBody::ModelDelta(body) = &transient.body else {
+            panic!("应该是 model.delta：{transient:?}");
+        };
         assert_eq!((body.seen, body.index), (seq(5), 0));
         pushed.push(body.piece.clone());
     }

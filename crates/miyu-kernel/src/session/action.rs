@@ -3,7 +3,7 @@
 //! 会话自己不做 I/O：要追加的事件、要回应的命令、要推送的事件，都写成动作交给执行器。
 
 use crate::event::{Event, Transient};
-use crate::id::{CommandId, Seq, TurnId};
+use crate::id::{CallId, CommandId, Seq, TurnId};
 use crate::request::Request;
 
 /// 会话要执行器做的一件事。
@@ -46,6 +46,18 @@ pub enum Action {
     RunTurnEndHooks {
         /// 哪个回合。
         turn: TurnId,
+    },
+    /// 执行一次工具调用。执行中的输出、执行完了，都带着调用编号回报
+    /// （`02-内核.md` 第六节「工具怎么调、下一步怎么走」）。
+    RunTool {
+        /// 哪一次调用。
+        call_id: CallId,
+        /// 工具名。
+        name: String,
+        /// 修正过的参数：一个 JSON 对象的原文。
+        args: String,
+        /// 这一轮的工作目录：回合开始时的那一个。
+        cwd: String,
     },
 }
 

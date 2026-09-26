@@ -68,3 +68,20 @@ fn missing_turn_and_cause_are_not_written() {
     let line = transient.to_line();
     assert!(!line.contains("turn") && !line.contains("cause"), "{line}");
 }
+
+#[test]
+fn tool_progress_is_written_with_its_call() {
+    let call_id = CallId::parse("call_45_1").unwrap();
+    let mut transient = delta(0, Piece::End);
+    transient.by = By::Tool(crate::origin::Tool { call_id });
+    transient.body = TransientBody::ToolProgress(ToolProgress {
+        call_id,
+        text: "lib.rs\n".to_string(),
+    });
+    let line = transient.to_line();
+    assert!(line.contains(r#""kind":"tool.progress""#), "{line}");
+    assert_eq!(
+        body_of(&transient),
+        r#"{"call_id":"call_45_1","text":"lib.rs\n"}"#
+    );
+}

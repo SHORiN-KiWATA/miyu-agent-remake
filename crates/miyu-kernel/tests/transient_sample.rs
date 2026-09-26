@@ -2,7 +2,8 @@
 //! 样本会话里 44 号请求的回复，一段段推给头的样子。
 //!
 //! - 代码里造出同样的几条，写出去和样本一字不差；
-//! - 这几段增量交给累积器，拼出来的就是样本里 45 号回复的内容块：推给头的和写进日志的对得上。
+//! - 这几段增量交给累积器，拼出来的就是样本里 45 号回复的内容块：推给头的和写进日志的对得上；
+//! - 45 号回复里那次 `read` 执行中的一段输出（`tool.progress`）。
 //!
 //! 瞬时事件内核只推不读，所以样本在代码里照着造，不从文件读回来。
 
@@ -10,9 +11,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use miyu_kernel::accumulate::{Accumulator, Delta, Kind};
-use miyu_kernel::event::{Body, Event, ModelDelta, Piece, Transient, TransientBody};
-use miyu_kernel::id::{CommandId, ModelName, ProviderId, Seq, TurnId};
-use miyu_kernel::origin::{By, Model};
+use miyu_kernel::event::{Body, Event, ModelDelta, Piece, ToolProgress, Transient, TransientBody};
+use miyu_kernel::id::{CallId, CommandId, ModelName, ProviderId, Seq, TurnId};
+use miyu_kernel::origin::{By, Model, Tool};
 use miyu_kernel::time::Timestamp;
 
 /// 样本目录：这个 crate 的目录往上两级是仓库根。
@@ -123,4 +124,20 @@ fn the_pushed_pieces_add_up_to_the_reply_in_the_log() {
     };
     let seq = Seq::new(45).expect("45 是合法的序号");
     assert_eq!(accumulator.finish(seq), reply.blocks);
+}
+
+#[test]
+fn the_tool_progress_sample_is_written_exactly() {
+    let call_id = CallId::parse("call_45_1").expect("样本里的调用编号合写法");
+    let progress = Transient {
+        at: Timestamp::parse("2026-09-25T07:04:07.901Z").expect("样本的时刻合写法"),
+        turn: Some(TurnId::new(Seq::new(42).expect("42 是合法的序号"))),
+        by: By::Tool(Tool { call_id }),
+        cause: Some(CommandId::parse("cmd-7f3a").expect("命令编号合写法")),
+        body: TransientBody::ToolProgress(ToolProgress {
+            call_id,
+            text: "lib.rs\n".to_string(),
+        }),
+    };
+    assert_eq!(lines("transient/tool.progress.jsonl"), [progress.to_line()]);
 }

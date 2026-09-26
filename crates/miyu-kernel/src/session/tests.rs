@@ -1,12 +1,17 @@
 //! 会话的测试。这一份是命令这一层：造会话；发消息；空消息；同一个编号落盘前后再来；
 //! 拒绝过的再来；落盘到一半；落盘超出追加过的；只记最近 1024 个。开回合、发请求在
-//! [`turn`]；收回复、结束回合在 [`reply`]；随机一串输入在 [`random`]。
+//! [`turn`]；收回复、结束回合在 [`reply`]；调工具在 [`tools`]；随机一串输入在 [`random`]；
+//! 执行器的替身在 [`executor`]。
 //!
 //! 空闲时发的第一条消息会开一个回合，所以它后面紧跟着三条：`turn.started` 和两块事实。
 
+mod executor;
 mod random;
 mod reply;
+mod tools;
 mod turn;
+
+use std::collections::BTreeMap;
 
 use super::recent::CAPACITY;
 use super::*;
@@ -16,6 +21,7 @@ use crate::event::ContextInjected;
 use crate::facts::FactTemplates;
 use crate::request::{Message, Request};
 use crate::time::UtcOffset;
+use crate::tool::{Access, ToolRule, ToolTexts};
 
 const CREATED: &str = r#"{"owner":"alice","venue":"local","policy":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","permission":{"level":"workspace","read_only":false}}"#;
 
@@ -168,8 +174,12 @@ fn fact_of(event: &Event) -> &ContextInjected {
     }
 }
 
-/// 替身的模板：短，一眼认得出是哪个字段。
+/// 替身的策略：模板短，一眼认得出是哪个字段；工具面上三件工具，读、写、跑命令；步数不限。
 fn policy() -> Policy {
+    let rule = |access: Access, parameters: &str| ToolRule {
+        access,
+        parameters: serde_json::from_str(parameters).unwrap(),
+    };
     Policy {
         assembler: Box::new(Listing),
         facts: FactTemplates::new(
@@ -177,6 +187,28 @@ fn policy() -> Policy {
             r#"<p l="{level}"/>"#,
         )
         .unwrap(),
+        tools: BTreeMap::from([
+            (
+                "read".to_string(),
+                rule(
+                    Access::Read,
+                    r#"{"type":"object","properties":{"path":{"type":"string"},"limit":{"type":"integer"}}}"#,
+                ),
+            ),
+            (
+                "write".to_string(),
+                rule(
+                    Access::Write,
+                    r#"{"type":"object","properties":{"path":{"type":"string"},"text":{"type":"string"}}}"#,
+                ),
+            ),
+            (
+                "shell".to_string(),
+                rule(Access::Execute, r#"{"type":"object"}"#),
+            ),
+        ]),
+        step_limit: None,
+        tool_texts: ToolTexts::new("no tool {name}", "bad args {name}").unwrap(),
     }
 }
 
@@ -190,13 +222,18 @@ fn environment(cwd: &str) -> Environment {
 
 /// 一个造好、第 1 条已经落了盘的会话，在 `~/src/miyu`。造会话的命令编号是 0。
 fn session() -> Session {
+    session_with(policy())
+}
+
+/// 同上，策略换成 `policy`。
+fn session_with(policy: Policy) -> Session {
     let created: SessionCreated = serde_json::from_str(CREATED).unwrap();
     let (mut session, _) = Session::create(
         id(0),
         alice(),
         at(0),
         created,
-        policy(),
+        policy,
         environment("~/src/miyu"),
     );
     session.handle(stored(1));

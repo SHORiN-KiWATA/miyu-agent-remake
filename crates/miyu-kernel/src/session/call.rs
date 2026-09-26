@@ -8,7 +8,7 @@ use super::Session;
 use super::action::Action;
 use super::turn::Stage;
 use crate::accumulate::{Accumulator, Delta};
-use crate::block::Block;
+use crate::block::{Block, ToolCall};
 use crate::event::{
     Body, CallError, CallResult, EndReason, ErrorClass, FirstDifference, MessageAssistant,
     ModelCalled, ModelDelta, Piece, Transient, TransientBody, Usage,
@@ -138,7 +138,7 @@ impl Session {
     }
 
     /// 模型说完了：正常说完的写成回复；出错的，收到的半截不写。都记一条 `model.called`。
-    /// 回复里没有工具调用、或者出错了，结束回合；有工具调用的，回合停在那里等工具（施工 2-4）。
+    /// 回复里没有工具调用、或者出错了，结束回合；有工具调用的，接着调工具。
     pub(super) fn model_ended(
         &mut self,
         at: Timestamp,
@@ -159,29 +159,35 @@ impl Session {
         } = call;
         let mut error = error;
         let mut events = Vec::new();
-        let mut calls_tools = false;
+        let mut reply = self.ledger.next_seq();
+        let mut calls: Vec<ToolCall> = Vec::new();
         match &sent {
             None if error.is_none() => {
                 error = Some(bad_stream("请求还没发出去就说完了".to_string()));
             }
             Some(sent) if error.is_none() => {
-                let blocks = accumulator.finish(self.ledger.next_seq());
+                reply = self.ledger.next_seq();
+                let blocks = accumulator.finish(reply);
                 if blocks.is_empty() {
                     error = Some(CallError {
                         class: ErrorClass::EmptyReply,
                         message: "回复里一个块都没有".to_string(),
                     });
                 } else {
-                    calls_tools = blocks
+                    calls = blocks
                         .iter()
-                        .any(|block| matches!(block, Block::ToolCall(_)));
-                    let reply = MessageAssistant {
+                        .filter_map(|block| match block {
+                            Block::ToolCall(call) => Some(call.clone()),
+                            _ => None,
+                        })
+                        .collect();
+                    let body = MessageAssistant {
                         blocks,
                         seen,
                         interrupted: false,
                     };
                     let by = By::Model(sent.model.clone());
-                    events.push(self.record(at, by, cause.clone(), Body::MessageAssistant(reply)));
+                    events.push(self.record(at, by, cause.clone(), Body::MessageAssistant(body)));
                 }
             }
             _ => {}
@@ -209,8 +215,10 @@ impl Session {
         events.push(self.record(at, By::Kernel, cause.clone(), Body::ModelCalled(called)));
         if error.is_some() {
             events.push(self.end_turn(at, cause, EndReason::Error));
-        } else if !calls_tools {
+        } else if calls.is_empty() {
             events.push(self.end_turn(at, cause, EndReason::Completed));
+        } else {
+            events.extend(self.start_tools(at, reply, calls, cause));
         }
         vec![Action::Append(events)]
     }
@@ -223,12 +231,12 @@ impl Session {
         }
     }
 
-    /// 取走在路上、名字是 `seen` 的那次请求，连同回合的 `cause`。取走以后回合停在「等工具」：
-    /// 说完了的请求，要么结束回合，要么等工具。
+    /// 取走在路上、名字是 `seen` 的那次请求，连同回合的 `cause`。取走以后回合在收拾：
+    /// 说完了的请求，要么结束回合，要么接着调工具。
     fn take_call(&mut self, seen: Seq) -> Option<(Call, Option<CommandId>)> {
         self.call(seen)?;
         let turn = self.turn.as_mut()?;
-        match std::mem::replace(&mut turn.stage, Stage::Tools) {
+        match std::mem::replace(&mut turn.stage, Stage::Settling) {
             Stage::Asking(call) => Some((call, turn.cause.clone())),
             _ => None,
         }

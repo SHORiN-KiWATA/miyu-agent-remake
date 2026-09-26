@@ -4,7 +4,7 @@ use crate::accumulate::Delta;
 use crate::block::Block;
 use crate::event::{CallError, ContextInjected, Usage};
 use crate::facts::Environment;
-use crate::id::{CommandId, ContentHash, ModuleId, Seq, TurnId};
+use crate::id::{CallId, CommandId, ContentHash, ModuleId, Seq, TurnId};
 use crate::origin::{By, Model};
 use crate::time::Timestamp;
 
@@ -60,6 +60,29 @@ pub enum Input {
         usage: Option<Usage>,
         /// 出错的分类和原话；正常说完的，没有。
         error: Option<CallError>,
+    },
+    /// 工具执行完了（`02-内核.md` 第六节「工具怎么调、下一步怎么走」）。只有成功和出错两种：
+    /// 已取消、被拒绝、已跳过是内核写的。
+    ToolDone {
+        /// 到的时刻，取自执行器的时钟。
+        at: Timestamp,
+        /// 哪一次调用。
+        call_id: CallId,
+        /// 出错了没有：工具执行了，但是出了错。错在哪，写在内容块里。
+        error: bool,
+        /// 给模型看的内容。
+        blocks: Vec<Block>,
+        /// 执行用了多少毫秒，执行器量的。
+        duration_ms: Option<u64>,
+    },
+    /// 工具执行中的一段输出，只推给头（`03-事件模型.md` 第五节）。
+    ToolProgress {
+        /// 到的时刻，取自执行器的时钟。
+        at: Timestamp,
+        /// 哪一次调用。
+        call_id: CallId,
+        /// 一段输出。
+        text: String,
     },
 }
 
