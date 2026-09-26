@@ -1,4 +1,4 @@
-# 三平台 CI：每台机器跑 cargo xtask check，和本地验收是同一条命令。
+# 三平台 CI：每台机器跑 cargo xtask check，和本地验收是同一条命令；另有一项长跑，只在 Linux 上。
 # 为什么这样定，见 docs/construction/0-3-三平台CI.md。
 name: CI
 
@@ -24,3 +24,14 @@ jobs:
         run: rustup toolchain install
       - name: 门禁
         run: cargo xtask check
+
+  # 长跑：随机测试接着平时的往后跑两万例（照 niri 的 randomized-tests，施工 2-10）。平时的
+  # cargo test 和本地门禁跳过这几个 #[ignore] 的测试；纯逻辑不碰平台，只在 Linux 上、release 模式跑。
+  randomized:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: 装上 rust-toolchain.toml 钉住的工具链
+        run: rustup toolchain install
+      - name: 长跑
+        run: cargo test --release --workspace -- --ignored

@@ -1,6 +1,6 @@
 //! 随机日志（`docs/designs/08-上下文投影.md` 第七节「测试门禁」，施工 1-14、2-9 下）：五百份随机的
 //! 剧本交给执行器替身，跑出真会话，每一次请求都查五条性质。同样的种子跑两遍，日志和请求要一字
-//! 不差。还查剧本真走到了：五百份里，每种走法至少一次。
+//! 不差。还查剧本真走到了：五百份里，每种走法至少一次。CI 另有一项长跑，接着往后跑两万份。
 //!
 //! 随机数是自己写的 SplitMix64，种子固定，每次跑都是同样的五百份。红了会打印种子和那份日志。
 
@@ -275,10 +275,10 @@ fn paths(log: &[Event]) -> BTreeSet<&'static str> {
     paths
 }
 
-#[test]
-fn five_hundred_random_sessions_keep_the_properties() {
+/// 跑一段种子，每一份查五条性质、查同样的种子跑两遍一字不差。返回走到过的走法。
+fn run(seeds: std::ops::Range<u64>) -> BTreeSet<&'static str> {
     let mut seen = BTreeSet::new();
-    for seed in 0..500 {
+    for seed in seeds {
         let session = random_session(seed);
         if let Err(why) = check(&sent(&session)) {
             panic!("种子 {seed}：{why}\n{}", lines(&session).join("\n"));
@@ -309,23 +309,40 @@ fn five_hundred_random_sessions_keep_the_properties() {
             seen.insert("查了前缀延伸");
         }
     }
-    for path in [
-        "第一次请求就出错",
-        "走到步数上限",
-        "说到一半被打断",
-        "打断以后退回",
-        "排着的那句接着开一轮",
-        "撤销",
-        "恢复",
-        "压缩",
-        "回合中途切只读",
-        "回合中途说一句",
-        "工具出错",
-        "只读拦下写的",
-        "结果乱序回来",
-        "查了回合第一次请求的最后一块",
-        "查了前缀延伸",
-    ] {
+    seen
+}
+
+/// 五百份里每种都要走到的走法。
+const EXPECTED_PATHS: &[&str] = &[
+    "第一次请求就出错",
+    "走到步数上限",
+    "说到一半被打断",
+    "打断以后退回",
+    "排着的那句接着开一轮",
+    "撤销",
+    "恢复",
+    "压缩",
+    "回合中途切只读",
+    "回合中途说一句",
+    "工具出错",
+    "只读拦下写的",
+    "结果乱序回来",
+    "查了回合第一次请求的最后一块",
+    "查了前缀延伸",
+];
+
+#[test]
+fn five_hundred_random_sessions_keep_the_properties() {
+    let seen = run(0..500);
+    for path in EXPECTED_PATHS {
         assert!(seen.contains(path), "五百份里一次都没走到「{path}」");
     }
+}
+
+/// 长跑：接着平时的往后跑两万份（`docs/designs/02-内核.md` 第九节「不变量怎么查」）。平时的
+/// `cargo test` 跳过它，CI 的长跑那一项用 `--ignored`、release 模式跑。
+#[test]
+#[ignore = "长跑，CI 的长跑那一项用 --ignored 跑（施工 2-10）"]
+fn random_sessions_keep_the_properties_for_longer() {
+    run(500..20_500);
 }

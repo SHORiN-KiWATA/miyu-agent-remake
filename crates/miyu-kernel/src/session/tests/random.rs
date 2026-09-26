@@ -23,9 +23,13 @@
 //! - 撤销、恢复：照规矩接受或者拒绝，列的是那几轮；请求照的是撤销、恢复以后的历史；撤了又恢复的，
 //!   下一次请求接着上一次往下长。
 //!
-//! 还查自己走到了没有：三百例里每条路至少走到一次，不然查的是空话。
+//! 每一步还照九条不变量查（`watch/invariants.rs`，`02-内核.md` 第九节「不变量怎么查」）。
+//!
+//! 还查自己走到了没有：三百例里每条路至少走到一次，清单上的每一种输入至少喂过一次
+//! （`random/kinds.rs`），不然查的是空话。CI 另有一项长跑，接着往后跑两万例。
 
 mod asking;
+mod kinds;
 mod watch;
 
 use std::collections::BTreeSet;
@@ -45,6 +49,7 @@ use crate::origin::Model;
 use crate::raw::RawJson;
 use crate::tool::Access;
 use asking::{some_answer, some_question, some_reply, some_verdict};
+use kinds::InputKind;
 use watch::Watch;
 
 /// 随机测试的会话，一个回合最多请求几次模型。
@@ -362,10 +367,60 @@ fn random_policy(attended: bool) -> Policy {
     limited
 }
 
-#[test]
-fn random_inputs_keep_the_rules() {
+/// 三百例里每条都要走到的路。
+const EXPECTED_PATHS: &[&str] = &[
+    "推了增量",
+    "叫执行器别再发",
+    "跑了回合结束的挂接点",
+    "说完了",
+    "出错了",
+    "回复里有工具调用",
+    "开了第二轮",
+    "派了工具",
+    "推了工具的输出",
+    "一步接一步",
+    "走到步数上限",
+    "打断了回合",
+    "打断了请求",
+    "打断了工具",
+    "空闲时打断被拒",
+    "急着插话跳过",
+    "排队的接着开了一轮",
+    "打断后排队的接着发",
+    "打断后排队的退回",
+    "回复到了只读拦下",
+    "收紧时拦下还没派的",
+    "要写入的请求只读拦下",
+    "切了级别以后注入",
+    "要问人",
+    "人允许了",
+    "人拒绝了",
+    "链拒绝了",
+    "没人能确认被拒",
+    "回答被拒",
+    "工具问人",
+    "人回答了",
+    "回答交给了工具",
+    "回答对不上被拒",
+    "来了一句话作废",
+    "打断时在等人回答",
+    "没人能回答",
+    "崩了以后收尾",
+    "有计划地重启",
+    "重启后接着干",
+    "撤销了",
+    "撤销被拒",
+    "撤销带走了上一轮排着的",
+    "恢复了",
+    "恢复被拒",
+    "恢复以后接着说",
+];
+
+/// 跑一段种子，每一例三百条输入，照看守的规矩查（[`watch`]）。返回走到过的路和喂过的输入种类。
+fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKind>) {
     let mut paths = BTreeSet::new();
-    for seed in 0..300 {
+    let mut fed = BTreeSet::new();
+    for seed in seeds {
         let mut rng = Rng(seed);
         // 五个种子里有一个没人能确认。
         let attended = seed % 5 != 4;
@@ -398,55 +453,28 @@ fn random_inputs_keep_the_rules() {
             "种子 {seed}：每收到一次命令要恰好回应一次"
         );
         paths.extend(watch.seen_paths);
+        fed.extend(watch.fed);
     }
-    let expected = [
-        "推了增量",
-        "叫执行器别再发",
-        "跑了回合结束的挂接点",
-        "说完了",
-        "出错了",
-        "回复里有工具调用",
-        "开了第二轮",
-        "派了工具",
-        "推了工具的输出",
-        "一步接一步",
-        "走到步数上限",
-        "打断了回合",
-        "打断了请求",
-        "打断了工具",
-        "空闲时打断被拒",
-        "急着插话跳过",
-        "排队的接着开了一轮",
-        "打断后排队的接着发",
-        "打断后排队的退回",
-        "回复到了只读拦下",
-        "收紧时拦下还没派的",
-        "要写入的请求只读拦下",
-        "切了级别以后注入",
-        "要问人",
-        "人允许了",
-        "人拒绝了",
-        "链拒绝了",
-        "没人能确认被拒",
-        "回答被拒",
-        "工具问人",
-        "人回答了",
-        "回答交给了工具",
-        "回答对不上被拒",
-        "来了一句话作废",
-        "打断时在等人回答",
-        "没人能回答",
-        "崩了以后收尾",
-        "有计划地重启",
-        "重启后接着干",
-        "撤销了",
-        "撤销被拒",
-        "撤销带走了上一轮排着的",
-        "恢复了",
-        "恢复被拒",
-        "恢复以后接着说",
-    ];
-    for path in expected {
+    (paths, fed)
+}
+
+/// 平时跑的三百例。还查自己走到了没有：每条路至少走到一次，清单上的每一种输入至少喂过一次
+/// （`random/kinds.rs`），不然查的是空话。
+#[test]
+fn random_inputs_keep_the_rules() {
+    let (paths, fed) = run(0..300);
+    for path in EXPECTED_PATHS {
         assert!(paths.contains(path), "三百例里一次都没走到「{path}」");
     }
+    for kind in InputKind::ALL {
+        assert!(fed.contains(kind), "三百例里一次都没喂过「{kind:?}」");
+    }
+}
+
+/// 长跑：接着平时的往后跑两万例（`docs/designs/02-内核.md` 第九节「不变量怎么查」）。平时的
+/// `cargo test` 跳过它，CI 的长跑那一项用 `--ignored`、release 模式跑。
+#[test]
+#[ignore = "长跑，CI 的长跑那一项用 --ignored 跑（施工 2-10）"]
+fn random_inputs_keep_the_rules_for_longer() {
+    run(300..20_300);
 }

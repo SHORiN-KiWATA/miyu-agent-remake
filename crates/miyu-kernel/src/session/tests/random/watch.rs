@@ -3,9 +3,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use super::kinds::InputKind;
 use super::*;
 
 mod approval;
+mod invariants;
 mod load;
 mod lookup;
 mod permission;
@@ -66,6 +68,8 @@ pub(super) struct Watch {
     restarts: load::Restarts,
     /// 撤销：有效历史里还有哪几轮、能恢复的几次、请求里不该有的几条。
     pub(super) undo: undo::Undo,
+    /// 喂过的输入种类（`kinds.rs` 的清单）。
+    pub(super) fed: BTreeSet<InputKind>,
 }
 
 impl Watch {
@@ -103,6 +107,7 @@ impl Watch {
             questions: question::Questions::new(),
             restarts: load::Restarts::default(),
             undo: undo::Undo::default(),
+            fed: BTreeSet::new(),
         }
     }
 
@@ -124,6 +129,11 @@ impl Watch {
     /// 送进一条输入之前记下它，送进去以后查吐出来的动作。新的打断：回合开着的，这一批以
     /// 被打断的 `turn.ended` 收尾；没开着的，拒绝，原因码 `not_running`。
     pub(super) fn feed(&mut self, session: &mut Session, input: Input) {
+        self.fed.insert(InputKind::of(&input));
+        let repeated = match &input {
+            Input::Command(command) if !self.fresh(&command.id) => Some(command.id.clone()),
+            _ => None,
+        };
         let judged = self.before_approval(&input);
         let replied = self.before_question(&input);
         let undone = self.before_undo(&input);
@@ -154,6 +164,9 @@ impl Watch {
             _ => {}
         }
         let actions = session.handle(input);
+        if let Some(id) = &repeated {
+            self.applied_once(id, &actions);
+        }
         if let Some(id) = command {
             let rejected = actions.iter().any(|action| {
                 matches!(action, Action::Reply { id: replied, outcome: Outcome::Rejected { .. } } if *replied == id)
@@ -218,7 +231,8 @@ impl Watch {
                         "种子 {seed}：{id} 的事件还没推送就回应了"
                     );
                 }
-                *self.replied.entry(id).or_default() += 1;
+                *self.replied.entry(id.clone()).or_default() += 1;
+                self.replied_at_most_received(&id);
             }
             Action::RunTurnStartHooks { turn } => {
                 assert!(
@@ -306,6 +320,7 @@ impl Watch {
             listing(&all),
             "种子 {seed}：请求照全部历史，撤回的、撤掉的除外"
         );
+        self.request_from_log(request);
         self.undo_request(seen);
         self.permission_request();
         let count = self.requests.entry(turn).or_default();
@@ -414,8 +429,14 @@ impl Watch {
                 _ => {}
             }
             match &event.body {
-                Body::TurnEnded(ended) => self.note_ended(event, &ended.reason),
-                Body::TurnStarted(started) => self.note_started(started.trigger),
+                Body::TurnEnded(ended) => {
+                    self.all_resulted(self.open_turn());
+                    self.note_ended(event, &ended.reason);
+                }
+                Body::TurnStarted(started) => {
+                    self.one_turn();
+                    self.note_started(started.trigger);
+                }
                 _ => {}
             }
             self.queue_check(&events, k);
