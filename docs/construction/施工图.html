@@ -263,9 +263,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>12</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
-    <li><b>1-10</b><span>现在：有效历史（下），<strong>施工中</strong></span></li>
-    <li><b class="mono">0ca42ab</b><span>最近一步（1-9）的提交</span></li>
+    <li><b>13</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
+    <li><b>1-11</b><span>下一步：模板与转义，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">f88d7ab</b><span>最近一步（1-10）的提交</span></li>
   </ul>
 </header>
 
@@ -316,7 +316,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s1-7"><span class="n">1-7</span>追加时的检查<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-8"><span class="n">1-8</span>统一的请求<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-9"><span class="n">1-9</span>有效历史（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">1-10</span>有效历史（下）</span></li>
+        <li><a class="step done" href="#s1-10"><span class="n">1-10</span>有效历史（下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">1-11</span>模板与转义</span></li>
         <li><span class="step"><span class="n">1-12</span>组装请求</span></li>
         <li><span class="step"><span class="n">1-13</span>事实注入</span></li>
@@ -1233,6 +1233,82 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s1-10" aria-labelledby="h-s110">
+  <div class="sheet-head"><h2 id="h-s110"><span class="no">1-10</span>有效历史（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">有效历史能照每次请求当时看到的样子排了：她的回复后面紧跟它的工具结果，按调用的先后；请求在路上、工具在跑的时候到的事件，排在这一步之后。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">回复 · event/message.rs</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">seen</span><span class="rl">发这次请求时，日志到第几条为止</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">照请求排 · history.rs</span><span class="dir-note">以回复为界切段</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">1 · 这一段开头的回复</span><span class="rl">它的请求看到的之后，才轮到它</span></div>
+              <div class="tile new"><span class="nm">2 · 它的工具结果</span><span class="rl">按调用的先后，不按回来的先后</span></div>
+              <div class="tile new"><span class="nm">3 · 别的事件</span><span class="rl">照日志的先后：中途来的话、回报、状态的切换</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">账本 · ledger.rs</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">新规矩</span><span class="rl">seen 在回复之前，不早于上一条回复</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">第六节那一回合</span><span class="rl">排出来是 44、48、46、47，和图上一样</span></div>
+          <div class="tile new"><span class="nm">seen 记在回复上</span><span class="rl">投影本来就要读回复</span></div>
+          <div class="tile new"><span class="nm">群里的闲话挪走</span><span class="rl">群消息有了「冲不冲她」那一格再做（项目主人定）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">1-10</dd></div>
+        <div><dt>名称</dt><dd>有效历史（下）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">f88d7ab</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>回复多记一格 <code>seen</code>；样本和已有的测试都补上了。</li>
+        <li>有效历史能照每次请求看到的范围排（<code>History::ordered</code>）。</li>
+        <li>账本加一条规矩：<code>seen</code> 在回复之前，不早于上一条回复。账本里「记哪几样」的图纸跟着改。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>95 个测试全过，新加 4 个：排序 3 个、账本新规矩 1 个；回复少了 seen 读不进来，补在原来的测试里</span></li>
+        <li><span class="ok">✓</span><span>故意改坏六处（seen 往后写也放行、不查上一条回复、没记账、段的边界差一位、结果不按调用排、回复不在段首），每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 95 个测试）</span></li>
+        <li><span class="ok">✓</span><span>项目主人验收通过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/03-事件模型.md</code> 第六节「照每次请求看到的范围排」，第三节的 <code>seen</code>。</li>
+        <li><code>docs/designs/02-内核.md</code> 第九节：账本的新规矩。</li>
+        <li><code>docs/construction/1-10-有效历史（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -1406,7 +1482,7 @@ const TREE = {
 const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '11 种事件的写法、追加时的检查' },
-  k_ctx: { by: '1-8', how: 'frame', note: '统一的请求、有效历史（上）' },
+  k_ctx: { by: '1-8', how: 'frame', note: '统一的请求、有效历史' },
 };
 
 const svg = document.getElementById('bmap');
