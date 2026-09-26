@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>39</b><span>/ 44 步<strong>已完成</strong>，驱动的编码、解码、分类都齐了</span></li>
-    <li><b>3-5</b><span>下一步：HTTP 执行器，<strong>先问试玩台、接哪家</strong></span></li>
-    <li><b class="mono">c90d9f1</b><span>最近一步（3-4 下）的提交</span></li>
+    <li><b>40</b><span>/ 46 步<strong>已完成</strong>，请求真的发得出去、读得回来了</span></li>
+    <li><b>3-5</b><span>下一步：自动重试与接着说（下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">8ec4d05</b><span>最近一步（3-5 上）的提交</span></li>
   </ul>
 </header>
 
@@ -354,7 +354,9 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-3"><span class="n">3-3</span>blob<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-4a"><span class="n">3-4</span>OpenAI 兼容接口的编码（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-4b"><span class="n">3-4</span>流式解码、出错分类与驱动接口（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-5</span>HTTP 执行器</span></li>
+        <li><a class="step done" href="#s3-5a"><span class="n">3-5</span>发请求与读流（上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">3-5</span>自动重试与接着说（下）</span></li>
+        <li><span class="step"><span class="n">3-5</span>试玩台（补）</span></li>
         <li><span class="step"><span class="n">3-6</span>策略快照</span></li>
         <li><span class="step"><span class="n">3-7</span>会话 actor</span></li>
         <li><span class="step"><span class="n">3-8</span>协议端点</span></li>
@@ -3402,6 +3404,85 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-5a" aria-labelledby="h-s35a">
+  <div class="sheet-head"><h2 id="h-s35a"><span class="no">3-5</span>发请求与读流（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">请求真的发得出去、读得回来：HTTP 执行器照驱动编码好的字节发请求，流式地读回来，边读边交给解码器，解出来的增量马上交出去；多久没收到新的字节就算断了；内核叫停就马上停。每次只发一回，重试和接着说是下一半。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">发一次 · miyu-http/src/send.rs</span><span class="dir-note">05 第七节「HTTP 执行器」</span></div>
+            <ol class="pipe" aria-label="发一次请求">
+              <li>先报「发出去了」，带着请求字节的哈希；POST 地址加路径，四个头加另配的</li>
+              <li>不是 2xx：读最多 64 KiB，连同状态、响应头交给驱动分类</li>
+              <li>2xx：一片一片读，每片套空闲超时，交给解码器；它说不用读了就停，由它收尾</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">怎么收场</span><span class="dir-note">Outcome</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">说完了</span><span class="rl">用量；没有出错</span></div>
+              <div class="tile new"><span class="nm">出错了</span><span class="rl">分类、原话、要等多久；连不上、空闲超时、读到一半断了，都算可重试</span></div>
+              <div class="tile new"><span class="nm">打断了</span><span class="rl">马上停、丢掉连接，之后什么都不报</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">测试 · 本机的假服务器</span><span class="dir-note">tests/support/mod.rs</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">照剧本回</span><span class="rl">状态、头、一片一片的响应体；能等、能停住、能断开</span></div>
+              <div class="tile new"><span class="nm">记下收到的</span><span class="rl">方法、路径、头、请求体，查一字不差</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">tokio 加 reqwest</span><span class="rl">核心本来就是异步的，流式读取、超时、打断最顺</span></div>
+          <div class="tile new"><span class="nm">rustls，证书认两份</span><span class="rl">系统的和 webpki 自带的；不依赖 OpenSSL</span></div>
+          <div class="tile new"><span class="nm">key 打印出来是 ***</span><span class="rl">另配的头只写名字</span></div>
+          <div class="tile new"><span class="nm">一次只发一回</span><span class="rl">重试和接着说是内核的事（3-5 下）</span></div>
+          <div class="tile"><span class="nm">本机交叉检查去掉 miyu-http</span><span class="rl">ring 有 C 代码；CI 在真机上查</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-5（上）</dd></div>
+        <div><dt>名称</dt><dd>发请求与读流（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">8ec4d05</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>新 crate <code>miyu-http</code>（第 3 层）：<code>Endpoint</code>、<code>client()</code>、<code>send()</code>。</li>
+        <li>驱动和解码器的接口加上 <code>Send + Sync</code>。</li>
+        <li>图纸：05 第七节补了 HTTP 执行器；01 第九节登记新 crate。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>10 个测试：分片回来的流、发出去的一字不差、429、停住超时、打断、连不上、断开、没写够就断、见到 [DONE] 就停、key 不打印</span></li>
+        <li><span class="ok">✓</span><span>故意改坏十二处都有测试变红（两个测试是改坏时发现测不出来才补的）</span></li>
+        <li><span class="ok">✓</span><span>本地七项全过；三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/05-内核接口.md</code> 第七节「HTTP 执行器」。</li>
+        <li><code>docs/designs/15-模型与供应商.md</code> M5、<code>docs/designs/02-内核.md</code> 第六节（项目主人 2026-09-27 定的三条）。</li>
+        <li><code>docs/construction/3-5-发请求与读流（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -3579,7 +3660,7 @@ const BUILD = {
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
   n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对' },
-  n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver' },
+  n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断' },
 };
 
 const svg = document.getElementById('bmap');
