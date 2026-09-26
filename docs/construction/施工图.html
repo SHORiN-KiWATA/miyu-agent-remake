@@ -263,9 +263,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>10</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
-    <li><b>1-8</b><span>现在：统一的请求，<strong>施工中</strong></span></li>
-    <li><b class="mono">4eb1fa3</b><span>最近一步（1-7）的提交</span></li>
+    <li><b>11</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
+    <li><b>1-9</b><span>下一步：有效历史（上），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">82eef36</b><span>最近一步（1-8）的提交</span></li>
   </ul>
 </header>
 
@@ -314,7 +314,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s1-5"><span class="n">1-5</span>消息与工具结果的事件<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-6"><span class="n">1-6</span>上下文的事件<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-7"><span class="n">1-7</span>追加时的检查<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">1-8</span>统一的请求</span></li>
+        <li><a class="step done" href="#s1-8"><span class="n">1-8</span>统一的请求<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">1-9</span>有效历史（上）</span></li>
         <li><span class="step"><span class="n">1-10</span>有效历史（下）</span></li>
         <li><span class="step"><span class="n">1-11</span>模板与转义</span></li>
@@ -1089,6 +1089,86 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s1-8" aria-labelledby="h-s18">
+  <div class="sheet-head"><h2 id="h-s18"><span class="no">1-8</span>统一的请求</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">投影交给驱动的那一份请求有了自己的样子。同样的请求写成的字节一定一样，算得出哈希；和上一次请求一比，说得出第一处不同在哪。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">请求 · request.rs</span><span class="dir-note">和供应商无关</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">tools</span><span class="rl">工具面，按名字排好：名字、说明、参数格式（原样照抄）</span></div>
+              <div class="tile new"><span class="nm">system</span><span class="rl">系统提示词，一整段</span></div>
+              <div class="tile new"><span class="nm">messages</span><span class="rl">user · assistant · tool，工具结果一次调用一条</span></div>
+              <div class="tile new"><span class="nm">stable</span><span class="rl">稳定区有几条，缓存标记</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">字节与比较</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">规范的字节</span><span class="rl">紧凑的 JSON，字段照顺序</span></div>
+              <div class="tile new"><span class="nm">请求的哈希</span><span class="rl">规范字节的 SHA-256，写成 sha256:…</span></div>
+              <div class="tile new"><span class="nm">指纹</span><span class="rl">工具面、system、每条消息各一个哈希；比出第一处不同</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">样本 · docs/designs/samples/requests/</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">second-step.json</span><span class="rl">样本会话里，工具结果回来以后的那一次请求</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">工具结果单成一条</span><span class="rl">各家放法不一样，要合并的驱动自己合并</span></div>
+          <div class="tile new"><span class="nm">端点、模型不进请求</span><span class="rl">同一份投影可以交给不同的端点</span></div>
+          <div class="tile new"><span class="nm">model.called 挪到 2-3</span><span class="rl">它记的是驱动编码以后的字节（项目主人定）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">1-8</dd></div>
+        <div><dt>名称</dt><dd>统一的请求</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">82eef36</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>统一的请求 <code>Request</code>：工具规格、三种消息、缓存标记；规范的字节、请求的哈希；指纹和第一处不同。</li>
+        <li>内容哈希能由内容算出来了（<code>ContentHash::of</code>），用 SHA-256 的公开测试值验过。</li>
+        <li>白名单加了 <code>sha2</code>，只开 SHA-256。</li>
+        <li>一份样本请求，测试照它逐字节比。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>84 个测试全过，新加 10 个：请求 7 个、内容哈希 1 个、样本请求 2 个</span></li>
+        <li><span class="ok">✓</span><span>故意改坏八处（指纹漏比、算错、少了消息不算不同，字段换顺序、排了版、大写的哈希、角色写错），每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 84 个测试）</span></li>
+        <li><span class="ok">✓</span><span>项目主人验收通过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/08-上下文投影.md</code> 第二节「统一的请求怎么写」。</li>
+        <li><code>docs/designs/01-架构.md</code> 第九节：白名单里的 <code>sha2</code>。</li>
+        <li><code>docs/construction/1-8-统一的请求.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -1262,6 +1342,7 @@ const TREE = {
 const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '11 种事件的写法、追加时的检查' },
+  k_ctx: { by: '1-8', how: 'frame', note: '统一的请求' },
 };
 
 const svg = document.getElementById('bmap');
