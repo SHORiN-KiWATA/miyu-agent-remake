@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>30</b><span>/ 41 步<strong>已完成</strong>，真会话能一整轮一整轮地跑了</span></li>
-    <li><b>2-9</b><span>下一步：探针换成真会话（下），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">aa47a38</b><span>最近一步（2-9 上）的提交</span></li>
+    <li><b>31</b><span>/ 41 步<strong>已完成</strong>，探针查的是真会话了</span></li>
+    <li><b>2-10</b><span>下一步：随机测试，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">5c1e9aa</b><span>最近一步（2-9 下）的提交</span></li>
   </ul>
 </header>
 
@@ -340,7 +340,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s2-8a"><span class="n">2-8</span>载入与崩溃恢复（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-8b"><span class="n">2-8</span>撤销与恢复（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-9a"><span class="n">2-9</span>执行器替身与场景（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">2-9</span>探针换成真会话（下）</span></li>
+        <li><a class="step done" href="#s2-9b"><span class="n">2-9</span>探针换成真会话（下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">2-10</span>随机测试</span></li>
       </ol>
     </li>
@@ -2688,6 +2688,86 @@ a.step:hover{border-color:var(--primary)}
         <li><code>docs/designs/02-内核.md</code> 第四节「执行器怎么回动作」。</li>
         <li><code>docs/designs/01-架构.md</code> 第九节，内核那一层。</li>
         <li><code>docs/construction/2-9-执行器替身与场景（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s2-9b" aria-labelledby="h-s29b">
+  <div class="sheet-head"><h2 id="h-s29b"><span class="no">2-9</span>探针换成真会话（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">请求形状探针和随机日志改用真会话跑：执行器替身照剧本让真内核记日志、发请求，组装用出厂的那一套。照图纸推日志的假内核退役：1-14 那时还没有回合状态机，日志只能照图纸推。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">探针 · tests/probe.rs</span><span class="dir-note">08 第七节「测试门禁」</span></div>
+            <ol class="pipe" aria-label="探针怎么跑">
+              <li>固定的剧本：终端里的八个回合</li>
+              <li>替身让真内核跑出日志、发出 14 次请求</li>
+              <li>每次请求逐字节和存档比，再查五条性质</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">剧本照真内核改的三处</span><span class="dir-note">走法一样不少</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">回合中途的那句话</span><span class="rl">在工具还在跑时说：结果一回齐就请求，中间插不进话</span></div>
+              <div class="tile new"><span class="nm">两轮之间换只读</span><span class="rl">请求在路上时先切、再打断：排着的那句马上开下一轮</span></div>
+              <div class="tile new"><span class="nm">步数上限定成 3</span><span class="rl">第 6 轮连着三次调工具走到上限</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">随机日志 · tests/random_logs.rs</span><span class="dir-note">五百份随机剧本</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">十三种走法都走到</span><span class="rl">最少的「只读拦下写的」49 份</span></div>
+              <div class="tile new"><span class="nm">查的是真东西</span><span class="rl">触发、前缀延伸真查到了，推错了会报</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">存档重写，前三次一个字节不差</span><span class="rl">从第 4 次起变的是走法和跟着挪的调用编号</span></div>
+          <div class="tile new"><span class="nm">压缩先顶着</span><span class="rl">替身追加一条再载入，真的等 M6</span></div>
+          <div class="tile new"><span class="nm">请求的情形从日志推</span><span class="rl">撤销、恢复、压缩过的算改写；人的一句话触发的查最后一块</span></div>
+          <div class="tile"><span class="nm">假内核退役</span><span class="rl">tests/support 只留五条性质的检查</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-9（下）</dd></div>
+        <div><dt>名称</dt><dd>探针换成真会话（下）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">5c1e9aa</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>testkit/stage.rs</code>：记下每次请求看到了第几条为止；压缩先顶着。</li>
+        <li><code>miyu-assemble/tests/support</code>：去掉假内核，留五条性质；新写出厂的策略、照日志推每次请求的情形。</li>
+        <li><code>tests/probe.rs</code>、<code>tests/random_logs.rs</code>：剧本改成替身的动作；探针存档重写。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>探针存档重写前逐次读过新的请求，和图纸对得上；同样的剧本跑两遍一字不差；八个回合的第一次请求都查了最后一块</span></li>
+        <li><span class="ok">✓</span><span>五百份随机真会话，每一次请求五条性质都成立</span></li>
+        <li><span class="ok">✓</span><span>故意改坏十二处（组装的、推情形的、替身的、内核的），每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 346 个测试）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/08-上下文投影.md</code> 第七节「测试门禁」；<code>26-提示词.md</code> 第七节。</li>
+        <li><code>docs/designs/samples/probe/terminal/</code>：重写的存档。</li>
+        <li><code>docs/construction/2-9-探针换成真会话（下）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
