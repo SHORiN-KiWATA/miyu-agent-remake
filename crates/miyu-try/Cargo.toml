@@ -1,0 +1,30 @@
+[package]
+name = "miyu-try"
+description = "试玩台：内核直接接真模型，终端里一行一行地说（施工 3-5 补）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+miyu-assemble = { path = "../miyu-assemble" }
+miyu-drivers = { path = "../miyu-drivers" }
+miyu-http = { path = "../miyu-http" }
+miyu-kernel = { path = "../miyu-kernel" }
+miyu-store = { path = "../miyu-store" }
+# 理由见 docs/construction/3-5-试玩台（补）.md「我定的」：会话编号的随机数，锁文件里本来就有；
+# 系统时区，三个平台都认。
+getrandom = "0.4"
+jiff = "0.2"
+# 只为写出 miyu-http 交回来的客户端的类型名，功能跟着 miyu-http。
+reqwest = { version = "0.12", default-features = false }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
+
+[dev-dependencies]
+# 测试的假 DeepSeek：本机回环上的 HTTP/1.1；收到的请求体照 JSON 比。
+serde_json = "1"
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
+
+[lints]
+workspace = true
