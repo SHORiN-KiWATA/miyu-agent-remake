@@ -15,6 +15,10 @@ fn turn_events_from_the_drawing_round_trip() {
         Body::TurnReverted(reverted) => assert_eq!(reverted.turns.len(), 2),
         other => panic!("{other:?}"),
     }
+    match read_body("turn.unreverted", r#"{"turns":[42,50]}"#) {
+        Body::TurnUnreverted(unreverted) => assert_eq!(unreverted.turns.len(), 2),
+        other => panic!("{other:?}"),
+    }
 }
 
 #[test]
@@ -25,6 +29,7 @@ fn each_end_reason_reads_into_its_own_variant() {
         ("error", EndReason::Error),
         ("step_limit", EndReason::StepLimit),
         ("aborted", EndReason::Aborted),
+        ("restarted", EndReason::Restarted),
     ] {
         match read_body("turn.ended", &format!(r#"{{"reason":"{text}"}}"#)) {
             Body::TurnEnded(ended) => assert_eq!(ended.reason, reason),
@@ -47,6 +52,8 @@ fn broken_turn_bodies_say_which_kind() {
     rejected::<Event>(&line, "turn.started 的 body 读不出来");
     let line = event_line("turn.reverted", r#"{"turns":["42"]}"#);
     rejected::<Event>(&line, "turn.reverted 的 body 读不出来");
+    let line = event_line("turn.unreverted", r#"{"turns":42}"#);
+    rejected::<Event>(&line, "turn.unreverted 的 body 读不出来");
     let line = event_line("turn.ended", r#"{"reason":7}"#);
     rejected::<Event>(&line, "turn.ended 的 body 读不出来");
 }

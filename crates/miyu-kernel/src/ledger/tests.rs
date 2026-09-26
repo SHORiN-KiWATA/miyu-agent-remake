@@ -1,7 +1,9 @@
 //! 账本的测试：一段合规的会话从头追加到尾；02 第九节表里的每一条规矩各有被拦下的例子，
-//! 被拦下时报错说清是哪一条，账本不变。
+//! 被拦下时报错说清是哪一条，账本不变。撤销与恢复的在 `tests/undo.rs`。
 
 use super::*;
+
+mod undo;
 
 const CREATED: &str = r#"{"owner":"alice","venue":"local","policy":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","permission":{"level":"workspace","read_only":false}}"#;
 const SAID: &str = r#"{"blocks":[{"type":"text","text":"看看 src 目录"}]}"#;
@@ -237,23 +239,6 @@ fn compaction_only_moves_forward() {
         &mut ledger,
         &event(18, None, "context.compacted", r#"{"upto":15,"summary":""}"#),
         "早于上一次压缩的 16",
-    );
-}
-
-#[test]
-fn revert_only_turns_after_the_latest_compaction() {
-    let mut ledger = after(14);
-    refused(
-        &mut ledger,
-        &event(15, None, "turn.reverted", r#"{"turns":[11,12]}"#),
-        "回合 12 不存在",
-    );
-    // 压缩替代到 16，回合 3 和 11 都在它之前，写进了摘要，撤不了了。
-    let mut ledger = after(17);
-    refused(
-        &mut ledger,
-        &event(18, None, "turn.reverted", r#"{"turns":[3]}"#),
-        "在最近一次压缩之前",
     );
 }
 

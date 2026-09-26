@@ -119,11 +119,12 @@ impl Watch {
         })
     }
 
-    /// 内核最近注入的这一类事实的原文。
+    /// 内核最近注入的这一类事实的原文，撤掉的回合里的不算（08 C10）。
     fn latest_fact(&self, kind: &str) -> Option<String> {
         self.events
             .iter()
             .rev()
+            .filter(|event| !self.undo.gone.contains(&event.seq))
             .find_map(|event| match &event.body {
                 Body::ContextInjected(fact)
                     if event.by == By::Kernel && fact.kind.as_str() == kind =>

@@ -37,8 +37,22 @@ impl Watch {
         }
     }
 
-    /// 回合开始：被重启打断的那一轮不再是最后一轮。
-    pub(super) fn note_started(&mut self) {
+    /// 回合开始：不是接着干的那一轮（由被打断时排着的最后一条、或者那条结束触发），从头数；被重启
+    /// 打断的那一轮不再是最后一轮。
+    pub(super) fn note_started(&mut self, trigger: Seq) {
+        let resumed = self
+            .restarts
+            .last
+            .as_ref()
+            .is_some_and(|(ended, queued)| queued.last().copied().unwrap_or(*ended) == trigger);
+        if !resumed {
+            self.restarts.streak = 0;
+        }
+        self.restarts.last = None;
+    }
+
+    /// 撤销过：被重启打断的那一轮，再起来也不接了。
+    pub(super) fn note_reverted(&mut self) {
         self.restarts.last = None;
     }
 
@@ -75,6 +89,8 @@ impl Watch {
         let mut log = vec![self.created()];
         log.extend(self.events.iter().cloned());
         let environment = environment(&self.cwd.clone());
+        // 内核照日志里的 `cause` 重建接受过的编号：接受了却什么都没记的，载入以后就忘了。
+        self.accepted = log.iter().filter_map(|event| event.cause.clone()).collect();
         let (session, actions) = Session::load(log, at(55), policy, environment)
             .unwrap_or_else(|e| panic!("种子 {seed}：落了盘的日志载入不了：{e}"));
         self.asking = None;
@@ -116,6 +132,11 @@ impl Watch {
                         Some(Body::TurnStarted(started)) if started.trigger == trigger),
                     "种子 {seed}：重启以后由 {trigger} 接着开一轮：{appended:?}"
                 );
+                // 接着干的那一轮，接过去的是被打断时排着的那几句。
+                let queued = self.restarts.last.clone().map(|(_, queued)| queued);
+                self.undo
+                    .picked
+                    .insert(TurnId::new(appended[0].seq), queued.unwrap_or_default());
             }
             (None, None) => assert!(
                 actions.is_empty(),

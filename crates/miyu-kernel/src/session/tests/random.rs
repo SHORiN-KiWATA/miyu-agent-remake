@@ -19,7 +19,9 @@
 //!   的接着开一轮；
 //! - 切权限级别：只读生效的时候不派写文件的调用，内核拦下的都是写文件的；回合中途注入的排在
 //!   这一步的全部工具结果后面；请求时最近一块权限事实写的是现在的那一级，环境那一块写的是
-//!   这一轮的工作目录。
+//!   这一轮的工作目录；
+//! - 撤销、恢复：照规矩接受或者拒绝，列的是那几轮；请求照的是撤销、恢复以后的历史；撤了又恢复的，
+//!   下一次请求接着上一次往下长。
 //!
 //! 还查自己走到了没有：三百例里每条路至少走到一次，不然查的是空话。
 
@@ -31,6 +33,7 @@ use std::collections::BTreeSet;
 use super::approval::answer;
 use super::permission::{read_only, switch};
 use super::question::reply;
+use super::revert::{revert, unrevert};
 use super::*;
 use crate::accumulate::{Delta, Kind};
 use crate::event::{
@@ -278,6 +281,32 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
     }
 }
 
+/// 撤销、恢复，另用一串随机数：原来那串输入不跟着错开。空闲时四回里有一回，回合开着时五十回里
+/// 一回（该被拒）。能恢复的时候一半是恢复，不能的时候十回里一回（该被拒）；撤销多半从还在有效历史
+/// 里的最后三轮之一起，偶尔是对不上的。
+fn some_undo(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> Option<Input> {
+    let chance = if watch.turn_open() { 50 } else { 4 };
+    if rng.below(chance) != 0 {
+        return None;
+    }
+    let n = next_command(next_id);
+    let redo = match watch.undo.can_unrevert() {
+        true => rng.below(2) == 0,
+        false => rng.below(10) == 0,
+    };
+    if redo {
+        return Some(unrevert(n));
+    }
+    let effective = &watch.undo.effective;
+    let turn = match effective.len() {
+        k if k > 0 && rng.below(6) > 0 => effective[k - 1 - rng.below(k.min(3) as u64) as usize]
+            .started()
+            .get(),
+        _ => 1 + rng.below(watch.last()),
+    };
+    Some(revert(n, turn))
+}
+
 /// 常用的那一级：多半是认识的，偶尔是不认识的，要被拒绝。
 fn some_level(rng: &mut Rng) -> Level {
     match rng.below(5) {
@@ -346,13 +375,18 @@ fn random_inputs_keep_the_rules() {
         // 双数的种子风平浪静：打断、乱来的增量少，一轮才走得深；单数的种子专门捣乱。
         watch.calm = seed % 2 == 0;
         let mut next_id = 1;
-        // 崩不崩另用一串随机数：原来那串输入不跟着错开。
+        // 崩不崩、撤不撤另用两串随机数，撤销、恢复夹在原来的输入之间、不占名额：原来那串输入
+        // 不跟着错开。
         let mut crashes = Rng(seed ^ 0x00C0_FFEE);
+        let mut undos = Rng(seed ^ 0x0DD0_0DD0);
         for _ in 0..300 {
             if watch.all_stored() && crashes.below(200) == 0 {
                 let planned = crashes.below(2) == 0;
                 session = watch.reload(session, planned, random_policy(attended));
                 continue;
+            }
+            if let Some(input) = some_undo(&mut undos, &watch, &mut next_id) {
+                watch.feed(&mut session, input);
             }
             let input = some_input(&mut rng, &mut watch, &mut next_id);
             watch.feed(&mut session, input);
@@ -405,6 +439,12 @@ fn random_inputs_keep_the_rules() {
         "崩了以后收尾",
         "有计划地重启",
         "重启后接着干",
+        "撤销了",
+        "撤销被拒",
+        "撤销带走了上一轮排着的",
+        "恢复了",
+        "恢复被拒",
+        "恢复以后接着说",
     ];
     for path in expected {
         assert!(paths.contains(path), "三百例里一次都没走到「{path}」");

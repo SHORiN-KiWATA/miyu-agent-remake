@@ -163,3 +163,30 @@ fn a_turn_that_finishes_starts_the_count_again() {
         log.extend(appended_events(&loaded.handle(restarting())));
     }
 }
+
+#[test]
+fn after_you_speak_the_count_starts_again() {
+    // 连着 4 轮被重启打断，不再接。
+    let mut logged = Logged::new();
+    logged.ask(1, "hi");
+    logged.handle(restarting());
+    let mut log = logged.log.clone();
+    for _ in 1..=3 {
+        let (mut loaded, actions) = load(log.clone());
+        log.extend(appended_events(&actions));
+        let last = log.last().unwrap().seq.get();
+        loaded.handle(stored(last));
+        log.extend(appended_events(&loaded.handle(restarting())));
+    }
+    let (session, actions) = load(log.clone());
+    assert!(actions.is_empty(), "连着 4 轮被重启打断，不再接");
+    // 你开口开的那一轮，从头数：它被重启打断了，照样接着干。
+    let mut logged = Logged { session, log };
+    logged.ask(2, "接着来");
+    logged.handle(restarting());
+    let (_, actions) = load(logged.log.clone());
+    assert!(
+        !appended(&actions).is_empty(),
+        "你开口以后开的那一轮从头数，被重启打断了照样接着干"
+    );
+}

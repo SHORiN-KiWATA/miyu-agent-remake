@@ -11,6 +11,7 @@ mod lookup;
 mod permission;
 mod question;
 mod queue;
+mod undo;
 
 /// 看守。
 pub(super) struct Watch {
@@ -21,6 +22,8 @@ pub(super) struct Watch {
     /// 每个编号收到了几次、回应了几次。
     pub(super) received: BTreeMap<CommandId, usize>,
     pub(super) replied: BTreeMap<CommandId, usize>,
+    /// 接受过的编号：再来不再生效。拒绝过的不算，再来就重新判（`02-内核.md` 第四节）。
+    accepted: BTreeSet<CommandId>,
     /// 叫跑过挂接点的回合；送回过对得上的结果的回合；跑过结束挂接点的回合。
     pub(super) hooked: BTreeSet<TurnId>,
     done: BTreeSet<TurnId>,
@@ -61,6 +64,8 @@ pub(super) struct Watch {
     pub(super) questions: question::Questions,
     /// 重启：连着几轮被有计划的重启打断，最后那一轮结束时排着队的。
     restarts: load::Restarts,
+    /// 撤销：有效历史里还有哪几轮、能恢复的几次、请求里不该有的几条。
+    pub(super) undo: undo::Undo,
 }
 
 impl Watch {
@@ -71,6 +76,7 @@ impl Watch {
             pushed: BTreeSet::from([seq(1)]),
             received: BTreeMap::new(),
             replied: BTreeMap::new(),
+            accepted: BTreeSet::new(),
             hooked: BTreeSet::new(),
             done: BTreeSet::new(),
             end_hooked: BTreeSet::new(),
@@ -96,12 +102,18 @@ impl Watch {
             approvals: approval::Approvals::new(),
             questions: question::Questions::new(),
             restarts: load::Restarts::default(),
+            undo: undo::Undo::default(),
         }
     }
 
     /// 在路上、还没报发出去了的那次请求。
     pub(super) fn unsent(&self) -> Option<Seq> {
         self.asking.filter(|seen| !self.sent.contains(seen))
+    }
+
+    /// 这个编号送进去，内核会不会当新命令判：没接受过的都会，拒绝过的也会。
+    pub(super) fn fresh(&self, id: &CommandId) -> bool {
+        !self.accepted.contains(id)
     }
 
     /// 追加过的最后一条。造会话那一条算在里面。
@@ -114,17 +126,20 @@ impl Watch {
     pub(super) fn feed(&mut self, session: &mut Session, input: Input) {
         let judged = self.before_approval(&input);
         let replied = self.before_question(&input);
+        let undone = self.before_undo(&input);
         let fresh_interrupt = match &input {
             Input::Command(command) => match command.command {
-                Command::Interrupt { queued } if !self.received.contains_key(&command.id) => {
-                    Some(queued)
-                }
+                Command::Interrupt { queued } if self.fresh(&command.id) => Some(queued),
                 _ => None,
             },
             _ => None,
         };
         self.interrupting = fresh_interrupt;
         let was_open = self.turn_open();
+        let command = match &input {
+            Input::Command(command) => Some(command.id.clone()),
+            _ => None,
+        };
         match &input {
             Input::Command(command) => {
                 *self.received.entry(command.id.clone()).or_default() += 1;
@@ -139,11 +154,20 @@ impl Watch {
             _ => {}
         }
         let actions = session.handle(input);
+        if let Some(id) = command {
+            let rejected = actions.iter().any(|action| {
+                matches!(action, Action::Reply { id: replied, outcome: Outcome::Rejected { .. } } if *replied == id)
+            });
+            if !rejected {
+                self.accepted.insert(id);
+            }
+        }
         if fresh_interrupt.is_some() {
             self.interrupted(&actions, was_open);
         }
         self.after_approval(&actions, judged);
         self.after_question(&actions, replied);
+        self.after_undo(&actions, undone);
         for action in actions {
             self.check(action);
         }
@@ -269,31 +293,20 @@ impl Watch {
             "种子 {seed}：上一步还有调用没结果就请求"
         );
         assert_eq!(seen.get(), self.last(), "种子 {seed}：seen 是最后一条");
-        // 请求照的是全部历史，撤回的消息和撤回那一条除外。
-        let withdrawn: BTreeSet<Seq> = self
-            .events
-            .iter()
-            .filter_map(|event| match &event.body {
-                Body::MessageWithdrawn(withdrawn) => Some(withdrawn.messages.clone()),
-                _ => None,
-            })
-            .flatten()
-            .collect();
+        // 请求照的是全部历史，撤回的、撤掉的，和撤回、撤销、恢复那几条本身除外。
         let mut all = vec![self.created()];
         all.extend(
             self.events
                 .iter()
-                .filter(|event| {
-                    !withdrawn.contains(&event.seq)
-                        && !matches!(event.body, Body::MessageWithdrawn(_))
-                })
+                .filter(|event| !self.undo.gone.contains(&event.seq))
                 .cloned(),
         );
         assert_eq!(
             listed_request(request),
             listing(&all),
-            "种子 {seed}：请求照全部历史，撤回的除外"
+            "种子 {seed}：请求照全部历史，撤回的、撤掉的除外"
         );
+        self.undo_request(seen);
         self.permission_request();
         let count = self.requests.entry(turn).or_default();
         *count += 1;
@@ -402,10 +415,11 @@ impl Watch {
             }
             match &event.body {
                 Body::TurnEnded(ended) => self.note_ended(event, &ended.reason),
-                Body::TurnStarted(_) => self.note_started(),
+                Body::TurnStarted(started) => self.note_started(started.trigger),
                 _ => {}
             }
             self.queue_check(&events, k);
+            self.undo_check(&events, k);
             self.permission_check(&events, k);
             self.approval_check(&events, k);
             self.question_check(&events, k);
@@ -456,6 +470,7 @@ impl Watch {
                 );
             }
         }
+        self.undo_called(called);
         if self.asking == Some(called.seen) {
             self.asking = None;
         }

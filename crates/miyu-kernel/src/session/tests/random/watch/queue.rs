@@ -42,6 +42,10 @@ impl Watch {
                             matches!(next, Some(Body::TurnStarted(started)) if started.trigger == last),
                             "种子 {seed}：还有排着队的 {last}，回合结束后应该由它接着开一轮"
                         );
+                        // 接着开的那一轮，接过去的是排着的这几句：撤它的时候一起撤。
+                        self.undo
+                            .picked
+                            .insert(TurnId::new(events[k + 1].seq), self.queued.clone());
                         self.seen_paths
                             .insert(if ended.reason == EndReason::Interrupted {
                                 "打断后排队的接着发"

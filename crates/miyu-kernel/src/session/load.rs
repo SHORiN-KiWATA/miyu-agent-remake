@@ -1,6 +1,7 @@
 //! 从日志载入（`docs/designs/02-内核.md` 第六节「载入、崩溃、重启」第 1、2、4 条）：一条条过账本，
 //! 重建有效历史、现在的权限、最近的命令编号。日志停在一个没结束的回合里，就是崩了：那一轮收尾，
-//! 等人开口。最后一轮是被有计划的重启打断的：自动开一轮接着干。
+//! 等人开口。最后一轮是被有计划的重启打断的：自动开一轮接着干；那以后撤销过的不接（第六节
+//! 「撤销与恢复」）。
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -49,7 +50,7 @@ struct Replay {
     opened: Option<CommandId>,
     /// 最后结束的那个回合。
     ended: Option<Ended>,
-    /// 连着几轮是被有计划的重启打断的。
+    /// 连着几轮是被有计划的重启打断的：数的是被打断、接着干、又被打断的那一串，别的回合开了就从头数。
     restarts: u32,
     /// 每个命令编号，和 `cause` 是它的那几条，照编号第一次出现的先后。
     commands: Vec<(CommandId, Vec<Seq>)>,
@@ -179,6 +180,15 @@ impl Session {
 }
 
 impl Replay {
+    /// 由 `trigger` 开的这一轮，是不是被重启打断以后接着干的那一轮：最后结束的那一轮是被有计划的
+    /// 重启打断的，这一轮由那时排着队的最后一条触发，没有排着队的，由那条结束触发（[`Session::recover`]）。
+    fn resumes(&self, trigger: Seq) -> bool {
+        self.ended.as_ref().is_some_and(|ended| {
+            ended.reason == EndReason::Restarted
+                && ended.queued.last().copied().unwrap_or(ended.seq) == trigger
+        })
+    }
+
     /// 读进来一条：记下它带来的变化。`queued` 是这一条之前还排着队的消息。
     fn note(&mut self, event: &Event, queued: Vec<Seq>) {
         self.last = Some(event.seq);
@@ -188,7 +198,10 @@ impl Replay {
                 permission: Some(permission),
                 ..
             }) => self.permission = Some(permission.clone()),
-            Body::TurnStarted(_) => {
+            Body::TurnStarted(started) => {
+                if !self.resumes(started.trigger) {
+                    self.restarts = 0;
+                }
                 self.opened = event.cause.clone();
                 self.causes.clear();
             }
@@ -207,6 +220,8 @@ impl Replay {
                     queued,
                 });
             }
+            // 撤销过的不接着干：人已经动过它了。
+            Body::TurnReverted(_) => self.ended = None,
             _ => {}
         }
         if let Some(id) = &event.cause {

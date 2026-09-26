@@ -50,15 +50,13 @@ impl Watch {
                 self.approvals.verdicts.insert(*call_id, verdict.clone());
                 None
             }
-            Input::Command(received) if !self.received.contains_key(&received.id) => {
-                match &received.command {
-                    Command::Answer {
-                        call_id,
-                        answer: Answer::Approval { decision, reason },
-                    } => Some(self.judge(*call_id, decision, reason.as_deref())),
-                    _ => None,
-                }
-            }
+            Input::Command(received) if self.fresh(&received.id) => match &received.command {
+                Command::Answer {
+                    call_id,
+                    answer: Answer::Approval { decision, reason },
+                } => Some(self.judge(*call_id, decision, reason.as_deref())),
+                _ => None,
+            },
             _ => None,
         }
     }

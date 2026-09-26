@@ -56,12 +56,13 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
                 blocks: known(&result.blocks),
             }),
             // 不进上下文的：会话的事件、请人确认和人的决定、问人和人的回答（她看到的只有工具
-            // 结果）、模型调用的记录、不认识的种类。压缩、撤销、撤回已经由有效历史用掉了，这里碰不到。一个个列出来，
+            // 结果）、模型调用的记录、不认识的种类。压缩、撤销、恢复、撤回已经由有效历史用掉了，这里碰不到。一个个列出来，
             // 加一种事件时编译器会逼着决定它渲不渲染。
             Body::SessionCreated(_)
             | Body::PolicyChanged(_)
             | Body::MetaChanged(_)
             | Body::TurnReverted(_)
+            | Body::TurnUnreverted(_)
             | Body::MessageWithdrawn(_)
             | Body::ApprovalRequested(_)
             | Body::ApprovalDecided(_)

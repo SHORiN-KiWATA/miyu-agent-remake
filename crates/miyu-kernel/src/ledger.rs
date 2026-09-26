@@ -34,8 +34,12 @@ pub struct Ledger {
     questioning: BTreeSet<CallId>,
     /// 最近一次压缩替代到哪。
     compacted: Option<Seq>,
-    /// 最近一次压缩以后开过的回合，撤销只能撤它们。压缩一次，更早的就丢掉。
+    /// 最近一次压缩以后开过、还没撤掉的回合，撤销只能撤它们。压缩一次，更早的就丢掉；撤掉的
+    /// 拿走，恢复了再放回来。
     turns: BTreeSet<TurnId>,
+    /// 还能恢复的几次撤销，各撤了哪几轮，最近的一次在最后。下一轮开始、压缩了，就都不能恢复了
+    /// （`02-内核.md` 第六节「撤销与恢复」）。
+    undone: Vec<Vec<TurnId>>,
     /// 正在进行的回合里排着队的消息：回合中途来的 `message.user`，还没被哪次请求看到过。
     /// 只有它们能撤回（`02-内核.md` 第六节「排队的消息」）。请求看到了、回合结束了，就清掉。
     queued: BTreeSet<Seq>,
@@ -52,6 +56,7 @@ impl Default for Ledger {
             questioning: BTreeSet::new(),
             compacted: None,
             turns: BTreeSet::new(),
+            undone: Vec::new(),
             queued: BTreeSet::new(),
         }
     }
@@ -76,6 +81,24 @@ impl Ledger {
     /// 正在进行的回合里排着队的消息，照先后。
     pub fn queued(&self) -> Vec<Seq> {
         self.queued.iter().copied().collect()
+    }
+
+    /// 还在有效历史里的回合 `turn`，和它以后还在的每一轮，照先后：从它起撤销，撤的就是这些。
+    /// `turn` 不在有效历史里的，没有。
+    pub fn turns_from(&self, turn: TurnId) -> Option<Vec<TurnId>> {
+        self.turns
+            .contains(&turn)
+            .then(|| self.turns.range(turn..).copied().collect())
+    }
+
+    /// 最近一次压缩替代到哪；没压缩过就没有。
+    pub fn compacted(&self) -> Option<Seq> {
+        self.compacted
+    }
+
+    /// 最近一次还能恢复的撤销，撤了哪几轮；没有能恢复的就没有。
+    pub fn last_reverted(&self) -> Option<&[TurnId]> {
+        self.undone.last().map(Vec::as_slice)
     }
 
     /// 查 `event` 能不能追加；能，就记下它带来的变化。
@@ -148,16 +171,8 @@ impl Ledger {
                 Err(format!("seen {} 应该在这一条之前", called.seen))
             }
             Body::MessageWithdrawn(withdrawn) => self.check_withdrawal(&withdrawn.messages),
-            Body::TurnReverted(reverted) => {
-                match reverted
-                    .turns
-                    .iter()
-                    .find(|turn| !self.turns.contains(turn))
-                {
-                    Some(turn) => Err(format!("回合 {turn} 不存在，或者在最近一次压缩之前")),
-                    None => Ok(()),
-                }
-            }
+            Body::TurnReverted(reverted) => self.check_revert(&reverted.turns),
+            Body::TurnUnreverted(unreverted) => self.check_unrevert(&unreverted.turns),
             _ => Ok(()),
         }
     }
@@ -227,6 +242,42 @@ impl Ledger {
         Ok(())
     }
 
+    /// 撤销：没有回合在进行；撤的是还在有效历史里的某一轮，和它以后还在的每一轮，照先后，一轮
+    /// 不漏（`02-内核.md` 第六节「撤销与恢复」）。中间的一轮不能单独撤：后面几轮都是看着它做的。
+    fn check_revert(&self, turns: &[TurnId]) -> Result<(), String> {
+        if let Some(open) = self.open {
+            return Err(format!("回合 {open} 还在进行，撤销不了"));
+        }
+        let Some(&first) = turns.first() else {
+            return Err("撤销的列表是空的".to_string());
+        };
+        if let Some(turn) = turns.iter().find(|turn| !self.turns.contains(turn)) {
+            return Err(format!(
+                "回合 {turn} 不在有效历史里：不存在、在最近一次压缩之前，或者已经撤掉了"
+            ));
+        }
+        let expected: Vec<TurnId> = self.turns.range(first..).copied().collect();
+        match turns == expected.as_slice() {
+            true => Ok(()),
+            false => Err(format!(
+                "要从回合 {first} 起往后全撤，照先后：{}",
+                listed(&expected)
+            )),
+        }
+    }
+
+    /// 恢复：正好是最近一次撤销的那几轮；那以后没开过回合，也没压缩过。
+    fn check_unrevert(&self, turns: &[TurnId]) -> Result<(), String> {
+        match self.undone.last() {
+            None => Err("没有能恢复的撤销：没撤过，或者撤了以后开过回合、压缩过".to_string()),
+            Some(last) if last.as_slice() != turns => Err(format!(
+                "恢复的应该是最近一次撤销的那几轮：{}",
+                listed(last)
+            )),
+            Some(_) => Ok(()),
+        }
+    }
+
     /// 压缩只前进：替代到的位置在这一条之前，而且不早于上一次。
     fn check_compaction(&self, seq: Seq, upto: Seq) -> Result<(), String> {
         if upto >= seq {
@@ -248,6 +299,7 @@ impl Ledger {
                 let turn = TurnId::new(event.seq);
                 self.open = Some(turn);
                 self.turns.insert(turn);
+                self.undone.clear();
                 self.queued.clear();
             }
             Body::MessageUser(_) if event.turn.is_some() && event.turn == self.open => {
@@ -289,6 +341,17 @@ impl Ledger {
             Body::ContextCompacted(compacted) => {
                 self.compacted = Some(compacted.upto);
                 self.turns.retain(|turn| turn.started() > compacted.upto);
+                self.undone.clear();
+            }
+            Body::TurnReverted(reverted) => {
+                for turn in &reverted.turns {
+                    self.turns.remove(turn);
+                }
+                self.undone.push(reverted.turns.clone());
+            }
+            Body::TurnUnreverted(unreverted) => {
+                self.undone.pop();
+                self.turns.extend(unreverted.turns.iter().copied());
             }
             _ => {}
         }
@@ -309,6 +372,12 @@ fn in_turn_only(body: &Body) -> bool {
             | Body::MessageWithdrawn(_)
             | Body::TurnEnded(_)
     )
+}
+
+/// 几个回合编号，写成「11、12」。
+fn listed(turns: &[TurnId]) -> String {
+    let turns: Vec<String> = turns.iter().map(ToString::to_string).collect();
+    turns.join("、")
 }
 
 /// 块是工具调用的话，它的调用编号。

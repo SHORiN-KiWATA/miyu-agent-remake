@@ -5,7 +5,7 @@ use super::*;
 
 impl Watch {
     /// 有没有回合开着：最后开的那个还没结束。
-    pub(super) fn turn_open(&self) -> bool {
+    pub(in super::super) fn turn_open(&self) -> bool {
         let started = self
             .events
             .iter()

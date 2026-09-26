@@ -1,9 +1,10 @@
-//! 有效历史的测试：没压缩过时全都在；压缩一次、再压一次；被动压缩保下来的尾巴；
-//! 撤销去掉那一轮，连同人亲口发的触发消息；别处来的触发留着。
-//! 事件都先交给账本查过，保证测的是合规的日志。
+//! 有效历史的测试：没压缩过时全都在；压缩一次、再压一次；被动压缩保下来的尾巴；照请求排；
+//! 撤回。撤销与恢复在 `tests/undo.rs`。事件都先交给账本查过，保证测的是合规的日志。
 
 use super::*;
 use crate::ledger::Ledger;
+
+mod undo;
 
 const CREATED: &str = r#"{"owner":"alice","venue":"local","policy":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","permission":{"level":"workspace","read_only":false}}"#;
 const ALICE: &str = r#"{"kind":"person","account":"alice"}"#;
@@ -164,38 +165,6 @@ fn the_latest_checkpoint_replaces_the_one_before() {
     let history = feed(events);
     assert_eq!(checkpoint(&history), Some(15));
     assert_eq!(seqs(&history), vec![12, 13, 14]);
-}
-
-/// 撤掉第二轮：7 到 9 去掉，触发它的 6 是人亲口发的，也去掉；撤销这一条本身不留。
-#[test]
-fn undo_takes_the_turn_and_the_message_that_asked_for_it() {
-    let mut events = two_turns();
-    events.push(reverted(10, &[7]));
-    let history = feed(events);
-    assert_eq!(seqs(&history), vec![1, 2, 3, 4, 5]);
-}
-
-#[test]
-fn undo_leaves_the_other_turns_alone() {
-    let mut events = two_turns();
-    events.push(reverted(10, &[3]));
-    let history = feed(events);
-    assert_eq!(seqs(&history), vec![1, 6, 7, 8, 9]);
-}
-
-/// 群里别人说的话、另一个会话发来的消息、定时触发，都是别处来的：
-/// 撤掉的只是她对它们的反应，它们自己留着。
-#[test]
-fn undo_keeps_triggers_that_came_from_elsewhere() {
-    let mut events = vec![created(), message(2, GROUP_MEMBER)];
-    events.extend(turn(3, 2));
-    events.push(message(6, ANOTHER_SESSION));
-    events.extend(turn(7, 6));
-    events.push(event(10, None, TIMER, "ext.timer.fired", "{}"));
-    events.extend(turn(11, 10));
-    events.push(reverted(14, &[3, 7, 11]));
-    let history = feed(events);
-    assert_eq!(seqs(&history), vec![1, 2, 6, 10]);
 }
 
 /// 03 第六节那一回合，序号挪了一挪：回复 5 调了两个工具、看到 4；第二个调用的结果 6 先回来；

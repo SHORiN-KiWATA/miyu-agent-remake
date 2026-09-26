@@ -38,7 +38,7 @@ impl Watch {
         let Input::Command(received) = input else {
             return None;
         };
-        if self.received.contains_key(&received.id) {
+        if !self.fresh(&received.id) {
             return None;
         }
         match &received.command {

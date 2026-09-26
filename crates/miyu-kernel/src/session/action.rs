@@ -124,6 +124,14 @@ pub enum Reason {
     UnexpectedReason,
     /// 回答对不上题目：题数不对、选了没有的选项、单选的选了几项、同一项选了两次。
     BadAnswer,
+    /// 有回合在进行，撤销不了：头先打断再撤（`02-内核.md` 第六节「撤销与恢复」）。
+    TurnRunning,
+    /// 要撤的那一轮不在有效历史里：没有这一轮，或者已经撤掉了。
+    UnknownTurn,
+    /// 要撤的那一轮已经压缩进摘要了：要回到那之前，从那里分叉。
+    Compacted,
+    /// 没有能恢复的撤销：没撤过，或者撤了以后开过回合、压缩过。
+    NothingToUnrevert,
 }
 
 impl Reason {
@@ -138,6 +146,10 @@ impl Reason {
             Reason::NoRule => "no_rule",
             Reason::UnexpectedReason => "unexpected_reason",
             Reason::BadAnswer => "bad_answer",
+            Reason::TurnRunning => "turn_running",
+            Reason::UnknownTurn => "unknown_turn",
+            Reason::Compacted => "compacted",
+            Reason::NothingToUnrevert => "nothing_to_unrevert",
         }
     }
 }

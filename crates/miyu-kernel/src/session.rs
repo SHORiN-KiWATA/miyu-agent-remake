@@ -19,6 +19,7 @@ mod question;
 mod queue;
 mod recent;
 mod restart;
+mod revert;
 mod step;
 mod tools;
 mod turn;
@@ -208,6 +209,8 @@ impl Session {
                 call_id,
                 answer: Answer::Questions(answers),
             } => self.answer_question(id, by, at, call_id, answers),
+            Command::Revert { turn } => self.revert(id, by, at, turn),
+            Command::Unrevert => self.unrevert(id, by, at),
         }
     }
 

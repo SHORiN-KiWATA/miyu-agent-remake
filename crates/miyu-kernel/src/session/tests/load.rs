@@ -54,6 +54,11 @@ impl Logged {
 
     /// 发 `words`，开回合，全落了盘，挂接点跑完，请求交给了执行器：返回这次请求的 `seen`。
     pub(super) fn ask(&mut self, n: u64, words: &str) -> u64 {
+        self.open(n, words).0.get()
+    }
+
+    /// 同上，返回这次请求：`seen`，和替身的组装列出来的有效历史。
+    pub(super) fn open(&mut self, n: u64, words: &str) -> (Seq, String) {
         self.handle(send(n, words));
         self.handle(stored(self.last()));
         let turn = self
@@ -64,7 +69,7 @@ impl Logged {
             .map(|event| TurnId::new(event.seq))
             .unwrap();
         let actions = self.handle(hooks_done(turn, Vec::new()));
-        calls(&actions)[0].0.get()
+        calls(&actions).remove(0)
     }
 
     /// 请求 `seen` 调了这几件工具，说完了，回复落了盘，链都放行。

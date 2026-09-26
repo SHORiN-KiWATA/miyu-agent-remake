@@ -41,7 +41,15 @@ text_enum!(
 /// `turn.reverted`：撤销哪几个回合。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TurnReverted {
-    /// 被撤销的回合。撤销以后，投影里不再有它们（`03-事件模型.md` 第七节）。
+    /// 被撤销的回合：某一轮，和它以后还在有效历史里的每一轮，照先后（`02-内核.md` 第六节
+    /// 「撤销与恢复」）。撤销以后，投影里不再有它们（`03-事件模型.md` 第七节）。
+    pub turns: Vec<TurnId>,
+}
+
+/// `turn.unreverted`：恢复最近一次撤销的那几轮（`02-内核.md` 第六节「撤销与恢复」）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TurnUnreverted {
+    /// 恢复的回合：照那一条 `turn.reverted` 原样写。投影里它们回到原来的位置。
     pub turns: Vec<TurnId>,
 }
 

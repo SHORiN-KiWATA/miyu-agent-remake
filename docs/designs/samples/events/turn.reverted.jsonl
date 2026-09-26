@@ -1,1 +1,2 @@
 {"seq":53,"at":"2026-09-25T07:06:00.000Z","kind":"turn.reverted","by":{"kind":"person","account":"alice"},"cause":"cmd-a4f1","body":{"turns":[42]}}
+{"seq":85,"at":"2026-09-25T07:41:00.000Z","kind":"turn.reverted","by":{"kind":"person","account":"alice"},"cause":"cmd-4e5b","body":{"turns":[76]}}

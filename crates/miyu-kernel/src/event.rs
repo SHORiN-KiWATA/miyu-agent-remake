@@ -29,7 +29,7 @@ pub use question::{Choice, Question, QuestionAnswered, QuestionAsked, Response, 
 pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated};
 pub use tool::{ApprovalDecided, ApprovalRequested, Decision, ToolResult, ToolStatus};
 pub use transient::{ModelDelta, Piece, ToolProgress, Transient, TransientBody};
-pub use turn::{EndReason, TurnEnded, TurnReverted, TurnStarted};
+pub use turn::{EndReason, TurnEnded, TurnReverted, TurnStarted, TurnUnreverted};
 
 /// 一条事件：已经发生的一件事。追加进日志以后不改、不删；撤销和压缩也是追加一条新事件
 /// （`03-事件模型.md` 第一节）。
@@ -114,6 +114,8 @@ bodies! {
     TurnEnded = "turn.ended",
     /// 撤销了几个回合。
     TurnReverted = "turn.reverted",
+    /// 恢复了最近一次撤销的回合。
+    TurnUnreverted = "turn.unreverted",
     /// 人发来的消息，或者另一个会话发来的消息。
     MessageUser = "message.user",
     /// 模型一次响应的完整内容，工具调用也在里面。
