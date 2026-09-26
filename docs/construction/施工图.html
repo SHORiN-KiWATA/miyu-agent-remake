@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>35</b><span>/ 42 步<strong>已完成</strong>，会话日志真的落了盘</span></li>
+    <li><b>36</b><span>/ 43 步<strong>已完成</strong>，新版的代码里不认旧版</span></li>
     <li><b>3-3</b><span>下一步：blob，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">fbd2a73</b><span>最近一步（3-2）的提交</span></li>
+    <li><b class="mono">28d51b0</b><span>最近一步（3-1 再补）的提交</span></li>
   </ul>
 </header>
 
@@ -349,6 +349,7 @@ a.step:hover{border-color:var(--primary)}
       <ol class="chips">
         <li><a class="step done" href="#s3-1"><span class="n">3-1</span>数据根<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-1b"><span class="n">3-1</span>数据根挪到 ~/.miyu（补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s3-1c"><span class="n">3-1</span>数据根不认旧版（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-2"><span class="n">3-2</span>会话日志文件<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-3</span>blob</span></li>
         <li><span class="step"><span class="n">3-4</span>驱动接口与编解码</span></li>
@@ -3093,6 +3094,76 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-1c" aria-labelledby="h-s31c">
+  <div class="sheet-head"><h2 id="h-s31c"><span class="no">3-1</span>数据根不认旧版（再补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">新版的代码里不留旧版的知识：认出旧版的那一格拿掉，认不出的数据根只有一种说法。「认不出就不碰」照旧，它本来就不靠认出旧版。旧版的数据等全部做完以后，用一个单独的迁移程序迁过来。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">认不出的 · root.rs</span><span class="dir-note">07 第二节「认得出自己的数据根才动它」</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">只有一种说法</span><span class="rl">「里有别的东西，认不出是 Miyu 的数据根（顶层没有 .miyu-root），不动它。设 MIYU_HOME 指到一个空目录」</span></div>
+              <div class="tile"><span class="nm">拿掉的</span><span class="rl">顶层有 config/ 就说「像是旧版 Miyu 的数据」</span></div>
+              <div class="tile"><span class="nm">照旧</span><span class="rl">不是空的又没有标记，一个字节都不动；连一个隐藏文件也算</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">迁移 · 你定的</span><span class="dir-note">迁移图纸 27</span></div>
+            <ol class="pipe" aria-label="迁移的先后">
+              <li>并行期：旧版照常用，新版设 MIYU_HOME 指到别处</li>
+              <li>全部做完以后：单独的迁移程序，先把旧目录打成压缩包，读包里解出的副本</li>
+              <li>聊天记录迁成只读存档，记忆原样存着，新版就位在 ~/.miyu</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">新版不背旧版的兼容债</span><span class="rl">旧版的格式只有迁移程序认得</span></div>
+          <div class="tile new"><span class="nm">报错说出为什么认不出</span><span class="rl">写明目录和 .miyu-root；不说「新版」，也不说「先迁过来」</span></div>
+          <div class="tile"><span class="nm">放一个目录的情形留着</span><span class="rl">只有一个目录也算有东西</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-1（再补）</dd></div>
+        <div><dt>名称</dt><dd>数据根不认旧版（再补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">28d51b0</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>root.rs</code>：去掉认旧版的那一格；<code>PrepareError::NotOurs</code> 只带目录。</li>
+        <li>图纸：新画迁移图纸 27；07 第二节那一条改成一种说法。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>改了 2 个测试：只放一个文件的、只放一个目录的、只有一个隐藏文件的都报认不出，报错里写着目录和 .miyu-root，一个字节都不动</span></li>
+        <li><span class="ok">✓</span><span>故意改坏四处，每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/27-从旧版迁过来.md</code>：MG1 到 MG5。</li>
+        <li><code>docs/designs/07-存储.md</code> 第二节。</li>
+        <li><code>docs/construction/3-1-数据根不认旧版（再补）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -3269,7 +3340,7 @@ const BUILD = {
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
-  n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾' },
+  n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾' },
 };
 
 const svg = document.getElementById('bmap');
