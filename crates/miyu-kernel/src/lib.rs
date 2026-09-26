@@ -20,7 +20,8 @@
 //! - [`accumulate`]：流式累积器，模型输出的增量拼成完整的内容块；
 //! - [`raw`]：原样的 JSON，驱动私有数据和不认识的种类都用它；
 //! - [`template`]：模板与转义，给模型看的字怎么拼，不可信的字段怎么转；
-//! - [`tool`]：内核眼里的工具，访问类别、参数格式和参数修正。
+//! - [`tool`]：内核眼里的工具，访问类别、参数格式和参数修正；
+//! - `testkit`：测试用的执行器替身，只在 `testkit` 开关打开时编进去，内核自己的测试里总是有。
 
 pub mod accumulate;
 pub mod assemble;
@@ -36,6 +37,8 @@ pub mod raw;
 pub mod request;
 pub mod session;
 pub mod template;
+#[cfg(any(test, feature = "testkit"))]
+pub mod testkit;
 mod text_enum;
 pub mod time;
 pub mod tool;

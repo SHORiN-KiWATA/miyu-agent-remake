@@ -12,5 +12,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["raw_value"] }
 sha2 = { version = "0.11", default-features = false }
 
+[features]
+# 测试用的执行器替身（`src/testkit.rs`，施工 2-9）：别的 crate 的测试要用它，在自己的
+# dev-dependencies 里打开。内核自己的测试里总是编进去。
+testkit = []
+
 [lints]
 workspace = true

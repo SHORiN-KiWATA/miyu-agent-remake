@@ -17,6 +17,7 @@ mod random;
 mod reply;
 mod restart;
 mod revert;
+mod scenario;
 mod tools;
 mod turn;
 
