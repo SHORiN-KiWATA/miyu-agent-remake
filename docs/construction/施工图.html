@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>27</b><span>/ 39 步<strong>已完成</strong>，她能问你了</span></li>
-    <li><b>2-8</b><span>下一步：载入、崩溃恢复、撤销，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">f270c86</b><span>最近一步（2-7 下）的提交</span></li>
+    <li><b>28</b><span>/ 40 步<strong>已完成</strong>，关了再开，会话还在</span></li>
+    <li><b>2-8</b><span>下一步：撤销与恢复（下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">adec15c</b><span>最近一步（2-8 上）的提交</span></li>
   </ul>
 </header>
 
@@ -337,7 +337,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s2-7a"><span class="n">2-7</span>权限级别（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-7b"><span class="n">2-7</span>确认（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-7c"><span class="n">2-7</span>提问（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">2-8</span>载入、崩溃恢复、撤销</span></li>
+        <li><a class="step done" href="#s2-8a"><span class="n">2-8</span>载入与崩溃恢复（上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">2-8</span>撤销与恢复（下）</span></li>
         <li><span class="step"><span class="n">2-9</span>场景测试</span></li>
         <li><span class="step"><span class="n">2-10</span>随机测试</span></li>
       </ol>
@@ -2446,6 +2447,86 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s2-8a" aria-labelledby="h-s28a">
+  <div class="sheet-head"><h2 id="h-s28a"><span class="no">2-8</span>载入与崩溃恢复（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">会话能从日志重建出来：有效历史、现在的权限、最近接受的命令编号，一样不少。日志停在一个没结束的回合里，就是崩了：那一轮标成没走完，没跑完的调用补上结果，等你开口。有计划的重启（升级、你手动重启）关之前先把那一轮收拾好，再起来时自动接着干。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">载入 · session/load.rs</span><span class="dir-note">02 第六节「载入、崩溃、重启」</span></div>
+            <ol class="pipe" aria-label="载入一个会话">
+              <li>日志一条条过账本，坏日志在这里就拦下</li>
+              <li>重建有效历史、现在的权限、最近的命令编号</li>
+              <li>看最后一轮：崩了就收尾，被重启打断的就接着干</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">两种停法 · 你定的</span><span class="dir-note">不变量 8</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">真崩了</span><span class="rl">没结果的调用补「已取消：Miyu 重启了」，这一轮 aborted，等你开口</span></div>
+              <div class="tile new"><span class="nm">有计划的重启</span><span class="rl">关之前照打断收拾，这一轮 restarted；再起来自动开一轮接着干</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">接着干 · 由哪一条触发</span><span class="dir-note">每一轮都由一条事件引起</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">有排着队的</span><span class="rl">由最后一条触发</span></div>
+              <div class="tile new"><span class="nm">没有排着队的</span><span class="rl">由重启打断的那条结束触发，她看到为什么停了</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">连着 4 轮被重启打断就不接</span><span class="rl">一直重启、一直接，就一直花钱</span></div>
+          <div class="tile new"><span class="nm">编号照 cause 重建</span><span class="rl">保证同一个编号不再生效</span></div>
+          <div class="tile new"><span class="nm">API 出错重试 5 次</span><span class="rl">你定的，记进 15，模型驱动（M3）做</span></div>
+          <div class="tile new"><span class="nm">2-8 拆成两半</span><span class="rl">（下）撤销与恢复</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-8（上）</dd></div>
+        <div><dt>名称</dt><dd>载入与崩溃恢复（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">adec15c</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>session/load.rs</code>：<code>Session::load</code> 从日志重建；崩了的那一轮收尾；被重启打断的接着开一轮。</li>
+        <li><code>session/restart.rs</code>：输入「要重启了」，照打断收拾正在进行的回合，排着队的不接着开。</li>
+        <li><code>turn.ended</code> 多一种原因 <code>restarted</code>；给模型看的句子多两句（没跑完的调用、被重启打断的一轮）。</li>
+        <li>账本多了载入时要看的三样；策略里多一格「连着接着干几次」，初值 3。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>308 个测试全过，新加 12 个：载入以后接着走和不崩一样、坏日志拒绝、崩在各处都收尾、崩之前的编号不再生效、权限照日志回来、有计划的重启照打断收拾、再起来接着干（两种触发）、连着 4 轮不接；组装那边重启打断的那一句</span></li>
+        <li><span class="ok">✓</span><span>随机测试偶尔崩一下、有计划地重启一下，看守的检查在 watch/load.rs，三条新的路各有五六十个种子走到</span></li>
+        <li><span class="ok">✓</span><span>故意改坏二十一处，每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 308 个测试）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/02-内核.md</code> 第六节「载入、崩溃、重启」，第四节的表。</li>
+        <li><code>docs/designs/03-事件模型.md</code> 的 <code>restarted</code>；<code>08-上下文投影.md</code> 第四节；<code>07-存储.md</code> 第四节；<code>15-模型与供应商.md</code> M5。</li>
+        <li><code>docs/construction/2-8-载入与崩溃恢复（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -2620,7 +2701,7 @@ const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '17 种事件的写法、瞬时事件、追加时的检查' },
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
-  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问' },
+  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
 };
 
