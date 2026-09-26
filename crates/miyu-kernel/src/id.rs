@@ -104,6 +104,12 @@ impl ContentHash {
         }
         ContentHash(text)
     }
+
+    /// 去掉 `sha256:` 的那 64 位十六进制。blob 的文件名用它：Windows 的文件名里不许有冒号
+    /// （`07-存储.md` 第五节）。
+    pub fn hex(&self) -> &str {
+        self.0.strip_prefix("sha256:").unwrap_or(&self.0)
+    }
 }
 
 text_id!(

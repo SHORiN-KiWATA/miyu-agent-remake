@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 
 use miyu_kernel::id::{AccountId, SessionId};
 
+use crate::durable::{create_dir, sync_dir};
 use crate::env::{Env, Platform};
 
 /// 第一次用时建的四个顶层目录：系统区、家目录、状态区、运行时（`07-存储.md` 第二节）。
@@ -92,12 +93,22 @@ impl DataRoot {
         self.path.join("home")
     }
 
+    /// 一个账号的家目录：`home/<账号>/`，这个人产生的一切都在里面。
+    pub fn account_dir(&self, account: &AccountId) -> PathBuf {
+        self.homes().join(account.as_str())
+    }
+
     /// 一个会话的目录：`home/<账号>/sessions/<会话编号>/`（`07-存储.md` 第三节）。
     pub fn session_dir(&self, account: &AccountId, session: &SessionId) -> PathBuf {
-        self.homes()
-            .join(account.as_str())
+        self.account_dir(account)
             .join("sessions")
             .join(session.as_str())
+    }
+
+    /// 一个账号的 blob：`home/<账号>/blobs/`（`07-存储.md` 第五节）。按账号分开存，不跨账号
+    /// 去重（S5）。
+    pub fn blobs(&self, account: &AccountId) -> PathBuf {
+        self.account_dir(account).join("blobs")
     }
 
     /// 状态区：派生的全局索引、用量总表、运行日志。
@@ -120,7 +131,7 @@ impl DataRoot {
     ///
     /// 认不出是 Miyu 的数据根；建不了目录、写不了标记，或者该是目录的地方是个文件。
     pub fn prepare(&self) -> Result<(), PrepareError> {
-        create(&self.path)?;
+        create_dir(&self.path)?;
         let marker = self.path.join(MARKER);
         if fs::symlink_metadata(&marker).is_err() {
             if fs::read_dir(&self.path)?.next().is_some() {
@@ -132,9 +143,11 @@ impl DataRoot {
                 .open(&marker)?;
             file.write_all(MARKER_TEXT.as_bytes())?;
             file.sync_all()?;
+            // 同步数据根，标记这一项才算落盘：断电以后标记没了、骨架还在，下次就认不出自己了。
+            sync_dir(&self.path)?;
         }
         for name in SKELETON {
-            create(&self.path.join(name))?;
+            create_dir(&self.path.join(name))?;
         }
         Ok(())
     }
@@ -211,18 +224,6 @@ fn home(env: &Env) -> Result<&Path, RootError> {
 /// `LOCALAPPDATA`，要是绝对路径。
 fn local_app_data(env: &Env) -> Result<PathBuf, RootError> {
     absolute(&env.local_app_data).ok_or(RootError::NoLocalAppData)
-}
-
-/// 缺的才建，连同缺的上级目录：Unix 上权限 0700。已经有的不动。
-pub(crate) fn create(path: &Path) -> io::Result<()> {
-    let mut builder = fs::DirBuilder::new();
-    builder.recursive(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::DirBuilderExt;
-        builder.mode(0o700);
-    }
-    builder.create(path)
 }
 
 #[cfg(test)]

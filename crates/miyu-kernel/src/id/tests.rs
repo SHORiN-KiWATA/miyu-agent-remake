@@ -80,6 +80,11 @@ fn content_hash_of_known_contents() {
         ContentHash::of(b"").as_str(),
         "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     );
+    // 文件名用的那一截：去掉 sha256:，只剩 64 位。
+    assert_eq!(
+        ContentHash::of(b"").hex(),
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    );
 }
 
 #[test]

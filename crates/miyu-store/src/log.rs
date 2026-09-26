@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use miyu_kernel::event::Event;
 use miyu_kernel::id::Seq;
 
-use crate::root::create;
+use crate::durable::{create_dir, sync_dir};
 
 /// 一段的上限，初值，实测再定（07 第三节）：写一批之前这一段已经到了它，就开下一段。
 pub const SEGMENT_LIMIT: u64 = 64 * 1024 * 1024;
@@ -42,7 +42,7 @@ impl SessionLog {
     ///
     /// 建不了目录；第一段已经有了（不覆盖）。
     pub fn create(dir: &Path, limit: u64) -> io::Result<SessionLog> {
-        create(dir)?;
+        create_dir(dir)?;
         let file = new_segment(dir, Seq::FIRST)?;
         Ok(SessionLog {
             dir: dir.to_path_buf(),
@@ -106,18 +106,6 @@ fn new_segment(dir: &Path, first: Seq) -> io::Result<File> {
         .open(dir.join(segment_name(first)))?;
     sync_dir(dir)?;
     Ok(file)
-}
-
-/// 同步目录：Unix 上新建、改名以后要做，这一项才算落盘（07 第四节）。
-#[cfg(unix)]
-fn sync_dir(dir: &Path) -> io::Result<()> {
-    File::open(dir)?.sync_all()
-}
-
-/// Windows 上不用同步目录，也打不开目录来同步。
-#[cfg(not(unix))]
-fn sync_dir(_dir: &Path) -> io::Result<()> {
-    Ok(())
 }
 
 #[cfg(test)]
