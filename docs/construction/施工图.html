@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>41</b><span>/ 46 步<strong>已完成</strong>，出了错自己再来，说了一半的接着说</span></li>
-    <li><b>3-5</b><span>下一步：试玩台（补），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">90f7a68</b><span>最近一步（3-5 下）的提交</span></li>
+    <li><b>42</b><span>/ 46 步<strong>已完成</strong>，试玩台跟 DeepSeek 官方说上话了</span></li>
+    <li><b>3-5</b><span>下一步：接着说怎么改，<strong>等项目主人拍板</strong>；再往下 3-6</span></li>
+    <li><b class="mono">0230e4a</b><span>最近一步（3-5 补）的提交</span></li>
   </ul>
 </header>
 
@@ -285,6 +285,7 @@ a.step:hover{border-color:var(--primary)}
     <div class="piece"><span class="by">0-2</span><span class="nm">代码的六层（图纸）</span></div>
     <div class="piece"><span class="by">0-2</span><span class="nm">门禁 xtask</span></div>
     <div class="piece"><span class="by">0-3</span><span class="nm">三平台 CI</span></div>
+    <div class="piece"><span class="by">3-5</span><span class="nm">试玩台 miyu-try</span></div>
   </div>
   <ul class="legend" aria-label="拼图的图例">
     <li><span class="sw ghost"></span>还没拼</li>
@@ -356,7 +357,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-4b"><span class="n">3-4</span>流式解码、出错分类与驱动接口（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-5a"><span class="n">3-5</span>发请求与读流（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-5b"><span class="n">3-5</span>自动重试与接着说（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-5</span>试玩台（补）</span></li>
+        <li><a class="step done" href="#s3-5c"><span class="n">3-5</span>试玩台（补）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-6</span>策略快照</span></li>
         <li><span class="step"><span class="n">3-7</span>会话 actor</span></li>
         <li><span class="step"><span class="n">3-8</span>协议端点</span></li>
@@ -3560,6 +3561,79 @@ a.step:hover{border-color:var(--primary)}
         <li><code>docs/designs/02-内核.md</code> 第四节的表、第六节「回复怎么收」第 4 条。</li>
         <li><code>docs/designs/03-事件模型.md</code>（<code>interrupted</code>、<code>status</code>）、<code>docs/designs/15-模型与供应商.md</code> M5、<code>docs/designs/26-提示词.md</code> 第八节。</li>
         <li><code>docs/construction/3-5-自动重试与接着说（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s3-5c" aria-labelledby="h-s35c">
+  <div class="sheet-head"><h2 id="h-s35c"><span class="no">3-5</span>试玩台（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">先跟真模型说上话：一个进程内的试玩台，内核直接接 DeepSeek 官方，跳过核心进程和协议端点。终端里一行一行地说，思考和回复边出边显示，每次请求后面一行用量。连说两轮量出了缓存命中；拿真模型试了说到一半断了以后接不接得上。只能聊天，工具一件都没有。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一行话怎么走 · crates/miyu-try</span><span class="dir-note">工具 crate，不属于哪一层</span></div>
+            <ol class="pipe" aria-label="一行话怎么走">
+              <li>终端读一行，发给会话（内核）；一轮在走的时候来的字先攒着，Ctrl+C 打断这一轮</li>
+              <li>追加的写进会话日志（3-1、3-2），同步了才回「落盘了」，再推给终端</li>
+              <li>请求模型：组装、驱动编码，HTTP 执行器在另一个任务里发；增量、说完了送回会话那一队</li>
+              <li>出了错：内核交出到点叫醒，另一个任务睡够了送回「到点了」，再请求一次</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">实测 · DeepSeek 官方 deepseek-flash</span><span class="dir-note">2026-09-27</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">缓存</span><span class="rl">约 2400 token 的 system，第二轮上一次发过的 2396 里重算 92：按 128 一块缓存剩下的零头；隔 0 秒、10 秒一样；跨会话共用</span></div>
+              <div class="tile new"><span class="nm">掐在回复里</span><span class="rl">照现在的做法 4 次都从头说；system 里加一条规则，4 次都从断的地方接着说</span></div>
+              <div class="tile new"><span class="nm">掐在思考里</span><span class="rl">半截思考 DeepSeek 看不到，重想一遍；只有它的前缀续写带得上</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">是工具 crate</span><span class="rl">内核、组装、驱动、HTTP、存储接在一个进程里，放进哪一层都不对；谁也不依赖它</span></div>
+          <div class="tile new"><span class="nm">数据不落家目录的 .miyu</span><span class="rl">设了 MIYU_HOME 的照它，没设的每次开一个临时目录</span></div>
+          <div class="tile new"><span class="nm">key 在仓库外的文件里</span><span class="rl">~/.config/miyu-try/deepseek.env，只有本人能读；不打印、不进命令行</span></div>
+          <div class="tile new"><span class="nm">/cut 故意掐断</span><span class="rl">只为实测接着说：在思考或回复的第几段停下，照读到一半断了报</span></div>
+          <div class="tile"><span class="nm">接着说怎么改</span><span class="rl">等项目主人拍板</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-5（补）</dd></div>
+        <div><dt>名称</dt><dd>试玩台（补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">0230e4a</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过；真人试玩等项目主人</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>新的工具 crate <code>miyu-try</code>：<code>cargo run -p miyu-try</code>，<code>--model</code> 换模型，<code>--system</code> 换 system。</li>
+        <li>旧版的配置由一次性的脚本只抽 DeepSeek 那一项，key 写进仓库外只有本人能读的文件；新版的代码不读旧版。</li>
+        <li>图纸：01 第九节登记第二个工具 crate。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>假 DeepSeek 上三个场景：连说两轮是前缀延伸、故意掐断以后等一秒带着半截再来、限速照供应商说的等；卡住的 30 秒报红</span></li>
+        <li><span class="ok">✓</span><span>真的 DeepSeek 连说两轮，缓存命中量出来了；掐断实测了 10 次</span></li>
+        <li><span class="ok">✓</span><span>故意改坏十八处都有测试变红（两个测试是改坏时发现测不出来才补的）</span></li>
+        <li><span class="ok">✓</span><span>本地七项全过；三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/01-架构.md</code> 第九节第 5 条。</li>
+        <li><code>docs/construction/3-5-试玩台（补）.md</code>：施工单，实测的数字都在验收第 3 条。</li>
       </ul>
     </div>
   </div>
