@@ -15,12 +15,14 @@
 //! - [`ledger`]：日志的账本，追加一条事件之前照规矩查一遍；
 //! - [`request`]：统一的请求，投影交给驱动的那一份，和它的规范字节、哈希、指纹；
 //! - [`assemble`]：组装请求的接口，给一段有效历史，出一份统一的请求；
+//! - [`facts`]：环境和状态的事实，写成什么、该不该注入；
 //! - [`raw`]：原样的 JSON，驱动私有数据和不认识的种类都用它；
 //! - [`template`]：模板与转义，给模型看的字怎么拼，不可信的字段怎么转。
 
 pub mod assemble;
 pub mod block;
 pub mod event;
+pub mod facts;
 mod format_error;
 pub mod history;
 pub mod id;

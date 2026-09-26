@@ -1,6 +1,9 @@
 //! 时间：UTC，精确到毫秒。JSON 里写成 `"2026-09-25T07:04:05.123Z"`，固定 24 个字符
 //! （`docs/designs/03-事件模型.md` 第二节）。只存 UTC，显示成本地时间是头的事。
 //!
+//! 给模型看的当地钟点和时区也在这里（[`Timestamp::local_hour`]、[`UtcOffset`]），环境那一块
+//! 事实要用（`08-上下文投影.md` 第五节「环境和状态的事实怎么写」）。
+//!
 //! 公历日期和天数的互转用的是 Howard Hinnant 的标准算法（days_from_civil），不引入日期库。
 
 use std::fmt;
@@ -105,6 +108,58 @@ impl Serialize for Timestamp {
 impl<'de> Deserialize<'de> for Timestamp {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         Timestamp::parse(&String::deserialize(d)?).map_err(D::Error::custom)
+    }
+}
+
+/// 星期的三个字母，从星期日数起。1970-01-01 是星期四。
+const WEEKDAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/// 时区最多离 UTC 多少分钟。地球上用的时区都在 −14:00 到 +14:00 之间。
+const MAX_OFFSET_MINUTES: i32 = 14 * 60;
+
+impl Timestamp {
+    /// 这个时刻在 `offset` 那个时区的钟点，到小时：`Fri 2026-09-25 16:00`。
+    ///
+    /// 星期写三个字母，日期写成年-月-日，二十四小时制，分钟一律写 `00`：同一个小时里字节不变
+    /// （`08-上下文投影.md` 第五节「环境和状态的事实怎么写」）。
+    pub fn local_hour(self, offset: UtcOffset) -> String {
+        let local = self.0 + i64::from(offset.0) * 60_000;
+        let days = local.div_euclid(MS_PER_DAY);
+        let (year, month, day) = civil_from_days(days);
+        let hour = local.rem_euclid(MS_PER_DAY) / 3_600_000;
+        // rem_euclid 出来一定在 0 到 6 之间，转成下标不会截断。
+        let weekday = WEEKDAYS[(days + 4).rem_euclid(7) as usize];
+        format!("{weekday} {year:04}-{month:02}-{day:02} {hour:02}:00")
+    }
+}
+
+/// 一个时区：比 UTC 早多少分钟，东边是正的。
+///
+/// 给模型看时写成 `UTC+09:00`，零时区也写成 `UTC+00:00`，字数固定（08 第五节）。内核不读
+/// 本机的时区设置，时区由执行器送进来；夏令时一换，送进来的就跟着变。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UtcOffset(i32);
+
+impl UtcOffset {
+    /// 由分钟数得到时区，东边是正的。超出 −14:00 到 +14:00 返回 `None`。
+    pub fn from_minutes(minutes: i32) -> Option<UtcOffset> {
+        (-MAX_OFFSET_MINUTES..=MAX_OFFSET_MINUTES)
+            .contains(&minutes)
+            .then_some(UtcOffset(minutes))
+    }
+
+    /// 比 UTC 早多少分钟，东边是正的。
+    pub fn minutes(self) -> i32 {
+        self.0
+    }
+}
+
+/// 写成 `UTC+09:00`、`UTC-05:30`、`UTC+00:00`。
+impl fmt::Display for UtcOffset {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let sign = if self.0 < 0 { '-' } else { '+' };
+        let minutes = self.0.unsigned_abs();
+        write!(f, "UTC{sign}{:02}:{:02}", minutes / 60, minutes % 60)
     }
 }
 

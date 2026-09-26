@@ -1,5 +1,6 @@
 //! 时间的测试：图纸上的例子；几个标准时刻；1600 到 2400 年一天一天数过去，和换算公式对得上；
-//! 每一种坏写法各一个。
+//! 每一种坏写法各一个。时区的写法和范围；当地的钟点：跨日、跨月、跨年、闰日、1970 年以前、
+//! 负的时区、差半小时的时区，一周七天的写法。
 
 use super::*;
 
@@ -100,4 +101,63 @@ fn bad_text_is_refused_with_a_reason() {
     }
     assert!(Timestamp::parse("2000-02-29T00:00:00.000Z").is_ok());
     assert!(serde_json::from_str::<Timestamp>("1790319845123").is_err());
+}
+
+fn offset(minutes: i32) -> UtcOffset {
+    UtcOffset::from_minutes(minutes).unwrap()
+}
+
+#[test]
+fn offsets_are_written_with_utc_and_a_sign() {
+    for (minutes, written) in [
+        (540, "UTC+09:00"),
+        (0, "UTC+00:00"),
+        (-300, "UTC-05:00"),
+        (330, "UTC+05:30"),
+        (-210, "UTC-03:30"),
+        (840, "UTC+14:00"),
+        (-840, "UTC-14:00"),
+    ] {
+        assert_eq!(offset(minutes).to_string(), written);
+        assert_eq!(offset(minutes).minutes(), minutes);
+    }
+}
+
+#[test]
+fn offsets_beyond_fourteen_hours_are_refused() {
+    assert_eq!(UtcOffset::from_minutes(841), None);
+    assert_eq!(UtcOffset::from_minutes(-841), None);
+}
+
+#[test]
+fn the_local_hour_is_the_wall_clock_to_the_hour() {
+    for (utc, minutes, local) in [
+        ("2026-09-25T07:04:05.140Z", 540, "Fri 2026-09-25 16:00"),
+        ("2026-09-25T07:04:05.140Z", 330, "Fri 2026-09-25 12:00"),
+        ("2026-12-31T20:30:00.000Z", 540, "Fri 2027-01-01 05:00"),
+        ("2026-03-01T02:00:00.000Z", -300, "Sat 2026-02-28 21:00"),
+        ("2028-02-29T12:00:00.000Z", 0, "Tue 2028-02-29 12:00"),
+        ("1969-12-31T23:00:00.000Z", 0, "Wed 1969-12-31 23:00"),
+        ("2026-09-25T00:30:00.000Z", -210, "Thu 2026-09-24 21:00"),
+        ("2026-09-25T23:59:59.999Z", 1, "Sat 2026-09-26 00:00"),
+    ] {
+        let t = Timestamp::parse(utc).unwrap();
+        assert_eq!(
+            t.local_hour(offset(minutes)),
+            local,
+            "{utc} 在 {minutes} 分钟的时区"
+        );
+    }
+}
+
+#[test]
+fn every_day_of_the_week_has_its_name() {
+    let sunday = at("2026-09-20T12:00:00.000Z");
+    let names: Vec<String> = (0..7)
+        .map(|day| {
+            let t = Timestamp::from_unix_millis(sunday + day * MS_PER_DAY).unwrap();
+            t.local_hour(offset(0))[..3].to_string()
+        })
+        .collect();
+    assert_eq!(names, ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
 }

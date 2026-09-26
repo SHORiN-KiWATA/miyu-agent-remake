@@ -1,1 +1,2 @@
-{"seq":43,"at":"2026-09-25T07:04:05.140Z","kind":"context.injected","turn":42,"by":{"kind":"kernel"},"cause":"cmd-7f3a","body":{"kind":"env","text":"<env time=\"Fri 2026-09-25 16:00\" timezone=\"UTC+09:00\" cwd=\"~/src/miyu\"/>"}}
+{"seq":43,"at":"2026-09-25T07:04:05.140Z","kind":"context.injected","turn":42,"by":{"kind":"kernel"},"cause":"cmd-7f3a","body":{"kind":"env","text":"<env time=\"Fri 2026-09-25 16:00\" timezone=\"UTC+09:00\" cwd=\"~/src/miyu\"/>\n"}}
+{"seq":44,"at":"2026-09-25T07:04:05.141Z","kind":"context.injected","turn":42,"by":{"kind":"kernel"},"cause":"cmd-7f3a","body":{"kind":"permission","text":"<permission level=\"workspace\"/>\n"}}

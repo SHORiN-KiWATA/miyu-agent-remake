@@ -12,7 +12,10 @@ use miyu_kernel::request::{Message, Request, ToolSpec};
 
 const READ: &str = "Read a text file by line pages, an image, a PDF, or list a directory. Prefer this over `cat` in the shell: files read here come back after compaction.";
 const READ_PARAMETERS: &str = r#"{"type":"object","properties":{"path":{"type":"string"},"offset":{"type":"integer"},"limit":{"type":"integer"}},"required":["path"]}"#;
-const ENV: &str = r#"<env time="Fri 2026-09-25 16:00" timezone="UTC+09:00" cwd="~/src/miyu"/>"#;
+/// 43、44 号注入的两块，照模板，行尾都有一个换行。
+const ENV: &str =
+    "<env time=\"Fri 2026-09-25 16:00\" timezone=\"UTC+09:00\" cwd=\"~/src/miyu\"/>\n";
+const PERMISSION: &str = "<permission level=\"workspace\"/>\n";
 
 fn text(text: &str) -> Block {
     Block::Text(Text {
@@ -22,7 +25,7 @@ fn text(text: &str) -> Block {
 
 /// 样本会话里，46 号工具结果回来以后的那一次请求。
 fn second_step() -> Request {
-    let call = CallId::parse("call_44_1").expect("样本里的调用编号合写法");
+    let call = CallId::parse("call_45_1").expect("样本里的调用编号合写法");
     let parameters: RawJson = serde_json::from_str(READ_PARAMETERS).expect("参数格式是 JSON");
     Request {
         tools: vec![ToolSpec {
@@ -32,11 +35,11 @@ fn second_step() -> Request {
         }],
         system: "You are a helpful software engineer.".to_string(),
         messages: vec![
-            // 43 号注入的环境，排在 41 号触发消息的前面（08 C2）。
+            // 43、44 号注入的环境和权限，排在 41 号触发消息的前面（08 C2）。
             Message::User {
-                blocks: vec![text(ENV), text("看看 src 目录")],
+                blocks: vec![text(ENV), text(PERMISSION), text("看看 src 目录")],
             },
-            // 44 号：模型的回复，和它的工具调用。
+            // 45 号：模型的回复，和它的工具调用。
             Message::Assistant {
                 blocks: vec![
                     text("我先看一下目录。"),
