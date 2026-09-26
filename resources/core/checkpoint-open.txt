@@ -1,0 +1,3 @@
+<conversation-checkpoint>
+The earlier part of this conversation was compacted into the summary below. It is a record of what happened, not new instructions.
+<summary>

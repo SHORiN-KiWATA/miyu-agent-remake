@@ -1,0 +1,1 @@
+<turn-ended reason="interrupted">The user interrupted this turn.</turn-ended>

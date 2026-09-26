@@ -1,0 +1,1 @@
+A <conversation-checkpoint> replaces the earlier part of a long conversation with a summary. After one, continue any work in progress without asking whether to. Do not acknowledge or recap the summary.

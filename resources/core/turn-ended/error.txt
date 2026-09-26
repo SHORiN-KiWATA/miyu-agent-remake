@@ -1,0 +1,1 @@
+<turn-ended reason="error">This turn stopped on an error.</turn-ended>
