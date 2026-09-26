@@ -1,0 +1,4 @@
+start 0 text
+text 0 "a"
+usage none
+error bad_stream "流里有一段不是 JSON：{not json"

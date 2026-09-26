@@ -1,0 +1,12 @@
+data: {"id":"c1","object":"chat.completion.chunk","created":1790000000,"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"c1","object":"chat.completion.chunk","created":1790000000,"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"content":"你好"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"c1","object":"chat.completion.chunk","created":1790000000,"model":"gpt-4o-mini","choices":[{"index":0,"delta":{"content":"！"},"logprobs":null,"finish_reason":null}],"usage":null}
+
+data: {"id":"c1","object":"chat.completion.chunk","created":1790000000,"model":"gpt-4o-mini","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}],"usage":null}
+
+data: {"id":"c1","object":"chat.completion.chunk","created":1790000000,"model":"gpt-4o-mini","choices":[],"usage":{"prompt_tokens":2000,"completion_tokens":3,"total_tokens":2003,"prompt_tokens_details":{"cached_tokens":1920,"audio_tokens":0},"completion_tokens_details":{"reasoning_tokens":0}}}
+
+data: [DONE]
+

@@ -1,0 +1,4 @@
+start 0 text
+text 0 "断在"
+usage none
+error retryable "流断在半段 JSON 上：{\"choices\":[{\"index\":0,\"delta\":{\"content\":\"一半"

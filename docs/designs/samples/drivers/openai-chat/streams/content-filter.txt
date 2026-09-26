@@ -1,0 +1,4 @@
+start 0 text
+text 0 "这个"
+usage none
+error content_policy "finish_reason: content_filter"

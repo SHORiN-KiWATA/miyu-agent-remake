@@ -1,0 +1,16 @@
+start 0 text
+text 0 "两个一起看。"
+start 1 tool_call read
+private 1 openai-chat {"id":"call_a"}
+text 1 "{\"pa"
+text 1 "th\":\"a.rs"
+text 1 "\"}"
+start 2 tool_call grep
+text 2 "{\"pat"
+private 2 openai-chat {"id":"call_b"}
+text 2 "tern\":\"fn\"}"
+end 0
+end 1
+end 2
+usage none
+ok

@@ -121,12 +121,17 @@ pub fn read_tool() -> ToolSpec {
 
 /// 和样本逐字节比对；设上 `MIYU_PROBE_WRITE=1` 时重写样本。
 pub fn sample(name: &str, body: &[u8]) {
-    let path = dir().join(format!("{name}.json"));
     let mut content = body.to_vec();
     content.push(b'\n');
+    sample_file(&format!("{name}.json"), &content);
+}
+
+/// 样本目录下的一个文件，和 `content` 逐字节比对；设上 `MIYU_PROBE_WRITE=1` 时重写它。
+pub fn sample_file(name: &str, content: &[u8]) {
+    let path = dir().join(name);
     if std::env::var_os("MIYU_PROBE_WRITE").is_some() {
-        fs::create_dir_all(dir()).expect("建得了样本目录");
-        fs::write(&path, &content).expect("写得了样本");
+        fs::create_dir_all(path.parent().expect("样本在样本目录里")).expect("建得了样本目录");
+        fs::write(&path, content).expect("写得了样本");
         return;
     }
     let archived = fs::read(&path).unwrap_or_else(|e| panic!("读不了 {}：{e}", path.display()));
@@ -134,11 +139,11 @@ pub fn sample(name: &str, body: &[u8]) {
         archived == content,
         "{name} 和样本不一样。要是有意改的，设上 MIYU_PROBE_WRITE=1 跑一遍重写样本，提交说明里写为什么变\n样本：{}\n这次：{}",
         String::from_utf8_lossy(&archived),
-        String::from_utf8_lossy(&content)
+        String::from_utf8_lossy(content)
     );
 }
 
 /// 样本目录：这个 crate 的目录往上两级是仓库根。
-fn dir() -> PathBuf {
+pub fn dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs/designs/samples/drivers/openai-chat")
 }

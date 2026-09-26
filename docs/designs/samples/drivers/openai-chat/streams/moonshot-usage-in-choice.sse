@@ -1,0 +1,6 @@
+data: {"choices":[{"index":0,"delta":{"role":"assistant","content":"好的。"},"finish_reason":null}]}
+
+data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop","usage":{"prompt_tokens":500,"completion_tokens":10,"total_tokens":510,"cached_tokens":448}}]}
+
+data: [DONE]
+

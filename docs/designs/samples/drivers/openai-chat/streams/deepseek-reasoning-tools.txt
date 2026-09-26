@@ -1,0 +1,15 @@
+start 0 reasoning
+text 0 "用户想看"
+text 0 "目录。"
+start 1 text
+text 1 "我先看一下"
+text 1 "目录。"
+start 2 tool_call read
+private 2 openai-chat {"id":"call_00_abc"}
+text 2 "{\"path\""
+text 2 ":\"src\"}"
+end 0
+end 1
+end 2
+usage uncached=176 cache_read=1024 cache_write=0 output=58
+ok

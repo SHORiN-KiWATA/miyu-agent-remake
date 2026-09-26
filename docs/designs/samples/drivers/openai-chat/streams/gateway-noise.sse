@@ -1,0 +1,12 @@
+: OPENROUTER PROCESSING
+
+data:{"choices":[{"index":0,"delta":{"role":"assistant","content":"","reasoning_content":"","reasoning":"想一想"},"finish_reason":""}]}
+
+data: {"choices":[{"index":0,"delta":{"content":"好了","reasoning_content":""},"finish_reason":""}]}
+
+: OPENROUTER PROCESSING
+
+data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15},"error":""}
+
+data: [DONE]
+

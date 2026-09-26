@@ -1,0 +1,6 @@
+data: {"choices":[{"index":0,"delta":{"role":"assistant","content":"a"},"finish_reason":null}]}
+
+data: {not json
+
+data: {"choices":[{"index":0,"delta":{"content":"b"},"finish_reason":null}]}
+

@@ -1,0 +1,5 @@
+start 0 text
+text 0 "好的。"
+end 0
+usage uncached=52 cache_read=448 cache_write=0 output=10
+ok

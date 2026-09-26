@@ -1,0 +1,20 @@
+data: {"id":"a1","object":"chat.completion.chunk","created":1790000000,"model":"deepseek-v4","choices":[{"index":0,"delta":{"role":"assistant","content":null,"reasoning_content":""},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"a1","object":"chat.completion.chunk","created":1790000000,"model":"deepseek-v4","choices":[{"index":0,"delta":{"content":null,"reasoning_content":"用户想看"},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"a1","object":"chat.completion.chunk","created":1790000000,"model":"deepseek-v4","choices":[{"index":0,"delta":{"content":null,"reasoning_content":"目录。"},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"a1","object":"chat.completion.chunk","created":1790000000,"model":"deepseek-v4","choices":[{"index":0,"delta":{"content":"我先看一下","reasoning_content":null},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"a1","object":"chat.completion.chunk","created":1790000000,"model":"deepseek-v4","choices":[{"index":0,"delta":{"content":"目录。","reasoning_content":null},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"a1","object":"chat.completion.chunk","created":1790000000,"model":"deepseek-v4","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_00_abc","type":"function","function":{"name":"read","arguments":""}}]},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"a1","object":"chat.completion.chunk","created":1790000000,"model":"deepseek-v4","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"path\""}}]},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"a1","object":"chat.completion.chunk","created":1790000000,"model":"deepseek-v4","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":":\"src\"}"}}]},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"a1","object":"chat.completion.chunk","created":1790000000,"model":"deepseek-v4","choices":[{"index":0,"delta":{"content":"","reasoning_content":null},"logprobs":null,"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":1200,"completion_tokens":58,"total_tokens":1258,"completion_tokens_details":{"reasoning_tokens":20},"prompt_cache_hit_tokens":1024,"prompt_cache_miss_tokens":176}}
+
+data: [DONE]
+

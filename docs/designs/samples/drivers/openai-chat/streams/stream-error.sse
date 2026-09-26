@@ -1,0 +1,6 @@
+data: {"choices":[{"index":0,"delta":{"role":"assistant","content":"好的，"},"finish_reason":null}]}
+
+data: {"error":{"message":"Rate limit reached for requests","type":"rate_limit_error","code":429}}
+
+data: {"choices":[{"index":0,"delta":{"content":"后面的不理"},"finish_reason":null}]}
+

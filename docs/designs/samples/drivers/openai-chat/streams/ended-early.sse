@@ -1,0 +1,4 @@
+data: {"choices":[{"index":0,"delta":{"role":"assistant","content":"说到"},"finish_reason":null}]}
+
+data: {"choices":[{"index":0,"delta":{"content":"一半"},"finish_reason":null}]}
+

@@ -1,0 +1,5 @@
+start 0 text
+text 0 "说到"
+text 0 "一半"
+usage none
+error retryable "流断了：没等到 finish_reason，也没等到 [DONE]"

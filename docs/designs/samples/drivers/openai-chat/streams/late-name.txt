@@ -1,0 +1,6 @@
+start 0 tool_call calc
+private 0 openai-chat {"id":"call_x"}
+text 0 "{\"a\":1}"
+end 0
+usage none
+ok

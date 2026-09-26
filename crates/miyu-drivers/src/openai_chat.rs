@@ -3,18 +3,24 @@
 //!
 //! 统一的请求照那张表写成一个 JSON：顶层字段的先后固定，每条消息照 `wire.rs` 里写的来，同样的
 //! 输入字节一定一样。供应商之间不一样的地方是 [`Compat`] 里的三个开关，跟着供应商定、会话里不变。
+//!
+//! 响应是 SSE 流，[`Decoder`] 解成内核的四种增量，说完时交出用量和出错。
 
+mod decode;
 mod messages;
+mod usage;
 mod wire;
 
+pub use decode::Decoder;
+
 use std::collections::BTreeSet;
-use std::fmt;
-use std::ops::Range;
 
 use miyu_kernel::block::Block;
 use miyu_kernel::id::ContentHash;
 use miyu_kernel::request::{Message, Request};
 use serde::Serialize;
+
+pub use crate::{EncodeError, Encoded};
 
 use crate::{BlobBytes, Call, DriverTexts};
 
@@ -86,35 +92,6 @@ pub enum ReasoningField {
     /// `reasoning`。
     Reasoning,
 }
-
-/// 编码好的请求。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Encoded {
-    /// 请求字节：发出去的就是它，它的 SHA-256 记进 `model.called`。
-    pub body: Vec<u8>,
-    /// 每条线上的消息在字节里的位置，照先后。system 和挪出来的那条 user 消息也各算一条，所以
-    /// 条数不一定和统一的请求一样。
-    pub messages: Vec<Range<usize>>,
-}
-
-/// 编码不成。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum EncodeError {
-    /// 要用的 blob 执行器没交进来。
-    MissingBlob(ContentHash),
-}
-
-impl fmt::Display for EncodeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            EncodeError::MissingBlob(hash) => {
-                write!(f, "编码要用 blob {hash}，执行器没交进来")
-            }
-        }
-    }
-}
-
-impl std::error::Error for EncodeError {}
 
 /// 编码：顶层照 `model`、`messages`、`tools`、`stream`、`stream_options`、输出上限的先后写，
 /// 别的字段一概不发。

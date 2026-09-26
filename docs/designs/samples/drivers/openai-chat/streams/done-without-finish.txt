@@ -1,0 +1,5 @@
+start 0 text
+text 0 "说完了"
+end 0
+usage none
+ok
