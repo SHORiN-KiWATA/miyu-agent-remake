@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>29</b><span>/ 40 步<strong>已完成</strong>，撤错了还能恢复</span></li>
-    <li><b>2-9</b><span>下一步：场景测试，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">6a79161</b><span>最近一步（2-8 下）的提交</span></li>
+    <li><b>30</b><span>/ 41 步<strong>已完成</strong>，真会话能一整轮一整轮地跑了</span></li>
+    <li><b>2-9</b><span>下一步：探针换成真会话（下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">aa47a38</b><span>最近一步（2-9 上）的提交</span></li>
   </ul>
 </header>
 
@@ -339,7 +339,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s2-7c"><span class="n">2-7</span>提问（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-8a"><span class="n">2-8</span>载入与崩溃恢复（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-8b"><span class="n">2-8</span>撤销与恢复（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">2-9</span>场景测试</span></li>
+        <li><a class="step done" href="#s2-9a"><span class="n">2-9</span>执行器替身与场景（上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">2-9</span>探针换成真会话（下）</span></li>
         <li><span class="step"><span class="n">2-10</span>随机测试</span></li>
       </ol>
     </li>
@@ -2610,6 +2611,88 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s2-9a" aria-labelledby="h-s29a">
+  <div class="sheet-head"><h2 id="h-s29a"><span class="no">2-9</span>执行器替身与场景（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">一个守规矩的执行器替身：照剧本回模型、回工具、回执行前的链、回挂接点，替会话落盘，把真会话一整轮一整轮地跑完。拿它写场景：一段段对话从头跑到尾，每一段查整份日志。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">替身 · testkit/</span><span class="dir-note">02 第四节「执行器怎么回动作」</span></div>
+            <ol class="pipe" aria-label="替身怎么跑">
+              <li>人的一个动作：说一句、打断、回答、切权限、撤销、重启……</li>
+              <li>会话吐出动作，替身照那张表一个个回：落盘、发请求、跑工具</li>
+              <li>回来的输入再送进会话，一直跑到没事可做</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">剧本 · testkit/script.rs</span><span class="dir-note">写错了当场 panic</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">模型每次说什么</span><span class="rl">说一句、调几件工具、出错；说到一半停住，等放行</span></div>
+              <div class="tile new"><span class="nm">工具每次怎么回</span><span class="rl">结果、出错、问人；跑到一半停住</span></div>
+              <div class="tile"><span class="nm">链、挂接点</span><span class="rl">默认放行、不注入，要别的另排</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">场景 · session/tests/scenario/</span><span class="dir-note">每段查整份日志</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">一轮到底</span><span class="rl">问答、两件工具一起跑、只读拦下、步数上限、出错</span></div>
+              <div class="tile new"><span class="nm">问人</span><span class="rl">确认允许、拒绝了接着干；提问回答</span></div>
+              <div class="tile new"><span class="nm">停下来</span><span class="rl">插话再打断、急着插话、重启接着干、崩了等你、撤销又恢复</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">执行器怎么回动作，画成一张表</span><span class="rl">替身照它做，M3 的会话 actor 也照它做</span></div>
+          <div class="tile new"><span class="nm">替身放进内核，挂在 testkit 开关后面</span><span class="rl">工具 crate 不许被依赖，组装那边的测试要用它</span></div>
+          <div class="tile new"><span class="nm">一块内容一次送完，追加的马上落盘</span><span class="rl">逐字拼接、落盘先后之前测过了</span></div>
+          <div class="tile new"><span class="nm">2-9 拆成两半</span><span class="rl">（下）探针和随机日志换成真会话</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-9（上）</dd></div>
+        <div><dt>名称</dt><dd>执行器替身与场景（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">aa47a38</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>testkit/stage.rs</code>、<code>testkit/respond.rs</code>：替身本身，和它怎么回每个动作。</li>
+        <li><code>testkit/script.rs</code>：剧本，模型的一次回复、一次工具调用怎么回。</li>
+        <li><code>Cargo.toml</code> 的 <code>testkit</code> 开关；内核自己的测试里总是编进去。</li>
+        <li><code>session/tests/scenario/</code>：十一段场景，三条替身自己的测试。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>345 个测试全过，新加 14 个：十一段场景的日志逐条对得上，第一次跑就和照图纸推的一样；替身自己：停住的放行以后照常说完，打断、崩了以后停住的跟着没了，剧本用完了写明是第几次请求</span></li>
+        <li><span class="ok">✓</span><span>故意改坏二十处（替身的、内核的），每一处都有场景或者替身的测试变红</span></li>
+        <li><span class="ok">✓</span><span>带着 <code>testkit</code> 开关，clippy 和文档也都干净</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 345 个测试）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/02-内核.md</code> 第四节「执行器怎么回动作」。</li>
+        <li><code>docs/designs/01-架构.md</code> 第九节，内核那一层。</li>
+        <li><code>docs/construction/2-9-执行器替身与场景（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -2784,7 +2867,7 @@ const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '18 种事件的写法、瞬时事件、追加时的检查' },
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
-  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复' },
+  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
 };
 
