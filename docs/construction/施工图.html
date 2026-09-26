@@ -263,9 +263,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>9</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
-    <li><b>1-7</b><span>现在：追加时的检查，<strong>施工中</strong></span></li>
-    <li><b class="mono">d4f7d25</b><span>最近一步（1-6）的提交</span></li>
+    <li><b>10</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
+    <li><b>1-8</b><span>下一步：统一的请求，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">4eb1fa3</b><span>最近一步（1-7）的提交</span></li>
   </ul>
 </header>
 
@@ -313,7 +313,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s1-4"><span class="n">1-4</span>会话与回合的事件<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-5"><span class="n">1-5</span>消息与工具结果的事件<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-6"><span class="n">1-6</span>上下文的事件<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">1-7</span>追加时的检查</span></li>
+        <li><a class="step done" href="#s1-7"><span class="n">1-7</span>追加时的检查<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">1-8</span>统一的请求</span></li>
         <li><span class="step"><span class="n">1-9</span>有效历史（上）</span></li>
         <li><span class="step"><span class="n">1-10</span>有效历史（下）</span></li>
@@ -1009,6 +1009,86 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s1-7" aria-labelledby="h-s17">
+  <div class="sheet-head"><h2 id="h-s17"><span class="no">1-7</span>追加时的检查</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">每往日志里追加一条事件，先照九条规矩查一遍，坏的事件进不了日志。查规矩只用一本小账，事件本身不留在内存里。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">账本 · ledger.rs</span><span class="dir-note">不随日志变长</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">下一条的序号</span><span class="rl">追加的一方照它编号，账本只查对不对</span></div>
+              <div class="tile new"><span class="nm">正在进行的回合</span><span class="rl">同一时刻最多一个</span></div>
+              <div class="tile new"><span class="nm">还在等结果的调用</span><span class="rl">只会在正在进行的回合里</span></div>
+              <div class="tile new"><span class="nm">最近一次压缩到哪</span><span class="rl">压缩只前进</span></div>
+              <div class="tile new"><span class="nm">那以后开过的回合</span><span class="rl">撤销只能撤它们，压缩一次就丢掉更早的</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">九条规矩 · 02 第九节</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">1</span><span class="rl">序号从 1 开始，一条接一条</span></div>
+              <div class="tile new"><span class="nm">2</span><span class="rl">第 1 条是会话创建</span></div>
+              <div class="tile new"><span class="nm">3</span><span class="rl">回合一个接一个，turn 是自己的序号</span></div>
+              <div class="tile new"><span class="nm">4</span><span class="rl">带 turn 的，属于正在进行的回合</span></div>
+              <div class="tile new"><span class="nm">5</span><span class="rl">调用照消息的序号编</span></div>
+              <div class="tile new"><span class="nm">6</span><span class="rl">结果对得上还在等的调用</span></div>
+              <div class="tile new"><span class="nm">7</span><span class="rl">回合结束时，调用都有了结果</span></div>
+              <div class="tile new"><span class="nm">8</span><span class="rl">压缩只前进</span></div>
+              <div class="tile new"><span class="nm">9</span><span class="rl">撤销不越过压缩</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">内存里只留两样</span><span class="rl">账本，加最近一次压缩以后的事件（1-9）；更早的只在磁盘上（项目主人提醒）</span></div>
+          <div class="tile new"><span class="nm">违反的不追加</span><span class="rl">报错写明第几条、违反了哪一条，账本不变</span></div>
+          <div class="tile new"><span class="nm">一条路</span><span class="rl">新写的和从磁盘载入的，都从账本过</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">1-7</dd></div>
+        <div><dt>名称</dt><dd>追加时的检查</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">4eb1fa3</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>日志的账本 <code>Ledger</code>：下一条该是几号；追加一条事件前照九条规矩查一遍，查过了才记账。</li>
+        <li>1-4、1-5、1-6 留下的检查，都在九条规矩里。</li>
+        <li>图纸上写明活动的会话在内存里只留什么（<code>07-存储.md</code> 第七节）。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>74 个测试全过，新加 10 个：一段合规的会话走过九条规矩，每条规矩都有被拦下的例子</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 17 处（每条规矩拿掉一次，外加账本记错的三种），每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 74 个测试）</span></li>
+        <li><span class="ok">✓</span><span>项目主人验收通过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/02-内核.md</code> 第九节「日志追加时查的规矩」。</li>
+        <li><code>docs/designs/07-存储.md</code> 第七节：活动的会话在内存里只留什么。</li>
+        <li><code>docs/construction/1-7-追加时的检查.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -1181,7 +1261,7 @@ const TREE = {
 /* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
 const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
-  k_log: { by: '1-1', how: 'frame', note: '编号、谁、内容块、外壳，11 种事件' },
+  k_log: { by: '1-1', how: 'frame', note: '11 种事件的写法、追加时的检查' },
 };
 
 const svg = document.getElementById('bmap');
