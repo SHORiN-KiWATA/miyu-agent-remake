@@ -25,12 +25,12 @@ pub struct FactTemplates {
     permission: Template,
 }
 
-/// 此刻的环境，由执行器在边界上送进来。
+/// 会话所在的环境：时区和工作目录（`02-内核.md` 第六节「回合怎么开、请求怎么发」第 6 条）。
+///
+/// 造会话时交进来，执行器报「环境变了」就换掉。时间不在这里，取边界上那条输入到的时刻。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Environment {
-    /// 此刻，取自执行器的时钟。
-    pub now: Timestamp,
-    /// 此刻所在的时区，取自执行器。
+    /// 所在的时区，取自执行器。
     pub offset: UtcOffset,
     /// 工作目录，头报上来的、人看到的那种写法，例如 `~/src/miyu`。内核不改写它。
     pub cwd: String,
@@ -52,13 +52,13 @@ impl FactTemplates {
         Ok(templates)
     }
 
-    /// 环境那一块：时间到小时，时区，工作目录。
+    /// 环境那一块：此刻 `now` 到小时，时区，工作目录。
     ///
     /// # Panics
     ///
     /// 实际不会 panic：造的时候已经拿全部字段试换过；`env` 这个类别名也合写法。
-    pub fn env(&self, environment: &Environment) -> ContextInjected {
-        let time = environment.now.local_hour(environment.offset);
+    pub fn env(&self, now: Timestamp, environment: &Environment) -> ContextInjected {
+        let time = now.local_hour(environment.offset);
         let timezone = environment.offset.to_string();
         let fields = env_fields(&time, &timezone, &environment.cwd);
         ContextInjected {

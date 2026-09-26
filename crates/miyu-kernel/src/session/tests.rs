@@ -1,12 +1,19 @@
-//! 会话的测试：造会话；发消息；空消息；同一个编号落盘前后再来；拒绝过的再来；落盘到一半；
-//! 落盘超出追加过的；只记最近 1024 个；随机一串输入，每收到一次命令恰好回应一次，接受的
-//! 回应都在它的事件落盘以后。
+//! 会话的测试。这一份是命令这一层：造会话；发消息；空消息；同一个编号落盘前后再来；
+//! 拒绝过的再来；落盘到一半；落盘超出追加过的；只记最近 1024 个。开回合、发请求在
+//! [`turn`]；随机一串输入在 [`random`]。
+//!
+//! 空闲时发的第一条消息会开一个回合，所以它后面紧跟着三条：`turn.started` 和两块事实。
 
-use std::collections::{BTreeMap, BTreeSet};
+mod random;
+mod turn;
 
 use super::recent::CAPACITY;
 use super::*;
+use crate::assemble::Assembler;
 use crate::block::{Block, Text};
+use crate::facts::FactTemplates;
+use crate::request::Request;
+use crate::time::UtcOffset;
 
 const CREATED: &str = r#"{"owner":"alice","venue":"local","policy":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","permission":{"level":"workspace","read_only":false}}"#;
 
@@ -18,6 +25,7 @@ fn alice() -> By {
     serde_json::from_str(r#"{"kind":"person","account":"alice"}"#).unwrap()
 }
 
+/// 07:00 过 `second` 秒，UTC。东九区是 16:00 那一个小时。
 fn at(second: u64) -> Timestamp {
     Timestamp::parse(&format!("2026-09-25T07:00:{second:02}.000Z")).unwrap()
 }
@@ -60,30 +68,103 @@ fn accepted_reply(n: u64, events: &[u64]) -> Action {
     }
 }
 
-/// 一个造好、第 1 条已经落了盘的会话。造会话的命令编号是 0。
+/// 替身的组装：有效历史里每条事件写一行，序号和种类，放进 system。测的是会话什么时候、
+/// 拿哪一段历史组装，和怎么组装无关。
+struct Listing;
+
+impl Assembler for Listing {
+    fn assemble(&self, history: &History) -> Request {
+        Request {
+            tools: Vec::new(),
+            system: listing(history.events()),
+            messages: Vec::new(),
+            stable: 0,
+        }
+    }
+}
+
+/// 这几条事件，一条一行：序号和种类。
+fn listing(events: &[Event]) -> String {
+    events
+        .iter()
+        .map(|event| format!("{} {}\n", event.seq, event.body.kind()))
+        .collect()
+}
+
+/// 替身的模板：短，一眼认得出是哪个字段。
+fn policy() -> Policy {
+    Policy {
+        assembler: Box::new(Listing),
+        facts: FactTemplates::new(
+            r#"<e t="{time}" z="{timezone}" d="{cwd}"/>"#,
+            r#"<p l="{level}"/>"#,
+        )
+        .unwrap(),
+    }
+}
+
+/// 东九区，工作目录是 `cwd`。
+fn environment(cwd: &str) -> Environment {
+    Environment {
+        offset: UtcOffset::from_minutes(540).unwrap(),
+        cwd: cwd.to_string(),
+    }
+}
+
+/// 一个造好、第 1 条已经落了盘的会话，在 `~/src/miyu`。造会话的命令编号是 0。
 fn session() -> Session {
     let created: SessionCreated = serde_json::from_str(CREATED).unwrap();
-    let (mut session, _) = Session::create(id(0), alice(), at(0), created);
+    let (mut session, _) = Session::create(
+        id(0),
+        alice(),
+        at(0),
+        created,
+        policy(),
+        environment("~/src/miyu"),
+    );
     session.handle(stored(1));
     session
 }
 
-/// 追加动作里的事件的序号。
-fn appended(actions: &[Action]) -> Vec<Seq> {
+/// 追加动作里的事件，照先后。
+fn appended_events(actions: &[Action]) -> Vec<Event> {
     actions
         .iter()
         .filter_map(|action| match action {
-            Action::Append(events) => Some(events.iter().map(|event| event.seq)),
+            Action::Append(events) => Some(events.iter().cloned()),
             _ => None,
         })
         .flatten()
         .collect()
 }
 
+/// 追加动作里的事件的序号。
+fn appended(actions: &[Action]) -> Vec<Seq> {
+    appended_events(actions)
+        .iter()
+        .map(|event| event.seq)
+        .collect()
+}
+
+/// 动作里的回应。
+fn replies(actions: &[Action]) -> Vec<&Action> {
+    actions
+        .iter()
+        .filter(|action| matches!(action, Action::Reply { .. }))
+        .collect()
+}
+
 #[test]
 fn creating_a_session_appends_session_created_and_replies_once_stored() {
     let created: SessionCreated = serde_json::from_str(CREATED).unwrap();
-    let (mut session, actions) = Session::create(id(0), alice(), at(0), created);
+    let (mut session, actions) = Session::create(
+        id(0),
+        alice(),
+        at(0),
+        created,
+        policy(),
+        environment("~/src/miyu"),
+    );
     let [Action::Append(events)] = actions.as_slice() else {
         panic!("造会话应该只追加一条：{actions:?}");
     };
@@ -92,6 +173,7 @@ fn creating_a_session_appends_session_created_and_replies_once_stored() {
     };
     assert_eq!(event.seq, seq(1));
     assert_eq!(event.cause, Some(id(0)));
+    assert_eq!(event.turn, None);
     assert!(matches!(event.body, Body::SessionCreated(_)));
     let actions = session.handle(stored(1));
     assert_eq!(
@@ -107,17 +189,18 @@ fn a_message_is_appended_and_answered_once_stored() {
     let [Action::Append(events)] = actions.as_slice() else {
         panic!("发消息应该只追加，不回应：{actions:?}");
     };
-    let event = &events[0];
-    assert_eq!(event.seq, seq(2));
-    assert_eq!(event.at, at(1));
-    assert_eq!(event.by, alice());
-    assert_eq!(event.cause, Some(id(1)));
-    assert_eq!(event.turn, None);
-    assert!(matches!(&event.body, Body::MessageUser(message) if message.blocks.len() == 1));
+    let message = &events[0];
+    assert_eq!(message.seq, seq(2));
+    assert_eq!(message.at, at(1));
+    assert_eq!(message.by, alice());
+    assert_eq!(message.cause, Some(id(1)));
+    assert_eq!(message.turn, None);
+    assert!(matches!(&message.body, Body::MessageUser(message) if message.blocks.len() == 1));
+    // 回应只附消息本身：回合是内核接着开的。
     let actions = session.handle(stored(2));
     assert_eq!(
         actions,
-        [Action::Push(events.clone()), accepted_reply(1, &[2])]
+        [Action::Push(vec![message.clone()]), accepted_reply(1, &[2])]
     );
 }
 
@@ -135,8 +218,11 @@ fn an_empty_message_is_rejected_on_the_spot() {
         }]
     );
     assert_eq!(Reason::EmptyMessage.code(), "empty_message");
-    // 什么都没追加：下一条消息还是 2 号。
-    assert_eq!(appended(&session.handle(send(2, "hi"))), seqs(&[2]));
+    // 什么都没追加，也没开回合：下一条消息还是 2 号，接着开回合。
+    assert_eq!(
+        appended(&session.handle(send(2, "hi"))),
+        seqs(&[2, 3, 4, 5])
+    );
 }
 
 #[test]
@@ -145,12 +231,8 @@ fn a_command_sent_again_before_it_is_stored_is_answered_twice_after() {
     session.handle(send(1, "hi"));
     assert!(session.handle(send(1, "hi")).is_empty());
     let actions = session.handle(stored(2));
-    let replies: Vec<&Action> = actions
-        .iter()
-        .filter(|action| matches!(action, Action::Reply { .. }))
-        .collect();
     assert_eq!(
-        replies,
+        replies(&actions),
         [&accepted_reply(1, &[2]), &accepted_reply(1, &[2])]
     );
 }
@@ -177,21 +259,26 @@ fn a_rejected_command_is_judged_again() {
     };
     assert!(rejected(session.handle(send(1, ""))));
     assert!(rejected(session.handle(send(1, ""))));
-    assert_eq!(appended(&session.handle(send(1, "这回有字了"))), seqs(&[2]));
+    assert_eq!(
+        appended(&session.handle(send(1, "这回有字了"))).first(),
+        Some(&seq(2))
+    );
 }
 
 #[test]
 fn a_partial_store_answers_only_the_commands_fully_stored() {
     let mut session = session();
     session.handle(send(1, "one"));
-    session.handle(send(2, "two"));
+    // 回合正在开，第二条是中途来的，排在回合开头那几条后面。
+    assert_eq!(appended(&session.handle(send(2, "two"))), seqs(&[6]));
     let first = session.handle(stored(2));
     assert!(
         matches!(first.as_slice(), [Action::Push(events), reply] if events.len() == 1 && *reply == accepted_reply(1, &[2]))
     );
-    let second = session.handle(stored(3));
+    assert!(replies(&session.handle(stored(5))).is_empty());
+    let last = session.handle(stored(6));
     assert!(
-        matches!(second.as_slice(), [Action::Push(events), reply] if events.len() == 1 && *reply == accepted_reply(2, &[3]))
+        matches!(last.as_slice(), [Action::Push(events), reply] if events.len() == 1 && *reply == accepted_reply(2, &[6]))
     );
 }
 
@@ -201,25 +288,18 @@ fn a_store_beyond_what_was_appended_counts_only_what_was_appended() {
     session.handle(send(1, "one"));
     let actions = session.handle(stored(100));
     assert_eq!(
-        actions.last(),
-        Some(&accepted_reply(1, &[2])),
+        replies(&actions),
+        [&accepted_reply(1, &[2])],
         "追加过的都落了盘"
     );
     // 之后追加的，要等它自己落了盘。
     session.handle(send(2, "two"));
     assert!(session.handle(send(2, "two")).is_empty());
     assert!(
-        session.handle(stored(2)).is_empty(),
+        session.handle(stored(5)).is_empty(),
         "不比上一次往后的，什么都不做"
     );
-    let actions = session.handle(stored(3));
-    assert_eq!(
-        actions
-            .iter()
-            .filter(|action| matches!(action, Action::Reply { .. }))
-            .count(),
-        2
-    );
+    assert_eq!(replies(&session.handle(stored(6))).len(), 2);
 }
 
 #[test]
@@ -228,87 +308,10 @@ fn only_the_latest_commands_are_remembered() {
     for n in 1..=CAPACITY as u64 + 1 {
         session.handle(send(n, "hi"));
     }
-    let last = CAPACITY as u64 + 2;
+    // 第 1 个命令的消息是 2 号，后面跟着回合开头的三条；第 n 个（n 大于 1）是 n + 4 号。
+    let last = CAPACITY as u64 + 5;
     session.handle(stored(last));
     // 第 2 个还记得，照上一次回应；第 1 个已经忘了，当新命令。
-    assert_eq!(session.handle(send(2, "hi")), [accepted_reply(2, &[3])]);
+    assert_eq!(session.handle(send(2, "hi")), [accepted_reply(2, &[6])]);
     assert_eq!(appended(&session.handle(send(1, "hi"))), seqs(&[last + 1]));
-}
-
-/// SplitMix64：随机一串输入用。
-struct Rng(u64);
-
-impl Rng {
-    fn next(&mut self) -> u64 {
-        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut z = self.0;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        z ^ (z >> 31)
-    }
-
-    fn below(&mut self, n: u64) -> u64 {
-        self.next() % n
-    }
-}
-
-#[test]
-fn random_inputs_get_one_reply_per_command_after_their_events_are_stored() {
-    for seed in 0..300 {
-        let mut rng = Rng(seed);
-        let mut session = session();
-        let mut last = 1;
-        let mut next_id = 1;
-        // 每个编号收到了几次、回应了几次；推送过的事件。
-        let mut received: BTreeMap<CommandId, usize> = BTreeMap::new();
-        let mut replied: BTreeMap<CommandId, usize> = BTreeMap::new();
-        let mut pushed: BTreeSet<Seq> = BTreeSet::new();
-        let mut check = |actions: Vec<Action>, last: &mut u64| {
-            for action in actions {
-                match action {
-                    Action::Append(events) => {
-                        for event in events {
-                            assert_eq!(event.seq.get(), *last + 1, "种子 {seed}：序号要连着");
-                            *last += 1;
-                        }
-                    }
-                    Action::Push(events) => pushed.extend(events.iter().map(|event| event.seq)),
-                    Action::Reply { id, outcome } => {
-                        if let Outcome::Accepted { events } = &outcome {
-                            assert!(
-                                events.iter().all(|event| pushed.contains(event)),
-                                "种子 {seed}：{id} 的事件还没落盘就回应了"
-                            );
-                        }
-                        *replied.entry(id).or_default() += 1;
-                    }
-                }
-            }
-        };
-        for _ in 0..40 {
-            let input = match rng.below(10) {
-                0..=4 => {
-                    next_id += 1;
-                    send(next_id, "hi")
-                }
-                5 | 6 => send(1 + rng.below(next_id), "hi"),
-                7 => {
-                    next_id += 1;
-                    send(next_id, "")
-                }
-                _ => stored(1 + rng.below(last)),
-            };
-            if let Input::Command(command) = &input {
-                *received.entry(command.id.clone()).or_default() += 1;
-            }
-            let actions = session.handle(input);
-            check(actions, &mut last);
-        }
-        let actions = session.handle(stored(last));
-        check(actions, &mut last);
-        assert_eq!(
-            received, replied,
-            "种子 {seed}：每收到一次命令要恰好回应一次"
-        );
-    }
 }

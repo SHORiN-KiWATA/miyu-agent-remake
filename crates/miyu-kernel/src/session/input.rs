@@ -1,7 +1,9 @@
 //! 送进会话的输入，和输入里的命令（`docs/designs/02-内核.md` 第四节「输入、动作、命令怎么写」）。
 
 use crate::block::Block;
-use crate::id::{CommandId, Seq};
+use crate::event::ContextInjected;
+use crate::facts::Environment;
+use crate::id::{CommandId, ModuleId, Seq, TurnId};
 use crate::origin::By;
 use crate::time::Timestamp;
 
@@ -14,6 +16,17 @@ pub enum Input {
     Stored {
         /// 落了盘的最后一条的序号。
         upto: Seq,
+    },
+    /// 环境变了：时区、工作目录。不当场注入，到下一个边界再查（`08-上下文投影.md` C10）。
+    Environment(Environment),
+    /// 回合开始的挂接点跑完了（`05-内核接口.md` 第五节第 2 条）。
+    TurnStartHooksDone {
+        /// 到的时刻，取自执行器的时钟。
+        at: Timestamp,
+        /// 哪个回合的。
+        turn: TurnId,
+        /// 各模块交回来的注入，照固定的先后：先按声明的优先级，再按模块编号。
+        injected: Vec<Injection>,
     },
 }
 
@@ -33,9 +46,18 @@ pub struct Received {
 /// 发给会话的意图（`02-内核.md` 第三节）。结局只有两种：被接受并产生事件，或被拒绝并附原因。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
-    /// `session.send`：发一条消息。
+    /// `session.send`：发一条消息。会话空闲时，还会开一个回合。
     Send {
         /// 消息的内容块。
         blocks: Vec<Block>,
     },
+}
+
+/// 一个模块在回合开始时交回来的一块注入。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Injection {
+    /// 哪个模块注入的：写成事件的 `by`。
+    pub module: ModuleId,
+    /// 注入的那一块，原样追加。
+    pub fact: ContextInjected,
 }

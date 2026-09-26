@@ -249,13 +249,13 @@ impl Session {
 
     /// 环境和权限两块，变了的注入（08 C10）。
     fn inject_changed(&mut self) {
+        let now = Timestamp::from_unix_millis(self.now).expect("会话的时间在范围里");
         let environment = Environment {
-            now: Timestamp::from_unix_millis(self.now).expect("会话的时间在范围里"),
             offset: UtcOffset::from_minutes(540).expect("东九区在范围里"),
             cwd: "~/src/miyu".to_string(),
         };
         let facts = vec![
-            self.templates.env(&environment),
+            self.templates.env(now, &environment),
             self.templates.permission(&self.permission),
         ];
         for fact in changed(&self.history, &By::Kernel, facts) {

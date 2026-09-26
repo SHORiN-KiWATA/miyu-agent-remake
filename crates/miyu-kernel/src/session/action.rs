@@ -3,7 +3,8 @@
 //! 会话自己不做 I/O：要追加的事件、要回应的命令、要推送的事件，都写成动作交给执行器。
 
 use crate::event::Event;
-use crate::id::{CommandId, Seq};
+use crate::id::{CommandId, Seq, TurnId};
+use crate::request::Request;
 
 /// 会话要执行器做的一件事。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -20,6 +21,20 @@ pub enum Action {
     },
     /// 把这几条落了盘的事件推给头（S4：先落盘，后推送）。
     Push(Vec<Event>),
+    /// 跑回合开始的挂接点：叫各模块，等它们都回来或者超时，把各自的注入照固定的先后交回来
+    /// （`05-内核接口.md` 第五节第 2 条）。一个模块都没挂，也照样回一次，交回空的。
+    RunTurnStartHooks {
+        /// 哪个回合。
+        turn: TurnId,
+    },
+    /// 请求模型：把这份请求交给驱动编码、发出去（`05-内核接口.md` 第七节）。模型的增量和结局
+    /// 都带着 `seen` 回来（施工 2-3 下）。
+    CallModel {
+        /// 这次请求看到了第几条为止，也是这次请求的名字。
+        seen: Seq,
+        /// 统一的请求。
+        request: Request,
+    },
 }
 
 /// 一个命令的结局：被接受并产生事件，或被拒绝并附原因（不变量 7）。

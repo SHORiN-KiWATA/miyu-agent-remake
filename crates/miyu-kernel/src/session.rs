@@ -1,30 +1,39 @@
-//! 会话：内核的状态机（`docs/designs/02-内核.md` 第四节「输入、动作、命令怎么写」）。
+//! 会话：内核的状态机（`docs/designs/02-内核.md` 第四节「输入、动作、命令怎么写」、
+//! 第六节「回合怎么开、请求怎么发」）。
 //!
-//! 送进一条输入，出来一串动作。会话不做 I/O：要追加的事件、要回应的命令、要推送的事件，都写成
-//! 动作交给执行器；事件同步到磁盘以后，执行器送一条「落盘了」进来，会话这才推送、回应
-//! （`07-存储.md` S4）。
+//! 送进一条输入，出来一串动作。会话不做 I/O：要追加的事件、要回应的命令、要推送的事件、
+//! 要跑的挂接点、要发的请求，都写成动作交给执行器；事件同步到磁盘以后，执行器送一条
+//! 「落盘了」进来，会话这才推送、回应，回合这才往下走（`07-存储.md` S4）。
 //!
 //! 每收到一次命令，恰好回应一次（不变量 7）；同一个编号只生效一次（不变量 9）。
 
 mod action;
 mod input;
+mod policy;
 mod recent;
+mod turn;
 
 pub use action::{Action, Outcome, Reason};
-pub use input::{Command, Input, Received};
+pub use input::{Command, Injection, Input, Received};
+pub use policy::Policy;
 
-use crate::event::{Body, Event, MessageUser, SessionCreated};
-use crate::id::{CommandId, Seq};
+use crate::event::{Body, Event, MessageUser, Permission, SessionCreated};
+use crate::facts::Environment;
+use crate::history::History;
+use crate::id::{CommandId, Seq, TurnId};
 use crate::ledger::Ledger;
 use crate::origin::By;
 use crate::time::Timestamp;
 use recent::Recent;
+use turn::Turn;
 
 /// 一个会话的状态机。
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Session {
     /// 日志的账本：给新事件编序号，追加之前照规矩查一遍。
     ledger: Ledger,
+    /// 有效历史，组装请求用。事件追加时就交给它。
+    history: History,
     /// 追加了、还没落盘的事件，照先后。
     unstored: Vec<Event>,
     /// 落了盘的最后一条；还没有落过盘就是没有。
@@ -33,11 +42,21 @@ pub struct Session {
     waiting: Vec<(CommandId, Vec<Seq>)>,
     /// 最近接受的命令编号。
     recent: Recent,
+    /// 冻结在会话上的策略。
+    policy: Policy,
+    /// 会话所在的环境：时区、工作目录。
+    environment: Environment,
+    /// 现在的权限。
+    permission: Permission,
+    /// 正在进行的回合；空闲时没有。
+    turn: Option<Turn>,
 }
 
 impl Session {
     /// 造一个会话：追加第 1 条事件 `session.created`，它的 `cause` 是造会话的那个命令
     /// （`04-核心协议.md` 的 `session.create`）。这一条落了盘，再回应这个命令。
+    ///
+    /// 冻结在会话上的策略和会话所在的环境，由执行器一起交进来；开始时的权限取自 `created`。
     ///
     /// # Panics
     ///
@@ -47,17 +66,24 @@ impl Session {
         by: By,
         at: Timestamp,
         created: SessionCreated,
+        policy: Policy,
+        environment: Environment,
     ) -> (Session, Vec<Action>) {
         let mut session = Session {
             ledger: Ledger::default(),
+            history: History::default(),
             unstored: Vec::new(),
             stored: None,
             waiting: Vec::new(),
             recent: Recent::default(),
+            policy,
+            environment,
+            permission: created.permission.clone(),
+            turn: None,
         };
-        let event = session.record(&id, &by, at, Body::SessionCreated(created));
-        let actions = session.accept(id, vec![event]);
-        (session, actions)
+        let event = session.record(at, by, Some(id.clone()), Body::SessionCreated(created));
+        session.accept(id, vec![event.seq]);
+        (session, vec![Action::Append(vec![event])])
     }
 
     /// 送进一条输入，出来一串动作。
@@ -69,50 +95,74 @@ impl Session {
         match input {
             Input::Command(received) => self.receive(received),
             Input::Stored { upto } => self.stored(upto),
+            Input::Environment(environment) => {
+                self.environment = environment;
+                Vec::new()
+            }
+            Input::TurnStartHooksDone { at, turn, injected } => {
+                self.turn_start_hooked(at, turn, injected)
+            }
         }
     }
 
     /// 收到一个命令。接受过的编号照上一次回应；新的照命令判。
     fn receive(&mut self, received: Received) -> Vec<Action> {
-        if let Some(events) = self.recent.get(&received.id) {
+        let Received {
+            id,
+            by,
+            at,
+            command,
+        } = received;
+        if let Some(events) = self.recent.get(&id) {
             let events = events.to_vec();
-            return self.reply_when_stored(received.id, events);
+            return self.reply_when_stored(id, events);
         }
-        match received.command {
+        match command {
             Command::Send { blocks } => {
                 if blocks.is_empty() {
-                    return vec![rejected(received.id, Reason::EmptyMessage)];
+                    return vec![rejected(id, Reason::EmptyMessage)];
                 }
                 let body = Body::MessageUser(MessageUser { blocks });
-                let event = self.record(&received.id, &received.by, received.at, body);
-                self.accept(received.id, vec![event])
+                let message = self.record(at, by, Some(id.clone()), body);
+                self.accept(id.clone(), vec![message.seq]);
+                let trigger = message.seq;
+                let mut events = vec![message];
+                if self.turn.is_none() {
+                    events.extend(self.open_turn(at, trigger, Some(id)));
+                }
+                vec![Action::Append(events)]
             }
         }
     }
 
-    /// 造一条这个命令产生的事件：`at`、`by`、`cause` 取自命令。交给账本查过，记在账上。
-    fn record(&mut self, id: &CommandId, by: &By, at: Timestamp, body: Body) -> Event {
+    /// 造一条事件：交给账本查过，记在账上，交给有效历史，等着落盘。回合进行中造的，带上
+    /// 这个回合的编号；`turn.started` 带它自己的序号（`03-事件模型.md` 第二节）。
+    fn record(&mut self, at: Timestamp, by: By, cause: Option<CommandId>, body: Body) -> Event {
+        let seq = self.ledger.next_seq();
+        let turn = match body {
+            Body::TurnStarted(_) => Some(TurnId::new(seq)),
+            _ => self.turn.as_ref().map(|turn| turn.id),
+        };
         let event = Event {
-            seq: self.ledger.next_seq(),
+            seq,
             at,
-            turn: None,
-            by: by.clone(),
-            cause: Some(id.clone()),
+            turn,
+            by,
+            cause,
             body,
         };
         if let Err(error) = self.ledger.append(&event) {
             panic!("内核自己造的事件过不了账本，这是内核的 bug：{error}");
         }
+        self.history.append(event.clone());
+        self.unstored.push(event.clone());
         event
     }
 
-    /// 接受一个命令：追加它产生的事件，记下编号，等落了盘再回应。
-    fn accept(&mut self, id: CommandId, events: Vec<Event>) -> Vec<Action> {
-        let seqs: Vec<Seq> = events.iter().map(|event| event.seq).collect();
-        self.recent.insert(id.clone(), seqs.clone());
-        self.waiting.push((id, seqs));
-        self.unstored.extend(events.iter().cloned());
-        vec![Action::Append(events)]
+    /// 接受一个命令：记下编号和它产生的事件，等落了盘再回应。
+    fn accept(&mut self, id: CommandId, events: Vec<Seq>) {
+        self.recent.insert(id.clone(), events.clone());
+        self.waiting.push((id, events));
     }
 
     /// 接受过的命令又来了：它的事件都落了盘，当场回应；还没有，排队等落盘。
@@ -135,8 +185,8 @@ impl Session {
     }
 
     /// 到第 `upto` 条为止落了盘：先推送这些事件，再回应事件全落了盘的命令（`04-核心协议.md`
-    /// 第六节第 2 条：先见结果，后见回应）。`upto` 超出追加过的，多出来的不算；不比上一次
-    /// 往后的，什么都不做。
+    /// 第六节第 2 条：先见结果，后见回应），然后回合往下走。`upto` 超出追加过的，多出来的
+    /// 不算；不比上一次往后的，什么都不做。
     fn stored(&mut self, upto: Seq) -> Vec<Action> {
         let split = self.unstored.partition_point(|event| event.seq <= upto);
         if split == 0 {
@@ -152,6 +202,7 @@ impl Session {
                 self.waiting.push((id, events));
             }
         }
+        actions.extend(self.advance());
         actions
     }
 }

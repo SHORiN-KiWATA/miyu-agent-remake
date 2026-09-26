@@ -20,9 +20,13 @@ fn templates() -> FactTemplates {
     .unwrap()
 }
 
+/// 边界上的此刻。
+fn now() -> Timestamp {
+    Timestamp::parse("2026-09-25T07:04:05.140Z").unwrap()
+}
+
 fn environment(cwd: &str) -> Environment {
     Environment {
-        now: Timestamp::parse("2026-09-25T07:04:05.140Z").unwrap(),
         offset: UtcOffset::from_minutes(540).unwrap(),
         cwd: cwd.to_string(),
     }
@@ -141,7 +145,7 @@ fn a_broken_template_is_refused() {
 
 #[test]
 fn the_env_block_has_the_hour_the_timezone_and_the_directory() {
-    let block = templates().env(&environment("~/src/miyu"));
+    let block = templates().env(now(), &environment("~/src/miyu"));
     assert_eq!(block.kind.as_str(), "env");
     assert_eq!(
         block.text,
@@ -152,7 +156,7 @@ fn the_env_block_has_the_hour_the_timezone_and_the_directory() {
 #[test]
 fn the_directory_is_escaped() {
     let cwd = "~/a\"b<c>";
-    let block = templates().env(&environment(cwd));
+    let block = templates().env(now(), &environment(cwd));
     assert_eq!(
         block.text,
         format!(

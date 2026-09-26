@@ -16,7 +16,7 @@ use miyu_kernel::event::{Body, ContextInjected, Event, Permission};
 use miyu_kernel::facts::{Environment, FactTemplates, changed};
 use miyu_kernel::history::History;
 use miyu_kernel::origin::By;
-use miyu_kernel::time::UtcOffset;
+use miyu_kernel::time::{Timestamp, UtcOffset};
 
 /// 出厂的两个模板。
 fn templates() -> FactTemplates {
@@ -69,17 +69,21 @@ fn permission_at(events: &[Event], seq: u64) -> Permission {
     permission.expect("样本会话有 session.created")
 }
 
-/// 样本会话的环境：东九区，工作目录 `~/src/miyu`，时刻取第 `seq` 条的时间。
-fn environment(events: &[Event], seq: u64) -> Environment {
-    let event = events
-        .iter()
-        .find(|event| event.seq.get() == seq)
-        .unwrap_or_else(|| panic!("样本会话里没有 {seq} 号"));
+/// 样本会话的环境：东九区，工作目录 `~/src/miyu`。
+fn environment() -> Environment {
     Environment {
-        now: event.at,
         offset: UtcOffset::from_minutes(540).expect("东九区在范围里"),
         cwd: "~/src/miyu".to_string(),
     }
+}
+
+/// 第 `seq` 条的时刻。
+fn time_of(events: &[Event], seq: u64) -> Timestamp {
+    events
+        .iter()
+        .find(|event| event.seq.get() == seq)
+        .unwrap_or_else(|| panic!("样本会话里没有 {seq} 号"))
+        .at
 }
 
 /// 第 `seq` 条之后的边界上，内核该注入的几块。
@@ -90,7 +94,7 @@ fn injected_after(events: &[Event], seq: u64) -> Vec<ContextInjected> {
     }
     let templates = templates();
     let facts = vec![
-        templates.env(&environment(events, seq)),
+        templates.env(time_of(events, seq), &environment()),
         templates.permission(&permission_at(events, seq)),
     ];
     changed(&history, &By::Kernel, facts)
