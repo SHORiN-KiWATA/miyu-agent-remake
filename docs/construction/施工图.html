@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>32</b><span>/ 41 步<strong>已完成</strong>，M2 完成：回合的各种走法都在内存里跑通了</span></li>
-    <li><b>3-1</b><span>下一步：M3 的数据根，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">7ce216a</b><span>最近一步（2-10）的提交</span></li>
+    <li><b>33</b><span>/ 41 步<strong>已完成</strong>，第一次碰到真的磁盘</span></li>
+    <li><b>3-2</b><span>下一步：会话日志文件，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">3558e1d</b><span>最近一步（3-1）的提交</span></li>
   </ul>
 </header>
 
@@ -347,7 +347,7 @@ a.step:hover{border-color:var(--primary)}
     <li>
       <div class="ms-head"><span class="ms-id">M3</span><span class="ms-name">第一次真对话</span><span class="ms-goal"><code>miyu ask</code> 跟真模型说上话，缓存命中有实测数字</span></div>
       <ol class="chips">
-        <li><span class="step"><span class="n">3-1</span>数据根</span></li>
+        <li><a class="step done" href="#s3-1"><span class="n">3-1</span>数据根<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-2</span>会话日志文件</span></li>
         <li><span class="step"><span class="n">3-3</span>blob</span></li>
         <li><span class="step"><span class="n">3-4</span>驱动接口与编解码</span></li>
@@ -2855,6 +2855,87 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-1" aria-labelledby="h-s31">
+  <div class="sheet-head"><h2 id="h-s31"><span class="no">3-1</span>数据根</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">Miyu 在每台机器上找到自己的数据根：默认位置照平台来，<code>MIYU_HOME</code> 能指到别处；第一次用时建好四个顶层目录，Unix 上只有本人能进。缓存目录一起找出来。M3 的第一步，第一个真碰磁盘的 crate。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">找 · miyu-store/src/root.rs</span><span class="dir-note">07 第二节「默认位置」「怎么找」</span></div>
+            <ol class="pipe" aria-label="怎么找数据根">
+              <li>从进程里读一份环境快照：MIYU_HOME、家目录、XDG、LOCALAPPDATA、平台</li>
+              <li>MIYU_HOME 设了就是它（要写绝对路径）</li>
+              <li>不然照平台：Linux 照 XDG，macOS、Windows 各有各的位置</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">三个平台</span><span class="dir-note">数据根 · 缓存</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">Linux</span><span class="rl">~/.local/share/miyu · ~/.cache/miyu（XDG 设了照它）</span></div>
+              <div class="tile new"><span class="nm">macOS</span><span class="rl">~/Library/Application Support/Miyu · ~/Library/Caches/Miyu</span></div>
+              <div class="tile new"><span class="nm">Windows</span><span class="rl">%LOCALAPPDATA%\Miyu · %LOCALAPPDATA%\Miyu\cache</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">第一次用时建骨架</span><span class="dir-note">别的用到时再建</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">system/ home/ state/ run/</span><span class="rl">Unix 上新建的 0700，只有本人能进</span></div>
+              <div class="tile"><span class="nm">已经有的不改</span><span class="rl">权限不对由 miyu doctor 报告</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">新 crate miyu-store，第 3 层</span><span class="rl">存储的执行器，会话日志、blob 也放这里</span></div>
+          <div class="tile new"><span class="nm">照环境快照找</span><span class="rl">测试不改进程的环境变量，三个平台在哪台机器上都测得到</span></div>
+          <div class="tile new"><span class="nm">MIYU_HOME 要写绝对路径</span><span class="rl">相对的跟着当前目录变，会找到两个数据根</span></div>
+          <div class="tile"><span class="nm">缓存只找不建</span><span class="rl">整台机器共用，不跟着数据根变</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-1</dd></div>
+        <div><dt>名称</dt><dd>数据根</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">3558e1d</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>crates/miyu-store</code>：新 crate，第 3 层；不引依赖。</li>
+        <li><code>src/env.rs</code>：环境快照，平台也是一格。</li>
+        <li><code>src/root.rs</code>：找数据根和缓存目录；建骨架；几个顶层目录的路径。</li>
+        <li><code>docs/designs/01-架构.md</code>：第 3 层登记 <code>miyu-store</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新加 9 个测试：三个平台的默认位置、XDG、MIYU_HOME、空的和相对的、找不到家目录、建骨架、Unix 上的权限、已有的不改、读进程环境找得到</span></li>
+        <li><span class="ok">✓</span><span>测试都在临时目录里建、喂快照，不碰进程的环境变量和真的数据根</span></li>
+        <li><span class="ok">✓</span><span>故意改坏十一处，每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿（Linux、macOS 各 382 个测试，Windows 380 个：两条 Unix 权限的测试不在 Windows 上跑）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/07-存储.md</code> 第二节「怎么找」「第一次用时建骨架」。</li>
+        <li><code>docs/designs/01-架构.md</code> 第九节，第 3 层。</li>
+        <li><code>docs/construction/3-1-数据根.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -3031,6 +3112,7 @@ const BUILD = {
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
+  n_store: { by: '3-1', how: 'frame', note: '数据根：三个平台的位置、MIYU_HOME、骨架' },
 };
 
 const svg = document.getElementById('bmap');
