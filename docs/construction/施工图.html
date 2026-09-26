@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>24</b><span>/ 37 步<strong>已完成</strong>，排队的话有了着落</span></li>
-    <li><b>2-7</b><span>下一步：权限级别、确认与提问，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">e00b87b</b><span>最近一步（2-6）的提交</span></li>
+    <li><b>25</b><span>/ 39 步<strong>已完成</strong>，只读当场生效</span></li>
+    <li><b>2-7</b><span>下一步：确认（中），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">07e2665</b><span>最近一步（2-7 上）的提交</span></li>
   </ul>
 </header>
 
@@ -334,7 +334,9 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s2-4"><span class="n">2-4</span>调工具<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-5"><span class="n">2-5</span>打断<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-6"><span class="n">2-6</span>排队的消息<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">2-7</span>权限级别、确认与提问</span></li>
+        <li><a class="step done" href="#s2-7a"><span class="n">2-7</span>权限级别（上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">2-7</span>确认（中）</span></li>
+        <li><span class="step"><span class="n">2-7</span>提问（下）</span></li>
         <li><span class="step"><span class="n">2-8</span>载入、崩溃恢复、撤销</span></li>
         <li><span class="step"><span class="n">2-9</span>场景测试</span></li>
         <li><span class="step"><span class="n">2-10</span>随机测试</span></li>
@@ -2199,6 +2201,87 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s2-7a" aria-labelledby="h-s27a">
+  <div class="sheet-head"><h2 id="h-s27a"><span class="no">2-7</span>权限级别（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">人能随时切权限级别：开关只读，或者改常用的那一级。收紧当场生效，放宽等下一次请求。只读时写文件的调用由内核当场拦下。级别变了，在下一次请求之前注入一块事实，来回切了一圈的不注入。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">切权限级别 · session/permission.rs</span><span class="dir-note">02 第六节「权限级别怎么切」</span></div>
+            <ol class="pipe" aria-label="切一次权限级别">
+              <li>人切：开关只读，或者改常用的那一级，改哪样写哪样</li>
+              <li>记一条 session.policy_changed，两格都写，by 是切的人</li>
+              <li>收紧的当场生效，放宽的等下一次请求</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">内核拦的 · 只读时写文件的调用</span><span class="dir-note">11 第二节 A12</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">回复到了</span><span class="rl">写文件的当场记一条被拒绝的结果，by 是内核</span></div>
+              <div class="tile new"><span class="nm">工具在跑时开只读</span><span class="rl">还没派的写文件调用当场拦下，已经在跑的不动</span></div>
+              <div class="tile new"><span class="nm">别的照常派</span><span class="rl">读的、跑命令的；命令在只读的沙盒里跑（M5）</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">事实 · 请求之前查</span><span class="dir-note">08 C10、第五节</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">切过就查</span><span class="rl">这一步齐了、挂接点跑完、正要请求时，查一遍环境和权限</span></div>
+              <div class="tile new"><span class="nm">来回切一圈不注入</span><span class="rl">和她最近看到的那一块一样</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">改哪样写哪样</span><span class="rl">内核照现在的合出新的，两个头不会互相盖掉</span></div>
+          <div class="tile new"><span class="nm">实际生效的单独记</span><span class="rl">事实写请求那一刻生效的那一级</span></div>
+          <div class="tile new"><span class="nm">工作目录写这一轮的</span><span class="rl">派工具带的是它，中途换了目录，下一轮才写新的</span></div>
+          <div class="tile new"><span class="nm">规则那一行先写好</span><span class="rl">permission-rule.txt，3-6 拼进 system</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-7（上）</dd></div>
+        <div><dt>名称</dt><dd>权限级别（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">07e2665</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>session/permission.rs</code>：切权限级别，收紧当场生效、放宽等下一次请求；请求之前把事实查一遍。</li>
+        <li><code>session/tools.rs</code>：派之前照实际生效的那一级判；收紧成只读时，拦下还没派的写文件调用。</li>
+        <li>命令 <code>SetPermission</code>，原因码 <code>unknown_level</code>。</li>
+        <li>资源：只读时拦下的那一句 <code>read-only.txt</code>；system 里核心的那一行 <code>permission-rule.txt</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>253 个测试全过，新加 14 个：空闲时切、一样的不记、不认识的级别、请求在路上时收紧和放宽、工具在跑时收紧、拦下以后这一步齐了、来回切不注入、回合开头切、挂接点跑完以后切、收紧成工作区、只读开着时改常用的那一级、环境变了以后切；规则那一行读得进来</span></li>
+        <li><span class="ok">✓</span><span>随机测试加上切权限级别，看守的权限检查拆进 watch/permission.rs，三条新的路都走到</span></li>
+        <li><span class="ok">✓</span><span>故意改坏二十一处，每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 253 个测试）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/02-内核.md</code> 第六节「权限级别怎么切」，第四节的表。</li>
+        <li><code>docs/designs/08-上下文投影.md</code> 第五节：回合中途查的写这一轮的工作目录；<code>11-权限与沙盒.md</code> 第二节。</li>
+        <li><code>docs/construction/2-7-权限级别（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -2373,8 +2456,8 @@ const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '13 种事件的写法、瞬时事件、追加时的检查' },
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
-  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队' },
-  k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑' },
+  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别' },
+  k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的' },
 };
 
 const svg = document.getElementById('bmap');
