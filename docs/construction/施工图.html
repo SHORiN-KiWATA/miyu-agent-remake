@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>21</b><span>/ 37 步<strong>已完成</strong>，一轮对话在内存里走通了</span></li>
-    <li><b>2-4</b><span>下一步：调工具，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">e1f0036</b><span>最近一步（2-3 下）的提交</span></li>
+    <li><b>22</b><span>/ 37 步<strong>已完成</strong>，会调工具了</span></li>
+    <li><b>2-5</b><span>下一步：打断，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">e3ce7b6</b><span>最近一步（2-4）的提交</span></li>
   </ul>
 </header>
 
@@ -331,7 +331,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s2-2"><span class="n">2-2</span>流式累积器<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-3a"><span class="n">2-3</span>最简单的一轮（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-3b"><span class="n">2-3</span>最简单的一轮（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">2-4</span>调工具</span></li>
+        <li><a class="step done" href="#s2-4"><span class="n">2-4</span>调工具<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">2-5</span>打断</span></li>
         <li><span class="step"><span class="n">2-6</span>中途来的消息与回报</span></li>
         <li><span class="step"><span class="n">2-7</span>权限级别、确认与提问</span></li>
@@ -1963,6 +1963,88 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s2-4" aria-labelledby="h-s24">
+  <div class="sheet-head"><h2 id="h-s24"><span class="no">2-4</span>调工具</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">回复里有工具调用，回合接着走：内核先查、修正参数，回复落了盘再派；只读的一起跑，别的一个接一个；结果齐了请求下一次，直到她不再调工具，或者走到步数上限。执行中的输出推给头。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一步 · session/tools.rs</span><span class="dir-note">02 第六节「工具怎么调、下一步怎么走」</span></div>
+            <ol class="pipe" aria-label="一步从回复到下一次请求">
+              <li>先查：没有这个工具、参数不是 JSON 对象，当场回一句</li>
+              <li>回复落了盘，派能派的：只读的一起，别的一个接一个</li>
+              <li>结果齐了、落了盘：请求下一次，到了上限就结束</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">内核眼里的工具 · tool.rs</span><span class="dir-note">05 第六节</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">访问类别</span><span class="rl">只读、写文件、执行命令、访问网络、对外发消息</span></div>
+              <div class="tile new"><span class="nm">参数修正</span><span class="rl">照格式还原被写成字符串的数组、对象、数字、布尔；字符串一个字节不碰</span></div>
+              <div class="tile new"><span class="nm">内核写的两句</span><span class="rl">resources/core/tool-results/，by 是内核</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">新的输入、动作、瞬时事件</span><span class="dir-note">02 第四节、03 第五节</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">工具执行完了</span><span class="rl">成功或出错、内容块、用时；by 是那次调用</span></div>
+              <div class="tile new"><span class="nm">执行工具</span><span class="rl">调用编号、工具名、修正过的参数、这一轮的工作目录</span></div>
+              <div class="tile new"><span class="nm">tool.progress</span><span class="rl">执行中的一段输出，只推给头</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">修正只用在执行上</span><span class="rl">日志里照模型给的原文，发回去的字节不变</span></div>
+          <div class="tile new"><span class="nm">先落盘，后执行</span><span class="rl">日志里先有调用，才有它的效果</span></div>
+          <div class="tile new"><span class="nm">到了上限，跑完这一步</span><span class="rl">结果是真的，下一轮说「继续」接着用</span></div>
+          <div class="tile new"><span class="nm">工作目录跟着回合</span><span class="rl">回合开始时抄下，中途变了下一轮才用</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-4</dd></div>
+        <div><dt>名称</dt><dd>调工具</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">e3ce7b6</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>tool.rs</code>：访问类别 <code>Access</code>、<code>ToolRule</code>、参数修正 <code>repair</code>、内核写的两句 <code>ToolTexts</code>。</li>
+        <li><code>session/tools.rs</code>：这一步的调用走到了哪；先查、派、收结果、下一步、步数上限。</li>
+        <li>冻结的策略多了工具面、步数上限、两句结果；回合记着工作目录和请求了几次。</li>
+        <li>输入 <code>ToolDone</code>、<code>ToolProgress</code>；动作 <code>RunTool</code>；瞬时事件 <code>tool.progress</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>217 个测试全过，新加 18 个：参数修正六个、两句的转义；一步走到底、派的先后、当场拦下的、修正只用在执行上、步数上限、执行中的输出、对不上的结果、回合的工作目录；tool.progress 的写法和样本；出厂的两句读得进来</span></li>
+        <li><span class="ok">✓</span><span>随机一串输入加上工具的结果和输出，查派之前回复落了盘、不是只读的不和别的一起跑、每个调用只派一次、请求不超过上限；还查自己走到了没有，这回查出执行器替身先送增量、后报发出去了，大半请求都死在半路，改成多半守规矩</span></li>
+        <li><span class="ok">✓</span><span>故意改坏十七处，每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 217 个测试）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/02-内核.md</code> 第六节「工具怎么调、下一步怎么走」，第四节的表。</li>
+        <li><code>docs/designs/03-事件模型.md</code> 第五节 <code>tool.progress</code>，第三节内核拦下的结果。</li>
+        <li><code>docs/construction/2-4-调工具.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -2137,7 +2219,8 @@ const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '12 种事件的写法、瞬时事件、追加时的检查' },
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
-  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底' },
+  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具' },
+  k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑' },
 };
 
 const svg = document.getElementById('bmap');
