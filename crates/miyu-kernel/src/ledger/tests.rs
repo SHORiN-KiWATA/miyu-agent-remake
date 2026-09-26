@@ -15,8 +15,8 @@ fn event(seq: u64, turn: Option<u64>, kind: &str, body: &str) -> Event {
     .unwrap()
 }
 
-/// 一条助手消息的 `body`：几个工具调用，编号照 `seq` 编，一个不错。
-fn reply(seq: u64, calls: u32, interrupted: bool) -> String {
+/// 一条助手消息的 `body`：几个工具调用，编号照 `seq` 编，一个不错；它的请求看到了第 `seen` 条为止。
+fn reply(seq: u64, seen: u64, calls: u32, interrupted: bool) -> String {
     let blocks: Vec<String> = (1..=calls)
         .map(|k| {
             format!(
@@ -29,7 +29,7 @@ fn reply(seq: u64, calls: u32, interrupted: bool) -> String {
     } else {
         ""
     };
-    format!(r#"{{"blocks":[{}]{cut}}}"#, blocks.join(","))
+    format!(r#"{{"blocks":[{}],"seen":{seen}{cut}}}"#, blocks.join(","))
 }
 
 fn result(call: &str, status: &str) -> String {
@@ -49,14 +49,14 @@ fn session() -> Vec<Event> {
             "context.injected",
             r#"{"kind":"env","text":"<env/>"}"#,
         ),
-        event(5, Some(3), "message.assistant", &reply(5, 2, false)),
+        event(5, Some(3), "message.assistant", &reply(5, 4, 2, false)),
         event(6, Some(3), "tool.result", &result("call_5_2", "ok")),
         event(7, Some(3), "tool.result", &result("call_5_1", "ok")),
-        event(8, Some(3), "message.assistant", &reply(8, 0, false)),
+        event(8, Some(3), "message.assistant", &reply(8, 7, 0, false)),
         event(9, Some(3), "turn.ended", r#"{"reason":"completed"}"#),
         event(10, None, "message.user", SAID),
         event(11, Some(11), "turn.started", r#"{"trigger":10}"#),
-        event(12, Some(11), "message.assistant", &reply(12, 1, true)),
+        event(12, Some(11), "message.assistant", &reply(12, 11, 1, true)),
         event(
             13,
             Some(11),
@@ -170,7 +170,7 @@ fn turn_must_be_the_one_in_progress() {
     );
     refused(
         &mut ledger,
-        &event(4, None, "message.assistant", &reply(4, 0, false)),
+        &event(4, None, "message.assistant", &reply(4, 3, 0, false)),
         "message.assistant 只在回合里发生",
     );
     // 回合结束以后，谁也不能再说自己属于它，不认识的种类也一样。
@@ -185,8 +185,7 @@ fn turn_must_be_the_one_in_progress() {
 #[test]
 fn tool_calls_are_numbered_after_their_message() {
     let mut ledger = after(4);
-    let wrong_order =
-        r#"{"blocks":[{"type":"tool_call","call_id":"call_5_2","name":"read","args":"{}"}]}"#;
+    let wrong_order = r#"{"blocks":[{"type":"tool_call","call_id":"call_5_2","name":"read","args":"{}"}],"seen":4}"#;
     refused(
         &mut ledger,
         &event(5, Some(3), "message.assistant", wrong_order),
@@ -194,7 +193,7 @@ fn tool_calls_are_numbered_after_their_message() {
     );
     refused(
         &mut ledger,
-        &event(5, Some(3), "message.assistant", &reply(4, 1, false)),
+        &event(5, Some(3), "message.assistant", &reply(4, 4, 1, false)),
         "写的是 call_4_1",
     );
 }
@@ -255,5 +254,22 @@ fn revert_only_turns_after_the_latest_compaction() {
         &mut ledger,
         &event(18, None, "turn.reverted", r#"{"turns":[3]}"#),
         "在最近一次压缩之前",
+    );
+}
+
+/// 回复看到的在它自己之前，而且不早于上一条回复：后一次请求一定看过前一条回复。
+#[test]
+fn a_reply_saw_what_came_before_it_including_the_last_reply() {
+    let mut ledger = after(4);
+    refused(
+        &mut ledger,
+        &event(5, Some(3), "message.assistant", &reply(5, 5, 0, false)),
+        "seen 5 应该在这条回复之前",
+    );
+    let mut ledger = after(7);
+    refused(
+        &mut ledger,
+        &event(8, Some(3), "message.assistant", &reply(8, 4, 0, false)),
+        "seen 4 早于上一条回复 5",
     );
 }

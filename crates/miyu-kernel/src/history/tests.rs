@@ -32,6 +32,7 @@ fn message(seq: u64, by: &str) -> Event {
 }
 
 /// 一整轮：由 `trigger` 触发，从 `start` 开始，模型回一句就结束，占三个序号。
+/// 回复的请求看到了回合开始那一条为止。
 fn turn(start: u64, trigger: u64) -> Vec<Event> {
     let body = format!(r#"{{"trigger":{trigger}}}"#);
     vec![
@@ -41,7 +42,7 @@ fn turn(start: u64, trigger: u64) -> Vec<Event> {
             Some(start),
             MODEL,
             "message.assistant",
-            r#"{"blocks":[]}"#,
+            &calls(start + 1, start, 0),
         ),
         event(
             start + 2,
@@ -51,6 +52,24 @@ fn turn(start: u64, trigger: u64) -> Vec<Event> {
             r#"{"reason":"completed"}"#,
         ),
     ]
+}
+
+/// 一条回复的 `body`：`n` 个工具调用，编号照 `seq` 编；它的请求看到了第 `seen` 条为止。
+fn calls(seq: u64, seen: u64, n: u32) -> String {
+    let blocks: Vec<String> = (1..=n)
+        .map(|k| {
+            format!(
+                r#"{{"type":"tool_call","call_id":"call_{seq}_{k}","name":"read","args":"{{}}"}}"#
+            )
+        })
+        .collect();
+    format!(r#"{{"blocks":[{}],"seen":{seen}}}"#, blocks.join(","))
+}
+
+/// 回合 `turn` 里，调用 `call` 的结果。
+fn result(seq: u64, turn: u64, call: &str) -> Event {
+    let body = format!(r#"{{"call_id":"{call}","status":"ok","blocks":[]}}"#);
+    event(seq, Some(turn), KERNEL, "tool.result", &body)
 }
 
 fn compacted(seq: u64, upto: u64) -> Event {
@@ -96,11 +115,22 @@ fn checkpoint(history: &History) -> Option<u64> {
     history.checkpoint().map(|event| event.seq.get())
 }
 
+/// 照每次请求看到的范围排好以后，只看序号。
+fn ordered(history: &History) -> Vec<u64> {
+    history
+        .ordered()
+        .iter()
+        .map(|event| event.seq.get())
+        .collect()
+}
+
 #[test]
 fn without_compaction_everything_stays() {
     let history = feed(two_turns());
     assert_eq!(seqs(&history), (1..=9).collect::<Vec<_>>());
     assert_eq!(checkpoint(&history), None);
+    // 请求在路上时什么也没来，排出来就是日志的先后。
+    assert_eq!(ordered(&history), seqs(&history));
 }
 
 #[test]
@@ -166,4 +196,92 @@ fn undo_keeps_triggers_that_came_from_elsewhere() {
     events.push(reverted(14, &[3, 7, 11]));
     let history = feed(events);
     assert_eq!(seqs(&history), vec![1, 2, 6, 10]);
+}
+
+/// 03 第六节那一回合，序号挪了一挪：回复 5 调了两个工具、看到 4；第二个调用的结果 6 先回来；
+/// 工具还在跑时人又说了一句 7；第一个调用的结果 8；最后的回复 9 看到 8。
+/// 图上的 44、48、46、47，在这里是 5、8、6、7。
+#[test]
+fn the_turn_from_the_drawing_is_ordered_as_drawn() {
+    let events = vec![
+        created(),
+        message(2, ALICE),
+        event(3, Some(3), KERNEL, "turn.started", r#"{"trigger":2}"#),
+        event(
+            4,
+            Some(3),
+            KERNEL,
+            "context.injected",
+            r#"{"kind":"env","text":"<env/>"}"#,
+        ),
+        event(5, Some(3), MODEL, "message.assistant", &calls(5, 4, 2)),
+        result(6, 3, "call_5_2"),
+        message(7, ALICE),
+        result(8, 3, "call_5_1"),
+        event(9, Some(3), MODEL, "message.assistant", &calls(9, 8, 0)),
+        event(
+            10,
+            Some(3),
+            KERNEL,
+            "turn.ended",
+            r#"{"reason":"completed"}"#,
+        ),
+    ];
+    assert_eq!(ordered(&feed(events)), vec![1, 2, 3, 4, 5, 8, 6, 7, 9, 10]);
+}
+
+/// 请求在路上时人又说了一句（4）：回复（5）只看到 3，所以这一句排在回复后面。
+#[test]
+fn a_message_that_came_while_the_request_was_out_goes_after_the_reply() {
+    let events = vec![
+        created(),
+        message(2, ALICE),
+        event(3, Some(3), KERNEL, "turn.started", r#"{"trigger":2}"#),
+        message(4, ALICE),
+        event(5, Some(3), MODEL, "message.assistant", &calls(5, 3, 0)),
+        event(
+            6,
+            Some(3),
+            KERNEL,
+            "turn.ended",
+            r#"{"reason":"completed"}"#,
+        ),
+    ];
+    assert_eq!(ordered(&feed(events)), vec![1, 2, 3, 5, 4, 6]);
+}
+
+/// 被动压缩保下最后一组：回复 9 连同它的调用和结果。尾巴里照样照请求排，
+/// 工具在跑时来的那一句（10）排在结果（11）后面。
+#[test]
+fn the_kept_tail_after_a_compaction_is_ordered_the_same_way() {
+    let mut events = vec![created(), message(2, ALICE)];
+    events.extend(turn(3, 2));
+    events.push(message(6, ALICE));
+    events.push(event(
+        7,
+        Some(7),
+        KERNEL,
+        "turn.started",
+        r#"{"trigger":6}"#,
+    ));
+    events.push(event(
+        8,
+        Some(7),
+        KERNEL,
+        "context.injected",
+        r#"{"kind":"env","text":"<env/>"}"#,
+    ));
+    events.push(event(
+        9,
+        Some(7),
+        MODEL,
+        "message.assistant",
+        &calls(9, 8, 1),
+    ));
+    events.push(message(10, ALICE));
+    events.push(result(11, 7, "call_9_1"));
+    events.push(compacted(12, 8));
+    let history = feed(events);
+    assert_eq!(checkpoint(&history), Some(12));
+    assert_eq!(ordered(&history), vec![9, 11, 10]);
 }

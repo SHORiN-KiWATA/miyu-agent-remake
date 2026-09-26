@@ -21,6 +21,9 @@ pub struct Ledger {
     next: Seq,
     /// 正在进行的回合。一个会话同一时刻最多只有一个（不变量 4）。
     open: Option<TurnId>,
+    /// 上一条回复（`message.assistant`）的序号。后一次请求一定看过它，
+    /// 所以下一条回复的 `seen` 不能比它早。
+    last_reply: Option<Seq>,
     /// 正在进行的回合里，还没有结果的调用。回合结束时它必须是空的，
     /// 所以这里只会有这一个回合的调用。
     pending: BTreeSet<CallId>,
@@ -35,6 +38,7 @@ impl Default for Ledger {
         Ledger {
             next: Seq::FIRST,
             open: None,
+            last_reply: None,
             pending: BTreeSet::new(),
             compacted: None,
             turns: BTreeSet::new(),
@@ -78,7 +82,10 @@ impl Ledger {
         }
         self.check_turn(event)?;
         match &event.body {
-            Body::MessageAssistant(message) => check_call_ids(seq, &message.blocks),
+            Body::MessageAssistant(message) => {
+                self.check_seen(seq, message.seen)?;
+                check_call_ids(seq, &message.blocks)
+            }
             Body::ToolResult(result) if !self.pending.contains(&result.call_id) => Err(format!(
                 "{} 不是一个还在等结果的调用：没有这个调用，或者它已经有了结果",
                 result.call_id
@@ -126,6 +133,20 @@ impl Ledger {
         }
     }
 
+    /// 回复看到的在它自己之前，而且不早于上一条回复：后一次请求一定看过前一条回复
+    /// （03 第六节）。所以 `seen` 一次比一次大，投影才切得了段。
+    fn check_seen(&self, seq: Seq, seen: Seq) -> Result<(), String> {
+        if seen >= seq {
+            return Err(format!("seen {seen} 应该在这条回复之前"));
+        }
+        match self.last_reply {
+            Some(last) if seen < last => Err(format!(
+                "seen {seen} 早于上一条回复 {last}：后一次请求一定看过前一条回复"
+            )),
+            _ => Ok(()),
+        }
+    }
+
     /// 压缩只前进：替代到的位置在这一条之前，而且不早于上一次。
     fn check_compaction(&self, seq: Seq, upto: Seq) -> Result<(), String> {
         if upto >= seq {
@@ -149,6 +170,7 @@ impl Ledger {
                 self.turns.insert(turn);
             }
             Body::MessageAssistant(message) => {
+                self.last_reply = Some(event.seq);
                 self.pending
                     .extend(message.blocks.iter().filter_map(tool_call_id));
             }

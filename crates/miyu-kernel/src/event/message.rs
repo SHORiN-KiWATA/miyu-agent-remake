@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::block::Block;
+use crate::id::Seq;
 
 /// `message.user`：人发来的消息，或另一个会话发来的消息。谁发的写在事件的 `by` 里。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -17,6 +18,9 @@ pub struct MessageUser {
 pub struct MessageAssistant {
     /// 响应的内容，一串内容块：文字、思考、工具调用，照模型给出的先后。
     pub blocks: Vec<Block>,
+    /// 发这次请求时，日志到第几条为止：这条回复就是看着它们写的。请求在路上时到的事件
+    /// 序号比它大，投影时排在这条回复后面（03 第六节「照每次请求看到的范围排」）。
+    pub seen: Seq,
     /// 响应中途被打断了。这时 `blocks` 只有已经收到的部分，参数没收全的工具调用不在里面
     /// （03 第五节）。只在被打断时写这一格；读的时候没有，就是没被打断。
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
