@@ -1,9 +1,9 @@
-//! 执行器的替身：模型的三种回报、工具的结果，几个测试共用。
+//! 执行器的替身：挂接点交回的注入、模型的三种回报、工具的结果，几个测试共用。
 
 use super::*;
 use crate::accumulate::{Delta, Kind};
-use crate::event::{CallError, EndReason, ErrorClass, ModelCalled, Usage};
-use crate::id::{CallId, ContentHash, ModelName, ProviderId};
+use crate::event::{CallError, EndReason, ErrorClass, ModelCalled, ToolStatus, Usage};
+use crate::id::{CallId, ContentHash, FactKind, ModelName, ModuleId, ProviderId};
 use crate::origin::Model;
 
 pub(super) const REQUEST: &str =
@@ -22,6 +22,17 @@ pub(super) fn usage() -> Usage {
         cache_read: 0,
         cache_write: 0,
         output: 26,
+    }
+}
+
+/// 模块 `module` 交回的一块注入，类别和模块同名。
+pub(super) fn injection(module: &str, text: &str) -> Injection {
+    Injection {
+        module: ModuleId::parse(module).unwrap(),
+        fact: ContextInjected {
+            kind: FactKind::parse(module).unwrap(),
+            text: text.to_string(),
+        },
     }
 }
 
@@ -178,4 +189,20 @@ pub(super) fn runs(actions: &[Action]) -> Vec<(CallId, String, String, String)> 
 /// 派出去的调用的编号。
 pub(super) fn ran(actions: &[Action]) -> Vec<CallId> {
     runs(actions).into_iter().map(|(id, ..)| id).collect()
+}
+
+/// 一条工具结果：编号、状态、`by`、内容。
+pub(super) fn result_of(event: &Event) -> (CallId, ToolStatus, By, String) {
+    let Body::ToolResult(result) = &event.body else {
+        panic!("应该是 tool.result：{event:?}");
+    };
+    let [Block::Text(text)] = result.blocks.as_slice() else {
+        panic!("{result:?}");
+    };
+    (
+        result.call_id,
+        result.status.clone(),
+        event.by.clone(),
+        text.text.clone(),
+    )
 }

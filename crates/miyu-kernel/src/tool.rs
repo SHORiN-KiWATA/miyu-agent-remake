@@ -105,8 +105,8 @@ fn restore(kind: &str, text: &str) -> Option<Value> {
 }
 
 /// 内核替工具写给模型的几句（`resources/core/tool-results/`）：执行之前就拦下的两句，
-/// 字段是 `name`，模型说的工具名，照模板的规矩转义；打断、急着插话时补的三句，没有字段
-/// （`02-内核.md` 第六节「打断和急着插话」）。
+/// 字段是 `name`，模型说的工具名，照模板的规矩转义；打断、急着插话时补的三句，和只读时
+/// 拦下的一句，没有字段（`02-内核.md` 第六节「打断和急着插话」「权限级别怎么切」）。
 ///
 /// 由执行器从资源目录读好交进来，造会话时读一次，冻结在会话上。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -121,6 +121,8 @@ pub struct ToolTexts {
     cancelled_running: Template,
     /// 已跳过。
     skipped: Template,
+    /// 没派：会话是只读的。
+    read_only: Template,
 }
 
 /// 那几句的原文，各是一份模板。
@@ -136,6 +138,8 @@ pub struct ToolTextSources<'a> {
     pub cancelled_running: &'a str,
     /// 已跳过。
     pub skipped: &'a str,
+    /// 没派：会话是只读的。
+    pub read_only: &'a str,
 }
 
 impl ToolTexts {
@@ -151,6 +155,7 @@ impl ToolTexts {
             cancelled_before: Template::parse(sources.cancelled_before)?,
             cancelled_running: Template::parse(sources.cancelled_running)?,
             skipped: Template::parse(sources.skipped)?,
+            read_only: Template::parse(sources.read_only)?,
         };
         texts.unknown.render(&fields(""))?;
         texts.not_an_object.render(&fields(""))?;
@@ -158,6 +163,7 @@ impl ToolTexts {
             &texts.cancelled_before,
             &texts.cancelled_running,
             &texts.skipped,
+            &texts.read_only,
         ] {
             plain.render(&BTreeMap::new())?;
         }
@@ -207,6 +213,15 @@ impl ToolTexts {
     /// 实际不会 panic：造的时候已经试换过。
     pub fn skipped(&self) -> String {
         render(&self.skipped, &BTreeMap::new())
+    }
+
+    /// 没派：会话是只读的。
+    ///
+    /// # Panics
+    ///
+    /// 实际不会 panic：造的时候已经试换过。
+    pub fn read_only(&self) -> String {
+        render(&self.read_only, &BTreeMap::new())
     }
 }
 

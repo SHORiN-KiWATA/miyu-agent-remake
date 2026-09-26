@@ -33,6 +33,8 @@ pub(super) struct Turn {
     pub(super) interjected: Option<Interjection>,
     /// 排着队的消息：回合进行中来的，还没被请求看到过。序号和它的命令，照先后。
     pub(super) queued: Vec<(Seq, Option<CommandId>)>,
+    /// 上一次请求以后切过权限级别：下一次请求之前把事实查一遍。
+    pub(super) refresh: bool,
 }
 
 /// 急着插话：谁说的，哪个命令。跳过的结果 `by` 是说话的人，`cause` 是这个命令。
@@ -65,7 +67,8 @@ pub(super) enum Stage {
 
 impl Session {
     /// 由第 `trigger` 条开一个回合：追加 `turn.started`，和变了的环境、权限两块事实
-    /// （`08-上下文投影.md` C10）。`cause` 是触发它的那条事件的 `cause`。返回追加的事件。
+    /// （`08-上下文投影.md` C10）；空闲时放宽的，这时生效。`cause` 是触发它的那条事件的
+    /// `cause`。返回追加的事件。
     pub(super) fn open_turn(
         &mut self,
         at: Timestamp,
@@ -84,7 +87,9 @@ impl Session {
             requests: 0,
             interjected: None,
             queued: Vec::new(),
+            refresh: false,
         });
+        self.effective = self.permission.clone();
         let facts = vec![
             self.policy.facts.env(at, &self.environment),
             self.policy.facts.permission(&self.permission),
@@ -115,7 +120,7 @@ impl Session {
         }
         current.stage = Stage::Ready;
         let cause = current.cause.clone();
-        let events: Vec<Event> = injected
+        let mut events: Vec<Event> = injected
             .into_iter()
             .map(|injection| {
                 let by = By::Module(Module {
@@ -124,6 +129,7 @@ impl Session {
                 self.record(at, by, cause.clone(), Body::ContextInjected(injection.fact))
             })
             .collect();
+        events.extend(self.refresh_facts(at));
         let mut actions = Vec::new();
         if !events.is_empty() {
             actions.push(Action::Append(events));

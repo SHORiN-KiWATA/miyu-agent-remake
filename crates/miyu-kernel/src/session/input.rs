@@ -2,7 +2,7 @@
 
 use crate::accumulate::Delta;
 use crate::block::Block;
-use crate::event::{CallError, ContextInjected, Usage};
+use crate::event::{CallError, ContextInjected, Level, Usage};
 use crate::facts::Environment;
 use crate::id::{CallId, CommandId, ContentHash, ModuleId, Seq, TurnId};
 use crate::origin::{By, Model};
@@ -109,6 +109,14 @@ pub enum Command {
         /// 急着插话：这一步还没跑的工具跳过，这句话马上进下一步（`02-内核.md` 第六节
         /// 「打断和急着插话」）。
         urgent: bool,
+    },
+    /// `session.set_permission_level`：开关只读，或者改常用的那一级，改哪样写哪样
+    /// （`02-内核.md` 第六节「权限级别怎么切」）。
+    SetPermission {
+        /// 常用的那一级；不改就没有。
+        level: Option<Level>,
+        /// 只读开关；不改就没有。
+        read_only: Option<bool>,
     },
     /// `session.interrupt`：打断正在进行的回合。
     Interrupt {

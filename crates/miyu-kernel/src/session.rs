@@ -11,6 +11,7 @@ mod action;
 mod call;
 mod input;
 mod interrupt;
+mod permission;
 mod policy;
 mod queue;
 mod recent;
@@ -51,8 +52,10 @@ pub struct Session {
     policy: Policy,
     /// 会话所在的环境：时区、工作目录。
     environment: Environment,
-    /// 现在的权限。
+    /// 现在的权限：人最近一次切成的。
     permission: Permission,
+    /// 实际生效的权限：收紧的当场换，放宽的等下一次请求（`02-内核.md` 第六节「权限级别怎么切」）。
+    effective: Permission,
     /// 正在进行的回合；空闲时没有。
     turn: Option<Turn>,
     /// 这个会话上一次请求的指纹，比出下一次的第一处不同。只在内存里。
@@ -88,6 +91,7 @@ impl Session {
             policy,
             environment,
             permission: created.permission.clone(),
+            effective: created.permission.clone(),
             turn: None,
             last_request: None,
             closing: Vec::new(),
@@ -170,6 +174,9 @@ impl Session {
                 vec![Action::Append(events)]
             }
             Command::Interrupt { queued } => self.interrupt(id, by, at, queued),
+            Command::SetPermission { level, read_only } => {
+                self.set_permission(id, by, at, level, read_only)
+            }
         }
     }
 

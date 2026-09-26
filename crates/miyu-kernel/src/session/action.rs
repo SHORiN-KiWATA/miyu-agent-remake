@@ -89,6 +89,8 @@ pub enum Reason {
     EmptyMessage,
     /// 没有回合在进行，打断不了。
     NotRunning,
+    /// 要切到的级别不认识。
+    UnknownLevel,
 }
 
 impl Reason {
@@ -97,6 +99,7 @@ impl Reason {
         match self {
             Reason::EmptyMessage => "empty_message",
             Reason::NotRunning => "not_running",
+            Reason::UnknownLevel => "unknown_level",
         }
     }
 }

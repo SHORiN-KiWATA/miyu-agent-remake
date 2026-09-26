@@ -1,6 +1,6 @@
 //! 这一步的工具调用（`docs/designs/02-内核.md` 第六节「工具怎么调、下一步怎么走」）：先查、
-//! 修正参数；回复落了盘才派；只读的一起跑，别的一个接一个；结果齐了请求下一次，到了步数
-//! 上限就结束回合。
+//! 修正参数，会话只读时写文件的当场拦下；回复落了盘才派；只读的一起跑，别的一个接一个；结果
+//! 齐了请求下一次，到了步数上限就结束回合。
 
 use super::Session;
 use super::action::Action;
@@ -78,8 +78,8 @@ impl Step {
 
 impl Session {
     /// 回复里的工具调用，先查：工具面上没有这个名字、参数不是 JSON 对象的，当场记一条出错的
-    /// 结果，`by` 是内核；别的修正好参数，等回复落了盘再派。都拦下了的，这一步当场就齐了。
-    /// 返回当场记下的事件。
+    /// 结果；只读生效时写文件的，当场记一条被拒绝的结果；`by` 都是内核。别的修正好参数，等回复
+    /// 落了盘再派。都拦下了的，这一步当场就齐了。返回当场记下的事件。
     pub(super) fn start_tools(
         &mut self,
         at: Timestamp,
@@ -114,6 +114,17 @@ impl Session {
                     .map_err(|_| self.policy.tool_texts.not_an_object(&call.name)),
             };
             match checked {
+                Ok((_, Access::Write)) if self.read_only_now() => {
+                    let text = self.policy.tool_texts.read_only();
+                    events.push(self.written_result(
+                        at,
+                        By::Kernel,
+                        cause.clone(),
+                        call.call_id,
+                        ToolStatus::Denied,
+                        text,
+                    ));
+                }
                 Ok((args, access)) => pending.push(Pending {
                     id: call.call_id,
                     name: call.name,
@@ -342,7 +353,51 @@ impl Session {
         self.record(at, by, cause, Body::ToolResult(result))
     }
 
-    /// 这一步齐了：到了步数上限，结束回合；不然等追加过的事件都落了盘，请求下一次。
+    /// 收紧成了只读：这一步里还没派的写文件调用当场拦下，`by` 是内核。这一步因此齐了的，
+    /// 往下走。已经在跑的不动：它已经跑了，沙盒管着（M5）。
+    pub(super) fn deny_waiting_writes(&mut self, at: Timestamp) -> Vec<Event> {
+        if !self.read_only_now() {
+            return Vec::new();
+        }
+        let Some(turn) = self.turn.as_mut() else {
+            return Vec::new();
+        };
+        let cause = turn.cause.clone();
+        let Stage::Tools(step) = &mut turn.stage else {
+            return Vec::new();
+        };
+        let denied: Vec<CallId> = step
+            .calls
+            .iter_mut()
+            .filter(|call| call.state == State::Waiting && call.access == Access::Write)
+            .map(|call| {
+                call.state = State::Done;
+                call.id
+            })
+            .collect();
+        let finished = step.finished();
+        let text = self.policy.tool_texts.read_only();
+        let mut events: Vec<Event> = denied
+            .into_iter()
+            .map(|call_id| {
+                self.written_result(
+                    at,
+                    By::Kernel,
+                    cause.clone(),
+                    call_id,
+                    ToolStatus::Denied,
+                    text.clone(),
+                )
+            })
+            .collect();
+        if finished && !events.is_empty() {
+            events.extend(self.finish_step(at, cause));
+        }
+        events
+    }
+
+    /// 这一步齐了：到了步数上限，结束回合；不然这一轮里切过级别的先把事实查一遍，等追加过的
+    /// 事件都落了盘，请求下一次。
     fn finish_step(&mut self, at: Timestamp, cause: Option<CommandId>) -> Vec<Event> {
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();
@@ -355,6 +410,6 @@ impl Session {
             return self.finish_turn(at, By::Kernel, cause, EndReason::StepLimit);
         }
         turn.stage = Stage::Ready;
-        Vec::new()
+        self.refresh_facts(at)
     }
 }

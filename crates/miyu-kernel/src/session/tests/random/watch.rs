@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::*;
 
 mod lookup;
+mod permission;
 mod queue;
 
 /// 看守。
@@ -48,6 +49,9 @@ pub(super) struct Watch {
     queued: Vec<Seq>,
     /// 正在送进去的那次新的打断，排着队的怎么办。
     interrupting: Option<Queued>,
+    /// 现在的权限，和看守照规矩推出来的实际生效的那一级。
+    permission: Permission,
+    effective: Permission,
 }
 
 impl Watch {
@@ -78,6 +82,8 @@ impl Watch {
             calm: false,
             queued: Vec::new(),
             interrupting: None,
+            permission: lookup::created_permission(),
+            effective: lookup::created_permission(),
         }
     }
 
@@ -266,6 +272,7 @@ impl Watch {
             listing(&all),
             "种子 {seed}：请求照全部历史，撤回的除外"
         );
+        self.permission_request();
         let count = self.requests.entry(turn).or_default();
         *count += 1;
         assert!(
@@ -345,6 +352,7 @@ impl Watch {
         }
         let turn = self.open_turn();
         assert_eq!(self.turn_cwd.get(&turn).map(String::as_str), Some(cwd));
+        self.permission_run(call_id, name);
         self.running.insert(call_id);
     }
 
@@ -404,6 +412,7 @@ impl Watch {
                 _ => {}
             }
             self.queue_check(&events, k);
+            self.permission_check(&events, k);
             self.events.push(event.clone());
         }
     }

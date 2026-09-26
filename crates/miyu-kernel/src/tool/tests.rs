@@ -84,6 +84,7 @@ fn sources<'a>(unknown: &'a str, skipped: &'a str) -> ToolTextSources<'a> {
         cancelled_before: "cancelled before",
         cancelled_running: "cancelled running",
         skipped,
+        read_only: "read only",
     }
 }
 

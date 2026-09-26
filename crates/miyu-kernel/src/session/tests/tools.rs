@@ -7,22 +7,6 @@ use crate::event::{EndReason, ToolStatus, TransientBody};
 use crate::id::CallId;
 use crate::origin::Tool;
 
-/// 第 `k` 条追加的事件是工具结果：编号、状态、`by`、内容。
-fn result_of(event: &Event) -> (CallId, ToolStatus, By, String) {
-    let Body::ToolResult(result) = &event.body else {
-        panic!("应该是 tool.result：{event:?}");
-    };
-    let [Block::Text(text)] = result.blocks.as_slice() else {
-        panic!("{result:?}");
-    };
-    (
-        result.call_id,
-        result.status.clone(),
-        event.by.clone(),
-        text.text.clone(),
-    )
-}
-
 fn by_tool(call_id: CallId) -> By {
     By::Tool(Tool { call_id })
 }

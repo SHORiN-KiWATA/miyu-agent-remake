@@ -2,19 +2,10 @@
 //! 消息和回合的开头；开头落了盘才跑挂接点；挂接点跑完、事件全落了盘才请求；模块的注入；
 //! 中途来的消息；对不上的挂接点结果；环境变了。
 
+use super::executor::injection;
 use super::*;
-use crate::id::{FactKind, ModuleId};
+use crate::id::ModuleId;
 use crate::origin::Module;
-
-fn injection(module: &str, text: &str) -> Injection {
-    Injection {
-        module: ModuleId::parse(module).unwrap(),
-        fact: ContextInjected {
-            kind: FactKind::parse(module).unwrap(),
-            text: text.to_string(),
-        },
-    }
-}
 
 /// 前 5 条：造会话、消息、回合开始、两块事实。
 const OPENING: [(u64, &str); 5] = [

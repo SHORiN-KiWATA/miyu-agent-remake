@@ -1,0 +1,1 @@
+A <permission> block gives the permission level from that point on. In read_only, files can be read but not changed, and commands see the workspace as read-only. In workspace, commands run in a sandbox, and going outside the workspace or visiting a site for the first time needs the user's approval. In full, there is no sandbox and no approval. Only the user can change the level.

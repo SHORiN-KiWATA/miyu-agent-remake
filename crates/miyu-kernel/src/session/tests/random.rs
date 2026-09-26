@@ -9,7 +9,10 @@
 //!   `turn.ended`；推给头的增量是在路上的那次请求的；叫执行器别再发的，这次请求已经记了出错；
 //! - 派工具时回复落了盘，每个调用只派一次，不是只读的不和别的一起跑、不越过前面还没结果的，
 //!   带着回合开始时的工作目录；每个调用一条结果；
-//! - 回合结束的挂接点，等 `turn.ended` 落了盘才跑，一个回合一次。
+//! - 回合结束的挂接点，等 `turn.ended` 落了盘才跑，一个回合一次；
+//! - 切权限级别：只读生效的时候不派写文件的调用，内核拦下的都是写文件的；回合中途注入的排在
+//!   这一步的全部工具结果后面；请求时最近一块权限事实写的是现在的那一级，环境那一块写的是
+//!   这一轮的工作目录。
 //!
 //! 还查自己走到了没有：三百例里每条路至少走到一次，不然查的是空话。
 
@@ -17,10 +20,11 @@ mod watch;
 
 use std::collections::BTreeSet;
 
+use super::permission::{read_only, switch};
 use super::*;
 use crate::accumulate::{Delta, Kind};
 use crate::event::{
-    CallError, CallResult, EndReason, ErrorClass, ToolStatus, Transient, TransientBody,
+    CallError, CallResult, EndReason, ErrorClass, Level, ToolStatus, Transient, TransientBody,
 };
 use crate::id::{CallId, ContentHash, FactKind, ModelName, ModuleId, ProviderId};
 use crate::origin::Model;
@@ -151,7 +155,7 @@ fn some_ending(rng: &mut Rng) -> Option<CallError> {
     })
 }
 
-/// 一条随机的输入，照下面的权重抽（一共 28 份）。执行器替身多半守规矩：请求交给它以后，
+/// 一条随机的输入，照下面的权重抽（一共 30 份）。执行器替身多半守规矩：请求交给它以后，
 /// 先报发出去了，再送增量和结局。
 ///
 /// | 份数 | 输入 |
@@ -170,8 +174,11 @@ fn some_ending(rng: &mut Rng) -> Option<CallError> {
 /// | 3 | 工具执行完了 |
 /// | 1 | 打断 |
 /// | 1 | 一半急着插话，一半发新消息：急着插话一来，这一轮回复里的调用就全跳过，不能多 |
+/// | 1 | 开关只读 |
+/// | 1 | 改常用的那一级，偶尔是不认识的 |
 fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
-    // 工具在跑的时候，偶尔打断、多送几段输出：这个窗口短，光靠均匀地抽难得碰上。
+    // 工具在跑的时候，偶尔打断、多送几段输出；有还没派的写文件调用时，偶尔开只读。这两个
+    // 窗口都短，光靠均匀地抽难得碰上。
     if !watch.running.is_empty() {
         match rng.below(30) {
             0 if !watch.calm => return some_interrupt(rng, next_id),
@@ -179,7 +186,10 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
             _ => {}
         }
     }
-    let slot = rng.below(28);
+    if watch.write_waiting() && rng.below(4) == 0 {
+        return read_only(next_command(next_id), true);
+    }
+    let slot = rng.below(30);
     if (13..=21).contains(&slot)
         && let Some(seen) = watch.unsent()
         && rng.below(5) > 0
@@ -223,8 +233,19 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
         },
         26 if !watch.calm || rng.below(10) == 0 => some_interrupt(rng, next_id),
         26 => send(next_command(next_id), "hi"),
-        _ if rng.below(2) == 0 => urgent(next_command(next_id), "等等"),
-        _ => send(next_command(next_id), "hi"),
+        27 if rng.below(2) == 0 => urgent(next_command(next_id), "等等"),
+        27 => send(next_command(next_id), "hi"),
+        28 => read_only(next_command(next_id), rng.below(2) == 0),
+        _ => switch(next_command(next_id), Some(some_level(rng)), None),
+    }
+}
+
+/// 常用的那一级：多半是认识的，偶尔是不认识的，要被拒绝。
+fn some_level(rng: &mut Rng) -> Level {
+    match rng.below(5) {
+        0 => Level::Other("root".to_string()),
+        1 | 2 => Level::Full,
+        _ => Level::Workspace,
     }
 }
 
@@ -310,6 +331,9 @@ fn random_inputs_keep_the_rules() {
         "排队的接着开了一轮",
         "打断后排队的接着发",
         "打断后排队的退回",
+        "回复到了只读拦下",
+        "收紧时拦下还没派的",
+        "切了级别以后注入",
     ];
     for path in expected {
         assert!(paths.contains(path), "三百例里一次都没走到「{path}」");

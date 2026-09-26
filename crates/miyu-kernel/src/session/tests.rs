@@ -1,12 +1,13 @@
 //! 会话的测试。这一份是命令这一层：造会话；发消息；空消息；同一个编号落盘前后再来；
 //! 拒绝过的再来；落盘到一半；落盘超出追加过的；只记最近 1024 个。开回合、发请求在
 //! [`turn`]；收回复、结束回合在 [`reply`]；调工具在 [`tools`]；打断在 [`interrupt`]；排队的消息在
-//! [`queue`]；随机一串输入在 [`random`]；执行器的替身在 [`executor`]。
+//! [`queue`]；切权限级别在 [`permission`]；随机一串输入在 [`random`]；执行器的替身在 [`executor`]。
 //!
 //! 空闲时发的第一条消息会开一个回合，所以它后面紧跟着三条：`turn.started` 和两块事实。
 
 mod executor;
 mod interrupt;
+mod permission;
 mod queue;
 mod random;
 mod reply;
@@ -245,6 +246,7 @@ fn policy() -> Policy {
             cancelled_before: "cancelled before",
             cancelled_running: "cancelled running",
             skipped: "skipped",
+            read_only: "read only",
         })
         .unwrap(),
     }

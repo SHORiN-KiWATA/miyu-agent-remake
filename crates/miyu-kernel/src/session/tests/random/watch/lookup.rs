@@ -1,5 +1,5 @@
 //! 看守翻日志的几样：回合开着没有、回合的开头、正在进行的回合、一条回复里的调用、
-//! 一个回合里的调用、调用的是哪件工具、造会话那一条的样子。
+//! 一个回合里的调用、调用的是哪件工具、造会话那一条的样子和开始时的权限。
 
 use super::*;
 
@@ -98,4 +98,10 @@ impl Watch {
             body: Body::SessionCreated(created),
         }
     }
+}
+
+/// 造会话时的权限。
+pub(super) fn created_permission() -> Permission {
+    let created: SessionCreated = serde_json::from_str(CREATED).unwrap();
+    created.permission
 }
