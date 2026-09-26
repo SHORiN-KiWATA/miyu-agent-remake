@@ -14,6 +14,9 @@ fn sources<'a>(unknown: &'a str, skipped: &'a str) -> ToolTextSources<'a> {
         denied: "The user denied it.\n",
         denied_with_reason: "The user denied it and said \"{reason}\".\n",
         unattended: "No one can approve it here.\n",
+        question_interrupted: "Interrupted.\n",
+        question_voided: "A new message came.\n",
+        question_unattended: "No one can answer here.\n",
     }
 }
 
@@ -69,6 +72,18 @@ fn a_denial_carries_the_reason_escaped() {
     assert!(!forged.contains('<') && !forged.contains('>'), "{forged}");
     assert_eq!(forged.matches('\n').count(), 1, "{forged}");
     assert_eq!(texts.unattended(), "No one can approve it here.\n");
+    assert_eq!(
+        (
+            texts.question_interrupted(),
+            texts.question_voided(),
+            texts.question_unattended()
+        ),
+        (
+            "Interrupted.\n".to_string(),
+            "A new message came.\n".to_string(),
+            "No one can answer here.\n".to_string()
+        )
+    );
 }
 
 #[test]

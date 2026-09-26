@@ -1,0 +1,1 @@
+{"seq":79,"at":"2026-09-25T07:40:04.020Z","kind":"question.asked","turn":76,"by":{"kind":"tool","call_id":"call_77_1"},"cause":"cmd-2c39","body":{"call_id":"call_77_1","questions":[{"header":"build","question":"旧的 build 目录要删掉，还是保留？","options":[{"label":"删掉","description":"下次编译从头来"},{"label":"保留","description":"只清掉缓存"}]}]}}

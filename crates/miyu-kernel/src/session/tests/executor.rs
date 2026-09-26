@@ -2,7 +2,9 @@
 
 use super::*;
 use crate::accumulate::{Delta, Kind};
-use crate::event::{CallError, EndReason, ErrorClass, ModelCalled, ToolStatus, Usage};
+use crate::event::{
+    CallError, EndReason, ErrorClass, ModelCalled, Question, Response, ToolStatus, Usage,
+};
 use crate::id::{CallId, ContentHash, FactKind, ModelName, ModuleId, ProviderId};
 use crate::origin::Model;
 
@@ -191,6 +193,37 @@ pub(super) fn allowing(session: &mut Session, input: Input) -> Vec<Action> {
         k += 1;
     }
     actions
+}
+
+/// 调用 `call_id` 在 07:00:49 问人这组题。
+pub(super) fn asks(call_id: CallId, questions: Vec<Question>) -> Input {
+    Input::ToolAsks {
+        at: at(49),
+        call_id,
+        questions,
+    }
+}
+
+/// 交给工具的回答：调用编号和回答。
+pub(super) fn handed(actions: &[Action]) -> Vec<(CallId, Vec<Response>)> {
+    actions
+        .iter()
+        .filter_map(|action| match action {
+            Action::AnswerTool { call_id, answers } => Some((*call_id, answers.clone())),
+            _ => None,
+        })
+        .collect()
+}
+
+/// 叫执行器停下的调用。
+pub(super) fn stopped(actions: &[Action]) -> Vec<CallId> {
+    actions
+        .iter()
+        .filter_map(|action| match action {
+            Action::CancelTool { call_id } => Some(*call_id),
+            _ => None,
+        })
+        .collect()
 }
 
 /// 交给执行前的链的调用的编号。

@@ -414,3 +414,58 @@ fn requests_and_decisions_follow_the_calls() {
         "call_5_2 不是一个还在等结果的调用",
     );
 }
+
+#[test]
+fn questions_and_answers_follow_the_calls() {
+    let asked = |seq: u64, call: &str| {
+        event(
+            seq,
+            Some(3),
+            "question.asked",
+            &format!(r#"{{"call_id":"{call}","questions":[{{"question":"?"}}]}}"#),
+        )
+    };
+    let answered = |seq: u64, call: &str| {
+        event(
+            seq,
+            Some(3),
+            "question.answered",
+            &format!(r#"{{"call_id":"{call}","answers":[{{}}]}}"#),
+        )
+    };
+    // 前 5 条：第 5 条回复里有两个调用，都还没有结果。
+    let mut ledger = after(5);
+    refused(
+        &mut ledger,
+        &asked(6, "call_4_1"),
+        "call_4_1 不是一个还在等结果的调用",
+    );
+    refused(
+        &mut ledger,
+        &answered(6, "call_5_1"),
+        "call_5_1 不是在等人回答的调用",
+    );
+    refused(
+        &mut ledger,
+        &event(
+            6,
+            None,
+            "question.asked",
+            r#"{"call_id":"call_5_1","questions":[]}"#,
+        ),
+        "question.asked 只在回合里发生",
+    );
+    ledger.append(&asked(6, "call_5_1")).unwrap();
+    refused(&mut ledger, &asked(7, "call_5_1"), "已经有一组在等的题");
+    ledger.append(&answered(7, "call_5_1")).unwrap();
+    refused(&mut ledger, &answered(8, "call_5_1"), "已经答过");
+    // 答完了还能再问；结果了结题目。
+    ledger.append(&asked(8, "call_5_1")).unwrap();
+    let result = event(9, Some(3), "tool.result", &result("call_5_1", "cancelled"));
+    ledger.append(&result).unwrap();
+    refused(
+        &mut ledger,
+        &answered(10, "call_5_1"),
+        "call_5_1 不是在等人回答的调用",
+    );
+}

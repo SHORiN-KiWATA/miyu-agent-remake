@@ -30,6 +30,8 @@ pub struct Ledger {
     /// 其中在等确认的：请人确认了，还没有决定，也还没有结果（`02-内核.md` 第六节
     /// 「确认怎么走」）。
     asking: BTreeSet<CallId>,
+    /// 其中在等人回答的：问了一组题，还没有回答，也还没有结果（「提问怎么走」）。
+    questioning: BTreeSet<CallId>,
     /// 最近一次压缩替代到哪。
     compacted: Option<Seq>,
     /// 最近一次压缩以后开过的回合，撤销只能撤它们。压缩一次，更早的就丢掉。
@@ -47,6 +49,7 @@ impl Default for Ledger {
             last_reply: None,
             pending: BTreeSet::new(),
             asking: BTreeSet::new(),
+            questioning: BTreeSet::new(),
             compacted: None,
             turns: BTreeSet::new(),
             queued: BTreeSet::new(),
@@ -106,6 +109,19 @@ impl Ledger {
                 Err(format!(
                     "{} 不是在等确认的调用：没请人确认过、已经决定过，或者它已经有了结果",
                     decided.call_id
+                ))
+            }
+            Body::QuestionAsked(asked) => {
+                self.check_pending(asked.call_id)?;
+                match self.questioning.contains(&asked.call_id) {
+                    true => Err(format!("{} 已经有一组在等的题", asked.call_id)),
+                    false => Ok(()),
+                }
+            }
+            Body::QuestionAnswered(answered) if !self.questioning.contains(&answered.call_id) => {
+                Err(format!(
+                    "{} 不是在等人回答的调用：没问过、已经答过，或者它已经有了结果",
+                    answered.call_id
                 ))
             }
             Body::TurnEnded(_) => match self.pending.first() {
@@ -237,6 +253,13 @@ impl Ledger {
             Body::ToolResult(result) => {
                 self.pending.remove(&result.call_id);
                 self.asking.remove(&result.call_id);
+                self.questioning.remove(&result.call_id);
+            }
+            Body::QuestionAsked(asked) => {
+                self.questioning.insert(asked.call_id);
+            }
+            Body::QuestionAnswered(answered) => {
+                self.questioning.remove(&answered.call_id);
             }
             Body::ApprovalRequested(requested) => {
                 self.asking.insert(requested.call_id);
@@ -257,8 +280,8 @@ impl Ledger {
     }
 }
 
-/// 只在回合里发生的种类：模型的回复、工具的结果、请人确认和人的决定、撤回排着队的消息、
-/// 回合结束。
+/// 只在回合里发生的种类：模型的回复、工具的结果、请人确认和人的决定、问人和人的回答、
+/// 撤回排着队的消息、回合结束。
 fn in_turn_only(body: &Body) -> bool {
     matches!(
         body,
@@ -266,6 +289,8 @@ fn in_turn_only(body: &Body) -> bool {
             | Body::ToolResult(_)
             | Body::ApprovalRequested(_)
             | Body::ApprovalDecided(_)
+            | Body::QuestionAsked(_)
+            | Body::QuestionAnswered(_)
             | Body::MessageWithdrawn(_)
             | Body::TurnEnded(_)
     )

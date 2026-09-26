@@ -8,6 +8,7 @@ use super::*;
 mod approval;
 mod lookup;
 mod permission;
+mod question;
 mod queue;
 
 /// 看守。
@@ -55,6 +56,8 @@ pub(super) struct Watch {
     effective: Permission,
     /// 确认：交给链的、链的结论、在等人的、人允许了的。
     pub(super) approvals: approval::Approvals,
+    /// 提问：问着人的、答完了还没交给工具的。
+    pub(super) questions: question::Questions,
 }
 
 impl Watch {
@@ -88,6 +91,7 @@ impl Watch {
             permission: lookup::created_permission(),
             effective: lookup::created_permission(),
             approvals: approval::Approvals::new(),
+            questions: question::Questions::new(),
         }
     }
 
@@ -105,6 +109,7 @@ impl Watch {
     /// 被打断的 `turn.ended` 收尾；没开着的，拒绝，原因码 `not_running`。
     pub(super) fn feed(&mut self, session: &mut Session, input: Input) {
         let judged = self.before_approval(&input);
+        let replied = self.before_question(&input);
         let fresh_interrupt = match &input {
             Input::Command(command) => match command.command {
                 Command::Interrupt { queued } if !self.received.contains_key(&command.id) => {
@@ -134,6 +139,7 @@ impl Watch {
             self.interrupted(&actions, was_open);
         }
         self.after_approval(&actions, judged);
+        self.after_question(&actions, replied);
         for action in actions {
             self.check(action);
         }
@@ -227,6 +233,7 @@ impl Watch {
                 ..
             } => self.guard(call_id, &name, &cwd, &permission),
             Action::RunTool { call_id, .. } => self.run(call_id),
+            Action::AnswerTool { call_id, answers } => self.handed(call_id, &answers),
             Action::CancelTool { call_id } => {
                 self.seen_paths.insert("打断了工具");
                 assert!(
@@ -365,9 +372,15 @@ impl Watch {
                         ToolStatus::Cancelled if was_running => {
                             self.stopped.insert(result.call_id);
                         }
+                        ToolStatus::Skipped if was_running => {
+                            assert!(
+                                self.skips_running(event, result.call_id),
+                                "种子 {seed}：在跑的调用被跳过了"
+                            );
+                            self.stopped.insert(result.call_id);
+                        }
                         ToolStatus::Skipped => {
                             self.seen_paths.insert("急着插话跳过");
-                            assert!(!was_running, "种子 {seed}：在跑的调用被跳过了");
                         }
                         _ => {}
                     }
@@ -386,6 +399,7 @@ impl Watch {
             self.queue_check(&events, k);
             self.permission_check(&events, k);
             self.approval_check(&events, k);
+            self.question_check(&events, k);
             self.events.push(event.clone());
         }
     }

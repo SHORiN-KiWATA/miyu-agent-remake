@@ -134,3 +134,17 @@ fn only_the_denied_result_of_an_approval_reaches_the_request() {
         "请求给头看的说明不该在请求里：{whole}"
     );
 }
+
+/// 问人和人的回答也不进上下文：工具照回答写的结果在请求里，题目里给人看的说明不在。
+#[test]
+fn only_the_result_of_a_question_reaches_the_request() {
+    let whole = assembled_upto(u64::MAX);
+    assert!(
+        whole.contains("The user answered"),
+        "工具的结果要在请求里：{whole}"
+    );
+    assert!(
+        !whole.contains("下次编译从头来"),
+        "题目里的说明不该在请求里：{whole}"
+    );
+}

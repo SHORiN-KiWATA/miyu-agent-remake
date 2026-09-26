@@ -14,6 +14,7 @@ mod input;
 mod interrupt;
 mod permission;
 mod policy;
+mod question;
 mod queue;
 mod recent;
 mod step;
@@ -21,7 +22,7 @@ mod tools;
 mod turn;
 
 pub use action::{Action, Outcome, Reason};
-pub use input::{Command, Injection, Input, Queued, Received, Verdict};
+pub use input::{Answer, Command, Injection, Input, Queued, Received, Verdict};
 pub use policy::Policy;
 
 use crate::event::{Body, Event, MessageUser, Permission, SessionCreated};
@@ -145,6 +146,11 @@ impl Session {
                 call_id,
                 verdict,
             } => self.tool_guarded(at, call_id, verdict),
+            Input::ToolAsks {
+                at,
+                call_id,
+                questions,
+            } => self.tool_asks(at, call_id, questions),
         }
     }
 
@@ -170,15 +176,21 @@ impl Session {
                 self.accept(id.clone(), vec![message.seq]);
                 let trigger = message.seq;
                 let mut events = vec![message];
+                let mut stops = Vec::new();
                 if self.turn.is_none() {
                     events.extend(self.open_turn(at, trigger, Some(id)));
                 } else {
                     self.enqueue(trigger, id.clone());
+                    let (voided, stopped) = self.void_waiting(at, &by, &id);
+                    events.extend(voided);
+                    stops = stopped;
                     if urgent {
                         events.extend(self.interject(at, by, id));
                     }
                 }
-                vec![Action::Append(events)]
+                let mut actions = vec![Action::Append(events)];
+                actions.extend(stops);
+                actions
             }
             Command::Interrupt { queued } => self.interrupt(id, by, at, queued),
             Command::SetPermission { level, read_only } => {
@@ -186,9 +198,12 @@ impl Session {
             }
             Command::Answer {
                 call_id,
-                decision,
-                reason,
+                answer: Answer::Approval { decision, reason },
             } => self.answer(id, by, at, call_id, decision, reason),
+            Command::Answer {
+                call_id,
+                answer: Answer::Questions(answers),
+            } => self.answer_question(id, by, at, call_id, answers),
         }
     }
 

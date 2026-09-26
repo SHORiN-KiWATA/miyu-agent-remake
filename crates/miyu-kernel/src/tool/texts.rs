@@ -6,7 +6,9 @@
 //! - 打断、急着插话时补的三句，没有字段（「打断和急着插话」）；
 //! - 只读时拦下的一句，没有字段（「权限级别怎么切」）；
 //! - 确认的三句：被人拒绝了，没有字段；被人拒绝了、带上理由，字段是 `reason`；要人确认、这里没法
-//!   确认，没有字段（「确认怎么走」）。
+//!   确认，没有字段（「确认怎么走」）；
+//! - 提问的三句：没回答，被打断了；没回答，你发了一句话；没回答，这里没有人能回答；都没有字段
+//!   （「提问怎么走」）。
 //!
 //! 字段照模板的规矩转义（`08-上下文投影.md` 第五节「模板与转义怎么写」）。由执行器从资源目录读好
 //! 交进来，造会话时读一次，冻结在会话上。
@@ -36,6 +38,12 @@ pub struct ToolTexts {
     denied_with_reason: Template,
     /// 没派：要人确认，这里没法确认。
     unattended: Template,
+    /// 没回答：被打断了。
+    question_interrupted: Template,
+    /// 没回答：你发了一句话。
+    question_voided: Template,
+    /// 没回答：这里没有人能回答。
+    question_unattended: Template,
 }
 
 /// 那几句的原文，各是一份模板。
@@ -59,6 +67,12 @@ pub struct ToolTextSources<'a> {
     pub denied_with_reason: &'a str,
     /// 没派：要人确认，这里没法确认。
     pub unattended: &'a str,
+    /// 没回答：被打断了。
+    pub question_interrupted: &'a str,
+    /// 没回答：你发了一句话。
+    pub question_voided: &'a str,
+    /// 没回答：这里没有人能回答。
+    pub question_unattended: &'a str,
 }
 
 impl ToolTexts {
@@ -78,6 +92,9 @@ impl ToolTexts {
             denied: Template::parse(sources.denied)?,
             denied_with_reason: Template::parse(sources.denied_with_reason)?,
             unattended: Template::parse(sources.unattended)?,
+            question_interrupted: Template::parse(sources.question_interrupted)?,
+            question_voided: Template::parse(sources.question_voided)?,
+            question_unattended: Template::parse(sources.question_unattended)?,
         };
         texts.unknown.render(&named(""))?;
         texts.not_an_object.render(&named(""))?;
@@ -89,6 +106,9 @@ impl ToolTexts {
             &texts.read_only,
             &texts.denied,
             &texts.unattended,
+            &texts.question_interrupted,
+            &texts.question_voided,
+            &texts.question_unattended,
         ] {
             plain.render(&BTreeMap::new())?;
         }
@@ -168,6 +188,33 @@ impl ToolTexts {
     /// 实际不会 panic：造的时候已经试换过。
     pub fn unattended(&self) -> String {
         render(&self.unattended, &BTreeMap::new())
+    }
+
+    /// 没回答：被打断了。
+    ///
+    /// # Panics
+    ///
+    /// 实际不会 panic：造的时候已经试换过。
+    pub fn question_interrupted(&self) -> String {
+        render(&self.question_interrupted, &BTreeMap::new())
+    }
+
+    /// 没回答：你发了一句话。
+    ///
+    /// # Panics
+    ///
+    /// 实际不会 panic：造的时候已经试换过。
+    pub fn question_voided(&self) -> String {
+        render(&self.question_voided, &BTreeMap::new())
+    }
+
+    /// 没回答：这里没有人能回答。
+    ///
+    /// # Panics
+    ///
+    /// 实际不会 panic：造的时候已经试换过。
+    pub fn question_unattended(&self) -> String {
+        render(&self.question_unattended, &BTreeMap::new())
     }
 }
 

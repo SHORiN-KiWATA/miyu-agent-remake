@@ -2,8 +2,10 @@
 //! 「确认怎么走」）：照调用的先后记着每个调用的状态，算出现在轮到的。
 //!
 //! 一个调用的一生：等着轮到它，过执行前的链，要问人的等人回答，人允许的等决定落了盘，派出去
-//! 跑，有了结果。内核当场拦下的不在这里，它们已经有了结果。
+//! 跑，有了结果。跑着的时候还可能问人一组题，等人回答，答完了等落了盘交给它（「提问怎么走」）。
+//! 内核当场拦下的不在这里，它们已经有了结果。
 
+use crate::event::{Question, Response};
 use crate::id::{CallId, Seq};
 use crate::tool::Access;
 
@@ -31,6 +33,10 @@ pub(super) struct Pending {
     pub(super) state: State,
     /// 请人确认过的：请求里内核要看的两样。没请人确认过就没有。
     pub(super) asked: Option<Asked>,
+    /// 在等人回答的那组题：查回答对不对得上。
+    pub(super) questions: Vec<Question>,
+    /// 人的回答：落了盘交给工具。
+    pub(super) answers: Vec<Response>,
 }
 
 /// 请人确认时，请求里内核要看的两样。
@@ -58,6 +64,13 @@ pub(super) enum State {
     },
     /// 派出去了，等结果。
     Running,
+    /// 跑着的时候问了人一组题，等人回答。
+    Questioning,
+    /// 人答完了：等那条回答落了盘，交给工具。
+    Answered {
+        /// 那条回答的序号。
+        answered: Seq,
+    },
     /// 有了结果。
     Done,
 }
@@ -108,6 +121,19 @@ impl Pending {
             self.state,
             State::Waiting | State::Guarding | State::Asking | State::Approved { .. }
         )
+    }
+
+    /// 在跑：派出去了，还没有结果。问着人、答完了等落盘的，也在跑。
+    pub(super) fn executing(&self) -> bool {
+        matches!(
+            self.state,
+            State::Running | State::Questioning | State::Answered { .. }
+        )
+    }
+
+    /// 在等人回答：等确认的，和问着人的。这时来了一句话，就作废（「提问怎么走」第 5 条）。
+    pub(super) fn awaiting_person(&self) -> bool {
+        matches!(self.state, State::Asking | State::Questioning)
     }
 
     /// 要不要写入：工具是写文件的，或者请人确认的是写入。只读时拦下的就是这些。

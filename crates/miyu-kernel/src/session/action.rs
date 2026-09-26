@@ -2,7 +2,7 @@
 //!
 //! 会话自己不做 I/O：要追加的事件、要回应的命令、要推送的事件，都写成动作交给执行器。
 
-use crate::event::{Event, Permission, Transient};
+use crate::event::{Event, Permission, Response, Transient};
 use crate::id::{CallId, CommandId, Seq, TurnId};
 use crate::request::Request;
 
@@ -66,6 +66,14 @@ pub enum Action {
         /// 实际生效的那一级：权限策略照它判。
         permission: Permission,
     },
+    /// 把人的回答交给在等的那个调用：它问的那组题答完了，回答已经落了盘（`02-内核.md` 第六节
+    /// 「提问怎么走」第 3 条）。之后照常等它执行完。
+    AnswerTool {
+        /// 哪一次调用。
+        call_id: CallId,
+        /// 照题目的先后，每道题的回答。
+        answers: Vec<Response>,
+    },
     /// 执行一次工具调用。执行中的输出、执行完了，都带着调用编号回报
     /// （`02-内核.md` 第六节「工具怎么调、下一步怎么走」）。
     RunTool {
@@ -105,7 +113,8 @@ pub enum Reason {
     NotRunning,
     /// 要切到的级别不认识。
     UnknownLevel,
-    /// 这个调用不在等确认：没请人确认过、已经回答过，或者它已经有了结果。
+    /// 这个调用不在等人回答：没问过、已经回答过、已经有了结果，或者等的是另一种回答（对着确认
+    /// 答提问，对着提问答确认）。
     NotAsking,
     /// 确认的选项不认识。
     UnknownDecision,
@@ -113,6 +122,8 @@ pub enum Reason {
     NoRule,
     /// 只有拒绝能带理由。
     UnexpectedReason,
+    /// 回答对不上题目：题数不对、选了没有的选项、单选的选了几项、同一项选了两次。
+    BadAnswer,
 }
 
 impl Reason {
@@ -126,6 +137,7 @@ impl Reason {
             Reason::UnknownDecision => "unknown_decision",
             Reason::NoRule => "no_rule",
             Reason::UnexpectedReason => "unexpected_reason",
+            Reason::BadAnswer => "bad_answer",
         }
     }
 }

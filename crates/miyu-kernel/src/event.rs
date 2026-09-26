@@ -14,6 +14,7 @@ use crate::time::Timestamp;
 mod context;
 mod message;
 mod model;
+mod question;
 mod session;
 mod tool;
 mod transient;
@@ -24,6 +25,7 @@ pub use message::{MessageAssistant, MessageUser, MessageWithdrawn};
 pub use model::{
     CallError, CallResult, ErrorClass, FirstDifference, MessageRole, ModelCalled, Part, Usage,
 };
+pub use question::{Choice, Question, QuestionAnswered, QuestionAsked, Response, fits};
 pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated};
 pub use tool::{ApprovalDecided, ApprovalRequested, Decision, ToolResult, ToolStatus};
 pub use transient::{ModelDelta, Piece, ToolProgress, Transient, TransientBody};
@@ -124,6 +126,10 @@ bodies! {
     ApprovalRequested = "tool.approval_requested",
     /// 人对确认请求的决定。
     ApprovalDecided = "tool.approval_decided",
+    /// 一个在跑的调用请人回答一组题。
+    QuestionAsked = "question.asked",
+    /// 人对一组题的回答。
+    QuestionAnswered = "question.answered",
     /// 注入进上下文的一块事实。
     ContextInjected = "context.injected",
     /// 压缩的检查点。

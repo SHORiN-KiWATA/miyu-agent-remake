@@ -54,8 +54,7 @@ impl Watch {
                 match &received.command {
                     Command::Answer {
                         call_id,
-                        decision,
-                        reason,
+                        answer: Answer::Approval { decision, reason },
                     } => Some(self.judge(*call_id, decision, reason.as_deref())),
                     _ => None,
                 }

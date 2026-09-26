@@ -18,8 +18,10 @@ pub(super) fn answer(n: u64, call_id: CallId, decision: Decision, reason: Option
         at: at(n % 60),
         command: Command::Answer {
             call_id,
-            decision,
-            reason: reason.map(str::to_string),
+            answer: Answer::Approval {
+                decision,
+                reason: reason.map(str::to_string),
+            },
         },
     })
 }

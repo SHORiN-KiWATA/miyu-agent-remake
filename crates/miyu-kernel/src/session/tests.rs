@@ -1,8 +1,8 @@
 //! 会话的测试。这一份是命令这一层：造会话；发消息；空消息；同一个编号落盘前后再来；
 //! 拒绝过的再来；落盘到一半；落盘超出追加过的；只记最近 1024 个。开回合、发请求在
 //! [`turn`]；收回复、结束回合在 [`reply`]；调工具在 [`tools`]；打断在 [`interrupt`]；排队的消息在
-//! [`queue`]；切权限级别在 [`permission`]；确认在 [`approval`]；随机一串输入在 [`random`]；执行器的
-//! 替身在 [`executor`]。
+//! [`queue`]；切权限级别在 [`permission`]；确认在 [`approval`]；提问在 [`question`]；随机一串输入在
+//! [`random`]；执行器的替身在 [`executor`]。
 //!
 //! 空闲时发的第一条消息会开一个回合，所以它后面紧跟着三条：`turn.started` 和两块事实。
 
@@ -10,6 +10,7 @@ mod approval;
 mod executor;
 mod interrupt;
 mod permission;
+mod question;
 mod queue;
 mod random;
 mod reply;
@@ -208,7 +209,7 @@ fn fact_of(event: &Event) -> &ContextInjected {
     }
 }
 
-/// 替身的策略：模板短，一眼认得出是哪个字段；工具面上三件工具，读、写、跑命令；步数不限。
+/// 替身的策略：模板短，一眼认得出是哪个字段；工具面上四件工具，读、写、跑命令、问人；步数不限。
 fn policy() -> Policy {
     let rule = |access: Access, parameters: &str| ToolRule {
         access,
@@ -240,6 +241,10 @@ fn policy() -> Policy {
                 "shell".to_string(),
                 rule(Access::Execute, r#"{"type":"object"}"#),
             ),
+            (
+                "ask_user".to_string(),
+                rule(Access::Read, r#"{"type":"object"}"#),
+            ),
         ]),
         step_limit: None,
         tool_texts: ToolTexts::new(ToolTextSources {
@@ -252,6 +257,9 @@ fn policy() -> Policy {
             denied: "denied",
             denied_with_reason: "denied: {reason}",
             unattended: "unattended",
+            question_interrupted: "question interrupted",
+            question_voided: "question voided",
+            question_unattended: "question unattended",
         })
         .unwrap(),
         attended: true,

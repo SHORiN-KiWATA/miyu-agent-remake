@@ -5,7 +5,8 @@
 //! - 52 号换成只读以后：下一个边界只注入权限那一块；
 //! - 53 号撤销了那一轮以后：两块都要重新注入；
 //! - 54 号压缩以后：也是两块都要重新注入，就是样本里下一轮开头的 57、58 号；
-//! - 63 号切回工作区以后：下一轮开头只注入权限那一块，就是样本里的 66 号。
+//! - 63 号切回工作区以后：下一轮开头只注入权限那一块，就是样本里的 66 号；
+//! - 75 号开的那一轮：环境和权限都没变，什么都不注入。
 //!
 //! 出厂的模板在编译时拿进来；样本要读文件，纯逻辑门禁只扫 `src/`，集成测试可以读。样本的序号
 //! 中间有空当（省掉了前面的几十条），过不了账本，所以直接交给有效历史。
@@ -156,4 +157,10 @@ fn after_the_compaction_both_blocks_are_injected_again() {
 fn after_switching_back_only_the_permission_block_is_injected() {
     let events = events();
     assert_eq!(injected_after(&events, 64), [sample_fact(&events, 66)]);
+}
+
+#[test]
+fn a_turn_with_nothing_changed_injects_nothing() {
+    let events = events();
+    assert_eq!(injected_after(&events, 75), []);
 }

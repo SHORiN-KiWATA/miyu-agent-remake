@@ -1,7 +1,8 @@
 //! 这一步的工具调用（`docs/designs/02-内核.md` 第六节「工具怎么调、下一步怎么走」）：先查、
 //! 修正参数，会话只读时写文件的当场拦下；回复落了盘，轮到的先过执行前的链（「确认怎么走」，
-//! 在 [`super::approval`]）；只读的一起跑，别的一个接一个；结果齐了请求下一次，到了步数上限
-//! 就结束回合。每个调用走到了哪，记在 [`super::step`]。
+//! 在 [`super::approval`]）；只读的一起跑，别的一个接一个；跑着的时候问人（「提问怎么走」，在
+//! [`super::question`]）；结果齐了请求下一次，到了步数上限就结束回合。每个调用走到了哪，记在
+//! [`super::step`]。
 
 use super::Session;
 use super::action::Action;
@@ -72,6 +73,8 @@ impl Session {
                     access,
                     state: State::Waiting,
                     asked: None,
+                    questions: Vec::new(),
+                    answers: Vec::new(),
                 }),
                 Err(sentence) => {
                     events.push(self.written_result(
@@ -99,8 +102,8 @@ impl Session {
         events
     }
 
-    /// 回复落了盘以后：人允许了的，那条决定也落了盘就派去跑；轮到的，先交给执行前的链，带上
-    /// 这一轮的工作目录和实际生效的那一级。
+    /// 回复落了盘以后：人允许了的，那条决定也落了盘就派去跑；人答完了的，那条回答也落了盘就
+    /// 交给工具；轮到的，先交给执行前的链，带上这一轮的工作目录和实际生效的那一级。
     pub(super) fn dispatch(&mut self) -> Vec<Action> {
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();
@@ -113,16 +116,24 @@ impl Session {
         };
         let mut actions = Vec::new();
         for call in &mut step.calls {
-            if let State::Approved { decided } = call.state
-                && decided <= stored
-            {
-                call.state = State::Running;
-                actions.push(Action::RunTool {
-                    call_id: call.id,
-                    name: call.name.clone(),
-                    args: call.args.clone(),
-                    cwd: turn.cwd.clone(),
-                });
+            match call.state {
+                State::Approved { decided } if decided <= stored => {
+                    call.state = State::Running;
+                    actions.push(Action::RunTool {
+                        call_id: call.id,
+                        name: call.name.clone(),
+                        args: call.args.clone(),
+                        cwd: turn.cwd.clone(),
+                    });
+                }
+                State::Answered { answered } if answered <= stored => {
+                    call.state = State::Running;
+                    actions.push(Action::AnswerTool {
+                        call_id: call.id,
+                        answers: std::mem::take(&mut call.answers),
+                    });
+                }
+                _ => {}
             }
         }
         for k in step.ready() {
@@ -140,7 +151,8 @@ impl Session {
     }
 
     /// 工具执行完了：追加 `tool.result`，`by` 是那次调用，然后派后面能派的。这一步齐了，
-    /// 到了步数上限就结束回合，不然等落了盘请求下一次。不是这一步在跑的，不理。
+    /// 到了步数上限就结束回合，不然等落了盘请求下一次。问着人的也算在跑：题目跟着了结。不是
+    /// 这一步在跑的，不理。
     pub(super) fn tool_done(
         &mut self,
         at: Timestamp,
@@ -156,7 +168,11 @@ impl Session {
         let Stage::Tools(step) = &mut turn.stage else {
             return Vec::new();
         };
-        let Some(call) = step.find(call_id, State::Running) else {
+        let Some(call) = step
+            .calls
+            .iter_mut()
+            .find(|call| call.id == call_id && call.executing())
+        else {
             return Vec::new();
         };
         call.state = State::Done;
@@ -197,7 +213,7 @@ impl Session {
         if !step
             .calls
             .iter()
-            .any(|call| call.id == call_id && call.state == State::Running)
+            .any(|call| call.id == call_id && call.executing())
         {
             return Vec::new();
         }
@@ -210,9 +226,9 @@ impl Session {
         })]
     }
 
-    /// 打断这一步：在跑的叫执行器停下，补「已取消，跑到一半」；还没跑过的（没轮到、在过链、
-    /// 在等人、人允许了还没派）补「已取消，没跑过」；有了结果的不动。补的结果 `by` 是打断的人，
-    /// `cause` 是打断的命令。
+    /// 打断这一步：在跑的叫执行器停下，补「已取消，跑到一半」，问着人的补「没回答：被打断了」；
+    /// 还没跑过的（没轮到、在过链、在等人确认、人允许了还没派）补「已取消，没跑过」；有了结果的
+    /// 不动。补的结果 `by` 是打断的人，`cause` 是打断的命令。
     pub(super) fn cancel_step(
         &mut self,
         at: Timestamp,
@@ -225,7 +241,11 @@ impl Session {
         for call in step.calls {
             let text = match call.state {
                 State::Done => continue,
-                State::Running => {
+                State::Questioning => {
+                    actions.push(Action::CancelTool { call_id: call.id });
+                    self.policy.tool_texts.question_interrupted()
+                }
+                State::Running | State::Answered { .. } => {
                     actions.push(Action::CancelTool { call_id: call.id });
                     self.policy.tool_texts.cancelled_running()
                 }
@@ -352,7 +372,7 @@ impl Session {
 }
 
 /// 这一步里合 `which` 的调用都记成有了结果，返回它们的编号，照调用的先后。
-fn settle(step: &mut Step, which: impl Fn(&Pending) -> bool) -> Vec<CallId> {
+pub(super) fn settle(step: &mut Step, which: impl Fn(&Pending) -> bool) -> Vec<CallId> {
     step.calls
         .iter_mut()
         .filter(|call| which(call))

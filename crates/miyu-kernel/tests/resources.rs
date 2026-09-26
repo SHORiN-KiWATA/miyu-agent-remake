@@ -20,6 +20,13 @@ fn the_tool_result_sentences_are_usable() {
             "../../../resources/core/tool-results/denied-with-reason.txt"
         ),
         unattended: include_str!("../../../resources/core/tool-results/unattended.txt"),
+        question_interrupted: include_str!(
+            "../../../resources/core/tool-results/question-interrupted.txt"
+        ),
+        question_voided: include_str!("../../../resources/core/tool-results/question-voided.txt"),
+        question_unattended: include_str!(
+            "../../../resources/core/tool-results/question-unattended.txt"
+        ),
     })
     .expect("出厂的几句用得了");
     assert_eq!(texts.unknown("reed"), "There is no tool named \"reed\".\n");
@@ -36,6 +43,16 @@ fn the_tool_result_sentences_are_usable() {
         "The call was not run: the user denied it and said \"先别推\".\n"
     );
     assert!(texts.unattended().contains("approval"));
+    for sentence in [
+        texts.question_interrupted(),
+        texts.question_voided(),
+        texts.question_unattended(),
+    ] {
+        assert!(
+            sentence.starts_with("The question was not answered: "),
+            "{sentence}"
+        );
+    }
 }
 
 /// system 里核心的那一行：每一级能做什么、只有人能切（`26-提示词.md` J2）。施工 3-6 拼进

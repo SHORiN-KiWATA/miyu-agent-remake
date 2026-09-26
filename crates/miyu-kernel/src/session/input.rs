@@ -2,7 +2,7 @@
 
 use crate::accumulate::Delta;
 use crate::block::Block;
-use crate::event::{CallError, ContextInjected, Decision, Level, Usage};
+use crate::event::{CallError, ContextInjected, Decision, Level, Question, Response, Usage};
 use crate::facts::Environment;
 use crate::id::{CallId, CommandId, ContentHash, ModuleId, Seq, TurnId};
 use crate::origin::{By, Model};
@@ -86,6 +86,15 @@ pub enum Input {
         /// 一段输出。
         text: String,
     },
+    /// 在跑的调用问人一组题（`02-内核.md` 第六节「提问怎么走」）。
+    ToolAsks {
+        /// 到的时刻，取自执行器的时钟。
+        at: Timestamp,
+        /// 哪一次调用。
+        call_id: CallId,
+        /// 一组题，照先后。
+        questions: Vec<Question>,
+    },
     /// 执行前的链判完了（`02-内核.md` 第六节「确认怎么走」）。
     ToolGuarded {
         /// 到的时刻，取自执行器的时钟。
@@ -159,16 +168,28 @@ pub enum Command {
         /// 排着队的消息怎么办（`02-内核.md` 第六节「排队的消息」）。
         queued: Queued,
     },
-    /// `session.answer`：回答一次权限确认（`02-内核.md` 第六节「确认怎么走」第 3 条）。回答
-    /// 提问随施工 2-7（下）。
+    /// `session.answer`：回答一次权限确认，或者一组题（`02-内核.md` 第六节「确认怎么走」第 3 条、
+    /// 「提问怎么走」第 3 条）。
     Answer {
-        /// 回答的是哪一次调用的请求。
+        /// 回答的是哪一次调用的请求或者题目。
         call_id: CallId,
+        /// 回答。
+        answer: Answer,
+    },
+}
+
+/// 一次回答：回答确认的，或者回答一组题的。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Answer {
+    /// 回答确认。
+    Approval {
         /// 选了哪一项。
         decision: Decision,
         /// 拒绝的理由；只有拒绝能带，空的当没写。
         reason: Option<String>,
     },
+    /// 回答一组题：照题目的先后，每道题选了哪几项、自己写了什么。
+    Questions(Vec<Response>),
 }
 
 /// 打断时，排着队的消息怎么办。
