@@ -1,0 +1,23 @@
+[package]
+name = "miyu-http"
+description = "HTTP 执行器：照驱动编码好的字节发请求，流式读回来交给解码器"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+miyu-drivers = { path = "../miyu-drivers" }
+miyu-kernel = { path = "../miyu-kernel" }
+# 理由见 docs/construction/3-5-发请求与读流（上）.md「我定的」：异步里流式读取、超时、打断最顺；
+# TLS 用 rustls，证书认系统的和 webpki 自带的两份，不依赖 OpenSSL。
+reqwest = { version = "0.12", default-features = false, features = ["http2", "rustls-tls-native-roots", "rustls-tls-webpki-roots"] }
+tokio = { version = "1", features = ["macros", "time"] }
+
+[dev-dependencies]
+# 测试的假服务器：本机回环上的 HTTP/1.1。
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
+
+[lints]
+workspace = true

@@ -14,8 +14,9 @@ use crate::classify::{self, Classified, Failure};
 use crate::openai_chat::{self, Compat, Decoder};
 use crate::{BlobBytes, Call, DriverTexts, EncodeError, Encoded, Ending};
 
-/// 一个驱动：一家接口的翻译器。一个会话造一个，开关和占位冻结在里面。
-pub trait Driver {
+/// 一个驱动：一家接口的翻译器。一个会话造一个，开关和占位冻结在里面。执行器在异步任务里用它，
+/// 所以能跨线程。
+pub trait Driver: Send + Sync {
     /// 驱动家族：私有数据里写的是它的，才归它用（`03-事件模型.md` 第九节）。
     fn family(&self) -> &'static str;
 
@@ -44,8 +45,8 @@ pub trait Driver {
     fn classify(&self, failure: &Failure<'_>) -> Classified;
 }
 
-/// 一次响应的解码器。
-pub trait Decode {
+/// 一次响应的解码器。读流跨过好几次等待，所以能跨线程。
+pub trait Decode: Send {
     /// 喂一片字节，交回解出来的增量。
     fn feed(&mut self, bytes: &[u8]) -> Vec<Delta>;
 
