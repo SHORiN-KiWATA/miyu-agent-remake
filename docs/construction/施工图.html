@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>22</b><span>/ 37 步<strong>已完成</strong>，会调工具了</span></li>
-    <li><b>2-5</b><span>下一步：打断，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">e3ce7b6</b><span>最近一步（2-4）的提交</span></li>
+    <li><b>23</b><span>/ 37 步<strong>已完成</strong>，打断得了</span></li>
+    <li><b>2-6</b><span>下一步：中途来的消息与回报，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">f98b075</b><span>最近一步（2-5）的提交</span></li>
   </ul>
 </header>
 
@@ -332,7 +332,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s2-3a"><span class="n">2-3</span>最简单的一轮（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-3b"><span class="n">2-3</span>最简单的一轮（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-4"><span class="n">2-4</span>调工具<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">2-5</span>打断</span></li>
+        <li><a class="step done" href="#s2-5"><span class="n">2-5</span>打断<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">2-6</span>中途来的消息与回报</span></li>
         <li><span class="step"><span class="n">2-7</span>权限级别、确认与提问</span></li>
         <li><span class="step"><span class="n">2-8</span>载入、崩溃恢复、撤销</span></li>
@@ -2045,6 +2045,80 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s2-5" aria-labelledby="h-s25">
+  <div class="sheet-head"><h2 id="h-s25"><span class="no">2-5</span>打断</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">回合走到哪一步都能打断，打断以后会话空闲，工具调用和结果照样成对：还没有结果的调用各补一条「已取消」。请求在路上时打断，收到的半截留下来。急着插话的消息让这一步还没跑的工具跳过，马上进下一步。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">打断 · session/interrupt.rs</span><span class="dir-note">02 第六节「打断和急着插话」</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">空闲时</span><span class="rl">拒绝，原因码 not_running</span></div>
+              <div class="tile new"><span class="nm">开头、挂接点、等落盘</span><span class="rl">什么都还没发出去，直接结束</span></div>
+              <div class="tile new"><span class="nm">请求在路上</span><span class="rl">叫执行器别再发；半截回复带 interrupted；留下的调用补「已取消，没跑过」</span></div>
+              <div class="tile new"><span class="nm">工具在跑</span><span class="rl">在跑的叫停、补「已取消，跑到一半」；没派的补「已取消，没跑过」</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">急着插话 · session.send 带 urgent</span><span class="dir-note">参考 jcode 的软打断</span></div>
+            <ol class="pipe" aria-label="急着插话以后">
+              <li>这一步还没派的调用补「已跳过」</li>
+              <li>在跑的照常跑完</li>
+              <li>这一步齐了就请求下一次，那句话在里面</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">打断的 by 是打断的人</span><span class="rl">cause 是打断的命令，回应附上全部序号</span></div>
+          <div class="tile new"><span class="nm">「已取消」分两句</span><span class="rl">跑到一半的可能已经改了东西</span></div>
+          <div class="tile new"><span class="nm">插话不截断正在说的话</span><span class="rl">要截断先打断；触发方式 M8 定</span></div>
+          <div class="tile new"><span class="nm">每次请求照样一条 model.called</span><span class="rl">没发出去就被打断的也记</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-5</dd></div>
+        <div><dt>名称</dt><dd>打断</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">f98b075</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>session/interrupt.rs</code>：各个阶段怎么收拾；<code>session/tools.rs</code>：叫停、补「已取消」「已跳过」；急着插话记在回合上。</li>
+        <li><code>session/call.rs</code>：正常说完和被打断共用一个收拾的地方，被打断的留半截、<code>model.called</code> 写 <code>interrupted</code>。</li>
+        <li>命令 <code>Interrupt</code>、<code>Send</code> 的 <code>urgent</code>；动作 <code>CancelTool</code>；原因码 <code>not_running</code>；三句英文放进 <code>resources/core/tool-results/</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>227 个测试全过，新加 10 个：空闲时拒绝、开头和挂接点时打断、半截回复、什么都没收到、打断工具、急着插话两种、没跑就全跳过、空闲时的急着插话；工具那几句的字段</span></li>
+        <li><span class="ok">✓</span><span>故意改坏十五处，每一处都有测试变红；有一处第一次没拦住（回复没落盘时来了急着插话，这一步齐了却不往下走），补了单测</span></li>
+        <li><span class="ok">✓</span><span>随机测试加上打断和急着插话；量出急着插话抽得太勤、工具几乎跑不起来，改成照权重抽，双数种子风平浪静、单数种子专门捣乱，十六条路都走到</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 227 个测试）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/02-内核.md</code> 第六节「打断和急着插话」，第四节的表。</li>
+        <li><code>docs/designs/03-事件模型.md</code> 第三节 <code>model.called</code> 的 <code>interrupted</code>；<code>04-核心协议.md</code> 的 <code>session.interrupt</code>、<code>urgent</code>。</li>
+        <li><code>docs/construction/2-5-打断.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -2219,7 +2293,7 @@ const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '12 种事件的写法、瞬时事件、追加时的检查' },
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
-  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具' },
+  k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑' },
 };
 
