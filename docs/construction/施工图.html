@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>38</b><span>/ 44 步<strong>已完成</strong>，请求能编码成线上的字节了</span></li>
-    <li><b>3-4</b><span>下一步：流式解码、出错分类与驱动接口（下），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">50da696</b><span>最近一步（3-4 上）的提交</span></li>
+    <li><b>39</b><span>/ 44 步<strong>已完成</strong>，驱动的编码、解码、分类都齐了</span></li>
+    <li><b>3-5</b><span>下一步：HTTP 执行器，<strong>先问试玩台、接哪家</strong></span></li>
+    <li><b class="mono">c90d9f1</b><span>最近一步（3-4 下）的提交</span></li>
   </ul>
 </header>
 
@@ -353,7 +353,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-2"><span class="n">3-2</span>会话日志文件<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-3"><span class="n">3-3</span>blob<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-4a"><span class="n">3-4</span>OpenAI 兼容接口的编码（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-4</span>流式解码、出错分类与驱动接口（下）</span></li>
+        <li><a class="step done" href="#s3-4b"><span class="n">3-4</span>流式解码、出错分类与驱动接口（下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-5</span>HTTP 执行器</span></li>
         <li><span class="step"><span class="n">3-6</span>策略快照</span></li>
         <li><span class="step"><span class="n">3-7</span>会话 actor</span></li>
@@ -3323,6 +3323,85 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-4b" aria-labelledby="h-s34b">
+  <div class="sheet-head"><h2 id="h-s34b"><span class="no">3-4</span>流式解码、出错分类与驱动接口（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">OpenAI 兼容对话接口的响应解得出来：SSE 流解成内核的四种增量，说完时交出用量；出了错，照状态、响应头、响应体分成六类，限速的附带要等多久。编码、解码、分类合成驱动的接口，下一步的 HTTP 执行器照着它调。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">解码 · openai_chat/decode.rs</span><span class="dir-note">05 第七节「怎么解码」</span></div>
+            <ol class="pipe" aria-label="解码">
+              <li>SSE 分帧（sse.rs）：三种换行，一行收全了才解 UTF-8，从哪里切开都一样</li>
+              <li>每一段：正文、思考各一块，工具调用按 index 认、名字到了才开始，id 进私有数据</li>
+              <li>说完：finish_reason 或 [DONE]；开着的块收全，交出用量；流断了算可重试</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">出错分类 · classify.rs</span><span class="dir-note">05 第七节「出错怎么分」，照 opencode 的先后</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">上下文超长</span><span class="rl">错误码和超长的说法，先排除限速的说法；413 也算</span></div>
+              <div class="tile new"><span class="nm">内容策略、认证</span><span class="rl">额度用完也算认证失败：重试没用，要换 key 或者充值</span></div>
+              <div class="tile new"><span class="nm">限速、可重试、其他</span><span class="rl">要等多久看 retry-after-ms、retry-after、try again in</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">流的样本</span><span class="dir-note">samples/drivers/openai-chat/streams/</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">13 份 .sse</span><span class="rl">DeepSeek、OpenAI（CRLF）、Moonshot、分片的调用、晚到的名字、噪声、报错、断流</span></div>
+              <div class="tile new"><span class="nm">13 份 .txt</span><span class="rl">解出来的，一行一条，逐字节比对</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">驱动的接口 Driver</span><span class="rl">家族、路径、要哪些 blob、编码、解码器、分类</span></div>
+          <div class="tile new"><span class="nm">思考取第一个不是空串的</span><span class="rl">reasoning_content、reasoning、reasoning_text</span></div>
+          <div class="tile new"><span class="nm">用量归成四项</span><span class="rl">cached_tokens、prompt_cache_hit_tokens、顶层 cached_tokens；没命中的减出来</span></div>
+          <div class="tile new"><span class="nm">网关的噪声不理</span><span class="rl">{"error":""}、空的 finish_reason、注释行</span></div>
+          <div class="tile"><span class="nm">.sse 原样存字节</span><span class="rl">.gitattributes 加 *.sse -text，保住 CRLF</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-4（下）</dd></div>
+        <div><dt>名称</dt><dd>流式解码、出错分类与驱动接口（下）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">c90d9f1</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>sse.rs</code>、<code>openai_chat/decode.rs</code>、<code>openai_chat/usage.rs</code>：分帧、解码、用量。</li>
+        <li><code>classify.rs</code>：六类，要等多久，原话最长 2000 字节。</li>
+        <li><code>driver.rs</code>：<code>Driver</code>、<code>Decode</code> 两个接口，<code>OpenAiChat</code> 实现。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>13 份流逐字节比对，每一份从每一个字节处切开喂都一样；累积器一条都不拒</span></li>
+        <li><span class="ok">✓</span><span>解出来的回复编码回去，用的是供应商的编号；驱动的接口走一遍</span></li>
+        <li><span class="ok">✓</span><span>故意改坏二十六处（分帧 5、解码 13、分类 8），每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地七项全过、clippy 查过 Windows 和 macOS；三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/05-内核接口.md</code> 第七节「怎么解码」「出错怎么分」。</li>
+        <li><code>docs/construction/3-4-流式解码、出错分类与驱动接口（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -3500,7 +3579,7 @@ const BUILD = {
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
   n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对' },
-  n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口的编码：纯函数，每一种写法有样本；探针另存一份线上的字节，随机日志查线上的前缀延伸' },
+  n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver' },
 };
 
 const svg = document.getElementById('bmap');
