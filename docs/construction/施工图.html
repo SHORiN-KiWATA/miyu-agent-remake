@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>31</b><span>/ 41 步<strong>已完成</strong>，探针查的是真会话了</span></li>
-    <li><b>2-10</b><span>下一步：随机测试，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">5c1e9aa</b><span>最近一步（2-9 下）的提交</span></li>
+    <li><b>32</b><span>/ 41 步<strong>已完成</strong>，M2 完成：回合的各种走法都在内存里跑通了</span></li>
+    <li><b>3-1</b><span>下一步：M3 的数据根，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">7ce216a</b><span>最近一步（2-10）的提交</span></li>
   </ul>
 </header>
 
@@ -341,7 +341,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s2-8b"><span class="n">2-8</span>撤销与恢复（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-9a"><span class="n">2-9</span>执行器替身与场景（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-9b"><span class="n">2-9</span>探针换成真会话（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">2-10</span>随机测试</span></li>
+        <li><a class="step done" href="#s2-10"><span class="n">2-10</span>随机测试<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -2768,6 +2768,88 @@ a.step:hover{border-color:var(--primary)}
         <li><code>docs/designs/08-上下文投影.md</code> 第七节「测试门禁」；<code>26-提示词.md</code> 第七节。</li>
         <li><code>docs/designs/samples/probe/terminal/</code>：重写的存档。</li>
         <li><code>docs/construction/2-9-探针换成真会话（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s2-10" aria-labelledby="h-s210">
+  <div class="sheet-head"><h2 id="h-s210"><span class="no">2-10</span>随机测试</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">内核的随机测试收尾：会话的每一种输入列成一张清单，加一种输入，编译器就逼着把它加进随机测试；每一步照九条不变量查；平时跑三百例，CI 另开一项长跑，放大到两万例（照 niri）。M2 完成：回合的各种走法都在内存里跑通了。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">清单 · random/kinds.rs</span><span class="dir-note">02 第九节「不变量怎么查」</span></div>
+            <ol class="pipe" aria-label="加一种输入会怎样">
+              <li>输入或者命令多了一种</li>
+              <li>认种类的函数不用通配，编译不过，逼着加进清单</li>
+              <li>三百例里清单上的每一种都要喂过，逼着加进生成器</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">每一步查 · watch/invariants.rs</span><span class="dir-note">九条里的五条新查</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">请求只由日志决定（3、6）</span><span class="rl">照日志重建有效历史再组装，和发出去的一字不差</span></div>
+              <div class="tile new"><span class="nm">一个编号只生效一次（9）</span><span class="rl">接受过的再来，不再产生事件</span></div>
+              <div class="tile new"><span class="nm">回应不多于收到（7）</span><span class="rl">跑完时收到几次回应几次</span></div>
+              <div class="tile new"><span class="nm">调用都有结果（2）、只开一个回合（4）</span><span class="rl">账本也拦</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">长跑 · CI 的 randomized</span><span class="dir-note">照 niri</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">接着往后跑两万例</span><span class="rl">内核 300 到 20300，组装 500 到 20500</span></div>
+              <div class="tile new"><span class="nm">只在 Linux、release 模式</span><span class="rl">本机两项共 31 秒</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">长跑写成 #[ignore] 的测试</span><span class="rl">纯逻辑门禁不许 src/ 读环境变量</span></div>
+          <div class="tile new"><span class="nm">长跑也要绿，才算验收</span><span class="rl">施工规矩第 2 条</span></div>
+          <div class="tile"><span class="nm">不变量 5 这里查不了</span><span class="rl">一次只有一个会话，到 M3 的会话 actor 再查</span></div>
+          <div class="tile new"><span class="nm">M2 完成</span><span class="rl">下一张：M3 的 3-1 数据根</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-10</dd></div>
+        <div><dt>名称</dt><dd>随机测试</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">7ce216a</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>random/kinds.rs</code>：输入的清单，名字和清单由一张表生成。</li>
+        <li><code>random/watch/invariants.rs</code>：每一步新查的五条。</li>
+        <li><code>random.rs</code>、组装的 <code>random_logs.rs</code>：测试拆成「跑哪一段种子」，平时的查覆盖，长跑标 <code>#[ignore]</code>。</li>
+        <li><code>.github/workflows/ci.yml</code>：多一项长跑。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>三百例里清单上的每一种输入都喂过，新的每一步检查都过</span></li>
+        <li><span class="ok">✓</span><span>故意改坏六处（编号再来又生效、回应两次、活着的有效历史漏了事实、从不恢复、从不重启、急着插话算成发消息），每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本机 release 模式跑长跑：内核两万例 17.6 秒，组装两万份 13 秒，都过</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑那一项也绿（各 346 个测试）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/02-内核.md</code> 第九节「不变量怎么查」。</li>
+        <li><code>docs/construction/README.md</code> 第一节第 2 条。</li>
+        <li><code>docs/construction/2-10-随机测试.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
