@@ -263,9 +263,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>11</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
-    <li><b>1-9</b><span>现在：有效历史（上），<strong>施工中</strong></span></li>
-    <li><b class="mono">82eef36</b><span>最近一步（1-8）的提交</span></li>
+    <li><b>12</b><span>/ 36 步<strong>已完成</strong>，M1 开工了</span></li>
+    <li><b>1-10</b><span>下一步：有效历史（下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">0ca42ab</b><span>最近一步（1-9）的提交</span></li>
   </ul>
 </header>
 
@@ -315,7 +315,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s1-6"><span class="n">1-6</span>上下文的事件<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-7"><span class="n">1-7</span>追加时的检查<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-8"><span class="n">1-8</span>统一的请求<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">1-9</span>有效历史（上）</span></li>
+        <li><a class="step done" href="#s1-9"><span class="n">1-9</span>有效历史（上）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">1-10</span>有效历史（下）</span></li>
         <li><span class="step"><span class="n">1-11</span>模板与转义</span></li>
         <li><span class="step"><span class="n">1-12</span>组装请求</span></li>
@@ -1169,6 +1169,70 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s1-9" aria-labelledby="h-s19">
+  <div class="sheet-head"><h2 id="h-s19"><span class="no">1-9</span>有效历史（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">投影要用的那一段历史能在内存里维护了：从最近一次压缩算起，去掉撤销掉的回合。压缩一次就丢掉更早的，撤销一次就丢掉撤掉的。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">有效历史 · history.rs</span><span class="dir-note">账本查过的事件才进来</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">检查点</span><span class="rl">最近一次压缩，投影时排在最前</span></div>
+              <div class="tile new"><span class="nm">之后的事件</span><span class="rl">照日志的先后，被动压缩保下来的尾巴也在这里</span></div>
+              <div class="tile new"><span class="nm">压缩</span><span class="rl">换上新检查点，丢掉 upto 之前的和旧的检查点</span></div>
+              <div class="tile new"><span class="nm">撤销</span><span class="rl">丢掉撤掉的回合，连同人亲口发的触发消息</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">人亲口发的跟着撤</span><span class="rl">撤了就跟没说过一样（项目主人定）</span></div>
+          <div class="tile new"><span class="nm">别处来的触发留着</span><span class="rl">子代理的回报、后台命令、定时、群里别人、另一个会话</span></div>
+          <div class="tile new"><span class="nm">内存里只留这一段</span><span class="rl">压缩、撤销掉的都还在磁盘上</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">1-9</dd></div>
+        <div><dt>名称</dt><dd>有效历史（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-26</dd></div>
+        <div><dt>提交</dt><dd class="mono">0ca42ab</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>有效历史 <code>History</code>：最近一次的检查点，加上它之后还有效的事件。</li>
+        <li>压缩换检查点、丢掉更早的；撤销丢掉撤掉的回合，人亲口发的触发消息一起撤，别处来的留着。</li>
+        <li>测试里的事件都先过 1-7 的账本，保证测的是合规的日志。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>91 个测试全过，新加 7 个：没压缩过、压缩一次、再压一次、被动压缩的尾巴、撤销的三种情况</span></li>
+        <li><span class="ok">✓</span><span>故意改坏八处（压缩多留、检查点没换、检查点混进事件、触发没撤、别处的也撤、撤销那一条留下、找触发不看是哪几轮、回合不撤），每一处都有测试变红</span></li>
+        <li><span class="ok">✓</span><span>本地 <code>cargo xtask check</code> 七项全过</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，七项都过（Linux、macOS、Windows，各 91 个测试）</span></li>
+        <li><span class="ok">✓</span><span>项目主人验收通过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/03-事件模型.md</code> 第七节「有效历史」。</li>
+        <li><code>docs/construction/1-9-有效历史（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -1342,7 +1406,7 @@ const TREE = {
 const BUILD = {
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '11 种事件的写法、追加时的检查' },
-  k_ctx: { by: '1-8', how: 'frame', note: '统一的请求' },
+  k_ctx: { by: '1-8', how: 'frame', note: '统一的请求、有效历史（上）' },
 };
 
 const svg = document.getElementById('bmap');
