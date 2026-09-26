@@ -66,7 +66,7 @@ fn a_planned_restart_in_the_middle_is_picked_up() {
         ])
     );
     // 接着干的那一轮由那条结束触发，她在请求里看到了它。
-    let second = listed_request(&stage.requests()[1]);
+    let second = listed_request(&stage.requests()[1].1);
     assert!(second.contains("9 turn.ended"), "{second}");
 }
 

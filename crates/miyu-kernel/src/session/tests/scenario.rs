@@ -146,7 +146,7 @@ fn two_reads_run_together_and_a_word_comes_in_between() {
         ]
     );
     // 下一步听到了那一句。
-    let second = listed_request(&stage.requests()[1]);
+    let second = listed_request(&stage.requests()[1].1);
     assert!(second.contains("8 message.user"), "{second}");
 }
 
@@ -241,7 +241,7 @@ fn undo_redo_and_say_again() {
     );
     // 撤了又恢复：她看到的一个字节都没变，请求接着上一次往下长。
     assert_eq!(stage.model_calls()[2].first_difference, None);
-    let third = listed_request(&stage.requests()[2]);
+    let third = listed_request(&stage.requests()[2].1);
     assert!(third.lines().any(|line| line == "13 turn.ended"), "{third}");
     assert!(
         !third
@@ -263,4 +263,34 @@ fn a_script_that_runs_out_says_which_request() {
         .cloned()
         .unwrap_or_default();
     assert!(message.contains("第 1 次请求模型"), "{message}");
+}
+
+#[test]
+fn after_a_compaction_the_facts_come_again() {
+    let mut stage = stage();
+    stage.model([Line::says("好"), Line::says("接着说")]);
+    stage.say("hi");
+    stage.compact("The user said hi.");
+    stage.say("接着来");
+    assert_eq!(
+        story(&stage)[8..],
+        [
+            "9 context.compacted kernel",
+            "10 message.user alice",
+            "11 turn.started kernel t11",
+            "12 context.injected:env kernel t11",
+            "13 context.injected:permission kernel t11",
+            "14 message.assistant model t11",
+            "15 model.called:ok kernel t11",
+            "16 turn.ended:completed kernel t11",
+        ]
+    );
+    // 请求从检查点以后算起：压缩掉的都不在了。
+    let second = listed_request(&stage.requests()[1].1);
+    assert!(second.starts_with("10 message.user"), "{second}");
+    // 回合进行中不许这样压。
+    stage.model([Line::says("说到一半").held()]);
+    stage.say("再来");
+    let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| stage.compact("…")));
+    assert!(caught.is_err(), "回合进行中不压");
 }

@@ -72,7 +72,7 @@ impl Stage {
     /// 请求模型：先报发出去了，再一块块送增量；不停住的，最后送说完了。
     fn call(&mut self, seen: Seq, request: Request) -> Vec<Input> {
         let hash = request.hash();
-        self.requests.push(request);
+        self.requests.push((seen, request));
         let line = self.lines.pop_front().unwrap_or_else(|| {
             panic!(
                 "剧本里没排第 {} 次请求模型说什么（seen {seen}）",

@@ -11,6 +11,8 @@ publish.workspace = true
 miyu-kernel = { path = "../miyu-kernel" }
 
 [dev-dependencies]
+# 探针和随机日志由真会话跑出来：执行器替身在内核的 testkit 开关后面（施工 2-9 下）。
+miyu-kernel = { path = "../miyu-kernel", features = ["testkit"] }
 # 测试里拼事件、读工具的参数格式（原样的 JSON 只能从 serde_json 读）。
 serde_json = { version = "1.0", features = ["raw_value"] }
 

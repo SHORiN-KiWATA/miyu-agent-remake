@@ -6,7 +6,8 @@ use std::collections::VecDeque;
 use super::script::{Line, Play};
 use crate::block::{Block, Text};
 use crate::event::{
-    Body, Decision, Event, Level, ModelCalled, Response, SessionCreated, Transient,
+    Body, ContextCompacted, Decision, Event, Level, ModelCalled, Response, SessionCreated,
+    Transient,
 };
 use crate::facts::Environment;
 use crate::id::{CallId, CommandId, Seq, TurnId};
@@ -31,8 +32,8 @@ pub struct Stage {
     pub(super) environment: Environment,
     /// 「磁盘」：追加过的事件，照先后，都落了盘。
     pub(super) log: Vec<Event>,
-    /// 交给驱动的每一次请求，照先后。
-    pub(super) requests: Vec<Request>,
+    /// 交给驱动的每一次请求，照先后：看到了第几条为止，和请求本身。
+    pub(super) requests: Vec<(Seq, Request)>,
     /// 每一次回应，照先后。
     pub(super) replies: Vec<(CommandId, Outcome)>,
     /// 推给头的瞬时事件。
@@ -239,13 +240,50 @@ impl Stage {
         self.reload();
     }
 
+    /// 压缩：替代到「磁盘」上的最后一条，检查点写 `summary`。真的压缩是 M6 的事，这里先顶着：
+    /// 往「磁盘」追加一条 `context.compacted`（`by` 是内核），再载入会话（`08-上下文投影.md`
+    /// 第七节「测试门禁」）。
+    ///
+    /// # Panics
+    ///
+    /// 有回合在进行：M6 以前没有回合中途压缩这种走法。
+    pub fn compact(&mut self, summary: &str) {
+        let started = self
+            .log
+            .iter()
+            .rposition(|event| matches!(event.body, Body::TurnStarted(_)));
+        let ended = self
+            .log
+            .iter()
+            .rposition(|event| matches!(event.body, Body::TurnEnded(_)));
+        assert!(started <= ended, "有回合在进行，M6 以前不在回合中途压缩");
+        let upto = self
+            .log
+            .last()
+            .map(|event| event.seq)
+            .unwrap_or_else(|| panic!("日志是空的"));
+        let at = self.tick();
+        self.log.push(Event {
+            seq: upto.next(),
+            at,
+            turn: None,
+            by: By::Kernel,
+            cause: None,
+            body: Body::ContextCompacted(ContextCompacted {
+                upto,
+                summary: summary.to_string(),
+            }),
+        });
+        self.reload();
+    }
+
     /// 「磁盘」上的事件，照先后。
     pub fn log(&self) -> &[Event] {
         &self.log
     }
 
-    /// 交给驱动的每一次请求，照先后。
-    pub fn requests(&self) -> &[Request] {
+    /// 交给驱动的每一次请求，照先后：看到了第几条为止，和请求本身。
+    pub fn requests(&self) -> &[(Seq, Request)] {
         &self.requests
     }
 
