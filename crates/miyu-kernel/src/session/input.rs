@@ -106,7 +106,12 @@ pub enum Command {
     Send {
         /// 消息的内容块。
         blocks: Vec<Block>,
+        /// 急着插话：这一步还没跑的工具跳过，这句话马上进下一步（`02-内核.md` 第六节
+        /// 「打断和急着插话」）。
+        urgent: bool,
     },
+    /// `session.interrupt`：打断正在进行的回合。
+    Interrupt,
 }
 
 /// 一个模块在回合开始时交回来的一块注入。

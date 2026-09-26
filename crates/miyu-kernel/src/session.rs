@@ -10,6 +10,7 @@
 mod action;
 mod call;
 mod input;
+mod interrupt;
 mod policy;
 mod recent;
 mod tools;
@@ -148,20 +149,23 @@ impl Session {
             return self.reply_when_stored(id, events);
         }
         match command {
-            Command::Send { blocks } => {
+            Command::Send { blocks, urgent } => {
                 if blocks.is_empty() {
                     return vec![rejected(id, Reason::EmptyMessage)];
                 }
                 let body = Body::MessageUser(MessageUser { blocks });
-                let message = self.record(at, by, Some(id.clone()), body);
+                let message = self.record(at, by.clone(), Some(id.clone()), body);
                 self.accept(id.clone(), vec![message.seq]);
                 let trigger = message.seq;
                 let mut events = vec![message];
                 if self.turn.is_none() {
                     events.extend(self.open_turn(at, trigger, Some(id)));
+                } else if urgent {
+                    events.extend(self.interject(at, by, id));
                 }
                 vec![Action::Append(events)]
             }
+            Command::Interrupt => self.interrupt(id, by, at),
         }
     }
 

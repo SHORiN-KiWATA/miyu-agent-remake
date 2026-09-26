@@ -47,6 +47,11 @@ pub enum Action {
         /// 哪个回合。
         turn: TurnId,
     },
+    /// 停下一次在跑的工具调用：回合被打断了。之后还来的结果和输出，都当过时的不理。
+    CancelTool {
+        /// 哪一次调用。
+        call_id: CallId,
+    },
     /// 执行一次工具调用。执行中的输出、执行完了，都带着调用编号回报
     /// （`02-内核.md` 第六节「工具怎么调、下一步怎么走」）。
     RunTool {
@@ -82,6 +87,8 @@ pub enum Outcome {
 pub enum Reason {
     /// 发来的消息一块内容都没有。
     EmptyMessage,
+    /// 没有回合在进行，打断不了。
+    NotRunning,
 }
 
 impl Reason {
@@ -89,6 +96,7 @@ impl Reason {
     pub fn code(self) -> &'static str {
         match self {
             Reason::EmptyMessage => "empty_message",
+            Reason::NotRunning => "not_running",
         }
     }
 }

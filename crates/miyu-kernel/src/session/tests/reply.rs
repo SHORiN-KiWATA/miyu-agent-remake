@@ -196,6 +196,7 @@ fn the_next_turns_inject_only_what_changed() {
             blocks: vec![Block::Text(Text {
                 text: "一小时以后".to_string(),
             })],
+            urgent: false,
         },
     });
     let events = appended_events(&session.handle(next_hour));

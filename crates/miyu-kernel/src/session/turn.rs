@@ -29,6 +29,15 @@ pub(super) struct Turn {
     pub(super) cwd: String,
     /// 这一轮请求过几次模型，比步数上限用。
     pub(super) requests: u32,
+    /// 急着插话的那句话是谁说的、哪个命令：下一次请求之前，还没跑的调用都跳过。
+    pub(super) interjected: Option<Interjection>,
+}
+
+/// 急着插话：谁说的，哪个命令。跳过的结果 `by` 是说话的人，`cause` 是这个命令。
+#[derive(Debug)]
+pub(super) struct Interjection {
+    pub(super) by: By,
+    pub(super) cause: CommandId,
 }
 
 /// 回合走到了哪一步。
@@ -71,6 +80,7 @@ impl Session {
             },
             cwd: self.environment.cwd.clone(),
             requests: 0,
+            interjected: None,
         });
         let facts = vec![
             self.policy.facts.env(at, &self.environment),
@@ -148,6 +158,7 @@ impl Session {
                     .and_then(|before| fingerprint.first_difference(before));
                 self.last_request = Some(fingerprint);
                 turn.requests += 1;
+                turn.interjected = None;
                 turn.stage = Stage::Asking(Call::new(seen, request.messages.len(), difference));
                 vec![Action::CallModel { seen, request }]
             }
@@ -156,13 +167,15 @@ impl Session {
     }
 
     /// 结束正在进行的回合：追加 `turn.ended`，会话空闲。等它落了盘，再跑回合结束的挂接点。
+    /// `by` 是结束它的一方：自己走完的、出错的是内核，被打断的是打断的人。
     pub(super) fn end_turn(
         &mut self,
         at: Timestamp,
+        by: By,
         cause: Option<CommandId>,
         reason: EndReason,
     ) -> Event {
-        let ended = self.record(at, By::Kernel, cause, Body::TurnEnded(TurnEnded { reason }));
+        let ended = self.record(at, by, cause, Body::TurnEnded(TurnEnded { reason }));
         if let Some(turn) = self.turn.take() {
             self.closing.push((turn.id, ended.seq));
         }

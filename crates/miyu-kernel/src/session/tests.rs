@@ -1,11 +1,12 @@
 //! 会话的测试。这一份是命令这一层：造会话；发消息；空消息；同一个编号落盘前后再来；
 //! 拒绝过的再来；落盘到一半；落盘超出追加过的；只记最近 1024 个。开回合、发请求在
-//! [`turn`]；收回复、结束回合在 [`reply`]；调工具在 [`tools`]；随机一串输入在 [`random`]；
-//! 执行器的替身在 [`executor`]。
+//! [`turn`]；收回复、结束回合在 [`reply`]；调工具在 [`tools`]；打断在 [`interrupt`]；
+//! 随机一串输入在 [`random`]；执行器的替身在 [`executor`]。
 //!
 //! 空闲时发的第一条消息会开一个回合，所以它后面紧跟着三条：`turn.started` 和两块事实。
 
 mod executor;
+mod interrupt;
 mod random;
 mod reply;
 mod tools;
@@ -21,7 +22,7 @@ use crate::event::ContextInjected;
 use crate::facts::FactTemplates;
 use crate::request::{Message, Request};
 use crate::time::UtcOffset;
-use crate::tool::{Access, ToolRule, ToolTexts};
+use crate::tool::{Access, ToolRule, ToolTextSources, ToolTexts};
 
 const CREATED: &str = r#"{"owner":"alice","venue":"local","policy":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","permission":{"level":"workspace","read_only":false}}"#;
 
@@ -48,6 +49,25 @@ fn seqs(numbers: &[u64]) -> Vec<Seq> {
 
 /// 编号是 `n` 的命令：alice 发一条消息，内容是 `words`；`words` 是空的就一块内容都没有。
 fn send(n: u64, words: &str) -> Input {
+    message(n, words, false)
+}
+
+/// 同上，急着插话。
+fn urgent(n: u64, words: &str) -> Input {
+    message(n, words, true)
+}
+
+/// 编号是 `n` 的命令：alice 打断正在进行的回合。
+fn interrupt(n: u64) -> Input {
+    Input::Command(Received {
+        id: id(n),
+        by: alice(),
+        at: at(n % 60),
+        command: Command::Interrupt,
+    })
+}
+
+fn message(n: u64, words: &str, urgent: bool) -> Input {
     let blocks = if words.is_empty() {
         Vec::new()
     } else {
@@ -59,7 +79,7 @@ fn send(n: u64, words: &str) -> Input {
         id: id(n),
         by: alice(),
         at: at(n % 60),
-        command: Command::Send { blocks },
+        command: Command::Send { blocks, urgent },
     })
 }
 
@@ -208,7 +228,14 @@ fn policy() -> Policy {
             ),
         ]),
         step_limit: None,
-        tool_texts: ToolTexts::new("no tool {name}", "bad args {name}").unwrap(),
+        tool_texts: ToolTexts::new(ToolTextSources {
+            unknown: "no tool {name}",
+            not_an_object: "bad args {name}",
+            cancelled_before: "cancelled before",
+            cancelled_running: "cancelled running",
+            skipped: "skipped",
+        })
+        .unwrap(),
     }
 }
 

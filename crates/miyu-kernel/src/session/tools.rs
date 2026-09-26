@@ -4,7 +4,7 @@
 
 use super::Session;
 use super::action::Action;
-use super::turn::Stage;
+use super::turn::{Interjection, Stage};
 use crate::block::{Block, Text, ToolCall};
 use crate::event::{
     Body, EndReason, Event, ToolProgress, ToolResult, ToolStatus, Transient, TransientBody,
@@ -89,7 +89,24 @@ impl Session {
     ) -> Vec<Event> {
         let mut events = Vec::new();
         let mut pending = Vec::new();
+        let skipping = self.turn.as_ref().and_then(|turn| {
+            turn.interjected
+                .as_ref()
+                .map(|interjection| (interjection.by.clone(), interjection.cause.clone()))
+        });
         for call in calls {
+            if let Some((by, skip_cause)) = &skipping {
+                let text = self.policy.tool_texts.skipped();
+                events.push(self.written_result(
+                    at,
+                    by.clone(),
+                    Some(skip_cause.clone()),
+                    call.call_id,
+                    ToolStatus::Skipped,
+                    text,
+                ));
+                continue;
+            }
             let checked = match self.policy.tools.get(&call.name) {
                 None => Err(self.policy.tool_texts.unknown(&call.name)),
                 Some(rule) => repair(&rule.parameters, &call.args)
@@ -105,17 +122,13 @@ impl Session {
                     state: State::Waiting,
                 }),
                 Err(sentence) => {
-                    let result = ToolResult {
-                        call_id: call.call_id,
-                        status: ToolStatus::Error,
-                        blocks: vec![Block::Text(Text { text: sentence })],
-                        duration_ms: None,
-                    };
-                    events.push(self.record(
+                    events.push(self.written_result(
                         at,
                         By::Kernel,
                         cause.clone(),
-                        Body::ToolResult(result),
+                        call.call_id,
+                        ToolStatus::Error,
+                        sentence,
                     ));
                 }
             }
@@ -234,6 +247,101 @@ impl Session {
         })]
     }
 
+    /// 打断这一步：在跑的叫执行器停下，补「已取消，跑到一半」；还没派的补「已取消，没跑过」；
+    /// 有了结果的不动。补的结果 `by` 是打断的人，`cause` 是打断的命令。
+    pub(super) fn cancel_step(
+        &mut self,
+        at: Timestamp,
+        by: &By,
+        cause: &CommandId,
+        step: Step,
+    ) -> (Vec<Event>, Vec<Action>) {
+        let mut events = Vec::new();
+        let mut actions = Vec::new();
+        for call in step.calls {
+            let text = match call.state {
+                State::Done => continue,
+                State::Running => {
+                    actions.push(Action::CancelTool { call_id: call.id });
+                    self.policy.tool_texts.cancelled_running()
+                }
+                State::Waiting => self.policy.tool_texts.cancelled_before(),
+            };
+            events.push(self.written_result(
+                at,
+                by.clone(),
+                Some(cause.clone()),
+                call.id,
+                ToolStatus::Cancelled,
+                text,
+            ));
+        }
+        (events, actions)
+    }
+
+    /// 急着插话：记在回合上，下一次请求之前还没跑的调用都跳过。这一步还没派的，当场补
+    /// 「已跳过」，`by` 是说话的人；这一步因此齐了的，往下走。
+    pub(super) fn interject(&mut self, at: Timestamp, by: By, cause: CommandId) -> Vec<Event> {
+        let Some(turn) = self.turn.as_mut() else {
+            return Vec::new();
+        };
+        turn.interjected = Some(Interjection {
+            by: by.clone(),
+            cause: cause.clone(),
+        });
+        let turn_cause = turn.cause.clone();
+        let Stage::Tools(step) = &mut turn.stage else {
+            return Vec::new();
+        };
+        let waiting: Vec<CallId> = step
+            .calls
+            .iter_mut()
+            .filter(|call| call.state == State::Waiting)
+            .map(|call| {
+                call.state = State::Done;
+                call.id
+            })
+            .collect();
+        let finished = step.finished();
+        let text = self.policy.tool_texts.skipped();
+        let mut events: Vec<Event> = waiting
+            .into_iter()
+            .map(|call_id| {
+                self.written_result(
+                    at,
+                    by.clone(),
+                    Some(cause.clone()),
+                    call_id,
+                    ToolStatus::Skipped,
+                    text.clone(),
+                )
+            })
+            .collect();
+        if finished && !events.is_empty() {
+            events.extend(self.finish_step(at, turn_cause));
+        }
+        events
+    }
+
+    /// 内核替工具写的一条结果：没执行过，没有用时。
+    pub(super) fn written_result(
+        &mut self,
+        at: Timestamp,
+        by: By,
+        cause: Option<CommandId>,
+        call_id: CallId,
+        status: ToolStatus,
+        text: String,
+    ) -> Event {
+        let result = ToolResult {
+            call_id,
+            status,
+            blocks: vec![Block::Text(Text { text })],
+            duration_ms: None,
+        };
+        self.record(at, by, cause, Body::ToolResult(result))
+    }
+
     /// 这一步齐了：到了步数上限，结束回合；不然等追加过的事件都落了盘，请求下一次。
     fn finish_step(&mut self, at: Timestamp, cause: Option<CommandId>) -> Vec<Event> {
         let Some(turn) = self.turn.as_mut() else {
@@ -244,7 +352,7 @@ impl Session {
             .step_limit
             .is_some_and(|limit| turn.requests >= limit)
         {
-            return vec![self.end_turn(at, cause, EndReason::StepLimit)];
+            return vec![self.end_turn(at, By::Kernel, cause, EndReason::StepLimit)];
         }
         turn.stage = Stage::Ready;
         Vec::new()

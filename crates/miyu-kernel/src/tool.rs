@@ -104,8 +104,9 @@ fn restore(kind: &str, text: &str) -> Option<Value> {
     }
 }
 
-/// 内核在执行之前就拦下时，写给模型的那两句（`resources/core/tool-results/`）。字段是
-/// `name`，模型说的工具名，照模板的规矩转义。
+/// 内核替工具写给模型的几句（`resources/core/tool-results/`）：执行之前就拦下的两句，
+/// 字段是 `name`，模型说的工具名，照模板的规矩转义；打断、急着插话时补的三句，没有字段
+/// （`02-内核.md` 第六节「打断和急着插话」）。
 ///
 /// 由执行器从资源目录读好交进来，造会话时读一次，冻结在会话上。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -114,21 +115,52 @@ pub struct ToolTexts {
     unknown: Template,
     /// 参数不是一个 JSON 对象。
     not_an_object: Template,
+    /// 已取消，没跑过。
+    cancelled_before: Template,
+    /// 已取消，跑到一半。
+    cancelled_running: Template,
+    /// 已跳过。
+    skipped: Template,
+}
+
+/// 那几句的原文，各是一份模板。
+#[derive(Debug, Clone, Copy)]
+pub struct ToolTextSources<'a> {
+    /// 工具面上没有这个名字，字段 `name`。
+    pub unknown: &'a str,
+    /// 参数不是一个 JSON 对象，字段 `name`。
+    pub not_an_object: &'a str,
+    /// 已取消，没跑过。
+    pub cancelled_before: &'a str,
+    /// 已取消，跑到一半。
+    pub cancelled_running: &'a str,
+    /// 已跳过。
+    pub skipped: &'a str,
 }
 
 impl ToolTexts {
-    /// 读两个模板，读好以后拿字段试着换一次。
+    /// 读几份模板，读好以后拿字段试着换一次。
     ///
     /// # Errors
     ///
-    /// 模板的写法坏了，或者要了 `name` 以外的字段，返回 [`TemplateError`]。
-    pub fn new(unknown: &str, not_an_object: &str) -> Result<ToolTexts, TemplateError> {
+    /// 模板的写法坏了，或者要了不该有的字段，返回 [`TemplateError`]。
+    pub fn new(sources: ToolTextSources<'_>) -> Result<ToolTexts, TemplateError> {
         let texts = ToolTexts {
-            unknown: Template::parse(unknown)?,
-            not_an_object: Template::parse(not_an_object)?,
+            unknown: Template::parse(sources.unknown)?,
+            not_an_object: Template::parse(sources.not_an_object)?,
+            cancelled_before: Template::parse(sources.cancelled_before)?,
+            cancelled_running: Template::parse(sources.cancelled_running)?,
+            skipped: Template::parse(sources.skipped)?,
         };
         texts.unknown.render(&fields(""))?;
         texts.not_an_object.render(&fields(""))?;
+        for plain in [
+            &texts.cancelled_before,
+            &texts.cancelled_running,
+            &texts.skipped,
+        ] {
+            plain.render(&BTreeMap::new())?;
+        }
         Ok(texts)
     }
 
@@ -138,9 +170,7 @@ impl ToolTexts {
     ///
     /// 实际不会 panic：造的时候已经试换过。
     pub fn unknown(&self, name: &str) -> String {
-        self.unknown
-            .render(&fields(name))
-            .expect("造的时候试换过，字段都有")
+        render(&self.unknown, &fields(name))
     }
 
     /// 给 `name` 的参数不是一个 JSON 对象。
@@ -149,10 +179,39 @@ impl ToolTexts {
     ///
     /// 实际不会 panic：造的时候已经试换过。
     pub fn not_an_object(&self, name: &str) -> String {
-        self.not_an_object
-            .render(&fields(name))
-            .expect("造的时候试换过，字段都有")
+        render(&self.not_an_object, &fields(name))
     }
+
+    /// 已取消，没跑过。
+    ///
+    /// # Panics
+    ///
+    /// 实际不会 panic：造的时候已经试换过。
+    pub fn cancelled_before(&self) -> String {
+        render(&self.cancelled_before, &BTreeMap::new())
+    }
+
+    /// 已取消，跑到一半。
+    ///
+    /// # Panics
+    ///
+    /// 实际不会 panic：造的时候已经试换过。
+    pub fn cancelled_running(&self) -> String {
+        render(&self.cancelled_running, &BTreeMap::new())
+    }
+
+    /// 已跳过。
+    ///
+    /// # Panics
+    ///
+    /// 实际不会 panic：造的时候已经试换过。
+    pub fn skipped(&self) -> String {
+        render(&self.skipped, &BTreeMap::new())
+    }
+}
+
+fn render(template: &Template, fields: &BTreeMap<&str, &str>) -> String {
+    template.render(fields).expect("造的时候试换过，字段都有")
 }
 
 fn fields(name: &str) -> BTreeMap<&str, &str> {

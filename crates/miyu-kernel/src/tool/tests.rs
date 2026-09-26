@@ -76,13 +76,20 @@ fn a_schema_without_properties_passes_arguments_through() {
     );
 }
 
+/// 替身的几句。
+fn sources<'a>(unknown: &'a str, skipped: &'a str) -> ToolTextSources<'a> {
+    ToolTextSources {
+        unknown,
+        not_an_object: "The arguments for \"{name}\" are not a JSON object.\n",
+        cancelled_before: "cancelled before",
+        cancelled_running: "cancelled running",
+        skipped,
+    }
+}
+
 #[test]
-fn the_two_sentences_escape_the_name() {
-    let texts = ToolTexts::new(
-        "There is no tool named \"{name}\".\n",
-        "The arguments for \"{name}\" are not a JSON object.\n",
-    )
-    .unwrap();
+fn the_sentences_escape_the_name() {
+    let texts = ToolTexts::new(sources("There is no tool named \"{name}\".\n", "skipped")).unwrap();
     assert_eq!(texts.unknown("reed"), "There is no tool named \"reed\".\n");
     // 模型编的名字里带引号、尖括号，转义以后只剩模板自己的那两个引号。
     let forged = texts.unknown("x\"><tool");
@@ -92,5 +99,28 @@ fn the_two_sentences_escape_the_name() {
         texts.not_an_object("read"),
         "The arguments for \"read\" are not a JSON object.\n"
     );
-    assert!(ToolTexts::new("{tool}", "{name}").is_err(), "要了别的字段");
+    assert_eq!(
+        (
+            texts.cancelled_before(),
+            texts.cancelled_running(),
+            texts.skipped()
+        ),
+        (
+            "cancelled before".to_string(),
+            "cancelled running".to_string(),
+            "skipped".to_string()
+        )
+    );
+}
+
+#[test]
+fn sentences_asking_for_other_fields_are_refused() {
+    assert!(
+        ToolTexts::new(sources("{tool}", "skipped")).is_err(),
+        "要了别的字段"
+    );
+    assert!(
+        ToolTexts::new(sources("{name}", "{name}")).is_err(),
+        "三句没有字段"
+    );
 }

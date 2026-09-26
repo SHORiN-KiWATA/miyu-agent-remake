@@ -117,6 +117,8 @@ text_enum!(
         Ok = "ok",
         /// 出错。
         Error = "error",
+        /// 被人打断：用量没有，用时算到打断为止。
+        Interrupted = "interrupted",
     }
 );
 

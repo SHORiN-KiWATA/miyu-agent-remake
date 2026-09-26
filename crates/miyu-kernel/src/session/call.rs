@@ -10,7 +10,7 @@ use super::turn::Stage;
 use crate::accumulate::{Accumulator, Delta};
 use crate::block::{Block, ToolCall};
 use crate::event::{
-    Body, CallError, CallResult, EndReason, ErrorClass, FirstDifference, MessageAssistant,
+    Body, CallError, CallResult, EndReason, ErrorClass, Event, FirstDifference, MessageAssistant,
     ModelCalled, ModelDelta, Piece, Transient, TransientBody, Usage,
 };
 use crate::id::{CommandId, ContentHash, Seq};
@@ -22,7 +22,7 @@ use crate::time::Timestamp;
 #[derive(Debug)]
 pub(super) struct Call {
     /// 这次请求看到了第几条为止，也是它的名字。
-    seen: Seq,
+    pub(super) seen: Seq,
     /// 统一的请求里有几条消息。
     messages: usize,
     /// 和这个会话上一次请求比，第一处不同在哪；只是接着加的、前面没有可比的，没有。
@@ -81,6 +81,25 @@ impl Call {
             piece,
         }))
     }
+}
+
+/// 一次请求的结局。
+enum Ending {
+    /// 执行器报说完了：正常说完的带用量，出错的带分类和原话。
+    Said {
+        usage: Option<Usage>,
+        error: Option<CallError>,
+    },
+    /// 被人打断。
+    CutOff,
+}
+
+/// 一次请求收拾完：追加的事件、写成的回复是第几条、回复里的调用、算不算出错。
+struct Settled {
+    events: Vec<Event>,
+    reply: Option<Seq>,
+    calls: Vec<ToolCall>,
+    failed: bool,
 }
 
 /// 要推给头的一段增量，和它的 `by`：那个模型。
@@ -149,6 +168,40 @@ impl Session {
         let Some((call, cause)) = self.take_call(seen) else {
             return Vec::new();
         };
+        let settled = self.settle(at, call, cause.clone(), Ending::Said { usage, error });
+        let mut events = settled.events;
+        match settled.reply {
+            _ if settled.failed => {
+                events.push(self.end_turn(at, By::Kernel, cause, EndReason::Error));
+            }
+            Some(reply) if !settled.calls.is_empty() => {
+                events.extend(self.start_tools(at, reply, settled.calls, cause));
+            }
+            _ => events.push(self.end_turn(at, By::Kernel, cause, EndReason::Completed)),
+        }
+        vec![Action::Append(events)]
+    }
+
+    /// 打断在路上的请求：收到的半截照累积器留下，不是空的写成回复，多写一格被打断；
+    /// 记一条结果是被打断的 `model.called`。返回追加的事件和半截回复里留下的调用。
+    pub(super) fn cut_off(
+        &mut self,
+        at: Timestamp,
+        call: Call,
+        cause: Option<CommandId>,
+    ) -> (Vec<Event>, Vec<ToolCall>) {
+        let settled = self.settle(at, call, cause, Ending::CutOff);
+        (settled.events, settled.calls)
+    }
+
+    /// 这次请求有了结局：该写的回复写上，记一条 `model.called`。
+    fn settle(
+        &mut self,
+        at: Timestamp,
+        call: Call,
+        cause: Option<CommandId>,
+        ending: Ending,
+    ) -> Settled {
         let Call {
             seen,
             messages,
@@ -157,22 +210,31 @@ impl Session {
             first_token,
             accumulator,
         } = call;
-        let mut error = error;
+        let (usage, mut error, cut) = match ending {
+            Ending::Said { usage, error } => (usage, error, false),
+            Ending::CutOff => (None, None, true),
+        };
         let mut events = Vec::new();
-        let mut reply = self.ledger.next_seq();
-        let mut calls: Vec<ToolCall> = Vec::new();
+        let mut reply = None;
+        let mut calls = Vec::new();
         match &sent {
-            None if error.is_none() => {
+            None if !cut && error.is_none() => {
                 error = Some(bad_stream("请求还没发出去就说完了".to_string()));
             }
-            Some(sent) if error.is_none() => {
-                reply = self.ledger.next_seq();
-                let blocks = accumulator.finish(reply);
+            Some(sent) if cut || error.is_none() => {
+                let seq = self.ledger.next_seq();
+                let blocks = if cut {
+                    accumulator.cut_off(seq)
+                } else {
+                    accumulator.finish(seq)
+                };
                 if blocks.is_empty() {
-                    error = Some(CallError {
-                        class: ErrorClass::EmptyReply,
-                        message: "回复里一个块都没有".to_string(),
-                    });
+                    if !cut {
+                        error = Some(CallError {
+                            class: ErrorClass::EmptyReply,
+                            message: "回复里一个块都没有".to_string(),
+                        });
+                    }
                 } else {
                     calls = blocks
                         .iter()
@@ -184,14 +246,22 @@ impl Session {
                     let body = MessageAssistant {
                         blocks,
                         seen,
-                        interrupted: false,
+                        interrupted: cut,
                     };
                     let by = By::Model(sent.model.clone());
                     events.push(self.record(at, by, cause.clone(), Body::MessageAssistant(body)));
+                    reply = Some(seq);
                 }
             }
             _ => {}
         }
+        let result = if cut {
+            CallResult::Interrupted
+        } else if error.is_some() {
+            CallResult::Error
+        } else {
+            CallResult::Ok
+        };
         let called = ModelCalled {
             seen,
             endpoint: sent.as_ref().map(|sent| sent.model.endpoint.clone()),
@@ -205,22 +275,16 @@ impl Session {
                 .zip(first_token)
                 .map(|(sent, first)| millis(sent.at, first)),
             duration_ms: sent.as_ref().map(|sent| millis(sent.at, at)),
-            result: if error.is_some() {
-                CallResult::Error
-            } else {
-                CallResult::Ok
-            },
+            result,
             error: error.clone(),
         };
-        events.push(self.record(at, By::Kernel, cause.clone(), Body::ModelCalled(called)));
-        if error.is_some() {
-            events.push(self.end_turn(at, cause, EndReason::Error));
-        } else if calls.is_empty() {
-            events.push(self.end_turn(at, cause, EndReason::Completed));
-        } else {
-            events.extend(self.start_tools(at, reply, calls, cause));
+        events.push(self.record(at, By::Kernel, cause, Body::ModelCalled(called)));
+        Settled {
+            events,
+            reply,
+            calls,
+            failed: error.is_some(),
         }
-        vec![Action::Append(events)]
     }
 
     /// 在路上、名字是 `seen` 的那次请求。

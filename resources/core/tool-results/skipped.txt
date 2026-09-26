@@ -1,0 +1,1 @@
+The call was skipped: the user sent a new message.

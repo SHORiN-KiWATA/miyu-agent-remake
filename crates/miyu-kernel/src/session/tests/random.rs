@@ -19,7 +19,9 @@ use std::collections::BTreeSet;
 
 use super::*;
 use crate::accumulate::{Delta, Kind};
-use crate::event::{CallError, CallResult, EndReason, ErrorClass, Transient, TransientBody};
+use crate::event::{
+    CallError, CallResult, EndReason, ErrorClass, ToolStatus, Transient, TransientBody,
+};
 use crate::id::{CallId, ContentHash, FactKind, ModelName, ModuleId, ProviderId};
 use crate::origin::Model;
 use watch::Watch;
@@ -48,7 +50,7 @@ impl Watch {
     /// 下一段增量：多半接着在路上的那次请求像样地往下说，偶尔乱来。工具调用的参数是一个
     /// 空对象，一次写完。
     fn some_delta(&mut self, rng: &mut Rng) -> Delta {
-        if rng.below(6) == 0 {
+        if rng.below(if self.calm { 40 } else { 6 }) == 0 {
             return scrambled_delta(rng);
         }
         match self.open_block {
@@ -149,27 +151,47 @@ fn some_ending(rng: &mut Rng) -> Option<CallError> {
     })
 }
 
-/// 一条随机的输入。执行器替身多半守规矩：请求交给它以后，先报发出去了，再送增量和结局。
+/// 一条随机的输入，照下面的权重抽（一共 28 份）。执行器替身多半守规矩：请求交给它以后，
+/// 先报发出去了，再送增量和结局。
+///
+/// | 份数 | 输入 |
+/// |---|---|
+/// | 3 | 发一条新消息 |
+/// | 1 | 重发一个用过的编号 |
+/// | 1 | 空消息 |
+/// | 1 | 环境变了 |
+/// | 2 | 回合开始的挂接点跑完了 |
+/// | 1 | 落盘到随便哪一条 |
+/// | 4 | 全落盘 |
+/// | 1 | 请求发出去了 |
+/// | 6 | 模型的一段增量 |
+/// | 2 | 模型说完了 |
+/// | 1 | 工具的输出 |
+/// | 3 | 工具执行完了 |
+/// | 1 | 打断 |
+/// | 1 | 一半急着插话，一半发新消息：急着插话一来，这一轮回复里的调用就全跳过，不能多 |
 fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
-    let slot = rng.below(20);
-    if (10..=15).contains(&slot)
+    // 工具在跑的时候，偶尔打断、多送几段输出：这个窗口短，光靠均匀地抽难得碰上。
+    if !watch.running.is_empty() {
+        match rng.below(30) {
+            0 if !watch.calm => return interrupt(next_command(next_id)),
+            1..=4 => return progress(watch.some_call(rng)),
+            _ => {}
+        }
+    }
+    let slot = rng.below(28);
+    if (13..=21).contains(&slot)
         && let Some(seen) = watch.unsent()
         && rng.below(5) > 0
     {
         return sent_now(seen);
     }
     match slot {
-        0..=2 => {
-            *next_id += 1;
-            send(*next_id, "hi")
-        }
+        0..=2 => send(next_command(next_id), "hi"),
         3 => send(1 + rng.below(*next_id), "hi"),
-        4 => {
-            *next_id += 1;
-            send(*next_id, "")
-        }
+        4 => send(next_command(next_id), ""),
         5 => Input::Environment(environment(if rng.below(2) == 0 { "~/a" } else { "~/b" })),
-        6 => {
+        6 | 7 => {
             // 多半是叫过的那个回合，偶尔是对不上的。
             let turn = match watch.hooked.last() {
                 Some(turn) if rng.below(4) > 0 => *turn,
@@ -177,33 +199,48 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
             };
             hooks_done(turn, some_injections(rng))
         }
-        7 => stored(1 + rng.below(watch.last())),
-        8 | 9 => stored(watch.last()),
-        10 => sent_now(watch.some_seen(rng)),
-        11..=13 => Input::ModelDelta {
+        8 => stored(1 + rng.below(watch.last())),
+        9..=12 => stored(watch.last()),
+        13 => sent_now(watch.some_seen(rng)),
+        14..=19 => Input::ModelDelta {
             at: at(41),
             seen: watch.some_seen(rng),
             delta: watch.some_delta(rng),
         },
-        14 | 15 => Input::ModelEnded {
+        20 | 21 => Input::ModelEnded {
             at: at(45),
             seen: watch.some_seen(rng),
             usage: None,
             error: some_ending(rng),
         },
-        16 => Input::ToolProgress {
-            at: at(49),
-            call_id: watch.some_call(rng),
-            text: "…".to_string(),
-        },
-        _ => Input::ToolDone {
+        22 => progress(watch.some_call(rng)),
+        23..=25 => Input::ToolDone {
             at: at(50),
             call_id: watch.some_call(rng),
             error: rng.below(4) == 0,
             blocks: Vec::new(),
             duration_ms: Some(1),
         },
+        26 if !watch.calm || rng.below(10) == 0 => interrupt(next_command(next_id)),
+        26 => send(next_command(next_id), "hi"),
+        _ if rng.below(2) == 0 => urgent(next_command(next_id), "等等"),
+        _ => send(next_command(next_id), "hi"),
     }
+}
+
+/// 调用 `call_id` 执行中的一段输出。
+fn progress(call_id: CallId) -> Input {
+    Input::ToolProgress {
+        at: at(49),
+        call_id,
+        text: "…".to_string(),
+    }
+}
+
+/// 下一个没用过的命令编号。
+fn next_command(next_id: &mut u64) -> u64 {
+    *next_id += 1;
+    *next_id
 }
 
 /// 请求 `seen` 发出去了。
@@ -228,6 +265,8 @@ fn random_inputs_keep_the_rules() {
         limited.step_limit = Some(STEP_LIMIT);
         let mut session = session_with(limited);
         let mut watch = Watch::new(seed);
+        // 双数的种子风平浪静：打断、乱来的增量少，一轮才走得深；单数的种子专门捣乱。
+        watch.calm = seed % 2 == 0;
         let mut next_id = 1;
         for _ in 0..150 {
             let input = some_input(&mut rng, &mut watch, &mut next_id);
@@ -253,6 +292,11 @@ fn random_inputs_keep_the_rules() {
         "推了工具的输出",
         "一步接一步",
         "走到步数上限",
+        "打断了回合",
+        "打断了请求",
+        "打断了工具",
+        "空闲时打断被拒",
+        "急着插话跳过",
     ];
     for path in expected {
         assert!(paths.contains(path), "三百例里一次都没走到「{path}」");

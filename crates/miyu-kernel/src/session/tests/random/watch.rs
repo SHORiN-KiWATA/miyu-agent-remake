@@ -5,6 +5,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::*;
 
+mod lookup;
+
 /// 看守。
 pub(super) struct Watch {
     seed: u64,
@@ -25,10 +27,11 @@ pub(super) struct Watch {
     sent: BTreeSet<Seq>,
     recorded: BTreeSet<Seq>,
     pub(super) asking: Option<Seq>,
-    /// 派过的调用；在跑的调用；有了结果的调用。
+    /// 派过的调用；在跑的调用；有了结果的调用；在跑时被打断、补了「已取消」的调用。
     dispatched: BTreeSet<CallId>,
     pub(super) running: BTreeSet<CallId>,
     resulted: BTreeSet<CallId>,
+    stopped: BTreeSet<CallId>,
     /// 现在的工作目录，和每个回合开始时的那一个。
     pub(super) cwd: String,
     turn_cwd: BTreeMap<TurnId, String>,
@@ -38,6 +41,8 @@ pub(super) struct Watch {
     /// 调用、参数写了没有）。
     pub(super) next_block: usize,
     pub(super) open_block: Option<(usize, bool, bool)>,
+    /// 风平浪静：打断、乱来的增量少，一轮才走得深。
+    pub(super) calm: bool,
 }
 
 impl Watch {
@@ -59,11 +64,13 @@ impl Watch {
             dispatched: BTreeSet::new(),
             running: BTreeSet::new(),
             resulted: BTreeSet::new(),
+            stopped: BTreeSet::new(),
             cwd: "~/src/miyu".to_string(),
             turn_cwd: BTreeMap::new(),
             seen_paths: BTreeSet::new(),
             next_block: 0,
             open_block: None,
+            calm: false,
         }
     }
 
@@ -77,8 +84,17 @@ impl Watch {
         self.events.last().map_or(1, |event| event.seq.get())
     }
 
-    /// 送进一条输入之前记下它，送进去以后查吐出来的动作。
+    /// 送进一条输入之前记下它，送进去以后查吐出来的动作。新的打断：回合开着的，这一批以
+    /// 被打断的 `turn.ended` 收尾；没开着的，拒绝，原因码 `not_running`。
     pub(super) fn feed(&mut self, session: &mut Session, input: Input) {
+        let fresh_interrupt = match &input {
+            Input::Command(command) => {
+                matches!(command.command, Command::Interrupt)
+                    && !self.received.contains_key(&command.id)
+            }
+            _ => false,
+        };
+        let was_open = self.turn_open();
         match &input {
             Input::Command(command) => {
                 *self.received.entry(command.id.clone()).or_default() += 1;
@@ -92,8 +108,42 @@ impl Watch {
             Input::Environment(environment) => self.cwd = environment.cwd.clone(),
             _ => {}
         }
-        for action in session.handle(input) {
+        let actions = session.handle(input);
+        if fresh_interrupt {
+            self.interrupted(&actions, was_open);
+        }
+        for action in actions {
             self.check(action);
+        }
+    }
+
+    /// 一次新的打断吐出来的动作。
+    fn interrupted(&mut self, actions: &[Action], was_open: bool) {
+        let seed = self.seed;
+        if was_open {
+            self.seen_paths.insert("打断了回合");
+            let ended = actions.iter().find_map(|action| match action {
+                Action::Append(events) => events.last(),
+                _ => None,
+            });
+            assert!(
+                matches!(ended.map(|event| &event.body), Some(Body::TurnEnded(ended)) if ended.reason == EndReason::Interrupted),
+                "种子 {seed}：打断以后回合没以被打断结束：{actions:?}"
+            );
+        } else {
+            self.seen_paths.insert("空闲时打断被拒");
+            assert!(
+                matches!(
+                    actions,
+                    [Action::Reply {
+                        outcome: Outcome::Rejected {
+                            reason: Reason::NotRunning
+                        },
+                        ..
+                    }]
+                ),
+                "种子 {seed}：空闲时的打断应该拒绝：{actions:?}"
+            );
         }
     }
 
@@ -147,6 +197,13 @@ impl Watch {
             Action::RunTool {
                 call_id, name, cwd, ..
             } => self.run(call_id, &name, &cwd),
+            Action::CancelTool { call_id } => {
+                self.seen_paths.insert("打断了工具");
+                assert!(
+                    self.stopped.contains(&call_id),
+                    "种子 {seed}：叫停的 {call_id} 不是在跑时被取消的"
+                );
+            }
         }
     }
 
@@ -289,11 +346,19 @@ impl Watch {
                         "种子 {seed}：{} 有了两条结果",
                         result.call_id
                     );
+                    let was_running = self.running.remove(&result.call_id);
                     if matches!(event.by, By::Tool(_)) {
-                        assert!(
-                            self.running.remove(&result.call_id),
-                            "种子 {seed}：没在跑的调用有了结果"
-                        );
+                        assert!(was_running, "种子 {seed}：没在跑的调用有了结果");
+                    }
+                    match result.status {
+                        ToolStatus::Cancelled if was_running => {
+                            self.stopped.insert(result.call_id);
+                        }
+                        ToolStatus::Skipped => {
+                            self.seen_paths.insert("急着插话跳过");
+                            assert!(!was_running, "种子 {seed}：在跑的调用被跳过了");
+                        }
+                        _ => {}
                     }
                 }
                 Body::TurnEnded(ended) if ended.reason == EndReason::StepLimit => {
@@ -327,99 +392,32 @@ impl Watch {
         );
         let before = k.checked_sub(1).map(|k| &events[k].body);
         let after = events.get(k + 1).map(|event| &event.body);
-        if called.result == CallResult::Ok {
-            self.seen_paths.insert("说完了");
-            assert!(
-                matches!(before, Some(Body::MessageAssistant(reply)) if reply.seen == called.seen),
-                "种子 {seed}：说完了的，前面是它的回复"
-            );
-        } else {
-            self.seen_paths.insert("出错了");
-            assert!(
-                matches!(after, Some(Body::TurnEnded(ended)) if ended.reason == EndReason::Error),
-                "种子 {seed}：出错的，后面紧跟着出错的回合结束"
-            );
+        let last = events.last().map(|event| &event.body);
+        match called.result {
+            CallResult::Ok => {
+                self.seen_paths.insert("说完了");
+                assert!(
+                    matches!(before, Some(Body::MessageAssistant(reply)) if reply.seen == called.seen),
+                    "种子 {seed}：说完了的，前面是它的回复"
+                );
+            }
+            CallResult::Interrupted => {
+                self.seen_paths.insert("打断了请求");
+                assert!(
+                    matches!(last, Some(Body::TurnEnded(ended)) if ended.reason == EndReason::Interrupted),
+                    "种子 {seed}：被打断的请求，这一批以被打断的回合结束收尾"
+                );
+            }
+            _ => {
+                self.seen_paths.insert("出错了");
+                assert!(
+                    matches!(after, Some(Body::TurnEnded(ended)) if ended.reason == EndReason::Error),
+                    "种子 {seed}：出错的，后面紧跟着出错的回合结束"
+                );
+            }
         }
         if self.asking == Some(called.seen) {
             self.asking = None;
-        }
-    }
-
-    /// 回合的开头：`turn.started`，和紧跟着它、同一时刻的内核事实。
-    fn opening(&self, turn: TurnId) -> impl Iterator<Item = Seq> + '_ {
-        let start = self
-            .events
-            .iter()
-            .position(|event| event.seq == turn.started())
-            .unwrap_or_else(|| panic!("种子 {}：回合 {turn} 没开过", self.seed));
-        let at = self.events[start].at;
-        self.events[start..]
-            .iter()
-            .take_while(move |event| event.at == at && event.by == By::Kernel)
-            .map(|event| event.seq)
-    }
-
-    /// 正在进行的回合：一个接一个，所以是最后开的那个。
-    fn open_turn(&self) -> TurnId {
-        self.events
-            .iter()
-            .rev()
-            .find(|event| matches!(event.body, Body::TurnStarted(_)))
-            .map(|event| TurnId::new(event.seq))
-            .unwrap_or_else(|| panic!("种子 {}：还没开过回合", self.seed))
-    }
-
-    /// 第 `reply` 号回复里的调用。
-    fn calls_of(&self, reply: Seq) -> impl Iterator<Item = CallId> + '_ {
-        self.events
-            .iter()
-            .filter(move |event| event.seq == reply)
-            .flat_map(|event| match &event.body {
-                Body::MessageAssistant(reply) => reply.blocks.clone(),
-                _ => Vec::new(),
-            })
-            .filter_map(|block| match block {
-                Block::ToolCall(call) => Some(call.call_id),
-                _ => None,
-            })
-    }
-
-    /// 回合 `turn` 里全部回复的调用。
-    fn calls_in(&self, turn: TurnId) -> impl Iterator<Item = CallId> + '_ {
-        self.events
-            .iter()
-            .filter(move |event| event.turn == Some(turn))
-            .filter(|event| matches!(event.body, Body::MessageAssistant(_)))
-            .flat_map(|event| self.calls_of(event.seq).collect::<Vec<_>>())
-    }
-
-    /// 调用 `call_id` 调的是哪件工具。
-    fn name_of(&self, call_id: CallId) -> String {
-        self.events
-            .iter()
-            .filter(|event| event.seq == call_id.message())
-            .find_map(|event| match &event.body {
-                Body::MessageAssistant(reply) => {
-                    reply.blocks.iter().find_map(|block| match block {
-                        Block::ToolCall(call) if call.call_id == call_id => Some(call.name.clone()),
-                        _ => None,
-                    })
-                }
-                _ => None,
-            })
-            .unwrap_or_else(|| panic!("种子 {}：没有调用 {call_id}", self.seed))
-    }
-
-    /// 造会话那一条的样子，替身的组装只看序号和种类。
-    fn created(&self) -> Event {
-        let created: SessionCreated = serde_json::from_str(CREATED).unwrap();
-        Event {
-            seq: seq(1),
-            at: at(0),
-            turn: None,
-            by: alice(),
-            cause: Some(id(0)),
-            body: Body::SessionCreated(created),
         }
     }
 }
