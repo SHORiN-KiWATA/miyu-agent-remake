@@ -23,7 +23,7 @@ fn text(text: &str) -> Block {
     })
 }
 
-/// 样本会话里，46 号工具结果回来以后的那一次请求。
+/// 样本会话里，47 号工具结果回来以后的那一次请求。
 fn second_step() -> Request {
     let call = CallId::parse("call_45_1").expect("样本里的调用编号合写法");
     let parameters: RawJson = serde_json::from_str(READ_PARAMETERS).expect("参数格式是 JSON");
@@ -51,7 +51,7 @@ fn second_step() -> Request {
                     }),
                 ],
             },
-            // 46 号：工具的结果。
+            // 47 号：工具的结果。46 号是第一次请求的 model.called，不进上下文。
             Message::Tool {
                 call_id: call,
                 error: false,

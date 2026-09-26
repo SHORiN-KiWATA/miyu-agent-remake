@@ -13,14 +13,20 @@ use crate::time::Timestamp;
 
 mod context;
 mod message;
+mod model;
 mod session;
 mod tool;
+mod transient;
 mod turn;
 
 pub use context::{ContextCompacted, ContextInjected};
 pub use message::{MessageAssistant, MessageUser};
+pub use model::{
+    CallError, CallResult, ErrorClass, FirstDifference, MessageRole, ModelCalled, Part, Usage,
+};
 pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated};
 pub use tool::{ToolResult, ToolStatus};
+pub use transient::{ModelDelta, Piece, Transient, TransientBody};
 pub use turn::{EndReason, TurnEnded, TurnReverted, TurnStarted};
 
 /// 一条事件：已经发生的一件事。追加进日志以后不改、不删；撤销和压缩也是追加一条新事件
@@ -116,6 +122,8 @@ bodies! {
     ContextInjected = "context.injected",
     /// 压缩的检查点。
     ContextCompacted = "context.compacted",
+    /// 一次模型请求的记录。
+    ModelCalled = "model.called",
 }
 
 impl Event {

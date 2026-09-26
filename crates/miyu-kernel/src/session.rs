@@ -8,6 +8,7 @@
 //! 每收到一次命令，恰好回应一次（不变量 7）；同一个编号只生效一次（不变量 9）。
 
 mod action;
+mod call;
 mod input;
 mod policy;
 mod recent;
@@ -23,6 +24,7 @@ use crate::history::History;
 use crate::id::{CommandId, Seq, TurnId};
 use crate::ledger::Ledger;
 use crate::origin::By;
+use crate::request::Fingerprint;
 use crate::time::Timestamp;
 use recent::Recent;
 use turn::Turn;
@@ -50,6 +52,10 @@ pub struct Session {
     permission: Permission,
     /// 正在进行的回合；空闲时没有。
     turn: Option<Turn>,
+    /// 这个会话上一次请求的指纹，比出下一次的第一处不同。只在内存里。
+    last_request: Option<Fingerprint>,
+    /// 结束了、`turn.ended` 还没落盘的回合，和那一条的序号：落了盘才跑回合结束的挂接点。
+    closing: Vec<(TurnId, Seq)>,
 }
 
 impl Session {
@@ -80,6 +86,8 @@ impl Session {
             environment,
             permission: created.permission.clone(),
             turn: None,
+            last_request: None,
+            closing: Vec::new(),
         };
         let event = session.record(at, by, Some(id.clone()), Body::SessionCreated(created));
         session.accept(id, vec![event.seq]);
@@ -102,6 +110,19 @@ impl Session {
             Input::TurnStartHooksDone { at, turn, injected } => {
                 self.turn_start_hooked(at, turn, injected)
             }
+            Input::RequestSent {
+                at,
+                seen,
+                model,
+                request,
+            } => self.request_sent(at, seen, model, request),
+            Input::ModelDelta { at, seen, delta } => self.model_delta(at, seen, delta),
+            Input::ModelEnded {
+                at,
+                seen,
+                usage,
+                error,
+            } => self.model_ended(at, seen, usage, error),
         }
     }
 
@@ -185,7 +206,7 @@ impl Session {
     }
 
     /// 到第 `upto` 条为止落了盘：先推送这些事件，再回应事件全落了盘的命令（`04-核心协议.md`
-    /// 第六节第 2 条：先见结果，后见回应），然后回合往下走。`upto` 超出追加过的，多出来的
+    /// 第六节第 2 条：先见结果，后见回应），再跑结束了的回合的挂接点，然后回合往下走。`upto` 超出追加过的，多出来的
     /// 不算；不比上一次往后的，什么都不做。
     fn stored(&mut self, upto: Seq) -> Vec<Action> {
         let split = self.unstored.partition_point(|event| event.seq <= upto);
@@ -202,6 +223,7 @@ impl Session {
                 self.waiting.push((id, events));
             }
         }
+        actions.extend(self.closed());
         actions.extend(self.advance());
         actions
     }

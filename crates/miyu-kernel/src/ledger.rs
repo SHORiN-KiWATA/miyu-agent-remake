@@ -95,6 +95,9 @@ impl Ledger {
                 None => Ok(()),
             },
             Body::ContextCompacted(compacted) => self.check_compaction(seq, compacted.upto),
+            Body::ModelCalled(called) if called.seen >= seq => {
+                Err(format!("seen {} 应该在这一条之前", called.seen))
+            }
             Body::TurnReverted(reverted) => {
                 match reverted
                     .turns

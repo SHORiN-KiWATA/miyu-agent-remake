@@ -4,7 +4,7 @@ use crate::event::{Body, Event};
 use crate::test_support::{event_line, read_body, rejected};
 
 const INJECTED: &str = r#"{"kind":"env","text":"<env time=\"Fri 2026-09-25 16:00\" timezone=\"UTC+09:00\" cwd=\"~/src/miyu\"/>"}"#;
-const COMPACTED: &str = r#"{"upto":52,"summary":"The user asked to look at the src directory. That turn was undone. Nothing is in progress."}"#;
+const COMPACTED: &str = r#"{"upto":53,"summary":"The user asked to look at the src directory. That turn was undone. Nothing is in progress."}"#;
 
 #[test]
 fn context_events_from_the_drawing_round_trip() {
@@ -16,7 +16,7 @@ fn context_events_from_the_drawing_round_trip() {
         other => panic!("{other:?}"),
     }
     match read_body("context.compacted", COMPACTED) {
-        Body::ContextCompacted(compacted) => assert_eq!(compacted.upto.get(), 52),
+        Body::ContextCompacted(compacted) => assert_eq!(compacted.upto.get(), 53),
         other => panic!("{other:?}"),
     }
 }

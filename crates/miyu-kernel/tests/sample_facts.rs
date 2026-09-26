@@ -2,9 +2,9 @@
 //! 用出厂的两个模板，照样本会话当时的环境和权限，算出每个边界上内核该注入的几块。
 //!
 //! - 42 号回合开始时：两块都要注入，就是样本里的 43、44 号；
-//! - 51 号换成只读以后：下一个边界只注入权限那一块；
-//! - 52 号撤销了那一轮以后：两块都要重新注入；
-//! - 53 号压缩以后：也是两块都要重新注入。
+//! - 52 号换成只读以后：下一个边界只注入权限那一块；
+//! - 53 号撤销了那一轮以后：两块都要重新注入；
+//! - 54 号压缩以后：也是两块都要重新注入。
 //!
 //! 出厂的模板在编译时拿进来；样本要读文件，纯逻辑门禁只扫 `src/`，集成测试可以读。样本的序号
 //! 中间有空当（省掉了前面的几十条），过不了账本，所以直接交给有效历史。
@@ -125,7 +125,7 @@ fn the_first_turn_injects_the_two_blocks_of_the_sample() {
 #[test]
 fn after_switching_to_read_only_only_the_permission_block_is_injected() {
     let events = events();
-    let injected = injected_after(&events, 51);
+    let injected = injected_after(&events, 52);
     let texts: Vec<&str> = injected.iter().map(|fact| fact.text.as_str()).collect();
     assert_eq!(texts, [READ_ONLY]);
 }
@@ -133,7 +133,7 @@ fn after_switching_to_read_only_only_the_permission_block_is_injected() {
 #[test]
 fn after_undoing_that_turn_both_blocks_are_injected_again() {
     let events = events();
-    let injected = injected_after(&events, 52);
+    let injected = injected_after(&events, 53);
     let texts: Vec<&str> = injected.iter().map(|fact| fact.text.as_str()).collect();
     assert_eq!(texts, [sample_fact(&events, 43).text.as_str(), READ_ONLY]);
 }
@@ -141,7 +141,7 @@ fn after_undoing_that_turn_both_blocks_are_injected_again() {
 #[test]
 fn after_the_compaction_both_blocks_are_injected_again() {
     let events = events();
-    let injected = injected_after(&events, 53);
+    let injected = injected_after(&events, 54);
     let texts: Vec<&str> = injected.iter().map(|fact| fact.text.as_str()).collect();
     assert_eq!(texts, [sample_fact(&events, 43).text.as_str(), READ_ONLY]);
 }

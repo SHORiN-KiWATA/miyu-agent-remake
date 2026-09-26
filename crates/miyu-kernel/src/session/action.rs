@@ -2,7 +2,7 @@
 //!
 //! 会话自己不做 I/O：要追加的事件、要回应的命令、要推送的事件，都写成动作交给执行器。
 
-use crate::event::Event;
+use crate::event::{Event, Transient};
 use crate::id::{CommandId, Seq, TurnId};
 use crate::request::Request;
 
@@ -27,13 +27,25 @@ pub enum Action {
         /// 哪个回合。
         turn: TurnId,
     },
-    /// 请求模型：把这份请求交给驱动编码、发出去（`05-内核接口.md` 第七节）。模型的增量和结局
-    /// 都带着 `seen` 回来（施工 2-3 下）。
+    /// 请求模型：把这份请求交给驱动编码、发出去（`05-内核接口.md` 第七节）。发出去了、
+    /// 每一段增量、说完了，都带着 `seen` 回报（`02-内核.md` 第六节「回复怎么收、回合怎么结束」）。
     CallModel {
         /// 这次请求看到了第几条为止，也是这次请求的名字。
         seen: Seq,
         /// 统一的请求。
         request: Request,
+    },
+    /// 把一条瞬时事件推给头：不落盘，不等（`03-事件模型.md` 第五节）。
+    PushTransient(Transient),
+    /// 不要这次请求了：停下来，别再发它的增量。之后还来的回报，都当过时的不理。
+    CancelModel {
+        /// 哪一次请求。
+        seen: Seq,
+    },
+    /// 跑回合结束的挂接点：广播给各模块，不等结果（`05-内核接口.md` 第五节）。
+    RunTurnEndHooks {
+        /// 哪个回合。
+        turn: TurnId,
     },
 }
 

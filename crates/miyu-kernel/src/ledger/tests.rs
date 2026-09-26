@@ -1,4 +1,4 @@
-//! 账本的测试：一段合规的会话从头追加到尾；九条规矩各有被拦下的例子，
+//! 账本的测试：一段合规的会话从头追加到尾；02 第九节表里的每一条规矩各有被拦下的例子，
 //! 被拦下时报错说清是哪一条，账本不变。
 
 use super::*;
@@ -272,4 +272,19 @@ fn a_reply_saw_what_came_before_it_including_the_last_reply() {
         &event(8, Some(3), "message.assistant", &reply(8, 4, 0, false)),
         "seen 4 早于上一条回复 5",
     );
+}
+
+/// 模型调用的记录，看到的在它自己之前（03 第三节「模型调用怎么写」）。
+#[test]
+fn a_model_call_saw_what_came_before_it() {
+    let called = |seen: u64| format!(r#"{{"seen":{seen},"messages":1,"result":"ok"}}"#);
+    let mut ledger = after(5);
+    refused(
+        &mut ledger,
+        &event(6, Some(3), "model.called", &called(6)),
+        "seen 6 应该在这一条之前",
+    );
+    ledger
+        .append(&event(6, Some(3), "model.called", &called(4)))
+        .unwrap();
 }

@@ -2,7 +2,8 @@
 //! 事件的样本（`docs/designs/samples/events/`）讲的是同一个会话，喂进有效历史，
 //! 组装出来的请求逐字节等于请求的样本（`docs/designs/samples/requests/`）。
 //!
-//! - 喂到 46 号为止，是 42 号回合里工具结果回来以后的那一次请求（`second-step.json`）；
+//! - 喂到 47 号为止，是 42 号回合里工具结果回来以后的那一次请求（`second-step.json`）。46 号是
+//!   第一次请求的 `model.called`，不渲染；
 //! - 全部喂进去，是整个会话压缩以后的样子，只剩检查点（`after-compaction.json`）。
 //!
 //! 出厂的英文用资源目录里的真文件，在编译时拿进来。样本是图纸的一部分，住在设计文档旁边，
@@ -103,7 +104,7 @@ fn assembled_upto(upto: u64) -> String {
 
 #[test]
 fn the_session_up_to_the_tool_result_is_the_second_step() {
-    assert_eq!(assembled_upto(46), sample("second-step.json"));
+    assert_eq!(assembled_upto(47), sample("second-step.json"));
 }
 
 #[test]

@@ -1,0 +1,7 @@
+{"at":"2026-09-25T07:04:05.942Z","kind":"model.delta","turn":42,"by":{"kind":"model","endpoint":"deepseek","model":"deepseek-v4"},"cause":"cmd-7f3a","body":{"seen":44,"index":0,"start":"text"}}
+{"at":"2026-09-25T07:04:06.210Z","kind":"model.delta","turn":42,"by":{"kind":"model","endpoint":"deepseek","model":"deepseek-v4"},"cause":"cmd-7f3a","body":{"seen":44,"index":0,"text":"我先"}}
+{"at":"2026-09-25T07:04:06.480Z","kind":"model.delta","turn":42,"by":{"kind":"model","endpoint":"deepseek","model":"deepseek-v4"},"cause":"cmd-7f3a","body":{"seen":44,"index":0,"text":"看一下目录。"}}
+{"at":"2026-09-25T07:04:06.481Z","kind":"model.delta","turn":42,"by":{"kind":"model","endpoint":"deepseek","model":"deepseek-v4"},"cause":"cmd-7f3a","body":{"seen":44,"index":0,"end":true}}
+{"at":"2026-09-25T07:04:06.690Z","kind":"model.delta","turn":42,"by":{"kind":"model","endpoint":"deepseek","model":"deepseek-v4"},"cause":"cmd-7f3a","body":{"seen":44,"index":1,"start":"tool_call","name":"read"}}
+{"at":"2026-09-25T07:04:07.320Z","kind":"model.delta","turn":42,"by":{"kind":"model","endpoint":"deepseek","model":"deepseek-v4"},"cause":"cmd-7f3a","body":{"seen":44,"index":1,"text":"{\"path\":\"src\"}"}}
+{"at":"2026-09-25T07:04:07.880Z","kind":"model.delta","turn":42,"by":{"kind":"model","endpoint":"deepseek","model":"deepseek-v4"},"cause":"cmd-7f3a","body":{"seen":44,"index":1,"end":true}}

@@ -3,22 +3,8 @@
 //! 中途来的消息；对不上的挂接点结果；环境变了。
 
 use super::*;
-use crate::event::ContextInjected;
 use crate::id::{FactKind, ModuleId};
 use crate::origin::Module;
-
-/// 空闲时的第一条消息是 2 号，它开的回合是 3 号。
-fn turn3() -> TurnId {
-    TurnId::new(seq(3))
-}
-
-fn hooks_done(turn: TurnId, injected: Vec<Injection>) -> Input {
-    Input::TurnStartHooksDone {
-        at: at(30),
-        turn,
-        injected,
-    }
-}
 
 fn injection(module: &str, text: &str) -> Injection {
     Injection {
@@ -30,36 +16,6 @@ fn injection(module: &str, text: &str) -> Injection {
     }
 }
 
-/// 叫跑回合开始的挂接点的那几个回合。
-fn hooks(actions: &[Action]) -> Vec<TurnId> {
-    actions
-        .iter()
-        .filter_map(|action| match action {
-            Action::RunTurnStartHooks { turn } => Some(*turn),
-            _ => None,
-        })
-        .collect()
-}
-
-/// 请求模型的那几次：看到了第几条为止，和组装出来的 system（替身的组装把历史列在这里）。
-fn calls(actions: &[Action]) -> Vec<(Seq, String)> {
-    actions
-        .iter()
-        .filter_map(|action| match action {
-            Action::CallModel { seen, request } => Some((*seen, request.system.clone())),
-            _ => None,
-        })
-        .collect()
-}
-
-/// 替身的组装把这几条列出来的样子：序号和种类，一条一行。
-fn listed(events: &[(u64, &str)]) -> String {
-    events
-        .iter()
-        .map(|(seq, kind)| format!("{seq} {kind}\n"))
-        .collect()
-}
-
 /// 前 5 条：造会话、消息、回合开始、两块事实。
 const OPENING: [(u64, &str); 5] = [
     (1, "session.created"),
@@ -68,13 +24,6 @@ const OPENING: [(u64, &str); 5] = [
     (4, "context.injected"),
     (5, "context.injected"),
 ];
-
-fn fact_of(event: &Event) -> &ContextInjected {
-    match &event.body {
-        Body::ContextInjected(fact) => fact,
-        body => panic!("应该是一块事实：{body:?}"),
-    }
-}
 
 #[test]
 fn a_message_to_an_idle_session_opens_a_turn_in_the_same_batch() {

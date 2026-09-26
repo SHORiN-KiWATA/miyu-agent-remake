@@ -1,1 +1,1 @@
-{"seq":53,"at":"2026-09-25T07:30:00.000Z","kind":"context.compacted","by":{"kind":"person","account":"alice"},"cause":"cmd-b5e2","body":{"upto":52,"summary":"The user asked to look at the src directory. That turn was undone. Nothing is in progress."}}
+{"seq":54,"at":"2026-09-25T07:30:00.000Z","kind":"context.compacted","by":{"kind":"person","account":"alice"},"cause":"cmd-b5e2","body":{"upto":53,"summary":"The user asked to look at the src directory. That turn was undone. Nothing is in progress."}}

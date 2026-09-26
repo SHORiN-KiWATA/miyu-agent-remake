@@ -1,18 +1,20 @@
 //! 会话的测试。这一份是命令这一层：造会话；发消息；空消息；同一个编号落盘前后再来；
 //! 拒绝过的再来；落盘到一半；落盘超出追加过的；只记最近 1024 个。开回合、发请求在
-//! [`turn`]；随机一串输入在 [`random`]。
+//! [`turn`]；收回复、结束回合在 [`reply`]；随机一串输入在 [`random`]。
 //!
 //! 空闲时发的第一条消息会开一个回合，所以它后面紧跟着三条：`turn.started` 和两块事实。
 
 mod random;
+mod reply;
 mod turn;
 
 use super::recent::CAPACITY;
 use super::*;
 use crate::assemble::Assembler;
 use crate::block::{Block, Text};
+use crate::event::ContextInjected;
 use crate::facts::FactTemplates;
-use crate::request::Request;
+use crate::request::{Message, Request};
 use crate::time::UtcOffset;
 
 const CREATED: &str = r#"{"owner":"alice","venue":"local","policy":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","permission":{"level":"workspace","read_only":false}}"#;
@@ -68,16 +70,25 @@ fn accepted_reply(n: u64, events: &[u64]) -> Action {
     }
 }
 
-/// 替身的组装：有效历史里每条事件写一行，序号和种类，放进 system。测的是会话什么时候、
-/// 拿哪一段历史组装，和怎么组装无关。
+/// 替身的组装：有效历史里每条事件一条 user 消息，写着序号和种类。测的是会话什么时候、
+/// 拿哪一段历史组装，和怎么组装无关。历史只往后加，请求也只往后加。
 struct Listing;
 
 impl Assembler for Listing {
     fn assemble(&self, history: &History) -> Request {
+        let messages = history
+            .events()
+            .iter()
+            .map(|event| Message::User {
+                blocks: vec![Block::Text(Text {
+                    text: format!("{} {}", event.seq, event.body.kind()),
+                })],
+            })
+            .collect();
         Request {
             tools: Vec::new(),
-            system: listing(history.events()),
-            messages: Vec::new(),
+            system: "listing".to_string(),
+            messages,
             stable: 0,
         }
     }
@@ -89,6 +100,72 @@ fn listing(events: &[Event]) -> String {
         .iter()
         .map(|event| format!("{} {}\n", event.seq, event.body.kind()))
         .collect()
+}
+
+/// 替身的组装出来的请求，照 [`listing`] 的样子一条一行。
+fn listed_request(request: &Request) -> String {
+    request
+        .messages
+        .iter()
+        .map(|message| match message {
+            Message::User { blocks } => match blocks.as_slice() {
+                [Block::Text(text)] => format!("{}\n", text.text),
+                other => panic!("替身的组装一条消息只有一块字：{other:?}"),
+            },
+            other => panic!("替身的组装只出 user 消息：{other:?}"),
+        })
+        .collect()
+}
+
+/// 替身的组装把这几条列出来的样子：序号和种类，一条一行。
+fn listed(events: &[(u64, &str)]) -> String {
+    events
+        .iter()
+        .map(|(seq, kind)| format!("{seq} {kind}\n"))
+        .collect()
+}
+
+/// 空闲时的第一条消息是 2 号，它开的回合是 3 号。
+fn turn3() -> TurnId {
+    TurnId::new(seq(3))
+}
+
+/// 回合开始的挂接点跑完了，交回这几块注入。
+fn hooks_done(turn: TurnId, injected: Vec<Injection>) -> Input {
+    Input::TurnStartHooksDone {
+        at: at(30),
+        turn,
+        injected,
+    }
+}
+
+/// 叫跑回合开始的挂接点的那几个回合。
+fn hooks(actions: &[Action]) -> Vec<TurnId> {
+    actions
+        .iter()
+        .filter_map(|action| match action {
+            Action::RunTurnStartHooks { turn } => Some(*turn),
+            _ => None,
+        })
+        .collect()
+}
+
+/// 请求模型的那几次：看到了第几条为止，和替身的组装列出来的历史。
+fn calls(actions: &[Action]) -> Vec<(Seq, String)> {
+    actions
+        .iter()
+        .filter_map(|action| match action {
+            Action::CallModel { seen, request } => Some((*seen, listed_request(request))),
+            _ => None,
+        })
+        .collect()
+}
+
+fn fact_of(event: &Event) -> &ContextInjected {
+    match &event.body {
+        Body::ContextInjected(fact) => fact,
+        body => panic!("应该是一块事实：{body:?}"),
+    }
 }
 
 /// 替身的模板：短，一眼认得出是哪个字段。
