@@ -1,5 +1,6 @@
-//! 读的三件工具都要用的（施工 4-4 下）：几件都要说的几句字（`26-提示词.md` 第八节，`software/basesystem/common/`），
-//! 结果里的路径怎么写（[`Shown`]），找不到时同一个目录里相近的名字，当没传的几种写法（[`given`]）。
+//! 几件工具都要用的（施工 4-4 下）：几件都要说的几句字（`26-提示词.md` 第八节，`software/basesystem/common/`），
+//! 结果里的路径怎么写（[`Shown`]），找不到时同一个目录里相近的名字，当没传的几种写法（[`given`]）；改一个已经在了
+//! 的文件之前核对她看过的（[`Common::unseen`]，施工 4-6 中从 `write` 挪来，`edit` 也用）。
 
 mod shown;
 mod similar;
@@ -8,8 +9,9 @@ use std::fmt::Display;
 use std::path::Path;
 
 use miyu_kernel::event::Said;
+use miyu_kernel::id::ContentHash;
 use miyu_kernel::template::Template;
-use miyu_tool::Done;
+use miyu_tool::{Call, Done};
 
 use crate::load::{self, LoadError, say};
 
@@ -27,6 +29,11 @@ pub(crate) struct Common {
     bad_args: Template,
     bad_glob: Template,
     no_files: Template,
+    not_read: Template,
+    stale: Template,
+    directory: Template,
+    not_regular: Template,
+    write_failed: Template,
 }
 
 impl Common {
@@ -40,7 +47,44 @@ impl Common {
             bad_args: text("bad-args", &["error"])?,
             bad_glob: text("bad-glob", &["glob", "error"])?,
             no_files: text("no-files", &[])?,
+            not_read: text("not-read", &["path"])?,
+            stale: text("stale", &["path"])?,
+            directory: text("directory", &["path"])?,
+            not_regular: text("not-a-regular-file", &["path"])?,
+            write_failed: text("write-failed", &["path", "error"])?,
         })
+    }
+
+    /// 要写、要改的 `path` 是个目录。
+    pub(crate) fn directory(&self, path: &str) -> Done {
+        Done::error(say(&self.directory, &[("path", path)])).said(said("common/directory"))
+    }
+
+    /// 要写、要改的 `path` 不是普通文件：FIFO、设备这类。
+    pub(crate) fn not_regular(&self, path: &str) -> Done {
+        Done::error(say(&self.not_regular, &[("path", path)]))
+            .said(said("common/not-a-regular-file"))
+    }
+
+    /// 写 `path` 的时候出错了，系统说的是 `error`。
+    pub(crate) fn write_failed(&self, path: &str, error: &dyn Display) -> Done {
+        let error = error.to_string();
+        Done::error(say(
+            &self.write_failed,
+            &[("path", path), ("error", &error)],
+        ))
+        .said(said("common/write-failed").with("error", error))
+    }
+
+    /// 改一个已经在了的文件之前核对她看过的（`10-自带软件.md` 第五节「她看过的」）：她给的是 `path`，真实的位置
+    /// 是 `real`，现在的内容是 `old`。她没看过的、看过以后又被改了的，交回不改的结果；对得上的是空的。
+    pub(crate) fn unseen(&self, call: &Call, path: &str, real: &Path, old: &[u8]) -> Option<Done> {
+        let (template, key) = match call.seen.get(real) {
+            None => (&self.not_read, "common/not-read"),
+            Some(hash) if *hash != ContentHash::of(old) => (&self.stale, "common/stale"),
+            Some(_) => return None,
+        };
+        Some(Done::error(say(template, &[("path", path)])).said(said(key)))
     }
 
     /// 没有这个文件或目录：她给的是 `path`，换成的真实位置是 `real`。同一个目录里有相近的名字，一个一行列在后面，

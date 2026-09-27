@@ -12,7 +12,6 @@ use std::path::Path;
 use serde::Deserialize;
 
 use miyu_fs::resolve;
-use miyu_kernel::id::ContentHash;
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Target, Tool};
@@ -35,11 +34,6 @@ struct Texts {
     common: Common,
     created: Template,
     updated: Template,
-    not_read: Template,
-    stale: Template,
-    directory: Template,
-    not_a_file: Template,
-    failed: Template,
 }
 
 /// 她给的参数。照 pi 写成 `path`、照 opencode 写成 `filePath` 的也认，和 `read` 一样。
@@ -60,11 +54,6 @@ impl Write {
                 common,
                 created: text("created", &["path"])?,
                 updated: text("updated", &["path"])?,
-                not_read: text("not-read", &["path"])?,
-                stale: text("stale", &["path"])?,
-                directory: text("directory", &["path"])?,
-                not_a_file: text("not-a-file", &["path"])?,
-                failed: text("failed", &["path", "error"])?,
             },
         })
     }
@@ -100,23 +89,16 @@ impl Tool for Write {
 /// 写：换成真实的位置，看它现在是什么；已经在了的先核对她看过的，再照原来的写法写。
 fn write(texts: &Texts, call: &Call, args: &Args) -> Done {
     let path = args.file_path.as_str();
-    let failed = |error: &dyn std::fmt::Display| {
-        let error = error.to_string();
-        Done::error(say(&texts.failed, &[("path", path), ("error", &error)]))
-            .said(said("write/failed").with("error", error))
-    };
+    let failed = |error: &dyn std::fmt::Display| texts.common.write_failed(path, error);
     let real = match resolve(Path::new(&call.cwd), call.home.as_deref(), path) {
         Ok(real) => real,
         Err(error) => return failed(&error),
     };
-    let refuse = |template: &Template, key: &str| {
-        Done::error(say(template, &[("path", path)])).said(said(key))
-    };
     let before = match fs::symlink_metadata(&real) {
         Err(error) if error.kind() == io::ErrorKind::NotFound => None,
         Err(error) => return failed(&error),
-        Ok(meta) if meta.is_dir() => return refuse(&texts.directory, "write/directory"),
-        Ok(meta) if !meta.is_file() => return refuse(&texts.not_a_file, "write/not-a-file"),
+        Ok(meta) if meta.is_dir() => return texts.common.directory(path),
+        Ok(meta) if !meta.is_file() => return texts.common.not_regular(path),
         Ok(_) => match fs::read(&real) {
             Ok(bytes) => Some(bytes),
             Err(error) => return failed(&error),
@@ -125,13 +107,10 @@ fn write(texts: &Texts, call: &Call, args: &Args) -> Done {
     let after = match &before {
         Some(old) => {
             // 改之前核对：她没看过的不写；看过、可现在的内容和她看到的不一样的，也不写。
-            match call.seen.get(&real) {
-                None => return refuse(&texts.not_read, "write/not-read"),
-                Some(hash) if *hash != ContentHash::of(old) => {
-                    return refuse(&texts.stale, "write/stale");
-                }
-                Some(_) => Style::of(old).encode(&args.content),
+            if let Some(refused) = texts.common.unseen(call, path, &real, old) {
+                return refused;
             }
+            Style::of(old).encode(&args.content)
         }
         None => {
             if let Some(dir) = real.parent()

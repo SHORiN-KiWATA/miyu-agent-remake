@@ -1,5 +1,6 @@
-//! 真的 `write`（施工 4-6 上）：会话里她先读后写，日志里两次结果的效果对得上，blob 里存着改前改后的内容；新建的
-//! 不用先读；没读过就写的被拒，读过以后可以写，会话重新载入以后她读过的照样算数。
+//! 真的 `write`（施工 4-6 上）、`edit`（施工 4-6 中）：会话里她先读后写，日志里两次结果的效果对得上，blob 里存着改前
+//! 改后的内容；新建的不用先读；没读过就写的被拒，读过以后可以写，会话重新载入以后她读过的照样算数；改完一次接着改，
+//! 不用重读。
 
 mod support;
 
@@ -126,7 +127,7 @@ async fn what_she_read_still_counts_after_the_session_is_loaded_again() {
     assert_eq!(first[0].status, ToolStatus::Error, "没读过就写，不让");
     assert_eq!(
         first[0].human,
-        Some(Said::new("software/basesystem/write/not-read"))
+        Some(Said::new("software/basesystem/common/not-read"))
     );
     assert_eq!(std::fs::read(&file).expect("读得出"), b"old\n", "没写");
     // 停下再载入：她读过的从日志里重建，不用再读一遍就能写。
@@ -141,4 +142,55 @@ async fn what_she_read_still_counts_after_the_session_is_loaded_again() {
     let last = all.last().expect("有结果");
     assert_eq!(last.status, ToolStatus::Ok, "{all:?}");
     assert_eq!(std::fs::read(&file).expect("读得出"), b"new\n");
+}
+
+#[tokio::test]
+async fn she_reads_then_edits_twice_without_reading_again() {
+    let home = Home::outside_temp();
+    let file = home.scratch.0.join("work/a.txt");
+    std::fs::write(&file, "one\ntwo\n").expect("写得进");
+    let script = Script::new([
+        Play::calls(&[("read", r#"{"file_path":"a.txt"}"#)]),
+        Play::calls(&[(
+            "edit",
+            r#"{"file_path":"a.txt","edits":[{"old_string":"two","new_string":"2"}]}"#,
+        )]),
+        Play::calls(&[(
+            "edit",
+            r#"{"file_path":"a.txt","old_string":"one","new_string":"1"}"#,
+        )]),
+        Play::Says("好。"),
+    ]);
+    let handle = home
+        .create_as(&script, &base_system(), opening(&home))
+        .await;
+    talk(&handle, "cmd-1", "改一下").await;
+    let results = results(&home, &handle);
+    assert!(
+        results.iter().all(|result| result.status == ToolStatus::Ok),
+        "{results:?}"
+    );
+    assert_eq!(std::fs::read(&file).expect("读得出"), b"1\n2\n");
+    let real = std::fs::canonicalize(&file)
+        .expect("在")
+        .to_string_lossy()
+        .into_owned();
+    let changed = |before: &[u8], after: &[u8]| {
+        Effect::FileChanged(FileChanged {
+            path: real.clone(),
+            before: Some(ContentHash::of(before)),
+            after: ContentHash::of(after),
+        })
+    };
+    assert_eq!(results[1].effects, [changed(b"one\ntwo\n", b"one\n2\n")]);
+    assert_eq!(
+        results[2].effects,
+        [changed(b"one\n2\n", b"1\n2\n")],
+        "第一次改完，她看过的就是改后的：第二次不用重读"
+    );
+    let blobs = Blobs::new(home.root.blobs(&alice_account()));
+    assert_eq!(
+        blobs.get(&ContentHash::of(b"1\n2\n")).expect("存了改后的"),
+        b"1\n2\n"
+    );
 }

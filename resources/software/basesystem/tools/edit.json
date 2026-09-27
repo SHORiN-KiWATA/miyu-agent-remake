@@ -1,0 +1,4 @@
+{
+  "description": "Make exact text replacements in a file, one or more at a time. The file must have been read first. Each old_string must match the file exactly, with its indentation and without the line number prefix from read, and match only one place unless replace_all is set.",
+  "parameters": {"type":"object","properties":{"file_path":{"type":"string","description":"Absolute, or relative to the working directory."},"edits":{"type":"array","description":"Each edit is matched against the file as it was before this call.","items":{"type":"object","properties":{"old_string":{"type":"string"},"new_string":{"type":"string"},"replace_all":{"type":"boolean","description":"Replace every match. Default false."}},"required":["old_string","new_string"]}}},"required":["file_path","edits"]}
+}

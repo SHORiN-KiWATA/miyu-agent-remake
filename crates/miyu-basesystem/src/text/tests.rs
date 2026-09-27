@@ -120,3 +120,15 @@ fn lines_are_counted_like_read_counts_them() {
     assert_eq!(line_count("a\r\nb\r\n"), 2);
     assert_eq!(line_count("\n"), 1);
 }
+
+#[test]
+fn strict_decoding_refuses_what_cannot_be_written_back() {
+    let utf8 = Style::fresh();
+    assert_eq!(utf8.strict(b"\xEF\xBB\xBFhi").as_deref(), Some("hi"));
+    assert_eq!(utf8.strict(b"a\xFFb"), None);
+    let utf16 = Style::of(b"\xFF\xFEa\x00");
+    assert_eq!(utf16.strict(b"\xFF\xFEa\x00").as_deref(), Some("a"));
+    assert_eq!(utf16.strict(b"\xFF\xFEa\x00b"), None, "落单的一个字节");
+    assert_eq!(utf16.strict(b"\xFF\xFE\x00\xD8"), None, "落单的代理项");
+    assert_eq!(utf16.strict(b"\xFF"), None, "连 BOM 都不够");
+}

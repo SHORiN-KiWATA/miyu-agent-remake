@@ -2,7 +2,7 @@
 //! 文件，按行分页、带行号；读到目录时列出里面有什么，一样分页。图片、PDF 随能接看图模型的那一步。
 
 mod dir;
-mod lines;
+pub(crate) mod lines;
 
 use std::fs::File;
 use std::path::Path;

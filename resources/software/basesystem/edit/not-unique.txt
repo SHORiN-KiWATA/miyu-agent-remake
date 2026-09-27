@@ -1,0 +1,1 @@
+Edit {index}: old_string matches {count} places in "{path}", at lines {lines}. Add surrounding lines to pick one, or set replace_all.

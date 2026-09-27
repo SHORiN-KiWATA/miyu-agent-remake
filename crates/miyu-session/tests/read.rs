@@ -111,12 +111,12 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
         |message| matches!(message, Message::Tool { blocks, .. } if text(blocks) == "1\thello\n"),
     );
     assert!(heard);
-    // tools 数组里有读的三件和 `write`，照名字排，照资源里的说明。
+    // tools 数组里有读的三件和写的 `write`、`edit`，照名字排，照资源里的说明。
     let names: Vec<&str> = requests[0]
         .1
         .tools
         .iter()
         .map(|tool| tool.name.as_str())
         .collect();
-    assert_eq!(names, ["glob", "grep", "read", "write"]);
+    assert_eq!(names, ["edit", "glob", "grep", "read", "write"]);
 }

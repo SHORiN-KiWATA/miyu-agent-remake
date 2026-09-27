@@ -113,13 +113,13 @@ async fn an_existing_file_needs_to_have_been_seen_as_it_is() {
             quoted("a.txt")
         )
     );
-    assert_eq!(done.human, Some(said("write/not-read")));
+    assert_eq!(done.human, Some(said("common/not-read")));
     let seen = seen_now(&site, &["work/a.txt"]);
     // 她看过以后，文件被别人改了。
     site.file("work/a.txt", b"changed by someone\n");
     let done = write(&site, "a.txt", "new\n", seen).await;
     assert!(done.error);
-    assert_eq!(done.human, Some(said("write/stale")));
+    assert_eq!(done.human, Some(said("common/stale")));
     assert_eq!(
         std::fs::read(site.0.join("work/a.txt")).unwrap(),
         b"changed by someone\n",
@@ -183,7 +183,7 @@ async fn directories_and_read_only_files_are_not_written() {
     let done = write(&site, "dir", "x", seen_now(&site, &[])).await;
     assert!(done.error);
     assert_eq!(text(&done), format!("{} is a directory.\n", quoted("dir")));
-    assert_eq!(done.human, Some(said("write/directory")));
+    assert_eq!(done.human, Some(said("common/directory")));
     site.file("work/locked.txt", b"keep\n");
     let file = site.0.join("work/locked.txt");
     let mut permissions = std::fs::metadata(&file).unwrap().permissions();
@@ -202,7 +202,9 @@ async fn directories_and_read_only_files_are_not_written() {
         "{}",
         text(&done)
     );
-    assert!(matches!(&done.human, Some(said) if said.key == "software/basesystem/write/failed"));
+    assert!(
+        matches!(&done.human, Some(said) if said.key == "software/basesystem/common/write-failed")
+    );
     assert_eq!(std::fs::read(&file).unwrap(), b"keep\n");
     // 删场地之前放开只读，Windows 上删不掉只读的文件。
     let mut permissions = std::fs::metadata(&file).unwrap().permissions();
@@ -252,5 +254,5 @@ async fn something_that_is_not_a_regular_file_is_not_written() {
         )
         .await;
     assert!(done.error);
-    assert_eq!(done.human, Some(said("write/not-a-file")));
+    assert_eq!(done.human, Some(said("common/not-a-regular-file")));
 }

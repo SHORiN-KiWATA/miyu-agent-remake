@@ -271,7 +271,7 @@ async fn every_write_outcome_says_something_people_can_read() {
             )
             .await,
         ),
-        said("write/not-read"),
+        said("common/not-read"),
     );
     check(
         &mut checked,
@@ -282,7 +282,7 @@ async fn every_write_outcome_says_something_people_can_read() {
             )
             .await,
         ),
-        said("write/stale"),
+        said("common/stale"),
     );
     check(
         &mut checked,
@@ -304,7 +304,7 @@ async fn every_write_outcome_says_something_people_can_read() {
             )
             .await,
         ),
-        said("write/directory"),
+        said("common/directory"),
     );
     // 往一个文件底下写：哪个平台都写不了，原话各平台不一样，只核对是哪一句。
     let failed = human(
@@ -314,9 +314,88 @@ async fn every_write_outcome_says_something_people_can_read() {
         )
         .await,
     );
-    assert_eq!(failed.key, said("write/failed").key);
+    assert_eq!(failed.key, said("common/write-failed").key);
     assert!(failed.fields.contains_key("error"), "{failed:?}");
     checked.push(failed);
-    checked.push(said("write/not-a-file"));
+    checked.push(said("common/not-a-regular-file"));
     readable(&checked, &["write"]);
+}
+
+#[tokio::test]
+async fn every_edit_outcome_says_something_people_can_read() {
+    let site = Site::new();
+    site.file("work/a.txt", b"alpha\nbeta\nbeta\n");
+    let seen = Seen::from([(
+        site.real("work/a.txt"),
+        ContentHash::of(b"alpha\nbeta\nbeta\n"),
+    )]);
+    let run = |args: serde_json::Value| site.done_seen("work", "edit", args, seen.clone());
+    let edit = |old: &str, new: &str| serde_json::json!({"file_path": "a.txt", "old_string": old, "new_string": new});
+    let mut checked = Vec::new();
+    check(
+        &mut checked,
+        human(run(serde_json::json!({"file_path": "a.txt"})).await),
+        said("edit/no-edits"),
+    );
+    check(
+        &mut checked,
+        human(run(edit("", "x")).await),
+        said("edit/empty").with("index", "1"),
+    );
+    check(
+        &mut checked,
+        human(run(edit("beta", "beta")).await),
+        said("edit/same").with("index", "1"),
+    );
+    check(
+        &mut checked,
+        human(run(edit("zzzz qqqq", "x")).await),
+        said("edit/not-found").with("index", "1"),
+    );
+    check(
+        &mut checked,
+        human(run(edit("alphx", "x")).await),
+        said("edit/not-found-near")
+            .with("index", "1")
+            .with("line", "1"),
+    );
+    check(
+        &mut checked,
+        human(run(edit("beta", "x")).await),
+        said("edit/not-unique")
+            .with("index", "1")
+            .with("count", "2"),
+    );
+    check(
+        &mut checked,
+        human(
+            run(serde_json::json!({"file_path": "a.txt", "edits": [
+                {"old_string": "alpha\nbeta", "new_string": "x"},
+                {"old_string": "alpha", "new_string": "y"},
+            ]}))
+            .await,
+        ),
+        said("edit/overlap").with("first", "1").with("second", "2"),
+    );
+    site.file("work/bin", b"\xFF\x00");
+    let bin = Seen::from([(site.real("work/bin"), ContentHash::of(b"\xFF\x00"))]);
+    check(
+        &mut checked,
+        human(
+            site.done_seen(
+                "work",
+                "edit",
+                serde_json::json!({"file_path": "bin", "old_string": "a", "new_string": "b"}),
+                bin,
+            )
+            .await,
+        ),
+        said("edit/not-text"),
+    );
+    check(
+        &mut checked,
+        human(run(edit("alpha", "a")).await),
+        said("edit/edited").with("count", "1"),
+    );
+    readable(&checked, &["edit"]);
 }

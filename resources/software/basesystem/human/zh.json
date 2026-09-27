@@ -15,6 +15,10 @@
     "write": {
       "name": "写入",
       "subject": "file_path"
+    },
+    "edit": {
+      "name": "编辑",
+      "subject": "file_path"
     }
   },
   "said": {
@@ -48,10 +52,19 @@
     "grep/bad-pattern": "正则写得不对：{error}",
     "write/created": "新建，{count} 行",
     "write/updated": "覆盖，{count} 行",
-    "write/not-read": "没读过，要先读",
-    "write/stale": "读过以后又改过了，要重读",
-    "write/directory": "是个目录",
-    "write/not-a-file": "不是普通文件",
-    "write/failed": "写不了：{error}"
+    "common/not-read": "没读过，要先读",
+    "common/stale": "读过以后又改过了，要重读",
+    "common/directory": "是个目录",
+    "common/not-a-regular-file": "不是普通文件",
+    "common/write-failed": "写不了：{error}",
+    "edit/edited": "改了 {count} 处",
+    "edit/no-edits": "没给要改的",
+    "edit/empty": "第 {index} 处的原文是空的",
+    "edit/same": "第 {index} 处改前改后一样",
+    "edit/not-found": "第 {index} 处没找到",
+    "edit/not-found-near": "第 {index} 处没找到，最像的在第 {line} 行",
+    "edit/not-unique": "第 {index} 处对得上 {count} 个地方",
+    "edit/overlap": "第 {first} 处和第 {second} 处重叠了",
+    "edit/not-text": "不是文本文件"
   }
 }

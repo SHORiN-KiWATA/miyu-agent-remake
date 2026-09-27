@@ -27,6 +27,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 # 读文件在阻塞线程里做，不占着跑异步任务的线程。
 tokio = { version = "1", features = ["rt"] }
+# edit 宽松那一层的 NFKC 规范化（施工 4-6 中）：Rust 里通用的那一个。
+unicode-normalization = "0.1"
 # 运行日志的门面：写文件时没删掉的临时文件记一条（施工 4-6 上）。
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 

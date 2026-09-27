@@ -174,7 +174,7 @@ fn page(
 }
 
 /// 一行最长 [`LINE_CHARS`] 个字，多的截掉、补一个 `…`。
-fn cut(line: &str) -> String {
+pub(crate) fn cut(line: &str) -> String {
     match line.char_indices().nth(LINE_CHARS) {
         Some((at, _)) => format!("{}…", &line[..at]),
         None => line.to_string(),

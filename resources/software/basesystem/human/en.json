@@ -15,6 +15,10 @@
     "write": {
       "name": "Write",
       "subject": "file_path"
+    },
+    "edit": {
+      "name": "Edit",
+      "subject": "file_path"
     }
   },
   "said": {
@@ -48,10 +52,19 @@
     "grep/bad-pattern": "bad regex: {error}",
     "write/created": "new, {count} lines",
     "write/updated": "replaced, {count} lines",
-    "write/not-read": "not read yet, read it first",
-    "write/stale": "changed since read, read it again",
-    "write/directory": "is a directory",
-    "write/not-a-file": "not a regular file",
-    "write/failed": "can't write: {error}"
+    "common/not-read": "not read yet, read it first",
+    "common/stale": "changed since read, read it again",
+    "common/directory": "is a directory",
+    "common/not-a-regular-file": "not a regular file",
+    "common/write-failed": "can't write: {error}",
+    "edit/edited": "{count} replaced",
+    "edit/no-edits": "no edits given",
+    "edit/empty": "edit {index} has an empty old_string",
+    "edit/same": "edit {index} changes nothing",
+    "edit/not-found": "edit {index} not found",
+    "edit/not-found-near": "edit {index} not found, closest at line {line}",
+    "edit/not-unique": "edit {index} matches {count} places",
+    "edit/overlap": "edits {first} and {second} overlap",
+    "edit/not-text": "not a text file"
   }
 }

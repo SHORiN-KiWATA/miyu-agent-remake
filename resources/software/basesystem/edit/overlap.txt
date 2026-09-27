@@ -1,0 +1,1 @@
+Edits {first} and {second} overlap in "{path}". Merge them into one edit.
