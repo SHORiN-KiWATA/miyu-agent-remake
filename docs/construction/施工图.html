@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>62</b><span>/ 67 步<strong>已完成</strong>，miyu ask 印出了她做的每一步</span></li>
-    <li><b>4-6</b><span>下一步：写入、编辑、删除，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">ec5090f</b><span>最近一步（4-5 下）的提交</span></li>
+    <li><b>63</b><span>/ 69 步<strong>已完成</strong>，她能新建、覆盖文件了，改之前先核对</span></li>
+    <li><b>4-6</b><span>下一步：编辑（中），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">063748a</b><span>最近一步（4-6 上）的提交</span></li>
   </ul>
 </header>
 
@@ -399,7 +399,9 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-4b"><span class="n">4-4</span>找文件、搜内容（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-5a"><span class="n">4-5</span>给人看的说法（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-5b"><span class="n">4-5</span>miyu ask 印出每一步（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-6</span>写入、编辑、删除</span></li>
+        <li><a class="step done" href="#s4-6a"><span class="n">4-6</span>效果和写入（上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">4-6</span>编辑（中）</span></li>
+        <li><span class="step"><span class="n">4-6</span>删除（下）</span></li>
         <li><span class="step"><span class="n">4-7</span>撤销时恢复文件</span></li>
         <li><span class="step"><span class="n">4-8</span>执行命令</span></li>
         <li><span class="step"><span class="n">4-9</span>确认和提问</span></li>
@@ -5147,6 +5149,78 @@ a.step:hover{border-color:var(--primary)}
         <li><code>docs/designs/22-命令行.md</code> 第三节：一步那一行怎么写。</li>
         <li><code>docs/designs/04-核心协议.md</code> 第九节：回应里的 <code>cwd</code>。</li>
         <li><code>docs/construction/4-5-miyu ask 印出每一步（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s4-6a" aria-labelledby="h-s46a">
+  <div class="sheet-head"><h2 id="h-s46a"><span class="no">4-6</span>效果和写入（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">改文件的三件工具都要报出「效果」：改了哪个文件、改前改后是什么、删到了回收站哪里，diff、撤销、工作集都照它们算。这一步把效果的字段一次定齐，改前改后存成 blob；read 报 file.read；会话记下她看过的每个文件当时是什么样，没读过的、读过以后又被改了的不让改；第一件写的工具 write 有了。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">tool.result 的 effects</span><span class="dir-note">03 第三节</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">file.read</span><span class="rl">路径、读了哪几行、读的时候整份的内容哈希</span></div>
+              <div class="tile new"><span class="nm">file.changed</span><span class="rl">路径、改前改后：blob 的哈希，新建的改前是 null</span></div>
+              <div class="tile new"><span class="nm">file.trashed</span><span class="rl">路径、回收站里的位置（4-6 下才有工具报它）</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">write 的一次</span><span class="dir-note">10 第三节</span></div>
+            <ol class="pipe" aria-label="write 的一次">
+              <li>换成真实的位置；目录、不是普通文件的不写</li>
+              <li>已经在了的：她没看过的说先读，看过以后被改了的说重读</li>
+              <li>照原来的编码、BOM、换行写；新文件 UTF-8、上级目录建上</li>
+              <li>先写临时文件再改名盖上去，权限照留；报 file.changed</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">改前改后执行器存</span><span class="rl">工具交回内容本身，执行器存成 blob、换成哈希：工具不碰存储</span></div>
+          <div class="tile new"><span class="nm">她看过的</span><span class="rl">读过的、写过的都记，载入时从日志重建；用内容哈希比，不用修改时间</span></div>
+          <div class="tile new"><span class="nm">只读的不写</span><span class="rl">三个平台一样：Windows 上改名也盖不过只读的文件</span></div>
+          <div class="tile new"><span class="nm">4-6 拆成三步</span><span class="rl">trash 这个 crate 不交回位置、macOS 上移不回来，删除三个平台各做一份</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">edit（4-6 中）、trash（4-6 下）、撤销（4-7）、显示 diff（前端）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-6（上）</dd></div>
+        <div><dt>名称</dt><dd>效果和写入</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">063748a</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-kernel</code>：效果的类型，不认识的原样留着；<code>tool.result</code> 多 <code>effects</code>；边读边算的内容哈希。</li>
+        <li><code>miyu-tool</code>、<code>miyu-session</code>：工具交回效果，执行器存 blob；她看过的交给每次调用，载入时重建。</li>
+        <li><code>miyu-basesystem</code>：read 报 file.read；新的 write；共用的「文件的写法」和「整体换成新内容」。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>三种效果读写一字不差；read 各种情况报的对；write 新建、覆盖、没读过、读过被改、CRLF、BOM、UTF-16、只读、权限；会话里先读后写、重新载入以后照样算数</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 35 处，全部有测试变红</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/03-事件模型.md</code> 第三节；<code>05-内核接口.md</code> 第六节。</li>
+        <li><code>docs/designs/10-自带软件.md</code> 第三节 write 的细则、第五节效果的字段和她看过的。</li>
+        <li><code>docs/construction/4-6-效果和写入（上）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
