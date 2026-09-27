@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>56</b><span>/ 65 步<strong>已完成</strong>，同一毫秒里造的会话，编号也照先后了</span></li>
-    <li><b>4-3</b><span>下一步：路径边界（上），<strong>施工中</strong></span></li>
-    <li><b class="mono">8410bbb</b><span>最近一步（3-9 补）的提交</span></li>
+    <li><b>57</b><span>/ 65 步<strong>已完成</strong>，文件工具有了碰文件的底子：边界表、真实的位置、安全地打开</span></li>
+    <li><b>4-3</b><span>下一步：权限策略（下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">66f10b1</b><span>最近一步（4-3 上）的提交</span></li>
   </ul>
 </header>
 
@@ -393,7 +393,7 @@ a.step:hover{border-color:var(--primary)}
       <ol class="chips">
         <li><a class="step done" href="#s4-1"><span class="n">4-1</span>工具接口和工具面<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-2"><span class="n">4-2</span>执行工具的端口<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-3</span>路径边界（上）</span></li>
+        <li><a class="step done" href="#s4-3a"><span class="n">4-3</span>路径边界（上）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-3</span>权限策略（下）</span></li>
         <li><span class="step"><span class="n">4-4</span>读、找文件、搜内容</span></li>
         <li><span class="step"><span class="n">4-5</span>miyu ask 显示工具步骤</span></li>
@@ -4719,6 +4719,77 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s4-3a" aria-labelledby="h-s43a">
+  <div class="sheet-head"><h2 id="h-s43a"><span class="no">4-3</span>路径边界（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">核心进程里的文件工具怎么碰文件，有了一个共用的底子：一张边界表，说得出一个真实的位置落在哪一片；把她给的路径换成真实的位置；安全地打开要读的文件。这一步只做底子，下半把它接进执行前的链。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">边界表：先对上的算</span><span class="dir-note">11 第四节</span></div>
+            <ol class="pipe" aria-label="边界表的先后">
+              <li>工作区：能读能写；里面的 .git/hooks、.git/config 只能读</li>
+              <li>Miyu 的数据根：谁都不能碰（退回来的账号工作区除外）</li>
+              <li>临时目录：能读能写</li>
+              <li>系统目录、工具链目录：只能读</li>
+              <li>别的：边界以外，要碰就得问人</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">换成真实的位置、安全地打开</span><span class="dir-note">11 第七节 · A9</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">相对路径、~</span><span class="rl">照这一轮的工作目录接；~ 开头的当家目录</span></div>
+              <div class="tile new"><span class="nm">链接</span><span class="rl">照它指向的地方算；指向不存在处的不认</span></div>
+              <div class="tile new"><span class="nm">还不存在的</span><span class="rl">照最近的上级目录算；Unix 上后面几段里有 .. 的不认</span></div>
+              <div class="tile new"><span class="nm">打开</span><span class="rl">不跟随最后一层的链接、不阻塞、只开普通文件</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">新 crate miyu-fs</span><span class="rl">第 3 层：文件工具照它碰文件，执行前的链照它判</span></div>
+          <div class="tile new"><span class="nm">数据根不分大小写</span><span class="rl">macOS、Windows 上换个大小写也认得出；工作区照原样比</span></div>
+          <div class="tile new"><span class="nm">Windows 照字面消 ..</span><span class="rl">系统找文件前就消掉了，落在哪是定的（施工中 CI 查出）</span></div>
+          <div class="tile new"><span class="nm">第一版清单</span><span class="rl">三个平台的系统目录；.cargo、.rustup、.npm、.gitconfig</span></div>
+          <div class="tile"><span class="nm">还不挡的</span><span class="rl">检查完、打开前上级目录被换成链接：M5 逐层打开</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-3（上）</dd></div>
+        <div><dt>名称</dt><dd>路径边界</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">66f10b1</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-fs</code>（新，第 3 层）：<code>Boundary</code>、<code>resolve()</code>、<code>open_file()</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>边界表的先后、数据根在临时目录里、工作区退回数据根、一段一段比、大小写；相对路径、~、链接、还不存在的；目录、FIFO、设备、套接字、最后一层的链接都不开，FIFO 不卡住</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 15 处：全部有测试变红；两处推到 CI 上在 macOS、Windows 跑</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/11-权限与沙盒.md</code> 第四、七节：先后、清单、做法。</li>
+        <li><code>docs/construction/4-3-路径边界（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -4895,6 +4966,7 @@ const BUILD = {
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完；出了错自己再来，说了一半的带着半截接着说（3-5 下）' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认；执行端口（4-2）：照名字在目录里找，一件一个任务地跑，叫停就掐掉；快照里有、目录里没有的报现在用不了，崩了的报内部错误，会话照常走' },
+  n_sandbox: { by: '4-3', how: 'frame', note: '文件工具的路径边界（4-3 上）：边界表（工作区、数据根、临时目录、系统和工具链目录，几片重叠时有先后），换成真实的位置（~、链接、还不存在的），安全地打开（不跟随最后一层的链接、不阻塞、只开普通文件）。沙盒本身随 M5' },
   k_catalog: { by: '4-1', how: 'frame', note: '工具目录：每件工具报出规格（名字、说明、参数格式、访问类别），核心起来时登记一次就冻结；重名的、名字不合写法的、参数格式不是对象的当场拒绝。造会话时工具面照名字排好存进策略快照，载入以后逐字节一样。现在目录是空的，第一批工具在 4-4（4-1）' },
   n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对；资源目录：MIYU_RESOURCES、程序旁边的 resources/、上一级的 share/miyu/，读出一个人格的原文（3-6 上）' },
   n_prompt: { by: '3-6', how: 'frame', note: '策略快照：人格从资源目录拼成快照，按内容哈希存档，载入时照哈希重建，请求逐字节一样；现在只有软件工程师（3-6 上）' },
