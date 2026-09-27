@@ -1,4 +1,5 @@
-//! 核心起来时登记基础系统（施工 4-4 上）：工具目录里有读的三件（施工 4-4 下）；资源目录坏了，说是哪一份。
+//! 核心起来时登记基础系统（施工 4-4 上）：工具目录里有读的三件（施工 4-4 下）和 `write`（施工 4-6 上）；资源目录坏了，
+//! 说是哪一份。
 
 use std::path::Path;
 
@@ -9,7 +10,7 @@ fn the_catalog_has_the_base_system() {
     let resources = ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"));
     let catalog = miyu_core::tools(&resources).expect("出厂的资源读得出来");
     let names: Vec<&str> = catalog.specs().map(|spec| spec.name.as_str()).collect();
-    assert_eq!(names, ["glob", "grep", "read"]);
+    assert_eq!(names, ["glob", "grep", "read", "write"]);
 }
 
 #[test]

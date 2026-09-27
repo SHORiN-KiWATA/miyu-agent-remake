@@ -11,6 +11,10 @@
     "grep": {
       "name": "搜内容",
       "subject": "pattern"
+    },
+    "write": {
+      "name": "写入",
+      "subject": "file_path"
     }
   },
   "said": {
@@ -41,6 +45,13 @@
     "grep/matches-more": "第 {from}–{to} 处，后面还有",
     "grep/none": "没搜到",
     "grep/past-end": "跳过了全部，一共 {total} 条",
-    "grep/bad-pattern": "正则写得不对：{error}"
+    "grep/bad-pattern": "正则写得不对：{error}",
+    "write/created": "新建，{count} 行",
+    "write/updated": "覆盖，{count} 行",
+    "write/not-read": "没读过，要先读",
+    "write/stale": "读过以后又改过了，要重读",
+    "write/directory": "是个目录",
+    "write/not-a-file": "不是普通文件",
+    "write/failed": "写不了：{error}"
   }
 }

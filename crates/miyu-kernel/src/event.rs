@@ -12,6 +12,7 @@ use crate::raw::{self, RawJson};
 use crate::time::Timestamp;
 
 mod context;
+mod effect;
 mod message;
 mod model;
 mod question;
@@ -21,6 +22,7 @@ mod transient;
 mod turn;
 
 pub use context::{ContextCompacted, ContextInjected};
+pub use effect::{Effect, FileChanged, FileRead, FileTrashed};
 pub use message::{MessageAssistant, MessageUser, MessageWithdrawn};
 pub use model::{
     CallError, CallResult, ErrorClass, FirstDifference, MessageRole, ModelCalled, Part, Usage,

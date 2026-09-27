@@ -10,7 +10,7 @@ use super::step::{Pending, State, Step};
 use super::turn::{Interjection, Stage};
 use crate::block::{Block, Text, ToolCall};
 use crate::event::{
-    Body, EndReason, Event, Said, ToolProgress, ToolResult, ToolStatus, Transient, TransientBody,
+    Body, EndReason, Event, ToolProgress, ToolResult, ToolStatus, Transient, TransientBody,
 };
 use crate::id::{CallId, CommandId, Seq};
 use crate::origin::{By, Tool};
@@ -150,18 +150,11 @@ impl Session {
         actions
     }
 
-    /// 工具执行完了：追加 `tool.result`，`by` 是那次调用，然后派后面能派的。这一步齐了，
-    /// 到了步数上限就结束回合，不然等落了盘请求下一次。问着人的也算在跑：题目跟着了结。不是
-    /// 这一步在跑的，不理。
-    pub(super) fn tool_done(
-        &mut self,
-        at: Timestamp,
-        call_id: CallId,
-        error: bool,
-        blocks: Vec<Block>,
-        duration_ms: Option<u64>,
-        human: Option<Said>,
-    ) -> Vec<Action> {
+    /// 工具执行完了：照工具交的追加 `tool.result`（`result`，成功还是出错、内容、用时、说法、效果都在里面），
+    /// `by` 是那次调用，然后派后面能派的。这一步齐了，到了步数上限就结束回合，不然等落了盘请求下一次。
+    /// 问着人的也算在跑：题目跟着了结。不是这一步在跑的，不理。
+    pub(super) fn tool_done(&mut self, at: Timestamp, result: ToolResult) -> Vec<Action> {
+        let call_id = result.call_id;
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();
         };
@@ -178,17 +171,6 @@ impl Session {
         };
         call.state = State::Done;
         let finished = step.finished();
-        let result = ToolResult {
-            call_id,
-            status: if error {
-                ToolStatus::Error
-            } else {
-                ToolStatus::Ok
-            },
-            blocks,
-            duration_ms,
-            human,
-        };
         let by = By::Tool(Tool { call_id });
         let mut events = vec![self.record(at, by, cause.clone(), Body::ToolResult(result))];
         if finished {
@@ -317,6 +299,7 @@ impl Session {
             blocks: vec![Block::Text(Text { text: worded.text })],
             duration_ms: None,
             human: worded.said,
+            effects: Vec::new(),
         };
         self.record(at, by, cause, Body::ToolResult(result))
     }

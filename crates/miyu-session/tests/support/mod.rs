@@ -178,11 +178,26 @@ impl Home {
         models: &dyn Models,
         tools: &Catalog,
     ) -> Handle {
+        self.load_at(session, models, tools, &environment().cwd)
+            .await
+    }
+
+    /// 同 [`Home::load_with`]，工作目录是 `cwd`（施工 4-6 上：载入以后照样在那个工作区里干活）。
+    pub async fn load_at(
+        &self,
+        session: &SessionId,
+        models: &dyn Models,
+        tools: &Catalog,
+        cwd: &str,
+    ) -> Handle {
         let loaded = load(Load {
             root: &self.root,
             owner: alice_account(),
             id: session.clone(),
-            environment: environment(),
+            environment: Environment {
+                cwd: cwd.to_string(),
+                ..environment()
+            },
             models,
             tools,
             home: Some(&self.home),

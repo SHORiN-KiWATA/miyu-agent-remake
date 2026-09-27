@@ -30,7 +30,7 @@ pub use input::{Answer, Command, Injection, Input, Queued, Received, Verdict};
 pub use load::LoadError;
 pub use policy::Policy;
 
-use crate::event::{Body, Event, MessageUser, Permission, SessionCreated};
+use crate::event::{Body, Event, MessageUser, Permission, SessionCreated, ToolResult, ToolStatus};
 use crate::facts::Environment;
 use crate::history::History;
 use crate::id::{CommandId, Seq, TurnId};
@@ -153,7 +153,22 @@ impl Session {
                 blocks,
                 duration_ms,
                 human,
-            } => self.tool_done(at, call_id, error, blocks, duration_ms, human),
+                effects,
+            } => self.tool_done(
+                at,
+                ToolResult {
+                    call_id,
+                    status: if error {
+                        ToolStatus::Error
+                    } else {
+                        ToolStatus::Ok
+                    },
+                    blocks,
+                    duration_ms,
+                    human,
+                    effects,
+                },
+            ),
             Input::ToolProgress { at, call_id, text } => self.tool_progress(at, call_id, text),
             Input::ToolGuarded {
                 at,

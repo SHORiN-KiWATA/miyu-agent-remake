@@ -3,6 +3,7 @@
 //! 合起来照最严的：有一条拒绝就拒绝，有一条要问人就问人。
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use serde_json::{Value, json};
 
@@ -84,11 +85,13 @@ impl Guard {
         };
         let level = effective(permission);
         let access = tool.spec().access.clone();
+        // 报要碰的路径只看参数，用不着她看过的。
         let targets = tool.targets(&Call {
             args,
             cwd: cwd.clone(),
             home: self.home.clone(),
             data_root: Some(self.data_root.clone()),
+            seen: Arc::default(),
         });
         if targets.is_empty() {
             return untargeted(level, name, access);

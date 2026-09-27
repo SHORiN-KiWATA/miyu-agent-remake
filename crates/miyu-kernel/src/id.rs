@@ -94,8 +94,33 @@ text_id!(
 impl ContentHash {
     /// 由内容算出内容哈希：内容的 SHA-256，写成 `sha256:` 加 64 位小写十六进制。
     pub fn of(content: &[u8]) -> ContentHash {
+        let mut hasher = Hasher::default();
+        hasher.update(content);
+        hasher.finish()
+    }
+
+    /// 去掉 `sha256:` 的那 64 位十六进制。blob 的文件名用它：Windows 的文件名里不许有冒号
+    /// （`07-存储.md` 第五节）。
+    pub fn hex(&self) -> &str {
+        self.0.strip_prefix("sha256:").unwrap_or(&self.0)
+    }
+}
+
+/// 边读边算的内容哈希（施工 4-6 上）：一段段喂进去，算出来和 [`ContentHash::of`] 整份算的一样，用不着把整份
+/// 内容放进内存。读文件的工具用它算整份文件的哈希。
+#[derive(Clone, Default)]
+pub struct Hasher(Sha256);
+
+impl Hasher {
+    /// 再喂一段。
+    pub fn update(&mut self, bytes: &[u8]) {
+        self.0.update(bytes);
+    }
+
+    /// 喂完了：写成 `sha256:` 加 64 位小写十六进制。
+    pub fn finish(self) -> ContentHash {
         const HEX: &[u8; 16] = b"0123456789abcdef";
-        let digest: [u8; 32] = Sha256::digest(content).into();
+        let digest: [u8; 32] = self.0.finalize().into();
         let mut text = String::with_capacity(71);
         text.push_str("sha256:");
         for byte in digest {
@@ -104,11 +129,11 @@ impl ContentHash {
         }
         ContentHash(text)
     }
+}
 
-    /// 去掉 `sha256:` 的那 64 位十六进制。blob 的文件名用它：Windows 的文件名里不许有冒号
-    /// （`07-存储.md` 第五节）。
-    pub fn hex(&self) -> &str {
-        self.0.strip_prefix("sha256:").unwrap_or(&self.0)
+impl fmt::Debug for Hasher {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("Hasher")
     }
 }
 

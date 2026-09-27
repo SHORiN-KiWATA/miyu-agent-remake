@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::block::Block;
+use crate::event::Effect;
 use crate::id::CallId;
 use crate::raw::RawJson;
 use crate::text_enum::text_enum;
@@ -29,6 +30,10 @@ pub struct ToolResult {
     /// 工具没交、老日志里没有的，没有这一格。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub human: Option<Said>,
+    /// 给内核和头看的效果（施工 4-6 上）：读了、改了、删了哪个文件，不发给模型。工具交的，照交的先后；
+    /// 没有的（内核自己写的结果、老日志）没有这一格。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effects: Vec<Effect>,
 }
 
 /// 给人看的说法（`03-事件模型.md` 第三节，施工 4-5 上）：用的是哪一句、换进去的字段。字放在资源目录的

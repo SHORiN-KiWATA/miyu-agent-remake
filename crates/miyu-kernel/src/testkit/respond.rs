@@ -160,6 +160,7 @@ impl Stage {
             })],
             duration_ms: Some(5),
             human: None,
+            effects: Vec::new(),
         }
     }
 }

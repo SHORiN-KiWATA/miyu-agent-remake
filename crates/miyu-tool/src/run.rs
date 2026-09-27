@@ -1,16 +1,19 @@
 //! 执行一次调用（`05-内核接口.md` 第六节「执行这一步」，施工 4-2）：交给工具的、工具交回的、执行中的
 //! 输出推给谁。
 
+use std::collections::BTreeMap;
 use std::fmt;
 use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
+use std::sync::Arc;
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::Said;
+use miyu_kernel::id::ContentHash;
 
-/// 一次调用交给工具的：修正过的参数、这一轮的工作目录、系统的家目录、Miyu 的数据根。别的（会话、身份、沙盒范围）
-/// 用到时再加。
+/// 一次调用交给工具的：修正过的参数、这一轮的工作目录、系统的家目录、Miyu 的数据根、她看过的文件。别的（会话、
+/// 身份、沙盒范围）用到时再加。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Call {
     /// 修正过的参数：一个 JSON 对象的原文。
@@ -22,7 +25,13 @@ pub struct Call {
     /// Miyu 的数据根（施工 4-4 下）：哪一件工具都不能碰（`11-权限与沙盒.md` A9）。权限策略只核对工具报出的路径，
     /// 往下走目录的工具（`glob`、`grep`）从上面搜下来会走进去，走到这里要自己跳过。不知道的是空的。
     pub data_root: Option<PathBuf>,
+    /// 她这个会话里看过的文件（施工 4-6 上）：写的工具改一个已经在了的文件之前，照它核对。
+    pub seen: Arc<Seen>,
 }
+
+/// 她看过的文件（`10-自带软件.md` 第五节「她看过的」，施工 4-6 上）：换成真实位置以后的路径，和她最后一次看到的
+/// 内容哈希。读过的（读了哪一段都算）、自己写过的都算。
+pub type Seen = BTreeMap<PathBuf, ContentHash>;
 
 /// 一次调用要碰的一条路径（施工 4-3 下）：她给的原样，和是读是写。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,7 +42,7 @@ pub struct Target {
     pub write: bool,
 }
 
-/// 一次调用的结局：给模型看的内容块，出没出错。用时由执行器量。
+/// 一次调用的结局：给模型看的内容块，出没出错，给人看的说法，效果。用时由执行器量。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Done {
     /// 出错了没有：工具执行了，但是出了错。错在哪，写在内容块里给她看。
@@ -42,6 +51,39 @@ pub struct Done {
     pub blocks: Vec<Block>,
     /// 给人看的说法（施工 4-5 上）：不发给模型，记进 `tool.result`，头照自己的语言换成字。没交的是空的。
     pub human: Option<Said>,
+    /// 效果（施工 4-6 上）：读了、改了、删了哪个文件，照先后。不发给模型，记进 `tool.result`。
+    pub effects: Vec<Effect>,
+}
+
+/// 工具报的一样效果（`10-自带软件.md` 第五节，施工 4-6 上）。改前改后带着内容本身：执行器存成 blob、换成哈希，
+/// 再交进内核。路径都是换成真实位置以后的。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Effect {
+    /// 读了一个文件：读了第几行到第几行（从 1 数起，含两头；一行都没显示的是空的），整份文件的内容哈希。
+    Read {
+        /// 读的哪个文件。
+        path: PathBuf,
+        /// 读了第几行到第几行。
+        lines: Option<[u64; 2]>,
+        /// 整份文件的内容哈希。
+        hash: ContentHash,
+    },
+    /// 改了一个文件：改前的内容（新建的是空的）、改后的内容。
+    Changed {
+        /// 改的哪个文件。
+        path: PathBuf,
+        /// 改前的内容。
+        before: Option<Vec<u8>>,
+        /// 改后的内容。
+        after: Vec<u8>,
+    },
+    /// 移进了回收站：回收站里的位置，各平台自己的写法（施工 4-6 下）。
+    Trashed {
+        /// 移走之前的位置。
+        path: PathBuf,
+        /// 回收站里的位置。
+        trash: String,
+    },
 }
 
 impl Done {
@@ -51,6 +93,7 @@ impl Done {
             error: false,
             blocks: vec![Block::Text(Text { text: text.into() })],
             human: None,
+            effects: Vec::new(),
         }
     }
 
@@ -60,6 +103,7 @@ impl Done {
             error: true,
             blocks: vec![Block::Text(Text { text: text.into() })],
             human: None,
+            effects: Vec::new(),
         }
     }
 
@@ -67,6 +111,13 @@ impl Done {
     #[must_use]
     pub fn said(mut self, human: Said) -> Done {
         self.human = Some(human);
+        self
+    }
+
+    /// 再报一样效果。
+    #[must_use]
+    pub fn effect(mut self, effect: Effect) -> Done {
+        self.effects.push(effect);
         self
     }
 }

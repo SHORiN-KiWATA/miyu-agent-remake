@@ -3,8 +3,9 @@
 
 mod support;
 
+use miyu_kernel::id::ContentHash;
 use miyu_kernel::tool::Access;
-use miyu_tool::Call;
+use miyu_tool::{Call, Effect};
 
 use support::{Site, resources, tool};
 
@@ -29,6 +30,7 @@ fn read_comes_from_the_resources_with_its_schema_as_written() {
         cwd: String::new(),
         home: None,
         data_root: None,
+        seen: Default::default(),
     });
     assert_eq!(targets.len(), 1);
     assert_eq!(targets[0].path, "src/a.rs");
@@ -281,6 +283,53 @@ async fn one_read_is_at_most_two_thousand_lines() {
             text.ends_with("(Showing lines 1-2000 of 2500. Use offset=2001 to continue.)\n"),
             "{}",
             &text[text.len() - 80..]
+        );
+    }
+}
+
+#[tokio::test]
+async fn reading_a_file_reports_what_was_read_with_the_whole_hash() {
+    let site = Site::new();
+    let whole = b"one\ntwo\nthree\n";
+    site.file("work/a.txt", whole);
+    site.file("work/empty.txt", b"");
+    site.file("work/bin", b"a\x00b");
+    std::fs::create_dir_all(site.0.join("work/dir")).unwrap();
+    let real = site.real("work/a.txt");
+    let read = |lines: Option<[u64; 2]>| Effect::Read {
+        path: real.clone(),
+        lines,
+        hash: ContentHash::of(whole),
+    };
+    let effects = |args: serde_json::Value| async { site.done("read", args).await.effects };
+    assert_eq!(
+        effects(serde_json::json!({"file_path": "a.txt"})).await,
+        [read(Some([1, 3]))]
+    );
+    assert_eq!(
+        effects(serde_json::json!({"file_path": "a.txt", "offset": 2, "limit": 1})).await,
+        [read(Some([2, 2]))],
+        "读一段的，哈希也是整份的"
+    );
+    assert_eq!(
+        effects(serde_json::json!({"file_path": "a.txt", "offset": 9})).await,
+        [read(None)],
+        "过了结尾的一行都没显示"
+    );
+    assert_eq!(
+        effects(serde_json::json!({"file_path": "empty.txt"})).await,
+        [Effect::Read {
+            path: site.real("work/empty.txt"),
+            lines: None,
+            hash: ContentHash::of(b""),
+        }]
+    );
+    for path in ["bin", "dir", "missing.txt"] {
+        assert!(
+            effects(serde_json::json!({ "file_path": path }))
+                .await
+                .is_empty(),
+            "{path} 没读到文件的内容，不报"
         );
     }
 }

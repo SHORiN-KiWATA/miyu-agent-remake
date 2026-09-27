@@ -1,12 +1,13 @@
-//! 三件读的工具交回的给人看的说法（施工 4-5 上）：每一种结果都有，编号、字段对；工具会说的每一种，中文、英文
+//! 三件读的工具和 `write`（施工 4-6 上）交回的给人看的说法（施工 4-5 上）：每一种结果都有，编号、字段对；工具会说的每一种，中文、英文
 //! 两份字里都有，换得出字。
 
 mod support;
 
 use miyu_kernel::event::Said;
+use miyu_kernel::id::ContentHash;
 use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
-use miyu_tool::Done;
+use miyu_tool::{Done, Seen};
 
 use support::{Site, resources};
 
@@ -222,18 +223,100 @@ async fn every_outcome_says_something_people_can_read() {
         said("grep/bad-pattern").with("error", "unclosed group"),
     );
 
-    // 会说的每一种，中文、英文两份字里都有，换得出字。
+    readable(&checked, &["read", "glob", "grep"]);
+}
+
+/// 会说的每一种，中文、英文两份字里都有，换得出字；这几件工具都有显示名。
+fn readable(checked: &[Said], tools: &[&str]) {
     let root = ResourceRoot::at(resources());
     for language in ["zh", "en"] {
         let words = Human::load(&root, language).expect("给人看的字读得出来");
-        for said in &checked {
+        for said in checked {
             assert!(words.say(said).is_some(), "{language} 没有 {said:?}");
         }
-        for tool in ["read", "glob", "grep"] {
+        for tool in tools {
             assert!(
                 words.tool(tool).is_some(),
                 "{language} 没有 {tool} 的显示名"
             );
         }
     }
+}
+
+#[tokio::test]
+async fn every_write_outcome_says_something_people_can_read() {
+    let site = Site::new();
+    site.file("work/old.txt", b"old\n");
+    let real = site.real("work/old.txt");
+    let run = |args: serde_json::Value, seen: Seen| site.done_seen("work", "write", args, seen);
+    let mut checked = Vec::new();
+    let saw = |content: &[u8]| Seen::from([(real.clone(), ContentHash::of(content))]);
+    check(
+        &mut checked,
+        human(
+            run(
+                serde_json::json!({"file_path": "new.txt", "content": "a\nb\n"}),
+                Seen::new(),
+            )
+            .await,
+        ),
+        said("write/created").with("count", "2"),
+    );
+    check(
+        &mut checked,
+        human(
+            run(
+                serde_json::json!({"file_path": "old.txt", "content": "x"}),
+                Seen::new(),
+            )
+            .await,
+        ),
+        said("write/not-read"),
+    );
+    check(
+        &mut checked,
+        human(
+            run(
+                serde_json::json!({"file_path": "old.txt", "content": "x"}),
+                saw(b"other"),
+            )
+            .await,
+        ),
+        said("write/stale"),
+    );
+    check(
+        &mut checked,
+        human(
+            run(
+                serde_json::json!({"file_path": "old.txt", "content": "x"}),
+                saw(b"old\n"),
+            )
+            .await,
+        ),
+        said("write/updated").with("count", "1"),
+    );
+    check(
+        &mut checked,
+        human(
+            run(
+                serde_json::json!({"file_path": ".", "content": "x"}),
+                Seen::new(),
+            )
+            .await,
+        ),
+        said("write/directory"),
+    );
+    // 往一个文件底下写：哪个平台都写不了，原话各平台不一样，只核对是哪一句。
+    let failed = human(
+        run(
+            serde_json::json!({"file_path": "old.txt/x", "content": "x"}),
+            Seen::new(),
+        )
+        .await,
+    );
+    assert_eq!(failed.key, said("write/failed").key);
+    assert!(failed.fields.contains_key("error"), "{failed:?}");
+    checked.push(failed);
+    checked.push(said("write/not-a-file"));
+    readable(&checked, &["write"]);
 }

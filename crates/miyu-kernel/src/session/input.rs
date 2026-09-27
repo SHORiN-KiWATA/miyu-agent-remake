@@ -2,7 +2,9 @@
 
 use crate::accumulate::Delta;
 use crate::block::Block;
-use crate::event::{CallError, ContextInjected, Decision, Level, Question, Response, Said, Usage};
+use crate::event::{
+    CallError, ContextInjected, Decision, Effect, Level, Question, Response, Said, Usage,
+};
 use crate::facts::Environment;
 use crate::id::{CallId, CommandId, ContentHash, ModuleId, Seq, TurnId};
 use crate::origin::{By, Model};
@@ -87,6 +89,8 @@ pub enum Input {
         duration_ms: Option<u64>,
         /// 给人看的说法，工具交的（施工 4-5 上）；没交的是空的。
         human: Option<Said>,
+        /// 效果，工具交的（施工 4-6 上）：改前改后的内容已经由执行器存成了 blob，这里是它们的哈希。
+        effects: Vec<Effect>,
     },
     /// 工具执行中的一段输出，只推给头（`03-事件模型.md` 第五节）。
     ToolProgress {

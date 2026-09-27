@@ -3,7 +3,8 @@
 use super::*;
 use crate::accumulate::{Delta, Kind};
 use crate::event::{
-    CallError, EndReason, ErrorClass, ModelCalled, Question, Response, Said, ToolStatus, Usage,
+    CallError, Effect, EndReason, ErrorClass, ModelCalled, Question, Response, Said, ToolStatus,
+    Usage,
 };
 use crate::id::{CallId, ContentHash, FactKind, ModelName, ModuleId, ProviderId};
 use crate::origin::Model;
@@ -172,6 +173,7 @@ pub(super) fn done(call_id: CallId, text: &str) -> Input {
         })],
         duration_ms: Some(12),
         human: None,
+        effects: Vec::new(),
     }
 }
 
@@ -265,6 +267,14 @@ pub(super) fn ran(actions: &[Action]) -> Vec<CallId> {
 pub(super) fn said_of(event: &Event) -> Option<Said> {
     match &event.body {
         Body::ToolResult(result) => result.human.clone(),
+        other => panic!("应该是 tool.result：{other:?}"),
+    }
+}
+
+/// 一条工具结果里的效果（施工 4-6 上）。
+pub(super) fn effects_of(event: &Event) -> Vec<Effect> {
+    match &event.body {
+        Body::ToolResult(result) => result.effects.clone(),
         other => panic!("应该是 tool.result：{other:?}"),
     }
 }

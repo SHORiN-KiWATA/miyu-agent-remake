@@ -3,8 +3,8 @@
 
 use super::executor::*;
 use super::*;
-use crate::event::{EndReason, Said, ToolStatus, TransientBody};
-use crate::id::CallId;
+use crate::event::{Effect, EndReason, FileRead, Said, ToolStatus, TransientBody};
+use crate::id::{CallId, ContentHash};
 use crate::origin::Tool;
 
 fn by_tool(call_id: CallId) -> By {
@@ -59,15 +59,31 @@ fn a_step_runs_its_calls_then_asks_again() {
     );
     assert_eq!((events[0].at, events[0].turn), (at(50), Some(turn3())));
     assert_eq!(said_of(&events[0]), None, "工具没交说法的，没有这一格");
+    assert!(
+        effects_of(&events[0]).is_empty(),
+        "工具没交效果的，没有这一格"
+    );
     assert!(calls(&actions).is_empty());
-    // 工具交了给人看的说法：原样记进结果（施工 4-5 上）。
+    // 工具交了给人看的说法（施工 4-5 上）、效果（施工 4-6 上）：原样记进结果。
     let said = Said::new("software/basesystem/read/lines").with("count", "1");
+    let effects = vec![Effect::FileRead(FileRead {
+        path: "/home/me/src/miyu/a".to_string(),
+        lines: Some([1, 1]),
+        hash: ContentHash::of(b"a\n"),
+    })];
     let mut with_said = done(call(6, 1), "a");
-    if let Input::ToolDone { human, .. } = &mut with_said {
+    if let Input::ToolDone {
+        human,
+        effects: reported,
+        ..
+    } = &mut with_said
+    {
         *human = Some(said.clone());
+        reported.clone_from(&effects);
     }
     let actions = allowing(&mut session, with_said);
     assert_eq!(said_of(&appended_events(&actions)[0]), Some(said));
+    assert_eq!(effects_of(&appended_events(&actions)[0]), effects);
     assert_eq!(appended(&actions), seqs(&[9]));
     assert!(calls(&actions).is_empty(), "结果还没落盘");
     let actions = allowing(&mut session, stored(9));

@@ -17,12 +17,13 @@ use miyu_store::blob::{BlobError, Blobs};
 use miyu_store::log::{OpenError, SEGMENT_LIMIT, SessionLog};
 use miyu_store::resources::{ResourceRoot, SourceError};
 use miyu_store::root::DataRoot;
-use miyu_tool::Catalog;
+use miyu_tool::{Catalog, Seen};
 
 use crate::TARGET;
 use crate::actor::{self, Actor};
 use crate::blocking::blocking;
 use crate::clock::Clock;
+use crate::effects;
 use crate::guard::Guard;
 use crate::handle::Handle;
 use crate::port::{ForSession, Models};
@@ -153,6 +154,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         Ok((snapshot, policy, texts, run, guard, log))
     })
     .await?;
+    let kept = blobs.clone();
     let model = models.port(ForSession { texts, blobs });
     let mut clock = Clock::default();
     let created = SessionCreated {
@@ -183,6 +185,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             texts: run,
             home: home.map(Path::to_path_buf),
             data_root: root.path().to_path_buf(),
+            blobs: kept,
+            seen: Seen::new(),
         },
         guard,
         mailbox,
@@ -249,12 +253,15 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         Ok((log, events, policy, texts, run, guard))
     })
     .await?;
+    let kept = blobs.clone();
     let model = models.port(ForSession { texts, blobs });
     // 系统时间比日志里最后一条还早（往回拨过），照最后一条的：时刻不往回走。
     let mut clock = events
         .last()
         .map_or_else(Clock::default, |event| Clock::since(event.at));
     let count = events.len();
+    // 她看过的文件从日志里的效果重建（施工 4-6 上）：内核收走日志之前。
+    let seen = effects::seen_in(&events);
     let (session, first) =
         Session::load(events, clock.now(), policy, environment).map_err(LoadError::Kernel)?;
     let (inbox, mailbox) = mpsc::unbounded_channel();
@@ -273,6 +280,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             texts: run,
             home: home.map(Path::to_path_buf),
             data_root: root.path().to_path_buf(),
+            blobs: kept,
+            seen,
         },
         guard,
         mailbox,

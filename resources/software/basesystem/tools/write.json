@@ -1,0 +1,4 @@
+{
+  "description": "Create a file, or replace all of its content. A file that already exists must be read first.",
+  "parameters": {"type":"object","properties":{"file_path":{"type":"string","description":"Absolute, or relative to the working directory."},"content":{"type":"string"}},"required":["file_path","content"]}
+}

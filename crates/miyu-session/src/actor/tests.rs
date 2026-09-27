@@ -131,6 +131,9 @@ async fn a_write_that_fails_stops_the_session() {
             texts: run,
             home: None,
             data_root: std::path::PathBuf::new(),
+            // 这个测试不跑工具：blob 不会存进去。
+            blobs: miyu_store::blob::Blobs::new(std::path::PathBuf::new()),
+            seen: miyu_tool::Seen::new(),
         },
         guard,
         mailbox,

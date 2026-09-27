@@ -15,7 +15,7 @@ mod run;
 pub mod testkit;
 
 pub use catalog::{Catalog, CatalogError, Problem};
-pub use run::{Call, Done, Progress, Running, Target};
+pub use run::{Call, Done, Effect, Progress, Running, Seen, Target};
 
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::tool::Access;

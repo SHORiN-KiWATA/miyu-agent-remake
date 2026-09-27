@@ -309,6 +309,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
             blocks: Vec::new(),
             duration_ms: Some(1),
             human: None,
+            effects: Vec::new(),
         },
         26 if !watch.calm || rng.below(10) == 0 => some_interrupt(rng, next_id),
         26 => send(next_command(next_id), "hi"),

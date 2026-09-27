@@ -11,6 +11,10 @@
     "grep": {
       "name": "Search",
       "subject": "pattern"
+    },
+    "write": {
+      "name": "Write",
+      "subject": "file_path"
     }
   },
   "said": {
@@ -41,6 +45,13 @@
     "grep/matches-more": "matches {from}–{to}, more after",
     "grep/none": "no matches",
     "grep/past-end": "all skipped, {total} results",
-    "grep/bad-pattern": "bad regex: {error}"
+    "grep/bad-pattern": "bad regex: {error}",
+    "write/created": "new, {count} lines",
+    "write/updated": "replaced, {count} lines",
+    "write/not-read": "not read yet, read it first",
+    "write/stale": "changed since read, read it again",
+    "write/directory": "is a directory",
+    "write/not-a-file": "not a regular file",
+    "write/failed": "can't write: {error}"
   }
 }

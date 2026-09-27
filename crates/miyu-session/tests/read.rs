@@ -6,7 +6,8 @@ mod support;
 use std::path::Path;
 
 use miyu_kernel::block::Block;
-use miyu_kernel::event::{Body, Level, Permission, Said, ToolResult, ToolStatus};
+use miyu_kernel::event::{Body, Effect, FileRead, Level, Permission, Said, ToolResult, ToolStatus};
+use miyu_kernel::id::ContentHash;
 use miyu_kernel::request::Message;
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
@@ -93,18 +94,29 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
     );
     assert_eq!(outside.status, ToolStatus::Denied, "越界要问人，没人能确认");
     assert!(!text(&outside.blocks).contains("secret"));
+    // 读到的报 `file.read`（施工 4-6 上）：真实的位置、读了哪几行、整份的哈希。没读的没有效果。
+    let real = std::fs::canonicalize(home.scratch.0.join("work/a.txt")).expect("在");
+    assert_eq!(
+        inside.effects,
+        [Effect::FileRead(FileRead {
+            path: real.to_string_lossy().into_owned(),
+            lines: Some([1, 1]),
+            hash: ContentHash::of(b"hello\n"),
+        })]
+    );
+    assert!(outside.effects.is_empty());
     // 她下一次请求里听到了。
     let requests = script.requests();
     let heard = requests[1].1.messages.iter().any(
         |message| matches!(message, Message::Tool { blocks, .. } if text(blocks) == "1\thello\n"),
     );
     assert!(heard);
-    // tools 数组里有读的三件，照名字排，照资源里的说明。
+    // tools 数组里有读的三件和 `write`，照名字排，照资源里的说明。
     let names: Vec<&str> = requests[0]
         .1
         .tools
         .iter()
         .map(|tool| tool.name.as_str())
         .collect();
-    assert_eq!(names, ["glob", "grep", "read"]);
+    assert_eq!(names, ["glob", "grep", "read", "write"]);
 }

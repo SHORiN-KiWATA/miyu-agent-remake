@@ -200,3 +200,17 @@ fn event_kind_is_dotted_lowercase() {
     rejected::<EventKind>(r#""message.us er""#, "只能用小写字母");
     rejected::<EventKind>(&format!("\"a.{}\"", "b".repeat(127)), "128 字节");
 }
+
+#[test]
+fn hashing_piece_by_piece_is_the_same_as_all_at_once() {
+    let mut hasher = Hasher::default();
+    for piece in [&b"hel"[..], b"", b"lo, world"] {
+        hasher.update(piece);
+    }
+    assert_eq!(hasher.finish(), ContentHash::of(b"hello, world"));
+    assert_eq!(
+        Hasher::default().finish().to_string(),
+        "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "什么都没喂的，是空内容的哈希"
+    );
+}

@@ -1,9 +1,13 @@
 //! 执行工具的端口（`02-内核.md` 第四节「执行工具」「停下工具」，`05-内核接口.md` 第六节「执行这一步」，
 //! 施工 4-2）：照工具名在目录里找到那一件，一件一个任务地跑，量用时；叫停就掐掉那个任务。回报送回
 //! actor 的收件箱，由它写成内核的输入。
+//!
+//! 工具报的效果（施工 4-6 上）：跑完以后在阻塞线程里把改前改后存成 blob，再送回来；送回来的先记下她看过的，
+//! 再交进内核。她看过的交给以后每一次调用。
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Instant;
 
 use tokio::sync::mpsc;
@@ -11,13 +15,16 @@ use tokio::task::AbortHandle;
 use tracing::Instrument;
 
 use miyu_kernel::block::{Block, Text};
+use miyu_kernel::event::Effect;
 use miyu_kernel::id::CallId;
 use miyu_kernel::session::Input;
 use miyu_kernel::time::Timestamp;
 use miyu_policy::RunTexts;
-use miyu_tool::{Call, Catalog, Done, Progress};
+use miyu_store::blob::Blobs;
+use miyu_tool::{Call, Catalog, Done, Progress, Seen};
 
 use crate::TARGET;
+use crate::effects;
 use crate::lines::millis;
 use crate::port::Back;
 
@@ -31,6 +38,10 @@ pub(crate) struct ToolKit {
     pub(crate) home: Option<PathBuf>,
     /// Miyu 的数据根：交给工具，往下走目录的走到这里跳过（施工 4-4 下）。
     pub(crate) data_root: PathBuf,
+    /// 这个会话的 blob：效果里改前改后的内容存进这里（施工 4-6 上）。
+    pub(crate) blobs: Blobs,
+    /// 她看过的文件：新会话是空的，载入的从日志里重建（施工 4-6 上）。
+    pub(crate) seen: Seen,
 }
 
 /// 执行工具的端口：一个会话一份。
@@ -39,6 +50,9 @@ pub(crate) struct Tools {
     texts: RunTexts,
     home: Option<PathBuf>,
     data_root: PathBuf,
+    blobs: Blobs,
+    /// 她看过的文件：交给每一次调用，工具报了效果就跟着改。
+    seen: Arc<Seen>,
     /// 在跑的调用：掐掉它的那一头、开始跑的那一刻、工具名。
     running: BTreeMap<CallId, Running>,
     backs: mpsc::UnboundedSender<Back>,
@@ -56,8 +70,12 @@ struct Running {
 pub(crate) enum ToolBack {
     /// 执行中的一段输出。
     Progress { call_id: CallId, text: String },
-    /// 跑完了。
-    Done { call_id: CallId, done: Done },
+    /// 跑完了：工具交回的，和它报的效果（改前改后已经存成了 blob）。
+    Done {
+        call_id: CallId,
+        done: Done,
+        effects: Vec<Effect>,
+    },
     /// 工具自己崩了（panic）。
     Crashed { call_id: CallId },
 }
@@ -70,6 +88,8 @@ impl Tools {
             texts: kit.texts,
             home: kit.home,
             data_root: kit.data_root,
+            blobs: kit.blobs,
+            seen: Arc::new(kit.seen),
             running: BTreeMap::new(),
             backs,
         }
@@ -89,6 +109,7 @@ impl Tools {
             cwd,
             home: self.home.clone(),
             data_root: Some(self.data_root.clone()),
+            seen: Arc::clone(&self.seen),
         };
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name).cloned() else {
@@ -101,6 +122,7 @@ impl Tools {
                 blocks: text(worded.text),
                 duration_ms: None,
                 human: worded.said,
+                effects: Vec::new(),
             });
         };
         tracing::info!(target: TARGET, call = call_text.as_str(), tool = name.as_str(), "running");
@@ -112,9 +134,26 @@ impl Tools {
         let inner = tokio::spawn(async move { tool.run(call, progress).await }.instrument(span));
         let task = inner.abort_handle();
         let backs = self.backs.clone();
+        let blobs = self.blobs.clone();
         tokio::spawn(async move {
             match inner.await {
-                Ok(done) => send(&backs, ToolBack::Done { call_id, done }),
+                Ok(mut done) => {
+                    // 改前改后先落 blob，再送回去写引用它们的事件（07 第四节）。
+                    let reported = std::mem::take(&mut done.effects);
+                    let stored =
+                        tokio::task::spawn_blocking(move || effects::store(&blobs, reported)).await;
+                    match stored {
+                        Ok(effects) => send(
+                            &backs,
+                            ToolBack::Done {
+                                call_id,
+                                done,
+                                effects,
+                            },
+                        ),
+                        Err(_) => send(&backs, ToolBack::Crashed { call_id }),
+                    }
+                }
                 Err(error) if error.is_panic() => send(&backs, ToolBack::Crashed { call_id }),
                 // 叫停了：没人要了。
                 Err(_) => {}
@@ -152,8 +191,13 @@ impl Tools {
                 .running
                 .contains_key(&call_id)
                 .then_some(Input::ToolProgress { at, call_id, text }),
-            ToolBack::Done { call_id, done } => {
+            ToolBack::Done {
+                call_id,
+                done,
+                effects,
+            } => {
                 let running = self.running.remove(&call_id)?;
+                effects::saw(Arc::make_mut(&mut self.seen), &effects);
                 let took_ms = millis(running.started.elapsed());
                 tracing::info!(
                     target: TARGET,
@@ -169,6 +213,7 @@ impl Tools {
                     blocks: done.blocks,
                     duration_ms: Some(took_ms),
                     human: done.human,
+                    effects,
                 })
             }
             ToolBack::Crashed { call_id } => {
@@ -189,6 +234,7 @@ impl Tools {
                     blocks: text(worded.text),
                     duration_ms: Some(took_ms),
                     human: worded.said,
+                    effects: Vec::new(),
                 })
             }
         }

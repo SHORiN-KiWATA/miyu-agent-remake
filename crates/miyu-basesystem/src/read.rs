@@ -12,7 +12,7 @@ use serde::Deserialize;
 use miyu_fs::{Kind, OpenError, open_file, resolve};
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
-use miyu_tool::{Call, Done, Progress, Running, Spec, Target, Tool};
+use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Target, Tool};
 
 use crate::blocking::blocking;
 use crate::common::{Common, Shown, said};
@@ -133,28 +133,40 @@ fn read(texts: &Texts, call: &Call, args: &Args) -> Done {
         }
         Err(OpenError::Io(error)) => return texts.common.failed(path, &error),
     };
-    match lines::read(file, offset, limit) {
-        Ok(lines::Page::Binary) => Done::error(say(&texts.binary, &[("path", path)]))
-            .said(said("read/binary").with("path", path)),
-        Ok(lines::Page::Empty) => Done::ok(say(&texts.empty, &[])).said(said("read/empty")),
-        Ok(lines::Page::PastEnd { total }) => Done::ok(say(
-            &texts.past_end,
-            &[
-                ("total", &total.to_string()),
-                ("offset", &offset.to_string()),
-            ],
-        ))
-        .said(
-            said("read/past-end")
-                .with("total", total.to_string())
-                .with("offset", offset.to_string()),
+    let paged = match lines::read(file, offset, limit) {
+        Ok(paged) => paged,
+        Err(error) => return texts.common.failed(path, &error),
+    };
+    let (done, shown) = match paged.page {
+        lines::Page::Binary => {
+            return Done::error(say(&texts.binary, &[("path", path)]))
+                .said(said("read/binary").with("path", path));
+        }
+        lines::Page::Empty => (
+            Done::ok(say(&texts.empty, &[])).said(said("read/empty")),
+            None,
         ),
-        Ok(lines::Page::Lines {
+        lines::Page::PastEnd { total } => (
+            Done::ok(say(
+                &texts.past_end,
+                &[
+                    ("total", &total.to_string()),
+                    ("offset", &offset.to_string()),
+                ],
+            ))
+            .said(
+                said("read/past-end")
+                    .with("total", total.to_string())
+                    .with("offset", offset.to_string()),
+            ),
+            None,
+        ),
+        lines::Page::Lines {
             mut text,
             from,
             to,
             total,
-        }) => {
+        } => {
             if to < total {
                 text.push_str(&say(
                     &texts.more,
@@ -166,9 +178,20 @@ fn read(texts: &Texts, call: &Call, args: &Args) -> Done {
                     ],
                 ));
             }
-            Done::ok(text).said(part("read/lines", from, to, total))
+            (
+                Done::ok(text).said(part("read/lines", from, to, total)),
+                Some([from, to]),
+            )
         }
-        Err(error) => texts.common.failed(path, &error),
+    };
+    // 读到了一个文件：报 `file.read`，她改之前照它核对（施工 4-6 上）。
+    match paged.hash {
+        Some(hash) => done.effect(Effect::Read {
+            path: real,
+            lines: shown,
+            hash,
+        }),
+        None => done,
     }
 }
 

@@ -1,4 +1,4 @@
-//! 按行读：编码、二进制、分页、行号、截长行、64 KiB 的上限。
+//! 按行读：编码、二进制、分页、行号、截长行、64 KiB 的上限；整份文件的内容哈希（施工 4-6 上）。
 
 use std::io::Write;
 
@@ -22,7 +22,16 @@ impl Temp {
     }
 
     fn page(&self, offset: u64, limit: u64) -> Page {
-        read(File::open(&self.0).unwrap(), offset, limit).unwrap()
+        read(File::open(&self.0).unwrap(), offset, limit)
+            .unwrap()
+            .page
+    }
+
+    /// 读一页算出来的整份文件的哈希。
+    fn hash(&self, offset: u64, limit: u64) -> Option<ContentHash> {
+        read(File::open(&self.0).unwrap(), offset, limit)
+            .unwrap()
+            .hash
     }
 }
 
@@ -111,4 +120,35 @@ fn a_page_stops_at_the_output_limit() {
     assert!(to < total, "到了 64 KiB 就停：{to}");
     assert!(text.len() <= OUTPUT_BYTES);
     assert_eq!(text.lines().count() as u64, to);
+}
+
+#[test]
+fn the_hash_is_of_the_whole_file_however_much_is_shown() {
+    let mut long = String::new();
+    for n in 0..5000 {
+        long.push_str(&format!("line {n}\r\n"));
+    }
+    let cases: [&[u8]; 7] = [
+        b"one\ntwo\nthree\n",
+        b"\xEF\xBB\xBFwith a bom\n",
+        b"\xFF\xFEa\x00\n\x00",
+        b"crlf\r\nlines\r\n",
+        b"",
+        b"no newline at the end",
+        long.as_bytes(),
+    ];
+    for bytes in cases {
+        let file = Temp::with(bytes);
+        let whole = Some(ContentHash::of(bytes));
+        assert_eq!(
+            file.hash(1, 2000),
+            whole,
+            "{:?}",
+            &bytes[..bytes.len().min(20)]
+        );
+        assert_eq!(file.hash(2, 1), whole, "读一段的也是整份的");
+        assert_eq!(file.hash(9999, 10), whole, "过了结尾的也是整份的");
+    }
+    let binary = Temp::with(b"a\x00b");
+    assert_eq!(binary.hash(1, 2000), None, "二进制的不读，没有哈希");
 }

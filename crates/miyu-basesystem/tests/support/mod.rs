@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
 
 use miyu_kernel::block::Block;
-use miyu_tool::{Call, Done, Progress, Tool};
+use miyu_tool::{Call, Done, Progress, Seen, Tool};
 
 /// 源码树里的资源目录。
 pub fn resources() -> PathBuf {
@@ -84,13 +84,25 @@ impl Site {
         self.done_in("work", name, args).await
     }
 
-    /// 在场地里的 `cwd` 这个工作目录里调一次工具，交回它交的全部。
+    /// 在场地里的 `cwd` 这个工作目录里调一次工具，交回它交的全部。她什么都没看过。
     pub async fn done_in(&self, cwd: &str, name: &str, args: serde_json::Value) -> Done {
+        self.done_seen(cwd, name, args, Seen::new()).await
+    }
+
+    /// 同 [`Site::done_in`]，她看过的是 `seen`（施工 4-6 上：写的工具改之前照它核对）。
+    pub async fn done_seen(
+        &self,
+        cwd: &str,
+        name: &str,
+        args: serde_json::Value,
+        seen: Seen,
+    ) -> Done {
         let call = Call {
             args: args.to_string(),
             cwd: self.0.join(cwd).to_string_lossy().into_owned(),
             home: Some(self.0.join("home")),
             data_root: Some(self.0.join("data")),
+            seen: std::sync::Arc::new(seen),
         };
         tool(name).run(call, Progress::new(|_| {})).await
     }

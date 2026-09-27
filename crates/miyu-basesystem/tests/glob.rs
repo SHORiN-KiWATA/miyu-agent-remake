@@ -36,6 +36,7 @@ fn glob_comes_from_the_resources() {
             cwd: String::new(),
             home: None,
             data_root: None,
+            seen: Default::default(),
         })
     };
     assert_eq!(target(r#"{"pattern":"*.rs"}"#)[0].path, ".");
