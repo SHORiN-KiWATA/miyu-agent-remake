@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>59</b><span>/ 66 步<strong>已完成</strong>，第一件真的工具 read 有了</span></li>
-    <li><b>4-4</b><span>下一步：找文件、搜内容（下），<strong>施工中</strong></span></li>
-    <li><b class="mono">a93d302</b><span>最近一步（4-4 上）的提交</span></li>
+    <li><b>60</b><span>/ 66 步<strong>已完成</strong>，读的三件齐了：read、glob、grep</span></li>
+    <li><b>4-5</b><span>下一步：miyu ask 显示工具步骤，<strong>先出样子</strong></span></li>
+    <li><b class="mono">3351c8f</b><span>最近一步（4-4 下）的提交</span></li>
   </ul>
 </header>
 
@@ -396,7 +396,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-3a"><span class="n">4-3</span>路径边界（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-3b"><span class="n">4-3</span>权限策略（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-4a"><span class="n">4-4</span>读取（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-4</span>找文件、搜内容（下）</span></li>
+        <li><a class="step done" href="#s4-4b"><span class="n">4-4</span>找文件、搜内容（下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-5</span>miyu ask 显示工具步骤</span></li>
         <li><span class="step"><span class="n">4-6</span>写入、编辑、删除</span></li>
         <li><span class="step"><span class="n">4-7</span>撤销时恢复文件</span></li>
@@ -4935,6 +4935,80 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s4-4b" aria-labelledby="h-s44b">
+  <div class="sheet-head"><h2 id="h-s44b"><span class="no">4-4</span>找文件、搜内容（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">读的三件齐了：glob 按名字模式找文件，grep 照正则搜内容，都用自带的实现、遵守 .gitignore，三个平台一样。工具照成熟 harness 的规范来，以 Claude Code 为主：参数名、参数说明、输出写法、上限照它，不照它的地方写明为什么；read 跟着改到规范上。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">resources/software/basesystem/</span><span class="dir-note">26 第八节</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">tools/glob.json、tools/grep.json</span><span class="rl">说明和参数，每个参数一句说明</span></div>
+              <div class="tile new"><span class="nm">common/*.txt</span><span class="rl">三件共用的 6 句：没有这个文件、相近的名字、读的时候出错、参数不对、通配不对、No files found</span></div>
+              <div class="tile new"><span class="nm">glob/*.txt、grep/*.txt</span><span class="rl">多的说一共几条、从哪接；No matches found；正则写错了</span></div>
+              <div class="tile"><span class="nm">read</span><span class="rl">参数改名 file_path；行号前不补空格；目录也分页</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">找文件、搜内容走目录</span><span class="dir-note">10 第三节</span></div>
+            <ol class="pipe" aria-label="找文件、搜内容走目录">
+              <li>遵守 .gitignore：仓库里往上到仓库根，不在仓库里只认往下的</li>
+              <li>隐藏文件照找，.git 这类版本库目录不进</li>
+              <li>Miyu 的数据根不进，工作区在里面的照样进</li>
+              <li>新的在前；工作目录里的写相对路径</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">规范以 Claude Code 为主</span><span class="rl">10 第十节、B12；工具名小写</span></div>
+          <div class="tile new"><span class="nm">read、shell 名字不改</span><span class="rl">opencode Zen 的免费模型认这两个名字</span></div>
+          <div class="tile new"><span class="nm">每个参数一句说明</span><span class="rl">W2 改：只写名字看不出来的，Default 100. 这样写默认值</span></div>
+          <div class="tile new"><span class="nm">交给工具的数据根</span><span class="rl">往下走目录的走到这里跳过</span></div>
+          <div class="tile new"><span class="nm">叫停就停下</span><span class="rl">丢掉 future 时举旗，阻塞线程里的活跟着停</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">写入、编辑、删除（4-6）；读图片、PDF</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-4（下）</dd></div>
+        <div><dt>名称</dt><dd>找文件、搜内容</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">3351c8f</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-basesystem</code>：glob、grep；共用的走目录、模式、路径写法、相近的名字；read 改到规范上。</li>
+        <li><code>miyu-tool</code>、<code>miyu-session</code>：交给工具的数据根；<code>miyu-fs</code>：「在不在某个目录里」公开出来。</li>
+        <li><code>miyu-core</code>：登记读的三件。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>模式、.gitignore、隐藏文件、版本库目录、数据根、新的在前、相对路径、100 个的上限；grep 三种输出、前后行和 --、-i、分页、长行、二进制、UTF-16；read 的新写法；会话里找得到、越界的被拒、不进数据根</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 61 处，全部有测试变红；先补了 4 处缺口</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/10-自带软件.md</code> 第三、十节，B12：规范和输出的写法。</li>
+        <li><code>docs/designs/25-工具加载.md</code> W2；<code>26-提示词.md</code> 附录、第八、十节；<code>15-模型与供应商.md</code> 第二节。</li>
+        <li><code>docs/construction/4-4-找文件、搜内容（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -5112,7 +5186,7 @@ const BUILD = {
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完；出了错自己再来，说了一半的带着半截接着说（3-5 下）' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认；执行端口（4-2）：照名字在目录里找，一件一个任务地跑，叫停就掐掉；快照里有、目录里没有的报现在用不了，崩了的报内部错误，会话照常走' },
   n_sandbox: { by: '4-3', how: 'frame', note: '文件工具的路径边界（4-3 上）：边界表（工作区、数据根、临时目录、系统和工具链目录，几片重叠时有先后），换成真实的位置（~、链接、还不存在的），安全地打开（不跟随最后一层的链接、不阻塞、只开普通文件）。权限策略（4-3 下）：工具报要碰的路径，照边界和级别判放行、问人还是拒绝，数据根哪一级都拒绝；工作目录太宽退回账号的工作区。沙盒本身随 M5' },
-  n_software: { by: '4-4', how: 'frame', note: '基础系统（4-4 上）：第一件 read，带行号按行分页、读目录；说明、参数格式、输出里的几句都在资源目录的 software/basesystem/ 下、进登记簿；核心起来时登记' },
+  n_software: { by: '4-4', how: 'frame', note: '基础系统（4-4 上、下）：读的三件 read、glob、grep，名字、参数、输出照成熟 harness 的规范（以 Claude Code 为主）；说明、参数格式、输出里的几句都在资源目录的 software/basesystem/ 下、进登记簿；核心起来时登记' },
   k_catalog: { by: '4-1', how: 'frame', note: '工具目录：每件工具报出规格（名字、说明、参数格式、访问类别），核心起来时登记一次就冻结；重名的、名字不合写法的、参数格式不是对象的当场拒绝。造会话时工具面照名字排好存进策略快照，载入以后逐字节一样。现在目录是空的，第一批工具在 4-4（4-1）' },
   n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对；资源目录：MIYU_RESOURCES、程序旁边的 resources/、上一级的 share/miyu/，读出一个人格的原文（3-6 上）' },
   n_prompt: { by: '3-6', how: 'frame', note: '策略快照：人格从资源目录拼成快照，按内容哈希存档，载入时照哈希重建，请求逐字节一样；现在只有软件工程师（3-6 上）' },
