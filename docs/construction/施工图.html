@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>46</b><span>/ 49 步<strong>已完成</strong>，会话有了自己的 actor：先落盘，后回应、后推送</span></li>
-    <li><b>3-7</b><span>下一步：会话 actor（下），<strong>施工中</strong></span></li>
-    <li><b class="mono">687030d</b><span>最近一步（3-7 中）的提交</span></li>
+    <li><b>47</b><span>/ 49 步<strong>已完成</strong>，会话接上了真的请求：编码、发出去、流式读回来</span></li>
+    <li><b>3-8</b><span>下一步：协议端点，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">ec7b7e3</b><span>最近一步（3-7 下）的提交</span></li>
   </ul>
 </header>
 
@@ -377,7 +377,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-6a"><span class="n">3-6</span>策略快照（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-7a"><span class="n">3-7</span>运行日志（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-7b"><span class="n">3-7</span>会话 actor（中）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-7</span>会话 actor（下）</span></li>
+        <li><a class="step done" href="#s3-7c"><span class="n">3-7</span>会话 actor（下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-8</span>协议端点</span></li>
         <li><span class="step"><span class="n">3-9</span>miyu ask</span></li>
       </ol>
@@ -3977,6 +3977,77 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-7c" aria-labelledby="h-s37c">
+  <div class="sheet-head"><h2 id="h-s37c"><span class="no">3-7</span>会话 actor（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">请求模型的端口接上了驱动和 HTTP 执行器：会话交出的请求照驱动编码成字节，发给供应商，流式读回来交给内核；叫停就断开。到这一步，一个会话从造到说完一句全是真的，测试里发给本机的假服务器。驱动的占位取自会话自己的策略快照。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一次请求怎么走 · 端口派出去的任务</span><span class="dir-note">05 第七节「HTTP 执行器」</span></div>
+            <ol class="pipe" aria-label="一次请求怎么走">
+              <li>照驱动列的清单取 blob（阻塞线程）</li>
+              <li>编码：请求字节，发到哪条路径</li>
+              <li>miyu_http::send：发、流式读、空闲超时、叫停</li>
+              <li>回报交回 actor：发出去了、增量、说完了</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">给会话造端口 · Models</span><span class="dir-note">造会话、载入时，拿到快照再造</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">ForSession</span><span class="rl">驱动的占位取自这个会话的快照，属主的 blob 目录：核心升级改了字，老会话照样逐字节重现</span></div>
+              <div class="tile new"><span class="nm">HttpModels</span><span class="rl">客户端、端点、兼容的写法、模型、空闲超时（初值 180 秒）</span></div>
+              <div class="tile new"><span class="nm">假服务器</span><span class="rl">挪进 miyu-http 的 testkit 开关，两边的测试都用它</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">取不出来的 blob 由编码报</span><span class="rl">直接出错，分类 other，不发；重试也没用</span></div>
+          <div class="tile new"><span class="nm">任务带着会话的 span</span><span class="rl">HTTP 的日志写在会话编号后面</span></div>
+          <div class="tile new"><span class="nm">叫停交给 send</span><span class="rl">不要这次请求了、会话停了，马上断开</span></div>
+          <div class="tile new"><span class="nm">交叉 clippy 再排除 miyu-session</span><span class="rl">它依赖 miyu-http，本机编不了 ring；CI 三个平台真编</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">端点、模型、key 从配置来（3-9 以前）；资源调度；图从哪来（M4）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-7（下）</dd></div>
+        <div><dt>名称</dt><dd>会话 actor（下）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">ec7b7e3</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-session</code>：<code>Models</code>、<code>ForSession</code>、<code>HttpModels</code>、<code>IDLE</code>；<code>create()</code>、<code>load()</code> 改收 <code>&amp;dyn Models</code>。</li>
+        <li><code>miyu-http</code>：假服务器挪进 <code>testkit</code> 开关；导出 <code>Client</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>说一句、限速等够、说到一半断了走接着写的路径、停住的算断、打断断开、真发一张图、blob 取不出来、HTTP 日志带会话编号</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 13 处全拦下（4 处起初测不出来，补了测试）</span></li>
+        <li><span class="ok">✓</span><span>本地七项全过；三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/05-内核接口.md</code> 第七节「编码要的 blob 取不出来」。</li>
+        <li><code>docs/construction/3-7-会话actor（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -4156,7 +4227,7 @@ const BUILD = {
   n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对；资源目录：MIYU_RESOURCES、程序旁边的 resources/、上一级的 share/miyu/，读出一个人格的原文（3-6 上）' },
   n_prompt: { by: '3-6', how: 'frame', note: '策略快照：人格从资源目录拼成快照，按内容哈希存档，载入时照哈希重建，请求逐字节一样；现在只有软件工程师（3-6 上）' },
   n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断；会接着写的供应商用前缀续写（3-5 再补，出厂只开 DeepSeek）；DEBUG 记发出去和收场，key、正文、地址的路径一个字都不记（3-7 上）' },
-  k_sessions: { by: '3-7', how: 'frame', note: '会话 actor（3-7 中）：命令和执行器的回报进收件箱，动作照表回；先落盘，后回应、后推送；造会话存策略快照，载入照它重建，停在一轮中间的再起来接着干；写不进去就停下。会话表本身随 3-8' },
+  k_sessions: { by: '3-7', how: 'frame', note: '会话 actor（3-7 中）：命令和执行器的回报进收件箱，动作照表回；先落盘，后回应、后推送；造会话存策略快照，载入照它重建，停在一轮中间的再起来接着干；写不进去就停下。请求模型接上驱动和 HTTP，驱动的占位取自会话的快照（3-7 下）。会话表本身随 3-8' },
 };
 
 const svg = document.getElementById('bmap');
