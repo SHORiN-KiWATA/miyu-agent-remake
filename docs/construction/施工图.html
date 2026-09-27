@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>65</b><span>/ 70 步<strong>已完成</strong>，她能把文件删进系统的回收站了</span></li>
-    <li><b>4-7</b><span>下一步：撤销时恢复文件（上），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">45b2213</b><span>最近一步（4-6 下）的提交</span></li>
+    <li><b>66</b><span>/ 70 步<strong>已完成</strong>，撤销一轮时她改过的文件跟着改回去了</span></li>
+    <li><b>4-7</b><span>下一步：undo、redo 命令（下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">4486e24</b><span>最近一步（4-7 上）的提交</span></li>
   </ul>
 </header>
 
@@ -402,7 +402,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-6a"><span class="n">4-6</span>效果和写入（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-6b"><span class="n">4-6</span>编辑（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-6c"><span class="n">4-6</span>删除（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-7</span>撤销时恢复文件（上）</span></li>
+        <li><a class="step done" href="#s4-7a"><span class="n">4-7</span>撤销时恢复文件（上）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-7</span>undo、redo 命令（下）</span></li>
         <li><span class="step"><span class="n">4-8</span>执行命令</span></li>
         <li><span class="step"><span class="n">4-9</span>确认和提问</span></li>
@@ -5363,6 +5363,77 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li><code>docs/designs/10-自带软件.md</code> 第三节「trash 的细则」。</li>
         <li><code>docs/construction/4-6-删除（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s4-7a" aria-labelledby="h-s47a">
+  <div class="sheet-head"><h2 id="h-s47a"><span class="no">4-7</span>撤销时恢复文件（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">撤销一轮以前只把那几轮从她看到的历史里拿走，她改过的文件原样留着。现在照效果把文件改回去：改过的写回改前的内容，新建的移进回收站，删掉的从回收站移回原处；恢复时再改回撤销前的样子。之后被别的东西改过的不覆盖，记下冲突交给人。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一次撤销怎么走</span><span class="dir-note">两条都落了盘才回应</span></div>
+            <ol class="pipe" aria-label="一次撤销怎么走">
+              <li>内核记下 turn.reverted，照撤掉的那几轮的效果倒着算出几步</li>
+              <li>会话 actor 当场在阻塞线程里一步步先核对再动手，这时来的命令拒绝</li>
+              <li>结局记成一条 files.restored，一步一项，不进她的上下文</li>
+              <li>她看过的照有效历史重算：撤掉的那几轮里读过、改过的不算</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">对不上的不动</span><span class="dir-note">记下是哪一种</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">changed</span><span class="rl">内容被人改过：附上现在的哈希，4-7（下）给人看差异</span></div>
+              <div class="tile new"><span class="nm">occupied、gone</span><span class="rl">原处被占了；回收站里已经没有了</span></div>
+              <div class="tile new"><span class="nm">unsaved、unavailable</span><span class="rl">改前的内容当时没存下来；回收站收不了，不删</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">新建的撤销进回收站</span><span class="rl">宁可不删，不可删没了</span></div>
+          <div class="tile new"><span class="nm">位置照日志往后找</span><span class="rl">恢复时又移进回收站，位置变了，下一次撤销照新的</span></div>
+          <div class="tile new"><span class="nm">写回、回收站进 miyu-fs</span><span class="rl">工具和撤销共用；第三方编辑器报的效果也撤得回</span></div>
+          <div class="tile new"><span class="nm">协议</span><span class="rl">session.revert、session.unrevert；改回文件时来的拒绝，原因码 restoring</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">miyu undo、miyu redo 和给人看的差异（4-7 下）；子代理、后台命令一起停下（M7）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-7（上）</dd></div>
+        <div><dt>名称</dt><dd>撤销时恢复文件</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">4486e24</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-kernel</code>：新事件 <code>files.restored</code>；撤销、恢复时算出要改回的几步，等结局回来再回应。</li>
+        <li><code>miyu-session</code>：照几步改回文件；她看过的照有效历史算。</li>
+        <li><code>miyu-fs</code>：写回和回收站从基础系统挪来，加上从回收站移回来；<code>miyu-endpoint</code>：撤销、恢复两个方法。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>一轮里新建、改、删的撤销以后都回到原样，恢复以后又回到她改完的样子；被人动过的、回收站里没了的、收不了的、没存下来的都不动；macOS、Windows 上进出系统的回收站</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 41 处，全部有测试变红</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/10-自带软件.md</code> 第七节「改回文件的细则」，<code>03</code> 的 <code>files.restored</code>。</li>
+        <li><code>docs/construction/4-7-撤销时恢复文件（上）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
