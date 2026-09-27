@@ -21,6 +21,7 @@ use miyu_store::env::{Env, Platform};
 use miyu_store::log::read_events;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
+use miyu_tool::Catalog;
 
 /// 一个用完就删的临时目录。
 pub struct Scratch(pub PathBuf);
@@ -73,8 +74,13 @@ impl Home {
         }
     }
 
-    /// 造一个软件工程师的会话，请求模型的端口由 `models` 造。造会话的命令编号是 `cmd-0`。
+    /// 造一个软件工程师的会话，请求模型的端口由 `models` 造，没有工具。造会话的命令编号是 `cmd-0`。
     pub async fn create(&self, models: &dyn Models) -> Handle {
+        self.create_with(models, &Catalog::default()).await
+    }
+
+    /// 造一个软件工程师的会话，工具面照目录 `tools`（施工 4-1）。
+    pub async fn create_with(&self, models: &dyn Models, tools: &Catalog) -> Handle {
         let created = create(Create {
             root: &self.root,
             resources: &self.resources,
@@ -92,6 +98,7 @@ impl Home {
             command: id("cmd-0"),
             by: alice(),
             models,
+            tools,
         });
         within("造会话", created).await.expect("造得出会话")
     }

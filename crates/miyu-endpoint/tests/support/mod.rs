@@ -18,6 +18,7 @@ use miyu_store::env::{Env, Platform};
 use miyu_store::log::read_events;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
+use miyu_tool::Catalog;
 
 /// 本机令牌。
 pub const TOKEN: &str = "token-for-tests";
@@ -54,10 +55,16 @@ impl Home {
 
     /// 一份核心，本机令牌是 `token`。
     pub fn core_with(&self, script: &Script, token: &str) -> Arc<Core> {
+        self.core_with_tools(script, Catalog::default(), token)
+    }
+
+    /// 一份核心，工具目录是 `tools`（施工 4-1）。
+    pub fn core_with_tools(&self, script: &Script, tools: Catalog, token: &str) -> Arc<Core> {
         Arc::new(Core::new(
             self.root.clone(),
             ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")),
             Arc::new(script.clone()),
+            tools,
             alice(),
             token.to_string(),
         ))

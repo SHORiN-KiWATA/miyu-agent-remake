@@ -31,6 +31,7 @@ pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
     Snapshot {
         persona: persona.to_string(),
         system: system(&[&sources.persona.persona]),
+        tools: Vec::new(),
         core: sources.core,
         step_limit: None,
         attended,

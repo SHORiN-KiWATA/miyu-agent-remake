@@ -11,11 +11,12 @@ use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{LoadError as Broken, Session};
-use miyu_policy::{BuildError, Snapshot, SnapshotError, compose};
+use miyu_policy::{BuildError, Snapshot, SnapshotError, ToolEntry, compose};
 use miyu_store::blob::{BlobError, Blobs};
 use miyu_store::log::{OpenError, SEGMENT_LIMIT, SessionLog};
 use miyu_store::resources::{ResourceRoot, SourceError};
 use miyu_store::root::DataRoot;
+use miyu_tool::Catalog;
 
 use crate::TARGET;
 use crate::actor::{self, Actor};
@@ -52,6 +53,8 @@ pub struct Create<'a> {
     pub by: By,
     /// 给会话造请求模型的端口：驱动的占位取自这个会话的策略快照。
     pub models: &'a dyn Models,
+    /// 工具目录：照它存下这个会话的工具面（施工 4-1），以后一直照快照发。
+    pub tools: &'a Catalog,
 }
 
 /// 载入一个会话要的。
@@ -119,15 +122,18 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         command,
         by,
         models,
+        tools,
     } = setup;
     let span = actor::span(&id);
     let (resources, name) = (resources.clone(), persona.to_string());
+    let face = face(tools);
+    let count = face.len();
     let dir = root.session_dir(&owner, &id);
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
     let (snapshot, policy, texts, log) = blocking(move || {
         let sources = resources.sources(&name).map_err(CreateError::Persona)?;
-        let snapshot = compose(&name, sources, attended);
+        let snapshot = compose(&name, sources, attended).with_tools(face);
         let policy = snapshot.policy().map_err(CreateError::Policy)?;
         let texts = snapshot.driver_texts().map_err(CreateError::Policy)?;
         store.put(&snapshot.to_bytes()).map_err(CreateError::Disk)?;
@@ -155,13 +161,26 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let (reply, answer) = oneshot::channel();
     actor.wait_for(command, reply);
     span.in_scope(|| {
-        tracing::info!(target: TARGET, persona, venue = venue.as_str(), "created");
+        tracing::info!(target: TARGET, persona, venue = venue.as_str(), tools = count, "created");
     });
     actor::spawn(actor, first, span);
     match answer.await {
         Ok(_) => Ok(Handle::new(id, inbox, busy)),
         Err(_) => Err(CreateError::Stopped),
     }
+}
+
+/// 目录里每件工具的规格，换成快照里的写法。
+fn face(tools: &Catalog) -> Vec<ToolEntry> {
+    tools
+        .specs()
+        .map(|spec| ToolEntry {
+            name: spec.name.clone(),
+            description: spec.description.clone(),
+            parameters: spec.parameters.clone(),
+            access: spec.access.clone(),
+        })
+        .collect()
 }
 
 /// 从磁盘载入一个会话：打开日志（自检、截尾），照第 1 条的策略哈希取快照、造策略，交给内核载入。

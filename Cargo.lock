@@ -796,6 +796,7 @@ dependencies = [
  "miyu-kernel",
  "miyu-session",
  "miyu-store",
+ "miyu-tool",
  "serde_json",
  "tokio",
 ]
@@ -812,6 +813,7 @@ dependencies = [
  "miyu-log",
  "miyu-session",
  "miyu-store",
+ "miyu-tool",
  "serde_json",
  "tokio",
  "tracing",
@@ -836,6 +838,7 @@ dependencies = [
  "miyu-policy",
  "miyu-session",
  "miyu-store",
+ "miyu-tool",
  "serde",
  "serde_json",
  "tokio",
@@ -917,6 +920,8 @@ dependencies = [
  "miyu-policy",
  "miyu-session",
  "miyu-store",
+ "miyu-tool",
+ "serde_json",
  "tokio",
  "tracing",
  "uuid",
@@ -928,6 +933,14 @@ version = "0.0.0"
 dependencies = [
  "miyu-kernel",
  "miyu-policy",
+ "serde_json",
+]
+
+[[package]]
+name = "miyu-tool"
+version = "0.0.0"
+dependencies = [
+ "miyu-kernel",
  "serde_json",
 ]
 

@@ -1,0 +1,17 @@
+[package]
+name = "miyu-tool"
+description = "工具的接口和工具目录：每件工具报出自己的规格，核心起来时登记进目录（施工 4-1）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# 规格里的访问类别、参数格式的原样 JSON。
+miyu-kernel = { path = "../miyu-kernel" }
+# 登记时查参数格式是不是一个对象。
+serde_json = "1.0"
+
+[lints]
+workspace = true

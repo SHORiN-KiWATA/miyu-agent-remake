@@ -96,7 +96,7 @@ async fn the_log_says_what_happened_and_nothing_that_was_said() {
     assert_eq!(
         mine,
         [
-            format!("INFO  session  {s} created persona=engineer venue=local"),
+            format!("INFO  session  {s} created persona=engineer venue=local tools=0"),
             format!("INFO  session  {s} request seen={first} endpoint=deepseek model=deepseek-v4"),
             format!("INFO  session  {s} failed seen={first} took_ms=_ class=rate_limited"),
             format!(
@@ -118,7 +118,7 @@ async fn the_log_says_what_happened_and_nothing_that_was_said() {
     assert_eq!(theirs.len(), 3, "{theirs:#?}");
     assert_eq!(
         theirs[0],
-        format!("INFO  session  {b} created persona=engineer venue=local")
+        format!("INFO  session  {b} created persona=engineer venue=local tools=0")
     );
     assert!(
         theirs[1].starts_with(&format!("INFO  session  {b} request seen=")),

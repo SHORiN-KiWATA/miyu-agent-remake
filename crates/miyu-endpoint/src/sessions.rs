@@ -76,6 +76,7 @@ impl Sessions {
             command: command.clone(),
             by: admin(core),
             models: &*core.models,
+            tools: &core.tools,
         })
         .await;
         let handle = match created {

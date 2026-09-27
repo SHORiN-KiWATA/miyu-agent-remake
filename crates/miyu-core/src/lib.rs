@@ -28,6 +28,7 @@ use miyu_kernel::id::AccountId;
 use miyu_store::env::Env;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
+use miyu_tool::Catalog;
 
 /// 运行日志的目标。
 const TARGET: &str = "miyu::core";
@@ -97,6 +98,12 @@ pub fn main(options: Options) -> ExitCode {
     runtime.block_on(run(root, resources, lock, options))
 }
 
+/// 工具目录：核心起来时登记一次，登记完就冻结（`05-内核接口.md` 第八节）。施工 4-1 一件都没有，
+/// 4-4 起登记基础系统。
+fn tools() -> Catalog {
+    Catalog::default()
+}
+
 /// 后半段，在运行时里：在套接字上等连接，说「好了」，接连接，直到停下。
 async fn run(root: DataRoot, resources: ResourceRoot, lock: Lock, options: Options) -> ExitCode {
     let opened = match miyu_ipc::open_locked(&root, &Dirs::current(), lock) {
@@ -107,7 +114,14 @@ async fn run(root: DataRoot, resources: ResourceRoot, lock: Lock, options: Optio
         Ok(models) => models,
         Err(error) => return failed(error),
     };
-    let core = Arc::new(Core::new(root, resources, models, admin(), opened.token));
+    let core = Arc::new(Core::new(
+        root,
+        resources,
+        models,
+        tools(),
+        admin(),
+        opened.token,
+    ));
     say(&Ready::Ready);
     serve(opened.listener, core, options.idle, serve::signal()).await;
     ExitCode::SUCCESS

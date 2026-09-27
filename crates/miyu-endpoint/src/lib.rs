@@ -30,6 +30,7 @@ use miyu_kernel::id::AccountId;
 use miyu_session::Models;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
+use miyu_tool::Catalog;
 
 use sessions::Sessions;
 
@@ -41,6 +42,8 @@ pub struct Core {
     resources: ResourceRoot,
     /// 给会话造请求模型的端口。
     models: Arc<dyn Models>,
+    /// 工具目录：造会话时照它存下工具面（施工 4-1）。
+    tools: Catalog,
     /// 管理员：本机连上来的都是他（`06-多用户与身份.md` 第二节）。
     admin: AccountId,
     /// 本机令牌：本机连接握手时要出示（`04-核心协议.md` 第四节）。
@@ -57,6 +60,7 @@ impl Core {
         root: DataRoot,
         resources: ResourceRoot,
         models: Arc<dyn Models>,
+        tools: Catalog,
         admin: AccountId,
         token: String,
     ) -> Core {
@@ -64,6 +68,7 @@ impl Core {
             root,
             resources,
             models,
+            tools,
             admin,
             token,
             sessions: Sessions::default(),

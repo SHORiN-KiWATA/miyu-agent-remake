@@ -29,6 +29,8 @@ miyu-endpoint = { path = "../miyu-endpoint" }
 # 测试里请求模型照剧本回。
 miyu-session = { path = "../miyu-session", features = ["testkit"] }
 miyu-kernel = { path = "../miyu-kernel" }
+# 测试里在进程里起核心：工具目录（施工 4-1）。
+miyu-tool = { path = "../miyu-tool" }
 tokio = { version = "1", features = ["io-util", "macros", "rt", "signal", "sync", "time"] }
 
 [lints]

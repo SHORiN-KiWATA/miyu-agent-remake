@@ -19,6 +19,7 @@ use miyu_store::env::{Env, Platform};
 use miyu_store::log::read_events;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
+use miyu_tool::Catalog;
 
 /// 一个用完就删的临时数据根，建好了骨架。
 pub struct Home {
@@ -60,6 +61,7 @@ impl Home {
             self.root.clone(),
             ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")),
             models,
+            Catalog::default(),
             miyu_core::admin(),
             token.to_string(),
         ))

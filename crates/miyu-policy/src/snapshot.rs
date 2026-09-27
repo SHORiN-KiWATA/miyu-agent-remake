@@ -2,7 +2,6 @@
 //! 就是结构体里的先后，同样的内容字节一定一样。装的是发请求要用的全部：人格、拼好的 system、随核心
 //! 附带的字、几样开关。模型和供应商不在里面：同一份快照可以交给不同的端点，发请求时才定。
 
-use std::collections::BTreeMap;
 use std::fmt;
 
 use miyu_assemble::{DefaultAssembler, Stable, Texts};
@@ -15,6 +14,8 @@ use miyu_kernel::template::TemplateError;
 use miyu_kernel::tool::{ToolTextSources, ToolTexts};
 use serde::{Deserialize, Serialize};
 
+use crate::tools::{self, ToolEntry};
+
 /// 一份策略快照。字段的先后就是字节里的先后：改了先后，快照的字节就变了。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Snapshot {
@@ -22,6 +23,10 @@ pub struct Snapshot {
     pub persona: String,
     /// 拼好的 system（`26-提示词.md` 第四节）。
     pub system: String,
+    /// 工具面（施工 4-1）：照名字排好，每件带访问类别。一件都没有的不写：没有工具的快照，字节和以前
+    /// 一样，M3 造的会话照旧读得回来、哈希不变。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tools: Vec<ToolEntry>,
     /// 随核心附带的字。
     pub core: CoreTexts,
     /// 一个回合最多请求几次模型；没有就是不限。初值等 M4 有了工具再定（施工 2-4 留下的）。
@@ -134,18 +139,26 @@ impl fmt::Display for SnapshotError {
 
 impl std::error::Error for SnapshotError {}
 
-/// 照快照造不出策略：随核心附带的哪一份字用不了。
+/// 照快照造不出策略。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BuildError {
-    /// 哪一类：事实的模板、内核替工具写的几句、驱动的占位。
-    pub which: &'static str,
-    /// 哪里坏了。
-    pub error: TemplateError,
+pub enum BuildError {
+    /// 随核心附带的哪一份字用不了。
+    Texts {
+        /// 哪一类：事实的模板、内核替工具写的几句、驱动的占位。
+        which: &'static str,
+        /// 哪里坏了。
+        error: TemplateError,
+    },
+    /// 工具面上有两件叫这个名字的（施工 4-1）：她调的是哪一件，说不清。
+    DuplicateTool(String),
 }
 
 impl fmt::Display for BuildError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "随核心附带的{}用不了：{}", self.which, self.error)
+        match self {
+            BuildError::Texts { which, error } => write!(f, "随核心附带的{which}用不了：{error}"),
+            BuildError::DuplicateTool(name) => write!(f, "工具面上有两件叫 {name:?} 的"),
+        }
     }
 }
 
@@ -191,12 +204,12 @@ impl Snapshot {
         }
     }
 
-    /// 照快照造出内核的策略：组装器（稳定区只有 system，工具面、示范对话随 M4、3-6 下）、事实模板、
-    /// 内核替工具写的几句、几样开关。
+    /// 照快照造出内核的策略：组装器（稳定区有工具面和 system，示范对话随人格那一步）、事实模板、每件
+    /// 工具的访问类别和参数格式、内核替工具写的几句、几样开关。
     ///
     /// # Errors
     ///
-    /// 随核心附带的哪一份字用不了，写明是哪一类、哪里坏了。
+    /// 随核心附带的哪一份字用不了，写明是哪一类、哪里坏了；工具面上有两件同名的。
     pub fn policy(&self) -> Result<Policy, BuildError> {
         let core = &self.core;
         let ended = &core.turn_ended;
@@ -211,8 +224,9 @@ impl Snapshot {
                 restarted: ended.restarted.clone(),
             },
         };
+        let (face, rules) = tools::split(&self.tools)?;
         let stable = Stable {
-            tools: Vec::new(),
+            tools: face,
             system: self.system.clone(),
             demos: Vec::new(),
         };
@@ -221,14 +235,14 @@ impl Snapshot {
             &core.facts.permission,
             &core.facts.reply_cut,
         )
-        .map_err(|error| BuildError {
+        .map_err(|error| BuildError::Texts {
             which: "事实模板",
             error,
         })?;
         Ok(Policy {
             assembler: Box::new(DefaultAssembler::new(stable, texts)),
             facts,
-            tools: BTreeMap::new(),
+            tools: rules,
             step_limit: self.step_limit,
             tool_texts: self.tool_texts()?,
             attended: self.attended,
@@ -250,7 +264,7 @@ impl Snapshot {
             tool_attachments: &drivers.tool_attachments,
             tool_attachments_only: &drivers.tool_attachments_only,
         })
-        .map_err(|error| BuildError {
+        .map_err(|error| BuildError::Texts {
             which: "驱动的占位",
             error,
         })
@@ -274,7 +288,7 @@ impl Snapshot {
             question_unattended: &results.question_unattended,
             restarted: &results.restarted,
         })
-        .map_err(|error| BuildError {
+        .map_err(|error| BuildError::Texts {
             which: "内核替工具写的几句",
             error,
         })
