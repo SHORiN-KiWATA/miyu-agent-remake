@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>45</b><span>/ 49 步<strong>已完成</strong>，核心有了运行日志，一行一条的英文，像 dmesg</span></li>
-    <li><b>3-7</b><span>下一步：会话 actor（中），<strong>施工中</strong></span></li>
-    <li><b class="mono">c54f359</b><span>最近一步（3-7 上）的提交</span></li>
+    <li><b>46</b><span>/ 49 步<strong>已完成</strong>，会话有了自己的 actor：先落盘，后回应、后推送</span></li>
+    <li><b>3-7</b><span>下一步：会话 actor（下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">687030d</b><span>最近一步（3-7 中）的提交</span></li>
   </ul>
 </header>
 
@@ -376,7 +376,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-5d"><span class="n">3-5</span>接着说（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-6a"><span class="n">3-6</span>策略快照（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-7a"><span class="n">3-7</span>运行日志（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-7</span>会话 actor（中）</span></li>
+        <li><a class="step done" href="#s3-7b"><span class="n">3-7</span>会话 actor（中）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-7</span>会话 actor（下）</span></li>
         <li><span class="step"><span class="n">3-8</span>协议端点</span></li>
         <li><span class="step"><span class="n">3-9</span>miyu ask</span></li>
@@ -3888,6 +3888,95 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-7b" aria-labelledby="h-s37b">
+  <div class="sheet-head"><h2 id="h-s37b"><span class="no">3-7</span>会话 actor（中）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">内核的会话状态机接上了磁盘：一个会话一个 actor，人的命令和执行器的回报进它的收件箱，一条条送进内核，动作照 02 第四节的表回。追加的事件写进会话日志、同步了，才回应命令、才推给订阅的头。造会话时存下策略快照，载入时照它重建；停在一轮中间的，再起来接着干。请求模型交给一个端口，这一步照剧本回，下一步接上 HTTP。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一条输入怎么走 · miyu-session</span><span class="dir-note">02 第七节「会话 actor 怎么跑」</span></div>
+            <ol class="pipe" aria-label="一条输入怎么走">
+              <li>命令、执行器的回报进收件箱</li>
+              <li>照 actor 的时钟记下到的时刻，送进内核</li>
+              <li>动作照 02 第四节的表回</li>
+              <li>当场回的（落盘了、挂接点跑完了）先送，再看收件箱</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">动作怎么回</span><span class="dir-note">先落盘，后回应、后推送</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">追加事件</span><span class="rl">在阻塞线程里写进会话日志、同步，写完送回「落盘了」</span></div>
+              <div class="tile new"><span class="nm">回应 · 推送</span><span class="rl">回给等着的那一头；推给订阅了的头，读得慢的掉队，重新订阅</span></div>
+              <div class="tile new"><span class="nm">请求模型 · 叫停</span><span class="rl">交给端口 ModelPort，回报进收件箱；会话停了也算叫停</span></div>
+              <div class="tile new"><span class="nm">到点叫醒</span><span class="rl">起一个定时的任务，到点送回「到点了」</span></div>
+              <div class="tile"><span class="nm">挂接点 · 工具</span><span class="rl">还没有模块，挂接点当场回；工具面是空的，工具动作发出来就是 bug</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">造会话 · 载入</span><span class="dir-note">07 第四节，03 E5</span></div>
+            <ol class="pipe" aria-label="造会话">
+              <li>拼策略快照，先存成 blob</li>
+              <li>建会话目录和日志</li>
+              <li>内核造会话，session.created 落了盘才交回</li>
+            </ol>
+            <ol class="pipe" aria-label="载入">
+              <li>打开日志，自检、截尾</li>
+              <li>照第 1 条的哈希取快照、造策略</li>
+              <li>内核载入，吐出来的动作照样回：被重启打断的一轮接着干</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">新 crate miyu-session</span><span class="rl">第 4 层第一个；一个会话一个 tokio 任务</span></div>
+          <div class="tile new"><span class="nm">写不进去就停下</span><span class="rl">记 WARN；没落盘的不算发生，再载入照磁盘上的来</span></div>
+          <div class="tile new"><span class="nm">panic 了只停这一个</span><span class="rl">外面的任务看着它，记 ERROR，别的会话照常</span></div>
+          <div class="tile new"><span class="nm">时刻不往回走</span><span class="rl">系统时间往回拨了照上一次的；载入时接着日志里最后一条</span></div>
+          <div class="tile new"><span class="nm">会话编号 UUIDv7</span><span class="rl">前 48 位是毫秒时间，按时间排得开</span></div>
+          <div class="tile new"><span class="nm">测试的等待有时限</span><span class="rl">最多十秒：卡住的几秒内就红</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">真的请求模型（3-7 下）；会话表、空闲退出、订阅补发（3-8）；环境变了送进会话（头要用的时候）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-7（中）</dd></div>
+        <div><dt>名称</dt><dd>会话 actor（中）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">687030d</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>新 crate <code>miyu-session</code>（第 4 层）：<code>create()</code>、<code>load()</code> 交回 <code>Handle</code>（<code>command</code>、<code>subscribe</code>、<code>stop</code>）；请求模型的端口 <code>ModelPort</code>、<code>Reports</code>、<code>Cancel</code>；<code>new_id</code>。</li>
+        <li>运行日志：<code>created</code>、<code>loaded</code>、<code>request</code>、<code>ended</code>、<code>failed</code>、<code>cancelled</code>、<code>retrying</code>、<code>stopped</code>、<code>closed</code>；<code>DEBUG</code> 记输入和动作的种类。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>造会话、说一句、重试、打断、停下再载入、停在一轮中间、时刻不往回走、同一个命令两次、没人拿着、写不进去、掉队、运行日志</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 31 处全拦下（4 处起初卡住等到超时，给测试的等待加了时限）</span></li>
+        <li><span class="ok">✓</span><span>本地七项全过；三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/02-内核.md</code> 第七节「会话 actor 怎么跑」、<code>07-存储.md</code> 第四节「写不进去」、<code>28-运行日志.md</code> 第二节的例子。</li>
+        <li><code>docs/designs/01-架构.md</code> 第九节：第 4 层多了 <code>miyu-session</code>。</li>
+        <li><code>docs/construction/3-7-会话actor（中）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -4067,6 +4156,7 @@ const BUILD = {
   n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对；资源目录：MIYU_RESOURCES、程序旁边的 resources/、上一级的 share/miyu/，读出一个人格的原文（3-6 上）' },
   n_prompt: { by: '3-6', how: 'frame', note: '策略快照：人格从资源目录拼成快照，按内容哈希存档，载入时照哈希重建，请求逐字节一样；现在只有软件工程师（3-6 上）' },
   n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断；会接着写的供应商用前缀续写（3-5 再补，出厂只开 DeepSeek）；DEBUG 记发出去和收场，key、正文、地址的路径一个字都不记（3-7 上）' },
+  k_sessions: { by: '3-7', how: 'frame', note: '会话 actor（3-7 中）：命令和执行器的回报进收件箱，动作照表回；先落盘，后回应、后推送；造会话存策略快照，载入照它重建，停在一轮中间的再起来接着干；写不进去就停下。会话表本身随 3-8' },
 };
 
 const svg = document.getElementById('bmap');
