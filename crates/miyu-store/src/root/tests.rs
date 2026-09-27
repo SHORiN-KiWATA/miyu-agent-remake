@@ -25,6 +25,8 @@ fn env(platform: Platform) -> Env {
         home: Some(alice()),
         xdg_cache_home: None,
         local_app_data: Some(local().into_os_string()),
+        miyu_resources: None,
+        exe: None,
     }
 }
 

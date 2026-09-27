@@ -6,12 +6,14 @@
 //! - [`mod@env`]：找数据根要看的几样，从进程里读一次；
 //! - [`root`]：数据根和缓存目录在哪，第一次用时建好骨架；
 //! - [`log`]：会话日志，按段存成 JSONL，一批一次写入、一次同步，打开时自检；
-//! - [`blob`]：大内容按内容哈希存，先写临时文件、同步、再改名，读的时候核对哈希。
+//! - [`blob`]：大内容按内容哈希存，先写临时文件、同步、再改名，读的时候核对哈希；
+//! - [`resources`]：资源目录在哪，读出一个人格要用的原文，交给 `miyu-policy` 拼快照。
 
 pub mod blob;
 mod durable;
 pub mod env;
 pub mod log;
+pub mod resources;
 pub mod root;
 
 #[cfg(test)]

@@ -579,10 +579,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-policy"
+version = "0.0.0"
+dependencies = [
+ "miyu-assemble",
+ "miyu-drivers",
+ "miyu-kernel",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "miyu-store"
 version = "0.0.0"
 dependencies = [
  "miyu-kernel",
+ "miyu-policy",
  "serde_json",
 ]
 

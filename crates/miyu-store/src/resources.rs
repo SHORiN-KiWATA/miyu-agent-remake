@@ -1,0 +1,225 @@
+//! 资源目录（`docs/designs/12-进程形态与分发.md` 第三节「资源目录的位置」「怎么找」，施工 3-6 上）：
+//! 出厂的人格、提示词都在这里，随安装包一起分发，不编进二进制（R3）。
+//!
+//! 怎么找：先看环境变量 `MIYU_RESOURCES`，开发时把它指到源码树的 `resources/`；没设的，看程序的真实
+//! 位置，旁边有 `resources/` 就是它（安装脚本），上一级有 `share/miyu/` 就是它（deb、rpm、AUR、
+//! Homebrew）。都没有，说清找过哪几处，不猜别的位置。
+//!
+//! 读出来的原文交给第 2 层去拼快照（`miyu-policy`）。
+
+use std::fmt;
+use std::io;
+use std::path::{Path, PathBuf};
+
+use miyu_policy::{
+    CoreTexts, DriverPlaceholders, FactTexts, PersonaTexts, Sources, ToolResultTexts,
+    TurnEndedTexts,
+};
+
+use crate::env::Env;
+
+/// 一个资源目录。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResourceRoot {
+    path: PathBuf,
+}
+
+/// 找不到资源目录。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResourceError {
+    /// `MIYU_RESOURCES` 是相对路径：进程换个工作目录，指的就是别处了。
+    Relative(PathBuf),
+    /// `MIYU_RESOURCES` 指的地方不是一个目录。
+    Missing(PathBuf),
+    /// 没设 `MIYU_RESOURCES`，程序旁边、上一级都没有。里面是找过的几处；程序的位置都不知道的，是空的。
+    NotFound(Vec<PathBuf>),
+}
+
+impl fmt::Display for ResourceError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ResourceError::Relative(path) => {
+                write!(f, "MIYU_RESOURCES 要写绝对路径，现在是 {}", path.display())
+            }
+            ResourceError::Missing(path) => {
+                write!(f, "MIYU_RESOURCES 指的 {} 不是一个目录", path.display())
+            }
+            ResourceError::NotFound(tried) if tried.is_empty() => write!(
+                f,
+                "找不到资源目录：不知道程序在哪。开发时设 MIYU_RESOURCES 指到源码树的 resources/"
+            ),
+            ResourceError::NotFound(tried) => {
+                let tried: Vec<String> = tried.iter().map(|p| p.display().to_string()).collect();
+                write!(
+                    f,
+                    "找不到资源目录：{} 都没有。开发时设 MIYU_RESOURCES 指到源码树的 resources/",
+                    tried.join("、")
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for ResourceError {}
+
+/// 读不出一个人格要用的原文。
+#[derive(Debug)]
+pub enum SourceError {
+    /// 人格的编号不合写法：小写字母开头，只有小写字母、数字、`-`、`_`，最长 64 个字符。
+    Persona(String),
+    /// 读不了这一份文件。
+    Read {
+        /// 哪一份。
+        path: PathBuf,
+        /// 为什么读不了。
+        error: io::Error,
+    },
+}
+
+impl fmt::Display for SourceError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SourceError::Persona(persona) => write!(
+                f,
+                "人格的编号「{persona}」不合写法：小写字母开头，只有小写字母、数字、- 和 _"
+            ),
+            SourceError::Read { path, error } => {
+                write!(f, "读不了 {}：{error}", path.display())
+            }
+        }
+    }
+}
+
+impl std::error::Error for SourceError {}
+
+impl ResourceRoot {
+    /// 照环境快照找资源目录。
+    ///
+    /// # Errors
+    ///
+    /// `MIYU_RESOURCES` 是相对路径，或者指的不是目录；没设的时候，程序旁边的 `resources/`、上一级的
+    /// `share/miyu/` 都没有。
+    pub fn locate(env: &Env) -> Result<ResourceRoot, ResourceError> {
+        if let Some(dir) = env.miyu_resources.as_ref().filter(|dir| !dir.is_empty()) {
+            let path = PathBuf::from(dir);
+            if !path.is_absolute() {
+                return Err(ResourceError::Relative(path));
+            }
+            return match path.is_dir() {
+                true => Ok(ResourceRoot { path }),
+                false => Err(ResourceError::Missing(path)),
+            };
+        }
+        let Some(dir) = env.exe.as_deref().and_then(Path::parent) else {
+            return Err(ResourceError::NotFound(Vec::new()));
+        };
+        let mut tried = vec![dir.join("resources")];
+        if let Some(prefix) = dir.parent() {
+            tried.push(prefix.join("share").join("miyu"));
+        }
+        match tried.iter().find(|candidate| candidate.is_dir()) {
+            Some(found) => Ok(ResourceRoot {
+                path: found.clone(),
+            }),
+            None => Err(ResourceError::NotFound(tried)),
+        }
+    }
+
+    /// 就用 `path` 这个目录：测试、工具指定的。
+    pub fn at(path: impl Into<PathBuf>) -> ResourceRoot {
+        ResourceRoot { path: path.into() }
+    }
+
+    /// 资源目录本身。
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// 读出人格 `persona` 要用的原文：随核心附带的字（`core/`），这个人格的人设
+    /// （`personas/<编号>/prompts/persona.md`）。原文照抄，行尾的换行也算。
+    ///
+    /// # Errors
+    ///
+    /// 人格的编号不合写法；哪一份文件读不了，写明是哪一份。
+    pub fn sources(&self, persona: &str) -> Result<Sources, SourceError> {
+        if !valid(persona) {
+            return Err(SourceError::Persona(persona.to_string()));
+        }
+        Ok(Sources {
+            core: self.core()?,
+            persona: PersonaTexts {
+                persona: self.read(&["personas", persona, "prompts", "persona.md"])?,
+            },
+        })
+    }
+
+    /// 随核心附带的字。
+    fn core(&self) -> Result<CoreTexts, SourceError> {
+        let core = |parts: &[&str]| {
+            let mut path = vec!["core"];
+            path.extend_from_slice(parts);
+            self.read(&path)
+        };
+        let ended = |name: &str| core(&["turn-ended", name]);
+        let fact = |name: &str| core(&["facts", name]);
+        let result = |name: &str| core(&["tool-results", name]);
+        let driver = |name: &str| core(&["drivers", name]);
+        Ok(CoreTexts {
+            checkpoint_open: core(&["checkpoint-open.txt"])?,
+            checkpoint_close: core(&["checkpoint-close.txt"])?,
+            turn_ended: TurnEndedTexts {
+                interrupted: ended("interrupted.txt")?,
+                error: ended("error.txt")?,
+                step_limit: ended("step_limit.txt")?,
+                aborted: ended("aborted.txt")?,
+                restarted: ended("restarted.txt")?,
+            },
+            facts: FactTexts {
+                env: fact("env.txt")?,
+                permission: fact("permission.txt")?,
+                reply_cut: fact("reply-cut.txt")?,
+            },
+            tool_results: ToolResultTexts {
+                unknown: result("unknown.txt")?,
+                not_an_object: result("not-an-object.txt")?,
+                cancelled_before: result("cancelled-before.txt")?,
+                cancelled_running: result("cancelled-running.txt")?,
+                skipped: result("skipped.txt")?,
+                read_only: result("read-only.txt")?,
+                denied: result("denied.txt")?,
+                denied_with_reason: result("denied-with-reason.txt")?,
+                unattended: result("unattended.txt")?,
+                question_interrupted: result("question-interrupted.txt")?,
+                question_voided: result("question-voided.txt")?,
+                question_unattended: result("question-unattended.txt")?,
+                restarted: result("restarted.txt")?,
+            },
+            drivers: DriverPlaceholders {
+                image_omitted: driver("image-omitted.txt")?,
+                file_omitted: driver("file-omitted.txt")?,
+                no_output: driver("no-output.txt")?,
+                tool_attachments: driver("tool-attachments.txt")?,
+                tool_attachments_only: driver("tool-attachments-only.txt")?,
+            },
+        })
+    }
+
+    /// 读资源目录下的一份文件，路径一段一段地接上（三个平台一样）。
+    fn read(&self, parts: &[&str]) -> Result<String, SourceError> {
+        let path = parts
+            .iter()
+            .fold(self.path.clone(), |path, part| path.join(part));
+        std::fs::read_to_string(&path).map_err(|error| SourceError::Read { path, error })
+    }
+}
+
+/// 人格的编号合不合写法：它是资源目录里的一层目录，不许带路径。
+fn valid(persona: &str) -> bool {
+    let mut chars = persona.chars();
+    chars.next().is_some_and(|first| first.is_ascii_lowercase())
+        && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
+        && persona.len() <= 64
+}
+
+#[cfg(test)]
+mod tests;

@@ -10,6 +10,8 @@ publish.workspace = true
 [dependencies]
 # 事件、序号、账号、会话编号：会话日志一行一条事件（施工 3-2）。
 miyu-kernel = { path = "../miyu-kernel" }
+# 资源目录读出来的原文交给它拼策略快照（施工 3-6 上）。
+miyu-policy = { path = "../miyu-policy" }
 
 [dev-dependencies]
 # 测试里拿执行器替身跑一段真会话，写进日志、读回来、载入（施工 3-2）。

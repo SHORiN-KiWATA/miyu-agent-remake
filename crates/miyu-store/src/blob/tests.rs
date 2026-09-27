@@ -144,6 +144,8 @@ fn each_account_keeps_its_own() {
         home: None,
         xdg_cache_home: None,
         local_app_data: None,
+        miyu_resources: None,
+        exe: None,
     })
     .unwrap();
     let alice = AccountId::parse("alice").unwrap();
