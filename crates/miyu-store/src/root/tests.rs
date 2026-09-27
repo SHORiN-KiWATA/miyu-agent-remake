@@ -179,6 +179,49 @@ fn the_skeleton_is_built_and_building_it_again_is_fine() {
     assert!(root.prepare().is_err());
 }
 
+#[test]
+fn two_at_once_both_build_the_skeleton() {
+    // 两个头同时第一次拉起核心：几个进程同时建同一个数据根的骨架，都要成。
+    for _ in 0..30 {
+        let scratch = Scratch::new();
+        let root = root_in(&scratch);
+        let start = std::sync::Barrier::new(8);
+        std::thread::scope(|scope| {
+            let built: Vec<_> = (0..8)
+                .map(|_| {
+                    scope.spawn(|| {
+                        start.wait();
+                        root.prepare()
+                    })
+                })
+                .collect();
+            for one in built {
+                one.join().expect("没 panic").expect("建得成");
+            }
+        });
+    }
+}
+
+#[test]
+fn a_home_is_built_once() {
+    let scratch = Scratch::new();
+    let root = root_in(&scratch);
+    root.prepare().unwrap();
+    let admin = AccountId::parse("admin").unwrap();
+    root.prepare_home(&admin).unwrap();
+    assert!(root.account_dir(&admin).is_dir());
+    root.prepare_home(&admin).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = fs::metadata(root.account_dir(&admin))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o700);
+    }
+}
+
 #[cfg(unix)]
 #[test]
 fn new_directories_are_only_for_me() {

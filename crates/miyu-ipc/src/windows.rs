@@ -100,6 +100,13 @@ pub(crate) async fn connect(path: &Path) -> Result<Stream, ConnectError> {
 /// 走的时候：没有套接字文件要删，管道的句柄都关了它就没了。
 pub(crate) fn remove(_path: &Path) {}
 
+/// 拉起的核心跟终端脱开：不带控制台窗口，自成一组，终端里按 Ctrl+C 打不到它。
+pub(crate) fn detach(command: &mut std::process::Command) {
+    use std::os::windows::process::CommandExt;
+    use windows_sys::Win32::System::Threading::{CREATE_NEW_PROCESS_GROUP, DETACHED_PROCESS};
+    command.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+}
+
 /// 没有用户编号。
 pub(crate) fn uid() -> Option<u32> {
     None

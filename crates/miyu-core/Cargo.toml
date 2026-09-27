@@ -1,0 +1,40 @@
+[package]
+name = "miyu-core"
+description = "核心进程：由头拉起，建骨架、装运行日志、从环境变量拿模型、在套接字上等连接，空闲够久了自己退出（施工 3-9 上）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# 驱动：DeepSeek 那一套写法、一次调用要定的（施工 3-4）。
+miyu-drivers = { path = "../miyu-drivers" }
+# 协议端点：核心的家底、一个个接连接、空不空闲（施工 3-8）。
+miyu-endpoint = { path = "../miyu-endpoint" }
+# 发请求的客户端、端点（施工 3-5）。
+miyu-http = { path = "../miyu-http" }
+# 单实例锁、在套接字上等连接、说「好了」的那一行（施工 3-8 下、3-9 上）。
+miyu-ipc = { path = "../miyu-ipc" }
+# 编号、出错的分类、发给了谁。
+miyu-kernel = { path = "../miyu-kernel" }
+# 运行日志：state/logs/core.log（施工 3-7 上）。
+miyu-log = { path = "../miyu-log" }
+# 请求模型的端口（施工 3-7）。
+miyu-session = { path = "../miyu-session" }
+# 数据根、资源目录、环境快照。
+miyu-store = { path = "../miyu-store" }
+# 核心的运行时：接连接、会话、请求都在上面；空闲的钟；停的信号。
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
+# 运行日志的门面（施工 3-7 上）。
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+
+[dev-dependencies]
+# 测试里请求模型照剧本回。
+miyu-session = { path = "../miyu-session", features = ["testkit"] }
+# 测试里在套接字上说 JSON-RPC。
+serde_json = "1.0"
+tokio = { version = "1", features = ["io-util", "macros", "rt", "time"] }
+
+[lints]
+workspace = true

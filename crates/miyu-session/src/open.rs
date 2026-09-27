@@ -145,6 +145,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     );
     let (inbox, mailbox) = mpsc::unbounded_channel();
     let mut actor = Actor::new(session, Box::new(log), model, mailbox, clock);
+    let busy = actor.busy();
     let (reply, answer) = oneshot::channel();
     actor.wait_for(command, reply);
     span.in_scope(|| {
@@ -152,7 +153,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     });
     actor::spawn(actor, first, span);
     match answer.await {
-        Ok(_) => Ok(Handle::new(id, inbox)),
+        Ok(_) => Ok(Handle::new(id, inbox, busy)),
         Err(_) => Err(CreateError::Stopped),
     }
 }
@@ -198,11 +199,12 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         Session::load(events, clock.now(), policy, environment).map_err(LoadError::Kernel)?;
     let (inbox, mailbox) = mpsc::unbounded_channel();
     let actor = Actor::new(session, Box::new(log), model, mailbox, clock);
+    let busy = actor.busy();
     span.in_scope(|| {
         tracing::info!(target: TARGET, events = count, "loaded");
     });
     actor::spawn(actor, first, span);
-    Ok(Handle::new(id, inbox))
+    Ok(Handle::new(id, inbox, busy))
 }
 
 impl fmt::Display for CreateError {

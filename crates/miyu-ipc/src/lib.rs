@@ -9,7 +9,8 @@
 //! 4. 在套接字上等连接：套接字放在只有自己能进的目录里，上一个核心崩了留下的旧套接字文件删掉；
 //! 5. 实际位置写进 `run/socket`。
 //!
-//! 头（[`connect`]）读 `run/socket`，核对套接字所在的目录只有自己能进，连过去，再现读本机令牌。
+//! 头（[`connect`]）读 `run/socket`，核对套接字所在的目录只有自己能进，连过去，再现读本机令牌。核心没在跑，
+//! 头用 [`connect_or_start`] 把它拉起来，等它写来 [`Ready`] 那一行再连（施工 3-9 上）。
 //!
 //! Unix 上是 Unix 域套接字；Windows 上是命名管道 `\\.\pipe\miyu-<指纹>`，只对本人开放，头连上以后核对
 //! 另一头的进程是自己的（施工 3-8 补）。
@@ -19,6 +20,8 @@ mod files;
 mod listener;
 mod lock;
 mod place;
+mod ready;
+mod start;
 #[cfg(test)]
 mod test_support;
 
@@ -31,9 +34,12 @@ mod windows;
 #[cfg(windows)]
 use windows as sys;
 
-pub use error::{ConnectError, OpenError};
+pub use error::{ConnectError, OpenError, StartError};
 pub use listener::{Connection, Listener};
+pub use lock::Lock;
 pub use place::{Dirs, fingerprint};
+pub use ready::Ready;
+pub use start::connect_or_start;
 
 use std::fmt;
 use std::io;
@@ -57,7 +63,7 @@ impl fmt::Debug for Opened {
     }
 }
 
-/// 核心起来：算出套接字放哪，拿锁，换本机令牌，在套接字上等连接，把实际位置写进 `run/socket`。
+/// 核心起来：拿锁，算出套接字放哪，换本机令牌，在套接字上等连接，把实际位置写进 `run/socket`。
 /// 数据根要已经建好骨架。
 ///
 /// 要在 tokio 运行时里调：套接字要登记到它上面。
@@ -71,8 +77,22 @@ impl fmt::Debug for Opened {
 ///
 /// 不在 tokio 运行时里。
 pub fn open(root: &DataRoot, dirs: &Dirs) -> Result<Opened, OpenError> {
+    open_locked(root, dirs, Lock::acquire(root)?)
+}
+
+/// 锁已经拿到了，接着起来：核心进程先拿锁、再装运行日志，免得两个核心写同一份日志（施工 3-9 上）。
+///
+/// 要在 tokio 运行时里调。
+///
+/// # Errors
+///
+/// 同 [`open`]，没有「已经在跑」。
+///
+/// # Panics
+///
+/// 不在 tokio 运行时里。
+pub fn open_locked(root: &DataRoot, dirs: &Dirs, lock: Lock) -> Result<Opened, OpenError> {
     let path = place::locate(root, dirs)?;
-    let lock = lock::Lock::acquire(root)?;
     let token = files::renew_token(root)?;
     let listener = Listener::new(sys::bind(&path)?, path, lock);
     files::write_location(root, listener.path())?;

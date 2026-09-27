@@ -1,5 +1,6 @@
 //! 写不进去就停下（`07-存储.md` 第四节「写不进去」）：等着的命令收到「会话停了」，运行日志里记一条
-//! `WARN`，写出错的种类。写盘的端口换成前几次写得进、之后磁盘满了的。
+//! `WARN`，写出错的种类；一轮在跑时停下的，不再算在跑（施工 3-9 上）。写盘的端口换成前几次写得进、
+//! 之后磁盘满了的。
 //!
 //! 这个文件里只有这一个测试碰 actor：`tracing` 的调用点第一次被碰到时记下谁在听，别的测试同时碰到，
 //! 这里装的订阅者可能漏听。
@@ -36,16 +37,24 @@ impl Store for Failing {
     }
 }
 
-/// 请求模型的端口：写不进去发生在请求模型之前，它不该被叫到。
-struct Unused(Model);
+/// 请求模型的端口：一直不回，这一轮就一直在跑。
+struct Holding(Model);
 
-impl ModelPort for Unused {
+impl ModelPort for Holding {
     fn model(&self) -> &Model {
         &self.0
     }
 
-    fn call(&self, _: Seq, _: Request, _: Reports, _: Cancel) {
-        panic!("写不进去发生在请求模型之前");
+    fn call(&self, _: Seq, _: Request, _: Reports, _: Cancel) {}
+}
+
+/// 说一句 `text`。
+fn say(text: &str) -> Command {
+    Command::Send {
+        blocks: vec![Block::Text(Text {
+            text: text.to_string(),
+        })],
+        urgent: false,
     }
 }
 
@@ -105,16 +114,17 @@ async fn a_write_that_fails_stops_the_session() {
         model: ModelName::parse("deepseek-v4").expect("模型名合写法"),
     };
     let (inbox, mailbox) = mpsc::unbounded_channel();
-    // 造会话那一条写得进，下一批写不进。
+    // 造会话那一条、第一句话写得进，第二句写不进。
     let mut actor = Actor::new(
         session,
-        Box::new(Failing { left: 1 }),
-        Arc::new(Unused(model)),
+        Box::new(Failing { left: 2 }),
+        Arc::new(Holding(model)),
         mailbox,
         clock,
     );
     let (reply, created) = oneshot::channel();
     actor.wait_for(id("cmd-0"), reply);
+    let busy = actor.busy();
     let session = crate::new_id(Timestamp::from_unix_millis(0).expect("在范围里"));
     spawn(actor, first, span(&session));
     assert!(matches!(
@@ -122,22 +132,32 @@ async fn a_write_that_fails_stops_the_session() {
         Ok(Outcome::Accepted { .. })
     ));
 
-    let handle = Handle::new(session.clone(), inbox);
+    let handle = Handle::new(session.clone(), inbox, busy);
+    assert!(!handle.busy(), "刚造出来，没有回合");
+    let first = within(
+        "第一句的回应",
+        handle.command(id("cmd-1"), alice(), say("你好")),
+    )
+    .await;
+    assert!(matches!(first, Ok(Outcome::Accepted { .. })), "{first:?}");
+    within("这一轮在跑", async {
+        while !handle.busy() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await;
     let said = within(
-        "命令的回应",
-        handle.command(
-            id("cmd-1"),
-            alice(),
-            Command::Send {
-                blocks: vec![Block::Text(Text {
-                    text: "你好".to_string(),
-                })],
-                urgent: false,
-            },
-        ),
+        "第二句的回应",
+        handle.command(id("cmd-2"), alice(), say("在吗")),
     )
     .await;
     assert_eq!(said, Err(Stopped), "等着的命令收到「会话停了」");
+    within("停了以后不算在跑", async {
+        while handle.busy() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await;
     assert!(
         within("订阅", handle.subscribe()).await.is_err(),
         "停了的会话订阅不了"
@@ -153,7 +173,9 @@ async fn a_write_that_fails_stops_the_session() {
         "{lines:#?}"
     );
     assert!(
-        !lines.iter().any(|line| line.contains("你好")),
+        !lines
+            .iter()
+            .any(|line| line.contains("你好") || line.contains("在吗")),
         "日志里没有对话的字：{lines:#?}"
     );
 }

@@ -8,6 +8,7 @@
 
 mod approval;
 mod executor;
+mod idle;
 mod interrupt;
 mod load;
 mod permission;

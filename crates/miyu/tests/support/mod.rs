@@ -1,0 +1,132 @@
+//! 几个测试共用的：临时的数据根、拉起真的 `miyu core` 的命令、读核心的运行日志、等核心走。
+
+#![allow(dead_code, reason = "几个测试各用其中一部分")]
+
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
+
+use serde_json::{Value, json};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+use miyu_ipc::{ConnectError, Connection, Lock};
+use miyu_store::env::{Env, Platform};
+use miyu_store::root::DataRoot;
+
+/// 测试构建出来的主程序。
+pub const MIYU: &str = env!("CARGO_BIN_EXE_miyu");
+
+/// 一个用完就删的临时数据根，建好了骨架。
+pub struct Home {
+    pub dir: PathBuf,
+    pub root: DataRoot,
+}
+
+impl Home {
+    pub fn new() -> Home {
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        let n = NEXT.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("miyu-main-{}-{n}", std::process::id()));
+        let root = DataRoot::locate(&Env {
+            platform: Platform::current(),
+            miyu_home: Some(dir.clone().into_os_string()),
+            home: None,
+            xdg_cache_home: None,
+            local_app_data: None,
+            miyu_resources: None,
+            exe: None,
+        })
+        .expect("MIYU_HOME 是绝对路径");
+        root.prepare().expect("临时目录里建得了骨架");
+        Home { dir, root }
+    }
+
+    /// 拉起核心的命令：`miyu core`，空闲 1 秒就走；数据根是这个临时目录，资源目录是源码树的；不用
+    /// `$XDG_RUNTIME_DIR`，没有模型的 key。
+    pub fn core(&self) -> Command {
+        let mut command = Command::new(MIYU);
+        command
+            .args(["core", "--idle-seconds", "1"])
+            .env("MIYU_HOME", self.root.path())
+            .env("MIYU_RESOURCES", resources())
+            .env_remove("XDG_RUNTIME_DIR")
+            .env_remove("DEEPSEEK_API_KEY")
+            .env_remove("MIYU_LOG");
+        command
+    }
+
+    /// 核心的运行日志，全文。
+    pub fn core_log(&self) -> String {
+        std::fs::read_to_string(self.root.state().join("logs").join("core.log")).unwrap_or_default()
+    }
+
+    /// 等核心走：连不上了，锁也放开了。最多十秒。
+    pub async fn until_stopped(&self) {
+        within("核心走了", async {
+            loop {
+                let gone = matches!(
+                    miyu_ipc::connect(&self.root).await,
+                    Err(ConnectError::NotRunning)
+                );
+                if gone && Lock::acquire(&self.root).is_ok() {
+                    return;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await;
+    }
+}
+
+impl Drop for Home {
+    #[expect(
+        clippy::let_underscore_must_use,
+        reason = "删不掉就留在临时目录里，不影响测试"
+    )]
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.dir);
+    }
+}
+
+/// 源码树的资源目录。
+pub fn resources() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")
+}
+
+/// 等 `future`，最多十秒。
+pub async fn within<T>(what: &str, future: impl Future<Output = T>) -> T {
+    tokio::time::timeout(Duration::from_secs(10), future)
+        .await
+        .unwrap_or_else(|_| panic!("十秒内没等到{what}"))
+}
+
+/// 在连接上握手，交回回应。
+pub async fn hello(connection: Connection, token: &str) -> Value {
+    let (read, mut write) = tokio::io::split(connection);
+    let hello = json!({
+        "jsonrpc": "2.0",
+        "id": "hello-1",
+        "method": "hello",
+        "params": {
+            "protocol": [1, 1],
+            "head": {"kind": "test", "version": "0.0.0"},
+            "caps": {"input": false},
+            "token": token,
+        },
+    });
+    write
+        .write_all(format!("{hello}\n").as_bytes())
+        .await
+        .expect("写得进");
+    let mut line = String::new();
+    within("握手的回应", BufReader::new(read).read_line(&mut line))
+        .await
+        .expect("读得到");
+    serde_json::from_str(&line).expect("是 JSON")
+}
+
+/// 日志里有几行带着 `words`。
+pub fn count(log: &str, words: &str) -> usize {
+    log.lines().filter(|line| line.contains(words)).count()
+}

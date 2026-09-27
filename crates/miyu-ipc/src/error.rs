@@ -83,3 +83,44 @@ impl From<io::Error> for ConnectError {
         ConnectError::Io(error)
     }
 }
+
+/// 头拉起核心没成。
+#[derive(Debug)]
+pub enum StartError {
+    /// 核心起不来，它说了原因（照原样给人看）。
+    Refused(String),
+    /// 核心没说好了就退了：原因在它的运行日志 `state/logs/core.log` 里。
+    Silent,
+    /// 等核心说好了，等太久了。
+    Timeout,
+    /// 别的头正在拉起核心，等太久了。
+    Busy,
+    /// 连不上。
+    Connect(ConnectError),
+    /// 读写出错，例如拉不起来：找不到程序。
+    Io(io::Error),
+}
+
+impl fmt::Display for StartError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StartError::Refused(reason) => write!(f, "核心起不来：{reason}"),
+            StartError::Silent => write!(
+                f,
+                "核心没起来，也没说为什么：看数据根的 state/logs/core.log"
+            ),
+            StartError::Timeout => write!(f, "等核心起来等了太久"),
+            StartError::Busy => write!(f, "别的程序正在拉起核心，等了太久"),
+            StartError::Connect(error) => error.fmt(f),
+            StartError::Io(error) => write!(f, "拉不起核心：{error}"),
+        }
+    }
+}
+
+impl std::error::Error for StartError {}
+
+impl From<io::Error> for StartError {
+    fn from(error: io::Error) -> StartError {
+        StartError::Io(error)
+    }
+}

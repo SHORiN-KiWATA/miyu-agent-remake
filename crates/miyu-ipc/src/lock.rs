@@ -12,9 +12,9 @@ use crate::error::OpenError;
 /// 锁文件的名字，在 `run/` 里。
 const FILE: &str = "core.lock";
 
-/// 拿着的锁：丢掉它就放开。
+/// 拿着的单实例锁：丢掉它就放开。
 #[derive(Debug)]
-pub(crate) struct Lock {
+pub struct Lock {
     /// 锁在这个打开的文件上：文件关了，锁就放开。
     _file: File,
 }
@@ -25,7 +25,7 @@ impl Lock {
     /// # Errors
     ///
     /// 拿不到；打不开锁文件。
-    pub(crate) fn acquire(root: &DataRoot) -> Result<Lock, OpenError> {
+    pub fn acquire(root: &DataRoot) -> Result<Lock, OpenError> {
         let file = OpenOptions::new()
             .read(true)
             .write(true)

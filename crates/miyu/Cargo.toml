@@ -1,0 +1,30 @@
+[package]
+name = "miyu"
+description = "主程序：一个程序，像 busybox 那样按子命令分发（施工 3-9 上）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "miyu"
+path = "src/main.rs"
+
+[dependencies]
+# 子命令和参数。
+clap = { version = "4", features = ["derive"] }
+# 核心进程：miyu core（施工 3-9 上）。
+miyu-core = { path = "../miyu-core" }
+
+[dev-dependencies]
+# 测试里拉起核心、连上它（施工 3-9 上）。
+miyu-ipc = { path = "../miyu-ipc" }
+# 测试里的数据根。
+miyu-store = { path = "../miyu-store" }
+# 测试里在套接字上说 JSON-RPC。
+serde_json = "1.0"
+tokio = { version = "1", features = ["io-util", "macros", "rt", "time"] }
+
+[lints]
+workspace = true

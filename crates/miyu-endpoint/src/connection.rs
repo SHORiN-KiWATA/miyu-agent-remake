@@ -14,12 +14,12 @@ use tokio::sync::mpsc;
 
 use miyu_kernel::id::SessionId;
 
-use crate::Core;
 use crate::hello::{Peer, hello};
 use crate::methods;
 use crate::refusal::{Locale, Refusal};
 use crate::subscriptions::Subscriptions;
 use crate::wire::{self, Incoming, Read, Request};
+use crate::{Connected, Core};
 
 /// 写队列能攒多少行：满了，转发任务就等着，会话那边掉队（`04-核心协议.md` 第七节）。
 const QUEUE: usize = 256;
@@ -30,6 +30,7 @@ pub async fn serve<S>(stream: S, core: Arc<Core>)
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
+    let _connected = Connected::new(Arc::clone(&core));
     let (read, write) = tokio::io::split(stream);
     let (out, lines) = mpsc::channel(QUEUE);
     tokio::join!(read_all(read, core, out), write_all(write, lines));

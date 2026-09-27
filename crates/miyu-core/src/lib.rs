@@ -1,0 +1,132 @@
+//! 核心进程（`docs/designs/12-进程形态与分发.md` 第二节，施工 3-9 上）：`miyu core`，由头拉起，平时不用人敲。
+//!
+//! 起来的先后：
+//!
+//! 1. 找数据根，建骨架；
+//! 2. 拿单实例锁：已经有一个核心在跑的，说一声 `running` 就走；先拿锁再装日志，免得两个核心写同一份；
+//! 3. 装运行日志 `state/logs/core.log`，记一条「起来了」；
+//! 4. 管理员 `admin` 的家目录，没有就建；资源目录；模型（[`models`]）；
+//! 5. 换本机令牌、在套接字上等连接（施工 3-8 下）；
+//! 6. 往标准输出写一行 `ready`：拉起它的头等着这一行。
+//!
+//! 之后 [`serve()`] 一个个接连接：没有连接、也没有在跑的回合，空闲够久了就退出；收到停的信号，先让在跑的
+//! 会话有计划地停下再退出。起不来的，把原因写成那一行（`error …`）交给头。
+
+pub mod models;
+mod serve;
+
+pub use serve::{Stopped, serve};
+
+use std::io::{self, Write};
+use std::process::ExitCode;
+use std::sync::Arc;
+use std::time::Duration;
+
+use miyu_endpoint::Core;
+use miyu_ipc::{Dirs, Lock, OpenError, Ready};
+use miyu_kernel::id::AccountId;
+use miyu_store::env::Env;
+use miyu_store::resources::ResourceRoot;
+use miyu_store::root::DataRoot;
+
+/// 运行日志的目标。
+const TARGET: &str = "miyu::core";
+
+/// 空闲多久退出：没有连接、也没有在跑的回合，连续这么久。以后放进配置。
+pub const IDLE: Duration = Duration::from_secs(600);
+
+/// 核心的运行时开几个线程：接连接、会话、请求都是等 I/O，两个够用，占用也低。
+const WORKERS: usize = 2;
+
+/// `miyu core` 的参数。
+#[derive(Debug, Clone)]
+pub struct Options {
+    /// 空闲多久退出。
+    pub idle: Duration,
+}
+
+/// 管理员：本机连上来的都是他，账号固定叫 `admin`（`06-多用户与身份.md` U13）。
+pub fn admin() -> AccountId {
+    AccountId::parse("admin").unwrap_or_else(|e| unreachable!("「admin」合账号的写法：{e}"))
+}
+
+/// 跑核心进程，交回退出码。
+pub fn main(options: Options) -> ExitCode {
+    let env = Env::current();
+    let root = match DataRoot::locate(&env) {
+        Ok(root) => root,
+        Err(error) => return failed(error.to_string()),
+    };
+    if let Err(error) = root.prepare() {
+        return failed(error.to_string());
+    }
+    let lock = match Lock::acquire(&root) {
+        Ok(lock) => lock,
+        Err(OpenError::Running) => {
+            say(&Ready::Running);
+            return ExitCode::SUCCESS;
+        }
+        Err(error) => return failed(error.to_string()),
+    };
+    let level = std::env::var("MIYU_LOG").ok();
+    let _log = match miyu_log::install(&root.state().join("logs"), "core", level.as_deref()) {
+        Ok(guard) => guard,
+        Err(error) => return failed(error.to_string()),
+    };
+    tracing::info!(
+        target: TARGET,
+        version = env!("CARGO_PKG_VERSION"),
+        pid = std::process::id(),
+        "starting"
+    );
+    if let Err(error) = root.prepare_home(&admin()) {
+        return failed(error.to_string());
+    }
+    let resources = match ResourceRoot::locate(&env) {
+        Ok(resources) => resources,
+        Err(error) => return failed(error.to_string()),
+    };
+    let runtime = match tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(WORKERS)
+        .enable_all()
+        .build()
+    {
+        Ok(runtime) => runtime,
+        Err(error) => return failed(error.to_string()),
+    };
+    runtime.block_on(run(root, resources, lock, options))
+}
+
+/// 后半段，在运行时里：在套接字上等连接，说「好了」，接连接，直到停下。
+async fn run(root: DataRoot, resources: ResourceRoot, lock: Lock, options: Options) -> ExitCode {
+    let opened = match miyu_ipc::open_locked(&root, &Dirs::current(), lock) {
+        Ok(opened) => opened,
+        Err(error) => return failed(error.to_string()),
+    };
+    let models = match models::from_env(std::env::var("DEEPSEEK_API_KEY").ok()) {
+        Ok(models) => models,
+        Err(error) => return failed(error),
+    };
+    let core = Arc::new(Core::new(root, resources, models, admin(), opened.token));
+    say(&Ready::Ready);
+    serve(opened.listener, core, options.idle, serve::signal()).await;
+    ExitCode::SUCCESS
+}
+
+/// 起不来：原因写成那一行交给头，也记进运行日志（装上了的话）。
+fn failed(reason: String) -> ExitCode {
+    tracing::warn!(target: TARGET, reason = %reason, "not started");
+    say(&Ready::Failed(reason));
+    ExitCode::FAILURE
+}
+
+/// 往标准输出写那一行：拉起核心的头在管道的另一头等着。
+fn say(ready: &Ready) {
+    let mut out = io::stdout();
+    if let Err(error) = out
+        .write_all(ready.line().as_bytes())
+        .and_then(|()| out.flush())
+    {
+        tracing::warn!(target: TARGET, error = %error, "ready line not written");
+    }
+}

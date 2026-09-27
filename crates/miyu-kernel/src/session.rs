@@ -109,6 +109,12 @@ impl Session {
         (session, vec![Action::Append(vec![event])])
     }
 
+    /// 空闲：没有在跑的回合，也没有结束了、`turn.ended` 还没落盘的。核心看它决定能不能空闲退出
+    /// （`12-进程形态与分发.md` 第二节，施工 3-9 上）。
+    pub fn idle(&self) -> bool {
+        self.turn.is_none() && self.closing.is_empty()
+    }
+
     /// 送进一条输入，出来一串动作。
     ///
     /// # Panics

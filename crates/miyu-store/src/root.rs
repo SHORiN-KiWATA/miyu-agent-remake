@@ -98,6 +98,15 @@ impl DataRoot {
         self.homes().join(account.as_str())
     }
 
+    /// 建一个账号的家目录，已经有的不动：核心起来时给管理员建（施工 3-9 上）。Unix 上新建的权限 0700。
+    ///
+    /// # Errors
+    ///
+    /// 建不了；该是目录的地方是个文件。
+    pub fn prepare_home(&self, account: &AccountId) -> io::Result<()> {
+        create_dir(&self.account_dir(account))
+    }
+
     /// 一个会话的目录：`home/<账号>/sessions/<会话编号>/`（`07-存储.md` 第三节）。
     pub fn session_dir(&self, account: &AccountId, session: &SessionId) -> PathBuf {
         self.account_dir(account)
@@ -124,6 +133,9 @@ impl DataRoot {
     /// 建骨架：先认标记。目录不存在、是空的，先写下标记；有标记的照常；不是空的又没有标记的，
     /// 认不出是 Miyu 的数据根，里面什么都不建。然后四个顶层目录，缺的才建，建两次也不出错。
     ///
+    /// 两个进程同时第一次用这个数据根（两个头同时拉起核心），也都成（施工 3-9 上）：别处刚写下的
+    /// 标记也算。
+    ///
     /// Unix 上新建的权限 0700，只有本人能进；已经有的不改：数据根可能是人自己建、自己设的，权限
     /// 不对由 `miyu doctor` 报告（`22-命令行.md` 第五节）。Windows 上靠用户目录本身的访问控制。
     ///
@@ -135,16 +147,27 @@ impl DataRoot {
         let marker = self.path.join(MARKER);
         if fs::symlink_metadata(&marker).is_err() {
             if fs::read_dir(&self.path)?.next().is_some() {
-                return Err(PrepareError::NotOurs(self.path.clone()));
+                // 不是空的：可能是别处刚写下了标记，再看一眼。标记总是先于骨架写下，有了骨架就有标记。
+                if fs::symlink_metadata(&marker).is_err() {
+                    return Err(PrepareError::NotOurs(self.path.clone()));
+                }
+            } else {
+                match fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(&marker)
+                {
+                    Ok(mut file) => {
+                        file.write_all(MARKER_TEXT.as_bytes())?;
+                        file.sync_all()?;
+                        // 同步数据根，标记这一项才算落盘：断电以后标记没了、骨架还在，下次就认不出自己了。
+                        sync_dir(&self.path)?;
+                    }
+                    // 别处刚写下了标记。
+                    Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
+                    Err(error) => return Err(error.into()),
+                }
             }
-            let mut file = fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&marker)?;
-            file.write_all(MARKER_TEXT.as_bytes())?;
-            file.sync_all()?;
-            // 同步数据根，标记这一项才算落盘：断电以后标记没了、骨架还在，下次就认不出自己了。
-            sync_dir(&self.path)?;
         }
         for name in SKELETON {
             create_dir(&self.path.join(name))?;

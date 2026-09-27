@@ -2,6 +2,7 @@
 
 use std::fmt;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use tokio::sync::broadcast::error::{RecvError, TryRecvError};
 use tokio::sync::{broadcast, mpsc, oneshot};
@@ -17,6 +18,8 @@ use miyu_kernel::session::{Command, Outcome};
 pub struct Handle {
     id: SessionId,
     inbox: mpsc::UnboundedSender<Message>,
+    /// 有没有在跑的回合：actor 每送完一批输入就写一次（施工 3-9 上）。
+    busy: Arc<AtomicBool>,
 }
 
 /// 发给 actor 的。
@@ -38,8 +41,17 @@ pub(crate) enum Message {
 }
 
 impl Handle {
-    pub(crate) fn new(id: SessionId, inbox: mpsc::UnboundedSender<Message>) -> Handle {
-        Handle { id, inbox }
+    pub(crate) fn new(
+        id: SessionId,
+        inbox: mpsc::UnboundedSender<Message>,
+        busy: Arc<AtomicBool>,
+    ) -> Handle {
+        Handle { id, inbox, busy }
+    }
+
+    /// 有没有在跑的回合：核心看它决定能不能空闲退出（施工 3-9 上）。会话停了的，不算在跑。
+    pub fn busy(&self) -> bool {
+        self.busy.load(Ordering::Acquire)
     }
 
     /// 会话编号。

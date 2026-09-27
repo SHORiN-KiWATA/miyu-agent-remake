@@ -148,6 +148,22 @@ impl Sessions {
     pub(crate) async fn forget(&self, id: &SessionId) {
         self.open.lock().await.running.remove(id);
     }
+
+    /// 有没有在跑的回合：哪个在跑的会话还忙着，就是有（施工 3-9 上）。
+    pub(crate) async fn busy(&self) -> bool {
+        let open = self.open.lock().await;
+        open.running.values().any(|running| running.handle.busy())
+    }
+
+    /// 有计划地停下全部在跑的会话：跑到一半的回合记成「重启了」，下次载入接着干（施工 3-9 上）。
+    pub(crate) async fn stop_all(&self) {
+        let running = std::mem::take(&mut self.open.lock().await.running);
+        for (id, running) in running {
+            if running.handle.stop().await.is_err() {
+                tracing::debug!(target: "miyu::endpoint", session = id.as_str(), "already stopped");
+            }
+        }
+    }
 }
 
 /// 管理员：本机连上来的都是他（`06-多用户与身份.md` 第二节）。

@@ -14,8 +14,8 @@ getrandom = { version = "0.4", features = ["std"] }
 miyu-store = { path = "../miyu-store" }
 # 数据根的指纹：路径的 SHA-256。
 sha2 = { version = "0.11", default-features = false }
-# 套接字是异步的：核心接连接、头连过去都不堵住别的任务。
-tokio = { version = "1", features = ["net"] }
+# 套接字是异步的：核心接连接、头连过去都不堵住别的任务。等核心说好了、等拉起锁，有时限（施工 3-9 上）。
+tokio = { version = "1", features = ["net", "rt", "time"] }
 # 运行日志的门面（施工 3-7 上）。
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 
@@ -24,8 +24,8 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 miyu-pipe = { path = "../miyu-pipe" }
 # 管道忙的时候歇一下再连。
 tokio = { version = "1", features = ["net", "time"] }
-# 管道忙的错误码。
-windows-sys = { version = "0.61", features = ["Win32_Foundation"] }
+# 管道忙的错误码；拉起的核心跟终端脱开。
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading"] }
 
 [target.'cfg(unix)'.dependencies]
 # 有效用户编号：核对目录的属主、临时目录下的子目录起名。标准库里没有，它是不用 unsafe 的封装。

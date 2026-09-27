@@ -83,6 +83,12 @@ pub(crate) fn remove(path: &Path) {
     }
 }
 
+/// 拉起的核心跟终端脱开：自成一个进程组，终端里按 Ctrl+C 打不到它。
+pub(crate) fn detach(command: &mut std::process::Command) {
+    use std::os::unix::process::CommandExt;
+    command.process_group(0);
+}
+
 /// 有效用户编号。
 pub(crate) fn uid() -> Option<u32> {
     Some(rustix::process::geteuid().as_raw())

@@ -6,6 +6,7 @@
 
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use tokio::sync::{broadcast, mpsc, oneshot};
@@ -46,6 +47,8 @@ pub(crate) struct Actor {
     /// 还没说完的请求：叫停它的那一头，和交给端口的那一刻（算用时）。
     calls: BTreeMap<Seq, (oneshot::Sender<()>, Instant)>,
     clock: Clock,
+    /// 有没有在跑的回合，和 `Handle` 共用：每送完一批输入写一次；actor 退出了写成没有（施工 3-9 上）。
+    busy: Arc<AtomicBool>,
 }
 
 /// 会话停了：写不进去。
@@ -60,6 +63,7 @@ pub(crate) fn span(id: &SessionId) -> tracing::Span {
 /// 起一个 actor 的任务，外面再套一个看着它的：它 panic 了（内核自己的 bug、端口的 bug），记一条
 /// `ERROR`，别的会话照常（`28-运行日志.md` 第三节：`ERROR` 一定是 bug）。
 pub(crate) fn spawn(actor: Actor, first: Vec<Action>, span: tracing::Span) {
+    let busy = actor.busy();
     let task = tokio::spawn(actor.run(first).instrument(span.clone()));
     tokio::spawn(
         async move {
@@ -68,6 +72,8 @@ pub(crate) fn spawn(actor: Actor, first: Vec<Action>, span: tracing::Span) {
             {
                 tracing::error!(target: TARGET, "panicked, stopped");
             }
+            // 停了的会话不算在跑：核心不为它不肯空闲退出。
+            busy.store(false, Ordering::Release);
         }
         .instrument(span),
     );
@@ -94,6 +100,7 @@ impl Actor {
     ) -> Actor {
         let (backs, back) = mpsc::unbounded_channel();
         let (pushes, _) = broadcast::channel(PUSH_QUEUE);
+        let busy = Arc::new(AtomicBool::new(!session.idle()));
         Actor {
             session,
             store: Some(store),
@@ -105,7 +112,13 @@ impl Actor {
             replies: BTreeMap::new(),
             calls: BTreeMap::new(),
             clock,
+            busy,
         }
+    }
+
+    /// 有没有在跑的回合：交给 `Handle` 的那一份。
+    pub(crate) fn busy(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.busy)
     }
 
     /// 命令 `id` 在等回应：造会话的那一个，在 actor 跑起来之前就在等。
@@ -199,6 +212,7 @@ impl Actor {
                 inputs.extend(self.act(action).await?);
             }
         }
+        self.busy.store(!self.session.idle(), Ordering::Release);
         Ok(())
     }
 
