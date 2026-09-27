@@ -1,0 +1,1 @@
+"{path}" is inside Miyu's own data, which no tool can read or change.

@@ -5,7 +5,8 @@
 //! 登记完就冻结。造会话时，会话照目录把工具面存进策略快照（`03-事件模型.md` E5），以后一直照快照发。
 //!
 //! - [`Spec`]：一件工具的规格，第一批四格；
-//! - [`Tool`]：一件工具：报规格，执行一次调用（[`Call`] 进、[`Done`] 出，施工 4-2）；
+//! - [`Tool`]：一件工具：报规格，报一次调用要碰的路径（[`Target`]，施工 4-3 下），执行一次调用（[`Call`] 进、
+//!   [`Done`] 出，施工 4-2）；
 //! - [`Catalog`]：工具目录，登记时查重名、名字和参数格式的写法。
 
 mod catalog;
@@ -14,7 +15,7 @@ mod run;
 pub mod testkit;
 
 pub use catalog::{Catalog, CatalogError, Problem};
-pub use run::{Call, Done, Progress, Running};
+pub use run::{Call, Done, Progress, Running, Target};
 
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::tool::Access;
@@ -37,6 +38,12 @@ pub struct Spec {
 pub trait Tool: Send + Sync {
     /// 它的规格。
     fn spec(&self) -> &Spec;
+
+    /// 这次调用要碰的路径、是读是写：照参数算，不碰磁盘（施工 4-3 下）。换成真实的位置、查边界是执行前的
+    /// 链的事。默认一条都没有，例如执行命令。参数不对的，也交回空的：执行时再报错。
+    fn targets(&self, _call: &Call) -> Vec<Target> {
+        Vec::new()
+    }
 
     /// 执行一次调用：执行器在它自己的任务里跑交回的 future，执行中的输出交给 `progress`。叫停就是
     /// 丢掉这个 future（施工 4-2）。

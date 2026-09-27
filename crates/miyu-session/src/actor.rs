@@ -15,7 +15,7 @@ use tracing::Instrument;
 use miyu_kernel::event::{CallError, Event, Usage};
 use miyu_kernel::id::{CommandId, Seq, SessionId};
 use miyu_kernel::request::{Difference, Request};
-use miyu_kernel::session::{Action, Input, Outcome, Received, Session, Verdict};
+use miyu_kernel::session::{Action, Input, Outcome, Received, Session};
 use miyu_kernel::time::Timestamp;
 
 use miyu_policy::RunTexts;
@@ -23,6 +23,7 @@ use miyu_tool::{Call, Catalog};
 
 use crate::TARGET;
 use crate::clock::Clock;
+use crate::guard::Guard;
 use crate::handle::{Message, Pushed};
 use crate::kinds;
 use crate::lines::{millis, retrying, where_};
@@ -54,6 +55,8 @@ pub(crate) struct Actor {
     clock: Clock,
     /// 执行工具的端口（施工 4-2）。
     tools: Tools,
+    /// 执行前的链：权限策略（施工 4-3 下）。
+    guard: Guard,
     /// 有没有在跑的回合，和 `Handle` 共用：每送完一批输入写一次；actor 退出了写成没有（施工 3-9 上）。
     busy: Arc<AtomicBool>,
 }
@@ -97,12 +100,13 @@ enum Mail {
 }
 
 impl Actor {
-    /// 一个 actor：会话的状态机、写盘的地方、请求模型的端口、工具目录和替工具写的两句、收件箱、时钟。
+    /// 一个 actor：会话的状态机、写盘的地方、请求模型的端口、工具目录和替工具写的两句、权限策略、收件箱、时钟。
     pub(crate) fn new(
         session: Session,
         store: Box<dyn Store>,
         model: Arc<dyn ModelPort>,
         tools: (Catalog, RunTexts),
+        guard: Guard,
         inbox: mpsc::UnboundedReceiver<Message>,
         clock: Clock,
     ) -> Actor {
@@ -122,6 +126,7 @@ impl Actor {
             calls: BTreeMap::new(),
             clock,
             tools,
+            guard,
             busy,
         }
     }
@@ -273,12 +278,20 @@ impl Actor {
                 None
             }
             Action::RunTurnEndHooks { .. } => None,
-            // 权限策略随施工 4-3 接进来，这之前一律放行。
-            Action::GuardTool { call_id, .. } => Some(Input::ToolGuarded {
-                at: self.clock.now(),
+            Action::GuardTool {
                 call_id,
-                verdict: Verdict::Allow,
-            }),
+                name,
+                args,
+                cwd,
+                permission,
+            } => {
+                let verdict = self.guard.judge(&name, args, cwd, &permission);
+                Some(Input::ToolGuarded {
+                    at: self.clock.now(),
+                    call_id,
+                    verdict,
+                })
+            }
             Action::RunTool {
                 call_id,
                 name,

@@ -53,6 +53,19 @@ pub struct CoreTexts {
     pub tool_results: ToolResultTexts,
     /// 驱动的几句占位（`drivers/`）。
     pub drivers: DriverPlaceholders,
+    /// 权限策略拒绝时写给她的两句（`permissions/`，施工 4-3 下）。这一格以前造的会话里没有，读成空的：那时
+    /// 的会话没有工具，用不到它们。
+    #[serde(default)]
+    pub permissions: PermissionTexts,
+}
+
+/// 权限策略拒绝时写给她的两句（施工 4-3 下）。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PermissionTexts {
+    /// 碰到了数据根（`forbidden.txt`）。
+    pub forbidden: String,
+    /// 路径换不成真实的位置（`unresolvable.txt`）。
+    pub unresolvable: String,
 }
 
 /// 回合没走完的几句，照原因。

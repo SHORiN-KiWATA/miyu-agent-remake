@@ -12,8 +12,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use miyu_policy::{
-    CoreTexts, DriverPlaceholders, FactTexts, PersonaTexts, Sources, ToolResultTexts,
-    TurnEndedTexts,
+    CoreTexts, DriverPlaceholders, FactTexts, PermissionTexts, PersonaTexts, Sources,
+    ToolResultTexts, TurnEndedTexts,
 };
 
 use crate::env::Env;
@@ -195,6 +195,10 @@ impl ResourceRoot {
                 restarted: result("restarted.txt")?,
                 unavailable: result("unavailable.txt")?,
                 crashed: result("crashed.txt")?,
+            },
+            permissions: PermissionTexts {
+                forbidden: core(&["permissions", "forbidden.txt"])?,
+                unresolvable: core(&["permissions", "unresolvable.txt"])?,
             },
             drivers: DriverPlaceholders {
                 image_omitted: driver("image-omitted.txt")?,

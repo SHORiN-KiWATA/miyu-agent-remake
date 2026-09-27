@@ -48,7 +48,7 @@ async fn a_session_loaded_after_a_restart_runs_the_cores_tools() {
     client.hello().await;
     let session = client.create("c1", "~").await;
     // 换一份核心，像重启过：会话从磁盘载入，照新核心的目录执行工具（施工 4-2）。
-    let script = Script::new([Play::Calls(&[("echo", "{}")]), Play::Says("好。")]);
+    let script = Script::new([Play::calls(&[("echo", "{}")]), Play::Says("好。")]);
     let mut client = Client::connect(home.core_with_tools(&script, tools(), TOKEN));
     client.hello().await;
     let reply = client

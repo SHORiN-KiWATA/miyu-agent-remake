@@ -9,6 +9,7 @@
 //! - [`Snapshot::policy`]、[`Snapshot::driver_texts`]：照快照造出内核的策略、驱动的占位。
 
 mod compose;
+mod guard;
 mod snapshot;
 mod tools;
 
@@ -16,8 +17,9 @@ mod tools;
 mod test_support;
 
 pub use compose::{PersonaTexts, Sources, compose};
+pub use guard::GuardTexts;
 pub use snapshot::{
-    BuildError, CoreTexts, DriverPlaceholders, FactTexts, Snapshot, SnapshotError, ToolResultTexts,
-    TurnEndedTexts,
+    BuildError, CoreTexts, DriverPlaceholders, FactTexts, PermissionTexts, Snapshot, SnapshotError,
+    ToolResultTexts, TurnEndedTexts,
 };
 pub use tools::{RunTexts, ToolEntry};

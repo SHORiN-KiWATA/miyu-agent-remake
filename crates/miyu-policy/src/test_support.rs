@@ -3,7 +3,8 @@
 
 use crate::compose::{PersonaTexts, Sources, compose};
 use crate::snapshot::{
-    CoreTexts, DriverPlaceholders, FactTexts, Snapshot, ToolResultTexts, TurnEndedTexts,
+    CoreTexts, DriverPlaceholders, FactTexts, PermissionTexts, Snapshot, ToolResultTexts,
+    TurnEndedTexts,
 };
 
 /// 出厂的随核心附带的字。
@@ -63,6 +64,12 @@ pub(crate) fn core() -> CoreTexts {
                 .to_string(),
             crashed: include_str!("../../../resources/core/tool-results/crashed.txt").to_string(),
             restarted: include_str!("../../../resources/core/tool-results/restarted.txt")
+                .to_string(),
+        },
+        permissions: PermissionTexts {
+            forbidden: include_str!("../../../resources/core/permissions/forbidden.txt")
+                .to_string(),
+            unresolvable: include_str!("../../../resources/core/permissions/unresolvable.txt")
                 .to_string(),
         },
         drivers: DriverPlaceholders {

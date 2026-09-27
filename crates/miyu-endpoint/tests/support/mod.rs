@@ -60,11 +60,27 @@ impl Home {
 
     /// 一份核心，工具目录是 `tools`（施工 4-1）。
     pub fn core_with_tools(&self, script: &Script, tools: Catalog, token: &str) -> Arc<Core> {
+        self.core_full(script, tools, None, token)
+    }
+
+    /// 一份核心，系统的家目录是 `home`（施工 4-3 下）。
+    pub fn core_at_home(&self, script: &Script, home: PathBuf) -> Arc<Core> {
+        self.core_full(script, Catalog::default(), Some(home), TOKEN)
+    }
+
+    fn core_full(
+        &self,
+        script: &Script,
+        tools: Catalog,
+        home: Option<PathBuf>,
+        token: &str,
+    ) -> Arc<Core> {
         Arc::new(Core::new(
             self.root.clone(),
             ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")),
             Arc::new(script.clone()),
             tools,
+            home,
             alice(),
             token.to_string(),
         ))

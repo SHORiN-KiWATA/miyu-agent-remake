@@ -833,6 +833,7 @@ name = "miyu-endpoint"
 version = "0.0.0"
 dependencies = [
  "jiff",
+ "miyu-fs",
  "miyu-ipc",
  "miyu-kernel",
  "miyu-policy",
@@ -921,6 +922,7 @@ name = "miyu-session"
 version = "0.0.0"
 dependencies = [
  "miyu-drivers",
+ "miyu-fs",
  "miyu-http",
  "miyu-kernel",
  "miyu-log",

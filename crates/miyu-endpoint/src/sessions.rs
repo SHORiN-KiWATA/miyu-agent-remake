@@ -5,6 +5,7 @@
 //! actor（一个会话只能有一个写者，`07-存储.md` 第三节）。
 
 use std::collections::{BTreeMap, VecDeque};
+use std::path::Path;
 
 use tokio::sync::Mutex;
 
@@ -72,11 +73,12 @@ impl Sessions {
             },
             attended: who.attended,
             oneshot: who.oneshot,
-            environment: environment(&cwd),
+            environment: environment(core, &cwd),
             command: command.clone(),
             by: admin(core),
             models: &*core.models,
             tools: &core.tools,
+            home: core.home.as_deref(),
         })
         .await;
         let handle = match created {
@@ -111,7 +113,7 @@ impl Sessions {
             if let Some(cwd) = cwd
                 && cwd != running.cwd
             {
-                if running.handle.environment(environment(cwd)).is_err() {
+                if running.handle.environment(environment(core, cwd)).is_err() {
                     open.running.remove(id);
                     return Err(Refusal::STOPPED);
                 }
@@ -124,9 +126,10 @@ impl Sessions {
             root: &core.root,
             owner: core.admin.clone(),
             id: id.clone(),
-            environment: environment(&cwd),
+            environment: environment(core, &cwd),
             models: &*core.models,
             tools: &core.tools,
+            home: core.home.as_deref(),
         })
         .await;
         let handle = match loaded {
@@ -190,11 +193,43 @@ fn local() -> VenueId {
     VenueId::parse("local").unwrap_or_else(|e| unreachable!("「local」合场所的写法：{e}"))
 }
 
-/// 会话所在的环境：核心所在的机器现在的时区，头报上来的工作目录。
-fn environment(cwd: &str) -> Environment {
+/// 会话所在的环境：核心所在的机器现在的时区，头报上来的工作目录（太宽的退回管理员的工作区）。
+fn environment(core: &Core, cwd: &str) -> Environment {
     Environment {
         offset: offset(),
-        cwd: cwd.to_string(),
+        cwd: workspace(core, cwd),
+    }
+}
+
+/// 拿头报上来的 `cwd` 当工作区。太宽的（`~` 本身、系统的家目录、根目录，包含数据根或者落在数据根里），退回
+/// 管理员的工作区 `home/<账号>/workspace/`（`11-权限与沙盒.md` 第四节，施工 4-3 下）。换不成真实位置的照原样：
+/// 说不清它宽不宽，用到时工具自己报错。
+fn workspace(core: &Core, cwd: &str) -> String {
+    let own = core.root.workspace(&core.admin);
+    let fallback = || {
+        // 建家目录时就建了；老的数据根里可能还没有，补上。建不了的照样退回：用到时工具自己报错。
+        if let Err(error) = core.root.prepare_home(&core.admin) {
+            tracing::warn!(target: "miyu::endpoint", kind = ?error.kind(), "workspace not prepared");
+        }
+        own.to_string_lossy().into_owned()
+    };
+    if cwd.trim() == "~" {
+        return fallback();
+    }
+    let home = core
+        .home
+        .as_deref()
+        .and_then(|home| std::fs::canonicalize(home).ok());
+    let Ok(real) = miyu_fs::resolve(Path::new("/"), home.as_deref(), cwd) else {
+        return cwd.to_string();
+    };
+    let data_root =
+        std::fs::canonicalize(core.root.path()).unwrap_or_else(|_| core.root.path().to_path_buf());
+    let own_real = std::fs::canonicalize(&own).unwrap_or_else(|_| own.clone());
+    if miyu_fs::too_wide(&real, home.as_deref(), &data_root, &own_real) {
+        fallback()
+    } else {
+        cwd.to_string()
     }
 }
 

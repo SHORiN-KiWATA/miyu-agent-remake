@@ -142,7 +142,7 @@ async fn a_session_without_tools_sends_none() {
 async fn a_call_runs_in_the_turns_directory_and_she_hears_the_result() {
     let home = Home::new();
     let echo = Fake::new("echo", Access::Read, Act::Echo);
-    let script = Script::new([Play::Calls(&[("echo", r#"{"x":1}"#)]), Play::Says("好。")]);
+    let script = Script::new([Play::calls(&[("echo", r#"{"x":1}"#)]), Play::Says("好。")]);
     let handle = home.create_with(&script, &catalog(&[&echo])).await;
     turn(&handle, "cmd-1").await;
     let calls = echo.calls();
@@ -169,7 +169,7 @@ async fn a_call_runs_in_the_turns_directory_and_she_hears_the_result() {
 async fn a_tool_that_fails_gives_an_error_result() {
     let home = Home::new();
     let broken = Fake::new("read", Access::Read, Act::Fails("No such file: a.txt"));
-    let script = Script::new([Play::Calls(&[("read", "{}")]), Play::Says("好。")]);
+    let script = Script::new([Play::calls(&[("read", "{}")]), Play::Says("好。")]);
     let handle = home.create_with(&script, &catalog(&[&broken])).await;
     turn(&handle, "cmd-1").await;
     let log = home.log(handle.id());
@@ -182,7 +182,7 @@ async fn a_tool_that_fails_gives_an_error_result() {
 async fn the_output_while_running_is_pushed_but_not_stored() {
     let home = Home::new();
     let talker = Fake::new("run", Access::Read, Act::Pushes(&["one ", "two"]));
-    let script = Script::new([Play::Calls(&[("run", "{}")]), Play::Says("好。")]);
+    let script = Script::new([Play::calls(&[("run", "{}")]), Play::Says("好。")]);
     let handle = home.create_with(&script, &catalog(&[&talker])).await;
     let pushed = turn(&handle, "cmd-1").await;
     let mut seen = Vec::new();
@@ -219,7 +219,7 @@ async fn two_read_only_calls_run_at_the_same_time() {
     let one = Fake::new("one", Access::Read, Act::Meets(Arc::clone(&barrier)));
     let two = Fake::new("two", Access::Read, Act::Meets(barrier));
     let script = Script::new([
-        Play::Calls(&[("one", "{}"), ("two", "{}")]),
+        Play::calls(&[("one", "{}"), ("two", "{}")]),
         Play::Says("好。"),
     ]);
     let handle = home.create_with(&script, &catalog(&[&one, &two])).await;
@@ -234,7 +234,7 @@ async fn two_read_only_calls_run_at_the_same_time() {
 async fn an_interrupt_drops_the_running_tool() {
     let home = Home::new();
     let stuck = Fake::new("wait", Access::Read, Act::Holds);
-    let script = Script::new([Play::Calls(&[("wait", "{}")])]);
+    let script = Script::new([Play::calls(&[("wait", "{}")])]);
     let handle = home.create_with(&script, &catalog(&[&stuck])).await;
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
@@ -266,7 +266,7 @@ async fn a_tool_the_catalog_no_longer_has_is_not_available() {
     let session = handle.id().clone();
     stop(&handle).await;
     // 核心升级拿掉了这件：快照里还有，她照样会调。
-    let again = Script::new([Play::Calls(&[("gone", "{}")]), Play::Says("好。")]);
+    let again = Script::new([Play::calls(&[("gone", "{}")]), Play::Says("好。")]);
     let loaded = home.load_with(&session, &again, &Catalog::default()).await;
     turn(&loaded, "cmd-2").await;
     assert!(gone.calls().is_empty());
@@ -286,7 +286,7 @@ async fn a_tool_that_panics_gives_an_error_and_the_session_goes_on() {
     let home = Home::new();
     let buggy = Fake::new("boom", Access::Read, Act::Panics);
     let script = Script::new([
-        Play::Calls(&[("boom", "{}")]),
+        Play::calls(&[("boom", "{}")]),
         Play::Says("好。"),
         Play::Says("在。"),
     ]);
@@ -309,7 +309,7 @@ async fn a_tool_that_panics_gives_an_error_and_the_session_goes_on() {
 async fn stopping_the_session_drops_the_running_tools() {
     let home = Home::new();
     let stuck = Fake::new("wait", Access::Read, Act::Holds);
-    let script = Script::new([Play::Calls(&[("wait", "{}")])]);
+    let script = Script::new([Play::calls(&[("wait", "{}")])]);
     let handle = home.create_with(&script, &catalog(&[&stuck])).await;
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
     until("工具开始跑", || stuck.calls().len() == 1).await;
@@ -323,7 +323,7 @@ async fn stopping_the_session_drops_the_running_tools() {
 async fn a_session_nobody_holds_drops_the_running_tools() {
     let home = Home::new();
     let stuck = Fake::new("wait", Access::Read, Act::Holds);
-    let script = Script::new([Play::Calls(&[("wait", "{}")])]);
+    let script = Script::new([Play::calls(&[("wait", "{}")])]);
     let handle = home.create_with(&script, &catalog(&[&stuck])).await;
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
     until("工具开始跑", || stuck.calls().len() == 1).await;

@@ -3,6 +3,7 @@
 
 use std::fmt;
 use std::io;
+use std::path::Path;
 
 use tokio::sync::{mpsc, oneshot};
 
@@ -22,6 +23,7 @@ use crate::TARGET;
 use crate::actor::{self, Actor};
 use crate::blocking::blocking;
 use crate::clock::Clock;
+use crate::guard::Guard;
 use crate::handle::Handle;
 use crate::port::{ForSession, Models};
 
@@ -55,6 +57,8 @@ pub struct Create<'a> {
     pub models: &'a dyn Models,
     /// 工具目录：照它存下这个会话的工具面（施工 4-1），以后一直照快照发。
     pub tools: &'a Catalog,
+    /// 系统的家目录：权限策略照它换 `~`、找工具链目录（施工 4-3 下）。读不出来的是空的。
+    pub home: Option<&'a Path>,
 }
 
 /// 载入一个会话要的。
@@ -71,6 +75,8 @@ pub struct Load<'a> {
     pub models: &'a dyn Models,
     /// 工具目录：执行工具时照名字在这里找（施工 4-2）。工具面照快照，不照它。
     pub tools: &'a Catalog,
+    /// 系统的家目录：权限策略照它换 `~`、找工具链目录（施工 4-3 下）。读不出来的是空的。
+    pub home: Option<&'a Path>,
 }
 
 /// 造不成。
@@ -125,6 +131,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         by,
         models,
         tools,
+        home,
     } = setup;
     let span = actor::span(&id);
     let (resources, name) = (resources.clone(), persona.to_string());
@@ -133,15 +140,16 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let dir = root.session_dir(&owner, &id);
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
-    let (snapshot, policy, texts, run, log) = blocking(move || {
+    let (snapshot, policy, texts, run, guard, log) = blocking(move || {
         let sources = resources.sources(&name).map_err(CreateError::Persona)?;
         let snapshot = compose(&name, sources, attended).with_tools(face);
         let policy = snapshot.policy().map_err(CreateError::Policy)?;
         let texts = snapshot.driver_texts().map_err(CreateError::Policy)?;
         let run = snapshot.run_texts().map_err(CreateError::Policy)?;
+        let guard = snapshot.guard_texts().map_err(CreateError::Policy)?;
         store.put(&snapshot.to_bytes()).map_err(CreateError::Disk)?;
         let log = SessionLog::create(&dir, SEGMENT_LIMIT).map_err(CreateError::Disk)?;
-        Ok((snapshot, policy, texts, run, log))
+        Ok((snapshot, policy, texts, run, guard, log))
     })
     .await?;
     let model = models.port(ForSession { texts, blobs });
@@ -159,11 +167,18 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         environment,
     );
     let (inbox, mailbox) = mpsc::unbounded_channel();
+    let guard = Guard::new(
+        tools.clone(),
+        root.path().to_path_buf(),
+        home.map(Path::to_path_buf),
+        guard,
+    );
     let mut actor = Actor::new(
         session,
         Box::new(log),
         model,
         (tools.clone(), run),
+        guard,
         mailbox,
         clock,
     );
@@ -207,12 +222,13 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         environment,
         models,
         tools,
+        home,
     } = setup;
     let span = actor::span(&id);
     let dir = root.session_dir(&owner, &id);
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
-    let (log, events, policy, texts, run) = blocking(move || {
+    let (log, events, policy, texts, run, guard) = blocking(move || {
         let (log, events) = SessionLog::open(&dir, SEGMENT_LIMIT).map_err(LoadError::Log)?;
         let hash = match events.first().map(|event| &event.body) {
             Some(Body::SessionCreated(created)) => created.policy.clone(),
@@ -223,7 +239,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         let policy = snapshot.policy().map_err(LoadError::Policy)?;
         let texts = snapshot.driver_texts().map_err(LoadError::Policy)?;
         let run = snapshot.run_texts().map_err(LoadError::Policy)?;
-        Ok((log, events, policy, texts, run))
+        let guard = snapshot.guard_texts().map_err(LoadError::Policy)?;
+        Ok((log, events, policy, texts, run, guard))
     })
     .await?;
     let model = models.port(ForSession { texts, blobs });
@@ -235,11 +252,18 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let (session, first) =
         Session::load(events, clock.now(), policy, environment).map_err(LoadError::Kernel)?;
     let (inbox, mailbox) = mpsc::unbounded_channel();
+    let guard = Guard::new(
+        tools.clone(),
+        root.path().to_path_buf(),
+        home.map(Path::to_path_buf),
+        guard,
+    );
     let actor = Actor::new(
         session,
         Box::new(log),
         model,
         (tools.clone(), run),
+        guard,
         mailbox,
         clock,
     );

@@ -62,6 +62,7 @@ impl Home {
             ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")),
             models,
             Catalog::default(),
+            None,
             miyu_core::admin(),
             token.to_string(),
         ))

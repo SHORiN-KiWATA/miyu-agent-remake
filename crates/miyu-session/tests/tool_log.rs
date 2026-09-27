@@ -64,11 +64,11 @@ async fn the_log_says_which_tools_ran_and_nothing_that_was_passed() {
         Catalog::new([&echo, &fail, &boom, &wait].map(|tool| Arc::clone(tool) as Arc<dyn Tool>))
             .expect("都合写法");
     let script = Script::new([
-        Play::Calls(&[("echo", r#"{"note":"紫色的猫"}"#), ("fail", "{}")]),
+        Play::calls(&[("echo", r#"{"note":"紫色的猫"}"#), ("fail", "{}")]),
         Play::Says("好。"),
-        Play::Calls(&[("boom", "{}")]),
+        Play::calls(&[("boom", "{}")]),
         Play::Says("好。"),
-        Play::Calls(&[("wait", "{}")]),
+        Play::calls(&[("wait", "{}")]),
     ]);
     let handle = home.create_with(&script, &tools).await;
     let session = handle.id().clone();
@@ -86,7 +86,7 @@ async fn the_log_says_which_tools_ran_and_nothing_that_was_passed() {
     until_turn_ends(&mut pushes).await;
     stop(&handle).await;
     // 核心升级拿掉了 echo：载入的老会话照样调它。
-    let again = Script::new([Play::Calls(&[("echo", "{}")]), Play::Says("好。")]);
+    let again = Script::new([Play::calls(&[("echo", "{}")]), Play::Says("好。")]);
     let loaded = home.load_with(&session, &again, &Catalog::default()).await;
     let mut pushes = watch(&loaded).await;
     ask(&loaded, "cmd-5", say("hi")).await.expect("会话在跑");

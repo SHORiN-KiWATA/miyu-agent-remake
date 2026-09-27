@@ -98,13 +98,21 @@ impl DataRoot {
         self.homes().join(account.as_str())
     }
 
-    /// 建一个账号的家目录，已经有的不动：核心起来时给管理员建（施工 3-9 上）。Unix 上新建的权限 0700。
+    /// 建一个账号的家目录和里面的工作区，已经有的不动：核心起来时给管理员建（施工 3-9 上；工作区施工 4-3 下）。
+    /// Unix 上新建的权限 0700。
     ///
     /// # Errors
     ///
     /// 建不了；该是目录的地方是个文件。
     pub fn prepare_home(&self, account: &AccountId) -> io::Result<()> {
-        create_dir(&self.account_dir(account))
+        create_dir(&self.account_dir(account))?;
+        create_dir(&self.workspace(account))
+    }
+
+    /// 一个账号的工作区：`home/<账号>/workspace/`（`07-存储.md` 第二节）。头报来的工作目录太宽时退回这里
+    /// （`11-权限与沙盒.md` 第四节，施工 4-3 下）。
+    pub fn workspace(&self, account: &AccountId) -> PathBuf {
+        self.account_dir(account).join("workspace")
     }
 
     /// 一个账号有哪些会话，从新到旧：会话编号是 UUIDv7，照编号倒着排就是照造的先后倒着（施工 3-9 下）。

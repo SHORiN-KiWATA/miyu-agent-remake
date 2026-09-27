@@ -8,7 +8,7 @@ use miyu_kernel::raw::RawJson;
 use miyu_kernel::tool::Access;
 use tokio::sync::Barrier;
 
-use crate::{Call, Done, Progress, Running, Spec, Tool};
+use crate::{Call, Done, Progress, Running, Spec, Target, Tool};
 
 /// 假工具跑起来做什么。
 #[derive(Debug, Clone)]
@@ -104,6 +104,28 @@ impl Drop for Guard {
 impl Tool for Fake {
     fn spec(&self) -> &Spec {
         &self.spec
+    }
+
+    /// 参数里的 `path`（一条）、`paths`（几条）就是要碰的路径；访问类别是写的，就是写（施工 4-3 下）。
+    fn targets(&self, call: &Call) -> Vec<Target> {
+        let Ok(args) = serde_json::from_str::<serde_json::Value>(&call.args) else {
+            return Vec::new();
+        };
+        let write = self.spec.access.writes();
+        let one = args.get("path").and_then(serde_json::Value::as_str);
+        let many = args
+            .get("paths")
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(serde_json::Value::as_str);
+        one.into_iter()
+            .chain(many)
+            .map(|path| Target {
+                path: path.to_string(),
+                write,
+            })
+            .collect()
     }
 
     fn run(&self, call: Call, progress: Progress) -> Running<'_> {

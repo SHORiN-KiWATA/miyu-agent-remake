@@ -20,6 +20,10 @@ miyu-policy = { path = "../miyu-policy" }
 miyu-store = { path = "../miyu-store" }
 # 工具目录：造会话时照它存下工具面（施工 4-1）。
 miyu-tool = { path = "../miyu-tool" }
+# 权限策略：换成真实的位置、查边界（施工 4-3 下）。
+miyu-fs = { path = "../miyu-fs" }
+# 权限策略提的放行规则、给头看的说明写成 JSON（施工 4-3 下）。
+serde_json = "1.0"
 # 理由见 docs/construction/3-7-会话actor（中）.md「我定的」：一个会话一个异步任务，收件箱、推送、
 # 到点叫醒、写盘用的阻塞线程。
 tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
@@ -42,8 +46,6 @@ miyu-session = { path = ".", features = ["testkit"] }
 miyu-http = { path = "../miyu-http", features = ["testkit"] }
 # 测试里接住发出来的日志，查写了什么、没写什么。
 miyu-log = { path = "../miyu-log" }
-# 测试里的假工具换了说明：参数格式写成原样的 JSON。
-serde_json = "1.0"
 
 [lints]
 workspace = true

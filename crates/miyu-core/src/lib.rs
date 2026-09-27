@@ -119,6 +119,7 @@ async fn run(root: DataRoot, resources: ResourceRoot, lock: Lock, options: Optio
         resources,
         models,
         tools(),
+        Env::current().home,
         admin(),
         opened.token,
     ));

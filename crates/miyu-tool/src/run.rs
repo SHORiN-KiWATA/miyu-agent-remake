@@ -16,6 +16,15 @@ pub struct Call {
     pub cwd: String,
 }
 
+/// 一次调用要碰的一条路径（施工 4-3 下）：她给的原样，和是读是写。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Target {
+    /// 她给的路径，原样：相对的照这一轮的工作目录算，`~` 开头的照家目录算。
+    pub path: String,
+    /// 要写：新建、改、删。不是就是读。
+    pub write: bool,
+}
+
 /// 一次调用的结局：给模型看的内容块，出没出错。用时由执行器量。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Done {

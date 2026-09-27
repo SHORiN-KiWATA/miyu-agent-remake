@@ -15,6 +15,7 @@
 mod actor;
 mod blocking;
 mod clock;
+mod guard;
 mod handle;
 mod http;
 mod kinds;

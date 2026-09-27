@@ -28,9 +28,19 @@ pub struct Scratch(pub PathBuf);
 
 impl Scratch {
     pub fn new() -> Scratch {
+        Scratch::under(&std::env::temp_dir())
+    }
+
+    /// 放在 cargo 给集成测试的 `target/tmp` 下面，不在系统的临时目录里（施工 4-3 下）：临时目录整个能读能写，
+    /// 放在里面就造不出「边界以外」。
+    pub fn outside_temp() -> Scratch {
+        Scratch::under(Path::new(env!("CARGO_TARGET_TMPDIR")))
+    }
+
+    fn under(dir: &Path) -> Scratch {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        Scratch(std::env::temp_dir().join(format!("miyu-session-{}-{n}", std::process::id())))
+        Scratch(dir.join(format!("miyu-session-{}-{n}", std::process::id())))
     }
 }
 
@@ -44,19 +54,58 @@ impl Drop for Scratch {
     }
 }
 
-/// 一个临时的数据根，建好了骨架；源码树里的资源目录。
+/// 一个临时的数据根，建好了骨架；源码树里的资源目录；一个假的系统家目录（施工 4-3 下）。
 pub struct Home {
     pub scratch: Scratch,
     pub root: DataRoot,
     pub resources: ResourceRoot,
+    pub home: PathBuf,
+}
+
+/// 造会话时可以换的几样（施工 4-3 下）。
+pub struct Opening {
+    /// 开始时的权限。
+    pub permission: Permission,
+    /// 有没有人能确认。
+    pub attended: bool,
+    /// 工作目录。
+    pub cwd: String,
+}
+
+impl Default for Opening {
+    /// 工作区这一级，有人能确认，工作目录照 [`environment`]。
+    fn default() -> Opening {
+        Opening {
+            permission: Permission {
+                level: Level::Workspace,
+                read_only: false,
+            },
+            attended: true,
+            cwd: environment().cwd,
+        }
+    }
 }
 
 impl Home {
     pub fn new() -> Home {
-        let scratch = Scratch::new();
+        Home::in_scratch(Scratch::new())
+    }
+
+    /// 场地不在系统的临时目录里（施工 4-3 下）：数据根是 `data/`，假的家是 `home/`，另有工作区 `work/`、
+    /// 边界以外的 `other/`，都在 [`Scratch::outside_temp`] 里。
+    pub fn outside_temp() -> Home {
+        let home = Home::in_scratch(Scratch::outside_temp());
+        for dir in ["work", "other"] {
+            std::fs::create_dir_all(home.scratch.0.join(dir)).expect("建得了目录");
+        }
+        home
+    }
+
+    fn in_scratch(scratch: Scratch) -> Home {
+        std::fs::create_dir_all(&scratch.0).expect("建得了临时目录");
         let env = Env {
             platform: Platform::current(),
-            miyu_home: Some(scratch.0.clone().into_os_string()),
+            miyu_home: Some(scratch.0.join("data").into_os_string()),
             home: None,
             xdg_cache_home: None,
             local_app_data: None,
@@ -65,9 +114,12 @@ impl Home {
         };
         let root = DataRoot::locate(&env).expect("MIYU_HOME 是绝对路径");
         root.prepare().expect("临时目录里建得了骨架");
+        let home = scratch.0.join("home");
+        std::fs::create_dir_all(&home).expect("建得了假的家");
         Home {
             scratch,
             root,
+            home,
             resources: ResourceRoot::at(
                 Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"),
             ),
@@ -81,6 +133,16 @@ impl Home {
 
     /// 造一个软件工程师的会话，工具面照目录 `tools`（施工 4-1）。
     pub async fn create_with(&self, models: &dyn Models, tools: &Catalog) -> Handle {
+        self.create_as(models, tools, Opening::default()).await
+    }
+
+    /// 造一个软件工程师的会话，权限、有没有人能确认、工作目录照 `opening`（施工 4-3 下）。
+    pub async fn create_as(
+        &self,
+        models: &dyn Models,
+        tools: &Catalog,
+        opening: Opening,
+    ) -> Handle {
         let created = create(Create {
             root: &self.root,
             resources: &self.resources,
@@ -88,17 +150,18 @@ impl Home {
             persona: "engineer",
             venue: VenueId::parse("local").expect("场所合写法"),
             owner: alice_account(),
-            permission: Permission {
-                level: Level::Workspace,
-                read_only: false,
-            },
-            attended: true,
+            permission: opening.permission,
+            attended: opening.attended,
             oneshot: false,
-            environment: environment(),
+            environment: Environment {
+                cwd: opening.cwd,
+                ..environment()
+            },
             command: id("cmd-0"),
             by: alice(),
             models,
             tools,
+            home: Some(&self.home),
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -122,6 +185,7 @@ impl Home {
             environment: environment(),
             models,
             tools,
+            home: Some(&self.home),
         });
         within("载入", loaded).await.expect("载入得了会话")
     }

@@ -23,6 +23,7 @@ pub use connection::serve;
 pub use listen::run;
 
 use std::fmt;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -44,6 +45,8 @@ pub struct Core {
     models: Arc<dyn Models>,
     /// 工具目录：造会话时照它存下工具面（施工 4-1）。
     tools: Catalog,
+    /// 系统的家目录：权限策略照它换 `~`，头报来的工作目录是它的就退回管理员的工作区（施工 4-3 下）。
+    home: Option<PathBuf>,
     /// 管理员：本机连上来的都是他（`06-多用户与身份.md` 第二节）。
     admin: AccountId,
     /// 本机令牌：本机连接握手时要出示（`04-核心协议.md` 第四节）。
@@ -61,6 +64,7 @@ impl Core {
         resources: ResourceRoot,
         models: Arc<dyn Models>,
         tools: Catalog,
+        home: Option<PathBuf>,
         admin: AccountId,
         token: String,
     ) -> Core {
@@ -69,6 +73,7 @@ impl Core {
             resources,
             models,
             tools,
+            home,
             admin,
             token,
             sessions: Sessions::default(),
