@@ -87,6 +87,7 @@ impl Guard {
         let targets = tool.targets(&Call {
             args,
             cwd: cwd.clone(),
+            home: self.home.clone(),
         });
         if targets.is_empty() {
             return untargeted(level, name, access);

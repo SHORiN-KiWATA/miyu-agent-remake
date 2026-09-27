@@ -18,9 +18,6 @@ use miyu_kernel::request::{Difference, Request};
 use miyu_kernel::session::{Action, Input, Outcome, Received, Session};
 use miyu_kernel::time::Timestamp;
 
-use miyu_policy::RunTexts;
-use miyu_tool::{Call, Catalog};
-
 use crate::TARGET;
 use crate::clock::Clock;
 use crate::guard::Guard;
@@ -29,7 +26,7 @@ use crate::kinds;
 use crate::lines::{millis, retrying, where_};
 use crate::port::{Back, Cancel, ModelPort, Report, Reports};
 use crate::store::Store;
-use crate::tools::Tools;
+use crate::tools::{ToolKit, Tools};
 
 /// 推送的队列：一个会话最多攒这么多份还没被读走的。读得慢的订阅者被挤掉，掉了队
 /// （`04-核心协议.md` 第七节）。
@@ -105,13 +102,13 @@ impl Actor {
         session: Session,
         store: Box<dyn Store>,
         model: Arc<dyn ModelPort>,
-        tools: (Catalog, RunTexts),
+        tools: ToolKit,
         guard: Guard,
         inbox: mpsc::UnboundedReceiver<Message>,
         clock: Clock,
     ) -> Actor {
         let (backs, back) = mpsc::unbounded_channel();
-        let tools = Tools::new(tools.0, tools.1, backs.clone());
+        let tools = Tools::new(tools, backs.clone());
         let (pushes, _) = broadcast::channel(PUSH_QUEUE);
         let busy = Arc::new(AtomicBool::new(!session.idle()));
         Actor {
@@ -299,7 +296,7 @@ impl Actor {
                 cwd,
             } => {
                 let at = self.clock.now();
-                self.tools.run(at, call_id, name, Call { args, cwd })
+                self.tools.run(at, call_id, name, args, cwd)
             }
             Action::CancelTool { call_id } => {
                 self.tools.cancel(call_id);

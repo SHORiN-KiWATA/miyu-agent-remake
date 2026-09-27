@@ -182,7 +182,9 @@ async fn run(args: Ask, start: impl FnOnce() -> Command, language: Language) -> 
         cwd: std::env::current_dir()
             .map_or_else(|_| ".".to_string(), |dir| dir.display().to_string()),
         language,
-        input: io::stdin().is_terminal(),
+        // 4-9 做出回答确认之前，一律说没人能确认：要问人的当场拒绝、告诉她原因，不一直等着（施工 4-4 上）。
+        // 4-9 起照标准输入是不是终端来说。
+        input: false,
     };
     let presses = presses();
     let mut out = io::stdout();

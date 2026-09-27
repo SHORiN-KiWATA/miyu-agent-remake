@@ -3,17 +3,20 @@
 
 use std::fmt;
 use std::future::Future;
+use std::path::PathBuf;
 use std::pin::Pin;
 
 use miyu_kernel::block::{Block, Text};
 
-/// 一次调用交给工具的：修正过的参数，和这一轮的工作目录。别的（会话、身份、沙盒范围）用到时再加。
+/// 一次调用交给工具的：修正过的参数、这一轮的工作目录、系统的家目录。别的（会话、身份、沙盒范围）用到时再加。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Call {
     /// 修正过的参数：一个 JSON 对象的原文。
     pub args: String,
     /// 这一轮的工作目录：回合开始时的那一个。
     pub cwd: String,
+    /// 系统的家目录（施工 4-4 上）：路径里的 `~` 照它换，和权限策略换的一样，碰到的才是同一个文件。读不出来的是空的。
+    pub home: Option<PathBuf>,
 }
 
 /// 一次调用要碰的一条路径（施工 4-3 下）：她给的原样，和是读是写。

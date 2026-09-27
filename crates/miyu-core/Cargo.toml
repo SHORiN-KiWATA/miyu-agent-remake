@@ -24,6 +24,8 @@ miyu-log = { path = "../miyu-log" }
 miyu-session = { path = "../miyu-session" }
 # 数据根、资源目录、环境快照。
 miyu-store = { path = "../miyu-store" }
+# 基础系统：核心起来时登记进工具目录（施工 4-4 起）。
+miyu-basesystem = { path = "../miyu-basesystem" }
 # 工具目录：核心起来时登记，交给协议端点（施工 4-1）。
 miyu-tool = { path = "../miyu-tool" }
 # 核心的运行时：接连接、会话、请求都在上面；空闲的钟；停的信号。

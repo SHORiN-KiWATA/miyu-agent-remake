@@ -3,6 +3,7 @@
 //! actor 的收件箱，由它写成内核的输入。
 
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 use std::time::Instant;
 
 use tokio::sync::mpsc;
@@ -20,10 +21,21 @@ use crate::TARGET;
 use crate::lines::millis;
 use crate::port::Back;
 
+/// 执行工具要的：工具目录、替工具写的两句、系统的家目录（施工 4-4 上，交给每次调用）。
+pub(crate) struct ToolKit {
+    /// 工具目录。
+    pub(crate) catalog: Catalog,
+    /// 替工具写的两句。
+    pub(crate) texts: RunTexts,
+    /// 系统的家目录。
+    pub(crate) home: Option<PathBuf>,
+}
+
 /// 执行工具的端口：一个会话一份。
 pub(crate) struct Tools {
     catalog: Catalog,
     texts: RunTexts,
+    home: Option<PathBuf>,
     /// 在跑的调用：掐掉它的那一头、开始跑的那一刻、工具名。
     running: BTreeMap<CallId, Running>,
     backs: mpsc::UnboundedSender<Back>,
@@ -48,15 +60,12 @@ pub(crate) enum ToolBack {
 }
 
 impl Tools {
-    /// 照目录 `catalog` 跑，替工具写的两句是 `texts`，回报送进 `backs`。
-    pub(crate) fn new(
-        catalog: Catalog,
-        texts: RunTexts,
-        backs: mpsc::UnboundedSender<Back>,
-    ) -> Tools {
+    /// 照 `kit` 跑，回报送进 `backs`。
+    pub(crate) fn new(kit: ToolKit, backs: mpsc::UnboundedSender<Back>) -> Tools {
         Tools {
-            catalog,
-            texts,
+            catalog: kit.catalog,
+            texts: kit.texts,
+            home: kit.home,
             running: BTreeMap::new(),
             backs,
         }
@@ -68,8 +77,14 @@ impl Tools {
         at: Timestamp,
         call_id: CallId,
         name: String,
-        call: Call,
+        args: String,
+        cwd: String,
     ) -> Option<Input> {
+        let call = Call {
+            args,
+            cwd,
+            home: self.home.clone(),
+        };
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name).cloned() else {
             tracing::warn!(target: TARGET, call = call_text.as_str(), tool = name.as_str(), "unavailable");

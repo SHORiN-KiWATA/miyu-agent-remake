@@ -126,7 +126,11 @@ async fn a_write_that_fails_stops_the_session() {
         session,
         Box::new(Failing { left: 2 }),
         Arc::new(Holding(model)),
-        (miyu_tool::Catalog::default(), run),
+        crate::tools::ToolKit {
+            catalog: miyu_tool::Catalog::default(),
+            texts: run,
+            home: None,
+        },
         guard,
         mailbox,
         clock,

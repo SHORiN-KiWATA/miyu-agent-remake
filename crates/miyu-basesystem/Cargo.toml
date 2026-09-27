@@ -1,0 +1,28 @@
+[package]
+name = "miyu-basesystem"
+description = "基础系统这个软件包：随发行附带、几乎每个预设都打开的几件工具（施工 4-4 起）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# 碰文件：换成真实的位置、安全地打开（施工 4-3 上）。
+miyu-fs = { path = "../miyu-fs" }
+# 输出里给她看的几句是模板；参数格式是原样的 JSON；访问类别。
+miyu-kernel = { path = "../miyu-kernel" }
+# 工具的接口。
+miyu-tool = { path = "../miyu-tool" }
+# 读说明和参数格式、读参数。
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# 读文件在阻塞线程里做，不占着跑异步任务的线程。
+tokio = { version = "1", features = ["rt"] }
+
+[dev-dependencies]
+# 测试里的调用在异步里跑。
+tokio = { version = "1", features = ["macros", "rt"] }
+
+[lints]
+workspace = true

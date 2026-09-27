@@ -785,6 +785,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-basesystem"
+version = "0.0.0"
+dependencies = [
+ "miyu-fs",
+ "miyu-kernel",
+ "miyu-tool",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "miyu-cli"
 version = "0.0.0"
 dependencies = [
@@ -805,6 +817,7 @@ dependencies = [
 name = "miyu-core"
 version = "0.0.0"
 dependencies = [
+ "miyu-basesystem",
  "miyu-drivers",
  "miyu-endpoint",
  "miyu-http",
@@ -921,6 +934,7 @@ dependencies = [
 name = "miyu-session"
 version = "0.0.0"
 dependencies = [
+ "miyu-basesystem",
  "miyu-drivers",
  "miyu-fs",
  "miyu-http",

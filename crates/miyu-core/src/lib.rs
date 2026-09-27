@@ -98,10 +98,15 @@ pub fn main(options: Options) -> ExitCode {
     runtime.block_on(run(root, resources, lock, options))
 }
 
-/// 工具目录：核心起来时登记一次，登记完就冻结（`05-内核接口.md` 第八节）。施工 4-1 一件都没有，
-/// 4-4 起登记基础系统。
-fn tools() -> Catalog {
-    Catalog::default()
+/// 工具目录：核心起来时登记一次，登记完就冻结（`05-内核接口.md` 第八节）。施工 4-4 起登记基础系统，工具的字从
+/// 资源目录 `resources` 读。
+///
+/// # Errors
+///
+/// 哪一份字读不出来、写法不对；登记时查不过（重名、名字或参数格式不合写法）。
+pub fn tools(resources: &ResourceRoot) -> Result<Catalog, String> {
+    let base = miyu_basesystem::tools(resources.path()).map_err(|error| error.to_string())?;
+    Catalog::new(base).map_err(|error| error.to_string())
 }
 
 /// 后半段，在运行时里：在套接字上等连接，说「好了」，接连接，直到停下。
@@ -114,11 +119,15 @@ async fn run(root: DataRoot, resources: ResourceRoot, lock: Lock, options: Optio
         Ok(models) => models,
         Err(error) => return failed(error),
     };
+    let tools = match tools(&resources) {
+        Ok(tools) => tools,
+        Err(error) => return failed(error),
+    };
     let core = Arc::new(Core::new(
         root,
         resources,
         models,
-        tools(),
+        tools,
         Env::current().home,
         admin(),
         opened.token,

@@ -26,6 +26,7 @@ use crate::clock::Clock;
 use crate::guard::Guard;
 use crate::handle::Handle;
 use crate::port::{ForSession, Models};
+use crate::tools::ToolKit;
 
 /// 造一个会话要的。
 pub struct Create<'a> {
@@ -177,7 +178,11 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         session,
         Box::new(log),
         model,
-        (tools.clone(), run),
+        ToolKit {
+            catalog: tools.clone(),
+            texts: run,
+            home: home.map(Path::to_path_buf),
+        },
         guard,
         mailbox,
         clock,
@@ -262,7 +267,11 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         session,
         Box::new(log),
         model,
-        (tools.clone(), run),
+        ToolKit {
+            catalog: tools.clone(),
+            texts: run,
+            home: home.map(Path::to_path_buf),
+        },
         guard,
         mailbox,
         clock,

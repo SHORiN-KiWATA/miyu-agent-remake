@@ -1,0 +1,4 @@
+{
+  "description": "Read a text file by line pages, or list a directory. Prefer this over `cat` in the shell: files read here come back after compaction.",
+  "parameters": {"type":"object","properties":{"path":{"type":"string"},"offset":{"type":"integer"},"limit":{"type":"integer"}},"required":["path"]}
+}
