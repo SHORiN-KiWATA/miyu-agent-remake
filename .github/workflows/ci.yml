@@ -10,8 +10,11 @@ on:
 permissions:
   contents: read
 
+# 每项最多跑 30 分钟：现在三分钟上下。测试卡住时（例如会话 actor 的测试等一个不会来的回应），
+# 不白等 GitHub 默认的六个小时（施工 3-7 中）。
 jobs:
   check:
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -28,6 +31,7 @@ jobs:
   # 长跑：随机测试接着平时的往后跑两万例（照 niri 的 randomized-tests，施工 2-10）。平时的
   # cargo test 和本地门禁跳过这几个 #[ignore] 的测试；纯逻辑不碰平台，只在 Linux 上、release 模式跑。
   randomized:
+    timeout-minutes: 30
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
