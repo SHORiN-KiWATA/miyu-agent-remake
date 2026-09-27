@@ -271,9 +271,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>43</b><span>/ 47 步<strong>已完成</strong>，断了从断的地方接着说，给模型看的字有了登记簿</span></li>
-    <li><b>3-6</b><span>下一步：策略快照，<strong>先问两条常驻规则怎么改</strong></span></li>
-    <li><b class="mono">8161acf</b><span>最近一步（3-5 再补）的提交</span></li>
+    <li><b>44</b><span>/ 48 步<strong>已完成</strong>，策略快照按哈希存档，请求逐字节重现</span></li>
+    <li><b>3-6</b><span>下一步：出厂 Miyu（下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">b495989</b><span>最近一步（3-6 上）的提交</span></li>
   </ul>
 </header>
 
@@ -368,7 +368,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-5b"><span class="n">3-5</span>自动重试与接着说（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-5c"><span class="n">3-5</span>试玩台（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-5d"><span class="n">3-5</span>接着说（再补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-6</span>策略快照</span></li>
+        <li><a class="step done" href="#s3-6a"><span class="n">3-6</span>策略快照（上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">3-6</span>出厂 Miyu（下）</span></li>
         <li><span class="step"><span class="n">3-7</span>会话 actor</span></li>
         <li><span class="step"><span class="n">3-8</span>协议端点</span></li>
         <li><span class="step"><span class="n">3-9</span>miyu ask</span></li>
@@ -3724,6 +3725,80 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-6a" aria-labelledby="h-s36a">
+  <div class="sheet-head"><h2 id="h-s36a"><span class="no">3-6</span>策略快照（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">造会话时，照人格从资源目录拼出一份策略快照：发请求要用的全部字和几样开关，按内容哈希存成会话属主家目录里的 blob，造会话那一条记它的哈希。载入时照哈希取回来重建，请求逐字节一样。先用软件工程师这个人格跑通，它的人设只有一句。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一份快照怎么来 · miyu-store → miyu-policy</span><span class="dir-note">03 E5「写法」</span></div>
+            <ol class="pipe" aria-label="一份快照怎么来">
+              <li>找资源目录：MIYU_RESOURCES，程序旁边的 resources/，上一级的 share/miyu/；都没有就说清找过哪几处</li>
+              <li>读原文：随核心附带的字（core/），人格的人设（personas/&lt;编号&gt;/prompts/persona.md）</li>
+              <li>拼：system 照 26 第四节，每一块去掉末尾的空白、空一行相连；现在只有人设</li>
+              <li>写成紧凑的 JSON，算哈希，存成 blob；造会话那一条记这个哈希</li>
+              <li>载入：照哈希取回来，照它造出内核的策略和驱动的占位</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">快照里装什么</span><span class="dir-note">发请求要用的全部</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">人格、system</span><span class="rl">人格的编号，拼好的 system</span></div>
+              <div class="tile new"><span class="nm">随核心附带的字</span><span class="rl">检查点、回合没走完、事实模板、工具结果的几句、驱动的占位：核心升级改了字，老会话照样重现</span></div>
+              <div class="tile new"><span class="nm">几样开关</span><span class="rl">步数上限（现在不限）、有没有人能确认、重启以后接着干几次</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">新 crate miyu-policy</span><span class="rl">第 2 层，纯逻辑；读文件在 miyu-store</span></div>
+          <div class="tile new"><span class="nm">模型和供应商不在快照里</span><span class="rl">同一份快照可以交给不同的端点</span></div>
+          <div class="tile new"><span class="nm">两条核心规则不拼</span><span class="rl">项目主人定：检查点、权限到 M6、M4 实测再定</span></div>
+          <div class="tile new"><span class="nm">资源目录不猜</span><span class="rl">只看三处；开发时设 MIYU_RESOURCES</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">出厂 Miyu（下）；中途换策略、目录快照、步数上限初值</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-6（上）</dd></div>
+        <div><dt>名称</dt><dd>策略快照（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">b495989</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>新 crate <code>miyu-policy</code>（第 2 层）：<code>Snapshot</code>、<code>compose()</code>、规范字节和哈希、<code>policy()</code>、<code>driver_texts()</code>、<code>session_created()</code>。</li>
+        <li><code>miyu-store</code>：<code>resources</code> 找资源目录、读原文；环境快照多了 <code>MIYU_RESOURCES</code> 和程序的真实位置。</li>
+        <li>出厂的软件工程师：<code>resources/personas/engineer/prompts/persona.md</code>，进了登记簿。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>拼、字节、读回来、造策略、找资源目录的几种情形、存成 blob 再取回来：两份策略跑同一个剧本，每次请求逐字节一样</span></li>
+        <li><span class="ok">✓</span><span>故意改坏二十处都有测试变红（四处起初测不出来，补了测试）</span></li>
+        <li><span class="ok">✓</span><span>本地七项全过；三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/03-事件模型.md</code> E5「写法」、<code>12-进程形态与分发.md</code> 第三节「怎么找」、<code>26-提示词.md</code> 第四节「怎么拼」。</li>
+        <li><code>docs/designs/01-架构.md</code> 第九节：第 2 层多了 <code>miyu-policy</code>。</li>
+        <li><code>docs/construction/3-6-策略快照（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -3900,7 +3975,8 @@ const BUILD = {
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完；出了错自己再来，说了一半的带着半截接着说（3-5 下）' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
-  n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对' },
+  n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对；资源目录：MIYU_RESOURCES、程序旁边的 resources/、上一级的 share/miyu/，读出一个人格的原文（3-6 上）' },
+  n_prompt: { by: '3-6', how: 'frame', note: '策略快照：人格从资源目录拼成快照，按内容哈希存档，载入时照哈希重建，请求逐字节一样；现在只有软件工程师（3-6 上）' },
   n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断；会接着写的供应商用前缀续写（3-5 再补，出厂只开 DeepSeek）' },
 };
 
