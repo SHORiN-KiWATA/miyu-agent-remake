@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>51</b><span>/ 53 步<strong>已完成</strong>，Windows 上也连得上：命名管道只对本人开放</span></li>
-    <li><b>3-9</b><span>下一步：主程序和拉起核心（上），<strong>施工中</strong></span></li>
-    <li><b class="mono">290e90c</b><span>最近一步（3-8 补）的提交</span></li>
+    <li><b>52</b><span>/ 53 步<strong>已完成</strong>，核心是单独的进程了：头拉起它，空闲了自己走</span></li>
+    <li><b>3-9</b><span>下一步：miyu ask（下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">1393a50</b><span>最近一步（3-9 上）的提交</span></li>
   </ul>
 </header>
 
@@ -300,6 +300,7 @@ a.step:hover{border-color:var(--primary)}
     <div class="piece ghost"><span class="by">3-5</span><span class="nm">试玩台（09-27 删掉了）</span></div>
     <div class="piece"><span class="by">3-5</span><span class="nm">给模型看的字的登记簿</span></div>
     <div class="piece"><span class="by">3-7</span><span class="nm">运行日志</span></div>
+    <div class="piece"><span class="by">3-9</span><span class="nm">主程序 miyu · 拉起核心</span></div>
   </div>
   <ul class="legend" aria-label="拼图的图例">
     <li><span class="sw ghost"></span>还没拼</li>
@@ -382,7 +383,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-8b"><span class="n">3-8</span>协议端点（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8c"><span class="n">3-8</span>协议端点（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8d"><span class="n">3-8</span>Windows 命名管道（补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-9</span>主程序和拉起核心（上）</span></li>
+        <li><a class="step done" href="#s3-9a"><span class="n">3-9</span>主程序和拉起核心（上）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-9</span>miyu ask（下）</span></li>
       </ol>
     </li>
@@ -4346,6 +4347,81 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-9a" aria-labelledby="h-s39a">
+  <div class="sheet-head"><h2 id="h-s39a"><span class="no">3-9</span>主程序和拉起核心（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">miyu 这个程序有了。核心是一个单独的进程，由头拉起：建好骨架和管理员 admin 的家目录，运行日志写进 state/logs/core.log，从环境变量拿模型，在套接字上等连接，说一声「好了」；没有头连着、也没有在跑的回合，空闲够久了自己走。头连的时候核心没在跑，就把它拉起来，等它说好了再连。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">头拉起核心</span><span class="dir-note">12 第二节</span></div>
+            <ol class="pipe" aria-label="头拉起核心">
+              <li>先连，连上了就用</li>
+              <li>拿 run/spawn.lock，再连一次</li>
+              <li>拉起 miyu core，等它写来那一行</li>
+              <li>ready 就连；running 等到连上；error 照原样说</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">核心起来的先后</span><span class="dir-note">miyu-core</span></div>
+            <ol class="pipe" aria-label="核心起来的先后">
+              <li>建骨架</li>
+              <li>拿锁：已经有一个在跑的，说 running 就走</li>
+              <li>装运行日志，建 admin 的家目录</li>
+              <li>在套接字上等连接，说 ready</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">先拿锁，再装日志</span><span class="rl">两个核心不写同一份日志</span></div>
+          <div class="tile new"><span class="nm">空闲 10 分钟就走</span><span class="rl">没有连接、也没有在跑的回合；每 30 秒看一次</span></div>
+          <div class="tile new"><span class="nm">收到停的信号先停会话</span><span class="rl">跑到一半的回合记成「重启了」，下次接着干</span></div>
+          <div class="tile new"><span class="nm">跟终端脱开</span><span class="rl">自成一组，终端里的 Ctrl+C 打不到它</span></div>
+          <div class="tile new"><span class="nm">两个进程同时建骨架都成</span><span class="rl">施工中查出的 bug，修了</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">miyu ask（3-9 下）；配置文件、首次引导；登记成系统服务</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-9（上）</dd></div>
+        <div><dt>名称</dt><dd>主程序和拉起核心</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">1393a50</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu</code>（新，第 6 层）：按子命令分发；<code>miyu core</code> 不写进帮助；不认识的子命令报错、退出码 2。</li>
+        <li><code>miyu-core</code>（新，第 4 层）：核心进程的起停、空闲退出、从环境变量拿模型。</li>
+        <li><code>miyu-ipc</code>：<code>connect_or_start</code>、核心说的那一行；内核、会话、协议端点看得出空不空闲。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真的拉起 miyu core：连上、握手；再连不再拉起；两个头同时连只拉起一次；起不来的说原因；一声不吭就走的也说；已经在跑的说一声就走；空闲了自己走</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 22 处：全拦下（先补了 4 处测试缺口）</span></li>
+        <li><span class="ok">✓</span><span>本地七项全过；三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/12-进程形态与分发.md</code> 第二节：拉起时握手的写法、空闲多久。</li>
+        <li><code>docs/designs/15-模型与供应商.md</code> 第七节、<code>22-命令行.md</code> 第三节：项目主人定的三条。</li>
+        <li><code>docs/construction/3-9-主程序和拉起核心（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -4526,6 +4602,7 @@ const BUILD = {
   n_prompt: { by: '3-6', how: 'frame', note: '策略快照：人格从资源目录拼成快照，按内容哈希存档，载入时照哈希重建，请求逐字节一样；现在只有软件工程师（3-6 上）' },
   n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断；会接着写的供应商用前缀续写（3-5 再补，出厂只开 DeepSeek）；DEBUG 记发出去和收场，key、正文、地址的路径一个字都不记（3-7 上）' },
   k_sessions: { by: '3-7', how: 'frame', note: '会话 actor（3-7 中）：命令和执行器的回报进收件箱，动作照表回；先落盘，后回应、后推送；造会话存策略快照，载入照它重建，停在一轮中间的再起来接着干；写不进去就停下。请求模型接上驱动和 HTTP，驱动的占位取自会话的快照（3-7 下）；会话表照编号找会话、没在跑的从磁盘载入，只起一个 actor（3-8 上）' },
+  n_models: { by: '3-9', how: 'frame', note: '配置系统做出来之前只认环境变量 DEEPSEEK_API_KEY：设了就接 DeepSeek 官方的 deepseek-flash，key 只在内存里；没设的，每次请求都当场回「没有可用的模型」（3-9 上，项目主人定）' },
   n_bus: { by: '3-8', how: 'frame', note: '连接上一行一条 JSON-RPC 2.0：握手（主版本、本机令牌）、造会话、说话、打断，拒绝附原因码（3-8 上）；订阅事件流，回应排在它产生的推送后面，掉队推 resync（3-8 中）；核心在本机的 Unix 套接字上等连接：一个数据根一个核心（锁），本机令牌写进 run/token，实际位置记在 run/socket，套接字放在只有自己能进的目录里（3-8 下）；Windows 上是命名管道，只对本人开放，头连上以后核对另一头是自己的（3-8 补）' },
 };
 
