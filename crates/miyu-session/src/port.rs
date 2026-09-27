@@ -1,0 +1,111 @@
+//! 请求模型的端口（`02-内核.md` 第四节「执行器怎么回动作」里「请求模型」那一行）：actor 把请求交给
+//! 它，它的回报送回 actor 的收件箱。3-7（下）接上驱动和 HTTP 执行器，以后资源调度夹在中间；测试里
+//! 照剧本回。
+
+use tokio::sync::{mpsc, oneshot};
+
+use miyu_kernel::accumulate::Delta;
+use miyu_kernel::event::{CallError, Usage};
+use miyu_kernel::id::{ContentHash, Seq};
+use miyu_kernel::origin::Model;
+use miyu_kernel::request::Request;
+
+/// 请求模型的端口。
+pub trait ModelPort: Send + Sync {
+    /// 发给哪个端点的哪个模型：记进运行日志的 `request` 那一行。
+    fn model(&self) -> &Model;
+
+    /// 发一次请求。马上返回，在别的任务里发：actor 不等它。
+    ///
+    /// 回报照先后交给 `reports`：先报发出去了，再一段段交增量，最后报说完了；没发出去就失败了的，
+    /// 直接报说完了。`cancel` 叫停了就停下，什么都不再报：会话不要这次请求了，或者会话停了。在别的
+    /// 任务里发的，带上当前的 span（`tracing::Span::current()`），发出来的日志才带着会话编号。
+    fn call(&self, seen: Seq, request: Request, reports: Reports, cancel: Cancel);
+}
+
+/// 一次请求的回报送回哪里。
+#[derive(Debug)]
+pub struct Reports {
+    seen: Seq,
+    back: mpsc::UnboundedSender<Back>,
+}
+
+impl Reports {
+    pub(crate) fn new(seen: Seq, back: mpsc::UnboundedSender<Back>) -> Reports {
+        Reports { seen, back }
+    }
+
+    /// 发出去了：发给了哪个模型，请求字节的哈希。
+    pub fn sent(&self, model: Model, request: ContentHash) {
+        self.send(Report::Sent { model, request });
+    }
+
+    /// 一段增量。
+    pub fn delta(&self, delta: Delta) {
+        self.send(Report::Delta(delta));
+    }
+
+    /// 说完了：正常说完的带用量，出错的带分类和原话，供应商说了要等多久的带上毫秒数。
+    pub fn ended(self, usage: Option<Usage>, error: Option<CallError>, wait_ms: Option<u64>) {
+        self.send(Report::Ended {
+            usage,
+            error,
+            wait_ms,
+        });
+    }
+
+    #[expect(
+        clippy::let_underscore_must_use,
+        reason = "会话停了就送不进去：回报没人要了，丢掉"
+    )]
+    fn send(&self, report: Report) {
+        let _ = self.back.send(Back::Report {
+            seen: self.seen,
+            report,
+        });
+    }
+}
+
+/// 叫停一次请求：会话不要这次请求了，或者会话停了（actor 放下了叫停的那一头）。会话停了就没人要
+/// 结果了，接着读只是白花 token。说完了以后放下的，请求已经不在读了，停不停都一样。
+#[derive(Debug)]
+pub struct Cancel(oneshot::Receiver<()>);
+
+impl Cancel {
+    pub(crate) fn new(receiver: oneshot::Receiver<()>) -> Cancel {
+        Cancel(receiver)
+    }
+
+    /// 等到被叫停。
+    #[expect(
+        clippy::let_underscore_must_use,
+        reason = "明着叫停和放下了一个意思：都是叫停"
+    )]
+    pub async fn wait(self) {
+        let _ = self.0.await;
+    }
+}
+
+/// 请求的一样回报。
+#[derive(Debug)]
+pub(crate) enum Report {
+    /// 发出去了。
+    Sent { model: Model, request: ContentHash },
+    /// 一段增量。
+    Delta(Delta),
+    /// 说完了。
+    Ended {
+        usage: Option<Usage>,
+        error: Option<CallError>,
+        wait_ms: Option<u64>,
+    },
+}
+
+/// 执行器送回 actor 的：请求的回报、到点了。
+#[derive(Debug)]
+pub(crate) enum Back {
+    /// 请求 `seen` 的一样回报。
+    Report { seen: Seq, report: Report },
+    /// 为请求 `seen` 等的时刻到了。
+    Woke { seen: Seq },
+}

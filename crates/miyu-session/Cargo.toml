@@ -1,0 +1,30 @@
+[package]
+name = "miyu-session"
+description = "会话 actor：把内核的会话状态机接上磁盘，动作照表回（施工 3-7 中）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# 会话的状态机、事件、编号。
+miyu-kernel = { path = "../miyu-kernel" }
+# 造会话时照人格拼策略快照，载入时照它重建（施工 3-6 上）。
+miyu-policy = { path = "../miyu-policy" }
+# 数据根、会话日志、blob、资源目录。
+miyu-store = { path = "../miyu-store" }
+# 理由见 docs/construction/3-7-会话actor（中）.md「我定的」：一个会话一个异步任务，收件箱、推送、
+# 到点叫醒、写盘用的阻塞线程。
+tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
+# 运行日志的门面（施工 3-7 上）：只发，写成什么样、写到哪是 miyu-log 的事。
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+# 会话编号：UUIDv7，前 48 位是毫秒时间，随机数取自系统。
+uuid = { version = "1", features = ["v7"] }
+
+[dev-dependencies]
+# 测试里接住发出来的日志，查写了什么、没写什么。
+miyu-log = { path = "../miyu-log" }
+
+[lints]
+workspace = true
