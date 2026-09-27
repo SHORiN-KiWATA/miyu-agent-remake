@@ -6,7 +6,7 @@ mod support;
 use std::path::Path;
 
 use miyu_kernel::block::Block;
-use miyu_kernel::event::{Body, Level, Permission, ToolResult, ToolStatus};
+use miyu_kernel::event::{Body, Level, Permission, Said, ToolResult, ToolStatus};
 use miyu_kernel::request::Message;
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
@@ -82,6 +82,15 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
     };
     assert_eq!(inside.status, ToolStatus::Ok);
     assert_eq!(text(&inside.blocks), "1\thello\n");
+    // 工具交的给人看的说法，经会话记进日志（施工 4-5 上）；越界被拒的，是内核写的那一句的说法。
+    assert_eq!(
+        inside.human,
+        Some(Said::new("software/basesystem/read/lines").with("count", "1"))
+    );
+    assert_eq!(
+        outside.human,
+        Some(Said::new("core/tool-results/unattended"))
+    );
     assert_eq!(outside.status, ToolStatus::Denied, "越界要问人，没人能确认");
     assert!(!text(&outside.blocks).contains("secret"));
     // 她下一次请求里听到了。

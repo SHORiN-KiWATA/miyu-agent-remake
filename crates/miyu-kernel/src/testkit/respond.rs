@@ -159,6 +159,7 @@ impl Stage {
                 text: text.to_string(),
             })],
             duration_ms: Some(5),
+            human: None,
         }
     }
 }

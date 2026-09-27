@@ -1,0 +1,21 @@
+{
+  "said": {
+    "tool-results/unknown": "no such tool",
+    "tool-results/not-an-object": "the arguments are not a JSON object",
+    "tool-results/cancelled-before": "interrupted before it ran",
+    "tool-results/cancelled-running": "interrupted while running",
+    "tool-results/skipped": "skipped",
+    "tool-results/read-only": "read-only, not written",
+    "tool-results/denied": "you said no",
+    "tool-results/denied-with-reason": "you said no: {reason}",
+    "tool-results/unattended": "needs a confirmation nobody here can give",
+    "tool-results/question-interrupted": "interrupted before the answer",
+    "tool-results/question-voided": "dropped: you sent a message",
+    "tool-results/question-unattended": "nobody here can answer",
+    "tool-results/restarted": "Miyu restarted before it finished",
+    "tool-results/unavailable": "not available right now",
+    "tool-results/crashed": "crashed, may be partly done",
+    "permissions/forbidden": "Miyu's own data, off limits",
+    "permissions/unresolvable": "can't tell where it points: {reason}"
+  }
+}

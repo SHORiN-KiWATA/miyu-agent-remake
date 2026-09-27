@@ -60,6 +60,31 @@ fn a_result_that_never_ran_has_no_duration() {
     }
 }
 
+/// 给人看的说法（施工 4-5 上）：记在 `human` 这一格，编号、字段原样读写，没有字段的不写 `fields`；老的结果
+/// 没有这一格，读进来是空的，写出去也不写（read_body 查了一字不差）。
+#[test]
+fn a_result_carries_what_it_said_to_people() {
+    let forbidden = r#"{"call_id":"call_44_1","status":"denied","blocks":[],"human":{"key":"core/permissions/forbidden","fields":{"path":"~/.miyu/run/token"}}}"#;
+    match read_body("tool.result", forbidden) {
+        Body::ToolResult(result) => assert_eq!(
+            result.human,
+            Some(Said::new("core/permissions/forbidden").with("path", "~/.miyu/run/token"))
+        ),
+        other => panic!("{other:?}"),
+    }
+    let skipped = r#"{"call_id":"call_44_1","status":"skipped","blocks":[],"human":{"key":"core/tool-results/skipped"}}"#;
+    match read_body("tool.result", skipped) {
+        Body::ToolResult(result) => {
+            assert_eq!(result.human, Some(Said::new("core/tool-results/skipped")));
+        }
+        other => panic!("{other:?}"),
+    }
+    match read_body("tool.result", RESULT) {
+        Body::ToolResult(result) => assert_eq!(result.human, None),
+        other => panic!("{other:?}"),
+    }
+}
+
 #[test]
 fn broken_tool_results_say_which_kind() {
     // 调用编号不合写法；少了状态；用时是负数、是小数。

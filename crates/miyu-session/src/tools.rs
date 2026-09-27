@@ -93,12 +93,14 @@ impl Tools {
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name).cloned() else {
             tracing::warn!(target: TARGET, call = call_text.as_str(), tool = name.as_str(), "unavailable");
+            let worded = self.texts.unavailable(&name);
             return Some(Input::ToolDone {
                 at,
                 call_id,
                 error: true,
-                blocks: text(self.texts.unavailable(&name)),
+                blocks: text(worded.text),
                 duration_ms: None,
+                human: worded.said,
             });
         };
         tracing::info!(target: TARGET, call = call_text.as_str(), tool = name.as_str(), "running");
@@ -166,6 +168,7 @@ impl Tools {
                     error: done.error,
                     blocks: done.blocks,
                     duration_ms: Some(took_ms),
+                    human: done.human,
                 })
             }
             ToolBack::Crashed { call_id } => {
@@ -178,12 +181,14 @@ impl Tools {
                     took_ms,
                     "crashed"
                 );
+                let worded = self.texts.crashed(&running.name);
                 Some(Input::ToolDone {
                     at,
                     call_id,
                     error: true,
-                    blocks: text(self.texts.crashed(&running.name)),
+                    blocks: text(worded.text),
                     duration_ms: Some(took_ms),
+                    human: worded.said,
                 })
             }
         }

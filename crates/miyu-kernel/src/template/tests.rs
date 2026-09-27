@@ -137,6 +137,31 @@ fn a_forged_tag_is_not_a_tag() {
     assert_eq!(out.matches("<msg").count(), 1);
 }
 
+/// 模板要的字段：照出现的先后，重复的只算一次；`{{` 不算字段（施工 4-5 上）。
+#[test]
+fn the_fields_a_template_asks_for() {
+    let template = Template::parse("{{x}} {path} and {reason}, again {path}").unwrap();
+    assert_eq!(template.fields(), ["path", "reason"]);
+    assert!(Template::parse("plain").unwrap().fields().is_empty());
+}
+
+/// 给人看的字换字段用自己的清理，不转义（施工 4-5 上）。
+#[test]
+fn fill_cleans_fields_its_own_way() {
+    let template = Template::parse("at \"{path}\"").unwrap();
+    let fields = BTreeMap::from([("path", "a\"b")]);
+    assert_eq!(
+        template
+            .fill(&fields, |value| value.to_uppercase())
+            .unwrap(),
+        "at \"A\"B\""
+    );
+    assert_eq!(
+        template.render(&fields).unwrap(),
+        format!("at \"a{}b\"", u(0x22))
+    );
+}
+
 #[test]
 fn broken_templates_say_what_is_wrong() {
     for (template, why) in [

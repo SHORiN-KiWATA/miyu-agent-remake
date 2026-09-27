@@ -27,7 +27,7 @@ pub use model::{
 };
 pub use question::{Choice, Question, QuestionAnswered, QuestionAsked, Response, fits};
 pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated};
-pub use tool::{ApprovalDecided, ApprovalRequested, Decision, ToolResult, ToolStatus};
+pub use tool::{ApprovalDecided, ApprovalRequested, Decision, Said, ToolResult, ToolStatus};
 pub use transient::{ModelDelta, Piece, Retry, Status, ToolProgress, Transient, TransientBody};
 pub use turn::{EndReason, TurnEnded, TurnReverted, TurnStarted, TurnUnreverted};
 

@@ -106,15 +106,24 @@ fn two_tools_with_one_name_do_not_build() {
 fn the_two_run_texts_name_the_tool() {
     let texts = engineer().run_texts().unwrap();
     assert_eq!(
-        texts.unavailable("read"),
+        texts.unavailable("read").text,
         "The tool \"read\" is not available right now.\n"
     );
     assert_eq!(
-        texts.crashed("read"),
+        texts.crashed("read").text,
         "The tool \"read\" stopped because of an internal error. It may have been partly done.\n"
     );
     // 名字照样转义：写不出引号和尖括号。
-    assert!(!texts.unavailable("a\"<b>").contains("<b>"));
+    assert!(!texts.unavailable("a\"<b>").text.contains("<b>"));
+    // 给人看的说法，字段原样。
+    assert_eq!(
+        texts.unavailable("a\"<b>").said,
+        Some(Said::new("core/tool-results/unavailable").with("name", "a\"<b>"))
+    );
+    assert_eq!(
+        texts.crashed("read").said,
+        Some(Said::new("core/tool-results/crashed").with("name", "read"))
+    );
 }
 
 #[test]
@@ -143,7 +152,7 @@ fn a_snapshot_from_before_the_run_texts_reads_back_with_them_empty() {
     let back = Snapshot::from_bytes(old.as_bytes()).unwrap();
     assert_eq!(back.core.tool_results.unavailable, "");
     assert_eq!(back.core.tool_results.crashed, "");
-    assert_eq!(back.run_texts().unwrap().unavailable("read"), "");
+    assert_eq!(back.run_texts().unwrap().unavailable("read").text, "");
 }
 
 /// 从快照的 JSON 里去掉 `field` 那一格（值是一个字符串）：造出这一格以前的样子。

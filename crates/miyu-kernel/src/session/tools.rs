@@ -10,12 +10,12 @@ use super::step::{Pending, State, Step};
 use super::turn::{Interjection, Stage};
 use crate::block::{Block, Text, ToolCall};
 use crate::event::{
-    Body, EndReason, Event, ToolProgress, ToolResult, ToolStatus, Transient, TransientBody,
+    Body, EndReason, Event, Said, ToolProgress, ToolResult, ToolStatus, Transient, TransientBody,
 };
 use crate::id::{CallId, CommandId, Seq};
 use crate::origin::{By, Tool};
 use crate::time::Timestamp;
-use crate::tool::repair;
+use crate::tool::{Worded, repair};
 
 impl Session {
     /// 回复里的工具调用，先查：工具面上没有这个名字、参数不是 JSON 对象的，当场记一条出错的
@@ -160,6 +160,7 @@ impl Session {
         error: bool,
         blocks: Vec<Block>,
         duration_ms: Option<u64>,
+        human: Option<Said>,
     ) -> Vec<Action> {
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();
@@ -186,6 +187,7 @@ impl Session {
             },
             blocks,
             duration_ms,
+            human,
         };
         let by = By::Tool(Tool { call_id });
         let mut events = vec![self.record(at, by, cause.clone(), Body::ToolResult(result))];
@@ -299,7 +301,7 @@ impl Session {
         events
     }
 
-    /// 内核替工具写的一条结果：没执行过，没有用时。
+    /// 内核替工具写的一条结果：没执行过，没有用时。给模型看的字、给人看的说法都在 `worded` 里。
     pub(super) fn written_result(
         &mut self,
         at: Timestamp,
@@ -307,13 +309,14 @@ impl Session {
         cause: Option<CommandId>,
         call_id: CallId,
         status: ToolStatus,
-        text: String,
+        worded: Worded,
     ) -> Event {
         let result = ToolResult {
             call_id,
             status,
-            blocks: vec![Block::Text(Text { text })],
+            blocks: vec![Block::Text(Text { text: worded.text })],
             duration_ms: None,
+            human: worded.said,
         };
         self.record(at, by, cause, Body::ToolResult(result))
     }

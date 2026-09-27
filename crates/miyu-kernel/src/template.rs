@@ -84,6 +84,20 @@ impl Template {
     ///
     /// 模板要的字段在 `fields` 里没有，返回 [`TemplateError`]，写明是哪一个。
     pub fn render(&self, fields: &BTreeMap<&str, &str>) -> Result<String, TemplateError> {
+        self.fill(fields, escape)
+    }
+
+    /// 照字段换出原文，每个字段先过一遍 `clean`。给模型看的用 [`Template::render`]，一律转义；给人看的字不进
+    /// 请求，用自己的清理（施工 4-5 上）。
+    ///
+    /// # Errors
+    ///
+    /// 模板要的字段在 `fields` 里没有，返回 [`TemplateError`]，写明是哪一个。
+    pub fn fill(
+        &self,
+        fields: &BTreeMap<&str, &str>,
+        clean: impl Fn(&str) -> String,
+    ) -> Result<String, TemplateError> {
         let mut out = String::new();
         for part in &self.parts {
             match part {
@@ -92,11 +106,25 @@ impl Template {
                     let value = fields
                         .get(name.as_str())
                         .ok_or_else(|| TemplateError::new(format!("少了字段 {name}")))?;
-                    out.push_str(&escape(value));
+                    out.push_str(&clean(value));
                 }
             }
         }
         Ok(out)
+    }
+
+    /// 模板要的每个字段的名字，照出现的先后，重复的只算一次（施工 4-5 上：核对给人看的字和给模型看的字
+    /// 要的是同一些字段）。
+    pub fn fields(&self) -> Vec<&str> {
+        let mut names: Vec<&str> = Vec::new();
+        for part in &self.parts {
+            if let Part::Field(name) = part
+                && !names.contains(&name.as_str())
+            {
+                names.push(name);
+            }
+        }
+        names
     }
 }
 

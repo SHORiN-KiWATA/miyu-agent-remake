@@ -2,7 +2,7 @@
 
 use crate::accumulate::Delta;
 use crate::block::Block;
-use crate::event::{CallError, ContextInjected, Decision, Level, Question, Response, Usage};
+use crate::event::{CallError, ContextInjected, Decision, Level, Question, Response, Said, Usage};
 use crate::facts::Environment;
 use crate::id::{CallId, CommandId, ContentHash, ModuleId, Seq, TurnId};
 use crate::origin::{By, Model};
@@ -85,6 +85,8 @@ pub enum Input {
         blocks: Vec<Block>,
         /// 执行用了多少毫秒，执行器量的。
         duration_ms: Option<u64>,
+        /// 给人看的说法，工具交的（施工 4-5 上）；没交的是空的。
+        human: Option<Said>,
     },
     /// 工具执行中的一段输出，只推给头（`03-事件模型.md` 第五节）。
     ToolProgress {
@@ -131,6 +133,8 @@ pub enum Verdict {
         module: ModuleId,
         /// 写给模型的那一句。
         text: String,
+        /// 给人看的说法（施工 4-5 上）；模块没交的是空的。
+        human: Option<Said>,
     },
     /// 要问人。请求的另外几格照写进 `tool.approval_requested`，调用编号由内核填。
     Ask {

@@ -944,6 +944,7 @@ dependencies = [
  "ignore",
  "miyu-fs",
  "miyu-kernel",
+ "miyu-store",
  "miyu-tool",
  "serde",
  "serde_json",
@@ -1110,6 +1111,7 @@ version = "0.0.0"
 dependencies = [
  "miyu-kernel",
  "miyu-policy",
+ "serde",
  "serde_json",
 ]
 

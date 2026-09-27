@@ -5,8 +5,8 @@ use std::path::Path;
 
 use miyu_tool::Done;
 
-use super::Texts;
-use crate::common::OUTPUT_BYTES;
+use super::{Texts, part};
+use crate::common::{OUTPUT_BYTES, said};
 use crate::load::say;
 
 /// 列出目录 `real` 里从第 `offset` 项起（从 1 数起）的最多 `limit` 项；她给的路径是 `path`，出错时照它说。
@@ -24,7 +24,7 @@ pub(super) fn list(texts: &Texts, path: &str, real: &Path, offset: u64, limit: u
         })
         .collect();
     if names.is_empty() {
-        return Done::ok(say(&texts.empty, &[]));
+        return Done::ok(say(&texts.empty, &[])).said(said("read/empty"));
     }
     names.sort();
     let total = names.len() as u64;
@@ -35,7 +35,12 @@ pub(super) fn list(texts: &Texts, path: &str, real: &Path, offset: u64, limit: u
                 ("total", &total.to_string()),
                 ("offset", &offset.to_string()),
             ],
-        ));
+        ))
+        .said(
+            said("read/past-end-entries")
+                .with("total", total.to_string())
+                .with("offset", offset.to_string()),
+        );
     }
     let mut text = String::new();
     let mut to = offset - 1;
@@ -62,5 +67,5 @@ pub(super) fn list(texts: &Texts, path: &str, real: &Path, offset: u64, limit: u
             ],
         ));
     }
-    Done::ok(text)
+    Done::ok(text).said(part("read/entries", offset, to, total))
 }

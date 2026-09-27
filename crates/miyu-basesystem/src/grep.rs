@@ -17,7 +17,7 @@ use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Progress, Running, Spec, Target, Tool};
 
 use crate::blocking::{Stop, blocking};
-use crate::common::{Common, OUTPUT_BYTES, Shown, given};
+use crate::common::{Common, OUTPUT_BYTES, Shown, given, said};
 use crate::load::{self, LoadError, say};
 use crate::pattern::Pattern;
 use crate::walk;
@@ -166,7 +166,10 @@ impl Tool for Grep {
 fn grep(texts: &Texts, call: &Call, args: &Args, stop: &Stop) -> Done {
     let matcher = match search::matcher(&args.pattern, args.ignore_case.unwrap_or(false)) {
         Ok(matcher) => matcher,
-        Err(error) => return Done::error(say(&texts.bad_pattern, &[("error", &error)])),
+        Err(error) => {
+            return Done::error(say(&texts.bad_pattern, &[("error", &error)]))
+                .said(said("grep/bad-pattern").with("error", error));
+        }
     };
     let filter = match given(args.glob.clone()).map(|glob| (Pattern::new(&glob), glob)) {
         None => None,

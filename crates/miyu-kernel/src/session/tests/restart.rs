@@ -5,7 +5,7 @@
 use super::executor::*;
 use super::load::{Logged, ended_with, load};
 use super::*;
-use crate::event::{EndReason, ToolStatus};
+use crate::event::{EndReason, Said, ToolStatus};
 
 /// 07:00:53 要重启了。
 fn restarting() -> Input {
@@ -30,6 +30,10 @@ fn restarting_closes_the_turn_as_an_interrupt_would() {
                 By::Kernel,
                 "restarted".to_string()
             )
+        );
+        assert_eq!(
+            said_of(&events[k]),
+            Some(Said::new("core/tool-results/restarted"))
         );
     }
     assert_eq!(ended_with(&events[2]), &EndReason::Restarted);

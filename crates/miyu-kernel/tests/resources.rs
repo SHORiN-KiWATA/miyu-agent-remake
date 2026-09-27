@@ -30,25 +30,28 @@ fn the_tool_result_sentences_are_usable() {
         restarted: include_str!("../../../resources/core/tool-results/restarted.txt"),
     })
     .expect("出厂的几句用得了");
-    assert_eq!(texts.unknown("reed"), "There is no tool named \"reed\".\n");
     assert_eq!(
-        texts.not_an_object("read"),
+        texts.unknown("reed").text,
+        "There is no tool named \"reed\".\n"
+    );
+    assert_eq!(
+        texts.not_an_object("read").text,
         "The arguments for \"read\" are not a JSON object.\n"
     );
-    assert!(texts.cancelled_running().contains("partly done"));
-    assert!(texts.skipped().starts_with("The call was skipped"));
-    assert!(texts.read_only().contains("read-only"));
-    assert!(texts.denied(None).contains("the user denied it."));
+    assert!(texts.cancelled_running().text.contains("partly done"));
+    assert!(texts.skipped().text.starts_with("The call was skipped"));
+    assert!(texts.read_only().text.contains("read-only"));
+    assert!(texts.denied(None).text.contains("the user denied it."));
     assert_eq!(
-        texts.denied(Some("先别推")),
+        texts.denied(Some("先别推")).text,
         "The call was not run: the user denied it and said \"先别推\".\n"
     );
-    assert!(texts.unattended().contains("approval"));
-    assert!(texts.restarted().contains("Miyu restarted"));
+    assert!(texts.unattended().text.contains("approval"));
+    assert!(texts.restarted().text.contains("Miyu restarted"));
     for sentence in [
-        texts.question_interrupted(),
-        texts.question_voided(),
-        texts.question_unattended(),
+        texts.question_interrupted().text,
+        texts.question_voided().text,
+        texts.question_unattended().text,
     ] {
         assert!(
             sentence.starts_with("The question was not answered: "),

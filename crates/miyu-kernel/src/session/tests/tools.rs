@@ -3,7 +3,7 @@
 
 use super::executor::*;
 use super::*;
-use crate::event::{EndReason, ToolStatus, TransientBody};
+use crate::event::{EndReason, Said, ToolStatus, TransientBody};
 use crate::id::CallId;
 use crate::origin::Tool;
 
@@ -58,8 +58,16 @@ fn a_step_runs_its_calls_then_asks_again() {
         )
     );
     assert_eq!((events[0].at, events[0].turn), (at(50), Some(turn3())));
+    assert_eq!(said_of(&events[0]), None, "工具没交说法的，没有这一格");
     assert!(calls(&actions).is_empty());
-    let actions = allowing(&mut session, done(call(6, 1), "a"));
+    // 工具交了给人看的说法：原样记进结果（施工 4-5 上）。
+    let said = Said::new("software/basesystem/read/lines").with("count", "1");
+    let mut with_said = done(call(6, 1), "a");
+    if let Input::ToolDone { human, .. } = &mut with_said {
+        *human = Some(said.clone());
+    }
+    let actions = allowing(&mut session, with_said);
+    assert_eq!(said_of(&appended_events(&actions)[0]), Some(said));
     assert_eq!(appended(&actions), seqs(&[9]));
     assert!(calls(&actions).is_empty(), "结果还没落盘");
     let actions = allowing(&mut session, stored(9));
@@ -125,6 +133,15 @@ fn unknown_tools_and_bad_arguments_are_answered_on_the_spot() {
             By::Kernel,
             "bad args read".to_string()
         )
+    );
+    // 给人看的说法：内核写的那两句各有各的，字段是她说的工具名。
+    assert_eq!(
+        said_of(&events[2]),
+        Some(Said::new("core/tool-results/unknown").with("name", "reed"))
+    );
+    assert_eq!(
+        said_of(&events[3]),
+        Some(Said::new("core/tool-results/not-an-object").with("name", "read"))
     );
     assert_eq!(ran(&allowing(&mut session, stored(9))), [call(6, 3)]);
     // 全是当场拦下的：这一步当场就齐了，落了盘就请求下一次。

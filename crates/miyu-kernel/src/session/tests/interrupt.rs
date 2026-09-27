@@ -4,7 +4,7 @@
 use super::executor::*;
 use super::*;
 use crate::accumulate::{Delta, Kind};
-use crate::event::{CallResult, EndReason, ToolStatus};
+use crate::event::{CallResult, EndReason, Said, ToolStatus};
 use crate::id::CallId;
 
 /// alice 在 07:00:`second` 打断，命令编号是 `n`，排着队的接着发。
@@ -149,6 +149,10 @@ fn interrupting_a_request_keeps_what_came_and_cancels_its_calls() {
             Some(id(2)),
             "cancelled before".to_string()
         )
+    );
+    assert_eq!(
+        said_of(&events[2]),
+        Some(Said::new("core/tool-results/cancelled-before"))
     );
     interrupted_by(&events[3], 2);
     // 回应附上这一次追加的全部序号；之后到的增量、结局不理。

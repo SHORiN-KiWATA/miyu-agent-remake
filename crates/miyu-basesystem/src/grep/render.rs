@@ -9,7 +9,7 @@ use miyu_tool::Done;
 
 use super::search::Found;
 use super::{Page, Texts};
-use crate::common::{OUTPUT_BYTES, Shown};
+use crate::common::{OUTPUT_BYTES, Shown, said};
 use crate::load::say;
 
 /// 只列文件。`found` 是有匹配的每个文件，照先后。
@@ -20,10 +20,10 @@ pub(super) fn files(
     page: Page,
 ) -> Done {
     if found.is_empty() {
-        return texts.common.no_files();
+        return texts.common.no_files().said(said("grep/none"));
     }
     let rows: Vec<String> = found.iter().map(|file| shown.path(file)).collect();
-    counted(texts, &rows, page)
+    counted(texts, &rows, page, "grep/files")
 }
 
 /// 每个文件几处。
@@ -34,20 +34,21 @@ pub(super) fn counts(
     page: Page,
 ) -> Done {
     if counted_files.is_empty() {
-        return Done::ok(say(&texts.no_matches, &[]));
+        return Done::ok(say(&texts.no_matches, &[])).said(said("grep/none"));
     }
     let rows: Vec<String> = counted_files
         .iter()
         .map(|(file, count)| format!("{}:{count}", shown.path(file)))
         .collect();
-    counted(texts, &rows, page)
+    counted(texts, &rows, page, "grep/counts")
 }
 
-/// 一共几条知道的：照 `page` 挑出这一页的几行，多的写一共几条、下一次从哪接。
-fn counted(texts: &Texts, rows: &[String], page: Page) -> Done {
+/// 一共几条知道的：照 `page` 挑出这一页的几行，多的写一共几条、下一次从哪接。给人看的说法：全列了的是
+/// `key`，列了一段的是 `<key>-part`。
+fn counted(texts: &Texts, rows: &[String], page: Page, key: &str) -> Done {
     let total = rows.len();
     if page.offset >= total {
-        return Done::ok(past_end(texts, total, page.offset));
+        return past_end(texts, total, page.offset);
     }
     let mut text = String::new();
     let mut shown = 0;
@@ -71,7 +72,15 @@ fn counted(texts: &Texts, rows: &[String], page: Page) -> Done {
             ],
         ));
     }
-    Done::ok(text)
+    let human = if page.offset == 0 && to == total {
+        said(key).with("count", total.to_string())
+    } else {
+        said(&format!("{key}-part"))
+            .with("from", (page.offset + 1).to_string())
+            .with("to", to.to_string())
+            .with("total", total.to_string())
+    };
+    Done::ok(text).said(human)
 }
 
 /// 匹配的行。`found` 是每个文件里收下的行，照先后；一共收下的匹配多过这一页，就是后面还有。
@@ -81,10 +90,10 @@ pub(super) fn lines(texts: &Texts, shown: &Shown, found: &[Found], page: Page) -
         .map(|file| file.lines.iter().filter(|line| line.matched).count())
         .sum();
     if total == 0 {
-        return Done::ok(say(&texts.no_matches, &[]));
+        return Done::ok(say(&texts.no_matches, &[])).said(said("grep/none"));
     }
     if page.offset >= total {
-        return Done::ok(past_end(texts, total, page.offset));
+        return past_end(texts, total, page.offset);
     }
     let context = page.before > 0 || page.after > 0;
     let mut text = String::new();
@@ -131,17 +140,30 @@ pub(super) fn lines(texts: &Texts, shown: &Shown, found: &[Found], page: Page) -
         }
     }
     let to = page.offset + shown_matches;
+    let from = (page.offset + 1).to_string();
     if full || total > to {
         text.push_str(&say(
             &texts.more_matches,
             &[
-                ("from", &(page.offset + 1).to_string()),
+                ("from", &from),
                 ("to", &to.to_string()),
                 ("next", &to.to_string()),
             ],
         ));
+        return Done::ok(text).said(
+            said("grep/matches-more")
+                .with("from", from)
+                .with("to", to.to_string()),
+        );
     }
-    Done::ok(text)
+    let human = if page.offset == 0 {
+        said("grep/matches").with("count", to.to_string())
+    } else {
+        said("grep/matches-part")
+            .with("from", from)
+            .with("to", to.to_string())
+    };
+    Done::ok(text).said(human)
 }
 
 /// 前后带出来的第 `number` 行，离这一页要写的哪一行匹配够近：在它前面 `before` 行以内，或者后面 `after` 行以内。
@@ -155,12 +177,15 @@ fn near(wanted: &[u64], number: u64, page: Page) -> bool {
 }
 
 /// `offset` 过了头：一共 `total` 条。
-fn past_end(texts: &Texts, total: usize, offset: usize) -> String {
-    say(
+fn past_end(texts: &Texts, total: usize, offset: usize) -> Done {
+    let (total, offset) = (total.to_string(), offset.to_string());
+    Done::ok(say(
         &texts.past_end,
-        &[
-            ("total", &total.to_string()),
-            ("offset", &offset.to_string()),
-        ],
+        &[("total", &total), ("offset", &offset)],
+    ))
+    .said(
+        said("grep/past-end")
+            .with("total", total)
+            .with("offset", offset),
     )
 }

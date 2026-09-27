@@ -12,11 +12,12 @@ use crate::event::{ApprovalDecided, ApprovalRequested, Body, Decision, Event, To
 use crate::id::{CallId, CommandId};
 use crate::origin::{By, Module};
 use crate::time::Timestamp;
+use crate::tool::Worded;
 
 /// 链的结论落到一个调用上以后，要记什么。
 enum Settled {
-    /// 被拒绝了：谁拒的，写给模型的那一句。
-    Denied(By, String),
+    /// 被拒绝了：谁拒的，写给模型的那一句和给人看的说法。
+    Denied(By, Worded),
     /// 要问人：谁问的，请求。
     Asked(By, ApprovalRequested),
 }
@@ -55,9 +56,14 @@ impl Session {
                     cwd,
                 }];
             }
-            Verdict::Deny { module, text } => {
-                Settled::Denied(By::Module(Module { id: module }), text)
-            }
+            Verdict::Deny {
+                module,
+                text,
+                human,
+            } => Settled::Denied(
+                By::Module(Module { id: module }),
+                Worded { text, said: human },
+            ),
             Verdict::Ask { .. } if !attended => Settled::Denied(By::Kernel, texts.unattended()),
             Verdict::Ask { access, .. } if read_only && access.writes() => {
                 Settled::Denied(By::Kernel, texts.read_only())
@@ -87,8 +93,15 @@ impl Session {
         };
         let finished = step.finished();
         let mut events = match settled {
-            Settled::Denied(by, text) => {
-                vec![self.written_result(at, by, cause.clone(), call_id, ToolStatus::Denied, text)]
+            Settled::Denied(by, worded) => {
+                vec![self.written_result(
+                    at,
+                    by,
+                    cause.clone(),
+                    call_id,
+                    ToolStatus::Denied,
+                    worded,
+                )]
             }
             Settled::Asked(by, request) => {
                 vec![self.record(at, by, cause.clone(), Body::ApprovalRequested(request))]

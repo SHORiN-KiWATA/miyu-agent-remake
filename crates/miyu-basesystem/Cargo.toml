@@ -29,6 +29,8 @@ serde_json = "1.0"
 tokio = { version = "1", features = ["rt"] }
 
 [dev-dependencies]
+# 核对工具会说的每一种，中文、英文都换得出字（施工 4-5 上）。
+miyu-store = { path = "../miyu-store" }
 # 测试里的调用在异步里跑。
 tokio = { version = "1", features = ["macros", "rt"] }
 

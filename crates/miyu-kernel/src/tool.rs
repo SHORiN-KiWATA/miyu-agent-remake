@@ -11,7 +11,7 @@ use serde_json::{Map, Value};
 use crate::raw::RawJson;
 use crate::text_enum::text_enum;
 
-pub use texts::{ToolTextSources, ToolTexts};
+pub use texts::{ToolTextSources, ToolTexts, Worded};
 
 text_enum!(
     /// 工具的访问类别。权限策略、能不能一起跑、撤销前要不要存档，都看它。请人确认时，请求也

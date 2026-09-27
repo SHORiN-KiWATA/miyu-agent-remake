@@ -11,7 +11,7 @@ use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Progress, Running, Spec, Target, Tool};
 
 use crate::blocking::{Stop, blocking};
-use crate::common::{Common, Shown, given};
+use crate::common::{Common, Shown, given, said};
 use crate::load::{self, LoadError, say};
 use crate::pattern::{Pattern, split_absolute};
 use crate::walk;
@@ -110,7 +110,10 @@ fn find(texts: &Texts, call: &Call, args: &Args, stop: &Stop) -> Done {
     };
     match std::fs::metadata(&real) {
         Ok(meta) if meta.is_dir() => {}
-        Ok(_) => return Done::error(say(&texts.not_a_directory, &[("path", &dir)])),
+        Ok(_) => {
+            return Done::error(say(&texts.not_a_directory, &[("path", &dir)]))
+                .said(said("glob/not-a-directory").with("path", dir.as_str()));
+        }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             return texts.common.missing(&dir, &real, &shown);
         }
@@ -127,15 +130,21 @@ fn find(texts: &Texts, call: &Call, args: &Args, stop: &Stop) -> Done {
         text.push_str(&shown.path(&file.path));
         text.push('\n');
     }
+    let total = found.len().to_string();
     if let Some(rest) = found.len().checked_sub(LIMIT).filter(|rest| *rest > 0) {
         text.push_str(&say(
             &texts.more,
             &[
                 ("shown", &LIMIT.to_string()),
-                ("total", &found.len().to_string()),
+                ("total", &total),
                 ("rest", &rest.to_string()),
             ],
         ));
+        return Done::ok(text).said(
+            said("glob/files-more")
+                .with("shown", LIMIT.to_string())
+                .with("total", total),
+        );
     }
-    Done::ok(text)
+    Done::ok(text).said(said("glob/files").with("count", total))
 }

@@ -3,7 +3,7 @@
 use super::*;
 use crate::accumulate::{Delta, Kind};
 use crate::event::{
-    CallError, EndReason, ErrorClass, ModelCalled, Question, Response, ToolStatus, Usage,
+    CallError, EndReason, ErrorClass, ModelCalled, Question, Response, Said, ToolStatus, Usage,
 };
 use crate::id::{CallId, ContentHash, FactKind, ModelName, ModuleId, ProviderId};
 use crate::origin::Model;
@@ -171,6 +171,7 @@ pub(super) fn done(call_id: CallId, text: &str) -> Input {
             text: text.to_string(),
         })],
         duration_ms: Some(12),
+        human: None,
     }
 }
 
@@ -258,6 +259,14 @@ pub(super) fn runs(actions: &[Action]) -> Vec<(CallId, String, String, String)> 
 /// 派出去的调用的编号。
 pub(super) fn ran(actions: &[Action]) -> Vec<CallId> {
     runs(actions).into_iter().map(|(id, ..)| id).collect()
+}
+
+/// 一条工具结果里给人看的说法（施工 4-5 上）。
+pub(super) fn said_of(event: &Event) -> Option<Said> {
+    match &event.body {
+        Body::ToolResult(result) => result.human.clone(),
+        other => panic!("应该是 tool.result：{other:?}"),
+    }
 }
 
 /// 一条工具结果：编号、状态、`by`、内容。

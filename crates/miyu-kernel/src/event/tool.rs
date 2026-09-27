@@ -1,6 +1,8 @@
 //! 工具的事件（`docs/designs/03-事件模型.md` 第三节「消息和工具结果怎么写」「确认的事件
 //! 怎么写」）：调用的结果，请人确认，人的决定。
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::block::Block;
@@ -23,6 +25,39 @@ pub struct ToolResult {
     /// 等人确认在执行之前，不算在里面。没真执行过的（例如被拒绝、已跳过）没有这一格。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub duration_ms: Option<u64>,
+    /// 给人看的说法（施工 4-5 上）：不发给模型，头照自己的语言换成字（`26-提示词.md` 第三节「双槽」）。
+    /// 工具没交、老日志里没有的，没有这一格。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub human: Option<Said>,
+}
+
+/// 给人看的说法（`03-事件模型.md` 第三节，施工 4-5 上）：用的是哪一句、换进去的字段。字放在资源目录的
+/// `human/` 下，一种语言一份；说法记进日志以后原样回放，换一种界面语言照样换得出字。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Said {
+    /// 哪一句：照资源目录里的位置起，内核的以 `core/` 开头，软件包的以 `software/<软件包>/` 开头，
+    /// 例如 `core/tool-results/unattended`。
+    pub key: String,
+    /// 换进去的字段，值都是字符串。没有的不写。
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub fields: BTreeMap<String, String>,
+}
+
+impl Said {
+    /// 说 `key` 这一句，没有字段。
+    pub fn new(key: impl Into<String>) -> Said {
+        Said {
+            key: key.into(),
+            fields: BTreeMap::new(),
+        }
+    }
+
+    /// 再换进一个字段。
+    #[must_use]
+    pub fn with(mut self, field: &str, value: impl Into<String>) -> Said {
+        self.fields.insert(field.to_string(), value.into());
+        self
+    }
 }
 
 text_enum!(

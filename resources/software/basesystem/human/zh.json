@@ -1,0 +1,46 @@
+{
+  "tools": {
+    "read": {
+      "name": "读取",
+      "subject": "file_path"
+    },
+    "glob": {
+      "name": "找文件",
+      "subject": "pattern"
+    },
+    "grep": {
+      "name": "搜内容",
+      "subject": "pattern"
+    }
+  },
+  "said": {
+    "read/lines": "{count} 行",
+    "read/lines-part": "第 {from}–{to} 行，一共 {total} 行",
+    "read/entries": "{count} 项",
+    "read/entries-part": "第 {from}–{to} 项，一共 {total} 项",
+    "read/empty": "空的",
+    "read/past-end": "过了结尾，一共 {total} 行",
+    "read/past-end-entries": "过了结尾，一共 {total} 项",
+    "read/not-a-file": "不是普通文件，也不是目录",
+    "read/binary": "是二进制文件，没读",
+    "common/missing": "没有这个文件",
+    "common/missing-similar": "没有这个文件，是不是 {similar}",
+    "common/failed": "读不了：{error}",
+    "common/bad-args": "参数不对：{error}",
+    "common/bad-glob": "通配写得不对：{error}",
+    "common/no-files": "一个都没找到",
+    "glob/files": "{count} 个文件",
+    "glob/files-more": "{total} 个文件，列了 {shown} 个",
+    "glob/not-a-directory": "不是目录",
+    "grep/files": "{count} 个文件",
+    "grep/files-part": "第 {from}–{to} 个文件，一共 {total} 个",
+    "grep/counts": "{count} 个文件",
+    "grep/counts-part": "第 {from}–{to} 个文件，一共 {total} 个",
+    "grep/matches": "{count} 处",
+    "grep/matches-part": "第 {from}–{to} 处",
+    "grep/matches-more": "第 {from}–{to} 处，后面还有",
+    "grep/none": "没搜到",
+    "grep/past-end": "跳过了全部，一共 {total} 条",
+    "grep/bad-pattern": "正则写得不对：{error}"
+  }
+}

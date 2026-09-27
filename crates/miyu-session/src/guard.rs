@@ -11,7 +11,7 @@ use miyu_kernel::event::{Level, Permission};
 use miyu_kernel::id::ModuleId;
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::session::Verdict;
-use miyu_kernel::tool::Access;
+use miyu_kernel::tool::{Access, Worded};
 use miyu_policy::GuardTexts;
 use miyu_tool::{Call, Catalog};
 
@@ -207,11 +207,12 @@ fn ask(name: &str, access: Access, asked: &[Asked]) -> Verdict {
     }
 }
 
-/// 拒绝，写给她这一句。
-fn deny(text: String) -> Verdict {
+/// 拒绝，写给她这一句，连同给人看的说法。
+fn deny(worded: Worded) -> Verdict {
     Verdict::Deny {
         module: module(),
-        text,
+        text: worded.text,
+        human: worded.said,
     }
 }
 

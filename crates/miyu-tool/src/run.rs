@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::pin::Pin;
 
 use miyu_kernel::block::{Block, Text};
+use miyu_kernel::event::Said;
 
 /// 一次调用交给工具的：修正过的参数、这一轮的工作目录、系统的家目录、Miyu 的数据根。别的（会话、身份、沙盒范围）
 /// 用到时再加。
@@ -39,6 +40,8 @@ pub struct Done {
     pub error: bool,
     /// 给模型看的内容。
     pub blocks: Vec<Block>,
+    /// 给人看的说法（施工 4-5 上）：不发给模型，记进 `tool.result`，头照自己的语言换成字。没交的是空的。
+    pub human: Option<Said>,
 }
 
 impl Done {
@@ -47,6 +50,7 @@ impl Done {
         Done {
             error: false,
             blocks: vec![Block::Text(Text { text: text.into() })],
+            human: None,
         }
     }
 
@@ -55,7 +59,15 @@ impl Done {
         Done {
             error: true,
             blocks: vec![Block::Text(Text { text: text.into() })],
+            human: None,
         }
+    }
+
+    /// 带上给人看的说法。
+    #[must_use]
+    pub fn said(mut self, human: Said) -> Done {
+        self.human = Some(human);
+        self
     }
 }
 

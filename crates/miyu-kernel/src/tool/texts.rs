@@ -13,10 +13,23 @@
 //!
 //! 字段照模板的规矩转义（`08-上下文投影.md` 第五节「模板与转义怎么写」）。由执行器从资源目录读好
 //! 交进来，造会话时读一次，冻结在会话上。
+//!
+//! 每一句连同给人看的说法一起交回（[`Worded`]，施工 4-5 上）：说法的编号是这一份字在资源目录里的位置去掉
+//! `.txt`，例如 `core/tool-results/unattended`，字段相同。
 
 use std::collections::BTreeMap;
 
+use crate::event::Said;
 use crate::template::{Template, TemplateError};
+
+/// 写成的一句：给模型看的字，和给人看的说法（施工 4-5 上）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Worded {
+    /// 给模型看的字。
+    pub text: String,
+    /// 给人看的说法。内核写的都有；别的模块拒绝时没交的，是空的。
+    pub said: Option<Said>,
+}
 
 /// 那几句，各是一份读好的模板。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -127,8 +140,8 @@ impl ToolTexts {
     /// # Panics
     ///
     /// 实际不会 panic：造的时候已经试换过。
-    pub fn unknown(&self, name: &str) -> String {
-        render(&self.unknown, &named(name))
+    pub fn unknown(&self, name: &str) -> Worded {
+        word(&self.unknown, "unknown", &named(name))
     }
 
     /// 给 `name` 的参数不是一个 JSON 对象。
@@ -136,8 +149,8 @@ impl ToolTexts {
     /// # Panics
     ///
     /// 实际不会 panic：造的时候已经试换过。
-    pub fn not_an_object(&self, name: &str) -> String {
-        render(&self.not_an_object, &named(name))
+    pub fn not_an_object(&self, name: &str) -> Worded {
+        word(&self.not_an_object, "not-an-object", &named(name))
     }
 
     /// 已取消，没跑过。
@@ -145,8 +158,8 @@ impl ToolTexts {
     /// # Panics
     ///
     /// 实际不会 panic：造的时候已经试换过。
-    pub fn cancelled_before(&self) -> String {
-        render(&self.cancelled_before, &BTreeMap::new())
+    pub fn cancelled_before(&self) -> Worded {
+        word(&self.cancelled_before, "cancelled-before", &BTreeMap::new())
     }
 
     /// 已取消，跑到一半。
@@ -154,8 +167,12 @@ impl ToolTexts {
     /// # Panics
     ///
     /// 实际不会 panic：造的时候已经试换过。
-    pub fn cancelled_running(&self) -> String {
-        render(&self.cancelled_running, &BTreeMap::new())
+    pub fn cancelled_running(&self) -> Worded {
+        word(
+            &self.cancelled_running,
+            "cancelled-running",
+            &BTreeMap::new(),
+        )
     }
 
     /// 已跳过。
@@ -163,8 +180,8 @@ impl ToolTexts {
     /// # Panics
     ///
     /// 实际不会 panic：造的时候已经试换过。
-    pub fn skipped(&self) -> String {
-        render(&self.skipped, &BTreeMap::new())
+    pub fn skipped(&self) -> Worded {
+        word(&self.skipped, "skipped", &BTreeMap::new())
     }
 
     /// 没派：会话是只读的。
@@ -172,8 +189,8 @@ impl ToolTexts {
     /// # Panics
     ///
     /// 实际不会 panic：造的时候已经试换过。
-    pub fn read_only(&self) -> String {
-        render(&self.read_only, &BTreeMap::new())
+    pub fn read_only(&self) -> Worded {
+        word(&self.read_only, "read-only", &BTreeMap::new())
     }
 
     /// 没派：被人拒绝了。写了理由的，带上 `reason`。
@@ -181,10 +198,14 @@ impl ToolTexts {
     /// # Panics
     ///
     /// 实际不会 panic：造的时候已经试换过。
-    pub fn denied(&self, reason: Option<&str>) -> String {
+    pub fn denied(&self, reason: Option<&str>) -> Worded {
         match reason {
-            Some(reason) => render(&self.denied_with_reason, &reasoned(reason)),
-            None => render(&self.denied, &BTreeMap::new()),
+            Some(reason) => word(
+                &self.denied_with_reason,
+                "denied-with-reason",
+                &reasoned(reason),
+            ),
+            None => word(&self.denied, "denied", &BTreeMap::new()),
         }
     }
 
@@ -193,8 +214,8 @@ impl ToolTexts {
     /// # Panics
     ///
     /// 实际不会 panic：造的时候已经试换过。
-    pub fn unattended(&self) -> String {
-        render(&self.unattended, &BTreeMap::new())
+    pub fn unattended(&self) -> Worded {
+        word(&self.unattended, "unattended", &BTreeMap::new())
     }
 
     /// 没回答：被打断了。
@@ -202,8 +223,12 @@ impl ToolTexts {
     /// # Panics
     ///
     /// 实际不会 panic：造的时候已经试换过。
-    pub fn question_interrupted(&self) -> String {
-        render(&self.question_interrupted, &BTreeMap::new())
+    pub fn question_interrupted(&self) -> Worded {
+        word(
+            &self.question_interrupted,
+            "question-interrupted",
+            &BTreeMap::new(),
+        )
     }
 
     /// 没回答：你发了一句话。
@@ -211,8 +236,8 @@ impl ToolTexts {
     /// # Panics
     ///
     /// 实际不会 panic：造的时候已经试换过。
-    pub fn question_voided(&self) -> String {
-        render(&self.question_voided, &BTreeMap::new())
+    pub fn question_voided(&self) -> Worded {
+        word(&self.question_voided, "question-voided", &BTreeMap::new())
     }
 
     /// 没回答：这里没有人能回答。
@@ -220,8 +245,12 @@ impl ToolTexts {
     /// # Panics
     ///
     /// 实际不会 panic：造的时候已经试换过。
-    pub fn question_unattended(&self) -> String {
-        render(&self.question_unattended, &BTreeMap::new())
+    pub fn question_unattended(&self) -> Worded {
+        word(
+            &self.question_unattended,
+            "question-unattended",
+            &BTreeMap::new(),
+        )
     }
 
     /// 已取消：Miyu 重启了，没跑完。
@@ -229,13 +258,25 @@ impl ToolTexts {
     /// # Panics
     ///
     /// 实际不会 panic：造的时候已经试换过。
-    pub fn restarted(&self) -> String {
-        render(&self.restarted, &BTreeMap::new())
+    pub fn restarted(&self) -> Worded {
+        word(&self.restarted, "restarted", &BTreeMap::new())
     }
 }
 
 fn render(template: &Template, fields: &BTreeMap<&str, &str>) -> String {
     template.render(fields).expect("造的时候试换过，字段都有")
+}
+
+/// 照 `template` 写成一句，说法是 `core/tool-results/<name>`，字段相同。
+fn word(template: &Template, name: &str, fields: &BTreeMap<&str, &str>) -> Worded {
+    let mut said = Said::new(format!("core/tool-results/{name}"));
+    for (field, value) in fields {
+        said = said.with(field, *value);
+    }
+    Worded {
+        text: render(template, fields),
+        said: Some(said),
+    }
 }
 
 fn named(name: &str) -> BTreeMap<&str, &str> {

@@ -4,7 +4,9 @@
 
 use super::executor::*;
 use super::*;
-use crate::event::{ApprovalDecided, ApprovalRequested, Decision, Level, Permission, ToolStatus};
+use crate::event::{
+    ApprovalDecided, ApprovalRequested, Decision, Level, Permission, Said, ToolStatus,
+};
 use crate::id::{CallId, ModuleId};
 use crate::origin::Module;
 use crate::raw::RawJson;
@@ -49,6 +51,7 @@ fn denied_by_chain() -> Verdict {
     Verdict::Deny {
         module: permissions(),
         text: "blocked".to_string(),
+        human: Some(Said::new("core/permissions/forbidden").with("path", "~/.miyu")),
     }
 }
 
@@ -146,6 +149,11 @@ fn a_denial_from_the_chain_is_recorded_by_the_module() {
             "blocked".to_string()
         )
     );
+    // 模块交的说法原样记下。
+    assert_eq!(
+        said_of(&events[0]),
+        Some(Said::new("core/permissions/forbidden").with("path", "~/.miyu"))
+    );
     assert_eq!(
         (events[0].cause.clone(), events[0].turn),
         (Some(id(1)), Some(turn3()))
@@ -226,10 +234,14 @@ fn allowing_runs_the_call_once_the_decision_is_stored() {
 
 #[test]
 fn denying_records_the_decision_and_the_result_and_she_goes_on() {
-    for (reason, text) in [
-        (None, "denied"),
-        (Some("先别推"), "denied: 先别推"),
-        (Some("  "), "denied"),
+    for (reason, text, said) in [
+        (None, "denied", Said::new("core/tool-results/denied")),
+        (
+            Some("先别推"),
+            "denied: 先别推",
+            Said::new("core/tool-results/denied-with-reason").with("reason", "先别推"),
+        ),
+        (Some("  "), "denied", Said::new("core/tool-results/denied")),
     ] {
         let mut session = waiting_for_you(true);
         let actions = session.handle(answer(2, call(6, 1), Decision::Deny, reason));
@@ -245,6 +257,7 @@ fn denying_records_the_decision_and_the_result_and_she_goes_on() {
             result_of(&events[1]),
             (call(6, 1), ToolStatus::Denied, alice(), text.to_string())
         );
+        assert_eq!(said_of(&events[1]), Some(said));
         assert_eq!(events[1].cause, Some(id(2)));
         // 她接着干：这一步齐了，请求下一次。
         let actions = session.handle(stored(10));
@@ -344,6 +357,10 @@ fn where_no_one_can_approve_asking_is_denied_on_the_spot() {
             By::Kernel,
             "unattended".to_string()
         )
+    );
+    assert_eq!(
+        said_of(&events[0]),
+        Some(Said::new("core/tool-results/unattended"))
     );
     assert_eq!(
         calls(&session.handle(stored(8)))

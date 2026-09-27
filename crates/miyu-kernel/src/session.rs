@@ -152,7 +152,8 @@ impl Session {
                 error,
                 blocks,
                 duration_ms,
-            } => self.tool_done(at, call_id, error, blocks, duration_ms),
+                human,
+            } => self.tool_done(at, call_id, error, blocks, duration_ms, human),
             Input::ToolProgress { at, call_id, text } => self.tool_progress(at, call_id, text),
             Input::ToolGuarded {
                 at,

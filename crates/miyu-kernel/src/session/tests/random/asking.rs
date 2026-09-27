@@ -35,6 +35,7 @@ pub(super) fn some_verdict(rng: &mut Rng, watch: &Watch) -> Input {
         _ => Verdict::Deny {
             module,
             text: "blocked".to_string(),
+            human: None,
         },
     };
     Input::ToolGuarded {

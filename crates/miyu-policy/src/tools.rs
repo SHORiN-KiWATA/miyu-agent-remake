@@ -4,10 +4,11 @@
 
 use std::collections::BTreeMap;
 
+use miyu_kernel::event::Said;
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::request::ToolSpec;
 use miyu_kernel::template::{Template, TemplateError};
-use miyu_kernel::tool::{Access, ToolRule};
+use miyu_kernel::tool::{Access, ToolRule, Worded};
 use serde::{Deserialize, Serialize};
 
 use crate::snapshot::{BuildError, Snapshot};
@@ -35,14 +36,20 @@ pub struct RunTexts {
 }
 
 impl RunTexts {
-    /// 叫 `name` 的工具现在用不了。
-    pub fn unavailable(&self, name: &str) -> String {
-        render(&self.unavailable, name)
+    /// 叫 `name` 的工具现在用不了。说法是 `core/tool-results/unavailable`（施工 4-5 上）。
+    pub fn unavailable(&self, name: &str) -> Worded {
+        Worded {
+            text: render(&self.unavailable, name),
+            said: Some(Said::new("core/tool-results/unavailable").with("name", name)),
+        }
     }
 
-    /// 叫 `name` 的工具崩了。
-    pub fn crashed(&self, name: &str) -> String {
-        render(&self.crashed, name)
+    /// 叫 `name` 的工具崩了。说法是 `core/tool-results/crashed`。
+    pub fn crashed(&self, name: &str) -> Worded {
+        Worded {
+            text: render(&self.crashed, name),
+            said: Some(Said::new("core/tool-results/crashed").with("name", name)),
+        }
     }
 }
 

@@ -10,7 +10,7 @@ use std::time::Duration;
 use tokio::sync::Barrier;
 
 use miyu_kernel::block::Block;
-use miyu_kernel::event::{Body, Event, ToolResult, ToolStatus, TransientBody};
+use miyu_kernel::event::{Body, Event, Said, ToolResult, ToolStatus, TransientBody};
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::request::{Message, Request};
 use miyu_kernel::session::{Command, Queued};
@@ -279,6 +279,10 @@ async fn a_tool_the_catalog_no_longer_has_is_not_available() {
         text(&results[0].blocks),
         "The tool \"gone\" is not available right now.\n"
     );
+    assert_eq!(
+        results[0].human,
+        Some(Said::new("core/tool-results/unavailable").with("name", "gone"))
+    );
 }
 
 #[tokio::test]
@@ -298,6 +302,10 @@ async fn a_tool_that_panics_gives_an_error_and_the_session_goes_on() {
     assert_eq!(
         text(&results[0].blocks),
         "The tool \"boom\" stopped because of an internal error. It may have been partly done.\n"
+    );
+    assert_eq!(
+        results[0].human,
+        Some(Said::new("core/tool-results/crashed").with("name", "boom"))
     );
     assert_eq!(script.requests().len(), 2, "会话照常请求了下一次");
     // 会话还活着，接着说得上话。

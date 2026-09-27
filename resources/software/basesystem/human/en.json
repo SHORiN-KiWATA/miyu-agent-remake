@@ -1,0 +1,46 @@
+{
+  "tools": {
+    "read": {
+      "name": "Read",
+      "subject": "file_path"
+    },
+    "glob": {
+      "name": "Find files",
+      "subject": "pattern"
+    },
+    "grep": {
+      "name": "Search",
+      "subject": "pattern"
+    }
+  },
+  "said": {
+    "read/lines": "{count} lines",
+    "read/lines-part": "lines {from}–{to} of {total}",
+    "read/entries": "{count} entries",
+    "read/entries-part": "entries {from}–{to} of {total}",
+    "read/empty": "empty",
+    "read/past-end": "past the end, {total} lines",
+    "read/past-end-entries": "past the end, {total} entries",
+    "read/not-a-file": "not a regular file or directory",
+    "read/binary": "binary file, not read",
+    "common/missing": "no such file",
+    "common/missing-similar": "no such file, did you mean {similar}",
+    "common/failed": "can't read it: {error}",
+    "common/bad-args": "bad arguments: {error}",
+    "common/bad-glob": "bad glob: {error}",
+    "common/no-files": "none found",
+    "glob/files": "{count} files",
+    "glob/files-more": "{total} files, {shown} listed",
+    "glob/not-a-directory": "not a directory",
+    "grep/files": "{count} files",
+    "grep/files-part": "files {from}–{to} of {total}",
+    "grep/counts": "{count} files",
+    "grep/counts-part": "files {from}–{to} of {total}",
+    "grep/matches": "{count} matches",
+    "grep/matches-part": "matches {from}–{to}",
+    "grep/matches-more": "matches {from}–{to}, more after",
+    "grep/none": "no matches",
+    "grep/past-end": "all skipped, {total} results",
+    "grep/bad-pattern": "bad regex: {error}"
+  }
+}

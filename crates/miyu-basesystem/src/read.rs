@@ -15,7 +15,7 @@ use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Progress, Running, Spec, Target, Tool};
 
 use crate::blocking::blocking;
-use crate::common::{Common, Shown};
+use crate::common::{Common, Shown, said};
 use crate::load::{self, LoadError, say};
 
 /// 一次最多读几行，目录一次最多列几项。
@@ -128,20 +128,27 @@ fn read(texts: &Texts, call: &Call, args: &Args) -> Done {
             return texts.common.missing(path, &real, &Shown::here(call));
         }
         Err(OpenError::NotAFile(_)) => {
-            return Done::error(say(&texts.not_a_file, &[("path", path)]));
+            return Done::error(say(&texts.not_a_file, &[("path", path)]))
+                .said(said("read/not-a-file").with("path", path));
         }
         Err(OpenError::Io(error)) => return texts.common.failed(path, &error),
     };
     match lines::read(file, offset, limit) {
-        Ok(lines::Page::Binary) => Done::error(say(&texts.binary, &[("path", path)])),
-        Ok(lines::Page::Empty) => Done::ok(say(&texts.empty, &[])),
+        Ok(lines::Page::Binary) => Done::error(say(&texts.binary, &[("path", path)]))
+            .said(said("read/binary").with("path", path)),
+        Ok(lines::Page::Empty) => Done::ok(say(&texts.empty, &[])).said(said("read/empty")),
         Ok(lines::Page::PastEnd { total }) => Done::ok(say(
             &texts.past_end,
             &[
                 ("total", &total.to_string()),
                 ("offset", &offset.to_string()),
             ],
-        )),
+        ))
+        .said(
+            said("read/past-end")
+                .with("total", total.to_string())
+                .with("offset", offset.to_string()),
+        ),
         Ok(lines::Page::Lines {
             mut text,
             from,
@@ -159,8 +166,21 @@ fn read(texts: &Texts, call: &Call, args: &Args) -> Done {
                     ],
                 ));
             }
-            Done::ok(text)
+            Done::ok(text).said(part("read/lines", from, to, total))
         }
         Err(error) => texts.common.failed(path, &error),
+    }
+}
+
+/// 读了第 `from` 到第 `to`（一共 `total`）行或者项，给人看的说法：读全了的是 `<key>`，只读了一段的是
+/// `<key>-part`。
+pub(crate) fn part(key: &str, from: u64, to: u64, total: u64) -> miyu_kernel::event::Said {
+    if from == 1 && to == total {
+        said(key).with("count", total.to_string())
+    } else {
+        said(&format!("{key}-part"))
+            .with("from", from.to_string())
+            .with("to", to.to_string())
+            .with("total", total.to_string())
     }
 }

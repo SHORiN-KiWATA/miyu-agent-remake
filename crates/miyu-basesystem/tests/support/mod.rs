@@ -68,13 +68,7 @@ impl Site {
 
     /// 在场地里的 `cwd` 这个工作目录里调一次工具。
     pub async fn call_in(&self, cwd: &str, name: &str, args: serde_json::Value) -> (bool, String) {
-        let call = Call {
-            args: args.to_string(),
-            cwd: self.0.join(cwd).to_string_lossy().into_owned(),
-            home: Some(self.0.join("home")),
-            data_root: Some(self.0.join("data")),
-        };
-        let Done { error, blocks } = tool(name).run(call, Progress::new(|_| {})).await;
+        let Done { error, blocks, .. } = self.done_in(cwd, name, args).await;
         let text = blocks
             .iter()
             .map(|block| match block {
@@ -83,6 +77,22 @@ impl Site {
             })
             .collect();
         (error, text)
+    }
+
+    /// 在 `work/` 里调一次工具，交回它交的全部（施工 4-5 上：要看给人看的说法）。
+    pub async fn done(&self, name: &str, args: serde_json::Value) -> Done {
+        self.done_in("work", name, args).await
+    }
+
+    /// 在场地里的 `cwd` 这个工作目录里调一次工具，交回它交的全部。
+    pub async fn done_in(&self, cwd: &str, name: &str, args: serde_json::Value) -> Done {
+        let call = Call {
+            args: args.to_string(),
+            cwd: self.0.join(cwd).to_string_lossy().into_owned(),
+            home: Some(self.0.join("home")),
+            data_root: Some(self.0.join("data")),
+        };
+        tool(name).run(call, Progress::new(|_| {})).await
     }
 }
 

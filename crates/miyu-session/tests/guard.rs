@@ -7,7 +7,7 @@ mod support;
 
 use std::sync::Arc;
 
-use miyu_kernel::event::{Body, Event, Level, Permission, ToolResult, ToolStatus};
+use miyu_kernel::event::{Body, Event, Level, Permission, Said, ToolResult, ToolStatus};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Queued};
 use miyu_kernel::tool::Access;
@@ -218,6 +218,11 @@ async fn the_data_root_is_refused_at_every_level() {
             "{}",
             text(&result)
         );
+        // 给人看的说法也记下了（施工 4-5 上）。
+        assert_eq!(
+            result.human,
+            Some(Said::new("core/permissions/forbidden").with("path", token.as_str()))
+        );
         assert!(kit.read.calls().is_empty(), "{level:?}");
     }
 }
@@ -312,6 +317,14 @@ async fn a_link_to_nowhere_is_refused_and_says_why() {
     assert_eq!(
         text(&result),
         "Can't tell where \"dead/x.txt\" points: a link on the path points nowhere.\n"
+    );
+    assert_eq!(
+        result.human,
+        Some(
+            Said::new("core/permissions/unresolvable")
+                .with("path", "dead/x.txt")
+                .with("reason", "a link on the path points nowhere")
+        )
     );
 }
 

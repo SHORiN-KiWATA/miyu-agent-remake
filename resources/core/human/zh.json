@@ -1,0 +1,21 @@
+{
+  "said": {
+    "tool-results/unknown": "没有这件工具",
+    "tool-results/not-an-object": "参数不是一个 JSON 对象",
+    "tool-results/cancelled-before": "打断了，没跑",
+    "tool-results/cancelled-running": "打断了，跑到一半",
+    "tool-results/skipped": "跳过了",
+    "tool-results/read-only": "只读，没写",
+    "tool-results/denied": "你拒绝了",
+    "tool-results/denied-with-reason": "你拒绝了：{reason}",
+    "tool-results/unattended": "要确认，这里没人能确认",
+    "tool-results/question-interrupted": "打断了，没回答",
+    "tool-results/question-voided": "你发了一句话，这一题作废了",
+    "tool-results/question-unattended": "这里没人能回答",
+    "tool-results/restarted": "Miyu 重启了，没跑完",
+    "tool-results/unavailable": "现在用不了",
+    "tool-results/crashed": "内部出错了，可能做了一部分",
+    "permissions/forbidden": "这是 Miyu 自己的数据，谁都不能碰",
+    "permissions/unresolvable": "说不清它指向哪里：{reason}"
+  }
+}
