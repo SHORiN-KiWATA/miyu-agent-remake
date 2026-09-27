@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>63</b><span>/ 69 步<strong>已完成</strong>，她能新建、覆盖文件了，改之前先核对</span></li>
-    <li><b>4-6</b><span>下一步：编辑（中），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">063748a</b><span>最近一步（4-6 上）的提交</span></li>
+    <li><b>64</b><span>/ 69 步<strong>已完成</strong>，她能在文件里精确替换了，一次改几处</span></li>
+    <li><b>4-6</b><span>下一步：删除（下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">7985e11</b><span>最近一步（4-6 中）的提交</span></li>
   </ul>
 </header>
 
@@ -400,7 +400,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-5a"><span class="n">4-5</span>给人看的说法（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-5b"><span class="n">4-5</span>miyu ask 印出每一步（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-6a"><span class="n">4-6</span>效果和写入（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-6</span>编辑（中）</span></li>
+        <li><a class="step done" href="#s4-6b"><span class="n">4-6</span>编辑（中）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-6</span>删除（下）</span></li>
         <li><span class="step"><span class="n">4-7</span>撤销时恢复文件</span></li>
         <li><span class="step"><span class="n">4-8</span>执行命令</span></li>
@@ -5221,6 +5221,77 @@ a.step:hover{border-color:var(--primary)}
         <li><code>docs/designs/03-事件模型.md</code> 第三节；<code>05-内核接口.md</code> 第六节。</li>
         <li><code>docs/designs/10-自带软件.md</code> 第三节 write 的细则、第五节效果的字段和她看过的。</li>
         <li><code>docs/construction/4-6-效果和写入（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s4-6b" aria-labelledby="h-s46b">
+  <div class="sheet-head"><h2 id="h-s46b"><span class="no">4-6</span>编辑（中）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她平时改代码用的是 edit，不是整份重写：在已有的文件里精确替换，一次可以改几处，字段名照 Claude Code。每一处都对照原文件找，唯一、不重叠；先精确、再宽松，宽松只影响找位置；有一处出错一处都不改；换行、编码、BOM 照原来的。没对上的给她最接近的几行，不唯一的告诉她在哪几行。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">找位置的两层</span><span class="dir-note">10 第六节</span></div>
+            <ol class="pipe" aria-label="找位置的两层">
+              <li>精确：只把文件里的 CRLF 当 LF 看（她读到的行已经去掉了 \r）</li>
+              <li>宽松：再不管行尾空白，弯引号、破折号、各种空格当普通的，逐字 NFKC</li>
+              <li>哪一层对上几个就是几个：精确的不唯一，不往宽松找</li>
+              <li>看法里的位置照记下的来处换回原文：别的地方一个字节不动</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">没做成的</span><span class="dir-note">说清是第几处</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">没对上</span><span class="rl">最像的那一行过了一半，带上从那里起的几行、行号</span></div>
+              <div class="tile new"><span class="nm">不唯一</span><span class="rl">列出在哪几行：多带上下文，或者写 replace_all</span></div>
+              <div class="tile new"><span class="nm">重叠</span><span class="rl">说是哪两处，让她并成一处</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">replace_all</span><span class="rl">照 Claude Code：改名这类每一处都换，用不着唯一</span></div>
+          <div class="tile new"><span class="nm">写成一处的也认</span><span class="rl">顶层的 old_string、new_string；edits 写成一个对象的；opencode、pi 的字段名</span></div>
+          <div class="tile new"><span class="nm">全改或全不改</span><span class="rl">有一处出错、两处重叠，一处都不改</span></div>
+          <div class="tile new"><span class="nm">核对、目录、写不了挪成共用</span><span class="rl">write、edit 说同几句话，字一个不改</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">trash（4-6 下）、撤销（4-7）；照原来的引号风格改写 new_string（4-10 看）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-6（中）</dd></div>
+        <div><dt>名称</dt><dd>编辑</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">7985e11</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-basesystem</code>：新的 <code>edit</code>，找位置的 <code>find</code>（两层看法、换回原文、最接近的几行）。</li>
+        <li>「文件的写法」多了只换编码和 BOM、严格解码；改之前核对、目录、写不了挪进共用的几句。</li>
+        <li><code>write</code> 的说明补上第三句「只改一部分的用 edit」。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>参数的几种写法；几处一起改、对照原文件；重叠、一处错全不改；CRLF、BOM、UTF-16；宽松只换对上的那一段；没对上、不唯一、replace_all；会话里读了连着改两次</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 33 处，全部有测试变红</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/10-自带软件.md</code> 第六节「edit 的细则」。</li>
+        <li><code>docs/construction/4-6-编辑（中）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
