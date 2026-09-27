@@ -55,8 +55,10 @@ pub fn resolve(cwd: &Path, home: Option<&Path>, input: &str) -> Result<PathBuf, 
 }
 
 /// `~` 开头的：交回 `~` 后面那一截（去掉紧跟着的分隔符）。只有 `~` 自己，或者 `~` 后面紧跟分隔符的才算：
-/// `~alice`、`a/~` 照原样。
-fn tilde(input: &str) -> Option<&str> {
+/// `~alice`、`a/~` 照原样。`\` 只在 Windows 上算分隔符。[`resolve()`] 照它接家目录；自己拼路径的工具也照它，两边
+/// 才对得上（施工 4-6 下：`trash` 的最后一段不跟链接，不能整条交给 [`resolve()`]）。
+#[must_use]
+pub fn tilde(input: &str) -> Option<&str> {
     let rest = input.strip_prefix('~')?;
     if rest.is_empty() {
         return Some("");

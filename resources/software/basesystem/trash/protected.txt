@@ -1,0 +1,1 @@
+"{path}" cannot be deleted: it is the working directory, one of its parents, the home directory, or the root.

@@ -399,3 +399,25 @@ async fn every_edit_outcome_says_something_people_can_read() {
     );
     readable(&checked, &["edit"]);
 }
+
+#[tokio::test]
+async fn every_trash_outcome_says_something_people_can_read() {
+    let site = Site::new();
+    site.file("work/a.txt", b"a\n");
+    let run = |path: &str| site.done("trash", serde_json::json!({ "file_path": path }));
+    let mut checked = Vec::new();
+    check(&mut checked, human(run(".").await), said("trash/protected"));
+    // 删成了的，这台机器上真删进回收站：Linux 上是场地里假家目录的回收站。
+    #[cfg(target_os = "linux")]
+    check(
+        &mut checked,
+        human(run("a.txt").await),
+        said("trash/trashed"),
+    );
+    #[cfg(not(target_os = "linux"))]
+    checked.push(said("trash/trashed"));
+    checked.push(said("trash/unavailable"));
+    checked.push(said("trash/lost"));
+    checked.push(said("trash/failed").with("error", "Permission denied"));
+    readable(&checked, &["trash"]);
+}

@@ -1,0 +1,1 @@
+"{path}" was not deleted: its drive has no trash to move it into. Ask the user, or use rm in the shell to delete it for good.

@@ -32,6 +32,19 @@ unicode-normalization = "0.1"
 # 运行日志的门面：写文件时没删掉的临时文件记一条（施工 4-6 上）。
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+# Linux 的回收站里记删的时间，要本地时间（施工 4-6 下）。
+jiff = "0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# macOS 的回收站：系统的 NSFileManager 交回东西在回收站里的新位置（施工 4-6 下）。只开用到的几样。
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "FoundationErrors", "NSError", "NSFileManager", "NSString", "NSURL"] }
+
+[target.'cfg(windows)'.dependencies]
+# Windows 的回收站：系统的 IFileOperation，删完从回收站的列表里找回编号（施工 4-6 下）。
+trash = "5"
+
 [dev-dependencies]
 # 核对工具会说的每一种，中文、英文都换得出字（施工 4-5 上）。
 miyu-store = { path = "../miyu-store" }

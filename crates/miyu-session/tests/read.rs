@@ -118,5 +118,5 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
         .iter()
         .map(|tool| tool.name.as_str())
         .collect();
-    assert_eq!(names, ["edit", "glob", "grep", "read", "write"]);
+    assert_eq!(names, ["edit", "glob", "grep", "read", "trash", "write"]);
 }

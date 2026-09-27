@@ -1,4 +1,4 @@
-//! 真的 `write`（施工 4-6 上）、`edit`（施工 4-6 中）：会话里她先读后写，日志里两次结果的效果对得上，blob 里存着改前
+//! 真的 `write`（施工 4-6 上）、`edit`（施工 4-6 中）、`trash`（施工 4-6 下）：会话里她先读后写，日志里两次结果的效果对得上，blob 里存着改前
 //! 改后的内容；新建的不用先读；没读过就写的被拒，读过以后可以写，会话重新载入以后她读过的照样算数；改完一次接着改，
 //! 不用重读。
 
@@ -192,5 +192,59 @@ async fn she_reads_then_edits_twice_without_reading_again() {
     assert_eq!(
         blobs.get(&ContentHash::of(b"1\n2\n")).expect("存了改后的"),
         b"1\n2\n"
+    );
+}
+
+/// 删了的从她看过的里拿掉（施工 4-6 下）：原处又冒出一个同名的，她得先读，说的是「没读过」，不是「读过以后被改了」。
+/// 回收站在场地的假家目录里，只在 Linux 上跑：别的平台删进的是系统真的回收站。
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn a_trashed_file_is_no_longer_one_she_has_seen() {
+    let home = Home::outside_temp();
+    let file = home.scratch.0.join("work/a.txt");
+    std::fs::write(&file, "old\n").expect("写得进");
+    let real = std::fs::canonicalize(&file)
+        .expect("在")
+        .to_string_lossy()
+        .into_owned();
+    let script = Script::new([
+        Play::calls(&[("read", r#"{"file_path":"a.txt"}"#)]),
+        Play::calls(&[("trash", r#"{"file_path":"a.txt"}"#)]),
+        Play::Says("删了。"),
+    ]);
+    let handle = home
+        .create_as(&script, &base_system(), opening(&home))
+        .await;
+    talk(&handle, "cmd-1", "删掉它").await;
+    let first = results(&home, &handle);
+    assert_eq!(first[1].status, ToolStatus::Ok, "{first:?}");
+    match &first[1].effects[..] {
+        [Effect::FileTrashed(trashed)] => {
+            assert_eq!(trashed.path, real);
+            assert!(
+                std::path::Path::new(&trashed.trash).is_file(),
+                "{}",
+                trashed.trash
+            );
+        }
+        other => panic!("{other:?}"),
+    }
+    assert!(!file.exists());
+    // 原处又有了一个同名的：她没看过它。
+    std::fs::write(&file, "new\n").expect("写得进");
+    let session = handle.id().clone();
+    stop(&handle).await;
+    let script = Script::new([
+        Play::calls(&[("write", r#"{"file_path":"a.txt","content":"x\n"}"#)]),
+        Play::Says("好。"),
+    ]);
+    let handle = home
+        .load_at(&session, &script, &base_system(), &work(&home))
+        .await;
+    talk(&handle, "cmd-2", "写一下").await;
+    let all = results(&home, &handle);
+    assert_eq!(
+        all.last().expect("有结果").human,
+        Some(Said::new("software/basesystem/common/not-read"))
     );
 }

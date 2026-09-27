@@ -19,6 +19,10 @@
     "edit": {
       "name": "Edit",
       "subject": "file_path"
+    },
+    "trash": {
+      "name": "Delete",
+      "subject": "file_path"
     }
   },
   "said": {
@@ -65,6 +69,11 @@
     "edit/not-found-near": "edit {index} not found, closest at line {line}",
     "edit/not-unique": "edit {index} matches {count} places",
     "edit/overlap": "edits {first} and {second} overlap",
-    "edit/not-text": "not a text file"
+    "edit/not-text": "not a text file",
+    "trash/trashed": "moved to the trash",
+    "trash/unavailable": "no trash here, not deleted",
+    "trash/protected": "the working directory, its parents, home and root can't be deleted",
+    "trash/lost": "deleted, but not found in the trash",
+    "trash/failed": "can't delete: {error}"
   }
 }
