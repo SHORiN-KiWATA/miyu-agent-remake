@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>49</b><span>/ 52 步<strong>已完成</strong>，头能订阅事件流：先见结果，后见回应</span></li>
-    <li><b>3-8</b><span>下一步：协议端点（下）本机传输，<strong>施工中</strong></span></li>
-    <li><b class="mono">7a7ba7a</b><span>最近一步（3-8 中）的提交</span></li>
+    <li><b>50</b><span>/ 52 步<strong>已完成</strong>，核心在本机的套接字上等连接：一个数据根一个核心</span></li>
+    <li><b>3-8</b><span>下一步：Windows 命名管道（补），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">40be51e</b><span>最近一步（3-8 下）的提交</span></li>
   </ul>
 </header>
 
@@ -380,7 +380,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-7c"><span class="n">3-7</span>会话 actor（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8a"><span class="n">3-8</span>协议端点（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8b"><span class="n">3-8</span>协议端点（中）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-8</span>协议端点（下）</span></li>
+        <li><a class="step done" href="#s3-8c"><span class="n">3-8</span>协议端点（下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-8</span>Windows 命名管道（补）</span></li>
         <li><span class="step"><span class="n">3-9</span>miyu ask</span></li>
       </ol>
@@ -4201,6 +4201,79 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-8c" aria-labelledby="h-s38c">
+  <div class="sheet-head"><h2 id="h-s38c"><span class="no">3-8</span>协议端点（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">核心有了真的本机入口：Linux、macOS 上的 Unix 域套接字。核心起来先拿单实例锁，换一个本机令牌写进 run/token，在套接字上等连接，把实际位置写进 run/socket；头读这两个文件就连得上、握得了手。一个数据根一个核心，几个数据根不撞。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">核心起来的先后</span><span class="dir-note">07 第二、十节</span></div>
+            <ol class="pipe" aria-label="核心起来的先后">
+              <li>算出套接字放哪，不碰磁盘</li>
+              <li>拿 run/core.lock 的锁</li>
+              <li>换本机令牌，写进 run/token</li>
+              <li>绑套接字，旧的先试连</li>
+              <li>位置写进 run/socket</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">套接字放哪</span><span class="dir-note">名字带数据根的指纹</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">$XDG_RUNTIME_DIR/miyu-&lt;指纹&gt;/core.sock</span><span class="rl">Linux：它是自己的、只有自己能进</span></div>
+              <div class="tile new"><span class="nm">run/core.sock</span><span class="rl">没设的、macOS</span></div>
+              <div class="tile new"><span class="nm">$TMPDIR/miyu-&lt;uid&gt;/&lt;指纹&gt;.sock</span><span class="rl">放不下：Linux 107、macOS 103 字节</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">只有自己能进的目录</span><span class="rl">绑之前、连之前都核对：是目录不是链接，属主是自己，组和别人没有权限</span></div>
+          <div class="tile new"><span class="nm">旧套接字先试连</span><span class="rl">连不上的才删；连得上的、不是套接字的都不动</span></div>
+          <div class="tile new"><span class="nm">先连后读令牌</span><span class="rl">令牌在套接字能连之前就换好，头读到的一定是新的</span></div>
+          <div class="tile new"><span class="nm">一个个接连接</span><span class="rl">协议端点的 run：每个连接交给 serve</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">Windows 的命名管道（3-8 补）；头拉起核心的握手、空闲退出（3-9）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-8（下）</dd></div>
+        <div><dt>名称</dt><dd>协议端点（下）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">40be51e</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-ipc</code>（新，第 3 层）：<code>open</code>、<code>connect</code>；套接字放哪、单实例锁、本机令牌、<code>run/socket</code>；Windows 上是造不出来的桩。</li>
+        <li><code>miyu-endpoint</code>：<code>run</code>，在监听器上一个个接连接。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>放哪、上限按字节、目录的核对、锁、令牌、旧套接字、挡路的东西不动、头不连别人进得来的目录；在真的套接字上握手、造会话、说一句</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 34 处全拦下（「不查属主」起初测不出，拆成只看数字的小函数补了测试）</span></li>
+        <li><span class="ok">✓</span><span>本地七项全过；三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/07-存储.md</code> 第二、十节：套接字、本机令牌、锁怎么写。</li>
+        <li><code>docs/designs/06-多用户与身份.md</code> U13：管理员的账号固定叫 admin。</li>
+        <li><code>docs/construction/3-8-协议端点（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -4381,7 +4454,7 @@ const BUILD = {
   n_prompt: { by: '3-6', how: 'frame', note: '策略快照：人格从资源目录拼成快照，按内容哈希存档，载入时照哈希重建，请求逐字节一样；现在只有软件工程师（3-6 上）' },
   n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断；会接着写的供应商用前缀续写（3-5 再补，出厂只开 DeepSeek）；DEBUG 记发出去和收场，key、正文、地址的路径一个字都不记（3-7 上）' },
   k_sessions: { by: '3-7', how: 'frame', note: '会话 actor（3-7 中）：命令和执行器的回报进收件箱，动作照表回；先落盘，后回应、后推送；造会话存策略快照，载入照它重建，停在一轮中间的再起来接着干；写不进去就停下。请求模型接上驱动和 HTTP，驱动的占位取自会话的快照（3-7 下）；会话表照编号找会话、没在跑的从磁盘载入，只起一个 actor（3-8 上）' },
-  n_bus: { by: '3-8', how: 'frame', note: '连接上一行一条 JSON-RPC 2.0：握手（主版本、本机令牌）、造会话、说话、打断，拒绝附原因码（3-8 上）；订阅事件流，回应排在它产生的推送后面，掉队推 resync（3-8 中）；本机套接字和命名管道还没有' },
+  n_bus: { by: '3-8', how: 'frame', note: '连接上一行一条 JSON-RPC 2.0：握手（主版本、本机令牌）、造会话、说话、打断，拒绝附原因码（3-8 上）；订阅事件流，回应排在它产生的推送后面，掉队推 resync（3-8 中）；核心在本机的 Unix 套接字上等连接：一个数据根一个核心（锁），本机令牌写进 run/token，实际位置记在 run/socket，套接字放在只有自己能进的目录里（3-8 下）；Windows 的命名管道还没有' },
 };
 
 const svg = document.getElementById('bmap');
