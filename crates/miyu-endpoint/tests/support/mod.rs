@@ -143,6 +143,51 @@ impl Client {
         (read > 0).then(|| serde_json::from_str(&line).expect("回应是 JSON"))
     }
 
+    /// 读下一行，最多等 `wait`：等不到的是 `None`（对方关了的也是）。
+    pub async fn next_within(&mut self, wait: Duration) -> Option<Value> {
+        let mut line = String::new();
+        match tokio::time::timeout(wait, self.reader.read_line(&mut line)).await {
+            Ok(Ok(read)) if read > 0 => Some(serde_json::from_str(&line).expect("是 JSON")),
+            _ => None,
+        }
+    }
+
+    /// 订阅会话 `session` 的事件流，交回回应。
+    pub async fn subscribe(&mut self, id: &str, session: &str) -> Value {
+        self.call(
+            id,
+            "subscribe",
+            json!({"session": session, "stream": "events"}),
+        )
+        .await
+    }
+
+    /// 一直读，读到 `id` 的回应为止：交回回应之前读到的推送，和回应。
+    pub async fn until_reply(&mut self, id: &str) -> (Vec<Value>, Value) {
+        let mut pushed = Vec::new();
+        loop {
+            let next = self.next().await.expect("没断开");
+            if next["id"] == json!(id) {
+                return (pushed, next);
+            }
+            pushed.push(next);
+        }
+    }
+
+    /// 一直读推送，读到会话 `session` 的回合结束为止，交回读到的。
+    pub async fn until_turn_ends(&mut self, session: &str) -> Vec<Value> {
+        let mut pushed = Vec::new();
+        loop {
+            let next = self.next().await.expect("没断开");
+            let ended = next["params"]["session"] == json!(session)
+                && next["params"]["event"]["kind"] == json!("turn.ended");
+            pushed.push(next);
+            if ended {
+                return pushed;
+            }
+        }
+    }
+
     /// 发一条请求，读它的回应。
     pub async fn call(&mut self, id: &str, method: &str, params: Value) -> Value {
         let request = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
@@ -215,4 +260,18 @@ pub async fn until(what: &str, done: impl Fn() -> bool) {
 /// 回应里的原因码；不是拒绝的是 `None`。
 pub fn reason(reply: &Value) -> Option<&str> {
     reply["error"]["data"]["reason"].as_str()
+}
+
+/// 推送里的事件种类，照先后。
+pub fn kinds(pushed: &[Value]) -> Vec<String> {
+    pushed
+        .iter()
+        .filter(|push| push["method"] == json!("event"))
+        .map(|push| {
+            push["params"]["event"]["kind"]
+                .as_str()
+                .unwrap_or("?")
+                .to_string()
+        })
+        .collect()
 }

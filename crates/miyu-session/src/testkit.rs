@@ -20,6 +20,8 @@ use crate::port::{Cancel, ForSession, ModelPort, Models, Reports};
 pub enum Play {
     /// 说一句，说完。用量：60 没命中、40 命中、10 输出。
     Says(&'static str),
+    /// 一口气推 `n` 段增量，每段一个字，再说完：好测读得慢的订阅者掉队。
+    Floods(usize),
     /// 出错：分类，供应商说要等多久。
     Fails {
         /// 出错的分类。
@@ -109,21 +111,8 @@ impl ModelPort for Script {
         tokio::spawn(async move {
             reports.sent(model, hash);
             match play {
-                Play::Says(text) => {
-                    for delta in text_block(text, true) {
-                        reports.delta(delta);
-                    }
-                    reports.ended(
-                        Some(Usage {
-                            uncached: 60,
-                            cache_read: 40,
-                            cache_write: 0,
-                            output: 10,
-                        }),
-                        None,
-                        None,
-                    );
-                }
+                Play::Says(text) => says(reports, text, 1),
+                Play::Floods(n) => says(reports, &"字".repeat(n), n),
                 Play::Fails { class, wait_ms } => reports.ended(
                     None,
                     Some(CallError {
@@ -133,7 +122,7 @@ impl ModelPort for Script {
                     wait_ms,
                 ),
                 Play::Holds => {
-                    for delta in text_block("…", false) {
+                    for delta in text_block("…", 1).into_iter().take(2) {
                         reports.delta(delta);
                     }
                     cancel.wait().await;
@@ -148,20 +137,37 @@ impl ModelPort for Script {
     }
 }
 
-/// 一块正文：开始、全文；`ends` 的再收全。
-fn text_block(text: &str, ends: bool) -> Vec<Delta> {
-    let mut deltas = vec![
-        Delta::Start {
-            index: 0,
-            kind: Kind::Text,
-        },
-        Delta::Text {
-            index: 0,
-            text: text.to_string(),
-        },
-    ];
-    if ends {
-        deltas.push(Delta::End { index: 0 });
+/// 说完一句：正文分成 `pieces` 段交出去，报用量：60 没命中、40 命中、10 输出。
+fn says(reports: Reports, text: &str, pieces: usize) {
+    for delta in text_block(text, pieces) {
+        reports.delta(delta);
     }
+    reports.ended(
+        Some(Usage {
+            uncached: 60,
+            cache_read: 40,
+            cache_write: 0,
+            output: 10,
+        }),
+        None,
+        None,
+    );
+}
+
+/// 一块正文：开始，全文分成 `pieces` 段（按字切），收全。
+fn text_block(text: &str, pieces: usize) -> Vec<Delta> {
+    let chars: Vec<char> = text.chars().collect();
+    let size = chars.len().div_ceil(pieces.max(1)).max(1);
+    let mut deltas = vec![Delta::Start {
+        index: 0,
+        kind: Kind::Text,
+    }];
+    for piece in chars.chunks(size) {
+        deltas.push(Delta::Text {
+            index: 0,
+            text: piece.iter().collect(),
+        });
+    }
+    deltas.push(Delta::End { index: 0 });
     deltas
 }

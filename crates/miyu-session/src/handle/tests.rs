@@ -43,3 +43,24 @@ async fn a_lagging_subscription_is_dropped_for_good() {
     drop(pushes);
     assert_eq!(quick.next().await, Err(Ended::Stopped));
 }
+
+#[tokio::test]
+async fn try_next_takes_only_what_has_arrived() {
+    let (pushes, receiver) = broadcast::channel(2);
+    let mut subscription = Subscription::new(receiver);
+    assert_eq!(subscription.try_next(), None, "还没有推送");
+    pushes.send(one()).expect("有订阅者");
+    assert!(matches!(subscription.try_next(), Some(Ok(_))));
+    assert_eq!(subscription.try_next(), None);
+    // 挤掉了：掉队，以后一直是掉队。
+    for _ in 0..3 {
+        pushes.send(one()).expect("有订阅者");
+    }
+    assert_eq!(subscription.try_next(), Some(Err(Ended::Lagged)));
+    assert_eq!(subscription.try_next(), Some(Err(Ended::Lagged)));
+    // 会话停了。
+    let (pushes, receiver) = broadcast::channel::<Arc<Pushed>>(2);
+    let mut subscription = Subscription::new(receiver);
+    drop(pushes);
+    assert_eq!(subscription.try_next(), Some(Err(Ended::Stopped)));
+}

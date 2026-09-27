@@ -3,7 +3,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use tokio::sync::broadcast::error::RecvError;
+use tokio::sync::broadcast::error::{RecvError, TryRecvError};
 use tokio::sync::{broadcast, mpsc, oneshot};
 
 use miyu_kernel::event::{Event, Transient};
@@ -170,6 +170,27 @@ impl Subscription {
                 Err(Ended::Lagged)
             }
             Err(RecvError::Closed) => Err(Ended::Stopped),
+        }
+    }
+
+    /// 不等：已经到了的下一份；还没到的，交回 `None`。协议端点收到命令的回应时，先把已经到了的
+    /// 推送都写出去，再写回应（`04-核心协议.md` 第六节第 2 条）。
+    ///
+    /// # Errors
+    ///
+    /// 同 [`Subscription::next`]。
+    pub fn try_next(&mut self) -> Option<Result<Arc<Pushed>, Ended>> {
+        if self.lagged {
+            return Some(Err(Ended::Lagged));
+        }
+        match self.pushes.try_recv() {
+            Ok(pushed) => Some(Ok(pushed)),
+            Err(TryRecvError::Empty) => None,
+            Err(TryRecvError::Lagged(_)) => {
+                self.lagged = true;
+                Some(Err(Ended::Lagged))
+            }
+            Err(TryRecvError::Closed) => Some(Err(Ended::Stopped)),
         }
     }
 }
