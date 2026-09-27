@@ -86,6 +86,13 @@ a.step:hover{border-color:var(--primary)}
 .later{color:var(--ink-2);font-size:13.5px;margin:3px 0 0}
 .legend{display:flex;flex-wrap:wrap;gap:8px 20px;margin:0;padding:0;list-style:none;color:var(--ink-2);font-size:13px}
 .legend li{display:flex;align-items:center;gap:7px}
+/* 拼上的块：步号、块名、这几步拼了什么。拼图上的标签只写步号，说明都在这里。 */
+.built{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:8px;font-size:13.5px;line-height:1.6}
+.built li{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:4px 10px;align-items:baseline}
+.built .by{font:600 10.5px/1 var(--mono);padding:3px 6px;border-radius:4px;background:var(--primary);color:var(--on-primary);white-space:nowrap}
+.built .nm{font-weight:600;white-space:nowrap}
+.built .nt{color:var(--ink-2)}
+@media (max-width:640px){.built li{grid-template-columns:auto minmax(0,1fr)}.built .nt{grid-column:1/-1}}
 .sw{width:12px;height:12px;border-radius:3px;border:1px solid var(--line-2);background:var(--panel);display:inline-block}
 .sw.done{border-color:var(--ok);background:var(--ok-soft)}
 .sw.review{border-color:var(--secondary);background:var(--secondary-soft)}
@@ -285,7 +292,7 @@ a.step:hover{border-color:var(--primary)}
     <div class="piece"><span class="by">0-2</span><span class="nm">代码的六层（图纸）</span></div>
     <div class="piece"><span class="by">0-2</span><span class="nm">门禁 xtask</span></div>
     <div class="piece"><span class="by">0-3</span><span class="nm">三平台 CI</span></div>
-    <div class="piece"><span class="by">3-5</span><span class="nm">试玩台 miyu-try</span></div>
+    <div class="piece ghost"><span class="by">3-5</span><span class="nm">试玩台（09-27 删掉了）</span></div>
     <div class="piece"><span class="by">3-5</span><span class="nm">给模型看的字的登记簿</span></div>
   </div>
   <ul class="legend" aria-label="拼图的图例">
@@ -293,6 +300,7 @@ a.step:hover{border-color:var(--primary)}
     <li><span class="sw new"></span>拼上了，标签是哪一步</li>
     <li><span class="sw plan"></span>这一步拼的，等验收</li>
   </ul>
+  <ol class="built" id="built" aria-label="拼上的块：每一块是哪一步拼的、拼了什么"></ol>
 </section>
 
 <section class="sched" aria-labelledby="h-sched">
@@ -3911,10 +3919,12 @@ function stateOf(id) { return BUILD[id] ? ' ' + BUILD[id].how : ''; }
 function badge(id, x, y, right) {
   const b = BUILD[id];
   if (!b) return;
-  const label = b.note ? b.by + ' ' + b.note : b.by;
+  // 块上只写步号：说明一长就压到别的块上（2026-09-27 项目主人指出）。说明在悬停提示和图下的清单里。
+  const label = b.by;
   let w = 10;
   for (const c of label) w += c.charCodeAt(0) > 255 ? 10.5 : 6.4;
   const g = el('g', { class: 'by' + (b.how === 'review' ? ' review' : '') }, layer.by);
+  if (b.note) el('title', null, g).textContent = b.by + '　' + b.note;
   const left = right ? x - w : x;
   el('rect', { x: left, y, width: w, height: 17, rx: 4 }, g);
   tx(g, left + 5, y + 12.3, label, '');
@@ -4016,6 +4026,22 @@ function renderEdge(e) {
 GROUPS.forEach(renderGroup);
 EDGES.forEach(renderEdge);
 NODES.forEach(renderNode);
+
+/* 图下的清单：照 BUILD 的先后，一块一行。块名取自布局，没有块名的是框。 */
+const built = document.getElementById('built');
+Object.entries(BUILD).forEach(([id, b]) => {
+  const node = NODES.find(n => n.id === id);
+  const group = GROUPS.find(gr => gr.id === id);
+  const name = node ? node.t : group ? (group.cls === 'kernel' ? '内核' : group.label) : id;
+  const li = document.createElement('li');
+  [['by', b.by], ['nm', name], ['nt', b.note || '搭好了框']].forEach(([cls, text]) => {
+    const span = document.createElement('span');
+    span.className = cls;
+    span.textContent = text;
+    li.appendChild(span);
+  });
+  built.appendChild(li);
+});
 })();
 </script>
 </body></html>
