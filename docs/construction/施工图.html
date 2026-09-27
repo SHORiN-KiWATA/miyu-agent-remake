@@ -264,9 +264,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>42</b><span>/ 46 步<strong>已完成</strong>，试玩台跟 DeepSeek 官方说上话了</span></li>
-    <li><b>3-5</b><span>下一步：接着说怎么改，<strong>等项目主人拍板</strong>；再往下 3-6</span></li>
-    <li><b class="mono">0230e4a</b><span>最近一步（3-5 补）的提交</span></li>
+    <li><b>43</b><span>/ 47 步<strong>已完成</strong>，断了从断的地方接着说，给模型看的字有了登记簿</span></li>
+    <li><b>3-6</b><span>下一步：策略快照，<strong>先问两条常驻规则怎么改</strong></span></li>
+    <li><b class="mono">8161acf</b><span>最近一步（3-5 再补）的提交</span></li>
   </ul>
 </header>
 
@@ -286,6 +286,7 @@ a.step:hover{border-color:var(--primary)}
     <div class="piece"><span class="by">0-2</span><span class="nm">门禁 xtask</span></div>
     <div class="piece"><span class="by">0-3</span><span class="nm">三平台 CI</span></div>
     <div class="piece"><span class="by">3-5</span><span class="nm">试玩台 miyu-try</span></div>
+    <div class="piece"><span class="by">3-5</span><span class="nm">给模型看的字的登记簿</span></div>
   </div>
   <ul class="legend" aria-label="拼图的图例">
     <li><span class="sw ghost"></span>还没拼</li>
@@ -358,6 +359,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-5a"><span class="n">3-5</span>发请求与读流（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-5b"><span class="n">3-5</span>自动重试与接着说（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-5c"><span class="n">3-5</span>试玩台（补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s3-5d"><span class="n">3-5</span>接着说（再补）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-6</span>策略快照</span></li>
         <li><span class="step"><span class="n">3-7</span>会话 actor</span></li>
         <li><span class="step"><span class="n">3-8</span>协议端点</span></li>
@@ -3639,6 +3641,81 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-5d" aria-labelledby="h-s35d">
+  <div class="sheet-head"><h2 id="h-s35d"><span class="no">3-5</span>接着说（再补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">说到一半断了以后，她从断的地方接着说，不再从头说一遍。会接着写的供应商（出厂先开 DeepSeek）改成前缀续写，半截的思考也带上，接着往下想；别家靠被打断的那一句里写着的「从断的地方接着说」。顺带立起「给模型看的字」的登记簿：每一份放在哪、进到哪、什么时候加进来、多少 token、为什么加，门禁查它和资源目录一一对上。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">断了以后 · 内核不动</span><span class="dir-note">05 第七节「接着写被打断的回复」</span></div>
+            <ol class="pipe" aria-label="断了以后">
+              <li>内核照旧：半截写成回复，追加被打断的那一句，等一会儿再请求</li>
+              <li>组装：最后是带 interrupted 的回复、后面只有那一句的，请求带上记号 continuation</li>
+              <li>会接着写的驱动：那一句不发，半截那条加 prefix: true，发到 /beta/chat/completions，思考也带上</li>
+              <li>不会的：照原样发，那一句里写着从断的地方接着说、不重复</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">实测 · DeepSeek 官方 deepseek-flash</span><span class="dir-note">2026-09-27</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">接着写</span><span class="rl">掐在回复里 4 次、思考里 2 次，都从截断处接上；思考从断的那个词接着想</span></div>
+              <div class="tile new"><span class="nm">那一句写上怎么办</span><span class="rl">掐在回复里 4 次都接着说；只说断了的，4 次都从头说</span></div>
+              <div class="tile new"><span class="nm">缓存</span><span class="rl">beta 路径和平时的共用缓存：接着写的那一次，上一次发过的全都命中</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">非必要不添加</span><span class="rl">项目主人定：先实测证明不加不行，量出 token；能按需出现的不常驻 system</span></div>
+          <div class="tile new"><span class="nm">加了就登记</span><span class="rl">26 第十节登记簿，31 份；指纹是 SHA-256 前 8 位，字改了门禁就拦</span></div>
+          <div class="tile new"><span class="nm">一个开关，出厂只开实测过的</span><span class="rl">不猜、不探测；Kimi、通义、Mistral 有 key 实测过再开</span></div>
+          <div class="tile new"><span class="nm">「怎么办」写进那一句</span><span class="rl">平时 0 token；放进 system 要每次多 39 个</span></div>
+          <div class="tile"><span class="nm">两条准备常驻的规则</span><span class="rl">检查点 41、权限 85 token，按新原则重审，等项目主人拍板</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-5（再补）</dd></div>
+        <div><dt>名称</dt><dd>接着说（再补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">8161acf</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>统一的请求多一个记号 <code>continuation</code>（是假的不写进字节）；组装照有效历史的最后几条加上它。</li>
+        <li>驱动：开关 <code>Continuation</code>、出厂的 <code>Compat::deepseek()</code>；编码交回路径，驱动的 <code>path()</code> 去掉；HTTP 执行器发到编码交回的路径。</li>
+        <li>被打断的那一句改成不说为什么断、写上怎么办；试玩台的占位 system 挪进 <code>resources/try/</code>，空闲超时照图纸 180 秒。</li>
+        <li>门禁：「文档」那一项多查登记簿。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>组装 4 个场景、驱动 3 个、试玩台掐断的那个改成接着写；登记簿的门禁端到端拦下 3 种</span></li>
+        <li><span class="ok">✓</span><span>真的 DeepSeek 掐断 10 次，都接上了；接着写的那一次吃得到缓存</span></li>
+        <li><span class="ok">✓</span><span>故意改坏二十一处都有测试变红（一处起初测不出来，补了场景）</span></li>
+        <li><span class="ok">✓</span><span>本地七项全过；三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/02-内核.md</code> 第六节第 4 条、<code>05-内核接口.md</code> 第七节、<code>08-上下文投影.md</code> 第七节、<code>15-模型与供应商.md</code> M5。</li>
+        <li><code>docs/designs/26-提示词.md</code>：两条原则、J2 的补充、J12、第十节登记簿。</li>
+        <li><code>docs/construction/3-5-接着说（再补）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -3816,7 +3893,7 @@ const BUILD = {
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完；出了错自己再来，说了一半的带着半截接着说（3-5 下）' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
   n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对' },
-  n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断' },
+  n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断；会接着写的供应商用前缀续写（3-5 再补，出厂只开 DeepSeek）' },
 };
 
 const svg = document.getElementById('bmap');
