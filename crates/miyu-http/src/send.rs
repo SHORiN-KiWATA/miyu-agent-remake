@@ -5,10 +5,14 @@
 //! 3. 2xx 的，一片一片地读，每一片都套上空闲超时，交给解码器，解出来的增量马上交出去；解码器
 //!    说不用再读了就停。读完了（或者读到一半断了）由解码器收尾：它知道说没说完。
 //! 4. 打断：`cancel` 一完成就停，丢掉连接，交回 [`Outcome::Cancelled`]，不再报任何东西。
+//!
+//! 运行日志（`28-运行日志.md`，施工 3-7 上）在 `DEBUG` 记两行：发出去了（主机名、请求多少字节），
+//! 怎么收场的（状态码、出错的分类、要等多久、用时）。请求体、key、地址的路径和参数、出错的原话
+//! 都不记：有的供应商把 key 放在地址里，出错的原话里也可能回显请求里的字。
 
 use std::error::Error;
 use std::future::Future;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use miyu_drivers::Driver;
 use miyu_drivers::classify::{Classified, Failure};
@@ -70,7 +74,45 @@ pub enum Outcome {
 pub async fn send(
     attempt: Attempt<'_>,
     cancel: impl Future<Output = ()> + Send,
+    on: impl FnMut(Progress) + Send,
+) -> Outcome {
+    let host = host(&attempt.endpoint.base_url);
+    tracing::debug!(target: "miyu::http", host = %host, bytes = attempt.body.len(), "sent");
+    let started = Instant::now();
+    let mut status = None;
+    let outcome = exchange(attempt, cancel, on, &mut status).await;
+    let took_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+    match &outcome {
+        Outcome::Ended { error: None, .. } => {
+            tracing::debug!(target: "miyu::http", host = %host, status, took_ms, "ended");
+        }
+        Outcome::Ended {
+            error: Some(failure),
+            ..
+        } => {
+            tracing::debug!(
+                target: "miyu::http",
+                host = %host,
+                status,
+                class = failure.error.class.as_str(),
+                retry_after_ms = failure.retry_after_ms,
+                took_ms,
+                "failed"
+            );
+        }
+        Outcome::Cancelled => {
+            tracing::debug!(target: "miyu::http", host = %host, took_ms, "cancelled");
+        }
+    }
+    outcome
+}
+
+/// 发、读，照 [`send`] 说的收场。收到了响应头的，状态码写进 `status`，日志要用。
+async fn exchange(
+    attempt: Attempt<'_>,
+    cancel: impl Future<Output = ()> + Send,
     mut on: impl FnMut(Progress) + Send,
+    status: &mut Option<u16>,
 ) -> Outcome {
     tokio::pin!(cancel);
     let url = format!(
@@ -101,8 +143,9 @@ pub async fn send(
         Ok(Err(error)) => return failed(attempt.driver, &chain(&error)),
         Err(_) => return idle(attempt.idle),
     };
-    let status = response.status();
-    if !status.is_success() {
+    let code = response.status();
+    *status = Some(code.as_u16());
+    if !code.is_success() {
         let headers = headers(response.headers());
         let mut body = Vec::new();
         while body.len() < ERROR_BODY_LIMIT {
@@ -122,7 +165,7 @@ pub async fn send(
             .map(|(name, value)| (name.as_str(), value.as_str()))
             .collect();
         let classified = attempt.driver.classify(&Failure {
-            status: Some(status.as_u16()),
+            status: Some(code.as_u16()),
             headers: &pairs,
             body: &body,
         });
@@ -177,6 +220,14 @@ pub async fn send(
             retry_after_ms: None,
         }),
     }
+}
+
+/// 地址里的主机名，日志只写它：路径和参数里可能有 key。读不出来的写 `?`。
+fn host(base_url: &str) -> String {
+    reqwest::Url::parse(base_url)
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_string))
+        .unwrap_or_else(|| "?".to_string())
 }
 
 /// 连不上、发不出去：没有状态，交给驱动分类（可重试）。

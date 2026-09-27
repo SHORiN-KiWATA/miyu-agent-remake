@@ -3,41 +3,14 @@
 
 mod support;
 
-use std::path::PathBuf;
 use std::time::Duration;
 
-use miyu_drivers::openai_chat::{Compat, Decoder};
-use miyu_drivers::{DriverTextSources, DriverTexts, OpenAiChat};
+use miyu_drivers::openai_chat::Decoder;
 use miyu_http::{Attempt, Endpoint, Outcome, Progress, Proxy, client, send};
 use miyu_kernel::accumulate::Delta;
 use miyu_kernel::event::ErrorClass;
 use miyu_kernel::id::ContentHash;
-use support::{Piece, Reply, Server};
-
-/// 一份请求字节：内容无所谓，查的是一字不差地发出去。
-const BODY: &[u8] =
-    r#"{"model":"deepseek-v4","messages":[{"role":"user","content":"你好"}],"stream":true}"#
-        .as_bytes();
-
-fn driver() -> OpenAiChat {
-    let texts = DriverTexts::new(DriverTextSources {
-        image_omitted: "image\n",
-        file_omitted: "file {name} {media_type}\n",
-        no_output: "nothing\n",
-        tool_attachments: "attachments\n",
-        tool_attachments_only: "only\n",
-    })
-    .expect("占位用得了");
-    OpenAiChat::new(Compat::default(), texts)
-}
-
-/// 驱动的流的样本。
-fn sample(name: &str) -> Vec<u8> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../docs/designs/samples/drivers/openai-chat/streams")
-        .join(format!("{name}.sse"));
-    std::fs::read(&path).unwrap_or_else(|e| panic!("读不了 {}：{e}", path.display()))
-}
+use support::{BODY, Piece, Reply, Server, driver, sample};
 
 /// 发一次，收集交出来的和收场。
 async fn run(

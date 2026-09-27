@@ -1,7 +1,13 @@
 //! 测试用的假服务器：本机回环上几十行的 HTTP/1.1，照剧本回。第几个连接回剧本里的第几份；响应体用
 //! 关连接来结束，一片一片地写，中间可以等一会儿、停住不动、直接断开。收到的请求都记下来。
+//!
+//! 几个测试共用的请求字节、驱动、样本在 `fixtures` 里。
 
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
+
+mod fixtures;
+
+pub use fixtures::{BODY, driver, sample};
 
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;

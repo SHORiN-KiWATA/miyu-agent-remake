@@ -1,0 +1,19 @@
+[package]
+name = "miyu-log"
+description = "运行日志：一行一条的英文，像 dmesg；按大小轮换；级别从 MIYU_LOG 来（施工 3-7 上）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# 理由见 docs/construction/3-7-运行日志（上）.md「我定的」：各 crate 照 tracing 这个门面发日志；
+# 发行版编译时去掉 TRACE（28-运行日志.md 第三节）。
+tracing = { version = "0.1", default-features = false, features = ["std", "release_max_level_debug"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["registry", "std"] }
+# 本机时间和时区，三个平台都认系统时区。
+jiff = "0.2"
+
+[lints]
+workspace = true

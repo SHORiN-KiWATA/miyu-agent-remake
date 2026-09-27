@@ -14,8 +14,12 @@ miyu-kernel = { path = "../miyu-kernel" }
 # TLS 用 rustls，证书认系统的和 webpki 自带的两份，不依赖 OpenSSL。
 reqwest = { version = "0.12", default-features = false, features = ["http2", "rustls-tls-native-roots", "rustls-tls-webpki-roots"] }
 tokio = { version = "1", features = ["macros", "time"] }
+# 运行日志的门面（施工 3-7 上）：只发，不管写成什么样、写到哪，那是 miyu-log 的事。
+tracing = { version = "0.1", default-features = false, features = ["std"] }
 
 [dev-dependencies]
+# 测试里接住发出来的日志，查写了什么、没写什么。
+miyu-log = { path = "../miyu-log" }
 # 测试的假服务器：本机回环上的 HTTP/1.1。
 tokio = { version = "1", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
 
