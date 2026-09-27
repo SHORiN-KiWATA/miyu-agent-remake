@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>52</b><span>/ 53 步<strong>已完成</strong>，核心是单独的进程了：头拉起它，空闲了自己走</span></li>
-    <li><b>3-9</b><span>下一步：miyu ask（下），<strong>施工中</strong></span></li>
-    <li><b class="mono">1393a50</b><span>最近一步（3-9 上）的提交</span></li>
+    <li><b>53</b><span>/ 53 步<strong>已完成</strong>，M3 完成：miyu ask 跟真模型说上话了</span></li>
+    <li><b>M4</b><span>下一步：M4，<strong>施工方案待写</strong></span></li>
+    <li><b class="mono">b239e2e</b><span>最近一步（3-9 下）的提交</span></li>
   </ul>
 </header>
 
@@ -384,7 +384,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-8c"><span class="n">3-8</span>协议端点（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8d"><span class="n">3-8</span>Windows 命名管道（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9a"><span class="n">3-9</span>主程序和拉起核心（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-9</span>miyu ask（下）</span></li>
+        <li><a class="step done" href="#s3-9b"><span class="n">3-9</span>miyu ask（下）<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -4422,6 +4422,79 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-9b" aria-labelledby="h-s39b">
+  <div class="sheet-head"><h2 id="h-s39b"><span class="no">3-9</span>miyu ask（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">最薄的头 miyu ask 有了，M3 完成：连上核心，开一个一次性会话，把一句话发给她，边收边打：思考灰色印在标准错误上，回答印在标准输出上，问完一行用量。跟真的 DeepSeek 连说两轮，第二轮命中了缓存。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu ask 的先后</span><span class="dir-note">22 第三节</span></div>
+            <ol class="pipe" aria-label="miyu ask 的先后">
+              <li>建骨架；没 key 又没核心，退出码 5</li>
+              <li>连上核心，握手</li>
+              <li>开一次性会话，或者接着说</li>
+              <li>订阅，发这一句，认出它开的那一轮</li>
+              <li>边收边打，结束了印用量</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">两条通道</span><span class="dir-note">项目主人定</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">标准输出</span><span class="rl">她的回答：重定向、接管道时只有它</span></div>
+              <div class="tile new"><span class="nm">标准错误</span><span class="rl">思考（灰色）、用量一行、出错：留在屏幕上</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">一次性会话</span><span class="rl">记进 session.created；--continue 接最新的那个</span></div>
+          <div class="tile new"><span class="nm">session.list</span><span class="rl">从新到旧，照一次性筛；只读第一条</span></div>
+          <div class="tile new"><span class="nm">命令编号带随机前缀</span><span class="rl">施工中查出的：两次 miyu ask 撞号，第二句被当成重发</span></div>
+          <div class="tile new"><span class="nm">退出码</span><span class="rl">0 走完；1 出错；2 用法不对；3 打断；5 没有模型</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">附件、管道输入、--tools、--timeout、stream-json；等子代理回报</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-9（下）</dd></div>
+        <div><dt>名称</dt><dd>miyu ask</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">b239e2e</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过；项目主人跟真模型说了两轮 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-cli</code>（新，第 5 层）：<code>miyu ask</code>，最薄的头，也是协议的参考实现。</li>
+        <li><code>miyu-endpoint</code>：造会话标一次性；<code>session.list</code>。</li>
+        <li><code>miyu-store</code>：只读地拿会话日志的第一条；一个账号有哪些会话。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新开一次性会话、--continue 跳过更新的普通会话、--session、没有模型、Ctrl+C 一次两次、json 一行、说明跟着语言</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 29 处：全拦下（真机验收以后又改坏 7 处，也都红了）</span></li>
+        <li><span class="ok">✓</span><span>跟真的 DeepSeek 连说两轮：第二轮输入 529、命中 384，上一次发过的 452 里只重算了末尾 68</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/22-命令行.md</code> 第三节：施工中定的写法。</li>
+        <li><code>docs/designs/04-核心协议.md</code> 第九节：oneshot、session.list、命令编号不撞。</li>
+        <li><code>docs/construction/3-9-miyu-ask（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -4603,6 +4676,7 @@ const BUILD = {
   n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断；会接着写的供应商用前缀续写（3-5 再补，出厂只开 DeepSeek）；DEBUG 记发出去和收场，key、正文、地址的路径一个字都不记（3-7 上）' },
   k_sessions: { by: '3-7', how: 'frame', note: '会话 actor（3-7 中）：命令和执行器的回报进收件箱，动作照表回；先落盘，后回应、后推送；造会话存策略快照，载入照它重建，停在一轮中间的再起来接着干；写不进去就停下。请求模型接上驱动和 HTTP，驱动的占位取自会话的快照（3-7 下）；会话表照编号找会话、没在跑的从磁盘载入，只起一个 actor（3-8 上）' },
   n_models: { by: '3-9', how: 'frame', note: '配置系统做出来之前只认环境变量 DEEPSEEK_API_KEY：设了就接 DeepSeek 官方的 deepseek-flash，key 只在内存里；没设的，每次请求都当场回「没有可用的模型」（3-9 上，项目主人定）' },
+  n_cli: { by: '3-9', how: 'frame', note: 'miyu ask：连上核心（没在跑就拉起），开一次性会话或者 --continue、--session 接着说；思考灰色印在标准错误上，回答印在标准输出上，问完一行用量；Ctrl+C 一次打断、两次就走；--format json 给脚本（3-9 下）' },
   n_bus: { by: '3-8', how: 'frame', note: '连接上一行一条 JSON-RPC 2.0：握手（主版本、本机令牌）、造会话、说话、打断，拒绝附原因码（3-8 上）；订阅事件流，回应排在它产生的推送后面，掉队推 resync（3-8 中）；核心在本机的 Unix 套接字上等连接：一个数据根一个核心（锁），本机令牌写进 run/token，实际位置记在 run/socket，套接字放在只有自己能进的目录里（3-8 下）；Windows 上是命名管道，只对本人开放，头连上以后核对另一头是自己的（3-8 补）' },
 };
 
