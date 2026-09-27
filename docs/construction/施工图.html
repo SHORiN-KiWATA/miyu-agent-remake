@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>53</b><span>/ 63 步<strong>已完成</strong>，M3 完成：miyu ask 跟真模型说上话了</span></li>
-    <li><b>4-1</b><span>下一步：工具接口和工具面，<strong>施工中</strong></span></li>
-    <li><b class="mono">b239e2e</b><span>最近一步（3-9 下）的提交</span></li>
+    <li><b>54</b><span>/ 63 步<strong>已完成</strong>，工具有了接口和目录，工具面存进了策略快照</span></li>
+    <li><b>4-2</b><span>下一步：执行工具的端口，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">f93660c</b><span>最近一步（4-1）的提交</span></li>
   </ul>
 </header>
 
@@ -390,7 +390,7 @@ a.step:hover{border-color:var(--primary)}
     <li>
       <div class="ms-head"><span class="ms-id">M4</span><span class="ms-name">能干活</span><span class="ms-goal">能读、写、改文件，能搜索，能执行命令</span></div>
       <ol class="chips">
-        <li><span class="step"><span class="n">4-1</span>工具接口和工具面</span></li>
+        <li><a class="step done" href="#s4-1"><span class="n">4-1</span>工具接口和工具面<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-2</span>执行工具的端口</span></li>
         <li><span class="step"><span class="n">4-3</span>路径边界和权限策略</span></li>
         <li><span class="step"><span class="n">4-4</span>读、找文件、搜内容</span></li>
@@ -4510,6 +4510,80 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s4-1" aria-labelledby="h-s41">
+  <div class="sheet-head"><h2 id="h-s41"><span class="no">4-1</span>工具接口和工具面</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">工具有了接口和目录：每件工具报出名字、给模型看的说明、参数格式和访问类别，核心起来时登记进目录。造会话时，工具面照名字排好存进策略快照，会话里每次请求的 tools 数组都照它发，载入以后逐字节一样。目录现在还是空的，第一批工具在 4-4；执行工具是下一步。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一件工具的规格</span><span class="dir-note">05 第六节 · 第一批四格</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">name</span><span class="rl">英文字母、数字、_、-，1 到 64 个字符：各家供应商的共同限制</span></div>
+              <div class="tile new"><span class="nm">description</span><span class="rl">给模型看的说明，原样进 tools 数组</span></div>
+              <div class="tile new"><span class="nm">input_schema</span><span class="rl">必须是 {"type":"object",…}，一个字节不改</span></div>
+              <div class="tile new"><span class="nm">access</span><span class="rl">只读、写文件、执行命令、联网、对外发消息</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">从目录到请求</span><span class="dir-note">05 第八节、03 E5</span></div>
+            <ol class="pipe" aria-label="从目录到请求">
+              <li>核心起来时登记，查过就冻结</li>
+              <li>造会话时照名字排好，存进策略快照</li>
+              <li>造策略时拆成两份：组装器的工具面、内核的工具规则</li>
+              <li>每次请求照快照发，载入以后逐字节一样</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">接口在第 3 层</span><span class="rl">新 crate miyu-tool；快照不依赖它，拿的是内核的类型</span></div>
+          <div class="tile new"><span class="nm">没有工具的快照字节不变</span><span class="rl">空的不写：M3 造的会话照旧载入，哈希不变</span></div>
+          <div class="tile new"><span class="nm">读回来的也查重名</span><span class="rl">有两件同名的，造不出策略，不载入</span></div>
+          <div class="tile new"><span class="nm">4-1、4-2 换了先后</span><span class="rl">执行要测，会话的策略里先得有工具</span></div>
+          <div class="tile new"><span class="nm">created 那一行</span><span class="rl">运行日志里多写一格 tools=，看得出她有几件工具</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">执行（4-2）；显示名、摘要（4-5）；默认超时；存根；按预设挑</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-1</dd></div>
+        <div><dt>名称</dt><dd>工具接口和工具面</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">f93660c</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-tool</code>（新，第 3 层）：规格、<code>Tool</code>、工具目录。</li>
+        <li><code>miyu-policy</code>：快照多一格工具面，造策略时交给组装器和内核。</li>
+        <li><code>miyu-session</code>：造会话时交进目录；<code>miyu-endpoint</code>、<code>miyu-core</code>：核心带一个目录，现在是空的。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>目录照名字排、重名和不合写法的登记不上；快照读回来一样、没有工具的字节不变、重名的造不出策略；会话请求里 tools 照名字排、载入以后逐字节一样；协议上造的会话拿到核心的工具</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 14 处：全部有测试变红；先补了一处缺口：协议端点不把核心的目录交给造会话，原来也全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/05-内核接口.md</code> 第六、八节：规格的第一批四格、第一版的目录。</li>
+        <li><code>docs/designs/01-架构.md</code> 第九节：第 3 层多一个 miyu-tool。</li>
+        <li><code>docs/construction/4-1-工具接口和工具面.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -4686,6 +4760,7 @@ const BUILD = {
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完；出了错自己再来，说了一半的带着半截接着说（3-5 下）' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
+  k_catalog: { by: '4-1', how: 'frame', note: '工具目录：每件工具报出规格（名字、说明、参数格式、访问类别），核心起来时登记一次就冻结；重名的、名字不合写法的、参数格式不是对象的当场拒绝。造会话时工具面照名字排好存进策略快照，载入以后逐字节一样。现在目录是空的，第一批工具在 4-4（4-1）' },
   n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对；资源目录：MIYU_RESOURCES、程序旁边的 resources/、上一级的 share/miyu/，读出一个人格的原文（3-6 上）' },
   n_prompt: { by: '3-6', how: 'frame', note: '策略快照：人格从资源目录拼成快照，按内容哈希存档，载入时照哈希重建，请求逐字节一样；现在只有软件工程师（3-6 上）' },
   n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断；会接着写的供应商用前缀续写（3-5 再补，出厂只开 DeepSeek）；DEBUG 记发出去和收场，key、正文、地址的路径一个字都不记（3-7 上）' },
