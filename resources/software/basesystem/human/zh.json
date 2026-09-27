@@ -24,6 +24,11 @@
       "name": "删除",
       "subject": "file_path"
     }
+,
+    "shell": {
+      "name": "执行命令",
+      "subject": "command"
+    }
   },
   "said": {
     "read/lines": "{count} 行",
@@ -74,6 +79,13 @@
     "trash/unavailable": "放不进回收站，没删",
     "trash/protected": "工作目录、它的上级、家目录、根目录不能删",
     "trash/lost": "删了，可回收站里找不到",
-    "trash/failed": "删不了：{error}"
+    "trash/failed": "删不了：{error}",
+    "shell/done": "输出 {count} 行",
+    "shell/quiet": "没有输出",
+    "shell/exited": "退出码 {code}",
+    "shell/signal": "被信号 {signal} 停掉了",
+    "shell/timed-out": "超过 {seconds} 秒，停掉了",
+    "shell/failed": "执行不了：{error}",
+    "shell/no-background": "还不能放到后台跑"
   }
 }

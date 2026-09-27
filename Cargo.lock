@@ -987,6 +987,7 @@ dependencies = [
 name = "miyu-basesystem"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "globset",
  "grep-matcher",
  "grep-regex",
@@ -996,9 +997,11 @@ dependencies = [
  "miyu-kernel",
  "miyu-store",
  "miyu-tool",
+ "rustix",
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
  "unicode-normalization",
 ]
 

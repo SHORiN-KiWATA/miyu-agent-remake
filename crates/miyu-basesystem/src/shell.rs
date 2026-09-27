@@ -1,0 +1,228 @@
+//! `shell`（`10-自带软件.md` 第三节「`shell` 的细则」，施工 4-8）：在这一轮的工作目录里执行一条命令，交回输出和
+//! 退出码。前台的：跑完才交回，超时、叫停时整组杀掉。后台命令随 M7。
+//!
+//! 用哪个 shell（[`program`]）、命令拿得到哪些环境变量（[`env`](mod@env)）、起命令和整组杀（[`process`]）、输出怎么截
+//! （[`output`]）各在一处。每次调用起一个新的 shell，`cd`、变量都不带到下一次。
+
+mod env;
+mod output;
+mod process;
+mod program;
+#[cfg(test)]
+mod tests;
+
+use std::io;
+use std::path::Path;
+use std::time::Duration;
+
+use serde::Deserialize;
+
+use miyu_kernel::template::Template;
+use miyu_kernel::tool::Access;
+use miyu_tool::{Call, Done, Progress, Running, Spec, Tool};
+
+use crate::blocking::blocking;
+use crate::common::{Common, said};
+use crate::load::{self, LoadError, say};
+use output::{Capture, Shown};
+use process::{Ending, Finished, Guard};
+use program::Program;
+
+/// 不写 `timeout` 的等多久，毫秒（照 Claude Code）。改它要跟着改参数格式里的那一句。
+const DEFAULT: u64 = 120_000;
+
+/// `timeout` 最多写多大，毫秒（照 Claude Code）。改它要跟着改参数格式里的那一句。
+const MAX: u64 = 600_000;
+
+/// `shell`。
+pub(crate) struct Shell {
+    spec: Spec,
+    texts: Texts,
+    program: Program,
+}
+
+/// 输出里给她看的几句：`software/basesystem/shell/*.txt`，和几件工具共用的。
+struct Texts {
+    common: Common,
+    empty: Template,
+    exit: Template,
+    signal: Template,
+    timed_out: Template,
+    omitted: Template,
+    truncated: Template,
+    failed: Template,
+    no_background: Template,
+}
+
+/// 她给的参数。照 Claude Code 的习惯写了 `description` 的照样认，不用它。
+#[derive(Deserialize)]
+struct Args {
+    command: String,
+    timeout: Option<u64>,
+    #[serde(default)]
+    run_in_background: bool,
+}
+
+impl Shell {
+    /// 照资源目录 `resources` 里的字造，共用的几句是 `common`。用哪个 shell 在这时候找，写进说明里。
+    pub(crate) fn load(resources: &Path, common: Common) -> Result<Shell, LoadError> {
+        let program = Program::find(std::env::var_os("PATH").as_deref());
+        let text = |name: &str, fields: &[&str]| load::text(resources, "shell", name, fields);
+        Ok(Shell {
+            spec: load::spec_filled(
+                resources,
+                "shell",
+                Access::Execute,
+                &[("shell", program.kind.name())],
+            )?,
+            texts: Texts {
+                common,
+                empty: text("empty", &[])?,
+                exit: text("exit", &["code"])?,
+                signal: text("signal", &["signal"])?,
+                timed_out: text("timed-out", &["timeout", "max"])?,
+                omitted: text("omitted", &["count"])?,
+                truncated: text("truncated", &["total"])?,
+                failed: text("failed", &["shell", "error"])?,
+                no_background: text("no-background", &[])?,
+            },
+            program,
+        })
+    }
+
+    /// 起不来、等不了。
+    fn failed(&self, error: &io::Error) -> Done {
+        let error = error.to_string();
+        Done::error(say(
+            &self.texts.failed,
+            &[("shell", self.program.kind.name()), ("error", &error)],
+        ))
+        .said(said("shell/failed").with("error", error))
+    }
+
+    /// 跑完了：输出，加上它怎么结束的。
+    fn finished(&self, finished: Finished, timeout: u64) -> Done {
+        let Finished { ending, output } = finished;
+        let body = self.body(&output);
+        match ending {
+            Ending::TimedOut => {
+                let note = say(
+                    &self.texts.timed_out,
+                    &[("timeout", &timeout.to_string()), ("max", &MAX.to_string())],
+                );
+                Done::error(body + &note)
+                    .said(said("shell/timed-out").with("seconds", seconds(timeout)))
+            }
+            Ending::Exited(status) => match status.code() {
+                Some(0) if output.is_empty() => {
+                    Done::ok(say(&self.texts.empty, &[])).said(said("shell/quiet"))
+                }
+                Some(0) => Done::ok(body)
+                    .said(said("shell/done").with("count", output.lines().to_string())),
+                Some(code) => {
+                    let code = code.to_string();
+                    Done::error(body + &say(&self.texts.exit, &[("code", &code)]))
+                        .said(said("shell/exited").with("code", code))
+                }
+                None => {
+                    let signal = signal(status);
+                    Done::error(body + &say(&self.texts.signal, &[("signal", &signal)]))
+                        .said(said("shell/signal").with("signal", signal))
+                }
+            },
+        }
+    }
+
+    /// 给她看的输出：太长的截成头尾两段，中间说省了多少，末尾说一共多少、怎么看全。每一段都以换行结尾。
+    fn body(&self, output: &Capture) -> String {
+        match output.shown() {
+            Shown::Whole(text) => line(text),
+            Shown::Cut {
+                head,
+                tail,
+                omitted,
+                total,
+            } => {
+                let omitted = say(&self.texts.omitted, &[("count", &omitted.to_string())]);
+                let truncated = say(&self.texts.truncated, &[("total", &total.to_string())]);
+                line(head) + &omitted + &line(tail) + &truncated
+            }
+        }
+    }
+}
+
+impl Tool for Shell {
+    fn spec(&self) -> &Spec {
+        &self.spec
+    }
+
+    fn run(&self, call: Call, progress: Progress) -> Running<'_> {
+        Box::pin(async move {
+            let args = match serde_json::from_str::<Args>(&call.args) {
+                Ok(args) => args,
+                Err(error) => return self.texts.common.bad_args(&error),
+            };
+            if args.run_in_background {
+                return Done::error(say(&self.texts.no_background, &[]))
+                    .said(said("shell/no-background"));
+            }
+            let timeout = limit(args.timeout);
+            let command = self.program.command(
+                &args.command,
+                Path::new(&call.cwd),
+                env::passed(std::env::vars_os()),
+            );
+            let started = match process::start(command, move |text| progress.push(text)) {
+                Ok(started) => started,
+                Err(error) => return self.failed(&error),
+            };
+            // 起来了就看着：这次调用被叫停（future 被丢掉）时，整组杀掉。
+            let guard = Guard::new(started.group());
+            let finished = blocking(move |_| started.wait(Duration::from_millis(timeout))).await;
+            guard.disarm();
+            match finished {
+                Ok(finished) => self.finished(finished, timeout),
+                Err(error) => self.failed(&error),
+            }
+        })
+    }
+}
+
+/// 她写的 `timeout`：没写、写 0 的按默认，超过上限的按上限。
+fn limit(timeout: Option<u64>) -> u64 {
+    match timeout {
+        None | Some(0) => DEFAULT,
+        Some(timeout) => timeout.min(MAX),
+    }
+}
+
+/// 给人看的秒数：整秒的不带小数。
+fn seconds(millis: u64) -> String {
+    match millis % 1000 {
+        0 => (millis / 1000).to_string(),
+        _ => format!("{:.1}", millis as f64 / 1000.0),
+    }
+}
+
+/// 不是空的，就以换行结尾。
+fn line(mut text: String) -> String {
+    if !text.is_empty() && !text.ends_with('\n') {
+        text.push('\n');
+    }
+    text
+}
+
+/// 杀掉它的信号（Unix）。
+#[cfg(unix)]
+fn signal(status: std::process::ExitStatus) -> String {
+    use std::os::unix::process::ExitStatusExt;
+    status
+        .signal()
+        .map_or_else(|| "?".to_string(), |signal| signal.to_string())
+}
+
+/// 别的系统没有信号：退出码总是有的，走不到这里。
+#[cfg(not(unix))]
+fn signal(_status: std::process::ExitStatus) -> String {
+    "?".to_string()
+}

@@ -1,0 +1,1 @@
+(Showed the start and the end of {total} characters. To see all of it, write the output to a file and read the file.)

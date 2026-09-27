@@ -58,6 +58,31 @@ pub(crate) fn spec(resources: &Path, name: &str, access: Access) -> Result<Spec,
     })
 }
 
+/// 同 [`spec`]，说明是一段模板，换进 `fields`：说明里要写这台机器上的东西的（`shell` 写用的是哪种 shell，施工
+/// 4-8）。核心起来时换一次，会话里不变。别的工具的说明不当模板读：里面的花括号是字面的。
+pub(crate) fn spec_filled(
+    resources: &Path,
+    name: &str,
+    access: Access,
+    fields: &[(&str, &str)],
+) -> Result<Spec, LoadError> {
+    let mut spec = spec(resources, name, access)?;
+    let bad = |why: String| LoadError {
+        file: resources
+            .join("software")
+            .join("basesystem")
+            .join("tools")
+            .join(format!("{name}.json")),
+        why,
+    };
+    let template = Template::parse(&spec.description).map_err(|error| bad(error.to_string()))?;
+    let fields: BTreeMap<&str, &str> = fields.iter().copied().collect();
+    spec.description = template
+        .render(&fields)
+        .map_err(|error| bad(error.to_string()))?;
+    Ok(spec)
+}
+
 /// 读工具 `tool` 输出里的一句 `name`，拿 `fields` 里的每个字段试换一次。
 pub(crate) fn text(
     resources: &Path,

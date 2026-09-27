@@ -8,6 +8,8 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+# shell 在 Windows 上把命令编成 PowerShell 的 -EncodedCommand（施工 4-8）；每个平台都编，它的测试到处都跑。
+base64 = "0.22"
 # 找文件的模式照 ripgrep 的 --glob 那一套（施工 4-4 下）：ripgrep 的作者拆出来的库，三个平台一样（B9）。
 globset = "0.4"
 # 搜内容：正则、按行搜、二进制跳过、前后行；和 ripgrep 是同一套（施工 4-4 下）。
@@ -29,12 +31,18 @@ serde_json = "1.0"
 tokio = { version = "1", features = ["rt"] }
 # edit 宽松那一层的 NFKC 规范化（施工 4-6 中）：Rust 里通用的那一个。
 unicode-normalization = "0.1"
+# 运行日志的门面：shell 收拾命令时出的岔子记一条（施工 4-8）。
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+
+[target.'cfg(unix)'.dependencies]
+# shell 超时、叫停时整组杀掉命令：kill(-pgid, SIGKILL) 的安全接口（施工 4-8）。
+rustix = { version = "1", features = ["process"] }
 
 [dev-dependencies]
 # 核对工具会说的每一种，中文、英文都换得出字（施工 4-5 上）。
 miyu-store = { path = "../miyu-store" }
 # 测试里的调用在异步里跑。
-tokio = { version = "1", features = ["macros", "rt"] }
+tokio = { version = "1", features = ["macros", "rt", "time"] }
 
 [lints]
 workspace = true

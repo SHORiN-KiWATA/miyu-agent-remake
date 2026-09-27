@@ -1,6 +1,6 @@
 //! 真的 `write`（施工 4-6 上）、`edit`（施工 4-6 中）、`trash`（施工 4-6 下）：会话里她先读后写，日志里两次结果的效果对得上，blob 里存着改前
 //! 改后的内容；新建的不用先读；没读过就写的被拒，读过以后可以写，会话重新载入以后她读过的照样算数；改完一次接着改，
-//! 不用重读。
+//! 不用重读。真的 `shell`（施工 4-8）：她执行的命令记进日志，退出码在给人看的说法里。
 
 mod support;
 
@@ -247,4 +247,36 @@ async fn a_trashed_file_is_no_longer_one_she_has_seen() {
         all.last().expect("有结果").human,
         Some(Said::new("software/basesystem/common/not-read"))
     );
+}
+
+/// 真的 `shell`（施工 4-8）：她执行一条命令，工作区这一级不用问人；结果记进日志，给模型看的是输出加退出码，给人看的
+/// 说法里有退出码；改了哪些文件 shell 不报，效果是空的。
+#[tokio::test]
+async fn a_command_she_runs_is_logged_with_its_exit_code() {
+    let home = Home::outside_temp();
+    let command = if cfg!(windows) {
+        "Write-Output hi; exit 5"
+    } else {
+        "echo hi; exit 5"
+    };
+    let args = serde_json::json!({ "command": command }).to_string();
+    let script = Script::new([Play::calls(&[("shell", args.as_str())]), Play::Says("好。")]);
+    let handle = home
+        .create_as(&script, &base_system(), opening(&home))
+        .await;
+    talk(&handle, "cmd-1", "跑一下").await;
+    let results = results(&home, &handle);
+    assert_eq!(results.len(), 1, "{results:?}");
+    assert_eq!(results[0].status, ToolStatus::Error);
+    assert_eq!(
+        results[0].blocks,
+        [miyu_kernel::block::Block::Text(miyu_kernel::block::Text {
+            text: "hi\nExit code 5\n".into(),
+        })]
+    );
+    assert_eq!(
+        results[0].human,
+        Some(Said::new("software/basesystem/shell/exited").with("code", "5"))
+    );
+    assert!(results[0].effects.is_empty());
 }

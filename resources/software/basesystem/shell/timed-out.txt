@@ -1,0 +1,1 @@
+Stopped after {timeout} ms because the command took too long. If it needs more time, pass a larger timeout, up to {max}.

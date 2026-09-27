@@ -1,4 +1,4 @@
-//! 三件读的工具和 `write`（施工 4-6 上）交回的给人看的说法（施工 4-5 上）：每一种结果都有，编号、字段对；工具会说的每一种，中文、英文
+//! 三件读的工具、写的三件（施工 4-6）、`shell`（施工 4-8）交回的给人看的说法（施工 4-5 上）：每一种结果都有，编号、字段对；工具会说的每一种，中文、英文
 //! 两份字里都有，换得出字。
 
 mod support;
@@ -420,4 +420,56 @@ async fn every_trash_outcome_says_something_people_can_read() {
     checked.push(said("trash/lost"));
     checked.push(said("trash/failed").with("error", "Permission denied"));
     readable(&checked, &["trash"]);
+}
+
+#[tokio::test]
+async fn every_shell_outcome_says_something_people_can_read() {
+    let site = Site::new();
+    let windows = cfg!(windows);
+    let run = |args: serde_json::Value| site.done("shell", args);
+    let command = |command: &str| serde_json::json!({ "command": command });
+    let mut checked = Vec::new();
+    check(
+        &mut checked,
+        human(run(command(if windows { "Write-Output a" } else { "echo a" })).await),
+        said("shell/done").with("count", "1"),
+    );
+    check(
+        &mut checked,
+        human(run(command(if windows { "$null = 1" } else { "true" })).await),
+        said("shell/quiet"),
+    );
+    check(
+        &mut checked,
+        human(run(command("exit 4")).await),
+        said("shell/exited").with("code", "4"),
+    );
+    let sleep = if windows {
+        "Start-Sleep -Seconds 20"
+    } else {
+        "sleep 20"
+    };
+    check(
+        &mut checked,
+        human(run(serde_json::json!({ "command": sleep, "timeout": 200 })).await),
+        said("shell/timed-out").with("seconds", "0.2"),
+    );
+    check(
+        &mut checked,
+        human(run(serde_json::json!({ "command": "exit 0", "run_in_background": true })).await),
+        said("shell/no-background"),
+    );
+    // 起不来的：工作目录不在。
+    let failed = human(site.done_in("nowhere", "shell", command("exit 0")).await);
+    assert!(failed.key.ends_with("shell/failed"), "{failed:?}");
+    checked.push(failed);
+    #[cfg(unix)]
+    check(
+        &mut checked,
+        human(run(command("kill -9 $$")).await),
+        said("shell/signal").with("signal", "9"),
+    );
+    #[cfg(not(unix))]
+    checked.push(said("shell/signal").with("signal", "9"));
+    readable(&checked, &["shell"]);
 }
