@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>60</b><span>/ 67 步<strong>已完成</strong>，读的三件齐了：read、glob、grep</span></li>
-    <li><b>4-5</b><span>下一步：给人看的说法（上），<strong>施工中</strong></span></li>
-    <li><b class="mono">3351c8f</b><span>最近一步（4-4 下）的提交</span></li>
+    <li><b>61</b><span>/ 67 步<strong>已完成</strong>，工具的结果带上了给人看的说法</span></li>
+    <li><b>4-5</b><span>下一步：miyu ask 印出每一步（下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">677dde2</b><span>最近一步（4-5 上）的提交</span></li>
   </ul>
 </header>
 
@@ -397,7 +397,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-3b"><span class="n">4-3</span>权限策略（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-4a"><span class="n">4-4</span>读取（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-4b"><span class="n">4-4</span>找文件、搜内容（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-5</span>给人看的说法（上）</span></li>
+        <li><a class="step done" href="#s4-5a"><span class="n">4-5</span>给人看的说法（上）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-5</span>miyu ask 印出每一步（下）</span></li>
         <li><span class="step"><span class="n">4-6</span>写入、编辑、删除</span></li>
         <li><span class="step"><span class="n">4-7</span>撤销时恢复文件</span></li>
@@ -5005,6 +5005,77 @@ a.step:hover{border-color:var(--primary)}
         <li><code>docs/designs/10-自带软件.md</code> 第三、十节，B12：规范和输出的写法。</li>
         <li><code>docs/designs/25-工具加载.md</code> W2；<code>26-提示词.md</code> 附录、第八、十节；<code>15-模型与供应商.md</code> 第二节。</li>
         <li><code>docs/construction/4-4-找文件、搜内容（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s4-5a" aria-labelledby="h-s45a">
+  <div class="sheet-head"><h2 id="h-s45a"><span class="no">4-5</span>给人看的说法（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">给模型看的字一律英文，给人看的字跟着界面语言（双槽）。内核和工具的每一个结果，除了给模型看的英文，另记一份给人看的说法：用的哪一句、换进去的字段。说法记进日志、不发给模型，头照自己的语言换成字；字放在资源目录的 human/ 下，中文、英文各一份，不进登记簿。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">tool.result</span><span class="dir-note">03 第三节</span></div>
+            <div class="files">
+              <div class="tile"><span class="nm">blocks</span><span class="rl">给模型看的英文，照旧</span></div>
+              <div class="tile new"><span class="nm">human</span><span class="rl">给人看的说法：key 是哪一句，fields 是换进去的字段；没有的不写</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">resources/…/human/</span><span class="dir-note">26 第八节</span></div>
+            <ol class="pipe" aria-label="给人看的字">
+              <li>core/human/、software/basesystem/human/：zh.json、en.json</li>
+              <li>tools：显示名，后面跟哪个参数（读取 file_path）</li>
+              <li>said：每一种说法的字（37 行、没有这个文件、要确认，这里没人能确认）</li>
+              <li>没有的语言照英文；换进去的字段去掉控制字符</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">说法 = 编号 + 字段</span><span class="rl">照资源目录的位置起编号，记进日志原样回放</span></div>
+          <div class="tile new"><span class="nm">内核写的每一句</span><span class="rl">一句给模型的对着一句给人的，编号就是那份字的位置</span></div>
+          <div class="tile new"><span class="nm">显示名后面只跟一个参数</span><span class="rl">模板写不了条件，范围这类放进结果那一句</span></div>
+          <div class="tile new"><span class="nm">human/ 不进登记簿</span><span class="rl">只登记给模型看的，门禁不查</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">印出来（4-5 下）；视图投影、视图流（做前端时）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-5（上）</dd></div>
+        <div><dt>名称</dt><dd>给人看的说法</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">677dde2</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-kernel</code>：说法、<code>tool.result</code> 的 <code>human</code>；内核写的每一句带说法；模板的 <code>fill</code>、<code>fields</code>。</li>
+        <li><code>miyu-tool</code>、<code>miyu-policy</code>、<code>miyu-session</code>：说法从工具、权限策略、执行器一路交进内核。</li>
+        <li><code>miyu-basesystem</code>：三件读的工具每一种结果都带说法；<code>miyu-store</code>：读给人看的字、换成字。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>事件读写、内核写的每一种、会话里记进日志、三件工具的每一种都有中英文两份字、没有的语言照英文、控制字符换掉、门禁不查 human/；十次请求一个字节没变</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 26 处，全部有测试变红；先补了 2 处缺口</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/03-事件模型.md</code> 第三节；<code>05-内核接口.md</code> 第六节。</li>
+        <li><code>docs/designs/26-提示词.md</code> 第八、十节：给人看的字放哪、不登记。</li>
+        <li><code>docs/construction/4-5-给人看的说法（上）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
