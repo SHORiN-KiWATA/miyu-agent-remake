@@ -19,8 +19,8 @@ use miyu_kernel::request::Request;
 use miyu_kernel::session::{Command, Outcome};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_session::{
-    Cancel, Create, Handle, Load, ModelPort, Pushed, Reports, Stopped, Subscription, create, load,
-    new_id,
+    Cancel, Create, ForSession, Handle, Load, ModelPort, Models, Pushed, Reports, Stopped,
+    Subscription, create, load, new_id,
 };
 use miyu_store::env::{Env, Platform};
 use miyu_store::log::{SEGMENT_LIMIT, SessionLog};
@@ -78,8 +78,8 @@ impl Home {
         }
     }
 
-    /// 造一个软件工程师的会话，请求模型照 `script` 回。造会话的命令编号是 `cmd-0`。
-    pub async fn create(&self, script: Arc<Script>) -> Handle {
+    /// 造一个软件工程师的会话，请求模型的端口由 `models` 造。造会话的命令编号是 `cmd-0`。
+    pub async fn create(&self, models: &dyn Models) -> Handle {
         let created = create(Create {
             root: &self.root,
             resources: &self.resources,
@@ -95,19 +95,19 @@ impl Home {
             environment: environment(),
             command: id("cmd-0"),
             by: alice(),
-            model: script,
+            models,
         });
         within("造会话", created).await.expect("造得出会话")
     }
 
-    /// 载入会话 `session`，请求模型照 `script` 回。
-    pub async fn load(&self, session: &SessionId, script: Arc<Script>) -> Handle {
+    /// 载入会话 `session`，请求模型的端口由 `models` 造。
+    pub async fn load(&self, session: &SessionId, models: &dyn Models) -> Handle {
         let loaded = load(Load {
             root: &self.root,
             owner: alice_account(),
             id: session.clone(),
             environment: environment(),
-            model: script,
+            models,
         });
         within("载入", loaded).await.expect("载入得了会话")
     }
@@ -259,25 +259,26 @@ pub enum Play {
     Panics,
 }
 
-/// 照剧本回的请求模型的端口。
+/// 照剧本回的请求模型的端口。它自己也造端口：造出来的和手里这一份共用剧本和记录。
+#[derive(Clone)]
 pub struct Script {
     model: Model,
-    plays: Mutex<VecDeque<Play>>,
-    requests: Mutex<Vec<(Seq, Request)>>,
+    plays: Arc<Mutex<VecDeque<Play>>>,
+    requests: Arc<Mutex<Vec<(Seq, Request)>>>,
     cancelled: Arc<Mutex<Vec<Seq>>>,
 }
 
 impl Script {
-    pub fn new(plays: impl IntoIterator<Item = Play>) -> Arc<Script> {
-        Arc::new(Script {
+    pub fn new(plays: impl IntoIterator<Item = Play>) -> Script {
+        Script {
             model: Model {
                 endpoint: ProviderId::parse("deepseek").expect("端点合写法"),
                 model: ModelName::parse("deepseek-v4").expect("模型名合写法"),
             },
-            plays: Mutex::new(plays.into_iter().collect()),
-            requests: Mutex::new(Vec::new()),
+            plays: Arc::new(Mutex::new(plays.into_iter().collect())),
+            requests: Arc::new(Mutex::new(Vec::new())),
             cancelled: Arc::new(Mutex::new(Vec::new())),
-        })
+        }
     }
 
     /// 交给它的每一次请求，照先后：看到了第几条为止，和请求本身。
@@ -294,6 +295,12 @@ impl Script {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .clone()
+    }
+}
+
+impl Models for Script {
+    fn port(&self, _: ForSession) -> Arc<dyn ModelPort> {
+        Arc::new(self.clone())
     }
 }
 

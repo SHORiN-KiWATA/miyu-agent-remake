@@ -57,7 +57,7 @@ async fn the_log_says_what_happened_and_nothing_that_was_said() {
         },
         Play::Says("你好。"),
     ]);
-    let handle = home.create(script.clone()).await;
+    let handle = home.create(&script).await;
     let session = handle.id().clone();
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("早上好"))
@@ -66,13 +66,13 @@ async fn the_log_says_what_happened_and_nothing_that_was_said() {
     until_turn_ends(&mut pushes).await;
     stop(&handle).await;
     let events = home.log(&session).len();
-    let loaded = home.load(&session, Script::new([])).await;
+    let loaded = home.load(&session, &Script::new([])).await;
     drop((handle, loaded, pushes));
     let s = session.as_str();
     wait_for(&memory, &format!("session  {s} closed")).await;
 
     // 另一个会话：端口一叫就 panic。
-    let broken = home.create(Script::new([Play::Panics])).await;
+    let broken = home.create(&Script::new([Play::Panics])).await;
     let b = broken.id().as_str().to_string();
     // 这句话落了盘就回应了，请求模型时端口才 panic。
     let said = ask(&broken, "cmd-1", say("早上好")).await;
@@ -136,7 +136,7 @@ async fn the_log_says_what_happened_and_nothing_that_was_said() {
     let memory = Memory::new();
     let _listening =
         tracing::subscriber::set_default(miyu_log::subscriber(memory.clone(), LevelFilter::DEBUG));
-    let handle = home.create(Script::new([Play::Says("你好。")])).await;
+    let handle = home.create(&Script::new([Play::Says("你好。")])).await;
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("早上好"))
         .await

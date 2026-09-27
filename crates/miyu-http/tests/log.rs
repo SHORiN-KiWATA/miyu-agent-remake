@@ -9,9 +9,10 @@ mod support;
 use std::future::Future;
 use std::time::Duration;
 
+use miyu_http::testkit::{Piece, Reply, Server};
 use miyu_http::{Attempt, Endpoint, Outcome, Proxy, client, send};
 use miyu_log::{LevelFilter, Memory};
-use support::{BODY, Piece, Reply, Server, driver, sample};
+use support::{BODY, driver, sample};
 
 /// 发一次，交回收场。路径里带着 key，像把 key 放在地址里的供应商。
 async fn run(endpoint: &Endpoint, cancel: impl Future<Output = ()> + Send) -> Outcome {

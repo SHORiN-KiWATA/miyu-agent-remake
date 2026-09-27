@@ -8,12 +8,15 @@
 //! - [`create()`]：造一个会话，照人格存下策略快照；
 //! - [`load()`]：从磁盘载入一个会话，照快照重建策略；
 //! - [`Handle`]：发命令、订阅、有计划地停下；
-//! - [`ModelPort`]：请求模型的端口。3-7（下）接 HTTP，测试里照剧本回；
+//! - [`Models`]、[`ModelPort`]：给会话造请求模型的端口，和端口本身。[`HttpModels`] 经驱动和 HTTP
+//!   执行器请求（施工 3-7 下），测试里照剧本回；
 //! - [`new_id`]：新的会话编号。
 
 mod actor;
+mod blocking;
 mod clock;
 mod handle;
+mod http;
 mod kinds;
 mod open;
 mod port;
@@ -21,8 +24,9 @@ mod store;
 
 pub use clock::new_id;
 pub use handle::{Ended, Handle, Pushed, Stopped, Subscription};
+pub use http::{HttpModels, IDLE};
 pub use open::{Create, CreateError, Load, LoadError, create, load};
-pub use port::{Cancel, ModelPort, Reports};
+pub use port::{Cancel, ForSession, ModelPort, Models, Reports};
 
 /// 运行日志的来源：`session`（`28-运行日志.md` 第二节）。
 const TARGET: &str = "miyu::session";

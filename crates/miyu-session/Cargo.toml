@@ -8,6 +8,10 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+# 驱动：请求编码成字节、读回来的分片解码（施工 3-7 下）。
+miyu-drivers = { path = "../miyu-drivers" }
+# HTTP 执行器：照编码好的字节发请求，流式读回来（施工 3-7 下）。
+miyu-http = { path = "../miyu-http" }
 # 会话的状态机、事件、编号。
 miyu-kernel = { path = "../miyu-kernel" }
 # 造会话时照人格拼策略快照，载入时照它重建（施工 3-6 上）。
@@ -23,6 +27,8 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 uuid = { version = "1", features = ["v7"] }
 
 [dev-dependencies]
+# 测试里的假服务器：本机回环上的 HTTP/1.1（施工 3-7 下）。
+miyu-http = { path = "../miyu-http", features = ["testkit"] }
 # 测试里接住发出来的日志，查写了什么、没写什么。
 miyu-log = { path = "../miyu-log" }
 

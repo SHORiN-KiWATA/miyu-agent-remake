@@ -17,11 +17,18 @@ tokio = { version = "1", features = ["macros", "time"] }
 # 运行日志的门面（施工 3-7 上）：只发，不管写成什么样、写到哪，那是 miyu-log 的事。
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 
+[features]
+# 测试用的假服务器（`src/testkit.rs`，施工 3-7 下）：别的 crate 的测试要用它，在自己的 dev-dependencies
+# 里打开；这个包自己的测试也经下面那一行打开。
+testkit = ["tokio/io-util", "tokio/net", "tokio/rt", "tokio/sync"]
+
 [dev-dependencies]
+# 自己的集成测试用上假服务器。
+miyu-http = { path = ".", features = ["testkit"] }
 # 测试里接住发出来的日志，查写了什么、没写什么。
 miyu-log = { path = "../miyu-log" }
-# 测试的假服务器：本机回环上的 HTTP/1.1。
-tokio = { version = "1", features = ["io-util", "macros", "net", "rt", "sync", "time"] }
+# 测试跑在 tokio 上。
+tokio = { version = "1", features = ["macros", "rt"] }
 
 [lints]
 workspace = true

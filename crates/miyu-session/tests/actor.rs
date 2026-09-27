@@ -28,7 +28,7 @@ fn seqs(pushed: &Pushed) -> Vec<Seq> {
 #[tokio::test]
 async fn creating_stores_the_snapshot_and_the_first_event() {
     let home = Home::new();
-    let handle = home.create(Script::new([])).await;
+    let handle = home.create(&Script::new([])).await;
     let log = home.log(handle.id());
     assert_eq!(kinds(&log), ["session.created"]);
     assert_eq!(log[0].cause, Some(id("cmd-0")));
@@ -47,7 +47,7 @@ async fn creating_stores_the_snapshot_and_the_first_event() {
 async fn a_turn_is_stored_then_pushed_then_answered() {
     let home = Home::new();
     let script = Script::new([Play::Says("你好。")]);
-    let handle = home.create(script.clone()).await;
+    let handle = home.create(&script).await;
     let mut pushes = watch(&handle).await;
     let outcome = ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
     let Outcome::Accepted { events } = outcome else {
@@ -113,7 +113,7 @@ async fn a_retryable_error_waits_and_asks_again() {
         },
         Play::Says("好了。"),
     ]);
-    let handle = home.create(script.clone()).await;
+    let handle = home.create(&script).await;
     let mut pushes = watch(&handle).await;
     let started = Instant::now();
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
@@ -147,7 +147,7 @@ async fn a_retryable_error_waits_and_asks_again() {
 async fn interrupting_a_held_request_cancels_it() {
     let home = Home::new();
     let script = Script::new([Play::Holds]);
-    let handle = home.create(script.clone()).await;
+    let handle = home.create(&script).await;
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
     // 等增量来了，请求就在读流了。
@@ -179,7 +179,7 @@ async fn interrupting_a_held_request_cancels_it() {
 async fn a_stopped_session_loads_and_goes_on() {
     let home = Home::new();
     let before = Script::new([Play::Says("你好。")]);
-    let handle = home.create(before.clone()).await;
+    let handle = home.create(&before).await;
     let session = handle.id().clone();
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
@@ -192,7 +192,7 @@ async fn a_stopped_session_loads_and_goes_on() {
     );
 
     let after = Script::new([Play::Says("再见。")]);
-    let handle = home.load(&session, after.clone()).await;
+    let handle = home.load(&session, &after).await;
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-2", say("bye")).await.expect("会话在跑");
     until_turn_ends(&mut pushes).await;
@@ -213,7 +213,7 @@ async fn a_stopped_session_loads_and_goes_on() {
 async fn the_same_command_twice_is_answered_twice_and_counts_once() {
     let home = Home::new();
     let script = Script::new([Play::Says("你好。")]);
-    let handle = home.create(script.clone()).await;
+    let handle = home.create(&script).await;
     let mut pushes = watch(&handle).await;
     let first = ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
     until_turn_ends(&mut pushes).await;
@@ -228,7 +228,7 @@ async fn the_same_command_twice_is_answered_twice_and_counts_once() {
 async fn a_stop_in_the_middle_of_a_turn_is_stored_and_resumed_after_loading() {
     let home = Home::new();
     let before = Script::new([Play::Holds]);
-    let handle = home.create(before.clone()).await;
+    let handle = home.create(&before).await;
     let session = handle.id().clone();
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
@@ -245,7 +245,7 @@ async fn a_stop_in_the_middle_of_a_turn_is_stored_and_resumed_after_loading() {
 
     // 载入：被重启打断的那一轮接着干，不用人再说一句。
     let after = Script::new([Play::Says("接着说完。")]);
-    let _handle = home.load(&session, after.clone()).await;
+    let _handle = home.load(&session, &after).await;
     let log = until_logged(&home, &session, |log| {
         log.iter()
             .filter(|event| matches!(&event.body, Body::TurnEnded(ended) if ended.reason == EndReason::Completed))
@@ -259,7 +259,7 @@ async fn a_stop_in_the_middle_of_a_turn_is_stored_and_resumed_after_loading() {
 #[tokio::test]
 async fn a_loaded_session_never_goes_back_in_time() {
     let home = Home::new();
-    let handle = home.create(Script::new([])).await;
+    let handle = home.create(&Script::new([])).await;
     let session = handle.id().clone();
     stop(&handle).await;
     // 磁盘上的时刻挪到 2100 年：像是系统时间在两次运行之间往回拨了。
@@ -279,7 +279,9 @@ async fn a_loaded_session_never_goes_back_in_time() {
         .collect();
     std::fs::write(&segment, moved).expect("写得回去");
 
-    let handle = home.load(&session, Script::new([Play::Says("好。")])).await;
+    let handle = home
+        .load(&session, &Script::new([Play::Says("好。")]))
+        .await;
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
     until_turn_ends(&mut pushes).await;
@@ -296,7 +298,7 @@ async fn a_loaded_session_never_goes_back_in_time() {
 async fn a_session_nobody_holds_cancels_its_request() {
     let home = Home::new();
     let script = Script::new([Play::Holds]);
-    let handle = home.create(script.clone()).await;
+    let handle = home.create(&script).await;
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
     until_delta(&mut pushes).await;

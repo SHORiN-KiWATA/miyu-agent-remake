@@ -6,11 +6,12 @@ mod support;
 use std::time::Duration;
 
 use miyu_drivers::openai_chat::Decoder;
+use miyu_http::testkit::{Piece, Reply, Server};
 use miyu_http::{Attempt, Endpoint, Outcome, Progress, Proxy, client, send};
 use miyu_kernel::accumulate::Delta;
 use miyu_kernel::event::ErrorClass;
 use miyu_kernel::id::ContentHash;
-use support::{BODY, Piece, Reply, Server, driver, sample};
+use support::{BODY, driver, sample};
 
 /// 发一次，收集交出来的和收场。
 async fn run(

@@ -661,6 +661,7 @@ name = "miyu-http"
 version = "0.0.0"
 dependencies = [
  "miyu-drivers",
+ "miyu-http",
  "miyu-kernel",
  "miyu-log",
  "reqwest",
@@ -701,6 +702,8 @@ dependencies = [
 name = "miyu-session"
 version = "0.0.0"
 dependencies = [
+ "miyu-drivers",
+ "miyu-http",
  "miyu-kernel",
  "miyu-log",
  "miyu-policy",
