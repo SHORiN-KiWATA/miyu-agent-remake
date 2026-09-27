@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>48</b><span>/ 51 步<strong>已完成</strong>，头和核心说上了话：握手、造会话、说话、打断</span></li>
-    <li><b>3-8</b><span>下一步：协议端点（中）订阅，<strong>施工中</strong></span></li>
-    <li><b class="mono">3c447c9</b><span>最近一步（3-8 上）的提交</span></li>
+    <li><b>49</b><span>/ 51 步<strong>已完成</strong>，头能订阅事件流：先见结果，后见回应</span></li>
+    <li><b>3-8</b><span>下一步：协议端点（下）本机传输，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">7a7ba7a</b><span>最近一步（3-8 中）的提交</span></li>
   </ul>
 </header>
 
@@ -379,7 +379,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-7b"><span class="n">3-7</span>会话 actor（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-7c"><span class="n">3-7</span>会话 actor（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8a"><span class="n">3-8</span>协议端点（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-8</span>协议端点（中）</span></li>
+        <li><a class="step done" href="#s3-8b"><span class="n">3-8</span>协议端点（中）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-8</span>协议端点（下）</span></li>
         <li><span class="step"><span class="n">3-9</span>miyu ask</span></li>
       </ol>
@@ -4131,6 +4131,75 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-8b" aria-labelledby="h-s38b">
+  <div class="sheet-head"><h2 id="h-s38b"><span class="no">3-8</span>协议端点（中）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头能订阅一个会话的事件流：落了盘的事件、瞬时事件（增量、状态），一条一个 event 通知推过来。同一个连接上，命令的回应排在它产生的推送后面，头收到回应时界面已经是对的。读得慢的头掉了队，推一条 resync，头重新订阅；核心和会话都不等它。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一个连接的三样任务</span><span class="dir-note">04 第五、六、七节</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">读的</span><span class="rl">一行一条，照方法办；回应交给写队列，订阅了的会话交给它的转发任务</span></div>
+              <div class="tile new"><span class="nm">写的</span><span class="rl">从写队列（256 行）取出来一行行写；写不出去，转发任务就停着</span></div>
+              <div class="tile new"><span class="nm">转发的</span><span class="rl">每个订阅一个：会话的推送写成 event 通知；掉队推 resync</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">先见结果，后见回应</span><span class="dir-note">回应经转发任务</span></div>
+            <ol class="pipe" aria-label="先见结果，后见回应">
+              <li>会话 actor 先推送、后回应</li>
+              <li>回应到手时，这条命令的推送一定已经到了</li>
+              <li>转发任务先放已经到了的推送，再放回应</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">瞬时事件也走事件流</span><span class="rl">增量、状态：miyu ask 这样的头靠它们边收边打</span></div>
+          <div class="tile new"><span class="nm">订阅停了接着转回应</span><span class="rl">掉了队、会话停了，回应一条都不丢</span></div>
+          <div class="tile new"><span class="nm">撞上掉队也先放回应</span><span class="rl">施工中查出的 bug，修了，测试守着</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">视图流、会话列表流（M8 以后）；从某个序号之后补发；增量合并</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-8（中）</dd></div>
+        <div><dt>名称</dt><dd>协议端点（中）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">7a7ba7a</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-endpoint</code>：<code>subscribe</code>、<code>unsubscribe</code>；连接读写分开；<code>subscriptions.rs</code> 的转发任务。</li>
+        <li><code>miyu-session</code>：<code>Subscription::try_next</code>；剧本端口加 <code>Floods</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>推送在回应之前、两个会话不串、取消订阅、读得慢掉队、堵着的时候说一句、掉队后回应照到、重新订阅</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 16 处：除一处安全阀、一处等价的都拦下（3 处起初靠运气过，补了测试）</span></li>
+        <li><span class="ok">✓</span><span>本地七项全过；三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/04-核心协议.md</code> 第九节：订阅、event、resync 的写法。</li>
+        <li><code>docs/construction/3-8-协议端点（中）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -4311,7 +4380,7 @@ const BUILD = {
   n_prompt: { by: '3-6', how: 'frame', note: '策略快照：人格从资源目录拼成快照，按内容哈希存档，载入时照哈希重建，请求逐字节一样；现在只有软件工程师（3-6 上）' },
   n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断；会接着写的供应商用前缀续写（3-5 再补，出厂只开 DeepSeek）；DEBUG 记发出去和收场，key、正文、地址的路径一个字都不记（3-7 上）' },
   k_sessions: { by: '3-7', how: 'frame', note: '会话 actor（3-7 中）：命令和执行器的回报进收件箱，动作照表回；先落盘，后回应、后推送；造会话存策略快照，载入照它重建，停在一轮中间的再起来接着干；写不进去就停下。请求模型接上驱动和 HTTP，驱动的占位取自会话的快照（3-7 下）；会话表照编号找会话、没在跑的从磁盘载入，只起一个 actor（3-8 上）' },
-  n_bus: { by: '3-8', how: 'frame', note: '连接上一行一条 JSON-RPC 2.0：握手（主版本、本机令牌）、造会话、说话、打断，拒绝附原因码（3-8 上）；订阅、本机套接字和命名管道还没有' },
+  n_bus: { by: '3-8', how: 'frame', note: '连接上一行一条 JSON-RPC 2.0：握手（主版本、本机令牌）、造会话、说话、打断，拒绝附原因码（3-8 上）；订阅事件流，回应排在它产生的推送后面，掉队推 resync（3-8 中）；本机套接字和命名管道还没有' },
 };
 
 const svg = document.getElementById('bmap');
