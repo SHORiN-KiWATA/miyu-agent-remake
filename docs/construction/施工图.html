@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>47</b><span>/ 51 步<strong>已完成</strong>，会话接上了真的请求：编码、发出去、流式读回来</span></li>
-    <li><b>3-8</b><span>下一步：协议端点（上），<strong>施工中</strong></span></li>
-    <li><b class="mono">ec7b7e3</b><span>最近一步（3-7 下）的提交</span></li>
+    <li><b>48</b><span>/ 51 步<strong>已完成</strong>，头和核心说上了话：握手、造会话、说话、打断</span></li>
+    <li><b>3-8</b><span>下一步：协议端点（中）订阅，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">3c447c9</b><span>最近一步（3-8 上）的提交</span></li>
   </ul>
 </header>
 
@@ -378,7 +378,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-7a"><span class="n">3-7</span>运行日志（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-7b"><span class="n">3-7</span>会话 actor（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-7c"><span class="n">3-7</span>会话 actor（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-8</span>协议端点（上）</span></li>
+        <li><a class="step done" href="#s3-8a"><span class="n">3-8</span>协议端点（上）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-8</span>协议端点（中）</span></li>
         <li><span class="step"><span class="n">3-8</span>协议端点（下）</span></li>
         <li><span class="step"><span class="n">3-9</span>miyu ask</span></li>
@@ -4050,6 +4050,87 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-8a" aria-labelledby="h-s38a">
+  <div class="sheet-head"><h2 id="h-s38a"><span class="no">3-8</span>协议端点（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头和核心之间有了第一截协议：一个连接上说 JSON-RPC 2.0，一行一条消息。先握手，然后能造会话、说话、打断；会话表照编号找会话，这次运行里没在跑的，从磁盘载入。跑在任意字节流上：测试用内存里的管道，3-8（下）接本机的套接字和命名管道。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一个连接怎么走 · miyu-endpoint</span><span class="dir-note">04 第二、三节</span></div>
+            <ol class="pipe" aria-label="一个连接怎么走">
+              <li>读一行，最长 1 MiB</li>
+              <li>认成请求：id 就是命令编号</li>
+              <li>第一条必须是 hello：主版本、本机令牌</li>
+              <li>照方法办，回应写回去</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">方法和拒绝</span><span class="dir-note">04 第九节「先做的几样怎么写」</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">hello</span><span class="rl">选定的主版本、核心的版本、你是谁（管理员）</span></div>
+              <div class="tile new"><span class="nm">session.create</span><span class="rl">人格默认 engineer，cwd 必写；有没有人确认照 caps.input</span></div>
+              <div class="tile new"><span class="nm">session.send · interrupt</span><span class="rl">send 可以带 cwd；interrupt 必写排着的怎么办</span></div>
+              <div class="tile new"><span class="nm">拒绝</span><span class="rl">-32010 加原因码，话照头的语言；JSON-RPC 自己的几种照标准</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">会话表</span><span class="dir-note">07 第七节「会话按需载入」</span></div>
+            <ol class="pipe" aria-label="会话表">
+              <li>照编号找会话</li>
+              <li>没在跑的从磁盘载入：拿着锁，只起一个 actor</li>
+              <li>停了的拿掉，下次用到再载入</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">新 crate miyu-endpoint</span><span class="rl">第 4 层；只认字节流，不管它从哪来</span></div>
+          <div class="tile new"><span class="nm">令牌每个字节都比</span><span class="rl">长短也比；不对的、版本对不上的断开</span></div>
+          <div class="tile new"><span class="nm">工作目录跟着头走</span><span class="rl">send 带的 cwd 变了，先送进会话，下一个边界才注入</span></div>
+          <div class="tile new"><span class="nm">重发的造会话</span><span class="rl">记最近 1024 个造会话的命令编号，重发的还是那一个</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">订阅（3-8 中）；套接字、命名管道、令牌文件、单实例锁（3-8 下）；管理员的账号名（首次运行问）；急着插话的测试（M4）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-8（上）</dd></div>
+        <div><dt>名称</dt><dd>协议端点（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">3c447c9</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>新 crate <code>miyu-endpoint</code>（第 4 层）：<code>Core</code>、<code>serve</code>；读一行、认请求、握手、方法、会话表、原因码和中英文的话。</li>
+        <li><code>miyu-session</code>：<code>Handle::environment</code>；剧本端口挪进 <code>testkit</code> 开关。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>握手的几种拒绝、造会话说一句、重发的造会话、没有的会话、重启后载入、两个连接同时载入、停了重新载入、排着的接着发、工作目录、JSON-RPC 标准的错</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 27 处全拦下（先补了 6 条测试）</span></li>
+        <li><span class="ok">✓</span><span>本地七项全过；三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/04-核心协议.md</code> 第九节「先做的几样怎么写」。</li>
+        <li><code>docs/designs/01-架构.md</code> 第九节：第 4 层多了 <code>miyu-endpoint</code>。</li>
+        <li><code>docs/construction/3-8-协议端点（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -4229,7 +4310,8 @@ const BUILD = {
   n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对；资源目录：MIYU_RESOURCES、程序旁边的 resources/、上一级的 share/miyu/，读出一个人格的原文（3-6 上）' },
   n_prompt: { by: '3-6', how: 'frame', note: '策略快照：人格从资源目录拼成快照，按内容哈希存档，载入时照哈希重建，请求逐字节一样；现在只有软件工程师（3-6 上）' },
   n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断；会接着写的供应商用前缀续写（3-5 再补，出厂只开 DeepSeek）；DEBUG 记发出去和收场，key、正文、地址的路径一个字都不记（3-7 上）' },
-  k_sessions: { by: '3-7', how: 'frame', note: '会话 actor（3-7 中）：命令和执行器的回报进收件箱，动作照表回；先落盘，后回应、后推送；造会话存策略快照，载入照它重建，停在一轮中间的再起来接着干；写不进去就停下。请求模型接上驱动和 HTTP，驱动的占位取自会话的快照（3-7 下）。会话表本身随 3-8' },
+  k_sessions: { by: '3-7', how: 'frame', note: '会话 actor（3-7 中）：命令和执行器的回报进收件箱，动作照表回；先落盘，后回应、后推送；造会话存策略快照，载入照它重建，停在一轮中间的再起来接着干；写不进去就停下。请求模型接上驱动和 HTTP，驱动的占位取自会话的快照（3-7 下）；会话表照编号找会话、没在跑的从磁盘载入，只起一个 actor（3-8 上）' },
+  n_bus: { by: '3-8', how: 'frame', note: '连接上一行一条 JSON-RPC 2.0：握手（主版本、本机令牌）、造会话、说话、打断，拒绝附原因码（3-8 上）；订阅、本机套接字和命名管道还没有' },
 };
 
 const svg = document.getElementById('bmap');
