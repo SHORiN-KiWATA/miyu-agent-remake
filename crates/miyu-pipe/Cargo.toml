@@ -1,0 +1,40 @@
+[package]
+name = "miyu-pipe"
+description = "Windows 的命名管道只对本人开放：调 Windows 的安全接口，放开 unsafe 的小 crate（施工 3-8 补）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+# 管道本身：tokio 带安全属性建管道的那个函数。
+tokio = { version = "1", features = ["net"] }
+# Windows 的安全接口：用户的 SID、安全描述符、管道另一头的进程。
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_System_Pipes",
+    "Win32_System_Threading",
+] }
+
+[target.'cfg(windows)'.dev-dependencies]
+# 测试里建管道、连管道要 tokio 的运行时。
+tokio = { version = "1", features = ["macros", "net", "rt"] }
+
+# Cargo 不许 `workspace = true` 以后再单改一条：这里照抄工作区的（改那边的，记得同步这里），只把 unsafe 放开。
+[lints.rust]
+# 这个 crate 要调 Windows 的安全接口（2026-09-27 项目主人定：单开一个小 crate 放开 unsafe）。
+unsafe_code = "allow"
+unused_must_use = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+let_underscore_must_use = "deny"
+unused_result_ok = "deny"
+unwrap_used = "deny"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+# 每个 unsafe 块都写清为什么安全。
+undocumented_unsafe_blocks = "deny"

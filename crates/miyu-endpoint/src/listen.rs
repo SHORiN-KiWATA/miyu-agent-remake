@@ -13,7 +13,7 @@ const PAUSE: Duration = Duration::from_millis(100);
 
 /// 在 `listener` 上一个个接连接，每个交给 [`serve`]，一直接下去。不会自己停：要停就丢掉它，监听器、
 /// 锁、各个连接跟着一起没了。
-pub async fn run(listener: Listener, core: Arc<Core>) {
+pub async fn run(mut listener: Listener, core: Arc<Core>) {
     let mut connections = JoinSet::new();
     loop {
         tokio::select! {

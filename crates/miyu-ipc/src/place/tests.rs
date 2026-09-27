@@ -95,8 +95,11 @@ fn nowhere_to_put_it_is_an_error() {
 }
 
 #[test]
-fn windows_has_no_socket_yet() {
-    let root = root_at(Path::new("/data/miyu"));
-    let error = locate(&root, &dirs(Platform::Windows, None)).expect_err("还不支持");
-    assert!(matches!(error, OpenError::Unsupported), "{error:?}");
+fn windows_uses_a_named_pipe() {
+    let root = root_at(&Path::new("/d").join("a".repeat(300)));
+    let path = locate(&root, &dirs(Platform::Windows, None)).expect("没有路径的上限");
+    assert_eq!(
+        path,
+        PathBuf::from(format!(r"\\.\pipe\miyu-{}", fingerprint(&root)))
+    );
 }

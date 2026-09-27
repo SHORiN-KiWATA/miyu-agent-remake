@@ -11,7 +11,8 @@
 //!
 //! 头（[`connect`]）读 `run/socket`，核对套接字所在的目录只有自己能进，连过去，再现读本机令牌。
 //!
-//! Unix 上是 Unix 域套接字。Windows 的命名管道随施工 3-8（补），现在监听回「还不支持」。
+//! Unix 上是 Unix 域套接字；Windows 上是命名管道 `\\.\pipe\miyu-<指纹>`，只对本人开放，头连上以后核对
+//! 另一头的进程是自己的（施工 3-8 补）。
 
 mod error;
 mod files;
@@ -21,14 +22,14 @@ mod place;
 #[cfg(test)]
 mod test_support;
 
-#[cfg(not(unix))]
-mod other;
-#[cfg(not(unix))]
-use other as sys;
 #[cfg(unix)]
 mod unix;
 #[cfg(unix)]
 use unix as sys;
+#[cfg(windows)]
+mod windows;
+#[cfg(windows)]
+use windows as sys;
 
 pub use error::{ConnectError, OpenError};
 pub use listener::{Connection, Listener};
@@ -64,7 +65,7 @@ impl fmt::Debug for Opened {
 /// # Errors
 ///
 /// 已经有一个核心在跑；套接字哪里都放不下，要放的目录不是只有自己能进，或者位置上有别的东西；
-/// 这个平台上还不能在本机监听；读写出错。
+/// 读写出错。
 ///
 /// # Panics
 ///
@@ -79,12 +80,12 @@ pub fn open(root: &DataRoot, dirs: &Dirs) -> Result<Opened, OpenError> {
     Ok(Opened { listener, token })
 }
 
-/// 头连核心：读 `run/socket`，核对套接字所在的目录只有自己能进，连过去，再现读本机令牌。先连后读：
-/// 核心刚换过令牌的话，读到的是新的。
+/// 头连核心：读 `run/socket`，核对套接字所在的目录只有自己能进（Windows 上核对管道另一头的进程是自己的），
+/// 连过去，再现读本机令牌。先连后读：核心刚换过令牌的话，读到的是新的。
 ///
 /// # Errors
 ///
-/// 核心没在跑；套接字所在的目录不是只有自己能进；读写出错。
+/// 核心没在跑；套接字所在的目录不是只有自己能进，或者管道另一头不是自己的进程；读写出错。
 pub async fn connect(root: &DataRoot) -> Result<(Connection, String), ConnectError> {
     let path = match files::read_location(root) {
         Ok(path) => path,

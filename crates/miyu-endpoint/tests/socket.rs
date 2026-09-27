@@ -1,7 +1,5 @@
-//! 在真的套接字上（`docs/construction/3-8-协议端点（下）.md` 验收第 2 条）：核心起来，头照 `run/socket`、
-//! `run/token` 连上，握手、造会话、说一句，这一轮说完；第二个头也连得上。
-
-#![cfg(unix)]
+//! 在真的套接字上（`docs/construction/3-8-协议端点（下）.md` 验收第 2 条；Windows 上是命名管道，施工 3-8 补）：
+//! 核心起来，头照 `run/socket`、`run/token` 连上，握手、造会话、说一句，这一轮说完；第二个头也连得上。
 
 mod support;
 

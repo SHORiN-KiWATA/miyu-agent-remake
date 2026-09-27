@@ -8,42 +8,20 @@ use std::fs;
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::os::unix::net::UnixListener as StdListener;
 
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
-use miyu_ipc::{ConnectError, Dirs, OpenError, Opened, connect, fingerprint, open};
+use miyu_ipc::{ConnectError, Dirs, OpenError, connect, fingerprint, open};
 use miyu_store::env::Platform;
-use support::{Home, mode, within};
-
-/// 头连上核心，两头各说一句。
-async fn talk(home: &Home, opened: &Opened) {
-    let (mut head, token) = within("连上", connect(&home.root)).await.expect("连得上");
-    assert_eq!(token, opened.token);
-    let mut core = within("接到连接", opened.listener.accept())
-        .await
-        .expect("接得到");
-    head.write_all(b"ping").await.expect("写得进");
-    let mut heard = [0u8; 4];
-    within("核心读到", core.read_exact(&mut heard))
-        .await
-        .expect("读得到");
-    assert_eq!(&heard, b"ping");
-    core.write_all(b"pong").await.expect("写得进");
-    within("头读到", head.read_exact(&mut heard))
-        .await
-        .expect("读得到");
-    assert_eq!(&heard, b"pong");
-}
+use support::{Home, mode, talk};
 
 #[tokio::test]
 async fn a_head_connects_through_run_socket_and_gets_the_token() {
     let home = Home::new();
-    let opened = open(&home.root, &home.dirs()).expect("起得来");
+    let mut opened = open(&home.root, &home.dirs()).expect("起得来");
     let socket = home.root.run().join("core.sock");
     assert_eq!(opened.listener.path(), socket);
     assert_eq!(home.location(), socket);
     assert_eq!(home.token(), opened.token);
     assert_eq!(opened.token.len(), 64);
-    talk(&home, &opened).await;
+    talk(&home, &mut opened).await;
 }
 
 #[tokio::test]
@@ -55,19 +33,19 @@ async fn on_linux_it_listens_under_the_runtime_dir() {
         runtime_dir: Some(runtime.clone()),
         ..home.dirs()
     };
-    let opened = open(&home.root, &dirs).expect("起得来");
+    let mut opened = open(&home.root, &dirs).expect("起得来");
     let dir = runtime.join(format!("miyu-{}", fingerprint(&home.root)));
     assert_eq!(opened.listener.path(), dir.join("core.sock"));
     assert_eq!(mode(&dir), 0o700);
     assert_eq!(home.location(), dir.join("core.sock"));
-    talk(&home, &opened).await;
+    talk(&home, &mut opened).await;
 }
 
 #[tokio::test]
 async fn a_long_root_listens_under_the_temp_dir() {
     let home = Home::deep();
     let dirs = home.dirs();
-    let opened = open(&home.root, &dirs).expect("起得来");
+    let mut opened = open(&home.root, &dirs).expect("起得来");
     let uid = dirs.uid.expect("Unix 上有用户编号");
     assert_eq!(
         uid,
@@ -79,7 +57,7 @@ async fn a_long_root_listens_under_the_temp_dir() {
     assert_eq!(opened.listener.path(), socket);
     assert_eq!(mode(&dir), 0o700);
     assert_eq!(home.location(), socket);
-    talk(&home, &opened).await;
+    talk(&home, &mut opened).await;
 }
 
 #[tokio::test]
@@ -95,9 +73,9 @@ async fn one_core_per_root_until_it_goes() {
         !home.root.run().join("core.sock").exists(),
         "走的时候删了套接字文件"
     );
-    let second = open(&home.root, &home.dirs()).expect("第一个走了以后起得来");
+    let mut second = open(&home.root, &home.dirs()).expect("第一个走了以后起得来");
     assert_ne!(second.token, old, "每次起来换一个令牌");
-    talk(&home, &second).await;
+    talk(&home, &mut second).await;
 }
 
 #[tokio::test]
@@ -111,8 +89,8 @@ async fn a_stale_socket_is_cleared() {
             .file_type()
             .is_socket()
     );
-    let opened = open(&home.root, &home.dirs()).expect("照样起得来");
-    talk(&home, &opened).await;
+    let mut opened = open(&home.root, &home.dirs()).expect("照样起得来");
+    talk(&home, &mut opened).await;
 }
 
 #[tokio::test]

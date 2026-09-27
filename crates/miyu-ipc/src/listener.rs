@@ -1,8 +1,7 @@
-//! 在套接字上等连接的一头，和连上以后的一个连接。和平台有关的在 `unix`（以后还有 Windows 的命名
-//! 管道），这里只是一层壳：协议端点只认异步的字节流，不管它从哪来。
+//! 在套接字上等连接的一头，和连上以后的一个连接。和平台有关的在 `unix`、`windows`（命名管道），这里只是
+//! 一层壳：协议端点只认异步的字节流，不管它从哪来。
 
 use std::fmt;
-use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -13,8 +12,8 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use crate::lock::Lock;
 use crate::sys;
 
-/// 核心在套接字上等连接。丢掉它：套接字文件删掉，锁放开。先删文件再放锁：放了锁，下一个核心
-/// 马上就可能在同一个位置上绑。
+/// 核心在套接字上等连接（Windows 上是命名管道）。丢掉它：套接字文件删掉，锁放开。先删文件再放锁：
+/// 放了锁，下一个核心马上就可能在同一个位置上绑。
 pub struct Listener {
     /// 在等连接的套接字。
     socket: sys::Socket,
@@ -34,12 +33,12 @@ impl Listener {
         }
     }
 
-    /// 等下一个连接。
+    /// 等下一个连接。Windows 上接走一个连接，要把等着的实例换成新建的，所以要 `&mut`。
     ///
     /// # Errors
     ///
     /// 接不了，例如打开的文件太多了。
-    pub async fn accept(&self) -> io::Result<Connection> {
+    pub async fn accept(&mut self) -> io::Result<Connection> {
         self.socket.accept().await.map(Connection::new)
     }
 
@@ -51,9 +50,7 @@ impl Listener {
 
 impl Drop for Listener {
     fn drop(&mut self) {
-        if let Err(error) = fs::remove_file(&self.path) {
-            tracing::debug!(target: "miyu::ipc", error = %error, "socket file not removed");
-        }
+        sys::remove(&self.path);
     }
 }
 
@@ -65,7 +62,8 @@ impl fmt::Debug for Listener {
     }
 }
 
-/// 连上以后的一个连接：Unix 上是套接字的一头。读写都是异步的字节流，交给协议端点。
+/// 连上以后的一个连接：Unix 上是套接字的一头，Windows 上是管道的一头。读写都是异步的字节流，交给
+/// 协议端点。
 pub struct Connection(sys::Stream);
 
 impl Connection {

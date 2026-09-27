@@ -76,6 +76,13 @@ pub(crate) async fn connect(path: &Path) -> Result<Stream, ConnectError> {
     }
 }
 
+/// 走的时候删掉套接字文件。
+pub(crate) fn remove(path: &Path) {
+    if let Err(error) = fs::remove_file(path) {
+        tracing::debug!(target: "miyu::ipc", error = %error, "socket file not removed");
+    }
+}
+
 /// 有效用户编号。
 pub(crate) fn uid() -> Option<u32> {
     Some(rustix::process::geteuid().as_raw())

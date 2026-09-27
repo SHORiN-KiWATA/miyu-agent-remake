@@ -5,7 +5,7 @@
 //! - Linux 上设了 `$XDG_RUNTIME_DIR` 的：`$XDG_RUNTIME_DIR/miyu-<指纹>/core.sock`；
 //! - 没设的、别的平台：数据根的 `run/core.sock`；
 //! - 路径太长放不下的：`$TMPDIR/miyu-<uid>/<指纹>.sock`；
-//! - Windows：命名管道，随施工 3-8（补）。
+//! - Windows：命名管道 `\\.\pipe\miyu-<指纹>`（施工 3-8 补）。
 
 use std::path::PathBuf;
 
@@ -42,7 +42,7 @@ impl Dirs {
 }
 
 /// 套接字路径最多几个字节：Linux 的上限 108、macOS 的 104 都算上了结尾的零，所以各少一个。
-/// Windows 上还没有套接字。
+/// Windows 上是命名管道，没有这个上限。
 fn limit(platform: Platform) -> Option<usize> {
     match platform {
         Platform::Linux => Some(107),
@@ -65,12 +65,12 @@ pub fn fingerprint(root: &DataRoot) -> String {
 ///
 /// # Errors
 ///
-/// 哪里都放不下；这个平台上还不能监听。
+/// 哪里都放不下。
 pub(crate) fn locate(root: &DataRoot, dirs: &Dirs) -> Result<PathBuf, OpenError> {
-    let Some(limit) = limit(dirs.platform) else {
-        return Err(OpenError::Unsupported);
-    };
     let print = fingerprint(root);
+    let Some(limit) = limit(dirs.platform) else {
+        return Ok(PathBuf::from(format!(r"\\.\pipe\miyu-{print}")));
+    };
     let first = match (dirs.platform, &dirs.runtime_dir) {
         (Platform::Linux, Some(runtime)) => runtime.join(format!("miyu-{print}")).join("core.sock"),
         _ => root.run().join("core.sock"),

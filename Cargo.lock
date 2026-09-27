@@ -706,11 +706,13 @@ name = "miyu-ipc"
 version = "0.0.0"
 dependencies = [
  "getrandom 0.4.3",
+ "miyu-pipe",
  "miyu-store",
  "rustix",
  "sha2",
  "tokio",
  "tracing",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -729,6 +731,14 @@ dependencies = [
  "jiff",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "miyu-pipe"
+version = "0.0.0"
+dependencies = [
+ "tokio",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

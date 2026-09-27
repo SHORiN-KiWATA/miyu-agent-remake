@@ -1,14 +1,19 @@
-//! 几个测试共用的：临时的数据根、找套接字放哪的快照。
+//! 几个测试共用的：临时的数据根、找套接字放哪的快照、头和核心两头各说一句。
 
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
 
 use std::fs;
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
+#[cfg(unix)]
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
-use miyu_ipc::Dirs;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+use miyu_ipc::{Dirs, Opened, connect};
 use miyu_store::env::{Env, Platform};
 use miyu_store::root::DataRoot;
 
@@ -49,6 +54,7 @@ impl Home {
     }
 
     /// 找套接字放哪的快照：不用 `$XDG_RUNTIME_DIR`，临时目录是这个临时目录下的 `t/`。
+    #[cfg(unix)]
     pub fn dirs(&self) -> Dirs {
         Dirs {
             runtime_dir: None,
@@ -57,12 +63,20 @@ impl Home {
         }
     }
 
+    /// 找套接字放哪的快照：Windows 上是命名管道，只看平台。
+    #[cfg(windows)]
+    pub fn dirs(&self) -> Dirs {
+        Dirs::current()
+    }
+
     /// 这个临时目录下只有自己能进的目录（0700），没有的建。
+    #[cfg(unix)]
     pub fn private_dir(&self, name: &str) -> PathBuf {
         self.dir_with_mode(name, 0o700)
     }
 
     /// 这个临时目录下权限是 `mode` 的目录，没有的建。
+    #[cfg(unix)]
     pub fn dir_with_mode(&self, name: &str, mode: u32) -> PathBuf {
         let dir = self.dir.join(name);
         fs::create_dir_all(&dir).expect("建得了");
@@ -94,6 +108,7 @@ impl Drop for Home {
 }
 
 /// 权限位。
+#[cfg(unix)]
 pub fn mode(path: &Path) -> u32 {
     fs::metadata(path).expect("在").permissions().mode() & 0o777
 }
@@ -103,4 +118,24 @@ pub async fn within<T>(what: &str, future: impl Future<Output = T>) -> T {
     tokio::time::timeout(Duration::from_secs(10), future)
         .await
         .unwrap_or_else(|_| panic!("十秒内没等到{what}"))
+}
+
+/// 头连上核心，两头各说一句。
+pub async fn talk(home: &Home, opened: &mut Opened) {
+    let (mut head, token) = within("连上", connect(&home.root)).await.expect("连得上");
+    assert_eq!(token, opened.token);
+    let mut core = within("接到连接", opened.listener.accept())
+        .await
+        .expect("接得到");
+    head.write_all(b"ping").await.expect("写得进");
+    let mut heard = [0u8; 4];
+    within("核心读到", core.read_exact(&mut heard))
+        .await
+        .expect("读得到");
+    assert_eq!(&heard, b"ping");
+    core.write_all(b"pong").await.expect("写得进");
+    within("头读到", head.read_exact(&mut heard))
+        .await
+        .expect("读得到");
+    assert_eq!(&heard, b"pong");
 }

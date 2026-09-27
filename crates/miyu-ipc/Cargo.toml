@@ -1,6 +1,6 @@
 [package]
 name = "miyu-ipc"
-description = "本机传输：核心在套接字上等连接、头连过去，本机令牌，一个数据根一个核心的锁（施工 3-8 下）"
+description = "本机传输：核心在套接字、命名管道上等连接，头连过去，本机令牌，一个数据根一个核心的锁（施工 3-8 下、补）"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -18,6 +18,14 @@ sha2 = { version = "0.11", default-features = false }
 tokio = { version = "1", features = ["net"] }
 # 运行日志的门面（施工 3-7 上）。
 tracing = { version = "0.1", default-features = false, features = ["std"] }
+
+[target.'cfg(windows)'.dependencies]
+# 只对本人开放的命名管道，问出管道另一头是谁：要调 Windows 的安全接口，在放开了 unsafe 的小 crate 里（施工 3-8 补）。
+miyu-pipe = { path = "../miyu-pipe" }
+# 管道忙的时候歇一下再连。
+tokio = { version = "1", features = ["net", "time"] }
+# 管道忙的错误码。
+windows-sys = { version = "0.61", features = ["Win32_Foundation"] }
 
 [target.'cfg(unix)'.dependencies]
 # 有效用户编号：核对目录的属主、临时目录下的子目录起名。标准库里没有，它是不用 unsafe 的封装。

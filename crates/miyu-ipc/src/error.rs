@@ -13,10 +13,9 @@ pub enum OpenError {
     TooLong(PathBuf),
     /// 套接字要放的目录不是自己的，或者别人也能进：不用它。
     NotPrivate(PathBuf),
-    /// 套接字的位置上有别的东西：不是套接字的文件，或者别的程序正在听。不动它。
+    /// 套接字的位置上有别的东西：不是套接字的文件，或者别的程序正在听；Windows 上是管道名被别的程序
+    /// 占了。不动它。
     Occupied(PathBuf),
-    /// 这个平台上还不能在本机监听：Windows 的命名管道随施工 3-8（补）。
-    Unsupported,
     /// 读写出错。
     Io(io::Error),
 }
@@ -40,7 +39,6 @@ impl fmt::Display for OpenError {
                 "{} 上有别的东西：不是套接字的文件，或者别的程序正在听。不动它",
                 path.display()
             ),
-            OpenError::Unsupported => write!(f, "这个平台上还不能在本机监听"),
             OpenError::Io(error) => error.fmt(f),
         }
     }
@@ -59,10 +57,9 @@ impl From<io::Error> for OpenError {
 pub enum ConnectError {
     /// 核心没在跑：`run/socket` 没有，或者那里连不上。
     NotRunning,
-    /// 套接字所在的目录不是自己的，或者别人也能进：不连，免得把本机令牌交给冒充核心的人。
+    /// 套接字所在的目录不是自己的，或者别人也能进；Windows 上是管道另一头不是自己的进程。不连，免得把
+    /// 本机令牌交给冒充核心的人。
     NotPrivate(PathBuf),
-    /// 这个平台上还不能在本机连：Windows 的命名管道随施工 3-8（补）。
-    Unsupported,
     /// 读写出错。
     Io(io::Error),
 }
@@ -71,12 +68,9 @@ impl fmt::Display for ConnectError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ConnectError::NotRunning => write!(f, "核心没在跑"),
-            ConnectError::NotPrivate(dir) => write!(
-                f,
-                "{} 不是自己的，或者别人也能进：不连这里的套接字",
-                dir.display()
-            ),
-            ConnectError::Unsupported => write!(f, "这个平台上还不能在本机连核心"),
+            ConnectError::NotPrivate(dir) => {
+                write!(f, "{} 不是自己的，或者别人也能进：不连", dir.display())
+            }
             ConnectError::Io(error) => error.fmt(f),
         }
     }
