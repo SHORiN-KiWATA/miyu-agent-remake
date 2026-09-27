@@ -173,6 +173,10 @@ impl Ledger {
             Body::MessageWithdrawn(withdrawn) => self.check_withdrawal(&withdrawn.messages),
             Body::TurnReverted(reverted) => self.check_revert(&reverted.turns),
             Body::TurnUnreverted(unreverted) => self.check_unrevert(&unreverted.turns),
+            Body::FilesRestored(_) => match self.open {
+                Some(open) => Err(format!("回合 {open} 还在进行，改回文件只在撤销、恢复以后")),
+                None => Ok(()),
+            },
             _ => Ok(()),
         }
     }

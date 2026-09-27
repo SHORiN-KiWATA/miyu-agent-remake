@@ -1,10 +1,12 @@
 //! 效果（`docs/designs/10-自带软件.md` 第五节，施工 4-6 上）：工具报的效果带着改前改后的内容，这里存成 blob、
 //! 换成哈希，写成内核的效果；照内核的效果记下她看过的文件，会话里记、载入时从日志里重建，走的是同一个函数。
+//! 撤掉的那几轮里看过的、改过的不算（施工 4-7 上）：撤销、恢复落了盘，照日志重算一遍。
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use miyu_kernel::event::{Body, Effect, Event, FileChanged, FileRead, FileTrashed};
-use miyu_kernel::id::ContentHash;
+use miyu_kernel::id::{ContentHash, TurnId};
 use miyu_store::blob::Blobs;
 use miyu_tool::Seen;
 
@@ -56,15 +58,37 @@ pub(crate) fn saw(seen: &mut Seen, effects: &[Effect]) {
     }
 }
 
-/// 从日志里重建她看过的文件：照先后过一遍每一条工具结果的效果。
+/// 从日志里重建她看过的文件：照先后过一遍每一条工具结果的效果，现在还撤着的回合里的不算（有效历史，
+/// `03-事件模型.md` 第七节）。
 pub(crate) fn seen_in(events: &[Event]) -> Seen {
+    let mut reverted = BTreeSet::<TurnId>::new();
+    for event in events {
+        match &event.body {
+            Body::TurnReverted(undone) => reverted.extend(undone.turns.iter().copied()),
+            Body::TurnUnreverted(redone) => {
+                for turn in &redone.turns {
+                    reverted.remove(turn);
+                }
+            }
+            _ => {}
+        }
+    }
     let mut seen = Seen::new();
     for event in events {
-        if let Body::ToolResult(result) = &event.body {
+        if let Body::ToolResult(result) = &event.body
+            && !event.turn.is_some_and(|turn| reverted.contains(&turn))
+        {
             saw(&mut seen, &result.effects);
         }
     }
     seen
+}
+
+/// 这一批里有没有撤销、恢复：有的，她看过的要照日志重算。
+pub(crate) fn reverts(events: &[Event]) -> bool {
+    events
+        .iter()
+        .any(|event| matches!(event.body, Body::TurnReverted(_) | Body::TurnUnreverted(_)))
 }
 
 /// 存一份内容，交回它的哈希。存不下来的照样算出哈希交回。

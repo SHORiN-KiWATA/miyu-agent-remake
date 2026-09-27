@@ -3,7 +3,7 @@
 use crate::accumulate::Delta;
 use crate::block::Block;
 use crate::event::{
-    CallError, ContextInjected, Decision, Effect, Level, Question, Response, Said, Usage,
+    CallError, ContextInjected, Decision, Effect, Level, Question, Response, Restored, Said, Usage,
 };
 use crate::facts::Environment;
 use crate::id::{CallId, CommandId, ContentHash, ModuleId, Seq, TurnId};
@@ -109,6 +109,13 @@ pub enum Input {
         call_id: CallId,
         /// 一组题，照先后。
         questions: Vec<Question>,
+    },
+    /// 改回文件做完了（施工 4-7 上）：[`super::Action::Restore`] 的每一步照先后，一步一项结局。
+    Restored {
+        /// 到的时刻，取自执行器的时钟。
+        at: Timestamp,
+        /// 每一步的结局，照交出去的先后。
+        files: Vec<Restored>,
     },
     /// 要重启了：有计划的重启，关之前送进来（`02-内核.md` 第六节「载入、崩溃、重启」第 3 条）。
     Restarting {

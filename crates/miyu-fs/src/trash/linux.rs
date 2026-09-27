@@ -175,9 +175,28 @@ fn escaped(path: &OsStr) -> String {
     out
 }
 
-/// 删掉没用上的 `.trashinfo`。删不掉的记一条运行日志：东西没动，回收站里多了一份空的记录。
+/// 移回来了（施工 4-7 上）：删掉它的 `.trashinfo`。`kept` 是 `files/<名字>`，记录是同一个回收站里的
+/// `info/<名字>.trashinfo`；不在 `files/` 下的，没有要删的。
+pub(super) fn forget(kept: &Path) {
+    let (Some(files), Some(name)) = (kept.parent(), kept.file_name()) else {
+        return;
+    };
+    if files.file_name() != Some(OsStr::new("files")) {
+        return;
+    }
+    let Some(trash) = files.parent() else {
+        return;
+    };
+    let mut record = name.to_os_string();
+    record.push(".trashinfo");
+    remove(&trash.join("info").join(record));
+}
+
+/// 删掉用不着的 `.trashinfo`。删不掉的记一条运行日志：东西没动，回收站里多了一份空的记录。
 fn remove(record: &Path) {
-    if let Err(error) = fs::remove_file(record) {
-        tracing::warn!(target: "miyu::basesystem", error = %error, "trash record left behind");
+    if let Err(error) = fs::remove_file(record)
+        && error.kind() != io::ErrorKind::NotFound
+    {
+        tracing::warn!(target: "miyu::fs", error = %error, "trash record left behind");
     }
 }

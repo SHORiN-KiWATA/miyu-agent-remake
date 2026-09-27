@@ -992,18 +992,13 @@ dependencies = [
  "grep-regex",
  "grep-searcher",
  "ignore",
- "jiff",
  "miyu-fs",
  "miyu-kernel",
  "miyu-store",
  "miyu-tool",
- "objc2",
- "objc2-foundation",
  "serde",
  "serde_json",
  "tokio",
- "tracing",
- "trash",
  "unicode-normalization",
 ]
 
@@ -1074,7 +1069,12 @@ dependencies = [
 name = "miyu-fs"
 version = "0.0.0"
 dependencies = [
+ "jiff",
  "libc",
+ "objc2",
+ "objc2-foundation",
+ "tracing",
+ "trash",
 ]
 
 [[package]]

@@ -14,7 +14,6 @@ mod grep;
 mod load;
 mod pattern;
 mod read;
-mod replace;
 mod text;
 mod trash;
 mod walk;

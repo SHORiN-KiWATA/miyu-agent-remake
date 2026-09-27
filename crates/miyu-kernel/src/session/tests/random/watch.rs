@@ -14,6 +14,7 @@ mod model;
 mod permission;
 mod question;
 mod queue;
+mod restore;
 mod undo;
 
 /// 看守。
@@ -69,6 +70,8 @@ pub(super) struct Watch {
     restarts: load::Restarts,
     /// 撤销：有效历史里还有哪几轮、能恢复的几次、请求里不该有的几条。
     pub(super) undo: undo::Undo,
+    /// 改回文件：交出去了、结局还没回来的那几步（施工 4-7 上）。
+    pub(super) restoring: restore::Restoring,
     /// 喂过的输入种类（`kinds.rs` 的清单）。
     pub(super) fed: BTreeSet<InputKind>,
     /// 重试：该交出到点叫醒的、在等的、叫醒了的，这一步连着几次。
@@ -110,6 +113,7 @@ impl Watch {
             questions: question::Questions::new(),
             restarts: load::Restarts::default(),
             undo: undo::Undo::default(),
+            restoring: restore::Restoring::default(),
             fed: BTreeSet::new(),
             retries: model::Retries::default(),
         }
@@ -144,11 +148,15 @@ impl Watch {
             Input::Command(command) if !self.fresh(&command.id) => Some(command.id.clone()),
             _ => None,
         };
-        let judged = self.before_approval(&input);
-        let replied = self.before_question(&input);
-        let undone = self.before_undo(&input);
+        // 改回文件的时候来的新命令一律拒绝（`watch/restore.rs`）：别的看守不再照自己的规矩判。
+        let refused = self.restoring_refuses(&input);
+        let judged = self.before_approval(&input).filter(|_| !refused);
+        let replied = self.before_question(&input).filter(|_| !refused);
+        let undone = self.before_undo(&input).filter(|_| !refused);
+        let reverting = undone.as_ref().and_then(undo::Expect::turns);
+        let restore = self.before_restore(&input);
         let fresh_interrupt = match &input {
-            Input::Command(command) => match command.command {
+            Input::Command(command) if !refused => match command.command {
                 Command::Interrupt { queued } if self.fresh(&command.id) => Some(queued),
                 _ => None,
             },
@@ -191,6 +199,8 @@ impl Watch {
         self.after_approval(&actions, judged);
         self.after_question(&actions, replied);
         self.after_undo(&actions, undone);
+        self.after_restore(&actions, restore);
+        self.restore_matches(&actions, reverting);
         for action in actions {
             self.check(action);
         }
@@ -286,6 +296,7 @@ impl Watch {
                 ..
             } => self.guard(call_id, &name, &cwd, &permission),
             Action::RunTool { call_id, .. } => self.run(call_id),
+            Action::Restore { steps } => self.restore_asked(steps),
             Action::AnswerTool { call_id, answers } => self.handed(call_id, &answers),
             Action::CancelTool { call_id } => {
                 self.seen_paths.insert("打断了工具");

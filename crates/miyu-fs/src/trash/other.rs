@@ -8,3 +8,6 @@ use super::Refused;
 pub(super) fn put(_real: &Path, _home: Option<&Path>) -> Result<String, Refused> {
     Err(Refused::Unavailable)
 }
+
+/// 没放进去过，没有要删的记录。
+pub(super) fn forget(_kept: &Path) {}

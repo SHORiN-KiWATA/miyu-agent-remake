@@ -47,6 +47,16 @@ pub(super) enum Expect {
     Unrevert(Vec<TurnId>),
 }
 
+impl Expect {
+    /// 接受的撤销、恢复列的那几轮：看守照它查交没交改回文件（`watch/restore.rs`）。
+    pub(super) fn turns(&self) -> Option<Vec<TurnId>> {
+        match self {
+            Expect::Revert(turns) | Expect::Unrevert(turns) => Some(turns.clone()),
+            Expect::Refused(_) => None,
+        }
+    }
+}
+
 impl Watch {
     /// 送进一条输入之前：新的撤销、恢复，照规矩判出该怎样。
     pub(super) fn before_undo(&self, input: &Input) -> Option<Expect> {

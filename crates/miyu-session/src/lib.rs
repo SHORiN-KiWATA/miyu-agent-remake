@@ -23,6 +23,7 @@ mod kinds;
 mod lines;
 mod open;
 mod port;
+mod restore;
 mod store;
 #[cfg(feature = "testkit")]
 pub mod testkit;

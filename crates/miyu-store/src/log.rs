@@ -53,6 +53,11 @@ impl SessionLog {
         })
     }
 
+    /// 会话的目录：只读地读回整份日志时用（[`read_events`]，施工 4-7 上）。
+    pub fn dir(&self) -> &Path {
+        &self.dir
+    }
+
     /// 下一条该是几号。
     pub fn next_seq(&self) -> Seq {
         self.next

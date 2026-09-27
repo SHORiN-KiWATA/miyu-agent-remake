@@ -1,6 +1,6 @@
 //! 把一份文件整体换成新的内容（`10-自带软件.md` 第三节「`write` 的细则」，施工 4-6 上）：先写进同一个目录里的
 //! 临时文件、同步，再改名盖上去。中途崩了，原来的文件还在，不会留下写了一半的；原来的文件权限照留。`write`、
-//! `edit`（4-6 中）都用。
+//! `edit`（4-6 中）和撤销时写回改前的内容（4-7 上）都用；施工 4-7 上从基础系统挪到这里。
 //!
 //! 原来是只读的不写：她碰到的是一个明摆着不让改的文件。Windows 上改名也盖不过只读的文件，三个平台照这一条一样。
 
@@ -17,7 +17,7 @@ const TRIES: u32 = 16;
 /// # Errors
 ///
 /// 原来的是只读的（权限不够）；临时文件建不了、写不进、同步不了；改名盖不上去。没盖上去的，临时文件删掉。
-pub(crate) fn replace(real: &Path, bytes: &[u8]) -> io::Result<()> {
+pub fn replace(real: &Path, bytes: &[u8]) -> io::Result<()> {
     let dir = real
         .parent()
         .ok_or_else(|| io::Error::from(io::ErrorKind::InvalidInput))?;
@@ -67,7 +67,7 @@ fn temp_in(dir: &Path, real: &Path) -> io::Result<(PathBuf, File)> {
 /// 删掉没用上的临时文件。删不掉的只记一条运行日志：原来的文件没动，只是目录里多了一个以点开头的临时文件。
 fn remove(temp: &Path) {
     if let Err(error) = fs::remove_file(temp) {
-        tracing::warn!(target: "miyu::basesystem", error = %error, "temporary file left behind");
+        tracing::warn!(target: "miyu::fs", error = %error, "temporary file left behind");
     }
 }
 

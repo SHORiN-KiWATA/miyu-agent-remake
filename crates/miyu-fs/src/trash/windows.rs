@@ -38,6 +38,19 @@ pub(super) fn put(real: &Path, _home: Option<&Path>) -> Result<String, Refused> 
         .ok_or(Refused::Lost)
 }
 
+/// 移回来了（施工 4-7 上）：删掉 `$R` 旁边那份 `$I` 记录，回收站里就不再列着它。删不掉的只记一条运行日志：
+/// 东西已经回来了，回收站里多了一份对不上的记录。
+pub(super) fn forget(kept: &Path) {
+    let Some(record) = recycled::record_of(kept) else {
+        return;
+    };
+    if let Err(error) = std::fs::remove_file(&record)
+        && error.kind() != io::ErrorKind::NotFound
+    {
+        tracing::warn!(target: "miyu::fs", error = %error, "recycle record left behind");
+    }
+}
+
 /// 去掉 `\\?\` 这个前缀：`trash` 这个 crate 和回收站的记录都是普通的写法。
 fn plain(path: &Path) -> PathBuf {
     let text = path.to_string_lossy();

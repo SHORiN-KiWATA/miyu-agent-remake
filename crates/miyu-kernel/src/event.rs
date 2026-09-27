@@ -16,6 +16,7 @@ mod effect;
 mod message;
 mod model;
 mod question;
+mod restore;
 mod session;
 mod tool;
 mod transient;
@@ -28,6 +29,7 @@ pub use model::{
     CallError, CallResult, ErrorClass, FirstDifference, MessageRole, ModelCalled, Part, Usage,
 };
 pub use question::{Choice, Question, QuestionAnswered, QuestionAsked, Response, fits};
+pub use restore::{FilesRestored, RestoreAction, RestoreOutcome, Restored};
 pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated};
 pub use tool::{ApprovalDecided, ApprovalRequested, Decision, Said, ToolResult, ToolStatus};
 pub use transient::{ModelDelta, Piece, Retry, Status, ToolProgress, Transient, TransientBody};
@@ -118,6 +120,8 @@ bodies! {
     TurnReverted = "turn.reverted",
     /// 恢复了最近一次撤销的回合。
     TurnUnreverted = "turn.unreverted",
+    /// 撤销、恢复时改回文件的结局（施工 4-7 上）。
+    FilesRestored = "files.restored",
     /// 人发来的消息，或者另一个会话发来的消息。
     MessageUser = "message.user",
     /// 模型一次响应的完整内容，工具调用也在里面。

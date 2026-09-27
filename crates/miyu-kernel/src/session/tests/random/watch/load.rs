@@ -19,11 +19,14 @@ pub(in super::super) struct Restarts {
 }
 
 impl Watch {
-    /// 追加过的事件都落了盘没有。
+    /// 追加过的事件都落了盘没有，也没在改回文件：崩在这时候才不会丢回应（改回文件做到一半崩了不重做，施工 4-7 上
+    /// 「风险」，随机测试不在那时候崩）。
     pub(in super::super) fn all_stored(&self) -> bool {
-        self.events
-            .iter()
-            .all(|event| self.pushed.contains(&event.seq))
+        self.restoring.pending.is_none()
+            && self
+                .events
+                .iter()
+                .all(|event| self.pushed.contains(&event.seq))
     }
 
     /// 回合结束：记下是不是被有计划的重启打断的，和那时排着队的消息。

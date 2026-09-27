@@ -7,6 +7,8 @@ use crate::id::{CallId, CommandId, Seq, TurnId};
 use crate::request::{Difference, Request};
 use crate::time::Timestamp;
 
+use super::restore::Step;
+
 /// 会话要执行器做的一件事。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
@@ -86,6 +88,12 @@ pub enum Action {
         /// 照题目的先后，每道题的回答。
         answers: Vec<Response>,
     },
+    /// 撤销、恢复时照效果改回文件（`10-自带软件.md` 第七节「改回文件的细则」，施工 4-7 上）：一步一步先核对再动手，
+    /// 做完了一步一项交回结局。这时不开新的一轮，做完才接下一个命令。
+    Restore {
+        /// 改回的几步，照先后。
+        steps: Vec<Step>,
+    },
     /// 执行一次工具调用。执行中的输出、执行完了，都带着调用编号回报
     /// （`02-内核.md` 第六节「工具怎么调、下一步怎么走」）。
     RunTool {
@@ -144,6 +152,8 @@ pub enum Reason {
     Compacted,
     /// 没有能恢复的撤销：没撤过，或者撤了以后开过回合、压缩过。
     NothingToUnrevert,
+    /// 正在改回文件（撤销、恢复以后）：等它做完再来（施工 4-7 上）。
+    Restoring,
 }
 
 impl Reason {
@@ -162,6 +172,7 @@ impl Reason {
             Reason::UnknownTurn => "unknown_turn",
             Reason::Compacted => "compacted",
             Reason::NothingToUnrevert => "nothing_to_unrevert",
+            Reason::Restoring => "restoring",
         }
     }
 }

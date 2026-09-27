@@ -1,12 +1,12 @@
 //! 握手以后的方法（`docs/designs/04-核心协议.md` 第九节「先做的几样怎么写」）：造会话、说话、打断，
-//! 列出会话（施工 3-9 下）。命令交给会话，等它的回应：接受的回 `events`，拒绝的回原因码。造会话、说话的
+//! 列出会话（施工 3-9 下），撤销、恢复（施工 4-7 上）。命令交给会话，等它的回应：接受的回 `events`，拒绝的回原因码。造会话、说话的
 //! 回应再带上会话实际在哪个目录里干活（施工 4-5 下）。
 
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::id::SessionId;
+use miyu_kernel::id::{Seq, SessionId, TurnId};
 use miyu_kernel::session::{Command, Outcome, Queued};
 use miyu_session::Handle;
 
@@ -58,6 +58,19 @@ struct SendParams {
 struct InterruptParams {
     session: String,
     queued: QueuedParam,
+}
+
+/// `session.revert` 的参数（施工 4-7 上）：从哪一轮起撤，回合编号就是那一轮 `turn.started` 的序号。
+#[derive(Debug, Deserialize)]
+struct RevertParams {
+    session: String,
+    turn: u64,
+}
+
+/// `session.unrevert` 的参数（施工 4-7 上）。
+#[derive(Debug, Deserialize)]
+struct UnrevertParams {
+    session: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -115,6 +128,25 @@ pub(crate) async fn call(core: &Core, peer: Peer, request: &Request) -> Result<V
             let session = session(&params.session)?;
             let found = core.sessions.get(core, &session, None).await?;
             let command = Command::Interrupt { queued };
+            let events = command_to(core, request, &session, &found.handle, command).await?;
+            Ok(json!({ "events": events }))
+        }
+        "session.revert" => {
+            let params: RevertParams = params(request)?;
+            let turn = Seq::new(params.turn)
+                .map(TurnId::new)
+                .ok_or(Refusal::BAD_PARAMS)?;
+            let session = session(&params.session)?;
+            let found = core.sessions.get(core, &session, None).await?;
+            let command = Command::Revert { turn };
+            let events = command_to(core, request, &session, &found.handle, command).await?;
+            Ok(json!({ "events": events }))
+        }
+        "session.unrevert" => {
+            let params: UnrevertParams = params(request)?;
+            let session = session(&params.session)?;
+            let found = core.sessions.get(core, &session, None).await?;
+            let command = Command::Unrevert;
             let events = command_to(core, request, &session, &found.handle, command).await?;
             Ok(json!({ "events": events }))
         }

@@ -1,15 +1,15 @@
 //! `trash`（`10-自带软件.md` 第三节「`trash` 的细则」，施工 4-6 下）：把一个文件或者目录移进系统的回收站，记下
 //! 它在回收站里的位置，报 `file.trashed`，撤销（4-7）照它移回来。
 //!
-//! 三个平台各做一份（[`bin`]）：Linux 照 freedesktop 的回收站规范自己放，macOS 用系统的 `trashItemAtURL`，Windows 用
-//! `trash` 这个 crate、再读回收站里的 `$I` 记录找回它（[`recycled`]）。记下的位置三个平台都是回收站里的真实路径。
-//! 回收站收不了的不删，说为什么。工作目录本身和它的上级、家目录、根目录不许删；链接删的是链接本身。
+//! 放进回收站三个平台各做一份，在 [`miyu_fs::trash`] 里（施工 4-7 上从这里挪过去，撤销也要用）。记下的位置三个平台
+//! 都是回收站里的真实路径。回收站收不了的不删，说为什么。工作目录本身和它的上级、家目录、根目录不许删；链接删的是
+//! 链接本身。
 
-use std::io;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
+use miyu_fs::trash::{Refused, put};
 use miyu_fs::{ResolveError, resolve, tilde};
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
@@ -18,42 +18,6 @@ use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Target, Tool};
 use crate::blocking::blocking;
 use crate::common::{Common, Shown, said};
 use crate::load::{self, LoadError, say};
-
-#[cfg(target_os = "linux")]
-#[path = "trash/linux.rs"]
-mod bin;
-#[cfg(target_os = "macos")]
-#[path = "trash/macos.rs"]
-mod bin;
-#[cfg(windows)]
-#[path = "trash/windows.rs"]
-mod bin;
-#[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-#[path = "trash/other.rs"]
-mod bin;
-#[cfg_attr(
-    not(windows),
-    allow(
-        dead_code,
-        reason = "只有 Windows 用；每个平台都编它，它的测试到处都跑"
-    )
-)]
-mod recycled;
-
-/// 放不进回收站的几种。
-#[derive(Debug)]
-pub(crate) enum Refused {
-    /// 这块盘上没有能放的回收站：没删。
-    Unavailable,
-    /// 挪了，可回收站里找不到它：它可能回不来了。
-    #[cfg_attr(
-        not(any(target_os = "macos", windows)),
-        allow(dead_code, reason = "只有 macOS、Windows 会碰到挪了却找不到的情况")
-    )]
-    Lost,
-    /// 出错了：系统说的原话。
-    Failed(io::Error),
-}
 
 /// `trash`。
 pub(crate) struct Trash {
@@ -140,7 +104,7 @@ fn trash(texts: &Texts, call: &Call, path: &str) -> Done {
     if protected(call, &real) {
         return refuse(&texts.protected, "trash/protected");
     }
-    match bin::put(&real, call.home.as_deref()) {
+    match put(&real, call.home.as_deref()) {
         Ok(location) => {
             let shown = Shown::here(call).path(&real);
             Done::ok(say(&texts.trashed, &[("path", &shown)]))

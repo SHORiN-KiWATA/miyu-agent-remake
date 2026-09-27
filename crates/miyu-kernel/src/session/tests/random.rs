@@ -21,7 +21,9 @@
 //!   这一步的全部工具结果后面；请求时最近一块权限事实写的是现在的那一级，环境那一块写的是
 //!   这一轮的工作目录；
 //! - 撤销、恢复：照规矩接受或者拒绝，列的是那几轮；请求照的是撤销、恢复以后的历史；撤了又恢复的，
-//!   下一次请求接着上一次往下长。
+//!   下一次请求接着上一次往下长；
+//! - 改回文件：那几轮改过文件的才交出去，一个改过的文件一步；改的时候来的命令拒绝；结局只记一条
+//!   `files.restored`；过时的结局不理（施工 4-7 上）。
 //!
 //! 每一步还照九条不变量查（`watch/invariants.rs`，`02-内核.md` 第九节「不变量怎么查」）。
 //!
@@ -31,6 +33,7 @@
 mod asking;
 mod kinds;
 mod paths;
+mod restoring;
 mod watch;
 
 use std::collections::BTreeSet;
@@ -52,6 +55,7 @@ use crate::tool::Access;
 use asking::{some_answer, some_question, some_reply, some_verdict};
 use kinds::InputKind;
 use paths::EXPECTED_PATHS;
+use restoring::some_restored;
 use watch::Watch;
 
 /// 随机测试的会话，一个回合最多请求几次模型。
@@ -309,7 +313,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
             blocks: Vec::new(),
             duration_ms: Some(1),
             human: None,
-            effects: Vec::new(),
+            effects: watch.some_effects(),
         },
         26 if !watch.calm || rng.below(10) == 0 => some_interrupt(rng, next_id),
         26 => send(next_command(next_id), "hi"),
@@ -419,6 +423,7 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         // 不跟着错开。
         let mut crashes = Rng(seed ^ 0x00C0_FFEE);
         let mut undos = Rng(seed ^ 0x0DD0_0DD0);
+        let mut restores = Rng(seed ^ 0x5E57_04ED);
         for _ in 0..300 {
             if watch.all_stored() && crashes.below(200) == 0 {
                 let planned = crashes.below(2) == 0;
@@ -428,8 +433,15 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
             if let Some(input) = some_undo(&mut undos, &watch, &mut next_id) {
                 watch.feed(&mut session, input);
             }
+            if let Some(input) = some_restored(&mut restores, &watch) {
+                watch.feed(&mut session, input);
+            }
             let input = some_input(&mut rng, &mut watch, &mut next_id);
             watch.feed(&mut session, input);
+        }
+        if let Some(steps) = watch.restoring.pending.clone() {
+            let files = steps.iter().map(Step::restored).collect();
+            watch.feed(&mut session, Input::Restored { at: at(58), files });
         }
         let last = watch.last();
         watch.feed(&mut session, stored(last));

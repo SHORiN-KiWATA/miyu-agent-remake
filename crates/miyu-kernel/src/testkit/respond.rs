@@ -9,7 +9,7 @@ use crate::event::{Response, Usage};
 use crate::id::{CallId, ModelName, ProviderId, Seq};
 use crate::origin::Model;
 use crate::request::Request;
-use crate::session::{Action, Input, Verdict};
+use crate::session::{Action, Input, Step, Verdict};
 use crate::time::Timestamp;
 
 impl Stage {
@@ -72,6 +72,11 @@ impl Stage {
                 self.held_tools.retain(|(held, _)| *held != call_id);
                 Vec::new()
             }
+            // 改回文件（施工 4-7 上）：替身不碰文件，每一步都当改回了。
+            Action::Restore { steps } => vec![Input::Restored {
+                at: self.tick(),
+                files: steps.iter().map(Step::restored).collect(),
+            }],
         }
     }
 

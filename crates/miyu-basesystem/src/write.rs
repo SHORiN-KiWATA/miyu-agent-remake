@@ -2,7 +2,7 @@
 //! Claude Code 叫 `file_path`、`content`。
 //!
 //! 已经在了的文件，要她看过、而且现在的内容和她看到的一样才写（第五节「她看过的」）；照它原来的编码、BOM、换行
-//! 写。新文件写成 UTF-8、不带 BOM，上级目录没有的建上。写的时候先写临时文件再改名盖上去（[`crate::replace`]）。
+//! 写。新文件写成 UTF-8、不带 BOM，上级目录没有的建上。写的时候先写临时文件再改名盖上去（[`miyu_fs::replace()`]）。
 //! 报 `file.changed`：改前改后的内容本身，执行器存成 blob。
 
 use std::fs;
@@ -11,7 +11,7 @@ use std::path::Path;
 
 use serde::Deserialize;
 
-use miyu_fs::resolve;
+use miyu_fs::{replace, resolve};
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Target, Tool};
@@ -19,7 +19,6 @@ use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Target, Tool};
 use crate::blocking::blocking;
 use crate::common::{Common, Shown, said};
 use crate::load::{self, LoadError, say};
-use crate::replace::replace;
 use crate::text::{Style, line_count};
 
 /// `write`。

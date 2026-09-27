@@ -19,6 +19,7 @@ pub(crate) fn input(input: &Input) -> &'static str {
         Input::ToolProgress { .. } => "tool_progress",
         Input::ToolAsks { .. } => "tool_asks",
         Input::Restarting { .. } => "restarting",
+        Input::Restored { .. } => "restored",
         Input::ToolGuarded { .. } => "tool_guarded",
     }
 }
@@ -39,6 +40,7 @@ pub(crate) fn action(action: &Action) -> &'static str {
         Action::GuardTool { .. } => "guard_tool",
         Action::AnswerTool { .. } => "answer_tool",
         Action::RunTool { .. } => "run_tool",
+        Action::Restore { .. } => "restore",
     }
 }
 

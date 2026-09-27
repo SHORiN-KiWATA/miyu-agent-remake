@@ -13,6 +13,7 @@ use miyu_kernel::event::{Level, Permission};
 use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{AccountId, ModelName, ProviderId, VenueId};
 use miyu_kernel::origin::{By, Model, Person};
+use miyu_kernel::request::Request;
 use miyu_kernel::session::Command;
 use miyu_kernel::time::UtcOffset;
 use miyu_log::{LevelFilter, Memory};
@@ -21,6 +22,7 @@ use miyu_store::resources::ResourceRoot;
 
 use super::*;
 use crate::handle::{Handle, Stopped};
+use crate::port::{Cancel, Reports};
 
 /// 前 `left` 次写得进，之后磁盘满了。
 struct Failing {
@@ -34,6 +36,10 @@ impl Store for Failing {
         }
         self.left -= 1;
         Ok(())
+    }
+
+    fn events(&self) -> Result<Vec<Event>, String> {
+        Err("读不回来".to_string())
     }
 }
 

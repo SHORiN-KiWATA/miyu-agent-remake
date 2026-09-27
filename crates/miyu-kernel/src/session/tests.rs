@@ -18,6 +18,7 @@ mod queue;
 mod random;
 mod reply;
 mod restart;
+mod restore;
 mod revert;
 mod scenario;
 mod tools;

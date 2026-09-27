@@ -62,6 +62,8 @@ kinds! {
     ToolAsks,
     /// 要重启了。
     Restarting,
+    /// 改回文件做完了（施工 4-7 上）。
+    Restored,
     /// 到点了：重试前等的那一会儿到了（施工 3-5 下）。
     Woke,
 }
@@ -102,6 +104,7 @@ impl InputKind {
             Input::ToolGuarded { .. } => InputKind::ToolGuarded,
             Input::ToolAsks { .. } => InputKind::ToolAsks,
             Input::Restarting { .. } => InputKind::Restarting,
+            Input::Restored { .. } => InputKind::Restored,
             Input::Woke { .. } => InputKind::Woke,
         }
     }

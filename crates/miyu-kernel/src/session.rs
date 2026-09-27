@@ -19,6 +19,7 @@ mod question;
 mod queue;
 mod recent;
 mod restart;
+mod restore;
 mod retry;
 mod revert;
 mod step;
@@ -29,6 +30,7 @@ pub use action::{Action, Outcome, Reason};
 pub use input::{Answer, Command, Injection, Input, Queued, Received, Verdict};
 pub use load::LoadError;
 pub use policy::Policy;
+pub use restore::{Expect, Step, StepAction};
 
 use crate::event::{Body, Event, MessageUser, Permission, SessionCreated, ToolResult, ToolStatus};
 use crate::facts::Environment;
@@ -39,6 +41,7 @@ use crate::origin::By;
 use crate::request::Fingerprint;
 use crate::time::Timestamp;
 use recent::Recent;
+use revert::Restoring;
 use turn::Turn;
 
 /// 一个会话的状态机。
@@ -70,6 +73,8 @@ pub struct Session {
     last_request: Option<Fingerprint>,
     /// 结束了、`turn.ended` 还没落盘的回合，和那一条的序号：落了盘才跑回合结束的挂接点。
     closing: Vec<(TurnId, Seq)>,
+    /// 撤销、恢复以后正在改回文件（施工 4-7 上）：交出去了，结局还没回来。
+    restoring: Option<Restoring>,
 }
 
 impl Session {
@@ -103,16 +108,17 @@ impl Session {
             turn: None,
             last_request: None,
             closing: Vec::new(),
+            restoring: None,
         };
         let event = session.record(at, by, Some(id.clone()), Body::SessionCreated(created));
         session.accept(id, vec![event.seq]);
         (session, vec![Action::Append(vec![event])])
     }
 
-    /// 空闲：没有在跑的回合，也没有结束了、`turn.ended` 还没落盘的。核心看它决定能不能空闲退出
+    /// 空闲：没有在跑的回合，也没有结束了、`turn.ended` 还没落盘的，也没在改回文件。核心看它决定能不能空闲退出
     /// （`12-进程形态与分发.md` 第二节，施工 3-9 上）。
     pub fn idle(&self) -> bool {
-        self.turn.is_none() && self.closing.is_empty()
+        self.turn.is_none() && self.closing.is_empty() && self.restoring.is_none()
     }
 
     /// 送进一条输入，出来一串动作。
@@ -180,6 +186,7 @@ impl Session {
                 call_id,
                 questions,
             } => self.tool_asks(at, call_id, questions),
+            Input::Restored { at, files } => self.restored(at, files),
             Input::Restarting { at } => self.restart(at),
         }
     }
@@ -195,6 +202,10 @@ impl Session {
         if let Some(events) = self.recent.get(&id) {
             let events = events.to_vec();
             return self.reply_when_stored(id, events);
+        }
+        // 改回文件的时候不接命令：会话 actor 做完才接下一个，这是兜底（施工 4-7 上）。
+        if self.restoring.is_some() {
+            return vec![rejected(id, Reason::Restoring)];
         }
         match command {
             Command::Send { blocks, urgent } => {

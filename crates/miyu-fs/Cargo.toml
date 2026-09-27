@@ -1,16 +1,33 @@
 [package]
 name = "miyu-fs"
-description = "核心进程里的文件工具怎么碰文件：边界表、换成真实的位置、安全地打开（施工 4-3 上）"
+description = "核心进程里的文件工具怎么碰文件：边界表、换成真实的位置、安全地打开（施工 4-3 上），整体换内容、系统的回收站（施工 4-7 上挪来）"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[dependencies]
+# 运行日志的门面：没删掉的临时文件、回收站里没删掉的记录记一条（施工 4-6 上、下，4-7 上挪来）。
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+
 [target.'cfg(unix)'.dependencies]
 # 打开时不跟随最后一层的链接、不阻塞：O_NOFOLLOW、O_NONBLOCK、ELOOP 在各个 Unix 上的值不一样，从这里取，
 # 不自己写（施工 4-3 上）。只取常量，不调它的函数，不用 unsafe。
 libc = "0.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Linux 的回收站里记删的时间，要本地时间（施工 4-6 下）。
+jiff = "0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# macOS 的回收站：系统的 NSFileManager 交回东西在回收站里的新位置（施工 4-6 下）。只开用到的几样。
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "FoundationErrors", "NSError", "NSFileManager", "NSString", "NSURL"] }
+
+[target.'cfg(windows)'.dependencies]
+# Windows 的回收站：系统的 IFileOperation，删完读回收站里的 `$I` 记录找回它（施工 4-6 下）。
+trash = "5"
 
 [lints]
 workspace = true

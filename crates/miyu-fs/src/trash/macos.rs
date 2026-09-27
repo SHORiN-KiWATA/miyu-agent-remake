@@ -10,6 +10,9 @@ use objc2_foundation::{NSFeatureUnsupportedError, NSFileManager, NSString, NSURL
 
 use super::Refused;
 
+/// 移回来了：macOS 的回收站没有另外记的，不用删。
+pub(super) fn forget(_kept: &Path) {}
+
 /// 把 `real` 放进回收站，交回它在回收站里的位置。
 pub(super) fn put(real: &Path, _home: Option<&Path>) -> Result<String, Refused> {
     let Some(text) = real.to_str() else {

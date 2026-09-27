@@ -15,15 +15,16 @@ use tokio::task::AbortHandle;
 use tracing::Instrument;
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::Effect;
+use miyu_kernel::event::{Effect, Restored};
 use miyu_kernel::id::CallId;
-use miyu_kernel::session::Input;
+use miyu_kernel::session::{Input, Step};
 use miyu_kernel::time::Timestamp;
 use miyu_policy::RunTexts;
 use miyu_store::blob::Blobs;
 use miyu_tool::{Call, Catalog, Done, Progress, Seen};
 
 use crate::TARGET;
+use crate::blocking::blocking;
 use crate::effects;
 use crate::lines::millis;
 use crate::port::Back;
@@ -93,6 +94,19 @@ impl Tools {
             running: BTreeMap::new(),
             backs,
         }
+    }
+
+    /// 她看过的文件换成 `seen`：撤销、恢复以后照日志重算的（施工 4-7 上）。在跑的调用拿着的是原来那一份。
+    pub(crate) fn see(&mut self, seen: Seen) {
+        self.seen = Arc::new(seen);
+    }
+
+    /// 改回文件（施工 4-7 上）：照这几步在阻塞线程里做完，一步一项交回结局。写回的内容从这个会话的 blob 里取，
+    /// 移进回收站照交给工具的那个家目录。
+    pub(crate) async fn restore(&self, steps: Vec<Step>) -> Vec<Restored> {
+        let blobs = self.blobs.clone();
+        let home = self.home.clone();
+        blocking(move || crate::restore::restore(&steps, &blobs, home.as_deref())).await
     }
 
     /// 执行一次调用：在自己的任务里跑，马上返回。目录里没有这件工具的，不派，当场交回出错的结果。

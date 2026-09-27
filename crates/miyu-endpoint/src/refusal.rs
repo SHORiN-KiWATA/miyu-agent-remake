@@ -120,6 +120,26 @@ impl Refusal {
                 "没有正在进行的回合，打断不了。",
                 "No turn is running, so there is nothing to interrupt.",
             ),
+            "turn_running" => (
+                "有回合在进行，撤销不了：先打断再撤。",
+                "A turn is running; interrupt it before undoing.",
+            ),
+            "unknown_turn" => (
+                "没有这一轮，或者它已经撤掉了。",
+                "There is no such turn, or it has already been undone.",
+            ),
+            "compacted" => (
+                "这一轮已经压缩进摘要了，撤不回来。",
+                "That turn is already compacted into the summary and cannot be undone.",
+            ),
+            "nothing_to_unrevert" => (
+                "没有能恢复的撤销：没撤过，或者撤了以后又开过一轮、压缩过。",
+                "There is nothing to redo: nothing was undone, or a turn or compaction came since.",
+            ),
+            "restoring" => (
+                "正在改回文件，等它做完再来。",
+                "Files are being restored; try again when that is done.",
+            ),
             _ => ("被拒绝了。", "Refused."),
         };
         match locale {

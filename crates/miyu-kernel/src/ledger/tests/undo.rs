@@ -110,3 +110,19 @@ fn no_unrevert_after_the_next_turn_or_a_compaction() {
         .unwrap();
     assert_eq!(ledger.last_reverted(), None);
 }
+
+/// 改回文件的结局（施工 4-7 上）只在回合外：撤销、恢复都在空闲时。
+#[test]
+fn files_are_restored_only_between_turns() {
+    let files = r#"{"files":[]}"#;
+    let mut ledger = after(3);
+    refused(
+        &mut ledger,
+        &event(4, None, "files.restored", files),
+        "改回文件只在撤销、恢复以后",
+    );
+    let mut ledger = after(15);
+    ledger
+        .append(&event(16, None, "files.restored", files))
+        .expect("撤销以后，回合外记得下");
+}

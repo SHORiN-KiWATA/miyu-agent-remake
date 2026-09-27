@@ -13,7 +13,7 @@ use std::path::Path;
 
 use serde::Deserialize;
 
-use miyu_fs::resolve;
+use miyu_fs::{replace, resolve};
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Target, Tool};
@@ -21,7 +21,6 @@ use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Target, Tool};
 use crate::blocking::blocking;
 use crate::common::{Common, Shown, said};
 use crate::load::{self, LoadError, say};
-use crate::replace::replace;
 use crate::text::Style;
 use find::Found;
 

@@ -12,21 +12,23 @@ use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::Instrument;
 
-use miyu_kernel::event::{CallError, Event, Usage};
+use miyu_kernel::event::Event;
 use miyu_kernel::id::{CommandId, Seq, SessionId};
-use miyu_kernel::request::{Difference, Request};
 use miyu_kernel::session::{Action, Input, Outcome, Received, Session};
 use miyu_kernel::time::Timestamp;
 
 use crate::TARGET;
 use crate::clock::Clock;
+use crate::effects;
 use crate::guard::Guard;
 use crate::handle::{Message, Pushed};
 use crate::kinds;
-use crate::lines::{millis, retrying, where_};
-use crate::port::{Back, Cancel, ModelPort, Report, Reports};
+use crate::lines::retrying;
+use crate::port::{Back, ModelPort, Report};
 use crate::store::Store;
 use crate::tools::{ToolKit, Tools};
+
+mod model;
 
 /// 推送的队列：一个会话最多攒这么多份还没被读走的。读得慢的订阅者被挤掉，掉了队
 /// （`04-核心协议.md` 第七节）。
@@ -302,6 +304,14 @@ impl Actor {
                 self.tools.cancel(call_id);
                 None
             }
+            // 改回文件（施工 4-7 上）：当场在阻塞线程里做完，结局排在收件箱里别的命令前面送回去。
+            Action::Restore { steps } => {
+                let files = self.tools.restore(steps).await;
+                Some(Input::Restored {
+                    at: self.clock.now(),
+                    files,
+                })
+            }
             // 工具执行中问人随施工 4-9：这之前没有工具会问。
             Action::AnswerTool { .. } => {
                 tracing::error!(target: TARGET, action = kind, "answer without a question");
@@ -310,23 +320,34 @@ impl Actor {
         })
     }
 
-    /// 在阻塞线程里写、同步，写完交回「落盘了」。写不进去就停下。
+    /// 在阻塞线程里写、同步，写完交回「落盘了」。写不进去就停下。撤销、恢复落了盘，她看过的照日志重算一遍
+    /// （施工 4-7 上）：重算不出来的记一条运行日志，照旧用原来的，改的工具照样先核对。
     async fn append(&mut self, events: Vec<Event>) -> Result<Option<Input>, Stop> {
         let Some(upto) = events.last().map(|event| event.seq) else {
             return Ok(None);
         };
         let mut store = self.store.take().ok_or(Stop)?;
+        let reseen = effects::reverts(&events);
         let written = tokio::task::spawn_blocking(move || {
             let result = store.append(&events);
-            (store, result)
+            let seen = (reseen && result.is_ok())
+                .then(|| store.events().map(|all| effects::seen_in(&all)));
+            (store, result, seen)
         })
         .await;
         match written {
-            Ok((store, Ok(()))) => {
+            Ok((store, Ok(()), seen)) => {
                 self.store = Some(store);
+                match seen {
+                    Some(Ok(seen)) => self.tools.see(seen),
+                    Some(Err(error)) => {
+                        tracing::warn!(target: TARGET, error = %error, "seen files not rebuilt");
+                    }
+                    None => {}
+                }
                 Ok(Some(Input::Stored { upto }))
             }
-            Ok((_, Err(error))) => {
+            Ok((_, Err(error), _)) => {
                 tracing::warn!(target: TARGET, kind = ?error.kind(), "write failed, stopped");
                 Err(Stop)
             }
@@ -360,38 +381,6 @@ impl Actor {
     )]
     fn push(&self, pushed: Pushed) {
         let _ = self.pushes.send(Arc::new(pushed));
-    }
-
-    /// 请求模型：交给端口，记下叫停它的那一头和这一刻。前缀和上一次比变了的，运行日志里写上第一处不同在哪
-    /// （施工 3-9 下）：缓存没命中时，一看就知道是不是我们的前缀变了。
-    fn call(&mut self, seen: Seq, request: Request, changed: Option<Difference>) {
-        let model = self.model.model();
-        tracing::info!(
-            target: TARGET,
-            seen = seen.get(),
-            endpoint = model.endpoint.as_str(),
-            model = model.model.as_str(),
-            changed = changed.map(|changed| where_(&changed)),
-            "request"
-        );
-        let (stop, cancel) = oneshot::channel();
-        self.calls.insert(seen, (stop, Instant::now()));
-        let reports = Reports::new(seen, self.backs.clone());
-        self.model.call(seen, request, reports, Cancel::new(cancel));
-    }
-
-    /// 不要请求 `seen` 了：叫端口停下。
-    fn cancel(&mut self, seen: Seq) {
-        let Some((stop, asked)) = self.calls.remove(&seen) else {
-            return;
-        };
-        answer(stop, ());
-        tracing::info!(
-            target: TARGET,
-            seen = seen.get(),
-            took_ms = millis(asked.elapsed()),
-            "cancelled"
-        );
     }
 
     /// 到点叫醒：起一个定时的任务，到 `at` 这一刻送回「到点了」。
@@ -437,36 +426,6 @@ impl Actor {
                 }
             },
         })
-    }
-
-    /// 请求 `seen` 说完了：不用再叫停它了；记一行收场（`28-运行日志.md` 第三节）。
-    fn ended(&mut self, seen: Seq, usage: Option<&Usage>, error: Option<&CallError>) {
-        let Some((_, asked)) = self.calls.remove(&seen) else {
-            return;
-        };
-        let took_ms = millis(asked.elapsed());
-        match error {
-            Some(error) => tracing::info!(
-                target: TARGET,
-                seen = seen.get(),
-                took_ms,
-                class = error.class.as_str(),
-                "failed"
-            ),
-            None => tracing::info!(
-                target: TARGET,
-                seen = seen.get(),
-                took_ms,
-                "in" = usage.map(|usage| usage
-                    .uncached
-                    .saturating_add(usage.cache_read)
-                    .saturating_add(usage.cache_write)),
-                hit = usage.map(|usage| usage.cache_read),
-                write = usage.map(|usage| usage.cache_write).filter(|written| *written > 0),
-                out = usage.map(|usage| usage.output),
-                "ended"
-            ),
-        }
     }
 }
 

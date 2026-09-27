@@ -120,6 +120,7 @@ impl Session {
             turn: None,
             last_request: None,
             closing: Vec::new(),
+            restoring: None,
         };
         let events = session.recover(at, replay);
         let actions = match events.is_empty() {
