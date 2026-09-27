@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>55</b><span>/ 64 步<strong>已完成</strong>，会话真的去执行工具了：一件一个任务，叫停就掐掉</span></li>
-    <li><b>3-9</b><span>下一步：会话编号照先后（补），<strong>施工中</strong></span></li>
-    <li><b class="mono">5e7b34c</b><span>最近一步（4-2）的提交</span></li>
+    <li><b>56</b><span>/ 64 步<strong>已完成</strong>，同一毫秒里造的会话，编号也照先后了</span></li>
+    <li><b>4-3</b><span>下一步：路径边界和权限策略，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">8410bbb</b><span>最近一步（3-9 补）的提交</span></li>
   </ul>
 </header>
 
@@ -385,7 +385,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-8d"><span class="n">3-8</span>Windows 命名管道（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9a"><span class="n">3-9</span>主程序和拉起核心（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9b"><span class="n">3-9</span>miyu ask（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-9</span>会话编号照先后（补）</span></li>
+        <li><a class="step done" href="#s3-9c"><span class="n">3-9</span>会话编号照先后（补）<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -4655,6 +4655,64 @@ a.step:hover{border-color:var(--primary)}
         <li><code>docs/designs/05-内核接口.md</code> 第六、九节：执行这一步、第一版的「暂时不可用」。</li>
         <li><code>docs/designs/28-运行日志.md</code>：每次调工具记一行。</li>
         <li><code>docs/construction/4-2-执行工具的端口.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s3-9c" aria-labelledby="h-s39c">
+  <div class="sheet-head"><h2 id="h-s39c"><span class="no">3-9</span>会话编号照先后（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">同一毫秒里造的几个会话，编号也照造的先后排。原来编号的后半截是随机数，同一毫秒里造的两个谁先谁后说不准，列会话「从新到旧」会排错，miyu ask --continue 也可能接错会话。施工 4-2 跑改坏清单时撞见，3-9（下）留下的。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一个会话编号（UUIDv7）</span><span class="dir-note">03 第二节 · RFC 9562 第 6.2 节</span></div>
+            <div class="files">
+              <div class="tile"><span class="nm">前 48 位</span><span class="rl">毫秒：照时间排</span></div>
+              <div class="tile new"><span class="nm">接着 42 位</span><span class="rl">计数器：同一毫秒里递增，换了毫秒重新起步</span></div>
+              <div class="tile"><span class="nm">其余</span><span class="rl">随机数</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">一个核心进程共用一份</span><span class="rl">uuid 自带的 ContextV7，加锁；一个数据根只有一个核心</span></div>
+          <div class="tile new"><span class="nm">往回拨了照上一次的</span><span class="rl">编号不往回走：后造的不会排到前面</span></div>
+          <div class="tile new"><span class="nm">测试各带一份</span><span class="rl">不和别的测试同时造的编号串在一起</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-9（补）</dd></div>
+        <div><dt>名称</dt><dd>会话编号照先后</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">8410bbb</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-session</code> 的 <code>clock.rs</code>：造编号时用单调的计数器。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>同一时刻连造一千个，一个比一个大：修之前红</span></li>
+        <li><span class="ok">✓</span><span>「列出会话」的测试连跑 200 次：修之前红 10 次，修之后 0 次</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/03-事件模型.md</code> 第二节：同一毫秒造的也照先后。</li>
+        <li><code>docs/construction/3-9-会话编号照先后（补）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
