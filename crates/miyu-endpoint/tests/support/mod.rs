@@ -1,4 +1,4 @@
-//! 几个测试共用的：临时的数据根、造一份核心、在内存管道上连核心的客户端、等磁盘上的日志。
+//! 几个测试共用的：临时的数据根、造一份核心、连核心的客户端（内存管道上，或者真的套接字上）、等磁盘上的日志。
 
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
 
@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, DuplexStream, ReadHalf, WriteHalf};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 
 use miyu_endpoint::{Core, serve};
 use miyu_kernel::event::{Body, Event};
@@ -49,12 +49,17 @@ impl Home {
 
     /// 一份核心：管理员 alice，请求模型照 `script` 回。同一个数据根上造第二份，就像核心重启过。
     pub fn core(&self, script: &Script) -> Arc<Core> {
+        self.core_with(script, TOKEN)
+    }
+
+    /// 一份核心，本机令牌是 `token`。
+    pub fn core_with(&self, script: &Script, token: &str) -> Arc<Core> {
         Arc::new(Core::new(
             self.root.clone(),
             ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")),
             Arc::new(script.clone()),
             alice(),
-            TOKEN.to_string(),
+            token.to_string(),
         ))
     }
 
@@ -100,26 +105,34 @@ pub fn alice() -> AccountId {
     AccountId::parse("alice").expect("账号合写法")
 }
 
-/// 在内存管道上连着核心的客户端。
+/// 写的一头。
+pub type Writer = Box<dyn AsyncWrite + Unpin + Send>;
+
+/// 连着核心的客户端。
 pub struct Client {
-    reader: BufReader<ReadHalf<DuplexStream>>,
-    writer: Option<WriteHalf<DuplexStream>>,
+    reader: BufReader<Box<dyn AsyncRead + Unpin + Send>>,
+    writer: Option<Writer>,
 }
 
 impl Client {
-    /// 连上 `core`：另一头交给 `serve`。
+    /// 在内存管道上连上 `core`：另一头交给 `serve`。
     pub fn connect(core: Arc<Core>) -> Client {
         let (near, far) = tokio::io::duplex(64 * 1024);
         tokio::spawn(serve(far, core));
-        let (read, write) = tokio::io::split(near);
+        Client::over(near)
+    }
+
+    /// 在 `stream` 上说话：另一头已经连着核心了。
+    pub fn over(stream: impl AsyncRead + AsyncWrite + Send + 'static) -> Client {
+        let (read, write) = tokio::io::split(stream);
         Client {
-            reader: BufReader::new(read),
-            writer: Some(write),
+            reader: BufReader::new(Box::new(read)),
+            writer: Some(Box::new(write)),
         }
     }
 
     /// 拿走写的一头：写很长的东西时放到另一个任务里写，读的一头照样读。拿走以后不能再 [`Client::line`]。
-    pub fn detach_writer(&mut self) -> WriteHalf<DuplexStream> {
+    pub fn detach_writer(&mut self) -> Writer {
         self.writer.take().expect("写的一头还在")
     }
 
@@ -197,6 +210,11 @@ impl Client {
 
     /// 握手：令牌对，中文，能输入。
     pub async fn hello(&mut self) -> Value {
+        self.hello_as(TOKEN).await
+    }
+
+    /// 握手：出示 `token`，中文，能输入。
+    pub async fn hello_as(&mut self, token: &str) -> Value {
         self.call(
             "hello-1",
             "hello",
@@ -205,7 +223,7 @@ impl Client {
                 "head": {"kind": "test", "version": "0.0.0"},
                 "locale": "zh-CN",
                 "caps": {"input": true},
-                "token": TOKEN,
+                "token": token,
             }),
         )
         .await

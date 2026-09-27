@@ -1,14 +1,16 @@
 //! 协议端点（`docs/designs/04-核心协议.md`，施工 3-8 上）：头和核心之间说的话。
 //!
 //! 一个连接上说 JSON-RPC 2.0，一行一条消息。先握手：协议的主版本，本机令牌；之后能造会话、说话、
-//! 打断，订阅会话的事件流（施工 3-8 中）。会话表照编号找会话，这次运行里没在跑的，从磁盘载入。只认字节流，不管它从哪来：本机套接字、
-//! 命名管道（施工 3-8 下）、以后的 WebSocket，都把连接交给 [`serve`]。
+//! 打断，订阅会话的事件流（施工 3-8 中）。会话表照编号找会话，这次运行里没在跑的，从磁盘载入。只认字节流，不管它从哪来：本机套接字
+//! （施工 3-8 下）、命名管道、以后的 WebSocket，都把连接交给 [`serve`]。
 //!
 //! - [`Core`]：核心的家底：数据根、资源目录、给会话造请求模型的端口、管理员、本机令牌、会话表；
-//! - [`serve`]：和一个连接说话，直到它关了。
+//! - [`serve`]：和一个连接说话，直到它关了；
+//! - [`run`]：在本机的监听器上一个个接连接，每个交给 [`serve`]。
 
 mod connection;
 mod hello;
+mod listen;
 mod methods;
 mod refusal;
 mod sessions;
@@ -16,6 +18,7 @@ mod subscriptions;
 mod wire;
 
 pub use connection::serve;
+pub use listen::run;
 
 use std::fmt;
 use std::sync::Arc;

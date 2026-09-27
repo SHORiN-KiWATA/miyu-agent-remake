@@ -10,6 +10,8 @@ publish.workspace = true
 [dependencies]
 # 时区：核心所在的机器现在的偏移，写进会话的环境。
 jiff = "0.2"
+# 本机的监听器：一个个接连接（施工 3-8 下）。
+miyu-ipc = { path = "../miyu-ipc" }
 # 编号、命令、拒绝的原因。
 miyu-kernel = { path = "../miyu-kernel" }
 # 会话 actor：造会话、载入、发命令（施工 3-7）。
@@ -19,8 +21,8 @@ miyu-store = { path = "../miyu-store" }
 # 协议是 JSON-RPC 2.0（04-核心协议.md P1）。
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-# 连接是异步的字节流：一行一条消息。
-tokio = { version = "1", features = ["io-util", "macros", "rt", "sync"] }
+# 连接是异步的字节流：一行一条消息。接不了连接时歇一会儿再接。
+tokio = { version = "1", features = ["io-util", "macros", "rt", "sync", "time"] }
 # 运行日志的门面（施工 3-7 上）。
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 
