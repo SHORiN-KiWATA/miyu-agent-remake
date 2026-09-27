@@ -276,8 +276,8 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>53</b><span>/ 53 步<strong>已完成</strong>，M3 完成：miyu ask 跟真模型说上话了</span></li>
-    <li><b>M4</b><span>下一步：M4，<strong>施工方案待写</strong></span></li>
+    <li><b>53</b><span>/ 63 步<strong>已完成</strong>，M3 完成：miyu ask 跟真模型说上话了</span></li>
+    <li><b>4-1</b><span>下一步：工具接口和执行端口，<strong>施工单待写</strong></span></li>
     <li><b class="mono">b239e2e</b><span>最近一步（3-9 下）的提交</span></li>
   </ul>
 </header>
@@ -312,7 +312,7 @@ a.step:hover{border-color:var(--primary)}
 
 <section class="sched" aria-labelledby="h-sched">
   <h2 id="h-sched">工程表</h2>
-  <p class="sub">M0 到 M3 拆到了每一步；M4 以后，到了跟前再拆。</p>
+  <p class="sub">M0 到 M4 拆到了每一步；M5 以后，到了跟前再拆。</p>
   <ol class="ms">
     <li>
       <div class="ms-head"><span class="ms-id">M0</span><span class="ms-name">准备</span><span class="ms-goal">仓库有了规矩和门禁</span></div>
@@ -388,7 +388,22 @@ a.step:hover{border-color:var(--primary)}
       </ol>
     </li>
     <li>
-      <div class="ms-head"><span class="ms-id">M4–M8</span><span class="ms-name">能干活 · 沙盒 · 长会话 · 分身 · 有界面</span></div>
+      <div class="ms-head"><span class="ms-id">M4</span><span class="ms-name">能干活</span><span class="ms-goal">能读、写、改文件，能搜索，能执行命令</span></div>
+      <ol class="chips">
+        <li><span class="step"><span class="n">4-1</span>工具接口和执行端口</span></li>
+        <li><span class="step"><span class="n">4-2</span>工具面进请求</span></li>
+        <li><span class="step"><span class="n">4-3</span>路径边界和权限策略</span></li>
+        <li><span class="step"><span class="n">4-4</span>读、找文件、搜内容</span></li>
+        <li><span class="step"><span class="n">4-5</span>miyu ask 显示工具步骤</span></li>
+        <li><span class="step"><span class="n">4-6</span>写入、编辑、删除</span></li>
+        <li><span class="step"><span class="n">4-7</span>撤销时恢复文件</span></li>
+        <li><span class="step"><span class="n">4-8</span>执行命令</span></li>
+        <li><span class="step"><span class="n">4-9</span>确认和提问</span></li>
+        <li><span class="step"><span class="n">4-10</span>M4 验收</span></li>
+      </ol>
+    </li>
+    <li>
+      <div class="ms-head"><span class="ms-id">M5–M8</span><span class="ms-name">沙盒 · 长会话 · 分身 · 有界面</span></div>
       <p class="later">到了跟前再拆。M8 的第一件事是先画界面的版式图纸。</p>
     </li>
   </ol>
