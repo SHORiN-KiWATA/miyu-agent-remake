@@ -1,15 +1,16 @@
 //! 按行读一份文本文件（`10-自带软件.md` 第三节）：认 UTF-8 和带 BOM 的 UTF-16，前 8 KiB 里有 NUL 字节的当
-//! 二进制；每行前面是 `cat -n` 样子的行号；一行最长 2000 个字，一次最多 64 KiB。
+//! 二进制；每行是行号、一个制表符、原文，行号前不补空格（Claude Code 现在的写法，施工 4-4 下）；一行最长 2000
+//! 个字，一次最多 64 KiB。
 
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
+
+use crate::common::OUTPUT_BYTES;
 
 /// 看前多少个字节认编码、认二进制。
 const SNIFF: usize = 8 * 1024;
 /// 一行最长多少个字，多的截掉、补一个 `…`。
 pub(crate) const LINE_CHARS: usize = 2000;
-/// 一次的输出最多多少字节。
-pub(crate) const OUTPUT_BYTES: usize = 64 * 1024;
 
 /// 读下来的一页。
 #[derive(Debug, PartialEq, Eq)]
@@ -92,7 +93,7 @@ fn page(
         if total < offset || full || total >= offset + limit {
             continue;
         }
-        let numbered = format!("{total:>6}\t{}\n", cut(&line));
+        let numbered = format!("{total}\t{}\n", cut(&line));
         if text.len() + numbered.len() > OUTPUT_BYTES && total > offset {
             full = true;
             continue;

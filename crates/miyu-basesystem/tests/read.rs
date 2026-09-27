@@ -1,96 +1,34 @@
-//! `read`（施工 4-4 上）：从资源目录造出来；读文件带行号、翻页；读目录；读不了的说清楚。
+//! `read`（施工 4-4 上，施工 4-4 下改到规范上）：从资源目录造出来；读文件带行号、翻页；读目录、一样翻页；
+//! 读不了的说清楚，找不到的列出相近的名字。
 
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+mod support;
 
-use miyu_kernel::block::Block;
 use miyu_kernel::tool::Access;
-use miyu_tool::{Call, Done, Progress, Tool};
+use miyu_tool::Call;
 
-/// 源码树里的资源目录。
-fn resources() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")
-}
-
-/// 一个用完就删的临时目录：假的家 `home/`、工作区 `work/`。
-struct Site(PathBuf);
-
-impl Site {
-    fn new() -> Site {
-        static NEXT: AtomicU64 = AtomicU64::new(0);
-        let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("miyu-read-{}-{n}", std::process::id()));
-        for sub in ["home", "work"] {
-            std::fs::create_dir_all(dir.join(sub)).expect("建得了目录");
-        }
-        Site(dir)
-    }
-
-    fn file(&self, path: &str, bytes: &[u8]) {
-        let path = self.0.join(path);
-        std::fs::create_dir_all(path.parent().expect("有上级目录")).expect("建得了目录");
-        std::fs::write(path, bytes).expect("写得进");
-    }
-
-    /// 在工作区里调一次 `read`，参数是 `args`。
-    async fn read(&self, args: serde_json::Value) -> (bool, String) {
-        let tool = tool();
-        let call = Call {
-            args: args.to_string(),
-            cwd: self.0.join("work").to_string_lossy().into_owned(),
-            home: Some(self.0.join("home")),
-        };
-        let Done { error, blocks } = tool.run(call, Progress::new(|_| {})).await;
-        let text = blocks
-            .iter()
-            .map(|block| match block {
-                Block::Text(text) => text.text.clone(),
-                other => panic!("只该有字：{other:?}"),
-            })
-            .collect();
-        (error, text)
-    }
-}
-
-impl Drop for Site {
-    #[expect(
-        clippy::let_underscore_must_use,
-        reason = "删不掉就留在临时目录里，不影响测试"
-    )]
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
-/// 从资源目录造出来的 `read`。
-fn tool() -> Arc<dyn Tool> {
-    let tools = miyu_basesystem::tools(&resources()).expect("资源目录里的字读得出来");
-    tools
-        .into_iter()
-        .find(|tool| tool.spec().name == "read")
-        .expect("有 read")
-}
+use support::{Site, resources, tool};
 
 #[test]
 fn read_comes_from_the_resources_with_its_schema_as_written() {
-    let tool = tool();
+    let tool = tool("read");
     let spec = tool.spec();
     assert_eq!(spec.access, Access::Read);
     assert!(
         spec.description
-            .starts_with("Read a text file by line pages"),
+            .starts_with("Read a text file, or list a directory."),
         "{}",
         spec.description
     );
+    assert!(spec.description.contains("cat -n format"));
     assert_eq!(
         spec.parameters.get(),
-        r#"{"type":"object","properties":{"path":{"type":"string"},"offset":{"type":"integer"},"limit":{"type":"integer"}},"required":["path"]}"#
+        r#"{"type":"object","properties":{"file_path":{"type":"string","description":"Absolute, or relative to the working directory."},"offset":{"type":"integer","description":"The line number to start reading from, counting from 1."},"limit":{"type":"integer","description":"The number of lines to read. Default 2000."}},"required":["file_path"]}"#
     );
     let targets = tool.targets(&Call {
-        args: r#"{"path":"src/a.rs"}"#.to_string(),
+        args: r#"{"file_path":"src/a.rs"}"#.to_string(),
         cwd: String::new(),
         home: None,
+        data_root: None,
     });
     assert_eq!(targets.len(), 1);
     assert_eq!(targets[0].path, "src/a.rs");
@@ -100,20 +38,32 @@ fn read_comes_from_the_resources_with_its_schema_as_written() {
 #[test]
 fn a_broken_resource_is_named() {
     let site = Site::new();
-    // 只有 read.json、没有输出里的几句的资源目录：说是缺的那一份。
+    // 只有说明、没有输出里的几句的资源目录：说是缺的那一份，先读的是几件共用的。
     let broken = site.0.join("resources");
     let tools = broken.join("software").join("basesystem").join("tools");
     std::fs::create_dir_all(&tools).expect("建得了目录");
-    std::fs::copy(
-        resources().join("software/basesystem/tools/read.json"),
-        tools.join("read.json"),
-    )
-    .expect("拷得了");
+    for name in ["read", "glob", "grep"] {
+        std::fs::copy(
+            resources().join(format!("software/basesystem/tools/{name}.json")),
+            tools.join(format!("{name}.json")),
+        )
+        .expect("拷得了");
+    }
     let Err(error) = miyu_basesystem::tools(&broken) else {
         panic!("读不全");
     };
-    assert!(error.file.ends_with("more.txt"), "{error}");
-    // 说明写坏了：说是哪一份。
+    assert!(
+        error.file.ends_with("common/missing.txt"),
+        "{}",
+        error.file.display()
+    );
+    // 共用的几句都在，read 的说明写坏了：说是哪一份。
+    let common = broken.join("software").join("basesystem").join("common");
+    std::fs::create_dir_all(&common).expect("建得了目录");
+    for entry in std::fs::read_dir(resources().join("software/basesystem/common")).expect("在") {
+        let entry = entry.expect("读得了");
+        std::fs::copy(entry.path(), common.join(entry.file_name())).expect("拷得了");
+    }
     std::fs::write(tools.join("read.json"), "{").expect("写得进");
     let Err(error) = miyu_basesystem::tools(&broken) else {
         panic!("读不懂");
@@ -126,72 +76,125 @@ async fn a_file_reads_with_line_numbers_and_pages_on() {
     let site = Site::new();
     let body: String = (1..=5).map(|n| format!("line {n}\n")).collect();
     site.file("work/notes.txt", body.as_bytes());
-    let (error, text) = site.read(serde_json::json!({"path": "notes.txt"})).await;
+    let (error, text) = site
+        .call("read", serde_json::json!({"file_path": "notes.txt"}))
+        .await;
     assert!(!error);
+    // 行号、一个制表符、原文：行号前不补空格。
     assert_eq!(
         text,
-        body.lines()
-            .enumerate()
-            .map(|(i, line)| format!("{:>6}\t{line}\n", i + 1))
-            .collect::<String>()
+        "1\tline 1\n2\tline 2\n3\tline 3\n4\tline 4\n5\tline 5\n"
     );
     let (_, text) = site
-        .read(serde_json::json!({"path": "notes.txt", "offset": 2, "limit": 2}))
+        .call(
+            "read",
+            serde_json::json!({"file_path": "notes.txt", "offset": 2, "limit": 2}),
+        )
         .await;
     assert_eq!(
         text,
-        "     2\tline 2\n     3\tline 3\n(Showing lines 2-3 of 5. Use offset=4 to read on.)\n"
+        "2\tline 2\n3\tline 3\n(Showing lines 2-3 of 5. Use offset=4 to continue.)\n"
     );
     let (error, text) = site
-        .read(serde_json::json!({"path": "notes.txt", "offset": 9}))
+        .call(
+            "read",
+            serde_json::json!({"file_path": "notes.txt", "offset": 9}),
+        )
         .await;
     assert!(!error);
     assert_eq!(text, "(The file has 5 lines; offset 9 is past the end.)\n");
 }
 
 #[tokio::test]
+async fn path_and_file_path_spelled_the_other_ways_are_read_too() {
+    let site = Site::new();
+    site.file("work/a.txt", b"a\n");
+    for args in [
+        serde_json::json!({"path": "a.txt"}),
+        serde_json::json!({"filePath": "a.txt"}),
+    ] {
+        assert_eq!(site.call("read", args).await, (false, "1\ta\n".to_string()));
+    }
+}
+
+#[tokio::test]
 async fn home_and_empty_and_binary() {
     let site = Site::new();
     site.file("home/plan.md", b"# plan\n");
-    let (error, text) = site.read(serde_json::json!({"path": "~/plan.md"})).await;
+    let (error, text) = site
+        .call("read", serde_json::json!({"file_path": "~/plan.md"}))
+        .await;
     assert!(!error);
-    assert_eq!(text, "     1\t# plan\n");
+    assert_eq!(text, "1\t# plan\n");
     site.file("work/empty.txt", b"");
     assert_eq!(
-        site.read(serde_json::json!({"path": "empty.txt"})).await,
+        site.call("read", serde_json::json!({"file_path": "empty.txt"}))
+            .await,
         (false, "(It is empty.)\n".to_string())
     );
     site.file("work/app.bin", b"\x7fELF\0\0");
     assert_eq!(
-        site.read(serde_json::json!({"path": "app.bin"})).await,
+        site.call("read", serde_json::json!({"file_path": "app.bin"}))
+            .await,
         (true, "\"app.bin\" is a binary file.\n".to_string())
     );
 }
 
 #[tokio::test]
-async fn a_directory_lists_its_entries_by_name() {
+async fn a_directory_lists_its_entries_by_name_and_pages_on() {
     let site = Site::new();
     site.file("work/b.txt", b"b");
     site.file("work/a/inner.txt", b"a");
     site.file("work/c.rs", b"c");
-    let (error, text) = site.read(serde_json::json!({"path": "."})).await;
+    let (error, text) = site
+        .call("read", serde_json::json!({"file_path": "."}))
+        .await;
     assert!(!error);
     assert_eq!(text, "a/\nb.txt\nc.rs\n");
     std::fs::create_dir_all(site.0.join("work/hollow")).expect("建得了");
     assert_eq!(
-        site.read(serde_json::json!({"path": "hollow"})).await,
+        site.call("read", serde_json::json!({"file_path": "hollow"}))
+            .await,
         (false, "(It is empty.)\n".to_string())
     );
-    // 超过 1000 项：列前 1000 项，说还有多少。
     for n in 0..1003 {
         site.file(&format!("work/many/{n:04}.txt"), b"x");
     }
-    let (_, text) = site.read(serde_json::json!({"path": "many"})).await;
+    // 不给 limit，一次最多 2000 项：1003 项全列。
+    let (_, text) = site
+        .call("read", serde_json::json!({"file_path": "many"}))
+        .await;
+    assert_eq!(text.lines().count(), 1003);
+    // 照 offset、limit 翻页，和文件一样。
+    let (_, text) = site
+        .call(
+            "read",
+            serde_json::json!({"file_path": "many", "limit": 1000}),
+        )
+        .await;
     assert_eq!(text.lines().count(), 1001);
     assert!(
-        text.ends_with("(... and 3 more entries.)\n"),
+        text.ends_with("(Showing entries 1-1000 of 1003. Use offset=1001 to continue.)\n"),
         "{}",
-        &text[text.len() - 60..]
+        &text[text.len() - 80..]
+    );
+    let (_, text) = site
+        .call(
+            "read",
+            serde_json::json!({"file_path": "many", "offset": 1001}),
+        )
+        .await;
+    assert_eq!(text, "1000.txt\n1001.txt\n1002.txt\n");
+    let (error, text) = site
+        .call(
+            "read",
+            serde_json::json!({"file_path": "many", "offset": 2000}),
+        )
+        .await;
+    assert!(!error);
+    assert_eq!(
+        text,
+        "(The directory has 1003 entries; offset 2000 is past the end.)\n"
     );
 }
 
@@ -199,13 +202,14 @@ async fn a_directory_lists_its_entries_by_name() {
 async fn what_cannot_be_read_says_so() {
     let site = Site::new();
     assert_eq!(
-        site.read(serde_json::json!({"path": "nope.txt"})).await,
+        site.call("read", serde_json::json!({"file_path": "nope.txt"}))
+            .await,
         (
             true,
             "There is no file or directory at \"nope.txt\".\n".to_string()
         )
     );
-    let (error, text) = site.read(serde_json::json!({"offset": 1})).await;
+    let (error, text) = site.call("read", serde_json::json!({"offset": 1})).await;
     assert!(error);
     assert!(text.starts_with("The arguments are not right: "), "{text}");
     #[cfg(unix)]
@@ -219,7 +223,8 @@ async fn what_cannot_be_read_says_so() {
                 .success()
         );
         assert_eq!(
-            site.read(serde_json::json!({"path": "pipe"})).await,
+            site.call("read", serde_json::json!({"file_path": "pipe"}))
+                .await,
             (
                 true,
                 "\"pipe\" is not a regular file or a directory.\n".to_string()
@@ -229,18 +234,51 @@ async fn what_cannot_be_read_says_so() {
 }
 
 #[tokio::test]
+async fn a_missing_file_lists_similar_names_next_to_it() {
+    let site = Site::new();
+    site.file("work/notes.txt", b"n");
+    site.file("work/src/main.rs", b"fn main() {}");
+    site.file("work/src/lib.rs", b"");
+    assert_eq!(
+        site.call("read", serde_json::json!({"file_path": "note.txt"}))
+            .await,
+        (
+            true,
+            "There is no file or directory at \"note.txt\".\nDid you mean \"notes.txt\"?\n"
+                .to_string()
+        )
+    );
+    // 在下一层找不到的：照同一个目录找相近的，路径照工作目录写。
+    let (_, text) = site
+        .call("read", serde_json::json!({"file_path": "src/main.ts"}))
+        .await;
+    assert_eq!(
+        text,
+        format!(
+            "There is no file or directory at \"src/main.ts\".\nDid you mean \"{}\"?\n",
+            support::native("src/main.rs").replace('\\', "\\\\")
+        )
+    );
+    // 一个相近的都没有：只说没有。
+    let (_, text) = site
+        .call("read", serde_json::json!({"file_path": "src/zzz.py"}))
+        .await;
+    assert_eq!(text, "There is no file or directory at \"src/zzz.py\".\n");
+}
+
+#[tokio::test]
 async fn one_read_is_at_most_two_thousand_lines() {
     let site = Site::new();
     let body: String = (1..=2500).map(|n| format!("{n}\n")).collect();
     site.file("work/long.txt", body.as_bytes());
     for args in [
-        serde_json::json!({"path": "long.txt"}),
-        serde_json::json!({"path": "long.txt", "limit": 5000}),
+        serde_json::json!({"file_path": "long.txt"}),
+        serde_json::json!({"file_path": "long.txt", "limit": 5000}),
     ] {
-        let (_, text) = site.read(args).await;
+        let (_, text) = site.call("read", args).await;
         assert_eq!(text.lines().count(), 2001, "2000 行加一句还没读完");
         assert!(
-            text.ends_with("(Showing lines 1-2000 of 2500. Use offset=2001 to read on.)\n"),
+            text.ends_with("(Showing lines 1-2000 of 2500. Use offset=2001 to continue.)\n"),
             "{}",
             &text[text.len() - 80..]
         );

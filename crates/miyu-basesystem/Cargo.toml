@@ -8,7 +8,15 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
-# 碰文件：换成真实的位置、安全地打开（施工 4-3 上）。
+# 找文件的模式照 ripgrep 的 --glob 那一套（施工 4-4 下）：ripgrep 的作者拆出来的库，三个平台一样（B9）。
+globset = "0.4"
+# 搜内容：正则、按行搜、二进制跳过、前后行；和 ripgrep 是同一套（施工 4-4 下）。
+grep-matcher = "0.1"
+grep-regex = "0.1"
+grep-searcher = "0.1"
+# 找文件、搜内容往下走目录：遵守 .gitignore、.ignore（施工 4-4 下）。
+ignore = "0.4"
+# 碰文件：换成真实的位置、安全地打开（施工 4-3 上）；走目录时认出数据根（施工 4-4 下）。
 miyu-fs = { path = "../miyu-fs" }
 # 输出里给她看的几句是模板；参数格式是原样的 JSON；访问类别。
 miyu-kernel = { path = "../miyu-kernel" }

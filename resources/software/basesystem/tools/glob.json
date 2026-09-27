@@ -1,0 +1,4 @@
+{
+  "description": "Find files by glob pattern, like `**/*.rs` or `src/*.ts`, respecting .gitignore. Returns up to 100 paths, most recently modified first.",
+  "parameters": {"type":"object","properties":{"pattern":{"type":"string","description":"A pattern without / matches file names at any depth."},"path":{"type":"string","description":"The directory to search in. Default is the working directory."}},"required":["pattern"]}
+}

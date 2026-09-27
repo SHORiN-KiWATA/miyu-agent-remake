@@ -130,7 +130,7 @@ impl Boundary {
         if self
             .data_root
             .as_ref()
-            .is_some_and(|root| inside_folded(path, root))
+            .is_some_and(|root| within(path, root))
         {
             return Zone::Forbidden;
         }
@@ -168,8 +168,9 @@ fn runs_outside(inside: &Path) -> bool {
         .any(|pair| pair[0] == ".git" && (pair[1] == "hooks" || pair[1] == "config"))
 }
 
-/// `path` 在不在 `root` 里：大小写不分的平台上不分大小写，免得换个大小写就绕过去。
-fn inside_folded(path: &Path, root: &Path) -> bool {
+/// 真实的位置 `path` 在不在目录 `root` 里（`root` 自己也算）：大小写不分的平台上不分大小写，免得换个大小写就
+/// 绕过去。两个都要先换成真实的位置。往下走目录的工具照它跳过 Miyu 的数据根（施工 4-4 下）。
+pub fn within(path: &Path, root: &Path) -> bool {
     if !CASE_INSENSITIVE {
         return path.starts_with(root);
     }

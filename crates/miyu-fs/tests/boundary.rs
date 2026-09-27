@@ -4,7 +4,7 @@ mod support;
 
 use std::path::PathBuf;
 
-use miyu_fs::{Boundary, Places, Zone};
+use miyu_fs::{Boundary, Places, Zone, within};
 use support::Site;
 
 #[test]
@@ -104,6 +104,25 @@ fn the_data_root_is_known_in_any_case_where_case_does_not_matter() {
         Zone::Outside
     };
     assert_eq!(boundary.zone(&shouting), expected, "{}", shouting.display());
+}
+
+#[test]
+fn within_counts_the_dir_itself_and_folds_case_where_case_does_not_matter() {
+    let site = Site::new();
+    let data = site.real("data");
+    assert!(within(&data, &data), "自己也算");
+    assert!(within(&site.real("data/run/token"), &data));
+    assert!(!within(&site.real("work"), &data));
+    // 只是名字开头一样的兄弟目录不算：照一段一段比，不照字符串比。
+    let sibling = PathBuf::from(format!("{}-old", data.display()));
+    assert!(!within(&sibling, &data), "{}", sibling.display());
+    let shouting = PathBuf::from(data.to_string_lossy().to_uppercase()).join("x");
+    assert_eq!(
+        within(&shouting, &data),
+        cfg!(any(target_os = "macos", windows)),
+        "{}",
+        shouting.display()
+    );
 }
 
 #[test]

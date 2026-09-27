@@ -1,5 +1,6 @@
 //! 从资源目录读工具的字（`26-提示词.md` 第八节）：`software/basesystem/tools/<工具>.json` 是给模型看的说明和
-//! 参数格式，`software/basesystem/<工具>/<名字>.txt` 是输出里给她看的几句。
+//! 参数格式，`software/basesystem/<工具>/<名字>.txt` 是输出里给她看的几句，几件工具都要说的在
+//! `software/basesystem/common/` 下（施工 4-4 下）。
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -80,6 +81,16 @@ pub(crate) fn text(
         .render(&trial)
         .map_err(|error| bad(error.to_string()))?;
     Ok(template)
+}
+
+/// 照模板 `template` 换进字段 `fields`。
+///
+/// # Panics
+///
+/// 实际不会：造的时候试换过，字段都有。
+pub(crate) fn say(template: &Template, fields: &[(&str, &str)]) -> String {
+    let fields: BTreeMap<&str, &str> = fields.iter().copied().collect();
+    template.render(&fields).expect("造的时候试换过，字段都有")
 }
 
 /// 读一份文件。

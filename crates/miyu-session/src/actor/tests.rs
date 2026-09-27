@@ -130,6 +130,7 @@ async fn a_write_that_fails_stops_the_session() {
             catalog: miyu_tool::Catalog::default(),
             texts: run,
             home: None,
+            data_root: std::path::PathBuf::new(),
         },
         guard,
         mailbox,

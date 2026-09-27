@@ -1,1 +1,1 @@
-(... and {rest} more entries.)
+(Showing entries {from}-{to} of {total}. Use offset={next} to continue.)

@@ -3,6 +3,7 @@
 use std::io::Write;
 
 use super::*;
+use crate::common::OUTPUT_BYTES;
 
 /// 一个用完就删的临时文件，内容是 `bytes`。
 struct Temp(std::path::PathBuf);
@@ -41,19 +42,16 @@ fn lines(text: &str, from: u64, to: u64, total: u64) -> Page {
 }
 
 #[test]
-fn lines_come_with_numbers_like_cat_n() {
+fn lines_come_with_a_number_and_a_tab() {
     let file = Temp::with(b"one\ntwo\r\nthree");
     assert_eq!(
         file.page(1, 2000),
-        lines("     1\tone\n     2\ttwo\n     3\tthree\n", 1, 3, 3)
+        lines("1\tone\n2\ttwo\n3\tthree\n", 1, 3, 3)
     );
-    assert_eq!(file.page(2, 1), lines("     2\ttwo\n", 2, 2, 3));
+    assert_eq!(file.page(2, 1), lines("2\ttwo\n", 2, 2, 3));
     assert_eq!(file.page(4, 10), Page::PastEnd { total: 3 });
     // 以换行结尾的，最后一行后面没有空行。
-    assert_eq!(
-        Temp::with(b"a\n").page(1, 10),
-        lines("     1\ta\n", 1, 1, 1)
-    );
+    assert_eq!(Temp::with(b"a\n").page(1, 10), lines("1\ta\n", 1, 1, 1));
 }
 
 #[test]
@@ -63,7 +61,7 @@ fn empty_binary_and_bom() {
     assert_eq!(Temp::with(b"\x7FELF\0\0\x01").page(1, 10), Page::Binary);
     assert_eq!(
         Temp::with(b"\xEF\xBB\xBFhi\n").page(1, 10),
-        lines("     1\thi\n", 1, 1, 1),
+        lines("1\thi\n", 1, 1, 1),
         "UTF-8 的 BOM 不显示"
     );
 }
@@ -79,7 +77,7 @@ fn utf16_both_byte_orders() {
         .into_iter()
         .chain(text.encode_utf16().flat_map(u16::to_be_bytes))
         .collect();
-    let expected = lines("     1\t你好\n     2\tMiyu\n", 1, 2, 2);
+    let expected = lines("1\t你好\n2\tMiyu\n", 1, 2, 2);
     assert_eq!(Temp::with(&little).page(1, 10), expected);
     assert_eq!(Temp::with(&big).page(1, 10), expected);
     assert_eq!(Temp::with(&[0xFF, 0xFE]).page(1, 10), Page::Empty);

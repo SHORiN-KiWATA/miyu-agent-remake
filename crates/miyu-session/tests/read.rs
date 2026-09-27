@@ -1,4 +1,4 @@
-//! 真的 `read`（施工 4-4 上）：会话里她调它，工作区里的读得到、带行号，下一次请求里有；越界的读，在没人能确认的
+//! 真的 `read`（施工 4-4 上，4-4 下改了参数名和行号）：会话里她调它，工作区里的读得到、带行号，下一次请求里有；越界的读，在没人能确认的
 //! 会话里被拒。
 
 mod support;
@@ -51,8 +51,11 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
         .into_owned();
     let script = Script::new([
         Play::calls(&[
-            ("read", r#"{"path":"a.txt"}"#),
-            ("read", &serde_json::json!({ "path": outside }).to_string()),
+            ("read", r#"{"file_path":"a.txt"}"#),
+            (
+                "read",
+                &serde_json::json!({ "file_path": outside }).to_string(),
+            ),
         ]),
         Play::Says("好。"),
     ]);
@@ -78,16 +81,21 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
         (&results[1], &results[0])
     };
     assert_eq!(inside.status, ToolStatus::Ok);
-    assert_eq!(text(&inside.blocks), "     1\thello\n");
+    assert_eq!(text(&inside.blocks), "1\thello\n");
     assert_eq!(outside.status, ToolStatus::Denied, "越界要问人，没人能确认");
     assert!(!text(&outside.blocks).contains("secret"));
     // 她下一次请求里听到了。
     let requests = script.requests();
-    let heard = requests[1].1.messages.iter().any(|message| {
-        matches!(message, Message::Tool { blocks, .. } if text(blocks) == "     1\thello\n")
-    });
+    let heard = requests[1].1.messages.iter().any(
+        |message| matches!(message, Message::Tool { blocks, .. } if text(blocks) == "1\thello\n"),
+    );
     assert!(heard);
-    // tools 数组里有 read，照资源里的说明。
-    assert_eq!(requests[0].1.tools.len(), 1);
-    assert_eq!(requests[0].1.tools[0].name, "read");
+    // tools 数组里有读的三件，照名字排，照资源里的说明。
+    let names: Vec<&str> = requests[0]
+        .1
+        .tools
+        .iter()
+        .map(|tool| tool.name.as_str())
+        .collect();
+    assert_eq!(names, ["glob", "grep", "read"]);
 }

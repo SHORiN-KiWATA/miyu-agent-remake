@@ -29,6 +29,8 @@ pub(crate) struct ToolKit {
     pub(crate) texts: RunTexts,
     /// 系统的家目录。
     pub(crate) home: Option<PathBuf>,
+    /// Miyu 的数据根：交给工具，往下走目录的走到这里跳过（施工 4-4 下）。
+    pub(crate) data_root: PathBuf,
 }
 
 /// 执行工具的端口：一个会话一份。
@@ -36,6 +38,7 @@ pub(crate) struct Tools {
     catalog: Catalog,
     texts: RunTexts,
     home: Option<PathBuf>,
+    data_root: PathBuf,
     /// 在跑的调用：掐掉它的那一头、开始跑的那一刻、工具名。
     running: BTreeMap<CallId, Running>,
     backs: mpsc::UnboundedSender<Back>,
@@ -66,6 +69,7 @@ impl Tools {
             catalog: kit.catalog,
             texts: kit.texts,
             home: kit.home,
+            data_root: kit.data_root,
             running: BTreeMap::new(),
             backs,
         }
@@ -84,6 +88,7 @@ impl Tools {
             args,
             cwd,
             home: self.home.clone(),
+            data_root: Some(self.data_root.clone()),
         };
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name).cloned() else {

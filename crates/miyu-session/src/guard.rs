@@ -88,6 +88,7 @@ impl Guard {
             args,
             cwd: cwd.clone(),
             home: self.home.clone(),
+            data_root: Some(self.data_root.clone()),
         });
         if targets.is_empty() {
             return untargeted(level, name, access);

@@ -1,0 +1,1 @@
+(Showing {shown} of {total} matching files; {rest} more are not listed. Narrow the pattern or path to see the rest.)
