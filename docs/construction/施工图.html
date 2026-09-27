@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>64</b><span>/ 69 步<strong>已完成</strong>，她能在文件里精确替换了，一次改几处</span></li>
-    <li><b>4-6</b><span>下一步：删除（下），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">7985e11</b><span>最近一步（4-6 中）的提交</span></li>
+    <li><b>65</b><span>/ 69 步<strong>已完成</strong>，她能把文件删进系统的回收站了</span></li>
+    <li><b>4-7</b><span>下一步：撤销时恢复文件，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">45b2213</b><span>最近一步（4-6 下）的提交</span></li>
   </ul>
 </header>
 
@@ -401,7 +401,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-5b"><span class="n">4-5</span>miyu ask 印出每一步（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-6a"><span class="n">4-6</span>效果和写入（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-6b"><span class="n">4-6</span>编辑（中）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-6</span>删除（下）</span></li>
+        <li><a class="step done" href="#s4-6c"><span class="n">4-6</span>删除（下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-7</span>撤销时恢复文件</span></li>
         <li><span class="step"><span class="n">4-8</span>执行命令</span></li>
         <li><span class="step"><span class="n">4-9</span>确认和提问</span></li>
@@ -5292,6 +5292,76 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li><code>docs/designs/10-自带软件.md</code> 第六节「edit 的细则」。</li>
         <li><code>docs/construction/4-6-编辑（中）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s4-6c" aria-labelledby="h-s46c">
+  <div class="sheet-head"><h2 id="h-s46c"><span class="no">4-6</span>删除（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">改文件的三件工具，最后一件是 trash：把文件或者目录移进系统的回收站，记下它在回收站里的真实位置，报 file.trashed，撤销（4-7）照它移回来。进回收站的撤销得回来，shell 里的 rm 撤销不了。收不了的不删，工作目录和它的上级、家目录不许删。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">三个平台各做一份</span><span class="dir-note">记下的都是回收站里的真实路径</span></div>
+            <ol class="pipe" aria-label="三个平台各做一份">
+              <li>Linux：照 freedesktop 规范自己放，先只许新建地写好 .trashinfo，再改名挪进 files/，重名的接 .2</li>
+              <li>macOS：系统的 trashItemAtURL，交回的新位置就是记下的位置</li>
+              <li>Windows：trash crate 删，盘上没有 $Recycle.Bin 的不删；删完读 $I 记录找回它</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">不删的</span><span class="dir-note">说为什么</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">不许删的</span><span class="rl">工作目录本身和它的每一层上级、家目录、根目录、~</span></div>
+              <div class="tile new"><span class="nm">回收站收不了</span><span class="rl">没有回收站的盘、建不了回收站的：不删，不拷一份再删原来的</span></div>
+              <div class="tile new"><span class="nm">挪不动</span><span class="rl">说系统的原话，写了一半的记录删掉</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">参数 file_path</span><span class="rl">照 read、write、edit 的叫法，path 也认；文件、目录都能删</span></div>
+          <div class="tile new"><span class="nm">链接删链接本身</span><span class="rl">最后一段不跟链接，指向的东西不动</span></div>
+          <div class="tile new"><span class="nm">Windows 读 $I 记录</span><span class="rl">回收站列表里的名字藏了扩展名，拼不回原路径（CI 上查实）</span></div>
+          <div class="tile new"><span class="nm">~ 一个规矩</span><span class="rl">照 miyu-fs 开放出来的 tilde 接家目录</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">撤销（4-7）；收不了时怎么办待项目主人定，先照推荐不删</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-6（下）</dd></div>
+        <div><dt>名称</dt><dd>删除</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">45b2213</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-basesystem</code>：新的 <code>trash</code>，三个平台的回收站各一份，读 Windows <code>$I</code> 记录的 <code>recycled</code>。</li>
+        <li><code>miyu-fs</code>：<code>~</code> 的规矩开放出来，自己拼路径的工具照同一条。</li>
+        <li>删了的从她看过的里拿掉；给人看的字中文、英文各一份。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>Linux：进家目录的回收站、记录和转义、重名、同名却没记录的不盖、目录、链接、挪不动的、建不了回收站的；macOS、Windows 在 CI 上真删进回收站、记下的位置真有东西</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 39 处，全部有测试变红</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/10-自带软件.md</code> 第三节「trash 的细则」。</li>
+        <li><code>docs/construction/4-6-删除（下）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
