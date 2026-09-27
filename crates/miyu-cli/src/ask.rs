@@ -1,8 +1,9 @@
 //! `miyu ask`（`docs/designs/22-命令行.md` 第三节，施工 3-9 下）：连上核心（没在跑就拉起来），开一个一次性
-//! 会话，或者接着说；把一句话发给她，边收边打；问完印一行用量。
+//! 会话，或者接着说；把一句话发给她，边收边打，她做的每一步印成一行（施工 4-5 下）；问完印一行用量。
 
 mod follow;
 mod rpc;
+mod steps;
 mod talk;
 mod usage;
 
@@ -29,6 +30,7 @@ pub(crate) fn usage_line(language: &Language, sum: &Sum) -> String {
 }
 
 use std::io::{self, IsTerminal, Write};
+use std::path::PathBuf;
 use std::process::{Command, ExitCode};
 
 use clap::{Args, ValueEnum};
@@ -36,6 +38,8 @@ use tokio::sync::mpsc;
 
 use miyu_ipc::{ConnectError, connect_or_start};
 use miyu_store::env::Env;
+use miyu_store::human::Human;
+use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
 use crate::language::{self, Language};
@@ -102,6 +106,10 @@ pub struct Plan {
     pub cwd: String,
     /// 界面语言。
     pub language: Language,
+    /// 给人看的字，照界面语言读的那一份：她做的每一步怎么写（施工 4-5 下）。
+    pub human: Human,
+    /// 家目录：路径写成 `~/…`。
+    pub home: Option<PathBuf>,
     /// 有没有人能当场回答：标准输入是终端。
     pub input: bool,
 }
@@ -171,21 +179,7 @@ async fn run(args: Ask, start: impl FnOnce() -> Command, language: Language) -> 
         Ok(connected) => connected,
         Err(reason) => return failed(&reason),
     };
-    let plan = Plan {
-        text: args.words.join(" "),
-        target: match (args.session, args.resume) {
-            (Some(session), _) => Target::Session(session),
-            (None, true) => Target::Continue,
-            (None, false) => Target::New,
-        },
-        format: args.format,
-        cwd: std::env::current_dir()
-            .map_or_else(|_| ".".to_string(), |dir| dir.display().to_string()),
-        language,
-        // 4-9 做出回答确认之前，一律说没人能确认：要问人的当场拒绝、告诉她原因，不一直等着（施工 4-4 上）。
-        // 4-9 起照标准输入是不是终端来说。
-        input: false,
-    };
+    let plan = plan(args, &env, language);
     let presses = presses();
     let mut out = io::stdout();
     let mut err = io::stderr();
@@ -196,6 +190,35 @@ async fn run(args: Ask, start: impl FnOnce() -> Command, language: Language) -> 
         gray,
     };
     talk(connection, &token, &plan, &mut screen, presses).await
+}
+
+/// 这一次要说什么、怎么说：照参数、进程的环境 `env`、界面语言；工作目录是敲命令时的目录。
+fn plan(args: Ask, env: &Env, language: Language) -> Plan {
+    Plan {
+        text: args.words.join(" "),
+        target: match (args.session, args.resume) {
+            (Some(session), _) => Target::Session(session),
+            (None, true) => Target::Continue,
+            (None, false) => Target::New,
+        },
+        format: args.format,
+        cwd: std::env::current_dir()
+            .map_or_else(|_| ".".to_string(), |dir| dir.display().to_string()),
+        language,
+        human: human(env, &language),
+        home: env.home.clone(),
+        // 4-9 做出回答确认之前，一律说没人能确认：要问人的当场拒绝、告诉她原因，不一直等着（施工 4-4 上）。
+        // 4-9 起照标准输入是不是终端来说。
+        input: false,
+    }
+}
+
+/// 给人看的字：照界面语言从资源目录读一份。读不出来的当没有，每一步照状态写最泛的一句（施工 4-5 下）。
+fn human(env: &Env, language: &Language) -> Human {
+    ResourceRoot::locate(env)
+        .ok()
+        .and_then(|resources| Human::load(&resources, language.code()).ok())
+        .unwrap_or_default()
 }
 
 /// Ctrl+C 一次送一个。装不上的就没有。
@@ -216,3 +239,6 @@ fn failed(reason: &str) -> u8 {
     eprintln!("{reason}");
     exit::ERROR
 }
+
+#[cfg(test)]
+mod tests;

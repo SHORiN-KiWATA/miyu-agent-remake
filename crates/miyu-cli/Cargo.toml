@@ -14,7 +14,9 @@ clap = { version = "4", features = ["derive"] }
 getrandom = { version = "0.4", features = ["std"] }
 # 连上核心，没在跑就拉起来（施工 3-8 下、3-9 上）。
 miyu-ipc = { path = "../miyu-ipc" }
-# 数据根、环境快照。
+# 工具结果里给人看的说法（施工 4-5 下）。
+miyu-kernel = { path = "../miyu-kernel" }
+# 数据根、环境快照；给人看的字。
 miyu-store = { path = "../miyu-store" }
 # 协议是 JSON-RPC 2.0，一行一条（04-核心协议.md P1）。
 serde_json = "1.0"
@@ -28,7 +30,6 @@ miyu-core = { path = "../miyu-core" }
 miyu-endpoint = { path = "../miyu-endpoint" }
 # 测试里请求模型照剧本回。
 miyu-session = { path = "../miyu-session", features = ["testkit"] }
-miyu-kernel = { path = "../miyu-kernel" }
 # 测试里在进程里起核心：工具目录（施工 4-1）。
 miyu-tool = { path = "../miyu-tool" }
 tokio = { version = "1", features = ["io-util", "macros", "rt", "signal", "sync", "time"] }

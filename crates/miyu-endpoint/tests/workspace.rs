@@ -1,5 +1,6 @@
 //! 工作目录太宽（施工 4-3 下，`11-权限与沙盒.md` 第四节）：头报来的是 `~`、系统的家目录、根目录，或者包含
-//! 数据根、落在数据根里的，退回管理员的工作区 `home/<账号>/workspace/`；项目目录照旧。
+//! 数据根、落在数据根里的，退回管理员的工作区 `home/<账号>/workspace/`；项目目录照旧。造会话、说话的回应
+//! 说会话实际在哪个目录里干活（施工 4-5 下）。
 
 mod support;
 
@@ -125,4 +126,54 @@ async fn a_project_directory_or_the_account_workspace_stays() {
     std::fs::create_dir_all(&own).expect("建得了");
     let text = seen(&home, &outside, &own.to_string_lossy()).await;
     assert!(text.contains(&written(&own)), "{text}");
+}
+
+#[tokio::test]
+async fn the_replies_say_where_the_session_works() {
+    let home = Home::new();
+    let outside = Outside::new();
+    let own = home.root.workspace(&alice()).to_string_lossy().into_owned();
+    let project = outside.0.join("proj").to_string_lossy().into_owned();
+    let script = Script::new([Play::Says("好。"), Play::Says("好。")]);
+    let mut client = Client::connect(home.core_at_home(&script, outside.0.join("home")));
+    client.hello().await;
+    let reply = client
+        .call("c1", "session.create", json!({"cwd": project}))
+        .await;
+    assert_eq!(
+        reply["result"]["cwd"],
+        json!(project),
+        "项目目录照原样：{reply}"
+    );
+    let session = reply["result"]["session"]
+        .as_str()
+        .expect("造出来了")
+        .to_string();
+    // 接着说时换到了太宽的目录：回应里是退回的工作区。
+    let reply = client
+        .call(
+            "c2",
+            "session.send",
+            json!({"session": session, "text": "hi", "cwd": "~"}),
+        )
+        .await;
+    assert_eq!(reply["result"]["cwd"], json!(own), "{reply}");
+    home.until_turns(&session, 1).await;
+    // 不带目录的，是会话现在的。
+    let reply = client
+        .call(
+            "c3",
+            "session.send",
+            json!({"session": session, "text": "hi"}),
+        )
+        .await;
+    assert_eq!(reply["result"]["cwd"], json!(own), "{reply}");
+    home.until_turns(&session, 2).await;
+    // 造会话时就太宽的；同一个命令编号重发的，说的一样。
+    for _ in 0..2 {
+        let reply = client
+            .call("c4", "session.create", json!({"cwd": "~"}))
+            .await;
+        assert_eq!(reply["result"]["cwd"], json!(own), "{reply}");
+    }
 }

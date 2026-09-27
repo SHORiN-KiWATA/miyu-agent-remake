@@ -1,5 +1,5 @@
-//! 几个测试共用的：临时的数据根、在进程里起一个核心（请求模型照剧本或者没有 key）、在真的套接字上跑一遍
-//! `talk`、读会话日志。
+//! 几个测试共用的：临时的数据根、在进程里起一个核心（请求模型照剧本或者没有 key，工具照给的目录）、在真的
+//! 套接字上跑一遍 `talk`、读会话日志；数据根外面的临时目录；没有核心的数据根，测试自己在套接字上当核心。
 
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
 
@@ -18,6 +18,7 @@ use miyu_kernel::event::{Body, Event};
 use miyu_kernel::id::SessionId;
 use miyu_session::Models;
 use miyu_store::env::{Env, Platform};
+use miyu_store::human::Human;
 use miyu_store::log::read_events;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
@@ -30,33 +31,32 @@ pub struct Home {
     running: tokio::task::JoinHandle<std::convert::Infallible>,
 }
 
+/// 源码树里的资源目录。
+pub fn resources() -> ResourceRoot {
+    ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"))
+}
+
+/// 这次测试里第几个临时目录：同一个进程里不撞名。
+fn next() -> u64 {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    NEXT.fetch_add(1, Ordering::Relaxed)
+}
+
 impl Home {
-    /// 起一个核心：请求模型照 `models`。
+    /// 起一个核心：请求模型照 `models`，没有工具。
     pub fn new(models: Arc<dyn Models>) -> Home {
-        static NEXT: AtomicU64 = AtomicU64::new(0);
-        let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("miyu-cli-{}-{n}", std::process::id()));
-        let root = DataRoot::locate(&Env {
-            platform: Platform::current(),
-            miyu_home: Some(dir.clone().into_os_string()),
-            home: None,
-            xdg_cache_home: None,
-            local_app_data: None,
-            miyu_resources: None,
-            exe: None,
-        })
-        .expect("MIYU_HOME 是绝对路径");
-        root.prepare().expect("临时目录里建得了骨架");
-        let dirs = Dirs {
-            runtime_dir: None,
-            ..Dirs::current()
-        };
-        let opened = miyu_ipc::open(&root, &dirs).expect("起得来");
+        Home::with_tools(models, Catalog::default())
+    }
+
+    /// 起一个核心：请求模型照 `models`，工具照 `tools`。
+    pub fn with_tools(models: Arc<dyn Models>, tools: Catalog) -> Home {
+        let (dir, root) = temp_root();
+        let opened = miyu_ipc::open(&root, &dirs()).expect("起得来");
         let core = Arc::new(Core::new(
             root.clone(),
-            ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")),
+            resources(),
             models,
-            Catalog::default(),
+            tools,
             None,
             AccountIdOf::admin(),
             opened.token.clone(),
@@ -67,21 +67,7 @@ impl Home {
 
     /// 在真的套接字上连上核心，照 `plan` 说一句。`presses` 是 Ctrl+C。
     pub async fn ask_with(&self, plan: &Plan, presses: mpsc::Receiver<()>) -> Asked {
-        let (connection, token) = miyu_ipc::connect(&self.root).await.expect("连得上");
-        let tape = Tape::default();
-        let (mut out, mut err) = (tape.pen(false), tape.pen(true));
-        let mut screen = Screen {
-            out: &mut out,
-            err: &mut err,
-            gray: false,
-        };
-        let code = within("说完", talk(connection, &token, plan, &mut screen, presses)).await;
-        Asked {
-            code,
-            out: tape.text(|err| !err),
-            err: tape.text(|err| err),
-            screen: tape.text(|_| true),
-        }
+        ask_at(&self.root, plan, presses).await
     }
 
     /// 照 `plan` 说一句，不按 Ctrl+C。
@@ -161,6 +147,73 @@ impl Drop for Home {
     }
 }
 
+/// 一个用完就删的临时数据根，建好了骨架。
+fn temp_root() -> (PathBuf, DataRoot) {
+    let dir = std::env::temp_dir().join(format!("miyu-cli-{}-{}", std::process::id(), next()));
+    let root = DataRoot::locate(&Env {
+        platform: Platform::current(),
+        miyu_home: Some(dir.clone().into_os_string()),
+        home: None,
+        xdg_cache_home: None,
+        local_app_data: None,
+        miyu_resources: None,
+        exe: None,
+    })
+    .expect("MIYU_HOME 是绝对路径");
+    root.prepare().expect("临时目录里建得了骨架");
+    (dir, root)
+}
+
+/// 套接字放在数据根里，不放系统的运行目录。
+pub fn dirs() -> Dirs {
+    Dirs {
+        runtime_dir: None,
+        ..Dirs::current()
+    }
+}
+
+/// 在真的套接字上连上 `root` 的核心，照 `plan` 说一句。`presses` 是 Ctrl+C。
+pub async fn ask_at(root: &DataRoot, plan: &Plan, presses: mpsc::Receiver<()>) -> Asked {
+    let (connection, token) = miyu_ipc::connect(root).await.expect("连得上");
+    let tape = Tape::default();
+    let (mut out, mut err) = (tape.pen(false), tape.pen(true));
+    let mut screen = Screen {
+        out: &mut out,
+        err: &mut err,
+        gray: false,
+    };
+    let code = within("说完", talk(connection, &token, plan, &mut screen, presses)).await;
+    Asked {
+        code,
+        out: tape.text(|err| !err),
+        err: tape.text(|err| err),
+        screen: tape.text(|_| true),
+    }
+}
+
+/// 一个没有核心的临时数据根，用完就删：测试自己在它的套接字上当核心。
+pub struct Bare {
+    dir: PathBuf,
+    pub root: DataRoot,
+}
+
+impl Bare {
+    pub fn new() -> Bare {
+        let (dir, root) = temp_root();
+        Bare { dir, root }
+    }
+}
+
+impl Drop for Bare {
+    #[expect(
+        clippy::let_underscore_must_use,
+        reason = "删不掉就留在临时目录里，不影响测试"
+    )]
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.dir);
+    }
+}
+
 /// 说完一句看到的：退出码、标准输出、标准错误、整块屏幕（两条通道照先后写在一起，像终端里看到的那样）。
 pub struct Asked {
     pub code: u8,
@@ -221,7 +274,7 @@ impl AccountIdOf {
     }
 }
 
-/// 说 `text`：新开一个一次性会话，中文，给人看。
+/// 说 `text`：新开一个一次性会话，中文，给人看；给人看的字照出厂的中文那一份。
 pub fn plan(text: &str) -> Plan {
     Plan {
         text: text.to_string(),
@@ -229,7 +282,47 @@ pub fn plan(text: &str) -> Plan {
         format: Format::Text,
         cwd: "/work".to_string(),
         language: Language::Chinese,
+        human: Human::load(&resources(), "zh").expect("出厂的字读得出来"),
+        home: None,
         input: false,
+    }
+}
+
+/// 数据根外面的一个临时目录，用完就删：当项目目录，或者当工作区外面。放在 cargo 给集成测试的 `target/tmp`
+/// 下面：系统的临时目录整个能读能写，放在里面就造不出「工作区外面」（施工 4-3 下）。
+pub struct Outside(pub PathBuf);
+
+impl Outside {
+    pub fn new() -> Outside {
+        let dir = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!(
+            "miyu-cli-out-{}-{}",
+            std::process::id(),
+            next()
+        ));
+        std::fs::create_dir_all(&dir).expect("建得了目录");
+        Outside(dir)
+    }
+
+    /// 在里面写一份文件，交回它的路径。
+    pub fn file(&self, name: &str, text: &str) -> PathBuf {
+        let path = self.0.join(name);
+        std::fs::write(&path, text).expect("写得进");
+        path
+    }
+
+    /// 这个目录，写成字。
+    pub fn text(&self) -> String {
+        self.0.to_string_lossy().into_owned()
+    }
+}
+
+impl Drop for Outside {
+    #[expect(
+        clippy::let_underscore_must_use,
+        reason = "删不掉就留在临时目录里，不影响测试"
+    )]
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
     }
 }
 

@@ -1,18 +1,32 @@
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use serde_json::{Value, json};
+
+use miyu_store::human::Human;
+use miyu_store::resources::ResourceRoot;
 
 use super::*;
 use crate::ask::Target;
 use crate::language::Language;
 
+/// 根目录下面的 `parts`：Windows 上得带盘符才算绝对路径。
+fn under(parts: &[&str]) -> PathBuf {
+    let root = PathBuf::from(if cfg!(windows) { "C:\\" } else { "/" });
+    parts.iter().fold(root, |path, part| path.join(part))
+}
+
+/// 在 `/work` 里说「hi」；给人看的字照出厂的，家目录是 `/home`。
 fn plan(format: Format, language: Language) -> Plan {
+    let resources = ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"));
     Plan {
         text: "hi".to_string(),
         target: Target::New,
         format,
-        cwd: "/work".to_string(),
+        cwd: under(&["work"]).to_string_lossy().into_owned(),
         language,
+        human: Human::load(&resources, language.code()).expect("出厂的字读得出来"),
+        home: Some(under(&["home"])),
         input: false,
     }
 }
@@ -325,3 +339,5 @@ fn a_refused_message_says_why_and_a_lagging_one_resubscribes() {
     let Fed { step, .. } = feed(&plan, false, &[resync]);
     assert_eq!(step, Step::Resubscribe);
 }
+
+mod asides;

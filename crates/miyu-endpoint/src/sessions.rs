@@ -41,7 +41,24 @@ struct Open {
 #[derive(Debug)]
 struct Running {
     handle: Handle,
+    /// 头报上来的工作目录：下次报来的和它比。
     cwd: String,
+    /// 实际在哪个目录里干活：`cwd` 太宽的，是账号的工作区。
+    workspace: String,
+}
+
+/// 造好的会话：编号，和它实际在哪个目录里干活（施工 4-5 下）。
+#[derive(Debug)]
+pub(crate) struct Created {
+    pub(crate) id: SessionId,
+    pub(crate) cwd: String,
+}
+
+/// 找到的会话：把手，和它这会儿实际在哪个目录里干活（施工 4-5 下）。
+#[derive(Debug)]
+pub(crate) struct Found {
+    pub(crate) handle: Handle,
+    pub(crate) cwd: String,
 }
 
 impl Sessions {
@@ -54,10 +71,12 @@ impl Sessions {
         persona: &str,
         cwd: String,
         who: Opening,
-    ) -> Result<SessionId, Refusal> {
+    ) -> Result<Created, Refusal> {
         let mut open = self.open.lock().await;
+        let workspace = workspace(core, &cwd);
         if let Some((_, session)) = open.created.iter().find(|(id, _)| *id == command) {
-            return Ok(session.clone());
+            let id = session.clone();
+            return Ok(Created { id, cwd: workspace });
         }
         let id = new_id(now());
         let created = create(Create {
@@ -73,7 +92,7 @@ impl Sessions {
             },
             attended: who.attended,
             oneshot: who.oneshot,
-            environment: environment(core, &cwd),
+            environment: environment(workspace.clone()),
             command: command.clone(),
             by: admin(core),
             models: &*core.models,
@@ -92,12 +111,19 @@ impl Sessions {
                 return Err(Refusal::INTERNAL);
             }
         };
-        open.running.insert(id.clone(), Running { handle, cwd });
+        open.running.insert(
+            id.clone(),
+            Running {
+                handle,
+                cwd,
+                workspace: workspace.clone(),
+            },
+        );
         open.created.push_back((command, id.clone()));
         if open.created.len() > REMEMBERED {
             open.created.pop_front();
         }
-        Ok(id)
+        Ok(Created { id, cwd: workspace })
     }
 
     /// 找会话 `id`：在跑的直接交回；没在跑的从磁盘载入。头报上来的工作目录 `cwd` 和会话现在的不一样，
@@ -107,26 +133,36 @@ impl Sessions {
         core: &Core,
         id: &SessionId,
         cwd: Option<&str>,
-    ) -> Result<Handle, Refusal> {
+    ) -> Result<Found, Refusal> {
         let mut open = self.open.lock().await;
         if let Some(running) = open.running.get_mut(id) {
             if let Some(cwd) = cwd
                 && cwd != running.cwd
             {
-                if running.handle.environment(environment(core, cwd)).is_err() {
+                let workspace = workspace(core, cwd);
+                if running
+                    .handle
+                    .environment(environment(workspace.clone()))
+                    .is_err()
+                {
                     open.running.remove(id);
                     return Err(Refusal::STOPPED);
                 }
                 running.cwd = cwd.to_string();
+                running.workspace = workspace;
             }
-            return Ok(running.handle.clone());
+            return Ok(Found {
+                handle: running.handle.clone(),
+                cwd: running.workspace.clone(),
+            });
         }
         let cwd = cwd.unwrap_or("~").to_string();
+        let workspace = workspace(core, &cwd);
         let loaded = load(Load {
             root: &core.root,
             owner: core.admin.clone(),
             id: id.clone(),
-            environment: environment(core, &cwd),
+            environment: environment(workspace.clone()),
             models: &*core.models,
             tools: &core.tools,
             home: core.home.as_deref(),
@@ -145,9 +181,13 @@ impl Sessions {
             Running {
                 handle: handle.clone(),
                 cwd,
+                workspace: workspace.clone(),
             },
         );
-        Ok(handle)
+        Ok(Found {
+            handle,
+            cwd: workspace,
+        })
     }
 
     /// 会话 `id` 停了：从表里拿掉，下次用到再载入。
@@ -193,11 +233,11 @@ fn local() -> VenueId {
     VenueId::parse("local").unwrap_or_else(|e| unreachable!("「local」合场所的写法：{e}"))
 }
 
-/// 会话所在的环境：核心所在的机器现在的时区，头报上来的工作目录（太宽的退回管理员的工作区）。
-fn environment(core: &Core, cwd: &str) -> Environment {
+/// 会话所在的环境：核心所在的机器现在的时区，实际干活的目录（[`workspace`] 定的）。
+fn environment(workspace: String) -> Environment {
     Environment {
         offset: offset(),
-        cwd: workspace(core, cwd),
+        cwd: workspace,
     }
 }
 

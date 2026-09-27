@@ -1,5 +1,6 @@
 //! 握手以后的方法（`docs/designs/04-核心协议.md` 第九节「先做的几样怎么写」）：造会话、说话、打断，
-//! 列出会话（施工 3-9 下）。命令交给会话，等它的回应：接受的回 `events`，拒绝的回原因码。
+//! 列出会话（施工 3-9 下）。命令交给会话，等它的回应：接受的回 `events`，拒绝的回原因码。造会话、说话的
+//! 回应再带上会话实际在哪个目录里干活（施工 4-5 下）。
 
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -7,6 +8,7 @@ use serde_json::{Value, json};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::id::SessionId;
 use miyu_kernel::session::{Command, Outcome, Queued};
+use miyu_session::Handle;
 
 use crate::Core;
 use crate::hello::Peer;
@@ -75,11 +77,11 @@ pub(crate) async fn call(core: &Core, peer: Peer, request: &Request) -> Result<V
                 attended: peer.input,
                 oneshot: params.oneshot,
             };
-            let session = core
+            let created = core
                 .sessions
                 .create(core, request.id.clone(), persona, params.cwd, who)
                 .await?;
-            Ok(json!({"session": session.as_str(), "events": [1]}))
+            Ok(json!({"session": created.id.as_str(), "events": [1], "cwd": created.cwd}))
         }
         "session.list" => {
             let params: ListParams = params(request)?;
@@ -97,7 +99,12 @@ pub(crate) async fn call(core: &Core, peer: Peer, request: &Request) -> Result<V
                 urgent: params.urgent,
             };
             let session = session(&params.session)?;
-            command_to(core, request, &session, params.cwd.as_deref(), command).await
+            let found = core
+                .sessions
+                .get(core, &session, params.cwd.as_deref())
+                .await?;
+            let events = command_to(core, request, &session, &found.handle, command).await?;
+            Ok(json!({"events": events, "cwd": found.cwd}))
         }
         "session.interrupt" => {
             let params: InterruptParams = params(request)?;
@@ -106,29 +113,29 @@ pub(crate) async fn call(core: &Core, peer: Peer, request: &Request) -> Result<V
                 QueuedParam::Return => Queued::Return,
             };
             let session = session(&params.session)?;
-            command_to(core, request, &session, None, Command::Interrupt { queued }).await
+            let found = core.sessions.get(core, &session, None).await?;
+            let command = Command::Interrupt { queued };
+            let events = command_to(core, request, &session, &found.handle, command).await?;
+            Ok(json!({ "events": events }))
         }
         _ => Err(Refusal::UNKNOWN_METHOD),
     }
 }
 
-/// 把命令交给会话 `session`，等它的回应。会话停了的从表里拿掉。
+/// 把命令交给会话 `session`（把手是 `handle`），等它的回应：接受的交回它产生的事件的序号。会话停了的
+/// 从表里拿掉。
 async fn command_to(
     core: &Core,
     request: &Request,
     session: &SessionId,
-    cwd: Option<&str>,
+    handle: &Handle,
     command: Command,
-) -> Result<Value, Refusal> {
-    let handle = core.sessions.get(core, session, cwd).await?;
+) -> Result<Vec<u64>, Refusal> {
     match handle
         .command(request.id.clone(), admin(core), command)
         .await
     {
-        Ok(Outcome::Accepted { events }) => {
-            let events: Vec<u64> = events.iter().map(|seq| seq.get()).collect();
-            Ok(json!({"events": events}))
-        }
+        Ok(Outcome::Accepted { events }) => Ok(events.iter().map(|seq| seq.get()).collect()),
         Ok(Outcome::Rejected { reason }) => Err(Refusal::kernel(reason)),
         Err(_) => {
             core.sessions.forget(session).await;

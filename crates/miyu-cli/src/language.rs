@@ -13,6 +13,19 @@ pub enum Language {
     English,
 }
 
+/// 一步的结果里头自己写的几个词（施工 4-5 下）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Word {
+    /// 出错了：标红，有原因的后面跟原因。
+    Failed,
+    /// 被拒了，没做：标红，有原因的后面跟原因。
+    Denied,
+    /// 打断了：没有说法时写。
+    Cancelled,
+    /// 跳过了：没有说法时写。
+    Skipped,
+}
+
 /// 从进程的环境里读。
 pub fn current() -> Language {
     let set = ["LC_ALL", "LC_MESSAGES", "LANG"]
@@ -30,6 +43,46 @@ impl Language {
         match self {
             Language::Chinese => "zh-CN",
             Language::English => "en",
+        }
+    }
+
+    /// 给人看的字读哪一份：`human/<它>.json`（施工 4-5 下）。
+    pub fn code(&self) -> &'static str {
+        match self {
+            Language::Chinese => "zh",
+            Language::English => "en",
+        }
+    }
+
+    /// 一步的结果里头自己写的词。
+    pub(crate) fn word(&self, word: Word) -> &'static str {
+        let (chinese, english) = match word {
+            Word::Failed => ("出错", "failed"),
+            Word::Denied => ("没做", "not done"),
+            Word::Cancelled => ("打断了", "interrupted"),
+            Word::Skipped => ("跳过了", "skipped"),
+        };
+        match self {
+            Language::Chinese => chinese,
+            Language::English => english,
+        }
+    }
+
+    /// 「出错」「没做」和原因之间。
+    pub(crate) fn colon(&self) -> &'static str {
+        match self {
+            Language::Chinese => "：",
+            Language::English => ": ",
+        }
+    }
+
+    /// 工作目录太宽，核心退回了账号的工作区：`given` 是敲命令时的目录，`used` 是实际干活的。
+    pub(crate) fn moved(&self, given: &str, used: &str) -> String {
+        match self {
+            Language::Chinese => format!("· 目录太宽（{given}），这次在 {used} 里干活"),
+            Language::English => {
+                format!("· Working directory too wide ({given}), using {used} this time")
+            }
         }
     }
 

@@ -29,8 +29,8 @@ pub async fn talk(
     if let Err(code) = request(&mut rpc, "hello", hello, plan, screen).await {
         return code;
     }
-    let session = match session(&mut rpc, plan, screen).await {
-        Ok(session) => session,
+    let (session, used) = match session(&mut rpc, plan, screen).await {
+        Ok(found) => found,
         Err(code) => return code,
     };
     let subscribe = json!({"session": session, "stream": "events"});
@@ -46,6 +46,10 @@ pub async fn talk(
         }
     };
     let mut follow = Follow::new(&session, &sent, plan);
+    // 造会话的回应里说了会话实际在哪个目录里干活：目录太宽的，第一步之前说一句（施工 4-5 下）。
+    if let Some(used) = &used {
+        follow.moved(used, screen);
+    }
     let mut interrupting = false;
     loop {
         tokio::select! {
@@ -81,26 +85,32 @@ pub async fn talk(
     }
 }
 
-/// 接哪个会话：新开一个一次性的；上一次 `miyu ask` 开的；指定的。
-async fn session(rpc: &mut Rpc, plan: &Plan, screen: &mut Screen<'_>) -> Result<String, u8> {
+/// 接哪个会话：新开一个一次性的；上一次 `miyu ask` 开的；指定的。交回会话的编号；新开的，再交回核心说的它
+/// 实际在哪个目录里干活。
+async fn session(
+    rpc: &mut Rpc,
+    plan: &Plan,
+    screen: &mut Screen<'_>,
+) -> Result<(String, Option<String>), u8> {
     match &plan.target {
         Target::New => {
             let params = json!({"cwd": plan.cwd, "oneshot": true});
             let result = request(rpc, "session.create", params, plan, screen).await?;
-            Ok(result["session"].as_str().unwrap_or_default().to_string())
+            let session = result["session"].as_str().unwrap_or_default().to_string();
+            Ok((session, result["cwd"].as_str().map(str::to_string)))
         }
         Target::Continue => {
             let params = json!({"oneshot": true, "limit": 1});
             let result = request(rpc, "session.list", params, plan, screen).await?;
             match result["sessions"][0]["session"].as_str() {
-                Some(session) => Ok(session.to_string()),
+                Some(session) => Ok((session.to_string(), None)),
                 None => {
                     say(screen.err, &plan.language.no_oneshot());
                     Err(exit::ERROR)
                 }
             }
         }
-        Target::Session(session) => Ok(session.clone()),
+        Target::Session(session) => Ok((session.clone(), None)),
     }
 }
 
