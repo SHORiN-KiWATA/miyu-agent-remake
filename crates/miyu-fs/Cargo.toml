@@ -1,0 +1,16 @@
+[package]
+name = "miyu-fs"
+description = "核心进程里的文件工具怎么碰文件：边界表、换成真实的位置、安全地打开（施工 4-3 上）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+# 打开时不跟随最后一层的链接、不阻塞：O_NOFOLLOW、O_NONBLOCK、ELOOP 在各个 Unix 上的值不一样，从这里取，
+# 不自己写（施工 4-3 上）。只取常量，不调它的函数，不用 unsafe。
+libc = "0.2"
+
+[lints]
+workspace = true
