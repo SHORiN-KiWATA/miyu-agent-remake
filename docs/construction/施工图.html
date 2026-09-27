@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>66</b><span>/ 70 步<strong>已完成</strong>，撤销一轮时她改过的文件跟着改回去了</span></li>
+    <li><b>67</b><span>/ 70 步<strong>已完成</strong>，她能执行命令了，撤销时改过的文件跟着改回去</span></li>
     <li><b>4-7</b><span>下一步：undo、redo 命令（下），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">4486e24</b><span>最近一步（4-7 上）的提交</span></li>
+    <li><b class="mono">cf66f5c</b><span>最近一步（4-8）的提交</span></li>
   </ul>
 </header>
 
@@ -404,7 +404,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-6c"><span class="n">4-6</span>删除（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-7a"><span class="n">4-7</span>撤销时恢复文件（上）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-7</span>undo、redo 命令（下）</span></li>
-        <li><span class="step"><span class="n">4-8</span>执行命令</span></li>
+        <li><a class="step done" href="#s4-8"><span class="n">4-8</span>执行命令<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-9</span>确认和提问</span></li>
         <li><span class="step"><span class="n">4-10</span>M4 验收</span></li>
       </ol>
@@ -5434,6 +5434,77 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li><code>docs/designs/10-自带软件.md</code> 第七节「改回文件的细则」，<code>03</code> 的 <code>files.restored</code>。</li>
         <li><code>docs/construction/4-7-撤销时恢复文件（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s4-8" aria-labelledby="h-s48">
+  <div class="sheet-head"><h2 id="h-s48"><span class="no">4-8</span>执行命令</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">读、找、搜、写、改、删都有了专用的工具，剩下的广度交给 shell：编译、跑测试、git、装依赖、跑脚本。这一步做前台的：命令跑完才交回，超时、叫停时整组杀掉，输出太长截成头尾两段，报退出码。命令只拿到白名单上的环境变量，核心环境里的密钥拿不到。后台命令随 M7。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一条命令怎么跑</span><span class="dir-note">每次起一个新的 shell</span></div>
+            <ol class="pipe" aria-label="一条命令怎么跑">
+              <li>照 B8 挑 shell：Linux bash、macOS zsh、Windows PowerShell（装了 7 用 7），不读启动文件</li>
+              <li>从这一轮的工作目录起，只带白名单上的环境变量，另外设 GIT_TERMINAL_PROMPT=0，标准输入接空的</li>
+              <li>标准输出、标准错误合进一根管道，边读边推给头；内存里只留头尾各 64 KiB</li>
+              <li>结束了：输出最多 30000 个字，多了留头尾各一半；退出码不是 0 的标成出错</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">整组杀</span><span class="dir-note">不用放开 unsafe</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">Unix</span><span class="rl">命令自成一个进程组，超时、叫停时 kill(-pgid)；退出以后组里剩下的也杀</span></div>
+              <div class="tile new"><span class="nm">Windows</span><span class="rl">taskkill /T 杀整棵树，只在命令还在跑的时候杀：编号回收得快</span></div>
+              <div class="tile new"><span class="nm">叫停</span><span class="rl">丢掉这次调用的 future 时整组杀掉</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">参数照 Claude Code</span><span class="rl">command、timeout（默认 120000 毫秒、最多 600000）</span></div>
+          <div class="tile new"><span class="nm">cd 不带到下一次</span><span class="rl">每次从回合的工作目录起，权限策略也照它判</span></div>
+          <div class="tile new"><span class="nm">说明里写明 shell</span><span class="rl">bash、zsh、PowerShell 7、Windows PowerShell 5.1，核心起来时定，会话里不变</span></div>
+          <div class="tile new"><span class="nm">环境变量白名单</span><span class="rl">第一版的名单写在代码里，配置那一步能改</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">后台命令、description（M7、4-9）；沙盒（M5）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-8</dd></div>
+        <div><dt>名称</dt><dd>执行命令</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">cf66f5c</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-basesystem</code>：新的 <code>shell</code>，下面四块：用哪个 shell（<code>program</code>）、环境变量（<code>env</code>）、起命令和整组杀（<code>process</code>）、输出（<code>output</code>）。</li>
+        <li>工具的说明能带这台机器上的字段（<code>spec_filled</code>）：只有 <code>shell</code> 用，写明是哪种 shell。</li>
+        <li>给人看的字中文、英文各一份；登记簿记下新加的九份字。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>三个平台：在工作目录里跑、输出和标准错误、退出码、没有输出、超时、环境变量白名单、中文、截断、边读边推；Unix 上放到后台的、叫停时整组停了、被信号杀掉的</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 52 处，全部有测试变红</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/10-自带软件.md</code> 第三节「shell 的细则」、第十节。</li>
+        <li><code>docs/construction/4-8-执行命令.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
