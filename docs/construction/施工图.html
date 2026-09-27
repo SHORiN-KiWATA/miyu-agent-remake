@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>54</b><span>/ 63 步<strong>已完成</strong>，工具有了接口和目录，工具面存进了策略快照</span></li>
-    <li><b>4-2</b><span>下一步：执行工具的端口，<strong>施工中</strong></span></li>
-    <li><b class="mono">f93660c</b><span>最近一步（4-1）的提交</span></li>
+    <li><b>55</b><span>/ 63 步<strong>已完成</strong>，会话真的去执行工具了：一件一个任务，叫停就掐掉</span></li>
+    <li><b>4-3</b><span>下一步：路径边界和权限策略，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">5e7b34c</b><span>最近一步（4-2）的提交</span></li>
   </ul>
 </header>
 
@@ -391,7 +391,7 @@ a.step:hover{border-color:var(--primary)}
       <div class="ms-head"><span class="ms-id">M4</span><span class="ms-name">能干活</span><span class="ms-goal">能读、写、改文件，能搜索，能执行命令</span></div>
       <ol class="chips">
         <li><a class="step done" href="#s4-1"><span class="n">4-1</span>工具接口和工具面<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-2</span>执行工具的端口</span></li>
+        <li><a class="step done" href="#s4-2"><span class="n">4-2</span>执行工具的端口<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-3</span>路径边界和权限策略</span></li>
         <li><span class="step"><span class="n">4-4</span>读、找文件、搜内容</span></li>
         <li><span class="step"><span class="n">4-5</span>miyu ask 显示工具步骤</span></li>
@@ -4584,6 +4584,81 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s4-2" aria-labelledby="h-s42">
+  <div class="sheet-head"><h2 id="h-s42"><span class="no">4-2</span>执行工具的端口</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">会话真的去执行工具了：内核说执行，会话照名字在工具目录里找到那一件，在这一轮的工作目录里跑，执行中的输出推给头，结果落盘，她接着说；内核说停，当场掐掉。几件只读的一起跑。快照里有、目录里没有的，报「现在用不了」；工具自己崩了，报「出了内部错误」，会话照常走。还没有真的工具，测试用假工具；执行前的链先一律放行。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一次调用怎么走</span><span class="dir-note">02 第四节、05 第六节</span></div>
+            <ol class="pipe" aria-label="一次调用怎么走">
+              <li>内核：先查、修正参数，过执行前的链（这一步一律放行）</li>
+              <li>端口：照名字在目录里找，交进参数和这一轮的工作目录</li>
+              <li>工具在自己的任务里跑，执行中的输出推给头</li>
+              <li>跑完交回内容块和出没出错，端口量用时</li>
+              <li>内核落盘成 tool.result，结果齐了请求下一次</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">不顺的几种</span><span class="dir-note">05 第九节</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">叫停</span><span class="rl">掐掉那个任务：工具的 future 被丢掉，手里的东西随之收拾</span></div>
+              <div class="tile new"><span class="nm">目录里没有</span><span class="rl">核心升级拿掉了：不派，报现在用不了，记 WARN</span></div>
+              <div class="tile new"><span class="nm">工具崩了</span><span class="rl">报出了内部错误、可能做了一部分，记 ERROR，会话照常走</span></div>
+              <div class="tile new"><span class="nm">会话停了</span><span class="rl">在跑的都掐掉：结果没人要了</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">交给工具的先只有两样</span><span class="rl">修正过的参数、这一轮的工作目录</span></div>
+          <div class="tile new"><span class="nm">不另给取消信号</span><span class="rl">Rust 的异步丢掉即取消，少一样要工具自觉照办的约定</span></div>
+          <div class="tile new"><span class="nm">两句进登记簿</span><span class="rl">现在用不了、崩了：和内核替工具写的几句放在一处，从快照里拿</span></div>
+          <div class="tile new"><span class="nm">运行日志</span><span class="rl">running、ran、stopped、unavailable、crashed；参数的字一个都不记</span></div>
+          <div class="tile new"><span class="nm">假工具</span><span class="rl">miyu-tool 的 testkit：回声、出错、推输出、停住、等凑齐、崩</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">权限策略（4-3）；工具执行中问人（4-9）；真的工具（4-4 起）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-2</dd></div>
+        <div><dt>名称</dt><dd>执行工具的端口</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">5e7b34c</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-tool</code>：<code>Tool</code> 多一样执行；测试用的假工具。</li>
+        <li><code>miyu-session</code>：执行工具的端口 <code>tools.rs</code>；actor 把执行、叫停交给它；剧本能让她调工具。</li>
+        <li><code>miyu-policy</code>、<code>miyu-store</code>：快照、资源目录多两句。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>调一件、出错、执行中的输出、两件只读的一起跑、打断掐掉、目录里没有、崩了、会话停了掐掉、核心重启以后照新目录执行、运行日志不记参数</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 19 处：18 处有测试变红；过时的输出内核本来也不理，测不到；先补了两处缺口，修了假工具的夹具 bug</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/05-内核接口.md</code> 第六、九节：执行这一步、第一版的「暂时不可用」。</li>
+        <li><code>docs/designs/28-运行日志.md</code>：每次调工具记一行。</li>
+        <li><code>docs/construction/4-2-执行工具的端口.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -4759,7 +4834,7 @@ const BUILD = {
   k_log: { by: '1-1', how: 'frame', note: '18 种事件的写法、瞬时事件、追加时的检查' },
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完；出了错自己再来，说了一半的带着半截接着说（3-5 下）' },
-  k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
+  k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认；执行端口（4-2）：照名字在目录里找，一件一个任务地跑，叫停就掐掉；快照里有、目录里没有的报现在用不了，崩了的报内部错误，会话照常走' },
   k_catalog: { by: '4-1', how: 'frame', note: '工具目录：每件工具报出规格（名字、说明、参数格式、访问类别），核心起来时登记一次就冻结；重名的、名字不合写法的、参数格式不是对象的当场拒绝。造会话时工具面照名字排好存进策略快照，载入以后逐字节一样。现在目录是空的，第一批工具在 4-4（4-1）' },
   n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对；资源目录：MIYU_RESOURCES、程序旁边的 resources/、上一级的 share/miyu/，读出一个人格的原文（3-6 上）' },
   n_prompt: { by: '3-6', how: 'frame', note: '策略快照：人格从资源目录拼成快照，按内容哈希存档，载入时照哈希重建，请求逐字节一样；现在只有软件工程师（3-6 上）' },
