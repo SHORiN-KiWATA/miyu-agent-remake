@@ -12,6 +12,7 @@ use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Body, ToolStatus};
 use miyu_kernel::history::History;
 use miyu_kernel::id::{Seq, TurnId};
+use miyu_kernel::origin::By;
 use miyu_kernel::request::Message;
 
 use crate::texts::Texts;
@@ -207,6 +208,27 @@ impl Group {
         blocks.extend(self.facts);
         blocks.extend(self.trigger);
     }
+}
+
+/// 这一次是不是接着写（`05-内核接口.md` 第七节「接着写被打断的回复」，施工 3-5 再补）：有效历史的
+/// 最后，是一条带 `interrupted` 的回复，后面只有一条内核记的 `reply_cut` 事实，中间只隔着
+/// `model.called`。这时渲染出来的最后一条 user 消息里只有被打断的那一句，前面那条 assistant 是
+/// 半截。那一句之后又来了别的（人的消息、切了级别以后的事实），不算：最后那条 user 里不只有那一句，
+/// 去不掉。
+pub(crate) fn continues(history: &History) -> bool {
+    let mut tail = history
+        .ordered()
+        .into_iter()
+        .rev()
+        .filter(|event| !matches!(event.body, Body::ModelCalled(_)));
+    let noticed = tail.next().is_some_and(|event| {
+        event.by == By::Kernel
+            && matches!(&event.body, Body::ContextInjected(fact) if fact.kind.as_str() == "reply_cut")
+    });
+    noticed
+        && tail.next().is_some_and(
+            |event| matches!(&event.body, Body::MessageAssistant(reply) if reply.interrupted),
+        )
 }
 
 /// 一个文本块。

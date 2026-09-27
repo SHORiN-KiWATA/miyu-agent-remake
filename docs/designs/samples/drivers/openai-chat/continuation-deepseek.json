@@ -1,0 +1,1 @@
+{"model":"deepseek-v4","messages":[{"role":"system","content":"You are a helpful assistant."},{"role":"user","content":"数到六"},{"role":"assistant","content":"一二三","reasoning_content":"从一开始数","prefix":true}],"stream":true,"stream_options":{"include_usage":true}}

@@ -61,6 +61,7 @@ impl Assembler for DefaultAssembler {
             system: self.stable.system.clone(),
             messages,
             stable: self.stable.demos.len(),
+            continuation: render::continues(history),
         }
     }
 }

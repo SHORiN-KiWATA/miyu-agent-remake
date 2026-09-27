@@ -6,14 +6,15 @@
 use std::collections::BTreeMap;
 
 use miyu_assemble::{DefaultAssembler, Stable, Texts, TurnEndedTexts};
-use miyu_drivers::openai_chat::{Compat, ReasoningField, ReasoningReplay};
+use miyu_drivers::openai_chat::Compat;
 use miyu_drivers::{DriverTextSources, DriverTexts};
 use miyu_kernel::facts::FactTemplates;
 use miyu_kernel::session::Policy;
 use miyu_kernel::tool::{ToolTextSources, ToolTexts};
 
-/// 占位的 system，3-6 换成人格的。
-pub const SYSTEM: &str = "You are a helpful assistant.";
+/// 占位的 system，3-6 换成人格的。在资源目录里：给模型看的字都在那，登记簿查得全（`26-提示词.md`
+/// 第十节）。
+pub const SYSTEM: &str = include_str!("../../../resources/try/system.txt");
 
 /// 这一个会话的策略：`system` 进稳定区，工具面是空的，回合不限步数（没有工具，一轮只请求一次）。
 ///
@@ -42,16 +43,9 @@ pub fn policy(system: &str) -> Policy {
     }
 }
 
-/// DeepSeek 的开关：每条 assistant 都带回 `reasoning_content`，输出上限写在 `max_tokens`，要最后
-/// 一块的用量。
+/// DeepSeek 的开关：驱动出厂的那一套（每条 assistant 都带回 `reasoning_content`，会接着写）。
 pub fn compat() -> Compat {
-    Compat {
-        reasoning: ReasoningReplay::Replay {
-            field: ReasoningField::ReasoningContent,
-            always: true,
-        },
-        ..Compat::default()
-    }
+    Compat::deepseek()
 }
 
 /// 出厂的驱动占位：图片、文件发不了的时候写给模型的那几句。

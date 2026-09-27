@@ -113,8 +113,8 @@ async fn two_turns_stream_log_and_extend_the_prefix() {
 }
 
 #[tokio::test]
-async fn a_cut_reply_is_asked_again_with_the_half_and_the_notice() {
-    // 第一次：回复出了几段就停住，等试玩台照 /cut 掐断。第二次：接着说完。
+async fn a_cut_reply_is_continued_where_it_stopped() {
+    // 第一次：回复出了几段就停住，等试玩台照 /cut 掐断。第二次：DeepSeek 会接着写，从截断处说完。
     let first = vec![opening(), text("一"), text("二"), text("三"), Piece::Stall];
     let mut second = vec![opening(), text("四五六。")];
     second.extend(finish(30, 0, 4));
@@ -125,8 +125,7 @@ async fn a_cut_reply_is_asked_again_with_the_half_and_the_notice() {
     for expected in [
         "（下一次请求在回复的第 2 段掐断）",
         "（这次请求没成：可以重试的错：cut on purpose by the trial bench (/cut)）",
-        "（1.0 秒后第 1/5 次重试）",
-        "（半截留下了，跟上一句被打断的提示再请求）",
+        "（半截留下了，接着说）\n（1.0 秒后第 1/5 次重试）",
         "四五六。",
     ] {
         assert!(
@@ -135,24 +134,31 @@ async fn a_cut_reply_is_asked_again_with_the_half_and_the_notice() {
         );
     }
 
-    // 第二次请求：真的等了一秒才发；半截回复，后面跟着被打断的那一句。
+    // 第二次请求：真的等了一秒才发；发到接着写的路径，最后一条是带 prefix 的半截，没有那句提示。
     let times = fake.times();
     assert!(
         times[1] - times[0] >= Duration::from_millis(900),
         "没等够就重试了"
     );
+    assert_eq!(
+        fake.paths(),
+        ["/chat/completions", "/beta/chat/completions"]
+    );
     let bodies = fake.bodies();
     assert_eq!(bodies.len(), 2);
+    assert!(
+        !bodies[1].to_string().contains("<reply-cut>"),
+        "接着写的不发那句提示"
+    );
     let messages = bodies[1]["messages"].as_array().unwrap();
-    let half = &messages[messages.len() - 2];
+    let half = &messages[messages.len() - 1];
     assert_eq!(half["role"], "assistant");
+    assert_eq!(half["prefix"], true);
     let half = half["content"].as_str().unwrap();
     assert!(
         !half.is_empty() && "一二三".starts_with(half),
         "半截是 {half:?}"
     );
-    let notice = messages[messages.len() - 1]["content"].to_string();
-    assert!(notice.contains("<reply-cut>"), "最后一条是 {notice}");
 
     // 日志：半截带着 interrupted，后面是被打断的事实，这一轮最后正常走完。
     let log = log_lines(&dir);

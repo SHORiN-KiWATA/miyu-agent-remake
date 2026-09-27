@@ -1,11 +1,13 @@
 //! 门禁程序。`cargo xtask check` 依次跑格式、clippy、文档、三道门禁和测试，最后打一张结果表。
 //!
-//! 三道门禁都照图纸查：`docs/designs/01-架构.md` 第九节「代码的分层」。
+//! 三道门禁都照图纸查：`docs/designs/01-架构.md` 第九节「代码的分层」。「文档」那一项还查登记簿：
+//! 给模型看的字和 `docs/designs/26-提示词.md` 第十节一一对上（施工 3-5 再补）。
 //! 里面的 cargo 一个接一个跑，不并行。
 
 mod drawing;
 mod files;
 mod layers;
+mod ledger;
 mod purity;
 mod size;
 
@@ -71,6 +73,10 @@ fn check() -> ExitCode {
             &[("RUSTDOCFLAGS", "-D warnings")],
         ),
     ];
+    println!("\n── 文档：登记簿 {} 第十节 ──", ledger::PATH);
+    if let Some(docs) = outcomes.last_mut() {
+        docs.problems.extend(ledger::check(&root));
+    }
     outcomes.extend(gates(&cargo, &root));
     outcomes.push(cargo_step(
         &cargo,

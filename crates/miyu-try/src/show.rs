@@ -31,6 +31,9 @@ pub struct Show<W: Write> {
     fresh: bool,
     /// 上一次请求的输入一共多少 token：算这一次重算了多少。
     last_input: Option<u64>,
+    /// 要重试的那一行，等这一批事件写完了再出：状态是马上推的，出错的那一条要等落了盘才推，
+    /// 照先后写就成了「几秒后重试」在「这次没成」前面。
+    retrying: Option<String>,
 }
 
 impl<W: Write> Show<W> {
@@ -42,6 +45,7 @@ impl<W: Write> Show<W> {
             kinds: BTreeMap::new(),
             fresh: true,
             last_input: None,
+            retrying: None,
         }
     }
 
@@ -119,14 +123,27 @@ impl<W: Write> Show<W> {
         self.out.flush()
     }
 
-    /// 要重试了：等多久，第几次。出的什么错，前面 `model.called` 那一行写了。
+    /// 要重试了：等多久，第几次。先记着，等出错的那一条写完了再出（[`Show::settled`]）。
     fn retry(&mut self, status: &Status) -> io::Result<()> {
         let retry = &status.retry;
         let seconds = retry.wait_ms as f64 / 1000.0;
-        self.note(&format!(
+        self.retrying = Some(format!(
             "（{seconds:.1} 秒后第 {}/{} 次重试）",
             retry.attempt, retry.limit
-        ))
+        ));
+        Ok(())
+    }
+
+    /// 一批落了盘的事件写完了：记着的重试那一行这时出。
+    ///
+    /// # Errors
+    ///
+    /// 写不进去。
+    pub fn settled(&mut self) -> io::Result<()> {
+        match self.retrying.take() {
+            Some(line) => self.note(&line),
+            None => Ok(()),
+        }
     }
 
     /// 一条落了盘的事件：用量、被打断的那一句、这一轮怎么结束的；回复本身已经边出边写过了。
@@ -142,7 +159,7 @@ impl<W: Write> Show<W> {
             }
             Body::ModelCalled(called) => self.called(called),
             Body::ContextInjected(fact) if fact.kind.as_str() == "reply_cut" => {
-                self.note("（半截留下了，跟上一句被打断的提示再请求）")
+                self.note("（半截留下了，接着说）")
             }
             Body::TurnEnded(ended) => match ended_text(&ended.reason) {
                 Some(text) => self.note(&format!("（这一轮{text}）")),

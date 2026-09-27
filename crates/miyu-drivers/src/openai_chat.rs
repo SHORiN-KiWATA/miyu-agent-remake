@@ -2,7 +2,8 @@
 //! DeepSeek、智谱、OpenRouter、opencode Zen，本机的 Ollama、LM Studio 都说这一种。
 //!
 //! 统一的请求照那张表写成一个 JSON：顶层字段的先后固定，每条消息照 `wire.rs` 里写的来，同样的
-//! 输入字节一定一样。供应商之间不一样的地方是 [`Compat`] 里的三个开关，跟着供应商定、会话里不变。
+//! 输入字节一定一样。供应商之间不一样的地方是 [`Compat`] 里的四个开关，跟着供应商定、会话里不变；
+//! 出厂只给实测过的供应商配好一套（[`Compat::deepseek`]）。
 //!
 //! 响应是 SSE 流，[`Decoder`] 解成内核的四种增量，说完时交出用量和出错。
 
@@ -30,7 +31,7 @@ pub const FAMILY: &str = "openai-chat";
 /// 请求发到供应商地址后面的这一截。
 pub const PATH: &str = "/chat/completions";
 
-/// 供应商之间不一样的三处。默认是最常见的写法。
+/// 供应商之间不一样的四处。默认是最常见的写法。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Compat {
     /// 输出上限写在哪个字段。
@@ -39,17 +40,62 @@ pub struct Compat {
     pub reasoning: ReasoningReplay,
     /// 要不要在流里报用量（`stream_options.include_usage`）。
     pub stream_usage: bool,
+    /// 会不会接着写被打断的回复（`05-内核接口.md` 第七节「接着写被打断的回复」）。
+    pub continuation: Continuation,
 }
 
 impl Default for Compat {
-    /// `max_tokens`，不回传思考，报用量。
+    /// `max_tokens`，不回传思考，报用量，不会接着写。
     fn default() -> Compat {
         Compat {
             output_limit: OutputLimit::MaxTokens,
             reasoning: ReasoningReplay::Drop,
             stream_usage: true,
+            continuation: Continuation::None,
         }
     }
+}
+
+impl Compat {
+    /// DeepSeek 官方：每条 assistant 都带 `reasoning_content`，没有就发空串；接着写用 `prefix: true`，
+    /// 发到 `/beta/chat/completions`，半截的思考照常写在 `reasoning_content`。2026-09-27 用真的请求
+    /// 实测过：思考、回复都从截断处接着往下（施工 3-5 补、再补）。
+    pub fn deepseek() -> Compat {
+        Compat {
+            reasoning: ReasoningReplay::Replay {
+                field: ReasoningField::ReasoningContent,
+                always: true,
+            },
+            continuation: Continuation::Prefix {
+                field: ContinuationField::Prefix,
+                path: "/beta/chat/completions",
+            },
+            ..Compat::default()
+        }
+    }
+}
+
+/// 会不会接着写被打断的回复。只给实测过的供应商打开：不猜，也不发请求去探测。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Continuation {
+    /// 不会：带着接着写记号的请求也照原样发，被打断的那一句里写着从断的地方接着说。
+    None,
+    /// 前缀续写：不发最后那句被打断的提示，半截那条 assistant 加上 `field: true`，发到 `path`。
+    Prefix {
+        /// 半截那条 assistant 上加哪个字段。
+        field: ContinuationField,
+        /// 这一次发到供应商地址后面的哪一截。
+        path: &'static str,
+    },
+}
+
+/// 接着写的时候，半截那条 assistant 上加的字段。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContinuationField {
+    /// `prefix`：DeepSeek、Mistral。
+    Prefix,
+    /// `partial`：Kimi、通义。
+    Partial,
 }
 
 /// 输出上限写在哪个字段。
@@ -94,7 +140,8 @@ pub enum ReasoningField {
 }
 
 /// 编码：顶层照 `model`、`messages`、`tools`、`stream`、`stream_options`、输出上限的先后写，
-/// 别的字段一概不发。
+/// 别的字段一概不发。带着接着写的记号、供应商又会接着写的，照 [`Continuation::Prefix`] 写，发到它的
+/// 路径；别的发到 [`PATH`]。
 ///
 /// # Errors
 ///
@@ -110,7 +157,18 @@ pub fn encode(
     texts: &DriverTexts,
     blobs: &dyn BlobBytes,
 ) -> Result<Encoded, EncodeError> {
-    let messages = messages::write(request, call, compat, texts, blobs)?;
+    let continuing = match compat.continuation {
+        Continuation::Prefix { field, path } if request.continuation => Some((field, path)),
+        _ => None,
+    };
+    let messages = messages::write(
+        request,
+        call,
+        compat,
+        texts,
+        blobs,
+        continuing.map(|(field, _)| field),
+    )?;
     let mut body = Vec::new();
     body.extend_from_slice(b"{\"model\":");
     json(&mut body, call.model.as_str());
@@ -141,6 +199,7 @@ pub fn encode(
     Ok(Encoded {
         body,
         messages: ranges,
+        path: continuing.map_or(PATH, |(_, path)| path),
     })
 }
 

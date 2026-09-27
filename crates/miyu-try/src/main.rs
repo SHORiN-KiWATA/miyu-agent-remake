@@ -17,8 +17,8 @@ use miyu_kernel::id::{ModelName, ProviderId};
 use miyu_try::{Bench, KeyFile, SYSTEM, Said, Show};
 use tokio::sync::mpsc;
 
-/// 多久没收到新的字节就算断了。思考模型想得久也是一段一段地出，两分钟一个字都没有就是断了。
-const IDLE: Duration = Duration::from_secs(120);
+/// 多久没收到新的字节就算断了：照图纸的初值 180 秒（`05-内核接口.md` 第七节「HTTP 执行器」）。
+const IDLE: Duration = Duration::from_secs(180);
 
 const USAGE: &str = "用法：miyu-try [--env <key 文件>] [--model <模型>] [--system <文件>]";
 

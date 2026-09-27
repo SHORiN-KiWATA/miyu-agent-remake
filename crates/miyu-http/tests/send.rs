@@ -54,6 +54,7 @@ async fn run(
             endpoint,
             driver: &driver,
             body: BODY,
+            path: "/chat/completions",
             idle,
         },
         cancel,
@@ -236,7 +237,10 @@ async fn a_stall_times_out() {
 async fn cancelling_stops_right_away() {
     let mut server = Server::start(vec![Reply::stream(vec![Piece::Stall])]).await;
     let endpoint = Endpoint::new(&server.base_url, "sk-test");
-    let cancel = tokio::time::sleep(Duration::from_millis(100));
+    // 等假服务器回完了头、停住了再叫停：测的是读到一半打断。以前定死在 100 毫秒，慢的机器上那一刻
+    // 可能还在连、还在写请求，客户端在后台把连接建完放进池子里，假服务器就看不到断开（macOS 上偶发，
+    // 施工 3-5 再补）。
+    let cancel = server.wait_stalled(1);
     let started = tokio::time::Instant::now();
     let (_, outcome) = run(&endpoint, Duration::from_secs(30), cancel).await;
     assert_eq!(outcome, Outcome::Cancelled);

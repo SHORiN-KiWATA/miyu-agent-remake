@@ -1,4 +1,5 @@
-//! 组装器的测试：稳定区排在最前，工具面照名字排，`stable` 是示范对话的条数。
+//! 组装器的测试：稳定区排在最前，工具面照名字排，`stable` 是示范对话的条数；最后是半截回复加被
+//! 打断的那一句的，带上接着写的记号。
 
 use miyu_kernel::raw::RawJson;
 
@@ -57,4 +58,107 @@ fn without_demos_nothing_is_stable() {
     let request = assembler.assemble(Log::new().history());
     assert_eq!(request.stable, 0);
     assert!(request.messages.is_empty());
+}
+
+/// 说一句，回复到一半断了、记了出错：到这里为止的日志。
+fn cut_log() -> Log {
+    let mut log = Log::new();
+    let hi = log.say("数到六");
+    log.start(hi);
+    let seen = log.next() - 1;
+    log.push(
+        MODEL,
+        "message.assistant",
+        &format!(
+            r#"{{"blocks":[{}],"seen":{seen},"interrupted":true}}"#,
+            text_json("一二三")
+        ),
+    );
+    log.push(
+        KERNEL,
+        "model.called",
+        &format!(
+            r#"{{"seen":{seen},"messages":2,"result":"error","error":{{"class":"retryable","message":"reset"}}}}"#
+        ),
+    );
+    log
+}
+
+/// 内核记下被打断的那一句。
+fn notice(log: &mut Log) {
+    let text = quoted("<reply-cut>The reply above was cut off before it was finished.</reply-cut>");
+    log.push(
+        KERNEL,
+        "context.injected",
+        &format!(r#"{{"kind":"reply_cut","text":{text}}}"#),
+    );
+}
+
+fn assemble(log: &Log) -> Request {
+    DefaultAssembler::new(stable(&[], vec![]), texts()).assemble(log.history())
+}
+
+#[test]
+fn a_cut_reply_asked_again_is_a_continuation() {
+    let mut log = cut_log();
+    notice(&mut log);
+    let request = assemble(&log);
+    assert!(request.continuation);
+    assert_eq!(
+        shape(&request.messages),
+        [
+            "user: 数到六",
+            "assistant: 一二三",
+            "user: <reply-cut>The reply above was cut off before it was finished.</reply-cut>",
+        ]
+    );
+}
+
+#[test]
+fn anything_after_the_notice_is_not_a_continuation() {
+    // 在等的时候又说了一句：最后那条 user 里不只有那一句。
+    let mut log = cut_log();
+    notice(&mut log);
+    log.say("快点");
+    assert!(!assemble(&log).continuation);
+    // 在等的时候切了级别，到点了记下新的事实。
+    let mut log = cut_log();
+    notice(&mut log);
+    log.fact("<permission level=\"read_only\"/>");
+    assert!(!assemble(&log).continuation);
+}
+
+#[test]
+fn a_cut_without_the_notice_is_not_a_continuation() {
+    // 人打断的：半截后面是回合结束，没有被打断的那一句。
+    let mut log = cut_log();
+    log.end("interrupted");
+    assert!(!assemble(&log).continuation);
+    // 前面那条不是半截（完整的回复），后面却跟着那一句：内核不会这样记，也不算。
+    let mut log = Log::new();
+    let hi = log.say("数到六");
+    log.start(hi);
+    log.reply(&format!("[{}]", text_json("一二三四五六。")));
+    notice(&mut log);
+    assert!(!assemble(&log).continuation);
+    // 不是内核记的，不算。
+    let mut log = cut_log();
+    log.push(
+        r#"{"kind":"module","id":"memory"}"#,
+        "context.injected",
+        r#"{"kind":"reply_cut","text":"x"}"#,
+    );
+    assert!(!assemble(&log).continuation);
+}
+
+#[test]
+fn an_ordinary_request_is_not_a_continuation() {
+    let mut log = Log::new();
+    let hi = log.say("hi");
+    log.start(hi);
+    assert!(!assemble(&log).continuation);
+    log.reply(&format!("[{}]", text_json("好。")));
+    log.end("completed");
+    log.say("再说一句");
+    assert!(!assemble(&log).continuation);
 }

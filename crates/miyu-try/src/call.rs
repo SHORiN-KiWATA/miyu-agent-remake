@@ -179,6 +179,7 @@ impl Caller {
                 endpoint: &endpoint,
                 driver: &*driver,
                 body: &encoded.body,
+                path: encoded.path,
                 idle,
             };
             let outcome = send(attempt, cancelled, |progress| match progress {

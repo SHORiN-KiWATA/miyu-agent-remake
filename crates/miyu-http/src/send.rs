@@ -34,6 +34,8 @@ pub struct Attempt<'a> {
     pub driver: &'a dyn Driver,
     /// 驱动编码好的请求字节。
     pub body: &'a [u8],
+    /// 发到供应商地址后面的哪一截：编码交回的那一条（`Encoded::path`）。
+    pub path: &'a str,
     /// 多久没收到新的字节就算断了。
     pub idle: Duration,
 }
@@ -74,7 +76,7 @@ pub async fn send(
     let url = format!(
         "{}{}",
         attempt.endpoint.base_url.trim_end_matches('/'),
-        attempt.driver.path()
+        attempt.path
     );
     let mut request = attempt
         .client

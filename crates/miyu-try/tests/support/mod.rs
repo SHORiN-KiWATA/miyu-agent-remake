@@ -1,5 +1,5 @@
 //! 测试用的假 DeepSeek：本机回环上几十行的 HTTP/1.1。第几个连接回剧本里的第几份，响应体一片一片地
-//! 写，写完关连接；可以停住不动，等对方断开。收到的请求体和收到的时刻都记下来。
+//! 写，写完关连接；可以停住不动，等对方断开。收到的请求体、发到的路径、收到的时刻都记下来。
 
 #![allow(dead_code, reason = "两个测试各用其中一部分")]
 
@@ -52,8 +52,15 @@ impl Reply {
     }
 }
 
-/// 收到的请求，照先后：收到的时刻和请求体。
-type Received = Vec<(Instant, Vec<u8>)>;
+/// 收到的一个请求：收到的时刻、发到的路径、请求体。
+struct Request {
+    at: Instant,
+    path: String,
+    body: Vec<u8>,
+}
+
+/// 收到的请求，照先后。
+type Received = Vec<Request>;
 
 /// 一个在听的假 DeepSeek。
 pub struct Fake {
@@ -77,10 +84,10 @@ impl Fake {
         tokio::spawn(async move {
             for reply in replies {
                 let (mut socket, _) = listener.accept().await.expect("试玩台连得上来");
-                let body = read_request(&mut socket).await;
+                let request = read_request(&mut socket).await;
                 log.lock()
                     .unwrap_or_else(PoisonError::into_inner)
-                    .push((Instant::now(), body));
+                    .push(request);
                 answer(&mut socket, reply).await;
             }
         });
@@ -93,7 +100,17 @@ impl Fake {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .iter()
-            .map(|(_, body)| serde_json::from_slice(body).expect("试玩台发的请求体是 JSON"))
+            .map(|request| serde_json::from_slice(&request.body).expect("试玩台发的请求体是 JSON"))
+            .collect()
+    }
+
+    /// 每个请求发到的路径。
+    pub fn paths(&self) -> Vec<String> {
+        self.received
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .iter()
+            .map(|request| request.path.clone())
             .collect()
     }
 
@@ -103,13 +120,13 @@ impl Fake {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .iter()
-            .map(|(at, _)| *at)
+            .map(|request| request.at)
             .collect()
     }
 }
 
-/// 读一个请求：头读到空行，再照 `Content-Length` 读请求体。
-async fn read_request(socket: &mut TcpStream) -> Vec<u8> {
+/// 读一个请求：头读到空行，再照 `Content-Length` 读请求体。路径取自请求行。
+async fn read_request(socket: &mut TcpStream) -> Request {
     let mut bytes = Vec::new();
     let mut buffer = [0u8; 4096];
     let head_end = loop {
@@ -131,7 +148,17 @@ async fn read_request(socket: &mut TcpStream) -> Vec<u8> {
         assert!(n > 0, "请求体没读全就断了");
         bytes.extend_from_slice(&buffer[..n]);
     }
-    bytes[head_end..head_end + length].to_vec()
+    let path = head
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .expect("请求行里有路径")
+        .to_string();
+    Request {
+        at: Instant::now(),
+        path,
+        body: bytes[head_end..head_end + length].to_vec(),
+    }
 }
 
 /// 回一份：状态行和头，响应体一片一片地写，写完关连接。

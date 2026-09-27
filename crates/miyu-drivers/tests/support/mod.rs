@@ -8,7 +8,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use miyu_drivers::openai_chat::{Compat, ReasoningField, ReasoningReplay};
+use miyu_drivers::openai_chat::Compat;
 use miyu_drivers::{Call, DriverTextSources, DriverTexts, Inputs};
 use miyu_kernel::block::{Block, File, Image, Private, Reasoning, Text, ToolCall};
 use miyu_kernel::id::{CallId, ContentHash, DriverFamily, FileName, MediaType, ModelName};
@@ -46,15 +46,10 @@ pub fn sees_all() -> Inputs {
     }
 }
 
-/// DeepSeek 那一套：每条 assistant 都带 `reasoning_content`，没有就发空串。
+/// DeepSeek 那一套（出厂的 [`Compat::deepseek`]）：每条 assistant 都带 `reasoning_content`，没有就发
+/// 空串；会接着写。
 pub fn deepseek() -> Compat {
-    Compat {
-        reasoning: ReasoningReplay::Replay {
-            field: ReasoningField::ReasoningContent,
-            always: true,
-        },
-        ..Compat::default()
-    }
+    Compat::deepseek()
 }
 
 pub fn text(text: &str) -> Block {

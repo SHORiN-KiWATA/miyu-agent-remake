@@ -2,7 +2,7 @@
 //! 哪一家。编码、解码、分类都是纯函数；真正发请求的是执行器。
 //!
 //! 规格里的 `models`（模型资料）、`cache`（缓存类型）到配置和模型资料的那几步再加；`transport`
-//! 现在只有 HTTP，就是这里的路径。
+//! 现在只有 HTTP，发到哪条路径跟着编码结果走（[`Encoded::path`]，施工 3-5 再补）。
 
 use std::collections::BTreeSet;
 
@@ -19,9 +19,6 @@ use crate::{BlobBytes, Call, DriverTexts, EncodeError, Encoded, Ending};
 pub trait Driver: Send + Sync {
     /// 驱动家族：私有数据里写的是它的，才归它用（`03-事件模型.md` 第九节）。
     fn family(&self) -> &'static str;
-
-    /// 请求发到供应商地址后面的这一截。
-    fn path(&self) -> &'static str;
 
     /// 这份请求编码时要用哪些 blob，执行器照着先取出来。
     fn blobs_needed(&self, request: &Request, call: &Call) -> BTreeSet<ContentHash>;
@@ -74,10 +71,6 @@ impl OpenAiChat {
 impl Driver for OpenAiChat {
     fn family(&self) -> &'static str {
         openai_chat::FAMILY
-    }
-
-    fn path(&self) -> &'static str {
-        openai_chat::PATH
     }
 
     fn blobs_needed(&self, request: &Request, call: &Call) -> BTreeSet<ContentHash> {

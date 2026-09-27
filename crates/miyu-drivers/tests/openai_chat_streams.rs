@@ -147,6 +147,7 @@ fn a_decoded_reply_encodes_back_with_the_providers_ids() {
             Message::Assistant { blocks: reply },
         ],
         stable: 0,
+        continuation: false,
     };
     let encoded = miyu_drivers::openai_chat::encode(
         &request,
@@ -172,7 +173,6 @@ fn a_decoded_reply_encodes_back_with_the_providers_ids() {
 fn the_driver_interface_goes_through_all_three() {
     let driver: Box<dyn Driver> = Box::new(OpenAiChat::new(deepseek(), texts()));
     assert_eq!(driver.family(), "openai-chat");
-    assert_eq!(driver.path(), "/chat/completions");
     let request = Request {
         tools: vec![],
         system: "You are a helpful assistant.".to_string(),
@@ -180,12 +180,14 @@ fn the_driver_interface_goes_through_all_three() {
             blocks: vec![text("你好")],
         }],
         stable: 0,
+        continuation: false,
     };
     let call = call(Inputs::default(), None);
     assert!(driver.blobs_needed(&request, &call).is_empty());
     let through = driver
         .encode(&request, &call, &BTreeMap::new())
         .expect("编码得了");
+    assert_eq!(through.path, "/chat/completions");
     let direct =
         miyu_drivers::openai_chat::encode(&request, &call, &deepseek(), &texts(), &BTreeMap::new())
             .expect("编码得了");

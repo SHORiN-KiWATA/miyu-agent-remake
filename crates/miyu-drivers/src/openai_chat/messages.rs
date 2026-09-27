@@ -4,6 +4,7 @@
 //!   文件的分成几段，连着的文字照样拼成一段。
 //! - assistant：正文、思考各自直接接上，它们本来就是一整段；工具调用的编号用供应商自己的。
 //! - tool：文字照 user 的拼法；图片、PDF 挪到这一串 tool 消息后面的一条 user 消息里。
+//! - 接着写的：最后那条 user（只有被打断的那一句）不发，半截那条 assistant 加上接着写的字段。
 
 use std::collections::BTreeMap;
 use std::mem;
@@ -15,16 +16,18 @@ use serde::Deserialize;
 use serde::de::IgnoredAny;
 
 use super::wire::{Content, FileData, FunctionCall, Part, ToolCall as WireCall, Url, Wire};
-use super::{Compat, EncodeError, FAMILY, ReasoningField, ReasoningReplay};
+use super::{Compat, ContinuationField, EncodeError, FAMILY, ReasoningField, ReasoningReplay};
 use crate::{BlobBytes, Call, DriverTexts, base64};
 
-/// 写全部消息：system 在最前，每条 tool 消息串后面跟着挪出来的图片、文件。
+/// 写全部消息：system 在最前，每条 tool 消息串后面跟着挪出来的图片、文件。`continuing` 有的是
+/// 接着写：最后那条 user 不发，半截那条加上这个字段。
 pub(super) fn write(
     request: &Request,
     call: &Call,
     compat: &Compat,
     texts: &DriverTexts,
     blobs: &dyn BlobBytes,
+    continuing: Option<ContinuationField>,
 ) -> Result<Vec<Wire>, EncodeError> {
     let writer = Writer {
         call,
@@ -40,7 +43,11 @@ pub(super) fn write(
         });
     }
     let mut moved = Vec::new();
-    for message in &request.messages {
+    let messages = match (continuing, request.messages.split_last()) {
+        (Some(_), Some((Message::User { .. }, earlier))) => earlier,
+        _ => &request.messages[..],
+    };
+    for message in messages {
         if !matches!(message, Message::Tool { .. }) {
             writer.flush(&mut moved, &mut out);
         }
@@ -55,6 +62,18 @@ pub(super) fn write(
         });
     }
     writer.flush(&mut moved, &mut out);
+    if let (
+        Some(field),
+        Some(Wire::Assistant {
+            prefix, partial, ..
+        }),
+    ) = (continuing, out.last_mut())
+    {
+        match field {
+            ContinuationField::Prefix => *prefix = Some(true),
+            ContinuationField::Partial => *partial = Some(true),
+        }
+    }
     Ok(out)
 }
 
@@ -130,6 +149,8 @@ impl Writer<'_> {
             reasoning_content,
             reasoning,
             tool_calls,
+            prefix: None,
+            partial: None,
         }
     }
 

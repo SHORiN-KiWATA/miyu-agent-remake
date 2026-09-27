@@ -9,7 +9,7 @@
 use std::collections::BTreeMap;
 
 use miyu_assemble::{DefaultAssembler, Stable, Texts, TurnEndedTexts};
-use miyu_drivers::openai_chat::{self, Compat, Encoded, ReasoningField, ReasoningReplay};
+use miyu_drivers::openai_chat::{self, Compat, Encoded};
 use miyu_drivers::{Call, DriverTextSources, DriverTexts, Inputs};
 use miyu_kernel::block::Block;
 use miyu_kernel::event::{Body, Event};
@@ -136,7 +136,7 @@ pub fn check(sent: &[Sent]) -> Result<(), String> {
             let before = &sent[index - 1].request;
             extends(request, before)
                 .map_err(|why| format!("第 {number} 次请求不是上一次的前缀延伸：{why}"))?;
-            wire_extends(&wire(request), &wire(before))
+            wire_extends(&wire(request), &baseline(before))
                 .map_err(|why| format!("第 {number} 次请求编码以后不是上一次的前缀延伸：{why}"))?;
         }
     }
@@ -180,23 +180,32 @@ fn extends(now: &Request, before: &Request) -> Result<(), String> {
     }
 }
 
-/// 编码成 OpenAI 兼容接口的字节，用 DeepSeek 那一套：模型 `deepseek-v4`，输出上限 8192，每条
-/// assistant 都带 `reasoning_content`。探针的线上存档也是它。
+/// 编码成 OpenAI 兼容接口的字节，用 DeepSeek 那一套（驱动出厂的 `Compat::deepseek`）：模型
+/// `deepseek-v4`，输出上限 8192，每条 assistant 都带 `reasoning_content`，会接着写。探针的线上存档
+/// 也是它。
 pub fn wire(request: &Request) -> Encoded {
     let call = Call {
         model: ModelName::parse("deepseek-v4").expect("模型名合写法"),
         max_output: Some(8192),
         inputs: Inputs::default(),
     };
-    let compat = Compat {
-        reasoning: ReasoningReplay::Replay {
-            field: ReasoningField::ReasoningContent,
-            always: true,
-        },
-        ..Compat::default()
-    };
-    openai_chat::encode(request, &call, &compat, &driver_texts(), &BTreeMap::new())
-        .expect("探针里没有图片、文件，不要 blob")
+    openai_chat::encode(
+        request,
+        &call,
+        &Compat::deepseek(),
+        &driver_texts(),
+        &BTreeMap::new(),
+    )
+    .expect("探针里没有图片、文件，不要 blob")
+}
+
+/// 查线上的前缀延伸时拿来比的那一份：接着写的请求，照不接着写的编码。接着写的那一次去掉了最后那句
+/// 提示、半截那条加了字段，下一次请求里又换回普通的写法：这是登记在案的改写（08 第七节）。
+fn baseline(request: &Request) -> Encoded {
+    wire(&Request {
+        continuation: false,
+        ..request.clone()
+    })
 }
 
 /// 线上的前缀延伸：上一次最后一条消息之前的字节一个不差；上一次的最后一条，要么一样，要么只在

@@ -70,6 +70,8 @@ pub struct Encoded {
     /// 每条线上的消息在字节里的位置，照先后。system 和挪出来的那条 user 消息也各算一条，所以
     /// 条数不一定和统一的请求一样。
     pub messages: Vec<Range<usize>>,
+    /// 发到供应商地址后面的哪一截：平时是驱动的那一条，接着写的另有一条（施工 3-5 再补）。
+    pub path: &'static str,
 }
 
 /// 编码不成。

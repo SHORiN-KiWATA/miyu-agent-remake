@@ -135,6 +135,7 @@ impl Assembler for Listing {
             system: "listing".to_string(),
             messages,
             stable: 0,
+            continuation: false,
         }
     }
 }

@@ -35,6 +35,12 @@ pub(super) enum Wire {
         /// 工具调用。
         #[serde(skip_serializing_if = "Vec::is_empty")]
         tool_calls: Vec<ToolCall>,
+        /// 接着写这一条：DeepSeek、Mistral 的写法。只在接着写的那一次、半截那一条上有。
+        #[serde(skip_serializing_if = "Option::is_none")]
+        prefix: Option<bool>,
+        /// 接着写这一条：Kimi、通义的写法。
+        #[serde(skip_serializing_if = "Option::is_none")]
+        partial: Option<bool>,
     },
     /// tool：一次调用的结果，只有文字。
     Tool {

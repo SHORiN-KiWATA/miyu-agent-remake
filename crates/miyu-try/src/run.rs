@@ -225,6 +225,7 @@ impl<W: Write> Executor<W> {
                         self.busy = None;
                     }
                 }
+                self.show.settled()?;
                 Ok(Vec::new())
             }
             Action::PushTransient(transient) => {

@@ -80,6 +80,8 @@ pub struct Server {
     received: Arc<Mutex<Vec<Received>>>,
     /// 对方断开了几个连接。
     closed: watch::Receiver<usize>,
+    /// 几个连接回完了剧本里停住之前的那些，停住了。
+    stalled: watch::Receiver<usize>,
 }
 
 impl Server {
@@ -92,6 +94,8 @@ impl Server {
         let received = Arc::new(Mutex::new(Vec::new()));
         let (closed_tx, closed) = watch::channel(0);
         let closed_tx = Arc::new(closed_tx);
+        let (stalled_tx, stalled) = watch::channel(0);
+        let stalled_tx = Arc::new(stalled_tx);
         let log = Arc::clone(&received);
         tokio::spawn(async move {
             for reply in replies {
@@ -100,8 +104,9 @@ impl Server {
                 };
                 let log = Arc::clone(&log);
                 let closed_tx = Arc::clone(&closed_tx);
+                let stalled_tx = Arc::clone(&stalled_tx);
                 tokio::spawn(async move {
-                    serve(socket, reply, &log).await;
+                    serve(socket, reply, &log, &stalled_tx).await;
                     closed_tx.send_modify(|count| *count += 1);
                 });
             }
@@ -110,6 +115,7 @@ impl Server {
             base_url: format!("http://127.0.0.1:{port}/v1"),
             received,
             closed,
+            stalled,
         }
     }
 
@@ -130,10 +136,26 @@ impl Server {
         .await;
         assert!(waited.is_ok(), "五秒内对方没有断开连接");
     }
+
+    /// 等到有 `count` 个连接停住（剧本里停住之前的都回完了），最多等五秒。
+    pub async fn wait_stalled(&self, count: usize) {
+        let mut stalled = self.stalled.clone();
+        let waited = tokio::time::timeout(
+            Duration::from_secs(5),
+            stalled.wait_for(|stalled| *stalled >= count),
+        )
+        .await;
+        assert!(waited.is_ok(), "五秒内没有连接停住");
+    }
 }
 
-/// 一个连接：读请求，照剧本回。
-async fn serve(mut socket: TcpStream, reply: Reply, log: &Mutex<Vec<Received>>) {
+/// 一个连接：读请求，照剧本回。停住的时候说一声。
+async fn serve(
+    mut socket: TcpStream,
+    reply: Reply,
+    log: &Mutex<Vec<Received>>,
+    stalled: &watch::Sender<usize>,
+) {
     let Some(request) = read_request(&mut socket).await else {
         return;
     };
@@ -158,6 +180,7 @@ async fn serve(mut socket: TcpStream, reply: Reply, log: &Mutex<Vec<Received>>) 
             Piece::Wait(duration) => tokio::time::sleep(duration).await,
             Piece::Stall => {
                 // 停住，直到对方断开：读到 0 个字节就是断开了。
+                stalled.send_modify(|count| *count += 1);
                 let mut buffer = [0u8; 64];
                 while let Ok(read) = socket.read(&mut buffer).await {
                     if read == 0 {

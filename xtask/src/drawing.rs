@@ -44,7 +44,7 @@ impl Drawing {
 }
 
 pub fn parse(text: &str) -> Result<Drawing, String> {
-    let section = section(text)?;
+    let section = section(text, SECTION)?;
     let tables = tables(&section);
 
     let layer_table = find_table(&tables, &LAYER_HEADER)?;
@@ -90,24 +90,24 @@ pub fn parse(text: &str) -> Result<Drawing, String> {
 }
 
 /// 标题里带「代码的分层」的那一节，到下一个同级或更高级的标题为止。
-fn section(text: &str) -> Result<Vec<&str>, String> {
+pub(crate) fn section<'a>(text: &'a str, title: &str) -> Result<Vec<&'a str>, String> {
     let mut lines = text.lines();
     lines
         .by_ref()
-        .find(|line| line.starts_with("### ") && line.contains(SECTION))
-        .ok_or_else(|| format!("找不到标题里带「{SECTION}」的一节"))?;
+        .find(|line| line.starts_with("### ") && line.contains(title))
+        .ok_or_else(|| format!("找不到标题里带「{title}」的一节"))?;
     Ok(lines
         .take_while(|line| !line.starts_with("### ") && !line.starts_with("## "))
         .collect())
 }
 
-struct Table {
-    header: Vec<String>,
-    rows: Vec<Vec<String>>,
+pub(crate) struct Table {
+    pub(crate) header: Vec<String>,
+    pub(crate) rows: Vec<Vec<String>>,
 }
 
 /// 一节里所有的表格。表格是连续的、以 `|` 开头的行；第二行是分隔行。
-fn tables(section: &[&str]) -> Vec<Table> {
+pub(crate) fn tables(section: &[&str]) -> Vec<Table> {
     let mut tables = Vec::new();
     let mut current: Vec<&str> = Vec::new();
     for line in section.iter().chain(std::iter::once(&"")) {
@@ -131,7 +131,7 @@ fn cells(line: &str) -> Vec<String> {
     inner.split('|').map(|c| c.trim().to_string()).collect()
 }
 
-fn find_table<'a>(tables: &'a [Table], header: &[&str]) -> Result<&'a Table, String> {
+pub(crate) fn find_table<'a>(tables: &'a [Table], header: &[&str]) -> Result<&'a Table, String> {
     tables
         .iter()
         .find(|t| {
@@ -180,7 +180,7 @@ fn find_line<'a>(section: &[&'a str], anchor: &str) -> Result<&'a str, String> {
 }
 
 /// 一段文字里所有用反引号括起来的名字。
-fn backticked(text: &str) -> Vec<String> {
+pub(crate) fn backticked(text: &str) -> Vec<String> {
     text.split('`')
         .skip(1)
         .step_by(2)

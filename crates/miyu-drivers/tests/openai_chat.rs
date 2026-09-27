@@ -32,6 +32,7 @@ fn request(tools: bool, messages: Vec<Message>) -> Request {
         system: "You are a helpful assistant.".to_string(),
         messages,
         stable: 0,
+        continuation: false,
     }
 }
 

@@ -222,6 +222,7 @@ impl Assembler for Nothing {
             system: String::new(),
             messages: Vec::new(),
             stable: 0,
+            continuation: false,
         }
     }
 }
