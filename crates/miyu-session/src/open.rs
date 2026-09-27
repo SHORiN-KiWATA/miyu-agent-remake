@@ -69,6 +69,8 @@ pub struct Load<'a> {
     pub environment: Environment,
     /// 给会话造请求模型的端口：驱动的占位取自这个会话的策略快照。
     pub models: &'a dyn Models,
+    /// 工具目录：执行工具时照名字在这里找（施工 4-2）。工具面照快照，不照它。
+    pub tools: &'a Catalog,
 }
 
 /// 造不成。
@@ -131,14 +133,15 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let dir = root.session_dir(&owner, &id);
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
-    let (snapshot, policy, texts, log) = blocking(move || {
+    let (snapshot, policy, texts, run, log) = blocking(move || {
         let sources = resources.sources(&name).map_err(CreateError::Persona)?;
         let snapshot = compose(&name, sources, attended).with_tools(face);
         let policy = snapshot.policy().map_err(CreateError::Policy)?;
         let texts = snapshot.driver_texts().map_err(CreateError::Policy)?;
+        let run = snapshot.run_texts().map_err(CreateError::Policy)?;
         store.put(&snapshot.to_bytes()).map_err(CreateError::Disk)?;
         let log = SessionLog::create(&dir, SEGMENT_LIMIT).map_err(CreateError::Disk)?;
-        Ok((snapshot, policy, texts, log))
+        Ok((snapshot, policy, texts, run, log))
     })
     .await?;
     let model = models.port(ForSession { texts, blobs });
@@ -156,7 +159,14 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         environment,
     );
     let (inbox, mailbox) = mpsc::unbounded_channel();
-    let mut actor = Actor::new(session, Box::new(log), model, mailbox, clock);
+    let mut actor = Actor::new(
+        session,
+        Box::new(log),
+        model,
+        (tools.clone(), run),
+        mailbox,
+        clock,
+    );
     let busy = actor.busy();
     let (reply, answer) = oneshot::channel();
     actor.wait_for(command, reply);
@@ -196,12 +206,13 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         id,
         environment,
         models,
+        tools,
     } = setup;
     let span = actor::span(&id);
     let dir = root.session_dir(&owner, &id);
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
-    let (log, events, policy, texts) = blocking(move || {
+    let (log, events, policy, texts, run) = blocking(move || {
         let (log, events) = SessionLog::open(&dir, SEGMENT_LIMIT).map_err(LoadError::Log)?;
         let hash = match events.first().map(|event| &event.body) {
             Some(Body::SessionCreated(created)) => created.policy.clone(),
@@ -211,7 +222,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         let snapshot = Snapshot::from_bytes(&bytes).map_err(LoadError::Snapshot)?;
         let policy = snapshot.policy().map_err(LoadError::Policy)?;
         let texts = snapshot.driver_texts().map_err(LoadError::Policy)?;
-        Ok((log, events, policy, texts))
+        let run = snapshot.run_texts().map_err(LoadError::Policy)?;
+        Ok((log, events, policy, texts, run))
     })
     .await?;
     let model = models.port(ForSession { texts, blobs });
@@ -223,7 +235,14 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let (session, first) =
         Session::load(events, clock.now(), policy, environment).map_err(LoadError::Kernel)?;
     let (inbox, mailbox) = mpsc::unbounded_channel();
-    let actor = Actor::new(session, Box::new(log), model, mailbox, clock);
+    let actor = Actor::new(
+        session,
+        Box::new(log),
+        model,
+        (tools.clone(), run),
+        mailbox,
+        clock,
+    );
     let busy = actor.busy();
     span.in_scope(|| {
         tracing::info!(target: TARGET, events = count, "loaded");

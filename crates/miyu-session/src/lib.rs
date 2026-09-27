@@ -18,11 +18,13 @@ mod clock;
 mod handle;
 mod http;
 mod kinds;
+mod lines;
 mod open;
 mod port;
 mod store;
 #[cfg(feature = "testkit")]
 pub mod testkit;
+mod tools;
 
 pub use clock::new_id;
 pub use handle::{Ended, Handle, Pushed, Stopped, Subscription};

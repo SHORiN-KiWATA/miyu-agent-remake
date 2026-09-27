@@ -115,10 +115,12 @@ async fn a_write_that_fails_stops_the_session() {
     };
     let (inbox, mailbox) = mpsc::unbounded_channel();
     // 造会话那一条、第一句话写得进，第二句写不进。
+    let run = snapshot.run_texts().expect("出厂的快照造得出两句");
     let mut actor = Actor::new(
         session,
         Box::new(Failing { left: 2 }),
         Arc::new(Holding(model)),
+        (miyu_tool::Catalog::default(), run),
         mailbox,
         clock,
     );

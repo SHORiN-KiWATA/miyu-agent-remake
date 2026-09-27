@@ -1,26 +1,12 @@
 use std::sync::Arc;
 
-use miyu_kernel::raw::RawJson;
 use miyu_kernel::tool::Access;
 
 use super::*;
-
-/// 一件只报规格的假工具。
-struct Fake(Spec);
-
-impl Tool for Fake {
-    fn spec(&self) -> &Spec {
-        &self.0
-    }
-}
+use crate::testkit::{Act, Fake};
 
 fn tool(name: &str, parameters: &str) -> Arc<dyn Tool> {
-    Arc::new(Fake(Spec {
-        name: name.to_string(),
-        description: format!("The {name} tool."),
-        parameters: serde_json::from_str::<RawJson>(parameters).unwrap(),
-        access: Access::Read,
-    }))
+    Fake::with_parameters(name, Access::Read, parameters, Act::Echo)
 }
 
 fn object(name: &str) -> Arc<dyn Tool> {

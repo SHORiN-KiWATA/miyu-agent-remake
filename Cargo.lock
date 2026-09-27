@@ -941,7 +941,9 @@ name = "miyu-tool"
 version = "0.0.0"
 dependencies = [
  "miyu-kernel",
+ "miyu-tool",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]

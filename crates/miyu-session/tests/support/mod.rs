@@ -103,14 +103,25 @@ impl Home {
         within("造会话", created).await.expect("造得出会话")
     }
 
-    /// 载入会话 `session`，请求模型的端口由 `models` 造。
+    /// 载入会话 `session`，请求模型的端口由 `models` 造，工具目录是空的。
     pub async fn load(&self, session: &SessionId, models: &dyn Models) -> Handle {
+        self.load_with(session, models, &Catalog::default()).await
+    }
+
+    /// 载入会话 `session`，执行工具照目录 `tools`（施工 4-2）。
+    pub async fn load_with(
+        &self,
+        session: &SessionId,
+        models: &dyn Models,
+        tools: &Catalog,
+    ) -> Handle {
         let loaded = load(Load {
             root: &self.root,
             owner: alice_account(),
             id: session.clone(),
             environment: environment(),
             models,
+            tools,
         });
         within("载入", loaded).await.expect("载入得了会话")
     }

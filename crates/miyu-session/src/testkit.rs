@@ -30,6 +30,9 @@ pub enum Play {
     },
     /// 一口气推 `n` 段增量，每段一个字，再说完：好测读得慢的订阅者掉队。
     Floods(usize),
+    /// 调这几件工具，每件写工具名和参数原文，照先后放在一次回复里（施工 4-2）。块都等流完了才一起收，
+    /// 和驱动一样。用量同 [`Play::Says`]。
+    Calls(&'static [(&'static str, &'static str)]),
     /// 出错：分类，供应商说要等多久。
     Fails {
         /// 出错的分类。
@@ -135,6 +138,23 @@ impl ModelPort for Script {
                     reports.ended(Some(usage()), None, None);
                 }
                 Play::Floods(n) => says(reports, &"字".repeat(n), n),
+                Play::Calls(calls) => {
+                    let mut ends = Vec::new();
+                    for (index, (name, args)) in calls.iter().enumerate() {
+                        let kind = Kind::ToolCall {
+                            name: (*name).to_string(),
+                        };
+                        let mut deltas = block(index, kind, args, 1);
+                        ends.extend(deltas.pop());
+                        for delta in deltas {
+                            reports.delta(delta);
+                        }
+                    }
+                    for end in ends {
+                        reports.delta(end);
+                    }
+                    reports.ended(Some(usage()), None, None);
+                }
                 Play::Fails { class, wait_ms } => reports.ended(
                     None,
                     Some(CallError {

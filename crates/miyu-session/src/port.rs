@@ -121,11 +121,13 @@ pub(crate) enum Report {
     },
 }
 
-/// 执行器送回 actor 的：请求的回报、到点了。
+/// 执行器送回 actor 的：请求的回报、到点了、工具的回报。
 #[derive(Debug)]
 pub(crate) enum Back {
     /// 请求 `seen` 的一样回报。
     Report { seen: Seq, report: Report },
     /// 为请求 `seen` 等的时刻到了。
     Woke { seen: Seq },
+    /// 跑工具的任务送回来的（施工 4-2）。
+    Tool(crate::tools::ToolBack),
 }

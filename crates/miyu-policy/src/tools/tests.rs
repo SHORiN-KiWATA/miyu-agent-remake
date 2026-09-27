@@ -101,3 +101,60 @@ fn two_tools_with_one_name_do_not_build() {
         BuildError::DuplicateTool("read".to_string())
     );
 }
+
+#[test]
+fn the_two_run_texts_name_the_tool() {
+    let texts = engineer().run_texts().unwrap();
+    assert_eq!(
+        texts.unavailable("read"),
+        "The tool \"read\" is not available right now.\n"
+    );
+    assert_eq!(
+        texts.crashed("read"),
+        "The tool \"read\" stopped because of an internal error. It may have been partly done.\n"
+    );
+    // 名字照样转义：写不出引号和尖括号。
+    assert!(!texts.unavailable("a\"<b>").contains("<b>"));
+}
+
+#[test]
+fn a_broken_run_text_is_named() {
+    let mut broken = engineer();
+    broken.core.tool_results.crashed = "The tool {nope} broke.".to_string();
+    let error = broken.run_texts().unwrap_err();
+    assert!(
+        matches!(
+            error,
+            BuildError::Texts {
+                which: "执行器替工具写的两句",
+                ..
+            }
+        ),
+        "{error:?}"
+    );
+}
+
+#[test]
+fn a_snapshot_from_before_the_run_texts_reads_back_with_them_empty() {
+    let text = String::from_utf8(engineer().to_bytes()).unwrap();
+    let old = strip(&strip(&text, "unavailable"), "crashed");
+    assert!(!old.contains("\"unavailable\""), "{old}");
+    assert!(!old.contains("\"crashed\""), "{old}");
+    let back = Snapshot::from_bytes(old.as_bytes()).unwrap();
+    assert_eq!(back.core.tool_results.unavailable, "");
+    assert_eq!(back.core.tool_results.crashed, "");
+    assert_eq!(back.run_texts().unwrap().unavailable("read"), "");
+}
+
+/// 从快照的 JSON 里去掉 `field` 那一格（值是一个字符串）：造出这一格以前的样子。
+fn strip(text: &str, field: &str) -> String {
+    let key = format!(",\"{field}\":\"");
+    let start = text.find(&key).unwrap();
+    let value_start = start + key.len();
+    let mut end = value_start;
+    let bytes = text.as_bytes();
+    while bytes[end] != b'"' || bytes[end - 1] == b'\\' {
+        end += 1;
+    }
+    format!("{}{}", &text[..start], &text[end + 1..])
+}

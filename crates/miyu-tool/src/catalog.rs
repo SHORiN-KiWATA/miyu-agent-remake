@@ -72,6 +72,11 @@ impl Catalog {
     pub fn specs(&self) -> impl Iterator<Item = &Spec> {
         self.tools.values().map(|tool| tool.spec())
     }
+
+    /// 叫 `name` 的那一件（施工 4-2）。
+    pub fn get(&self, name: &str) -> Option<&Arc<dyn Tool>> {
+        self.tools.get(name)
+    }
 }
 
 impl fmt::Debug for Catalog {

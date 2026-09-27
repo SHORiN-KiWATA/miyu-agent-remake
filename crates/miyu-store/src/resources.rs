@@ -193,6 +193,8 @@ impl ResourceRoot {
                 question_voided: result("question-voided.txt")?,
                 question_unattended: result("question-unattended.txt")?,
                 restarted: result("restarted.txt")?,
+                unavailable: result("unavailable.txt")?,
+                crashed: result("crashed.txt")?,
             },
             drivers: DriverPlaceholders {
                 image_omitted: driver("image-omitted.txt")?,

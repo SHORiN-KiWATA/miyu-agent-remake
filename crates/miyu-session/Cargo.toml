@@ -34,13 +34,15 @@ uuid = { version = "1", features = ["v7"] }
 testkit = []
 
 [dev-dependencies]
+# 测试用的假工具（施工 4-2）。
+miyu-tool = { path = "../miyu-tool", features = ["testkit"] }
 # 自己的集成测试用上剧本端口。
 miyu-session = { path = ".", features = ["testkit"] }
 # 测试里的假服务器：本机回环上的 HTTP/1.1（施工 3-7 下）。
 miyu-http = { path = "../miyu-http", features = ["testkit"] }
 # 测试里接住发出来的日志，查写了什么、没写什么。
 miyu-log = { path = "../miyu-log" }
-# 测试里的假工具：参数格式写成原样的 JSON（施工 4-1）。
+# 测试里的假工具换了说明：参数格式写成原样的 JSON。
 serde_json = "1.0"
 
 [lints]

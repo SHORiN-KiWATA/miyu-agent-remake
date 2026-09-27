@@ -12,18 +12,23 @@ use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::Instrument;
 
-use miyu_kernel::event::{CallError, Event, Transient, TransientBody, Usage};
+use miyu_kernel::event::{CallError, Event, Usage};
 use miyu_kernel::id::{CommandId, Seq, SessionId};
-use miyu_kernel::request::{Difference, Request, Role};
-use miyu_kernel::session::{Action, Input, Outcome, Received, Session};
+use miyu_kernel::request::{Difference, Request};
+use miyu_kernel::session::{Action, Input, Outcome, Received, Session, Verdict};
 use miyu_kernel::time::Timestamp;
+
+use miyu_policy::RunTexts;
+use miyu_tool::{Call, Catalog};
 
 use crate::TARGET;
 use crate::clock::Clock;
 use crate::handle::{Message, Pushed};
 use crate::kinds;
+use crate::lines::{millis, retrying, where_};
 use crate::port::{Back, Cancel, ModelPort, Report, Reports};
 use crate::store::Store;
+use crate::tools::Tools;
 
 /// 推送的队列：一个会话最多攒这么多份还没被读走的。读得慢的订阅者被挤掉，掉了队
 /// （`04-核心协议.md` 第七节）。
@@ -47,6 +52,8 @@ pub(crate) struct Actor {
     /// 还没说完的请求：叫停它的那一头，和交给端口的那一刻（算用时）。
     calls: BTreeMap<Seq, (oneshot::Sender<()>, Instant)>,
     clock: Clock,
+    /// 执行工具的端口（施工 4-2）。
+    tools: Tools,
     /// 有没有在跑的回合，和 `Handle` 共用：每送完一批输入写一次；actor 退出了写成没有（施工 3-9 上）。
     busy: Arc<AtomicBool>,
 }
@@ -90,15 +97,17 @@ enum Mail {
 }
 
 impl Actor {
-    /// 一个 actor：会话的状态机、写盘的地方、请求模型的端口、收件箱、时钟。
+    /// 一个 actor：会话的状态机、写盘的地方、请求模型的端口、工具目录和替工具写的两句、收件箱、时钟。
     pub(crate) fn new(
         session: Session,
         store: Box<dyn Store>,
         model: Arc<dyn ModelPort>,
+        tools: (Catalog, RunTexts),
         inbox: mpsc::UnboundedReceiver<Message>,
         clock: Clock,
     ) -> Actor {
         let (backs, back) = mpsc::unbounded_channel();
+        let tools = Tools::new(tools.0, tools.1, backs.clone());
         let (pushes, _) = broadcast::channel(PUSH_QUEUE);
         let busy = Arc::new(AtomicBool::new(!session.idle()));
         Actor {
@@ -112,6 +121,7 @@ impl Actor {
             replies: BTreeMap::new(),
             calls: BTreeMap::new(),
             clock,
+            tools,
             busy,
         }
     }
@@ -134,7 +144,10 @@ impl Actor {
         loop {
             let input = tokio::select! {
                 biased;
-                Some(back) = self.back.recv() => self.back(back),
+                Some(back) = self.back.recv() => match self.back(back) {
+                    Some(input) => input,
+                    None => continue,
+                },
                 message = self.inbox.recv() => match message.map(|message| self.mail(message)) {
                     Some(Mail::Input(input)) => input,
                     Some(Mail::Done) => continue,
@@ -260,11 +273,28 @@ impl Actor {
                 None
             }
             Action::RunTurnEndHooks { .. } => None,
-            Action::GuardTool { .. }
-            | Action::RunTool { .. }
-            | Action::AnswerTool { .. }
-            | Action::CancelTool { .. } => {
-                tracing::error!(target: TARGET, action = kind, "tool action without tools");
+            // 权限策略随施工 4-3 接进来，这之前一律放行。
+            Action::GuardTool { call_id, .. } => Some(Input::ToolGuarded {
+                at: self.clock.now(),
+                call_id,
+                verdict: Verdict::Allow,
+            }),
+            Action::RunTool {
+                call_id,
+                name,
+                args,
+                cwd,
+            } => {
+                let at = self.clock.now();
+                self.tools.run(at, call_id, name, Call { args, cwd })
+            }
+            Action::CancelTool { call_id } => {
+                self.tools.cancel(call_id);
+                None
+            }
+            // 工具执行中问人随施工 4-9：这之前没有工具会问。
+            Action::AnswerTool { .. } => {
+                tracing::error!(target: TARGET, action = kind, "answer without a question");
                 None
             }
         })
@@ -367,11 +397,12 @@ impl Actor {
         });
     }
 
-    /// 执行器送回来的，照 actor 的时钟记下到的时刻，写成内核的输入。
-    fn back(&mut self, back: Back) -> Input {
+    /// 执行器送回来的，照 actor 的时钟记下到的时刻，写成内核的输入；已经不要了的工具回报，不理。
+    fn back(&mut self, back: Back) -> Option<Input> {
         let at = self.clock.now();
-        match back {
+        Some(match back {
             Back::Woke { seen } => Input::Woke { at, seen },
+            Back::Tool(back) => return self.tools.back(at, back),
             Back::Report { seen, report } => match report {
                 Report::Sent { model, request } => Input::RequestSent {
                     at,
@@ -395,7 +426,7 @@ impl Actor {
                     }
                 }
             },
-        }
+        })
     }
 
     /// 请求 `seen` 说完了：不用再叫停它了；记一行收场（`28-运行日志.md` 第三节）。
@@ -429,39 +460,6 @@ impl Actor {
     }
 }
 
-/// 前缀第一处不同在哪，写成一个词：`tools`、`system`，或者 `message:<第几条，从 0 数起>:<角色>`。
-fn where_(changed: &Difference) -> String {
-    match changed {
-        Difference::Tools => "tools".to_string(),
-        Difference::System => "system".to_string(),
-        Difference::Message { index, role } => {
-            let role = match role {
-                Role::User => "user",
-                Role::Assistant => "assistant",
-                Role::Tool => "tool",
-            };
-            format!("message:{index}:{role}")
-        }
-    }
-}
-
-/// 等着重试的状态提示，记一条 `WARN`：第几次、一共几次、等多久、出错的分类。原话不写：供应商的
-/// 出错信息里可能回显请求里的字。
-fn retrying(transient: &Transient) {
-    if let TransientBody::Status(status) = &transient.body {
-        let retry = &status.retry;
-        tracing::warn!(
-            target: TARGET,
-            seen = status.seen.get(),
-            attempt = retry.attempt,
-            limit = retry.limit,
-            wait_ms = retry.wait_ms,
-            class = retry.class.as_str(),
-            "retrying"
-        );
-    }
-}
-
 /// 交回一声。等的那一头不等了，就没人收。
 #[expect(
     clippy::let_underscore_must_use,
@@ -478,11 +476,6 @@ fn answer<T>(reply: oneshot::Sender<T>, value: T) {
 )]
 fn answer_back(backs: &mpsc::UnboundedSender<Back>, back: Back) {
     let _ = backs.send(back);
-}
-
-/// 一段时间，毫秒。
-fn millis(duration: Duration) -> u64 {
-    u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)
 }
 
 #[cfg(test)]

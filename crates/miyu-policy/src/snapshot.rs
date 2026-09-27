@@ -110,6 +110,13 @@ pub struct ToolResultTexts {
     pub question_unattended: String,
     /// 有计划的重启打断了调用（`restarted.txt`）。
     pub restarted: String,
+    /// 快照里有、核心的目录里没有的工具（`unavailable.txt`，施工 4-2）：执行器写。这一格以前造的会话
+    /// 里没有，读成空的：那时的会话没有工具，用不到它。
+    #[serde(default)]
+    pub unavailable: String,
+    /// 工具执行时崩了（`crashed.txt`，施工 4-2）：执行器写。读不到的同上。
+    #[serde(default)]
+    pub crashed: String,
 }
 
 /// 驱动的几句占位。

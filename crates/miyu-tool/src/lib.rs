@@ -5,12 +5,16 @@
 //! 登记完就冻结。造会话时，会话照目录把工具面存进策略快照（`03-事件模型.md` E5），以后一直照快照发。
 //!
 //! - [`Spec`]：一件工具的规格，第一批四格；
-//! - [`Tool`]：一件工具。施工 4-1 只报规格，执行随 4-2；
+//! - [`Tool`]：一件工具：报规格，执行一次调用（[`Call`] 进、[`Done`] 出，施工 4-2）；
 //! - [`Catalog`]：工具目录，登记时查重名、名字和参数格式的写法。
 
 mod catalog;
+mod run;
+#[cfg(feature = "testkit")]
+pub mod testkit;
 
 pub use catalog::{Catalog, CatalogError, Problem};
+pub use run::{Call, Done, Progress, Running};
 
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::tool::Access;
@@ -33,4 +37,8 @@ pub struct Spec {
 pub trait Tool: Send + Sync {
     /// 它的规格。
     fn spec(&self) -> &Spec;
+
+    /// 执行一次调用：执行器在它自己的任务里跑交回的 future，执行中的输出交给 `progress`。叫停就是
+    /// 丢掉这个 future（施工 4-2）。
+    fn run(&self, call: Call, progress: Progress) -> Running<'_>;
 }

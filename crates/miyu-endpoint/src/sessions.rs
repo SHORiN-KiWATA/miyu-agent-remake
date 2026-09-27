@@ -126,6 +126,7 @@ impl Sessions {
             id: id.clone(),
             environment: environment(&cwd),
             models: &*core.models,
+            tools: &core.tools,
         })
         .await;
         let handle = match loaded {

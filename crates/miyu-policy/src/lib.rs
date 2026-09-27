@@ -20,4 +20,4 @@ pub use snapshot::{
     BuildError, CoreTexts, DriverPlaceholders, FactTexts, Snapshot, SnapshotError, ToolResultTexts,
     TurnEndedTexts,
 };
-pub use tools::ToolEntry;
+pub use tools::{RunTexts, ToolEntry};

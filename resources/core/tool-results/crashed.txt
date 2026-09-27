@@ -1,0 +1,1 @@
+The tool "{name}" stopped because of an internal error. It may have been partly done.

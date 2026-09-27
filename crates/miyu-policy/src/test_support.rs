@@ -59,6 +59,9 @@ pub(crate) fn core() -> CoreTexts {
                 "../../../resources/core/tool-results/question-unattended.txt"
             )
             .to_string(),
+            unavailable: include_str!("../../../resources/core/tool-results/unavailable.txt")
+                .to_string(),
+            crashed: include_str!("../../../resources/core/tool-results/crashed.txt").to_string(),
             restarted: include_str!("../../../resources/core/tool-results/restarted.txt")
                 .to_string(),
         },

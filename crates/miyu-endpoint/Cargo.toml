@@ -29,6 +29,8 @@ tokio = { version = "1", features = ["io-util", "macros", "rt", "sync", "time"] 
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 
 [dev-dependencies]
+# 测试用的假工具（施工 4-2）。
+miyu-tool = { path = "../miyu-tool", features = ["testkit"] }
 # 测试里读会话的策略快照：有没有人能确认。
 miyu-policy = { path = "../miyu-policy" }
 # 测试里请求模型照剧本回（施工 3-8 上）。
