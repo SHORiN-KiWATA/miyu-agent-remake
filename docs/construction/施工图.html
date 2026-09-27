@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>61</b><span>/ 67 步<strong>已完成</strong>，工具的结果带上了给人看的说法</span></li>
-    <li><b>4-5</b><span>下一步：miyu ask 印出每一步（下），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">677dde2</b><span>最近一步（4-5 上）的提交</span></li>
+    <li><b>62</b><span>/ 67 步<strong>已完成</strong>，miyu ask 印出了她做的每一步</span></li>
+    <li><b>4-6</b><span>下一步：写入、编辑、删除，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">ec5090f</b><span>最近一步（4-5 下）的提交</span></li>
   </ul>
 </header>
 
@@ -398,7 +398,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-4a"><span class="n">4-4</span>读取（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-4b"><span class="n">4-4</span>找文件、搜内容（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-5a"><span class="n">4-5</span>给人看的说法（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-5</span>miyu ask 印出每一步（下）</span></li>
+        <li><a class="step done" href="#s4-5b"><span class="n">4-5</span>miyu ask 印出每一步（下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-6</span>写入、编辑、删除</span></li>
         <li><span class="step"><span class="n">4-7</span>撤销时恢复文件</span></li>
         <li><span class="step"><span class="n">4-8</span>执行命令</span></li>
@@ -5076,6 +5076,77 @@ a.step:hover{border-color:var(--primary)}
         <li><code>docs/designs/03-事件模型.md</code> 第三节；<code>05-内核接口.md</code> 第六节。</li>
         <li><code>docs/designs/26-提示词.md</code> 第八、十节：给人看的字放哪、不登记。</li>
         <li><code>docs/construction/4-5-给人看的说法（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s4-5b" aria-labelledby="h-s45b">
+  <div class="sheet-head"><h2 id="h-s45b"><span class="no">4-5</span>miyu ask 印出每一步（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">照项目主人定的样子，miyu ask 把她做的每一步在标准错误上印成一行：显示名、参数的值、结果那一句；没做成的同一行写原因，「出错」「没做」标红，整行灰。工作目录太宽、核心退回账号的工作区时，开头说一句。M4 读的那一半能用了：让她在工作区里读代码、搜代码，看得见每一步做成了没有。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一步那一行</span><span class="dir-note">22 第三节</span></div>
+            <ol class="pipe" aria-label="一步那一行">
+              <li>· 读取 src/lib.rs → 37 行</li>
+              <li>· 读取 src/mian.rs → 出错：没有这个文件，是不是 src/main.rs</li>
+              <li>· 读取 ~/notes/plan.md → 没做：要确认，这里没人能确认</li>
+              <li>· 目录太宽（~），这次在 ~/.miyu/home/admin/workspace 里干活</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">从哪来</span><span class="dir-note">04 第九节</span></div>
+            <div class="files">
+              <div class="tile"><span class="nm">message.assistant</span><span class="rl">记下她调了哪件工具、给了什么参数</span></div>
+              <div class="tile"><span class="nm">tool.result 的 human</span><span class="rl">照给人看的字换成结果那一句（4-5 上）</span></div>
+              <div class="tile new"><span class="nm">回应里的 cwd</span><span class="rl">造会话、说话的回应说实际在哪个目录里干活</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">没有说法的照状态写</span><span class="rl">出错、没做、打断了、跳过了；做成了的只写做了什么</span></div>
+          <div class="tile new"><span class="nm">路径写短</span><span class="rl">file_path、path 在工作目录里写相对的，家目录里写 ~；太长的留后面</span></div>
+          <div class="tile new"><span class="nm">都是旁白</span><span class="rl">思考、步骤之间不空行，和回答之间空一行；回答没完先换行</span></div>
+          <div class="tile new"><span class="nm">给脚本的不印</span><span class="rl">--format json 照旧一行；隔着步骤的两段回复中间换行</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">核心的视图投影；跑得久的一步先说在做；为什么要确认（4-9）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-5（下）</dd></div>
+        <div><dt>名称</dt><dd>miyu ask 印出每一步</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">ec5090f</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-endpoint</code>：会话表记下实际干活的目录；造会话、说话的回应带上 <code>cwd</code>。</li>
+        <li><code>miyu-cli</code>：<code>steps</code> 把一次结果写成一行，分灰的、红的几段；跟着一轮的那一头收到结果就印，思考、步骤都当旁白；起来时照界面语言读给人看的字。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>在进程里起核心、用真的三件读的工具：读到了、没有这个文件、工作区外面没人能确认、目录太宽，一步一行；五种状态中英文、颜色、路径、截断、给脚本的不印</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 41 处，全部有测试变红</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/22-命令行.md</code> 第三节：一步那一行怎么写。</li>
+        <li><code>docs/designs/04-核心协议.md</code> 第九节：回应里的 <code>cwd</code>。</li>
+        <li><code>docs/construction/4-5-miyu ask 印出每一步（下）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
