@@ -107,6 +107,30 @@ impl DataRoot {
         create_dir(&self.account_dir(account))
     }
 
+    /// 一个账号有哪些会话，从新到旧：会话编号是 UUIDv7，照编号倒着排就是照造的先后倒着（施工 3-9 下）。
+    /// 不合会话编号写法的目录不算；还没有会话的是空的。
+    ///
+    /// # Errors
+    ///
+    /// 读不了目录。
+    pub fn sessions(&self, account: &AccountId) -> io::Result<Vec<SessionId>> {
+        let dir = self.account_dir(account).join("sessions");
+        let entries = match fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(error) => return Err(error),
+        };
+        let mut sessions = Vec::new();
+        for entry in entries {
+            let name = entry?.file_name();
+            if let Some(id) = name.to_str().and_then(|name| SessionId::parse(name).ok()) {
+                sessions.push(id);
+            }
+        }
+        sessions.sort_by(|a, b| b.as_str().cmp(a.as_str()));
+        Ok(sessions)
+    }
+
     /// 一个会话的目录：`home/<账号>/sessions/<会话编号>/`（`07-存储.md` 第三节）。
     pub fn session_dir(&self, account: &AccountId, session: &SessionId) -> PathBuf {
         self.account_dir(account)

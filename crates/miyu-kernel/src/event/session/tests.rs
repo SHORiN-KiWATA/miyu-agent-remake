@@ -36,6 +36,21 @@ fn session_events_from_the_drawing_round_trip() {
 }
 
 #[test]
+fn a_oneshot_session_says_so_and_others_do_not() {
+    let oneshot = format!(
+        r#"{{"owner":"alice","venue":"local","policy":"{HASH}","permission":{{"level":"workspace","read_only":false}},"oneshot":true}}"#
+    );
+    match read_body("session.created", &oneshot) {
+        Body::SessionCreated(created) => assert!(created.oneshot),
+        other => panic!("{other:?}"),
+    }
+    match read_body("session.created", &created("workspace")) {
+        Body::SessionCreated(created) => assert!(!created.oneshot, "不写就不是"),
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
 fn each_level_reads_into_its_own_variant() {
     for (text, level) in [("workspace", Level::Workspace), ("full", Level::Full)] {
         match read_body("session.created", &created(text)) {

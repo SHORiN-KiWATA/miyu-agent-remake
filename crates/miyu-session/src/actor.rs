@@ -14,7 +14,7 @@ use tracing::Instrument;
 
 use miyu_kernel::event::{CallError, Event, Transient, TransientBody, Usage};
 use miyu_kernel::id::{CommandId, Seq, SessionId};
-use miyu_kernel::request::Request;
+use miyu_kernel::request::{Difference, Request, Role};
 use miyu_kernel::session::{Action, Input, Outcome, Received, Session};
 use miyu_kernel::time::Timestamp;
 
@@ -243,8 +243,12 @@ impl Actor {
                 turn,
                 injected: Vec::new(),
             }),
-            Action::CallModel { seen, request } => {
-                self.call(seen, request);
+            Action::CallModel {
+                seen,
+                request,
+                changed,
+            } => {
+                self.call(seen, request, changed);
                 None
             }
             Action::Wake { at, seen } => {
@@ -318,14 +322,16 @@ impl Actor {
         let _ = self.pushes.send(Arc::new(pushed));
     }
 
-    /// 请求模型：交给端口，记下叫停它的那一头和这一刻。
-    fn call(&mut self, seen: Seq, request: Request) {
+    /// 请求模型：交给端口，记下叫停它的那一头和这一刻。前缀和上一次比变了的，运行日志里写上第一处不同在哪
+    /// （施工 3-9 下）：缓存没命中时，一看就知道是不是我们的前缀变了。
+    fn call(&mut self, seen: Seq, request: Request, changed: Option<Difference>) {
         let model = self.model.model();
         tracing::info!(
             target: TARGET,
             seen = seen.get(),
             endpoint = model.endpoint.as_str(),
             model = model.model.as_str(),
+            changed = changed.map(|changed| where_(&changed)),
             "request"
         );
         let (stop, cancel) = oneshot::channel();
@@ -419,6 +425,22 @@ impl Actor {
                 out = usage.map(|usage| usage.output),
                 "ended"
             ),
+        }
+    }
+}
+
+/// 前缀第一处不同在哪，写成一个词：`tools`、`system`，或者 `message:<第几条，从 0 数起>:<角色>`。
+fn where_(changed: &Difference) -> String {
+    match changed {
+        Difference::Tools => "tools".to_string(),
+        Difference::System => "system".to_string(),
+        Difference::Message { index, role } => {
+            let role = match role {
+                Role::User => "user",
+                Role::Assistant => "assistant",
+                Role::Tool => "tool",
+            };
+            format!("message:{index}:{role}")
         }
     }
 }

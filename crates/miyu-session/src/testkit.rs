@@ -20,6 +20,14 @@ use crate::port::{Cancel, ForSession, ModelPort, Models, Reports};
 pub enum Play {
     /// 说一句，说完。用量：60 没命中、40 命中、10 输出。
     Says(&'static str),
+    /// 先想 `thinking`，再说 `text`，说完。用量同 [`Play::Says`]（施工 3-9 下）。增量的先后照驱动真实的：
+    /// 两块都等流完了才一起收（`samples/drivers/openai-chat/streams/deepseek-reasoning-tools.txt`）。
+    Thinks {
+        /// 思考。
+        thinking: &'static str,
+        /// 回答。
+        text: &'static str,
+    },
     /// 一口气推 `n` 段增量，每段一个字，再说完：好测读得慢的订阅者掉队。
     Floods(usize),
     /// 出错：分类，供应商说要等多久。
@@ -112,6 +120,20 @@ impl ModelPort for Script {
             reports.sent(model, hash);
             match play {
                 Play::Says(text) => says(reports, text, 1),
+                Play::Thinks { thinking, text } => {
+                    let mut thought = block(0, Kind::Reasoning, thinking, 2);
+                    let mut said = block(1, Kind::Text, text, 2);
+                    // 两块都等流完了才一起收，和驱动一样。
+                    let ends = [thought.pop(), said.pop()];
+                    for delta in thought
+                        .into_iter()
+                        .chain(said)
+                        .chain(ends.into_iter().flatten())
+                    {
+                        reports.delta(delta);
+                    }
+                    reports.ended(Some(usage()), None, None);
+                }
                 Play::Floods(n) => says(reports, &"字".repeat(n), n),
                 Play::Fails { class, wait_ms } => reports.ended(
                     None,
@@ -142,32 +164,35 @@ fn says(reports: Reports, text: &str, pieces: usize) {
     for delta in text_block(text, pieces) {
         reports.delta(delta);
     }
-    reports.ended(
-        Some(Usage {
-            uncached: 60,
-            cache_read: 40,
-            cache_write: 0,
-            output: 10,
-        }),
-        None,
-        None,
-    );
+    reports.ended(Some(usage()), None, None);
+}
+
+/// 剧本报的用量：60 没命中、40 命中、10 输出。
+fn usage() -> Usage {
+    Usage {
+        uncached: 60,
+        cache_read: 40,
+        cache_write: 0,
+        output: 10,
+    }
 }
 
 /// 一块正文：开始，全文分成 `pieces` 段（按字切），收全。
 fn text_block(text: &str, pieces: usize) -> Vec<Delta> {
+    block(0, Kind::Text, text, pieces)
+}
+
+/// 第 `index` 块，种类是 `kind`：开始，全文分成 `pieces` 段（按字切），收全。
+fn block(index: usize, kind: Kind, text: &str, pieces: usize) -> Vec<Delta> {
     let chars: Vec<char> = text.chars().collect();
     let size = chars.len().div_ceil(pieces.max(1)).max(1);
-    let mut deltas = vec![Delta::Start {
-        index: 0,
-        kind: Kind::Text,
-    }];
+    let mut deltas = vec![Delta::Start { index, kind }];
     for piece in chars.chunks(size) {
         deltas.push(Delta::Text {
-            index: 0,
+            index,
             text: piece.iter().collect(),
         });
     }
-    deltas.push(Delta::End { index: 0 });
+    deltas.push(Delta::End { index });
     deltas
 }

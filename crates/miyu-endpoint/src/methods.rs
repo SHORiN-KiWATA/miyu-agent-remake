@@ -1,5 +1,5 @@
-//! 握手以后的方法（`docs/designs/04-核心协议.md` 第九节「先做的几样怎么写」）：造会话、说话、打断。
-//! 命令交给会话，等它的回应：接受的回 `events`，拒绝的回原因码。
+//! 握手以后的方法（`docs/designs/04-核心协议.md` 第九节「先做的几样怎么写」）：造会话、说话、打断，
+//! 列出会话（施工 3-9 下）。命令交给会话，等它的回应：接受的回 `events`，拒绝的回原因码。
 
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -10,8 +10,9 @@ use miyu_kernel::session::{Command, Outcome, Queued};
 
 use crate::Core;
 use crate::hello::Peer;
+use crate::list;
 use crate::refusal::Refusal;
-use crate::sessions::admin;
+use crate::sessions::{Opening, admin};
 use crate::wire::Request;
 
 /// 没写人格时用的：出厂的软件工程师（施工 3-6 上）。
@@ -23,6 +24,20 @@ struct CreateParams {
     #[serde(default)]
     persona: Option<String>,
     cwd: String,
+    /// 一次性的：`miyu ask` 开的（施工 3-9 下）。
+    #[serde(default)]
+    oneshot: bool,
+}
+
+/// `session.list` 的参数（施工 3-9 下）。
+#[derive(Debug, Deserialize)]
+struct ListParams {
+    /// 只要一次性的。
+    #[serde(default)]
+    oneshot: bool,
+    /// 最多几个。
+    #[serde(default)]
+    limit: Option<usize>,
 }
 
 /// `session.send` 的参数。
@@ -56,11 +71,20 @@ pub(crate) async fn call(core: &Core, peer: Peer, request: &Request) -> Result<V
         "session.create" => {
             let params: CreateParams = params(request)?;
             let persona = params.persona.as_deref().unwrap_or(PERSONA);
+            let who = Opening {
+                attended: peer.input,
+                oneshot: params.oneshot,
+            };
             let session = core
                 .sessions
-                .create(core, request.id.clone(), persona, params.cwd, peer.input)
+                .create(core, request.id.clone(), persona, params.cwd, who)
                 .await?;
             Ok(json!({"session": session.as_str(), "events": [1]}))
+        }
+        "session.list" => {
+            let params: ListParams = params(request)?;
+            let sessions = list::list(core, params.oneshot, params.limit).await?;
+            Ok(json!({"sessions": sessions}))
         }
         "session.send" => {
             let params: SendParams = params(request)?;

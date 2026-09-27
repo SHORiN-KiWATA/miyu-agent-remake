@@ -47,7 +47,7 @@ pub async fn connect_or_start(
     if let Some(connected) = connected(connect(root).await)? {
         return Ok(connected);
     }
-    match launch(start()).await? {
+    match launch(start(), root).await? {
         Ready::Ready => connect(root).await.map_err(StartError::Connect),
         Ready::Running => until_connected(root).await,
         Ready::Failed(reason) => Err(StartError::Refused(reason)),
@@ -87,10 +87,12 @@ async fn spawn_lock(root: &DataRoot) -> Result<File, StartError> {
 }
 
 /// 拉起核心，等它写来的那一行。拉起来的核心跟终端脱开：标准输入、标准错误接空，标准输出是那根管道；
-/// 头不等它退出，另起一个线程替它收尸。
-async fn launch(mut command: Command) -> Result<Ready, StartError> {
+/// 工作目录是数据根，不占着头的当前目录（施工 3-9 下的真机验收里查出这一条原先没做：核心一直占着敲
+/// `miyu ask` 时所在的目录，那是一块移动硬盘的话就卸不下来）。头不等它退出，另起一个线程替它收尸。
+async fn launch(mut command: Command, root: &DataRoot) -> Result<Ready, StartError> {
     let (reader, writer) = io::pipe()?;
     command
+        .current_dir(root.path())
         .stdin(Stdio::null())
         .stdout(writer)
         .stderr(Stdio::null());

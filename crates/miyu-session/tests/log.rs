@@ -9,11 +9,11 @@ mod support;
 
 use std::time::Duration;
 
-use miyu_kernel::event::ErrorClass;
-use miyu_kernel::session::Outcome;
+use miyu_kernel::event::{Body, ErrorClass};
+use miyu_kernel::session::{Command, Outcome};
 use miyu_log::{LevelFilter, Memory};
-use miyu_session::Stopped;
 use miyu_session::testkit::{Play, Script};
+use miyu_session::{Pushed, Stopped};
 use support::{Home, ask, say, stop, until_turn_ends, watch};
 
 /// 一行去掉时刻，用时换成 `_`：这两样每次不一样。
@@ -131,6 +131,47 @@ async fn the_log_says_what_happened_and_nothing_that_was_said() {
             assert!(!line.contains(said), "日志里有「{said}」：{line}");
         }
     }
+
+    // 再一个会话：说完一轮，撤销它，再说一句。这一次的请求少了撤掉的那几条，前缀断开了：`request` 那一行
+    // 写上第一处不同在哪（施工 3-9 下）。
+    let redo = home
+        .create(&Script::new([Play::Says("好。"), Play::Says("嗯。")]))
+        .await;
+    let r = redo.id().as_str().to_string();
+    let mut pushes = watch(&redo).await;
+    ask(&redo, "cmd-1", say("第一句")).await.expect("会话在跑");
+    let turn = until_turn_ends(&mut pushes)
+        .await
+        .iter()
+        .find_map(|pushed| match &**pushed {
+            Pushed::Events(events) => events.iter().find_map(|event| match event.body {
+                Body::TurnStarted(_) => event.turn,
+                _ => None,
+            }),
+            Pushed::Transient(_) => None,
+        })
+        .expect("开过这一轮");
+    ask(&redo, "cmd-2", Command::Revert { turn })
+        .await
+        .expect("会话在跑");
+    ask(&redo, "cmd-3", say("重说")).await.expect("会话在跑");
+    until_turn_ends(&mut pushes).await;
+    let requests: Vec<String> = memory
+        .lines()
+        .iter()
+        .filter(|line| line.contains(&r) && line.contains(" request "))
+        .map(|line| shape(line))
+        .collect();
+    assert_eq!(requests.len(), 2, "{requests:#?}");
+    assert!(
+        requests[0].ends_with("model=deepseek-v4"),
+        "第一次前面没有请求可比，不写：{requests:#?}"
+    );
+    assert!(
+        requests[1].ends_with(" changed=message:0:user"),
+        "撤销以后前缀从第 0 条（人说的那一句）断开：{requests:#?}"
+    );
+    drop((redo, pushes));
 
     // DEBUG：每一条输入、每一个动作的种类；增量在 TRACE，看不到。
     drop(listening);

@@ -37,7 +37,7 @@ impl Stage {
                 turn,
                 injected: self.injections.pop_front().unwrap_or_default(),
             }],
-            Action::CallModel { seen, request } => self.call(seen, request),
+            Action::CallModel { seen, request, .. } => self.call(seen, request),
             Action::Wake { at, seen } if self.hold_wakes => {
                 self.held_wake = Some((at, seen));
                 Vec::new()

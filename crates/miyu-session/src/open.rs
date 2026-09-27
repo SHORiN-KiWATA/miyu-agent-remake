@@ -6,7 +6,7 @@ use std::io;
 
 use tokio::sync::{mpsc, oneshot};
 
-use miyu_kernel::event::{Body, Permission};
+use miyu_kernel::event::{Body, Permission, SessionCreated};
 use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::By;
@@ -42,6 +42,8 @@ pub struct Create<'a> {
     pub permission: Permission,
     /// 有没有人能确认（`02-内核.md` 第六节「确认怎么走」第 2 条）。
     pub attended: bool,
+    /// 一次性的：`miyu ask` 开的（`22-命令行.md` O2，施工 3-9 下）。
+    pub oneshot: bool,
     /// 会话所在的环境：时区、工作目录。
     pub environment: Environment,
     /// 造会话的那个命令的编号：`session.created` 的 `cause`。
@@ -112,6 +114,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         owner,
         permission,
         attended,
+        oneshot,
         environment,
         command,
         by,
@@ -134,7 +137,10 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     .await?;
     let model = models.port(ForSession { texts, blobs });
     let mut clock = Clock::default();
-    let created = snapshot.session_created(owner, venue.clone(), permission);
+    let created = SessionCreated {
+        oneshot,
+        ..snapshot.session_created(owner, venue.clone(), permission)
+    };
     let (session, first) = Session::create(
         command.clone(),
         by,

@@ -18,7 +18,7 @@ use miyu_session::{
     Create, Handle, Load, Models, Pushed, Stopped, Subscription, create, load, new_id,
 };
 use miyu_store::env::{Env, Platform};
-use miyu_store::log::{SEGMENT_LIMIT, SessionLog};
+use miyu_store::log::read_events;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
@@ -87,6 +87,7 @@ impl Home {
                 read_only: false,
             },
             attended: true,
+            oneshot: false,
             environment: environment(),
             command: id("cmd-0"),
             by: alice(),
@@ -110,7 +111,7 @@ impl Home {
     /// 磁盘上会话 `session` 的日志，照先后。
     pub fn log(&self, session: &SessionId) -> Vec<Event> {
         let dir = self.root.session_dir(&alice_account(), session);
-        SessionLog::open(&dir, SEGMENT_LIMIT).expect("日志打得开").1
+        read_events(&dir).expect("日志读得出")
     }
 }
 

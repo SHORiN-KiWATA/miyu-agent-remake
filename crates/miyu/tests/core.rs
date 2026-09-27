@@ -157,3 +157,27 @@ async fn a_head_waits_for_a_core_that_is_running_but_not_listening_yet() {
         .expect("连得上");
     assert_eq!(token, opened.token, "连上的是那一个");
 }
+
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn the_core_does_not_hold_the_heads_directory() {
+    let home = Home::new();
+    let (held, _) = within("拉起", connect_or_start(&home.root, || home.core()))
+        .await
+        .expect("拉得起");
+    let log = home.core_log();
+    let pid = log
+        .lines()
+        .find(|line| line.contains("starting"))
+        .and_then(|line| line.split("pid=").nth(1))
+        .and_then(|rest| rest.split_whitespace().next())
+        .unwrap_or_else(|| panic!("运行日志里有进程号：{log}"));
+    let cwd = std::fs::read_link(format!("/proc/{pid}/cwd")).expect("看得到工作目录");
+    assert_eq!(
+        cwd.canonicalize().expect("在"),
+        home.root.path().canonicalize().expect("在"),
+        "核心的工作目录是数据根，不是头的当前目录"
+    );
+    drop(held);
+    home.until_stopped().await;
+}

@@ -222,6 +222,36 @@ fn a_home_is_built_once() {
     }
 }
 
+#[test]
+fn sessions_are_listed_newest_first() {
+    let scratch = Scratch::new();
+    let root = root_in(&scratch);
+    root.prepare().unwrap();
+    let admin = AccountId::parse("admin").unwrap();
+    assert!(root.sessions(&admin).unwrap().is_empty(), "还没有会话");
+    let ids = [
+        "0192f3a0-0000-7000-8000-000000000001",
+        "0192f3a0-0000-7000-8000-000000000003",
+        "0192f3a0-0000-7000-8000-000000000002",
+    ];
+    for id in ids {
+        fs::create_dir_all(root.session_dir(&admin, &SessionId::parse(id).unwrap())).unwrap();
+    }
+    fs::create_dir_all(
+        root.account_dir(&admin)
+            .join("sessions")
+            .join("not-a-session"),
+    )
+    .unwrap();
+    let listed: Vec<String> = root
+        .sessions(&admin)
+        .unwrap()
+        .iter()
+        .map(|id| id.as_str().to_string())
+        .collect();
+    assert_eq!(listed, [ids[1], ids[2], ids[0]]);
+}
+
 #[cfg(unix)]
 #[test]
 fn new_directories_are_only_for_me() {

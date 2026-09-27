@@ -204,6 +204,73 @@ fn no_session_no_log() {
 }
 
 #[test]
+fn the_first_event_is_read_without_touching_the_log() {
+    let scratch = Scratch::new();
+    let dir = dir(&scratch);
+    let mut log = SessionLog::create(&dir, 64).unwrap();
+    log.append(&said_range(1, 2)).unwrap();
+    log.append(&said_range(3, 3)).unwrap();
+    // 最后一段末尾有半行：正在写。只读第一条，不截它。
+    let last = dir.join(segment_names(&dir).last().unwrap());
+    let mut text = fs::read_to_string(&last).unwrap();
+    text.push_str("{\"seq\":4,\"at\"");
+    fs::write(&last, &text).unwrap();
+    assert_eq!(first_event(&dir).unwrap(), said(1));
+    assert_eq!(fs::read_to_string(&last).unwrap(), text, "一个字节都没动");
+}
+
+#[test]
+fn reading_skips_a_half_written_line_and_writes_nothing() {
+    let scratch = Scratch::new();
+    let dir = dir(&scratch);
+    assert!(
+        matches!(read_events(&dir), Err(OpenError::Missing(_))),
+        "目录还没有"
+    );
+    let mut log = SessionLog::create(&dir, 64).unwrap();
+    assert!(read_events(&dir).unwrap().is_empty(), "第一段还是空的");
+    log.append(&said_range(1, 2)).unwrap();
+    log.append(&said_range(3, 3)).unwrap();
+    // 最后一段末尾有半行：正在写。只读，跳过它，不截。
+    let last = dir.join(segment_names(&dir).last().unwrap());
+    let mut text = fs::read_to_string(&last).unwrap();
+    text.push_str("{\"seq\":4,\"at\"");
+    fs::write(&last, &text).unwrap();
+    assert_eq!(read_events(&dir).unwrap(), said_range(1, 3));
+    assert_eq!(fs::read_to_string(&last).unwrap(), text, "一个字节都没动");
+    // 载入的那一种照旧截掉。
+    let (_, events) = SessionLog::open(&dir, 64).unwrap();
+    assert_eq!(events, said_range(1, 3));
+    assert_ne!(fs::read_to_string(&last).unwrap(), text, "载入截掉了半行");
+}
+
+#[test]
+fn a_session_still_being_created_has_no_first_event() {
+    let scratch = Scratch::new();
+    let dir = dir(&scratch);
+    assert!(
+        matches!(first_event(&dir), Err(OpenError::Missing(_))),
+        "目录还没有"
+    );
+    SessionLog::create(&dir, SEGMENT_LIMIT).unwrap();
+    assert!(
+        matches!(first_event(&dir), Err(OpenError::Missing(_))),
+        "第一段还是空的"
+    );
+    let first = dir.join(segment_names(&dir)[0].clone());
+    fs::write(&first, "{\"seq\":1,").unwrap();
+    assert!(
+        matches!(first_event(&dir), Err(OpenError::Missing(_))),
+        "第一行还没写完"
+    );
+    fs::write(&first, "not json\n").unwrap();
+    assert!(matches!(
+        first_event(&dir),
+        Err(OpenError::Broken { line: 1, .. })
+    ));
+}
+
+#[test]
 fn appending_out_of_order_is_refused() {
     let scratch = Scratch::new();
     let mut log = SessionLog::create(&dir(&scratch), SEGMENT_LIMIT).unwrap();

@@ -4,7 +4,7 @@
 
 use crate::event::{Event, Permission, Response, Transient};
 use crate::id::{CallId, CommandId, Seq, TurnId};
-use crate::request::Request;
+use crate::request::{Difference, Request};
 use crate::time::Timestamp;
 
 /// 会话要执行器做的一件事。
@@ -35,6 +35,9 @@ pub enum Action {
         seen: Seq,
         /// 统一的请求。
         request: Request,
+        /// 和这个会话上一次请求比，第一处不同在哪；只是接着加的是 `None`。和记进 `model.called` 的是同一份，
+        /// 执行器照它写运行日志：缓存没命中时，一看就知道是不是前缀变了（施工 3-9 下）。
+        changed: Option<Difference>,
     },
     /// 把一条瞬时事件推给头：不落盘，不等（`03-事件模型.md` 第五节）。
     PushTransient(Transient),

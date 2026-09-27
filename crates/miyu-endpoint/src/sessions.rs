@@ -44,15 +44,15 @@ struct Running {
 }
 
 impl Sessions {
-    /// 造一个会话：属主是管理员，在本机；有没有人能确认照 `attended`。同一个命令编号重发，交回上一次
-    /// 造的那一个。
+    /// 造一个会话：属主是管理员，在本机；有没有人能确认照 `attended`；`miyu ask` 开的是一次性的。
+    /// 同一个命令编号重发，交回上一次造的那一个。
     pub(crate) async fn create(
         &self,
         core: &Core,
         command: CommandId,
         persona: &str,
         cwd: String,
-        attended: bool,
+        who: Opening,
     ) -> Result<SessionId, Refusal> {
         let mut open = self.open.lock().await;
         if let Some((_, session)) = open.created.iter().find(|(id, _)| *id == command) {
@@ -70,7 +70,8 @@ impl Sessions {
                 level: Level::Workspace,
                 read_only: false,
             },
-            attended,
+            attended: who.attended,
+            oneshot: who.oneshot,
             environment: environment(&cwd),
             command: command.clone(),
             by: admin(core),
@@ -164,6 +165,15 @@ impl Sessions {
             }
         }
     }
+}
+
+/// 造会话时要记下的两样：有没有人能确认，是不是一次性的。
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Opening {
+    /// 有没有人能确认：头握手时报的。
+    pub(crate) attended: bool,
+    /// 一次性的：`miyu ask` 开的（施工 3-9 下）。
+    pub(crate) oneshot: bool,
 }
 
 /// 管理员：本机连上来的都是他（`06-多用户与身份.md` 第二节）。

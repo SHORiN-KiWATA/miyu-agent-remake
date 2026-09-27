@@ -7,6 +7,7 @@
 //! 空闲时发的第一条消息会开一个回合，所以它后面紧跟着三条：`turn.started` 和两块事实。
 
 mod approval;
+mod difference;
 mod executor;
 mod idle;
 mod interrupt;
@@ -202,7 +203,7 @@ fn calls(actions: &[Action]) -> Vec<(Seq, String)> {
     actions
         .iter()
         .filter_map(|action| match action {
-            Action::CallModel { seen, request } => Some((*seen, listed_request(request))),
+            Action::CallModel { seen, request, .. } => Some((*seen, listed_request(request))),
             _ => None,
         })
         .collect()

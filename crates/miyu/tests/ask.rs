@@ -1,0 +1,98 @@
+//! 真跑 `miyu ask`（`docs/construction/3-9-miyu-ask（下）.md`）：没有 key、核心也没在跑的，不拉起、退出码 5；
+//! 核心在跑的，头没有 key 照样连它；参数不对的退出码 2；说明跟着界面语言。
+
+mod support;
+
+use std::process::{Command, Output};
+
+use miyu_ipc::connect_or_start;
+use support::{Home, MIYU, within};
+
+/// 在临时的数据根上跑 `miyu ask <args>`：没有 key，界面语言是 `lang`。
+fn ask(home: &Home, lang: &str, args: &[&str]) -> Output {
+    Command::new(MIYU)
+        .arg("ask")
+        .args(args)
+        .env("MIYU_HOME", home.root.path())
+        .env("MIYU_RESOURCES", support::resources())
+        .env("LANG", lang)
+        .env_remove("LC_ALL")
+        .env_remove("LC_MESSAGES")
+        .env_remove("DEEPSEEK_API_KEY")
+        .env_remove("XDG_RUNTIME_DIR")
+        .output()
+        .expect("跑得起来")
+}
+
+#[test]
+fn without_a_key_and_a_core_nothing_is_started() {
+    let home = Home::new();
+    let output = ask(&home, "zh_CN.UTF-8", &["在吗"]);
+    assert_eq!(output.status.code(), Some(5), "{output:?}");
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "没有可用的模型：设环境变量 DEEPSEEK_API_KEY\n"
+    );
+    assert!(!home.root.run().join("socket").exists(), "没拉起核心");
+    assert!(home.core_log().is_empty());
+}
+
+#[tokio::test]
+async fn a_running_core_is_used_even_without_a_key_here() {
+    let home = Home::new();
+    let (held, _) = within("拉起", connect_or_start(&home.root, || home.core()))
+        .await
+        .expect("拉得起");
+    let output = tokio::task::spawn_blocking({
+        let home_root = home.root.path().to_path_buf();
+        move || {
+            Command::new(MIYU)
+                .args(["ask", "在吗"])
+                .env("MIYU_HOME", home_root)
+                .env("LANG", "zh_CN.UTF-8")
+                .env_remove("LC_ALL")
+                .env_remove("LC_MESSAGES")
+                .env_remove("DEEPSEEK_API_KEY")
+                .output()
+                .expect("跑得起来")
+        }
+    })
+    .await
+    .expect("没 panic");
+    // 核心也没有 key：这一轮说「没有可用的模型」。
+    assert_eq!(output.status.code(), Some(5), "{output:?}");
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "没有可用的模型：设环境变量 DEEPSEEK_API_KEY\n"
+    );
+    drop(held);
+    home.until_stopped().await;
+}
+
+#[test]
+fn wrong_arguments_are_exit_code_2() {
+    let home = Home::new();
+    for args in [&[][..], &["--session", "x", "--continue", "在吗"][..]] {
+        let output = ask(&home, "C", args);
+        assert_eq!(output.status.code(), Some(2), "{args:?}：{output:?}");
+    }
+}
+
+#[test]
+fn the_help_follows_the_language() {
+    let home = Home::new();
+    let chinese = ask(&home, "zh_CN.UTF-8", &["--help"]);
+    assert!(chinese.status.success());
+    let chinese = String::from_utf8_lossy(&chinese.stdout);
+    assert!(
+        chinese.contains("接着上一次 miyu ask 开的会话说"),
+        "{chinese}"
+    );
+    let english = ask(&home, "C", &["--help"]);
+    let english = String::from_utf8_lossy(&english.stdout);
+    assert!(
+        english.contains("Go on in the session the last miyu ask opened"),
+        "{english}"
+    );
+}

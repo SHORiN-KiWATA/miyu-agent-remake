@@ -767,6 +767,7 @@ name = "miyu"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "miyu-cli",
  "miyu-core",
  "miyu-ipc",
  "miyu-store",
@@ -781,6 +782,22 @@ dependencies = [
  "miyu-drivers",
  "miyu-kernel",
  "serde_json",
+]
+
+[[package]]
+name = "miyu-cli"
+version = "0.0.0"
+dependencies = [
+ "clap",
+ "getrandom 0.4.3",
+ "miyu-core",
+ "miyu-endpoint",
+ "miyu-ipc",
+ "miyu-kernel",
+ "miyu-session",
+ "miyu-store",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

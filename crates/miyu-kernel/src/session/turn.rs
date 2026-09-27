@@ -183,7 +183,11 @@ impl Session {
                 turn.interjected = None;
                 turn.queued.clear();
                 turn.stage = Stage::Asking(Call::new(seen, request.messages.len(), difference));
-                vec![Action::CallModel { seen, request }]
+                vec![Action::CallModel {
+                    seen,
+                    request,
+                    changed: difference,
+                }]
             }
             _ => Vec::new(),
         }

@@ -5,7 +5,7 @@ use super::executor::*;
 use super::*;
 use crate::accumulate::{Delta, Kind};
 use crate::block::{Private, Reasoning};
-use crate::event::{CallError, CallResult, EndReason, ErrorClass, Part, Piece, TransientBody};
+use crate::event::{CallError, CallResult, EndReason, ErrorClass, Piece, TransientBody};
 use crate::id::ContentHash;
 
 #[test]
@@ -107,62 +107,6 @@ fn model_called_records_every_part_of_the_call() {
     );
     assert_eq!(called.duration_ms, Some(5000), "45 说完");
     assert_eq!(called.error, None);
-}
-
-#[test]
-fn a_second_request_that_only_extends_the_first_has_no_first_difference() {
-    let mut session = asking();
-    answer(&mut session, 5, "你好");
-    session.handle(stored(8));
-    session.handle(send(2, "再来"));
-    session.handle(stored(10));
-    let actions = session.handle(hooks_done(TurnId::new(seq(10)), Vec::new()));
-    assert_eq!(
-        calls(&actions).first().map(|(seen, _)| *seen),
-        Some(seq(10))
-    );
-    let events = appended_events(&answer(&mut session, 10, "好的"));
-    let called = called_of(&events[1]);
-    assert_eq!(called.messages, 10);
-    assert_eq!(called.first_difference, None);
-}
-
-/// 替身的组装，system 每次都不一样：前缀从 system 那里断开。
-struct Drifting;
-
-impl Assembler for Drifting {
-    fn assemble(&self, history: &History) -> Request {
-        let mut request = Listing.assemble(history);
-        request.system = format!("{} events", history.events().len());
-        request
-    }
-}
-
-#[test]
-fn a_rewritten_system_is_the_first_difference() {
-    let created: SessionCreated = serde_json::from_str(CREATED).unwrap();
-    let mut policy = policy();
-    policy.assembler = Box::new(Drifting);
-    let (mut session, _) = Session::create(
-        id(0),
-        alice(),
-        at(0),
-        created,
-        policy,
-        environment("~/src/miyu"),
-    );
-    session.handle(stored(1));
-    session.handle(send(1, "hi"));
-    session.handle(stored(5));
-    session.handle(hooks_done(turn3(), Vec::new()));
-    answer(&mut session, 5, "你好");
-    session.handle(stored(8));
-    session.handle(send(2, "再来"));
-    session.handle(stored(10));
-    session.handle(hooks_done(TurnId::new(seq(10)), Vec::new()));
-    let events = appended_events(&answer(&mut session, 10, "好的"));
-    let difference = called_of(&events[1]).first_difference.clone().unwrap();
-    assert_eq!(difference.part, Part::System);
 }
 
 #[test]

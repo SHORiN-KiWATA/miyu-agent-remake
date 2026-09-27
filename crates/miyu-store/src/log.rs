@@ -6,7 +6,7 @@
 
 mod open;
 
-pub use open::OpenError;
+pub use open::{OpenError, first_event, read_events};
 
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};

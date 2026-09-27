@@ -254,7 +254,7 @@ impl Watch {
                     "种子 {seed}：回合 {turn} 叫了两次"
                 );
             }
-            Action::CallModel { seen, request } => self.called(seen, &request),
+            Action::CallModel { seen, request, .. } => self.called(seen, &request),
             Action::Wake { seen, .. } => self.retry_wake(seen),
             Action::PushTransient(transient) => self.transient(&transient),
             Action::CancelModel { seen } => {

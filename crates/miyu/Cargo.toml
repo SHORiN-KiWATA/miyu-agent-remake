@@ -14,6 +14,8 @@ path = "src/main.rs"
 [dependencies]
 # 子命令和参数。
 clap = { version = "4", features = ["derive"] }
+# 命令行的头：miyu ask、给人看的话（施工 3-9 下）。
+miyu-cli = { path = "../miyu-cli" }
 # 核心进程：miyu core（施工 3-9 上）。
 miyu-core = { path = "../miyu-core" }
 

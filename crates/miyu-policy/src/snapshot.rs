@@ -187,6 +187,7 @@ impl Snapshot {
             venue,
             policy: self.hash(),
             permission,
+            oneshot: false,
         }
     }
 

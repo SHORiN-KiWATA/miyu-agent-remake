@@ -16,7 +16,7 @@ use miyu_kernel::event::{Body, Event};
 use miyu_kernel::id::SessionId;
 use miyu_session::Models;
 use miyu_store::env::{Env, Platform};
-use miyu_store::log::{SEGMENT_LIMIT, SessionLog};
+use miyu_store::log::read_events;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
@@ -65,11 +65,11 @@ impl Home {
         ))
     }
 
-    /// 磁盘上会话 `session` 的日志，照先后。
+    /// 磁盘上会话 `session` 的日志，照先后。只读：会话可能正在写，载入用的 `SessionLog::open` 会截掉正在写的那半行（施工 3-9 下在 macOS 的 CI 上撞到过：会话目录刚建、第一段还没有，它报没有这个会话）。还没写出第一条的当是空的。
     pub fn log(&self, session: &str) -> Vec<Event> {
         let session = SessionId::parse(session).expect("会话编号合写法");
         let dir = self.root.session_dir(&miyu_core::admin(), &session);
-        SessionLog::open(&dir, SEGMENT_LIMIT).expect("日志打得开").1
+        read_events(&dir).unwrap_or_default()
     }
 
     /// 等到磁盘上会话 `session` 有了 `turn.ended`，交回它的日志。最多十秒。

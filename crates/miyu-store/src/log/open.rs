@@ -4,7 +4,7 @@
 
 use std::fmt;
 use std::fs::{self, OpenOptions};
-use std::io;
+use std::io::{self, BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use miyu_kernel::event::Event;
@@ -59,35 +59,9 @@ impl SessionLog {
     ///
     /// 没有这个会话；日志坏了；读写出错。
     pub fn open(dir: &Path, limit: u64) -> Result<(SessionLog, Vec<Event>), OpenError> {
-        let segments = segments(dir)?;
-        let Some((_, last)) = segments.last() else {
-            return Err(OpenError::Missing(dir.to_path_buf()));
-        };
-        let mut events = Vec::new();
-        let mut next = Seq::FIRST;
-        for (k, (first, path)) in segments.iter().enumerate() {
-            let is_last = k + 1 == segments.len();
-            let read = read_segment(path, is_last, &mut next)?;
-            match read.first() {
-                Some(event) if event.seq.get() != *first => {
-                    return Err(broken(
-                        path,
-                        1,
-                        format!("这一段叫 {first}，第一条却是 {}", event.seq),
-                    ));
-                }
-                None if is_last && *first != next.get() => {
-                    return Err(broken(
-                        path,
-                        1,
-                        format!("空的最后一段叫 {first}，下一条应该是 {next}"),
-                    ));
-                }
-                _ => events.extend(read),
-            }
-        }
-        let size = fs::metadata(last)?.len();
-        let file = OpenOptions::new().append(true).open(last)?;
+        let (events, next, last) = read_all(dir, HalfLine::Cut)?;
+        let size = fs::metadata(&last)?.len();
+        let file = OpenOptions::new().append(true).open(&last)?;
         let log = SessionLog {
             dir: dir.to_path_buf(),
             file,
@@ -99,9 +73,66 @@ impl SessionLog {
     }
 }
 
-/// 读一段：每一行读成事件，序号要接着 `next`。最后一段末尾没写完的半行截掉；别的段末尾有半行，
-/// 报错。
-fn read_segment(path: &Path, is_last: bool, next: &mut Seq) -> Result<Vec<Event>, OpenError> {
+/// 只读地读整份会话日志（施工 3-9 下）：和 [`SessionLog::open`] 一样自检，只是最后一段末尾没写完的半行
+/// 跳过、不截，一个字节都不写：会话可能正在往里写。测试盯着一个在跑的会话时用它；[`SessionLog::open`]
+/// 会截掉正在写的那半行，把活的日志写坏。
+///
+/// # Errors
+///
+/// 没有这个会话（目录没有，或者一段都还没有）；日志坏了；读写出错。
+pub fn read_events(dir: &Path) -> Result<Vec<Event>, OpenError> {
+    read_all(dir, HalfLine::Skip).map(|(events, _, _)| events)
+}
+
+/// 最后一段末尾没写完的半行怎么办。
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum HalfLine {
+    /// 截掉：载入以后接着往里写。
+    Cut,
+    /// 跳过、不动：只读。
+    Skip,
+}
+
+/// 照段的先后一行行读、自检：交回事件、下一条的序号、最后一段。
+fn read_all(dir: &Path, half: HalfLine) -> Result<(Vec<Event>, Seq, PathBuf), OpenError> {
+    let segments = segments(dir)?;
+    let Some((_, last)) = segments.last() else {
+        return Err(OpenError::Missing(dir.to_path_buf()));
+    };
+    let mut events = Vec::new();
+    let mut next = Seq::FIRST;
+    for (k, (first, path)) in segments.iter().enumerate() {
+        let is_last = k + 1 == segments.len();
+        let read = read_segment(path, is_last, &mut next, half)?;
+        match read.first() {
+            Some(event) if event.seq.get() != *first => {
+                return Err(broken(
+                    path,
+                    1,
+                    format!("这一段叫 {first}，第一条却是 {}", event.seq),
+                ));
+            }
+            None if is_last && *first != next.get() => {
+                return Err(broken(
+                    path,
+                    1,
+                    format!("空的最后一段叫 {first}，下一条应该是 {next}"),
+                ));
+            }
+            _ => events.extend(read),
+        }
+    }
+    Ok((events, next, last.clone()))
+}
+
+/// 读一段：每一行读成事件，序号要接着 `next`。最后一段末尾没写完的半行照 `half` 截掉或者跳过；别的
+/// 段末尾有半行，报错。
+fn read_segment(
+    path: &Path,
+    is_last: bool,
+    next: &mut Seq,
+    half: HalfLine,
+) -> Result<Vec<Event>, OpenError> {
     let bytes = fs::read(path)?;
     let complete = bytes
         .iter()
@@ -119,7 +150,9 @@ fn read_segment(path: &Path, is_last: bool, next: &mut Seq) -> Result<Vec<Event>
                 "末尾有半行，可它后面还有段".to_string(),
             ));
         }
-        truncate(path, complete as u64)?;
+        if half == HalfLine::Cut {
+            truncate(path, complete as u64)?;
+        }
     }
     let mut events = Vec::with_capacity(lines.len());
     for (k, line) in lines.iter().enumerate() {
@@ -149,6 +182,26 @@ fn truncate(path: &Path, len: u64) -> io::Result<()> {
 }
 
 /// 目录里的段：名字是 12 位数字加 `.jsonl` 的，照数字排。别的文件不看。
+/// 只读地拿会话日志的第一条（`session.created`）：列出会话时用（施工 3-9 下）。只读第一段开头那一行，
+/// 不截、不写：会话可能正在往最后一段里写。第一条落了盘，会话才算造好，所以它总是完整的一行；
+/// 还没写完的当没有这个会话。
+///
+/// # Errors
+///
+/// 没有这个会话；第一行读不懂；读写出错。
+pub fn first_event(dir: &Path) -> Result<Event, OpenError> {
+    let segments = segments(dir)?;
+    let Some((_, first)) = segments.first() else {
+        return Err(OpenError::Missing(dir.to_path_buf()));
+    };
+    let mut line = String::new();
+    BufReader::new(fs::File::open(first)?).read_line(&mut line)?;
+    let Some(line) = line.strip_suffix('\n') else {
+        return Err(OpenError::Missing(dir.to_path_buf()));
+    };
+    Event::from_line(line).map_err(|error| broken(first, 1, error.to_string()))
+}
+
 fn segments(dir: &Path) -> Result<Vec<(u64, PathBuf)>, OpenError> {
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,

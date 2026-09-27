@@ -16,6 +16,10 @@ pub struct SessionCreated {
     pub policy: ContentHash,
     /// 开始时的权限。
     pub permission: Permission,
+    /// 一次性的：`miyu ask` 开的，在会话列表里折叠，`--continue` 接的是最新的这种（`22-命令行.md` O2，
+    /// 施工 3-9 下）。不是一次性的不写。
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub oneshot: bool,
 }
 
 /// `session.policy_changed`：换了策略快照，或者换了权限，也可以一起换。

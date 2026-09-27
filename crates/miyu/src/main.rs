@@ -1,15 +1,16 @@
-//! 主程序 `miyu`（`docs/designs/12-进程形态与分发.md` 第三节，施工 3-9 上）：一个程序，像 busybox 那样按子命令
-//! 分发。现在只有 `miyu core`：核心进程，由头拉起，不写进帮助。`miyu ask` 在施工 3-9（下）。
+//! 主程序 `miyu`（`docs/designs/12-进程形态与分发.md` 第三节，施工 3-9）：一个程序，像 busybox 那样按子命令
+//! 分发。`miyu ask` 是最薄的头（施工 3-9 下）；`miyu core` 是核心进程，由头拉起，不写进帮助。
 //!
 //! 不认识的子命令就报错，退出码 2，绝不当成对话发给核心（R4，`22-命令行.md` 第二节）。
 
-mod language;
-
+use std::path::PathBuf;
 use std::process::ExitCode;
 use std::time::Duration;
 
 use clap::error::{ContextKind, ContextValue, ErrorKind};
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
+
+use miyu_cli::language;
 
 /// 退出码：用法不对（`22-命令行.md` 第二节）。
 const USAGE: u8 = 2;
@@ -25,6 +26,8 @@ struct Cli {
 /// 子命令。
 #[derive(Subcommand)]
 enum Command {
+    /// 说一句话，打印她的回答。
+    Ask(miyu_cli::Ask),
     /// 核心进程：由头拉起，平时不用人敲。
     #[command(hide = true)]
     Core {
@@ -35,11 +38,23 @@ enum Command {
 }
 
 fn main() -> ExitCode {
-    let cli = match Cli::try_parse() {
+    let language = language::current();
+    let command = Cli::command().mut_subcommand("ask", |ask| miyu_cli::localize(ask, &language));
+    let cli = match command
+        .try_get_matches()
+        .and_then(|matches| Cli::from_arg_matches(&matches))
+    {
         Ok(cli) => cli,
         Err(error) => return refused(error),
     };
     match cli.command {
+        Some(Command::Ask(args)) => miyu_cli::ask(args, || {
+            let mut core = std::process::Command::new(
+                std::env::current_exe().unwrap_or_else(|_| PathBuf::from("miyu")),
+            );
+            core.arg("core");
+            core
+        }),
         Some(Command::Core { idle_seconds }) => miyu_core::main(miyu_core::Options {
             idle: idle_seconds.map_or(miyu_core::IDLE, Duration::from_secs),
         }),
