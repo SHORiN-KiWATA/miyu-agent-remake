@@ -161,6 +161,7 @@ impl Actor {
                 Mail::Done
             }
             Message::Stop(reply) => Mail::Stop(reply),
+            Message::Environment(environment) => Mail::Input(Input::Environment(environment)),
         }
     }
 

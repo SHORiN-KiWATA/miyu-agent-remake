@@ -7,6 +7,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{broadcast, mpsc, oneshot};
 
 use miyu_kernel::event::{Event, Transient};
+use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{CommandId, SessionId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Outcome};
@@ -32,6 +33,8 @@ pub(crate) enum Message {
     Subscribe(oneshot::Sender<broadcast::Receiver<Arc<Pushed>>>),
     /// 有计划地停下：它的事件都落了盘，actor 退出以前交回一声。
     Stop(oneshot::Sender<()>),
+    /// 环境变了：工作目录、时区。
+    Environment(Environment),
 }
 
 impl Handle {
@@ -88,6 +91,16 @@ impl Handle {
         let (reply, answer) = oneshot::channel();
         self.send(Message::Stop(reply))?;
         answer.await.map_err(|_| Stopped)
+    }
+
+    /// 环境变了：头报上来的工作目录换了，或者时区换了。不当场注入，到下一个边界再查
+    /// （`08-上下文投影.md` C10）。
+    ///
+    /// # Errors
+    ///
+    /// 会话停了。
+    pub fn environment(&self, environment: Environment) -> Result<(), Stopped> {
+        self.send(Message::Environment(environment))
     }
 
     fn send(&self, message: Message) -> Result<(), Stopped> {

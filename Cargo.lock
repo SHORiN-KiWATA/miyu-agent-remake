@@ -657,6 +657,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-endpoint"
+version = "0.0.0"
+dependencies = [
+ "jiff",
+ "miyu-kernel",
+ "miyu-policy",
+ "miyu-session",
+ "miyu-store",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "miyu-http"
 version = "0.0.0"
 dependencies = [
@@ -707,6 +722,7 @@ dependencies = [
  "miyu-kernel",
  "miyu-log",
  "miyu-policy",
+ "miyu-session",
  "miyu-store",
  "tokio",
  "tracing",

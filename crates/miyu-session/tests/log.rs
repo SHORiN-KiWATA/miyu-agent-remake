@@ -13,7 +13,8 @@ use miyu_kernel::event::ErrorClass;
 use miyu_kernel::session::Outcome;
 use miyu_log::{LevelFilter, Memory};
 use miyu_session::Stopped;
-use support::{Home, Play, Script, ask, say, stop, until_turn_ends, watch};
+use miyu_session::testkit::{Play, Script};
+use support::{Home, ask, say, stop, until_turn_ends, watch};
 
 /// 一行去掉时刻，用时换成 `_`：这两样每次不一样。
 fn shape(line: &str) -> String {

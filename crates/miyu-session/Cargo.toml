@@ -26,7 +26,14 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 # 会话编号：UUIDv7，前 48 位是毫秒时间，随机数取自系统。
 uuid = { version = "1", features = ["v7"] }
 
+[features]
+# 测试用的请求模型的端口（`src/testkit.rs`，施工 3-8 上）：别的 crate 的测试要用它，在自己的
+# dev-dependencies 里打开；这个包自己的测试也经下面那一行打开。
+testkit = []
+
 [dev-dependencies]
+# 自己的集成测试用上剧本端口。
+miyu-session = { path = ".", features = ["testkit"] }
 # 测试里的假服务器：本机回环上的 HTTP/1.1（施工 3-7 下）。
 miyu-http = { path = "../miyu-http", features = ["testkit"] }
 # 测试里接住发出来的日志，查写了什么、没写什么。

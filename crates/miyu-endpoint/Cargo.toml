@@ -1,0 +1,36 @@
+[package]
+name = "miyu-endpoint"
+description = "协议端点：连接上的 JSON-RPC，握手、造会话、说话、打断，会话表（施工 3-8 上）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# 时区：核心所在的机器现在的偏移，写进会话的环境。
+jiff = "0.2"
+# 编号、命令、拒绝的原因。
+miyu-kernel = { path = "../miyu-kernel" }
+# 会话 actor：造会话、载入、发命令（施工 3-7）。
+miyu-session = { path = "../miyu-session" }
+# 数据根、资源目录、会话日志打不开的几种情形。
+miyu-store = { path = "../miyu-store" }
+# 协议是 JSON-RPC 2.0（04-核心协议.md P1）。
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# 连接是异步的字节流：一行一条消息。
+tokio = { version = "1", features = ["io-util", "macros", "rt", "sync"] }
+# 运行日志的门面（施工 3-7 上）。
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+
+[dev-dependencies]
+# 测试里读会话的策略快照：有没有人能确认。
+miyu-policy = { path = "../miyu-policy" }
+# 测试里请求模型照剧本回（施工 3-8 上）。
+miyu-session = { path = "../miyu-session", features = ["testkit"] }
+# 测试里的等待有时限。
+tokio = { version = "1", features = ["io-util", "macros", "rt", "sync", "time"] }
+
+[lints]
+workspace = true
