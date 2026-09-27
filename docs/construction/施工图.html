@@ -257,8 +257,13 @@ a.step:hover{border-color:var(--primary)}
 }
 @media (max-width:640px){
   .ms>li{grid-template-columns:1fr}
-  .titleblock dl{grid-template-columns:repeat(2,auto)}
+  /* 窄屏上标题栏从左排、铺满：靠右排时，「验收」那一格比框还宽，往左溢出去被框切掉 */
+  .titleblock{justify-content:flex-start}
+  .titleblock dl{grid-template-columns:repeat(2,minmax(0,1fr));width:100%;border-left:0}
   .titleblock dl>div{border-bottom:1px solid var(--line-2)}
+  .titleblock dl>div:nth-child(2n){border-right:0}
+  .titleblock dl>div:last-child{grid-column:1/-1;border-bottom:0}
+  .titleblock dd{white-space:normal}
   .drawing{padding:16px}
 }
 @media (prefers-reduced-motion:no-preference){a,.step{transition:border-color .15s}}
@@ -271,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>44</b><span>/ 48 步<strong>已完成</strong>，策略快照按哈希存档，请求逐字节重现</span></li>
-    <li><b>3-7</b><span>下一步：运行日志（上），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">b495989</b><span>最近一步（3-6 上）的提交</span></li>
+    <li><b>45</b><span>/ 48 步<strong>已完成</strong>，核心有了运行日志，一行一条的英文，像 dmesg</span></li>
+    <li><b>3-7</b><span>下一步：会话 actor（下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">c54f359</b><span>最近一步（3-7 上）的提交</span></li>
   </ul>
 </header>
 
@@ -294,6 +299,7 @@ a.step:hover{border-color:var(--primary)}
     <div class="piece"><span class="by">0-3</span><span class="nm">三平台 CI</span></div>
     <div class="piece ghost"><span class="by">3-5</span><span class="nm">试玩台（09-27 删掉了）</span></div>
     <div class="piece"><span class="by">3-5</span><span class="nm">给模型看的字的登记簿</span></div>
+    <div class="piece"><span class="by">3-7</span><span class="nm">运行日志</span></div>
   </div>
   <ul class="legend" aria-label="拼图的图例">
     <li><span class="sw ghost"></span>还没拼</li>
@@ -369,7 +375,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-5c"><span class="n">3-5</span>试玩台（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-5d"><span class="n">3-5</span>接着说（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-6a"><span class="n">3-6</span>策略快照（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-7</span>运行日志（上）</span></li>
+        <li><a class="step done" href="#s3-7a"><span class="n">3-7</span>运行日志（上）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-7</span>会话 actor（下）</span></li>
         <li><span class="step"><span class="n">3-8</span>协议端点</span></li>
         <li><span class="step"><span class="n">3-9</span>miyu ask</span></li>
@@ -3799,6 +3805,88 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s3-7a" aria-labelledby="h-s37a">
+  <div class="sheet-head"><h2 id="h-s37a"><span class="no">3-7</span>运行日志（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">核心有了自己的运行日志：它在干什么、哪里出了错，一行一条的英文，像 dmesg。写进数据根的 state/logs/，满 10 MB 换一份；默认记到 INFO，MIYU_LOG 改这一次启动的级别。不写对话的内容，不写密钥，只写编号：一份日志可以直接发给别人看、贴进 issue。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一行从哪来 · tracing → miyu-log</span><span class="dir-note">28 第二、三节</span></div>
+            <ol class="pipe" aria-label="一行从哪来">
+              <li>各 crate 照 tracing 发，目标写成 miyu::&lt;来源&gt;</li>
+              <li>筛：自己的照 MIYU_LOG，别人家的最多记到 WARN</li>
+              <li>写成一行：会话编号从离得最近的 span 来</li>
+              <li>state/logs/core.log：满 10 MB 在两行之间换一份</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">一行的样子</span><span class="dir-note">一行一条，一行不断开</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">时刻 · 级别 · 来源</span><span class="rl">本机时间到毫秒；级别占 5 格、来源占 8 格，左对齐</span></div>
+              <div class="tile new"><span class="nm">会话编号 · 这件事 · 键=值</span><span class="rl">编号写全；值里有空格、引号、等号的加双引号</span></div>
+              <div class="tile new"><span class="nm">不断开</span><span class="rl">换行写成 \n，ESC 这类写成 \x1b</span></div>
+              <div class="tile new"><span class="nm">样子</span><span class="rl mono">21:03:18.411 DEBUG http sent host=api.deepseek.com bytes=5120</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">HTTP 记什么 · DEBUG</span><span class="dir-note">send 外面包一层，一处记全</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">发出去了</span><span class="rl">主机名、请求多少字节</span></div>
+              <div class="tile new"><span class="nm">怎么收场的</span><span class="rl">状态码、出错的分类、要等多久、用时（毫秒）；叫停的只记用时</span></div>
+              <div class="tile new"><span class="nm">一个字都不记</span><span class="rl">key、请求体和回复里的字、地址的路径和参数、出错的原话</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">新 crate miyu-log</span><span class="rl">第 3 层；发日志的只依赖 tracing，写成什么样、写到哪只有它管</span></div>
+          <div class="tile new"><span class="nm">正在写的之外留 5 份</span><span class="rl">和 logrotate 一个口径；再起来接着写原来那一份</span></div>
+          <div class="tile new"><span class="nm">默认 INFO</span><span class="rl">读不懂的照 INFO，记一条 WARN；off 什么都不写</span></div>
+          <div class="tile new"><span class="nm">会话的 span 开在 ERROR 级</span><span class="rl">span 也照级别筛：调到 WARN 也带着会话编号</span></div>
+          <div class="tile new"><span class="nm">控制字符也转义</span><span class="rl">cat 日志时终端不会当成指令</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">会话的 INFO 行（3-7 下）；配置项 log.level（配置那一步）；miyu logs（3-9 以后）；每个软件的日志（M4 以后）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-7（上）</dd></div>
+        <div><dt>名称</dt><dd>运行日志（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-27</dd></div>
+        <div><dt>提交</dt><dd class="mono">c54f359</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、长跑也绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>新 crate <code>miyu-log</code>（第 3 层）：<code>install()</code>、<code>level()</code>、<code>subscriber()</code>、<code>RotatingFile</code>、<code>LineLayer</code>，测试里拿 <code>Memory</code> 接住。</li>
+        <li><code>miyu-http</code>：<code>send</code> 在外面包一层，<code>DEBUG</code> 记发出去和收场；共用的测试夹具挪进 <code>tests/support/fixtures.rs</code>，日志的测试自己一个进程。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>一行的样子、级别、轮换、会话编号；HTTP 说完、限速、连不上、地址读不出主机名、叫停各一次，日志里没有 key、正文、路径、原话</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 57 处，除一处等价的都有测试变红（一处起初测不出来，补了测试）</span></li>
+        <li><span class="ok">✓</span><span>本地七项全过；三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/28-运行日志.md</code>（新）；<code>07-存储.md</code> 第二节、<code>14-配置.md</code> 第五节、<code>22-命令行.md</code> 第五节。</li>
+        <li><code>docs/designs/01-架构.md</code> 第九节：第 3 层多了 <code>miyu-log</code>。</li>
+        <li><code>docs/construction/3-7-运行日志（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -3977,7 +4065,7 @@ const BUILD = {
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认' },
   n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对；资源目录：MIYU_RESOURCES、程序旁边的 resources/、上一级的 share/miyu/，读出一个人格的原文（3-6 上）' },
   n_prompt: { by: '3-6', how: 'frame', note: '策略快照：人格从资源目录拼成快照，按内容哈希存档，载入时照哈希重建，请求逐字节一样；现在只有软件工程师（3-6 上）' },
-  n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断；会接着写的供应商用前缀续写（3-5 再补，出厂只开 DeepSeek）' },
+  n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断；会接着写的供应商用前缀续写（3-5 再补，出厂只开 DeepSeek）；DEBUG 记发出去和收场，key、正文、地址的路径一个字都不记（3-7 上）' },
 };
 
 const svg = document.getElementById('bmap');
