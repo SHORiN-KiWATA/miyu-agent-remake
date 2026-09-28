@@ -107,7 +107,7 @@
 
 ### 还没有的
 
-- Linux：Landlock 管文件（5-2），挂载命名空间护住 `.git` 和数据根、AppArmor 配置（5-3），网络命名空间和 seccomp（5-6）。
+- Linux：挂载命名空间护住 `.git` 和数据根、AppArmor 配置（5-3），网络命名空间和 seccomp（5-6）；文件的 Landlock 见 `sandbox/linux.md`（5-2）。
 - 权限策略给调用带规格、沙盒用不了时改成问人、`miyu ask` 开头说一句（5-4）。
 - 代理（5-5）。
 - macOS 的 Seatbelt（5-7）；Windows 的沙盒用户、受限令牌（5-8、5-9）。
