@@ -24,50 +24,33 @@ fn the_sample_reads_and_writes_back_byte_for_byte() {
             write: paths(&["/home/me/project", "/tmp"]),
             readonly: paths(&["/home/me/project/.git/hooks"]),
             hidden: paths(&["/home/me/.miyu"]),
-            network: Network::Off,
         }
     );
     assert_eq!(spec.to_json().expect("写得成") + "\n", sample);
 }
 
 #[test]
-fn the_proxy_is_written_with_its_address() {
-    let spec = Spec {
-        read: Vec::new(),
-        write: Vec::new(),
-        readonly: Vec::new(),
-        hidden: Vec::new(),
-        network: Network::Proxy("127.0.0.1:41234".into()),
-    };
-    let json = spec.to_json().expect("写得成");
-    assert_eq!(
-        json,
-        r#"{"read":[],"write":[],"readonly":[],"hidden":[],"network":{"proxy":"127.0.0.1:41234"}}"#
-    );
-    assert_eq!(Spec::from_json(&json).expect("读得懂"), spec);
-}
-
-#[test]
-fn only_the_network_must_be_written() {
-    let spec = Spec::from_json(r#"{"network":"off"}"#).expect("读得懂");
+fn every_field_may_be_left_out() {
+    let spec = Spec::from_json("{}").expect("读得懂");
     assert!(spec.read.is_empty() && spec.write.is_empty());
     assert!(spec.readonly.is_empty() && spec.hidden.is_empty());
-    let missing = Spec::from_json(r#"{"read":["/usr"]}"#).expect_err("没写网络");
-    assert!(missing.to_string().contains("network"), "{missing}");
+    assert_eq!(
+        spec.to_json().expect("写得成"),
+        r#"{"read":[],"write":[],"readonly":[],"hidden":[]}"#
+    );
 }
 
 #[test]
 fn unknown_fields_and_wrong_kinds_are_refused() {
-    // 认不得的格不能悄悄跳过：助手不懂的限制，要当规格写坏了。
-    let unknown = Spec::from_json(r#"{"network":"off","deny":["/"]}"#).expect_err("多了一格");
-    assert!(unknown.to_string().contains("deny"), "{unknown}");
-    for bad in [
-        r#"{"network":"on"}"#,
-        r#"{"network":{"proxy":1}}"#,
-        r#"{"network":"off","read":"/usr"}"#,
-        "not json",
-        "",
+    // 认不得的格不能悄悄跳过：助手不懂的限制，要当规格写坏了。原来的 `network` 也算认不得（2026-09-29 去掉）。
+    for (bad, named) in [
+        (r#"{"deny":["/"]}"#, "deny"),
+        (r#"{"network":"off"}"#, "network"),
     ] {
+        let error = Spec::from_json(bad).expect_err("多了一格");
+        assert!(error.to_string().contains(named), "{error}");
+    }
+    for bad in [r#"{"read":"/usr"}"#, r#"{"write":[1]}"#, "not json", ""] {
         assert!(Spec::from_json(bad).is_err(), "{bad}");
     }
 }

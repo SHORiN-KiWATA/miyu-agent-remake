@@ -2,7 +2,6 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use super::*;
-use crate::Network;
 
 #[test]
 fn the_command_goes_after_the_spec_and_the_dashes() {
@@ -13,7 +12,6 @@ fn the_command_goes_after_the_spec_and_the_dashes() {
             write: Vec::new(),
             readonly: Vec::new(),
             hidden: Vec::new(),
-            network: Network::Off,
         },
     };
     let args: Vec<OsString> = vec!["-c".into(), "echo hi -- there".into()];
@@ -35,7 +33,7 @@ fn the_command_goes_after_the_spec_and_the_dashes() {
 fn a_command_without_arguments_still_ends_with_the_program() {
     let sandboxed = Sandboxed {
         helper: PathBuf::from("miyu-sandbox"),
-        spec: Spec::from_json(r#"{"network":"off"}"#).expect("读得懂"),
+        spec: Spec::from_json("{}").expect("读得懂"),
     };
     let (_, wrapped) = argv(&sandboxed, Path::new("true"), &[]).expect("包得成");
     assert_eq!(wrapped.last(), Some(&OsString::from("true")));

@@ -39,7 +39,7 @@
 | `readonly` | 能写的那几片里只能读的，例如工作区的 `.git/hooks`、`.git/config` |
 | `hidden` | 读写都不行、要藏起来的，例如数据根：它可能落在能写的临时目录里 |
 
-改成（施工 5-1（补）合进来时标成样本 `docs/designs/samples/sandbox/spec.json`）（例子）：
+样本 `docs/designs/samples/sandbox/spec.json`（例子）：
 
 ```json
 {"read":["/usr","/etc"],"write":["/home/me/project","/tmp"],"readonly":["/home/me/project/.git/hooks"],"hidden":["/home/me/.miyu"]}

@@ -1,14 +1,16 @@
 //! Landlock（`docs/blueprint/sandbox/linux.md`）：建规则集、照规格加规则、收紧自己。
 //!
 //! 第 2 版的全部文件操作必须管得住：第 2 版起才管得了跨目录的改名、链接，更老的一律不许，很多工具会坏。更新的
-//! 版本多出来的文件操作（截断、设备的 ioctl、连路径上的 Unix 套接字）能管就管，这台内核没有的就少管那几样。
+//! 版本多出来的（截断、设备的 ioctl、连路径上的 Unix 套接字）能管就管，这台内核没有的就少管那几样；沙盒外建的抽象
+//! 套接字（第 6 版起）也能管就管。连套接字要管，是因为 D-Bus、Docker 这类系统服务能替命令在沙盒外读写（2026-09-29
+//! 项目主人定：沙盒不管网络，但这类系统服务照样挡）。
 
 use std::io;
 use std::path::Path;
 
 use landlock::{
     ABI, Access, AccessFs, BitFlags, CompatLevel, Compatible, PathBeneath, PathFd, PathFdError,
-    Ruleset, RulesetAttr, RulesetCreated, RulesetCreatedAttr, RulesetError, RulesetStatus,
+    Ruleset, RulesetAttr, RulesetCreated, RulesetCreatedAttr, RulesetError, RulesetStatus, Scope,
 };
 
 use miyu_sandbox::Spec;
@@ -43,7 +45,7 @@ pub(super) fn confine(spec: &Spec) -> Result<(), String> {
     }
 }
 
-/// 建规则集：第 2 版的文件操作必须管得住，更新的能管就管；收紧时设 `no_new_privs`。
+/// 建规则集：第 2 版的文件操作必须管得住，更新的能管就管，抽象套接字能管就管；收紧时设 `no_new_privs`。
 fn ruleset() -> Result<RulesetCreated, String> {
     let unavailable = |error: RulesetError| format!("landlock is not available: {error}");
     Ok(Ruleset::default()
@@ -54,6 +56,7 @@ fn ruleset() -> Result<RulesetCreated, String> {
                 .set_compatibility(CompatLevel::BestEffort)
                 .handle_access(AccessFs::from_all(LATEST))
         })
+        .and_then(|ruleset| ruleset.scope(Scope::AbstractUnixSocket))
         .and_then(Ruleset::create)
         .map_err(unavailable)?
         .no_new_privs(true))

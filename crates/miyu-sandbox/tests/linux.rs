@@ -9,7 +9,7 @@ mod support;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
-use miyu_sandbox::{EXIT_HELPER, Network, Probe, Spec};
+use miyu_sandbox::{EXIT_HELPER, Probe, Spec};
 use support::{Dir, HELPER, serial};
 
 /// 系统目录：`sh`、`cat` 这些要读的程序和库（设计 11 第四节的第一版清单）。不在的助手跳过。
@@ -28,7 +28,6 @@ fn spec(read: &[&Path], write: &[&Path]) -> Spec {
         write: all_write,
         readonly: Vec::new(),
         hidden: Vec::new(),
-        network: Network::Off,
     }
 }
 
@@ -272,6 +271,82 @@ fn the_probe_reports_landlock_when_the_kernel_has_it() {
     if has {
         assert!(landlock(), "内核启用了 Landlock，探测却没报");
     }
+}
+
+/// 这台机器的内核版本：`7.2.3-zen1` 这样的写法取前两段。
+fn kernel() -> (u32, u32) {
+    let release = std::fs::read_to_string("/proc/sys/kernel/osrelease").expect("读得出");
+    let mut parts = release
+        .trim()
+        .split(['.', '-'])
+        .map(|part| part.parse().unwrap_or(0));
+    (parts.next().unwrap_or(0), parts.next().unwrap_or(0))
+}
+
+/// 在沙盒里用 `python3` 连一个 Unix 套接字，`address` 以 `@` 开头的是抽象的。交回连得上连不上；机器上没有 `python3`
+/// 的交回空的。
+fn connects(spec: &Spec, address: &str) -> Option<bool> {
+    let script = format!(
+        "command -v python3 >/dev/null || exit 77; python3 -c 'import socket, sys; a = sys.argv[1]; s = socket.socket(socket.AF_UNIX); s.connect(\"\\0\" + a[1:] if a.startswith(\"@\") else a)' '{address}'"
+    );
+    let out = run(spec, &script);
+    match out.status.code() {
+        Some(77) => None,
+        Some(0) => Some(true),
+        _ => {
+            let stderr = text(&out.stderr);
+            assert!(
+                stderr.contains("PermissionError")
+                    || stderr.contains("Operation not permitted")
+                    || stderr.contains("Permission denied"),
+                "连不上的原因不是被拦：{stderr}"
+            );
+            Some(false)
+        }
+    }
+}
+
+/// 能替命令在沙盒外读写的系统服务照样挡（2026-09-29 项目主人定）：规格外路径上的 Unix 套接字连不上（内核 7.1 起），
+/// 沙盒外建的抽象套接字连不上（6.12 起）；更老的内核拦不住，照连得上测。能写的地方的套接字照样连得上。
+#[test]
+fn system_service_sockets_outside_the_spec_cannot_be_connected() {
+    use std::os::linux::net::SocketAddrExt;
+    use std::os::unix::net::{SocketAddr, UnixListener};
+    let _serial = serial();
+    let work = Dir::new();
+    let other = Dir::new();
+    let spec = spec(&[], &[work.path()]);
+    if refused_without_landlock(&spec) {
+        return;
+    }
+    let outside = other.path().join("bus");
+    let _outside = UnixListener::bind(&outside).expect("听得了");
+    let inside = work.path().join("mine.sock");
+    let _inside = UnixListener::bind(&inside).expect("听得了");
+    let name = format!("miyu-sandbox-test-{}", std::process::id());
+    let _abstract = UnixListener::bind_addr(
+        &SocketAddr::from_abstract_name(name.as_bytes()).expect("名字合法"),
+    )
+    .expect("听得了");
+    let version = kernel();
+    let Some(outside_ok) = connects(&spec, &outside.to_string_lossy()) else {
+        return;
+    };
+    assert_eq!(
+        outside_ok,
+        version < (7, 1),
+        "规格外路径上的套接字，内核 {version:?}"
+    );
+    assert_eq!(
+        connects(&spec, &inside.to_string_lossy()),
+        Some(true),
+        "能写的地方的照样连得上"
+    );
+    assert_eq!(
+        connects(&spec, &format!("@{name}")),
+        Some(version < (6, 12)),
+        "沙盒外建的抽象套接字，内核 {version:?}"
+    );
 }
 
 /// CI 上一定要真跑 Landlock：没有的话，上面几条只测了拒绝执行，Linux 的沙盒等于没测到。GitHub 的机器设了 `CI`。

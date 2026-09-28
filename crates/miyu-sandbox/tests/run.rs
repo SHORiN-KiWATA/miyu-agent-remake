@@ -8,7 +8,7 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
 
-use miyu_sandbox::{EXIT_CANNOT_RUN, EXIT_HELPER, EXIT_NOT_FOUND, Network, Platform, Probe, Spec};
+use miyu_sandbox::{EXIT_CANNOT_RUN, EXIT_HELPER, EXIT_NOT_FOUND, Platform, Probe, Spec};
 use support::{Dir, HELPER};
 
 /// 参数不对时的那一句。
@@ -26,7 +26,6 @@ fn spec() -> String {
         },
         readonly: Vec::new(),
         hidden: Vec::new(),
-        network: Network::Off,
     }
     .to_json()
     .expect("写得成")
@@ -123,11 +122,11 @@ fn wrong_arguments_print_the_usage_and_exit_125() {
 
 #[test]
 fn a_bad_spec_says_why_and_exits_125() {
-    let out = helper(&["run", "--spec", r#"{"network":"on"}"#, "--", "echo"]);
+    let out = helper(&["run", "--spec", r#"{"read":"/usr"}"#, "--", "echo"]);
     assert_eq!(out.status.code(), Some(i32::from(EXIT_HELPER)), "{out:?}");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.starts_with("miyu-sandbox: bad spec: "), "{stderr}");
-    assert!(stderr.contains("on"), "带着原话：{stderr}");
+    assert!(stderr.contains("expected a sequence"), "带着原话：{stderr}");
     assert_eq!(stderr.lines().count(), 1, "{stderr}");
 }
 

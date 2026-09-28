@@ -2,7 +2,7 @@
 //! `miyu-sandbox` 照规格先把自己收紧，再换成那条命令。助手是单独的一个小程序：Ubuntu、Mint 上只给它开命名空间
 //! （`docs/designs/11-权限与沙盒.md` 第六节）。
 //!
-//! - [`Spec`]、[`Network`]：规格；[`Sandboxed`]：一次调用带的，助手在哪、规格是什么；
+//! - [`Spec`]：规格；[`Sandboxed`]：一次调用带的，助手在哪、规格是什么；
 //! - [`argv`]：照规格把一条命令包成交给助手的样子；
 //! - [`locate()`]：找助手，在主程序旁边；
 //! - [`probe()`]：跑一次助手的 `probe`，读它说这台机器能收紧到什么程度（[`Probe`]、[`Platform`]）。
@@ -18,7 +18,7 @@ mod wrap;
 
 pub use locate::{HELPER, locate};
 pub use probe::{Platform, Probe, ProbeError, VERSION, probe};
-pub use spec::{Network, Spec};
+pub use spec::Spec;
 pub use wrap::{Sandboxed, argv};
 
 /// 助手的退出码：它自己出了错（参数、规格写坏了，收紧失败）。照 `env`、`timeout` 的约定。

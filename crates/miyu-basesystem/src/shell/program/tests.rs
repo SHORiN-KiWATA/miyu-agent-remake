@@ -173,8 +173,7 @@ fn zsh_passes_an_unmatched_glob_through() {
 fn sandboxed() -> Sandboxed {
     Sandboxed {
         helper: PathBuf::from("/opt/miyu/miyu-sandbox"),
-        spec: miyu_sandbox::Spec::from_json(r#"{"read":["/usr"],"network":"off"}"#)
-            .expect("读得懂"),
+        spec: miyu_sandbox::Spec::from_json(r#"{"read":["/usr"]}"#).expect("读得懂"),
     }
 }
 

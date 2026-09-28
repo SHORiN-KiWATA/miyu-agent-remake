@@ -1,5 +1,4 @@
 use super::*;
-use miyu_sandbox::Network;
 
 fn paths(list: &[&str]) -> Vec<PathBuf> {
     list.iter().map(PathBuf::from).collect()
@@ -11,7 +10,6 @@ fn spec(read: &[&str], write: &[&str], readonly: &[&str], hidden: &[&str]) -> Sp
         write: paths(write),
         readonly: paths(readonly),
         hidden: paths(hidden),
-        network: Network::Off,
     }
 }
 

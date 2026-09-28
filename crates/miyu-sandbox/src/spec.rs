@@ -1,5 +1,6 @@
-//! 规格（`docs/blueprint/sandbox.md`「对外的样子」）：哪些能读，哪些能写，能写的里面哪些只能读，哪些藏起来，网络怎么走。
-//! 路径都是真实的位置。写成 JSON 经命令行交给助手，里面只有路径和网络怎么走，没有密钥。
+//! 规格（`docs/blueprint/sandbox.md`「对外的样子」）：哪些能读，哪些能写，能写的里面哪些只能读，哪些藏起来。路径
+//! 都是真实的位置。写成 JSON 经命令行交给助手，里面只有路径，没有密钥。沙盒只管读写权限，不管网络（2026-09-29
+//! 项目主人定）。
 
 use std::path::PathBuf;
 
@@ -21,18 +22,6 @@ pub struct Spec {
     /// 读写都不行、要藏起来的，例如数据根：它可能落在能写的临时目录里。
     #[serde(default)]
     pub hidden: Vec<PathBuf>,
-    /// 网络怎么走。
-    pub network: Network,
-}
-
-/// 沙盒里的网络。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Network {
-    /// 不能联网。
-    Off,
-    /// 只能连 Miyu 的代理，例如 `127.0.0.1:41234`。
-    Proxy(String),
 }
 
 impl Spec {
@@ -40,7 +29,7 @@ impl Spec {
     ///
     /// # Errors
     ///
-    /// 实际不会出错：几格都是路径和字符串。路径不是 UTF-8 的，serde 交回错误。
+    /// 实际不会出错：几格都是路径。路径不是 UTF-8 的，serde 交回错误。
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(self)
     }
@@ -49,7 +38,7 @@ impl Spec {
     ///
     /// # Errors
     ///
-    /// 不是 JSON、少了 `network`、有认不得的格、类型不对。
+    /// 不是 JSON、有认不得的格、类型不对。
     pub fn from_json(text: &str) -> Result<Spec, serde_json::Error> {
         serde_json::from_str(text)
     }
