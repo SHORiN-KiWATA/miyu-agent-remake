@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>81</b><span>/ 82 步<strong>已完成</strong>，许可证换成 GPL-3.0-or-later，门禁查依赖的许可证</span></li>
-    <li><b>4-13</b><span>下一步：读图，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">1cae198</b><span>最近一步（4-12 许可证改成 GPL）的提交</span></li>
+    <li><b>82</b><span>/ 82 步<strong>已完成</strong>，她看得见图了：read 交回图片，deepseek-flash 收图</span></li>
+    <li><b>M5</b><span>下一步：沙盒，<strong>先拆成步，等项目主人批准</strong></span></li>
+    <li><b class="mono">deeb0a9</b><span>最近一步（4-13 读图）的提交</span></li>
   </ul>
 </header>
 
@@ -418,7 +418,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-10"><span class="n">4-10</span>M4 验收<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-11"><span class="n">4-11</span>命令行的样子<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-12"><span class="n">4-12</span>许可证改成 GPL<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-13</span>读图</span></li>
+        <li><a class="step done" href="#s4-13"><span class="n">4-13</span>读图<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -6498,6 +6498,76 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>licenses.md</code>；设计 <code>12-进程形态与分发.md</code> R15。</li>
         <li><code>docs/construction/4-12-许可证改成 GPL.md</code>：施工单和验收结果。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s4-13" aria-labelledby="h-s413">
+  <div class="sheet-head"><h2 id="h-s413"><span class="no">4-13</span>读图</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">read 读图片：PNG、JPEG、GIF、WebP 交回图片本身，她看得见（DeepSeek 的 deepseek-flash 从 2026-08-21 起收图）。顺路给执行命令加必填的 description，这条命令在做什么的短标题，前端以后用。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一张图怎么走</span><span class="dir-note">工具结果 → user 消息</span></div>
+            <ol class="pipe" aria-label="一张图怎么走">
+              <li>read 看开头的字节认格式，量宽高（imagesize，只看文件头）</li>
+              <li>每边 8000 像素、5 MiB 以内交回图片的字节；太大的拦下，让她先缩小</li>
+              <li>执行器存成 blob，换成图片块接在内容块后面</li>
+              <li>驱动把图挪到后面一条 user 消息里：DeepSeek 只收 user 消息里的图</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">真模型自测</span><span class="dir-note">都对</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">认图</span><span class="rl">→ 读取 icon.png · 图片 256×256：她认出是 Firefox 的图标</span></div>
+              <div class="tile new"><span class="nm">太大的图</span><span class="rl">42.9 MiB 被拦下，她用 magick 缩到 1024×1024 再看</span></div>
+              <div class="tile new"><span class="nm">description</span><span class="rl">两次执行命令都写了短标题，记在会话日志里</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">上限取最严的</span><span class="rl">每边 8000 像素、5 MiB：被供应商拒掉的图会让这个会话以后的请求都失败</span></div>
+          <div class="tile new"><span class="nm">description 必填</span><span class="rl">执行命令的短标题，名字照 Claude Code、opencode（项目主人定）</span></div>
+          <div class="tile new"><span class="nm">工具面</span><span class="rl">read 172、shell 152，七件合计 1119 个 token；预算 4600 字节</span></div>
+          <div class="tile"><span class="nm">先不做</span><span class="rl">PDF；替看图；编辑的 description（项目主人定先不加）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-13</dd></div>
+        <div><dt>名称</dt><dd>读图</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">deeb0a9</dd></div>
+        <div><dt>验收</dt><dd>真模型自测、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>read/image.rs</code>：认格式、量宽高、上限；<code>Done</code> 多一格 <code>images</code>。</li>
+        <li><code>session/pictures.rs</code>：图片存成 blob、换成图片块；<code>deepseek-flash</code> 收图。</li>
+        <li><code>shell</code> 必填 <code>description</code>；登记簿、预算照实测改。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真模型自测：认图、太大的图自己缩小、description 都对</span></li>
+        <li><span class="ok">✓</span><span>手写 12 个变异都被逮住</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>tools/read.md</code>、<code>tools/shell.md</code>、<code>tools/interface.md</code>、<code>session/tools.md</code>、<code>core.md</code>。</li>
+        <li><code>docs/construction/4-13-读图.md</code>：施工单和验收结果。</li>
       </ul>
     </div>
   </div>
