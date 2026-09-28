@@ -50,6 +50,9 @@ pub trait Decode: Send {
     /// 不用再读了。
     fn done(&self) -> bool;
 
+    /// `finish_reason` 到了：模型说完了，只差流的结尾（施工 4-9 再补三下）。这时停住不动的，执行器当说完了。
+    fn finished(&self) -> bool;
+
     /// 流完了，或者不再读了：收块的增量、用量、出错。
     fn finish(self: Box<Self>) -> Ending;
 }
@@ -102,6 +105,10 @@ impl Decode for Decoder {
 
     fn done(&self) -> bool {
         Decoder::done(self)
+    }
+
+    fn finished(&self) -> bool {
+        Decoder::finished(self)
     }
 
     fn finish(self: Box<Self>) -> Ending {

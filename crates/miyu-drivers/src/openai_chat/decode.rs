@@ -40,6 +40,8 @@ pub struct Decoder {
     done: bool,
     /// 流里报了错，或者流坏了。
     error: Option<CallError>,
+    /// 流里报的错，供应商说要等多久（施工 4-9 再补三下）。
+    wait: Option<u64>,
 }
 
 /// 一次工具调用解到哪了。
@@ -80,6 +82,11 @@ impl Decoder {
         self.done || self.error.is_some()
     }
 
+    /// `finish_reason` 到了：模型说完了，只差 `[DONE]`（施工 4-9 再补三下）。
+    pub fn finished(&self) -> bool {
+        self.finish_reason.is_some()
+    }
+
     /// 流完了，或者不再读了：交出收块的增量、用量、出错。
     pub fn finish(mut self) -> Ending {
         let mut deltas = Vec::new();
@@ -98,6 +105,7 @@ impl Decoder {
             deltas,
             usage: self.usage,
             error,
+            retry_after_ms: self.wait,
         }
     }
 
@@ -135,7 +143,7 @@ impl Decoder {
             return;
         }
         if event.event.as_deref() == Some("error") {
-            self.error = Some(classify(&Failure::stream(data.as_bytes())).error);
+            self.stream_error(data);
             return;
         }
         match serde_json::from_str::<Chunk>(data) {
@@ -155,10 +163,17 @@ impl Decoder {
         }
     }
 
+    /// 流里报的错：照出错分类分，供应商说要等多久的一起留下（施工 4-9 再补三下）。
+    fn stream_error(&mut self, data: &str) {
+        let classified = classify(&Failure::stream(data.as_bytes()));
+        self.error = Some(classified.error);
+        self.wait = classified.retry_after_ms;
+    }
+
     /// 一段 JSON。
     fn chunk(&mut self, chunk: Chunk, data: &str, out: &mut Vec<Delta>) {
         if chunk.error.as_ref().is_some_and(has_content) {
-            self.error = Some(classify(&Failure::stream(data.as_bytes())).error);
+            self.stream_error(data);
             return;
         }
         if let Some(found) = chunk.usage.as_ref().and_then(usage) {
@@ -290,13 +305,16 @@ struct IdOnly<'a> {
     id: &'a str,
 }
 
-/// `error` 是不是真有内容：`{"error":""}`、`{"error":{}}`、`null` 是网关的噪声。
+/// `error` 是不是真有内容：`null`、`""`、`{}`、`false`、`0`、`[]` 是网关的噪声（施工 4-9 再补三下：原来布尔、数字、
+/// 数组一律算有内容，`"error":false` 也当成出错）。
 fn has_content(error: &Value) -> bool {
     match error {
         Value::Null => false,
+        Value::Bool(flag) => *flag,
+        Value::Number(number) => number.as_f64() != Some(0.0),
         Value::String(text) => !text.is_empty(),
+        Value::Array(items) => !items.is_empty(),
         Value::Object(map) => !map.is_empty(),
-        _ => true,
     }
 }
 

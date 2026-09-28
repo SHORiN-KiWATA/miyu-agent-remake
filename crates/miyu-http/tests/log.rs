@@ -87,7 +87,7 @@ async fn the_log_says_what_happened_and_nothing_of_what_was_said() {
         "{outcome:?}"
     );
 
-    // 地址读不出主机名的一次：主机名写 `?`，发不出去。
+    // 地址读不出主机名的一次：主机名写 `?`，造不出请求。
     let endpoint = Endpoint::new("not a url", "sk-test");
     let outcome = run(&endpoint, std::future::pending()).await;
     assert!(
@@ -115,7 +115,8 @@ async fn the_log_says_what_happened_and_nothing_of_what_was_said() {
             sent.as_str(),
             "DEBUG http     failed host=127.0.0.1 class=retryable took_ms=_",
             nowhere.as_str(),
-            "DEBUG http     failed host=? class=retryable took_ms=_",
+            // 地址写得不对：造不出请求，是 `other`，不重试（施工 4-9 再补三下：原来落成 `retryable`）。
+            "DEBUG http     failed host=? class=other took_ms=_",
             sent.as_str(),
             "DEBUG http     cancelled host=127.0.0.1 took_ms=_",
         ],

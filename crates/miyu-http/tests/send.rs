@@ -229,10 +229,21 @@ async fn nobody_listening_is_retryable() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("绑得上");
     let port = listener.local_addr().expect("有地址").port();
     drop(listener);
-    let endpoint = Endpoint::new(format!("http://127.0.0.1:{port}/v1"), "sk-test");
+    // 有的供应商把 key 放在地址里。
+    let endpoint = Endpoint::new(format!("http://127.0.0.1:{port}/sk-in-path/v1"), "sk-test");
     let (progress, outcome) = run(&endpoint, Duration::from_secs(5), never()).await;
     assert!(matches!(progress.first(), Some(Progress::Sent { .. })));
-    assert_eq!(class(&outcome), Some(ErrorClass::Retryable));
+    let Outcome::Ended {
+        error: Some(error), ..
+    } = outcome
+    else {
+        panic!("应该出错：{outcome:?}");
+    };
+    assert_eq!(error.error.class, ErrorClass::Retryable);
+    // 原话里没有地址（施工 4-9 再补三下：原来 reqwest 的错带着整个地址）。
+    let message = &error.error.message;
+    assert!(!message.contains("sk-in-path"), "{message}");
+    assert!(!message.contains("://"), "{message}");
 }
 
 #[tokio::test]
@@ -274,6 +285,136 @@ async fn a_body_cut_short_says_how_the_connection_broke() {
         "{}",
         error.error.message
     );
+}
+
+#[tokio::test]
+async fn it_counts_as_done_when_only_done_is_missing() {
+    // `finish_reason`、用量都到了，只差 `[DONE]` 就停住：算说完，增量、用量照交（施工 4-9 再补三下：
+    // 原来算空闲超时出错，重来一遍）。
+    let stream = sample("openai-text");
+    let done = stream
+        .windows(12)
+        .position(|window| window == b"data: [DONE]")
+        .expect("有 [DONE]");
+    let server = Server::start(vec![Reply::stream(vec![
+        Piece::Bytes(stream[..done].to_vec()),
+        Piece::Stall,
+    ])])
+    .await;
+    let endpoint = Endpoint::new(&server.base_url, "sk-test");
+    let (progress, outcome) = run(&endpoint, Duration::from_millis(200), never()).await;
+    let mut decoder = Decoder::new();
+    let mut expected = decoder.feed(&stream);
+    let ending = decoder.finish();
+    expected.extend(ending.deltas);
+    assert_eq!(deltas(&progress), expected);
+    assert!(ending.usage.is_some());
+    assert_eq!(
+        outcome,
+        Outcome::Ended {
+            usage: ending.usage,
+            error: None
+        }
+    );
+}
+
+#[tokio::test]
+async fn a_rate_limit_in_the_stream_says_how_long_to_wait() {
+    let reply = "data: {\"error\":{\"message\":\"Rate limit reached. Please try again in 1.5s\",\
+                 \"type\":\"rate_limit_error\",\"code\":429}}\n\n";
+    let server = Server::start(vec![Reply::stream(vec![Piece::Bytes(
+        reply.as_bytes().to_vec(),
+    )])])
+    .await;
+    let endpoint = Endpoint::new(&server.base_url, "sk-test");
+    let (_, outcome) = run(&endpoint, Duration::from_secs(5), never()).await;
+    let Outcome::Ended {
+        error: Some(error), ..
+    } = outcome
+    else {
+        panic!("应该出错：{outcome:?}");
+    };
+    assert_eq!(error.error.class, ErrorClass::RateLimited);
+    // 供应商说的 1.5 秒交回去，内核照这个等（施工 4-9 再补三下：原来丢掉，内核照自己的退避）。
+    assert_eq!(error.retry_after_ms, Some(1500));
+}
+
+#[tokio::test]
+async fn a_header_of_the_same_name_replaces_the_default() {
+    let server = Server::start(vec![Reply::stream(vec![Piece::Bytes(sample(
+        "openai-text",
+    ))])])
+    .await;
+    let endpoint = Endpoint::new(&server.base_url, "sk-test")
+        .with_header("accept", "application/x-ndjson")
+        .with_header("X-Tag", "a")
+        .with_header("X-Tag", "b");
+    let (_, outcome) = run(&endpoint, Duration::from_secs(5), never()).await;
+    assert!(
+        matches!(outcome, Outcome::Ended { error: None, .. }),
+        "{outcome:?}"
+    );
+    let received = server.received();
+    let values = |name: &str| -> Vec<String> {
+        received[0]
+            .headers
+            .iter()
+            .filter(|(key, _)| key.eq_ignore_ascii_case(name))
+            .map(|(_, value)| value.clone())
+            .collect()
+    };
+    // 另配的 `Accept` 换掉默认的：只有一个，是另配的那个（施工 4-9 再补三下：原来发两个）。
+    assert_eq!(values("accept"), ["application/x-ndjson"]);
+    // 另配的几个同名的，照先后都发。
+    assert_eq!(values("x-tag"), ["a", "b"]);
+}
+
+#[tokio::test]
+async fn a_bad_address_or_header_is_other_and_not_sent() {
+    let server = Server::start(vec![
+        Reply::stream(vec![Piece::Bytes(sample("openai-text"))]);
+        2
+    ])
+    .await;
+    let endpoints = [
+        Endpoint::new("not a url", "sk-test"),
+        Endpoint::new("ftp://127.0.0.1/v1", "sk-test"),
+        Endpoint::new(&server.base_url, "sk-test").with_header("bad name", "x"),
+        Endpoint::new(&server.base_url, "sk-test").with_header("X-Tag", "sk-hidden\n"),
+    ];
+    for endpoint in &endpoints {
+        let (progress, outcome) = run(endpoint, Duration::from_secs(5), never()).await;
+        // 照样先报发出去了。
+        assert!(matches!(progress.first(), Some(Progress::Sent { .. })));
+        let Outcome::Ended {
+            error: Some(error), ..
+        } = outcome
+        else {
+            panic!("应该出错：{endpoint:?} {outcome:?}");
+        };
+        // 造不出请求，重来也一样：`other`，不重试（施工 4-9 再补三下：原来地址写坏了是 `retryable`）。
+        assert_eq!(error.error.class, ErrorClass::Unclassified, "{endpoint:?}");
+        let message = &error.error.message;
+        assert!(message.starts_with("地址或者头写得不对："), "{message}");
+        // 不带地址，不带头的值（值也可能是密钥）。
+        assert!(!message.contains("://"), "{message}");
+        assert!(!message.contains("sk-hidden"), "{message}");
+    }
+    // 一个都没发到服务器。
+    assert!(server.received().is_empty());
+}
+
+#[test]
+fn the_address_is_printed_as_its_host_only() {
+    // 有的供应商把 key 放在地址的路径、参数里（施工 4-9 再补三下：原来打出整个地址）。
+    let endpoint = Endpoint::new(
+        "https://api.example.com/sk-in-path/v1?key=sk-in-query",
+        "sk",
+    );
+    let printed = format!("{endpoint:?}");
+    assert!(printed.contains("api.example.com"), "{printed}");
+    assert!(!printed.contains("sk-in-path"), "{printed}");
+    assert!(!printed.contains("sk-in-query"), "{printed}");
 }
 
 #[test]

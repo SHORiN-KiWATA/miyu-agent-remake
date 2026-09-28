@@ -237,7 +237,7 @@
 | `crates/miyu-drivers/tests/openai_chat.rs` | 只有文字；输出上限和用量两个开关；工具调用、编号、参数兜底、没有输出的占位；user 的换行；空工具面；不认识的块；空的 system 不发；每条消息的位置 |
 | `crates/miyu-drivers/tests/openai_chat_media.rs` | 图片、PDF 写成 data URL；不能收的占位；工具结果里的附件挪到后面、或者就地占位；思考的三种回传；缺 blob 报错；要哪些 blob |
 | `crates/miyu-drivers/tests/openai_chat_continuation.rs` | DeepSeek 接着写（样本、路径、半截带思考）；没有开关或者没有记号一字不变；`partial` 的写法 |
-| `crates/miyu-drivers/tests/openai_chat_streams.rs` | 十三份流的样本；从哪里切开喂都一样；累积器一条都不拒；解出来的编码回去用供应商的编号；驱动的接口走一遍 |
+| `crates/miyu-drivers/tests/openai_chat_streams.rs` | 十三份流的样本；从哪里切开喂都一样；累积器一条都不拒；解出来的编码回去用供应商的编号；驱动的接口走一遍；`error` 是 `false`、`0`、`[]` 的是噪声，有内容的照旧出错；流里的限速连同要等多久交回；`finished()` 在 `finish_reason` 到了以后才说是 |
 | `crates/miyu-drivers/src/sse/tests.rs` | 三种换行、切开的 CRLF、几行 data 和注释、只有注释、事件名、切开的汉字、断在半条上、从哪里切开都一样 |
 | `crates/miyu-drivers/src/classify/tests.rs` | 每一类的例子；提到 token 的限速不当超长；额度算认证失败；要等多久的四种写法；`x-should-retry`；原话和 2000 字节 |
 | `crates/miyu-drivers/src/texts/tests.rs` | 文件名换进去、转义；不该有的字段报错 |

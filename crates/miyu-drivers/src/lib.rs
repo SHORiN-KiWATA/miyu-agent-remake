@@ -102,4 +102,6 @@ pub struct Ending {
     pub usage: Option<Usage>,
     /// 出错的分类和原话；正常说完的，没有。
     pub error: Option<CallError>,
+    /// 流里报的错，供应商说要等多久（毫秒，施工 4-9 再补三下）；没说的、别的出错，没有。
+    pub retry_after_ms: Option<u64>,
 }

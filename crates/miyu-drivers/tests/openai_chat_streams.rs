@@ -209,3 +209,84 @@ fn the_driver_interface_goes_through_all_three() {
     assert_eq!(classified.error.class, ErrorClass::RateLimited);
     assert_eq!(classified.retry_after_ms, Some(3000));
 }
+
+/// 一段有正文、说完了的流，`error` 那一格照给的写。
+fn with_error(error: &str) -> Vec<u8> {
+    format!(
+        "data: {{\"choices\":[{{\"index\":0,\"delta\":{{\"content\":\"好\"}},\
+         \"finish_reason\":\"stop\"}}],\"error\":{error}}}\n\ndata: [DONE]\n\n"
+    )
+    .into_bytes()
+}
+
+/// `needle` 头一次出现在哪。
+fn position(bytes: &[u8], needle: &[u8]) -> usize {
+    bytes
+        .windows(needle.len())
+        .position(|window| window == needle)
+        .expect("找得到")
+}
+
+#[test]
+fn an_error_that_says_nothing_is_noise() {
+    // 网关的噪声：照常解，不算出错（施工 4-9 再补三下：原来 `false`、`0`、`[]` 也算出错）。
+    for noise in ["null", "\"\"", "{}", "false", "0", "0.0", "[]"] {
+        let (deltas, ending) = decode(&[&with_error(noise)]);
+        assert!(ending.error.is_none(), "{noise}：{:?}", ending.error);
+        assert!(
+            deltas
+                .iter()
+                .any(|delta| matches!(delta, Delta::Text { text, .. } if text == "好")),
+            "{noise}"
+        );
+    }
+    // 真有内容的照旧算出错。
+    for said in [
+        "true",
+        "1",
+        "-2.5",
+        "[1]",
+        "\"boom\"",
+        r#"{"message":"boom"}"#,
+    ] {
+        let (_, ending) = decode(&[&with_error(said)]);
+        assert!(ending.error.is_some(), "{said}");
+    }
+}
+
+#[test]
+fn a_rate_limit_in_the_stream_keeps_how_long_to_wait() {
+    // 流里报的限速说了要等多久：连同出错一起交回，数据行、`event: error` 都是（施工 4-9 再补三下：
+    // 原来丢掉）。
+    let said = r#"{"error":{"message":"Rate limit reached. Please try again in 1.5s","type":"rate_limit_error","code":429}}"#;
+    for bytes in [
+        format!("data: {said}\n\n"),
+        format!("event: error\ndata: {said}\n\n"),
+    ] {
+        let (_, ending) = decode(&[bytes.as_bytes()]);
+        let class = ending.error.map(|error| error.class);
+        assert_eq!(class, Some(ErrorClass::RateLimited), "{bytes}");
+        assert_eq!(ending.retry_after_ms, Some(1500), "{bytes}");
+    }
+    // 没说要等多久的，没有；正常说完的也没有。
+    let (_, ending) = decode(&[&stream("stream-error")]);
+    assert!(ending.error.is_some());
+    assert_eq!(ending.retry_after_ms, None);
+    let (_, ending) = decode(&[&stream("openai-text")]);
+    assert_eq!(ending.retry_after_ms, None);
+}
+
+#[test]
+fn finished_says_whether_the_finish_reason_came() {
+    let bytes = stream("openai-text");
+    let reason = position(&bytes, br#""finish_reason":"stop""#);
+    let done = position(&bytes, b"data: [DONE]");
+    let driver = OpenAiChat::new(deepseek(), texts());
+    let mut decoder = driver.decoder();
+    let _unused = decoder.feed(&bytes[..reason]);
+    assert!(!decoder.finished());
+    let _unused = decoder.feed(&bytes[reason..done]);
+    // `finish_reason` 到了，还没见到 `[DONE]`（施工 4-9 再补三下）。
+    assert!(decoder.finished());
+    assert!(!decoder.done());
+}

@@ -38,13 +38,22 @@ impl Endpoint {
 }
 
 impl fmt::Debug for Endpoint {
-    /// key 写成 `***`；另配的头只写名字，值也可能是密钥。
+    /// 地址只写主机名，路径和参数里可能有 key（施工 4-9 再补三下）；key 写成 `***`；另配的头只写名字，值也可能是
+    /// 密钥。
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let names: Vec<&str> = self.headers.iter().map(|(name, _)| name.as_str()).collect();
         f.debug_struct("Endpoint")
-            .field("base_url", &self.base_url)
+            .field("host", &host(&self.base_url))
             .field("key", &"***")
             .field("headers", &names)
             .finish()
     }
+}
+
+/// 地址里的主机名，日志、调试输出只写它：路径和参数里可能有 key。读不出来的写 `?`。
+pub(crate) fn host(base_url: &str) -> String {
+    reqwest::Url::parse(base_url)
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_string))
+        .unwrap_or_else(|| "?".to_string())
 }

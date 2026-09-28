@@ -1,6 +1,7 @@
 //! 发一次请求（`05-内核接口.md` 第七节「HTTP 执行器」）：发、读、空闲超时、出错、打断。
 //!
-//! 1. 先报「发出去了」，带上请求字节的哈希；再 `POST <地址><路径>`，请求体一个字节不改。
+//! 1. 先报「发出去了」，带上请求字节的哈希；再 `POST <地址><路径>`，请求体一个字节不改。地址、另配的
+//!    头写得不对，造不出请求的，出错 `other`，不重试。
 //! 2. 不是 2xx 的，读最多 64 KiB 的响应体，连同状态、响应头交给驱动分类。
 //! 3. 2xx 的，一片一片地读，每一片都套上空闲超时，交给解码器，解出来的增量马上交出去；解码器
 //!    说不用再读了就停。读完了（或者读到一半断了）由解码器收尾：它知道说没说完。
@@ -8,7 +9,8 @@
 //!
 //! 运行日志（`28-运行日志.md`，施工 3-7 上）在 `DEBUG` 记两行：发出去了（主机名、请求多少字节），
 //! 怎么收场的（状态码、出错的分类、要等多久、用时）。请求体、key、地址的路径和参数、出错的原话
-//! 都不记：有的供应商把 key 放在地址里，出错的原话里也可能回显请求里的字。
+//! 都不记：有的供应商把 key 放在地址里，出错的原话里也可能回显请求里的字。reqwest 的错进原话之前
+//! 去掉地址（施工 4-9 再补三下）：原话记进 `model.called`。
 
 use std::error::Error;
 use std::future::Future;
@@ -19,10 +21,11 @@ use miyu_drivers::classify::{Classified, Failure};
 use miyu_kernel::accumulate::Delta;
 use miyu_kernel::event::{CallError, ErrorClass, Usage};
 use miyu_kernel::id::ContentHash;
-use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap};
+use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
 use tokio::time::timeout;
 
 use crate::Endpoint;
+use crate::endpoint::host;
 
 /// 出错时的响应体最多读多少：分类用不着那么多，原话本来也只留 2000 字节。
 const ERROR_BODY_LIMIT: usize = 64 * 1024;
@@ -115,24 +118,29 @@ async fn exchange(
     status: &mut Option<u16>,
 ) -> Outcome {
     tokio::pin!(cancel);
+    // 先报发出去了：连不上的、造不出请求的也报过，`model.called` 里照样有发给了谁、请求的哈希。
+    on(Progress::Sent {
+        request: ContentHash::of(attempt.body),
+    });
     let url = format!(
         "{}{}",
         attempt.endpoint.base_url.trim_end_matches('/'),
         attempt.path
     );
-    let mut request = attempt
+    // 另配的头：名字、值写得不对的，造不出请求（施工 4-9 再补三下）。
+    let extra = match extra_headers(&attempt.endpoint.headers) {
+        Ok(extra) => extra,
+        Err(why) => return misconfigured(&why),
+    };
+    let request = attempt
         .client
         .post(url)
         .header(AUTHORIZATION, format!("Bearer {}", attempt.endpoint.key()))
         .header(CONTENT_TYPE, "application/json")
         .header(ACCEPT, "text/event-stream")
+        // 另配的头换掉同名的，不是再加一个（施工 4-9 再补三下）。
+        .headers(extra)
         .body(attempt.body.to_vec());
-    for (name, value) in &attempt.endpoint.headers {
-        request = request.header(name.as_str(), value.as_str());
-    }
-    on(Progress::Sent {
-        request: ContentHash::of(attempt.body),
-    });
     let waited = tokio::select! {
         biased;
         () = &mut cancel => return Outcome::Cancelled,
@@ -140,7 +148,9 @@ async fn exchange(
     };
     let mut response = match waited {
         Ok(Ok(response)) => response,
-        Ok(Err(error)) => return failed(attempt.driver, &chain(&error)),
+        // 地址写得不对：造不出请求，重来也一样（施工 4-9 再补三下：原来交给驱动分类，落成可以重试）。
+        Ok(Err(error)) if error.is_builder() => return misconfigured(&chain(&error.without_url())),
+        Ok(Err(error)) => return failed(attempt.driver, &chain(&error.without_url())),
         Err(_) => return idle(attempt.idle),
     };
     let code = response.status();
@@ -193,9 +203,11 @@ async fn exchange(
             }
             Ok(Ok(None)) => break,
             Ok(Err(error)) => {
-                broken = Some(chain(&error));
+                broken = Some(chain(&error.without_url()));
                 break;
             }
+            // `finish_reason` 到了、只差 `[DONE]` 时停住：模型说完了，当说完了收尾（施工 4-9 再补三下）。
+            Err(_) if decoder.finished() => break,
             Err(_) => return idle(attempt.idle),
         }
     }
@@ -215,19 +227,12 @@ async fn exchange(
     }
     Outcome::Ended {
         usage: ending.usage,
+        // 流里报的错带着解码器留下的要等多久（施工 4-9 再补三下）。
         error: error.map(|error| Classified {
             error,
-            retry_after_ms: None,
+            retry_after_ms: ending.retry_after_ms,
         }),
     }
-}
-
-/// 地址里的主机名，日志只写它：路径和参数里可能有 key。读不出来的写 `?`。
-fn host(base_url: &str) -> String {
-    reqwest::Url::parse(base_url)
-        .ok()
-        .and_then(|url| url.host_str().map(str::to_string))
-        .unwrap_or_else(|| "?".to_string())
 }
 
 /// 连不上、发不出去：没有状态，交给驱动分类（可重试）。
@@ -239,6 +244,32 @@ fn failed(driver: &dyn Driver, why: &str) -> Outcome {
             headers: &[],
             body: why.as_bytes(),
         })),
+    }
+}
+
+/// 端点另配的头，照先后放进一张表；名字、值写得不对的，交回是哪一个（不写值：值也可能是密钥）。
+fn extra_headers(headers: &[(String, String)]) -> Result<HeaderMap, String> {
+    let mut map = HeaderMap::new();
+    for (name, value) in headers {
+        let key =
+            HeaderName::from_bytes(name.as_bytes()).map_err(|error| format!("{name}: {error}"))?;
+        let value = HeaderValue::from_str(value).map_err(|error| format!("{name}: {error}"))?;
+        map.append(key, value);
+    }
+    Ok(map)
+}
+
+/// 地址、另配的头写得不对：造不出请求，重来也一样，出错 `other`，不重试（施工 4-9 再补三下）。
+fn misconfigured(why: &str) -> Outcome {
+    Outcome::Ended {
+        usage: None,
+        error: Some(Classified {
+            error: CallError {
+                class: ErrorClass::Unclassified,
+                message: format!("地址或者头写得不对：{why}"),
+            },
+            retry_after_ms: None,
+        }),
     }
 }
 
