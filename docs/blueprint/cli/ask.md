@@ -12,7 +12,7 @@
 | `crates/miyu-cli/src/ask.rs` | 参数、退出码、找数据根、连核心、Ctrl+C |
 | `crates/miyu-cli/src/ask/talk.rs` | 握手、找会话、订阅、发、跟着那一轮 |
 | `crates/miyu-cli/src/ask/follow.rs` | 收推送：回答、思考、每一步、用量、结束 |
-| `crates/miyu-cli/src/ask/steps.rs` | 每一步的标题、目录太宽那一句、最后那一句 |
+| `crates/miyu-cli/src/ask/steps.rs` | 每一步的标题、目录太宽那一句、沙盒用不了那一句（施工 5-4 下）、最后那一句 |
 | `crates/miyu-cli/src/ask/steps/blocks.rs` | 执行命令、编辑那一块下面印什么（施工 4-11） |
 | `crates/miyu-cli/src/ask/usage.rs` | 用量加起来 |
 | `crates/miyu-cli/src/link.rs`、`rpc.rs`、`shown.rs` | 握手、发请求等回应、请求的编号、一行怎么上色、路径怎么写短；和 `miyu undo` 共用 |
@@ -42,6 +42,7 @@
    3. 连不上：原因写在标准错误上，退出码 1。
 3. **握手** `hello`：`protocol` 是 `[1, 1]`；`head` 是 `{"kind": "cli", "version": <版本>}`；`locale` 是 `zh-CN` 或 `en`；`caps.input` 是 `false`；带上本机令牌。
    - `caps.input` 是 `false`：`miyu ask` 里没有确认的界面，要确认的那一步，核心当场拒绝。
+   - 回应里的 `sandbox` 说用不了：执行命令都要确认，这里确认不了。第一步之前、目录太宽那一句之前说一句，照原因和这台机器的系统写（下面「给人看的字」），一次（施工 5-4 下）。
 4. **找会话**：
    1. 不写：`session.create`，带 `cwd`（敲命令时的目录；读不出来的写 `.`）和 `oneshot: true`。回应里的 `cwd` 和敲命令时的目录不一样（目录太宽，退回账号的工作区），第一步之前说一句。
    2. `--continue`：`session.list`，带 `oneshot: true`、`limit: 1`，取第一个。一个都没有：说「还没有 miyu ask 开过的会话」，退出码 1。
@@ -93,6 +94,8 @@ todo.md
 | 17 | 她的回答，边收边打 | 标准输出 | 不上色 |
 | 18 | 用量 | 标准错误 | 灰 |
 | 19 | 有几步因为要确认没做：最后那一句 | 标准错误 | 灰；「没做」红 |
+
+沙盒用不了那一句（施工 5-4 下）：样本里没有它。只在握手的回应说沙盒用不了时有，最先印，在目录太宽那一句前面，一次；标准错误，灰，和目录太宽那一句连着、不空行。
 
 **上色**：标准错误是终端、`NO_COLOR` 没设或者设成空的才上色：no-color.org 的约定是设了、不是空的才不上色（施工 4-9 再补四上：原来设成空的也不上色）。灰是 `ESC[90m`，红是 `ESC[31m`，绿是 `ESC[32m`。一行分几段，换颜色时写新颜色，换回原色写 `ESC[0m`；上过色的行，行尾写 `ESC[0m`，中途退出也不会把终端留成灰的。思考一段一段写，每一段各自包在 `ESC[90m` 和 `ESC[0m` 里。标准输出从不上色。
 
@@ -183,7 +186,7 @@ todo.md
 - `text` 是这一轮她说的全部回答；中间隔着步骤的两段，前一段没换行的补一个换行；没隔着步骤的照原样接上。
 - `usage` 的 `input` 是加起来的输入（没命中 + 命中 + 写进缓存）。供应商一次都没报用量的，四格都是 0。
 - 这一轮最后一次请求出错的，多一格 `"error": {"class": …, "message": …}`，排在最前面。
-- 不印思考、每一步、目录太宽那一句、用量那一行、最后那一句；标准错误上只印出错（被拒绝、核心断开……）和说为什么结束的那一句。
+- 不印思考、每一步、沙盒用不了那一句、目录太宽那一句、用量那一行、最后那一句；标准错误上只印出错（被拒绝、核心断开……）和说为什么结束的那一句。
 - 退出码和 `text` 一样，有几步因为要确认没做的也是 4。
 
 ### 退出码
@@ -204,6 +207,13 @@ todo.md
 | 什么时候 | 中文 | 英文 |
 |---|---|---|
 | 目录太宽 | `· 目录太宽（<目录>），这次在 <目录> 里干活` | `· Working directory too wide (<dir>), using <dir> this time` |
+| 沙盒用不了（一行：括号里的原因，接着那半句后果） | `· 沙盒用不了（<原因>）：执行命令要你确认，miyu ask 里确认不了` | `· Sandbox unavailable (<reason>): commands need your approval, which cannot be given in miyu ask` |
+| 原因：Linux 上没有手段 | 内核没有能用的 Landlock：要 Linux 5.13 起，启动参数的 lsm= 里开着 | the kernel has no usable Landlock: Linux 5.13 or later, enabled in the lsm= boot parameter |
+| 原因：macOS 上没有手段 | 装不上 Seatbelt 配置，Miyu 可能跑在别的沙盒里 | the Seatbelt profile cannot be applied; Miyu may be running inside another sandbox |
+| 原因：Windows 上没有手段 | 这一版在 Windows 上还不能把命令关进沙盒 | this version cannot sandbox commands on Windows yet |
+| 原因：别的系统上没有手段 | 这个系统上没有能用的沙盒 | no sandbox is available on this system |
+| 原因：找不到助手 | 主程序旁边没有 miyu-sandbox：重装一次 Miyu | miyu-sandbox is missing beside the main program: reinstall Miyu |
+| 原因：助手跑不起来 | miyu-sandbox 跑不起来：重装一次 Miyu | miyu-sandbox does not run: reinstall Miyu |
 | 用量 | `· 输入 … · 命中缓存 …（…%）· 输出 …` | `· input … · cache hit … (…%) · output …` |
 | 最后那一句，一步 | `· 1 步没做：要你确认，miyu ask 里确认不了` | `· 1 step not done: it needs your approval, which cannot be given in miyu ask` |
 | 最后那一句，几步 | `· 2 步没做：要你确认，miyu ask 里确认不了` | `· 2 steps not done: they need your approval, which cannot be given in miyu ask` |
@@ -268,7 +278,7 @@ Options:
 |---|---|
 | `crates/miyu-cli/src/ask/follow/tests.rs` | 思考和回答分两条通道、上色、只跟自己那一轮、`--format json`、出错和退出码、重试成了不算出错 |
 | `crates/miyu-cli/src/ask/follow/tests/blocks.rs` | 一块前后的空行：最前面的不空、两块挨着只空一行、后面接回答、接思考、接用量；下面没有东西的照一行印（施工 4-11） |
-| `crates/miyu-cli/src/ask/follow/tests/asides.rs` | 换行和空行；给脚本的两段回答隔开、没隔着步骤的照原样接上；目录太宽那一句只说一次；路径照会话实际干活的目录写短 |
+| `crates/miyu-cli/src/ask/follow/tests/asides.rs` | 换行和空行；给脚本的两段回答隔开、没隔着步骤的照原样接上；目录太宽那一句只说一次；路径照会话实际干活的目录写短；沙盒用不了那一句：每种原因、最先印、只说一次、`--format json` 不印（施工 5-4 下） |
 | `crates/miyu-cli/src/ask/follow/tests/unattended.rs` | 最后那一句、退出码 4、只算内核那一句 |
 | `crates/miyu-cli/src/ask/follow/tests/sample.rs` | 照样本的场景喂一轮，整块屏幕和 `docs/designs/samples/cli/ask-text.txt` 逐字节一样；蓝图里的样本块由门禁和同一份比（施工 4-9 三补） |
 | `crates/miyu-cli/src/ask/steps/tests.rs` | 每一步的标题：符号、显示名、参数的值、结果那一句、颜色；没有显示名的写 `⚙` |
