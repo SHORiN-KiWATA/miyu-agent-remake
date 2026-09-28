@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>86</b><span>/ 92 步<strong>已完成</strong>，沙盒照 dsh：整盘能读、只管写，数据根读写都不行</span></li>
-    <li><b>5-4</b><span>下一步：权限策略接上沙盒；macOS、Windows 两条线由分身同时施工，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">fe9f507</b><span>最近一步（5-3 只管写）的提交</span></li>
+    <li><b>87</b><span>/ 93 步<strong>已完成</strong>，Linux 上命令真的关进沙盒：工作区、只读两级不问人</span></li>
+    <li><b>5-7</b><span>下一步：macOS 合进来（分身做完了），接着 5-4（下）；Windows：装 <strong>等项目主人看一次管理员弹窗</strong></span></li>
+    <li><b class="mono">4987b77</b><span>最近一步（5-4 上 权限策略接上沙盒）的提交</span></li>
   </ul>
 </header>
 
@@ -428,7 +428,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s5-2"><span class="n">5-2</span>Linux：文件<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s5-1b"><span class="n">5-1</span>规格只管读写（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s5-3"><span class="n">5-3</span>只管写<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">5-4</span>权限策略接上沙盒</span></li>
+        <li><a class="step done" href="#s5-4a"><span class="n">5-4</span>权限策略接上沙盒（上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">5-4</span>权限策略接上沙盒（下）</span></li>
         <li><span class="step"><span class="n">5-5</span>代理（取消）</span></li>
         <li><span class="step"><span class="n">5-6</span>Linux：网络（取消）</span></li>
         <li><span class="step"><span class="n">5-7</span>macOS</span></li>
@@ -6866,6 +6867,77 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>设计 <code>11-权限与沙盒.md</code> 第四节、A4、A7、A12；<code>24-威胁模型.md</code>。</li>
         <li>蓝图 <code>sandbox.md</code>、<code>sandbox/linux.md</code>；<code>docs/construction/5-3-只管写.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-4a" aria-labelledby="h-s54a">
+  <div class="sheet-head"><h2 id="h-s54a"><span class="no">5-4</span>权限策略接上沙盒（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">命令真的关进沙盒：核心起来时探到的助手经协议端点交给每个会话；执行器照派出去那一刻实际生效的那一级，给每条命令写规格。权限策略跟着改：读哪儿都放行（数据根除外）；沙盒能用时，工作区、只读两级执行命令都不问，用不了的问人。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">每条命令的规格</span><span class="dir-note">照派出去那一刻的级别</span></div>
+            <ol class="pipe" aria-label="每条命令的规格">
+              <li>完全放开：不进沙盒</li>
+              <li>工作区：能写这一轮的工作目录、临时目录，藏数据根</li>
+              <li>只读：哪儿都不能写，藏数据根；不认识的级别也照它</li>
+              <li>数据根在临时目录里：用沙盒自己的 &lt;数据根&gt;-sandbox-tmp，TMPDIR 指过去</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">真模型实测</span><span class="dir-note">本机内核 7.2 · miyu ask</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">工作区里写</span><span class="rl">写成了</span></div>
+              <div class="tile new"><span class="nm">工作区外写</span><span class="rl">权限不够，沙盒挡的</span></div>
+              <div class="tile new"><span class="nm">读家目录</span><span class="rl">读得到</span></div>
+              <div class="tile new"><span class="nm">读数据根</span><span class="rl">权限不够</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">读整盘放开</span><span class="rl">文件工具也照沙盒：读哪儿都不问，数据根除外</span></div>
+          <div class="tile new"><span class="nm">写不成就不跑</span><span class="rl">规格写不成，照崩了交回，不在沙盒外跑</span></div>
+          <div class="tile"><span class="nm">沙盒用不了</span><span class="rl">执行命令问人；macOS、Windows 合进来以前照这样</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-4 上</dd></div>
+        <div><dt>名称</dt><dd>权限策略接上沙盒（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">4987b77</dd></div>
+        <div><dt>验收</dt><dd>真模型自测、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>guard.rs</code>：读都放行；执行命令照沙盒能不能用。</li>
+        <li>会话的 <code>sandbox.rs</code> 给每次调用写规格，<code>tools.rs</code> 在跑它的任务里、阻塞线程上算。</li>
+        <li>内核 <code>RunTool</code> 带上派出去那一刻的级别；协议端点 <code>with_sandbox</code>；核心探到手段的才交。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真模型自测：里面写得进，外面写不进，家目录读得到，数据根读不到</span></li>
+        <li><span class="ok">✓</span><span>手写变异 29 个逮住 28 个，剩下那个真模型自测看得到，5-4（下）补测试</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>11-权限与沙盒.md</code> 第二节。</li>
+        <li>蓝图 <code>session/guard.md</code>、<code>session/tools.md</code>、<code>sandbox.md</code>、<code>core.md</code>；<code>docs/construction/5-4-权限策略接上沙盒（上）.md</code>。</li>
       </ul>
     </div>
   </div>
