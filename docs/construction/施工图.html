@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>87</b><span>/ 93 步<strong>已完成</strong>，Linux 上命令真的关进沙盒：工作区、只读两级不问人</span></li>
-    <li><b>5-7</b><span>下一步：macOS 合进来（分身做完了），接着 5-4（下）；Windows：装 <strong>等项目主人看一次管理员弹窗</strong></span></li>
-    <li><b class="mono">4987b77</b><span>最近一步（5-4 上 权限策略接上沙盒）的提交</span></li>
+    <li><b>88</b><span>/ 93 步<strong>已完成</strong>，Linux、macOS 上命令真的关进沙盒：工作区、只读两级不问人</span></li>
+    <li><b>5-4</b><span>下一步：权限策略接上沙盒（下）；Windows：装 <strong>等项目主人看一次管理员弹窗</strong></span></li>
+    <li><b class="mono">ecaa273</b><span>最近一步（5-7 macOS）的提交</span></li>
   </ul>
 </header>
 
@@ -432,7 +432,7 @@ a.step:hover{border-color:var(--primary)}
         <li><span class="step"><span class="n">5-4</span>权限策略接上沙盒（下）</span></li>
         <li><span class="step"><span class="n">5-5</span>代理（取消）</span></li>
         <li><span class="step"><span class="n">5-6</span>Linux：网络（取消）</span></li>
-        <li><span class="step"><span class="n">5-7</span>macOS</span></li>
+        <li><a class="step done" href="#s5-7"><span class="n">5-7</span>macOS<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">5-8</span>Windows：装</span></li>
         <li><span class="step"><span class="n">5-9</span>Windows：跑</span></li>
         <li><span class="step"><span class="n">5-10</span>--add-dir 和边角</span></li>
@@ -6938,6 +6938,76 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>设计 <code>11-权限与沙盒.md</code> 第二节。</li>
         <li>蓝图 <code>session/guard.md</code>、<code>session/tools.md</code>、<code>sandbox.md</code>、<code>core.md</code>；<code>docs/construction/5-4-权限策略接上沙盒（上）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-7" aria-labelledby="h-s57">
+  <div class="sheet-head"><h2 id="h-s57"><span class="no">5-7</span>macOS</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">macOS 上沙盒真的管住写：助手把规格写成一份 Seatbelt 配置，装到自己身上，再换成命令。整盘能读，只能写规格里的，数据根读写都不行；能替命令到别处读写的系统服务挡住；网络不管。分身施工，本机没有 Mac，规矩在 CI 的 macOS 26 上量出来。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一份配置</span><span class="dir-note">底子 + 照规格生成的</span></div>
+            <ol class="pipe" aria-label="一份配置">
+              <li>底子：没写到的一律不许；整盘能读、能执行</li>
+              <li>写：规格里能写的，加上 /dev/null、/dev/fd、终端这几样设备</li>
+              <li>规格的每一条照深浅排，最深的说了算；一样深的，藏起来的压过能写的</li>
+              <li>撑着规格的目录删不掉、改不了名</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">量出来的规矩</span><span class="dir-note">CI 的 macOS 26.6</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">细的压过笼统的</span><span class="rl">一样细的，后面的压过前面的</span></div>
+              <div class="tile new"><span class="nm">挡住的服务</span><span class="rl">open、launchctl、偏好设置、钥匙串、osascript</span></div>
+              <div class="tile new"><span class="nm">Unix 套接字</span><span class="rl">只连得上能写的地方，Docker、ssh-agent 连不上</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不经 sandbox-exec</span><span class="rl">自己调系统接口装上，收紧不成说原话、退出 125</span></div>
+          <div class="tile new"><span class="nm">整个 crate 只一处 unsafe</span><span class="rl">装配置那一处，写明为什么安全</span></div>
+          <div class="tile"><span class="nm">接受的</span><span class="rl">规矩没有文档，苹果改了测试会红</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-7</dd></div>
+        <div><dt>名称</dt><dd>macOS</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">ecaa273</dd></div>
+        <div><dt>验收</dt><dd>变异全逮住、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>macos/resolve.rs</code> 换成真实的位置；<code>macos/profile.rs</code> 照规格拼配置；<code>macos/seatbelt.rs</code> 装上。</li>
+        <li><code>macos/base.sb</code> 底子，<code>macos/probe.json</code> 探测用的规格。</li>
+        <li><code>tests/macos/</code>：macOS 上真跑助手 16 个。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>macOS 上真跑：读哪儿都行、写只有能写的、藏起来的读写都不行</span></li>
+        <li><span class="ok">✓</span><span>手写变异 24 个全被逮住</span></li>
+        <li><span class="ok">✓</span><span>接上 5-4（上）以后三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>11-权限与沙盒.md</code> 第六节、A8。</li>
+        <li>蓝图 <code>sandbox/macos.md</code>、<code>sandbox.md</code>；<code>docs/construction/5-7-macOS.md</code>。</li>
       </ul>
     </div>
   </div>
