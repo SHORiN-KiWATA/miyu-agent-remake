@@ -219,14 +219,14 @@ The earlier part of this conversation was compacted into the summary below. It i
 
 ### 出错
 
-报错是中文，给写模板的人、查问题的人看，不给模型看。
+报错给写模板的人、查问题的人看，不给模型看。模板的几句是英文，写进运行日志（施工 4-9 再补四中：原来是中文）；增量对不上的那一句记进 `model.called` 的原话，`miyu ask` 印给人看，还是中文，等界面语言那一步。
 
 | 什么时候 | 怎么说 |
 |---|---|
-| 模板里 `{` 没配上 `}` | `模板用不了：{<名字> 没配上 }：要换的字段写成 {名字}，要写 { 本身就写两遍 {{` |
-| 名字不合写法（含 `{}`） | `模板用不了：{<名字>} 不是一个字段：名字小写字母开头，只用小写字母、数字、_` |
-| 单独一个 `}` | `模板用不了：有一个单独的 }：要写 } 本身，就写两遍 }}` |
-| 要的字段没给 | `模板用不了：少了字段 <名字>` |
+| 模板里 `{` 没配上 `}` | `bad template: {<名字> has no closing }: write a field as {name}, and { itself as {{` |
+| 名字不合写法（含 `{}`） | `bad template: {<名字>} is not a field: a name starts with a lowercase letter and has only lowercase letters, digits and _` |
+| 单独一个 `}` | `bad template: a lone }: write } itself as }}` |
+| 要的字段没给 | `bad template: missing field <名字>` |
 | 增量对不上 | `模型的增量对不上，第 <几> 块：<哪里>`，哪里是：`这一块已经开始过了`、`跳过了编号，块要一块接一块地开始`、`这一块还没开始`、`这一块已经收全了`、`正文块没有私有数据`、`私有数据来了两次` |
 
 - 事实模板坏了，造策略时报，会话造不成、载入不了（`policy.md`）。

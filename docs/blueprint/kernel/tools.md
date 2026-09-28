@@ -184,7 +184,7 @@
 ### 出错
 
 - `repair` 只有一种错：参数不是 JSON 对象（`NotAnObject`），内核把它写成 `not-an-object` 那一句，这个调用不派。
-- `ToolTexts::new` 交回 `TemplateError`：模板的 `{` 没配上、单独一个 `}`、字段的名字不合写法，或者要了不该有的字段（`unknown`、`not_an_object` 只能要 `name`，`denied_with_reason` 只能要 `reason`，别的十句一个都不能要）。报错是中文：「模板用不了：少了字段 tool」这样。出厂的原文造不出来，会话就造不出来（`policy.md`）。
+- `ToolTexts::new` 交回 `TemplateError`：模板的 `{` 没配上、单独一个 `}`、字段的名字不合写法，或者要了不该有的字段（`unknown`、`not_an_object` 只能要 `name`，`denied_with_reason` 只能要 `reason`，别的十句一个都不能要）。报错是英文：「bad template: missing field tool」这样。出厂的原文造不出来，会话就造不出来（`policy.md`）。
 - 方法本身不会出错：造的时候已经试换过。
 
 ### 守着它的

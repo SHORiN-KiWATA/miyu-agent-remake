@@ -307,7 +307,7 @@
 
 ### 怎么走
 
-1. 「必有」的没有，报「<种类> 的 body 读不出来：missing field `<格>` …」；某一格不合写法，报那一格的错，前面同样带着「<种类> 的 body 读不出来：」（`kernel/events.md`「出错」）。
+1. 「必有」的没有，报「body of <种类> not readable: missing field `<格>` …」；某一格不合写法，报那一格的错，前面同样带着「body of <种类> not readable: 」（`kernel/events.md`「出错」）。
 2. 「不写是假」「空的不写」的格写成 `null`，读不进来：只有「可以没有」的格（和 `file.changed` 的 `before`）把 `null` 当没有（照 serde 的读法推的，没有测试证实）。
 3. 空的列表格式上读得进来。空的撤销、撤回的列表，账本不收；空的消息，发的时候就拒绝（`kernel/history.md`、`kernel/session.md`）。
 4. 回答对不对得上题目（`fits`）：几道题几条；选的都是那道题选项的标题；同一条里不重复；不能多选的至多选一项。自己写的不查。对不上的回答，收命令时就拒绝，写不进日志（`kernel/asking.md`）。

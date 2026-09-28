@@ -138,9 +138,11 @@
 | | `Missing` | `MIYU_RESOURCES 指的 <路径> 不是一个目录` |
 | | `NotFound`，找过两处 | `找不到资源目录：<程序旁边的 resources>、<上一级的 share/miyu> 都没有。开发时设 MIYU_RESOURCES 指到源码树的 resources/` |
 | | `NotFound`，不知道程序在哪 | `找不到资源目录：不知道程序在哪。开发时设 MIYU_RESOURCES 指到源码树的 resources/` |
-| `SourceError` | `Persona` | `人格的编号「<编号>」不合写法：小写字母开头，只有小写字母、数字、- 和 _` |
-| | `Read` | `读不了 <路径>：<系统的原话>` |
-| `HumanError` | | `<哪一份>: <为什么>`；模板坏了的，为什么是 `<哪一句>: 模板用不了：<哪里坏了>` |
+| `SourceError` | `Persona` | `persona id "<编号>" is not valid: it starts with a lowercase letter and has only lowercase letters, digits, - and _` |
+| | `Read` | `cannot read <路径>: <系统的原话>` |
+| `HumanError` | | `<哪一份>: <为什么>`；模板坏了的，为什么是 `<哪一句>: bad template: <哪里坏了>` |
+
+`ResourceError` 给人看（核心起不来时交给头、`miyu ask` 印出来），是中文，等界面语言那一步；`SourceError` 只进运行日志，是英文（施工 4-9 再补四中：原来是中文）。
 
 - 核心起来时找不到资源目录，起不来，原因交给头（`core.md`）。
 - 造会话时读不出人格：编号不合写法的，协议端点回 `bad_params`；读不了文件的，回 `unknown_persona`（`protocol.md`）。

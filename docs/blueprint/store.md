@@ -157,13 +157,13 @@
 4. 返回时它已经落了盘：先落 blob，再写引用它的事件。改名是原子的，最终的名字上不会有写了一半的。
 5. 一个账号一份，不跨账号去重：两个账号存同一份内容，各存一个文件。
 
-**10. blob：取**（`Blobs::get`）：读出来，重新算哈希。没有这个文件：「没有这个 blob」。算出来和名字对不上：报错，写明是哪一个，不自动修，也不删。
+**10. blob：取**（`Blobs::get`）：读出来，重新算哈希。没有这个文件：「no blob <哈希>」。算出来和名字对不上：报错，写明是哪一个，不自动修，也不删。
 
 **谁存、谁取**：造会话时存策略快照，载入时照 `session.created` 的哈希取（`session/actor.md`）；工具效果里改前改后的内容存成 blob，撤销时取回来写回（`session/tools.md`），撤销的回应里比出改了什么时也取（`protocol.md`）；编码请求时取图片、文件（`session/actor.md`、`drivers/openai-chat.md`）。
 
 ### 出错
 
-报错的话只有中文。`miyu ask`、`miyu undo` 找数据根、建骨架出错时，照原样印在标准错误上，退出码 1（`cli/ask.md`）。
+数据根的几句（`RootError`、`PrepareError`）是中文：`miyu ask`、`miyu undo` 找数据根、建骨架出错时，照原样印在标准错误上，退出码 1（`cli/ask.md`），等界面语言那一步照界面语言说。别的只进运行日志，是英文（施工 4-9 再补四中：原来是中文）。
 
 | 类型 | 哪一种 | 说的话 |
 |---|---|---|
@@ -172,25 +172,25 @@
 | | `NoLocalAppData` | `找不到 LOCALAPPDATA，或者它不是绝对路径` |
 | `PrepareError` | `NotOurs` | `<数据根> 里有别的东西，认不出是 Miyu 的数据根（顶层没有 .miyu-root），不动它。设 MIYU_HOME 指到一个空目录` |
 | | `Io` | 系统的原话 |
-| `OpenError` | `Missing` | `<目录> 里没有会话日志` |
-| | `Broken` | `<段> 第 <行> 行：<为什么>`，为什么见下表 |
+| `OpenError` | `Missing` | `no session log in <目录>` |
+| | `Broken` | `<段> line <行>: <为什么>`，为什么见下表 |
 | | `Io` | 系统的原话 |
-| `BlobError` | `Missing` | `没有 blob <哈希>` |
-| | `Corrupt` | `blob <哈希> 读出来的内容和它的名字对不上，不动它` |
+| `BlobError` | `Missing` | `no blob <哈希>` |
+| | `Corrupt` | `blob <哈希> does not match its name; left as it is` |
 | | `Io` | 系统的原话 |
-| 追加时序号接不上 | `InvalidInput` | `日志的下一条应该是 <N>，来的是 <M>` |
-| 临时文件名一直撞 | `AlreadyExists` | `<目录> 里的临时文件名一连 64 个都被占了` |
+| 追加时序号接不上 | `InvalidInput` | `the next event in the log should be <N>, got <M>` |
+| 临时文件名一直撞 | `AlreadyExists` | `64 temporary file names in a row are taken in <目录>` |
 
 `Broken` 的为什么：
 
 | 什么时候 | 为什么 |
 |---|---|
-| 不是最后一段，末尾有半行 | `末尾有半行，可它后面还有段` |
-| 一行不是 UTF-8 | `不是 UTF-8` |
-| 一行读不出事件 | `读不出来：<解析的原话>` |
-| 序号接不上 | `序号应该是 <N>，写的是 <M>` |
-| 段的名字和第一条对不上 | `这一段叫 <N>，第一条却是 <M>` |
-| 空的最后一段名字不对 | `空的最后一段叫 <N>，下一条应该是 <M>` |
+| 不是最后一段，末尾有半行 | `ends in a partial line, yet more segments follow` |
+| 一行不是 UTF-8 | `not UTF-8` |
+| 一行读不出事件 | `not readable: <解析的原话>` |
+| 序号接不上 | `seq should be <N>, got <M>` |
+| 段的名字和第一条对不上 | `the segment is named <N> but starts with <M>` |
+| 空的最后一段名字不对 | `the empty last segment is named <N> but the next event is <M>` |
 | `first_event` 读不懂第一行 | 解析的原话，前面不加字 |
 
 ### 守着它的

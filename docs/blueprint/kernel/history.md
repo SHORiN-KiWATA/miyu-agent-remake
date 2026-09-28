@@ -63,37 +63,37 @@
 
 | 规矩 | 违反时说的（`why`） |
 |---|---|
-| 序号是下一个 | 序号应该是 <下一个> |
-| 第 1 条是 `session.created` | 第 1 条应该是会话创建 session.created |
-| `session.created` 只能是第 1 条 | 会话创建只能是第 1 条 |
-| `turn.started` 的 `turn` 是它自己的序号 | 回合开始的 turn 应该是它自己的序号 |
-| `turn.started` 时没有别的回合在进行 | 回合 <编号> 还没有结束 |
-| `turn.started` 的 `trigger` 在它之前 | trigger 应该是回合开始之前的一条 |
-| 带 `turn` 的，是正在进行的那个回合 | 回合 <编号> 不是正在进行的回合 |
-| `message.assistant`、`tool.result`、`tool.approval_requested`、`tool.approval_decided`、`question.asked`、`question.answered`、`message.withdrawn`、`turn.ended` 必须带 `turn` | <种类> 只在回合里发生，要带上 turn |
-| `message.assistant` 的 `seen` 在它之前 | seen <n> 应该在这条回复之前 |
-| `seen` 不早于上一条回复 | seen <n> 早于上一条回复 <n>：后一次请求一定看过前一条回复 |
-| 回复里第 k 个工具调用编号是 `call_<这一条的序号>_<k>`，k 从 1 起 | 第 <k> 个工具调用的编号应该是 call_<序号>_<k>，写的是 <编号> |
-| `tool.result`、`tool.approval_requested`、`question.asked` 对得上这一轮还没有结果的调用 | <编号> 不是一个还在等结果的调用：没有这个调用，或者它已经有了结果 |
-| `tool.approval_requested` 的调用没有在等的请求 | <编号> 已经有一个在等的请求 |
-| `tool.approval_decided` 对得上一个在等的请求 | <编号> 不是在等确认的调用：没请人确认过、已经决定过，或者它已经有了结果 |
-| `question.asked` 的调用没有在等的题 | <编号> 已经有一组在等的题 |
-| `question.answered` 对得上一组在等的题 | <编号> 不是在等人回答的调用：没问过、已经答过，或者它已经有了结果 |
-| `turn.ended` 时这一轮的调用都有了结果 | 回合结束时，调用 <编号最小的那个> 还没有结果 |
-| `context.compacted` 的 `upto` 在它之前 | upto <n> 应该在这一条之前 |
-| `upto` 不早于上一次压缩的 | upto <n> 早于上一次压缩的 <n>，压缩只前进 |
-| `model.called` 的 `seen` 在它之前 | seen <n> 应该在这一条之前 |
-| `message.withdrawn` 的列表不是空的 | 撤回的列表是空的 |
-| 撤回的每一条都是这一轮里排着队的消息，不重复 | 第 <n> 条不是正在进行的回合里排着队的消息：不是消息、已经被请求看到过、不在这个回合里，或者撤回过了 |
-| `turn.reverted` 时没有回合在进行 | 回合 <编号> 还在进行，撤销不了 |
-| 撤销的列表不是空的 | 撤销的列表是空的 |
-| 撤的每一轮都在有效历史里 | 回合 <编号> 不在有效历史里：不存在、在最近一次压缩之前，或者已经撤掉了 |
-| 撤的正好是第一轮和它以后还在的每一轮，照先后 | 要从回合 <编号> 起往后全撤，照先后：<几个编号，用「、」连> |
-| `turn.unreverted` 时有能恢复的撤销 | 没有能恢复的撤销：没撤过，或者撤了以后开过回合、压缩过 |
-| 恢复的正好是最近一次撤销的那几轮 | 恢复的应该是最近一次撤销的那几轮：<几个编号> |
-| `files.restored` 时没有回合在进行 | 回合 <编号> 还在进行，改回文件只在撤销、恢复以后 |
+| 序号是下一个 | seq should be <下一个> |
+| 第 1 条是 `session.created` | the first event should be session.created |
+| `session.created` 只能是第 1 条 | session.created can only be the first event |
+| `turn.started` 的 `turn` 是它自己的序号 | turn.started should have its own seq as turn |
+| `turn.started` 时没有别的回合在进行 | turn <编号> has not ended |
+| `turn.started` 的 `trigger` 在它之前 | trigger should be an event before the turn started |
+| 带 `turn` 的，是正在进行的那个回合 | turn <编号> is not the running turn |
+| `message.assistant`、`tool.result`、`tool.approval_requested`、`tool.approval_decided`、`question.asked`、`question.answered`、`message.withdrawn`、`turn.ended` 必须带 `turn` | <种类> happens only in a turn and needs turn |
+| `message.assistant` 的 `seen` 在它之前 | seen <n> should come before this reply |
+| `seen` 不早于上一条回复 | seen <n> is before the previous reply <n>: a later request always sees the earlier reply |
+| 回复里第 k 个工具调用编号是 `call_<这一条的序号>_<k>`，k 从 1 起 | tool call <k> should have id call_<序号>_<k>, got <编号> |
+| `tool.result`、`tool.approval_requested`、`question.asked` 对得上这一轮还没有结果的调用 | <编号> is not a call waiting for a result: no such call, or it already has a result |
+| `tool.approval_requested` 的调用没有在等的请求 | <编号> already has a pending approval request |
+| `tool.approval_decided` 对得上一个在等的请求 | <编号> is not waiting for approval: never asked, already decided, or it already has a result |
+| `question.asked` 的调用没有在等的题 | <编号> already has pending questions |
+| `question.answered` 对得上一组在等的题 | <编号> is not waiting for answers: never asked, already answered, or it already has a result |
+| `turn.ended` 时这一轮的调用都有了结果 | call <编号最小的那个> has no result when the turn ends |
+| `context.compacted` 的 `upto` 在它之前 | upto <n> should come before this event |
+| `upto` 不早于上一次压缩的 | upto <n> is before the last compaction's <n>; compaction only moves forward |
+| `model.called` 的 `seen` 在它之前 | seen <n> should come before this event |
+| `message.withdrawn` 的列表不是空的 | the list of withdrawn messages is empty |
+| 撤回的每一条都是这一轮里排着队的消息，不重复 | event <n> is not a queued message of the running turn: not a message, already seen by a request, not in this turn, or already withdrawn |
+| `turn.reverted` 时没有回合在进行 | turn <编号> is still running; nothing can be undone |
+| 撤销的列表不是空的 | the list of undone turns is empty |
+| 撤的每一轮都在有效历史里 | turn <编号> is not in the current history: no such turn, before the last compaction, or already undone |
+| 撤的正好是第一轮和它以后还在的每一轮，照先后 | undo every turn from <编号> on, in order: <几个编号，用 `, ` 连> |
+| `turn.unreverted` 时有能恢复的撤销 | nothing to redo: no undo yet, or a turn or a compaction came after it |
+| 恢复的正好是最近一次撤销的那几轮 | redo the turns of the latest undo: <几个编号> |
+| `files.restored` 时没有回合在进行 | turn <编号> is still running; files are restored only after an undo or a redo |
 
-不认识的种类（例如模块的 `ext.*`）只查序号和 `turn`。报错的全文是「第 <序号> 条事件不能追加：<why>」。
+不认识的种类（例如模块的 `ext.*`）只查序号和 `turn`。报错的全文是「event <序号> cannot be appended: <why>」。
 
 **账本记下的变化**：
 
@@ -181,7 +181,7 @@
 
 ### 出错
 
-账本拦下的是内核的 bug 或者坏了的日志，报错是中文，给查问题的人看：「第 <序号> 条事件不能追加：<why>」，`why` 见上面的表。内核自己造的过不了，内核当场停下；载入时过不了，载入不了（`session.md`「出错」）。
+账本拦下的是内核的 bug 或者坏了的日志，报错是英文，给查问题的人看，写进运行日志（施工 4-9 再补四中：原来是中文）：「event <序号> cannot be appended: <why>」，`why` 见上面的表。内核自己造的过不了，内核当场停下；载入时过不了，载入不了（`session.md`「出错」）。
 
 命令的拒绝：
 

@@ -217,21 +217,21 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 
 ### 出错
 
-说的话只有中文，协议端点把它们换成原因码（`protocol.md`）。
+说的话是英文，写进运行日志（施工 4-9 再补四中：原来是中文）；协议端点把它们换成原因码，回给头的话照握手时的语言（`protocol.md`）。
 
 | 类型 | 哪一种 | 说的话 | 协议端点回 |
 |---|---|---|---|
-| `CreateError` | `Persona` | `人格读不出来：<原因>` | 编号不合写法的 `bad_params`，读不了文件的 `unknown_persona` |
-| | `Policy` | `造不出策略：<原因>` | `internal_error` |
-| | `Disk` | `磁盘上建不成会话：<原因>` | `internal_error` |
-| | `Stopped` | `造会话那一条没落盘，会话停了` | `internal_error` |
-| `LoadError` | `Log` | `会话日志打不开：<原因>` | 没有这个会话的 `session_not_found`，别的 `session_broken` |
-| | `NotCreated` | `会话日志里没有造会话那一条` | `session_broken` |
-| | `Blob` | `策略快照取不出来：<原因>` | `session_broken` |
-| | `Snapshot` | `策略快照读不懂：<原因>` | `session_broken` |
-| | `Policy` | `快照造不出策略：<原因>` | `session_broken` |
-| | `Kernel` | `载入不了：<原因>` | `session_broken` |
-| `Stopped` | | `会话停了` | `session_stopped` |
+| `CreateError` | `Persona` | `persona not readable: <原因>` | 编号不合写法的 `bad_params`，读不了文件的 `unknown_persona` |
+| | `Policy` | `policy not built: <原因>` | `internal_error` |
+| | `Disk` | `session not created on disk: <原因>` | `internal_error` |
+| | `Stopped` | `session.created not stored; the session stopped` | `internal_error` |
+| `LoadError` | `Log` | `session log not opened: <原因>` | 没有这个会话的 `session_not_found`，别的 `session_broken` |
+| | `NotCreated` | `the session log has no session.created` | `session_broken` |
+| | `Blob` | `policy snapshot not fetched: <原因>` | `session_broken` |
+| | `Snapshot` | `policy snapshot not understood: <原因>` | `session_broken` |
+| | `Policy` | `policy not built from the snapshot: <原因>` | `session_broken` |
+| | `Kernel` | `not loaded: <原因>` | `session_broken` |
+| `Stopped` | | `the session stopped` | `session_stopped` |
 
 回 `internal_error`、`session_broken` 的，协议端点把说的话记进运行日志：`create failed`、`load failed`（`log.md`）。
 

@@ -228,7 +228,7 @@
 | 两样都没等到 | `retryable` | `流断了：没等到 finish_reason，也没等到 [DONE]` |
 | `finish_reason` 不对 | 见收尾那张表 | `finish_reason: <它>` |
 | HTTP 出错、流里报错 | 见出错分类 | `HTTP <状态>: <原话>`，或者原话 |
-| 占位的模板坏了、要了不该要的字段 | 造策略时报 | `随核心附带的驱动的占位用不了：模板用不了：…`（`policy.md`、`kernel/request.md`） |
+| 占位的模板坏了、要了不该要的字段 | 造策略时报 | `bundled driver placeholders not usable: bad template: …`（`policy.md`、`kernel/request.md`） |
 
 ### 守着它的
 

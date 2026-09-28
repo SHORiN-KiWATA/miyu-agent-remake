@@ -295,9 +295,9 @@
 
 | 什么时候 | 怎么说 |
 |---|---|
-| 内核自己造的事件过不了账本 | 停下（panic）：「内核自己造的事件过不了账本，这是内核的 bug：<账本的报错>」 |
-| 载入：日志是空的 | `LoadError::Empty`：「日志里一条事件都没有」 |
-| 载入：有一条过不了账本 | `LoadError::Broken`：「日志坏了：第 <n> 条事件不能追加：<违反了哪一条>」（`history.md`） |
+| 内核自己造的事件过不了账本 | 停下（panic）：「the kernel's own event failed the ledger, a kernel bug: <账本的报错>」 |
+| 载入：日志是空的 | `LoadError::Empty`：「the log has no events」 |
+| 载入：有一条过不了账本 | `LoadError::Broken`：「the log is broken: event <n> cannot be appended: <违反了哪一条>」（`history.md`） |
 
 请求出错时内核自己写的原话，记进 `model.called` 的 `error.message`，给查问题的人看，不进请求：
 

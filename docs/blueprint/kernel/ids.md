@@ -32,20 +32,20 @@
 
 | 类型 | 是什么 | 规则 | 报错里叫它 | 例子 |
 |---|---|---|---|---|
-| `SessionId` | 会话编号 | 会话编号 | 会话编号 | `0192f3a0-1111-7abc-8def-001122334455` |
-| `CommandId` | 命令编号，写进每条事件的 `cause` | 短名字 | 命令编号 | `cmd-7f3a` |
-| `AccountId` | 账号，出现在路径 `home/<账号>/` 里 | 路径里的名字 | 账号 | `alice` |
-| `ContentHash` | 内容哈希：blob、策略快照、请求字节都用它 | 内容哈希 | 内容哈希 | `sha256:e3b0c442…b855` |
-| `ModuleId` | 模块，清单里的 `id`，出现在路径 `home/<账号>/modules/<模块>/` 里 | 路径里的名字 | 模块 | `memory` |
-| `DriverFamily` | 驱动家族，驱动认领私有数据用 | 路径里的名字 | 驱动家族 | `openai-chat` |
-| `FactKind` | 事实块的类别 | 路径里的名字 | 事实块的类别 | `env` |
-| `VenueId` | 场所：一个群、一个私聊、桌面语音 | 短名字 | 场所 | `qq:group:123456` |
-| `ExternalId` | 外部身份：通讯平台上说话的人 | 短名字 | 外部身份 | `qq:10086` |
-| `ProviderId` | 供应商：配置里 `[providers.<名字>]` 的名字 | 短名字 | 供应商 | `deepseek` |
-| `ModelName` | 模型，照供应商的叫法原样记 | 短名字 | 模型 | `deepseek-v4`、`qwen/qwen3-235b-a22b@2026-07` |
-| `MediaType` | 媒体类型 | 媒体类型 | 媒体类型 | `image/png` |
-| `FileName` | 文件名，给人看的名字，不是路径 | 文件名 | 文件名 | `报告.pdf` |
-| `EventKind` | 事件种类 | 事件种类 | 事件种类 | `message.user`、`ext.memory.recalled` |
+| `SessionId` | 会话编号 | 会话编号 | `session id` | `0192f3a0-1111-7abc-8def-001122334455` |
+| `CommandId` | 命令编号，写进每条事件的 `cause` | 短名字 | `command id` | `cmd-7f3a` |
+| `AccountId` | 账号，出现在路径 `home/<账号>/` 里 | 路径里的名字 | `account` | `alice` |
+| `ContentHash` | 内容哈希：blob、策略快照、请求字节都用它 | 内容哈希 | `content hash` | `sha256:e3b0c442…b855` |
+| `ModuleId` | 模块，清单里的 `id`，出现在路径 `home/<账号>/modules/<模块>/` 里 | 路径里的名字 | `module` | `memory` |
+| `DriverFamily` | 驱动家族，驱动认领私有数据用 | 路径里的名字 | `driver family` | `openai-chat` |
+| `FactKind` | 事实块的类别 | 路径里的名字 | `fact category` | `env` |
+| `VenueId` | 场所：一个群、一个私聊、桌面语音 | 短名字 | `venue` | `qq:group:123456` |
+| `ExternalId` | 外部身份：通讯平台上说话的人 | 短名字 | `external identity` | `qq:10086` |
+| `ProviderId` | 供应商：配置里 `[providers.<名字>]` 的名字 | 短名字 | `provider` | `deepseek` |
+| `ModelName` | 模型，照供应商的叫法原样记 | 短名字 | `model` | `deepseek-v4`、`qwen/qwen3-235b-a22b@2026-07` |
+| `MediaType` | 媒体类型 | 媒体类型 | `media type` | `image/png` |
+| `FileName` | 文件名，给人看的名字，不是路径 | 文件名 | `file name` | `报告.pdf` |
+| `EventKind` | 事件种类 | 事件种类 | `event kind` | `message.user`、`ext.memory.recalled` |
 
 **数字的两种**：
 
@@ -105,55 +105,55 @@
 
 1. **短名字**（`CommandId`、`VenueId`、`ExternalId`、`ProviderId`、`ModelName`）：内核不解读，冒号、斜杠、中文都行。
    1. 空的：「不能是空的」。
-   2. 超过 128 个字节：「最长 128 字节」。
-   3. 有控制字符（Unicode 的 Cc 类，例如换行、`\u0007`）：「不能有控制字符」。
+   2. 超过 128 个字节：「at most 128 bytes」。
+   3. 有控制字符（Unicode 的 Cc 类，例如换行、`\u0007`）：「no control characters」。
 2. **路径里的名字**（`AccountId`、`ModuleId`、`DriverFamily`、`FactKind`）：三个平台都能当目录名。
-   1. 空的：「不能是空的」。
-   2. 第一个字符不是 `a` 到 `z`（大写、数字、中文都不行）：「要以小写英文字母开头」。
-   3. 有 `a-z`、`0-9`、`-`、`_` 以外的字符（空格、大写、点都不行）：「只能用小写字母、数字、- 和 _」。
-   4. 超过 32 个字符：「最长 32 个字符」。
-   5. 正好是 Windows 的保留名：`con`、`nul`、`aux`、`prn`、`com1` 到 `com9`、`lpt1` 到 `lpt9`，一共 22 个：「这是 Windows 保留的名字」。
+   1. 空的：「must not be empty」。
+   2. 第一个字符不是 `a` 到 `z`（大写、数字、中文都不行）：「must start with a lowercase letter」。
+   3. 有 `a-z`、`0-9`、`-`、`_` 以外的字符（空格、大写、点都不行）：「only lowercase letters, digits, - and _」。
+   4. 超过 32 个字符：「at most 32 characters」。
+   5. 正好是 Windows 的保留名：`con`、`nul`、`aux`、`prn`、`com1` 到 `com9`、`lpt1` 到 `lpt9`，一共 22 个：「a reserved name on Windows」。
 3. **会话编号**：UUID 的标准写法，只查写法，不查是不是第 7 版。
-   1. 不是正好 36 个字节：「要 36 个字符」。
-   2. 从左往右，第 9、14、19、24 个字符要是 `-`：「第 9、14、19、24 个字符要是 -」；别的要是 `0-9a-f`：「只能用小写十六进制」。先碰到哪个不合的字符，报哪一句。
+   1. 不是正好 36 个字节：「must be 36 characters」。
+   2. 从左往右，第 9、14、19、24 个字符要是 `-`：「characters 9, 14, 19 and 24 must be -」；别的要是 `0-9a-f`：「only lowercase hex digits」。先碰到哪个不合的字符，报哪一句。
 4. **内容哈希**：
-   1. 不以 `sha256:` 开头（`SHA256:` 也不行）：「要以 sha256: 开头」。
-   2. 后面不是正好 64 个字节：「sha256: 后面要 64 位」。
-   3. 后面有 `0-9a-f` 以外的：「只能用小写十六进制」。
+   1. 不以 `sha256:` 开头（`SHA256:` 也不行）：「must start with sha256:」。
+   2. 后面不是正好 64 个字节：「needs 64 digits after sha256:」。
+   3. 后面有 `0-9a-f` 以外的：「only lowercase hex digits」。
 5. **媒体类型**：
-   1. 没有 `/`：「写成 类型/子类型」。
-   2. 在第一个 `/` 处切成两截，两截都不能空，只用小写字母、数字和 `!#$&^_.+-`；第二个 `/` 算在子类型里，所以 `image/png/x` 也不合：「只能用小写字母、数字和 !#$&^_.+-」。
-   3. 超过 127 个字符：「最长 127 个字符」。
+   1. 没有 `/`：「write it as type/subtype」。
+   2. 在第一个 `/` 处切成两截，两截都不能空，只用小写字母、数字和 `!#$&^_.+-`；第二个 `/` 算在子类型里，所以 `image/png/x` 也不合：「only lowercase letters, digits and !#$&^_.+-」。
+   3. 超过 127 个字符：「at most 127 characters」。
 6. **文件名**：
-   1. 空的：「不能是空的」。
-   2. 超过 255 个字节（`报` 占三个字节，86 个就超了）：「最长 255 字节」。
-   3. 有控制字符、`/` 或 `\`：「不能有控制字符、/ 或 \」。
-   4. 正好是 `.` 或 `..`：「不能是 . 或 ..」。
+   1. 空的：「must not be empty」。
+   2. 超过 255 个字节（`报` 占三个字节，86 个就超了）：「at most 255 bytes」。
+   3. 有控制字符、`/` 或 `\`：「no control characters, / or \」。
+   4. 正好是 `.` 或 `..`：「must not be . or ..」。
 7. **事件种类**：
-   1. 空的：「不能是空的」。
-   2. 超过 128 个字节：「最长 128 字节」。
-   3. 照 `.` 切成段，一段一段查：第一个字符要是 `a` 到 `z`，空的段也不行（`.user`、`message..user`、`message.9user`）：「每一段都要以小写字母开头」；后面只用 `a-z`、`0-9`、`_`、`-`：「只能用小写字母、数字、_ 和 -」。
-   4. 一个 `.` 都没有：「至少两段，用点分开」。
+   1. 空的：「must not be empty」。
+   2. 超过 128 个字节：「at most 128 bytes」。
+   3. 照 `.` 切成段，一段一段查：第一个字符要是 `a` 到 `z`，空的段也不行（`.user`、`message..user`、`message.9user`）：「every part must start with a lowercase letter」；后面只用 `a-z`、`0-9`、`_`、`-`：「only lowercase letters, digits, _ and -」。
+   4. 一个 `.` 都没有：「at least two parts separated by dots」。
    5. 模块自己的种类写成 `ext.<模块>.<种类>`，这是约定，这里不查。
 
 **序号和回合编号**：
 
-8. 读 JSON 时要是整数。0 报「序号的写法不对：从 1 开始（读到的是 "0"）」，回合编号也报这一句。负数、小数（`1.0`）、字符串（`"1"`）照 serde_json 的原话报错。
+8. 读 JSON 时要是整数。0 报「bad seq: starts at 1 (got "0")」，回合编号也报这一句。负数、小数（`1.0`）、字符串（`"1"`）照 serde_json 的原话报错。
 
 **调用编号**（`CallId::parse`，JSON 里读的时候也走它）：只认内核自己写出去的样子。
 
-9. 不以 `call_` 开头：「要以 call_ 开头」。
-10. 在后面的第一个 `_` 处切不成两截：「写成 call_<序号>_<第几个>」。
-11. 序号那一截要是十进制的正整数，全是数字，不带正负号，不以 `0` 开头，不超出 `u64`：不合的「序号要是从 1 开始的十进制数」。`call_044_1`、`call_0_1`、`call_+4_1` 都是这一句。
-12. 第几个那一截同样查，还不能超出 `u32`：不合的「第几个要是从 1 开始的十进制数」。`call_44_01`、`call_44_0`、`call_44_4294967296` 是这一句；`call_44_1_2` 的第几个是 `1_2`，也是这一句。
+9. 不以 `call_` 开头：「must start with call_」。
+10. 在后面的第一个 `_` 处切不成两截：「write it as call_<seq>_<index>」。
+11. 序号那一截要是十进制的正整数，全是数字，不带正负号，不以 `0` 开头，不超出 `u64`：不合的「seq must be a decimal number from 1」。`call_044_1`、`call_0_1`、`call_+4_1` 都是这一句。
+12. 第几个那一截同样查，还不能超出 `u32`：不合的「index must be a decimal number from 1」。`call_44_01`、`call_44_0`、`call_44_4294967296` 是这一句；`call_44_1_2` 的第几个是 `1_2`，也是这一句。
 
 **时刻**（`Timestamp::parse`，JSON 里读的时候也走它）：只认一种写法 `YYYY-MM-DDTHH:MM:SS.mmmZ`。
 
-13. 不是正好 24 个字节：「要 24 个字符，写成 2026-09-25T07:04:05.123Z」。不带毫秒的、写成 `+08:00` 的都是这一句。
-14. 第 5、8 个字符不是 `-`，第 11 个不是 `T`，第 14、17 个不是 `:`，第 20 个不是 `.`，第 24 个不是 `Z`（小写 `z`、空格都不行）：「写成 2026-09-25T07:04:05.123Z」。
-15. 年、月、日、时、分、秒、毫秒照这个先后查，有数字以外的（例如 `+026`）：「日期和时间只能写数字」。
-16. 月不在 1 到 12，日是 0 或者超过那个月的天数（2 月 29 日只在闰年有）：「没有这一天」。
-17. 时超过 23、分超过 59、秒超过 59（没有闰秒）：「没有这个时刻」。
+13. 不是正好 24 个字节：「must be 24 characters, like 2026-09-25T07:04:05.123Z」。不带毫秒的、写成 `+08:00` 的都是这一句。
+14. 第 5、8 个字符不是 `-`，第 11 个不是 `T`，第 14、17 个不是 `:`，第 20 个不是 `.`，第 24 个不是 `Z`（小写 `z`、空格都不行）：「write it like 2026-09-25T07:04:05.123Z」。
+15. 年、月、日、时、分、秒、毫秒照这个先后查，有数字以外的（例如 `+026`）：「date and time must be digits」。
+16. 月不在 1 到 12，日是 0 或者超过那个月的天数（2 月 29 日只在闰年有）：「no such day」。
+17. 时超过 23、分超过 59、秒超过 59（没有闰秒）：「no such time」。
 
 **当地钟点**：
 
@@ -163,9 +163,9 @@
 
 19. 读：先把整块原样读下来，看 `kind`。
     1. 不是 JSON 对象：serde_json 的原话（`expected a map`）。
-    2. 没有 `kind`：「缺了 kind 字段」。
+    2. 没有 `kind`：「missing field `kind`」。
     3. `kind` 不是字符串：serde_json 的原话（`invalid type`）。
-    4. 认识的六种照那一种读其余几格，缺了、写法不对的照那一格报，例如「missing field `account`」「账号的写法不对：…」。`kernel` 不看别的格。
+    4. 认识的六种照那一种读其余几格，缺了、写法不对的照那一格报，例如「missing field `account`」「bad account: …」。`kernel` 不看别的格。
     5. 认识的种类多出来的格不管：读进内存时丢掉，写出去不再有（日志里的原文留着，`kernel/events.md`）。
     6. 不认识的种类：整块原样留着（`By::Unknown`），写出去一字不差，空格、数字的写法都不变。
 20. 写：`kind` 在最前，其余几格照上表的先后；不认识的照原文写。
@@ -188,13 +188,13 @@
 
 ### 出错
 
-写法不对的，`parse` 交回 `FormatError`：读的是什么（上面「报错里叫它」那一格，序号是「序号」，调用编号是「调用编号」，时刻是「时间」）、错在哪（上面引号里的话）、读到的原文（超过 80 个字符的只留前 80 个，后面加 `…`；写的时候带着双引号，照 Rust 的调试写法转义，见 `kernel/events.md`「出错」）。写成一句：
+写法不对的，`parse` 交回 `FormatError`：读的是什么（上面「报错里叫它」那一格，序号是 `seq`，调用编号是 `call id`，时刻是 `time`）、错在哪（上面引号里的话）、读到的原文（超过 80 个字符的只留前 80 个，后面加 `…`；写的时候带着双引号，照 Rust 的调试写法转义，见 `kernel/events.md`「出错」）。写成一句：
 
 ```text
-会话编号的写法不对：要 36 个字符（读到的是 "x"）
+bad session id: must be 36 characters (got "x")
 ```
 
-从 JSON 里读的，这一句成了 serde_json 的报错，后面带着第几行第几列（行列没有测试证实）。报错只有中文：给查问题的人看，不给模型（`kernel/events.md`「出错」）。
+从 JSON 里读的，这一句成了 serde_json 的报错，后面带着第几行第几列（行列没有测试证实）。报错是英文（施工 4-9 再补四中：原来是中文）：给查问题的人看，写进运行日志，不给模型（`kernel/events.md`「出错」）。
 
 ### 守着它的
 

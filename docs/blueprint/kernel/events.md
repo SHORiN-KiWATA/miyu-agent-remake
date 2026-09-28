@@ -141,10 +141,10 @@
 | 不是 JSON | serde_json 的原话 |
 | 缺了外壳的一格 | `missing field` 和那一格的名字，例如「missing field `seq`」 |
 | 外壳的同一格写了两次 | `duplicate field` 和那一格的名字 |
-| 序号、回合编号是 0 | 「序号的写法不对：从 1 开始（读到的是 "0"）」 |
-| 时刻、种类、命令编号不合写法 | `FormatError` 的那一句，例如「时间的写法不对：…」「事件种类的写法不对：至少两段，用点分开（读到的是 "message"）」 |
-| `by` 坏了 | 「缺了 kind 字段」、`FormatError` 的那一句，或者 serde_json 的原话（`kernel/ids.md` 第 19 条） |
-| 认识的种类，`body` 读不出来 | 「<种类> 的 body 读不出来：<serde_json 的原话>」，例如「message.user 的 body 读不出来：missing field `blocks` …」 |
+| 序号、回合编号是 0 | 「bad seq: starts at 1 (got "0")」 |
+| 时刻、种类、命令编号不合写法 | `FormatError` 的那一句，例如「bad time: …」「bad event kind: at least two parts separated by dots (got "message")」 |
+| `by` 坏了 | 「missing field `kind`」、`FormatError` 的那一句，或者 serde_json 的原话（`kernel/ids.md` 第 19 条） |
+| 认识的种类，`body` 读不出来 | 「body of <种类> not readable: <serde_json 的原话>」，例如「body of message.user not readable: missing field `blocks` …」 |
 
 serde_json 在每一句后面加上 ` at line <几> column <几>`（没有测试证实）。
 
@@ -152,13 +152,13 @@ serde_json 在每一句后面加上 ` at line <几> column <几>`（没有测试
 
 | 格 | 是什么 |
 |---|---|
-| `what` | 读的是什么，例如「会话编号」「序号」「调用编号」「时间」 |
+| `what` | 读的是什么，例如 `session id`、`seq`、`call id`、`time` |
 | `text` | 读到的原文。超过 80 个字符的，只留前 80 个，后面加 `…` |
-| `why` | 错在哪，例如「要 36 个字符」 |
+| `why` | 错在哪，例如 `must be 36 characters` |
 
-- 写成一句：`<what>的写法不对：<why>（读到的是 <text>）`，`text` 带着引号，照 Rust 的调试写法转义（换行写成 `\n`，引号写成 `\"`）。例：`会话编号的写法不对：要 36 个字符（读到的是 "x"）`。
+- 写成一句：`bad <what>: <why> (got <text>)`，`text` 带着引号，照 Rust 的调试写法转义（换行写成 `\n`，引号写成 `\"`）。例：`bad session id: must be 36 characters (got "x")`。
 - 从 `miyu_kernel::FormatError` 拿得到。在 JSON 里读的时候，它成了 serde_json 的报错。
-- 报错是中文，给查问题的人看。要报给模型的错另写英文（`26-提示词.md` J3），不把它原样转给模型。
+- 报错是英文，给查问题的人看，写进运行日志（`28-运行日志.md` LG1；施工 4-9 再补四中：原来是中文）。要报给模型的错另写（`26-提示词.md` J3），不把它原样转给模型。
 
 ### 守着它的
 

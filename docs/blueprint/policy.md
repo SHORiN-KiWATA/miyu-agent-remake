@@ -135,28 +135,28 @@
 
 ### 出错
 
-报错是中文，给查问题的人看，不进请求。
+报错是英文，给查问题的人看，写进运行日志，不进请求（施工 4-9 再补四中：原来是中文）。
 
 | 什么时候 | 怎么说 |
 |---|---|
-| 字节读不回来 | `策略快照读不回来：<serde 的原因>` |
-| 模板坏了 | `随核心附带的<哪一类>用不了：模板用不了：…`，哪一类是 `事实模板`、`内核替工具写的几句`、`驱动的占位`、`执行器替工具写的两句`、`权限策略拒绝时写的几句` |
-| 工具面上两件同名 | `工具面上有两件叫 "<名字>" 的` |
+| 字节读不回来 | `policy snapshot not readable: <serde 的原因>` |
+| 模板坏了 | `bundled <哪一类> not usable: bad template: …`，哪一类是 `fact templates`、`kernel's tool result texts`、`driver placeholders`、`executor's tool result texts`、`permission denial texts` |
+| 工具面上两件同名 | `two tools named "<名字>"` |
 
 造会话、载入时的说法（`open.rs`）：
 
 | 什么时候 | 怎么说 |
 |---|---|
-| 人格读不出来 | `人格读不出来：人格的编号「<编号>」不合写法：小写字母开头，只有小写字母、数字、- 和 _`，或者 `人格读不出来：读不了 <路径>：<原因>` |
-| 造不出策略 | `造不出策略：<上表>` |
-| 存不下快照、建不了目录和日志 | `磁盘上建不成会话：<原因>` |
-| 造会话那一条没落盘 | `造会话那一条没落盘，会话停了` |
-| 日志打不开（没有这个会话、日志坏了） | `会话日志打不开：<原因>` |
-| 日志里第 1 条不是造会话 | `会话日志里没有造会话那一条` |
-| 取不出快照 | `策略快照取不出来：没有 blob <哈希>`，或者 `…：blob <哈希> 读出来的内容和它的名字对不上，不动它`，或者读的错 |
-| 读不懂快照 | `策略快照读不懂：策略快照读不回来：…` |
-| 快照造不出策略 | `快照造不出策略：<上表>` |
-| 内核载入不了（日志过不了账本） | `载入不了：<原因>` |
+| 人格读不出来 | `persona not readable: persona id "<编号>" is not valid: …`，或者 `persona not readable: cannot read <路径>: <原因>` |
+| 造不出策略 | `policy not built: <上表>` |
+| 存不下快照、建不了目录和日志 | `session not created on disk: <原因>` |
+| 造会话那一条没落盘 | `session.created not stored; the session stopped` |
+| 日志打不开（没有这个会话、日志坏了） | `session log not opened: <原因>` |
+| 日志里第 1 条不是造会话 | `the session log has no session.created` |
+| 取不出快照 | `policy snapshot not fetched: no blob <哈希>`，或者 `…: blob <哈希> does not match its name; left as it is`，或者读的错 |
+| 读不懂快照 | `policy snapshot not understood: policy snapshot not readable: …` |
+| 快照造不出策略 | `policy not built from the snapshot: <上表>` |
+| 内核载入不了（日志过不了账本） | `not loaded: <原因>` |
 
 协议上怎么回（人格编号不合写法、没有这个人格），见 `protocol.md`。
 

@@ -77,9 +77,9 @@
 
 1. 先把整块原样读下来。
 2. 不是 JSON 对象的，报 serde_json 的原话（`expected a map`）。
-3. 没有 `type` 的，报「缺了 type 字段」。
+3. 没有 `type` 的，报「missing field `type`」。
 4. `type` 不是字符串的，报 serde_json 的原话（`invalid type`）。
-5. 认识的五种，照那一种读整块。缺了格、某一格不合写法的，报那一格的错，例如「missing field `width`」「内容哈希的写法不对：…」「调用编号的写法不对：…」「驱动家族的写法不对：…」。
+5. 认识的五种，照那一种读整块。缺了格、某一格不合写法的，报那一格的错，例如「missing field `width`」「bad content hash: …」「bad call id: …」「bad driver family: …」。
 6. 认识的种类多出来的格不管：读进内存时丢掉，写出去不再有。
 7. 不认识的种类：整块原样留着（`Block::Unknown`），写出去一字不差，空格、数字的写法都不变。
 
