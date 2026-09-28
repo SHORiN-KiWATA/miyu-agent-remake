@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>74</b><span>/ 78 步<strong>已完成</strong>，驱动和 HTTP 的几处边角修好了：噪声、要等多久、头、地址</span></li>
-    <li><b>4-9</b><span>下一步：命令行、日志、注释（再补四），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">ed549ca</b><span>最近一步（4-9 再补三下）的提交</span></li>
+    <li><b>75</b><span>/ 80 步<strong>已完成</strong>，命令行和运行日志对上了设计：家目录写成 ~、会话编号、权限</span></li>
+    <li><b>4-9</b><span>下一步：出错说英文（再补四中），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">9397ebd</b><span>最近一步（4-9 再补四上）的提交</span></li>
   </ul>
 </header>
 
@@ -411,7 +411,9 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-9d"><span class="n">4-9</span>工具（再补二）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9e"><span class="n">4-9</span>请求、协议、核心（再补三上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9f"><span class="n">4-9</span>驱动、HTTP（再补三下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-9</span>命令行、日志、注释（再补四）</span></li>
+        <li><a class="step done" href="#s4-9g"><span class="n">4-9</span>命令行、运行日志（再补四上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">4-9</span>出错说英文（再补四中）</span></li>
+        <li><span class="step"><span class="n">4-9</span>权限策略、造会话、注释（再补四下）</span></li>
         <li><span class="step"><span class="n">4-9</span>蓝图的门禁（三补）</span></li>
         <li><span class="step"><span class="n">4-9</span>设计文档只留为什么（四补）</span></li>
         <li><span class="step"><span class="n">4-10</span>M4 验收</span></li>
@@ -6008,6 +6010,77 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图：<code>drivers/openai-chat.md</code>、<code>http.md</code>。</li>
         <li><code>docs/construction/4-9-驱动、HTTP（再补三下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s4-9g" aria-labelledby="h-s49g">
+  <div class="sheet-head"><h2 id="h-s49g"><span class="no">4-9</span>命令行、运行日志（再补四上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">补蓝图时查出命令行和运行日志有几处和设计对不上：<code>miyu --help</code> 印的是代码注释；<code>NO_COLOR</code> 设成空的也不上色；日志里的路径带着用户名；<code>basesystem</code> 的来源一列对不齐；阻塞线程里发的行没有会话编号；日志的目录和文件照系统默认的权限；起来那一行少了数据根和时区，起不来那一行把给人看的中文写了进去。这一步一件件修好。再补四条目多，拆成上中下三步，总数 80。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一行运行日志</span><span class="dir-note">写成一行的那一层</span></div>
+            <ol class="pipe" aria-label="一行运行日志">
+              <li>起来那一行：starting version pid root=~/.miyu tz=+09:00</li>
+              <li>写成一行之前：正文和每个值里的家目录换成 ~，再加引号、转义</li>
+              <li>来源：工具发的写工具的名字，shell 占 8 格，对得齐</li>
+              <li>阻塞线程、读输出的线程：带着派活时的 span，行上有会话编号</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">命令行和核心</span><span class="dir-note">各修一处</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">--help</span><span class="rl">直接从用法开始，不印代码注释；一句说明等终端界面那一步定</span></div>
+              <div class="tile new"><span class="nm">NO_COLOR</span><span class="rl">设了、不是空的才不上色（no-color.org）</span></div>
+              <div class="tile new"><span class="nm">起不来</span><span class="rl">日志只写没过的是哪一步 stage，原因只交给头，头印给人看</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">家目录照字面找</span><span class="rl">前后不接着路径、名字里的字才换；Windows 上连同 \\?\ 一起换；大小写不同的写法换不了</span></div>
+          <div class="tile new"><span class="nm">只有本人能读</span><span class="rl">Unix 上新建的 state/logs/ 是 0700、日志是 0600；已经有的不改</span></div>
+          <div class="tile new"><span class="nm">拆成上中下</span><span class="rl">出错的原话说英文单独一步（再补四中）；权限策略、造会话、注释在再补四下</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">核心自己的几种报错还是中文（下一步）；Windows 上系统的原话照系统的语言</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-9（再补四上）</dd></div>
+        <div><dt>名称</dt><dd>命令行、运行日志</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">9397ebd</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-log</code>：新 <code>home.rs</code>，写成一行时家目录换成 <code>~</code>；新建的目录 0700、文件 0600；<code>utc_offset()</code>。</li>
+        <li><code>miyu-core</code>：起来那一行带数据根、时区；起不来只记 <code>stage</code>。</li>
+        <li><code>miyu</code>、<code>miyu-cli</code>：<code>--help</code> 不印注释；<code>NO_COLOR</code> 照约定。</li>
+        <li><code>miyu-basesystem</code>、<code>miyu-session</code>：来源写 <code>shell</code>；阻塞线程、读输出的线程带着会话的 span。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 26 处，21 处有测试变红；测不出的几处照实记在施工单里</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图：<code>log.md</code>、<code>core.md</code>、<code>cli/main.md</code>、<code>cli/ask.md</code>、<code>cli/undo.md</code>、<code>tools/shell.md</code>、<code>session/actor.md</code>、<code>session/tools.md</code>。</li>
+        <li><code>docs/designs/28-运行日志.md</code>（起来那一行的样子、来源的举例）。</li>
+        <li><code>docs/construction/4-9-命令行、运行日志（再补四上）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
