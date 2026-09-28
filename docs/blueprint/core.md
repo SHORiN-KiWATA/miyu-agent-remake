@@ -109,7 +109,7 @@
 2. 空闲：没有连接（握没握手都算），也没有忙着的会话（`protocol.md`「空闲和停下」）。
 3. 看到空闲，从这一次看的时刻记起；哪一次看的时候还空闲、已经够了空闲时限，就停。中间哪一次看到不空闲，从头记。所以从真的空下来算，到退出，至少是空闲时限，最多再多两个间隔；600 秒的，在 600 到 660 秒之间：记起的时刻和后来看的时刻都是当时的钟，正好满 600 秒的那一次看可能差几微秒不够，要等下一次。`--idle-seconds 0` 的，第一次看到空闲就停。
 4. 停的信号：Ctrl+C（SIGINT），Unix 上还有 SIGTERM。收到了，先有计划地停下全部在跑的会话（跑到一半的回合记成「重启了」，下次载入接着干），再停。拉起的核心自成一个进程组，终端里按 Ctrl+C 打不到它，要停得明着发。
-5. Unix 上装不上 SIGTERM 的，记一条 `WARN SIGTERM not watched error=…`，只等 Ctrl+C。只等 Ctrl+C 的（Windows 上、Unix 上装不上 SIGTERM 的）连 Ctrl+C 也装不上，记一条 `WARN Ctrl+C not watched error=…`，当它不会来。SIGTERM 装得上时，等的是 Ctrl+C 和 SIGTERM 一起 `select!`：这时 Ctrl+C 装不上，也当一次触发处理，当场按收到了停的信号停下，不记 WARN，跟前一句「装不上当它不会来」不一样。
+5. Unix 上装不上 SIGTERM 的，记一条 `WARN SIGTERM not watched error=…`，只等 Ctrl+C。只等 Ctrl+C 的（Windows 上、Unix 上装不上 SIGTERM 的）连 Ctrl+C 也装不上，记一条 `WARN Ctrl+C not watched error=…`，当它不会来。SIGTERM 装得上时，等的是 Ctrl+C 和 SIGTERM 一起 `select!`：这时 Ctrl+C 装不上，照样记一条 `WARN Ctrl+C not watched error=…`，当它不会来，只等 SIGTERM（施工 4-9 再补三上）。
 6. 停之前记一条 `INFO stopped reason=idle`（空闲）或 `reason=signal`（信号）：那时锁还在手里，下一个核心起来之前，这份日志还是它一个人写。
 7. 然后删掉套接字文件、放开锁，连接跟着没了，退出码 0。
 
