@@ -12,6 +12,7 @@
 | `crates/miyu-cli/src/undo.rs` | 参数、找数据根、连核心、握手、找会话、发、退出码 |
 | `crates/miyu-cli/src/undo/print.rs` | 核心交回的几样写成一行行 |
 | `crates/miyu-cli/src/language/undo.rs` | 这两条命令给人看的字 |
+| `crates/miyu-cli/src/help/{zh,en}/{undo,redo}.txt` | 帮助页（`cli/main.md`「帮助页」） |
 | `crates/miyu-cli/src/link.rs`、`rpc.rs`、`shown.rs` | 握手、发请求等回应、找最新的一次性会话、请求的编号、一行怎么上色、路径怎么写短、截断；和 `miyu ask` 共用 |
 | `crates/miyu-cli/src/language.rs` | 界面语言；「出错」、没有一次性会话、核心断开的那几句 |
 | `crates/miyu-endpoint/src/undo.rs` | 核心那边算回应里的几样（`protocol/undo.md`） |
@@ -20,10 +21,10 @@
 
 | 参数 | 做什么 |
 |---|---|
-| `--session <编号>` | 撤（恢复）这个会话；不写的是上一次 `miyu ask` 开的那个，就是最新的那个一次性会话 |
+| `-s`、`--session <编号>` | 撤（恢复）这个会话；不写的是上一次 `miyu ask` 开的那个，就是最新的那个一次性会话 |
 
 - 没有别的参数。`miyu undo` 一次撤最后一轮，要往前就再撤一次。
-- 界面语言照 `cli/main.md`，`--help` 的说明也照它。
+- 界面语言照 `cli/main.md`，帮助页也照它。
 - 用到的环境变量：`MIYU_HOME`（数据根，不设是 `~/.miyu`）、`NO_COLOR`；拉起的核心照它自己的一套（`core.md`）。
 
 ### 怎么走
@@ -155,13 +156,60 @@ ESC[90m    ESC[31m-fn main() {}ESC[0m
 | 没有一次性会话 | 还没有 miyu ask 开过的会话 | No session opened by miyu ask yet |
 | 核心没在跑、没设 key | 核心没在跑。先设 DEEPSEEK_API_KEY：没有 key 拉起的核心，之后的 miyu ask 也用不了 | The core is not running. Set DEEPSEEK_API_KEY first: a core started without it cannot serve miyu ask later |
 | 核心断开 | 核心断开了 | The core went away |
-| `miyu undo --help` | 撤掉当前会话的最后一轮，把她改过的文件改回去 | Undo the last turn of the current session and restore the files she changed |
-| `miyu redo --help` | 发下一句之前，恢复最近一次撤销 | Redo the latest undo, until you say something else |
-| `--session` 的说明 | 哪个会话；不写的是上一次 miyu ask 开的那个 | Which session; the one the last miyu ask opened by default |
 
 - 英文的引号是弯引号 `“` `”`。做了什么、没动的原因见上面的表。
 - 核心拒绝时说的话，照核心写的原样印（它照握手时的语言写，`protocol.md`）。
 - 连上核心之前的出错（找不到数据根、拉不起核心……），照出错的原话印，只有中文（`ipc.md`、`store.md`）。
+
+**帮助页**：`-h`、`--help`、`miyu help undo` 印的都是这一页，规矩见 `cli/main.md`「帮助页」。
+
+`miyu undo`，中文（施工 4-11 合进来时标成样本 `crates/miyu-cli/src/help/zh/undo.txt`）：
+
+```text
+用法：miyu undo [选项]
+
+撤掉最后一轮，把她改过的文件改回去。
+
+选项：
+  -s, --session <编号>  哪个会话；不写就是上一次 miyu ask 开的
+  -h, --help            印帮助
+```
+
+`miyu undo`，英文（施工 4-11 合进来时标成样本 `crates/miyu-cli/src/help/en/undo.txt`）：
+
+```text
+Usage: miyu undo [options]
+
+Undo the last turn and restore the files she changed.
+
+Options:
+  -s, --session <id>  Which session; default is the one the last miyu ask opened
+  -h, --help          Print help
+```
+
+`miyu redo`，中文（施工 4-11 合进来时标成样本 `crates/miyu-cli/src/help/zh/redo.txt`）：
+
+```text
+用法：miyu redo [选项]
+
+发下一句之前，恢复最近一次撤销。
+
+选项：
+  -s, --session <编号>  哪个会话；不写就是上一次 miyu ask 开的
+  -h, --help            印帮助
+```
+
+`miyu redo`，英文（施工 4-11 合进来时标成样本 `crates/miyu-cli/src/help/en/redo.txt`）：
+
+```text
+Usage: miyu redo [options]
+
+Redo the latest undo, until you say something else.
+
+Options:
+  -s, --session <id>  Which session; default is the one the last miyu ask opened
+  -h, --help          Print help
+```
 
 ### 守着它的
 
@@ -169,7 +217,7 @@ ESC[90m    ESC[31m-fn main() {}ESC[0m
 |---|---|
 | `crates/miyu-cli/src/undo/tests.rs` | 定的样子一行行对；恢复的第一行、差异的头一行，不说命令、不说怎么恢复；每种没动的原因、出错、认不得的结局；还有几行；路径写短；上色（没动、出错红，加的行绿，删的行红）；英文，一条命令、还有一行写单数；人说的话、路径截断；几轮；差异里的制表符照原样、别的控制字符换掉；定的样子和 `docs/designs/samples/cli/undo-text.txt` 逐字节一样，蓝图里的样本块由门禁和同一份比（施工 4-9 三补） |
 | `crates/miyu-cli/tests/undo.rs` | 真的核心、真的工具：撤销改回文件、照样子印在标准输出上，恢复又改回来；之后又被改过的印差异、退出码 0；撤完了再撤说「没有能撤销的回合。」、退出码 1；一个会话都没有、退出码 1；`--session` 撤的是指定的那个 |
-| `crates/miyu/tests/undo.rs` | 真跑主程序：`undo`、`redo` 的 `--help` 跟着界面语言；撤掉上一次 `miyu ask` 的那一轮、再恢复，两条命令各接各的；没有 key、核心也没在跑的，不拉起、退出码 5、两种语言的那一句 |
+| `crates/miyu/tests/undo.rs` | 真跑主程序：`undo`、`redo` 的 `-h` 印帮助页，跟着界面语言；`-s` 和 `--session` 一样；撤掉上一次 `miyu ask` 的那一轮、再恢复，两条命令各接各的；没有 key、核心也没在跑的，不拉起、退出码 5、两种语言的那一句 |
 | `crates/miyu-endpoint/tests/undo.rs` | 核心交回的几样（`protocol/undo.md`） |
 
 ### 出处

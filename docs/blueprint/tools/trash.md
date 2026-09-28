@@ -106,7 +106,7 @@ Moved "a.txt" to the trash.
 
 ### 给人看的字
 
-显示名：删除（Delete），后面跟 `file_path` 的值。
+显示名：删除（Delete），后面跟 `file_path` 的值；符号 `←`。
 
 | 说法 | 中文 | 英文 |
 |---|---|---|

@@ -153,7 +153,7 @@ The closest text is at lines 2-2:
 
 ### 给人看的字
 
-显示名：编辑（Edit），后面跟 `file_path` 的值。
+显示名：编辑（Edit），后面跟 `file_path` 的值；符号 `←`；标题下面印改动（`block` 是 `edits`，`cli/ask.md`「编辑那一块」）。
 
 | 说法 | 中文 | 英文 |
 |---|---|---|

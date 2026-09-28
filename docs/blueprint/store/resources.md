@@ -28,7 +28,7 @@
 | `clean(字)` | 控制字符换成 `�`，别的照原样 |
 | `FALLBACK` | `"en"`：找不到别的语言时用的那一种 |
 
-`Face` 有两格：`name` 是显示名，例如「读取」；`subject` 是显示名后面跟哪一个参数的值，例如 `file_path`，没有的只写显示名。
+`Face` 有四格：`name` 是显示名，例如「读取」；`subject` 是显示名后面跟哪一个参数的值，例如 `file_path`，没有的只写显示名；`icon` 是写在最前面的符号，例如 `→`；`block` 是标题下面还印一块什么：`command` 印执行命令的输出，`edits` 印改动，没有的只印标题（施工 4-11，`cli/ask.md`「每一步」）。
 
 说法（`Said`）是一个编号 `key` 加几个字段 `fields`，值都是字符串，记在 `tool.result` 的 `human` 里（`kernel/tools.md`）。
 
@@ -64,7 +64,7 @@
 
 **1. 找资源目录**（`ResourceRoot::locate`）
 
-1. `MIYU_RESOURCES` 设了、不是空的：就是它，别处不看。它要是绝对路径，相对的报错；它要是一个目录，不是的报错。
+1. `MIYU_RESOURCES` 设了、不是空的：就是它，别处不看。开头的 `~` 和 `MIYU_HOME` 一样照家目录接（`store.md`），找不到家目录的当相对路径报错。接好以后要是绝对路径，相对的报错；它要是一个目录，不是的报错。
 2. 没设或者是空的：看程序的真实位置（`Env` 的 `exe`，顺着链接找到的本体）。它旁边有 `resources/` 目录，就是它；不然它的上一级下有 `share/miyu/` 目录，就是它。
 3. 都没有：报错，写明找过的两处。连程序在哪都不知道的，说不知道。
 4. 不猜别的位置。
@@ -116,7 +116,7 @@
 ```json
 {
   "tools": {
-    "read": { "name": "读取", "subject": "file_path" }
+    "read": { "name": "读取", "subject": "file_path", "icon": "→" }
   },
   "said": {
     "read/lines": "{count} 行"
@@ -124,7 +124,7 @@
 }
 ```
 
-- `tools` 里每件工具只许有 `name`（必填）、`subject`（可以不写）。
+- `tools` 里每件工具只许有 `name`（必填）、`subject`、`icon`、`block`（都可以不写）；`block` 只能是 `command` 或者 `edits`。
 - 这一份在 `software/basesystem/human/zh.json` 里，`read/lines` 就是说法 `software/basesystem/read/lines`：字段 `count` 是 `37` 时，换成「37 行」。
 - 每件工具的显示名、结果那一句，见 `tools/*.md` 和 `cli/ask.md`。
 
@@ -152,8 +152,8 @@
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-store/src/resources/tests.rs` | `MIYU_RESOURCES` 优先、要是绝对路径、要是目录；程序旁边的 `resources/`、上一级的 `share/miyu/`；都没有时写明找过哪两处、不知道程序在哪；读出软件工程师的人设和随核心附带的字；人设文件缺了写明是哪一份；不合写法的编号拒绝 |
-| `crates/miyu-store/tests/human.rs` | 内核给模型的每一句（`core/tool-results/`、`core/permissions/`）两种语言都有给人看的一句，要的字段不多于给模型的；照语言换成字，没有的语言照英文，没有这一句、少了字段的换不出；工具的显示名和后面跟的参数；控制字符换掉、引号反斜杠照原样；什么都没有不算错，只有英文的照英文，读不懂的写明是哪一份、哪一句 |
+| `crates/miyu-store/src/resources/tests.rs` | `MIYU_RESOURCES` 优先、开头的 `~` 照家目录接、要是绝对路径、要是目录；程序旁边的 `resources/`、上一级的 `share/miyu/`；都没有时写明找过哪两处、不知道程序在哪；读出软件工程师的人设和随核心附带的字；人设文件缺了写明是哪一份；不合写法的编号拒绝 |
+| `crates/miyu-store/tests/human.rs` | 内核给模型的每一句（`core/tool-results/`、`core/permissions/`）两种语言都有给人看的一句，要的字段不多于给模型的；照语言换成字，没有的语言照英文，没有这一句、少了字段的换不出；工具的显示名、后面跟的参数、符号、下面那一块，`block` 写别的读不懂；控制字符换掉、引号反斜杠照原样；什么都没有不算错，只有英文的照英文，读不懂的写明是哪一份、哪一句 |
 | `crates/miyu-store/tests/snapshot.rs` | 从源码树的资源目录拼出软件工程师的快照 |
 
 ### 出处

@@ -138,7 +138,7 @@
 1. 说法是一个编号加几个字段，字段的值都是字符串。基础系统的编号是 `software/basesystem/<名字>`；内核和执行器写的以 `core/` 开头。
 2. 记进 `tool.result` 的 `human`，不发给模型，前缀不受影响；老日志里没有这一格。
 3. 头照自己的界面语言换成字（`crates/miyu-store/src/human.rs`）：
-   - 字在内核的 `resources/core/human/{zh,en}.json` 和每个软件包自己的 `human/` 下（基础系统的是 `resources/software/basesystem/human/{zh,en}.json`），一种语言一份，先有 `zh`、`en`。每份两样：`tools` 是每件工具的显示名 `name`、显示名后面跟哪个参数的值 `subject`；`said` 是每一种说法的模板，编号照这一份所在的地方往下写。
+   - 字在内核的 `resources/core/human/{zh,en}.json` 和每个软件包自己的 `human/` 下（基础系统的是 `resources/software/basesystem/human/{zh,en}.json`），一种语言一份，先有 `zh`、`en`。每份两样：`tools` 是每件工具的显示名 `name`、显示名后面跟哪个参数的值 `subject`、最前面的符号 `icon`、标题下面印哪一块 `block`；`said` 是每一种说法的模板，编号照这一份所在的地方往下写。
    - 哪一份没有这种语言的，照英文那一份；英文也没有，那一处没有字。
    - 换进去的字段不转义，控制字符换成 `�`。模板要的字段说法里没有的，这一句换不出字。
 4. `miyu ask` 怎么印：`cli/ask.md`「每一步那一行」。

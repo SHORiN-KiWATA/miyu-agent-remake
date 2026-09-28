@@ -167,7 +167,7 @@ Exit code 2
 
 ### 给人看的字
 
-显示名：执行命令（Run），后面跟 `command` 的值（`miyu ask` 只取第一行，`cli/ask.md`）。
+显示名：执行命令（Run），后面跟 `command` 的值；符号 `$`；`block` 是 `command`：`miyu ask` 里写成 `$ 命令`，不写显示名，下面印她看到的输出（`cli/ask.md`「执行命令那一块」）。
 
 | 说法 | 中文 | 英文 |
 |---|---|---|
