@@ -46,7 +46,7 @@
 | 格 | 取值 | 默认 | DeepSeek（`Compat::deepseek()`） |
 |---|---|---|---|
 | `output_limit` | `MaxTokens` 写 `max_tokens`；`MaxCompletionTokens` 写 `max_completion_tokens` | `MaxTokens` | 同默认 |
-| `reasoning` | `Drop` 不回传；`Replay { field, always, keep }`：`field` 是 `ReasoningContent`（`reasoning_content`）或 `Reasoning`（`reasoning`），`always` 是没有思考时也写空串，`keep` 是 `All`（每条都回传）或 `Needed`（只回传要的，见第 4 条；施工 3-4 补） | `Drop` | `Replay { ReasoningContent, always: true, keep: Needed }` |
+| `reasoning` | `Drop` 不回传；`Replay { field, always }`：`field` 是 `ReasoningContent`（`reasoning_content`）或 `Reasoning`（`reasoning`），`always` 是没有思考时也写空串 | `Drop` | `Replay { ReasoningContent, always: true }` |
 | `stream_usage` | 发不发 `stream_options.include_usage` | 发 | 同默认 |
 | `continuation` | `None` 不会接着写；`Prefix { field, path }`：`field` 是 `Prefix`（`prefix`）或 `Partial`（`partial`） | `None` | `Prefix { Prefix, "/beta/chat/completions" }` |
 
@@ -65,7 +65,6 @@
 4. **assistant**：
    - 正文各块直接接上，不补换行，写进 `content`。没有正文、有工具调用的，`content` 写 `null`；两样都没有的，写空串。
    - 思考各块直接接上。开关是 `Drop` 的不写；`Replay` 的写进 `reasoning_content` 或 `reasoning`，没有思考的，`always` 才写空串。思考的私有数据（签名这类）不发。
-   - `keep` 是 `Needed` 的：没有工具调用、不是被打断过的（`interrupted`）、后面还有别的消息的这一条，思考当没有（`always` 的写空串）。它的思考从来没当过输入：DeepSeek 带着工具时之前的思考照算输入，你另起一轮时又命不中缓存（施工 3-4 补，`08-上下文投影.md`）。带工具调用的照带：这一轮后面几步的请求里发过，缓存接得上；最后一条照带：接着写要它；被打断过的照带：接着写时它当最后一条发出去过，不回头改写。
    - 工具调用写进 `tool_calls`，见第 5 条；没有的不写这一格。图片、文件、不认识的块不写。
    - 一格的先后：`role`、`content`、`reasoning_content`、`reasoning`、`tool_calls`、`prefix`、`partial`。
 5. **工具调用**：`{"id":…,"type":"function","function":{"name":…,"arguments":…}}`。
@@ -198,7 +197,7 @@
 | `unknown-block.json` | 不认识的块不写 |
 | `media.json`、`media-omitted.json` | 图片、PDF 写成 data URL；不能收的换成占位 |
 | `tool-attachments.json`、`tool-attachments-omitted.json` | 工具结果里的图挪到后面；不能看图的就地换成占位 |
-| `reasoning-dropped.json`、`reasoning-deepseek.json`、`reasoning-all.json`、`reasoning-field.json` | 思考不回传；DeepSeek 每条都带这一格、只回传要的（施工 3-4 补）；每条都回传（原来 DeepSeek 的样子）；写进 `reasoning` |
+| `reasoning-dropped.json`、`reasoning-deepseek.json`、`reasoning-field.json` | 思考不回传；DeepSeek 每条都带；写进 `reasoning` |
 | `continuation-deepseek.json` | 接着写：没有最后那句提示，半截带 `"prefix":true` |
 
 探针的每一次请求编码以后的样子：`docs/designs/samples/probe/terminal/openai-chat/`（DeepSeek 那一套，模型 `deepseek-v4`，上限 8192）。
@@ -236,7 +235,7 @@
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-drivers/tests/openai_chat.rs` | 只有文字；输出上限和用量两个开关；工具调用、编号、参数兜底、没有输出的占位；user 的换行；空工具面；不认识的块；空的 system 不发；每条消息的位置 |
-| `crates/miyu-drivers/tests/openai_chat_media.rs` | 图片、PDF 写成 data URL；不能收的占位；工具结果里的附件挪到后面、或者就地占位；思考的回传：不回传、DeepSeek 只回传要的（完整说完、后面还有别的那一条不带，被打断过的、带工具调用的、最后一条照带；施工 3-4 补）、每条都回传、写进 `reasoning`；缺 blob 报错；要哪些 blob |
+| `crates/miyu-drivers/tests/openai_chat_media.rs` | 图片、PDF 写成 data URL；不能收的占位；工具结果里的附件挪到后面、或者就地占位；思考的三种回传；缺 blob 报错；要哪些 blob |
 | `crates/miyu-drivers/tests/openai_chat_continuation.rs` | DeepSeek 接着写（样本、路径、半截带思考）；没有开关或者没有记号一字不变；`partial` 的写法 |
 | `crates/miyu-drivers/tests/openai_chat_streams.rs` | 十三份流的样本；从哪里切开喂都一样；累积器一条都不拒；解出来的编码回去用供应商的编号；驱动的接口走一遍；`error` 是 `false`、`0`、`[]` 的是噪声，有内容的照旧出错；流里的限速连同要等多久交回；`finished()` 在 `finish_reason` 到了以后才说是 |
 | `crates/miyu-drivers/src/sse/tests.rs` | 三种换行、切开的 CRLF、几行 data 和注释、只有注释、事件名、切开的汉字、断在半条上、从哪里切开都一样 |

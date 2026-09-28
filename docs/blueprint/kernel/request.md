@@ -41,7 +41,7 @@
 | `role` | 其余的格 |
 |---|---|
 | `user` | `blocks`：内容块 |
-| `assistant` | `blocks`：内容块，思考连同私有数据原样带着；`interrupted`：被打断过的回复（`message.assistant` 带着 `interrupted` 的），是假的不写进字节（施工 3-4 补：驱动照它判思考回不回传，`drivers/openai-chat.md`） |
+| `assistant` | `blocks`：内容块，思考连同私有数据原样带着 |
 | `tool` | `call_id`：哪一次调用；`error`：算不算出错；`blocks`：内容块 |
 
 内容块的写法见 `kernel/blocks.md`。
@@ -96,7 +96,7 @@
 | `context.injected` | 一个文本块，就是它的原文，攒进人这一边 |
 | `turn.started` | 不出块。记下这个回合开始的地方、触发它的那一条 |
 | `turn.ended` | 原因是 `interrupted`、`error`、`step_limit`、`aborted`、`restarted` 的，出一个文本块，就是那一句，攒进人这一边；`completed` 和不认识的原因不出 |
-| `message.assistant` | 一条 assistant，内容块原样；带着 `interrupted` 的，统一的请求里也带着（施工 3-4 补） |
+| `message.assistant` | 一条 assistant，内容块原样 |
 | `tool.result` | 一条 tool：`call_id`；状态不是 `ok` 的（包括不认识的状态），`error` 是真；内容块 |
 | `session.*`、`tool.approval_*`、`question.*`、`model.called`、`files.restored`、不认识的种类 | 不渲染 |
 
