@@ -70,15 +70,32 @@ impl Home {
 
     /// 一份核心，工具目录是 `tools`（施工 4-1）。沙盒当能用（施工 5-4 上）：执行命令的都是假工具，不起助手。
     pub fn core_with_tools(&self, script: &Script, tools: Catalog, token: &str) -> Arc<Core> {
-        Arc::new(
-            self.core_full(script, tools, None, token)
-                .with_sandbox(Some(PathBuf::from("miyu-sandbox"))),
-        )
+        Arc::new(self.core_full(script, tools, None, token).with_sandbox(
+            miyu_sandbox::Availability::Usable(PathBuf::from("miyu-sandbox")),
+        ))
     }
 
     /// 一份核心，工具目录是 `tools`，沙盒用不了（施工 5-4 上）。
     pub fn core_without_sandbox(&self, script: &Script, tools: Catalog) -> Arc<Core> {
         Arc::new(self.core_full(script, tools, None, TOKEN))
+    }
+
+    /// 一份核心，工具目录是 `tools`，这台机器上的沙盒照 `sandbox`，沙盒的缓存放在 `cache` 下面、你的 cargo 目录是
+    /// `cargo_home`（施工 5-4 下）。
+    pub fn core_sandboxed(
+        &self,
+        script: &Script,
+        tools: Catalog,
+        sandbox: miyu_sandbox::Availability,
+        cache: Option<(PathBuf, Option<PathBuf>)>,
+    ) -> Arc<Core> {
+        let core = self
+            .core_full(script, tools, None, TOKEN)
+            .with_sandbox(sandbox);
+        Arc::new(match cache {
+            Some((root, cargo_home)) => core.with_sandbox_cache(root, cargo_home),
+            None => core,
+        })
     }
 
     /// 一份核心，系统的家目录是 `home`（施工 4-3 下）。

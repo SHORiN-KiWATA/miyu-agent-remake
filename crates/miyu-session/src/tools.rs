@@ -33,7 +33,7 @@ use crate::effects;
 use crate::lines::millis;
 use crate::pictures;
 use crate::port::Back;
-use crate::sandbox::Sandbox;
+use crate::sandbox::{Sandbox, SandboxCache};
 
 /// 执行工具要的：工具目录、替工具写的两句、系统的家目录（施工 4-4 上，交给每次调用）。
 pub(crate) struct ToolKit {
@@ -51,6 +51,8 @@ pub(crate) struct ToolKit {
     pub(crate) seen: Seen,
     /// 沙盒的助手：这台机器上的沙盒能用才有（核心起来时探的，施工 5-4 上）。
     pub(crate) sandbox: Option<PathBuf>,
+    /// 沙盒的缓存：工具链的缓存用沙盒自己的一份（施工 5-4 下）。核心算不出缓存目录的没有。
+    pub(crate) sandbox_cache: Option<SandboxCache>,
 }
 
 /// 执行工具的端口：一个会话一份。
@@ -98,9 +100,14 @@ pub(crate) enum ToolBack {
 impl Tools {
     /// 照 `kit` 跑，回报送进 `backs`。
     pub(crate) fn new(kit: ToolKit, backs: mpsc::UnboundedSender<Back>) -> Tools {
-        let sandbox = kit
-            .sandbox
-            .map(|helper| Sandbox::new(helper, kit.home.clone(), kit.data_root.clone()));
+        let sandbox = kit.sandbox.map(|helper| {
+            Sandbox::new(
+                helper,
+                kit.home.clone(),
+                kit.data_root.clone(),
+                kit.sandbox_cache,
+            )
+        });
         Tools {
             catalog: kit.catalog,
             texts: kit.texts,

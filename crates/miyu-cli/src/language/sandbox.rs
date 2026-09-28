@@ -2,6 +2,7 @@
 //! 系统的原话、路径里的控制字符换成 `�`：它们可能混着终端的控制序列。
 
 use miyu_sandbox::install::{InstallError, USER};
+use miyu_sandbox::{Platform, Unusable};
 use miyu_store::human::clean;
 
 use super::Language;
@@ -35,6 +36,58 @@ impl Language {
                 ),
             },
             Said::Failed(which, error) => self.sandbox_failed(*which, error),
+        }
+    }
+
+    /// `miyu ask` 开头，沙盒用不了的那一句（施工 5-4 下）：原因 `reason` 是协议上的写法，照这台机器的系统 `platform`
+    /// 写成人话；不认得的原因照原样写进括号里。
+    pub(crate) fn unsandboxed(&self, reason: &str, platform: Platform) -> String {
+        let why = match Unusable::from_code(reason) {
+            Some(known) => self.why_unsandboxed(known, platform).to_string(),
+            None => clean(reason),
+        };
+        match self {
+            Language::Chinese => {
+                format!("· 沙盒用不了（{why}）：执行命令要你确认，miyu ask 里确认不了")
+            }
+            Language::English => format!(
+                "· Sandbox unavailable ({why}): commands need your approval, which cannot be given in miyu ask"
+            ),
+        }
+    }
+
+    /// 沙盒用不了的原因，写成人话：原因和怎么修。
+    fn why_unsandboxed(&self, reason: Unusable, platform: Platform) -> &'static str {
+        let chinese = *self == Language::Chinese;
+        match (reason, platform) {
+            (Unusable::HelperMissing, _) => match chinese {
+                true => "主程序旁边没有 miyu-sandbox：重装一次 Miyu",
+                false => "miyu-sandbox is missing beside the main program: reinstall Miyu",
+            },
+            (Unusable::HelperFailed, _) => match chinese {
+                true => "miyu-sandbox 跑不起来：重装一次 Miyu",
+                false => "miyu-sandbox does not run: reinstall Miyu",
+            },
+            (Unusable::NoMechanism, Platform::Linux) => match chinese {
+                true => "内核没有能用的 Landlock：要 Linux 5.13 起，启动参数的 lsm= 里开着",
+                false => {
+                    "the kernel has no usable Landlock: Linux 5.13 or later, enabled in the lsm= boot parameter"
+                }
+            },
+            (Unusable::NoMechanism, Platform::Macos) => match chinese {
+                true => "装不上 Seatbelt 配置，Miyu 可能跑在别的沙盒里",
+                false => {
+                    "the Seatbelt profile cannot be applied; Miyu may be running inside another sandbox"
+                }
+            },
+            (Unusable::NoMechanism, Platform::Windows) => match chinese {
+                true => "这一版在 Windows 上还不能把命令关进沙盒",
+                false => "this version cannot sandbox commands on Windows yet",
+            },
+            (Unusable::NoMechanism, Platform::Other) => match chinese {
+                true => "这个系统上没有能用的沙盒",
+                false => "no sandbox is available on this system",
+            },
         }
     }
 

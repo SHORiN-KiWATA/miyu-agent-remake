@@ -41,6 +41,7 @@ fn opening(home: &Home) -> Opening {
         attended: false,
         cwd: work(home),
         sandbox: None,
+        sandbox_cache: None,
     }
 }
 

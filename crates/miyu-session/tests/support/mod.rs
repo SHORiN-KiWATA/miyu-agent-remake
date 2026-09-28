@@ -15,7 +15,7 @@ use miyu_kernel::origin::{By, Person};
 use miyu_kernel::session::{Command, Outcome};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_session::{
-    Create, Handle, Load, Models, Pushed, Stopped, Subscription, create, load, new_id,
+    Create, Handle, Load, Models, Pushed, SandboxCache, Stopped, Subscription, create, load, new_id,
 };
 use miyu_store::env::{Env, Platform};
 use miyu_store::log::read_events;
@@ -73,6 +73,8 @@ pub struct Opening {
     /// 沙盒的助手：有的当这台机器上的沙盒能用（施工 5-4 上）。假工具不起它，随便一条路径就行；真的起命令的用
     /// [`miyu_sandbox::testkit::built_helper`]。
     pub sandbox: Option<PathBuf>,
+    /// 沙盒的缓存（施工 5-4 下）：没有的沙盒里不设工具链的变量。
+    pub sandbox_cache: Option<SandboxCache>,
 }
 
 impl Default for Opening {
@@ -86,6 +88,7 @@ impl Default for Opening {
             attended: true,
             cwd: environment().cwd,
             sandbox: None,
+            sandbox_cache: None,
         }
     }
 }
@@ -167,6 +170,7 @@ impl Home {
             tools,
             home: Some(&self.home),
             sandbox: opening.sandbox.as_deref(),
+            sandbox_cache: opening.sandbox_cache,
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -208,6 +212,7 @@ impl Home {
             home: Some(&self.home),
             // 载入以后的测试不执行命令：沙盒用不了。
             sandbox: None,
+            sandbox_cache: None,
         });
         within("载入", loaded).await.expect("载入得了会话")
     }

@@ -101,6 +101,14 @@ impl<'p> Follow<'p> {
         }
     }
 
+    /// 握手的回应说沙盒用不了，原因是 `reason`（协议上的写法）：执行命令都要确认，这里确认不了，说一句（施工 5-4 下）。
+    /// 只给人看的时候说。
+    pub(crate) fn unsandboxed(&mut self, reason: &str, screen: &mut Screen<'_>) {
+        if self.plan.format == Format::Text {
+            self.aside(&steps::unsandboxed(self.plan, reason), screen);
+        }
+    }
+
     /// 核心说会话实际在 `used` 里干活：和头报的不一样，就是目录太宽、退回了账号的工作区，说一句。造会话、
     /// 说话的回应都带着它，一样的不再说：一次 `miyu ask` 只说一次。
     pub(crate) fn moved(&mut self, used: &str, screen: &mut Screen<'_>) {

@@ -158,3 +158,21 @@ async fn ctrl_c_twice_leaves_at_once() {
     assert_eq!(code, 3, "{err}");
     assert!(err.ends_with("打断了\n"), "{err}");
 }
+
+/// 核心握手时说沙盒用不了：最先说一句原因和怎么修，只说一次（施工 5-4 下）。
+#[tokio::test]
+async fn an_unusable_sandbox_is_said_before_anything_else() {
+    let home = Home::without_sandbox(
+        Arc::new(Script::new([Play::Says("好。")])),
+        miyu_sandbox::Unusable::HelperFailed,
+    );
+    let Asked { code, err, .. } = home.ask(&plan("在吗")).await;
+    assert_eq!(code, 0, "{err}");
+    assert!(
+        err.starts_with(
+            "· 沙盒用不了（miyu-sandbox 跑不起来：重装一次 Miyu）：执行命令要你确认，miyu ask 里确认不了\n"
+        ),
+        "{err}"
+    );
+    assert_eq!(err.matches("沙盒用不了").count(), 1, "{err}");
+}

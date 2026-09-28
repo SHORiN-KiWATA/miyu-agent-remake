@@ -111,7 +111,8 @@ impl Sessions {
             models: &*core.models,
             tools: &core.tools,
             home: core.home.as_deref(),
-            sandbox: core.sandbox.as_deref(),
+            sandbox: core.sandbox.helper(),
+            sandbox_cache: core.sandbox_cache_of(&core.admin),
         })
         .await;
         let handle = match created {
@@ -197,7 +198,8 @@ impl Sessions {
             models: &*core.models,
             tools: &core.tools,
             home: core.home.as_deref(),
-            sandbox: core.sandbox.as_deref(),
+            sandbox: core.sandbox.helper(),
+            sandbox_cache: core.sandbox_cache_of(&core.admin),
         })
         .await;
         let handle = match loaded {

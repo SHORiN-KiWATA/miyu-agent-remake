@@ -1,5 +1,10 @@
 //! 一次调用带的沙盒（`docs/blueprint/session/tools.md` 第 1a 条，施工 5-4 上）：照派出去那一刻实际生效的那一级写
-//! 规格。完全放开不进沙盒；工作区能写这一轮的工作目录、临时目录；只读哪儿都不能写；两级都藏数据根。
+//! 规格。完全放开不进沙盒；工作区能写这一轮的工作目录、临时目录，工具链的缓存用沙盒自己的一份（[`caches`]，施工 5-4
+//! 下）；只读哪儿都不能写；两级都藏数据根。
+
+mod caches;
+
+pub use caches::SandboxCache;
 
 use std::ffi::OsString;
 use std::io;
@@ -11,21 +16,28 @@ use miyu_sandbox::{Sandboxed, Spec};
 
 use crate::guard::{Effective, effective};
 
-/// 给调用写沙盒要的：助手在哪、系统的家目录、数据根。一个会话一份，这台机器上的沙盒能用才有。
+/// 给调用写沙盒要的：助手在哪、系统的家目录、数据根、沙盒的缓存。一个会话一份，这台机器上的沙盒能用才有。
 #[derive(Debug, Clone)]
 pub(crate) struct Sandbox {
     helper: PathBuf,
     home: Option<PathBuf>,
     data_root: PathBuf,
+    cache: Option<SandboxCache>,
 }
 
 impl Sandbox {
-    /// 助手是 `helper`，`~` 照 `home` 换，藏的是 `data_root`。
-    pub(crate) fn new(helper: PathBuf, home: Option<PathBuf>, data_root: PathBuf) -> Sandbox {
+    /// 助手是 `helper`，`~` 照 `home` 换，藏的是 `data_root`，工具链的缓存放在 `cache`（没有的不设）。
+    pub(crate) fn new(
+        helper: PathBuf,
+        home: Option<PathBuf>,
+        data_root: PathBuf,
+        cache: Option<SandboxCache>,
+    ) -> Sandbox {
         Sandbox {
             helper,
             home,
             data_root,
+            cache,
         }
     }
 
@@ -34,7 +46,7 @@ impl Sandbox {
     ///
     /// # Errors
     ///
-    /// 数据根落在临时目录里，沙盒自己的临时目录建不成，或者有了却不是只给本人的。
+    /// 数据根落在临时目录里，沙盒自己的临时目录建不成；沙盒的缓存建不成、链接建不成；有了却不是只给本人的。
     pub(crate) fn for_call(
         &self,
         permission: &Permission,
@@ -59,7 +71,13 @@ impl Sandbox {
             } else {
                 temp
             };
-            vec![cwd, temp]
+            let mut write = vec![cwd, temp];
+            if let Some(cache) = &self.cache {
+                let (dir, variables) = cache.prepare(&data_root)?;
+                write.push(dir);
+                env.extend(variables);
+            }
+            write
         } else {
             Vec::new()
         };
@@ -91,15 +109,19 @@ fn own_temp(data_root: &Path) -> io::Result<PathBuf> {
     Ok(dir)
 }
 
-/// 建只给本人的目录（0700）；已经有的，要是目录、不是链接、和数据根 `owner_of` 同一个属主，组和别人一点权限都没有。
+/// 建只给本人的目录（0700，没有的上级一起建）；建好的、已经有的，要是目录、不是链接、和数据根 `owner_of` 同一个属主，组和
+/// 别人一点权限都没有。
 #[cfg(unix)]
 fn private_dir(dir: &Path, owner_of: &Path) -> io::Result<()> {
     use std::os::unix::fs::{DirBuilderExt, MetadataExt};
 
-    match std::fs::DirBuilder::new().mode(0o700).create(dir) {
-        Ok(()) => return Ok(()),
+    match std::fs::DirBuilder::new()
+        .recursive(true)
+        .mode(0o700)
+        .create(dir)
+    {
         Err(error) if error.kind() != io::ErrorKind::AlreadyExists => return Err(error),
-        Err(_) => {}
+        _ => {}
     }
     let found = std::fs::symlink_metadata(dir)?;
     let owner = std::fs::metadata(owner_of)?.uid();
@@ -110,13 +132,13 @@ fn private_dir(dir: &Path, owner_of: &Path) -> io::Result<()> {
     }
 }
 
-/// 建目录；已经有的，要是目录、不是链接。临时目录在本人的用户目录里，别人进不来。
+/// 建目录（没有的上级一起建）；建好的、已经有的，要是目录、不是链接。临时目录、缓存目录都在本人的用户目录里，别人
+/// 进不来。
 #[cfg(windows)]
 fn private_dir(dir: &Path, _owner_of: &Path) -> io::Result<()> {
-    match std::fs::create_dir(dir) {
-        Ok(()) => return Ok(()),
+    match std::fs::create_dir_all(dir) {
         Err(error) if error.kind() != io::ErrorKind::AlreadyExists => return Err(error),
-        Err(_) => {}
+        _ => {}
     }
     if std::fs::symlink_metadata(dir)?.is_dir() {
         Ok(())

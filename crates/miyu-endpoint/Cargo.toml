@@ -16,6 +16,8 @@ miyu-ipc = { path = "../miyu-ipc" }
 miyu-kernel = { path = "../miyu-kernel" }
 # 会话 actor：造会话、载入、发命令（施工 3-7）。
 miyu-session = { path = "../miyu-session" }
+# 这台机器上的沙盒能不能用：握手时报给头，能用的把助手交给会话（施工 5-4 下）。
+miyu-sandbox = { path = "../miyu-sandbox" }
 # 数据根、资源目录、会话日志打不开的几种情形。
 miyu-store = { path = "../miyu-store" }
 # 工具目录：造会话时交给它，照它存下工具面（施工 4-1）。

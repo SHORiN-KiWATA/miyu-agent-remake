@@ -1103,6 +1103,7 @@ dependencies = [
  "miyu-ipc",
  "miyu-kernel",
  "miyu-policy",
+ "miyu-sandbox",
  "miyu-session",
  "miyu-store",
  "miyu-tool",

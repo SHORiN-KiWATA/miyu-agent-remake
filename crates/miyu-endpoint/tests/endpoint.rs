@@ -373,3 +373,48 @@ async fn interrupting_with_queued_send_goes_on_with_the_queue() {
     home.until_turns(&session, 2).await;
     assert_eq!(script.requests().len(), 2);
 }
+
+/// 握手的回应照核心探到的报沙盒（施工 5-4 下）：能用的只说能用，用不了的带原因；没设的当找不到助手。
+#[tokio::test]
+async fn hello_says_whether_the_sandbox_can_be_used() {
+    use miyu_sandbox::{Availability, Unusable};
+    use miyu_tool::Catalog;
+
+    let home = Home::new();
+    let script = Script::new([]);
+    let usable = Availability::Usable(std::path::PathBuf::from("miyu-sandbox"));
+    let mut client =
+        Client::connect(home.core_sandboxed(&script, Catalog::default(), usable, None));
+    let reply = client.hello().await;
+    assert_eq!(
+        reply["result"]["sandbox"],
+        json!({"usable": true}),
+        "{reply}"
+    );
+    for (reason, code) in [
+        (Unusable::HelperMissing, "helper_missing"),
+        (Unusable::HelperFailed, "helper_failed"),
+        (Unusable::NoMechanism, "no_mechanism"),
+    ] {
+        let core = home.core_sandboxed(
+            &script,
+            Catalog::default(),
+            Availability::Unusable(reason),
+            None,
+        );
+        let mut client = Client::connect(core);
+        let reply = client.hello().await;
+        assert_eq!(
+            reply["result"]["sandbox"],
+            json!({"usable": false, "reason": code}),
+            "{reply}"
+        );
+    }
+    let mut client = Client::connect(home.core_without_sandbox(&script, Catalog::default()));
+    let reply = client.hello().await;
+    assert_eq!(
+        reply["result"]["sandbox"],
+        json!({"usable": false, "reason": "helper_missing"}),
+        "没设的当找不到助手：{reply}"
+    );
+}

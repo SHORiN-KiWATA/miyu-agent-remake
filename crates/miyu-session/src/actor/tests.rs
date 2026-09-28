@@ -145,6 +145,7 @@ async fn a_write_that_fails_stops_the_session() {
             blobs: miyu_store::blob::Blobs::new(std::path::PathBuf::new()),
             seen: miyu_tool::Seen::new(),
             sandbox: None,
+            sandbox_cache: None,
         },
         guard,
         mailbox,

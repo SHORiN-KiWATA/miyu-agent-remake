@@ -42,6 +42,7 @@ async fn a_sandbox_that_cannot_be_set_up_is_logged_with_the_reason() {
         attended: false,
         cwd: home.scratch.0.to_string_lossy().into_owned(),
         sandbox: Some(PathBuf::from("miyu-sandbox")),
+        sandbox_cache: None,
     };
     let handle = home.create_as(&script, &tools, opening).await;
     let mut pushes = watch(&handle).await;

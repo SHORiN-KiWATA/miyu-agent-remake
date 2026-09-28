@@ -1,5 +1,6 @@
 //! 一次调用带的沙盒（`docs/blueprint/session/tools.md` 第 1a 条，施工 5-4 上）：执行器照派出去那一刻实际生效的那一级
-//! 写规格；数据根落在临时目录里的，沙盒用自己的临时目录；写不成的不跑。Unix 上有收紧手段的，真的经助手跑 `shell`：
+//! 写规格；数据根落在临时目录里的，沙盒用自己的临时目录；工作区这一级工具链的缓存用沙盒自己的一份（施工 5-4 下）；
+//! 写不成的不跑。Unix 上有收紧手段的，真的经助手跑 `shell`：
 //! 工作区里写得进，外面写不进，外面读得到，数据根读不到；只读时哪儿都写不进。
 
 mod support;
@@ -13,8 +14,8 @@ use miyu_kernel::event::{Body, ToolResult, ToolStatus};
 use miyu_kernel::event::{Level, Permission};
 use miyu_kernel::tool::Access;
 use miyu_sandbox::{Sandboxed, Spec};
-use miyu_session::Handle;
 use miyu_session::testkit::{Play, Script};
+use miyu_session::{Handle, SandboxCache};
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Tool};
 
@@ -30,6 +31,16 @@ fn real(path: &Path) -> PathBuf {
 
 /// 在 `cwd` 里造一个会话，沙盒能用，没人能确认：执行命令的假工具 `run` 跑一次，交回它拿到的沙盒。
 async fn attached(home: &Home, cwd: &str, permission: Permission) -> Option<Arc<Sandboxed>> {
+    cached(home, cwd, permission, None).await
+}
+
+/// 同 [`attached`]，沙盒的缓存是 `cache`（施工 5-4 下）。
+async fn cached(
+    home: &Home,
+    cwd: &str,
+    permission: Permission,
+    cache: Option<SandboxCache>,
+) -> Option<Arc<Sandboxed>> {
     let run = Fake::new("run", Access::Execute, Act::Echo);
     let tools = Catalog::new([Arc::clone(&run) as Arc<dyn Tool>]).expect("合写法");
     let script = Script::new([Play::calls(&[("run", "{}")]), Play::Says("好。")]);
@@ -38,6 +49,7 @@ async fn attached(home: &Home, cwd: &str, permission: Permission) -> Option<Arc<
         attended: false,
         cwd: cwd.to_string(),
         sandbox: Some(PathBuf::from(HELPER)),
+        sandbox_cache: cache,
     };
     let handle = home.create_as(&script, &tools, opening).await;
     turn(&handle).await;
@@ -177,6 +189,7 @@ async fn a_temp_dir_others_can_enter_is_not_used() {
         attended: false,
         cwd: home.scratch.0.to_string_lossy().into_owned(),
         sandbox: Some(PathBuf::from(HELPER)),
+        sandbox_cache: None,
     };
     let handle = home.create_as(&script, &tools, opening).await;
     turn(&handle).await;
@@ -257,6 +270,7 @@ async fn shell(home: &Home, helper: &Path, work: &Path, read_only: bool, command
         attended: false,
         cwd: work.to_string_lossy().into_owned(),
         sandbox: Some(helper.to_path_buf()),
+        sandbox_cache: None,
     };
     let handle = home.create_as(&script, &tools, opening).await;
     turn(&handle).await;
@@ -271,4 +285,118 @@ async fn shell(home: &Home, helper: &Path, work: &Path, read_only: bool, command
             other => panic!("只该有字：{other:?}"),
         })
         .collect()
+}
+
+/// 场地里的沙盒的缓存：`cache/sandbox/alice`，你的 cargo 目录是假家目录下的 `.cargo`。
+fn toolchain_cache(home: &Home) -> SandboxCache {
+    SandboxCache {
+        dir: home.scratch.0.join("cache").join("sandbox").join("alice"),
+        cargo_home: Some(home.home.join(".cargo")),
+    }
+}
+
+#[tokio::test]
+async fn the_workspace_level_gets_its_own_toolchain_caches() {
+    let home = Home::outside_temp();
+    let work = home.scratch.0.join("work");
+    let cargo = home.home.join(".cargo");
+    std::fs::create_dir_all(&cargo).expect("建得了目录");
+    std::fs::write(cargo.join("config.toml"), "[net]\nretry = 3\n").expect("写得进");
+    std::fs::write(cargo.join("credentials.toml"), "token = \"secret\"\n").expect("写得进");
+    let cache = toolchain_cache(&home);
+    let cwd = work.to_string_lossy().into_owned();
+    let sandboxed = cached(
+        &home,
+        &cwd,
+        permission(Level::Workspace, false),
+        Some(cache.clone()),
+    )
+    .await
+    .expect("工作区进沙盒");
+    let dir = real(&cache.dir);
+    assert_eq!(
+        sandboxed.spec.write,
+        vec![real(&work), real(&std::env::temp_dir()), dir.clone()]
+    );
+    let expected: Vec<(OsString, OsString)> = [
+        ("CARGO_HOME", dir.join("cargo")),
+        ("npm_config_cache", dir.join("npm")),
+        ("PIP_CACHE_DIR", dir.join("pip")),
+        ("GOMODCACHE", dir.join("go").join("mod")),
+        ("GOCACHE", dir.join("go").join("build")),
+    ]
+    .into_iter()
+    .map(|(name, place)| (OsString::from(name), place.into_os_string()))
+    .collect();
+    assert_eq!(sandboxed.env, expected);
+    // cargo 的配置带过去了，发布用的令牌没带。
+    let carried = dir.join("cargo").join("config.toml");
+    assert_eq!(
+        std::fs::read_to_string(&carried).expect("带过去了"),
+        "[net]\nretry = 3\n"
+    );
+    #[cfg(unix)]
+    assert_eq!(
+        std::fs::read_link(&carried).expect("是链接"),
+        cargo.join("config.toml")
+    );
+    assert!(
+        !dir.join("cargo").join("credentials.toml").exists(),
+        "令牌不带"
+    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(&dir).expect("建了").permissions().mode();
+        assert_eq!(mode & 0o777, 0o700, "只给本人");
+    }
+    // 只读、完全放开：不放、不设。
+    let read_only = cached(
+        &home,
+        &cwd,
+        permission(Level::Workspace, true),
+        Some(cache.clone()),
+    )
+    .await
+    .expect("只读进沙盒");
+    assert!(
+        read_only.spec.write.is_empty() && read_only.env.is_empty(),
+        "{read_only:?}"
+    );
+    assert_eq!(
+        cached(&home, &cwd, permission(Level::Full, false), Some(cache)).await,
+        None
+    );
+}
+
+/// cargo 的配置照你的来：指错了的换掉，你的没了就把带过去的删掉（施工 5-4 下）。
+#[cfg(unix)]
+#[tokio::test]
+async fn the_carried_cargo_config_follows_yours() {
+    let home = Home::outside_temp();
+    let cwd = home.scratch.0.join("work").to_string_lossy().into_owned();
+    let cargo = home.home.join(".cargo");
+    std::fs::create_dir_all(&cargo).expect("建得了目录");
+    std::fs::write(cargo.join("config.toml"), "[net]\n").expect("写得进");
+    let cache = toolchain_cache(&home);
+    let carried = cache.dir.join("cargo").join("config.toml");
+    let workspace = || permission(Level::Workspace, false);
+    // 第一次：建好只给本人的缓存和链接。再换成一条指错了的。
+    cached(&home, &cwd, workspace(), Some(cache.clone())).await;
+    std::fs::remove_file(&carried).expect("删得了");
+    let wrong = home.scratch.0.join("other").join("wrong.toml");
+    std::fs::write(&wrong, "").expect("写得进");
+    std::os::unix::fs::symlink(&wrong, &carried).expect("造得了链接");
+    cached(&home, &cwd, workspace(), Some(cache.clone())).await;
+    assert_eq!(
+        std::fs::read_link(&carried).expect("是链接"),
+        cargo.join("config.toml"),
+        "指错了的换掉"
+    );
+    std::fs::remove_file(cargo.join("config.toml")).expect("删得了");
+    cached(&home, &cwd, workspace(), Some(cache)).await;
+    assert!(
+        std::fs::symlink_metadata(&carried).is_err(),
+        "你的没了，带过去的删掉"
+    );
 }

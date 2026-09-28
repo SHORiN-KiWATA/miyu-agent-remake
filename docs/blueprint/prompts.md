@@ -47,13 +47,13 @@ A <conversation-checkpoint> replaces the earlier part of a long conversation wit
 
 #### `core/permission-rule.txt`
 
-- 什么时候加进来：不拼（2026-09-27 项目主人定），M4 有工具时实测再定
-- token：85
-- 为什么加：每一级能做什么、只有人能切（施工 2-7）。没有工具的会话用不上
-- 指纹：`46260ad8`
+- 什么时候加进来：不拼（2026-09-27 项目主人定）。施工 5-4 下实测：不拼它，被沙盒挡住的写 4 次都认得出是沙盒、不绕（`11-权限与沙盒.md` 第四节），照旧不拼
+- token：73
+- 为什么加：每一级能做什么、只有人能切（施工 2-7）。没有工具的会话用不上。施工 5-4 下改成现在的样子：读整盘放开、网络不管以后，原来那句「出工作区、第一次访问网站要同意」不对了（原来 85）
+- 指纹：`c1e69995`
 
 ```text
-A <permission> block gives the permission level from that point on. In read_only, files can be read but not changed, and commands see the workspace as read-only. In workspace, commands run in a sandbox, and going outside the workspace or visiting a site for the first time needs the user's approval. In full, there is no sandbox and no approval. Only the user can change the level.
+A <permission> block gives the permission level from that point on. In read_only, neither file tools nor commands can write anything. In workspace, commands can write only inside the workspace and the temp directory, and file tools need the user's approval to write outside the workspace. In full, there are no limits. Only the user can change the level.
 ```
 
 ### 事实

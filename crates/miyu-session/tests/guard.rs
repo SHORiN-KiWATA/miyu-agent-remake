@@ -68,6 +68,7 @@ async fn session(
         attended,
         cwd: at(home, "work"),
         sandbox: None,
+        sandbox_cache: None,
     };
     home.create_as(script, &kit.catalog(), opening).await
 }
@@ -82,6 +83,7 @@ async fn sandboxed(home: &Home, script: &Script, kit: &Kit, read_only: bool) -> 
         attended: false,
         cwd: at(home, "work"),
         sandbox: Some(PathBuf::from("miyu-sandbox")),
+        sandbox_cache: None,
     };
     home.create_as(script, &kit.catalog(), opening).await
 }
@@ -459,6 +461,7 @@ async fn trash_is_judged_on_the_link_itself() {
         attended: false,
         cwd: work.to_string_lossy().into_owned(),
         sandbox: None,
+        sandbox_cache: None,
     };
     let handle = home.create_as(&script, &tools, opening).await;
     turn(&handle).await;

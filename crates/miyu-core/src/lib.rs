@@ -130,22 +130,25 @@ async fn run(
         Err(error) => return failed("models", error),
     };
     let sandbox = sandbox::probe(env.exe.as_deref());
+    let sandbox_cache = sandbox::cache(&env, std::env::var_os("CARGO_HOME"));
     let tools = match tools(&resources) {
         Ok(tools) => tools,
         Err(error) => return failed("tools", error),
     };
-    let core = Arc::new(
-        Core::new(
-            root,
-            resources,
-            models,
-            tools,
-            env.home,
-            admin(),
-            opened.token,
-        )
-        .with_sandbox(sandbox),
-    );
+    let mut core = Core::new(
+        root,
+        resources,
+        models,
+        tools,
+        env.home,
+        admin(),
+        opened.token,
+    )
+    .with_sandbox(sandbox);
+    if let Some((cache, cargo_home)) = sandbox_cache {
+        core = core.with_sandbox_cache(cache, cargo_home);
+    }
+    let core = Arc::new(core);
     say(&Ready::Ready);
     serve(opened.listener, core, options.idle, serve::signal()).await;
     ExitCode::SUCCESS

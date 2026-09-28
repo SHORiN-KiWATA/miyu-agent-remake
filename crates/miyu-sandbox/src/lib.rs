@@ -6,6 +6,7 @@
 //! - [`argv`]：照规格把一条命令包成交给助手的样子；
 //! - [`locate()`]：找助手，在主程序旁边；
 //! - [`probe()`]：跑一次助手的 `probe`，读它说这台机器能收紧到什么程度（[`Probe`]、[`Platform`]）；
+//! - [`Availability`]：这台机器上的沙盒能不能用、为什么（[`Unusable`]，施工 5-4 下）；
 //! - [`install`]：装沙盒要管理员权限的那一次，Windows 上建、撤专用的沙盒用户（施工 5-8，`docs/blueprint/sandbox/windows.md`）；
 //! - `testkit`：测试用的，cargo 编出来的助手在哪（施工 5-4 上）。
 //!
@@ -13,6 +14,7 @@
 //!
 //! Linux（Landlock，施工 5-2、5-3）、macOS（Seatbelt，施工 5-7）上照规格收紧；Windows 还不收紧（5-9）。
 
+mod availability;
 pub mod install;
 mod locate;
 mod probe;
@@ -21,6 +23,7 @@ mod spec;
 pub mod testkit;
 mod wrap;
 
+pub use availability::{Availability, Unusable};
 pub use locate::{HELPER, locate};
 pub use probe::{Platform, Probe, ProbeError, VERSION, probe};
 pub use spec::Spec;
