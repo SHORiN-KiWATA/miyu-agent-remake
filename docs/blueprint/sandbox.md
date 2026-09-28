@@ -92,7 +92,7 @@
 | `crates/miyu-sandbox/src/spec/tests.rs` | 样本读进来、写回去逐字节一样；网络的两种写法；只有 `network` 必写；多格、类型不对、不是 JSON 的读不了 |
 | `crates/miyu-sandbox/src/wrap/tests.rs` | 包出来的命令：助手、`run`、`--spec` 和 JSON、`--`、程序和参数，照先后；命令没有参数的，最后一个是程序 |
 | `crates/miyu-sandbox/src/probe/tests.rs` | 平台的名字和 JSON 里的一样；这次编的是哪个平台；说法是版本 1、一行；手段怎么连；探不成的每一种怎么说 |
-| `crates/miyu-sandbox/tests/run.rs` | 真跑助手：命令的输出、退出码、工作目录、环境变量和直接跑一样，它自己什么都不多印；Unix 上是同一个进程，被信号杀掉的照样是信号；参数不对、规格写坏了、没给命令、找不到命令、执行不了的退出码和那一句；`probe` 是一行、版本 1、这台机器的平台（手段各平台自己测） |
+| `crates/miyu-sandbox/tests/run.rs` | 真跑助手（规格什么都不限）：命令的输出、退出码、工作目录、环境变量和直接跑一样，它自己什么都不多印；Unix 上是同一个进程，被信号杀掉的照样是信号；参数不对、规格写坏了、没给命令、找不到命令、执行不了的退出码和那一句；`probe` 是一行、版本 1、这台机器的平台（手段各平台自己测） |
 | `crates/miyu-sandbox/tests/probe.rs` | 真的助手说的是这台机器；不是程序的起不来；假的助手（Unix 上的脚本）：多出来的格不管，到时杀掉，关了输出不退出的、拿着管道不放的也不等，退出码不是 0、说的读不懂、版本不认得各是各的原因 |
 | `crates/miyu-sandbox/tests/locate.rs` | 主程序旁边有的找得到，没有的、是目录的找不到；Windows 上名字带 `.exe` |
 | `crates/miyu-basesystem/src/shell/program/tests.rs` | 带了规格的四种 shell 都经助手起：参数照先后，工作目录、环境变量照旧；规格写不成 JSON 的起不来 |

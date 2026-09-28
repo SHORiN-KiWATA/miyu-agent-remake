@@ -5,6 +5,7 @@
 mod support;
 
 use std::ffi::OsString;
+use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
 
 use miyu_sandbox::{EXIT_CANNOT_RUN, EXIT_HELPER, EXIT_NOT_FOUND, Network, Platform, Probe, Spec};
@@ -13,11 +14,16 @@ use support::{Dir, HELPER};
 /// 参数不对时的那一句。
 const USAGE: &str = "miyu-sandbox: usage: miyu-sandbox run --spec <json> -- <program> [args...]\n";
 
-/// 一份什么都不限的规格。
+/// 一份什么都不限的规格：这里测的是助手照常跑命令，不是收紧。Unix 上整个根目录能读能写（施工 5-2 起 Linux 真的
+/// 照规格收紧，空的规格什么都不放行）；Windows 的收紧随 5-9，到时照它的写法放开。
 fn spec() -> String {
     Spec {
         read: Vec::new(),
-        write: Vec::new(),
+        write: if cfg!(unix) {
+            vec![PathBuf::from("/")]
+        } else {
+            Vec::new()
+        },
         readonly: Vec::new(),
         hidden: Vec::new(),
         network: Network::Off,
