@@ -6,7 +6,7 @@ use super::executor::*;
 use super::load::Logged;
 use super::revert::{revert, unrevert};
 use super::*;
-use crate::event::{Effect, FileChanged, FilesRestored};
+use crate::event::{Effect, FileChanged, FilesRestored, RestoreOutcome};
 use crate::id::{CallId, ContentHash};
 use crate::session::{Expect, Step, StepAction};
 
@@ -29,6 +29,7 @@ fn changed(call_id: CallId) -> Input {
             before: Some(hash("A")),
             after: hash("B"),
         })],
+        stopped: false,
     }
 }
 
@@ -74,7 +75,7 @@ fn steps_of(actions: &[Action]) -> Vec<Step> {
 fn done(steps: &[Step]) -> Input {
     Input::Restored {
         at: at(58),
-        files: steps.iter().map(Step::restored).collect(),
+        files: steps.iter().map(crate::testkit::restored).collect(),
     }
 }
 
@@ -118,7 +119,7 @@ fn an_undo_that_changed_files_waits_for_them_before_replying() {
     let actions = logged.handle(done(&steps));
     let events = appended_events(&actions);
     assert_eq!(events.len(), 1);
-    let files = steps.iter().map(Step::restored).collect();
+    let files = steps.iter().map(crate::testkit::restored).collect();
     assert_eq!(events[0].body, Body::FilesRestored(FilesRestored { files }));
     assert_eq!(
         (&events[0].by, &events[0].cause, events[0].turn),
@@ -174,4 +175,30 @@ fn an_undo_without_file_changes_replies_as_before() {
     assert_eq!(replies(&actions), [&accepted_reply(3, &[logged.last()])]);
     // 没在改的时候来的结局是过时的：不理。
     assert!(logged.handle(done(&[])).is_empty());
+}
+
+#[test]
+fn a_report_that_misses_a_step_records_it_as_not_done() {
+    let (mut logged, _) = edited();
+    let actions = logged.handle(revert(9, 3));
+    let steps = steps_of(&actions);
+    logged.handle(stored(logged.last()));
+    // 执行器交回的一项都没有：照那一步补一项出错，下一次恢复照它当没改回。
+    let actions = logged.handle(Input::Restored {
+        at: at(58),
+        files: Vec::new(),
+    });
+    let events = appended_events(&actions);
+    let Body::FilesRestored(FilesRestored { files }) = &events[0].body else {
+        panic!("{events:?}");
+    };
+    assert_eq!(files.len(), 1);
+    assert_eq!(
+        (files[0].result, &files[0].path, &files[0].outcome),
+        (steps[0].result, &steps[0].path, &RestoreOutcome::Failed)
+    );
+    assert_eq!(
+        files[0].error.as_deref(),
+        Some("executor report did not match")
+    );
 }

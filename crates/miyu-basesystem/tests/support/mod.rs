@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
 
 use miyu_kernel::block::Block;
-use miyu_tool::{Call, Done, Progress, Seen, Tool};
+use miyu_tool::{Call, Done, Progress, Seen, Stop, Tool};
 
 /// 源码树里的资源目录。
 pub fn resources() -> PathBuf {
@@ -97,12 +97,25 @@ impl Site {
         args: serde_json::Value,
         seen: Seen,
     ) -> Done {
+        self.done_with(cwd, name, args, seen, Stop::default()).await
+    }
+
+    /// 同 [`Site::done_seen`]，交给工具的旗是 `stop`（施工 4-9 再补一：举了旗的，写的工具不改）。
+    pub async fn done_with(
+        &self,
+        cwd: &str,
+        name: &str,
+        args: serde_json::Value,
+        seen: Seen,
+        stop: Stop,
+    ) -> Done {
         let call = Call {
             args: args.to_string(),
             cwd: self.0.join(cwd).to_string_lossy().into_owned(),
             home: Some(self.0.join("home")),
             data_root: Some(self.0.join("data")),
             seen: std::sync::Arc::new(seen),
+            stop,
         };
         tool(name).run(call, Progress::new(|_| {})).await
     }

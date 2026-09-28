@@ -6,7 +6,8 @@
 //!
 //! - [`Line`]：模型的一次回复；
 //! - [`Play`]：一次工具调用怎么回；
-//! - [`Stage`]：替身本身，人的每个动作以后一直跑到没事可做。
+//! - [`Stage`]：替身本身，人的每个动作以后一直跑到没事可做；
+//! - [`restored`]：替身改回的一步。
 
 mod respond;
 mod script;
@@ -14,3 +15,16 @@ mod stage;
 
 pub use script::{Line, Play};
 pub use stage::Stage;
+
+use crate::event::{RestoreAction, Restored};
+use crate::session::Step;
+
+/// 替身改回的一步：照做成了。移进回收站的，和真的执行器一样带着回收站里的位置（施工 4-9 再补一：内核对照交回的
+/// 结局，移进回收站成了、没带位置的算没做成）。
+pub fn restored(step: &Step) -> Restored {
+    let mut done = step.restored();
+    if done.action == RestoreAction::Trash {
+        done.trash = Some(format!("trash/{}-{}", step.result, step.effect));
+    }
+    done
+}

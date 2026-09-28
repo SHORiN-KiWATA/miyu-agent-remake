@@ -15,14 +15,28 @@ impl Session {
     /// 停下；没有结果的调用都补一条「已取消：Miyu 重启了，没跑完」；`turn.ended` 的原因是
     /// `restarted`。`by` 都是内核，`cause` 是那一轮的。排着队的不接着开：要关了。没有回合在进行，
     /// 什么都不做。
+    ///
+    /// 打断以后在等停着的（施工 4-9 再补一）：那次打断照样算数，先照不等了收尾（[`Self::force_stop`]），不然这一轮
+    /// 以 `restarted` 结束，再起来会接着干。收尾时接着开了下一轮的，再照上面收拾那一轮。
     pub(super) fn restart(&mut self, at: Timestamp) -> Vec<Action> {
+        let mut events = Vec::new();
+        let mut stops = Vec::new();
+        for action in self.force_stop(at, None) {
+            match action {
+                Action::Append(settled) => events.extend(settled),
+                other => stops.push(other),
+            }
+        }
         let Some(turn) = self.turn.as_mut() else {
-            return Vec::new();
+            return match events.is_empty() {
+                true => stops,
+                false => std::iter::once(Action::Append(events))
+                    .chain(stops)
+                    .collect(),
+            };
         };
         let cause = turn.cause.clone();
         let stage = std::mem::replace(&mut turn.stage, Stage::Settling);
-        let mut events = Vec::new();
-        let mut stops = Vec::new();
         let unfinished: Vec<CallId> = match stage {
             Stage::Asking(call) => {
                 stops.push(Action::CancelModel { seen: call.seen });

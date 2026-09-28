@@ -12,8 +12,8 @@ publish.workspace = true
 miyu-kernel = { path = "../miyu-kernel" }
 # 登记时查参数格式是不是一个对象。
 serde_json = "1.0"
-# 测试用的假工具：几件一起跑的等凑齐（施工 4-2），只在 testkit 开关打开时要。
-tokio = { version = "1", features = ["sync"], optional = true }
+# 测试用的假工具：几件一起跑的等凑齐（施工 4-2）、等叫它停（施工 4-9 再补一），只在 testkit 开关打开时要。
+tokio = { version = "1", features = ["sync", "time"], optional = true }
 
 [features]
 # 测试用的假工具（`src/testkit.rs`，施工 4-2）：会话、协议端点的测试要用它，在自己的 dev-dependencies

@@ -14,7 +14,7 @@ use serde::Deserialize;
 use miyu_fs::{replace, resolve};
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
-use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Target, Tool};
+use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Stop, Target, Tool};
 
 use crate::blocking::blocking;
 use crate::common::{Common, Shown, said};
@@ -78,15 +78,21 @@ impl Tool for Write {
         let texts = self.texts.clone();
         Box::pin(async move {
             match serde_json::from_str::<Args>(&call.args) {
-                Ok(args) => blocking(move |_| write(&texts, &call, &args)).await,
+                Ok(args) => {
+                    blocking(call.stop.clone(), move |stop| {
+                        write(&texts, &call, &args, stop)
+                    })
+                    .await
+                }
                 Err(error) => texts.common.bad_args(&error),
             }
         })
     }
 }
 
-/// 写：换成真实的位置，看它现在是什么；已经在了的先核对她看过的，再照原来的写法写。
-fn write(texts: &Texts, call: &Call, args: &Args) -> Done {
+/// 写：换成真实的位置，看它现在是什么；已经在了的先核对她看过的，再照原来的写法写。真正改之前看一眼旗
+/// （施工 4-9 再补一）：叫停了就不改，交回 `stopped`。
+fn write(texts: &Texts, call: &Call, args: &Args, stop: &Stop) -> Done {
     let path = args.file_path.as_str();
     let failed = |error: &dyn std::fmt::Display| texts.common.write_failed(path, error);
     let real = match resolve(Path::new(&call.cwd), call.home.as_deref(), path) {
@@ -111,15 +117,17 @@ fn write(texts: &Texts, call: &Call, args: &Args) -> Done {
             }
             Style::of(old).encode(&args.content)
         }
-        None => {
-            if let Some(dir) = real.parent()
-                && let Err(error) = fs::create_dir_all(dir)
-            {
-                return failed(&error);
-            }
-            Style::fresh().encode(&args.content)
-        }
+        None => Style::fresh().encode(&args.content),
     };
+    if stop.stopped() {
+        return Done::stopped();
+    }
+    if before.is_none()
+        && let Some(dir) = real.parent()
+        && let Err(error) = fs::create_dir_all(dir)
+    {
+        return failed(&error);
+    }
     if let Err(error) = replace(&real, &after) {
         return failed(&error);
     }

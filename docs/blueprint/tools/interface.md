@@ -100,14 +100,14 @@
    2. 快照里有、核心的目录里没有这件（核心升级拿掉了，老会话照样调）：不派，当场交回出错的结果（下面「执行器替工具写的两句」），没有用时。
    3. 在自己的任务里跑 `run` 交回的 future，记下开始跑的那一刻。
    4. `push` 的每一段，这次调用还在跑的，送回会话，推给头（瞬时的 `tool.progress`），不落盘；叫停了的不理。
-   5. 跑完：效果里改前改后的内容在阻塞线程里存成 blob（这个账号的 `blobs/`，`store.md`），换成哈希；存不下来的（磁盘满了之类）照样算出哈希，写一条运行日志。先照效果记下她看过的，再把 `blocks`、`error`、`human` 原样交给内核，用时是从开始跑到这里的毫秒数。
+   5. 跑完：效果里改前改后的内容在阻塞线程里存成 blob（这个账号的 `blobs/`，`store.md`），换成哈希；存不下来的（磁盘满了之类）照样算出哈希，写一条运行日志。先照效果记下她看过的，再把 `blocks`、`error`、`human`、`stopped` 原样交给内核，用时是从开始跑到这里的毫秒数。
    6. 工具 panic（存 blob 那一步 panic 的也算）：交回出错的结果，带用时；会话照常往下走。
 4. 内核把它记成 `tool.result`：`error` 是真的，状态是 `error`，不然是 `ok`；`by` 是那次调用。`blocks` 给模型看，`human`、`effects` 不发给模型。
 5. 一起跑的（内核照访问类别定）：连着的只读调用一起派，各跑各的任务；不是只读的，等它前面的都有了结果才派，它没结果，后面的都等着。
 6. 叫停有两种（`session/tools.md` 第 8 条）：「叫它停」只举 `Call.stop`，任务照跑；「掐掉」丢掉 future，旗也跟着举起来。工具怎么看旗：
    - `shell`：掐掉时整组杀掉命令（`tools/shell.md`）。
    - `glob`、`grep`：走目录、搜文件的每一步看一眼，举了就不往下走。
-   - `write`、`edit`、`trash`：真正改之前看一眼，举了就不改，交回 `stopped`；已经改了的照常交回，带效果。
+   - `write`、`edit`、`trash`：真正改之前看一眼（`write` 建上级目录之前，`edit` 写回之前，`trash` 移进回收站之前），举了就不改，交回 `stopped`；已经改了的照常交回，带效果。旗前面的核对（参数、看没看过、不许删的）照旧先答，和没举旗一样。
    - `read`：不看旗，读完为止。
    - 会话停了，在跑的都掐掉。
 
@@ -168,8 +168,9 @@
 | 什么时候 | 级别 | 那一行 |
 |---|---|---|
 | 开始跑 | INFO | `running`，带 `call`、`tool` |
-| 跑完 | INFO | `ran`，带 `call`、`took_ms`，出错的多一格 `error=true` |
-| 叫停 | INFO | `stopped`，带 `call`、`took_ms` |
+| 跑完 | INFO | `ran`，带 `call`、`took_ms`，出错的多一格 `error=true`，停在改之前的多一格 `stopped=true` |
+| 掐掉 | INFO | `stopped`，带 `call`、`took_ms` |
+| 掐掉叫它停过、还没交回来的 | WARN | `cancelled while stopping`，带 `call` |
 | 目录里没有 | WARN | `unavailable`，带 `call`、`tool` |
 | 崩了 | ERROR | `crashed`，带 `call`、`tool`、`took_ms` |
 | 改前改后存不下来 | WARN | `effect content not stored` |
@@ -191,6 +192,8 @@
 | `crates/miyu-policy/src/tools/tests.rs` | 快照里的工具面照名字排、读得回来；没有工具的快照字节不变；两件同名造不出策略；两句带上工具名；两句写坏了说是哪一份 |
 | `crates/miyu-session/tests/tools.rs` | 请求照名字带工具面、载入的老会话照快照发、在这一轮的工作目录里跑、出错的结果、执行中的输出推给头不落盘、两件只读的一起跑、打断丢掉在跑的、目录里没有的、崩了会话照常、会话停了丢掉在跑的 |
 | `crates/miyu-session/tests/tool_log.rs` | 运行日志的那几行，参数和结果的字不进日志 |
+| `crates/miyu-session/tests/stop.rs` | 叫它停只举旗、停在改之前的记「已取消」、已经改完的照记、不停的又打断一次就掐掉 |
+| `crates/miyu-tool/src/stop.rs`、`crates/miyu-basesystem/tests/stop.rs` | 克隆出来的是同一面旗；三件写的工具旗举了什么都不改，旗前面的核对照旧先答 |
 | `crates/miyu-session/src/effects/tests.rs` | 改前改后换成 blob、存不下来的照样有哈希、她看过的读的和写的、从日志重建 |
 | `crates/miyu-session/tests/write.rs` | 重新载入以后她读过的照样算、改完接着改不用重读、删了的不再算看过 |
 | `crates/miyu-session/tests/restore.rs` | 撤掉的回合里读过的不算、恢复以后又算 |

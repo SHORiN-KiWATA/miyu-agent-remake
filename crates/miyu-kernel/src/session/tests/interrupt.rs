@@ -4,8 +4,8 @@
 use super::executor::*;
 use super::*;
 use crate::accumulate::{Delta, Kind};
-use crate::event::{CallResult, EndReason, Said, ToolStatus};
-use crate::id::CallId;
+use crate::event::{CallResult, Effect, EndReason, FileChanged, Said, ToolStatus};
+use crate::id::{CallId, ContentHash};
 
 /// alice 在 07:00:`second` 打断，命令编号是 `n`，排着队的接着发。
 fn stop(n: u64, second: u64) -> Input {
@@ -296,4 +296,66 @@ fn an_urgent_message_before_any_call_ran_moves_straight_on() {
     let actions = allowing(&mut session, stored(10));
     assert!(ran(&actions).is_empty());
     assert_eq!(calls(&actions)[0].0, seq(10));
+}
+
+#[test]
+fn a_running_write_is_asked_to_stop_and_the_turn_waits_ten_seconds() {
+    let mut session = asking();
+    call_tools(&mut session, 5, &[("write", "{}"), ("read", "{}")]);
+    assert_eq!(ran(&allowing(&mut session, stored(7))), [call(6, 1)]);
+    // 写的在跑，读的排在它后面还没派：读的当场补「没跑过」，写的叫它停，10 秒以后叫醒。
+    let actions = allowing(&mut session, stop_with(2, at(20), Queued::Return));
+    assert_eq!(appended(&actions), seqs(&[8]));
+    assert_eq!(
+        result_of(&appended_events(&actions)[0]).4,
+        "cancelled before"
+    );
+    assert_eq!(
+        actions[1..],
+        [
+            Action::StopTool {
+                call_id: call(6, 1)
+            },
+            Action::Wake {
+                at: at(30),
+                seen: seq(6)
+            },
+        ]
+    );
+    assert!(allowing(&mut session, stored(8)).contains(&accepted_reply(2, &[8])));
+    // 写完了才停下来：照工具交的记，带着效果；都交回来了，收尾。
+    let effects = vec![Effect::FileChanged(FileChanged {
+        path: "/home/me/src/miyu/a".to_string(),
+        before: None,
+        after: ContentHash::of(b"a"),
+    })];
+    let mut wrote = done(call(6, 1), "wrote");
+    if let Input::ToolDone { effects: given, .. } = &mut wrote {
+        given.clone_from(&effects);
+    }
+    let actions = allowing(&mut session, wrote);
+    let events = appended_events(&actions);
+    assert_eq!(appended(&actions), seqs(&[9, 10]));
+    assert_eq!(effects_of(&events[0]), effects);
+    assert_eq!(
+        (events[0].by.clone(), events[0].cause.clone()),
+        (
+            By::Tool(crate::origin::Tool {
+                call_id: call(6, 1)
+            }),
+            Some(id(1))
+        )
+    );
+    interrupted_by(&events[1], 2);
+    assert!(
+        allowing(
+            &mut session,
+            Input::Woke {
+                at: at(30),
+                seen: seq(6)
+            }
+        )
+        .is_empty(),
+        "收了尾，到点叫醒不理"
+    );
 }

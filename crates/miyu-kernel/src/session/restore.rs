@@ -9,6 +9,40 @@ use std::collections::BTreeMap;
 use crate::event::{Body, Effect, Event, RestoreAction, RestoreOutcome, Restored};
 use crate::id::{ContentHash, Seq};
 
+/// 执行器交回的结局对不上交出去的那一步时，写进 `error` 的那一句（施工 4-9 再补一）。
+const MISMATCH: &str = "executor report did not match";
+
+/// 执行器交回的结局对照交出去的几步（施工 4-9 再补一）：一步一项、先后一样，每一项的 `result`、`effect`、`path`、
+/// `action` 和那一步一样；移进回收站成了的要带着 `trash`。对不上的那一项改成出错；少了的照那一步补一项出错，
+/// 多出来的不要。出错的记下以后，下一次撤销、恢复照它当那一步没做成。
+pub(super) fn checked(steps: &[Step], files: Vec<Restored>) -> Vec<Restored> {
+    let mut files = files.into_iter();
+    steps
+        .iter()
+        .map(|step| match files.next() {
+            Some(file) if fits(step, &file) => file,
+            _ => Restored {
+                outcome: RestoreOutcome::Failed,
+                error: Some(MISMATCH.to_string()),
+                ..step.restored()
+            },
+        })
+        .collect()
+}
+
+/// 交回的这一项是不是那一步的：编号、路径、做什么都一样；移进回收站成了的带着新位置。
+fn fits(step: &Step, file: &Restored) -> bool {
+    let want = step.restored();
+    let trashed_without_place = file.action == RestoreAction::Trash
+        && file.outcome == RestoreOutcome::Restored
+        && file.trash.is_none();
+    file.result == want.result
+        && file.effect == want.effect
+        && file.path == want.path
+        && file.action == want.action
+        && !trashed_without_place
+}
+
 /// 改回的一步：照哪一条 `tool.result` 的第几个效果，改哪里，做什么。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Step {

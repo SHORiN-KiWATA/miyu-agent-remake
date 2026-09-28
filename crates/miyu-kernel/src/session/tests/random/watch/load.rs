@@ -70,12 +70,15 @@ impl Watch {
         let seed = self.seed;
         if planned {
             let open = self.turn_open();
+            // 打断以后在等停着的：那次打断照样算数，先收尾；接着开了下一轮的，那一轮以 restarted 结束。
+            let waiting = self.stopping.queued.is_some();
             self.feed(&mut session, Input::Restarting { at: at(53) });
             if open {
                 self.seen_paths.insert("有计划地重启");
                 assert!(
                     matches!(self.events.last().map(|event| &event.body),
-                        Some(Body::TurnEnded(ended)) if ended.reason == EndReason::Restarted),
+                        Some(Body::TurnEnded(ended)) if ended.reason == EndReason::Restarted
+                            || waiting && ended.reason == EndReason::Interrupted),
                     "种子 {seed}：有计划的重启，那一轮要以 restarted 结束"
                 );
             }

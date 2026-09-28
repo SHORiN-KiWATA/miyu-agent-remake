@@ -70,7 +70,7 @@
 1. 会话接受了命令、改完了文件、这一次的事件都落了盘，才有回应（`kernel/history.md`）。核心接着在阻塞线程里读这个会话的整份日志，写下面这几样。
 2. **`turns`**：照 `events` 的第一条（`turn.reverted` 或 `turn.unreverted`）列的几轮，数有几轮。
 3. **`said`**：那几轮里的第一轮。找到它的 `turn.started`，再找引起它的那一条（`trigger`）：是 `message.user`、`by` 是人的，照先后找第一块不空的文字块，取它第一行不空的（去掉前后空白以后），去掉前后空白。一行都不空的，没有这一格。不是人开的（内核、别的会话……）、找不到的，没有这一格。
-4. **`commands`**：只有撤销有。数那几轮里每条 `message.assistant` 的工具调用，工具在核心的工具目录里访问类别是「执行命令」的才算，现在只有 `shell`（`tools/interface.md`）。只数真跑过的：结果是 `ok`、`error` 的，和跑到一半被打断的（`cancelled-running`）；被拒的、没跑过的、跳过的不算。
+4. **`commands`**：只有撤销有。数那几轮里每条 `message.assistant` 的工具调用，工具在核心的工具目录里访问类别是「执行命令」的才算，现在只有 `shell`（`tools/interface.md`）。只数跑过的：结果是 `ok`、`error` 的，和可能跑了一半的（跑到一半被打断的 `cancelled-running`、重启时没跑完的 `restarted`）；被拒的、没跑过的、跳过的不算。这一格是提醒「命令改的撤不回」，拿不准的宁可算上。
 5. **`files`**：照 `events` 的第二条 `files.restored`，一步一项，照原来的先后。没有第二条的是空的。
 6. **差异**：只有 `changed` 的才算。
    1. 要对照的内容：撤销时是她改完的样子（这一步照的那个 `file.changed` 效果的改后），恢复时是撤销以后的样子（改前）。恢复时改前是 `null` 的（她新建的），没有差异；这一步照的不是 `file.changed` 的（`file.trashed`），也没有。
@@ -105,7 +105,7 @@
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-endpoint/tests/undo.rs` | 不写回合编号的撤最后一轮：`events`、`cwd`、`turns`、`said`、`commands`、`files`；恢复时不带 `commands`；之后又被改过的附差异，最多 20 行、`more`；两轮的会话只算撤掉的那一轮、`said` 只取第一行去掉空白；恢复时对照改前的；上下文 3 行、不加「没有换行」；太大的、不是文本的不附差异；工作目录是链接的写真实的位置 |
+| `crates/miyu-endpoint/tests/undo.rs` | 不写回合编号的撤最后一轮：`events`、`cwd`、`turns`、`said`、`commands`、`files`；恢复时不带 `commands`；之后又被改过的附差异，最多 20 行、`more`；两轮的会话只算撤掉的那一轮、`said` 只取第一行去掉空白；恢复时对照改前的；上下文 3 行、不加「没有换行」；太大的、不是文本的不附差异；工作目录是链接的写真实的位置；被打断的一轮只算跑过的命令、排在后面没派的不算；`said` 跳过开头的空行，全是空白的没有这一格 |
 | `crates/miyu-endpoint/tests/revert.rs` | 撤销、恢复的 `events`；`nothing_to_unrevert`、`unknown_turn`、`nothing_to_revert` 照头的语言；`turn` 写 0 |
 | `crates/miyu-session/tests/restore.rs` | 改回文件的那一半（`kernel/history.md`） |
 

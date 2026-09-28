@@ -13,8 +13,9 @@ impl Watch {
             Body::ModelCalled(called) => self.queued.retain(|queued| *queued > called.seen),
             Body::MessageWithdrawn(withdrawn) => {
                 self.seen_paths.insert("打断后排队的退回");
+                // 等停着的那次打断，收尾时照它（又打断了一次的，照后来那次）。
                 assert_eq!(
-                    self.interrupting,
+                    self.interrupting.or(self.stopping.queued),
                     Some(Queued::Return),
                     "种子 {seed}：只有退回的打断才撤回"
                 );

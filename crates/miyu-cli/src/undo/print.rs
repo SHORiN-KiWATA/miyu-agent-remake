@@ -47,6 +47,19 @@ pub(super) fn lines(result: &Value, plan: &UndoPlan) -> Vec<Line> {
     lines
 }
 
+/// 差异里的一行写成给人看的：控制字符换成 `�`，制表符照原样留着（用制表符缩进的文件，差异才看得清）。
+fn keep_tabs(row: &str) -> String {
+    row.chars()
+        .map(|c| {
+            if c.is_control() && c != '\t' {
+                '\u{FFFD}'
+            } else {
+                c
+            }
+        })
+        .collect()
+}
+
 /// 一个文件那一行，和它下面的差异。
 fn file_lines(file: &Value, cwd: &str, plan: &UndoPlan) -> Vec<Line> {
     let language = &plan.language;
@@ -93,7 +106,7 @@ fn file_lines(file: &Value, cwd: &str, plan: &UndoPlan) -> Vec<Line> {
                 _ => Ink::Gray,
             };
             let mut line = Line::gray(INDENT);
-            line.push(ink, clean(row));
+            line.push(ink, keep_tabs(row));
             lines.push(line);
         }
         if let Some(more) = file["more"].as_u64().filter(|more| *more > 0) {

@@ -211,3 +211,31 @@ async fn a_redo_rebuilds_the_directories_it_needs() {
     assert_eq!(outcomes(&home, &handle), [RestoreOutcome::Restored]);
     assert_eq!(read(&home, "sub/n.txt").as_deref(), Some("made\n"));
 }
+
+/// 移回来了，可读不出内容算不了哈希（没有读的权限）：照样记移回来了，不附哈希；恢复时照样移进回收站（施工 4-9
+/// 再补一：以前记成失败，下一次恢复当它还在回收站的旧位置）。
+#[tokio::test]
+async fn a_file_that_came_back_unreadable_still_counts_as_back() {
+    use std::os::unix::fs::PermissionsExt;
+    let home = Home::outside_temp();
+    put(&home, "t.txt", "bye\n");
+    let locked = home.scratch.0.join("work/t.txt");
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).expect("改得了权限");
+    if std::fs::read(&locked).is_ok() {
+        // root 读得了没有读权限的文件：这台机器上走不到「读不出」。
+        return;
+    }
+    let handle = one_turn(&home, trash_t()).await;
+    let steps = {
+        undo_last(&home, &handle, "cmd-2").await;
+        last_restored(&home, &handle)
+    };
+    assert_eq!(
+        (&steps[0].outcome, &steps[0].hash),
+        (&RestoreOutcome::Restored, &None)
+    );
+    assert!(locked.exists(), "移回来了");
+    undo(&handle, "cmd-3", Command::Unrevert).await;
+    assert_eq!(outcomes(&home, &handle), [RestoreOutcome::Restored]);
+    assert!(!locked.exists(), "又进了回收站");
+}

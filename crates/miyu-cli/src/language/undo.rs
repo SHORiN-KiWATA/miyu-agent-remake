@@ -113,6 +113,7 @@ impl Language {
     pub(crate) fn diff_more(&self, lines: u64) -> String {
         match self {
             Language::Chinese => format!("还有 {lines} 行"),
+            Language::English if lines == 1 => "1 more line".to_string(),
             Language::English => format!("{lines} more lines"),
         }
     }
@@ -125,6 +126,9 @@ impl Language {
             }
             (Language::Chinese, _) => {
                 format!("· 这几轮执行过 {commands} 条命令：命令改的文件撤不回")
+            }
+            (Language::English, _) if commands == 1 => {
+                "· 1 command ran: files it changed cannot be undone".to_string()
             }
             (Language::English, _) => {
                 format!("· {commands} commands ran: files they changed cannot be undone")
@@ -150,6 +154,18 @@ impl Language {
             }
             (Language::English, Direction::Redo) => {
                 "Redo the latest undo, until you say something else"
+            }
+        }
+    }
+
+    /// 核心没在跑，又没设 key：不拉起（施工 4-9 再补一，照 `miyu ask` 的规矩）。
+    pub(crate) fn undo_needs_key(&self) -> &'static str {
+        match self {
+            Language::Chinese => {
+                "核心没在跑。先设 DEEPSEEK_API_KEY：没有 key 拉起的核心，之后的 miyu ask 也用不了"
+            }
+            Language::English => {
+                "The core is not running. Set DEEPSEEK_API_KEY first: a core started without it cannot serve miyu ask later"
             }
         }
     }

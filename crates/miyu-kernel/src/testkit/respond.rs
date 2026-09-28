@@ -9,7 +9,7 @@ use crate::event::{Response, Usage};
 use crate::id::{CallId, ModelName, ProviderId, Seq};
 use crate::origin::Model;
 use crate::request::Request;
-use crate::session::{Action, Input, Step, Verdict};
+use crate::session::{Action, Input, Verdict};
 use crate::time::Timestamp;
 
 impl Stage {
@@ -68,6 +68,11 @@ impl Stage {
             Action::AnswerTool { call_id, answers } => {
                 vec![self.done(call_id, false, &answered(&answers))]
             }
+            // 叫它停（施工 4-9 再补一）：替身记下来，停住的调用照旧停着，等测试定它怎么交回。
+            Action::StopTool { call_id } => {
+                self.stops.push(call_id);
+                Vec::new()
+            }
             Action::CancelTool { call_id } => {
                 self.held_tools.retain(|(held, _)| *held != call_id);
                 Vec::new()
@@ -75,7 +80,7 @@ impl Stage {
             // 改回文件（施工 4-7 上）：替身不碰文件，每一步都当改回了。
             Action::Restore { steps } => vec![Input::Restored {
                 at: self.tick(),
-                files: steps.iter().map(Step::restored).collect(),
+                files: steps.iter().map(super::restored).collect(),
             }],
         }
     }
@@ -166,6 +171,21 @@ impl Stage {
             duration_ms: Some(5),
             human: None,
             effects: Vec::new(),
+            stopped: false,
+        }
+    }
+
+    /// 调用 `call_id` 叫它停以后停在了改之前（施工 4-9 再补一）。
+    pub(super) fn stopped(&mut self, call_id: CallId) -> Input {
+        Input::ToolDone {
+            at: self.tick(),
+            call_id,
+            error: false,
+            blocks: Vec::new(),
+            duration_ms: Some(5),
+            human: None,
+            effects: Vec::new(),
+            stopped: true,
         }
     }
 }

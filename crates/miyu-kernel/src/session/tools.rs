@@ -15,7 +15,7 @@ use crate::event::{
 use crate::id::{CallId, CommandId, Seq};
 use crate::origin::{By, Tool};
 use crate::time::Timestamp;
-use crate::tool::{Worded, repair};
+use crate::tool::{Access, Worded, repair};
 
 impl Session {
     /// 回复里的工具调用，先查：工具面上没有这个名字、参数不是 JSON 对象的，当场记一条出错的
@@ -152,12 +152,15 @@ impl Session {
 
     /// 工具执行完了：照工具交的追加 `tool.result`（`result`，成功还是出错、内容、用时、说法、效果都在里面），
     /// `by` 是那次调用，然后派后面能派的。这一步齐了，到了步数上限就结束回合，不然等落了盘请求下一次。
-    /// 问着人的也算在跑：题目跟着了结。不是这一步在跑的，不理。
+    /// 问着人的也算在跑：题目跟着了结。不是这一步在跑的，不理。打断以后在等停着的，交给 [`Self::stopped_done`]。
     pub(super) fn tool_done(&mut self, at: Timestamp, result: ToolResult) -> Vec<Action> {
         let call_id = result.call_id;
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();
         };
+        if turn.interrupting.is_some() {
+            return self.stopped_done(at, result);
+        }
         let cause = turn.cause.clone();
         let Stage::Tools(step) = &mut turn.stage else {
             return Vec::new();
@@ -172,7 +175,14 @@ impl Session {
         call.state = State::Done;
         let finished = step.finished();
         let by = By::Tool(Tool { call_id });
-        let mut events = vec![self.record(at, by, cause.clone(), Body::ToolResult(result))];
+        let recorded = if result.status == ToolStatus::Cancelled {
+            // 没叫它停，却交回停在了改之前的：照已取消记，那一句内核写。执行器只在叫它停以后才交这种，这是兜底。
+            let text = self.policy.tool_texts.cancelled_running();
+            self.written_result(at, by, cause.clone(), call_id, ToolStatus::Cancelled, text)
+        } else {
+            self.record(at, by, cause.clone(), Body::ToolResult(result))
+        };
+        let mut events = vec![recorded];
         if finished {
             events.extend(self.finish_step(at, cause));
         }
@@ -210,21 +220,27 @@ impl Session {
         })]
     }
 
-    /// 打断这一步：在跑的叫执行器停下，补「已取消，跑到一半」，问着人的补「没回答：被打断了」；
-    /// 还没跑过的（没轮到、在过链、在等人确认、人允许了还没派）补「已取消，没跑过」；有了结果的
-    /// 不动。补的结果 `by` 是打断的人，`cause` 是打断的命令。
+    /// 打断这一步：在跑的改文件的调用（访问类别 `write`）叫它停（`StopTool`），改成停着，先不记结果（施工 4-9
+    /// 再补一）；在跑的别的叫执行器停下，补「已取消，跑到一半」，问着人的补「没回答：被打断了」；还没跑过的（没轮到、
+    /// 在过链、在等人确认、人允许了还没派）补「已取消，没跑过」；有了结果的、停着的不动。补的结果 `by` 是打断的人，
+    /// `cause` 是打断的命令。
     pub(super) fn cancel_step(
         &mut self,
         at: Timestamp,
         by: &By,
         cause: &CommandId,
-        step: Step,
+        step: &mut Step,
     ) -> (Vec<Event>, Vec<Action>) {
         let mut events = Vec::new();
         let mut actions = Vec::new();
-        for call in step.calls {
+        for call in &mut step.calls {
             let text = match call.state {
-                State::Done => continue,
+                State::Done | State::Stopping => continue,
+                State::Running if call.access == Access::Write => {
+                    call.state = State::Stopping;
+                    actions.push(Action::StopTool { call_id: call.id });
+                    continue;
+                }
                 State::Questioning => {
                     actions.push(Action::CancelTool { call_id: call.id });
                     self.policy.tool_texts.question_interrupted()
@@ -235,6 +251,7 @@ impl Session {
                 }
                 _ => self.policy.tool_texts.cancelled_before(),
             };
+            call.state = State::Done;
             events.push(self.written_result(
                 at,
                 by.clone(),

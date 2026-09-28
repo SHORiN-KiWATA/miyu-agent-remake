@@ -251,3 +251,47 @@ async fn the_working_directory_is_given_as_its_real_place() {
     std::fs::remove_file(&link).expect("删得掉");
     assert_eq!(result["cwd"], json!(plain(&home.work)), "{result}");
 }
+
+/// 被打断的一轮（施工 4-9 再补一）：跑到一半的命令算跑过，排在它后面、还没派的不算；人说的话开头是空行的，取第一行
+/// 不空的。
+#[tokio::test]
+async fn only_commands_that_ran_are_counted() {
+    let home = Home::new();
+    let resources = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");
+    let run = Fake::new("run", Access::Execute, Act::Holds);
+    let mut tools = miyu_basesystem::tools(&resources).expect("出厂的资源读得出来");
+    tools.push(Arc::clone(&run) as Arc<dyn Tool>);
+    let tools = Catalog::new(tools).expect("合写法");
+    let plays = vec![Play::calls(&[("run", "{}"), ("run", "{}")])];
+    let mut client = Client::connect(home.core_with_tools(&Script::new(plays), tools, TOKEN));
+    client.hello().await;
+    let session = client.create("c1", &home.work.to_string_lossy()).await;
+    client.say("c2", &session, "\n\n  跑两条  \n别的").await;
+    until("第一条开始跑", || run.calls().len() == 1).await;
+    let stop = json!({"session": session, "queued": "return"});
+    client.call("c3", "session.interrupt", stop).await;
+    home.until_turns(&session, 1).await;
+    let result = undo(&mut client, "c4", &session).await;
+    assert_eq!(result["commands"], json!(1), "{result}");
+    assert_eq!(result["said"], json!("跑两条"), "{result}");
+}
+
+/// 人说的全是空白：没有 `said`（施工 4-9 再补一：以前是空字符串）。
+#[tokio::test]
+async fn blank_words_give_no_said() {
+    let home = Home::new();
+    std::fs::write(home.work.join("a.txt"), "old\n").expect("写得进");
+    let plays = vec![
+        Play::calls(&[("read", r#"{"file_path":"a.txt"}"#)]),
+        write("new\n"),
+        Play::Says("改好了。"),
+    ];
+    let mut client = Client::connect(home.core_with_tools(&Script::new(plays), tools(), TOKEN));
+    client.hello().await;
+    let session = client.create("c1", &home.work.to_string_lossy()).await;
+    client.say("c2", &session, "  \n\t\n ").await;
+    home.until_turns(&session, 1).await;
+    let result = undo(&mut client, "c3", &session).await;
+    assert!(result.get("said").is_none(), "{result}");
+    assert_eq!(result["turns"], json!(1), "{result}");
+}

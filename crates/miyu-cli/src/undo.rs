@@ -13,7 +13,7 @@ use std::process::{Command, ExitCode};
 use clap::Args;
 use serde_json::json;
 
-use miyu_ipc::{Connection, connect_or_start};
+use miyu_ipc::{ConnectError, Connection, connect_or_start};
 use miyu_store::env::Env;
 use miyu_store::root::DataRoot;
 
@@ -91,9 +91,25 @@ async fn run(args: Undo, direction: Direction, start: impl FnOnce() -> Command) 
     if let Err(error) = root.prepare() {
         return failed(&error.to_string());
     }
-    let (connection, token) = match connect_or_start(&root, start).await {
+    // 照 `miyu ask` 的规矩（施工 4-9 再补一）：没设 key 的，核心在跑的照样连，没在跑的不拉起。撤销本身用不着
+    // 模型，不拉起是怕拉起一个没有 key 的核心：之后设了 key 的 `miyu ask` 连上它，也用不了。
+    let key = std::env::var("DEEPSEEK_API_KEY").is_ok_and(|key| !key.trim().is_empty());
+    let connected = match key {
+        true => connect_or_start(&root, start)
+            .await
+            .map_err(|error| error.to_string()),
+        false => match miyu_ipc::connect(&root).await {
+            Ok(connected) => Ok(connected),
+            Err(ConnectError::NotRunning) => {
+                say(&mut io::stderr(), language::current().undo_needs_key());
+                return exit::NO_MODEL;
+            }
+            Err(error) => Err(error.to_string()),
+        },
+    };
+    let (connection, token) = match connected {
         Ok(connected) => connected,
-        Err(error) => return failed(&error.to_string()),
+        Err(reason) => return failed(&reason),
     };
     let mut out = io::stdout();
     let plan = UndoPlan {

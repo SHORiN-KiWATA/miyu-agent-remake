@@ -39,6 +39,18 @@ pub(super) struct Turn {
     pub(super) queued: Vec<(Seq, Option<CommandId>)>,
     /// 上一次请求以后切过权限级别：下一次请求之前把事实查一遍。
     pub(super) refresh: bool,
+    /// 打断了，在等停着的改文件的调用交回来（施工 4-9 再补一）：等齐了才收尾。
+    pub(super) interrupting: Option<Interrupting>,
+}
+
+/// 打断以后在等停着的调用：谁打断的、哪个命令、排着队的怎么办，等的那一次 `Wake` 的记号。
+#[derive(Debug)]
+pub(super) struct Interrupting {
+    pub(super) by: By,
+    pub(super) cause: CommandId,
+    pub(super) queued: super::input::Queued,
+    /// `Wake` 带的记号：那一步回复的序号，到点送回的 `Woke` 照它对上。
+    pub(super) wake: Seq,
 }
 
 /// 急着插话：谁说的，哪个命令。跳过的结果 `by` 是说话的人，`cause` 是这个命令。
@@ -99,6 +111,7 @@ impl Session {
             interjected: None,
             queued: Vec::new(),
             refresh: false,
+            interrupting: None,
         });
         self.effective = self.permission.clone();
         let facts = vec![

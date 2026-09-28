@@ -8,9 +8,9 @@ use serde::Deserialize;
 use miyu_fs::resolve;
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
-use miyu_tool::{Call, Done, Progress, Running, Spec, Target, Tool};
+use miyu_tool::{Call, Done, Progress, Running, Spec, Stop, Target, Tool};
 
-use crate::blocking::{Stop, blocking};
+use crate::blocking::blocking;
 use crate::common::{Common, Shown, given, said};
 use crate::load::{self, LoadError, say};
 use crate::pattern::{Pattern, split_absolute};
@@ -89,7 +89,12 @@ impl Tool for Glob {
         let texts = self.texts.clone();
         Box::pin(async move {
             match serde_json::from_str::<Args>(&call.args) {
-                Ok(args) => blocking(move |stop| find(&texts, &call, &args, stop)).await,
+                Ok(args) => {
+                    blocking(call.stop.clone(), move |stop| {
+                        find(&texts, &call, &args, stop)
+                    })
+                    .await
+                }
                 Err(error) => texts.common.bad_args(&error),
             }
         })

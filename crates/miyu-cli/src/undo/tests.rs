@@ -262,3 +262,30 @@ fn several_turns_are_counted() {
 fn printed_as(result: &Value, direction: Direction) -> String {
     printed(result, &plan(direction, Language::Chinese))
 }
+
+/// 英文分单复数（施工 4-9 再补一）：一条命令、还有一行。
+#[test]
+fn in_english_one_is_one() {
+    let result = json!({"cwd": under(&["w"]), "turns": 1, "said": "hi", "commands": 1, "files": [
+        {"path": under(&["w", "a"]), "action": "write", "outcome": "changed",
+         "diff": ["@@ -1 +1 @@", "-x"], "more": 1},
+    ]});
+    let printed = printed(&result, &plan(Direction::Undo, Language::English));
+    assert!(printed.contains("    1 more line\n"), "{printed}");
+    assert!(
+        printed.contains("· 1 command ran: files it changed cannot be undone\n"),
+        "{printed}"
+    );
+}
+
+/// 差异里的制表符照原样留着，别的控制字符换成 `�`（施工 4-9 再补一）。
+#[test]
+fn tabs_in_a_diff_are_kept() {
+    let result = json!({"cwd": under(&["w"]), "turns": 1, "files": [
+        {"path": under(&["w", "a"]), "action": "write", "outcome": "changed",
+         "diff": ["@@ -1 +1 @@", "-\tif x {", "+\tif y {\u{7}"]},
+    ]});
+    let printed = printed_as(&result, Direction::Undo);
+    assert!(printed.contains("    -\tif x {\n"), "{printed:?}");
+    assert!(printed.contains("    +\tif y {\u{fffd}\n"), "{printed:?}");
+}

@@ -14,9 +14,7 @@ use std::time::SystemTime;
 use ignore::WalkBuilder;
 
 use miyu_fs::{resolve, within};
-use miyu_tool::Call;
-
-use crate::blocking::Stop;
+use miyu_tool::{Call, Stop};
 
 /// 版本库自己的目录，不进（Claude Code 的名单）。
 const VCS: [&str; 6] = [".git", ".svn", ".hg", ".bzr", ".jj", ".sl"];

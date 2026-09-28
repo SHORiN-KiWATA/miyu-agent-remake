@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 use similar::TextDiff;
 
 use miyu_kernel::block::Block;
-use miyu_kernel::event::{Body, Effect, Event, RestoreOutcome, Restored};
+use miyu_kernel::event::{Body, Effect, Event, RestoreOutcome, Restored, ToolResult, ToolStatus};
 use miyu_kernel::id::{ContentHash, SessionId, TurnId};
 use miyu_kernel::origin::By;
 use miyu_kernel::tool::Access;
@@ -25,6 +25,11 @@ use crate::Core;
 const DIFF_LINES: usize = 20;
 /// 任一边超过这么多字节的不算差异。
 const DIFF_BYTES: u64 = 1 << 20;
+/// 内核给跑到一半被打断的、重启时没跑完的调用记的那两句（`kernel/session.md`）：这两种都可能跑了一半。
+const PARTLY_RAN: [&str; 2] = [
+    "core/tool-results/cancelled-running",
+    "core/tool-results/restarted",
+];
 
 /// 撤销、恢复被接受了：回应是它产生的事件的序号 `events`、会话的工作目录 `cwd`，和给人看的几样。
 pub(crate) async fn reply(core: &Core, session: &SessionId, cwd: &str, events: Vec<u64>) -> Value {
@@ -157,22 +162,52 @@ fn said(log: &[Event], turn: TurnId) -> Option<String> {
         return None;
     };
     message.blocks.iter().find_map(|block| match block {
-        Block::Text(text) => text.text.lines().next().map(|line| line.trim().to_string()),
+        Block::Text(text) => text
+            .text
+            .lines()
+            .map(str::trim)
+            .find(|line| !line.is_empty())
+            .map(str::to_string),
         _ => None,
     })
 }
 
-/// 这几轮里执行过几条命令：回复里调的、照工具目录是执行命令的那几件。
+/// 这几轮里真跑过几条命令：回复里调的、照工具目录是执行命令的那几件，结果是成了、出错、可能跑了一半的；
+/// 被拒的、没跑过的、跳过的不算（施工 4-9 再补一）。
 fn commands(log: &[Event], turns: &[TurnId], executing: &BTreeSet<String>) -> usize {
+    let within = |event: &&Event| event.turn.is_some_and(|turn| turns.contains(&turn));
+    let ran: BTreeSet<_> = log
+        .iter()
+        .filter(within)
+        .filter_map(|event| match &event.body {
+            Body::ToolResult(result) if ran_at_all(result) => Some(result.call_id),
+            _ => None,
+        })
+        .collect();
     log.iter()
-        .filter(|event| event.turn.is_some_and(|turn| turns.contains(&turn)))
+        .filter(within)
         .filter_map(|event| match &event.body {
             Body::MessageAssistant(reply) => Some(&reply.blocks),
             _ => None,
         })
         .flatten()
-        .filter(|block| matches!(block, Block::ToolCall(call) if executing.contains(&call.name)))
+        .filter(|block| {
+            matches!(block, Block::ToolCall(call)
+                if executing.contains(&call.name) && ran.contains(&call.call_id))
+        })
         .count()
+}
+
+/// 这个结果说明调用跑过：成了、出错，或者可能跑了一半（跑到一半被打断、重启时没跑完）。
+fn ran_at_all(result: &ToolResult) -> bool {
+    match result.status {
+        ToolStatus::Ok | ToolStatus::Error => true,
+        ToolStatus::Cancelled => result
+            .human
+            .as_ref()
+            .is_some_and(|said| PARTLY_RAN.contains(&said.key.as_str())),
+        _ => false,
+    }
 }
 
 /// 改回的一步写成回应里的一项：之后又被改过的，附上差异。
@@ -249,3 +284,6 @@ fn diff(blobs: &Blobs, expected: &ContentHash, path: &Path) -> (Vec<String>, usi
 fn is_zero(n: &usize) -> bool {
     *n == 0
 }
+
+#[cfg(test)]
+mod tests;

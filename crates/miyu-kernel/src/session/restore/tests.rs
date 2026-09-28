@@ -205,3 +205,92 @@ fn a_step_done_is_reported_with_its_action() {
     assert_eq!(steps[2].restored().result.get(), 10);
     assert_eq!(steps[2].restored().effect, 1);
 }
+
+/// 这几步照做成了的结局：移进回收站的带着位置，和真的执行器一样。
+fn reported(steps: &[Step]) -> Vec<Restored> {
+    steps
+        .iter()
+        .map(|step| {
+            let mut done = step.restored();
+            if done.action == RestoreAction::Trash {
+                done.trash = Some(format!("/T{}", step.path));
+            }
+            done
+        })
+        .collect()
+}
+
+/// 交回的第 `k` 项被当成了没做成：还是那一步的，出错写着对不上。
+fn mismatched(got: &[Restored], steps: &[Step], k: usize) {
+    let want = steps[k].restored();
+    assert_eq!(
+        (&got[k].result, got[k].effect, &got[k].path, &got[k].action),
+        (&want.result, want.effect, &want.path, &want.action),
+        "第 {k} 项还是那一步的"
+    );
+    assert_eq!(got[k].outcome, RestoreOutcome::Failed, "第 {k} 项");
+    assert_eq!(
+        got[k].error.as_deref(),
+        Some("executor report did not match")
+    );
+    assert_eq!(
+        (&got[k].trash, &got[k].hash, &got[k].found),
+        (&None, &None, &None)
+    );
+}
+
+#[test]
+fn a_report_that_fits_the_steps_is_kept_as_it_is() {
+    let steps = undo(&turn(), &[]);
+    let good = reported(&steps);
+    assert_eq!(checked(&steps, good.clone()), good);
+    // 移进回收站没做成的，本来就没有位置：照原样。
+    let mut failed = good.clone();
+    failed[1].outcome = RestoreOutcome::Failed;
+    failed[1].trash = None;
+    assert_eq!(checked(&steps, failed.clone()), failed);
+}
+
+#[test]
+fn a_report_that_does_not_fit_counts_as_not_done() {
+    let steps = undo(&turn(), &[]);
+    let good = reported(&steps);
+    // 移进回收站成了，却没带位置：下一次恢复找不着它。
+    let mut no_place = good.clone();
+    no_place[1].trash = None;
+    let got = checked(&steps, no_place);
+    mismatched(&got, &steps, 1);
+    assert_eq!((&got[0], &got[2]), (&good[0], &good[2]), "别的项照原样");
+    // 先后反了。
+    let mut swapped = good.clone();
+    swapped.swap(0, 2);
+    let got = checked(&steps, swapped);
+    mismatched(&got, &steps, 0);
+    mismatched(&got, &steps, 2);
+    assert_eq!(got[1], good[1]);
+    // 做的不是那一步说的。
+    let mut wrong = good.clone();
+    wrong[2].action = RestoreAction::Trash;
+    mismatched(&checked(&steps, wrong), &steps, 2);
+    // 编号、路径对不上。
+    let mut elsewhere = good.clone();
+    elsewhere[0].path = "/w/other".to_string();
+    elsewhere[2].effect = 0;
+    let got = checked(&steps, elsewhere);
+    mismatched(&got, &steps, 0);
+    mismatched(&got, &steps, 2);
+}
+
+#[test]
+fn missing_items_are_filled_in_and_extra_ones_dropped() {
+    let steps = undo(&turn(), &[]);
+    let good = reported(&steps);
+    let got = checked(&steps, good[..1].to_vec());
+    assert_eq!(got.len(), 3, "一步一项");
+    assert_eq!(got[0], good[0]);
+    mismatched(&got, &steps, 1);
+    mismatched(&got, &steps, 2);
+    let mut more = good.clone();
+    more.push(good[0].clone());
+    assert_eq!(checked(&steps, more), good, "多出来的不要");
+}

@@ -23,7 +23,9 @@
 //! - 撤销、恢复：照规矩接受或者拒绝，列的是那几轮；请求照的是撤销、恢复以后的历史；撤了又恢复的，
 //!   下一次请求接着上一次往下长；
 //! - 改回文件：那几轮改过文件的才交出去，一个改过的文件一步；改的时候来的命令拒绝；结局只记一条
-//!   `files.restored`；过时的结局不理（施工 4-7 上）。
+//!   `files.restored`；过时的结局不理（施工 4-7 上）；
+//! - 打断时在跑的改文件的调用：叫它停，等它交回来、到点、又打断一次才收尾（施工 4-9 再补一，
+//!   `watch/stopping.rs`）。
 //!
 //! 每一步还照九条不变量查（`watch/invariants.rs`，`02-内核.md` 第九节「不变量怎么查」）。
 //!
@@ -34,6 +36,8 @@ mod asking;
 mod kinds;
 mod paths;
 mod restoring;
+mod rng;
+mod stopping;
 mod watch;
 
 use std::collections::BTreeSet;
@@ -56,27 +60,12 @@ use asking::{some_answer, some_question, some_reply, some_verdict};
 use kinds::InputKind;
 use paths::EXPECTED_PATHS;
 use restoring::some_restored;
+use rng::Rng;
+use stopping::some_stop_end;
 use watch::Watch;
 
 /// 随机测试的会话，一个回合最多请求几次模型。
 const STEP_LIMIT: u32 = 2;
-
-/// SplitMix64：随机一串输入用。
-struct Rng(u64);
-
-impl Rng {
-    fn next(&mut self) -> u64 {
-        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut z = self.0;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        z ^ (z >> 31)
-    }
-
-    fn below(&mut self, n: u64) -> u64 {
-        self.next() % n
-    }
-}
 
 impl Watch {
     /// 下一段增量：多半接着在路上的那次请求像样地往下说，偶尔乱来。工具调用的参数是一个
@@ -92,10 +81,13 @@ impl Watch {
                 let tool = rng.below(3) > 0;
                 self.open_block = Some((index, tool, false));
                 let kind = if tool {
+                    let name = match self.writing {
+                        true => ["read", "write", "write"][rng.below(3) as usize],
+                        false => ["read", "read", "read", "write", "write", "reed"]
+                            [rng.below(6) as usize],
+                    };
                     Kind::ToolCall {
-                        name: ["read", "read", "read", "write", "write", "reed"]
-                            [rng.below(6) as usize]
-                            .to_string(),
+                        name: name.to_string(),
                     }
                 } else {
                     Kind::Text
@@ -235,6 +227,13 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
     if rng.below(80) == 0 {
         return woke(watch.some_seen(rng));
     }
+    if let Some(input) = some_stop_end(rng, watch, next_id) {
+        return input;
+    }
+    // 写文件的种子：写的调用在跑，常被打断，停着的才走得到（施工 4-9 再补一）。
+    if watch.writing && watch.write_running() && rng.below(3) == 0 {
+        return some_interrupt(rng, next_id);
+    }
     // 交给了链的，多半很快有结论；在等人的，偶尔回答。
     if !watch.approvals.guarding.is_empty() && rng.below(3) > 0 {
         return some_verdict(rng, watch);
@@ -264,7 +263,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
             _ => {}
         }
     }
-    if watch.write_waiting() && rng.below(4) == 0 {
+    if !watch.writing && watch.write_waiting() && rng.below(4) == 0 {
         return read_only(next_command(next_id), true);
     }
     let slot = rng.below(30);
@@ -306,20 +305,25 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
             }
         }
         22 => progress(watch.some_call(rng)),
-        23..=25 => Input::ToolDone {
-            at: at(50),
-            call_id: watch.some_call(rng),
-            error: rng.below(4) == 0,
-            blocks: Vec::new(),
-            duration_ms: Some(1),
-            human: None,
-            effects: watch.some_effects(),
-        },
+        23..=25 => {
+            let call_id = watch.some_call(rng);
+            Input::ToolDone {
+                at: at(50),
+                call_id,
+                error: rng.below(4) == 0,
+                blocks: Vec::new(),
+                duration_ms: Some(1),
+                human: None,
+                effects: watch.some_effects(),
+                // 没叫它停却停了的：在跑的偶尔这样交回，内核照已取消记（施工 4-9 再补一）。
+                stopped: watch.running.contains(&call_id) && rng.below(4) == 0,
+            }
+        }
         26 if !watch.calm || rng.below(10) == 0 => some_interrupt(rng, next_id),
         26 => send(next_command(next_id), "hi"),
         27 if rng.below(2) == 0 => urgent(next_command(next_id), "等等"),
         27 => send(next_command(next_id), "hi"),
-        28 => read_only(next_command(next_id), rng.below(2) == 0),
+        28 => read_only(next_command(next_id), !watch.writing && rng.below(2) == 0),
         _ => switch(next_command(next_id), Some(some_level(rng)), None),
     }
 }
@@ -422,6 +426,8 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         watch.approvals.attended = attended;
         // 双数的种子风平浪静：打断、乱来的增量少，一轮才走得深；单数的种子专门捣乱。
         watch.calm = seed % 2 == 0;
+        // 十个种子里有一个多调写文件的、不开只读，写的在跑时常被打断（施工 4-9 再补一）。
+        watch.writing = seed % 10 == 2;
         let mut next_id = 1;
         // 崩不崩、撤不撤另用两串随机数，撤销、恢复夹在原来的输入之间、不占名额：原来那串输入
         // 不跟着错开。
@@ -444,7 +450,7 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
             watch.feed(&mut session, input);
         }
         if let Some(steps) = watch.restoring.pending.clone() {
-            let files = steps.iter().map(Step::restored).collect();
+            let files = steps.iter().map(crate::testkit::restored).collect();
             watch.feed(&mut session, Input::Restored { at: at(58), files });
         }
         let last = watch.last();

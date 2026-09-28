@@ -14,7 +14,7 @@ use miyu_kernel::raw::RawJson;
 use miyu_kernel::session::Verdict;
 use miyu_kernel::tool::{Access, Worded};
 use miyu_policy::GuardTexts;
-use miyu_tool::{Call, Catalog};
+use miyu_tool::{Call, Catalog, Stop};
 
 /// 权限策略：一个会话一份。
 pub(crate) struct Guard {
@@ -92,6 +92,7 @@ impl Guard {
             home: self.home.clone(),
             data_root: Some(self.data_root.clone()),
             seen: Arc::default(),
+            stop: Stop::default(),
         });
         if targets.is_empty() {
             return untargeted(level, name, access);

@@ -12,6 +12,8 @@ use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::Said;
 use miyu_kernel::id::ContentHash;
 
+use crate::Stop;
+
 /// 一次调用交给工具的：修正过的参数、这一轮的工作目录、系统的家目录、Miyu 的数据根、她看过的文件。别的（会话、
 /// 身份、沙盒范围）用到时再加。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -27,6 +29,8 @@ pub struct Call {
     pub data_root: Option<PathBuf>,
     /// 她这个会话里看过的文件（施工 4-6 上）：写的工具改一个已经在了的文件之前，照它核对。
     pub seen: Arc<Seen>,
+    /// 叫停的旗（施工 4-9 再补一）：执行器「叫它停」、future 被丢掉时举起来。
+    pub stop: Stop,
 }
 
 /// 她看过的文件（`10-自带软件.md` 第五节「她看过的」，施工 4-6 上）：换成真实位置以后的路径，和她最后一次看到的
@@ -53,6 +57,8 @@ pub struct Done {
     pub human: Option<Said>,
     /// 效果（施工 4-6 上）：读了、改了、删了哪个文件，照先后。不发给模型，记进 `tool.result`。
     pub effects: Vec<Effect>,
+    /// 看到叫停的旗，停在改之前，什么都没改（施工 4-9 再补一）：执行器照「已取消，跑到一半」交给内核。
+    pub stopped: bool,
 }
 
 /// 工具报的一样效果（`10-自带软件.md` 第五节，施工 4-6 上）。改前改后带着内容本身：执行器存成 blob、换成哈希，
@@ -94,6 +100,18 @@ impl Done {
             blocks: vec![Block::Text(Text { text: text.into() })],
             human: None,
             effects: Vec::new(),
+            stopped: false,
+        }
+    }
+
+    /// 看到叫停的旗，停在改之前，什么都没改（施工 4-9 再补一）。内容由内核写。
+    pub fn stopped() -> Done {
+        Done {
+            error: false,
+            blocks: Vec::new(),
+            human: None,
+            effects: Vec::new(),
+            stopped: true,
         }
     }
 
@@ -104,6 +122,7 @@ impl Done {
             blocks: vec![Block::Text(Text { text: text.into() })],
             human: None,
             effects: Vec::new(),
+            stopped: false,
         }
     }
 
@@ -143,5 +162,6 @@ impl fmt::Debug for Progress {
     }
 }
 
-/// 跑着的一次调用：交回结局的 future。叫停就是丢掉它，工具手里的东西随之收拾，不另给取消信号。
+/// 跑着的一次调用：交回结局的 future。掐掉就是丢掉它，工具手里的东西随之收拾；「叫它停」另有 [`Call::stop`] 的旗
+/// （施工 4-9 再补一）。
 pub type Running<'a> = Pin<Box<dyn Future<Output = Done> + Send + 'a>>;

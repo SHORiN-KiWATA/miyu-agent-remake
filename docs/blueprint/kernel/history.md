@@ -143,7 +143,7 @@
 4. 记一条 `turn.reverted`：`turns` 是那一轮和它以后还在有效历史里的每一轮，照先后；`by` 是撤销的人，`cause` 是这个命令，不带回合编号。
 5. 算改回的几步（下面「改回的几步」）。没有要改的：它落了盘就回应，附上它的序号。
 6. 有要改的：出 `Append` 和 `Restore { steps }`，会话进入改回文件。这时来的命令，接受过的照上一次回应，别的拒绝，`restoring`；这个撤销命令自己的编号这时还没记下，它再来也是 `restoring`。会话不算空闲。
-7. `Restored` 回来：先对照交出去的几步：一步一项、先后一样，每一项的 `result`、`effect`、`action` 和那一步一样；移进回收站成了的（`trash` 那一步 `restored`）要带着 `trash`。对不上的那一项改成 `failed`，`error` 写 `executor report did not match`；少了的照那一步补一项 `failed`，多出来的不要。然后记一条 `files.restored`，`files` 照对过的记，`by`、`cause` 和撤销那一条一样，不带回合编号；两条都落了盘才回应，附上两条的序号。不在改回文件时来的 `Restored` 是过时的，不理。
+7. `Restored` 回来：先对照交出去的几步：一步一项、先后一样，每一项的 `result`、`effect`、`path`、`action` 和那一步一样；移进回收站成了的（`trash` 那一步 `restored`）要带着 `trash`。对不上的那一项改成 `failed`，`error` 写 `executor report did not match`；少了的照那一步补一项 `failed`，多出来的不要。然后记一条 `files.restored`，`files` 照对过的记，`by`、`cause` 和撤销那一条一样，不带回合编号；两条都落了盘才回应，附上两条的序号。不在改回文件时来的 `Restored` 是过时的，不理。
 8. 撤了就跟没说过一样：请求里不写撤销过什么。
 
 **恢复**（`Unrevert`）：
@@ -205,8 +205,8 @@
 | `crates/miyu-kernel/src/history/tests.rs` | 压缩重开有效历史；被动压缩的尾巴；最新的检查点换掉旧的；照请求看到的范围排（图上那一轮、请求在路上时来的话、压缩以后的尾巴）；撤回的和撤回本身都不留 |
 | `crates/miyu-kernel/src/history/tests/undo.rs` | 撤掉回合和触发它的话；撤以后的几轮；别处来的留着；接过去的排着的一起撤；上一轮听到过的留着；出错的请求也算听到过；崩了的排着的归那一轮；恢复放回原处、一次一次地恢复；下一轮、压缩丢掉放在一边的 |
 | `crates/miyu-kernel/src/session/tests/revert.rs` | 撤最后一轮、从前面的一轮撤；回合进行中拒绝；不在有效历史里、压缩过的拒绝；恢复以后请求接着往下长；两次撤销一次一次恢复；下一轮以后没得恢复；载入以后一样；撤过的重启轮不接 |
-| `crates/miyu-kernel/src/session/tests/restore.rs` | 改过文件的撤销等改完才回应、改的时候拒绝命令、不算空闲；恢复一样；没改过文件的照旧；过时的结局不理 |
-| `crates/miyu-kernel/src/session/restore/tests.rs` | 撤销倒着来、只读的跳过；恢复正着来、只把真移回来的再移进去；来回以后用最新的位置；做成了的结局 |
+| `crates/miyu-kernel/src/session/tests/restore.rs` | 改过文件的撤销等改完才回应、改的时候拒绝命令、不算空闲；恢复一样；没改过文件的照旧；过时的结局不理；交回的少了一项，补一项 `failed` |
+| `crates/miyu-kernel/src/session/restore/tests.rs` | 撤销倒着来、只读的跳过；恢复正着来、只把真移回来的再移进去；来回以后用最新的位置；做成了的结局；对照交回的结局：对得上的照原样，移进回收站成了没带位置的、先后反了的、做的不是那一步的、编号路径对不上的 `failed`，少了的补、多出来的不要 |
 | `crates/miyu-kernel/src/session/tests/scenario.rs` | 撤销、恢复、再说一句；压缩以后事实重新注入 |
 | `crates/miyu-kernel/src/session/tests/random/watch/undo.rs`、`watch/restore.rs`、`random/restoring.rs` | 随机输入里撤销、恢复、改回文件照规矩接受或拒绝；请求照撤销、恢复以后的历史；只交出改过的文件；结局只记一条；过时的不理 |
 | `crates/miyu-kernel/src/facts/tests.rs`、`crates/miyu-kernel/tests/sample_facts.rs` | 事实照有效历史比：压缩、撤销以后重新注入 |

@@ -250,6 +250,7 @@ async fn an_interrupt_drops_the_running_tool() {
     .expect("会话在跑");
     until_turn_ends(&mut pushes).await;
     until("工具被丢掉", || stuck.dropped() == 1).await;
+    assert!(stuck.calls()[0].stop.stopped(), "掐掉时旗也举起来");
     let log = home.log(handle.id());
     let results = results(&log);
     assert_eq!(results.len(), 1);

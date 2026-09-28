@@ -15,6 +15,7 @@ mod permission;
 mod question;
 mod queue;
 mod restore;
+mod stopping;
 mod undo;
 
 /// 看守。
@@ -55,6 +56,8 @@ pub(super) struct Watch {
     pub(super) open_block: Option<(usize, bool, bool)>,
     /// 风平浪静：打断、乱来的增量少，一轮才走得深。
     pub(super) calm: bool,
+    /// 多调写文件的、不开只读，写的在跑时常被打断（施工 4-9 再补一）。
+    pub(super) writing: bool,
     /// 排着队的消息：这一轮里来的，还没被请求看到过。
     queued: Vec<Seq>,
     /// 正在送进去的那次新的打断，排着队的怎么办。
@@ -76,6 +79,8 @@ pub(super) struct Watch {
     pub(super) fed: BTreeSet<InputKind>,
     /// 重试：该交出到点叫醒的、在等的、叫醒了的，这一步连着几次。
     retries: model::Retries,
+    /// 停着的：叫它停过的调用、那次打断排着队的怎么办、到点叫醒的记号（施工 4-9 再补一）。
+    pub(super) stopping: stopping::Stopping,
 }
 
 impl Watch {
@@ -105,6 +110,7 @@ impl Watch {
             next_block: 0,
             open_block: None,
             calm: false,
+            writing: false,
             queued: Vec::new(),
             interrupting: None,
             permission: lookup::created_permission(),
@@ -116,6 +122,7 @@ impl Watch {
             restoring: restore::Restoring::default(),
             fed: BTreeSet::new(),
             retries: model::Retries::default(),
+            stopping: stopping::Stopping::default(),
         }
     }
 
@@ -155,6 +162,7 @@ impl Watch {
         let undone = self.before_undo(&input).filter(|_| !refused);
         let reverting = undone.as_ref().and_then(undo::Expect::turns);
         let restore = self.before_restore(&input);
+        let stop = self.before_stop(&input);
         let fresh_interrupt = match &input {
             Input::Command(command) if !refused => match command.command {
                 Command::Interrupt { queued } if self.fresh(&command.id) => Some(queued),
@@ -193,9 +201,10 @@ impl Watch {
                 self.accepted.insert(id);
             }
         }
-        if fresh_interrupt.is_some() {
-            self.interrupted(&actions, was_open);
+        if let Some(queued) = fresh_interrupt {
+            self.interrupted(&actions, was_open, queued);
         }
+        self.after_stop(&actions, stop);
         self.after_approval(&actions, judged);
         self.after_question(&actions, replied);
         self.after_undo(&actions, undone);
@@ -205,38 +214,6 @@ impl Watch {
             self.check(action);
         }
         self.interrupting = None;
-    }
-
-    /// 一次新的打断吐出来的动作。
-    fn interrupted(&mut self, actions: &[Action], was_open: bool) {
-        let seed = self.seed;
-        if was_open {
-            self.seen_paths.insert("打断了回合");
-            let ended = actions.iter().any(|action| match action {
-                Action::Append(events) => events.iter().any(|event| {
-                    matches!(&event.body, Body::TurnEnded(ended) if ended.reason == EndReason::Interrupted)
-                }),
-                _ => false,
-            });
-            assert!(
-                ended,
-                "种子 {seed}：打断以后回合没以被打断结束：{actions:?}"
-            );
-        } else {
-            self.seen_paths.insert("空闲时打断被拒");
-            assert!(
-                matches!(
-                    actions,
-                    [Action::Reply {
-                        outcome: Outcome::Rejected {
-                            reason: Reason::NotRunning
-                        },
-                        ..
-                    }]
-                ),
-                "种子 {seed}：空闲时的打断应该拒绝：{actions:?}"
-            );
-        }
     }
 
     fn check(&mut self, action: Action) {
@@ -265,7 +242,7 @@ impl Watch {
                 );
             }
             Action::CallModel { seen, request, .. } => self.called(seen, &request),
-            Action::Wake { seen, .. } => self.retry_wake(seen),
+            Action::Wake { seen, .. } => self.wake_asked(seen),
             Action::PushTransient(transient) => self.transient(&transient),
             Action::CancelModel { seen } => {
                 self.seen_paths.insert("叫执行器别再发");
@@ -298,6 +275,7 @@ impl Watch {
             Action::RunTool { call_id, .. } => self.run(call_id),
             Action::Restore { steps } => self.restore_asked(steps),
             Action::AnswerTool { call_id, answers } => self.handed(call_id, &answers),
+            Action::StopTool { call_id } => self.stop_asked(call_id),
             Action::CancelTool { call_id } => {
                 self.seen_paths.insert("打断了工具");
                 assert!(
@@ -423,11 +401,15 @@ impl Watch {
                         result.call_id
                     );
                     let was_running = self.running.remove(&result.call_id);
+                    self.stopping.calls.remove(&result.call_id);
                     if matches!(event.by, By::Tool(_)) {
                         assert!(was_running, "种子 {seed}：没在跑的调用有了结果");
                     }
                     match result.status {
                         ToolStatus::Cancelled if was_running => {
+                            if matches!(event.by, By::Tool(_)) {
+                                self.seen_paths.insert("没叫停却交回停了");
+                            }
                             self.stopped.insert(result.call_id);
                         }
                         ToolStatus::Skipped if was_running => {
@@ -459,6 +441,7 @@ impl Watch {
                     self.all_resulted(self.open_turn());
                     self.note_ended(event, &ended.reason);
                     self.retry_ended();
+                    self.stop_ended(&ended.reason);
                 }
                 Body::TurnStarted(started) => {
                     self.one_turn();

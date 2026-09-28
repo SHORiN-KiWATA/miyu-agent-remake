@@ -16,7 +16,7 @@ use serde::Deserialize;
 use miyu_fs::{replace, resolve};
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
-use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Target, Tool};
+use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Stop, Target, Tool};
 
 use crate::blocking::blocking;
 use crate::common::{Common, Shown, said};
@@ -143,7 +143,10 @@ impl Tool for Edit {
                 Ok(args) => {
                     let path = args.file_path.clone();
                     let changes = args.changes();
-                    blocking(move |_| edit(&texts, &call, &path, &changes)).await
+                    blocking(call.stop.clone(), move |stop| {
+                        edit(&texts, &call, &path, &changes, stop)
+                    })
+                    .await
                 }
                 Err(error) => texts.common.bad_args(&error),
             }
@@ -158,8 +161,9 @@ struct Place {
     new: String,
 }
 
-/// 改：换成真实的位置，读原文，核对她看过的，找每一处，查重叠，从后往前换，写回去。
-fn edit(texts: &Texts, call: &Call, path: &str, changes: &[Change]) -> Done {
+/// 改：换成真实的位置，读原文，核对她看过的，找每一处，查重叠，从后往前换，写回去。写回去之前看一眼旗（施工
+/// 4-9 再补一）：叫停了就不改，交回 `stopped`。
+fn edit(texts: &Texts, call: &Call, path: &str, changes: &[Change], stop: &Stop) -> Done {
     if changes.is_empty() {
         return Done::error(say(&texts.no_edits, &[])).said(said("edit/no-edits"));
     }
@@ -196,6 +200,9 @@ fn edit(texts: &Texts, call: &Call, path: &str, changes: &[Change]) -> Done {
         changed.replace_range(place.range.clone(), &place.new);
     }
     let after = style.bytes(&changed);
+    if stop.stopped() {
+        return Done::stopped();
+    }
     if let Err(error) = replace(&real, &after) {
         return texts.common.write_failed(path, &error);
     }

@@ -104,7 +104,7 @@ impl Tool for Read {
         let texts = self.texts.clone();
         Box::pin(async move {
             match serde_json::from_str::<Args>(&call.args) {
-                Ok(args) => blocking(move |_| read(&texts, &call, &args)).await,
+                Ok(args) => blocking(call.stop.clone(), move |_| read(&texts, &call, &args)).await,
                 Err(error) => texts.common.bad_args(&error),
             }
         })

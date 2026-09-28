@@ -160,11 +160,14 @@ impl Session {
                 duration_ms,
                 human,
                 effects,
+                stopped,
             } => self.tool_done(
                 at,
                 ToolResult {
                     call_id,
-                    status: if error {
+                    status: if stopped {
+                        ToolStatus::Cancelled
+                    } else if error {
                         ToolStatus::Error
                     } else {
                         ToolStatus::Ok

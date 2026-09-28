@@ -178,7 +178,8 @@ impl Tool for Shell {
             };
             // 起来了就看着：这次调用被叫停（future 被丢掉）时，整组杀掉。
             let guard = Guard::new(started.group());
-            let finished = blocking(move |_| started.wait(Duration::from_millis(timeout))).await;
+            let wait = Duration::from_millis(timeout);
+            let finished = blocking(call.stop.clone(), move |_| started.wait(wait)).await;
             guard.disarm();
             match finished {
                 Ok(finished) => self.finished(finished, timeout),

@@ -44,8 +44,8 @@
 | `RequestSent { at, seen, model, request }` | 哪次请求；发给了哪个端点的哪个模型（`Model { endpoint, model }`）；驱动编码以后的请求字节的哈希 | 「收回复」 |
 | `ModelDelta { at, seen, delta }` | 一段增量：`Start { index, kind }`、`Text { index, text }`、`Private { index, private }`、`End { index }` | 「收回复」 |
 | `ModelEnded { at, seen, usage, error, wait_ms }` | 用量；出错的分类和原话；供应商说要等多少毫秒。没发出去就失败的不报 `RequestSent`，直接报这一条 | 「收回复」「出错再来」 |
-| `Woke { at, seen }` | 为哪一次请求等的 | 「出错再来」 |
-| `ToolDone { at, call_id, error, blocks, duration_ms, human, effects }` | 出没出错、给模型看的内容、用时、给人看的说法、效果 | 「调工具」 |
+| `Woke { at, seen }` | 为哪一次请求等的；等停着的，是那一步回复的序号 | 「出错再来」「打断」第 7 条 |
+| `ToolDone { at, call_id, error, blocks, duration_ms, human, effects, stopped }` | 出没出错、给模型看的内容、用时、给人看的说法、效果；叫它停以后停在了改之前的，`stopped` 是真的 | 「调工具」「打断」第 7 条 |
 | `ToolProgress { at, call_id, text }` | 一段输出 | 「调工具」 |
 | `ToolGuarded { at, call_id, verdict }`、`ToolAsks { at, call_id, questions }` | 链的结论；一组题 | `asking.md` |
 | `Restored { at, files }` | 改回文件每一步的结局 | `history.md` |
@@ -207,7 +207,7 @@
 2. **修正参数**（`tool::repair`）：去掉空白是空的，当 `{}`。不是 JSON 对象的，修正不了。参数格式读不出来、没有 `properties` 的，原文照交。只看 `properties` 里 `type` 写成一个字符串、模型给的值也是字符串的顶层参数，去掉前后空白再还原：`array` 以 `[` 开头、读得成数组的；`object` 以 `{` 开头、读得成对象的；`integer` 读得成 64 位整数的；`number` 读得成有限小数的；`boolean` 是 `true`、`false` 的，大小写都收。换了一个就把整个对象重写一遍（紧凑的 JSON，键照名字排）；一个都没换，原文照交。`string` 和别的类型一个字节都不碰。修正只用在执行上，日志里的回复照模型给的原文。
 3. **回复落了盘才派**。轮到的交给执行前的链（`GuardTool`，`asking.md`），带上这一轮的工作目录、实际生效的那一级。人允许了的，那条决定落了盘才 `RunTool`；人答完了的，那条回答落了盘才 `AnswerTool`。一次出的动作里，先是 `RunTool`、`AnswerTool`，再是 `GuardTool`，各自照调用的先后。
 4. **轮到谁**：照调用的先后。只读（`read`）的，前面没有还没结果的非只读调用就轮到；不是只读的，前面的都有了结果才轮到，它没结果，后面的都等。过链的、等人的、允许了还没派的、在跑的、问着人的，都占着位置。
-5. **结果**（`ToolDone`）：只收这一步里在跑的调用（派出去了的、问着人的、答完了等落盘的）和停着的（「打断」第 7 条）；别的不理。追加 `tool.result`：`status` 照 `error` 是 `error` 或 `ok`，内容、用时、说法、效果照交的，`by` 是那次调用，`cause` 是回合的。然后派后面能派的。
+5. **结果**（`ToolDone`）：只收这一步里在跑的调用（派出去了的、问着人的、答完了等落盘的）和停着的（「打断」第 7 条）；别的不理。追加 `tool.result`：`status` 照 `error` 是 `error` 或 `ok`，内容、用时、说法、效果照交的，`by` 是那次调用，`cause` 是回合的。没叫它停却交回停在改之前的（带 `stopped`）：记 `cancelled`，那一句是「已取消，跑到一半」，照内核写的（第 8 条）；执行器只在叫它停以后才这样交，这一条是兜底。然后派后面能派的。
 6. **输出**（`ToolProgress`）：只收在跑的调用的，推一条 `tool.progress`，`by` 是那次调用，`cause` 是回合的。
 7. **这一步齐了**：请求数到了步数上限，结束回合，`step_limit`；不然回到 `Ready`，这一轮里切过权限级别的先查一遍事实，落了盘请求下一次。上限只在一步齐了时查：第一次请求总会发，上限是 0 和 1 一样。
 8. **内核写的结果**：`blocks` 是一块文字（那一句），`human` 是那一句的说法，没有用时、没有效果。
@@ -256,8 +256,9 @@
 **有计划的重启**（`Restarting`）：
 
 1. 没有回合在进行，什么都不做。
-2. 照打断收拾：请求在路上的截下半截（「打断」第 2 条），出 `CancelModel`；在跑的、问着人的、答完了等落盘的、停着的出 `CancelTool`，不等。还没有结果的调用，包括半截回复里留下的，都补 `cancelled`，那一句是 `restarted`。
-3. `turn.ended` 的原因是 `restarted`。`by` 都是内核，`cause` 是回合的。排着的不接着开。
+2. 在等停着的（「打断」第 7 条）：那次打断照样算数，先照第 7 条第 4 款收尾，不等了；不然这一轮以 `restarted` 结束，再起来会接着干。收尾时接着开了下一轮的，再照下面收拾那一轮；没开的，到这里为止。
+3. 照打断收拾：请求在路上的截下半截（「打断」第 2 条），出 `CancelModel`；在跑的、问着人的、答完了等落盘的出 `CancelTool`，不等（停着的已经照第 2 条掐掉了）。还没有结果的调用，包括半截回复里留下的，都补 `cancelled`，那一句是 `restarted`。
+4. `turn.ended` 的原因是 `restarted`。`by` 都是内核，`cause` 是回合的。排着的不接着开。
 
 **载入和崩溃**（`Session::load`）：
 
@@ -333,12 +334,12 @@
 | `crates/miyu-kernel/src/session/tests/difference.rs` | 只是接着加的没有第一处不同；改了 system 的是第一处不同 |
 | `crates/miyu-kernel/src/session/tests/tools.rs` | 一步跑完再请求；非只读的一个一个来；没有的工具、坏参数当场回；修正只用在执行上；步数上限在最后一步跑完后结束；推工具的输出；对不上的结果不理；回合带着开始时的工作目录 |
 | `crates/miyu-kernel/src/session/tests/queue.rs` | 最后一步里来的开下一轮；由最后一条触发；出错、到上限的也接着开；被后一步听到的不再开；打断接着发、退回；没排着的不写撤回；触发不算排队 |
-| `crates/miyu-kernel/src/session/tests/interrupt.rs` | 空闲时打断被拒；请求前、请求中、调工具时打断；什么都没收到不写回复；急着插话的三种时候；空闲时急着插话开回合 |
+| `crates/miyu-kernel/src/session/tests/interrupt.rs` | 空闲时打断被拒；请求前、请求中、调工具时打断；什么都没收到不写回复；急着插话的三种时候；空闲时急着插话开回合；在跑的写叫它停、排在后面的当场补、10 秒以后叫醒、改完了的带着效果记、收了尾到点不理 |
 | `crates/miyu-kernel/src/session/tests/permission.rs` | 空闲时切、切成一样的、不认识的级别；收紧成只读拦下回复里的、这一步里等着的写入；放宽等下一次请求；来回切不注入；挂接点前后切；收紧成工作区什么都不拦；只读下改常用的那一级；事实写这一轮的工作目录 |
 | `crates/miyu-kernel/src/session/tests/restart.rs` | 重启照打断收拾；接着干；排着的由最后一条开；连着 4 次不接；走完一轮、你开口以后从头数 |
 | `crates/miyu-kernel/src/session/tests/load.rs` | 走完的载入一样往下走；坏日志拒绝；崩在哪都收尾、等你开口；崩之前的命令不再生效；生效的权限回来 |
-| `crates/miyu-kernel/src/session/tests/scenario.rs`、`scenario/retrying.rs`、`scenario/stopping.rs` | 执行器替身（`testkit`）把真会话一整轮一整轮地跑：两个读一起跑、中间来一句；只读拦写入；步数上限和失败的请求；重试的每一种（原样再来、半截接着说、半截的调用丢掉、照供应商等、5 次放弃、不该再来的、等的时候打断、重启、切级别、不算步数、说完清零）；打断接着发、重启接着干、崩了等你 |
-| `crates/miyu-kernel/src/session/tests/random.rs` 和 `random/` | 三百例随机输入（CI 另跑两万例），每一步查：不变量（第 5 条一个会话查不了）；挂接点、请求、派工具、步数上限、只读的规矩；崩了、重启了载入以后照规矩走；每条路、每一种输入都走到过 |
+| `crates/miyu-kernel/src/session/tests/scenario.rs`、`scenario/retrying.rs`、`scenario/stopping.rs` | 执行器替身（`testkit`）把真会话一整轮一整轮地跑：两个读一起跑、中间来一句；只读拦写入；步数上限和失败的请求；重试的每一种（原样再来、半截接着说、半截的调用丢掉、照供应商等、5 次放弃、不该再来的、等的时候打断、重启、切级别、不算步数、说完清零）；打断接着发、重启接着干、崩了等你；停着的写：停在改之前、改完了、到 10 秒、又打断一次、等的时候来的消息排队和撤销被拒、等的时候重启（退回的不再接着干，接着发的交给下一轮） |
+| `crates/miyu-kernel/src/session/tests/random.rs` 和 `random/` | 三百例随机输入（CI 另跑两万例），每一步查：不变量（第 5 条一个会话查不了）；挂接点、请求、派工具、步数上限、只读的规矩；打断时停着的（叫它停只在打断里、停着的交回来才收尾、到点和又打断就不等，十个种子里一个多调写文件的专走这里）；崩了、重启了载入以后照规矩走；每条路、每一种输入都走到过 |
 | `crates/miyu-kernel/src/tool/tests.rs`、`tool/texts/tests.rs` | 参数修正的每一种；访问类别不认识的算写入；那几句的字段转义、每句带说法 |
 | `crates/miyu-kernel/src/accumulate/tests.rs` | 拼回复、调用编号、空块、交错的字、截断只留收全的调用、增量对不上的六种 |
 | `crates/miyu-kernel/tests/resources.rs` | 出厂的那几句读得进来，带字段的换出来一字不差 |

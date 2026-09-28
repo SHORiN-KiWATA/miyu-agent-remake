@@ -122,6 +122,7 @@ Moved "a.txt" to the trash.
 | `crates/miyu-basesystem/tests/trash.rs` | 报要写的路径、`path` 也认；不许删的几种（`.`、`..`、`~`、`~/`、`~/.`、`/`、工作目录、它的上级、家目录）、没有的；Linux：放进家目录的回收站、记录的样子、报的位置、`files/` 和 `info/` 只有自己能进、重名接 `.2`、同名却没有记录的不盖、目录和链接（指向的东西不动、指向不存在处的也删得掉）、转义、挪不动的不删不留记录、家目录是链接的照样拦、家目录的回收站建不了的不删；macOS、Windows（在 CI 上）：文件、目录进了回收站，报的位置真有这个东西 |
 | `crates/miyu-fs/tests/trash.rs`、`src/trash/recycled/tests.rs` | 移回来、`$I` 记录（`fs.md`） |
 | `crates/miyu-basesystem/tests/human.rs` | 每一种结果的说法，两种语言都换得出字 |
+| `crates/miyu-basesystem/tests/stop.rs` | 旗举了不删，文件还在原处 |
 | `crates/miyu-session/tests/write.rs` | 会话里删一个文件（Linux）：日志里有 `file.trashed`，位置真有这个文件；原处再有同名的，她没看过 |
 | `xtask/src/ledger.rs` | 这些字的指纹和登记簿对得上 |
 

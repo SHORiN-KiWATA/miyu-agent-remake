@@ -19,6 +19,8 @@ pub(super) struct Restoring {
     id: CommandId,
     by: By,
     first: Seq,
+    /// 交出去的几步：结局回来时照它对照（施工 4-9 再补一）。
+    steps: Vec<Step>,
 }
 
 impl Session {
@@ -84,6 +86,7 @@ impl Session {
             id,
             by,
             first: event.seq,
+            steps: steps.clone(),
         });
         vec![Action::Append(vec![event]), Action::Restore { steps }]
     }
@@ -91,9 +94,16 @@ impl Session {
     /// 改回文件做完了：记一条 `files.restored`，`by`、`cause` 和撤销、恢复的那一条一样；两条都落了盘才回应。没在改的
     /// （过时的结局）不理。
     pub(super) fn restored(&mut self, at: Timestamp, files: Vec<Restored>) -> Vec<Action> {
-        let Some(Restoring { id, by, first }) = self.restoring.take() else {
+        let Some(Restoring {
+            id,
+            by,
+            first,
+            steps,
+        }) = self.restoring.take()
+        else {
             return Vec::new();
         };
+        let files = restore::checked(&steps, files);
         let body = Body::FilesRestored(FilesRestored { files });
         let event = self.record(at, by, Some(id.clone()), body);
         self.accept(id, vec![first, event.seq]);

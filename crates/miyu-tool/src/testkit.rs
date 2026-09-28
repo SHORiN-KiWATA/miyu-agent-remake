@@ -3,12 +3,13 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
+use std::time::Duration;
 
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::tool::Access;
 use tokio::sync::Barrier;
 
-use crate::{Call, Done, Progress, Running, Spec, Target, Tool};
+use crate::{Call, Done, Progress, Running, Spec, Stop, Target, Tool};
 
 /// 假工具跑起来做什么。
 #[derive(Debug, Clone)]
@@ -19,8 +20,12 @@ pub enum Act {
     Fails(&'static str),
     /// 先推这几段输出，再回一句成功 `pushed`。
     Pushes(&'static [&'static str]),
-    /// 停住不回，等被叫停（丢掉）。
+    /// 停住不回，等被叫停（丢掉）。不看旗。
     Holds,
+    /// 等叫它停（旗举起来），停在改之前，交回 `stopped`（施工 4-9 再补一）。
+    Stops,
+    /// 等叫它停，看到旗时已经改完了：照常回一句成功 `wrote`（施工 4-9 再补一）。
+    Finishes,
     /// 等凑齐一起跑的（`Barrier` 的人数）再回一句成功 `met`：一起派的才走得完。
     Meets(Arc<Barrier>),
     /// 工具自己的 bug：一跑就 panic。
@@ -151,6 +156,14 @@ impl Tool for Fake {
                     Done::ok("pushed")
                 }
                 Act::Holds => std::future::pending::<Done>().await,
+                Act::Stops => {
+                    raised(&call.stop).await;
+                    Done::stopped()
+                }
+                Act::Finishes => {
+                    raised(&call.stop).await;
+                    Done::ok("wrote")
+                }
                 Act::Meets(barrier) => {
                     barrier.wait().await;
                     Done::ok("met")
@@ -160,5 +173,12 @@ impl Tool for Fake {
             guard.finished = true;
             done
         })
+    }
+}
+
+/// 等到旗举起来。
+async fn raised(stop: &Stop) {
+    while !stop.stopped() {
+        tokio::time::sleep(Duration::from_millis(2)).await;
     }
 }

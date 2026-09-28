@@ -12,7 +12,7 @@ pub(super) fn some_restored(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> 
             let files = steps
                 .iter()
                 .map(|step| {
-                    let mut done = step.restored();
+                    let mut done = crate::testkit::restored(step);
                     if rng.below(4) == 0 {
                         done.outcome = RestoreOutcome::Changed;
                         done.found = Some(ContentHash::of(b"someone else"));

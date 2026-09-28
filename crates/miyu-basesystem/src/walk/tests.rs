@@ -3,8 +3,10 @@
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
+use miyu_tool::Stop;
+
 use super::{Fence, files};
-use crate::blocking::{Stop, blocking};
+use crate::blocking::blocking;
 
 /// 一个用完就删的临时目录，里面有几个文件。
 struct Temp(std::path::PathBuf);
@@ -40,7 +42,7 @@ async fn dropping_the_call_stops_the_walk() {
     let (started, wait) = mpsc::channel();
     let (done, result) = mpsc::channel();
     let root = dir.0.clone();
-    let task = tokio::spawn(blocking(move |stop| {
+    let task = tokio::spawn(blocking(Stop::default(), move |stop| {
         started.send(()).expect("还在等");
         let begin = Instant::now();
         while !stop.stopped() && begin.elapsed() < Duration::from_secs(10) {

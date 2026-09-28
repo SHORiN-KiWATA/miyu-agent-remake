@@ -1,5 +1,6 @@
 //! 真跑 `miyu undo`、`miyu redo`（`docs/construction/4-7-miyu undo、miyu redo（下）.md`）：说明跟着界面语言；核心在跑的，
-//! 撤掉上一次 `miyu ask` 的那一轮、再恢复它，两条命令各接对了自己的那一个。
+//! 撤掉上一次 `miyu ask` 的那一轮、再恢复它，两条命令各接对了自己的那一个；没有 key、核心也没在跑的，不拉起、
+//! 退出码 5（施工 4-9 再补一）。
 
 mod support;
 
@@ -81,4 +82,24 @@ async fn undo_and_redo_the_last_ask() {
     );
     drop(held);
     home.until_stopped().await;
+}
+
+#[test]
+fn without_a_key_and_a_core_nothing_is_started() {
+    let home = Home::new();
+    let undone = miyu(home.root.path(), "zh_CN.UTF-8", &["undo"]);
+    assert_eq!(undone.status.code(), Some(5), "{undone:?}");
+    assert!(undone.stdout.is_empty());
+    assert_eq!(
+        String::from_utf8_lossy(&undone.stderr),
+        "核心没在跑。先设 DEEPSEEK_API_KEY：没有 key 拉起的核心，之后的 miyu ask 也用不了\n"
+    );
+    let redone = miyu(home.root.path(), "C", &["redo"]);
+    assert_eq!(redone.status.code(), Some(5), "{redone:?}");
+    assert_eq!(
+        String::from_utf8_lossy(&redone.stderr),
+        "The core is not running. Set DEEPSEEK_API_KEY first: a core started without it cannot serve miyu ask later\n"
+    );
+    assert!(!home.root.run().join("socket").exists(), "没拉起核心");
+    assert!(home.core_log().is_empty());
 }

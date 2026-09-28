@@ -62,6 +62,7 @@ fn shell_comes_from_the_resources_and_names_its_shell() {
         home: None,
         data_root: None,
         seen: Default::default(),
+        stop: Default::default(),
     });
     assert!(targets.is_empty(), "执行命令不报路径");
 }
@@ -279,6 +280,7 @@ async fn the_output_is_pushed_to_the_heads_as_it_comes() {
         home: None,
         data_root: None,
         seen: Default::default(),
+        stop: Default::default(),
     };
     let done = tool("shell").run(call, progress).await;
     assert!(!done.error, "{}", text(&done));

@@ -300,6 +300,11 @@ impl Actor {
                 let at = self.clock.now();
                 self.tools.run(at, call_id, name, args, cwd)
             }
+            // 叫它停（施工 4-9 再补一）：只举旗，工具交回来照常送回。
+            Action::StopTool { call_id } => {
+                self.tools.stop(call_id);
+                None
+            }
             Action::CancelTool { call_id } => {
                 self.tools.cancel(call_id);
                 None

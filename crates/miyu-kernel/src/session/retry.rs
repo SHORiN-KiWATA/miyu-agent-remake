@@ -90,6 +90,14 @@ impl Session {
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();
         };
+        // 打断以后等停着的改文件的调用，到点了：不等了（「打断」第 7 条，施工 4-9 再补一）。
+        if turn
+            .interrupting
+            .as_ref()
+            .is_some_and(|waiting| waiting.wake == seen)
+        {
+            return self.force_stop(at, None);
+        }
         if !matches!(turn.stage, Stage::Waiting { after } if after == seen) {
             return Vec::new();
         }

@@ -148,7 +148,7 @@ ESC[90m    ESC[31m-fn main() {}ESC[0m
 | 差异的头一行，撤销 | `--- 她改完的` | `--- as she left it` |
 | 差异的头一行，恢复 | `--- 撤销以后的` | `--- as undone` |
 | 差异的第二行 | `+++ 现在` | `+++ now` |
-| 差异没印完 | `还有 <几> 行` | `<几> more lines` |
+| 差异没印完 | `还有 <几> 行` | 一行：`1 more line`；几行：`<几> more lines` |
 | 执行过命令，一轮 | `· 这一轮执行过 <几> 条命令：命令改的文件撤不回` | 一条：`· 1 command ran: files it changed cannot be undone`；几条：`· <几> commands ran: files they changed cannot be undone` |
 | 执行过命令，几轮 | `· 这几轮执行过 <几> 条命令：命令改的文件撤不回` | 同上 |
 | 最后一行 | 发下一句之前，可以用 miyu redo 恢复。 | Until you say something else, miyu redo brings it back. |
@@ -160,7 +160,6 @@ ESC[90m    ESC[31m-fn main() {}ESC[0m
 | `--session` 的说明 | 哪个会话；不写的是上一次 miyu ask 开的那个 | Which session; the one the last miyu ask opened by default |
 
 - 英文的引号是弯引号 `“` `”`。做了什么、没动的原因见上面的表。
-- 英文不分单复数：一条命令也写 `1 commands ran`，还有一行也写 `1 more lines`。
 - 核心拒绝时说的话，照核心写的原样印（它照握手时的语言写，`protocol.md`）。
 - 连上核心之前的出错（找不到数据根、拉不起核心……），照出错的原话印，只有中文（`ipc.md`、`store.md`）。
 
@@ -168,9 +167,9 @@ ESC[90m    ESC[31m-fn main() {}ESC[0m
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-cli/src/undo/tests.rs` | 定的样子一行行对；恢复的第一行、差异的头一行，不说命令、不说怎么恢复；每种没动的原因、出错、认不得的结局；还有几行；路径写短；上色（没动、出错红，加的行绿，删的行红）；英文；人说的话、路径截断；几轮 |
+| `crates/miyu-cli/src/undo/tests.rs` | 定的样子一行行对；恢复的第一行、差异的头一行，不说命令、不说怎么恢复；每种没动的原因、出错、认不得的结局；还有几行；路径写短；上色（没动、出错红，加的行绿，删的行红）；英文，一条命令、还有一行写单数；人说的话、路径截断；几轮；差异里的制表符照原样、别的控制字符换掉 |
 | `crates/miyu-cli/tests/undo.rs` | 真的核心、真的工具：撤销改回文件、照样子印在标准输出上，恢复又改回来；之后又被改过的印差异、退出码 0；撤完了再撤说「没有能撤销的回合。」、退出码 1；一个会话都没有、退出码 1；`--session` 撤的是指定的那个 |
-| `crates/miyu/tests/undo.rs` | 真跑主程序：`undo`、`redo` 的 `--help` 跟着界面语言；撤掉上一次 `miyu ask` 的那一轮、再恢复，两条命令各接各的 |
+| `crates/miyu/tests/undo.rs` | 真跑主程序：`undo`、`redo` 的 `--help` 跟着界面语言；撤掉上一次 `miyu ask` 的那一轮、再恢复，两条命令各接各的；没有 key、核心也没在跑的，不拉起、退出码 5、两种语言的那一句 |
 | `crates/miyu-endpoint/tests/undo.rs` | 核心交回的几样（`protocol/undo.md`） |
 
 ### 出处

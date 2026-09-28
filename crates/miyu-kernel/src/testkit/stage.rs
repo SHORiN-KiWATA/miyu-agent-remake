@@ -49,6 +49,8 @@ pub struct Stage {
     /// 停住的请求（它的 `seen` 和剩下的回复）、停住的调用。
     pub(super) held_model: Option<(Seq, Line)>,
     pub(super) held_tools: Vec<(CallId, Play)>,
+    /// 叫它停过的调用，照先后（施工 4-9 再补一）。
+    pub(super) stops: Vec<CallId>,
     /// 到点叫醒先扣着、不马上送回（[`Stage::hold_wakes`]），和扣着的那一个。
     pub(super) hold_wakes: bool,
     pub(super) held_wake: Option<(Timestamp, Seq)>,
@@ -99,6 +101,7 @@ impl Stage {
             hold_wakes: false,
             held_wake: None,
             held_tools: Vec::new(),
+            stops: Vec::new(),
             now,
             next: 1,
             by,
@@ -252,6 +255,22 @@ impl Stage {
         self.drain(inputs.into());
     }
 
+    /// 停住的调用 `call_id` 看到旗，停在了改之前（施工 4-9 再补一）：交回 `stopped`。
+    ///
+    /// # Panics
+    ///
+    /// 这个调用没有停住。
+    pub fn release_stopped(&mut self, call_id: CallId) {
+        let k = self
+            .held_tools
+            .iter()
+            .position(|(held, _)| *held == call_id)
+            .unwrap_or_else(|| panic!("{call_id} 没有停住"));
+        self.held_tools.remove(k);
+        let input = self.stopped(call_id);
+        self.drain([input].into());
+    }
+
     /// 有计划地重启：送进「要重启了」，再从「磁盘」载入。停住的请求、调用跟着没了。
     pub fn restart(&mut self) {
         let at = self.tick();
@@ -314,6 +333,11 @@ impl Stage {
     /// 推给头的瞬时事件，照先后。
     pub fn transients(&self) -> &[Transient] {
         &self.transients
+    }
+
+    /// 叫它停过的调用，照先后（施工 4-9 再补一）。
+    pub fn stops(&self) -> &[CallId] {
+        &self.stops
     }
 
     /// 派去执行的每一次调用：调用编号、工具名、修正过的参数，照派的先后。

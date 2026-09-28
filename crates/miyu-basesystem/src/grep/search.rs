@@ -7,8 +7,9 @@ use std::path::PathBuf;
 use grep_regex::{RegexMatcher, RegexMatcherBuilder};
 use grep_searcher::{BinaryDetection, Searcher, SearcherBuilder, Sink, SinkContext, SinkMatch};
 
+use miyu_tool::Stop;
+
 use super::{LINE_CHARS, Page};
-use crate::blocking::Stop;
 
 /// 认好的正则。`ignore_case` 是不分大小写。
 ///

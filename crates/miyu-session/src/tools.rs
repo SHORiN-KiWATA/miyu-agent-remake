@@ -1,6 +1,7 @@
 //! 执行工具的端口（`02-内核.md` 第四节「执行工具」「停下工具」，`05-内核接口.md` 第六节「执行这一步」，
-//! 施工 4-2）：照工具名在目录里找到那一件，一件一个任务地跑，量用时；叫停就掐掉那个任务。回报送回
-//! actor 的收件箱，由它写成内核的输入。
+//! 施工 4-2）：照工具名在目录里找到那一件，一件一个任务地跑，量用时。叫停有两种：「叫它停」只举这次调用的旗，
+//! 工具自己停在改之前或者做完（施工 4-9 再补一）；「掐掉」掐掉那个任务。回报送回 actor 的收件箱，由它写成内核的
+//! 输入。
 //!
 //! 工具报的效果（施工 4-6 上）：跑完以后在阻塞线程里把改前改后存成 blob，再送回来；送回来的先记下她看过的，
 //! 再交进内核。她看过的交给以后每一次调用。
@@ -21,7 +22,7 @@ use miyu_kernel::session::{Input, Step};
 use miyu_kernel::time::Timestamp;
 use miyu_policy::RunTexts;
 use miyu_store::blob::Blobs;
-use miyu_tool::{Call, Catalog, Done, Progress, Seen};
+use miyu_tool::{Call, Catalog, Done, Progress, Seen, Stop};
 
 use crate::TARGET;
 use crate::blocking::blocking;
@@ -54,7 +55,7 @@ pub(crate) struct Tools {
     blobs: Blobs,
     /// 她看过的文件：交给每一次调用，工具报了效果就跟着改。
     seen: Arc<Seen>,
-    /// 在跑的调用：掐掉它的那一头、开始跑的那一刻、工具名。
+    /// 在跑的调用：掐掉它的那一头、它的旗、开始跑的那一刻、工具名。
     running: BTreeMap<CallId, Running>,
     backs: mpsc::UnboundedSender<Back>,
 }
@@ -62,6 +63,10 @@ pub(crate) struct Tools {
 /// 一次在跑的调用。
 struct Running {
     task: AbortHandle,
+    /// 交给工具的那面旗。
+    stop: Stop,
+    /// 叫它停过：还没交回来就被掐掉的，改动可能不留效果，记一行 `WARN`。
+    stopping: bool,
     started: Instant,
     name: String,
 }
@@ -118,12 +123,14 @@ impl Tools {
         args: String,
         cwd: String,
     ) -> Option<Input> {
+        let stop = Stop::default();
         let call = Call {
             args,
             cwd,
             home: self.home.clone(),
             data_root: Some(self.data_root.clone()),
             seen: Arc::clone(&self.seen),
+            stop: stop.clone(),
         };
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name).cloned() else {
@@ -137,6 +144,7 @@ impl Tools {
                 duration_ms: None,
                 human: worded.said,
                 effects: Vec::new(),
+                stopped: false,
             });
         };
         tracing::info!(target: TARGET, call = call_text.as_str(), tool = name.as_str(), "running");
@@ -177,6 +185,8 @@ impl Tools {
             call_id,
             Running {
                 task,
+                stop,
+                stopping: false,
                 started: Instant::now(),
                 name,
             },
@@ -184,18 +194,33 @@ impl Tools {
         None
     }
 
-    /// 停下一次在跑的调用：掐掉跑它的任务。之后什么都不再报。
+    /// 叫它停（施工 4-9 再补一）：举起这次调用的旗，不掐任务。工具看旗，停在改之前或者做完，照常送回来。不在跑的，
+    /// 什么都不做。
+    pub(crate) fn stop(&mut self, call_id: CallId) {
+        if let Some(running) = self.running.get_mut(&call_id) {
+            running.stop.raise();
+            running.stopping = true;
+        }
+    }
+
+    /// 掐掉一次在跑的调用：举旗，掐掉跑它的任务。之后什么都不再报。叫它停过、还没交回来的，多记一行 `WARN`：它要是
+    /// 后来改完了，这次改动不留效果。
     pub(crate) fn cancel(&mut self, call_id: CallId) {
         let Some(running) = self.running.remove(&call_id) else {
             return;
         };
+        running.stop.raise();
         running.task.abort();
+        let call = call_id.to_string();
         tracing::info!(
             target: TARGET,
-            call = call_id.to_string().as_str(),
+            call = call.as_str(),
             took_ms = millis(running.started.elapsed()),
             "stopped"
         );
+        if running.stopping {
+            tracing::warn!(target: TARGET, call = call.as_str(), "cancelled while stopping");
+        }
     }
 
     /// 跑工具的任务送回来的，写成内核的输入。不在跑的（已经叫停了的）不理。
@@ -218,6 +243,7 @@ impl Tools {
                     call = call_id.to_string().as_str(),
                     took_ms,
                     error = done.error.then_some(true),
+                    stopped = done.stopped.then_some(true),
                     "ran"
                 );
                 Some(Input::ToolDone {
@@ -228,6 +254,7 @@ impl Tools {
                     duration_ms: Some(took_ms),
                     human: done.human,
                     effects,
+                    stopped: done.stopped,
                 })
             }
             ToolBack::Crashed { call_id } => {
@@ -249,6 +276,7 @@ impl Tools {
                     duration_ms: Some(took_ms),
                     human: worded.said,
                     effects: Vec::new(),
+                    stopped: false,
                 })
             }
         }
@@ -259,6 +287,7 @@ impl Tools {
 impl Drop for Tools {
     fn drop(&mut self) {
         for running in self.running.values() {
+            running.stop.raise();
             running.task.abort();
         }
     }

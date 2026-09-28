@@ -36,6 +36,7 @@ pub(crate) fn action(action: &Action) -> &'static str {
         Action::CancelModel { .. } => "cancel_model",
         Action::Wake { .. } => "wake",
         Action::RunTurnEndHooks { .. } => "run_turn_end_hooks",
+        Action::StopTool { .. } => "stop_tool",
         Action::CancelTool { .. } => "cancel_tool",
         Action::GuardTool { .. } => "guard_tool",
         Action::AnswerTool { .. } => "answer_tool",

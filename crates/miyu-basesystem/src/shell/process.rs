@@ -239,7 +239,8 @@ fn alone(command: &mut Command) {
     let _ = command;
 }
 
-/// 叫停时整组杀掉：丢掉它就杀；跑完了先 [`Guard::disarm`]。叫停就是丢掉这次调用的 future（施工 4-2）。
+/// 掐掉时整组杀掉：丢掉它就杀；跑完了先 [`Guard::disarm`]。掐掉就是丢掉这次调用的 future（施工 4-2）；执行命令
+/// 不会被「叫它停」，那只给改文件的（施工 4-9 再补一）。
 pub(super) struct Guard(Option<Group>);
 
 impl Guard {

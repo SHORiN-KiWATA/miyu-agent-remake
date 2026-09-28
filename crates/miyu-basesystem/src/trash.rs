@@ -13,7 +13,7 @@ use miyu_fs::trash::{Refused, put};
 use miyu_fs::{ResolveError, resolve, tilde};
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
-use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Target, Tool};
+use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Stop, Target, Tool};
 
 use crate::blocking::blocking;
 use crate::common::{Common, Shown, said};
@@ -81,15 +81,21 @@ impl Tool for Trash {
         let texts = self.texts.clone();
         Box::pin(async move {
             match serde_json::from_str::<Args>(&call.args) {
-                Ok(args) => blocking(move |_| trash(&texts, &call, &args.file_path)).await,
+                Ok(args) => {
+                    blocking(call.stop.clone(), move |stop| {
+                        trash(&texts, &call, &args.file_path, stop)
+                    })
+                    .await
+                }
                 Err(error) => texts.common.bad_args(&error),
             }
         })
     }
 }
 
-/// 删：换成真实的位置（最后一段不跟链接），不许删的不删，照平台移进回收站。
-fn trash(texts: &Texts, call: &Call, path: &str) -> Done {
+/// 删：换成真实的位置（最后一段不跟链接），不许删的不删，照平台移进回收站。移之前看一眼旗（施工 4-9 再补一）：
+/// 叫停了就不移，交回 `stopped`。
+fn trash(texts: &Texts, call: &Call, path: &str, stop: &Stop) -> Done {
     let refuse = |template: &Template, key: &str| {
         Done::error(say(template, &[("path", path)])).said(said(key))
     };
@@ -103,6 +109,9 @@ fn trash(texts: &Texts, call: &Call, path: &str) -> Done {
     }
     if protected(call, &real) {
         return refuse(&texts.protected, "trash/protected");
+    }
+    if stop.stopped() {
+        return Done::stopped();
     }
     match put(&real, call.home.as_deref()) {
         Ok(location) => {

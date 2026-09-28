@@ -44,7 +44,7 @@ enum Now {
     Absent,
     /// 一个文件，内容的哈希。
     File(ContentHash),
-    /// 别的：目录、链接。
+    /// 别的：目录、链接；不读内容时的有东西（[`there`]）。
     Other,
 }
 
@@ -97,9 +97,13 @@ fn write(
     Ok(Done::Restored)
 }
 
-/// 移进回收站：原处要是 `expect` 的样子。回收站收不了的不删；挪了却找不到的，当回收站里没有它。
+/// 移进回收站：原处要是 `expect` 的样子。回收站收不了的不删；挪了却找不到的，当回收站里没有它。只要有东西就行的
+/// （`Expect::Present`），不读内容：读不了的文件照样移（施工 4-9 再补一）。
 fn put(path: &Path, expect: &Expect, home: Option<&Path>) -> Result<Done, Missed> {
-    let now = now(path)?;
+    let now = match expect {
+        Expect::Present => there(path)?,
+        Expect::Absent | Expect::Content(_) => now(path)?,
+    };
     if matches!(now, Now::Absent) {
         return Err(Missed::Outcome(RestoreOutcome::Missing));
     }
@@ -125,9 +129,11 @@ fn untrash(path: &Path, from: &Path) -> Result<Done, Missed> {
         Ok(_) => {}
     }
     trash::restore(from, path)?;
-    Ok(Done::Back(match now(path)? {
-        Now::File(hash) => Some(hash),
-        Now::Absent | Now::Other => None,
+    // 移回来了才看哈希：看不了的（例如读不了）照样算移回来了，只是不附哈希（施工 4-9 再补一）。记成失败的话，
+    // 下一次恢复会当它还在回收站的旧位置。
+    Ok(Done::Back(match now(path) {
+        Ok(Now::File(hash)) => Some(hash),
+        Ok(Now::Absent | Now::Other) | Err(_) => None,
     }))
 }
 
@@ -152,6 +158,15 @@ fn now(path: &Path) -> io::Result<Now> {
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(Now::Absent),
         Err(error) => Err(error),
         Ok(meta) if meta.is_file() => Ok(Now::File(ContentHash::of(&fs::read(path)?))),
+        Ok(_) => Ok(Now::Other),
+    }
+}
+
+/// 原处有没有东西，不读内容：有的算「别的」。
+fn there(path: &Path) -> io::Result<Now> {
+    match fs::symlink_metadata(path) {
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(Now::Absent),
+        Err(error) => Err(error),
         Ok(_) => Ok(Now::Other),
     }
 }

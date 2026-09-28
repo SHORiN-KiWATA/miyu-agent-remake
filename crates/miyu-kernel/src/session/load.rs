@@ -145,6 +145,7 @@ impl Session {
                 interjected: None,
                 queued: Vec::new(),
                 refresh: false,
+                interrupting: None,
             });
             let text = self.policy.tool_texts.restarted();
             let mut events: Vec<Event> = self

@@ -71,6 +71,8 @@ pub(super) enum State {
         /// 那条回答的序号。
         answered: Seq,
     },
+    /// 改文件的调用，打断时叫它停了：等它停在改之前或者做完，交回来（施工 4-9 再补一）。
+    Stopping,
     /// 有了结果。
     Done,
 }
@@ -127,7 +129,7 @@ impl Pending {
     pub(super) fn executing(&self) -> bool {
         matches!(
             self.state,
-            State::Running | State::Questioning | State::Answered { .. }
+            State::Running | State::Questioning | State::Answered { .. } | State::Stopping
         )
     }
 

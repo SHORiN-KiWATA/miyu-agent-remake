@@ -276,3 +276,29 @@ fn a_turn_keeps_the_directory_it_started_in() {
     let runs = runs(&allowing(&mut session, stored(7)));
     assert_eq!(runs[0].3, "~/src/miyu");
 }
+
+/// 没叫它停，工具却交回停在了改之前（施工 4-9 再补一）：照已取消记，那一句内核写，`by` 是那次调用；这一步照样齐了。
+#[test]
+fn a_tool_that_stops_unasked_counts_as_cancelled() {
+    let mut session = asking();
+    call_tools(&mut session, 5, &[("read", "{}")]);
+    assert_eq!(ran(&allowing(&mut session, stored(7))), [call(6, 1)]);
+    let mut stopped = done(call(6, 1), "ignored");
+    if let Input::ToolDone { stopped: flag, .. } = &mut stopped {
+        *flag = true;
+    }
+    let actions = allowing(&mut session, stopped);
+    let events = appended_events(&actions);
+    assert_eq!(
+        result_of(&events[0]),
+        (
+            call(6, 1),
+            ToolStatus::Cancelled,
+            by_tool(call(6, 1)),
+            "cancelled running".to_string()
+        )
+    );
+    assert_eq!(effects_of(&events[0]), Vec::new());
+    let actions = allowing(&mut session, stored(8));
+    assert_eq!(calls(&actions)[0].0, seq(8), "这一步齐了，请求下一次");
+}
