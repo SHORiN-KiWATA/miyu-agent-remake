@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>75</b><span>/ 80 步<strong>已完成</strong>，命令行和运行日志对上了设计：家目录写成 ~、会话编号、权限</span></li>
-    <li><b>4-9</b><span>下一步：出错说英文（再补四中），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">9397ebd</b><span>最近一步（4-9 再补四上）的提交</span></li>
+    <li><b>76</b><span>/ 80 步<strong>已完成</strong>，写进运行日志的报错都说英文了</span></li>
+    <li><b>4-9</b><span>下一步：权限策略、造会话、注释（再补四下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">51fe251</b><span>最近一步（4-9 再补四中）的提交</span></li>
   </ul>
 </header>
 
@@ -412,7 +412,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-9e"><span class="n">4-9</span>请求、协议、核心（再补三上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9f"><span class="n">4-9</span>驱动、HTTP（再补三下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9g"><span class="n">4-9</span>命令行、运行日志（再补四上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-9</span>出错说英文（再补四中）</span></li>
+        <li><a class="step done" href="#s4-9h"><span class="n">4-9</span>出错说英文（再补四中）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-9</span>权限策略、造会话、注释（再补四下）</span></li>
         <li><span class="step"><span class="n">4-9</span>蓝图的门禁（三补）</span></li>
         <li><span class="step"><span class="n">4-9</span>设计文档只留为什么（四补）</span></li>
@@ -6081,6 +6081,75 @@ a.step:hover{border-color:var(--primary)}
         <li>蓝图：<code>log.md</code>、<code>core.md</code>、<code>cli/main.md</code>、<code>cli/ask.md</code>、<code>cli/undo.md</code>、<code>tools/shell.md</code>、<code>session/actor.md</code>、<code>session/tools.md</code>。</li>
         <li><code>docs/designs/28-运行日志.md</code>（起来那一行的样子、来源的举例）。</li>
         <li><code>docs/construction/4-9-命令行、运行日志（再补四上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s4-9h" aria-labelledby="h-s49h">
+  <div class="sheet-head"><h2 id="h-s49h"><span class="no">4-9</span>出错说英文（再补四中）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">运行日志一律英文，可核心自己的几种报错是中文，原样写在 error 这一格里：造会话、载入会话失败，读会话日志失败，连同里面带着的 blob、策略快照、造策略、模板、账本、事件和编号的写法。协议回给头的话说「详情在运行日志里」，日志里却是中文。这一步把只进运行日志的报错改成英文，给人看的照旧。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一行 load failed 里套着的</span><span class="dir-note">从外到里</span></div>
+            <ol class="pipe" aria-label="载入失败里套着的报错">
+              <li>会话：not loaded / session log not opened / policy snapshot not fetched …</li>
+              <li>内核：the log is broken: event 7 cannot be appended: …</li>
+              <li>账本：三十条规矩各一句，例如 turn 3 has not ended；几个编号用 ", " 连</li>
+              <li>写法：bad session id: must be 36 characters (got "x")</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">别的几处</span><span class="dir-note">存储、策略</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">会话日志</span><span class="rl">no session log in …；&lt;段&gt; line 3: not UTF-8、seq should be 2 …</span></div>
+              <div class="tile new"><span class="nm">blob、人格</span><span class="rl">no blob …；does not match its name；persona id "Bad" is not valid …</span></div>
+              <div class="tile new"><span class="nm">策略、模板</span><span class="rl">bundled fact templates not usable: bad template: missing field …</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">只进日志的说英文</span><span class="rl">日志一律英文；也给人看的（数据根、资源目录、单实例锁、套接字、拉起核心）照旧中文，等界面语言那一步</span></div>
+          <div class="tile new"><span class="nm">查漏</span><span class="rl">每一种报错写出来查是英文，照着原文带出来的字除外</span></div>
+          <div class="tile"><span class="nm">不改写历史</span><span class="rl">施工图、旧施工单引的是当时的样子；设计里引的原话随 4-9（四补）去掉</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">模型出错的原话（流断了、增量对不上）给人看，还是中文，界面语言那一步</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-9（再补四中）</dd></div>
+        <div><dt>名称</dt><dd>出错说英文</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">51fe251</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-kernel</code>：编号、时刻、模板、账本、事件的报错改英文。</li>
+        <li><code>miyu-store</code>：会话日志、blob、读人格的报错改英文；数据根的几句照旧。</li>
+        <li><code>miyu-policy</code>、<code>miyu-session</code>：快照、造策略、造会话、载入会话的报错改英文。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 33 处，32 处有测试变红；测不出的照实记在施工单里</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图：<code>kernel/</code> 下六页、<code>store.md</code>、<code>store/resources.md</code>、<code>policy.md</code>、<code>session/actor.md</code>、<code>drivers/openai-chat.md</code>、<code>log.md</code>。</li>
+        <li><code>docs/construction/4-9-出错说英文（再补四中）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
