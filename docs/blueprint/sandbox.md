@@ -67,7 +67,7 @@
 | 127 | 找不到命令 |
 | 别的 | 命令自己的 |
 
-**一次调用带的** `Call.sandbox`（`tools/interface.md`）：`Some(Sandboxed { helper, spec })` 的，`shell` 经助手起命令；`None` 的照旧直接起。现在核心还不带，5-4 接上权限策略。
+**一次调用带的** `Call.sandbox`（`tools/interface.md`）：`Some(Sandboxed { helper, spec, env })` 的，`shell` 经助手起命令，`env` 里的环境变量照白名单之后设上（同名的盖掉）；`None` 的照旧直接起。执行器照这一刻实际生效的级别带（施工 5-4 上，`session/tools.md`）。
 
 ### 怎么走
 

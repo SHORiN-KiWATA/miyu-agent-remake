@@ -75,7 +75,7 @@
 | `CancelModel { seen }` | 哪次请求 | 掐掉，不送回；之后到的不理 |
 | `Wake { at, seen }` | 什么时候、为哪次请求 | 到点送回 `Woke` |
 | `GuardTool { call_id, name, args, cwd, permission }` | 修正过的参数、这一轮的工作目录、实际生效的那一级 | 过执行前的链，送回 `ToolGuarded`（`asking.md`） |
-| `RunTool { call_id, name, args, cwd }` | 修正过的参数、这一轮的工作目录 | 跑；送回 `ToolProgress`、`ToolAsks`、`ToolDone` |
+| `RunTool { call_id, name, args, cwd, permission }` | 修正过的参数、这一轮的工作目录、派出去那一刻实际生效的那一级（施工 5-4 上：执行器照它写沙盒的规格） | 跑；送回 `ToolProgress`、`ToolAsks`、`ToolDone` |
 | `AnswerTool { call_id, answers }` | 人的回答 | 交给在等的调用（`asking.md`） |
 | `CancelTool { call_id }` | 哪次调用 | 掐掉，不送回；之后到的不理 |
 | `StopTool { call_id }` | 哪次改文件的调用 | 叫它停：停在改之前，或者做完；照常送回 `ToolDone`，停在改之前的带 `stopped`（「打断」第 7 条） |
