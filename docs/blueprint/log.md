@@ -114,7 +114,7 @@
 1. 对话的内容：人说的话、她的回复和思考、工具的参数和结果，一个字都不写。写编号：会话编号、请求的序号（`seen`）、调用编号（`call`）。
 2. key、令牌：不写。
 3. 供应商出错的原话：不写，只写分类（`class`）。原话里可能回显请求里的字。
-4. HTTP：只写主机名、字节数、状态码、分类、供应商说要等多久、用时；地址的路径和参数不写。
+4. HTTP：只写主机名、字节数、状态码、分类、供应商说要等多久、用时；地址的路径和参数不写。代理也一样：只写方法、主机名、端口、地址、字节数、用时；路径和参数、请求头、请求体、转的字节都不写（`proxy.md`，施工 5-5）。
 5. 这几条靠发日志的地方只交编号、长度、状态：接口上没有写内容的口子。由测试查（「守着它的」）。
 6. 出错的原因（`error` 这一格）照原样写：系统的原话，或者核心自己的报错，都是英文（施工 4-9 再补四中：核心自己的几种报错原来是中文）；路径里的家目录照第 5 条写成 `~`。核心起不来的那一行不写原因，写没过的是哪一步（`stage`）：原因是给人看的中文，只交给头，头印给人看（`core.md`）。
 
@@ -133,6 +133,8 @@
 | `core` | WARN | `DEEPSEEK_API_KEY not set, no model` | | 没设 key，或者只有空白 |
 | `core` | INFO | `sandbox` | `helper`（助手的路径）、`platform`、`mechanisms`（逗号连起来，空的写 `none`） | 起来时探沙盒的助手，探成了（`sandbox.md`，施工 5-1） |
 | `core` | WARN | `sandbox unavailable` | `reason` | 起来时探沙盒的助手：没找到、跑不了、到时、说的读不懂 |
+| `core` | INFO | `proxy` | `addr`（代理听的地址） | 起来时开了代理（`proxy.md`，施工 5-5） |
+| `core` | WARN | `proxy unavailable` | `error` | 起来时开不了代理：那一段端口都被占了，或者别的错 |
 | `session` | | | | 会话的每一行带会话编号，见 `session/actor.md` 的「运行日志」 |
 | `http` | DEBUG | `sent` | `host`、`bytes` | 请求发出去 |
 | `http` | DEBUG | `ended` | `host`、`status`、`took_ms` | 正常说完 |
@@ -169,10 +171,18 @@
 | `shell` | DEBUG | `command output still open after the command ended` | | 命令退出了，输出还没关 |
 | `shell` | DEBUG | `command output not readable` | `error` | 读命令的输出出错 |
 | `shell` | WARN | `command group not killed`、`command tree not killed` | `error` | Unix 杀不掉进程组；Windows 杀不掉进程树 |
+| `proxy` | DEBUG | `connected` | `method`、`host`、`port`、`addr` | 代理连上了目标 |
+| `proxy` | DEBUG | `closed` | `host`、`port`、`up`、`down`、`took_ms`；出错结束的没有 `up`、`down`，有 `error` | 代理转完一个连接 |
+| `proxy` | INFO | `blocked` | `host`、`port`、`addr` | 目标不是公网地址，拦下 |
+| `proxy` | DEBUG | `failed` | `host`、`port`、`error` | 解析不了、连不上、到时 |
+| `proxy` | DEBUG | `bad request` | `error` | 请求读不懂、不认 |
+| `proxy` | WARN | `too many connections` | `limit` | 同时在转的满了，回 503 |
+| `proxy` | WARN | `accept failed` | `error` | 代理接连接出错 |
+| `proxy` | ERROR | `connection task failed` | `error` | 代理转一个连接的任务 panic 了 |
 
 `http` 的几行没有 `session` 这一格，可发它们的请求任务带着会话的 span，照第 5 条也带会话编号（`session/actor.md` 第 8 条）。
 
-每一行的细节见各部件的页：`core.md`、`drivers/openai-chat.md` 和 `http.md`、`protocol.md`、`ipc.md`、`fs.md`、`tools/shell.md`。
+每一行的细节见各部件的页：`core.md`、`drivers/openai-chat.md` 和 `http.md`、`protocol.md`、`ipc.md`、`fs.md`、`tools/shell.md`、`proxy.md`。
 
 ### 样子
 
@@ -218,6 +228,7 @@
 | `crates/miyu-basesystem/tests/log.rs` | `shell` 的行来源是 `shell`；命令退出了输出还没关那一行在阻塞线程里发，带会话编号（Linux） |
 | `crates/miyu-session/tests/http_log.rs` | HTTP 的两行带会话编号；key 不在日志里 |
 | `crates/miyu-http/tests/log.rs` | HTTP 的几行；key、请求体、回复的字、地址的路径和参数、出错的原话都不在日志里 |
+| `crates/miyu-proxy/tests/log.rs` | 代理的几行；路径、参数、请求头都不在日志里（施工 5-5） |
 | `crates/miyu/tests/core.rs` | 真的核心：起来写一行 `starting`，空闲了写 `stopped reason=idle`；第二个核心不写；`starting` 那一行有进程号、数据根（家目录写成 `~`）、和 UTC 差多少；起不来的那一行只写 `stage` |
 
 ### 出处
