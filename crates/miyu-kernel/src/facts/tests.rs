@@ -160,7 +160,7 @@ fn the_env_block_has_the_hour_the_timezone_and_the_directory() {
     assert_eq!(block.kind.as_str(), "env");
     assert_eq!(
         block.text,
-        r#"<e t="Fri 2026-09-25 16:00" z="UTC+09:00" d="~/src/miyu"/>"#
+        r#"<e t="Fri 2026-09-25 16:00–17:00" z="UTC+09:00" d="~/src/miyu"/>"#
     );
 }
 
@@ -171,7 +171,7 @@ fn the_directory_is_escaped() {
     assert_eq!(
         block.text,
         format!(
-            r#"<e t="Fri 2026-09-25 16:00" z="UTC+09:00" d="{}"/>"#,
+            r#"<e t="Fri 2026-09-25 16:00–17:00" z="UTC+09:00" d="{}"/>"#,
             escape(cwd)
         )
     );

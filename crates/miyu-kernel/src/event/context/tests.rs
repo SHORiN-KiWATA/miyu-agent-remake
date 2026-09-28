@@ -3,7 +3,7 @@
 use crate::event::{Body, Event};
 use crate::test_support::{event_line, read_body, rejected};
 
-const INJECTED: &str = r#"{"kind":"env","text":"<env time=\"Fri 2026-09-25 16:00\" timezone=\"UTC+09:00\" cwd=\"~/src/miyu\"/>"}"#;
+const INJECTED: &str = r#"{"kind":"env","text":"<env time=\"Fri 2026-09-25 16:00–17:00\" timezone=\"UTC+09:00\" cwd=\"~/src/miyu\"/>"}"#;
 const COMPACTED: &str = r#"{"upto":53,"summary":"The user asked to look at the src directory. That turn was undone. Nothing is in progress."}"#;
 
 #[test]

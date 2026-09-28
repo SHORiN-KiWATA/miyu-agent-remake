@@ -118,10 +118,11 @@ const WEEKDAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MAX_OFFSET_MINUTES: i32 = 14 * 60;
 
 impl Timestamp {
-    /// 这个时刻在 `offset` 那个时区的钟点，到小时：`Fri 2026-09-25 16:00`。
+    /// 这个时刻在 `offset` 那个时区落在哪一个小时，写成这个小时的起止：`Fri 2026-09-25 16:00–17:00`。
     ///
-    /// 星期写三个字母，日期写成年-月-日，二十四小时制，分钟一律写 `00`：同一个小时里字节不变
-    /// （`08-上下文投影.md` 第五节「环境和状态的事实怎么写」）。
+    /// 星期写三个字母，日期写成年-月-日，二十四小时制，分钟都写 `00`，中间是连接号 `–`：同一个小时里
+    /// 字节不变；23 点写 `23:00–24:00`，日期还是这一天。只写 `16:00` 的话，她会当成正好 16 点（施工 1-13 补，
+    /// `08-上下文投影.md` 第五节「环境和状态的事实怎么写」）。
     pub fn local_hour(self, offset: UtcOffset) -> String {
         let local = self.0 + i64::from(offset.0) * 60_000;
         let days = local.div_euclid(MS_PER_DAY);
@@ -129,7 +130,8 @@ impl Timestamp {
         let hour = local.rem_euclid(MS_PER_DAY) / 3_600_000;
         // rem_euclid 出来一定在 0 到 6 之间，转成下标不会截断。
         let weekday = WEEKDAYS[(days + 4).rem_euclid(7) as usize];
-        format!("{weekday} {year:04}-{month:02}-{day:02} {hour:02}:00")
+        let end = hour + 1;
+        format!("{weekday} {year:04}-{month:02}-{day:02} {hour:02}:00–{end:02}:00")
     }
 }
 
