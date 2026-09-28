@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>89</b><span>/ 93 步<strong>已完成</strong>，Linux、macOS 上命令关进沙盒；Windows 装得上专用的沙盒用户</span></li>
-    <li><b>5-4</b><span>下一步：权限策略接上沙盒（下）；接着 Windows：跑</span></li>
-    <li><b class="mono">b773227</b><span>最近一步（5-8 Windows：装）的提交</span></li>
+    <li><b>90</b><span>/ 93 步<strong>已完成</strong>，沙盒里编得了项目：工具链的缓存用沙盒自己的一份</span></li>
+    <li><b>5-9</b><span>下一步：Windows 上以沙盒用户的身份跑命令</span></li>
+    <li><b class="mono">feaa4c4</b><span>最近一步（5-4 下 权限策略接上沙盒）的提交</span></li>
   </ul>
 </header>
 
@@ -429,7 +429,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s5-1b"><span class="n">5-1</span>规格只管读写（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s5-3"><span class="n">5-3</span>只管写<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s5-4a"><span class="n">5-4</span>权限策略接上沙盒（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">5-4</span>权限策略接上沙盒（下）</span></li>
+        <li><a class="step done" href="#s5-4b"><span class="n">5-4</span>权限策略接上沙盒（下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">5-5</span>代理（取消）</span></li>
         <li><span class="step"><span class="n">5-6</span>Linux：网络（取消）</span></li>
         <li><a class="step done" href="#s5-7"><span class="n">5-7</span>macOS<span class="st">✓</span></a></li>
@@ -7077,6 +7077,76 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>设计 <code>11-权限与沙盒.md</code> 第六节、A3。</li>
         <li>蓝图 <code>sandbox/windows.md</code>、<code>cli/main.md</code>；<code>docs/construction/5-8-Windows：装.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-4b" aria-labelledby="h-s54b">
+  <div class="sheet-head"><h2 id="h-s54b"><span class="no">5-4</span>权限策略接上沙盒（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">沙盒里的命令跑得顺，沙盒用不了时说清楚：工具链的缓存用沙盒自己的一份，沙盒里编得了项目，你的 ~/.cargo 照旧只读；握手时报出这台机器的沙盒能不能用、为什么，miyu ask 用不了时开头说一行原因和怎么修。被沙盒挡住时不另加提示：实测 4 次都认得出（项目主人定）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">工作区这一级多给的</span><span class="dir-note">缓存目录/sandbox/账号</span></div>
+            <ol class="pipe" aria-label="工作区这一级多给的">
+              <li>多放一处能写：沙盒的缓存，只给本人</li>
+              <li>五个变量：CARGO_HOME、npm_config_cache、PIP_CACHE_DIR、GOMODCACHE、GOCACHE</li>
+              <li>cargo 的配置带过去，发布用的令牌不带</li>
+              <li>只读、完全放开不设</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">实测</span><span class="dir-note">真模型 · 本机内核 7.2</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">cargo build</span><span class="rl">依赖下进沙盒的缓存，编得过，跑出 42</span></div>
+              <div class="tile new"><span class="nm">~/.cargo</span><span class="rl">一个文件都没变</span></div>
+              <div class="tile new"><span class="nm">不加提示</span><span class="rl">被挡住的写 4 次都认得出是沙盒、不绕</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">握手报沙盒</span><span class="rl">能用，或者用不了和原因：找不到助手、助手跑不起来、没有手段</span></div>
+          <div class="tile new"><span class="nm">开头说一行</span><span class="rl">原因、后果、怎么修放在一起（项目主人定）</span></div>
+          <div class="tile"><span class="nm">接受的</span><span class="rl">第一次在沙盒里编要重新下载依赖</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-4 下</dd></div>
+        <div><dt>名称</dt><dd>权限策略接上沙盒（下）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">feaa4c4</dd></div>
+        <div><dt>验收</dt><dd>真模型自测、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-sandbox</code> 的 <code>Availability</code>；核心探到的结果、沙盒的缓存交给协议端点。</li>
+        <li>会话的 <code>sandbox/caches.rs</code>：缓存、变量、cargo 配置。</li>
+        <li>握手的回应多一格 <code>sandbox</code>；<code>miyu ask</code> 开头那一句。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真模型自测：沙盒里编过了，~/.cargo 没被写</span></li>
+        <li><span class="ok">✓</span><span>手写变异都被逮住；5-4 上漏的那一个也逮住了</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>11-权限与沙盒.md</code> 第四节；<code>26-提示词.md</code> 第十节。</li>
+        <li>蓝图 <code>session/tools.md</code>、<code>protocol.md</code>、<code>cli/ask.md</code>、<code>sandbox.md</code>、<code>core.md</code>；<code>docs/construction/5-4-权限策略接上沙盒（下）.md</code>。</li>
       </ul>
     </div>
   </div>
