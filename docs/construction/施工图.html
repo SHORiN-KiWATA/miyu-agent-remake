@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>79</b><span>/ 79 步<strong>已完成</strong>，M4 能干活了：她在临时仓库里修好了一个真 bug</span></li>
+    <li><b>80</b><span>/ 80 步<strong>已完成</strong>，命令行照 opencode 的样子印每一步，帮助页一页说全</span></li>
     <li><b>M5</b><span>下一步：沙盒，<strong>先拆成步，等项目主人批准</strong></span></li>
-    <li><b class="mono">3fb8999</b><span>最近一步（4-10 M4 验收）的提交</span></li>
+    <li><b class="mono">9aeab1d</b><span>最近一步（4-11 命令行的样子）的提交</span></li>
   </ul>
 </header>
 
@@ -416,6 +416,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-9i"><span class="n">4-9</span>权限策略、造会话、注释（再补四下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9j"><span class="n">4-9</span>蓝图的门禁（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-10"><span class="n">4-10</span>M4 验收<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s4-11"><span class="n">4-11</span>命令行的样子<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -6356,6 +6357,76 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>设计 <code>10-自带软件.md</code> 第九节、<code>26-提示词.md</code> 第十节；蓝图 <code>tools/interface.md</code>、<code>prompts.md</code>。</li>
         <li><code>docs/construction/4-10-M4 验收.md</code>：施工单和验收结果。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s4-11" aria-labelledby="h-s411">
+  <div class="sheet-head"><h2 id="h-s411"><span class="no">4-11</span>命令行的样子</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">项目主人试玩 M4 以后提的三件：miyu ask 的每一步照 opencode 的样子印，命令、编辑下面带内容；-h 一页说全，参数写错时每种说一句；MIYU_HOME、MIYU_RESOURCES 认开头的 ~。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">每一步</span><span class="dir-note">标准错误上</span></div>
+            <ol class="pipe" aria-label="新的样子">
+              <li>→ 读取 src/lib.rs · 24 行</li>
+              <li>✱ 搜内容 fn add · 2 处</li>
+              <li>$ cargo test，下面是她看到的输出（首尾的空行不印），前后各空一行</li>
+              <li>← 编辑 src/lib.rs · 改了 1 处，下面 -（红）、+（绿）</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">帮助和报错</span><span class="dir-note">跟着界面语言</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">帮助页</span><span class="rl">自己写，一种语言四页：命令、各命令的选项、会话怎么接、例子；-c、-s 短写</span></div>
+              <div class="tile new"><span class="nm">参数写错</span><span class="rl">每种一句：少了要说的话、没有这个选项、多了参数、只能写一个、后面少了值、只能是哪几样</span></div>
+              <div class="tile new"><span class="nm">开头的 ~</span><span class="rl">MIYU_HOME、MIYU_RESOURCES 写 ~/… 也认，照家目录接</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">全部照印</span><span class="rl">命令印工具自己写的结果（去掉终端控制序列），编辑印改动（项目主人定）</span></div>
+          <div class="tile new"><span class="nm">符号加中文名</span><span class="rl">→ 读、✱ 找和搜、← 改、$ 命令；名字照界面语言走显示名表，没有的写 ⚙（项目主人定）</span></div>
+          <div class="tile new"><span class="nm">一段一段</span><span class="rl">思考、标题下面有东西的命令和编辑，前后各空一行；连着的几行步骤之间不空（项目主人定，照 opencode）</span></div>
+          <div class="tile"><span class="nm">以后</span><span class="rl">会话怎么接（ask 一次性、undo 管上一次的）做头的时候再改（项目主人定）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-11</dd></div>
+        <div><dt>名称</dt><dd>命令行的样子</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">9aeab1d</dd></div>
+        <div><dt>验收</dt><dd>真人看过、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>显示名表多两格：<code>icon</code> 符号、<code>block</code> 标题下面印什么；<code>ask/steps/blocks.rs</code> 画那一块。</li>
+        <li><code>help.rs</code> 八页帮助、<code>misuse.rs</code> 报错的那一句；主程序交给 clap 的 override_help。</li>
+        <li><code>Env::expand</code> 认开头的 ~；蓝图里的新样子和帮助页都是样本，门禁逐字节比。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>项目主人看过、提了思考和工具行之间要空行，照改；我用真模型实测两轮，版式、颜色都对</span></li>
+        <li><span class="ok">✓</span><span>手写的 31 个变异都被测试逮住</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>cli/ask.md</code>、<code>cli/main.md</code>、<code>cli/undo.md</code>、<code>store/resources.md</code>、<code>store.md</code>，<code>tools/*.md</code> 的符号。</li>
+        <li><code>docs/construction/4-11-命令行的样子.md</code>：施工单和验收结果。</li>
       </ul>
     </div>
   </div>
