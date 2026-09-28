@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>69</b><span>/ 70 步<strong>已完成</strong>，miyu ask 有几步因为要确认没做的，说清楚</span></li>
-    <li><b>4-10</b><span>下一步：M4 验收，<strong>项目主人真人实测</strong></span></li>
-    <li><b class="mono">2fac54c</b><span>最近一步（4-9）的提交</span></li>
+    <li><b>70</b><span>/ 74 步<strong>已完成</strong>，已经做完的部分都补成了蓝图</span></li>
+    <li><b>4-9</b><span>下一步：修补蓝图时查出的问题（再补），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">7ac99b5</b><span>最近一步（4-9 补）的提交</span></li>
   </ul>
 </header>
 
@@ -406,6 +406,10 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-7b"><span class="n">4-7</span>undo、redo 命令（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-8"><span class="n">4-8</span>执行命令<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9"><span class="n">4-9</span>没人能确认时说清楚<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s4-9b"><span class="n">4-9</span>补完蓝图（补）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">4-9</span>修补查出的问题（再补）</span></li>
+        <li><span class="step"><span class="n">4-9</span>蓝图的门禁（三补）</span></li>
+        <li><span class="step"><span class="n">4-9</span>设计文档只留为什么（四补）</span></li>
         <li><span class="step"><span class="n">4-10</span>M4 验收</span></li>
       </ol>
     </li>
@@ -5643,6 +5647,77 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li><code>docs/designs/22-命令行.md</code> O3、第二节的退出码、第三节；<code>11</code> A11；<code>13</code> 第四节。</li>
         <li><code>docs/construction/4-9-没人能确认时说清楚.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s4-9b" aria-labelledby="h-s49b">
+  <div class="sheet-head"><h2 id="h-s49b"><span class="no">4-9</span>补完蓝图（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">项目主人定了新开蓝图这一层：写 Miyu 现在长什么样，事无巨细，以后改设计就改它。这一步把 M0 到 4-9 已经做完的部分补成蓝图，35 页，每一条都对过代码。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">docs/blueprint/</span><span class="dir-note">35 页、7070 行</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">kernel/</span><span class="rl">编号、内容块、事件、会话怎么走、确认和提问、有效历史和撤销、请求的组装</span></div>
+              <div class="tile new"><span class="nm">drivers/、http、policy</span><span class="rl">模型接口的编码解码和出错分类、发请求、策略快照</span></div>
+              <div class="tile new"><span class="nm">store、log、session/</span><span class="rl">数据根和日志、运行日志、会话 actor、执行工具、权限策略</span></div>
+              <div class="tile new"><span class="nm">protocol、core、ipc</span><span class="rl">握手和每个方法、撤销的回应、核心进程、本机的套接字和命名管道</span></div>
+              <div class="tile new"><span class="nm">fs、tools/</span><span class="rl">边界和回收站、工具接口、七件工具各一页</span></div>
+              <div class="tile new"><span class="nm">cli/</span><span class="rl">miyu ask、miyu undo、主程序</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">三样文档</span><span class="dir-note">各管一件事</span></div>
+            <ol class="pipe" aria-label="三样文档">
+              <li>设计文档：定了什么、为什么、没选什么</li>
+              <li>蓝图：现在到底长什么样</li>
+              <li>施工单：一次改动怎么做，蓝图改哪几节</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">先改蓝图</span><span class="rl">设计要改，先改蓝图那一页，定了再改代码；合并时对得上</span></div>
+          <div class="tile new"><span class="nm">照代码写</span><span class="rl">写的是代码现在的样子；和设计对不上的记下来，下一步一起修</span></div>
+          <div class="tile new"><span class="nm">核对</span><span class="rl">另派没看过的分身逐条对代码：改正约 64 处、补上约 72 条</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">给模型看的字那一页、样本比对（三补）；设计文档只留为什么（四补）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-9（补）</dd></div>
+        <div><dt>名称</dt><dd>补完蓝图</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">7ac99b5</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、逐条核对 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>docs/blueprint/</code>：35 页，每页照 README 第二节的格式：是什么、在哪、对外的样子、怎么走、样子、出错、给人看的字、守着它的、出处、还没有的。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>约两千七百条逐条对过代码；抽查十二个最容易写错的数，全对</span></li>
+        <li><span class="ok">✓</span><span>路径都在；不写原话、不写历史</span></li>
+        <li><span class="ok">✓</span><span>查出六十来处对不上、像 bug 的，交给下一步</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/blueprint/README.md</code>：蓝图是什么、怎么分页、每页的格式、怎么改。</li>
+        <li><code>docs/construction/4-9-补完蓝图（补）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
