@@ -8,7 +8,7 @@ mod open;
 
 pub use open::{OpenError, first_event, read_events};
 
-use std::fs::{File, OpenOptions};
+use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
@@ -99,6 +99,28 @@ impl SessionLog {
         self.next = expected;
         Ok(())
     }
+}
+
+/// 造会话没成（`session.created` 没落盘）时收拾会话目录：里面只有一段空的第一段，才连目录一起删掉，交回删了
+/// 没有；有别的东西的，一个字节不动（施工 4-9 再补四下）。
+///
+/// # Errors
+///
+/// 读不了目录、删不掉。
+pub fn abandon(dir: &Path) -> io::Result<bool> {
+    let entries = fs::read_dir(dir)?.collect::<io::Result<Vec<_>>>()?;
+    let first = dir.join(segment_name(Seq::FIRST));
+    let [only] = entries.as_slice() else {
+        return Ok(false);
+    };
+    let empty_first =
+        only.path() == first && only.file_type()?.is_file() && only.metadata()?.len() == 0;
+    if !empty_first {
+        return Ok(false);
+    }
+    fs::remove_file(&first)?;
+    fs::remove_dir(dir)?;
+    Ok(true)
 }
 
 /// 段文件的名字：这一段第一条的序号，补零到 12 位（07 第三节「段怎么存」）。

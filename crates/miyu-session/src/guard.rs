@@ -21,6 +21,9 @@ pub(crate) struct Guard {
     catalog: Catalog,
     data_root: PathBuf,
     home: Option<PathBuf>,
+    /// 边界表里跟环境有关的几片（临时目录、系统目录、工具链目录）：造的时候读一次，以后照它（施工 4-9 再补四下：
+    /// 原来每判一次重读环境变量）。工作区每判一次换成这一轮的工作目录。
+    places: Places,
     texts: GuardTexts,
 }
 
@@ -63,10 +66,12 @@ impl Guard {
         home: Option<PathBuf>,
         texts: GuardTexts,
     ) -> Guard {
+        let places = Places::here(PathBuf::new(), data_root.clone(), home.as_deref());
         Guard {
             catalog,
             data_root,
             home,
+            places,
             texts,
         }
     }
@@ -100,7 +105,10 @@ impl Guard {
         // 工作目录本身也换成真实的位置：头报来的可能是 `~`。
         let cwd = resolve(Path::new(&cwd), self.home.as_deref(), &cwd)
             .unwrap_or_else(|_| PathBuf::from(&cwd));
-        let places = Places::here(cwd.clone(), self.data_root.clone(), self.home.as_deref());
+        let places = Places {
+            workspace: cwd.clone(),
+            ..self.places.clone()
+        };
         let boundary = Boundary::new(&places);
         let mut asked = Vec::new();
         for target in targets {

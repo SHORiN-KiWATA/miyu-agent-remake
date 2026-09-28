@@ -1,4 +1,5 @@
-//! 占位的几句：读得进来、字段换得进去、少了字段的报错。出厂的那几份在 `tests/texts.rs` 里读。
+//! 占位的几句：读得进来、字段换得进去、少了字段的报错。出厂的那几份经策略快照读，在
+//! `crates/miyu-policy/src/snapshot/tests.rs` 里查。
 
 use super::*;
 

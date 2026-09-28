@@ -181,7 +181,6 @@ fn truncate(path: &Path, len: u64) -> io::Result<()> {
     file.sync_all()
 }
 
-/// 目录里的段：名字是 12 位数字加 `.jsonl` 的，照数字排。别的文件不看。
 /// 只读地拿会话日志的第一条（`session.created`）：列出会话时用（施工 3-9 下）。只读第一段开头那一行，
 /// 不截、不写：会话可能正在往最后一段里写。第一条落了盘，会话才算造好，所以它总是完整的一行；
 /// 还没写完的当没有这个会话。
@@ -202,6 +201,7 @@ pub fn first_event(dir: &Path) -> Result<Event, OpenError> {
     Event::from_line(line).map_err(|error| broken(first, 1, error.to_string()))
 }
 
+/// 目录里的段：名字是 12 位数字加 `.jsonl` 的，照数字排。别的文件不看。
 fn segments(dir: &Path) -> Result<Vec<(u64, PathBuf)>, OpenError> {
     let entries = match fs::read_dir(dir) {
         Ok(entries) => entries,

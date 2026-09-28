@@ -211,6 +211,41 @@ fn an_empty_last_segment_is_written_into() {
 }
 
 #[test]
+fn an_abandoned_session_leaves_nothing_but_only_when_it_is_empty() {
+    // 造会话没成，只剩空的第一段：连目录一起删掉（施工 4-9 再补四下）。
+    let scratch = Scratch::new();
+    let dir = dir(&scratch);
+    drop(SessionLog::create(&dir, SEGMENT_LIMIT).unwrap());
+    assert!(super::abandon(&dir).unwrap());
+    assert!(!dir.exists());
+    // 段里有了内容的：不动。
+    let mut log = SessionLog::create(&dir, SEGMENT_LIMIT).unwrap();
+    log.append(&[said(1)]).unwrap();
+    drop(log);
+    assert!(!super::abandon(&dir).unwrap());
+    assert!(dir.join("000000000001.jsonl").exists());
+    // 有别的东西的：不动。目录里几样东西的先后由文件系统定，换几个名字、先建别的再建段，哪种先后都查到。
+    for other in [
+        "notes.txt",
+        "a",
+        "zzz",
+        "b.tmp",
+        "000000000002.jsonl",
+        "old",
+        "x",
+        "y.json",
+    ] {
+        fs::remove_dir_all(&dir).unwrap();
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join(other), "").unwrap();
+        fs::write(dir.join("000000000001.jsonl"), "").unwrap();
+        assert!(!super::abandon(&dir).unwrap(), "{other}");
+        assert!(dir.join("000000000001.jsonl").exists(), "{other}");
+        assert!(dir.join(other).exists(), "{other}");
+    }
+}
+
+#[test]
 fn no_session_no_log() {
     let scratch = Scratch::new();
     let dir = dir(&scratch);

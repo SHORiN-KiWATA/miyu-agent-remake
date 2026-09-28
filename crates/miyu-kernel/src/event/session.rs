@@ -16,8 +16,8 @@ pub struct SessionCreated {
     pub policy: ContentHash,
     /// 开始时的权限。
     pub permission: Permission,
-    /// 一次性的：`miyu ask` 开的，在会话列表里折叠，`--continue` 接的是最新的这种（`22-命令行.md` O2，
-    /// 施工 3-9 下）。不是一次性的不写。
+    /// 一次性的：`miyu ask` 开的，`--continue`、`miyu undo` 不写会话时接的是最新的这种（`22-命令行.md` O2，
+    /// 施工 3-9 下）。会话列表里折叠随终端界面那一步。不是一次性的不写。
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub oneshot: bool,
     /// 开会话时实际干活的目录，人看到的那种写法（施工 4-9 再补三上）：还没开过回合的会话，核心重启以后照它载入。
@@ -61,9 +61,9 @@ pub struct Permission {
 text_enum!(
     /// 常用的那一级。不认识的级别当什么，由用到它的地方决定：按最严的算。
     Level {
-        /// 工作区：在沙盒里跑，要越过沙盒才问人。
+        /// 工作区：工作区里能读能写，边界以外要问人（`11-权限与沙盒.md` 第二节）。命令进沙盒随 M5。
         Workspace = "workspace",
-        /// 完全放开：不进沙盒，只有管理员能用。
+        /// 完全放开：边界以内以外都放行，只挡数据根（`11-权限与沙盒.md` 第二节）。谁能切到这一级随多用户那一步。
         Full = "full",
     }
 );

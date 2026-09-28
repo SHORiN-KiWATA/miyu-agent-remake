@@ -18,6 +18,7 @@ use miyu_kernel::session::{Action, Input, Outcome, Received, Session};
 use miyu_kernel::time::Timestamp;
 
 use crate::TARGET;
+use crate::blocking::blocking;
 use crate::clock::Clock;
 use crate::effects;
 use crate::guard::Guard;
@@ -54,8 +55,8 @@ pub(crate) struct Actor {
     clock: Clock,
     /// 执行工具的端口（施工 4-2）。
     tools: Tools,
-    /// 执行前的链：权限策略（施工 4-3 下）。
-    guard: Guard,
+    /// 执行前的链：权限策略（施工 4-3 下）。在阻塞线程里判，所以放在 `Arc` 里交过去（施工 4-9 再补四下）。
+    guard: Arc<Guard>,
     /// 有没有在跑的回合，和 `Handle` 共用：每送完一批输入写一次；actor 退出了写成没有（施工 3-9 上）。
     busy: Arc<AtomicBool>,
 }
@@ -125,7 +126,7 @@ impl Actor {
             calls: BTreeMap::new(),
             clock,
             tools,
-            guard,
+            guard: Arc::new(guard),
             busy,
         }
     }
@@ -284,7 +285,10 @@ impl Actor {
                 cwd,
                 permission,
             } => {
-                let verdict = self.guard.judge(&name, args, cwd, &permission);
+                // 判要碰磁盘（换真实的位置、造边界表）：在阻塞线程里判，不占跑异步任务的线程，慢盘上只让这个会话
+                // 自己等（施工 4-9 再补四下：原来当场在这里判）。
+                let guard = Arc::clone(&self.guard);
+                let verdict = blocking(move || guard.judge(&name, args, cwd, &permission)).await;
                 Some(Input::ToolGuarded {
                     at: self.clock.now(),
                     call_id,

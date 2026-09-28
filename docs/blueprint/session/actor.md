@@ -204,6 +204,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | WARN | `effect content not stored` | `error` | 效果里的内容存不成 blob |
 | WARN | `seen files not rebuilt` | `error` | 第 5 条第 4 点 |
 | WARN | `write failed, stopped` | `kind` | 写不进去 |
+| WARN | `abandoned session not removed` | `error` | 造会话那一条没落盘，收拾会话目录时删不掉（第 1 条第 6 点，施工 4-9 再补四下） |
 | ERROR | `panicked, stopped` | | actor、写盘的线程 panic 了 |
 | ERROR | `answer without a question` | `action`：`answer_tool` | 内核要把回答交给工具 |
 | INFO | `stopped` | | 有计划地停好了 |
