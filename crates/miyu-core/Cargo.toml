@@ -22,6 +22,8 @@ miyu-kernel = { path = "../miyu-kernel" }
 miyu-log = { path = "../miyu-log" }
 # 请求模型的端口（施工 3-7）。
 miyu-session = { path = "../miyu-session" }
+# 起来时找沙盒的助手、探一次（施工 5-1）。
+miyu-sandbox = { path = "../miyu-sandbox" }
 # 数据根、资源目录、环境快照。
 miyu-store = { path = "../miyu-store" }
 # 基础系统：核心起来时登记进工具目录（施工 4-4 起）。

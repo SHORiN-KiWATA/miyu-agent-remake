@@ -24,6 +24,8 @@ imagesize = "0.15"
 miyu-fs = { path = "../miyu-fs" }
 # 输出里给她看的几句是模板；参数格式是原样的 JSON；访问类别。
 miyu-kernel = { path = "../miyu-kernel" }
+# 调用带了沙盒的，shell 经沙盒的助手起命令（施工 5-1）。
+miyu-sandbox = { path = "../miyu-sandbox" }
 # 工具的接口。
 miyu-tool = { path = "../miyu-tool" }
 # 读说明和参数格式、读参数。

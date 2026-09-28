@@ -132,6 +132,7 @@ impl Tools {
             data_root: Some(self.data_root.clone()),
             seen: Arc::clone(&self.seen),
             stop: stop.clone(),
+            sandbox: None,
         };
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name).cloned() else {

@@ -1003,6 +1003,7 @@ dependencies = [
  "miyu-fs",
  "miyu-kernel",
  "miyu-log",
+ "miyu-sandbox",
  "miyu-store",
  "miyu-tool",
  "rustix",
@@ -1041,6 +1042,7 @@ dependencies = [
  "miyu-ipc",
  "miyu-kernel",
  "miyu-log",
+ "miyu-sandbox",
  "miyu-session",
  "miyu-store",
  "miyu-tool",
@@ -1155,6 +1157,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-sandbox"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "miyu-session"
 version = "0.0.0"
 dependencies = [
@@ -1189,6 +1199,7 @@ name = "miyu-tool"
 version = "0.0.0"
 dependencies = [
  "miyu-kernel",
+ "miyu-sandbox",
  "miyu-tool",
  "serde_json",
  "tokio",

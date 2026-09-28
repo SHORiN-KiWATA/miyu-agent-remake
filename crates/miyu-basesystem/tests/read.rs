@@ -33,6 +33,7 @@ fn read_comes_from_the_resources_with_its_schema_as_written() {
         data_root: None,
         seen: Default::default(),
         stop: Default::default(),
+        sandbox: None,
     });
     assert_eq!(targets.len(), 1);
     assert_eq!(targets[0].path, "src/a.rs");

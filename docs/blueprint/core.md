@@ -12,11 +12,13 @@
 | `crates/miyu-core/src/lib.rs` | `main`：起来的先后；管理员 `admin`；工具目录；写那一行 |
 | `crates/miyu-core/src/models.rs` | 从环境变量拿模型 |
 | `crates/miyu-core/src/serve.rs` | 接连接，空闲退出，停的信号 |
+| `crates/miyu-core/src/sandbox.rs` | 起来时找沙盒的助手、探一次，记日志（施工 5-1） |
 | `crates/miyu-ipc` | 单实例锁、套接字、本机令牌、那一行的写法（`ipc.md`） |
 | `crates/miyu-endpoint` | 协议端点：核心的家底 `Core`、接连接、空不空闲（`protocol.md`） |
 | `crates/miyu-basesystem`、`crates/miyu-tool` | 基础系统的七件工具、工具目录（`tools/interface.md`） |
 | `crates/miyu-log` | 运行日志（`log.md`） |
 | `crates/miyu-store` | 数据根、资源目录（`store.md`） |
+| `crates/miyu-sandbox` | 沙盒：找助手、探测（`sandbox.md`） |
 
 ### 对外的样子
 
@@ -54,7 +56,7 @@
 
 **起来的先后**
 
-1. 读一次环境的快照（`MIYU_HOME`、`MIYU_RESOURCES`、家目录这些），数据根、资源目录照它找；`MIYU_LOG`、放套接字的目录、`DEEPSEEK_API_KEY` 到用的那一步才读。
+1. 读一次环境的快照（`MIYU_HOME`、`MIYU_RESOURCES`、家目录、程序的真实位置这些），数据根、资源目录、沙盒的助手照它找；`MIYU_LOG`、放套接字的目录、`DEEPSEEK_API_KEY` 到用的那一步才读。
 2. 找数据根，建骨架（`store.md`）。
 3. 拿单实例锁 `run/core.lock`，不等。拿不到：已经有一个核心在跑，写 `running`，退出码 0，运行日志一个字都不写。先拿锁、再装日志：两个核心不写同一份日志。
 4. 装运行日志 `state/logs/core.log`，级别照 `MIYU_LOG`，带上第 1 步的家目录（`log.md`）。记一条 `INFO starting version=<版本> pid=<进程号> root=<数据根> tz=<和 UTC 差多少>`，数据根里的家目录写成 `~`，例如 `root=~/.miyu tz=+09:00`。
@@ -128,6 +130,8 @@
 |---|---|
 | `INFO` | `starting version=… pid=… root=… tz=…` |
 | `WARN` | `DEEPSEEK_API_KEY not set, no model` |
+| `INFO` | `sandbox helper=… platform=… mechanisms=…`（施工 5-1） |
+| `WARN` | `sandbox unavailable reason=…`（施工 5-1） |
 | `WARN` | `not started stage=…` |
 | `WARN` | `ready line not written error=…` |
 | `WARN` | `SIGTERM not watched error=…`、`Ctrl+C not watched error=…` |
@@ -139,11 +143,12 @@
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu/tests/core.rs` | 头拉起真的 `miyu core`，等它说好了再连；管理员叫 `admin`，建好了它的家目录；再连不再拉起；两个头同时只拉起一个；起不来的说原因（找不到资源目录），日志里只写 `stage=resources`；已经在跑的写 `running` 就走、不写日志；什么都没写就退了的；空闲了自己走，日志里一条 `starting`、一条 `stopped reason=idle`；`starting` 那一行的数据根在家目录下的写成 `~`、有和 UTC 差多少；工作目录是数据根 |
+| `crates/miyu/tests/core.rs` | 头拉起真的 `miyu core`，等它说好了再连；管理员叫 `admin`，建好了它的家目录；再连不再拉起；两个头同时只拉起一个；起不来的说原因（找不到资源目录），日志里只写 `stage=resources`；已经在跑的写 `running` 就走、不写日志；什么都没写就退了的；空闲了自己走，日志里一条 `starting`、一条 `stopped reason=idle`；`starting` 那一行的数据根在家目录下的写成 `~`、有和 UTC 差多少；工作目录是数据根；起来时探一次沙盒的助手：旁边有助手的记 `sandbox` 那一行、平台是这台机器的、有手段那一格，没有的记找不到（施工 5-1） |
 | `crates/miyu-core/tests/serve.rs` | 空闲退出、放开锁和套接字；有头连着不退；空闲的钟从最后一个头走时算起；在跑的回合不退；收到停的信号先停下会话、跑到一半的记成重启了；没有 key（没设、全是空白）每次请求都说没有模型、分类是认证失败、没发出去 |
 | `crates/miyu-core/src/serve/tests.rs` | 多久看一次：四分之一，最多 30 秒，最少 100 毫秒；装不上的 Ctrl+C 当它不会来（造不出真的装不上，测的是等它的那一小段） |
 | `crates/miyu-core/tests/tools.rs` | 工具目录里是基础系统的七件；资源目录坏了，说是哪一份 |
 | `crates/miyu-core/src/models/tests.rs` | 请求 DeepSeek 时的模型名、不写输出上限、收图不收 PDF（施工 4-13） |
+| `crates/miyu-core/src/sandbox/tests.rs` | 探沙盒的助手：旁边没有的、不知道主程序在哪的记找不到，跑不了的记原因（施工 5-1） |
 
 ### 出处
 

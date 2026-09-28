@@ -98,6 +98,7 @@ impl Guard {
             data_root: Some(self.data_root.clone()),
             seen: Arc::default(),
             stop: Stop::default(),
+            sandbox: None,
         });
         if targets.is_empty() {
             return untargeted(level, name, access);

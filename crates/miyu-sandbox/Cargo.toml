@@ -1,0 +1,21 @@
+[package]
+name = "miyu-sandbox"
+description = "Miyu 的沙盒：规格、助手 miyu-sandbox、探测"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# 助手本身：各平台一个文件，在同一个目录里。
+[[bin]]
+name = "miyu-sandbox"
+path = "src/bin/miyu-sandbox/main.rs"
+
+[dependencies]
+# 规格写成 JSON 交给助手，助手读回来；探测的结果也是一行 JSON。
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[lints]
+workspace = true

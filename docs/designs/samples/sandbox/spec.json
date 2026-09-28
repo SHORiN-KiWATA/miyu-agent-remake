@@ -1,0 +1,1 @@
+{"read":["/usr","/etc"],"write":["/home/me/project","/tmp"],"readonly":["/home/me/project/.git/hooks"],"hidden":["/home/me/.miyu"],"network":"off"}

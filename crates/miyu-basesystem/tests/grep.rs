@@ -67,6 +67,7 @@ fn grep_comes_from_the_resources() {
         data_root: None,
         seen: Default::default(),
         stop: Default::default(),
+        sandbox: None,
     });
     assert_eq!(targets[0].path, "src");
     assert!(!targets[0].write);

@@ -9,6 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
 
 use miyu_kernel::block::Block;
+use miyu_sandbox::Sandboxed;
 use miyu_tool::{Call, Done, Progress, Seen, Stop, Tool};
 
 /// 源码树里的资源目录。
@@ -109,15 +110,35 @@ impl Site {
         seen: Seen,
         stop: Stop,
     ) -> Done {
+        let call = self.call_for(cwd, args, seen, stop);
+        tool(name).run(call, Progress::new(|_| {})).await
+    }
+
+    /// 在 `work/` 里调一次工具，关进沙盒 `sandboxed`（施工 5-1）。
+    pub async fn done_sandboxed(
+        &self,
+        name: &str,
+        args: serde_json::Value,
+        sandboxed: Sandboxed,
+    ) -> Done {
         let call = Call {
+            sandbox: Some(Arc::new(sandboxed)),
+            ..self.call_for("work", args, Seen::new(), Stop::default())
+        };
+        tool(name).run(call, Progress::new(|_| {})).await
+    }
+
+    /// 在场地里的 `cwd` 这个工作目录里的一次调用，不关进沙盒。
+    fn call_for(&self, cwd: &str, args: serde_json::Value, seen: Seen, stop: Stop) -> Call {
+        Call {
             args: args.to_string(),
             cwd: self.0.join(cwd).to_string_lossy().into_owned(),
             home: Some(self.0.join("home")),
             data_root: Some(self.0.join("data")),
-            seen: std::sync::Arc::new(seen),
+            seen: Arc::new(seen),
             stop,
-        };
-        tool(name).run(call, Progress::new(|_| {})).await
+            sandbox: None,
+        }
     }
 }
 
