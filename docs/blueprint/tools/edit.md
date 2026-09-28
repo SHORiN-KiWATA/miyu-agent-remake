@@ -171,6 +171,7 @@ The closest text is at lines 2-2:
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-basesystem/tests/edit.rs` | 报要写的路径；几处一起改、对照原文件、前面变长不影响后面；顶层一处的写法、`edits` 写成对象、`path` 和驼峰的字段名、没给要改的；重叠的、有一处没对上的一处都不改；CRLF、BOM、UTF-16 照原来的，新加的行照 CRLF；宽松对上只换那一段；最接近的几行、不唯一的行号、`replace_all`；没读过、改过了、没有、目录、不是文本、空的、一样的 |
+| `crates/miyu-basesystem/tests/write.rs` | FIFO 说不是普通文件、不卡住（和 `write` 一起测） |
 | `crates/miyu-basesystem/src/edit/find/tests.rs` | 精确的位置；LF 对 CRLF 连着 `\r`；宽松的几种；宽松多出来的不算进去；精确的不唯一不往宽松找、重叠的也算不唯一；`replace_all` 不重叠；最多 10 个行号；最接近的几行、开头空行、没有像的、全是空白；Dice 系数 |
 | `crates/miyu-basesystem/src/text/tests.rs` | 严格地解：解不开的、落单的字节、落单的代理项 |
 | `crates/miyu-basesystem/tests/stop.rs` | 旗举了不改，文件照旧 |

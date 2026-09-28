@@ -114,7 +114,7 @@ fn startup_files_are_skipped_and_only_the_given_variables_pass() {
         path: PathBuf::from("/bin/zsh"),
     }
     .command("echo hi", Path::new("/work"), env);
-    assert_eq!(args(&zsh), ["-f", "-c", "echo hi"]);
+    assert_eq!(args(&zsh), ["-f", "+o", "nomatch", "-c", "echo hi"]);
 }
 
 #[test]
@@ -139,4 +139,28 @@ fn powershell_gets_the_command_encoded_after_its_prelude() {
     assert_eq!(encoded("dir"), "ZABpAHIA");
     // 中文也照 UTF-16LE：「中」是 2d 4e。
     assert_eq!(encoded("中"), "LU4=");
+}
+
+/// zsh 没匹配到的通配符照原样传下去，和 bash 一样（施工 4-9 再补二）。有 zsh 的机器上真跑一次：macOS 总有，
+/// 别的系统没装就不跑。
+#[cfg(unix)]
+#[test]
+fn zsh_passes_an_unmatched_glob_through() {
+    let Some(path) = ["/bin/zsh", "/usr/bin/zsh"]
+        .into_iter()
+        .map(PathBuf::from)
+        .find(|path| path.exists())
+    else {
+        return;
+    };
+    let zsh = Program {
+        kind: Kind::Zsh,
+        path,
+    };
+    let output = zsh
+        .command("echo *.nothing-here", Path::new("/"), Vec::new())
+        .output()
+        .expect("跑得起来");
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(String::from_utf8_lossy(&output.stdout), "*.nothing-here\n");
 }

@@ -6,18 +6,17 @@
 //! 报 `file.changed`：改前改后的内容本身，执行器存成 blob。
 
 use std::fs;
-use std::io;
 use std::path::Path;
 
 use serde::Deserialize;
 
-use miyu_fs::{replace, resolve};
+use miyu_fs::{Kind, OpenError, replace, resolve};
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Stop, Target, Tool};
 
 use crate::blocking::blocking;
-use crate::common::{Common, Shown, said};
+use crate::common::{Common, Shown, contents, said};
 use crate::load::{self, LoadError, say};
 use crate::text::{Style, line_count};
 
@@ -69,6 +68,7 @@ impl Tool for Write {
                 vec![Target {
                     path: args.file_path,
                     write: true,
+                    itself: false,
                 }]
             })
             .unwrap_or_default()
@@ -99,15 +99,12 @@ fn write(texts: &Texts, call: &Call, args: &Args, stop: &Stop) -> Done {
         Ok(real) => real,
         Err(error) => return failed(&error),
     };
-    let before = match fs::symlink_metadata(&real) {
-        Err(error) if error.kind() == io::ErrorKind::NotFound => None,
-        Err(error) => return failed(&error),
-        Ok(meta) if meta.is_dir() => return texts.common.directory(path),
-        Ok(meta) if !meta.is_file() => return texts.common.not_regular(path),
-        Ok(_) => match fs::read(&real) {
-            Ok(bytes) => Some(bytes),
-            Err(error) => return failed(&error),
-        },
+    let before = match contents(&real) {
+        Ok(before) => before,
+        Err(OpenError::NotAFile(Kind::Directory)) => return texts.common.directory(path),
+        Err(OpenError::NotAFile(_)) => return texts.common.not_regular(path),
+        Err(OpenError::NotFound) => None,
+        Err(OpenError::Io(error)) => return failed(&error),
     };
     let after = match &before {
         Some(old) => {

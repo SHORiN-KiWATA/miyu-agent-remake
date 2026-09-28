@@ -80,6 +80,7 @@ impl Tool for Glob {
                 vec![Target {
                     path: args.place().0,
                     write: false,
+                    itself: false,
                 }]
             })
             .unwrap_or_default()

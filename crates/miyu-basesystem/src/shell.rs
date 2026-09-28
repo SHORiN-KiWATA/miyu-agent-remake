@@ -12,11 +12,12 @@ mod program;
 mod tests;
 
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use serde::Deserialize;
 
+use miyu_fs::tilde;
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Progress, Running, Spec, Tool};
@@ -169,7 +170,7 @@ impl Tool for Shell {
             let timeout = limit(args.timeout);
             let command = self.program.command(
                 &args.command,
-                Path::new(&call.cwd),
+                &workdir(&call),
                 env::passed(std::env::vars_os()),
             );
             let started = match process::start(command, move |text| progress.push(text)) {
@@ -186,6 +187,15 @@ impl Tool for Shell {
                 Err(error) => self.failed(&error),
             }
         })
+    }
+}
+
+/// 命令在哪个目录里跑：这一轮的工作目录，`~` 开头的照家目录接上，和别的工具一个规矩（施工 4-9 再补二）；没有家目录
+/// 的照原样，起不来时说工作目录不在。
+fn workdir(call: &Call) -> PathBuf {
+    match (tilde(&call.cwd), call.home.as_deref()) {
+        (Some(rest), Some(home)) => home.join(rest),
+        _ => PathBuf::from(&call.cwd),
     }
 }
 

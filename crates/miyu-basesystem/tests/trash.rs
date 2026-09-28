@@ -322,3 +322,22 @@ async fn files_and_directories_go_into_the_system_trash() {
         }
     }
 }
+
+/// macOS、Windows 上换个大小写写的工作目录、家目录，照样不许删（施工 4-9 再补二）：最后一段是她写的原样，比的时候
+/// 不分大小写。
+#[cfg(any(target_os = "macos", windows))]
+#[tokio::test]
+async fn a_different_case_is_still_protected() {
+    let site = Site::new();
+    let home = site.0.join("HOME").to_string_lossy().into_owned();
+    for path in ["../WORK", "../Work/.", home.as_str()] {
+        let done = site.done("trash", json!({ "file_path": path })).await;
+        assert_eq!(
+            done.human,
+            Some(said("trash/protected")),
+            "{path}：{}",
+            text(&done)
+        );
+    }
+    assert!(site.0.join("work").is_dir() && site.0.join("home").is_dir());
+}

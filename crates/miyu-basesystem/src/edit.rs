@@ -6,20 +6,18 @@
 
 mod find;
 
-use std::fs;
-use std::io;
 use std::ops::Range;
 use std::path::Path;
 
 use serde::Deserialize;
 
-use miyu_fs::{replace, resolve};
+use miyu_fs::{Kind, OpenError, replace, resolve};
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Stop, Target, Tool};
 
 use crate::blocking::blocking;
-use crate::common::{Common, Shown, said};
+use crate::common::{Common, Shown, contents, said};
 use crate::load::{self, LoadError, say};
 use crate::text::Style;
 use find::Found;
@@ -131,6 +129,7 @@ impl Tool for Edit {
                 vec![Target {
                     path: args.file_path,
                     write: true,
+                    itself: false,
                 }]
             })
             .unwrap_or_default()
@@ -172,17 +171,12 @@ fn edit(texts: &Texts, call: &Call, path: &str, changes: &[Change], stop: &Stop)
         Err(error) => return texts.common.failed(path, &error),
     };
     let shown = Shown::here(call);
-    let old = match fs::symlink_metadata(&real) {
-        Err(error) if error.kind() == io::ErrorKind::NotFound => {
-            return texts.common.missing(path, &real, &shown);
-        }
-        Err(error) => return texts.common.failed(path, &error),
-        Ok(meta) if meta.is_dir() => return texts.common.directory(path),
-        Ok(meta) if !meta.is_file() => return texts.common.not_regular(path),
-        Ok(_) => match fs::read(&real) {
-            Ok(bytes) => bytes,
-            Err(error) => return texts.common.failed(path, &error),
-        },
+    let old = match contents(&real) {
+        Ok(Some(bytes)) => bytes,
+        Ok(None) | Err(OpenError::NotFound) => return texts.common.missing(path, &real, &shown),
+        Err(OpenError::NotAFile(Kind::Directory)) => return texts.common.directory(path),
+        Err(OpenError::NotAFile(_)) => return texts.common.not_regular(path),
+        Err(OpenError::Io(error)) => return texts.common.failed(path, &error),
     };
     if let Some(refused) = texts.common.unseen(call, path, &real, &old) {
         return refused;

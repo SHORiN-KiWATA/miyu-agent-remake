@@ -5,12 +5,12 @@
 //! 都是回收站里的真实路径。回收站收不了的不删，说为什么。工作目录本身和它的上级、家目录、根目录不许删；链接删的是
 //! 链接本身。
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use serde::Deserialize;
 
 use miyu_fs::trash::{Refused, put};
-use miyu_fs::{ResolveError, resolve, tilde};
+use miyu_fs::{resolve, resolve_itself, within};
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Stop, Target, Tool};
@@ -72,6 +72,7 @@ impl Tool for Trash {
                 vec![Target {
                     path: args.file_path,
                     write: true,
+                    itself: true,
                 }]
             })
             .unwrap_or_default()
@@ -93,13 +94,13 @@ impl Tool for Trash {
     }
 }
 
-/// 删：换成真实的位置（最后一段不跟链接），不许删的不删，照平台移进回收站。移之前看一眼旗（施工 4-9 再补一）：
+/// 删：照 [`resolve_itself`] 换成真实的位置（最后一段不跟链接），不许删的不删，照平台移进回收站。移之前看一眼旗（施工 4-9 再补一）：
 /// 叫停了就不移，交回 `stopped`。
 fn trash(texts: &Texts, call: &Call, path: &str, stop: &Stop) -> Done {
     let refuse = |template: &Template, key: &str| {
         Done::error(say(template, &[("path", path)])).said(said(key))
     };
-    let real = match located(call, path) {
+    let real = match resolve_itself(Path::new(&call.cwd), call.home.as_deref(), path) {
         Ok(Some(real)) => real,
         Ok(None) => return refuse(&texts.protected, "trash/protected"),
         Err(error) => return texts.common.failed(path, &error),
@@ -133,35 +134,16 @@ fn trash(texts: &Texts, call: &Call, path: &str, stop: &Stop) -> Done {
     }
 }
 
-/// 她给的 `path` 换成真实的位置，最后一段不跟链接：上级目录换成真的，再接上名字，删的是这个名字。`~` 开头的照
-/// [`tilde`] 接家目录，和别的工具一个规矩。没有名字可删的（`.`、`..`、根目录、`~` 本身）是空的：不许删。
-fn located(call: &Call, path: &str) -> Result<Option<PathBuf>, ResolveError> {
-    let expanded = match tilde(path) {
-        Some("") => return Ok(None),
-        Some(rest) => call.home.as_deref().ok_or(ResolveError::NoHome)?.join(rest),
-        None => PathBuf::from(path),
-    };
-    let Some(name) = expanded.file_name() else {
-        return Ok(None);
-    };
-    let parent = expanded.parent().unwrap_or(Path::new(""));
-    let real = resolve(
-        Path::new(&call.cwd),
-        call.home.as_deref(),
-        &parent.to_string_lossy(),
-    )?;
-    Ok(Some(real.join(name)))
-}
-
-/// 不许删的：工作目录本身和它的每一层上级（根目录也是它的上级）、系统的家目录。
+/// 不许删的：工作目录本身和它的每一层上级（根目录也是它的上级）、系统的家目录。一段一段比，macOS、Windows 上不分
+/// 大小写（[`within`]，施工 4-9 再补二）：`real` 的最后一段是她写的原样，换个大小写写的也拦得住。
 fn protected(call: &Call, real: &Path) -> bool {
     if let Ok(cwd) = resolve(Path::new(&call.cwd), call.home.as_deref(), &call.cwd)
-        && cwd.starts_with(real)
+        && within(&cwd, real)
     {
         return true;
     }
     call.home.as_deref().is_some_and(|home| {
         let home = std::fs::canonicalize(home).unwrap_or_else(|_| home.to_path_buf());
-        home == real
+        within(&home, real) && within(real, &home)
     })
 }

@@ -1,8 +1,11 @@
 //! 照正则搜（施工 4-4 下）：和 ripgrep 同一套库。正则照 ripgrep 的写法、不跨行；二进制文件跳过；带 BOM 的
-//! UTF-16 照认；读不了的文件跳过，ripgrep 也是这样。
+//! UTF-16 照认；读不了的文件跳过，ripgrep 也是这样。每个文件照「安全地打开」开（施工 4-9 再补二）：不是普通文件的
+//! （例如没人写的 FIFO）打开时不卡住，当打不开跳过。
 
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+use miyu_fs::open_file;
 
 use grep_regex::{RegexMatcher, RegexMatcherBuilder};
 use grep_searcher::{BinaryDetection, Searcher, SearcherBuilder, Sink, SinkContext, SinkMatch};
@@ -53,7 +56,7 @@ pub(super) fn with_matches(matcher: &RegexMatcher, files: &[PathBuf], stop: &Sto
         .take_while(|_| !stop.stopped())
         .filter(|file| {
             let mut sink = First::default();
-            searched(searcher.search_path(matcher, file, &mut sink)) && sink.found && !sink.binary
+            search(&mut searcher, matcher, file, &mut sink) && sink.found && !sink.binary
         })
         .cloned()
         .collect()
@@ -71,7 +74,7 @@ pub(super) fn counts(
         .take_while(|_| !stop.stopped())
         .filter_map(|file| {
             let mut sink = Count::default();
-            let ok = searched(searcher.search_path(matcher, file, &mut sink));
+            let ok = search(&mut searcher, matcher, file, &mut sink);
             (ok && sink.lines > 0 && !sink.binary).then(|| (file.clone(), sink.lines))
         })
         .collect()
@@ -115,7 +118,7 @@ pub(super) fn lines(
             budget: need - matches,
             ..Collect::default()
         };
-        if !searched(searcher.search_path(matcher, file, &mut sink)) || sink.binary {
+        if !search(&mut searcher, matcher, file, &mut sink) || sink.binary {
             continue;
         }
         if sink.matches > 0 {
@@ -129,9 +132,17 @@ pub(super) fn lines(
     found
 }
 
-/// 搜这一个文件成没成：读不了的（没有权限这类）当没搜到。
-fn searched(result: io::Result<()>) -> bool {
-    result.is_ok()
+/// 搜一个文件：照「安全地打开」开，再交给搜的那一套库。打不开、不是普通文件、读不了的，当没搜到。
+fn search(
+    searcher: &mut Searcher,
+    matcher: &RegexMatcher,
+    path: &Path,
+    sink: impl Sink<Error = io::Error>,
+) -> bool {
+    match open_file(path) {
+        Ok(file) => searcher.search_file(matcher, &file, sink).is_ok(),
+        Err(_) => false,
+    }
 }
 
 /// 只要知道有没有匹配：碰到第一处就停。

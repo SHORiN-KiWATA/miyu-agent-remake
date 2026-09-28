@@ -7,14 +7,14 @@ use std::sync::Arc;
 
 use serde_json::{Value, json};
 
-use miyu_fs::{Boundary, Places, Zone, resolve};
+use miyu_fs::{Boundary, Places, ResolveError, Zone, resolve, resolve_itself};
 use miyu_kernel::event::{Level, Permission};
 use miyu_kernel::id::ModuleId;
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::session::Verdict;
 use miyu_kernel::tool::{Access, Worded};
 use miyu_policy::GuardTexts;
-use miyu_tool::{Call, Catalog, Stop};
+use miyu_tool::{Call, Catalog, Stop, Target};
 
 /// 权限策略：一个会话一份。
 pub(crate) struct Guard {
@@ -104,7 +104,7 @@ impl Guard {
         let boundary = Boundary::new(&places);
         let mut asked = Vec::new();
         for target in targets {
-            let real = match resolve(&cwd, self.home.as_deref(), &target.path) {
+            let real = match self.real(&cwd, &target) {
                 Ok(real) => real,
                 Err(error) => {
                     return deny(self.texts.unresolvable(&target.path, &error.to_string()));
@@ -127,6 +127,20 @@ impl Guard {
         } else {
             ask(name, access, &asked)
         }
+    }
+}
+
+impl Guard {
+    /// 要碰的这一条换成真实的位置。碰的是这一条本身的（`trash`，施工 4-9 再补二）：最后一段不跟链接，和工具碰的是
+    /// 同一个；没有名字可碰的（`.`、`..`、`~`），照整条换。
+    fn real(&self, cwd: &Path, target: &Target) -> Result<PathBuf, ResolveError> {
+        let home = self.home.as_deref();
+        if target.itself
+            && let Some(real) = resolve_itself(cwd, home, &target.path)?
+        {
+            return Ok(real);
+        }
+        resolve(cwd, home, &target.path)
     }
 }
 

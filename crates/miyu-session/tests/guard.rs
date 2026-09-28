@@ -386,3 +386,62 @@ async fn a_tilde_path_follows_the_home() {
     assert!(!by_permissions(&by), "{by:?}：{}", text(&result));
     assert!(!text(&result).contains("Can't tell"), "{}", text(&result));
 }
+
+/// `trash` 删的是链接本身，权限策略判的也是链接本身（施工 4-9 再补二）：工作区里的链接，指向不存在处的、指进数据根的、
+/// 指到外面的，都照工作区里的写放行，没人能确认也不用问；删掉的是链接，它指的东西不动。回收站在场地的假家目录里，
+/// 只在 Linux 上跑：别的平台进的是系统真的回收站。
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn trash_is_judged_on_the_link_itself() {
+    use std::os::unix::fs::symlink;
+
+    let home = Home::outside_temp();
+    let work = home.scratch.0.join("work");
+    file(&home, "outside.txt", "out");
+    let secret = home.root.path().join("marker");
+    std::fs::write(&secret, "secret").expect("写得进");
+    symlink(home.scratch.0.join("nowhere"), work.join("dead")).expect("造得了链接");
+    symlink(home.scratch.0.join("outside.txt"), work.join("out")).expect("造得了链接");
+    symlink(&secret, work.join("data")).expect("造得了链接");
+    let resources = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");
+    let tools = Catalog::new(miyu_basesystem::tools(&resources).expect("出厂的资源读得出来"))
+        .expect("合写法");
+    let script = Script::new([
+        Play::calls(&[
+            ("trash", r#"{"file_path":"dead"}"#),
+            ("trash", r#"{"file_path":"out"}"#),
+            ("trash", r#"{"file_path":"data"}"#),
+        ]),
+        Play::Says("删了。"),
+    ]);
+    let opening = Opening {
+        permission: Permission {
+            level: Level::Workspace,
+            read_only: false,
+        },
+        attended: false,
+        cwd: work.to_string_lossy().into_owned(),
+    };
+    let handle = home.create_as(&script, &tools, opening).await;
+    turn(&handle).await;
+    let results: Vec<ToolResult> = home
+        .log(handle.id())
+        .into_iter()
+        .filter_map(|event| match event.body {
+            Body::ToolResult(result) => Some(result),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(results.len(), 3);
+    for result in &results {
+        assert_eq!(result.status, ToolStatus::Ok, "{}", text(result));
+    }
+    for name in ["dead", "out", "data"] {
+        assert!(
+            std::fs::symlink_metadata(work.join(name)).is_err(),
+            "{name} 删了"
+        );
+    }
+    assert!(home.scratch.0.join("outside.txt").exists(), "指的东西不动");
+    assert!(secret.exists(), "数据根里的不动");
+}

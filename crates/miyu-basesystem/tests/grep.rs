@@ -139,6 +139,9 @@ async fn context_lines_and_the_break_between_groups() {
         serde_json::json!({"pattern": "hit", "output_mode": "content", "-C": 1}),
         // `context` 在的时候压过 `-A`、`-B`（Claude Code 的规矩）。
         serde_json::json!({"pattern": "hit", "output_mode": "content", "context": 1, "-A": 3}),
+        // 没声明的别名写成字符串的整数，工具自己认（施工 4-9 再补二）。
+        serde_json::json!({"pattern": "hit", "output_mode": "content", "-C": "1"}),
+        serde_json::json!({"pattern": "hit", "output_mode": "content", "-A": "1", "-B": " 1 "}),
     ] {
         assert_eq!(site.call("grep", args).await, (false, expected.clone()));
     }
@@ -419,4 +422,35 @@ async fn nothing_found_is_not_an_error_but_a_broken_pattern_is() {
             "There is no file or directory at \"nowhere\".\n".to_string()
         )
     );
+}
+
+/// 点名一个没人写的 FIFO：照「安全地打开」开，马上交回，当没搜到（施工 4-9 再补二：原来普通地打开，一直等着）。在
+/// 另一个线程里跑：卡住的话，五秒后打开写的一头把它放出来，再报红，不陪它一直等。
+#[cfg(unix)]
+#[test]
+fn a_named_fifo_is_not_waited_on() {
+    let site = Site::new();
+    let fifo = site.real("work").join("pipe");
+    let made = std::process::Command::new("mkfifo")
+        .arg(&fifo)
+        .status()
+        .expect("有 mkfifo");
+    assert!(made.success());
+    let (tell, heard) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("造得了运行时");
+        let args = serde_json::json!({"pattern": "x", "path": "pipe"});
+        let got = runtime.block_on(site.call("grep", args));
+        tell.send(got).expect("测试还在等");
+    });
+    match heard.recv_timeout(std::time::Duration::from_secs(5)) {
+        Ok((error, _)) => assert!(!error, "没搜到不算出错"),
+        Err(_) => {
+            let released = std::fs::OpenOptions::new().write(true).open(&fifo);
+            panic!("grep 卡在 FIFO 上（放它出来：{:?}）", released.map(|_| ()));
+        }
+    }
 }

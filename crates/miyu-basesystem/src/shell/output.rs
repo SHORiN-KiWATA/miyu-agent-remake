@@ -105,7 +105,7 @@ fn front(text: &str, most: usize) -> &str {
     }
 }
 
-/// 结尾的 `most` 个字：第一个换行落在前一半里的，从它后面起。
+/// 结尾的 `most` 个字：开头已经在行首的照原样；不然第一个换行落在前一半里的，从它后面起。
 fn back(text: &str, most: usize) -> &str {
     let skip = text.chars().count().saturating_sub(most);
     let start = text
@@ -113,6 +113,10 @@ fn back(text: &str, most: usize) -> &str {
         .nth(skip)
         .map_or(text.len(), |(at, _)| at);
     let part = &text[start..];
+    // 开头已经在行首的（前一个字是换行），照原样：不然多丢一整行（施工 4-9 再补二）。
+    if start == 0 || text[..start].ends_with('\n') {
+        return part;
+    }
     match part.find('\n') {
         Some(at) if at < part.len() / 2 => &part[at + 1..],
         _ => part,

@@ -1,12 +1,17 @@
 //! 几件工具都要用的（施工 4-4 下）：几件都要说的几句字（`26-提示词.md` 第八节，`software/basesystem/common/`），
 //! 结果里的路径怎么写（[`Shown`]），找不到时同一个目录里相近的名字，当没传的几种写法（[`given`]）；改一个已经在了
-//! 的文件之前核对她看过的（[`Common::unseen`]，施工 4-6 中从 `write` 挪来，`edit` 也用）。
+//! 的文件之前核对她看过的（[`Common::unseen`]，施工 4-6 中从 `write` 挪来，`edit` 也用）；写成字符串的整数也认（[`integer()`]，
+//! 施工 4-9 再补二）。
 
+mod integer;
 mod shown;
 mod similar;
 
 use std::fmt::Display;
+use std::io::Read;
 use std::path::Path;
+
+use miyu_fs::{OpenError, open_file};
 
 use miyu_kernel::event::Said;
 use miyu_kernel::id::ContentHash;
@@ -15,6 +20,7 @@ use miyu_tool::{Call, Done};
 
 use crate::load::{self, LoadError, say};
 
+pub(crate) use integer::integer;
 pub(crate) use shown::Shown;
 
 /// 一次的输出最多多少字节：`read`、`grep` 一样，到了就停在那一条，说从哪接。
@@ -154,3 +160,20 @@ pub(crate) fn given(value: Option<String>) -> Option<String> {
 
 #[cfg(test)]
 mod tests;
+
+/// 一个已经在了的文件整份的内容，照「安全地打开」开（施工 4-9 再补二）：不跟最后一层的链接、不阻塞，开了以后看是
+/// 不是普通文件，没人写的 FIFO 也不卡住。没有的交回空的。`write`、`edit` 改之前照它读。
+///
+/// # Errors
+///
+/// 不是普通文件（目录、FIFO、设备……）；打不开、读不了。
+pub(crate) fn contents(real: &Path) -> Result<Option<Vec<u8>>, OpenError> {
+    let mut file = match open_file(real) {
+        Ok(file) => file,
+        Err(OpenError::NotFound) => return Ok(None),
+        Err(error) => return Err(error),
+    };
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes).map_err(OpenError::Io)?;
+    Ok(Some(bytes))
+}

@@ -53,8 +53,9 @@ pub struct NotAnObject;
 
 /// 照参数格式修正模型给的参数原文，返回交给执行的参数：一个 JSON 对象的原文。
 ///
-/// 只动参数格式里声明了类型的顶层参数：被写成字符串的数组、对象、整数、数字、布尔，
-/// 能还原成那个类型才换；声明成字符串的，一个字节都不碰。什么都没改的，原文照交。
+/// 只动参数格式里声明了类型的参数：被写成字符串的数组、对象、整数、数字、布尔，
+/// 能还原成那个类型才换；声明成字符串的，一个字节都不碰。顺着 `properties`、`items` 往下走，
+/// 嵌套的也修（施工 4-9 再补二）。什么都没改的，原文照交。
 /// 什么都没写的，当成空对象：有的供应商给没有参数的调用发空字符串。
 ///
 /// # Errors
@@ -69,27 +70,51 @@ pub fn repair(parameters: &RawJson, args: &str) -> Result<String, NotAnObject> {
         Ok(schema) => schema,
         Err(_) => return Ok(args.to_string()),
     };
-    let Some(properties) = schema.get("properties").and_then(Value::as_object) else {
-        return Ok(args.to_string());
-    };
-    let mut repaired = false;
-    for (name, declared) in properties {
-        let Some(kind) = declared.get("type").and_then(Value::as_str) else {
-            continue;
-        };
-        let Some(Value::String(text)) = object.get(name) else {
-            continue;
-        };
-        if let Some(value) = restore(kind, text.trim()) {
-            object.insert(name.clone(), value);
-            repaired = true;
-        }
-    }
-    if repaired {
+    if fix_object(&mut object, &schema) {
         Ok(Value::Object(object).to_string())
     } else {
         Ok(args.to_string())
     }
+}
+
+/// 照 `schema` 的 `properties` 修一个对象的各格。换过一格就交回真。
+fn fix_object(object: &mut Map<String, Value>, schema: &Value) -> bool {
+    let Some(properties) = schema.get("properties").and_then(Value::as_object) else {
+        return false;
+    };
+    let mut repaired = false;
+    for (name, declared) in properties {
+        if let Some(value) = object.get_mut(name) {
+            repaired |= fix(value, declared);
+        }
+    }
+    repaired
+}
+
+/// 照声明 `declared` 修一格：写成字符串的还原成声明的类型；还原出来的、本来就是的对象和数组，照声明接着往下修
+/// （对象看 `properties`，数组的每一项看 `items`）。换过就交回真。
+fn fix(value: &mut Value, declared: &Value) -> bool {
+    let Some(kind) = declared.get("type").and_then(Value::as_str) else {
+        return false;
+    };
+    let mut repaired = false;
+    if let Value::String(text) = value {
+        let Some(restored) = restore(kind, text.trim()) else {
+            return false;
+        };
+        *value = restored;
+        repaired = true;
+    }
+    let inner = match value {
+        Value::Object(object) if kind == "object" => fix_object(object, declared),
+        Value::Array(items) if kind == "array" => declared.get("items").is_some_and(|each| {
+            items
+                .iter_mut()
+                .fold(false, |any, item| fix(item, each) | any)
+        }),
+        _ => false,
+    };
+    repaired | inner
 }
 
 /// 一段字能不能还原成声明的类型。布尔大小写都收：模型发过 Python 风格的 `"False"`。

@@ -71,7 +71,8 @@ impl Program {
         let mut command = Command::new(&self.path);
         match self.kind {
             Kind::Bash => command.args(["--noprofile", "--norc", "-c", script]),
-            Kind::Zsh => command.args(["-f", "-c", script]),
+            // 没匹配到的通配符照原样传下去，和 bash 一样（施工 4-9 再补二）：zsh 默认直接报错。
+            Kind::Zsh => command.args(["-f", "+o", "nomatch", "-c", script]),
             Kind::PowerShell7 | Kind::WindowsPowerShell => command
                 .args([
                     "-NoLogo",

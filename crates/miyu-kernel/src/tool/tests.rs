@@ -109,3 +109,37 @@ fn writing_files_and_unknown_kinds_count_as_writing() {
     .collect();
     assert_eq!(writes, [false, true, false, false, false, true]);
 }
+
+/// 嵌套的格式：`edits` 是一组对象，`sizes` 是一组整数，`inner.deep.n` 在两层对象里。
+const NESTED: &str = r#"{"type":"object","properties":{"edits":{"type":"array","items":{"type":"object","properties":{"old_string":{"type":"string"},"replace_all":{"type":"boolean"}}}},"sizes":{"type":"array","items":{"type":"integer"}},"inner":{"type":"object","properties":{"deep":{"type":"object","properties":{"n":{"type":"integer"}}}}}}}"#;
+
+/// 嵌套的也修（施工 4-9 再补二）：数组的每一项照 `items`，对象的各格照 `properties`；写成字符串的数组、对象还原出来
+/// 以后，里面的接着修；声明成字符串的照旧不碰，修不了的原文照交。
+#[test]
+fn nested_arguments_are_repaired_too() {
+    let nested = |args: &str| repair(&schema(NESTED), args).unwrap();
+    for (args, expected) in [
+        (
+            r#"{"edits":[{"old_string":"true","replace_all":"true"}]}"#,
+            r#"{"edits":[{"old_string":"true","replace_all":true}]}"#,
+        ),
+        (r#"{"sizes":["1"," 2 ",3]}"#, r#"{"sizes":[1,2,3]}"#),
+        (
+            r#"{"inner":{"deep":{"n":"7"}}}"#,
+            r#"{"inner":{"deep":{"n":7}}}"#,
+        ),
+        (
+            r#"{"edits":"[{\"replace_all\":\"False\"}]"}"#,
+            r#"{"edits":[{"replace_all":false}]}"#,
+        ),
+    ] {
+        assert_eq!(nested(args), expected, "{args}");
+    }
+    for args in [
+        r#"{"edits":[{"old_string":"1","replace_all":"maybe"}]}"#,
+        r#"{"sizes":["x"]}"#,
+        r#"{"inner":{"deep":"n"}}"#,
+    ] {
+        assert_eq!(nested(args), args, "修不了的原文照交");
+    }
+}

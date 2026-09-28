@@ -340,7 +340,7 @@
 | `crates/miyu-kernel/src/session/tests/load.rs` | 走完的载入一样往下走；坏日志拒绝；崩在哪都收尾、等你开口；崩之前的命令不再生效；生效的权限回来 |
 | `crates/miyu-kernel/src/session/tests/scenario.rs`、`scenario/retrying.rs`、`scenario/stopping.rs` | 执行器替身（`testkit`）把真会话一整轮一整轮地跑：两个读一起跑、中间来一句；只读拦写入；步数上限和失败的请求；重试的每一种（原样再来、半截接着说、半截的调用丢掉、照供应商等、5 次放弃、不该再来的、等的时候打断、重启、切级别、不算步数、说完清零）；打断接着发、重启接着干、崩了等你；停着的写：停在改之前、改完了、到 10 秒、又打断一次、等的时候来的消息排队和撤销被拒、等的时候重启（退回的不再接着干，接着发的交给下一轮） |
 | `crates/miyu-kernel/src/session/tests/random.rs` 和 `random/` | 三百例随机输入（CI 另跑两万例），每一步查：不变量（第 5 条一个会话查不了）；挂接点、请求、派工具、步数上限、只读的规矩；打断时停着的（叫它停只在打断里、停着的交回来才收尾、到点和又打断就不等，十个种子里一个多调写文件的专走这里）；崩了、重启了载入以后照规矩走；每条路、每一种输入都走到过 |
-| `crates/miyu-kernel/src/tool/tests.rs`、`tool/texts/tests.rs` | 参数修正的每一种；访问类别不认识的算写入；那几句的字段转义、每句带说法 |
+| `crates/miyu-kernel/src/tool/tests.rs`、`tool/texts/tests.rs` | 参数修正的每一种，嵌套的对象、数组里的也修；访问类别不认识的算写入；那几句的字段转义、每句带说法 |
 | `crates/miyu-kernel/src/accumulate/tests.rs` | 拼回复、调用编号、空块、交错的字、截断只留收全的调用、增量对不上的六种 |
 | `crates/miyu-kernel/tests/resources.rs` | 出厂的那几句读得进来，带字段的换出来一字不差 |
 | `crates/miyu-kernel/tests/transient_sample.rs` | `model.delta`、`tool.progress`、`status` 写出去和样本一字不差 |

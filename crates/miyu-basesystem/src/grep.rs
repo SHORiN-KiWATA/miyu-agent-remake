@@ -17,7 +17,7 @@ use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Progress, Running, Spec, Stop, Target, Tool};
 
 use crate::blocking::blocking;
-use crate::common::{Common, OUTPUT_BYTES, Shown, given, said};
+use crate::common::{Common, OUTPUT_BYTES, Shown, given, integer, said};
 use crate::load::{self, LoadError, say};
 use crate::pattern::Pattern;
 use crate::walk;
@@ -58,7 +58,7 @@ enum Mode {
 }
 
 /// 她给的参数。名字照 Claude Code；它另有的 `-A`、`-B` 不声明，写了照样认；`-C` 当 `context`，opencode 的
-/// `include` 当 `glob`（施工 4-4 下）。
+/// `include` 当 `glob`（施工 4-4 下）。这几个写成字符串的整数也认（施工 4-9 再补二）：没声明的别名内核修正不到。
 #[derive(Deserialize)]
 struct Args {
     pattern: String,
@@ -68,11 +68,11 @@ struct Args {
     output_mode: Option<Mode>,
     #[serde(rename = "-i")]
     ignore_case: Option<bool>,
-    #[serde(alias = "-C")]
+    #[serde(alias = "-C", default, deserialize_with = "integer")]
     context: Option<i64>,
-    #[serde(rename = "-A")]
+    #[serde(rename = "-A", default, deserialize_with = "integer")]
     after: Option<i64>,
-    #[serde(rename = "-B")]
+    #[serde(rename = "-B", default, deserialize_with = "integer")]
     before: Option<i64>,
     head_limit: Option<i64>,
     offset: Option<i64>,
@@ -146,6 +146,7 @@ impl Tool for Grep {
                 vec![Target {
                     path: args.path(),
                     write: false,
+                    itself: false,
                 }]
             })
             .unwrap_or_default()

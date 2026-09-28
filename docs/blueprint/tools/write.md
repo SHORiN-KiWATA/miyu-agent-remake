@@ -124,7 +124,7 @@ Created "src/new/a.rs".
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-basesystem/tests/write.rs` | 报要写的路径；新建带建上级目录、工作区里的绝对路径照样写相对的；没读过的、读过以后被改了的不写，看的是现在的样子就写，自己刚写过的接着写；覆盖时照原来的 CRLF、BOM、UTF-16；目录、只读的不写；原来的权限照留、不留临时文件；`/dev/null` 不写 |
+| `crates/miyu-basesystem/tests/write.rs` | 报要写的路径；新建带建上级目录、工作区里的绝对路径照样写相对的；没读过的、读过以后被改了的不写，看的是现在的样子就写，自己刚写过的接着写；覆盖时照原来的 CRLF、BOM、UTF-16；目录、只读的不写；原来的权限照留、不留临时文件；`/dev/null` 不写；读过的二进制盖得了；FIFO 说不是普通文件、不卡住 |
 | `crates/miyu-basesystem/src/text/tests.rs` | 从原来的字节认写法、照原来的写法写回、UTF-16 写得回去解得回来、几行怎么数 |
 | `crates/miyu-basesystem/tests/stop.rs` | 旗举了：新建的不建、上级目录也不建，已经在了的不盖；没看过的照旧先说没看过 |
 | `crates/miyu-fs/src/replace/tests.rs` | 整体换、只读的不写、盖不上去时临时文件删掉 |

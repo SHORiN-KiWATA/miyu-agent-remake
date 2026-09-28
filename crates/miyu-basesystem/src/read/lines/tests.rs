@@ -150,5 +150,13 @@ fn the_hash_is_of_the_whole_file_however_much_is_shown() {
         assert_eq!(file.hash(9999, 10), whole, "过了结尾的也是整份的");
     }
     let binary = Temp::with(b"a\x00b");
-    assert_eq!(binary.hash(1, 2000), None, "二进制的不读，没有哈希");
+    assert_eq!(
+        binary.hash(1, 2000),
+        Some(ContentHash::of(b"a\x00b")),
+        "二进制的不读内容，哈希照样是整份的"
+    );
+    // 比开头认编码读的那一段长的，后面那一截也算进去。
+    let mut long = vec![0_u8; 3];
+    long.extend(std::iter::repeat_n(b'x', 20_000));
+    assert_eq!(Temp::with(&long).hash(1, 1), Some(ContentHash::of(&long)));
 }

@@ -6,6 +6,7 @@
 //! - Windows 上用系统自带的 `taskkill /T /F` 杀整棵进程树，只在命令还在跑的时候杀：进程编号回收得快，退出以后再
 //!   按编号杀可能杀错。
 //! - 命令退出以后，管道最多再读 [`DRAIN`]：还有东西拿着管道的（Windows 上它放出去的孙进程），不等它。
+//! - 到时杀了以后最多再等 [`KILL_WAIT`]：还不结束的也算超时，不再等它（施工 4-9 再补二）。
 
 use std::io::{self, Read};
 use std::process::{Child, Command, ExitStatus, Stdio};
@@ -18,6 +19,9 @@ use super::output::{Capture, Decoder};
 
 /// 命令退出以后，管道最多再读多久。
 const DRAIN: Duration = Duration::from_millis(500);
+
+/// 到时杀了以后，最多再等多久：还不结束的（Windows 上 `taskkill` 没杀掉之类）不再等它（施工 4-9 再补二）。
+const KILL_WAIT: Duration = Duration::from_secs(5);
 
 /// 运行日志的来处。
 const TARGET: &str = "miyu::basesystem";
@@ -101,6 +105,17 @@ impl Started {
     ///
     /// 等不了：系统报了错。
     pub(super) fn wait(self, timeout: Duration) -> io::Result<Finished> {
+        self.wait_or_kill(timeout, KILL_WAIT, Group::kill)
+    }
+
+    /// 同 [`Self::wait`]：到时用 `kill` 整组杀，杀了以后最多再等 `patience`，还不结束的也算超时，不再等它。测试里
+    /// 换成杀不掉的、等得短的。
+    fn wait_or_kill(
+        self,
+        timeout: Duration,
+        patience: Duration,
+        kill: impl FnOnce(Group),
+    ) -> io::Result<Finished> {
         let Started {
             mut child,
             group,
@@ -119,12 +134,20 @@ impl Started {
         });
         let gone = || io::Error::other("the thread waiting for the command stopped");
         let (ending, child) = match waited.recv_timeout(timeout) {
-            Ok((status, child)) => (Ending::Exited(status?), child),
+            Ok((status, child)) => (Ending::Exited(status?), Some(child)),
             Err(RecvTimeoutError::Timeout) => {
-                group.kill();
-                let (status, child) = waited.recv().map_err(|_| gone())?;
-                status?;
-                (Ending::TimedOut, child)
+                kill(group);
+                match waited.recv_timeout(patience) {
+                    Ok((status, child)) => {
+                        status?;
+                        (Ending::TimedOut, Some(child))
+                    }
+                    Err(RecvTimeoutError::Timeout) => {
+                        tracing::warn!(target: TARGET, "command still running after kill");
+                        (Ending::TimedOut, None)
+                    }
+                    Err(RecvTimeoutError::Disconnected) => return Err(gone()),
+                }
             }
             Err(RecvTimeoutError::Disconnected) => return Err(gone()),
         };
@@ -262,3 +285,6 @@ impl Drop for Guard {
         }
     }
 }
+
+#[cfg(all(test, unix))]
+mod tests;

@@ -1,9 +1,9 @@
 //! 换成真实的位置（施工 4-3 上）：相对的照工作目录接，`~` 当家目录，链接照它指向的地方算，还不存在的
-//! 照最近的上级目录算。
+//! 照最近的上级目录算；最后一段不跟链接的（施工 4-9 再补二）。
 
 mod support;
 
-use miyu_fs::{ResolveError, Zone, resolve};
+use miyu_fs::{ResolveError, Zone, resolve, resolve_itself};
 use support::Site;
 
 #[test]
@@ -125,4 +125,53 @@ fn a_link_counts_where_it_points_on_windows() {
     let got = resolve(&work, None, "keys/id").expect("换得了");
     assert_eq!(got, site.real("home/.ssh/id"));
     assert_eq!(site.boundary().zone(&got), Zone::Outside);
+}
+
+/// 最后一段不跟链接：上级换成真实的位置，再接上最后一段；没有名字可碰的交回空的。
+#[test]
+fn the_last_part_itself_is_what_gets_touched() {
+    let site = Site::new();
+    let (work, home) = (site.real("work"), site.real("home"));
+    let itself = |input: &str| resolve_itself(&work, Some(&home), input).expect("换得了");
+    assert_eq!(itself("a.txt"), Some(work.join("a.txt")));
+    assert_eq!(
+        itself("src/."),
+        Some(work.join("src")),
+        "以 /. 结尾的是前面那一段"
+    );
+    assert_eq!(itself("~/notes.txt"), Some(home.join("notes.txt")));
+    for nothing in [".", "..", "~", "~/", "/"] {
+        assert_eq!(itself(nothing), None, "{nothing}");
+    }
+    assert!(matches!(
+        resolve_itself(&work, None, "~/notes.txt"),
+        Err(ResolveError::NoHome)
+    ));
+}
+
+#[cfg(unix)]
+#[test]
+fn the_last_link_is_not_followed() {
+    use std::os::unix::fs::symlink;
+
+    let site = Site::new();
+    let work = site.real("work");
+    symlink(site.at("home/.ssh"), site.at("work/keys")).expect("造得了链接");
+    symlink(site.at("nowhere"), site.at("work/dead")).expect("造得了链接");
+    let itself = |input: &str| resolve_itself(&work, None, input).expect("换得了");
+    assert_eq!(
+        itself("keys"),
+        Some(work.join("keys")),
+        "指到别处的，是链接本身"
+    );
+    assert_eq!(
+        itself("dead"),
+        Some(work.join("dead")),
+        "指向不存在处的，也是链接本身"
+    );
+    assert_eq!(
+        itself("keys/id"),
+        Some(site.real("home/.ssh").join("id")),
+        "上级是链接的，照它指向的地方算"
+    );
 }

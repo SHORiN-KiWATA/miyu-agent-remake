@@ -257,3 +257,54 @@ async fn something_that_is_not_a_regular_file_is_not_written() {
     assert!(done.error);
     assert_eq!(done.human, Some(said("common/not-a-regular-file")));
 }
+
+/// 读过的二进制文件盖得了（施工 4-9 再补二）：`read` 读到二进制不给内容，照样报读过，`write` 照它核对。
+#[tokio::test]
+async fn a_binary_file_she_read_can_be_overwritten() {
+    let site = Site::new();
+    site.file("work/logo.bin", b"\x89PNG\0\0data");
+    let read = site.done("read", json!({"file_path": "logo.bin"})).await;
+    let seen: Seen = read
+        .effects
+        .iter()
+        .filter_map(|effect| match effect {
+            Effect::Read { path, hash, .. } => Some((path.clone(), hash.clone())),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(seen.len(), 1, "读二进制也报读过");
+    let done = write(&site, "logo.bin", "text now", seen).await;
+    assert!(!done.error, "{}", text(&done));
+    assert_eq!(
+        std::fs::read(site.0.join("work/logo.bin")).expect("在"),
+        b"text now"
+    );
+}
+
+/// 碰到 FIFO：`write`、`edit` 照「安全地打开」开，说不是普通文件，不卡住（施工 4-9 再补二）。
+#[cfg(unix)]
+#[tokio::test]
+async fn a_fifo_is_not_a_regular_file() {
+    let site = Site::new();
+    let fifo = site.real("work").join("pipe");
+    let made = std::process::Command::new("mkfifo")
+        .arg(&fifo)
+        .status()
+        .expect("有 mkfifo");
+    assert!(made.success());
+    for (name, args) in [
+        ("write", json!({"file_path": "pipe", "content": "x"})),
+        (
+            "edit",
+            json!({"file_path": "pipe", "edits": [{"old_string": "a", "new_string": "b"}]}),
+        ),
+    ] {
+        let done = site.done_seen("work", name, args, Seen::new()).await;
+        assert_eq!(
+            done.human,
+            Some(said("common/not-a-regular-file")),
+            "{name}：{}",
+            text(&done)
+        );
+    }
+}

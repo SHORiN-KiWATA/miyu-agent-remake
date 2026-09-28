@@ -325,12 +325,21 @@ async fn reading_a_file_reports_what_was_read_with_the_whole_hash() {
             hash: ContentHash::of(b""),
         }]
     );
-    for path in ["bin", "dir", "missing.txt"] {
+    // 二进制的不给内容，照样报读过（施工 4-9 再补二）：`write` 盖它之前照它核对。
+    assert_eq!(
+        effects(serde_json::json!({"file_path": "bin"})).await,
+        [Effect::Read {
+            path: site.real("work/bin"),
+            lines: None,
+            hash: ContentHash::of(b"a\x00b"),
+        }]
+    );
+    for path in ["dir", "missing.txt"] {
         assert!(
             effects(serde_json::json!({ "file_path": path }))
                 .await
                 .is_empty(),
-            "{path} 没读到文件的内容，不报"
+            "{path} 没读到文件，不报"
         );
     }
 }

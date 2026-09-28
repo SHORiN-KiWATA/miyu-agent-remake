@@ -217,6 +217,14 @@ async fn long_output_is_cut_to_its_start_and_end() {
         &printed[printed.len() - 200..]
     );
     assert_eq!(done.human, Some(said("shell/done").with("count", "20000")));
+    // 蓝图里那个样子（`tools/shell.md`）：尾巴正好从 17501 那一行的开头起，这一行留着（施工 4-9 再补二）。
+    if cfg!(unix) {
+        assert!(
+            printed.contains("\n3221\n[... 78896 characters omitted ...]\n17501\n17502\n"),
+            "{}",
+            &printed[14_900..15_100]
+        );
+    }
 }
 
 #[tokio::test]
@@ -362,4 +370,24 @@ mod unix {
         assert_eq!(text(&done), "Killed by signal 9\n");
         assert_eq!(done.human, Some(said("shell/signal").with("signal", "9")));
     }
+}
+
+/// 工作目录是 `~` 开头的，照家目录接上，和别的工具一样（施工 4-9 再补二：原来照原样当目录，起不来）。
+#[tokio::test]
+async fn a_tilde_working_directory_means_home() {
+    let site = Site::new();
+    site.file("home/proj/marker.txt", b"here");
+    let call = Call {
+        args: json!({ "command": script("ls", "Get-ChildItem -Name") }).to_string(),
+        cwd: "~/proj".to_string(),
+        home: Some(site.0.join("home")),
+        data_root: None,
+        seen: Default::default(),
+        stop: Default::default(),
+    };
+    let done = tool("shell")
+        .run(call, miyu_tool::Progress::new(|_| {}))
+        .await;
+    assert!(!done.error, "{}", text(&done));
+    assert!(text(&done).contains("marker.txt"), "{}", text(&done));
 }

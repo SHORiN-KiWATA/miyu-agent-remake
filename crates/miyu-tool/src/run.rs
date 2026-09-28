@@ -37,13 +37,16 @@ pub struct Call {
 /// 内容哈希。读过的（读了哪一段都算）、自己写过的都算。
 pub type Seen = BTreeMap<PathBuf, ContentHash>;
 
-/// 一次调用要碰的一条路径（施工 4-3 下）：她给的原样，和是读是写。
+/// 一次调用要碰的一条路径（施工 4-3 下）：她给的原样，是读是写，碰的是不是这一条本身。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Target {
     /// 她给的路径，原样：相对的照这一轮的工作目录算，`~` 开头的照家目录算。
     pub path: String,
     /// 要写：新建、改、删。不是就是读。
     pub write: bool,
+    /// 碰的是这一条本身：最后一段是链接的不跟（`trash` 删的是链接本身，施工 4-9 再补二）。权限策略照
+    /// `miyu_fs::resolve_itself` 换真实的位置，和工具碰的是同一个。
+    pub itself: bool,
 }
 
 /// 一次调用的结局：给模型看的内容块，出没出错，给人看的说法，效果。用时由执行器量。

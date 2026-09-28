@@ -19,7 +19,7 @@ pub(crate) const LINE_CHARS: usize = 2000;
 /// 读下来的一页。
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Page {
-    /// 二进制文件，不读。
+    /// 二进制文件，不读内容。
     Binary,
     /// 空文件。
     Empty,
@@ -34,7 +34,7 @@ pub(crate) enum Page {
     },
 }
 
-/// 读下来的：这一页，和整份文件的内容哈希。二进制文件不读，没有哈希。
+/// 读下来的：这一页，和整份文件的内容哈希。二进制文件不读内容，哈希照样有（施工 4-9 再补二）。
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Paged {
     /// 这一页。
@@ -53,9 +53,17 @@ pub(crate) fn read(mut file: File, offset: u64, limit: u64) -> io::Result<Paged>
         _ => {}
     }
     if head.contains(&0) {
+        // 二进制的不读内容，照样过一遍整份算哈希：她读过它，`write` 才盖得了（施工 4-9 再补二）。
+        let mut hasher = Hasher::default();
+        hasher.update(&head);
+        let mut rest = Hashing {
+            inner: file,
+            hasher,
+        };
+        io::copy(&mut rest, &mut io::sink())?;
         return Ok(Paged {
             page: Page::Binary,
-            hash: None,
+            hash: Some(rest.hasher.finish()),
         });
     }
     let bom = if head.starts_with(&[0xEF, 0xBB, 0xBF]) {

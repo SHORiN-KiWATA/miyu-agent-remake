@@ -129,6 +129,7 @@ impl Tool for Fake {
             .map(|path| Target {
                 path: path.to_string(),
                 write,
+                itself: false,
             })
             .collect()
     }

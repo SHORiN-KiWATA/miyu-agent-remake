@@ -175,3 +175,19 @@ fn a_line_break_too_far_from_the_cut_is_not_used() {
     };
     assert_eq!(tail.chars().count(), LIMIT / 2);
 }
+
+/// 尾巴那一段正好从一行的开头起：照原样，这一行留着（施工 4-9 再补二：原来多丢了这一行）。
+#[test]
+fn a_tail_that_starts_at_a_line_start_keeps_that_line() {
+    // 4000 行，每行 9 个字加一个换行：后 15000 个字正好从第 2501 行的开头起。
+    let text = numbered(1, 4000, 9);
+    let Shown::Cut { tail, .. } = captured(&[text.as_bytes()]).shown() else {
+        panic!("该截")
+    };
+    assert_eq!(tail.chars().count(), LIMIT / 2);
+    assert!(
+        tail.starts_with(&numbered(2501, 2501, 9)),
+        "{}",
+        &tail[..20]
+    );
+}

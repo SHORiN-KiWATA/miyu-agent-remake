@@ -95,6 +95,7 @@ impl Tool for Read {
                 vec![Target {
                     path: args.file_path,
                     write: false,
+                    itself: false,
                 }]
             })
             .unwrap_or_default()
@@ -138,10 +139,12 @@ fn read(texts: &Texts, call: &Call, args: &Args) -> Done {
         Err(error) => return texts.common.failed(path, &error),
     };
     let (done, shown) = match paged.page {
-        lines::Page::Binary => {
-            return Done::error(say(&texts.binary, &[("path", path)]))
-                .said(said("read/binary").with("path", path));
-        }
+        // 二进制的不给内容，照样报读过（施工 4-9 再补二）：她知道它在，`write` 盖它之前照它核对。
+        lines::Page::Binary => (
+            Done::error(say(&texts.binary, &[("path", path)]))
+                .said(said("read/binary").with("path", path)),
+            None,
+        ),
         lines::Page::Empty => (
             Done::ok(say(&texts.empty, &[])).said(said("read/empty")),
             None,
@@ -184,7 +187,7 @@ fn read(texts: &Texts, call: &Call, args: &Args) -> Done {
             )
         }
     };
-    // 读到了一个文件：报 `file.read`，她改之前照它核对（施工 4-6 上）。
+    // 读到了一个文件：报 `file.read`，她改之前照它核对（施工 4-6 上）。二进制的也报，没有行的范围。
     match paged.hash {
         Some(hash) => done.effect(Effect::Read {
             path: real,

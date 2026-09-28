@@ -20,5 +20,5 @@ mod wide;
 pub use boundary::{Boundary, Places, Zone, within};
 pub use open::{Kind, OpenError, open_file};
 pub use replace::replace;
-pub use resolve::{ResolveError, resolve, tilde};
+pub use resolve::{ResolveError, resolve, resolve_itself, tilde};
 pub use wide::too_wide;

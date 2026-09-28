@@ -54,6 +54,31 @@ pub fn resolve(cwd: &Path, home: Option<&Path>, input: &str) -> Result<PathBuf, 
     }
 }
 
+/// 把 `input` 换成真实的位置，最后一段不跟链接（施工 4-9 再补二，从 `trash` 挪过来）：上级照 [`resolve()`] 换，
+/// 再接上最后一段的原样，碰的是这一条本身。`trash` 删的是链接本身，权限策略判它也照这个，两边碰的是同一个。
+/// `~` 开头的照 [`tilde`] 接家目录。没有名字可碰的（`.`、`..`、根目录、`~` 自己）交回空的。
+///
+/// # Errors
+///
+/// 以 `~` 开头可 `home` 是空的；上级换不成（[`resolve()`] 的那几种）。
+pub fn resolve_itself(
+    cwd: &Path,
+    home: Option<&Path>,
+    input: &str,
+) -> Result<Option<PathBuf>, ResolveError> {
+    let expanded = match tilde(input) {
+        Some("") => return Ok(None),
+        Some(rest) => home.ok_or(ResolveError::NoHome)?.join(rest),
+        None => PathBuf::from(input),
+    };
+    let Some(name) = expanded.file_name() else {
+        return Ok(None);
+    };
+    let parent = expanded.parent().unwrap_or(Path::new(""));
+    let real = resolve(cwd, home, &parent.to_string_lossy())?;
+    Ok(Some(real.join(name)))
+}
+
 /// `~` 开头的：交回 `~` 后面那一截（去掉紧跟着的分隔符）。只有 `~` 自己，或者 `~` 后面紧跟分隔符的才算：
 /// `~alice`、`a/~` 照原样。`\` 只在 Windows 上算分隔符。[`resolve()`] 照它接家目录；自己拼路径的工具也照它，两边
 /// 才对得上（施工 4-6 下：`trash` 的最后一段不跟链接，不能整条交给 [`resolve()`]）。
