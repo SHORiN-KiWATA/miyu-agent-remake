@@ -13,14 +13,12 @@
 | `crates/miyu-core/src/models.rs` | 从环境变量拿模型 |
 | `crates/miyu-core/src/serve.rs` | 接连接，空闲退出，停的信号 |
 | `crates/miyu-core/src/sandbox.rs` | 起来时找沙盒的助手、探一次，记日志（施工 5-1） |
-| `crates/miyu-core/src/proxy.rs` | 起来时开代理，记日志（施工 5-5） |
 | `crates/miyu-ipc` | 单实例锁、套接字、本机令牌、那一行的写法（`ipc.md`） |
 | `crates/miyu-endpoint` | 协议端点：核心的家底 `Core`、接连接、空不空闲（`protocol.md`） |
 | `crates/miyu-basesystem`、`crates/miyu-tool` | 基础系统的七件工具、工具目录（`tools/interface.md`） |
 | `crates/miyu-log` | 运行日志（`log.md`） |
 | `crates/miyu-store` | 数据根、资源目录（`store.md`） |
 | `crates/miyu-sandbox` | 沙盒：找助手、探测（`sandbox.md`） |
-| `crates/miyu-proxy` | 代理（`proxy.md`） |
 
 ### 对外的样子
 
@@ -67,13 +65,13 @@
 7. 起运行时：多线程，两个工作线程，接连接、会话、请求都在上面。
 8. 算出套接字放哪、换本机令牌、在套接字上等连接、记下实际的位置（`ipc.md`）。
 9. 从环境变量拿模型（下面「模型」）。
-10. 找沙盒的助手、探一次（`sandbox.md`「怎么走」第 1、2 条）：记一行 `INFO` `sandbox` 或者 `WARN` `sandbox unavailable`，只记日志，不影响别的（施工 5-1）。再开代理（`proxy.md`「核心怎么开」）：在 `127.0.0.1` 上、`sandbox.md`「代理的端口段」（28480 到 28511）里挑一个空着的端口，记一行 `INFO` `proxy` 或者 `WARN` `proxy unavailable`，也只记日志，不影响别的；开着的代理拿到核心退出（施工 5-5）。
+10. 找沙盒的助手、探一次（`sandbox.md`「怎么走」第 1、2 条）：记一行 `INFO` `sandbox` 或者 `WARN` `sandbox unavailable`，只记日志，不影响别的（施工 5-1）。
 11. 工具目录：登记基础系统，七件：`edit`、`glob`、`grep`、`read`、`shell`、`trash`、`write`；工具的字从资源目录读，登记完就冻结（`tools/interface.md`）。
 12. 核心的家底：数据根、资源目录、模型、工具目录、系统的家目录、管理员 `admin`、本机令牌，会话表是空的（`protocol.md`）。
 13. 往标准输出写一行 `ready`。
 14. 一个个接连接，直到停下（下面「停下」）。
 
-第 2 到 11 步哪一步出了错（第 3 步拿不到锁的除外；第 10 步探沙盒、开代理只记日志，不会出错）：写 `error <原因>`，退出码 1；运行日志已经装上了的（第 5 步起），再记一条 `WARN not started stage=<哪一步>`：第 5 到第 9 步依次是 `home`、`resources`、`runtime`、`socket`、`models`，第 11 步是 `tools`。原因是给人看的中文，只交给头，不进运行日志（施工 4-9 再补四上：原来 `reason=<原因>` 整句写进去）。第 8 步以后出的错，走的时候照样删掉套接字文件、放开锁（`ipc.md`）。
+第 2 到 11 步哪一步出了错（第 3 步拿不到锁的除外；第 10 步探沙盒只记日志，不会出错）：写 `error <原因>`，退出码 1；运行日志已经装上了的（第 5 步起），再记一条 `WARN not started stage=<哪一步>`：第 5 到第 9 步依次是 `home`、`resources`、`runtime`、`socket`、`models`，第 11 步是 `tools`。原因是给人看的中文，只交给头，不进运行日志（施工 4-9 再补四上：原来 `reason=<原因>` 整句写进去）。第 8 步以后出的错，走的时候照样删掉套接字文件、放开锁（`ipc.md`）。
 
 **那一行**
 
@@ -134,26 +132,23 @@
 | `WARN` | `DEEPSEEK_API_KEY not set, no model` |
 | `INFO` | `sandbox helper=… platform=… mechanisms=…`（施工 5-1） |
 | `WARN` | `sandbox unavailable reason=…`（施工 5-1） |
-| `INFO` | `proxy addr=…`（施工 5-5） |
-| `WARN` | `proxy unavailable error=…`（施工 5-5） |
 | `WARN` | `not started stage=…` |
 | `WARN` | `ready line not written error=…` |
 | `WARN` | `SIGTERM not watched error=…`、`Ctrl+C not watched error=…` |
 | `INFO` | `stopped reason=idle`、`stopped reason=signal` |
 
-套接字的几行（`listening`、`stale socket removed`、`XDG_RUNTIME_DIR not usable`）见 `ipc.md`，连接、会话的见 `protocol.md`、`session/actor.md`，代理转连接的见 `proxy.md`。
+套接字的几行（`listening`、`stale socket removed`、`XDG_RUNTIME_DIR not usable`）见 `ipc.md`，连接、会话的见 `protocol.md`、`session/actor.md`。
 
 ### 守着它的
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu/tests/core.rs` | 头拉起真的 `miyu core`，等它说好了再连；管理员叫 `admin`，建好了它的家目录；再连不再拉起；两个头同时只拉起一个；起不来的说原因（找不到资源目录），日志里只写 `stage=resources`；已经在跑的写 `running` 就走、不写日志；什么都没写就退了的；空闲了自己走，日志里一条 `starting`、一条 `stopped reason=idle`；`starting` 那一行的数据根在家目录下的写成 `~`、有和 UTC 差多少；工作目录是数据根；起来时探一次沙盒的助手：旁边有助手的记 `sandbox` 那一行、平台是这台机器的、有手段那一格，没有的记找不到（施工 5-1）；起来时开代理：记 `proxy` 那一行，端口在 28480 到 28511 里（施工 5-5） |
+| `crates/miyu/tests/core.rs` | 头拉起真的 `miyu core`，等它说好了再连；管理员叫 `admin`，建好了它的家目录；再连不再拉起；两个头同时只拉起一个；起不来的说原因（找不到资源目录），日志里只写 `stage=resources`；已经在跑的写 `running` 就走、不写日志；什么都没写就退了的；空闲了自己走，日志里一条 `starting`、一条 `stopped reason=idle`；`starting` 那一行的数据根在家目录下的写成 `~`、有和 UTC 差多少；工作目录是数据根；起来时探一次沙盒的助手：旁边有助手的记 `sandbox` 那一行、平台是这台机器的、有手段那一格，没有的记找不到（施工 5-1） |
 | `crates/miyu-core/tests/serve.rs` | 空闲退出、放开锁和套接字；有头连着不退；空闲的钟从最后一个头走时算起；在跑的回合不退；收到停的信号先停下会话、跑到一半的记成重启了；没有 key（没设、全是空白）每次请求都说没有模型、分类是认证失败、没发出去 |
 | `crates/miyu-core/src/serve/tests.rs` | 多久看一次：四分之一，最多 30 秒，最少 100 毫秒；装不上的 Ctrl+C 当它不会来（造不出真的装不上，测的是等它的那一小段） |
 | `crates/miyu-core/tests/tools.rs` | 工具目录里是基础系统的七件；资源目录坏了，说是哪一份 |
 | `crates/miyu-core/src/models/tests.rs` | 请求 DeepSeek 时的模型名、不写输出上限、收图不收 PDF（施工 4-13） |
 | `crates/miyu-core/src/sandbox/tests.rs` | 探沙盒的助手：旁边没有的、不知道主程序在哪的记找不到，跑不了的记原因（施工 5-1） |
-| `crates/miyu-core/src/proxy/tests.rs` | 开代理：开得了记地址，那一段端口都被占了记开不了（施工 5-5） |
 
 ### 出处
 

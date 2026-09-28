@@ -46,8 +46,7 @@
 | `cli/ask.md`、`cli/undo.md`、`cli/main.md` | 每条命令一页；主程序 |
 | `sandbox.md` | 沙盒：规格、助手 `miyu-sandbox`、探测、找助手（施工 5-1 起） |
 | `sandbox/linux.md` | 沙盒在 Linux 上怎么收紧：Landlock 管文件（施工 5-2 起） |
-| `proxy.md` | 代理：只通公网、核对解析出来的地址、CONNECT 和转发、运行日志（施工 5-5 起） |
-| `sandbox/windows.md` | 沙盒在 Windows 上要一次管理员权限的安装：沙盒用户、WFP 网络封锁、装和卸（施工 5-8 起） |
+| `sandbox/windows.md` | 沙盒在 Windows 上要一次管理员权限的安装：沙盒用户、装和卸（施工 5-8 起） |
 | `licenses.md` | 仓库用什么许可证；门禁查依赖的许可证能不能和它合在一起发（施工 4-12） |
 | `prompts.md` | 给模型看的每一份字的原文，按进到请求的哪里分组，带 token 数、什么时候出现；由门禁从 `resources/` 和登记簿生成（施工 4-9 三补） |
 
