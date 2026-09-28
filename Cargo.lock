@@ -1122,6 +1122,7 @@ dependencies = [
  "libc",
  "objc2",
  "objc2-foundation",
+ "rustix",
  "tracing",
  "trash",
 ]

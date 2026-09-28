@@ -1,5 +1,5 @@
 //! 安全地打开（施工 4-3 上）：普通文件打得开；目录、FIFO、设备、套接字、最后一层的链接都不开，报是什么；
-//! FIFO 不卡住。
+//! FIFO 不卡住。Unix 上路上有链接的也不开（施工 5-10 下）。
 
 mod support;
 
@@ -28,6 +28,22 @@ fn a_directory_or_a_missing_file_is_refused() {
         open_file(&site.real("work").join("missing.rs")),
         Err(OpenError::NotFound)
     ));
+}
+
+/// 检查完以后，上级目录被换成了指向别处的链接（施工 5-10 下）：打开时路上一层链接都不跟。
+#[cfg(unix)]
+#[test]
+fn a_link_on_the_way_is_not_followed() {
+    use std::os::unix::fs::symlink;
+
+    let site = Site::new();
+    symlink(site.at("home/.ssh"), site.at("work/swapped-dir")).expect("造得了链接");
+    let through = site.real("work").join("swapped-dir").join("id");
+    let result = open_file(&through);
+    assert!(
+        matches!(result, Err(OpenError::NotAFile(Kind::Link))),
+        "{result:?}"
+    );
 }
 
 #[cfg(unix)]

@@ -14,6 +14,7 @@
 | `crates/miyu-fs/src/wide.rs` | 工作目录太宽 |
 | `crates/miyu-fs/src/open.rs` | 安全地打开 |
 | `crates/miyu-fs/src/replace.rs` | 整体换成新的内容 |
+| `crates/miyu-fs/src/nofollow.rs` | Unix 上路上一层链接都不跟地打开文件、目录（施工 5-10 下） |
 | `crates/miyu-fs/src/trash.rs` | 回收站：放进去、移回来 |
 | `crates/miyu-fs/src/trash/linux.rs`、`macos.rs`、`windows.rs`、`other.rs` | 各平台的回收站；别的系统一律收不了 |
 | `crates/miyu-fs/src/trash/recycled.rs` | Windows 回收站里的 `$I` 记录；每个平台都编，测试到处都跑 |
@@ -249,9 +250,10 @@
 |---|---|
 | `crates/miyu-fs/tests/boundary.rs` | 六片的先后、加进来的目录照工作区算、落进数据根的照样不能碰、不存在的不算（施工 5-10 上）、工作区里的 `.git/hooks`、`.git/config` 只能读（子仓库里的也算）、数据根在临时目录里也不能碰、工作区挪进数据根的照工作区算、一段一段比、不存在的那一片不算、macOS 和 Windows 上数据根不分大小写、`within`、这台机器的清单 |
 | `crates/miyu-fs/tests/resolve.rs` | 相对的照工作目录接、`.` 和走过存在的目录再 `..`、绝对的照原样、`~` 和 `~alice`、没有家目录、还不存在的照上级算、还不存在的 `..`（Unix 报错、Windows 照字面消掉）、链接照指向的地方算、指向不存在处的链接、Windows 两种分隔符；最后一段不跟链接：指向不存在处的、指到别处的链接交回链接本身，`.`、`..`、`~` 交回空的，`src/.` 是 `src` |
-| `crates/miyu-fs/tests/open.rs` | 普通文件打得开、目录和不存在的、最后一层是链接不跟（Unix、Windows）、FIFO 不卡住、设备和套接字 |
+| `crates/miyu-fs/tests/open.rs` | 普通文件打得开、目录和不存在的、最后一层是链接不跟（Unix、Windows）、路上有链接的不开（Unix（施工 5-10 下））、FIFO 不卡住、设备和套接字 |
 | `crates/miyu-fs/tests/wide.rs` | 太宽的四样；家目录读不出来时 |
-| `crates/miyu-fs/src/replace/tests.rs` | 新建和覆盖、不留临时文件、只读的不写、盖不上去时临时文件删掉 |
+| `crates/miyu-fs/src/replace/tests.rs` | 新建和覆盖、不留临时文件、只读的不写、盖不上去时临时文件删掉；路上有链接的一个字节都不落到链接指的地方、不留临时文件（Unix（施工 5-10 下）） |
+| `crates/miyu-fs/src/nofollow/tests.rs` | 普通的文件、目录打得开；路上、最后一层有链接的报 `ELOOP`；一层一层打开那条路单独测：链接照样不开、相对的不收（施工 5-10 下） |
 | `crates/miyu-fs/tests/trash.rs` | Linux：移回来、`.trashinfo` 删了、上级目录没了的建上、只删回收站里的记录、回收站里没有了的移不回来；macOS、Windows（在 CI 上）：文件、目录放进系统的回收站再移回来，Windows 的 `$I` 删了 |
 | `crates/miyu-fs/src/trash/recycled/tests.rs` | `$I` 第 2 版、第 1 版，认不出的、不够长的、字数说得比记录长的，`$I` 在 `$R` 旁边 |
 | `crates/miyu-basesystem/tests/trash.rs` | 经 `trash` 这件工具：Linux 上放进家目录的回收站、记录的样子、`files/` 和 `info/` 是 `0700`、重名接 `.2`、同名却没有记录的不盖、目录和链接、转义、挪不动的不删也不留记录、家目录的回收站建不了的不删 |
