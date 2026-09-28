@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>68</b><span>/ 70 步<strong>已完成</strong>，miyu undo、miyu redo 撤掉最后一轮、再恢复</span></li>
-    <li><b>4-9</b><span>下一步：确认和提问，<strong>先出样子</strong></span></li>
-    <li><b class="mono">d1d4d82</b><span>最近一步（4-7 下）的提交</span></li>
+    <li><b>69</b><span>/ 70 步<strong>已完成</strong>，miyu ask 有几步因为要确认没做的，说清楚</span></li>
+    <li><b>4-10</b><span>下一步：M4 验收，<strong>项目主人真人实测</strong></span></li>
+    <li><b class="mono">2fac54c</b><span>最近一步（4-9）的提交</span></li>
   </ul>
 </header>
 
@@ -405,7 +405,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-7a"><span class="n">4-7</span>撤销时恢复文件（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-7b"><span class="n">4-7</span>undo、redo 命令（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-8"><span class="n">4-8</span>执行命令<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-9</span>确认和提问</span></li>
+        <li><a class="step done" href="#s4-9"><span class="n">4-9</span>没人能确认时说清楚<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-10</span>M4 验收</span></li>
       </ol>
     </li>
@@ -4625,7 +4625,7 @@ a.step:hover{border-color:var(--primary)}
           <div class="tile new"><span class="nm">两句进登记簿</span><span class="rl">现在用不了、崩了：和内核替工具写的几句放在一处，从快照里拿</span></div>
           <div class="tile new"><span class="nm">运行日志</span><span class="rl">running、ran、stopped、unavailable、crashed；参数的字一个都不记</span></div>
           <div class="tile new"><span class="nm">假工具</span><span class="rl">miyu-tool 的 testkit：回声、出错、推输出、停住、等凑齐、崩</span></div>
-          <div class="tile"><span class="nm">还没有的</span><span class="rl">权限策略（4-3）；工具执行中问人（4-9）；真的工具（4-4 起）</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">权限策略（4-3）；工具执行中问人（M8）；真的工具（4-4 起）</span></div>
         </div>
       </div>
     </div>
@@ -4826,8 +4826,8 @@ a.step:hover{border-color:var(--primary)}
           <div class="tile new"><span class="nm">工具报路径</span><span class="rl">照参数算、不碰磁盘；查边界是链的事</span></div>
           <div class="tile new"><span class="nm">模块 permissions</span><span class="rl">拒绝的结果、问人的请求，by 都是它</span></div>
           <div class="tile new"><span class="nm">提的规则</span><span class="rl">越界的目录，照读写分开；命令的规则随 4-8</span></div>
-          <div class="tile new"><span class="nm">给头的说明</span><span class="rl">每一条路径、读还是写、在哪一片；4-9 照它画</span></div>
-          <div class="tile"><span class="nm">还没有的</span><span class="rl">记住的规则怎么用（4-9）；头上说一句退回了（4-5）</span></div>
+          <div class="tile new"><span class="nm">给头的说明</span><span class="rl">每一条路径、读还是写、在哪一片；确认的抽屉照它画（M8）</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">记住的规则怎么用（M8）；头上说一句退回了（4-5）</span></div>
         </div>
       </div>
     </div>
@@ -4870,7 +4870,7 @@ a.step:hover{border-color:var(--primary)}
 
 <section class="sheet" id="s4-4a" aria-labelledby="h-s44a">
   <div class="sheet-head"><h2 id="h-s44a"><span class="no">4-4</span>读取（上）</h2><span class="pill done">已完成</span></div>
-  <p class="purpose">第一件真的工具：read。她能读工作区里的文本文件，带行号按行分页，读到目录时列出里面有什么。它属于基础系统这个软件包，核心起来时登记进工具目录；说明、参数格式、输出里给她看的几句都在资源目录里、进了登记簿。4-9 之前 miyu ask 先说没人能确认，越界的读当场被拒、告诉她原因。</p>
+  <p class="purpose">第一件真的工具：read。她能读工作区里的文本文件，带行号按行分页，读到目录时列出里面有什么。它属于基础系统这个软件包，核心起来时登记进工具目录；说明、参数格式、输出里给她看的几句都在资源目录里、进了登记簿。miyu ask 里没人能确认，越界的读当场被拒、告诉她原因（施工 4-9 定成一直这样）。</p>
   <figure class="frame">
     <div class="drawing">
       <div class="d01">
@@ -4897,7 +4897,7 @@ a.step:hover{border-color:var(--primary)}
           <div class="tile new"><span class="nm">新 crate miyu-basesystem</span><span class="rl">第 3 层：4-4 到 4-8 的几件都在这里</span></div>
           <div class="tile new"><span class="nm">交给工具的家目录</span><span class="rl">和权限策略换 ~ 的办法一样，碰到的是同一个文件</span></div>
           <div class="tile new"><span class="nm">编码</span><span class="rl">UTF-8、带 BOM 的 UTF-16；NUL 当二进制，不读</span></div>
-          <div class="tile new"><span class="nm">miyu ask 暂时没人能确认</span><span class="rl">4-9 之前：要问人的当场拒绝，不一直等着</span></div>
+          <div class="tile new"><span class="nm">miyu ask 没人能确认</span><span class="rl">要问人的当场拒绝，不一直等着（施工 4-9 定成一直这样）</span></div>
           <div class="tile"><span class="nm">还没有的</span><span class="rl">glob、grep（4-4 下）；效果（4-6）；图片、PDF</span></div>
         </div>
       </div>
@@ -4918,7 +4918,7 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li><code>miyu-basesystem</code>（新，第 3 层）：从资源目录读字；<code>read</code>。</li>
         <li><code>miyu-core</code>：起来时登记基础系统；<code>miyu-tool</code>：交给工具的家目录。</li>
-        <li><code>miyu-cli</code>：4-9 之前说没人能确认。</li>
+        <li><code>miyu-cli</code>：说没人能确认（施工 4-9 定成一直这样）。</li>
       </ul>
     </div>
     <div>
@@ -5115,7 +5115,7 @@ a.step:hover{border-color:var(--primary)}
           <div class="tile new"><span class="nm">路径写短</span><span class="rl">file_path、path 在工作目录里写相对的，家目录里写 ~；太长的留后面</span></div>
           <div class="tile new"><span class="nm">都是旁白</span><span class="rl">思考、步骤之间不空行，和回答之间空一行；回答没完先换行</span></div>
           <div class="tile new"><span class="nm">给脚本的不印</span><span class="rl">--format json 照旧一行；隔着步骤的两段回复中间换行</span></div>
-          <div class="tile"><span class="nm">还没有的</span><span class="rl">核心的视图投影；跑得久的一步先说在做；为什么要确认（4-9）</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">核心的视图投影；跑得久的一步先说在做；为什么要确认（M8）</span></div>
         </div>
       </div>
     </div>
@@ -5328,7 +5328,7 @@ a.step:hover{border-color:var(--primary)}
           <div class="tile new"><span class="nm">链接删链接本身</span><span class="rl">最后一段不跟链接，指向的东西不动</span></div>
           <div class="tile new"><span class="nm">Windows 读 $I 记录</span><span class="rl">回收站列表里的名字藏了扩展名，拼不回原路径（CI 上查实）</span></div>
           <div class="tile new"><span class="nm">~ 一个规矩</span><span class="rl">照 miyu-fs 开放出来的 tilde 接家目录</span></div>
-          <div class="tile"><span class="nm">还没有的</span><span class="rl">撤销（4-7）；收不了时先问要不要永久删（确认做出来以后，4-9）</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">撤销（4-7）；收不了时先问要不要永久删（有了确认的抽屉以后，M8）</span></div>
         </div>
       </div>
     </div>
@@ -5541,7 +5541,7 @@ a.step:hover{border-color:var(--primary)}
           <div class="tile new"><span class="nm">cd 不带到下一次</span><span class="rl">每次从回合的工作目录起，权限策略也照它判</span></div>
           <div class="tile new"><span class="nm">说明里写明 shell</span><span class="rl">bash、zsh、PowerShell 7、Windows PowerShell 5.1，核心起来时定，会话里不变</span></div>
           <div class="tile new"><span class="nm">环境变量白名单</span><span class="rl">第一版的名单写在代码里，配置那一步能改</span></div>
-          <div class="tile"><span class="nm">还没有的</span><span class="rl">后台命令、description（M7、4-9）；沙盒（M5）</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">后台命令、description（M7、M8）；沙盒（M5）</span></div>
         </div>
       </div>
     </div>
@@ -5576,6 +5576,73 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li><code>docs/designs/10-自带软件.md</code> 第三节「shell 的细则」、第十节。</li>
         <li><code>docs/construction/4-8-执行命令.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s4-9" aria-labelledby="h-s49">
+  <div class="sheet-head"><h2 id="h-s49"><span class="no">4-9</span>没人能确认时说清楚</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">miyu ask 里没有提问的工具，也没有确认的界面：要确认的那一步当场被拒，她在回答里说明，有问题就在回答里问。这一步补上收尾：有几步因为要确认没做的，退出码 4，标准错误上最后一行说一句。提问的工具和确认的抽屉挪到 M8，事先放行的参数随 M5。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">印出来的样子</span><span class="dir-note">标准错误</span></div>
+            <ol class="pipe" aria-label="印出来的样子">
+              <li>· 读取 ~/.gitconfig → 没做：要确认，这里没人能确认</li>
+              <li>她在回答里说明读不到</li>
+              <li>· 输入 3,210 · 命中缓存 2,944（92%）· 输出 186</li>
+              <li>· 1 步没做：要你确认，miyu ask 里确认不了（退出码 4）</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">谁做什么</span><span class="dir-note">22 O3</span></div>
+            <div class="files">
+              <div class="tile"><span class="nm">内核</span><span class="rl">没人能确认的当场拒绝，记下 core/tool-results/unattended 那一句（4-4 起就有）</span></div>
+              <div class="tile new"><span class="nm">命令行</span><span class="rl">数有几步是这样被拒的；照常结束的退出码 4，用量后面再印一行</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">没有提问的工具</span><span class="rl">miyu ask 里没有 ask_user，也没有确认的界面，是不是终端都一样（项目主人定）</span></div>
+          <div class="tile new"><span class="nm">退出码</span><span class="rl">照常结束又有几步没做的 4；打断 3、出错 1、没有模型 5 照旧</span></div>
+          <div class="tile new"><span class="nm">只算这一种</span><span class="rl">只读时要写的、碰到数据根的不算；给脚本的只看退出码</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">事先放行的参数 --add-dir（M5）；提问的工具、确认的抽屉（M8）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-9</dd></div>
+        <div><dt>名称</dt><dd>没人能确认时说清楚</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">2fac54c</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-cli</code>：跟着一轮时数被拒的；最后那一行和它的中文、英文；退出码 4；握手一律说没人能确认。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真的核心、真的工具走一遍：读工作区外面的文件，退出码 4、最后一行；给脚本的只看退出码</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 16 处，全部有测试变红</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/22-命令行.md</code> O3、第二节的退出码、第三节；<code>11</code> A11；<code>13</code> 第四节。</li>
+        <li><code>docs/construction/4-9-没人能确认时说清楚.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
