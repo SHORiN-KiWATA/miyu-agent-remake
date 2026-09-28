@@ -6611,7 +6611,7 @@ a.step:hover{border-color:var(--primary)}
               <div class="tile new"><span class="nm">spec.rs</span><span class="rl">规格：read、write、readonly、hidden、network</span></div>
               <div class="tile new"><span class="nm">wrap.rs · locate.rs</span><span class="rl">包命令；找助手，在主程序旁边</span></div>
               <div class="tile new"><span class="nm">probe.rs</span><span class="rl">探测：最多等 5 秒，读输出、等退出都算在里面</span></div>
-              <div class="tile new"><span class="nm">main.rs</span><span class="rl">助手本身：run、probe；成了什么都不印</span></div>
+              <div class="tile new"><span class="nm">bin/miyu-sandbox/</span><span class="rl">助手本身：main.rs 管共用的（run、probe、出错的几句），收紧各平台一个文件</span></div>
             </div>
           </div>
         </div>
@@ -6620,6 +6620,7 @@ a.step:hover{border-color:var(--primary)}
           <div class="tile new"><span class="nm">单独的小程序</span><span class="rl">Ubuntu、Mint 上只给它开命名空间</span></div>
           <div class="tile new"><span class="nm">退出码</span><span class="rl">照 env、timeout：125 助手出错，126 执行不了，127 找不到</span></div>
           <div class="tile new"><span class="nm">写不成就不跑</span><span class="rl">规格写不成 JSON 的说起不来，不会不经沙盒就跑</span></div>
+          <div class="tile new"><span class="nm">分线施工</span><span class="rl">收紧各平台一个文件，收不紧时说的那一句先定下：Linux、代理、macOS、Windows 可以同时做</span></div>
           <div class="tile new"><span class="nm">日志</span><span class="rl">INFO sandbox helper=… platform=… mechanisms=none，或者 WARN sandbox unavailable</span></div>
           <div class="tile"><span class="nm">还没有的</span><span class="rl">真正的收紧（5-2 起）；核心给调用带规格（5-4）；代理（5-5）</span></div>
         </div>
