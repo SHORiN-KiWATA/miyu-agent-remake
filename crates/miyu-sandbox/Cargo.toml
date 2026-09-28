@@ -17,6 +17,10 @@ path = "src/bin/miyu-sandbox/main.rs"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
+[features]
+# 测试用的（`src/testkit.rs`，施工 5-4 上）：会话、命令行的测试要真的经助手起命令，在自己的 dev-dependencies 里打开。
+testkit = []
+
 [target.'cfg(target_os = "linux")'.dependencies]
 # Linux 上管文件（施工 5-2）：内核 Landlock 的安全封装，建规则集、加规则、收紧自己都不用自己写 unsafe。
 # MIT OR Apache-2.0。

@@ -6,13 +6,16 @@ use std::path::{Path, PathBuf};
 
 use crate::Spec;
 
-/// 一次调用带的沙盒：助手在哪，规格是什么（`docs/blueprint/tools/interface.md`「一次调用交给工具的」）。
+/// 一次调用带的沙盒：助手在哪，规格是什么，要给命令设的环境变量（`docs/blueprint/tools/interface.md`「一次调用交给
+/// 工具的」）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Sandboxed {
     /// 助手 `miyu-sandbox` 的路径。
     pub helper: PathBuf,
     /// 规格。
     pub spec: Spec,
+    /// 要给命令设的环境变量，照白名单之后设、同名的盖掉（施工 5-4 上）：例如沙盒自己的临时目录的 `TMPDIR`。
+    pub env: Vec<(OsString, OsString)>,
 }
 
 /// 要执行的程序 `program` 和参数 `args`，包成交给助手的：交回助手的路径和给它的参数。

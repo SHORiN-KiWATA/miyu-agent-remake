@@ -4,7 +4,7 @@
 
 use super::executor::*;
 use super::*;
-use crate::event::{Level, PolicyChanged, ToolStatus};
+use crate::event::{Decision, Level, PolicyChanged, ToolStatus};
 
 /// 编号是 `n` 的命令：alice 切权限级别，改哪样写哪样。
 pub(super) fn switch(n: u64, level: Option<Level>, read_only: Option<bool>) -> Input {
@@ -376,4 +376,58 @@ fn the_facts_after_a_switch_keep_the_directory_of_the_turn() {
     let events = appended_events(&actions);
     assert_eq!(appended(&actions), seqs(&[9, 10]), "环境那一块不注入");
     assert_eq!(fact_of(&events[1]).kind.as_str(), "permission");
+}
+
+/// 派出去执行的那一次调用带的级别。
+fn run_permission(actions: &[Action]) -> Option<Permission> {
+    actions.iter().find_map(|action| match action {
+        Action::RunTool { permission, .. } => Some(permission.clone()),
+        _ => None,
+    })
+}
+
+/// 派出去执行时带着那一刻实际生效的那一级（施工 5-4 上）：执行器照它给命令写沙盒的规格。
+#[test]
+fn a_call_is_sent_to_run_with_the_level_in_effect() {
+    let mut usual = asking();
+    call_tools(&mut usual, 5, &[("read", "{}")]);
+    usual.handle(stored(7));
+    let actions = usual.handle(guarded(call(6, 1), Verdict::Allow));
+    assert_eq!(
+        run_permission(&actions),
+        Some(permission(Level::Workspace, false))
+    );
+    let mut session = session();
+    session.handle(read_only(1, true));
+    session.handle(send(2, "hi"));
+    session.handle(stored(6));
+    session.handle(hooks_done(TurnId::new(seq(4)), Vec::new()));
+    // 请求在路上时关了只读：放宽的等下一次请求，这一步派出去的还是只读。
+    session.handle(read_only(3, false));
+    call_tools(&mut session, 6, &[("read", "{}")]);
+    let guarding = guards(&session.handle(stored(9)));
+    assert_eq!(guarding.len(), 1, "{guarding:?}");
+    let actions = session.handle(guarded(guarding[0], Verdict::Allow));
+    assert_eq!(
+        run_permission(&actions),
+        Some(permission(Level::Workspace, true))
+    );
+}
+
+/// 等人确认时放宽了：回答以后派出去的，带的还是这一步实际生效的那一级，放宽的等下一步（施工 5-4 上）。
+#[test]
+fn an_approved_call_runs_with_the_level_in_effect() {
+    use super::approval::{answer, ask};
+    let mut session = asking();
+    call_tools(&mut session, 5, &[("read", "{}")]);
+    session.handle(stored(7));
+    session.handle(read_only(2, true));
+    session.handle(guarded(call(6, 1), ask(Access::Read, false)));
+    session.handle(read_only(3, false));
+    session.handle(answer(4, call(6, 1), Decision::Once, None));
+    let actions = session.handle(stored(11));
+    assert_eq!(
+        run_permission(&actions),
+        Some(permission(Level::Workspace, true))
+    );
 }

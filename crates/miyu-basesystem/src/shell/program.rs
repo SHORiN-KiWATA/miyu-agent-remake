@@ -87,6 +87,10 @@ impl Program {
         };
         let mut command = Command::new(program);
         command.args(args).current_dir(cwd).env_clear().envs(env);
+        // 沙盒要设的（例如沙盒自己的临时目录）排在白名单后面：同名的盖掉（施工 5-4 上）。
+        if let Some(sandboxed) = sandbox {
+            command.envs(sandboxed.env.iter().map(|(name, value)| (name, value)));
+        }
         Ok(command)
     }
 

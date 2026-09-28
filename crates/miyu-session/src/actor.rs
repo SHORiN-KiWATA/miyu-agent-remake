@@ -300,9 +300,10 @@ impl Actor {
                 name,
                 args,
                 cwd,
+                permission,
             } => {
                 let at = self.clock.now();
-                self.tools.run(at, call_id, name, args, cwd)
+                self.tools.run(at, call_id, name, args, cwd, permission)
             }
             // 叫它停（施工 4-9 再补一）：只举旗，工具交回来照常送回。
             Action::StopTool { call_id } => {

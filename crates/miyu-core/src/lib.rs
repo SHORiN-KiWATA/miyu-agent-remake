@@ -129,20 +129,23 @@ async fn run(
         Ok(models) => models,
         Err(error) => return failed("models", error),
     };
-    sandbox::probe(env.exe.as_deref());
+    let sandbox = sandbox::probe(env.exe.as_deref());
     let tools = match tools(&resources) {
         Ok(tools) => tools,
         Err(error) => return failed("tools", error),
     };
-    let core = Arc::new(Core::new(
-        root,
-        resources,
-        models,
-        tools,
-        env.home,
-        admin(),
-        opened.token,
-    ));
+    let core = Arc::new(
+        Core::new(
+            root,
+            resources,
+            models,
+            tools,
+            env.home,
+            admin(),
+            opened.token,
+        )
+        .with_sandbox(sandbox),
+    );
     say(&Ready::Ready);
     serve(opened.listener, core, options.idle, serve::signal()).await;
     ExitCode::SUCCESS

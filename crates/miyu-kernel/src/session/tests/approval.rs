@@ -38,7 +38,7 @@ fn raw(text: &str) -> RawJson {
 }
 
 /// 链说要问人：要的是 `access`；`rule` 是提没提放行规则。
-fn ask(access: Access, rule: bool) -> Verdict {
+pub(super) fn ask(access: Access, rule: bool) -> Verdict {
     Verdict::Ask {
         module: permissions(),
         access,

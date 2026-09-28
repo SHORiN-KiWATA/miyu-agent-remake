@@ -253,6 +253,7 @@ pub(super) fn runs(actions: &[Action]) -> Vec<(CallId, String, String, String)> 
                 name,
                 args,
                 cwd,
+                ..
             } => Some((*call_id, name.clone(), args.clone(), cwd.clone())),
             _ => None,
         })

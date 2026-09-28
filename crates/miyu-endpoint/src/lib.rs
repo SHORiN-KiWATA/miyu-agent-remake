@@ -49,6 +49,8 @@ pub struct Core {
     tools: Catalog,
     /// 系统的家目录：权限策略照它换 `~`，头报来的工作目录是它的就退回管理员的工作区（施工 4-3 下）。
     home: Option<PathBuf>,
+    /// 沙盒的助手：这台机器上的沙盒能用才有（核心起来时探的），造会话、载入时交给会话（施工 5-4 上）。
+    sandbox: Option<PathBuf>,
     /// 管理员：本机连上来的都是他（`06-多用户与身份.md` 第二节）。
     admin: AccountId,
     /// 本机令牌：本机连接握手时要出示（`04-核心协议.md` 第四节）。
@@ -82,6 +84,7 @@ impl Core {
             models,
             tools,
             home,
+            sandbox: None,
             admin,
             token,
             sessions: Sessions::default(),
@@ -94,6 +97,14 @@ impl Core {
     #[must_use]
     pub fn with_hello_wait(mut self, wait: Duration) -> Core {
         self.hello_wait = wait;
+        self
+    }
+
+    /// 同一份家底，沙盒的助手是 `helper`：这台机器上的沙盒能用才有（施工 5-4 上）。没有的，会话里工作区、只读两级
+    /// 执行命令都要问人。
+    #[must_use]
+    pub fn with_sandbox(mut self, helper: Option<PathBuf>) -> Core {
+        self.sandbox = helper;
         self
     }
 

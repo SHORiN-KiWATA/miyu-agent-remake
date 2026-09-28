@@ -23,12 +23,12 @@ fn every_cell_of_the_table() {
         (Zone::Readable, work, true, Mark::Ask),
         (Zone::Readable, read_only, false, Mark::Allow),
         (Zone::Readable, read_only, true, Mark::ReadOnly),
-        // 边界以外。
+        // 边界以外：读哪一级都放行（施工 5-4 上）。
         (Zone::Outside, full, false, Mark::Allow),
         (Zone::Outside, full, true, Mark::Allow),
-        (Zone::Outside, work, false, Mark::Ask),
+        (Zone::Outside, work, false, Mark::Allow),
         (Zone::Outside, work, true, Mark::Ask),
-        (Zone::Outside, read_only, false, Mark::Ask),
+        (Zone::Outside, read_only, false, Mark::Allow),
         (Zone::Outside, read_only, true, Mark::ReadOnly),
     ];
     for (zone, level, write, expected) in cases {
@@ -60,47 +60,60 @@ fn the_level_in_effect() {
 }
 
 #[test]
+fn a_command_goes_by_whether_the_sandbox_can_be_used() {
+    let (full, work, read_only) = (Effective::Full, Effective::Workspace, Effective::ReadOnly);
+    // 沙盒能用：哪一级都放行，工作区、只读在沙盒里跑（施工 5-4 上）。
+    for level in [full, work, read_only] {
+        assert_eq!(
+            untargeted(level, "shell", Access::Execute, true),
+            Verdict::Allow,
+            "{level:?}"
+        );
+    }
+    // 用不了：完全放开照样放行，别的两级问人，问的时候不提规则。
+    assert_eq!(
+        untargeted(full, "shell", Access::Execute, false),
+        Verdict::Allow
+    );
+    for level in [work, read_only] {
+        let Verdict::Ask {
+            module: asker,
+            access,
+            rule,
+            detail,
+        } = untargeted(level, "shell", Access::Execute, false)
+        else {
+            panic!("沙盒用不了，{level:?} 执行命令要问人");
+        };
+        assert_eq!(asker, module());
+        assert_eq!(access, Access::Execute);
+        assert_eq!(rule, None);
+        assert_eq!(
+            detail.map(|detail| detail.get().to_string()).as_deref(),
+            Some(r#"{"tool":"shell"}"#)
+        );
+    }
+}
+
+#[test]
 fn a_call_without_paths_goes_by_what_it_does() {
-    // 执行命令：M5 之前工作区这一级放行，只读时问人，问的时候不提规则。
-    assert_eq!(
-        untargeted(Effective::Workspace, "shell", Access::Execute),
-        Verdict::Allow
-    );
-    assert_eq!(
-        untargeted(Effective::Full, "shell", Access::Execute),
-        Verdict::Allow
-    );
-    let Verdict::Ask {
-        module: asker,
-        access,
-        rule,
-        detail,
-    } = untargeted(Effective::ReadOnly, "shell", Access::Execute)
-    else {
-        panic!("只读时执行命令要问人");
-    };
-    assert_eq!(asker, module());
-    assert_eq!(access, Access::Execute);
-    assert_eq!(rule, None);
-    assert_eq!(
-        detail.map(|detail| detail.get().to_string()).as_deref(),
-        Some(r#"{"tool":"shell"}"#)
-    );
-    // 读写不报路径的放行；联网这些 M4 还没有的，除了完全放开都问人。
-    assert_eq!(
-        untargeted(Effective::ReadOnly, "x", Access::Read),
-        Verdict::Allow
-    );
-    assert_eq!(
-        untargeted(Effective::Workspace, "x", Access::Write),
-        Verdict::Allow
-    );
-    assert!(matches!(
-        untargeted(Effective::Workspace, "fetch", Access::Network),
-        Verdict::Ask { .. }
-    ));
-    assert_eq!(
-        untargeted(Effective::Full, "fetch", Access::Network),
-        Verdict::Allow
-    );
+    // 读写不报路径的放行；联网这些还没有的，除了完全放开都问人，沙盒能用也问。
+    for sandboxed in [false, true] {
+        assert_eq!(
+            untargeted(Effective::ReadOnly, "x", Access::Read, sandboxed),
+            Verdict::Allow
+        );
+        assert_eq!(
+            untargeted(Effective::Workspace, "x", Access::Write, sandboxed),
+            Verdict::Allow
+        );
+        assert!(matches!(
+            untargeted(Effective::Workspace, "fetch", Access::Network, sandboxed),
+            Verdict::Ask { .. }
+        ));
+        assert_eq!(
+            untargeted(Effective::Full, "fetch", Access::Network, sandboxed),
+            Verdict::Allow
+        );
+    }
 }

@@ -1,0 +1,274 @@
+//! 一次调用带的沙盒（`docs/blueprint/session/tools.md` 第 1a 条，施工 5-4 上）：执行器照派出去那一刻实际生效的那一级
+//! 写规格；数据根落在临时目录里的，沙盒用自己的临时目录；写不成的不跑。Unix 上有收紧手段的，真的经助手跑 `shell`：
+//! 工作区里写得进，外面写不进，外面读得到，数据根读不到；只读时哪儿都写不进。
+
+mod support;
+
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+#[cfg(unix)]
+use miyu_kernel::event::{Body, ToolResult, ToolStatus};
+use miyu_kernel::event::{Level, Permission};
+use miyu_kernel::tool::Access;
+use miyu_sandbox::{Sandboxed, Spec};
+use miyu_session::Handle;
+use miyu_session::testkit::{Play, Script};
+use miyu_tool::testkit::{Act, Fake};
+use miyu_tool::{Catalog, Tool};
+
+use support::*;
+
+/// 假的助手：假工具不起它。
+const HELPER: &str = "miyu-sandbox";
+
+/// 真实的位置。
+fn real(path: &Path) -> PathBuf {
+    std::fs::canonicalize(path).expect("在")
+}
+
+/// 在 `cwd` 里造一个会话，沙盒能用，没人能确认：执行命令的假工具 `run` 跑一次，交回它拿到的沙盒。
+async fn attached(home: &Home, cwd: &str, permission: Permission) -> Option<Arc<Sandboxed>> {
+    let run = Fake::new("run", Access::Execute, Act::Echo);
+    let tools = Catalog::new([Arc::clone(&run) as Arc<dyn Tool>]).expect("合写法");
+    let script = Script::new([Play::calls(&[("run", "{}")]), Play::Says("好。")]);
+    let opening = Opening {
+        permission,
+        attended: false,
+        cwd: cwd.to_string(),
+        sandbox: Some(PathBuf::from(HELPER)),
+    };
+    let handle = home.create_as(&script, &tools, opening).await;
+    turn(&handle).await;
+    let calls = run.calls();
+    assert_eq!(calls.len(), 1, "跑了一次");
+    calls[0].sandbox.clone()
+}
+
+/// 说一句，等这一轮说完。
+async fn turn(handle: &Handle) {
+    let mut pushes = watch(handle).await;
+    ask(handle, "cmd-1", say("hi")).await.expect("会话在跑");
+    until_turn_ends(&mut pushes).await;
+}
+
+fn permission(level: Level, read_only: bool) -> Permission {
+    Permission { level, read_only }
+}
+
+/// 日志里的工具结果，照先后。
+#[cfg(unix)]
+fn results(home: &Home, handle: &Handle) -> Vec<ToolResult> {
+    home.log(handle.id())
+        .into_iter()
+        .filter_map(|event| match event.body {
+            Body::ToolResult(result) => Some(result),
+            _ => None,
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn each_level_gets_its_own_spec() {
+    let home = Home::outside_temp();
+    let work = home.scratch.0.join("work");
+    let data = real(home.root.path());
+    let cwd = work.to_string_lossy().into_owned();
+    let workspace = attached(&home, &cwd, permission(Level::Workspace, false)).await;
+    assert_eq!(
+        workspace.as_deref(),
+        Some(&Sandboxed {
+            helper: PathBuf::from(HELPER),
+            spec: Spec {
+                write: vec![real(&work), real(&std::env::temp_dir())],
+                hidden: vec![data.clone()],
+            },
+            env: Vec::new(),
+        }),
+        "工作区：能写工作目录、临时目录，藏数据根"
+    );
+    let read_only = Sandboxed {
+        helper: PathBuf::from(HELPER),
+        spec: Spec {
+            write: Vec::new(),
+            hidden: vec![data],
+        },
+        env: Vec::new(),
+    };
+    for level in [
+        permission(Level::Workspace, true),
+        permission(Level::Full, true),
+        permission(Level::Other("root".to_string()), false),
+    ] {
+        assert_eq!(
+            attached(&home, &cwd, level.clone()).await.as_deref(),
+            Some(&read_only),
+            "{level:?}：只读，哪儿都不能写；不认识的级别按只读"
+        );
+    }
+    assert_eq!(
+        attached(&home, &cwd, permission(Level::Full, false)).await,
+        None,
+        "完全放开：不进沙盒"
+    );
+    // 工作目录照权限策略的办法换成真实的位置：`~` 接家目录。
+    std::fs::create_dir_all(home.home.join("proj")).expect("建得了目录");
+    let tilde = attached(&home, "~/proj", permission(Level::Workspace, false))
+        .await
+        .expect("工作区进沙盒");
+    assert_eq!(tilde.spec.write[0], real(&home.home.join("proj")));
+}
+
+#[tokio::test]
+async fn a_data_root_in_temp_gets_a_temp_dir_of_its_own() {
+    let home = Home::new();
+    let work = home.scratch.0.join("work");
+    std::fs::create_dir_all(&work).expect("建得了目录");
+    let data = real(home.root.path());
+    let mut name = data.file_name().expect("有名字").to_os_string();
+    name.push("-sandbox-tmp");
+    let own = data.with_file_name(name);
+    // 两次：没有的建上，有了的照用。
+    for _ in 0..2 {
+        let sandboxed = attached(
+            &home,
+            &work.to_string_lossy(),
+            permission(Level::Workspace, false),
+        )
+        .await
+        .expect("工作区进沙盒");
+        assert_eq!(sandboxed.spec.write, vec![real(&work), own.clone()]);
+        assert_eq!(sandboxed.spec.hidden, vec![data.clone()]);
+        assert_eq!(
+            sandboxed.env,
+            vec![(OsString::from("TMPDIR"), own.clone().into_os_string())]
+        );
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::symlink_metadata(&own)
+            .expect("建了")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o700, "只给本人");
+    }
+}
+
+/// 沙盒自己的临时目录别人进得去：不用它，这次调用不跑，照崩了交回。
+#[cfg(unix)]
+#[tokio::test]
+async fn a_temp_dir_others_can_enter_is_not_used() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let home = Home::new();
+    let data = real(home.root.path());
+    let mut name = data.file_name().expect("有名字").to_os_string();
+    name.push("-sandbox-tmp");
+    let own = data.with_file_name(name);
+    std::fs::create_dir(&own).expect("建得了目录");
+    std::fs::set_permissions(&own, std::fs::Permissions::from_mode(0o755)).expect("改得了");
+    let run = Fake::new("run", Access::Execute, Act::Echo);
+    let tools = Catalog::new([Arc::clone(&run) as Arc<dyn Tool>]).expect("合写法");
+    let script = Script::new([Play::calls(&[("run", "{}")]), Play::Says("好。")]);
+    let opening = Opening {
+        permission: permission(Level::Workspace, false),
+        attended: false,
+        cwd: home.scratch.0.to_string_lossy().into_owned(),
+        sandbox: Some(PathBuf::from(HELPER)),
+    };
+    let handle = home.create_as(&script, &tools, opening).await;
+    turn(&handle).await;
+    assert!(run.calls().is_empty(), "没跑");
+    let results = results(&home, &handle);
+    assert_eq!(results.len(), 1, "{results:?}");
+    assert_eq!(results[0].status, ToolStatus::Error);
+    assert_eq!(
+        results[0].blocks,
+        [miyu_kernel::block::Block::Text(miyu_kernel::block::Text {
+            text: "The tool \"run\" stopped because of an internal error. It may have been partly done.\n"
+                .into(),
+        })]
+    );
+}
+
+/// 真的经助手跑 `shell`（Unix 上有收紧手段的）：工作区里写得进，外面写不进、读得到，数据根读不到；只读时工作区里也
+/// 写不进。
+#[cfg(unix)]
+#[tokio::test]
+async fn commands_really_run_in_the_sandbox() {
+    let helper = miyu_sandbox::testkit::built_helper();
+    if !can_confine(&helper) {
+        return;
+    }
+    let home = Home::outside_temp();
+    let work = home.scratch.0.join("work");
+    let other = home.scratch.0.join("other");
+    std::fs::write(other.join("readable.txt"), "readable\n").expect("写得进");
+    std::fs::write(home.root.path().join("marker"), "secret\n").expect("写得进");
+    let outside = other.join("outside.txt");
+    let marker = home.root.path().join("marker");
+    let command = format!(
+        "echo in > inside.txt && echo wrote-inside; \
+         (echo out > '{}') 2>/dev/null && echo wrote-outside || echo blocked-outside; \
+         cat '{}'; \
+         cat '{}' 2>/dev/null || echo blocked-data",
+        outside.display(),
+        other.join("readable.txt").display(),
+        marker.display()
+    );
+    let output = shell(&home, &helper, &work, false, &command).await;
+    assert_eq!(
+        output,
+        "wrote-inside\nblocked-outside\nreadable\nblocked-data\n"
+    );
+    assert!(work.join("inside.txt").exists());
+    assert!(!outside.exists());
+    let output = shell(
+        &home,
+        &helper,
+        &work,
+        true,
+        "(echo in > again.txt) 2>/dev/null && echo wrote || echo blocked",
+    )
+    .await;
+    assert_eq!(output, "blocked\n", "只读：哪儿都写不进");
+    assert!(!work.join("again.txt").exists());
+}
+
+/// 这台机器上助手有没有收紧的手段：没有的（例如没有 Landlock 的内核），这个测试到此为止。
+#[cfg(unix)]
+fn can_confine(helper: &Path) -> bool {
+    let probe = miyu_sandbox::probe(helper, std::time::Duration::from_secs(5)).expect("探得了");
+    !probe.mechanisms.is_empty()
+}
+
+/// 在 `work` 里，工作区这一级（`read_only` 时只读），经助手 `helper` 跑一条 `shell`，交回给她看的输出。
+#[cfg(unix)]
+async fn shell(home: &Home, helper: &Path, work: &Path, read_only: bool, command: &str) -> String {
+    let resources = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");
+    let tools = Catalog::new(miyu_basesystem::tools(&resources).expect("出厂的资源读得出来"))
+        .expect("合写法");
+    let args = serde_json::json!({ "command": command, "description": "Test" }).to_string();
+    let script = Script::new([Play::calls(&[("shell", args.as_str())]), Play::Says("好。")]);
+    let opening = Opening {
+        permission: permission(Level::Workspace, read_only),
+        attended: false,
+        cwd: work.to_string_lossy().into_owned(),
+        sandbox: Some(helper.to_path_buf()),
+    };
+    let handle = home.create_as(&script, &tools, opening).await;
+    turn(&handle).await;
+    let results = results(home, &handle);
+    assert_eq!(results.len(), 1, "{results:?}");
+    assert_eq!(results[0].status, ToolStatus::Ok, "{results:?}");
+    results[0]
+        .blocks
+        .iter()
+        .map(|block| match block {
+            miyu_kernel::block::Block::Text(text) => text.text.clone(),
+            other => panic!("只该有字：{other:?}"),
+        })
+        .collect()
+}

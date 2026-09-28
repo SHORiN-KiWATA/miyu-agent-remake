@@ -130,6 +130,7 @@ async fn a_write_that_fails_stops_the_session() {
         std::path::PathBuf::new(),
         None,
         snapshot.guard_texts().expect("出厂的快照造得出三句"),
+        false,
     );
     let mut actor = Actor::new(
         session,
@@ -143,6 +144,7 @@ async fn a_write_that_fails_stops_the_session() {
             // 这个测试不跑工具：blob 不会存进去。
             blobs: miyu_store::blob::Blobs::new(std::path::PathBuf::new()),
             seen: miyu_tool::Seen::new(),
+            sandbox: None,
         },
         guard,
         mailbox,

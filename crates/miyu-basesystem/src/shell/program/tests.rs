@@ -174,6 +174,7 @@ fn sandboxed() -> Sandboxed {
     Sandboxed {
         helper: PathBuf::from("/opt/miyu/miyu-sandbox"),
         spec: miyu_sandbox::Spec::from_json(r#"{"write":["/work"]}"#).expect("读得懂"),
+        env: vec![(OsString::from("TMPDIR"), OsString::from("/work/tmp"))],
     }
 }
 
@@ -209,11 +210,12 @@ fn a_sandboxed_command_goes_through_the_helper_and_keeps_the_rest() {
         expected.extend(args(&direct));
         assert_eq!(args(&wrapped), expected, "{kind:?}");
         assert_eq!(wrapped.get_current_dir(), direct.get_current_dir());
-        assert_eq!(
-            wrapped.get_envs().collect::<Vec<_>>(),
-            direct.get_envs().collect::<Vec<_>>(),
-            "环境变量照旧"
-        );
+        let mut expected_envs: Vec<_> = direct.get_envs().collect();
+        expected_envs.push((OsStr::new("TMPDIR"), Some(OsStr::new("/work/tmp"))));
+        expected_envs.sort();
+        let mut envs: Vec<_> = wrapped.get_envs().collect();
+        envs.sort();
+        assert_eq!(envs, expected_envs, "白名单照旧，沙盒要设的加上");
     }
 }
 

@@ -124,6 +124,7 @@ impl Session {
                         name: call.name.clone(),
                         args: call.args.clone(),
                         cwd: turn.cwd.clone(),
+                        permission: self.effective.clone(),
                     });
                 }
                 State::Answered { answered } if answered <= stored => {

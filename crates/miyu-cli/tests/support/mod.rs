@@ -45,22 +45,30 @@ fn next() -> u64 {
 impl Home {
     /// 起一个核心：请求模型照 `models`，没有工具。
     pub fn new(models: Arc<dyn Models>) -> Home {
-        Home::with_tools(models, Catalog::default())
+        Home::start(models, Catalog::default(), None)
     }
 
-    /// 起一个核心：请求模型照 `models`，工具照 `tools`。
+    /// 起一个核心：请求模型照 `models`，工具照 `tools`。沙盒能用，助手是 cargo 编出来的那一个（施工 5-4 上）：
+    /// `miyu ask` 里执行命令不问人。
     pub fn with_tools(models: Arc<dyn Models>, tools: Catalog) -> Home {
+        Home::start(models, tools, Some(miyu_sandbox::testkit::built_helper()))
+    }
+
+    fn start(models: Arc<dyn Models>, tools: Catalog, sandbox: Option<PathBuf>) -> Home {
         let (dir, root) = temp_root();
         let opened = miyu_ipc::open(&root, &dirs()).expect("起得来");
-        let core = Arc::new(Core::new(
-            root.clone(),
-            resources(),
-            models,
-            tools,
-            None,
-            AccountIdOf::admin(),
-            opened.token.clone(),
-        ));
+        let core = Arc::new(
+            Core::new(
+                root.clone(),
+                resources(),
+                models,
+                tools,
+                None,
+                AccountIdOf::admin(),
+                opened.token.clone(),
+            )
+            .with_sandbox(sandbox),
+        );
         let running = tokio::spawn(miyu_endpoint::run(opened.listener, core));
         Home { dir, root, running }
     }

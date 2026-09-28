@@ -40,6 +40,7 @@ fn opening(home: &Home) -> Opening {
         },
         attended: false,
         cwd: work(home),
+        sandbox: None,
     }
 }
 
@@ -249,8 +250,9 @@ async fn a_trashed_file_is_no_longer_one_she_has_seen() {
     );
 }
 
-/// 真的 `shell`（施工 4-8）：她执行一条命令，工作区这一级不用问人；结果记进日志，给模型看的是输出加退出码，给人看的
-/// 说法里有退出码；改了哪些文件 shell 不报，效果是空的。
+/// 真的 `shell`（施工 4-8）：她执行一条命令，完全放开这一级不用问人、不进沙盒（施工 5-4 上起，工作区这一级要沙盒
+/// 能用才不问，见 `tests/sandbox.rs`）；结果记进日志，给模型看的是输出加退出码，给人看的说法里有退出码；改了哪些文件
+/// shell 不报，效果是空的。
 #[tokio::test]
 async fn a_command_she_runs_is_logged_with_its_exit_code() {
     let home = Home::outside_temp();
@@ -261,9 +263,14 @@ async fn a_command_she_runs_is_logged_with_its_exit_code() {
     };
     let args = serde_json::json!({ "command": command, "description": "Test" }).to_string();
     let script = Script::new([Play::calls(&[("shell", args.as_str())]), Play::Says("好。")]);
-    let handle = home
-        .create_as(&script, &base_system(), opening(&home))
-        .await;
+    let opening = Opening {
+        permission: Permission {
+            level: Level::Full,
+            read_only: false,
+        },
+        ..opening(&home)
+    };
+    let handle = home.create_as(&script, &base_system(), opening).await;
     talk(&handle, "cmd-1", "跑一下").await;
     let results = results(&home, &handle);
     assert_eq!(results.len(), 1, "{results:?}");

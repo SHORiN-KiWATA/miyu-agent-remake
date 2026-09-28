@@ -25,6 +25,7 @@ mod open;
 mod pictures;
 mod port;
 mod restore;
+mod sandbox;
 mod store;
 #[cfg(feature = "testkit")]
 pub mod testkit;

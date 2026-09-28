@@ -36,6 +36,7 @@ async fn a_sandboxed_call_runs_through_the_helper() {
             Sandboxed {
                 helper: "/bin/echo".into(),
                 spec,
+                env: Vec::new(),
             },
         )
         .await;
@@ -66,6 +67,7 @@ async fn a_spec_that_cannot_be_written_does_not_run_the_command() {
             Sandboxed {
                 helper: "/bin/echo".into(),
                 spec,
+                env: Vec::new(),
             },
         )
         .await;

@@ -32,6 +32,8 @@ miyu-endpoint = { path = "../miyu-endpoint" }
 miyu-session = { path = "../miyu-session", features = ["testkit"] }
 # 测试里在进程里起核心：工具目录（施工 4-1）。
 miyu-tool = { path = "../miyu-tool" }
+# 测试里在进程里起核心：真的工具经 cargo 编出来的助手执行命令（施工 5-4 上）。
+miyu-sandbox = { path = "../miyu-sandbox", features = ["testkit"] }
 tokio = { version = "1", features = ["io-util", "macros", "rt", "signal", "sync", "time"] }
 
 [lints]

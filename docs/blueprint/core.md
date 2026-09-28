@@ -12,7 +12,7 @@
 | `crates/miyu-core/src/lib.rs` | `main`：起来的先后；管理员 `admin`；工具目录；写那一行 |
 | `crates/miyu-core/src/models.rs` | 从环境变量拿模型 |
 | `crates/miyu-core/src/serve.rs` | 接连接，空闲退出，停的信号 |
-| `crates/miyu-core/src/sandbox.rs` | 起来时找沙盒的助手、探一次，记日志（施工 5-1） |
+| `crates/miyu-core/src/sandbox.rs` | 起来时找沙盒的助手、探一次，记日志（施工 5-1）；探到了手段的，交回助手（施工 5-4 上） |
 | `crates/miyu-ipc` | 单实例锁、套接字、本机令牌、那一行的写法（`ipc.md`） |
 | `crates/miyu-endpoint` | 协议端点：核心的家底 `Core`、接连接、空不空闲（`protocol.md`） |
 | `crates/miyu-basesystem`、`crates/miyu-tool` | 基础系统的七件工具、工具目录（`tools/interface.md`） |
@@ -148,7 +148,7 @@
 | `crates/miyu-core/src/serve/tests.rs` | 多久看一次：四分之一，最多 30 秒，最少 100 毫秒；装不上的 Ctrl+C 当它不会来（造不出真的装不上，测的是等它的那一小段） |
 | `crates/miyu-core/tests/tools.rs` | 工具目录里是基础系统的七件；资源目录坏了，说是哪一份 |
 | `crates/miyu-core/src/models/tests.rs` | 请求 DeepSeek 时的模型名、不写输出上限、收图不收 PDF（施工 4-13） |
-| `crates/miyu-core/src/sandbox/tests.rs` | 探沙盒的助手：旁边没有的、不知道主程序在哪的记找不到，跑不了的记原因（施工 5-1） |
+| `crates/miyu-core/src/sandbox/tests.rs` | 探沙盒的助手：旁边没有的、不知道主程序在哪的记找不到，跑不了的记原因（施工 5-1）；探到了手段的交回助手，手段是空的、探不成的交回空的（施工 5-4 上） |
 
 ### 出处
 

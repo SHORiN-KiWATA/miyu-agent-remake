@@ -54,6 +54,7 @@ impl Session {
                     name: call.name.clone(),
                     args: call.args.clone(),
                     cwd,
+                    permission: self.effective.clone(),
                 }];
             }
             Verdict::Deny {

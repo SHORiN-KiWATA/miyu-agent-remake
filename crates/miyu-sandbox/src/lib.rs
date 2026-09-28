@@ -5,7 +5,8 @@
 //! - [`Spec`]：规格；[`Sandboxed`]：一次调用带的，助手在哪、规格是什么；
 //! - [`argv`]：照规格把一条命令包成交给助手的样子；
 //! - [`locate()`]：找助手，在主程序旁边；
-//! - [`probe()`]：跑一次助手的 `probe`，读它说这台机器能收紧到什么程度（[`Probe`]、[`Platform`]）。
+//! - [`probe()`]：跑一次助手的 `probe`，读它说这台机器能收紧到什么程度（[`Probe`]、[`Platform`]）；
+//! - `testkit`：测试用的，cargo 编出来的助手在哪（施工 5-4 上）。
 //!
 //! 助手本身在 `src/bin/miyu-sandbox/`：共用的在 `main.rs`，收紧和换成命令各平台一个文件。
 //!
@@ -14,6 +15,8 @@
 mod locate;
 mod probe;
 mod spec;
+#[cfg(feature = "testkit")]
+pub mod testkit;
 mod wrap;
 
 pub use locate::{HELPER, locate};

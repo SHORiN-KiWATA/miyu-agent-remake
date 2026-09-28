@@ -70,10 +70,13 @@ pub struct Opening {
     pub attended: bool,
     /// 工作目录。
     pub cwd: String,
+    /// 沙盒的助手：有的当这台机器上的沙盒能用（施工 5-4 上）。假工具不起它，随便一条路径就行；真的起命令的用
+    /// [`miyu_sandbox::testkit::built_helper`]。
+    pub sandbox: Option<PathBuf>,
 }
 
 impl Default for Opening {
-    /// 工作区这一级，有人能确认，工作目录照 [`environment`]。
+    /// 工作区这一级，有人能确认，工作目录照 [`environment`]，沙盒用不了。
     fn default() -> Opening {
         Opening {
             permission: Permission {
@@ -82,6 +85,7 @@ impl Default for Opening {
             },
             attended: true,
             cwd: environment().cwd,
+            sandbox: None,
         }
     }
 }
@@ -162,6 +166,7 @@ impl Home {
             models,
             tools,
             home: Some(&self.home),
+            sandbox: opening.sandbox.as_deref(),
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -201,6 +206,8 @@ impl Home {
             models,
             tools,
             home: Some(&self.home),
+            // 载入以后的测试不执行命令：沙盒用不了。
+            sandbox: None,
         });
         within("载入", loaded).await.expect("载入得了会话")
     }
