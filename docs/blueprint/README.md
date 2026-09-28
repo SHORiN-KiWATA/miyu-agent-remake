@@ -45,7 +45,7 @@
 | `tools/read.md`、`glob.md`、`grep.md`、`write.md`、`edit.md`、`trash.md`、`shell.md` | 每件工具一页 |
 | `cli/ask.md`、`cli/undo.md`、`cli/main.md` | 每条命令一页；主程序 |
 | `sandbox.md` | 沙盒：规格、助手 `miyu-sandbox`、探测、找助手（施工 5-1 起） |
-| `sandbox/linux.md` | 沙盒在 Linux 上怎么收紧：Landlock 管文件（施工 5-2 起） |
+| `sandbox/linux.md` | 沙盒在 Linux 上怎么收紧：只用 Landlock，整盘能读、只管写（施工 5-2 起，5-3 改成只管写） |
 | `sandbox/macos.md` | 沙盒在 macOS 上怎么收紧：Seatbelt 配置的底子、照规格生成的规则、换成真实的位置、装上、探测报 `seatbelt`（施工 5-7 起） |
 | `sandbox/windows.md` | 沙盒在 Windows 上要一次管理员权限的安装：沙盒用户、装和卸（施工 5-8 起） |
 | `licenses.md` | 仓库用什么许可证；门禁查依赖的许可证能不能和它合在一起发（施工 4-12） |
