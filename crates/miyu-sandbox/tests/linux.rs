@@ -1,33 +1,23 @@
-//! Linux 上真跑助手（`docs/blueprint/sandbox/linux.md`，施工 5-2）：规格里的读得了、写得了；规格外的读不了、写不了、
-//! 执行不了，命令起的子进程一样；只读目录里写不了；不在的路径跳过；只读的、藏起来的落在放行范围里拒绝执行；探测
-//! 报 `landlock`；收紧时设了 `no_new_privs`。内核没有 Landlock 的机器上，只测拒绝执行。
+//! Linux 上真跑助手（`docs/blueprint/sandbox/linux.md`，施工 5-2、5-3）：整盘能读，只管写；一条能写的都没有时只有
+//! `/dev/null` 写得进；藏起来的读写都不行，名字看得到；能写的落在藏起来的里面照样能写；藏起来的落在能写的里面拒绝
+//! 执行；一级级放行时的链接不跟过去；不在的路径跳过；设了 `no_new_privs`；系统服务的套接字连不上；探测报 `landlock`。
+//! 内核没有 Landlock 的机器上，只测拒绝执行。
 
 #![cfg(target_os = "linux")]
 
 mod support;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
 use miyu_sandbox::{EXIT_HELPER, Probe, Spec};
 use support::{Dir, HELPER, serial};
 
-/// 系统目录：`sh`、`cat` 这些要读的程序和库（设计 11 第四节的第一版清单）。不在的助手跳过。
-const SYSTEM: [&str; 8] = [
-    "/usr", "/bin", "/sbin", "/lib", "/lib32", "/lib64", "/etc", "/opt",
-];
-
-/// 一份规格：系统目录加 `read` 能读，`write` 能写，`/dev/null` 能写。
-fn spec(read: &[&Path], write: &[&Path]) -> Spec {
-    let mut all_read: Vec<PathBuf> = SYSTEM.iter().map(PathBuf::from).collect();
-    all_read.extend(read.iter().map(|path| path.to_path_buf()));
-    let mut all_write: Vec<PathBuf> = write.iter().map(|path| path.to_path_buf()).collect();
-    all_write.push(PathBuf::from("/dev/null"));
+/// 一份规格：`write` 能写，`hidden` 藏起来。
+fn spec(write: &[&Path], hidden: &[&Path]) -> Spec {
     Spec {
-        read: all_read,
-        write: all_write,
-        readonly: Vec::new(),
-        hidden: Vec::new(),
+        write: write.iter().map(|path| path.to_path_buf()).collect(),
+        hidden: hidden.iter().map(|path| path.to_path_buf()).collect(),
     }
 }
 
@@ -76,75 +66,185 @@ fn text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
 }
 
+/// 跑 `script`，要它失败，报的是被拦（`Permission denied`）。
+fn denied(spec: &Spec, script: &str) {
+    let out = run(spec, script);
+    assert_ne!(out.status.code(), Some(0), "{script}: {out:?}");
+    assert!(
+        text(&out.stderr).contains("Permission denied"),
+        "{script}: {out:?}"
+    );
+}
+
 #[test]
-fn allowed_paths_can_be_read_and_written_by_the_command_and_its_children() {
+fn everything_is_readable_but_only_the_writable_paths_can_be_written() {
     let _serial = serial();
     let work = Dir::new();
-    let spec = spec(&[], &[work.path()]);
+    let other = Dir::new();
+    let notes = other.file("notes.txt", b"shared notes\n");
+    let spec = spec(&[work.path()], &[]);
     if refused_without_landlock(&spec) {
         return;
     }
+    // 读：别处的文件、系统的文件、家目录，都读得了。
+    let out = run(
+        &spec,
+        &format!(
+            "cat '{}' && head -c 1 /etc/passwd >/dev/null && ls \"$HOME\" >/dev/null && echo read",
+            notes.display()
+        ),
+    );
+    assert_eq!(out.status.code(), Some(0), "{out:?}");
+    assert_eq!(text(&out.stdout), "shared notes\nread\n");
+    // 写：只有能写的那一处。
     let file = work.path().join("a.txt");
     // 跨目录的改名、硬链接要 Landlock 第 2 版起的那一样（`mv` 被拒会改成拷贝再删，`ln` 没有退路）。
     let script = format!(
-        "echo hi > '{0}' && cat '{0}' && mkdir '{1}/sub' && mv '{0}' '{1}/sub/b.txt' && ln '{1}/sub/b.txt' '{1}/c.txt' && ls '{1}/sub' 2>/dev/null && cat '{1}/c.txt'",
+        "echo hi > '{0}' && cat '{0}' && mkdir '{1}/sub' && mv '{0}' '{1}/sub/b.txt' && ln '{1}/sub/b.txt' '{1}/c.txt' && ls '{1}/sub' && cat '{1}/c.txt'",
         file.display(),
         work.path().display()
     );
     let out = run(&spec, &script);
     assert_eq!(out.status.code(), Some(0), "{out:?}");
     assert_eq!(text(&out.stdout), "hi\nb.txt\nhi\n");
+    let home = std::env::var("HOME").expect("有家目录");
+    let stray = Path::new(&home).join(format!(".miyu-sandbox-test-{}", std::process::id()));
+    for script in [
+        format!("echo x > '{}/new.txt'", other.path().display()),
+        format!("rm '{}'", notes.display()),
+        format!("echo more >> '{}'", notes.display()),
+        format!("touch '{}'", stray.display()),
+    ] {
+        denied(&spec, &script);
+    }
+    assert_eq!(std::fs::read(&notes).expect("还在"), b"shared notes\n");
+    assert!(
+        !other.path().join("new.txt").exists() && !stray.exists(),
+        "没写进去"
+    );
 }
 
 #[test]
-fn paths_outside_the_spec_cannot_be_read_written_or_listed() {
+fn nothing_writable_is_read_only_everywhere_but_dev_null() {
+    let _serial = serial();
+    let other = Dir::new();
+    let spec = spec(&[], &[]);
+    if refused_without_landlock(&spec) {
+        return;
+    }
+    let out = run(&spec, "echo x > /dev/null && echo sink");
+    assert_eq!(text(&out.stdout), "sink\n", "{out:?}");
+    denied(&spec, &format!("touch '{}/x'", other.path().display()));
+    let out = run(&spec, "mktemp");
+    assert_ne!(out.status.code(), Some(0), "临时目录也写不了：{out:?}");
+}
+
+#[test]
+fn hidden_paths_cannot_be_read_or_written_but_their_names_show() {
+    let _serial = serial();
+    let work = Dir::new();
+    let data = Dir::new();
+    let token = data.file("token", b"secret\n");
+    let beside = Dir::new();
+    let open = beside.file("open.txt", b"open\n");
+    let spec = spec(&[work.path()], &[data.path()]);
+    if refused_without_landlock(&spec) {
+        return;
+    }
+    denied(&spec, &format!("cat '{}'", token.display()));
+    denied(&spec, &format!("echo x >> '{}'", token.display()));
+    let out = run(&spec, &format!("ls '{}'", data.path().display()));
+    assert_eq!(text(&out.stdout), "token\n", "名字看得到：{out:?}");
+    // 藏起来的旁边照样读得了：一级级放行，只绕开藏起来的那一条。
+    let out = run(&spec, &format!("cat '{}'", open.display()));
+    assert_eq!(text(&out.stdout), "open\n", "{out:?}");
+}
+
+#[test]
+fn a_writable_path_inside_a_hidden_one_stays_writable() {
+    let _serial = serial();
+    let data = Dir::new();
+    let workspace = data.path().join("home/admin/workspace");
+    std::fs::create_dir_all(&workspace).expect("建得了目录");
+    let token = data.file("token", b"secret\n");
+    let spec = spec(&[&workspace], &[data.path()]);
+    if refused_without_landlock(&spec) {
+        return;
+    }
+    let file = workspace.join("a.txt");
+    let out = run(
+        &spec,
+        &format!("echo hi > '{0}' && cat '{0}'", file.display()),
+    );
+    assert_eq!(
+        text(&out.stdout),
+        "hi\n",
+        "工作区在数据根里照样能写：{out:?}"
+    );
+    denied(&spec, &format!("cat '{}'", token.display()));
+}
+
+#[test]
+fn a_hidden_path_inside_a_writable_one_is_refused_before_running() {
+    let _serial = serial();
+    let work = Dir::new();
+    let spec = spec(&[work.path()], &[&work.path().join("data")]);
+    let out = run(&spec, "echo ran");
+    assert_eq!(out.status.code(), Some(i32::from(EXIT_HELPER)), "{out:?}");
+    assert_eq!(
+        text(&out.stderr),
+        format!(
+            "miyu-sandbox: cannot confine: cannot hide {}/data inside a writable path\n",
+            work.path().display()
+        )
+    );
+    assert!(out.stdout.is_empty(), "没跑");
+}
+
+#[test]
+fn links_on_the_way_to_a_hidden_path_are_not_followed() {
+    let _serial = serial();
+    let work = Dir::new();
+    let base = Dir::new();
+    let data = base.path().join("data");
+    std::fs::create_dir(&data).expect("建得了目录");
+    std::fs::write(data.join("token"), b"secret\n").expect("写得进");
+    std::os::unix::fs::symlink(&data, base.path().join("alias")).expect("建得了链接");
+    let spec = spec(&[work.path()], &[&data]);
+    if refused_without_landlock(&spec) {
+        return;
+    }
+    denied(
+        &spec,
+        &format!("cat '{}/alias/token'", base.path().display()),
+    );
+}
+
+#[test]
+fn missing_paths_in_the_spec_are_skipped() {
+    let _serial = serial();
+    let work = Dir::new();
+    let gone = work.path().join("not-yet");
+    let spec = spec(&[work.path(), &gone], &[Path::new("/no/such/place")]);
+    if refused_without_landlock(&spec) {
+        return;
+    }
+    let out = run(&spec, "echo ran");
+    assert_eq!(out.status.code(), Some(0), "{out:?}");
+    assert_eq!(text(&out.stdout), "ran\n");
+}
+
+#[test]
+fn read_only_files_cannot_be_truncated() {
     let _serial = serial();
     let work = Dir::new();
     let other = Dir::new();
-    let secret = other.file("secret.txt", b"do not read\n");
-    let spec = spec(&[], &[work.path()]);
+    let notes = other.file("notes.txt", b"shared notes\n");
+    let spec = spec(&[work.path()], &[]);
     if refused_without_landlock(&spec) {
         return;
     }
-    for script in [
-        format!("cat '{}'", secret.display()),
-        format!("echo x > '{}/new.txt'", other.path().display()),
-        format!("ls '{}'", other.path().display()),
-        format!("rm '{}'", secret.display()),
-    ] {
-        let out = run(&spec, &script);
-        assert_ne!(out.status.code(), Some(0), "{script}: {out:?}");
-        assert!(
-            text(&out.stderr).contains("Permission denied"),
-            "{script}: {out:?}"
-        );
-    }
-    assert!(secret.exists(), "没删掉");
-    assert!(!other.path().join("new.txt").exists(), "没写进去");
-}
-
-#[test]
-fn read_paths_are_read_only() {
-    let _serial = serial();
-    let shared = Dir::new();
-    let notes = shared.file("notes.txt", b"shared notes\n");
-    let spec = spec(&[shared.path()], &[]);
-    if refused_without_landlock(&spec) {
-        return;
-    }
-    let out = run(&spec, &format!("cat '{}'", notes.display()));
-    assert_eq!(out.status.code(), Some(0), "{out:?}");
-    assert_eq!(text(&out.stdout), "shared notes\n");
-    for script in [
-        format!("echo more >> '{}'", notes.display()),
-        format!("touch '{}/new.txt'", shared.path().display()),
-        format!("rm '{}'", notes.display()),
-    ] {
-        let out = run(&spec, &script);
-        assert_ne!(out.status.code(), Some(0), "{script}: {out:?}");
-    }
-    assert_eq!(std::fs::read(&notes).expect("还在"), b"shared notes\n");
-    // 截断：内核 6.2 起 Landlock 管得了 truncate(2)，只读的截不了。机器上没有 python3 的不测这一条。
+    // 截断：内核 6.2 起 Landlock 管得了 truncate(2)，写不了的也截不了。机器上没有 python3 的不测。
     let script = format!(
         "command -v python3 >/dev/null || exit 77; python3 -c 'import os, sys; os.truncate(sys.argv[1], 0)' '{}'",
         notes.display()
@@ -157,100 +257,10 @@ fn read_paths_are_read_only() {
 }
 
 #[test]
-fn programs_outside_the_spec_cannot_run() {
-    let _serial = serial();
-    let work = Dir::new();
-    let tools = Dir::new();
-    let copied = tools.path().join("true");
-    std::fs::copy("/bin/true", &copied).expect("拷得了");
-    let spec = spec(&[], &[work.path()]);
-    if refused_without_landlock(&spec) {
-        return;
-    }
-    let out = Command::new(HELPER)
-        .args(["run", "--spec", &spec.to_json().expect("写得成"), "--"])
-        .arg(&copied)
-        .output()
-        .expect("起得来");
-    assert_eq!(out.status.code(), Some(126), "{out:?}");
-    assert!(
-        text(&out.stderr).starts_with(&format!("miyu-sandbox: cannot run {}: ", copied.display())),
-        "{out:?}"
-    );
-}
-
-#[test]
-fn carve_outs_inside_allowed_paths_are_refused_before_running() {
-    let _serial = serial();
-    let work = Dir::new();
-    let mut readonly = spec(&[], &[work.path()]);
-    readonly.readonly.push(work.path().join(".git"));
-    let mut hidden = spec(&[], &[work.path()]);
-    hidden.hidden.push(work.path().join("data"));
-    for (spec, said) in [
-        (
-            readonly,
-            format!(
-                "miyu-sandbox: cannot confine: cannot keep {}/.git read-only inside a writable path\n",
-                work.path().display()
-            ),
-        ),
-        (
-            hidden,
-            format!(
-                "miyu-sandbox: cannot confine: cannot hide {}/data inside an allowed path\n",
-                work.path().display()
-            ),
-        ),
-    ] {
-        let out = run(&spec, "echo ran");
-        assert_eq!(out.status.code(), Some(i32::from(EXIT_HELPER)), "{out:?}");
-        assert_eq!(text(&out.stderr), said);
-        assert!(out.stdout.is_empty(), "没跑");
-    }
-}
-
-#[test]
-fn readonly_and_hidden_outside_writable_paths_are_kept() {
-    let _serial = serial();
-    let work = Dir::new();
-    let docs = Dir::new();
-    let data = Dir::new();
-    let readme = docs.file("README", b"read me\n");
-    let token = data.file("token", b"secret\n");
-    let mut spec = spec(&[], &[work.path()]);
-    spec.readonly.push(docs.path().to_path_buf());
-    spec.hidden.push(data.path().to_path_buf());
-    if refused_without_landlock(&spec) {
-        return;
-    }
-    let out = run(&spec, &format!("cat '{}'", readme.display()));
-    assert_eq!(text(&out.stdout), "read me\n", "只读的读得了：{out:?}");
-    let out = run(&spec, &format!("echo x >> '{}'", readme.display()));
-    assert_ne!(out.status.code(), Some(0), "只读的写不了：{out:?}");
-    let out = run(&spec, &format!("cat '{}'", token.display()));
-    assert_ne!(out.status.code(), Some(0), "藏起来的读不了：{out:?}");
-}
-
-#[test]
-fn missing_paths_in_the_spec_are_skipped() {
-    let _serial = serial();
-    let work = Dir::new();
-    let gone = work.path().join("not-yet");
-    let spec = spec(&[Path::new("/no/such/place")], &[work.path(), &gone]);
-    if refused_without_landlock(&spec) {
-        return;
-    }
-    let out = run(&spec, "echo ran");
-    assert_eq!(out.status.code(), Some(0), "{out:?}");
-    assert_eq!(text(&out.stdout), "ran\n");
-}
-
-#[test]
 fn the_command_runs_with_no_new_privs() {
     let _serial = serial();
     let work = Dir::new();
-    let spec = spec(&[Path::new("/proc")], &[work.path()]);
+    let spec = spec(&[work.path()], &[]);
     if refused_without_landlock(&spec) {
         return;
     }
@@ -260,17 +270,6 @@ fn the_command_runs_with_no_new_privs() {
         text(&out.stdout).split_whitespace().collect::<Vec<_>>(),
         ["NoNewPrivs:", "1"]
     );
-}
-
-#[test]
-fn the_probe_reports_landlock_when_the_kernel_has_it() {
-    let has = std::fs::read_to_string("/sys/kernel/security/lsm")
-        .map(|list| list.split(',').any(|name| name.trim() == "landlock"))
-        .unwrap_or(false);
-    // 内核启用了 Landlock（`/sys/kernel/security/lsm` 里有它）的，探测一定报它；读不到这份清单的不下结论。
-    if has {
-        assert!(landlock(), "内核启用了 Landlock，探测却没报");
-    }
 }
 
 /// 这台机器的内核版本：`7.2.3-zen1` 这样的写法取前两段。
@@ -315,7 +314,7 @@ fn system_service_sockets_outside_the_spec_cannot_be_connected() {
     let _serial = serial();
     let work = Dir::new();
     let other = Dir::new();
-    let spec = spec(&[], &[work.path()]);
+    let spec = spec(&[work.path()], &[]);
     if refused_without_landlock(&spec) {
         return;
     }

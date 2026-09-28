@@ -42,7 +42,7 @@
 - 几条重叠的时候，越深的越算数：能写的落在藏起来的里面，照样能写（工作区在数据根里）；藏起来的落在能写的里面，照样藏（Linux 上挖不了洞，拒绝执行，`sandbox/linux.md`）。
 - 规格里没有网络：沙盒只管读写权限（2026-09-29 项目主人定）。
 
-改成（施工 5-3 合进来时标成样本 `docs/designs/samples/sandbox/spec.json`）（例子）：
+样本 `docs/designs/samples/sandbox/spec.json`（例子）：
 
 ```json
 {"write":["/home/me/project","/tmp/miyu-sandbox"],"hidden":["/home/me/.miyu"]}

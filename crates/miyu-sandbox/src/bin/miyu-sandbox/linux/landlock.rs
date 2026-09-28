@@ -6,7 +6,7 @@
 //! 项目主人定：沙盒不管网络，但这类系统服务照样挡）。
 
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use landlock::{
     ABI, Access, AccessFs, BitFlags, CompatLevel, Compatible, PathBeneath, PathFd, PathFdError,
@@ -14,6 +14,8 @@ use landlock::{
 };
 
 use miyu_sandbox::Spec;
+
+use super::reads::plan;
 
 /// 至少要管得住的那一版。
 const REQUIRED: ABI = ABI::V2;
@@ -26,14 +28,20 @@ pub(super) fn available() -> Result<(), String> {
     ruleset().map(drop)
 }
 
-/// 照规格收紧自己：`read`、`readonly` 放行读，`write` 放行全部。规格里的路径不在的跳过。
+/// 照规格收紧自己：根目录往下都能列目录、执行；读照 [`plan`] 一级级放，绕开藏起来的；`write` 和 `/dev/null` 放行
+/// 全部。规格里的路径不在的跳过。
 pub(super) fn confine(spec: &Spec) -> Result<(), String> {
     let mut created = ruleset()?;
-    let read = AccessFs::from_read(LATEST);
-    for path in spec.read.iter().chain(&spec.readonly) {
-        created = add(created, path, read)?;
+    created = add(
+        created,
+        Path::new("/"),
+        AccessFs::ReadDir | AccessFs::Execute,
+    )?;
+    for path in plan(&spec.hidden)? {
+        created = add(created, &path, AccessFs::from_read(LATEST))?;
     }
-    for path in &spec.write {
+    let null = PathBuf::from("/dev/null");
+    for path in spec.write.iter().chain([&null]) {
         created = add(created, path, AccessFs::from_all(LATEST))?;
     }
     let status = created

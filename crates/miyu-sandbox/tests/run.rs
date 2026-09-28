@@ -18,13 +18,11 @@ const USAGE: &str = "miyu-sandbox: usage: miyu-sandbox run --spec <json> -- <pro
 /// 照规格收紧，空的规格什么都不放行）；Windows 的收紧随 5-9，到时照它的写法放开。
 fn spec() -> String {
     Spec {
-        read: Vec::new(),
         write: if cfg!(unix) {
             vec![PathBuf::from("/")]
         } else {
             Vec::new()
         },
-        readonly: Vec::new(),
         hidden: Vec::new(),
     }
     .to_json()
@@ -122,7 +120,7 @@ fn wrong_arguments_print_the_usage_and_exit_125() {
 
 #[test]
 fn a_bad_spec_says_why_and_exits_125() {
-    let out = helper(&["run", "--spec", r#"{"read":"/usr"}"#, "--", "echo"]);
+    let out = helper(&["run", "--spec", r#"{"write":"/usr"}"#, "--", "echo"]);
     assert_eq!(out.status.code(), Some(i32::from(EXIT_HELPER)), "{out:?}");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.starts_with("miyu-sandbox: bad spec: "), "{stderr}");

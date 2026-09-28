@@ -1,6 +1,6 @@
-//! 规格（`docs/blueprint/sandbox.md`「对外的样子」）：哪些能读，哪些能写，能写的里面哪些只能读，哪些藏起来。路径
-//! 都是真实的位置。写成 JSON 经命令行交给助手，里面只有路径，没有密钥。沙盒只管读写权限，不管网络（2026-09-29
-//! 项目主人定）。
+//! 规格（`docs/blueprint/sandbox.md`「对外的样子」）：哪些能写，哪些藏起来（读写都不行）；别的都能读，不能写。路径
+//! 都是真实的位置。写成 JSON 经命令行交给助手，里面只有路径，没有密钥。照 DeepSeek 的 dsh：整盘能读，只管写；
+//! 沙盒只管读写权限，不管网络（2026-09-29 项目主人定）。
 
 use std::path::PathBuf;
 
@@ -10,16 +10,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Spec {
-    /// 能读的目录、文件。
-    #[serde(default)]
-    pub read: Vec<PathBuf>,
-    /// 能读能写的。
+    /// 能写的目录、文件。一条都没有就是全盘只读（`/dev/null` 总能写）。
     #[serde(default)]
     pub write: Vec<PathBuf>,
-    /// 能写的那几片里只能读的，例如工作区的 `.git/hooks`、`.git/config`。
-    #[serde(default)]
-    pub readonly: Vec<PathBuf>,
-    /// 读写都不行、要藏起来的，例如数据根：它可能落在能写的临时目录里。
+    /// 读写都不行的，例如数据根：里面有本机令牌，读到就能冒充本人。
     #[serde(default)]
     pub hidden: Vec<PathBuf>,
 }

@@ -20,9 +20,7 @@ fn the_sample_reads_and_writes_back_byte_for_byte() {
     assert_eq!(
         spec,
         Spec {
-            read: paths(&["/usr", "/etc"]),
-            write: paths(&["/home/me/project", "/tmp"]),
-            readonly: paths(&["/home/me/project/.git/hooks"]),
+            write: paths(&["/home/me/project", "/tmp/miyu-sandbox"]),
             hidden: paths(&["/home/me/.miyu"]),
         }
     );
@@ -30,27 +28,29 @@ fn the_sample_reads_and_writes_back_byte_for_byte() {
 }
 
 #[test]
-fn every_field_may_be_left_out() {
+fn both_fields_may_be_left_out() {
     let spec = Spec::from_json("{}").expect("读得懂");
-    assert!(spec.read.is_empty() && spec.write.is_empty());
-    assert!(spec.readonly.is_empty() && spec.hidden.is_empty());
+    assert!(spec.write.is_empty() && spec.hidden.is_empty());
     assert_eq!(
         spec.to_json().expect("写得成"),
-        r#"{"read":[],"write":[],"readonly":[],"hidden":[]}"#
+        r#"{"write":[],"hidden":[]}"#
     );
 }
 
 #[test]
 fn unknown_fields_and_wrong_kinds_are_refused() {
-    // 认不得的格不能悄悄跳过：助手不懂的限制，要当规格写坏了。原来的 `network` 也算认不得（2026-09-29 去掉）。
+    // 认不得的格不能悄悄跳过：助手不懂的限制，要当规格写坏了。原来的 `read`、`readonly`、`network` 也算认不得
+    // （2026-09-29 去掉：整盘能读、只管写，不管网络）。
     for (bad, named) in [
         (r#"{"deny":["/"]}"#, "deny"),
+        (r#"{"read":["/usr"]}"#, "read"),
+        (r#"{"readonly":["/w/.git"]}"#, "readonly"),
         (r#"{"network":"off"}"#, "network"),
     ] {
         let error = Spec::from_json(bad).expect_err("多了一格");
         assert!(error.to_string().contains(named), "{error}");
     }
-    for bad in [r#"{"read":"/usr"}"#, r#"{"write":[1]}"#, "not json", ""] {
+    for bad in [r#"{"write":"/usr"}"#, r#"{"hidden":[1]}"#, "not json", ""] {
         assert!(Spec::from_json(bad).is_err(), "{bad}");
     }
 }

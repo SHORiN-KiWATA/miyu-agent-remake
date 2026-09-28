@@ -1,10 +1,11 @@
-//! Linux 上的收紧（`docs/blueprint/sandbox/linux.md`）：施工 5-2 起文件用 Landlock。挂载命名空间（5-3）、网络命名
-//! 空间和 seccomp（5-6）以后加。
+//! Linux 上的收紧（`docs/blueprint/sandbox/linux.md`）：只用 Landlock（施工 5-2 起；5-3 照 DeepSeek 的 dsh 改成整盘能
+//! 读、只管写）。不要命名空间、不要 AppArmor（2026-09-29 项目主人定）。
 //!
-//! Landlock 只能放行，不能在放行的范围里再挖掉一块：规格里只读的、藏起来的落在放行的范围里，这一步收不住，拒绝
-//! 执行，不假装收住了。
+//! Landlock 只能放行，不能在放行的范围里再挖掉一块：「除了藏起来的都能读」是一级级放行做出来的（[`reads`]）；藏起来的
+//! 落在能写的里面，挖不掉，拒绝执行，不假装收住了。
 
 mod landlock;
+mod reads;
 #[cfg(test)]
 mod tests;
 
@@ -30,22 +31,15 @@ pub(crate) fn run(spec: &Spec, program: &OsStr, args: &[OsString]) -> ExitCode {
     crate::unix::exec(program, args)
 }
 
-/// 查规格收不收得住：只读的落在能写的里面、藏起来的落在放行的里面，Landlock 挖不掉（5-3 起挂载命名空间补上）。
+/// 查规格收不收得住：藏起来的落在能写的里面，Landlock 挖不掉。能写的落在藏起来的里面没事：它有自己的一条规则。
 fn check(spec: &Spec) -> Result<(), String> {
-    if let Some(path) = spec.readonly.iter().find(|path| inside(path, &spec.write)) {
-        return Err(format!(
-            "cannot keep {} read-only inside a writable path",
+    match spec.hidden.iter().find(|path| inside(path, &spec.write)) {
+        Some(path) => Err(format!(
+            "cannot hide {} inside a writable path",
             path.display()
-        ));
+        )),
+        None => Ok(()),
     }
-    let allowed = |path: &&PathBuf| inside(path, &spec.read) || inside(path, &spec.write);
-    if let Some(path) = spec.hidden.iter().find(allowed) {
-        return Err(format!(
-            "cannot hide {} inside an allowed path",
-            path.display()
-        ));
-    }
-    Ok(())
 }
 
 /// `path` 是 `allowed` 里某一条本身，或者在它下面。照路径一段段比：`/a/bc` 不在 `/a/b` 下面。

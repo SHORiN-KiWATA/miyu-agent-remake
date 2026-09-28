@@ -173,7 +173,7 @@ fn zsh_passes_an_unmatched_glob_through() {
 fn sandboxed() -> Sandboxed {
     Sandboxed {
         helper: PathBuf::from("/opt/miyu/miyu-sandbox"),
-        spec: miyu_sandbox::Spec::from_json(r#"{"read":["/usr"]}"#).expect("读得懂"),
+        spec: miyu_sandbox::Spec::from_json(r#"{"write":["/work"]}"#).expect("读得懂"),
     }
 }
 
@@ -225,7 +225,7 @@ fn a_spec_that_cannot_be_written_stops_the_command() {
     let mut sandboxed = sandboxed();
     sandboxed
         .spec
-        .read
+        .write
         .push(PathBuf::from(OsString::from_vec(vec![b'/', 0xff])));
     let program = Program {
         kind: Kind::Bash,

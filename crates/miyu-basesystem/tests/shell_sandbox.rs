@@ -27,7 +27,7 @@ fn text(done: &miyu_tool::Done) -> String {
 #[tokio::test]
 async fn a_sandboxed_call_runs_through_the_helper() {
     let site = Site::new();
-    let spec = Spec::from_json(r#"{"read":["/usr"]}"#).expect("读得懂");
+    let spec = Spec::from_json(r#"{"write":["/work"]}"#).expect("读得懂");
     let json = spec.to_json().expect("写得成");
     let done = site
         .done_sandboxed(
@@ -57,7 +57,7 @@ async fn a_spec_that_cannot_be_written_does_not_run_the_command() {
     use std::os::unix::ffi::OsStringExt;
     let site = Site::new();
     let mut spec = Spec::from_json("{}").expect("读得懂");
-    spec.read
+    spec.write
         .push(std::ffi::OsString::from_vec(vec![b'/', 0xff]).into());
     let done = site
         .done_sandboxed(

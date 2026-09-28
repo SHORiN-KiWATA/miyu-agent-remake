@@ -8,9 +8,7 @@ fn the_command_goes_after_the_spec_and_the_dashes() {
     let sandboxed = Sandboxed {
         helper: PathBuf::from("/opt/miyu/miyu-sandbox"),
         spec: Spec {
-            read: vec![PathBuf::from("/usr")],
-            write: Vec::new(),
-            readonly: Vec::new(),
+            write: vec![PathBuf::from("/work")],
             hidden: Vec::new(),
         },
     };
