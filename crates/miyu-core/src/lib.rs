@@ -4,7 +4,7 @@
 //!
 //! 1. 找数据根，建骨架；
 //! 2. 拿单实例锁：已经有一个核心在跑的，说一声 `running` 就走；先拿锁再装日志，免得两个核心写同一份；
-//! 3. 装运行日志 `state/logs/core.log`，记一条「起来了」；
+//! 3. 装运行日志 `state/logs/core.log`，记一条「起来了」：版本、进程号、数据根、和 UTC 差多少；
 //! 4. 管理员 `admin` 的家目录，没有就建；资源目录；模型（[`models`]）；
 //! 5. 换本机令牌、在套接字上等连接（施工 3-8 下）；
 //! 6. 往标准输出写一行 `ready`：拉起它的头等着这一行。
@@ -56,10 +56,10 @@ pub fn main(options: Options) -> ExitCode {
     let env = Env::current();
     let root = match DataRoot::locate(&env) {
         Ok(root) => root,
-        Err(error) => return failed(error.to_string()),
+        Err(error) => return failed("data_root", error.to_string()),
     };
     if let Err(error) = root.prepare() {
-        return failed(error.to_string());
+        return failed("data_root", error.to_string());
     }
     let lock = match Lock::acquire(&root) {
         Ok(lock) => lock,
@@ -67,25 +67,28 @@ pub fn main(options: Options) -> ExitCode {
             say(&Ready::Running);
             return ExitCode::SUCCESS;
         }
-        Err(error) => return failed(error.to_string()),
+        Err(error) => return failed("lock", error.to_string()),
     };
     let level = std::env::var("MIYU_LOG").ok();
-    let _log = match miyu_log::install(&root.state().join("logs"), "core", level.as_deref()) {
+    let logs = root.state().join("logs");
+    let _log = match miyu_log::install(&logs, "core", level.as_deref(), env.home.as_deref()) {
         Ok(guard) => guard,
-        Err(error) => return failed(error.to_string()),
+        Err(error) => return failed("log", error.to_string()),
     };
     tracing::info!(
         target: TARGET,
         version = env!("CARGO_PKG_VERSION"),
         pid = std::process::id(),
+        root = %root.path().display(),
+        tz = %miyu_log::utc_offset(),
         "starting"
     );
     if let Err(error) = root.prepare_home(&admin()) {
-        return failed(error.to_string());
+        return failed("home", error.to_string());
     }
     let resources = match ResourceRoot::locate(&env) {
         Ok(resources) => resources,
-        Err(error) => return failed(error.to_string()),
+        Err(error) => return failed("resources", error.to_string()),
     };
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .worker_threads(WORKERS)
@@ -93,7 +96,7 @@ pub fn main(options: Options) -> ExitCode {
         .build()
     {
         Ok(runtime) => runtime,
-        Err(error) => return failed(error.to_string()),
+        Err(error) => return failed("runtime", error.to_string()),
     };
     runtime.block_on(run(root, resources, lock, options))
 }
@@ -113,15 +116,15 @@ pub fn tools(resources: &ResourceRoot) -> Result<Catalog, String> {
 async fn run(root: DataRoot, resources: ResourceRoot, lock: Lock, options: Options) -> ExitCode {
     let opened = match miyu_ipc::open_locked(&root, &Dirs::current(), lock) {
         Ok(opened) => opened,
-        Err(error) => return failed(error.to_string()),
+        Err(error) => return failed("socket", error.to_string()),
     };
     let models = match models::from_env(std::env::var("DEEPSEEK_API_KEY").ok()) {
         Ok(models) => models,
-        Err(error) => return failed(error),
+        Err(error) => return failed("models", error),
     };
     let tools = match tools(&resources) {
         Ok(tools) => tools,
-        Err(error) => return failed(error),
+        Err(error) => return failed("tools", error),
     };
     let core = Arc::new(Core::new(
         root,
@@ -137,9 +140,10 @@ async fn run(root: DataRoot, resources: ResourceRoot, lock: Lock, options: Optio
     ExitCode::SUCCESS
 }
 
-/// 起不来：原因写成那一行交给头，也记进运行日志（装上了的话）。
-fn failed(reason: String) -> ExitCode {
-    tracing::warn!(target: TARGET, reason = %reason, "not started");
+/// 起不来：原因写成那一行交给头，头印给人看；运行日志（装上了的话）只记没过的是哪一步 `stage`，原因是给人看的
+/// 中文，不进日志（施工 4-9 再补四上）。
+fn failed(stage: &'static str, reason: String) -> ExitCode {
+    tracing::warn!(target: TARGET, stage, "not started");
     say(&Ready::Failed(reason));
     ExitCode::FAILURE
 }

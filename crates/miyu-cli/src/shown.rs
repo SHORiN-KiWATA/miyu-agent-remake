@@ -1,6 +1,8 @@
 //! 给人看的一行怎么写（施工 4-5 下写在 `ask/steps.rs` 里，施工 4-7 下挪出来，`miyu undo` 也用）：[`Line`] 分灰的、
 //! 红的、绿的几段，[`Line::paint`] 照上不上色写成字；路径在工作目录里的写相对的、在家目录里的写 `~/…`；太长的截断。
+//! 上不上色照 [`colored`]。
 
+use std::ffi::OsStr;
 use std::io::Write;
 use std::path::{MAIN_SEPARATOR, Path};
 
@@ -9,6 +11,12 @@ pub(crate) const GRAY: &str = "\x1b[90m";
 const RED: &str = "\x1b[31m";
 const GREEN: &str = "\x1b[32m";
 pub(crate) const RESET: &str = "\x1b[0m";
+
+/// 上不上色：写到的是终端，`NO_COLOR` 又没设或者设成空的。no-color.org 的约定是设了、不是空的才不上色（施工 4-9
+/// 再补四上：原来设成空的也不上色）。
+pub(crate) fn colored(terminal: bool, no_color: Option<&OsStr>) -> bool {
+    terminal && no_color.is_none_or(OsStr::is_empty)
+}
 
 /// 一段字是什么颜色。绿的只有差异里加上的行（施工 4-7 下）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -117,3 +125,6 @@ pub(crate) fn write(to: &mut dyn Write, text: &str) {
 pub(crate) fn say(to: &mut dyn Write, line: &str) {
     write(to, &format!("{line}\n"));
 }
+
+#[cfg(test)]
+mod tests;

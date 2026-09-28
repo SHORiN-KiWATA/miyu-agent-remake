@@ -16,7 +16,7 @@ use miyu_cli::{Direction, language};
 /// 退出码：用法不对（`22-命令行.md` 第二节）。
 const USAGE: u8 = 2;
 
-/// `miyu`。
+/// 主程序的参数。
 #[derive(Parser)]
 #[command(name = "miyu", version)]
 struct Cli {
@@ -44,7 +44,11 @@ enum Command {
 
 fn main() -> ExitCode {
     let language = language::current();
+    // `--help` 没有说明那一行，直接从用法开始：clap 会把这里、子命令枚举上的文档注释当成说明印出来（施工 4-9 再补四上：
+    // 原来印的是「`miyu`。」）。说明是产品的话，等做终端界面那一步定。
     let command = Cli::command()
+        .about(None::<&str>)
+        .long_about(None::<&str>)
         .mut_subcommand("ask", |ask| miyu_cli::localize(ask, &language))
         .mut_subcommand("undo", |undo| {
             miyu_cli::localize_undo(undo, &language, Direction::Undo)

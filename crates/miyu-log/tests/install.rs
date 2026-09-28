@@ -7,7 +7,7 @@ use std::path::PathBuf;
 fn install_writes_to_the_file_and_warns_about_an_unknown_level() {
     let dir: PathBuf =
         std::env::temp_dir().join(format!("miyu-log-install-{}", std::process::id()));
-    let guard = miyu_log::install(&dir, "core", Some("loud")).expect("装得上");
+    let guard = miyu_log::install(&dir, "core", Some("loud"), None).expect("装得上");
     tracing::info!(target: "miyu::core", version = "0.0.0", "started");
     tracing::debug!(target: "miyu::core", "hidden at info");
     drop(guard);
@@ -25,7 +25,7 @@ fn install_writes_to_the_file_and_warns_about_an_unknown_level() {
         lines[1]
     );
     assert!(
-        miyu_log::install(&dir, "core", None).is_err(),
+        miyu_log::install(&dir, "core", None, None).is_err(),
         "一个进程只能装一次"
     );
     std::fs::remove_dir_all(&dir).expect("删得掉");

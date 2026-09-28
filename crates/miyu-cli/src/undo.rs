@@ -21,7 +21,7 @@ use crate::exit;
 use crate::language::{self, Language};
 use crate::link;
 use crate::rpc::Rpc;
-use crate::shown::{say, write};
+use crate::shown::{self, say, write};
 
 /// `miyu undo`、`miyu redo` 的参数。给人看的说明照界面语言，由 [`localize_undo`] 换上。
 #[derive(Debug, Clone, Args)]
@@ -117,7 +117,7 @@ async fn run(args: Undo, direction: Direction, start: impl FnOnce() -> Command) 
         session: args.session,
         language: language::current(),
         home: env.home.clone(),
-        color: out.is_terminal() && std::env::var_os("NO_COLOR").is_none(),
+        color: shown::colored(out.is_terminal(), std::env::var_os("NO_COLOR").as_deref()),
     };
     undo_on(connection, &token, &plan, &mut out, &mut io::stderr()).await
 }

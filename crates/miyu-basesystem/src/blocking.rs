@@ -16,13 +16,15 @@ impl Drop for Raise {
 }
 
 /// 在阻塞线程里跑 `work`，交回它的结果。`work` 拿到的是这次调用的旗 `stop`；这个 future 被丢掉时旗也举起来。
-/// `work` 里 panic 了，这里照样 panic，执行器认得出工具崩了。
+/// `work` 里 panic 了，这里照样 panic，执行器认得出工具崩了。阻塞线程带着派活时的 span，那边发的行也有会话编号
+/// （施工 4-9 再补四上）。
 pub(crate) async fn blocking<T: Send + 'static>(
     stop: Stop,
     work: impl FnOnce(&Stop) -> T + Send + 'static,
 ) -> T {
     let _raise = Raise(stop.clone());
-    match tokio::task::spawn_blocking(move || work(&stop)).await {
+    let span = tracing::Span::current();
+    match tokio::task::spawn_blocking(move || span.in_scope(|| work(&stop))).await {
         Ok(value) => value,
         Err(error) => std::panic::resume_unwind(error.into_panic()),
     }

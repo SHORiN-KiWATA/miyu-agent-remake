@@ -83,3 +83,43 @@ fn a_restart_goes_on_writing_the_same_file_and_counts_what_is_there() {
         "line 0000\nline 0001\n"
     );
 }
+
+/// Unix 上的权限位。
+#[cfg(unix)]
+fn mode(path: &Path) -> u32 {
+    use std::os::unix::fs::PermissionsExt;
+    fs::metadata(path).unwrap().permissions().mode() & 0o777
+}
+
+#[cfg(unix)]
+#[test]
+fn new_directories_and_files_are_for_the_owner_only() {
+    let scratch = Scratch::new();
+    let dir = scratch.0.join("state").join("logs");
+    let file = RotatingFile::open(&dir, "core", 20, 2).unwrap();
+    // 缺的上级也是新建的（施工 4-9 再补四上：原来照系统默认的，一般是 0755、0644）。
+    assert_eq!(mode(&scratch.0), 0o700);
+    assert_eq!(mode(&dir), 0o700);
+    assert_eq!(mode(&file.path()), 0o600);
+    // 换了一份，新建的那一份也是。
+    for n in 0..3 {
+        file.write_line(&format!("line {n:04}"));
+    }
+    assert!(dir.join("core.log.1").exists());
+    assert_eq!(mode(&file.path()), 0o600);
+}
+
+#[cfg(unix)]
+#[test]
+fn existing_directories_and_files_keep_their_permissions() {
+    use std::os::unix::fs::PermissionsExt;
+    let scratch = Scratch::new();
+    fs::create_dir_all(&scratch.0).unwrap();
+    fs::set_permissions(&scratch.0, fs::Permissions::from_mode(0o755)).unwrap();
+    let path = scratch.0.join("core.log");
+    fs::write(&path, "old\n").unwrap();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
+    let _file = RotatingFile::open(&scratch.0, "core", 20, 2).unwrap();
+    assert_eq!(mode(&scratch.0), 0o755);
+    assert_eq!(mode(&path), 0o644);
+}

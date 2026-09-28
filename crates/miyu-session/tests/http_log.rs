@@ -21,8 +21,11 @@ use support::{Home, ask, say, until_turn_ends, watch};
 #[tokio::test]
 async fn the_http_lines_carry_the_session() {
     let memory = Memory::new();
-    let _listening =
-        tracing::subscriber::set_default(miyu_log::subscriber(memory.clone(), LevelFilter::DEBUG));
+    let _listening = tracing::subscriber::set_default(miyu_log::subscriber(
+        memory.clone(),
+        LevelFilter::DEBUG,
+        None,
+    ));
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../docs/designs/samples/drivers/openai-chat/streams/openai-text.sse");
     let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("读不了 {}：{e}", path.display()));

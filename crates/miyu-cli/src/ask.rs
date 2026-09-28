@@ -42,6 +42,7 @@ use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
 use crate::language::{self, Language};
+use crate::shown;
 
 /// 退出码（`22-命令行.md` 第二节）。
 pub mod exit {
@@ -182,7 +183,7 @@ async fn run(args: Ask, start: impl FnOnce() -> Command, language: Language) -> 
     let presses = presses();
     let mut out = io::stdout();
     let mut err = io::stderr();
-    let gray = err.is_terminal() && std::env::var_os("NO_COLOR").is_none();
+    let gray = shown::colored(err.is_terminal(), std::env::var_os("NO_COLOR").as_deref());
     let mut screen = Screen {
         out: &mut out,
         err: &mut err,

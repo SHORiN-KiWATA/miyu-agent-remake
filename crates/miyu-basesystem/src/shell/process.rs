@@ -23,8 +23,9 @@ const DRAIN: Duration = Duration::from_millis(500);
 /// 到时杀了以后，最多再等多久：还不结束的（Windows 上 `taskkill` 没杀掉之类）不再等它（施工 4-9 再补二）。
 const KILL_WAIT: Duration = Duration::from_secs(5);
 
-/// 运行日志的来处。
-const TARGET: &str = "miyu::basesystem";
+/// 运行日志的来处：工具的名字（`28-运行日志.md` 第二节；施工 4-9 再补四上：原来写 `miyu::basesystem`，10 个字，
+/// 来源那一列对不齐）。
+const TARGET: &str = "miyu::shell";
 
 /// Windows 上起的程序不弹控制台窗口。
 #[cfg(windows)]
@@ -77,7 +78,10 @@ pub(super) fn start(
     let output = Arc::new(Mutex::new(Capture::default()));
     let (done, read) = mpsc::channel();
     let theirs = Arc::clone(&output);
+    // 读的线程带着派活时的 span：它发的行也有会话编号（施工 4-9 再补四上）。
+    let span = tracing::Span::current();
     thread::spawn(move || {
+        let _entered = span.enter();
         pump(pipe, &theirs, &progress);
         #[expect(
             clippy::let_underscore_must_use,

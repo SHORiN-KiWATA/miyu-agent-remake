@@ -153,34 +153,42 @@ impl Tools {
             Progress::new(move |text| send(&backs, ToolBack::Progress { call_id, text }))
         };
         let span = tracing::Span::current();
-        let inner = tokio::spawn(async move { tool.run(call, progress).await }.instrument(span));
+        let inner =
+            tokio::spawn(async move { tool.run(call, progress).await }.instrument(span.clone()));
         let task = inner.abort_handle();
         let backs = self.backs.clone();
         let blobs = self.blobs.clone();
-        tokio::spawn(async move {
-            match inner.await {
-                Ok(mut done) => {
-                    // 改前改后先落 blob，再送回去写引用它们的事件（07 第四节）。
-                    let reported = std::mem::take(&mut done.effects);
-                    let stored =
-                        tokio::task::spawn_blocking(move || effects::store(&blobs, reported)).await;
-                    match stored {
-                        Ok(effects) => send(
-                            &backs,
-                            ToolBack::Done {
-                                call_id,
-                                done,
-                                effects,
-                            },
-                        ),
-                        Err(_) => send(&backs, ToolBack::Crashed { call_id }),
+        // 看着它的任务、存 blob 的阻塞线程也带着会话的 span：存不进去的那一行有会话编号（施工 4-9 再补四上）。
+        let watching = span.clone();
+        tokio::spawn(
+            async move {
+                match inner.await {
+                    Ok(mut done) => {
+                        // 改前改后先落 blob，再送回去写引用它们的事件（07 第四节）。
+                        let reported = std::mem::take(&mut done.effects);
+                        let stored = tokio::task::spawn_blocking(move || {
+                            span.in_scope(|| effects::store(&blobs, reported))
+                        })
+                        .await;
+                        match stored {
+                            Ok(effects) => send(
+                                &backs,
+                                ToolBack::Done {
+                                    call_id,
+                                    done,
+                                    effects,
+                                },
+                            ),
+                            Err(_) => send(&backs, ToolBack::Crashed { call_id }),
+                        }
                     }
+                    Err(error) if error.is_panic() => send(&backs, ToolBack::Crashed { call_id }),
+                    // 叫停了：没人要了。
+                    Err(_) => {}
                 }
-                Err(error) if error.is_panic() => send(&backs, ToolBack::Crashed { call_id }),
-                // 叫停了：没人要了。
-                Err(_) => {}
             }
-        });
+            .instrument(watching),
+        );
         self.running.insert(
             call_id,
             Running {

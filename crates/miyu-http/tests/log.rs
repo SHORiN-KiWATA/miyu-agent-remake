@@ -47,8 +47,11 @@ fn shape(line: &str) -> String {
 #[tokio::test]
 async fn the_log_says_what_happened_and_nothing_of_what_was_said() {
     let memory = Memory::new();
-    let _listening =
-        tracing::subscriber::set_default(miyu_log::subscriber(memory.clone(), LevelFilter::DEBUG));
+    let _listening = tracing::subscriber::set_default(miyu_log::subscriber(
+        memory.clone(),
+        LevelFilter::DEBUG,
+        None,
+    ));
 
     // 说完的一次：回复里也有「你好」。
     let server = Server::start(vec![Reply::stream(vec![Piece::Bytes(sample(

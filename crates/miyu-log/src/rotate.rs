@@ -1,6 +1,8 @@
 //! 按大小轮换的文件（`docs/designs/28-运行日志.md` 第一节）：满了在两行之间换一份，一行不拆开；
 //! `core.log` 挪成 `core.log.1`，`.1` 挪成 `.2`，依此类推；正在写的之外留 `keep` 份，最老的删掉，
 //! 和 logrotate 的 `rotate` 一个口径。进程再起来，接着写原来那一份。
+//!
+//! Unix 上新建的目录 0700、文件 0600，只有本人能进、能读（`07-存储.md` 第二节，施工 4-9 再补四上）；已经有的不改。
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
@@ -34,9 +36,9 @@ impl RotatingFile {
     ///
     /// 建不了目录、打不开文件。
     pub fn open(dir: &Path, name: &str, limit: u64, keep: usize) -> io::Result<RotatingFile> {
-        fs::create_dir_all(dir)?;
+        create_dir(dir)?;
         let path = dir.join(format!("{name}.log"));
-        let file = OpenOptions::new().create(true).append(true).open(&path)?;
+        let file = options().append(true).open(&path)?;
         let size = file.metadata()?.len();
         Ok(RotatingFile {
             dir: dir.to_path_buf(),
@@ -90,13 +92,7 @@ impl RotatingFile {
             }
         }
         fs::rename(self.nth(0), self.nth(1))?;
-        state.file = Some(
-            OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open(self.nth(0))?,
-        );
+        state.file = Some(options().write(true).truncate(true).open(self.nth(0))?);
         state.size = 0;
         Ok(())
     }
@@ -104,10 +100,7 @@ impl RotatingFile {
     /// 换份当中出了错，正在写的那一份关掉了：照原来的名字接着写。
     fn reopen(&self, state: &mut State) {
         if state.file.is_none()
-            && let Ok(file) = OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(self.nth(0))
+            && let Ok(file) = options().append(true).open(self.nth(0))
         {
             state.size = file.metadata().map_or(0, |meta| meta.len());
             state.file = Some(file);
@@ -136,6 +129,30 @@ impl Sink for RotatingFile {
             state.size += bytes;
         }
     }
+}
+
+/// 建目录，连同缺的上级：Unix 上新建的 0700。
+fn create_dir(dir: &Path) -> io::Result<()> {
+    let mut builder = fs::DirBuilder::new();
+    builder.recursive(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        builder.mode(0o700);
+    }
+    builder.create(dir)
+}
+
+/// 打开一份，没有就建：Unix 上新建的 0600。
+fn options() -> OpenOptions {
+    let mut options = OpenOptions::new();
+    options.create(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    options
 }
 
 #[cfg(test)]

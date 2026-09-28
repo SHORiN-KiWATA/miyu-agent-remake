@@ -84,8 +84,11 @@ async fn within<T>(what: &str, future: impl std::future::Future<Output = T>) -> 
 #[tokio::test]
 async fn a_write_that_fails_stops_the_session() {
     let memory = Memory::new();
-    let _listening =
-        tracing::subscriber::set_default(miyu_log::subscriber(memory.clone(), LevelFilter::INFO));
+    let _listening = tracing::subscriber::set_default(miyu_log::subscriber(
+        memory.clone(),
+        LevelFilter::INFO,
+        None,
+    ));
     let resources = ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"));
     let snapshot = compose(
         "engineer",

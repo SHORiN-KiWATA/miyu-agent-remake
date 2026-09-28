@@ -6,8 +6,11 @@
 //!
 //! 会话的 span 开在 `ERROR` 级（`tracing::error_span!`）：span 也照级别筛，开在 `INFO` 的话，调到
 //! `WARN` 它就被筛掉了，底下的行就没了会话编号。
+//!
+//! 这件事和每个值里的家目录写成 `~`（施工 4-9 再补四上）：先换，再加引号、转义。
 
 use std::fmt;
+use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use tracing::field::{Field, Visit};
@@ -16,6 +19,7 @@ use tracing::{Event, Subscriber};
 use tracing_subscriber::layer::{Context, Layer};
 use tracing_subscriber::registry::LookupSpan;
 
+use crate::home::Home;
 use crate::line::{self, Parts};
 
 /// 写一行的地方。
@@ -58,6 +62,7 @@ impl Sink for Memory {
 pub struct LineLayer {
     sink: Arc<dyn Sink>,
     clock: fn() -> String,
+    home: Home,
 }
 
 impl fmt::Debug for LineLayer {
@@ -67,17 +72,26 @@ impl fmt::Debug for LineLayer {
 }
 
 impl LineLayer {
-    /// 写进 `sink`，时刻取本机时间。
+    /// 写进 `sink`，时刻取本机时间，家目录不换。
     pub fn new(sink: Arc<dyn Sink>) -> LineLayer {
-        LineLayer {
-            sink,
-            clock: line::now,
-        }
+        LineLayer::with_clock(sink, line::now)
     }
 
     /// 时刻照 `clock` 给的：测试里定住它。
     pub fn with_clock(sink: Arc<dyn Sink>, clock: fn() -> String) -> LineLayer {
-        LineLayer { sink, clock }
+        LineLayer {
+            sink,
+            clock,
+            home: Home::default(),
+        }
+    }
+
+    /// 这件事和每个值里的家目录 `home` 写成 `~`；没有的不换。
+    pub fn home(self, home: Option<&Path>) -> LineLayer {
+        LineLayer {
+            home: Home::new(home),
+            ..self
+        }
     }
 }
 
@@ -133,6 +147,10 @@ where
             .position(|(key, _)| *key == "message")
             .map(|index| fields.0.remove(index).1)
             .unwrap_or_default();
+        let message = self.home.shorten(&message);
+        for (_, value) in &mut fields.0 {
+            *value = self.home.shorten(value);
+        }
         let mut session = fields
             .0
             .iter()

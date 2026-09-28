@@ -84,3 +84,16 @@ fn the_time_has_milliseconds() {
     assert_eq!(&time[10..11], " ");
     assert_eq!(&time[19..20], ".");
 }
+
+#[test]
+fn the_utc_offset_is_hours_and_minutes() {
+    let offset = utc_offset();
+    let bytes = offset.as_bytes();
+    assert_eq!(bytes.len(), 6, "{offset}");
+    assert!(matches!(bytes[0], b'+' | b'-'), "{offset}");
+    assert_eq!(bytes[3], b':', "{offset}");
+    assert!(
+        [1, 2, 4, 5].iter().all(|&i| bytes[i].is_ascii_digit()),
+        "{offset}"
+    );
+}

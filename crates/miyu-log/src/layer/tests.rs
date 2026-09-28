@@ -1,5 +1,6 @@
-//! 事件写成一行：级别怎么筛、会话编号从哪来、别人家的最多记到 WARN。
+//! 事件写成一行：级别怎么筛、会话编号从哪来、别人家的最多记到 WARN、家目录写成 `~`。
 
+use std::path::Path;
 use std::sync::Arc;
 
 use tracing_subscriber::filter::LevelFilter;
@@ -14,9 +15,14 @@ fn clock() -> String {
 
 /// 照 `filter` 装一个写进内存的订阅者（筛法和 [`subscriber`] 一样），跑 `body`，交回写下的行。
 fn capture(filter: LevelFilter, body: impl FnOnce()) -> Vec<String> {
+    capture_at(None, filter, body)
+}
+
+/// 同 [`capture`]，家目录是 `home`。
+fn capture_at(home: Option<&Path>, filter: LevelFilter, body: impl FnOnce()) -> Vec<String> {
     let memory = Memory::new();
     let sink: Arc<dyn crate::Sink> = memory.clone();
-    tracing::subscriber::with_default(crate::with_clock(sink, filter, clock), body);
+    tracing::subscriber::with_default(crate::with_clock(sink, filter, clock, home), body);
     memory.lines()
 }
 
@@ -96,7 +102,7 @@ fn levels_below_the_filter_and_others_below_warn_are_not_written() {
 fn the_real_subscriber_filters_the_same_way() {
     let memory = Memory::new();
     let sink: Arc<dyn crate::Sink> = memory.clone();
-    tracing::subscriber::with_default(subscriber(sink, LevelFilter::WARN), || {
+    tracing::subscriber::with_default(subscriber(sink, LevelFilter::WARN, None), || {
         tracing::info!(target: "miyu::core", "hidden at warn");
         tracing::error!(target: "miyu::core", "shown");
     });
@@ -117,4 +123,34 @@ fn off_writes_nothing_and_a_stricter_filter_holds_for_them_too() {
         tracing::error!(target: "hyper::proto", "shown");
     });
     assert_eq!(lines, ["2026-09-27 21:03:15.284 ERROR hyper::proto shown"]);
+}
+
+#[test]
+fn the_home_in_the_message_and_the_values_becomes_tilde() {
+    let home = Path::new("/home/ai");
+    let lines = capture_at(Some(home), LevelFilter::INFO, || {
+        tracing::info!(target: "miyu::ipc", socket = "/home/ai/.miyu/run/core.sock", "listening");
+        tracing::warn!(
+            target: "miyu::endpoint",
+            path = %Path::new("/home/ai/a b").display(),
+            error = "not a directory: /home/aim",
+            "read /home/ai/x failed"
+        );
+    });
+    assert_eq!(
+        lines,
+        [
+            "2026-09-27 21:03:15.284 INFO  ipc      listening socket=~/.miyu/run/core.sock",
+            // 先换再加引号；前缀一样的别的目录不换。
+            "2026-09-27 21:03:15.284 WARN  endpoint read ~/x failed path=\"~/a b\" error=\"not a directory: /home/aim\"",
+        ]
+    );
+    // 没给家目录的不换。
+    let lines = capture(LevelFilter::INFO, || {
+        tracing::info!(target: "miyu::ipc", socket = "/home/ai/.miyu/run/core.sock", "listening");
+    });
+    assert_eq!(
+        lines,
+        ["2026-09-27 21:03:15.284 INFO  ipc      listening socket=/home/ai/.miyu/run/core.sock"]
+    );
 }

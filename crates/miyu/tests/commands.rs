@@ -61,4 +61,11 @@ fn help_and_version_are_fine() {
     }
     let output = miyu(&home, "C", &["--version"]);
     assert!(String::from_utf8_lossy(&output.stdout).starts_with("miyu "));
+    // 帮助直接从用法开始，不印代码注释（施工 4-9 再补四上）。
+    for language in ["C", "zh_CN.UTF-8"] {
+        let output = miyu(&home, language, &["--help"]);
+        let help = String::from_utf8_lossy(&output.stdout);
+        assert!(help.starts_with("Usage: miyu"), "{language}：{help}");
+        assert!(!help.contains('`'), "{language}：{help}");
+    }
 }

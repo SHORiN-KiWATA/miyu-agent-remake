@@ -46,8 +46,11 @@ async fn wait_for(memory: &Memory, end: &str) {
 #[tokio::test]
 async fn the_log_says_what_happened_and_nothing_that_was_said() {
     let memory = Memory::new();
-    let listening =
-        tracing::subscriber::set_default(miyu_log::subscriber(memory.clone(), LevelFilter::INFO));
+    let listening = tracing::subscriber::set_default(miyu_log::subscriber(
+        memory.clone(),
+        LevelFilter::INFO,
+        None,
+    ));
     let home = Home::new();
 
     // 一个会话：先限速，重试以后说完；停下，载入，没人拿着了。
@@ -176,8 +179,11 @@ async fn the_log_says_what_happened_and_nothing_that_was_said() {
     // DEBUG：每一条输入、每一个动作的种类；增量在 TRACE，看不到。
     drop(listening);
     let memory = Memory::new();
-    let _listening =
-        tracing::subscriber::set_default(miyu_log::subscriber(memory.clone(), LevelFilter::DEBUG));
+    let _listening = tracing::subscriber::set_default(miyu_log::subscriber(
+        memory.clone(),
+        LevelFilter::DEBUG,
+        None,
+    ));
     let handle = home.create(&Script::new([Play::Says("你好。")])).await;
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("早上好"))

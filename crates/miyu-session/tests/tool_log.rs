@@ -54,8 +54,11 @@ async fn until(what: &str, mut ready: impl FnMut() -> bool) {
 #[tokio::test]
 async fn the_log_says_which_tools_ran_and_nothing_that_was_passed() {
     let memory = Memory::new();
-    let _listening =
-        tracing::subscriber::set_default(miyu_log::subscriber(memory.clone(), LevelFilter::INFO));
+    let _listening = tracing::subscriber::set_default(miyu_log::subscriber(
+        memory.clone(),
+        LevelFilter::INFO,
+        None,
+    ));
     let home = Home::new();
     let echo = Fake::new("echo", Access::Read, Act::Echo);
     let fail = Fake::new("fail", Access::Read, Act::Fails("紫色的错"));

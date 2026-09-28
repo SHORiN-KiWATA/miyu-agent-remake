@@ -995,6 +995,7 @@ dependencies = [
  "ignore",
  "miyu-fs",
  "miyu-kernel",
+ "miyu-log",
  "miyu-store",
  "miyu-tool",
  "rustix",

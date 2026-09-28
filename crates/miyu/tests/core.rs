@@ -89,6 +89,53 @@ async fn a_core_that_cannot_start_says_why() {
     assert!(reason.contains("MIYU_RESOURCES"), "{reason}");
     assert!(reason.contains("no-resources"), "{reason}");
     home.until_stopped().await;
+    // 运行日志只写没过的是哪一步：原因是给人看的中文，只交给头（施工 4-9 再补四上）。
+    let log = home.core_log();
+    assert_eq!(count(&log, "not started stage=resources"), 1, "{log}");
+    assert!(!log.contains("MIYU_RESOURCES"), "{log}");
+    assert!(!log.contains("no-resources"), "{log}");
+}
+
+#[tokio::test]
+async fn the_starting_line_says_where_and_in_which_zone() {
+    let home = Home::new();
+    // 家目录设成数据根的上一级：数据根写成 `~` 开头。
+    let parent = home.dir.parent().expect("临时目录有上一级").to_path_buf();
+    let (held, _) = within(
+        "拉起",
+        connect_or_start(&home.root, || {
+            let mut command = home.core();
+            command.env("HOME", &parent).env("USERPROFILE", &parent);
+            command
+        }),
+    )
+    .await
+    .expect("拉得起");
+    drop(held);
+    home.until_stopped().await;
+    let log = home.core_log();
+    let line = log
+        .lines()
+        .find(|line| line.contains(" starting "))
+        .unwrap_or_else(|| panic!("有起来的那一行：{log}"));
+    let name = home.dir.file_name().expect("有名字").to_string_lossy();
+    let root = format!("root=~{}{name} ", std::path::MAIN_SEPARATOR);
+    assert!(line.contains(&root), "{line}");
+    assert!(!line.contains(&*parent.to_string_lossy()), "{line}");
+    assert!(line.contains(" version="), "{line}");
+    assert!(line.contains(" pid="), "{line}");
+    let zone = line
+        .split(" tz=")
+        .nth(1)
+        .unwrap_or_else(|| panic!("有时区：{line}"));
+    let bytes = zone.as_bytes();
+    assert!(
+        bytes.len() == 6
+            && matches!(bytes[0], b'+' | b'-')
+            && bytes[3] == b':'
+            && [1, 2, 4, 5].iter().all(|&i| bytes[i].is_ascii_digit()),
+        "{line}"
+    );
 }
 
 #[tokio::test]
