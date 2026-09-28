@@ -3,7 +3,7 @@
 ### 是什么
 
 沙盒的底子：
-- 核心给每条要关起来的命令写一份规格：哪些能读，哪些能写，能写的里面哪些只能读，哪些藏起来，网络怎么走；
+- 核心给每条要关起来的命令写一份规格：哪些能读，哪些能写，能写的里面哪些只能读，哪些藏起来；
 - 小程序 `miyu-sandbox` 照规格先把自己收紧，再换成那条命令。
 
 它是单独的一个小程序，Ubuntu、Mint 上只给它开命名空间（`11-权限与沙盒.md` 第六节）。
@@ -38,15 +38,14 @@
 | `write` | 能读能写的 |
 | `readonly` | 能写的那几片里只能读的，例如工作区的 `.git/hooks`、`.git/config` |
 | `hidden` | 读写都不行、要藏起来的，例如数据根：它可能落在能写的临时目录里 |
-| `network` | `"off"`：不能联网；`{"proxy": "127.0.0.1:<端口>"}`：只能连 Miyu 的代理 |
 
-样本 `docs/designs/samples/sandbox/spec.json`（例子）：
+改成（施工 5-1（补）合进来时标成样本 `docs/designs/samples/sandbox/spec.json`）（例子）：
 
 ```json
-{"read":["/usr","/etc"],"write":["/home/me/project","/tmp"],"readonly":["/home/me/project/.git/hooks"],"hidden":["/home/me/.miyu"],"network":"off"}
+{"read":["/usr","/etc"],"write":["/home/me/project","/tmp"],"readonly":["/home/me/project/.git/hooks"],"hidden":["/home/me/.miyu"]}
 ```
 
-读的时候，认不得的格、类型不对的、少了 `network` 的，都当规格写坏了：助手不懂的限制，不能悄悄跳过。别的四格不写是空的。
+读的时候，认不得的格、类型不对的，都当规格写坏了：助手不懂的限制，不能悄悄跳过。四格不写都是空的。规格里没有网络：沙盒只管读写权限（2026-09-29 项目主人定）。
 
 **助手的命令行**：
 
@@ -89,7 +88,7 @@
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-sandbox/src/spec/tests.rs` | 样本读进来、写回去逐字节一样；网络的两种写法；只有 `network` 必写；多格、类型不对、不是 JSON 的读不了 |
+| `crates/miyu-sandbox/src/spec/tests.rs` | 样本读进来、写回去逐字节一样；四格都能不写；多格（包括原来的 `network`）、类型不对、不是 JSON 的读不了 |
 | `crates/miyu-sandbox/src/wrap/tests.rs` | 包出来的命令：助手、`run`、`--spec` 和 JSON、`--`、程序和参数，照先后；命令没有参数的，最后一个是程序 |
 | `crates/miyu-sandbox/src/probe/tests.rs` | 平台的名字和 JSON 里的一样；这次编的是哪个平台；说法是版本 1、一行；手段怎么连；探不成的每一种怎么说 |
 | `crates/miyu-sandbox/tests/run.rs` | 真跑助手（规格什么都不限）：命令的输出、退出码、工作目录、环境变量和直接跑一样，它自己什么都不多印；Unix 上是同一个进程，被信号杀掉的照样是信号；参数不对、规格写坏了、没给命令、找不到命令、执行不了的退出码和那一句；`probe` 是一行、版本 1、这台机器的平台（手段各平台自己测） |
