@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>88</b><span>/ 93 步<strong>已完成</strong>，Linux、macOS 上命令真的关进沙盒：工作区、只读两级不问人</span></li>
-    <li><b>5-4</b><span>下一步：权限策略接上沙盒（下）；Windows：装 <strong>等项目主人看一次管理员弹窗</strong></span></li>
-    <li><b class="mono">ecaa273</b><span>最近一步（5-7 macOS）的提交</span></li>
+    <li><b>89</b><span>/ 93 步<strong>已完成</strong>，Linux、macOS 上命令关进沙盒；Windows 装得上专用的沙盒用户</span></li>
+    <li><b>5-4</b><span>下一步：权限策略接上沙盒（下）；接着 Windows：跑</span></li>
+    <li><b class="mono">b773227</b><span>最近一步（5-8 Windows：装）的提交</span></li>
   </ul>
 </header>
 
@@ -433,7 +433,7 @@ a.step:hover{border-color:var(--primary)}
         <li><span class="step"><span class="n">5-5</span>代理（取消）</span></li>
         <li><span class="step"><span class="n">5-6</span>Linux：网络（取消）</span></li>
         <li><a class="step done" href="#s5-7"><span class="n">5-7</span>macOS<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">5-8</span>Windows：装</span></li>
+        <li><a class="step done" href="#s5-8"><span class="n">5-8</span>Windows：装<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">5-9</span>Windows：跑</span></li>
         <li><span class="step"><span class="n">5-10</span>--add-dir 和边角</span></li>
         <li><span class="step"><span class="n">5-11</span>M5 验收</span></li>
@@ -7008,6 +7008,75 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>设计 <code>11-权限与沙盒.md</code> 第六节、A8。</li>
         <li>蓝图 <code>sandbox/macos.md</code>、<code>sandbox.md</code>；<code>docs/construction/5-7-macOS.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-8" aria-labelledby="h-s58">
+  <div class="sheet-head"><h2 id="h-s58"><span class="no">5-8</span>Windows：装</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">Windows 上的沙盒要一个专用的沙盒用户，建它要一次管理员权限。<code>miyu sandbox setup</code> 建、藏好这个用户，<code>remove</code> 撤掉；不是管理员时经系统的确认提升一次。密码加密存进本人的数据根，沙盒读不到；5-9 用它以沙盒用户的身份起命令。分身施工，在虚拟机上真装真卸。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu sandbox setup</span><span class="dir-note">一次管理员权限</span></div>
+            <ol class="pipe" aria-label="miyu sandbox setup">
+              <li>不是管理员：经 runas 提升一次，弹系统的确认</li>
+              <li>先认数据根的标记，不是就一个字节都不写</li>
+              <li>建用户：只在 Users 组、自己改不了密码、登录界面上藏着</li>
+              <li>密码用 DPAPI 加密，记录只给本人和 SYSTEM</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">实测</span><span class="dir-note">Windows 11 虚拟机</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">装、再装、卸</span><span class="rl">SID 不变、密码换了；卸得干净，再卸也成</span></div>
+              <div class="tile new"><span class="nm">管理员确认</span><span class="rl">项目主人在桌面上看过：点「是」装好，点「否」说要管理员权限</span></div>
+              <div class="tile new"><span class="nm">挡得住的</span><span class="rl">不是数据根、拼得进访问控制的 SID、经链接写</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">先改记录再动用户</span><span class="rl">半路失败不会留下没处记的密码、半删的账号</span></div>
+          <div class="tile new"><span class="nm">已有同名的管理员</span><span class="rl">装和卸都不碰它，直接报错</span></div>
+          <div class="tile"><span class="nm">接受的</span><span class="rl">查完到写之前被人换掉挡不住：能换的人本来就能改数据根</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-8</dd></div>
+        <div><dt>名称</dt><dd>Windows：装</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">b773227</dd></div>
+        <div><dt>验收</dt><dd>虚拟机真装真卸、项目主人看过确认、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>crates/miyu-sandbox/src/install*</code>：建、藏、删用户，提升，DPAPI，只给本人的文件。</li>
+        <li><code>crates/miyu-cli/src/sandbox*</code>：<code>miyu sandbox setup</code>、<code>remove</code> 和帮助页。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>虚拟机上真装真卸，项目主人在桌面上看过管理员确认</span></li>
+        <li><span class="ok">✓</span><span>手写变异 35 个全被逮住</span></li>
+        <li><span class="ok">✓</span><span>接上 5-4（上）、5-7 以后三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>11-权限与沙盒.md</code> 第六节、A3。</li>
+        <li>蓝图 <code>sandbox/windows.md</code>、<code>cli/main.md</code>；<code>docs/construction/5-8-Windows：装.md</code>。</li>
       </ul>
     </div>
   </div>
