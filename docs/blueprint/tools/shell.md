@@ -47,7 +47,7 @@
 3. 定超时（上面的表）。
 4. 起命令：
    - 程序和参数照下面「用哪个 shell」。
-   - 在这一轮的工作目录里跑：`cwd` 照原样当目录，不换 `~`。
+   - 在这一轮的工作目录里跑：`cwd` 是 `~` 开头的，照 `tilde` 接家目录（`fs.md` 第二节第 1 条，和别的工具一样），别的照原样当目录（施工 4-9 再补二）。
    - 环境变量先清空，只放白名单上的（下面「环境变量」），再设上 `GIT_TERMINAL_PROMPT=0`。
    - 标准输入接空的：要人输入的命令读到结尾就退出。标准输出、标准错误接到同一根管道上，照写出来的先后。
    - Unix 上命令自成一个进程组；Windows 上不弹控制台窗口。
@@ -55,12 +55,12 @@
 5. 读输出：另一个线程一次读 8192 字节，读到的一段照 UTF-8 解，一个字切在两段中间的留到下一段再解，解不开的字节换成 `�`，推给头（瞬时的 `tool.progress`，不落盘）；读完了剩下没配齐的也换成 `�` 推出去。内存里只留最前 64 KiB 和最后 64 KiB，另外数一共多少字节、多少个字、多少个换行，输出再多内存也不涨。
 6. 等它结束，最多等超时那么久：
    - 自己结束了：记下退出码（Unix 上被信号杀掉的，记下信号）。
-   - 到时了：整组杀掉，等它真结束（这一回等没有上限：杀不掉的，这次调用就一直不回，只能叫停），算超时。
+   - 到时了：整组杀掉，再等它最多 5 秒，算超时。5 秒还不结束的（Windows 上 `taskkill` 没杀掉之类）也算超时，记一行 `WARN` `command still running after kill`，不再等它（施工 4-9 再补二）。
    - 等不了（系统报错）：执行不了。
 7. 结束以后：Unix 上把组里还在跑的（`&` 放到后台的）也杀掉；Windows 上不杀，退出以后按编号杀可能杀错。再等读输出的线程最多 0.5 秒：还有东西拿着管道的（Windows 上它放出去的孙进程），不等它，读到多少算多少。
 8. 截给她看的（最多 30000 个字）：
    1. 内存里留的头尾接起来照 UTF-8 解（解不开的换成 `�`）。不多过 30000 个字的，整段给。
-   2. 多过的，留开头 15000 个字、结尾 15000 个字：开头那一段的最后一个换行落在它后一半里的，截在这个换行后面；结尾那一段的第一个换行落在它前一半里的，从这个换行后面起。一半按字节算。
+   2. 多过的，留开头 15000 个字、结尾 15000 个字：开头那一段的最后一个换行落在它后一半里的，截在这个换行后面；结尾那一段的开头已经在行首的（前一个字是换行），照原样；不然第一个换行落在它前一半里的，从这个换行后面起（施工 4-9 再补二）。一半按字节算。
    3. `\r\n` 换成 `\n`，单独的 `\r` 不动。
    4. 每一段不是空的就以换行结尾：头、`[... {count} characters omitted ...]`、尾、`(Showed the start and the end of {total} characters. To see all of it, write the output to a file and read the file.)`。`count` 是一共的字数减去头尾给了的字数，`total` 是一共的字数，内存里丢掉的中间那一段也数在里面。
    - 「字」按 UTF-8 数：不是接续字节的每个字节算一个字。
@@ -83,12 +83,13 @@
 
 | 平台 | 程序 | 参数 | 说明里的名字 |
 |---|---|---|---|
-| macOS | `/bin/zsh` | `-f -c <命令>` | `zsh` |
+| macOS | `/bin/zsh` | `-f +o nomatch -c <命令>` | `zsh` |
 | Windows，`PATH` 里有 `pwsh.exe` | 找到的那一个 | `-NoLogo -NoProfile -NonInteractive -EncodedCommand <编好的命令>` | `PowerShell 7` |
 | Windows，没有 | `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`，没设 `SystemRoot` 的是 `powershell.exe` | 同上 | `Windows PowerShell 5.1` |
 | 别的（Linux 等） | `PATH` 里的 `bash`，找不到用 `/bin/bash` | `--noprofile --norc -c <命令>` | `bash` |
 
 - 不读用户的启动文件：那里可能 `export` 了密钥，环境变量的白名单就白设了。
+- zsh 带 `+o nomatch`：没匹配到的通配符照原样传下去，和 bash 一样（没加引号的网址里的 `?`、`pip install foo[bar]` 里的方括号，施工 4-9 再补二）。
 - PowerShell 的命令前面先加一句，和她的命令写在同一行（出错时报的行号还对得上），整条编成 UTF-16LE 再 base64：
 
   ```text
@@ -125,16 +126,16 @@ Exit code 2
 2
 …
 3221
-[... 78902 characters omitted ...]
-17502
+[... 78896 characters omitted ...]
+17501
 …
 20000
 (Showed the start and the end of 108894 characters. To see all of it, write the output to a file and read the file.)
 ```
 
 - 头：前 15000 个字截在 `3222` 的中间，最后一个换行落在后一半里，截在 `3221` 那一行后面，给 14998 个字。
-- 尾：后 15000 个字正好从 `17501` 那一行起，它的第一个换行落在前一半里，从这个换行后面起，给 14994 个字：接缝正好在行首时，也跳过第一行。
-- 省了 108894 − 14998 − 14994 = 78902 个字。说法是 `shell/done`，`count` 是 20000。
+- 尾：后 15000 个字正好从 `17501` 那一行的开头起，已经在行首，照原样给 15000 个字。
+- 省了 108894 − 14998 − 15000 = 78896 个字。说法是 `shell/done`，`count` 是 20000。
 
 给她的字都在 `resources/software/basesystem/shell/` 下，每一份以一个换行结尾，登记在 `26-提示词.md` 第十节：
 
@@ -192,10 +193,11 @@ Exit code 2
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-basesystem/tests/shell.rs` | 说明里写的是这台机器的 shell、换过字段、不报路径；在工作目录里跑；标准错误合进来、照先后；退出码；没有输出；超时整组杀、说法的秒数；只拿到白名单上的变量、`GIT_TERMINAL_PROMPT` 是 0；中文照原样；太长截成头尾、一共多少个字；参数不对、要放后台的不跑、写了 `description` 照跑；工作目录不在；输出边跑边推、最后半个字换成 `�`；Unix：放到后台的在命令退出以后停了、叫停时整组停了、被信号杀掉 |
+| `crates/miyu-basesystem/tests/shell.rs` | 说明里写的是这台机器的 shell、换过字段、不报路径；在工作目录里跑；标准错误合进来、照先后；退出码；没有输出；超时整组杀、说法的秒数；只拿到白名单上的变量、`GIT_TERMINAL_PROMPT` 是 0；中文照原样；太长截成头尾、一共多少个字，尾巴从行首起的不多丢一行；参数不对、要放后台的不跑、写了 `description` 照跑；工作目录不在、`~` 开头的照家目录接；输出边跑边推、最后半个字换成 `�`；Unix：放到后台的在命令退出以后停了、叫停时整组停了、被信号杀掉 |
 | `crates/miyu-basesystem/src/shell/tests.rs` | 超时的上下限；秒数怎么写；参数格式里写的上限、默认值和代码一样；每一段以换行结尾 |
 | `crates/miyu-basesystem/src/shell/output/tests.rs` | 数行、数字；`\r\n`；内存只留头尾；截在行尾；中间丢过的照样数；一整行很长的照字数截；正好 30000 个字的整段给；切开的字等配齐；离截处太远的换行不用 |
-| `crates/miyu-basesystem/src/shell/program/tests.rs` | 各系统用哪个 shell、找不到时用什么；名字带版本；不读启动文件、只带给的变量；PowerShell 的编码和前面那一句 |
+| `crates/miyu-basesystem/src/shell/program/tests.rs` | 各系统用哪个 shell、找不到时用什么；名字带版本；不读启动文件、只带给的变量；zsh 带 `+o nomatch`、没匹配到的通配符原样传下去（macOS）；PowerShell 的编码和前面那一句 |
+| `crates/miyu-basesystem/src/shell/process/tests.rs` | 杀不掉的命令，最多再等那么久就交回超时 |
 | `crates/miyu-basesystem/src/shell/env/tests.rs` | 只传名单上的；`GIT_TERMINAL_PROMPT` 总是 0；Windows 上名字不分大小写；前缀只看开头 |
 | `crates/miyu-basesystem/tests/human.rs` | 每一种结果的说法，两种语言都换得出字 |
 | `crates/miyu-session/tests/write.rs` | 会话里真的跑：结果进日志，给她的是输出加退出码，说法里有退出码，没有效果 |
@@ -213,5 +215,4 @@ Exit code 2
 - 后台命令、`run_in_background`、`description`、查看和停掉后台任务的 `jobs`：随 M7（`10-自带软件.md` 第三节）。
 - 沙盒：命令现在以本人的身份直接跑，碰得到任何地方；只读时每条都问人（`11-权限与沙盒.md` 第二节、第六节，M5）。放行规则照命令开头记，也随 M5（第二节）。
 - Windows 上改用 Git Bash 的配置（`10-自带软件.md` 第八节）。
-- macOS 上 zsh 遇到没匹配到的通配符直接报错，要不要关掉还没定（`10-自带软件.md`「后续再定」）；现在照 zsh 的默认，报错。
 - 环境变量的名单是策略数据，配置那一步能改（`11-权限与沙盒.md` 第四节）：现在写在代码里。

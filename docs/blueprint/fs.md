@@ -10,7 +10,7 @@
 |---|---|
 | `crates/miyu-fs/src/lib.rs` | 交出去的几样 |
 | `crates/miyu-fs/src/boundary.rs` | 边界表：几片、先后、各平台的清单；`within` |
-| `crates/miyu-fs/src/resolve.rs` | 换成真实的位置；`~` 的规矩 |
+| `crates/miyu-fs/src/resolve.rs` | 换成真实的位置（整条换的、最后一段不跟链接的）；`~` 的规矩 |
 | `crates/miyu-fs/src/wide.rs` | 工作目录太宽 |
 | `crates/miyu-fs/src/open.rs` | 安全地打开 |
 | `crates/miyu-fs/src/replace.rs` | 整体换成新的内容 |
@@ -18,7 +18,7 @@
 | `crates/miyu-fs/src/trash/linux.rs`、`macos.rs`、`windows.rs`、`other.rs` | 各平台的回收站；别的系统一律收不了 |
 | `crates/miyu-fs/src/trash/recycled.rs` | Windows 回收站里的 `$I` 记录；每个平台都编，测试到处都跑 |
 
-用它的：基础系统的几件工具（`tools/`）；权限策略 `crates/miyu-session/src/guard.rs`（换成真实的位置、查边界）；撤销时改回文件 `crates/miyu-session/src/restore.rs`（`replace`、`trash::put`、`trash::restore`）；开会话时挑工作区 `crates/miyu-endpoint/src/sessions.rs`（`resolve`、`too_wide`）。
+用它的：基础系统的几件工具（`tools/`）；权限策略 `crates/miyu-session/src/guard.rs`（换成真实的位置、查边界；判 `trash` 时最后一段不跟链接）；撤销时改回文件 `crates/miyu-session/src/restore.rs`（`replace`、`trash::put`、`trash::restore`）；开会话时挑工作区 `crates/miyu-endpoint/src/sessions.rs`（`resolve`、`too_wide`）。
 
 ### 对外的样子
 
@@ -31,6 +31,7 @@
 | `Boundary::zone(path)` | 真实的位置 `path` 落在哪一片 |
 | `within(path, root)` | 真实的位置在不在目录 `root` 里 |
 | `resolve(cwd, home, input)` | 她给的路径换成真实的位置 |
+| `resolve_itself(cwd, home, input)` | 同上，最后一段不跟链接：碰的是这一条本身（`trash`）；没有名字可碰的交回空的 |
 | `tilde(input)` | `~` 开头的，交回 `~` 后面那一截 |
 | `too_wide(dir, home, data_root, own)` | 工作目录太不太宽 |
 | `open_file(real)` | 安全地打开一份要读的普通文件 |
@@ -89,6 +90,11 @@
 6. 平台不一样的：
    - Windows：换出来的是 `\\?\C:\…` 这种写法；`/`、`\` 都当分隔符；系统找文件之前先照字面把 `..` 消掉，`newdir/../x.rs` 就是 `x.rs`，不报 `ParentOfMissing`。
    - macOS：`/tmp`、`/var`、`/etc` 的真实位置在 `/private` 下面，比的两边都换过，对得上。
+7. **最后一段不跟链接**（`resolve_itself`，施工 4-9 再补二从 `trash` 挪过来）：
+   1. `~` 开头的照 `tilde` 接家目录；只有 `~` 自己的（`~`、`~/`，Windows 上还有 `~\`）没有名字，交回空的；没有家目录：`NoHome`。
+   2. 没有名字的（`.`、`..`、根目录，以 `..` 结尾的）交回空的。以 `/.` 结尾的，名字是前面那一段（`src/.` 是 `src`）。
+   3. 别的：上级照上面整条换成真实的位置，再接上最后一段的原样。换不了的，照上面报错。
+   4. `trash` 照它找要删的（`tools/trash.md`），权限策略判 `trash` 也照它（`session/guard.md`）：两边碰的是同一个，链接判的是链接本身在哪。
 
 #### 三、工作目录太宽（`too_wide`）
 
@@ -114,7 +120,7 @@
 3. 打开了：再看开的这个是不是普通文件，是的交出去，不是的报是什么；读不出它的元数据：`Io`。
 4. 「是什么」（`Kind`）：链接 `Link`；目录 `Directory`；Unix 上 FIFO `Fifo`，字符设备、块设备 `Device`，套接字 `Socket`；别的 `Other`。Windows 上没有 FIFO、设备、套接字这几种，链接、目录以外都是 `Other`。
 
-现在只有 `read` 用它（`tools/read.md`）。
+`read`、`grep`、`write`、`edit` 照它开（施工 4-9 再补二）：`grep` 点名的文件、走目录找到的文件都照它开；`write`、`edit` 读原来的内容照它开。
 
 #### 五、整体换成新的内容（`replace`）
 
@@ -237,7 +243,7 @@
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-fs/tests/boundary.rs` | 五片的先后、工作区里的 `.git/hooks`、`.git/config` 只能读（子仓库里的也算）、数据根在临时目录里也不能碰、工作区挪进数据根的照工作区算、一段一段比、不存在的那一片不算、macOS 和 Windows 上数据根不分大小写、`within`、这台机器的清单 |
-| `crates/miyu-fs/tests/resolve.rs` | 相对的照工作目录接、`.` 和走过存在的目录再 `..`、绝对的照原样、`~` 和 `~alice`、没有家目录、还不存在的照上级算、还不存在的 `..`（Unix 报错、Windows 照字面消掉）、链接照指向的地方算、指向不存在处的链接、Windows 两种分隔符 |
+| `crates/miyu-fs/tests/resolve.rs` | 相对的照工作目录接、`.` 和走过存在的目录再 `..`、绝对的照原样、`~` 和 `~alice`、没有家目录、还不存在的照上级算、还不存在的 `..`（Unix 报错、Windows 照字面消掉）、链接照指向的地方算、指向不存在处的链接、Windows 两种分隔符；最后一段不跟链接：指向不存在处的、指到别处的链接交回链接本身，`.`、`..`、`~` 交回空的，`src/.` 是 `src` |
 | `crates/miyu-fs/tests/open.rs` | 普通文件打得开、目录和不存在的、最后一层是链接不跟（Unix、Windows）、FIFO 不卡住、设备和套接字 |
 | `crates/miyu-fs/tests/wide.rs` | 太宽的四样；家目录读不出来时 |
 | `crates/miyu-fs/src/replace/tests.rs` | 新建和覆盖、不留临时文件、只读的不写、盖不上去时临时文件删掉 |
