@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>67</b><span>/ 70 步<strong>已完成</strong>，她能执行命令了，撤销时改过的文件跟着改回去</span></li>
-    <li><b>4-7</b><span>下一步：undo、redo 命令（下），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">cf66f5c</b><span>最近一步（4-8）的提交</span></li>
+    <li><b>68</b><span>/ 70 步<strong>已完成</strong>，miyu undo、miyu redo 撤掉最后一轮、再恢复</span></li>
+    <li><b>4-9</b><span>下一步：确认和提问，<strong>先出样子</strong></span></li>
+    <li><b class="mono">d1d4d82</b><span>最近一步（4-7 下）的提交</span></li>
   </ul>
 </header>
 
@@ -403,7 +403,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-6b"><span class="n">4-6</span>编辑（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-6c"><span class="n">4-6</span>删除（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-7a"><span class="n">4-7</span>撤销时恢复文件（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-7</span>undo、redo 命令（下）</span></li>
+        <li><a class="step done" href="#s4-7b"><span class="n">4-7</span>undo、redo 命令（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-8"><span class="n">4-8</span>执行命令<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-9</span>确认和提问</span></li>
         <li><span class="step"><span class="n">4-10</span>M4 验收</span></li>
@@ -5434,6 +5434,77 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li><code>docs/designs/10-自带软件.md</code> 第七节「改回文件的细则」，<code>03</code> 的 <code>files.restored</code>。</li>
         <li><code>docs/construction/4-7-撤销时恢复文件（上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s4-7b" aria-labelledby="h-s47b">
+  <div class="sheet-head"><h2 id="h-s47b"><span class="no">4-7</span>miyu undo、miyu redo（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">前端做出来之前，人也用得上撤销：miyu undo 撤掉当前会话的最后一轮，印出改回了哪些文件，之后又被改过的不覆盖、印出差异；miyu redo 在发下一句之前恢复。样子是项目主人定的；差异由核心算好，头只照着印。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">印出来的样子</span><span class="dir-note">项目主人 2026-09-28 定</span></div>
+            <ol class="pipe" aria-label="印出来的样子">
+              <li>· 撤销「把 README 改成中文」这一轮</li>
+              <li>· 改回 src/a.rs ／ · 移回 docs/old.md ／ · 删掉 notes/new.txt → 移进了回收站</li>
+              <li>· 改回 src/b.rs → 没动：之后又被改过，下面印差异（她改完的 → 现在，最多 20 行）</li>
+              <li>· 这一轮执行过 2 条命令：命令改的文件撤不回 ／ 发下一句之前，可以用 miyu redo 恢复。</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">谁做什么</span><span class="dir-note">01 D1</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">内核</span><span class="rl">不写回合编号的撤最后一轮，照账本当场找；一轮都没有的 nothing_to_revert</span></div>
+              <div class="tile new"><span class="nm">核心的端点</span><span class="rl">回应带上撤的是哪一句、执行过几条命令、每个文件怎样、差异，路径写成给人看的</span></div>
+              <div class="tile new"><span class="nm">命令行</span><span class="rl">找会话、发命令、照着印；灰的、红的、绿的几段</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">当前会话</span><span class="rl">和 --continue 一样：最新的那个一次性会话；--session 指定别的</span></div>
+          <div class="tile new"><span class="nm">退出码</span><span class="rl">被接受的 0，有文件没动也是 0；被拒绝的 1</span></div>
+          <div class="tile new"><span class="nm">撤销不用模型</span><span class="rl">核心没在跑的拉起来，没有 key 也拉起</span></div>
+          <div class="tile new"><span class="nm">公共的几样</span><span class="rl">连核心、发请求、上色、写短路径，ask 和 undo 共用</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">撤到更早的某一轮、帮人合冲突；做前端时换成 /undo、Ctrl+R</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-7（下）</dd></div>
+        <div><dt>名称</dt><dd>miyu undo、miyu redo</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">d1d4d82</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-cli</code>：<code>undo</code>（找会话、发命令、照回应印）；<code>link</code>、<code>shown</code>、<code>rpc</code> 从 ask 里挪成公共的。</li>
+        <li><code>miyu-endpoint</code>：<code>undo</code>，回应里给人看的几样，差异用 similar 算。</li>
+        <li><code>miyu-kernel</code>：撤销不写回合编号的撤最后一轮；<code>miyu</code>：两个子命令。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>照定的样子一行行对；真的核心、真的工具走一遍撤销、恢复；真跑主程序；Windows 上路径写成给人看的</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 40 处，全部有测试变红</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/designs/22-命令行.md</code> 第三节，<code>04</code> 第九节的回应，<code>02</code> 的原因码。</li>
+        <li><code>docs/construction/4-7-miyu undo、miyu redo（下）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
