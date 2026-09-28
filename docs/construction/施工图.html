@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>90</b><span>/ 93 步<strong>已完成</strong>，沙盒里编得了项目：工具链的缓存用沙盒自己的一份</span></li>
+    <li><b>91</b><span>/ 94 步<strong>已完成</strong>，环境里的时间写成这一个小时的起止：16:00–17:00</span></li>
     <li><b>5-9</b><span>下一步：Windows 上以沙盒用户的身份跑命令</span></li>
-    <li><b class="mono">feaa4c4</b><span>最近一步（5-4 下 权限策略接上沙盒）的提交</span></li>
+    <li><b class="mono">821e266</b><span>最近一步（1-13 补 只到小时的时间写成一段）的提交</span></li>
   </ul>
 </header>
 
@@ -338,6 +338,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s1-11"><span class="n">1-11</span>模板与转义<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-12"><span class="n">1-12</span>组装请求<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-13"><span class="n">1-13</span>事实注入<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s1-13b"><span class="n">1-13</span>只到小时的时间写成一段（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-14"><span class="n">1-14</span>请求形状探针<span class="st">✓</span></a></li>
       </ol>
     </li>
@@ -7147,6 +7148,72 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>设计 <code>11-权限与沙盒.md</code> 第四节；<code>26-提示词.md</code> 第十节。</li>
         <li>蓝图 <code>session/tools.md</code>、<code>protocol.md</code>、<code>cli/ask.md</code>、<code>sandbox.md</code>、<code>core.md</code>；<code>docs/construction/5-4-权限策略接上沙盒（下）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s1-13b" aria-labelledby="h-s113b">
+  <div class="sheet-head"><h2 id="h-s113b"><span class="no">1-13</span>只到小时的时间写成一段（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">环境那一块的时间只到小时，原来分钟一律写 <code>00</code>，她看了会当成正好那个钟点。改成写这一个小时的起止，同一个小时里字节照样不变（项目主人在终端演示里看到的，他定的写法）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">环境那一块</span><span class="dir-note">改前 → 改后</span></div>
+            <ol class="pipe" aria-label="环境那一块">
+              <li>改前：<code>time="Fri 2026-09-25 16:00"</code></li>
+              <li>改后：<code>time="Fri 2026-09-25 16:00–17:00"</code></li>
+              <li>23 点：<code>23:00–24:00</code>，日期还是这一天</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">跟着改的</span><span class="dir-note">样本和存档</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">样本会话</span><span class="rl">两条环境事件、second-step.json</span></div>
+              <div class="tile new"><span class="nm">探针存档</span><span class="rl">只变了三处时间和 16 条请求哈希</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">写成起止</span><span class="rl">中间是连接号 –，分钟都写 00</span></div>
+          <div class="tile"><span class="nm">接受的</span><span class="rl">已有的会话升级后，环境那一块重新注入一次，只追加</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">1-13 补</dd></div>
+        <div><dt>名称</dt><dd>只到小时的时间写成一段</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">821e266</dd></div>
+        <div><dt>验收</dt><dd>真模型自测、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>Timestamp::local_hour</code> 写成这一个小时的起止。</li>
+        <li>测试的期望、样本会话、探针存档跟着改。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真模型答「凌晨4点多（04:00–05:00）」</span></li>
+        <li><span class="ok">✓</span><span>手写变异 4 个都被逮住</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>08-上下文投影.md</code> 第五节「时间」。</li>
+        <li>蓝图 <code>kernel/ids.md</code>「当地钟点」、<code>kernel/request.md</code>；<code>docs/construction/1-13-只到小时的时间写成一段（补）.md</code>。</li>
       </ul>
     </div>
   </div>
