@@ -14,8 +14,8 @@ use crate::drawing;
 /// 登记簿在仓库里的位置。
 pub const PATH: &str = "docs/designs/26-提示词.md";
 
-const SECTION: &str = "登记簿";
-const HEADER: [&str; 6] = [
+pub(crate) const SECTION: &str = "登记簿";
+pub(crate) const HEADER: [&str; 6] = [
     "文件",
     "进到哪",
     "什么时候加进来",
@@ -25,7 +25,7 @@ const HEADER: [&str; 6] = [
 ];
 
 /// 给模型看的字都在这个目录里。
-const RESOURCES: &str = "resources";
+pub(crate) const RESOURCES: &str = "resources";
 
 /// 给人看的字放在这样的目录里，不登记（施工 4-5 上）。
 const HUMAN: &str = "human";

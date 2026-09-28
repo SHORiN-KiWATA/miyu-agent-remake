@@ -64,6 +64,17 @@ fn agreed() -> Value {
 }
 
 #[test]
+fn the_undo_is_the_sample_of_the_drawing() {
+    // 蓝图 `cli/undo.md` 的样本（施工 4-9 三补）：和 `docs/designs/samples/cli/undo-text.txt` 逐字节一样；蓝图里的
+    // 那一块，门禁和同一份文件比。样本照 Unix 的路径写。
+    let sample = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../docs/designs/samples/cli/undo-text.txt");
+    let drawn = std::fs::read_to_string(&sample).expect("有样本");
+    let screen = printed(&agreed(), &plan(Direction::Undo, Language::Chinese));
+    assert_eq!(screen.replace(MAIN_SEPARATOR_STR, "/"), drawn);
+}
+
+#[test]
 fn an_undo_is_printed_the_way_it_was_agreed() {
     let (a, old, new, b) = (
         native("src/a.rs"),

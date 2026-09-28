@@ -213,6 +213,7 @@
 | `crates/miyu-cli/src/ask/follow/tests.rs` | 思考和回答分两条通道、上色、只跟自己那一轮、`--format json`、出错和退出码、重试成了不算出错 |
 | `crates/miyu-cli/src/ask/follow/tests/asides.rs` | 换行和空行；给脚本的两段回答隔开、没隔着步骤的照原样接上；目录太宽那一句只说一次；路径照会话实际干活的目录写短 |
 | `crates/miyu-cli/src/ask/follow/tests/unattended.rs` | 最后那一句、退出码 4、只算内核那一句 |
+| `crates/miyu-cli/src/ask/follow/tests/sample.rs` | 照样本的场景喂一轮，整块屏幕和 `docs/designs/samples/cli/ask-text.txt` 逐字节一样；蓝图里的样本块由门禁和同一份比（施工 4-9 三补） |
 | `crates/miyu-cli/src/ask/steps/tests.rs` | 每一步那一行的每一格 |
 | `crates/miyu-cli/src/ask/usage/tests.rs` | 用量加法、命中率、三位一撇 |
 | `crates/miyu-cli/src/ask/tests.rs` | 几个词用空格连起来；给人看的字照界面语言读，读不出来的当没有 |

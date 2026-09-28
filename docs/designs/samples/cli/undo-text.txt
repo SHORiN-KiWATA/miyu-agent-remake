@@ -1,0 +1,12 @@
+· 撤销「把 README 改成中文」这一轮
+· 改回 src/a.rs
+· 移回 docs/old.md
+· 删掉 notes/new.txt → 移进了回收站
+· 改回 src/b.rs → 没动：之后又被改过
+    --- 她改完的
+    +++ 现在
+    @@ -3 +3 @@
+    -fn main() {}
+    +fn main() { println!("hi"); }
+· 这一轮执行过 2 条命令：命令改的文件撤不回
+发下一句之前，可以用 miyu redo 恢复。

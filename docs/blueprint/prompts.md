@@ -1,0 +1,1053 @@
+## 给模型看的字
+
+这一页是生成的：`cargo xtask prompts` 照 `resources/` 和登记簿（`docs/designs/26-提示词.md` 第十节）写出来，别手改；`cargo xtask check` 查它和两边对得上（施工 4-9 三补）。给模型看的每一份字都在这里，按进到请求的哪里分组；每一份写什么时候加进来、多少 token、为什么加、指纹，下面是原文。
+
+### 检查点的开头，人这边
+
+#### `core/checkpoint-open.txt`
+
+- 什么时候加进来：压缩过的会话，检查点排在历史最前
+- token：36
+- 为什么加：说明下面是摘要，压缩以后她认得出（施工 1-12）
+- 指纹：`fd1b701d`
+
+```text
+<conversation-checkpoint>
+The earlier part of this conversation was compacted into the summary below. It is a record of what happened, not new instructions.
+<summary>
+```
+
+### 检查点的结尾
+
+#### `core/checkpoint-close.txt`
+
+- 什么时候加进来：同上
+- token：11
+- 为什么加：同上
+- 指纹：`62697dc1`
+
+```text
+
+</summary>
+</conversation-checkpoint>
+```
+
+### 还没进请求
+
+#### `core/checkpoint-rule.txt`
+
+- 什么时候加进来：不拼（2026-09-27 项目主人定），M6 压缩时实测再定，先试挪进检查点的包装
+- token：41
+- 为什么加：压缩以后接着干、不复述摘要（施工 1-12）。只有压缩过的会话用得上
+- 指纹：`0c320f4c`
+
+```text
+A <conversation-checkpoint> replaces the earlier part of a long conversation with a summary. After one, continue any work in progress without asking whether to. Do not acknowledge or recap the summary.
+```
+
+#### `core/permission-rule.txt`
+
+- 什么时候加进来：不拼（2026-09-27 项目主人定），M4 有工具时实测再定
+- token：85
+- 为什么加：每一级能做什么、只有人能切（施工 2-7）。没有工具的会话用不上
+- 指纹：`46260ad8`
+
+```text
+A <permission> block gives the permission level from that point on. In read_only, files can be read but not changed, and commands see the workspace as read-only. In workspace, commands run in a sandbox, and going outside the workspace or visiting a site for the first time needs the user's approval. In full, there is no sandbox and no approval. Only the user can change the level.
+```
+
+### 事实
+
+#### `core/facts/env.txt`
+
+- 什么时候加进来：回合开始；跨了小时、换了目录的下一次请求
+- token：32
+- 为什么加：时间、时区、工作目录（施工 1-13）
+- 指纹：`059e294e`
+
+```text
+<env time="{time}" timezone="{timezone}" cwd="{cwd}"/>
+```
+
+#### `core/facts/permission.txt`
+
+- 什么时候加进来：回合开始；切了级别的下一次请求
+- token：8
+- 为什么加：现在是哪一级（施工 1-13）
+- 指纹：`3c9688ac`
+
+```text
+<permission level="{level}"/>
+```
+
+#### `core/facts/reply-cut.txt`
+
+- 什么时候加进来：回复说到一半断了、带着半截再请求的那一次；会接着写的供应商不发
+- token：35
+- 为什么加：她看得到自己说了一半（施工 3-5 下）。写上从断的地方接着说：只说断了的，掐在回复里 4 次都从头说，带上的 4 次都接着说（施工 3-5 再补）
+- 指纹：`e8878497`
+
+```text
+<reply-cut>The reply above was cut off before it was finished. The user has already seen it. Continue from exactly where it stopped, without repeating it.</reply-cut>
+```
+
+### 图片的占位
+
+#### `core/drivers/image-omitted.txt`
+
+- 什么时候加进来：模型看不了图，历史里却有图
+- token：13
+- 为什么加：图片发不了，写一句代替（施工 3-4 上）
+- 指纹：`9b711de1`
+
+```text
+An image was attached here, but this model cannot view images.
+```
+
+### 文件的占位
+
+#### `core/drivers/file-omitted.txt`
+
+- 什么时候加进来：模型读不了这种文件
+- token：19
+- 为什么加：同上
+- 指纹：`fa5e5020`
+
+```text
+A file was attached here ({name}, {media_type}), but this model cannot read it.
+```
+
+### 工具结果
+
+#### `core/drivers/no-output.txt`
+
+- 什么时候加进来：工具一个字都没回
+- token：6
+- 为什么加：空的 tool 消息有的供应商不收（施工 3-4 上）
+- 指纹：`8b91fca5`
+
+```text
+The tool returned no output.
+```
+
+#### `core/tool-results/unknown.txt`
+
+- 什么时候加进来：模型编了没有的工具名
+- token：9
+- 为什么加：告诉她没有这件工具（施工 2-4）
+- 指纹：`82d2ac6b`
+
+```text
+There is no tool named "{name}".
+```
+
+#### `core/tool-results/not-an-object.txt`
+
+- 什么时候加进来：参数不是 JSON 对象
+- token：13
+- 为什么加：告诉她参数坏了（施工 2-4）
+- 指纹：`e57ad15d`
+
+```text
+The arguments for "{name}" are not a JSON object.
+```
+
+#### `core/tool-results/cancelled-before.txt`
+
+- 什么时候加进来：调用还没开始就被打断
+- token：14
+- 为什么加：每次调用都要有结果（施工 2-5）
+- 指纹：`f6e26cd9`
+
+```text
+The call was cancelled before it ran: the user interrupted the turn.
+```
+
+#### `core/tool-results/cancelled-running.txt`
+
+- 什么时候加进来：调用跑到一半被打断
+- token：22
+- 为什么加：同上
+- 指纹：`ed9ff1ca`
+
+```text
+The call was cancelled while it was running: the user interrupted the turn. It may have been partly done.
+```
+
+#### `core/tool-results/skipped.txt`
+
+- 什么时候加进来：急着插话，这一步没跑的调用
+- token：12
+- 为什么加：同上
+- 指纹：`b4e9513a`
+
+```text
+The call was skipped: the user sent a new message.
+```
+
+#### `core/tool-results/read-only.txt`
+
+- 什么时候加进来：只读的时候拦下写入的
+- token：12
+- 为什么加：告诉她为什么没做（施工 2-7）
+- 指纹：`2cf22f0e`
+
+```text
+The call was not run: the session is read-only.
+```
+
+#### `core/tool-results/denied.txt`
+
+- 什么时候加进来：人拒绝了
+- token：11
+- 为什么加：同上
+- 指纹：`0854aede`
+
+```text
+The call was not run: the user denied it.
+```
+
+#### `core/tool-results/denied-with-reason.txt`
+
+- 什么时候加进来：人拒绝了，还说了理由
+- token：16
+- 为什么加：同上，带上人的原话
+- 指纹：`be2b3120`
+
+```text
+The call was not run: the user denied it and said "{reason}".
+```
+
+#### `core/tool-results/unattended.txt`
+
+- 什么时候加进来：要确认却没人能确认
+- token：20
+- 为什么加：同上
+- 指纹：`0f3a92a5`
+
+```text
+The call was not run: it needs the user's approval, which no one can give here.
+```
+
+#### `core/tool-results/question-interrupted.txt`
+
+- 什么时候加进来：问人的时候被打断
+- token：12
+- 为什么加：每次调用都要有结果（施工 2-7 下）
+- 指纹：`84165132`
+
+```text
+The question was not answered: the user interrupted the turn.
+```
+
+#### `core/tool-results/question-voided.txt`
+
+- 什么时候加进来：问的题作废了
+- token：14
+- 为什么加：同上
+- 指纹：`819d7c3e`
+
+```text
+The question was not answered: the user sent a new message instead.
+```
+
+#### `core/tool-results/question-unattended.txt`
+
+- 什么时候加进来：要问人却没人能回答
+- token：12
+- 为什么加：同上
+- 指纹：`848c9bab`
+
+```text
+The question was not answered: no one can answer here.
+```
+
+#### `core/tool-results/restarted.txt`
+
+- 什么时候加进来：有计划的重启打断了调用
+- token：20
+- 为什么加：同上（施工 2-8）
+- 指纹：`243bc2aa`
+
+```text
+The call was cancelled: Miyu restarted before it finished. It may have been partly done.
+```
+
+#### `core/tool-results/unavailable.txt`
+
+- 什么时候加进来：快照里有、核心的目录里没有的工具：核心升级拿掉了，她照样调了
+- token：12
+- 为什么加：每次调用都要有结果；告诉她这件现在用不了（施工 4-2，`05-内核接口.md` I6）
+- 指纹：`693917b4`
+
+```text
+The tool "{name}" is not available right now.
+```
+
+#### `core/tool-results/crashed.txt`
+
+- 什么时候加进来：工具执行时崩了（它的 bug）
+- token：20
+- 为什么加：同上；崩在半路的可能已经改了东西，要说可能做了一部分（施工 4-2）
+- 指纹：`5d6191cb`
+
+```text
+The tool "{name}" stopped because of an internal error. It may have been partly done.
+```
+
+#### `core/permissions/forbidden.txt`
+
+- 什么时候加进来：权限策略拒绝：要碰的路径在 Miyu 的数据根里
+- token：27（路径按 `~/.miyu/run/token` 算）
+- 为什么加：告诉她为什么没做、哪一条路径，别换个说法再来（施工 4-3 下，`11-权限与沙盒.md` A9）
+- 指纹：`245c770b`
+
+```text
+"{path}" is inside Miyu's own data, which no tool can read or change.
+```
+
+#### `core/permissions/unresolvable.txt`
+
+- 什么时候加进来：权限策略拒绝：路径换不成真实的位置（指向不存在处的链接这类）
+- token：20（路径、原因按典型值算）
+- 为什么加：告诉她哪一条、为什么，她好换一条路径（施工 4-3 下）
+- 指纹：`f5c507e7`
+
+```text
+Can't tell where "{path}" points: {reason}.
+```
+
+#### `software/basesystem/common/missing.txt`
+
+- 什么时候加进来：`read`、`glob`、`grep` 要的文件或目录不存在
+- token：约 12（估的）
+- 为什么加：每次调用都要有结果，说清楚她好改路径（施工 4-4 上；4-4 下从 `read/` 挪来，三件共用，字节没改）
+- 指纹：`face2e9c`
+
+```text
+There is no file or directory at "{path}".
+```
+
+#### `software/basesystem/common/similar.txt`
+
+- 什么时候加进来：同上，同一个目录里有相近的名字：一个一句，最多 3 句
+- token：约 9 一句（估的）
+- 为什么加：Claude Code、opencode 都给相近的名字，她好一次改对（施工 4-4 下）
+- 指纹：`5b20e230`
+
+```text
+Did you mean "{path}"?
+```
+
+#### `software/basesystem/common/failed.txt`
+
+- 什么时候加进来：读的时候出错了（没有权限这类）
+- token：约 11 加原因（估的）
+- 为什么加：同上，带上系统说的原因（施工 4-4 上；4-4 下挪来，三件共用，字节没改）
+- 指纹：`aa53ce17`
+
+```text
+Could not read "{path}": {error}.
+```
+
+#### `software/basesystem/common/bad-args.txt`
+
+- 什么时候加进来：参数不对（没写必填的这类）
+- token：约 9 加原因（估的）
+- 为什么加：同上，带上哪里不对（施工 4-4 上；4-4 下挪来，三件共用，字节没改）
+- 指纹：`18997814`
+
+```text
+The arguments are not right: {error}.
+```
+
+#### `software/basesystem/common/bad-glob.txt`
+
+- 什么时候加进来：通配写得不对：`glob` 的模式、`grep` 的 `glob`
+- token：约 12 加原因（估的）
+- 为什么加：同上，带上哪里不对（施工 4-4 下）
+- 指纹：`f05ffbd1`
+
+```text
+The glob "{glob}" is not valid: {error}.
+```
+
+#### `software/basesystem/common/no-files.txt`
+
+- 什么时候加进来：`glob`、`grep` 一个文件都没找到
+- token：约 4（估的）
+- 为什么加：不然结果一个字都没有，驱动会补「没有输出」，说不清是没找到；照 Claude Code 的说法（施工 4-4 下）
+- 指纹：`69eb7a48`
+
+```text
+No files found
+```
+
+#### `software/basesystem/read/more.txt`
+
+- 什么时候加进来：一次没读完
+- token：约 21（估的）
+- 为什么加：调用之后才用得上的知识写进输出：下一次从哪一行接着读（施工 4-4 上）。4-4 下改成 opencode、pi 的说法 `to continue`
+- 指纹：`ea003235`
+
+```text
+(Showing lines {from}-{to} of {total}. Use offset={next} to continue.)
+```
+
+#### `software/basesystem/read/empty.txt`
+
+- 什么时候加进来：文件或目录是空的
+- token：约 5（估的）
+- 为什么加：不然结果一个字都没有，驱动会补「没有输出」，说不清是空的（施工 4-4 上）
+- 指纹：`f25f2317`
+
+```text
+(It is empty.)
+```
+
+#### `software/basesystem/read/past-end.txt`
+
+- 什么时候加进来：`offset` 过了结尾
+- token：约 18（估的）
+- 为什么加：告诉她一共几行，好改 `offset`（施工 4-4 上）
+- 指纹：`0de3c1ae`
+
+```text
+(The file has {total} lines; offset {offset} is past the end.)
+```
+
+#### `software/basesystem/read/more-entries.txt`
+
+- 什么时候加进来：目录一次没列完
+- token：约 21（估的）
+- 为什么加：告诉她没列全、下一次从哪一项接着列（施工 4-4 上；4-4 下目录改成照 `offset`、`limit` 分页，和文件一样）
+- 指纹：`a11b284f`
+
+```text
+(Showing entries {from}-{to} of {total}. Use offset={next} to continue.)
+```
+
+#### `software/basesystem/read/past-end-entries.txt`
+
+- 什么时候加进来：读目录时 `offset` 过了结尾
+- token：约 17（估的）
+- 为什么加：告诉她一共几项，好改 `offset`（施工 4-4 下）
+- 指纹：`9f7707d2`
+
+```text
+(The directory has {total} entries; offset {offset} is past the end.)
+```
+
+#### `software/basesystem/read/not-a-file.txt`
+
+- 什么时候加进来：是 FIFO、设备、套接字这类
+- token：约 12（估的）
+- 为什么加：每次调用都要有结果，说清楚她好改路径（施工 4-4 上，`11-权限与沙盒.md` A9）
+- 指纹：`e982f632`
+
+```text
+"{path}" is not a regular file or a directory.
+```
+
+#### `software/basesystem/read/binary.txt`
+
+- 什么时候加进来：二进制文件
+- token：约 8（估的）
+- 为什么加：同上（施工 4-4 上）
+- 指纹：`2d90b856`
+
+```text
+"{path}" is a binary file.
+```
+
+#### `software/basesystem/glob/more.txt`
+
+- 什么时候加进来：找到的超过 100 个
+- token：约 28（估的）
+- 为什么加：告诉她一共几个、还有几个没列、怎么缩小；照 Claude Code 的说法（施工 4-4 下）
+- 指纹：`b52f16cc`
+
+```text
+(Showing {shown} of {total} matching files; {rest} more are not listed. Narrow the pattern or path to see the rest.)
+```
+
+#### `software/basesystem/glob/not-a-directory.txt`
+
+- 什么时候加进来：`glob` 的 `path` 是文件，不是目录
+- token：约 10（估的）
+- 为什么加：每次调用都要有结果，说清楚她好改（施工 4-4 下）
+- 指纹：`7819809e`
+
+```text
+"{path}" is not a directory.
+```
+
+#### `software/basesystem/grep/no-matches.txt`
+
+- 什么时候加进来：`grep` 列匹配的行、计数时，一处都没搜到
+- token：约 4（估的）
+- 为什么加：同 `common/no-files.txt`，照 Claude Code 的说法（施工 4-4 下）
+- 指纹：`86b5ce86`
+
+```text
+No matches found
+```
+
+#### `software/basesystem/grep/more-files.txt`
+
+- 什么时候加进来：只列文件、计数时多过 `head_limit`
+- token：约 21（估的）
+- 为什么加：一共几条、下一次从哪接（施工 4-4 下）
+- 指纹：`fd5b5a48`
+
+```text
+(Showing files {from}-{to} of {total}. Use offset={next} to continue.)
+```
+
+#### `software/basesystem/grep/more-matches.txt`
+
+- 什么时候加进来：列匹配的行时多过 `head_limit`
+- token：约 21（估的）
+- 为什么加：后面还有、下一次从哪接；搜够数就停，不数一共几条（施工 4-4 下）
+- 指纹：`8ec94ba6`
+
+```text
+(Showing matches {from}-{to}; there are more. Use offset={next} to continue.)
+```
+
+#### `software/basesystem/grep/past-end.txt`
+
+- 什么时候加进来：`offset` 把结果全跳过了
+- token：约 17（估的）
+- 为什么加：告诉她一共几条，好改 `offset`（施工 4-4 下）
+- 指纹：`e73a3b4f`
+
+```text
+(There are only {total} results; offset {offset} skips them all.)
+```
+
+#### `software/basesystem/grep/bad-pattern.txt`
+
+- 什么时候加进来：正则写得不对
+- token：约 12 加原因（估的）
+- 为什么加：每次调用都要有结果，带上哪里不对（施工 4-4 下）
+- 指纹：`ef0b6d69`
+
+```text
+The pattern is not a valid regular expression: {error}.
+```
+
+#### `software/basesystem/write/created.txt`
+
+- 什么时候加进来：新建了一个文件
+- token：约 6（估的）
+- 为什么加：每次调用都要有结果，说清是新建的（施工 4-6 上）
+- 指纹：`098abbae`
+
+```text
+Created "{path}".
+```
+
+#### `software/basesystem/write/updated.txt`
+
+- 什么时候加进来：覆盖了一个文件
+- token：约 6（估的）
+- 为什么加：同上，说清是覆盖的
+- 指纹：`4de276ab`
+
+```text
+Updated "{path}".
+```
+
+#### `software/basesystem/edit/edited.txt`
+
+- 什么时候加进来：改好了
+- token：约 5（估的）
+- 为什么加：每次调用都要有结果（施工 4-6 中）
+- 指纹：`a71fac0b`
+
+```text
+Edited "{path}".
+```
+
+#### `software/basesystem/edit/no-edits.txt`
+
+- 什么时候加进来：一处要改的都没给
+- token：约 15（估的）
+- 为什么加：告诉她 `edits` 怎么写
+- 指纹：`69270c09`
+
+```text
+No edits were given. Set edits, each with old_string and new_string.
+```
+
+#### `software/basesystem/edit/empty.txt`
+
+- 什么时候加进来：某一处的 `old_string` 是空的
+- token：约 15（估的）
+- 为什么加：新建文件要用 `write`，说清楚她好改
+- 指纹：`fe660fea`
+
+```text
+Edit {index}: old_string is empty. To create a file, use write.
+```
+
+#### `software/basesystem/edit/same.txt`
+
+- 什么时候加进来：某一处改前改后一样
+- token：约 13（估的）
+- 为什么加：什么都不会变，说清是哪一处
+- 指纹：`d0fabc92`
+
+```text
+Edit {index}: old_string and new_string are the same.
+```
+
+#### `software/basesystem/edit/not-found.txt`
+
+- 什么时候加进来：某一处没对上
+- token：约 13（估的）
+- 为什么加：说清是哪一处（图纸：失败时说清是哪一处）
+- 指纹：`a524eaab`
+
+```text
+Edit {index}: old_string was not found in "{path}".
+```
+
+#### `software/basesystem/edit/closest.txt`
+
+- 什么时候加进来：没对上、文件里有像的几行
+- token：约 10 加那几行（估的）
+- 为什么加：图纸要求给出最接近的候选位置，她照着改对；后面照 `read` 的样子带上那几行
+- 指纹：`6ee1383c`
+
+```text
+The closest text is at lines {from}-{to}:
+```
+
+#### `software/basesystem/edit/not-unique.txt`
+
+- 什么时候加进来：某一处对得上好几个地方
+- token：约 30（估的）
+- 为什么加：说在哪几行，让她多带上下文或者写 `replace_all`
+- 指纹：`5fc68011`
+
+```text
+Edit {index}: old_string matches {count} places in "{path}", at lines {lines}. Add surrounding lines to pick one, or set replace_all.
+```
+
+#### `software/basesystem/edit/overlap.txt`
+
+- 什么时候加进来：两处重叠了
+- token：约 17（估的）
+- 为什么加：说是哪两处，让她并成一处
+- 指纹：`75da2792`
+
+```text
+Edits {first} and {second} overlap in "{path}". Merge them into one edit.
+```
+
+#### `software/basesystem/edit/not-text.txt`
+
+- 什么时候加进来：不是 UTF-8、也不是带 BOM 的 UTF-16
+- token：约 17（估的）
+- 为什么加：解不开的字节改完写回去就坏了：告诉她整份写用 `write`
+- 指纹：`aeca1480`
+
+```text
+"{path}" is not UTF-8 or UTF-16 text. To replace it whole, use write.
+```
+
+#### `software/basesystem/trash/trashed.txt`
+
+- 什么时候加进来：移进了回收站
+- token：约 8（估的）
+- 为什么加：每次调用都要有结果（施工 4-6 下）
+- 指纹：`afe8ba90`
+
+```text
+Moved "{path}" to the trash.
+```
+
+#### `software/basesystem/trash/unavailable.txt`
+
+- 什么时候加进来：那块盘上没有能放的回收站，没删
+- token：约 28（估的）
+- 为什么加：说清没删、为什么，给她一条路：问人，或者真要删用 shell 的 `rm`（施工 4-6 下「拍板的」A）
+- 指纹：`264d1682`
+
+```text
+"{path}" was not deleted: its drive has no trash to move it into. Ask the user, or use rm in the shell to delete it for good.
+```
+
+#### `software/basesystem/trash/protected.txt`
+
+- 什么时候加进来：要删的是工作目录、它的上级、家目录、根目录
+- token：约 24（估的）
+- 为什么加：说清为什么不能删，她好改路径
+- 指纹：`74a2791a`
+
+```text
+"{path}" cannot be deleted: it is the working directory, one of its parents, the home directory, or the root.
+```
+
+#### `software/basesystem/trash/lost.txt`
+
+- 什么时候加进来：挪了，可回收站里找不到它（macOS、Windows）
+- token：约 22（估的）
+- 为什么加：如实说：它可能回不来了，她好告诉人
+- 指纹：`d8eec0f2`
+
+```text
+"{path}" was deleted, but it was not found in the trash afterwards, so it may not come back.
+```
+
+#### `software/basesystem/trash/failed.txt`
+
+- 什么时候加进来：删不了：权限不够之类
+- token：约 9 加原因（估的）
+- 为什么加：带上原因，她好换个办法
+- 指纹：`879195b7`
+
+```text
+Could not delete "{path}": {error}.
+```
+
+#### `software/basesystem/shell/empty.txt`
+
+- 什么时候加进来：命令什么都没输出、退出码是 0
+- token：约 3（估的）
+- 为什么加：照「没找到」的规矩说一句：不然结果一个字都没有，她分不清跑没跑（施工 4-8）
+- 指纹：`38896414`
+
+```text
+No output
+```
+
+#### `software/basesystem/shell/exit.txt`
+
+- 什么时候加进来：退出码不是 0，接在输出后面
+- token：约 5（估的）
+- 为什么加：她照退出码知道命令失败了；opencode 不给退出码，她只能从输出里猜
+- 指纹：`8446ae0f`
+
+```text
+Exit code {code}
+```
+
+#### `software/basesystem/shell/signal.txt`
+
+- 什么时候加进来：命令被信号杀掉（Unix），接在输出后面
+- token：约 6（估的）
+- 为什么加：没有退出码的时候说清是怎么停的
+- 指纹：`3a5da57e`
+
+```text
+Killed by signal {signal}
+```
+
+#### `software/basesystem/shell/timed-out.txt`
+
+- 什么时候加进来：到时整组杀掉了
+- token：约 30（估的）
+- 为什么加：说清是超时停的、要多久可以写多大的 `timeout`：调用之后才用得上的知识写进输出
+- 指纹：`27d6f39a`
+
+```text
+Stopped after {timeout} ms because the command took too long. If it needs more time, pass a larger timeout, up to {max}.
+```
+
+#### `software/basesystem/shell/omitted.txt`
+
+- 什么时候加进来：输出超过 30000 个字，截在中间的那一行
+- token：约 9（估的）
+- 为什么加：标出截在哪、省了多少，她不会以为头尾是连着的
+- 指纹：`0e2a2d58`
+
+```text
+[... {count} characters omitted ...]
+```
+
+#### `software/basesystem/shell/truncated.txt`
+
+- 什么时候加进来：同上，末尾那一句
+- token：约 28（估的）
+- 为什么加：照截断的规矩（`10-自带软件.md` 第十节）：显示了哪一段、一共多少、怎么看全
+- 指纹：`7b6fd4ac`
+
+```text
+(Showed the start and the end of {total} characters. To see all of it, write the output to a file and read the file.)
+```
+
+#### `software/basesystem/shell/failed.txt`
+
+- 什么时候加进来：起不来：程序找不到、工作目录不在
+- token：约 6 加原因（估的）
+- 为什么加：带上原因，她好换个办法
+- 指纹：`8d1f7e41`
+
+```text
+Could not run {shell}: {error}.
+```
+
+#### `software/basesystem/shell/no-background.txt`
+
+- 什么时候加进来：写了 `run_in_background: true`
+- token：约 25（估的）
+- 为什么加：后台命令随 M7；照 Claude Code 的习惯写了的，告诉她在前台跑、慢的放宽 `timeout`
+- 指纹：`4e7264a9`
+
+```text
+Running in the background is not available yet. Run the command in the foreground, with a larger timeout if it is slow.
+```
+
+#### `software/basesystem/common/not-read.txt`
+
+- 什么时候加进来：`write`、`edit` 要改的文件已经在了、她这个会话里没看过
+- token：约 15（估的）
+- 为什么加：改之前核对（照 Claude Code，`10-自带软件.md` 第五节「她看过的」）：告诉她先读。施工 4-6 中从 `write/` 挪来，两件共用，字节没改
+- 指纹：`09ba3a44`
+
+```text
+"{path}" already exists and has not been read. Read it first.
+```
+
+#### `software/basesystem/common/stale.txt`
+
+- 什么时候加进来：她看过以后文件又被人或者别的程序改了
+- token：约 15（估的）
+- 为什么加：同上：告诉她重读一遍。施工 4-6 中从 `write/` 挪来，字节没改
+- 指纹：`64a8c4f2`
+
+```text
+"{path}" has changed since it was last read. Read it again first.
+```
+
+#### `software/basesystem/common/directory.txt`
+
+- 什么时候加进来：`write`、`edit` 要写、要改的是目录
+- token：约 8（估的）
+- 为什么加：说清楚她好改路径。施工 4-6 中从 `write/` 挪来，两件共用，字节没改
+- 指纹：`233131ff`
+
+```text
+"{path}" is a directory.
+```
+
+#### `software/basesystem/common/not-a-regular-file.txt`
+
+- 什么时候加进来：要写、要改的是 FIFO、设备这类
+- token：约 9（估的）
+- 为什么加：同上。施工 4-6 中从 `write/not-a-file.txt` 挪来改名（`read` 有一句同名的，说的是既不是文件也不是目录），字节没改
+- 指纹：`56161458`
+
+```text
+"{path}" is not a regular file.
+```
+
+#### `software/basesystem/common/write-failed.txt`
+
+- 什么时候加进来：写不进：只读、权限不够、磁盘满了之类
+- token：约 9 加原因（估的）
+- 为什么加：带上原因，她好换个办法。施工 4-6 中从 `write/failed.txt` 挪来改名，字节没改
+- 指纹：`31aa09f5`
+
+```text
+Could not write "{path}": {error}.
+```
+
+### 工具结果后面的一条 user
+
+#### `core/drivers/tool-attachments.txt`
+
+- 什么时候加进来：工具结果里有图片、文件
+- token：12
+- 为什么加：这类接口的 tool 消息只收文字，附件挪到后面（施工 3-4 上）
+- 指纹：`e86744b4`
+
+```text
+These images and files were returned by the tool calls above.
+```
+
+### 同上
+
+#### `core/drivers/tool-attachments-only.txt`
+
+- 什么时候加进来：工具结果只有附件
+- token：15
+- 为什么加：同上
+- 指纹：`043d8e27`
+
+```text
+The tool returned only images or files. They are in the next message.
+```
+
+### 人这边
+
+#### `core/turn-ended/interrupted.txt`
+
+- 什么时候加进来：那一轮被打断以后的请求
+- token：17
+- 为什么加：她知道那一轮没走完（施工 1-12）
+- 指纹：`0d43114a`
+
+```text
+<turn-ended reason="interrupted">The user interrupted this turn.</turn-ended>
+```
+
+#### `core/turn-ended/error.txt`
+
+- 什么时候加进来：那一轮出错结束以后
+- token：17
+- 为什么加：同上
+- 指纹：`a1e51108`
+
+```text
+<turn-ended reason="error">This turn stopped on an error.</turn-ended>
+```
+
+#### `core/turn-ended/step_limit.txt`
+
+- 什么时候加进来：那一轮走到步数上限以后
+- token：19
+- 为什么加：同上
+- 指纹：`a4126217`
+
+```text
+<turn-ended reason="step_limit">This turn stopped at the step limit.</turn-ended>
+```
+
+#### `core/turn-ended/aborted.txt`
+
+- 什么时候加进来：核心崩了、那一轮没走完以后
+- token：约 22（估的，4-10 实测）
+- 为什么加：同上。原来说程序重启了，其实是核心没走完就停了，有计划的重启另有一句；施工 4-9 再补四下改成实情
+- 指纹：`e82c8e69`
+
+```text
+<turn-ended reason="aborted">Miyu stopped unexpectedly and this turn did not finish.</turn-ended>
+```
+
+#### `core/turn-ended/restarted.txt`
+
+- 什么时候加进来：有计划的重启打断了那一轮以后
+- token：21
+- 为什么加：同上（施工 2-8）
+- 指纹：`5a9d12ba`
+
+```text
+<turn-ended reason="restarted">A planned restart of Miyu stopped this turn.</turn-ended>
+```
+
+### tools 数组
+
+#### `software/basesystem/tools/read.json`
+
+- 什么时候加进来：会话的工具面里有 `read`（每次请求都带）
+- token：约 143（估的，4-10 实测）
+- 为什么加：`read` 的说明和参数：照 26 附录的草稿，先去掉图片、PDF；说明里给她一个用它不用 `cat` 的理由（施工 4-4 上）。4-4 下照规范改（`10-自带软件.md` 第十节）：参数改名 `file_path`，每个参数一句说明（W2 改），写明行号是 cat -n 的样子；多出来的大半是参数说明
+- 指纹：`a213cd6d`
+
+```json
+{
+  "description": "Read a text file, or list a directory. Lines come back in cat -n format, numbered from 1, up to 2000 at a time. Prefer this over `cat` in the shell: files read here come back after compaction.",
+  "parameters": {"type":"object","properties":{"file_path":{"type":"string","description":"Absolute, or relative to the working directory."},"offset":{"type":"integer","description":"The line number to start reading from, counting from 1."},"limit":{"type":"integer","description":"The number of lines to read. Default 2000."}},"required":["file_path"]}
+}
+```
+
+#### `software/basesystem/tools/glob.json`
+
+- 什么时候加进来：会话的工具面里有 `glob`（每次请求都带）
+- token：约 104（估的，4-10 实测）
+- 为什么加：`glob` 的说明和参数，照 Claude Code 的形状；说明里写明新的在前、最多 100 个（施工 4-4 下）
+- 指纹：`8699a5e3`
+
+```json
+{
+  "description": "Find files by glob pattern, like `**/*.rs` or `src/*.ts`, respecting .gitignore. Returns up to 100 paths, most recently modified first.",
+  "parameters": {"type":"object","properties":{"pattern":{"type":"string","description":"A pattern without / matches file names at any depth."},"path":{"type":"string","description":"The directory to search in. Default is the working directory."}},"required":["pattern"]}
+}
+```
+
+#### `software/basesystem/tools/grep.json`
+
+- 什么时候加进来：会话的工具面里有 `grep`（每次请求都带）
+- token：约 241（估的，4-10 实测）
+- 为什么加：`grep` 的说明和参数，参数照 Claude Code 常用的八个；说明里写明用它、不用 shell 里的 grep、rg；`pattern` 那一句是它说明里最容易踩的坑：花括号要转义（施工 4-4 下）
+- 指纹：`07156e14`
+
+```json
+{
+  "description": "Search file contents with a regular expression (ripgrep syntax), respecting .gitignore. Prefer this over grep or rg in the shell. `output_mode` picks file paths (default), matching lines, or counts per file.",
+  "parameters": {"type":"object","properties":{"pattern":{"type":"string","description":"Literal braces need escaping, like interface\\{\\}."},"path":{"type":"string","description":"The file or directory to search. Default is the working directory."},"glob":{"type":"string","description":"Searches only files matching this glob, like *.rs."},"output_mode":{"type":"string","enum":["content","files_with_matches","count"],"description":"Default files_with_matches."},"-i":{"type":"boolean","description":"Case-insensitive."},"context":{"type":"integer","description":"Lines shown before and after each match in content mode."},"head_limit":{"type":"integer","description":"Results to show at most. Default 250. 0 means no limit."},"offset":{"type":"integer","description":"Results to skip first. Default 0."}},"required":["pattern"]}
+}
+```
+
+#### `software/basesystem/tools/edit.json`
+
+- 什么时候加进来：会话的工具面里有 `edit`（每次请求都带）
+- token：约 170（估的，4-10 实测）
+- 为什么加：`edit` 的说明和参数，字段名照 Claude Code，一次改几处（B6）：`edits` 里每一项 `old_string`、`new_string`、`replace_all`；说明三句：精确替换、一次几处，要先读过，最容易踩的坑是缩进和读出来的行号那一截（施工 4-6 中）
+- 指纹：`8f2fcce3`
+
+```json
+{
+  "description": "Make exact text replacements in a file, one or more at a time. The file must have been read first. Each old_string must match the file exactly, with its indentation and without the line number prefix from read, and match only one place unless replace_all is set.",
+  "parameters": {"type":"object","properties":{"file_path":{"type":"string","description":"Absolute, or relative to the working directory."},"edits":{"type":"array","description":"Each edit is matched against the file as it was before this call.","items":{"type":"object","properties":{"old_string":{"type":"string"},"new_string":{"type":"string"},"replace_all":{"type":"boolean","description":"Replace every match. Default false."}},"required":["old_string","new_string"]}}},"required":["file_path","edits"]}
+}
+```
+
+#### `software/basesystem/tools/shell.json`
+
+- 什么时候加进来：会话的工具面里有 `shell`（每次请求都带）
+- token：约 90（估的，4-10 实测）
+- 为什么加：`shell` 的说明和参数，照 Claude Code：`command` 看名字就懂，不写说明；`timeout` 是毫秒、上限和默认值写在那一句里。说明三句：用哪种 shell（`{shell}` 在核心起来时换成 `bash`、`zsh`、`PowerShell 7`、`Windows PowerShell 5.1`，会话里不变），编译、测试、git 用它、读搜改文件用专用的工具，每次从工作目录起、`cd` 不带到下一次。`description`、`run_in_background` 这一步不声明（施工 4-8）
+- 指纹：`eed208bf`
+
+```json
+{
+  "description": "Execute a command with {shell} and return its output. Use it for builds, tests, git and other programs, not to read, search or edit files. Every call starts in the working directory, so cd does not carry over to the next call.",
+  "parameters": {"type":"object","properties":{"command":{"type":"string"},"timeout":{"type":"integer","description":"Milliseconds before the command is stopped, up to 600000. Default 120000."}},"required":["command"]}
+}
+```
+
+#### `software/basesystem/tools/trash.json`
+
+- 什么时候加进来：会话的工具面里有 `trash`（每次请求都带）
+- token：约 60（估的，4-10 实测）
+- 为什么加：`trash` 的说明和参数：`file_path`，照另外几件的叫法；说明两句：移进系统回收站、撤销得回来，删东西用它不用 shell 里的 `rm`（施工 4-6 下）
+- 指纹：`02738142`
+
+```json
+{
+  "description": "Move a file or directory to the system trash, where it can be restored. Use this instead of rm in the shell.",
+  "parameters": {"type":"object","properties":{"file_path":{"type":"string","description":"Absolute, or relative to the working directory."}},"required":["file_path"]}
+}
+```
+
+#### `software/basesystem/tools/write.json`
+
+- 什么时候加进来：会话的工具面里有 `write`（每次请求都带）
+- token：约 78（估的，4-10 实测）
+- 为什么加：`write` 的说明和参数，照 Claude Code：`file_path`、`content`，`content` 看名字就懂，不写说明（W2）；说明三句：新建或者整体覆盖，已经在了的要先读过，只改一部分的用 `edit`（第三句施工 4-6 中有了 `edit` 才加）（施工 4-6 上）
+- 指纹：`5c81c0e9`
+
+```json
+{
+  "description": "Create a file, or replace all of its content. A file that already exists must be read first. To change part of a file, use `edit`.",
+  "parameters": {"type":"object","properties":{"file_path":{"type":"string","description":"Absolute, or relative to the working directory."},"content":{"type":"string"}},"required":["file_path","content"]}
+}
+```
+
+### system，软件工程师这个人格
+
+#### `personas/engineer/prompts/persona.md`
+
+- 什么时候加进来：这个人格的每次请求
+- token：7（2026-09-27 实测，含 system 这一条的外壳）
+- 为什么加：软件工程师的人设就是这一句（`16-人格与预设.md` 第三节，施工 3-6 上）
+- 指纹：`3bba0a51`
+
+```text
+You are a helpful software engineer.
+```
