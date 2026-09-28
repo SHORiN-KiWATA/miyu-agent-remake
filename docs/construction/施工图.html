@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>70</b><span>/ 74 步<strong>已完成</strong>，已经做完的部分都补成了蓝图</span></li>
-    <li><b>4-9</b><span>下一步：修补蓝图时查出的问题（再补），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">7ac99b5</b><span>最近一步（4-9 补）的提交</span></li>
+    <li><b>71</b><span>/ 77 步<strong>已完成</strong>，撤销靠得住了：打断时正在改的文件，效果照记</span></li>
+    <li><b>4-9</b><span>下一步：工具（再补二），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">803cf92</b><span>最近一步（4-9 再补一）的提交</span></li>
   </ul>
 </header>
 
@@ -407,7 +407,10 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-8"><span class="n">4-8</span>执行命令<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9"><span class="n">4-9</span>没人能确认时说清楚<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9b"><span class="n">4-9</span>补完蓝图（补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-9</span>修补查出的问题（再补）</span></li>
+        <li><a class="step done" href="#s4-9c"><span class="n">4-9</span>撤销（再补一）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">4-9</span>工具（再补二）</span></li>
+        <li><span class="step"><span class="n">4-9</span>请求、驱动、协议、核心（再补三）</span></li>
+        <li><span class="step"><span class="n">4-9</span>命令行、日志、注释（再补四）</span></li>
         <li><span class="step"><span class="n">4-9</span>蓝图的门禁（三补）</span></li>
         <li><span class="step"><span class="n">4-9</span>设计文档只留为什么（四补）</span></li>
         <li><span class="step"><span class="n">4-10</span>M4 验收</span></li>
@@ -5718,6 +5721,78 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li><code>docs/blueprint/README.md</code>：蓝图是什么、怎么分页、每页的格式、怎么改。</li>
         <li><code>docs/construction/4-9-补完蓝图（补）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s4-9c" aria-labelledby="h-s49c">
+  <div class="sheet-head"><h2 id="h-s49c"><span class="no">4-9</span>撤销（再补一）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">补蓝图时查出撤销有几处靠不住。最要紧的一处：打断时正在改文件的调用，以前当场记「已取消」，可阻塞线程里的活照样改完了，效果却没处记，撤销改不回来。现在先叫它停，等它停在改之前或者做完再收尾，最多等 10 秒。顺带修了几处小的。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">打断时正在改文件</span><span class="dir-note">write、edit、trash</span></div>
+            <ol class="pipe" aria-label="打断时正在改文件">
+              <li>内核：叫它停（StopTool），这一轮先不结束</li>
+              <li>执行器：只举这次调用的旗，不掐任务</li>
+              <li>工具：真正改之前看一眼旗，举了就不改</li>
+              <li>停在改之前的记「已取消」；已经改完的照记，带着效果</li>
+              <li>都交回来才收尾；10 秒没交回、又打断一次，就掐掉</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">顺带修的</span><span class="dir-note">撤销的前后</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">改回文件</span><span class="rl">移回来算不出哈希的照样算移回来；内核对照执行器交回的结局，对不上的记没做成</span></div>
+              <div class="tile new"><span class="nm">撤销的回应</span><span class="rl">执行过几条命令只数跑过的；人说的那句取第一行不空的</span></div>
+              <div class="tile new"><span class="nm">miyu undo</span><span class="rl">英文分单复数；差异里的制表符照原样；没设 key、核心没在跑的不拉起，退出码 5</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">等多久</span><span class="rl">最多 10 秒，一般几毫秒就交回来了；等的时候来的消息照排队，撤销、恢复照旧被拒</span></div>
+          <div class="tile new"><span class="nm">等的时候重启</span><span class="rl">那次打断照样算数，先收尾，再起来不接着干</span></div>
+          <div class="tile new"><span class="nm">没 key 不拉起</span><span class="rl">照 miyu ask 的规矩：拉起一个没有 key 的核心，之后的 miyu ask 也用不了（项目主人定）</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">崩溃时正在改的文件照旧不留效果；执行命令不等，它改的文件本来就不记效果</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-9（再补一）</dd></div>
+        <div><dt>名称</dt><dd>撤销</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">803cf92</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-kernel</code>：调用多一种「停着」；打断时等停着的、到点和又打断就不等；重启时先把那次打断收尾；对照改回的结局；没叫停却停了的照已取消记。</li>
+        <li><code>miyu-tool</code>、<code>miyu-basesystem</code>：叫停的旗交给每次调用；三件写的工具真正改之前看旗。</li>
+        <li><code>miyu-session</code>：叫它停只举旗，掐掉叫停过的记一行 WARN；移回来读不了的照样算移回来。</li>
+        <li><code>miyu-endpoint</code>、<code>miyu-cli</code>：命令数、那句话、单复数、制表符、没 key 不拉起。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿</span></li>
+        <li><span class="ok">✓</span><span>随机测试走得到停着的每一条路：十个种子里一个多调写文件的，专走这里</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 32 处，全部有测试变红</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图：<code>kernel/session.md</code>、<code>kernel/history.md</code>、<code>session/tools.md</code>、<code>tools/interface.md</code>、<code>tools/write.md</code>、<code>tools/edit.md</code>、<code>tools/trash.md</code>、<code>protocol/undo.md</code>、<code>cli/undo.md</code>。</li>
+        <li><code>docs/construction/4-9-撤销（再补一）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
