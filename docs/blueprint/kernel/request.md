@@ -199,7 +199,7 @@
 | `turn-ended/interrupted.txt` | `<turn-ended reason="interrupted">The user interrupted this turn.</turn-ended>` | 人这一边 |
 | `turn-ended/error.txt` | `<turn-ended reason="error">This turn stopped on an error.</turn-ended>` | 人这一边 |
 | `turn-ended/step_limit.txt` | `<turn-ended reason="step_limit">This turn stopped at the step limit.</turn-ended>` | 人这一边 |
-| `turn-ended/aborted.txt` | `<turn-ended reason="aborted">This turn did not finish because the program restarted.</turn-ended>` | 人这一边 |
+| `turn-ended/aborted.txt` | `<turn-ended reason="aborted">Miyu stopped unexpectedly and this turn did not finish.</turn-ended>` | 人这一边 |
 | `turn-ended/restarted.txt` | `<turn-ended reason="restarted">A planned restart of Miyu stopped this turn.</turn-ended>` | 人这一边 |
 
 检查点的包装，开头 `checkpoint-open.txt`、结尾 `checkpoint-close.txt`，摘要夹在中间：
