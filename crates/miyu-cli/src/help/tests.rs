@@ -7,7 +7,7 @@ use clap::{Args, Command};
 
 use super::{Page, page};
 use crate::language::Language;
-use crate::{Ask, Undo};
+use crate::{Ask, Sandbox, Undo};
 
 /// 一个选项：几种写法（`-c`、`--continue`），和后面写的值（没有的是空的）。
 type Listed = BTreeSet<(Vec<String>, String)>;
@@ -36,10 +36,10 @@ fn listed(page: &str) -> Listed {
 }
 
 /// 程序真有的选项：`command` 里有名字的参数，加上 clap 给每条命令都加的 `-h`、`--help`。要写值的，值写成能写的几样
-/// 用 `|` 连起来；不限的写成页里的那个（`value` 给出）。
+/// 用 `|` 连起来；不限的写成页里的那个（`value` 给出）。藏起来的不算：它们不给人用（`sandbox` 那两个，施工 5-8）。
 fn real(command: &Command, value: &str) -> Listed {
     let mut options = Listed::new();
-    for arg in command.get_arguments() {
+    for arg in command.get_arguments().filter(|arg| !arg.is_hide_set()) {
         let mut names: Vec<String> = arg
             .get_short()
             .map(|c| format!("-{c}"))
@@ -102,6 +102,19 @@ fn each_page_lists_exactly_the_options_there_are() {
             String::new(),
         ));
         assert_eq!(listed(page(language, Page::Miyu)), all, "{language:?} miyu");
+        // `sandbox` 那一页：`sandbox`、`sandbox setup`、`sandbox remove` 印的都是它。
+        let sandbox = Sandbox::augment_args(Command::new("sandbox"));
+        let mut commands = vec![sandbox.clone()];
+        commands.extend(sandbox.get_subcommands().cloned());
+        assert_eq!(commands.len(), 3, "setup、remove 两个子命令");
+        for command in commands {
+            assert_eq!(
+                listed(page(language, Page::Sandbox)),
+                real(&command, id),
+                "{language:?} {}",
+                command.get_name()
+            );
+        }
     }
 }
 
@@ -115,6 +128,7 @@ fn each_page_is_its_own_file() {
             (Page::Ask, "ask"),
             (Page::Undo, "undo"),
             (Page::Redo, "redo"),
+            (Page::Sandbox, "sandbox"),
         ] {
             let file = dir.join(code).join(format!("{name}.txt"));
             let on_disk = std::fs::read_to_string(&file).expect("有这一页");
@@ -142,7 +156,7 @@ fn columns(row: &str) -> usize {
 #[test]
 fn pages_fit_in_eighty_columns_and_end_with_one_newline() {
     for language in [Language::Chinese, Language::English] {
-        for which in [Page::Miyu, Page::Ask, Page::Undo, Page::Redo] {
+        for which in [Page::Miyu, Page::Ask, Page::Undo, Page::Redo, Page::Sandbox] {
             let text = page(language, which);
             assert!(
                 text.ends_with('\n') && !text.ends_with("\n\n"),

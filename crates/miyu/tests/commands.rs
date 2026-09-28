@@ -104,3 +104,120 @@ fn a_mistake_is_one_sentence_and_exit_code_2() {
         assert!(output.stdout.is_empty(), "{output:?}");
     }
 }
+
+/// 数据根里有什么：每个文件、目录的相对路径，排好序。
+#[cfg(not(windows))]
+fn listing(root: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut found = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        for entry in std::fs::read_dir(&dir).expect("读得了目录") {
+            let path = entry.expect("读得了").path();
+            if path.is_dir() {
+                pending.push(path.clone());
+            }
+            found.push(path.strip_prefix(root).expect("在数据根里").to_path_buf());
+        }
+    }
+    found.sort();
+    found
+}
+
+/// 别的平台上不用装：`setup`、`remove` 说一句、退出 0，数据根一样东西都没多（施工 5-8）。Windows 上这两条会真装，
+/// 在虚拟机上验（`docs/blueprint/sandbox/windows.md`「守着它的」）。
+#[cfg(not(windows))]
+#[test]
+fn elsewhere_the_sandbox_needs_no_setup() {
+    let home = Home::new();
+    let before = listing(home.root.path());
+    for action in ["setup", "remove"] {
+        for (lang, said) in [
+            ("zh_CN.UTF-8", "这个平台不用装沙盒。"),
+            ("C", "Nothing to set up on this platform."),
+        ] {
+            let output = miyu(&home, lang, &["sandbox", action]);
+            assert_eq!(output.status.code(), Some(0), "{action}：{output:?}");
+            assert_eq!(String::from_utf8_lossy(&output.stdout), format!("{said}\n"));
+            assert!(output.stderr.is_empty(), "{output:?}");
+        }
+    }
+    assert_eq!(listing(home.root.path()), before, "数据根一样东西都没多");
+}
+
+#[test]
+fn a_sandbox_mistake_is_one_sentence_and_exit_code_2() {
+    let home = Home::new();
+    let cases: [(&[&str], &str, &str); 3] = [
+        (
+            &["sandbox"],
+            "zh_CN.UTF-8",
+            "miyu sandbox 后面要写：setup 或 remove",
+        ),
+        (
+            &["sandbox", "frob"],
+            "C",
+            "miyu sandbox has no frob command",
+        ),
+        (
+            &["sandbox", "setup", "--owner-sid", "S-1-5-21-1-2"],
+            "C",
+            "Missing --owner-home",
+        ),
+    ];
+    for (args, lang, said) in cases {
+        let output = miyu(&home, lang, args);
+        assert_eq!(output.status.code(), Some(2), "{args:?}：{output:?}");
+        assert_eq!(
+            String::from_utf8_lossy(&output.stderr),
+            format!("{said}\n"),
+            "{args:?}"
+        );
+        assert!(output.stdout.is_empty(), "{output:?}");
+    }
+}
+
+#[test]
+fn the_sandbox_help_is_its_page() {
+    let home = Home::new();
+    for (lang, language) in [("zh_CN.UTF-8", Language::Chinese), ("C", Language::English)] {
+        for args in [
+            &["sandbox", "-h"][..],
+            &["sandbox", "--help"],
+            &["sandbox", "setup", "-h"],
+            &["sandbox", "remove", "--help"],
+            &["help", "sandbox"],
+        ] {
+            let output = miyu(&home, lang, args);
+            assert!(output.status.success(), "{args:?}：{output:?}");
+            assert_eq!(
+                String::from_utf8_lossy(&output.stdout),
+                page(language, Page::Sandbox),
+                "{lang} {args:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn the_program_calls_itself_miyu_whatever_its_file_is_called() {
+    // Windows 上可执行文件叫 `miyu.exe`，clap 默认照文件名说话，会说成「miyu.exe sandbox …」（施工 5-8 在 CI 上查出来的）。
+    // 拷一份改个名字跑，这台机器上也照得出来。
+    let home = Home::new();
+    let renamed = home
+        .dir
+        .join(format!("renamed-miyu{}", std::env::consts::EXE_SUFFIX));
+    std::fs::copy(MIYU, &renamed).expect("拷得了主程序");
+    let output = Command::new(&renamed)
+        .arg("sandbox")
+        .env("MIYU_HOME", home.root.path())
+        .env("LANG", "C")
+        .env_remove("LC_ALL")
+        .env_remove("LC_MESSAGES")
+        .output()
+        .expect("跑得起来");
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "miyu sandbox needs one of: setup or remove\n"
+    );
+}

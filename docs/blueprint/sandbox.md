@@ -113,5 +113,5 @@
 ### 还没有的
 
 - 工具链的缓存、被沙盒挡住时给她的提示、沙盒用不了时 `miyu ask` 开头说一句（5-4 下）。
-- Windows 的沙盒用户、受限令牌（5-8、5-9）。
-- Windows 上主程序的真实位置（`std::fs::canonicalize`）带 `\\?\` 的前缀，日志里助手的路径跟着带：5-8 起看要不要去掉。
+- Windows 上以沙盒用户的身份起命令、受限令牌（5-9；沙盒用户由 `miyu sandbox setup` 装，5-8，`sandbox/windows.md`）。
+- Windows 上主程序的真实位置（`std::fs::canonicalize`）带 `\\?\` 的前缀，日志里助手的路径跟着带：5-9 起看要不要去掉。

@@ -1055,6 +1055,7 @@ dependencies = [
  "miyu-endpoint",
  "miyu-ipc",
  "miyu-kernel",
+ "miyu-pipe",
  "miyu-sandbox",
  "miyu-session",
  "miyu-store",
@@ -1192,10 +1193,16 @@ dependencies = [
 name = "miyu-sandbox"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
+ "getrandom 0.4.3",
  "landlock",
  "libc",
+ "miyu-kernel",
+ "miyu-pipe",
+ "miyu-store",
  "serde",
  "serde_json",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

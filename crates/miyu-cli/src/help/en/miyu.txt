@@ -1,9 +1,10 @@
 Usage: miyu <command> [options]
 
 Commands:
-  ask <words>  Say something and print her answer
-  undo         Undo the last turn and restore the files she changed
-  redo         Redo the latest undo, until you say something else
+  ask <words>           Say something and print her answer
+  undo                  Undo the last turn and restore the files she changed
+  redo                  Redo the latest undo, until you say something else
+  sandbox setup|remove  Set up or remove the sandbox user (Windows, needs admin)
 
 ask options:
   -c, --continue          Go on in the session the last miyu ask opened

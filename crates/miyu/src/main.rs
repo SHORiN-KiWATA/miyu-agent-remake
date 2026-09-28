@@ -1,6 +1,7 @@
 //! 主程序 `miyu`（`docs/designs/12-进程形态与分发.md` 第三节，施工 3-9）：一个程序，像 busybox 那样按子命令
 //! 分发。`miyu ask` 是最薄的头（施工 3-9 下）；`miyu undo`、`miyu redo` 撤掉最后一轮、恢复（施工 4-7 下）；
-//! `miyu core` 是核心进程，由头拉起，不写进帮助。
+//! `miyu sandbox setup`、`remove` 在 Windows 上装好、撤掉沙盒用户（施工 5-8）；`miyu core` 是核心进程，由头拉起，
+//! 不写进帮助。
 //!
 //! 不认识的子命令就报错，退出码 2，绝不当成对话发给核心（R4，`22-命令行.md` 第二节）。帮助页、参数写错时说的
 //! 那一句都是自己写的，跟着界面语言（施工 4-11，`docs/blueprint/cli/main.md`）。
@@ -19,9 +20,10 @@ use miyu_cli::{Direction, misuse};
 /// 退出码：用法不对（`22-命令行.md` 第二节）。
 const USAGE: u8 = 2;
 
-/// 主程序的参数。
+/// 主程序的参数。名字定死成 `miyu`：clap 默认照可执行文件的名字，Windows 上会在用法和报错里带出 `miyu.exe`（施工 5-8
+/// 查出来的）。
 #[derive(Parser)]
-#[command(name = "miyu", version)]
+#[command(name = "miyu", bin_name = "miyu", version)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
@@ -36,6 +38,8 @@ enum Command {
     Undo(miyu_cli::Undo),
     /// 发下一句之前，恢复最近一次撤销。
     Redo(miyu_cli::Undo),
+    /// 装好、撤掉沙盒用户（Windows，要管理员权限）。
+    Sandbox(miyu_cli::Sandbox),
     /// 核心进程：由头拉起，平时不用人敲。
     #[command(hide = true)]
     Core {
@@ -56,6 +60,13 @@ fn main() -> ExitCode {
         })
         .mut_subcommand("redo", |redo| {
             redo.override_help(page(language, Page::Redo))
+        })
+        .mut_subcommand("sandbox", |sandbox| {
+            let help = page(language, Page::Sandbox);
+            sandbox
+                .override_help(help)
+                .mut_subcommand("setup", |setup| setup.override_help(help))
+                .mut_subcommand("remove", |remove| remove.override_help(help))
         });
     let cli = match command
         .try_get_matches()
@@ -68,6 +79,7 @@ fn main() -> ExitCode {
         Some(Command::Ask(args)) => miyu_cli::ask(args, core),
         Some(Command::Undo(args)) => miyu_cli::undo(args, Direction::Undo, core),
         Some(Command::Redo(args)) => miyu_cli::undo(args, Direction::Redo, core),
+        Some(Command::Sandbox(args)) => miyu_cli::sandbox(args),
         Some(Command::Core { idle_seconds }) => miyu_core::main(miyu_core::Options {
             idle: idle_seconds.map_or(miyu_core::IDLE, Duration::from_secs),
         }),

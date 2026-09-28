@@ -20,8 +20,9 @@ use crate::env::{Env, Platform};
 /// 别的用到时再建。
 const SKELETON: [&str; 4] = ["system", "home", "state", "run"];
 
-/// 标记文件：它在，这个目录才是 Miyu 的数据根（`07-存储.md` 第二节「认得出自己的数据根才动它」）。
-const MARKER: &str = ".miyu-root";
+/// 标记文件：它在，这个目录才是 Miyu 的数据根（`07-存储.md` 第二节「认得出自己的数据根才动它」）。装沙盒时也照它
+/// 认给的数据根（`docs/blueprint/sandbox/windows.md`，施工 5-8）。
+pub const MARKER: &str = ".miyu-root";
 
 /// 标记文件里写的一行：给翻到它的人看。现在只认文件在不在。
 const MARKER_TEXT: &str = "This directory is a Miyu data root (layout 1).\n";

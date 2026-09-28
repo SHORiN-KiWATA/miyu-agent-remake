@@ -18,10 +18,16 @@ miyu-ipc = { path = "../miyu-ipc" }
 miyu-kernel = { path = "../miyu-kernel" }
 # 数据根、环境快照；给人看的字。
 miyu-store = { path = "../miyu-store" }
+# `miyu sandbox setup`、`remove`：Windows 上装好、撤掉沙盒用户（施工 5-8）。
+miyu-sandbox = { path = "../miyu-sandbox" }
 # 协议是 JSON-RPC 2.0，一行一条（04-核心协议.md P1）。
 serde_json = "1.0"
 # 连接是异步的；Ctrl+C。
 tokio = { version = "1", features = ["io-util", "macros", "rt", "signal", "sync"] }
+
+[target.'cfg(windows)'.dependencies]
+# `miyu sandbox setup` 替谁装：当前用户的 SID（施工 5-8）。
+miyu-pipe = { path = "../miyu-pipe" }
 
 [dev-dependencies]
 # 测试里在进程里起核心：没有 key 时的端口。
