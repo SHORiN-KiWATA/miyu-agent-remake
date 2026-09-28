@@ -44,6 +44,7 @@
 | `tools/interface.md` | 工具接口、目录、一次调用带什么、效果 |
 | `tools/read.md`、`glob.md`、`grep.md`、`write.md`、`edit.md`、`trash.md`、`shell.md` | 每件工具一页 |
 | `cli/ask.md`、`cli/undo.md`、`cli/main.md` | 每条命令一页；主程序 |
+| `licenses.md` | 仓库用什么许可证；门禁查依赖的许可证能不能和它合在一起发（施工 4-12） |
 | `prompts.md` | 给模型看的每一份字的原文，按进到请求的哪里分组，带 token 数、什么时候出现；由门禁从 `resources/` 和登记簿生成（施工 4-9 三补） |
 
 ### 二、每页的格式
