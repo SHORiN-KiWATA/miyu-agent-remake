@@ -30,7 +30,7 @@
 | `family()` | `openai-chat`：私有数据里写的是它的，才归它用 |
 | `blobs_needed(请求, Call)` | 编码要用的 blob 清单，执行器照着先取 |
 | `encode(请求, Call, blob)` | 编码，交回 `Encoded` |
-| `decoder()` | 一次响应一个解码器 `Decode`：`feed(字节) -> 增量`、`done()`、`finish() -> Ending` |
+| `decoder()` | 一次响应一个解码器 `Decode`：`feed(字节) -> 增量`、`done()`、`finished()`（`finish_reason` 到了没有，施工 4-9 再补三下）、`finish() -> Ending` |
 | `classify(Failure)` | 出错分类，交回 `Classified` |
 
 `OpenAiChat::new(Compat, DriverTexts)`：开关和占位造的时候交进来，会话里不变。
@@ -39,7 +39,7 @@
 
 **编码的结果** `Encoded`：`body`（请求字节，发出去的就是它）、`messages`（每条线上的消息在字节里的位置，照先后；system 和挪出来的那条 user 也各算一条）、`path`（发到地址后面的哪一截）。
 
-**说完了** `Ending`：`deltas`（流完了才冲刷出来的那一条解出的增量；正常说完的，再加上收块的 `End`）、`usage`（用量，没报的没有）、`error`（出错的分类和原话，正常说完的没有）。
+**说完了** `Ending`：`deltas`（流完了才冲刷出来的那一条解出的增量；正常说完的，再加上收块的 `End`）、`usage`（用量，没报的没有）、`error`（出错的分类和原话，正常说完的没有）、`retry_after_ms`（流里报的错，供应商说要等多久；施工 4-9 再补三下）。
 
 **开关** `Compat`，跟着供应商定：
 
@@ -105,7 +105,7 @@
 2. `data` 去掉前后空白；是 `[DONE]` 的，说完了；是空的，不理。
 3. 名字是 `error` 的：出错，照「出错分类」分，用的是 `Failure::stream(data)`。
 4. 解成 JSON，取 `choices`、`usage`、`error` 三格，别的不理。格的类型对不上的（例如 `content`、`finish_reason` 写成了数字；`null` 不算）也算解不开。解不开：流完了才冲刷出来的那一条，算 `retryable`，「流断在半段 JSON 上」；别的算 `bad_stream`，「流里有一段不是 JSON」。
-5. `error` 有内容的：出错，照「出错分类」分，这一段别的都不看。`null`、`""`、`{}` 是网关的噪声，不理；别的都算有内容，数字、布尔、数组也算（连 `false`、`[]`）。
+5. `error` 有内容的：出错，照「出错分类」分，这一段别的都不看。`null`、`""`、`{}`、`false`、`0`、`[]` 是网关的噪声，不理（施工 4-9 再补三下）；别的都算有内容。
 6. 顶层的 `usage`，有 `prompt_tokens` 的记下（见下表），以后来的盖掉以前的。
 7. 只看 `choices[0]`，没有就完了。它里面的 `usage`（Moonshot）照第 6 条。
 8. `delta` 里照这个先后：
@@ -177,7 +177,7 @@
    - 内容策略的说法：`violating our usage policy`、`blocked by content filtering policy`、`content policy`、`content-policy`、`content_policy`、`contentpolicy`、`rejected as a result of our safety system`。
    - 额度的说法（也找错误码、类型，因为它们在找说法的字里）：`insufficient_quota`、`insufficient quota`、`insufficient balance`、`insufficient_balance`、`exceeded your current quota`、`quota exceeded`、`billing_hard_limit_reached`、`credit balance is too low`、`usagelimiterror`。
 5. **原话**：有 HTTP 状态的写成 `HTTP <状态>: <原话>`，流里报的只写原话；最长 2000 字节，截在字的边界上。原话给查问题的人看，不进上下文。
-6. **要等多久**，先有的算：头 `retry-after-ms`（毫秒）；头 `retry-after`（秒，可以带小数；写成日期的不认）；找说法的字里的 `try again in <数>`，单位 `ms` 是毫秒、`s` 开头的是秒（`s`、`seconds`）。非负的数才算，四舍五入到毫秒。都没有就不写，由内核退避。头的名字不分大小写，值去掉前后空白。流里报的错，解码器只留分类和原话，不留要等多久。
+6. **要等多久**，先有的算：头 `retry-after-ms`（毫秒）；头 `retry-after`（秒，可以带小数；写成日期的不认）；找说法的字里的 `try again in <数>`，单位 `ms` 是毫秒、`s` 开头的是秒（`s`、`seconds`）。非负的数才算，四舍五入到毫秒。都没有就不写，由内核退避。头的名字不分大小写，值去掉前后空白。流里报的错，解码器连同要等多久一起留下，收尾时交给 HTTP 执行器（施工 4-9 再补三下）。
 
 ### 现在接的是哪一家
 
