@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>80</b><span>/ 80 步<strong>已完成</strong>，命令行照 opencode 的样子印每一步，帮助页一页说全</span></li>
-    <li><b>M5</b><span>下一步：沙盒，<strong>先拆成步，等项目主人批准</strong></span></li>
-    <li><b class="mono">9aeab1d</b><span>最近一步（4-11 命令行的样子）的提交</span></li>
+    <li><b>81</b><span>/ 82 步<strong>已完成</strong>，许可证换成 GPL-3.0-or-later，门禁查依赖的许可证</span></li>
+    <li><b>4-13</b><span>下一步：读图，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">1cae198</b><span>最近一步（4-12 许可证改成 GPL）的提交</span></li>
   </ul>
 </header>
 
@@ -417,6 +417,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-9j"><span class="n">4-9</span>蓝图的门禁（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-10"><span class="n">4-10</span>M4 验收<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-11"><span class="n">4-11</span>命令行的样子<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s4-12"><span class="n">4-12</span>许可证改成 GPL<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">4-13</span>读图</span></li>
       </ol>
     </li>
     <li>
@@ -6427,6 +6429,75 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>cli/ask.md</code>、<code>cli/main.md</code>、<code>cli/undo.md</code>、<code>store/resources.md</code>、<code>store.md</code>，<code>tools/*.md</code> 的符号。</li>
         <li><code>docs/construction/4-11-命令行的样子.md</code>：施工单和验收结果。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s4-12" aria-labelledby="h-s412">
+  <div class="sheet-head"><h2 id="h-s412"><span class="no">4-12</span>许可证改成 GPL</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">仓库的许可证从 MIT 换成 GPL-3.0-or-later：别人改了 Miyu 再分发，得照样公开源码。门禁多一项「许可证」，查第三方依赖都能和它合在一起发。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">仓库</span><span class="dir-note">GPL-3.0-or-later</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">LICENSE</span><span class="rl">自由软件基金会发的 GPL-3.0 原文，一字不差</span></div>
+              <div class="tile new"><span class="nm">Cargo.toml</span><span class="rl">工作区 license = "GPL-3.0-or-later"，每个 crate 照它</span></div>
+              <div class="tile new"><span class="nm">README</span><span class="rl">扩展、脚本、MCP 服务器走协议，用什么许可证都行；以后的开发包用 MIT</span></div>
+            </div>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">门禁「许可证」</span><span class="dir-note">cargo metadata</span></div>
+            <ol class="pipe" aria-label="怎么查">
+              <li>发布的四个平台各读一次依赖图，去掉工作区自己的</li>
+              <li>每个包的 license 照 SPDX 表达式算：OR 有一个能用就行，AND 每个都要能用</li>
+              <li>能用的：MIT、Apache-2.0、BSD、ISC、Zlib、Unicode、MPL-2.0 这些</li>
+              <li>不能用的、没写的：说出包名、版本、在哪几个平台</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">为什么是 v3</span><span class="rl">依赖里有只用 Apache-2.0 的，和 GPLv2 合不到一起（项目主人定 GPL，设计 12 R15）</span></div>
+          <div class="tile new"><span class="nm">没选</span><span class="rl">MIT：谁都能改成闭源的发；AGPL：改了挂在群里也得给群友源码链接</span></div>
+          <div class="tile"><span class="nm">以前的提交</span><span class="rl">按 MIT 公开过的，还是 MIT</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-12</dd></div>
+        <div><dt>名称</dt><dd>许可证改成 GPL</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">1cae198</dd></div>
+        <div><dt>验收</dt><dd>门禁八项、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>LICENSE</code>、<code>Cargo.toml</code>、README 的「许可证」一节。</li>
+        <li><code>xtask/src/licenses.rs</code>：门禁的第八项，SPDX 表达式自己算，不加依赖。</li>
+        <li><code>AGENTS.md</code>：加依赖之前先看许可证。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>LICENSE 和 gnu.org 的原文一字不差</span></li>
+        <li><span class="ok">✓</span><span>门禁八项全过；手写 7 个变异都被逮住</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>licenses.md</code>；设计 <code>12-进程形态与分发.md</code> R15。</li>
+        <li><code>docs/construction/4-12-许可证改成 GPL.md</code>：施工单和验收结果。</li>
       </ul>
     </div>
   </div>
