@@ -23,7 +23,7 @@
 
 访问类别 `read`。说明和参数的原文如下。
 
-改成（施工 4-13 合进来时标成样本 `resources/software/basesystem/tools/read.json`）：
+样本 `resources/software/basesystem/tools/read.json`：
 
 ```json
 {
@@ -185,6 +185,8 @@ Did you mean "notes.txt"?
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-basesystem/tests/read.rs` | 从资源目录造、参数格式一字不差、报的路径；资源坏了说是哪一份；行号和翻页；`path`、`filePath`；`~`、空的、二进制；列目录、翻页、过了结尾；没有的、参数不对、FIFO；相近的名字；一次最多 2000 行；`file.read` 的范围和整份的哈希，二进制的也报、没有范围，目录、没有的不报；读过的二进制 `write` 盖得了 |
+| `crates/miyu-basesystem/tests/read_image.rs` | 四种格式交回图片、不另写字、扩展名不算数；说法和宽高；太大的（正好 5 MiB 的照读）、太宽太高的（正好 8000 的照读）拦下、照样报读过、整份的哈希；量不出的当二进制；`offset`、`limit` 不管；说明写着图片（施工 4-13） |
+| `crates/miyu-basesystem/src/read/image/tests.rs` | 开头的字节认格式，差一点的不算；大小写成 MiB 一位小数 |
 | `crates/miyu-basesystem/src/read/lines/tests.rs` | 行号加制表符、CRLF、过了结尾、结尾的换行；空的、二进制、BOM；UTF-16 两种字节序；截长行；64 KiB；整份的哈希 |
 | `crates/miyu-basesystem/src/common/tests.rs` | Windows 的前缀怎么去；相近的名字怎么算 |
 | `crates/miyu-basesystem/tests/human.rs` | 每一种结果的说法，两种语言都换得出字 |

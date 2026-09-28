@@ -40,11 +40,7 @@ pub fn from_env(key: Option<String>) -> Result<Arc<dyn Models>, String> {
         provider: provider(PROVIDER),
         endpoint: Endpoint::new(BASE_URL, key.trim()),
         compat: Compat::deepseek(),
-        call: Call {
-            model: model(MODEL),
-            max_output: None,
-            inputs: Inputs::default(),
-        },
+        call: call(),
         idle: miyu_session::IDLE,
     }))
 }
@@ -81,6 +77,19 @@ impl ModelPort for NoModel {
     }
 }
 
+/// 每次请求 DeepSeek 定的：模型名，不写输出上限；收图，不收 PDF。DeepSeek 从 2026-08-21 起收图，只收 user 消息里的，
+/// 工具结果里的图由驱动挪过去（施工 4-13）。
+fn call() -> Call {
+    Call {
+        model: model(MODEL),
+        max_output: None,
+        inputs: Inputs {
+            images: true,
+            pdf: false,
+        },
+    }
+}
+
 fn provider(name: &str) -> ProviderId {
     ProviderId::parse(name).unwrap_or_else(|e| unreachable!("「{name}」合端点编号的写法：{e}"))
 }
@@ -88,3 +97,6 @@ fn provider(name: &str) -> ProviderId {
 fn model(name: &str) -> ModelName {
     ModelName::parse(name).unwrap_or_else(|e| unreachable!("「{name}」合模型名的写法：{e}"))
 }
+
+#[cfg(test)]
+mod tests;

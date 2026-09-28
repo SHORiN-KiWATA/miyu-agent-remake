@@ -9,14 +9,16 @@ use std::time::Duration;
 
 use tokio::sync::Barrier;
 
-use miyu_kernel::block::Block;
+use miyu_kernel::block::{Block, Image, Text};
 use miyu_kernel::event::{Body, Event, Said, ToolResult, ToolStatus, TransientBody};
+use miyu_kernel::id::{ContentHash, MediaType};
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::request::{Message, Request};
 use miyu_kernel::session::{Command, Queued};
 use miyu_kernel::tool::Access;
 use miyu_session::testkit::{Play, Script};
 use miyu_session::{Handle, Pushed};
+use miyu_store::blob::Blobs;
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Spec, Tool};
 
@@ -162,6 +164,41 @@ async fn a_call_runs_in_the_turns_directory_and_she_hears_the_result() {
     let heard = requests[1].1.messages.iter().any(|message| {
         matches!(message, Message::Tool { error: false, blocks, .. } if text(blocks) == said)
     });
+    assert!(heard, "{:#?}", requests[1].1.messages);
+}
+
+#[tokio::test]
+async fn a_picture_from_a_tool_becomes_an_image_block_with_its_blob_stored() {
+    // 工具交回的图片（施工 4-13）：存成属主的 blob，换成图片块接在字后面；下一次请求里带着它。
+    let home = Home::new();
+    let look = Fake::new("look", Access::Read, Act::Shows(b"fake png bytes"));
+    let script = Script::new([Play::calls(&[("look", "{}")]), Play::Says("看到了。")]);
+    let handle = home.create_with(&script, &catalog(&[&look])).await;
+    turn(&handle, "cmd-1").await;
+    let log = home.log(handle.id());
+    let results = results(&log);
+    assert_eq!(results.len(), 1);
+    let hash = ContentHash::of(b"fake png bytes");
+    let expected = vec![
+        Block::Text(Text {
+            text: "shown".to_string(),
+        }),
+        Block::Image(Image {
+            blob: hash.clone(),
+            media_type: MediaType::parse("image/png").unwrap(),
+            width: 2,
+            height: 1,
+        }),
+    ];
+    assert_eq!(results[0].blocks, expected);
+    let stored = Blobs::new(home.root.blobs(&alice_account()));
+    assert_eq!(stored.get(&hash).unwrap(), b"fake png bytes");
+    let requests = script.requests();
+    let heard = requests[1]
+        .1
+        .messages
+        .iter()
+        .any(|message| matches!(message, Message::Tool { blocks, .. } if *blocks == expected));
     assert!(heard, "{:#?}", requests[1].1.messages);
 }
 

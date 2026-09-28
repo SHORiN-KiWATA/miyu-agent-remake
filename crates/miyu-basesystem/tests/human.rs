@@ -427,7 +427,7 @@ async fn every_shell_outcome_says_something_people_can_read() {
     let site = Site::new();
     let windows = cfg!(windows);
     let run = |args: serde_json::Value| site.done("shell", args);
-    let command = |command: &str| serde_json::json!({ "command": command });
+    let command = |command: &str| serde_json::json!({ "command": command, "description": "Test" });
     let mut checked = Vec::new();
     check(
         &mut checked,
@@ -451,12 +451,15 @@ async fn every_shell_outcome_says_something_people_can_read() {
     };
     check(
         &mut checked,
-        human(run(serde_json::json!({ "command": sleep, "timeout": 200 })).await),
+        human(
+            run(serde_json::json!({ "command": sleep, "description": "Test", "timeout": 200 }))
+                .await,
+        ),
         said("shell/timed-out").with("seconds", "0.2"),
     );
     check(
         &mut checked,
-        human(run(serde_json::json!({ "command": "exit 0", "run_in_background": true })).await),
+        human(run(serde_json::json!({ "command": "exit 0", "description": "Test", "run_in_background": true })).await),
         said("shell/no-background"),
     );
     // 起不来的：工作目录不在。

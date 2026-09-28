@@ -77,7 +77,7 @@ async fn a_command_and_an_edit_print_what_happened_under_them() {
     let edit = json!({"file_path": notes, "edits": [{"old_string": "二", "new_string": "贰"}]});
     let home = home([
         read(&notes),
-        Play::calls(&[("shell", r#"{"command":"echo hi"}"#)]),
+        Play::calls(&[("shell", r#"{"command":"echo hi","description":"Say hi"}"#)]),
         Play::calls(&[("edit", &edit.to_string())]),
         Play::Says("改好了。"),
     ]);

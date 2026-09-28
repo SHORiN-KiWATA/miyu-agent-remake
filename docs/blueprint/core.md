@@ -142,6 +142,7 @@
 | `crates/miyu-core/tests/serve.rs` | 空闲退出、放开锁和套接字；有头连着不退；空闲的钟从最后一个头走时算起；在跑的回合不退；收到停的信号先停下会话、跑到一半的记成重启了；没有 key（没设、全是空白）每次请求都说没有模型、分类是认证失败、没发出去 |
 | `crates/miyu-core/src/serve/tests.rs` | 多久看一次：四分之一，最多 30 秒，最少 100 毫秒；装不上的 Ctrl+C 当它不会来（造不出真的装不上，测的是等它的那一小段） |
 | `crates/miyu-core/tests/tools.rs` | 工具目录里是基础系统的七件；资源目录坏了，说是哪一份 |
+| `crates/miyu-core/src/models/tests.rs` | 请求 DeepSeek 时的模型名、不写输出上限、收图不收 PDF（施工 4-13） |
 
 ### 出处
 

@@ -259,7 +259,7 @@ async fn a_command_she_runs_is_logged_with_its_exit_code() {
     } else {
         "echo hi; exit 5"
     };
-    let args = serde_json::json!({ "command": command }).to_string();
+    let args = serde_json::json!({ "command": command, "description": "Test" }).to_string();
     let script = Script::new([Play::calls(&[("shell", args.as_str())]), Play::Says("好。")]);
     let handle = home
         .create_as(&script, &base_system(), opening(&home))

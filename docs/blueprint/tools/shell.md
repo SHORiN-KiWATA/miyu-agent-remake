@@ -22,7 +22,7 @@
 
 访问类别 `execute`。说明和参数的原文如下。
 
-改成（施工 4-13 合进来时标成样本 `resources/software/basesystem/tools/shell.json`）：
+样本 `resources/software/basesystem/tools/shell.json`：
 
 ```json
 {

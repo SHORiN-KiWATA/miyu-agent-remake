@@ -15,8 +15,9 @@ fn read_comes_from_the_resources_with_its_schema_as_written() {
     let spec = tool.spec();
     assert_eq!(spec.access, Access::Read);
     assert!(
-        spec.description
-            .starts_with("Read a text file, or list a directory."),
+        spec.description.starts_with(
+            "Read a text file or an image (PNG, JPEG, GIF, WebP), or list a directory."
+        ),
         "{}",
         spec.description
     );

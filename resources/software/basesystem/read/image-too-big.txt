@@ -1,0 +1,1 @@
+"{path}" is {size}, too large to view. Images must be at most 5 MiB. Make a smaller copy with a command and read that.

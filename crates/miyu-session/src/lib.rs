@@ -22,6 +22,7 @@ mod http;
 mod kinds;
 mod lines;
 mod open;
+mod pictures;
 mod port;
 mod restore;
 mod store;

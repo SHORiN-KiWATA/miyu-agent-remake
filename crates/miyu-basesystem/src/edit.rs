@@ -187,7 +187,7 @@ fn edit(texts: &Texts, call: &Call, path: &str, changes: &[Change], stop: &Stop)
     };
     let places = match locate(texts, path, &text, &style, changes) {
         Ok(places) => places,
-        Err(refused) => return refused,
+        Err(refused) => return *refused,
     };
     let mut changed = text;
     for place in places.iter().rev() {
@@ -209,24 +209,29 @@ fn edit(texts: &Texts, call: &Call, path: &str, changes: &[Change], stop: &Stop)
         })
 }
 
-/// 在原文 `text` 里找每一处，照原文里的先后排好；有一处出错、两处重叠的，交回不改的结果。
+/// 在原文 `text` 里找每一处，照原文里的先后排好；有一处出错、两处重叠的，交回不改的结果（装进 `Box`：`Done` 多了
+/// 图片那一格以后变大了，施工 4-13）。
 fn locate(
     texts: &Texts,
     path: &str,
     text: &str,
     style: &Style,
     changes: &[Change],
-) -> Result<Vec<Place>, Done> {
+) -> Result<Vec<Place>, Box<Done>> {
     let mut places = Vec::new();
     for (index, change) in (1..).zip(changes) {
         let number = index.to_string();
         if change.old_string.is_empty() {
-            return Err(Done::error(say(&texts.empty, &[("index", &number)]))
-                .said(said("edit/empty").with("index", number)));
+            return Err(Box::new(
+                Done::error(say(&texts.empty, &[("index", &number)]))
+                    .said(said("edit/empty").with("index", number)),
+            ));
         }
         if change.old_string == change.new_string {
-            return Err(Done::error(say(&texts.same, &[("index", &number)]))
-                .said(said("edit/same").with("index", number)));
+            return Err(Box::new(
+                Done::error(say(&texts.same, &[("index", &number)]))
+                    .said(said("edit/same").with("index", number)),
+            ));
         }
         match find::find(text, &change.old_string, change.replace_all) {
             Found::At(ranges) => {
@@ -245,10 +250,12 @@ fn locate(
                     ("count", &count.to_string()),
                     ("lines", &lines.join(", ")),
                 ];
-                return Err(Done::error(say(&texts.not_unique, &fields)).said(
-                    said("edit/not-unique")
-                        .with("index", number.as_str())
-                        .with("count", count.to_string()),
+                return Err(Box::new(
+                    Done::error(say(&texts.not_unique, &fields)).said(
+                        said("edit/not-unique")
+                            .with("index", number.as_str())
+                            .with("count", count.to_string()),
+                    ),
                 ));
             }
             Found::Missing(closest) => {
@@ -264,7 +271,7 @@ fn locate(
                     }
                     None => said("edit/not-found").with("index", number.as_str()),
                 };
-                return Err(Done::error(message).said(human));
+                return Err(Box::new(Done::error(message).said(human)));
             }
         }
     }
@@ -280,10 +287,12 @@ fn locate(
                 ("second", &second),
                 ("path", path),
             ];
-            return Err(Done::error(say(&texts.overlap, &fields)).said(
-                said("edit/overlap")
-                    .with("first", first.as_str())
-                    .with("second", second.as_str()),
+            return Err(Box::new(
+                Done::error(say(&texts.overlap, &fields)).said(
+                    said("edit/overlap")
+                        .with("first", first.as_str())
+                        .with("second", second.as_str()),
+                ),
             ));
         }
     }

@@ -59,6 +59,9 @@ struct Texts {
 #[derive(Deserialize)]
 struct Args {
     command: String,
+    /// 这条命令在做什么的短标题（施工 4-13，2026-09-28 项目主人定）：必填，执行不用它，记在调用里给前端显示。
+    #[expect(dead_code, reason = "只要她写，执行时用不上；前端从调用的参数里读")]
+    description: String,
     timeout: Option<u64>,
     #[serde(default)]
     run_in_background: bool,

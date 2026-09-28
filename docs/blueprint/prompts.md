@@ -460,6 +460,28 @@ No files found
 "{path}" is a binary file.
 ```
 
+#### `software/basesystem/read/image-too-big.txt`
+
+- 什么时候加进来：图的文件大过 5 MiB
+- token：33
+- 为什么加：读的时候就拦下太大的图：图跟着对话每次都发，被供应商拒掉的图会让这个会话以后的请求都失败；说清上限，让她先缩小（施工 4-13）
+- 指纹：`b8d728b5`
+
+```text
+"{path}" is {size}, too large to view. Images must be at most 5 MiB. Make a smaller copy with a command and read that.
+```
+
+#### `software/basesystem/read/image-too-wide.txt`
+
+- 什么时候加进来：图的宽或者高大过 8000 像素
+- token：42
+- 为什么加：同上（施工 4-13）
+- 指纹：`620da231`
+
+```text
+"{path}" is {width}×{height} pixels, too large to view. Images must be at most 8000 pixels on each side. Make a smaller copy with a command and read that.
+```
+
 #### `software/basesystem/glob/more.txt`
 
 - 什么时候加进来：找到的超过 100 个
@@ -944,13 +966,13 @@ The tool returned only images or files. They are in the next message.
 #### `software/basesystem/tools/read.json`
 
 - 什么时候加进来：会话的工具面里有 `read`（每次请求都带）
-- token：159
-- 为什么加：`read` 的说明和参数：照 26 附录的草稿，先去掉图片、PDF；说明里给她一个用它不用 `cat` 的理由（施工 4-4 上）。4-4 下照规范改（`10-自带软件.md` 第十节）：参数改名 `file_path`，每个参数一句说明（W2 改），写明行号是 cat -n 的样子；多出来的大半是参数说明
-- 指纹：`a213cd6d`
+- token：172
+- 为什么加：`read` 的说明和参数：照 26 附录的草稿，先去掉图片、PDF；说明里给她一个用它不用 `cat` 的理由（施工 4-4 上）。4-4 下照规范改（`10-自带软件.md` 第十节）：参数改名 `file_path`，每个参数一句说明（W2 改），写明行号是 cat -n 的样子；多出来的大半是参数说明。施工 4-13 加回图片：说明里写上四种格式（PNG、JPEG、GIF、WebP），她才想得到用它看图（+13）
+- 指纹：`c6991018`
 
 ```json
 {
-  "description": "Read a text file, or list a directory. Lines come back in cat -n format, numbered from 1, up to 2000 at a time. Prefer this over `cat` in the shell: files read here come back after compaction.",
+  "description": "Read a text file or an image (PNG, JPEG, GIF, WebP), or list a directory. Lines come back in cat -n format, numbered from 1, up to 2000 at a time. Prefer this over `cat` in the shell: files read here come back after compaction.",
   "parameters": {"type":"object","properties":{"file_path":{"type":"string","description":"Absolute, or relative to the working directory."},"offset":{"type":"integer","description":"The line number to start reading from, counting from 1."},"limit":{"type":"integer","description":"The number of lines to read. Default 2000."}},"required":["file_path"]}
 }
 ```
@@ -1000,14 +1022,14 @@ The tool returned only images or files. They are in the next message.
 #### `software/basesystem/tools/shell.json`
 
 - 什么时候加进来：会话的工具面里有 `shell`（每次请求都带）
-- token：122
-- 为什么加：`shell` 的说明和参数，照 Claude Code：`command` 看名字就懂，不写说明；`timeout` 是毫秒、上限和默认值写在那一句里。说明三句：用哪种 shell（`{shell}` 在核心起来时换成 `bash`、`zsh`、`PowerShell 7`、`Windows PowerShell 5.1`，会话里不变），编译、测试、git 用它、读搜改文件用专用的工具，每次从工作目录起、`cd` 不带到下一次。`description`、`run_in_background` 这一步不声明（施工 4-8）
-- 指纹：`eed208bf`
+- token：152
+- 为什么加：`shell` 的说明和参数，照 Claude Code：`command` 看名字就懂，不写说明；`timeout` 是毫秒、上限和默认值写在那一句里。说明三句：用哪种 shell（`{shell}` 在核心起来时换成 `bash`、`zsh`、`PowerShell 7`、`Windows PowerShell 5.1`，会话里不变），编译、测试、git 用它、读搜改文件用专用的工具，每次从工作目录起、`cd` 不带到下一次。`run_in_background` 这一步不声明（施工 4-8）。施工 4-13 加必填的 `description`：这条命令在做什么的短标题，前端显示用，名字照 Claude Code、opencode（2026-09-28 项目主人定，+30）
+- 指纹：`994cd6cf`
 
 ```json
 {
   "description": "Execute a command with {shell} and return its output. Use it for builds, tests, git and other programs, not to read, search or edit files. Every call starts in the working directory, so cd does not carry over to the next call.",
-  "parameters": {"type":"object","properties":{"command":{"type":"string"},"timeout":{"type":"integer","description":"Milliseconds before the command is stopped, up to 600000. Default 120000."}},"required":["command"]}
+  "parameters": {"type":"object","properties":{"command":{"type":"string"},"description":{"type":"string","description":"Short title of what the command does, in a few words."},"timeout":{"type":"integer","description":"Milliseconds before the command is stopped, up to 600000. Default 120000."}},"required":["command","description"]}
 }
 ```
 

@@ -5,11 +5,12 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
+use miyu_kernel::id::MediaType;
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::tool::Access;
 use tokio::sync::Barrier;
 
-use crate::{Call, Done, Progress, Running, Spec, Stop, Target, Tool};
+use crate::{Call, Done, Picture, Progress, Running, Spec, Stop, Target, Tool};
 
 /// 假工具跑起来做什么。
 #[derive(Debug, Clone)]
@@ -30,6 +31,8 @@ pub enum Act {
     Meets(Arc<Barrier>),
     /// 工具自己的 bug：一跑就 panic。
     Panics,
+    /// 回一句成功 `shown`，再交一张 2×1 的 PNG，字节是给的这些（施工 4-13）。
+    Shows(&'static [u8]),
 }
 
 /// 一件假工具。
@@ -170,6 +173,12 @@ impl Tool for Fake {
                     Done::ok("met")
                 }
                 Act::Panics => panic!("假工具自己的 bug"),
+                Act::Shows(bytes) => Done::ok("shown").image(Picture {
+                    bytes: bytes.to_vec(),
+                    media_type: MediaType::parse("image/png").expect("写法对"),
+                    width: 2,
+                    height: 1,
+                }),
             };
             guard.finished = true;
             done

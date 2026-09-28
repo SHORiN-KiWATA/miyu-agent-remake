@@ -39,7 +39,11 @@ fn script<'a>(unix: &'a str, windows: &'a str) -> &'a str {
 
 /// 在 `work/` 里执行 `command`。
 async fn run(site: &Site, command: &str) -> Done {
-    site.done("shell", json!({ "command": command })).await
+    site.done(
+        "shell",
+        json!({ "command": command, "description": "Test" }),
+    )
+    .await
 }
 
 #[test]
@@ -57,7 +61,7 @@ fn shell_comes_from_the_resources_and_names_its_shell() {
     assert!(spec.description.contains(shell), "{}", spec.description);
     assert!(!spec.description.contains('{'), "字段都换过了");
     let targets = tool.targets(&Call {
-        args: json!({"command": "ls"}).to_string(),
+        args: json!({"command": "ls", "description": "Test"}).to_string(),
         cwd: String::new(),
         home: None,
         data_root: None,
@@ -143,7 +147,7 @@ async fn a_command_past_its_timeout_is_stopped() {
     let done = site
         .done(
             "shell",
-            json!({ "command": script("sleep 20", "Start-Sleep -Seconds 20"), "timeout": 300 }),
+            json!({ "command": script("sleep 20", "Start-Sleep -Seconds 20"), "description": "Test", "timeout": 300 }),
         )
         .await;
     assert!(started.elapsed() < Duration::from_secs(10), "没有等满");
@@ -240,13 +244,27 @@ async fn bad_arguments_and_background_runs_are_refused() {
     let done = site
         .done(
             "shell",
-            json!({ "command": script("touch ran", "New-Item ran"), "run_in_background": true }),
+            json!({ "command": script("touch ran", "New-Item ran"), "description": "Test", "run_in_background": true }),
         )
         .await;
     assert!(done.error);
     assert_eq!(done.human, Some(said("shell/no-background")));
     assert!(!site.0.join("work/ran").exists(), "没跑");
-    // 照 Claude Code 的习惯写了 description 的，照样跑。
+    // description 必填（施工 4-13）：没写的参数不对，不跑；写了的照跑。
+    let done = site
+        .done(
+            "shell",
+            json!({ "command": script("touch ran", "$null = New-Item ran") }),
+        )
+        .await;
+    assert!(done.error);
+    assert!(
+        matches!(&done.human, Some(said) if said.key.ends_with("common/bad-args")),
+        "{:?}",
+        done.human
+    );
+    assert!(text(&done).contains("description"), "{}", text(&done));
+    assert!(!site.0.join("work/ran").exists(), "没跑");
     let done = site
         .done(
             "shell",
@@ -261,7 +279,11 @@ async fn bad_arguments_and_background_runs_are_refused() {
 async fn a_missing_working_directory_is_reported() {
     let site = Site::new();
     let done = site
-        .done_in("nowhere", "shell", json!({ "command": "exit 0" }))
+        .done_in(
+            "nowhere",
+            "shell",
+            json!({ "command": "exit 0", "description": "Test" }),
+        )
         .await;
     assert!(done.error);
     assert!(text(&done).starts_with("Could not run "), "{}", text(&done));
@@ -283,7 +305,7 @@ async fn the_output_is_pushed_to_the_heads_as_it_comes() {
     // Unix 上最后一个字只写了一半：读完了也要推出去，换成 U+FFFD。
     let command = script("printf 'a\\n'; printf '\\344'", "Write-Output a");
     let call = Call {
-        args: json!({ "command": command }).to_string(),
+        args: json!({ "command": command, "description": "Test" }).to_string(),
         cwd: site.0.join("work").to_string_lossy().into_owned(),
         home: None,
         data_root: None,
@@ -378,7 +400,8 @@ async fn a_tilde_working_directory_means_home() {
     let site = Site::new();
     site.file("home/proj/marker.txt", b"here");
     let call = Call {
-        args: json!({ "command": script("ls", "Get-ChildItem -Name") }).to_string(),
+        args: json!({ "command": script("ls", "Get-ChildItem -Name"), "description": "Test" })
+            .to_string(),
         cwd: "~/proj".to_string(),
         home: Some(site.0.join("home")),
         data_root: None,

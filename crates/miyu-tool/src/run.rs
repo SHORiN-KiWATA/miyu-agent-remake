@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::Said;
-use miyu_kernel::id::ContentHash;
+use miyu_kernel::id::{ContentHash, MediaType};
 
 use crate::Stop;
 
@@ -62,6 +62,33 @@ pub struct Done {
     pub effects: Vec<Effect>,
     /// 看到叫停的旗，停在改之前，什么都没改（施工 4-9 再补一）：执行器照「已取消，跑到一半」交给内核。
     pub stopped: bool,
+    /// 交回的图片（施工 4-13）：执行器存成 blob，换成图片块，照先后接在 `blocks` 后面。
+    pub images: Vec<Picture>,
+}
+
+/// 工具交回的一张图片：字节本身，和量好的媒体类型、宽高（`03-事件模型.md` 第四节：量不出尺寸的不当图片）。
+#[derive(Clone, PartialEq, Eq)]
+pub struct Picture {
+    /// 图片文件的全部字节。
+    pub bytes: Vec<u8>,
+    /// 例如 `image/png`。
+    pub media_type: MediaType,
+    /// 宽，像素。
+    pub width: u32,
+    /// 高，像素。
+    pub height: u32,
+}
+
+impl fmt::Debug for Picture {
+    /// 字节不打出来：一张图几 MB。
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Picture")
+            .field("bytes", &self.bytes.len())
+            .field("media_type", &self.media_type)
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .finish()
+    }
 }
 
 /// 工具报的一样效果（`10-自带软件.md` 第五节，施工 4-6 上）。改前改后带着内容本身：执行器存成 blob、换成哈希，
@@ -104,6 +131,7 @@ impl Done {
             human: None,
             effects: Vec::new(),
             stopped: false,
+            images: Vec::new(),
         }
     }
 
@@ -115,6 +143,7 @@ impl Done {
             human: None,
             effects: Vec::new(),
             stopped: true,
+            images: Vec::new(),
         }
     }
 
@@ -126,6 +155,7 @@ impl Done {
             human: None,
             effects: Vec::new(),
             stopped: false,
+            images: Vec::new(),
         }
     }
 
@@ -140,6 +170,13 @@ impl Done {
     #[must_use]
     pub fn effect(mut self, effect: Effect) -> Done {
         self.effects.push(effect);
+        self
+    }
+
+    /// 再交一张图片，接在后面（施工 4-13）。
+    #[must_use]
+    pub fn image(mut self, picture: Picture) -> Done {
+        self.images.push(picture);
         self
     }
 }

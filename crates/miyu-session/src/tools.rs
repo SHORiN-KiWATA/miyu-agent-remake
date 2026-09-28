@@ -28,6 +28,7 @@ use crate::TARGET;
 use crate::blocking::blocking;
 use crate::effects;
 use crate::lines::millis;
+use crate::pictures;
 use crate::port::Back;
 
 /// 执行工具要的：工具目录、替工具写的两句、系统的家目录（施工 4-4 上，交给每次调用）。
@@ -164,22 +165,30 @@ impl Tools {
             async move {
                 match inner.await {
                     Ok(mut done) => {
-                        // 改前改后先落 blob，再送回去写引用它们的事件（07 第四节）。
+                        // 改前改后、交回的图片先落 blob，再送回去写引用它们的事件（07 第四节；图片施工 4-13）。
                         let reported = std::mem::take(&mut done.effects);
+                        let images = std::mem::take(&mut done.images);
                         let stored = tokio::task::spawn_blocking(move || {
-                            span.in_scope(|| effects::store(&blobs, reported))
+                            span.in_scope(|| {
+                                let effects = effects::store(&blobs, reported);
+                                pictures::store(&blobs, images).map(|images| (effects, images))
+                            })
                         })
                         .await;
                         match stored {
-                            Ok(effects) => send(
-                                &backs,
-                                ToolBack::Done {
-                                    call_id,
-                                    done,
-                                    effects,
-                                },
-                            ),
-                            Err(_) => send(&backs, ToolBack::Crashed { call_id }),
+                            Ok(Some((effects, images))) => {
+                                done.blocks.extend(images);
+                                send(
+                                    &backs,
+                                    ToolBack::Done {
+                                        call_id,
+                                        done,
+                                        effects,
+                                    },
+                                );
+                            }
+                            // 图片存不下来、存 blob 的线程 panic 了：照崩了算。
+                            Ok(None) | Err(_) => send(&backs, ToolBack::Crashed { call_id }),
                         }
                     }
                     Err(error) if error.is_panic() => send(&backs, ToolBack::Crashed { call_id }),

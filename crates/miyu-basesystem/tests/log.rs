@@ -32,7 +32,10 @@ async fn a_shell_line_from_a_blocking_thread_carries_the_session() {
                    while [ ! -e escaped ]; do sleep 0.01; done; echo started";
     let span = tracing::error_span!(target: "miyu::session", "session", session = SESSION);
     let done = site
-        .done("shell", json!({ "command": command }))
+        .done(
+            "shell",
+            json!({ "command": command, "description": "Test" }),
+        )
         .instrument(span)
         .await;
     assert!(!done.error, "{done:?}");

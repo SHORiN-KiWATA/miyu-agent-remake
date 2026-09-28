@@ -16,7 +16,7 @@ mod stop;
 pub mod testkit;
 
 pub use catalog::{Catalog, CatalogError, Problem};
-pub use run::{Call, Done, Effect, Progress, Running, Seen, Target};
+pub use run::{Call, Done, Effect, Picture, Progress, Running, Seen, Target};
 pub use stop::Stop;
 
 use miyu_kernel::raw::RawJson;

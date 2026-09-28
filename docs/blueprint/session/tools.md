@@ -124,10 +124,11 @@ The tool "{name}" stopped because of an internal error. It may have been partly 
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-session/tests/tools.rs` | 请求里的工具照名字排，载入以后照快照发；没有工具的不发；调用在这一轮的工作目录里跑、结果落盘、她接着说；出错的工具给出错的结果；执行中的输出推送、不落盘；两件只读的同时跑；打断掐掉在跑的；目录里没有的说现在用不了；panic 的给出错的结果、会话照常；停下会话、没人拿着了，在跑的都掐掉 |
+| `crates/miyu-session/tests/tools.rs` | 请求里的工具照名字排，载入以后照快照发；没有工具的不发；调用在这一轮的工作目录里跑、结果落盘、她接着说；出错的工具给出错的结果；执行中的输出推送、不落盘；两件只读的同时跑；打断掐掉在跑的；目录里没有的说现在用不了；panic 的给出错的结果、会话照常；停下会话、没人拿着了，在跑的都掐掉；工具交回的图片成了图片块、接在字后面、blob 存下了、下一次请求带着它（施工 4-13） |
 | `crates/miyu-session/tests/tool_log.rs` | 开始跑、跑完、出错、叫停、崩了、目录里没有各一行；停在改之前的带 `stopped=true`；叫它停过又掐掉的多一行 `WARN`；参数、工具交回的字不进日志 |
 | `crates/miyu-session/tests/stop.rs` | 打断时在跑的写：叫它停只举旗、不掐，停在改之前的记「已取消」；叫它停的时候已经改完的照记；不停的，又打断一次就掐掉 |
 | `crates/miyu-session/src/effects/tests.rs` | 改前改后存成 blob、别的照原样过去；存不成的照样有哈希；读过的记整份的哈希、写过的记改后的、删了的拿掉、后来的盖前面的；从日志重建的和一路记下的一样 |
+| `crates/miyu-session/src/pictures/tests.rs` | 交回的图片存成 blob，块里是哈希、媒体类型、宽高，照先后；存不下来的交回空的（施工 4-13） |
 | `crates/miyu-session/tests/write.rs` | 先读后写，日志里两次结果的效果对得上、blob 里存着改前改后；重新载入以后读过的照样算；改完一次接着改不用重读；删了的不再算看过；执行的命令记进日志、退出码在说法里 |
 | `crates/miyu-session/tests/read.rs`、`search.rs` | 真的 `read`、`glob`、`grep` 在会话里跑：工作区里的读得到、搜得到，越界的在没人能确认的会话里被拒，从上面往下搜不进数据根 |
 | `crates/miyu-session/tests/restore.rs` | 改过的写回去、恢复时再改回来；之后被人改过的不动、记下现在的哈希；撤掉的那一轮里读过的不算、恢复以后又算；已经回到原样的算改回了；改前没存下来的记 `unsaved` |

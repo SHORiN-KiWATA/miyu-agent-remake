@@ -1,10 +1,12 @@
 //! `read`（`10-自带软件.md` 第三节「`read` 输出的写法」，施工 4-4 上；施工 4-4 下照第十节改到规范上）：读文本
-//! 文件，按行分页、带行号；读到目录时列出里面有什么，一样分页。图片、PDF 随能接看图模型的那一步。
+//! 文件，按行分页、带行号；读到图片交回图片本身（施工 4-13）；读到目录时列出里面有什么，一样分页。PDF 另算。
 
 mod dir;
+mod image;
 pub(crate) mod lines;
 
 use std::fs::File;
+use std::io::{Read as _, Seek};
 use std::path::Path;
 
 use serde::Deserialize;
@@ -38,6 +40,8 @@ pub(crate) struct Texts {
     past_end_entries: Template,
     not_a_file: Template,
     binary: Template,
+    image_too_big: Template,
+    image_too_wide: Template,
 }
 
 /// 她给的参数。名字照 Claude Code 叫 `file_path`；照 pi 写成 `path`、照 opencode 写成 `filePath` 的也认。
@@ -79,6 +83,8 @@ impl Read {
                 past_end_entries: text("past-end-entries", &["total", "offset"])?,
                 not_a_file: text("not-a-file", &["path"])?,
                 binary: text("binary", &["path"])?,
+                image_too_big: text("image-too-big", &["path", "size"])?,
+                image_too_wide: text("image-too-wide", &["path", "width", "height"])?,
             },
         })
     }
@@ -120,7 +126,7 @@ fn read(texts: &Texts, call: &Call, args: &Args) -> Done {
         Err(error) => return texts.common.failed(path, &error),
     };
     let (offset, limit) = (args.offset(), args.limit());
-    let file: File = match open_file(&real) {
+    let mut file: File = match open_file(&real) {
         Ok(file) => file,
         Err(OpenError::NotAFile(Kind::Directory)) => {
             return dir::list(texts, path, &real, offset, limit);
@@ -134,6 +140,17 @@ fn read(texts: &Texts, call: &Call, args: &Args) -> Done {
         }
         Err(OpenError::Io(error)) => return texts.common.failed(path, &error),
     };
+    // 先看开头认图片（施工 4-13）；不是的倒回开头，照旧认编码、按行读。
+    let mut head = Vec::with_capacity(image::HEAD);
+    if let Err(error) = (&mut file).take(image::HEAD as u64).read_to_end(&mut head) {
+        return texts.common.failed(path, &error);
+    }
+    if let Some(media_type) = image::kind(&head) {
+        return image::read(texts, path, real, file, head, media_type);
+    }
+    if let Err(error) = file.rewind() {
+        return texts.common.failed(path, &error);
+    }
     let paged = match lines::read(file, offset, limit) {
         Ok(paged) => paged,
         Err(error) => return texts.common.failed(path, &error),
