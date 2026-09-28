@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>76</b><span>/ 80 步<strong>已完成</strong>，写进运行日志的报错都说英文了</span></li>
-    <li><b>4-9</b><span>下一步：权限策略、造会话、注释（再补四下），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">51fe251</b><span>最近一步（4-9 再补四中）的提交</span></li>
+    <li><b>77</b><span>/ 80 步<strong>已完成</strong>，补蓝图时查出的问题修完了</span></li>
+    <li><b>4-9</b><span>下一步：门禁（三补），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">f2402f7</b><span>最近一步（4-9 再补四下）的提交</span></li>
   </ul>
 </header>
 
@@ -413,7 +413,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-9f"><span class="n">4-9</span>驱动、HTTP（再补三下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9g"><span class="n">4-9</span>命令行、运行日志（再补四上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9h"><span class="n">4-9</span>出错说英文（再补四中）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-9</span>权限策略、造会话、注释（再补四下）</span></li>
+        <li><a class="step done" href="#s4-9i"><span class="n">4-9</span>权限策略、造会话、注释（再补四下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-9</span>蓝图的门禁（三补）</span></li>
         <li><span class="step"><span class="n">4-9</span>设计文档只留为什么（四补）</span></li>
         <li><span class="step"><span class="n">4-10</span>M4 验收</span></li>
@@ -6150,6 +6150,75 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图：<code>kernel/</code> 下六页、<code>store.md</code>、<code>store/resources.md</code>、<code>policy.md</code>、<code>session/actor.md</code>、<code>drivers/openai-chat.md</code>、<code>log.md</code>。</li>
         <li><code>docs/construction/4-9-出错说英文（再补四中）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s4-9i" aria-labelledby="h-s49i">
+  <div class="sheet-head"><h2 id="h-s49i"><span class="no">4-9</span>权限策略、造会话、注释（再补四下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">补蓝图时查出的最后几件：权限策略在会话 actor 的异步线程里当场判，换真实的位置、造边界表都碰磁盘，慢盘上会卡住核心仅有的两个工作线程，每判一次还重读环境变量；造会话没成时，会话目录和空的第一段留在磁盘上；几处注释、一份样本和代码对不上；给模型的 aborted.txt 说「程序重启了」，其实是核心没走完就停了。这一步修完，补蓝图时查出的问题到此清完。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">执行前的链</span><span class="dir-note">权限策略</span></div>
+            <ol class="pipe" aria-label="权限策略怎么判">
+              <li>内核要过执行前的链：actor 把判交给阻塞线程，等它判完</li>
+              <li>阻塞线程里：工具报路径、换真实的位置、造边界表、照判法表判</li>
+              <li>边界表里跟环境有关的几片：造权限策略时读一次，以后照它</li>
+              <li>判完送回「链判完了」：放行、问人或者拒绝，和原来一样</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">别的几处</span><span class="dir-note">造会话、注释、给模型的字</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">造会话没成</span><span class="rl">只剩一段空的第一段的会话目录删掉；别的一个字节不动；快照的 blob 留着</span></div>
+              <div class="tile new"><span class="nm">注释和样本</span><span class="rl">九处注释和代码对上；approval_requested 的样本照现在的写法，测试比它的样子</span></div>
+              <div class="tile new"><span class="nm">aborted.txt</span><span class="rl">Miyu stopped unexpectedly and this turn did not finish.</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">慢只慢自己</span><span class="rl">判得慢只让这个会话等，不占跑异步任务的线程，不卡别的会话</span></div>
+          <div class="tile new"><span class="nm">环境读一次</span><span class="rl">会话开着时改了 CARGO_HOME 这些，下一个会话才照新的</span></div>
+          <div class="tile new"><span class="nm">只删自己造的</span><span class="rl">目录里只有空的第一段才删；blob 按内容存，别的会话可能在用，回收随 blob 回收那一步</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">aborted.txt 的 token 数先估，4-10 实测</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-9（再补四下）</dd></div>
+        <div><dt>名称</dt><dd>权限策略、造会话、注释</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">f2402f7</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-session</code>：权限策略在阻塞线程里判，环境读一次；造会话没成收拾会话目录。</li>
+        <li><code>miyu-store</code>：<code>abandon()</code>，只删只剩空第一段的目录。</li>
+        <li>注释九处；样本一份；<code>resources/core/turn-ended/aborted.txt</code> 和登记簿。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 8 处，6 处有测试变红；测不出的照实记在施工单里</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图：<code>session/guard.md</code>、<code>session/actor.md</code>、<code>kernel/request.md</code>；设计 <code>26-提示词.md</code> 登记簿；样本 <code>tool.approval_requested.jsonl</code>。</li>
+        <li><code>docs/construction/4-9-权限策略、造会话、注释（再补四下）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
