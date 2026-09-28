@@ -94,7 +94,7 @@
    | 模型 | `deepseek-flash` |
    | 写法 | DeepSeek 的兼容写法（`drivers/openai-chat.md`） |
    | 输出的上限 | 不设 |
-   | 模型能收的输入 | 驱动的保守默认：不能看图，不能读 PDF（`drivers/openai-chat.md`） |
+   | 模型能收的输入 | 能看图，不能读 PDF（施工 4-13：DeepSeek 2026-08-21 起收图，只收 `user` 消息里的，工具结果里的图由驱动挪过去，`drivers/openai-chat.md` 第 7 条） |
    | 空闲超时 | 180 秒：多久没收到新的字节就算断了（`http.md`） |
    | 代理 | 照环境变量（`http.md`） |
    | key | 去掉前后空白；只在内存里，不落盘、不写配置、不进日志 |

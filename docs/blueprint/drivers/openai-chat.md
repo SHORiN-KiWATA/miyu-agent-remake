@@ -181,7 +181,7 @@
 
 ### 现在接的是哪一家
 
-核心起来时照 `DEEPSEEK_API_KEY` 接 DeepSeek 官方（`core.md`）：`Compat::deepseek()`，模型 `deepseek-flash`，不写输出上限，不收图片和 PDF。别的开关组合只有测试在用。
+核心起来时照 `DEEPSEEK_API_KEY` 接 DeepSeek 官方（`core.md`）：`Compat::deepseek()`，模型 `deepseek-flash`，不写输出上限，收图片、不收 PDF（施工 4-13）。别的开关组合只有测试在用。
 
 ### 样子
 

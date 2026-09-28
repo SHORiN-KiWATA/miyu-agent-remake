@@ -22,12 +22,12 @@
 
 访问类别 `execute`。说明和参数的原文如下。
 
-样本 `resources/software/basesystem/tools/shell.json`：
+改成（施工 4-13 合进来时标成样本 `resources/software/basesystem/tools/shell.json`）：
 
 ```json
 {
   "description": "Execute a command with {shell} and return its output. Use it for builds, tests, git and other programs, not to read, search or edit files. Every call starts in the working directory, so cd does not carry over to the next call.",
-  "parameters": {"type":"object","properties":{"command":{"type":"string"},"timeout":{"type":"integer","description":"Milliseconds before the command is stopped, up to 600000. Default 120000."}},"required":["command"]}
+  "parameters": {"type":"object","properties":{"command":{"type":"string"},"description":{"type":"string","description":"Short title of what the command does, in a few words."},"timeout":{"type":"integer","description":"Milliseconds before the command is stopped, up to 600000. Default 120000."}},"required":["command","description"]}
 }
 ```
 
@@ -37,9 +37,10 @@
 | 参数 | 必填 | 怎么认 |
 |---|---|---|
 | `command` | 是 | 要执行的命令 |
+| `description` | 是 | 这条命令在做什么的短标题，几个词。不用它跑命令，记在调用里，前端显示用（施工 4-13，2026-09-28 项目主人定；前端随 M8）。没写的，参数不对 |
 | `timeout` | 否 | 毫秒。没给、给了 0，是 120000；大过 600000 的照 600000。要是不小于 0 的整数，负数参数不对 |
 
-- 参数格式里不写、写了也认的：`description` 认了不用；`run_in_background` 是真的，不跑（下面第 2 条），它写成字符串的（`"true"`）参数不对：参数格式里没声明，内核不修正。别的参数不认，也不报错。
+- 参数格式里不写、写了也认的：`run_in_background` 是真的，不跑（下面第 2 条），它写成字符串的（`"true"`）参数不对：参数格式里没声明，内核不修正。别的参数不认，也不报错。
 - 不报要碰的路径。权限策略照访问类别判：完全放开、工作区这一级放行，只读时问人（M5 之前还没有沙盒，`session/guard.md`）。
 
 ### 怎么走
@@ -195,7 +196,7 @@ Exit code 2
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-basesystem/tests/shell.rs` | 说明里写的是这台机器的 shell、换过字段、不报路径；在工作目录里跑；标准错误合进来、照先后；退出码；没有输出；超时整组杀、说法的秒数；只拿到白名单上的变量、`GIT_TERMINAL_PROMPT` 是 0；中文照原样；太长截成头尾、一共多少个字，尾巴从行首起的不多丢一行；参数不对、要放后台的不跑、写了 `description` 照跑；工作目录不在、`~` 开头的照家目录接；输出边跑边推、最后半个字换成 `�`；Unix：放到后台的在命令退出以后停了、叫停时整组停了、被信号杀掉 |
+| `crates/miyu-basesystem/tests/shell.rs` | 说明里写的是这台机器的 shell、换过字段、不报路径；在工作目录里跑；标准错误合进来、照先后；退出码；没有输出；超时整组杀、说法的秒数；只拿到白名单上的变量、`GIT_TERMINAL_PROMPT` 是 0；中文照原样；太长截成头尾、一共多少个字，尾巴从行首起的不多丢一行；参数不对、要放后台的不跑、没写 `description` 参数不对；工作目录不在、`~` 开头的照家目录接；输出边跑边推、最后半个字换成 `�`；Unix：放到后台的在命令退出以后停了、叫停时整组停了、被信号杀掉 |
 | `crates/miyu-basesystem/src/shell/tests.rs` | 超时的上下限；秒数怎么写；参数格式里写的上限、默认值和代码一样；每一段以换行结尾 |
 | `crates/miyu-basesystem/src/shell/output/tests.rs` | 数行、数字；`\r\n`；内存只留头尾；截在行尾；中间丢过的照样数；一整行很长的照字数截；正好 30000 个字的整段给；切开的字等配齐；离截处太远的换行不用 |
 | `crates/miyu-basesystem/src/shell/program/tests.rs` | 各系统用哪个 shell、找不到时用什么；名字带版本；不读启动文件、只带给的变量；zsh 带 `+o nomatch`、没匹配到的通配符原样传下去（macOS）；PowerShell 的编码和前面那一句 |
@@ -215,7 +216,7 @@ Exit code 2
 
 ### 还没有的
 
-- 后台命令、`run_in_background`、`description`、查看和停掉后台任务的 `jobs`：随 M7（`10-自带软件.md` 第三节）。
+- 后台命令、`run_in_background`、查看和停掉后台任务的 `jobs`：随 M7（`10-自带软件.md` 第三节）。
 - 沙盒：命令现在以本人的身份直接跑，碰得到任何地方；只读时每条都问人（`11-权限与沙盒.md` 第二节、第六节，M5）。放行规则照命令开头记，也随 M5（第二节）。
 - Windows 上改用 Git Bash 的配置（`10-自带软件.md` 第八节）。
 - 环境变量的名单是策略数据，配置那一步能改（`11-权限与沙盒.md` 第四节）：现在写在代码里。

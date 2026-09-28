@@ -63,6 +63,7 @@ The tool "{name}" stopped because of an internal error. It may have been partly 
 - 路径都是换成真实位置以后的，写成字；不是 UTF-8 的地方换成 `�`。
 - 存不成的（磁盘满了之类）：照样算出哈希记下，记一行 `WARN` `effect content not stored`（`error`）。撤销时发现 blob 没有，这一步记 `unsaved`（第 4 条）。
 - 先落 blob，再写引用它的事件（`store.md`）。
+- 工具交回的图片（施工 4-13）：同一个阻塞线程里存成属主的 blob，换成图片块（`blob`、`media_type`、`width`、`height`），照先后接在内容块后面。存不成的：这次调用照崩了算（第 7 条），记一行 `ERROR` `image not stored`（`error`）：少了字节的图，以后每次请求都发不出去。
 
 **3. 她看过的**
 

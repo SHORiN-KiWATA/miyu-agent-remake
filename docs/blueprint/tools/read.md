@@ -2,7 +2,7 @@
 
 ### 是什么
 
-读一份文本文件，按行分页、带行号；读到目录时照名字列出里面的每一项，一样分页。读到文本文件、二进制文件时报 `file.read`：读了第几行到第几行、整份文件的内容哈希，写的工具改之前照它核对。
+读一份文本文件，按行分页、带行号；读到图片（PNG、JPEG、GIF、WebP）时交回图片本身（施工 4-13）；读到目录时照名字列出里面的每一项，一样分页。读到文本文件、图片、二进制文件时报 `file.read`：读了第几行到第几行、整份文件的内容哈希，写的工具改之前照它核对。
 
 ### 在哪
 
@@ -11,6 +11,7 @@
 | `crates/miyu-basesystem/src/read.rs` | 参数、要碰的路径、读文件还是列目录、结果和效果 |
 | `crates/miyu-basesystem/src/read/lines.rs` | 按行读：编码、二进制、分页、行号、截长行、整份的哈希 |
 | `crates/miyu-basesystem/src/read/dir.rs` | 列目录 |
+| `crates/miyu-basesystem/src/read/image.rs` | 认图片、量宽高、上限（施工 4-13） |
 | `crates/miyu-basesystem/src/common.rs` | 几件共用的几句：没有这个文件、读的时候出错、参数不对 |
 | `crates/miyu-basesystem/src/common/shown.rs`、`similar.rs` | 路径怎么写给她看；相近的名字 |
 | `crates/miyu-basesystem/src/load.rs` | 从资源目录读说明、参数格式和几句字 |
@@ -22,11 +23,11 @@
 
 访问类别 `read`。说明和参数的原文如下。
 
-样本 `resources/software/basesystem/tools/read.json`：
+改成（施工 4-13 合进来时标成样本 `resources/software/basesystem/tools/read.json`）：
 
 ```json
 {
-  "description": "Read a text file, or list a directory. Lines come back in cat -n format, numbered from 1, up to 2000 at a time. Prefer this over `cat` in the shell: files read here come back after compaction.",
+  "description": "Read a text file or an image (PNG, JPEG, GIF, WebP), or list a directory. Lines come back in cat -n format, numbered from 1, up to 2000 at a time. Prefer this over `cat` in the shell: files read here come back after compaction.",
   "parameters": {"type":"object","properties":{"file_path":{"type":"string","description":"Absolute, or relative to the working directory."},"offset":{"type":"integer","description":"The line number to start reading from, counting from 1."},"limit":{"type":"integer","description":"The number of lines to read. Default 2000."}},"required":["file_path"]}
 }
 ```
@@ -52,7 +53,7 @@
    - 没有：没有这个文件，带上相近的名字（第 9 条）。
    - 不是普通文件、也不是目录（FIFO、设备、套接字这类）：说一句，出错。
    - 别的错（例如没有权限）：读的时候出错了，系统的原话。
-4. 认编码，看前 8 KiB（8192 字节）：
+4. 开头的字节是图片的，走下面的「读图片」；别的认编码，看前 8 KiB（8192 字节）：
    1. 开头是 `FF FE` 或 `FE FF`：带 BOM 的 UTF-16（小端、大端）。整份读进来再解；BOM 不显示；解不开的换成 `�`；落单的最后一个字节不算。
    2. 别的，前 8 KiB 里有 NUL 字节：二进制文件，不读内容，出错；照样过一遍整份算哈希，报 `file.read`，没有 `lines`（施工 4-9 再补二）：她知道它在、是二进制，`write` 盖它之前照它核对（`tools/write.md`）。
    3. 别的当 UTF-8：开头的 BOM（`EF BB BF`）不显示；每一行里解不开的字节换成 `�`。边读边分行，不把整份读进内存。
@@ -118,6 +119,17 @@ Did you mean "notes.txt"?
 | 目录没列完 | `read/more-entries.txt` | `(Showing entries {from}-{to} of {total}. Use offset={next} to continue.)` |
 | 目录过了结尾 | `read/past-end-entries.txt` | `(The directory has {total} entries; offset {offset} is past the end.)` |
 
+**读图片**（施工 4-13）
+
+1. 认格式，看开头的字节，不看扩展名：PNG（`89 50 4E 47 0D 0A 1A 0A`）、JPEG（`FF D8 FF`）、GIF（`GIF87a`、`GIF89a`）、WebP（`RIFF`，第 9 到 12 个字节是 `WEBP`）。这四种是 DeepSeek 收的；别的图（BMP、TIFF、HEIC）照旧当二进制。
+2. 文件大过 5 MiB（5,242,880 字节）的：不读内容，出错，图的文件太大（「出错」），`size` 写成 MiB、一位小数，例如 `7.3 MiB`。
+3. 整份读进来，量宽高（`imagesize`，只看文件头，不解码）。量不出的当二进制。
+4. 宽或者高大过 8000 像素的：出错，图的边太长。
+5. 不然交回一张图片：字节、媒体类型（`image/png`、`image/jpeg`、`image/gif`、`image/webp`）、宽高（`tools/interface.md`「工具交回的」），执行器存成 blob、换成图片块。不另写字：驱动在这条结果里写现成的那一句，把图挪到后面一条 `user` 消息里（`drivers/openai-chat.md` 第 7 条）。说法 `read/image`。
+6. 第 2 到第 5 款都报 `file.read`：整份文件的哈希，没有 `lines`。`offset`、`limit` 不管。
+- 上限取几家接口里最严的：Anthropic 每边 8000 像素、5 MB，DeepSeek 每边 8192 像素、32 MiB。图跟着对话每次都发出去，一张被供应商拒掉的图会让这个会话以后的请求都失败，所以读的时候就拦下。
+- 不自己缩图：要解码、再编码，库大；她能用命令缩。
+
 ### 出错
 
 出错的结果都标成出错，不报效果。
@@ -129,6 +141,8 @@ Did you mean "notes.txt"?
 | 没有这个文件或目录 | `There is no file or directory at "{path}".`（`common/missing.txt`），后面一个相近的名字一行 `Did you mean "{path}"?`（`common/similar.txt`） | `common/missing`，字段 `path`；有相近名字的是 `common/missing-similar`，字段 `path`、`similar`（第一个） |
 | 不是普通文件，也不是目录 | `"{path}" is not a regular file or a directory.`（`read/not-a-file.txt`） | `read/not-a-file`，字段 `path` |
 | 二进制文件 | `"{path}" is a binary file.`（`read/binary.txt`） | `read/binary`，字段 `path` |
+| 图的文件太大 | `"{path}" is {size}, too large to view. Images must be at most 5 MiB. Make a smaller copy with a command and read that.`（`read/image-too-big.txt`） | `read/image-too-big`，字段 `path`、`size` |
+| 图的边太长 | `"{path}" is {width}×{height} pixels, too large to view. Images must be at most 8000 pixels on each side. Make a smaller copy with a command and read that.`（`read/image-too-wide.txt`） | `read/image-too-wide`，字段 `path`、`width`、`height` |
 
 - 参数不对的 `{error}` 是 JSON 解析的原话，例如 ``missing field `file_path` at line 1 column 12``。
 - 读的时候出错的 `{error}`：换不成的那几句见 `fs.md`「出错」，别的是系统的原话。
@@ -148,6 +162,9 @@ Did you mean "notes.txt"?
 | `read/past-end-entries`（`total`、`offset`） | 目录过了结尾 | `过了结尾，一共 {total} 项` | `past the end, {total} entries` |
 | `read/not-a-file`（`path`） | 不是普通文件，也不是目录 | 不是普通文件，也不是目录 | not a regular file or directory |
 | `read/binary`（`path`） | 二进制 | 是二进制文件，没读 | binary file, not read |
+| `read/image`（`width`、`height`） | 读了一张图 | `图片 {width}×{height}` | `image {width}×{height}` |
+| `read/image-too-big`（`path`、`size`） | 图的文件太大 | `图太大（{size}），没读` | `image too large ({size}), not read` |
+| `read/image-too-wide`（`path`、`width`、`height`） | 图的边太长 | `图太大（{width}×{height}），没读` | `image too large ({width}×{height}), not read` |
 | `common/missing`（`path`） | 没有 | 没有这个文件 | no such file |
 | `common/missing-similar`（`path`、`similar`） | 没有，有相近的 | `没有这个文件，是不是 {similar}` | `no such file, did you mean {similar}` |
 | `common/failed`（`path`、`error`） | 读的时候出错 | `读不了：{error}` | `can't read it: {error}` |
@@ -182,6 +199,7 @@ Did you mean "notes.txt"?
 
 ### 还没有的
 
-- 读图片、PDF：等配置里能接看图模型的那一步（`10-自带软件.md` 第三节表、B11）。
+- 读 PDF：DeepSeek 不收 PDF，另算（`10-自带软件.md` B11）。
+- 模型看不了图时，由配置里的看图模型替它看（替看图，`10-自带软件.md` 第三节末尾）：以后。
 - 说明里说读过的文件压缩以后会读回来：压缩随 M6（`09-压缩.md` 第四节「压后重建」），现在还没有。
 - 读技能正文时登记「用过哪个技能」（`10-自带软件.md` 第三节说明、`09-压缩.md` 第四节）。
