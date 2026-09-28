@@ -45,7 +45,7 @@
 
 被接受的：标准输出上一行行印，标准错误上什么都不印。
 
-样本 `undo-text`（撤销，中文）：
+样本 `docs/designs/samples/cli/undo-text.txt`（撤销，中文）：
 
 ```text
 · 撤销「把 README 改成中文」这一轮

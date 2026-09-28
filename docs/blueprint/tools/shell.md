@@ -20,7 +20,9 @@
 
 ### 对外的样子
 
-访问类别 `execute`。`resources/software/basesystem/tools/shell.json` 原文：
+访问类别 `execute`。说明和参数的原文如下。
+
+样本 `resources/software/basesystem/tools/shell.json`：
 
 ```json
 {

@@ -174,7 +174,7 @@
 
 ### 样子
 
-样本（照 `crates/miyu-log/src/layer/tests.rs`、`crates/miyu-session/tests/log.rs` 的写法，编号、时刻、数是举的例子）：
+例子（照 `crates/miyu-log/src/layer/tests.rs`、`crates/miyu-session/tests/log.rs` 的写法，编号、时刻、数是编的）：
 
 ```text
 2026-09-27 21:03:15.284 INFO  core     starting version=0.0.0 pid=4242 root=~/.miyu tz=+09:00

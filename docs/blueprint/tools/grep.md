@@ -19,7 +19,9 @@
 
 ### 对外的样子
 
-访问类别 `read`。`resources/software/basesystem/tools/grep.json` 原文：
+访问类别 `read`。说明和参数的原文如下。
+
+样本 `resources/software/basesystem/tools/grep.json`：
 
 ```json
 {
