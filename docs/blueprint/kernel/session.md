@@ -39,7 +39,7 @@
 |---|---|---|
 | `Command(Received)` | `id` 命令编号、`by` 谁发的（取自连接）、`at` 到的时刻、`command` | 「命令和回应」 |
 | `Stored { upto }` | 落了盘的最后一条的序号 | 「命令和回应」第 8 条 |
-| `Environment(Environment)` | `offset` 时区、`cwd` 工作目录（头报的、人看到的写法） | 换掉会话的环境，什么都不出；下一个边界才用 |
+| `Environment(Environment)` | `offset` 时区、`cwd` 工作目录（头报的、人看到的写法）、`dirs` 加进来的目录（施工 5-10 上） | 换掉会话的环境，什么都不出；下一个边界才用 |
 | `TurnStartHooksDone { at, turn, injected }` | 哪个回合；各模块的注入 `Injection { module, fact }`，照固定的先后 | 「回合」第 4 条 |
 | `RequestSent { at, seen, model, request }` | 哪次请求；发给了哪个端点的哪个模型（`Model { endpoint, model }`）；驱动编码以后的请求字节的哈希 | 「收回复」 |
 | `ModelDelta { at, seen, delta }` | 一段增量：`Start { index, kind }`、`Text { index, text }`、`Private { index, private }`、`End { index }` | 「收回复」 |
@@ -74,8 +74,8 @@
 | `CallModel { seen, request, changed }` | 看到第几条（也是这次请求的名字）、统一的请求、和上一次比第一处不同 | 交给驱动发出去；送回 `RequestSent`、`ModelDelta`、`ModelEnded` |
 | `CancelModel { seen }` | 哪次请求 | 掐掉，不送回；之后到的不理 |
 | `Wake { at, seen }` | 什么时候、为哪次请求 | 到点送回 `Woke` |
-| `GuardTool { call_id, name, args, cwd, permission }` | 修正过的参数、这一轮的工作目录、实际生效的那一级 | 过执行前的链，送回 `ToolGuarded`（`asking.md`） |
-| `RunTool { call_id, name, args, cwd, permission }` | 修正过的参数、这一轮的工作目录、派出去那一刻实际生效的那一级（施工 5-4 上：执行器照它写沙盒的规格） | 跑；送回 `ToolProgress`、`ToolAsks`、`ToolDone` |
+| `GuardTool { call_id, name, args, cwd, dirs, permission }` | 修正过的参数、这一轮的工作目录和加进来的目录、实际生效的那一级 | 过执行前的链，送回 `ToolGuarded`（`asking.md`） |
+| `RunTool { call_id, name, args, cwd, dirs, permission }` | 修正过的参数、这一轮的工作目录和加进来的目录（施工 5-10 上）、派出去那一刻实际生效的那一级（施工 5-4 上：执行器照它写沙盒的规格） | 跑；送回 `ToolProgress`、`ToolAsks`、`ToolDone` |
 | `AnswerTool { call_id, answers }` | 人的回答 | 交给在等的调用（`asking.md`） |
 | `CancelTool { call_id }` | 哪次调用 | 掐掉，不送回；之后到的不理 |
 | `StopTool { call_id }` | 哪次改文件的调用 | 叫它停：停在改之前，或者做完；照常送回 `ToolDone`，停在改之前的带 `stopped`（「打断」第 7 条） |
@@ -143,7 +143,7 @@
 | `Settling` | 只在处理一条输入的当中出现，什么输入都不收 | 结束、`Tools`，或者 `Waiting` |
 | `Tools(这一步)` | 这一步的调用都有了结果 | `Ready`，或者结束 |
 
-1. **开回合**：追加 `turn.started`（`trigger` 是触发它的那条，`cwd` 是会话现在的环境里的工作目录（施工 4-9 再补三上），`by` 是内核，`cause` 是触发它的那条的 `cause`），紧跟着环境、权限两块事实里变了的。这时实际生效的权限换成现在的（空闲时放宽的，这时生效）；这一轮的工作目录取会话现在的环境，这一轮里不变。
+1. **开回合**：追加 `turn.started`（`trigger` 是触发它的那条，`cwd` 是会话现在的环境里的工作目录（施工 4-9 再补三上），`dirs` 是加进来的目录，没有就不写（施工 5-10 上），`by` 是内核，`cause` 是触发它的那条的 `cause`），紧跟着环境、权限两块事实里变了的。这时实际生效的权限换成现在的（空闲时放宽的，这时生效）；这一轮的工作目录、加进来的目录取会话现在的环境，这一轮里不变。
 2. **事实**：环境一块（`kind` 是 `env`：这一刻到小时、时区、工作目录）、权限一块（`permission`：实际生效的那一级），`by` 是内核。和有效历史里内核记的同一类最近一块逐字节一样的，不追加。写法、比法见 `kernel/request.md`「事实」。
 3. 开头那一批落了盘，出 `RunTurnStartHooks`，一个回合一次。
 4. **挂接点跑完了**：回合对得上、正在等挂接点的才收；别的（打断以后迟到的、第二次来的、别的回合的、空闲时来的）不理。注入照交回来的先后追加成 `context.injected`，`by` 是各自的模块，`cause` 是回合的；这一轮里切过权限级别的，再查一遍事实（「切权限级别」第 6 条）。
