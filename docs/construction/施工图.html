@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>77</b><span>/ 80 步<strong>已完成</strong>，补蓝图时查出的问题修完了</span></li>
-    <li><b>4-9</b><span>下一步：门禁（三补），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">f2402f7</b><span>最近一步（4-9 再补四下）的提交</span></li>
+    <li><b>78</b><span>/ 80 步<strong>已完成</strong>，门禁看住了给模型的字和蓝图里的样本</span></li>
+    <li><b>4-9</b><span>下一步：设计文档只留为什么（四补），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">6ae86c1</b><span>最近一步（4-9 三补）的提交</span></li>
   </ul>
 </header>
 
@@ -414,7 +414,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-9g"><span class="n">4-9</span>命令行、运行日志（再补四上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9h"><span class="n">4-9</span>出错说英文（再补四中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9i"><span class="n">4-9</span>权限策略、造会话、注释（再补四下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-9</span>蓝图的门禁（三补）</span></li>
+        <li><a class="step done" href="#s4-9j"><span class="n">4-9</span>蓝图的门禁（三补）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-9</span>设计文档只留为什么（四补）</span></li>
         <li><span class="step"><span class="n">4-10</span>M4 验收</span></li>
       </ol>
@@ -6219,6 +6219,74 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图：<code>session/guard.md</code>、<code>session/actor.md</code>、<code>kernel/request.md</code>；设计 <code>26-提示词.md</code> 登记簿；样本 <code>tool.approval_requested.jsonl</code>。</li>
         <li><code>docs/construction/4-9-权限策略、造会话、注释（再补四下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s4-9j" aria-labelledby="h-s49j">
+  <div class="sheet-head"><h2 id="h-s49j"><span class="no">4-9</span>蓝图的门禁（三补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">补完蓝图时留下两件要写代码的：给模型看的字没有一页汇总，要看得一份份打开资源文件；蓝图说「标着样本的块逐字节比对」，还没做进门禁，工具说明的原文、两段终端样本改了一边另一边不会红。这一步两件都做进门禁的「文档」那一项。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">给模型看的字</span><span class="dir-note">docs/blueprint/prompts.md</span></div>
+            <ol class="pipe" aria-label="汇总页怎么来的">
+              <li>登记簿（26 第十节）：每一份进到哪、什么时候、多少 token、为什么、指纹</li>
+              <li>resources/：每一份的原文</li>
+              <li>cargo xtask prompts：按进到哪分组，写成一页，原文放进围栏</li>
+              <li>cargo xtask check：重算一遍，和仓库里的不一样就红，说要重新生成</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">蓝图里的样本块</span><span class="dir-note">逐字节比</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">工具说明</span><span class="rl">七页的原文块指到 resources/software/basesystem/tools/*.json</span></div>
+              <div class="tile new"><span class="nm">终端样本</span><span class="rl">ask-text、undo-text 放进 docs/designs/samples/cli/，测试照场景造出来比</span></div>
+              <div class="tile new"><span class="nm">例子</span><span class="rl">运行日志那一段时刻、编号是编的：叫例子，不比</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">样本的写法</span><span class="rl">块前一行以「样本 `路径`」开头；块里的字加一个换行，就是那份文件的全部字节</span></div>
+          <div class="tile new"><span class="nm">汇总页是生成的</span><span class="rl">别手改；改了给模型的字，跑 cargo xtask prompts</span></div>
+          <div class="tile"><span class="nm">不做什么</span><span class="rl">设计里引的原文随 4-9（四补）去掉；给人看的字不汇总</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-9（三补）</dd></div>
+        <div><dt>名称</dt><dd>门禁</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">6ae86c1</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>xtask</code>：新 <code>prompts.rs</code>（生成、检查汇总页）、<code>samples.rs</code>（比样本块）；<code>cargo xtask prompts</code>。</li>
+        <li><code>miyu-cli</code>：两段终端样本的测试。</li>
+        <li>蓝图：新页 <code>prompts.md</code>；README 的样本规矩；工具七页、命令行两页、运行日志一页。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 10 处，10 处有测试变红</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图：<code>prompts.md</code>（生成的）、<code>README.md</code> 第三节、<code>tools/</code> 七页、<code>cli/ask.md</code>、<code>cli/undo.md</code>、<code>log.md</code>。</li>
+        <li><code>docs/construction/4-9-门禁（三补）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
