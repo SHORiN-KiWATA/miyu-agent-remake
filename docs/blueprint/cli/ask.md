@@ -257,6 +257,7 @@ todo.md
   -c, --continue          接着上一次 miyu ask 开的会话说
   -s, --session <编号>    接着这个会话说
       --format text|json  text 给人看（默认），json 给脚本
+      --add-dir <目录>    多放行一个目录，她能读能写，可以写好几次
   -h, --help              印帮助
 ```
 
@@ -271,6 +272,7 @@ Options:
   -c, --continue          Go on in the session the last miyu ask opened
   -s, --session <id>      Go on in this session
       --format text|json  text for people (default), json for scripts
+      --add-dir <dir>     Let her read and write this directory too; repeatable
   -h, --help              Print help
 ```
 
@@ -286,8 +288,8 @@ Options:
 | `crates/miyu-cli/src/ask/steps/tests.rs` | 每一步的标题：符号、显示名、参数的值、结果那一句、颜色；没有显示名的写 `⚙` |
 | `crates/miyu-cli/src/ask/steps/blocks/tests.rs` | 执行命令那一块：几行的命令、工具自己写的才印、控制序列去掉、红的 `$`；编辑那一块：`-`、`+`、两处之间的 `…`、读不出的那一处不印、不是 `ok` 的不印 |
 | `crates/miyu-cli/src/ask/usage/tests.rs` | 用量加法、命中率、三位一撇 |
-| `crates/miyu-cli/src/ask/tests.rs` | 几个词用空格连起来；给人看的字照界面语言读，读不出来的当没有 |
-| `crates/miyu-cli/tests/ask.rs` | 真的核心：开一次性会话、`--continue`、没有会话可接、被拒绝、没有模型、Ctrl+C 一次和两次 |
+| `crates/miyu-cli/src/ask/tests.rs` | 几个词用空格连起来；给人看的字照界面语言读，读不出来的当没有；加进来的目录照写的先后、去掉重复的；相对的接成绝对的，不是目录的读不成（施工 5-10 上） |
+| `crates/miyu-cli/tests/ask.rs` | 真的核心：开一次性会话、`--continue`、没有会话可接、被拒绝、没有模型、Ctrl+C 一次和两次；加进来的目录跟着每一次 `miyu ask`：`--continue` 不写的那一轮就没有，太宽的造会话时就被拒、不留空会话（施工 5-10 上） |
 | `crates/miyu-cli/tests/steps.rs` | 真的核心、真的工具走一遍：每一步、执行命令和编辑那两块、目录太宽、给脚本的只看退出码。要确认的一步是写到工作区外面（施工 5-4 上起读哪儿都不问）；执行命令经 cargo 编出来的助手在沙盒里跑 |
 | `crates/miyu-cli/src/shown/tests.rs` | 原色的段不带控制序列，上过色的行尾回到原色 |
 | `crates/miyu/tests/ask.rs` | 真跑主程序：没有 key、核心没在跑的不拉起，退出码 5；核心在跑的照样连；参数不对退出码 2；`-h` 印帮助页，跟着界面语言 |

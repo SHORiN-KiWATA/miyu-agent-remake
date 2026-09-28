@@ -76,6 +76,11 @@ impl Refusal {
         code: REFUSED,
         reason: "session_broken",
     };
+    /// 加进来的目录太宽（施工 5-10 上）：家目录、根目录、包含数据根的、落在数据根里的。
+    pub(crate) const DIR_TOO_WIDE: Refusal = Refusal {
+        code: REFUSED,
+        reason: "dir_too_wide",
+    };
 
     /// 内核拒了这个命令。
     pub(crate) fn kernel(reason: Reason) -> Refusal {
@@ -116,6 +121,10 @@ impl Refusal {
                 "This session cannot be loaded: its log or policy snapshot is broken.",
             ),
             "empty_message" => ("消息是空的。", "The message is empty."),
+            "dir_too_wide" => (
+                "加进来的目录太宽：家目录、根目录、Miyu 的数据根不能整个放行。",
+                "An added directory is too wide: the home directory, the root and Miyu's data root cannot be opened up whole.",
+            ),
             "not_running" => (
                 "没有正在进行的回合，打断不了。",
                 "No turn is running, so there is nothing to interrupt.",

@@ -235,7 +235,7 @@
 
 **加进来的目录**（施工 5-10 上）
 
-`session.create`、`session.send` 报来的 `dirs`，每一条照「工作目录太宽」的第 1 到 3 条判：是 `~`，或者换成真实的位置以后是系统的家目录、根目录、包含数据根、落在数据根里的，太宽。有一条太宽，整条命令都不收，回 `dir_too_wide`（`data.dir` 是那一条的原样），什么都没写。不太宽的照报的原样用；换不成真实位置的也照原样，边界表里那一片不算（`session/guard.md`）。
+`session.create`、`session.send` 报来的 `dirs`，每一条照「工作目录太宽」的第 1 到 3 条判：是 `~`，或者换成真实的位置以后是系统的家目录、根目录、包含数据根、落在数据根里的，太宽。有一条太宽，整条命令都不收，回 `dir_too_wide`，什么都没写：说的话照拒绝的规矩是固定的一句，不带是哪一条，头知道自己报了哪几条。不太宽的照报的原样用；换不成真实位置的也照原样，边界表里那一片不算（`session/guard.md`）。
 
 **空闲和停下**
 
@@ -315,6 +315,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `session_stopped` | 这个会话停了，详情在运行日志里；再发一次会重新载入。 | This session has stopped; the runtime log has the details. Sending again reloads it. |
 | `session_broken` | 这个会话载入不了：它的日志或者策略快照坏了。 | This session cannot be loaded: its log or policy snapshot is broken. |
 | `empty_message` | 消息是空的。 | The message is empty. |
+| `dir_too_wide` | 加进来的目录太宽：家目录、根目录、Miyu 的数据根不能整个放行。 | An added directory is too wide: the home directory, the root and Miyu's data root cannot be opened up whole. |
 | `not_running` | 没有正在进行的回合，打断不了。 | No turn is running, so there is nothing to interrupt. |
 | `turn_running` | 有回合在进行，撤销不了：先打断再撤。 | A turn is running; interrupt it before undoing. |
 | `unknown_turn` | 没有这一轮，或者它已经撤掉了。 | There is no such turn, or it has already been undone. |
@@ -336,6 +337,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/list.rs` | 从新到旧、只要一次性的、`limit`、参数不对、空的 |
 | `crates/miyu-endpoint/tests/revert.rs` | 协议上撤销、恢复；三种拒绝的中文；`turn` 写 0 |
 | `crates/miyu-endpoint/tests/workspace.rs` | 太宽的五种（`~`、家目录、根目录、数据根、数据根里面）和读不出家目录时的 `~`；项目目录、账号的工作区照旧；回应里的 `cwd`、重发的造会话 |
+| `crates/miyu-endpoint/tests/dirs.rs` | 加进来的目录（施工 5-10 上）：造会话、说话时报的记进这一轮，不写的照旧、写空的就没有；太宽的五种整条命令都不收、什么都没写；核心重启以后照最后一轮的 |
 | `crates/miyu-endpoint/tests/idle.rs` | 连着连接、跑着回合不空闲；停下全部会话，跑到一半的记成重启了 |
 | `crates/miyu-endpoint/tests/tools.rs` | 造会话、载入时用核心的工具目录；核心的沙盒造会话、载入时都交给会话，沙盒用不了的核心上执行命令没人能确认就拒（施工 5-4 上） |
 | `crates/miyu-endpoint/tests/socket.rs` | 真的套接字（Windows 上是命名管道）上握手、造会话、说话，第二个头也连得上 |

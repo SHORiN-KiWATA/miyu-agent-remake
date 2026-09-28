@@ -167,3 +167,17 @@ fn nested_commands_have_their_own_sentences() {
         "There is no sandboxx command. To talk to her, use miyu ask \"…\""
     );
 }
+
+/// `--add-dir` 后面不是一个已经有的目录（施工 5-10 上）：照写的原样说是哪一个。
+#[test]
+fn an_added_dir_that_is_not_there_has_its_sentence() {
+    let args = ["ask", "--add-dir", "no-such-dir-for-miyu-cli-tests", "hi"];
+    assert_eq!(
+        said(&args, Language::Chinese),
+        "--add-dir 后面要写一个已经有的目录：no-such-dir-for-miyu-cli-tests"
+    );
+    assert_eq!(
+        said(&args, Language::English),
+        "--add-dir needs an existing directory: no-such-dir-for-miyu-cli-tests"
+    );
+}

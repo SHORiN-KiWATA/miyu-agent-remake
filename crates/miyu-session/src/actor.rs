@@ -27,7 +27,7 @@ use crate::kinds;
 use crate::lines::retrying;
 use crate::port::{Back, ModelPort, Report};
 use crate::store::Store;
-use crate::tools::{ToolKit, Tools};
+use crate::tools::{Dispatch, ToolKit, Tools};
 
 mod model;
 
@@ -283,12 +283,14 @@ impl Actor {
                 name,
                 args,
                 cwd,
+                dirs,
                 permission,
             } => {
                 // 判要碰磁盘（换真实的位置、造边界表）：在阻塞线程里判，不占跑异步任务的线程，慢盘上只让这个会话
                 // 自己等（施工 4-9 再补四下：原来当场在这里判）。
                 let guard = Arc::clone(&self.guard);
-                let verdict = blocking(move || guard.judge(&name, args, cwd, &permission)).await;
+                let verdict =
+                    blocking(move || guard.judge(&name, args, cwd, &dirs, &permission)).await;
                 Some(Input::ToolGuarded {
                     at: self.clock.now(),
                     call_id,
@@ -300,10 +302,21 @@ impl Actor {
                 name,
                 args,
                 cwd,
+                dirs,
                 permission,
             } => {
                 let at = self.clock.now();
-                self.tools.run(at, call_id, name, args, cwd, permission)
+                self.tools.run(
+                    at,
+                    Dispatch {
+                        call_id,
+                        name,
+                        args,
+                        cwd,
+                        dirs,
+                        permission,
+                    },
+                )
             }
             // 叫它停（施工 4-9 再补一）：只举旗，工具交回来照常送回。
             Action::StopTool { call_id } => {

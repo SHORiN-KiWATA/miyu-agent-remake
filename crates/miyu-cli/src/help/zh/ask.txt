@@ -6,4 +6,5 @@
   -c, --continue          接着上一次 miyu ask 开的会话说
   -s, --session <编号>    接着这个会话说
       --format text|json  text 给人看（默认），json 给脚本
+      --add-dir <目录>    多放行一个目录，她能读能写，可以写好几次
   -h, --help              印帮助

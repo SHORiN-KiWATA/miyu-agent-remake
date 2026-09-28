@@ -73,6 +73,26 @@ pub struct Ask {
     /// 输出的格式。
     #[arg(long, value_enum, default_value_t = Format::Text)]
     pub format: Format,
+    /// 加进来的目录：和工作区一样能读能写，可以写好几次（施工 5-10 上）。读参数时就换成绝对的、查它是目录。
+    #[arg(long = "add-dir", value_name = "DIR", value_parser = directory)]
+    pub add_dir: Vec<PathBuf>,
+}
+
+/// `--add-dir` 的值：相对的照敲命令时的目录接成绝对的；要是一个已经有的目录，不然照「参数写错时」说。
+fn directory(value: &str) -> Result<PathBuf, String> {
+    let path = PathBuf::from(value);
+    let path = if path.is_absolute() {
+        path
+    } else {
+        std::env::current_dir()
+            .map_err(|error| error.to_string())?
+            .join(path)
+    };
+    if path.is_dir() {
+        Ok(path)
+    } else {
+        Err("not a directory".to_string())
+    }
 }
 
 /// 输出的格式。
@@ -106,6 +126,8 @@ pub struct Plan {
     pub format: Format,
     /// 工作目录：会话的环境跟着它。
     pub cwd: String,
+    /// 加进来的目录，绝对路径，照写的先后、去掉重复的（施工 5-10 上）：造会话、说话都带着，没有的也写空的。
+    pub dirs: Vec<String>,
     /// 界面语言。
     pub language: Language,
     /// 给人看的字，照界面语言读的那一份：她做的每一步怎么写（施工 4-5 下）。
@@ -194,10 +216,23 @@ fn plan(args: Ask, env: &Env, language: Language) -> Plan {
         format: args.format,
         cwd: std::env::current_dir()
             .map_or_else(|_| ".".to_string(), |dir| dir.display().to_string()),
+        dirs: added(&args.add_dir),
         language,
         human: human(env, &language),
         home: env.home.clone(),
     }
+}
+
+/// 加进来的目录写成字：照写的先后，去掉重复的。
+fn added(dirs: &[PathBuf]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for dir in dirs {
+        let dir = dir.to_string_lossy().into_owned();
+        if !out.contains(&dir) {
+            out.push(dir);
+        }
+    }
+    out
 }
 
 /// 给人看的字：照界面语言从资源目录读一份。读不出来的当没有，每一步照状态写最泛的一句（施工 4-5 下）。

@@ -1,14 +1,14 @@
 //! 边界表（`11-权限与沙盒.md` 第四节，施工 4-3 上）：一个真实的位置落在哪一片。
 //!
-//! 几片重叠时照这个先后，先对上的算：工作区（里面会在沙盒外被执行的那几样只能读）、数据根、临时目录、
-//! 系统和工具链目录、边界以外。
+//! 几片重叠时照这个先后，先对上的算：工作区（里面会在沙盒外被执行的那几样只能读）、数据根、加进来的目录（照工作区
+//! 算，施工 5-10 上）、临时目录、系统和工具链目录、边界以外。
 
 use std::path::{Component, Path, PathBuf};
 
 /// 一个真实的位置落在哪一片。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Zone {
-    /// 能读能写：工作区、临时目录。
+    /// 能读能写：工作区、加进来的目录、临时目录。
     Writable,
     /// 只能读：系统目录、工具链目录，工作区里的 `.git/hooks`、`.git/config`。
     Readable,
@@ -23,6 +23,8 @@ pub enum Zone {
 pub struct Places {
     /// 这一轮的工作区。给之前先照 `11-权限与沙盒.md` 第四节挑过：太宽的已经退回了账号的工作区。
     pub workspace: PathBuf,
+    /// 这一轮加进来的目录，每一个都照工作区算（施工 5-10 上）。太宽的，协议端点已经拒绝了。
+    pub dirs: Vec<PathBuf>,
     /// Miyu 的数据根。
     pub data_root: PathBuf,
     /// 临时目录。
@@ -72,6 +74,7 @@ impl Places {
         }
         Places {
             workspace,
+            dirs: Vec::new(),
             data_root,
             temp: std::env::temp_dir(),
             readable,
@@ -100,6 +103,7 @@ fn system_dirs() -> Vec<PathBuf> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Boundary {
     workspace: Option<PathBuf>,
+    dirs: Vec<PathBuf>,
     data_root: Option<PathBuf>,
     temp: Option<PathBuf>,
     readable: Vec<PathBuf>,
@@ -110,6 +114,7 @@ impl Boundary {
     pub fn new(places: &Places) -> Boundary {
         Boundary {
             workspace: real(&places.workspace),
+            dirs: places.dirs.iter().filter_map(|dir| real(dir)).collect(),
             data_root: real(&places.data_root),
             temp: real(&places.temp),
             readable: places.readable.iter().filter_map(|dir| real(dir)).collect(),
@@ -121,11 +126,7 @@ impl Boundary {
         if let Some(workspace) = &self.workspace
             && let Ok(inside) = path.strip_prefix(workspace)
         {
-            return if runs_outside(inside) {
-                Zone::Readable
-            } else {
-                Zone::Writable
-            };
+            return like_workspace(inside);
         }
         if self
             .data_root
@@ -133,6 +134,10 @@ impl Boundary {
             .is_some_and(|root| within(path, root))
         {
             return Zone::Forbidden;
+        }
+        // 加进来的目录排在数据根后面：落进了数据根的（报来以后被换成了链接），数据根照样谁都不能碰。
+        if let Some(inside) = self.dirs.iter().find_map(|dir| path.strip_prefix(dir).ok()) {
+            return like_workspace(inside);
         }
         if self
             .temp
@@ -145,6 +150,15 @@ impl Boundary {
             return Zone::Readable;
         }
         Zone::Outside
+    }
+}
+
+/// 在工作区、加进来的目录里的这一段落在哪一片：会在沙盒外被执行的只能读，别的能读能写。
+fn like_workspace(inside: &Path) -> Zone {
+    if runs_outside(inside) {
+        Zone::Readable
+    } else {
+        Zone::Writable
     }
 }
 

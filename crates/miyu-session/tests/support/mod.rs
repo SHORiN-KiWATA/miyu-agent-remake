@@ -70,6 +70,8 @@ pub struct Opening {
     pub attended: bool,
     /// 工作目录。
     pub cwd: String,
+    /// 加进来的目录（施工 5-10 上）：和工作区一样能读能写。
+    pub dirs: Vec<String>,
     /// 沙盒的助手：有的当这台机器上的沙盒能用（施工 5-4 上）。假工具不起它，随便一条路径就行；真的起命令的用
     /// [`miyu_sandbox::testkit::built_helper`]。
     pub sandbox: Option<PathBuf>,
@@ -87,6 +89,7 @@ impl Default for Opening {
             },
             attended: true,
             cwd: environment().cwd,
+            dirs: Vec::new(),
             sandbox: None,
             sandbox_cache: None,
         }
@@ -162,6 +165,7 @@ impl Home {
             oneshot: false,
             environment: Environment {
                 cwd: opening.cwd,
+                dirs: opening.dirs,
                 ..environment()
             },
             command: id("cmd-0"),
@@ -291,6 +295,7 @@ pub fn environment() -> Environment {
     Environment {
         offset: UtcOffset::from_minutes(540).expect("东九区在范围里"),
         cwd: "~/src/miyu".to_string(),
+        dirs: Vec::new(),
     }
 }
 

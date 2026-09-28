@@ -407,6 +407,7 @@ fn environment() -> Environment {
     Environment {
         offset: UtcOffset::from_minutes(540).unwrap(),
         cwd: "~/src/miyu".to_string(),
+        dirs: Vec::new(),
     }
 }
 

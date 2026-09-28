@@ -64,6 +64,73 @@ fn a_workspace_moved_into_the_data_root_is_still_a_workspace() {
     assert_eq!(boundary.zone(&site.real("data/run/token")), Zone::Forbidden);
 }
 
+/// 加进来的目录（施工 5-10 上）：和工作区一样能读能写。
+#[test]
+fn an_added_dir_is_writable_like_the_workspace() {
+    let site = Site::new();
+    let boundary = Boundary::new(&Places {
+        dirs: vec![site.at("work-other")],
+        ..site.places()
+    });
+    assert_eq!(
+        boundary.zone(&site.real("work-other/x.txt")),
+        Zone::Writable
+    );
+    assert_eq!(boundary.zone(&site.real("work-other")), Zone::Writable);
+    assert_eq!(
+        boundary.zone(&site.real("home/notes.txt")),
+        Zone::Outside,
+        "别处照旧"
+    );
+}
+
+#[test]
+fn inside_an_added_dir_what_git_runs_outside_is_read_only() {
+    let site = Site::new();
+    let boundary = Boundary::new(&Places {
+        workspace: site.at("work-other"),
+        dirs: vec![site.at("work")],
+        ..site.places()
+    });
+    assert_eq!(boundary.zone(&site.real("work/src/a.rs")), Zone::Writable);
+    assert_eq!(
+        boundary.zone(&site.real("work/.git/hooks/pre-commit")),
+        Zone::Readable
+    );
+    assert_eq!(
+        boundary.zone(&site.real("work/.git/config")),
+        Zone::Readable
+    );
+}
+
+/// 加进来的目录落进了数据根（例如报来以后被换成了链接）：数据根照样谁都不能碰。
+#[test]
+fn the_data_root_wins_over_an_added_dir() {
+    let site = Site::new();
+    let boundary = Boundary::new(&Places {
+        dirs: vec![site.at("data"), site.at("data/home")],
+        ..site.places()
+    });
+    assert_eq!(boundary.zone(&site.real("data/run/token")), Zone::Forbidden);
+    assert_eq!(
+        boundary.zone(&site.real("data/home/admin/workspace/w.txt")),
+        Zone::Forbidden
+    );
+}
+
+#[test]
+fn an_added_dir_that_does_not_exist_is_left_out() {
+    let site = Site::new();
+    let boundary = Boundary::new(&Places {
+        dirs: vec![site.at("nowhere")],
+        ..site.places()
+    });
+    assert_eq!(
+        boundary.zone(&site.real("").join("nowhere/x.txt")),
+        Zone::Outside
+    );
+}
+
 #[test]
 fn temp_is_writable_system_and_toolchains_read_only_the_rest_outside() {
     let site = Site::new();

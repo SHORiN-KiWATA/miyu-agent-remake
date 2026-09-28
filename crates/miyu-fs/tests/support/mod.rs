@@ -89,6 +89,7 @@ impl Site {
     pub fn places(&self) -> Places {
         Places {
             workspace: self.at("work"),
+            dirs: Vec::new(),
             data_root: self.at("data"),
             temp: self.at("tmp"),
             readable: vec![self.at("sys"), self.at("home/.cargo")],

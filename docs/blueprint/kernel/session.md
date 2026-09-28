@@ -330,6 +330,7 @@
 | `crates/miyu-kernel/src/session/tests.rs` | 造会话落了盘才回应；消息落了盘才回应；空消息；同一个编号落盘前后再来；拒绝过的重新判；落盘到一半只回应落全了的；落盘超出追加过的；只记最近 1024 个 |
 | `crates/miyu-kernel/src/session/tests/idle.rs` | 有回合、`turn.ended` 没落盘都不算空闲（改回文件时不算空闲在 `session/tests/restore.rs`，`history.md`） |
 | `crates/miyu-kernel/src/session/tests/turn.rs` | 空闲时消息和回合的开头同一批；挂接点等开头落盘；挂接点跑完才请求；注入照交回的先后；中途的消息并进这一轮；挂接点跑的时候来的消息，落了盘才请求；对不上的挂接点结果不理；报的最后一个环境才注入 |
+| `crates/miyu-kernel/src/session/tests/dirs.rs` | 加进来的目录（施工 5-10 上）：`turn.started` 带着它、没有就不写这一格；判权限、派工具都带上；回合中途报来的下一轮才用 |
 | `crates/miyu-kernel/src/session/tests/reply.rs` | 一整轮；`model.called` 的每一格；下一轮只注入变了的；不再来的错结束回合、留半截；出错的半截里收全的调用也不留；等一会儿再来；没发出去的没有端点和用时；执行器违约按出错算；过时的回报不理；私有数据留在回复里不推；有工具调用的回合不结束 |
 | `crates/miyu-kernel/src/session/tests/difference.rs` | 只是接着加的没有第一处不同；改了 system 的是第一处不同 |
 | `crates/miyu-kernel/src/session/tests/tools.rs` | 一步跑完再请求；非只读的一个一个来；没有的工具、坏参数当场回；修正只用在执行上；步数上限在最后一步跑完后结束；推工具的输出；对不上的结果不理；回合带着开始时的工作目录 |

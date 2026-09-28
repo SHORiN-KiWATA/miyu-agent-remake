@@ -48,6 +48,8 @@ struct Running {
     cwd: String,
     /// 实际在哪个目录里干活：`cwd` 太宽的，是账号的工作区。
     workspace: String,
+    /// 加进来的目录（施工 5-10 上）：头下次报来的和它比。
+    dirs: Vec<String>,
 }
 
 /// 造好的会话：编号，和它实际在哪个目录里干活（施工 4-5 下）。
@@ -73,8 +75,10 @@ impl Sessions {
         command: CommandId,
         persona: &str,
         cwd: String,
+        dirs: Vec<String>,
         who: Opening,
     ) -> Result<Created, Refusal> {
+        check_dirs(core, &dirs)?;
         let mut open = self.open.lock().await;
         if !open.recalled {
             open.recalled = true;
@@ -105,7 +109,7 @@ impl Sessions {
             },
             attended: who.attended,
             oneshot: who.oneshot,
-            environment: environment(workspace.clone()),
+            environment: environment(workspace.clone(), dirs.clone()),
             command: command.clone(),
             by: admin(core),
             models: &*core.models,
@@ -144,6 +148,7 @@ impl Sessions {
                 handle,
                 cwd,
                 workspace: workspace.clone(),
+                dirs,
             },
         );
         open.created.push_back((command, id.clone()));
@@ -153,30 +158,41 @@ impl Sessions {
         Ok(Created { id, cwd: workspace })
     }
 
-    /// 找会话 `id`：在跑的直接交回；没在跑的从磁盘载入。头报上来的工作目录 `cwd` 和会话现在的不一样，
-    /// 先送进会话。
+    /// 找会话 `id`：在跑的直接交回；没在跑的从磁盘载入。头报上来的工作目录 `cwd`、加进来的目录 `dirs`（施工 5-10
+    /// 上）和会话现在的不一样，先送进会话；`dirs` 里有太宽的，整条命令都不收。
     pub(crate) async fn get(
         &self,
         core: &Core,
         id: &SessionId,
         cwd: Option<&str>,
+        dirs: Option<&[String]>,
     ) -> Result<Found, Refusal> {
+        if let Some(dirs) = dirs {
+            check_dirs(core, dirs)?;
+        }
         let mut open = self.open.lock().await;
         if let Some(running) = open.running.get_mut(id) {
-            if let Some(cwd) = cwd
-                && cwd != running.cwd
-            {
-                let workspace = workspace(core, cwd);
+            let moved = cwd.is_some_and(|cwd| cwd != running.cwd);
+            let added = dirs.is_some_and(|dirs| dirs != running.dirs.as_slice());
+            if moved || added {
+                let workspace = match cwd {
+                    Some(cwd) if moved => workspace(core, cwd),
+                    _ => running.workspace.clone(),
+                };
+                let dirs = dirs.map_or_else(|| running.dirs.clone(), <[String]>::to_vec);
                 if running
                     .handle
-                    .environment(environment(workspace.clone()))
+                    .environment(environment(workspace.clone(), dirs.clone()))
                     .is_err()
                 {
                     open.running.remove(id);
                     return Err(Refusal::STOPPED);
                 }
-                running.cwd = cwd.to_string();
+                if let Some(cwd) = cwd {
+                    running.cwd = cwd.to_string();
+                }
                 running.workspace = workspace;
+                running.dirs = dirs;
             }
             return Ok(Found {
                 handle: running.handle.clone(),
@@ -185,16 +201,19 @@ impl Sessions {
         }
         // 没有报来的（打断、撤销、恢复、订阅载入的）：照日志里最后一次记下的工作目录，都没有才退回 `~`（施工 4-9
         // 再补三上）。
+        let (last_cwd, last_dirs) = remembered(core, id).await;
         let cwd = match cwd {
             Some(cwd) => cwd.to_string(),
-            None => last_cwd(core, id).await.unwrap_or_else(|| "~".to_string()),
+            None => last_cwd.unwrap_or_else(|| "~".to_string()),
         };
+        // 加进来的目录没报来的，照最后一轮的（施工 5-10 上）。
+        let dirs = dirs.map_or(last_dirs, <[String]>::to_vec);
         let workspace = workspace(core, &cwd);
         let loaded = load(Load {
             root: &core.root,
             owner: core.admin.clone(),
             id: id.clone(),
-            environment: environment(workspace.clone()),
+            environment: environment(workspace.clone(), dirs.clone()),
             models: &*core.models,
             tools: &core.tools,
             home: core.home.as_deref(),
@@ -216,6 +235,7 @@ impl Sessions {
                 handle: handle.clone(),
                 cwd,
                 workspace: workspace.clone(),
+                dirs,
             },
         );
         Ok(Found {
@@ -290,20 +310,31 @@ async fn recall(core: &Core) -> Vec<(CommandId, SessionId)> {
 }
 
 /// 会话日志里最后一次记下的工作目录（施工 4-9 再补三上）：最后一条带 `cwd` 的 `turn.started`，没有就照
-/// `session.created` 的。之前的日志没有这两格，交回空的。在阻塞线程里读。
-async fn last_cwd(core: &Core, id: &SessionId) -> Option<String> {
+/// `session.created` 的；之前的日志没有这两格，是空的。加进来的目录照最后一条 `turn.started` 的，没有就是没有（施工
+/// 5-10 上）。在阻塞线程里读。
+async fn remembered(core: &Core, id: &SessionId) -> (Option<String>, Vec<String>) {
     let dir = core.root.session_dir(&core.admin, id);
     tokio::task::spawn_blocking(move || {
-        let events = read_events(&dir).ok()?;
-        events.iter().rev().find_map(|event| match &event.body {
+        let Ok(events) = read_events(&dir) else {
+            return (None, Vec::new());
+        };
+        let cwd = events.iter().rev().find_map(|event| match &event.body {
             Body::TurnStarted(started) => started.cwd.clone(),
             Body::SessionCreated(created) => created.cwd.clone(),
             _ => None,
-        })
+        });
+        let dirs = events
+            .iter()
+            .rev()
+            .find_map(|event| match &event.body {
+                Body::TurnStarted(started) => Some(started.dirs.clone()),
+                _ => None,
+            })
+            .unwrap_or_default();
+        (cwd, dirs)
     })
     .await
-    .ok()
-    .flatten()
+    .unwrap_or_default()
 }
 
 /// 本机这个场所。
@@ -311,12 +342,42 @@ fn local() -> VenueId {
     VenueId::parse("local").unwrap_or_else(|e| unreachable!("「local」合场所的写法：{e}"))
 }
 
-/// 会话所在的环境：核心所在的机器现在的时区，实际干活的目录（[`workspace`] 定的）。
-fn environment(workspace: String) -> Environment {
+/// 会话所在的环境：核心所在的机器现在的时区，实际干活的目录（[`workspace`] 定的），加进来的目录（施工 5-10 上）。
+fn environment(workspace: String, dirs: Vec<String>) -> Environment {
     Environment {
         offset: offset(),
         cwd: workspace,
+        dirs,
     }
+}
+
+/// 加进来的目录里有太宽的：整条命令都不收（施工 5-10 上）。
+fn check_dirs(core: &Core, dirs: &[String]) -> Result<(), Refusal> {
+    if dirs.iter().any(|dir| dir_too_wide(core, dir)) {
+        Err(Refusal::DIR_TOO_WIDE)
+    } else {
+        Ok(())
+    }
+}
+
+/// 加进来的一个目录太不太宽：和工作目录同一套（`~` 本身、系统的家目录、根目录、包含数据根的），另外落在数据根里的
+/// 一律算太宽，账号的工作区也不例外：工作目录太宽时有地方可退，加进来的目录没有。换不成真实位置的照原样，边界表里
+/// 那一片不算。
+fn dir_too_wide(core: &Core, dir: &str) -> bool {
+    if dir.trim() == "~" {
+        return true;
+    }
+    let home = core
+        .home
+        .as_deref()
+        .and_then(|home| std::fs::canonicalize(home).ok());
+    let Ok(real) = miyu_fs::resolve(Path::new("/"), home.as_deref(), dir) else {
+        return false;
+    };
+    let data_root =
+        std::fs::canonicalize(core.root.path()).unwrap_or_else(|_| core.root.path().to_path_buf());
+    miyu_fs::within(&real, &data_root)
+        || miyu_fs::too_wide(&real, home.as_deref(), &data_root, &data_root)
 }
 
 /// 拿头报上来的 `cwd` 当工作区。太宽的（`~` 本身、系统的家目录、根目录，包含数据根或者落在数据根里），退回

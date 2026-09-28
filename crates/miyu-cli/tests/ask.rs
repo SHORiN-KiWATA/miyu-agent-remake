@@ -176,3 +176,48 @@ async fn an_unusable_sandbox_is_said_before_anything_else() {
     );
     assert_eq!(err.matches("沙盒用不了").count(), 1, "{err}");
 }
+
+/// 加进来的目录（施工 5-10 上）：造会话、说话都带着，记进这一轮；`--continue` 时不写 `--add-dir` 的，这一轮就没有。
+#[tokio::test]
+async fn added_dirs_go_with_each_ask() {
+    let home = Home::new(Arc::new(Script::new([
+        Play::Says("一。"),
+        Play::Says("二。"),
+    ])));
+    let with = Plan {
+        dirs: vec!["/elsewhere".to_string()],
+        ..plan("第一句")
+    };
+    let Asked { code, err, .. } = home.ask(&with).await;
+    assert_eq!(code, 0, "{err}");
+    let session = home.sessions()[0].clone();
+    let again = Plan {
+        target: Target::Continue,
+        ..plan("第二句")
+    };
+    let Asked { code, err, .. } = home.ask(&again).await;
+    assert_eq!(code, 0, "{err}");
+    let dirs: Vec<Vec<String>> = home
+        .log(&session)
+        .into_iter()
+        .filter_map(|event| match event.body {
+            Body::TurnStarted(started) => Some(started.dirs),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(dirs, [vec!["/elsewhere".to_string()], Vec::new()]);
+}
+
+/// 加进来的目录太宽（施工 5-10 上）：造会话时就被拒，照握手时的语言说，退出码 1，不留下一个空的会话。
+#[tokio::test]
+async fn a_too_wide_added_dir_is_refused_before_a_session_is_made() {
+    let home = Home::new(Arc::new(Script::new([])));
+    let wide = Plan {
+        dirs: vec![home.root.path().to_string_lossy().into_owned()],
+        ..plan("在吗")
+    };
+    let Asked { code, err, .. } = home.ask(&wide).await;
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("加进来的目录太宽"), "中文的拒绝：{err}");
+    assert!(home.sessions().is_empty(), "没留下空的会话");
+}

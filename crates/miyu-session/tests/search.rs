@@ -51,6 +51,7 @@ async fn she_finds_and_searches_in_the_workspace_and_outside() {
         },
         attended: false,
         cwd: home.scratch.0.join("work").to_string_lossy().into_owned(),
+        dirs: Vec::new(),
         sandbox: None,
         sandbox_cache: None,
     };
@@ -111,6 +112,7 @@ async fn searching_from_above_never_goes_into_miyus_own_data() {
         },
         attended: false,
         cwd: home.scratch.0.join("work").to_string_lossy().into_owned(),
+        dirs: Vec::new(),
         sandbox: None,
         sandbox_cache: None,
     };

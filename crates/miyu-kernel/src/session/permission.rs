@@ -73,6 +73,7 @@ impl Session {
         let environment = Environment {
             offset: self.environment.offset,
             cwd: turn.cwd.clone(),
+            dirs: turn.dirs.clone(),
         };
         self.effective = self.permission.clone();
         let facts = vec![

@@ -70,6 +70,7 @@ ask 的选项：
   -c, --continue          接着上一次 miyu ask 开的会话说
   -s, --session <编号>    接着这个会话说
       --format text|json  text 给人看（默认），json 给脚本
+      --add-dir <目录>    多放行一个目录，她能读能写，可以写好几次
 
 undo、redo 的选项：
   -s, --session <编号>  哪个会话；不写就是上一次 miyu ask 开的
@@ -100,6 +101,7 @@ ask options:
   -c, --continue          Go on in the session the last miyu ask opened
   -s, --session <id>      Go on in this session
       --format text|json  text for people (default), json for scripts
+      --add-dir <dir>     Let her read and write this directory too; repeatable
 
 undo, redo options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened
@@ -128,6 +130,7 @@ Examples:
 | 两个选项不能一起写 | `<选项> 和 <选项> 只能写一个` | `<选项> and <选项> can't be used together` |
 | 选项后面没写值 | `<选项> 后面少了值` | `<选项> needs a value` |
 | 值不认识 | `<选项> 只能是 <值> 或 <值>` | `<选项> must be <值> or <值>` |
+| `--add-dir` 后面不是一个已经有的目录（施工 5-10 上） | `--add-dir 后面要写一个已经有的目录：<值>` | `--add-dir needs an existing directory: <值>` |
 | 别的 | `参数不对：<clap 的原话>` | `Bad arguments: <clap 的原话>` |
 
 - `<参数>` 照敲的原样；`<选项>` 照 clap 报的，是长的写法，去掉后面的值名（`--session <SESSION>` 写成 `--session`）。
@@ -169,8 +172,8 @@ Examples:
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu/tests/commands.rs` | 不认识的子命令：中文、英文的那一句，退出码 2，不拉起核心、核心没起来过；只敲 `miyu`：退出码 2、说用 `miyu ask`；`-h`、`--help`、`help` 印那一页，中文、英文各和样本一样，退出码 0；`--version` 印 `miyu ` 开头；参数写错的几种，中文、英文各说那一句，退出码 2；主程序换了文件名，说的还是 `miyu`（施工 5-8） |
-| `crates/miyu-cli/src/help/tests.rs` | 每一页列的选项和程序真有的一一对得上（长短写法、值名），最宽 80 列，以一个换行结尾 |
-| `crates/miyu-cli/src/misuse/tests.rs` | 七种错各说哪一句、两种语言；值的连法；控制字符换掉；全部子命令里必写的只有 `ask` 的要说的话；成对的少了一个、少了子命令、嵌着的子命令写错（施工 5-8） |
+| `crates/miyu-cli/src/help/tests.rs` | 每一页列的选项和程序真有的一一对得上（长短写法、值名），最宽 80 列，以一个换行结尾；值名照表换成页里的写法（`<编号>`、`<目录>`）（施工 5-10 上） |
+| `crates/miyu-cli/src/misuse/tests.rs` | 七种错各说哪一句、两种语言；值的连法；控制字符换掉；全部子命令里必写的只有 `ask` 的要说的话；成对的少了一个、少了子命令、嵌着的子命令写错（施工 5-8）；`--add-dir` 后面不是已经有的目录（施工 5-10 上） |
 | `crates/miyu/tests/ask.rs` | 参数不对退出码 2（什么都不写、`--session` 和 `--continue` 一起写）；`miyu ask --help` 跟着界面语言；没有 key、核心没在跑的不拉起 |
 | `crates/miyu/tests/undo.rs` | `miyu undo --help`、`miyu redo --help` 跟着界面语言；`undo`、`redo` 各接各的 |
 | `crates/miyu/tests/core.rs` | 拉起的是真的 `miyu core`（`core.md`、`ipc.md`） |

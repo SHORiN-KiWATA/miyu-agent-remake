@@ -6,6 +6,7 @@
 use super::action::{Action, Reason};
 use super::input::Verdict;
 use super::step::{Asked, State};
+use super::tools::run_tool;
 use super::turn::Stage;
 use super::{Session, rejected};
 use crate::event::{ApprovalDecided, ApprovalRequested, Body, Decision, Event, ToolStatus};
@@ -39,6 +40,7 @@ impl Session {
         };
         let cause = turn.cause.clone();
         let cwd = turn.cwd.clone();
+        let dirs = turn.dirs.clone();
         let Stage::Tools(step) = &mut turn.stage else {
             return Vec::new();
         };
@@ -49,13 +51,14 @@ impl Session {
         let settled = match verdict {
             Verdict::Allow => {
                 call.state = State::Running;
-                return vec![Action::RunTool {
+                return vec![run_tool(
                     call_id,
-                    name: call.name.clone(),
-                    args: call.args.clone(),
-                    cwd,
-                    permission: self.effective.clone(),
-                }];
+                    &call.name,
+                    &call.args,
+                    &cwd,
+                    &dirs,
+                    &self.effective,
+                )];
             }
             Verdict::Deny {
                 module,

@@ -64,6 +64,7 @@ pub fn stage() -> Stage {
     let environment = Environment {
         offset: UtcOffset::from_minutes(540).expect("东九区在范围里"),
         cwd: "~/src/miyu".to_string(),
+        dirs: Vec::new(),
     };
     let start = Timestamp::parse(START).expect("开始的时刻合写法");
     Stage::new(policy, environment, start)

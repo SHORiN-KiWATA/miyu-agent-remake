@@ -30,6 +30,9 @@ struct CreateParams {
     /// 一次性的：`miyu ask` 开的（施工 3-9 下）。
     #[serde(default)]
     oneshot: bool,
+    /// 加进来的目录（施工 5-10 上）：和工作区一样能读能写。
+    #[serde(default)]
+    dirs: Vec<String>,
 }
 
 /// `session.list` 的参数（施工 3-9 下）。
@@ -52,6 +55,9 @@ struct SendParams {
     urgent: bool,
     #[serde(default)]
     cwd: Option<String>,
+    /// 加进来的目录（施工 5-10 上）：不写的照旧。
+    #[serde(default)]
+    dirs: Option<Vec<String>>,
 }
 
 /// `session.interrupt` 的参数。
@@ -95,7 +101,14 @@ pub(crate) async fn call(core: &Core, peer: Peer, request: &Request) -> Result<V
             };
             let created = core
                 .sessions
-                .create(core, request.id.clone(), persona, params.cwd, who)
+                .create(
+                    core,
+                    request.id.clone(),
+                    persona,
+                    params.cwd,
+                    params.dirs,
+                    who,
+                )
                 .await?;
             Ok(json!({"session": created.id.as_str(), "events": [1], "cwd": created.cwd}))
         }
@@ -117,7 +130,12 @@ pub(crate) async fn call(core: &Core, peer: Peer, request: &Request) -> Result<V
             let session = session(&params.session)?;
             let found = core
                 .sessions
-                .get(core, &session, params.cwd.as_deref())
+                .get(
+                    core,
+                    &session,
+                    params.cwd.as_deref(),
+                    params.dirs.as_deref(),
+                )
                 .await?;
             let events = command_to(core, request, &session, &found.handle, command).await?;
             Ok(json!({"events": events, "cwd": found.cwd}))
@@ -129,7 +147,7 @@ pub(crate) async fn call(core: &Core, peer: Peer, request: &Request) -> Result<V
                 QueuedParam::Return => Queued::Return,
             };
             let session = session(&params.session)?;
-            let found = core.sessions.get(core, &session, None).await?;
+            let found = core.sessions.get(core, &session, None, None).await?;
             let command = Command::Interrupt { queued };
             let events = command_to(core, request, &session, &found.handle, command).await?;
             Ok(json!({ "events": events }))
@@ -141,7 +159,7 @@ pub(crate) async fn call(core: &Core, peer: Peer, request: &Request) -> Result<V
                 .map(|turn| Seq::new(turn).map(TurnId::new).ok_or(Refusal::BAD_PARAMS))
                 .transpose()?;
             let session = session(&params.session)?;
-            let found = core.sessions.get(core, &session, None).await?;
+            let found = core.sessions.get(core, &session, None, None).await?;
             let command = Command::Revert { turn };
             let events = command_to(core, request, &session, &found.handle, command).await?;
             Ok(undo::reply(core, &session, &found.cwd, events).await)
@@ -149,7 +167,7 @@ pub(crate) async fn call(core: &Core, peer: Peer, request: &Request) -> Result<V
         "session.unrevert" => {
             let params: UnrevertParams = params(request)?;
             let session = session(&params.session)?;
-            let found = core.sessions.get(core, &session, None).await?;
+            let found = core.sessions.get(core, &session, None, None).await?;
             let command = Command::Unrevert;
             let events = command_to(core, request, &session, &found.handle, command).await?;
             Ok(undo::reply(core, &session, &found.cwd, events).await)

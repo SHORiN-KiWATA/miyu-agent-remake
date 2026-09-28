@@ -44,6 +44,7 @@ fn requests(snapshot: Snapshot) -> Vec<Vec<u8>> {
     let environment = Environment {
         offset: UtcOffset::from_minutes(540).expect("东九区在范围里"),
         cwd: "~/src/miyu".to_string(),
+        dirs: Vec::new(),
     };
     let start = Timestamp::parse("2026-09-27T07:00:00.000Z").expect("时刻合写法");
     let mut stage = Stage::new(

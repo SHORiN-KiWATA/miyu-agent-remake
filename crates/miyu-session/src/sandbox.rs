@@ -41,8 +41,8 @@ impl Sandbox {
         }
     }
 
-    /// 照实际生效的那一级 `permission`、这一轮的工作目录 `cwd` 写一次调用的沙盒：完全放开的不带。碰磁盘（换真实的
-    /// 位置、建沙盒自己的临时目录），在阻塞线程里调。
+    /// 照实际生效的那一级 `permission`、这一轮的工作目录 `cwd` 和加进来的目录 `dirs`（施工 5-10 上）写一次调用的沙盒：
+    /// 完全放开的不带。碰磁盘（换真实的位置、建沙盒自己的临时目录），在阻塞线程里调。
     ///
     /// # Errors
     ///
@@ -51,6 +51,7 @@ impl Sandbox {
         &self,
         permission: &Permission,
         cwd: &str,
+        dirs: &[String],
     ) -> io::Result<Option<Sandboxed>> {
         let level = effective(permission);
         if level == Effective::Full {
@@ -60,8 +61,8 @@ impl Sandbox {
         let mut env = Vec::new();
         let write = if level == Effective::Workspace {
             // 工作目录照权限策略的办法换（头报来的可能是 `~`），换不成的照原样。
-            let cwd = resolve(Path::new(cwd), self.home.as_deref(), cwd)
-                .unwrap_or_else(|_| PathBuf::from(cwd));
+            let home = self.home.as_deref();
+            let cwd = resolve(Path::new(cwd), home, cwd).unwrap_or_else(|_| PathBuf::from(cwd));
             let temp = real(&std::env::temp_dir());
             // 数据根在临时目录里：藏的落在能写的里面，挖不了洞。不放整个临时目录，放沙盒自己的一个。
             let temp = if data_root.starts_with(&temp) {
@@ -71,7 +72,12 @@ impl Sandbox {
             } else {
                 temp
             };
-            let mut write = vec![cwd, temp];
+            // 加进来的目录排在工作目录后面，照同一个办法换（施工 5-10 上）。
+            let mut write = vec![cwd];
+            write.extend(dirs.iter().map(|dir| {
+                resolve(Path::new(dir), home, dir).unwrap_or_else(|_| PathBuf::from(dir))
+            }));
+            write.push(temp);
             if let Some(cache) = &self.cache {
                 let (dir, variables) = cache.prepare(&data_root)?;
                 write.push(dir);

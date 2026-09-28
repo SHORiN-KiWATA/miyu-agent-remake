@@ -97,6 +97,23 @@ pub(crate) enum ToolBack {
     Crashed { call_id: CallId },
 }
 
+/// 派一次调用要的：内核的「执行一次工具调用」动作里的几样（`docs/blueprint/kernel/session.md`）。
+#[derive(Debug)]
+pub(crate) struct Dispatch {
+    /// 哪一次调用。
+    pub(crate) call_id: CallId,
+    /// 工具名。
+    pub(crate) name: String,
+    /// 修正过的参数：一个 JSON 对象的原文。
+    pub(crate) args: String,
+    /// 这一轮的工作目录。
+    pub(crate) cwd: String,
+    /// 这一轮加进来的目录（施工 5-10 上）：沙盒照工作区放行。
+    pub(crate) dirs: Vec<String>,
+    /// 派出去那一刻实际生效的那一级：沙盒照它写规格。
+    pub(crate) permission: Permission,
+}
+
 impl Tools {
     /// 照 `kit` 跑，回报送进 `backs`。
     pub(crate) fn new(kit: ToolKit, backs: mpsc::UnboundedSender<Back>) -> Tools {
@@ -135,16 +152,16 @@ impl Tools {
     }
 
     /// 执行一次调用：在自己的任务里跑，马上返回。目录里没有这件工具的，不派，当场交回出错的结果。沙盒照派出去
-    /// 那一刻实际生效的那一级 `permission` 写。
-    pub(crate) fn run(
-        &mut self,
-        at: Timestamp,
-        call_id: CallId,
-        name: String,
-        args: String,
-        cwd: String,
-        permission: Permission,
-    ) -> Option<Input> {
+    /// 那一刻实际生效的那一级、这一轮加进来的目录写。
+    pub(crate) fn run(&mut self, at: Timestamp, dispatch: Dispatch) -> Option<Input> {
+        let Dispatch {
+            call_id,
+            name,
+            args,
+            cwd,
+            dirs,
+            permission,
+        } = dispatch;
         let stop = Stop::default();
         let call = Call {
             args,
@@ -179,7 +196,7 @@ impl Tools {
         let sandbox = self.sandbox.clone();
         let inner = tokio::spawn(
             async move {
-                let call = confine(call, sandbox, permission, call_id).await?;
+                let call = confine(call, sandbox, permission, dirs, call_id).await?;
                 Some(tool.run(call, progress).await)
             }
             .instrument(span.clone()),
@@ -346,13 +363,14 @@ async fn confine(
     mut call: Call,
     sandbox: Option<Sandbox>,
     permission: Permission,
+    dirs: Vec<String>,
     call_id: CallId,
 ) -> Option<Call> {
     let Some(sandbox) = sandbox else {
         return Some(call);
     };
     let cwd = call.cwd.clone();
-    match blocking(move || sandbox.for_call(&permission, &cwd)).await {
+    match blocking(move || sandbox.for_call(&permission, &cwd, &dirs)).await {
         Ok(sandboxed) => {
             call.sandbox = sandboxed.map(Arc::new);
             Some(call)

@@ -104,6 +104,7 @@ fn every_call_goes_through_the_chain_before_it_runs() {
             name: "read".to_string(),
             args: r#"{"limit":5}"#.to_string(),
             cwd: "~/src/miyu".to_string(),
+            dirs: Vec::new(),
             permission: Permission {
                 level: Level::Workspace,
                 read_only: false,

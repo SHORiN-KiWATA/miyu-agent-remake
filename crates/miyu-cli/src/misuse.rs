@@ -59,6 +59,14 @@ pub fn misuse(error: &clap::Error, language: Language) -> String {
                 false => format!("{} needs a value", option(&arg)),
             }
         }
+        // `--add-dir` 后面不是一个已经有的目录（施工 5-10 上）。
+        ErrorKind::ValueValidation if option(&arg) == "--add-dir" => {
+            let value = clean(&first(error, ContextKind::InvalidValue));
+            match chinese {
+                true => format!("--add-dir 后面要写一个已经有的目录：{value}"),
+                false => format!("--add-dir needs an existing directory: {value}"),
+            }
+        }
         ErrorKind::InvalidValue if !all(error, ContextKind::ValidValue).is_empty() => {
             let valid = all(error, ContextKind::ValidValue);
             match chinese {

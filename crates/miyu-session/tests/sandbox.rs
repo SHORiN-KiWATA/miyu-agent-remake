@@ -41,6 +41,17 @@ async fn cached(
     permission: Permission,
     cache: Option<SandboxCache>,
 ) -> Option<Arc<Sandboxed>> {
+    added(home, cwd, permission, cache, Vec::new()).await
+}
+
+/// 同 [`cached`]，加进来的目录是 `dirs`（施工 5-10 上）。
+async fn added(
+    home: &Home,
+    cwd: &str,
+    permission: Permission,
+    cache: Option<SandboxCache>,
+    dirs: Vec<String>,
+) -> Option<Arc<Sandboxed>> {
     let run = Fake::new("run", Access::Execute, Act::Echo);
     let tools = Catalog::new([Arc::clone(&run) as Arc<dyn Tool>]).expect("合写法");
     let script = Script::new([Play::calls(&[("run", "{}")]), Play::Says("好。")]);
@@ -48,6 +59,7 @@ async fn cached(
         permission,
         attended: false,
         cwd: cwd.to_string(),
+        dirs,
         sandbox: Some(PathBuf::from(HELPER)),
         sandbox_cache: cache,
     };
@@ -132,6 +144,41 @@ async fn each_level_gets_its_own_spec() {
     assert_eq!(tilde.spec.write[0], real(&home.home.join("proj")));
 }
 
+/// 加进来的目录（施工 5-10 上）：工作区这一级能写，排在工作目录后面，`~` 接家目录；只读照旧哪儿都写不了。
+#[tokio::test]
+async fn added_dirs_are_writable_at_the_workspace_level() {
+    let home = Home::outside_temp();
+    let work = home.scratch.0.join("work");
+    let extra = home.scratch.0.join("extra");
+    for dir in [&work, &extra, &home.home.join("proj")] {
+        std::fs::create_dir_all(dir).expect("建得了目录");
+    }
+    let cwd = work.to_string_lossy().into_owned();
+    let dirs = vec![extra.to_string_lossy().into_owned(), "~/proj".to_string()];
+    let workspace = added(
+        &home,
+        &cwd,
+        permission(Level::Workspace, false),
+        None,
+        dirs.clone(),
+    )
+    .await
+    .expect("工作区进沙盒");
+    assert_eq!(
+        workspace.spec.write,
+        vec![
+            real(&work),
+            real(&extra),
+            real(&home.home.join("proj")),
+            real(&std::env::temp_dir())
+        ]
+    );
+    let read_only = added(&home, &cwd, permission(Level::Workspace, true), None, dirs)
+        .await
+        .expect("只读也进沙盒");
+    assert!(read_only.spec.write.is_empty(), "只读哪儿都写不了");
+}
+
 #[tokio::test]
 async fn a_data_root_in_temp_gets_a_temp_dir_of_its_own() {
     let home = Home::new();
@@ -188,6 +235,7 @@ async fn a_temp_dir_others_can_enter_is_not_used() {
         permission: permission(Level::Workspace, false),
         attended: false,
         cwd: home.scratch.0.to_string_lossy().into_owned(),
+        dirs: Vec::new(),
         sandbox: Some(PathBuf::from(HELPER)),
         sandbox_cache: None,
     };
@@ -269,6 +317,7 @@ async fn shell(home: &Home, helper: &Path, work: &Path, read_only: bool, command
         permission: permission(Level::Workspace, read_only),
         attended: false,
         cwd: work.to_string_lossy().into_owned(),
+        dirs: Vec::new(),
         sandbox: Some(helper.to_path_buf()),
         sandbox_cache: None,
     };

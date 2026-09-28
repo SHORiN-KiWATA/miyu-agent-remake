@@ -83,6 +83,8 @@ pub enum Action {
         args: String,
         /// 这一轮的工作目录：回合开始时的那一个。
         cwd: String,
+        /// 这一轮加进来的目录：权限策略照工作区算（施工 5-10 上）。
+        dirs: Vec<String>,
         /// 实际生效的那一级：权限策略照它判。
         permission: Permission,
     },
@@ -111,6 +113,8 @@ pub enum Action {
         args: String,
         /// 这一轮的工作目录：回合开始时的那一个。
         cwd: String,
+        /// 这一轮加进来的目录：执行器写沙盒的规格时照工作区放行（施工 5-10 上）。
+        dirs: Vec<String>,
         /// 派出去那一刻实际生效的那一级（施工 5-4 上）：执行器照它给这次调用写沙盒的规格。
         permission: Permission,
     },

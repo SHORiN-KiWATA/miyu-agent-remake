@@ -41,6 +41,7 @@ async fn a_line_from_the_thread_that_stores_effects_carries_the_session() {
         },
         attended: false,
         cwd: home.scratch.0.join("work").to_string_lossy().into_owned(),
+        dirs: Vec::new(),
         sandbox: None,
         sandbox_cache: None,
     };

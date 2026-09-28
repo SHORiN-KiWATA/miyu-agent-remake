@@ -36,8 +36,9 @@ fn listed(page: &str) -> Listed {
 }
 
 /// 程序真有的选项：`command` 里有名字的参数，加上 clap 给每条命令都加的 `-h`、`--help`。要写值的，值写成能写的几样
-/// 用 `|` 连起来；不限的写成页里的那个（`value` 给出）。藏起来的不算：它们不给人用（`sandbox` 那两个，施工 5-8）。
-fn real(command: &Command, value: &str) -> Listed {
+/// 用 `|` 连起来；不限的照 clap 的值名在 `values` 里查页里写成什么（`SESSION` 是 `<编号>`，`DIR` 是 `<目录>`，施工 5-10
+/// 上），查不到的写成 `<值名>`。藏起来的不算：它们不给人用（`sandbox` 那两个，施工 5-8）。
+fn real(command: &Command, values: &[(&str, &str)]) -> Listed {
     let mut options = Listed::new();
     for arg in command.get_arguments().filter(|arg| !arg.is_hide_set()) {
         let mut names: Vec<String> = arg
@@ -59,7 +60,17 @@ fn real(command: &Command, value: &str) -> Listed {
                     .map(|possible| possible.get_name().to_string())
                     .collect();
                 match possible.is_empty() {
-                    true => value.to_string(),
+                    true => {
+                        let name = arg
+                            .get_value_names()
+                            .and_then(|names| names.first())
+                            .map(ToString::to_string)
+                            .unwrap_or_default();
+                        values
+                            .iter()
+                            .find(|(from, _)| *from == name)
+                            .map_or_else(|| format!("<{name}>"), |(_, to)| (*to).to_string())
+                    }
                     false => possible.join("|"),
                 }
             }
@@ -81,7 +92,9 @@ fn commands() -> (Command, Command) {
 #[test]
 fn each_page_lists_exactly_the_options_there_are() {
     let (ask, undo) = commands();
-    for (language, id) in [(Language::Chinese, "<编号>"), (Language::English, "<id>")] {
+    let chinese = [("SESSION", "<编号>"), ("DIR", "<目录>")];
+    let english = [("SESSION", "<id>"), ("DIR", "<dir>")];
+    for (language, id) in [(Language::Chinese, &chinese), (Language::English, &english)] {
         assert_eq!(
             listed(page(language, Page::Ask)),
             real(&ask, id),

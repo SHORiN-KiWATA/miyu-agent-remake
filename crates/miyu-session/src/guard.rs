@@ -90,6 +90,7 @@ impl Guard {
         name: &str,
         args: String,
         cwd: String,
+        dirs: &[String],
         permission: &Permission,
     ) -> Verdict {
         // 目录里没有的：放行，执行时报现在用不了（施工 4-2）。
@@ -114,8 +115,17 @@ impl Guard {
         // 工作目录本身也换成真实的位置：头报来的可能是 `~`。
         let cwd = resolve(Path::new(&cwd), self.home.as_deref(), &cwd)
             .unwrap_or_else(|_| PathBuf::from(&cwd));
+        // 加进来的目录照工作目录的办法换（施工 5-10 上）：边界表照工作区算。
+        let dirs = dirs
+            .iter()
+            .map(|dir| {
+                resolve(Path::new(dir), self.home.as_deref(), dir)
+                    .unwrap_or_else(|_| PathBuf::from(dir))
+            })
+            .collect();
         let places = Places {
             workspace: cwd.clone(),
+            dirs,
             ..self.places.clone()
         };
         let boundary = Boundary::new(&places);

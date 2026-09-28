@@ -139,6 +139,7 @@ impl Session {
                 cause: cause.clone(),
                 stage: Stage::Settling,
                 cwd: self.environment.cwd.clone(),
+                dirs: self.environment.dirs.clone(),
                 requests: 0,
                 retries: 0,
                 retrying: false,

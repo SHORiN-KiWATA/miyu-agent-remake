@@ -10,6 +10,7 @@ ask options:
   -c, --continue          Go on in the session the last miyu ask opened
   -s, --session <id>      Go on in this session
       --format text|json  text for people (default), json for scripts
+      --add-dir <dir>     Let her read and write this directory too; repeatable
 
 undo, redo options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened

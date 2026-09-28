@@ -328,6 +328,7 @@ async fn a_new_working_directory_shows_up_at_the_next_turn() {
         .environment(Environment {
             offset: UtcOffset::from_minutes(540).expect("东九区在范围里"),
             cwd: "~/src/elsewhere".to_string(),
+            dirs: Vec::new(),
         })
         .expect("会话在跑");
     ask(&handle, "cmd-2", say("again")).await.expect("会话在跑");

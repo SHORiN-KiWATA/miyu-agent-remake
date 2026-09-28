@@ -43,7 +43,7 @@ pub async fn talk(
     if let Err(code) = subscribed {
         return code;
     }
-    let send = json!({"session": session, "text": plan.text, "cwd": plan.cwd});
+    let send = json!({"session": session, "text": plan.text, "cwd": plan.cwd, "dirs": plan.dirs});
     let sent = match rpc.send("session.send", send).await {
         Ok(sent) => sent,
         Err(error) => {
@@ -104,7 +104,7 @@ async fn session(
 ) -> Result<(String, Option<String>), u8> {
     match &plan.target {
         Target::New => {
-            let params = json!({"cwd": plan.cwd, "oneshot": true});
+            let params = json!({"cwd": plan.cwd, "dirs": plan.dirs, "oneshot": true});
             let result =
                 link::request(rpc, "session.create", params, &plan.language, screen.err).await?;
             let session = result["session"].as_str().unwrap_or_default().to_string();

@@ -109,6 +109,7 @@ async fn a_write_that_fails_stops_the_session() {
     let environment = Environment {
         offset: UtcOffset::from_minutes(540).expect("东九区在范围里"),
         cwd: "~/src/miyu".to_string(),
+        dirs: Vec::new(),
     };
     let (session, first) = Session::create(
         id("cmd-0"),

@@ -31,6 +31,7 @@ fn opening(home: &Home) -> Opening {
         },
         attended: false,
         cwd: home.scratch.0.join("work").to_string_lossy().into_owned(),
+        dirs: Vec::new(),
         sandbox: None,
         sandbox_cache: None,
     }

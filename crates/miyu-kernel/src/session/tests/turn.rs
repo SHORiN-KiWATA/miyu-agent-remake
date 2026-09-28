@@ -184,6 +184,7 @@ fn the_environment_reported_last_is_the_one_injected() {
     let moved = Environment {
         offset: UtcOffset::from_minutes(0).unwrap(),
         cwd: "~/src/other".to_string(),
+        dirs: Vec::new(),
     };
     assert!(
         session.handle(Input::Environment(moved)).is_empty(),

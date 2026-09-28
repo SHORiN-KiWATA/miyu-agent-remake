@@ -67,6 +67,7 @@ async fn session(
         permission: Permission { level, read_only },
         attended,
         cwd: at(home, "work"),
+        dirs: Vec::new(),
         sandbox: None,
         sandbox_cache: None,
     };
@@ -82,6 +83,7 @@ async fn sandboxed(home: &Home, script: &Script, kit: &Kit, read_only: bool) -> 
         },
         attended: false,
         cwd: at(home, "work"),
+        dirs: Vec::new(),
         sandbox: Some(PathBuf::from("miyu-sandbox")),
         sandbox_cache: None,
     };
@@ -460,6 +462,7 @@ async fn trash_is_judged_on_the_link_itself() {
         },
         attended: false,
         cwd: work.to_string_lossy().into_owned(),
+        dirs: Vec::new(),
         sandbox: None,
         sandbox_cache: None,
     };

@@ -40,6 +40,7 @@ fn opening(home: &Home) -> Opening {
         },
         attended: false,
         cwd: work(home),
+        dirs: Vec::new(),
         sandbox: None,
         sandbox_cache: None,
     }

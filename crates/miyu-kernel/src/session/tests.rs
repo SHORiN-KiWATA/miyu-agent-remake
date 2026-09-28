@@ -8,6 +8,7 @@
 
 mod approval;
 mod difference;
+mod dirs;
 mod executor;
 mod idle;
 mod interrupt;
@@ -282,6 +283,7 @@ fn environment(cwd: &str) -> Environment {
     Environment {
         offset: UtcOffset::from_minutes(540).unwrap(),
         cwd: cwd.to_string(),
+        dirs: Vec::new(),
     }
 }
 

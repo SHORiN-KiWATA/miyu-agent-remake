@@ -15,6 +15,9 @@ pub struct TurnStarted {
     /// 照它找回会话在哪个目录里干活：日志是真相，不另放文件。之前的日志没有这一格。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cwd: Option<String>,
+    /// 这一轮加进来的目录，照头报的原样（施工 5-10 上）：权限策略、沙盒照它放行。没有就不写：原来的日志一个字节不变。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub dirs: Vec<String>,
 }
 
 /// `turn.ended`：回合结束。

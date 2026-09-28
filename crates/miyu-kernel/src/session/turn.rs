@@ -27,6 +27,8 @@ pub(super) struct Turn {
     pub(super) stage: Stage,
     /// 这一轮的工作目录：回合开始时的那一个，派工具时带上。
     pub(super) cwd: String,
+    /// 这一轮加进来的目录：回合开始时的那些，判权限、派工具时带上（施工 5-10 上）。
+    pub(super) dirs: Vec<String>,
     /// 这一轮请求过几次模型，比步数上限用。重试的不算（施工 3-5 下）。
     pub(super) requests: u32,
     /// 这一步连着出了几次可以重试的错：说完了一次就清零（`retry.rs`）。
@@ -99,6 +101,7 @@ impl Session {
         let body = Body::TurnStarted(TurnStarted {
             trigger,
             cwd: Some(self.environment.cwd.clone()),
+            dirs: self.environment.dirs.clone(),
         });
         let started = self.record(at, By::Kernel, cause.clone(), body);
         self.turn = Some(Turn {
@@ -108,6 +111,7 @@ impl Session {
                 opened: started.seq,
             },
             cwd: self.environment.cwd.clone(),
+            dirs: self.environment.dirs.clone(),
             requests: 0,
             retries: 0,
             retrying: false,
