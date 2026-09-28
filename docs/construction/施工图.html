@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>82</b><span>/ 82 步<strong>已完成</strong>，她看得见图了：read 交回图片，deepseek-flash 收图</span></li>
-    <li><b>M5</b><span>下一步：沙盒，<strong>先拆成步，等项目主人批准</strong></span></li>
-    <li><b class="mono">deeb0a9</b><span>最近一步（4-13 读图）的提交</span></li>
+    <li><b>83</b><span>/ 93 步<strong>已完成</strong>，沙盒的路接通了：规格、助手 miyu-sandbox、探测，还不收紧</span></li>
+    <li><b>5-2</b><span>下一步：Linux 的文件（Landlock）；代理、macOS、Windows 三条线由分身同时施工，<strong>施工单待写</strong></span></li>
+    <li><b class="mono">365bc97</b><span>最近一步（5-1 沙盒的规格和助手）的提交</span></li>
   </ul>
 </header>
 
@@ -312,7 +312,7 @@ a.step:hover{border-color:var(--primary)}
 
 <section class="sched" aria-labelledby="h-sched">
   <h2 id="h-sched">工程表</h2>
-  <p class="sub">M0 到 M4 拆到了每一步；M5 以后，到了跟前再拆。</p>
+  <p class="sub">M0 到 M5 拆到了每一步；M6 以后，到了跟前再拆。</p>
   <ol class="ms">
     <li>
       <div class="ms-head"><span class="ms-id">M0</span><span class="ms-name">准备</span><span class="ms-goal">仓库有了规矩和门禁</span></div>
@@ -422,7 +422,23 @@ a.step:hover{border-color:var(--primary)}
       </ol>
     </li>
     <li>
-      <div class="ms-head"><span class="ms-id">M5–M8</span><span class="ms-name">沙盒 · 长会话 · 分身 · 有界面</span></div>
+      <div class="ms-head"><span class="ms-id">M5</span><span class="ms-name">沙盒</span><span class="ms-goal">三个平台的命令都关在沙盒里</span></div>
+      <ol class="chips">
+        <li><a class="step done" href="#s5-1"><span class="n">5-1</span>沙盒的规格和助手<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">5-2</span>Linux：文件</span></li>
+        <li><span class="step"><span class="n">5-3</span>Linux：命名空间</span></li>
+        <li><span class="step"><span class="n">5-4</span>权限策略接上沙盒</span></li>
+        <li><span class="step"><span class="n">5-5</span>代理</span></li>
+        <li><span class="step"><span class="n">5-6</span>Linux：网络</span></li>
+        <li><span class="step"><span class="n">5-7</span>macOS</span></li>
+        <li><span class="step"><span class="n">5-8</span>Windows：装</span></li>
+        <li><span class="step"><span class="n">5-9</span>Windows：跑</span></li>
+        <li><span class="step"><span class="n">5-10</span>--add-dir 和边角</span></li>
+        <li><span class="step"><span class="n">5-11</span>M5 验收</span></li>
+      </ol>
+    </li>
+    <li>
+      <div class="ms-head"><span class="ms-id">M6–M8</span><span class="ms-name">长会话 · 分身 · 有界面</span></div>
       <p class="later">到了跟前再拆。M8 的第一件事是先画界面的版式图纸。</p>
     </li>
   </ol>
@@ -6573,6 +6589,79 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s5-1" aria-labelledby="h-s51">
+  <div class="sheet-head"><h2 id="h-s51"><span class="no">5-1</span>沙盒的规格和助手</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">把沙盒的路接通，还不收紧任何东西：核心给要关起来的命令写一份规格，小程序 miyu-sandbox 照规格收紧自己，再换成那条命令；shell 带了规格的经它起；核心起来时探一次这台机器能收紧到什么程度。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一条带了规格的命令怎么走</span><span class="dir-note">现在不收紧</span></div>
+            <ol class="pipe" aria-label="一条带了规格的命令怎么走">
+              <li>shell 把命令包成 miyu-sandbox run --spec &lt;规格&gt; -- &lt;shell&gt; &lt;参数…&gt;</li>
+              <li>助手读规格：认不得的格、类型不对的当写坏了，退出 125，不跑</li>
+              <li>收紧自己：这一步什么都不做，5-2 起各平台往这里加</li>
+              <li>换成命令：Unix 上 exec，还是同一个进程；Windows 上起子进程、等它</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-sandbox/</span><span class="dir-note">第 3 层，新的</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">spec.rs</span><span class="rl">规格：read、write、readonly、hidden、network</span></div>
+              <div class="tile new"><span class="nm">wrap.rs · locate.rs</span><span class="rl">包命令；找助手，在主程序旁边</span></div>
+              <div class="tile new"><span class="nm">probe.rs</span><span class="rl">探测：最多等 5 秒，读输出、等退出都算在里面</span></div>
+              <div class="tile new"><span class="nm">main.rs</span><span class="rl">助手本身：run、probe；成了什么都不印</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">单独的小程序</span><span class="rl">Ubuntu、Mint 上只给它开命名空间</span></div>
+          <div class="tile new"><span class="nm">退出码</span><span class="rl">照 env、timeout：125 助手出错，126 执行不了，127 找不到</span></div>
+          <div class="tile new"><span class="nm">写不成就不跑</span><span class="rl">规格写不成 JSON 的说起不来，不会不经沙盒就跑</span></div>
+          <div class="tile new"><span class="nm">日志</span><span class="rl">INFO sandbox helper=… platform=… mechanisms=none，或者 WARN sandbox unavailable</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">真正的收紧（5-2 起）；核心给调用带规格（5-4）；代理（5-5）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-1</dd></div>
+        <div><dt>名称</dt><dd>沙盒的规格和助手</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">365bc97</dd></div>
+        <div><dt>验收</dt><dd>变异全逮住、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>新 crate <code>miyu-sandbox</code>：规格、包命令、找助手、探测，助手 <code>miyu-sandbox</code> 本身。</li>
+        <li><code>Call</code> 多一格 <code>sandbox</code>：<code>shell</code> 带了的经助手起，不带的照旧。</li>
+        <li>核心起来时探一次，只记日志。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>经助手跑的命令，输出、退出码、工作目录、环境变量都和直接跑一样</span></li>
+        <li><span class="ok">✓</span><span>手写的变异都被逮住</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>sandbox.md</code>（新的一页）、<code>tools/interface.md</code>、<code>tools/shell.md</code>、<code>core.md</code>、<code>log.md</code>。</li>
+        <li><code>docs/construction/5-1-沙盒的规格和助手.md</code>：施工单和验收结果。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -6749,7 +6838,7 @@ const BUILD = {
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完；出了错自己再来，说了一半的带着半截接着说（3-5 下）' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认；执行端口（4-2）：照名字在目录里找，一件一个任务地跑，叫停就掐掉；快照里有、目录里没有的报现在用不了，崩了的报内部错误，会话照常走' },
-  n_sandbox: { by: '4-3', how: 'frame', note: '文件工具的路径边界（4-3 上）：边界表（工作区、数据根、临时目录、系统和工具链目录，几片重叠时有先后），换成真实的位置（~、链接、还不存在的），安全地打开（不跟随最后一层的链接、不阻塞、只开普通文件）。权限策略（4-3 下）：工具报要碰的路径，照边界和级别判放行、问人还是拒绝，数据根哪一级都拒绝；工作目录太宽退回账号的工作区。沙盒本身随 M5' },
+  n_sandbox: { by: '4-3', how: 'frame', note: '文件工具的路径边界（4-3 上）：边界表（工作区、数据根、临时目录、系统和工具链目录，几片重叠时有先后），换成真实的位置（~、链接、还不存在的），安全地打开（不跟随最后一层的链接、不阻塞、只开普通文件）。权限策略（4-3 下）：工具报要碰的路径，照边界和级别判放行、问人还是拒绝，数据根哪一级都拒绝；工作目录太宽退回账号的工作区。沙盒的底子（5-1）：规格、助手 miyu-sandbox，shell 带了规格的经它起，核心起来时探一次；还不收紧，各平台随 5-2 起' },
   n_software: { by: '4-4', how: 'frame', note: '基础系统（4-4 上、下）：读的三件 read、glob、grep，名字、参数、输出照成熟 harness 的规范（以 Claude Code 为主）；说明、参数格式、输出里的几句都在资源目录的 software/basesystem/ 下、进登记簿；核心起来时登记' },
   k_catalog: { by: '4-1', how: 'frame', note: '工具目录：每件工具报出规格（名字、说明、参数格式、访问类别），核心起来时登记一次就冻结；重名的、名字不合写法的、参数格式不是对象的当场拒绝。造会话时工具面照名字排好存进策略快照，载入以后逐字节一样。现在目录是空的，第一批工具在 4-4（4-1）' },
   n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对；资源目录：MIYU_RESOURCES、程序旁边的 resources/、上一级的 share/miyu/，读出一个人格的原文（3-6 上）' },
