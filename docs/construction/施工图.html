@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>72</b><span>/ 77 步<strong>已完成</strong>，几件工具的边角修好了：链接、FIFO、二进制、大小写</span></li>
-    <li><b>4-9</b><span>下一步：请求、驱动、协议、核心（再补三），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">71762d6</b><span>最近一步（4-9 再补二）的提交</span></li>
+    <li><b>73</b><span>/ 78 步<strong>已完成</strong>，重试时的缓存、订阅、重启以后的工作目录修好了</span></li>
+    <li><b>4-9</b><span>下一步：驱动、HTTP（再补三下），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">b9542f3</b><span>最近一步（4-9 再补三上）的提交</span></li>
   </ul>
 </header>
 
@@ -409,7 +409,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-9b"><span class="n">4-9</span>补完蓝图（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9c"><span class="n">4-9</span>撤销（再补一）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9d"><span class="n">4-9</span>工具（再补二）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-9</span>请求、驱动、协议、核心（再补三）</span></li>
+        <li><a class="step done" href="#s4-9e"><span class="n">4-9</span>请求、协议、核心（再补三上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">4-9</span>驱动、HTTP（再补三下）</span></li>
         <li><span class="step"><span class="n">4-9</span>命令行、日志、注释（再补四）</span></li>
         <li><span class="step"><span class="n">4-9</span>蓝图的门禁（三补）</span></li>
         <li><span class="step"><span class="n">4-9</span>设计文档只留为什么（四补）</span></li>
@@ -5866,6 +5867,79 @@ a.step:hover{border-color:var(--primary)}
         <li>蓝图：<code>fs.md</code>、<code>session/guard.md</code>、<code>kernel/session.md</code>、<code>tools/</code> 下的 interface、trash、grep、glob、write、edit、read、shell。</li>
         <li><code>docs/designs/10-自带软件.md</code> 第三节（链接一律不跟）、「后续再定」（zsh 的通配符）。</li>
         <li><code>docs/construction/4-9-工具（再补二）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s4-9e" aria-labelledby="h-s49e">
+  <div class="sheet-head"><h2 id="h-s49e"><span class="no">4-9</span>请求、协议、核心（再补三上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">补蓝图时查出请求、协议、核心有几处靠不住：等重试时切了级别，缓存断了；取消、换订阅会丢回应；核心重启以后，会话的工作目录变成管理员的工作区；重发的造会话在重启以后认不出来；协议上还有几个边角。这一步一件件修好。驱动和 HTTP 的几件放在下一步。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">等重试时切了级别</span><span class="dir-note">组装</span></div>
+            <ol class="pipe" aria-label="等重试时切了级别">
+              <li>第一次请求：[环境、权限、你说的那句]，出了可以重试的错</li>
+              <li>等的时候切了只读，到点查出一块新的权限事实</li>
+              <li>原来：挪到你说的那句前面，前缀在那里断开</li>
+              <li>现在：记下过 model.called 就不算「开始时注入的」，排在后面，接着往后长</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">协议和核心</span><span class="dir-note">各修一处</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">订阅</span><span class="rl">取消、换订阅时旧的把排着的回应放完再退；会话停了推 resync</span></div>
+              <div class="tile new"><span class="nm">工作目录</span><span class="rl">turn.started、session.created 记下 cwd，重启以后照它载入</span></div>
+              <div class="tile new"><span class="nm">去重</span><span class="rl">重启以后第一次造会话时，从 session.created 补回编号</span></div>
+              <div class="tile new"><span class="nm">边角</span><span class="rl">握手 10 秒的时限；数组的 params 不收；被拒照它的语言说；人格目录在而读不了是内部出错；Ctrl+C 装不上当它不会来</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">记进日志</span><span class="rl">工作目录记在事件里，不另放文件：日志是真相；组装不渲染这两种事件，发给模型的字节不变</span></div>
+          <div class="tile new"><span class="nm">命令编号全局不撞</span><span class="rl">去重在重启以后照样生效，头要自己保证编号不撞</span></div>
+          <div class="tile new"><span class="nm">拆成上下</span><span class="rl">再补三条目多：驱动、HTTP 放在下一步，总数 78</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">六个内核原因码的话：做 session.answer、切级别的方法时补（M8）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-9（再补三上）</dd></div>
+        <div><dt>名称</dt><dd>请求、协议、核心</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">b9542f3</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-kernel</code>：两种事件多一格 <code>cwd</code>，开回合时写上；替身能不再扣着叫醒。</li>
+        <li><code>miyu-assemble</code>：碰到 <code>model.called</code> 也收住回合开始的那一段；随机日志的重试回合切级别。</li>
+        <li><code>miyu-endpoint</code>：订阅不掐；载入时的工作目录；去重补回；握手时限、数组的参数、被拒的语言、人格目录。</li>
+        <li><code>miyu-core</code>：Ctrl+C 装不上当它不会来。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿</span></li>
+        <li><span class="ok">✓</span><span>存档的终端会话：只有日志多了 cwd，每一次请求的字节一个都没变</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 13 处，全部有测试变红</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图：<code>kernel/request.md</code>、<code>kernel/events-bodies.md</code>、<code>kernel/session.md</code>、<code>protocol.md</code>、<code>core.md</code>。</li>
+        <li><code>docs/designs/03-事件模型.md</code>（两种事件的格子）、<code>08-上下文投影.md</code>（C2「开始时注入的」到哪为止）。</li>
+        <li><code>docs/construction/4-9-请求、协议、核心（再补三上）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
