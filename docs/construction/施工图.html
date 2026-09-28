@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>73</b><span>/ 78 步<strong>已完成</strong>，重试时的缓存、订阅、重启以后的工作目录修好了</span></li>
-    <li><b>4-9</b><span>下一步：驱动、HTTP（再补三下），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">b9542f3</b><span>最近一步（4-9 再补三上）的提交</span></li>
+    <li><b>74</b><span>/ 78 步<strong>已完成</strong>，驱动和 HTTP 的几处边角修好了：噪声、要等多久、头、地址</span></li>
+    <li><b>4-9</b><span>下一步：命令行、日志、注释（再补四），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">ed549ca</b><span>最近一步（4-9 再补三下）的提交</span></li>
   </ul>
 </header>
 
@@ -410,7 +410,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-9c"><span class="n">4-9</span>撤销（再补一）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9d"><span class="n">4-9</span>工具（再补二）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9e"><span class="n">4-9</span>请求、协议、核心（再补三上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-9</span>驱动、HTTP（再补三下）</span></li>
+        <li><a class="step done" href="#s4-9f"><span class="n">4-9</span>驱动、HTTP（再补三下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-9</span>命令行、日志、注释（再补四）</span></li>
         <li><span class="step"><span class="n">4-9</span>蓝图的门禁（三补）</span></li>
         <li><span class="step"><span class="n">4-9</span>设计文档只留为什么（四补）</span></li>
@@ -5940,6 +5940,74 @@ a.step:hover{border-color:var(--primary)}
         <li>蓝图：<code>kernel/request.md</code>、<code>kernel/events-bodies.md</code>、<code>kernel/session.md</code>、<code>protocol.md</code>、<code>core.md</code>。</li>
         <li><code>docs/designs/03-事件模型.md</code>（两种事件的格子）、<code>08-上下文投影.md</code>（C2「开始时注入的」到哪为止）。</li>
         <li><code>docs/construction/4-9-请求、协议、核心（再补三上）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s4-9f" aria-labelledby="h-s49f">
+  <div class="sheet-head"><h2 id="h-s49f"><span class="no">4-9</span>驱动、HTTP（再补三下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">补蓝图时查出驱动和 HTTP 执行器有几处靠不住：网关的噪声当成出错；流里说了要等多久，被丢掉；另配的头和默认的同名时发两份；地址写错了白重试 5 次；只差 [DONE] 时停住，算成超时；端点打印出整个地址。这一步一件件修好。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">发一次请求</span><span class="dir-note">HTTP</span></div>
+            <ol class="pipe" aria-label="发一次请求">
+              <li>先报「发出去了」：造不出请求的也报过，model.called 里照样有发给了谁</li>
+              <li>造请求：另配的头换掉同名的默认头；地址、头写得不对，出错 other，不重试</li>
+              <li>读流：finish_reason 到了、只差 [DONE] 时停住，算说完，增量、用量照交</li>
+              <li>收尾：流里报的错，带着供应商说的要等多久交给内核</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">解码器</span><span class="dir-note">驱动</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">噪声</span><span class="rl">error 是 null、""、{}、false、0、[] 的不理，别的照旧算出错</span></div>
+              <div class="tile new"><span class="nm">要等多久</span><span class="rl">流里报的错说了 try again in 的，算出的毫秒数留下</span></div>
+              <div class="tile new"><span class="nm">finished()</span><span class="rl">finish_reason 到了没有：HTTP 停住时看它</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">原话不带地址</span><span class="rl">reqwest 的错去掉地址再写：有的供应商把 key 放在地址里，原话又记进 model.called（施工中查出）</span></div>
+          <div class="tile new"><span class="nm">打印只写主机名</span><span class="rl">端点的调试输出不写路径和参数</span></div>
+          <div class="tile new"><span class="nm">写错了不重试</span><span class="rl">造不出请求的，重来也一样，是 other</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">空闲超时按思考强度放大、等第一个字时的心跳：随 15 第五节那一步</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-9（再补三下）</dd></div>
+        <div><dt>名称</dt><dd>驱动、HTTP</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">ed549ca</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-drivers</code>：噪声多认三种；流里的错留下要等多久；解码器多一个 <code>finished()</code>。</li>
+        <li><code>miyu-http</code>：另配的头换掉同名的；造不出请求的出错 <code>other</code>；只差 [DONE] 算说完；原话去掉地址；端点打印只写主机名。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 22 处，21 处有测试变红；剩下那处照实记在施工单里</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图：<code>drivers/openai-chat.md</code>、<code>http.md</code>。</li>
+        <li><code>docs/construction/4-9-驱动、HTTP（再补三下）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
