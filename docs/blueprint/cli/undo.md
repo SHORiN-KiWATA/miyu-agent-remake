@@ -2,7 +2,7 @@
 
 ### 是什么
 
-在 shell 里撤掉当前会话的最后一轮，把她改过的文件改回去；发下一句之前，`miyu redo` 恢复最近一次撤销。连上核心（没在跑就拉起来），找会话，发 `session.revert` 或者 `session.unrevert`，照核心交回的几样印出改回了哪些文件。
+在 shell 里撤掉当前会话的最后一轮，把她改过的文件改回去；发下一句之前，`miyu redo` 恢复最近一次撤销。连上核心（没在跑、又设了 `DEEPSEEK_API_KEY` 的，拉起来），找会话，发 `session.revert` 或者 `session.unrevert`，照核心交回的几样印出改回了哪些文件。
 
 ### 在哪
 
@@ -29,7 +29,7 @@
 ### 怎么走
 
 1. **找数据根**，建骨架。出错：原因写在标准错误上，退出码 1。
-2. **连核心**，没在跑就拉起来（`ipc.md`）。撤销、恢复用不着模型：没设 `DEEPSEEK_API_KEY` 也拉起。连不上、拉不起：原因写在标准错误上，退出码 1。
+2. **连核心**（`ipc.md`），照 `miyu ask` 的规矩：设了 `DEEPSEEK_API_KEY`（去掉前后空白不是空的），没在跑就拉起来；没设的，核心在跑的照样连，没在跑的不拉起，说「核心没在跑。先设 DEEPSEEK_API_KEY：没有 key 拉起的核心，之后的 miyu ask 也用不了」，退出码 5。撤销、恢复本身用不着模型，不拉起是怕拉起一个没有 key 的核心。连不上、拉不起：原因写在标准错误上，退出码 1。
 3. **握手** `hello`：和 `miyu ask` 一样（`cli/ask.md` 第 3 步），`caps.input` 是 `false`。
 4. **找会话**：
    1. 写了 `--session`：照写的，头这边不查写法，交给核心查。
@@ -108,7 +108,7 @@
 **差异**：这一项带着不空的 `diff` 才印，印在它那一行下面，每一行缩进四格。
 
 1. 头两行：`--- 她改完的`（恢复时是 `--- 撤销以后的`），`+++ 现在`。
-2. 接着照原样印 `diff` 的每一行，控制字符换成 `�`（制表符也换）。第一个字是 `-` 的红，是 `+` 的绿，别的（`@@` 那一行、上下文）灰。
+2. 接着照原样印 `diff` 的每一行，控制字符换成 `�`，制表符照原样留着。第一个字是 `-` 的红，是 `+` 的绿，别的（`@@` 那一行、上下文）灰。
 3. 有 `more` 的，最后一行 `还有 <more> 行`。核心每个文件最多交 20 行（`protocol/undo.md`）。
 
 **执行过命令的那一句**：回应里 `commands` 大于 0 才印（核心只在撤销时交）。`turns` 是 0 或 1 的写「这一轮」，几轮的写「这几轮」：`· 这一轮执行过 <几> 条命令：命令改的文件撤不回`。
@@ -129,6 +129,7 @@ ESC[90m    ESC[31m-fn main() {}ESC[0m
 | 0 | 被接受：有文件没动、改回时出错的也是 0 |
 | 1 | 找不到数据根、建不了骨架；连不上、拉不起核心；被拒绝；核心断开；请求写不出去；一个一次性会话都没有 |
 | 2 | 参数不对（`cli/main.md`） |
+| 5 | 核心没在跑，又没设 `DEEPSEEK_API_KEY`：不拉起 |
 
 ### 给人看的字
 
@@ -148,10 +149,11 @@ ESC[90m    ESC[31m-fn main() {}ESC[0m
 | 差异的头一行，恢复 | `--- 撤销以后的` | `--- as undone` |
 | 差异的第二行 | `+++ 现在` | `+++ now` |
 | 差异没印完 | `还有 <几> 行` | `<几> more lines` |
-| 执行过命令，一轮 | `· 这一轮执行过 <几> 条命令：命令改的文件撤不回` | `· <几> commands ran: files they changed cannot be undone` |
+| 执行过命令，一轮 | `· 这一轮执行过 <几> 条命令：命令改的文件撤不回` | 一条：`· 1 command ran: files it changed cannot be undone`；几条：`· <几> commands ran: files they changed cannot be undone` |
 | 执行过命令，几轮 | `· 这几轮执行过 <几> 条命令：命令改的文件撤不回` | 同上 |
 | 最后一行 | 发下一句之前，可以用 miyu redo 恢复。 | Until you say something else, miyu redo brings it back. |
 | 没有一次性会话 | 还没有 miyu ask 开过的会话 | No session opened by miyu ask yet |
+| 核心没在跑、没设 key | 核心没在跑。先设 DEEPSEEK_API_KEY：没有 key 拉起的核心，之后的 miyu ask 也用不了 | The core is not running. Set DEEPSEEK_API_KEY first: a core started without it cannot serve miyu ask later |
 | 核心断开 | 核心断开了 | The core went away |
 | `miyu undo --help` | 撤掉当前会话的最后一轮，把她改过的文件改回去 | Undo the last turn of the current session and restore the files she changed |
 | `miyu redo --help` | 发下一句之前，恢复最近一次撤销 | Redo the latest undo, until you say something else |

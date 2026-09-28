@@ -143,7 +143,7 @@
 4. 记一条 `turn.reverted`：`turns` 是那一轮和它以后还在有效历史里的每一轮，照先后；`by` 是撤销的人，`cause` 是这个命令，不带回合编号。
 5. 算改回的几步（下面「改回的几步」）。没有要改的：它落了盘就回应，附上它的序号。
 6. 有要改的：出 `Append` 和 `Restore { steps }`，会话进入改回文件。这时来的命令，接受过的照上一次回应，别的拒绝，`restoring`；这个撤销命令自己的编号这时还没记下，它再来也是 `restoring`。会话不算空闲。
-7. `Restored` 回来：记一条 `files.restored`，`files` 照交回的原样记，`by`、`cause` 和撤销那一条一样，不带回合编号；两条都落了盘才回应，附上两条的序号。不在改回文件时来的 `Restored` 是过时的，不理。
+7. `Restored` 回来：先对照交出去的几步：一步一项、先后一样，每一项的 `result`、`effect`、`action` 和那一步一样；移进回收站成了的（`trash` 那一步 `restored`）要带着 `trash`。对不上的那一项改成 `failed`，`error` 写 `executor report did not match`；少了的照那一步补一项 `failed`，多出来的不要。然后记一条 `files.restored`，`files` 照对过的记，`by`、`cause` 和撤销那一条一样，不带回合编号；两条都落了盘才回应，附上两条的序号。不在改回文件时来的 `Restored` 是过时的，不理。
 8. 撤了就跟没说过一样：请求里不写撤销过什么。
 
 **恢复**（`Unrevert`）：
