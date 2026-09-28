@@ -50,7 +50,7 @@
 
 **帮助里的字**
 
-- `miyu --help`：第一行是主程序的说明，取自代码里 `Cli` 的文档注释，就是「`miyu`。」这几个字，带着反引号，不跟界面语言。子命令列表里 `ask`、`undo`、`redo` 的说明跟着界面语言；`core` 不列。
+- `miyu --help`：没有说明那一行，第一行就是用法 `Usage: miyu [COMMAND]`（施工 4-9 再补四上：原来印代码注释「`miyu`。」）。主程序的一句说明是产品的话，等做终端界面那一步一起定。子命令列表里 `ask`、`undo`、`redo` 的说明跟着界面语言；`core` 不列。
 - clap 自己的字是英文：`Usage`、`Commands`、`Options`，`help` 子命令、`-h`、`-V` 的说明，参数不对时的报错。
 - `miyu core --help` 照样印得出，说明是代码里的中文注释，`--idle-seconds` 不列。
 
@@ -86,7 +86,7 @@
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu/tests/commands.rs` | 不认识的子命令：中文、英文的那一句，退出码 2，不拉起核心、核心没起来过；只敲 `miyu`：退出码 2、说用 `miyu ask`；`--help`、`--version` 退出码 0，版本印 `miyu ` 开头 |
+| `crates/miyu/tests/commands.rs` | 不认识的子命令：中文、英文的那一句，退出码 2，不拉起核心、核心没起来过；只敲 `miyu`：退出码 2、说用 `miyu ask`；`--help`、`--version` 退出码 0，版本印 `miyu ` 开头，`--help` 第一行是用法 |
 | `crates/miyu/tests/ask.rs` | 参数不对退出码 2（什么都不写、`--session` 和 `--continue` 一起写）；`miyu ask --help` 跟着界面语言；没有 key、核心没在跑的不拉起 |
 | `crates/miyu/tests/undo.rs` | `miyu undo --help`、`miyu redo --help` 跟着界面语言；`undo`、`redo` 各接各的 |
 | `crates/miyu/tests/core.rs` | 拉起的是真的 `miyu core`（`core.md`、`ipc.md`） |

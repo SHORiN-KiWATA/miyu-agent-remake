@@ -185,7 +185,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 
 ### 运行日志
 
-来源是 `session`，每一行都带会话编号（`log.md`），只有 `effect content not stored` 不带：它在跑工具的任务外面的阻塞线程里发，那里没有会话的 span。
+来源是 `session`，每一行都带会话编号（`log.md`）。阻塞线程里发的也带：在阻塞线程里做完的活（第 5 条的写盘、`session/tools.md` 存效果）都带着派活时的 span（施工 4-9 再补四上：原来 `effect content not stored` 不带）。
 
 | 级别 | 这件事 | 键 | 什么时候 |
 |---|---|---|---|

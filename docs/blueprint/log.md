@@ -10,7 +10,8 @@
 |---|---|
 | `crates/miyu-log/src/lib.rs` | 装上（`install`）、订阅者怎么筛、一份多大、留几份 |
 | `crates/miyu-log/src/level.rs` | `MIYU_LOG` 的值怎么读 |
-| `crates/miyu-log/src/line.rs` | 一行怎么写：几列、转义、加不加引号、时刻 |
+| `crates/miyu-log/src/line.rs` | 一行怎么写：几列、转义、加不加引号、时刻、和 UTC 差多少 |
+| `crates/miyu-log/src/home.rs` | 家目录写成 `~` |
 | `crates/miyu-log/src/layer.rs` | 把一条事件写成一行；会话编号跟着 span 走 |
 | `crates/miyu-log/src/rotate.rs` | 按大小轮换的文件 |
 | `crates/miyu-core/src/lib.rs` | 核心起来时装上 |
@@ -20,12 +21,13 @@
 
 | 名字 | 是什么 |
 |---|---|
-| `install(目录, 名字, MIYU_LOG 的值)` | 装上：写进 `<目录>/<名字>.log`，交回 `Guard` |
+| `install(目录, 名字, MIYU_LOG 的值, 家目录)` | 装上：写进 `<目录>/<名字>.log`，交回 `Guard`；家目录读不出来的是空的，路径照原样写 |
 | `Guard` | 留着它，日志就一直写；丢掉时把文件 flush 一下 |
 | `LIMIT` | 一份的上限：10 MiB（10,485,760 字节） |
 | `KEEP` | 正在写的之外留几份：5 |
 | `level(值)` | 读 `MIYU_LOG`：记到哪一级 `filter`，读不懂的原值 `unknown` |
-| `subscriber(写到哪, 级别)` | 一个筛好、写成一行的订阅者；测试拿它接住日志 |
+| `subscriber(写到哪, 级别, 家目录)` | 一个筛好、写成一行的订阅者；测试拿它接住日志 |
+| `utc_offset()` | 本机现在和 UTC 差多少：`+09:00` 这样 |
 | `RotatingFile` | 按大小轮换的文件：`open(目录, 名字, 上限, 留几份)`、`path()`、`flush()` |
 | `LineLayer`、`Sink`、`Memory` | 写成一行的那一层；写一行的地方；测试用的、留在内存里的 |
 
@@ -34,7 +36,7 @@
 | `<数据根>/state/logs/core.log` | 正在写的 |
 | `<数据根>/state/logs/core.log.1` … `core.log.5` | 以前的：`.1` 是上一份，`.5` 最老 |
 
-- `state/logs/` 没有就建（连同缺的上级），文件没有就建。目录、文件都照系统默认的权限。
+- `state/logs/` 没有就建（连同缺的上级），文件没有就建。Unix 上新建的目录 0700、文件 0600，只有本人能进、能读（`07-存储.md` 第二节；施工 4-9 再补四上：原来照系统默认的，一般是 0755、0644）；已经有的不改。Windows 上靠用户目录本身的访问控制。
 - 用到的环境变量：`MIYU_LOG`。
 
 ### 怎么走
@@ -44,10 +46,11 @@
 **2. 装上**（`install`）
 
 1. 打开 `<目录>/<名字>.log` 接着往后写，目录没有就建；量出它已经多长。核心的是 `state/logs/` 下的 `core`。
-2. 照 `MIYU_LOG` 的值定级别（第 3 条）。
-3. 装成这个进程全局的订阅者。一个进程只能装一次，第二次报错。
-4. 值读不懂的，记一条 `WARN`：`MIYU_LOG not understood, using info value=<原值>`。
-5. 每一行写完就直接交给系统，不攒着；也不同步到磁盘。
+2. 记下家目录：写成一行时把它换成 `~`（第 5 条）。核心给的是它环境里的家目录（`store.md` 的环境快照）。
+3. 照 `MIYU_LOG` 的值定级别（第 3 条）。
+4. 装成这个进程全局的订阅者。一个进程只能装一次，第二次报错。
+5. 值读不懂的，记一条 `WARN`：`MIYU_LOG not understood, using info value=<原值>`。
+6. 每一行写完就直接交给系统，不攒着；也不同步到磁盘。
 
 **3. 级别**：`MIYU_LOG` 管这一次启动。
 
@@ -84,12 +87,13 @@
 |---|---|
 | 时刻 | 本机时间，系统的时区，到毫秒：`2026-09-27 21:03:15.284`，23 个字符 |
 | 级别 | `ERROR`、`WARN`、`INFO`、`DEBUG`、`TRACE`，左对齐占 5 格 |
-| 来源 | 目标去掉开头的 `miyu::`：`miyu::http` 写成 `http`；别人家的照原样，例如 `hyper::proto`。左对齐占 8 格，长的不截，后面照样空一格 |
-| 会话编号 | 有的才写，没有的这一格连同它后面的空格都不写。事件自己带了 `session` 这一格的，用它；没带的，用包着它的 span 里离得最近、有 `session` 的那一个（开 span 以后才记进去的也算） |
+| 来源 | 目标去掉开头的 `miyu::`：`miyu::http` 写成 `http`；别人家的照原样，例如 `hyper::proto`。左对齐占 8 格，长的不截，后面照样空一格。自带软件的工具发的行，目标写工具的名字：`miyu::shell`（施工 4-9 再补四上：原来写 `miyu::basesystem`，10 个字，这一列对不齐） |
+| 会话编号 | 有的才写，没有的这一格连同它后面的空格都不写。事件自己带了 `session` 这一格的，用它；没带的，用包着它的 span 里离得最近、有 `session` 的那一个（开 span 以后才记进去的也算）。阻塞线程、自己起的线程里发的也一样：派活的地方把当时的 span 带过去，在那边进入它（施工 4-9 再补四上：原来 `spawn_blocking`、`thread::spawn` 里发的没有会话编号） |
 | 这件事 | 事件的正文 |
 | 键值 | 事件别的格，照发的先后，每个前面空一格。没有值的格不写 |
 
 - 值：字符串照原样；数字、布尔照原样；用 `%` 发的照它的 Display，用 `?` 发的照它的 Debug。
+- 家目录写成 `~`（施工 4-9 再补四上）：这件事和每个值里，照字面找装上时给的家目录（末尾的 `/`、`\` 不算），它前面是开头、或者不是路径里的字（字母、数字、`_`、`-`、`.`、`/`、`\`、`:`），后面是结尾、或者不是名字里的字（字母、数字、`_`、`-`、`.`）的，换成 `~`。Windows 上 `\\?\` 开头的，连同这四个字一起换。家目录是空的、是根（`/`、`C:\` 这样没有名字的）不换。例如家目录是 `/home/ai`：`/home/ai/.miyu` 写成 `~/.miyu`，`/home/ai` 写成 `~`，`/home/aim`、`/srv/home/ai` 不换。先换再加引号、转义。
 - 会话编号、这件事：换行、回车、制表写成 `\n`、`\r`、`\t`，别的控制字符写成 `\x1b` 这样（两位小写十六进制），别的照原样。
 - 值是空的，或者带空白（全角空格也算）、控制字符、`"`、`=` 的，加双引号，里面的 `\`、`"` 前面加反斜杠，控制字符照上一条转；别的值照原样。
 - 所以一行里不出现换行和别的控制字符，`cat` 日志的时候终端不会把它们当成指令。
@@ -112,7 +116,7 @@
 3. 供应商出错的原话：不写，只写分类（`class`）。原话里可能回显请求里的字。
 4. HTTP：只写主机名、字节数、状态码、分类、供应商说要等多久、用时；地址的路径和参数不写。
 5. 这几条靠发日志的地方只交编号、长度、状态：接口上没有写内容的口子。由测试查（「守着它的」）。
-6. 出错的原因（`error`、`reason` 这几格）照原样写：系统的原话，或者核心自己的报错。核心自己的报错是中文，里面的路径照原样写全，家目录不换成 `~`。
+6. 出错的原因（`error` 这一格）照原样写：系统的原话，或者核心自己的报错；路径里的家目录照第 5 条写成 `~`。核心起不来的那一行不写原因，写没过的是哪一步（`stage`）：原因是给人看的中文，只交给头，头印给人看（`core.md`）。
 
 **8. 每一行**
 
@@ -121,8 +125,8 @@
 | 来源 | 级别 | 这件事 | 键 | 什么时候 |
 |---|---|---|---|---|
 | `log` | WARN | `MIYU_LOG not understood, using info` | `value` | 第 2 条 |
-| `core` | INFO | `starting` | `version`、`pid` | 装上日志以后，第一件事就记它（`MIYU_LOG` 读不懂的，排在那一条 `WARN` 后面） |
-| `core` | WARN | `not started` | `reason` | 起不来，原因同时交给头 |
+| `core` | INFO | `starting` | `version`、`pid`、`root`（数据根）、`tz`（本机和 UTC 差多少，`+09:00` 这样） | 装上日志以后，第一件事就记它（`MIYU_LOG` 读不懂的，排在那一条 `WARN` 后面） |
+| `core` | WARN | `not started` | `stage`：`home`、`resources`、`runtime`、`socket`、`models`、`tools` | 起不来，原因交给头（`core.md`） |
 | `core` | WARN | `ready line not written` | `error` | 往标准输出写那一行写不了 |
 | `core` | INFO | `stopped` | `reason`：`idle` 或 `signal` | 空闲够久了，或者收到停的信号 |
 | `core` | WARN | `SIGTERM not watched`、`Ctrl+C not watched` | `error` | 装不上信号的监听 |
@@ -159,9 +163,10 @@
 | `fs` | WARN | `temporary file left behind` | `error` | 整份换成新内容时没盖上去，临时文件也删不掉 |
 | `fs` | WARN | `trash record left behind` | `error` | Linux：用不着的 `.trashinfo` 删不掉 |
 | `fs` | WARN | `recycle record left behind` | `error` | Windows：移回来以后 `$I` 记录删不掉 |
-| `basesystem` | DEBUG | `command output still open after the command ended` | | 命令退出了，输出还没关 |
-| `basesystem` | DEBUG | `command output not readable` | `error` | 读命令的输出出错 |
-| `basesystem` | WARN | `command group not killed`、`command tree not killed` | `error` | Unix 杀不掉进程组；Windows 杀不掉进程树 |
+| `shell` | WARN | `command still running after kill` | | 到时整组杀了，再等 5 秒还没结束 |
+| `shell` | DEBUG | `command output still open after the command ended` | | 命令退出了，输出还没关 |
+| `shell` | DEBUG | `command output not readable` | `error` | 读命令的输出出错 |
+| `shell` | WARN | `command group not killed`、`command tree not killed` | `error` | Unix 杀不掉进程组；Windows 杀不掉进程树 |
 
 `http` 的几行没有 `session` 这一格，可发它们的请求任务带着会话的 span，照第 5 条也带会话编号（`session/actor.md` 第 8 条）。
 
@@ -172,7 +177,7 @@
 样本（照 `crates/miyu-log/src/layer/tests.rs`、`crates/miyu-session/tests/log.rs` 的写法，编号、时刻、数是举的例子）：
 
 ```text
-2026-09-27 21:03:15.284 INFO  core     starting version=0.0.0 pid=4242
+2026-09-27 21:03:15.284 INFO  core     starting version=0.0.0 pid=4242 root=~/.miyu tz=+09:00
 2026-09-27 21:03:16.002 INFO  session  0199d1e6-3b7a-7c41-8e5d-2f6b4c9f02a3 created persona=engineer venue=local tools=7
 2026-09-27 21:03:18.410 INFO  session  0199d1e6-3b7a-7c41-8e5d-2f6b4c9f02a3 request seen=6 endpoint=deepseek model=deepseek-flash
 2026-09-27 21:03:18.411 DEBUG http     0199d1e6-3b7a-7c41-8e5d-2f6b4c9f02a3 sent host=api.deepseek.com bytes=5120
@@ -200,15 +205,18 @@
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-log/src/level/tests.rs` | 不分大小写、前后空白不算、没设和空的是 `INFO`、读不懂的照 `INFO` 并交回原值 |
-| `crates/miyu-log/src/line/tests.rs` | 几列、占几格；什么时候加引号、怎么转义；会话编号、正文不断行；来源去掉 `miyu::`；时刻到毫秒、23 个字符 |
-| `crates/miyu-log/src/layer/tests.rs` | 一条事件一行；会话编号从 span 来，调到 `WARN` 也在；离得最近的 span 胜、后来记进去的也算；低于级别的、别人家低于 `WARN` 的不写；`off` 什么都不写，比 `WARN` 严的别人家也照它 |
-| `crates/miyu-log/src/rotate/tests.rs` | 在两行之间换、只留几份、每一份都是整行；比上限长的一行整行写、空的不换；再起来接着写、量了原来多长 |
+| `crates/miyu-log/src/line/tests.rs` | 几列、占几格；什么时候加引号、怎么转义；会话编号、正文不断行；来源去掉 `miyu::`；时刻到毫秒、23 个字符；和 UTC 差多少的写法 |
+| `crates/miyu-log/src/home/tests.rs` | 家目录换成 `~`：本身、后面接着路径的；前缀相同的别的目录、前面还接着路径的不换；一段里有几处；末尾带分隔符的家目录；Windows 的 `\\?\`；空的、根不换 |
+| `crates/miyu-log/src/layer/tests.rs` | 一条事件一行；会话编号从 span 来，调到 `WARN` 也在；离得最近的 span 胜、后来记进去的也算；低于级别的、别人家低于 `WARN` 的不写；`off` 什么都不写，比 `WARN` 严的别人家也照它；正文和值里的家目录写成 `~` |
+| `crates/miyu-log/src/rotate/tests.rs` | 在两行之间换、只留几份、每一份都是整行；比上限长的一行整行写、空的不换；再起来接着写、量了原来多长；Unix 上新建的目录 0700、文件 0600，已经有的不改 |
 | `crates/miyu-log/tests/install.rs` | 装上写进 `<名字>.log`；读不懂的级别照 `INFO` 并记一条 `WARN`；一个进程只能装一次 |
 | `crates/miyu-session/tests/log.rs` | 会话的每一行、`DEBUG` 的输入和动作、增量在 `TRACE`；日志里没有人说的、她说的、供应商出错的原话 |
 | `crates/miyu-session/tests/tool_log.rs` | 调工具的几行；参数、工具交回的字、工作目录都不在日志里 |
+| `crates/miyu-session/tests/blocking_log.rs` | 存效果的 blob 存不进去那一行在阻塞线程里发，带会话编号（Unix） |
+| `crates/miyu-basesystem/tests/log.rs` | `shell` 的行来源是 `shell`；命令退出了输出还没关那一行在阻塞线程里发，带会话编号（Linux） |
 | `crates/miyu-session/tests/http_log.rs` | HTTP 的两行带会话编号；key 不在日志里 |
 | `crates/miyu-http/tests/log.rs` | HTTP 的几行；key、请求体、回复的字、地址的路径和参数、出错的原话都不在日志里 |
-| `crates/miyu/tests/core.rs` | 真的核心：起来写一行 `starting`，空闲了写 `stopped reason=idle`；第二个核心不写；`starting` 那一行有进程号 |
+| `crates/miyu/tests/core.rs` | 真的核心：起来写一行 `starting`，空闲了写 `stopped reason=idle`；第二个核心不写；`starting` 那一行有进程号、数据根（家目录写成 `~`）、和 UTC 差多少；起不来的那一行只写 `stage` |
 
 ### 出处
 
@@ -217,8 +225,8 @@
 
 ### 还没有的
 
-- 核心起来的那一行写上时区 `tz=+09:00`（`28-运行日志.md` 第二节）。现在那一行是 `starting version=… pid=…`，没有时区。
-- 路径里的家目录写成 `~`，不带用户名（`28-运行日志.md` 第四节）。
+- 核心自己的几种报错是中文：造会话、载入会话、会话日志、blob、策略快照、账本这几种，写在 `error` 里（再补四中改英文）。
+- Windows 上系统报错的原话照系统的语言：标准库取的，管不着。
 - 配置项 `log.level`，配置里写错了用 `INFO` 并记一条 `WARN`（`28-运行日志.md` 第三节、LG2，`14-配置.md`）。
 - 每个软件一份 `state/logs/<软件>.log`，核心记它们的起停和退出码（`28-运行日志.md` 第一节、LG4）。
 - `miyu logs`：最后 100 行、`-f`、`--level`、`--session`（`28-运行日志.md` 第五节，`22-命令行.md` 第五节）。

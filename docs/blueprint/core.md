@@ -57,7 +57,7 @@
 1. 读一次环境的快照（`MIYU_HOME`、`MIYU_RESOURCES`、家目录这些），数据根、资源目录照它找；`MIYU_LOG`、放套接字的目录、`DEEPSEEK_API_KEY` 到用的那一步才读。
 2. 找数据根，建骨架（`store.md`）。
 3. 拿单实例锁 `run/core.lock`，不等。拿不到：已经有一个核心在跑，写 `running`，退出码 0，运行日志一个字都不写。先拿锁、再装日志：两个核心不写同一份日志。
-4. 装运行日志 `state/logs/core.log`，级别照 `MIYU_LOG`（`log.md`）。记一条 `INFO starting version=<版本> pid=<进程号>`。
+4. 装运行日志 `state/logs/core.log`，级别照 `MIYU_LOG`，带上第 1 步的家目录（`log.md`）。记一条 `INFO starting version=<版本> pid=<进程号> root=<数据根> tz=<和 UTC 差多少>`，数据根里的家目录写成 `~`，例如 `root=~/.miyu tz=+09:00`。
 5. 管理员的家目录 `home/admin/` 和工作区 `home/admin/workspace/`，没有就建；Unix 上新建的权限 0700。管理员的账号固定叫 `admin`。
 6. 找资源目录（`store.md`）。
 7. 起运行时：多线程，两个工作线程，接连接、会话、请求都在上面。
@@ -68,7 +68,7 @@
 12. 往标准输出写一行 `ready`。
 13. 一个个接连接，直到停下（下面「停下」）。
 
-第 2 到 10 步哪一步出了错（第 3 步拿不到锁的除外）：写 `error <原因>`，退出码 1；运行日志已经装上了的（第 4 步以后），再记一条 `WARN not started reason=<原因>`。第 8 步以后出的错，走的时候照样删掉套接字文件、放开锁（`ipc.md`）。
+第 2 到 10 步哪一步出了错（第 3 步拿不到锁的除外）：写 `error <原因>`，退出码 1；运行日志已经装上了的（第 5 步起），再记一条 `WARN not started stage=<哪一步>`：第 5 步到第 10 步依次是 `home`、`resources`、`runtime`、`socket`、`models`、`tools`。原因是给人看的中文，只交给头，不进运行日志（施工 4-9 再补四上：原来 `reason=<原因>` 整句写进去）。第 8 步以后出的错，走的时候照样删掉套接字文件、放开锁（`ipc.md`）。
 
 **那一行**
 
@@ -125,9 +125,9 @@
 
 | 级别 | 这件事 |
 |---|---|
-| `INFO` | `starting version=… pid=…` |
+| `INFO` | `starting version=… pid=… root=… tz=…` |
 | `WARN` | `DEEPSEEK_API_KEY not set, no model` |
-| `WARN` | `not started reason=…` |
+| `WARN` | `not started stage=…` |
 | `WARN` | `ready line not written error=…` |
 | `WARN` | `SIGTERM not watched error=…`、`Ctrl+C not watched error=…` |
 | `INFO` | `stopped reason=idle`、`stopped reason=signal` |
@@ -138,7 +138,7 @@
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu/tests/core.rs` | 头拉起真的 `miyu core`，等它说好了再连；管理员叫 `admin`，建好了它的家目录；再连不再拉起；两个头同时只拉起一个；起不来的说原因（找不到资源目录）；已经在跑的写 `running` 就走、不写日志；什么都没写就退了的；空闲了自己走，日志里一条 `starting`、一条 `stopped reason=idle`；工作目录是数据根 |
+| `crates/miyu/tests/core.rs` | 头拉起真的 `miyu core`，等它说好了再连；管理员叫 `admin`，建好了它的家目录；再连不再拉起；两个头同时只拉起一个；起不来的说原因（找不到资源目录），日志里只写 `stage=resources`；已经在跑的写 `running` 就走、不写日志；什么都没写就退了的；空闲了自己走，日志里一条 `starting`、一条 `stopped reason=idle`；`starting` 那一行的数据根在家目录下的写成 `~`、有和 UTC 差多少；工作目录是数据根 |
 | `crates/miyu-core/tests/serve.rs` | 空闲退出、放开锁和套接字；有头连着不退；空闲的钟从最后一个头走时算起；在跑的回合不退；收到停的信号先停下会话、跑到一半的记成重启了；没有 key（没设、全是空白）每次请求都说没有模型、分类是认证失败、没发出去 |
 | `crates/miyu-core/src/serve/tests.rs` | 多久看一次：四分之一，最多 30 秒，最少 100 毫秒；装不上的 Ctrl+C 当它不会来（造不出真的装不上，测的是等它的那一小段） |
 | `crates/miyu-core/tests/tools.rs` | 工具目录里是基础系统的七件；资源目录坏了，说是哪一份 |
@@ -163,4 +163,3 @@
 - 头发现核心比自己旧，请求它空闲时重启（`04-核心协议.md` 第八节）。
 - 模型从配置、供应商、池来（`15-模型与供应商.md`）；首次运行时的引导（`12-进程形态与分发.md` 第七节）。
 - `miyu status`、`miyu doctor`（`12-进程形态与分发.md` 第三节、R13）。
-- 核心起来的那一行写上时区（`tz=`）和数据根（`28-运行日志.md` 第二节）：现在写的是 `starting version=… pid=…`。
