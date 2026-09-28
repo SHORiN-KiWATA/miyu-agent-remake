@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>71</b><span>/ 77 步<strong>已完成</strong>，撤销靠得住了：打断时正在改的文件，效果照记</span></li>
-    <li><b>4-9</b><span>下一步：工具（再补二），<strong>施工单待写</strong></span></li>
-    <li><b class="mono">803cf92</b><span>最近一步（4-9 再补一）的提交</span></li>
+    <li><b>72</b><span>/ 77 步<strong>已完成</strong>，几件工具的边角修好了：链接、FIFO、二进制、大小写</span></li>
+    <li><b>4-9</b><span>下一步：请求、驱动、协议、核心（再补三），<strong>施工单待写</strong></span></li>
+    <li><b class="mono">71762d6</b><span>最近一步（4-9 再补二）的提交</span></li>
   </ul>
 </header>
 
@@ -408,7 +408,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-9"><span class="n">4-9</span>没人能确认时说清楚<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9b"><span class="n">4-9</span>补完蓝图（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9c"><span class="n">4-9</span>撤销（再补一）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-9</span>工具（再补二）</span></li>
+        <li><a class="step done" href="#s4-9d"><span class="n">4-9</span>工具（再补二）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">4-9</span>请求、驱动、协议、核心（再补三）</span></li>
         <li><span class="step"><span class="n">4-9</span>命令行、日志、注释（再补四）</span></li>
         <li><span class="step"><span class="n">4-9</span>蓝图的门禁（三补）</span></li>
@@ -5793,6 +5793,79 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图：<code>kernel/session.md</code>、<code>kernel/history.md</code>、<code>session/tools.md</code>、<code>tools/interface.md</code>、<code>tools/write.md</code>、<code>tools/edit.md</code>、<code>tools/trash.md</code>、<code>protocol/undo.md</code>、<code>cli/undo.md</code>。</li>
         <li><code>docs/construction/4-9-撤销（再补一）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s4-9d" aria-labelledby="h-s49d">
+  <div class="sheet-head"><h2 id="h-s49d"><span class="no">4-9</span>工具（再补二）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">补蓝图时查出几件工具在边角上靠不住：删链接时权限策略判的和删的不是同一个，换个大小写就能删掉工作目录，点名一个 FIFO 会一直卡着，读过的二进制盖不了，shell 的几个小毛病，嵌套的参数修正不到。这一步一件件修好。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">删一个链接</span><span class="dir-note">trash 和权限策略</span></div>
+            <ol class="pipe" aria-label="删一个链接">
+              <li>她说：删工作区里的 link（它指到外面）</li>
+              <li>权限策略照 resolve_itself 换：上级换成真实的位置，最后一段照原样</li>
+              <li>判的是链接本身在哪：在工作区里，放行</li>
+              <li>trash 也照 resolve_itself 找：删掉的是链接，它指的东西不动</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">几件工具</span><span class="dir-note">各修一处</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">grep、write、edit</span><span class="rl">照「安全地打开」开：只开普通文件、不阻塞，FIFO 不卡</span></div>
+              <div class="tile new"><span class="nm">read</span><span class="rl">读到二进制也报读过，write 才盖得了</span></div>
+              <div class="tile new"><span class="nm">shell</span><span class="rl">工作目录展开 ~；尾巴从行首起不多丢；杀了以后最多再等 5 秒；zsh 的通配符照 bash</span></div>
+              <div class="tile new"><span class="nm">参数修正</span><span class="rl">顺着 properties、items 往下走；grep 没声明的 -A、-B、-C 写成字符串也认</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">碰的是这一条本身</span><span class="rl">要碰的路径多一格：trash 删的是链接本身，权限策略判的也是它</span></div>
+          <div class="tile new"><span class="nm">不许删不分大小写</span><span class="rl">macOS、Windows 上换个大小写写工作目录、家目录，照样拦得住</span></div>
+          <div class="tile new"><span class="nm">链接一律不跟</span><span class="rl">glob、grep 不列不搜链接进来的文件，和 ripgrep 不加 -L 一样；链接可能指到工作区外面</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">shell 的环境变量白名单、zsh 照样读 /etc/zshenv：随 M5 的沙盒</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-9（再补二）</dd></div>
+        <div><dt>名称</dt><dd>工具</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">71762d6</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿、测试全过 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-fs</code>：<code>resolve_itself</code>，最后一段不跟链接，从 <code>trash</code> 挪过来。</li>
+        <li><code>miyu-tool</code>、<code>miyu-session</code>：要碰的路径多一格 <code>itself</code>，权限策略照它换真实的位置。</li>
+        <li><code>miyu-basesystem</code>：trash 不分大小写；grep、write、edit 安全地打开；read 的二进制；shell 的四处；没声明的别名宽松地认。</li>
+        <li><code>miyu-kernel</code>：参数修正往下走。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿；大小写那一条在 macOS、Windows 上测</span></li>
+        <li><span class="ok">✓</span><span>点名 FIFO 的测试卡住会自己放出来再报红，不陪它一直等</span></li>
+        <li><span class="ok">✓</span><span>故意改坏 17 处，全部有测试变红</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图：<code>fs.md</code>、<code>session/guard.md</code>、<code>kernel/session.md</code>、<code>tools/</code> 下的 interface、trash、grep、glob、write、edit、read、shell。</li>
+        <li><code>docs/designs/10-自带软件.md</code> 第三节（链接一律不跟）、「后续再定」（zsh 的通配符）。</li>
+        <li><code>docs/construction/4-9-工具（再补二）.md</code>：施工单。</li>
       </ul>
     </div>
   </div>
