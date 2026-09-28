@@ -5,14 +5,16 @@
 //!
 //! 这个文件只管各平台共用的：读参数、读规格、印探测的结果、出错时说的那几句。收紧和换成命令每个平台一个文件
 //! （`linux.rs`、`macos.rs`、`windows.rs`，别的系统 `other.rs`），各平台的施工各改各的；每个都交出同样的两样：
-//! `run`（收紧，再换成命令）、`mechanisms`（探测时报的手段）。施工 5-1 各平台都还不收紧。
+//! `run`（收紧，再换成命令）、`mechanisms`（探测时报的手段）。Linux（施工 5-2、5-3）、macOS（5-7）上照规格收紧，Windows
+//! 还不收紧（5-9）。
 //!
 //! 成了什么都不印：它的标准错误就是命令的标准错误，印了会混进给她看的输出。出错印一句英文，退出码照 `env`、`timeout`
 //! 的约定（[`EXIT_HELPER`]、[`EXIT_CANNOT_RUN`]、[`EXIT_NOT_FOUND`]）。
 
 #[cfg(target_os = "linux")]
 mod linux;
-#[cfg(target_os = "macos")]
+// 别的 Unix 上跑测试时也编进去：写配置、换成真实位置的那两块不碰 macOS 的接口，单元测试在 Linux 上也跑（施工 5-7）。
+#[cfg(any(target_os = "macos", all(test, unix)))]
 mod macos;
 #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
 mod other;

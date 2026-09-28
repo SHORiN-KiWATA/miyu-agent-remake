@@ -1,6 +1,6 @@
 //! 沙盒（`docs/blueprint/sandbox.md`，施工 5-1 起）：核心给每条要关起来的命令写一份规格（[`Spec`]），小程序
-//! `miyu-sandbox` 照规格先把自己收紧，再换成那条命令。助手是单独的一个小程序：Ubuntu、Mint 上只给它开命名空间
-//! （`docs/designs/11-权限与沙盒.md` 第六节）。
+//! `miyu-sandbox` 照规格先把自己收紧，再换成那条命令。助手是单独的一个小程序（`docs/designs/11-权限与沙盒.md` 第六节
+//! A7）。
 //!
 //! - [`Spec`]：规格；[`Sandboxed`]：一次调用带的，助手在哪、规格是什么；
 //! - [`argv`]：照规格把一条命令包成交给助手的样子；
@@ -10,7 +10,7 @@
 //!
 //! 助手本身在 `src/bin/miyu-sandbox/`：共用的在 `main.rs`，收紧和换成命令各平台一个文件。
 //!
-//! 施工 5-1 只把路接通，还不收紧任何东西；5-2 起各平台一件件加上。
+//! Linux（Landlock，施工 5-2、5-3）、macOS（Seatbelt，施工 5-7）上照规格收紧；Windows 还不收紧（5-9）。
 
 mod locate;
 mod probe;

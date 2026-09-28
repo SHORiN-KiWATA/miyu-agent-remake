@@ -26,5 +26,23 @@ testkit = []
 # MIT OR Apache-2.0。
 landlock = "0.4"
 
-[lints]
-workspace = true
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+# macOS 的测试里在只读的文件描述符上试 `fcntl`、拿它的错误码（施工 5-7）。MIT OR Apache-2.0，工作区里本来就有。
+libc = "0.2"
+
+# Cargo 不许 `workspace = true` 以后再单改一条：这里照抄工作区的（改那边的，记得同步这里），只把 `unsafe_code` 从
+# `forbid` 改成 `deny`：整个 crate 仍然不许，只有调系统接口的那几处单独放开，每一处写明为什么安全（施工 5-7：
+# macOS 上装 Seatbelt 配置的 `src/bin/miyu-sandbox/macos/seatbelt.rs`，和 macOS 测试里调 `fcntl` 的那一处）。
+[lints.rust]
+unsafe_code = "deny"
+unused_must_use = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+let_underscore_must_use = "deny"
+unused_result_ok = "deny"
+unwrap_used = "deny"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+# 每个 unsafe 块都写清为什么安全。
+undocumented_unsafe_blocks = "deny"

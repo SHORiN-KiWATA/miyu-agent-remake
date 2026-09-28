@@ -1,0 +1,8 @@
+(allow file-read* file-read-metadata file-test-existence file-map-executable process-exec file-write* (subpath (param "WRITE_0")))
+(allow network-outbound (remote unix-socket (subpath (param "WRITE_0"))))
+(deny file-read* file-read-metadata file-write* file-test-existence file-map-executable process-exec (literal (param "HIDDEN_0")) (subpath (param "HIDDEN_0")))
+(deny network-outbound (remote unix-socket (subpath (param "HIDDEN_0"))))
+(allow file-read* file-read-metadata file-test-existence file-map-executable process-exec file-write* (subpath (param "WRITE_1")))
+(allow network-outbound (remote unix-socket (subpath (param "WRITE_1"))))
+(deny file-write-unlink (require-all (vnode-type DIRECTORY) (literal (param "KEEP_0"))))
+(deny file-write-unlink (require-all (vnode-type DIRECTORY) (literal (param "KEEP_1"))))

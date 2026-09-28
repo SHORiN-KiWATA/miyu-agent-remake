@@ -8,7 +8,7 @@
 
 它是单独的一个小程序（`11-权限与沙盒.md` 第六节 A7）。
 
-现在 Linux 上照规格收紧（Landlock，施工 5-2、5-3）；macOS、Windows 还不收紧，探测报的手段是空的，核心照沙盒用不了办（施工 5-4 上）。
+现在 Linux（Landlock，施工 5-2、5-3）、macOS（Seatbelt，施工 5-7）上照规格收紧；Windows 还不收紧（5-9），探测报的手段是空的，核心照沙盒用不了办（施工 5-4 上）。
 
 这一页管各平台共用的：规格、助手的命令行和退出码、探测、找助手、`shell` 怎么经助手起。各平台怎么收紧各有一页，随那一步的施工写：Linux `sandbox/linux.md`（5-2 起），macOS `sandbox/macos.md`（5-7），Windows `sandbox/windows.md`（5-8 起）。沙盒只管读写权限，不管网络（2026-09-29 项目主人定）。助手里收紧的代码也是各平台一个文件，几条线可以同时施工，各改各的（2026-09-28 项目主人同意分线并行）。
 
@@ -39,7 +39,7 @@
 | `write` | 能写的目录、文件 |
 | `hidden` | 读写都不行的，例如数据根：里面有本机令牌，读到就能冒充本人 |
 
-- 规格以外的都能读，不能写；`/dev/null` 总能写（2026-09-29 项目主人定，照 DeepSeek 的 dsh：整盘能读，只管写）。
+- 规格以外的都能读，不能写；`/dev/null` 总能写（2026-09-29 项目主人定，照 DeepSeek 的 dsh：整盘能读，只管写）。平常的命令要用的几样设备，各平台另放行，写在各自那一页（macOS 上还有 `/dev/zero`、`/dev/fd`、终端，`sandbox/macos.md`）。
 - 规格里一条能写的都没有，就是全盘只读：只读这一级（`11-权限与沙盒.md` A12）。
 - 几条重叠的时候，越深的越算数：能写的落在藏起来的里面，照样能写（工作区在数据根里）；藏起来的落在能写的里面，照样藏（Linux 上挖不了洞，拒绝执行，`sandbox/linux.md`）。
 - 规格里没有网络：沙盒只管读写权限（2026-09-29 项目主人定）。
@@ -58,7 +58,7 @@
   - Unix 上直接换成它（`exec`），进程还是同一个。
   - Windows 上起一个子进程，等它，照它的退出码退出。
   - 成了什么都不印：它的标准错误就是命令的标准错误，印了会混进给她看的输出。
-- `miyu-sandbox probe`：标准输出上一行 JSON，说这台机器能收紧到什么程度，例如 `{"version":1,"platform":"linux","mechanisms":[]}`。`platform` 是 `linux`、`macos`、`windows`、`other` 之一；`mechanisms` 是这台机器上能用上的收紧手段，各平台自己报（Linux 上是 `landlock`，`sandbox/linux.md`），空的就是收紧不了。核心只认 `version` 是 1 的；多出来的格不管。
+- `miyu-sandbox probe`：标准输出上一行 JSON，说这台机器能收紧到什么程度，例如 `{"version":1,"platform":"linux","mechanisms":[]}`。`platform` 是 `linux`、`macos`、`windows`、`other` 之一；`mechanisms` 是这台机器上能用上的收紧手段，各平台自己报（Linux 上是 `landlock`，`sandbox/linux.md`；macOS 上是 `seatbelt`，`sandbox/macos.md`），空的就是收紧不了。核心只认 `version` 是 1 的；多出来的格不管。
 
 **退出码**，照 `env`、`timeout` 的约定：
 
@@ -84,7 +84,7 @@
 4. **助手的 `run`**：
    1. 读参数：不是 `run --spec <JSON> -- <程序> …` 的样子，印 `miyu-sandbox: usage: miyu-sandbox run --spec <json> -- <program> [args...]`，退出 125。
    2. 读规格：读不懂的，印 `miyu-sandbox: bad spec: <原话>`，退出 125。
-   3. 收紧：交给这个平台的文件（`linux.rs`、`macos.rs`、`windows.rs`，别的 Unix 是 `other.rs`），施工 5-1 都还什么都不做。收紧不成的，一律印 `miyu-sandbox: cannot confine: <原话>`，退出 125，不跑命令。
+   3. 收紧：交给这个平台的文件（`linux.rs`、`macos.rs`、`windows.rs`，别的 Unix 是 `other.rs`），怎么收紧写在各平台那一页；Windows、别的 Unix 还什么都不做。收紧不成的，一律印 `miyu-sandbox: cannot confine: <原话>`，退出 125，不跑命令。
    4. 换成命令。Unix 上 `exec`，找不到的印 `miyu-sandbox: cannot run <程序>: <原话>`、退出 127，别的原因执行不了的一样印、退出 126。Windows 上起子进程：起不来的照这两条；起来了就等它，照它的退出码退出。
 5. **助手的 `probe`**：印那一行 JSON，退出 0。手段（`mechanisms`）由这个平台的文件报，各平台自己定写什么，写进它那一页。
 6. 助手的字一律英文：它印在命令的输出里，她看得到（`26-提示词.md` 第三节：给模型看的机械文字用英文）。这几句只在出错时出现，不常驻，不进登记簿。
@@ -113,5 +113,5 @@
 ### 还没有的
 
 - 工具链的缓存、被沙盒挡住时给她的提示、沙盒用不了时 `miyu ask` 开头说一句（5-4 下）。
-- macOS 的 Seatbelt（5-7）；Windows 的沙盒用户、受限令牌（5-8、5-9）。
+- Windows 的沙盒用户、受限令牌（5-8、5-9）。
 - Windows 上主程序的真实位置（`std::fs::canonicalize`）带 `\\?\` 的前缀，日志里助手的路径跟着带：5-8 起看要不要去掉。
