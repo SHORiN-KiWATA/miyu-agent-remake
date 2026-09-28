@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>78</b><span>/ 79 步<strong>已完成</strong>，门禁看住了给模型的字和蓝图里的样本</span></li>
-    <li><b>4-10</b><span>下一步：M4 验收，<strong>施工单待写</strong></span></li>
-    <li><b class="mono">6ae86c1</b><span>最近一步（4-9 三补）的提交</span></li>
+    <li><b>79</b><span>/ 79 步<strong>已完成</strong>，M4 能干活了：她在临时仓库里修好了一个真 bug</span></li>
+    <li><b>M5</b><span>下一步：沙盒，<strong>先拆成步，等项目主人批准</strong></span></li>
+    <li><b class="mono">3fb8999</b><span>最近一步（4-10 M4 验收）的提交</span></li>
   </ul>
 </header>
 
@@ -415,7 +415,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-9h"><span class="n">4-9</span>出错说英文（再补四中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9i"><span class="n">4-9</span>权限策略、造会话、注释（再补四下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9j"><span class="n">4-9</span>蓝图的门禁（三补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-10</span>M4 验收</span></li>
+        <li><a class="step done" href="#s4-10"><span class="n">4-10</span>M4 验收<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -6286,6 +6286,76 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图：<code>prompts.md</code>（生成的）、<code>README.md</code> 第三节、<code>tools/</code> 七页、<code>cli/ask.md</code>、<code>cli/undo.md</code>、<code>log.md</code>。</li>
         <li><code>docs/construction/4-9-门禁（三补）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s4-10" aria-labelledby="h-s410">
+  <div class="sheet-head"><h2 id="h-s410"><span class="no">4-10</span>M4 验收</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">M4 的真人验收：在一个临时仓库里让她干一件真活，一个故意把加法写成减法的小 Rust 项目，cargo test 过不了。看她干不干得完、每一步印得对不对、撤销改不改得回来；再量工具面的 token，定预算。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">她干的活</span><span class="dir-note">miyu ask，一轮</span></div>
+            <ol class="pipe" aria-label="她干的几步">
+              <li>· 执行命令 cargo test 2>&amp;1 | tail -60 → 输出 32 行</li>
+              <li>· 读取 src/lib.rs → 24 行</li>
+              <li>· 编辑 src/lib.rs → 改了 1 处（a - b 改成 a + b）</li>
+              <li>· 执行命令 cargo test … → 两个测试都过；用中文说清原因，退出码 0</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">看到的</span><span class="dir-note">都对</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">撤销、恢复</span><span class="rl">miyu undo 改回 src/lib.rs、说执行过 2 条命令；miyu redo 又改回来</span></div>
+              <div class="tile new"><span class="nm">缓存</span><span class="rl">5 次请求，第一次冷，之后每次命中前面的全部前缀；整轮 76%</span></div>
+              <div class="tile new"><span class="nm">干净</span><span class="rl">没有 DSML；日志里没有 key；用完停掉了带着 key 的核心</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">工具面的 token</span><span class="rl">七件的边际份量：read 159、glob 117、grep 289、write 100、edit 209、trash 80、shell 122，合计 1076；DeepSeek 带工具另加约 211</span></div>
+          <div class="tile new"><span class="nm">预算照字节守</span><span class="rl">实测加一成 1184 token，约 3.7 字节一个 token，合 4400 字节；测试守着（项目主人定）</span></div>
+          <div class="tile new"><span class="nm">key 用一次</span><span class="rl">只在命令的环境变量里用，用完停核心、数一遍确认哪里都没留下</span></div>
+          <div class="tile"><span class="nm">下一步</span><span class="rl">M5 沙盒：先拆成步，拆好给项目主人批准</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-10</dd></div>
+        <div><dt>名称</dt><dd>M4 验收</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">3fb8999</dd></div>
+        <div><dt>验收</dt><dd>真人实测、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>登记簿：七份工具说明、aborted.txt 的 token 换成实测的；汇总页重新生成。</li>
+        <li>设计 10 第九节：预算的初值；<code>crates/miyu-basesystem/tests/budget.rs</code> 照字节守。</li>
+        <li>蓝图 <code>tools/interface.md</code>：预算那条从「还没有的」挪进正文。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真活干完：测试从不过到全过，退出码 0</span></li>
+        <li><span class="ok">✓</span><span>撤销、恢复对；缓存命中；没有 DSML；key 没留下</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>10-自带软件.md</code> 第九节、<code>26-提示词.md</code> 第十节；蓝图 <code>tools/interface.md</code>、<code>prompts.md</code>。</li>
+        <li><code>docs/construction/4-10-M4 验收.md</code>：施工单和验收结果。</li>
       </ul>
     </div>
   </div>
