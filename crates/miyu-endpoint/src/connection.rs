@@ -55,9 +55,21 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
     let mut reader = BufReader::new(read);
     let mut peer: Option<Peer> = None;
     let mut subscriptions = Subscriptions::default();
+    // 握手的期限（施工 4-9 再补三上）：连上以后这么久还没握手成的，断开。
+    let deadline = tokio::time::Instant::now() + core.hello_wait;
     loop {
         let locale = peer.map_or(Locale::En, |peer| peer.locale);
-        let line = match wire::read_line(&mut reader).await {
+        let read = match peer {
+            Some(_) => wire::read_line(&mut reader).await,
+            None => match tokio::time::timeout_at(deadline, wire::read_line(&mut reader)).await {
+                Ok(read) => read,
+                Err(_) => {
+                    tracing::info!(target: "miyu::endpoint", "no hello, closed");
+                    break;
+                }
+            },
+        };
+        let line = match read {
             Ok(Read::Line(line)) => line,
             Ok(Read::TooLong) => {
                 // 超长的读不完，行界也找不回来了：回一句读不懂，断开。
@@ -85,7 +97,11 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
                     peer = Some(shaken);
                     (wire::result(&request.id, result), None, false)
                 }
-                Err((refusal, close)) => (wire::error(id(), refusal, locale), None, close),
+                // 被拒的，话照这一次报的语言说（施工 4-9 再补三上）：第一次握手也不是一律英文。
+                Err((refusal, close)) => {
+                    let asked = asked_locale(&request.params).unwrap_or(locale);
+                    (wire::error(id(), refusal, asked), None, close)
+                }
             },
             (_, None) => (wire::error(id(), Refusal::HELLO_FIRST, locale), None, false),
             ("subscribe", Some(_)) => {
@@ -111,6 +127,14 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
     if peer.is_some() {
         tracing::info!(target: "miyu::endpoint", "disconnected");
     }
+}
+
+/// `hello` 里报的语言，读得出来的话（施工 4-9 再补三上）：握手被拒时照它说。
+fn asked_locale(params: &Value) -> Option<Locale> {
+    params
+        .get("locale")
+        .and_then(Value::as_str)
+        .map(|locale| Locale::of(Some(locale)))
 }
 
 /// `subscribe`、`unsubscribe` 的参数。

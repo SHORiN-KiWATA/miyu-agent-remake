@@ -75,7 +75,8 @@ fn check(idle: Duration) -> Duration {
 }
 
 /// 停的信号：Ctrl+C（SIGINT），Unix 上还有 SIGTERM。拉起的核心自成一个进程组，终端里按 Ctrl+C 打不到它，
-/// 要停它得明着发。装不上的当不会来。
+/// 要停它得明着发。装不上的当不会来：Ctrl+C 装不上时照样等 SIGTERM（施工 4-9 再补三上，原来当成收到了，马上
+/// 停）。
 pub(crate) async fn signal() {
     #[cfg(unix)]
     {
@@ -83,7 +84,7 @@ pub(crate) async fn signal() {
         match signal(SignalKind::terminate()) {
             Ok(mut terminate) => {
                 tokio::select! {
-                    _ = tokio::signal::ctrl_c() => {}
+                    () = interrupt() => {}
                     _ = terminate.recv() => {}
                 }
             }
@@ -99,7 +100,12 @@ pub(crate) async fn signal() {
 
 /// 等 Ctrl+C。装不上的一直等下去。
 async fn interrupt() {
-    if let Err(error) = tokio::signal::ctrl_c().await {
+    watched(tokio::signal::ctrl_c()).await;
+}
+
+/// 等 Ctrl+C：`installed` 是装上它的 future。装不上（交回出错）的，记一条 `WARN`，当它不会来，一直等下去。
+async fn watched(installed: impl Future<Output = std::io::Result<()>>) {
+    if let Err(error) = installed.await {
         tracing::warn!(target: TARGET, error = %error, "Ctrl+C not watched");
         std::future::pending::<()>().await;
     }

@@ -119,6 +119,15 @@ impl Log {
         self.push(KERNEL, "context.injected", &body);
     }
 
+    /// 记一次没等到回复就出了可以重试的错的请求：它看到了上一条为止。
+    pub(crate) fn failed(&mut self) {
+        let seen = self.next() - 1;
+        let body = format!(
+            r#"{{"seen":{seen},"messages":1,"result":"error","error":{{"class":"retryable","message":"503"}}}}"#
+        );
+        self.push(KERNEL, "model.called", &body);
+    }
+
     /// 模型回复，内容块照原文（JSON 数组）。它的请求看到了上一条为止。返回它的序号。
     pub(crate) fn reply(&mut self, blocks: &str) -> u64 {
         let seen = self.next() - 1;

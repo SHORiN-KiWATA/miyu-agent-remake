@@ -27,6 +27,7 @@ use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
 
 use miyu_kernel::id::AccountId;
 use miyu_session::Models;
@@ -56,7 +57,13 @@ pub struct Core {
     sessions: Sessions,
     /// 连着几个连接：`serve` 开始时加一，走的时候减一（施工 3-9 上）。
     connections: AtomicUsize,
+    /// 连上以后最多等多久握手（施工 4-9 再补三上）：等不来就断开，不然一个连上不说话的本机进程能让核心一直
+    /// 不空闲退出。
+    hello_wait: Duration,
 }
+
+/// 连上以后最多等多久握手。
+const HELLO_WAIT: Duration = Duration::from_secs(10);
 
 impl Core {
     /// 一份家底：会话表是空的，会话用到时再载入。
@@ -79,7 +86,15 @@ impl Core {
             token,
             sessions: Sessions::default(),
             connections: AtomicUsize::new(0),
+            hello_wait: HELLO_WAIT,
         }
+    }
+
+    /// 同一份家底，连上以后最多等 `wait` 握手：测试里设短的，不用真等 10 秒。
+    #[must_use]
+    pub fn with_hello_wait(mut self, wait: Duration) -> Core {
+        self.hello_wait = wait;
+        self
     }
 
     /// 连着几个连接。

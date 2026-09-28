@@ -1,5 +1,5 @@
 //! 订阅事件流（`docs/construction/3-8-协议端点（中）.md` 验收第 2 条）：先见结果、后见回应；两个会话不串；
-//! 取消订阅以后不再推；读得慢的掉队，推一条 `resync`。
+//! 取消订阅以后不再推；读得慢的掉队，推一条 `resync`；取消订阅时已经交给转发任务的回应照样到（施工 4-9 再补三上）。
 
 mod support;
 
@@ -202,6 +202,70 @@ async fn the_reply_waits_behind_a_backlog() {
     assert!(
         events.iter().all(|seq| seen.contains(seq)),
         "第二句产生的事件 {events:?} 应该在它的回应之前推过来"
+    );
+}
+
+/// 取消订阅时，已经交给转发任务、还没写出去的回应照样到（施工 4-9 再补三上：原来当场掐掉转发任务，回应丢了）。
+/// 几百段增量把写队列和管道堵满，转发任务卡在写队列上；堵着的时候说第二句，它的回应排在转发任务手里；这时取消，
+/// 再慢慢读。还订阅着的再订阅一次，是同一个订阅，回应也照样到。
+#[tokio::test]
+async fn unsubscribing_keeps_the_replies_already_handed_over() {
+    for method in ["unsubscribe", "subscribe"] {
+        let home = Home::new();
+        let script = Script::new([Play::Floods(800), Play::Says("好。")]);
+        let mut client = Client::connect(home.core(&script));
+        client.hello().await;
+        let session = client.create("c1", "~").await;
+        client.subscribe("c2", &session).await;
+        let send = |id: &str, text: &str| {
+            json!({"jsonrpc": "2.0", "id": id, "method": "session.send", "params": {"session": session, "text": text}})
+                .to_string()
+        };
+        client.line(&send("c3", "hi")).await;
+        home.until_turns(&session, 1).await;
+        client.line(&send("c4", "again")).await;
+        home.until_turns(&session, 2).await;
+        let stop = json!({"jsonrpc": "2.0", "id": "c5", "method": method, "params": {"session": session, "stream": "events"}});
+        client.line(&stop.to_string()).await;
+        let mut replies = Vec::new();
+        while let Some(next) = client.next_within(Duration::from_millis(500)).await {
+            assert_ne!(next["method"], json!("resync"), "这么几百段不该掉队");
+            if next.get("id").is_some() {
+                replies.push(next["id"].clone());
+            }
+        }
+        replies.sort_by_key(ToString::to_string);
+        assert_eq!(
+            replies,
+            [json!("c3"), json!("c4"), json!("c5")],
+            "{method}：回应一条都不丢"
+        );
+    }
+}
+
+/// 订阅着的会话停了：推一条 `resync`，头知道这个订阅没了（施工 4-9 再补三上：原来静静地断）。
+#[tokio::test]
+async fn a_session_that_stops_sends_a_resync() {
+    let home = Home::new();
+    // 端口一叫就 panic：这个会话的 actor 停了。
+    let script = Script::new([Play::Panics]);
+    let mut client = Client::connect(home.core(&script));
+    client.hello().await;
+    let session = client.create("c1", "~").await;
+    client.subscribe("c2", &session).await;
+    let send = json!({"jsonrpc": "2.0", "id": "c3", "method": "session.send", "params": {"session": session, "text": "hi"}});
+    client.line(&send.to_string()).await;
+    let mut resync = None;
+    while let Some(next) = client.next_within(Duration::from_secs(5)).await {
+        if next["method"] == json!("resync") {
+            resync = Some(next);
+            break;
+        }
+    }
+    let resync = resync.expect("会话停了，推了 resync");
+    assert_eq!(
+        resync["params"],
+        json!({"session": session, "stream": "events"})
     );
 }
 

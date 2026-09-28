@@ -5,7 +5,8 @@
 //! 订阅了的会话，命令的回应也交给它的转发任务：会话 actor 先推送、后回应（施工 3-7 中），回应到手时，
 //! 这条命令产生的推送一定已经到了；转发任务先把已经到了的推送都放进写队列，再放回应。订阅停了（掉了队、
 //! 会话停了），转发任务不退，接着替这个会话转回应，直到连接不要它了：回应一条都不丢，也不用猜它停在
-//! 哪一步。
+//! 哪一步。取消订阅、换一个新的订阅时，旧的转发任务也不掐：只关掉交回应给它的那一头，它把已经交给它的
+//! 回应放完再退（施工 4-9 再补三上）。
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -39,7 +40,7 @@ impl Subscriptions {
             .is_some_and(|forwarder| forwarder.pushing.load(Ordering::Acquire))
     }
 
-    /// 订阅会话 `session`：起一个转发任务，推送写进 `out`。原来有一个的，换掉。
+    /// 订阅会话 `session`：起一个转发任务，推送写进 `out`。原来有一个的，换掉：旧的放完已经交给它的回应再退。
     pub(crate) fn add(
         &mut self,
         session: SessionId,
@@ -60,16 +61,14 @@ impl Subscriptions {
             pushing,
             task,
         };
-        if let Some(old) = self.live.insert(session, forwarder) {
-            old.task.abort();
-        }
+        // 旧的不掐：丢掉它交回应的那一头，它放完排着的就退。
+        drop(self.live.insert(session, forwarder));
     }
 
-    /// 取消订阅会话 `session`：停掉它的转发任务。
+    /// 取消订阅会话 `session`：不再推它的事件。已经交给转发任务的回应照样放完，它才退（施工 4-9 再补三上：
+    /// 原来当场掐掉，还没写出去的回应就丢了）。
     pub(crate) fn remove(&mut self, session: &SessionId) {
-        if let Some(forwarder) = self.live.remove(session) {
-            forwarder.task.abort();
-        }
+        drop(self.live.remove(session));
     }
 
     /// 写一条回应：`session` 订阅着的，交给它的转发任务，排在已经到了的推送后面；没订阅的直接放进写
@@ -152,7 +151,7 @@ async fn relay(
     }
 }
 
-/// 交一份推送出去。这个订阅不再往下了（掉了队、会话停了、连接断了），交回 `false`；掉队的先推一条
+/// 交一份推送出去。这个订阅不再往下了（掉了队、会话停了、连接断了），交回 `false`；掉队的、会话停了的先推一条
 /// `resync`。
 async fn deliver(
     session: &SessionId,
@@ -175,7 +174,14 @@ async fn deliver(
             }
             false
         }
-        Err(Ended::Stopped) => false,
+        // 会话停了（施工 4-9 再补三上）：也推一条 `resync`，头知道这个订阅没了；重新订阅时，会话照会话表重新载入。
+        Err(Ended::Stopped) => {
+            tracing::info!(target: "miyu::endpoint", session = session.as_str(), "session stopped, resync");
+            if out.send(resync(session)).await.is_err() {
+                return false;
+            }
+            false
+        }
     }
 }
 
@@ -198,7 +204,7 @@ fn notification(session: &SessionId, event: &str) -> String {
     )
 }
 
-/// `resync` 通知：这个订阅掉了队，停了。
+/// `resync` 通知：这个订阅掉了队，或者会话停了，这个订阅停了。
 fn resync(session: &SessionId) -> String {
     format!(
         r#"{{"jsonrpc":"2.0","method":"resync","params":{{"session":"{}","stream":"events"}}}}"#,

@@ -225,6 +225,11 @@ impl Stage {
         self.hold_wakes = true;
     }
 
+    /// 之后的到点叫醒不再扣着，当场送回；已经扣着的那一个照旧等 [`Stage::release_wake`]（施工 4-9 再补三上）。
+    pub fn unhold_wakes(&mut self) {
+        self.hold_wakes = false;
+    }
+
     /// 送回扣着的那一次到点了：时钟拨到那一刻。
     ///
     /// # Panics

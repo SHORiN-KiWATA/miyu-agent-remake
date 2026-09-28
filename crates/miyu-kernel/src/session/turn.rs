@@ -87,7 +87,7 @@ pub(super) enum Stage {
 }
 
 impl Session {
-    /// 由第 `trigger` 条开一个回合：追加 `turn.started`，和变了的环境、权限两块事实
+    /// 由第 `trigger` 条开一个回合：追加 `turn.started`（带着会话现在的工作目录），和变了的环境、权限两块事实
     /// （`08-上下文投影.md` C10）；空闲时放宽的，这时生效。`cause` 是触发它的那条事件的
     /// `cause`。返回追加的事件。
     pub(super) fn open_turn(
@@ -96,7 +96,10 @@ impl Session {
         trigger: Seq,
         cause: Option<CommandId>,
     ) -> Vec<Event> {
-        let body = Body::TurnStarted(TurnStarted { trigger });
+        let body = Body::TurnStarted(TurnStarted {
+            trigger,
+            cwd: Some(self.environment.cwd.clone()),
+        });
         let started = self.record(at, By::Kernel, cause.clone(), body);
         self.turn = Some(Turn {
             id: TurnId::new(started.seq),

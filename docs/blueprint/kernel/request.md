@@ -242,7 +242,7 @@ The earlier part of this conversation was compacted into the summary below. It i
 | `crates/miyu-assemble/src/render/tests.rs` | 每种事件渲染成什么；回合开始的事实和触发放到回合开始的地方；等重试时切了级别，事实排在触发后面；早到的触发；重启以后接着干；检查点在最前、摘要不转义；回合没走完的五句；不认识的块和不进上下文的种类 |
 | `crates/miyu-assemble/tests/sample_session.rs` | 样本会话组装出两份样本请求；撤回的、确认和提问的事件不进请求 |
 | `crates/miyu-assemble/tests/probe.rs` | 一段八轮的终端会话由真内核跑出来，每次请求和存档（`requests/`、`openai-chat/`）逐字节一样；五条性质；什么都没收到的再来一字不差 |
-| `crates/miyu-assemble/tests/random_logs.rs` | 五百份随机会话，每次请求查五条性质：同样的日志同样的字节、前缀延伸（统一的请求和线上的字节两层；中间撤销、恢复、压缩过的那一次不查）、调用和结果成对、没有连着的 user、回合第一次请求的最后一块是触发；CI 长跑两万份 |
+| `crates/miyu-assemble/tests/random_logs.rs` | 五百份随机会话，每次请求查五条性质：同样的日志同样的字节、前缀延伸（统一的请求和线上的字节两层；中间撤销、恢复、压缩过的那一次不查）、调用和结果成对、没有连着的 user、回合第一次请求的最后一块是触发；CI 长跑两万份；重试的回合里，一半在等着重试时切一下只读 |
 | `crates/miyu-kernel/src/facts/tests.rs` | 模板造的时候查；两块的写法、目录转义、实际生效的级别；该不该注入的八种情形 |
 | `crates/miyu-kernel/tests/sample_facts.rs` | 用出厂模板，样本会话每个边界该注入的几块 |
 | `crates/miyu-kernel/src/session/tests/turn.rs`、`permission.rs`、`reply.rs`、`scenario/retrying.rs` | 回合开始注入、切级别以后在哪个边界注入、第二轮只注入变了的、断了以后追加 `reply_cut` |

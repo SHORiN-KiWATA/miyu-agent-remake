@@ -20,6 +20,10 @@ pub struct SessionCreated {
     /// 施工 3-9 下）。不是一次性的不写。
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub oneshot: bool,
+    /// 开会话时实际干活的目录，人看到的那种写法（施工 4-9 再补三上）：还没开过回合的会话，核心重启以后照它载入。
+    /// 之前的日志没有这一格。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<String>,
 }
 
 /// `session.policy_changed`：换了策略快照，或者换了权限，也可以一起换。

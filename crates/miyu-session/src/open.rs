@@ -159,6 +159,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let mut clock = Clock::default();
     let created = SessionCreated {
         oneshot,
+        cwd: Some(environment.cwd.clone()),
         ..snapshot.session_created(owner, venue.clone(), permission)
     };
     let (session, first) = Session::create(

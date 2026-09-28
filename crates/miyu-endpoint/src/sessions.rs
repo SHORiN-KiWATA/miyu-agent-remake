@@ -9,19 +9,20 @@ use std::path::Path;
 
 use tokio::sync::Mutex;
 
-use miyu_kernel::event::{Level, Permission};
+use miyu_kernel::event::{Body, Level, Permission};
 use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{CommandId, SessionId, VenueId};
 use miyu_kernel::origin::{By, Person};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_session::{Create, CreateError, Handle, Load, LoadError, create, load, new_id};
-use miyu_store::log::OpenError;
+use miyu_store::log::{OpenError, first_event, read_events};
 use miyu_store::resources::SourceError;
 
 use crate::Core;
 use crate::refusal::Refusal;
 
-/// 记住最近多少个造会话的命令编号：断线重发的造会话不再造一个新的（`04-核心协议.md` 第六节第 1 条）。
+/// 记住最近多少个造会话的命令编号：断线重发的造会话不再造一个新的（`04-核心协议.md` 第六节第 1 条）。核心重启以后
+/// 第一次造会话时，从最新的这么多个会话的 `session.created` 里补回来（施工 4-9 再补三上）。
 const REMEMBERED: usize = 1024;
 
 /// 会话表。
@@ -34,8 +35,10 @@ pub(crate) struct Sessions {
 struct Open {
     /// 在跑的会话，和它现在的工作目录。
     running: BTreeMap<SessionId, Running>,
-    /// 最近造会话的命令编号，和它造出的会话。
+    /// 最近造会话的命令编号，和它造出的会话，照从旧到新。
     created: VecDeque<(CommandId, SessionId)>,
+    /// 这次运行里补回过去重的编号没有：第一次造会话时补一次。
+    recalled: bool,
 }
 
 #[derive(Debug)]
@@ -73,6 +76,16 @@ impl Sessions {
         who: Opening,
     ) -> Result<Created, Refusal> {
         let mut open = self.open.lock().await;
+        if !open.recalled {
+            open.recalled = true;
+            let earlier = recall(core).await;
+            for pair in earlier.into_iter().rev() {
+                open.created.push_front(pair);
+            }
+            while open.created.len() > REMEMBERED {
+                open.created.pop_front();
+            }
+        }
         let workspace = workspace(core, &cwd);
         if let Some((_, session)) = open.created.iter().find(|(id, _)| *id == command) {
             let id = session.clone();
@@ -103,8 +116,20 @@ impl Sessions {
         let handle = match created {
             Ok(handle) => handle,
             Err(CreateError::Persona(SourceError::Persona(_))) => return Err(Refusal::BAD_PARAMS),
-            Err(CreateError::Persona(SourceError::Read { .. })) => {
-                return Err(Refusal::UNKNOWN_PERSONA);
+            // 人格的目录都没有：没有这个人格。目录在、里面或者 `core/` 下哪一份读不了（安装坏了），是内部出错
+            // （施工 4-9 再补三上）。
+            Err(CreateError::Persona(SourceError::Read { path, error })) => {
+                if !core
+                    .resources
+                    .path()
+                    .join("personas")
+                    .join(persona)
+                    .is_dir()
+                {
+                    return Err(Refusal::UNKNOWN_PERSONA);
+                }
+                tracing::warn!(target: "miyu::endpoint", path = %path.display(), error = %error, "resource unreadable");
+                return Err(Refusal::INTERNAL);
             }
             Err(error) => {
                 tracing::warn!(target: "miyu::endpoint", error = %error, "create failed");
@@ -156,7 +181,12 @@ impl Sessions {
                 cwd: running.workspace.clone(),
             });
         }
-        let cwd = cwd.unwrap_or("~").to_string();
+        // 没有报来的（打断、撤销、恢复、订阅载入的）：照日志里最后一次记下的工作目录，都没有才退回 `~`（施工 4-9
+        // 再补三上）。
+        let cwd = match cwd {
+            Some(cwd) => cwd.to_string(),
+            None => last_cwd(core, id).await.unwrap_or_else(|| "~".to_string()),
+        };
         let workspace = workspace(core, &cwd);
         let loaded = load(Load {
             root: &core.root,
@@ -226,6 +256,50 @@ pub(crate) fn admin(core: &Core) -> By {
     By::Person(Person {
         account: core.admin.clone(),
     })
+}
+
+/// 核心重启以后补回去重的编号（施工 4-9 再补三上）：最新的 [`REMEMBERED`] 个会话，`session.created` 的 `cause` 就是
+/// 造会话的命令编号。读不了的跳过。在阻塞线程里读，交回的照从旧到新。
+async fn recall(core: &Core) -> Vec<(CommandId, SessionId)> {
+    let root = core.root.clone();
+    let admin = core.admin.clone();
+    tokio::task::spawn_blocking(move || {
+        let Ok(ids) = root.sessions(&admin) else {
+            return Vec::new();
+        };
+        let mut found: Vec<(CommandId, SessionId)> = ids
+            .into_iter()
+            .take(REMEMBERED)
+            .filter_map(|id| {
+                let event = first_event(&root.session_dir(&admin, &id)).ok()?;
+                match (&event.body, event.cause) {
+                    (Body::SessionCreated(_), Some(cause)) => Some((cause, id)),
+                    _ => None,
+                }
+            })
+            .collect();
+        found.reverse();
+        found
+    })
+    .await
+    .unwrap_or_default()
+}
+
+/// 会话日志里最后一次记下的工作目录（施工 4-9 再补三上）：最后一条带 `cwd` 的 `turn.started`，没有就照
+/// `session.created` 的。之前的日志没有这两格，交回空的。在阻塞线程里读。
+async fn last_cwd(core: &Core, id: &SessionId) -> Option<String> {
+    let dir = core.root.session_dir(&core.admin, id);
+    tokio::task::spawn_blocking(move || {
+        let events = read_events(&dir).ok()?;
+        events.iter().rev().find_map(|event| match &event.body {
+            Body::TurnStarted(started) => started.cwd.clone(),
+            Body::SessionCreated(created) => created.cwd.clone(),
+            _ => None,
+        })
+    })
+    .await
+    .ok()
+    .flatten()
 }
 
 /// 本机这个场所。

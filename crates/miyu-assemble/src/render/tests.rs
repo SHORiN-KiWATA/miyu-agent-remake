@@ -281,6 +281,20 @@ fn a_turn_whose_first_request_failed_keeps_what_it_sent_in_front() {
     );
 }
 
+/// 第一次请求出了错、等着重试时切了级别：到点查出的事实排在触发后面，下一次请求接着上一次往后长（施工 4-9
+/// 再补三上：原来当成回合开始时注入的，挪到触发前面，前缀在那里断开）。
+#[test]
+fn a_fact_injected_while_waiting_to_retry_follows_the_trigger() {
+    let mut log = Log::new();
+    let hi = log.say("hi");
+    log.start(hi);
+    log.fact("<env/>");
+    assert_eq!(rendered(&log), ["user: <env/> | hi"]);
+    log.failed();
+    log.fact("<permission/>");
+    assert_eq!(rendered(&log), ["user: <env/> | hi | <permission/>"]);
+}
+
 #[test]
 fn a_message_that_came_during_the_last_step_and_starts_the_next_turn_goes_last() {
     let mut log = Log::new();

@@ -107,10 +107,22 @@ impl Writer {
         if self.rng.chance(8) {
             match self.rng.below(4) {
                 0 => s.model([Line::fails(ErrorClass::Auth, "401")]),
-                1 => s.model([
-                    Line::fails(ErrorClass::Retryable, "503"),
-                    Line::says("好了。"),
-                ]),
+                1 => {
+                    s.model([
+                        Line::fails(ErrorClass::Retryable, "503"),
+                        Line::says("好了。"),
+                    ]);
+                    // 一半的时候，等着重试时切一下只读（施工 4-9 再补三上）：到点查出的事实排在触发后面，
+                    // 下一次请求照样接着上一次往后长。
+                    if self.rng.chance(50) {
+                        s.hold_wakes();
+                        self.say(s);
+                        self.toggle(s);
+                        s.unhold_wakes();
+                        s.release_wake();
+                        return;
+                    }
+                }
                 2 => s.model([
                     Line::breaks("说到一半", ErrorClass::Retryable, "reset").thinking("想一想"),
                     Line::says("接着说完。"),
@@ -259,6 +271,20 @@ fn paths(log: &[Event]) -> BTreeSet<&'static str> {
             Body::ContextCompacted(_) => Some("压缩"),
             Body::PolicyChanged(_) if event.turn.is_some() => Some("回合中途切只读"),
             Body::MessageUser(_) if event.turn.is_some() => Some("回合中途说一句"),
+            Body::ContextInjected(fact)
+                if fact.kind.as_str() == "permission"
+                    && event.turn.is_some()
+                    && log[..k]
+                        .iter()
+                        .rev()
+                        .take_while(|earlier| earlier.turn == event.turn)
+                        .any(|earlier| {
+                            matches!(&earlier.body, Body::ModelCalled(called)
+                            if called.result.as_str() != "ok")
+                        }) =>
+            {
+                Some("等重试时切了级别")
+            }
             Body::ToolResult(result) if result.status == ToolStatus::Error => Some("工具出错"),
             Body::ToolResult(result)
                 if result.status == ToolStatus::Denied && event.by == By::Kernel =>
@@ -336,6 +362,7 @@ const EXPECTED_PATHS: &[&str] = &[
     "压缩",
     "回合中途切只读",
     "回合中途说一句",
+    "等重试时切了级别",
     "工具出错",
     "只读拦下写的",
     "结果乱序回来",

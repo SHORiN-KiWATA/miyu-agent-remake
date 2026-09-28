@@ -4,7 +4,8 @@
 //! 检查点排在最前；之后照有效历史排好的先后（[`History::ordered`]）一条条渲染。
 //! 人这一边的块（检查点、事实、人的消息）先攒着，碰到模型的回复或工具的结果，再合成一条
 //! user 消息放在它前面：照攒进来的先后，只有一处例外，每个回合开始的地方，放这一回合开始时
-//! 注入的事实和触发它的那条，先事实、后触发。
+//! 注入的事实和触发它的那条，先事实、后触发。「开始时注入的」到这一轮有了回复、结束，或者第一次
+//! 记下模型调用为止（施工 4-9 再补三上）：出错了等着重试时再注入的，照先后放，前缀才接得上。
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -38,6 +39,8 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
                 transcript.add(event.seq, before, vec![text_block(fact.text.clone())]);
             }
             Body::TurnStarted(started) => transcript.start(event.turn, started.trigger),
+            // 这一轮请求过一次了：之后注入的不再是开始时的（施工 4-9 再补三上）。它自己不进上下文。
+            Body::ModelCalled(_) => transcript.settle(),
             Body::TurnEnded(ended) => {
                 transcript.settle();
                 if let Some(said) = texts.turn_ended.for_reason(&ended.reason) {
@@ -57,7 +60,7 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
                 blocks: known(&result.blocks),
             }),
             // 不进上下文的：会话的事件、请人确认和人的决定、问人和人的回答（她看到的只有工具
-            // 结果）、模型调用的记录、改回文件的结局（她不知道被撤过）、不认识的种类。压缩、撤销、恢复、撤回已经由
+            // 结果）、改回文件的结局（她不知道被撤过）、不认识的种类。压缩、撤销、恢复、撤回已经由
             // 有效历史用掉了，这里碰不到。一个个列出来，加一种事件时编译器会逼着决定它渲不渲染。
             Body::SessionCreated(_)
             | Body::PolicyChanged(_)
@@ -71,7 +74,6 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
             | Body::QuestionAsked(_)
             | Body::QuestionAnswered(_)
             | Body::ContextCompacted(_)
-            | Body::ModelCalled(_)
             | Body::Unknown { .. } => {}
         }
     }
@@ -122,7 +124,7 @@ impl Transcript {
         }
     }
 
-    /// 回合里有了回复，或者回合结束了：之后注入的事实，照先后放。
+    /// 回合里有了回复、请求过一次，或者回合结束了：之后注入的事实，照先后放。
     fn settle(&mut self) {
         self.starting = None;
     }

@@ -208,7 +208,8 @@ impl Snapshot {
         serde_json::from_slice(bytes).map_err(|error| SnapshotError(error.to_string()))
     }
 
-    /// 造会话的那一条：属主、场所、这份快照的哈希、开始时的权限（`03-事件模型.md` 第三节）。
+    /// 造会话的那一条：属主、场所、这份快照的哈希、开始时的权限（`03-事件模型.md` 第三节）。工作目录由造会话的一方
+    /// 填上。
     pub fn session_created(
         &self,
         owner: AccountId,
@@ -221,6 +222,7 @@ impl Snapshot {
             policy: self.hash(),
             permission,
             oneshot: false,
+            cwd: None,
         }
     }
 

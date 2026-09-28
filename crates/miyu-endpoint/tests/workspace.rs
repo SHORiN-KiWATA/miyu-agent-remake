@@ -49,15 +49,18 @@ fn words(value: &Value, out: &mut String) {
     }
 }
 
-/// 头报来的工作目录是 `cwd`：她看到的请求里的字。
+/// 头报来的工作目录是 `cwd`：她看到的请求里的字。每次起一个新的核心，数据根是同一个：命令编号要全局不撞
+/// （`04-核心协议.md` 第六节第 1 条），核心重启以后照样认得出重发的造会话，所以每次换一对编号。
 async fn seen(home: &Home, outside: &Outside, cwd: &str) -> String {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let script = Script::new([Play::Says("好。")]);
     let mut client = Client::connect(home.core_at_home(&script, outside.0.join("home")));
     client.hello().await;
-    let session = client.create("c1", cwd).await;
+    let session = client.create(&format!("create-{n}"), cwd).await;
     client
         .call(
-            "c2",
+            &format!("send-{n}"),
             "session.send",
             json!({"session": session, "text": "hi"}),
         )

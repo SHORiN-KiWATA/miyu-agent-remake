@@ -140,7 +140,7 @@
 |---|---|
 | `crates/miyu/tests/core.rs` | 头拉起真的 `miyu core`，等它说好了再连；管理员叫 `admin`，建好了它的家目录；再连不再拉起；两个头同时只拉起一个；起不来的说原因（找不到资源目录）；已经在跑的写 `running` 就走、不写日志；什么都没写就退了的；空闲了自己走，日志里一条 `starting`、一条 `stopped reason=idle`；工作目录是数据根 |
 | `crates/miyu-core/tests/serve.rs` | 空闲退出、放开锁和套接字；有头连着不退；空闲的钟从最后一个头走时算起；在跑的回合不退；收到停的信号先停下会话、跑到一半的记成重启了；没有 key（没设、全是空白）每次请求都说没有模型、分类是认证失败、没发出去 |
-| `crates/miyu-core/src/serve/tests.rs` | 多久看一次：四分之一，最多 30 秒，最少 100 毫秒 |
+| `crates/miyu-core/src/serve/tests.rs` | 多久看一次：四分之一，最多 30 秒，最少 100 毫秒；装不上的 Ctrl+C 当它不会来（造不出真的装不上，测的是等它的那一小段） |
 | `crates/miyu-core/tests/tools.rs` | 工具目录里是基础系统的七件；资源目录坏了，说是哪一份 |
 
 ### 出处

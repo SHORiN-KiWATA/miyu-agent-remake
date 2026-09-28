@@ -23,6 +23,11 @@ use miyu_tool::Catalog;
 /// 本机令牌。
 pub const TOKEN: &str = "token-for-tests";
 
+/// 源码树里出厂的资源目录。
+pub fn default_resources() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")
+}
+
 /// 一个用完就删的临时数据根，建好了骨架；另有一个在数据根外面的工作目录（施工 4-7 下：数据根里哪一级都不许写）。
 pub struct Home {
     dir: PathBuf,
@@ -73,6 +78,28 @@ impl Home {
         self.core_full(script, Catalog::default(), Some(home), TOKEN)
     }
 
+    /// 一份核心，连上以后最多等 `wait` 握手（施工 4-9 再补三上：测试里不用真等 10 秒）。
+    pub fn core_waiting_hello(&self, script: &Script, wait: std::time::Duration) -> Arc<Core> {
+        Arc::new(self.bare(script, default_resources()).with_hello_wait(wait))
+    }
+
+    /// 一份核心，资源目录是 `resources`（施工 4-9 再补三上：造一份坏了的）。
+    pub fn core_with_resources(&self, script: &Script, resources: PathBuf) -> Arc<Core> {
+        Arc::new(self.bare(script, resources))
+    }
+
+    fn bare(&self, script: &Script, resources: PathBuf) -> Core {
+        Core::new(
+            self.root.clone(),
+            ResourceRoot::at(resources),
+            Arc::new(script.clone()),
+            Catalog::default(),
+            None,
+            alice(),
+            TOKEN.to_string(),
+        )
+    }
+
     fn core_full(
         &self,
         script: &Script,
@@ -82,7 +109,7 @@ impl Home {
     ) -> Arc<Core> {
         Arc::new(Core::new(
             self.root.clone(),
-            ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")),
+            ResourceRoot::at(default_resources()),
             Arc::new(script.clone()),
             tools,
             home,

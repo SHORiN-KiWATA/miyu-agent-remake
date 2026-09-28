@@ -11,6 +11,10 @@ pub struct TurnStarted {
     /// 引起这一轮的那条事件的序号：人发来的消息、子代理的回报、后台命令结束。
     /// 是什么引起的，看那条事件的种类。
     pub trigger: Seq,
+    /// 这一轮开始时会话的工作目录，照会话的环境，人看到的那种写法（施工 4-9 再补三上）。核心重启以后载入会话，
+    /// 照它找回会话在哪个目录里干活：日志是真相，不另放文件。之前的日志没有这一格。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<String>,
 }
 
 /// `turn.ended`：回合结束。

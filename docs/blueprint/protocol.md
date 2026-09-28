@@ -280,6 +280,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `ERROR` | `connection task failed error=…` | 一个连接的任务崩了 |
 | `WARN` | `create failed error=…`、`load failed session=… error=…` | 造不成、载入不了 |
 | `WARN` | `lagged, resync session=…` | 掉了队 |
+| `INFO` | `session stopped, resync session=…` | 订阅着的会话停了（施工 4-9 再补三上） |
 | `WARN` | `sessions not listed error=…`、`first event not read session=… error=…` | 列会话读不了 |
 | `ERROR` | `list panicked error=…` | 列会话崩了 |
 | `WARN` | `workspace not prepared kind=…` | 退回的工作区建不成 |
@@ -321,7 +322,9 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 |---|---|
 | `crates/miyu-endpoint/src/wire/tests.rs` | 认请求的每一条、回应是一行、去掉行尾、太长的 |
 | `crates/miyu-endpoint/tests/endpoint.rs` | 握手先行、令牌（长短也比）、版本对不上，被拒的断开；造会话、说话；同一个造会话只造一个；没有的会话；载入上一次运行的会话；两个连接只载入一次；照头的语言拒绝；JSON-RPC 的错误码、通知不回应；太长的断开；工作目录跟着头；不能输入的头造的会话没人确认；空消息；停了的会话下次再载入；打断时排着的接着发 |
-| `crates/miyu-endpoint/tests/subscribe.rs` | 先见结果后见回应；两个会话不串；取消订阅以后不推；掉队推 `resync`、回应一条不丢、重新订阅照常推；积压时回应排在推送后面；订阅要握手、要有这个会话、只认 `events` |
+| `crates/miyu-endpoint/tests/subscribe.rs` | 先见结果后见回应；两个会话不串；取消订阅以后不推；掉队推 `resync`、回应一条不丢、重新订阅照常推；积压时回应排在推送后面；取消订阅时已经交给转发任务的回应照样到；会话停了推 `resync`；订阅要握手、要有这个会话、只认 `events` |
+| `crates/miyu-endpoint/tests/restart.rs` | 核心重启以后：不带 `cwd` 载入的会话照最后一轮的工作目录、没开过回合的照造会话时的；重发的造会话交回原来那一个 |
+| `crates/miyu-endpoint/tests/edges.rs` | 不握手的到时断开、握手了的不受管；数组的 `params` 参数不对；握手被拒照它报的语言说；人格目录不存在是 `unknown_persona`、目录在而读不了是 `internal_error` |
 | `crates/miyu-endpoint/tests/list.rs` | 从新到旧、只要一次性的、`limit`、参数不对、空的 |
 | `crates/miyu-endpoint/tests/revert.rs` | 协议上撤销、恢复；三种拒绝的中文；`turn` 写 0 |
 | `crates/miyu-endpoint/tests/workspace.rs` | 太宽的五种（`~`、家目录、根目录、数据根、数据根里面）和读不出家目录时的 `~`；项目目录、账号的工作区照旧；回应里的 `cwd`、重发的造会话 |

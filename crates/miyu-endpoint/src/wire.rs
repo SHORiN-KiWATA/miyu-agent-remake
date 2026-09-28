@@ -103,6 +103,11 @@ pub(crate) fn parse(line: &[u8]) -> Incoming {
         },
         Some(_) => return Incoming::Bad(echo, Refusal::INVALID),
     };
+    // 照位置传的参数不收（施工 4-9 再补三上）：方法都照名字取参数；照位置读的，回应找不到该交给哪个订阅，破了
+    // 「先见结果，后见回应」。通知照旧不理。
+    if params.is_array() {
+        return Incoming::Bad(echo, Refusal::BAD_PARAMS);
+    }
     Incoming::Request(Request { id, method, params })
 }
 
