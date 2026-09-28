@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>91</b><span>/ 95 步<strong>已完成</strong>，环境里的时间写成这一个小时的起止：16:00–17:00</span></li>
-    <li><b>5-10</b><span>下一步：<code>--add-dir</code> 加进来的目录（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">821e266</b><span>最近一步（1-13 补 只到小时的时间写成一段）的提交</span></li>
+    <li><b>92</b><span>/ 95 步<strong>已完成</strong>，<code>miyu ask --add-dir</code>：加进来的目录和工作区一样能读能写</span></li>
+    <li><b>5-10</b><span>下一步：核心里的文件工具按真实位置逐层打开（Windows 上跑命令那一步暂停）</span></li>
+    <li><b class="mono">fe03da6</b><span>最近一步（5-10 上 加进来的目录）的提交</span></li>
   </ul>
 </header>
 
@@ -436,7 +436,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s5-7"><span class="n">5-7</span>macOS<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s5-8"><span class="n">5-8</span>Windows：装<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">5-9</span>Windows：跑（暂停）</span></li>
-        <li><span class="step"><span class="n">5-10</span>加进来的目录（上）</span></li>
+        <li><a class="step done" href="#s5-10a"><span class="n">5-10</span>加进来的目录（上）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">5-10</span>按真实位置逐层打开（下）</span></li>
         <li><span class="step"><span class="n">5-11</span>M5 验收</span></li>
       </ol>
@@ -7215,6 +7215,76 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>设计 <code>08-上下文投影.md</code> 第五节「时间」。</li>
         <li>蓝图 <code>kernel/ids.md</code>「当地钟点」、<code>kernel/request.md</code>；<code>docs/construction/1-13-只到小时的时间写成一段（补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-10a" aria-labelledby="h-s510a">
+  <div class="sheet-head"><h2 id="h-s510a"><span class="no">5-10</span>加进来的目录（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose"><code>miyu ask --add-dir &lt;目录&gt;</code>：事先多放行几个目录，和工作区一样能读能写，可以写好几次。<code>miyu ask</code> 里确认不了，要写工作区以外的地方只能靠它（项目主人 09-28 定，照 Claude Code、codex）。她看到的请求一个字节不变。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一路怎么走</span><span class="dir-note">照工作目录的走法</span></div>
+            <ol class="pipe" aria-label="加进来的目录一路怎么走">
+              <li>命令行：相对的接成绝对的，不是目录的退出码 2</li>
+              <li>协议：造会话、说话都带 <code>dirs</code>，太宽的整条命令回 <code>dir_too_wide</code></li>
+              <li>内核：记进这一轮的 <code>turn.started</code>，空的不写</li>
+              <li>权限策略、沙盒规格：照工作区放行</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">边界表的先后</span><span class="dir-note">先对上的算</span></div>
+            <div class="files">
+              <div class="tile"><span class="nm">1 工作区</span><span class="rl">能读能写，git 钩子只能读</span></div>
+              <div class="tile"><span class="nm">2 数据根</span><span class="rl">谁都不能碰</span></div>
+              <div class="tile new"><span class="nm">3 加进来的目录</span><span class="rl">照工作区算；排在数据根后面</span></div>
+              <div class="tile"><span class="nm">4–6</span><span class="rl">临时目录、只能读的、边界以外</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">太宽的拒绝</span><span class="rl">家目录、根目录、数据根和它里面的</span></div>
+          <div class="tile new"><span class="nm">不给她加字</span><span class="rl">要写那里，你在话里本来就会说</span></div>
+          <div class="tile"><span class="nm">载入找回</span><span class="rl">核心重启以后照最后一轮的</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-10 上</dd></div>
+        <div><dt>名称</dt><dd>加进来的目录</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">fe03da6</dd></div>
+        <div><dt>验收</dt><dd>真模型自测、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>会话的环境、<code>turn.started</code>、判权限和派工具的动作都多一格 <code>dirs</code>。</li>
+        <li>边界表多一片「加进来的目录」；沙盒规格能写的里面也有它们。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>探针存档一个字节不变</span></li>
+        <li><span class="ok">✓</span><span>手写变异都被逮住</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>22-命令行.md</code> O3、<code>11-权限与沙盒.md</code> 第四节。</li>
+        <li>蓝图 <code>cli/ask.md</code>、<code>protocol.md</code>、<code>session/guard.md</code>、<code>fs.md</code>；<code>docs/construction/5-10-加进来的目录（上）.md</code>。</li>
       </ul>
     </div>
   </div>
