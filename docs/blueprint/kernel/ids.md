@@ -78,10 +78,11 @@
 - 写成 `UTC+09:00`、`UTC-05:30`；零时区写 `UTC+00:00`，字数固定。
 - 不进 JSON。内核不读本机的时区设置：时区由执行器送进来，夏令时一换，送进来的就跟着变。
 
-**当地钟点** `Timestamp::local_hour(offset)`：这个时刻在那个时区的钟点，到小时，例如 `Fri 2026-09-25 16:00`。
+**当地钟点** `Timestamp::local_hour(offset)`：这个时刻在那个时区落在哪一个小时，写成这个小时的起止，例如 `Fri 2026-09-25 16:00–17:00`（施工 1-13 补）。
 
 - 星期写三个字母：`Sun`、`Mon`、`Tue`、`Wed`、`Thu`、`Fri`、`Sat`（1970-01-01 是星期四）。
-- 日期写成 `年-月-日`，年补足四位，月、日两位；二十四小时制，小时两位；分钟一律写 `00`：同一个小时里字节不变。
+- 日期写成 `年-月-日`，年补足四位，月、日两位；二十四小时制，起止的小时都是两位、分钟都写 `00`，中间是连接号 `–`（U+2013）：同一个小时里字节不变。
+- 23 点写 `23:00–24:00`，日期还是这一天。
 - 加上时区跨出 0000 年到 9999 年的（0000 年初在西边的时区、9999 年末在东边的时区），年写不成四位：`-001-12-31`、`10000-01-01`（没有测试证实）。
 - 环境那一块事实的 `time`、`timezone` 两格用它和 `UtcOffset`（`kernel/request.md`）。
 
@@ -157,7 +158,7 @@
 
 **当地钟点**：
 
-18. 先把时刻加上时区的分钟数，再照 UTC 的办法算日期、小时、星期：跨日、跨月、跨年、闰日、1970 年以前、负的时区、差半小时的时区都照这一条。例如 `2026-12-31T20:30:00.000Z` 在 +09:00 是 `Fri 2027-01-01 05:00`，`2026-09-25T00:30:00.000Z` 在 −03:30 是 `Thu 2026-09-24 21:00`。
+18. 先把时刻加上时区的分钟数，再照 UTC 的办法算日期、小时、星期：跨日、跨月、跨年、闰日、1970 年以前、负的时区、差半小时的时区都照这一条。例如 `2026-12-31T20:30:00.000Z` 在 +09:00 是 `Fri 2027-01-01 05:00–06:00`，`2026-09-25T00:30:00.000Z` 在 −03:30 是 `Thu 2026-09-24 21:00–22:00`，`2026-09-25T14:59:59.999Z` 在 +09:00 是 `Fri 2026-09-25 23:00–24:00`。
 
 **「谁」**：
 
@@ -201,7 +202,7 @@ bad session id: must be 36 characters (got "x")
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-kernel/src/id/tests.rs` | 图纸上的例子读写一字不差（`samples_from_the_drawing_round_trip`、`names_from_the_drawing_round_trip`）；会话编号（`session_id_must_be_lowercase_uuid_text`）；短名字（`command_id_is_short_printable_text`、`short_names_are_opaque_but_bounded`）；路径里的名字（`account_is_like_a_linux_login_name`、`module_driver_and_fact_names_follow_the_account_rule`）；内容哈希的写法和算法（`content_hash_is_sha256_in_lowercase_hex`、`content_hash_of_known_contents`、`hashing_piece_by_piece_is_the_same_as_all_at_once`）；媒体类型、文件名、事件种类各自的规则；序号和回合编号（`seq_starts_at_one`、`turn_id_reads_like_a_seq`）；调用编号第 9 到 12 条（`call_id_accepts_only_what_the_kernel_writes`）；报错的样子和 80 个字符（`error_says_what_why_and_what_was_read`、`long_text_in_errors_is_cut`） |
-| `crates/miyu-kernel/src/time/tests.rs` | 图纸上的例子；几个标准时刻和两头的界（`well_known_moments`、`years_outside_0000_to_9999_are_refused`）；闰年；1600 年到 2400 年一天一天数过去和换算对得上；第 13 到 17 条每种坏写法；时区的写法和范围；第 18 条当地钟点（`the_local_hour_is_the_wall_clock_to_the_hour`）；七天的写法 |
+| `crates/miyu-kernel/src/time/tests.rs` | 图纸上的例子；几个标准时刻和两头的界（`well_known_moments`、`years_outside_0000_to_9999_are_refused`）；闰年；1600 年到 2400 年一天一天数过去和换算对得上；第 13 到 17 条每种坏写法；时区的写法和范围；第 18 条当地钟点（`the_local_hour_is_the_wall_clock_to_the_hour`；23 点到 24 点 `the_last_hour_of_a_day_ends_at_24`，施工 1-13 补）；七天的写法 |
 | `crates/miyu-kernel/src/origin/tests.rs` | 七种读写一字不差、各读成自己那一种；不认识的一字不差；认识的种类多出来的格不管；第 19 条的几种坏写法 |
 | `xtask/src/purity.rs`（门禁「纯逻辑」） | 内核的 `src/` 里没有 `SystemTime`、`Instant`：不读时钟 |
 
