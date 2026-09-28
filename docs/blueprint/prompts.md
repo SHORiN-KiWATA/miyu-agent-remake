@@ -920,7 +920,7 @@ The tool returned only images or files. They are in the next message.
 #### `core/turn-ended/aborted.txt`
 
 - 什么时候加进来：核心崩了、那一轮没走完以后
-- token：约 22（估的，4-10 实测）
+- token：23
 - 为什么加：同上。原来说程序重启了，其实是核心没走完就停了，有计划的重启另有一句；施工 4-9 再补四下改成实情
 - 指纹：`e82c8e69`
 
@@ -944,7 +944,7 @@ The tool returned only images or files. They are in the next message.
 #### `software/basesystem/tools/read.json`
 
 - 什么时候加进来：会话的工具面里有 `read`（每次请求都带）
-- token：约 143（估的，4-10 实测）
+- token：159
 - 为什么加：`read` 的说明和参数：照 26 附录的草稿，先去掉图片、PDF；说明里给她一个用它不用 `cat` 的理由（施工 4-4 上）。4-4 下照规范改（`10-自带软件.md` 第十节）：参数改名 `file_path`，每个参数一句说明（W2 改），写明行号是 cat -n 的样子；多出来的大半是参数说明
 - 指纹：`a213cd6d`
 
@@ -958,7 +958,7 @@ The tool returned only images or files. They are in the next message.
 #### `software/basesystem/tools/glob.json`
 
 - 什么时候加进来：会话的工具面里有 `glob`（每次请求都带）
-- token：约 104（估的，4-10 实测）
+- token：117
 - 为什么加：`glob` 的说明和参数，照 Claude Code 的形状；说明里写明新的在前、最多 100 个（施工 4-4 下）
 - 指纹：`8699a5e3`
 
@@ -972,7 +972,7 @@ The tool returned only images or files. They are in the next message.
 #### `software/basesystem/tools/grep.json`
 
 - 什么时候加进来：会话的工具面里有 `grep`（每次请求都带）
-- token：约 241（估的，4-10 实测）
+- token：289
 - 为什么加：`grep` 的说明和参数，参数照 Claude Code 常用的八个；说明里写明用它、不用 shell 里的 grep、rg；`pattern` 那一句是它说明里最容易踩的坑：花括号要转义（施工 4-4 下）
 - 指纹：`07156e14`
 
@@ -986,7 +986,7 @@ The tool returned only images or files. They are in the next message.
 #### `software/basesystem/tools/edit.json`
 
 - 什么时候加进来：会话的工具面里有 `edit`（每次请求都带）
-- token：约 170（估的，4-10 实测）
+- token：209
 - 为什么加：`edit` 的说明和参数，字段名照 Claude Code，一次改几处（B6）：`edits` 里每一项 `old_string`、`new_string`、`replace_all`；说明三句：精确替换、一次几处，要先读过，最容易踩的坑是缩进和读出来的行号那一截（施工 4-6 中）
 - 指纹：`8f2fcce3`
 
@@ -1000,7 +1000,7 @@ The tool returned only images or files. They are in the next message.
 #### `software/basesystem/tools/shell.json`
 
 - 什么时候加进来：会话的工具面里有 `shell`（每次请求都带）
-- token：约 90（估的，4-10 实测）
+- token：122
 - 为什么加：`shell` 的说明和参数，照 Claude Code：`command` 看名字就懂，不写说明；`timeout` 是毫秒、上限和默认值写在那一句里。说明三句：用哪种 shell（`{shell}` 在核心起来时换成 `bash`、`zsh`、`PowerShell 7`、`Windows PowerShell 5.1`，会话里不变），编译、测试、git 用它、读搜改文件用专用的工具，每次从工作目录起、`cd` 不带到下一次。`description`、`run_in_background` 这一步不声明（施工 4-8）
 - 指纹：`eed208bf`
 
@@ -1014,7 +1014,7 @@ The tool returned only images or files. They are in the next message.
 #### `software/basesystem/tools/trash.json`
 
 - 什么时候加进来：会话的工具面里有 `trash`（每次请求都带）
-- token：约 60（估的，4-10 实测）
+- token：80
 - 为什么加：`trash` 的说明和参数：`file_path`，照另外几件的叫法；说明两句：移进系统回收站、撤销得回来，删东西用它不用 shell 里的 `rm`（施工 4-6 下）
 - 指纹：`02738142`
 
@@ -1028,7 +1028,7 @@ The tool returned only images or files. They are in the next message.
 #### `software/basesystem/tools/write.json`
 
 - 什么时候加进来：会话的工具面里有 `write`（每次请求都带）
-- token：约 78（估的，4-10 实测）
+- token：100
 - 为什么加：`write` 的说明和参数，照 Claude Code：`file_path`、`content`，`content` 看名字就懂，不写说明（W2）；说明三句：新建或者整体覆盖，已经在了的要先读过，只改一部分的用 `edit`（第三句施工 4-6 中有了 `edit` 才加）（施工 4-6 上）
 - 指纹：`5c81c0e9`
 
