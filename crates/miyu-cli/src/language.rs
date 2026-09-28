@@ -70,6 +70,21 @@ impl Language {
         }
     }
 
+    /// 有 `steps` 步因为要确认没做（`22-命令行.md` O3，施工 4-9）：红的「没做」前面、后面的两段。
+    pub(crate) fn unattended(&self, steps: u64) -> (String, &'static str) {
+        match (self, steps) {
+            (Language::Chinese, _) => (format!("· {steps} 步"), "：要你确认，miyu ask 里确认不了"),
+            (Language::English, 1) => (
+                "· 1 step ".to_string(),
+                ": it needs your approval, which cannot be given in miyu ask",
+            ),
+            (Language::English, _) => (
+                format!("· {steps} steps "),
+                ": they need your approval, which cannot be given in miyu ask",
+            ),
+        }
+    }
+
     /// 「出错」「没做」和原因之间。
     pub(crate) fn colon(&self) -> &'static str {
         match self {

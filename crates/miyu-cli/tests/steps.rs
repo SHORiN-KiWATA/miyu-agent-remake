@@ -50,7 +50,7 @@ async fn each_step_is_one_line_before_the_answer() {
         err,
         screen,
     } = asked;
-    assert_eq!(code, 0, "{err}");
+    assert_eq!(code, 4, "有一步要确认没做：{err}");
     assert_eq!(out, "读完了。\n", "步骤不进标准输出");
     // 工作区外面的写全了；太长的留后面 80 个字。
     let outside = plan_md.to_string_lossy();
@@ -62,9 +62,9 @@ async fn each_step_is_one_line_before_the_answer() {
     assert_eq!(
         screen,
         format!(
-            "· 读取 notes.md → 3 行\n· 读取 missing.md → 出错：没有这个文件\n· 读取 {outside} → 没做：要确认，这里没人能确认\n\n读完了。\n· 输入 400 · 命中缓存 160（40%）· 输出 40\n"
+            "· 读取 notes.md → 3 行\n· 读取 missing.md → 出错：没有这个文件\n· 读取 {outside} → 没做：要确认，这里没人能确认\n\n读完了。\n· 输入 400 · 命中缓存 160（40%）· 输出 40\n· 1 步没做：要你确认，miyu ask 里确认不了\n"
         ),
-        "工作区里的写相对的，外面的照原样"
+        "工作区里的写相对的，外面的照原样；最后说有几步因为要确认没做（施工 4-9）"
     );
 }
 
@@ -142,6 +142,26 @@ async fn json_prints_no_steps() {
     assert_eq!(err, "", "给脚本的：标准错误上只印出错");
     let printed: Value = serde_json::from_str(out.trim_end()).expect("一行 JSON");
     assert_eq!(printed["turns"][0]["text"], "一行。");
+}
+
+/// 给脚本的：有一步因为要确认没做，只看退出码 4，标准错误上照旧只印出错（施工 4-9）。
+#[tokio::test]
+async fn json_says_a_step_needed_approval_only_by_the_exit_code() {
+    let work = Outside::new();
+    let elsewhere = Outside::new();
+    let plan_md = elsewhere.file("plan.md", "别处\n");
+    let home = home([read(&plan_md.to_string_lossy()), Play::Says("读不到。")]);
+    let Asked { code, out, err, .. } = home
+        .ask(&Plan {
+            cwd: work.text(),
+            format: Format::Json,
+            ..plan("读一下")
+        })
+        .await;
+    assert_eq!(code, 4, "{err}");
+    assert_eq!(err, "");
+    let printed: Value = serde_json::from_str(out.trim_end()).expect("一行 JSON");
+    assert_eq!(printed["turns"][0]["text"], "读不到。");
 }
 
 /// 假的核心：接一个连接，照协议允许的最晚的先后说话：一轮的推送都推完了，才回应说话的那一条（`04-核心协议.md`

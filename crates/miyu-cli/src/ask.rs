@@ -51,6 +51,8 @@ pub mod exit {
     pub const ERROR: u8 = 1;
     /// 被打断了：按了 Ctrl+C。
     pub const INTERRUPTED: u8 = 3;
+    /// 有几步要人确认，这里不问，没做（`22-命令行.md` O3）。
+    pub const UNATTENDED: u8 = 4;
     /// 没有可用的模型。
     pub const NO_MODEL: u8 = 5;
 }
@@ -109,8 +111,6 @@ pub struct Plan {
     pub human: Human,
     /// 家目录：路径写成 `~/…`。
     pub home: Option<PathBuf>,
-    /// 有没有人能当场回答：标准输入是终端。
-    pub input: bool,
 }
 
 /// 写到哪里：回答写 `out`，思考、用量、出错写 `err`；`gray` 的思考、用量是灰色。
@@ -206,9 +206,6 @@ fn plan(args: Ask, env: &Env, language: Language) -> Plan {
         language,
         human: human(env, &language),
         home: env.home.clone(),
-        // 4-9 做出回答确认之前，一律说没人能确认：要问人的当场拒绝、告诉她原因，不一直等着（施工 4-4 上）。
-        // 4-9 起照标准输入是不是终端来说。
-        input: false,
     }
 }
 

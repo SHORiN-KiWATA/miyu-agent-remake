@@ -302,7 +302,6 @@ pub fn plan(text: &str) -> Plan {
         language: Language::Chinese,
         human: Human::load(&resources(), "zh").expect("出厂的字读得出来"),
         home: None,
-        input: false,
     }
 }
 

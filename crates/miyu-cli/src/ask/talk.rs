@@ -21,7 +21,9 @@ pub async fn talk(
     mut presses: mpsc::Receiver<()>,
 ) -> u8 {
     let mut rpc = Rpc::new(connection, "ask");
-    if let Err(code) = link::hello(&mut rpc, token, &plan.language, plan.input, screen.err).await {
+    // 一律说没人能确认：`miyu ask` 里没有确认的界面（`22-命令行.md` O3，2026-09-28 项目主人改），要问人的当场
+    // 拒绝、告诉她原因，不一直等着。
+    if let Err(code) = link::hello(&mut rpc, token, &plan.language, false, screen.err).await {
         return code;
     }
     let (session, used) = match session(&mut rpc, plan, screen).await {

@@ -30,7 +30,6 @@ fn plan(language: Language) -> Plan {
         language,
         human: Human::load(&resources, language.code()).expect("出厂的字读得出来"),
         home: Some(under(&["home"])),
-        input: false,
     }
 }
 

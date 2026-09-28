@@ -3,6 +3,8 @@
 //!
 //! 她做的每一步，结果来了印成一行，也写标准错误（施工 4-5 下，[`super::steps`]）。思考、步骤、工作目录太宽那
 //! 一句都是旁白：旁白之间不空行，和回答之间空一行。
+//!
+//! 有几步因为要确认、这里没人能确认被拒的，数着：这一轮照常结束的，退出码 4，用量后面再印一行（施工 4-9）。
 
 use std::collections::BTreeMap;
 
@@ -62,6 +64,8 @@ pub(crate) struct Follow<'p> {
     cwd: String,
     usage: Sum,
     failure: Option<Failure>,
+    /// 因为要确认、这里没人能确认被拒的有几步（施工 4-9）。
+    unattended: u64,
 }
 
 impl<'p> Follow<'p> {
@@ -83,6 +87,7 @@ impl<'p> Follow<'p> {
             cwd: plan.cwd.clone(),
             usage: Sum::default(),
             failure: None,
+            unattended: 0,
         }
     }
 
@@ -195,9 +200,12 @@ impl<'p> Follow<'p> {
         self.aside = false;
     }
 
-    /// 一次结果：印成一行旁白，`--format json` 不印。之后的回复和前面的隔开。
+    /// 一次结果：印成一行旁白，`--format json` 不印。之后的回复和前面的隔开。因为要确认被拒的，数上。
     fn result(&mut self, body: &Value, screen: &mut Screen<'_>) {
         self.stepped = true;
+        if steps::unattended(body) {
+            self.unattended += 1;
+        }
         if self.plan.format != Format::Text {
             return;
         }
@@ -262,10 +270,12 @@ impl<'p> Follow<'p> {
         };
     }
 
-    /// 这一轮结束了：补上回答末尾的换行，印用量，说为什么结束，交回退出码。
+    /// 这一轮结束了：补上回答末尾的换行，印用量，有几步因为要确认没做的说一句，说为什么结束，交回退出码。
+    /// 照常结束、又有几步没做的是 4；被打断、出错、没有模型的照旧，它们比 4 要紧。
     fn end(&mut self, reason: &str, screen: &mut Screen<'_>) -> u8 {
         let language = &self.plan.language;
         let (code, note) = match (reason, &self.failure) {
+            ("completed", _) if self.unattended > 0 => (exit::UNATTENDED, None),
             ("completed", _) => (exit::OK, None),
             ("interrupted", _) => (exit::INTERRUPTED, Some(language.interrupted())),
             ("error", Some(failure)) if failure.class == "auth" && !failure.sent => {
@@ -291,6 +301,10 @@ impl<'p> Follow<'p> {
                         true => write(screen.err, &format!("{GRAY}{line}{RESET}\n")),
                         false => write(screen.err, &format!("{line}\n")),
                     }
+                }
+                if self.unattended > 0 {
+                    let line = steps::unattended_line(self.plan, self.unattended);
+                    write(screen.err, &line.paint(screen.gray));
                 }
             }
             Format::Json => {
