@@ -116,7 +116,7 @@
 
 1. 只读地打开，路上一层链接都不跟（施工 5-10 下）：交进来的本来就是真实的位置，路上本来没有链接，有了就是检查完以后被换过，不开。都带 `O_NONBLOCK`（FIFO 没人写时不卡住）。
    - Linux：`openat2` 带 `RESOLVE_NO_SYMLINKS`，一次打开。内核没有 `openat2`（5.6 以前）、或者被容器挡掉（报 `ENOSYS`、`EPERM`）的，退回一层一层打开：从根目录起，每一层目录用 `O_PATH | O_DIRECTORY | O_NOFOLLOW` 相对上一层打开（只要能走进去，不要求能读），最后一层用 `O_NOFOLLOW` 打开。
-   - macOS：带 `O_NOFOLLOW_ANY`，一次打开。
+   - macOS：带 `O_NOFOLLOW_ANY`，一次打开；它连最后一层也管，不和 `O_NOFOLLOW` 一起写：一起写报 `EINVAL`（CI 上撞到过）。
    - 别的 Unix：一层一层打开，每一层目录用只读的 `O_DIRECTORY | O_NOFOLLOW`，要能读那一层。
    - Windows：照旧只带 `FILE_FLAG_OPEN_REPARSE_POINT`，最后一层是链接、目录联接的打开它本身，不跟着走；路上的照旧跟（Windows 上的沙盒 5-9 暂停着，一起记着）。
 2. 打不开的：
