@@ -270,7 +270,7 @@ impl Session {
             body,
         };
         if let Err(error) = self.ledger.append(&event) {
-            panic!("内核自己造的事件过不了账本，这是内核的 bug：{error}");
+            panic!("the kernel's own event failed the ledger, a kernel bug: {error}");
         }
         self.history.append(event.clone());
         self.unstored.push(event.clone());

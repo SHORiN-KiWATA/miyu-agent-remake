@@ -29,11 +29,7 @@ impl FormatError {
 
 impl fmt::Display for FormatError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}的写法不对：{}（读到的是 {:?}）",
-            self.what, self.why, self.text
-        )
+        write!(f, "bad {}: {} (got {:?})", self.what, self.why, self.text)
     }
 }
 

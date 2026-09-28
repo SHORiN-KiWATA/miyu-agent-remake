@@ -86,15 +86,18 @@ fn new_fields_on_the_envelope_are_ignored() {
 #[test]
 fn broken_lines_say_what_is_wrong() {
     let known_body = USER.replace(r#"{"blocks":"#, r#"{"blockz":"#);
-    rejected::<Event>(&known_body, "message.user 的 body 读不出来");
+    rejected::<Event>(&known_body, "body of message.user not readable");
     rejected::<Event>(
         &USER.replace("message.user", "Message.user"),
-        "事件种类的写法不对",
+        "bad event kind",
     );
-    rejected::<Event>(&USER.replace("message.user", "message"), "至少两段");
+    rejected::<Event>(
+        &USER.replace("message.user", "message"),
+        "at least two parts",
+    );
     rejected::<Event>(&USER.replace(r#""seq":41,"#, ""), "missing field `seq`");
-    rejected::<Event>(&USER.replace(r#""seq":41"#, r#""seq":0"#), "从 1 开始");
-    rejected::<Event>(&USER.replace(".123Z", ".123+08:00"), "时间的写法不对");
+    rejected::<Event>(&USER.replace(r#""seq":41"#, r#""seq":0"#), "starts at 1");
+    rejected::<Event>(&USER.replace(".123Z", ".123+08:00"), "bad time");
     rejected::<Event>(
         &USER.replace(r#""seq":41,"#, r#""seq":41,"seq":42,"#),
         "duplicate field",

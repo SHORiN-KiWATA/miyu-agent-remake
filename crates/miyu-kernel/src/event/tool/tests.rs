@@ -95,7 +95,7 @@ fn broken_tool_results_say_which_kind() {
         RESULT.replace(r#""duration_ms":12"#, r#""duration_ms":1.5"#),
     ] {
         let line = event_line("tool.result", &body);
-        rejected::<Event>(&line, "tool.result 的 body 读不出来");
+        rejected::<Event>(&line, "body of tool.result not readable");
     }
 }
 
@@ -179,6 +179,6 @@ fn broken_approval_events_say_which_kind() {
         ),
     ] {
         let line = event_line(kind, body);
-        rejected::<Event>(&line, &format!("{kind} 的 body 读不出来"));
+        rejected::<Event>(&line, &format!("body of {kind} not readable"));
     }
 }

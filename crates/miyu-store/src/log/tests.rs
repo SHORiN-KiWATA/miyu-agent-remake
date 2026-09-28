@@ -130,6 +130,8 @@ fn assert_broken(dir: &Path, segment: &str, line: usize, why: &str) {
             assert_eq!(at, dir.join(segment));
             assert_eq!(got, line, "{said}");
             assert!(said.contains(why), "{said}");
+            // 说的是英文，写进运行日志（施工 4-9 再补四中）。
+            assert!(said.is_ascii(), "{said}");
         }
         other => panic!("应该报坏了：{other:?}"),
     }
@@ -144,19 +146,38 @@ fn a_broken_log_is_reported_not_fixed() {
     let path = dir.join("000000000001.jsonl");
     let text = format!("{}not json\n{}", line_of(&said(1)), line_of(&said(2)));
     fs::write(&path, &text).unwrap();
-    assert_broken(&dir, "000000000001.jsonl", 2, "读不出来");
+    assert_broken(&dir, "000000000001.jsonl", 2, "not readable");
     assert_eq!(fs::read_to_string(&path).unwrap(), text, "不自动修");
+    // 一行不是 UTF-8。
+    let bytes = [line_of(&said(1)).as_bytes(), b"\xff\xfe\n"].concat();
+    fs::write(&path, &bytes).unwrap();
+    assert_broken(&dir, "000000000001.jsonl", 2, "not UTF-8");
     // 序号接不上。
     let text = format!("{}{}", line_of(&said(1)), line_of(&said(3)));
     fs::write(&path, &text).unwrap();
-    assert_broken(&dir, "000000000001.jsonl", 2, "序号应该是 2");
+    assert_broken(&dir, "000000000001.jsonl", 2, "seq should be 2");
     // 段的名字和第一条对不上。
     fs::write(&path, line_of(&said(1))).unwrap();
     fs::write(dir.join("000000000005.jsonl"), line_of(&said(2))).unwrap();
-    assert_broken(&dir, "000000000005.jsonl", 1, "这一段叫 5");
+    assert_broken(&dir, "000000000005.jsonl", 1, "the segment is named 5");
     // 不是最后一段的末尾有半行。
     fs::write(dir.join("000000000001.jsonl"), &line_of(&said(1))[..20]).unwrap();
-    assert_broken(&dir, "000000000001.jsonl", 1, "后面还有段");
+    assert_broken(&dir, "000000000001.jsonl", 1, "more segments follow");
+}
+
+#[test]
+fn a_broken_log_says_where_in_english() {
+    // 写进运行日志的一句：哪一段、第几行、为什么（施工 4-9 再补四中：原来是中文）。
+    let segment = PathBuf::from("sessions").join("000000000001.jsonl");
+    let error = OpenError::Broken {
+        segment: segment.clone(),
+        line: 3,
+        why: "not UTF-8".to_string(),
+    };
+    assert_eq!(
+        error.to_string(),
+        format!("{} line 3: not UTF-8", segment.display())
+    );
 }
 
 #[test]
@@ -181,7 +202,12 @@ fn an_empty_last_segment_is_written_into() {
     // 空的最后一段名字不对：报坏了。
     drop(log);
     fs::write(dir.join("000000000009.jsonl"), "").unwrap();
-    assert_broken(&dir, "000000000009.jsonl", 1, "空的最后一段叫 9");
+    assert_broken(
+        &dir,
+        "000000000009.jsonl",
+        1,
+        "the empty last segment is named 9",
+    );
 }
 
 #[test]
@@ -192,6 +218,11 @@ fn no_session_no_log() {
         SessionLog::open(&dir, SEGMENT_LIMIT),
         Err(OpenError::Missing(_))
     ));
+    let said = SessionLog::open(&dir, SEGMENT_LIMIT)
+        .err()
+        .map(|error| error.to_string())
+        .unwrap_or_default();
+    assert_eq!(said, format!("no session log in {}", dir.display()));
     fs::create_dir_all(&dir).unwrap();
     fs::write(dir.join("notes.txt"), "不是段").unwrap();
     assert!(matches!(
@@ -276,6 +307,10 @@ fn appending_out_of_order_is_refused() {
     let mut log = SessionLog::create(&dir(&scratch), SEGMENT_LIMIT).unwrap();
     let error = log.append(&said_range(2, 3)).unwrap_err();
     assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "the next event in the log should be 1, got 2"
+    );
     assert_eq!(log.next_seq(), Seq::FIRST, "什么都没写");
 }
 

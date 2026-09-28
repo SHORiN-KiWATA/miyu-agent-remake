@@ -35,11 +35,15 @@ fn revert_only_turns_after_the_latest_compaction() {
     refused(
         &mut ledger,
         &reverted(15, "[11,12]"),
-        "回合 12 不在有效历史里",
+        "turn 12 is not in the current history",
     );
     // 压缩替代到 16，回合 3 和 11 都在它之前，写进了摘要，撤不了了。
     let mut ledger = after(17);
-    refused(&mut ledger, &reverted(18, "[3]"), "在最近一次压缩之前");
+    refused(
+        &mut ledger,
+        &reverted(18, "[3]"),
+        "before the last compaction",
+    );
 }
 
 #[test]
@@ -50,17 +54,25 @@ fn revert_takes_a_turn_and_every_one_after_it() {
     refused(
         &mut ledger,
         &reverted(15, "[3]"),
-        "要从回合 3 起往后全撤，照先后：3、11",
+        "undo every turn from 3 on, in order: 3, 11",
     );
     refused(
         &mut ledger,
         &reverted(15, "[11,3]"),
-        "要从回合 11 起往后全撤，照先后：11",
+        "undo every turn from 11 on, in order: 11",
     );
-    refused(&mut ledger, &reverted(15, "[]"), "撤销的列表是空的");
+    refused(
+        &mut ledger,
+        &reverted(15, "[]"),
+        "the list of undone turns is empty",
+    );
     ledger.append(&reverted(15, "[3,11]")).unwrap();
     // 撤过的不再撤。
-    refused(&mut ledger, &reverted(16, "[11]"), "回合 11 不在有效历史里");
+    refused(
+        &mut ledger,
+        &reverted(16, "[11]"),
+        "turn 11 is not in the current history",
+    );
     assert_eq!(ledger.turns_from(turns(&[3])[0]), None);
 }
 
@@ -70,25 +82,25 @@ fn no_revert_while_a_turn_is_running() {
     refused(
         &mut ledger,
         &reverted(12, "[3]"),
-        "回合 11 还在进行，撤销不了",
+        "turn 11 is still running; nothing can be undone",
     );
 }
 
 #[test]
 fn unrevert_brings_back_the_latest_revert_only() {
     let mut ledger = after(14);
-    refused(&mut ledger, &unreverted(15, "[11]"), "没有能恢复的撤销");
+    refused(&mut ledger, &unreverted(15, "[11]"), "nothing to redo");
     ledger.append(&reverted(15, "[11]")).unwrap();
     ledger.append(&reverted(16, "[3]")).unwrap();
     assert_eq!(ledger.last_reverted(), Some(turns(&[3]).as_slice()));
     refused(
         &mut ledger,
         &unreverted(17, "[11]"),
-        "恢复的应该是最近一次撤销的那几轮：3",
+        "redo the turns of the latest undo: 3",
     );
     ledger.append(&unreverted(17, "[3]")).unwrap();
     ledger.append(&unreverted(18, "[11]")).unwrap();
-    refused(&mut ledger, &unreverted(19, "[11]"), "没有能恢复的撤销");
+    refused(&mut ledger, &unreverted(19, "[11]"), "nothing to redo");
     // 恢复了的回到有效历史里，又能撤。
     assert_eq!(ledger.turns_from(turns(&[3])[0]), Some(turns(&[3, 11])));
     ledger.append(&reverted(19, "[11]")).unwrap();
@@ -100,7 +112,7 @@ fn no_unrevert_after_the_next_turn_or_a_compaction() {
     let mut ledger = after(15);
     assert_eq!(ledger.last_reverted(), Some(turns(&[11]).as_slice()));
     let mut compacted = after(17);
-    refused(&mut compacted, &unreverted(18, "[11]"), "没有能恢复的撤销");
+    refused(&mut compacted, &unreverted(18, "[11]"), "nothing to redo");
     // 撤了以后开了下一轮，也不能恢复。
     ledger
         .append(&event(16, None, "message.user", SAID))
@@ -119,7 +131,7 @@ fn files_are_restored_only_between_turns() {
     refused(
         &mut ledger,
         &event(4, None, "files.restored", files),
-        "改回文件只在撤销、恢复以后",
+        "files are restored only after an undo or a redo",
     );
     let mut ledger = after(15);
     ledger

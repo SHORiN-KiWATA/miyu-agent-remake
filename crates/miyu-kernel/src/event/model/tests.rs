@@ -110,6 +110,6 @@ fn broken_bodies_say_what_is_wrong() {
     );
     rejected::<crate::event::Event>(
         &line(&CALLED.replace(r#""messages":1"#, r#""messages":-1"#)),
-        "model.called 的 body 读不出来",
+        "body of model.called not readable",
     );
 }

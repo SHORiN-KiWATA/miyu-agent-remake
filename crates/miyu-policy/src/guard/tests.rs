@@ -58,7 +58,7 @@ fn a_broken_text_is_named() {
         matches!(
             error,
             BuildError::Texts {
-                which: "权限策略拒绝时写的几句",
+                which: "permission denial texts",
                 ..
             }
         ),

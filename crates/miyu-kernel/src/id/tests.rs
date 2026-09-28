@@ -18,16 +18,16 @@ fn samples_from_the_drawing_round_trip() {
 
 #[test]
 fn session_id_must_be_lowercase_uuid_text() {
-    rejected::<SessionId>(r#""0192F3A0-1111-7abc-8def-001122334455""#, "小写十六进制");
-    rejected::<SessionId>(r#""0192f3a0-1111-7abc-8def-00112233445""#, "36 个字符");
-    rejected::<SessionId>(r#""0192f3a0_1111-7abc-8def-001122334455""#, "要是 -");
+    rejected::<SessionId>(r#""0192F3A0-1111-7abc-8def-001122334455""#, "lowercase hex");
+    rejected::<SessionId>(r#""0192f3a0-1111-7abc-8def-00112233445""#, "36 characters");
+    rejected::<SessionId>(r#""0192f3a0_1111-7abc-8def-001122334455""#, "must be -");
 }
 
 #[test]
 fn command_id_is_short_printable_text() {
-    rejected::<CommandId>(r#""""#, "不能是空的");
-    rejected::<CommandId>(&format!("\"{}\"", "x".repeat(129)), "128 字节");
-    rejected::<CommandId>(r#""cmd\n1""#, "控制字符");
+    rejected::<CommandId>(r#""""#, "must not be empty");
+    rejected::<CommandId>(&format!("\"{}\"", "x".repeat(129)), "128 bytes");
+    rejected::<CommandId>(r#""cmd\n1""#, "control characters");
     round_trip::<CommandId>(&format!("\"{}\"", "x".repeat(128)));
 }
 
@@ -59,14 +59,14 @@ fn account_is_like_a_linux_login_name() {
     for good in ["a", "alice", "bob_2-x", longest.as_str()] {
         assert!(AccountId::parse(good).is_ok(), "{good} 应该读得进来");
     }
-    rejected::<AccountId>(r#""Alice""#, "小写英文字母开头");
-    rejected::<AccountId>(r#""1abc""#, "小写英文字母开头");
-    rejected::<AccountId>(r#""小明""#, "小写英文字母开头");
-    rejected::<AccountId>(r#""a b""#, "只能用小写字母");
-    rejected::<AccountId>(r#""aB""#, "只能用小写字母");
-    rejected::<AccountId>(&format!("\"{}\"", "a".repeat(33)), "最长 32");
-    rejected::<AccountId>(r#""con""#, "Windows 保留");
-    rejected::<AccountId>(r#""lpt9""#, "Windows 保留");
+    rejected::<AccountId>(r#""Alice""#, "start with a lowercase letter");
+    rejected::<AccountId>(r#""1abc""#, "start with a lowercase letter");
+    rejected::<AccountId>(r#""小明""#, "start with a lowercase letter");
+    rejected::<AccountId>(r#""a b""#, "only lowercase letters");
+    rejected::<AccountId>(r#""aB""#, "only lowercase letters");
+    rejected::<AccountId>(&format!("\"{}\"", "a".repeat(33)), "at most 32");
+    rejected::<AccountId>(r#""con""#, "reserved name on Windows");
+    rejected::<AccountId>(r#""lpt9""#, "reserved name on Windows");
 }
 
 /// 算出来的内容哈希，和 SHA-256 公开的测试值一样（FIPS 180-2 的 "abc"，和空的内容）。
@@ -90,17 +90,17 @@ fn content_hash_of_known_contents() {
 #[test]
 fn content_hash_is_sha256_in_lowercase_hex() {
     let hex = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-    rejected::<ContentHash>(&format!("\"SHA256:{hex}\""), "sha256: 开头");
+    rejected::<ContentHash>(&format!("\"SHA256:{hex}\""), "start with sha256:");
     rejected::<ContentHash>(
         &format!("\"sha256:{}\"", hex.to_uppercase()),
-        "小写十六进制",
+        "lowercase hex",
     );
-    rejected::<ContentHash>(&format!("\"sha256:{}\"", &hex[1..]), "64 位");
+    rejected::<ContentHash>(&format!("\"sha256:{}\"", &hex[1..]), "64 digits");
 }
 
 #[test]
 fn seq_starts_at_one() {
-    rejected::<Seq>("0", "从 1 开始");
+    rejected::<Seq>("0", "starts at 1");
     for bad in ["-1", "1.0", r#""1""#] {
         assert!(
             serde_json::from_str::<Seq>(bad).is_err(),
@@ -115,7 +115,7 @@ fn seq_starts_at_one() {
 fn turn_id_reads_like_a_seq() {
     let turn: TurnId = serde_json::from_str("42").unwrap();
     assert_eq!(turn.started(), Seq::new(42).unwrap());
-    rejected::<TurnId>("0", "从 1 开始");
+    rejected::<TurnId>("0", "starts at 1");
 }
 
 #[test]
@@ -123,7 +123,7 @@ fn error_says_what_why_and_what_was_read() {
     let err = SessionId::parse("x").unwrap_err();
     assert_eq!(
         err.to_string(),
-        "会话编号的写法不对：要 36 个字符（读到的是 \"x\"）"
+        "bad session id: must be 36 characters (got \"x\")"
     );
 }
 
@@ -148,18 +148,18 @@ fn names_from_the_drawing_round_trip() {
 
 #[test]
 fn module_driver_and_fact_names_follow_the_account_rule() {
-    rejected::<ModuleId>(r#""Memory""#, "小写英文字母开头");
-    rejected::<DriverFamily>(r#""openai.chat""#, "只能用小写字母");
-    rejected::<ModuleId>(r#""nul""#, "Windows 保留");
-    rejected::<FactKind>(r#""Env""#, "小写英文字母开头");
+    rejected::<ModuleId>(r#""Memory""#, "start with a lowercase letter");
+    rejected::<DriverFamily>(r#""openai.chat""#, "only lowercase letters");
+    rejected::<ModuleId>(r#""nul""#, "reserved name on Windows");
+    rejected::<FactKind>(r#""Env""#, "start with a lowercase letter");
 }
 
 #[test]
 fn short_names_are_opaque_but_bounded() {
     round_trip::<ModelName>(r#""qwen/qwen3-235b-a22b@2026-07""#);
-    rejected::<ProviderId>(r#""""#, "不能是空的");
-    rejected::<VenueId>(&format!("\"{}\"", "v".repeat(129)), "128 字节");
-    rejected::<ExternalId>(r#""qq:\u000710086""#, "控制字符");
+    rejected::<ProviderId>(r#""""#, "must not be empty");
+    rejected::<VenueId>(&format!("\"{}\"", "v".repeat(129)), "128 bytes");
+    rejected::<ExternalId>(r#""qq:\u000710086""#, "control characters");
 }
 
 #[test]
@@ -167,19 +167,19 @@ fn media_type_is_lowercase_type_slash_subtype() {
     round_trip::<MediaType>(
         r#""application/vnd.openxmlformats-officedocument.wordprocessingml.document""#,
     );
-    rejected::<MediaType>(r#""image""#, "类型/子类型");
-    rejected::<MediaType>(r#""Image/PNG""#, "小写字母");
-    rejected::<MediaType>(r#""image/png/x""#, "小写字母");
-    rejected::<MediaType>(r#""image/""#, "小写字母");
+    rejected::<MediaType>(r#""image""#, "type/subtype");
+    rejected::<MediaType>(r#""Image/PNG""#, "lowercase letters");
+    rejected::<MediaType>(r#""image/png/x""#, "lowercase letters");
+    rejected::<MediaType>(r#""image/""#, "lowercase letters");
 }
 
 #[test]
 fn file_name_is_a_name_not_a_path() {
     rejected::<FileName>(r#""../etc/passwd""#, "/");
     rejected::<FileName>(r#""a\\b.txt""#, "/");
-    rejected::<FileName>(r#""..""#, ". 或 ..");
-    rejected::<FileName>(r#""""#, "不能是空的");
-    rejected::<FileName>(&format!("\"{}\"", "报".repeat(86)), "255 字节");
+    rejected::<FileName>(r#""..""#, ". or ..");
+    rejected::<FileName>(r#""""#, "must not be empty");
+    rejected::<FileName>(&format!("\"{}\"", "报".repeat(86)), "255 bytes");
 }
 
 #[test]
@@ -191,14 +191,14 @@ fn event_kind_is_dotted_lowercase() {
     ] {
         assert!(EventKind::parse(good).is_ok(), "{good} 应该读得进来");
     }
-    rejected::<EventKind>(r#""""#, "不能是空的");
-    rejected::<EventKind>(r#""message""#, "至少两段");
-    rejected::<EventKind>(r#""Message.user""#, "小写字母开头");
-    rejected::<EventKind>(r#"".user""#, "小写字母开头");
-    rejected::<EventKind>(r#""message..user""#, "小写字母开头");
-    rejected::<EventKind>(r#""message.9user""#, "小写字母开头");
-    rejected::<EventKind>(r#""message.us er""#, "只能用小写字母");
-    rejected::<EventKind>(&format!("\"a.{}\"", "b".repeat(127)), "128 字节");
+    rejected::<EventKind>(r#""""#, "must not be empty");
+    rejected::<EventKind>(r#""message""#, "at least two parts");
+    rejected::<EventKind>(r#""Message.user""#, "start with a lowercase letter");
+    rejected::<EventKind>(r#"".user""#, "start with a lowercase letter");
+    rejected::<EventKind>(r#""message..user""#, "start with a lowercase letter");
+    rejected::<EventKind>(r#""message.9user""#, "start with a lowercase letter");
+    rejected::<EventKind>(r#""message.us er""#, "only lowercase letters");
+    rejected::<EventKind>(&format!("\"a.{}\"", "b".repeat(127)), "128 bytes");
 }
 
 #[test]

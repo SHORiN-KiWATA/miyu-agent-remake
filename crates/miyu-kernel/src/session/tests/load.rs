@@ -144,7 +144,7 @@ fn a_broken_log_is_refused() {
         panic!("跳了号的日志应该拒绝");
     };
     assert_eq!(broken, seq(4));
-    assert!(why.contains("序号应该是 3"), "{why}");
+    assert!(why.contains("seq should be 3"), "{why}");
 }
 
 #[test]
@@ -261,4 +261,18 @@ fn the_permission_in_force_comes_back() {
     loaded.handle(hooks_done(TurnId::new(seq(11)), Vec::new()));
     let events = appended_events(&call_tools(&mut loaded, 11, &[("write", "{}")]));
     assert_eq!(result_of(&events[2]).1, ToolStatus::Denied);
+}
+
+#[test]
+fn load_errors_say_it_in_english() {
+    // 写进运行日志（施工 4-9 再补四中：原来是中文）。
+    assert_eq!(LoadError::Empty.to_string(), "the log has no events");
+    let broken = LoadError::Broken(LedgerError {
+        seq: seq(4),
+        why: "seq should be 3".to_string(),
+    });
+    assert_eq!(
+        broken.to_string(),
+        "the log is broken: event 4 cannot be appended: seq should be 3"
+    );
 }

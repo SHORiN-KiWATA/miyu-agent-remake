@@ -82,6 +82,9 @@ fn a_crash_before_the_rename_leaves_only_a_temp_file() {
     fs::write(tmp.join("1-0"), &content[..5]).unwrap();
     let hash = ContentHash::of(content);
     assert!(matches!(blobs.get(&hash), Err(BlobError::Missing(missing)) if missing == hash));
+    // 说的是英文，写进运行日志（施工 4-9 再补四中）。
+    let missing = blobs.get(&hash).unwrap_err().to_string();
+    assert_eq!(missing, format!("no blob {hash}"));
     // 再存一遍，取得到完整的。
     assert_eq!(blobs.put(content).unwrap(), hash);
     assert_eq!(blobs.get(&hash).unwrap(), content);
@@ -102,6 +105,24 @@ fn a_taken_temp_name_is_skipped() {
     assert_eq!(path, dir.join("c"));
     assert_eq!(fs::read_to_string(dir.join("a")).unwrap(), "崩溃留下的");
     assert_eq!(fs::read_to_string(dir.join("b")).unwrap(), "崩溃留下的");
+}
+
+#[test]
+fn when_every_temp_name_is_taken_it_says_so_in_english() {
+    let scratch = Scratch::new();
+    let dir = scratch.path();
+    fs::create_dir_all(dir).unwrap();
+    fs::write(dir.join("a"), "崩溃留下的").unwrap();
+    let error = create_temp(dir, || "a".to_string()).unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::AlreadyExists);
+    // 说的是英文，写进运行日志（施工 4-9 再补四中）。
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "64 temporary file names in a row are taken in {}",
+            dir.display()
+        )
+    );
 }
 
 #[test]
@@ -132,6 +153,12 @@ fn a_blob_that_does_not_match_its_name_is_reported() {
     assert!(matches!(&error, BlobError::Corrupt(corrupt) if *corrupt == hash));
     // 报错写明是哪一个；不自动修，也不删。
     assert!(error.to_string().contains(hash.as_str()), "{error}");
+    assert!(
+        error
+            .to_string()
+            .ends_with("does not match its name; left as it is"),
+        "{error}"
+    );
     assert_eq!(fs::read_to_string(&path).unwrap(), "tampered");
 }
 

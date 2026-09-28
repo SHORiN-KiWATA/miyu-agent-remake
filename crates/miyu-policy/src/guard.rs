@@ -59,7 +59,7 @@ impl Snapshot {
             })
         };
         build().map_err(|error| BuildError::Texts {
-            which: "权限策略拒绝时写的几句",
+            which: "permission denial texts",
             error,
         })
     }

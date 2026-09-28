@@ -135,7 +135,7 @@ pub struct Stopped;
 
 impl fmt::Display for Stopped {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "会话停了")
+        write!(f, "the session stopped")
     }
 }
 

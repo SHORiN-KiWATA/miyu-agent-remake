@@ -153,7 +153,7 @@ pub struct SnapshotError(String);
 
 impl fmt::Display for SnapshotError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "策略快照读不回来：{}", self.0)
+        write!(f, "policy snapshot not readable: {}", self.0)
     }
 }
 
@@ -176,8 +176,8 @@ pub enum BuildError {
 impl fmt::Display for BuildError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BuildError::Texts { which, error } => write!(f, "随核心附带的{which}用不了：{error}"),
-            BuildError::DuplicateTool(name) => write!(f, "工具面上有两件叫 {name:?} 的"),
+            BuildError::Texts { which, error } => write!(f, "bundled {which} not usable: {error}"),
+            BuildError::DuplicateTool(name) => write!(f, "two tools named {name:?}"),
         }
     }
 }
@@ -258,7 +258,7 @@ impl Snapshot {
             &core.facts.reply_cut,
         )
         .map_err(|error| BuildError::Texts {
-            which: "事实模板",
+            which: "fact templates",
             error,
         })?;
         Ok(Policy {
@@ -287,7 +287,7 @@ impl Snapshot {
             tool_attachments_only: &drivers.tool_attachments_only,
         })
         .map_err(|error| BuildError::Texts {
-            which: "驱动的占位",
+            which: "driver placeholders",
             error,
         })
     }
@@ -311,7 +311,7 @@ impl Snapshot {
             restarted: &results.restarted,
         })
         .map_err(|error| BuildError::Texts {
-            which: "内核替工具写的几句",
+            which: "kernel's tool result texts",
             error,
         })
     }

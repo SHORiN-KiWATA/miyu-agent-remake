@@ -44,10 +44,10 @@ impl Timestamp {
     /// 只认这一种写法：长度不是 24、分隔符不对、有不是数字的地方、日期或时刻不存在
     /// （例如 2 月 30 日、24 点、闰秒 60 秒），都返回 [`FormatError`]。
     pub fn parse(text: &str) -> Result<Timestamp, FormatError> {
-        let bad = |why| FormatError::new("时间", text, why);
+        let bad = |why| FormatError::new("time", text, why);
         let b = text.as_bytes();
         if b.len() != 24 {
-            return Err(bad("要 24 个字符，写成 2026-09-25T07:04:05.123Z"));
+            return Err(bad("must be 24 characters, like 2026-09-25T07:04:05.123Z"));
         }
         let separators = [
             (4, b'-'),
@@ -59,12 +59,12 @@ impl Timestamp {
             (23, b'Z'),
         ];
         if separators.iter().any(|&(i, sep)| b[i] != sep) {
-            return Err(bad("写成 2026-09-25T07:04:05.123Z"));
+            return Err(bad("write it like 2026-09-25T07:04:05.123Z"));
         }
         let number = |from: usize, to: usize| {
             let digits = &b[from..to];
             if !digits.iter().all(u8::is_ascii_digit) {
-                return Err(bad("日期和时间只能写数字"));
+                return Err(bad("date and time must be digits"));
             }
             Ok(digits.iter().fold(0, |n, d| n * 10 + i64::from(d - b'0')))
         };
@@ -72,10 +72,10 @@ impl Timestamp {
         let (hour, minute, second) = (number(11, 13)?, number(14, 16)?, number(17, 19)?);
         let milli = number(20, 23)?;
         if !(1..=12).contains(&month) || day < 1 || day > days_in_month(year, month) {
-            return Err(bad("没有这一天"));
+            return Err(bad("no such day"));
         }
         if hour > 23 || minute > 59 || second > 59 {
-            return Err(bad("没有这个时刻"));
+            return Err(bad("no such time"));
         }
         let in_day = ((hour * 60 + minute) * 60 + second) * 1000 + milli;
         Ok(Timestamp(

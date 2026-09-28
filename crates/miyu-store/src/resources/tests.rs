@@ -111,10 +111,19 @@ fn a_missing_persona_names_the_file_and_a_bad_id_is_refused() {
         }
         other => panic!("该是读不了：{other:?}"),
     }
+    // 说的是英文，写进运行日志（施工 4-9 再补四中）。
+    assert!(error.to_string().starts_with("cannot read "), "{error}");
     for bad in ["../core", "Engineer", "", "a/b", "1st"] {
+        let refused = repo().sources(bad);
         assert!(
-            matches!(repo().sources(bad), Err(SourceError::Persona(_))),
+            matches!(refused, Err(SourceError::Persona(_))),
             "「{bad}」该被拒"
         );
+        let said = refused
+            .err()
+            .map(|error| error.to_string())
+            .unwrap_or_default();
+        assert!(said.starts_with("persona id "), "{said}");
+        assert!(said.is_ascii(), "{said}");
     }
 }

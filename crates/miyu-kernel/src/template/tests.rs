@@ -165,18 +165,21 @@ fn fill_cleans_fields_its_own_way() {
 #[test]
 fn broken_templates_say_what_is_wrong() {
     for (template, why) in [
-        ("{name", "没配上"),
-        ("a}b", "单独的 }"),
-        ("{Name}", "不是一个字段"),
-        ("{}", "不是一个字段"),
-        ("{a b}", "不是一个字段"),
-        ("{1a}", "不是一个字段"),
+        ("{name", "has no closing"),
+        ("a}b", "a lone }"),
+        ("{Name}", "is not a field"),
+        ("{}", "is not a field"),
+        ("{a b}", "is not a field"),
+        ("{1a}", "is not a field"),
     ] {
         let err = Template::parse(template).unwrap_err().to_string();
         assert!(
             err.contains(why),
             "{template:?} 的报错里没有「{why}」：{err}"
         );
+        // 说的是英文，写进运行日志（施工 4-9 再补四中）。
+        assert!(err.starts_with("bad template: "), "{err}");
+        assert!(err.is_ascii(), "{err}");
     }
 }
 
@@ -187,5 +190,5 @@ fn a_missing_field_is_an_error() {
         .render(&BTreeMap::from([("a", "1")]))
         .unwrap_err()
         .to_string();
-    assert!(err.contains("少了字段 b"), "{err}");
+    assert_eq!(err, "bad template: missing field b");
 }

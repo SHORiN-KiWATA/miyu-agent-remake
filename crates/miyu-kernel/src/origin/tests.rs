@@ -47,9 +47,9 @@ fn a_known_kind_with_new_fields_reads_the_fields_it_knows() {
 
 #[test]
 fn broken_by_is_an_error() {
-    rejected::<By>(r#"{"account":"alice"}"#, "缺了 kind 字段");
+    rejected::<By>(r#"{"account":"alice"}"#, "missing field `kind`");
     rejected::<By>(r#"{"kind":7}"#, "invalid type");
-    rejected::<By>(r#"{"kind":"person","account":"Alice"}"#, "账号的写法不对");
+    rejected::<By>(r#"{"kind":"person","account":"Alice"}"#, "bad account");
     rejected::<By>(r#"{"kind":"person"}"#, "account");
     rejected::<By>(r#""person""#, "invalid type");
 }

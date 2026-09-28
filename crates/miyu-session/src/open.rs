@@ -299,10 +299,10 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
 impl fmt::Display for CreateError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CreateError::Persona(error) => write!(f, "人格读不出来：{error}"),
-            CreateError::Policy(error) => write!(f, "造不出策略：{error}"),
-            CreateError::Disk(error) => write!(f, "磁盘上建不成会话：{error}"),
-            CreateError::Stopped => write!(f, "造会话那一条没落盘，会话停了"),
+            CreateError::Persona(error) => write!(f, "persona not readable: {error}"),
+            CreateError::Policy(error) => write!(f, "policy not built: {error}"),
+            CreateError::Disk(error) => write!(f, "session not created on disk: {error}"),
+            CreateError::Stopped => write!(f, "session.created not stored; the session stopped"),
         }
     }
 }
@@ -312,14 +312,17 @@ impl std::error::Error for CreateError {}
 impl fmt::Display for LoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            LoadError::Log(error) => write!(f, "会话日志打不开：{error}"),
-            LoadError::NotCreated => write!(f, "会话日志里没有造会话那一条"),
-            LoadError::Blob(error) => write!(f, "策略快照取不出来：{error}"),
-            LoadError::Snapshot(error) => write!(f, "策略快照读不懂：{error}"),
-            LoadError::Policy(error) => write!(f, "快照造不出策略：{error}"),
-            LoadError::Kernel(error) => write!(f, "载入不了：{error}"),
+            LoadError::Log(error) => write!(f, "session log not opened: {error}"),
+            LoadError::NotCreated => write!(f, "the session log has no session.created"),
+            LoadError::Blob(error) => write!(f, "policy snapshot not fetched: {error}"),
+            LoadError::Snapshot(error) => write!(f, "policy snapshot not understood: {error}"),
+            LoadError::Policy(error) => write!(f, "policy not built from the snapshot: {error}"),
+            LoadError::Kernel(error) => write!(f, "not loaded: {error}"),
         }
     }
 }
 
 impl std::error::Error for LoadError {}
+
+#[cfg(test)]
+mod tests;

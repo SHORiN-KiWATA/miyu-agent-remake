@@ -68,7 +68,7 @@ impl Snapshot {
             })
         };
         texts().map_err(|error| BuildError::Texts {
-            which: "执行器替工具写的两句",
+            which: "executor's tool result texts",
             error,
         })
     }

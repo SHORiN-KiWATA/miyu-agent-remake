@@ -59,7 +59,7 @@ where
         serde_json::from_str(raw.get()).map_err(D::Error::custom)?;
     let value = fields
         .get(field)
-        .ok_or_else(|| D::Error::custom(format!("缺了 {field} 字段")))?;
+        .ok_or_else(|| D::Error::custom(format!("missing field `{field}`")))?;
     let tag: String = serde_json::from_str(value.get()).map_err(D::Error::custom)?;
     match known(&tag, raw.get()) {
         Some(read) => read.map_err(D::Error::custom),

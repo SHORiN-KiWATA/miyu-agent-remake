@@ -37,7 +37,9 @@ fn the_same_sources_give_the_same_bytes_and_they_read_back() {
 fn broken_bytes_do_not_read_back() {
     let error = Snapshot::from_bytes(b"{\"persona\":1}").unwrap_err();
     assert!(
-        error.to_string().starts_with("策略快照读不回来："),
+        error
+            .to_string()
+            .starts_with("policy snapshot not readable: "),
         "{error}"
     );
 }
@@ -57,7 +59,7 @@ fn the_policy_is_built_and_a_broken_template_is_named() {
         matches!(
             error,
             BuildError::Texts {
-                which: "事实模板",
+                which: "fact templates",
                 ..
             }
         ),
@@ -70,7 +72,7 @@ fn the_policy_is_built_and_a_broken_template_is_named() {
         matches!(
             error,
             BuildError::Texts {
-                which: "内核替工具写的几句",
+                which: "kernel's tool result texts",
                 ..
             }
         ),
@@ -82,7 +84,7 @@ fn the_policy_is_built_and_a_broken_template_is_named() {
     assert!(
         error
             .to_string()
-            .starts_with("随核心附带的驱动的占位用不了："),
+            .starts_with("bundled driver placeholders not usable: "),
         "{error}"
     );
 }

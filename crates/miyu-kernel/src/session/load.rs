@@ -31,8 +31,8 @@ pub enum LoadError {
 impl fmt::Display for LoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            LoadError::Empty => write!(f, "日志里一条事件都没有"),
-            LoadError::Broken(error) => write!(f, "日志坏了：{error}"),
+            LoadError::Empty => write!(f, "the log has no events"),
+            LoadError::Broken(error) => write!(f, "the log is broken: {error}"),
         }
     }
 }

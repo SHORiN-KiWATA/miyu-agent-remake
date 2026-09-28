@@ -108,9 +108,9 @@ pub enum BlobError {
 impl fmt::Display for BlobError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BlobError::Missing(hash) => write!(f, "没有 blob {hash}"),
+            BlobError::Missing(hash) => write!(f, "no blob {hash}"),
             BlobError::Corrupt(hash) => {
-                write!(f, "blob {hash} 读出来的内容和它的名字对不上，不动它")
+                write!(f, "blob {hash} does not match its name; left as it is")
             }
             BlobError::Io(error) => error.fmt(f),
         }
@@ -155,7 +155,7 @@ fn create_temp(dir: &Path, mut name: impl FnMut() -> String) -> io::Result<(Path
     Err(io::Error::new(
         io::ErrorKind::AlreadyExists,
         format!(
-            "{} 里的临时文件名一连 {TEMP_TRIES} 个都被占了",
+            "{TEMP_TRIES} temporary file names in a row are taken in {}",
             dir.display()
         ),
     ))

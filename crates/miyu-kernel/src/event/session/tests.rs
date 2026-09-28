@@ -88,7 +88,7 @@ fn broken_session_bodies_say_which_kind() {
         "session.created",
         &created("workspace").replace("alice", "Alice"),
     );
-    rejected::<Event>(&line, "session.created 的 body 读不出来");
+    rejected::<Event>(&line, "body of session.created not readable");
     let line = event_line("session.meta_changed", r#"{"pinned":"yes"}"#);
-    rejected::<Event>(&line, "session.meta_changed 的 body 读不出来");
+    rejected::<Event>(&line, "body of session.meta_changed not readable");
 }

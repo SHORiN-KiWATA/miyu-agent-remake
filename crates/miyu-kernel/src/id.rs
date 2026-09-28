@@ -66,28 +66,28 @@ macro_rules! text_id {
 text_id!(
     /// 会话编号：UUIDv7 的标准写法，小写十六进制，8-4-4-4-12。只查写法，不查版本：生成是核心进程的事。
     SessionId,
-    "会话编号",
+    "session id",
     check_session
 );
 
 text_id!(
     /// 命令编号：发送方生成，1 到 128 字节，不含控制字符。它会写进每一条事件的 `cause`。
     CommandId,
-    "命令编号",
+    "command id",
     check_short_text
 );
 
 text_id!(
     /// 账号：相当于 Linux 的登录名，会出现在路径 `home/<账号>/` 里。给人看的名字另起。
     AccountId,
-    "账号",
+    "account",
     check_name
 );
 
 text_id!(
     /// 内容哈希：`sha256:` 加 64 位小写十六进制。blob、策略快照、请求字节都用它。
     ContentHash,
-    "内容哈希",
+    "content hash",
     check_content_hash
 );
 
@@ -140,63 +140,63 @@ impl fmt::Debug for Hasher {
 text_id!(
     /// 模块：清单里的 `id`。会出现在路径 `home/<账号>/modules/<模块>/` 里，所以规则和账号一样。
     ModuleId,
-    "模块",
+    "module",
     check_name
 );
 
 text_id!(
     /// 驱动家族：驱动用它认领属于自己的私有数据（`05-内核接口.md` 第七节）。
     DriverFamily,
-    "驱动家族",
+    "driver family",
     check_name
 );
 
 text_id!(
     /// 场所：一个群、一个私聊、桌面语音这样的地方。内核不解读。
     VenueId,
-    "场所",
+    "venue",
     check_short_text
 );
 
 text_id!(
     /// 外部身份：通讯平台上说话的人，由桥担保。内核不解读。
     ExternalId,
-    "外部身份",
+    "external identity",
     check_short_text
 );
 
 text_id!(
     /// 供应商：配置里 `[providers.<名字>]` 的名字。
     ProviderId,
-    "供应商",
+    "provider",
     check_short_text
 );
 
 text_id!(
     /// 模型：照供应商那边的叫法原样记。
     ModelName,
-    "模型",
+    "model",
     check_short_text
 );
 
 text_id!(
     /// 媒体类型：小写的「类型/子类型」，例如 `image/png`。
     MediaType,
-    "媒体类型",
+    "media type",
     check_media_type
 );
 
 text_id!(
     /// 文件名：给人看的名字，不是路径。
     FileName,
-    "文件名",
+    "file name",
     check_file_name
 );
 
 text_id!(
     /// 事件种类：用点分开的几段，例如 `message.user`、`ext.memory.recalled`。
     EventKind,
-    "事件种类",
+    "event kind",
     check_event_kind
 );
 
@@ -204,7 +204,7 @@ text_id!(
     /// 事实块的类别：注入的一块事实属于哪一类，例如 `env`。环境和状态变了才注入，
     /// 要找同一个模块、同一个类别的块来比（`08-上下文投影.md` C10）。给程序看的名字，规则和模块一样。
     FactKind,
-    "事实块的类别",
+    "fact category",
     check_name
 );
 
@@ -214,15 +214,15 @@ fn is_lower_hex(b: u8) -> bool {
 
 fn check_session(text: &str) -> Result<(), &'static str> {
     if text.len() != 36 {
-        return Err("要 36 个字符");
+        return Err("must be 36 characters");
     }
     for (i, b) in text.bytes().enumerate() {
         if matches!(i, 8 | 13 | 18 | 23) {
             if b != b'-' {
-                return Err("第 9、14、19、24 个字符要是 -");
+                return Err("characters 9, 14, 19 and 24 must be -");
             }
         } else if !is_lower_hex(b) {
-            return Err("只能用小写十六进制");
+            return Err("only lowercase hex digits");
         }
     }
     Ok(())
@@ -231,13 +231,13 @@ fn check_session(text: &str) -> Result<(), &'static str> {
 /// 1 到 128 字节，不含控制字符。内核不解读的短名字都用它。
 fn check_short_text(text: &str) -> Result<(), &'static str> {
     if text.is_empty() {
-        return Err("不能是空的");
+        return Err("must not be empty");
     }
     if text.len() > 128 {
-        return Err("最长 128 字节");
+        return Err("at most 128 bytes");
     }
     if text.chars().any(char::is_control) {
-        return Err("不能有控制字符");
+        return Err("no control characters");
     }
     Ok(())
 }
@@ -252,41 +252,41 @@ const WINDOWS_RESERVED: [&str; 22] = [
 /// 避开 Windows 的保留名。
 fn check_name(text: &str) -> Result<(), &'static str> {
     match text.chars().next() {
-        None => return Err("不能是空的"),
+        None => return Err("must not be empty"),
         Some('a'..='z') => {}
-        Some(_) => return Err("要以小写英文字母开头"),
+        Some(_) => return Err("must start with a lowercase letter"),
     }
     if !text
         .chars()
         .all(|c| matches!(c, 'a'..='z' | '0'..='9' | '-' | '_'))
     {
-        return Err("只能用小写字母、数字、- 和 _");
+        return Err("only lowercase letters, digits, - and _");
     }
     if text.len() > 32 {
-        return Err("最长 32 个字符");
+        return Err("at most 32 characters");
     }
     if WINDOWS_RESERVED.contains(&text) {
-        return Err("这是 Windows 保留的名字");
+        return Err("a reserved name on Windows");
     }
     Ok(())
 }
 
 fn check_content_hash(text: &str) -> Result<(), &'static str> {
     let Some(hex) = text.strip_prefix("sha256:") else {
-        return Err("要以 sha256: 开头");
+        return Err("must start with sha256:");
     };
     if hex.len() != 64 {
-        return Err("sha256: 后面要 64 位");
+        return Err("needs 64 digits after sha256:");
     }
     if !hex.bytes().all(is_lower_hex) {
-        return Err("只能用小写十六进制");
+        return Err("only lowercase hex digits");
     }
     Ok(())
 }
 
 fn check_media_type(text: &str) -> Result<(), &'static str> {
     let Some((kind, sub)) = text.split_once('/') else {
-        return Err("写成 类型/子类型");
+        return Err("write it as type/subtype");
     };
     let part = |p: &str| {
         !p.is_empty()
@@ -295,51 +295,51 @@ fn check_media_type(text: &str) -> Result<(), &'static str> {
             })
     };
     if !part(kind) || !part(sub) {
-        return Err("只能用小写字母、数字和 !#$&^_.+-");
+        return Err("only lowercase letters, digits and !#$&^_.+-");
     }
     if text.len() > 127 {
-        return Err("最长 127 个字符");
+        return Err("at most 127 characters");
     }
     Ok(())
 }
 
 fn check_file_name(text: &str) -> Result<(), &'static str> {
     if text.is_empty() {
-        return Err("不能是空的");
+        return Err("must not be empty");
     }
     if text.len() > 255 {
-        return Err("最长 255 字节");
+        return Err("at most 255 bytes");
     }
     if text
         .chars()
         .any(|c| c.is_control() || c == '/' || c == '\\')
     {
-        return Err("不能有控制字符、/ 或 \\");
+        return Err("no control characters, / or \\");
     }
     if text == "." || text == ".." {
-        return Err("不能是 . 或 ..");
+        return Err("must not be . or ..");
     }
     Ok(())
 }
 
 fn check_event_kind(text: &str) -> Result<(), &'static str> {
     if text.is_empty() {
-        return Err("不能是空的");
+        return Err("must not be empty");
     }
     if text.len() > 128 {
-        return Err("最长 128 字节");
+        return Err("at most 128 bytes");
     }
     for part in text.split('.') {
         let mut chars = part.chars();
         if !matches!(chars.next(), Some('a'..='z')) {
-            return Err("每一段都要以小写字母开头");
+            return Err("every part must start with a lowercase letter");
         }
         if !chars.all(|c| matches!(c, 'a'..='z' | '0'..='9' | '_' | '-')) {
-            return Err("只能用小写字母、数字、_ 和 -");
+            return Err("only lowercase letters, digits, _ and -");
         }
     }
     if !text.contains('.') {
-        return Err("至少两段，用点分开");
+        return Err("at least two parts separated by dots");
     }
     Ok(())
 }
@@ -386,7 +386,7 @@ impl Serialize for Seq {
 impl<'de> Deserialize<'de> for Seq {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let n = u64::deserialize(d)?;
-        Seq::new(n).ok_or_else(|| D::Error::custom(FormatError::new("序号", "0", "从 1 开始")))
+        Seq::new(n).ok_or_else(|| D::Error::custom(FormatError::new("seq", "0", "starts at 1")))
     }
 }
 
@@ -445,20 +445,20 @@ impl CallId {
     /// 只认内核自己写出去的样子。前缀不对、少了一段、数字不是从 1 开始的十进制写法
     /// （例如 `0`、`01`、`+1`），都返回 [`FormatError`]。
     pub fn parse(text: &str) -> Result<CallId, FormatError> {
-        let bad = |why| FormatError::new("调用编号", text, why);
+        let bad = |why| FormatError::new("call id", text, why);
         let rest = text
             .strip_prefix("call_")
-            .ok_or_else(|| bad("要以 call_ 开头"))?;
+            .ok_or_else(|| bad("must start with call_"))?;
         let (message, index) = rest
             .split_once('_')
-            .ok_or_else(|| bad("写成 call_<序号>_<第几个>"))?;
+            .ok_or_else(|| bad("write it as call_<seq>_<index>"))?;
         let message = decimal(message)
             .and_then(Seq::new)
-            .ok_or_else(|| bad("序号要是从 1 开始的十进制数"))?;
+            .ok_or_else(|| bad("seq must be a decimal number from 1"))?;
         decimal(index)
             .and_then(|n| u32::try_from(n).ok())
             .and_then(|n| CallId::new(message, n))
-            .ok_or_else(|| bad("第几个要是从 1 开始的十进制数"))
+            .ok_or_else(|| bad("index must be a decimal number from 1"))
     }
 }
 

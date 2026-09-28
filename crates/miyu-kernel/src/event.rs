@@ -89,7 +89,7 @@ macro_rules! bodies {
                     $($kind => raw::parse(body.get()).map(Body::$variant),)+
                     _ => return Ok(Body::Unknown { kind, body }),
                 };
-                read.map_err(|e| format!("{kind} 的 body 读不出来：{e}"))
+                read.map_err(|e| format!("body of {kind} not readable: {e}"))
             }
         }
 

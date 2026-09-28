@@ -51,12 +51,12 @@ impl Template {
                     }
                     if !closed {
                         return Err(TemplateError::new(format!(
-                            "{{{name} 没配上 }}：要换的字段写成 {{名字}}，要写 {{ 本身就写两遍 {{{{"
+                            "{{{name} has no closing }}: write a field as {{name}}, and {{ itself as {{{{"
                         )));
                     }
                     if !is_field_name(&name) {
                         return Err(TemplateError::new(format!(
-                            "{{{name}}} 不是一个字段：名字小写字母开头，只用小写字母、数字、_"
+                            "{{{name}}} is not a field: a name starts with a lowercase letter and has only lowercase letters, digits and _"
                         )));
                     }
                     if !text.is_empty() {
@@ -66,7 +66,7 @@ impl Template {
                 }
                 '}' => {
                     return Err(TemplateError::new(
-                        "有一个单独的 }：要写 } 本身，就写两遍 }}".to_string(),
+                        "a lone }: write } itself as }}".to_string(),
                     ));
                 }
                 c => text.push(c),
@@ -105,7 +105,7 @@ impl Template {
                 Part::Field(name) => {
                     let value = fields
                         .get(name.as_str())
-                        .ok_or_else(|| TemplateError::new(format!("少了字段 {name}")))?;
+                        .ok_or_else(|| TemplateError::new(format!("missing field {name}")))?;
                     out.push_str(&clean(value));
                 }
             }
@@ -183,7 +183,7 @@ impl TemplateError {
 
 impl fmt::Display for TemplateError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "模板用不了：{}", self.why)
+        write!(f, "bad template: {}", self.why)
     }
 }
 

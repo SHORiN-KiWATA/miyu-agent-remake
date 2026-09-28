@@ -81,10 +81,10 @@ impl fmt::Display for SourceError {
         match self {
             SourceError::Persona(persona) => write!(
                 f,
-                "人格的编号「{persona}」不合写法：小写字母开头，只有小写字母、数字、- 和 _"
+                "persona id {persona:?} is not valid: it starts with a lowercase letter and has only lowercase letters, digits, - and _"
             ),
             SourceError::Read { path, error } => {
-                write!(f, "读不了 {}：{error}", path.display())
+                write!(f, "cannot read {}: {error}", path.display())
             }
         }
     }

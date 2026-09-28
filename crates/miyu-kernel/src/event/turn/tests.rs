@@ -49,11 +49,11 @@ fn an_unknown_end_reason_is_kept_as_it_is() {
 #[test]
 fn broken_turn_bodies_say_which_kind() {
     let line = event_line("turn.started", r#"{"trigger":0}"#);
-    rejected::<Event>(&line, "turn.started 的 body 读不出来");
+    rejected::<Event>(&line, "body of turn.started not readable");
     let line = event_line("turn.reverted", r#"{"turns":["42"]}"#);
-    rejected::<Event>(&line, "turn.reverted 的 body 读不出来");
+    rejected::<Event>(&line, "body of turn.reverted not readable");
     let line = event_line("turn.unreverted", r#"{"turns":42}"#);
-    rejected::<Event>(&line, "turn.unreverted 的 body 读不出来");
+    rejected::<Event>(&line, "body of turn.unreverted not readable");
     let line = event_line("turn.ended", r#"{"reason":7}"#);
-    rejected::<Event>(&line, "turn.ended 的 body 读不出来");
+    rejected::<Event>(&line, "body of turn.ended not readable");
 }

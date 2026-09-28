@@ -33,9 +33,9 @@ pub enum OpenError {
 impl fmt::Display for OpenError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            OpenError::Missing(dir) => write!(f, "{} 里没有会话日志", dir.display()),
+            OpenError::Missing(dir) => write!(f, "no session log in {}", dir.display()),
             OpenError::Broken { segment, line, why } => {
-                write!(f, "{} 第 {line} 行：{why}", segment.display())
+                write!(f, "{} line {line}: {why}", segment.display())
             }
             OpenError::Io(error) => error.fmt(f),
         }
@@ -109,14 +109,14 @@ fn read_all(dir: &Path, half: HalfLine) -> Result<(Vec<Event>, Seq, PathBuf), Op
                 return Err(broken(
                     path,
                     1,
-                    format!("这一段叫 {first}，第一条却是 {}", event.seq),
+                    format!("the segment is named {first} but starts with {}", event.seq),
                 ));
             }
             None if is_last && *first != next.get() => {
                 return Err(broken(
                     path,
                     1,
-                    format!("空的最后一段叫 {first}，下一条应该是 {next}"),
+                    format!("the empty last segment is named {first} but the next event is {next}"),
                 ));
             }
             _ => events.extend(read),
@@ -147,7 +147,7 @@ fn read_segment(
             return Err(broken(
                 path,
                 lines.len() + 1,
-                "末尾有半行，可它后面还有段".to_string(),
+                "ends in a partial line, yet more segments follow".to_string(),
             ));
         }
         if half == HalfLine::Cut {
@@ -157,15 +157,15 @@ fn read_segment(
     let mut events = Vec::with_capacity(lines.len());
     for (k, line) in lines.iter().enumerate() {
         let number = k + 1;
-        let text = std::str::from_utf8(line)
-            .map_err(|_| broken(path, number, "不是 UTF-8".to_string()))?;
+        let text =
+            std::str::from_utf8(line).map_err(|_| broken(path, number, "not UTF-8".to_string()))?;
         let event = Event::from_line(text)
-            .map_err(|error| broken(path, number, format!("读不出来：{error}")))?;
+            .map_err(|error| broken(path, number, format!("not readable: {error}")))?;
         if event.seq != *next {
             return Err(broken(
                 path,
                 number,
-                format!("序号应该是 {next}，写的是 {}", event.seq),
+                format!("seq should be {next}, got {}", event.seq),
             ));
         }
         *next = next.next();

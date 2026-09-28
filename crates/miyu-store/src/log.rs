@@ -79,7 +79,10 @@ impl SessionLog {
             if event.seq != expected {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidInput,
-                    format!("日志的下一条应该是 {expected}，来的是 {}", event.seq),
+                    format!(
+                        "the next event in the log should be {expected}, got {}",
+                        event.seq
+                    ),
                 ));
             }
             bytes.extend_from_slice(event.to_line().as_bytes());

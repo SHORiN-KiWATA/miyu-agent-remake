@@ -32,6 +32,6 @@ fn broken_context_bodies_say_which_kind() {
         ("context.compacted", r#"{"upto":52}"#),
     ] {
         let line = event_line(kind, body);
-        rejected::<Event>(&line, &format!("{kind} 的 body 读不出来"));
+        rejected::<Event>(&line, &format!("body of {kind} not readable"));
     }
 }

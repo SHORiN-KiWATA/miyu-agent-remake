@@ -93,7 +93,7 @@ fn two_tools_with_one_name_do_not_build() {
     let snapshot = engineer().with_tools(tools);
     let error = snapshot.policy().err().unwrap();
     assert_eq!(error, BuildError::DuplicateTool("read".to_string()));
-    assert_eq!(error.to_string(), r#"工具面上有两件叫 "read" 的"#);
+    assert_eq!(error.to_string(), r#"two tools named "read""#);
     // 从磁盘读回来的也一样：读得回来，造不出策略。
     let back = Snapshot::from_bytes(&snapshot.to_bytes()).unwrap();
     assert_eq!(
@@ -135,7 +135,7 @@ fn a_broken_run_text_is_named() {
         matches!(
             error,
             BuildError::Texts {
-                which: "执行器替工具写的两句",
+                which: "executor's tool result texts",
                 ..
             }
         ),

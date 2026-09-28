@@ -54,17 +54,17 @@ fn broken_blocks_are_errors() {
         &format!(r#"{{"type":"image","blob":"{HASH}","media_type":"image/png","height":600}}"#),
         "width",
     );
-    rejected::<Block>(r#"{"text":"没有 type"}"#, "缺了 type 字段");
+    rejected::<Block>(r#"{"text":"没有 type"}"#, "missing field `type`");
     rejected::<Block>(
         r#"{"type":"file","blob":"sha256:12","name":"a.txt","media_type":"text/plain"}"#,
-        "内容哈希的写法不对",
+        "bad content hash",
     );
     rejected::<Block>(
         r#"{"type":"tool_call","call_id":"c1","name":"read","args":"{}"}"#,
-        "调用编号的写法不对",
+        "bad call id",
     );
     rejected::<Block>(
         r#"{"type":"reasoning","text":"x","private":{"driver":"Anthropic","data":{}}}"#,
-        "驱动家族的写法不对",
+        "bad driver family",
     );
 }

@@ -17,6 +17,18 @@ pub(crate) fn round_trip<T: Serialize + DeserializeOwned>(json: &str) {
 pub(crate) fn rejected<T: DeserializeOwned + fmt::Debug>(json: &str, why: &str) {
     let err = serde_json::from_str::<T>(json).unwrap_err().to_string();
     assert!(err.contains(why), "{json} 的报错里没有「{why}」：{err}");
+    english(json, &err);
+}
+
+/// 报错说的是英文（施工 4-9 再补四中：写进运行日志）：不是英文的字，只能是照着读到的原文 `read` 带出来的，或者
+/// 原文太长截掉时加的 `…`。
+pub(crate) fn english(read: &str, err: &str) {
+    assert!(
+        err.chars()
+            .filter(|c| !c.is_ascii() && *c != '…')
+            .all(|c| read.contains(c)),
+        "报错不是英文：{err}"
+    );
 }
 
 /// 用给定的种类和 `body` 拼一行事件，外壳用一套固定的写法。

@@ -125,14 +125,14 @@ impl Ledger {
     fn check(&self, event: &Event) -> Result<(), String> {
         let seq = event.seq;
         if seq != self.next {
-            return Err(format!("序号应该是 {}", self.next));
+            return Err(format!("seq should be {}", self.next));
         }
         let created = matches!(event.body, Body::SessionCreated(_));
         if seq == Seq::FIRST && !created {
-            return Err("第 1 条应该是会话创建 session.created".to_string());
+            return Err("the first event should be session.created".to_string());
         }
         if seq != Seq::FIRST && created {
-            return Err("会话创建只能是第 1 条".to_string());
+            return Err("session.created can only be the first event".to_string());
         }
         self.check_turn(event)?;
         match &event.body {
@@ -144,42 +144,48 @@ impl Ledger {
             Body::ApprovalRequested(requested) => {
                 self.check_pending(requested.call_id)?;
                 match self.asking.contains(&requested.call_id) {
-                    true => Err(format!("{} 已经有一个在等的请求", requested.call_id)),
+                    true => Err(format!(
+                        "{} already has a pending approval request",
+                        requested.call_id
+                    )),
                     false => Ok(()),
                 }
             }
             Body::ApprovalDecided(decided) if !self.asking.contains(&decided.call_id) => {
                 Err(format!(
-                    "{} 不是在等确认的调用：没请人确认过、已经决定过，或者它已经有了结果",
+                    "{} is not waiting for approval: never asked, already decided, or it already has a result",
                     decided.call_id
                 ))
             }
             Body::QuestionAsked(asked) => {
                 self.check_pending(asked.call_id)?;
                 match self.questioning.contains(&asked.call_id) {
-                    true => Err(format!("{} 已经有一组在等的题", asked.call_id)),
+                    true => Err(format!("{} already has pending questions", asked.call_id)),
                     false => Ok(()),
                 }
             }
             Body::QuestionAnswered(answered) if !self.questioning.contains(&answered.call_id) => {
                 Err(format!(
-                    "{} 不是在等人回答的调用：没问过、已经答过，或者它已经有了结果",
+                    "{} is not waiting for answers: never asked, already answered, or it already has a result",
                     answered.call_id
                 ))
             }
             Body::TurnEnded(_) => match self.pending.first() {
-                Some(call) => Err(format!("回合结束时，调用 {call} 还没有结果")),
+                Some(call) => Err(format!("call {call} has no result when the turn ends")),
                 None => Ok(()),
             },
             Body::ContextCompacted(compacted) => self.check_compaction(seq, compacted.upto),
-            Body::ModelCalled(called) if called.seen >= seq => {
-                Err(format!("seen {} 应该在这一条之前", called.seen))
-            }
+            Body::ModelCalled(called) if called.seen >= seq => Err(format!(
+                "seen {} should come before this event",
+                called.seen
+            )),
             Body::MessageWithdrawn(withdrawn) => self.check_withdrawal(&withdrawn.messages),
             Body::TurnReverted(reverted) => self.check_revert(&reverted.turns),
             Body::TurnUnreverted(unreverted) => self.check_unrevert(&unreverted.turns),
             Body::FilesRestored(_) => match self.open {
-                Some(open) => Err(format!("回合 {open} 还在进行，改回文件只在撤销、恢复以后")),
+                Some(open) => Err(format!(
+                    "turn {open} is still running; files are restored only after an undo or a redo"
+                )),
                 None => Ok(()),
             },
             _ => Ok(()),
@@ -191,21 +197,24 @@ impl Ledger {
     fn check_turn(&self, event: &Event) -> Result<(), String> {
         if let Body::TurnStarted(started) = &event.body {
             if event.turn != Some(TurnId::new(event.seq)) {
-                return Err("回合开始的 turn 应该是它自己的序号".to_string());
+                return Err("turn.started should have its own seq as turn".to_string());
             }
             if let Some(open) = self.open {
-                return Err(format!("回合 {open} 还没有结束"));
+                return Err(format!("turn {open} has not ended"));
             }
             if started.trigger >= event.seq {
-                return Err("trigger 应该是回合开始之前的一条".to_string());
+                return Err("trigger should be an event before the turn started".to_string());
             }
             return Ok(());
         }
         match event.turn {
-            Some(turn) if Some(turn) != self.open => Err(format!("回合 {turn} 不是正在进行的回合")),
-            None if in_turn_only(&event.body) => {
-                Err(format!("{} 只在回合里发生，要带上 turn", event.body.kind()))
+            Some(turn) if Some(turn) != self.open => {
+                Err(format!("turn {turn} is not the running turn"))
             }
+            None if in_turn_only(&event.body) => Err(format!(
+                "{} happens only in a turn and needs turn",
+                event.body.kind()
+            )),
             _ => Ok(()),
         }
     }
@@ -215,7 +224,7 @@ impl Ledger {
         match self.pending.contains(&call) {
             true => Ok(()),
             false => Err(format!(
-                "{call} 不是一个还在等结果的调用：没有这个调用，或者它已经有了结果"
+                "{call} is not a call waiting for a result: no such call, or it already has a result"
             )),
         }
     }
@@ -224,11 +233,11 @@ impl Ledger {
     /// （03 第六节）。所以 `seen` 一次比一次大，投影才切得了段。
     fn check_seen(&self, seq: Seq, seen: Seq) -> Result<(), String> {
         if seen >= seq {
-            return Err(format!("seen {seen} 应该在这条回复之前"));
+            return Err(format!("seen {seen} should come before this reply"));
         }
         match self.last_reply {
             Some(last) if seen < last => Err(format!(
-                "seen {seen} 早于上一条回复 {last}：后一次请求一定看过前一条回复"
+                "seen {seen} is before the previous reply {last}: a later request always sees the earlier reply"
             )),
             _ => Ok(()),
         }
@@ -238,13 +247,13 @@ impl Ledger {
     /// 前缀就断。
     fn check_withdrawal(&self, messages: &[Seq]) -> Result<(), String> {
         if messages.is_empty() {
-            return Err("撤回的列表是空的".to_string());
+            return Err("the list of withdrawn messages is empty".to_string());
         }
         let mut seen = BTreeSet::new();
         for message in messages {
             if !self.queued.contains(message) || !seen.insert(*message) {
                 return Err(format!(
-                    "第 {message} 条不是正在进行的回合里排着队的消息：不是消息、已经被请求看到过、不在这个回合里，或者撤回过了"
+                    "event {message} is not a queued message of the running turn: not a message, already seen by a request, not in this turn, or already withdrawn"
                 ));
             }
         }
@@ -255,21 +264,23 @@ impl Ledger {
     /// 不漏（`02-内核.md` 第六节「撤销与恢复」）。中间的一轮不能单独撤：后面几轮都是看着它做的。
     fn check_revert(&self, turns: &[TurnId]) -> Result<(), String> {
         if let Some(open) = self.open {
-            return Err(format!("回合 {open} 还在进行，撤销不了"));
+            return Err(format!(
+                "turn {open} is still running; nothing can be undone"
+            ));
         }
         let Some(&first) = turns.first() else {
-            return Err("撤销的列表是空的".to_string());
+            return Err("the list of undone turns is empty".to_string());
         };
         if let Some(turn) = turns.iter().find(|turn| !self.turns.contains(turn)) {
             return Err(format!(
-                "回合 {turn} 不在有效历史里：不存在、在最近一次压缩之前，或者已经撤掉了"
+                "turn {turn} is not in the current history: no such turn, before the last compaction, or already undone"
             ));
         }
         let expected: Vec<TurnId> = self.turns.range(first..).copied().collect();
         match turns == expected.as_slice() {
             true => Ok(()),
             false => Err(format!(
-                "要从回合 {first} 起往后全撤，照先后：{}",
+                "undo every turn from {first} on, in order: {}",
                 listed(&expected)
             )),
         }
@@ -278,9 +289,11 @@ impl Ledger {
     /// 恢复：正好是最近一次撤销的那几轮；那以后没开过回合，也没压缩过。
     fn check_unrevert(&self, turns: &[TurnId]) -> Result<(), String> {
         match self.undone.last() {
-            None => Err("没有能恢复的撤销：没撤过，或者撤了以后开过回合、压缩过".to_string()),
+            None => Err(
+                "nothing to redo: no undo yet, or a turn or a compaction came after it".to_string(),
+            ),
             Some(last) if last.as_slice() != turns => Err(format!(
-                "恢复的应该是最近一次撤销的那几轮：{}",
+                "redo the turns of the latest undo: {}",
                 listed(last)
             )),
             Some(_) => Ok(()),
@@ -290,12 +303,12 @@ impl Ledger {
     /// 压缩只前进：替代到的位置在这一条之前，而且不早于上一次。
     fn check_compaction(&self, seq: Seq, upto: Seq) -> Result<(), String> {
         if upto >= seq {
-            return Err(format!("upto {upto} 应该在这一条之前"));
+            return Err(format!("upto {upto} should come before this event"));
         }
         match self.compacted {
-            Some(last) if upto < last => {
-                Err(format!("upto {upto} 早于上一次压缩的 {last}，压缩只前进"))
-            }
+            Some(last) if upto < last => Err(format!(
+                "upto {upto} is before the last compaction's {last}; compaction only moves forward"
+            )),
             _ => Ok(()),
         }
     }
@@ -386,7 +399,7 @@ fn in_turn_only(body: &Body) -> bool {
 /// 几个回合编号，写成「11、12」。
 fn listed(turns: &[TurnId]) -> String {
     let turns: Vec<String> = turns.iter().map(ToString::to_string).collect();
-    turns.join("、")
+    turns.join(", ")
 }
 
 /// 块是工具调用的话，它的调用编号。
@@ -402,7 +415,7 @@ fn check_call_ids(seq: Seq, blocks: &[Block]) -> Result<(), String> {
     for (index, call) in (1..).zip(blocks.iter().filter_map(tool_call_id)) {
         if CallId::new(seq, index) != Some(call) {
             return Err(format!(
-                "第 {index} 个工具调用的编号应该是 call_{seq}_{index}，写的是 {call}"
+                "tool call {index} should have id call_{seq}_{index}, got {call}"
             ));
         }
     }
@@ -422,7 +435,7 @@ pub struct LedgerError {
 
 impl fmt::Display for LedgerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "第 {} 条事件不能追加：{}", self.seq, self.why)
+        write!(f, "event {} cannot be appended: {}", self.seq, self.why)
     }
 }
 

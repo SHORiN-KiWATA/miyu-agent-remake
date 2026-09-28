@@ -47,7 +47,7 @@ fn broken_assistant_bodies_say_which_kind() {
         r#"{"blocks":[],"seen":43,"interrupted":"yes"}"#,
     ] {
         let line = event_line("message.assistant", body);
-        rejected::<Event>(&line, "message.assistant 的 body 读不出来");
+        rejected::<Event>(&line, "body of message.assistant not readable");
     }
 }
 
@@ -68,6 +68,6 @@ fn a_withdrawal_from_the_drawing_round_trips() {
     }
     rejected::<Event>(
         &event_line("message.withdrawn", r#"{"messages":[0]}"#),
-        "message.withdrawn 的 body 读不出来",
+        "body of message.withdrawn not readable",
     );
 }
