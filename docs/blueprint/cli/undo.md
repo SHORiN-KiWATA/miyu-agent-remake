@@ -163,7 +163,7 @@ ESC[90m    ESC[31m-fn main() {}ESC[0m
 
 **帮助页**：`-h`、`--help`、`miyu help undo` 印的都是这一页，规矩见 `cli/main.md`「帮助页」。
 
-`miyu undo`，中文（施工 4-11 合进来时标成样本 `crates/miyu-cli/src/help/zh/undo.txt`）：
+样本 `crates/miyu-cli/src/help/zh/undo.txt`（`miyu undo`，中文）：
 
 ```text
 用法：miyu undo [选项]
@@ -175,7 +175,7 @@ ESC[90m    ESC[31m-fn main() {}ESC[0m
   -h, --help            印帮助
 ```
 
-`miyu undo`，英文（施工 4-11 合进来时标成样本 `crates/miyu-cli/src/help/en/undo.txt`）：
+样本 `crates/miyu-cli/src/help/en/undo.txt`（`miyu undo`，英文）：
 
 ```text
 Usage: miyu undo [options]
@@ -187,7 +187,7 @@ Options:
   -h, --help          Print help
 ```
 
-`miyu redo`，中文（施工 4-11 合进来时标成样本 `crates/miyu-cli/src/help/zh/redo.txt`）：
+样本 `crates/miyu-cli/src/help/zh/redo.txt`（`miyu redo`，中文）：
 
 ```text
 用法：miyu redo [选项]
@@ -199,7 +199,7 @@ Options:
   -h, --help            印帮助
 ```
 
-`miyu redo`，英文（施工 4-11 合进来时标成样本 `crates/miyu-cli/src/help/en/redo.txt`）：
+样本 `crates/miyu-cli/src/help/en/redo.txt`（`miyu redo`，英文）：
 
 ```text
 Usage: miyu redo [options]

@@ -1,5 +1,5 @@
-//! 蓝图 `cli/ask.md` 的样本（施工 4-9 三补）：照样本的场景喂一轮，标准输出、标准错误照先后交错，和
-//! `docs/designs/samples/cli/ask-text.txt` 逐字节一样；蓝图里的那一块，门禁和同一份文件比。
+//! 蓝图 `cli/ask.md` 的样本（施工 4-9 三补；施工 4-11 加了执行命令、编辑那两块）：照样本的场景喂一轮，标准输出、
+//! 标准错误照先后交错，和 `docs/designs/samples/cli/ask-text.txt` 逐字节一样；蓝图里的那一块，门禁和同一份文件比。
 
 use std::path::{MAIN_SEPARATOR, Path};
 
@@ -27,6 +27,19 @@ fn result(call: &str, status: &str, human: Value) -> Value {
     )
 }
 
+/// 调用 `call` 的结果，工具自己写的：状态、给她看的字、说法。
+fn written(call: &str, status: &str, text: &str, human: Value) -> Value {
+    let mut result = event(
+        "tool.result",
+        3,
+        "ask-4",
+        json!({"call_id": call, "status": status,
+            "blocks": [{"type": "text", "text": text}], "human": human}),
+    );
+    result["params"]["event"]["by"] = json!({"kind": "tool", "call_id": call});
+    result
+}
+
 /// 读 `path` 的一次调用。
 fn read(call: &str, path: &Path) -> Value {
     json!({"type": "tool_call", "call_id": call, "name": "read",
@@ -52,6 +65,11 @@ fn the_screen_is_the_sample_of_the_drawing() {
             read("c1", &used.join("notes.md")),
             read("c2", &used.join("missing.md")),
             read("c3", &under(&["home", ".gitconfig"])),
+            {"type": "tool_call", "call_id": "c4", "name": "shell",
+                "args": json!({"command": "ls"}).to_string()},
+            {"type": "tool_call", "call_id": "c5", "name": "edit",
+                "args": json!({"file_path": used.join("notes.md").to_string_lossy(),
+                    "edits": [{"old_string": "旧的一行", "new_string": "新的一行"}]}).to_string()},
         ])),
         result(
             "c1",
@@ -68,9 +86,21 @@ fn the_screen_is_the_sample_of_the_drawing() {
             "denied",
             json!({"key": "core/tool-results/unattended"}),
         ),
+        written(
+            "c4",
+            "ok",
+            "notes.md\ntodo.md\n",
+            json!({"key": "software/basesystem/shell/done", "fields": {"count": "2"}}),
+        ),
+        written(
+            "c5",
+            "ok",
+            "Edited 1 place.",
+            json!({"key": "software/basesystem/edit/edited", "fields": {"count": "1"}}),
+        ),
         delta(json!({"index": 0, "start": "text"})),
-        delta(json!({"index": 0, "text": "读完了。"})),
-        replied(json!([{"type": "text", "text": "读完了。"}])),
+        delta(json!({"index": 0, "text": "改好了。"})),
+        replied(json!([{"type": "text", "text": "改好了。"}])),
         event(
             "model.called",
             3,

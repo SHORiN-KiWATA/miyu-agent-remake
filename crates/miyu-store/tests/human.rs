@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use miyu_kernel::event::Said;
 use miyu_kernel::template::Template;
-use miyu_store::human::{Human, clean};
+use miyu_store::human::{Block, Human, clean};
 use miyu_store::resources::ResourceRoot;
 
 /// 源码树里的资源目录。
@@ -118,6 +118,29 @@ fn tools_have_a_name_and_the_argument_that_follows_it() {
         Some("Find files")
     );
     assert!(zh.tool("nope").is_none());
+    // 符号、下面那一块（施工 4-11）。
+    assert_eq!(read.icon.as_deref(), Some("→"));
+    assert_eq!(read.block, None);
+    let shell = zh.tool("shell").expect("有 shell");
+    assert_eq!(
+        (shell.icon.as_deref(), shell.block),
+        (Some("$"), Some(Block::Command))
+    );
+    assert_eq!(
+        zh.tool("edit").and_then(|face| face.block),
+        Some(Block::Edits)
+    );
+    // 跟语言无关的几格，两种语言写的一样；七件都有符号。
+    let en = load("en");
+    for tool in ["read", "glob", "grep", "write", "edit", "trash", "shell"] {
+        let (zh, en) = (zh.tool(tool).expect(tool), en.tool(tool).expect(tool));
+        assert_eq!(
+            (&zh.subject, &zh.icon, zh.block),
+            (&en.subject, &en.icon, en.block),
+            "{tool}"
+        );
+        assert!(zh.icon.is_some(), "{tool}");
+    }
 }
 
 #[test]
@@ -169,4 +192,11 @@ fn a_broken_file_is_named_and_a_missing_one_is_fine() {
     scratch.file("core/human/zh.json", r#"{"said":{"a":"{nope"}}"#);
     let error = Human::load(&ResourceRoot::at(&scratch.0), "zh").expect_err("模板坏了");
     assert!(error.why.starts_with("a: "), "{error}");
+    // 下面那一块只认两种。
+    scratch.file(
+        "core/human/zh.json",
+        r#"{"tools":{"t":{"name":"T","block":"diff"}}}"#,
+    );
+    let error = Human::load(&ResourceRoot::at(&scratch.0), "zh").expect_err("不认识的块");
+    assert!(error.why.contains("diff"), "{error}");
 }

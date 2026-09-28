@@ -1,10 +1,12 @@
 //! 真跑 `miyu ask`（`docs/construction/3-9-miyu-ask（下）.md`）：没有 key、核心也没在跑的，不拉起、退出码 5；
-//! 核心在跑的，头没有 key 照样连它；参数不对的退出码 2；说明跟着界面语言。
+//! 核心在跑的，头没有 key 照样连它；参数不对的退出码 2；帮助页跟着界面语言。
 
 mod support;
 
 use std::process::{Command, Output};
 
+use miyu_cli::help::{Page, page};
+use miyu_cli::language::Language;
 use miyu_ipc::connect_or_start;
 use support::{Home, MIYU, within};
 
@@ -80,19 +82,18 @@ fn wrong_arguments_are_exit_code_2() {
 }
 
 #[test]
-fn the_help_follows_the_language() {
+fn the_help_is_the_page_in_the_language() {
+    // `miyu ask -h` 印自己写的那一页，一个字节不差（施工 4-11）。
     let home = Home::new();
-    let chinese = ask(&home, "zh_CN.UTF-8", &["--help"]);
-    assert!(chinese.status.success());
-    let chinese = String::from_utf8_lossy(&chinese.stdout);
-    assert!(
-        chinese.contains("接着上一次 miyu ask 开的会话说"),
-        "{chinese}"
-    );
-    let english = ask(&home, "C", &["--help"]);
-    let english = String::from_utf8_lossy(&english.stdout);
-    assert!(
-        english.contains("Go on in the session the last miyu ask opened"),
-        "{english}"
-    );
+    for (lang, language) in [("zh_CN.UTF-8", Language::Chinese), ("C", Language::English)] {
+        for args in [&["-h"][..], &["--help"]] {
+            let output = ask(&home, lang, args);
+            assert!(output.status.success(), "{args:?}：{output:?}");
+            assert_eq!(
+                String::from_utf8_lossy(&output.stdout),
+                page(language, Page::Ask),
+                "{lang} {args:?}"
+            );
+        }
+    }
 }

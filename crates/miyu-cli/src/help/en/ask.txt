@@ -1,0 +1,9 @@
+Usage: miyu ask [options] <words>
+
+Say something and print her answer, in a new session unless -c or -s.
+
+Options:
+  -c, --continue          Go on in the session the last miyu ask opened
+  -s, --session <id>      Go on in this session
+      --format text|json  text for people (default), json for scripts
+  -h, --help              Print help

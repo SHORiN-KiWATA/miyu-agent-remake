@@ -101,7 +101,8 @@ impl ResourceRoot {
     /// `share/miyu/` 都没有。
     pub fn locate(env: &Env) -> Result<ResourceRoot, ResourceError> {
         if let Some(dir) = env.miyu_resources.as_ref().filter(|dir| !dir.is_empty()) {
-            let path = PathBuf::from(dir);
+            // 开头的 `~` 照家目录接（施工 4-11）；家目录找不到的，照原样，下面当相对路径报错。
+            let path = env.expand(dir).unwrap_or_else(|| PathBuf::from(dir));
             if !path.is_absolute() {
                 return Err(ResourceError::Relative(path));
             }

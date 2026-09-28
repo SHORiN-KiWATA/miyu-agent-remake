@@ -144,20 +144,6 @@ impl Language {
         }
     }
 
-    /// `miyu undo`、`miyu redo` 的 `--help` 里那一句。
-    pub fn undo_about(&self, direction: Direction) -> &'static str {
-        match (self, direction) {
-            (Language::Chinese, Direction::Undo) => "撤掉当前会话的最后一轮，把她改过的文件改回去",
-            (Language::Chinese, Direction::Redo) => "发下一句之前，恢复最近一次撤销",
-            (Language::English, Direction::Undo) => {
-                "Undo the last turn of the current session and restore the files she changed"
-            }
-            (Language::English, Direction::Redo) => {
-                "Redo the latest undo, until you say something else"
-            }
-        }
-    }
-
     /// 核心没在跑，又没设 key：不拉起（施工 4-9 再补一，照 `miyu ask` 的规矩）。
     pub(crate) fn undo_needs_key(&self) -> &'static str {
         match self {
@@ -167,14 +153,6 @@ impl Language {
             Language::English => {
                 "The core is not running. Set DEEPSEEK_API_KEY first: a core started without it cannot serve miyu ask later"
             }
-        }
-    }
-
-    /// `--session` 的说明。
-    pub fn undo_session_help(&self) -> &'static str {
-        match self {
-            Language::Chinese => "哪个会话；不写的是上一次 miyu ask 开的那个",
-            Language::English => "Which session; the one the last miyu ask opened by default",
         }
     }
 }

@@ -10,7 +10,7 @@
 |---|---|
 | `crates/miyu/src/main.rs` | 子命令；换上帮助页；参数不对时交给 `misuse`；拉起核心用的命令 |
 | `crates/miyu-cli/src/help.rs`、`help/{zh,en}/{miyu,ask,undo,redo}.txt` | 帮助页：一种语言四页，编进程序（施工 4-11） |
-| `crates/miyu-cli/src/misuse.rs` | 参数写错时说的那一句（施工 4-11） |
+| `crates/miyu-cli/src/misuse.rs` | 参数写错时说的那一句，不认识的子命令也在这里（施工 4-11） |
 | `crates/miyu-cli/src/lib.rs` | 命令行的头对外的几样：`Ask`、`ask`、`talk`、`Format`、`Plan`、`Screen`、`Target`、`exit`，`Undo`、`undo`、`undo_on`、`Direction`、`UndoPlan`，`help`、`misuse`、`language` |
 | `crates/miyu-cli/src/language.rs` | 界面语言；这一页和 `miyu ask` 给人看的字 |
 | `crates/miyu-cli/src/language/undo.rs` | `miyu undo`、`miyu redo` 给人看的字（`cli/undo.md`） |
@@ -52,7 +52,7 @@
 
 **帮助页**：自己写的，一种语言四页（`miyu`、`ask`、`undo`、`redo`），编进程序，资源目录找不到也印得出；每页以一个换行结尾，最宽 80 列（中文字算两列）。`ask`、`undo`、`redo` 的三页见 `cli/ask.md`、`cli/undo.md`。`help` 子命令、`core` 不列；`miyu core --help` 照样印得出，是 clap 照代码注释生成的。
 
-帮助页，中文（施工 4-11 合进来时标成样本 `crates/miyu-cli/src/help/zh/miyu.txt`）：
+样本 `crates/miyu-cli/src/help/zh/miyu.txt`（帮助页，中文）：
 
 ```text
 用法：miyu <命令> [选项]
@@ -81,7 +81,7 @@ undo、redo 的选项：
   -V, --version  印版本
 ```
 
-帮助页，英文（施工 4-11 合进来时标成样本 `crates/miyu-cli/src/help/en/miyu.txt`）：
+样本 `crates/miyu-cli/src/help/en/miyu.txt`（帮助页，英文）：
 
 ```text
 Usage: miyu <command> [options]

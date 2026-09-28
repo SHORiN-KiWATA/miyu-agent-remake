@@ -9,11 +9,14 @@
 //! - [`language`]：给人看的话跟着界面语言。
 
 mod ask;
+pub mod help;
 pub mod language;
 mod link;
+mod misuse;
 mod rpc;
 mod shown;
 mod undo;
 
-pub use ask::{Ask, Format, Plan, Screen, Target, ask, exit, localize, talk};
-pub use undo::{Direction, Undo, UndoPlan, localize_undo, undo, undo_on};
+pub use ask::{Ask, Format, Plan, Screen, Target, ask, exit, talk};
+pub use misuse::misuse;
+pub use undo::{Direction, Undo, UndoPlan, undo, undo_on};

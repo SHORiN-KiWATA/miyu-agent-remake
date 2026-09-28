@@ -5,6 +5,8 @@ mod support;
 
 use std::process::{Command, Output};
 
+use miyu_cli::help::{Page, page};
+use miyu_cli::language::Language;
 use support::{Home, MIYU};
 
 /// 在临时的数据根上跑 `miyu <args>`，界面语言是 `lang`。
@@ -53,19 +55,52 @@ fn plain_miyu_says_what_to_use_for_now() {
 }
 
 #[test]
-fn help_and_version_are_fine() {
+fn the_help_is_the_page_and_the_version_says_miyu() {
     let home = Home::new();
-    for args in [["--help"], ["--version"]] {
-        let output = miyu(&home, "C", &args);
-        assert!(output.status.success(), "{args:?}：{output:?}");
+    // `-h`、`--help`、`help` 印的都是自己写的那一页，一个字节不差（施工 4-11）。
+    for (lang, language) in [("zh_CN.UTF-8", Language::Chinese), ("C", Language::English)] {
+        for args in [&["-h"][..], &["--help"], &["help"]] {
+            let output = miyu(&home, lang, args);
+            assert!(output.status.success(), "{args:?}：{output:?}");
+            assert_eq!(
+                String::from_utf8_lossy(&output.stdout),
+                page(language, Page::Miyu),
+                "{lang} {args:?}"
+            );
+            assert!(output.stderr.is_empty(), "{output:?}");
+        }
     }
     let output = miyu(&home, "C", &["--version"]);
+    assert!(output.status.success(), "{output:?}");
     assert!(String::from_utf8_lossy(&output.stdout).starts_with("miyu "));
-    // 帮助直接从用法开始，不印代码注释（施工 4-9 再补四上）。
-    for language in ["C", "zh_CN.UTF-8"] {
-        let output = miyu(&home, language, &["--help"]);
-        let help = String::from_utf8_lossy(&output.stdout);
-        assert!(help.starts_with("Usage: miyu"), "{language}：{help}");
-        assert!(!help.contains('`'), "{language}：{help}");
+}
+
+#[test]
+fn a_mistake_is_one_sentence_and_exit_code_2() {
+    let home = Home::new();
+    let cases: [(&[&str], &str, &str); 4] = [
+        (&["ask"], "zh_CN.UTF-8", "少了要说的话：miyu ask \"…\""),
+        (
+            &["ask", "--format", "xml", "hi"],
+            "C",
+            "--format must be text or json",
+        ),
+        // 短写的 `-s`、`-c` 就是 `--session`、`--continue`。
+        (
+            &["ask", "-s", "x", "-c", "hi"],
+            "zh_CN.UTF-8",
+            "--session 和 --continue 只能写一个",
+        ),
+        (&["undo", "-s"], "zh_CN.UTF-8", "--session 后面少了值"),
+    ];
+    for (args, lang, said) in cases {
+        let output = miyu(&home, lang, args);
+        assert_eq!(output.status.code(), Some(2), "{args:?}：{output:?}");
+        assert_eq!(
+            String::from_utf8_lossy(&output.stderr),
+            format!("{said}\n"),
+            "{args:?}"
+        );
+        assert!(output.stdout.is_empty(), "{output:?}");
     }
 }

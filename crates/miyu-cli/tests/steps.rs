@@ -1,6 +1,6 @@
 //! `miyu ask` 印出每一步（`docs/construction/4-5-miyu ask 印出每一步（下）.md`）：在进程里起一个核心，工具是真的
-//! 三件读的；她读到了、没读成、被拒了，每一步在标准错误上印一行；工作目录太宽的，开头说一句。还有一个假的
-//! 核心，照协议允许的最晚的先后说话。
+//! 基础系统；她读到了、没读成、被拒了，每一步在标准错误上印一行；执行命令、编辑的下面印输出、改动（施工 4-11）；
+//! 工作目录太宽的，开头说一句。还有一个假的核心，照协议允许的最晚的先后说话。
 
 mod support;
 
@@ -62,9 +62,37 @@ async fn each_step_is_one_line_before_the_answer() {
     assert_eq!(
         screen,
         format!(
-            "· 读取 notes.md → 3 行\n· 读取 missing.md → 出错：没有这个文件\n· 读取 {outside} → 没做：要确认，这里没人能确认\n\n读完了。\n· 输入 400 · 命中缓存 160（40%）· 输出 40\n· 1 步没做：要你确认，miyu ask 里确认不了\n"
+            "→ 读取 notes.md · 3 行\n→ 读取 missing.md · 出错：没有这个文件\n→ 读取 {outside} · 没做：要确认，这里没人能确认\n\n读完了。\n· 输入 400 · 命中缓存 160（40%）· 输出 40\n· 1 步没做：要你确认，miyu ask 里确认不了\n"
         ),
         "工作区里的写相对的，外面的照原样；最后说有几步因为要确认没做（施工 4-9）"
+    );
+}
+
+#[tokio::test]
+async fn a_command_and_an_edit_print_what_happened_under_them() {
+    // 真的核心、真的工具：执行命令的输出是工具自己写的，下面照印；编辑印改掉的、改成的（施工 4-11）。
+    let work = Outside::new();
+    let notes = work.file("notes.md", "一\n二\n三\n");
+    let notes = notes.to_string_lossy().into_owned();
+    let edit = json!({"file_path": notes, "edits": [{"old_string": "二", "new_string": "贰"}]});
+    let home = home([
+        read(&notes),
+        Play::calls(&[("shell", r#"{"command":"echo hi"}"#)]),
+        Play::calls(&[("edit", &edit.to_string())]),
+        Play::Says("改好了。"),
+    ]);
+    let Asked {
+        code, err, screen, ..
+    } = home
+        .ask(&Plan {
+            cwd: work.text(),
+            ..plan("改一下")
+        })
+        .await;
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(
+        screen,
+        "→ 读取 notes.md · 3 行\n\n$ echo hi\nhi\n\n← 编辑 notes.md · 改了 1 处\n-二\n+贰\n\n改好了。\n· 输入 400 · 命中缓存 160（40%）· 输出 40\n"
     );
 }
 
@@ -87,7 +115,7 @@ async fn a_directory_too_wide_is_said_first_and_once() {
     assert_eq!(
         screen,
         format!(
-            "· 目录太宽（~），这次在 {} 里干活\n· 找文件 *.md → 一个都没找到\n\n没有。\n· 输入 200 · 命中缓存 80（40%）· 输出 20\n",
+            "· 目录太宽（~），这次在 {} 里干活\n✱ 找文件 *.md · 一个都没找到\n\n没有。\n· 输入 200 · 命中缓存 80（40%）· 输出 20\n",
             workspace.display()
         )
     );

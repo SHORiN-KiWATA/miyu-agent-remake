@@ -1,9 +1,19 @@
 · 目录太宽（~），这次在 ~/.miyu/home/admin/workspace 里干活
-先读一下笔记。
-· 读取 notes.md → 3 行
-· 读取 missing.md → 出错：没有这个文件
-· 读取 ~/.gitconfig → 没做：要确认，这里没人能确认
 
-读完了。
+先读一下笔记。
+
+→ 读取 notes.md · 3 行
+→ 读取 missing.md · 出错：没有这个文件
+→ 读取 ~/.gitconfig · 没做：要确认，这里没人能确认
+
+$ ls
+notes.md
+todo.md
+
+← 编辑 notes.md · 改了 1 处
+-旧的一行
++新的一行
+
+改好了。
 · 输入 400 · 命中缓存 160（40%）· 输出 40
 · 1 步没做：要你确认，miyu ask 里确认不了

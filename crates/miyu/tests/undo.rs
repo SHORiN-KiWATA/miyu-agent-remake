@@ -7,6 +7,8 @@ mod support;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+use miyu_cli::help::{Page, page};
+use miyu_cli::language::Language;
 use miyu_ipc::connect_or_start;
 use support::{Home, MIYU, within};
 
@@ -34,28 +36,26 @@ async fn run(root: &Path, args: &'static [&'static str]) -> Output {
 }
 
 #[test]
-fn the_help_follows_the_language() {
+fn the_help_is_the_page_in_the_language() {
+    // 帮助页照界面语言，一个字节不差（施工 4-11）。
     let home = Home::new();
-    let undo = miyu(home.root.path(), "zh_CN.UTF-8", &["undo", "--help"]);
-    assert!(undo.status.success(), "{undo:?}");
-    let undo = String::from_utf8_lossy(&undo.stdout);
-    assert!(
-        undo.contains("撤掉当前会话的最后一轮，把她改过的文件改回去"),
-        "{undo}"
-    );
-    assert!(
-        undo.contains("哪个会话；不写的是上一次 miyu ask 开的那个"),
-        "{undo}"
-    );
-    let redo = miyu(home.root.path(), "zh_CN.UTF-8", &["redo", "--help"]);
-    let redo = String::from_utf8_lossy(&redo.stdout);
-    assert!(redo.contains("发下一句之前，恢复最近一次撤销"), "{redo}");
-    let english = miyu(home.root.path(), "C", &["undo", "--help"]);
-    let english = String::from_utf8_lossy(&english.stdout);
-    assert!(
-        english.contains("Undo the last turn of the current session"),
-        "{english}"
-    );
+    for (lang, language) in [("zh_CN.UTF-8", Language::Chinese), ("C", Language::English)] {
+        for (args, which) in [
+            (&["undo", "-h"][..], Page::Undo),
+            (&["undo", "--help"], Page::Undo),
+            (&["help", "undo"], Page::Undo),
+            (&["redo", "-h"], Page::Redo),
+            (&["help", "redo"], Page::Redo),
+        ] {
+            let output = miyu(home.root.path(), lang, args);
+            assert!(output.status.success(), "{args:?}：{output:?}");
+            assert_eq!(
+                String::from_utf8_lossy(&output.stdout),
+                page(language, which),
+                "{lang} {args:?}"
+            );
+        }
+    }
 }
 
 #[tokio::test]

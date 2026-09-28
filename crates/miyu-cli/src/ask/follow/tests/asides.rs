@@ -1,5 +1,5 @@
-//! 她做的每一步、工作目录太宽那一句，和思考一样是旁白：旁白之间不空行，和回答之间空一行；回答那一行没完
-//! 就来了步骤，先换行（施工 4-5 下）。
+//! 她做的每一步、工作目录太宽那一句，和思考一样是旁白：一行一行的旁白之间不空行，和回答之间空一行；回答那一行
+//! 没完就来了步骤，先换行（施工 4-5 下）。一块前后的空行见 `blocks.rs`（施工 4-11）。
 
 use std::path::{MAIN_SEPARATOR, Path};
 
@@ -67,16 +67,16 @@ fn a_step_is_a_line_among_the_thinking_and_apart_from_the_answer() {
     assert_eq!(step, Step::Done(exit::OK));
     assert_eq!(
         screen,
-        format!("先读一下\n· 读取 src{sep}lib.rs → 37 行\n好\n\n在这里。\n"),
-        "旁白之间不空行，和回答之间空一行"
+        format!("先读一下\n\n→ 读取 src{sep}lib.rs · 37 行\n\n好\n\n在这里。\n"),
+        "一段思考前后空一行，和回答之间空一行（施工 4-11 验收时项目主人定，照 opencode）"
     );
     assert_eq!(out, "在这里。\n");
-    // 终端里整行灰。
+    // 终端里：思考灰，标题原色，结果灰（施工 4-11）。
     let Fed { err, .. } = feed(&plan, true, &a_turn_with_a_step());
     assert_eq!(
         err,
         format!(
-            "\x1b[90m先读一下\x1b[0m\n\x1b[90m· 读取 src{sep}lib.rs → 37 行\x1b[0m\n\x1b[90m好\x1b[0m\n\n"
+            "\x1b[90m先读一下\x1b[0m\n\n→ 读取 src{sep}lib.rs\x1b[90m · 37 行\x1b[0m\n\n\x1b[90m好\x1b[0m\n\n"
         )
     );
 }
@@ -108,7 +108,7 @@ fn an_answer_cut_by_a_step_ends_its_line_first() {
     );
     assert_eq!(
         screen,
-        format!("我先看看。\n· 读取 src{sep}lib.rs → 出错：没有这个文件\n\n看完了。\n"),
+        format!("我先看看。\n→ 读取 src{sep}lib.rs · 出错：没有这个文件\n\n看完了。\n"),
         "这一步不接在回答后面"
     );
     assert_eq!(out, "我先看看。\n看完了。\n", "文件里两段回答也隔开了");
@@ -158,9 +158,9 @@ fn a_directory_too_wide_is_said_once() {
     assert_eq!(
         screen,
         format!(
-            "· 目录太宽（~），这次在 ~{sep}.miyu{sep}home{sep}admin{sep}workspace 里干活\n想一想\n\n你好。\n· 输入 100 · 命中缓存 40（40%）· 输出 10\n"
+            "· 目录太宽（~），这次在 ~{sep}.miyu{sep}home{sep}admin{sep}workspace 里干活\n\n想一想\n\n你好。\n· 输入 100 · 命中缓存 40（40%）· 输出 10\n"
         ),
-        "说一次，在最前面；它也是旁白，和回答之间空一行"
+        "说一次，在最前面；后面的思考是一段，前后空一行"
     );
     // 实际的就是报的那个：不说。
     let same = under(&["home"]);
@@ -199,5 +199,5 @@ fn paths_are_written_short_against_where_she_really_works() {
         event("turn.ended", 3, "ask-4", json!({"reason": "completed"})),
     ];
     let Fed { err, .. } = feed(&plan, false, &messages);
-    assert!(err.ends_with("\n· 读取 todo.md → 37 行\n"), "{err}");
+    assert!(err.ends_with("\n→ 读取 todo.md · 37 行\n"), "{err}");
 }

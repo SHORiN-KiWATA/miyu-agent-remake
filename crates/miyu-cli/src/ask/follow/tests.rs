@@ -324,7 +324,10 @@ fn thinking_cut_short_still_ends_its_line() {
     ];
     let Fed { step, screen, .. } = feed(&plan, false, &messages);
     assert_eq!(step, Step::Done(exit::INTERRUPTED));
-    assert_eq!(screen, "想一\n打断了\n", "只想了没答，思考那一行收了尾");
+    assert_eq!(
+        screen, "想一\n\n打断了\n",
+        "只想了没答：思考那一行收了尾，这一段后面空一行"
+    );
 }
 
 #[test]
@@ -340,5 +343,6 @@ fn a_refused_message_says_why_and_a_lagging_one_resubscribes() {
 }
 
 mod asides;
+mod blocks;
 mod sample;
 mod unattended;

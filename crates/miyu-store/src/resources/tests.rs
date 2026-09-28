@@ -50,6 +50,24 @@ fn miyu_resources_wins_and_must_be_an_absolute_directory() {
 }
 
 #[test]
+fn a_leading_tilde_is_the_home() {
+    let scratch = Scratch::new();
+    fs::create_dir_all(scratch.path().join("res")).unwrap();
+    let tilde = |home: Option<PathBuf>| Env {
+        home,
+        ..env(Some(Path::new("~/res")), None)
+    };
+    // 开头的 `~` 照家目录接，和 `MIYU_HOME` 一样（施工 4-11）。
+    let found = ResourceRoot::locate(&tilde(Some(scratch.path().to_path_buf()))).unwrap();
+    assert_eq!(found.path(), scratch.path().join("res"));
+    // 找不到家目录的：照原样，当相对的报错。
+    assert_eq!(
+        ResourceRoot::locate(&tilde(None)),
+        Err(ResourceError::Relative(PathBuf::from("~/res")))
+    );
+}
+
+#[test]
 fn next_to_the_program_or_in_share_miyu_one_level_up() {
     // 安装脚本：~/.local/lib/miyu/miyu 旁边的 resources/。
     let scratch = Scratch::new();

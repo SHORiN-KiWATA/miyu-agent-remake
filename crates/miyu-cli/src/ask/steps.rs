@@ -1,8 +1,11 @@
-//! 她做的每一步（`docs/designs/22-命令行.md` 第三节「施工 4-5 下定的」）：记下她调了什么，结果来了写成给人
-//! 看的一行，例如 `· 读取 src/lib.rs → 37 行`；没做成的同一行写原因，「出错」「没做」是红的。工作目录太宽、
-//! 核心退回账号的工作区时开头那一句，有几步因为要确认没做时最后那一句（施工 4-9），也在这里写。
+//! 她做的每一步（`docs/blueprint/cli/ask.md`「每一步」）：记下她调了什么，结果来了写成给人看的标题，例如
+//! `→ 读取 src/lib.rs · 37 行`；没做成的同一行写原因，「出错」「没做」是红的。执行命令、编辑的标题下面还有一块
+//! （施工 4-11，[`blocks`]）。工作目录太宽、核心退回账号的工作区时开头那一句，有几步因为要确认没做时最后那一句
+//! （施工 4-9），也在这里写。
 //!
-//! 只管写成什么样，不管往哪写：一行分灰的、红的几段（[`Line`]，在 `shown.rs` 里）。
+//! 只管写成什么样，不管往哪写：一行分几段颜色（[`Line`]，在 `shown.rs` 里）。
+
+mod blocks;
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -10,10 +13,10 @@ use std::path::Path;
 use serde_json::Value;
 
 use miyu_kernel::event::Said;
-use miyu_store::human::clean;
+use miyu_store::human::{Block, clean};
 
 use super::Plan;
-use crate::language::Word;
+use crate::language::{Language, Word};
 use crate::shown::{Ink, Line, cut, cut_front, shown, tilde};
 
 /// 参数的值最多印几个字。
@@ -28,6 +31,18 @@ const PATHS: [&str; 2] = ["file_path", "path"];
 
 /// 内核在没人能确认时记的那一句（`02-内核.md` 第六节「确认怎么走」第 2 条）。
 const UNATTENDED: &str = "core/tool-results/unattended";
+
+/// 没有符号的工具写的符号（施工 4-11）。
+const NO_ICON: &str = "⚙";
+
+/// 一步写成的样子：标题，和标题下面的几行。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Drawn {
+    /// 标题：一行。
+    pub(crate) title: Line,
+    /// 标题下面的：执行命令的续行和输出、编辑的改动。有东西的是一块，前后空一行。
+    pub(crate) below: Vec<Line>,
+}
 
 /// 她调过的，照调用编号记着：好在结果来了时知道是哪件工具、给了什么参数。
 #[derive(Debug, Default)]
@@ -63,58 +78,105 @@ impl Steps {
         }
     }
 
-    /// 一次结果（`tool.result` 的 `body`）写成的那一行。路径照会话实际干活的目录 `cwd` 写短。对不上她调过的
+    /// 一次结果（`tool.result` 的 `body`）写成的样子。`by_tool` 是这个结果是不是工具自己写的（外壳里 `by` 的
+    /// `kind` 是 `tool`）：执行命令的输出只印工具自己写的。路径照会话实际干活的目录 `cwd` 写短。对不上她调过的
     /// 哪一次的没有：掉队重订以后，前面的推送没看到，不猜。
-    pub(crate) fn result(&self, body: &Value, plan: &Plan, cwd: &str) -> Option<Line> {
+    pub(crate) fn result(
+        &self,
+        body: &Value,
+        by_tool: bool,
+        plan: &Plan,
+        cwd: &str,
+    ) -> Option<Drawn> {
         let called = self.calls.get(body["call_id"].as_str()?)?;
         let face = plan.human.tool(&called.name);
-        let mut head = match face {
-            Some(face) => format!("· {}", face.name),
-            None => format!("· {}", cut(&clean(&called.name), NAME_CHARS)),
-        };
+        let icon = face
+            .and_then(|face| face.icon.as_deref())
+            .unwrap_or(NO_ICON);
+        let outcome = Outcome::of(body, plan);
         let subject = face.and_then(|face| face.subject.as_deref());
+        if let Some(Block::Command) = face.and_then(|face| face.block) {
+            let command = subject
+                .and_then(|subject| called.args.get(subject))
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            return Some(blocks::command(
+                icon,
+                command,
+                body,
+                by_tool,
+                &outcome,
+                &plan.language,
+            ));
+        }
+        let name = match face {
+            Some(face) => face.name.clone(),
+            None => cut(&clean(&called.name), NAME_CHARS),
+        };
+        let mut title = Line::inked(Ink::Plain, format!("{icon} {name}"));
         if let Some(value) =
             subject.and_then(|subject| value_of(&called.args, subject, cwd, plan.home.as_deref()))
         {
-            head.push(' ');
-            head.push_str(&value);
+            title.push(Ink::Plain, format!(" {value}"));
         }
+        outcome.tell(&mut title, &plan.language);
+        let below = match face.and_then(|face| face.block) {
+            Some(Block::Edits) if outcome.status == "ok" => blocks::edits(&called.args),
+            _ => Vec::new(),
+        };
+        Some(Drawn { title, below })
+    }
+}
+
+/// 一次结果怎么样了：状态、给人看的那一句。
+#[derive(Debug)]
+struct Outcome {
+    /// `ok`、`error`、`denied`……
+    status: String,
+    /// 结果里记的说法换成的字，截过的；换不成的没有。
+    said: Option<String>,
+}
+
+impl Outcome {
+    /// 照结果（`tool.result` 的 `body`）和给人看的字读出来。
+    fn of(body: &Value, plan: &Plan) -> Outcome {
         let said = body
             .get("human")
             .and_then(|human| serde_json::from_value::<Said>(human.clone()).ok())
             .and_then(|said| plan.human.say(&said))
             .map(|text| cut(&text, RESULT_CHARS));
-        let language = &plan.language;
-        let status = body["status"].as_str().unwrap_or_default();
-        let failed = match status {
+        let status = body["status"].as_str().unwrap_or_default().to_string();
+        Outcome { status, said }
+    }
+
+    /// 在标题后面写 ` · <结果那一句>`：没做成的写红的那个词，有原因的跟上原因；打断了、跳过了没有说法的照状态写；
+    /// 做成了、又没有说法的，什么都不写。
+    fn tell(&self, title: &mut Line, language: &Language) {
+        let failed = match self.status.as_str() {
             "error" => Some(Word::Failed),
             "denied" => Some(Word::Denied),
             _ => None,
         };
-        let plain = match status {
+        let plain = match self.status.as_str() {
             "cancelled" => Some(Word::Cancelled),
             "skipped" => Some(Word::Skipped),
             _ => None,
         };
-        let mut line = Line::gray(head);
-        match (failed, said) {
-            // 没做成的：红的那个词，有原因的跟上原因。
+        match (failed, &self.said) {
             (Some(word), said) => {
-                line.push(Ink::Gray, " → ");
-                line.push(Ink::Red, language.word(word));
+                title.push(Ink::Gray, " · ");
+                title.push(Ink::Red, language.word(word));
                 if let Some(said) = said {
-                    line.push(Ink::Gray, format!("{}{said}", language.colon()));
+                    title.push(Ink::Gray, format!("{}{said}", language.colon()));
                 }
             }
-            (None, Some(said)) => line.push(Ink::Gray, format!(" → {said}")),
-            // 没有说法的：打断了、跳过了照状态写；做成了的只写做了什么。
+            (None, Some(said)) => title.push(Ink::Gray, format!(" · {said}")),
             (None, None) => {
                 if let Some(word) = plain {
-                    line.push(Ink::Gray, format!(" → {}", language.word(word)));
+                    title.push(Ink::Gray, format!(" · {}", language.word(word)));
                 }
             }
         }
-        Some(line)
     }
 }
 

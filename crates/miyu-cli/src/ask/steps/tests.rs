@@ -33,8 +33,8 @@ fn plan(language: Language) -> Plan {
     }
 }
 
-/// 她调了 `name`，参数原文是 `args`，调用编号 c1；结果的状态是 `status`，说法是 `human`（空的就没有）。
-/// 交回印出来的那一行，不上色。
+/// 她调了 `name`，参数原文是 `args`，调用编号 c1；结果的状态是 `status`，说法是 `human`（空的就没有），是工具自己
+/// 写的。交回印出来的样子（标题和下面那一块），不上色。
 fn line(plan: &Plan, name: &str, args: &str, status: &str, human: Value) -> Option<String> {
     painted(plan, name, args, status, human, false)
 }
@@ -57,9 +57,13 @@ fn painted(
     if !human.is_null() {
         result["human"] = human;
     }
-    steps
-        .result(&result, plan, &plan.cwd)
-        .map(|line| line.paint(color))
+    steps.result(&result, true, plan, &plan.cwd).map(|drawn| {
+        let mut text = drawn.title.paint(color);
+        for line in &drawn.below {
+            text.push_str(&line.paint(color));
+        }
+        text
+    })
 }
 
 /// `read` 读 `file_path`：参数原文。
@@ -85,24 +89,24 @@ fn each_status_reads_as_decided() {
         (
             "ok",
             said("read/lines", json!({"count": "37"})),
-            "· 读取 src/lib.rs → 37 行\n",
+            "→ 读取 src/lib.rs · 37 行\n",
         ),
         (
             "error",
             said("common/missing-similar", json!({"similar": "src/main.rs"})),
-            "· 读取 src/lib.rs → 出错：没有这个文件，是不是 src/main.rs\n",
+            "→ 读取 src/lib.rs · 出错：没有这个文件，是不是 src/main.rs\n",
         ),
         (
             "denied",
             core("unattended"),
-            "· 读取 src/lib.rs → 没做：要确认，这里没人能确认\n",
+            "→ 读取 src/lib.rs · 没做：要确认，这里没人能确认\n",
         ),
         (
             "cancelled",
             core("cancelled-before"),
-            "· 读取 src/lib.rs → 打断了，没跑\n",
+            "→ 读取 src/lib.rs · 打断了，没跑\n",
         ),
-        ("skipped", core("skipped"), "· 读取 src/lib.rs → 跳过了\n"),
+        ("skipped", core("skipped"), "→ 读取 src/lib.rs · 跳过了\n"),
     ];
     for (status, human, want) in cases {
         assert_eq!(
@@ -114,12 +118,12 @@ fn each_status_reads_as_decided() {
     // 没有说法的：第三方的工具，没有显示名，照工具名、状态写。
     let url = json!({"url": "https://example.com"}).to_string();
     let cases = [
-        ("ok", "· web_fetch\n"),
-        ("error", "· web_fetch → 出错\n"),
-        ("denied", "· web_fetch → 没做\n"),
-        ("cancelled", "· web_fetch → 打断了\n"),
-        ("skipped", "· web_fetch → 跳过了\n"),
-        ("later", "· web_fetch\n"),
+        ("ok", "⚙ web_fetch\n"),
+        ("error", "⚙ web_fetch · 出错\n"),
+        ("denied", "⚙ web_fetch · 没做\n"),
+        ("cancelled", "⚙ web_fetch · 打断了\n"),
+        ("skipped", "⚙ web_fetch · 跳过了\n"),
+        ("later", "⚙ web_fetch\n"),
     ];
     for (status, want) in cases {
         assert_eq!(
@@ -167,10 +171,10 @@ fn in_english_too() {
     assert_eq!(
         lines.map(Option::unwrap_or_default),
         [
-            "· Read src/lib.rs → 37 lines\n",
-            "· Read src/lib.rs → failed: no such file, did you mean src/main.rs\n",
-            "· Search fn tools → not done\n",
-            "· Find files *.rs → interrupted\n",
+            "→ Read src/lib.rs · 37 lines\n",
+            "→ Read src/lib.rs · failed: no such file, did you mean src/main.rs\n",
+            "✱ Search fn tools · not done\n",
+            "✱ Find files *.rs · interrupted\n",
         ]
     );
 }
@@ -188,19 +192,19 @@ fn a_said_that_cannot_be_worded_goes_by_the_status() {
     ] {
         assert_eq!(
             line(&plan, "read", &lib, "error", human.clone()).as_deref(),
-            Some("· 读取 src/lib.rs → 出错\n"),
+            Some("→ 读取 src/lib.rs · 出错\n"),
             "{human}"
         );
         assert_eq!(
             line(&plan, "read", &lib, "ok", human.clone()).as_deref(),
-            Some("· 读取 src/lib.rs\n"),
+            Some("→ 读取 src/lib.rs\n"),
             "{human}"
         );
     }
 }
 
 #[test]
-fn failures_are_red_in_a_terminal_and_the_rest_gray() {
+fn titles_are_plain_results_gray_and_failures_red() {
     let plan = plan(Language::Chinese);
     let mian = read("src/mian.rs");
     assert_eq!(
@@ -213,11 +217,11 @@ fn failures_are_red_in_a_terminal_and_the_rest_gray() {
             true
         )
         .as_deref(),
-        Some("\x1b[90m· 读取 src/mian.rs → \x1b[31m出错\x1b[90m：没有这个文件\x1b[0m\n")
+        Some("→ 读取 src/mian.rs\x1b[90m · \x1b[31m出错\x1b[90m：没有这个文件\x1b[0m\n")
     );
     assert_eq!(
         painted(&plan, "web_fetch", "{}", "denied", Value::Null, true).as_deref(),
-        Some("\x1b[90m· web_fetch → \x1b[31m没做\x1b[0m\n"),
+        Some("⚙ web_fetch\x1b[90m · \x1b[31m没做\x1b[0m\n"),
         "没有原因的，红的写完就回到原色"
     );
     assert_eq!(
@@ -230,8 +234,8 @@ fn failures_are_red_in_a_terminal_and_the_rest_gray() {
             true
         )
         .as_deref(),
-        Some("\x1b[90m· 读取 src/mian.rs → 1 行\x1b[0m\n"),
-        "做成了的整行灰"
+        Some("→ 读取 src/mian.rs\x1b[90m · 1 行\x1b[0m\n"),
+        "做成了的：标题原色，结果灰"
     );
 }
 
@@ -271,7 +275,7 @@ fn paths_are_written_short() {
     for (path, want) in cases {
         assert_eq!(
             line(&plan, "read", &read(&path), "ok", Value::Null),
-            Some(format!("· 读取 {want}\n")),
+            Some(format!("→ 读取 {want}\n")),
             "{path}"
         );
     }
@@ -280,7 +284,7 @@ fn paths_are_written_short() {
     let args = json!({ "pattern": pattern }).to_string();
     assert_eq!(
         line(&plan, "grep", &args, "ok", Value::Null),
-        Some(format!("· 搜内容 {pattern}\n"))
+        Some(format!("✱ 搜内容 {pattern}\n"))
     );
 }
 
@@ -302,7 +306,7 @@ fn a_parameter_called_path_is_a_path_too() {
     let args = json!({"path": under(&["work", "src"]).to_string_lossy()}).to_string();
     assert_eq!(
         line(&plan, "ls", &args, "ok", Value::Null).as_deref(),
-        Some("· 列目录 src\n")
+        Some("⚙ 列目录 src\n")
     );
 }
 
@@ -312,17 +316,17 @@ fn values_are_tidied_before_printing() {
     let grep = |pattern: &str| json!({ "pattern": pattern }).to_string();
     let long = "x".repeat(100);
     let cases = [
-        (grep("fn a\nfn b"), "· 搜内容 fn a…\n".to_string()),
+        (grep("fn a\nfn b"), "✱ 搜内容 fn a…\n".to_string()),
         (
             grep("a\u{1b}[31mb\tc"),
-            "· 搜内容 a\u{FFFD}[31mb\u{FFFD}c\n".to_string(),
+            "✱ 搜内容 a\u{FFFD}[31mb\u{FFFD}c\n".to_string(),
         ),
-        (grep(&long), format!("· 搜内容 {}…\n", "x".repeat(80))),
-        (grep(""), "· 搜内容\n".to_string()),
-        ("[1]".to_string(), "· 搜内容\n".to_string()),
-        ("{".to_string(), "· 搜内容\n".to_string()),
-        (r#"{"path":"src"}"#.to_string(), "· 搜内容\n".to_string()),
-        (r#"{"pattern":7}"#.to_string(), "· 搜内容\n".to_string()),
+        (grep(&long), format!("✱ 搜内容 {}…\n", "x".repeat(80))),
+        (grep(""), "✱ 搜内容\n".to_string()),
+        ("[1]".to_string(), "✱ 搜内容\n".to_string()),
+        ("{".to_string(), "✱ 搜内容\n".to_string()),
+        (r#"{"path":"src"}"#.to_string(), "✱ 搜内容\n".to_string()),
+        (r#"{"pattern":7}"#.to_string(), "✱ 搜内容\n".to_string()),
     ];
     for (args, want) in cases {
         assert_eq!(
@@ -343,11 +347,11 @@ fn values_are_tidied_before_printing() {
     .expect("有这一行");
     let reason = format!("读不了：{}", "e".repeat(200));
     let kept: String = reason.chars().take(120).collect();
-    assert_eq!(printed, format!("· 读取 a → 出错：{kept}…\n"));
+    assert_eq!(printed, format!("→ 读取 a · 出错：{kept}…\n"));
     let name = format!("\u{1b}{}", "n".repeat(49));
     assert_eq!(
         line(&plan, &name, "{}", "ok", Value::Null),
-        Some(format!("· \u{FFFD}{}…\n", "n".repeat(39)))
+        Some(format!("⚙ \u{FFFD}{}…\n", "n".repeat(39)))
     );
 }
 
@@ -359,9 +363,9 @@ fn a_result_for_a_call_never_seen_prints_nothing() {
         &json!({"blocks": [{"type": "tool_call", "call_id": "c1", "name": "read", "args": "{}"}]}),
     );
     let other = json!({"call_id": "c9", "status": "ok", "blocks": []});
-    assert_eq!(steps.result(&other, &plan, &plan.cwd), None);
+    assert_eq!(steps.result(&other, true, &plan, &plan.cwd), None);
     assert_eq!(
-        Steps::default().result(&json!({"status": "ok"}), &plan, &plan.cwd),
+        Steps::default().result(&json!({"status": "ok"}), true, &plan, &plan.cwd),
         None
     );
 }

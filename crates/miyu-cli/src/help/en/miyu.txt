@@ -1,0 +1,24 @@
+Usage: miyu <command> [options]
+
+Commands:
+  ask <words>  Say something and print her answer
+  undo         Undo the last turn and restore the files she changed
+  redo         Redo the latest undo, until you say something else
+
+ask options:
+  -c, --continue          Go on in the session the last miyu ask opened
+  -s, --session <id>      Go on in this session
+      --format text|json  text for people (default), json for scripts
+
+undo, redo options:
+  -s, --session <id>  Which session; default is the one the last miyu ask opened
+
+Each miyu ask opens a new session; -c, undo and redo use the last one.
+
+Examples:
+  miyu ask "what is this project"
+  miyu ask -c "how do I run the tests"
+  miyu undo
+
+  -h, --help     Print help
+  -V, --version  Print version

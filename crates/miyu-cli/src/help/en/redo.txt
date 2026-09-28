@@ -1,0 +1,7 @@
+Usage: miyu redo [options]
+
+Redo the latest undo, until you say something else.
+
+Options:
+  -s, --session <id>  Which session; default is the one the last miyu ask opened
+  -h, --help          Print help

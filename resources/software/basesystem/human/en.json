@@ -2,32 +2,40 @@
   "tools": {
     "read": {
       "name": "Read",
-      "subject": "file_path"
+      "subject": "file_path",
+      "icon": "→"
     },
     "glob": {
       "name": "Find files",
-      "subject": "pattern"
+      "subject": "pattern",
+      "icon": "✱"
     },
     "grep": {
       "name": "Search",
-      "subject": "pattern"
+      "subject": "pattern",
+      "icon": "✱"
     },
     "write": {
       "name": "Write",
-      "subject": "file_path"
+      "subject": "file_path",
+      "icon": "←"
     },
     "edit": {
       "name": "Edit",
-      "subject": "file_path"
+      "subject": "file_path",
+      "icon": "←",
+      "block": "edits"
     },
     "trash": {
       "name": "Delete",
-      "subject": "file_path"
-    }
-,
+      "subject": "file_path",
+      "icon": "←"
+    },
     "shell": {
       "name": "Run",
-      "subject": "command"
+      "subject": "command",
+      "icon": "$",
+      "block": "command"
     }
   },
   "said": {

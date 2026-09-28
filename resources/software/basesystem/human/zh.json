@@ -2,32 +2,40 @@
   "tools": {
     "read": {
       "name": "读取",
-      "subject": "file_path"
+      "subject": "file_path",
+      "icon": "→"
     },
     "glob": {
       "name": "找文件",
-      "subject": "pattern"
+      "subject": "pattern",
+      "icon": "✱"
     },
     "grep": {
       "name": "搜内容",
-      "subject": "pattern"
+      "subject": "pattern",
+      "icon": "✱"
     },
     "write": {
       "name": "写入",
-      "subject": "file_path"
+      "subject": "file_path",
+      "icon": "←"
     },
     "edit": {
       "name": "编辑",
-      "subject": "file_path"
+      "subject": "file_path",
+      "icon": "←",
+      "block": "edits"
     },
     "trash": {
       "name": "删除",
-      "subject": "file_path"
-    }
-,
+      "subject": "file_path",
+      "icon": "←"
+    },
     "shell": {
       "name": "执行命令",
-      "subject": "command"
+      "subject": "command",
+      "icon": "$",
+      "block": "command"
     }
   },
   "said": {

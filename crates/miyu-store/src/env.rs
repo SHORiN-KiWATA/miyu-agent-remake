@@ -4,8 +4,8 @@
 //! 找数据根只照快照算，不直接读进程的环境：测试喂一份快照就行，不用改进程的环境变量（改了会串到
 //! 同时跑的别的测试）。平台也是快照的一格，三个平台的默认位置在任何一台机器上都测得到。
 
-use std::ffi::OsString;
-use std::path::PathBuf;
+use std::ffi::{OsStr, OsString};
+use std::path::{Path, PathBuf};
 
 /// 平台：缓存目录的默认位置照它定；数据根三个平台都在家目录的 `.miyu` 里。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,5 +65,20 @@ impl Env {
                 .ok()
                 .map(|exe| exe.canonicalize().unwrap_or(exe)),
         }
+    }
+
+    /// 环境变量里写的路径，开头是 `~` 的照家目录接上（施工 4-11：终端里 `export X=~/…` 加了引号，`~` 没被 shell
+    /// 展开）：`~` 本身是家目录，`~/` 开头的接上后面，Windows 上 `~\` 也算；按一段段目录认，`~alice/…` 不认，照原样。
+    /// 要接家目录、家目录却找不到（没有、不是绝对路径）的，是空的。
+    pub fn expand(&self, value: &OsStr) -> Option<PathBuf> {
+        let path = Path::new(value);
+        let Ok(rest) = path.strip_prefix("~") else {
+            return Some(path.to_path_buf());
+        };
+        let home = self.home.as_deref().filter(|home| home.is_absolute())?;
+        Some(match rest.as_os_str().is_empty() {
+            true => home.to_path_buf(),
+            false => home.join(rest),
+        })
     }
 }

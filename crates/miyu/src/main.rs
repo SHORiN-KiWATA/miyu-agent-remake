@@ -2,16 +2,19 @@
 //! 分发。`miyu ask` 是最薄的头（施工 3-9 下）；`miyu undo`、`miyu redo` 撤掉最后一轮、恢复（施工 4-7 下）；
 //! `miyu core` 是核心进程，由头拉起，不写进帮助。
 //!
-//! 不认识的子命令就报错，退出码 2，绝不当成对话发给核心（R4，`22-命令行.md` 第二节）。
+//! 不认识的子命令就报错，退出码 2，绝不当成对话发给核心（R4，`22-命令行.md` 第二节）。帮助页、参数写错时说的
+//! 那一句都是自己写的，跟着界面语言（施工 4-11，`docs/blueprint/cli/main.md`）。
 
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::time::Duration;
 
-use clap::error::{ContextKind, ContextValue, ErrorKind};
+use clap::error::ErrorKind;
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 
-use miyu_cli::{Direction, language};
+use miyu_cli::help::{Page, page};
+use miyu_cli::language::{self, Language};
+use miyu_cli::{Direction, misuse};
 
 /// 退出码：用法不对（`22-命令行.md` 第二节）。
 const USAGE: u8 = 2;
@@ -44,24 +47,22 @@ enum Command {
 
 fn main() -> ExitCode {
     let language = language::current();
-    // `--help` 没有说明那一行，直接从用法开始：clap 会把这里、子命令枚举上的文档注释当成说明印出来（施工 4-9 再补四上：
-    // 原来印的是「`miyu`。」）。说明是产品的话，等做终端界面那一步定。
+    // 帮助页换成自己写的（施工 4-11）：`-h`、`--help`、`miyu help <子命令>` 都印它们，clap 生成的一个字都不印。
     let command = Cli::command()
-        .about(None::<&str>)
-        .long_about(None::<&str>)
-        .mut_subcommand("ask", |ask| miyu_cli::localize(ask, &language))
+        .override_help(page(language, Page::Miyu))
+        .mut_subcommand("ask", |ask| ask.override_help(page(language, Page::Ask)))
         .mut_subcommand("undo", |undo| {
-            miyu_cli::localize_undo(undo, &language, Direction::Undo)
+            undo.override_help(page(language, Page::Undo))
         })
         .mut_subcommand("redo", |redo| {
-            miyu_cli::localize_undo(redo, &language, Direction::Redo)
+            redo.override_help(page(language, Page::Redo))
         });
     let cli = match command
         .try_get_matches()
         .and_then(|matches| Cli::from_arg_matches(&matches))
     {
         Ok(cli) => cli,
-        Err(error) => return refused(error),
+        Err(error) => return refused(error, language),
     };
     match cli.command {
         Some(Command::Ask(args)) => miyu_cli::ask(args, core),
@@ -71,7 +72,7 @@ fn main() -> ExitCode {
             idle: idle_seconds.map_or(miyu_core::IDLE, Duration::from_secs),
         }),
         None => {
-            eprintln!("{}", language::current().nothing_yet());
+            eprintln!("{}", language.nothing_yet());
             ExitCode::from(USAGE)
         }
     }
@@ -86,27 +87,20 @@ fn core() -> std::process::Command {
     core
 }
 
-/// 参数不对：不认识的子命令照 22 第二节的话说；帮助、版本照常印；别的交给 clap 说。
+/// 参数不对：帮助、版本照常印在标准输出上，退出码 0；别的在标准错误上说一句（不认识的子命令照 22 第二节的话说），
+/// 退出码 2。
 #[expect(
     clippy::let_underscore_must_use,
-    reason = "帮助、报错印不出来，也没有别处可说了"
+    reason = "帮助印不出来，也没有别处可说了"
 )]
-fn refused(error: clap::Error) -> ExitCode {
+fn refused(error: clap::Error, language: Language) -> ExitCode {
     match error.kind() {
-        ErrorKind::InvalidSubcommand => {
-            let name = match error.get(ContextKind::InvalidSubcommand) {
-                Some(ContextValue::String(name)) => name.as_str(),
-                _ => "",
-            };
-            eprintln!("{}", language::current().no_such_command(name));
-            ExitCode::from(USAGE)
-        }
         ErrorKind::DisplayHelp | ErrorKind::DisplayVersion => {
             let _ = error.print();
             ExitCode::SUCCESS
         }
         _ => {
-            let _ = error.print();
+            eprintln!("{}", misuse(&error, language));
             ExitCode::from(USAGE)
         }
     }

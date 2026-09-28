@@ -58,17 +58,17 @@ pub mod exit {
     pub const NO_MODEL: u8 = 5;
 }
 
-/// `miyu ask` 的参数。给人看的说明照界面语言，由 [`localize`] 换上。
+/// `miyu ask` 的参数。给人看的说明在帮助页里（[`crate::help`]），这里的注释只给读代码的人看。
 #[derive(Debug, Clone, Args)]
 pub struct Ask {
     /// 要说的话：几个词用空格连起来。
     #[arg(required = true, num_args = 1..)]
     pub words: Vec<String>,
     /// 接着某个会话说。
-    #[arg(long, conflicts_with = "resume")]
+    #[arg(short = 's', long, conflicts_with = "resume")]
     pub session: Option<String>,
     /// 接着上一次 `miyu ask` 开的会话说。
-    #[arg(long = "continue", id = "resume")]
+    #[arg(short = 'c', long = "continue", id = "resume")]
     pub resume: bool,
     /// 输出的格式。
     #[arg(long, value_enum, default_value_t = Format::Text)]
@@ -122,16 +122,6 @@ pub struct Screen<'a> {
     pub err: &'a mut dyn Write,
     /// 标准错误是终端、没设 `NO_COLOR`。
     pub gray: bool,
-}
-
-/// 把 `miyu ask` 的说明换成界面语言的。
-pub fn localize(command: clap::Command, language: &Language) -> clap::Command {
-    command
-        .about(language.ask_about())
-        .mut_arg("words", |arg| arg.help(language.words_help()))
-        .mut_arg("session", |arg| arg.help(language.session_help()))
-        .mut_arg("resume", |arg| arg.help(language.continue_help()))
-        .mut_arg("format", |arg| arg.help(language.format_help()))
 }
 
 /// 跑一次 `miyu ask`，交回退出码。`start` 给出拉起核心的命令：主程序自己加上 `core`。

@@ -118,6 +118,37 @@ fn empty_and_relative_settings() {
 }
 
 #[test]
+fn a_leading_tilde_is_the_home() {
+    let at = |value: &str| Env {
+        miyu_home: Some(OsString::from(value)),
+        ..env(Platform::Linux)
+    };
+    // 开头的 `~` 照家目录接：终端里 `export MIYU_HOME=~/…` 加了引号，shell 没展开（施工 4-11）。
+    assert_eq!(data_of(&at("~")), alice());
+    assert_eq!(data_of(&at("~/")), alice());
+    assert_eq!(data_of(&at("~/miyu-data")), alice().join("miyu-data"));
+    assert_eq!(data_of(&at("~/a/b")), alice().join("a").join("b"));
+    if cfg!(windows) {
+        assert_eq!(data_of(&at("~\\a")), alice().join("a"));
+    }
+    // `~alice/…`、`a/~` 不认，照原样当相对的拒绝。
+    for relative in ["~alice/x", "a/~"] {
+        assert_eq!(
+            DataRoot::locate(&at(relative)),
+            Err(RootError::RelativeMiyuHome(PathBuf::from(relative)))
+        );
+    }
+    // 要接家目录，家目录却找不到：说找不到家目录。
+    for home in [None, Some(PathBuf::from("alice"))] {
+        let homeless = Env {
+            home,
+            ..at("~/miyu-data")
+        };
+        assert_eq!(DataRoot::locate(&homeless), Err(RootError::NoHome));
+    }
+}
+
+#[test]
 fn a_missing_home_is_an_error() {
     for platform in [Platform::Linux, Platform::Macos, Platform::Windows] {
         for home in [None, Some(PathBuf::from("alice"))] {

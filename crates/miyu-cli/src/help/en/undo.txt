@@ -1,0 +1,7 @@
+Usage: miyu undo [options]
+
+Undo the last turn and restore the files she changed.
+
+Options:
+  -s, --session <id>  Which session; default is the one the last miyu ask opened
+  -h, --help          Print help

@@ -7,7 +7,7 @@ use serde_json::Value;
 use miyu_store::human::clean;
 
 use super::{Direction, UndoPlan};
-use crate::shown::{Ink, Line, cut, cut_front, shown};
+use crate::shown::{Ink, Line, cut, cut_front, keep_tabs, shown};
 
 /// 那一轮人说的话最多印几个字。
 const SAID_CHARS: usize = 40;
@@ -45,19 +45,6 @@ pub(super) fn lines(result: &Value, plan: &UndoPlan) -> Vec<Line> {
         lines.push(Line::gray(language.redo_hint()));
     }
     lines
-}
-
-/// 差异里的一行写成给人看的：控制字符换成 `�`，制表符照原样留着（用制表符缩进的文件，差异才看得清）。
-fn keep_tabs(row: &str) -> String {
-    row.chars()
-        .map(|c| {
-            if c.is_control() && c != '\t' {
-                '\u{FFFD}'
-            } else {
-                c
-            }
-        })
-        .collect()
 }
 
 /// 一个文件那一行，和它下面的差异。

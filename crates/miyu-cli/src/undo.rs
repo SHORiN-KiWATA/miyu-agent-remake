@@ -23,11 +23,11 @@ use crate::link;
 use crate::rpc::Rpc;
 use crate::shown::{self, say, write};
 
-/// `miyu undo`、`miyu redo` 的参数。给人看的说明照界面语言，由 [`localize_undo`] 换上。
+/// `miyu undo`、`miyu redo` 的参数。给人看的说明在帮助页里（[`crate::help`]），这里的注释只给读代码的人看。
 #[derive(Debug, Clone, Args)]
 pub struct Undo {
     /// 哪个会话；不写的是上一次 `miyu ask` 开的那个。
-    #[arg(long)]
+    #[arg(short = 's', long)]
     pub session: Option<String>,
 }
 
@@ -53,17 +53,6 @@ pub struct UndoPlan {
     pub home: Option<PathBuf>,
     /// 上不上色。
     pub color: bool,
-}
-
-/// 把 `miyu undo`、`miyu redo` 的说明换成界面语言的。
-pub fn localize_undo(
-    command: clap::Command,
-    language: &Language,
-    direction: Direction,
-) -> clap::Command {
-    command
-        .about(language.undo_about(direction))
-        .mut_arg("session", |arg| arg.help(language.undo_session_help()))
 }
 
 /// 跑一次 `miyu undo`（`miyu redo`），交回退出码。`start` 给出拉起核心的命令：主程序自己加上 `core`。

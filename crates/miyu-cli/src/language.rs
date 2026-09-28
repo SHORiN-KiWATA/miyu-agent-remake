@@ -201,44 +201,4 @@ impl Language {
     pub(crate) fn usage(&self, sum: &crate::ask::Sum) -> String {
         usage_line(self, sum)
     }
-
-    /// `miyu ask` 是做什么的。
-    pub fn ask_about(&self) -> &'static str {
-        match self {
-            Language::Chinese => "说一句话，打印她的回答",
-            Language::English => "Say something and print her answer",
-        }
-    }
-
-    /// 要说的话。
-    pub fn words_help(&self) -> &'static str {
-        match self {
-            Language::Chinese => "要说的话",
-            Language::English => "What to say",
-        }
-    }
-
-    /// `--session`。
-    pub fn session_help(&self) -> &'static str {
-        match self {
-            Language::Chinese => "接着这个会话说",
-            Language::English => "Go on in this session",
-        }
-    }
-
-    /// `--continue`。
-    pub fn continue_help(&self) -> &'static str {
-        match self {
-            Language::Chinese => "接着上一次 miyu ask 开的会话说",
-            Language::English => "Go on in the session the last miyu ask opened",
-        }
-    }
-
-    /// `--format`。
-    pub fn format_help(&self) -> &'static str {
-        match self {
-            Language::Chinese => "输出的格式：text 给人看，json 给脚本",
-            Language::English => "Output format: text for people, json for scripts",
-        }
-    }
 }

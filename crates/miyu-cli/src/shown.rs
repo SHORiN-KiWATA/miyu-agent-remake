@@ -1,6 +1,6 @@
-//! 给人看的一行怎么写（施工 4-5 下写在 `ask/steps.rs` 里，施工 4-7 下挪出来，`miyu undo` 也用）：[`Line`] 分灰的、
-//! 红的、绿的几段，[`Line::paint`] 照上不上色写成字；路径在工作目录里的写相对的、在家目录里的写 `~/…`；太长的截断。
-//! 上不上色照 [`colored`]。
+//! 给人看的一行怎么写（施工 4-5 下写在 `ask/steps.rs` 里，施工 4-7 下挪出来，`miyu undo` 也用）：[`Line`] 分原色的、
+//! 灰的、红的、绿的几段，[`Line::paint`] 照上不上色写成字；路径在工作目录里的写相对的、在家目录里的写 `~/…`；太长的
+//! 截断；别人给的字里的控制字符怎么处理。上不上色照 [`colored`]。
 
 use std::ffi::OsStr;
 use std::io::Write;
@@ -18,12 +18,25 @@ pub(crate) fn colored(terminal: bool, no_color: Option<&OsStr>) -> bool {
     terminal && no_color.is_none_or(OsStr::is_empty)
 }
 
-/// 一段字是什么颜色。绿的只有差异里加上的行（施工 4-7 下）。
+/// 一段字是什么颜色。绿的只有差异里加上的行（施工 4-7 下）；原色的是每一步的标题、执行命令的输出（施工 4-11）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Ink {
+    Plain,
     Gray,
     Red,
     Green,
+}
+
+impl Ink {
+    /// 换成这个颜色要写的：原色写 `ESC[0m`。
+    fn code(self) -> &'static str {
+        match self {
+            Ink::Plain => RESET,
+            Ink::Gray => GRAY,
+            Ink::Red => RED,
+            Ink::Green => GREEN,
+        }
+    }
 }
 
 /// 给人看的一行旁白，分几段。
@@ -36,28 +49,31 @@ impl Line {
         Line(vec![(Ink::Gray, text.into())])
     }
 
+    /// 整行一种颜色。
+    pub(crate) fn inked(ink: Ink, text: impl Into<String>) -> Line {
+        Line(vec![(ink, text.into())])
+    }
+
     /// 接着写一段。
     pub(crate) fn push(&mut self, ink: Ink, text: impl Into<String>) {
         self.0.push((ink, text.into()));
     }
 
-    /// 写成字，带换行。`color` 的：整行包在灰色里，红的那几段换成红色，写完换回灰色，行尾回到原色，中途退出
-    /// 也不会把终端留成灰的；不上色的只有字。
+    /// 写成字，带换行。`color` 的：换颜色时写新颜色，换回原色写 `ESC[0m`；上过色的行，行尾再写一个 `ESC[0m`，
+    /// 中途退出也不会把终端留成灰的。整行原色的、不上色的，只有字。
     pub(crate) fn paint(&self, color: bool) -> String {
         let mut out = String::new();
-        let mut last = None;
+        let mut last = Ink::Plain;
+        let mut painted = false;
         for (ink, text) in &self.0 {
-            if color && last != Some(*ink) {
-                out.push_str(match ink {
-                    Ink::Gray => GRAY,
-                    Ink::Red => RED,
-                    Ink::Green => GREEN,
-                });
-                last = Some(*ink);
+            if color && *ink != last {
+                out.push_str(ink.code());
+                last = *ink;
+                painted = true;
             }
             out.push_str(text);
         }
-        if color {
+        if painted {
             out.push_str(RESET);
         }
         out.push('\n');
@@ -93,6 +109,50 @@ pub(crate) fn tilde(path: &str, home: Option<&Path>) -> String {
         };
     }
     path.to_string()
+}
+
+/// 别人给的一行字（她写的参数、命令的输出）写成给人看的：控制字符换成 `�`，制表符照原样留着（用制表符缩进的
+/// 文件、输出，才对得齐）。
+pub(crate) fn keep_tabs(row: &str) -> String {
+    row.chars().map(defused).collect()
+}
+
+/// 命令输出里的一行写成给人看的（施工 4-11）：终端的控制序列里，CSI（改颜色、挪光标）、OSC（改标题、写剪贴板）两种
+/// 整段去掉；别的控制字符换成 `�`，制表符照留。CSI 写坏了的，只去掉认得出的那一截；OSC 到行尾都没收尾的，去到行尾。
+pub(crate) fn strip_escapes(row: &str) -> String {
+    let mut out = String::with_capacity(row.len());
+    let mut chars = row.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c != '\u{1b}' {
+            out.push(defused(c));
+            continue;
+        }
+        if chars.next_if_eq(&'[').is_some() {
+            while chars
+                .next_if(|c| ('\u{20}'..='\u{3f}').contains(c))
+                .is_some()
+            {}
+            chars.next_if(|c| ('\u{40}'..='\u{7e}').contains(c));
+        } else if chars.next_if_eq(&']').is_some() {
+            while let Some(c) = chars.next() {
+                if c == '\u{7}' || (c == '\u{1b}' && chars.next_if_eq(&'\\').is_some()) {
+                    break;
+                }
+            }
+        } else {
+            out.push('\u{FFFD}');
+        }
+    }
+    out
+}
+
+/// 一个字：控制字符换成 `�`，制表符照留。
+fn defused(c: char) -> char {
+    if c.is_control() && c != '\t' {
+        '\u{FFFD}'
+    } else {
+        c
+    }
 }
 
 /// 超过 `most` 个字的，截到 `most` 个，末尾加 `…`。

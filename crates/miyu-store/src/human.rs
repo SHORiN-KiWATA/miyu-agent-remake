@@ -3,7 +3,8 @@
 //! 内核和每个软件包各有一份 `human/<语言>.json`：内核的在 `core/human/`，软件包的在 `software/<软件包>/human/`。
 //! 每份里两样：
 //!
-//! - `tools`：每件工具给人看的显示名 `name`，和显示名后面跟哪一个参数的值 `subject`；
+//! - `tools`：每件工具给人看的显示名 `name`，显示名后面跟哪一个参数的值 `subject`，写在最前面的符号 `icon`，标题
+//!   下面还印一块什么 `block`（施工 4-11）；
 //! - `said`：每一种说法的字，模板照 `{字段}` 写，编号照这一份所在的地方往下写，例如内核那一份里的
 //!   `tool-results/unattended` 就是说法 `core/tool-results/unattended`。
 //!
@@ -42,6 +43,22 @@ pub struct Face {
     /// 显示名后面跟哪一个参数的值，例如 `file_path`。没有的只写显示名。
     #[serde(default)]
     pub subject: Option<String>,
+    /// 写在最前面的符号，例如 `→`（施工 4-11）。没有的由头定。
+    #[serde(default)]
+    pub icon: Option<String>,
+    /// 标题下面还印一块什么（施工 4-11）。没有的只印标题。
+    #[serde(default)]
+    pub block: Option<Block>,
+}
+
+/// 标题下面的那一块。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Block {
+    /// 执行命令：标题写成 `$ 命令`，不写显示名；下面印工具自己写的结果。
+    Command,
+    /// 改动：下面印参数 `edits` 里每一处改掉的、改成的。
+    Edits,
 }
 
 /// `human/<语言>.json` 的样子。

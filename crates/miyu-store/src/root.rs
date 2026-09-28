@@ -59,15 +59,15 @@ pub struct DataRoot {
 }
 
 impl DataRoot {
-    /// 照快照找数据根：`MIYU_HOME` 设了就是它，不然是家目录的 `.miyu`，三个平台一样
-    /// （`07-存储.md` 第二节「默认位置」「怎么找」）。
+    /// 照快照找数据根：`MIYU_HOME` 设了就是它（开头的 `~` 照家目录接，[`Env::expand`]），不然是家目录的
+    /// `.miyu`，三个平台一样（`07-存储.md` 第二节「默认位置」「怎么找」）。
     ///
     /// # Errors
     ///
     /// `MIYU_HOME` 是相对路径；要用家目录时找不到。
     pub fn locate(env: &Env) -> Result<DataRoot, RootError> {
         if let Some(miyu_home) = set(&env.miyu_home) {
-            let path = PathBuf::from(miyu_home);
+            let path = env.expand(miyu_home).ok_or(RootError::NoHome)?;
             return match path.is_absolute() {
                 true => Ok(DataRoot { path }),
                 false => Err(RootError::RelativeMiyuHome(path)),
