@@ -1,0 +1,346 @@
+## 事件的 `body`
+
+### 是什么
+
+内核认识的 19 种事件，每一种的 `body`：每一格叫什么、是什么写法、有没有、没有时怎么写。外壳、一行怎么读写、瞬时事件见 `kernel/events.md`。
+
+### 在哪
+
+| 代码 | 管什么 |
+|---|---|
+| `crates/miyu-kernel/src/event/session.rs` | `session.created`、`session.policy_changed`、`session.meta_changed`；权限 `Permission`、级别 `Level` |
+| `crates/miyu-kernel/src/event/turn.rs` | `turn.started`、`turn.ended`（`EndReason`）、`turn.reverted`、`turn.unreverted` |
+| `crates/miyu-kernel/src/event/restore.rs` | `files.restored`（`Restored`、`RestoreAction`、`RestoreOutcome`） |
+| `crates/miyu-kernel/src/event/message.rs` | `message.user`、`message.assistant`、`message.withdrawn` |
+| `crates/miyu-kernel/src/event/tool.rs` | `tool.result`（`ToolStatus`、给人看的说法 `Said`）、`tool.approval_requested`、`tool.approval_decided`（`Decision`） |
+| `crates/miyu-kernel/src/event/effect.rs` | 效果 `Effect`：`file.read`、`file.changed`、`file.trashed` |
+| `crates/miyu-kernel/src/event/question.rs` | `question.asked`、`question.answered`；回答对不对得上 `fits` |
+| `crates/miyu-kernel/src/event/context.rs` | `context.injected`、`context.compacted` |
+| `crates/miyu-kernel/src/event/model.rs` | `model.called`（`FirstDifference`、`Usage`、`CallResult`、`CallError`、`ErrorClass`） |
+
+每一种的样本在 `docs/designs/samples/events/<种类>.jsonl`。
+
+### 对外的样子
+
+表里「有没有」一格的四种写法：
+
+| 写法 | 读 | 写 |
+|---|---|---|
+| 必有 | 没有就报错 | 总写 |
+| 可以没有 | 没有、写成 `null`，都当没有 | 没有就不写 |
+| 不写是假 | 没有当假 | 是真才写 `true` |
+| 空的不写 | 没有当空的 | 空的不写 |
+
+编号、名字、时刻的写法见 `kernel/ids.md`；内容块、原样的 JSON、取值见 `kernel/blocks.md`。整数都是不带负号、不带小数点的（`-1`、`1.5` 读不进来）。写出去，格的先后照表里的先后。
+
+**`session.created`**：会话创建。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `owner` | 账号 | 必有 | 会话的属主 |
+| `venue` | 场所 | 必有 | 会话所在的场所。本机开的会话是 `local` |
+| `policy` | 内容哈希 | 必有 | 开始时的策略快照（`policy.md`） |
+| `permission` | 权限 | 必有 | 开始时的权限 |
+| `oneshot` | 布尔 | 不写是假 | 一次性的：`miyu ask` 开的；`miyu ask --continue` 接的是最新的这种（`cli/ask.md`） |
+
+**权限**（`session.created`、`session.policy_changed` 里的 `permission`）：
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `level` | 取值 | 必有 | 常用的那一级：`workspace` 工作区，`full` 完全放开 |
+| `read_only` | 布尔 | 必有 | 只读开关：开着的时候实际的级别就是只读，关掉回到常用的那一级 |
+
+两格都写，少一格读不进来。不认识的级别按最严的算（`kernel/blocks.md` 第 19 条）。每一级能做什么，见 `session/guard.md`。
+
+**`session.policy_changed`**：换了策略快照，或者换了权限，也可以一起换。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `policy` | 内容哈希 | 可以没有 | 新的策略快照，下一个回合开始时生效（还没有哪里写，见「还没有的」） |
+| `permission` | 权限 | 可以没有 | 新的权限：收紧的当场生效，放宽的下一次请求时生效（`kernel/session.md`） |
+
+两格都没有的 `{}` 也读得进来。内核现在只在切权限时写它，只写 `permission`。
+
+**`session.meta_changed`**：改了哪项写哪项。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `title` | 字符串 | 可以没有 | 新的标题 |
+| `pinned` | 布尔 | 可以没有 | `true` 置顶，`false` 取消置顶 |
+
+**`turn.started`**：
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `trigger` | 序号 | 必有 | 引起这一轮的那条事件：人发来的消息；排着队接着开的，是最后一条排着队的消息；重启以后接着干的，是那时排着队的最后一条，没有排着队的就是那条 `turn.ended`（`kernel/session.md`）。是什么引起的，看那条事件的种类 |
+
+**`turn.ended`**：
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `reason` | 取值 | 必有 | 为什么结束，下表 |
+
+| `reason` | 是什么 |
+|---|---|
+| `completed` | 走完了：模型说完了，没有要执行的工具 |
+| `interrupted` | 被人打断 |
+| `error` | 出错。细节在那一次请求的 `model.called` 里 |
+| `step_limit` | 走到了步数上限 |
+| `aborted` | 核心崩了，没走完：载入时补上 |
+| `restarted` | 被有计划的重启打断：再起来时接着干 |
+
+**`turn.reverted`**、**`turn.unreverted`**：
+
+| 种类 | 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|---|
+| `turn.reverted` | `turns` | 回合编号的列表 | 必有 | 撤掉的回合：某一轮，和它以后还在有效历史里的每一轮，照先后 |
+| `turn.unreverted` | `turns` | 回合编号的列表 | 必有 | 恢复的回合：照最近那一条 `turn.reverted` 原样写 |
+
+**`files.restored`**：撤销、恢复时改回文件的结局。`files` 是一步一项的列表，必有，照做的先后。它不进上下文；`cause` 是撤销、恢复的那个命令。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `result` | 序号 | 必有 | 照哪一条 `tool.result` |
+| `effect` | 整数（`u32`） | 必有 | 照那一条的第几个效果，从 0 数起 |
+| `path` | 字符串 | 必有 | 改的是哪里：效果里记的那个路径 |
+| `action` | 取值 | 必有 | 做了什么：`write` 写回一份内容；`trash` 移进回收站；`untrash` 从回收站移回原处 |
+| `outcome` | 取值 | 必有 | 结局，下表 |
+| `found` | 内容哈希 | 可以没有 | 内容被改过（`changed`）时，现在那个文件的内容的哈希；现在那里是目录、链接的没有 |
+| `trash` | 字符串 | 可以没有 | 移进了回收站（`trash` 成了）时，在回收站里的新位置：下一次撤销照它移回来 |
+| `hash` | 内容哈希 | 可以没有 | 移回来（`untrash` 成了）的是一个文件时，它的内容的哈希：恢复时照它核对，再移进回收站 |
+| `error` | 字符串 | 可以没有 | 出错（`failed`）时，系统的原话 |
+
+| `outcome` | 是什么 |
+|---|---|
+| `restored` | 改回了，或者现在已经是要改成的样子 |
+| `changed` | 内容被改过了，不是她留下的样子 |
+| `missing` | 东西没了 |
+| `occupied` | 原处被占了 |
+| `gone` | 回收站里已经没有了 |
+| `unsaved` | 要写回的内容当时没存下来 |
+| `unavailable` | 回收站收不了：不删 |
+| `failed` | 出错了 |
+
+除了 `restored`，都是没动。几步怎么算、谁来做，见 `kernel/history.md`、`session/actor.md`。
+
+**`message.user`**：人发来的消息，或者另一个会话发来的消息。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `blocks` | 内容块的列表 | 必有 | 消息的内容：文字、图片、文件。现在经协议发来的只有一块文字（`protocol.md`） |
+
+**`message.assistant`**：模型一次响应的完整内容，工具调用也在里面。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `blocks` | 内容块的列表 | 必有 | 照模型给出的先后：文字、思考、工具调用 |
+| `seen` | 序号 | 必有 | 发这次请求时，日志到第几条为止：这条回复是看着它们写的 |
+| `interrupted` | 布尔 | 不写是假 | 响应中途被人打断了，或者出错断了：`blocks` 只有收到的部分 |
+
+- 被打断的：正文、思考收到多少留多少，工具调用只留参数收全了的；出错断了的，工具调用一个不留（`kernel/session.md`）。
+- 一个块都没有的，不写成回复。
+- 请求在路上的时候到的事件，序号比 `seen` 大，投影时排在这条回复后面（`kernel/request.md`）。
+
+**`message.withdrawn`**：撤回排着队、她还没听到的消息。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `messages` | 序号的列表 | 必有 | 撤回了哪几条 `message.user`，照序号的先后 |
+
+撤回的消息和这一条都不进有效历史（`kernel/history.md`）。
+
+**`tool.result`**：一个工具调用的结果。结果照到的先后记进日志，投影时照调用的先后排。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `call_id` | 调用编号 | 必有 | 哪一次调用的结果。在哪条消息里、是第几个，编号本身写着 |
+| `status` | 取值 | 必有 | 结果怎样，下表 |
+| `blocks` | 内容块的列表 | 必有 | 给模型看的内容。内核写的是一句英文（`kernel/tools.md`） |
+| `duration_ms` | 整数 | 可以没有 | 执行用了多少毫秒：执行器量的，从开始执行到结束，等人确认不算。没真执行过的没有 |
+| `human` | 说法 | 可以没有 | 给人看的说法，不发给模型。工具没交的、老日志里的没有 |
+| `effects` | 效果的列表 | 空的不写 | 给内核和头看的效果，不发给模型，照工具交的先后。内核自己写的结果没有 |
+
+| `status` | 是什么 |
+|---|---|
+| `ok` | 成功 |
+| `error` | 失败：工具执行了，但是出了错，错在哪写在 `blocks` 里。内核执行之前就拦下的（没有这件工具、参数不是 JSON 对象）、执行器替工具说的（现在用不了、崩了）也是它 |
+| `cancelled` | 已取消：回合被打断、有计划地重启、崩了以后载入时，还没有结果的调用 |
+| `denied` | 被拒绝：执行之前被人、执行前的链或者内核拦下了，谁拦的看 `by` |
+| `skipped` | 已跳过：人急着插话；等人回答的时候来了一句话；这里没有人能回答 |
+
+执行器交回的只有 `ok` 和 `error`，另外三种是内核写的。哪一种情况写哪一句、`by` 是谁，见 `kernel/tools.md`。
+
+**说法**（`tool.result` 的 `human`）：
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `key` | 字符串 | 必有 | 哪一句。前一截是字放在哪：`core` 是内核的，`software/<软件包>` 是软件包的；后一截是那里 `human/<语言>.json` 的 `said` 下的名字。例如 `core/tool-results/unattended`、`software/basesystem/read/lines` |
+| `fields` | 字符串到字符串 | 空的不写 | 换进去的字段，值都是字符串。写出去照字段名排 |
+
+- 记进日志以后原样回放；头照自己的语言换成字，换一种界面语言照样换得出（`store.md`）。
+- 代码里 `Said::new(key)` 造一句，`.with(字段, 值)` 再换进一个字段。
+
+**效果**（`tool.result` 的 `effects`）：每一项用 `kind` 分开，`kind` 写在最前。
+
+| `kind` | 格 | 是什么 |
+|---|---|---|
+| `file.read` | `path`，必有 | 读了一个文件：换成真实位置以后的绝对路径 |
+| | `lines`，可以没有 | 读了第几行到第几行，`[从, 到]`，从 1 数起，含两头；正好两个整数。一行都没显示的（空文件、过了结尾）没有 |
+| | `hash`，必有 | 读的时候整份文件的内容哈希，读了一段的也是整份的：改之前照它核对 |
+| `file.changed` | `path`，必有 | 改了一个文件（新建、覆盖、编辑） |
+| | `before` | 改前的内容的哈希。新建的写 `null`；没有这一格的，也当新建读 |
+| | `after`，必有 | 改后的内容的哈希 |
+| `file.trashed` | `path`，必有 | 移进了回收站：移走之前的位置 |
+| | `trash`，必有 | 回收站里的位置，各平台自己的写法：撤销时照它移回来 |
+
+- 改前改后的内容由执行器存成 blob，效果里是它们的哈希（`session/actor.md`）。
+- 缺了 `kind`、认识的种类缺了必有的格、哈希不合写法的，读不进来。
+- 不认识的种类，例如第三方的工具报来的，整块原样留着，内核不解读。
+- 撤销、恢复照效果改回文件（`kernel/history.md`）；她看过的文件也照效果记（`session/actor.md`）。
+
+**`tool.approval_requested`**：请人确认一次调用。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `call_id` | 调用编号 | 必有 | 请人确认的是哪一次调用 |
+| `access` | 访问类别 | 必有 | 要的是哪一类访问（`kernel/tools.md`）。收紧成只读时，要写入的当场拦下 |
+| `rule` | 原样的 JSON | 可以没有 | 提的放行规则：选本会话都允许、这个工作区以后都允许时，放行的就是它。没提的，只能选允许这一次或者拒绝 |
+| `detail` | 原样的 JSON | 可以没有 | 给头看的：为什么要问 |
+
+`rule`、`detail` 的写法由提问的模块定，内核原样记，不看里面（权限策略写的样子见 `session/guard.md`）。
+
+**`tool.approval_decided`**：人对一个请求的决定。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `call_id` | 调用编号 | 必有 | 决定的是哪一次调用的请求 |
+| `decision` | 取值 | 必有 | `once` 允许这一次；`session` 本会话都允许；`workspace` 这个工作区以后都允许；`deny` 拒绝，拒绝以后她接着干 |
+| `reason` | 字符串 | 可以没有 | 拒绝的理由，会写进给她看的结果。只跟着拒绝 |
+
+**`question.asked`**：一个在跑的调用请人回答一组题。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `call_id` | 调用编号 | 必有 | 问的是哪一次调用 |
+| `questions` | 题的列表 | 必有 | 一组题，照先后。几道都行，内核不设上限 |
+
+一道题：
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `header` | 字符串 | 可以没有 | 顶上那一排标签里的短名字 |
+| `question` | 字符串 | 必有 | 问的话 |
+| `options` | 选项的列表 | 空的不写 | 几个选项，也可以一个都没有：人总能自己写 |
+| `multiple` | 布尔 | 不写是假 | 能多选的写 `true` |
+
+一个选项：`label` 字符串，必有，一行标题，回答里写的就是它；`description` 字符串，可以没有，一行说明。
+
+**`question.answered`**：人对一组题的回答。`call_id` 必有，回答的是哪一次调用的题；`answers` 必有，照题目的先后一道一条：
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `picked` | 字符串的列表 | 空的不写 | 选了哪几项，写选项的标题 |
+| `text` | 字符串 | 可以没有 | 自己写的 |
+
+两样都没有（`{}`），就是这道没答。
+
+**`context.injected`**：注入进上下文的一块事实。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `kind` | 事实块的类别 | 必有 | 这一块的类别。内核注入的有 `env`、`permission`、`reply_cut` 三类（`kernel/request.md`） |
+| `text` | 字符串 | 必有 | 发给模型的原文：标签外壳、转义都已经做好，以后一字不改地回放 |
+
+放在请求里的哪个位置，由投影照日志的先后、回合的触发和类别推出来，事件里不写。
+
+**`context.compacted`**：压缩的检查点。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `upto` | 序号 | 必有 | 检查点替代到哪个序号为止，这一条也替代掉。之后的事件照常排在检查点后面 |
+| `summary` | 字符串 | 必有 | 摘要的正文，模型写的，内核不解读 |
+
+摘要外面那层包装是投影的模板（`resources/core/checkpoint-open.txt`、`checkpoint-close.txt`），不存在这里。
+
+**`model.called`**：一次模型请求的记录，出错的也记。写在这次请求的回复后面；这一轮就此结束的，`turn.ended` 跟在它后面。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `seen` | 序号 | 必有 | 这次请求看到了第几条为止，也是这次请求的名字。有回复的，和回复的 `seen` 一样 |
+| `endpoint` | 供应商 | 可以没有 | 发给了哪个供应商。没发出去就失败了的没有 |
+| `model` | 模型 | 可以没有 | 发给了哪个模型。同上 |
+| `request` | 内容哈希 | 可以没有 | 驱动编码以后的请求字节的 SHA-256。同上：这三格是执行器报「发出去了」时一起报来的，没报过的三格都没有 |
+| `messages` | 整数 | 必有 | 统一的请求里有几条消息 |
+| `first_difference` | 第一处不同 | 可以没有 | 和这个会话上一次请求比，第一处不同在哪。只是接着加的、前面没有请求可比的（载入以后的第一次也是）没有 |
+| `usage` | 用量 | 可以没有 | 供应商没报的没有；被打断的没有 |
+| `first_token_ms` | 整数 | 可以没有 | 从请求发出去到第一段增量的毫秒数。没发出去的、一段增量都没来的没有 |
+| `duration_ms` | 整数 | 可以没有 | 从请求发出去到说完的毫秒数，被打断的算到打断为止。没发出去的没有 |
+| `result` | 取值 | 必有 | `ok` 说完了；`error` 出错；`interrupted` 被人打断 |
+| `error` | 出错 | 可以没有 | 出错的分类和原话，只在出错时有 |
+
+第一处不同：
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `part` | 取值 | 必有 | `tools` 工具面；`system`；`message` 一条消息 |
+| `index` | 整数 | 可以没有 | 第几条消息，从 0 数起。只有 `message` 有 |
+| `role` | 取值 | 可以没有 | 那一条的角色：`user`、`assistant`、`tool`；这一次少了的，是上一次那一条的角色。只有 `message` 有 |
+
+先比工具面，再比 system，再一条条比消息（`kernel/request.md` 的指纹）。
+
+用量：`uncached` 没命中缓存的输入、`cache_read` 缓存读取、`cache_write` 缓存写入、`output` 输出，四格都必有，都是 token 数。
+
+出错：`class` 分类、`message` 原话，两格都必有；原话给查问题的人看，不进上下文。
+
+| `class` | 是什么 | 谁分的 |
+|---|---|---|
+| `retryable` | 可重试 | 驱动 |
+| `rate_limited` | 限速 | 驱动 |
+| `context_too_long` | 上下文超长 | 驱动 |
+| `auth` | 认证失败 | 驱动 |
+| `content_policy` | 被内容策略拦截 | 驱动 |
+| `other` | 其他：驱动分不进上面五种的 | 驱动 |
+| `bad_stream` | 增量对不上，或者执行器的回报先后不对：驱动或执行器的错；流里有一段不是 JSON 的，驱动也分成它 | 内核；驱动 |
+| `empty_reply` | 回复里一个块都没有 | 内核 |
+
+### 怎么走
+
+1. 「必有」的没有，报「<种类> 的 body 读不出来：missing field `<格>` …」；某一格不合写法，报那一格的错，前面同样带着「<种类> 的 body 读不出来：」（`kernel/events.md`「出错」）。
+2. 「不写是假」「空的不写」的格写成 `null`，读不进来：只有「可以没有」的格（和 `file.changed` 的 `before`）把 `null` 当没有（照 serde 的读法推的，没有测试证实）。
+3. 空的列表格式上读得进来。空的撤销、撤回的列表，账本不收；空的消息，发的时候就拒绝（`kernel/history.md`、`kernel/session.md`）。
+4. 回答对不对得上题目（`fits`）：几道题几条；选的都是那道题选项的标题；同一条里不重复；不能多选的至多选一项。自己写的不查。对不上的回答，收命令时就拒绝，写不进日志（`kernel/asking.md`）。
+5. `turn.started`、`message.assistant`、`tool.result` 这些种类之间怎么对得上（`trigger` 在前、`seen` 在前、调用编号接得上、结果对得上一个还在等的调用），追加时由账本查（`kernel/history.md`）。
+
+### 守着它的
+
+| 测试 | 守哪几种 |
+|---|---|
+| `crates/miyu-kernel/src/event/session/tests.rs` | 会话的三种：图纸上的写法、一次性的写与不写、每一级读成自己那一种、不认识的级别原样留着、权限两格都要写、坏的说是哪一种 |
+| `crates/miyu-kernel/src/event/turn/tests.rs` | 回合的四种：图纸上的写法、每种结束原因、不认识的原样留着、坏的说是哪一种 |
+| `crates/miyu-kernel/src/event/restore/tests.rs` | `files.restored` 的每一格读写一字不差；新的 `action`、`outcome` 原样留着 |
+| `crates/miyu-kernel/src/event/message/tests.rs` | `message.assistant` 图纸上的写法、`seen` 必有、`interrupted` 只在是真时写；`message.withdrawn` 的写法和序号从 1 起 |
+| `crates/miyu-kernel/src/event/tool/tests.rs` | `tool.result` 的五种状态、不认识的原样留着、没真执行过的没有用时、说法怎么记；确认的两种：每种决定、没写规则、说明、理由的不写这几格；坏的说是哪一种 |
+| `crates/miyu-kernel/src/event/effect/tests.rs` | 三种效果读写一字不差；没显示行的不写 `lines`；新建的 `before` 写成 `null`、没写的当新建；不认识的原样留着；坏的读不进来 |
+| `crates/miyu-kernel/src/event/question/tests.rs` | 提问的两种：图纸上的写法、没写的格子不写、第 4 条对不对得上题目、坏的说是哪一种 |
+| `crates/miyu-kernel/src/event/context/tests.rs` | 上下文的两种：图纸上的写法、坏的说是哪一种 |
+| `crates/miyu-kernel/src/event/model/tests.rs` | `model.called` 图纸上的写法；没发出去就失败的只有知道的几格；每种出错的分类；第一处不同的写法 |
+| `crates/miyu-kernel/tests/samples.rs` | 每一种的样本读写一字不差 |
+| `crates/miyu-kernel/tests/resources.rs` 的 `the_sample_denial_is_the_sentence_with_the_reason` | 样本里 71 号被人拒绝的结果，就是资源里带理由的那一句 |
+
+### 出处
+
+- `03-事件模型.md` 第三节：「会话与回合的事件怎么写」「消息和工具结果怎么写」（含效果）「确认的事件怎么写」「提问的事件怎么写」「上下文的事件怎么写」「模型调用怎么写」。
+- `03-事件模型.md` E5：策略快照按内容哈希存，会话里记引用。
+- `10-自带软件.md` 第五节：效果是标准接口；第七节「改回文件的细则」。
+- `26-提示词.md` 第三节：给人看的字和给模型看的字分两份（`human`）。
+- `11-权限与沙盒.md` 第二节：三个级别和只读开关，四个选项；A13：拒绝以后她接着干。
+
+### 还没有的
+
+- `session.created` 的父会话、分叉来源：做子代理和分叉时加（`03-事件模型.md` 第三节、第七节）。
+- `tool.result` 里大输出的全文（`03-事件模型.md` 第三节，`08-上下文投影.md` C9）。
+- 效果 `job.started`：后台命令，随 M7（`10-自带软件.md` 第五节）。
+- 检查点里别的东西：代码补上的文件清单、取回原文的办法、压完重读的文件（`09-压缩.md` 第四节，M6）。
+- 会问人的工具：`question.asked` 读写都有了，还没有工具会问（`ask_user`，`10-自带软件.md` 第三节）。
+- 选了「本会话都允许」「这个工作区以后都允许」的，决定记下了，执行前的链还不照它放行；工作区的那种还要存进工作区的配置（`02-内核.md` 第六节「确认怎么走」第 3 条，M5）。
+- `session.policy_changed` 的 `policy`：换策略快照（目录变了、配置改了）还没有，内核只写过换权限（`05-内核接口.md` 第八节，`02-内核.md` K3）。
