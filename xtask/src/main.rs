@@ -1,14 +1,16 @@
-//! 门禁程序。`cargo xtask check` 依次跑格式、clippy、文档、三道门禁和测试，最后打一张结果表。
+//! 门禁程序。`cargo xtask check` 依次跑格式、clippy、文档、三道门禁、许可证和测试，最后打一张结果表。
 //!
 //! 三道门禁都照图纸查：`docs/designs/01-架构.md` 第九节「代码的分层」。「文档」那一项还查登记簿：
 //! 给模型看的字和 `docs/designs/26-提示词.md` 第十节一一对上（施工 3-5 再补）；「给模型看的字」那一页和资源、登记簿
 //! 对得上，蓝图里标着「样本」的块和它指到的文件一字不差（施工 4-9 三补）。`cargo xtask prompts` 重新生成那一页。
+//! 「许可证」一项查发布的四个平台上用得到的第三方依赖，许可证都能和 GPL-3.0-or-later 合在一起发（施工 4-12）。
 //! 里面的 cargo 一个接一个跑，不并行。
 
 mod drawing;
 mod files;
 mod layers;
 mod ledger;
+mod licenses;
 mod prompts;
 mod purity;
 mod samples;
@@ -102,6 +104,14 @@ fn check() -> ExitCode {
         docs.problems.extend(samples::check(&root));
     }
     outcomes.extend(gates(&cargo, &root));
+    println!(
+        "\n── 许可证：cargo metadata，{} ──",
+        licenses::PLATFORMS.join("、")
+    );
+    outcomes.push(Outcome {
+        name: "许可证",
+        problems: licenses::check(&root, &cargo),
+    });
     outcomes.push(cargo_step(
         &cargo,
         &root,
