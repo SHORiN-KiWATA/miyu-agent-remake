@@ -179,7 +179,7 @@ impl Stage {
 
     /// 从回合 `turn` 起撤销。
     pub fn revert(&mut self, turn: TurnId) -> CommandId {
-        self.command(Command::Revert { turn })
+        self.command(Command::Revert { turn: Some(turn) })
     }
 
     /// 恢复最近一次撤销。

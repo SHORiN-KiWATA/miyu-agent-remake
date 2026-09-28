@@ -125,7 +125,7 @@ async fn an_edit_is_written_back_and_redone() {
     talk(&handle, "cmd-1", "改一下").await;
     assert_eq!(std::fs::read(&file).expect("读得出"), b"new\n");
     let turn = last_turn(&home, &handle);
-    undo(&handle, "cmd-2", Command::Revert { turn }).await;
+    undo(&handle, "cmd-2", Command::Revert { turn: Some(turn) }).await;
     assert_eq!(std::fs::read(&file).expect("读得出"), b"old\n", "写回去了");
     let steps = last_restored(&home, &handle);
     assert_eq!(steps.len(), 1, "读过的不用改回：{steps:?}");
@@ -158,7 +158,7 @@ async fn what_someone_changed_since_is_left_alone() {
     // 她改完以后，有人又改了一次。
     std::fs::write(&file, "someone\n").expect("写得进");
     let turn = last_turn(&home, &handle);
-    undo(&handle, "cmd-2", Command::Revert { turn }).await;
+    undo(&handle, "cmd-2", Command::Revert { turn: Some(turn) }).await;
     assert_eq!(std::fs::read(&file).expect("读得出"), b"someone\n", "不动");
     let steps = last_restored(&home, &handle);
     assert_eq!(steps[0].outcome, RestoreOutcome::Changed);
@@ -184,7 +184,7 @@ async fn what_she_read_in_an_undone_turn_no_longer_counts() {
         .await;
     talk(&handle, "cmd-1", "改一下").await;
     let turn = last_turn(&home, &handle);
-    undo(&handle, "cmd-2", Command::Revert { turn }).await;
+    undo(&handle, "cmd-2", Command::Revert { turn: Some(turn) }).await;
     talk(&handle, "cmd-3", "再改一下").await;
     let last = results(&home, &handle).pop().expect("有结果");
     assert_eq!(
@@ -202,7 +202,7 @@ async fn what_is_already_back_counts_as_restored() {
     let handle = one_turn(&home, edit_a()).await;
     put(&home, "a.txt", "old\n");
     let turn = last_turn(&home, &handle);
-    undo(&handle, "cmd-2", Command::Revert { turn }).await;
+    undo(&handle, "cmd-2", Command::Revert { turn: Some(turn) }).await;
     assert_eq!(
         last_restored(&home, &handle)[0].outcome,
         RestoreOutcome::Restored
@@ -219,7 +219,7 @@ async fn content_that_was_not_saved_is_reported() {
     let blobs = Blobs::new(home.root.blobs(&alice_account()));
     std::fs::remove_file(blobs.path(&ContentHash::of(b"old\n"))).expect("删得掉");
     let turn = last_turn(&home, &handle);
-    undo(&handle, "cmd-2", Command::Revert { turn }).await;
+    undo(&handle, "cmd-2", Command::Revert { turn: Some(turn) }).await;
     assert_eq!(
         last_restored(&home, &handle)[0].outcome,
         RestoreOutcome::Unsaved
@@ -240,7 +240,7 @@ async fn after_a_redo_what_she_read_counts_again() {
     plays.push(Play::Says("好。"));
     let handle = one_turn(&home, plays).await;
     let turn = last_turn(&home, &handle);
-    undo(&handle, "cmd-2", Command::Revert { turn }).await;
+    undo(&handle, "cmd-2", Command::Revert { turn: Some(turn) }).await;
     undo(&handle, "cmd-3", Command::Unrevert).await;
     talk(&handle, "cmd-4", "再改一下").await;
     assert_eq!(read(&home, "a.txt").as_deref(), Some("newer\n"));

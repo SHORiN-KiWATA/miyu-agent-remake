@@ -17,6 +17,7 @@ mod methods;
 mod refusal;
 mod sessions;
 mod subscriptions;
+mod undo;
 mod wire;
 
 pub use connection::serve;

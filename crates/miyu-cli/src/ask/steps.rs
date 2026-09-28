@@ -2,10 +2,10 @@
 //! 看的一行，例如 `· 读取 src/lib.rs → 37 行`；没做成的同一行写原因，「出错」「没做」是红的。工作目录太宽、
 //! 核心退回账号的工作区时开头那一句也在这里写。
 //!
-//! 只管写成什么样，不管往哪写：[`Line`] 分灰的、红的几段，[`Line::paint`] 照上不上色写成字。
+//! 只管写成什么样，不管往哪写：一行分灰的、红的几段（[`Line`]，在 `shown.rs` 里）。
 
 use std::collections::BTreeMap;
-use std::path::{MAIN_SEPARATOR, Path};
+use std::path::Path;
 
 use serde_json::Value;
 
@@ -14,11 +14,7 @@ use miyu_store::human::clean;
 
 use super::Plan;
 use crate::language::Word;
-
-/// 终端里的灰色、红色，和回到原色。
-pub(crate) const GRAY: &str = "\x1b[90m";
-const RED: &str = "\x1b[31m";
-pub(crate) const RESET: &str = "\x1b[0m";
+use crate::shown::{Ink, Line, cut, cut_front, shown, tilde};
 
 /// 参数的值最多印几个字。
 const SUBJECT_CHARS: usize = 80;
@@ -29,51 +25,6 @@ const NAME_CHARS: usize = 40;
 
 /// 参数叫这两个名字的是路径（`10-自带软件.md` 第十节定的名字）。
 const PATHS: [&str; 2] = ["file_path", "path"];
-
-/// 一段字是什么颜色。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Ink {
-    Gray,
-    Red,
-}
-
-/// 给人看的一行旁白，分几段。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Line(Vec<(Ink, String)>);
-
-impl Line {
-    /// 整行灰的。
-    fn gray(text: impl Into<String>) -> Line {
-        Line(vec![(Ink::Gray, text.into())])
-    }
-
-    /// 接着写一段。
-    fn push(&mut self, ink: Ink, text: impl Into<String>) {
-        self.0.push((ink, text.into()));
-    }
-
-    /// 写成字，带换行。`color` 的：整行包在灰色里，红的那几段换成红色，写完换回灰色，行尾回到原色，中途退出
-    /// 也不会把终端留成灰的；不上色的只有字。
-    pub(crate) fn paint(&self, color: bool) -> String {
-        let mut out = String::new();
-        let mut last = None;
-        for (ink, text) in &self.0 {
-            if color && last != Some(*ink) {
-                out.push_str(match ink {
-                    Ink::Gray => GRAY,
-                    Ink::Red => RED,
-                });
-                last = Some(*ink);
-            }
-            out.push_str(text);
-        }
-        if color {
-            out.push_str(RESET);
-        }
-        out.push('\n');
-        out
-    }
-}
 
 /// 她调过的，照调用编号记着：好在结果来了时知道是哪件工具、给了什么参数。
 #[derive(Debug, Default)]
@@ -187,56 +138,6 @@ fn value_of(args: &Value, subject: &str, cwd: &str, home: Option<&Path>) -> Opti
         text.push('…');
     }
     Some(text)
-}
-
-/// 路径写成给人看的：在工作目录 `cwd` 里的写相对的（工作目录本身写 `.`），在家目录里的写 `~/…`，别的照原样
-/// （`10-自带软件.md` 第十节：工具结果里的路径也这样写）。
-fn shown(path: &str, cwd: &str, home: Option<&Path>) -> String {
-    let full = Path::new(path);
-    if full.is_absolute()
-        && let Ok(rest) = full.strip_prefix(cwd)
-    {
-        return match rest.as_os_str().is_empty() {
-            true => ".".to_string(),
-            false => rest.display().to_string(),
-        };
-    }
-    tilde(path, home)
-}
-
-/// 在家目录里的路径写成 `~/…`，家目录本身写 `~`；别的照原样。
-fn tilde(path: &str, home: Option<&Path>) -> String {
-    let full = Path::new(path);
-    if let Some(home) = home
-        && full.is_absolute()
-        && let Ok(rest) = full.strip_prefix(home)
-    {
-        return match rest.as_os_str().is_empty() {
-            true => "~".to_string(),
-            false => format!("~{MAIN_SEPARATOR}{}", rest.display()),
-        };
-    }
-    path.to_string()
-}
-
-/// 超过 `most` 个字的，截到 `most` 个，末尾加 `…`。
-fn cut(text: &str, most: usize) -> String {
-    match text.char_indices().nth(most) {
-        None => text.to_string(),
-        Some((at, _)) => format!("{}…", &text[..at]),
-    }
-}
-
-/// 超过 `most` 个字的，只留后面 `most` 个，前面加 `…`。
-fn cut_front(text: &str, most: usize) -> String {
-    let count = text.chars().count();
-    if count <= most {
-        return text.to_string();
-    }
-    match text.char_indices().nth(count - most) {
-        Some((at, _)) => format!("…{}", &text[at..]),
-        None => text.to_string(),
-    }
 }
 
 #[cfg(test)]

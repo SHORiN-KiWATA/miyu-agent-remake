@@ -207,8 +207,8 @@ pub enum Command {
     },
     /// `session.revert`：从这一轮起撤销，它和它以后的全撤（`02-内核.md` 第六节「撤销与恢复」）。
     Revert {
-        /// 从哪一轮起。
-        turn: TurnId,
+        /// 从哪一轮起。不写的，撤还在有效历史里的最后一轮（施工 4-7 下）。
+        turn: Option<TurnId>,
     },
     /// `session.unrevert`：恢复最近一次撤销，在下一轮开始、压缩之前。
     Unrevert,

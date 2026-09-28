@@ -16,8 +16,18 @@ pub(super) fn revert(n: u64, turn: u64) -> Input {
         by: alice(),
         at: at(56),
         command: Command::Revert {
-            turn: TurnId::new(seq(turn)),
+            turn: Some(TurnId::new(seq(turn))),
         },
+    })
+}
+
+/// `n` 号命令：撤最后一轮，不写回合编号（施工 4-7 下）。
+pub(super) fn revert_last(n: u64) -> Input {
+    Input::Command(Received {
+        id: id(n),
+        by: alice(),
+        at: at(56),
+        command: Command::Revert { turn: None },
     })
 }
 

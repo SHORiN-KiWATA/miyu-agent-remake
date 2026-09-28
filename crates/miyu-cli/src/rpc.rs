@@ -22,15 +22,16 @@ pub(crate) struct Rpc {
     incoming: mpsc::UnboundedReceiver<Value>,
     /// 等回应时来的推送。
     held: VecDeque<Value>,
-    /// 这条连接的编号前缀：一段随机数。
+    /// 这条连接的编号前缀：哪个命令的，加一段随机数。
     prefix: String,
     /// 下一条请求的序号。
     next: u64,
 }
 
 impl Rpc {
-    /// 在 `connection` 上说话：另起一个读的任务。
-    pub(crate) fn new(connection: Connection) -> Rpc {
+    /// 在 `connection` 上说话：另起一个读的任务。`head` 是哪个命令（`ask`、`undo`），写进编号，看运行日志时
+    /// 认得出是谁发的。
+    pub(crate) fn new(connection: Connection, head: &str) -> Rpc {
         let (reader, writer) = tokio::io::split(connection);
         let (sender, incoming) = mpsc::unbounded_channel();
         tokio::spawn(read_all(BufReader::new(reader), sender));
@@ -38,7 +39,7 @@ impl Rpc {
             writer,
             incoming,
             held: VecDeque::new(),
-            prefix: prefix(),
+            prefix: format!("{head}-{}", prefix()),
             next: 0,
         }
     }
@@ -50,7 +51,7 @@ impl Rpc {
     /// 写不出去。
     pub(crate) async fn send(&mut self, method: &str, params: Value) -> io::Result<String> {
         self.next += 1;
-        let id = format!("ask-{}-{}", self.prefix, self.next);
+        let id = format!("{}-{}", self.prefix, self.next);
         let request = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
         self.writer
             .write_all(format!("{request}\n").as_bytes())

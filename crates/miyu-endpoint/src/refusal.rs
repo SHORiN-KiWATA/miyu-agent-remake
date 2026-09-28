@@ -140,6 +140,7 @@ impl Refusal {
                 "正在改回文件，等它做完再来。",
                 "Files are being restored; try again when that is done.",
             ),
+            "nothing_to_revert" => ("没有能撤销的回合。", "There is no turn to undo."),
             _ => ("被拒绝了。", "Refused."),
         };
         match locale {

@@ -41,7 +41,7 @@ use std::collections::BTreeSet;
 use super::approval::answer;
 use super::permission::{read_only, switch};
 use super::question::reply;
-use super::revert::{revert, unrevert};
+use super::revert::{revert, revert_last, unrevert};
 use super::*;
 use crate::accumulate::{Delta, Kind};
 use crate::event::{
@@ -340,6 +340,10 @@ fn some_undo(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> Option<Input> {
     if redo {
         return Some(unrevert(n));
     }
+    // 四回里有一回不写回合编号，撤最后一轮（施工 4-7 下）。
+    if rng.below(4) == 0 {
+        return Some(revert_last(n));
+    }
     let effective = &watch.undo.effective;
     let turn = match effective.len() {
         k if k > 0 && rng.below(6) > 0 => effective[k - 1 - rng.below(k.min(3) as u64) as usize]
@@ -433,7 +437,7 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
             if let Some(input) = some_undo(&mut undos, &watch, &mut next_id) {
                 watch.feed(&mut session, input);
             }
-            if let Some(input) = some_restored(&mut restores, &watch) {
+            if let Some(input) = some_restored(&mut restores, &watch, &mut next_id) {
                 watch.feed(&mut session, input);
             }
             let input = some_input(&mut rng, &mut watch, &mut next_id);

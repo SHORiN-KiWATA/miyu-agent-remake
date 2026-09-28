@@ -151,7 +151,7 @@ async fn the_log_says_what_happened_and_nothing_that_was_said() {
             Pushed::Transient(_) => None,
         })
         .expect("开过这一轮");
-    ask(&redo, "cmd-2", Command::Revert { turn })
+    ask(&redo, "cmd-2", Command::Revert { turn: Some(turn) })
         .await
         .expect("会话在跑");
     ask(&redo, "cmd-3", say("重说")).await.expect("会话在跑");

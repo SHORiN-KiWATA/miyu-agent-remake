@@ -1,13 +1,15 @@
 //! 在一条连上了的连接上把一句话说完（施工 3-9 下）：握手、找会话、订阅、发，跟着那一轮边收边打。
 
-use serde_json::{Value, json};
+use serde_json::json;
 use tokio::sync::mpsc;
 
 use miyu_ipc::Connection;
 
-use super::follow::{Follow, Step, say};
-use super::rpc::Rpc;
+use super::follow::{Follow, Step};
 use super::{Plan, Screen, Target, exit};
+use crate::link;
+use crate::rpc::Rpc;
+use crate::shown::say;
 
 /// 握手、找会话、订阅、发，跟着那一轮边收边打，交回退出码。`presses` 是一次次的 Ctrl+C：第一次打断这一轮
 /// （排着的退回），等它收尾；第二次不等了。
@@ -18,15 +20,8 @@ pub async fn talk(
     screen: &mut Screen<'_>,
     mut presses: mpsc::Receiver<()>,
 ) -> u8 {
-    let mut rpc = Rpc::new(connection);
-    let hello = json!({
-        "protocol": [1, 1],
-        "head": {"kind": "cli", "version": env!("CARGO_PKG_VERSION")},
-        "locale": plan.language.locale(),
-        "caps": {"input": plan.input},
-        "token": token,
-    });
-    if let Err(code) = request(&mut rpc, "hello", hello, plan, screen).await {
+    let mut rpc = Rpc::new(connection, "ask");
+    if let Err(code) = link::hello(&mut rpc, token, &plan.language, plan.input, screen.err).await {
         return code;
     }
     let (session, used) = match session(&mut rpc, plan, screen).await {
@@ -34,7 +29,15 @@ pub async fn talk(
         Err(code) => return code,
     };
     let subscribe = json!({"session": session, "stream": "events"});
-    if let Err(code) = request(&mut rpc, "subscribe", subscribe.clone(), plan, screen).await {
+    let subscribed = link::request(
+        &mut rpc,
+        "subscribe",
+        subscribe.clone(),
+        &plan.language,
+        screen.err,
+    )
+    .await;
+    if let Err(code) = subscribed {
         return code;
     }
     let send = json!({"session": session, "text": plan.text, "cwd": plan.cwd});
@@ -95,49 +98,14 @@ async fn session(
     match &plan.target {
         Target::New => {
             let params = json!({"cwd": plan.cwd, "oneshot": true});
-            let result = request(rpc, "session.create", params, plan, screen).await?;
+            let result =
+                link::request(rpc, "session.create", params, &plan.language, screen.err).await?;
             let session = result["session"].as_str().unwrap_or_default().to_string();
             Ok((session, result["cwd"].as_str().map(str::to_string)))
         }
-        Target::Continue => {
-            let params = json!({"oneshot": true, "limit": 1});
-            let result = request(rpc, "session.list", params, plan, screen).await?;
-            match result["sessions"][0]["session"].as_str() {
-                Some(session) => Ok((session.to_string(), None)),
-                None => {
-                    say(screen.err, &plan.language.no_oneshot());
-                    Err(exit::ERROR)
-                }
-            }
-        }
+        Target::Continue => link::latest_oneshot(rpc, &plan.language, screen.err)
+            .await
+            .map(|session| (session, None)),
         Target::Session(session) => Ok((session.clone(), None)),
-    }
-}
-
-/// 发一条请求，等回应，交回 `result`。被拒绝的、核心断开的，说清楚，交回退出码。
-async fn request(
-    rpc: &mut Rpc,
-    method: &str,
-    params: Value,
-    plan: &Plan,
-    screen: &mut Screen<'_>,
-) -> Result<Value, u8> {
-    match rpc.call(method, params).await {
-        Ok(Some(reply)) => match reply.get("error") {
-            None => Ok(reply["result"].clone()),
-            Some(error) => {
-                let reason = error["message"].as_str().unwrap_or_default();
-                say(screen.err, &plan.language.refused(reason));
-                Err(exit::ERROR)
-            }
-        },
-        Ok(None) => {
-            say(screen.err, &plan.language.disconnected());
-            Err(exit::ERROR)
-        }
-        Err(error) => {
-            say(screen.err, &error.to_string());
-            Err(exit::ERROR)
-        }
     }
 }

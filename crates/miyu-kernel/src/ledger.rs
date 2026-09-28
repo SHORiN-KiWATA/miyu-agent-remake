@@ -91,6 +91,11 @@ impl Ledger {
             .then(|| self.turns.range(turn..).copied().collect())
     }
 
+    /// 还在有效历史里的最后一轮：不写回合编号的撤销撤它（施工 4-7 下）。一轮都没有的，没有。
+    pub fn last_turn(&self) -> Option<TurnId> {
+        self.turns.last().copied()
+    }
+
     /// 最近一次压缩替代到哪；没压缩过就没有。
     pub fn compacted(&self) -> Option<Seq> {
         self.compacted

@@ -27,17 +27,21 @@ impl Session {
     /// 撤掉的那几轮改过文件的，先改回去（[`Session::settle_files`]）。
     ///
     /// 有回合在进行的，拒绝，原因码 `turn_running`：头先打断再撤。已经压缩进摘要的（序号落在
-    /// 最近一次压缩替代掉的范围里），`compacted`；别的不在有效历史里的，`unknown_turn`。
+    /// 最近一次压缩替代掉的范围里），`compacted`；别的不在有效历史里的，`unknown_turn`。`turn` 不写的，撤还在有效
+    /// 历史里的最后一轮，照账本当场找（施工 4-7 下）；一轮都没有的，`nothing_to_revert`。
     pub(super) fn revert(
         &mut self,
         id: CommandId,
         by: By,
         at: Timestamp,
-        turn: TurnId,
+        turn: Option<TurnId>,
     ) -> Vec<Action> {
         if self.turn.is_some() {
             return vec![rejected(id, Reason::TurnRunning)];
         }
+        let Some(turn) = turn.or_else(|| self.ledger.last_turn()) else {
+            return vec![rejected(id, Reason::NothingToRevert)];
+        };
         let Some(turns) = self.ledger.turns_from(turn) else {
             let reason = match self.ledger.compacted() {
                 Some(upto) if turn.started() <= upto => Reason::Compacted,

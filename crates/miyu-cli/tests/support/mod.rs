@@ -11,7 +11,7 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 
 use miyu_cli::language::Language;
-use miyu_cli::{Format, Plan, Screen, Target, talk};
+use miyu_cli::{Format, Plan, Screen, Target, UndoPlan, talk, undo_on};
 use miyu_endpoint::Core;
 use miyu_ipc::Dirs;
 use miyu_kernel::event::{Body, Event};
@@ -68,6 +68,24 @@ impl Home {
     /// 在真的套接字上连上核心，照 `plan` 说一句。`presses` 是 Ctrl+C。
     pub async fn ask_with(&self, plan: &Plan, presses: mpsc::Receiver<()>) -> Asked {
         ask_at(&self.root, plan, presses).await
+    }
+
+    /// 在真的套接字上连上核心，照 `plan` 撤一次（恢复一次，施工 4-7 下）。
+    pub async fn undo(&self, plan: &UndoPlan) -> Asked {
+        let (connection, token) = miyu_ipc::connect(&self.root).await.expect("连得上");
+        let tape = Tape::default();
+        let (mut out, mut err) = (tape.pen(false), tape.pen(true));
+        let code = within(
+            "撤完",
+            undo_on(connection, &token, plan, &mut out, &mut err),
+        )
+        .await;
+        Asked {
+            code,
+            out: tape.text(|err| !err),
+            err: tape.text(|err| err),
+            screen: tape.text(|_| true),
+        }
     }
 
     /// 照 `plan` 说一句，不按 Ctrl+C。

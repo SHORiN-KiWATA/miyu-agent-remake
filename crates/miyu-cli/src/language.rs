@@ -4,6 +4,8 @@
 
 use crate::ask::usage_line;
 
+mod undo;
+
 /// 界面语言。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Language {

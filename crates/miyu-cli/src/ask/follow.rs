@@ -5,13 +5,13 @@
 //! 一句都是旁白：旁白之间不空行，和回答之间空一行。
 
 use std::collections::BTreeMap;
-use std::io::Write;
 
 use serde_json::{Value, json};
 
-use super::steps::{self, GRAY, Line, RESET, Steps};
+use super::steps::{self, Steps};
 use super::usage::Sum;
 use super::{Format, Plan, Screen, exit};
+use crate::shown::{GRAY, Line, RESET, say, write};
 
 /// 收了一条以后怎么办。
 #[derive(Debug, PartialEq, Eq)]
@@ -309,17 +309,6 @@ impl<'p> Follow<'p> {
         }
         code
     }
-}
-
-/// 写一段，马上送出去：边收边打。写不出去的不管（例如标准错误被关了），不影响别的。
-#[expect(clippy::let_underscore_must_use, reason = "写不出去也没有别处可说")]
-pub(crate) fn write(to: &mut dyn Write, text: &str) {
-    let _ = to.write_all(text.as_bytes()).and_then(|()| to.flush());
-}
-
-/// 说一句话，带换行。
-pub(crate) fn say(to: &mut dyn Write, line: &str) {
-    write(to, &format!("{line}\n"));
 }
 
 #[cfg(test)]

@@ -83,3 +83,17 @@ async fn a_turn_that_is_not_there_is_refused() {
         .await;
     assert_eq!(reason(&reply), Some("bad_params"), "{reply}");
 }
+
+/// 一轮都没有的，撤最后一轮拒绝，照头的语言说。
+#[tokio::test]
+async fn with_no_turn_there_is_nothing_to_undo() {
+    let home = Home::new();
+    let mut client = Client::connect(home.core(&Script::new([])));
+    client.hello().await;
+    let session = client.create("c1", "~").await;
+    let reply = client
+        .call("c2", "session.revert", json!({"session": session}))
+        .await;
+    assert_eq!(reason(&reply), Some("nothing_to_revert"), "{reply}");
+    assert_eq!(reply["error"]["message"], json!("没有能撤销的回合。"));
+}

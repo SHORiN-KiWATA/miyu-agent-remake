@@ -2,7 +2,6 @@
 //! 会话，或者接着说；把一句话发给她，边收边打，她做的每一步印成一行（施工 4-5 下）；问完印一行用量。
 
 mod follow;
-mod rpc;
 mod steps;
 mod talk;
 mod usage;

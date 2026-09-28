@@ -23,10 +23,11 @@ use miyu_tool::Catalog;
 /// 本机令牌。
 pub const TOKEN: &str = "token-for-tests";
 
-/// 一个用完就删的临时数据根，建好了骨架。
+/// 一个用完就删的临时数据根，建好了骨架；另有一个在数据根外面的工作目录（施工 4-7 下：数据根里哪一级都不许写）。
 pub struct Home {
     dir: PathBuf,
     pub root: DataRoot,
+    pub work: PathBuf,
 }
 
 impl Home {
@@ -45,7 +46,11 @@ impl Home {
         };
         let root = DataRoot::locate(&env).expect("MIYU_HOME 是绝对路径");
         root.prepare().expect("临时目录里建得了骨架");
-        Home { dir, root }
+        let work =
+            std::env::temp_dir().join(format!("miyu-endpoint-work-{}-{n}", std::process::id()));
+        std::fs::create_dir_all(&work).expect("建得了工作目录");
+        let work = std::fs::canonicalize(&work).expect("在");
+        Home { dir, root, work }
     }
 
     /// 一份核心：管理员 alice，请求模型照 `script` 回。同一个数据根上造第二份，就像核心重启过。
@@ -121,6 +126,7 @@ impl Drop for Home {
     )]
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.dir);
+        let _ = std::fs::remove_dir_all(&self.work);
     }
 }
 

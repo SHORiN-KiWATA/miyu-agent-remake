@@ -58,8 +58,8 @@ impl Expect {
 }
 
 impl Watch {
-    /// 送进一条输入之前：新的撤销、恢复，照规矩判出该怎样。
-    pub(super) fn before_undo(&self, input: &Input) -> Option<Expect> {
+    /// 送进一条输入之前：新的撤销、恢复，照规矩判出该怎样。不写回合编号的撤最后一轮（施工 4-7 下）。
+    pub(super) fn before_undo(&mut self, input: &Input) -> Option<Expect> {
         let Input::Command(received) = input else {
             return None;
         };
@@ -70,7 +70,14 @@ impl Watch {
             Command::Revert { .. } if self.turn_open() => {
                 Some(Expect::Refused(Reason::TurnRunning))
             }
-            Command::Revert { turn } => {
+            Command::Revert { turn: None } => Some(match self.undo.effective.last() {
+                Some(last) => {
+                    self.seen_paths.insert("撤最后一轮");
+                    Expect::Revert(vec![*last])
+                }
+                None => Expect::Refused(Reason::NothingToRevert),
+            }),
+            Command::Revert { turn: Some(turn) } => {
                 Some(match self.undo.effective.iter().position(|t| t == turn) {
                     Some(k) => Expect::Revert(self.undo.effective[k..].to_vec()),
                     None => Expect::Refused(Reason::UnknownTurn),
@@ -100,6 +107,7 @@ impl Watch {
             Some(Expect::Refused(reason)) => {
                 self.seen_paths.insert(match reason {
                     Reason::NothingToUnrevert => "恢复被拒",
+                    Reason::NothingToRevert => "没有能撤的被拒",
                     _ => "撤销被拒",
                 });
                 assert!(

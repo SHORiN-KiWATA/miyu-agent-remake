@@ -34,7 +34,7 @@ async fn created_changed_and_trashed_files_all_come_back() {
     let handle = three_changes(&home).await;
     assert_eq!(read(&home, "t.txt"), None, "删进了回收站");
     let turn = last_turn(&home, &handle);
-    undo(&handle, "cmd-2", Command::Revert { turn }).await;
+    undo(&handle, "cmd-2", Command::Revert { turn: Some(turn) }).await;
     assert_eq!(read(&home, "a.txt").as_deref(), Some("old\n"));
     assert_eq!(read(&home, "n.txt"), None, "新建的移进了回收站");
     assert_eq!(read(&home, "t.txt").as_deref(), Some("bye\n"), "移回来了");
@@ -72,7 +72,7 @@ async fn undo_after_redo_uses_the_new_place_in_the_trash() {
     let home = Home::outside_temp();
     let handle = three_changes(&home).await;
     let turn = last_turn(&home, &handle);
-    undo(&handle, "cmd-2", Command::Revert { turn }).await;
+    undo(&handle, "cmd-2", Command::Revert { turn: Some(turn) }).await;
     std::fs::write(bin(&home).join("files/t.txt"), "someone's\n").expect("写得进");
     undo(&handle, "cmd-3", Command::Unrevert).await;
     let moved = last_restored(&home, &handle)
@@ -81,7 +81,7 @@ async fn undo_after_redo_uses_the_new_place_in_the_trash() {
         .and_then(|step| step.trash)
         .expect("记下了新的位置");
     assert!(moved.ends_with("files/t.txt.2"), "{moved}");
-    undo(&handle, "cmd-4", Command::Revert { turn }).await;
+    undo(&handle, "cmd-4", Command::Revert { turn: Some(turn) }).await;
     assert_eq!(read(&home, "t.txt").as_deref(), Some("bye\n"));
     assert_eq!(
         std::fs::read_to_string(bin(&home).join("files/t.txt")).expect("还在"),
@@ -111,7 +111,7 @@ fn trash_t() -> Vec<Play> {
 /// 撤掉最后一轮，交回这一次改回文件的每一步的结局。
 async fn undo_last(home: &Home, handle: &miyu_session::Handle, id: &str) -> Vec<RestoreOutcome> {
     let turn = last_turn(home, handle);
-    undo(handle, id, Command::Revert { turn }).await;
+    undo(handle, id, Command::Revert { turn: Some(turn) }).await;
     outcomes(home, handle)
 }
 

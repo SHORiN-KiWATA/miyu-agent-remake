@@ -29,8 +29,12 @@ serde_json = "1.0"
 tokio = { version = "1", features = ["io-util", "macros", "rt", "sync", "time"] }
 # 运行日志的门面（施工 3-7 上）。
 tracing = { version = "0.1", default-features = false, features = ["std"] }
+# 撤销时之后又被改过的文件，算她改完的和现在的差异（施工 4-7 下）：Rust 里通用的那一个，只开文本。
+similar = { version = "2", default-features = false, features = ["text"] }
 
 [dev-dependencies]
+# 撤销的回应（施工 4-7 下）：她用真的写文件的工具改过文件。
+miyu-basesystem = { path = "../miyu-basesystem" }
 # 测试用的假工具（施工 4-2）。
 miyu-tool = { path = "../miyu-tool", features = ["testkit"] }
 # 测试里读会话的策略快照：有没有人能确认。

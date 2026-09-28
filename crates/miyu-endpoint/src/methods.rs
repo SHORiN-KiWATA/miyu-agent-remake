@@ -1,5 +1,5 @@
 //! 握手以后的方法（`docs/designs/04-核心协议.md` 第九节「先做的几样怎么写」）：造会话、说话、打断，
-//! 列出会话（施工 3-9 下），撤销、恢复（施工 4-7 上）。命令交给会话，等它的回应：接受的回 `events`，拒绝的回原因码。造会话、说话的
+//! 列出会话（施工 3-9 下），撤销、恢复（施工 4-7 上；回应带上给人看的几样，施工 4-7 下）。命令交给会话，等它的回应：接受的回 `events`，拒绝的回原因码。造会话、说话的
 //! 回应再带上会话实际在哪个目录里干活（施工 4-5 下）。
 
 use serde::Deserialize;
@@ -15,6 +15,7 @@ use crate::hello::Peer;
 use crate::list;
 use crate::refusal::Refusal;
 use crate::sessions::{Opening, admin};
+use crate::undo;
 use crate::wire::Request;
 
 /// 没写人格时用的：出厂的软件工程师（施工 3-6 上）。
@@ -60,11 +61,13 @@ struct InterruptParams {
     queued: QueuedParam,
 }
 
-/// `session.revert` 的参数（施工 4-7 上）：从哪一轮起撤，回合编号就是那一轮 `turn.started` 的序号。
+/// `session.revert` 的参数（施工 4-7 上）：从哪一轮起撤，回合编号就是那一轮 `turn.started` 的序号；不写的撤
+/// 最后一轮（施工 4-7 下）。
 #[derive(Debug, Deserialize)]
 struct RevertParams {
     session: String,
-    turn: u64,
+    #[serde(default)]
+    turn: Option<u64>,
 }
 
 /// `session.unrevert` 的参数（施工 4-7 上）。
@@ -133,14 +136,15 @@ pub(crate) async fn call(core: &Core, peer: Peer, request: &Request) -> Result<V
         }
         "session.revert" => {
             let params: RevertParams = params(request)?;
-            let turn = Seq::new(params.turn)
-                .map(TurnId::new)
-                .ok_or(Refusal::BAD_PARAMS)?;
+            let turn = params
+                .turn
+                .map(|turn| Seq::new(turn).map(TurnId::new).ok_or(Refusal::BAD_PARAMS))
+                .transpose()?;
             let session = session(&params.session)?;
             let found = core.sessions.get(core, &session, None).await?;
             let command = Command::Revert { turn };
             let events = command_to(core, request, &session, &found.handle, command).await?;
-            Ok(json!({ "events": events }))
+            Ok(undo::reply(core, &session, &found.cwd, events).await)
         }
         "session.unrevert" => {
             let params: UnrevertParams = params(request)?;
@@ -148,7 +152,7 @@ pub(crate) async fn call(core: &Core, peer: Peer, request: &Request) -> Result<V
             let found = core.sessions.get(core, &session, None).await?;
             let command = Command::Unrevert;
             let events = command_to(core, request, &session, &found.handle, command).await?;
-            Ok(json!({ "events": events }))
+            Ok(undo::reply(core, &session, &found.cwd, events).await)
         }
         _ => Err(Refusal::UNKNOWN_METHOD),
     }

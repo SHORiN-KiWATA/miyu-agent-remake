@@ -154,6 +154,8 @@ pub enum Reason {
     NothingToUnrevert,
     /// 正在改回文件（撤销、恢复以后）：等它做完再来（施工 4-7 上）。
     Restoring,
+    /// 撤最后一轮（不写回合编号）时一轮都没有：没说过话、都撤掉了、都压缩进了摘要（施工 4-7 下）。
+    NothingToRevert,
 }
 
 impl Reason {
@@ -173,6 +175,7 @@ impl Reason {
             Reason::Compacted => "compacted",
             Reason::NothingToUnrevert => "nothing_to_unrevert",
             Reason::Restoring => "restoring",
+            Reason::NothingToRevert => "nothing_to_revert",
         }
     }
 }
