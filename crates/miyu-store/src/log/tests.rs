@@ -362,6 +362,14 @@ impl Assembler for Nothing {
             continuation: false,
         }
     }
+
+    fn summarize(&self, history: &History, _upto: Seq) -> Request {
+        self.assemble(history)
+    }
+
+    fn summary(&self, _reply: &[miyu_kernel::block::Block]) -> Option<String> {
+        None
+    }
 }
 
 /// 替身用的策略：一件读的工具，句子短，一眼认得出。
@@ -400,6 +408,7 @@ fn policy() -> Policy {
         .unwrap(),
         attended: true,
         resumes: 3,
+        compaction: None,
     }
 }
 

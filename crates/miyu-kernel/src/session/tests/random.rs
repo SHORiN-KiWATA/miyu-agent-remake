@@ -25,7 +25,9 @@
 //! - 改回文件：那几轮改过文件的才交出去，一个改过的文件一步；改的时候来的命令拒绝；结局只记一条
 //!   `files.restored`；过时的结局不理（施工 4-7 上）；
 //! - 打断时在跑的改文件的调用：叫它停，等它交回来、到点、又打断一次才收尾（施工 4-9 再补一，
-//!   `watch/stopping.rs`）。
+//!   `watch/stopping.rs`）；
+//! - 压缩：交了限额、用量过了线，先发摘要请求，替代到的 N 照规矩；说完了写压缩，取不出摘要的出错收场；压完的
+//!   请求照检查点以后的；撤不到替代掉的回合（施工 6-2 上，`watch/compaction.rs`）。
 //!
 //! 每一步还照九条不变量查（`watch/invariants.rs`，`02-内核.md` 第九节「不变量怎么查」）。
 //!
@@ -33,6 +35,7 @@
 //! （`random/kinds.rs`），不然查的是空话。CI 另有一项长跑，接着往后跑两万例。
 
 mod asking;
+mod compacting;
 mod kinds;
 mod paths;
 mod restoring;
@@ -57,6 +60,7 @@ use crate::origin::Model;
 use crate::raw::RawJson;
 use crate::tool::Access;
 use asking::{some_answer, some_question, some_reply, some_verdict};
+use compacting::{random_policy, some_limits};
 use kinds::InputKind;
 use paths::EXPECTED_PATHS;
 use restoring::some_restored;
@@ -405,14 +409,6 @@ fn sent_now(seen: Seq) -> Input {
     }
 }
 
-/// 随机测试的策略：一个回合最多请求 [`STEP_LIMIT`] 次；`attended` 是有没有人能确认、回答。
-fn random_policy(attended: bool) -> Policy {
-    let mut limited = policy();
-    limited.step_limit = Some(STEP_LIMIT);
-    limited.attended = attended;
-    limited
-}
-
 /// 跑一段种子，每一例三百条输入，照看守的规矩查（[`watch`]）。返回走到过的路和喂过的输入种类。
 fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKind>) {
     let mut paths = BTreeSet::new();
@@ -434,6 +430,7 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let mut crashes = Rng(seed ^ 0x00C0_FFEE);
         let mut undos = Rng(seed ^ 0x0DD0_0DD0);
         let mut restores = Rng(seed ^ 0x5E57_04ED);
+        let mut limits = Rng(seed ^ 0x11A1_7500);
         for _ in 0..300 {
             if watch.all_stored() && crashes.below(200) == 0 {
                 let planned = crashes.below(2) == 0;
@@ -444,6 +441,9 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
                 watch.feed(&mut session, input);
             }
             if let Some(input) = some_restored(&mut restores, &watch, &mut next_id) {
+                watch.feed(&mut session, input);
+            }
+            if let Some(input) = some_limits(&mut limits) {
                 watch.feed(&mut session, input);
             }
             let input = some_input(&mut rng, &mut watch, &mut next_id);

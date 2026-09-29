@@ -8,7 +8,7 @@ use crate::block::{Block, Text};
 use crate::event::{Response, Usage};
 use crate::id::{CallId, ModelName, ProviderId, Seq};
 use crate::origin::Model;
-use crate::request::Request;
+use crate::request::{Message, Request};
 use crate::session::{Action, Input, Verdict};
 use crate::time::Timestamp;
 
@@ -96,13 +96,16 @@ impl Stage {
     /// 请求模型：先报发出去了，再一块块送增量；不停住的，最后送说完了。
     fn call(&mut self, seen: Seq, request: Request) -> Vec<Input> {
         let hash = request.hash();
+        let summary = self.summary_line(&request);
         self.requests.push((seen, request));
-        let line = self.lines.pop_front().unwrap_or_else(|| {
-            panic!(
-                "剧本里没排第 {} 次请求模型说什么（seen {seen}）",
-                self.requests.len()
-            )
-        });
+        let line = summary
+            .or_else(|| self.lines.pop_front())
+            .unwrap_or_else(|| {
+                panic!(
+                    "剧本里没排第 {} 次请求模型说什么（seen {seen}）",
+                    self.requests.len()
+                )
+            });
         let mut inputs = vec![Input::RequestSent {
             at: self.tick(),
             seen,
@@ -126,16 +129,28 @@ impl Stage {
         inputs
     }
 
+    /// 是摘要请求（最后一块是 [`Stage::summarize_with`] 给的指令）的，照给的那一句回。
+    fn summary_line(&self, request: &Request) -> Option<Line> {
+        let (instruction, line) = self.summaries.as_ref()?;
+        let last = match request.messages.last()? {
+            Message::User { blocks } => blocks.last()?,
+            _ => return None,
+        };
+        matches!(last, Block::Text(text) if text.text == *instruction).then(|| line.clone())
+    }
+
     /// 请求 `seen` 说完了：出错的带上分类和原话，说完了的带上用量。
     pub(super) fn ended(&mut self, seen: Seq, line: &Line) -> Input {
         Input::ModelEnded {
             at: self.tick(),
             seen,
-            usage: line.error.is_none().then_some(Usage {
-                uncached: 100,
-                cache_read: 0,
-                cache_write: 0,
-                output: 10,
+            usage: line.error.is_none().then(|| {
+                line.usage.unwrap_or(Usage {
+                    uncached: 100,
+                    cache_read: 0,
+                    cache_write: 0,
+                    output: 10,
+                })
             }),
             error: line.error.clone(),
             wait_ms: line.wait_ms,
@@ -191,7 +206,11 @@ impl Stage {
 }
 
 /// 替身的模型：deepseek 的 deepseek-v4。
-fn model() -> Model {
+///
+/// # Panics
+///
+/// 实际不会：两个名字都合写法。
+pub fn model() -> Model {
     Model {
         endpoint: ProviderId::parse("deepseek").unwrap_or_else(|e| panic!("{e}")),
         model: ModelName::parse("deepseek-v4").unwrap_or_else(|e| panic!("{e}")),

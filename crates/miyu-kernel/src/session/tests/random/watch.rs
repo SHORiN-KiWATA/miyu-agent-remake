@@ -7,6 +7,7 @@ use super::kinds::InputKind;
 use super::*;
 
 mod approval;
+mod compaction;
 mod invariants;
 mod load;
 mod lookup;
@@ -81,6 +82,8 @@ pub(super) struct Watch {
     retries: model::Retries,
     /// 停着的：叫它停过的调用、那次打断排着队的怎么办、到点叫醒的记号（施工 4-9 再补一）。
     pub(super) stopping: stopping::Stopping,
+    /// 压缩：交过的摘要请求、在路上的那次、最近一次替代到哪（施工 6-2 上）。
+    compactions: compaction::Compactions,
 }
 
 impl Watch {
@@ -123,6 +126,7 @@ impl Watch {
             fed: BTreeSet::new(),
             retries: model::Retries::default(),
             stopping: stopping::Stopping::default(),
+            compactions: compaction::Compactions::default(),
         }
     }
 
@@ -287,7 +291,7 @@ impl Watch {
     }
 
     /// 请求模型：挂接点跑完了、事件都落了盘、上一步的调用都有了结果；请求照全部历史；
-    /// 一个回合的请求不超过上限。
+    /// 一个回合的请求不超过上限。摘要请求照压缩的规矩查（`watch/compaction.rs`），不算步数。
     fn called(&mut self, seen: Seq, request: &Request) {
         let seed = self.seed;
         let turn = self.open_turn();
@@ -306,23 +310,29 @@ impl Watch {
                 .all(|call| self.resulted.contains(&call)),
             "种子 {seed}：上一步还有调用没结果就请求"
         );
+        self.request_from_log(seen, request);
+        match Watch::is_summary(request) {
+            true => self.undo_summary(),
+            false => self.undo_request(seen),
+        }
+        self.permission_request();
+        self.issued.insert(seen);
+        self.sent.remove(&seen);
+        self.asking = Some(seen);
+        self.next_block = 0;
+        self.open_block = None;
+        if Watch::is_summary(request) {
+            self.retry_summary();
+            self.summary_called(seen, request);
+            return;
+        }
         assert_eq!(seen.get(), self.last(), "种子 {seed}：seen 是最后一条");
-        // 请求照的是全部历史，撤回的、撤掉的，和撤回、撤销、恢复那几条本身除外。
-        let mut all = vec![self.created()];
-        all.extend(
-            self.events
-                .iter()
-                .filter(|event| !self.undo.gone.contains(&event.seq))
-                .cloned(),
-        );
+        // 请求照的是全部历史，撤回的、撤掉的，撤回、撤销、恢复那几条本身，和压缩替代掉的除外。
         assert_eq!(
             listed_request(request),
-            listing(&all),
-            "种子 {seed}：请求照全部历史，撤回的、撤掉的除外"
+            listing(&self.effective_events()),
+            "种子 {seed}：请求照全部历史，撤回的、撤掉的、压缩掉的除外"
         );
-        self.request_from_log(request);
-        self.undo_request(seen);
-        self.permission_request();
         let retry = self.retry_request();
         let count = self.requests.entry(turn).or_default();
         if !retry {
@@ -335,10 +345,6 @@ impl Watch {
         if *count > 1 {
             self.seen_paths.insert("一步接一步");
         }
-        self.issued.insert(seen);
-        self.asking = Some(seen);
-        self.next_block = 0;
-        self.open_block = None;
     }
 
     /// 推给头的：增量是在路上的那次请求的；工具的输出是在跑的调用的。
@@ -348,6 +354,7 @@ impl Watch {
         match &transient.body {
             TransientBody::ModelDelta(delta) => {
                 self.seen_paths.insert("推了增量");
+                self.not_summarizing(delta.seen);
                 assert_eq!(
                     Some(delta.seen),
                     self.asking,
@@ -368,6 +375,7 @@ impl Watch {
                 );
             }
             TransientBody::Status(status) => self.retry_status(status),
+            TransientBody::CompactionProgress(progress) => self.compaction_progress(progress),
         }
     }
 
@@ -394,6 +402,7 @@ impl Watch {
                     self.seen_paths.insert("回复里有工具调用");
                 }
                 Body::ModelCalled(called) => self.model_called(called, &events, k),
+                Body::ContextCompacted(compacted) => self.compaction_appended(event, compacted),
                 Body::ToolResult(result) => {
                     assert!(
                         self.resulted.insert(result.call_id),

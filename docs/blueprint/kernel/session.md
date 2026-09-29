@@ -14,6 +14,7 @@
 | `crates/miyu-kernel/src/session/input.rs`、`action.rs` | 输入、命令；动作、结局、原因码 |
 | `crates/miyu-kernel/src/session/policy.rs`、`recent.rs` | 冻结在会话上的策略；最近接受的命令编号 |
 | `crates/miyu-kernel/src/session/turn.rs`、`call.rs`、`retry.rs` | 开回合、发请求、结束回合；收回复、记 `model.called`；出错再来 |
+| `crates/miyu-kernel/src/session/compaction.rs` | 压缩这一步：到没到线、替代到哪、发摘要请求、收回来写 `context.compacted`（`compaction.md`，施工 6-2 上） |
 | `crates/miyu-kernel/src/session/tools.rs`、`step.rs` | 这一步的调用：先查、派、收结果、补结果；每个调用走到了哪、轮到谁 |
 | `crates/miyu-kernel/src/session/queue.rs`、`interrupt.rs` | 排队的消息；打断 |
 | `crates/miyu-kernel/src/session/permission.rs` | 切权限级别、请求之前查事实 |
@@ -40,6 +41,7 @@
 | `Command(Received)` | `id` 命令编号、`by` 谁发的（取自连接）、`at` 到的时刻、`command` | 「命令和回应」 |
 | `Stored { upto }` | 落了盘的最后一条的序号 | 「命令和回应」第 8 条 |
 | `Environment(Environment)` | `offset` 时区、`cwd` 工作目录（头报的、人看到的写法）、`dirs` 加进来的目录（施工 5-10 上） | 换掉会话的环境，什么都不出；下一个边界才用 |
+| `Limits(Limits)` | `model` 发给哪个端点的哪个模型、`window` 上下文窗口、`max_output` 最大输出，没报的是 `None`（施工 6-2 上） | 换掉会话的模型限额，什么都不出；只在内存里，载入以后执行器再交一次。没交过的不主动压缩（`compaction.md` 第二条） |
 | `TurnStartHooksDone { at, turn, injected }` | 哪个回合；各模块的注入 `Injection { module, fact }`，照固定的先后 | 「回合」第 4 条 |
 | `RequestSent { at, seen, model, request }` | 哪次请求；发给了哪个端点的哪个模型（`Model { endpoint, model }`）；驱动编码以后的请求字节的哈希 | 「收回复」 |
 | `ModelDelta { at, seen, delta }` | 一段增量：`Start { index, kind }`、`Text { index, text }`、`Private { index, private }`、`End { index }` | 「收回复」 |
@@ -111,6 +113,7 @@
 | `tool_texts` | 内核替工具写的 13 句（`ToolTexts`） | `resources/core/tool-results/` |
 | `attended` | 有没有人能确认、回答 | 造会话的那个连接握手时的 `caps.input` |
 | `resumes` | 有计划的重启打断了一轮，连着接着干几次 | 3 |
+| `compaction` | 压缩用的数：`reserve_cap` 输出预留的上限、`margin` 余量、`price` 估算时一张图、一个文件各算多少；`None` 不主动压 | 20000、13000、各 2000（`miyu-policy` 的 `compose`，施工 6-2 上）；以前造的快照里没有的是 `None` |
 
 ### 怎么走
 
@@ -138,7 +141,7 @@
 | `Opening { opened }` | 开头那一批落盘到 `opened` | `RunTurnStartHooks`，到 `Hooking` |
 | `Hooking` | 回合开始的挂接点跑完 | `Ready` |
 | `Ready` | 追加过的事件都落了盘 | `CallModel`，到 `Asking` |
-| `Asking(请求)` | 执行器的三种回报 | `Settling` |
+| `Asking(请求)` | 执行器的三种回报。可能是压缩的摘要请求（`compaction.md` 第三条） | `Settling`；摘要请求取到了摘要的，回 `Ready` |
 | `Waiting { after }` | 为 `after` 那次请求的 `Woke` | `Ready` |
 | `Settling` | 只在处理一条输入的当中出现，什么输入都不收 | 结束、`Tools`，或者 `Waiting` |
 | `Tools(这一步)` | 这一步的调用都有了结果 | `Ready`，或者结束 |
@@ -147,7 +150,7 @@
 2. **事实**：环境一块（`kind` 是 `env`：这一刻到小时、时区、工作目录）、权限一块（`permission`：实际生效的那一级），`by` 是内核。和有效历史里内核记的同一类最近一块逐字节一样的，不追加。写法、比法见 `kernel/request.md`「事实」。
 3. 开头那一批落了盘，出 `RunTurnStartHooks`，一个回合一次。
 4. **挂接点跑完了**：回合对得上、正在等挂接点的才收；别的（打断以后迟到的、第二次来的、别的回合的、空闲时来的）不理。注入照交回来的先后追加成 `context.injected`，`by` 是各自的模块，`cause` 是回合的；这一轮里切过权限级别的，再查一遍事实（「切权限级别」第 6 条）。
-5. **发请求**：到了 `Ready`，追加过的事件都落了盘。拿有效历史组装；`seen` 是落了盘的最后一条；算出请求的指纹，和这个会话上一次组装的比出第一处不同（工具面、system，或者第几条消息，从 0 数起，和它的角色；上一次有、这一次少了的，从少了的那一条算），只是接着加的是 `None`。上一次的指纹只在内存里：造会话、载入以后的第一次都是 `None`（`kernel/request.md`「第一处不同」）。不是重试的，这一轮的请求数加一。急着插话的记号、排着队的清单清掉。出 `CallModel`。
+5. **发请求**：到了 `Ready`，追加过的事件都落了盘。拿有效历史组装；用量过了压缩线的，先发摘要请求（`compaction.md` 第二、三条：名字是替代到的 N，不算请求数，也记进「上一次的指纹」），这一次的主请求等压完再组装。没过线的：`seen` 是落了盘的最后一条；算出请求的指纹，和这个会话上一次组装的比出第一处不同（工具面、system，或者第几条消息，从 0 数起，和它的角色；上一次有、这一次少了的，从少了的那一条算），只是接着加的是 `None`。上一次的指纹只在内存里：造会话、载入以后的第一次都是 `None`（`kernel/request.md`「第一处不同」）。不是重试的，这一轮的请求数加一。急着插话的记号、排着队的清单清掉。出 `CallModel`。
 6. **结束回合**：追加 `turn.ended`，会话空闲；它落了盘才出 `RunTurnEndHooks`。还有排着队的，同一批接着开下一轮；重启、崩了收尾的不开（「排队的消息」）。
 
 | 结束的原因 | 什么时候 | `by` |
@@ -162,15 +165,16 @@
 **收回复**：三种回报都带着 `seen`，不是在路上的那一次的，不理。
 
 1. `RequestSent`：记下时刻、模型、请求字节的哈希。报两次的只认第一次。
-2. `ModelDelta`：还没报发出去就来了增量，按出错算：分类 `bad_stream`，原话「请求还没发出去就来了增量」。交给累积器，对不上的也按 `bad_stream` 算，原话是累积器的报错（「出错」）。出错的照下面第 3 条收拾，再出 `CancelModel`。收下的推一条 `model.delta`（`by` 是那个模型，`cause` 是回合的，`body` 是 `seen`、第几块、这一段）；私有数据收下，不推。第一段增量到的时刻记下。
+2. `ModelDelta`：摘要请求的增量照样交给累积器，不推 `model.delta`，正文块的每一段推一条 `compaction.progress`（`compaction.md` 第三条第 8 条）。还没报发出去就来了增量，按出错算：分类 `bad_stream`，原话「请求还没发出去就来了增量」。交给累积器，对不上的也按 `bad_stream` 算，原话是累积器的报错（「出错」）。出错的照下面第 3 条收拾，再出 `CancelModel`。收下的推一条 `model.delta`（`by` 是那个模型，`cause` 是回合的，`body` 是 `seen`、第几块、这一段）；私有数据收下，不推。第一段增量到的时刻记下。
 3. `ModelEnded`：
    1. 没发出去、也没带出错的，按出错算：`bad_stream`，「请求还没发出去就说完了」。没发出去的不写回复。
-   2. 发出去了的，收到的拼成回复。正常说完：每一块照收到的拼，没收全的工具调用也留下。出错：只留收全了的工具调用（和打断一样），再把工具调用全去掉。一个字都没有的正文块不要；没有字、也没有私有数据的思考块不要。工具调用编号 `call_<这条回复的序号>_<k>`，`k` 从 1 数留下的（累积器见 `kernel/request.md`）。
-   3. 拼出来一块都没有的不写回复；正常说完的，按出错算：`empty_reply`，「回复里一个块都没有」。
-   4. 有的写成 `message.assistant`：`seen` 是这次请求的，出错的多写 `"interrupted":true`，`by` 是那个模型，`cause` 是回合的。
-   5. 接着追加 `model.called`（下表），`by` 是内核，`cause` 是回合的。
-   6. 出错的：能再来就等着再来（「出错再来」），不能的结束回合，`error`。收到的半截照样留在日志里。
-   7. 正常说完的：这一步连着出错的次数清零。回复里有工具调用，调工具；没有，结束回合，`completed`。
+   2. 摘要请求不写回复：正常说完的，收到的拼好交给组装取出摘要，取到了写 `context.compacted`（`compaction.md` 第三条第 6、11 条）；调了工具的、取不出来的，按出错算，`bad_summary`，不再来。别的出错照下面第 5、6 条。
+   3. 发出去了的主请求，收到的拼成回复。正常说完：每一块照收到的拼，没收全的工具调用也留下。出错：只留收全了的工具调用（和打断一样），再把工具调用全去掉。一个字都没有的正文块不要；没有字、也没有私有数据的思考块不要。工具调用编号 `call_<这条回复的序号>_<k>`，`k` 从 1 数留下的（累积器见 `kernel/request.md`）。
+   4. 拼出来一块都没有的不写回复；正常说完的，按出错算：`empty_reply`，「回复里一个块都没有」。
+   5. 有的写成 `message.assistant`：`seen` 是这次请求的，出错的多写 `"interrupted":true`，`by` 是那个模型，`cause` 是回合的。
+   6. 接着追加 `model.called`（下表），`by` 是内核，`cause` 是回合的。
+   7. 出错的：能再来就等着再来（「出错再来」），不能的结束回合，`error`。收到的半截照样留在日志里。
+   8. 正常说完的：这一步连着出错的次数清零。回复里有工具调用，调工具；没有，结束回合，`completed`。
 
 | `model.called` 的格 | 写什么 |
 |---|---|
@@ -192,7 +196,7 @@
 4. 收到了半截、写成了回复的，后面追加一条事实 `reply_cut`（`by` 是内核，`cause` 是回合的），每次都追加，不和以前的比。
 5. 回合停在 `Waiting`，出 `Append`、一条瞬时的 `status`（`by` 是内核，`cause` 是回合的，`body` 是 `seen` 和 `retry`：第几次、上限 5、等多少毫秒、分类、原话）、`Wake`（这一刻加上要等的毫秒；超出能写的时刻，就是这一刻）。
 6. `Woke`：正在等的就是这个 `seen`，回到 `Ready`；这一轮里切过权限级别的先查一遍事实；然后照「回合」第 5 条再组装一次。别的都不理。什么都没收到、等的时候也没来别的事的，有效历史里只多了 `model.called`，默认的组装不渲染它，再来的请求和上一次一样。
-7. 再来的那一次不算进请求数。
+7. 再来的那一次不算进请求数。再来的是摘要请求的，不标「下一次是重试」：它后面那一次主请求照常算一步。
 8. 等着的时候打断，这一轮结束；有计划的重启，照重启收拾；来了消息，照排队。
 
 **调工具**：

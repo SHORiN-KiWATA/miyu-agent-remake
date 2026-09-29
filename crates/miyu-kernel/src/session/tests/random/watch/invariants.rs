@@ -24,8 +24,8 @@ impl Watch {
     }
 
     /// 3、6：请求只由日志决定。照看守记下的日志一条条过账本、重建有效历史，用同一个组装器组装，
-    /// 要和会话发出去的一字不差：载入的那条路和活着的那条路走得一样。
-    pub(super) fn request_from_log(&self, request: &Request) {
+    /// 要和会话发出去的一字不差：载入的那条路和活着的那条路走得一样。摘要请求照同一份历史截到 `seen`。
+    pub(super) fn request_from_log(&self, seen: Seq, request: &Request) {
         let mut ledger = Ledger::default();
         let mut history = History::default();
         for event in std::iter::once(self.created()).chain(self.events.iter().cloned()) {
@@ -34,9 +34,13 @@ impl Watch {
                 .unwrap_or_else(|e| panic!("种子 {}：日志过不了账本：{e}", self.seed));
             history.append(event);
         }
+        let rebuilt = match Watch::is_summary(request) {
+            true => Listing.summarize(&history, seen),
+            false => Listing.assemble(&history),
+        };
         assert_eq!(
             listed_request(request),
-            listed_request(&Listing.assemble(&history)),
+            listed_request(&rebuilt),
             "种子 {}：会话发出去的请求，和照日志重建的不一样",
             self.seed
         );

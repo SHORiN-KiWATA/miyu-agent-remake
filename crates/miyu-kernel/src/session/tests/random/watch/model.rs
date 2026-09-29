@@ -22,6 +22,13 @@ pub(super) struct Retries {
     failures: u32,
 }
 
+impl Retries {
+    /// 说完了一次：连着的次数清零。
+    pub(super) fn reset_failures(&mut self) {
+        self.failures = 0;
+    }
+}
+
 impl Watch {
     /// 一条 `model.called`：交给过执行器、只记一次；说完了的前面是它的回复；出错的，要么紧跟着出错
     /// 的回合结束，要么再来。
@@ -43,6 +50,26 @@ impl Watch {
             matches!(&event.body, Body::TurnEnded(ended)
                 if matches!(ended.reason, EndReason::Interrupted | EndReason::Restarted))
         });
+        if called.result == CallResult::Interrupted {
+            assert!(
+                interrupted_later,
+                "种子 {seed}：被打断的请求，这一批里接着是被打断（或者被重启打断）的回合结束"
+            );
+        }
+        if self.summary_seen(called.seen) {
+            self.summary_ended(called, events, k);
+        } else {
+            self.reply_ended(called, before, after);
+        }
+        self.undo_called(called);
+        if self.asking == Some(called.seen) {
+            self.asking = None;
+        }
+    }
+
+    /// 主请求的 `model.called`：说完了的前面是它的回复；出错的照重试的规矩。
+    fn reply_ended(&mut self, called: &ModelCalled, before: Option<&Body>, after: Option<&Body>) {
+        let seed = self.seed;
         match called.result {
             CallResult::Ok => {
                 self.seen_paths.insert("说完了");
@@ -54,24 +81,16 @@ impl Watch {
             }
             CallResult::Interrupted => {
                 self.seen_paths.insert("打断了请求");
-                assert!(
-                    interrupted_later,
-                    "种子 {seed}：被打断的请求，这一批里接着是被打断（或者被重启打断）的回合结束"
-                );
             }
             _ => {
                 self.seen_paths.insert("出错了");
                 self.failed(called.seen, before, after);
             }
         }
-        self.undo_called(called);
-        if self.asking == Some(called.seen) {
-            self.asking = None;
-        }
     }
 
     /// 出错的收场：紧跟着出错的回合结束的，是不再来了；不是的，是再来。
-    fn failed(&mut self, seen: Seq, before: Option<&Body>, after: Option<&Body>) {
+    pub(super) fn failed(&mut self, seen: Seq, before: Option<&Body>, after: Option<&Body>) {
         let seed = self.seed;
         let partial = match before {
             Some(Body::MessageAssistant(reply)) if reply.seen == seen => {
@@ -145,7 +164,8 @@ impl Watch {
         {
             self.seen_paths.insert("到点了接着请求");
             self.retries.waiting = None;
-            self.retries.woken = true;
+            // 再来的是摘要请求的，它后面那一次主请求照常算一步；主请求的重试标记留着，隔着一次压缩也算。
+            self.retries.woken |= !self.summary_seen(*seen);
         }
     }
 
@@ -157,6 +177,15 @@ impl Watch {
             "种子 {seed}：还在等着重试就请求了"
         );
         std::mem::take(&mut self.retries.woken)
+    }
+
+    /// 发摘要请求：等着重试的时候不请求；它不是主请求的重试，重试标记留给后面那一次主请求。
+    pub(super) fn retry_summary(&mut self) {
+        assert!(
+            self.retries.waiting.is_none() && self.retries.expecting.is_none(),
+            "种子 {}：还在等着重试就请求了",
+            self.seed
+        );
     }
 
     /// 回合结束了：在等的、连着的次数都清掉。

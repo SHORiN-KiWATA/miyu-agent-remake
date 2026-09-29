@@ -62,6 +62,7 @@ fn each_error_class_reads_into_its_own_variant() {
         ("other", ErrorClass::Unclassified),
         ("bad_stream", ErrorClass::BadStream),
         ("empty_reply", ErrorClass::EmptyReply),
+        ("bad_summary", ErrorClass::BadSummary),
         ("overloaded", ErrorClass::Other("overloaded".to_string())),
     ] {
         let body = format!(

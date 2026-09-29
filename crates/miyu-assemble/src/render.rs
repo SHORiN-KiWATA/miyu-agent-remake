@@ -39,7 +39,10 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
                 transcript.add(event.seq, before, vec![text_block(fact.text.clone())]);
             }
             Body::TurnStarted(started) => transcript.start(event.turn, started.trigger),
-            // 这一轮请求过一次了：之后注入的不再是开始时的（施工 4-9 再补三上）。它自己不进上下文。
+            // 这一轮请求过一次了：之后注入的不再是开始时的（施工 4-9 再补三上）。它自己不进上下文。压缩以前记下的
+            // 不算（施工 6-2 上）：那是被替代掉的那段的请求和摘要请求，压完的第一次主请求前缀本来就从头来，回合开头压的，
+            // 压完再注入的事实照样和触发的那句放在一起。
+            Body::ModelCalled(_) if before_checkpoint(history, event.seq) => {}
             Body::ModelCalled(_) => transcript.settle(),
             Body::TurnEnded(ended) => {
                 transcript.settle();
@@ -78,6 +81,13 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
         }
     }
     transcript.finish()
+}
+
+/// 第 `seq` 条排在检查点前面：被动压缩、回合开头压缩留下的尾巴里的，和摘要请求自己的 `model.called`。
+fn before_checkpoint(history: &History, seq: Seq) -> bool {
+    history
+        .checkpoint()
+        .is_some_and(|checkpoint| seq < checkpoint.seq)
 }
 
 /// 渲染到一半的消息，加上人这一边还没合成消息的块。

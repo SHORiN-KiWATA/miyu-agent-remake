@@ -39,6 +39,8 @@ fn texts() -> Texts {
             aborted: include_str!("../../../resources/core/turn-ended/aborted.txt").to_string(),
             restarted: include_str!("../../../resources/core/turn-ended/restarted.txt").to_string(),
         },
+        summarize_task: include_str!("../../../resources/core/compaction/summarize-task.txt")
+            .to_string(),
     }
 }
 

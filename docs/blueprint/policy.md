@@ -32,6 +32,7 @@
 | `step_limit` | 整数或 `null` | 一个回合最多请求几次模型；`null` 是不限，现在总是 `null` |
 | `attended` | 布尔 | 有没有人能确认 |
 | `resumes` | 整数 | 有计划的重启打断了一轮，再起来时连着接着干几次，现在是 3 |
+| `compaction` | 对象 | 压缩用的数：`reserve_cap` 输出预留的上限、`margin` 余量、`image`、`file` 估算时一张图、一个文件各算多少 token，现在是 20000、13000、2000、2000（施工 6-2 上）。以前造的快照里没有，读成没有；没有的不写 |
 
 **`ToolEntry`**：`name`、`description`、`parameters`（参数的 JSON Schema，原样的 JSON）、`access`（`read`、`write`、`execute`、`network`、`outbound`，不认识的原样留着），照这个先后。
 
@@ -45,6 +46,7 @@
 | `tool_results` | `unknown`、`not_an_object`、`cancelled_before`、`cancelled_running`、`skipped`、`read_only`、`denied`、`denied_with_reason`、`unattended`、`question_interrupted`、`question_voided`、`question_unattended`、`restarted`、`unavailable`、`crashed` | `tool-results/` 下，下划线换成 `-` 的同名文件 |
 | `drivers` | `image_omitted`、`file_omitted`、`no_output`、`tool_attachments`、`tool_attachments_only` | `drivers/` 下，下划线换成 `-` 的同名文件 |
 | `permissions` | `forbidden`、`unresolvable` | `permissions/forbidden.txt`、`permissions/unresolvable.txt` |
+| `compaction` | `summarize_task` | `compaction/summarize-task.txt`（施工 6-2 上）。以前造的快照里没有，读成没有；没有的不写 |
 
 **函数**：
 
@@ -71,7 +73,7 @@
 
 1. `system` 照 `26-提示词.md` 第四节的先后拼：每一块去掉末尾的空白，空的块不要，块和块之间空一行（`\n\n`）。开头的空白是人格自己写的，照留。现在只有人设这一块，所以软件工程师的 system 就是 `You are a helpful software engineer.`。
 2. `tools` 先是空的；`with_tools` 带上工具面，照名字的字节序排，稳定排序：交进来的先后不影响字节。
-3. `step_limit` 是 `null`，`resumes` 是 3，`attended` 照交进来的。
+3. `step_limit` 是 `null`，`resumes` 是 3，`attended` 照交进来的，`compaction` 是出厂的四个数。
 
 **字节和哈希**
 
@@ -97,12 +99,12 @@
 
 **造策略**（`policy()`），照这个先后查，先错的先报：
 
-1. 检查点的包装、回合没走完的五句，交给组装器（`kernel/request.md`）。
+1. 检查点的包装、回合没走完的五句、摘要指令（没有的是空的），交给组装器（`kernel/request.md`）。
 2. 工具面拆成两份，照快照里的先后：组装器的工具面（名字、说明、参数格式），内核的工具规则（名字 → 访问类别、参数格式）。两件同名的，造不出。
 3. 稳定区：工具面、`system`，示范对话是空的。
 4. 三份事实模板，造的时候试换（`kernel/request.md`）。
 5. 内核替工具写的十三句（`kernel/tools.md`）。
-6. `Policy` 的几格：`assembler`、`facts`、`tools`、`step_limit`、`tool_texts`、`attended`、`resumes`，照快照的带。
+6. `Policy` 的几格：`assembler`、`facts`、`tools`、`step_limit`、`tool_texts`、`attended`、`resumes`，照快照的带；`compaction`：快照里压缩的数和摘要指令都有的，照数带上，缺一样就是没有，不主动压。
 
 **几句模板**，造的时候拿空的字段试换一次，要了不该要的字段就报错：
 
@@ -126,7 +128,7 @@
 规范的字节，一行紧凑的 JSON（软件工程师，带两件工具，中间省略）：
 
 ```text
-{"persona":"engineer","system":"You are a helpful software engineer.","tools":[{"name":"edit","description":"…","parameters":{"type":"object"},"access":"write"},{"name":"read",…}],"core":{"checkpoint_open":"<conversation-checkpoint>\n…","checkpoint_close":…,"turn_ended":{…},"facts":{…},"tool_results":{…},"drivers":{…},"permissions":{…}},"step_limit":null,"attended":true,"resumes":3}
+{"persona":"engineer","system":"You are a helpful software engineer.","tools":[{"name":"edit","description":"…","parameters":{"type":"object"},"access":"write"},{"name":"read",…}],"core":{"checkpoint_open":"<conversation-checkpoint>\n…","checkpoint_close":…,"turn_ended":{…},"facts":{…},"tool_results":{…},"drivers":{…},"permissions":{…},"compaction":{"summarize_task":"Respond with text only. …"}},"step_limit":null,"attended":true,"resumes":3,"compaction":{"reserve_cap":20000,"margin":13000,"image":2000,"file":2000}}
 ```
 
 - blob 的位置：`home/<属主>/blobs/<哈希的前两位>/<64 位十六进制>`（`store.md`）。

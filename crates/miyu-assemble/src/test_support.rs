@@ -25,6 +25,7 @@ pub(crate) fn texts() -> Texts {
             aborted: "<aborted/>".to_string(),
             restarted: "<restarted/>".to_string(),
         },
+        summarize_task: "<summarize/>".to_string(),
     }
 }
 

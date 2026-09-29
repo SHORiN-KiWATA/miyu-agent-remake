@@ -204,6 +204,7 @@ fn undo_of_a_compacted_turn_is_refused() {
         body: Body::ContextCompacted(ContextCompacted {
             upto: seq(13),
             summary: "…".to_string(),
+            trigger: None,
         }),
     });
     let (session, _) = load(log.clone());

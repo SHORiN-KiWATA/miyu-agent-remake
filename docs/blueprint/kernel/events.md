@@ -2,7 +2,7 @@
 
 ### 是什么
 
-事件是已经发生的一件事，追加进会话的日志，一条一行 JSON，以后不改、不删；撤销、压缩也是追加一条新的。内核认识 19 种，每一种有自己的 `body`；不认识的原样留着。另有三种瞬时事件，只推给连着的头，不进日志。
+事件是已经发生的一件事，追加进会话的日志，一条一行 JSON，以后不改、不删；撤销、压缩也是追加一条新的。内核认识 19 种，每一种有自己的 `body`；不认识的原样留着。另有四种瞬时事件，只推给连着的头，不进日志。
 
 这一页写外壳、一行怎么读写、有哪些种类、瞬时事件、格式出错。每一种 `body` 的每一格见 `kernel/events-bodies.md`。
 
@@ -12,7 +12,7 @@
 |---|---|
 | `crates/miyu-kernel/src/event.rs` | 外壳 `Event`；种类表 `Body`（宏 `bodies!`，加一种只加一行）；`Body::KINDS`、`Body::kind`；一行怎么读写 |
 | `crates/miyu-kernel/src/event/session.rs`、`turn.rs`、`restore.rs`、`message.rs`、`tool.rs`、`question.rs`、`context.rs`、`model.rs`、`effect.rs` | 各种 `body`（`kernel/events-bodies.md`） |
-| `crates/miyu-kernel/src/event/transient.rs` | 瞬时事件：外壳 `Transient` 和三种 `body` |
+| `crates/miyu-kernel/src/event/transient.rs` | 瞬时事件：外壳 `Transient` 和四种 `body` |
 | `crates/miyu-kernel/src/format_error.rs` | 编号、名字、时刻写法不对时的报错 `FormatError` |
 | `docs/designs/samples/events/`、`docs/designs/samples/transient/` | 样本：每一种一份 |
 
@@ -70,11 +70,11 @@
 | 格 | 类型 | JSON 里 |
 |---|---|---|
 | `at` | 时刻 | 必有 |
-| `kind` | `model.delta`、`tool.progress`、`status` 三种之一 | 必有 |
+| `kind` | `model.delta`、`tool.progress`、`status`、`compaction.progress` 四种之一 | 必有 |
 | `turn` | 回合编号 | 没有就不写 |
 | `by` | 「谁」 | 必有 |
 | `cause` | 命令编号 | 没有就不写 |
-| `body` | 下面三种之一 | 必有 |
+| `body` | 下面四种之一 | 必有 |
 
 - `Transient::to_line()`：写成推给头的一行，不带换行。
 - 只写不读：内核只推。读回来的那一半，做到头读它们的时候再写（M8）。
@@ -84,6 +84,7 @@
 | `model.delta` | 模型输出的一段增量：`seen` 这次请求看到了第几条为止，和这次响应最后写成的回复的 `seen` 一样；`index` 第几块，从 0 数起；再加下面五种写法之一 | 模型 |
 | `tool.progress` | 工具执行中的一段输出：`call_id` 哪一次调用，`text` 一段输出。结果以 `tool.result` 为准，这些只给人看着它在跑 | 那次调用 |
 | `status` | 出了错，等着重试：`seen` 哪一次请求；`retry` 里 `attempt` 这是第几次重试（从 1 数起）、`limit` 一共最多几次（现在是 5，`kernel/session.md`）、`wait_ms` 等多久（毫秒）、`class` 出错的分类、`message` 出错的原话 | 内核 |
+| `compaction.progress` | 摘要写到哪了（施工 6-2 上）：`seen` 哪一次摘要请求（它替代到的那一条）、`written` 到这时收到的正文字数（草稿加摘要，照 Unicode 字符数）、`expected` 估计要写多少字（压缩前的用量，夹在 20000 到 80000 之间） | 内核 |
 
 `model.delta` 的那一段增量：
 
@@ -124,13 +125,14 @@
 15. `model.delta`：驱动交来的增量，照收到的先后一段推一条。私有数据不推；对不上的（累积器不收的）不推，这次请求按出错算（`kernel/session.md`）。`index` 是驱动给的块编号，`seen` 是这次请求的。
 16. `tool.progress` 只推在跑的调用的；不是这一步在跑的，不推（`kernel/session.md`）。
 17. `status` 在一次请求出了可以重试的错、要等一会儿再试时推一条（`kernel/session.md`）。
+18. `compaction.progress` 在摘要请求的正文块每来一段时推一条；摘要请求不推 `model.delta`（`compaction.md` 第三条第 8 条）。
 
 ### 样子
 
 一条事件的样子，就是日志里的那一行。样本：
 
 - `docs/designs/samples/events/<种类>.jsonl`：内核认识的每一种一份，文件名是种类名加 `.jsonl`。内容就是日志里的那几行，这一种在样本会话里出现几次就写几行，以一个换行结尾，没有空行。几份样本讲的是同一个会话：序号不重复，时刻跟着序号不往回走。
-- `docs/designs/samples/transient/model.delta.jsonl`、`tool.progress.jsonl`、`status.jsonl`：样本会话里 44 号请求的回复一段段推给头的样子、那次 `read` 执行中的一段输出、44 号请求出了限速的错等 1 秒再试。瞬时事件内核不读，测试在代码里照着造，写出去和样本一字不差。
+- `docs/designs/samples/transient/model.delta.jsonl`、`tool.progress.jsonl`、`status.jsonl`、`compaction.progress.jsonl`：样本会话里 44 号请求的回复一段段推给头的样子、那次 `read` 执行中的一段输出、44 号请求出了限速的错等 1 秒再试、54 号压缩写摘要时的两段进度。瞬时事件内核不读，测试在代码里照着造，写出去和样本一字不差。
 
 ### 出错
 

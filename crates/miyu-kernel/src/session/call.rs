@@ -6,12 +6,13 @@
 
 use super::Session;
 use super::action::Action;
+use super::compaction::Compacting;
 use super::turn::Stage;
 use crate::accumulate::{Accumulator, Delta};
 use crate::block::{Block, ToolCall};
 use crate::event::{
-    Body, CallError, CallResult, EndReason, ErrorClass, Event, FirstDifference, MessageAssistant,
-    ModelCalled, ModelDelta, Piece, Transient, TransientBody, Usage,
+    Body, CallError, CallResult, CompactionProgress, EndReason, ErrorClass, Event, FirstDifference,
+    MessageAssistant, ModelCalled, ModelDelta, Piece, Transient, TransientBody, Usage,
 };
 use crate::id::{CommandId, ContentHash, Seq};
 use crate::origin::{By, Model};
@@ -33,6 +34,8 @@ pub(super) struct Call {
     first_token: Option<Timestamp>,
     /// 收到的增量。
     accumulator: Accumulator,
+    /// 这是压缩的摘要请求：替代到哪、进度（施工 6-2 上）。主请求没有。
+    compaction: Option<Compacting>,
 }
 
 /// 请求发出去时，执行器报来的。
@@ -56,16 +59,30 @@ impl Call {
             sent: None,
             first_token: None,
             accumulator: Accumulator::default(),
+            compaction: None,
         }
     }
 
-    /// 收一段增量，返回要推给头的那一段：私有数据不推。还没发出去就来了增量、增量对不上，
-    /// 都是出错。
+    /// 这一次是压缩的摘要请求。
+    pub(super) fn compacting(mut self, compacting: Compacting) -> Call {
+        self.compaction = Some(compacting);
+        self
+    }
+
+    /// 收一段增量，返回要推给头的那一段：私有数据不推；摘要请求推进度，正文以外的不推。还没发出去就来了增量、
+    /// 增量对不上，都是出错。
     fn take(&mut self, at: Timestamp, delta: Delta) -> Result<Option<Pushed>, CallError> {
         let Some(model) = self.sent.as_ref().map(|sent| sent.model.clone()) else {
             return Err(bad_stream("请求还没发出去就来了增量".to_string()));
         };
         self.first_token.get_or_insert(at);
+        if let Some(compacting) = self.compaction.as_mut() {
+            let progress = compacting.take(&delta);
+            self.accumulator
+                .apply(delta)
+                .map_err(|error| bad_stream(error.to_string()))?;
+            return Ok(progress.map(Pushed::Progress));
+        }
         let piece = match &delta {
             Delta::Start { index, kind } => Some((*index, Piece::Start(kind.clone()))),
             Delta::Text { index, text } => Some((*index, Piece::Text(text.clone()))),
@@ -75,7 +92,7 @@ impl Call {
         self.accumulator
             .apply(delta)
             .map_err(|error| bad_stream(error.to_string()))?;
-        Ok(piece.map(|(index, piece)| Pushed {
+        Ok(piece.map(|(index, piece)| Pushed::Delta {
             by: By::Model(model),
             index,
             piece,
@@ -94,19 +111,20 @@ enum Ending {
     CutOff,
 }
 
-/// 一次请求收拾完：追加的事件、写成的回复是第几条、回复里的调用、出错的分类和原话。
+/// 一次请求收拾完：追加的事件、写成的回复是第几条、回复里的调用、出错的分类和原话；摘要请求取到的摘要和它替代到
+/// 哪。
 struct Settled {
     events: Vec<Event>,
     reply: Option<Seq>,
     calls: Vec<ToolCall>,
     error: Option<CallError>,
+    summary: Option<(Seq, String)>,
 }
 
-/// 要推给头的一段增量，和它的 `by`：那个模型。
-struct Pushed {
-    by: By,
-    index: usize,
-    piece: Piece,
+/// 要推给头的：主请求的一段增量，和它的 `by`，那个模型；摘要请求的进度。
+enum Pushed {
+    Delta { by: By, index: usize, piece: Piece },
+    Progress(CompactionProgress),
 }
 
 impl Session {
@@ -141,13 +159,21 @@ impl Session {
         }
         match call.take(at, delta) {
             Ok(None) => Vec::new(),
-            Ok(Some(Pushed { by, index, piece })) => vec![Action::PushTransient(Transient {
+            Ok(Some(Pushed::Delta { by, index, piece })) => {
+                vec![Action::PushTransient(Transient {
+                    at,
+                    turn: Some(id),
+                    by,
+                    cause,
+                    body: TransientBody::ModelDelta(ModelDelta { seen, index, piece }),
+                })]
+            }
+            Ok(Some(Pushed::Progress(progress))) => vec![Action::PushTransient(Session::progress(
                 at,
-                turn: Some(id),
-                by,
+                Some(id),
                 cause,
-                body: TransientBody::ModelDelta(ModelDelta { seen, index, piece }),
-            })],
+                progress,
+            ))],
             Err(error) => {
                 let mut actions = self.model_ended(at, seen, None, Some(error), None);
                 actions.push(Action::CancelModel { seen });
@@ -170,10 +196,15 @@ impl Session {
         let Some((call, cause)) = self.take_call(seen) else {
             return Vec::new();
         };
+        let compacting = call.compaction.is_some();
         let settled = self.settle(at, call, cause.clone(), Ending::Said { usage, error });
         let mut events = settled.events;
         if let Some(error) = settled.error {
             if let Some(wait) = self.retry_wait(&error, wait_ms) {
+                // 再来的是摘要请求，不标「下一次是重试」：它后面那一次主请求照常算一步。
+                if let Some(turn) = self.turn.as_mut() {
+                    turn.retrying |= !compacting;
+                }
                 let cut = settled.reply.is_some();
                 return self.wait_to_retry(at, seen, cause, events, cut, error, wait);
             }
@@ -182,6 +213,10 @@ impl Session {
         }
         if let Some(turn) = self.turn.as_mut() {
             turn.retries = 0;
+        }
+        if let Some((upto, summary)) = settled.summary {
+            events.extend(self.compacted(at, upto, summary, cause));
+            return vec![Action::Append(events)];
         }
         match settled.reply {
             Some(reply) if !settled.calls.is_empty() => {
@@ -219,6 +254,7 @@ impl Session {
             sent,
             first_token,
             accumulator,
+            compaction,
         } = call;
         let (usage, mut error, cut) = match ending {
             Ending::Said { usage, error } => (usage, error, false),
@@ -227,9 +263,21 @@ impl Session {
         let mut events = Vec::new();
         let mut reply = None;
         let mut calls = Vec::new();
+        let mut summary = None;
         match &sent {
             None if !cut && error.is_none() => {
                 error = Some(bad_stream("请求还没发出去就说完了".to_string()));
+            }
+            // 摘要请求不写回复，说完了的取出摘要（施工 6-2 上）。
+            Some(_) if compaction.is_some() => {
+                let upto = compaction.as_ref().map(Compacting::upto);
+                if let Some(upto) = upto.filter(|_| !cut && error.is_none()) {
+                    let blocks = accumulator.finish(self.ledger.next_seq());
+                    match self.summary_of(&blocks) {
+                        Ok(text) => summary = Some((upto, text)),
+                        Err(bad) => error = Some(bad),
+                    }
+                }
             }
             Some(sent) => {
                 let seq = self.ledger.next_seq();
@@ -300,7 +348,35 @@ impl Session {
             reply,
             calls,
             error,
+            summary,
         }
+    }
+
+    /// 摘要请求的回复里取出摘要：一个块都没有的，照回复是空的算，可以重试；调了工具的、取不出来的，是
+    /// `bad_summary`（`compaction.md` 第三条第 6、7 条）。
+    fn summary_of(&self, blocks: &[Block]) -> Result<String, CallError> {
+        if blocks.is_empty() {
+            return Err(CallError {
+                class: ErrorClass::EmptyReply,
+                message: "回复里一个块都没有".to_string(),
+            });
+        }
+        if blocks
+            .iter()
+            .any(|block| matches!(block, Block::ToolCall(_)))
+        {
+            return Err(CallError {
+                class: ErrorClass::BadSummary,
+                message: "the summary reply called a tool".to_string(),
+            });
+        }
+        self.policy
+            .assembler
+            .summary(blocks)
+            .ok_or_else(|| CallError {
+                class: ErrorClass::BadSummary,
+                message: "no summary in the reply".to_string(),
+            })
     }
 
     /// 在路上、名字是 `seen` 的那次请求。

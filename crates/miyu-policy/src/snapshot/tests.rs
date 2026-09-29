@@ -24,7 +24,7 @@ fn the_same_sources_give_the_same_bytes_and_they_read_back() {
     let text = String::from_utf8(one.to_bytes()).unwrap();
     assert!(text.starts_with(r#"{"persona":"engineer","system":"You are a helpful software engineer.","core":{"checkpoint_open":"#), "{text}");
     assert!(
-        text.ends_with(r#""step_limit":null,"attended":true,"resumes":3}"#),
+        text.ends_with(r#""step_limit":null,"attended":true,"resumes":3,"compaction":{"reserve_cap":20000,"margin":13000,"image":2000,"file":2000}}"#),
         "{text}"
     );
     // 改一个字，哈希就变了。
@@ -135,4 +135,36 @@ fn each_driver_placeholder_is_its_own() {
             .file_omitted("a.pdf", "application/pdf")
             .contains("a.pdf")
     );
+}
+
+/// 压缩（施工 6-2 上）：出厂的快照带着压缩的数和摘要指令，造出的策略会主动压；以前造的快照没有这两格，读回来照旧，
+/// 字节不变，造出的策略不主动压；缺一样也不压。
+#[test]
+fn compaction_comes_with_new_snapshots_and_old_ones_read_back_without_it() {
+    let snapshot = engineer();
+    let compaction = snapshot.policy().unwrap().compaction.unwrap();
+    assert_eq!(
+        (compaction.reserve_cap, compaction.margin),
+        (20_000, 13_000)
+    );
+    assert_eq!(
+        (compaction.price.image, compaction.price.file),
+        (2000, 2000)
+    );
+    let mut old = snapshot.clone();
+    old.compaction = None;
+    old.core.compaction = None;
+    let bytes = String::from_utf8(old.to_bytes()).unwrap();
+    assert!(!bytes.contains("compaction"), "没有的不写：{bytes}");
+    assert_eq!(
+        Snapshot::from_bytes(old.to_bytes().as_slice()),
+        Ok(old.clone())
+    );
+    assert!(old.policy().unwrap().compaction.is_none());
+    let mut no_text = snapshot.clone();
+    no_text.core.compaction = None;
+    assert!(no_text.policy().unwrap().compaction.is_none());
+    let mut no_numbers = snapshot;
+    no_numbers.compaction = None;
+    assert!(no_numbers.policy().unwrap().compaction.is_none());
 }

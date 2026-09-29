@@ -12,8 +12,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use miyu_policy::{
-    CoreTexts, DriverPlaceholders, FactTexts, PermissionTexts, PersonaTexts, Sources,
-    ToolResultTexts, TurnEndedTexts,
+    CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts, PermissionTexts, PersonaTexts,
+    Sources, ToolResultTexts, TurnEndedTexts,
 };
 
 use crate::env::Env;
@@ -208,6 +208,9 @@ impl ResourceRoot {
                 tool_attachments: driver("tool-attachments.txt")?,
                 tool_attachments_only: driver("tool-attachments-only.txt")?,
             },
+            compaction: Some(CompactionTexts {
+                summarize_task: core(&["compaction", "summarize-task.txt"])?,
+            }),
         })
     }
 

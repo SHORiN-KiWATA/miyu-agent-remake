@@ -13,6 +13,7 @@ mod respond;
 mod script;
 mod stage;
 
+pub use respond::model;
 pub use script::{Line, Play};
 pub use stage::Stage;
 

@@ -10,6 +10,7 @@
 mod action;
 mod approval;
 mod call;
+mod compaction;
 mod input;
 mod interrupt;
 mod load;
@@ -27,9 +28,9 @@ mod tools;
 mod turn;
 
 pub use action::{Action, Outcome, Reason};
-pub use input::{Answer, Command, Injection, Input, Queued, Received, Verdict};
+pub use input::{Answer, Command, Injection, Input, Limits, Queued, Received, Verdict};
 pub use load::LoadError;
-pub use policy::Policy;
+pub use policy::{Compaction, Policy};
 pub use restore::{Expect, Step, StepAction};
 
 use crate::event::{Body, Event, MessageUser, Permission, SessionCreated, ToolResult, ToolStatus};
@@ -75,6 +76,8 @@ pub struct Session {
     closing: Vec<(TurnId, Seq)>,
     /// 撤销、恢复以后正在改回文件（施工 4-7 上）：交出去了，结局还没回来。
     restoring: Option<Restoring>,
+    /// 模型的限额，执行器交来的；没交过的不主动压缩（施工 6-2 上）。只在内存里。
+    limits: Option<Limits>,
 }
 
 impl Session {
@@ -109,6 +112,7 @@ impl Session {
             last_request: None,
             closing: Vec::new(),
             restoring: None,
+            limits: None,
         };
         let event = session.record(at, by, Some(id.clone()), Body::SessionCreated(created));
         session.accept(id, vec![event.seq]);
@@ -132,6 +136,10 @@ impl Session {
             Input::Stored { upto } => self.stored(upto),
             Input::Environment(environment) => {
                 self.environment = environment;
+                Vec::new()
+            }
+            Input::Limits(limits) => {
+                self.limits = Some(limits);
                 Vec::new()
             }
             Input::TurnStartHooksDone { at, turn, injected } => {

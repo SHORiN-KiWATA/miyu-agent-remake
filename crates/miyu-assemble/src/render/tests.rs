@@ -360,3 +360,58 @@ fn an_early_trigger_stays_put_when_its_turn_fails() {
         "user: <step-limit/> | 顺便看看 README | <error/> | 再试一次"
     );
 }
+
+/// 回合开头压缩（施工 6-2 上）：摘要请求的 `model.called` 在检查点前面，不算这一轮请求过；压完再注入的事实照样和
+/// 触发的那句放在一起，压完的第一次请求最后一块照旧是触发它的那句。
+#[test]
+fn facts_injected_after_a_compaction_at_the_start_of_a_turn_go_before_the_trigger() {
+    let mut log = Log::new();
+    let hi = log.say("hi");
+    log.start(hi);
+    log.fact("<env/>");
+    log.reply(&format!("[{}]", text_json("好。")));
+    log.end("completed");
+    let again = log.say("再说");
+    log.start(again);
+    let upto = again - 1;
+    log.push(
+        KERNEL,
+        "model.called",
+        &format!(r#"{{"seen":{upto},"messages":3,"result":"ok"}}"#),
+    );
+    log.compact(upto, "S");
+    log.fact("<env again/>");
+    assert_eq!(
+        rendered(&log),
+        ["user: <checkpoint>\nS\n</checkpoint>\n | <env again/> | 再说"]
+    );
+}
+
+/// 回合中途压缩：压完的请求里没有触发的那句，事实照先后排在检查点后面；压完以后再请求过，之后注入的照先后。
+#[test]
+fn facts_after_a_compaction_in_the_middle_of_a_turn_keep_their_order() {
+    let mut log = Log::new();
+    let hi = log.say("hi");
+    log.start(hi);
+    let call = log.reply_calling("我看看");
+    log.result(&call, "ok", "lib.rs");
+    let upto = log.next() - 1;
+    log.push(
+        KERNEL,
+        "model.called",
+        &format!(r#"{{"seen":{upto},"messages":3,"result":"ok"}}"#),
+    );
+    log.compact(upto, "S");
+    log.fact("<env/>");
+    let seen = log.next() - 1;
+    log.push(
+        KERNEL,
+        "model.called",
+        &format!(r#"{{"seen":{seen},"messages":1,"result":"error","error":{{"class":"retryable","message":"503"}}}}"#),
+    );
+    log.fact("<permission/>");
+    assert_eq!(
+        rendered(&log),
+        ["user: <checkpoint>\nS\n</checkpoint>\n | <env/> | <permission/>"]
+    );
+}

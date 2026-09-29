@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use crate::assemble::Assembler;
+use crate::estimate::Flat;
 use crate::facts::FactTemplates;
 use crate::tool::{ToolRule, ToolTexts};
 
@@ -26,6 +27,19 @@ pub struct Policy {
     /// 有计划的重启打断了一轮，再起来时连着接着干几次；接够了还被打断，就等人开口（`02-内核.md`
     /// 第六节「载入、崩溃、重启」第 4 条，初值 3）。
     pub resumes: u32,
+    /// 压缩用的数；没有的不主动压（`compaction.md`，施工 6-2 上）。
+    pub compaction: Option<Compaction>,
+}
+
+/// 压缩用的数（`compaction.md`「对外的样子」的策略数据）。数值是数据，放在策略快照里。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Compaction {
+    /// 输出预留的上限：输出预留 = min(模型的最大输出, 它)。出厂 20000。
+    pub reserve_cap: u64,
+    /// 余量：压缩线离「放不下」还空多少。出厂 13000。
+    pub margin: u64,
+    /// 本地估算时一张图、一个文件各算多少 token。出厂各 2000。
+    pub price: Flat,
 }
 
 /// 组装器是外面交进来的，不一定能打印，跳过它。
@@ -38,6 +52,7 @@ impl fmt::Debug for Policy {
             .field("tool_texts", &self.tool_texts)
             .field("attended", &self.attended)
             .field("resumes", &self.resumes)
+            .field("compaction", &self.compaction)
             .finish_non_exhaustive()
     }
 }

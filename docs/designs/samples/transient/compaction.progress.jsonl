@@ -1,0 +1,2 @@
+{"at":"2026-09-25T07:29:58.400Z","kind":"compaction.progress","by":{"kind":"kernel"},"cause":"cmd-b5e2","body":{"seen":53,"written":412,"expected":20000}}
+{"at":"2026-09-25T07:29:59.100Z","kind":"compaction.progress","by":{"kind":"kernel"},"cause":"cmd-b5e2","body":{"seen":53,"written":957,"expected":20000}}

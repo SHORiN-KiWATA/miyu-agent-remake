@@ -6,10 +6,11 @@ use std::fmt;
 
 use miyu_assemble::{DefaultAssembler, Stable, Texts};
 use miyu_drivers::{DriverTextSources, DriverTexts};
+use miyu_kernel::estimate::Flat;
 use miyu_kernel::event::{Permission, SessionCreated};
 use miyu_kernel::facts::FactTemplates;
 use miyu_kernel::id::{AccountId, ContentHash, VenueId};
-use miyu_kernel::session::Policy;
+use miyu_kernel::session::{Compaction, Policy};
 use miyu_kernel::template::TemplateError;
 use miyu_kernel::tool::{ToolTextSources, ToolTexts};
 use serde::{Deserialize, Serialize};
@@ -35,6 +36,22 @@ pub struct Snapshot {
     pub attended: bool,
     /// 有计划的重启打断了一轮，再起来时连着接着干几次（`02-内核.md` 第六节「载入、崩溃、重启」）。
     pub resumes: u32,
+    /// 压缩用的数（施工 6-2 上）。以前造的快照里没有，读成没有：那些会话不主动压。没有的不写，旧快照的字节不变。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compaction: Option<CompactionNumbers>,
+}
+
+/// 压缩用的数（`compaction.md`「对外的样子」的策略数据）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompactionNumbers {
+    /// 输出预留的上限。
+    pub reserve_cap: u64,
+    /// 余量。
+    pub margin: u64,
+    /// 本地估算时一张图算多少 token。
+    pub image: u64,
+    /// 本地估算时一个文件算多少 token。
+    pub file: u64,
 }
 
 /// 随核心附带的字（`resources/core/`），原文照抄，行尾的换行也算（`26-提示词.md` 第八节）。
@@ -57,6 +74,16 @@ pub struct CoreTexts {
     /// 的会话没有工具，用不到它们。
     #[serde(default)]
     pub permissions: PermissionTexts,
+    /// 压缩的几句（`compaction/`，施工 6-2 上）。以前造的快照里没有，读成没有，那些会话不主动压；没有的不写。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compaction: Option<CompactionTexts>,
+}
+
+/// 压缩的几句（施工 6-2 上）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompactionTexts {
+    /// 摘要指令（`summarize-task.txt`）。
+    pub summarize_task: String,
 }
 
 /// 权限策略拒绝时写给她的两句（施工 4-3 下）。
@@ -245,6 +272,11 @@ impl Snapshot {
                 aborted: ended.aborted.clone(),
                 restarted: ended.restarted.clone(),
             },
+            summarize_task: core
+                .compaction
+                .as_ref()
+                .map(|compaction| compaction.summarize_task.clone())
+                .unwrap_or_default(),
         };
         let (face, rules) = tools::split(&self.tools)?;
         let stable = Stable {
@@ -269,6 +301,21 @@ impl Snapshot {
             tool_texts: self.tool_texts()?,
             attended: self.attended,
             resumes: self.resumes,
+            compaction: self.compaction(),
+        })
+    }
+
+    /// 压缩的数和摘要指令都有，才主动压。
+    fn compaction(&self) -> Option<Compaction> {
+        let numbers = self.compaction?;
+        self.core.compaction.as_ref()?;
+        Some(Compaction {
+            reserve_cap: numbers.reserve_cap,
+            margin: numbers.margin,
+            price: Flat {
+                image: numbers.image,
+                file: numbers.file,
+            },
         })
     }
 

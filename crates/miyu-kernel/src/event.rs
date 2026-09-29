@@ -22,7 +22,7 @@ mod tool;
 mod transient;
 mod turn;
 
-pub use context::{ContextCompacted, ContextInjected};
+pub use context::{CompactTrigger, ContextCompacted, ContextInjected};
 pub use effect::{Effect, FileChanged, FileRead, FileTrashed};
 pub use message::{MessageAssistant, MessageUser, MessageWithdrawn};
 pub use model::{
@@ -32,7 +32,9 @@ pub use question::{Choice, Question, QuestionAnswered, QuestionAsked, Response, 
 pub use restore::{FilesRestored, RestoreAction, RestoreOutcome, Restored};
 pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated};
 pub use tool::{ApprovalDecided, ApprovalRequested, Decision, Said, ToolResult, ToolStatus};
-pub use transient::{ModelDelta, Piece, Retry, Status, ToolProgress, Transient, TransientBody};
+pub use transient::{
+    CompactionProgress, ModelDelta, Piece, Retry, Status, ToolProgress, Transient, TransientBody,
+};
 pub use turn::{EndReason, TurnEnded, TurnReverted, TurnStarted, TurnUnreverted};
 
 /// 一条事件：已经发生的一件事。追加进日志以后不改、不删；撤销和压缩也是追加一条新事件

@@ -132,7 +132,7 @@ pub struct CallError {
 }
 
 text_enum!(
-    /// 出错的分类：驱动分的六种（`05-内核接口.md` 第七节），加上内核自己查出来的两种。
+    /// 出错的分类：驱动分的六种（`05-内核接口.md` 第七节），加上内核自己查出来的三种。
     ErrorClass {
         /// 可重试。
         Retryable = "retryable",
@@ -150,6 +150,8 @@ text_enum!(
         BadStream = "bad_stream",
         /// 回复里一个块都没有。
         EmptyReply = "empty_reply",
+        /// 摘要请求的回复里取不出摘要：是空的，或者调了工具（`compaction.md` 第三条第 6、7 条）。
+        BadSummary = "bad_summary",
     }
 );
 

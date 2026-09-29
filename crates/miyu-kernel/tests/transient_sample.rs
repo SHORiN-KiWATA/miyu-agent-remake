@@ -4,7 +4,8 @@
 //! - 代码里造出同样的几条，写出去和样本一字不差；
 //! - 这几段增量交给累积器，拼出来的就是样本里 45 号回复的内容块：推给头的和写进日志的对得上；
 //! - 45 号回复里那次 `read` 执行中的一段输出（`tool.progress`）；
-//! - 44 号请求出了限速的错，等 1 秒再来的状态（`status`，施工 3-5 下）。
+//! - 44 号请求出了限速的错，等 1 秒再来的状态（`status`，施工 3-5 下）；
+//! - 54 号压缩写摘要时的两段进度（`compaction.progress`，施工 6-2 上）。
 //!
 //! 瞬时事件内核只推不读，所以样本在代码里照着造，不从文件读回来。
 
@@ -13,8 +14,8 @@ use std::path::PathBuf;
 
 use miyu_kernel::accumulate::{Accumulator, Delta, Kind};
 use miyu_kernel::event::{
-    Body, ErrorClass, Event, ModelDelta, Piece, Retry, Status, ToolProgress, Transient,
-    TransientBody,
+    Body, CompactionProgress, ErrorClass, Event, ModelDelta, Piece, Retry, Status, ToolProgress,
+    Transient, TransientBody,
 };
 use miyu_kernel::id::{CallId, CommandId, ModelName, ProviderId, Seq, TurnId};
 use miyu_kernel::origin::{By, Model, Tool};
@@ -165,4 +166,29 @@ fn the_status_sample_is_written_exactly() {
         }),
     };
     assert_eq!(lines("transient/status.jsonl"), [status.to_line()]);
+}
+
+#[test]
+fn the_compaction_progress_sample_is_written_exactly() {
+    let progress = |at: &str, written: u64| {
+        Transient {
+            at: Timestamp::parse(at).expect("样本的时刻合写法"),
+            turn: None,
+            by: By::Kernel,
+            cause: Some(CommandId::parse("cmd-b5e2").expect("命令编号合写法")),
+            body: TransientBody::CompactionProgress(CompactionProgress {
+                seen: Seq::new(53).expect("53 是合法的序号"),
+                written,
+                expected: 20000,
+            }),
+        }
+        .to_line()
+    };
+    assert_eq!(
+        lines("transient/compaction.progress.jsonl"),
+        [
+            progress("2026-09-25T07:29:58.400Z", 412),
+            progress("2026-09-25T07:29:59.100Z", 957),
+        ]
+    );
 }
