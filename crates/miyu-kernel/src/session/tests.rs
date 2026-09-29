@@ -8,9 +8,11 @@
 
 mod approval;
 mod difference;
+mod dirs;
 mod executor;
 mod idle;
 mod interrupt;
+mod listing;
 mod load;
 mod permission;
 mod question;
@@ -35,6 +37,7 @@ use crate::facts::FactTemplates;
 use crate::request::{Message, Request};
 use crate::time::UtcOffset;
 use crate::tool::{Access, ToolRule, ToolTextSources, ToolTexts};
+use listing::*;
 
 const CREATED: &str = r#"{"owner":"alice","venue":"local","policy":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","permission":{"level":"workspace","read_only":false}}"#;
 
@@ -116,62 +119,6 @@ fn accepted_reply(n: u64, events: &[u64]) -> Action {
             events: seqs(events),
         },
     }
-}
-
-/// 替身的组装：有效历史里每条事件一条 user 消息，写着序号和种类。测的是会话什么时候、
-/// 拿哪一段历史组装，和怎么组装无关。历史只往后加，请求也只往后加。
-struct Listing;
-
-impl Assembler for Listing {
-    fn assemble(&self, history: &History) -> Request {
-        let messages = history
-            .events()
-            .iter()
-            .map(|event| Message::User {
-                blocks: vec![Block::Text(Text {
-                    text: format!("{} {}", event.seq, event.body.kind()),
-                })],
-            })
-            .collect();
-        Request {
-            tools: Vec::new(),
-            system: "listing".to_string(),
-            messages,
-            stable: 0,
-            continuation: false,
-        }
-    }
-}
-
-/// 这几条事件，一条一行：序号和种类。
-fn listing(events: &[Event]) -> String {
-    events
-        .iter()
-        .map(|event| format!("{} {}\n", event.seq, event.body.kind()))
-        .collect()
-}
-
-/// 替身的组装出来的请求，照 [`listing`] 的样子一条一行。
-fn listed_request(request: &Request) -> String {
-    request
-        .messages
-        .iter()
-        .map(|message| match message {
-            Message::User { blocks } => match blocks.as_slice() {
-                [Block::Text(text)] => format!("{}\n", text.text),
-                other => panic!("替身的组装一条消息只有一块字：{other:?}"),
-            },
-            other => panic!("替身的组装只出 user 消息：{other:?}"),
-        })
-        .collect()
-}
-
-/// 替身的组装把这几条列出来的样子：序号和种类，一条一行。
-fn listed(events: &[(u64, &str)]) -> String {
-    events
-        .iter()
-        .map(|(seq, kind)| format!("{seq} {kind}\n"))
-        .collect()
 }
 
 /// 空闲时的第一条消息是 2 号，它开的回合是 3 号。
@@ -274,6 +221,7 @@ fn policy() -> Policy {
         .unwrap(),
         attended: true,
         resumes: 3,
+        compaction: None,
     }
 }
 
@@ -282,6 +230,7 @@ fn environment(cwd: &str) -> Environment {
     Environment {
         offset: UtcOffset::from_minutes(540).unwrap(),
         cwd: cwd.to_string(),
+        dirs: Vec::new(),
     }
 }
 

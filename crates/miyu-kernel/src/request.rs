@@ -189,7 +189,7 @@ impl Fingerprint {
 
 /// 写成紧凑的 JSON。请求里只有字符串、数字、布尔、原样的 JSON 和结构体，
 /// 没有非字符串的键，也没有会报错的 `Serialize`，所以写不出来是不可能的。
-fn json(value: &impl Serialize) -> Vec<u8> {
+pub(crate) fn json(value: &impl Serialize) -> Vec<u8> {
     serde_json::to_vec(value).expect("请求里没有写不成 JSON 的东西")
 }
 

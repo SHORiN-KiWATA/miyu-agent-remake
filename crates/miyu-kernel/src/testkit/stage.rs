@@ -14,7 +14,8 @@ use crate::id::{CallId, CommandId, Seq, TurnId};
 use crate::origin::By;
 use crate::request::Request;
 use crate::session::{
-    Action, Answer, Command, Injection, Input, Outcome, Policy, Queued, Received, Session, Verdict,
+    Action, Answer, Command, Injection, Input, Limits, Outcome, Policy, Queued, Received, Session,
+    Verdict,
 };
 use crate::time::Timestamp;
 
@@ -34,6 +35,8 @@ pub struct Stage {
     pub(super) log: Vec<Event>,
     /// 交给驱动的每一次请求，照先后：看到了第几条为止，和请求本身。
     pub(super) requests: Vec<(Seq, Request)>,
+    /// 每一次请求交给驱动时，「磁盘」上的最后一条（施工 6-2 下）：摘要请求看到的比它早。
+    pub(super) marks: Vec<Seq>,
     /// 每一次回应，照先后。
     pub(super) replies: Vec<(CommandId, Outcome)>,
     /// 推给头的瞬时事件。
@@ -59,6 +62,10 @@ pub struct Stage {
     pub(super) next: u64,
     /// 人的动作都是 alice 的。
     pub(super) by: By,
+    /// 交过的模型限额：重启、崩了再载入以后再交一次（施工 6-2 上）。
+    pub(super) limits: Option<Limits>,
+    /// 摘要请求怎么回：最后一块是这段摘要指令的请求，一律照这一句回，不占剧本（施工 6-2 上）。
+    pub(super) summaries: Option<(String, Line)>,
 }
 
 impl Stage {
@@ -90,6 +97,7 @@ impl Stage {
             environment,
             log: Vec::new(),
             requests: Vec::new(),
+            marks: Vec::new(),
             replies: Vec::new(),
             transients: Vec::new(),
             ran: Vec::new(),
@@ -105,6 +113,8 @@ impl Stage {
             now,
             next: 1,
             by,
+            limits: None,
+            summaries: None,
         };
         stage.settle(actions);
         stage
@@ -188,6 +198,23 @@ impl Stage {
     /// 恢复最近一次撤销。
     pub fn unrevert(&mut self) -> CommandId {
         self.command(Command::Unrevert)
+    }
+
+    /// 交模型限额：替身的模型，窗口和最大输出照给的（施工 6-2 上）。
+    pub fn limits(&mut self, window: Option<u64>, max_output: Option<u64>) {
+        let limits = Limits {
+            model: super::respond::model(),
+            window,
+            max_output,
+        };
+        self.limits = Some(limits.clone());
+        self.run(Input::Limits(limits));
+    }
+
+    /// 从现在起，最后一块是 `instruction` 的请求是摘要请求，一律照 `line` 回，不占剧本：随机的剧本事先不知道哪一次
+    /// 会压（施工 6-2 上）。
+    pub fn summarize_with(&mut self, instruction: &str, line: Line) {
+        self.summaries = Some((instruction.to_string(), line));
     }
 
     /// 工作目录换成 `cwd`。
@@ -320,6 +347,7 @@ impl Stage {
             body: Body::ContextCompacted(ContextCompacted {
                 upto,
                 summary: summary.to_string(),
+                trigger: None,
             }),
         });
         self.reload();
@@ -333,6 +361,12 @@ impl Stage {
     /// 交给驱动的每一次请求，照先后：看到了第几条为止，和请求本身。
     pub fn requests(&self) -> &[(Seq, Request)] {
         &self.requests
+    }
+
+    /// 每一次请求交给驱动时「磁盘」上的最后一条，和 [`Stage::requests`] 一一对应。主请求就是它的 `seen`；压缩的摘要
+    /// 请求看到的比它早（施工 6-2 下）。
+    pub fn marks(&self) -> &[Seq] {
+        &self.marks
     }
 
     /// 推给头的瞬时事件，照先后。
@@ -431,6 +465,9 @@ impl Stage {
         )
         .unwrap_or_else(|e| panic!("替身的「磁盘」载入不了：{e}"));
         self.session = session;
+        if let Some(limits) = self.limits.clone() {
+            self.session.handle(Input::Limits(limits));
+        }
         self.settle(actions);
     }
 

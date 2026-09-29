@@ -6,13 +6,14 @@
 //! 2. 拿单实例锁：已经有一个核心在跑的，说一声 `running` 就走；先拿锁再装日志，免得两个核心写同一份；
 //! 3. 装运行日志 `state/logs/core.log`，记一条「起来了」：版本、进程号、数据根、和 UTC 差多少；
 //! 4. 管理员 `admin` 的家目录，没有就建；资源目录；模型（[`models`]）；
-//! 5. 换本机令牌、在套接字上等连接（施工 3-8 下）；
+//! 5. 换本机令牌、在套接字上等连接（施工 3-8 下）；找沙盒的助手、探一次，只记日志（施工 5-1）；
 //! 6. 往标准输出写一行 `ready`：拉起它的头等着这一行。
 //!
 //! 之后 [`serve()`] 一个个接连接：没有连接、也没有在跑的回合，空闲够久了就退出；收到停的信号，先让在跑的
 //! 会话有计划地停下再退出。起不来的，把原因写成那一行（`error …`）交给头。
 
 pub mod models;
+mod sandbox;
 mod serve;
 
 pub use serve::{Stopped, serve};
@@ -98,7 +99,7 @@ pub fn main(options: Options) -> ExitCode {
         Ok(runtime) => runtime,
         Err(error) => return failed("runtime", error.to_string()),
     };
-    runtime.block_on(run(root, resources, lock, options))
+    runtime.block_on(run(env, root, resources, lock, options))
 }
 
 /// 工具目录：核心起来时登记一次，登记完就冻结（`05-内核接口.md` 第八节）。施工 4-4 起登记基础系统，工具的字从
@@ -112,29 +113,46 @@ pub fn tools(resources: &ResourceRoot) -> Result<Catalog, String> {
     Catalog::new(base).map_err(|error| error.to_string())
 }
 
-/// 后半段，在运行时里：在套接字上等连接，说「好了」，接连接，直到停下。
-async fn run(root: DataRoot, resources: ResourceRoot, lock: Lock, options: Options) -> ExitCode {
+/// 后半段，在运行时里：在套接字上等连接，说「好了」，接连接，直到停下。`env` 是起来时读的那一份环境快照。
+async fn run(
+    env: Env,
+    root: DataRoot,
+    resources: ResourceRoot,
+    lock: Lock,
+    options: Options,
+) -> ExitCode {
     let opened = match miyu_ipc::open_locked(&root, &Dirs::current(), lock) {
         Ok(opened) => opened,
         Err(error) => return failed("socket", error.to_string()),
     };
-    let models = match models::from_env(std::env::var("DEEPSEEK_API_KEY").ok()) {
+    let models = match models::from_env(&models::ModelEnv {
+        key: std::env::var("DEEPSEEK_API_KEY").ok(),
+        base_url: std::env::var("MIYU_DEV_BASE_URL").ok(),
+        model: std::env::var("MIYU_DEV_MODEL").ok(),
+    }) {
         Ok(models) => models,
         Err(error) => return failed("models", error),
     };
+    let sandbox = sandbox::probe(env.exe.as_deref());
+    let sandbox_cache = sandbox::cache(&env, std::env::var_os("CARGO_HOME"));
     let tools = match tools(&resources) {
         Ok(tools) => tools,
         Err(error) => return failed("tools", error),
     };
-    let core = Arc::new(Core::new(
+    let mut core = Core::new(
         root,
         resources,
         models,
         tools,
-        Env::current().home,
+        env.home,
         admin(),
         opened.token,
-    ));
+    )
+    .with_sandbox(sandbox);
+    if let Some((cache, cargo_home)) = sandbox_cache {
+        core = core.with_sandbox_cache(cache, cargo_home);
+    }
+    let core = Arc::new(core);
     say(&Ready::Ready);
     serve(opened.listener, core, options.idle, serve::signal()).await;
     ExitCode::SUCCESS

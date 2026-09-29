@@ -26,6 +26,8 @@ pub(in super::super) struct Undo {
     /// 上一次请求以后撤过、恢复过没有；净撤了几次。
     touched: bool,
     net: usize,
+    /// 上一次请求是摘要请求：下一次和它比，第一处不同就在摘要指令那里，不查接着往下长。
+    after_summary: bool,
     /// 该接着上一次请求往下长的请求，照 `seen`。
     clean: BTreeSet<Seq>,
 }
@@ -34,6 +36,12 @@ impl Undo {
     /// 有没有能恢复的撤销。
     pub(in super::super) fn can_unrevert(&self) -> bool {
         !self.stack.is_empty()
+    }
+
+    /// 压缩替代到 `upto`：那以前开始的回合撤不到了，更早的撤销也恢复不了（施工 6-2 上）。
+    pub(super) fn compacted(&mut self, upto: Seq) {
+        self.effective.retain(|turn| turn.started() > upto);
+        self.stack.clear();
     }
 }
 
@@ -80,6 +88,7 @@ impl Watch {
             Command::Revert { turn: Some(turn) } => {
                 Some(match self.undo.effective.iter().position(|t| t == turn) {
                     Some(k) => Expect::Revert(self.undo.effective[k..].to_vec()),
+                    None if self.compacted_turn(*turn) => Expect::Refused(Reason::Compacted),
                     None => Expect::Refused(Reason::UnknownTurn),
                 })
             }
@@ -108,6 +117,7 @@ impl Watch {
                 self.seen_paths.insert(match reason {
                     Reason::NothingToUnrevert => "恢复被拒",
                     Reason::NothingToRevert => "没有能撤的被拒",
+                    Reason::Compacted => "撤不到压缩掉的",
                     _ => "撤销被拒",
                 });
                 assert!(
@@ -205,11 +215,20 @@ impl Watch {
 
     /// 请求模型时：上一次请求以后撤过又都恢复了的，这一次该接着上一次往下长。
     pub(super) fn undo_request(&mut self, seen: Seq) {
-        if self.undo.touched && self.undo.net == 0 {
+        let after_summary = std::mem::take(&mut self.undo.after_summary);
+        if self.undo.touched && self.undo.net == 0 && !after_summary {
             self.undo.clean.insert(seen);
         }
         self.undo.touched = false;
         self.undo.net = 0;
+    }
+
+    /// 发了摘要请求：它截到 N，不一定接着上一次往下长（上一次出错、没回复的，N 在那以前），不查；撤过、恢复过的账
+    /// 照样清掉，压完的主请求前缀本来就重置。
+    pub(super) fn undo_summary(&mut self) {
+        self.undo.touched = false;
+        self.undo.net = 0;
+        self.undo.after_summary = true;
     }
 
     /// 记下一次请求：撤了又恢复的，不写第一处不同。

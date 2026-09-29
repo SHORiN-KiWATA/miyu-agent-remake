@@ -44,6 +44,8 @@ kinds! {
     Stored,
     /// 环境变了。
     Environment,
+    /// 模型的限额（施工 6-2 上）。
+    Limits,
     /// 回合开始的挂接点跑完了。
     HooksDone,
     /// 请求发出去了。
@@ -95,6 +97,7 @@ impl InputKind {
             },
             Input::Stored { .. } => InputKind::Stored,
             Input::Environment(_) => InputKind::Environment,
+            Input::Limits(_) => InputKind::Limits,
             Input::TurnStartHooksDone { .. } => InputKind::HooksDone,
             Input::RequestSent { .. } => InputKind::RequestSent,
             Input::ModelDelta { .. } => InputKind::ModelDelta,

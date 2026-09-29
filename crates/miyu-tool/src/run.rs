@@ -11,11 +11,12 @@ use std::sync::Arc;
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::Said;
 use miyu_kernel::id::{ContentHash, MediaType};
+use miyu_sandbox::Sandboxed;
 
 use crate::Stop;
 
-/// 一次调用交给工具的：修正过的参数、这一轮的工作目录、系统的家目录、Miyu 的数据根、她看过的文件。别的（会话、
-/// 身份、沙盒范围）用到时再加。
+/// 一次调用交给工具的：修正过的参数、这一轮的工作目录、系统的家目录、Miyu 的数据根、她看过的文件、要不要关进
+/// 沙盒。别的（会话、身份）用到时再加。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Call {
     /// 修正过的参数：一个 JSON 对象的原文。
@@ -31,6 +32,9 @@ pub struct Call {
     pub seen: Arc<Seen>,
     /// 叫停的旗（施工 4-9 再补一）：执行器「叫它停」、future 被丢掉时举起来。
     pub stop: Stop,
+    /// 要关进沙盒的（施工 5-1）：助手在哪、规格是什么，`shell` 经助手起命令。空的照旧直接跑。5-4 起核心照权限
+    /// 级别带。
+    pub sandbox: Option<Arc<Sandboxed>>,
 }
 
 /// 她看过的文件（`10-自带软件.md` 第五节「她看过的」，施工 4-6 上）：换成真实位置以后的路径，和她最后一次看到的

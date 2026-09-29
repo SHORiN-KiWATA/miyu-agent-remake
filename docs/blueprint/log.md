@@ -131,6 +131,8 @@
 | `core` | INFO | `stopped` | `reason`：`idle` 或 `signal` | 空闲够久了，或者收到停的信号 |
 | `core` | WARN | `SIGTERM not watched`、`Ctrl+C not watched` | `error` | 装不上信号的监听 |
 | `core` | WARN | `DEEPSEEK_API_KEY not set, no model` | | 没设 key，或者只有空白 |
+| `core` | INFO | `sandbox` | `helper`（助手的路径）、`platform`、`mechanisms`（逗号连起来，空的写 `none`） | 起来时探沙盒的助手，探成了（`sandbox.md`，施工 5-1） |
+| `core` | WARN | `sandbox unavailable` | `reason` | 起来时探沙盒的助手：没找到、跑不了、到时、说的读不懂 |
 | `session` | | | | 会话的每一行带会话编号，见 `session/actor.md` 的「运行日志」 |
 | `http` | DEBUG | `sent` | `host`、`bytes` | 请求发出去 |
 | `http` | DEBUG | `ended` | `host`、`status`、`took_ms` | 正常说完 |

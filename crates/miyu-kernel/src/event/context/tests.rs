@@ -1,9 +1,9 @@
 //! 上下文事件的测试：图纸上的两种读写一字不差、认得出种类；坏的报错说清是哪一种。
 
-use crate::event::{Body, Event};
+use crate::event::{Body, CompactTrigger, Event};
 use crate::test_support::{event_line, read_body, rejected};
 
-const INJECTED: &str = r#"{"kind":"env","text":"<env time=\"Fri 2026-09-25 16:00\" timezone=\"UTC+09:00\" cwd=\"~/src/miyu\"/>"}"#;
+const INJECTED: &str = r#"{"kind":"env","text":"<env time=\"Fri 2026-09-25 16:00–17:00\" timezone=\"UTC+09:00\" cwd=\"~/src/miyu\"/>"}"#;
 const COMPACTED: &str = r#"{"upto":53,"summary":"The user asked to look at the src directory. That turn was undone. Nothing is in progress."}"#;
 
 #[test]
@@ -16,9 +16,34 @@ fn context_events_from_the_drawing_round_trip() {
         other => panic!("{other:?}"),
     }
     match read_body("context.compacted", COMPACTED) {
-        Body::ContextCompacted(compacted) => assert_eq!(compacted.upto.get(), 53),
+        Body::ContextCompacted(compacted) => {
+            assert_eq!(compacted.upto.get(), 53);
+            assert_eq!(compacted.trigger, None);
+        }
         other => panic!("{other:?}"),
     }
+}
+
+#[test]
+fn each_compaction_trigger_is_written_and_read_back() {
+    for (text, trigger) in [
+        ("auto", CompactTrigger::Auto),
+        ("manual", CompactTrigger::Manual),
+        ("overflow", CompactTrigger::Overflow),
+        ("scheduled", CompactTrigger::Other("scheduled".to_string())),
+    ] {
+        let body = format!(r#"{{"upto":53,"summary":"S","trigger":"{text}"}}"#);
+        let Body::ContextCompacted(compacted) = read_body("context.compacted", &body) else {
+            panic!("{body}");
+        };
+        assert_eq!(compacted.trigger, Some(trigger));
+        assert_eq!(serde_json::to_string(&compacted).unwrap(), body);
+    }
+    // 没有的不写：以前的日志读进来再写出去一字不差。
+    let Body::ContextCompacted(old) = read_body("context.compacted", COMPACTED) else {
+        panic!("{COMPACTED}");
+    };
+    assert_eq!(serde_json::to_string(&old).unwrap(), COMPACTED);
 }
 
 #[test]

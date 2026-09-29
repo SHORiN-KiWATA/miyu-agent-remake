@@ -1,0 +1,77 @@
+[package]
+name = "miyu-sandbox"
+description = "Miyu 的沙盒：规格、助手 miyu-sandbox、探测"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# 助手本身：各平台一个文件，在同一个目录里。
+[[bin]]
+name = "miyu-sandbox"
+path = "src/bin/miyu-sandbox/main.rs"
+
+[dependencies]
+# 规格写成 JSON 交给助手，助手读回来；探测的结果也是一行 JSON。
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# 装沙盒时记下装好的时刻：UTC、精确到毫秒，和事件的时间一个写法（施工 5-8）。
+miyu-kernel = { path = "../miyu-kernel" }
+# 装沙盒时认数据根的标记：写记录之前先看它是不是 Miyu 的数据根（施工 5-8）。
+miyu-store = { path = "../miyu-store" }
+
+[features]
+# 测试用的（`src/testkit.rs`，施工 5-4 上）：会话、命令行的测试要真的经助手起命令，在自己的 dev-dependencies 里打开。
+testkit = []
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Linux 上管文件（施工 5-2）：内核 Landlock 的安全封装，建规则集、加规则、收紧自己都不用自己写 unsafe。
+# MIT OR Apache-2.0。
+landlock = "0.4"
+
+[target.'cfg(windows)'.dependencies]
+# Windows 上装沙盒要调的系统接口（施工 5-8）：建、藏、删用户，查是不是管理员，自提升，DPAPI，建只给本人的文件。
+# MIT OR Apache-2.0。
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_NetworkManagement_NetManagement",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_Security_Cryptography",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Registry",
+    "Win32_System_Threading",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+# 沙盒用户的随机密码：系统给的随机字节。MIT OR Apache-2.0。
+getrandom = { version = "0.4", features = ["std"] }
+# 加密过的密码写进记录用 base64。MIT OR Apache-2.0。
+base64 = "0.22"
+
+[target.'cfg(windows)'.dev-dependencies]
+# 测试里的「本人」要是跑测试的这个用户：写出来只给本人的文件，自己才读得回来（施工 5-8）。
+miyu-pipe = { path = "../miyu-pipe" }
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+# macOS 的测试里在只读的文件描述符上试 `fcntl`、拿它的错误码（施工 5-7）。MIT OR Apache-2.0，工作区里本来就有。
+libc = "0.2"
+
+# Cargo 不许 `workspace = true` 以后再单改一条：这里照抄工作区的（改那边的，记得同步这里），只把 `unsafe_code` 从
+# `forbid` 改成 `deny`：整个 crate 仍然不许，只有调系统接口的那几处单独放开，每一处写明为什么安全（施工 5-7：
+# macOS 上装 Seatbelt 配置的 `src/bin/miyu-sandbox/macos/seatbelt.rs`，和 macOS 测试里调 `fcntl` 的那一处；施工 5-8：
+# Windows 上装沙盒调系统接口的几个模块，`docs/blueprint/sandbox/windows.md`）。
+[lints.rust]
+unsafe_code = "deny"
+unused_must_use = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+let_underscore_must_use = "deny"
+unused_result_ok = "deny"
+unwrap_used = "deny"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+# 每个 unsafe 块都写清为什么安全。
+undocumented_unsafe_blocks = "deny"

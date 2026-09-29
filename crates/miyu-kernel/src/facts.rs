@@ -40,6 +40,8 @@ pub struct Environment {
     pub offset: UtcOffset,
     /// 工作目录，头报上来的、人看到的那种写法，例如 `~/src/miyu`。内核不改写它。
     pub cwd: String,
+    /// 加进来的目录：和工作区一样能读能写（施工 5-10 上）。照头报的原样，内核不改写，也不写进给她看的事实。
+    pub dirs: Vec<String>,
 }
 
 impl FactTemplates {

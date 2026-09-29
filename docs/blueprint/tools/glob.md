@@ -144,7 +144,7 @@ a.rs
 | `crates/miyu-basesystem/src/pattern/tests.rs` | 模式的每一条规矩、写错了说哪里错、绝对路径的模式怎么拆（Windows 的前缀里的 `?`） |
 | `crates/miyu-basesystem/src/walk/tests.rs` | 丢掉这次调用，走目录就停 |
 | `crates/miyu-basesystem/tests/human.rs` | 每一种结果的说法，两种语言都换得出字 |
-| `crates/miyu-session/tests/search.rs` | 会话里真的调它：工作区里找得到、越界的在没人能确认的会话里被拒；从上面搜下来不进数据根 |
+| `crates/miyu-session/tests/search.rs` | 会话里真的调它：工作区里找得到；从上面搜下来不进数据根 |
 | `xtask/src/ledger.rs` | 这些字的指纹和登记簿对得上 |
 
 ### 出处

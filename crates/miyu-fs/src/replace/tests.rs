@@ -1,5 +1,8 @@
 //! 整体换成新的内容：新建、覆盖；只读的不写；盖不上去的，临时文件删掉，原来的没动。
 
+use std::fs;
+use std::io;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use super::*;
@@ -13,7 +16,8 @@ impl Scratch {
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
         let dir = std::env::temp_dir().join(format!("miyu-replace-{}-{n}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
-        Scratch(dir)
+        // 换成真实的位置：交给 `replace` 的本来就是（macOS 上系统的临时目录在 `/var` 下，它是个链接）。
+        Scratch(fs::canonicalize(dir).unwrap())
     }
 
     /// 目录里有些什么，照名字排。
@@ -78,4 +82,24 @@ fn when_it_cannot_be_put_in_place_the_temporary_file_goes_away() {
     assert!(replace(&dir, b"x").is_err());
     assert_eq!(scratch.names(), ["dir"], "临时文件删掉了");
     assert!(dir.join("inside").is_dir(), "原来的没动");
+}
+
+/// 检查完以后，上级目录被换成了指向别处的链接（施工 5-10 下）：一个字节都不落到链接指的地方，也不留临时文件。
+#[cfg(unix)]
+#[test]
+fn a_link_on_the_way_is_not_written_through() {
+    let scratch = Scratch::new();
+    let elsewhere = scratch.0.join("elsewhere");
+    fs::create_dir(&elsewhere).unwrap();
+    std::os::unix::fs::symlink(&elsewhere, scratch.0.join("swapped")).unwrap();
+    let through = fs::canonicalize(&scratch.0)
+        .unwrap()
+        .join("swapped")
+        .join("new.txt");
+    assert!(replace(&through, b"hi").is_err());
+    assert!(
+        fs::read_dir(&elsewhere).unwrap().next().is_none(),
+        "链接指的地方什么都没写"
+    );
+    assert_eq!(scratch.names(), ["elsewhere", "swapped"], "也没留临时文件");
 }

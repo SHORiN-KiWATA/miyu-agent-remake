@@ -5,6 +5,8 @@
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+use miyu_sandbox::Availability;
+
 use crate::Core;
 use crate::refusal::{Locale, Refusal};
 
@@ -91,8 +93,17 @@ pub(crate) fn hello(core: &Core, params: Value) -> Result<(Peer, Value), (Refusa
         "protocol": PROTOCOL,
         "core": {"version": env!("CARGO_PKG_VERSION")},
         "account": core.admin.as_str(),
+        "sandbox": sandbox(&core.sandbox),
     });
     Ok((peer, result))
+}
+
+/// 握手的回应里的 `sandbox`：能用的 `{"usable": true}`，用不了的带原因（施工 5-4 下）。
+fn sandbox(availability: &Availability) -> Value {
+    match availability {
+        Availability::Usable(_) => json!({ "usable": true }),
+        Availability::Unusable(reason) => json!({ "usable": false, "reason": reason.code() }),
+    }
 }
 
 /// 两份令牌一样不一样：每个字节都比，比到哪一个不一样都用一样长的时间。

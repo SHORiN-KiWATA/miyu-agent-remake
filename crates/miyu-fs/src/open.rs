@@ -1,5 +1,5 @@
 //! 安全地打开一份要读的文件（`11-权限与沙盒.md` 第七节，施工 4-3 上）：先换成真实的位置、查过边界，
-//! 再打开。打开时不跟随最后一层的链接、不阻塞，开了以后看是不是普通文件。
+//! 再打开。打开时不跟随链接（Unix 上路上一层都不跟，施工 5-10 下）、不阻塞，开了以后看是不是普通文件。
 
 use std::fmt;
 use std::fs::File;
@@ -96,22 +96,19 @@ fn kind(metadata: &std::fs::Metadata) -> Kind {
 
 #[cfg(unix)]
 mod sys {
-    use std::fs::{File, FileType, OpenOptions};
+    use std::fs::{File, FileType};
     use std::io;
-    use std::os::unix::fs::{FileTypeExt, OpenOptionsExt};
+    use std::os::unix::fs::FileTypeExt;
     use std::path::Path;
 
     use super::Kind;
 
-    /// 只读、不跟随最后一层的链接、不阻塞（FIFO 没人写时不卡住）。
+    /// 只读、路上一层链接都不跟、不阻塞（FIFO 没人写时不卡住）：`crate::nofollow`（施工 5-10 下）。
     pub(super) fn open(real: &Path) -> io::Result<File> {
-        OpenOptions::new()
-            .read(true)
-            .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
-            .open(real)
+        crate::nofollow::open_read(real)
     }
 
-    /// 最后一层是链接，`O_NOFOLLOW` 报的错。
+    /// 最后一层或者路上有链接报的错。
     pub(super) fn is_link_error(error: &io::Error) -> bool {
         error.raw_os_error() == Some(libc::ELOOP)
     }

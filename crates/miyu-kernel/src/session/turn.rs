@@ -27,6 +27,8 @@ pub(super) struct Turn {
     pub(super) stage: Stage,
     /// 这一轮的工作目录：回合开始时的那一个，派工具时带上。
     pub(super) cwd: String,
+    /// 这一轮加进来的目录：回合开始时的那些，判权限、派工具时带上（施工 5-10 上）。
+    pub(super) dirs: Vec<String>,
     /// 这一轮请求过几次模型，比步数上限用。重试的不算（施工 3-5 下）。
     pub(super) requests: u32,
     /// 这一步连着出了几次可以重试的错：说完了一次就清零（`retry.rs`）。
@@ -39,6 +41,9 @@ pub(super) struct Turn {
     pub(super) queued: Vec<(Seq, Option<CommandId>)>,
     /// 上一次请求以后切过权限级别：下一次请求之前把事实查一遍。
     pub(super) refresh: bool,
+    /// 这一步压过了（施工 6-2 下）：压完照常发这一步本来要发的请求，不再压第二次（`compaction.md` 第三条第 1 条）。
+    /// 发了主请求就清掉。
+    pub(super) compacted: bool,
     /// 打断了，在等停着的改文件的调用交回来（施工 4-9 再补一）：等齐了才收尾。
     pub(super) interrupting: Option<Interrupting>,
 }
@@ -99,6 +104,7 @@ impl Session {
         let body = Body::TurnStarted(TurnStarted {
             trigger,
             cwd: Some(self.environment.cwd.clone()),
+            dirs: self.environment.dirs.clone(),
         });
         let started = self.record(at, By::Kernel, cause.clone(), body);
         self.turn = Some(Turn {
@@ -108,12 +114,14 @@ impl Session {
                 opened: started.seq,
             },
             cwd: self.environment.cwd.clone(),
+            dirs: self.environment.dirs.clone(),
             requests: 0,
             retries: 0,
             retrying: false,
             interjected: None,
             queued: Vec::new(),
             refresh: false,
+            compacted: false,
             interrupting: None,
         });
         self.effective = self.permission.clone();
@@ -166,7 +174,7 @@ impl Session {
     }
 
     /// 回合往下走：开头那一批落了盘，叫执行器跑回合开始的挂接点；挂接点跑完了、追加过的
-    /// 事件都落了盘，拿有效历史组装请求，交给执行器去请求模型（`08-上下文投影.md` 第一节
+    /// 事件都落了盘，拿有效历史组装请求，交给执行器去请求模型（到了压缩线的先压）（`08-上下文投影.md` 第一节
     /// 第 2 条「先落盘，后请求」）。发请求时算出指纹，和上一次请求的比出第一处不同。
     /// 回复里有工具调用的，回复落了盘就派。
     pub(super) fn advance(&mut self) -> Vec<Action> {
@@ -182,31 +190,41 @@ impl Session {
                 turn.stage = Stage::Hooking;
                 vec![Action::RunTurnStartHooks { turn: turn.id }]
             }
-            Stage::Ready if self.unstored.is_empty() => {
-                let Some(seen) = self.stored else {
-                    return Vec::new();
-                };
-                let request = self.policy.assembler.assemble(&self.history);
-                let fingerprint = request.fingerprint();
-                let difference = self
-                    .last_request
-                    .as_ref()
-                    .and_then(|before| fingerprint.first_difference(before));
-                self.last_request = Some(fingerprint);
-                if !std::mem::take(&mut turn.retrying) {
-                    turn.requests += 1;
-                }
-                turn.interjected = None;
-                turn.queued.clear();
-                turn.stage = Stage::Asking(Call::new(seen, request.messages.len(), difference));
-                vec![Action::CallModel {
-                    seen,
-                    request,
-                    changed: difference,
-                }]
-            }
+            Stage::Ready if self.unstored.is_empty() => self.ask(),
             _ => Vec::new(),
         }
+    }
+
+    /// 发这一步的请求：拿有效历史组装，用量过了压缩线的先压（`compaction.rs`），没过的交给执行器去请求模型。
+    fn ask(&mut self) -> Vec<Action> {
+        let Some(seen) = self.stored else {
+            return Vec::new();
+        };
+        let request = self.policy.assembler.assemble(&self.history);
+        if let Some((upto, used)) = self.compaction_due(&request) {
+            return self.start_compaction(upto, used);
+        }
+        let fingerprint = request.fingerprint();
+        let difference = self
+            .last_request
+            .as_ref()
+            .and_then(|before| fingerprint.first_difference(before));
+        self.last_request = Some(fingerprint);
+        let Some(turn) = self.turn.as_mut() else {
+            return Vec::new();
+        };
+        if !std::mem::take(&mut turn.retrying) {
+            turn.requests += 1;
+        }
+        turn.compacted = false;
+        turn.interjected = None;
+        turn.queued.clear();
+        turn.stage = Stage::Asking(Call::new(seen, request.messages.len(), difference));
+        vec![Action::CallModel {
+            seen,
+            request,
+            changed: difference,
+        }]
     }
 
     /// 结束正在进行的回合：追加 `turn.ended`，会话空闲。等它落了盘，再跑回合结束的挂接点。

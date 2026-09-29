@@ -56,7 +56,6 @@ impl Session {
             return vec![Action::Append(events)];
         };
         turn.retries += 1;
-        turn.retrying = true;
         turn.stage = Stage::Waiting { after: seen };
         let status = Transient {
             at,

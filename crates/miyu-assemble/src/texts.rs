@@ -1,4 +1,4 @@
-//! 给模型看的几句固定的字：检查点的包装、回合没走完的那一句（`docs/designs/08-上下文投影.md`
+//! 给模型看的几句固定的字：检查点的包装、回合没走完的那一句、压缩的摘要指令（`docs/designs/08-上下文投影.md`
 //! 第四节第 5 条，`26-提示词.md` 第八节）。
 //!
 //! 出厂的放在资源目录的 `core/` 下，由执行器读好交进来（施工 M3）；这里只管拿来拼，
@@ -15,6 +15,8 @@ pub struct Texts {
     pub checkpoint_close: String,
     /// 回合没走完时，排在下一条人的消息前面的那一句。
     pub turn_ended: TurnEndedTexts,
+    /// 压缩的摘要指令，摘要请求的最后一块（`core/compaction/summarize-task.txt`，施工 6-2 上）。
+    pub summarize_task: String,
 }
 
 /// 回合没走完的五句，一种原因一句（`core/turn-ended/<原因>.txt`）。正常走完的不说。

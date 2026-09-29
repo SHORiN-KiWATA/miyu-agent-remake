@@ -288,3 +288,23 @@ fn withdrawn_messages_are_gone_and_so_is_the_withdrawal() {
     ]);
     assert_eq!(seqs(&history), [1, 2, 3, 4, 8]);
 }
+
+/// 摘要请求截到第 N 条（施工 6-2 上）：检查点照留，之后的只留 N 及以前的；放在一边的撤销不要。
+#[test]
+fn until_cuts_the_history_after_the_given_event() {
+    let mut events = two_turns();
+    events.push(compacted(10, 5));
+    events.push(message(11, ALICE));
+    events.extend(turn(12, 11));
+    events.push(reverted(15, &[12]));
+    let history = feed(events);
+    assert!(!history.last_undone().is_empty());
+    let cut = history.until(crate::id::Seq::new(8).unwrap());
+    assert_eq!(checkpoint(&cut), Some(10));
+    assert_eq!(seqs(&cut), vec![6, 7, 8]);
+    assert!(cut.last_undone().is_empty());
+    // 截在最后一条上，事件原样；撤掉的第二轮照样不在。
+    let whole = history.until(crate::id::Seq::new(15).unwrap());
+    assert_eq!(seqs(&whole), seqs(&history));
+    assert!(!seqs(&whole).contains(&12));
+}

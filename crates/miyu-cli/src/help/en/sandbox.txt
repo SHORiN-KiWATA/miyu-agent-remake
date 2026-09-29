@@ -1,0 +1,13 @@
+Usage: miyu sandbox <command>
+
+Set up or remove what the sandbox needs an administrator for: a dedicated
+sandbox user (Windows).
+
+Commands:
+  setup   Create the sandbox user
+  remove  Remove the sandbox user
+
+Without administrator rights, Windows asks for permission once. Other platforms
+need nothing.
+
+  -h, --help  Print help

@@ -47,7 +47,7 @@
 | `session_dir(账号, 会话)` | `home/<账号>/sessions/<会话编号>/` |
 | `blobs(账号)` | `home/<账号>/blobs/` |
 
-**缓存目录** `cache_root(env)`：只找不建。现在没有程序用它。
+**缓存目录** `cache_root(env)`：只找不建。核心起来时算一次，沙盒的缓存放在它下面的 `sandbox/<账号>/`（施工 5-4 下，`core.md`）。
 
 **会话日志** `SessionLog`：`create(目录, 上限)`、`open(目录, 上限)`、`append(一批事件)`、`next_seq()`、`dir()`；只读的 `read_events(目录)`、`first_event(目录)`。一段的上限 `SEGMENT_LIMIT` 是 64 MiB（67,108,864 字节）。
 

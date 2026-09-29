@@ -52,7 +52,13 @@
 
 **第一处不同** `first_difference(上一次的指纹)`：交回 `Tools`、`System`、`Message { index, role }`（`index` 从 0 数起），或者没有。
 
-**组装的接口** `Assembler`：一个方法 `assemble(&History) -> Request`，同步的纯函数。一个会话一个（`Policy.assembler`），冻结的东西在造它的时候交进来。
+**组装的接口** `Assembler`：同步的纯函数。一个会话一个（`Policy.assembler`），冻结的东西在造它的时候交进来。
+
+| 方法 | 做什么 |
+|---|---|
+| `assemble(&History) -> Request` | 从有效历史组装请求 |
+| `summarize(&History, upto) -> Request` | 压缩的摘要请求：有效历史截到第 `upto` 条照平常组装，最后接摘要指令（施工 6-2 上，`compaction.md` 第三条第 3 条） |
+| `summary(&[Block]) -> Option<String>` | 从摘要请求的回复里取出摘要；取不出来的是 `None`（`compaction.md` 第三条第 6 条）。指令和取法是一对，都归组装 |
 
 **默认的组装器** `DefaultAssembler::new(Stable, Texts)`：
 
@@ -63,6 +69,9 @@
 | | `demos` | 示范对话。照策略快照造的总是空的 |
 | `Texts` | `checkpoint_open`、`checkpoint_close` | 检查点包装的开头、结尾 |
 | | `turn_ended` | `TurnEndedTexts`：`interrupted`、`error`、`step_limit`、`aborted`、`restarted` 五句 |
+| | `summarize_task` | 摘要指令（`core/compaction/summarize-task.txt`，施工 6-2 上） |
+
+默认的 `summarize`：截到第 `upto` 条照平常组装；最后一条是 user 的，指令并进这一条做最后一块，不是的另起一条 user；`continuation` 是假。默认的 `summary`：只看正文块，有 `<summary>` 的取到 `</summary>` 或者末尾，没有的去掉 `<analysis>…</analysis>`，前后空白去掉，空的是 `None`（`crates/miyu-assemble/src/summary.rs`）。
 
 **事实**：
 
@@ -110,6 +119,7 @@
    - 早到的触发也挪：回合中途就来、下一轮才轮到的那一句，还有打断了这一轮的那一句，日志里都排在上一轮结束的那一句前面；挪到回合开始的地方，它才排在最后。
    - 挪的是回合开始的那个位置，日志里它不动：发过的请求里排好的先后，以后不变。
    - 「开始时注入的」到这一轮有了回复、结束，或者第一次记下 `model.called` 为止（施工 4-9 再补三上）：第一次请求什么都没收到就出了可以重试的错、等的时候又切了级别的，到点查出的事实照先后排在触发后面，下一次请求接着上一次往后长。
+   - 排在检查点前面的 `model.called` 不算（施工 6-2 上）：那是被替代掉的那段的请求和摘要请求自己，压完的第一次请求前缀本来就从头来。回合开头压的，压完再注入的事实照样和触发的那句放在一起，这一轮第一次主请求的最后一块照旧是触发它的那句。
    - 回合中途注入的事实（第一条回复以后）照先后，排在那一步的工具结果后面。
 7. **接着写的记号**：有效历史照排好的先后倒着看，跳过 `model.called`：最后一条是内核记的 `reply_cut` 事实，再往前一条是带 `interrupted` 的回复，`continuation` 就是真。这时最后一条 user 只有被打断的那一句，前面那条 assistant 是半截。那一句后面又来了别的（人的消息、别的事实），就是假。驱动怎么用它见 `drivers/openai-chat.md`。
 
@@ -138,7 +148,7 @@
    查的时候，时刻取这个边界上那条输入的时刻，时区取会话现在的，工作目录取这一轮开始时的（派工具带的也是它）。查过就清掉「切过」，放宽的这时生效。执行器中途报的新工作目录，下一轮开头才写进去。
 5. **回复被打断**：出了可以重试的错、收到的半截已经写成回复，紧跟着追加 `reply_cut`，再等着重试（`kernel/session.md`）。
 6. **写成什么**：
-   - `time`：此刻在那个时区的钟点，到小时：`Fri 2026-09-25 16:00`。星期三个字母（`Sun` 到 `Sat`），年-月-日，二十四小时制，分钟一律写 `00`。
+   - `time`：此刻在那个时区落在哪一个小时，写成这个小时的起止：`Fri 2026-09-25 16:00–17:00`。星期三个字母（`Sun` 到 `Sat`），年-月-日，二十四小时制，分钟都写 `00`，中间是连接号 `–`；23 点写 `23:00–24:00`（施工 1-13 补，`kernel/ids.md`「当地钟点」）。
    - `timezone`：`UTC+09:00`、`UTC-05:30`，零时区写 `UTC+00:00`。
    - `cwd`：`Environment.cwd` 原样。
    - `level`：只读开着写 `read_only`；关着写常用的那一级，`workspace` 或 `full`；不认识的级别写 `read_only`。

@@ -197,6 +197,14 @@ pub(crate) fn unattended_line(plan: &Plan, steps: u64) -> Line {
     line
 }
 
+/// 沙盒用不了时的那一句（施工 5-4 下）：原因照协议上的写法 `reason` 和这台机器的系统写。
+pub(crate) fn unsandboxed(plan: &Plan, reason: &str) -> Line {
+    Line::gray(
+        plan.language
+            .unsandboxed(reason, miyu_sandbox::Platform::current()),
+    )
+}
+
 /// 工作目录太宽、核心退回了账号的工作区时的那一句：敲命令时在 `plan.cwd`，实际在 `used` 里干活。
 pub(crate) fn moved(plan: &Plan, used: &str) -> Line {
     let home = plan.home.as_deref();

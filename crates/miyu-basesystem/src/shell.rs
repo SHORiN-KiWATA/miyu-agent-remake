@@ -2,7 +2,8 @@
 //! 退出码。前台的：跑完才交回，超时、叫停时整组杀掉。后台命令随 M7。
 //!
 //! 用哪个 shell（[`program`]）、命令拿得到哪些环境变量（[`env`](mod@env)）、起命令和整组杀（[`process`]）、输出怎么截
-//! （[`output`]）各在一处。每次调用起一个新的 shell，`cd`、变量都不带到下一次。
+//! （[`output`]）各在一处。每次调用起一个新的 shell，`cd`、变量都不带到下一次。调用带了沙盒的，经沙盒的助手起
+//! （施工 5-1），别的都照旧。
 
 mod env;
 mod output;
@@ -171,11 +172,15 @@ impl Tool for Shell {
                     .said(said("shell/no-background"));
             }
             let timeout = limit(args.timeout);
-            let command = self.program.command(
+            let command = match self.program.command(
                 &args.command,
                 &workdir(&call),
                 env::passed(std::env::vars_os()),
-            );
+                call.sandbox.as_deref(),
+            ) {
+                Ok(command) => command,
+                Err(error) => return self.failed(&error),
+            };
             let started = match process::start(command, move |text| progress.push(text)) {
                 Ok(started) => started,
                 Err(error) => return self.failed(&error),

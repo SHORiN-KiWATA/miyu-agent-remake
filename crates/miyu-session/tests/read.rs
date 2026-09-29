@@ -1,5 +1,5 @@
-//! 真的 `read`（施工 4-4 上，4-4 下改了参数名和行号）：会话里她调它，工作区里的读得到、带行号，下一次请求里有；越界的读，在没人能确认的
-//! 会话里被拒。
+//! 真的 `read`（施工 4-4 上，4-4 下改了参数名和行号）：会话里她调它，工作区里的读得到、带行号，下一次请求里有；边界以外
+//! 的也读得到，没人能确认也不用问（施工 5-4 上，原来被拒）；数据根里的被拒。
 
 mod support;
 
@@ -43,11 +43,18 @@ fn results(home: &Home, handle: &miyu_session::Handle) -> Vec<ToolResult> {
 async fn she_reads_a_file_in_the_workspace_and_hears_it() {
     let home = Home::outside_temp();
     std::fs::write(home.scratch.0.join("work/a.txt"), "hello\n").expect("写得进");
-    std::fs::write(home.scratch.0.join("other/b.txt"), "secret\n").expect("写得进");
+    std::fs::write(home.scratch.0.join("other/b.txt"), "far\n").expect("写得进");
+    std::fs::write(home.root.path().join("marker"), "secret\n").expect("写得进");
     let outside = home
         .scratch
         .0
         .join("other/b.txt")
+        .to_string_lossy()
+        .into_owned();
+    let marker = home
+        .root
+        .path()
+        .join("marker")
         .to_string_lossy()
         .into_owned();
     let script = Script::new([
@@ -56,6 +63,10 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
             (
                 "read",
                 &serde_json::json!({ "file_path": outside }).to_string(),
+            ),
+            (
+                "read",
+                &serde_json::json!({ "file_path": marker }).to_string(),
             ),
         ]),
         Play::Says("好。"),
@@ -67,6 +78,9 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
         },
         attended: false,
         cwd: home.scratch.0.join("work").to_string_lossy().into_owned(),
+        dirs: Vec::new(),
+        sandbox: None,
+        sandbox_cache: None,
     };
     let handle = home.create_as(&script, &base_system(), opening).await;
     let mut pushes = watch(&handle).await;
@@ -75,25 +89,30 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
         .expect("会话在跑");
     until_turn_ends(&mut pushes).await;
     let results = results(&home, &handle);
-    assert_eq!(results.len(), 2);
-    let (inside, outside) = if text(&results[0].blocks).contains("hello") {
-        (&results[0], &results[1])
-    } else {
-        (&results[1], &results[0])
+    assert_eq!(results.len(), 3);
+    // 一起派的只读调用各跑各的，结果的先后不一定：照内容找。
+    let find = |said: &str| {
+        results
+            .iter()
+            .find(|result| text(&result.blocks).contains(said))
+            .unwrap_or_else(|| panic!("有一条含「{said}」：{results:?}"))
     };
+    let (inside, outside, data) = (find("hello"), find("far"), find("Miyu's own data"));
     assert_eq!(inside.status, ToolStatus::Ok);
     assert_eq!(text(&inside.blocks), "1\thello\n");
-    // 工具交的给人看的说法，经会话记进日志（施工 4-5 上）；越界被拒的，是内核写的那一句的说法。
+    // 工具交的给人看的说法，经会话记进日志（施工 4-5 上）；数据根里被拒的，是权限策略写的那一句的说法。
     assert_eq!(
         inside.human,
         Some(Said::new("software/basesystem/read/lines").with("count", "1"))
     );
+    assert_eq!(outside.status, ToolStatus::Ok, "边界以外的读不用问");
+    assert_eq!(text(&outside.blocks), "1\tfar\n");
+    assert_eq!(data.status, ToolStatus::Denied, "数据根哪一级都不能碰");
     assert_eq!(
-        outside.human,
-        Some(Said::new("core/tool-results/unattended"))
+        data.human,
+        Some(Said::new("core/permissions/forbidden").with("path", marker.as_str()))
     );
-    assert_eq!(outside.status, ToolStatus::Denied, "越界要问人，没人能确认");
-    assert!(!text(&outside.blocks).contains("secret"));
+    assert!(!text(&data.blocks).contains("secret"));
     // 读到的报 `file.read`（施工 4-6 上）：真实的位置、读了哪几行、整份的哈希。没读的没有效果。
     let real = std::fs::canonicalize(home.scratch.0.join("work/a.txt")).expect("在");
     assert_eq!(
@@ -104,7 +123,7 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
             hash: ContentHash::of(b"hello\n"),
         })]
     );
-    assert!(outside.effects.is_empty());
+    assert!(data.effects.is_empty());
     // 她下一次请求里听到了。
     let requests = script.requests();
     let heard = requests[1].1.messages.iter().any(

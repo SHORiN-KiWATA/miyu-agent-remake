@@ -25,6 +25,7 @@ mod open;
 mod pictures;
 mod port;
 mod restore;
+mod sandbox;
 mod store;
 #[cfg(feature = "testkit")]
 pub mod testkit;
@@ -35,6 +36,7 @@ pub use handle::{Ended, Handle, Pushed, Stopped, Subscription};
 pub use http::{HttpModels, IDLE};
 pub use open::{Create, CreateError, Load, LoadError, create, load};
 pub use port::{Cancel, ForSession, ModelPort, Models, Reports};
+pub use sandbox::SandboxCache;
 
 /// 运行日志的来源：`session`（`28-运行日志.md` 第二节）。
 const TARGET: &str = "miyu::session";

@@ -37,6 +37,20 @@ pub enum TransientBody {
     ToolProgress(ToolProgress),
     /// `status`：会话在干什么（施工 3-5 下）。现在只有一种：出了错，等着重试。
     Status(Status),
+    /// `compaction.progress`：摘要写到哪了（施工 6-2 上）。
+    CompactionProgress(CompactionProgress),
+}
+
+/// `compaction.progress` 的 `body`：摘要请求收到了多少字，估计要写多少字，头照它画进度（`compaction.md`
+/// 第三条第 8 条）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CompactionProgress {
+    /// 哪一次摘要请求：它替代到的那一条。
+    pub seen: Seq,
+    /// 到这时收到的正文字数，草稿加摘要，照 Unicode 字符数。
+    pub written: u64,
+    /// 估计要写多少字。
+    pub expected: u64,
 }
 
 /// `status` 的 `body`：哪一次请求出了错，等着重试（`03-事件模型.md` 第五节）。以后别的状态
@@ -103,6 +117,7 @@ impl TransientBody {
             TransientBody::ModelDelta(_) => "model.delta",
             TransientBody::ToolProgress(_) => "tool.progress",
             TransientBody::Status(_) => "status",
+            TransientBody::CompactionProgress(_) => "compaction.progress",
         }
     }
 }
@@ -151,6 +166,7 @@ impl Serialize for TransientBody {
             TransientBody::ModelDelta(delta) => delta.serialize(s),
             TransientBody::ToolProgress(progress) => progress.serialize(s),
             TransientBody::Status(status) => status.serialize(s),
+            TransientBody::CompactionProgress(progress) => progress.serialize(s),
         }
     }
 }

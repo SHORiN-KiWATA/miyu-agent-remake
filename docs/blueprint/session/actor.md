@@ -34,7 +34,7 @@
 | `Models`、`ForSession`、`ModelPort`、`Reports`、`Cancel` | 请求模型的端口 |
 | `HttpModels`、`IDLE` | 端口的真实现；空闲超时 180 秒 |
 
-`Create` 的格：数据根 `root`、资源目录 `resources`、会话编号 `id`、人格 `persona`、场所 `venue`、属主 `owner`、开始时的权限 `permission`、有没有人能确认 `attended`、一次性的 `oneshot`、环境 `environment`（时区、工作目录）、造会话的命令编号 `command`、谁发的 `by`、造端口的 `models`、工具目录 `tools`、系统的家目录 `home`（读不出来的是空的）。`Load` 的格：`root`、`owner`、`id`、`environment`、`models`、`tools`、`home`。
+`Create` 的格：数据根 `root`、资源目录 `resources`、会话编号 `id`、人格 `persona`、场所 `venue`、属主 `owner`、开始时的权限 `permission`、有没有人能确认 `attended`、一次性的 `oneshot`、环境 `environment`（时区、工作目录）、造会话的命令编号 `command`、谁发的 `by`、造端口的 `models`、工具目录 `tools`、系统的家目录 `home`（读不出来的是空的）、沙盒的助手 `sandbox`（这台机器上的沙盒能用才有，施工 5-4 上）、沙盒的缓存 `sandbox_cache`（`<缓存目录>/sandbox/<属主>`，核心算不出缓存目录的没有，施工 5-4 下）。`Load` 的格：`root`、`owner`、`id`、`environment`、`models`、`tools`、`home`、`sandbox`、`sandbox_cache`。
 
 | `Handle` 的方法 | 做什么 |
 |---|---|

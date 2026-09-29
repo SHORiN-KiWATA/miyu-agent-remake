@@ -34,7 +34,13 @@ impl Watch {
                 let opening = events[..k]
                     .iter()
                     .any(|event| matches!(event.body, Body::TurnStarted(_)));
-                if !opening {
+                // 压完了，事实比不到的再注入（施工 6-2 上）。
+                let compacted = events[..k]
+                    .iter()
+                    .any(|event| matches!(event.body, Body::ContextCompacted(_)));
+                if compacted {
+                    self.seen_paths.insert("压完注入事实");
+                } else if !opening {
                     self.seen_paths.insert("切了级别以后注入");
                     let turn = self.open_turn();
                     assert!(

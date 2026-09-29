@@ -139,7 +139,11 @@ async fn without_a_key_every_request_says_there_is_no_model() {
     for key in [None, Some("  ".to_string())] {
         let home = Home::new();
         let opened = home.open();
-        let models = models::from_env(key.clone()).expect("造得出");
+        let env = models::ModelEnv {
+            key: key.clone(),
+            ..models::ModelEnv::default()
+        };
+        let models = models::from_env(&env).expect("造得出");
         let core = home.core(models, &opened.token);
         let running = tokio::spawn(serve(opened.listener, core, IDLE, std::future::pending()));
         let mut head = Head::connect(&home.root).await;

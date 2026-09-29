@@ -42,6 +42,21 @@ impl History {
         self.undone.last().map_or(&[], Vec::as_slice)
     }
 
+    /// 有效历史的前一段：检查点照留，之后的事件只留第 `upto` 条及以前的，放在一边的撤销不要。压缩的摘要请求照它
+    /// 组装（`compaction.md` 第三条第 3 条）：第 `upto` 条刚写下时的有效历史就是这样，后来撤掉、撤回的照样不在。
+    pub fn until(&self, upto: Seq) -> History {
+        History {
+            checkpoint: self.checkpoint.clone(),
+            events: self
+                .events
+                .iter()
+                .filter(|event| event.seq <= upto)
+                .cloned()
+                .collect(),
+            undone: Vec::new(),
+        }
+    }
+
     /// 检查点之后还有效的事件，照每次请求当时看到的样子排好（03 第六节「照每次请求
     /// 看到的范围排」）。投影照这个先后一条条渲染。
     ///

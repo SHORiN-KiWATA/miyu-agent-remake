@@ -69,6 +69,9 @@ async fn session(
         },
         attended,
         cwd: home.scratch.0.join("work").to_string_lossy().into_owned(),
+        dirs: Vec::new(),
+        sandbox: None,
+        sandbox_cache: None,
     };
     home.create_as(script, catalog, opening).await
 }

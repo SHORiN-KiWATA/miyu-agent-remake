@@ -7,7 +7,7 @@
 //! - 路径太长放不下的：`$TMPDIR/miyu-<uid>/<指纹>.sock`；
 //! - Windows：命名管道 `\\.\pipe\miyu-<指纹>`（施工 3-8 补）。
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use miyu_store::env::Platform;
 use miyu_store::root::DataRoot;
@@ -88,6 +88,15 @@ pub(crate) fn locate(root: &DataRoot, dirs: &Dirs) -> Result<PathBuf, OpenError>
         Some(fallback) if fits(&fallback) => Ok(fallback),
         _ => Err(OpenError::TooLong(first)),
     }
+}
+
+/// 套接字所在的这一层是不是这个数据根专用的：放在 `$XDG_RUNTIME_DIR/miyu-<指纹>/` 里的是，交回这一层；
+/// 核心走的时候连它一起删（施工 5-11 补）。数据根的 `run/`、临时目录下几个数据根共用的 `miyu-<uid>/`
+/// 不是。
+pub(crate) fn own_dir(path: &Path, dirs: &Dirs) -> Option<PathBuf> {
+    let dir = path.parent()?;
+    let runtime = dirs.runtime_dir.as_deref()?;
+    (dirs.platform == Platform::Linux && dir.parent() == Some(runtime)).then(|| dir.to_path_buf())
 }
 
 // 测试里的路径是 Unix 的写法。平台是快照的一格，Windows 那一支在 Unix 上照样测得到。

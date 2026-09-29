@@ -40,6 +40,14 @@ impl Assembler for Drifting {
         request.system = format!("{} events", history.events().len());
         request
     }
+
+    fn summarize(&self, history: &History, upto: Seq) -> Request {
+        Listing.summarize(history, upto)
+    }
+
+    fn summary(&self, reply: &[Block]) -> Option<String> {
+        Listing.summary(reply)
+    }
 }
 
 #[test]

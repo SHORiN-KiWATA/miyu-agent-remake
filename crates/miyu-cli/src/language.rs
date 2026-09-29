@@ -4,6 +4,7 @@
 
 use crate::ask::usage_line;
 
+mod sandbox;
 mod undo;
 
 /// 界面语言。

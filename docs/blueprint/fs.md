@@ -14,6 +14,7 @@
 | `crates/miyu-fs/src/wide.rs` | 工作目录太宽 |
 | `crates/miyu-fs/src/open.rs` | 安全地打开 |
 | `crates/miyu-fs/src/replace.rs` | 整体换成新的内容 |
+| `crates/miyu-fs/src/nofollow.rs` | Unix 上路上一层链接都不跟地打开文件、目录（施工 5-10 下） |
 | `crates/miyu-fs/src/trash.rs` | 回收站：放进去、移回来 |
 | `crates/miyu-fs/src/trash/linux.rs`、`macos.rs`、`windows.rs`、`other.rs` | 各平台的回收站；别的系统一律收不了 |
 | `crates/miyu-fs/src/trash/recycled.rs` | Windows 回收站里的 `$I` 记录；每个平台都编，测试到处都跑 |
@@ -25,7 +26,7 @@
 | 名字 | 是什么 |
 |---|---|
 | `Zone` | 一个真实的位置落在哪一片：`Writable` 能读能写、`Readable` 只能读、`Forbidden` 谁都不能碰、`Outside` 边界以外 |
-| `Places` | 造边界表要的几个地方，都是原样的路径：`workspace`、`data_root`、`temp`、`readable`（一组） |
+| `Places` | 造边界表要的几个地方，都是原样的路径：`workspace`、`dirs`（加进来的目录，一组（施工 5-10 上））、`data_root`、`temp`、`readable`（一组） |
 | `Places::here(workspace, data_root, home)` | 照这台机器补上临时目录、系统目录、工具链目录 |
 | `Boundary::new(&places)` | 边界表：每一片换成真实的位置 |
 | `Boundary::zone(path)` | 真实的位置 `path` 落在哪一片 |
@@ -50,11 +51,13 @@
    |---|---|---|
    | 1 | 工作区里（工作区自己也算） | 能读能写；其中哪一层叫 `.git`、下一层叫 `hooks` 或 `config` 的，它和它下面的只能读（子目录里的仓库也算） |
    | 2 | 数据根里（数据根自己也算） | 谁都不能碰 |
-   | 3 | 临时目录里 | 能读能写 |
-   | 4 | 系统目录、工具链目录里 | 只能读 |
-   | 5 | 别的 | 边界以外 |
+   | 3 | 加进来的哪一个目录里（它自己也算）（施工 5-10 上） | 照工作区：能读能写，`.git/hooks`、`.git/config` 只能读 |
+   | 4 | 临时目录里 | 能读能写 |
+   | 5 | 系统目录、工具链目录里 | 只能读 |
+   | 6 | 别的 | 边界以外 |
 
    - 工作区排在数据根前面：工作区是数据根里的 `home/<账号>/workspace/` 时，那一片照工作区算，数据根别处照样不能碰。
+   - 加进来的目录排在数据根后面：落进了数据根的（报来以后被换成了链接），数据根照样谁都不能碰。
    - 数据根排在临时目录前面：数据根可能在临时目录里（测试、`MIYU_HOME` 指到那里）。
 2. `Places::here` 照这台机器填：
 
@@ -111,12 +114,14 @@
 
 交进来的要是换过、查过边界的真实位置。
 
-1. 只读地打开：
-   - Unix：带 `O_NOFOLLOW`（最后一层是链接就不开）、`O_NONBLOCK`（FIFO 没人写时不卡住）。
-   - Windows：带 `FILE_FLAG_OPEN_REPARSE_POINT`，打开链接、目录联接本身，不跟着走。
+1. 只读地打开，路上一层链接都不跟（施工 5-10 下）：交进来的本来就是真实的位置，路上本来没有链接，有了就是检查完以后被换过，不开。都带 `O_NONBLOCK`（FIFO 没人写时不卡住）。
+   - Linux：`openat2` 带 `RESOLVE_NO_SYMLINKS`，一次打开。内核没有 `openat2`（5.6 以前）、或者被容器挡掉（报 `ENOSYS`、`EPERM`）的，退回一层一层打开：从根目录起，每一层目录用 `O_PATH | O_DIRECTORY | O_NOFOLLOW` 相对上一层打开（只要能走进去，不要求能读），最后一层用 `O_NOFOLLOW` 打开。
+   - macOS：带 `O_NOFOLLOW_ANY`，一次打开；它连最后一层也管，不和 `O_NOFOLLOW` 一起写：一起写报 `EINVAL`（CI 上撞到过）。
+   - 别的 Unix：一层一层打开，每一层目录用只读的 `O_DIRECTORY | O_NOFOLLOW`，要能读那一层。
+   - Windows：照旧只带 `FILE_FLAG_OPEN_REPARSE_POINT`，最后一层是链接、目录联接的打开它本身，不跟着走；路上的照旧跟（Windows 上的沙盒 5-9 暂停着，一起记着）。
 2. 打不开的：
    - 没有这个文件：`NotFound`。
-   - 别的错：先不跟链接看它是什么：不是普通文件的，报是什么（`NotAFile`）；Unix 上报 `ELOOP` 的（最后一层是链接），报 `NotAFile(Link)`；都不是，`Io`。
+   - 别的错：先不跟链接看它是什么：不是普通文件的，报是什么（`NotAFile`）；Unix 上报 `ELOOP` 的（最后一层或者路上有链接），报 `NotAFile(Link)`；都不是，`Io`。
 3. 打开了：再看开的这个是不是普通文件，是的交出去，不是的报是什么；读不出它的元数据：`Io`。
 4. 「是什么」（`Kind`）：链接 `Link`；目录 `Directory`；Unix 上 FIFO `Fifo`，字符设备、块设备 `Device`，套接字 `Socket`；别的 `Other`。Windows 上没有 FIFO、设备、套接字这几种，链接、目录以外都是 `Other`。
 
@@ -127,12 +132,13 @@
 `write`、`edit` 写文件，撤销时写回改前的内容，都用它。
 
 1. `real` 要有上级目录，上级目录要已经在；没有上级的（例如根目录）：`InvalidInput`。
+   - Unix 上照第四节的办法打开上级目录，路上一层链接都不跟（Linux 上用 `O_PATH`）；下面第 2 到 6 步都相对这个打开了的目录做（`statat`、`openat`、`renameat`、`unlinkat`），检查完以后上级目录被换成了链接，写不到别处去（施工 5-10 下）。Windows 上照旧照路径做。
 2. 看原来的文件（跟着链接）：
    - 是只读的：不写，`PermissionDenied`。只读指 Unix 上一个写位都没有、Windows 上带只读属性。Windows 上改名也盖不过只读的文件，三个平台照这一条一样。
    - 在、不是只读的：记下它的权限。
    - 不在：照系统默认的权限建。
    - 读不了（不在以外的错）：报那个错。
-3. 在同一个目录里只许新建地建一个临时文件：名字 `.<原来的名字>.<进程号>-<序号>.miyu-tmp`，序号在这个进程里从 0 往上数。名字撞上了换下一个，最多 16 次；都撞上：`AlreadyExists`。建不了（撞名以外的错）：报那个错。
+3. 在同一个目录里只许新建、不跟链接地建一个临时文件：名字 `.<原来的名字>.<进程号>-<序号>.miyu-tmp`，序号在这个进程里从 0 往上数。名字撞上了换下一个，最多 16 次；都撞上：`AlreadyExists`。建不了（撞名以外的错）：报那个错。
 4. 写进 `bytes`；原来有的，照原来的权限设好；同步到磁盘。
 5. 改名盖上去。
 6. 第 4、5 步出错：删掉临时文件，报那个错；原来的文件没动。临时文件删不掉的，只记一条运行日志，目录里多一个以点开头的文件。
@@ -242,11 +248,12 @@
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-fs/tests/boundary.rs` | 五片的先后、工作区里的 `.git/hooks`、`.git/config` 只能读（子仓库里的也算）、数据根在临时目录里也不能碰、工作区挪进数据根的照工作区算、一段一段比、不存在的那一片不算、macOS 和 Windows 上数据根不分大小写、`within`、这台机器的清单 |
+| `crates/miyu-fs/tests/boundary.rs` | 六片的先后、加进来的目录照工作区算、落进数据根的照样不能碰、不存在的不算（施工 5-10 上）、工作区里的 `.git/hooks`、`.git/config` 只能读（子仓库里的也算）、数据根在临时目录里也不能碰、工作区挪进数据根的照工作区算、一段一段比、不存在的那一片不算、macOS 和 Windows 上数据根不分大小写、`within`、这台机器的清单 |
 | `crates/miyu-fs/tests/resolve.rs` | 相对的照工作目录接、`.` 和走过存在的目录再 `..`、绝对的照原样、`~` 和 `~alice`、没有家目录、还不存在的照上级算、还不存在的 `..`（Unix 报错、Windows 照字面消掉）、链接照指向的地方算、指向不存在处的链接、Windows 两种分隔符；最后一段不跟链接：指向不存在处的、指到别处的链接交回链接本身，`.`、`..`、`~` 交回空的，`src/.` 是 `src` |
-| `crates/miyu-fs/tests/open.rs` | 普通文件打得开、目录和不存在的、最后一层是链接不跟（Unix、Windows）、FIFO 不卡住、设备和套接字 |
+| `crates/miyu-fs/tests/open.rs` | 普通文件打得开、目录和不存在的、最后一层是链接不跟（Unix、Windows）、路上有链接的不开（Unix（施工 5-10 下））、FIFO 不卡住、设备和套接字 |
 | `crates/miyu-fs/tests/wide.rs` | 太宽的四样；家目录读不出来时 |
-| `crates/miyu-fs/src/replace/tests.rs` | 新建和覆盖、不留临时文件、只读的不写、盖不上去时临时文件删掉 |
+| `crates/miyu-fs/src/replace/tests.rs` | 新建和覆盖、不留临时文件、只读的不写、盖不上去时临时文件删掉；路上有链接的一个字节都不落到链接指的地方、不留临时文件（Unix（施工 5-10 下）） |
+| `crates/miyu-fs/src/nofollow/tests.rs` | 普通的文件、目录打得开；路上、最后一层有链接的报 `ELOOP`；一层一层打开那条路单独测：链接照样不开、相对的不收（施工 5-10 下） |
 | `crates/miyu-fs/tests/trash.rs` | Linux：移回来、`.trashinfo` 删了、上级目录没了的建上、只删回收站里的记录、回收站里没有了的移不回来；macOS、Windows（在 CI 上）：文件、目录放进系统的回收站再移回来，Windows 的 `$I` 删了 |
 | `crates/miyu-fs/src/trash/recycled/tests.rs` | `$I` 第 2 版、第 1 版，认不出的、不够长的、字数说得比记录长的，`$I` 在 `$R` 旁边 |
 | `crates/miyu-basesystem/tests/trash.rs` | 经 `trash` 这件工具：Linux 上放进家目录的回收站、记录的样子、`files/` 和 `info/` 是 `0700`、重名接 `.2`、同名却没有记录的不盖、目录和链接、转义、挪不动的不删也不留记录、家目录的回收站建不了的不删 |
@@ -261,7 +268,7 @@
 
 ### 还没有的
 
-- 检查完、打开前，上级目录被别的进程换成了链接：这一版挡不住；M5 有了沙盒，换成按真实位置逐层打开（Linux 的 `openat2`、macOS 的 `O_NOFOLLOW_ANY`）（`11-权限与沙盒.md` 第七节）。
+- 检查完、打开前，上级目录被别的进程换成了链接：Linux、macOS 上挡住了（施工 5-10 下）；Windows 上照旧挡不住，和 Windows 上的沙盒（5-9 暂停）一起记着。
 - 边界清单是策略数据，配置那一步能改（第四节）：现在写在代码里。
 - 工具链的缓存可以写：说的是沙盒里的命令，随 M5；核心进程里的文件工具对它们只读（第四节）。
 - 成员的边界（只能碰自己的工作区）、别人分享来的工作区加进边界（第三节、第四节，`06-多用户与身份.md` U12）。

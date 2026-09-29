@@ -1,5 +1,5 @@
-//! 真的 `glob`、`grep`（施工 4-4 下）：会话里她调它们，工作区里的找得到、搜得到，结果落盘；越界的搜，在没人能
-//! 确认的会话里被拒。
+//! 真的 `glob`、`grep`（施工 4-4 下）：会话里她调它们，工作区里的找得到、搜得到，结果落盘；边界以外的也搜得到，
+//! 没人能确认也不用问（施工 5-4 上，原来被拒）；从上面往下搜，不进数据根。
 
 mod support;
 
@@ -28,10 +28,10 @@ fn text(blocks: &[Block]) -> String {
 }
 
 #[tokio::test]
-async fn she_finds_and_searches_in_the_workspace_but_not_outside() {
+async fn she_finds_and_searches_in_the_workspace_and_outside() {
     let home = Home::outside_temp();
     std::fs::write(home.scratch.0.join("work/a.txt"), "hello\n").expect("写得进");
-    std::fs::write(home.scratch.0.join("other/b.txt"), "hello secret\n").expect("写得进");
+    std::fs::write(home.scratch.0.join("other/b.txt"), "hello far\n").expect("写得进");
     let outside = home.scratch.0.join("other").to_string_lossy().into_owned();
     let script = Script::new([
         Play::calls(&[
@@ -39,7 +39,7 @@ async fn she_finds_and_searches_in_the_workspace_but_not_outside() {
             ("grep", r#"{"pattern":"hel+o","output_mode":"content"}"#),
             (
                 "grep",
-                &serde_json::json!({ "pattern": "secret", "path": outside }).to_string(),
+                &serde_json::json!({ "pattern": "far", "path": outside }).to_string(),
             ),
         ]),
         Play::Says("好。"),
@@ -51,6 +51,9 @@ async fn she_finds_and_searches_in_the_workspace_but_not_outside() {
         },
         attended: false,
         cwd: home.scratch.0.join("work").to_string_lossy().into_owned(),
+        dirs: Vec::new(),
+        sandbox: None,
+        sandbox_cache: None,
     };
     let handle = home.create_as(&script, &base_system(), opening).await;
     let mut pushes = watch(&handle).await;
@@ -76,15 +79,15 @@ async fn she_finds_and_searches_in_the_workspace_but_not_outside() {
     };
     assert_eq!(results[found].status, ToolStatus::Ok);
     assert_eq!(results[searched].status, ToolStatus::Ok);
-    let refused = (0..3)
+    let outside = (0..3)
         .find(|at| *at != found && *at != searched)
         .expect("第三条");
     assert_eq!(
-        results[refused].status,
-        ToolStatus::Denied,
-        "越界要问人，没人能确认"
+        results[outside].status,
+        ToolStatus::Ok,
+        "边界以外的搜不用问：{texts:?}"
     );
-    assert!(!texts[refused].contains("secret"));
+    assert!(texts[outside].contains("b.txt"), "{texts:?}");
 }
 
 #[tokio::test]
@@ -109,6 +112,9 @@ async fn searching_from_above_never_goes_into_miyus_own_data() {
         },
         attended: false,
         cwd: home.scratch.0.join("work").to_string_lossy().into_owned(),
+        dirs: Vec::new(),
+        sandbox: None,
+        sandbox_cache: None,
     };
     let handle = home.create_as(&script, &base_system(), opening).await;
     let mut pushes = watch(&handle).await;

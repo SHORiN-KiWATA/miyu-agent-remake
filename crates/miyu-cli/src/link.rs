@@ -10,7 +10,8 @@ use crate::language::Language;
 use crate::rpc::Rpc;
 use crate::shown::say;
 
-/// 握手：协议的版本、是哪个头、界面语言（核心的拒绝照它说）、有没有人能当场回答、本机令牌。
+/// 握手：协议的版本、是哪个头、界面语言（核心的拒绝照它说）、有没有人能当场回答、本机令牌。交回核心的回应：里面有这台
+/// 机器的沙盒能不能用（施工 5-4 下）。
 ///
 /// # Errors
 ///
@@ -21,7 +22,7 @@ pub(crate) async fn hello(
     language: &Language,
     input: bool,
     err: &mut dyn Write,
-) -> Result<(), u8> {
+) -> Result<Value, u8> {
     let hello = json!({
         "protocol": [1, 1],
         "head": {"kind": "cli", "version": env!("CARGO_PKG_VERSION")},
@@ -29,9 +30,14 @@ pub(crate) async fn hello(
         "caps": {"input": input},
         "token": token,
     });
-    request(rpc, "hello", hello, language, err)
-        .await
-        .map(|_| ())
+    request(rpc, "hello", hello, language, err).await
+}
+
+/// 握手的回应说沙盒用不了：交回原因（协议上的写法）；能用的、没说的（老的核心）是空的。
+pub(crate) fn unsandboxed(hello: &Value) -> Option<String> {
+    let sandbox = &hello["sandbox"];
+    (sandbox["usable"] == json!(false))
+        .then(|| sandbox["reason"].as_str().unwrap_or_default().to_string())
 }
 
 /// 最新的那个一次性会话（`miyu ask --continue` 接的就是它）。一个都没有的，说「还没有 miyu ask 开过的会话」。

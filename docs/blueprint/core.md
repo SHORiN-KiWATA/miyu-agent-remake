@@ -12,11 +12,13 @@
 | `crates/miyu-core/src/lib.rs` | `main`：起来的先后；管理员 `admin`；工具目录；写那一行 |
 | `crates/miyu-core/src/models.rs` | 从环境变量拿模型 |
 | `crates/miyu-core/src/serve.rs` | 接连接，空闲退出，停的信号 |
+| `crates/miyu-core/src/sandbox.rs` | 起来时找沙盒的助手、探一次，记日志（施工 5-1）；探到了手段的，交回助手（施工 5-4 上） |
 | `crates/miyu-ipc` | 单实例锁、套接字、本机令牌、那一行的写法（`ipc.md`） |
 | `crates/miyu-endpoint` | 协议端点：核心的家底 `Core`、接连接、空不空闲（`protocol.md`） |
 | `crates/miyu-basesystem`、`crates/miyu-tool` | 基础系统的七件工具、工具目录（`tools/interface.md`） |
 | `crates/miyu-log` | 运行日志（`log.md`） |
 | `crates/miyu-store` | 数据根、资源目录（`store.md`） |
+| `crates/miyu-sandbox` | 沙盒：找助手、探测（`sandbox.md`） |
 
 ### 对外的样子
 
@@ -34,6 +36,8 @@
 | `MIYU_RESOURCES` | 资源目录，开发时指到源码树的 `resources/`（`store.md`） |
 | `MIYU_LOG` | 运行日志记到哪一级（`log.md`） |
 | `DEEPSEEK_API_KEY` | 模型的 key，起来时读一次 |
+| `MIYU_DEV_BASE_URL`、`MIYU_DEV_MODEL` | 开发用：设了 key 的，替换地址、模型（下面「模型」第 1 条，施工 3-9 再补）。不进 `-h`，配置系统做好以后删掉 |
+| `MIYU_DEV_WINDOW` | 开发用：设了 key 的，当这个模型的上下文窗口，压过模型资料里的（施工 6-3 上）。同上，不进 `-h` |
 | `XDG_RUNTIME_DIR`（Linux）、`TMPDIR` | 套接字放哪（`ipc.md`） |
 | `HTTPS_PROXY`、`HTTP_PROXY`、`NO_PROXY` 这些 | 请求模型走不走代理（`http.md`） |
 
@@ -54,7 +58,7 @@
 
 **起来的先后**
 
-1. 读一次环境的快照（`MIYU_HOME`、`MIYU_RESOURCES`、家目录这些），数据根、资源目录照它找；`MIYU_LOG`、放套接字的目录、`DEEPSEEK_API_KEY` 到用的那一步才读。
+1. 读一次环境的快照（`MIYU_HOME`、`MIYU_RESOURCES`、家目录、程序的真实位置这些），数据根、资源目录、沙盒的助手照它找；`MIYU_LOG`、放套接字的目录、`DEEPSEEK_API_KEY` 到用的那一步才读。
 2. 找数据根，建骨架（`store.md`）。
 3. 拿单实例锁 `run/core.lock`，不等。拿不到：已经有一个核心在跑，写 `running`，退出码 0，运行日志一个字都不写。先拿锁、再装日志：两个核心不写同一份日志。
 4. 装运行日志 `state/logs/core.log`，级别照 `MIYU_LOG`，带上第 1 步的家目录（`log.md`）。记一条 `INFO starting version=<版本> pid=<进程号> root=<数据根> tz=<和 UTC 差多少>`，数据根里的家目录写成 `~`，例如 `root=~/.miyu tz=+09:00`。
@@ -63,7 +67,9 @@
 7. 起运行时：多线程，两个工作线程，接连接、会话、请求都在上面。
 8. 算出套接字放哪、换本机令牌、在套接字上等连接、记下实际的位置（`ipc.md`）。
 9. 从环境变量拿模型（下面「模型」）。
-10. 找沙盒的助手、探一次（`sandbox.md`「怎么走」第 1、2 条）：记一行 `INFO` `sandbox` 或者 `WARN` `sandbox unavailable`，只记日志，不影响别的（施工 5-1）。
+10. 找沙盒的助手、探一次（`sandbox.md`「怎么走」第 1、2 条）：记一行 `INFO` `sandbox` 或者 `WARN` `sandbox unavailable`（施工 5-1）。探到的结果（能不能用、为什么，`Availability`）交给协议端点：握手时报给头（施工 5-4 下）；能用的，造会话、载入时把助手交给会话，权限策略照它判执行命令，执行器照它带沙盒（施工 5-4 上）；用不了的，会话里当沙盒用不了。
+    - 再算出缓存目录（`store.md` 第 3 条），沙盒的缓存放在它下面的 `sandbox/<账号>/`，造会话、载入时照属主交给会话（`session/tools.md` 第 1a 条，施工 5-4 下）。算不出来的：记一行 `WARN sandbox cache unavailable`，`reason` 是 `no home directory` 或者 `no LOCALAPPDATA`（运行日志一律英文），沙盒里不设工具链的变量。你的 cargo 目录：核心的环境里 `CARGO_HOME` 设了、不是空的照它，不然 `~/.cargo`。
+    - 这两样都不影响起不起得来。
 11. 工具目录：登记基础系统，七件：`edit`、`glob`、`grep`、`read`、`shell`、`trash`、`write`；工具的字从资源目录读，登记完就冻结（`tools/interface.md`）。
 12. 核心的家底：数据根、资源目录、模型、工具目录、系统的家目录、管理员 `admin`、本机令牌，会话表是空的（`protocol.md`）。
 13. 往标准输出写一行 `ready`。
@@ -100,6 +106,8 @@
    | 代理 | 照环境变量（`http.md`） |
    | key | 去掉前后空白；只在内存里，不落盘、不写配置、不进日志 |
 
+   开发用的两个变量（施工 3-9 再补，2026-09-29 项目主人定）：`MIYU_DEV_BASE_URL` 去掉前后空白不是空的，替换地址，端点的编号改成 `dev`；`MIYU_DEV_MODEL` 去掉前后空白不是空的，替换模型名，不合模型名写法的起不来，原因写明是这个变量。别的照上表。设了哪个，`INFO` 记一条 `dev endpoint base_url=<地址> model=<模型>`。
+
    HTTP 客户端造不出来（系统的证书读不了之类）：起不来。
 2. 没设、空的、全是空白：照样起来，记一条 `WARN DEEPSEEK_API_KEY not set, no model`。每次请求都当场说完、没发出去：出错，分类 `auth`（认证失败），原话 `no model: set DEEPSEEK_API_KEY`；`model.called` 里没有端点和模型（没发出去）。分类是认证失败，内核不重试（`kernel/session.md`）。运行日志里 `request` 那一行写 `endpoint=none model=none`。
 3. key 只在起来时读一次：换了 key，要等这个核心退出、下一次拉起。
@@ -128,6 +136,9 @@
 |---|---|
 | `INFO` | `starting version=… pid=… root=… tz=…` |
 | `WARN` | `DEEPSEEK_API_KEY not set, no model` |
+| `INFO` | `sandbox helper=… platform=… mechanisms=…`（施工 5-1） |
+| `WARN` | `sandbox unavailable reason=…`（施工 5-1） |
+| `WARN` | `sandbox cache unavailable reason=…`（施工 5-4 下） |
 | `WARN` | `not started stage=…` |
 | `WARN` | `ready line not written error=…` |
 | `WARN` | `SIGTERM not watched error=…`、`Ctrl+C not watched error=…` |
@@ -139,11 +150,12 @@
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu/tests/core.rs` | 头拉起真的 `miyu core`，等它说好了再连；管理员叫 `admin`，建好了它的家目录；再连不再拉起；两个头同时只拉起一个；起不来的说原因（找不到资源目录），日志里只写 `stage=resources`；已经在跑的写 `running` 就走、不写日志；什么都没写就退了的；空闲了自己走，日志里一条 `starting`、一条 `stopped reason=idle`；`starting` 那一行的数据根在家目录下的写成 `~`、有和 UTC 差多少；工作目录是数据根 |
+| `crates/miyu/tests/core.rs` | 头拉起真的 `miyu core`，等它说好了再连；管理员叫 `admin`，建好了它的家目录；再连不再拉起；两个头同时只拉起一个；起不来的说原因（找不到资源目录），日志里只写 `stage=resources`；已经在跑的写 `running` 就走、不写日志；什么都没写就退了的；空闲了自己走，日志里一条 `starting`、一条 `stopped reason=idle`；`starting` 那一行的数据根在家目录下的写成 `~`、有和 UTC 差多少；工作目录是数据根；起来时探一次沙盒的助手：旁边有助手的记 `sandbox` 那一行、平台是这台机器的、有手段那一格，没有的记找不到（施工 5-1）；握手报的沙盒和记下的对得上（施工 5-4 下） |
 | `crates/miyu-core/tests/serve.rs` | 空闲退出、放开锁和套接字；有头连着不退；空闲的钟从最后一个头走时算起；在跑的回合不退；收到停的信号先停下会话、跑到一半的记成重启了；没有 key（没设、全是空白）每次请求都说没有模型、分类是认证失败、没发出去 |
 | `crates/miyu-core/src/serve/tests.rs` | 多久看一次：四分之一，最多 30 秒，最少 100 毫秒；装不上的 Ctrl+C 当它不会来（造不出真的装不上，测的是等它的那一小段） |
 | `crates/miyu-core/tests/tools.rs` | 工具目录里是基础系统的七件；资源目录坏了，说是哪一份 |
 | `crates/miyu-core/src/models/tests.rs` | 请求 DeepSeek 时的模型名、不写输出上限、收图不收 PDF（施工 4-13） |
+| `crates/miyu-core/src/sandbox/tests.rs` | 探沙盒的助手：旁边没有的、不知道主程序在哪的记找不到，跑不了的记原因（施工 5-1）；探到了手段的交回能用和助手，手段是空的、找不到、探不成的交回用不了和原因（施工 5-4 上、下）；沙盒的缓存在缓存目录下的 `sandbox`，cargo 目录照 `CARGO_HOME`、空的当没设、不然 `~/.cargo`，算不出缓存目录的记一行、交回空的（施工 5-4 下） |
 
 ### 出处
 

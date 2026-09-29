@@ -62,10 +62,11 @@ async fn a_running_core_is_used_even_without_a_key_here() {
     })
     .await
     .expect("没 panic");
-    // 核心也没有 key：这一轮说「没有可用的模型」。
+    // 核心也没有 key：这一轮说「没有可用的模型」。这台机器上的沙盒用不了的（例如 Windows 上 5-9 以前），前面还有
+    // 沙盒用不了那一句，照这台机器的样子另有测试（施工 5-4 下）。
     assert_eq!(output.status.code(), Some(5), "{output:?}");
     assert_eq!(
-        String::from_utf8_lossy(&output.stderr),
+        without_the_sandbox_line(&String::from_utf8_lossy(&output.stderr)),
         "没有可用的模型：设环境变量 DEEPSEEK_API_KEY\n"
     );
     drop(held);
@@ -95,5 +96,13 @@ fn the_help_is_the_page_in_the_language() {
                 "{lang} {args:?}"
             );
         }
+    }
+}
+
+/// 标准错误去掉最前面沙盒用不了那一句（有的话）：那一句照这台机器能不能用沙盒，别的测试守着。
+fn without_the_sandbox_line(stderr: &str) -> &str {
+    match stderr.strip_prefix("· 沙盒用不了（") {
+        Some(rest) => rest.split_once('\n').map_or("", |(_, after)| after),
+        None => stderr,
     }
 }

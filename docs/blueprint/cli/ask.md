@@ -12,7 +12,7 @@
 | `crates/miyu-cli/src/ask.rs` | 参数、退出码、找数据根、连核心、Ctrl+C |
 | `crates/miyu-cli/src/ask/talk.rs` | 握手、找会话、订阅、发、跟着那一轮 |
 | `crates/miyu-cli/src/ask/follow.rs` | 收推送：回答、思考、每一步、用量、结束 |
-| `crates/miyu-cli/src/ask/steps.rs` | 每一步的标题、目录太宽那一句、最后那一句 |
+| `crates/miyu-cli/src/ask/steps.rs` | 每一步的标题、目录太宽那一句、沙盒用不了那一句（施工 5-4 下）、最后那一句 |
 | `crates/miyu-cli/src/ask/steps/blocks.rs` | 执行命令、编辑那一块下面印什么（施工 4-11） |
 | `crates/miyu-cli/src/ask/usage.rs` | 用量加起来 |
 | `crates/miyu-cli/src/link.rs`、`rpc.rs`、`shown.rs` | 握手、发请求等回应、请求的编号、一行怎么上色、路径怎么写短；和 `miyu undo` 共用 |
@@ -29,12 +29,14 @@
 | `-s`、`--session <编号>` | 接着这个会话说；和 `--continue` 不能一起写 |
 | `-c`、`--continue` | 接着最新的那个一次性会话说 |
 | `--format text\|json` | 默认 `text` |
+| `--add-dir <目录>` | 多放行一个目录：和工作区一样能读能写；可以写好几次（施工 5-10 上） |
 
 - 界面语言：`LC_ALL`、`LC_MESSAGES`、`LANG` 里第一个设了、不是空的（`cli/main.md`），`zh` 开头说中文，别的说英文。帮助页也照它。
 - 用到的环境变量：`MIYU_HOME`（数据根，不设是 `~/.miyu`）、`MIYU_RESOURCES`（资源目录，开发时用）、`DEEPSEEK_API_KEY`、`NO_COLOR`。
 
 ### 怎么走
 
+0. **加进来的目录**（施工 5-10 上）：`--add-dir` 的每一个，相对的照敲命令时的目录接成绝对的；不存在的、不是目录的，照「参数写错时」说（`cli/main.md`），退出码 2。照写的先后，去掉重复的。
 1. **找数据根**，建骨架。出错：原因写在标准错误上，退出码 1。
 2. **连核心**：
    1. 设了 `DEEPSEEK_API_KEY`（去掉前后空白不是空的）：连；核心没在跑就拉起来。
@@ -42,12 +44,13 @@
    3. 连不上：原因写在标准错误上，退出码 1。
 3. **握手** `hello`：`protocol` 是 `[1, 1]`；`head` 是 `{"kind": "cli", "version": <版本>}`；`locale` 是 `zh-CN` 或 `en`；`caps.input` 是 `false`；带上本机令牌。
    - `caps.input` 是 `false`：`miyu ask` 里没有确认的界面，要确认的那一步，核心当场拒绝。
+   - 回应里的 `sandbox` 说用不了：执行命令都要确认，这里确认不了。第一步之前、目录太宽那一句之前说一句，照原因和这台机器的系统写（下面「给人看的字」），一次（施工 5-4 下）。
 4. **找会话**：
-   1. 不写：`session.create`，带 `cwd`（敲命令时的目录；读不出来的写 `.`）和 `oneshot: true`。回应里的 `cwd` 和敲命令时的目录不一样（目录太宽，退回账号的工作区），第一步之前说一句。
+   1. 不写：`session.create`，带 `cwd`（敲命令时的目录；读不出来的写 `.`）、`dirs`（加进来的目录，没有的写空的）和 `oneshot: true`。回应里的 `cwd` 和敲命令时的目录不一样（目录太宽，退回账号的工作区），第一步之前说一句。
    2. `--continue`：`session.list`，带 `oneshot: true`、`limit: 1`，取第一个。一个都没有：说「还没有 miyu ask 开过的会话」，退出码 1。
    3. `--session`：照写的。
 5. **订阅** `subscribe`：`{"session": …, "stream": "events"}`。
-6. **发** `session.send`：`{"session": …, "text": …, "cwd": …}`。请求的编号是 `ask-<16 位十六进制>-<序号>`：前缀每个进程随机一次（取不到随机数的，用进程号和此刻的纳秒，各写成十六进制接在一起），序号从 1 数起。被拒绝的：核心照握手时的语言写的原因，照原样印在标准错误上，退出码 1。回应里有 `cwd`、和前面说过的不一样的，也说一句目录太宽，一次 `miyu ask` 至多说一次。
+6. **发** `session.send`：`{"session": …, "text": …, "cwd": …, "dirs": […]}`：`dirs` 每次都写，没有 `--add-dir` 就是空的，所以 `--continue` 时各次照各次的。请求的编号是 `ask-<16 位十六进制>-<序号>`：前缀每个进程随机一次（取不到随机数的，用进程号和此刻的纳秒，各写成十六进制接在一起），序号从 1 数起。被拒绝的：核心照握手时的语言写的原因，照原样印在标准错误上，退出码 1。回应里有 `cwd`、和前面说过的不一样的，也说一句目录太宽，一次 `miyu ask` 至多说一次。
 7. **跟着那一轮**：`turn.started` 的 `cause` 是自己发的那条命令的，就是它；之后只收这一轮的推送，照回合编号认。收到 `resync`（掉队了），重新订阅，不补看掉的那些。
 8. **收尾**：`turn.ended` 来了，照下面「样子」印完，交回退出码。
 9. **Ctrl+C**：第一次发 `session.interrupt`，带 `queued: "return"`，等这一轮收尾；第二次不等了，说「打断了」，退出码 3。
@@ -93,6 +96,8 @@ todo.md
 | 17 | 她的回答，边收边打 | 标准输出 | 不上色 |
 | 18 | 用量 | 标准错误 | 灰 |
 | 19 | 有几步因为要确认没做：最后那一句 | 标准错误 | 灰；「没做」红 |
+
+沙盒用不了那一句（施工 5-4 下）：样本里没有它。只在握手的回应说沙盒用不了时有，最先印，在目录太宽那一句前面，一次；标准错误，灰，和目录太宽那一句连着、不空行。
 
 **上色**：标准错误是终端、`NO_COLOR` 没设或者设成空的才上色：no-color.org 的约定是设了、不是空的才不上色（施工 4-9 再补四上：原来设成空的也不上色）。灰是 `ESC[90m`，红是 `ESC[31m`，绿是 `ESC[32m`。一行分几段，换颜色时写新颜色，换回原色写 `ESC[0m`；上过色的行，行尾写 `ESC[0m`，中途退出也不会把终端留成灰的。思考一段一段写，每一段各自包在 `ESC[90m` 和 `ESC[0m` 里。标准输出从不上色。
 
@@ -183,7 +188,7 @@ todo.md
 - `text` 是这一轮她说的全部回答；中间隔着步骤的两段，前一段没换行的补一个换行；没隔着步骤的照原样接上。
 - `usage` 的 `input` 是加起来的输入（没命中 + 命中 + 写进缓存）。供应商一次都没报用量的，四格都是 0。
 - 这一轮最后一次请求出错的，多一格 `"error": {"class": …, "message": …}`，排在最前面。
-- 不印思考、每一步、目录太宽那一句、用量那一行、最后那一句；标准错误上只印出错（被拒绝、核心断开……）和说为什么结束的那一句。
+- 不印思考、每一步、沙盒用不了那一句、目录太宽那一句、用量那一行、最后那一句；标准错误上只印出错（被拒绝、核心断开……）和说为什么结束的那一句。
 - 退出码和 `text` 一样，有几步因为要确认没做的也是 4。
 
 ### 退出码
@@ -204,6 +209,13 @@ todo.md
 | 什么时候 | 中文 | 英文 |
 |---|---|---|
 | 目录太宽 | `· 目录太宽（<目录>），这次在 <目录> 里干活` | `· Working directory too wide (<dir>), using <dir> this time` |
+| 沙盒用不了（一行：括号里的原因，接着那半句后果） | `· 沙盒用不了（<原因>）：执行命令要你确认，miyu ask 里确认不了` | `· Sandbox unavailable (<reason>): commands need your approval, which cannot be given in miyu ask` |
+| 原因：Linux 上没有手段 | 内核没有能用的 Landlock：要 Linux 5.13 起，启动参数的 lsm= 里开着 | the kernel has no usable Landlock: Linux 5.13 or later, enabled in the lsm= boot parameter |
+| 原因：macOS 上没有手段 | 装不上 Seatbelt 配置，Miyu 可能跑在别的沙盒里 | the Seatbelt profile cannot be applied; Miyu may be running inside another sandbox |
+| 原因：Windows 上没有手段 | 这一版在 Windows 上还不能把命令关进沙盒 | this version cannot sandbox commands on Windows yet |
+| 原因：别的系统上没有手段 | 这个系统上没有能用的沙盒 | no sandbox is available on this system |
+| 原因：找不到助手 | 主程序旁边没有 miyu-sandbox：重装一次 Miyu | miyu-sandbox is missing beside the main program: reinstall Miyu |
+| 原因：助手跑不起来 | miyu-sandbox 跑不起来：重装一次 Miyu | miyu-sandbox does not run: reinstall Miyu |
 | 用量 | `· 输入 … · 命中缓存 …（…%）· 输出 …` | `· input … · cache hit … (…%) · output …` |
 | 最后那一句，一步 | `· 1 步没做：要你确认，miyu ask 里确认不了` | `· 1 step not done: it needs your approval, which cannot be given in miyu ask` |
 | 最后那一句，几步 | `· 2 步没做：要你确认，miyu ask 里确认不了` | `· 2 steps not done: they need your approval, which cannot be given in miyu ask` |
@@ -245,6 +257,7 @@ todo.md
   -c, --continue          接着上一次 miyu ask 开的会话说
   -s, --session <编号>    接着这个会话说
       --format text|json  text 给人看（默认），json 给脚本
+      --add-dir <目录>    多放行一个目录，她能读能写，可以写好几次
   -h, --help              印帮助
 ```
 
@@ -259,6 +272,7 @@ Options:
   -c, --continue          Go on in the session the last miyu ask opened
   -s, --session <id>      Go on in this session
       --format text|json  text for people (default), json for scripts
+      --add-dir <dir>     Let her read and write this directory too; repeatable
   -h, --help              Print help
 ```
 
@@ -268,15 +282,15 @@ Options:
 |---|---|
 | `crates/miyu-cli/src/ask/follow/tests.rs` | 思考和回答分两条通道、上色、只跟自己那一轮、`--format json`、出错和退出码、重试成了不算出错 |
 | `crates/miyu-cli/src/ask/follow/tests/blocks.rs` | 一块前后的空行：最前面的不空、两块挨着只空一行、后面接回答、接思考、接用量；下面没有东西的照一行印（施工 4-11） |
-| `crates/miyu-cli/src/ask/follow/tests/asides.rs` | 换行和空行；给脚本的两段回答隔开、没隔着步骤的照原样接上；目录太宽那一句只说一次；路径照会话实际干活的目录写短 |
+| `crates/miyu-cli/src/ask/follow/tests/asides.rs` | 换行和空行；给脚本的两段回答隔开、没隔着步骤的照原样接上；目录太宽那一句只说一次；路径照会话实际干活的目录写短；沙盒用不了那一句：每种原因、最先印、只说一次、`--format json` 不印（施工 5-4 下） |
 | `crates/miyu-cli/src/ask/follow/tests/unattended.rs` | 最后那一句、退出码 4、只算内核那一句 |
 | `crates/miyu-cli/src/ask/follow/tests/sample.rs` | 照样本的场景喂一轮，整块屏幕和 `docs/designs/samples/cli/ask-text.txt` 逐字节一样；蓝图里的样本块由门禁和同一份比（施工 4-9 三补） |
 | `crates/miyu-cli/src/ask/steps/tests.rs` | 每一步的标题：符号、显示名、参数的值、结果那一句、颜色；没有显示名的写 `⚙` |
 | `crates/miyu-cli/src/ask/steps/blocks/tests.rs` | 执行命令那一块：几行的命令、工具自己写的才印、控制序列去掉、红的 `$`；编辑那一块：`-`、`+`、两处之间的 `…`、读不出的那一处不印、不是 `ok` 的不印 |
 | `crates/miyu-cli/src/ask/usage/tests.rs` | 用量加法、命中率、三位一撇 |
-| `crates/miyu-cli/src/ask/tests.rs` | 几个词用空格连起来；给人看的字照界面语言读，读不出来的当没有 |
-| `crates/miyu-cli/tests/ask.rs` | 真的核心：开一次性会话、`--continue`、没有会话可接、被拒绝、没有模型、Ctrl+C 一次和两次 |
-| `crates/miyu-cli/tests/steps.rs` | 真的核心、真的工具走一遍：每一步、执行命令和编辑那两块、目录太宽、给脚本的只看退出码 |
+| `crates/miyu-cli/src/ask/tests.rs` | 几个词用空格连起来；给人看的字照界面语言读，读不出来的当没有；加进来的目录照写的先后、去掉重复的；相对的接成绝对的，不是目录的读不成（施工 5-10 上） |
+| `crates/miyu-cli/tests/ask.rs` | 真的核心：开一次性会话、`--continue`、没有会话可接、被拒绝、没有模型、Ctrl+C 一次和两次；加进来的目录跟着每一次 `miyu ask`：`--continue` 不写的那一轮就没有，太宽的造会话时就被拒、不留空会话（施工 5-10 上） |
+| `crates/miyu-cli/tests/steps.rs` | 真的核心、真的工具走一遍：每一步、执行命令和编辑那两块、目录太宽、给脚本的只看退出码。要确认的一步是写到工作区外面（施工 5-4 上起读哪儿都不问）；执行命令经 cargo 编出来的助手在沙盒里跑 |
 | `crates/miyu-cli/src/shown/tests.rs` | 原色的段不带控制序列，上过色的行尾回到原色 |
 | `crates/miyu/tests/ask.rs` | 真跑主程序：没有 key、核心没在跑的不拉起，退出码 5；核心在跑的照样连；参数不对退出码 2；`-h` 印帮助页，跟着界面语言 |
 

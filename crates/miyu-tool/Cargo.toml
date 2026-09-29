@@ -12,6 +12,8 @@ publish.workspace = true
 miyu-kernel = { path = "../miyu-kernel" }
 # 登记时查参数格式是不是一个对象。
 serde_json = "1.0"
+# 一次调用带的沙盒：助手在哪、规格是什么（施工 5-1）。
+miyu-sandbox = { path = "../miyu-sandbox" }
 # 测试用的假工具：几件一起跑的等凑齐（施工 4-2）、等叫它停（施工 4-9 再补一），只在 testkit 开关打开时要。
 tokio = { version = "1", features = ["sync", "time"], optional = true }
 

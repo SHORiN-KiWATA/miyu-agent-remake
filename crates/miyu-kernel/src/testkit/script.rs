@@ -1,7 +1,7 @@
 //! 剧本：模型每次请求说什么，每次调工具怎么回。执行前的链、回合开始的挂接点照默认的来：放行，
 //! 不注入；要别的，交给 [`super::Stage`] 另排。
 
-use crate::event::{CallError, ErrorClass, Question};
+use crate::event::{CallError, ErrorClass, Question, Usage};
 
 /// 模型的一次回复：想的、说的话、调的工具；或者出错。
 ///
@@ -24,6 +24,8 @@ pub struct Line {
     pub wait_ms: Option<u64>,
     /// 说到一半停住。
     pub hold: bool,
+    /// 说完了报的用量；没有的照默认：没命中缓存的 100，输出 10（施工 6-2 上）。
+    pub usage: Option<Usage>,
 }
 
 impl Line {
@@ -44,6 +46,7 @@ impl Line {
             error: None,
             wait_ms: None,
             hold: false,
+            usage: None,
         }
     }
 
@@ -85,6 +88,19 @@ impl Line {
     /// 想了、说了或者调了点什么：出错的也要先送出去。
     pub(super) fn says_something(&self) -> bool {
         !self.reasoning.is_empty() || !self.text.is_empty() || !self.calls.is_empty()
+    }
+
+    /// 同样的回复，说完了报的用量一共是 `total`：都算没命中缓存的输入（施工 6-2 上）。
+    pub fn reports(self, total: u64) -> Line {
+        Line {
+            usage: Some(Usage {
+                uncached: total,
+                cache_read: 0,
+                cache_write: 0,
+                output: 0,
+            }),
+            ..self
+        }
     }
 
     /// 同样的回复，说到一半停住：增量都送了，等放行才送说完了。

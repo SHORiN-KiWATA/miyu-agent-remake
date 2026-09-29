@@ -38,7 +38,7 @@ fn a_message_to_an_idle_session_opens_a_turn_in_the_same_batch() {
     assert_eq!(env.kind.as_str(), "env");
     assert_eq!(
         env.text,
-        r#"<e t="Fri 2026-09-25 16:00" z="UTC+09:00" d="~/src/miyu"/>"#
+        r#"<e t="Fri 2026-09-25 16:00–17:00" z="UTC+09:00" d="~/src/miyu"/>"#
     );
     let permission = fact_of(&events[3]);
     assert_eq!(permission.kind.as_str(), "permission");
@@ -184,6 +184,7 @@ fn the_environment_reported_last_is_the_one_injected() {
     let moved = Environment {
         offset: UtcOffset::from_minutes(0).unwrap(),
         cwd: "~/src/other".to_string(),
+        dirs: Vec::new(),
     };
     assert!(
         session.handle(Input::Environment(moved)).is_empty(),
@@ -192,6 +193,6 @@ fn the_environment_reported_last_is_the_one_injected() {
     let events = appended_events(&session.handle(send(1, "hi")));
     assert_eq!(
         fact_of(&events[2]).text,
-        r#"<e t="Fri 2026-09-25 07:00" z="UTC+00:00" d="~/src/other"/>"#
+        r#"<e t="Fri 2026-09-25 07:00–08:00" z="UTC+00:00" d="~/src/other"/>"#
     );
 }

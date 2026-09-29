@@ -27,6 +27,7 @@ use crate::effects;
 use crate::guard::Guard;
 use crate::handle::Handle;
 use crate::port::{ForSession, Models};
+use crate::sandbox::SandboxCache;
 use crate::tools::ToolKit;
 
 /// 造一个会话要的。
@@ -61,6 +62,12 @@ pub struct Create<'a> {
     pub tools: &'a Catalog,
     /// 系统的家目录：权限策略照它换 `~`、找工具链目录（施工 4-3 下）。读不出来的是空的。
     pub home: Option<&'a Path>,
+    /// 沙盒的助手：这台机器上的沙盒能用才有（核心起来时探的，施工 5-4 上）。权限策略照它判执行命令，执行器照它
+    /// 给每次调用写沙盒。
+    pub sandbox: Option<&'a Path>,
+    /// 沙盒的缓存：属主的那一份在哪、你的 cargo 目录在哪（施工 5-4 下）。核心算不出缓存目录的没有，沙盒里不设工具链的
+    /// 变量。
+    pub sandbox_cache: Option<SandboxCache>,
 }
 
 /// 载入一个会话要的。
@@ -79,6 +86,12 @@ pub struct Load<'a> {
     pub tools: &'a Catalog,
     /// 系统的家目录：权限策略照它换 `~`、找工具链目录（施工 4-3 下）。读不出来的是空的。
     pub home: Option<&'a Path>,
+    /// 沙盒的助手：这台机器上的沙盒能用才有（核心起来时探的，施工 5-4 上）。权限策略照它判执行命令，执行器照它
+    /// 给每次调用写沙盒。
+    pub sandbox: Option<&'a Path>,
+    /// 沙盒的缓存：属主的那一份在哪、你的 cargo 目录在哪（施工 5-4 下）。核心算不出缓存目录的没有，沙盒里不设工具链的
+    /// 变量。
+    pub sandbox_cache: Option<SandboxCache>,
 }
 
 /// 造不成。
@@ -134,6 +147,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         models,
         tools,
         home,
+        sandbox,
+        sandbox_cache,
     } = setup;
     let span = actor::span(&id);
     let (resources, name) = (resources.clone(), persona.to_string());
@@ -177,6 +192,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         root.path().to_path_buf(),
         home.map(Path::to_path_buf),
         guard,
+        sandbox.is_some(),
     );
     let mut actor = Actor::new(
         session,
@@ -189,6 +205,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             data_root: root.path().to_path_buf(),
             blobs: kept,
             seen: Seen::new(),
+            sandbox: sandbox.map(Path::to_path_buf),
+            sandbox_cache,
         },
         guard,
         mailbox,
@@ -247,6 +265,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         models,
         tools,
         home,
+        sandbox,
+        sandbox_cache,
     } = setup;
     let span = actor::span(&id);
     let dir = root.session_dir(&owner, &id);
@@ -284,6 +304,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         root.path().to_path_buf(),
         home.map(Path::to_path_buf),
         guard,
+        sandbox.is_some(),
     );
     let actor = Actor::new(
         session,
@@ -296,6 +317,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             data_root: root.path().to_path_buf(),
             blobs: kept,
             seen,
+            sandbox: sandbox.map(Path::to_path_buf),
+            sandbox_cache,
         },
         guard,
         mailbox,

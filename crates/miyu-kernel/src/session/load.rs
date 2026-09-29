@@ -121,6 +121,7 @@ impl Session {
             last_request: None,
             closing: Vec::new(),
             restoring: None,
+            limits: None,
         };
         let events = session.recover(at, replay);
         let actions = match events.is_empty() {
@@ -139,12 +140,14 @@ impl Session {
                 cause: cause.clone(),
                 stage: Stage::Settling,
                 cwd: self.environment.cwd.clone(),
+                dirs: self.environment.dirs.clone(),
                 requests: 0,
                 retries: 0,
                 retrying: false,
                 interjected: None,
                 queued: Vec::new(),
                 refresh: false,
+                compacted: false,
                 interrupting: None,
             });
             let text = self.policy.tool_texts.restarted();

@@ -4,7 +4,9 @@
 //! 这是一个独占的挂接点：一个会话只用一种组装，按策略选定。内核只定这个接口，默认的做法
 //! 在第 2 层的 `miyu-assemble` 里，换一种组装不用改内核。
 
+use crate::block::Block;
 use crate::history::History;
+use crate::id::Seq;
 use crate::request::Request;
 
 /// 组装请求：给一段有效历史，出一份统一的请求。
@@ -15,4 +17,12 @@ use crate::request::Request;
 pub trait Assembler {
     /// 从有效历史组装出发给模型的请求。
     fn assemble(&self, history: &History) -> Request;
+
+    /// 压缩的摘要请求：有效历史到第 `upto` 条为止的投影，最后是摘要指令（`compaction.md` 第三条第 3 条）。
+    /// 同样是纯函数。
+    fn summarize(&self, history: &History, upto: Seq) -> Request;
+
+    /// 从摘要请求的回复里取出摘要；取不出来的（空的）是 `None`（`compaction.md` 第三条第 6 条）。指令和取法是
+    /// 一对，所以都归组装。
+    fn summary(&self, reply: &[Block]) -> Option<String>;
 }

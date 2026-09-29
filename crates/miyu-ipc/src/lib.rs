@@ -94,7 +94,8 @@ pub fn open(root: &DataRoot, dirs: &Dirs) -> Result<Opened, OpenError> {
 pub fn open_locked(root: &DataRoot, dirs: &Dirs, lock: Lock) -> Result<Opened, OpenError> {
     let path = place::locate(root, dirs)?;
     let token = files::renew_token(root)?;
-    let listener = Listener::new(sys::bind(&path)?, path, lock);
+    let own_dir = place::own_dir(&path, dirs);
+    let listener = Listener::new(sys::bind(&path)?, path, own_dir, lock);
     files::write_location(root, listener.path())?;
     tracing::info!(target: "miyu::ipc", socket = %listener.path().display(), "listening");
     Ok(Opened { listener, token })

@@ -30,7 +30,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use miyu_kernel::id::AccountId;
-use miyu_session::Models;
+use miyu_sandbox::{Availability, Unusable};
+use miyu_session::{Models, SandboxCache};
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_tool::Catalog;
@@ -49,6 +50,12 @@ pub struct Core {
     tools: Catalog,
     /// 系统的家目录：权限策略照它换 `~`，头报来的工作目录是它的就退回管理员的工作区（施工 4-3 下）。
     home: Option<PathBuf>,
+    /// 这台机器上的沙盒能不能用（核心起来时探的）：握手时报给头（施工 5-4 下）；能用的，造会话、载入时把助手交给会话
+    /// （施工 5-4 上）。
+    sandbox: Availability,
+    /// 沙盒的缓存放在哪：`<缓存目录>/sandbox`，各账号一份在它下面；你的 cargo 目录在哪（施工 5-4 下）。算不出缓存目录的
+    /// 没有。
+    sandbox_cache: Option<(PathBuf, Option<PathBuf>)>,
     /// 管理员：本机连上来的都是他（`06-多用户与身份.md` 第二节）。
     admin: AccountId,
     /// 本机令牌：本机连接握手时要出示（`04-核心协议.md` 第四节）。
@@ -82,6 +89,8 @@ impl Core {
             models,
             tools,
             home,
+            sandbox: Availability::Unusable(Unusable::HelperMissing),
+            sandbox_cache: None,
             admin,
             token,
             sessions: Sessions::default(),
@@ -95,6 +104,31 @@ impl Core {
     pub fn with_hello_wait(mut self, wait: Duration) -> Core {
         self.hello_wait = wait;
         self
+    }
+
+    /// 同一份家底，这台机器上的沙盒照 `sandbox`（施工 5-4 上、下）。用不了的，会话里工作区、只读两级执行命令都要问人；
+    /// 没设的当找不到助手。
+    #[must_use]
+    pub fn with_sandbox(mut self, sandbox: Availability) -> Core {
+        self.sandbox = sandbox;
+        self
+    }
+
+    /// 同一份家底，沙盒的缓存放在 `root` 下面、各账号一份，你的 cargo 目录是 `cargo_home`（施工 5-4 下）。
+    #[must_use]
+    pub fn with_sandbox_cache(mut self, root: PathBuf, cargo_home: Option<PathBuf>) -> Core {
+        self.sandbox_cache = Some((root, cargo_home));
+        self
+    }
+
+    /// 账号 `owner` 的那一份沙盒的缓存。
+    pub(crate) fn sandbox_cache_of(&self, owner: &AccountId) -> Option<SandboxCache> {
+        self.sandbox_cache
+            .as_ref()
+            .map(|(root, cargo_home)| SandboxCache {
+                dir: root.join(owner.as_str()),
+                cargo_home: cargo_home.clone(),
+            })
     }
 
     /// 连着几个连接。

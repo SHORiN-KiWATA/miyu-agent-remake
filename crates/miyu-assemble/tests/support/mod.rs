@@ -6,24 +6,33 @@
 
 #![allow(dead_code, reason = "两个测试各用其中一部分")]
 
+mod anchor;
+
+pub use anchor::anchored;
+
 use std::collections::BTreeMap;
 
 use miyu_assemble::{DefaultAssembler, Stable, Texts, TurnEndedTexts};
 use miyu_drivers::openai_chat::{self, Compat, Encoded};
 use miyu_drivers::{Call, DriverTextSources, DriverTexts, Inputs};
-use miyu_kernel::block::Block;
+use miyu_kernel::block::{Block, Text};
+use miyu_kernel::estimate::Flat;
 use miyu_kernel::event::{Body, Event};
 use miyu_kernel::facts::{Environment, FactTemplates};
 use miyu_kernel::id::{CallId, ModelName, Seq};
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::request::{Message, Request, ToolSpec};
-use miyu_kernel::session::Policy;
-use miyu_kernel::testkit::Stage;
+use miyu_kernel::session::{Compaction, Policy};
+use miyu_kernel::testkit::{Line, Stage};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_kernel::tool::{Access, ToolRule, ToolTextSources, ToolTexts};
 
 /// 会话开始的时刻：东九区 16:00。
 const START: &str = "2026-09-25T07:00:00.000Z";
+/// 出厂的摘要指令：摘要请求的最后一块（施工 6-2 上）。
+pub const SUMMARIZE: &str =
+    include_str!("../../../../resources/core/compaction/summarize-task.txt");
+
 /// 两件工具的参数格式：一个路径。
 const PATH: &str =
     r#"{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}"#;
@@ -36,6 +45,8 @@ pub struct Sent {
     pub rewritten: bool,
     /// 这是一个回合的第一次请求，由人的一句话触发：那句话的最后一块。
     pub trigger: Option<Block>,
+    /// 这是压缩的摘要请求：最后一块是摘要指令（施工 6-2 上）。
+    pub summary: bool,
 }
 
 /// 探针和随机日志的策略：出厂的组装、事实模板、写给模型的句子；读、写两件工具；一个回合最多
@@ -56,7 +67,26 @@ pub fn policy() -> Policy {
         tool_texts: tool_texts(),
         attended: true,
         resumes: 3,
+        compaction: Some(Compaction {
+            reserve_cap: 20_000,
+            margin: 13_000,
+            tail: 16_000,
+            price: Flat {
+                image: 2000,
+                file: 2000,
+            },
+        }),
     }
+}
+
+/// 替身回摘要请求的那一句：先草稿，再摘要。
+pub fn summarizes(stage: &mut Stage) {
+    stage.summarize_with(
+        SUMMARIZE,
+        Line::says(
+            "<analysis>\nThe user explored the repository.\n</analysis>\n\n<summary>\n1. Primary Request and Intent: explore src and tests.\n</summary>",
+        ),
+    );
 }
 
 /// 一个替身：照 [`policy`] 造的会话，在 `~/src/miyu`，从东九区 16:00 开始。
@@ -64,6 +94,7 @@ pub fn stage() -> Stage {
     let environment = Environment {
         offset: UtcOffset::from_minutes(540).expect("东九区在范围里"),
         cwd: "~/src/miyu".to_string(),
+        dirs: Vec::new(),
     };
     let start = Timestamp::parse(START).expect("开始的时刻合写法");
     Stage::new(policy, environment, start)
@@ -74,21 +105,24 @@ pub fn lines(stage: &Stage) -> Vec<String> {
     stage.log().iter().map(Event::to_line).collect()
 }
 
-/// 替身发过的每一次请求，和发它时的情形：上一次请求看到的之后、这一次看到的为止，有撤销、恢复、
-/// 压缩的，算改写过；一个回合的第一次请求，触发它的是人的消息的，记下那句话的最后一块。
+/// 替身发过的每一次请求，和发它时的情形：上一次请求交出去以后、这一次交出去以前，日志里有撤销、恢复、压缩的，算
+/// 改写过；一个回合的第一次主请求（上一次主请求在这一轮开始以前），触发它的是人的消息的，记下那句话的最后一块。摘要请求
+/// 看到的比交出去时的日志早（施工 6-2 下），所以改写照交出去的那一刻算，第一次照上一次主请求算。
 pub fn sent(stage: &Stage) -> Vec<Sent> {
     let log = stage.log();
     let mut before: Option<Seq> = None;
+    let mut before_main: Option<Seq> = None;
     let mut sent = Vec::new();
-    for (seen, request) in stage.requests() {
+    for ((seen, request), mark) in stage.requests().iter().zip(stage.marks()) {
         let since =
-            |event: &&Event| before.is_none_or(|before| event.seq > before) && event.seq <= *seen;
+            |event: &&Event| before.is_none_or(|before| event.seq > before) && event.seq <= *mark;
         let rewritten = log.iter().filter(since).any(|event| {
             matches!(
                 event.body,
                 Body::TurnReverted(_) | Body::TurnUnreverted(_) | Body::ContextCompacted(_)
             )
         });
+        let summary = is_summary(request);
         let trigger = log
             .iter()
             .filter(|event| event.seq <= *seen)
@@ -97,18 +131,23 @@ pub fn sent(stage: &Stage) -> Vec<Sent> {
                 Body::TurnStarted(started) => Some((event.seq, started.trigger)),
                 _ => None,
             })
-            .filter(|(turn, _)| before.is_none_or(|before| before < *turn))
+            .filter(|_| !summary)
+            .filter(|(turn, _)| before_main.is_none_or(|before| before < *turn))
             .and_then(|(_, trigger)| log.iter().find(|event| event.seq == trigger))
             .and_then(|event| match &event.body {
                 Body::MessageUser(message) => message.blocks.last().cloned(),
                 _ => None,
             });
         sent.push(Sent {
+            summary,
             request: request.clone(),
             rewritten,
             trigger,
         });
-        before = Some(*seen);
+        before = Some(*mark);
+        if !summary {
+            before_main = Some(*seen);
+        }
     }
     sent
 }
@@ -133,14 +172,56 @@ pub fn check(sent: &[Sent]) -> Result<(), String> {
             ends_with(request, trigger).map_err(|why| format!("第 {number} 次请求：{why}"))?;
         }
         if index > 0 && !now.rewritten {
-            let before = &sent[index - 1].request;
-            extends(request, before)
-                .map_err(|why| format!("第 {number} 次请求不是上一次的前缀延伸：{why}"))?;
-            wire_extends(&wire(request), &baseline(before))
-                .map_err(|why| format!("第 {number} 次请求编码以后不是上一次的前缀延伸：{why}"))?;
+            let then = &sent[index - 1];
+            // 上一次是摘要请求的：和它去掉摘要指令的那一份比，指令只在那一次请求里（施工 6-2 上）。
+            let before = match then.summary {
+                true => without_instruction(&then.request),
+                false => then.request.clone(),
+            };
+            let shared = match now.summary {
+                // 摘要请求截到 N：接着上一次往下长；上一次出错、没回复的，N 退到它看到的以前，那就是上一次的前缀。
+                true => grown_or_shrunk(request, &before),
+                false => grown(request, &before),
+            };
+            shared.map_err(|why| format!("第 {number} 次请求不是上一次的前缀延伸：{why}"))?;
         }
     }
     Ok(())
+}
+
+/// 这一次是上一次的前缀延伸：统一的请求和线上的字节两层。
+fn grown(now: &Request, before: &Request) -> Result<(), String> {
+    extends(now, before)?;
+    wire_extends(&wire(now), &baseline(before)).map_err(|why| format!("编码以后：{why}"))
+}
+
+/// 摘要请求：接着上一次往下长；或者去掉摘要指令以后，是上一次的前缀。
+fn grown_or_shrunk(summary: &Request, before: &Request) -> Result<(), String> {
+    grown(summary, before).or_else(|longer| {
+        grown(before, &without_instruction(summary))
+            .map_err(|shorter| format!("{longer}；也不是它的前缀：{shorter}"))
+    })
+}
+
+/// 摘要请求去掉摘要指令：指令是最后一条 user 的最后一块，这条只有它的，整条去掉。
+fn without_instruction(request: &Request) -> Request {
+    let mut request = request.clone();
+    if let Some(Message::User { blocks }) = request.messages.last_mut() {
+        blocks.pop();
+        if blocks.is_empty() {
+            request.messages.pop();
+        }
+    }
+    request
+}
+
+/// 最后一块是摘要指令。
+pub fn is_summary(request: &Request) -> bool {
+    matches!(
+        request.messages.last(),
+        Some(Message::User { blocks })
+            if matches!(blocks.last(), Some(Block::Text(Text { text })) if text == SUMMARIZE)
+    )
 }
 
 /// 前缀延伸（08 第七节）：工具面、system 不变；上一次的每条消息原样都在；只有最后一条
@@ -345,6 +426,8 @@ fn texts() -> Texts {
             restarted: include_str!("../../../../resources/core/turn-ended/restarted.txt")
                 .to_string(),
         },
+        summarize_task: include_str!("../../../../resources/core/compaction/summarize-task.txt")
+            .to_string(),
     }
 }
 

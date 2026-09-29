@@ -138,6 +138,58 @@ async fn the_starting_line_says_where_and_in_which_zone() {
     );
 }
 
+/// 起来时探一次沙盒的助手（施工 5-1）：旁边有助手的（`cargo test --workspace` 编了它），记一行 `sandbox`，说这台
+/// 机器的平台、有哪些手段；没有的记一行找不到。握手的回应报的沙盒和记下的对得上（施工 5-4 下）：有手段的能用，
+/// 手段是空的、找不到助手的用不了，原因各是各的。
+#[tokio::test]
+async fn the_core_probes_the_sandbox_helper_when_it_starts() {
+    let home = Home::new();
+    let (connection, token) = within("拉起", connect_or_start(&home.root, || home.core()))
+        .await
+        .expect("拉得起");
+    let reply = hello(connection, &token).await;
+    let told = reply["result"]["sandbox"].clone();
+    home.until_stopped().await;
+    let log = home.core_log();
+    let helper = std::path::Path::new(MIYU)
+        .with_file_name(format!("miyu-sandbox{}", std::env::consts::EXE_SUFFIX));
+    if !helper.is_file() {
+        assert_eq!(
+            count(&log, "sandbox unavailable reason=\"helper not found\""),
+            1,
+            "{log}"
+        );
+        assert_eq!(
+            told,
+            json!({"usable": false, "reason": "helper_missing"}),
+            "{reply}"
+        );
+        return;
+    }
+    let line = log
+        .lines()
+        .find(|line| line.contains(" sandbox helper="))
+        .unwrap_or_else(|| panic!("有探沙盒的那一行：{log}"));
+    let platform = match std::env::consts::OS {
+        "linux" | "macos" | "windows" => std::env::consts::OS,
+        _ => "other",
+    };
+    assert!(line.contains("miyu-sandbox"), "{line}");
+    assert!(line.contains(&format!(" platform={platform} ")), "{line}");
+    // 手段各平台报各的：这里只看有这一格，不看是什么；握手报的和它对得上。
+    assert!(line.contains(" mechanisms="), "{line}");
+    let expected = match line.ends_with(" mechanisms=none") {
+        true => json!({"usable": false, "reason": "no_mechanism"}),
+        false => json!({"usable": true}),
+    };
+    assert_eq!(told, expected, "{line}");
+    assert_eq!(
+        count(&log, " sandbox helper=") + count(&log, "sandbox unavailable"),
+        1,
+        "只探一次：{log}"
+    );
+}
+
 #[tokio::test]
 async fn a_second_core_says_one_is_running_and_leaves() {
     let home = Home::new();

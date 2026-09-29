@@ -10,12 +10,33 @@ use super::step::{Pending, State, Step};
 use super::turn::{Interjection, Stage};
 use crate::block::{Block, Text, ToolCall};
 use crate::event::{
-    Body, EndReason, Event, ToolProgress, ToolResult, ToolStatus, Transient, TransientBody,
+    Body, EndReason, Event, Permission, ToolProgress, ToolResult, ToolStatus, Transient,
+    TransientBody,
 };
 use crate::id::{CallId, CommandId, Seq};
 use crate::origin::{By, Tool};
 use crate::time::Timestamp;
 use crate::tool::{Access, Worded, repair};
+
+/// 派一次调用的动作：带上这一轮的工作目录、加进来的目录，和这一刻实际生效的那一级。派出去的两条路（链当场放行的、
+/// 等人决定了的）都经它，派出去的是同一个样子（施工 5-10 上）。
+pub(super) fn run_tool(
+    call_id: CallId,
+    name: &str,
+    args: &str,
+    cwd: &str,
+    dirs: &[String],
+    permission: &Permission,
+) -> Action {
+    Action::RunTool {
+        call_id,
+        name: name.to_string(),
+        args: args.to_string(),
+        cwd: cwd.to_string(),
+        dirs: dirs.to_vec(),
+        permission: permission.clone(),
+    }
+}
 
 impl Session {
     /// 回复里的工具调用，先查：工具面上没有这个名字、参数不是 JSON 对象的，当场记一条出错的
@@ -119,12 +140,14 @@ impl Session {
             match call.state {
                 State::Approved { decided } if decided <= stored => {
                     call.state = State::Running;
-                    actions.push(Action::RunTool {
-                        call_id: call.id,
-                        name: call.name.clone(),
-                        args: call.args.clone(),
-                        cwd: turn.cwd.clone(),
-                    });
+                    actions.push(run_tool(
+                        call.id,
+                        &call.name,
+                        &call.args,
+                        &turn.cwd,
+                        &turn.dirs,
+                        &self.effective,
+                    ));
                 }
                 State::Answered { answered } if answered <= stored => {
                     call.state = State::Running;
@@ -144,6 +167,7 @@ impl Session {
                 name: call.name.clone(),
                 args: call.args.clone(),
                 cwd: turn.cwd.clone(),
+                dirs: turn.dirs.clone(),
                 permission: self.effective.clone(),
             });
         }

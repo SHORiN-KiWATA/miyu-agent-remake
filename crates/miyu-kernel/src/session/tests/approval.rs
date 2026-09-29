@@ -38,7 +38,7 @@ fn raw(text: &str) -> RawJson {
 }
 
 /// 链说要问人：要的是 `access`；`rule` 是提没提放行规则。
-fn ask(access: Access, rule: bool) -> Verdict {
+pub(super) fn ask(access: Access, rule: bool) -> Verdict {
     Verdict::Ask {
         module: permissions(),
         access,
@@ -104,6 +104,7 @@ fn every_call_goes_through_the_chain_before_it_runs() {
             name: "read".to_string(),
             args: r#"{"limit":5}"#.to_string(),
             cwd: "~/src/miyu".to_string(),
+            dirs: Vec::new(),
             permission: Permission {
                 level: Level::Workspace,
                 read_only: false,

@@ -3,12 +3,17 @@
 //!
 //! 不读用户的启动文件：那里可能 `export` 了密钥，环境变量的白名单就白设了。`PATH` 照白名单从核心的环境带过去。
 //! PowerShell 的命令编成 UTF-16LE 的 base64 传过去（`-EncodedCommand`），引号、换行不会被命令行拆坏。
+//!
+//! 调用带了沙盒的，经沙盒的助手起（施工 5-1）：`<助手> run --spec <规格> -- <shell> <参数…>`，别的都照旧。
 
 use std::ffi::{OsStr, OsString};
+use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use base64::Engine;
+
+use miyu_sandbox::Sandboxed;
 
 #[cfg(test)]
 mod tests;
@@ -61,29 +66,53 @@ impl Program {
         )
     }
 
-    /// 在工作目录 `cwd` 里执行 `script` 的命令，只带 `env` 里的环境变量。
+    /// 在工作目录 `cwd` 里执行 `script` 的命令，只带 `env` 里的环境变量。带了沙盒 `sandbox` 的，经它的助手起。
+    ///
+    /// # Errors
+    ///
+    /// 沙盒的规格写不成 JSON：里面有不是 UTF-8 的路径。
     pub(super) fn command(
         &self,
         script: &str,
         cwd: &Path,
         env: Vec<(OsString, OsString)>,
-    ) -> Command {
-        let mut command = Command::new(&self.path);
-        match self.kind {
-            Kind::Bash => command.args(["--noprofile", "--norc", "-c", script]),
+        sandbox: Option<&Sandboxed>,
+    ) -> io::Result<Command> {
+        let args = self.args(script);
+        let (program, args) = match sandbox {
+            None => (self.path.clone(), args),
+            Some(sandboxed) => {
+                miyu_sandbox::argv(sandboxed, &self.path, &args).map_err(io::Error::other)?
+            }
+        };
+        let mut command = Command::new(program);
+        command.args(args).current_dir(cwd).env_clear().envs(env);
+        // 沙盒要设的（例如沙盒自己的临时目录）排在白名单后面：同名的盖掉（施工 5-4 上）。
+        if let Some(sandboxed) = sandbox {
+            command.envs(sandboxed.env.iter().map(|(name, value)| (name, value)));
+        }
+        Ok(command)
+    }
+
+    /// 执行 `script` 时交给 shell 的参数。
+    fn args(&self, script: &str) -> Vec<OsString> {
+        let encoded_script;
+        let args: &[&str] = match self.kind {
+            Kind::Bash => &["--noprofile", "--norc", "-c", script],
             // 没匹配到的通配符照原样传下去，和 bash 一样（施工 4-9 再补二）：zsh 默认直接报错。
-            Kind::Zsh => command.args(["-f", "+o", "nomatch", "-c", script]),
-            Kind::PowerShell7 | Kind::WindowsPowerShell => command
-                .args([
+            Kind::Zsh => &["-f", "+o", "nomatch", "-c", script],
+            Kind::PowerShell7 | Kind::WindowsPowerShell => {
+                encoded_script = encoded(&format!("{PRELUDE}{script}"));
+                &[
                     "-NoLogo",
                     "-NoProfile",
                     "-NonInteractive",
                     "-EncodedCommand",
-                ])
-                .arg(encoded(&format!("{PRELUDE}{script}"))),
+                    &encoded_script,
+                ]
+            }
         };
-        command.current_dir(cwd).env_clear().envs(env);
-        command
+        args.iter().map(OsString::from).collect()
     }
 }
 

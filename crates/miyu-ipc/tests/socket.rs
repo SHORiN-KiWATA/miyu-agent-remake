@@ -39,6 +39,9 @@ async fn on_linux_it_listens_under_the_runtime_dir() {
     assert_eq!(mode(&dir), 0o700);
     assert_eq!(home.location(), dir.join("core.sock"));
     talk(&home, &mut opened).await;
+    drop(opened);
+    assert!(!dir.exists(), "走的时候这一层专用的目录也删了");
+    assert!(runtime.exists(), "$XDG_RUNTIME_DIR 本身不动");
 }
 
 #[tokio::test]
@@ -58,6 +61,9 @@ async fn a_long_root_listens_under_the_temp_dir() {
     assert_eq!(mode(&dir), 0o700);
     assert_eq!(home.location(), socket);
     talk(&home, &mut opened).await;
+    drop(opened);
+    assert!(!socket.exists(), "走的时候删了套接字文件");
+    assert!(dir.exists(), "几个数据根共用的这一层不删");
 }
 
 #[tokio::test]
@@ -73,6 +79,7 @@ async fn one_core_per_root_until_it_goes() {
         !home.root.run().join("core.sock").exists(),
         "走的时候删了套接字文件"
     );
+    assert!(home.root.run().exists(), "数据根的 run/ 不删");
     let mut second = open(&home.root, &home.dirs()).expect("第一个走了以后起得来");
     assert_ne!(second.token, old, "每次起来换一个令牌");
     talk(&home, &mut second).await;

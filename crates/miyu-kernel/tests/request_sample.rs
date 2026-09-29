@@ -14,7 +14,7 @@ const READ: &str = "Read a text file by line pages, an image, a PDF, or list a d
 const READ_PARAMETERS: &str = r#"{"type":"object","properties":{"path":{"type":"string"},"offset":{"type":"integer"},"limit":{"type":"integer"}},"required":["path"]}"#;
 /// 43、44 号注入的两块，照模板，行尾都有一个换行。
 const ENV: &str =
-    "<env time=\"Fri 2026-09-25 16:00\" timezone=\"UTC+09:00\" cwd=\"~/src/miyu\"/>\n";
+    "<env time=\"Fri 2026-09-25 16:00–17:00\" timezone=\"UTC+09:00\" cwd=\"~/src/miyu\"/>\n";
 const PERMISSION: &str = "<permission level=\"workspace\"/>\n";
 
 fn text(text: &str) -> Block {

@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>82</b><span>/ 82 步<strong>已完成</strong>，她看得见图了：read 交回图片，deepseek-flash 收图</span></li>
-    <li><b>M5</b><span>下一步：沙盒，<strong>先拆成步，等项目主人批准</strong></span></li>
-    <li><b class="mono">deeb0a9</b><span>最近一步（4-13 读图）的提交</span></li>
+    <li><b>96</b><span>/ 106 步<strong>已完成</strong>，M5 沙盒验收过了：真模型在沙盒里修好测试，写不了工作区以外、读不到数据根、冒充不了本人</span></li>
+    <li><b>6-2</b><span>下一步：摘要请求（Windows 上跑命令那一步暂停）</span></li>
+    <li><b class="mono">22d23d5</b><span>最近一步（5-11 补 运行目录用完删掉）的提交</span></li>
   </ul>
 </header>
 
@@ -312,7 +312,7 @@ a.step:hover{border-color:var(--primary)}
 
 <section class="sched" aria-labelledby="h-sched">
   <h2 id="h-sched">工程表</h2>
-  <p class="sub">M0 到 M4 拆到了每一步；M5 以后，到了跟前再拆。</p>
+  <p class="sub">M0 到 M6 拆到了每一步；M7 以后，到了跟前再拆。</p>
   <ol class="ms">
     <li>
       <div class="ms-head"><span class="ms-id">M0</span><span class="ms-name">准备</span><span class="ms-goal">仓库有了规矩和门禁</span></div>
@@ -338,6 +338,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s1-11"><span class="n">1-11</span>模板与转义<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-12"><span class="n">1-12</span>组装请求<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-13"><span class="n">1-13</span>事实注入<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s1-13b"><span class="n">1-13</span>只到小时的时间写成一段（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-14"><span class="n">1-14</span>请求形状探针<span class="st">✓</span></a></li>
       </ol>
     </li>
@@ -386,6 +387,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-9a"><span class="n">3-9</span>主程序和拉起核心（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9b"><span class="n">3-9</span>miyu ask（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9c"><span class="n">3-9</span>会话编号照先后（补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s3-9d"><span class="n">3-9</span>开发用的地址和模型（再补）<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -422,7 +424,43 @@ a.step:hover{border-color:var(--primary)}
       </ol>
     </li>
     <li>
-      <div class="ms-head"><span class="ms-id">M5–M8</span><span class="ms-name">沙盒 · 长会话 · 分身 · 有界面</span></div>
+      <div class="ms-head"><span class="ms-id">M5</span><span class="ms-name">沙盒</span><span class="ms-goal">三个平台的命令都关在沙盒里</span></div>
+      <ol class="chips">
+        <li><a class="step done" href="#s5-1"><span class="n">5-1</span>沙盒的规格和助手<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s5-2"><span class="n">5-2</span>Linux：文件<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s5-1b"><span class="n">5-1</span>规格只管读写（补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s5-3"><span class="n">5-3</span>只管写<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s5-4a"><span class="n">5-4</span>权限策略接上沙盒（上）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s5-4b"><span class="n">5-4</span>权限策略接上沙盒（下）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">5-5</span>代理（取消）</span></li>
+        <li><span class="step"><span class="n">5-6</span>Linux：网络（取消）</span></li>
+        <li><a class="step done" href="#s5-7"><span class="n">5-7</span>macOS<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s5-8"><span class="n">5-8</span>Windows：装<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">5-9</span>Windows：跑（暂停）</span></li>
+        <li><a class="step done" href="#s5-10a"><span class="n">5-10</span>加进来的目录（上）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s5-10b"><span class="n">5-10</span>按真实位置逐层打开（下）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s5-11"><span class="n">5-11</span>M5 验收<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s5-11b"><span class="n">5-11</span>运行目录用完删掉（补）<span class="st">✓</span></a></li>
+      </ol>
+    </li>
+    <li>
+      <div class="ms-head"><span class="ms-id">M6</span><span class="ms-name">长会话</span><span class="ms-goal">上下文满了会压缩，压完不失忆</span></div>
+      <ol class="chips">
+        <li><a class="step done" href="#s6-1"><span class="n">6-1</span>用量和压缩线<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s6-2a"><span class="n">6-2</span>摘要请求（上）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s6-2b"><span class="n">6-2</span>留尾巴（下）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">6-3</span>接上真模型</span></li>
+        <li><span class="step"><span class="n">6-4</span>history</span></li>
+        <li><span class="step"><span class="n">6-5</span>检查点里代码写的几段、压后重建</span></li>
+        <li><span class="step"><span class="n">6-6</span>失败和熔断</span></li>
+        <li><span class="step"><span class="n">6-7</span>被动压缩</span></li>
+        <li><span class="step"><span class="n">6-8</span>手动压缩</span></li>
+        <li><span class="step"><span class="n">6-9</span>撤销越过压缩</span></li>
+        <li><span class="step"><span class="n">6-10</span>M6 验收</span></li>
+      </ol>
+    </li>
+    <li>
+      <div class="ms-head"><span class="ms-id">M7–M8</span><span class="ms-name">分身 · 有界面</span></div>
       <p class="later">到了跟前再拆。M8 的第一件事是先画界面的版式图纸。</p>
     </li>
   </ol>
@@ -6573,6 +6611,1153 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s5-1" aria-labelledby="h-s51">
+  <div class="sheet-head"><h2 id="h-s51"><span class="no">5-1</span>沙盒的规格和助手</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">把沙盒的路接通，还不收紧任何东西：核心给要关起来的命令写一份规格，小程序 miyu-sandbox 照规格收紧自己，再换成那条命令；shell 带了规格的经它起；核心起来时探一次这台机器能收紧到什么程度。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一条带了规格的命令怎么走</span><span class="dir-note">现在不收紧</span></div>
+            <ol class="pipe" aria-label="一条带了规格的命令怎么走">
+              <li>shell 把命令包成 miyu-sandbox run --spec &lt;规格&gt; -- &lt;shell&gt; &lt;参数…&gt;</li>
+              <li>助手读规格：认不得的格、类型不对的当写坏了，退出 125，不跑</li>
+              <li>收紧自己：这一步什么都不做，5-2 起各平台往这里加</li>
+              <li>换成命令：Unix 上 exec，还是同一个进程；Windows 上起子进程、等它</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-sandbox/</span><span class="dir-note">第 3 层，新的</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">spec.rs</span><span class="rl">规格：read、write、readonly、hidden、network</span></div>
+              <div class="tile new"><span class="nm">wrap.rs · locate.rs</span><span class="rl">包命令；找助手，在主程序旁边</span></div>
+              <div class="tile new"><span class="nm">probe.rs</span><span class="rl">探测：最多等 5 秒，读输出、等退出都算在里面</span></div>
+              <div class="tile new"><span class="nm">bin/miyu-sandbox/</span><span class="rl">助手本身：main.rs 管共用的（run、probe、出错的几句），收紧各平台一个文件</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">单独的小程序</span><span class="rl">Ubuntu、Mint 上只给它开命名空间</span></div>
+          <div class="tile new"><span class="nm">退出码</span><span class="rl">照 env、timeout：125 助手出错，126 执行不了，127 找不到</span></div>
+          <div class="tile new"><span class="nm">写不成就不跑</span><span class="rl">规格写不成 JSON 的说起不来，不会不经沙盒就跑</span></div>
+          <div class="tile new"><span class="nm">分线施工</span><span class="rl">收紧各平台一个文件，收不紧时说的那一句先定下：Linux、代理、macOS、Windows 可以同时做</span></div>
+          <div class="tile new"><span class="nm">日志</span><span class="rl">INFO sandbox helper=… platform=… mechanisms=none，或者 WARN sandbox unavailable</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">真正的收紧（5-2 起）；核心给调用带规格（5-4）；代理（5-5）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-1</dd></div>
+        <div><dt>名称</dt><dd>沙盒的规格和助手</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-28</dd></div>
+        <div><dt>提交</dt><dd class="mono">365bc97</dd></div>
+        <div><dt>验收</dt><dd>变异全逮住、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>新 crate <code>miyu-sandbox</code>：规格、包命令、找助手、探测，助手 <code>miyu-sandbox</code> 本身。</li>
+        <li><code>Call</code> 多一格 <code>sandbox</code>：<code>shell</code> 带了的经助手起，不带的照旧。</li>
+        <li>核心起来时探一次，只记日志。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>经助手跑的命令，输出、退出码、工作目录、环境变量都和直接跑一样</span></li>
+        <li><span class="ok">✓</span><span>手写的变异都被逮住</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，长跑也绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>sandbox.md</code>（新的一页）、<code>tools/interface.md</code>、<code>tools/shell.md</code>、<code>core.md</code>、<code>log.md</code>。</li>
+        <li><code>docs/construction/5-1-沙盒的规格和助手.md</code>：施工单和验收结果。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-2" aria-labelledby="h-s52">
+  <div class="sheet-head"><h2 id="h-s52"><span class="no">5-2</span>Linux：文件</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">Linux 上，助手照规格用 Landlock 收紧自己：规格里放行的读得了、写得了，别的一律碰不到，命令起的子进程也一样。探测时报 landlock。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">规格的每一格怎么放</span><span class="dir-note">Landlock 只能放行</span></div>
+            <ol class="pipe" aria-label="规格的每一格怎么放">
+              <li>read、readonly：读文件、列目录、执行</li>
+              <li>write：这个内核管得到的全部文件操作，内核 7.1 起还有连那里的 Unix 套接字</li>
+              <li>readonly、hidden 落在放行范围里：挖不掉，拒绝执行（5-3 补上）</li>
+              <li>规格以外的一律碰不到；设 no_new_privs，setuid 程序拿不到更高的权限</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">实机试跑</span><span class="dir-note">接近 5-4 以后的规格</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">cargo build</span><span class="rl">编得出、跑得起来</span></div>
+              <div class="tile new"><span class="nm">~/.bashrc、/proc</span><span class="rl">读不到</span></div>
+              <div class="tile"><span class="nm">git</span><span class="rl">读不到 ~/.gitconfig 当致命错误：5-4 的默认清单放行它和 ~/.config/git/</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">至少第 2 版</span><span class="rl">第 2 版起才管得了跨目录的改名、链接；更新的能管就管</span></div>
+          <div class="tile new"><span class="nm">收不住就不跑</span><span class="rl">内核没有 Landlock、挖不掉的：cannot confine，退出 125</span></div>
+          <div class="tile new"><span class="nm">缓存用自己的一份</span><span class="rl">沙盒里的工具链缓存不写你的 ~/.cargo 这些（项目主人定，清单随 5-4）</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">挂载命名空间（5-3）；网络（5-6）；核心给调用带规格（5-4）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-2</dd></div>
+        <div><dt>名称</dt><dd>Linux：文件</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">a5dd029</dd></div>
+        <div><dt>验收</dt><dd>变异全逮住、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>linux.rs</code>：查规格收不收得住、探测报 landlock；<code>linux/landlock.rs</code>：建规则集、加规则、收紧自己。</li>
+        <li>依赖 <code>landlock</code>（MIT 或 Apache-2.0），只在 Linux 上。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真跑助手：规格外的读不了、写不了、执行不了，子进程一样</span></li>
+        <li><span class="ok">✓</span><span>手写的变异都被逮住</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿，Ubuntu 那台也真跑了 Landlock</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>sandbox/linux.md</code>（新的一页）、<code>sandbox.md</code>；设计 <code>11-权限与沙盒.md</code> 第四节（工具链缓存）。</li>
+        <li><code>docs/construction/5-2-Linux：文件.md</code>：施工单和验收结果。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-1b" aria-labelledby="h-s51b">
+  <div class="sheet-head"><h2 id="h-s51b"><span class="no">5-1</span>规格只管读写（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">项目主人 2026-09-29 定：沙盒的意义是控制读写权限，不是完全隔离，网络不管；能替命令在沙盒外读写的系统服务照样挡。规格去掉网络那一格；Linux 上 Landlock 挡住连 D-Bus、Docker 这类系统服务的套接字。代理（5-5）、Linux 网络（5-6）两步取消。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">规格</span><span class="dir-note">四格，都能不写</span></div>
+            <ol class="pipe" aria-label="规格">
+              <li>read、write、readonly、hidden：路径都是真实的位置</li>
+              <li>带 network 的当认不得的格拒绝：助手不懂的限制不能悄悄跳过</li>
+              <li>几条重叠时越深的越算数；一样深的越严的算</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">Linux 上挡住的系统服务</span><span class="dir-note">本机实测，内核 7.2</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">路径上的套接字</span><span class="rl">规格外的连不上（D-Bus、Docker），内核 7.1 起</span></div>
+              <div class="tile new"><span class="nm">抽象套接字</span><span class="rl">沙盒外建的连不上，内核 6.12 起</span></div>
+              <div class="tile"><span class="nm">更老的内核</span><span class="rl">拦不住，写进设计</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">只管读写</span><span class="rl">网络不管：代理、网络隔离都不做（项目主人定）</span></div>
+          <div class="tile new"><span class="nm">系统服务照样挡</span><span class="rl">Linux 上靠 Landlock，macOS 上靠 Seatbelt；本机的 TCP 端口不管</span></div>
+          <div class="tile"><span class="nm">代价</span><span class="rl">沙盒里要 ssh-agent 的 git push、桌面通知这类会失败</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-1（补）</dd></div>
+        <div><dt>名称</dt><dd>规格只管读写</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">7f449c0</dd></div>
+        <div><dt>验收</dt><dd>变异全逮住、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>spec.rs</code>：去掉 <code>network</code>；样本、测试跟着改。</li>
+        <li><code>linux/landlock.rs</code>：照旧管连路径上的套接字，再加上抽象套接字的范围。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>本机内核 7.2 上三样都测到：规格外的连不上，能写的地方的连得上，抽象的连不上</span></li>
+        <li><span class="ok">✓</span><span>手写的变异都被逮住</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>11-权限与沙盒.md</code> A5、A6、A7、A8；<code>24-威胁模型.md</code>。</li>
+        <li>蓝图 <code>sandbox.md</code>、<code>sandbox/linux.md</code>；<code>docs/construction/5-1（补）-规格只管读写.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-3" aria-labelledby="h-s53">
+  <div class="sheet-head"><h2 id="h-s53"><span class="no">5-3</span>只管写</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">项目主人 2026-09-29 定，照 DeepSeek 的 dsh：沙盒整盘能读、只管写，数据根读写都不行；.git 不另外护；只读级别是全盘只读。规格改成两格：能写的、藏起来的。Linux 上只用 Landlock，不要命名空间、AppArmor（原来这一步是挂载命名空间）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">Linux 上怎么放</span><span class="dir-note">Landlock 挖不了洞</span></div>
+            <ol class="pipe" aria-label="Linux 上怎么放">
+              <li>根目录往下：列目录、执行</li>
+              <li>读文件：从根目录一级级往下放，通向藏起来的那条路上只放旁边的，链接不跟</li>
+              <li>write 和 /dev/null：全部；一条 write 都没有就是全盘只读</li>
+              <li>藏起来的落在能写的里面：拒绝执行；能写的落在藏起来的里面：照样能写</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">实测</span><span class="dir-note">本机内核 7.2</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">读</span><span class="rl">家目录、系统目录、别处的都读得了</span></div>
+              <div class="tile new"><span class="nm">写</span><span class="rl">只有能写的那几处和 /dev/null</span></div>
+              <div class="tile new"><span class="nm">藏起来的</span><span class="rl">读不了、写不了，名字看得到</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">照 dsh</span><span class="rl">整盘能读，只管写；数据根读写都不行（项目主人定）</span></div>
+          <div class="tile new"><span class="nm">只读是全盘只读</span><span class="rl">临时目录也写不了，只留 /dev/null（项目主人定）</span></div>
+          <div class="tile"><span class="nm">接受的口子</span><span class="rl">家目录的密钥读得到；.git 的钩子写得进</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-3</dd></div>
+        <div><dt>名称</dt><dd>只管写</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">fe9f507</dd></div>
+        <div><dt>验收</dt><dd>变异全逮住、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>spec.rs</code>：规格只剩 <code>write</code>、<code>hidden</code>。</li>
+        <li><code>linux/reads.rs</code>：一级级放行读，绕开藏起来的；<code>linux/landlock.rs</code> 照它加规则。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真跑助手：读哪儿都行、写只有能写的、藏起来的读写都不行</span></li>
+        <li><span class="ok">✓</span><span>手写的变异都被逮住</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>11-权限与沙盒.md</code> 第四节、A4、A7、A12；<code>24-威胁模型.md</code>。</li>
+        <li>蓝图 <code>sandbox.md</code>、<code>sandbox/linux.md</code>；<code>docs/construction/5-3-只管写.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-4a" aria-labelledby="h-s54a">
+  <div class="sheet-head"><h2 id="h-s54a"><span class="no">5-4</span>权限策略接上沙盒（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">命令真的关进沙盒：核心起来时探到的助手经协议端点交给每个会话；执行器照派出去那一刻实际生效的那一级，给每条命令写规格。权限策略跟着改：读哪儿都放行（数据根除外）；沙盒能用时，工作区、只读两级执行命令都不问，用不了的问人。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">每条命令的规格</span><span class="dir-note">照派出去那一刻的级别</span></div>
+            <ol class="pipe" aria-label="每条命令的规格">
+              <li>完全放开：不进沙盒</li>
+              <li>工作区：能写这一轮的工作目录、临时目录，藏数据根</li>
+              <li>只读：哪儿都不能写，藏数据根；不认识的级别也照它</li>
+              <li>数据根在临时目录里：用沙盒自己的 &lt;数据根&gt;-sandbox-tmp，TMPDIR 指过去</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">真模型实测</span><span class="dir-note">本机内核 7.2 · miyu ask</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">工作区里写</span><span class="rl">写成了</span></div>
+              <div class="tile new"><span class="nm">工作区外写</span><span class="rl">权限不够，沙盒挡的</span></div>
+              <div class="tile new"><span class="nm">读家目录</span><span class="rl">读得到</span></div>
+              <div class="tile new"><span class="nm">读数据根</span><span class="rl">权限不够</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">读整盘放开</span><span class="rl">文件工具也照沙盒：读哪儿都不问，数据根除外</span></div>
+          <div class="tile new"><span class="nm">写不成就不跑</span><span class="rl">规格写不成，照崩了交回，不在沙盒外跑</span></div>
+          <div class="tile"><span class="nm">沙盒用不了</span><span class="rl">执行命令问人；macOS、Windows 合进来以前照这样</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-4 上</dd></div>
+        <div><dt>名称</dt><dd>权限策略接上沙盒（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">4987b77</dd></div>
+        <div><dt>验收</dt><dd>真模型自测、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>guard.rs</code>：读都放行；执行命令照沙盒能不能用。</li>
+        <li>会话的 <code>sandbox.rs</code> 给每次调用写规格，<code>tools.rs</code> 在跑它的任务里、阻塞线程上算。</li>
+        <li>内核 <code>RunTool</code> 带上派出去那一刻的级别；协议端点 <code>with_sandbox</code>；核心探到手段的才交。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真模型自测：里面写得进，外面写不进，家目录读得到，数据根读不到</span></li>
+        <li><span class="ok">✓</span><span>手写变异 29 个逮住 28 个，剩下那个真模型自测看得到，5-4（下）补测试</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>11-权限与沙盒.md</code> 第二节。</li>
+        <li>蓝图 <code>session/guard.md</code>、<code>session/tools.md</code>、<code>sandbox.md</code>、<code>core.md</code>；<code>docs/construction/5-4-权限策略接上沙盒（上）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-7" aria-labelledby="h-s57">
+  <div class="sheet-head"><h2 id="h-s57"><span class="no">5-7</span>macOS</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">macOS 上沙盒真的管住写：助手把规格写成一份 Seatbelt 配置，装到自己身上，再换成命令。整盘能读，只能写规格里的，数据根读写都不行；能替命令到别处读写的系统服务挡住；网络不管。分身施工，本机没有 Mac，规矩在 CI 的 macOS 26 上量出来。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一份配置</span><span class="dir-note">底子 + 照规格生成的</span></div>
+            <ol class="pipe" aria-label="一份配置">
+              <li>底子：没写到的一律不许；整盘能读、能执行</li>
+              <li>写：规格里能写的，加上 /dev/null、/dev/fd、终端这几样设备</li>
+              <li>规格的每一条照深浅排，最深的说了算；一样深的，藏起来的压过能写的</li>
+              <li>撑着规格的目录删不掉、改不了名</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">量出来的规矩</span><span class="dir-note">CI 的 macOS 26.6</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">细的压过笼统的</span><span class="rl">一样细的，后面的压过前面的</span></div>
+              <div class="tile new"><span class="nm">挡住的服务</span><span class="rl">open、launchctl、偏好设置、钥匙串、osascript</span></div>
+              <div class="tile new"><span class="nm">Unix 套接字</span><span class="rl">只连得上能写的地方，Docker、ssh-agent 连不上</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不经 sandbox-exec</span><span class="rl">自己调系统接口装上，收紧不成说原话、退出 125</span></div>
+          <div class="tile new"><span class="nm">整个 crate 只一处 unsafe</span><span class="rl">装配置那一处，写明为什么安全</span></div>
+          <div class="tile"><span class="nm">接受的</span><span class="rl">规矩没有文档，苹果改了测试会红</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-7</dd></div>
+        <div><dt>名称</dt><dd>macOS</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">ecaa273</dd></div>
+        <div><dt>验收</dt><dd>变异全逮住、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>macos/resolve.rs</code> 换成真实的位置；<code>macos/profile.rs</code> 照规格拼配置；<code>macos/seatbelt.rs</code> 装上。</li>
+        <li><code>macos/base.sb</code> 底子，<code>macos/probe.json</code> 探测用的规格。</li>
+        <li><code>tests/macos/</code>：macOS 上真跑助手 16 个。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>macOS 上真跑：读哪儿都行、写只有能写的、藏起来的读写都不行</span></li>
+        <li><span class="ok">✓</span><span>手写变异 24 个全被逮住</span></li>
+        <li><span class="ok">✓</span><span>接上 5-4（上）以后三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>11-权限与沙盒.md</code> 第六节、A8。</li>
+        <li>蓝图 <code>sandbox/macos.md</code>、<code>sandbox.md</code>；<code>docs/construction/5-7-macOS.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-8" aria-labelledby="h-s58">
+  <div class="sheet-head"><h2 id="h-s58"><span class="no">5-8</span>Windows：装</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">Windows 上的沙盒要一个专用的沙盒用户，建它要一次管理员权限。<code>miyu sandbox setup</code> 建、藏好这个用户，<code>remove</code> 撤掉；不是管理员时经系统的确认提升一次。密码加密存进本人的数据根，沙盒读不到；5-9 用它以沙盒用户的身份起命令。分身施工，在虚拟机上真装真卸。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu sandbox setup</span><span class="dir-note">一次管理员权限</span></div>
+            <ol class="pipe" aria-label="miyu sandbox setup">
+              <li>不是管理员：经 runas 提升一次，弹系统的确认</li>
+              <li>先认数据根的标记，不是就一个字节都不写</li>
+              <li>建用户：只在 Users 组、自己改不了密码、登录界面上藏着</li>
+              <li>密码用 DPAPI 加密，记录只给本人和 SYSTEM</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">实测</span><span class="dir-note">Windows 11 虚拟机</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">装、再装、卸</span><span class="rl">SID 不变、密码换了；卸得干净，再卸也成</span></div>
+              <div class="tile new"><span class="nm">管理员确认</span><span class="rl">项目主人在桌面上看过：点「是」装好，点「否」说要管理员权限</span></div>
+              <div class="tile new"><span class="nm">挡得住的</span><span class="rl">不是数据根、拼得进访问控制的 SID、经链接写</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">先改记录再动用户</span><span class="rl">半路失败不会留下没处记的密码、半删的账号</span></div>
+          <div class="tile new"><span class="nm">已有同名的管理员</span><span class="rl">装和卸都不碰它，直接报错</span></div>
+          <div class="tile"><span class="nm">接受的</span><span class="rl">查完到写之前被人换掉挡不住：能换的人本来就能改数据根</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-8</dd></div>
+        <div><dt>名称</dt><dd>Windows：装</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">b773227</dd></div>
+        <div><dt>验收</dt><dd>虚拟机真装真卸、项目主人看过确认、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>crates/miyu-sandbox/src/install*</code>：建、藏、删用户，提升，DPAPI，只给本人的文件。</li>
+        <li><code>crates/miyu-cli/src/sandbox*</code>：<code>miyu sandbox setup</code>、<code>remove</code> 和帮助页。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>虚拟机上真装真卸，项目主人在桌面上看过管理员确认</span></li>
+        <li><span class="ok">✓</span><span>手写变异 35 个全被逮住</span></li>
+        <li><span class="ok">✓</span><span>接上 5-4（上）、5-7 以后三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>11-权限与沙盒.md</code> 第六节、A3。</li>
+        <li>蓝图 <code>sandbox/windows.md</code>、<code>cli/main.md</code>；<code>docs/construction/5-8-Windows：装.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-4b" aria-labelledby="h-s54b">
+  <div class="sheet-head"><h2 id="h-s54b"><span class="no">5-4</span>权限策略接上沙盒（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">沙盒里的命令跑得顺，沙盒用不了时说清楚：工具链的缓存用沙盒自己的一份，沙盒里编得了项目，你的 ~/.cargo 照旧只读；握手时报出这台机器的沙盒能不能用、为什么，miyu ask 用不了时开头说一行原因和怎么修。被沙盒挡住时不另加提示：实测 4 次都认得出（项目主人定）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">工作区这一级多给的</span><span class="dir-note">缓存目录/sandbox/账号</span></div>
+            <ol class="pipe" aria-label="工作区这一级多给的">
+              <li>多放一处能写：沙盒的缓存，只给本人</li>
+              <li>五个变量：CARGO_HOME、npm_config_cache、PIP_CACHE_DIR、GOMODCACHE、GOCACHE</li>
+              <li>cargo 的配置带过去，发布用的令牌不带</li>
+              <li>只读、完全放开不设</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">实测</span><span class="dir-note">真模型 · 本机内核 7.2</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">cargo build</span><span class="rl">依赖下进沙盒的缓存，编得过，跑出 42</span></div>
+              <div class="tile new"><span class="nm">~/.cargo</span><span class="rl">一个文件都没变</span></div>
+              <div class="tile new"><span class="nm">不加提示</span><span class="rl">被挡住的写 4 次都认得出是沙盒、不绕</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">握手报沙盒</span><span class="rl">能用，或者用不了和原因：找不到助手、助手跑不起来、没有手段</span></div>
+          <div class="tile new"><span class="nm">开头说一行</span><span class="rl">原因、后果、怎么修放在一起（项目主人定）</span></div>
+          <div class="tile"><span class="nm">接受的</span><span class="rl">第一次在沙盒里编要重新下载依赖</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-4 下</dd></div>
+        <div><dt>名称</dt><dd>权限策略接上沙盒（下）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">feaa4c4</dd></div>
+        <div><dt>验收</dt><dd>真模型自测、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-sandbox</code> 的 <code>Availability</code>；核心探到的结果、沙盒的缓存交给协议端点。</li>
+        <li>会话的 <code>sandbox/caches.rs</code>：缓存、变量、cargo 配置。</li>
+        <li>握手的回应多一格 <code>sandbox</code>；<code>miyu ask</code> 开头那一句。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真模型自测：沙盒里编过了，~/.cargo 没被写</span></li>
+        <li><span class="ok">✓</span><span>手写变异都被逮住；5-4 上漏的那一个也逮住了</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>11-权限与沙盒.md</code> 第四节；<code>26-提示词.md</code> 第十节。</li>
+        <li>蓝图 <code>session/tools.md</code>、<code>protocol.md</code>、<code>cli/ask.md</code>、<code>sandbox.md</code>、<code>core.md</code>；<code>docs/construction/5-4-权限策略接上沙盒（下）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s1-13b" aria-labelledby="h-s113b">
+  <div class="sheet-head"><h2 id="h-s113b"><span class="no">1-13</span>只到小时的时间写成一段（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">环境那一块的时间只到小时，原来分钟一律写 <code>00</code>，她看了会当成正好那个钟点。改成写这一个小时的起止，同一个小时里字节照样不变（项目主人在终端演示里看到的，他定的写法）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">环境那一块</span><span class="dir-note">改前 → 改后</span></div>
+            <ol class="pipe" aria-label="环境那一块">
+              <li>改前：<code>time="Fri 2026-09-25 16:00"</code></li>
+              <li>改后：<code>time="Fri 2026-09-25 16:00–17:00"</code></li>
+              <li>23 点：<code>23:00–24:00</code>，日期还是这一天</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">跟着改的</span><span class="dir-note">样本和存档</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">样本会话</span><span class="rl">两条环境事件、second-step.json</span></div>
+              <div class="tile new"><span class="nm">探针存档</span><span class="rl">只变了三处时间和 16 条请求哈希</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">写成起止</span><span class="rl">中间是连接号 –，分钟都写 00</span></div>
+          <div class="tile"><span class="nm">接受的</span><span class="rl">已有的会话升级后，环境那一块重新注入一次，只追加</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">1-13 补</dd></div>
+        <div><dt>名称</dt><dd>只到小时的时间写成一段</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">821e266</dd></div>
+        <div><dt>验收</dt><dd>真模型自测、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>Timestamp::local_hour</code> 写成这一个小时的起止。</li>
+        <li>测试的期望、样本会话、探针存档跟着改。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真模型答「凌晨4点多（04:00–05:00）」</span></li>
+        <li><span class="ok">✓</span><span>手写变异 4 个都被逮住</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>08-上下文投影.md</code> 第五节「时间」。</li>
+        <li>蓝图 <code>kernel/ids.md</code>「当地钟点」、<code>kernel/request.md</code>；<code>docs/construction/1-13-只到小时的时间写成一段（补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-10a" aria-labelledby="h-s510a">
+  <div class="sheet-head"><h2 id="h-s510a"><span class="no">5-10</span>加进来的目录（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose"><code>miyu ask --add-dir &lt;目录&gt;</code>：事先多放行几个目录，和工作区一样能读能写，可以写好几次。<code>miyu ask</code> 里确认不了，要写工作区以外的地方只能靠它（项目主人 09-28 定，照 Claude Code、codex）。她看到的请求一个字节不变。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一路怎么走</span><span class="dir-note">照工作目录的走法</span></div>
+            <ol class="pipe" aria-label="加进来的目录一路怎么走">
+              <li>命令行：相对的接成绝对的，不是目录的退出码 2</li>
+              <li>协议：造会话、说话都带 <code>dirs</code>，太宽的整条命令回 <code>dir_too_wide</code></li>
+              <li>内核：记进这一轮的 <code>turn.started</code>，空的不写</li>
+              <li>权限策略、沙盒规格：照工作区放行</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">边界表的先后</span><span class="dir-note">先对上的算</span></div>
+            <div class="files">
+              <div class="tile"><span class="nm">1 工作区</span><span class="rl">能读能写，git 钩子只能读</span></div>
+              <div class="tile"><span class="nm">2 数据根</span><span class="rl">谁都不能碰</span></div>
+              <div class="tile new"><span class="nm">3 加进来的目录</span><span class="rl">照工作区算；排在数据根后面</span></div>
+              <div class="tile"><span class="nm">4–6</span><span class="rl">临时目录、只能读的、边界以外</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">太宽的拒绝</span><span class="rl">家目录、根目录、数据根和它里面的</span></div>
+          <div class="tile new"><span class="nm">不给她加字</span><span class="rl">要写那里，你在话里本来就会说</span></div>
+          <div class="tile"><span class="nm">载入找回</span><span class="rl">核心重启以后照最后一轮的</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-10 上</dd></div>
+        <div><dt>名称</dt><dd>加进来的目录</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">fe03da6</dd></div>
+        <div><dt>验收</dt><dd>真模型自测、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>会话的环境、<code>turn.started</code>、判权限和派工具的动作都多一格 <code>dirs</code>。</li>
+        <li>边界表多一片「加进来的目录」；沙盒规格能写的里面也有它们。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>探针存档一个字节不变</span></li>
+        <li><span class="ok">✓</span><span>手写变异都被逮住</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>22-命令行.md</code> O3、<code>11-权限与沙盒.md</code> 第四节。</li>
+        <li>蓝图 <code>cli/ask.md</code>、<code>protocol.md</code>、<code>session/guard.md</code>、<code>fs.md</code>；<code>docs/construction/5-10-加进来的目录（上）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-10b" aria-labelledby="h-s510b">
+  <div class="sheet-head"><h2 id="h-s510b"><span class="no">5-10</span>按真实位置逐层打开（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">核心里的文件工具先换成真实的位置、查边界，再打开。原来只保证最后一层不是链接：检查完、打开前上级目录被换成了链接，照样走到别处。现在路上一层链接都不跟：读的时候这样开文件，写的时候这样开上级目录，临时文件、改名都相对它。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">怎么开</span><span class="dir-note">路上一层链接都不跟</span></div>
+            <ol class="pipe" aria-label="各平台怎么开">
+              <li>Linux：<code>openat2</code> 带 <code>RESOLVE_NO_SYMLINKS</code>；没有它的退回一层一层打开</li>
+              <li>macOS：<code>O_NOFOLLOW_ANY</code>（不和 <code>O_NOFOLLOW</code> 一起写）</li>
+              <li>别的 Unix：一层一层打开</li>
+              <li>Windows：照旧，和 5-9 一起记着</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">写的时候</span><span class="dir-note">相对打开了的上级目录</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">看原来的</span><span class="rl">statat</span></div>
+              <div class="tile new"><span class="nm">建临时文件</span><span class="rl">openat，只许新建、不跟链接</span></div>
+              <div class="tile new"><span class="nm">改名、清理</span><span class="rl">renameat、unlinkat</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">rustix</span><span class="rl">依赖树里本来就有，不写 unsafe</span></div>
+          <div class="tile new"><span class="nm">路上有链接</span><span class="rl">就是检查完以后被换过：不开，报「是链接」</span></div>
+          <div class="tile"><span class="nm">CI 上撞到的</span><span class="rl">macOS 上两个标志一起写报 EINVAL</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-10 下</dd></div>
+        <div><dt>名称</dt><dd>按真实位置逐层打开</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">019329d</dd></div>
+        <div><dt>验收</dt><dd>测试、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>新模块 <code>nofollow</code>：路上一层链接都不跟地打开文件、目录。</li>
+        <li><code>open_file</code>、<code>replace</code> 在 Unix 上都经它。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>修之前读、写两个测试都是红的</span></li>
+        <li><span class="ok">✓</span><span>手写变异都被逮住</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>11-权限与沙盒.md</code> 第七节。</li>
+        <li>蓝图 <code>fs.md</code> 第四、五节；<code>docs/construction/5-10-按真实位置逐层打开（下）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-11" aria-labelledby="h-s511">
+  <div class="sheet-head"><h2 id="h-s511"><span class="no">5-11</span>M5 验收</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">M5 沙盒的真模型验收：在临时仓库里让她干真活，命令都关在沙盒里。沙盒里跑得了测试，写不了工作区以外，读不到数据根，冒充不了本人。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">她干的和试的</span><span class="dir-note">deepseek-flash · 本机内核 7.2</span></div>
+            <ol class="pipe" aria-label="验收的几件">
+              <li>cargo test 没过 → 读、改、再跑全过，退出码 0，缓存命中 87%</li>
+              <li>往工作区外面写 → 权限不够</li>
+              <li>读 run/token、会话日志 → 权限不够；read 被权限策略拒绝</li>
+              <li>连核心的套接字 → EACCES，Landlock 挡住</li>
+              <li>--add-dir 以后写得进</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">干净</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">~/.cargo</span><span class="rl">一个文件都没变</span></div>
+              <div class="tile new"><span class="nm">key、DSML</span><span class="rl">数据根里没有 key，会话里没有 DSML</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步看到的</p>
+          <div class="tile"><span class="nm">名字看得到</span><span class="rl">ls 列得出数据根里的目录名：设计里接受的</span></div>
+          <div class="tile new"><span class="nm">运行目录没删</span><span class="rl">撞见的小毛病，修在 5-11（补）</span></div>
+          <div class="tile"><span class="nm">Windows</span><span class="rl">5-9 暂停着，沙盒用不了，每一步问人</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-11</dd></div>
+        <div><dt>名称</dt><dd>M5 验收</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">2661e2a</dd></div>
+        <div><dt>验收</dt><dd>真模型自测、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>不改代码，只验收；结果写在施工单最后。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>四件都对：跑测试、写不出去、读不到数据根、冒充不了</span></li>
+        <li><span class="ok">✓</span><span>用完停掉了带着 key 的核心</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/5-11-M5 验收.md</code>：施工单和验收结果。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-11b" aria-labelledby="h-s511b">
+  <div class="sheet-head"><h2 id="h-s511b"><span class="no">5-11</span>运行目录用完删掉（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">5-11 撞见的：Linux 上套接字放在 $XDG_RUNTIME_DIR/miyu-&lt;指纹&gt;/，核心走的时候只删了套接字文件，这一层目录留着，一个数据根留一个。现在空了连目录一起删。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">核心走的时候</span><span class="dir-note">先删，再放锁</span></div>
+            <ol class="pipe" aria-label="核心走的时候">
+              <li>删套接字文件</li>
+              <li>放在 $XDG_RUNTIME_DIR/miyu-&lt;指纹&gt;/ 里的：这一层空了一起删</li>
+              <li>数据根的 run/、临时目录下共用的 miyu-&lt;uid&gt;/ 不删</li>
+              <li>放锁</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">只删空的</span><span class="rl">remove_dir，里面有别的就留着</span></div>
+          <div class="tile"><span class="nm">已经留下的</span><span class="rl">在 /run/user，重启就没了，不另去清</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-11 补</dd></div>
+        <div><dt>名称</dt><dd>运行目录用完删掉</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">22d23d5</dd></div>
+        <div><dt>验收</dt><dd>修之前红、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>miyu-ipc</code>：<code>place::own_dir</code> 认出专用的那一层；<code>Listener</code> 走的时候删它。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>修之前红；三种放法各测一遍</span></li>
+        <li><span class="ok">✓</span><span>手写变异 4 个都被逮住</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>ipc.md</code>「Unix 域套接字」第 5 条；<code>docs/construction/5-11-运行目录用完删掉（补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s6-1" aria-labelledby="h-s61">
+  <div class="sheet-head"><h2 id="h-s61"><span class="no">6-1</span>用量和压缩线</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">内核能算出一次请求用了多少上下文，和该在哪里压：以最近一次主请求时供应商报的真实用量为锚，加上锚以后新增内容的本地估算。只是算法，6-2 接进回合。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">用量</span><span class="dir-note">锚 + 锚以后新增的估算</span></div>
+            <ol class="pipe" aria-label="用量怎么算">
+              <li>锚：最近一次压缩以后、说完了、带用量的 <code>model.called</code></li>
+              <li>锚盖住工具面、system 和前 <code>messages + 1</code> 条（那次请求加上它的回复）</li>
+              <li>本地估的比报的大，取估的；换过模型、没有锚，整份估</li>
+              <li>后面新增的：UTF-8 字节除以 4，向上取整；图片、文件照 <code>Price</code>，出厂 2000</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">压缩线</span><span class="dir-note">用量超过它就该压</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">窗口 − min(最大输出, 20000) − 13000</span><span class="rl">deepseek-flash：967000</span></div>
+              <div class="tile new"><span class="nm">没有窗口、不是正数</span><span class="rl">没有线，只被动压</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">字节除以 4</span><span class="rl">照 codex，项目主人定</span></div>
+          <div class="tile new"><span class="nm">锚的两道保险</span><span class="rl">照 dsh：换模型作废，报的小取估的</span></div>
+          <div class="tile new"><span class="nm">空的工具面</span><span class="rl">不发，算 0</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-1</dd></div>
+        <div><dt>名称</dt><dd>用量和压缩线</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">1fa5ef5</dd></div>
+        <div><dt>验收</dt><dd>测试、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>内核新模块 <code>estimate</code>：<code>anchor</code>、<code>usage</code>、<code>line</code>、<code>message</code>，图片的算法接口 <code>Price</code> 和出厂的 <code>Flat</code>。</li>
+        <li>探针和随机日志里，用出厂的组装查锚盖住的正好是锚那次请求加上它的回复。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>14 个单元测试；探针十六次请求里十四次有锚，前提都成立；五百份随机日志也成立</span></li>
+        <li><span class="ok">✓</span><span>手写的 17 个变异全被逮住</span></li>
+        <li><span class="ok">✓</span><span>门禁八项全过；三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>09-压缩.md</code> Z3。</li>
+        <li>蓝图 <code>compaction.md</code>「怎么走」第一、二条；<code>docs/construction/6-1-用量和压缩线.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s6-2a" aria-labelledby="h-s62a">
+  <div class="sheet-head"><h2 id="h-s62a"><span class="no">6-2</span>摘要请求（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">压缩接进回合：发主请求之前用量过了压缩线，就在这一轮里先发一次摘要请求，取出摘要写成检查点，再照常发这一步本来要发的请求。尾巴先只留这一轮要回应的话，16000 token 的尾巴随 6-2（下）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">发主请求之前</span><span class="dir-note">组装、算用量、比压缩线</span></div>
+            <ol class="pipe" aria-label="压缩这一步怎么走">
+              <li>过了线：替代到 N，发摘要请求（有效历史到第 N 条的投影，最后接摘要指令）</li>
+              <li>收增量：不推 <code>model.delta</code>，推 <code>compaction.progress</code></li>
+              <li>取 <code>&lt;summary&gt;</code>，写 <code>context.compacted</code>（带 <code>trigger</code>），环境、权限比不到的再注入</li>
+              <li>回到「准备好」，照检查点以后的组装主请求</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">N 替代到哪</span><span class="dir-note">这一轮要回应的话留在尾巴里</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">以前的回合请求看到过的</span><span class="rl">照常压，摘要请求接得上前缀</span></div>
+              <div class="tile new"><span class="nm">这一轮还没回复的</span><span class="rl">触发它的那句留着</span></div>
+              <div class="tile new"><span class="nm">一组不拆</span><span class="rl">落在回复和结果之间的往前退</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">执行器交限额</span><span class="rl"><code>Input::Limits</code>，没交的不主动压</span></div>
+          <div class="tile new"><span class="nm">摘要指令 443 token</span><span class="rl">照 Claude Code 改写，进登记簿</span></div>
+          <div class="tile new"><span class="nm">取不出摘要</span><span class="rl"><code>bad_summary</code>，这一轮出错结束</span></div>
+          <div class="tile new"><span class="nm">不算步数</span><span class="rl">再来的也不标重试</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-2 上</dd></div>
+        <div><dt>名称</dt><dd>摘要请求</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">adfa931</dd></div>
+        <div><dt>验收</dt><dd>测试、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>内核：<code>session/compaction.rs</code>（到没到线、N、发摘要请求、写检查点），<code>Input::Limits</code>，<code>Policy.compaction</code>，<code>History::until</code>，<code>trigger</code>、<code>bad_summary</code>、<code>compaction.progress</code>。</li>
+        <li>组装：<code>summarize</code>、<code>summary</code>；检查点前面的 <code>model.called</code> 不算这一轮请求过。</li>
+        <li>策略快照带压缩的四个数和摘要指令，以前的快照读成不主动压。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>场景 16 个；探针加了回合开头、回合中途两次压缩，两次摘要请求都是上一次请求的前缀延伸，原来的十六次逐字节不变</span></li>
+        <li><span class="ok">✓</span><span>随机测试碰出两个真问题（前缀接不上、一组被拆），都在这一步修了</span></li>
+        <li><span class="ok">✓</span><span>手写 19 个变异，18 个逮住，没逮住的那道判断是多余的，删了；门禁八项全过，三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>09-压缩.md</code>；蓝图 <code>compaction.md</code> 第二、三条。</li>
+        <li><code>docs/construction/6-2-摘要请求（上）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s6-2b" aria-labelledby="h-s62b">
+  <div class="sheet-head"><h2 id="h-s62b"><span class="no">6-2</span>留尾巴（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">压缩时最近的一段原文原样留着，不进摘要：从最新的一组往回，一组一组地留，至多 16000 token、不超过压缩线的四分之一；这一轮要回应的话超了也留。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">尾巴</span><span class="dir-note">照投影的先后看</span></div>
+            <ol class="pipe" aria-label="尾巴怎么留">
+              <li>一组从一条人的消息或者一条回复开始，别的事件跟着前面那一组</li>
+              <li>从最新的一组往回加，加上就超预算的停下</li>
+              <li>只在切得开的地方切：前面的序号都比后面的小</li>
+              <li>和这一轮要回应的话合在一起，再照一组不拆往前退</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">预算</span><span class="rl">min(16000, 压缩线的四分之一)</span></div>
+          <div class="tile new"><span class="nm">一步至多压一次</span><span class="rl">压完照发这一步的请求</span></div>
+          <div class="tile new"><span class="nm">重试的计数</span><span class="rl">摘要说完了不清零</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-2 下</dd></div>
+        <div><dt>名称</dt><dd>留尾巴（下）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">fe6817a</dd></div>
+        <div><dt>验收</dt><dd>测试、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>内核：<code>tail_upto</code>、<code>cuts</code>、<code>settle</code>，<code>estimate::event</code>；<code>Policy.compaction.tail</code>。</li>
+        <li>替身记下每次请求交出去时日志的最后一条（<code>Stage::marks</code>），随机日志照它查改写。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>尾巴的场景 8 个；探针的两次压缩，一次留了尾巴、一次最新一组太大不留</span></li>
+        <li><span class="ok">✓</span><span>随机测试碰出三个真问题（切在投影顺序对不上的地方、一步压两次、摘要清零重试），都修了</span></li>
+        <li><span class="ok">✓</span><span>手写 12 个变异全被逮住；门禁八项全过，三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>compaction.md</code> 第三条第 1、2 条。</li>
+        <li><code>docs/construction/6-2-留尾巴（下）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s3-9d" aria-labelledby="h-s39d">
+  <div class="sheet-head"><h2 id="h-s39d"><span class="no">3-9</span>开发用的地址和模型（再补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">真模型自测改用项目主人给的端点：两个开发用的环境变量替换地址和模型，配置系统做好以后删掉。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">核心起来时</span><span class="dir-note">设了 DEEPSEEK_API_KEY 才看</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">MIYU_DEV_BASE_URL</span><span class="rl">替换地址，端点编号改成 dev</span></div>
+              <div class="tile new"><span class="nm">MIYU_DEV_MODEL</span><span class="rl">替换模型名，不合写法起不来</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不进 -h</span><span class="rl">配置系统做好以后删掉</span></div>
+          <div class="tile new"><span class="nm">地址不进仓库</span><span class="rl">项目主人给的端点只在命令里用</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-9 再补</dd></div>
+        <div><dt>名称</dt><dd>开发用的地址和模型（再补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">9aea9c0</dd></div>
+        <div><dt>验收</dt><dd>测试、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>核心：<code>models::ModelEnv</code>、<code>choose</code>；运行日志记一条 <code>dev endpoint</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试覆盖不设、只设一个、都设、空白、没有 key、模型名不合写法</span></li>
+        <li><span class="ok">✓</span><span>真模型：miyu ask 读文件、答一句，走得通；数据根里没有 key</span></li>
+        <li><span class="ok">✓</span><span>手写 5 个变异全被逮住；门禁八项全过，三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>core.md</code>「环境变量」「模型」。</li>
+        <li><code>docs/construction/3-9-开发用的地址和模型（再补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -6649,7 +7834,7 @@ const NODES = [
   { id: 'n_kb', x: 507, y: 758, w: 99, h: 120, k: 'module', p: 'core', t: '知识库', s: ['文档 + 索引', 'kb_search 等', '想起默认关'] },
   { id: 'n_adapters', x: 618, y: 758, w: 156, h: 120, k: 'module', p: 'core', t: '扩展适配器', s: ['进程扩展：像 FUSE', 'MCP：只接工具', '外部只挂异步点', '每次调用都有超时'] },
   { id: 'n_software', x: 786, y: 758, w: 214, h: 120, k: 'module', p: 'core', t: '自带软件', custom: 'software' },
-  { id: 'n_sandbox', x: 1012, y: 758, w: 116, h: 120, k: 'module', p: 'core', t: '沙盒与代理', s: ['管得住的不问人', '越界才问人', '网络只经代理'] },
+  { id: 'n_sandbox', x: 1012, y: 758, w: 116, h: 120, k: 'module', p: 'core', t: '沙盒', s: ['管得住的不问人', '越界才问人', '整盘能读，只管写'] },
   // left column
   { id: 'x_qq', x: 28, y: 244, w: 196, h: 64, k: 'ext', p: 'ext', t: 'QQ 群与私聊', s: ['OneBot v11 实现', 'NapCat、SnowLuma…'] },
   { id: 'n_qqbridge', x: 28, y: 420, w: 196, h: 84, k: 'proc', p: 'child', t: 'QQ 桥', s: ['适配层 · quirk 表', '平台工具：像 ioctl', 'Miyu 协议 · 标准输入输出'] },
@@ -6749,15 +7934,16 @@ const BUILD = {
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完；出了错自己再来，说了一半的带着半截接着说（3-5 下）' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认；执行端口（4-2）：照名字在目录里找，一件一个任务地跑，叫停就掐掉；快照里有、目录里没有的报现在用不了，崩了的报内部错误，会话照常走' },
-  n_sandbox: { by: '4-3', how: 'frame', note: '文件工具的路径边界（4-3 上）：边界表（工作区、数据根、临时目录、系统和工具链目录，几片重叠时有先后），换成真实的位置（~、链接、还不存在的），安全地打开（不跟随最后一层的链接、不阻塞、只开普通文件）。权限策略（4-3 下）：工具报要碰的路径，照边界和级别判放行、问人还是拒绝，数据根哪一级都拒绝；工作目录太宽退回账号的工作区。沙盒本身随 M5' },
+  n_sandbox: { by: '4-3', how: 'frame', note: '文件工具的路径边界（4-3 上）：边界表（工作区、数据根、临时目录、系统和工具链目录，几片重叠时有先后），换成真实的位置（~、链接、还不存在的），安全地打开（不跟随最后一层的链接、不阻塞、只开普通文件）。权限策略（4-3 下）：工具报要碰的路径，照边界和级别判放行、问人还是拒绝，数据根哪一级都拒绝；工作目录太宽退回账号的工作区。沙盒的底子（5-1）：规格、助手 miyu-sandbox，shell 带了规格的经它起，核心起来时探一次。Linux 的文件用 Landlock 照规格放行（5-2）；只管读写、不管网络，挡住能替命令在沙盒外读写的系统服务（5-1 补，项目主人 09-29 定）；照 dsh 整盘能读、只管写，数据根一级级绕开（5-3）；.git 不另外护' },
   n_software: { by: '4-4', how: 'frame', note: '基础系统（4-4 上、下）：读的三件 read、glob、grep，名字、参数、输出照成熟 harness 的规范（以 Claude Code 为主）；说明、参数格式、输出里的几句都在资源目录的 software/basesystem/ 下、进登记簿；核心起来时登记' },
   k_catalog: { by: '4-1', how: 'frame', note: '工具目录：每件工具报出规格（名字、说明、参数格式、访问类别），核心起来时登记一次就冻结；重名的、名字不合写法的、参数格式不是对象的当场拒绝。造会话时工具面照名字排好存进策略快照，载入以后逐字节一样。现在目录是空的，第一批工具在 4-4（4-1）' },
   n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对；资源目录：MIYU_RESOURCES、程序旁边的 resources/、上一级的 share/miyu/，读出一个人格的原文（3-6 上）' },
   n_prompt: { by: '3-6', how: 'frame', note: '策略快照：人格从资源目录拼成快照，按内容哈希存档，载入时照哈希重建，请求逐字节一样；现在只有软件工程师（3-6 上）' },
   n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断；会接着写的供应商用前缀续写（3-5 再补，出厂只开 DeepSeek）；DEBUG 记发出去和收场，key、正文、地址的路径一个字都不记（3-7 上）' },
   k_sessions: { by: '3-7', how: 'frame', note: '会话 actor（3-7 中）：命令和执行器的回报进收件箱，动作照表回；先落盘，后回应、后推送；造会话存策略快照，载入照它重建，停在一轮中间的再起来接着干；写不进去就停下。请求模型接上驱动和 HTTP，驱动的占位取自会话的快照（3-7 下）；会话表照编号找会话、没在跑的从磁盘载入，只起一个 actor（3-8 上）' },
-  n_models: { by: '3-9', how: 'frame', note: '配置系统做出来之前只认环境变量 DEEPSEEK_API_KEY：设了就接 DeepSeek 官方的 deepseek-flash，key 只在内存里；没设的，每次请求都当场回「没有可用的模型」（3-9 上，项目主人定）' },
+  n_models: { by: '3-9', how: 'frame', note: '配置系统做出来之前只认环境变量 DEEPSEEK_API_KEY：设了就接 DeepSeek 官方的 deepseek-flash，key 只在内存里；没设的，每次请求都当场回「没有可用的模型」（3-9 上，项目主人定）；开发用的 MIYU_DEV_BASE_URL、MIYU_DEV_MODEL 替换地址和模型（3-9 再补）' },
   n_cli: { by: '3-9', how: 'frame', note: 'miyu ask：连上核心（没在跑就拉起），开一次性会话或者 --continue、--session 接着说；思考灰色印在标准错误上，回答印在标准输出上，问完一行用量；Ctrl+C 一次打断、两次就走；--format json 给脚本（3-9 下）' },
+  n_compact: { by: '6-1', how: 'frame', note: '用量和压缩线（6-1）：锚是最近一次压缩以后、说完了、带用量的 model.called，盖住工具面、system 和前 messages+1 条；后面新增的照 UTF-8 字节除以 4 估（照 codex）；报的比估的小取估的、换过模型整份估（照 dsh）；压缩线 = 窗口 − min(最大输出, 20000) − 13000。摘要请求（6-2 上）：发主请求之前过了线，在这一轮里先压：有效历史到第 N 条的投影加摘要指令，取出摘要写检查点，这一轮要回应的话留在尾巴里，一组不拆；执行器交了限额才主动压。留尾巴（6-2 下）：照投影的先后一组一组地留，至多 min(16000, 线的四分之一)，只在切得开的地方切；一步至多压一次' },
   n_bus: { by: '3-8', how: 'frame', note: '连接上一行一条 JSON-RPC 2.0：握手（主版本、本机令牌）、造会话、说话、打断，拒绝附原因码（3-8 上）；订阅事件流，回应排在它产生的推送后面，掉队推 resync（3-8 中）；核心在本机的 Unix 套接字上等连接：一个数据根一个核心（锁），本机令牌写进 run/token，实际位置记在 run/socket，套接字放在只有自己能进的目录里（3-8 下）；Windows 上是命名管道，只对本人开放，头连上以后核对另一头是自己的（3-8 补）' },
 };
 

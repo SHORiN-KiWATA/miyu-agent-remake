@@ -100,7 +100,8 @@ fn startup_files_are_skipped_and_only_the_given_variables_pass() {
         kind: Kind::Bash,
         path: PathBuf::from("/bin/bash"),
     }
-    .command("echo hi", Path::new("/work"), env.clone());
+    .command("echo hi", Path::new("/work"), env.clone(), None)
+    .expect("造得出");
     assert_eq!(args(&bash), ["--noprofile", "--norc", "-c", "echo hi"]);
     assert_eq!(bash.get_current_dir(), Some(Path::new("/work")));
     let envs: Vec<_> = bash.get_envs().collect();
@@ -113,7 +114,8 @@ fn startup_files_are_skipped_and_only_the_given_variables_pass() {
         kind: Kind::Zsh,
         path: PathBuf::from("/bin/zsh"),
     }
-    .command("echo hi", Path::new("/work"), env);
+    .command("echo hi", Path::new("/work"), env, None)
+    .expect("造得出");
     assert_eq!(args(&zsh), ["-f", "+o", "nomatch", "-c", "echo hi"]);
 }
 
@@ -123,7 +125,8 @@ fn powershell_gets_the_command_encoded_after_its_prelude() {
         kind: Kind::PowerShell7,
         path: PathBuf::from("pwsh.exe"),
     }
-    .command("dir", Path::new("/work"), Vec::new());
+    .command("dir", Path::new("/work"), Vec::new(), None)
+    .expect("造得出");
     let args = args(&command);
     assert_eq!(
         args[..4],
@@ -158,9 +161,81 @@ fn zsh_passes_an_unmatched_glob_through() {
         path,
     };
     let output = zsh
-        .command("echo *.nothing-here", Path::new("/"), Vec::new())
+        .command("echo *.nothing-here", Path::new("/"), Vec::new(), None)
+        .expect("造得出")
         .output()
         .expect("跑得起来");
     assert!(output.status.success(), "{output:?}");
     assert_eq!(String::from_utf8_lossy(&output.stdout), "*.nothing-here\n");
+}
+
+/// 一份什么都不限的规格，助手在 `/opt/miyu/miyu-sandbox`。
+fn sandboxed() -> Sandboxed {
+    Sandboxed {
+        helper: PathBuf::from("/opt/miyu/miyu-sandbox"),
+        spec: miyu_sandbox::Spec::from_json(r#"{"write":["/work"]}"#).expect("读得懂"),
+        env: vec![(OsString::from("TMPDIR"), OsString::from("/work/tmp"))],
+    }
+}
+
+#[test]
+fn a_sandboxed_command_goes_through_the_helper_and_keeps_the_rest() {
+    let sandboxed = sandboxed();
+    let env = vec![(OsString::from("PATH"), OsString::from("/usr/bin"))];
+    for kind in [
+        Kind::Bash,
+        Kind::Zsh,
+        Kind::PowerShell7,
+        Kind::WindowsPowerShell,
+    ] {
+        let program = Program {
+            kind,
+            path: PathBuf::from("/bin/shell"),
+        };
+        let direct = program
+            .command("echo hi", Path::new("/work"), env.clone(), None)
+            .expect("造得出");
+        let wrapped = program
+            .command("echo hi", Path::new("/work"), env.clone(), Some(&sandboxed))
+            .expect("造得出");
+        assert_eq!(wrapped.get_program(), OsStr::new("/opt/miyu/miyu-sandbox"));
+        let json = sandboxed.spec.to_json().expect("写得成");
+        let mut expected = vec![
+            "run".to_string(),
+            "--spec".to_string(),
+            json,
+            "--".to_string(),
+            "/bin/shell".to_string(),
+        ];
+        expected.extend(args(&direct));
+        assert_eq!(args(&wrapped), expected, "{kind:?}");
+        assert_eq!(wrapped.get_current_dir(), direct.get_current_dir());
+        let mut expected_envs: Vec<_> = direct.get_envs().collect();
+        expected_envs.push((OsStr::new("TMPDIR"), Some(OsStr::new("/work/tmp"))));
+        expected_envs.sort();
+        let mut envs: Vec<_> = wrapped.get_envs().collect();
+        envs.sort();
+        assert_eq!(envs, expected_envs, "白名单照旧，沙盒要设的加上");
+    }
+}
+
+/// 规格里有不是 UTF-8 的路径，写不成 JSON：起不来，不会不经沙盒就跑。
+#[cfg(unix)]
+#[test]
+fn a_spec_that_cannot_be_written_stops_the_command() {
+    use std::os::unix::ffi::OsStringExt;
+    let mut sandboxed = sandboxed();
+    sandboxed
+        .spec
+        .write
+        .push(PathBuf::from(OsString::from_vec(vec![b'/', 0xff])));
+    let program = Program {
+        kind: Kind::Bash,
+        path: PathBuf::from("/bin/bash"),
+    };
+    assert!(
+        program
+            .command("echo hi", Path::new("/work"), Vec::new(), Some(&sandboxed))
+            .is_err()
+    );
 }

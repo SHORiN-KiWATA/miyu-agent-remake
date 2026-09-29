@@ -153,7 +153,7 @@ async fn subscribe(
 ) -> Result<Value, Refusal> {
     let session = stream_of(request)?;
     if !subscriptions.has(&session) {
-        let handle = core.sessions.get(core, &session, None).await?.handle;
+        let handle = core.sessions.get(core, &session, None, None).await?.handle;
         let Ok(subscription) = handle.subscribe().await else {
             core.sessions.forget(&session).await;
             return Err(Refusal::STOPPED);

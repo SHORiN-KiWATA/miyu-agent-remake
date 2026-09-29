@@ -1,6 +1,9 @@
 //! 权限策略（`11-权限与沙盒.md` 第二节「第一版的权限策略怎么判」，施工 4-3 下）：执行前那条链的默认实现，
 //! 模块编号 `permissions`。工具报出这次调用要碰的路径，换成真实的位置、查边界表，每一条照实际生效的那一级判，
 //! 合起来照最严的：有一条拒绝就拒绝，有一条要问人就问人。
+//!
+//! 施工 5-4 上起：读哪儿都放行，数据根除外（沙盒整盘能读，文件工具跟它一样）；执行命令，这台机器的沙盒能用就放行、
+//! 在沙盒里跑（执行器写规格，`crate::sandbox`），用不了的问人。
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -25,11 +28,13 @@ pub(crate) struct Guard {
     /// 原来每判一次重读环境变量）。工作区每判一次换成这一轮的工作目录。
     places: Places,
     texts: GuardTexts,
+    /// 这台机器上的沙盒能不能用（核心起来时探的）：执行命令照它判。
+    sandboxed: bool,
 }
 
 /// 实际生效的那一级。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Effective {
+pub(crate) enum Effective {
     /// 完全放开。
     Full,
     /// 工作区。
@@ -59,12 +64,14 @@ struct Asked {
 }
 
 impl Guard {
-    /// 照目录 `catalog` 找工具，数据根是 `data_root`，家目录是 `home`，拒绝时的话是 `texts`。
+    /// 照目录 `catalog` 找工具，数据根是 `data_root`，家目录是 `home`，拒绝时的话是 `texts`，这台机器上的沙盒能不能用
+    /// 是 `sandboxed`。
     pub(crate) fn new(
         catalog: Catalog,
         data_root: PathBuf,
         home: Option<PathBuf>,
         texts: GuardTexts,
+        sandboxed: bool,
     ) -> Guard {
         let places = Places::here(PathBuf::new(), data_root.clone(), home.as_deref());
         Guard {
@@ -73,6 +80,7 @@ impl Guard {
             home,
             places,
             texts,
+            sandboxed,
         }
     }
 
@@ -82,6 +90,7 @@ impl Guard {
         name: &str,
         args: String,
         cwd: String,
+        dirs: &[String],
         permission: &Permission,
     ) -> Verdict {
         // 目录里没有的：放行，执行时报现在用不了（施工 4-2）。
@@ -98,15 +107,25 @@ impl Guard {
             data_root: Some(self.data_root.clone()),
             seen: Arc::default(),
             stop: Stop::default(),
+            sandbox: None,
         });
         if targets.is_empty() {
-            return untargeted(level, name, access);
+            return untargeted(level, name, access, self.sandboxed);
         }
         // 工作目录本身也换成真实的位置：头报来的可能是 `~`。
         let cwd = resolve(Path::new(&cwd), self.home.as_deref(), &cwd)
             .unwrap_or_else(|_| PathBuf::from(&cwd));
+        // 加进来的目录照工作目录的办法换（施工 5-10 上）：边界表照工作区算。
+        let dirs = dirs
+            .iter()
+            .map(|dir| {
+                resolve(Path::new(dir), self.home.as_deref(), dir)
+                    .unwrap_or_else(|_| PathBuf::from(dir))
+            })
+            .collect();
         let places = Places {
             workspace: cwd.clone(),
+            dirs,
             ..self.places.clone()
         };
         let boundary = Boundary::new(&places);
@@ -152,8 +171,8 @@ impl Guard {
     }
 }
 
-/// 实际生效的那一级。
-fn effective(permission: &Permission) -> Effective {
+/// 实际生效的那一级：执行器照同一个算法给命令写沙盒的规格。
+pub(crate) fn effective(permission: &Permission) -> Effective {
     if permission.read_only {
         return Effective::ReadOnly;
     }
@@ -164,27 +183,24 @@ fn effective(permission: &Permission) -> Effective {
     }
 }
 
-/// 一条路径照级别判（11 第二节的判法表）。
+/// 一条路径照级别判（11 第二节的判法表）：读哪儿都放行，数据根除外（施工 5-4 上，原来边界以外的读要问人）。
 fn mark(level: Effective, zone: Zone, write: bool) -> Mark {
     match (zone, level, write) {
         (Zone::Forbidden, _, _) => Mark::Forbidden,
-        (_, Effective::Full, _) | (Zone::Writable | Zone::Readable, _, false) => Mark::Allow,
+        (_, Effective::Full, _) | (_, _, false) => Mark::Allow,
         (_, Effective::ReadOnly, true) => Mark::ReadOnly,
         (Zone::Writable, Effective::Workspace, true) => Mark::Allow,
-        (Zone::Readable | Zone::Outside, Effective::Workspace, true)
-        | (Zone::Outside, Effective::Workspace | Effective::ReadOnly, false) => Mark::Ask,
+        (Zone::Readable | Zone::Outside, Effective::Workspace, true) => Mark::Ask,
     }
 }
 
-/// 不报路径的调用：执行命令照级别（M5 之前还没有沙盒，工作区这一级放行，只读时问人），读写放行（查不到路径的
-/// 执行时自己报错），联网、对外发消息这些 M4 还没有的，除了完全放开都问人。
-fn untargeted(level: Effective, name: &str, access: Access) -> Verdict {
+/// 不报路径的调用：执行命令，沙盒能用（`sandboxed`）就工作区、只读都放行，在沙盒里跑；用不了的问人（施工 5-4 上）。
+/// 读写放行（查不到路径的执行时自己报错），联网、对外发消息这些还没有的，除了完全放开都问人。
+fn untargeted(level: Effective, name: &str, access: Access, sandboxed: bool) -> Verdict {
     let fine = matches!(
         (&access, level),
-        (_, Effective::Full)
-            | (Access::Read | Access::Write, _)
-            | (Access::Execute, Effective::Workspace)
-    );
+        (_, Effective::Full) | (Access::Read | Access::Write, _)
+    ) || (access == Access::Execute && sandboxed);
     if fine {
         return Verdict::Allow;
     }

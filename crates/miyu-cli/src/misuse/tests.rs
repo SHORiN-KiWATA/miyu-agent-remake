@@ -4,13 +4,14 @@ use clap::{Args, Command};
 
 use super::{listed, misuse};
 use crate::language::Language;
-use crate::{Ask, Undo};
+use crate::{Ask, Sandbox, Undo};
 
 /// 和主程序一样的几条子命令。
 fn miyu() -> Command {
     Command::new("miyu")
         .subcommand(Ask::augment_args(Command::new("ask")))
         .subcommand(Undo::augment_args(Command::new("undo")))
+        .subcommand(Sandbox::augment_args(Command::new("sandbox")))
 }
 
 /// 敲 `miyu <args>`：clap 报的错说成的那一句。
@@ -129,4 +130,54 @@ fn only_what_to_say_is_required() {
         })
         .collect();
     assert_eq!(required, ["ask words"]);
+}
+
+#[test]
+fn nested_commands_have_their_own_sentences() {
+    // `miyu sandbox` 是第一条嵌着子命令的（施工 5-8）：少了、写错了，说的是它那一层，不提 `miyu ask`。
+    let cases: [(&[&str], &str, &str); 4] = [
+        (
+            &["sandbox"],
+            "miyu sandbox 后面要写：setup 或 remove",
+            "miyu sandbox needs one of: setup or remove",
+        ),
+        (
+            &["sandbox", "frob"],
+            "miyu sandbox 没有 frob 这个子命令",
+            "miyu sandbox has no frob command",
+        ),
+        (
+            &["sandbox", "setup", "--owner-home", "/x"],
+            "少了 --owner-sid",
+            "Missing --owner-sid",
+        ),
+        (
+            &["sandbox", "remove", "extra"],
+            "多了参数：extra",
+            "Unexpected argument: extra",
+        ),
+    ];
+    for (args, chinese, english) in cases {
+        assert_eq!(said(args, Language::Chinese), chinese, "{args:?}");
+        assert_eq!(said(args, Language::English), english, "{args:?}");
+    }
+    // 最外面那一层写错的，照旧那一句。
+    assert_eq!(
+        said(&["sandboxx"], Language::English),
+        "There is no sandboxx command. To talk to her, use miyu ask \"…\""
+    );
+}
+
+/// `--add-dir` 后面不是一个已经有的目录（施工 5-10 上）：照写的原样说是哪一个。
+#[test]
+fn an_added_dir_that_is_not_there_has_its_sentence() {
+    let args = ["ask", "--add-dir", "no-such-dir-for-miyu-cli-tests", "hi"];
+    assert_eq!(
+        said(&args, Language::Chinese),
+        "--add-dir 后面要写一个已经有的目录：no-such-dir-for-miyu-cli-tests"
+    );
+    assert_eq!(
+        said(&args, Language::English),
+        "--add-dir needs an existing directory: no-such-dir-for-miyu-cli-tests"
+    );
 }

@@ -15,6 +15,10 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 # 打开时不跟随最后一层的链接、不阻塞：O_NOFOLLOW、O_NONBLOCK、ELOOP 在各个 Unix 上的值不一样，从这里取，
 # 不自己写（施工 4-3 上）。只取常量，不调它的函数，不用 unsafe。
 libc = "0.2"
+# 路上一层链接都不跟地打开、相对打开了的目录建临时文件和改名（施工 5-10 下）：openat2、O_NOFOLLOW_ANY、openat、
+# renameat 这几个系统接口的安全封装，不用自己写 unsafe。依赖树里本来就有它（miyu-basesystem、miyu-ipc）。
+# Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT。
+rustix = { version = "1", features = ["fs"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # Linux 的回收站里记删的时间，要本地时间（施工 4-6 下）。

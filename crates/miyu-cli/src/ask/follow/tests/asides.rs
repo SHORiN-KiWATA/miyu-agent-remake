@@ -1,4 +1,4 @@
-//! 她做的每一步、工作目录太宽那一句，和思考一样是旁白：一行一行的旁白之间不空行，和回答之间空一行；回答那一行
+//! 她做的每一步、工作目录太宽那一句、沙盒用不了那一句（施工 5-4 下），和思考一样是旁白：一行一行的旁白之间不空行，和回答之间空一行；回答那一行
 //! 没完就来了步骤，先换行（施工 4-5 下）。一块前后的空行见 `blocks.rs`（施工 4-11）。
 
 use std::path::{MAIN_SEPARATOR, Path};
@@ -200,4 +200,32 @@ fn paths_are_written_short_against_where_she_really_works() {
     ];
     let Fed { err, .. } = feed(&plan, false, &messages);
     assert!(err.ends_with("\n→ 读取 todo.md · 37 行\n"), "{err}");
+}
+
+#[test]
+fn an_unusable_sandbox_is_said_first_and_right_before_the_directory() {
+    let sep = MAIN_SEPARATOR;
+    let used = under(&["home", ".miyu", "home", "admin", "workspace"]);
+    let plan = Plan {
+        cwd: under(&["home"]).to_string_lossy().into_owned(),
+        ..plan(Format::Text, Language::Chinese)
+    };
+    let mut messages = vec![accepted(&used)];
+    messages.extend(a_turn("completed"));
+    let Fed { step, screen, .. } = feed_after(&plan, false, Some("helper_missing"), &messages);
+    assert_eq!(step, Step::Done(exit::OK));
+    assert_eq!(
+        screen,
+        format!(
+            "· 沙盒用不了（主程序旁边没有 miyu-sandbox：重装一次 Miyu）：执行命令要你确认，miyu ask 里确认不了\n· 目录太宽（~），这次在 ~{sep}.miyu{sep}home{sep}admin{sep}workspace 里干活\n\n想一想\n\n你好。\n· 输入 100 · 命中缓存 40（40%）· 输出 10\n"
+        ),
+        "最先说，和目录太宽那一句连着、不空行"
+    );
+    // 给脚本的：不说。
+    let plan = super::super::Plan {
+        format: Format::Json,
+        ..plan
+    };
+    let Fed { err, .. } = feed_after(&plan, false, Some("helper_missing"), &messages);
+    assert_eq!(err, "");
 }

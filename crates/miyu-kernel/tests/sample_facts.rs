@@ -77,6 +77,7 @@ fn environment() -> Environment {
     Environment {
         offset: UtcOffset::from_minutes(540).expect("东九区在范围里"),
         cwd: "~/src/miyu".to_string(),
+        dirs: Vec::new(),
     }
 }
 

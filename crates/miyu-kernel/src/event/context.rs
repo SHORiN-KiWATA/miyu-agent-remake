@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::id::{FactKind, Seq};
+use crate::text_enum::text_enum;
 
 /// `context.injected`：注入进上下文的一块事实，例如当前时间、记忆召回的结果、
 /// 这一轮为什么叫她（`08-上下文投影.md` 第五节）。谁注入的写在事件的 `by` 里。
@@ -27,9 +28,24 @@ pub struct ContextCompacted {
     /// 检查点替代到哪个序号为止，这一条也替代掉。之后的事件照常渲染在检查点后面
     /// （03 第七节）。
     pub upto: Seq,
-    /// 摘要的正文，模型写的。内核不解读。
+    /// 摘要的正文，模型写的，草稿已经剥掉。内核不解读。
     pub summary: String,
+    /// 为什么压：到线了、人要的、供应商报超长。以前的日志里没有这一格，当作到线了（`compaction.md`）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trigger: Option<CompactTrigger>,
 }
+
+text_enum!(
+    /// 为什么压缩（`compaction.md`「对外的样子」）。
+    CompactTrigger {
+        /// 用量过了压缩线，自动压的。
+        Auto = "auto",
+        /// 人要的（6-8）。
+        Manual = "manual",
+        /// 供应商报上下文超长，被动压的（6-7）。
+        Overflow = "overflow",
+    }
+);
 
 #[cfg(test)]
 mod tests;

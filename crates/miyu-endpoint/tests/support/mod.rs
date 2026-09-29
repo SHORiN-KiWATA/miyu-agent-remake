@@ -68,14 +68,39 @@ impl Home {
         self.core_with_tools(script, Catalog::default(), token)
     }
 
-    /// 一份核心，工具目录是 `tools`（施工 4-1）。
+    /// 一份核心，工具目录是 `tools`（施工 4-1）。沙盒当能用（施工 5-4 上）：执行命令的都是假工具，不起助手。
     pub fn core_with_tools(&self, script: &Script, tools: Catalog, token: &str) -> Arc<Core> {
-        self.core_full(script, tools, None, token)
+        Arc::new(self.core_full(script, tools, None, token).with_sandbox(
+            miyu_sandbox::Availability::Usable(PathBuf::from("miyu-sandbox")),
+        ))
+    }
+
+    /// 一份核心，工具目录是 `tools`，沙盒用不了（施工 5-4 上）。
+    pub fn core_without_sandbox(&self, script: &Script, tools: Catalog) -> Arc<Core> {
+        Arc::new(self.core_full(script, tools, None, TOKEN))
+    }
+
+    /// 一份核心，工具目录是 `tools`，这台机器上的沙盒照 `sandbox`，沙盒的缓存放在 `cache` 下面、你的 cargo 目录是
+    /// `cargo_home`（施工 5-4 下）。
+    pub fn core_sandboxed(
+        &self,
+        script: &Script,
+        tools: Catalog,
+        sandbox: miyu_sandbox::Availability,
+        cache: Option<(PathBuf, Option<PathBuf>)>,
+    ) -> Arc<Core> {
+        let core = self
+            .core_full(script, tools, None, TOKEN)
+            .with_sandbox(sandbox);
+        Arc::new(match cache {
+            Some((root, cargo_home)) => core.with_sandbox_cache(root, cargo_home),
+            None => core,
+        })
     }
 
     /// 一份核心，系统的家目录是 `home`（施工 4-3 下）。
     pub fn core_at_home(&self, script: &Script, home: PathBuf) -> Arc<Core> {
-        self.core_full(script, Catalog::default(), Some(home), TOKEN)
+        Arc::new(self.core_full(script, Catalog::default(), Some(home), TOKEN))
     }
 
     /// 一份核心，连上以后最多等 `wait` 握手（施工 4-9 再补三上：测试里不用真等 10 秒）。
@@ -106,8 +131,8 @@ impl Home {
         tools: Catalog,
         home: Option<PathBuf>,
         token: &str,
-    ) -> Arc<Core> {
-        Arc::new(Core::new(
+    ) -> Core {
+        Core::new(
             self.root.clone(),
             ResourceRoot::at(default_resources()),
             Arc::new(script.clone()),
@@ -115,7 +140,7 @@ impl Home {
             home,
             alice(),
             token.to_string(),
-        ))
+        )
     }
 
     /// 磁盘上会话 `session` 的日志，照先后。只读：会话可能正在写，载入用的 `SessionLog::open` 会截掉正在写的那半行（施工 3-9 下在 macOS 的 CI 上撞到过：会话目录刚建、第一段还没有，它报没有这个会话）。还没写出第一条的当是空的。

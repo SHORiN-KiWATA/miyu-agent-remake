@@ -24,6 +24,7 @@ fn plan(format: Format, language: Language) -> Plan {
         target: Target::New,
         format,
         cwd: under(&["work"]).to_string_lossy().into_owned(),
+        dirs: Vec::new(),
         language,
         human: Human::load(&resources, language.code()).expect("出厂的字读得出来"),
         home: Some(under(&["home"])),
@@ -117,6 +118,11 @@ struct Fed {
 
 /// 一条条喂给跟着第 3 轮的。
 fn feed(plan: &Plan, gray: bool, messages: &[Value]) -> Fed {
+    feed_after(plan, gray, None, messages)
+}
+
+/// 同 [`feed`]；握手的回应说沙盒用不了、原因是 `unsandboxed` 的，先照 `talk` 说那一句（施工 5-4 下）。
+fn feed_after(plan: &Plan, gray: bool, unsandboxed: Option<&str>, messages: &[Value]) -> Fed {
     let tape = Tape::default();
     let (mut out, mut err) = (
         Pen {
@@ -134,6 +140,9 @@ fn feed(plan: &Plan, gray: bool, messages: &[Value]) -> Fed {
         gray,
     };
     let mut follow = Follow::new("s1", "ask-4", plan);
+    if let Some(reason) = unsandboxed {
+        follow.unsandboxed(reason, &mut screen);
+    }
     let mut step = Step::Going;
     for message in messages {
         step = follow.take(message, &mut screen);

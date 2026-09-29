@@ -12,7 +12,7 @@ use miyu_kernel::event::{Body, ErrorClass, Event, ToolStatus};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::Queued;
 use miyu_kernel::testkit::{Line, Play, Stage};
-use support::{check, lines, sent, stage};
+use support::{anchored, check, lines, sent, stage, summarizes};
 
 /// SplitMix64：十来行的伪随机数，够造剧本用。
 struct Rng(u64);
@@ -95,6 +95,16 @@ impl Writer {
         }
         if self.rng.chance(10) {
             s.compact("Earlier turns were summarized.");
+        }
+        // 交限额（施工 6-2 上）：窗口多半小到过线就压，偶尔没有窗口、窗口很大。压缩线 = 窗口 − 33000，落在 20 到 420
+        // 之间；探针的工具面、system 很短，一次请求估出来一两百，替身报的用量多半是 110：长上几条就过线。
+        if self.rng.chance(15) {
+            let window = match self.rng.below(5) {
+                0 => None,
+                1 => Some(1_000_000),
+                _ => Some(33_000 + 20 + self.rng.below(400)),
+            };
+            s.limits(window, None);
         }
     }
 
@@ -247,6 +257,7 @@ fn random_session(seed: u64) -> Stage {
         read_only: false,
     };
     let mut s = stage();
+    summarizes(&mut s);
     for _ in 0..3 + writer.rng.below(6) {
         writer.between(&mut s);
         writer.turn(&mut s);
@@ -268,6 +279,18 @@ fn paths(log: &[Event]) -> BTreeSet<&'static str> {
             Body::MessageWithdrawn(_) => Some("打断以后退回"),
             Body::TurnReverted(_) => Some("撤销"),
             Body::TurnUnreverted(_) => Some("恢复"),
+            Body::ContextCompacted(compacted) if compacted.trigger.is_some() => {
+                let turn_start = log[..k]
+                    .iter()
+                    .rev()
+                    .take_while(|earlier| earlier.turn == event.turn)
+                    .all(|earlier| !matches!(earlier.body, Body::MessageAssistant(_)));
+                Some(if turn_start {
+                    "回合开头自动压缩"
+                } else {
+                    "回合中途自动压缩"
+                })
+            }
             Body::ContextCompacted(_) => Some("压缩"),
             Body::PolicyChanged(_) if event.turn.is_some() => Some("回合中途切只读"),
             Body::MessageUser(_) if event.turn.is_some() => Some("回合中途说一句"),
@@ -321,6 +344,9 @@ fn run(seeds: std::ops::Range<u64>) -> BTreeSet<&'static str> {
         if let Err(why) = check(&sent(&session)) {
             panic!("种子 {seed}：{why}\n{}", lines(&session).join("\n"));
         }
+        if let Err(why) = anchored(&session) {
+            panic!("种子 {seed}：{why}\n{}", lines(&session).join("\n"));
+        }
         let again = random_session(seed);
         assert_eq!(
             lines(&session),
@@ -346,6 +372,13 @@ fn run(seeds: std::ops::Range<u64>) -> BTreeSet<&'static str> {
         if sent.iter().skip(1).any(|sent| !sent.rewritten) {
             seen.insert("查了前缀延伸");
         }
+        if sent
+            .iter()
+            .skip(1)
+            .any(|sent| sent.summary && !sent.rewritten)
+        {
+            seen.insert("查了摘要请求的前缀");
+        }
     }
     seen
 }
@@ -360,6 +393,9 @@ const EXPECTED_PATHS: &[&str] = &[
     "撤销",
     "恢复",
     "压缩",
+    "回合开头自动压缩",
+    "回合中途自动压缩",
+    "查了摘要请求的前缀",
     "回合中途切只读",
     "回合中途说一句",
     "等重试时切了级别",

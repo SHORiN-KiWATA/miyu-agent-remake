@@ -5,6 +5,9 @@
 //!
 //! 工具报的效果（施工 4-6 上）：跑完以后在阻塞线程里把改前改后存成 blob，再送回来；送回来的先记下她看过的，
 //! 再交进内核。她看过的交给以后每一次调用。
+//!
+//! 沙盒（施工 5-4 上）：这台机器上的沙盒能用的，每次调用照派出去那一刻实际生效的那一级写上沙盒（`crate::sandbox`），
+//! 在跑它的任务里、阻塞线程上算；写不成的不跑，照崩了算。
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -16,7 +19,7 @@ use tokio::task::AbortHandle;
 use tracing::Instrument;
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::{Effect, Restored};
+use miyu_kernel::event::{Effect, Permission, Restored};
 use miyu_kernel::id::CallId;
 use miyu_kernel::session::{Input, Step};
 use miyu_kernel::time::Timestamp;
@@ -30,6 +33,7 @@ use crate::effects;
 use crate::lines::millis;
 use crate::pictures;
 use crate::port::Back;
+use crate::sandbox::{Sandbox, SandboxCache};
 
 /// 执行工具要的：工具目录、替工具写的两句、系统的家目录（施工 4-4 上，交给每次调用）。
 pub(crate) struct ToolKit {
@@ -45,6 +49,10 @@ pub(crate) struct ToolKit {
     pub(crate) blobs: Blobs,
     /// 她看过的文件：新会话是空的，载入的从日志里重建（施工 4-6 上）。
     pub(crate) seen: Seen,
+    /// 沙盒的助手：这台机器上的沙盒能用才有（核心起来时探的，施工 5-4 上）。
+    pub(crate) sandbox: Option<PathBuf>,
+    /// 沙盒的缓存：工具链的缓存用沙盒自己的一份（施工 5-4 下）。核心算不出缓存目录的没有。
+    pub(crate) sandbox_cache: Option<SandboxCache>,
 }
 
 /// 执行工具的端口：一个会话一份。
@@ -56,6 +64,8 @@ pub(crate) struct Tools {
     blobs: Blobs,
     /// 她看过的文件：交给每一次调用，工具报了效果就跟着改。
     seen: Arc<Seen>,
+    /// 给每次调用写沙盒的：这台机器上的沙盒能用才有（施工 5-4 上）。
+    sandbox: Option<Sandbox>,
     /// 在跑的调用：掐掉它的那一头、它的旗、开始跑的那一刻、工具名。
     running: BTreeMap<CallId, Running>,
     backs: mpsc::UnboundedSender<Back>,
@@ -87,9 +97,34 @@ pub(crate) enum ToolBack {
     Crashed { call_id: CallId },
 }
 
+/// 派一次调用要的：内核的「执行一次工具调用」动作里的几样（`docs/blueprint/kernel/session.md`）。
+#[derive(Debug)]
+pub(crate) struct Dispatch {
+    /// 哪一次调用。
+    pub(crate) call_id: CallId,
+    /// 工具名。
+    pub(crate) name: String,
+    /// 修正过的参数：一个 JSON 对象的原文。
+    pub(crate) args: String,
+    /// 这一轮的工作目录。
+    pub(crate) cwd: String,
+    /// 这一轮加进来的目录（施工 5-10 上）：沙盒照工作区放行。
+    pub(crate) dirs: Vec<String>,
+    /// 派出去那一刻实际生效的那一级：沙盒照它写规格。
+    pub(crate) permission: Permission,
+}
+
 impl Tools {
     /// 照 `kit` 跑，回报送进 `backs`。
     pub(crate) fn new(kit: ToolKit, backs: mpsc::UnboundedSender<Back>) -> Tools {
+        let sandbox = kit.sandbox.map(|helper| {
+            Sandbox::new(
+                helper,
+                kit.home.clone(),
+                kit.data_root.clone(),
+                kit.sandbox_cache,
+            )
+        });
         Tools {
             catalog: kit.catalog,
             texts: kit.texts,
@@ -97,6 +132,7 @@ impl Tools {
             data_root: kit.data_root,
             blobs: kit.blobs,
             seen: Arc::new(kit.seen),
+            sandbox,
             running: BTreeMap::new(),
             backs,
         }
@@ -115,15 +151,17 @@ impl Tools {
         blocking(move || crate::restore::restore(&steps, &blobs, home.as_deref())).await
     }
 
-    /// 执行一次调用：在自己的任务里跑，马上返回。目录里没有这件工具的，不派，当场交回出错的结果。
-    pub(crate) fn run(
-        &mut self,
-        at: Timestamp,
-        call_id: CallId,
-        name: String,
-        args: String,
-        cwd: String,
-    ) -> Option<Input> {
+    /// 执行一次调用：在自己的任务里跑，马上返回。目录里没有这件工具的，不派，当场交回出错的结果。沙盒照派出去
+    /// 那一刻实际生效的那一级、这一轮加进来的目录写。
+    pub(crate) fn run(&mut self, at: Timestamp, dispatch: Dispatch) -> Option<Input> {
+        let Dispatch {
+            call_id,
+            name,
+            args,
+            cwd,
+            dirs,
+            permission,
+        } = dispatch;
         let stop = Stop::default();
         let call = Call {
             args,
@@ -132,6 +170,7 @@ impl Tools {
             data_root: Some(self.data_root.clone()),
             seen: Arc::clone(&self.seen),
             stop: stop.clone(),
+            sandbox: None,
         };
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name).cloned() else {
@@ -154,8 +193,14 @@ impl Tools {
             Progress::new(move |text| send(&backs, ToolBack::Progress { call_id, text }))
         };
         let span = tracing::Span::current();
-        let inner =
-            tokio::spawn(async move { tool.run(call, progress).await }.instrument(span.clone()));
+        let sandbox = self.sandbox.clone();
+        let inner = tokio::spawn(
+            async move {
+                let call = confine(call, sandbox, permission, dirs, call_id).await?;
+                Some(tool.run(call, progress).await)
+            }
+            .instrument(span.clone()),
+        );
         let task = inner.abort_handle();
         let backs = self.backs.clone();
         let blobs = self.blobs.clone();
@@ -164,7 +209,7 @@ impl Tools {
         tokio::spawn(
             async move {
                 match inner.await {
-                    Ok(mut done) => {
+                    Ok(Some(mut done)) => {
                         // 改前改后、交回的图片先落 blob，再送回去写引用它们的事件（07 第四节；图片施工 4-13）。
                         let reported = std::mem::take(&mut done.effects);
                         let images = std::mem::take(&mut done.images);
@@ -191,6 +236,8 @@ impl Tools {
                             Ok(None) | Err(_) => send(&backs, ToolBack::Crashed { call_id }),
                         }
                     }
+                    // 沙盒写不成，没跑；工具 panic 了。
+                    Ok(None) => send(&backs, ToolBack::Crashed { call_id }),
                     Err(error) if error.is_panic() => send(&backs, ToolBack::Crashed { call_id }),
                     // 叫停了：没人要了。
                     Err(_) => {}
@@ -306,6 +353,36 @@ impl Drop for Tools {
         for running in self.running.values() {
             running.stop.raise();
             running.task.abort();
+        }
+    }
+}
+
+/// 照实际生效的那一级 `permission` 给调用写上沙盒（第 1a 条）：这台机器上的沙盒用不了的，照原样。在阻塞线程里算。
+/// 写不成的不跑：记一行 `ERROR`，交回空的，照崩了算，不在沙盒外跑。
+async fn confine(
+    mut call: Call,
+    sandbox: Option<Sandbox>,
+    permission: Permission,
+    dirs: Vec<String>,
+    call_id: CallId,
+) -> Option<Call> {
+    let Some(sandbox) = sandbox else {
+        return Some(call);
+    };
+    let cwd = call.cwd.clone();
+    match blocking(move || sandbox.for_call(&permission, &cwd, &dirs)).await {
+        Ok(sandboxed) => {
+            call.sandbox = sandboxed.map(Arc::new);
+            Some(call)
+        }
+        Err(error) => {
+            tracing::error!(
+                target: TARGET,
+                call = call_id.to_string().as_str(),
+                error = %error,
+                "sandbox not set up"
+            );
+            None
         }
     }
 }

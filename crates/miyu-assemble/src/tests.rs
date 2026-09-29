@@ -162,3 +162,63 @@ fn an_ordinary_request_is_not_a_continuation() {
     log.say("再说一句");
     assert!(!assemble(&log).continuation);
 }
+
+/// 摘要请求（施工 6-2 上）：截到第 N 条照平常组装，指令接在最后；最后一条是 user 的并进去，不是的另起一条；不接着写。
+#[test]
+fn the_summary_request_is_the_history_up_to_n_and_the_instruction() {
+    let assembler = DefaultAssembler::new(stable(&["read"], vec![]), texts());
+    let mut log = Log::new();
+    let hi = log.say("hi");
+    log.start(hi);
+    log.reply(&format!("[{}]", text_json("好。")));
+    let upto = log.next() - 1;
+    log.end("completed");
+    let again = log.say("再说");
+    log.start(again);
+    let request = assembler.summarize(log.history(), miyu_kernel::id::Seq::new(upto).unwrap());
+    assert_eq!(request.tools, assembler.assemble(log.history()).tools);
+    assert_eq!(request.system, "You are Miyu.");
+    assert_eq!(
+        shape(&request.messages),
+        ["user: hi", "assistant: 好。", "user: <summarize/>"]
+    );
+    assert!(!request.continuation);
+    // 截到触发的那句：它是最后一条 user，指令并进去。
+    let request = assembler.summarize(log.history(), miyu_kernel::id::Seq::new(again).unwrap());
+    assert_eq!(
+        shape(&request.messages),
+        ["user: hi", "assistant: 好。", "user: 再说 | <summarize/>"]
+    );
+}
+
+/// 最后是半截回复加被打断的那一句：平常要接着写，摘要请求最后是指令，不接着写。
+#[test]
+fn a_summary_request_never_continues_a_cut_reply() {
+    let assembler = DefaultAssembler::new(stable(&[], vec![]), texts());
+    let mut log = Log::new();
+    let hi = log.say("hi");
+    log.start(hi);
+    let seen = log.next() - 1;
+    log.push(
+        MODEL,
+        "message.assistant",
+        &format!(
+            r#"{{"blocks":[{}],"seen":{seen},"interrupted":true}}"#,
+            text_json("我先")
+        ),
+    );
+    log.push(
+        KERNEL,
+        "context.injected",
+        r#"{"kind":"reply_cut","text":"<cut/>"}"#,
+    );
+    assert!(assembler.assemble(log.history()).continuation);
+    let upto = miyu_kernel::id::Seq::new(log.next() - 1).unwrap();
+    assert!(!assembler.summarize(log.history(), upto).continuation);
+    assert_eq!(
+        assembler
+            .summary(&[text("<summary>S</summary>")])
+            .as_deref(),
+        Some("S")
+    );
+}

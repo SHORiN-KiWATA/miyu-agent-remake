@@ -27,6 +27,7 @@ fn plan(language: Language) -> Plan {
         target: Target::New,
         format: Format::Text,
         cwd: under(&["work"]).to_string_lossy().into_owned(),
+        dirs: Vec::new(),
         language,
         human: Human::load(&resources, language.code()).expect("出厂的字读得出来"),
         home: Some(under(&["home"])),
@@ -393,5 +394,77 @@ fn a_directory_too_wide_says_where_she_works() {
         format!(
             "\x1b[90m· Working directory too wide (~), using ~{sep}.miyu{sep}home{sep}admin{sep}workspace this time\x1b[0m\n"
         )
+    );
+}
+
+/// 沙盒用不了那一句（施工 5-4 下）：每种原因照这台机器的系统写成人话；中英两种；不认得的原因照原样写进括号。
+#[test]
+fn an_unusable_sandbox_is_said_with_why_and_how_to_fix() {
+    use miyu_sandbox::Platform;
+
+    let every = [
+        Platform::Linux,
+        Platform::Macos,
+        Platform::Windows,
+        Platform::Other,
+    ];
+    let cases: [(&str, &[Platform], &str, &str); 6] = [
+        (
+            "helper_missing",
+            &every,
+            "主程序旁边没有 miyu-sandbox：重装一次 Miyu",
+            "miyu-sandbox is missing beside the main program: reinstall Miyu",
+        ),
+        (
+            "helper_failed",
+            &every,
+            "miyu-sandbox 跑不起来：重装一次 Miyu",
+            "miyu-sandbox does not run: reinstall Miyu",
+        ),
+        (
+            "no_mechanism",
+            &[Platform::Linux],
+            "内核没有能用的 Landlock：要 Linux 5.13 起，启动参数的 lsm= 里开着",
+            "the kernel has no usable Landlock: Linux 5.13 or later, enabled in the lsm= boot parameter",
+        ),
+        (
+            "no_mechanism",
+            &[Platform::Macos],
+            "装不上 Seatbelt 配置，Miyu 可能跑在别的沙盒里",
+            "the Seatbelt profile cannot be applied; Miyu may be running inside another sandbox",
+        ),
+        (
+            "no_mechanism",
+            &[Platform::Windows],
+            "这一版在 Windows 上还不能把命令关进沙盒",
+            "this version cannot sandbox commands on Windows yet",
+        ),
+        (
+            "no_mechanism",
+            &[Platform::Other],
+            "这个系统上没有能用的沙盒",
+            "no sandbox is available on this system",
+        ),
+    ];
+    for (reason, platforms, chinese, english) in cases {
+        for &platform in platforms {
+            assert_eq!(
+                Language::Chinese.unsandboxed(reason, platform),
+                format!("· 沙盒用不了（{chinese}）：执行命令要你确认，miyu ask 里确认不了"),
+                "{reason} {platform:?}"
+            );
+            assert_eq!(
+                Language::English.unsandboxed(reason, platform),
+                format!(
+                    "· Sandbox unavailable ({english}): commands need your approval, which cannot be given in miyu ask"
+                ),
+                "{reason} {platform:?}"
+            );
+        }
+    }
+    assert_eq!(
+        Language::Chinese.unsandboxed("no_user\u{1b}[2J", Platform::Windows),
+        "· 沙盒用不了（no_user\u{fffd}[2J）：执行命令要你确认，miyu ask 里确认不了",
+        "不认得的原因照原样写，控制字符换掉"
     );
 }

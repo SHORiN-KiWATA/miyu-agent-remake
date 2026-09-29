@@ -22,6 +22,8 @@ miyu-store = { path = "../miyu-store" }
 miyu-tool = { path = "../miyu-tool" }
 # 权限策略：换成真实的位置、查边界（施工 4-3 下）。
 miyu-fs = { path = "../miyu-fs" }
+# 执行器给每次调用写沙盒的规格（施工 5-4 上）。
+miyu-sandbox = { path = "../miyu-sandbox" }
 # 权限策略提的放行规则、给头看的说明写成 JSON（施工 4-3 下）。
 serde_json = "1.0"
 # 理由见 docs/construction/3-7-会话actor（中）.md「我定的」：一个会话一个异步任务，收件箱、推送、
@@ -48,6 +50,8 @@ miyu-session = { path = ".", features = ["testkit"] }
 miyu-http = { path = "../miyu-http", features = ["testkit"] }
 # 测试里接住发出来的日志，查写了什么、没写什么。
 miyu-log = { path = "../miyu-log" }
+# 测试里真的经助手起命令（施工 5-4 上）：cargo 编出来的助手在哪。
+miyu-sandbox = { path = "../miyu-sandbox", features = ["testkit"] }
 
 [lints]
 workspace = true

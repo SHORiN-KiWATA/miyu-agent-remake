@@ -24,6 +24,8 @@ pub enum Input {
     },
     /// 环境变了：时区、工作目录。不当场注入，到下一个边界再查（`08-上下文投影.md` C10）。
     Environment(Environment),
+    /// 模型的限额：造会话、载入以后交一次，换了模型再交（施工 6-2 上）。没交过的不主动压缩。
+    Limits(Limits),
     /// 回合开始的挂接点跑完了（`05-内核接口.md` 第五节第 2 条）。
     TurnStartHooksDone {
         /// 到的时刻，取自执行器的时钟。
@@ -246,4 +248,15 @@ pub struct Injection {
     pub module: ModuleId,
     /// 注入的那一块，原样追加。
     pub fact: ContextInjected,
+}
+
+/// 会话要发给的模型的限额（`compaction.md`「对外的样子」模型的资料）：压缩线照它算。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Limits {
+    /// 发给哪个端点的哪个模型：和锚比，换过模型锚作废。
+    pub model: Model,
+    /// 上下文窗口；没报的没有，不主动压。
+    pub window: Option<u64>,
+    /// 最大输出；没报的没有，输出预留按策略里的上限。
+    pub max_output: Option<u64>,
 }

@@ -10,6 +10,7 @@ pub(crate) fn input(input: &Input) -> &'static str {
         Input::Command(_) => "command",
         Input::Stored { .. } => "stored",
         Input::Environment(_) => "environment",
+        Input::Limits(_) => "limits",
         Input::TurnStartHooksDone { .. } => "turn_start_hooks_done",
         Input::RequestSent { .. } => "request_sent",
         Input::ModelDelta { .. } => "model_delta",

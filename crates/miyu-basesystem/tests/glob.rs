@@ -38,6 +38,7 @@ fn glob_comes_from_the_resources() {
             data_root: None,
             seen: Default::default(),
             stop: Default::default(),
+            sandbox: None,
         })
     };
     assert_eq!(target(r#"{"pattern":"*.rs"}"#)[0].path, ".");

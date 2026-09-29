@@ -15,7 +15,7 @@ use miyu_kernel::origin::{By, Person};
 use miyu_kernel::session::{Command, Outcome};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_session::{
-    Create, Handle, Load, Models, Pushed, Stopped, Subscription, create, load, new_id,
+    Create, Handle, Load, Models, Pushed, SandboxCache, Stopped, Subscription, create, load, new_id,
 };
 use miyu_store::env::{Env, Platform};
 use miyu_store::log::read_events;
@@ -70,10 +70,17 @@ pub struct Opening {
     pub attended: bool,
     /// 工作目录。
     pub cwd: String,
+    /// 加进来的目录（施工 5-10 上）：和工作区一样能读能写。
+    pub dirs: Vec<String>,
+    /// 沙盒的助手：有的当这台机器上的沙盒能用（施工 5-4 上）。假工具不起它，随便一条路径就行；真的起命令的用
+    /// [`miyu_sandbox::testkit::built_helper`]。
+    pub sandbox: Option<PathBuf>,
+    /// 沙盒的缓存（施工 5-4 下）：没有的沙盒里不设工具链的变量。
+    pub sandbox_cache: Option<SandboxCache>,
 }
 
 impl Default for Opening {
-    /// 工作区这一级，有人能确认，工作目录照 [`environment`]。
+    /// 工作区这一级，有人能确认，工作目录照 [`environment`]，沙盒用不了。
     fn default() -> Opening {
         Opening {
             permission: Permission {
@@ -82,6 +89,9 @@ impl Default for Opening {
             },
             attended: true,
             cwd: environment().cwd,
+            dirs: Vec::new(),
+            sandbox: None,
+            sandbox_cache: None,
         }
     }
 }
@@ -155,6 +165,7 @@ impl Home {
             oneshot: false,
             environment: Environment {
                 cwd: opening.cwd,
+                dirs: opening.dirs,
                 ..environment()
             },
             command: id("cmd-0"),
@@ -162,6 +173,8 @@ impl Home {
             models,
             tools,
             home: Some(&self.home),
+            sandbox: opening.sandbox.as_deref(),
+            sandbox_cache: opening.sandbox_cache,
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -201,6 +214,9 @@ impl Home {
             models,
             tools,
             home: Some(&self.home),
+            // 载入以后的测试不执行命令：沙盒用不了。
+            sandbox: None,
+            sandbox_cache: None,
         });
         within("载入", loaded).await.expect("载入得了会话")
     }
@@ -279,6 +295,7 @@ pub fn environment() -> Environment {
     Environment {
         offset: UtcOffset::from_minutes(540).expect("东九区在范围里"),
         cwd: "~/src/miyu".to_string(),
+        dirs: Vec::new(),
     }
 }
 

@@ -3,8 +3,8 @@
 
 use crate::compose::{PersonaTexts, Sources, compose};
 use crate::snapshot::{
-    CoreTexts, DriverPlaceholders, FactTexts, PermissionTexts, Snapshot, ToolResultTexts,
-    TurnEndedTexts,
+    CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts, PermissionTexts, Snapshot,
+    ToolResultTexts, TurnEndedTexts,
 };
 
 /// 出厂的随核心附带的字。
@@ -85,6 +85,10 @@ pub(crate) fn core() -> CoreTexts {
             )
             .to_string(),
         },
+        compaction: Some(CompactionTexts {
+            summarize_task: include_str!("../../../resources/core/compaction/summarize-task.txt")
+                .to_string(),
+        }),
     }
 }
 

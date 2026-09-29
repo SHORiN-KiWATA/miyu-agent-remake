@@ -19,7 +19,7 @@ mod test_support;
 pub use compose::{PersonaTexts, Sources, compose};
 pub use guard::GuardTexts;
 pub use snapshot::{
-    BuildError, CoreTexts, DriverPlaceholders, FactTexts, PermissionTexts, Snapshot, SnapshotError,
-    ToolResultTexts, TurnEndedTexts,
+    BuildError, CompactionNumbers, CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts,
+    PermissionTexts, Snapshot, SnapshotError, ToolResultTexts, TurnEndedTexts,
 };
 pub use tools::{RunTexts, ToolEntry};
