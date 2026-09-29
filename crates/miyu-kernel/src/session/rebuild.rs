@@ -172,6 +172,7 @@ impl Session {
                 upto,
                 summary: summary.to_string(),
                 trigger: Some(CompactTrigger::Auto),
+                instructions: None,
                 notes: notes.to_string(),
                 restored: Vec::new(),
                 refills: None,

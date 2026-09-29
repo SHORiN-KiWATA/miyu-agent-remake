@@ -221,7 +221,7 @@ fn compact_rereading(log: &mut Vec<Event>, restored: Vec<RestoredFile>) {
     log.push(event(
         turn.started(),
         Body::TurnStarted(TurnStarted {
-            trigger: upto,
+            trigger: Some(upto),
             cwd: None,
             dirs: Vec::new(),
         }),
@@ -232,6 +232,7 @@ fn compact_rereading(log: &mut Vec<Event>, restored: Vec<RestoredFile>) {
             upto,
             summary: "S".to_string(),
             trigger: None,
+            instructions: None,
             notes: String::new(),
             restored,
             refills: None,

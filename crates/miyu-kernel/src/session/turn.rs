@@ -9,6 +9,7 @@ use super::action::Action;
 use super::breaker::Before;
 use super::call::Call;
 use super::input::Injection;
+use super::manual::Manual;
 use super::overflow::Passive;
 use super::step::Step;
 use crate::event::{Body, EndReason, Event, TurnEnded, TurnStarted};
@@ -54,6 +55,8 @@ pub(super) struct Turn {
     pub(super) passive: Option<super::overflow::Passive>,
     /// 这一步被动压过了：重发的这一次再报超长，照一次失败算，不再压。主请求说完了就清掉。
     pub(super) overflowed: bool,
+    /// 手动压缩单开的这一轮：替代到哪、人附的要求（施工 6-8，`manual.rs`）。平常的回合没有。
+    pub(super) manual: Option<Manual>,
 }
 
 /// 打断以后在等停着的调用：谁打断的、哪个命令、排着队的怎么办，等的那一次 `Wake` 的记号。
@@ -110,7 +113,7 @@ impl Session {
         cause: Option<CommandId>,
     ) -> Vec<Event> {
         let body = Body::TurnStarted(TurnStarted {
-            trigger,
+            trigger: Some(trigger),
             cwd: Some(self.environment.cwd.clone()),
             dirs: self.environment.dirs.clone(),
         });
@@ -134,6 +137,7 @@ impl Session {
             again: None,
             passive: None,
             overflowed: false,
+            manual: None,
         });
         self.effective = self.permission.clone();
         let facts = vec![
@@ -219,6 +223,10 @@ impl Session {
             None => {}
         }
         let request = self.policy.assembler.assemble(&self.history);
+        // 手动压缩单开的那一轮：不问熔断，发摘要请求（施工 6-8，`manual.rs`）。
+        if let Some(due) = self.manual_due(&request) {
+            return self.start_compaction(due);
+        }
         match self.before_asking(&request) {
             Before::Send => {}
             Before::Compact(due) => return self.start_compaction(due),

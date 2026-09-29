@@ -65,6 +65,7 @@
   ask <要说的话>        说一句话，打印她的回答
   undo、rewind          撤掉最后一轮，把她改过的文件改回去
   restore               发下一句之前，恢复最近一次撤销
+  compact [要求]        把上下文压缩成摘要，可以附上要求
   sandbox setup|remove  装好、撤掉沙盒用户（Windows，要管理员权限）
 
 ask 的选项：
@@ -73,15 +74,16 @@ ask 的选项：
       --format text|json  text 给人看（默认），json 给脚本
       --add-dir <目录>    多放行一个目录，她能读能写，可以写好几次
 
-undo、restore 的选项：
+undo、restore、compact 的选项：
   -s, --session <编号>  哪个会话；不写就是上一次 miyu ask 开的
 
-每次 miyu ask 都新开一个会话；-c、undo、restore 管的是上一次开的那个。
+每次 miyu ask 都新开一个会话；-c、undo、restore、compact 管的是上一次开的那个。
 
 例子：
   miyu ask "这个项目是做什么的"
   miyu ask -c "那测试怎么跑"
   miyu undo
+  miyu compact 重点保留数据库设计的讨论
 
   -h, --help     印帮助
   -V, --version  印版本
@@ -96,6 +98,7 @@ Commands:
   ask <words>           Say something and print her answer
   undo, rewind          Undo the last turn and restore the files she changed
   restore               Bring back what the latest undo took
+  compact [words]       Compact the context into a summary
   sandbox setup|remove  Set up or remove the sandbox user (Windows, needs admin)
 
 ask options:
@@ -104,15 +107,16 @@ ask options:
       --format text|json  text for people (default), json for scripts
       --add-dir <dir>     Let her read and write this directory too; repeatable
 
-undo, restore options:
+undo, restore, compact options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened
 
-Each miyu ask opens a new session; -c, undo and restore use the last one.
+Each miyu ask opens a new session; -c, undo, restore, compact use the last one.
 
 Examples:
   miyu ask "what is this project"
   miyu ask -c "how do I run the tests"
   miyu undo
+  miyu compact keep the database design discussion
 
   -h, --help     Print help
   -V, --version  Print version

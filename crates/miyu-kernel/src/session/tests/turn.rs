@@ -33,7 +33,9 @@ fn a_message_to_an_idle_session_opens_a_turn_in_the_same_batch() {
         assert_eq!(event.turn, Some(turn3()));
         assert_eq!(event.by, By::Kernel);
     }
-    assert!(matches!(&events[1].body, Body::TurnStarted(started) if started.trigger == seq(2)));
+    assert!(
+        matches!(&events[1].body, Body::TurnStarted(started) if started.trigger == Some(seq(2)))
+    );
     let env = fact_of(&events[2]);
     assert_eq!(env.kind.as_str(), "env");
     assert_eq!(

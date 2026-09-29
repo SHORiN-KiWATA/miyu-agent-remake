@@ -8,7 +8,7 @@ use crate::test_support::{event_line, read_body, rejected};
 #[test]
 fn turn_events_from_the_drawing_round_trip() {
     match read_body("turn.started", r#"{"trigger":41}"#) {
-        Body::TurnStarted(started) => assert_eq!(started.trigger.get(), 41),
+        Body::TurnStarted(started) => assert_eq!(started.trigger.map(Seq::get), Some(41)),
         other => panic!("{other:?}"),
     }
     match read_body("turn.reverted", r#"{"turns":[42,50]}"#) {
@@ -56,4 +56,22 @@ fn broken_turn_bodies_say_which_kind() {
     rejected::<Event>(&line, "body of turn.unreverted not readable");
     let line = event_line("turn.ended", r#"{"reason":7}"#);
     rejected::<Event>(&line, "body of turn.ended not readable");
+}
+
+/// 手动压缩单开的那一轮没有触发（施工 6-8）：不写这一格，读回来也没有；原来的日志照旧。
+#[test]
+fn a_turn_without_a_trigger_is_written_without_one() {
+    let Body::TurnStarted(started) = read_body("turn.started", r#"{"cwd":"~/src/miyu"}"#) else {
+        panic!("应该是回合开始");
+    };
+    assert_eq!(started.trigger, None);
+    assert_eq!(
+        serde_json::to_string(&started).unwrap(),
+        r#"{"cwd":"~/src/miyu"}"#
+    );
+    let line = event_line("turn.started", r#"{"trigger":null}"#);
+    let Body::TurnStarted(started) = Event::from_line(&line).unwrap().body else {
+        panic!("应该是回合开始");
+    };
+    assert_eq!(started.trigger, None, "写成 null 的当没有");
 }

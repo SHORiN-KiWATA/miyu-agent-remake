@@ -17,8 +17,8 @@ use super::turn::Stage;
 use crate::accumulate::{Delta, Kind};
 use crate::estimate::{self, Price, WithImages};
 use crate::event::{
-    Body, CompactTrigger, CompactionDone, CompactionProgress, ContextCompacted, Event, Transient,
-    TransientBody,
+    Body, CompactTrigger, CompactionDone, CompactionProgress, ContextCompacted, EndReason, Event,
+    Transient, TransientBody,
 };
 use crate::history::History;
 use crate::id::{CommandId, Seq};
@@ -33,13 +33,14 @@ use cut::{settle, tail_upto};
 const EXPECTED: (u64, u64) = (20_000, 80_000);
 
 /// 要压：替代到哪、压之前的用量、压完很快又到线连着的第几次（施工 6-6 上，`breaker.rs`）、为什么压（施工 6-7：被动压缩
-/// 是 `overflow`）。
+/// 是 `overflow`；施工 6-8：手动压缩是 `manual`，`manual.rs`）、人附的要求（施工 6-8）。
 #[derive(Debug)]
 pub(super) struct Due {
     pub(super) upto: Seq,
     pub(super) used: u64,
     pub(super) refills: Option<u32>,
     pub(super) trigger: CompactTrigger,
+    pub(super) instructions: Option<String>,
 }
 
 /// 在路上的摘要请求多记的。
@@ -47,8 +48,10 @@ pub(super) struct Due {
 pub(super) struct Compacting {
     /// 替代到哪一条，也是这次请求的 `seen`。
     upto: Seq,
-    /// 哪一种压缩：记进这次请求的 `model.called`，失败照它数（施工 6-6 上）。现在只有 `auto`。
+    /// 哪一种压缩：记进这次请求的 `model.called`，失败照它数（施工 6-6 上）；手动的不数（施工 6-8）。
     trigger: CompactTrigger,
+    /// 手动压缩时人附的要求：接进摘要指令，原样记进 `context.compacted`（施工 6-8）。
+    instructions: Option<String>,
     /// 压完很快又到线连着的第几次，写进 `context.compacted`（施工 6-6 上）。
     refills: Option<u32>,
     /// 压之前的用量：过了线的那一次主请求算出的（施工 6-3 下，推 `compaction.done`）。
@@ -108,12 +111,18 @@ impl Compacting {
             used: self.before,
             refills: self.refills,
             trigger: self.trigger.clone(),
+            instructions: self.instructions.clone(),
         }
     }
 
     /// 压完很快又到线连着的第几次。
     pub(super) fn refills(&self) -> Option<u32> {
         self.refills
+    }
+
+    /// 人附的要求（施工 6-8）。
+    pub(super) fn instructions(&self) -> Option<String> {
+        self.instructions.clone()
     }
 
     /// 执行器送回了重读结果（施工 6-5）：一个对一个的才收。
@@ -221,6 +230,32 @@ impl Session {
         let turn = self.turn.as_ref()?;
         let started = turn.id.started();
         let events = self.history.events();
+        let replied = events.iter().any(|event| {
+            event.turn == Some(turn.id) && matches!(event.body, Body::MessageAssistant(_))
+        });
+        // 回合开头已经压掉了的（回合中途压过），没有这一条。
+        let trigger = events
+            .iter()
+            .find_map(|event| match &event.body {
+                Body::TurnStarted(opened) if event.seq == started => opened.trigger,
+                _ => None,
+            })
+            .filter(|_| !replied);
+        self.upto_before(started, trigger, budget, price, keep_last)
+    }
+
+    /// 替代到哪，照 `started` 那一轮算（[`Session::compaction_upto`]）：边界是以前的回合里的请求（`started` 以前的
+    /// `model.called`）、回复都没看到过的人的消息里最早的那条，和 `trigger`（这一轮还没有回复的，触发它的那一条）；
+    /// 没有边界的，至多到落了盘的最后一条。手动压缩照还没开的那一轮算，没有 `trigger`（施工 6-8，`manual.rs`）。
+    pub(super) fn upto_before(
+        &self,
+        started: Seq,
+        trigger: Option<Seq>,
+        budget: u64,
+        price: &dyn Price,
+        keep_last: bool,
+    ) -> Option<Seq> {
+        let events = self.history.events();
         let asked_before = events
             .iter()
             .rev()
@@ -242,17 +277,6 @@ impl Session {
                     && floor.is_none_or(|floor| event.seq > floor)
             })
             .map(|event| event.seq);
-        let replied = events.iter().any(|event| {
-            event.turn == Some(turn.id) && matches!(event.body, Body::MessageAssistant(_))
-        });
-        // 回合开头已经压掉了的（回合中途压过），没有这一条。
-        let trigger = events
-            .iter()
-            .find_map(|event| match &event.body {
-                Body::TurnStarted(opened) if event.seq == started => Some(opened.trigger),
-                _ => None,
-            })
-            .filter(|_| !replied);
         let upto = match unanswered.into_iter().chain(trigger).min() {
             Some(boundary) => Seq::new(boundary.get().checked_sub(1)?)?,
             None => self.stored?,
@@ -282,6 +306,7 @@ impl Session {
             used,
             refills,
             trigger,
+            instructions,
         } = due;
         let paths = self.reread_paths(upto);
         let limit = self.reread_limit();
@@ -294,12 +319,10 @@ impl Session {
         let (cut, tries, isolated) = again.map_or((None, 0, false), |again| {
             (again.cut, again.tries, again.isolated)
         });
+        let (assembler, asked) = (&self.policy.assembler, instructions.as_deref());
         let request = match isolated {
-            true => self
-                .policy
-                .assembler
-                .summarize_isolated(&self.history, upto, cut),
-            false => self.policy.assembler.summarize(&self.history, upto, cut),
+            true => assembler.summarize_isolated(&self.history, upto, cut, asked),
+            false => assembler.summarize(&self.history, upto, cut, asked),
         };
         let fingerprint = request.fingerprint();
         let difference = self
@@ -313,6 +336,7 @@ impl Session {
         let compacting = Compacting {
             upto,
             trigger,
+            instructions,
             refills,
             before: used,
             expected: used.clamp(EXPECTED.0, EXPECTED.1),
@@ -363,6 +387,7 @@ impl Session {
     /// 交给有效历史；环境、权限两块事实和压缩以后的有效历史比，比不到的注入；回到「准备好」，
     /// 这一批落了盘再组装主请求。返回追加的事件，和推给头的 `compaction.done`：压前、压后的用量，摘要请求的用量、
     /// 用时（施工 6-3 下）。压后照这时的有效历史组装一次算，和这一步接着要发的主请求一样。
+    /// 手动压缩的（施工 6-8）：不查事实（`refresh_facts` 不查那一轮），这一轮同一批结束，排着的接着开下一轮。
     pub(super) fn compacted(
         &mut self,
         at: Timestamp,
@@ -372,6 +397,7 @@ impl Session {
         let Summarized {
             upto,
             trigger,
+            instructions,
             refills,
             cut,
             summary,
@@ -385,7 +411,8 @@ impl Session {
         let body = Body::ContextCompacted(ContextCompacted {
             upto,
             summary,
-            trigger: Some(trigger),
+            trigger: Some(trigger.clone()),
+            instructions,
             notes: rebuilt.notes,
             restored: rebuilt.restored,
             refills,
@@ -404,15 +431,19 @@ impl Session {
             at,
             turn,
             by: By::Kernel,
-            cause,
+            cause: cause.clone(),
             body: TransientBody::CompactionDone(CompactionDone {
                 seen: upto,
+                trigger,
                 before,
                 after,
                 usage,
                 duration_ms,
             }),
         });
+        if self.turn.as_ref().is_some_and(|turn| turn.manual.is_some()) {
+            events.extend(self.finish_turn(at, By::Kernel, cause, EndReason::Completed));
+        }
         (events, done)
     }
 }

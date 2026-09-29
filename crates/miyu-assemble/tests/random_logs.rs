@@ -8,7 +8,7 @@ mod support;
 
 use std::collections::BTreeSet;
 
-use miyu_kernel::event::{Body, ErrorClass, Event, ToolStatus};
+use miyu_kernel::event::{Body, CompactTrigger, ErrorClass, Event, ToolStatus};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::Queued;
 use miyu_kernel::testkit::{Line, Play, Stage};
@@ -40,6 +40,8 @@ impl Rng {
 /// 造剧本时记着的：说到第几句了、只读开着没有。
 struct Writer {
     rng: Rng,
+    /// 手动压缩另用一串随机数（施工 6-8）：原来那串不跟着错开，原来的五百份照旧。
+    manual: Rng,
     spoken: u32,
     read_only: bool,
 }
@@ -95,6 +97,10 @@ impl Writer {
         }
         if self.rng.chance(10) {
             s.compact("Earlier turns were summarized.");
+        }
+        // 手动压缩（施工 6-8）：单开一轮，不附要求（替身只认出厂的那一份指令）；没有能压的被拒，什么都不写。
+        if self.manual.chance(10) {
+            s.request_compaction(None);
         }
         // 交限额（施工 6-2 上）：窗口多半小到过线就压，偶尔没有窗口、窗口很大。压缩线 = 窗口 − 33000，落在 20 到 420
         // 之间；探针的工具面、system 很短，一次请求估出来一两百，替身报的用量多半是 110：长上几条就过线。
@@ -253,6 +259,7 @@ impl Writer {
 fn random_session(seed: u64) -> Stage {
     let mut writer = Writer {
         rng: Rng(seed),
+        manual: Rng(seed ^ 0xC0_4AC7),
         spoken: 0,
         read_only: false,
     };
@@ -279,6 +286,11 @@ fn paths(log: &[Event]) -> BTreeSet<&'static str> {
             Body::MessageWithdrawn(_) => Some("打断以后退回"),
             Body::TurnReverted(_) => Some("撤销"),
             Body::TurnUnreverted(_) => Some("恢复"),
+            Body::ContextCompacted(compacted)
+                if compacted.trigger == Some(CompactTrigger::Manual) =>
+            {
+                Some("手动压缩")
+            }
             Body::ContextCompacted(compacted) if compacted.trigger.is_some() => {
                 let turn_start = log[..k]
                     .iter()
@@ -324,7 +336,7 @@ fn paths(log: &[Event]) -> BTreeSet<&'static str> {
             }
             Body::TurnStarted(started) => log
                 .iter()
-                .find(|trigger| trigger.seq == started.trigger)
+                .find(|trigger| Some(trigger.seq) == started.trigger)
                 .filter(|trigger| {
                     matches!(trigger.body, Body::MessageUser(_)) && trigger.turn.is_some()
                 })
@@ -395,6 +407,7 @@ const EXPECTED_PATHS: &[&str] = &[
     "压缩",
     "回合开头自动压缩",
     "回合中途自动压缩",
+    "手动压缩",
     "查了摘要请求的前缀",
     "回合中途切只读",
     "回合中途说一句",

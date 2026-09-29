@@ -43,11 +43,12 @@ impl Watch {
         self.passives.current.is_some()
     }
 
-    /// 最近发的那次摘要请求是哪一种压缩。
+    /// 最近发的那次摘要请求是哪一种压缩：手动压缩那一轮的是手动的（施工 6-8）。
     pub(super) fn summary_trigger(&self) -> CompactTrigger {
-        match self.passives.current {
-            Some(_) => CompactTrigger::Overflow,
-            None => CompactTrigger::Auto,
+        match (self.manual_turn(), self.passives.current) {
+            (Some(_), _) => CompactTrigger::Manual,
+            (None, Some(_)) => CompactTrigger::Overflow,
+            (None, None) => CompactTrigger::Auto,
         }
     }
 

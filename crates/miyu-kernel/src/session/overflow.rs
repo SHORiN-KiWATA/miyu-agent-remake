@@ -38,7 +38,7 @@ impl Session {
     ) -> Option<Vec<Event>> {
         let turn = self.turn.as_ref()?;
         if turn.overflowed {
-            return Some(self.after_failure(at, cause).into_iter().collect());
+            return Some(self.after_failure(at, cause, None).into_iter().collect());
         }
         if replied || self.paused() || self.policy.compaction.is_none() {
             return Some(Vec::new());
@@ -88,6 +88,7 @@ impl Session {
             used: self.used(&request).unwrap_or(0),
             refills: self.refills(),
             trigger: CompactTrigger::Overflow,
+            instructions: None,
         })
     }
 }

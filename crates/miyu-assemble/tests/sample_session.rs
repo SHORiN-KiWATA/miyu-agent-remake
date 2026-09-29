@@ -54,6 +54,12 @@ fn texts() -> Texts {
         truncated: include_str!("../../../resources/core/compaction/truncated.txt").to_string(),
         summarize_system: include_str!("../../../resources/core/compaction/summarize-system.txt")
             .to_string(),
+        summarize_instructions: include_str!(
+            "../../../resources/core/compaction/summarize-instructions.txt"
+        )
+        .to_string(),
+        summarize_end: include_str!("../../../resources/core/compaction/summarize-end.txt")
+            .to_string(),
     }
 }
 

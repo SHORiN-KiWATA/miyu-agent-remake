@@ -269,9 +269,9 @@ impl Session {
                 let cut = settled.reply.is_some();
                 return self.wait_to_retry(at, seen, cause, events, cut, error, wait);
             }
-            // 摘要请求不再来了，是一次压缩失败：连着数到了次数，暂停排在 `turn.ended` 前面（施工 6-6 上）。
-            if compacting {
-                events.extend(self.after_failure(at, cause.clone()));
+            // 摘要请求不再来了，是一次压缩失败：连着数到了次数，暂停排在 `turn.ended` 前面（施工 6-6 上）；手动的不数。
+            if let Some(compacting) = settled.compaction.as_deref() {
+                events.extend(self.after_failure(at, cause.clone(), Some(compacting.trigger())));
             }
             events.extend(self.finish_turn(at, By::Kernel, cause, EndReason::Error));
             return vec![Action::Append(events)];
@@ -428,6 +428,7 @@ impl Session {
                 Summarized {
                     upto: compacting.upto(),
                     trigger: compacting.trigger().clone(),
+                    instructions: compacting.instructions(),
                     refills: compacting.refills(),
                     cut: compacting.shortened().0,
                     summary,

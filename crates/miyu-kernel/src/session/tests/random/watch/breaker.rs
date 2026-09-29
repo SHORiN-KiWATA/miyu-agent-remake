@@ -111,7 +111,8 @@ impl Watch {
         );
     }
 
-    /// 一条 `model.called` 带不带 `compaction`：摘要请求的带 `auto`，主请求的不带。
+    /// 一条 `model.called` 带不带 `compaction`：摘要请求的带 `auto`，手动压缩那一轮的带 `manual`（施工 6-8），主请求的
+    /// 不带。
     pub(super) fn breaker_called(&mut self, called: &ModelCalled) {
         let expected = self
             .summary_seen(called.seen)
@@ -157,7 +158,13 @@ impl Watch {
         if !paused && !ends(after) {
             return after;
         }
-        let expected = !self.breaker_paused() && self.breaker_failures() + 1 >= FAILURES;
+        // 手动压缩的失败不数（施工 6-8）。
+        if self.manual_turn().is_some() {
+            self.seen_paths.insert("手动压缩失败不数");
+        }
+        let expected = self.manual_turn().is_none()
+            && !self.breaker_paused()
+            && self.breaker_failures() + 1 >= FAILURES;
         assert_eq!(
             paused,
             expected,
@@ -203,7 +210,11 @@ impl Watch {
     /// 追加了一条压缩：`refills` 对得上，不该是第 3 次快满。
     pub(super) fn breaker_compacted(&mut self, compacted: &ContextCompacted) {
         let seed = self.seed;
-        let expected = self.expected_refills();
+        // 手动的不算压完很快又到线（施工 6-8）。
+        let expected = match self.manual_turn() {
+            Some(_) => None,
+            None => self.expected_refills(),
+        };
         if expected.is_some() {
             self.seen_paths.insert("压完很快又到线");
         }

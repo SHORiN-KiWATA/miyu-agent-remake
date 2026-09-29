@@ -8,7 +8,7 @@
 use serde::{Serialize, Serializer};
 
 use crate::accumulate::Kind;
-use crate::event::{ErrorClass, Usage};
+use crate::event::{CompactTrigger, ErrorClass, Usage};
 use crate::id::{CallId, CommandId, Seq, TurnId};
 use crate::origin::By;
 use crate::time::Timestamp;
@@ -49,6 +49,8 @@ pub enum TransientBody {
 pub struct CompactionDone {
     /// 哪一次摘要请求：它替代到的那一条。
     pub seen: Seq,
+    /// 哪一种压缩，和那一条 `context.compacted` 一样（施工 6-8）：运行日志 `compacted` 那一行照它写。
+    pub trigger: CompactTrigger,
     /// 压之前的用量。
     pub before: u64,
     /// 压完这一步接着要发的请求的用量。

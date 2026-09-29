@@ -130,8 +130,8 @@ impl Refusal {
                 "No turn is running, so there is nothing to interrupt.",
             ),
             "turn_running" => (
-                "有回合在进行，撤销不了：先打断再撤。",
-                "A turn is running; interrupt it before undoing.",
+                "有回合在进行：先打断，或者等它做完。",
+                "A turn is running; interrupt it or wait for it to finish.",
             ),
             "unknown_turn" => (
                 "没有这一轮，或者它已经撤掉了。",
@@ -146,6 +146,10 @@ impl Refusal {
                 "An undo or restore is still in progress; try again when it is done.",
             ),
             "nothing_to_revert" => ("没有能撤销的回合。", "There is no turn to undo."),
+            "nothing_to_compact" => (
+                "没有能压的：还没压过的内容都在原样留着的最近一段里。",
+                "Not enough to compact: everything not yet compacted is in the recent part that stays as it is.",
+            ),
             _ => ("被拒绝了。", "Refused."),
         };
         match locale {

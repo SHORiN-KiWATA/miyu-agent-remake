@@ -31,10 +31,13 @@ impl Watch {
     }
 
     /// 回合结束：记下是不是被有计划的重启打断的，和那时排着队的消息。
-    pub(super) fn note_ended(&mut self, event: &Event, reason: &EndReason) {
+    pub(super) fn note_ended(&mut self, event: &Event, reason: &EndReason, resumable: bool) {
         if *reason == EndReason::Restarted {
             self.restarts.streak += 1;
-            self.restarts.last = Some((event.seq, self.queued.clone()));
+            self.restarts.last = resumable.then(|| (event.seq, self.queued.clone()));
+            if !resumable {
+                self.seen_paths.insert("重启打断的手动压缩不接着压");
+            }
         } else {
             self.restarts.streak = 0;
             self.restarts.last = None;
@@ -43,12 +46,10 @@ impl Watch {
 
     /// 回合开始：不是接着干的那一轮（由被打断时排着的最后一条、或者那条结束触发），从头数；被重启
     /// 打断的那一轮不再是最后一轮。
-    pub(super) fn note_started(&mut self, trigger: Seq) {
-        let resumed = self
-            .restarts
-            .last
-            .as_ref()
-            .is_some_and(|(ended, queued)| queued.last().copied().unwrap_or(*ended) == trigger);
+    pub(super) fn note_started(&mut self, trigger: Option<Seq>) {
+        let resumed = self.restarts.last.as_ref().is_some_and(|(ended, queued)| {
+            Some(queued.last().copied().unwrap_or(*ended)) == trigger
+        });
         if !resumed {
             self.restarts.streak = 0;
         }
@@ -157,7 +158,7 @@ impl Watch {
                 self.seen_paths.insert("重启后接着干");
                 assert!(
                     matches!(appended.first().map(|event| &event.body),
-                        Some(Body::TurnStarted(started)) if started.trigger == trigger),
+                        Some(Body::TurnStarted(started)) if started.trigger == Some(trigger)),
                     "种子 {seed}：重启以后由 {trigger} 接着开一轮：{appended:?}"
                 );
                 // 接着干的那一轮，接过去的是被打断时排着的那几句。

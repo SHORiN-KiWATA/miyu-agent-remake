@@ -1,12 +1,14 @@
-//! 在一条连上了的连接上把一句话说完（施工 3-9 下）：握手、找会话、订阅、发，跟着那一轮边收边打。
+//! 在一条连上了的连接上把一句话说完（施工 3-9 下）：握手、找会话、订阅、发，跟着那一轮边收边打。跟着那一轮的那一段
+//! （[`follow_turn`]）`miyu compact` 也用（施工 6-8）。
 
-use serde_json::json;
+use serde_json::{Value, json};
 use tokio::sync::mpsc;
 
 use miyu_ipc::Connection;
 
 use super::follow::{Follow, Step};
 use super::{Plan, Screen, Target, exit};
+use crate::language::Language;
 use crate::link;
 use crate::rpc::Rpc;
 use crate::shown::say;
@@ -18,7 +20,7 @@ pub async fn talk(
     token: &str,
     plan: &Plan,
     screen: &mut Screen<'_>,
-    mut presses: mpsc::Receiver<()>,
+    presses: mpsc::Receiver<()>,
 ) -> u8 {
     let mut rpc = Rpc::new(connection, "ask");
     // 一律说没人能确认：`miyu ask` 里没有确认的界面（`22-命令行.md` O3，2026-09-28 项目主人改），要问人的当场
@@ -60,20 +62,52 @@ pub async fn talk(
     if let Some(used) = &used {
         follow.moved(used, screen);
     }
+    let watching = Watching {
+        subscribe: &subscribe,
+        session: &session,
+        queued: "return",
+        language: &plan.language,
+    };
+    follow_turn(&mut rpc, &mut follow, &watching, screen, presses).await
+}
+
+/// 跟着一轮时要的几样：重新订阅用的参数、哪个会话、打断时排着的怎么办（`return` 退回、`send` 接着发）、界面语言。
+pub(crate) struct Watching<'a> {
+    pub(crate) subscribe: &'a Value,
+    pub(crate) session: &'a str,
+    pub(crate) queued: &'a str,
+    pub(crate) language: &'a Language,
+}
+
+/// 跟着那一轮边收边打，交回退出码（施工 6-8 从 [`talk`] 拆出来，`miyu compact` 也用）：收到 `resync` 重新订阅，不补看
+/// 掉的那些；第一次 Ctrl+C 打断这一轮，排着的照 `watching.queued` 办，等它收尾；第二次不等了，说「打断了」。
+pub(crate) async fn follow_turn(
+    rpc: &mut Rpc,
+    follow: &mut Follow<'_>,
+    watching: &Watching<'_>,
+    screen: &mut Screen<'_>,
+    mut presses: mpsc::Receiver<()>,
+) -> u8 {
+    let Watching {
+        subscribe,
+        session,
+        queued,
+        language,
+    } = watching;
     let mut interrupting = false;
     loop {
         tokio::select! {
             message = rpc.next() => {
                 let Some(message) = message else {
-                    say(screen.err, &plan.language.disconnected());
+                    say(screen.err, &language.disconnected());
                     return exit::ERROR;
                 };
                 match follow.take(&message, screen) {
                     Step::Going => {}
                     Step::Done(code) => return code,
                     Step::Resubscribe => {
-                        if rpc.send("subscribe", subscribe.clone()).await.is_err() {
-                            say(screen.err, &plan.language.disconnected());
+                        if rpc.send("subscribe", (*subscribe).clone()).await.is_err() {
+                            say(screen.err, &language.disconnected());
                             return exit::ERROR;
                         }
                     }
@@ -81,13 +115,13 @@ pub async fn talk(
             }
             Some(()) = presses.recv() => {
                 if interrupting {
-                    say(screen.err, &plan.language.interrupted());
+                    say(screen.err, &language.interrupted());
                     return exit::INTERRUPTED;
                 }
                 interrupting = true;
-                let interrupt = json!({"session": session, "queued": "return"});
+                let interrupt = json!({"session": session, "queued": queued});
                 if rpc.send("session.interrupt", interrupt).await.is_err() {
-                    say(screen.err, &plan.language.disconnected());
+                    say(screen.err, &language.disconnected());
                     return exit::ERROR;
                 }
             }

@@ -179,12 +179,13 @@ fn the_summary_request_is_the_history_up_to_n_and_the_instruction() {
         log.history(),
         miyu_kernel::id::Seq::new(upto).unwrap(),
         None,
+        None,
     );
     assert_eq!(request.tools, assembler.assemble(log.history()).tools);
     assert_eq!(request.system, "You are Miyu.");
     assert_eq!(
         shape(&request.messages),
-        ["user: hi", "assistant: 好。", "user: <summarize/>"]
+        ["user: hi", "assistant: 好。", "user: <summarize/><end/>"]
     );
     assert!(!request.continuation);
     // 截到触发的那句：它是最后一条 user，指令并进去。
@@ -192,10 +193,15 @@ fn the_summary_request_is_the_history_up_to_n_and_the_instruction() {
         log.history(),
         miyu_kernel::id::Seq::new(again).unwrap(),
         None,
+        None,
     );
     assert_eq!(
         shape(&request.messages),
-        ["user: hi", "assistant: 好。", "user: 再说 | <summarize/>"]
+        [
+            "user: hi",
+            "assistant: 好。",
+            "user: 再说 | <summarize/><end/>"
+        ]
     );
 }
 
@@ -222,7 +228,11 @@ fn a_summary_request_never_continues_a_cut_reply() {
     );
     assert!(assembler.assemble(log.history()).continuation);
     let upto = miyu_kernel::id::Seq::new(log.next() - 1).unwrap();
-    assert!(!assembler.summarize(log.history(), upto, None).continuation);
+    assert!(
+        !assembler
+            .summarize(log.history(), upto, None, None)
+            .continuation
+    );
     assert_eq!(
         assembler
             .summary(&[text("<summary>S</summary>")])
@@ -247,7 +257,7 @@ fn a_truncated_summary_request_keeps_what_is_after_the_cut() {
     log.reply(&format!("[{}]", text_json("嗯。")));
     let upto = log.next() - 1;
     // 截在第一条回复前面：留下的第一条是回复，补一条 user。
-    let request = assembler.summarize(log.history(), seq(upto), Some(seq(first - 1)));
+    let request = assembler.summarize(log.history(), seq(upto), Some(seq(first - 1)), None);
     assert_eq!(
         shape(&request.messages),
         [
@@ -255,15 +265,15 @@ fn a_truncated_summary_request_keeps_what_is_after_the_cut() {
             "assistant: 好。",
             "user: 再说",
             "assistant: 嗯。",
-            "user: <summarize/>"
+            "user: <summarize/><end/>"
         ]
     );
     assert!(!request.continuation);
     // 截在第二句前面：第一条就是 user，不补。
-    let request = assembler.summarize(log.history(), seq(upto), Some(seq(again - 1)));
+    let request = assembler.summarize(log.history(), seq(upto), Some(seq(again - 1)), None);
     assert_eq!(
         shape(&request.messages),
-        ["user: 再说", "assistant: 嗯。", "user: <summarize/>"]
+        ["user: 再说", "assistant: 嗯。", "user: <summarize/><end/>"]
     );
     // 有检查点的：检查点那条 user 在最前面，截掉的是它后面的，不补。
     let mut log = Log::new();
@@ -277,7 +287,7 @@ fn a_truncated_summary_request_keeps_what_is_after_the_cut() {
     let again = log.say("再说");
     log.start(again);
     let reply = log.reply(&format!("[{}]", text_json("嗯。")));
-    let request = assembler.summarize(log.history(), seq(reply), Some(seq(reply - 1)));
+    let request = assembler.summarize(log.history(), seq(reply), Some(seq(reply - 1)), None);
     let shapes = shape(&request.messages);
     assert!(
         shapes[0].starts_with("user: <checkpoint>") && shapes[1] == "assistant: 嗯。",
@@ -286,7 +296,8 @@ fn a_truncated_summary_request_keeps_what_is_after_the_cut() {
     assert!(!shapes.iter().any(|shape| shape.contains("<truncated/>")));
 }
 
-/// 隔离式的摘要请求（施工 6-6 下）：消息和 fork 式一样，system 换成那一句，工具面空的；截短照样截。
+/// 隔离式的摘要请求（施工 6-6 下）：消息和 fork 式一样，system 换成那一句，工具面空的；截短照样截；手动压缩附的要求照样
+/// 夹在指令里（施工 6-8）。
 #[test]
 fn an_isolated_summary_request_has_the_same_messages_without_tools() {
     let assembler = DefaultAssembler::new(stable(&["read"], vec![]), texts());
@@ -295,20 +306,84 @@ fn an_isolated_summary_request_has_the_same_messages_without_tools() {
     let hi = log.say("hi");
     log.start(hi);
     let reply = log.reply(&format!("[{}]", text_json("好。")));
-    let fork = assembler.summarize(log.history(), seq(reply), None);
-    let isolated = assembler.summarize_isolated(log.history(), seq(reply), None);
+    let fork = assembler.summarize(log.history(), seq(reply), None, None);
+    let isolated = assembler.summarize_isolated(log.history(), seq(reply), None, None);
     assert_eq!(isolated.messages, fork.messages);
     assert!(isolated.tools.is_empty() && !fork.tools.is_empty());
     assert_eq!(isolated.system, "<isolated/>");
     assert!(!isolated.continuation);
-    let cut = assembler.summarize_isolated(log.history(), seq(reply), Some(seq(reply - 1)));
+    let cut = assembler.summarize_isolated(
+        log.history(),
+        seq(reply),
+        Some(seq(reply - 1)),
+        Some("keep"),
+    );
     assert_eq!(
         shape(&cut.messages),
         [
             "user: <truncated/>",
             "assistant: 好。",
-            "user: <summarize/>"
+            "user: <summarize/><instructions>keep\n<end/>"
         ]
     );
     assert_eq!(cut.system, "<isolated/>");
+}
+
+/// 手动压缩附了要求的（施工 6-8）：摘要指令是正文、要求前面那一行、要求原样（不转义，末尾补一个换行）、最后那一句；
+/// 截短重试的照样带着。没附的，就是正文接最后那一句。
+#[test]
+fn instructions_sit_between_the_task_and_its_last_line() {
+    let seq = |n: u64| miyu_kernel::id::Seq::new(n).unwrap();
+    let assembler = DefaultAssembler::new(stable(&[], vec![]), texts());
+    let mut log = Log::new();
+    let hi = log.say("hi");
+    log.start(hi);
+    log.reply(&format!("[{}]", text_json("好。")));
+    let upto = seq(log.next() - 1);
+    log.end("completed");
+    let request = assembler.summarize(log.history(), upto, None, Some("keep \"<plan>\" & 表"));
+    assert_eq!(
+        shape(&request.messages),
+        [
+            "user: hi",
+            "assistant: 好。",
+            "user: <summarize/><instructions>keep \"<plan>\" & 表\n<end/>"
+        ]
+    );
+    // 已经以换行结尾的不再补。
+    let request = assembler.summarize(log.history(), upto, None, Some("keep\n"));
+    assert_eq!(
+        shape(&request.messages)[2],
+        "user: <summarize/><instructions>keep\n<end/>"
+    );
+    // 截短重试的（施工 6-6 中）：截过的也接着要求。
+    let request = assembler.summarize(log.history(), upto, Some(seq(hi)), Some("keep"));
+    assert_eq!(
+        shape(&request.messages).last().map(String::as_str),
+        Some("user: <summarize/><instructions>keep\n<end/>")
+    );
+}
+
+/// 出厂的三份拼起来（施工 6-8）：没附要求的和拆开以前的整份指令一字不差；附了的，要求在「Additional Instructions:」
+/// 那一行下面，最后一段还是不许调工具。
+#[test]
+fn the_shipped_instruction_is_unchanged_without_instructions() {
+    let task = include_str!("../../../resources/core/compaction/summarize-task.txt");
+    let header = include_str!("../../../resources/core/compaction/summarize-instructions.txt");
+    let end = include_str!("../../../resources/core/compaction/summarize-end.txt");
+    let shipped = Texts {
+        summarize_task: task.to_string(),
+        summarize_instructions: header.to_string(),
+        summarize_end: end.to_string(),
+        ..texts()
+    };
+    let whole = format!("{task}{end}");
+    assert!(whole.ends_with("nothing else. Do not call any tool.\n"));
+    assert_eq!(shipped.instruction(None), whole);
+    let with = shipped.instruction(Some("重点保留数据库设计的讨论"));
+    assert_eq!(
+        with,
+        format!("{task}\nAdditional Instructions:\n重点保留数据库设计的讨论\n{end}")
+    );
+    assert!(with.ends_with("\n\nReply with the <analysis> block and then the <summary> block, nothing else. Do not call any tool.\n"));
 }

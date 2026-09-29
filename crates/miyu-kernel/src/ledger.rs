@@ -219,7 +219,8 @@ impl Ledger {
             if let Some(open) = self.open {
                 return Err(format!("turn {open} has not ended"));
             }
-            if started.trigger >= event.seq {
+            // 手动压缩单开的那一轮没有触发（施工 6-8），不查。
+            if started.trigger.is_some_and(|trigger| trigger >= event.seq) {
                 return Err("trigger should be an event before the turn started".to_string());
             }
             return Ok(());

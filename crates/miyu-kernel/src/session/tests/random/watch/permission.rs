@@ -22,7 +22,10 @@ impl Watch {
                 }
                 self.permission = new;
             }
-            Body::TurnStarted(_) => self.effective = self.permission.clone(),
+            // 手动压缩那一轮不换实际生效的那一级（施工 6-8）：它不调工具，下一轮开头换。
+            Body::TurnStarted(started) if started.trigger.is_some() => {
+                self.effective = self.permission.clone();
+            }
             Body::ContextInjected(fact)
                 if event.by == By::Kernel && fact.kind.as_str() == "permission" =>
             {

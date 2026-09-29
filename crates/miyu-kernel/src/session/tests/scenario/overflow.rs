@@ -17,7 +17,12 @@ const PAUSE: Pause = Pause {
 /// 一个会被动压缩的替身：尾巴的预算 3，只够留最后一句人的话（替身的事件一条几个 token，预算大了整段都成了尾巴，前面
 /// 没有能压的）。
 fn overflowing() -> Stage {
-    let make = || {
+    overflowing_with(PAUSE)
+}
+
+/// 同上，熔断的数是 `pause`。
+fn overflowing_with(pause: Pause) -> Stage {
+    let make = move || {
         let mut policy = policy();
         policy.compaction = Some(Compaction {
             reserve_cap: 10,
@@ -28,7 +33,7 @@ fn overflowing() -> Stage {
                 file: 50,
             },
             rebuild: None,
-            pause: Some(PAUSE),
+            pause: Some(pause),
             shorten: None,
             isolate: false,
         });
@@ -197,6 +202,30 @@ fn a_resend_that_is_still_too_long_counts_as_a_failure() {
         [CompactionPaused {
             reason: PauseReason::Failures,
             failures: Some(3),
+            entry: None,
+        }]
+    );
+}
+
+/// 重发还超长的这一次正好数到次数（熔断的数是 1）：暂停排在这一轮的结束前面。它没有摘要请求，`after_failure` 看是
+/// 哪一种压缩时照数（施工 6-8：手动的才不数）。
+#[test]
+fn a_resend_that_reaches_the_count_pauses_before_the_turn_ends() {
+    let mut stage = overflowing_with(Pause {
+        failures: 1,
+        ..PAUSE
+    });
+    wide(&mut stage);
+    stage.model([Line::says("好。")]);
+    stage.say("hi");
+    stage.model([too_long(), Line::says("S"), too_long()]);
+    stage.say("a");
+    assert!(ended_with_error(&stage));
+    assert_eq!(
+        pauses(&stage),
+        [CompactionPaused {
+            reason: PauseReason::Failures,
+            failures: Some(1),
             entry: None,
         }]
     );

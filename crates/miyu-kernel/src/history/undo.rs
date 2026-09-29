@@ -53,7 +53,8 @@ impl History {
             if !event.turn.is_some_and(|turn| turns.contains(&turn)) {
                 continue;
             }
-            let Some(trigger) = self.find(started.trigger) else {
+            // 没有触发的（手动压缩单开的那一轮，施工 6-8）不拿别的。
+            let Some(trigger) = started.trigger.and_then(|trigger| self.find(trigger)) else {
                 continue;
             };
             if !matches!(trigger.body, Body::MessageUser(_)) {

@@ -78,7 +78,9 @@ fn a_whole_turn_from_the_message_to_the_end() {
     );
     // 会话空闲了：下一条消息开下一个回合。
     let events = appended_events(&session.handle(send(2, "再来")));
-    assert!(matches!(&events[1].body, Body::TurnStarted(started) if started.trigger == seq(9)));
+    assert!(
+        matches!(&events[1].body, Body::TurnStarted(started) if started.trigger == Some(seq(9)))
+    );
     assert_eq!(events[1].turn, Some(TurnId::new(seq(10))));
 }
 

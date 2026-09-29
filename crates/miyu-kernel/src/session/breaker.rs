@@ -59,6 +59,7 @@ impl Session {
                 used,
                 refills,
                 trigger: CompactTrigger::Auto,
+                instructions: None,
             }),
         }
     }
@@ -99,14 +100,19 @@ impl Session {
         vec![Action::Append(events)]
     }
 
-    /// 摘要请求失败、这一轮要出错结束了（第十条第 3、4 条）：连着数到了次数，交回要排在 `turn.ended` 前面的暂停。刚记下
-    /// 的那条 `model.called` 还没有 `turn.ended` 跟着，照一次算。现在的压缩都是自动的；手动压缩（6-8）的失败不数。
-    /// 暂停着不发摘要请求，走不到这里。
+    /// 一次压缩失败、这一轮要出错结束了（第十条第 3、4 条）：连着数到了次数，交回要排在 `turn.ended` 前面的暂停。刚记下
+    /// 的那条 `model.called` 还没有 `turn.ended` 跟着，照一次算。`trigger` 是失败的摘要请求是哪一种压缩：手动压缩的失败
+    /// 不数（施工 6-8：人就在跟前，看得到）；没有的是被动压完、重发的主请求还超长（施工 6-7），照算。自动的暂停着不发
+    /// 摘要请求，走不到这里；暂停着手动压缩失败的，不数，也就不会再写一次暂停。
     pub(super) fn after_failure(
         &mut self,
         at: Timestamp,
         cause: Option<CommandId>,
+        trigger: Option<&CompactTrigger>,
     ) -> Option<Event> {
+        if trigger.is_some_and(|trigger| !automatic(trigger)) {
+            return None;
+        }
         let pause = self.pause_numbers()?;
         let failures = self.failures().saturating_add(1);
         (failures >= pause.failures).then(|| {

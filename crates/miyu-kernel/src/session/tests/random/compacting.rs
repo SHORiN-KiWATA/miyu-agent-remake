@@ -1,5 +1,5 @@
 //! 随机测试的策略和模型的限额（施工 6-2 上）：压缩的数很小，限额另用一串随机数交，好让压缩和别的输入交错。压后重建
-//! 的数也很小，几段的模板短，一眼认得出（施工 6-5）。
+//! 的数也很小，几段的模板短，一眼认得出（施工 6-5）。手动压缩也另用一串随机数（施工 6-8）。
 
 use super::*;
 
@@ -95,4 +95,29 @@ pub(super) fn some_limits(rng: &mut Rng) -> Option<Input> {
         max_output,
         images: None,
     }))
+}
+
+/// 手动压缩，另用一串随机数：原来那串输入不跟着错开（施工 6-8）。空闲时三十回里有一回，回合开着时六十回里一回
+/// （该被拒）；要求一半不附，一半里多半是一句话，偶尔只有空白（当没附）。
+pub(super) fn some_compact(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> Option<Input> {
+    let chance = if watch.turn_open() { 60 } else { 30 };
+    if rng.below(chance) != 0 {
+        return None;
+    }
+    let instructions = match rng.below(4) {
+        0 | 1 => None,
+        2 => Some("keep the plan".to_string()),
+        _ => Some("  ".to_string()),
+    };
+    Some(compact_now(next_command(next_id), instructions))
+}
+
+/// 编号是 `n` 的命令：alice 要手动压缩。
+fn compact_now(n: u64, instructions: Option<String>) -> Input {
+    Input::Command(Received {
+        id: id(n),
+        by: alice(),
+        at: at(n % 60),
+        command: Command::Compact { instructions },
+    })
 }

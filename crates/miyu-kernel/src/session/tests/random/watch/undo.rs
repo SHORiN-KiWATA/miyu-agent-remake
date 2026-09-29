@@ -304,7 +304,7 @@ impl Watch {
             .collect();
         for turn in turns {
             let trigger = self.events.iter().find_map(|event| match &event.body {
-                Body::TurnStarted(started) if event.seq == turn.started() => Some(started.trigger),
+                Body::TurnStarted(started) if event.seq == turn.started() => started.trigger,
                 _ => None,
             });
             let said = self.events.iter().find(|event| {

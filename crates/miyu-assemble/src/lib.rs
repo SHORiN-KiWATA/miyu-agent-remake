@@ -72,7 +72,14 @@ impl Assembler for DefaultAssembler {
 
     /// 有效历史截到第 `upto` 条，照平常组装，摘要指令接在最后；最后是人这边的指令，不接着写（`summary.rs`）。截短重试
     /// 的（施工 6-6 中）：检查点后面第 `cut` 条及以前的不要，留下的第一条是助手的，前面补一条 user（`truncated.txt`）。
-    fn summarize(&self, history: &History, upto: Seq, cut: Option<Seq>) -> Request {
+    /// 手动压缩附了要求的，要求夹在指令里（`Texts::instruction`，施工 6-8）。
+    fn summarize(
+        &self,
+        history: &History,
+        upto: Seq,
+        cut: Option<Seq>,
+        instructions: Option<&str>,
+    ) -> Request {
         let kept = history.until(upto);
         let kept = match cut {
             Some(cut) => kept.after(cut),
@@ -82,14 +89,21 @@ impl Assembler for DefaultAssembler {
         if cut.is_some() {
             summary::mark_truncated(&mut request.messages, request.stable, &self.texts.truncated);
         }
-        summary::instruct(&mut request.messages, &self.texts.summarize_task);
+        summary::instruct(&mut request.messages, &self.texts.instruction(instructions));
         request.continuation = false;
         request
     }
 
     /// 隔离式（施工 6-6 下）：和 fork 式一样的消息，system 换成那一句，工具面空的；稳定区的示范对话照留在消息里。
-    fn summarize_isolated(&self, history: &History, upto: Seq, cut: Option<Seq>) -> Request {
-        let mut request = self.summarize(history, upto, cut);
+    /// 手动压缩附的要求照 fork 式的接（施工 6-8）。
+    fn summarize_isolated(
+        &self,
+        history: &History,
+        upto: Seq,
+        cut: Option<Seq>,
+        instructions: Option<&str>,
+    ) -> Request {
+        let mut request = self.summarize(history, upto, cut, instructions);
         request.system = self.texts.summarize_system.clone();
         request.tools = Vec::new();
         request

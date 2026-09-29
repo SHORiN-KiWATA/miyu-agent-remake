@@ -10,7 +10,10 @@ fn started(event: &Event) -> (Option<TurnId>, Seq) {
     let Body::TurnStarted(started) = &event.body else {
         panic!("应该是 turn.started：{event:?}");
     };
-    (event.turn, started.trigger)
+    (
+        event.turn,
+        started.trigger.expect("排着的消息开的回合有触发"),
+    )
 }
 
 fn withdrawn(event: &Event) -> &MessageWithdrawn {

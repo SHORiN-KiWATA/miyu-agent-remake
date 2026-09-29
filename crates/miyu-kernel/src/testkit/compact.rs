@@ -41,7 +41,7 @@ impl Stage {
         let opened = event(
             turn.started(),
             Body::TurnStarted(TurnStarted {
-                trigger: upto,
+                trigger: Some(upto),
                 cwd: Some(self.environment.cwd.clone()),
                 dirs: Vec::new(),
             }),
@@ -52,6 +52,7 @@ impl Stage {
                 upto,
                 summary: summary.to_string(),
                 trigger: None,
+                instructions: None,
                 notes: String::new(),
                 restored: Vec::new(),
                 refills: None,

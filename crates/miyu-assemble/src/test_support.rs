@@ -36,6 +36,8 @@ pub(crate) fn texts() -> Texts {
         summarize_task: "<summarize/>".to_string(),
         truncated: "<truncated/>".to_string(),
         summarize_system: "<isolated/>".to_string(),
+        summarize_instructions: "<instructions>".to_string(),
+        summarize_end: "<end/>".to_string(),
     }
 }
 
@@ -122,6 +124,12 @@ impl Log {
             "turn.started",
             &format!(r#"{{"trigger":{trigger}}}"#),
         );
+    }
+
+    /// 开一个没有触发的回合：手动压缩单开的那一轮（施工 6-8）。
+    pub(crate) fn start_untriggered(&mut self) {
+        self.turn = Some(self.next());
+        self.push(KERNEL, "turn.started", "{}");
     }
 
     /// 注入一块事实。

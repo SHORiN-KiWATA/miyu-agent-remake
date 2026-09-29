@@ -4,7 +4,7 @@
 
 在 shell 里叫她把当前会话的上下文压缩成一份摘要，最近的一段原样留着；后面写的话是给摘要的要求（命令名 2026-09-29 项目主人定，施工 6-8）。连上核心（没在跑、又设了 `DEEPSEEK_API_KEY` 的，拉起来），找会话，发 `session.compact`，跟着那一轮，照 `miyu ask` 压缩那一行的样子印进度和结果。
 
-状态：图纸（2026-09-29），施工 6-8 照它做。参数、印什么、退出码、帮助页 2026-09-29 项目主人定（施工单 `6-8-手动压缩.md`「拍板的」）。
+参数、印什么、退出码、帮助页 2026-09-29 项目主人定（施工单 `6-8-手动压缩.md`「拍板的」）。
 
 ### 在哪
 
@@ -12,7 +12,7 @@
 |---|---|
 | `crates/miyu/src/main.rs` | 子命令 `compact`；换上帮助页；拉起核心用的命令是自己加上 `core`（`cli/main.md`） |
 | `crates/miyu-cli/src/compact.rs` | 参数、找数据根、连核心、握手、找会话、订阅、发、跟着那一轮、Ctrl+C、退出码 |
-| `crates/miyu-cli/src/ask/follow.rs`、`ask/follow/compacting.rs` | 收推送：压缩那一行、用量那一行、说为什么结束的那一句；和 `miyu ask` 共用 |
+| `crates/miyu-cli/src/ask/talk.rs` 的 `follow_turn`，`ask/follow.rs`、`ask/follow/compacting.rs` | 跟着那一轮、Ctrl+C；收推送：压缩那一行、用量那一行、说为什么结束的那一句；和 `miyu ask` 共用 |
 | `crates/miyu-cli/src/link.rs`、`rpc.rs`、`shown.rs` | 握手、发请求等回应、找最新的一次性会话、请求的编号、上色；和 `miyu ask`、`miyu undo` 共用 |
 | `crates/miyu-cli/src/help/{zh,en}/compact.txt` | 帮助页（`cli/main.md`「帮助页」） |
 
@@ -45,7 +45,7 @@
 
 标准输出上什么都不印；全在标准错误上，是旁白，和 `miyu ask` 压缩那一行、用量那一行、说为什么结束的那一句同一套写法、同一套颜色（`cli/ask.md`「样子」），由同一份代码印。
 
-例子（施工时存成样本 `docs/designs/samples/cli/compact-text.txt`，测试照着造出来比）：
+样本 `docs/designs/samples/cli/compact-text.txt`（压好了，中文，管道里：没有进度那一行；测试照着造出来比）：
 
 ```text
 · 上下文压缩好了：812.3k → 31k token
@@ -66,7 +66,7 @@
 | 被打断 | 终端里进度那一行留着，下一行 `打断了` | 3 |
 | 这一轮没走完（重启、崩了） | `这一轮没走完：<原因>` | 1 |
 
-原因、分类的说法照 `cli/ask.md`「给人看的字」的出错的分类，调了工具的单说。
+原因、分类的说法照 `cli/ask.md`「给人看的字」的出错的分类，调了工具的单说。摘要请求里调了工具、改走隔离式的（施工 6-6 下）不是失败：照 `miyu ask` 灰色印一行 `· 摘要请求里调了工具，改用不带工具的再压`，接着压。
 
 ### 退出码
 
@@ -84,7 +84,7 @@
 
 **帮助页**：`-h`、`--help`、`miyu help compact` 印的都是这一页，规矩见 `cli/main.md`「帮助页」。
 
-例子（施工时写成 `crates/miyu-cli/src/help/zh/compact.txt`，这里换成样本块）：
+样本 `crates/miyu-cli/src/help/zh/compact.txt`（中文）：
 
 ```text
 用法：miyu compact [选项] [要求]
@@ -96,7 +96,7 @@
   -h, --help            印帮助
 ```
 
-例子（`crates/miyu-cli/src/help/en/compact.txt`）：
+样本 `crates/miyu-cli/src/help/en/compact.txt`（英文）：
 
 ```text
 Usage: miyu compact [options] [words]
@@ -115,9 +115,9 @@ Options:
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-cli/src/compact/tests.rs` | 几个词用空格连起来、不写就没有这一格；印出来的和样本 `compact-text.txt` 逐字节一样；失败、打断、没走完的几行和退出码；英文 |
+| `crates/miyu-cli/src/compact/tests.rs` | 几个词用空格连起来、不写就没有这一格；印出来的和样本 `compact-text.txt` 逐字节一样；改走隔离式的灰色那一句；失败、打断、没走完的几行和退出码；英文 |
 | `crates/miyu-cli/tests/compact.rs` | 真的核心：压好了、退出码 0；刚压过再压说「没有能压的」、退出码 1；一个会话都没有、退出码 1；`--session` 压的是指定的那个 |
-| `crates/miyu/tests/compact.rs` | 真跑主程序：`compact -h` 印帮助页，跟着界面语言；`-s` 和 `--session` 一样；没有 key、核心也没在跑的，不拉起、退出码 5 |
+| `crates/miyu/tests/compact.rs` | 真跑主程序：`compact -h`、`--help`、`help compact` 印帮助页，跟着界面语言；核心在跑的压上一次 `miyu ask` 开的（说得短的没有能压的，退出码 1）；`-s` 和 `--session` 压的是写的那个；没有 key、核心也没在跑的，不拉起、退出码 5、两种语言的那一句 |
 | `crates/miyu-cli/src/help/tests.rs` | 这一页列的选项和程序真有的对得上 |
 
 ### 出处

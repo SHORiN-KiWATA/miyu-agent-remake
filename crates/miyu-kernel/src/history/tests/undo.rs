@@ -221,3 +221,17 @@ fn the_next_turn_or_a_compaction_drops_what_was_undone() {
     history.append(compacted(11, 10, 3));
     assert!(history.undone.is_empty(), "压缩了也丢掉");
 }
+
+/// 撤掉手动压缩单开的那一轮（施工 6-8）：它没有触发，只拿走它自己的几条，前面没人回应过的那句话留着。
+#[test]
+fn undoing_a_turn_without_a_trigger_takes_nothing_else() {
+    let events = vec![
+        created(),
+        message(2, ALICE),
+        event(3, Some(3), KERNEL, "turn.started", "{}"),
+        ended(4, 3, "error"),
+        reverted(5, &[3]),
+    ];
+    let history = feed(events);
+    assert_eq!(seqs(&history), vec![1, 2]);
+}

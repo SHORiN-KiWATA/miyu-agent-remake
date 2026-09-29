@@ -252,6 +252,11 @@ pub enum Command {
     },
     /// `session.unrevert`：恢复最近一次撤销，在下一轮开始、压缩之前。
     Unrevert,
+    /// `session.compact`：手动压缩，空闲时才收，单开一轮只做压缩（`compaction.md` 第七条，施工 6-8）。
+    Compact {
+        /// 人附的要求，原样；`None` 是没附。只有空白的也当没附。
+        instructions: Option<String>,
+    },
 }
 
 /// 一次回答：回答确认的，或者回答一组题的。

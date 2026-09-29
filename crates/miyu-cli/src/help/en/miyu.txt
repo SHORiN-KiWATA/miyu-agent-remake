@@ -4,6 +4,7 @@ Commands:
   ask <words>           Say something and print her answer
   undo, rewind          Undo the last turn and restore the files she changed
   restore               Bring back what the latest undo took
+  compact [words]       Compact the context into a summary
   sandbox setup|remove  Set up or remove the sandbox user (Windows, needs admin)
 
 ask options:
@@ -12,15 +13,16 @@ ask options:
       --format text|json  text for people (default), json for scripts
       --add-dir <dir>     Let her read and write this directory too; repeatable
 
-undo, restore options:
+undo, restore, compact options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened
 
-Each miyu ask opens a new session; -c, undo and restore use the last one.
+Each miyu ask opens a new session; -c, undo, restore, compact use the last one.
 
 Examples:
   miyu ask "what is this project"
   miyu ask -c "how do I run the tests"
   miyu undo
+  miyu compact keep the database design discussion
 
   -h, --help     Print help
   -V, --version  Print version

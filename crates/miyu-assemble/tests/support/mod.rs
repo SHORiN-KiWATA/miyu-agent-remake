@@ -30,9 +30,11 @@ use miyu_kernel::tool::{Access, ToolRule, ToolTextSources, ToolTexts};
 
 /// 会话开始的时刻：东九区 16:00。
 const START: &str = "2026-09-25T07:00:00.000Z";
-/// 出厂的摘要指令：摘要请求的最后一块（施工 6-2 上）。
-pub const SUMMARIZE: &str =
-    include_str!("../../../../resources/core/compaction/summarize-task.txt");
+/// 出厂的摘要指令：摘要请求的最后一块（施工 6-2 上）；正文接最后那一句（施工 6-8 拆开）。
+pub const SUMMARIZE: &str = concat!(
+    include_str!("../../../../resources/core/compaction/summarize-task.txt"),
+    include_str!("../../../../resources/core/compaction/summarize-end.txt")
+);
 
 /// 两件工具的参数格式：一个路径。
 const PATH: &str =
@@ -139,7 +141,7 @@ pub fn sent(stage: &Stage) -> Vec<Sent> {
             })
             .filter(|_| !summary)
             .filter(|(turn, _)| before_main.is_none_or(|before| before < *turn))
-            .and_then(|(_, trigger)| log.iter().find(|event| event.seq == trigger))
+            .and_then(|(_, trigger)| log.iter().find(|event| Some(event.seq) == trigger))
             .and_then(|event| match &event.body {
                 Body::MessageUser(message) => message.blocks.last().cloned(),
                 _ => None,
@@ -418,6 +420,12 @@ fn stable() -> Stable {
 
 /// 出厂的英文，资源目录里的真文件。
 fn texts() -> Texts {
+    // 压缩的几份字：`resources/core/compaction/` 下的同名文件。
+    macro_rules! compaction {
+        ($name:literal) => {
+            include_str!(concat!("../../../../resources/core/compaction/", $name)).to_string()
+        };
+    }
     Texts {
         checkpoint_open: include_str!("../../../../resources/core/checkpoint-open.txt").to_string(),
         checkpoint_close: include_str!("../../../../resources/core/checkpoint-close.txt")
@@ -428,8 +436,7 @@ fn texts() -> Texts {
                 "../../../../resources/core/compaction/restored-open.txt"
             ))
             .expect("出厂的模板合写法"),
-            close: include_str!("../../../../resources/core/compaction/restored-close.txt")
-                .to_string(),
+            close: compaction!("restored-close.txt"),
         }),
         turn_ended: TurnEndedTexts {
             interrupted: include_str!("../../../../resources/core/turn-ended/interrupted.txt")
@@ -441,13 +448,11 @@ fn texts() -> Texts {
             restarted: include_str!("../../../../resources/core/turn-ended/restarted.txt")
                 .to_string(),
         },
-        summarize_task: include_str!("../../../../resources/core/compaction/summarize-task.txt")
-            .to_string(),
-        truncated: include_str!("../../../../resources/core/compaction/truncated.txt").to_string(),
-        summarize_system: include_str!(
-            "../../../../resources/core/compaction/summarize-system.txt"
-        )
-        .to_string(),
+        summarize_task: compaction!("summarize-task.txt"),
+        truncated: compaction!("truncated.txt"),
+        summarize_system: compaction!("summarize-system.txt"),
+        summarize_instructions: compaction!("summarize-instructions.txt"),
+        summarize_end: compaction!("summarize-end.txt"),
     }
 }
 

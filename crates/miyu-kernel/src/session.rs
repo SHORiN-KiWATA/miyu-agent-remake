@@ -16,6 +16,7 @@ mod input;
 mod interrupt;
 mod limits;
 mod load;
+mod manual;
 mod overflow;
 mod permission;
 mod policy;
@@ -278,6 +279,7 @@ impl Session {
             } => self.answer_question(id, by, at, call_id, answers),
             Command::Revert { turn } => self.revert(id, by, at, turn),
             Command::Unrevert => self.unrevert(id, by, at),
+            Command::Compact { instructions } => self.compact(id, at, instructions),
         }
     }
 

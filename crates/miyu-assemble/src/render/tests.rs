@@ -462,3 +462,27 @@ fn facts_after_a_compaction_in_the_middle_of_a_turn_keep_their_order() {
         ["user: <checkpoint>\nS\n</checkpoint>\n | <env/> | <permission/>"]
     );
 }
+
+/// 手动压缩单开的那一轮没有触发（施工 6-8）：她没看到过它，没压成的（出错、打断、崩了、重启）也不在下一句前面说
+/// 「这一轮没走完」，不然她会当成是上一轮。前后照常，一个字都不多。
+#[test]
+fn a_turn_without_a_trigger_does_not_say_it_did_not_finish() {
+    for reason in ["error", "interrupted", "aborted", "restarted", "completed"] {
+        let mut log = Log::new();
+        let first = log.say("first");
+        log.start(first);
+        log.reply(&format!("[{}]", text_json("done")));
+        log.end("completed");
+        log.start_untriggered();
+        log.failed();
+        log.end(reason);
+        let next = log.say("next");
+        log.start(next);
+        log.fact("<env/>");
+        assert_eq!(
+            rendered(&log),
+            ["user: first", "assistant: done", "user: <env/> | next"],
+            "原因 {reason}"
+        );
+    }
+}

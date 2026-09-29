@@ -72,6 +72,9 @@ impl Watch {
         let same = before.filter(|(upto, _, _)| *upto == seen);
         if self.shortenings.isolating.take() == Some(seen) && same.is_some() {
             self.seen_paths.insert("隔离式再发");
+            if self.manual_turn().is_some() {
+                self.seen_paths.insert("手动压缩改走隔离式");
+            }
             assert!(isolated, "种子 {seed}：调了工具，再发的不是隔离式");
             let (_, before_cut, tries) = same.unwrap_or((seen, None, 0));
             assert_eq!(cut, before_cut, "种子 {seed}：改走隔离式，截到的变了");

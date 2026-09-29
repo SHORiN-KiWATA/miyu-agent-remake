@@ -369,7 +369,7 @@ impl Stage {
     }
 
     /// 送一个命令，跑到没事可做。
-    fn command(&mut self, command: Command) -> CommandId {
+    pub(super) fn command(&mut self, command: Command) -> CommandId {
         let id = command_id(self.next);
         self.next += 1;
         let at = self.tick();

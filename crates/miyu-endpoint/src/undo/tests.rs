@@ -60,6 +60,7 @@ fn compaction(seq: u64, turn: u64) -> Event {
             upto: Seq::FIRST,
             summary: "S".to_string(),
             trigger: None,
+            instructions: None,
             notes: String::new(),
             restored: Vec::new(),
             refills: None,

@@ -178,7 +178,7 @@ pub enum Reason {
     UnexpectedReason,
     /// 回答对不上题目：题数不对、选了没有的选项、单选的选了几项、同一项选了两次。
     BadAnswer,
-    /// 有回合在进行，撤销不了：头先打断再撤（`02-内核.md` 第六节「撤销与恢复」）。
+    /// 有回合在进行，撤销、手动压缩不了（施工 6-8）：头先打断，或者等它做完（`02-内核.md` 第六节「撤销与恢复」）。
     TurnRunning,
     /// 要撤的那一轮没有，或者已经撤掉了。压缩以前的回合照样能撤（施工 6-9）。
     UnknownTurn,
@@ -188,6 +188,9 @@ pub enum Reason {
     Restoring,
     /// 撤最后一轮（不写回合编号）时一轮都没有：没说过话、都撤掉了、都压缩进了摘要（施工 4-7 下）。
     NothingToRevert,
+    /// 手动压缩时没有能压的：上一次压缩以后没有新的消息、回复、工具结果，或者全在压完要原样留着的尾巴里（施工 6-8，
+    /// `compaction.md` 第七条第 2 条）。
+    NothingToCompact,
 }
 
 impl Reason {
@@ -207,6 +210,7 @@ impl Reason {
             Reason::NothingToUnrevert => "nothing_to_unrevert",
             Reason::Restoring => "restoring",
             Reason::NothingToRevert => "nothing_to_revert",
+            Reason::NothingToCompact => "nothing_to_compact",
         }
     }
 }

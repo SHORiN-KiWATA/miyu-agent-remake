@@ -401,10 +401,16 @@ impl Assembler for Nothing {
         }
     }
 
-    fn summarize(&self, history: &History, _upto: Seq, _cut: Option<Seq>) -> Request {
+    fn summarize(&self, history: &History, _: Seq, _: Option<Seq>, _: Option<&str>) -> Request {
         self.assemble(history)
     }
-    fn summarize_isolated(&self, history: &History, _upto: Seq, _cut: Option<Seq>) -> Request {
+    fn summarize_isolated(
+        &self,
+        history: &History,
+        _upto: Seq,
+        _cut: Option<Seq>,
+        _instructions: Option<&str>,
+    ) -> Request {
         self.assemble(history)
     }
 
