@@ -8,7 +8,7 @@
 
 通讯只在树上相邻的两层之间（2026-09-29 项目主人定）：孙代理和子代理说话，子代理和父说话，孙代理不能越过子代理找父，兄弟之间也不直接说，要协调经它们的父转。
 
-状态：图纸（2026-09-29 定），M7 照它施工（施工方案第三节 M7 那张表）。做完一步，这一页照做好的样子改写那几节，相关的几页（`kernel/events-bodies.md`、`kernel/session.md`、`kernel/history.md`、`kernel/request.md`、`session/actor.md`、`protocol.md`、`core.md`、`cli/ask.md`、`tools/`）跟着改。
+状态：图纸（2026-09-29 定），M7 照它施工（施工方案第三节 M7 那张表）。做好了的：7-1 事件的类型、读写、账本的规矩、样本（`kernel/events-bodies.md`、`kernel/ids.md`、`kernel/history.md`），还没有哪里写它们。做完一步，这一页照做好的样子改写那几节，相关的几页（`kernel/events-bodies.md`、`kernel/session.md`、`kernel/history.md`、`kernel/request.md`、`session/actor.md`、`protocol.md`、`core.md`、`cli/ask.md`、`tools/`）跟着改。
 
 ### 在哪
 
@@ -18,6 +18,8 @@
 |---|---|
 | `crates/miyu-kernel/src/event/effect.rs` | 效果 `job.started` |
 | `crates/miyu-kernel/src/event/job.rs` | 事件 `job.reported`、`child.reported` |
+| `crates/miyu-kernel/src/id/job.rs` | 任务编号 `JobId`（施工 7-1） |
+| `crates/miyu-kernel/src/ledger/jobs.rs` | 账本里任务的几条规矩（施工 7-1，`kernel/history.md`） |
 | `crates/miyu-kernel/src/session/jobs.rs` | 内核这边的任务表：从日志算出哪些还没结束；回报到了开一轮还是排着 |
 | `crates/miyu-kernel/src/session/report.rs` | 子会话一轮结束时要不要向上回报、回报什么 |
 | `crates/miyu-tool/src/jobs.rs` | 交给工具的端口：起后台命令、派子会话、留言、查、停（`JobPort`） |
@@ -50,13 +52,14 @@
 **效果** `job.started`（`tool.result` 的 `effects`，`kernel/events-bodies.md`）：派出去的那次调用报一条，这就是开始的记录，不另记事件（原设计的 `child.spawned` 不做：一件事一条记录，派它的调用本身就在历史里，`08-上下文投影.md` 第三节）。
 
 ```json
-{"kind":"job.started","job":"j2","what":"agent","title":"查 CI 为什么红","session":"01a0ed4d-2d89-764f-8926-4f7b3e9ff4eb"}
+{"kind":"job.started","job":"j2","what":"agent","title":"查 CI 为什么红","session":"01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91"}
 {"kind":"job.started","job":"j1","what":"command","title":"跑全部测试"}
 ```
 
 - `what`：`command` 后台命令，`agent` 子代理。
 - `title`：调用时给的 `description`，头显示用。
-- `session`：子代理的会话编号；后台命令没有。
+- `session`：子代理的会话编号；后台命令没有（账本查）。
+- `job`：编号整份日志里不重复，撤掉的回合里的也算（账本查，`kernel/history.md`）。
 
 **事件** `job.reported`：后台命令结束了。
 
@@ -70,19 +73,20 @@
 **事件** `child.reported`：子会话的回报。
 
 ```json
-{"job":"j2","session":"01a0ed4d-…","reason":"done","text":"CI 红是因为……","truncated":false,"person":false}
+{"job":"j2","session":"01a0d78c-…","reason":"done","text":"CI 红是因为……"}
 ```
 
 - `reason`：`done` 做完了；`stopped` 被人停掉；`undone` 撤销那一轮停掉的；`aborted` 核心崩了、它那一轮没走完。
 - `text`：那一轮最后的回答，超过 `jobs.report_chars` 的留头尾（`truncated` 写 `true`）。
 - `person`：这一轮里人插过话，或者这一轮是人开的、里面进过父会话的留言（第二条第 4 条）。
-- `by` 是子会话（`session`），`cause` 是子会话交来的那个命令。
+- `truncated`、`person` 是假的不写（`kernel/events-bodies.md`）。
+- `by` 是子会话（`session`），`cause` 是子会话交来的那个命令。账本查：对得上一个 `agent` 的 `job.started`、会话一样、`by` 是它；以 `stopped`、`undone` 报过的不再报（`kernel/history.md`）。
 
-**事件** `session.created` 多两格：`parent` 父会话的编号，`depth` 第几层。主会话不写。子会话不写 `oneshot`：`--continue`、`miyu undo` 找「最近一次 `miyu ask` 开的」不会找到它。
+**事件** `session.created` 多两格：`parent` 父会话的编号，`depth` 第几层。主会话不写。两格同有同无，`depth` 至少是 1（账本查）。子会话不写 `oneshot`：`--continue`、`miyu undo` 找「最近一次 `miyu ask` 开的」不会找到它。
 
 **事件** `turn.started`：`trigger` 可以是 `child.reported`、`job.reported` 的序号。回报开的那一轮 `cause` 照回报那条事件的。
 
-**`by` 多一种** `harness`：别的 harness 发来的话（第十一条），带 `name`，是它自己报的名字，不可信，给模型看之前照不可信的文本处理。
+**`by` 多一种** `harness`：别的 harness 发来的话（第十一条），带 `name`，是它自己报的名字，不可信，给模型看之前照不可信的文本处理。写法照短名字（1 到 128 字节、没有控制字符），收的时候先去掉控制字符、截到 128 字节（`kernel/ids.md`）。
 
 **协议**（`protocol.md`）：
 
@@ -197,7 +201,9 @@
 
 ### 样子
 
-施工时照每一步补：`job.started`、`job.reported`、`child.reported` 的事件样本；回报渲染出来的样子；`miyu ask` 等子代理时印的样子（给项目主人看过再定）。
+事件的样本在 `docs/designs/samples/events/`（施工 7-1）：`tool.result.jsonl` 的 102、103 号带着 `job.started`（一个后台命令、一个子代理；结果里给模型看的那一句随 7-3、7-5 定，样本里的只是占着位置），`job.reported.jsonl`、`child.reported.jsonl` 是它们的回报，`session.created.jsonl` 的第二行是那个子代理的会话的第一条。
+
+施工时照每一步补：回报渲染出来的样子；`miyu ask` 等子代理时印的样子（给项目主人看过再定）。
 
 ### 给人看的字
 
@@ -205,7 +211,13 @@
 
 ### 守着它的
 
-施工时照每一步补。至少：内核的单元测试和场景（开始、结束、回报开轮还是排着、撤销停掉、载入补中断、子会话回报的条件）；随机测试加回报和后台命令结束；请求形状探针加子代理这种会话（`26-提示词.md` 第六节）；工具面的预算；真核心走一遍后台命令和子代理。
+| 测试 | 守哪几条 |
+|---|---|
+| `crates/miyu-kernel/src/event/effect/tests.rs`、`event/job/tests.rs`、`event/session/tests.rs`、`id/tests.rs`、`origin/tests.rs` | 三种新东西、两格新字段、任务编号、`harness` 读写一字不差，不认识的取值原样留着（施工 7-1） |
+| `crates/miyu-kernel/src/ledger/tests/jobs.rs`、`jobs/reports.rs` | 账本的任务规矩（施工 7-1） |
+| `crates/miyu-kernel/tests/samples.rs` | 样本读写一字不差，子代理的几条对得上（施工 7-1） |
+
+以后照每一步补。至少：内核的单元测试和场景（开始、结束、回报开轮还是排着、撤销停掉、载入补中断、子会话回报的条件）；随机测试加回报和后台命令结束；请求形状探针加子代理这种会话（`26-提示词.md` 第六节）；工具面的预算；真核心走一遍后台命令和子代理。
 
 ### 出处
 
