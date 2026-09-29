@@ -187,7 +187,7 @@ pub fn md_heading() -> Style {
     fg(|p| p.md_heading).add_modifier(Modifier::BOLD)
 }
 
-/// Markdown 的粗体：蓝加粗（照旧版 `BOLD_STYLE`）。
+/// Markdown 的粗体：原色加粗（2026-09-29 项目主人：原来蓝色，和暗蓝的链接挨得近）。
 pub fn md_bold() -> Style {
     fg(|p| p.md_bold).add_modifier(Modifier::BOLD)
 }
@@ -197,17 +197,17 @@ pub fn md_italic() -> Style {
     fg(|p| p.md_italic).add_modifier(Modifier::ITALIC)
 }
 
-/// 行内代码：青（照旧版 `INLINE_CODE_STYLE`）。
+/// 行内代码：淡橙（2026-09-29 项目主人：原来就是链接换掉的那个亮蓝）。
 pub fn md_code() -> Style {
     fg(|p| p.md_code)
 }
 
-/// 链接的标题：256 色 117 号、加粗（照旧版 `LINK_LABEL_STYLE`）。
+/// 链接的标题：暗蓝、加粗（2026-09-29 项目主人：原来高亮的蓝太抢眼）。
 pub fn md_link() -> Style {
     fg(|p| p.md_link).add_modifier(Modifier::BOLD)
 }
 
-/// 链接的地址：256 色 75 号（照旧版 `URL_STYLE`）。
+/// 链接的地址：和标题同一个暗蓝，不加粗。
 pub fn md_url() -> Style {
     fg(|p| p.md_url)
 }

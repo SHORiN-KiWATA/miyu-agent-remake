@@ -281,7 +281,7 @@ impl Transcript {
             Update::Push(push) => self.apply(push, texts),
             // 撤销：记一行说明，全文照这一次撤掉的第一轮里你说的话，没有的照核心给的第一行。
             Update::Undone {
-                redo: false,
+                restore: false,
                 report,
             } => {
                 let said = self
@@ -299,7 +299,7 @@ impl Transcript {
                 }
             }
             // 恢复：那几轮已经照 `turn.unreverted` 显示回来了，去掉最近的那一行撤销说明，不另写一句。
-            Update::Undone { redo: true, .. } => {
+            Update::Undone { restore: true, .. } => {
                 if let Some(i) = self.entries.iter().rposition(|e| e.kind == Kind::Undo) {
                     self.entries.remove(i);
                 }

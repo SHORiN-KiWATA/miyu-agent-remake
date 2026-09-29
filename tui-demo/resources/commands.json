@@ -2,11 +2,12 @@
   "commands": [
     {
       "name": "undo",
-      "summary": "撤销上一轮，她改过的文件改回去",
+      "aliases": ["rewind"],
+      "summary": "撤销上一轮，她改过的文件改回去（也可以打 /rewind）",
       "run": "revert"
     },
     {
-      "name": "redo",
+      "name": "restore",
       "summary": "恢复刚才撤销的那一轮",
       "run": "unrevert"
     },

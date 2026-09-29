@@ -17,7 +17,7 @@ use ratatui::crossterm::event::{
 use ratatui::layout::{Position, Rect};
 
 pub use editor::Editor;
-pub use pasted::{Draft, PasteRule};
+pub use pasted::{Draft, PasteRule, Sent};
 pub use wrap::{VisualLine, locate, offset_at, pieces, tail_pieces, wrap};
 
 /// 输入框处理完一个事件后，要外面做的事。
@@ -56,10 +56,8 @@ pub struct InputBox {
     area: Rect,
     /// `Ctrl+S` 暂存的字，连同粘贴块。
     stash: Option<Draft>,
-    /// 发过的话和命令，从旧到新，连同粘贴块：翻历史用。
-    history: Vec<Draft>,
-    /// 同上，只有字：历史列表照它搜、照它列。
-    history_text: Vec<String>,
+    /// 发过的话和命令，从旧到新，连同粘贴块和发出去的时刻：翻历史、历史列表用。
+    history: Vec<Sent>,
     /// 正在翻历史，翻到第几条；没在翻是 `None`。
     browsing: Option<usize>,
     /// 开始翻历史之前没发的那句：翻过最新一条回到它。
@@ -86,7 +84,6 @@ impl InputBox {
             area: Rect::default(),
             stash: None,
             history: Vec::new(),
-            history_text: Vec::new(),
             browsing: None,
             draft: Draft::default(),
             follow: false,
@@ -310,11 +307,11 @@ impl InputBox {
             self.editor.set_draft(draft);
         } else {
             self.browsing = Some(next);
-            self.editor.set_draft(self.history[next].clone());
+            self.editor.set_draft(self.history[next].draft.clone());
         }
     }
 
-    /// 撤销成了：撤掉的那句放回来，整段选中，直接打字就替换掉它（打 `/redo` 不会拼在后面）；
+    /// 撤销成了：撤掉的那句放回来，整段选中，直接打字就替换掉它（打 `/restore` 不会拼在后面）；
     /// 框里已经有字的不动（`tui.md`「输入框」第 7 条）。
     pub fn put_back(&mut self, said: &str) {
         if !self.editor.is_empty() {
@@ -337,8 +334,8 @@ impl InputBox {
     }
 
     /// 发过的话和命令，从旧到新（输入历史列表用）。
-    pub fn sent(&self) -> &[String] {
-        &self.history_text
+    pub fn sent(&self) -> &[Sent] {
+        &self.history
     }
 
     /// 从输入历史列表里挑了一条：放进输入框，光标在末尾。框里原来有字的先存进暂存；暂存里已经有字的，
@@ -354,16 +351,23 @@ impl InputBox {
         }
         self.browsing = None;
         // 挑中的是记着的那一条：连同粘贴块放回来（同样的字记过几次的，取最近那次）。
-        let picked = self.history.iter().rev().find(|d| d.text == text).cloned();
+        let picked = self
+            .history
+            .iter()
+            .rev()
+            .find(|s| s.draft.text == text)
+            .map(|s| s.draft.clone());
         self.editor
             .set_draft(picked.unwrap_or_else(|| Draft::plain(text)));
     }
 
     /// 记下一句发出去的话或命令，连同粘贴块，翻历史用。和上一条一样的不重复记。
     pub fn remember(&mut self, sent: Draft) {
-        if self.history.last().is_none_or(|last| *last != sent) {
-            self.history_text.push(sent.text.clone());
-            self.history.push(sent);
+        if self.history.last().is_none_or(|last| last.draft != sent) {
+            self.history.push(Sent {
+                draft: sent,
+                at: Instant::now(),
+            });
         }
     }
 

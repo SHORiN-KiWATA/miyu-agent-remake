@@ -62,10 +62,10 @@ pub enum Update {
     Disconnected,
     /// 会话里的事。
     Push(Push),
-    /// 撤销（`redo` 为假）或恢复成了：核心算好的给人看的几样（`protocol/undo.md`）。
+    /// 撤销（`restore` 为假）或恢复成了：核心算好的给人看的几样（`protocol/undo.md`）。
     Undone {
         /// 是恢复。
-        redo: bool,
+        restore: bool,
         /// 回应里给人看的几样。
         report: Report,
     },
@@ -119,7 +119,7 @@ async fn run(mut commands: mpsc::UnboundedReceiver<Command>, notify: &impl Fn(Up
         tokio::select! {
             command = commands.recv() => {
                 let Some(command) = command else { return };
-                let redo = match command {
+                let restore = match command {
                     Command::Revert => Some(false),
                     Command::Unrevert => Some(true),
                     _ => None,
@@ -135,8 +135,8 @@ async fn run(mut commands: mpsc::UnboundedReceiver<Command>, notify: &impl Fn(Up
                 };
                 match rpc.send(method, params).await {
                     Ok(id) => {
-                        if let Some(redo) = redo {
-                            undos.insert(id, redo);
+                        if let Some(restore) = restore {
+                            undos.insert(id, restore);
                         }
                     }
                     Err(_) => {
@@ -166,16 +166,16 @@ async fn take(
     undos: &mut HashMap<String, bool>,
     notify: &impl Fn(Update) -> bool,
 ) -> bool {
-    let redo = message["id"].as_str().and_then(|id| undos.remove(id));
+    let restore = message["id"].as_str().and_then(|id| undos.remove(id));
     if let Some(error) = message.get("error") {
         return notify(Update::Refused {
             reason: error["data"]["reason"].as_str().map(str::to_string),
             message: error["message"].as_str().unwrap_or_default().to_string(),
         });
     }
-    if let Some(redo) = redo {
+    if let Some(restore) = restore {
         let report = Report::read(&message["result"]);
-        return notify(Update::Undone { redo, report });
+        return notify(Update::Undone { restore, report });
     }
     match message["method"].as_str() {
         Some("event") => push::read(&message["params"]["event"])

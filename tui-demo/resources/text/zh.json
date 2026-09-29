@@ -10,7 +10,7 @@
     "拖选正文，Ctrl+C 复制",
     "PgUp、PgDn 翻正文",
     "Ctrl+Z 挂到后台，fg 回来",
-    "/undo 撤销上一轮，/redo 恢复",
+    "/undo 撤销上一轮，/restore 恢复",
     "有后台命令时，空着按 ↓ 打开后台面板"
   ],
   "untitled": "未命名会话",
@@ -38,7 +38,7 @@
   "done": "{time} · {endpoint}/{model} · {elapsed}",
   "speed": "{rate} tok/s",
   "context": "{used}/{window}({percent}%)",
-  "undone": "撤销了 {turns} 轮 · /redo 恢复",
+  "undone": "撤销了 {turns} 轮 · /restore 恢复",
   "restored": "改回 {count} 个文件",
   "untouched": "{count} 个文件没动：之后又被改过，或者已经不在了",
   "commands": "{count} 条命令的改动撤不回",
@@ -93,7 +93,7 @@
   "theme_changed": "主题：{name}",
   "figure_pending": "⋯ 正在画图",
   "figure_zoom": "点开看大图",
-  "markdown": { "image": "[图片: ", "details": "详细信息", "details_marks": ["▶ ", "▼ "] },
+  "markdown": { "image": "[图片: ", "details": "详细信息", "details_marks": ["▶ ", "▼ "], "bullets": ["▪", "•", "◦"] },
   "refusals": {
     "nothing_to_unrevert": "没有能恢复的撤销",
     "nothing_to_revert": "没有能撤销的",
@@ -103,10 +103,20 @@
     "restoring": "正在改回文件，稍等"
   },
   "done_usage": " · {tokens}(C{percent}%)",
-  "history_search": "历史：",
-  "history_empty": "没有对得上的",
-  "no_history": "历史发送为空",
-  "history_more": "⋮ 还有 {count} 行",
+  "menu": { "title": "命令", "count": " {count} 条" },
+  "history": {
+    "title": "历史",
+    "count": "  {count} 条",
+    "query": " · 搜索：",
+    "empty": "没有对得上的",
+    "lines": " · +{count} 行",
+    "more": "⋮ 还有 {count} 行",
+    "hints": "↑/↓ 选 · Tab 看全文 · Enter 填进输入框 · Esc 关闭",
+    "now": "刚才",
+    "minutes": "{n} 分钟前",
+    "hours": "{n} 小时前",
+    "none": "历史发送为空"
+  },
   "jobs": {
     "button": "{count} 个后台命令",
     "title": "后台",

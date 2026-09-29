@@ -15,8 +15,10 @@ use crate::mascot::Look;
 use crate::pulse::Words;
 use crate::theme::Palette;
 
+mod panels;
 mod timeline;
 
+pub use panels::{HistoryTexts, MenuTexts};
 pub use timeline::{Summary, Timeline, ToolKind};
 
 /// 布局的数值。
@@ -284,14 +286,10 @@ pub struct Texts {
     pub done_usage: String,
     /// 请求被拒时，认得的原因码（`data.reason`）写的短话。
     pub refusals: HashMap<String, String>,
-    /// 输入历史列表第一行的标签。
-    pub history_search: String,
-    /// 输入历史列表里一条都对不上时那一行。
-    pub history_empty: String,
-    /// 输入历史列表里展开的一条太长时，最后一行，`{count}` 还有几行。
-    pub history_more: String,
-    /// 还没发过话时按 Ctrl+R 的提示。
-    pub no_history: String,
+    /// 输入历史列表上的字（蓝图「输入历史列表」）。
+    pub history: HistoryTexts,
+    /// 斜杠命令列表上的字（蓝图「斜杠命令列表」）。
+    pub menu: MenuTexts,
     /// 图还在做时那一行占位。
     pub figure_pending: String,
     /// mermaid 图下面那一行，点了开大图。

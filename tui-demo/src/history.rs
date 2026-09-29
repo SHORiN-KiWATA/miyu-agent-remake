@@ -3,6 +3,8 @@
 //! 列的是输入框记着的发过的话和命令（和 `↑`、`↓` 翻的是同一份）。对得上的照「最新的在前」排，
 //! 选中的是其中第几条：0 是最新的，画的时候最新的贴着输入框。
 
+use crate::input::Sent;
+
 /// 列表的状态。
 #[derive(Debug, Default)]
 pub struct History {
@@ -35,13 +37,14 @@ impl History {
         self.open = false;
     }
 
-    /// 对得上的几条，最新的在前：包含搜索的字（不分大小写）；一样的只留最新的那一次。
-    pub fn matches<'a>(&self, sent: &'a [String]) -> Vec<&'a str> {
+    /// 对得上的几条，最新的在前：包含搜索的字（不分大小写）；一样的字只留最新的那一次。
+    pub fn matches<'a>(&self, sent: &'a [Sent]) -> Vec<&'a Sent> {
         let query = self.query.to_lowercase();
-        let mut seen = Vec::new();
-        for text in sent.iter().rev() {
-            if text.to_lowercase().contains(&query) && !seen.contains(&text.as_str()) {
-                seen.push(text.as_str());
+        let mut seen: Vec<&Sent> = Vec::new();
+        for one in sent.iter().rev() {
+            let text = &one.draft.text;
+            if text.to_lowercase().contains(&query) && !seen.iter().any(|s| s.draft.text == *text) {
+                seen.push(one);
             }
         }
         seen
@@ -73,15 +76,23 @@ impl History {
 #[cfg(test)]
 mod tests {
     use super::History;
+    use crate::input::{Draft, Sent};
 
-    fn sent() -> Vec<String> {
+    fn texts(found: Vec<&Sent>) -> Vec<&str> {
+        found.iter().map(|s| s.draft.text.as_str()).collect()
+    }
+
+    fn sent() -> Vec<Sent> {
         [
             "跑一下全部测试",
             "看看 README",
             "把失败的测试修掉",
             "看看 README",
         ]
-        .map(String::from)
+        .map(|text| Sent {
+            draft: Draft::plain(text),
+            at: std::time::Instant::now(),
+        })
         .to_vec()
     }
 
@@ -90,7 +101,7 @@ mod tests {
         let mut h = History::default();
         h.open();
         assert_eq!(
-            h.matches(&sent()),
+            texts(h.matches(&sent())),
             vec!["看看 README", "把失败的测试修掉", "跑一下全部测试"]
         );
     }
@@ -101,7 +112,10 @@ mod tests {
         h.open();
         h.older(3);
         h.type_text("readme");
-        assert_eq!((h.matches(&sent()), h.selected), (vec!["看看 README"], 0));
+        assert_eq!(
+            (texts(h.matches(&sent())), h.selected),
+            (vec!["看看 README"], 0)
+        );
         h.backspace();
         h.backspace();
         h.backspace();
@@ -110,7 +124,7 @@ mod tests {
         h.backspace();
         h.type_text("测试");
         assert_eq!(
-            h.matches(&sent()),
+            texts(h.matches(&sent())),
             vec!["把失败的测试修掉", "跑一下全部测试"]
         );
     }

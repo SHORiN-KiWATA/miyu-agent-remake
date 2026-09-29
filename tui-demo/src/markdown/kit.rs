@@ -14,6 +14,8 @@ pub struct Labels {
     pub details: String,
     /// `<details>` 标题前面的记号：收着的、展开着的（后面带一格空）。
     pub details_marks: [String; 2],
+    /// 无序列表的记号：第一层、第二层、第三层起。
+    pub bullets: [String; 3],
 }
 
 /// 排版要用的几样。

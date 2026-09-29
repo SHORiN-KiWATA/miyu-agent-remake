@@ -51,6 +51,15 @@ pub struct Block {
     pub text: String,
 }
 
+/// 发过的一句：连同粘贴块，和发出去的时刻（输入历史列表写「几分钟前」，蓝图「输入历史列表」第 1 条）。
+#[derive(Debug, Clone)]
+pub struct Sent {
+    /// 发的字和粘贴块。
+    pub draft: Draft,
+    /// 什么时候发的。
+    pub at: std::time::Instant,
+}
+
 /// 一段带着块的字：输入框里的样子，和每一块在哪、原文是什么。输入历史、暂存、发出去都用它。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Draft {

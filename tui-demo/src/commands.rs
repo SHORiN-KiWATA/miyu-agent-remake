@@ -16,6 +16,9 @@ pub struct Commands {
 pub struct Spec {
     /// 名字，不带 `/`。
     pub name: String,
+    /// 别名：打它一样执行，筛的时候也算（`/undo` 的 `rewind`）。
+    #[serde(default)]
+    pub aliases: Vec<String>,
     /// 列表里名字后面那一句。
     pub summary: String,
     /// 做什么。
@@ -49,14 +52,15 @@ pub enum Run {
 }
 
 impl Commands {
-    /// 照打的字筛：名字以它开头的排前面，名字里含着它的排后面，各自照清单的先后。
+    /// 照打的字筛：名字（或别名）以它开头的排前面，含着它的排后面，各自照清单的先后。
     pub fn filter(&self, typed: &str) -> Vec<&Spec> {
         let typed = typed.to_lowercase();
         let (mut starts, mut contains) = (Vec::new(), Vec::new());
         for spec in &self.commands {
-            if spec.name.starts_with(&typed) {
+            let mut names = std::iter::once(&spec.name).chain(&spec.aliases);
+            if names.clone().any(|n| n.starts_with(&typed)) {
                 starts.push(spec);
-            } else if spec.name.contains(&typed) {
+            } else if names.any(|n| n.contains(&typed)) {
                 contains.push(spec);
             }
         }
@@ -64,9 +68,11 @@ impl Commands {
         starts
     }
 
-    /// 名字正好是 `name` 的那一条。
+    /// 名字或别名正好是 `name` 的那一条。
     pub fn find(&self, name: &str) -> Option<&Spec> {
-        self.commands.iter().find(|s| s.name == name)
+        self.commands
+            .iter()
+            .find(|s| s.name == name || s.aliases.iter().any(|a| a == name))
     }
 }
 
@@ -101,6 +107,27 @@ mod tests {
             .collect();
         assert_eq!(names.first(), Some(&"exit"));
         assert!(names.contains(&"level"), "含着 e 的也在：{names:?}");
+    }
+
+    #[test]
+    fn undo_and_restore_follow_the_core_names() {
+        // 2026-09-29 跟 main 的命令改名：恢复叫 /restore，撤销也可以打 /rewind，/redo 不再认。
+        let commands = commands();
+        assert_eq!(
+            commands.find("restore").map(|s| s.run),
+            Some(super::Run::Unrevert)
+        );
+        assert_eq!(
+            commands.find("rewind").map(|s| s.run),
+            Some(super::Run::Revert)
+        );
+        assert!(commands.find("redo").is_none());
+        let names: Vec<_> = commands
+            .filter("rew")
+            .iter()
+            .map(|s| s.name.as_str())
+            .collect();
+        assert_eq!(names, ["undo"], "筛的时候别名也算，列表里写正名");
     }
 
     #[test]

@@ -16,9 +16,11 @@ mod input_box;
 mod job_rows;
 mod margins;
 mod mascot_view;
+mod panel;
 mod sidebar;
 
 pub use history::{index_at as history_index_at, lines as history_lines};
+pub use menu::index_at as menu_index_at;
 mod menu;
 pub mod row_cache;
 pub mod rows;
@@ -177,7 +179,13 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     let history_rows = if app.history.open {
         let found = app.history.matches(app.input.sent());
         let width = text_width(main.width, &app.config.layout);
-        history::lines(&app.history, &found, width, &app.config)
+        history::lines(
+            &app.history,
+            &found,
+            width,
+            &app.config,
+            std::time::Instant::now(),
+        )
     } else {
         Vec::new()
     };
@@ -195,10 +203,11 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     } else if app.history.open {
         u16::try_from(history_rows.len()).unwrap_or(u16::MAX)
     } else {
+        // 露出来的几条，加上顶上那一行标题横线（`tui.md`「斜杠命令列表」第 3 条）。
         let shown = matches
             .as_ref()
             .map_or(0, |m| m.len().min(app.config.layout.menu_rows));
-        u16::try_from(shown).unwrap_or(0)
+        u16::try_from(if shown > 0 { shown + 1 } else { 0 }).unwrap_or(0)
     };
     let running = app.transcript.running.is_some();
     let queued: Vec<String> = app
@@ -283,7 +292,15 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         input_box::draw_box(frame, areas, app, home);
     }
     if let Some(matches) = &matches {
-        menu::draw(frame, areas.menu, matches, app.menu.selected);
+        let rows = app.config.layout.menu_rows;
+        let lines = menu::lines(
+            matches,
+            app.menu.selected,
+            rows,
+            areas.menu.width,
+            &app.config.text.menu,
+        );
+        menu::draw(frame, areas.menu, lines);
     }
     if app.history.open {
         history::draw(frame, areas.menu, history_rows);

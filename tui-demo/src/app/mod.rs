@@ -214,6 +214,18 @@ impl App {
         }
     }
 
+    /// 这一下 Esc 归输入框（打断、清空）：列表（命令列表、输入历史列表）、后台面板、抽屉开着的，焦点在别处的，
+    /// 有选区的，都先归它们（`13-终端界面.md` 第十节「由近及远」，`tui.md`「按键」Esc）。
+    fn esc_for_input(&self, menu_open: bool) -> bool {
+        !menu_open
+            && !self.history.open
+            && self.panel.is_none()
+            && self.focus == Focus::Input
+            && !self.drawers.open()
+            && self.input.editor.selection().is_none()
+            && self.view.select.is_none()
+    }
+
     /// 处理一个终端事件。
     pub fn handle(&mut self, event: Event) {
         // 有人按键、动鼠标、粘贴：吉祥物停下待机的晃（`tui.md`「空会话的首页」第 8 条）。
@@ -228,10 +240,7 @@ impl App {
             // 一小会儿以内再按一下才打断；没在回答、有字时，两下清空。
             Event::Key(key)
                 if key.code == KeyCode::Esc
-                    && !menu_open
-                    && !self.drawers.open()
-                    && self.input.editor.selection().is_none()
-                    && self.view.select.is_none()
+                    && self.esc_for_input(menu_open)
                     && (self.transcript.running.is_some() || !self.input.editor.is_empty()) =>
             {
                 self.esc();
@@ -292,8 +301,8 @@ impl App {
 
     /// 收一条核心那边的消息。撤销成了、排队的消息被退回了，字放回输入框（`tui.md`「输入框」第 7、8 条）。
     pub fn core(&mut self, update: Update) {
-        let undone = matches!(update, Update::Undone { redo: false, .. });
-        if matches!(update, Update::Undone { redo: true, .. }) {
+        let undone = matches!(update, Update::Undone { restore: false, .. });
+        if matches!(update, Update::Undone { restore: true, .. }) {
             self.input.take_back();
         }
         // 限制了进行中那一段的高度就不放开视口（`tui.md`「正文」第 1 条、「时间线」第 20 条）。

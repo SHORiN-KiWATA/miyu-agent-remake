@@ -218,7 +218,7 @@ impl Renderer<'_> {
                         *n += 1;
                         m
                     }
-                    _ => format!("{} ", ["•", "◦", "▪"][depth.saturating_sub(1).min(2)]),
+                    _ => format!("{} ", self.labels.bullets[depth.saturating_sub(1).min(2)]),
                 };
                 self.containers.push(Container::Item {
                     marker,

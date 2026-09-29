@@ -50,7 +50,12 @@ fn a_single_newline_stays_a_newline() {
 fn lists_nest_and_align_their_continuations() {
     assert_eq!(
         lines("- 一\n  - 二\n- 三四五六七八", 10),
-        vec!["• 一", "  ◦ 二", "• 三四五六", "  七八"]
+        vec!["▪ 一", "  • 二", "▪ 三四五六", "  七八"]
+    );
+    // 第三层起一律 `◦`（2026-09-29 项目主人：原来依次是 • ◦ ▪，改成 ▪ • ◦）。
+    assert_eq!(
+        lines("- a\n  - b\n    - c\n      - d", 40),
+        vec!["▪ a", "  • b", "    ◦ c", "      ◦ d"]
     );
     assert_eq!(lines("3. a\n4. b", 20), vec!["3. a", "4. b"]);
     assert_eq!(
@@ -66,13 +71,28 @@ fn list_markers_are_accented_and_quotes_are_dim_italic() {
     // 2026-09-29 项目主人：列表记号暗色和字分不开层次，换主题色；引用暗一些、斜体（先改过正体，又改回来）。
     let list = draw("- 苹果", 30);
     let marker = &list[0].lead[0];
-    assert_eq!(marker.content, "• ");
+    assert_eq!(marker.content, "▪ ");
     assert_ne!(marker.style, theme::dim(), "记号不再是暗色");
     assert_eq!(marker.style, theme::md_list());
     let quoted = draw("> 引用的话", 30);
     let style = quoted[0].folded.spans[0].style;
     assert!(style.add_modifier.contains(Modifier::ITALIC), "引用斜体");
     assert_eq!(style.fg, Some(Color::Rgb(0x82, 0x8b, 0xb8)), "暗灰蓝");
+}
+
+#[test]
+fn links_are_dark_blue_bold_is_plain_and_code_is_orange() {
+    use ratatui::style::{Color, Modifier};
+    // 2026-09-29 项目主人：链接原来是高亮的蓝，标题、地址、裸地址一律换成暗蓝。
+    let _theme = theme::hold();
+    let dark_blue = Some(Color::Rgb(0x6a, 0x8f, 0xd8));
+    assert_eq!(theme::md_link().fg, dark_blue);
+    assert_eq!(theme::md_url().fg, dark_blue);
+    assert!(theme::md_link().add_modifier.contains(Modifier::BOLD));
+    // 粗体原色加粗（和链接分开），行内代码淡橙（不再是那个亮蓝）。
+    assert_eq!(theme::md_bold().fg, Some(Color::Rgb(0xc0, 0xca, 0xf5)));
+    assert!(theme::md_bold().add_modifier.contains(Modifier::BOLD));
+    assert_eq!(theme::md_code().fg, Some(Color::Rgb(0xe5, 0xa0, 0x7a)));
 }
 
 #[test]
@@ -161,8 +181,8 @@ fn title_url_items_in_a_list_are_links_too() {
     assert_eq!(
         lines(text, 60),
         vec![
-            "• Rust 官网 （ https://www.rust-lang.org/ ）",
-            "• 裸的 https://a.com"
+            "▪ Rust 官网 （ https://www.rust-lang.org/ ）",
+            "▪ 裸的 https://a.com"
         ]
     );
     let item = &draw(text, 60)[0].folded;

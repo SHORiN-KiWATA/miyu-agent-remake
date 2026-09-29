@@ -273,9 +273,9 @@ fn an_undone_line_comes_back_selected_and_typing_replaces_it() {
     let mut i = input(40);
     i.put_back("说一句话就好");
     assert_eq!(selected(&i), Some("说一句话就好"));
-    // 直接打 /redo：替换掉那句，不拼在后面。
-    i.paste("/redo");
-    assert_eq!(i.editor.text(), "/redo");
+    // 直接打 /restore：替换掉那句，不拼在后面。
+    i.paste("/restore");
+    assert_eq!(i.editor.text(), "/restore");
     // 框里已经有字的不动。
     let mut busy = input(40);
     busy.paste("草稿");
@@ -284,7 +284,7 @@ fn an_undone_line_comes_back_selected_and_typing_replaces_it() {
 }
 
 #[test]
-fn redo_takes_back_the_line_only_if_untouched() {
+fn restore_takes_back_the_line_only_if_untouched() {
     let mut i = input(40);
     i.put_back("说一句话就好");
     i.take_back();
@@ -308,7 +308,10 @@ fn picking_from_history_keeps_what_was_in_the_box() {
     // 暂存里已经有字了：原来的字记进输入历史，不丢。
     i.editor.set("又写了一句");
     i.pick("跑一下测试");
-    assert_eq!(i.sent().last().map(String::as_str), Some("又写了一句"));
+    assert_eq!(
+        i.sent().last().map(|s| s.draft.text.as_str()),
+        Some("又写了一句")
+    );
 }
 
 #[test]

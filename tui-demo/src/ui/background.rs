@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::{Modifier, Style};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Clear, Paragraph};
 use unicode_width::UnicodeWidthStr;
@@ -32,7 +32,7 @@ pub fn lines(
     }
 }
 
-/// 后台面板：横线、标题、在跑几条、空行、每条一行（点开的下面铺底色写输出）、空行、按键提示。
+/// 后台面板：标题横线（`── 后台 · 在跑几条 ──`）、空行、每条一行（点开的下面铺底色写输出）、空行、按键提示。
 fn background(
     board: &Board,
     selected: usize,
@@ -42,14 +42,12 @@ fn background(
     now: Instant,
 ) -> (Vec<Line<'static>>, Vec<Option<usize>>) {
     let words = &config.text.jobs;
-    let accent = theme::accent();
     let count = board.shells_running().to_string();
-    let mut out = vec![
-        Line::styled("─".repeat(usize::from(width)), accent),
-        Line::styled(words.title.clone(), accent.add_modifier(Modifier::BOLD)),
-        Line::styled(words.active.replace("{count}", &count), theme::dim()),
-        Line::raw(""),
+    let meta = vec![
+        Span::styled(" · ", theme::dim()),
+        Span::styled(words.active.replace("{count}", &count), theme::dim()),
     ];
+    let mut out = super::panel::head(&words.title, meta, width);
     let mut map = vec![None; out.len()];
     for (i, job) in board.shells().into_iter().enumerate() {
         let (state, state_style) = state(job, config, now);
@@ -160,23 +158,28 @@ mod tests {
         });
         let (lines, map) = lines(panel, &board, &config, 70, t0 + Duration::from_secs(12));
         let text: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
-        assert!(text[0].starts_with('─'), "顶上一条横线");
-        assert_eq!(text[1], "后台");
-        assert_eq!(text[2], "1 个在跑的命令");
+        // 标题写在横线上（2026-09-29 项目主人）。
         assert!(
-            text[4].starts_with("❯ npm run build"),
-            "在跑的在前、选中的带 ❯：{}",
-            text[4]
+            text[0].starts_with("── 后台 · 1 个在跑的命令 ─"),
+            "{}",
+            text[0]
         );
-        assert!(text[4].ends_with("（运行中 12s）"));
-        assert!(text[5].starts_with("  cargo test"), "结束了的在后");
-        assert!(text[5].ends_with("（已停止）"));
-        assert_eq!(lines[4].spans[0].style, theme::picked());
+        assert_eq!(lines[0].width(), 70, "横线铺满");
+        assert_eq!(text[1], "");
+        assert!(
+            text[2].starts_with("❯ npm run build"),
+            "在跑的在前、选中的带 ❯：{}",
+            text[2]
+        );
+        assert!(text[2].ends_with("（运行中 12s）"));
+        assert!(text[3].starts_with("  cargo test"), "结束了的在后");
+        assert!(text[3].ends_with("（已停止）"));
+        assert_eq!(lines[2].spans[0].style, theme::picked());
         assert_eq!(
             text.last().unwrap(),
             "↑/↓ 选 · Enter 展开 · x 停止 · Esc 关闭"
         );
-        assert_eq!(map[4..6], [Some(0), Some(1)], "点哪一行点中哪一条");
+        assert_eq!(map[2..4], [Some(0), Some(1)], "点哪一行点中哪一条");
     }
 
     #[test]
@@ -195,17 +198,17 @@ mod tests {
             .map(|l| l.to_string().trim_end().to_string())
             .collect();
         let out = &board.shells()[0].output;
-        assert_eq!(text[5], "", "点开的下面先空一行");
-        assert_eq!(text[6], format!("  {}", out[0]), "输出缩进两格");
-        assert_eq!(text[5 + out.len() + 1], "");
+        assert_eq!(text[3], "", "点开的下面先空一行");
+        assert_eq!(text[4], format!("  {}", out[0]), "输出缩进两格");
+        assert_eq!(text[3 + out.len() + 1], "");
         assert!(
-            text[5 + out.len() + 2].starts_with("  cargo test"),
+            text[3 + out.len() + 2].starts_with("  cargo test"),
             "下一条接着"
         );
-        assert_eq!(lines[6].style, theme::shade(), "铺底色");
-        assert_eq!(lines[6].width(), 70, "铺满宽度");
+        assert_eq!(lines[4].style, theme::shade(), "铺底色");
+        assert_eq!(lines[4].width(), 70, "铺满宽度");
         assert!(
-            map[5..5 + out.len() + 2].iter().all(|m| *m == Some(0)),
+            map[3..3 + out.len() + 2].iter().all(|m| *m == Some(0)),
             "点开的那一块都算这一条"
         );
     }

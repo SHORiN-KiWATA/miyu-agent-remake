@@ -230,7 +230,7 @@ fn a_reverted_turn_hides_and_comes_back() {
 }
 
 #[test]
-fn undo_is_one_line_with_the_full_prompt_and_redo_removes_it() {
+fn undo_is_one_line_with_the_full_prompt_and_restore_removes_it() {
     let mut t = Transcript::default();
     let texts = Config::builtin().unwrap().text;
     t.user("第一行\n第二行".into(), Vec::new());
@@ -250,7 +250,7 @@ fn undo_is_one_line_with_the_full_prompt_and_redo_removes_it() {
     };
     t.update(
         Update::Undone {
-            redo: false,
+            restore: false,
             report,
         },
         &texts,
@@ -261,7 +261,7 @@ fn undo_is_one_line_with_the_full_prompt_and_redo_removes_it() {
     apply(&mut t, vec![Push::Unreverted(vec![7])]);
     t.update(
         Update::Undone {
-            redo: true,
+            restore: true,
             report: Default::default(),
         },
         &texts,

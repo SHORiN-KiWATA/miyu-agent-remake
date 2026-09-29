@@ -117,7 +117,8 @@ impl App {
         use ratatui::crossterm::event::MouseButton;
         let found = self.history.matches(self.input.sent());
         let width = self.areas.menu.width;
-        let rows = crate::ui::history_lines(&self.history, &found, width, &self.config);
+        let now = std::time::Instant::now();
+        let rows = crate::ui::history_lines(&self.history, &found, width, &self.config, now);
         let at = crate::ui::history_index_at(self.areas.menu, &rows, mouse.row);
         if let Some(index) = at {
             match mouse.kind {
@@ -136,9 +137,14 @@ impl App {
     pub(super) fn menu_mouse(&mut self, mouse: MouseEvent, matches: &[Spec]) -> Action {
         use ratatui::crossterm::event::{MouseButton, MouseEventKind};
         let rows = self.config.layout.menu_rows;
-        let top = crate::menu::window(self.menu.selected, matches.len(), rows);
-        let index = top + usize::from(mouse.row - self.areas.menu.y);
-        let Some(spec) = matches.get(index) else {
+        let at = crate::ui::menu_index_at(
+            self.areas.menu,
+            matches.len(),
+            self.menu.selected,
+            rows,
+            mouse.row,
+        );
+        let Some((index, spec)) = at.and_then(|i| Some((i, matches.get(i)?))) else {
             return Action::None;
         };
         match mouse.kind {

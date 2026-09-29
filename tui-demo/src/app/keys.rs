@@ -120,10 +120,10 @@ impl App {
             self.view.page(key.code == KeyCode::PageDown);
             return Action::None;
         }
-        // Ctrl+R：调出输入历史列表；恢复撤销只用 /redo（`tui.md`「按键」）。
+        // Ctrl+R：调出输入历史列表；恢复撤销只用 /restore（`tui.md`「按键」）。
         if ctrl && key.code == KeyCode::Char('r') {
             if self.input.sent().is_empty() {
-                self.hint(self.config.text.no_history.clone(), false);
+                self.hint(self.config.text.history.none.clone(), false);
             } else {
                 self.history.open();
             }
@@ -225,7 +225,7 @@ impl App {
             .history
             .matches(self.input.sent())
             .get(self.history.selected)
-            .map(|text| (*text).to_string());
+            .map(|sent| sent.draft.text.clone());
         self.history.close();
         if let Some(text) = picked {
             self.input.pick(&text);
