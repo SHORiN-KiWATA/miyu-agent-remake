@@ -38,7 +38,9 @@ impl Session {
     /// 次数的改成暂停。
     pub(super) fn before_asking(&self, request: &Request) -> Before {
         if self.paused() {
-            return self.overflow(request).map_or(Before::Send, Before::Refuse);
+            return self
+                .cannot_fit(request)
+                .map_or(Before::Send, Before::Refuse);
         }
         let Some((upto, used)) = self.compaction_due(request) else {
             return Before::Send;
@@ -56,6 +58,8 @@ impl Session {
                 upto,
                 used,
                 refills,
+                trigger: CompactTrigger::Auto,
+                instructions: None,
             }),
         }
     }
@@ -96,14 +100,19 @@ impl Session {
         vec![Action::Append(events)]
     }
 
-    /// 摘要请求失败、这一轮要出错结束了（第十条第 3、4 条）：连着数到了次数，交回要排在 `turn.ended` 前面的暂停。刚记下
-    /// 的那条 `model.called` 还没有 `turn.ended` 跟着，照一次算。现在的压缩都是自动的；手动压缩（6-8）的失败不数。
-    /// 暂停着不发摘要请求，走不到这里。
+    /// 一次压缩失败、这一轮要出错结束了（第十条第 3、4 条）：连着数到了次数，交回要排在 `turn.ended` 前面的暂停。刚记下
+    /// 的那条 `model.called` 还没有 `turn.ended` 跟着，照一次算。`trigger` 是失败的摘要请求是哪一种压缩：手动压缩的失败
+    /// 不数（施工 6-8：人就在跟前，看得到）；没有的是被动压完、重发的主请求还超长（施工 6-7），照算。自动的暂停着不发
+    /// 摘要请求，走不到这里；暂停着手动压缩失败的，不数，也就不会再写一次暂停。
     pub(super) fn after_failure(
         &mut self,
         at: Timestamp,
         cause: Option<CommandId>,
+        trigger: Option<&CompactTrigger>,
     ) -> Option<Event> {
+        if trigger.is_some_and(|trigger| !automatic(trigger)) {
+            return None;
+        }
         let pause = self.pause_numbers()?;
         let failures = self.failures().saturating_add(1);
         (failures >= pause.failures).then(|| {
@@ -117,7 +126,7 @@ impl Session {
     }
 
     /// 暂停着：最近一次压缩以后写下了 `context.compaction_paused`，不认识的原因也算。
-    fn paused(&self) -> bool {
+    pub(super) fn paused(&self) -> bool {
         self.since_compaction()
             .any(|event| matches!(event.body, Body::CompactionPaused(_)))
     }
@@ -132,12 +141,12 @@ impl Session {
     }
 
     /// 熔断的数；快照里没有的不熔断。
-    fn pause_numbers(&self) -> Option<Pause> {
+    pub(super) fn pause_numbers(&self) -> Option<Pause> {
         self.policy.compaction.as_ref()?.pause
     }
 
     /// 这份请求明知放不下：用量加输出预留超过窗口。没交限额、没有窗口的，不知道，照发。
-    fn overflow(&self, request: &Request) -> Option<CallError> {
+    fn cannot_fit(&self, request: &Request) -> Option<CallError> {
         let compaction = self.policy.compaction.as_ref()?;
         let limits = self.limits.as_ref()?;
         let window = limits.window?;
@@ -153,7 +162,7 @@ impl Session {
 
     /// 这一次压缩是不是压完很快又到线（第十条第 5 条）：上一个检查点所在的那一轮算第 1 个回合，这一轮在策略的
     /// `turns` 个以内的，是；交回连着的第几次（上一个检查点的加一）。不是的、没有检查点的、快照里没有熔断的数的，没有。
-    fn refills(&self) -> Option<u32> {
+    pub(super) fn refills(&self) -> Option<u32> {
         let pause = self.pause_numbers()?;
         let checkpoint = self.history.checkpoint()?;
         let Body::ContextCompacted(previous) = &checkpoint.body else {
@@ -176,7 +185,7 @@ impl Session {
     }
 
     /// 有效历史里检查点后面的，估得最大的那一条，照第一条第 2 条的数法；一样大的取早的。尾巴也算：它也在请求里。
-    fn largest(&self) -> Option<Seq> {
+    pub(super) fn largest(&self) -> Option<Seq> {
         let price = self.price()?;
         self.history
             .events()
@@ -186,9 +195,18 @@ impl Session {
     }
 
     /// 最近一次压缩以后，自动压缩失败、出错结束的回合有几个（第十条第 3 条）：`turn.ended` 是 `error`，前面最近的那条
-    /// `model.called` 是自动压缩的摘要请求、结果是出错。出错结束的两条路（请求出错、暂停着不发）都紧跟着记一条
+    /// `model.called` 是自动压缩的摘要请求、结果是出错；或者最近一次压缩是这一轮里的被动压缩，重发的主请求还是超长。出错结束的两条路（请求出错、暂停着不发）都紧跟着记一条
     /// `model.called`，最近的那条一定是这一轮的。
     fn failures(&self) -> u32 {
+        // 最近一次压缩是被动压缩的，它所在的那一轮：那一轮重发还超长，也算一次失败（施工 6-7）。
+        let passive = self
+            .history
+            .checkpoint()
+            .filter(|checkpoint| {
+                matches!(&checkpoint.body, Body::ContextCompacted(compacted)
+                    if compacted.trigger == Some(CompactTrigger::Overflow))
+            })
+            .and_then(|checkpoint| checkpoint.turn);
         let mut count = 0u32;
         let mut last: Option<&ModelCalled> = None;
         for event in self.since_compaction() {
@@ -196,7 +214,12 @@ impl Session {
                 Body::ModelCalled(called) => last = Some(called),
                 Body::TurnEnded(ended)
                     if ended.reason == EndReason::Error
-                        && last.is_some_and(failed_automatically) =>
+                        && last.is_some_and(|called| {
+                            failed_automatically(called)
+                                || (passive.is_some()
+                                    && event.turn == passive
+                                    && resent_too_long(called))
+                        }) =>
                 {
                     count = count.saturating_add(1);
                 }
@@ -210,6 +233,15 @@ impl Session {
 /// 自动的压缩：到线的、供应商报超长的。人要的不算。
 fn automatic(trigger: &CompactTrigger) -> bool {
     matches!(trigger, CompactTrigger::Auto | CompactTrigger::Overflow)
+}
+
+/// 这一次是主请求，报了超长（被动压缩以后重发的那一次，施工 6-7）。
+fn resent_too_long(called: &ModelCalled) -> bool {
+    called.compaction.is_none()
+        && called
+            .error
+            .as_ref()
+            .is_some_and(|error| error.class == ErrorClass::ContextTooLong)
 }
 
 /// 这一次是自动压缩的摘要请求，出错了。

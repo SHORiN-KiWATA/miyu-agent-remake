@@ -28,7 +28,9 @@
 //!   `watch/stopping.rs`）；
 //! - 压缩：交了限额、用量过了线，先发摘要请求，替代到的 N 照规矩；说完了写压缩，取不出摘要的出错收场；压完的
 //!   请求照检查点以后的（施工 6-2 上，`watch/compaction.rs`）；撤销能撤掉压缩：先读回日志，对不上的不理，恢复不读，
-//!   检查点换了取回原文（施工 6-9，`watch/undo.rs`、`random/undoing.rs`）。
+//!   检查点换了取回原文（施工 6-9，`watch/undo.rs`、`random/undoing.rs`）；
+//! - 手动压缩：照规矩收下或者拒绝；收下的单开一轮，不跑挂接点、不注入，只发摘要请求，写完压缩同一批结束；失败不数进
+//!   熔断；被重启打断的不接着干（施工 6-8，`watch/manual.rs`）。
 //!
 //! 每一步还照九条不变量查（`watch/invariants.rs`，`02-内核.md` 第九节「不变量怎么查」）。
 //!
@@ -63,7 +65,7 @@ use crate::origin::Model;
 use crate::raw::RawJson;
 use crate::tool::Access;
 use asking::{some_answer, some_question, some_reply, some_verdict};
-use compacting::{random_policy, some_limits, some_overflow};
+use compacting::{random_policy, some_compact, some_limits, some_overflow};
 use endings::some_ending;
 use kinds::InputKind;
 use paths::{EXPECTED_PATHS, LONG_PATHS};
@@ -79,7 +81,8 @@ const STEP_LIMIT: u32 = 2;
 
 impl Watch {
     /// 下一段增量：多半接着在路上的那次请求像样地往下说，偶尔乱来。工具调用的参数是一个
-    /// 空对象，一次写完。
+    /// 空对象，一次写完。新的一块三回里两回是工具调用；手动压缩那一轮只有摘要请求，倒过来，三回里一回（施工 6-8：
+    /// 摘要回复里调了工具的取不到摘要，不然难得压成）。
     fn some_delta(&mut self, rng: &mut Rng) -> Delta {
         if rng.below(if self.calm { 40 } else { 6 }) == 0 {
             return scrambled_delta(rng);
@@ -88,7 +91,11 @@ impl Watch {
             None => {
                 let index = self.next_block;
                 self.next_block += 1;
-                let tool = rng.below(3) > 0;
+                let roll = rng.below(3);
+                let tool = match self.manual_turn() {
+                    Some(_) => roll == 0,
+                    None => roll > 0,
+                };
                 self.open_block = Some((index, tool, false));
                 let kind = if tool {
                     let name = match self.writing {
@@ -394,6 +401,7 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let mut rereads = Rng(seed ^ 0x2E2E_AD00);
         let mut overflows = Rng(seed ^ 0x0F10_0D00);
         let mut readbacks = Rng(seed ^ 0x2EAD_BAC0);
+        let mut compacts = Rng(seed ^ 0xC0_4AC7);
         for _ in 0..300 {
             if watch.all_stored() && crashes.below(200) == 0 {
                 let planned = crashes.below(2) == 0;
@@ -419,6 +427,9 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
                 watch.feed(&mut session, input);
             }
             if let Some(input) = some_overflow(&mut overflows, &watch) {
+                watch.feed(&mut session, input);
+            }
+            if let Some(input) = some_compact(&mut compacts, &watch, &mut next_id) {
                 watch.feed(&mut session, input);
             }
             let input = some_input(&mut rng, &mut watch, &mut next_id);

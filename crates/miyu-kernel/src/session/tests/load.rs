@@ -294,6 +294,7 @@ fn a_checkpoint_with_reread_files_recalls_them_first() {
             upto: seq(2),
             summary: "S".to_string(),
             trigger: None,
+            instructions: None,
             notes: String::new(),
             restored: vec![crate::event::RestoredFile {
                 path: "main.rs".to_string(),

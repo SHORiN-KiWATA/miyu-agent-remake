@@ -5,7 +5,7 @@
 use std::collections::BTreeSet;
 
 use super::History;
-use crate::event::{Body, Event};
+use crate::event::{Body, ErrorClass, Event};
 use crate::id::{Seq, TurnId};
 use crate::origin::By;
 
@@ -53,7 +53,8 @@ impl History {
             if !event.turn.is_some_and(|turn| turns.contains(&turn)) {
                 continue;
             }
-            let Some(trigger) = self.find(started.trigger) else {
+            // 没有触发的（手动压缩单开的那一轮，施工 6-8）不拿别的。
+            let Some(trigger) = started.trigger.and_then(|trigger| self.find(trigger)) else {
                 continue;
             };
             if !matches!(trigger.body, Body::MessageUser(_)) {
@@ -74,7 +75,7 @@ impl History {
     }
 
     /// 回合 `turn` 结束时还排着队的消息：带着它的编号，它的请求一次都没看到过的 `message.user`。
-    /// 请求看到哪里，看它记下的 `model.called` 和回复里的 `seen`。
+    /// 请求看到哪里，看它记下的 `model.called`（暂停着没发出去的那一条不算）和回复里的 `seen`。
     fn left_queued(&self, turn: TurnId) -> impl Iterator<Item = &Event> {
         let in_turn = move |event: &&Event| event.turn == Some(turn);
         let heard = self
@@ -82,6 +83,15 @@ impl History {
             .iter()
             .filter(in_turn)
             .filter_map(|event| match &event.body {
+                // 暂停着明知放不下、没发出去的那一次不算（施工 6-6 上）：排着的话她没听到，由下一轮接过去。
+                Body::ModelCalled(called)
+                    if called
+                        .error
+                        .as_ref()
+                        .is_some_and(|error| error.class == ErrorClass::CompactionPaused) =>
+                {
+                    None
+                }
                 Body::ModelCalled(called) => Some(called.seen),
                 Body::MessageAssistant(reply) => Some(reply.seen),
                 _ => None,

@@ -7,6 +7,7 @@
 //! 空闲时发的第一条消息会开一个回合，所以它后面紧跟着三条：`turn.started` 和两块事实。
 
 mod approval;
+mod compact;
 mod difference;
 mod dirs;
 mod executor;

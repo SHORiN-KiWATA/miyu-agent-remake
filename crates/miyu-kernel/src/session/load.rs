@@ -51,6 +51,8 @@ struct Replay {
     last: Option<Seq>,
     /// 最后开的那个回合的 `cause`。
     opened: Option<CommandId>,
+    /// 最后开的那个回合有没有触发：没有的是手动压缩单开的那一轮（施工 6-8），被重启打断了也不接着干。
+    triggered: bool,
     /// 最后结束的那个回合。
     ended: Option<Ended>,
     /// 连着几轮是被有计划的重启打断的：数的是被打断、接着干、又被打断的那一串，别的回合开了就从头数。
@@ -73,6 +75,8 @@ struct Ended {
     cause: Option<CommandId>,
     /// 结束时还排着队的消息，照先后。
     queued: Vec<Seq>,
+    /// 这一轮有没有触发：没有的（手动压缩那一轮）不接着干（施工 6-8）。
+    triggered: bool,
 }
 
 impl Session {
@@ -159,6 +163,9 @@ impl Session {
                 compacted: false,
                 interrupting: None,
                 again: None,
+                passive: None,
+                overflowed: false,
+                manual: None,
             });
             let text = self.policy.tool_texts.restarted();
             let mut events: Vec<Event> = self
@@ -182,6 +189,7 @@ impl Session {
         match replay.ended {
             Some(ended)
                 if ended.reason == EndReason::Restarted
+                    && ended.triggered
                     && replay.restarts <= self.policy.resumes =>
             {
                 let trigger = ended.queued.last().copied().unwrap_or(ended.seq);
@@ -199,10 +207,10 @@ impl Session {
 impl Replay {
     /// 由 `trigger` 开的这一轮，是不是被重启打断以后接着干的那一轮：最后结束的那一轮是被有计划的
     /// 重启打断的，这一轮由那时排着队的最后一条触发，没有排着队的，由那条结束触发（[`Session::recover`]）。
-    fn resumes(&self, trigger: Seq) -> bool {
+    fn resumes(&self, trigger: Option<Seq>) -> bool {
         self.ended.as_ref().is_some_and(|ended| {
             ended.reason == EndReason::Restarted
-                && ended.queued.last().copied().unwrap_or(ended.seq) == trigger
+                && Some(ended.queued.last().copied().unwrap_or(ended.seq)) == trigger
         })
     }
 
@@ -220,6 +228,7 @@ impl Replay {
                     self.restarts = 0;
                 }
                 self.opened = event.cause.clone();
+                self.triggered = started.trigger.is_some();
                 self.causes.clear();
             }
             Body::MessageUser(_) => {
@@ -235,6 +244,7 @@ impl Replay {
                     reason: ended.reason.clone(),
                     cause: event.cause.clone(),
                     queued,
+                    triggered: self.triggered,
                 });
             }
             // 撤销过的不接着干：人已经动过它了。

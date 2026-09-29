@@ -43,7 +43,17 @@ impl Watch {
         }
         history.settle();
         let rebuilt = match Watch::is_summary(request) {
-            true => Listing.summarize(&history, seen, Watch::truncated(request)),
+            true => {
+                let instructions = self
+                    .manual_turn()
+                    .and_then(|manual| manual.instructions.clone());
+                Listing.summarize(
+                    &history,
+                    seen,
+                    Watch::truncated(request),
+                    instructions.as_deref(),
+                )
+            }
             false => Listing.assemble(&history),
         };
         assert_eq!(

@@ -7,6 +7,8 @@ mod breaker;
 mod compaction;
 mod done;
 mod isolate;
+mod manual;
+mod overflow;
 mod rebuild;
 mod retrying;
 mod shorten;

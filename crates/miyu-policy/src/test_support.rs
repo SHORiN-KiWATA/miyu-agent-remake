@@ -89,6 +89,12 @@ pub(crate) fn core() -> CoreTexts {
         compaction: Some(CompactionTexts {
             summarize_task: include_str!("../../../resources/core/compaction/summarize-task.txt")
                 .to_string(),
+            summarize_instructions: include_str!(
+                "../../../resources/core/compaction/summarize-instructions.txt"
+            )
+            .to_string(),
+            summarize_end: include_str!("../../../resources/core/compaction/summarize-end.txt")
+                .to_string(),
             rebuild: Some(crate::RebuildTexts {
                 notes_files: include_str!("../../../resources/core/compaction/notes-files.txt")
                     .to_string(),

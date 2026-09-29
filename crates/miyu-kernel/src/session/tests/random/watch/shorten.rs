@@ -6,6 +6,8 @@
 //! - 截过的压缩，代码写的几段最后是摘要没看到的那一段：从上一个检查点后面第一条到截到的那一条；没截过的没有；
 //! - 隔离式（施工 6-6 下）：只跟在调了工具、原话写着改走的那一次后面，替代到的、截到的都一样；一次压缩只改走一次，之后
 //!   截短再发的还是隔离式。
+//! - 出错再来（施工 6-6 补）：同一轮里没报超长、没改走、替代到的和上一次一样的，是出错到点再来，截到哪、是不是隔离式
+//!   和上一次一样，截的次数接着数；一轮结束，记着的那一次作废。
 
 use super::*;
 use crate::event::ContextCompacted;
@@ -72,6 +74,9 @@ impl Watch {
         let same = before.filter(|(upto, _, _)| *upto == seen);
         if self.shortenings.isolating.take() == Some(seen) && same.is_some() {
             self.seen_paths.insert("隔离式再发");
+            if self.manual_turn().is_some() {
+                self.seen_paths.insert("手动压缩改走隔离式");
+            }
             assert!(isolated, "种子 {seed}：调了工具，再发的不是隔离式");
             let (_, before_cut, tries) = same.unwrap_or((seen, None, 0));
             assert_eq!(cut, before_cut, "种子 {seed}：改走隔离式，截到的变了");
@@ -82,6 +87,21 @@ impl Watch {
         }
         let was_isolated = self.shortenings.isolated && same.is_some();
         let pending = self.shortenings.pending.take();
+        if let (None, Some((_, before_cut, tries))) = (pending, same) {
+            if before_cut.is_some() {
+                self.seen_paths.insert("出错再来照截过的发");
+            }
+            if was_isolated {
+                self.seen_paths.insert("出错再来还是隔离式");
+            }
+            assert_eq!(cut, before_cut, "种子 {seed}：出错再来，截到的变了");
+            assert_eq!(
+                isolated, was_isolated,
+                "种子 {seed}：出错再来，是不是隔离式变了"
+            );
+            self.shortenings.current = Some((seen, cut, tries));
+            return cut;
+        }
         let tries = match (cut, pending) {
             (Some(cut), Some((upto, before, tries))) if upto == seen => {
                 self.seen_paths.insert("截短了再发");
@@ -135,9 +155,8 @@ impl Watch {
         }
     }
 
-    /// 回合结束了：等着再发的作废。
+    /// 回合结束了：等着再发的、最近发的那一次都作废，下一轮同一个 N 的是新的一次压缩。
     pub(super) fn shorten_turn_ended(&mut self) {
-        self.shortenings.pending = None;
-        self.shortenings.isolating = None;
+        self.shortenings = Shortenings::default();
     }
 }

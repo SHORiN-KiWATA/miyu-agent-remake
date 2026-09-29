@@ -102,20 +102,22 @@ fn an_undo_that_changed_files_waits_for_them_before_replying() {
     let actions = logged.handle(stored(reverted));
     assert!(replies(&actions).is_empty(), "撤销落了盘也还不回应");
     assert!(!logged.session.idle(), "改回文件的时候不算空闲");
-    // 改回文件的时候来的命令：拒绝。
-    let actions = logged.handle(send(10, "hi"));
-    assert!(
-        matches!(
-            actions.as_slice(),
-            [Action::Reply {
-                outcome: Outcome::Rejected {
-                    reason: Reason::Restoring
-                },
-                ..
-            }]
-        ),
-        "{actions:?}"
-    );
+    // 改回文件的时候来的命令：拒绝，手动压缩也一样（施工 6-8）。
+    for command in [send(10, "hi"), super::compact::compact(11, None)] {
+        let actions = logged.handle(command);
+        assert!(
+            matches!(
+                actions.as_slice(),
+                [Action::Reply {
+                    outcome: Outcome::Rejected {
+                        reason: Reason::Restoring
+                    },
+                    ..
+                }]
+            ),
+            "{actions:?}"
+        );
+    }
     let actions = logged.handle(done(&steps));
     let events = appended_events(&actions);
     assert_eq!(events.len(), 1);

@@ -1,12 +1,13 @@
 //! `miyu ask`（`docs/designs/22-命令行.md` 第三节，施工 3-9 下）：连上核心（没在跑就拉起来），开一个一次性
 //! 会话，或者接着说；把一句话发给她，边收边打，她做的每一步印成一行（施工 4-5 下）；问完印一行用量。
 
-mod follow;
+pub(crate) mod follow;
 mod steps;
 mod talk;
 mod usage;
 
 pub use talk::talk;
+pub(crate) use talk::{Watching, follow_turn};
 pub(crate) use usage::Sum;
 
 /// 问完那一行用量，例如 `· 输入 1,830 · 命中缓存 1,792（98%）· 输出 12`。
@@ -247,8 +248,8 @@ fn human(env: &Env, language: &Language) -> Human {
         .unwrap_or_default()
 }
 
-/// Ctrl+C 一次送一个。装不上的就没有。
-fn presses() -> mpsc::Receiver<()> {
+/// Ctrl+C 一次送一个。装不上的就没有。`miyu compact` 也用（施工 6-8）。
+pub(crate) fn presses() -> mpsc::Receiver<()> {
     let (press, presses) = mpsc::channel(4);
     tokio::spawn(async move {
         while tokio::signal::ctrl_c().await.is_ok() {

@@ -73,7 +73,7 @@
 
 | 格 | 写法 | 有没有 | 是什么 |
 |---|---|---|---|
-| `trigger` | 序号 | 必有 | 引起这一轮的那条事件：人发来的消息；排着队接着开的，是最后一条排着队的消息；重启以后接着干的，是那时排着队的最后一条，没有排着队的就是那条 `turn.ended`（`kernel/session.md`）。是什么引起的，看那条事件的种类 |
+| `trigger` | 序号 | 可以没有 | 引起这一轮的那条事件：人发来的消息；排着队接着开的，是最后一条排着队的消息；重启以后接着干的，是那时排着队的最后一条，没有排着队的就是那条 `turn.ended`（`kernel/session.md`）。是什么引起的，看那条事件的种类。人要的压缩单开的那一轮不是哪一条引起的，没有（`compaction.md` 第七条，施工 6-8）；以前的日志里都有 |
 | `cwd` | 字符串 | 可以没有 | 这一轮开始时会话的工作目录，照会话的环境，人看到的那种写法（施工 4-9 再补三上）。之前的日志没有。核心重启以后载入会话，照它找回工作目录（`protocol.md`） |
 | `dirs` | 字符串的数组 | 可以没有 | 这一轮加进来的目录，照头报的原样（施工 5-10 上）。没有加进来的目录就不写，所以原来的日志一个字节不变 |
 
@@ -262,7 +262,8 @@
 |---|---|---|---|
 | `upto` | 序号 | 必有 | 检查点替代到哪个序号为止，这一条也替代掉。之后的事件照常排在检查点后面 |
 | `summary` | 字符串 | 必有 | 摘要的正文，模型写的，草稿已经剥掉，内核不解读 |
-| `trigger` | `auto`、`manual`、`overflow` | 可以没有 | 为什么压：到线了、人要的、供应商报超长。以前的日志里没有，当作 `auto`；不认识的原样留着。现在内核只写 `auto`（施工 6-2 上） |
+| `trigger` | `auto`、`manual`、`overflow` | 可以没有 | 为什么压：到线了、人要的、供应商报超长。以前的日志里没有，当作 `auto`；不认识的原样留着。现在内核写 `auto`（施工 6-2 上）、`manual`（施工 6-8） |
+| `instructions` | 字符串 | 可以没有 | 手动压缩时人附的要求，原样；没附的、只有空白的没有（`compaction.md` 第七条第 3 条，施工 6-8） |
 | `notes` | 字符串 | 可以没有，没有就是空的 | 代码写的几段：读过、改过的文件清单，取回指路，太大没重读的（`compaction.md` 第八条）。写的时候拼好，以后逐字节回放（施工 6-5） |
 | `restored` | 数组 | 可以没有，没有就是空的 | 压后重读的文件，照渲染的先后，一个一项：`path` 照清单的写法、`blob` 原文的哈希、`tokens` 估出来的（施工 6-5） |
 | `refills` | 整数 | 可以没有 | 压完很快又到线，连着的第几次；不是的没有（`compaction.md` 第十条第 5 条，施工 6-6 上） |
@@ -327,20 +328,20 @@
 2. 「不写是假」「空的不写」的格写成 `null`，读不进来：只有「可以没有」的格（和 `file.changed` 的 `before`）把 `null` 当没有（照 serde 的读法推的，没有测试证实）。
 3. 空的列表格式上读得进来。空的撤销、撤回的列表，账本不收；空的消息，发的时候就拒绝（`kernel/history.md`、`kernel/session.md`）。
 4. 回答对不对得上题目（`fits`）：几道题几条；选的都是那道题选项的标题；同一条里不重复；不能多选的至多选一项。自己写的不查。对不上的回答，收命令时就拒绝，写不进日志（`kernel/asking.md`）。
-5. `turn.started`、`message.assistant`、`tool.result` 这些种类之间怎么对得上（`trigger` 在前、`seen` 在前、调用编号接得上、结果对得上一个还在等的调用），追加时由账本查（`kernel/history.md`）。
+5. `turn.started`、`message.assistant`、`tool.result` 这些种类之间怎么对得上（有 `trigger` 的 `trigger` 在前、`seen` 在前、调用编号接得上、结果对得上一个还在等的调用），追加时由账本查（`kernel/history.md`）。
 
 ### 守着它的
 
 | 测试 | 守哪几种 |
 |---|---|
 | `crates/miyu-kernel/src/event/session/tests.rs` | 会话的三种：图纸上的写法、一次性的写与不写、每一级读成自己那一种、不认识的级别原样留着、权限两格都要写、坏的说是哪一种 |
-| `crates/miyu-kernel/src/event/turn/tests.rs` | 回合的四种：图纸上的写法、每种结束原因、不认识的原样留着、坏的说是哪一种 |
+| `crates/miyu-kernel/src/event/turn/tests.rs` | 回合的四种：图纸上的写法、没有 `trigger` 的不写这一格（施工 6-8）、每种结束原因、不认识的原样留着、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/restore/tests.rs` | `files.restored` 的每一格读写一字不差；新的 `action`、`outcome` 原样留着 |
 | `crates/miyu-kernel/src/event/message/tests.rs` | `message.assistant` 图纸上的写法、`seen` 必有、`interrupted` 只在是真时写；`message.withdrawn` 的写法和序号从 1 起 |
 | `crates/miyu-kernel/src/event/tool/tests.rs` | `tool.result` 的五种状态、不认识的原样留着、没真执行过的没有用时、说法怎么记；确认的两种：每种决定、没写规则、说明、理由的不写这几格；坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/effect/tests.rs` | 三种效果读写一字不差；没显示行的不写 `lines`；新建的 `before` 写成 `null`、没写的当新建；不认识的原样留着；坏的读不进来 |
 | `crates/miyu-kernel/src/event/question/tests.rs` | 提问的两种：图纸上的写法、没写的格子不写、第 4 条对不对得上题目、坏的说是哪一种 |
-| `crates/miyu-kernel/src/event/context/tests.rs` | 上下文的两种：图纸上的写法、坏的说是哪一种 |
+| `crates/miyu-kernel/src/event/context/tests.rs` | 上下文的几种：图纸上的写法、手动压缩带着要求（施工 6-8）、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/model/tests.rs` | `model.called` 图纸上的写法；没发出去就失败的只有知道的几格；每种出错的分类；第一处不同的写法 |
 | `crates/miyu-kernel/tests/samples.rs` | 每一种的样本读写一字不差 |
 | `crates/miyu-kernel/tests/resources.rs` 的 `the_sample_denial_is_the_sentence_with_the_reason` | 样本里 71 号被人拒绝的结果，就是资源里带理由的那一句 |

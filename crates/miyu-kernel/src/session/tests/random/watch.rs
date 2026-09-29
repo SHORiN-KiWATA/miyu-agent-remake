@@ -12,7 +12,9 @@ mod compaction;
 mod invariants;
 mod load;
 mod lookup;
+mod manual;
 mod model;
+mod overflow;
 mod permission;
 mod question;
 mod queue;
@@ -87,8 +89,9 @@ pub(super) struct Watch {
     pub(super) stopping: stopping::Stopping,
     /// 压缩：交过的摘要请求、在路上的那次、最近一次替代到哪（施工 6-2 上）。
     compactions: compaction::Compactions,
-    /// 截短重试（施工 6-6 中）。
+    /// 截短重试（施工 6-6 中）、被动压缩（施工 6-7）。
     shortenings: shorten::Shortenings,
+    passives: overflow::Passives,
 }
 
 impl Watch {
@@ -133,6 +136,7 @@ impl Watch {
             stopping: stopping::Stopping::default(),
             compactions: compaction::Compactions::default(),
             shortenings: shorten::Shortenings::default(),
+            passives: overflow::Passives::default(),
         }
     }
 
@@ -173,6 +177,7 @@ impl Watch {
         let undone = self.before_undo(&input).filter(|_| !refused);
         let reverting = undone.as_ref().and_then(undo::Expect::turns);
         let restore = self.before_restore(&input);
+        let compact = self.before_compact(&input).filter(|_| !refused);
         let stop = self.before_stop(&input);
         let fresh_interrupt = match &input {
             Input::Command(command) if !refused => match command.command {
@@ -221,6 +226,7 @@ impl Watch {
         self.after_question(&actions, replied);
         self.after_undo(&actions, undone);
         self.after_restore(&actions, restore);
+        self.after_compact(&actions, compact);
         self.restore_matches(&actions, reverting);
         for action in actions {
             self.check(action);
@@ -254,16 +260,7 @@ impl Watch {
                 *self.replied.entry(id.clone()).or_default() += 1;
                 self.replied_at_most_received(&id);
             }
-            Action::RunTurnStartHooks { turn } => {
-                assert!(
-                    self.opening(turn).all(|event| self.pushed.contains(&event)),
-                    "种子 {seed}：回合 {turn} 的开头还没落盘就跑挂接点"
-                );
-                assert!(
-                    self.hooked.insert(turn),
-                    "种子 {seed}：回合 {turn} 叫了两次"
-                );
-            }
+            Action::RunTurnStartHooks { turn } => self.start_hooks(turn),
             Action::CallModel { seen, request, .. } => self.called(seen, &request),
             Action::Wake { seen, .. } => self.wake_asked(seen),
             Action::PushTransient(transient) => self.transient(&transient),
@@ -337,7 +334,7 @@ impl Watch {
             true => self.undo_summary(),
             false => self.undo_request(seen),
         }
-        self.permission_request();
+        self.manual_request(request);
         self.issued.insert(seen);
         self.sent.remove(&seen);
         self.asking = Some(seen);
@@ -373,7 +370,7 @@ impl Watch {
     /// 推给头的：增量是在路上的那次请求的；工具的输出是在跑的调用的。
     fn transient(&mut self, transient: &Transient) {
         let seed = self.seed;
-        assert_eq!(transient.turn, Some(self.open_turn()));
+        self.transient_turn(transient);
         match &transient.body {
             TransientBody::ModelDelta(delta) => {
                 self.seen_paths.insert("推了增量");
@@ -399,7 +396,7 @@ impl Watch {
             }
             TransientBody::Status(status) => self.retry_status(status),
             TransientBody::CompactionProgress(progress) => self.compaction_progress(progress),
-            TransientBody::CompactionDone(done) => self.compaction_done(done),
+            TransientBody::CompactionDone(done) => self.compaction_done(transient.turn, done),
         }
     }
 
@@ -474,8 +471,9 @@ impl Watch {
                 Body::TurnEnded(ended) => {
                     self.main_request_sent();
                     self.shorten_turn_ended();
+                    self.passive_turn_ended();
                     self.all_resulted(self.open_turn());
-                    self.note_ended(event, &ended.reason);
+                    self.note_ended(event, &ended.reason, self.manual_turn().is_none());
                     self.retry_ended();
                     self.stop_ended(&ended.reason);
                 }

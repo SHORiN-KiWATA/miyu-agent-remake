@@ -1,8 +1,9 @@
 //! 账本的测试：一段合规的会话从头追加到尾；02 第九节表里的每一条规矩各有被拦下的例子，
-//! 被拦下时报错说清是哪一条，账本不变。撤销与恢复的在 `tests/undo.rs`。
+//! 被拦下时报错说清是哪一条，账本不变。撤销与恢复的在 `tests/undo.rs`，没有触发的回合在 `tests/manual.rs`。
 
 use super::*;
 
+mod manual;
 mod undo;
 
 const CREATED: &str = r#"{"owner":"alice","venue":"local","policy":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","permission":{"level":"workspace","read_only":false}}"#;

@@ -298,3 +298,49 @@ fn the_isolated_system_line_goes_in_and_older_snapshots_lack_it() {
     assert!(!read.policy().unwrap().compaction.unwrap().isolate);
     assert_eq!(read.to_bytes(), older.as_bytes());
 }
+
+/// 摘要指令拆成三份（施工 6-8）：出厂的快照带着正文、要求前面那一行、最后那一句；以前造的快照只有整份的正文，另两份读成
+/// 空的，读进来再写出去一字不差，拼出来的摘要请求和出厂的一字不差。
+#[test]
+fn the_summary_instruction_is_split_and_older_snapshots_read_whole() {
+    let snapshot = engineer();
+    let texts = snapshot.core.compaction.as_ref().unwrap();
+    assert_eq!(texts.summarize_instructions, "\nAdditional Instructions:\n");
+    assert!(
+        texts
+            .summarize_end
+            .starts_with("\nReply with the <analysis> block")
+    );
+    let json = |text: &str| serde_json::to_string(text).unwrap();
+    let text = String::from_utf8(snapshot.to_bytes()).unwrap();
+    let split = format!(
+        r#""summarize_task":{},"summarize_instructions":{},"summarize_end":{}"#,
+        json(&texts.summarize_task),
+        json(&texts.summarize_instructions),
+        json(&texts.summarize_end)
+    );
+    assert!(text.contains(&split), "{text}");
+    let whole = format!("{}{}", texts.summarize_task, texts.summarize_end);
+    let older = text.replace(&split, &format!(r#""summarize_task":{}"#, json(&whole)));
+    assert_ne!(older, text);
+    let read = Snapshot::from_bytes(older.as_bytes()).unwrap();
+    let old_texts = read.core.compaction.as_ref().unwrap();
+    assert_eq!(old_texts.summarize_instructions, "");
+    assert_eq!(old_texts.summarize_end, "");
+    assert_eq!(read.to_bytes(), older.as_bytes(), "读进来再写出去一字不差");
+    let history = miyu_kernel::history::History::default();
+    let upto = miyu_kernel::id::Seq::new(1).unwrap();
+    let summarize = |snapshot: &Snapshot| {
+        snapshot
+            .policy()
+            .unwrap()
+            .assembler
+            .summarize(&history, upto, None, None)
+            .messages
+    };
+    assert_eq!(
+        summarize(&read),
+        summarize(&snapshot),
+        "没附要求的，拼出来一字不差"
+    );
+}

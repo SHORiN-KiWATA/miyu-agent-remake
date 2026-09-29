@@ -15,8 +15,8 @@ use std::path::PathBuf;
 
 use miyu_kernel::accumulate::{Accumulator, Delta, Kind};
 use miyu_kernel::event::{
-    Body, CompactionDone, CompactionProgress, ErrorClass, Event, ModelDelta, Piece, Retry, Status,
-    ToolProgress, Transient, TransientBody, Usage,
+    Body, CompactTrigger, CompactionDone, CompactionProgress, ErrorClass, Event, ModelDelta, Piece,
+    Retry, Status, ToolProgress, Transient, TransientBody, Usage,
 };
 use miyu_kernel::id::{CallId, CommandId, ModelName, ProviderId, Seq, TurnId};
 use miyu_kernel::origin::{By, Model, Tool};
@@ -203,6 +203,7 @@ fn the_compaction_done_sample_is_written_exactly() {
         cause: Some(CommandId::parse("cmd-b5e2").expect("命令编号合写法")),
         body: TransientBody::CompactionDone(CompactionDone {
             seen: Seq::new(53).expect("53 是合法的序号"),
+            trigger: CompactTrigger::Auto,
             before: 812_345,
             after: 31_020,
             usage: Some(Usage {

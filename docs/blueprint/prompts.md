@@ -45,14 +45,14 @@ Carry on from where the summary leaves off, without redoing work it records as d
 </conversation-checkpoint>
 ```
 
-### 摘要请求的最后一块，人这边
+### 摘要请求的最后一块，人这边：摘要指令的正文
 
 #### `core/compaction/summarize-task.txt`
 
-- 什么时候加进来：用量过了压缩线，发主请求之前先发的摘要请求；只在那一次请求里，之后的请求不带
-- token：443
-- 为什么加：请她先起草再写九节的摘要，只许输出文字（施工 6-2 上）：照 Claude Code 的压缩提示词（「压到某一条为止」那一版）用自己的话改写，删了只对它自己有用的几句，加了一句只有 user 角色的才算用户说的话
-- 指纹：`cea9ed35`
+- 什么时候加进来：用量过了压缩线，发主请求之前先发的摘要请求；人要的手动压缩（施工 6-8）；只在那一次请求里，之后的请求不带
+- token：420（2026-09-29 照项目主人给的端点量）
+- 为什么加：请她先起草再写九节的摘要，只许输出文字（施工 6-2 上）：照 Claude Code 的压缩提示词（「压到某一条为止」那一版）用自己的话改写，删了只对它自己有用的几句，加了一句只有 user 角色的才算用户说的话。施工 6-8 把最后那一句拆进 `summarize-end.txt`，字节没改：正文接结尾和原来的整份一字不差
+- 指纹：`30b7443f`
 
 ```text
 Respond with text only. Do not call any tool: a tool call is rejected and this request is wasted.
@@ -78,6 +78,32 @@ Then write the summary in <summary> tags, with these sections:
 7. Pending Tasks: tasks you were explicitly asked to do and have not finished.
 8. Current Work: exactly what was being worked on right before this request, with file names and snippets.
 9. Optional Next Step: the next step, only if it follows directly from the user's latest explicit request and the current work. Quote the latest messages verbatim to show where you left off. If the last task is done, list no step unless the user asked for one.
+```
+
+### 摘要指令里，正文和最后一句中间
+
+#### `core/compaction/summarize-instructions.txt`
+
+- 什么时候加进来：手动压缩附了要求的那一次摘要请求（施工 6-8）
+- token：4（2026-09-29 照项目主人给的端点量）
+- 为什么加：人附的要求前面那一行 `Additional Instructions:`，照 Claude Code 的写法：她分得清哪几句是人另外交代的（`compaction.md` 第七条第 3 条）
+- 指纹：`88a1de17`
+
+```text
+
+Additional Instructions:
+```
+
+### 摘要指令的最后一句
+
+#### `core/compaction/summarize-end.txt`
+
+- 什么时候加进来：每一次摘要请求
+- token：25（2026-09-29 照项目主人给的端点量）
+- 为什么加：只回草稿和摘要、不许调工具：施工 6-8 从 `summarize-task.txt` 拆出来（字节没改），好让手动压缩附的要求夹在它前面，最后一句还是提醒不许调工具（照 Claude Code）
+- 指纹：`61d51849`
+
+```text
 
 Reply with the <analysis> block and then the <summary> block, nothing else. Do not call any tool.
 ```

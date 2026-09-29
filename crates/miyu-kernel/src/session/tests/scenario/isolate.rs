@@ -137,6 +137,39 @@ fn it_goes_isolated_only_once() {
 }
 
 #[test]
+fn an_isolated_request_asked_again_after_an_error_stays_isolated() {
+    let mut stage = isolating(true, None);
+    one_turn_then_line(&mut stage);
+    // 隔离式的那次出错、到点再来：还是隔离式；再调工具算失败，不再改走一次（施工 6-6 补）。
+    stage.model([
+        calls_a_tool(),
+        Line::fails(ErrorClass::Retryable, "503 Service Unavailable"),
+        calls_a_tool(),
+    ]);
+    stage.say("再说");
+    assert_eq!(
+        summaries(&stage)
+            .iter()
+            .map(|(seen, isolated, _)| (*seen, *isolated))
+            .collect::<Vec<_>>(),
+        [(8, false), (8, true), (8, true)]
+    );
+    assert_eq!(
+        summary_calls(&stage).last(),
+        Some(&(
+            CallResult::Error,
+            Some("the summary reply called a tool".to_string())
+        ))
+    );
+    assert!(
+        story(&stage)
+            .last()
+            .is_some_and(|line| line.contains("turn.ended:error")),
+        "隔离式也调了工具，这一轮出错结束"
+    );
+}
+
+#[test]
 fn without_the_system_line_in_the_snapshot_a_tool_call_just_fails() {
     let mut stage = isolating(false, None);
     one_turn_then_line(&mut stage);

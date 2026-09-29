@@ -109,8 +109,15 @@ pub struct CoreTexts {
 /// 压缩的几句（施工 6-2 上）。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompactionTexts {
-    /// 摘要指令（`summarize-task.txt`）。
+    /// 摘要指令的正文（`summarize-task.txt`）。
     pub summarize_task: String,
+    /// 手动压缩附了要求的，要求前面那一行（`summarize-instructions.txt`，施工 6-8）。以前造的快照里没有，读成空的。
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub summarize_instructions: String,
+    /// 摘要指令的最后一句（`summarize-end.txt`，施工 6-8 从正文里拆出来）。以前造的快照里没有，读成空的：那时的正文里
+    /// 本来就带着这一句，拼出来一字不差。
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub summarize_end: String,
     /// 压后重建的字（施工 6-5）。以前造的快照里没有，读成没有：不写那几段、不重读。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rebuild: Option<RebuildTexts>,
@@ -321,6 +328,16 @@ impl Snapshot {
                 .map(|shorten| shorten.truncated.clone())
                 .unwrap_or_default(),
             summarize_system: self.summarize_system().unwrap_or_default().to_string(),
+            summarize_instructions: core
+                .compaction
+                .as_ref()
+                .map(|compaction| compaction.summarize_instructions.clone())
+                .unwrap_or_default(),
+            summarize_end: core
+                .compaction
+                .as_ref()
+                .map(|compaction| compaction.summarize_end.clone())
+                .unwrap_or_default(),
         };
         let (face, rules) = tools::split(&self.tools)?;
         let stable = Stable {

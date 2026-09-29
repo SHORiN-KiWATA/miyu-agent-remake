@@ -11,7 +11,7 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 
 use miyu_cli::language::Language;
-use miyu_cli::{Format, Plan, Screen, Target, UndoPlan, talk, undo_on};
+use miyu_cli::{CompactPlan, Format, Plan, Screen, Target, UndoPlan, compact_on, talk, undo_on};
 use miyu_endpoint::Core;
 use miyu_ipc::Dirs;
 use miyu_kernel::event::{Body, Event};
@@ -100,6 +100,36 @@ impl Home {
         let code = within(
             "撤完",
             undo_on(connection, &token, plan, &mut out, &mut err),
+        )
+        .await;
+        Asked {
+            code,
+            out: tape.text(|err| !err),
+            err: tape.text(|err| err),
+            screen: tape.text(|_| true),
+        }
+    }
+
+    /// 在真的套接字上连上核心，照 `plan` 手动压缩一次（施工 6-8），不按 Ctrl+C。
+    pub async fn compact(&self, plan: &CompactPlan) -> Asked {
+        let (_press, presses) = mpsc::channel(1);
+        self.compact_with(plan, presses).await
+    }
+
+    /// 同 [`Home::compact`]，`presses` 是 Ctrl+C。
+    pub async fn compact_with(&self, plan: &CompactPlan, presses: mpsc::Receiver<()>) -> Asked {
+        let (connection, token) = miyu_ipc::connect(&self.root).await.expect("连得上");
+        let tape = Tape::default();
+        let (mut out, mut err) = (tape.pen(false), tape.pen(true));
+        let mut screen = Screen {
+            out: &mut out,
+            err: &mut err,
+            gray: false,
+            live: false,
+        };
+        let code = within(
+            "压完",
+            compact_on(connection, &token, plan, &mut screen, presses),
         )
         .await;
         Asked {

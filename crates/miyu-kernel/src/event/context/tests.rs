@@ -128,3 +128,18 @@ fn broken_context_bodies_say_which_kind() {
         rejected::<Event>(&line, &format!("body of {kind} not readable"));
     }
 }
+
+/// 手动压缩时人附的要求（施工 6-8）：原样写、原样读回来，排在 `trigger` 后面。
+#[test]
+fn the_instructions_of_a_manual_compaction_are_written_and_read_back() {
+    let body = r#"{"upto":53,"summary":"S","trigger":"manual","instructions":"keep the \"plan\"\n重点保留"}"#;
+    let Body::ContextCompacted(compacted) = read_body("context.compacted", body) else {
+        panic!("{body}");
+    };
+    assert_eq!(compacted.trigger, Some(CompactTrigger::Manual));
+    assert_eq!(
+        compacted.instructions.as_deref(),
+        Some("keep the \"plan\"\n重点保留")
+    );
+    assert_eq!(serde_json::to_string(&compacted).unwrap(), body);
+}

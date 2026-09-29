@@ -28,8 +28,15 @@ impl Assembler for Listing {
     }
 
     /// 截到第 `upto` 条的清单，最后一条写着「summarize」。截短重试的（施工 6-6 中）：只列第 `cut` 条以后的，最前面一条
-    /// 写着「truncated after <cut>」，看守照它重建。
-    fn summarize(&self, history: &History, upto: Seq, cut: Option<Seq>) -> Request {
+    /// 写着「truncated after <cut>」，看守照它重建。附了要求的，「summarize」前面一条写着「instructions: <要求>」
+    /// （施工 6-8）。
+    fn summarize(
+        &self,
+        history: &History,
+        upto: Seq,
+        cut: Option<Seq>,
+        instructions: Option<&str>,
+    ) -> Request {
         let kept = history.until(upto);
         let kept = match cut {
             Some(cut) => kept.after(cut),
@@ -46,6 +53,13 @@ impl Assembler for Listing {
                 },
             );
         }
+        if let Some(instructions) = instructions {
+            request.messages.push(Message::User {
+                blocks: vec![Block::Text(Text {
+                    text: format!("instructions: {instructions}"),
+                })],
+            });
+        }
         request.messages.push(Message::User {
             blocks: vec![Block::Text(Text {
                 text: "summarize".to_string(),
@@ -55,8 +69,14 @@ impl Assembler for Listing {
     }
 
     /// 隔离式（施工 6-6 下）：一样的清单，system 写着「isolated」。
-    fn summarize_isolated(&self, history: &History, upto: Seq, cut: Option<Seq>) -> Request {
-        let mut request = self.summarize(history, upto, cut);
+    fn summarize_isolated(
+        &self,
+        history: &History,
+        upto: Seq,
+        cut: Option<Seq>,
+        instructions: Option<&str>,
+    ) -> Request {
+        let mut request = self.summarize(history, upto, cut, instructions);
         request.system = "isolated".to_string();
         request
     }

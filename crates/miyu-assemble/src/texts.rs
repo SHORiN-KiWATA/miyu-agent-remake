@@ -22,7 +22,7 @@ pub struct Texts {
     pub restored: Option<RestoredWrap>,
     /// 回合没走完时，排在下一条人的消息前面的那一句。
     pub turn_ended: TurnEndedTexts,
-    /// 压缩的摘要指令，摘要请求的最后一块（`core/compaction/summarize-task.txt`，施工 6-2 上）。
+    /// 压缩的摘要指令的正文，摘要请求的最后一块（`core/compaction/summarize-task.txt`，施工 6-2 上）。
     pub summarize_task: String,
     /// 截短重试的摘要请求、留下的第一条是助手的，前面补的那一条 user（`core/compaction/truncated.txt`，施工 6-6 中）。
     /// 以前造的快照里没有，是空的：那些会话不截短。
@@ -30,6 +30,30 @@ pub struct Texts {
     /// 隔离式的摘要请求那一句 system（`core/compaction/summarize-system.txt`，施工 6-6 下）。以前造的快照里没有，是空的：
     /// 那些会话不改走隔离式。
     pub summarize_system: String,
+    /// 手动压缩附了要求的，要求前面那一行（`core/compaction/summarize-instructions.txt`，施工 6-8）。以前造的快照里
+    /// 没有，是空的。
+    pub summarize_instructions: String,
+    /// 摘要指令的最后一句：只回草稿和摘要，不许调工具（`core/compaction/summarize-end.txt`，施工 6-8 从正文里拆出来）。
+    /// 以前造的快照里没有，是空的：那时的正文里本来就带着这一句，拼出来一字不差。
+    pub summarize_end: String,
+}
+
+impl Texts {
+    /// 摘要指令（`compaction.md` 第三条第 3 条、第七条第 3 条，施工 6-8）：正文，附了要求的接要求前面那一行和要求，
+    /// 最后是结尾那一句。要求原样放、不转义：是人亲口说的，和人发的消息一样（Claude Code 也原样接）；末尾没有换行的
+    /// 补一个，结尾那一句才另起一段。照 Claude Code 的次序，最后一句还是不许调工具。
+    pub(crate) fn instruction(&self, instructions: Option<&str>) -> String {
+        let mut text = self.summarize_task.clone();
+        if let Some(instructions) = instructions {
+            text.push_str(&self.summarize_instructions);
+            text.push_str(instructions);
+            if !instructions.ends_with('\n') {
+                text.push('\n');
+            }
+        }
+        text.push_str(&self.summarize_end);
+        text
+    }
 }
 
 /// 重读的文件那一块的头尾（施工 6-5）：头上写路径，原文夹在中间不转义。

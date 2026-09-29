@@ -33,6 +33,9 @@ pub struct ContextCompacted {
     /// 为什么压：到线了、人要的、供应商报超长。以前的日志里没有这一格，当作到线了（`compaction.md`）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trigger: Option<CompactTrigger>,
+    /// 手动压缩时人附的要求，原样（`compaction.md` 第七条第 3 条，施工 6-8）。没附的、只有空白的没有。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instructions: Option<String>,
     /// 代码写的几段：读过、改过的文件清单，取回指路，太大没重读的（`compaction.md` 第八条，施工 6-5）。写的时候拼好，
     /// 以后逐字节回放。以前的日志里没有，当作空的。
     #[serde(default, skip_serializing_if = "String::is_empty")]

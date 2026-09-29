@@ -31,7 +31,7 @@ fn a_word_while_she_speaks_then_an_interrupt_sends_it_on() {
     let Body::TurnStarted(started) = &stage.log()[9].body else {
         panic!("10 号应该是回合开始");
     };
-    assert_eq!(started.trigger, seq(6), "排着的那一句开了下一轮");
+    assert_eq!(started.trigger, Some(seq(6)), "排着的那一句开了下一轮");
     assert_eq!(
         stage.outcome(&stop),
         Some(&Outcome::Accepted {

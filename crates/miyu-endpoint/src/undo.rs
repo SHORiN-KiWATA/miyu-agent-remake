@@ -157,10 +157,11 @@ pub(crate) fn report(sources: &Sources, events: &[u64]) -> Report {
     }
 }
 
-/// 回合 `turn` 里人说的那句话的第一行：照 `turn.started` 找引起它的那一条，是人亲口说的才算。
+/// 回合 `turn` 里人说的那句话的第一行：照 `turn.started` 找引起它的那一条，是人亲口说的才算。没有触发的（手动压缩
+/// 单开的那一轮，施工 6-8）没有。
 fn said(log: &[Event], turn: TurnId) -> Option<String> {
     let trigger = log.iter().find_map(|event| match &event.body {
-        Body::TurnStarted(started) if event.seq == turn.started() => Some(started.trigger),
+        Body::TurnStarted(started) if event.seq == turn.started() => started.trigger,
         _ => None,
     })?;
     let event = log.iter().find(|event| event.seq == trigger)?;

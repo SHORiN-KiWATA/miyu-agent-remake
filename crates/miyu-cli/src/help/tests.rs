@@ -7,7 +7,7 @@ use clap::{Args, Command};
 
 use super::{Page, page};
 use crate::language::Language;
-use crate::{Ask, Sandbox, Undo};
+use crate::{Ask, Compact, Sandbox, Undo};
 
 /// 一个选项：几种写法（`-c`、`--continue`），和后面写的值（没有的是空的）。
 type Listed = BTreeSet<(Vec<String>, String)>;
@@ -107,9 +107,17 @@ fn each_page_lists_exactly_the_options_there_are() {
                 "{language:?} {which:?}"
             );
         }
-        // 主程序那一页：`ask` 的、`undo`、`restore` 的都列，再加 `-V`、`--version`。
+        // `compact` 那一页（施工 6-8）：和 `undo` 一样只有 `-s`，要求是位置参数，不算选项。
+        let compact = Compact::augment_args(Command::new("compact"));
+        assert_eq!(
+            listed(page(language, Page::Compact)),
+            real(&compact, id),
+            "{language:?} compact"
+        );
+        // 主程序那一页：`ask` 的、`undo`、`restore`、`compact` 的都列，再加 `-V`、`--version`。
         let mut all = real(&ask, id);
         all.extend(real(&undo, id));
+        all.extend(real(&compact, id));
         all.insert((
             vec!["--version".to_string(), "-V".to_string()],
             String::new(),
@@ -141,6 +149,7 @@ fn each_page_is_its_own_file() {
             (Page::Ask, "ask"),
             (Page::Undo, "undo"),
             (Page::Restore, "restore"),
+            (Page::Compact, "compact"),
             (Page::Sandbox, "sandbox"),
         ] {
             let file = dir.join(code).join(format!("{name}.txt"));
@@ -174,6 +183,7 @@ fn pages_fit_in_eighty_columns_and_end_with_one_newline() {
             Page::Ask,
             Page::Undo,
             Page::Restore,
+            Page::Compact,
             Page::Sandbox,
         ] {
             let text = page(language, which);

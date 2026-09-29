@@ -37,7 +37,11 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
                 let before = transcript.trigger_of(event.turn);
                 transcript.add(event.seq, before, vec![text_block(fact.text.clone())]);
             }
-            Body::TurnStarted(started) => transcript.start(event.turn, started.trigger),
+            Body::TurnStarted(started) => match started.trigger {
+                Some(trigger) => transcript.start(event.turn, trigger),
+                // 手动压缩单开的那一轮（施工 6-8）：不是哪一句引起的，她也没看到过它。
+                None => transcript.silence(event.turn),
+            },
             // 这一轮请求过一次了：之后注入的不再是开始时的（施工 4-9 再补三上）。它自己不进上下文。压缩以前记下的
             // 不算（施工 6-2 上）：那是被替代掉的那段的请求和摘要请求，压完的第一次主请求前缀本来就从头来，回合开头压的，
             // 压完再注入的事实照样和触发的那句放在一起。
@@ -45,7 +49,10 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
             Body::ModelCalled(_) => transcript.settle(),
             Body::TurnEnded(ended) => {
                 transcript.settle();
-                if let Some(said) = texts.turn_ended.for_reason(&ended.reason) {
+                // 没有触发的那一轮不出「这一轮没走完」那一句：她没看到过它，写了会当成是上一轮（施工 6-8）。
+                if let Some(said) = texts.turn_ended.for_reason(&ended.reason)
+                    && !transcript.silent(event.turn)
+                {
                     transcript.add(event.seq, None, vec![text_block(said.to_string())]);
                 }
             }
@@ -124,6 +131,8 @@ struct Transcript {
     starts: Vec<(usize, Seq)>,
     /// 刚开始、还没回复过的回合，和触发它的那一条。这时注入的事实，是回合开始时注入的。
     starting: Option<(TurnId, Seq)>,
+    /// 没有触发的回合：手动压缩单开的那一轮（施工 6-8），不进上下文。
+    silent: BTreeSet<TurnId>,
 }
 
 /// 人这一边攒着的一块。
@@ -147,6 +156,17 @@ impl Transcript {
     fn start(&mut self, turn: Option<TurnId>, trigger: Seq) {
         self.starting = turn.map(|turn| (turn, trigger));
         self.starts.push((self.pending.len(), trigger));
+    }
+
+    /// 没有触发的回合开始了（手动压缩单开的那一轮，施工 6-8）：不记开始的地方，记下它不进上下文。
+    fn silence(&mut self, turn: Option<TurnId>) {
+        self.starting = None;
+        self.silent.extend(turn);
+    }
+
+    /// 这个回合没有触发。
+    fn silent(&self, turn: Option<TurnId>) -> bool {
+        turn.is_some_and(|turn| self.silent.contains(&turn))
     }
 
     /// 这一回合注入的事实该和哪一条放在一起：回合刚开始、还没回复过，就是触发它的那一条。

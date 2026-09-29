@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>109</b><span>/ 113 步<strong>已完成</strong>，M6 压缩做到 6-6、6-9：到线就压，检查点里带着读过的文件，压完接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停，摘要请求超长会截短再试、调了工具改走隔离式；撤销能撤掉压缩</span></li>
-    <li><b>6-7</b><span>下一步：被动压缩；6-8 手动压缩由分身在做（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">30d0517</b><span>最近一步（6-6 下 隔离式回退）的提交</span></li>
+    <li><b>113</b><span>/ 114 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求</span></li>
+    <li><b>M7</b><span>下一步：拆 M7 分身（子代理、后台命令、给子代理留言）；Windows 上跑命令那一步暂停</span></li>
+    <li><b class="mono">754ed30</b><span>最近一步（6-10 M6 验收）的提交</span></li>
   </ul>
 </header>
 
@@ -458,10 +458,11 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s6-6a"><span class="n">6-6</span>失败和熔断（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-6b"><span class="n">6-6</span>截短重试（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-6c"><span class="n">6-6</span>隔离式回退（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">6-7</span>被动压缩</span></li>
-        <li><span class="step"><span class="n">6-8</span>手动压缩</span></li>
+        <li><a class="step done" href="#s6-6d"><span class="n">6-6</span>出错再来照截过的发（补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s6-7"><span class="n">6-7</span>被动压缩<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s6-8"><span class="n">6-8</span>手动压缩<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-9"><span class="n">6-9</span>撤销能撤掉压缩<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">6-10</span>M6 验收</span></li>
+        <li><a class="step done" href="#s6-10"><span class="n">6-10</span>M6 验收<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -8349,6 +8350,182 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s6-6d" aria-labelledby="h-s66d">
+  <div class="sheet-head"><h2 id="h-s66d"><span class="no">6-6</span>出错再来照截过的发（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">截过的、隔离式的摘要请求碰上可以重试的错，到点再来时照记下的发：截到哪、截了几次、是不是隔离式都不变。原来再来的是没截过的 fork 式，一次压缩能截三次以上、改走两次隔离式。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">摘要请求出错、到点再来</span><span class="dir-note">session/call.rs</span></div>
+            <ol class="pipe" aria-label="出错再来怎么发">
+              <li>再来的是摘要请求：这一次截到哪、截了几次、是不是隔离式记回回合上（<code>Turn.again</code>）</li>
+              <li>到点了照记下的发；被动压缩连压什么也照记下的（6-7 原样）</li>
+              <li>再来的是主请求：不动同一步里记着的那份</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">次数接着数</span><span class="rl">截满三次还超长，这次压缩失败</span></div>
+          <div class="tile new"><span class="nm">只改走一次</span><span class="rl">隔离式出错再来还是隔离式</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-6 补</dd></div>
+        <div><dt>名称</dt><dd>出错再来照截过的发</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">59be637</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>6-8 的分身在随机测试里看到同一次手动压缩改走了两次隔离式；根因在 6-6（中、下）：出错再来那一支没记 <code>Turn.again</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>场景两条改之前红；随机测试的看守改成同一轮里出错再来要和上一次一样，长跑走到这两条路</span></li>
+        <li><span class="ok">✓</span><span>手写 5 个变异全逮住；门禁八项全过，三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>compaction.md</code> 第三条第 7 条、第 10 条第 4 项。</li>
+        <li><code>docs/construction/6-6-出错再来照截过的发（补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s6-7" aria-labelledby="h-s67">
+  <div class="sheet-head"><h2 id="h-s67"><span class="no">6-7</span>被动压缩</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">本地估算偏小、主请求被供应商报上下文超长时，不再直接出错结束：一个字都没收到的，先压一次再重发一次。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">主请求报 context_too_long</span><span class="dir-note">session/overflow.rs</span></div>
+            <ol class="pipe" aria-label="被动压缩怎么走">
+              <li>一个字都没收到、这一步没压过、没暂停的：记在回合上（<code>Passive::Due</code>），落了盘到发请求那一步</li>
+              <li>照那时的有效历史定压什么，尾巴至少留最后一组，先压（<code>trigger: overflow</code>），再重发一次</li>
+              <li>收到过输出的、暂停着的、没有能压的：照出错结束；快满到了次数：写暂停</li>
+              <li>压完重发还超长：照出错结束，熔断算一次失败</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">最后一组大也留</span><span class="rl">重发时她得看得到刚做的</span></div>
+          <div class="tile new"><span class="nm">再来不丢</span><span class="rl">重试、截短、隔离式照这次压什么</span></div>
+          <div class="tile new"><span class="nm">真模型不测</span><span class="rl">撑爆一百万 token 太贵</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-7</dd></div>
+        <div><dt>名称</dt><dd>被动压缩</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">260c290</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>内核 <code>session/overflow.rs</code>；切点挪到 <code>compaction/cut.rs</code>；熔断认「压完重发还超长」。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>场景 9 条；随机另一串随机数让主请求报超长，长跑里走到「被动压完重发还超长」</span></li>
+        <li><span class="ok">✓</span><span>手写 14 个变异，13 个逮住，没逮住的那一支推下来走不到、删掉；门禁八项全过，三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>compaction.md</code>（第六条、第十条第 3 条）、<code>kernel/session.md</code>。</li>
+        <li><code>docs/construction/6-7-被动压缩.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s6-8" aria-labelledby="h-s68">
+  <div class="sheet-head"><h2 id="h-s68"><span class="no">6-8</span>手动压缩</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">人能自己叫她压缩：<code>miyu compact [要求]</code>、协议上 <code>session.compact</code>。单开一轮只做压缩，可以附一句要求；自动压缩暂停着也能压，压成了自动压缩跟着恢复。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu compact 重点保留数据库设计的讨论</span><span class="dir-note">session/manual.rs</span></div>
+            <ol class="pipe" aria-label="手动压缩怎么走">
+              <li>空闲时收：有回合在进行 <code>turn_running</code>，没有能压的 <code>nothing_to_compact</code></li>
+              <li>单开一轮（<code>turn.started</code> 没有 <code>trigger</code>，不进上下文），不注入事实、不跑回合开始的挂接点</li>
+              <li>替代到哪和自动压缩同一套，尾巴一样留；要求夹在摘要指令正文和最后那句「不许调工具」中间</li>
+              <li>成了：<code>context.compacted</code>（<code>manual</code>、要求原样）和 <code>turn.ended</code> 同一批；失败照重试，不数进熔断</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">要求放中间</span><span class="rl">最后一句还是不许调工具（照 Claude Code）</span></div>
+          <div class="tile new"><span class="nm">暂停着也收</span><span class="rl">压成了，检查点换了，暂停跟着解</span></div>
+          <div class="tile new"><span class="nm">一句话两边用</span><span class="rl"><code>turn_running</code> 改成撤销、压缩都对的一句</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-8</dd></div>
+        <div><dt>名称</dt><dd>手动压缩</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">c8de5b7</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>内核 <code>session/manual.rs</code>；命令行 <code>miyu compact</code>，和 <code>miyu ask</code> 共用跟着一轮、按 Ctrl+C 的那段；摘要指令拆成正文、要求那一行、结尾三份。</li>
+        <li>顺手修了 6-9 的一处：撤销拿走上一轮排着的话时，暂停着没发出去的那次请求不算听到过。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>手写 35 个变异全逮住（另有一个等价的不算）；门禁八项全过，三台机器的 CI 全绿；请求形状探针字节不变</span></li>
+        <li><span class="ok">✓</span><span>真模型：附要求压完，摘要把四条约定逐条列了，接着问照原样答出；暂停着手动压成了，之后到线照常自动压</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>compaction.md</code> 第七条、<code>protocol.md</code>、<code>cli/compact.md</code>、<code>kernel/session.md</code>。</li>
+        <li><code>docs/construction/6-8-手动压缩.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="s6-9" aria-labelledby="h-s69">
   <div class="sheet-head"><h2 id="h-s69"><span class="no">6-9</span>撤销能撤掉压缩</h2><span class="pill done">已完成</span></div>
   <p class="purpose">压缩跟着它所在的那一轮：撤掉这一轮，里面的压缩一起撤掉，上下文回到压缩前的原文；<code>miyu restore</code> 放回来，不重新请求模型。原来一轮里压过一次，这一轮和它以前的都撤不了。</p>
@@ -8404,6 +8581,72 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>compaction.md</code>（第九、十一条）、<code>kernel/history.md</code>、<code>kernel/session.md</code>、<code>session/actor.md</code>、<code>protocol/undo.md</code>、<code>cli/undo.md</code>；设计 02、04、07。</li>
         <li><code>docs/construction/6-9-撤销能撤掉压缩.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s6-10" aria-labelledby="h-s610">
+  <div class="sheet-head"><h2 id="h-s610"><span class="no">6-10</span>M6 验收</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">M6 长会话的真模型验收：一个会话聊得够长，到线自动压缩，压完不失忆、接着干；压缩能撤、能恢复；人能手动压、附要求；换出去的她用 <code>history</code> 找得回。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">自测：读内核源码</span><span class="dir-note">deepseek-v4.1-flash · 窗口 120000</span></div>
+            <ol class="pipe" aria-label="自测的几件">
+              <li>第 8 轮到线：87.3k → 31.2k token，摘要请求命中缓存 99%、45 秒</li>
+              <li>压完接着把这一轮做完，不重读、不复述，约定照守</li>
+              <li>撤销撤掉压缩、恢复放回来，不再请求模型</li>
+              <li>文件删了，她用 <code>history</code> 搜到那一条、读原文，两行码都对</li>
+              <li>26 个文件只读没读过的 6 个；手动压缩 43.4k → 26.1k</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">项目主人真人试</span><span class="dir-note">窗口 300000</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">自动压缩</span><span class="rl">276k → 39k，摘要请求命中 99.8%、39 秒</span></div>
+              <div class="tile new"><span class="nm">手动压缩</span><span class="rl">53.8k → 24.0k，29 秒</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步看到的</p>
+          <div class="tile"><span class="nm">读整盘放开</span><span class="rl">她先搜到了工作区外的备份：测具的漏洞，删了再测</span></div>
+          <div class="tile"><span class="nm">沙盒要一起编</span><span class="rl">只编 miyu 时命令要确认，miyu ask 里跑不成</span></div>
+          <div class="tile new"><span class="nm">6-6 补</span><span class="rl">验收前修了出错再来丢截法</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-10</dd></div>
+        <div><dt>名称</dt><dd>M6 验收</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">754ed30</dd></div>
+        <div><dt>验收</dt><dd>真模型自测、项目主人真人试 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>不改代码，只验收；结果写在施工单最后。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>自动压缩、压完接着干、撤销恢复、问得回约定、history 找回、手动压缩都过了</span></li>
+        <li><span class="ok">✓</span><span>数据根里没有 key；main 上 CI 三台机器和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/6-10-M6 验收.md</code>：施工单和验收结果。</li>
       </ul>
     </div>
   </div>
@@ -8594,7 +8837,7 @@ const BUILD = {
   k_sessions: { by: '3-7', how: 'frame', note: '会话 actor（3-7 中）：命令和执行器的回报进收件箱，动作照表回；先落盘，后回应、后推送；造会话存策略快照，载入照它重建，停在一轮中间的再起来接着干；写不进去就停下。请求模型接上驱动和 HTTP，驱动的占位取自会话的快照（3-7 下）；会话表照编号找会话、没在跑的从磁盘载入，只起一个 actor（3-8 上）' },
   n_models: { by: '3-9', how: 'frame', note: '配置系统做出来之前只认环境变量 DEEPSEEK_API_KEY：设了就接 DeepSeek 官方的 deepseek-flash，key 只在内存里；没设的，每次请求都当场回「没有可用的模型」（3-9 上，项目主人定）；开发用的 MIYU_DEV_BASE_URL、MIYU_DEV_MODEL 替换地址和模型（3-9 再补）' },
   n_cli: { by: '3-9', how: 'frame', note: 'miyu ask：连上核心（没在跑就拉起），开一次性会话或者 --continue、--session 接着说；思考灰色印在标准错误上，回答印在标准输出上，问完一行用量；Ctrl+C 一次打断、两次就走；--format json 给脚本（3-9 下）' },
-  n_compact: { by: '6-1', how: 'frame', note: '用量和压缩线（6-1）：锚是最近一次压缩以后、说完了、带用量的 model.called，盖住工具面、system 和前 messages+1 条；后面新增的照 UTF-8 字节除以 4 估（照 codex）；报的比估的小取估的、换过模型整份估（照 dsh）；压缩线 = 窗口 − min(最大输出, 20000) − 13000。摘要请求（6-2 上）：发主请求之前过了线，在这一轮里先压：有效历史到第 N 条的投影加摘要指令，取出摘要写检查点，这一轮要回应的话留在尾巴里，一组不拆；执行器交了限额才主动压。留尾巴（6-2 下）：照投影的先后一组一组地留，至多 min(16000, 线的四分之一)，只在切得开的地方切；一步至多压一次。模型资料和限额（6-3 上）：models.dev 的快照查窗口，DeepSeek 的图片照官方计算器，会话 actor 造会话、载入以后交给内核，真的会话到线就压。接上真模型（6-3 下）：miyu ask 印压缩那一行（原地刷新进度，压好了换成压前 → 压后），日志记度量；检查点包装的结尾加一句接着做、别重做（J12 实测）；取摘要先去草稿。检查点里的几段和压后重建（6-5）：清单、取回指路、太大没重读的由代码写；发摘要请求之前先重读最近的文件，原文存成 blob 放进检查点。失败和熔断（6-6 上）：连续失败 3 次、压完 3 个回合内又到线连着 3 次，暂停自动压缩，暂停着放不下的请求不发。截短重试（6-6 中）：摘要请求自己超长，截掉最老的几组再试，最多 3 次，截过的写明摘要没看到哪一段。撤销能撤掉压缩（6-9）：压缩跟着它所在的那一轮撤，撤到压缩以前时从磁盘读回更早的一段。隔离式回退（6-6 下）：摘要回复里调了工具，改发不带工具面的摘要请求' },
+  n_compact: { by: '6-1', how: 'frame', note: '用量和压缩线（6-1）：锚是最近一次压缩以后、说完了、带用量的 model.called，盖住工具面、system 和前 messages+1 条；后面新增的照 UTF-8 字节除以 4 估（照 codex）；报的比估的小取估的、换过模型整份估（照 dsh）；压缩线 = 窗口 − min(最大输出, 20000) − 13000。摘要请求（6-2 上）：发主请求之前过了线，在这一轮里先压：有效历史到第 N 条的投影加摘要指令，取出摘要写检查点，这一轮要回应的话留在尾巴里，一组不拆；执行器交了限额才主动压。留尾巴（6-2 下）：照投影的先后一组一组地留，至多 min(16000, 线的四分之一)，只在切得开的地方切；一步至多压一次。模型资料和限额（6-3 上）：models.dev 的快照查窗口，DeepSeek 的图片照官方计算器，会话 actor 造会话、载入以后交给内核，真的会话到线就压。接上真模型（6-3 下）：miyu ask 印压缩那一行（原地刷新进度，压好了换成压前 → 压后），日志记度量；检查点包装的结尾加一句接着做、别重做（J12 实测）；取摘要先去草稿。检查点里的几段和压后重建（6-5）：清单、取回指路、太大没重读的由代码写；发摘要请求之前先重读最近的文件，原文存成 blob 放进检查点。失败和熔断（6-6 上）：连续失败 3 次、压完 3 个回合内又到线连着 3 次，暂停自动压缩，暂停着放不下的请求不发。截短重试（6-6 中）：摘要请求自己超长，截掉最老的几组再试，最多 3 次，截过的写明摘要没看到哪一段。撤销能撤掉压缩（6-9）：压缩跟着它所在的那一轮撤，撤到压缩以前时从磁盘读回更早的一段。隔离式回退（6-6 下）：摘要回复里调了工具，改发不带工具面的摘要请求。截过的、隔离式的出错再来照记下的发（6-6 补）。被动压缩（6-7）：主请求报超长，先压再重发一次。手动压缩（6-8）：session.compact、miyu compact 单开一轮只做压缩，要求夹在摘要指令里，暂停着也能压' },
   n_bus: { by: '3-8', how: 'frame', note: '连接上一行一条 JSON-RPC 2.0：握手（主版本、本机令牌）、造会话、说话、打断，拒绝附原因码（3-8 上）；订阅事件流，回应排在它产生的推送后面，掉队推 resync（3-8 中）；核心在本机的 Unix 套接字上等连接：一个数据根一个核心（锁），本机令牌写进 run/token，实际位置记在 run/socket，套接字放在只有自己能进的目录里（3-8 下）；Windows 上是命名管道，只对本人开放，头连上以后核对另一头是自己的（3-8 补）' },
 };
 

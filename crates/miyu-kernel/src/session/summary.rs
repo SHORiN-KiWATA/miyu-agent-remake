@@ -10,8 +10,9 @@ use crate::id::Seq;
 /// 摘要请求取到了摘要：替代到哪、摘要、压之前的用量，和这次摘要请求的用量、用时（施工 6-3 下：推 `compaction.done`）。
 pub(super) struct Summarized {
     pub(super) upto: Seq,
-    /// 哪一种压缩、压完很快又到线连着的第几次（施工 6-6 上）。
+    /// 哪一种压缩、人附的要求（施工 6-8）、压完很快又到线连着的第几次（施工 6-6 上）。
     pub(super) trigger: CompactTrigger,
+    pub(super) instructions: Option<String>,
     pub(super) refills: Option<u32>,
     /// 截短重试截到第几条（施工 6-6 中）：写压缩时照它写摘要没看到的那一段。
     pub(super) cut: Option<Seq>,

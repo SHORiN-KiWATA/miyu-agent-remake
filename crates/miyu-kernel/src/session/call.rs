@@ -243,17 +243,35 @@ impl Session {
                 events.extend(self.refresh_facts(at));
                 return vec![Action::Append(events)];
             }
+            // 主请求报超长：被动压缩，一个字都没收到的落了盘先压再重发；别的照出错结束（施工 6-7，`overflow.rs`）。
+            if error.class == ErrorClass::ContextTooLong && !compacting {
+                let replied = settled.reply.is_some();
+                match self.overflow(at, cause.clone(), replied) {
+                    None => events.extend(self.refresh_facts(at)),
+                    Some(before) => {
+                        events.extend(before);
+                        events.extend(self.finish_turn(at, By::Kernel, cause, EndReason::Error));
+                    }
+                }
+                return vec![Action::Append(events)];
+            }
             if let Some(wait) = self.retry_wait(&error, wait_ms) {
-                // 再来的是摘要请求，不标「下一次是重试」：它后面那一次主请求照常算一步。
+                // 再来的是摘要请求，不标「下一次是重试」：它后面那一次主请求照常算一步。被动压缩的摘要请求连压什么也记回去，
+                // 到点了照它再压（施工 6-7）：它不看压缩线。截到哪、截了几次、是不是隔离式也记回去，照它再发（施工 6-6 补）。
+                let compaction = settled.compaction.as_deref();
+                let passive = compaction.and_then(super::shorten::passive);
+                let again = compaction.map(super::shorten::as_before);
                 if let Some(turn) = self.turn.as_mut() {
                     turn.retrying |= !compacting;
+                    turn.passive = passive.map(super::overflow::Passive::Again);
+                    turn.again = again.or(turn.again);
                 }
                 let cut = settled.reply.is_some();
                 return self.wait_to_retry(at, seen, cause, events, cut, error, wait);
             }
-            // 摘要请求不再来了，是一次压缩失败：连着数到了次数，暂停排在 `turn.ended` 前面（施工 6-6 上）。
-            if compacting {
-                events.extend(self.after_failure(at, cause.clone()));
+            // 摘要请求不再来了，是一次压缩失败：连着数到了次数，暂停排在 `turn.ended` 前面（施工 6-6 上）；手动的不数。
+            if let Some(compacting) = settled.compaction.as_deref() {
+                events.extend(self.after_failure(at, cause.clone(), Some(compacting.trigger())));
             }
             events.extend(self.finish_turn(at, By::Kernel, cause, EndReason::Error));
             return vec![Action::Append(events)];
@@ -268,6 +286,7 @@ impl Session {
         }
         if let Some(turn) = self.turn.as_mut() {
             turn.retries = 0;
+            turn.overflowed = false;
         }
         match settled.reply {
             Some(reply) if !settled.calls.is_empty() => {
@@ -409,6 +428,7 @@ impl Session {
                 Summarized {
                     upto: compacting.upto(),
                     trigger: compacting.trigger().clone(),
+                    instructions: compacting.instructions(),
                     refills: compacting.refills(),
                     cut: compacting.shortened().0,
                     summary,

@@ -75,7 +75,7 @@ fn after_a_planned_restart_the_turn_is_picked_up() {
     };
     assert_eq!(
         (started.trigger, events[0].cause.clone(), events[0].at),
-        (seq(9), Some(id(1)), at(55)),
+        (Some(seq(9)), Some(id(1)), at(55)),
         "没有排着队的，由那条结束触发"
     );
     // 落了盘跑挂接点；请求里有那条结束，她看得到为什么停了。
@@ -107,7 +107,7 @@ fn queued_messages_wait_for_the_restart_and_start_the_next_turn() {
     };
     assert_eq!(
         (events[0].seq, started.trigger, events[0].cause.clone()),
-        (seq(11), seq(8), Some(id(2))),
+        (seq(11), Some(seq(8)), Some(id(2))),
         "由排着队的最后一条触发"
     );
 }

@@ -1,5 +1,5 @@
 //! 握手以后的方法（`docs/designs/04-核心协议.md` 第九节「先做的几样怎么写」）：造会话、说话、打断，
-//! 列出会话（施工 3-9 下），撤销、恢复（施工 4-7 上；回应带上给人看的几样，施工 4-7 下）。命令交给会话，等它的回应：接受的回 `events`，拒绝的回原因码。造会话、说话的
+//! 列出会话（施工 3-9 下），撤销、恢复（施工 4-7 上；回应带上给人看的几样，施工 4-7 下），手动压缩（施工 6-8）。命令交给会话，等它的回应：接受的回 `events`，拒绝的回原因码。造会话、说话的
 //! 回应再带上会话实际在哪个目录里干活（施工 4-5 下）。
 
 use serde::Deserialize;
@@ -80,6 +80,14 @@ struct RevertParams {
 #[derive(Debug, Deserialize)]
 struct UnrevertParams {
     session: String,
+}
+
+/// `session.compact` 的参数（施工 6-8）：人附的要求可以不写，原样交给内核（只有空白的由内核当没写）。
+#[derive(Debug, Deserialize)]
+struct CompactParams {
+    session: String,
+    #[serde(default)]
+    instructions: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -171,6 +179,16 @@ pub(crate) async fn call(core: &Core, peer: Peer, request: &Request) -> Result<V
             let command = Command::Unrevert;
             let events = command_to(core, request, &session, &found.handle, command).await?;
             Ok(undo::reply(core, &session, &found.cwd, events).await)
+        }
+        "session.compact" => {
+            let params: CompactParams = params(request)?;
+            let session = session(&params.session)?;
+            let found = core.sessions.get(core, &session, None, None).await?;
+            let command = Command::Compact {
+                instructions: params.instructions,
+            };
+            let events = command_to(core, request, &session, &found.handle, command).await?;
+            Ok(json!({ "events": events }))
         }
         _ => Err(Refusal::UNKNOWN_METHOD),
     }

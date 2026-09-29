@@ -119,7 +119,7 @@
 | 追加事件 | 在阻塞线程里写一批、同步（第 5 条） | 落盘了，到这一批最后一条为止 |
 | 回应命令 | 交给等这个编号的最早那一头；它不等了，丢掉；没人在等的，不理 | |
 | 推送事件 | 推给订阅了的；没有订阅的，丢掉 | |
-| 推送瞬时事件 | 同上；是 `status`（现在只有等着重试这一种）的，先记一行 `retrying`；是 `compaction.done` 的，先记一行 `compacted`（施工 6-3 下） | |
+| 推送瞬时事件 | 同上；是 `status`（现在只有等着重试这一种）的，先记一行 `retrying`；是 `compaction.done` 的，先记一行 `compacted`（施工 6-3 下；`trigger` 照它的 `trigger`，施工 6-8） | |
 | 跑回合开始的挂接点 | 现在没有模块挂它 | 挂接点跑完了，没有注入 |
 | 请求模型 | 交给端口（第 7 条） | |
 | 到点叫醒 | 起一个定时的任务，到那一刻送回「到点了」；那一刻已经过了的，马上送 | |
@@ -258,7 +258,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | `crates/miyu-session/src/handle/tests.rs` | 掉过一次队就一直是掉队；会话停了读完剩下的；`try_next` 只拿已经到了的 |
 | `crates/miyu-session/src/clock/tests.rs` | 时钟不往回走、1970 年以前当 0、出了范围停在最后一刻；会话编号是那一刻的 UUIDv7；同一毫秒里连造一千个照先后 |
 | `crates/miyu-session/tests/http.rs` | 经假服务器回复；限速照服务器说的等；打断断开连接；缺 blob 出错、不发；回复断了接着说；卡住的回复照空闲超时；图片照字节发出去 |
-| `crates/miyu-session/tests/log.rs` | 会话造、请求、出错、重试、收场、停下、载入、没人拿着、端口 panic 的几行；撤销以后 `changed=message:0:user`；`DEBUG` 的输入和动作、增量在 `TRACE`；没有对话的字 |
+| `crates/miyu-session/tests/log.rs` | 会话造、请求、出错、重试、收场、停下、载入、没人拿着、端口 panic 的几行；手动压缩的 `compacted` 写 `trigger=manual`（施工 6-8）；撤销以后 `changed=message:0:user`；`DEBUG` 的输入和动作、增量在 `TRACE`；没有对话的字 |
 | `crates/miyu-session/tests/http_log.rs` | HTTP 的两行带会话编号，key 不在日志里 |
 
 ### 出处

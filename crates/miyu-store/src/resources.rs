@@ -211,6 +211,8 @@ impl ResourceRoot {
             },
             compaction: Some(CompactionTexts {
                 summarize_task: core(&["compaction", "summarize-task.txt"])?,
+                summarize_instructions: core(&["compaction", "summarize-instructions.txt"])?,
+                summarize_end: core(&["compaction", "summarize-end.txt"])?,
                 rebuild: Some(RebuildTexts {
                     notes_files: core(&["compaction", "notes-files.txt"])?,
                     notes_files_more: core(&["compaction", "notes-files-more.txt"])?,

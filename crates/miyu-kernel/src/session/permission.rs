@@ -66,6 +66,11 @@ impl Session {
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();
         };
+        // 手动压缩单开的那一轮不查事实（施工 6-8，`compaction.md` 第七条第 4 条）：它不请求主模型；切了级别的，下一轮
+        // 开头照常比着注入。
+        if turn.manual.is_some() {
+            return Vec::new();
+        }
         if !std::mem::take(&mut turn.refresh) {
             return Vec::new();
         }

@@ -2,17 +2,18 @@
 //! 几组再发，最多截几次；截不动、截够了的，照一次压缩失败算。隔离式回退（第三条第 7 条、第四条，施工 6-6 下）：fork 式的
 //! 摘要回复里调了工具，改发一次不带工具面的。两样都是同一次压缩换个样子再发一次摘要请求（[`Again`]）。
 //!
-//! 组和切法同留尾巴（`compaction.rs` 的 `cuts`）：一组从一条人的消息或者一条回复开始，只切在切得开的地方。按组不按轮：
+//! 组和切法同留尾巴（`tail.rs` 的 `cuts`）：一组从一条人的消息或者一条回复开始，只切在切得开的地方。按组不按轮：
 //! 一轮任务里可以有几十组工具调用，按轮截，一轮的会话一组都截不掉。
 //!
 //! 出了事那一刻不当场重发：怎么再发记在回合上，回到准备好，这一批落了盘照常走发请求那一步（先落盘，后请求），发摘要
 //! 请求时照它发（`compaction.rs` 的 `start_compaction`）。
 
 use super::Session;
-use super::compaction::{Compacting, cuts};
+use super::compaction::{Compacting, Due, cuts};
+use super::overflow::Passive;
 use super::turn::Stage;
 use crate::estimate;
-use crate::event::Body;
+use crate::event::{Body, CompactTrigger};
 use crate::id::Seq;
 
 /// 等着再发的那一次摘要请求：替代到哪、截到第几条（没截过的没有）、截着再试了几次、是不是隔离式。
@@ -43,12 +44,15 @@ impl Session {
         let Some(next) = self.next_cut(compacting.upto(), cut, excess, shorten.percent) else {
             return false;
         };
-        self.again(Again {
-            upto: compacting.upto(),
-            cut: Some(next),
-            tries: tries + 1,
-            isolated: compacting.isolated(),
-        })
+        self.again(
+            Again {
+                upto: compacting.upto(),
+                cut: Some(next),
+                tries: tries + 1,
+                isolated: compacting.isolated(),
+            },
+            passive(compacting),
+        )
     }
 
     /// fork 式的摘要回复里调了工具（第三条第 7 条，施工 6-6 下）：还没改走过、快照里有隔离式那句 system 的，记下改走
@@ -58,12 +62,15 @@ impl Session {
             return false;
         }
         let (cut, tries) = compacting.shortened();
-        self.again(Again {
-            upto: compacting.upto(),
-            cut,
-            tries,
-            isolated: true,
-        })
+        self.again(
+            Again {
+                upto: compacting.upto(),
+                cut,
+                tries,
+                isolated: true,
+            },
+            passive(compacting),
+        )
     }
 
     /// 这一次调了工具的，能不能改走隔离式：还没改走过，快照里有那句 system。
@@ -76,12 +83,13 @@ impl Session {
                 .is_some_and(|compaction| compaction.isolate)
     }
 
-    /// 记下怎么再发，回到准备好。
-    fn again(&mut self, again: Again) -> bool {
+    /// 记下怎么再发，回到准备好。被动压缩的（施工 6-7）连压什么也记回去：它不看压缩线，发请求那一步照它再压。
+    fn again(&mut self, again: Again, due: Option<Due>) -> bool {
         let Some(turn) = self.turn.as_mut() else {
             return false;
         };
         turn.again = Some(again);
+        turn.passive = due.map(Passive::Again);
         turn.stage = Stage::Ready;
         true
     }
@@ -137,6 +145,22 @@ impl Session {
         };
         Some(starts[drop].1)
     }
+}
+
+/// 出错再来的（施工 6-6 补）：照这一次截到哪、截了几次、是不是隔离式再发。
+pub(super) fn as_before(compacting: &Compacting) -> Again {
+    let (cut, tries) = compacting.shortened();
+    Again {
+        upto: compacting.upto(),
+        cut,
+        tries,
+        isolated: compacting.isolated(),
+    }
+}
+
+/// 被动压缩的（施工 6-7），再发时照它再压。
+pub(super) fn passive(compacting: &Compacting) -> Option<Due> {
+    (*compacting.trigger() == CompactTrigger::Overflow).then(|| compacting.due())
 }
 
 #[cfg(test)]

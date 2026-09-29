@@ -40,6 +40,8 @@ kinds! {
     Revert,
     /// 恢复。
     Unrevert,
+    /// 手动压缩（施工 6-8）。
+    Compact,
     /// 落盘了。
     Stored,
     /// 环境变了。
@@ -98,6 +100,7 @@ impl InputKind {
                 } => InputKind::Reply,
                 Command::Revert { .. } => InputKind::Revert,
                 Command::Unrevert => InputKind::Unrevert,
+                Command::Compact { .. } => InputKind::Compact,
             },
             Input::Stored { .. } => InputKind::Stored,
             Input::Environment(_) => InputKind::Environment,

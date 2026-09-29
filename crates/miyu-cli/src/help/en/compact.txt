@@ -1,0 +1,8 @@
+Usage: miyu compact [options] [words]
+
+Compact the context into a summary; the most recent part stays as it is.
+Any words are instructions for the summary, such as what to keep.
+
+Options:
+  -s, --session <id>  Which session; default is the one the last miyu ask opened
+  -h, --help          Print help

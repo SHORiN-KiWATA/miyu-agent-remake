@@ -48,7 +48,7 @@ impl Watch {
                 match self.queued.last() {
                     Some(&last) => {
                         assert!(
-                            matches!(next, Some(Body::TurnStarted(started)) if started.trigger == last),
+                            matches!(next, Some(Body::TurnStarted(started)) if started.trigger == Some(last)),
                             "种子 {seed}：还有排着队的 {last}，回合结束后应该由它接着开一轮"
                         );
                         // 接着开的那一轮，接过去的是排着的这几句：撤它的时候一起撤。

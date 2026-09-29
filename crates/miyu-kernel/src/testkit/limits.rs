@@ -1,8 +1,9 @@
-//! 替身和压缩有关的几样（施工 6-2、6-3 上）：交模型限额，回摘要请求。
+//! 替身和压缩有关的几样（施工 6-2、6-3 上）：交模型限额，回摘要请求；手动压缩（施工 6-8）。
 
 use super::Stage;
 use super::script::Line;
-use crate::session::{Input, Limits};
+use crate::id::CommandId;
+use crate::session::{Command, Input, Limits};
 
 impl Stage {
     /// 交模型限额：替身的模型，窗口和最大输出照给的，图片照策略里的固定数（施工 6-2 上）。
@@ -25,5 +26,12 @@ impl Stage {
     /// 会压（施工 6-2 上）。
     pub fn summarize_with(&mut self, instruction: &str, line: Line) {
         self.summaries = Some((instruction.to_string(), line));
+    }
+
+    /// 手动压缩，附上 `instructions`（施工 6-8，`session.compact`）。
+    pub fn request_compaction(&mut self, instructions: Option<&str>) -> CommandId {
+        self.command(Command::Compact {
+            instructions: instructions.map(str::to_string),
+        })
     }
 }
