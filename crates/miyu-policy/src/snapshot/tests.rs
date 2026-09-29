@@ -24,7 +24,7 @@ fn the_same_sources_give_the_same_bytes_and_they_read_back() {
     let text = String::from_utf8(one.to_bytes()).unwrap();
     assert!(text.starts_with(r#"{"persona":"engineer","system":"You are a helpful software engineer.","core":{"checkpoint_open":"#), "{text}");
     assert!(
-        text.ends_with(r#""step_limit":null,"attended":true,"resumes":3,"compaction":{"reserve_cap":20000,"margin":13000,"image":2000,"file":2000}}"#),
+        text.ends_with(r#""step_limit":null,"attended":true,"resumes":3,"compaction":{"reserve_cap":20000,"margin":13000,"image":2000,"file":2000,"tail":16000}}"#),
         "{text}"
     );
     // 改一个字，哈希就变了。
@@ -167,4 +167,19 @@ fn compaction_comes_with_new_snapshots_and_old_ones_read_back_without_it() {
     let mut no_numbers = snapshot;
     no_numbers.compaction = None;
     assert!(no_numbers.policy().unwrap().compaction.is_none());
+}
+
+/// 尾巴的上限（施工 6-2 下）：出厂 16000；6-2（上）造的快照里没有这一格，读成 16000。
+#[test]
+fn the_tail_is_16000_and_older_snapshots_read_it_so() {
+    let snapshot = engineer();
+    assert_eq!(snapshot.policy().unwrap().compaction.unwrap().tail, 16_000);
+    let text = String::from_utf8(snapshot.to_bytes()).unwrap();
+    assert!(
+        text.ends_with(r#""image":2000,"file":2000,"tail":16000}}"#),
+        "{text}"
+    );
+    let older = text.replace(r#","tail":16000}}"#, "}}");
+    let read = Snapshot::from_bytes(older.as_bytes()).unwrap();
+    assert_eq!(read.compaction.unwrap().tail, 16_000);
 }

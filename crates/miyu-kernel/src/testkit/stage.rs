@@ -35,6 +35,8 @@ pub struct Stage {
     pub(super) log: Vec<Event>,
     /// 交给驱动的每一次请求，照先后：看到了第几条为止，和请求本身。
     pub(super) requests: Vec<(Seq, Request)>,
+    /// 每一次请求交给驱动时，「磁盘」上的最后一条（施工 6-2 下）：摘要请求看到的比它早。
+    pub(super) marks: Vec<Seq>,
     /// 每一次回应，照先后。
     pub(super) replies: Vec<(CommandId, Outcome)>,
     /// 推给头的瞬时事件。
@@ -95,6 +97,7 @@ impl Stage {
             environment,
             log: Vec::new(),
             requests: Vec::new(),
+            marks: Vec::new(),
             replies: Vec::new(),
             transients: Vec::new(),
             ran: Vec::new(),
@@ -358,6 +361,12 @@ impl Stage {
     /// 交给驱动的每一次请求，照先后：看到了第几条为止，和请求本身。
     pub fn requests(&self) -> &[(Seq, Request)] {
         &self.requests
+    }
+
+    /// 每一次请求交给驱动时「磁盘」上的最后一条，和 [`Stage::requests`] 一一对应。主请求就是它的 `seen`；压缩的摘要
+    /// 请求看到的比它早（施工 6-2 下）。
+    pub fn marks(&self) -> &[Seq] {
+        &self.marks
     }
 
     /// 推给头的瞬时事件，照先后。

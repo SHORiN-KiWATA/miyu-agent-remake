@@ -11,7 +11,7 @@ use super::action::Action;
 use super::call::Call;
 use super::turn::Stage;
 use crate::accumulate::{Delta, Kind};
-use crate::estimate;
+use crate::estimate::{self, Price};
 use crate::event::{
     Body, CompactTrigger, CompactionProgress, ContextCompacted, Event, Transient, TransientBody,
 };
@@ -64,8 +64,11 @@ impl Compacting {
 
 impl Session {
     /// 这一次主请求发之前要不要先压（`compaction.md` 第二条）：用量过了压缩线，而且有得压，交回替代到哪和压缩前的
-    /// 用量。策略里没有压缩、没交限额、没有窗口的，不主动压。
+    /// 用量。策略里没有压缩、没交限额、没有窗口的，不主动压；这一步已经压过的，照发。
     pub(super) fn compaction_due(&self, request: &Request) -> Option<(Seq, u64)> {
+        if self.turn.as_ref()?.compacted {
+            return None;
+        }
         let compaction = self.policy.compaction.as_ref()?;
         let limits = self.limits.as_ref()?;
         let line = estimate::line(
@@ -79,15 +82,16 @@ impl Session {
         if used <= line {
             return None;
         }
-        Some((self.compaction_upto()?, used))
+        let budget = compaction.tail.min(line / 4);
+        Some((self.compaction_upto(budget, &compaction.price)?, used))
     }
 
-    /// 替代到哪（`compaction.md` 第三条第 2 条）：这一轮要回应的话里最早的那条当边界，替代到它前面那一条；没有的，到
-    /// 落了盘的最后一条。前面没有能压的，不压。
+    /// 替代到哪（`compaction.md` 第三条第 2 条）：尾巴一组一组地留，不超过 `budget`（[`tail_upto`]）；这一轮要回应的话
+    /// 里最早的那条当边界，至多替代到它前面那一条；一组不拆，切出来的是投影的开头一段（[`settle`]）。前面没有能压的，不压。
     ///
     /// 这一轮要回应的话：以前的回合里的请求没看到过、这一轮的回复也没看到过的人的消息；这一轮还没有回复的，加上触发
     /// 它的那一条（请求出错、没回复的，她没真看到）。
-    fn compaction_upto(&self) -> Option<Seq> {
+    fn compaction_upto(&self, budget: u64, price: &dyn Price) -> Option<Seq> {
         let turn = self.turn.as_ref()?;
         let started = turn.id.started();
         let events = self.history.events();
@@ -127,7 +131,9 @@ impl Session {
             Some(boundary) => Seq::new(boundary.get().checked_sub(1)?)?,
             None => self.stored?,
         };
-        let upto = whole_groups(events, upto)?;
+        let ordered = self.history.ordered();
+        let upto = tail_upto(&ordered, budget, price).map_or(upto, |tail| tail.min(upto));
+        let upto = settle(&ordered, upto)?;
         // 不比上一次压缩的 `upto` 晚的，有效历史里那以前的早就替代掉了，这里一条都找不到。
         events
             .iter()
@@ -203,17 +209,65 @@ impl Session {
         if let Some(turn) = self.turn.as_mut() {
             turn.stage = Stage::Ready;
             turn.refresh = true;
+            turn.compacted = true;
         }
         events.extend(self.refresh_facts(at));
         events
     }
 }
 
-/// 一组不拆（`compaction.md` 第三条第 2 条）：替代到的落在一条回复和它的工具结果之间的（回合中途排着的新话在结果
-/// 前面），退到这条回复前面。结果都记在下一条回复以前，退一次不会又落进更早的一组里；还是照到不动为止查。
-fn whole_groups(events: &[Event], mut upto: Seq) -> Option<Seq> {
+/// 留尾巴（`compaction.md` 第三条第 2 条，施工 6-2 下）：照投影的先后（`History::ordered`）看，一组从一条人的消息或者
+/// 一条回复开始，两组之间的别的事件跟着前面那一组。从最新的一组往回，一组一组加进尾巴，加上就超过 `budget` 的停在它
+/// 后面，交回尾巴前面那一条；最新的一组本身就超的，不留尾巴，是 `None`。
+///
+/// 只在「切得开」的地方切：前面的序号都比后面的小（[`cuts`]）。请求在路上时来的话，序号比回复小，投影里却排在回复后面，
+/// 那里切不开，这一组并进前面那一组。
+fn tail_upto(ordered: &[&Event], budget: u64, price: &dyn Price) -> Option<Seq> {
+    let cuts = cuts(ordered);
+    let mut size = 0u64;
+    let mut upto = None;
+    for (index, event) in ordered.iter().enumerate().rev() {
+        size = size.saturating_add(estimate::event(event, price));
+        if !matches!(event.body, Body::MessageUser(_) | Body::MessageAssistant(_)) {
+            continue;
+        }
+        if size > budget {
+            break;
+        }
+        if let Some(cut) = cuts[index] {
+            upto = Some(cut);
+        }
+    }
+    upto
+}
+
+/// 投影里第 `i` 条前面能不能切：前面的序号都比从它起的小，能的交回切在哪（从它起最小的序号前面那一条）。
+fn cuts(ordered: &[&Event]) -> Vec<Option<Seq>> {
+    let mut before = 0u64;
+    let prefix: Vec<u64> = ordered
+        .iter()
+        .map(|event| {
+            let max = before;
+            before = before.max(event.seq.get());
+            max
+        })
+        .collect();
+    let mut after = u64::MAX;
+    let mut cuts = vec![None; ordered.len()];
+    for (index, event) in ordered.iter().enumerate().rev() {
+        after = after.min(event.seq.get());
+        if prefix[index] < after {
+            cuts[index] = after.checked_sub(1).and_then(Seq::new);
+        }
+    }
+    cuts
+}
+
+/// 定下切在哪（`compaction.md` 第三条第 2 条）：一组不拆，落在一条回复和它的工具结果之间的，退到这条回复前面；切出来的
+/// 前一段要是投影的开头一段，不是的往前退到切得开的地方。两样都照到不动为止。
+fn settle(ordered: &[&Event], mut upto: Seq) -> Option<Seq> {
     loop {
-        let split = events
+        let split = ordered
             .iter()
             .filter_map(|event| match &event.body {
                 Body::ToolResult(result) if event.seq > upto => Some(result.call_id.message()),
@@ -221,10 +275,20 @@ fn whole_groups(events: &[Event], mut upto: Seq) -> Option<Seq> {
             })
             .filter(|reply| *reply <= upto)
             .min();
-        match split {
-            Some(reply) => upto = Seq::new(reply.get().checked_sub(1)?)?,
-            None => return Some(upto),
+        let mut next = match split {
+            Some(reply) => Seq::new(reply.get().checked_sub(1)?)?,
+            None => upto,
+        };
+        if let Some(first) = ordered.iter().position(|event| event.seq > next)
+            && ordered[first..].iter().any(|event| event.seq <= next)
+        {
+            let lowest = ordered[first..].iter().map(|event| event.seq).min()?;
+            next = Seq::new(lowest.get().checked_sub(1)?)?;
         }
+        if next == upto {
+            return Some(upto);
+        }
+        upto = next;
     }
 }
 

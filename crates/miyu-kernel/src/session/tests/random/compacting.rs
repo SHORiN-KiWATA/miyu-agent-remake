@@ -11,6 +11,7 @@ pub(super) fn random_policy(attended: bool) -> Policy {
     limited.compaction = Some(Compaction {
         reserve_cap: 10,
         margin: 10,
+        tail: 30,
         price: crate::estimate::Flat {
             image: 50,
             file: 50,

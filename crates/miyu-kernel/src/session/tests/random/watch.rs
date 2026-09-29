@@ -191,6 +191,7 @@ impl Watch {
                 self.sent.insert(*seen);
             }
             Input::Environment(environment) => self.cwd = environment.cwd.clone(),
+            Input::Limits(limits) => self.compactions.limits = Some(limits.clone()),
             _ => {}
         }
         let actions = session.handle(input);
@@ -326,6 +327,7 @@ impl Watch {
             self.summary_called(seen, request);
             return;
         }
+        self.main_request_sent();
         assert_eq!(seen.get(), self.last(), "种子 {seed}：seen 是最后一条");
         // 请求照的是全部历史，撤回的、撤掉的，撤回、撤销、恢复那几条本身，和压缩替代掉的除外。
         assert_eq!(
@@ -447,6 +449,7 @@ impl Watch {
             }
             match &event.body {
                 Body::TurnEnded(ended) => {
+                    self.main_request_sent();
                     self.all_resulted(self.open_turn());
                     self.note_ended(event, &ended.reason);
                     self.retry_ended();

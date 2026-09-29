@@ -13,12 +13,18 @@ use crate::event::{CompactTrigger, CompactionProgress, ContextCompacted, ModelCa
 /// 看守记着的压缩。
 #[derive(Default)]
 pub(in super::super) struct Compactions {
+    /// 交过的模型限额；载入以后会话不记得，看守也清掉（施工 6-2 下：尾巴的预算照它算）。
+    pub(super) limits: Option<Limits>,
     /// 交给过执行器的摘要请求，照 `seen`。
     issued: BTreeSet<Seq>,
     /// 在路上的那次摘要请求，和它推过的字数。
     summarizing: Option<(Seq, u64)>,
+    /// 最近发的那一次摘要请求：说完了、写压缩时照它对。带了尾巴，没成的那一次的 N 可以比后来的大，不能拿交过的里最大的。
+    latest: Option<Seq>,
     /// 最近一次压缩替代到哪。
     pub(super) upto: Option<Seq>,
+    /// 压完了，还没发这一步的主请求：一步至多压一次（施工 6-2 下）。
+    pending: bool,
 }
 
 impl Watch {
@@ -47,6 +53,10 @@ impl Watch {
     /// 发了一次摘要请求：替代到的 N 照规矩；请求是有效历史到 N 的清单加 `summarize`。
     pub(super) fn summary_called(&mut self, seen: Seq, request: &Request) {
         let seed = self.seed;
+        assert!(
+            !self.compactions.pending,
+            "种子 {seed}：压完了还没发主请求，又压了一次"
+        );
         let expected = self.expected_upto();
         assert_eq!(Some(seen), expected, "种子 {seed}：摘要请求替代到的不对");
         let effective = self.effective_events();
@@ -76,6 +86,7 @@ impl Watch {
         }
         self.recorded.remove(&seen);
         self.compactions.summarizing = Some((seen, 0));
+        self.compactions.latest = Some(seen);
     }
 
     /// 看守照规矩算的 N：这一轮要回应的话（以前的回合里的请求、这一轮的回复都没看到过的人的消息；这一轮还没有回复的，
@@ -117,18 +128,42 @@ impl Watch {
             Some(boundary) => seq(boundary.get() - 1),
             None => seq(self.last()),
         };
-        // 一组不拆：落在回复和它的结果之间的，退到回复前面。
-        while let Some(reply) = effective
-            .iter()
-            .filter_map(|event| match &event.body {
-                Body::ToolResult(result) if event.seq > upto => Some(result.call_id.message()),
-                _ => None,
-            })
-            .filter(|reply| *reply <= upto)
-            .min()
+        let ordered = self.rendered_order();
+        // 留尾巴：尾巴只会让 N 往前挪。
+        if let Some(tail) = self.expected_tail(&ordered)
+            && tail < upto
         {
-            self.seen_paths.insert("一组不拆");
-            upto = seq(reply.get() - 1);
+            self.seen_paths.insert("留了尾巴");
+            upto = tail;
+        }
+        // 一组不拆：落在回复和它的结果之间的，退到回复前面；切出来的前一段要是投影的开头一段。照到不动为止。
+        loop {
+            let before = upto;
+            if let Some(reply) = ordered
+                .iter()
+                .filter_map(|event| match &event.body {
+                    Body::ToolResult(result) if event.seq > upto => Some(result.call_id.message()),
+                    _ => None,
+                })
+                .filter(|reply| *reply <= upto)
+                .min()
+            {
+                self.seen_paths.insert("一组不拆");
+                upto = seq(reply.get() - 1);
+            }
+            if !cut_at(&ordered, upto) {
+                self.seen_paths.insert("切不开往前退");
+                let first = ordered.iter().position(|event| event.seq > upto).unwrap();
+                let lowest = ordered[first..]
+                    .iter()
+                    .map(|event| event.seq)
+                    .min()
+                    .unwrap();
+                upto = seq(lowest.get() - 1);
+            }
+            if upto == before {
+                break;
+            }
         }
         if self.compactions.upto.is_some_and(|last| upto <= last) {
             return None;
@@ -145,6 +180,51 @@ impl Watch {
             .then_some(upto)
     }
 
+    /// 照看守记下的日志重建有效历史，交回投影的先后（`History::ordered`）。
+    fn rendered_order(&self) -> Vec<Event> {
+        let mut history = History::default();
+        for event in std::iter::once(self.created()).chain(self.events.iter().cloned()) {
+            history.append(event);
+        }
+        history.ordered().into_iter().cloned().collect()
+    }
+
+    /// 看守照规矩算的尾巴：预算是 min(30, 压缩线的四分之一)（随机测试的策略）。照投影的先后，一组从人的消息或者回复
+    /// 开始；从最新的一组往回，尾巴（这一组起到最后的全部事件）还在预算以内、这里切得开的，N 可以是这一组前面那一条，
+    /// 取最早的；加上就超了的停下。
+    fn expected_tail(&self, ordered: &[Event]) -> Option<Seq> {
+        let limits = self.compactions.limits.as_ref()?;
+        let line = crate::estimate::line(limits.window, limits.max_output, 10, 10)?;
+        let budget = (line / 4).min(30);
+        let price = crate::estimate::Flat {
+            image: 50,
+            file: 50,
+        };
+        let mut tail = None;
+        for (index, event) in ordered.iter().enumerate().rev() {
+            if !matches!(event.body, Body::MessageUser(_) | Body::MessageAssistant(_)) {
+                continue;
+            }
+            let size: u64 = ordered[index..]
+                .iter()
+                .map(|event| crate::estimate::event(event, &price))
+                .sum();
+            if size > budget {
+                break;
+            }
+            let lowest = ordered[index..]
+                .iter()
+                .map(|event| event.seq)
+                .min()
+                .unwrap();
+            // 这一组前面切得开：前面的序号都比从这一组起的小。
+            if ordered[..index].iter().all(|event| event.seq < lowest) {
+                tail = Some(seq(lowest.get() - 1));
+            }
+        }
+        tail
+    }
+
     /// 摘要请求的 `model.called`：说完了的，后面紧跟着替代到它的压缩；取不出摘要的，紧跟着出错的回合结束；别的错
     /// 照重试的规矩。
     pub(super) fn summary_ended(&mut self, called: &ModelCalled, events: &[Event], k: usize) {
@@ -159,8 +239,8 @@ impl Watch {
             &called.result,
             called.error.as_ref().map(|error| &error.class),
         ) {
+            // 说完了也不清零连着出错的次数：和这一步的主请求合用一个计数（施工 6-2 下）。
             (CallResult::Ok, _) => {
-                self.retries.reset_failures();
                 assert!(
                     matches!(after, Some(Body::ContextCompacted(compacted)) if compacted.upto == called.seen),
                     "种子 {seed}：摘要请求说完了，后面紧跟着替代到 {} 的压缩",
@@ -190,7 +270,7 @@ impl Watch {
     pub(super) fn compaction_appended(&mut self, event: &Event, compacted: &ContextCompacted) {
         let seed = self.seed;
         self.seen_paths.insert("压缩了");
-        let issued = self.compactions.issued.last().copied();
+        let issued = self.compactions.latest;
         assert_eq!(
             Some(compacted.upto),
             issued,
@@ -201,6 +281,7 @@ impl Watch {
         assert_eq!(event.turn, Some(self.open_turn()));
         assert!(!compacted.summary.is_empty(), "种子 {seed}：摘要不是空的");
         self.compactions.upto = Some(compacted.upto);
+        self.compactions.pending = true;
         self.undo.compacted(compacted.upto);
     }
 
@@ -224,6 +305,16 @@ impl Watch {
         );
     }
 
+    /// 载入了：会话不记得交过的限额。
+    pub(super) fn forget_limits(&mut self) {
+        self.compactions.limits = None;
+    }
+
+    /// 发了主请求，或者这一轮结束了：下一步又能压了。
+    pub(super) fn main_request_sent(&mut self) {
+        self.compactions.pending = false;
+    }
+
     /// 推了增量：不是摘要请求的。
     pub(super) fn not_summarizing(&self, seen: Seq) {
         assert!(
@@ -239,4 +330,10 @@ impl Watch {
             .upto
             .is_some_and(|upto| turn.started() <= upto)
     }
+}
+
+/// 切在 `upto` 后面，前一段是不是投影的开头一段：序号不超过它的，都排在超过它的前面。
+fn cut_at(ordered: &[Event], upto: Seq) -> bool {
+    let first = ordered.iter().position(|event| event.seq > upto);
+    first.is_none_or(|first| ordered[first..].iter().all(|event| event.seq > upto))
 }

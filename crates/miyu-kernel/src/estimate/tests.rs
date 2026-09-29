@@ -356,3 +356,48 @@ fn the_tool_face_counts_as_its_json() {
     let face = json(&now.tools).len() as u64;
     assert_eq!(usage(&now, None, &flash(), &FLAT), face.div_ceil(4) + 1);
 }
+
+/// 留尾巴时一条事件的估算（施工 6-2 下）：人的消息、回复、工具结果照内容块，事实照原文，别的事件算 0。
+#[test]
+fn an_event_is_counted_by_what_goes_into_the_context() {
+    let said = event(
+        2,
+        None,
+        ALICE,
+        "message.user",
+        r#"{"blocks":[{"type":"text","text":"abcdefgh"}]}"#,
+    );
+    assert_eq!(super::event(&said, &FLAT), 2);
+    let reply = event(
+        6,
+        Some(3),
+        r#"{"kind":"model","endpoint":"deepseek","model":"deepseek-flash"}"#,
+        "message.assistant",
+        r#"{"blocks":[{"type":"text","text":"abcde"},{"type":"tool_call","call_id":"call_6_1","name":"read","args":"{}"}],"seen":5}"#,
+    );
+    assert_eq!(
+        super::event(&reply, &FLAT),
+        3,
+        "五个字节加六个字节，十一个字节是 3"
+    );
+    let result = event(
+        8,
+        Some(3),
+        r#"{"kind":"tool","call_id":"call_6_1"}"#,
+        "tool.result",
+        r#"{"call_id":"call_6_1","status":"ok","blocks":[{"type":"text","text":"abcd"}]}"#,
+    );
+    assert_eq!(super::event(&result, &FLAT), 1);
+    let fact = event(
+        4,
+        Some(3),
+        KERNEL,
+        "context.injected",
+        r#"{"kind":"env","text":"<env/>\n"}"#,
+    );
+    assert_eq!(super::event(&fact, &FLAT), 2);
+    let started = event(3, Some(3), KERNEL, "turn.started", r#"{"trigger":2}"#);
+    assert_eq!(super::event(&started, &FLAT), 0);
+    let called = called(7, 3, 2, Some(500), "ok");
+    assert_eq!(super::event(&called, &FLAT), 0);
+}

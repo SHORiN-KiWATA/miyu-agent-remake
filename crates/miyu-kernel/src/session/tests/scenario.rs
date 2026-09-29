@@ -6,6 +6,7 @@ mod asking;
 mod compaction;
 mod retrying;
 mod stopping;
+mod tail;
 
 use super::executor::call;
 use super::*;

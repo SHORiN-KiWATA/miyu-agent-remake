@@ -52,6 +52,17 @@ pub struct CompactionNumbers {
     pub image: u64,
     /// 本地估算时一个文件算多少 token。
     pub file: u64,
+    /// 尾巴至多多少 token（施工 6-2 下）。6-2（上）造的快照里没有，读成出厂的 16000。
+    #[serde(default = "default_tail")]
+    pub tail: u64,
+}
+
+/// 尾巴的预算上限的出厂值（`compaction.md` 第三条第 2 条，2026-09-29 项目主人定）。
+pub const TAIL: u64 = 16_000;
+
+/// 读 6-2（上）造的快照时，没有 `tail` 的那一格。
+fn default_tail() -> u64 {
+    TAIL
 }
 
 /// 随核心附带的字（`resources/core/`），原文照抄，行尾的换行也算（`26-提示词.md` 第八节）。
@@ -312,6 +323,7 @@ impl Snapshot {
         Some(Compaction {
             reserve_cap: numbers.reserve_cap,
             margin: numbers.margin,
+            tail: numbers.tail,
             price: Flat {
                 image: numbers.image,
                 file: numbers.file,

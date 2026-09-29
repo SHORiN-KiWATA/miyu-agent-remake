@@ -70,6 +70,7 @@ pub fn policy() -> Policy {
         compaction: Some(Compaction {
             reserve_cap: 20_000,
             margin: 13_000,
+            tail: 16_000,
             price: Flat {
                 image: 2000,
                 file: 2000,
@@ -104,21 +105,24 @@ pub fn lines(stage: &Stage) -> Vec<String> {
     stage.log().iter().map(Event::to_line).collect()
 }
 
-/// 替身发过的每一次请求，和发它时的情形：上一次请求看到的之后、这一次看到的为止，有撤销、恢复、
-/// 压缩的，算改写过；一个回合的第一次请求，触发它的是人的消息的，记下那句话的最后一块。
+/// 替身发过的每一次请求，和发它时的情形：上一次请求交出去以后、这一次交出去以前，日志里有撤销、恢复、压缩的，算
+/// 改写过；一个回合的第一次主请求（上一次主请求在这一轮开始以前），触发它的是人的消息的，记下那句话的最后一块。摘要请求
+/// 看到的比交出去时的日志早（施工 6-2 下），所以改写照交出去的那一刻算，第一次照上一次主请求算。
 pub fn sent(stage: &Stage) -> Vec<Sent> {
     let log = stage.log();
     let mut before: Option<Seq> = None;
+    let mut before_main: Option<Seq> = None;
     let mut sent = Vec::new();
-    for (seen, request) in stage.requests() {
+    for ((seen, request), mark) in stage.requests().iter().zip(stage.marks()) {
         let since =
-            |event: &&Event| before.is_none_or(|before| event.seq > before) && event.seq <= *seen;
+            |event: &&Event| before.is_none_or(|before| event.seq > before) && event.seq <= *mark;
         let rewritten = log.iter().filter(since).any(|event| {
             matches!(
                 event.body,
                 Body::TurnReverted(_) | Body::TurnUnreverted(_) | Body::ContextCompacted(_)
             )
         });
+        let summary = is_summary(request);
         let trigger = log
             .iter()
             .filter(|event| event.seq <= *seen)
@@ -127,19 +131,23 @@ pub fn sent(stage: &Stage) -> Vec<Sent> {
                 Body::TurnStarted(started) => Some((event.seq, started.trigger)),
                 _ => None,
             })
-            .filter(|(turn, _)| before.is_none_or(|before| before < *turn))
+            .filter(|_| !summary)
+            .filter(|(turn, _)| before_main.is_none_or(|before| before < *turn))
             .and_then(|(_, trigger)| log.iter().find(|event| event.seq == trigger))
             .and_then(|event| match &event.body {
                 Body::MessageUser(message) => message.blocks.last().cloned(),
                 _ => None,
             });
         sent.push(Sent {
-            summary: is_summary(request),
+            summary,
             request: request.clone(),
             rewritten,
             trigger,
         });
-        before = Some(*seen);
+        before = Some(*mark);
+        if !summary {
+            before_main = Some(*seen);
+        }
     }
     sent
 }

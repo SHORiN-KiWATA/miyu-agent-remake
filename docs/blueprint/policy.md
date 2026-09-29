@@ -32,7 +32,7 @@
 | `step_limit` | 整数或 `null` | 一个回合最多请求几次模型；`null` 是不限，现在总是 `null` |
 | `attended` | 布尔 | 有没有人能确认 |
 | `resumes` | 整数 | 有计划的重启打断了一轮，再起来时连着接着干几次，现在是 3 |
-| `compaction` | 对象 | 压缩用的数：`reserve_cap` 输出预留的上限、`margin` 余量、`image`、`file` 估算时一张图、一个文件各算多少 token，现在是 20000、13000、2000、2000（施工 6-2 上）。以前造的快照里没有，读成没有；没有的不写 |
+| `compaction` | 对象 | 压缩用的数：`reserve_cap` 输出预留的上限、`margin` 余量、`image`、`file` 估算时一张图、一个文件各算多少 token、`tail` 尾巴的上限，现在是 20000、13000、2000、2000、16000（施工 6-2）。以前造的快照里没有，读成没有；没有的不写。6-2（上）造的没有 `tail`，读成 16000 |
 
 **`ToolEntry`**：`name`、`description`、`parameters`（参数的 JSON Schema，原样的 JSON）、`access`（`read`、`write`、`execute`、`network`、`outbound`，不认识的原样留着），照这个先后。
 
@@ -128,7 +128,7 @@
 规范的字节，一行紧凑的 JSON（软件工程师，带两件工具，中间省略）：
 
 ```text
-{"persona":"engineer","system":"You are a helpful software engineer.","tools":[{"name":"edit","description":"…","parameters":{"type":"object"},"access":"write"},{"name":"read",…}],"core":{"checkpoint_open":"<conversation-checkpoint>\n…","checkpoint_close":…,"turn_ended":{…},"facts":{…},"tool_results":{…},"drivers":{…},"permissions":{…},"compaction":{"summarize_task":"Respond with text only. …"}},"step_limit":null,"attended":true,"resumes":3,"compaction":{"reserve_cap":20000,"margin":13000,"image":2000,"file":2000}}
+{"persona":"engineer","system":"You are a helpful software engineer.","tools":[{"name":"edit","description":"…","parameters":{"type":"object"},"access":"write"},{"name":"read",…}],"core":{"checkpoint_open":"<conversation-checkpoint>\n…","checkpoint_close":…,"turn_ended":{…},"facts":{…},"tool_results":{…},"drivers":{…},"permissions":{…},"compaction":{"summarize_task":"Respond with text only. …"}},"step_limit":null,"attended":true,"resumes":3,"compaction":{"reserve_cap":20000,"margin":13000,"image":2000,"file":2000,"tail":16000}}
 ```
 
 - blob 的位置：`home/<属主>/blobs/<哈希的前两位>/<64 位十六进制>`（`store.md`）。

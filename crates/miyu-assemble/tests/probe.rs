@@ -111,21 +111,23 @@ fn terminal() -> Stage {
     s.model([Line::says("好的。")]);
     s.say("接着来");
 
-    // 9. 交了限额（窗口 60000，压缩线 27000）；这一轮报的用量是 40000。
-    // 10. 下一轮一开头就过线：先压，摘要请求截到触发这一轮的那句前面；压完两块事实重新注入，和触发的那句放在一起。
+    // 9. 交了限额（窗口 33400，压缩线 400，尾巴的预算 100）；这一轮问得长（约 200 个 token），报的用量是 40000。
+    // 10. 下一轮一开头就过线：先压，最近几组留作尾巴（施工 6-2 下）：第 9 轮的回复和这一轮的那句，长的那一问压进
+    //     摘要；压完两块事实重新注入，和触发的那句放在一起。
     summarizes(&mut s);
-    s.limits(Some(60_000), None);
+    s.limits(Some(33_400), None);
     s.model([Line::says("README 里写了怎么装。").reports(40_000)]);
-    s.say("README 写了什么？");
-    s.model([Line::says("装好以后跑 miyu ask。").reports(1_000)]);
+    s.say(&"README 写了什么？装的时候要注意什么，每个平台有什么不一样？".repeat(8));
+    s.model([Line::says("装好以后跑 miyu ask。").reports(100)]);
     s.say("装好以后呢？");
 
-    // 11. 回合中途过线：调工具的那一次报 40000，结果回来以后先压，截到最后一条；再接着说完。
+    // 11. 回合中途过线：调工具的那一次报 40000，结果回来以后先压。最新的一组（这次调用和它约 150 个 token 的结果）
+    //     比尾巴的预算还大，不留尾巴，截到最后一条；再接着说完。
     s.model([
         Line::calls("我看一下 lib.rs。", &[("read", r#"{"path":"src/lib.rs"}"#)]).reports(40_000),
         Line::says("lib.rs 只有一行。").reports(1_000),
     ]);
-    s.tools([Play::done("pub mod assemble;")]);
+    s.tools([Play::done(&"pub mod assemble;\n".repeat(33))]);
     s.say("lib.rs 里有什么？");
 
     s
@@ -192,11 +194,11 @@ fn the_terminal_session_keeps_the_properties() {
         panic!("{why}");
     }
     // 锚盖住的正好是锚那次请求加上它的回复（施工 6-1）：替身发了二十二次请求（出错再来的、两次摘要请求也算），第一次、
-    // 三次压缩以后的第一次没有锚。
+    // 三次压缩以后的第一次没有锚；摘要请求不估用量，不查（施工 6-2 下）。
     match anchored(&session) {
         Ok(count) => assert_eq!(
             (count, session.requests().len()),
-            (18, 22),
+            (16, 22),
             "有锚的请求的次数"
         ),
         Err(why) => panic!("{why}"),

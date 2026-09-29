@@ -38,6 +38,8 @@ pub struct Compaction {
     pub reserve_cap: u64,
     /// 余量：压缩线离「放不下」还空多少。出厂 13000。
     pub margin: u64,
+    /// 尾巴的预算上限：压完原样留着的最近一段，至多这么多 token，也不超过压缩线的四分之一。出厂 16000（施工 6-2 下）。
+    pub tail: u64,
     /// 本地估算时一张图、一个文件各算多少 token。出厂各 2000。
     pub price: Flat,
 }

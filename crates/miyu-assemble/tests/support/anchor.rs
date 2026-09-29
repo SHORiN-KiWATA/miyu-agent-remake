@@ -25,6 +25,10 @@ pub fn anchored(stage: &Stage) -> Result<usize, String> {
     let mut anchored = 0;
     for (index, (seen, request)) in requests.iter().enumerate() {
         let number = index + 1;
+        // 摘要请求不估用量，不看锚（施工 6-2 上）。
+        if super::is_summary(request) {
+            continue;
+        }
         let mut history = History::default();
         for event in log.iter().filter(|event| event.seq <= *seen) {
             history.append(event.clone());

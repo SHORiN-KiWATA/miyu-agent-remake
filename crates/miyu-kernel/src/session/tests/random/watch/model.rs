@@ -22,13 +22,6 @@ pub(super) struct Retries {
     failures: u32,
 }
 
-impl Retries {
-    /// 说完了一次：连着的次数清零。
-    pub(super) fn reset_failures(&mut self) {
-        self.failures = 0;
-    }
-}
-
 impl Watch {
     /// 一条 `model.called`：交给过执行器、只记一次；说完了的前面是它的回复；出错的，要么紧跟着出错
     /// 的回合结束，要么再来。

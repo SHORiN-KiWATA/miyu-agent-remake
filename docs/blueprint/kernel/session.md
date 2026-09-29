@@ -113,7 +113,7 @@
 | `tool_texts` | 内核替工具写的 13 句（`ToolTexts`） | `resources/core/tool-results/` |
 | `attended` | 有没有人能确认、回答 | 造会话的那个连接握手时的 `caps.input` |
 | `resumes` | 有计划的重启打断了一轮，连着接着干几次 | 3 |
-| `compaction` | 压缩用的数：`reserve_cap` 输出预留的上限、`margin` 余量、`price` 估算时一张图、一个文件各算多少；`None` 不主动压 | 20000、13000、各 2000（`miyu-policy` 的 `compose`，施工 6-2 上）；以前造的快照里没有的是 `None` |
+| `compaction` | 压缩用的数：`reserve_cap` 输出预留的上限、`margin` 余量、`tail` 尾巴的上限、`price` 估算时一张图、一个文件各算多少；`None` 不主动压 | 20000、13000、16000、各 2000（`miyu-policy` 的 `compose`，施工 6-2）；以前造的快照里没有的是 `None` |
 
 ### 怎么走
 

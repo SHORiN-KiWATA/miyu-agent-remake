@@ -97,6 +97,8 @@ impl Stage {
     fn call(&mut self, seen: Seq, request: Request) -> Vec<Input> {
         let hash = request.hash();
         let summary = self.summary_line(&request);
+        self.marks
+            .push(self.log.last().map_or(seen, |event| event.seq));
         self.requests.push((seen, request));
         let line = summary
             .or_else(|| self.lines.pop_front())

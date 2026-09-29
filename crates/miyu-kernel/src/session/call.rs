@@ -211,12 +211,13 @@ impl Session {
             events.extend(self.finish_turn(at, By::Kernel, cause, EndReason::Error));
             return vec![Action::Append(events)];
         }
-        if let Some(turn) = self.turn.as_mut() {
-            turn.retries = 0;
-        }
+        // 摘要请求说完了不清零：重试次数和这一步的主请求合用一个计数（施工 6-2 下）。
         if let Some((upto, summary)) = settled.summary {
             events.extend(self.compacted(at, upto, summary, cause));
             return vec![Action::Append(events)];
+        }
+        if let Some(turn) = self.turn.as_mut() {
+            turn.retries = 0;
         }
         match settled.reply {
             Some(reply) if !settled.calls.is_empty() => {

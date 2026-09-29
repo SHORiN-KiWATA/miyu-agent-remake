@@ -4,10 +4,11 @@
 //! 本地估算照 codex，UTF-8 字节数除以 4（[`message`]）。只估锚之后那一截，估偏了也落在余量里，
 //! 下一次请求就被真值盖过去（Claude Code、codex、pi、dsh 都是这个结构）。
 //!
-//! 这里只有算法，还没接进回合：什么时候查、到线怎么压，是 6-2 的事。
+//! 这里只有算法；什么时候查、到线怎么压，在会话的 `compaction.rs`（施工 6-2）。压缩留尾巴时，一条事件照同样的数法
+//! 估（[`event`]，施工 6-2 下）。
 
 use crate::block::Block;
-use crate::event::{Body, CallResult};
+use crate::event::{Body, CallResult, Event};
 use crate::history::History;
 use crate::id::Seq;
 use crate::origin::Model;
@@ -146,6 +147,23 @@ pub fn message(message: &Message, price: &dyn Price) -> u64 {
             blocks
         }
     };
+    blocks_of(blocks, price)
+}
+
+/// 一条事件的本地估算，留尾巴时用（施工 6-2 下）：人的消息、回复、工具结果照它们的内容块，和 [`message`] 一样数；
+/// 事实照它的原文；别的事件不进上下文，算 0。
+pub fn event(event: &Event, price: &dyn Price) -> u64 {
+    match &event.body {
+        Body::MessageUser(message) => blocks_of(&message.blocks, price),
+        Body::MessageAssistant(reply) => blocks_of(&reply.blocks, price),
+        Body::ToolResult(result) => blocks_of(&result.blocks, price),
+        Body::ContextInjected(fact) => tokens(fact.text.len()),
+        _ => 0,
+    }
+}
+
+/// 一串内容块的估算：字节加起来除以 4，向上取整；图片、文件照 `price`。
+fn blocks_of(blocks: &[Block], price: &dyn Price) -> u64 {
     let mut bytes = 0usize;
     let mut media = 0u64;
     for block in blocks {

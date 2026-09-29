@@ -9,10 +9,12 @@ use crate::event::{CompactTrigger, CompactionProgress, TransientBody, Usage};
 use crate::id::CallId;
 use crate::session::Compaction;
 
-/// 压缩的数：输出预留的上限、余量各 10，图片、文件各 50。
+/// 压缩的数：输出预留的上限、余量各 10，图片、文件各 50。尾巴的预算是 0：这几个场景只看这一轮要回应的话，尾巴在
+/// `scenario/tail.rs`。
 const COMPACTION: Compaction = Compaction {
     reserve_cap: 10,
     margin: 10,
+    tail: 0,
     price: crate::estimate::Flat {
         image: 50,
         file: 50,

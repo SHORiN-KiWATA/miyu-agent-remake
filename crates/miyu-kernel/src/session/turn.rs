@@ -41,6 +41,9 @@ pub(super) struct Turn {
     pub(super) queued: Vec<(Seq, Option<CommandId>)>,
     /// 上一次请求以后切过权限级别：下一次请求之前把事实查一遍。
     pub(super) refresh: bool,
+    /// 这一步压过了（施工 6-2 下）：压完照常发这一步本来要发的请求，不再压第二次（`compaction.md` 第三条第 1 条）。
+    /// 发了主请求就清掉。
+    pub(super) compacted: bool,
     /// 打断了，在等停着的改文件的调用交回来（施工 4-9 再补一）：等齐了才收尾。
     pub(super) interrupting: Option<Interrupting>,
 }
@@ -118,6 +121,7 @@ impl Session {
             interjected: None,
             queued: Vec::new(),
             refresh: false,
+            compacted: false,
             interrupting: None,
         });
         self.effective = self.permission.clone();
@@ -212,6 +216,7 @@ impl Session {
         if !std::mem::take(&mut turn.retrying) {
             turn.requests += 1;
         }
+        turn.compacted = false;
         turn.interjected = None;
         turn.queued.clear();
         turn.stage = Stage::Asking(Call::new(seen, request.messages.len(), difference));

@@ -147,6 +147,7 @@ impl Session {
                 interjected: None,
                 queued: Vec::new(),
                 refresh: false,
+                compacted: false,
                 interrupting: None,
             });
             let text = self.policy.tool_texts.restarted();
