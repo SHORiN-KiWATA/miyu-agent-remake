@@ -104,6 +104,10 @@ fn policy_with(system: String) -> Policy {
             isolate: false,
         }),
         notes: None,
+        reports: miyu_kernel::session::Reports {
+            chars: 30_000,
+            omitted: miyu_kernel::template::Template::parse("").expect("空的模板读得进来"),
+        },
     }
 }
 

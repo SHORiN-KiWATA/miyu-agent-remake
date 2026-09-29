@@ -4,6 +4,7 @@
 
 mod asking;
 mod breaker;
+mod clear;
 mod commands;
 mod compaction;
 mod done;
@@ -15,8 +16,11 @@ mod reports;
 mod reports_undo;
 mod retrying;
 mod shorten;
+mod spans;
 mod stopping;
 mod tail;
+mod upward;
+mod upward_load;
 
 use super::executor::call;
 use super::*;

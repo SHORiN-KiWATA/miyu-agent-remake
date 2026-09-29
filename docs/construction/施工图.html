@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>120</b><span>/ 131 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑</span></li>
+    <li><b>124</b><span>/ 135 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来</span></li>
     <li><b>7-4</b><span>下一步：两条线并行，7-4 jobs 和 job.stop、7-6 子会话回报（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">6d50be5</b><span>最近一步（7-3 后台命令）的提交</span></li>
+    <li><b class="mono">6373ac7</b><span>最近一步（7-6 子会话回报）的提交</span></li>
   </ul>
 </header>
 
@@ -349,7 +349,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s2-2"><span class="n">2-2</span>流式累积器<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-3a"><span class="n">2-3</span>最简单的一轮（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-3b"><span class="n">2-3</span>最简单的一轮（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">2-3</span>回复每一块的起止时刻（补）</span></li>
+        <li><a class="step done" href="#s2-3c"><span class="n">2-3</span>回复每一块的起止时刻（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-4"><span class="n">2-4</span>调工具<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-5"><span class="n">2-5</span>打断<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-6"><span class="n">2-6</span>排队的消息<span class="st">✓</span></a></li>
@@ -386,11 +386,13 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-8b"><span class="n">3-8</span>协议端点（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8c"><span class="n">3-8</span>协议端点（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8d"><span class="n">3-8</span>Windows 命名管道（补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-8</span>协议收切权限级别（再补）</span></li>
+        <li><a class="step done" href="#s3-8c"><span class="n">3-8</span>协议收切权限级别（再补）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">3-8</span>改名和删除会话（三补）</span></li>
         <li><a class="step done" href="#s3-9a"><span class="n">3-9</span>主程序和拉起核心（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9b"><span class="n">3-9</span>miyu ask（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9c"><span class="n">3-9</span>会话编号照先后（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9d"><span class="n">3-9</span>开发用的地址和模型（再补）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">3-9</span>附件（三补）</span></li>
       </ol>
     </li>
     <li>
@@ -410,6 +412,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-7a"><span class="n">4-7</span>撤销时恢复文件（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-7b"><span class="n">4-7</span>undo、redo 命令（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-7c"><span class="n">4-7</span>命令改名（补）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">4-7</span>重做上一轮（再补）</span></li>
         <li><a class="step done" href="#s4-8"><span class="n">4-8</span>执行命令<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9"><span class="n">4-9</span>没人能确认时说清楚<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9b"><span class="n">4-9</span>补完蓝图（补）<span class="st">✓</span></a></li>
@@ -466,7 +469,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s6-6d"><span class="n">6-6</span>出错再来照截过的发（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-7"><span class="n">6-7</span>被动压缩<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-8"><span class="n">6-8</span>手动压缩<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">6-8</span>清空上下文（补）</span></li>
+        <li><a class="step done" href="#s6-8b"><span class="n">6-8</span>清空上下文（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-9"><span class="n">6-9</span>撤销能撤掉压缩<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-10"><span class="n">6-10</span>M6 验收<span class="st">✓</span></a></li>
       </ol>
@@ -475,11 +478,12 @@ a.step:hover{border-color:var(--primary)}
       <div class="ms-head"><span class="ms-id">M7</span><span class="ms-name">分身</span><span class="ms-goal">子代理、后台命令，做完回报叫醒她；父子之间能来回说话</span></div>
       <ol class="chips">
         <li><a class="step done" href="#s7-1"><span class="n">7-1</span>任务的事件<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">7-1</span>编号带上父会话的编号（补）</span></li>
         <li><a class="step done" href="#s7-2"><span class="n">7-2</span>回报到了<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-3"><span class="n">7-3</span>后台命令<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-4</span>jobs 和 job.stop</span></li>
         <li><a class="step done" href="#s7-5"><span class="n">7-5</span>派子代理<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">7-6</span>子会话回报</span></li>
+        <li><a class="step done" href="#s7-6"><span class="n">7-6</span>子会话回报<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-7</span>父子之间留言</span></li>
         <li><span class="step"><span class="n">7-8</span>撤销、删除和压缩</span></li>
         <li><span class="step"><span class="n">7-9</span>miyu ask 等子代理</span></li>
@@ -2091,6 +2095,61 @@ a.step:hover{border-color:var(--primary)}
         <li><code>docs/designs/02-内核.md</code> 第六节「回复怎么收、回合怎么结束」，第四节、第九节的表。</li>
         <li><code>docs/designs/03-事件模型.md</code> 第三节「模型调用怎么写」。</li>
         <li><code>docs/construction/2-3-最简单的一轮（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s2-3c" aria-labelledby="h-s23c">
+  <div class="sheet-head"><h2 id="h-s23c"><span class="no">2-3</span>回复每一块的起止时刻（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose"><code>model.called</code> 记下回复里每一块（思考、正文、工具调用）从哪一刻开始、到哪一刻收全。头照它写「已思考 11.8 秒」：刷新网页、接着旧会话开，都能从日志里算出来（网页演示转来）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">blocks</span><span class="dir-note">session/spans.rs</span></div>
+            <ol class="pipe" aria-label="怎么记">
+              <li>照落盘的回复的块的先后，一块一项 <code>{start_ms, end_ms}</code>，从请求发出去算起</li>
+              <li>起是这一块第一段增量，止是它最后一段字；收块的信号不算（驱动流完了才一起收）</li>
+              <li>半截的只记留下的；没写回复的不写；旧日志照读</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">时钟往回拨</span><span class="rl">止不往回挪，头拿止减起不会是负的</span></div>
+          <div class="tile"><span class="nm">探针</span><span class="rl">请求一字不变，存档的日志多这一格</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-3 补</dd></div>
+        <div><dt>名称</dt><dd>回复每一块的起止时刻</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">c2a56a7</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>累积器给每一块记住它在流里是第几块；<code>model.called</code> 多 <code>blocks</code>；随机测试加一条不变量。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>10 个测试先红后绿；9 个变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/2-3-回复每一块的起止时刻（补）.md</code>。</li>
       </ul>
     </div>
   </div>
@@ -4496,6 +4555,61 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li><code>docs/designs/04-核心协议.md</code> 第二节、<code>07-存储.md</code> 第二节：Windows 的写法、头核对另一头。</li>
         <li><code>docs/construction/3-8-Windows命名管道（补）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s3-8c" aria-labelledby="h-s38c">
+  <div class="sheet-head"><h2 id="h-s38c"><span class="no">3-8</span>协议收切权限级别（再补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头能经协议切权限级别：<code>session.set_permission_level</code>。内核早有这个命令，核心开了口子，终端界面、网页把 Tab、Shift+Tab、底栏做成真的（项目主人要）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">session.set_permission_level</span><span class="dir-note">miyu-endpoint/src/methods.rs</span></div>
+            <ol class="pipe" aria-label="怎么走">
+              <li><code>{session, level?, read_only?}</code>：<code>workspace</code> 或 <code>full</code>，只读开关；两格都不写的回参数不对</li>
+              <li>变了才记 <code>session.policy_changed</code>：收紧当场生效，放宽下一步生效；一样的不记</li>
+              <li>回应 <code>{}</code>，推送排在回应前面</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不认识的级别</span><span class="rl">回参数不对，和别的参数一个规矩</span></div>
+          <div class="tile"><span class="nm">还没有的</span><span class="rl">session.answer 随 M8；成员只能用只读和工作区随多用户</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-8 再补</dd></div>
+        <div><dt>名称</dt><dd>协议收切权限级别</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">dfdb80b</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>协议加方法；真核心走一遍：回合进行中开只读，排在后面的写当场被拒。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>7 个测试先红后绿；9 个变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/3-8-协议收切权限级别（再补）.md</code>。</li>
       </ul>
     </div>
   </div>
@@ -8708,6 +8822,64 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s6-8b" aria-labelledby="h-s68b">
+  <div class="sheet-head"><h2 id="h-s68b"><span class="no">6-8</span>清空上下文（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">人能叫她从这里起清空看到的上下文，会话不变：协议 <code>session.clear</code>，终端界面的 <code>/clear</code>（项目主人要）。等于压成一个空的检查点，不请求模型；日志照留，撤销那一轮就回到清空以前。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">session.clear</span><span class="dir-note">session/clear.rs</span></div>
+            <ol class="pipe" aria-label="怎么走">
+              <li>空闲时收，单开一轮；同一批写 <code>context.compacted</code>（<code>trigger: clear</code>，摘要空的）和 <code>turn.ended</code></li>
+              <li>渲染时什么都不出；下一轮开头照常注入环境、权限</li>
+              <li>回合进行中拒 <code>turn_running</code>；本来就空的拒 <code>nothing_to_clear</code>「上下文为空」</li>
+              <li>撤掉清空：<code>miyu undo</code> 说「撤掉了清空，上下文回到了清空以前」</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">照样能翻</span><span class="rl">清空以后 history 还翻得到以前的（项目主人定）</span></div>
+          <div class="tile new"><span class="nm">造回合共用</span><span class="rl">平常的、手动压缩、清空都走 new_turn</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-8 补</dd></div>
+        <div><dt>名称</dt><dd>清空上下文</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">0251dae</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>内核 <code>Command::Clear</code>、账本「摘要空的只许清空」、组装不出字、协议 <code>session.clear</code>、撤销回应多 <code>clears</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>内核、账本、组装、协议、命令行各有测试，探针多一段清空过的会话；手写 30 个变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型那一条挪到终端界面接上 <code>/clear</code> 时一起看</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>compaction.md</code> 第十四条。</li>
+        <li><code>docs/construction/6-8-清空上下文（补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="s6-9" aria-labelledby="h-s69">
   <div class="sheet-head"><h2 id="h-s69"><span class="no">6-9</span>撤销能撤掉压缩</h2><span class="pill done">已完成</span></div>
   <p class="purpose">压缩跟着它所在的那一轮：撤掉这一轮，里面的压缩一起撤掉，上下文回到压缩前的原文；<code>miyu restore</code> 放回来，不重新请求模型。原来一轮里压过一次，这一轮和它以前的都撤不了。</p>
@@ -9072,6 +9244,65 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>agents.md</code> 第一条、<code>tools/agent.md</code>。</li>
         <li><code>docs/construction/7-5-派子代理.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s7-6" aria-labelledby="h-s76">
+  <div class="sheet-head"><h2 id="h-s76"><span class="no">7-6</span>子会话回报</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">子会话的一轮结束时，该报的向上回报：父会话收到 <code>child.reported</code>，7-2 的规矩开轮、排队、渲染。孙代理都报完了才报；崩了的补报，父会话不会一直等。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一轮结束</span><span class="dir-note">session/report.rs</span></div>
+            <ol class="pipe" aria-label="要不要报">
+              <li>父会话开的、进过父会话留言的报；人自己开的、自己的子代理开的不报</li>
+              <li>还有派出去没报完的先不报，都报完、被叫醒的几轮结束再一起报</li>
+              <li>报最后的回答，超 3 万字留头尾；人插过话注明；出错、步数上限照报</li>
+              <li>执行器经端口交给父会话，<code>unknown_job</code> 退避重试 30 秒（父会话还没记下派它的那一次）</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">载入再交一次</span><span class="rl">送到一半崩了，同一个编号重交，父会话认得出</span></div>
+          <div class="tile new"><span class="nm">叫起子会话</span><span class="rl">父会话载入时把没回报的子会话叫起来</span></div>
+          <div class="tile"><span class="nm">编号同名</span><span class="rl">孙代理也叫 j1，7-1 补改成 j2.1</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-6</dd></div>
+        <div><dt>名称</dt><dd>子会话回报</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">6373ac7</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>内核向上回报、执行器交回报、会话表的 <code>open</code>；和 7-3 的载入合在一起（先 Recall，再重交回报，再补后台命令的 aborted）。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>内核场景 26 条、执行器 3 条、真核心两层和重启叫起；手写 36 个变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型：两个子代理、一个孙代理，回报一层层上来，<code>-c</code> 时她把三份合起来答对</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>agents.md</code> 第二条、第八条、<code>kernel/session.md</code>「向上回报」。</li>
+        <li><code>docs/construction/7-6-子会话回报.md</code>。</li>
       </ul>
     </div>
   </div>

@@ -1,9 +1,10 @@
 //! 请求形状探针（`docs/designs/08-上下文投影.md` 第七节「测试门禁」，`26-提示词.md` 第七节）：
 //! 一段终端会话，由真内核照剧本跑出来（执行器替身，施工 2-9 下），每一次请求和存档逐字节比对，
 //! 再查五条性质。另一段是有回报的会话（施工 7-2）：派出去的任务回报到了，闲着时开一轮、正忙时排在工具结果后面。还有一段
-//! 是子代理的会话（施工 7-5）：父会话的交代开了第一轮，system 多一段场所说明。
+//! 是子代理的会话（施工 7-5）：父会话的交代开了第一轮，system 多一段场所说明。清空过的会话（施工 6-8 补）：清空以后的
+//! 第一次请求只剩工具面、system、两块事实和那一句。
 //!
-//! 存档在 `docs/designs/samples/probe/<会话>/`（`terminal`、`reports`、`subagent`）：`log.jsonl` 是真内核记下的日志，`requests/`
+//! 存档在 `docs/designs/samples/probe/<会话>/`（`terminal`、`reports`、`subagent`、`cleared`）：`log.jsonl` 是真内核记下的日志，`requests/`
 //! 下一次请求一个文件，写的是规范字节，末尾一个换行；`openai-chat/` 下是同一次请求编码成 OpenAI
 //! 兼容接口的字节（施工 3-4 上）。字节变了必须是有意的：设上 `MIYU_PROBE_WRITE=1` 跑一遍，重写
 //! 存档，提交说明里写为什么变。
@@ -213,6 +214,22 @@ fn subagent(on: fn() -> Stage) -> Stage {
     s
 }
 
+/// 清空过的会话的剧本（施工 6-8 补）：第一轮读一次目录，清空，再问刚才看了哪个目录。
+fn cleared() -> Stage {
+    let mut s = stage();
+    s.model([
+        Line::calls("我先看一下目录。", &[("read", r#"{"path":"src"}"#)]),
+        Line::says("src 下有 lib.rs 和 main.rs。"),
+    ]);
+    s.tools([Play::done("lib.rs\nmain.rs")]);
+    s.say("看看 src 目录");
+    s.advance(2);
+    s.request_clear();
+    s.model([Line::says("我不知道，上下文里没有。")]);
+    s.say("刚才我让你看了哪个目录？");
+    s
+}
+
 /// 存档所在的目录：这个 crate 的目录往上两级是仓库根。
 fn archive(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -240,6 +257,11 @@ fn the_terminal_session_matches_the_archive() {
 #[test]
 fn the_reports_session_matches_the_archive() {
     matches_the_archive("reports", &reports());
+}
+
+#[test]
+fn the_cleared_session_matches_the_archive() {
+    matches_the_archive("cleared", &cleared());
 }
 
 #[test]
@@ -363,6 +385,36 @@ fn the_same_script_gives_the_same_bytes() {
     assert_eq!(files(&terminal()), files(&terminal()));
     assert_eq!(files(&reports()), files(&reports()));
     assert_eq!(files(&subagent(child_stage)), files(&subagent(child_stage)));
+    assert_eq!(files(&cleared()), files(&cleared()));
+}
+
+/// 清空过的会话（施工 6-8 补）：五条性质照查，清空以后的那一次算改写过；它只剩工具面、system 和一条 user：两块事实、那
+/// 一句，检查点一个字都没有。
+#[test]
+fn the_cleared_session_keeps_the_properties() {
+    let session = cleared();
+    let sent = sent(&session);
+    if let Err(why) = check(&sent) {
+        panic!("{why}");
+    }
+    let rewritten: Vec<usize> = (0..sent.len()).filter(|&k| sent[k].rewritten).collect();
+    assert_eq!(rewritten, [2], "清空以后的第一次");
+    let (first, after) = (&sent[0].request, &sent[2].request);
+    assert_eq!((&after.tools, &after.system), (&first.tools, &first.system));
+    let [Message::User { blocks }] = after.messages.as_slice() else {
+        panic!("只剩一条 user：{:?}", after.messages);
+    };
+    let texts: Vec<&str> = blocks
+        .iter()
+        .map(|block| match block {
+            Block::Text(text) => text.text.as_str(),
+            other => panic!("都是字：{other:?}"),
+        })
+        .collect();
+    assert_eq!(texts.len(), 3, "{texts:?}");
+    assert!(texts[0].starts_with("<env "), "{texts:?}");
+    assert!(texts[1].starts_with("<permission "), "{texts:?}");
+    assert_eq!(texts[2], "刚才我让你看了哪个目录？");
 }
 
 /// 有回报的会话（施工 7-2）：五条性质照查；回报开的那一轮第一次请求的最后一块是那条回报，回合中途到的排在工具结果后面，

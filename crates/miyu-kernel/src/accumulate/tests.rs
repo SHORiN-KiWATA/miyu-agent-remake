@@ -204,6 +204,36 @@ fn a_cut_off_reply_keeps_what_came_and_only_the_calls_that_ended() {
     );
 }
 
+/// 每一块带着它在流里是第几块（施工 2-3 补）：空块、没收全丢掉的调用不占位置，会话照这个编号对上每一块的起止。
+#[test]
+fn each_block_knows_where_it_was_in_the_stream() {
+    let deltas = || {
+        vec![
+            start(0, Kind::Reasoning),
+            start(1, Kind::Text),
+            text(1, "好"),
+            start(2, Kind::Text),
+            start(3, read()),
+            start(4, read()),
+            text(4, "{}"),
+            end(4),
+        ]
+    };
+    let numbers = |whole: bool| -> Vec<usize> {
+        let numbered = fed(deltas()).numbered(reply(), whole);
+        numbered.into_iter().map(|(index, _)| index).collect()
+    };
+    assert_eq!(numbers(true), [1, 3, 4]);
+    assert_eq!(numbers(false), [1, 4]);
+    // 去掉编号的，就是 `finish`、`cut_off` 拼出来的。
+    let blocks = |whole: bool| -> Vec<Block> {
+        let numbered = fed(deltas()).numbered(reply(), whole);
+        numbered.into_iter().map(|(_, block)| block).collect()
+    };
+    assert_eq!(blocks(true), fed(deltas()).finish(reply()));
+    assert_eq!(blocks(false), fed(deltas()).cut_off(reply()));
+}
+
 #[test]
 fn mismatched_deltas_are_driver_errors() {
     let cases: Vec<(Vec<Delta>, Delta, &str)> = vec![

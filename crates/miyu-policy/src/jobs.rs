@@ -14,6 +14,22 @@ use crate::snapshot::BuildError;
 /// 能改。
 pub const DEPTH: u32 = 2;
 
+/// 子会话回报的正文最多几个字（策略数据 `jobs.report_chars` 的出厂值，`agents.md`「对外的样子」，施工 7-6）：多了留头尾
+/// 各一半。
+pub const REPORT_CHARS: u64 = 30_000;
+
+/// 任务用的数（`agents.md`「对外的样子」的策略数据，施工 7-6）：造会话时冻结在快照里。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JobNumbers {
+    /// 子会话回报的正文最多几个字。
+    pub report_chars: u64,
+}
+
+/// 出厂的任务用的数。
+pub(crate) const JOB_NUMBERS: JobNumbers = JobNumbers {
+    report_chars: REPORT_CHARS,
+};
+
 /// 两种回报的写法（`jobs/` 下，文件名是下划线换成 `-` 的同名 `.txt`）。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JobTexts {
@@ -39,6 +55,10 @@ pub struct JobTexts {
     pub subagent_silent: String,
     /// 收尾。
     pub subagent_close: String,
+    /// 子会话回报的正文截在中间的那一行：`count`（施工 7-6，内核截正文时用，不交给组装器）。以前造的快照里没有，读成
+    /// 空的；空的不写，旧快照的字节不变。
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub subagent_omitted: String,
 }
 
 impl JobTexts {
@@ -66,7 +86,7 @@ impl JobTexts {
 }
 
 /// 读一份模板，拿 `fields` 里的每个字段试换一次。
-fn template(source: &str, fields: &[&str]) -> Result<Template, BuildError> {
+pub(crate) fn template(source: &str, fields: &[&str]) -> Result<Template, BuildError> {
     let bad = |error| BuildError::Texts {
         which: "job report texts",
         error,

@@ -146,6 +146,14 @@ impl Language {
         }
     }
 
+    /// 撤掉了清空的那一句（施工 6-8 补，`compaction.md` 第十四条）：撤掉一次、几次都是这一句（2026-09-30 项目主人定）。
+    pub(crate) fn clear_undone(&self) -> &'static str {
+        match self {
+            Language::Chinese => "· 撤掉了清空，上下文回到了清空以前",
+            Language::English => "· Undid the clear; the context is back to before it.",
+        }
+    }
+
     /// 撤销的最后一行。
     pub(crate) fn restore_hint(&self) -> &'static str {
         match self {

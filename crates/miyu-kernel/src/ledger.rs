@@ -12,8 +12,8 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use crate::block::Block;
-use crate::event::{Body, Event};
-use crate::id::{CallId, JobId, Seq, TurnId};
+use crate::event::{Body, CompactTrigger, ContextCompacted, Event};
+use crate::id::{CallId, CommandId, JobId, Seq, SessionId, TurnId};
 
 mod jobs;
 mod undo;
@@ -146,6 +146,16 @@ impl Ledger {
         self.jobs.running_commands()
     }
 
+    /// 派出去、一次都还没回报过的子代理的子会话，照任务编号（施工 7-6）。
+    pub fn waiting_children(&self) -> impl Iterator<Item = &SessionId> {
+        self.jobs.waiting()
+    }
+
+    /// 子代理 `job` 最近一次回报就是命令 `id` 交来的：交回那一条的序号（施工 7-6）。
+    pub fn reported_as(&self, job: JobId, id: &CommandId) -> Option<Seq> {
+        self.jobs.reported_as(job, id)
+    }
+
     /// 查 `event` 能不能追加；能，就记下它带来的变化。
     ///
     /// # Errors
@@ -218,7 +228,7 @@ impl Ledger {
                 Some(call) => Err(format!("call {call} has no result when the turn ends")),
                 None => Ok(()),
             },
-            Body::ContextCompacted(compacted) => self.check_compaction(seq, compacted.upto),
+            Body::ContextCompacted(compacted) => self.check_compaction(seq, compacted),
             Body::ModelCalled(called) if called.seen >= seq => Err(format!(
                 "seen {} should come before this event",
                 called.seen
@@ -308,22 +318,29 @@ impl Ledger {
     }
 
     /// 压缩只前进：替代到的位置在这一条之前，而且不早于还算数的最近一次。撤掉的压缩不算：撤掉以后再压，可以比它早。
-    fn check_compaction(&self, seq: Seq, upto: Seq) -> Result<(), String> {
+    /// 摘要是空的只许清空（施工 6-8 补）：别的压缩取不到摘要算失败，写不成检查点。
+    fn check_compaction(&self, seq: Seq, compacted: &ContextCompacted) -> Result<(), String> {
+        let upto = compacted.upto;
         if upto >= seq {
             return Err(format!("upto {upto} should come before this event"));
         }
-        match self.compacted() {
-            Some(last) if upto < last => Err(format!(
+        if let Some(last) = self.compacted()
+            && upto < last
+        {
+            return Err(format!(
                 "upto {upto} is before the last compaction's {last}; compaction only moves forward"
-            )),
-            _ => Ok(()),
+            ));
+        }
+        match compacted.summary.is_empty() && compacted.trigger != Some(CompactTrigger::Clear) {
+            true => Err("the summary is empty; only a clear has an empty summary".to_string()),
+            false => Ok(()),
         }
     }
 
     /// 记下查过的这一条带来的变化。
     fn record(&mut self, event: &Event) {
         self.next = event.seq.next();
-        self.jobs.record(&event.body);
+        self.jobs.record(event);
         match &event.body {
             Body::TurnStarted(_) => {
                 let turn = TurnId::new(event.seq);

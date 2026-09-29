@@ -955,7 +955,7 @@ Stopped after {timeout} ms because the command took too long. If it needs more t
 #### `software/basesystem/shell/omitted.txt`
 
 - 什么时候加进来：输出超过 30000 个字，截在中间的那一行
-- token：约 9（估的）
+- token：8（`count` 按 `1200` 算，2026-09-30 和 `core/jobs/subagent-omitted.txt` 同一次量的，字节一样）
 - 为什么加：标出截在哪、省了多少，她不会以为头尾是连着的
 - 指纹：`0e2a2d58`
 
@@ -1319,6 +1319,19 @@ The subagent ended without saying anything.
 
 ```text
 </subagent-report>
+```
+
+### 人这边：任务的回报（一块带标签的事实），正文中间
+
+#### `core/jobs/subagent-omitted.txt`
+
+- 什么时候加进来：子会话回报的正文超过 `jobs.report_chars`，内核留头尾各一半，中间接这一行（`truncated`）
+- token：8（`count` 按 `1200` 算，2026-09-30 开发端点、`deepseek-v4.1-flash` 量）
+- 为什么加：标出截在哪、省了多少，她不会以为头尾是连着的（`agents.md` 第二条第 3 条，施工 7-6）。字和 `shell/omitted.txt` 一样：内核截正文时从策略快照拿模板，拿不到基础系统的资源，所以在 `core/jobs/` 下另放一份
+- 指纹：`0e2a2d58`
+
+```text
+[... {count} characters omitted ...]
 ```
 
 ### system，子会话：人设后面空一行

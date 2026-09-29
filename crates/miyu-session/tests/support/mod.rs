@@ -90,6 +90,8 @@ pub struct Lines {
     pub lineage: Option<Lineage>,
     /// 造子会话、给别的会话发命令的端口：没有的派不了子代理。
     pub sessions: Option<Arc<dyn SessionPort>>,
+    /// 造会话的命令编号：默认 `cmd-0`；子会话向上回报时照它读回任务编号（`<父会话>/<编号>`，施工 7-6）。
+    pub command: Option<CommandId>,
 }
 
 impl Default for Lines {
@@ -99,6 +101,7 @@ impl Default for Lines {
             venue: VenueId::parse("local").expect("场所合写法"),
             lineage: None,
             sessions: None,
+            command: None,
         }
     }
 }
@@ -205,7 +208,7 @@ impl Home {
                 dirs: opening.dirs,
                 ..environment()
             },
-            command: id("cmd-0"),
+            command: lines.command.unwrap_or_else(|| id("cmd-0")),
             by: alice(),
             models,
             tools,

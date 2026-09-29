@@ -134,6 +134,7 @@ fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
         (&jobs.subagent_truncated, job!("subagent-truncated.txt")),
         (&jobs.subagent_silent, job!("subagent-silent.txt")),
         (&jobs.subagent_close, job!("subagent-close.txt")),
+        (&jobs.subagent_omitted, job!("subagent-omitted.txt")),
     ];
     for (got, file) in read {
         assert_eq!(got, file);

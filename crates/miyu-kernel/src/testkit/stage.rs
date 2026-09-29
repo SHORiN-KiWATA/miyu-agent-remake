@@ -62,6 +62,8 @@ pub struct Stage {
     pub(super) summaries: Option<(String, Line)>,
     /// 「磁盘」上的文件、存过的 blob、交过来的重读（施工 6-5，`disk.rs`）。
     pub(super) disk: super::disk::Disk,
+    /// 交出来的向上回报，照先后（施工 7-6）。
+    pub(super) upward: Vec<crate::session::Upward>,
 }
 
 impl Stage {

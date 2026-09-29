@@ -276,6 +276,9 @@ pub enum Command {
         /// 人附的要求，原样；`None` 是没附。只有空白的也当没附。
         instructions: Option<String>,
     },
+    /// `session.clear`：清空上下文，空闲时才收，单开一轮压成一个空的检查点，不请求模型（`compaction.md` 第十四条，
+    /// 施工 6-8 补）。
+    Clear,
     /// 子会话交来的回报（施工 7-2，`agents.md` 第二条第 5 条）：子会话的执行器经端口交，发命令的一方就是子会话。记一条
     /// `child.reported`，不带回合编号。对不上一个还会报的子代理的，拒绝，`unknown_job`。
     Report(ChildReported),

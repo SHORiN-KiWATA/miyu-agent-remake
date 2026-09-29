@@ -28,9 +28,9 @@ pub struct ContextCompacted {
     /// 检查点替代到哪个序号为止，这一条也替代掉。之后的事件照常渲染在检查点后面
     /// （03 第七节）。
     pub upto: Seq,
-    /// 摘要的正文，模型写的，草稿已经剥掉。内核不解读。
+    /// 摘要的正文，模型写的，草稿已经剥掉。内核不解读。清空上下文的是空的，只有它能空（施工 6-8 补，账本查）。
     pub summary: String,
-    /// 为什么压：到线了、人要的、供应商报超长。以前的日志里没有这一格，当作到线了（`compaction.md`）。
+    /// 为什么压：到线了、人要的、供应商报超长、人要清空。以前的日志里没有这一格，当作到线了（`compaction.md`）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trigger: Option<CompactTrigger>,
     /// 手动压缩时人附的要求，原样（`compaction.md` 第七条第 3 条，施工 6-8）。没附的、只有空白的没有。
@@ -93,6 +93,8 @@ text_enum!(
         Manual = "manual",
         /// 供应商报上下文超长，被动压的（6-7）。
         Overflow = "overflow",
+        /// 人要清空上下文（6-8 补）：压成一个空的检查点，不请求模型，渲染时什么都不出（`compaction.md` 第十四条）。
+        Clear = "clear",
     }
 );
 

@@ -352,3 +352,45 @@ fn an_undone_compaction_is_said_once_below_the_first_line() {
         "{english}"
     );
 }
+
+/// 撤掉了清空（施工 6-8 补）：一次、几次都是这一句（2026-09-30 项目主人定），和撤掉了压缩那一句都有的，先压缩后清空；是 0
+/// 的、没有这一格的、恢复的不说。两样都有的样子和 `docs/designs/samples/cli/undo-clear-text.txt` 逐字节一样，蓝图里的那一块
+/// 门禁和同一份比。
+#[test]
+fn an_undone_clear_is_said_after_an_undone_compaction() {
+    let result = |compactions: u64, clears: u64| {
+        let proj = |parts: &[&str]| {
+            let mut all = vec!["home", "me", "proj"];
+            all.extend(parts);
+            under(&all)
+        };
+        json!({"cwd": proj(&[]), "turns": 3, "said": "接着把测试补完",
+               "compactions": compactions, "clears": clears, "files": [
+            {"path": proj(&["tests", "a.rs"]), "action": "write", "outcome": "restored"},
+        ]})
+    };
+    let sample = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../docs/designs/samples/cli/undo-clear-text.txt");
+    let drawn = std::fs::read_to_string(&sample).expect("有样本");
+    let chinese = plan(Direction::Undo, Language::Chinese);
+    let both = printed(&result(1, 2), &chinese).replace(MAIN_SEPARATOR_STR, "/");
+    assert_eq!(both, drawn);
+    let alone = printed(&result(0, 1), &chinese);
+    assert!(
+        alone.contains("起的 3 轮\n· 撤掉了清空，上下文回到了清空以前\n· 改回"),
+        "{alone}"
+    );
+    assert!(!alone.contains("压缩"), "{alone}");
+    assert!(!printed(&result(1, 0), &chinese).contains("清空"));
+    let mut without = result(0, 1);
+    without.as_object_mut().map(|map| map.remove("clears"));
+    assert!(!printed(&without, &chinese).contains("清空"));
+    assert!(!printed(&result(1, 1), &plan(Direction::Restore, Language::Chinese)).contains("清空"));
+    let english = printed(&result(1, 1), &plan(Direction::Undo, Language::English));
+    assert!(
+        english.contains(
+            "\n· Undid the compaction; the context is back to how it was before\n· Undid the clear; the context is back to before it.\n· Restored "
+        ),
+        "{english}"
+    );
+}

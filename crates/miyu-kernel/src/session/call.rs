@@ -8,6 +8,7 @@ use super::Session;
 use super::action::Action;
 use super::compaction::Compacting;
 use super::input::Reread;
+use super::spans::{Mark, Spans, millis};
 use super::summary::{Summarized, called_tool};
 use super::turn::Stage;
 use crate::accumulate::{Accumulator, Delta};
@@ -36,6 +37,8 @@ pub(super) struct Call {
     first_token: Option<Timestamp>,
     /// 收到的增量。
     accumulator: Accumulator,
+    /// 每一块的起止，照流里的编号（施工 2-3 补）。
+    spans: Spans,
     /// 这是压缩的摘要请求：替代到哪、进度（施工 6-2 上）。主请求没有。
     compaction: Option<Box<Compacting>>,
 }
@@ -61,6 +64,7 @@ impl Call {
             sent: None,
             first_token: None,
             accumulator: Accumulator::default(),
+            spans: Spans::default(),
             compaction: None,
         }
     }
@@ -78,27 +82,20 @@ impl Call {
             return Err(bad_stream("请求还没发出去就来了增量".to_string()));
         };
         self.first_token.get_or_insert(at);
-        if let Some(compacting) = self.compaction.as_mut() {
-            let progress = compacting.take(&delta);
-            self.accumulator
-                .apply(delta)
-                .map_err(|error| bad_stream(error.to_string()))?;
-            return Ok(progress.map(Pushed::Progress));
-        }
-        let piece = match &delta {
-            Delta::Start { index, kind } => Some((*index, Piece::Start(kind.clone()))),
-            Delta::Text { index, text } => Some((*index, Piece::Text(text.clone()))),
-            Delta::Private { .. } => None,
-            Delta::End { index } => Some((*index, Piece::End)),
+        let pushed = match self.compaction.as_mut() {
+            Some(compacting) => compacting.take(&delta).map(Pushed::Progress),
+            None => piece(&delta).map(|(index, piece)| Pushed::Delta {
+                by: By::Model(model),
+                index,
+                piece,
+            }),
         };
+        let mark = Mark::of(&delta);
         self.accumulator
             .apply(delta)
             .map_err(|error| bad_stream(error.to_string()))?;
-        Ok(piece.map(|(index, piece)| Pushed::Delta {
-            by: By::Model(model),
-            index,
-            piece,
-        }))
+        self.spans.mark(at, mark);
+        Ok(pushed)
     }
 }
 
@@ -324,6 +321,7 @@ impl Session {
             sent,
             first_token,
             accumulator,
+            spans,
             compaction,
         } = call;
         let (usage, mut error, cut) = match ending {
@@ -335,6 +333,7 @@ impl Session {
         let mut calls = Vec::new();
         let mut summary = None;
         let mut isolating = false;
+        let mut times = None;
         match &sent {
             None if !cut && error.is_none() => {
                 error = Some(bad_stream("请求还没发出去就说完了".to_string()));
@@ -360,14 +359,11 @@ impl Session {
                 // 出错断了的，照打断的规矩留下半截，工具调用一个不留：没收全的执行不了，收全了的
                 // 也不派，回复没说完（02 第六节「回复怎么收」第 4 条）。
                 let failed = error.is_some();
-                let mut blocks = if cut || failed {
-                    accumulator.cut_off(seq)
-                } else {
-                    accumulator.finish(seq)
-                };
+                let mut numbered = accumulator.numbered(seq, !cut && !failed);
                 if failed {
-                    blocks.retain(|block| !matches!(block, Block::ToolCall(_)));
+                    numbered.retain(|(_, block)| !matches!(block, Block::ToolCall(_)));
                 }
+                let (kept, blocks): (Vec<usize>, Vec<Block>) = numbered.into_iter().unzip();
                 if blocks.is_empty() {
                     if !cut && !failed {
                         error = Some(CallError {
@@ -392,6 +388,7 @@ impl Session {
                     let by = By::Model(sent.model.clone());
                     events.push(self.record(at, by, cause.clone(), Body::MessageAssistant(body)));
                     reply = Some(seq);
+                    times = Some(spans.of(sent.at, kept));
                 }
             }
             None => {}
@@ -416,6 +413,7 @@ impl Session {
                 .zip(first_token)
                 .map(|(sent, first)| millis(sent.at, first)),
             duration_ms: sent.as_ref().map(|sent| millis(sent.at, at)),
+            blocks: times,
             result,
             error: error.clone(),
             compaction: compaction
@@ -489,7 +487,12 @@ fn bad_stream(message: String) -> CallError {
     }
 }
 
-/// 从 `from` 到 `to` 过了多少毫秒。时钟往回拨了，算 0。
-fn millis(from: Timestamp, to: Timestamp) -> u64 {
-    u64::try_from(to.unix_millis().saturating_sub(from.unix_millis())).unwrap_or(0)
+/// 主请求推给头的那一段：私有数据不推。
+fn piece(delta: &Delta) -> Option<(usize, Piece)> {
+    match delta {
+        Delta::Start { index, kind } => Some((*index, Piece::Start(kind.clone()))),
+        Delta::Text { index, text } => Some((*index, Piece::Text(text.clone()))),
+        Delta::Private { .. } => None,
+        Delta::End { index } => Some((*index, Piece::End)),
+    }
 }

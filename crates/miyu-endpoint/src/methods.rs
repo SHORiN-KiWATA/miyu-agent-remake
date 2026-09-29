@@ -1,5 +1,7 @@
 //! 握手以后的方法（`docs/designs/04-核心协议.md` 第九节「先做的几样怎么写」）：造会话、说话、打断，
-//! 列出会话（施工 3-9 下），撤销、恢复（施工 4-7 上；回应带上给人看的几样，施工 4-7 下），手动压缩（施工 6-8）。命令交给会话，等它的回应：接受的回 `events`，拒绝的回原因码。造会话、说话的
+//! 列出会话（施工 3-9 下），撤销、恢复（施工 4-7 上；回应带上给人看的几样，施工 4-7 下），手动压缩（施工 6-8），切权限级别
+//! （施工 3-8 再补），清空上下文（施工 6-8 补）。命令交给会话，等它的回应：接受的回 `events`（切权限级别的回 `{}`），拒绝的
+//! 回原因码。造会话、说话的
 //! 回应再带上会话实际在哪个目录里干活（施工 4-5 下）。
 
 use std::sync::Arc;
@@ -8,6 +10,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use miyu_kernel::block::{Block, Text};
+use miyu_kernel::event::Level;
 use miyu_kernel::id::{Seq, SessionId, TurnId};
 use miyu_kernel::session::{Command, Outcome, Queued};
 use miyu_session::Handle;
@@ -84,12 +87,37 @@ struct UnrevertParams {
     session: String,
 }
 
+/// `session.clear` 的参数（施工 6-8 补）。
+#[derive(Debug, Deserialize)]
+struct ClearParams {
+    session: String,
+}
+
 /// `session.compact` 的参数（施工 6-8）：人附的要求可以不写，原样交给内核（只有空白的由内核当没写）。
 #[derive(Debug, Deserialize)]
 struct CompactParams {
     session: String,
     #[serde(default)]
     instructions: Option<String>,
+}
+
+/// `session.set_permission_level` 的参数（施工 3-8 再补）：常用的那一级、只读开关，改哪样写哪样；两格都不写的是参数不对。
+#[derive(Debug, Deserialize)]
+struct PermissionParams {
+    session: String,
+    #[serde(default)]
+    level: Option<LevelParam>,
+    #[serde(default)]
+    read_only: Option<bool>,
+}
+
+/// 协议上能切到的常用的那一级。只认这两种，别的是参数不对：内核的 `unknown_level` 从协议上碰不到，和 `queued`、`stream`
+/// 一样，值不在表里的算参数读不成（`protocol.md` 的 `session.set_permission_level`）。
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum LevelParam {
+    Workspace,
+    Full,
 }
 
 #[derive(Debug, Deserialize)]
@@ -194,6 +222,31 @@ pub(crate) async fn call(
                 instructions: params.instructions,
             };
             let events = command_to(core, request, &session, &found.handle, command).await?;
+            Ok(json!({ "events": events }))
+        }
+        "session.set_permission_level" => {
+            let params: PermissionParams = params(request)?;
+            if params.level.is_none() && params.read_only.is_none() {
+                return Err(Refusal::BAD_PARAMS);
+            }
+            let level = params.level.map(|level| match level {
+                LevelParam::Workspace => Level::Workspace,
+                LevelParam::Full => Level::Full,
+            });
+            let session = session(&params.session)?;
+            let found = core.sessions.get(core, &session, None, None).await?;
+            let command = Command::SetPermission {
+                level,
+                read_only: params.read_only,
+            };
+            command_to(core, request, &session, &found.handle, command).await?;
+            Ok(json!({}))
+        }
+        "session.clear" => {
+            let params: ClearParams = params(request)?;
+            let session = session(&params.session)?;
+            let found = core.sessions.get(core, &session, None, None).await?;
+            let events = command_to(core, request, &session, &found.handle, Command::Clear).await?;
             Ok(json!({ "events": events }))
         }
         _ => Err(Refusal::UNKNOWN_METHOD),

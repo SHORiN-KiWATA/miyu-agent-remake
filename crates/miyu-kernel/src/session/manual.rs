@@ -9,10 +9,10 @@
 
 use super::action::{Action, Reason};
 use super::compaction::Due;
-use super::turn::{Stage, Turn};
+use super::turn::Stage;
 use super::{Session, rejected};
 use crate::event::{Body, CompactTrigger, TurnStarted};
-use crate::id::{CommandId, Seq, TurnId};
+use crate::id::{CommandId, Seq};
 use crate::origin::By;
 use crate::request::Request;
 use crate::time::Timestamp;
@@ -49,26 +49,9 @@ impl Session {
             dirs: self.environment.dirs.clone(),
         });
         let started = self.record(at, By::Kernel, Some(id.clone()), body);
-        self.turn = Some(Turn {
-            id: TurnId::new(started.seq),
-            cause: Some(id.clone()),
-            stage: Stage::Ready,
-            cwd: self.environment.cwd.clone(),
-            dirs: self.environment.dirs.clone(),
-            requests: 0,
-            retries: 0,
-            retrying: false,
-            interjected: None,
-            queued: Vec::new(),
-            reports: Vec::new(),
-            refresh: false,
-            compacted: false,
-            interrupting: None,
-            again: None,
-            passive: None,
-            overflowed: false,
-            manual: Some(Manual { upto, instructions }),
-        });
+        let mut turn = self.new_turn(started.seq, Some(id.clone()), Stage::Ready);
+        turn.manual = Some(Manual { upto, instructions });
+        self.turn = Some(turn);
         // 记在一边的回报不再由它们另开一轮（施工 7-2）：随便哪一轮开了就清掉，和平常的回合一样。
         self.deferred.clear();
         self.accept(id, vec![started.seq]);

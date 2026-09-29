@@ -31,6 +31,7 @@ fn each_compaction_trigger_is_written_and_read_back() {
         ("auto", CompactTrigger::Auto),
         ("manual", CompactTrigger::Manual),
         ("overflow", CompactTrigger::Overflow),
+        ("clear", CompactTrigger::Clear),
         ("scheduled", CompactTrigger::Other("scheduled".to_string())),
     ] {
         let body = format!(r#"{{"upto":53,"summary":"S","trigger":"{text}"}}"#);
@@ -141,5 +142,17 @@ fn the_instructions_of_a_manual_compaction_are_written_and_read_back() {
         compacted.instructions.as_deref(),
         Some("keep the \"plan\"\n重点保留")
     );
+    assert_eq!(serde_json::to_string(&compacted).unwrap(), body);
+}
+
+/// 清空上下文的检查点（施工 6-8 补）：摘要是空的，照样写出 `summary` 这一格（必有），没有别的格。
+#[test]
+fn a_clear_is_written_with_an_empty_summary() {
+    let body = r#"{"upto":53,"summary":"","trigger":"clear"}"#;
+    let Body::ContextCompacted(compacted) = read_body("context.compacted", body) else {
+        panic!("{body}");
+    };
+    assert_eq!(compacted.trigger, Some(CompactTrigger::Clear));
+    assert!(compacted.summary.is_empty());
     assert_eq!(serde_json::to_string(&compacted).unwrap(), body);
 }

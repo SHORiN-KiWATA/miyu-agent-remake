@@ -14,7 +14,8 @@ use super::action::Action;
 use super::jobs::{self, Arrived};
 use super::policy::Policy;
 use super::recent::Recent;
-use super::turn::{Stage, Turn};
+use super::report::Duty;
+use super::turn::Stage;
 use crate::event::{Body, EndReason, Event, Permission, PolicyChanged, ToolStatus};
 use crate::facts::Environment;
 use crate::history::History;
@@ -96,7 +97,8 @@ impl Session {
     /// 开一轮接着干；连着被打断的轮数超过了策略里的上限，就不接。补的、开的事件在返回的动作里，
     /// 时刻是 `at`，`by` 是内核。有 `job.started`、还没报过结束的后台命令，先各补一条 `job.reported`（`aborted`，施工
     /// 7-3）。没听到的回报不因为载入开轮：记在一边的照日志算回来，恢复了撤销再说；有没有头订阅着
-    /// 当没有，头订阅了再交（施工 7-2）。
+    /// 当没有，头订阅了再交（施工 7-2）。子会话最后报过的那一份再交一次，排在 `Recall` 后面；崩了的那一轮该报的，补的
+    /// 事件落了盘再报 `aborted`；重启打断了、没接着干的那一轮当场照 `aborted` 报（施工 7-6，`report.rs`）。
     ///
     /// # Errors
     ///
@@ -109,10 +111,19 @@ impl Session {
     ) -> Result<(Session, Vec<Action>), LoadError> {
         let mut ledger = Ledger::default();
         let mut replay = Replay::default();
+        let mut duty = Duty::default();
         for event in &events {
+            // 向上回报照活着时的算（施工 7-6）：活着时落了盘就报，接着开的一轮和结束在同一批里，那时不该报。
+            if !matches!(event.body, Body::TurnStarted(_)) && duty.due(&ledger) {
+                duty.take(&policy.reports);
+            }
             let queued = ledger.queued();
             ledger.append(event).map_err(LoadError::Broken)?;
+            duty.note(event);
             replay.note(event, queued);
+        }
+        if duty.due(&ledger) {
+            duty.take(&policy.reports);
         }
         let from = ledger.compacted().map_or(Seq::FIRST, Seq::next);
         let mut history = History::whole();
@@ -152,12 +163,21 @@ impl Session {
             watched: false,
             deferred: std::mem::take(&mut replay.deferred),
             restarting: false,
+            duty,
         };
         let mut actions: Vec<Action> = session.recall().into_iter().collect();
+        // 最后报的那一份再交一次（施工 7-6）：送到一半崩了的不漏，父会话照命令编号认出重的，不重。
+        actions.extend(session.duty.last().cloned().map(Action::Report));
         // 崩了的核心带走了在跑的后台命令：先补它们的结束，再收拾没走完的那一轮（施工 7-3）。
         let mut events = session.abort_commands(at);
-        events.extend(session.recover(at, replay));
-        if !events.is_empty() {
+        let recovered = session.recover(at, replay);
+        if recovered.is_empty() {
+            session.duty.not_resumed();
+        }
+        events.extend(recovered);
+        if events.is_empty() {
+            actions.extend(session.report_up());
+        } else {
             actions.push(Action::Append(events));
         }
         Ok((session, actions))
@@ -167,26 +187,7 @@ impl Session {
     fn recover(&mut self, at: Timestamp, replay: Replay) -> Vec<Event> {
         if let Some(id) = self.ledger.open_turn() {
             let cause = replay.opened;
-            self.turn = Some(Turn {
-                id,
-                cause: cause.clone(),
-                stage: Stage::Settling,
-                cwd: self.environment.cwd.clone(),
-                dirs: self.environment.dirs.clone(),
-                requests: 0,
-                retries: 0,
-                retrying: false,
-                interjected: None,
-                queued: Vec::new(),
-                reports: Vec::new(),
-                refresh: false,
-                compacted: false,
-                interrupting: None,
-                again: None,
-                passive: None,
-                overflowed: false,
-                manual: None,
-            });
+            self.turn = Some(self.new_turn(id.started(), cause.clone(), Stage::Settling));
             let text = self.policy.tool_texts.restarted();
             let mut events: Vec<Event> = self
                 .ledger

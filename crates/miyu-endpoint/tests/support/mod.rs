@@ -75,6 +75,28 @@ impl Home {
         ))
     }
 
+    /// 一份核心，请求模型的端口由 `models` 造，工具目录是 `tools`（施工 7-6：几个会话各照各的剧本回）。沙盒当能用。
+    pub fn core_with_models(
+        &self,
+        models: Arc<dyn miyu_session::Models>,
+        tools: Catalog,
+    ) -> Arc<Core> {
+        let core = Core::new(
+            self.root.clone(),
+            ResourceRoot::at(default_resources()),
+            models,
+            tools,
+            None,
+            alice(),
+            TOKEN.to_string(),
+        );
+        Arc::new(
+            core.with_sandbox(miyu_sandbox::Availability::Usable(PathBuf::from(
+                "miyu-sandbox",
+            ))),
+        )
+    }
+
     /// 一份核心，工具目录是 `tools`，沙盒用不了（施工 5-4 上）。
     pub fn core_without_sandbox(&self, script: &Script, tools: Catalog) -> Arc<Core> {
         Arc::new(self.core_full(script, tools, None, TOKEN))

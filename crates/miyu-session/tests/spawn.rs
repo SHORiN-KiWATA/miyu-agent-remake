@@ -64,6 +64,10 @@ impl SessionPort for Table {
         Box::pin(async move { answer })
     }
 
+    fn open(&self, _session: SessionId) -> Pending<'_, Result<(), String>> {
+        Box::pin(async { Ok(()) })
+    }
+
     fn command(
         &self,
         session: SessionId,

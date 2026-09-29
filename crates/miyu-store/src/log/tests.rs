@@ -1,8 +1,7 @@
 //! 会话日志的测试：写几批、关掉再打开；换段；崩了留下的半行；坏了的几种；空的最后一段；没有这个
 //! 会话；只读地一段一段读；真会话来回一趟。都在临时目录里。
 
-use std::collections::BTreeMap;
-use std::fs;
+use std::{collections::BTreeMap, fs};
 
 use miyu_kernel::assemble::Assembler;
 use miyu_kernel::facts::{Environment, FactTemplates};
@@ -457,6 +456,10 @@ fn policy() -> Policy {
         resumes: 3,
         compaction: None,
         notes: None,
+        reports: miyu_kernel::session::Reports {
+            chars: 30_000,
+            omitted: miyu_kernel::template::Template::parse("").expect("空的模板读得进来"),
+        },
     }
 }
 

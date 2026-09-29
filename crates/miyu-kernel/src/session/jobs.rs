@@ -27,7 +27,8 @@ pub(super) struct Arrived {
 
 impl Session {
     /// 子会话交来的回报：记一条 `child.reported`，`by` 是发命令的子会话，`cause` 是这个命令；落了盘回应，附上它的序号。
-    /// 对不上一个还会报的子代理的（账本的几条），拒绝，`unknown_job`，什么都不记。
+    /// 对不上一个还会报的子代理的（账本的几条），拒绝，`unknown_job`，什么都不记。这个子代理最近一次回报就是这个命令
+    /// 交来的，是重交的：照上一次回应，什么都不记（施工 7-6）。
     pub(super) fn report(
         &mut self,
         id: CommandId,
@@ -35,6 +36,12 @@ impl Session {
         at: Timestamp,
         reported: ChildReported,
     ) -> Vec<Action> {
+        // 同一份回报再交一次（子会话载入时，施工 7-6）：最近一次回报就是这个命令交来的，照上一次回应，不再记。记着的最近
+        // 1024 个编号以外的，也认得出。
+        if let Some(seq) = self.ledger.reported_as(reported.job, &id) {
+            self.recent.insert(id.clone(), vec![seq]);
+            return self.reply_when_stored(id, vec![seq]);
+        }
         let body = Body::ChildReported(reported);
         let Ok(events) = self.arrive(at, by, Some(id.clone()), body) else {
             return vec![rejected(id, Reason::UnknownJob)];

@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use tokio::sync::{mpsc, oneshot};
 
-use miyu_kernel::event::{Body, Permission, SessionCreated};
+use miyu_kernel::event::{Body, Event, Permission, SessionCreated};
 use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::By;
@@ -31,6 +31,7 @@ use crate::handle::Handle;
 use crate::job_ids::JobIds;
 use crate::jobs::Jobs;
 use crate::port::{ForSession, Models};
+use crate::report::{Reporter, Upstream, wake_children};
 use crate::sandbox::SandboxCache;
 use crate::spawn::{Lineage, SessionPort};
 use crate::store::LogDir;
@@ -203,6 +204,12 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let kept = blobs.clone();
     let model = models.port(ForSession { texts, blobs });
     let mut clock = Clock::default();
+    let upstream = Upstream::of(
+        sessions.as_ref(),
+        lineage.as_ref().map(|lineage| &lineage.parent),
+        Some(&command),
+        &id,
+    );
     let agents = sessions.map(|port| {
         Arc::new(Agents {
             port,
@@ -269,6 +276,9 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         mailbox,
         clock,
     );
+    if let Some(upstream) = upstream {
+        actor.report_to(Reporter::start(upstream, span.clone()));
+    }
     let busy = actor.busy();
     let (reply, answer) = oneshot::channel();
     actor.wait_for(command, reply);
@@ -336,22 +346,43 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
     let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
-    let (log, events, created, attended, policy, texts, run, guard) = blocking(move || {
-        let (log, events) = SessionLog::open(&dir, SEGMENT_LIMIT).map_err(LoadError::Log)?;
-        let created = match events.first().map(|event| &event.body) {
-            Some(Body::SessionCreated(created)) => created.clone(),
-            _ => return Err(LoadError::NotCreated),
-        };
-        let bytes = store.get(&created.policy).map_err(LoadError::Blob)?;
-        let snapshot = Snapshot::from_bytes(&bytes).map_err(LoadError::Snapshot)?;
-        let policy = snapshot.policy().map_err(LoadError::Policy)?;
-        let texts = snapshot.driver_texts().map_err(LoadError::Policy)?;
-        let run = snapshot.run_texts().map_err(LoadError::Policy)?;
-        let guard = snapshot.guard_texts().map_err(LoadError::Policy)?;
-        let attended = snapshot.attended;
-        Ok((log, events, created, attended, policy, texts, run, guard))
-    })
-    .await?;
+    let (log, events, (created, command), attended, policy, texts, run, guard) =
+        blocking(move || {
+            let (log, events) = SessionLog::open(&dir, SEGMENT_LIMIT).map_err(LoadError::Log)?;
+            let (created, command) = match events.first() {
+                Some(Event {
+                    body: Body::SessionCreated(created),
+                    cause,
+                    ..
+                }) => (created.clone(), cause.clone()),
+                _ => return Err(LoadError::NotCreated),
+            };
+            let bytes = store.get(&created.policy).map_err(LoadError::Blob)?;
+            let snapshot = Snapshot::from_bytes(&bytes).map_err(LoadError::Snapshot)?;
+            let policy = snapshot.policy().map_err(LoadError::Policy)?;
+            let texts = snapshot.driver_texts().map_err(LoadError::Policy)?;
+            let run = snapshot.run_texts().map_err(LoadError::Policy)?;
+            let guard = snapshot.guard_texts().map_err(LoadError::Policy)?;
+            let attended = snapshot.attended;
+            Ok((
+                log,
+                events,
+                (created, command),
+                attended,
+                policy,
+                texts,
+                run,
+                guard,
+            ))
+        })
+        .await?;
+    let upstream = Upstream::of(
+        sessions.as_ref(),
+        created.parent.as_ref(),
+        command.as_ref(),
+        &id,
+    );
+    let port = sessions.clone();
     let agents = sessions.map(|port| {
         Arc::new(Agents {
             port,
@@ -384,6 +415,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         blobs: kept.clone(),
         ids: Arc::clone(&job_ids),
     };
+    let waiting = session.waiting_children();
     let (inbox, mailbox) = mpsc::unbounded_channel();
     let guard = Guard::new(
         tools.clone(),
@@ -392,7 +424,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         guard,
         sandbox.is_some(),
     );
-    let actor = Actor::new(
+    let mut actor = Actor::new(
         session,
         Box::new(log),
         model,
@@ -416,9 +448,15 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         clock,
     );
     let busy = actor.busy();
+    if let Some(upstream) = upstream {
+        actor.report_to(Reporter::start(upstream, span.clone()));
+    }
     span.in_scope(|| {
         tracing::info!(target: TARGET, events = count, "loaded");
     });
+    if let Some(port) = &port {
+        wake_children(port, waiting, &span);
+    }
     actor::spawn(actor, first, span);
     Ok(Handle::new(id, inbox, busy, limits))
 }

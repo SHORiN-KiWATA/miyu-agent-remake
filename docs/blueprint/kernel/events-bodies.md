@@ -16,7 +16,7 @@
 | `crates/miyu-kernel/src/event/effect.rs` | 效果 `Effect`：`file.read`、`file.changed`、`file.trashed`、`job.started`（`JobStarted`、`JobKind`，施工 7-1） |
 | `crates/miyu-kernel/src/event/question.rs` | `question.asked`、`question.answered`；回答对不对得上 `fits` |
 | `crates/miyu-kernel/src/event/context.rs` | `context.injected`、`context.compacted`、`context.compaction_paused`（`PauseReason`） |
-| `crates/miyu-kernel/src/event/model.rs` | `model.called`（`FirstDifference`、`Usage`、`CallResult`、`CallError`、`ErrorClass`） |
+| `crates/miyu-kernel/src/event/model.rs` | `model.called`（`FirstDifference`、`Usage`、`BlockSpan`、`CallResult`、`CallError`、`ErrorClass`） |
 | `crates/miyu-kernel/src/event/job.rs` | `job.reported`（`JobReason`）、`child.reported`（`ChildReason`）（施工 7-1） |
 
 每一种的样本在 `docs/designs/samples/events/<种类>.jsonl`。
@@ -78,7 +78,7 @@
 
 | 格 | 写法 | 有没有 | 是什么 |
 |---|---|---|---|
-| `trigger` | 序号 | 可以没有 | 引起这一轮的那条事件：人发来的消息；排着队接着开的，是最后一条排着队的消息；重启以后接着干的，是那时排着队的最后一条，没有排着队的就是那条 `turn.ended`（`kernel/session.md`）。是什么引起的，看那条事件的种类。人要的压缩单开的那一轮不是哪一条引起的，没有（`compaction.md` 第七条，施工 6-8）；以前的日志里都有 |
+| `trigger` | 序号 | 可以没有 | 引起这一轮的那条事件：人发来的消息；排着队接着开的，是最后一条排着队的消息；重启以后接着干的，是那时排着队的最后一条，没有排着队的就是那条 `turn.ended`（`kernel/session.md`）。是什么引起的，看那条事件的种类。人要的压缩、人要的清空单开的那一轮不是哪一条引起的，没有（`compaction.md` 第七条、第十四条，施工 6-8、6-8 补）；以前的日志里都有 |
 | `cwd` | 字符串 | 可以没有 | 这一轮开始时会话的工作目录，照会话的环境，人看到的那种写法（施工 4-9 再补三上）。之前的日志没有。核心重启以后载入会话，照它找回工作目录（`protocol.md`） |
 | `dirs` | 字符串的数组 | 可以没有 | 这一轮加进来的目录，照头报的原样（施工 5-10 上）。没有加进来的目录就不写，所以原来的日志一个字节不变 |
 
@@ -271,8 +271,8 @@
 | 格 | 写法 | 有没有 | 是什么 |
 |---|---|---|---|
 | `upto` | 序号 | 必有 | 检查点替代到哪个序号为止，这一条也替代掉。之后的事件照常排在检查点后面 |
-| `summary` | 字符串 | 必有 | 摘要的正文，模型写的，草稿已经剥掉，内核不解读 |
-| `trigger` | `auto`、`manual`、`overflow` | 可以没有 | 为什么压：到线了、人要的、供应商报超长。以前的日志里没有，当作 `auto`；不认识的原样留着。现在内核写 `auto`（施工 6-2 上）、`manual`（施工 6-8） |
+| `summary` | 字符串 | 必有 | 摘要的正文，模型写的，草稿已经剥掉，内核不解读。清空的是空的，照样写出这一格：只有 `trigger` 是 `clear` 的能空，账本查（`kernel/history.md`，施工 6-8 补） |
+| `trigger` | `auto`、`manual`、`overflow`、`clear` | 可以没有 | 为什么压：到线了、人要的、供应商报超长、人要清空。以前的日志里没有，当作 `auto`；不认识的原样留着。现在内核写 `auto`（施工 6-2 上）、`manual`（施工 6-8）、`overflow`（施工 6-7）、`clear`（施工 6-8 补，`compaction.md` 第十四条） |
 | `instructions` | 字符串 | 可以没有 | 手动压缩时人附的要求，原样；没附的、只有空白的没有（`compaction.md` 第七条第 3 条，施工 6-8） |
 | `notes` | 字符串 | 可以没有，没有就是空的 | 代码写的几段：读过、改过的文件清单，取回指路，太大没重读的（`compaction.md` 第八条）。写的时候拼好，以后逐字节回放（施工 6-5） |
 | `restored` | 数组 | 可以没有，没有就是空的 | 压后重读的文件，照渲染的先后，一个一项：`path` 照清单的写法、`blob` 原文的哈希、`tokens` 估出来的（施工 6-5） |
@@ -301,6 +301,7 @@
 | `usage` | 用量 | 可以没有 | 供应商没报的没有；被打断的没有 |
 | `first_token_ms` | 整数 | 可以没有 | 从请求发出去到第一段增量的毫秒数。没发出去的、一段增量都没来的没有 |
 | `duration_ms` | 整数 | 可以没有 | 从请求发出去到说完的毫秒数，被打断的算到打断为止。没发出去的没有 |
+| `blocks` | 块的起止的数组 | 可以没有 | 回复里每一块从哪一刻开始、到哪一刻收全，照这次请求写成的 `message.assistant` 的块的先后，一块一项。没写回复的没有；以前的日志没有这一格（施工 2-3 补） |
 | `result` | 取值 | 必有 | `ok` 说完了；`error` 出错；`interrupted` 被人打断 |
 | `error` | 出错 | 可以没有 | 出错的分类、原话，有的话还有 HTTP 状态码；只在出错时有 |
 | `compaction` | `auto`、`manual`、`overflow` | 可以没有 | 这是哪一种压缩的摘要请求；主请求没有。以前的日志没有这一格（施工 6-6 上） |
@@ -314,6 +315,8 @@
 | `role` | 取值 | 可以没有 | 那一条的角色：`user`、`assistant`、`tool`；这一次少了的，是上一次那一条的角色。只有 `message` 有 |
 
 先比工具面，再比 system，再一条条比消息（`kernel/request.md` 的指纹）。
+
+块的起止：`start_ms` 这一块第一段增量到的时刻，`end_ms` 它最后一段增量到的时刻，两格都必有，都是从请求发出去算起的毫秒数，和 `first_token_ms` 同一个起点。收块的 `End` 不算：驱动流完了才一起收块（`drivers/openai-chat.md`「收尾」第 2 条），算上它，每一块都收在流的末尾。时钟往回拨了，早于发出去的算 0，`end_ms` 不往回挪。被打断、出错收的半截，照留下的那几块记；流里有、回复里不要了的块（空块、没收全的工具调用、出错时去掉的工具调用）不记。形状 `[{"start_ms":640,"end_ms":2310},{"start_ms":2330,"end_ms":2980}]`。头照它写「已思考 N 秒」：思考那一块的 `end_ms` 减 `start_ms`。以前的日志没有这一格，照读，写出去还是没有（施工 2-3 补）。
 
 用量：`uncached` 没命中缓存的输入、`cache_read` 缓存读取、`cache_write` 缓存写入、`output` 输出，四格都必有，都是 token 数。
 
@@ -374,6 +377,7 @@
 | `aborted` | 核心崩了，它那一轮没走完：载入时补 |
 
 - 不认识的原样留着。
+- 子会话交来的命令编号是 `<子会话>/report/<报的那一轮>`（施工 7-6）：`cause` 就是它，子会话的哪一轮看它；同一份再交，父会话照它认出是重的，不再记（`kernel/session.md`「回报」第 10 条）。
 - 一个子代理可以报好几次：父会话留言叫醒它，那一轮结束时再报（`agents.md` 第六条）。以 `stopped`、`undone` 报过的不再报，被停掉的不会再起来；`aborted` 以后还能再报（`agents.md` 第八条），不认识的也不拦。
 
 **两种回报的 `turn`**：一律不带（2026-09-30 定）：回报不属于哪一轮，带了这一轮的编号，撤这一轮时会跟着被拿走，和「别处来的留着」冲突（`kernel/history.md`「拿走什么」）。账本照「带 `turn` 的是正在进行的那个回合」查，不另立规矩。谁写、到了开不开一轮见 `kernel/session.md`「回报」，渲染成什么样见 `kernel/request.md`「回报」（施工 7-2）。
@@ -398,8 +402,8 @@
 | `crates/miyu-kernel/src/event/effect/tests.rs` | 四种效果读写一字不差；没显示行的不写 `lines`；新建的 `before` 写成 `null`、没写的当新建；不认识的原样留着；`job.started` 不认识的 `what` 原样留着、命令不写 `session`；坏的读不进来 |
 | `crates/miyu-kernel/src/event/job/tests.rs` | 两种回报（施工 7-1）：图纸上的写法读写一字不差、每种 `reason` 读成自己那一种、不认识的原样留着、不写是假的几格是假时不写、没有的格不写、负的退出码、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/question/tests.rs` | 提问的两种：图纸上的写法、没写的格子不写、第 4 条对不对得上题目、坏的说是哪一种 |
-| `crates/miyu-kernel/src/event/context/tests.rs` | 上下文的几种：图纸上的写法、手动压缩带着要求（施工 6-8）、坏的说是哪一种 |
-| `crates/miyu-kernel/src/event/model/tests.rs` | `model.called` 图纸上的写法；没发出去就失败的只有知道的几格；每种出错的分类；出错带着 HTTP 状态码、没有这一格的旧日志照读（施工 3-5 三补）；第一处不同的写法 |
+| `crates/miyu-kernel/src/event/context/tests.rs` | 上下文的几种：图纸上的写法、手动压缩带着要求（施工 6-8）、清空的空摘要照样写出 `summary`（施工 6-8 补）、坏的说是哪一种 |
+| `crates/miyu-kernel/src/event/model/tests.rs` | `model.called` 图纸上的写法；没发出去就失败的只有知道的几格；每种出错的分类；出错带着 HTTP 状态码、没有这一格的旧日志照读（施工 3-5 三补）；块的起止读写一字不差、没有这一格的旧日志照读（施工 2-3 补）；第一处不同的写法 |
 | `crates/miyu-kernel/tests/samples.rs` | 每一种的样本读写一字不差 |
 | `crates/miyu-kernel/tests/resources.rs` 的 `the_sample_denial_is_the_sentence_with_the_reason` | 样本里 71 号被人拒绝的结果，就是资源里带理由的那一句 |
 
@@ -416,7 +420,7 @@
 
 - `session.created` 的分叉来源：做分叉时加（`03-事件模型.md` 第七节）。
 - `tool.result` 里大输出的全文（`03-事件模型.md` 第三节，`08-上下文投影.md` C9）。
-- `job.started` 的后台命令由 `shell` 写、`job.reported` 由执行器的任务表交、载入时内核补 `aborted`（施工 7-3）；子代理的 `job.started`、`session.created` 的 `parent`、`depth` 还没有哪里写（7-5），`child.reported` 内核收得下、渲染得出（施工 7-2），还没有子会话交（7-6）。
+- `job.started` 的后台命令由 `shell` 写、`job.reported` 由执行器的任务表交、载入时内核补 `aborted`（施工 7-3）；子代理的 `job.started`、`session.created` 的 `parent`、`depth` 由派子代理写（施工 7-5），`child.reported` 由子会话交（施工 7-6）。
 - 会问人的工具：`question.asked` 读写都有了，还没有工具会问（`ask_user`，`10-自带软件.md` 第三节）。
 - 选了「本会话都允许」「这个工作区以后都允许」的，决定记下了，执行前的链还不照它放行；工作区的那种还要存进工作区的配置（`02-内核.md` 第六节「确认怎么走」第 3 条，M5）。
 - `session.policy_changed` 的 `policy`：换策略快照（目录变了、配置改了）还没有，内核只写过换权限（`05-内核接口.md` 第八节，`02-内核.md` K3）。

@@ -99,14 +99,14 @@
 **组装**
 
 1. 请求 = 工具面 + system + 示范对话 + 渲染出来的消息。工具面在造组装器时照名字的字节序排好，稳定排序；同名的两件，造策略时就拒了（`policy.md`）。`stable` 是示范对话的条数，现在总是 0。
-2. 有检查点的（最近一次压缩），它是人这一边的第一块：`checkpoint_open`、摘要原文、`checkpoint_close`、代码写的几段（`notes`）、重读的文件（每个是 `restored_open`、原文、`restored_close`）、`checkpoint_end` 拼成一个文本块（施工 6-5）。摘要、重读的原文不转义：一个是模型写的多行正文，一个是文件本来的样子。重读的原文照 blob 从 `History` 取，取不到的那一份整块不写。
+2. 有检查点的（最近一次压缩），它是人这一边的第一块：`checkpoint_open`、摘要原文、`checkpoint_close`、代码写的几段（`notes`）、重读的文件（每个是 `restored_open`、原文、`restored_close`）、`checkpoint_end` 拼成一个文本块（施工 6-5）。摘要、重读的原文不转义：一个是模型写的多行正文，一个是文件本来的样子。重读的原文照 blob 从 `History` 取，取不到的那一份整块不写。清空的检查点（`trigger` 是 `clear`）什么都不出：她看到的上下文从这里起是空的，下一轮开头的环境、权限两块事实照常注入（施工 6-8 补，`compaction.md` 第十四条）。
 3. 然后照有效历史排好的先后一条条渲染：以回复为界切段，每段先是那条回复，再是它的工具结果（按调用的先后），再是别的（照日志的先后）。细节见 `kernel/history.md`。
 
 | 事件 | 渲染成 |
 |---|---|
 | `message.user` | 它的内容块，攒进人这一边 |
 | `context.injected` | 一个文本块，就是它的原文，攒进人这一边 |
-| `turn.started` | 不出块。记下这个回合开始的地方、触发它的那一条；没有触发的（手动压缩单开的那一轮，施工 6-8）不记 |
+| `turn.started` | 不出块。记下这个回合开始的地方、触发它的那一条；没有触发的（手动压缩、清空单开的那一轮，施工 6-8、6-8 补）不记 |
 | `turn.ended` | 原因是 `interrupted`、`error`、`step_limit`、`aborted`、`restarted` 的，出一个文本块，就是那一句，攒进人这一边；`completed` 和不认识的原因不出；没有触发的那一轮的不出：她没看到过那一轮，写了她会当成是上一轮没走完（施工 6-8，`compaction.md` 第七条第 8 条） |
 | `message.assistant` | 一条 assistant，内容块原样 |
 | `tool.result` | 一条 tool：`call_id`；状态不是 `ok` 的（包括不认识的状态），`error` 是真；内容块 |
@@ -200,7 +200,7 @@
 | 工具调用 | 都留，参数是收到的原文（可以是空的） | 只留收全了的 |
 
 4. 留下的工具调用照先后编号：`call_<回复的序号>_<第几个>`，从 1 数起，丢掉的不占号。回复的序号就是这条回复写进日志时的序号。
-5. 会话这样用它（`kernel/session.md`）：正常说完用 `finish`；被打断、出了错用 `cut_off`，出了错的再去掉全部工具调用；正常说完却一块都没有的，算出错 `empty_reply`；增量对不上的，这次请求按 `bad_stream` 出错，原话就是那句报错。
+5. 会话这样用它（`kernel/session.md`）：正常说完照 `finish` 收；被打断、出了错照 `cut_off` 收，出了错的再去掉全部工具调用；正常说完却一块都没有的，算出错 `empty_reply`；增量对不上的，这次请求按 `bad_stream` 出错，原话就是那句报错。会话收尾用的是只在内核里用的 `numbered(回复的序号, 是不是正常说完)`：拼出来的和 `finish`、`cut_off` 一样，每一块多带着它在流里是第几块，会话照它对上每一块的起止（施工 2-3 补）。
 
 **第一处不同**
 
@@ -280,7 +280,7 @@ Carry on from where the summary leaves off, without redoing work it records as d
 - 结尾那份以一个换行开头，所以摘要后面换一行。
 - 结尾那一句是检查点的规则，施工 6-3 下挪进来的（`compaction.md` 第八条）：回合中途压完，这一轮的最后一条只有检查点和事实，没有它，她不知道这时该做什么，会把摘要里记着做完了的再做一遍核对。
 - `permission-rule.txt` 在资源目录里，不读进快照，不进请求。
-- 样本：`docs/designs/samples/requests/second-step.json`（第一轮两块事实排在触发消息前面、调一次工具以后的那次请求）、`after-compaction.json`（压缩以后只剩检查点）；`docs/designs/samples/probe/terminal/requests/` 是一段终端会话的每一次请求，第 11 次带接着写的记号；`docs/designs/samples/probe/reports/requests/` 是一段有回报的会话（施工 7-2）：第 3 次由子代理的回报开，第 5 次后台命令结束排在工具结果后面，第 7 次只记下的回报排在人那一句前面。
+- 样本：`docs/designs/samples/requests/second-step.json`（第一轮两块事实排在触发消息前面、调一次工具以后的那次请求）、`after-compaction.json`（压缩以后只剩检查点）；`docs/designs/samples/probe/terminal/requests/` 是一段终端会话的每一次请求，第 11 次带接着写的记号；`docs/designs/samples/probe/reports/requests/` 是一段有回报的会话（施工 7-2）：第 3 次由子代理的回报开，第 5 次后台命令结束排在工具结果后面，第 7 次只记下的回报排在人那一句前面；`docs/designs/samples/probe/cleared/requests/` 是一段清空过的会话（施工 6-8 补）：第 3 次是清空以后的，只剩工具面、system、两块事实和那一句。
 
 ### 出错
 
@@ -304,9 +304,9 @@ Carry on from where the summary leaves off, without redoing work it records as d
 | `crates/miyu-kernel/src/request/tests.rs` | 同样的请求字节、哈希一样；参数格式一个字节不改；消息以角色开头；第一处不同的四种情形 |
 | `crates/miyu-kernel/tests/request_sample.rs` | 样本 `second-step.json` 就是规范的字节；哈希是它的 SHA-256 |
 | `crates/miyu-assemble/src/tests.rs` | 工具面照名字排；示范对话在前、算进 `stable`；接着写的记号什么时候真、什么时候假 |
-| `crates/miyu-assemble/src/render/tests.rs` | 每种事件渲染成什么；回合开始的事实和触发放到回合开始的地方；等重试时切了级别，事实排在触发后面；早到的触发；重启以后接着干；检查点在最前、摘要不转义；回合没走完的五句；没有触发的那一轮出错、打断、崩了、重启都不出那一句（施工 6-8）；不认识的块和不进上下文的种类 |
+| `crates/miyu-assemble/src/render/tests.rs` | 每种事件渲染成什么；回合开始的事实和触发放到回合开始的地方；等重试时切了级别，事实排在触发后面；早到的触发；重启以后接着干；检查点在最前、摘要不转义；回合没走完的五句；没有触发的那一轮出错、打断、崩了、重启都不出那一句（施工 6-8）；清空的检查点不出字，压缩过再清空的摘要也跟着没了（`render/tests/clear.rs`，施工 6-8 补）；不认识的块和不进上下文的种类 |
 | `crates/miyu-assemble/tests/sample_session.rs` | 样本会话组装出两份样本请求；撤回的、确认和提问的事件不进请求；样本里的两种回报渲染成带标签的事实（施工 7-2） |
-| `crates/miyu-assemble/tests/probe.rs` | 一段八轮的终端会话由真内核跑出来，每次请求和存档（`requests/`、`openai-chat/`）逐字节一样；五条性质；什么都没收到的再来一字不差。有回报的会话（施工 7-2）一样和存档比、查五条性质；回报开的那一轮最后一块是那条回报，回合中途到的单独一条 user 排在工具结果后面，只记下的在人那一句前面 |
+| `crates/miyu-assemble/tests/probe.rs` | 一段八轮的终端会话由真内核跑出来，每次请求和存档（`requests/`、`openai-chat/`）逐字节一样；五条性质；什么都没收到的再来一字不差。有回报的会话（施工 7-2）一样和存档比、查五条性质；回报开的那一轮最后一块是那条回报，回合中途到的单独一条 user 排在工具结果后面，只记下的在人那一句前面。清空过的会话（施工 6-8 补）一样和存档比、查五条性质；清空以后的那一次算改写过，只剩工具面、system 和一条 user：两块事实、那一句 |
 | `crates/miyu-assemble/src/jobs/tests.rs` | 两种回报（施工 7-2）：出厂的字渲染出来和样本逐字节一样（每种原因、截过的、人插过话的、没说话的）；负的退出码照原样、没存下输出的不写字数；标题照规矩转义；开这一轮的那条挪到回合开始的地方、事实在前；回合中途到的排在那一步的工具结果后面；派它的那一轮撤掉了的不渲染；派它的那一条压缩掉了照样有标题；旧快照没有写法的不渲染 |
 | `crates/miyu-assemble/src/summary/tests.rs` | 摘要指令怎么拼：没附要求的和原来的整份一字不差；附了的夹在中间、原样、补换行；旧快照没有那两份的（施工 6-8）；取摘要的每一种 |
 | `crates/miyu-assemble/tests/random_logs.rs` | 五百份随机会话（有手动压缩单开的那一轮，施工 6-8），每次请求查五条性质：同样的日志同样的字节、前缀延伸（统一的请求和线上的字节两层；中间撤销、恢复、压缩过的那一次不查）、调用和结果成对、没有连着的 user、回合第一次请求的最后一块是触发；CI 长跑两万份；重试的回合里，一半在等着重试时切一下只读 |
@@ -316,7 +316,7 @@ Carry on from where the summary leaves off, without redoing work it records as d
 | `crates/miyu-kernel/src/session/tests/difference.rs` | 第一处不同交给执行器、记进 `model.called` |
 | `crates/miyu-kernel/src/time/tests.rs` | 钟点到小时、星期、时区的写法和范围 |
 | `crates/miyu-kernel/src/template/tests.rs` | 换字段、双写的大括号、每种要转的字、转出来是一行合法的 JSON 字符串、伪造属性和记录和标签都失效、`fields()`、`fill`、坏模板、少了字段 |
-| `crates/miyu-kernel/src/accumulate/tests.rs` | 三种块拼对、调用编号、空块、交错、被打断、对不上的增量、随机切片拼出来一样 |
+| `crates/miyu-kernel/src/accumulate/tests.rs` | 三种块拼对、调用编号、空块、交错、被打断、对不上的增量、随机切片拼出来一样；每一块带着它在流里是第几块（施工 2-3 补） |
 
 ### 出处
 

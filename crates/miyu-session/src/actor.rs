@@ -25,6 +25,7 @@ use crate::jobs::{Jobs, SessionJobs};
 use crate::kinds;
 use crate::lines::note;
 use crate::port::{Back, ModelPort, Report};
+use crate::report::Reporter;
 use crate::store::Store;
 use crate::tools::{Dispatch, ToolKit, Tools};
 
@@ -62,6 +63,8 @@ pub(crate) struct Actor {
     guard: Arc<Guard>,
     /// 有没有在跑的回合，和 `Handle` 共用：每送完一批输入写一次；actor 退出了写成没有（施工 3-9 上）。
     busy: Arc<AtomicBool>,
+    /// 向上回报交给谁（施工 7-6，`report.rs`）：子会话、有会话表的端口才有。
+    reporter: Option<Reporter>,
 }
 
 /// 会话停了：写不进去。
@@ -151,7 +154,13 @@ impl Actor {
             jobs,
             guard: Arc::new(guard),
             busy,
+            reporter: None,
         }
+    }
+
+    /// 向上回报交给 `reporter`（施工 7-6）：子会话造好、载入时交。
+    pub(crate) fn report_to(&mut self, reporter: Reporter) {
+        self.reporter = Some(reporter);
     }
 
     /// 有没有在跑的回合：交给 `Handle` 的那一份。
@@ -368,6 +377,14 @@ impl Actor {
             Action::Recall { blobs } => Some(Input::Recalled {
                 texts: self.tools.recall(blobs).await,
             }),
+            // 向上回报（施工 7-6）：交给交回报的那一头，不等。没有的（测试里自己造的子会话）交不出去，运行日志里的
+            // `action` 那一行记着。
+            Action::Report(upward) => {
+                if let Some(reporter) = &self.reporter {
+                    reporter.send(upward);
+                }
+                None
+            }
             // 工具执行中问人随施工 4-9：这之前没有工具会问。
             Action::AnswerTool { .. } => {
                 tracing::error!(target: TARGET, action = kind, "answer without a question");

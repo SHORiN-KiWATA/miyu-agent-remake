@@ -7,6 +7,7 @@
 //! 空闲时发的第一条消息会开一个回合，所以它后面紧跟着三条：`turn.started` 和两块事实。
 
 mod approval;
+mod clear;
 mod compact;
 mod difference;
 mod dirs;
@@ -25,6 +26,7 @@ mod restart;
 mod restore;
 mod revert;
 mod scenario;
+mod spans;
 mod tools;
 mod turn;
 
@@ -228,6 +230,10 @@ fn policy() -> Policy {
         resumes: 3,
         compaction: None,
         notes: None,
+        reports: Reports {
+            chars: 40,
+            omitted: crate::template::Template::parse("[{count} cut]\n").unwrap(),
+        },
     }
 }
 

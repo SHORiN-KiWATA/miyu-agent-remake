@@ -24,9 +24,11 @@ async fn a_child_session_does_its_task_and_is_listed_under_its_parent() {
     let home = Home::new();
     let tools = Catalog::new(miyu_basesystem::tools(&default_resources()).unwrap()).unwrap();
     let args = json!({"description": "查 crate", "prompt": PROMPT}).to_string();
-    // 父会话的第二次请求和子会话的第一次请求谁先到不一定：两句一样，谁拿哪句都对。
+    // 父会话的第二次请求和子会话的第一次请求谁先到不一定：两句一样，谁拿哪句都对。子会话答完向上回报，父会话由它开
+    // 的那一轮是第四句（施工 7-6，回报一层层上来的在 `reports.rs`）。
     let script = Script::new([
         Play::calls(&[("agent", &args)]),
+        Play::Says("好。"),
         Play::Says("好。"),
         Play::Says("好。"),
     ]);

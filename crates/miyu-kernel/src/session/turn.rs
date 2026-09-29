@@ -106,27 +106,13 @@ pub(super) enum Stage {
 }
 
 impl Session {
-    /// 由第 `trigger` 条开一个回合：追加 `turn.started`（带着会话现在的工作目录），和变了的环境、权限两块事实
-    /// （`08-上下文投影.md` C10）；空闲时放宽的，这时生效。`cause` 是触发它的那条事件的
-    /// `cause`。返回追加的事件。
-    pub(super) fn open_turn(
-        &mut self,
-        at: Timestamp,
-        trigger: Seq,
-        cause: Option<CommandId>,
-    ) -> Vec<Event> {
-        let body = Body::TurnStarted(TurnStarted {
-            trigger: Some(trigger),
-            cwd: Some(self.environment.cwd.clone()),
-            dirs: self.environment.dirs.clone(),
-        });
-        let started = self.record(at, By::Kernel, cause.clone(), body);
-        self.turn = Some(Turn {
-            id: TurnId::new(started.seq),
-            cause: cause.clone(),
-            stage: Stage::Opening {
-                opened: started.seq,
-            },
+    /// 刚开的回合：编号是它的 `turn.started` 的序号 `started`，`cause` 照交的，走到 `stage`；工作目录、加进来的目录取会话
+    /// 现在的环境，别的都是还没开始的样子。平常的回合、手动压缩和清空单开的那一轮、载入时收拾的那一轮都从这里造（施工 6-8 补）。
+    pub(super) fn new_turn(&self, started: Seq, cause: Option<CommandId>, stage: Stage) -> Turn {
+        Turn {
+            id: TurnId::new(started),
+            cause,
+            stage,
             cwd: self.environment.cwd.clone(),
             dirs: self.environment.dirs.clone(),
             requests: 0,
@@ -142,7 +128,28 @@ impl Session {
             passive: None,
             overflowed: false,
             manual: None,
+        }
+    }
+
+    /// 由第 `trigger` 条开一个回合：追加 `turn.started`（带着会话现在的工作目录），和变了的环境、权限两块事实
+    /// （`08-上下文投影.md` C10）；空闲时放宽的，这时生效。`cause` 是触发它的那条事件的
+    /// `cause`。返回追加的事件。
+    pub(super) fn open_turn(
+        &mut self,
+        at: Timestamp,
+        trigger: Seq,
+        cause: Option<CommandId>,
+    ) -> Vec<Event> {
+        let body = Body::TurnStarted(TurnStarted {
+            trigger: Some(trigger),
+            cwd: Some(self.environment.cwd.clone()),
+            dirs: self.environment.dirs.clone(),
         });
+        let started = self.record(at, By::Kernel, cause.clone(), body);
+        let opened = Stage::Opening {
+            opened: started.seq,
+        };
+        self.turn = Some(self.new_turn(started.seq, cause.clone(), opened));
         self.effective = self.permission.clone();
         // 记在一边的回报这一轮就听到了（施工 7-2）：不再由它们另开一轮。
         self.deferred.clear();

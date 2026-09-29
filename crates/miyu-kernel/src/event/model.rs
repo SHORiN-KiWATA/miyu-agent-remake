@@ -36,6 +36,11 @@ pub struct ModelCalled {
     /// 从请求发出去到说完用了多少毫秒。没发出去的，没有。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub duration_ms: Option<u64>,
+    /// 回复里每一块的起止，照这次请求写成的 `message.assistant` 的块的先后，一块一项（施工 2-3 补，
+    /// `kernel/events-bodies.md`）。头照它写「已思考 N 秒」，刷新、重开也算得出来。没写回复的没有；以前的日志没有
+    /// 这一格，照读。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub blocks: Option<Vec<BlockSpan>>,
     /// 结果。
     pub result: CallResult,
     /// 出错的分类和原话，只在出错时有。
@@ -100,6 +105,17 @@ impl From<Difference> for FirstDifference {
         };
         FirstDifference { part, index, role }
     }
+}
+
+/// 回复里一块的起止（施工 2-3 补）：都是从请求发出去算起的毫秒数，和 `first_token_ms` 同一个起点。时钟往回拨了，
+/// 早于发出去的算 0。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BlockSpan {
+    /// 这一块第一段增量到的时刻。
+    pub start_ms: u64,
+    /// 这一块最后一段增量到的时刻，不早于 `start_ms`。收块的 `End` 不算：驱动流完了才一起收块，算上它，每一块都
+    /// 收在流的末尾。
+    pub end_ms: u64,
 }
 
 /// 用量，四项都是 token 数。

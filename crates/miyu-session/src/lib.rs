@@ -29,6 +29,7 @@ mod lines;
 mod open;
 mod pictures;
 mod port;
+mod report;
 mod reread;
 mod restore;
 mod sandbox;
