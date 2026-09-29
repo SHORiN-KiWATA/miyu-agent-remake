@@ -73,12 +73,31 @@ pub(crate) async fn request(
     language: &Language,
     err: &mut dyn Write,
 ) -> Result<Value, u8> {
+    request_saying(rpc, method, params, language, err, |reason| {
+        language.refused(reason)
+    })
+    .await
+}
+
+/// 同 [`request`]，只是被拒绝时说的那一句由 `refused` 照核心的原话写（施工 3-9 三补：附件传不上，先说是哪个文件）。
+///
+/// # Errors
+///
+/// 被拒绝、核心断开、写不出去。
+pub(crate) async fn request_saying(
+    rpc: &mut Rpc,
+    method: &str,
+    params: Value,
+    language: &Language,
+    err: &mut dyn Write,
+    refused: impl FnOnce(&str) -> String,
+) -> Result<Value, u8> {
     match rpc.call(method, params).await {
         Ok(Some(reply)) => match reply.get("error") {
             None => Ok(reply["result"].clone()),
             Some(error) => {
                 let reason = error["message"].as_str().unwrap_or_default();
-                say(err, &language.refused(reason));
+                say(err, &refused(reason));
                 Err(exit::ERROR)
             }
         },

@@ -1,5 +1,5 @@
-//! 在一条连上了的连接上把一句话说完（施工 3-9 下）：握手、找会话、订阅、发，跟着那一轮边收边打。跟着那一轮的那一段
-//! （[`follow_turn`]）`miyu compact` 也用（施工 6-8）。
+//! 在一条连上了的连接上把一句话说完（施工 3-9 下）：握手、传附件（施工 3-9 三补）、找会话、订阅、发，跟着那一轮边收
+//! 边打。跟着那一轮的那一段（[`follow_turn`]）`miyu compact` 也用（施工 6-8）。
 
 use serde_json::{Value, json};
 use tokio::sync::mpsc;
@@ -29,6 +29,11 @@ pub async fn talk(
         Ok(hello) => link::unsandboxed(&hello),
         Err(code) => return code,
     };
+    // 附件在造会话之前传：传不上的不发话，也不留下一个空的会话（施工 3-9 三补）。
+    let attachments = match attach(&mut rpc, plan, screen).await {
+        Ok(attachments) => attachments,
+        Err(code) => return code,
+    };
     let (session, used) = match session(&mut rpc, plan, screen).await {
         Ok(found) => found,
         Err(code) => return code,
@@ -45,7 +50,11 @@ pub async fn talk(
     if let Err(code) = subscribed {
         return code;
     }
-    let send = json!({"session": session, "text": plan.text, "cwd": plan.cwd, "dirs": plan.dirs});
+    let mut send =
+        json!({"session": session, "text": plan.text, "cwd": plan.cwd, "dirs": plan.dirs});
+    if !attachments.is_empty() {
+        send["attachments"] = Value::Array(attachments);
+    }
     let sent = match rpc.send("session.send", send).await {
         Ok(sent) => sent,
         Err(error) => {
@@ -127,6 +136,25 @@ pub(crate) async fn follow_turn(
             }
         }
     }
+}
+
+/// 照先后把 `--file` 的每一个传给核心（`blob.put`，传路径），交回回应：说话时照原样带着。传不上的，说是哪个文件、核心
+/// 说的原因，交回退出码（施工 3-9 三补）。
+async fn attach(rpc: &mut Rpc, plan: &Plan, screen: &mut Screen<'_>) -> Result<Vec<Value>, u8> {
+    let mut attached = Vec::with_capacity(plan.files.len());
+    for file in &plan.files {
+        let params = json!({ "path": file });
+        let put = link::request_saying(
+            rpc,
+            "blob.put",
+            params,
+            &plan.language,
+            screen.err,
+            |reason| plan.language.not_attached(file, reason),
+        );
+        attached.push(put.await?);
+    }
+    Ok(attached)
 }
 
 /// 接哪个会话：新开一个一次性的；上一次 `miyu ask` 开的；指定的。交回会话的编号；新开的，再交回核心说的它

@@ -77,18 +77,25 @@ pub struct Ask {
     /// 加进来的目录：和工作区一样能读能写，可以写好几次（施工 5-10 上）。读参数时就换成绝对的、查它是目录。
     #[arg(long = "add-dir", value_name = "DIR", value_parser = directory)]
     pub add_dir: Vec<PathBuf>,
+    /// 附件：可以写好几次，照写的先后（施工 3-9 三补）。读参数时只换成绝对的，读不读得了、多大由核心说。
+    #[arg(long = "file", value_name = "FILE", value_parser = absolute)]
+    pub file: Vec<PathBuf>,
+}
+
+/// `--file` 的值：相对的照敲命令时的目录接成绝对的。
+fn absolute(value: &str) -> Result<PathBuf, String> {
+    let path = PathBuf::from(value);
+    if path.is_absolute() {
+        return Ok(path);
+    }
+    std::env::current_dir()
+        .map(|dir| dir.join(path))
+        .map_err(|error| error.to_string())
 }
 
 /// `--add-dir` 的值：相对的照敲命令时的目录接成绝对的；要是一个已经有的目录，不然照「参数写错时」说。
 fn directory(value: &str) -> Result<PathBuf, String> {
-    let path = PathBuf::from(value);
-    let path = if path.is_absolute() {
-        path
-    } else {
-        std::env::current_dir()
-            .map_err(|error| error.to_string())?
-            .join(path)
-    };
+    let path = absolute(value)?;
     if path.is_dir() {
         Ok(path)
     } else {
@@ -129,6 +136,8 @@ pub struct Plan {
     pub cwd: String,
     /// 加进来的目录，绝对路径，照写的先后、去掉重复的（施工 5-10 上）：造会话、说话都带着，没有的也写空的。
     pub dirs: Vec<String>,
+    /// 附件，绝对路径，照写的先后（施工 3-9 三补）：造会话之前一个个传给核心，说话时带着；没有的不写。
+    pub files: Vec<String>,
     /// 界面语言。
     pub language: Language,
     /// 给人看的字，照界面语言读的那一份：她做的每一步怎么写（施工 4-5 下）。
@@ -222,6 +231,11 @@ fn plan(args: Ask, env: &Env, language: Language) -> Plan {
         cwd: std::env::current_dir()
             .map_or_else(|_| ".".to_string(), |dir| dir.display().to_string()),
         dirs: added(&args.add_dir),
+        files: args
+            .file
+            .iter()
+            .map(|file| file.to_string_lossy().into_owned())
+            .collect(),
         language,
         human: human(env, &language),
         home: env.home.clone(),

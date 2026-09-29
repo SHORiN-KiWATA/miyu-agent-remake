@@ -85,6 +85,13 @@ pub(crate) fn core() -> CoreTexts {
                 "../../../resources/core/drivers/tool-attachments-only.txt"
             )
             .to_string(),
+            text_file: Some(crate::TextFileTexts {
+                file_open: include_str!("../../../resources/core/drivers/file-open.txt")
+                    .to_string(),
+                file_cut: include_str!("../../../resources/core/drivers/file-cut.txt").to_string(),
+                file_close: include_str!("../../../resources/core/drivers/file-close.txt")
+                    .to_string(),
+            }),
         },
         compaction: Some(CompactionTexts {
             summarize_task: include_str!("../../../resources/core/compaction/summarize-task.txt")

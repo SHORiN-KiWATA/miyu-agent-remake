@@ -73,6 +73,7 @@ ask 的选项：
   -s, --session <编号>    接着这个会话说
       --format text|json  text 给人看（默认），json 给脚本
       --add-dir <目录>    多放行一个目录，她能读能写，可以写好几次
+      --file <文件>       附上一个文件，图片、PDF、文本都行，可以写好几次
 
 undo、restore、compact 的选项：
   -s, --session <编号>  哪个会话；不写就是上一次 miyu ask 开的
@@ -106,6 +107,7 @@ ask options:
   -s, --session <id>      Go on in this session
       --format text|json  text for people (default), json for scripts
       --add-dir <dir>     Let her read and write this directory too; repeatable
+      --file <file>       Attach a file: image, PDF, text…; repeatable
 
 undo, restore, compact options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened

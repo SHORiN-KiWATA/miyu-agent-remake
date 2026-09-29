@@ -1030,7 +1030,6 @@ dependencies = [
  "grep-regex",
  "grep-searcher",
  "ignore",
- "imagesize",
  "miyu-fs",
  "miyu-kernel",
  "miyu-log",
@@ -1098,8 +1097,10 @@ dependencies = [
 name = "miyu-endpoint"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "jiff",
  "miyu-basesystem",
+ "miyu-drivers",
  "miyu-fs",
  "miyu-ipc",
  "miyu-kernel",
@@ -1243,6 +1244,7 @@ dependencies = [
 name = "miyu-tool"
 version = "0.0.0"
 dependencies = [
+ "imagesize",
  "miyu-kernel",
  "miyu-sandbox",
  "miyu-tool",

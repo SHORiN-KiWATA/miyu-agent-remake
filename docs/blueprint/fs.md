@@ -19,7 +19,7 @@
 | `crates/miyu-fs/src/trash/linux.rs`、`macos.rs`、`windows.rs`、`other.rs` | 各平台的回收站；别的系统一律收不了 |
 | `crates/miyu-fs/src/trash/recycled.rs` | Windows 回收站里的 `$I` 记录；每个平台都编，测试到处都跑 |
 
-用它的：基础系统的几件工具（`tools/`）；权限策略 `crates/miyu-session/src/guard.rs`（换成真实的位置、查边界；判 `trash` 时最后一段不跟链接）；撤销时改回文件 `crates/miyu-session/src/restore.rs`（`replace`、`trash::put`、`trash::restore`）；开会话时挑工作区 `crates/miyu-endpoint/src/sessions.rs`（`resolve`、`too_wide`）。
+用它的：基础系统的几件工具（`tools/`）；权限策略 `crates/miyu-session/src/guard.rs`（换成真实的位置、查边界；判 `trash` 时最后一段不跟链接）；撤销时改回文件 `crates/miyu-session/src/restore.rs`（`replace`、`trash::put`、`trash::restore`）；开会话时挑工作区 `crates/miyu-endpoint/src/sessions.rs`（`resolve`、`too_wide`）；`blob.put` 读人附的文件 `crates/miyu-endpoint/src/attach.rs`（`resolve`、`tilde`、边界表只拦谁都不能碰的那一片、`open_file`，施工 3-9 三补，`protocol.md`）。
 
 ### 对外的样子
 
@@ -108,7 +108,7 @@
 3. 包含数据根（数据根自己也算）；
 4. 落在数据根里，又不在账号自己的工作区 `own` 里（`own` 自己和它下面的不算太宽）。
 
-一段一段比，分大小写。开会话时照它挑工作区：太宽的退回账号的工作区（`crates/miyu-endpoint/src/sessions.rs`，`cli/ask.md` 第 4 条）。
+一段一段比，分大小写。开会话时照它挑工作区：太宽的退回账号的工作区（`crates/miyu-endpoint/src/sessions.rs`，`cli/ask.md` 第 5 条）。
 
 #### 四、安全地打开（`open_file`）
 

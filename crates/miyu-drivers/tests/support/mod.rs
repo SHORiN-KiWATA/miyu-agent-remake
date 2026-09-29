@@ -9,7 +9,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use miyu_drivers::openai_chat::Compat;
-use miyu_drivers::{Call, DriverTextSources, DriverTexts, Inputs};
+use miyu_drivers::{Call, DriverTextSources, DriverTexts, Inputs, TextFileSources};
 use miyu_kernel::block::{Block, File, Image, Private, Reasoning, Text, ToolCall};
 use miyu_kernel::id::{CallId, ContentHash, DriverFamily, FileName, MediaType, ModelName};
 use miyu_kernel::raw::RawJson;
@@ -25,6 +25,11 @@ pub fn texts() -> DriverTexts {
         tool_attachments_only: include_str!(
             "../../../../resources/core/drivers/tool-attachments-only.txt"
         ),
+        text_file: Some(TextFileSources {
+            file_open: include_str!("../../../../resources/core/drivers/file-open.txt"),
+            file_cut: include_str!("../../../../resources/core/drivers/file-cut.txt"),
+            file_close: include_str!("../../../../resources/core/drivers/file-close.txt"),
+        }),
     })
     .expect("出厂的占位用得了")
 }

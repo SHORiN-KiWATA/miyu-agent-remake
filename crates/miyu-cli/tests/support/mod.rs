@@ -353,6 +353,7 @@ pub fn plan(text: &str) -> Plan {
         format: Format::Text,
         cwd: "/work".to_string(),
         dirs: Vec::new(),
+        files: Vec::new(),
         language: Language::Chinese,
         human: Human::load(&resources(), "zh").expect("出厂的字读得出来"),
         home: None,

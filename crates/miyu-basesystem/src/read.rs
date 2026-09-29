@@ -14,6 +14,7 @@ use serde::Deserialize;
 use miyu_fs::{Kind, OpenError, open_file, resolve};
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
+use miyu_tool::picture;
 use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Target, Tool};
 
 use crate::blocking::blocking;
@@ -141,11 +142,14 @@ fn read(texts: &Texts, call: &Call, args: &Args) -> Done {
         Err(OpenError::Io(error)) => return texts.common.failed(path, &error),
     };
     // 先看开头认图片（施工 4-13）；不是的倒回开头，照旧认编码、按行读。
-    let mut head = Vec::with_capacity(image::HEAD);
-    if let Err(error) = (&mut file).take(image::HEAD as u64).read_to_end(&mut head) {
+    let mut head = Vec::with_capacity(picture::HEAD);
+    if let Err(error) = (&mut file)
+        .take(picture::HEAD as u64)
+        .read_to_end(&mut head)
+    {
         return texts.common.failed(path, &error);
     }
-    if let Some(media_type) = image::kind(&head) {
+    if let Some(media_type) = picture::kind(&head) {
         return image::read(texts, path, real, file, head, media_type);
     }
     if let Err(error) = file.rewind() {

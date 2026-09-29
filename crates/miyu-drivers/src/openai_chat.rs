@@ -203,7 +203,8 @@ pub fn encode(
     })
 }
 
-/// 这份请求编码时要用哪些 blob：模型能看图的，要图片；能读 PDF 的，要 PDF。执行器照着先取出来。
+/// 这份请求编码时要用哪些 blob：模型能看图的，要图片；文件每一个都要（施工 3-9 三补）：能读 PDF 的发 PDF，别的
+/// 要认是不是文本、要写有多大。执行器照着先取出来。
 pub fn blobs_needed(request: &Request, call: &Call) -> BTreeSet<ContentHash> {
     let mut needed = BTreeSet::new();
     for message in &request.messages {
@@ -216,7 +217,7 @@ pub fn blobs_needed(request: &Request, call: &Call) -> BTreeSet<ContentHash> {
                 Block::Image(image) if call.inputs.images => {
                     needed.insert(image.blob.clone());
                 }
-                Block::File(file) if call.inputs.pdf && messages::is_pdf(file) => {
+                Block::File(file) => {
                     needed.insert(file.blob.clone());
                 }
                 _ => {}

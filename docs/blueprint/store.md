@@ -164,7 +164,7 @@
 
 **11. 后台命令的输出**（施工 7-3，`output_path`、`create_output`）：会话目录下的 `jobs/<编号>.out`，一条后台命令一份，执行器的任务表边跑边写、不截（`session/tools.md` 第 5 条）。建的时候没有 `jobs/` 的先建（第 4 条，Unix 上 0700）；文件已经有的清空重写：编号在这个会话里不重复，已经有的只会是崩溃前起了、没来得及记下的那一条留下的。会话日志只认名字是 12 位数字的段（第 6 条），`jobs/` 不碍着它。删会话删整个会话目录，`jobs/` 跟着一起删（删会话随 `session.delete`、7-8；造会话没成时收拾会话目录的 `abandon` 只删只剩空的第一段的目录，那时还起不了后台命令）。结束了整份存成 blob，`job.reported` 里记它的哈希。
 
-**谁存、谁取**：造会话时存策略快照，载入时照 `session.created` 的哈希取（`session/actor.md`）；工具效果里改前改后的内容存成 blob，撤销时取回来写回（`session/tools.md`），撤销的回应里比出改了什么时也取（`protocol.md`）；编码请求时取图片、文件（`session/actor.md`、`drivers/openai-chat.md`）。
+**谁存、谁取**：造会话时存策略快照，载入时照 `session.created` 的哈希取（`session/actor.md`）；人附的文件，`blob.put` 存成管理员的 blob，`session.send` 造块之前取出来再认一遍（施工 3-9 三补，`protocol.md`）；工具效果里改前改后的内容存成 blob，撤销时取回来写回（`session/tools.md`），撤销的回应里比出改了什么时也取（`protocol.md`）；编码请求时取图片、文件（`session/actor.md`、`drivers/openai-chat.md`；文件每一个都取，施工 3-9 三补）。
 
 ### 出错
 

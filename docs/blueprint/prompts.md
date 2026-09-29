@@ -281,13 +281,13 @@ An image was attached here, but this model cannot view images.
 
 #### `core/drivers/file-omitted.txt`
 
-- 什么时候加进来：模型读不了这种文件
-- token：19
-- 为什么加：同上
-- 指纹：`fa5e5020`
+- 什么时候加进来：模型读不了这种文件；人附的文件不是文本的（施工 3-9 三补）
+- token：24
+- 为什么加：同上。施工 3-9 三补加上大小（`{size} bytes`）：人附的文件看不了，附了什么要说全，名字、类型、大小；照同样的值（`报告.pdf`、`application/pdf`、`48213`）改前 19、改后 24，大小那一截 5 个
+- 指纹：`171b6cf0`
 
 ```text
-A file was attached here ({name}, {media_type}), but this model cannot read it.
+A file was attached here ({name}, {media_type}, {size} bytes), but this model cannot read it.
 ```
 
 ### 工具结果
@@ -1306,6 +1306,45 @@ These images and files were returned by the tool calls above.
 
 ```text
 The tool returned only images or files. They are in the next message.
+```
+
+### 人附的文本文件的开头，人这边
+
+#### `core/drivers/file-open.txt`
+
+- 什么时候加进来：人附的文件是文本的（施工 3-9 三补）
+- token：7
+- 为什么加：文本文件照字给她，哪个模型都读得了；前后带文件名的标签，她分得清哪一段是文件、是哪一个。写法照检查点里重读的文件（`<file path=…>`）（施工 3-9 三补，2026-09-30 项目主人定附件现在就排）
+- 指纹：`09d4d7cc`
+
+```text
+<file name="{name}">
+```
+
+### 人附的文本文件，开头那一行后面
+
+#### `core/drivers/file-cut.txt`
+
+- 什么时候加进来：文本文件超过 64 KiB，截掉了
+- token：17
+- 为什么加：截了要写明，不然她当看到的是整份（施工 3-9 三补）
+- 指纹：`41d3a816`
+
+```text
+Only the first {shown} of {total} bytes of this file are shown.
+```
+
+### 人附的文本文件的收尾
+
+#### `core/drivers/file-close.txt`
+
+- 什么时候加进来：同 `file-open.txt`
+- token：3
+- 为什么加：同 `file-open.txt`
+- 指纹：`876a872f`
+
+```text
+</file>
 ```
 
 ### 人这边：任务的回报（一块带标签的事实）

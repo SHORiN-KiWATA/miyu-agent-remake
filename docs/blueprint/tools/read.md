@@ -11,7 +11,8 @@
 | `crates/miyu-basesystem/src/read.rs` | 参数、要碰的路径、读文件还是列目录、结果和效果 |
 | `crates/miyu-basesystem/src/read/lines.rs` | 按行读：编码、二进制、分页、行号、截长行、整份的哈希 |
 | `crates/miyu-basesystem/src/read/dir.rs` | 列目录 |
-| `crates/miyu-basesystem/src/read/image.rs` | 认图片、量宽高、上限（施工 4-13） |
+| `crates/miyu-basesystem/src/read/image.rs` | 读图片：太大、太宽太高、量不出的各说什么（施工 4-13） |
+| `crates/miyu-tool/src/picture.rs` | 认图片、量宽高、上限：和人附的附件共用一份（施工 3-9 三补挪过去，`protocol.md` 的 `blob.put`） |
 | `crates/miyu-basesystem/src/common.rs` | 几件共用的几句：没有这个文件、读的时候出错、参数不对 |
 | `crates/miyu-basesystem/src/common/shown.rs`、`similar.rs` | 路径怎么写给她看；相近的名字 |
 | `crates/miyu-basesystem/src/load.rs` | 从资源目录读说明、参数格式和几句字 |

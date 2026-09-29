@@ -1,38 +1,18 @@
 //! 读图片（施工 4-13，`docs/blueprint/tools/read.md`「读图片」）：看开头的字节认格式，量宽高，交回图片；太大的读的时候
-//! 就拦下，告诉她先缩小——图跟着对话每次都发出去，一张被供应商拒掉的图，会让这个会话以后的请求都失败。
+//! 就拦下，告诉她先缩小——图跟着对话每次都发出去，一张被供应商拒掉的图，会让这个会话以后的请求都失败。什么算一张图、
+//! 上限多少，和人附的附件共用一套（`miyu_tool::picture`，施工 3-9 三补挪过去）。
 
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::PathBuf;
 
 use miyu_kernel::id::{ContentHash, Hasher, MediaType};
+use miyu_tool::picture::{self, MAX_BYTES};
 use miyu_tool::{Done, Effect, Picture};
 
 use super::Texts;
 use crate::common::said;
 use crate::load::say;
-
-/// 认格式要看开头几个字节。
-pub(crate) const HEAD: usize = 12;
-/// 文件最多几个字节：5 MiB。几家接口里最严的（Anthropic 5 MB）。
-pub(crate) const MAX_BYTES: u64 = 5 * 1024 * 1024;
-/// 每边最多几个像素。几家接口里最严的（Anthropic 8000，DeepSeek 8192）。
-pub(crate) const MAX_SIDE: u32 = 8000;
-
-/// 开头的字节是哪种图：交回媒体类型。不是 PNG、JPEG、GIF、WebP 的是空的（DeepSeek 只收这四种）。
-pub(crate) fn kind(head: &[u8]) -> Option<&'static str> {
-    if head.starts_with(b"\x89PNG\r\n\x1a\n") {
-        Some("image/png")
-    } else if head.starts_with(&[0xFF, 0xD8, 0xFF]) {
-        Some("image/jpeg")
-    } else if head.starts_with(b"GIF87a") || head.starts_with(b"GIF89a") {
-        Some("image/gif")
-    } else if head.len() >= HEAD && head.starts_with(b"RIFF") && head[8..12] == *b"WEBP" {
-        Some("image/webp")
-    } else {
-        None
-    }
-}
 
 /// 读一张图：`head` 是认格式时读出来的开头，`file` 接着往下读。都报 `file.read`：整份的哈希，没有行的范围。
 pub(crate) fn read(
@@ -70,19 +50,14 @@ pub(crate) fn read(
         .effect(read_effect(real, hasher.finish()));
     }
     let hash = ContentHash::of(&bytes);
-    let measured = imagesize::blob_size(&bytes).ok().and_then(|size| {
-        Some((
-            u32::try_from(size.width).ok()?,
-            u32::try_from(size.height).ok()?,
-        ))
-    });
-    let Some((width, height)) = measured else {
+    let Some((width, height)) = picture::measure(&bytes) else {
         // 量不出宽高的不当图片，当二进制（`03-事件模型.md` 第四节）。
         return Done::error(say(&texts.binary, &[("path", path)]))
             .said(said("read/binary").with("path", path))
             .effect(read_effect(real, hash));
     };
-    if width > MAX_SIDE || height > MAX_SIDE {
+    // 字节数上面拦过了，这里只剩宽高。
+    if !picture::fits(bytes.len() as u64, width, height) {
         let (w, h) = (width.to_string(), height.to_string());
         return Done::error(say(
             &texts.image_too_wide,

@@ -2,7 +2,7 @@
 
 ### 是什么
 
-头和核心之间说的话：一个连接上一行一条 JSON-RPC 2.0。连上先握手，之后能造会话、列出会话、说话、打断、撤销、恢复、手动压缩、切权限级别、清空上下文、停掉派出去的任务，订阅会话的事件流。连接从哪来不管：本机的套接字、命名管道（`ipc.md`），测试里的内存管道。
+头和核心之间说的话：一个连接上一行一条 JSON-RPC 2.0。连上先握手，之后能造会话、列出会话、传附件、说话（可以带附件）、打断、撤销、恢复、手动压缩、切权限级别、清空上下文、停掉派出去的任务，订阅会话的事件流。连接从哪来不管：本机的套接字、命名管道（`ipc.md`），测试里的内存管道。
 
 撤销、恢复的回应另写一页：`protocol/undo.md`。
 
@@ -21,6 +21,8 @@
 | `crates/miyu-endpoint/src/list.rs` | `session.list` |
 | `crates/miyu-endpoint/src/subscriptions.rs` | 订阅：每个订阅一个转发任务，推 `event`、`resync` |
 | `crates/miyu-endpoint/src/undo.rs` | 撤销、恢复的回应里给人看的几样（`protocol/undo.md`） |
+| `crates/miyu-endpoint/src/attach.rs` | 附件（施工 3-9 三补）：`blob.put` 读、存；`session.send` 的附件变成内容块 |
+| `crates/miyu-endpoint/src/attach/kind.rs` | 认一个附件是什么：图片、PDF、别的文件，媒体类型 |
 | `crates/miyu-endpoint/src/refusal.rs` | 拒绝：错误码、原因码、中英文的话 |
 
 ### 对外的样子
@@ -108,6 +110,7 @@
 | `session.set_permission_level` | 切权限级别：开关只读，改常用的那一级（施工 3-8 再补） |
 | `session.clear` | 清空上下文：单开一轮压成一个空的检查点，不请求模型（施工 6-8 补） |
 | `job.stop` | 停掉一个后台命令或者子代理（施工 7-4） |
+| `blob.put` | 传一个附件，存成 blob（施工 3-9 三补） |
 | `subscribe`、`unsubscribe` | 订阅、取消订阅会话的事件流 |
 
 带 `session` 的，它要合会话编号的写法：UUID 的标准写法，小写十六进制，8-4-4-4-12；不合的 `bad_params`。找会话照下面「会话表」。
@@ -152,12 +155,40 @@
 | `urgent` | 布尔，不写是 `false` | 急着插话 |
 | `cwd` | 字符串，可以不写 | 头现在的工作目录 |
 | `dirs` | 字符串的数组，可以不写 | 加进来的目录（施工 5-10 上）。不写的照旧；写了的，这一句以后开的回合照它，空的就是没有 |
+| `attachments` | 数组，可以不写 | 附件（施工 3-9 三补）：`blob.put` 的回应，照先后。每一项要 `blob`、`name`、`media_type`，别的格不看 |
 
 回应：`events` 是 `[<这一句 message.user 的序号>]`；`cwd` 是收下这一句的 `cwd` 以后，会话实际在哪个目录里干活。
 
 1. 没有回合在进行的，这一句开一轮；有的，排队，`urgent` 的插进下一步（`kernel/session.md`）。
 2. 开的那一轮，`turn.started` 的 `cause` 是这一条的 `id`：头照它认出自己的那一轮。
-3. `text` 是空的：`empty_message`。先找会话，找不到的回的是找不到。
+3. `text` 是空的、又没有附件：`empty_message`。先找会话，找不到的回的是找不到。只有附件、`text` 是空的，也是一句话。
+4. 附件变成内容块，照先后接在文字那一块后面（施工 3-9 三补）：核心照 blob 的内容照 `blob.put` 第 4 条再认一遍，同一份代码。图片是图片块，宽、高、媒体类型照这一次量的，头交回来的 `kind`、`width`、`height` 不算；文件是文件块，`name` 照交回来的，媒体类型照交回来的再过一遍第 4 条（内容是 PDF 的写 `application/pdf`，交回来写成 PDF、图片而内容不是的照内容认）。
+5. 附件先查，再找会话：一项缺了格、格不合写法（`kernel/ids.md`）：`bad_params`；blob 不在管理员的 blob 里：`unknown_attachment`；读不出来（坏了、读不了）：`internal_error`，记一条运行日志；是超了上限的图（不是 `blob.put` 传的 blob 才会有）：`attachment_too_big`。拒了的，会话里什么都不送，`cwd`、`dirs` 也不送。
+
+**`blob.put`**（施工 3-9 三补，`04-核心协议.md` 第九节）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `path` | 字符串，可以不写 | 本机的文件：绝对路径，或者 `~`、`~/…`；核心自己读 |
+| `data` | 字符串，可以不写 | 文件的内容，base64（RFC 4648 的标准字母表，末尾补 `=`）：远程的头用 |
+| `name` | 字符串，可以不写 | 文件名，只是名字（`kernel/ids.md` 的写法）。不写的取 `path` 的最后一段；传 `data` 的必写 |
+| `media_type` | 字符串，可以不写 | 媒体类型（`kernel/ids.md` 的写法）。不写的照内容认 |
+
+回应：`blob`（内容哈希）、`name`、`media_type`、`kind`（`image` 或 `file`）；图片另带 `width`、`height`（像素）。例子（格照名字的字母先后排）：
+
+```json
+{"id":"c3","jsonrpc":"2.0","result":{"blob":"sha256:…","height":600,"kind":"image","media_type":"image/png","name":"shot.png","width":800}}
+```
+
+1. `path`、`data` 正好写一个；两个都写、都不写（写 `null` 算没写）：`bad_params`。`path` 是相对的（没有工作目录可接，头自己接成绝对的）、`~别人/…`：`bad_params`。`data` 不是 base64、传 `data` 没写 `name`、`name` 不合文件名的写法、`media_type` 不合媒体类型的写法：`bad_params`。
+2. 读 `path`，在阻塞线程里：照 `fs.md` 换成真实的位置（链接照指向的地方算），照边界表（管理员的工作区、数据根、这台机器的临时目录和系统目录，`fs.md` 第一节）落在谁都不能碰的那一片（数据根里、管理员的工作区以外）：`attachment_in_data_root`。别的地方都能读，和她读文件一样（`session/guard.md`：读哪儿都不问）。换不成真实的位置、打不开（没有、不是普通文件、没有权限）：`attachment_unreadable`。照 `fs.md` 第四节打开，路上一层链接都不跟。
+3. 一个最多 20 MiB（20,971,520 字节），多的 `attachment_too_big`；读到上限多一个字节就停，不整份读进来。`data` 放在一行 JSON 里，一行最长 1 MiB（「一行一条」），所以最多七百多 KiB，大的传 `path`；分块上传以后再说（`04-核心协议.md` 第十一节）。
+4. 认是什么，照内容，不看扩展名：
+   1. 开头是四种图之一（PNG、JPEG、GIF、WebP）、量得出宽高的：图片，媒体类型照认出的，`media_type` 写了也不算。超过 5 MiB、哪一边超过 8000 像素：`attachment_too_big`，正好在线上的收。认法和上限和 `read` 读图片是同一份代码（`crates/miyu-tool/src/picture.rs`，`tools/read.md`「读图片」）：图跟着对话每次都发，被供应商拒掉的图会让这个会话以后的请求都失败。
+   2. 别的都是文件。开头是 `%PDF-` 的，媒体类型是 `application/pdf`，`media_type` 写了也不算。
+   3. 别的：`media_type` 写了的照写的，只是写成 `application/pdf`、`image/…` 的不算（驱动照它们把内容当 PDF、当图发，内容不是，供应商会拒）；没写、不算的，整份是 UTF-8、没有 NUL 字节的是 `text/plain`（和驱动认文本文件是同一条，`drivers/openai-chat.md` 第 9 条），别的 `application/octet-stream`。扩展名不认：头知道得更准的（例如浏览器给的类型）自己写 `media_type`（施工 3-9 三补定：扩展名的表是一份写死的名单，驱动给模型看的只有文件名和内容，用不上它）。
+5. 存成管理员的 blob（`store.md` 第九条），落了盘才回应；同一份内容再传，还是那一个 blob。存不下来：`internal_error`，记一条运行日志。
+6. 不碰会话，没有命令编号的去重：内容一样，存几次都是同一个。传了没发的留在 blob 里，随存储的回收那一步清。
 
 **`session.interrupt`**
 
@@ -332,8 +363,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `parse_error` | -32700 | 不是 JSON；一行太长（之后断开） |
 | `invalid_request` | -32600 | 是 JSON，不是请求（「请求」的表） |
 | `unknown_method` | -32601 | 握手以后，没有这个方法 |
-| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`；切权限级别两格都不写、`level` 不是 `workspace`、`full` |
-| `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了 |
+| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send` 的附件缺了格、格不合写法 |
+| `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了；附件存不下来、读不出来 |
 | `hello_first` | -32010 | 握手以前发了别的方法 |
 | `protocol_mismatch` | -32010 | 头支持的主版本里没有 1（之后断开） |
 | `bad_token` | -32010 | 本机令牌没带、不对（之后断开） |
@@ -343,6 +374,10 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `session_broken` | -32010 | 会话载入不了：日志、策略快照坏了、读不了 |
 | `empty_message` | -32010 | `session.send` 的 `text` 是空的 |
 | `dir_too_wide` | -32010 | 加进来的目录太宽（「加进来的目录」（施工 5-10 上）） |
+| `attachment_unreadable` | -32010 | `blob.put` 读不了 `path`：换不成真实的位置、没有、不是普通文件、没有权限（施工 3-9 三补） |
+| `attachment_too_big` | -32010 | 附件超过 20 MiB；图片超过 5 MiB，或者哪一边超过 8000 像素（施工 3-9 三补） |
+| `attachment_in_data_root` | -32010 | `blob.put` 的 `path` 在数据根里、管理员的工作区以外（施工 3-9 三补） |
+| `unknown_attachment` | -32010 | `session.send` 附的 blob 这个核心里没有（施工 3-9 三补） |
 | `not_running` | -32010 | 打断时没有回合在进行 |
 | `turn_running` | -32010 | 撤销、手动压缩、清空时有回合在进行 |
 | `unknown_turn` | -32010 | 要撤的那一轮不在有效历史里：没有，或者已经撤掉了 |
@@ -353,7 +388,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `unknown_job` | -32010 | `job.stop` 时没有这个任务，或者它已经结束了（施工 7-4） |
 | `restoring` | -32010 | 撤销、恢复还没做完（正在读回更早的日志、正在改回文件）时来的命令。兜底：会话做完才接下一个命令，照常碰不到 |
 
-- 从 `empty_message` 起，除了 `dir_too_wide`，九个是内核拒命令时给的原因码（`kernel/session.md`）。
+- 从 `empty_message` 起，除了 `dir_too_wide` 和附件的四个，十个是内核拒命令时给的原因码（`kernel/session.md`）。
 - 内核还有六个原因码，现在没有方法碰得到：`unknown_level`（协议上的级别只认两种，别的先是 `bad_params`）、`not_asking`、`unknown_decision`、`no_rule`、`unexpected_reason`、`bad_answer`。它们没有配话，说的是最后那一句「被拒绝了」。
 
 运行日志（目标 `miyu::endpoint`，`log.md`）：
@@ -375,6 +410,9 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `ERROR` | `list panicked error=…` | 列会话崩了 |
 | `WARN` | `workspace not prepared kind=…` | 退回的工作区建不成 |
 | `DEBUG` | `already stopped session=…` | 停下全部会话时，这一个已经停了 |
+| `WARN` | `attachment not stored error=…` | `blob.put` 存不下来（施工 3-9 三补） |
+| `WARN` | `attachment not read blob=… error=…` | `session.send` 的附件读不出来：坏了、读不了 |
+| `ERROR` | `attachment panicked error=…` | 读、存附件时崩了 |
 
 撤销、恢复的回应写不成的两行见 `protocol/undo.md`。
 
@@ -398,6 +436,10 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `session_broken` | 这个会话载入不了：它的日志或者策略快照坏了。 | This session cannot be loaded: its log or policy snapshot is broken. |
 | `empty_message` | 消息是空的。 | The message is empty. |
 | `dir_too_wide` | 加进来的目录太宽：家目录、根目录、Miyu 的数据根不能整个放行。 | An added directory is too wide: the home directory, the root and Miyu's data root cannot be opened up whole. |
+| `attachment_unreadable` | 读不了这个文件：没有、不是普通文件，或者没有权限。 | This file cannot be read: it is missing, not a regular file, or not permitted. |
+| `attachment_too_big` | 附件太大：一个最多 20 MiB，图片最多 5 MiB、每边最多 8000 像素。 | The attachment is too big: at most 20 MiB, and an image at most 5 MiB and 8000 pixels a side. |
+| `attachment_in_data_root` | Miyu 的数据根里的文件不能当附件。 | Files in Miyu's data root cannot be attached. |
+| `unknown_attachment` | 附件不在核心里：先用 blob.put 传上来。 | The attachment is not in the core; upload it with blob.put first. |
 | `not_running` | 没有正在进行的回合，打断不了。 | No turn is running, so there is nothing to interrupt. |
 | `turn_running` | 有回合在进行：先打断，或者等它做完。 | A turn is running; interrupt it or wait for it to finish. |
 | `unknown_turn` | 没有这一轮，或者它已经撤掉了。 | There is no such turn, or it has already been undone. |
@@ -429,6 +471,9 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/workspace.rs` | 太宽的五种（`~`、家目录、根目录、数据根、数据根里面）和读不出家目录时的 `~`；项目目录、账号的工作区照旧；回应里的 `cwd`、重发的造会话 |
 | `crates/miyu-endpoint/tests/dirs.rs` | 加进来的目录（施工 5-10 上）：造会话、说话时报的记进这一轮，不写的照旧、写空的就没有；太宽的五种整条命令都不收、什么都没写；核心重启以后照最后一轮的 |
 | `crates/miyu-endpoint/tests/idle.rs` | 连着连接、跑着回合不空闲；停下全部会话，跑到一半的记成重启了 |
+| `crates/miyu-endpoint/tests/attach.rs` | `blob.put`（施工 3-9 三补）：传路径、传内容；照内容认图片（扩展名不算）、PDF、文本、别的文件，量宽高，回应的格照字母排、存成管理员的 blob；写了的媒体类型什么时候算、改名、写 `null` 等于没写；太大（20 MiB、图片的宽高和 5 MiB，正好在线上的收）；数据根里的不给、管理员的工作区给、指到数据根里的链接不给；读不了（没有、目录、没有家目录时的 `~`）；参数不对的十二种、一个都没存；四种拒绝的中英文 |
+| `crates/miyu-endpoint/tests/attach_send.rs` | `session.send` 带附件（施工 3-9 三补）：照先后接在文字后面，宽高、种类照核心量的，她收到的请求里就是这几块；只有附件也是一句话，`null` 是没有；blob 不在的拒绝、什么都没写、换的工作目录也没送进会话；附件的格不对的七种 |
+| `crates/miyu-endpoint/src/attach/kind/tests.rs` | 认附件：量得出的图是图片、头写的不算，量不出的当文件；图片的上限和线上的；PDF 照开头认；别的文件照头写的，写成 PDF、图片的照内容认，文本、空的、二进制、不是 UTF-8 的 |
 | `crates/miyu-endpoint/tests/tools.rs` | 造会话、载入时用核心的工具目录；核心的沙盒造会话、载入时都交给会话，沙盒用不了的核心上执行命令没人能确认就拒（施工 5-4 上） |
 | `crates/miyu-endpoint/tests/socket.rs` | 真的套接字（Windows 上是命名管道）上握手、造会话、说话，第二个头也连得上 |
 
@@ -437,6 +482,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 - `04-核心协议.md` 第二节（JSON-RPC、分帧、拒绝的写法）、第三节（一次连接的全过程：订阅时先拿会话状态）、第四节（连接即身份、本机令牌）、第五节（事件流；会话状态由核心算）、第六节第 1、2、4 条、第七节（慢、`resync`）、第八节（版本）、第九节「先做的几样怎么写」；P1、P2。
 - `09-压缩.md` 第二节：压缩线。
 - `04-核心协议.md` 第九节 `session.set_permission_level`、`02-内核.md` 第六节「权限级别怎么切」、`11-权限与沙盒.md` 第二节：切权限级别。
+- `04-核心协议.md` 第九节 `blob.put`、`22-命令行.md` 第三节 `--file`、`03-事件模型.md` 第四节（量不出尺寸的不当图片）、E4：附件（施工 3-9 三补）。
 - `02-内核.md` 第四节（拒绝附原因码）、不变量 9（同一个编号只生效一次）。
 - `06-多用户与身份.md` 第二节、U13：本机连上来的是管理员 `admin`。
 - `07-存储.md` 第七节：会话按需载入。
@@ -446,7 +492,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 
 设计里有、还没做的：
 
-- 第九节表里的其余方法：`session.fork`、`session.configure`、`session.answer`（随 M8 的抽屉）、`command.run`、`blob.put`、查询、账号、配置……（`04-核心协议.md` 第九节）。
+- 第九节表里的其余方法：`session.fork`、`session.configure`、`session.answer`（随 M8 的抽屉）、`command.run`、查询、账号、配置……（`04-核心协议.md` 第九节）。
+- 附件分块上传、远程的头传大文件（`04-核心协议.md` 第十一节）；blob 的回收（`store.md`「还没有的」）。
 - 视图流、会话列表流，`view.*`、`sessions.changed`、`config.changed` 这些推送；核心决定「显示什么」（第五节、P3）。
 - 事件流重连时报出最后看到的序号、补发之后的（第七节）；队列紧张时先合并同一条目的连续增量（第七节）。
 - 头发现核心比自己旧，请求它空闲时重启（第八节，`kernel.restart_when_idle`）。

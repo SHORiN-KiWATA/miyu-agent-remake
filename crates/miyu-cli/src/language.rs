@@ -200,6 +200,14 @@ impl Language {
         }
     }
 
+    /// 附件传不上（施工 3-9 三补）：哪个文件，核心照握手时报的语言说的原因。
+    pub(crate) fn not_attached(&self, file: &str, reason: &str) -> String {
+        match self {
+            Language::Chinese => format!("附不上 {file}：{reason}"),
+            Language::English => format!("Cannot attach {file}: {reason}"),
+        }
+    }
+
     /// 核心拒绝了：它的原话已经照握手时报的语言说了。
     pub fn refused(&self, reason: &str) -> String {
         reason.to_string()

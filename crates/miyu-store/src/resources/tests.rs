@@ -139,6 +139,20 @@ fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
     for (got, file) in read {
         assert_eq!(got, file);
     }
+    // 文本文件照字放进消息的三句（施工 3-9 三补）：每一格是它自己那份文件。
+    let text = sources
+        .core
+        .drivers
+        .text_file
+        .expect("出厂的有文本文件的三句");
+    macro_rules! driver {
+        ($name:literal) => {
+            include_str!(concat!("../../../../resources/core/drivers/", $name))
+        };
+    }
+    assert_eq!(text.file_open, driver!("file-open.txt"));
+    assert_eq!(text.file_cut, driver!("file-cut.txt"));
+    assert_eq!(text.file_close, driver!("file-close.txt"));
 }
 
 #[test]

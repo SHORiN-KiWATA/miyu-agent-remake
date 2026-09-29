@@ -6,7 +6,8 @@
 //! - [`Driver`]：驱动的接口，执行器照着它调：家族、路径、要哪些 blob、编码、解码器、分类；
 //! - [`openai_chat`]：OpenAI 兼容的对话接口（DeepSeek、智谱、OpenRouter、本机的 Ollama 这些）；
 //! - [`sse`]：SSE 分帧；[`classify`]：出错分类；[`base64`]：图片、文件写成 data URL 要用的编码；
-//! - [`DeepSeekImages`]：一张图在 DeepSeek 上算多少 token（施工 6-3 上）。
+//! - [`DeepSeekImages`]：一张图在 DeepSeek 上算多少 token（施工 6-3 上）；
+//! - [`text_file`]：人附的文本文件照字放进消息，什么算文本、最多给多少（施工 3-9 三补）。
 //!
 //! 一次调用要定的（[`Call`]）不在统一的请求里：同一份投影可以交给不同的端点。图片、文件的字节
 //! 由执行器先从 blob 取出来交进来（[`BlobBytes`]），驱动不碰文件；给模型看的几句占位也由执行器
@@ -18,11 +19,12 @@ mod driver;
 mod image_tokens;
 pub mod openai_chat;
 pub mod sse;
+pub mod text_file;
 mod texts;
 
 pub use driver::{Decode, Driver, OpenAiChat};
 pub use image_tokens::{DeepSeekImages, deepseek_image_tokens};
-pub use texts::{DriverTextSources, DriverTexts};
+pub use texts::{DriverTextSources, DriverTexts, TextFileSources};
 
 use std::collections::BTreeMap;
 use std::fmt;

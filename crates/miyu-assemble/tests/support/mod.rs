@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 
 use miyu_assemble::{DefaultAssembler, Stable};
 use miyu_drivers::openai_chat::{self, Compat, Encoded};
-use miyu_drivers::{Call, DriverTextSources, DriverTexts, Inputs};
+use miyu_drivers::{Call, DriverTextSources, DriverTexts, Inputs, TextFileSources};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::estimate::Flat;
 use miyu_kernel::event::{Body, Event};
@@ -372,6 +372,11 @@ fn driver_texts() -> DriverTexts {
         tool_attachments_only: include_str!(
             "../../../../resources/core/drivers/tool-attachments-only.txt"
         ),
+        text_file: Some(TextFileSources {
+            file_open: include_str!("../../../../resources/core/drivers/file-open.txt"),
+            file_cut: include_str!("../../../../resources/core/drivers/file-cut.txt"),
+            file_close: include_str!("../../../../resources/core/drivers/file-close.txt"),
+        }),
     })
     .expect("出厂的占位用得了")
 }

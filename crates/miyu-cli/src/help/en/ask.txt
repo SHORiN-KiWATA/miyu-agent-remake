@@ -7,4 +7,5 @@ Options:
   -s, --session <id>      Go on in this session
       --format text|json  text for people (default), json for scripts
       --add-dir <dir>     Let her read and write this directory too; repeatable
+      --file <file>       Attach a file: image, PDF, text…; repeatable
   -h, --help              Print help

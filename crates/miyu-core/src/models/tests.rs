@@ -161,7 +161,7 @@ fn the_dev_window_replaces_the_one_from_the_model_data() {
 /// 核心造的端口带着查到的窗口、最大输出，和 DeepSeek 的图片算法（施工 6-3 上）。
 #[test]
 fn the_port_carries_the_limits_and_the_deepseek_image_price() {
-    use miyu_drivers::{DriverTextSources, DriverTexts};
+    use miyu_drivers::{DriverTextSources, DriverTexts, TextFileSources};
     use miyu_session::ForSession;
     use miyu_store::blob::Blobs;
     let table = ModelTable::parse(
@@ -176,6 +176,11 @@ fn the_port_carries_the_limits_and_the_deepseek_image_price() {
         tool_attachments_only: include_str!(
             "../../../../resources/core/drivers/tool-attachments-only.txt"
         ),
+        text_file: Some(TextFileSources {
+            file_open: include_str!("../../../../resources/core/drivers/file-open.txt"),
+            file_cut: include_str!("../../../../resources/core/drivers/file-cut.txt"),
+            file_close: include_str!("../../../../resources/core/drivers/file-close.txt"),
+        }),
     })
     .unwrap();
     let port = |env: &ModelEnv| {
