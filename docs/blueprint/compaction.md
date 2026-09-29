@@ -26,7 +26,7 @@
 | `crates/miyu-session/src/compaction.rs` | 执行器这边：重读文件存成 blob；撤销越过压缩时从磁盘读回更早的日志 |
 | `crates/miyu-core/src/models.rs` | 模型的资料：上下文窗口、最大输出 |
 | `crates/miyu-endpoint/src/methods.rs` | `session.compact`（`protocol.md`） |
-| `crates/miyu-cli/` | `miyu ask` 印压缩那一行；手动压缩的命令（6-8 拍板） |
+| `crates/miyu-cli/` | `miyu ask` 印压缩那一行（6-3 下）；手动压缩的命令 `miyu compact`（6-8，2026-09-29 项目主人定） |
 | `crates/miyu-basesystem/src/history.rs` | `history`（`tools/history.md`） |
 | `resources/core/compaction/` | 给模型看的字：摘要指令、检查点里代码写的几段 |
 
