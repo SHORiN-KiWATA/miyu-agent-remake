@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>117</b><span>/ 127 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到</span></li>
-    <li><b>7-3</b><span>下一步：两条线并行，7-3 后台命令和 7-5 派子代理（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">e21e81e</b><span>最近一步（7-2 回报到了）的提交</span></li>
+    <li><b>118</b><span>/ 127 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理</span></li>
+    <li><b>7-3</b><span>下一步：两条线并行，7-3 后台命令（接上 main 中）和 7-6 子会话回报（Windows 上跑命令那一步暂停）</span></li>
+    <li><b class="mono">977b5e4</b><span>最近一步（7-5 派子代理）的提交</span></li>
   </ul>
 </header>
 
@@ -474,7 +474,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s7-2"><span class="n">7-2</span>回报到了<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-3</span>后台命令</span></li>
         <li><span class="step"><span class="n">7-4</span>jobs 和 job.stop</span></li>
-        <li><span class="step"><span class="n">7-5</span>派子代理</span></li>
+        <li><a class="step done" href="#s7-5"><span class="n">7-5</span>派子代理<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-6</span>子会话回报</span></li>
         <li><span class="step"><span class="n">7-7</span>父子之间留言</span></li>
         <li><span class="step"><span class="n">7-8</span>撤销、删除和压缩</span></li>
@@ -8896,6 +8896,65 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>kernel/session.md</code>、<code>kernel/request.md</code>、<code>kernel/history.md</code>、<code>agents.md</code>。</li>
         <li><code>docs/construction/7-2-回报到了.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s7-5" aria-labelledby="h-s75">
+  <div class="sheet-head"><h2 id="h-s75"><span class="no">7-5</span>派子代理</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她能用 <code>agent</code> 派一个子会话去做一件事：子会话照父会话抄好权限和目录，拿着交代开它的第一轮，在后台跑；调用当场返回编号。子会话做完怎么回报是 7-6。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">agent 描述 交代</span><span class="dir-note">miyu-session/src/spawn.rs</span></div>
+            <ol class="pipe" aria-label="派出去怎么走">
+              <li>领一个编号（<code>j1</code>…，撤掉的不回收），执行器经会话表造子会话</li>
+              <li>抄父会话：属主、场所、目录、权限级别和只读、能不能确认；人格软件工程师；<code>depth</code> 加一</li>
+              <li>交代原样记成父会话发来的话，开子会话的第一轮；调用当场返回，效果 <code>job.started</code></li>
+              <li>到深度上限的、群里的会话工具面里没有 <code>agent</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">访问类别是读</span><span class="rl">一步里能并行派几个，只读时也能派</span></div>
+          <div class="tile new"><span class="nm">场所说明</span><span class="rl">子会话 system 里一段，60 token</span></div>
+          <div class="tile"><span class="nm">留到 7-8</span><span class="rl">交代送不进去、派到一半被打断留下的空子会话</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-5</dd></div>
+        <div><dt>名称</dt><dd>派子代理</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">977b5e4</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>工具 <code>agent</code>、端口 <code>AgentPort</code>、会话表给每个会话一份造子会话的端口；<code>session.list</code> 带 <code>parent</code>。和 7-3 并行施工。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>子会话抄的每一样、编号不撞不回收、真核心走一遍；请求形状探针多一张子代理的脸，只差场所说明</span></li>
+        <li><span class="ok">✓</span><span>手写 33 个变异，除 1 个等价的全逮住；三台机器的 CI 和长跑全绿；真模型：子代理照交代干完，最后的回答就是回报</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>agents.md</code> 第一条、<code>tools/agent.md</code>。</li>
+        <li><code>docs/construction/7-5-派子代理.md</code>。</li>
       </ul>
     </div>
   </div>
