@@ -387,6 +387,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-9a"><span class="n">3-9</span>主程序和拉起核心（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9b"><span class="n">3-9</span>miyu ask（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9c"><span class="n">3-9</span>会话编号照先后（补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s3-9d"><span class="n">3-9</span>开发用的地址和模型（再补）<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -447,7 +448,7 @@ a.step:hover{border-color:var(--primary)}
       <ol class="chips">
         <li><a class="step done" href="#s6-1"><span class="n">6-1</span>用量和压缩线<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-2a"><span class="n">6-2</span>摘要请求（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">6-2</span>留尾巴（下）</span></li>
+        <li><a class="step done" href="#s6-2b"><span class="n">6-2</span>留尾巴（下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">6-3</span>接上真模型</span></li>
         <li><span class="step"><span class="n">6-4</span>history</span></li>
         <li><span class="step"><span class="n">6-5</span>检查点里代码写的几段、压后重建</span></li>
@@ -7639,6 +7640,124 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s6-2b" aria-labelledby="h-s62b">
+  <div class="sheet-head"><h2 id="h-s62b"><span class="no">6-2</span>留尾巴（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">压缩时最近的一段原文原样留着，不进摘要：从最新的一组往回，一组一组地留，至多 16000 token、不超过压缩线的四分之一；这一轮要回应的话超了也留。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">尾巴</span><span class="dir-note">照投影的先后看</span></div>
+            <ol class="pipe" aria-label="尾巴怎么留">
+              <li>一组从一条人的消息或者一条回复开始，别的事件跟着前面那一组</li>
+              <li>从最新的一组往回加，加上就超预算的停下</li>
+              <li>只在切得开的地方切：前面的序号都比后面的小</li>
+              <li>和这一轮要回应的话合在一起，再照一组不拆往前退</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">预算</span><span class="rl">min(16000, 压缩线的四分之一)</span></div>
+          <div class="tile new"><span class="nm">一步至多压一次</span><span class="rl">压完照发这一步的请求</span></div>
+          <div class="tile new"><span class="nm">重试的计数</span><span class="rl">摘要说完了不清零</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-2 下</dd></div>
+        <div><dt>名称</dt><dd>留尾巴（下）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">fe6817a</dd></div>
+        <div><dt>验收</dt><dd>测试、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>内核：<code>tail_upto</code>、<code>cuts</code>、<code>settle</code>，<code>estimate::event</code>；<code>Policy.compaction.tail</code>。</li>
+        <li>替身记下每次请求交出去时日志的最后一条（<code>Stage::marks</code>），随机日志照它查改写。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>尾巴的场景 8 个；探针的两次压缩，一次留了尾巴、一次最新一组太大不留</span></li>
+        <li><span class="ok">✓</span><span>随机测试碰出三个真问题（切在投影顺序对不上的地方、一步压两次、摘要清零重试），都修了</span></li>
+        <li><span class="ok">✓</span><span>手写 12 个变异全被逮住；门禁八项全过，三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>compaction.md</code> 第三条第 1、2 条。</li>
+        <li><code>docs/construction/6-2-留尾巴（下）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s3-9d" aria-labelledby="h-s39d">
+  <div class="sheet-head"><h2 id="h-s39d"><span class="no">3-9</span>开发用的地址和模型（再补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">真模型自测改用项目主人给的端点：两个开发用的环境变量替换地址和模型，配置系统做好以后删掉。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">核心起来时</span><span class="dir-note">设了 DEEPSEEK_API_KEY 才看</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">MIYU_DEV_BASE_URL</span><span class="rl">替换地址，端点编号改成 dev</span></div>
+              <div class="tile new"><span class="nm">MIYU_DEV_MODEL</span><span class="rl">替换模型名，不合写法起不来</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不进 -h</span><span class="rl">配置系统做好以后删掉</span></div>
+          <div class="tile new"><span class="nm">地址不进仓库</span><span class="rl">项目主人给的端点只在命令里用</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-9 再补</dd></div>
+        <div><dt>名称</dt><dd>开发用的地址和模型（再补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">9aea9c0</dd></div>
+        <div><dt>验收</dt><dd>测试、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>核心：<code>models::ModelEnv</code>、<code>choose</code>；运行日志记一条 <code>dev endpoint</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试覆盖不设、只设一个、都设、空白、没有 key、模型名不合写法</span></li>
+        <li><span class="ok">✓</span><span>真模型：miyu ask 读文件、答一句，走得通；数据根里没有 key</span></li>
+        <li><span class="ok">✓</span><span>手写 5 个变异全被逮住；门禁八项全过，三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>core.md</code>「环境变量」「模型」。</li>
+        <li><code>docs/construction/3-9-开发用的地址和模型（再补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -7822,9 +7941,9 @@ const BUILD = {
   n_prompt: { by: '3-6', how: 'frame', note: '策略快照：人格从资源目录拼成快照，按内容哈希存档，载入时照哈希重建，请求逐字节一样；现在只有软件工程师（3-6 上）' },
   n_driver: { by: '3-4', how: 'frame', note: 'OpenAI 兼容接口：编码（每一种写法有样本，探针另存一份线上的字节，随机日志查线上的前缀延伸）、流式解码（13 份手写的流，从哪里切开都一样）、出错分六类；驱动的接口 Driver；HTTP 执行器（3-5 上）：发请求、流式读、空闲超时、打断；会接着写的供应商用前缀续写（3-5 再补，出厂只开 DeepSeek）；DEBUG 记发出去和收场，key、正文、地址的路径一个字都不记（3-7 上）' },
   k_sessions: { by: '3-7', how: 'frame', note: '会话 actor（3-7 中）：命令和执行器的回报进收件箱，动作照表回；先落盘，后回应、后推送；造会话存策略快照，载入照它重建，停在一轮中间的再起来接着干；写不进去就停下。请求模型接上驱动和 HTTP，驱动的占位取自会话的快照（3-7 下）；会话表照编号找会话、没在跑的从磁盘载入，只起一个 actor（3-8 上）' },
-  n_models: { by: '3-9', how: 'frame', note: '配置系统做出来之前只认环境变量 DEEPSEEK_API_KEY：设了就接 DeepSeek 官方的 deepseek-flash，key 只在内存里；没设的，每次请求都当场回「没有可用的模型」（3-9 上，项目主人定）' },
+  n_models: { by: '3-9', how: 'frame', note: '配置系统做出来之前只认环境变量 DEEPSEEK_API_KEY：设了就接 DeepSeek 官方的 deepseek-flash，key 只在内存里；没设的，每次请求都当场回「没有可用的模型」（3-9 上，项目主人定）；开发用的 MIYU_DEV_BASE_URL、MIYU_DEV_MODEL 替换地址和模型（3-9 再补）' },
   n_cli: { by: '3-9', how: 'frame', note: 'miyu ask：连上核心（没在跑就拉起），开一次性会话或者 --continue、--session 接着说；思考灰色印在标准错误上，回答印在标准输出上，问完一行用量；Ctrl+C 一次打断、两次就走；--format json 给脚本（3-9 下）' },
-  n_compact: { by: '6-1', how: 'frame', note: '用量和压缩线（6-1）：锚是最近一次压缩以后、说完了、带用量的 model.called，盖住工具面、system 和前 messages+1 条；后面新增的照 UTF-8 字节除以 4 估（照 codex）；报的比估的小取估的、换过模型整份估（照 dsh）；压缩线 = 窗口 − min(最大输出, 20000) − 13000。摘要请求（6-2 上）：发主请求之前过了线，在这一轮里先压：有效历史到第 N 条的投影加摘要指令，取出摘要写检查点，这一轮要回应的话留在尾巴里，一组不拆；执行器交了限额才主动压' },
+  n_compact: { by: '6-1', how: 'frame', note: '用量和压缩线（6-1）：锚是最近一次压缩以后、说完了、带用量的 model.called，盖住工具面、system 和前 messages+1 条；后面新增的照 UTF-8 字节除以 4 估（照 codex）；报的比估的小取估的、换过模型整份估（照 dsh）；压缩线 = 窗口 − min(最大输出, 20000) − 13000。摘要请求（6-2 上）：发主请求之前过了线，在这一轮里先压：有效历史到第 N 条的投影加摘要指令，取出摘要写检查点，这一轮要回应的话留在尾巴里，一组不拆；执行器交了限额才主动压。留尾巴（6-2 下）：照投影的先后一组一组地留，至多 min(16000, 线的四分之一)，只在切得开的地方切；一步至多压一次' },
   n_bus: { by: '3-8', how: 'frame', note: '连接上一行一条 JSON-RPC 2.0：握手（主版本、本机令牌）、造会话、说话、打断，拒绝附原因码（3-8 上）；订阅事件流，回应排在它产生的推送后面，掉队推 resync（3-8 中）；核心在本机的 Unix 套接字上等连接：一个数据根一个核心（锁），本机令牌写进 run/token，实际位置记在 run/socket，套接字放在只有自己能进的目录里（3-8 下）；Windows 上是命名管道，只对本人开放，头连上以后核对另一头是自己的（3-8 补）' },
 };
 
