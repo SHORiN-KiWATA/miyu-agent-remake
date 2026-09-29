@@ -278,8 +278,12 @@ pub struct Texts {
     pub refused: String,
     /// 这一轮被打断了。
     pub interrupted: String,
-    /// 这一轮出错了，`{class}` 分类，`{message}` 原话。
+    /// 这一轮出错了，`{reason}` 是原因（`transcript/failure.rs` 拼的）。
     pub failed: String,
+    /// 原因里人话和原话连起来：`{head}` 人话，`{message}` 原话。
+    pub reason_with: String,
+    /// 这几种 HTTP 状态码，原话前面加的人话（蓝图「正文」第 4 条）。
+    pub status_hints: HashMap<String, String>,
     /// 正在重试。
     pub retry: String,
     /// 上下文用量，紧凑写法照旧版：`{used}` 用了多少，`{window}` 窗口多大，`{percent}` 一位小数的百分比。
@@ -306,7 +310,7 @@ pub struct Texts {
     pub menu: MenuTexts,
     /// 压缩那几行（蓝图「正文」第 9 条）。
     pub compaction: CompactionTexts,
-    /// 出错的分类写成人话（蓝图「正文」第 4 条，和 `miyu ask` 同一张表）；认不得的照原样。
+    /// 出错的分类写成人话：内核自己查出来的、没有原话的用（蓝图「正文」第 4 条）；认不得的照原样。
     pub error_classes: HashMap<String, String>,
     /// 图还在做时那一行占位。
     pub figure_pending: String,

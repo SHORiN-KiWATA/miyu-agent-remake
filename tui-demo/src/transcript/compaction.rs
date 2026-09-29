@@ -58,18 +58,19 @@ impl Transcript {
                 }
             }
             // 调了工具、接着改走隔离式（施工 6-6 下）：不是失败，灰色说一句，这次压缩接着来进度（另起一行）。
-            Compaction::Failed { class, message }
-                if class == "bad_summary" && message.ends_with(ISOLATING) =>
+            Compaction::Failed(error)
+                if error.class == "bad_summary" && error.message.ends_with(ISOLATING) =>
             {
                 self.compacting_line(Kind::Note, words.isolating.clone(), None);
                 self.compacting = None;
             }
-            Compaction::Failed { class, message } => {
-                let reason = if class == "bad_summary" && message.contains("called a tool") {
-                    words.called_a_tool.clone()
-                } else {
-                    class_name(&class, texts)
-                };
+            Compaction::Failed(error) => {
+                let reason =
+                    if error.class == "bad_summary" && error.message.contains("called a tool") {
+                        words.called_a_tool.clone()
+                    } else {
+                        super::failure::reason(&error, texts)
+                    };
                 self.compacting_line(Kind::Error, words.failed.replace("{reason}", &reason), None);
                 self.compacting = None;
             }
@@ -178,15 +179,6 @@ impl Transcript {
             entry.progress = progress;
         }
     }
-}
-
-/// 出错的分类写成人话（`text/zh.json` 的 `error_classes`）；认不得的照原样。
-pub(super) fn class_name(class: &str, texts: &Texts) -> String {
-    texts
-        .error_classes
-        .get(class)
-        .cloned()
-        .unwrap_or_else(|| class.to_string())
 }
 
 /// 压缩那一行换成压好了的结果：绿色记号，字暗，不再转、不再画条。

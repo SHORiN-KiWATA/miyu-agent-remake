@@ -305,14 +305,14 @@ fn each_image_is_drawn_under_its_own_line() {
         shape,
         [
             "插画：",
-            "[图片: ] </p/a.png>",
+            "[图片: a.png] </p/a.png>",
             "图 /p/a.png",
-            "[图片: ] </p/b.png>",
+            "[图片: b.png] </p/b.png>",
             "图 /p/b.png",
             "",
-            "▪ [图片: ] </p/c.png>",
+            "▪ [图片: c.png] </p/c.png>",
             "图 /p/c.png",
-            "  [图片: ] </p/d.png>",
+            "  [图片: d.png] </p/d.png>",
             "图 /p/d.png",
         ],
         "每张图紧接着画在自己那一行下面；列表的记号只写一次"
@@ -350,4 +350,19 @@ fn an_unfinished_mermaid_block_stays_source_until_it_closes() {
     assert!(closed.iter().any(|l| l.figure.is_some()));
     let tilde = draw("~~~mermaid\nA\n~~~\n", 40);
     assert!(tilde.iter().any(|l| l.figure.is_some()));
+}
+
+#[test]
+fn an_image_without_words_shows_its_file_name() {
+    // 2026-09-30 项目主人：原来方括号里空着。
+    let text = |md: &str| lines(md, 100).join("\n");
+    assert!(
+        text("![](/tmp/imgs/wall_01.png)").contains("[图片: wall_01.png] </tmp/imgs/wall_01.png>")
+    );
+    assert!(text("![](https://example.invalid/a/cat.jpg?w=200#top)").contains("[图片: cat.jpg]"));
+    assert!(
+        text("![猫](/tmp/cat.png)").contains("[图片: 猫]"),
+        "写了说明的照写"
+    );
+    assert!(text("<img src=\"/tmp/dog.webp\">").contains("[图片: dog.webp]"));
 }

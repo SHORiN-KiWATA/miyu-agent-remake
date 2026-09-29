@@ -2,12 +2,13 @@
 
 use super::{Kind, StepKind, Tally, ToolState, Transcript};
 use crate::config::Config;
-use crate::core::{Block, Push, Update};
+use crate::core::{Block, CallError, Push, Update};
 
 mod beat;
 mod cache;
 mod compaction;
 mod done;
+mod failure;
 mod folds;
 mod queue;
 mod waiting;
@@ -195,15 +196,16 @@ fn an_error_turn_says_why() {
         &mut t,
         vec![
             Push::TurnStarted(1, None),
-            Push::CallFailed {
+            Push::CallFailed(CallError {
                 class: "auth".into(),
                 message: "no key ".into(),
-            },
+                status: None,
+            }),
             Push::TurnEnded(crate::core::EndReason::Error),
         ],
     );
     assert_eq!(t.entries[0].kind, Kind::Error);
-    assert!(t.entries[0].text.contains("认证失败：no key"));
+    assert_eq!(t.entries[0].text, "出错了：no key", "供应商的原话照样写");
 }
 
 #[test]

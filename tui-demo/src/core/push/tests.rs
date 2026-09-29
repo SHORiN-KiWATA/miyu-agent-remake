@@ -4,7 +4,7 @@ use serde_json::json;
 
 use super::ToolStatus;
 
-use super::{Block, Push, read};
+use super::{Block, CallError, Push, read};
 
 #[test]
 fn a_new_title_comes_from_meta_changed() {
@@ -43,10 +43,11 @@ fn a_failed_call_carries_class_and_message() {
         "body": {"result": "error", "error": {"class": "auth", "message": "no key"}}});
     assert_eq!(
         read(&event),
-        vec![Push::CallFailed {
+        vec![Push::CallFailed(CallError {
             class: "auth".into(),
-            message: "no key".into()
-        }]
+            message: "no key".into(),
+            status: None
+        })]
     );
 }
 
@@ -57,21 +58,27 @@ fn a_sent_call_says_whether_its_prefix_changed() {
             "first_difference": {"part": "message", "index": 0, "role": "user"}, "result": "ok"}});
     assert_eq!(
         read(&changed),
-        vec![Push::Sent {
-            seen: 13,
-            changed: true,
-            summary: false
-        }]
+        vec![
+            Push::Sent {
+                seen: 13,
+                changed: true,
+                summary: false
+            },
+            Push::CallOk
+        ]
     );
     let grown = json!({"kind": "model.called", "by": {"kind": "kernel"},
         "body": {"seen": 5, "request": "sha256:f8b2", "messages": 1, "result": "ok"}});
     assert_eq!(
         read(&grown),
-        vec![Push::Sent {
-            seen: 5,
-            changed: false,
-            summary: false
-        }]
+        vec![
+            Push::Sent {
+                seen: 5,
+                changed: false,
+                summary: false
+            },
+            Push::CallOk
+        ]
     );
     // 没编码就失败的，没有 `request`：不算发出去。
     let unsent = json!({"kind": "model.called", "by": {"kind": "kernel"},
@@ -117,11 +124,14 @@ fn compaction_events_are_read() {
         "body": {"seen": 8, "request": "sha256:ab", "messages": 3, "compaction": "auto",
             "result": "error", "error": {"class": "bad_summary", "message": "the summary called a tool"}}});
     let pushes = read(&failed);
-    assert!(pushes.contains(&Push::Compaction(Compaction::Failed {
-        class: "bad_summary".into(),
-        message: "the summary called a tool".into()
-    })));
-    assert!(!pushes.iter().any(|p| matches!(p, Push::CallFailed { .. })));
+    assert!(
+        pushes.contains(&Push::Compaction(Compaction::Failed(CallError {
+            class: "bad_summary".into(),
+            message: "the summary called a tool".into(),
+            status: None
+        })))
+    );
+    assert!(!pushes.iter().any(|p| matches!(p, Push::CallFailed(_))));
     assert!(pushes.contains(&Push::Sent {
         seen: 8,
         changed: false,
@@ -139,7 +149,7 @@ fn a_call_reports_its_usage() {
         cache_write: 0,
         output: 5,
     };
-    assert_eq!(read(&event), vec![Push::Usage(usage)]);
+    assert_eq!(read(&event), vec![Push::Usage(usage), Push::CallOk]);
     assert_eq!(usage.input(), 40);
 }
 
@@ -198,5 +208,28 @@ fn a_block_start_says_how_far_the_request_saw() {
     assert!(
         !read(&piece).iter().any(|p| matches!(p, Push::Heard(_))),
         "一块开头报一次就够"
+    );
+}
+
+#[test]
+fn a_call_error_may_carry_its_http_status_and_a_good_call_clears_it() {
+    // 施工 3-5 三补：没有状态的（连不上、流里报的）不写这一格。
+    let failed = json!({"kind": "model.called", "by": {"kind": "kernel"},
+        "body": {"result": "error", "error": {"class": "other", "message": "HTTP 404: no such model", "status": 404}}});
+    assert_eq!(
+        read(&failed),
+        vec![Push::CallFailed(CallError {
+            class: "other".into(),
+            message: "HTTP 404: no such model".into(),
+            status: Some(404)
+        })]
+    );
+    let ok = json!({"kind": "model.called", "by": {"kind": "kernel"}, "body": {"result": "ok"}});
+    assert_eq!(read(&ok), vec![Push::CallOk]);
+    let summary = json!({"kind": "model.called", "by": {"kind": "kernel"},
+        "body": {"result": "ok", "compaction": {"trigger": "auto"}}});
+    assert!(
+        !read(&summary).contains(&Push::CallOk),
+        "摘要请求成了不算这一轮的"
     );
 }

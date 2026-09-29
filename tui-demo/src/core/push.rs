@@ -8,6 +8,27 @@ use miyu_kernel::event::Said;
 
 use super::kinds::{EndReason, Level, ToolStatus};
 
+/// 一次请求出的错（`model.called` 的 `error`）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallError {
+    /// 分类，例如 `auth`。
+    pub class: String,
+    /// 原话。
+    pub message: String,
+    /// HTTP 状态码（施工 3-5 三补）；没有状态的（连不上、流里报的、内核自己造的）、以前的核心没有。
+    pub status: Option<u16>,
+}
+
+impl CallError {
+    fn read(error: &Value) -> Self {
+        Self {
+            class: error["class"].as_str().unwrap_or_default().to_string(),
+            message: error["message"].as_str().unwrap_or_default().to_string(),
+            status: error["status"].as_u64().and_then(|s| u16::try_from(s).ok()),
+        }
+    }
+}
+
 /// 一块的种类：`model.delta` 开头那一条的 `start`。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Block {
@@ -56,13 +77,8 @@ pub enum Compaction {
         /// 压完的用量。
         after: u64,
     },
-    /// 摘要请求出错（`model.called` 带 `compaction`、`result` 是 `error`）：分类和原话。
-    Failed {
-        /// 分类，例如 `bad_summary`。
-        class: String,
-        /// 原话。
-        message: String,
-    },
+    /// 摘要请求出错（`model.called` 带 `compaction`、`result` 是 `error`）。
+    Failed(CallError),
     /// 暂停了自动压缩（`context.compaction_paused`，施工 6-6 上）。
     Paused {
         /// `failures`、`too_large`，认不得的照原样。
@@ -157,13 +173,10 @@ pub enum Push {
         /// 出字花的毫秒数：总用时减去等第一个字的时间。
         ms: u64,
     },
-    /// 这一次请求出错了：分类和原话。
-    CallFailed {
-        /// 分类，例如 `auth`。
-        class: String,
-        /// 原话。
-        message: String,
-    },
+    /// 这一次请求出错了。
+    CallFailed(CallError),
+    /// 这一次请求成了：前面记着的错不算了。
+    CallOk,
     /// 出了错，等着重试。
     Retry {
         /// 第几次重试。
@@ -302,16 +315,12 @@ pub fn read(event: &Value) -> Vec<Push> {
                 });
             }
             // 摘要请求出错说压缩失败，不算这一轮的出错（蓝图「正文」第 9 条）。
-            if body["result"] == "error" && summary {
-                out.push(Push::Compaction(Compaction::Failed {
-                    class: text(&body["error"]["class"]),
-                    message: text(&body["error"]["message"]),
-                }));
-            } else if body["result"] == "error" {
-                out.push(Push::CallFailed {
-                    class: text(&body["error"]["class"]),
-                    message: text(&body["error"]["message"]),
-                });
+            let error = || CallError::read(&body["error"]);
+            match (body["result"].as_str(), summary) {
+                (Some("error"), true) => out.push(Push::Compaction(Compaction::Failed(error()))),
+                (Some("error"), false) => out.push(Push::CallFailed(error())),
+                (Some("ok"), false) => out.push(Push::CallOk),
+                _ => {}
             }
         }
         "status" if body["retry"].is_object() => {

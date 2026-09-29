@@ -65,6 +65,15 @@ pub fn trim_tail(raw: &str) -> &str {
     &raw[..end]
 }
 
+/// 地址最后一截的文件名：去掉 `?`、`#` 后面的，照最后一个 `/` 切；没写说明的图片写它（蓝图第 12 条）。
+pub fn file_name(url: &str) -> &str {
+    let path = url.split(['?', '#']).next().unwrap_or(url);
+    path.trim_end_matches('/')
+        .rsplit('/')
+        .next()
+        .unwrap_or(path)
+}
+
 /// 链接标题后面那一截：` <`、地址、`>`，都属于这个链接，悬停时下划线连成一条。
 pub fn address(url: &str) -> [Piece; 3] {
     [

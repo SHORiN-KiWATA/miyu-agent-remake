@@ -24,7 +24,7 @@ use miyu_store::root::DataRoot;
 
 pub use kinds::{EndReason, Level, ToolStatus};
 pub use limits::Limits;
-pub use push::{Block, Compaction, Push, Usage};
+pub use push::{Block, CallError, Compaction, Push, Usage};
 use rpc::{Failure, Rpc};
 pub use undo::Report;
 

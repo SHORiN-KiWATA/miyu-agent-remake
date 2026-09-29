@@ -2,7 +2,7 @@
 
 use super::super::Transcript;
 use super::apply;
-use crate::core::{Block, EndReason, Push, ToolStatus};
+use crate::core::{Block, CallError, EndReason, Push, ToolStatus};
 
 #[test]
 fn only_the_wait_for_the_first_word_counts() {
@@ -12,10 +12,11 @@ fn only_the_wait_for_the_first_word_counts() {
     assert!(t.waiting(), "发出去了，第一个字还没来");
     apply(
         &mut t,
-        vec![Push::CallFailed {
+        vec![Push::CallFailed(CallError {
             class: "network".into(),
             message: "reset".into(),
-        }],
+            status: None,
+        })],
     );
     assert!(t.waiting(), "出错等重试：这一轮还没出过字");
     apply(

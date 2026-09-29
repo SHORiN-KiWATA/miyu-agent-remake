@@ -3,7 +3,7 @@
 
 use super::super::{Kind, Transcript};
 use super::apply;
-use crate::core::{Compaction, EndReason, Push};
+use crate::core::{CallError, Compaction, EndReason, Push};
 
 fn shown(t: &Transcript) -> Vec<(Kind, String)> {
     t.entries
@@ -57,22 +57,28 @@ fn progress_updates_one_line_then_becomes_the_result() {
 fn a_failed_summary_is_red_with_its_reason_and_not_the_turns_error() {
     let mut t = Transcript::default();
     let failed = |class: &str, message: &str| {
-        Push::Compaction(Compaction::Failed {
+        Push::Compaction(Compaction::Failed(CallError {
             class: class.into(),
             message: message.into(),
-        })
+            status: None,
+        }))
     };
     apply(
         &mut t,
         vec![
             Push::TurnStarted(1, None),
             progress(0),
-            failed("rate_limited", "429"),
+            failed("rate_limited", "HTTP 429: Rate limit reached"),
         ],
     );
+    // 原因照「正文」第 4 条出错的写法：原话，限速的前面加人话。
     assert_eq!(
         shown(&t),
-        [(Kind::Error, "· 压缩失败：被限速了".to_string())]
+        [(
+            Kind::Error,
+            "· 压缩失败：被限速了，或者额度不够，过一会儿再试：HTTP 429: Rate limit reached"
+                .to_string()
+        )]
     );
     apply(
         &mut t,
@@ -142,10 +148,11 @@ fn the_error_line_names_its_class() {
         &mut t,
         vec![
             Push::TurnStarted(1, None),
-            Push::CallFailed {
+            Push::CallFailed(CallError {
                 class: "compaction_paused".into(),
                 message: "the request does not fit".into(),
-            },
+                status: None,
+            }),
             Push::TurnEnded(EndReason::Error),
         ],
     );
@@ -159,10 +166,11 @@ fn the_error_line_names_its_class() {
 fn a_summary_that_called_a_tool_tries_again_without_tools_in_grey() {
     // 施工 6-6 下：摘要请求调了工具、改走隔离式，不是失败（`compaction.md` 第三条第 7 条，照 `miyu ask`）。
     let mut t = Transcript::default();
-    let isolating = Push::Compaction(Compaction::Failed {
+    let isolating = Push::Compaction(Compaction::Failed(CallError {
         class: "bad_summary".into(),
         message: "the summary called a tool (read); trying again without tools".into(),
-    });
+        status: None,
+    }));
     apply(
         &mut t,
         vec![

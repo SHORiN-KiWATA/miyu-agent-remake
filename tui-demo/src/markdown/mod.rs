@@ -334,6 +334,12 @@ impl Renderer<'_> {
             piece.link = Some(url.clone());
         }
         if image {
+            // 没写说明的写文件名（2026-09-30 项目主人：原来方括号里空着）。
+            if label.trim_end() == self.labels.image.trim_end() {
+                let name = links::file_name(&url);
+                self.pieces
+                    .push(Piece::linked(name, theme::md_image(), &url));
+            }
             self.pieces
                 .push(Piece::linked("]", theme::md_image(), &url));
             self.image(&url);

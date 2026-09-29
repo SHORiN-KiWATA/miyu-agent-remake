@@ -100,11 +100,11 @@ impl Transcript {
             // 和收尾行一个样子：`✻ 已中断`（`tui.md`「正文」第 4 条）。
             EndReason::Interrupted => self.push(Kind::Done, texts.interrupted.clone()),
             EndReason::Error => {
-                let (class, message) = failure.unwrap_or_else(|| ("other".into(), String::new()));
-                let text = texts
-                    .failed
-                    .replace("{class}", &super::compaction::class_name(&class, texts))
-                    .replace("{message}", message.trim());
+                let reason = failure.map_or_else(
+                    || super::failure::class_name("other", texts),
+                    |error| super::failure::reason(&error, texts),
+                );
+                let text = texts.failed.replace("{reason}", &reason);
                 self.push(Kind::Error, text);
             }
             EndReason::Other(other) => self.push(Kind::Note, other),

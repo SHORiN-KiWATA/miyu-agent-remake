@@ -9,6 +9,7 @@ mod cache;
 mod climb;
 mod compaction;
 mod entry;
+mod failure;
 mod queue;
 mod steps;
 mod turn;
@@ -21,7 +22,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use crate::config::Texts;
-use crate::core::{EndReason, Level, Limits, Push, ToolStatus, Update, Usage};
+use crate::core::{CallError, EndReason, Level, Limits, Push, ToolStatus, Update, Usage};
 
 pub use cache::CacheWatch;
 pub use climb::Progress;
@@ -92,8 +93,8 @@ pub struct Transcript {
     pub speed: Option<f64>,
     /// 正在重试时给人看的一句。
     pub retry: Option<String>,
-    /// 这一轮最后一次请求的出错：分类和原话。
-    failure: Option<(String, String)>,
+    /// 这一轮最后一次请求出的错；后来又成了的清掉。
+    failure: Option<CallError>,
     /// 在跑的这一轮的编号：这期间收到的都记在它名下。
     turn: Option<u64>,
     /// 被退回的排队消息：字和里面的粘贴块，等输入框拿走（`take_returned`）。
@@ -347,7 +348,9 @@ impl Transcript {
             Push::Speed { output, ms } => {
                 self.speed = Some(output as f64 * 1000.0 / ms as f64);
             }
-            Push::CallFailed { class, message } => self.failure = Some((class, message)),
+            Push::CallFailed(error) => self.failure = Some(error),
+            // 后来又成了：前面报过的错不算（蓝图「正文」第 4 条）。
+            Push::CallOk => self.failure = None,
             Push::Retry {
                 attempt,
                 limit,

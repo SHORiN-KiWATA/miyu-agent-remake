@@ -32,7 +32,13 @@
   "disconnected": "核心断开了",
   "refused": "核心拒绝了：{reason}",
   "interrupted": "已中断",
-  "failed": "出错了：{class}：{message}",
+  "failed": "出错了：{reason}",
+  "reason_with": "{head}：{message}",
+  "status_hints": {
+    "402": "额度用完了",
+    "404": "找不到，检查端点地址和模型名",
+    "429": "被限速了，或者额度不够，过一会儿再试"
+  },
   "retry": "重试 {attempt}/{limit}：{message}",
   "total": "Σ{tokens}(C{percent}%)",
   "done": "{time} · {endpoint}/{model} · {elapsed}",
