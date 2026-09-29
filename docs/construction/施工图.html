@@ -446,7 +446,8 @@ a.step:hover{border-color:var(--primary)}
       <div class="ms-head"><span class="ms-id">M6</span><span class="ms-name">长会话</span><span class="ms-goal">上下文满了会压缩，压完不失忆</span></div>
       <ol class="chips">
         <li><a class="step done" href="#s6-1"><span class="n">6-1</span>用量和压缩线<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">6-2</span>摘要请求</span></li>
+        <li><a class="step done" href="#s6-2a"><span class="n">6-2</span>摘要请求（上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">6-2</span>留尾巴（下）</span></li>
         <li><span class="step"><span class="n">6-3</span>接上真模型</span></li>
         <li><span class="step"><span class="n">6-4</span>history</span></li>
         <li><span class="step"><span class="n">6-5</span>检查点里代码写的几段、压后重建</span></li>
@@ -7567,6 +7568,77 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s6-2a" aria-labelledby="h-s62a">
+  <div class="sheet-head"><h2 id="h-s62a"><span class="no">6-2</span>摘要请求（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">压缩接进回合：发主请求之前用量过了压缩线，就在这一轮里先发一次摘要请求，取出摘要写成检查点，再照常发这一步本来要发的请求。尾巴先只留这一轮要回应的话，16000 token 的尾巴随 6-2（下）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">发主请求之前</span><span class="dir-note">组装、算用量、比压缩线</span></div>
+            <ol class="pipe" aria-label="压缩这一步怎么走">
+              <li>过了线：替代到 N，发摘要请求（有效历史到第 N 条的投影，最后接摘要指令）</li>
+              <li>收增量：不推 <code>model.delta</code>，推 <code>compaction.progress</code></li>
+              <li>取 <code>&lt;summary&gt;</code>，写 <code>context.compacted</code>（带 <code>trigger</code>），环境、权限比不到的再注入</li>
+              <li>回到「准备好」，照检查点以后的组装主请求</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">N 替代到哪</span><span class="dir-note">这一轮要回应的话留在尾巴里</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">以前的回合请求看到过的</span><span class="rl">照常压，摘要请求接得上前缀</span></div>
+              <div class="tile new"><span class="nm">这一轮还没回复的</span><span class="rl">触发它的那句留着</span></div>
+              <div class="tile new"><span class="nm">一组不拆</span><span class="rl">落在回复和结果之间的往前退</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">执行器交限额</span><span class="rl"><code>Input::Limits</code>，没交的不主动压</span></div>
+          <div class="tile new"><span class="nm">摘要指令 443 token</span><span class="rl">照 Claude Code 改写，进登记簿</span></div>
+          <div class="tile new"><span class="nm">取不出摘要</span><span class="rl"><code>bad_summary</code>，这一轮出错结束</span></div>
+          <div class="tile new"><span class="nm">不算步数</span><span class="rl">再来的也不标重试</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-2 上</dd></div>
+        <div><dt>名称</dt><dd>摘要请求</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">adfa931</dd></div>
+        <div><dt>验收</dt><dd>测试、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>内核：<code>session/compaction.rs</code>（到没到线、N、发摘要请求、写检查点），<code>Input::Limits</code>，<code>Policy.compaction</code>，<code>History::until</code>，<code>trigger</code>、<code>bad_summary</code>、<code>compaction.progress</code>。</li>
+        <li>组装：<code>summarize</code>、<code>summary</code>；检查点前面的 <code>model.called</code> 不算这一轮请求过。</li>
+        <li>策略快照带压缩的四个数和摘要指令，以前的快照读成不主动压。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>场景 16 个；探针加了回合开头、回合中途两次压缩，两次摘要请求都是上一次请求的前缀延伸，原来的十六次逐字节不变</span></li>
+        <li><span class="ok">✓</span><span>随机测试碰出两个真问题（前缀接不上、一组被拆），都在这一步修了</span></li>
+        <li><span class="ok">✓</span><span>手写 19 个变异，18 个逮住，没逮住的那道判断是多余的，删了；门禁八项全过，三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>09-压缩.md</code>；蓝图 <code>compaction.md</code> 第二、三条。</li>
+        <li><code>docs/construction/6-2-摘要请求（上）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -7752,7 +7824,7 @@ const BUILD = {
   k_sessions: { by: '3-7', how: 'frame', note: '会话 actor（3-7 中）：命令和执行器的回报进收件箱，动作照表回；先落盘，后回应、后推送；造会话存策略快照，载入照它重建，停在一轮中间的再起来接着干；写不进去就停下。请求模型接上驱动和 HTTP，驱动的占位取自会话的快照（3-7 下）；会话表照编号找会话、没在跑的从磁盘载入，只起一个 actor（3-8 上）' },
   n_models: { by: '3-9', how: 'frame', note: '配置系统做出来之前只认环境变量 DEEPSEEK_API_KEY：设了就接 DeepSeek 官方的 deepseek-flash，key 只在内存里；没设的，每次请求都当场回「没有可用的模型」（3-9 上，项目主人定）' },
   n_cli: { by: '3-9', how: 'frame', note: 'miyu ask：连上核心（没在跑就拉起），开一次性会话或者 --continue、--session 接着说；思考灰色印在标准错误上，回答印在标准输出上，问完一行用量；Ctrl+C 一次打断、两次就走；--format json 给脚本（3-9 下）' },
-  n_compact: { by: '6-1', how: 'frame', note: '用量和压缩线（6-1）：锚是最近一次压缩以后、说完了、带用量的 model.called，盖住工具面、system 和前 messages+1 条；后面新增的照 UTF-8 字节除以 4 估（照 codex）；报的比估的小取估的、换过模型整份估（照 dsh）；压缩线 = 窗口 − min(最大输出, 20000) − 13000。还没接进回合，6-2 接' },
+  n_compact: { by: '6-1', how: 'frame', note: '用量和压缩线（6-1）：锚是最近一次压缩以后、说完了、带用量的 model.called，盖住工具面、system 和前 messages+1 条；后面新增的照 UTF-8 字节除以 4 估（照 codex）；报的比估的小取估的、换过模型整份估（照 dsh）；压缩线 = 窗口 − min(最大输出, 20000) − 13000。摘要请求（6-2 上）：发主请求之前过了线，在这一轮里先压：有效历史到第 N 条的投影加摘要指令，取出摘要写检查点，这一轮要回应的话留在尾巴里，一组不拆；执行器交了限额才主动压' },
   n_bus: { by: '3-8', how: 'frame', note: '连接上一行一条 JSON-RPC 2.0：握手（主版本、本机令牌）、造会话、说话、打断，拒绝附原因码（3-8 上）；订阅事件流，回应排在它产生的推送后面，掉队推 resync（3-8 中）；核心在本机的 Unix 套接字上等连接：一个数据根一个核心（锁），本机令牌写进 run/token，实际位置记在 run/socket，套接字放在只有自己能进的目录里（3-8 下）；Windows 上是命名管道，只对本人开放，头连上以后核对另一头是自己的（3-8 补）' },
 };
 
