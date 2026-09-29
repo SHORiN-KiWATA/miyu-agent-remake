@@ -12,6 +12,7 @@ use std::fmt;
 use super::Session;
 use super::action::Action;
 use super::jobs::{self, Arrived};
+use super::meta::Meta;
 use super::policy::Policy;
 use super::recent::Recent;
 use super::report::Duty;
@@ -71,6 +72,8 @@ struct Replay {
     open: bool,
     /// 记在一边的回报、子代理的留言：最后一次开回合以后、闲着时到的、会叫醒她的（施工 7-2，`jobs.rs`；施工 7-7）。
     deferred: Vec<Arrived>,
+    /// 现在的标题、置顶（施工 3-8 三补）：撤掉的回合里改的也算，改名不是对话的一部分。
+    meta: Meta,
 }
 
 /// 结束了的一个回合。
@@ -164,6 +167,7 @@ impl Session {
             deferred: std::mem::take(&mut replay.deferred),
             restarting: false,
             duty,
+            meta: std::mem::take(&mut replay.meta),
         };
         let mut actions: Vec<Action> = session.recall().into_iter().collect();
         // 最后报的那一份再交一次（施工 7-6）：送到一半崩了的不漏，父会话照命令编号认出重的，不重。
@@ -286,6 +290,7 @@ impl Replay {
             }
             // 撤销过的不接着干：人已经动过它了。
             Body::TurnReverted(_) => self.ended = None,
+            Body::MetaChanged(changed) => self.meta.note(changed),
             _ => {}
         }
         if let Some(id) = &event.cause {

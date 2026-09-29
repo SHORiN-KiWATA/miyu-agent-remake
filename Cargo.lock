@@ -1006,6 +1006,7 @@ dependencies = [
  "miyu-cli",
  "miyu-core",
  "miyu-ipc",
+ "miyu-kernel",
  "miyu-store",
  "serde_json",
  "tokio",

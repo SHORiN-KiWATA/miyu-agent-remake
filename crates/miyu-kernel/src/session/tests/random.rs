@@ -32,6 +32,7 @@
 //! - 手动压缩：照规矩收下或者拒绝；收下的单开一轮，不跑挂接点、不注入，只发摘要请求，写完压缩同一批结束；失败不数进
 //!   熔断；被重启打断的不接着干（施工 6-8，`watch/manual.rs`）；
 //! - 清空：照规矩收下或者拒绝；收下的同一批单开一轮、写空的检查点、结束，不请求模型（施工 6-8 补，`watch/clear.rs`）；
+//! - 改标题、置顶：什么时候来都收，照规矩回应（施工 3-8 三补，`random/naming.rs`）；
 //! - 回报：对不上的拒绝、不理；闲着时开一轮还是只记下，正忙时排着、回合结束时接着开，恢复撤销以后接着开（施工 7-2，
 //!   `watch/reports.rs`、`random/reporting.rs`）。
 //!
@@ -44,6 +45,7 @@ mod asking;
 mod compacting;
 mod endings;
 mod kinds;
+mod naming;
 mod paths;
 mod reporting;
 mod rereading;
@@ -72,6 +74,7 @@ use asking::{some_answer, some_question, some_reply, some_verdict};
 use compacting::{random_policy, some_clear, some_compact, some_limits, some_overflow};
 use endings::some_ending;
 use kinds::InputKind;
+use naming::some_meta;
 use paths::{EXPECTED_PATHS, LONG_PATHS};
 use rereading::some_reread;
 use restoring::some_restored;
@@ -457,6 +460,8 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
             let files = steps.iter().map(crate::testkit::restored).collect();
             watch.feed(&mut session, Input::Restored { at: at(58), files });
         }
+        // 改标题、置顶放在最后，为什么见 `random/naming.rs`（施工 3-8 三补）。
+        watch.feed(&mut session, some_meta(seed, &mut next_id));
         let last = watch.last();
         watch.feed(&mut session, stored(last));
         assert_eq!(

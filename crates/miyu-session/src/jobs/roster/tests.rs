@@ -109,3 +109,45 @@ fn only_the_latest_ended_jobs_are_listed() {
         "还在跑的全列，结束了的只列最近结束的五个，照编号排"
     );
 }
+
+/// 给报过的子代理留了言（施工 7-7 的 `job.messaged`，施工 3-8 三补）：它欠一份回报，又在跑了，停得了；留言的调用发出以后才到的
+/// 回报算回了这句留言；被停掉的不会再起来。
+#[test]
+fn a_subagent_messaged_after_its_report_runs_again() {
+    let event = |line: String| Event::from_line(&line).expect("写法对");
+    let started = |seq: u64, job: u64| {
+        event(format!(
+            r#"{{"seq":{seq},"at":"2026-09-25T07:00:00.000Z","kind":"tool.result","turn":1,"by":{{"kind":"tool","call_id":"call_{}_1"}},"body":{{"call_id":"call_{}_1","status":"ok","blocks":[],"effects":[{{"kind":"job.started","job":"j{job}","what":"agent","title":"t","session":"01900000-0000-7000-8000-00000000000{job}"}}]}}}}"#,
+            seq - 1,
+            seq - 1
+        ))
+    };
+    let reported = |seq: u64, job: u64, reason: &str| {
+        event(format!(
+            r#"{{"seq":{seq},"at":"2026-09-25T07:01:00.000Z","kind":"child.reported","by":{{"kind":"session","id":"01900000-0000-7000-8000-00000000000{job}"}},"body":{{"job":"j{job}","session":"01900000-0000-7000-8000-00000000000{job}","reason":"{reason}","text":""}}}}"#
+        ))
+    };
+    // 留言的调用由第 `issued` 条回复发出，结果是第 `seq` 条。
+    let messaged = |seq: u64, issued: u64, job: u64| {
+        event(format!(
+            r#"{{"seq":{seq},"at":"2026-09-25T07:02:00.000Z","kind":"tool.result","turn":1,"by":{{"kind":"tool","call_id":"call_{issued}_1"}},"body":{{"call_id":"call_{issued}_1","status":"ok","blocks":[],"effects":[{{"kind":"job.messaged","job":"j{job}"}}]}}}}"#
+        ))
+    };
+    let mut roster = Roster::default();
+    for (seq, job) in [(2, 1), (4, 2), (6, 3)] {
+        roster.note(&started(seq, job));
+    }
+    roster.note(&reported(10, 1, "done"));
+    roster.note(&reported(11, 2, "done"));
+    roster.note(&reported(12, 3, "stopped"));
+    // j1：报过以后才发的留言，又在跑了。j2：留言发出（第 10 条）以后才到的回报算回了它。j3：被停掉了。
+    roster.note(&messaged(21, 20, 1));
+    roster.note(&messaged(22, 10, 2));
+    roster.note(&messaged(23, 20, 3));
+    let running: Vec<String> = roster
+        .running()
+        .into_iter()
+        .map(|(job, _)| job.to_string())
+        .collect();
+    assert_eq!(running, ["j1"]);
+}

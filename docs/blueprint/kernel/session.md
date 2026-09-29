@@ -4,7 +4,7 @@
 
 一个会话是一个状态机（`Session`）：送进一条输入，出来一串动作。它不做 I/O，不读时钟：要追加的事件、要回应的命令、要推给头的事件、要跑的挂接点、要发的请求、要跑的工具，都写成动作交给执行器；执行器做完，把结果当成新的输入送回来。事件的时刻取自引起它的那条输入。
 
-这一页写命令、回合、请求、重试、工具、排队、回报、打断、切权限级别、重启和载入。执行前的链、确认、提问在 `asking.md`；账本、有效历史、撤销和恢复在 `history.md`。
+这一页写命令、回合、请求、重试、工具、排队、回报、打断、切权限级别、改标题和置顶、删不删得了、重启和载入。执行前的链、确认、提问在 `asking.md`；账本、有效历史、撤销和恢复在 `history.md`。
 
 ### 在哪
 
@@ -24,6 +24,7 @@
 | `crates/miyu-kernel/src/session/messages.rs` | 子代理的留言到了：认出是这个会话派的哪个子代理，照回报的规矩记下、开不开一轮；交给执行器的派出去的子代理（施工 7-7，`agents.md` 第六条） |
 | `crates/miyu-kernel/src/session/report.rs` | 向上回报：子会话欠不欠着父会话一份回报、什么时候报、报什么、正文怎么截（施工 7-6，`agents.md` 第二条、第八条） |
 | `crates/miyu-kernel/src/session/permission.rs` | 切权限级别、请求之前查事实 |
+| `crates/miyu-kernel/src/session/meta.rs` | 改标题、置顶；现在的标题、置顶（施工 3-8 三补） |
 | `crates/miyu-kernel/src/session/restart.rs`、`load.rs` | 有计划的重启；从日志载入（认出哪次压缩还算数，`history.md`「载入」）、崩了的收尾、重启后接着干 |
 | `crates/miyu-kernel/src/accumulate.rs` | 增量拼成回复 |
 | `crates/miyu-kernel/src/tool.rs`、`tool/texts.rs` | 访问类别、参数修正；内核替工具写的几句 |
@@ -42,6 +43,7 @@
 | `waiting_children()` | 欠着一份回报的子代理的子会话，照任务编号：派出去、一次都还没回报过的（施工 7-6），最近一次回报以后又留过言的（`job.messaged`，施工 7-7）。撤掉的回合里派的也在，被停掉的报过了、不在。只读。执行器载入以后照它叫起子会话（`session/actor.md` 第 2 条） |
 | `subagents()` | 这个会话派出去的子代理，照任务编号（施工 7-7）：子会话、被停掉了没有（以 `stopped`、`undone` 报过）。派它的那一轮撤掉了的不在：她看不到派它的调用，也就不是她的；做完了、崩了报过的照样在。只读。执行器派每一次调用之前抄一份交给 `message_agent`（`session/tools.md`「父子之间留言」） |
 | `idle()` | 空闲：没有回合在进行，没有结束了、`turn.ended` 还没落盘的回合，没在读回日志、改回文件。核心照它决定能不能空闲退出（后台命令另由执行器的任务表算，`core.md`） |
+| `deletable()` | 删得了没有（施工 3-8 三补）：空闲的删得了；正在读回日志、改回文件的是 `Restoring`；别的不空闲（有回合在进行、`turn.ended` 还没落盘）是 `TurnRunning`。只读。会话 actor 照它答应删、停下，挪目录是会话表的事（`protocol.md` 的 `session.delete`） |
 | `context_limits()` | 给头看的限额 `ContextLimits`（施工 6-3 补）：`window` 上下文窗口，`compaction_line` 压缩线，和内核判到线用的是同一条（`compaction.md` 第二条第 2 条）。没交过限额的、没报窗口的，两格都没有；策略里没有压缩的、算不出正数的，没有压缩线。只读，不出动作。协议照它回 `subscribe`（`protocol.md`） |
 
 **输入**（`Input`）：
@@ -75,6 +77,7 @@
 | `Send { blocks, urgent }` | `session.send` | 内容块；`urgent` 急着插话 | 「发一条消息」 |
 | `Interrupt { queued }` | `session.interrupt` | `Queued::Send` 排着的接着发，`Queued::Return` 退回 | 「打断」 |
 | `SetPermission { level, read_only }` | `session.set_permission_level` | 常用的那一级、只读开关，不改的是 `None` | 「切权限级别」 |
+| `SetMeta { title, pinned }` | `session.set_meta` | 新的标题（空的是去掉标题）、置顶，不改的是 `None`（施工 3-8 三补） | 「改标题、置顶」 |
 | `Answer { call_id, answer }` | `session.answer` | `Answer::Approval { decision, reason }` 或 `Answer::Questions(回答)` | `asking.md` |
 | `Revert { turn }`、`Unrevert` | `session.revert`、`session.unrevert` | 从哪一轮起，`None` 是最后一轮 | `history.md` |
 | `Compact { instructions }` | `session.compact` | 人附的要求，`None` 是没附（施工 6-8） | 「手动压缩」 |
@@ -117,10 +120,10 @@
 | `no_rule` | `NoRule` | 请求没提放行规则，却选了 `session`、`workspace` |
 | `unexpected_reason` | `UnexpectedReason` | 不是拒绝，却带了理由 |
 | `bad_answer` | `BadAnswer` | 回答对不上题目 |
-| `turn_running` | `TurnRunning` | 有回合在进行时撤销（`history.md`，下同）、手动压缩（施工 6-8）、清空（施工 6-8 补） |
+| `turn_running` | `TurnRunning` | 有回合在进行时撤销（`history.md`，下同）、手动压缩（施工 6-8）、清空（施工 6-8 补）；`deletable()` 说有回合在进行（施工 3-8 三补） |
 | `unknown_turn` | `UnknownTurn` | 要撤的那一轮没有，或者已经撤掉了 |
 | `nothing_to_unrevert` | `NothingToUnrevert` | 没有能恢复的撤销 |
-| `restoring` | `Restoring` | 撤销、恢复还没做完：正在读回更早的日志，或者正在改回文件 |
+| `restoring` | `Restoring` | 撤销、恢复还没做完：正在读回更早的日志，或者正在改回文件；`deletable()` 也照它说 |
 | `nothing_to_revert` | `NothingToRevert` | 不写回合编号的撤销，一轮都没有 |
 | `nothing_to_compact` | `NothingToCompact` | 手动压缩时没有能压的（「手动压缩」，施工 6-8） |
 | `nothing_to_clear` | `NothingToClear` | 清空时上下文本来就是空的（「清空」，施工 6-8 补） |
@@ -146,7 +149,7 @@
 
 1. 每收到一次命令，回应一次：接受，或者拒绝。
 2. 拒绝的当场回应，什么都不追加。编号不记：同一个编号再来，重新判。
-3. 接受的，等它产生的事件都落了盘才回应。附上的序号：发消息的只有 `message.user` 那一条，子会话交来回报的只有 `child.reported` 那一条（由它开的那一轮不在里面）；打断、回答确认的是这一次追加的全部；回答提问、切权限级别的是 `question.answered`、`session.policy_changed` 那一条；切到和现在一样的级别，空的，当场回；撤销、恢复见 `history.md`；手动压缩、清空的是那一轮的 `turn.started`。
+3. 接受的，等它产生的事件都落了盘才回应。附上的序号：发消息的只有 `message.user` 那一条，子会话交来回报的只有 `child.reported` 那一条（由它开的那一轮不在里面）；打断、回答确认的是这一次追加的全部；回答提问、切权限级别、改标题和置顶的是 `question.answered`、`session.policy_changed`、`session.meta_changed` 那一条；切到和现在一样的级别、改成和现在一样的标题和置顶，空的，当场回；撤销、恢复见 `history.md`；手动压缩、清空的是那一轮的 `turn.started`。
 4. 记着最近接受的 1024 个编号（`recent::CAPACITY`）和它们的序号，满了丢最早的。同一个编号再来，不再生效：它的事件都落了盘的，当场照上一次回应；还没有的，等落了盘再回，来几次回几次。
 5. 正在读回日志（撤掉压缩的撤销）、正在改回文件（撤销、恢复以后）的时候，接受过的编号照第 4 条；别的命令一律拒绝，`restoring`。
 6. 命令产生的事件：`at` 是命令到的时刻，`by` 是发命令的一方，`cause` 是命令编号。一条输入产生的几条事件，时刻相同。等执行器回来才记的（撤掉压缩的撤销、改回文件的结局），时刻是回来的那一刻（`history.md`）。
@@ -339,6 +342,13 @@
 5. 不比实际生效的窄的（放宽的，或者一样宽的，例如只读开着时改常用的那一级），实际生效的那一级等下一次查事实才换。
 6. **查事实**：回合进行中切过的，下一次请求之前查一遍，就是挂接点跑完、这一步齐了、重试到点的时候；切的时候正在 `Ready` 的，当场查。查的时候实际生效的换成现在的；环境那一块写这一轮的工作目录和会话现在的时区；和最近一块一样的不追加，来回切了一圈的也就不追加。回合之间切的，下一个回合开始时查。
 
+**改标题、置顶**（`SetMeta`，施工 3-8 三补，`meta.rs`）：
+
+1. 现在的标题、置顶从日志算：`session.meta_changed` 一条条盖上去，写了的格换成它的，标题写空的是去掉。造会话时没有标题、没置顶。撤掉的回合里改的也算：改名不是对话的一部分。载入时照样一路算回来（「载入和崩溃」第 2 条）。
+2. 和现在一样的格去掉：标题照原样比（去掉空白、量长短是协议端点的事，`protocol.md` 的 `session.set_meta`），空的和没有标题一样。一格都不剩的：接受，什么都不记，编号照样记下。
+3. 还剩的：追加一条 `session.meta_changed`，只写还剩的那几格，`by` 是改的人，回合进行中的带上这个回合，空闲时没有。什么时候来都收，改回文件的时候照「命令和回应」第 5 条拒。
+4. 不影响回合、不影响请求：标题、置顶不进有效历史，渲染时不看它（`kernel/request.md`）。
+
 **有计划的重启**（`Restarting`）：
 
 1. 没有回合在进行，什么都不做。
@@ -350,7 +360,7 @@
 **载入和崩溃**（`Session::load`）：
 
 1. 日志整份一条条过账本：一条都没有，`LoadError::Empty`；有一条过不了，`LoadError::Broken`，写明第几条、违反了哪一条。再照 `history.md`「载入」从还算数的最近一次压缩起重建有效历史（施工 6-9）；那个检查点重读过文件的，交回的动作里第一个是 `Recall`。读进来的都算落了盘。
-2. 现在的权限：`session.created` 的，被后来带 `permission` 的 `session.policy_changed` 盖掉；实际生效的就是它。
+2. 现在的权限：`session.created` 的，被后来带 `permission` 的 `session.policy_changed` 盖掉；实际生效的就是它。现在的标题、置顶照「改标题、置顶」第 1 条算（施工 3-8 三补）。
 3. 最近的命令编号：每个 `cause` 和 `cause` 是它的那几条，照编号第一次出现的先后记进去，多过 1024 个的留后面的。同一个编号再来，回应附上这些，和当时的不一定一样。没产生事件的（切成和当时一样的级别）不在里面，再来重新判。
 4. **崩了**：日志停在一个没结束的回合里。还没有结果的调用照编号的先后各补 `cancelled`（`restarted`），再追加 `turn.ended`（`aborted`）；`by` 是内核，`cause` 是这一轮 `turn.started` 的，时刻是载入的 `at`。在等的确认、题跟着了结。不接着开，等人开口；排着的留在日志里，没听到的回报也是（「回报」第 9 条）。
 5. **接着干**：最后结束的一轮是 `restarted`、它有 `trigger` 的（没有的是手动压缩那一轮，再起来不接着压，和崩了一样等人开口，施工 6-8），就自动开一轮：由那时排着的最后一条触发，`cause` 是它的；没有排着的，由那条 `turn.ended` 触发，`cause` 是它的。
@@ -431,6 +441,7 @@
 | `crates/miyu-kernel/src/session/tests/scenario/upward.rs`、`scenario/upward_load.rs`、`session/report/tests.rs`（施工 7-6） | 向上回报：做完交代报那一轮最后说的、只报一次；主会话不报；人自己开的不报；人开的一轮里进了父会话的留言报、注明人；交代那一轮里人插过话注明；超长的截头尾、中间那一行；出错报半截、没说话的正文空、步数上限报最后说的；孙代理都报完、被叫醒的那一轮结束才报一次；孙代理崩了闲着当场报；它自己的子代理开的不报；崩在那一轮里载入报 `aborted`；报过的载入再交一次；重启接着干、做完再报，没接着干的报 `aborted`；打断的等下一轮；补的一批没全落盘不报；收到「要重启了」以后不交、再载入时交一次；父会话挤掉最近 1024 个编号以后照样认出重交的，换编号的是新的一份。截正文：到上限原样、头尾各一半、单数尾巴多一个、空的那一行只留换行 |
 | `crates/miyu-kernel/src/session/tests/queue.rs` | 最后一步里来的开下一轮；由最后一条触发；出错、到上限的也接着开；被后一步听到的不再开；打断接着发、退回；没排着的不写撤回；触发不算排队 |
 | `crates/miyu-kernel/src/session/tests/interrupt.rs` | 空闲时打断被拒；请求前、请求中、调工具时打断；什么都没收到不写回复；急着插话的三种时候；空闲时急着插话开回合；在跑的写叫它停、排在后面的当场补、10 秒以后叫醒、改完了的带着效果记、收了尾到点不理 |
+| `crates/miyu-kernel/src/session/tests/meta.rs`（施工 3-8 三补） | 改名记一条、落了盘才回应、同一个编号再来不再记；只写变了的格，和现在一样的（含没有标题时去掉、没置顶时取消、两格都不写）当场回应、编号照记；去掉标题记成空的；回合进行中的带上回合；载入以后照日志算回来，撤掉的回合里改的也算；`deletable()`：空闲的删得了，开了回合、`turn.ended` 没落盘的是有回合在进行，改回文件的时候是正在改回 |
 | `crates/miyu-kernel/src/session/tests/permission.rs` | 空闲时切、切成一样的、不认识的级别；收紧成只读拦下回复里的、这一步里等着的写入；放宽等下一次请求；来回切不注入；挂接点前后切；收紧成工作区什么都不拦；只读下改常用的那一级；事实写这一轮的工作目录 |
 | `crates/miyu-kernel/src/session/tests/restart.rs` | 重启照打断收拾；接着干；排着的由最后一条开；连着 4 次不接；走完一轮、你开口以后从头数 |
 | `crates/miyu-kernel/src/session/tests/scenario/commands.rs`（施工 7-3） | 用过的最大任务编号：没派过的 0，撤掉的回合里派的也算，载入以后照日志算回来；崩了载入补 `aborted`（只补后台命令、`by` 是内核、没有 `cause`、回合编号、用时、输出，不开轮，再载入不再补），结束过的不补，补的排在那一轮收尾前面；要重启了以后到的结束只记下、不开轮，接着干的那一轮看得到它 |
@@ -438,7 +449,7 @@
 | `crates/miyu-kernel/src/session/tests/load.rs` | 走完的载入一样往下走；坏日志拒绝；崩在哪都收尾、等你开口；崩之前的命令不再生效；生效的权限回来；检查点重读过文件的，第一个动作是 `Recall`（施工 6-9；撤掉压缩的撤销载入以后见 `history.md`「守着它的」） |
 | `crates/miyu-kernel/src/session/tests/spans.rs`、`scenario/spans.rs`（施工 2-3 补） | 回复每一块的起止：思考、正文、工具调用各一块照增量的时刻，收块不算；驱动流完了才一起收块、字交错着来、私有数据、时钟往回拨；出错收的半截、打断收的半截只记留下的，空块不记；出错没收到字的没有这一格 |
 | `crates/miyu-kernel/src/session/tests/scenario.rs`、`scenario/retrying.rs`、`scenario/stopping.rs` | 执行器替身（`testkit`）把真会话一整轮一整轮地跑：两个读一起跑、中间来一句；只读拦写入；步数上限和失败的请求；重试的每一种（原样再来、半截接着说、半截的调用丢掉、带着 HTTP 状态码、照供应商等、5 次放弃、不该再来的、等的时候打断、重启、切级别、不算步数、说完清零）；打断接着发、重启接着干、崩了等你；停着的写：停在改之前、改完了、到 10 秒、又打断一次、等的时候来的消息排队和撤销被拒、等的时候重启（退回的不再接着干，接着发的交给下一轮） |
-| `crates/miyu-kernel/src/session/tests/random.rs` 和 `random/` | 三百例随机输入（CI 另跑两万例），每一步查：不变量（第 5 条一个会话查不了）；块的起止写了回复的才有、和回复的块一块一项，摘要请求没有（施工 2-3 补）；挂接点、请求、派工具、步数上限、只读的规矩；打断时停着的（叫它停只在打断里、停着的交回来才收尾、到点和又打断就不等，十个种子里一个多调写文件的专走这里）；崩了、重启了载入以后照规矩走；回报（施工 7-2，另一串随机数，七个种子里一个是一次性的会话）：对不上的拒绝、不理，开轮、排着、只记下、回合结束接着开、恢复撤销以后接着开照「回报」的规矩（`random/watch/reports.rs`）；清空（施工 6-8 补，另一串随机数）：照规矩收下或者拒绝，收下的一批三条（`random/watch/clear.rs`）；每条路、每一种输入都走到过 |
+| `crates/miyu-kernel/src/session/tests/random.rs` 和 `random/` | 三百例随机输入（CI 另跑两万例），每一步查：不变量（第 5 条一个会话查不了）；块的起止写了回复的才有、和回复的块一块一项，摘要请求没有（施工 2-3 补）；挂接点、请求、派工具、步数上限、只读的规矩；打断时停着的（叫它停只在打断里、停着的交回来才收尾、到点和又打断就不等，十个种子里一个多调写文件的专走这里）；崩了、重启了载入以后照规矩走；回报（施工 7-2，另一串随机数，七个种子里一个是一次性的会话）：对不上的拒绝、不理，开轮、排着、只记下、回合结束接着开、恢复撤销以后接着开照「回报」的规矩（`random/watch/reports.rs`）；清空（施工 6-8 补，另一串随机数）：照规矩收下或者拒绝，收下的一批三条（`random/watch/clear.rs`）；改标题、置顶（施工 3-8 三补，另一串随机数，每一例最后喂一次：夹在中间会让难得走到的几条路走不到）；每条路、每一种输入都走到过 |
 | `crates/miyu-kernel/src/tool/tests.rs`、`tool/texts/tests.rs` | 参数修正的每一种，嵌套的对象、数组里的也修；访问类别不认识的算写入；那几句的字段转义、每句带说法 |
 | `crates/miyu-kernel/src/accumulate/tests.rs` | 拼回复、调用编号、空块、交错的字、截断只留收全的调用、增量对不上的六种；每一块带着它在流里是第几块（施工 2-3 补） |
 | `crates/miyu-kernel/tests/resources.rs` | 出厂的那几句读得进来，带字段的换出来一字不差 |
@@ -458,7 +469,7 @@
 ### 还没有的
 
 - 别的挂接点：命令进入、模型输出后、工具执行后、订阅（`05-内核接口.md` 第五节）。现在只有回合开始、回合结束和执行前的链；回合开始、回合结束还没有模块挂，会话 actor 交回空的注入（`crates/miyu-session/src/actor.rs`）。
-- 换策略快照（`02-内核.md` K3）：内核不写带 `policy` 的 `session.policy_changed`，载入时也不看它。改标题、置顶（`session.meta_changed`）没有命令。
+- 换策略快照（`02-内核.md` K3）：内核不写带 `policy` 的 `session.policy_changed`，载入时也不看它。
 - 压缩（`compaction.md`）：`context_too_long` 现在结束回合，不先压缩（被动压缩，6-7）；截掉最老的再试、隔离式回退（6-6 下）；撤销能撤掉压缩（6-9）。
 - 子代理、后台命令（`02-内核.md` 第七节，M7）：回报到了开不开轮施工 7-2 做好了，施工 7-3 起有真的后台命令，载入时给没结束的补 `aborted`；子会话向上回报施工 7-6 做好了；撤销时一起停下（7-8）还没有。会话 actor 还不交 `Watched`（随 `miyu ask` 等子代理那一步，7-9），一次性的会话现在一直当没人看着。
 - 没听到的回报算不算这一轮要回应的：自动压缩定替代到哪时只看人的消息和触发（`compaction.md` 第三条），排着的回报可能被压进摘要；检查点里写没看到的回报随 7-8（`agents.md` 第十条）。

@@ -174,9 +174,9 @@ pub(crate) fn command_id(parent: &SessionId, job: JobId, suffix: &str) -> Comman
         .unwrap_or_else(|e| unreachable!("会话编号、任务编号都短，合命令编号的写法：{e}"))
 }
 
-/// 子会话在父会话里的任务编号（施工 7-6）：从造它的命令编号 `<父会话>/<编号>`（[`command_id`] 写的，`session.created` 的
-/// `cause`）读回来。不是这个样子的（不是派出来的）没有。
-pub(crate) fn job_in(parent: &SessionId, command: &CommandId) -> Option<JobId> {
+/// 子会话在父会话里的任务编号（施工 7-6）：从造它的命令编号 `<父会话>/<编号>`（`session.created` 的 `cause`）读回来。
+/// 不是这个样子的（不是派出来的）没有。会话表删一个子会话时也照它认出父会话里的那个任务（施工 3-8 三补）。
+pub fn job_in(parent: &SessionId, command: &CommandId) -> Option<JobId> {
     let job = command
         .as_str()
         .strip_prefix(parent.as_str())?

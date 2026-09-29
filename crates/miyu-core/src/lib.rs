@@ -7,7 +7,7 @@
 //! 3. 装运行日志 `state/logs/core.log`，记一条「起来了」：版本、进程号、数据根、和 UTC 差多少；
 //! 4. 管理员 `admin` 的家目录，没有就建；资源目录；模型（[`models`]）；
 //! 5. 换本机令牌、在套接字上等连接（施工 3-8 下）；找沙盒的助手、探一次，只记日志（施工 5-1）；
-//! 6. 往标准输出写一行 `ready`：拉起它的头等着这一行。
+//! 6. 往标准输出写一行 `ready`：拉起它的头等着这一行；接着在后台清一次回收处（施工 3-8 三补，`trash.rs`）。
 //!
 //! 之后 [`serve()`] 一个个接连接：没有连接、也没有在跑的回合，空闲够久了就退出；收到停的信号，先让在跑的
 //! 会话有计划地停下再退出。起不来的，把原因写成那一行（`error …`）交给头。
@@ -15,6 +15,7 @@
 pub mod models;
 mod sandbox;
 mod serve;
+mod trash;
 
 pub use serve::{Stopped, serve};
 
@@ -149,6 +150,7 @@ async fn run(
         Ok(tools) => tools,
         Err(error) => return failed("tools", error),
     };
+    let trashed = root.clone();
     let mut core = Core::new(
         root,
         resources,
@@ -164,7 +166,11 @@ async fn run(
     }
     let core = Arc::new(core);
     say(&Ready::Ready);
+    let purging = trash::purge(trashed, admin());
     serve(opened.listener, core, options.idle, serve::signal()).await;
+    if let Err(error) = purging.await {
+        tracing::error!(target: TARGET, error = %error, "trash purge panicked");
+    }
     ExitCode::SUCCESS
 }
 

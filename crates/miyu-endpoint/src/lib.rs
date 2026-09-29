@@ -14,6 +14,7 @@ mod connection;
 mod hello;
 mod list;
 mod listen;
+mod meta;
 mod methods;
 mod refusal;
 mod sessions;

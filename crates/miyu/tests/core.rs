@@ -1,6 +1,6 @@
 //! 主程序和拉起核心（`docs/construction/3-9-主程序和拉起核心（上）.md` 验收第 2 条）：头拉起真的 `miyu core`，
 //! 等它说好了再连；再连不再拉起；两个头同时连只拉起一个；起不来的说原因；已经在跑的说一声就走；空闲了
-//! 自己走，运行日志里记着起来、停了。
+//! 自己走，运行日志里记着起来、停了；起来时清一次回收处（施工 3-8 三补）。
 
 mod support;
 
@@ -279,4 +279,37 @@ async fn the_core_does_not_hold_the_heads_directory() {
     );
     drop(held);
     home.until_stopped().await;
+}
+
+/// 起来时清一次回收处（施工 3-8 三补，`docs/blueprint/core.md`「起来的先后」第 14 条）：删了满 7 天的会话真删，没满的留着；
+/// 在后台清，核心走之前清完。
+#[tokio::test]
+async fn the_core_empties_week_old_sessions_from_the_trash_when_it_starts() {
+    let home = Home::new();
+    let trash = home.root.trashed_sessions(&miyu_core::admin());
+    let (old, young) = (
+        trash.join("01900000-0000-7000-8000-000000000001"),
+        trash.join("01900000-0000-7000-8000-000000000002"),
+    );
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("1970 年以后")
+        .as_millis();
+    let now = i64::try_from(now).expect("放得下");
+    let day = 24 * 3600 * 1000;
+    for (dir, millis) in [(&old, now - 8 * day), (&young, now - 6 * day)] {
+        std::fs::create_dir_all(dir).expect("建得了");
+        std::fs::write(dir.join("000000000001.jsonl"), "").expect("写得了");
+        let at = miyu_kernel::time::Timestamp::from_unix_millis(millis).expect("在范围里");
+        std::fs::write(dir.join("deleted_at"), format!("{at}\n")).expect("写得了");
+    }
+    let (held, _) = within("拉起", connect_or_start(&home.root, || home.core()))
+        .await
+        .expect("拉得起");
+    drop(held);
+    home.until_stopped().await;
+    assert!(!old.exists(), "满了 7 天的真删");
+    assert!(young.exists(), "没满的留着");
+    let log = home.core_log();
+    assert_eq!(count(&log, "trash purged removed=1"), 1, "{log}");
 }

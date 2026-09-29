@@ -11,7 +11,7 @@ use miyu_kernel::event::{Event, Transient};
 use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{CommandId, JobId, SessionId};
 use miyu_kernel::origin::By;
-use miyu_kernel::session::{Command, ContextLimits, Outcome};
+use miyu_kernel::session::{Command, ContextLimits, Outcome, Reason};
 use miyu_tool::JobError;
 
 /// 一个会话：它的 actor 的收件箱。可以复制，几个头一起拿着。
@@ -40,6 +40,12 @@ pub(crate) enum Message {
     Subscribe(oneshot::Sender<broadcast::Receiver<Arc<Pushed>>>),
     /// 有计划地停下：它的事件都落了盘，actor 退出以前交回一声。
     Stop(oneshot::Sender<()>),
+    /// 删会话之前停下（施工 3-8 三补）：`force` 是假的，内核说删不了就交回原因、照常跑；删得了、或者 `force`，后台命令
+    /// 整组杀掉、不记，放开日志，交回一声再退出。
+    Delete {
+        force: bool,
+        reply: oneshot::Sender<Result<(), Reason>>,
+    },
     /// 环境变了：工作目录、时区。
     Environment(Environment),
     /// 停掉派出去的任务（施工 7-4）。
@@ -139,6 +145,34 @@ impl Handle {
     pub async fn stop(&self) -> Result<(), Stopped> {
         let (reply, answer) = oneshot::channel();
         self.send(Message::Stop(reply))?;
+        answer.await.map_err(|_| Stopped)
+    }
+
+    /// 删会话之前停下（施工 3-8 三补，`docs/blueprint/session/actor.md` 第 9 条）：有回合在进行、正在读回日志、改回文件的
+    /// 删不了，交回内核说的原因，会话照常；删得了的，这个会话在跑的后台命令整组杀掉、不记回报，什么都不再写，放开日志的
+    /// 文件，actor 退出。交回的时候日志已经关了：会话表接着就挪它的目录（Windows 上开着的文件挪不走）。
+    ///
+    /// # Errors
+    ///
+    /// 会话已经停了。
+    pub async fn delete(&self) -> Result<Result<(), Reason>, Stopped> {
+        self.stop_for_deletion(false).await
+    }
+
+    /// 同 [`Handle::delete`]，只是不问删不删得了：父会话被删，派出去的子会话不管在不在忙，一起停下（`agents.md` 第七条
+    /// 第 5 条）。在路上的请求叫停、在跑的工具掐掉，跑到一半的回合不收尾。
+    ///
+    /// # Errors
+    ///
+    /// 会话已经停了。
+    pub async fn discard(&self) -> Result<(), Stopped> {
+        // 不问删不删得了，actor 就不会说删不了：里面那一层总是 `Ok`。
+        self.stop_for_deletion(true).await.map(|_| ())
+    }
+
+    async fn stop_for_deletion(&self, force: bool) -> Result<Result<(), Reason>, Stopped> {
+        let (reply, answer) = oneshot::channel();
+        self.send(Message::Delete { force, reply })?;
         answer.await.map_err(|_| Stopped)
     }
 

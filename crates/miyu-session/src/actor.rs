@@ -13,7 +13,7 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::Instrument;
 
 use miyu_kernel::id::{CommandId, Seq, SessionId};
-use miyu_kernel::session::{Action, Input, Outcome, Received, Session};
+use miyu_kernel::session::{Action, Input, Outcome, Reason, Received, Session};
 use miyu_kernel::time::Timestamp;
 
 use crate::TARGET;
@@ -109,6 +109,8 @@ enum Mail {
     Stop(oneshot::Sender<()>),
     /// 停掉派出去的任务（施工 7-4）：要等杀掉、存好，在 `halt.rs` 里办。
     Halt(crate::handle::Halt),
+    /// 删会话之前停下（施工 3-8 三补，`stop.rs`）。
+    Delete(bool, oneshot::Sender<Result<(), Reason>>),
 }
 
 impl Actor {
@@ -186,6 +188,10 @@ impl Actor {
                         Ok(()) => continue,
                         Err(Stop) => return,
                     },
+                    Some(Mail::Delete(force, reply)) => match self.delete(force, reply).await {
+                        true => return,
+                        false => continue,
+                    },
                     None => {
                         tracing::info!(target: TARGET, "closed");
                         return;
@@ -222,6 +228,7 @@ impl Actor {
             }
             Message::Stop(reply) => Mail::Stop(reply),
             Message::Halt(halt) => Mail::Halt(halt),
+            Message::Delete { force, reply } => Mail::Delete(force, reply),
             Message::Environment(environment) => {
                 self.tools.locate(environment.offset);
                 Mail::Input(Input::Environment(environment))

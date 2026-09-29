@@ -55,6 +55,8 @@
 | `stop()` | 有计划地停下，停好了才回 |
 | `stop_job(编号, 谁, 命令编号)` | 人停掉派出去的一个任务（协议的 `job.stop`，施工 7-4）：回报落了盘才回；没有、已经结束了的交回 `JobError` |
 | `stop_jobs(谁, 命令编号)` | 停掉这个会话派出去、还没结束的全部，连它们派的（父会话停下它时，会话表经端口来调，施工 7-4）：都带 `by_model`、不叫醒它，停好了才回 |
+| `delete()` | 删会话之前停下（施工 3-8 三补）：内核说删不了的交回原因（`TurnRunning`、`Restoring`），会话照常；删得了的停下，日志关了才回（第 9 条） |
+| `discard()` | 同 `delete()`，只是不问删不删得了：父会话被删，子会话一起停（`agents.md` 第七条第 5 条） |
 | `environment(环境)` | 环境变了：工作目录、时区 |
 
 `Pushed` 有两种：`Events`，落了盘的几条事件，照先后；`Transient`，一条瞬时事件，不落盘。`Subscription` 有 `next()`（等下一份）、`try_next()`（不等，没到的是空的）；断了的是 `Ended::Lagged`（掉了队）或 `Ended::Stopped`（会话停了）。
@@ -96,7 +98,7 @@
 
 1. 一个会话一个 tokio 任务，带着会话的 span：`error_span!`，目标 `miyu::session`，名字 `session`，一格 `session` 是会话编号。开在 `ERROR` 级，调到 `WARN` 也筛不掉，底下的行都带着会话编号（`log.md`）。外面再套一个看着它的任务。
 2. 两条通道，都不设上限：
-   - 人的：`Handle` 发来的命令、订阅、停下、环境变了。拿着 `Handle` 的都放下了，它就关了。
+   - 人的：`Handle` 发来的命令、订阅、停下、删之前停下（施工 3-8 三补）、环境变了。拿着 `Handle` 的都放下了，它就关了。
    - 执行器的回报：请求的回报、到点了、工具的回报、后台命令结束了（施工 7-3）。actor 自己也拿着一头，它不会自己关。
 3. 两条都有的时候，先收执行器的回报：读流不断。
 4. 人的一封：
@@ -108,6 +110,7 @@
    | 环境变了 | 送进内核：不当场注入，到下一个边界再查（`kernel/session.md`） |
    | 停下 | 第 9 条 |
    | 停掉任务（施工 7-4） | 后台命令当场在阻塞线程里杀、存，回报当场交进内核、落了盘再回；子代理另起一个任务经会话表去停，回报送回来落了盘再回：不在收件箱里等，回报才送得进来（`crates/miyu-session/src/actor/halt.rs`，`session/tools.md` 第 6 条） |
+   | 删之前停下 | 第 9 条 |
 
 5. 执行器的一封，照 actor 的时钟记下到的时刻：
 
@@ -201,6 +204,7 @@
 | 怎么停的 | 怎么走 |
 |---|---|
 | 有计划地停下（`Handle::stop`） | 先把这个会话在跑的后台命令记成报了、各写一条 `restarted`（`session/tools.md` 第 5 条第 4 款）；收件箱里已经到了的后台命令结束拿出来，别的回报不要了。依次送进「要重启了」、这几条结束（排在后面：内核这时只记下、不开轮，`kernel/session.md`「有计划的重启」）、那几条 `restarted`；都落了盘，这个会话的后台命令整组杀掉，记一行 `stopped`，回一声，actor 退出。再载入时被打断的那一轮接着干（施工 7-3） |
+| 删之前停下（`Handle::delete`、`Handle::discard`，施工 3-8 三补） | `delete` 先问内核（`deletable()`）：删不了的交回原因，照常收下一封。删得了的、`discard` 不问的：这个会话的后台命令不再收新的，在跑的整组杀掉、不记回报（不像有计划地停下那样记 `restarted`：会话要删了，没人再看它的日志）；什么都不再写，关上日志的文件，记一行 `stopped for deletion`，回一声，actor 退出。日志关了才回：会话表一收到就挪会话目录（`protocol.md` 的 `session.delete`），Windows 上开着的文件挪不走。在跑的回合不收尾：路上的请求、在跑的工具随 actor 退出叫停、掐掉 |
 | 拿着 `Handle` 的都放下了 | 记一行 `closed`，actor 退出 |
 | 写不进去、写盘的线程 panic 了 | 第 5 条 |
 | actor 自己 panic 了（内核的 bug、端口的 bug） | 看着它的任务记一行 `panicked, stopped`，别的会话照常 |
@@ -253,6 +257,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | ERROR | `panicked, stopped` | | actor、写盘的线程 panic 了 |
 | ERROR | `answer without a question` | `action`：`answer_tool` | 内核要把回答交给工具 |
 | INFO | `stopped` | | 有计划地停好了 |
+| INFO | `stopped for deletion` | | 删会话之前停好了（施工 3-8 三补） |
 | INFO | `closed` | | 没人拿着了 |
 | DEBUG | `input` | `kind` | 每一条输入送进内核之前；增量、执行中的输出记在 TRACE |
 | DEBUG | `action` | `kind` | 每一个动作做之前；推送增量、推送执行中的输出记在 TRACE |
@@ -285,6 +290,8 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 
 | 测试 | 守哪几条 |
 |---|---|
+| `crates/miyu-session/tests/delete.rs`（施工 3-8 三补） | 删之前停下：空闲的，后台命令回之前整组杀掉、不记回报，日志一条不多，回了以后连打断都收不到；有回合在进行的说删不了、会话照常、打断以后删得了；`discard` 停下停在请求上的会话，后台命令杀掉、不记，那一轮不收尾 |
+| `crates/miyu-endpoint/tests/delete.rs`、`delete_children.rs`（施工 3-8 三补） | 真核心走一遍：目录挪得走；子会话不问忙不忙一起停（`protocol.md`「守着它的」） |
 | `crates/miyu-session/tests/jobs.rs`（施工 7-3） | 有计划地停下先记 `restarted`、杀的时候已经落了盘；没人拿着了停下的，整组杀掉不记、再载入补 `aborted`（`session/tools.md`「守着它的」） |
 | `crates/miyu-session/tests/actor.rs` | 造会话先存快照、第一条是 `session.created`；一轮先落盘、再推送、再回应，增量在回复落盘之前推过来；能重试的错到点才再请求、原样重发；打断叫停路上的请求；停下再载入接着干；同一个命令两次回两次、只生效一次；停在一轮中间的，落了盘、载入后接着干；载入的会话时刻不往回走；没人拿着了叫停路上的请求；换了工作目录下一轮才看到 |
 | `crates/miyu-session/tests/limits.rs` | 造会话、载入以后先交限额，到线就压，没有窗口的不压（施工 6-3 上）；`Handle` 带着端口交的窗口和内核算的压缩线，载入的也一样，没报窗口的两格都没有（施工 6-3 补） |

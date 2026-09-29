@@ -32,6 +32,8 @@ kinds! {
     TakeBack,
     /// 切权限级别。
     SetPermission,
+    /// 改标题、置顶（施工 3-8 三补）。
+    SetMeta,
     /// 回答确认。
     Decide,
     /// 回答一组题。
@@ -98,6 +100,7 @@ impl InputKind {
                     queued: Queued::Return,
                 } => InputKind::TakeBack,
                 Command::SetPermission { .. } => InputKind::SetPermission,
+                Command::SetMeta { .. } => InputKind::SetMeta,
                 Command::Answer {
                     answer: Answer::Approval { .. },
                     ..

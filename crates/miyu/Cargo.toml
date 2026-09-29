@@ -22,6 +22,8 @@ miyu-core = { path = "../miyu-core" }
 [dev-dependencies]
 # 测试里拉起核心、连上它（施工 3-9 上）。
 miyu-ipc = { path = "../miyu-ipc" }
+# 测试里写回收处的 `deleted_at`：事件的时刻写法（施工 3-8 三补）。
+miyu-kernel = { path = "../miyu-kernel" }
 # 测试里的数据根。
 miyu-store = { path = "../miyu-store" }
 # 测试里在套接字上说 JSON-RPC。

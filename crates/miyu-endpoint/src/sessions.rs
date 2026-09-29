@@ -1,5 +1,5 @@
 //! 会话表（`docs/designs/07-存储.md` 第七节「会话按需载入」）：照编号找会话；这次运行里没在跑的，从磁盘
-//! 载入；停了的拿掉，下次用到再载入。
+//! 载入；停了的拿掉，下次用到再载入。删会话连子会话在 `sessions/delete.rs`（施工 3-8 三补）。
 //!
 //! 表拿 tokio 的锁护着，载入期间一直拿着：两个连接同时说给同一个没在跑的会话，只载入一次、只起一个
 //! actor（一个会话只能有一个写者，`07-存储.md` 第三节）。
@@ -22,6 +22,10 @@ use miyu_store::resources::SourceError;
 use crate::Core;
 use crate::refusal::Refusal;
 use crate::spawn;
+
+mod delete;
+#[cfg(test)]
+mod tests;
 
 /// 记住最近多少个造会话的命令编号：断线重发的造会话不再造一个新的（`04-核心协议.md` 第六节第 1 条）。核心重启以后
 /// 第一次造会话时，从最新的这么多个会话的 `session.created` 里补回来（施工 4-9 再补三上）。
@@ -255,6 +259,10 @@ impl Sessions {
     /// 一样照编号找得到：一个会话只起一个 actor。造不成的交回原因，由执行器记进运行日志。
     pub(crate) async fn spawn(&self, core: &Arc<Core>, child: Child) -> Result<SessionId, String> {
         let mut open = self.open.lock().await;
+        // 父会话被删了（施工 3-8 三补）：它停下之前在派的不再造，不留下没有父会话的子会话。
+        if !open.running.contains_key(&child.lineage.parent) {
+            return Err("the parent session is gone".to_string());
+        }
         let id = new_id(now());
         let parent = By::Session(Session {
             id: child.lineage.parent.clone(),

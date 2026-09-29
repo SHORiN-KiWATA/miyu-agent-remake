@@ -251,6 +251,14 @@ pub enum Command {
         /// 只读开关；不改就没有。
         read_only: Option<bool>,
     },
+    /// `session.set_meta`：改标题、置顶，改哪样写哪样（施工 3-8 三补，`meta.rs`）。
+    SetMeta {
+        /// 新的标题，照 `session.meta_changed` 的写法：空的是去掉标题；不改就没有。去掉前后空白、量长短是协议端点的事
+        /// （`docs/blueprint/protocol.md` 的 `session.set_meta`），内核照原样比、照原样记。
+        title: Option<String>,
+        /// 置顶还是取消置顶；不改就没有。
+        pinned: Option<bool>,
+    },
     /// `session.interrupt`：打断正在进行的回合。
     Interrupt {
         /// 排着队的消息怎么办（`02-内核.md` 第六节「排队的消息」）。
