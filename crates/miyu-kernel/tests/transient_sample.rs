@@ -149,11 +149,16 @@ fn the_tool_progress_sample_is_written_exactly() {
     assert_eq!(lines("transient/tool.progress.jsonl"), [progress.to_line()]);
 }
 
-/// 第一行是施工 3-5 下写的，那时还没有 HTTP 状态码那一格；第二行是 118 号 `model.called` 的限速，带着 429
-/// （施工 3-5 三补）。没有状态码的不写这一格。
+/// 第一行是连不上、可以重试的，没有 HTTP 状态码，不写那一格；第二行是 118 号 `model.called` 的限速，带着 429
+/// （施工 3-5 三补）。
 #[test]
 fn the_status_sample_is_written_exactly() {
-    let status = |at: &str, turn: u64, cause: &str, seen: u64, status: Option<u16>| {
+    let status = |at: &str,
+                  turn: u64,
+                  cause: &str,
+                  seen: u64,
+                  (class, message): (ErrorClass, &str),
+                  status: Option<u16>| {
         Transient {
             at: Timestamp::parse(at).expect("样本的时刻合写法"),
             turn: Some(TurnId::new(Seq::new(turn).expect("合法的序号"))),
@@ -165,8 +170,8 @@ fn the_status_sample_is_written_exactly() {
                     attempt: 1,
                     limit: 5,
                     wait_ms: 1000,
-                    class: ErrorClass::RateLimited,
-                    message: "HTTP 429: Rate limit reached".to_string(),
+                    class,
+                    message: message.to_string(),
                     status,
                 },
             }),
@@ -176,8 +181,22 @@ fn the_status_sample_is_written_exactly() {
     assert_eq!(
         lines("transient/status.jsonl"),
         [
-            status("2026-09-25T07:04:07.200Z", 42, "cmd-7f3a", 44, None),
-            status("2026-09-25T07:58:12.400Z", 117, "cmd-d4e7", 117, Some(429)),
+            status(
+                "2026-09-25T07:04:07.200Z",
+                42,
+                "cmd-7f3a",
+                44,
+                (ErrorClass::Retryable, "connection reset by peer"),
+                None
+            ),
+            status(
+                "2026-09-25T07:58:12.400Z",
+                117,
+                "cmd-d4e7",
+                117,
+                (ErrorClass::RateLimited, "HTTP 429: Rate limit reached"),
+                Some(429)
+            ),
         ]
     );
 }
