@@ -101,7 +101,7 @@ todo.md
 
 压缩那一行（施工 6-3 下，照项目主人 2026-09-29 定的样子）：样本里没有它。内核压缩时推的 `compaction.progress`、`compaction.done` 和摘要请求的 `model.called` 印成一行旁白，标准错误，灰，前后和一步一样照「换行和空行」：
 
-- 压缩中：`· 正在压缩上下文… 已写 3,120 字`。标准错误是终端的，每来一条进度回到行首、擦掉这一行重画（`\r` 加 `ESC[2K`）；不是终端的，压缩中不印。
+- 压缩中：`· 正在压缩上下文… 已写 3,120 字`；还没收到字的（摘要请求刚发出去，头一条进度是 0 字）只印 `· 正在压缩上下文…`，不写字数（施工 6-3 三补，和终端界面一样）。标准错误是终端的，每来一条进度回到行首、擦掉这一行重画（`\r` 加 `ESC[2K`）；不是终端的，压缩中不印。
 - 压好了：`· 上下文已压缩：812.3k → 31k token`。终端里擦掉进度那一行换成它。token 数不到一千照写，一千以上写 `k`、一百万以上写 `M`，一位小数，整的不写小数；数是估算（`compaction.md` 第一条），和供应商下一次报的会差一点。
 - 失败：`· 压缩失败：<原因>`，红。原因照摘要请求出错的分类说；取不出摘要的（`bad_summary`）分两种，原话说调了工具的说「摘要请求里调了工具」。被打断的不说：这一轮的收尾会说。
 - 调了工具、改走隔离式（`bad_summary`，原话末尾是 `trying again without tools`，施工 6-6 下）：不是失败，灰色一行 `· 摘要请求里调了工具，改用不带工具的再压`（英文 `· The summary called a tool; compacting again without tools`），这次压缩接着来进度。
@@ -226,7 +226,7 @@ todo.md
 | 原因：找不到助手 | 主程序旁边没有 miyu-sandbox：重装一次 Miyu | miyu-sandbox is missing beside the main program: reinstall Miyu |
 | 原因：助手跑不起来 | miyu-sandbox 跑不起来：重装一次 Miyu | miyu-sandbox does not run: reinstall Miyu |
 | 用量 | `· 输入 … · 命中缓存 …（…%）· 输出 …` | `· input … · cache hit … (…%) · output …` |
-| 压缩中 | `· 正在压缩上下文… 已写 <字数> 字` | `· Compacting the context… <n> characters written` |
+| 压缩中 | `· 正在压缩上下文… 已写 <字数> 字`；0 字时 `· 正在压缩上下文…` | `· Compacting the context… <n> characters written`；0 字时 `· Compacting the context…` |
 | 压好了 | `· 上下文已压缩：<压前> → <压后> token` | `· Context compacted: <before> → <after> tokens` |
 | 压缩失败 | `· 压缩失败：<原因>` | `· Compaction failed: <reason>` |
 | 暂停：连续失败 | `· 自动压缩连续失败 <n> 次，已暂停：可以手动压缩、换一个模型，或者开新会话` | `· Automatic compaction failed <n> times and is paused: compact manually, switch models, or start a new session` |

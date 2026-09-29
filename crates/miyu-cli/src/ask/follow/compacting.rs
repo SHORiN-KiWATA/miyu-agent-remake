@@ -113,8 +113,15 @@ impl Follow<'_> {
     }
 }
 
-/// 压缩中那一行。
+/// 压缩中那一行。摘要请求刚发出去、还没收到字的不写字数：「已写 0 字」看着像卡住了，和终端界面一样（施工 6-3
+/// 三补，2026-09-30 项目主人定）。
 fn progress(language: &Language, written: u64) -> String {
+    if written == 0 {
+        return match language {
+            Language::Chinese => "· 正在压缩上下文…".to_string(),
+            Language::English => "· Compacting the context…".to_string(),
+        };
+    }
     let written = thousands(written);
     match language {
         Language::Chinese => format!("· 正在压缩上下文… 已写 {written} 字"),

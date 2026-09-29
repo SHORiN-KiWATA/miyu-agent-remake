@@ -16,3 +16,18 @@ fn tokens_are_written_in_k_and_m_with_one_decimal() {
         assert_eq!(tokens(n), shown, "{n}");
     }
 }
+
+#[test]
+fn nothing_written_yet_has_no_count() {
+    // 摘要请求刚发出去、还没收到字的不写字数（施工 6-3 三补，和终端界面一样）。
+    assert_eq!(progress(&Language::Chinese, 0), "· 正在压缩上下文…");
+    assert_eq!(progress(&Language::English, 0), "· Compacting the context…");
+    assert_eq!(
+        progress(&Language::Chinese, 1),
+        "· 正在压缩上下文… 已写 1 字"
+    );
+    assert_eq!(
+        progress(&Language::English, 3_120),
+        "· Compacting the context… 3,120 characters written"
+    );
+}
