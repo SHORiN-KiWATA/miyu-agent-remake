@@ -200,7 +200,7 @@
 | 工具调用 | 都留，参数是收到的原文（可以是空的） | 只留收全了的 |
 
 4. 留下的工具调用照先后编号：`call_<回复的序号>_<第几个>`，从 1 数起，丢掉的不占号。回复的序号就是这条回复写进日志时的序号。
-5. 会话这样用它（`kernel/session.md`）：正常说完用 `finish`；被打断、出了错用 `cut_off`，出了错的再去掉全部工具调用；正常说完却一块都没有的，算出错 `empty_reply`；增量对不上的，这次请求按 `bad_stream` 出错，原话就是那句报错。
+5. 会话这样用它（`kernel/session.md`）：正常说完照 `finish` 收；被打断、出了错照 `cut_off` 收，出了错的再去掉全部工具调用；正常说完却一块都没有的，算出错 `empty_reply`；增量对不上的，这次请求按 `bad_stream` 出错，原话就是那句报错。会话收尾用的是只在内核里用的 `numbered(回复的序号, 是不是正常说完)`：拼出来的和 `finish`、`cut_off` 一样，每一块多带着它在流里是第几块，会话照它对上每一块的起止（施工 2-3 补）。
 
 **第一处不同**
 
@@ -316,7 +316,7 @@ Carry on from where the summary leaves off, without redoing work it records as d
 | `crates/miyu-kernel/src/session/tests/difference.rs` | 第一处不同交给执行器、记进 `model.called` |
 | `crates/miyu-kernel/src/time/tests.rs` | 钟点到小时、星期、时区的写法和范围 |
 | `crates/miyu-kernel/src/template/tests.rs` | 换字段、双写的大括号、每种要转的字、转出来是一行合法的 JSON 字符串、伪造属性和记录和标签都失效、`fields()`、`fill`、坏模板、少了字段 |
-| `crates/miyu-kernel/src/accumulate/tests.rs` | 三种块拼对、调用编号、空块、交错、被打断、对不上的增量、随机切片拼出来一样 |
+| `crates/miyu-kernel/src/accumulate/tests.rs` | 三种块拼对、调用编号、空块、交错、被打断、对不上的增量、随机切片拼出来一样；每一块带着它在流里是第几块（施工 2-3 补） |
 
 ### 出处
 

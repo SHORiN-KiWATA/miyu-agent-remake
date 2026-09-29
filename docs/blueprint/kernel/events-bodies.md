@@ -16,7 +16,7 @@
 | `crates/miyu-kernel/src/event/effect.rs` | 效果 `Effect`：`file.read`、`file.changed`、`file.trashed`、`job.started`（`JobStarted`、`JobKind`，施工 7-1） |
 | `crates/miyu-kernel/src/event/question.rs` | `question.asked`、`question.answered`；回答对不对得上 `fits` |
 | `crates/miyu-kernel/src/event/context.rs` | `context.injected`、`context.compacted`、`context.compaction_paused`（`PauseReason`） |
-| `crates/miyu-kernel/src/event/model.rs` | `model.called`（`FirstDifference`、`Usage`、`CallResult`、`CallError`、`ErrorClass`） |
+| `crates/miyu-kernel/src/event/model.rs` | `model.called`（`FirstDifference`、`Usage`、`BlockSpan`、`CallResult`、`CallError`、`ErrorClass`） |
 | `crates/miyu-kernel/src/event/job.rs` | `job.reported`（`JobReason`）、`child.reported`（`ChildReason`）（施工 7-1） |
 
 每一种的样本在 `docs/designs/samples/events/<种类>.jsonl`。
@@ -301,6 +301,7 @@
 | `usage` | 用量 | 可以没有 | 供应商没报的没有；被打断的没有 |
 | `first_token_ms` | 整数 | 可以没有 | 从请求发出去到第一段增量的毫秒数。没发出去的、一段增量都没来的没有 |
 | `duration_ms` | 整数 | 可以没有 | 从请求发出去到说完的毫秒数，被打断的算到打断为止。没发出去的没有 |
+| `blocks` | 块的起止的数组 | 可以没有 | 回复里每一块从哪一刻开始、到哪一刻收全，照这次请求写成的 `message.assistant` 的块的先后，一块一项。没写回复的没有；以前的日志没有这一格（施工 2-3 补） |
 | `result` | 取值 | 必有 | `ok` 说完了；`error` 出错；`interrupted` 被人打断 |
 | `error` | 出错 | 可以没有 | 出错的分类、原话，有的话还有 HTTP 状态码；只在出错时有 |
 | `compaction` | `auto`、`manual`、`overflow` | 可以没有 | 这是哪一种压缩的摘要请求；主请求没有。以前的日志没有这一格（施工 6-6 上） |
@@ -314,6 +315,8 @@
 | `role` | 取值 | 可以没有 | 那一条的角色：`user`、`assistant`、`tool`；这一次少了的，是上一次那一条的角色。只有 `message` 有 |
 
 先比工具面，再比 system，再一条条比消息（`kernel/request.md` 的指纹）。
+
+块的起止：`start_ms` 这一块第一段增量到的时刻，`end_ms` 它最后一段增量到的时刻，两格都必有，都是从请求发出去算起的毫秒数，和 `first_token_ms` 同一个起点。收块的 `End` 不算：驱动流完了才一起收块（`drivers/openai-chat.md`「收尾」第 2 条），算上它，每一块都收在流的末尾。时钟往回拨了，早于发出去的算 0，`end_ms` 不往回挪。被打断、出错收的半截，照留下的那几块记；流里有、回复里不要了的块（空块、没收全的工具调用、出错时去掉的工具调用）不记。形状 `[{"start_ms":640,"end_ms":2310},{"start_ms":2330,"end_ms":2980}]`。头照它写「已思考 N 秒」：思考那一块的 `end_ms` 减 `start_ms`。以前的日志没有这一格，照读，写出去还是没有（施工 2-3 补）。
 
 用量：`uncached` 没命中缓存的输入、`cache_read` 缓存读取、`cache_write` 缓存写入、`output` 输出，四格都必有，都是 token 数。
 
@@ -399,7 +402,7 @@
 | `crates/miyu-kernel/src/event/job/tests.rs` | 两种回报（施工 7-1）：图纸上的写法读写一字不差、每种 `reason` 读成自己那一种、不认识的原样留着、不写是假的几格是假时不写、没有的格不写、负的退出码、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/question/tests.rs` | 提问的两种：图纸上的写法、没写的格子不写、第 4 条对不对得上题目、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/context/tests.rs` | 上下文的几种：图纸上的写法、手动压缩带着要求（施工 6-8）、坏的说是哪一种 |
-| `crates/miyu-kernel/src/event/model/tests.rs` | `model.called` 图纸上的写法；没发出去就失败的只有知道的几格；每种出错的分类；出错带着 HTTP 状态码、没有这一格的旧日志照读（施工 3-5 三补）；第一处不同的写法 |
+| `crates/miyu-kernel/src/event/model/tests.rs` | `model.called` 图纸上的写法；没发出去就失败的只有知道的几格；每种出错的分类；出错带着 HTTP 状态码、没有这一格的旧日志照读（施工 3-5 三补）；块的起止读写一字不差、没有这一格的旧日志照读（施工 2-3 补）；第一处不同的写法 |
 | `crates/miyu-kernel/tests/samples.rs` | 每一种的样本读写一字不差 |
 | `crates/miyu-kernel/tests/resources.rs` 的 `the_sample_denial_is_the_sentence_with_the_reason` | 样本里 71 号被人拒绝的结果，就是资源里带理由的那一句 |
 

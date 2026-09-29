@@ -1,6 +1,7 @@
 //! 看守查模型调用的收场和重试（`docs/designs/02-内核.md` 第六节「回复怎么收」第 4 条，施工 3-5 下）：
 //!
 //! - 一条 `model.called`：交给过执行器、只记一次；说完了的前面是它的回复；
+//! - 块的起止：写了回复的才有，和回复的块一块一项，止不早于起（施工 2-3 补）；
 //! - 出错的：要么紧跟着出错的回合结束，要么再来。再来的，前面是半截回复的（带 `interrupted`，一个
 //!   工具调用都没有），后面紧跟着被打断的那一句；什么都没收到的，这一批到它为止；
 //! - 再来的交出到点叫醒，推一条 `status`；叫醒以前不请求；叫醒以后的那一次是重试，不算步数；
@@ -44,6 +45,7 @@ impl Watch {
         );
         let before = k.checked_sub(1).map(|k| &events[k].body);
         let after = events.get(k + 1).map(|event| &event.body);
+        self.block_spans(called, before);
         let interrupted_later = events[k..].iter().any(|event| {
             matches!(&event.body, Body::TurnEnded(ended)
                 if matches!(ended.reason, EndReason::Interrupted | EndReason::Restarted))
@@ -86,6 +88,30 @@ impl Watch {
                 self.failed(called.seen, before, after);
             }
         }
+    }
+
+    /// 块的起止（施工 2-3 补）：写了回复的才有，和回复的块一块一项，每一块的止不早于起；没写回复的没有。
+    fn block_spans(&self, called: &ModelCalled, before: Option<&Body>) {
+        let seed = self.seed;
+        let reply = match before {
+            Some(Body::MessageAssistant(reply)) if reply.seen == called.seen => {
+                Some(reply.blocks.len())
+            }
+            _ => None,
+        };
+        let spans = called.blocks.as_ref();
+        assert_eq!(
+            spans.map(Vec::len),
+            reply,
+            "种子 {seed}：块的起止和回复的块一块一项，没写回复的没有"
+        );
+        assert!(
+            spans
+                .into_iter()
+                .flatten()
+                .all(|span| span.start_ms <= span.end_ms),
+            "种子 {seed}：块的止早于起"
+        );
     }
 
     /// 出错的收场：紧跟着出错的回合结束的，是不再来了；不是的，是再来。

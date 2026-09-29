@@ -13,7 +13,7 @@
 | `crates/miyu-kernel/src/session.rs` | `Session`：造会话、分派输入、收命令、造事件、落盘以后推送和回应 |
 | `crates/miyu-kernel/src/session/input.rs`、`action.rs` | 输入、命令；动作、结局、原因码 |
 | `crates/miyu-kernel/src/session/policy.rs`、`recent.rs` | 冻结在会话上的策略；最近接受的命令编号 |
-| `crates/miyu-kernel/src/session/turn.rs`、`call.rs`、`retry.rs` | 开回合、发请求、结束回合；收回复、记 `model.called`；出错再来 |
+| `crates/miyu-kernel/src/session/turn.rs`、`call.rs`、`spans.rs`、`retry.rs` | 开回合、发请求、结束回合；收回复、记 `model.called`、回复每一块的起止（施工 2-3 补）；出错再来 |
 | `crates/miyu-kernel/src/session/compaction.rs` | 压缩这一步：到没到线、替代到哪、发摘要请求、收回来写 `context.compacted`（`compaction.md`，施工 6-2 上） |
 | `crates/miyu-kernel/src/session/manual.rs` | 手动压缩单开的那一轮：收命令、替代到哪、那一轮发摘要请求（`compaction.md` 第七条，施工 6-8） |
 | `crates/miyu-kernel/src/session/limits.rs` | 给头看的限额 `ContextLimits`：窗口、压缩线（施工 6-3 补） |
@@ -181,11 +181,11 @@
 **收回复**：三种回报都带着 `seen`，不是在路上的那一次的，不理。
 
 1. `RequestSent`：记下时刻、模型、请求字节的哈希。报两次的只认第一次。摘要请求的，推一条 `written` 是 0 的 `compaction.progress`（施工 6-3 下）。
-2. `ModelDelta`：摘要请求的增量照样交给累积器，不推 `model.delta`，正文块的每一段推一条 `compaction.progress`（`compaction.md` 第三条第 8 条）。还没报发出去就来了增量，按出错算：分类 `bad_stream`，原话「请求还没发出去就来了增量」。交给累积器，对不上的也按 `bad_stream` 算，原话是累积器的报错（「出错」）。出错的照下面第 3 条收拾，再出 `CancelModel`。收下的推一条 `model.delta`（`by` 是那个模型，`cause` 是回合的，`body` 是 `seen`、第几块、这一段）；私有数据收下，不推。第一段增量到的时刻记下。
+2. `ModelDelta`：摘要请求的增量照样交给累积器，不推 `model.delta`，正文块的每一段推一条 `compaction.progress`（`compaction.md` 第三条第 8 条）。还没报发出去就来了增量，按出错算：分类 `bad_stream`，原话「请求还没发出去就来了增量」。交给累积器，对不上的也按 `bad_stream` 算，原话是累积器的报错（「出错」）。出错的照下面第 3 条收拾，再出 `CancelModel`。收下的推一条 `model.delta`（`by` 是那个模型，`cause` 是回合的，`body` 是 `seen`、第几块、这一段）；私有数据收下，不推。第一段增量到的时刻记下。累积器收下的，照流里的块编号记下每一块第一段、最后一段增量到的时刻（时钟往回拨了的，最后一段不往回挪）；收块的 `End` 不算，驱动流完了才一起收块（施工 2-3 补）。
 3. `ModelEnded`：
    1. 没发出去、也没带出错的，按出错算：`bad_stream`，「请求还没发出去就说完了」。没发出去的不写回复。
    2. 摘要请求不写回复：正常说完的，收到的拼好交给组装取出摘要，取到了写 `context.compacted`，推 `compaction.done`（`compaction.md` 第三条第 6、11 条），手动压缩的接着结束回合，`completed`（`compaction.md` 第七条第 6 条）；调了工具的、取不出来的，按出错算，`bad_summary`，不再来。别的出错照下面第 5、6 条。
-   3. 发出去了的主请求，收到的拼成回复。正常说完：每一块照收到的拼，没收全的工具调用也留下。出错：只留收全了的工具调用（和打断一样），再把工具调用全去掉。一个字都没有的正文块不要；没有字、也没有私有数据的思考块不要。工具调用编号 `call_<这条回复的序号>_<k>`，`k` 从 1 数留下的（累积器见 `kernel/request.md`）。
+   3. 发出去了的主请求，收到的拼成回复。正常说完：每一块照收到的拼，没收全的工具调用也留下。出错：只留收全了的工具调用（和打断一样），再把工具调用全去掉。一个字都没有的正文块不要；没有字、也没有私有数据的思考块不要。工具调用编号 `call_<这条回复的序号>_<k>`，`k` 从 1 数留下的（累积器见 `kernel/request.md`）。累积器交回的每一块带着它在流里是第几块，出错时去掉工具调用也连着这个编号一起去；每一块的起止照这个编号对上，照落盘的块的先后（施工 2-3 补）。
    4. 拼出来一块都没有的不写回复；正常说完的，按出错算：`empty_reply`，「回复里一个块都没有」。
    5. 有的写成 `message.assistant`：`seen` 是这次请求的，出错的多写 `"interrupted":true`，`by` 是那个模型，`cause` 是回合的。
    6. 接着追加 `model.called`（下表），`by` 是内核，`cause` 是回合的。
@@ -201,6 +201,7 @@
 | `usage` | `ModelEnded` 带的；打断的没有 |
 | `first_token_ms` | 发出去到第一段增量；没发出去、一段增量都没来的没有。时钟往回拨了算 0 |
 | `duration_ms` | 发出去到说完（或者打断）；没发出去的没有。时钟往回拨了算 0 |
+| `blocks` | 写成了回复的：回复里每一块的起止，从发出去算起，时钟往回拨了算 0（第 2 条、第 3 条第 3 款）。没写回复的没有 |
 | `result` | `interrupted` 被打断，`error` 出错，别的 `ok` |
 | `error` | 出错的分类和原话 |
 | `compaction` | 摘要请求的：哪一种压缩（现在有 `auto`、`manual`）；主请求没有 |
@@ -393,10 +394,11 @@
 | `crates/miyu-kernel/src/session/tests/scenario/commands.rs`（施工 7-3） | 用过的最大任务编号：没派过的 0，撤掉的回合里派的也算，载入以后照日志算回来；崩了载入补 `aborted`（只补后台命令、`by` 是内核、没有 `cause`、回合编号、用时、输出，不开轮，再载入不再补），结束过的不补，补的排在那一轮收尾前面；要重启了以后到的结束只记下、不开轮，接着干的那一轮看得到它 |
 | `crates/miyu-kernel/src/session/tests/tools.rs` 的 `a_dispatched_call_carries_the_cause_of_its_turn`（施工 7-3） | 派出去的调用带着这一轮的 `cause`，链当场放行的、等人允许了的一样 |
 | `crates/miyu-kernel/src/session/tests/load.rs` | 走完的载入一样往下走；坏日志拒绝；崩在哪都收尾、等你开口；崩之前的命令不再生效；生效的权限回来；检查点重读过文件的，第一个动作是 `Recall`（施工 6-9；撤掉压缩的撤销载入以后见 `history.md`「守着它的」） |
+| `crates/miyu-kernel/src/session/tests/spans.rs`、`scenario/spans.rs`（施工 2-3 补） | 回复每一块的起止：思考、正文、工具调用各一块照增量的时刻，收块不算；驱动流完了才一起收块、字交错着来、私有数据、时钟往回拨；出错收的半截、打断收的半截只记留下的，空块不记；出错没收到字的没有这一格 |
 | `crates/miyu-kernel/src/session/tests/scenario.rs`、`scenario/retrying.rs`、`scenario/stopping.rs` | 执行器替身（`testkit`）把真会话一整轮一整轮地跑：两个读一起跑、中间来一句；只读拦写入；步数上限和失败的请求；重试的每一种（原样再来、半截接着说、半截的调用丢掉、带着 HTTP 状态码、照供应商等、5 次放弃、不该再来的、等的时候打断、重启、切级别、不算步数、说完清零）；打断接着发、重启接着干、崩了等你；停着的写：停在改之前、改完了、到 10 秒、又打断一次、等的时候来的消息排队和撤销被拒、等的时候重启（退回的不再接着干，接着发的交给下一轮） |
-| `crates/miyu-kernel/src/session/tests/random.rs` 和 `random/` | 三百例随机输入（CI 另跑两万例），每一步查：不变量（第 5 条一个会话查不了）；挂接点、请求、派工具、步数上限、只读的规矩；打断时停着的（叫它停只在打断里、停着的交回来才收尾、到点和又打断就不等，十个种子里一个多调写文件的专走这里）；崩了、重启了载入以后照规矩走；回报（施工 7-2，另一串随机数，七个种子里一个是一次性的会话）：对不上的拒绝、不理，开轮、排着、只记下、回合结束接着开、恢复撤销以后接着开照「回报」的规矩（`random/watch/reports.rs`）；每条路、每一种输入都走到过 |
+| `crates/miyu-kernel/src/session/tests/random.rs` 和 `random/` | 三百例随机输入（CI 另跑两万例），每一步查：不变量（第 5 条一个会话查不了）；块的起止写了回复的才有、和回复的块一块一项，摘要请求没有（施工 2-3 补）；挂接点、请求、派工具、步数上限、只读的规矩；打断时停着的（叫它停只在打断里、停着的交回来才收尾、到点和又打断就不等，十个种子里一个多调写文件的专走这里）；崩了、重启了载入以后照规矩走；回报（施工 7-2，另一串随机数，七个种子里一个是一次性的会话）：对不上的拒绝、不理，开轮、排着、只记下、回合结束接着开、恢复撤销以后接着开照「回报」的规矩（`random/watch/reports.rs`）；每条路、每一种输入都走到过 |
 | `crates/miyu-kernel/src/tool/tests.rs`、`tool/texts/tests.rs` | 参数修正的每一种，嵌套的对象、数组里的也修；访问类别不认识的算写入；那几句的字段转义、每句带说法 |
-| `crates/miyu-kernel/src/accumulate/tests.rs` | 拼回复、调用编号、空块、交错的字、截断只留收全的调用、增量对不上的六种 |
+| `crates/miyu-kernel/src/accumulate/tests.rs` | 拼回复、调用编号、空块、交错的字、截断只留收全的调用、增量对不上的六种；每一块带着它在流里是第几块（施工 2-3 补） |
 | `crates/miyu-kernel/tests/resources.rs` | 出厂的那几句读得进来，带字段的换出来一字不差 |
 | `crates/miyu-kernel/tests/transient_sample.rs` | `model.delta`、`tool.progress`、`status` 写出去和样本一字不差 |
 

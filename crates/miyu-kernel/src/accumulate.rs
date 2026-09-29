@@ -124,7 +124,7 @@ impl Accumulator {
     ///
     /// 实际不会 panic：回复的序号是合法的序号，第几个从 1 数起。
     pub fn finish(self, reply: Seq) -> Vec<Block> {
-        self.build(reply, true)
+        unnumbered(self.numbered(reply, true))
     }
 
     /// 被打断：正文和思考，收到多少留多少；工具调用只留收全了的，没收全的参数不完整，
@@ -134,7 +134,7 @@ impl Accumulator {
     ///
     /// 实际不会 panic：同 [`Accumulator::finish`]。
     pub fn cut_off(self, reply: Seq) -> Vec<Block> {
-        self.build(reply, false)
+        unnumbered(self.numbered(reply, false))
     }
 
     /// 还没收全、可以接着收的第 `index` 块。
@@ -146,37 +146,43 @@ impl Accumulator {
         }
     }
 
-    /// 拼成内容块。`unended_calls` 为假时，没收全的工具调用丢掉。
-    fn build(self, reply: Seq, unended_calls: bool) -> Vec<Block> {
+    /// 拼成内容块，每一块带着它在流里是第几块（施工 2-3 补）：空块、丢掉的调用不占位置，拼出来的第几块和流里的
+    /// 第几块对不上，会话照这个编号把每一块的起止对上落盘的块（`kernel/session.md`「收回复」）。`whole` 是正常
+    /// 说完，照 [`Accumulator::finish`] 拼；不是的照 [`Accumulator::cut_off`]，没收全的工具调用丢掉。
+    pub(crate) fn numbered(self, reply: Seq, whole: bool) -> Vec<(usize, Block)> {
         let mut out = Vec::new();
         let mut calls = 0;
-        for block in self.blocks {
-            match block.kind {
-                Kind::Text if !block.text.is_empty() => {
-                    out.push(Block::Text(Text { text: block.text }))
-                }
-                Kind::Text => {}
-                Kind::Reasoning if block.text.is_empty() && block.private.is_none() => {}
-                Kind::Reasoning => out.push(Block::Reasoning(Reasoning {
+        for (index, block) in self.blocks.into_iter().enumerate() {
+            let built = match block.kind {
+                Kind::Text if !block.text.is_empty() => Block::Text(Text { text: block.text }),
+                Kind::Text => continue,
+                Kind::Reasoning if block.text.is_empty() && block.private.is_none() => continue,
+                Kind::Reasoning => Block::Reasoning(Reasoning {
                     text: block.text,
                     private: block.private,
-                })),
-                Kind::ToolCall { name } if block.ended || unended_calls => {
+                }),
+                Kind::ToolCall { name } if block.ended || whole => {
                     calls += 1;
                     let call_id =
                         CallId::new(reply, calls).expect("回复的序号合法，第几个从 1 数起");
-                    out.push(Block::ToolCall(ToolCall {
+                    Block::ToolCall(ToolCall {
                         call_id,
                         name,
                         args: block.text,
                         private: block.private,
-                    }));
+                    })
                 }
-                Kind::ToolCall { .. } => {}
-            }
+                Kind::ToolCall { .. } => continue,
+            };
+            out.push((index, built));
         }
         out
     }
+}
+
+/// 去掉流里的编号，只留内容块。
+fn unnumbered(numbered: Vec<(usize, Block)>) -> Vec<Block> {
+    numbered.into_iter().map(|(_, block)| block).collect()
 }
 
 /// 增量对不上：驱动的错。这次响应按出错算（施工 2-3）。

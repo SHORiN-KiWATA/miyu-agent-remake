@@ -15,6 +15,7 @@ mod reports;
 mod reports_undo;
 mod retrying;
 mod shorten;
+mod spans;
 mod stopping;
 mod tail;
 

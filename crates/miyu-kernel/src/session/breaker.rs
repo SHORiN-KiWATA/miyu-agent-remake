@@ -90,6 +90,7 @@ impl Session {
             usage: None,
             first_token_ms: None,
             duration_ms: None,
+            blocks: None,
             result: CallResult::Error,
             error: Some(error),
             compaction: None,

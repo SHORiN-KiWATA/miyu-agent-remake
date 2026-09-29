@@ -30,7 +30,8 @@ pub use effect::{Effect, FileChanged, FileRead, FileTrashed, JobKind, JobStarted
 pub use job::{ChildReason, ChildReported, JobReason, JobReported};
 pub use message::{MessageAssistant, MessageUser, MessageWithdrawn};
 pub use model::{
-    CallError, CallResult, ErrorClass, FirstDifference, MessageRole, ModelCalled, Part, Usage,
+    BlockSpan, CallError, CallResult, ErrorClass, FirstDifference, MessageRole, ModelCalled, Part,
+    Usage,
 };
 pub use question::{Choice, Question, QuestionAnswered, QuestionAsked, Response, fits};
 pub use restore::{FilesRestored, RestoreAction, RestoreOutcome, Restored};

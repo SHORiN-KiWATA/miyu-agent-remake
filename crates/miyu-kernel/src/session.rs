@@ -30,6 +30,7 @@ mod restore;
 mod retry;
 mod revert;
 mod shorten;
+mod spans;
 mod step;
 mod summary;
 mod tools;

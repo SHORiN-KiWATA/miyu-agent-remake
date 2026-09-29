@@ -75,6 +75,34 @@ fn an_error_keeps_its_http_status_and_old_logs_without_it_still_read() {
     );
 }
 
+/// 回复每一块的起止（施工 2-3 补）：排在用时后面，读写一字不差；以前的日志没有这一格，照读，写出去还是没有，不写成
+/// `null`。
+#[test]
+fn block_spans_round_trip_and_old_logs_without_them_still_read() {
+    let body = CALLED.replace(
+        r#""duration_ms":2760,"#,
+        r#""duration_ms":2760,"blocks":[{"start_ms":812,"end_ms":1490},{"start_ms":1502,"end_ms":2710}],"#,
+    );
+    let timed = called(&body);
+    assert_eq!(
+        timed.blocks,
+        Some(vec![
+            BlockSpan {
+                start_ms: 812,
+                end_ms: 1490,
+            },
+            BlockSpan {
+                start_ms: 1502,
+                end_ms: 2710,
+            },
+        ])
+    );
+    assert_eq!(serde_json::to_string(&timed).unwrap(), body);
+    let old = called(CALLED);
+    assert_eq!(old.blocks, None);
+    assert_eq!(serde_json::to_string(&old).unwrap(), CALLED);
+}
+
 #[test]
 fn a_summary_request_says_which_compaction_it_is_for() {
     // 施工 6-6 上：摘要请求多一格 `compaction`，排在最后；主请求没有，以前的日志读进来再写出去一字不差（上面那一条）。
@@ -155,6 +183,11 @@ fn broken_bodies_say_what_is_wrong() {
     );
     rejected::<crate::event::Event>(
         &line(&CALLED.replace(r#""messages":1"#, r#""messages":-1"#)),
+        "body of model.called not readable",
+    );
+    // 块的起止两格都必有。
+    rejected::<crate::event::Event>(
+        &line(&CALLED.replace(r#""result""#, r#""blocks":[{"start_ms":812}],"result""#)),
         "body of model.called not readable",
     );
 }

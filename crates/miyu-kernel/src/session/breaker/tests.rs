@@ -15,6 +15,7 @@ fn called(compaction: Option<CompactTrigger>, result: CallResult) -> ModelCalled
         usage: None,
         first_token_ms: None,
         duration_ms: None,
+        blocks: None,
         result,
         error: None,
         compaction,

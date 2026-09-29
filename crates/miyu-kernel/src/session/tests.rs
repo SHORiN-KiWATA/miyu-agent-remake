@@ -25,6 +25,7 @@ mod restart;
 mod restore;
 mod revert;
 mod scenario;
+mod spans;
 mod tools;
 mod turn;
 
