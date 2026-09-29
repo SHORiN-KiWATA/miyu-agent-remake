@@ -1,6 +1,6 @@
-Usage: miyu redo [options]
+Usage: miyu restore [options]
 
-Redo the latest undo, until you say something else.
+Bring back what the latest undo took, until you say something else.
 
 Options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened

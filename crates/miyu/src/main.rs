@@ -1,5 +1,5 @@
 //! 主程序 `miyu`（`docs/designs/12-进程形态与分发.md` 第三节，施工 3-9）：一个程序，像 busybox 那样按子命令
-//! 分发。`miyu ask` 是最薄的头（施工 3-9 下）；`miyu undo`、`miyu redo` 撤掉最后一轮、恢复（施工 4-7 下）；
+//! 分发。`miyu ask` 是最薄的头（施工 3-9 下）；`miyu undo`（`miyu rewind`）、`miyu restore` 撤掉最后一轮、恢复（施工 4-7 下，改名施工 4-7 补）；
 //! `miyu sandbox setup`、`remove` 在 Windows 上装好、撤掉沙盒用户（施工 5-8）；`miyu core` 是核心进程，由头拉起，
 //! 不写进帮助。
 //!
@@ -34,10 +34,11 @@ struct Cli {
 enum Command {
     /// 说一句话，打印她的回答。
     Ask(miyu_cli::Ask),
-    /// 撤掉当前会话的最后一轮，把她改过的文件改回去。
+    /// 撤掉当前会话的最后一轮，把她改过的文件改回去。也可以写成 `rewind`（施工 4-7 补）。
+    #[command(alias = "rewind")]
     Undo(miyu_cli::Undo),
-    /// 发下一句之前，恢复最近一次撤销。
-    Redo(miyu_cli::Undo),
+    /// 发下一句之前，恢复最近一次撤销（原来叫 `redo`，施工 4-7 补改名）。
+    Restore(miyu_cli::Undo),
     /// 装好、撤掉沙盒用户（Windows，要管理员权限）。
     Sandbox(miyu_cli::Sandbox),
     /// 核心进程：由头拉起，平时不用人敲。
@@ -58,8 +59,8 @@ fn main() -> ExitCode {
         .mut_subcommand("undo", |undo| {
             undo.override_help(page(language, Page::Undo))
         })
-        .mut_subcommand("redo", |redo| {
-            redo.override_help(page(language, Page::Redo))
+        .mut_subcommand("restore", |restore| {
+            restore.override_help(page(language, Page::Restore))
         })
         .mut_subcommand("sandbox", |sandbox| {
             let help = page(language, Page::Sandbox);
@@ -78,7 +79,7 @@ fn main() -> ExitCode {
     match cli.command {
         Some(Command::Ask(args)) => miyu_cli::ask(args, core),
         Some(Command::Undo(args)) => miyu_cli::undo(args, Direction::Undo, core),
-        Some(Command::Redo(args)) => miyu_cli::undo(args, Direction::Redo, core),
+        Some(Command::Restore(args)) => miyu_cli::undo(args, Direction::Restore, core),
         Some(Command::Sandbox(args)) => miyu_cli::sandbox(args),
         Some(Command::Core { idle_seconds }) => miyu_core::main(miyu_core::Options {
             idle: idle_seconds.map_or(miyu_core::IDLE, Duration::from_secs),

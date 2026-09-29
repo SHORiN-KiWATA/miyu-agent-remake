@@ -96,24 +96,24 @@ fn an_undo_is_printed_the_way_it_was_agreed() {
     -fn main() {{}}
     +fn main() {{ println!(\"hi\"); }}
 · 这一轮执行过 2 条命令：命令改的文件撤不回
-发下一句之前，可以用 miyu redo 恢复。
+发下一句之前，可以用 miyu restore 恢复。
 "
         )
     );
 }
 
 #[test]
-fn a_redo_says_what_it_brought_back() {
+fn a_restore_says_what_it_brought_back() {
     let mut result = agreed();
     result["commands"] = Value::Null;
-    let printed = printed(&result, &plan(Direction::Redo, Language::Chinese));
+    let printed = printed(&result, &plan(Direction::Restore, Language::Chinese));
     assert!(
         printed.starts_with("· 恢复「把 README 改成中文」这一轮\n"),
         "{printed}"
     );
     assert!(printed.contains("    --- 撤销以后的\n"), "{printed}");
     assert!(!printed.contains("命令"), "恢复时不说命令：{printed}");
-    assert!(!printed.contains("miyu redo"), "{printed}");
+    assert!(!printed.contains("miyu restore"), "{printed}");
 }
 
 #[test]
@@ -219,7 +219,7 @@ fn in_english_too() {
     );
     assert_eq!(
         lines[11],
-        "Until you say something else, miyu redo brings it back."
+        "Until you say something else, miyu restore brings it back."
     );
 }
 
@@ -260,7 +260,7 @@ fn long_words_and_paths_are_cut() {
 #[test]
 fn several_turns_are_counted() {
     let result = json!({"cwd": under(&["w"]), "turns": 3, "said": "第一句", "files": []});
-    let printed = printed(&result, &plan(Direction::Redo, Language::Chinese));
+    let printed = printed(&result, &plan(Direction::Restore, Language::Chinese));
     assert_eq!(printed, "· 恢复「第一句」起的 3 轮\n");
     let printed = printed_as(&result, Direction::Undo);
     assert!(
@@ -299,4 +299,26 @@ fn tabs_in_a_diff_are_kept() {
     let printed = printed_as(&result, Direction::Undo);
     assert!(printed.contains("    -\tif x {\n"), "{printed:?}");
     assert!(printed.contains("    +\tif y {\u{fffd}\n"), "{printed:?}");
+}
+
+#[test]
+fn every_first_line_of_a_restore_names_it_restore() {
+    // 施工 4-7 补改名：恢复的第一行照新名字写，英文是 Restored，没有 Redid。
+    let english = Language::English;
+    assert_eq!(
+        english.undo_header(Direction::Restore, Some("hi"), 1),
+        "· Restored the turn \u{201c}hi\u{201d}"
+    );
+    assert_eq!(
+        english.undo_header(Direction::Restore, Some("hi"), 3),
+        "· Restored 3 turns from \u{201c}hi\u{201d}"
+    );
+    assert_eq!(
+        english.undo_header(Direction::Restore, None, 1),
+        "· Restored the undone turn"
+    );
+    assert_eq!(
+        Language::Chinese.undo_header(Direction::Restore, None, 1),
+        "· 恢复撤销的那一轮"
+    );
 }

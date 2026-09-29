@@ -143,7 +143,7 @@ impl Refusal {
             ),
             "nothing_to_unrevert" => (
                 "没有能恢复的撤销：没撤过，或者撤了以后又开过一轮、压缩过。",
-                "There is nothing to redo: nothing was undone, or a turn or compaction came since.",
+                "There is nothing to restore: nothing was undone, or a turn or compaction came since.",
             ),
             "restoring" => (
                 "正在改回文件，等它做完再来。",

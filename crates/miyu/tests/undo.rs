@@ -1,6 +1,6 @@
-//! 真跑 `miyu undo`、`miyu redo`（`docs/construction/4-7-miyu undo、miyu redo（下）.md`）：说明跟着界面语言；核心在跑的，
-//! 撤掉上一次 `miyu ask` 的那一轮、再恢复它，两条命令各接对了自己的那一个；没有 key、核心也没在跑的，不拉起、
-//! 退出码 5（施工 4-9 再补一）。
+//! 真跑 `miyu undo`（别名 `miyu rewind`）、`miyu restore`（`docs/construction/4-7-miyu undo、miyu redo（下）.md`，改名施工
+//! 4-7 补）：说明跟着界面语言；核心在跑的，撤掉上一次 `miyu ask` 的那一轮、再恢复它，几条命令各接对了自己的那一个；没有
+//! key、核心也没在跑的，不拉起、退出码 5（施工 4-9 再补一）；原来的 `miyu redo` 是不认识的子命令。
 
 mod support;
 
@@ -44,8 +44,9 @@ fn the_help_is_the_page_in_the_language() {
             (&["undo", "-h"][..], Page::Undo),
             (&["undo", "--help"], Page::Undo),
             (&["help", "undo"], Page::Undo),
-            (&["redo", "-h"], Page::Redo),
-            (&["help", "redo"], Page::Redo),
+            (&["rewind", "-h"], Page::Undo),
+            (&["restore", "-h"], Page::Restore),
+            (&["help", "restore"], Page::Restore),
         ] {
             let output = miyu(home.root.path(), lang, args);
             assert!(output.status.success(), "{args:?}：{output:?}");
@@ -59,7 +60,7 @@ fn the_help_is_the_page_in_the_language() {
 }
 
 #[tokio::test]
-async fn undo_and_redo_the_last_ask() {
+async fn undo_and_restore_the_last_ask() {
     let home = Home::new();
     let (held, _) = within("拉起", connect_or_start(&home.root, || home.core()))
         .await
@@ -72,13 +73,20 @@ async fn undo_and_redo_the_last_ask() {
     assert_eq!(undone.status.code(), Some(0), "{undone:?}");
     assert_eq!(
         String::from_utf8_lossy(&undone.stdout),
-        "· 撤销「在吗」这一轮\n发下一句之前，可以用 miyu redo 恢复。\n"
+        "· 撤销「在吗」这一轮\n发下一句之前，可以用 miyu restore 恢复。\n"
     );
-    let redone = run(&root, &["redo"]).await;
-    assert_eq!(redone.status.code(), Some(0), "{redone:?}");
+    let restored = run(&root, &["restore"]).await;
+    assert_eq!(restored.status.code(), Some(0), "{restored:?}");
     assert_eq!(
-        String::from_utf8_lossy(&redone.stdout),
+        String::from_utf8_lossy(&restored.stdout),
         "· 恢复「在吗」这一轮\n"
+    );
+    // `rewind` 和 `undo` 一样。
+    let rewound = run(&root, &["rewind"]).await;
+    assert_eq!(rewound.status.code(), Some(0), "{rewound:?}");
+    assert!(
+        String::from_utf8_lossy(&rewound.stdout).starts_with("· 撤销「在吗」这一轮\n"),
+        "{rewound:?}"
     );
     drop(held);
     home.until_stopped().await;
@@ -94,12 +102,21 @@ fn without_a_key_and_a_core_nothing_is_started() {
         String::from_utf8_lossy(&undone.stderr),
         "核心没在跑。先设 DEEPSEEK_API_KEY：没有 key 拉起的核心，之后的 miyu ask 也用不了\n"
     );
-    let redone = miyu(home.root.path(), "C", &["redo"]);
-    assert_eq!(redone.status.code(), Some(5), "{redone:?}");
+    let restored = miyu(home.root.path(), "C", &["restore"]);
+    assert_eq!(restored.status.code(), Some(5), "{restored:?}");
     assert_eq!(
-        String::from_utf8_lossy(&redone.stderr),
+        String::from_utf8_lossy(&restored.stderr),
         "The core is not running. Set DEEPSEEK_API_KEY first: a core started without it cannot serve miyu ask later\n"
     );
     assert!(!home.root.run().join("socket").exists(), "没拉起核心");
     assert!(home.core_log().is_empty());
+}
+
+#[test]
+fn redo_is_no_longer_a_command() {
+    // 原来的名字（施工 4-7 补改名）：不认识的子命令，退出码 2，不当成对话发给核心。
+    let home = Home::new();
+    let output = miyu(home.root.path(), "C", &["redo"]);
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert!(!home.root.run().join("socket").exists(), "没拉起核心");
 }

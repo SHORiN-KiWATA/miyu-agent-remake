@@ -1,6 +1,6 @@
 Usage: miyu undo [options]
 
-Undo the last turn and restore the files she changed.
+Undo the last turn and restore the files she changed. Also: miyu rewind.
 
 Options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened

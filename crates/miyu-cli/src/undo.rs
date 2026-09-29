@@ -1,4 +1,4 @@
-//! `miyu undo`、`miyu redo`（`docs/designs/22-命令行.md` 第三节，施工 4-7 下）：连上核心（没在跑就拉起来：撤销、恢复
+//! `miyu undo`（`miyu rewind`）、`miyu restore`（`docs/designs/22-命令行.md` 第三节，施工 4-7 下，改名施工 4-7 补）：连上核心（没在跑就拉起来：撤销、恢复
 //! 用不着模型），找当前会话（和 `miyu ask --continue` 一样，最新的那个一次性会话；`--session` 指定别的），撤掉最后
 //! 一轮或者恢复最近一次撤销，照核心交回的几样印出改回了哪些文件（`undo/print.rs`）。
 //!
@@ -23,7 +23,7 @@ use crate::link;
 use crate::rpc::Rpc;
 use crate::shown::{self, say, write};
 
-/// `miyu undo`、`miyu redo` 的参数。给人看的说明在帮助页里（[`crate::help`]），这里的注释只给读代码的人看。
+/// `miyu undo`、`miyu restore` 的参数。给人看的说明在帮助页里（[`crate::help`]），这里的注释只给读代码的人看。
 #[derive(Debug, Clone, Args)]
 pub struct Undo {
     /// 哪个会话；不写的是上一次 `miyu ask` 开的那个。
@@ -36,8 +36,8 @@ pub struct Undo {
 pub enum Direction {
     /// `miyu undo`：撤掉最后一轮。
     Undo,
-    /// `miyu redo`：恢复最近一次撤销。
-    Redo,
+    /// `miyu restore`：恢复最近一次撤销。
+    Restore,
 }
 
 /// 这一次撤什么、怎么印。
@@ -55,7 +55,7 @@ pub struct UndoPlan {
     pub color: bool,
 }
 
-/// 跑一次 `miyu undo`（`miyu redo`），交回退出码。`start` 给出拉起核心的命令：主程序自己加上 `core`。
+/// 跑一次 `miyu undo`（`miyu restore`），交回退出码。`start` 给出拉起核心的命令：主程序自己加上 `core`。
 pub fn undo(args: Undo, direction: Direction, start: impl FnOnce() -> Command) -> ExitCode {
     let runtime = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -133,7 +133,7 @@ pub async fn undo_on(
     };
     let method = match plan.direction {
         Direction::Undo => "session.revert",
-        Direction::Redo => "session.unrevert",
+        Direction::Restore => "session.unrevert",
     };
     let params = json!({"session": session});
     match link::request(&mut rpc, method, params, language, err).await {

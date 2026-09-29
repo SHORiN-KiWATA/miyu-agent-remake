@@ -2,8 +2,8 @@ Usage: miyu <command> [options]
 
 Commands:
   ask <words>           Say something and print her answer
-  undo                  Undo the last turn and restore the files she changed
-  redo                  Redo the latest undo, until you say something else
+  undo, rewind          Undo the last turn and restore the files she changed
+  restore               Bring back what the latest undo took
   sandbox setup|remove  Set up or remove the sandbox user (Windows, needs admin)
 
 ask options:
@@ -12,10 +12,10 @@ ask options:
       --format text|json  text for people (default), json for scripts
       --add-dir <dir>     Let her read and write this directory too; repeatable
 
-undo, redo options:
+undo, restore options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened
 
-Each miyu ask opens a new session; -c, undo and redo use the last one.
+Each miyu ask opens a new session; -c, undo and restore use the last one.
 
 Examples:
   miyu ask "what is this project"
