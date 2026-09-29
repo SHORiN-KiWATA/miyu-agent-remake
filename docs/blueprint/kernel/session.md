@@ -40,7 +40,7 @@
 | `Session::create(id, by, at, created, policy, environment)` | 造会话：追加第 1 条 `session.created`，`cause` 是 `id`，出来一个 `Append`；落了盘回应 `id`。开始时的权限取自 `created.permission` |
 | `Session::load(events, at, policy, environment)` | 从日志载入，出来会话和要补的动作；载入不了的是 `LoadError`（「载入和崩溃」） |
 | `handle(input)` | 送进一条输入，出来一串动作 |
-| `last_job_number()` | 日志里用过的最大任务编号（施工 7-5）：撤掉的回合里派的、不认识的种类也算，一个都没派过的是 0。只读。执行器照它往下领号，派子代理、后台命令共用一串（`session/tools.md`「派子代理」、第 5 条，施工 7-3） |
+| `last_job_number()` | 日志里用过的任务编号最后一段最大的数（施工 7-5；照最后一段数，施工 7-1 补）：撤掉的回合里派的、不认识的种类也算，一个都没派过的是 0。只读。执行器照它往下领号，派子代理、后台命令共用一串（`session/tools.md`「派子代理」、第 5 条，施工 7-3） |
 | `waiting_children()` | 欠着一份回报的子代理的子会话，照任务编号：派出去、一次都还没回报过的（施工 7-6），最近一次回报以后又留过言的（`job.messaged`，施工 7-7）。撤掉的回合里派的也在，被停掉的报过了、不在。只读。执行器载入以后照它叫起子会话（`session/actor.md` 第 2 条） |
 | `subagents()` | 这个会话派出去的子代理，照任务编号（施工 7-7）：子会话、被停掉了没有（以 `stopped`、`undone` 报过）。派它的那一轮撤掉了的不在：她看不到派它的调用，也就不是她的；做完了、崩了报过的照样在。只读。执行器派每一次调用之前抄一份交给 `message_agent`（`session/tools.md`「父子之间留言」） |
 | `idle()` | 空闲：没有回合在进行，没有结束了、`turn.ended` 还没落盘的回合，没在读回日志、改回文件。核心照它决定能不能空闲退出（后台命令另由执行器的任务表算，`core.md`） |

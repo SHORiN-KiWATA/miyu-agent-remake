@@ -162,14 +162,14 @@ impl Watch {
                             over: false,
                         };
                         assert_eq!(started.what == JobKind::Agent, job.session.is_some());
-                        self.reports.jobs.insert(started.job, job);
+                        self.reports.jobs.insert(started.job.clone(), job);
                     }
                 }
             }
             Body::JobReported(_) | Body::ChildReported(_) => {
                 assert_eq!(event.turn, None, "种子 {seed}：回报不带回合编号");
                 let (job, wakes) = self.arrived(&event.body);
-                let hidden = self.hidden(job);
+                let hidden = self.hidden(&job);
                 let opens = next == Some(event.seq);
                 if self.turn_open() {
                     assert!(!opens, "种子 {seed}：正忙时到的回报不开轮");
@@ -228,7 +228,7 @@ impl Watch {
             .deferred
             .iter()
             .rev()
-            .find(|(_, job)| !self.hidden(*job))
+            .find(|(_, job)| !self.hidden(job))
             .map(|(seq, _)| *seq)
             .filter(|_| self.can_wake());
         if expected.is_some() {
@@ -250,7 +250,7 @@ impl Watch {
                     JobReason::Undone | JobReason::Restarted | JobReason::Aborted => false,
                     JobReason::Exited | JobReason::Other(_) => true,
                 };
-                (reported.job, wakes, true)
+                (reported.job.clone(), wakes, true)
             }
             Body::ChildReported(reported) => {
                 // 她自己停的子代理不叫醒她（施工 7-4），人停的叫醒。
@@ -260,7 +260,7 @@ impl Watch {
                     ChildReason::Done | ChildReason::Other(_) => true,
                 };
                 let over = matches!(reported.reason, ChildReason::Stopped | ChildReason::Undone);
-                (reported.job, wakes, over)
+                (reported.job.clone(), wakes, over)
             }
             _ => unreachable!("只有两种回报"),
         };
@@ -271,10 +271,10 @@ impl Watch {
     }
 
     /// 派它的那一轮撤掉了。
-    fn hidden(&self, job: JobId) -> bool {
+    fn hidden(&self, job: &JobId) -> bool {
         self.reports
             .jobs
-            .get(&job)
+            .get(job)
             .is_none_or(|job| !self.undo.effective.contains(&job.turn))
     }
 

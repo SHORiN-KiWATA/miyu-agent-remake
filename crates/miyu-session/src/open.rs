@@ -22,7 +22,7 @@ use miyu_tool::{Catalog, Log, Seen};
 
 use crate::TARGET;
 use crate::actor::{self, Actor, JobKit};
-use crate::agents::Agents;
+use crate::agents::{Agents, job_in};
 use crate::blocking::blocking;
 use crate::clock::Clock;
 use crate::effects;
@@ -240,7 +240,11 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     // 模型的限额在别的输入之前交（施工 6-3 上）：什么动作都不出。给头看的那一份当场要，`Handle` 带着（施工 6-3 补）。
     session.handle(Input::Limits(model.limits()));
     let limits = session.context_limits();
-    let job_ids = Arc::new(JobIds::starting_after(session.last_job_number()));
+    // 子会话领的号带上它在父会话里的编号，照造它的命令读回（施工 7-1 补）。
+    let prefix = lineage
+        .as_ref()
+        .and_then(|lineage| job_in(&lineage.parent, &command));
+    let job_ids = Arc::new(JobIds::starting_after(prefix, session.last_job_number()));
     let jobs = JobKit {
         table,
         dir: jobs_dir,
@@ -400,7 +404,13 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     // 文件，内核在载入吐出来的动作里第一个要回原文（施工 6-9），actor 起来先做它。
     session.handle(Input::Limits(model.limits()));
     let limits = session.context_limits();
-    let job_ids = Arc::new(JobIds::starting_after(session.last_job_number()));
+    // 子会话领的号带上它在父会话里的编号，照 `session.created` 的 `cause` 读回（施工 7-1 补）。
+    let prefix = created
+        .parent
+        .as_ref()
+        .zip(command.as_ref())
+        .and_then(|(parent, command)| job_in(parent, command));
+    let job_ids = Arc::new(JobIds::starting_after(prefix, session.last_job_number()));
     let jobs = JobKit {
         table,
         dir: jobs_dir,

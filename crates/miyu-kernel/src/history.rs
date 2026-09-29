@@ -60,7 +60,7 @@ impl History {
 
     /// 派出去过的编号是 `job` 的任务（施工 7-2）：标题、种类、派它的那一轮撤掉了没有。压缩换掉了派它的那一条也在；没派过
     /// 的没有。
-    pub fn dispatched(&self, job: JobId) -> Option<&Dispatched> {
+    pub fn dispatched(&self, job: &JobId) -> Option<&Dispatched> {
         self.jobs.get(job)
     }
 

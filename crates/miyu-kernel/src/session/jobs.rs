@@ -38,7 +38,7 @@ impl Session {
     ) -> Vec<Action> {
         // 同一份回报再交一次（子会话载入时，施工 7-6）：最近一次回报就是这个命令交来的，照上一次回应，不再记。记着的最近
         // 1024 个编号以外的，也认得出。
-        if let Some(seq) = self.ledger.reported_as(reported.job, &id) {
+        if let Some(seq) = self.ledger.reported_as(&reported.job, &id) {
             self.recent.insert(id.clone(), vec![seq]);
             return self.reply_when_stored(id, vec![seq]);
         }
@@ -109,13 +109,13 @@ impl Session {
         let Some(job) = wake else {
             return Ok(vec![event]);
         };
+        let hidden = self.hidden(&job);
         let arrived = Arrived {
             seq: event.seq,
             cause: event.cause.clone(),
             job,
         };
         let mut events = vec![event];
-        let hidden = self.hidden(job);
         if let Some(turn) = self.turn.as_mut() {
             if !hidden {
                 turn.reports.push(arrived);
@@ -138,7 +138,7 @@ impl Session {
             .deferred
             .iter()
             .rev()
-            .find(|arrived| !self.hidden(arrived.job))
+            .find(|arrived| !self.hidden(&arrived.job))
             .cloned()
         else {
             return Vec::new();
@@ -192,7 +192,7 @@ impl Session {
     }
 
     /// 派它的那一轮撤掉了：回报不渲染，也不叫醒她（`agents.md` 第七条第 2 条）。没派过的一样。
-    fn hidden(&self, job: JobId) -> bool {
+    fn hidden(&self, job: &JobId) -> bool {
         self.history
             .dispatched(job)
             .is_none_or(|dispatched| dispatched.undone)
@@ -220,8 +220,8 @@ fn wakes(body: &Body) -> bool {
 /// 回报说的是哪个任务；别的事件没有。
 fn job_of(body: &Body) -> Option<JobId> {
     match body {
-        Body::JobReported(reported) => Some(reported.job),
-        Body::ChildReported(reported) => Some(reported.job),
+        Body::JobReported(reported) => Some(reported.job.clone()),
+        Body::ChildReported(reported) => Some(reported.job.clone()),
         _ => None,
     }
 }

@@ -10,6 +10,9 @@ fn samples_from_the_drawing_round_trip() {
     round_trip::<TurnId>("42");
     round_trip::<CommandId>(r#""cmd-7f3a""#);
     round_trip::<CallId>(r#""call_44_1""#);
+    round_trip::<JobId>(r#""j2""#);
+    round_trip::<JobId>(r#""j2.1""#);
+    round_trip::<JobId>(r#""j2.1.1""#);
     round_trip::<AccountId>(r#""alice""#);
     round_trip::<ContentHash>(
         r#""sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855""#,
@@ -53,21 +56,37 @@ fn call_id_accepts_only_what_the_kernel_writes() {
     assert_eq!(call.index(), 1);
 }
 
-/// 任务编号（施工 7-1，`kernel/ids.md` 第 25、26 条）：只认 `j` 加从 1 起的十进制数，内核自己写出去的样子。
+/// 任务编号（施工 7-1，`kernel/ids.md` 第 25、26 条）：只认 `j` 加一段或几段从 1 起的十进制数、段之间用 `.` 连，内核
+/// 自己写出去的样子（几段的，施工 7-1 补）。
 #[test]
 fn job_id_accepts_only_what_the_kernel_writes() {
+    const WHY: &str = "decimal numbers from 1 after j, joined by dots";
     for (bad, why) in [
         ("1", "must start with j"),
         ("J1", "must start with j"),
+        ("J1.1", "must start with j"),
         ("", "must start with j"),
-        ("job1", "decimal number from 1 after j"),
-        ("j", "decimal number from 1 after j"),
-        ("j0", "decimal number from 1 after j"),
-        ("j01", "decimal number from 1 after j"),
-        ("j+1", "decimal number from 1 after j"),
-        ("j1x", "decimal number from 1 after j"),
-        ("j 1", "decimal number from 1 after j"),
-        ("j18446744073709551616", "decimal number from 1 after j"),
+        (".j1", "must start with j"),
+        ("job1", WHY),
+        ("j", WHY),
+        ("j0", WHY),
+        ("j01", WHY),
+        ("j+1", WHY),
+        ("j1x", WHY),
+        ("j 1", WHY),
+        ("j18446744073709551616", WHY),
+        ("j1.0", WHY),
+        ("j0.1", WHY),
+        ("j1.", WHY),
+        ("j.1", WHY),
+        ("j.", WHY),
+        ("j1..2", WHY),
+        ("j1.01", WHY),
+        ("j1.x", WHY),
+        ("j1.+2", WHY),
+        ("j1.2.0", WHY),
+        ("j1,2", WHY),
+        ("j1.18446744073709551616", WHY),
     ] {
         rejected::<JobId>(&format!("\"{bad}\""), why);
         let err = JobId::parse(bad).unwrap_err();
@@ -76,19 +95,46 @@ fn job_id_accepts_only_what_the_kernel_writes() {
     rejected::<JobId>("1", "invalid type");
     let job = JobId::new(12).unwrap();
     assert_eq!(job.to_string(), "j12");
-    assert_eq!(JobId::parse("j12"), Ok(job));
-    assert_eq!(job.get(), 12);
+    assert_eq!(JobId::parse("j12"), Ok(job.clone()));
+    assert_eq!(job.last(), 12);
     assert_eq!(JobId::new(0), None);
     round_trip::<JobId>(r#""j1""#);
     round_trip::<JobId>(r#""j18446744073709551615""#);
+    round_trip::<JobId>(r#""j2.1""#);
+    round_trip::<JobId>(r#""j18446744073709551615.18446744073709551615""#);
+    round_trip::<JobId>(r#""j3.12.1.7""#);
 }
 
-/// 排序照那个数，不照字符串：`j2` 在 `j10` 前面。
+/// 子会话派的接在它自己的编号后面（施工 7-1 补）：`j2` 下面第 1 个是 `j2.1`，`j2.1` 下面第 1 个是 `j2.1.1`；最后一段是在
+/// 这个会话里数的那个数。
+#[test]
+fn a_job_under_another_adds_one_part() {
+    let child = JobId::new(2).unwrap();
+    let grandchild = child.under(1).unwrap();
+    assert_eq!(grandchild.to_string(), "j2.1");
+    assert_eq!(grandchild.last(), 1);
+    assert_eq!(JobId::parse("j2.1"), Ok(grandchild.clone()));
+    let command = grandchild.under(3).unwrap();
+    assert_eq!(command.to_string(), "j2.1.3");
+    assert_eq!(command.last(), 3);
+    assert_eq!(child.under(0), None, "从 1 数起");
+    assert_eq!(child.to_string(), "j2", "接一段不动原来的");
+    assert_ne!(JobId::parse("j2.1").unwrap(), JobId::parse("j2").unwrap());
+    assert_ne!(JobId::parse("j2.1").unwrap(), JobId::parse("j1").unwrap());
+}
+
+/// 排序一段一段照数比，不照字符串：`j2` 在 `j10` 前面；前面的段一样的，段少的在前（施工 7-1 补）。
 #[test]
 fn job_ids_sort_by_number() {
     let parse = |text| JobId::parse(text).unwrap();
     assert!(parse("j2") < parse("j10"));
     assert!(parse("j9") < parse("j10"));
+    assert!(parse("j2") < parse("j2.1"));
+    assert!(parse("j2.1") < parse("j2.2"));
+    assert!(parse("j2.9") < parse("j2.10"));
+    assert!(parse("j2.9") < parse("j10"));
+    assert!(parse("j2.1.5") < parse("j2.2"));
+    assert!(parse("j5.8") < parse("j7"));
 }
 
 #[test]

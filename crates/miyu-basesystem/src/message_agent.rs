@@ -87,7 +87,7 @@ impl Tool for MessageAgent {
             let Some(port) = call.messages else {
                 return texts.refused(NotSent::Undelivered, to);
             };
-            if let Err(why) = port.send(recipient, &args.message).await {
+            if let Err(why) = port.send(recipient.clone(), &args.message).await {
                 return texts.refused(why, to);
             }
             let sent = Done::ok(say(&texts.sent, &[("to", to)]))

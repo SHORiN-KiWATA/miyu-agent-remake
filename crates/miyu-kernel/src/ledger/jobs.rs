@@ -37,17 +37,19 @@ enum Job {
 }
 
 impl Jobs {
-    /// 用过的最大编号：撤掉的回合里派的、不认识的种类都算，一个都没派过的是 0（施工 7-5）。执行器照它接着往下领号。
+    /// 用过的编号最后一段最大的数：撤掉的回合里派的、不认识的种类都算，一个都没派过的是 0（施工 7-5）。执行器照它接着往下
+    /// 领号。一个一个看，不取排在最后的那个（施工 7-1 补）：子会话的编号带着前缀，以前的日志里又有不带的，`j5.8` 照整个
+    /// 编号排在 `j7` 前面，数的却是 8。
     pub(super) fn last(&self) -> u64 {
-        self.0.last_key_value().map_or(0, |(job, _)| job.get())
+        self.0.keys().map(JobId::last).max().unwrap_or(0)
     }
 
     /// 一条工具结果的效果：留了言的（施工 7-7）先查，对得上这个会话派的一个子代理；再查派出去的任务，编号没用过，同一条
     /// 里也不重复，`agent` 带会话，`command` 不带，不认识的种类不查。照效果的先后，第一个违反的报出来。
     pub(super) fn check_started(&self, effects: &[Effect]) -> Result<(), String> {
         for messaged in messaged(effects) {
-            let job = messaged.job;
-            if !matches!(self.0.get(&job), Some(Job::Agent { .. })) {
+            let job = &messaged.job;
+            if !matches!(self.0.get(job), Some(Job::Agent { .. })) {
                 return Err(format!(
                     "job {job} was messaged but is not a subagent: no such job, or it is not an agent"
                 ));
@@ -55,8 +57,8 @@ impl Jobs {
         }
         let mut here = BTreeSet::new();
         for started in started(effects) {
-            let job = started.job;
-            if self.0.contains_key(&job) || !here.insert(job) {
+            let job = &started.job;
+            if self.0.contains_key(job) || !here.insert(job) {
                 return Err(format!(
                     "job {job} is already taken: job ids are never reused, even after an undo"
                 ));
@@ -76,8 +78,8 @@ impl Jobs {
 
     /// 后台命令结束了：对得上一个派出去的后台命令，它还没报过结束。
     pub(super) fn check_reported(&self, reported: &JobReported) -> Result<(), String> {
-        let job = reported.job;
-        match self.0.get(&job) {
+        let job = &reported.job;
+        match self.0.get(job) {
             Some(Job::Command { ended: false }) => Ok(()),
             Some(Job::Command { ended: true }) => Err(format!("job {job} has already ended")),
             _ => Err(format!(
@@ -88,10 +90,10 @@ impl Jobs {
 
     /// 子会话的回报：对得上一个派出去的子代理，会话是它记的那个，`by` 是那个子会话，它没被停掉过。
     pub(super) fn check_child(&self, reported: &ChildReported, by: &By) -> Result<(), String> {
-        let job = reported.job;
+        let job = &reported.job;
         let Some(Job::Agent {
             session, stopped, ..
-        }) = self.0.get(&job)
+        }) = self.0.get(job)
         else {
             return Err(format!(
                 "job {job} is not a subagent: no such job, or it is not an agent"
@@ -121,7 +123,7 @@ impl Jobs {
         self.0
             .iter()
             .filter(|(_, job)| matches!(job, Job::Command { ended: false }))
-            .map(|(id, _)| *id)
+            .map(|(id, _)| id.clone())
             .collect()
     }
 
@@ -144,7 +146,7 @@ impl Jobs {
     /// 回合里派的也认；不是这个会话派的子代理的没有。
     pub(super) fn agent_in(&self, session: &SessionId) -> Option<JobId> {
         self.0.iter().find_map(|(job, known)| match known {
-            Job::Agent { session: own, .. } if own == session => Some(*job),
+            Job::Agent { session: own, .. } if own == session => Some(job.clone()),
             _ => None,
         })
     }
@@ -154,15 +156,15 @@ impl Jobs {
         self.0.iter().filter_map(|(job, known)| match known {
             Job::Agent {
                 session, stopped, ..
-            } => Some((*job, session, *stopped)),
+            } => Some((job.clone(), session, *stopped)),
             _ => None,
         })
     }
 
     /// 子代理 `job` 最近一次回报就是命令 `id` 交来的：交回那一条的序号（施工 7-6）。子会话载入时再交一次它最后报的那一份，
     /// 父会话照它认出是重的，不再记。
-    pub(super) fn reported_as(&self, job: JobId, id: &CommandId) -> Option<Seq> {
-        match self.0.get(&job) {
+    pub(super) fn reported_as(&self, job: &JobId, id: &CommandId) -> Option<Seq> {
+        match self.0.get(job) {
             Some(Job::Agent {
                 last: Some((Some(cause), seq)),
                 ..
@@ -187,7 +189,7 @@ impl Jobs {
                         },
                         _ => Job::Other,
                     };
-                    self.0.insert(started.job, job);
+                    self.0.insert(started.job.clone(), job);
                 }
                 // 留言送到、这次调用的结果还没记下，它就做完报上来了（这次调用发出以后到的回报）：算回了这句留言，不再等。
                 // 不这样，父会话会一直等一份不会再来的回报；这样错的一边只是早报一次（施工 7-7）。

@@ -131,7 +131,7 @@ fn pick<'a>(
         _ => None,
     };
     match chosen {
-        Some((job, known)) => (*job, Some(known)),
+        Some((job, known)) => (job.clone(), Some(known)),
         None => (JobId::new(999).unwrap(), None),
     }
 }

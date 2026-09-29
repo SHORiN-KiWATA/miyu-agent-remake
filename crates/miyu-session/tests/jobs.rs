@@ -135,7 +135,7 @@ async fn a_background_command_ends_on_its_own_and_wakes_her() {
     assert_eq!(reported.chars, Some(6));
     let file = miyu_store::jobs::output_path(
         &home.root.session_dir(&alice_account(), handle.id()),
-        JobId::new(1).unwrap(),
+        &JobId::new(1).unwrap(),
     );
     assert_eq!(
         std::fs::read_to_string(file).expect("输出文件在"),
@@ -323,5 +323,149 @@ async fn a_background_command_stays_in_the_sandbox() {
     );
     assert!(work.join("inside.txt").exists());
     assert!(!outside.exists());
+    until_idle(&home).await;
+}
+
+/// 第 `depth` 层的子会话，造它的命令是 `<父会话>/<job>`（施工 7-1 补：它领的号照这个编号带前缀）。
+fn child_lines(depth: u32, job: &str) -> Lines {
+    let parent = miyu_kernel::id::SessionId::parse("01a0d78c-ca52-7d19-8b64-0e3f5a7c2d99")
+        .expect("会话编号合写法");
+    Lines {
+        lineage: Some(miyu_session::Lineage {
+            parent: parent.clone(),
+            depth,
+        }),
+        command: Some(id(&format!("{parent}/{job}"))),
+        ..Lines::default()
+    }
+}
+
+/// 假工具 `start` 把 `held` 交给任务端口，再加上真的 `jobs`：工具面造会话时定下，载入以后照它。
+fn starting_with_jobs(held: &Arc<Held>) -> Catalog {
+    let jobs = Arc::clone(base_system().get("jobs").expect("基础系统里有 jobs"));
+    let start = Fake::new("start", Access::Read, Act::Background(Arc::clone(held)));
+    Catalog::new([start as Arc<dyn Tool>, jobs]).expect("合写法")
+}
+
+/// 日志里最后一条结果派的任务编号。
+fn last_started(log: &[Event]) -> String {
+    results(log)
+        .iter()
+        .rev()
+        .flat_map(|result| &result.effects)
+        .find_map(|effect| match effect {
+            miyu_kernel::event::Effect::JobStarted(started) => Some(started.job.to_string()),
+            _ => None,
+        })
+        .expect("派过任务")
+}
+
+/// 孙会话放到后台的命令编号是三段（施工 7-1 补）：造它的命令是 `<子会话>/j2.1`，它的后台命令是 `j2.1.1`，结果那一句、效果、
+/// 输出文件 `jobs/j2.1.1.out` 都照这个编号。
+#[tokio::test]
+async fn a_grandchild_numbers_its_background_commands_in_three_parts() {
+    let home = Home::new();
+    let held = Held::new(&["half\n"]);
+    let script = Script::new([Play::calls(&[("start", "{}")]), Play::Says("放出去了。")]);
+    let handle = home
+        .create_full(
+            &script,
+            &starting(&held),
+            Opening::default(),
+            child_lines(2, "j2.1"),
+        )
+        .await;
+    talk(&handle, "cmd-1", "放一个").await;
+    let log = home.log(handle.id());
+    assert_eq!(last_started(&log), "j2.1.1");
+    let [result] = results(&log)[..] else {
+        panic!("一次调用：{log:#?}")
+    };
+    assert!(
+        matches!(result.blocks.as_slice(), [miyu_kernel::block::Block::Text(text)] if text.text == "started j2.1.1"),
+        "{result:?}"
+    );
+    let file = miyu_store::jobs::output_path(
+        &home.root.session_dir(&alice_account(), handle.id()),
+        &JobId::parse("j2.1.1").unwrap(),
+    );
+    assert!(file.ends_with("jobs/j2.1.1.out"), "{}", file.display());
+    within("输出写进文件", async {
+        while std::fs::read_to_string(&file).unwrap_or_default() != "half\n" {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await;
+    stop(&handle).await;
+    until_idle(&home).await;
+}
+
+/// 以前的日志里子会话派的 `j1` 照认（施工 7-1 补）：它是只有一段的编号，载入读得进来，`jobs` 照它列出来；它占着 1，接着
+/// 领的是 `j2.2`。旧日志照这个样子造：子会话 `j2` 派一个、结束了，把日志里的 `j2.1` 换回改之前写的 `j1`。
+#[tokio::test]
+async fn an_old_child_log_that_numbered_from_j1_still_loads() {
+    let home = Home::new();
+    let first = Held::new(&[]);
+    let script = Script::new([
+        Play::calls(&[("start", "{}")]),
+        Play::Says("放出去了。"),
+        Play::Says("结束了。"),
+    ]);
+    let handle = home
+        .create_full(
+            &script,
+            &starting_with_jobs(&first),
+            Opening::default(),
+            child_lines(1, "j2"),
+        )
+        .await;
+    talk(&handle, "cmd-1", "放一个").await;
+    first.end(Exit::Code(0));
+    until_logged(&home, handle.id(), |log| {
+        log.iter()
+            .filter(|event| matches!(event.body, Body::TurnEnded(_)))
+            .count()
+            == 2
+    })
+    .await;
+    let session = handle.id().clone();
+    stop(&handle).await;
+    drop(handle);
+    until_idle(&home).await;
+    let segment = home
+        .root
+        .session_dir(&alice_account(), &session)
+        .join("000000000001.jsonl");
+    let text = std::fs::read_to_string(&segment).expect("读得了第一段");
+    assert!(text.contains(r#""job":"j2.1""#), "改之前是 j2.1");
+    std::fs::write(
+        &segment,
+        text.replace(r#""job":"j2.1""#, r#""job":"j1""#)
+            .replace("started j2.1", "started j1"),
+    )
+    .expect("写得回去");
+
+    let second = Held::new(&[]);
+    let tools = starting_with_jobs(&second);
+    let script = Script::new([
+        Play::calls(&[("start", "{}")]),
+        Play::calls(&[("jobs", r#"{"action":"list"}"#)]),
+        Play::Says("两个。"),
+    ]);
+    let handle = home.load_with(&session, &script, &tools).await;
+    talk(&handle, "cmd-2", "再放一个").await;
+    let log = home.log(handle.id());
+    assert_eq!(last_started(&log), "j2.2", "j1 占着 1");
+    let listed = results(&log).last().copied().expect("列了一次");
+    let [miyu_kernel::block::Block::Text(listed)] = listed.blocks.as_slice() else {
+        panic!("一段字：{listed:?}")
+    };
+    let jobs: Vec<&str> = listed
+        .text
+        .lines()
+        .map(|line| line.split(' ').next().unwrap_or_default())
+        .collect();
+    assert_eq!(jobs, ["j1", "j2.2"], "{}", listed.text);
+    stop(&handle).await;
     until_idle(&home).await;
 }

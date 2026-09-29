@@ -60,14 +60,14 @@ impl JobPort for Port {
             text.clone()
                 .map(|text| Box::new(Cursor::new(text)) as Box<dyn Read + Send>)
         };
-        let output = match job.get() {
-            1 => Ok(Output {
+        let output = match job.to_string().as_str() {
+            "j1" => Ok(Output {
                 what: JobKind::Command,
                 text: reader(&self.command),
                 running: self.running,
                 doing: Vec::new(),
             }),
-            2 => Ok(Output {
+            "j2" => Ok(Output {
                 what: JobKind::Agent,
                 text: reader(&self.reply),
                 running: self.running,
@@ -79,15 +79,15 @@ impl JobPort for Port {
     }
 
     fn stop(&self, job: JobId) -> Asking<'_, Result<(), JobError>> {
+        let result = match job.to_string().as_str() {
+            "j1" => Ok(()),
+            "j2" => Err(JobError::Ended),
+            _ => Err(JobError::Unknown),
+        };
         self.stopped
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .push(job);
-        let result = match job.get() {
-            1 => Ok(()),
-            2 => Err(JobError::Ended),
-            _ => Err(JobError::Unknown),
-        };
         Box::pin(async move { result })
     }
 }
@@ -274,9 +274,19 @@ async fn stop_hands_the_job_to_the_port() {
         .await;
     assert!(done.error);
     assert_eq!(text(&done), "There is no job j9.\n");
+    // 子会话派的带着前缀（施工 7-1 补）：几段的编号照样交给端口，不是 `j1`。
+    let done = site
+        .done_jobs(
+            "jobs",
+            json!({"action": "stop", "id": "j1.1"}),
+            Some(port.clone()),
+            None,
+        )
+        .await;
+    assert_eq!(text(&done), "There is no job j1.1.\n");
     assert_eq!(
         port.stopped(),
-        [1, 2, 9].map(|n| JobId::new(n).unwrap()),
+        ["j1", "j2", "j9", "j1.1"].map(|id| JobId::parse(id).unwrap()),
         "照编号交给端口"
     );
 }

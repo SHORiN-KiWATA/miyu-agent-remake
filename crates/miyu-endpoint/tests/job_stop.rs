@@ -113,12 +113,27 @@ async fn what_is_not_there_is_refused() {
         reply["error"]["message"],
         json!("There is no such job, or it has already ended.")
     );
-    for job in [json!("1"), json!("j0"), json!(1), Value::Null] {
+    for job in [
+        json!("1"),
+        json!("j0"),
+        json!("j1.0"),
+        json!("j1."),
+        json!(1),
+        Value::Null,
+    ] {
         let reply = client
             .call("s2", "job.stop", json!({"session": session, "job": job}))
             .await;
         assert_eq!(reason(&reply), Some("bad_params"), "{job}: {reply}");
     }
+    let reply = client
+        .call("s4", "job.stop", json!({"session": session, "job": "j1.1"}))
+        .await;
+    assert_eq!(
+        reason(&reply),
+        Some("unknown_job"),
+        "几段的编号合写法，只是没有这个任务（施工 7-1 补）：{reply}"
+    );
     let reply = client
         .call(
             "s3",

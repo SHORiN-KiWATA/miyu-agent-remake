@@ -120,7 +120,7 @@ impl AgentPort for Spawner {
                     parent: parent.clone(),
                     depth: agents.depth + 1,
                 },
-                command: command_id(parent, job, ""),
+                command: command_id(parent, &job, ""),
                 persona: PERSONA.to_string(),
                 owner: agents.owner.clone(),
                 venue: agents.venue.clone(),
@@ -146,7 +146,7 @@ impl AgentPort for Spawner {
                 .port
                 .command(
                     session.clone(),
-                    command_id(parent, job, "/prompt"),
+                    command_id(parent, &job, "/prompt"),
                     by,
                     send,
                 )
@@ -168,14 +168,16 @@ impl AgentPort for Spawner {
 }
 
 /// 父会话发给子会话的命令编号：`<父会话>/<任务编号><后缀>`。父会话的编号整个数据根里不重，任务编号一个会话里不重，
-/// 所以它在哪儿都不重。
-pub(crate) fn command_id(parent: &SessionId, job: JobId, suffix: &str) -> CommandId {
+/// 所以它在哪儿都不重。任务编号带着前缀（施工 7-1 补）也还短：段数有深度上限管着（出厂的上限下，子代理的编号至多两段），
+/// 每一段是派过的第几个，离命令编号的 128 个字节远着。
+pub(crate) fn command_id(parent: &SessionId, job: &JobId, suffix: &str) -> CommandId {
     CommandId::parse(&format!("{parent}/{job}{suffix}"))
         .unwrap_or_else(|e| unreachable!("会话编号、任务编号都短，合命令编号的写法：{e}"))
 }
 
 /// 子会话在父会话里的任务编号（施工 7-6）：从造它的命令编号 `<父会话>/<编号>`（`session.created` 的 `cause`）读回来。
-/// 不是这个样子的（不是派出来的）没有。会话表删一个子会话时也照它认出父会话里的那个任务（施工 3-8 三补）。
+/// 不是这个样子的（不是派出来的）没有。向上回报照它补上任务编号（施工 7-6），会话表删一个子会话时也照它认出父会话里的
+/// 那个任务（施工 3-8 三补），它领的号照它带前缀（施工 7-1 补，`JobIds`）。
 pub fn job_in(parent: &SessionId, command: &CommandId) -> Option<JobId> {
     let job = command
         .as_str()

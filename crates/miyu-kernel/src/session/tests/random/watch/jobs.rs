@@ -9,7 +9,8 @@ use crate::id::{JobId, SessionId};
 
 impl Watch {
     /// 下一个派出去的任务：编号接着日志里用过的最大的往下数，撤掉的回合里的也算，所以不会重复。`n` 为单的派子代理，
-    /// 带一个照编号造的会话；为双的派后台命令。
+    /// 带一个照编号造的会话；为双的派后台命令。每隔两个，编号接在前缀 `j9` 后面（施工 7-1 补）：带前缀的和不带的混在一份
+    /// 日志里，像旧日志里子会话派的 `j1` 后面接着新派的 `j2.2`，照最后一段往下数也不重。
     pub(super) fn some_job(&self, n: usize) -> Effect {
         let last = self
             .events
@@ -19,16 +20,20 @@ impl Watch {
                 _ => &[],
             })
             .filter_map(|effect| match effect {
-                Effect::JobStarted(started) => Some(started.job.get()),
+                Effect::JobStarted(started) => Some(started.job.last()),
                 _ => None,
             })
             .max()
             .unwrap_or(0);
-        let job = JobId::new(last + 1).expect("从 1 数起");
+        let job = match (n / 2) % 2 {
+            0 => JobId::new(last + 1),
+            _ => JobId::new(9).and_then(|prefix| prefix.under(last + 1)),
+        }
+        .expect("从 1 数起");
         let (what, session) = match n % 2 {
             0 => (JobKind::Command, None),
             _ => {
-                let id = format!("01a0d78c-ca52-7d19-8b64-{:012x}", job.get());
+                let id = format!("01a0d78c-ca52-7d19-8b64-{:012x}", job.last());
                 (
                     JobKind::Agent,
                     Some(SessionId::parse(&id).expect("照写法造的")),

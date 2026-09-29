@@ -1,5 +1,6 @@
 //! 子会话回报，真核心走一遍（施工 7-6，`docs/blueprint/agents.md` 第二条）：主会话派子代理，子代理再派孙代理；替身模型在
-//! 各个会话里答话，回报一层一层上来：孙代理报给子代理、叫醒它，子代理这才把整件事报给主会话、叫醒她。
+//! 各个会话里答话，回报一层一层上来：孙代理报给子代理、叫醒它，子代理这才把整件事报给主会话、叫醒她。孙代理的编号带上
+//! 子代理的：`j1` 派的是 `j1.1`（施工 7-1 补）。
 //!
 //! 几个会话同时请求模型，谁先到不一定：替身照请求里人这边的那句交代分给各自的剧本。
 
@@ -167,10 +168,21 @@ async fn reports_come_up_one_layer_at_a_time() {
     );
     assert_eq!(reported.text, "B 查完了。");
     assert_eq!(reported.session, grandchild);
-    let Body::SessionCreated(created) = &home.log(grandchild.as_str())[0].body else {
+    assert_eq!(
+        reported.job,
+        JobId::parse("j1.1").unwrap(),
+        "子代理 j1 派的孙代理带上 j1 的前缀（施工 7-1 补）"
+    );
+    let first = &home.log(grandchild.as_str())[0];
+    let Body::SessionCreated(created) = &first.body else {
         panic!("第 1 条应该是造会话");
     };
     assert_eq!(created.depth, Some(2));
+    assert_eq!(
+        first.cause.as_ref().map(|cause| cause.as_str().to_string()),
+        Some(format!("{child}/j1.1")),
+        "造孙会话的命令编号照它在子会话里的编号"
+    );
 }
 
 /// 子代理做到一半，核心有计划地重启了：再起来以后没人叫它；父会话一载入就把它叫起来，它接着干完、报上来。

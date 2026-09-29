@@ -43,15 +43,15 @@ impl JobPort for Port {
         let process: Arc<dyn Process> = Arc::from(process);
         let shared = &self.shared;
         let job = shared.ids.next();
-        let file = match create_output(&shared.dir, job) {
+        let file = match create_output(&shared.dir, &job) {
             Ok(file) => file,
             Err(error) => {
                 discard(process);
                 return Err(error);
             }
         };
-        let sink = Arc::new(Output::new(output_path(&shared.dir, job), file));
-        let key = (shared.owner, job);
+        let sink = Arc::new(Output::new(output_path(&shared.dir, &job), file));
+        let key = (shared.owner, job.clone());
         let started = Instant::now();
         {
             let mut table = shared.table.lock();
@@ -61,7 +61,7 @@ impl JobPort for Port {
                 return Err(io::Error::other("the session stopped"));
             }
             table.insert(
-                key,
+                key.clone(),
                 Entry {
                     process: Arc::clone(&process),
                     output: Arc::clone(&sink),
@@ -148,7 +148,7 @@ impl Watch {
             }
         };
         let reported = JobReported {
-            job: self.key.1,
+            job: self.key.1.clone(),
             reason: JobReason::Exited,
             exit_code,
             signal,

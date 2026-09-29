@@ -29,7 +29,7 @@ impl Scratch {
     }
 
     fn output(&self, job: u64) -> PathBuf {
-        miyu_store::jobs::output_path(&self.0.join("session"), JobId::new(job).unwrap())
+        miyu_store::jobs::output_path(&self.0.join("session"), &JobId::new(job).unwrap())
     }
 }
 
@@ -54,7 +54,7 @@ fn session(
         table: Arc::clone(table),
         dir: scratch.0.join("session"),
         blobs: scratch.blobs(),
-        ids: Arc::new(JobIds::starting_after(used)),
+        ids: Arc::new(JobIds::starting_after(None, used)),
         roster: Roster::default(),
         agents: None,
     };

@@ -105,7 +105,7 @@ impl Upstream {
             id: self.session.clone(),
         });
         let reported = ChildReported {
-            job: self.job,
+            job: self.job.clone(),
             session: self.session.clone(),
             reason: upward.reason,
             text: upward.text,

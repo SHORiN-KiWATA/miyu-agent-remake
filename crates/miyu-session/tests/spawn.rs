@@ -412,3 +412,58 @@ async fn a_loaded_child_still_knows_its_depth() {
         .collect();
     assert_eq!(depths, [(id.clone(), 2), (id, 2)]);
 }
+
+/// 子会话派的编号带上它自己在父会话里的编号（施工 7-1 补，`agents.md`「对外的样子」）：造它的命令是 `<父会话>/j2`，它派的是
+/// `j2.1`，交给会话表的命令编号、结果那一句、效果都是；载入以后照 `session.created` 的 `cause` 读回前缀，接着是 `j2.2`。
+#[tokio::test]
+async fn a_child_numbers_its_jobs_under_its_own() {
+    let home = Home::new();
+    let table = Arc::new(Table::default());
+    let script = Script::new([
+        calls(&[agent("甲", "Task A.")]),
+        Play::Says("好。"),
+        calls(&[agent("乙", "Task B.")]),
+        Play::Says("好。"),
+    ]);
+    let lines = Lines {
+        sessions: Some(Arc::clone(&table) as Arc<dyn SessionPort>),
+        command: Some(CommandId::parse(&format!("{}/j2", child_id(9))).unwrap()),
+        ..child_at(1)
+    };
+    let tools = basesystem(&home);
+    let handle = home
+        .create_full(&script, &tools, Opening::default(), lines)
+        .await;
+    let log = one_turn(&home, &handle, 1).await;
+    let id = handle.id().clone();
+    let [result] = results(&log).try_into().expect("一次调用");
+    assert_eq!(text(result), "Started subagent j2.1: \"甲\".\n");
+    assert_eq!(
+        result.effects,
+        [Effect::JobStarted(JobStarted {
+            job: JobId::parse("j2.1").unwrap(),
+            what: JobKind::Agent,
+            title: "甲".to_string(),
+            session: Some(child_id(1)),
+        })]
+    );
+    let [(_, prompt, _, _)] = table.sent().try_into().expect("送了一次交代");
+    assert_eq!(prompt.as_str(), format!("{id}/j2.1/prompt"));
+
+    stop(&handle).await;
+    let port = Some(Arc::clone(&table) as Arc<dyn SessionPort>);
+    let cwd = environment().cwd;
+    let loaded = home.load_full(&id, &script, &tools, &cwd, port).await;
+    let log = one_turn(&home, &loaded, 2).await;
+    assert_eq!(
+        text(results(&log)[1]),
+        "Started subagent j2.2: \"乙\".\n",
+        "载入以后照造它的命令读回前缀，接着往下数"
+    );
+    let commands: Vec<String> = table
+        .made()
+        .iter()
+        .map(|child| child.command.as_str().to_string())
+        .collect();
+    assert_eq!(commands, [format!("{id}/j2.1"), format!("{id}/j2.2")]);
+}

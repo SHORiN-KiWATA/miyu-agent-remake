@@ -115,6 +115,14 @@ async fn it_sends_to_a_subagent_or_the_parent_as_it_is() {
         ],
         "发给谁照 to 认，话原样交出去"
     );
+    // 子会话派的带着前缀（施工 7-1 补）：几段的编号照样认。
+    let port = Port::new(Ok(()));
+    let done = site
+        .done_with_messages("message_agent", to("j2.1"), Some(port.clone()))
+        .await;
+    assert_eq!(text(&done), "Message sent to j2.1.\n");
+    let [(recipient, _)] = port.asked().try_into().expect("问过一次");
+    assert_eq!(recipient, Recipient::Child(JobId::parse("j2.1").unwrap()));
 }
 
 #[tokio::test]
@@ -157,6 +165,9 @@ async fn a_recipient_that_is_neither_parent_nor_a_job_id_is_not_asked() {
         "sibling",
         "J1",
         "j0",
+        "j1.0",
+        "j1.",
+        "j.1",
         " j1",
         "Parent",
         "",
