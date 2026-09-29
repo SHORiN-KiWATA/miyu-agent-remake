@@ -21,6 +21,7 @@
 | `ResourceRoot::at(路径)` | 就用这个目录，测试、工具指定的 |
 | `ResourceRoot::path()` | 资源目录本身 |
 | `ResourceRoot::sources(人格)` | 读出这个人格要用的原文，交给 `miyu-policy` 拼策略快照（`policy.md`） |
+| `ResourceRoot::models()` | 模型资料的原文（`models/models-dev.json`，施工 6-3 上），怎么读由核心定（`core.md`「模型」） |
 | `Human::load(资源目录, 语言)` | 读这种语言的给人看的字 |
 | `Human::tool(工具名)` | 这件工具给人看的样子 `Face`；没有的是空的 |
 | `Human::say(说法)` | 照说法换成的一句话；换不出来的是空的 |
@@ -57,6 +58,7 @@
 | `core/` 下的 `.txt`（两份 `*-rule.txt` 除外）、`personas/<人格>/prompts/persona.md` | `ResourceRoot::sources` | 造会话时，拼进策略快照 |
 | `core/human/`、`software/<软件包>/human/` | `Human::load` | `miyu ask` 起来时读一次，印每一步用（`cli/ask.md`） |
 | `software/basesystem/` 下别的 | `miyu-basesystem` | 核心起来时登记工具（`tools/*.md`） |
+| `models/models-dev.json` | `ResourceRoot::models` | 核心起来时读一次，查模型的窗口、最大输出（施工 6-3 上）。是数据，不发给模型，不进登记簿 |
 
 给模型看的每一份字的原文、token 数、什么时候进请求，见 `26-提示词.md` 第十节的登记簿。给人看的字不进请求，不登记。
 
@@ -168,3 +170,10 @@
 - 人格目录里别的文件：`persona.toml`、示范对话、角色扮演提示，和预设（`16-人格与预设.md` 第三节）。
 - 两份 `*-rule.txt` 进 system（`26-提示词.md` 第十节的登记簿）。
 - 网页、字体这类资源（`12-进程形态与分发.md` 第三节）。
+
+**模型资料怎么刷新**（施工 6-3 上）：从 models.dev 的 `api.json` 抽出驱动认得的供应商（现在只有 `deepseek`），每个模型只留 `limit.context`、`limit.output`，顶上写出处和日期：
+
+```sh
+curl -s https://models.dev/api.json | python3 -c 'import json,sys,datetime; d=json.load(sys.stdin)["deepseek"]["models"]; print(json.dumps({"source":"https://models.dev/api.json","fetched":str(datetime.date.today()),"providers":{"deepseek":{"models":{k:{"limit":{"context":v["limit"]["context"],"output":v["limit"]["output"]}} for k,v in sorted(d.items())}}}}, indent=2))' > resources/models/models-dev.json
+```
+

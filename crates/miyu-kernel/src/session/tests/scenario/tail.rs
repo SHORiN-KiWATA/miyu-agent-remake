@@ -198,3 +198,46 @@ fn the_next_step_can_be_compacted_again() {
     stage.say(&words(10));
     assert_eq!(summaries(&stage), 2, "{:#?}", story(&stage));
 }
+
+/// 图片照限额里驱动交的算法估（施工 6-3 上）：一张图的那一组，照固定的 50 算就超了预算，照驱动的 1 算就留在尾巴里。
+#[test]
+fn the_tail_counts_images_with_the_driver_price() {
+    struct One;
+    impl crate::estimate::ImagePrice for One {
+        fn tokens(&self, _: u32, _: u32) -> u64 {
+            1
+        }
+    }
+    let image = || {
+        vec![Block::Image(crate::block::Image {
+            blob: crate::id::ContentHash::of(b"png"),
+            media_type: crate::id::MediaType::parse("image/png").unwrap(),
+            width: 1000,
+            height: 500,
+        })]
+    };
+    // 第一轮发一张图、答 5；第二轮说 10、答 10 报 20000；第三轮说 10 就压，预算 100。从新往旧：第三句 10、第二轮的
+    // 回复 10、第二句 10、第一轮的回复 5，一共 35；再加发图那一组（图加两块事实约 20）：图照固定的 50 就超了，尾巴从
+    // 第一轮的回复起，替代到 5；照驱动的 1 超不过，尾巴一直留到开头，前面没有能压的，不压。
+    let run = |images: Option<std::sync::Arc<dyn crate::estimate::ImagePrice>>| {
+        let mut stage = with_tail(100);
+        stage.model([
+            Line::says(&words(5)),
+            Line::says(&words(10)).reports(20_000),
+            Line::says("S1"),
+            Line::says("好。"),
+        ]);
+        stage.send(image());
+        stage.say(&words(10));
+        stage.limits_with(crate::session::Limits {
+            model: crate::testkit::model(),
+            window: Some(10_020),
+            max_output: None,
+            images,
+        });
+        stage.say(&words(10));
+        summaries(&stage)
+    };
+    assert_eq!(run(None), 1);
+    assert_eq!(run(Some(std::sync::Arc::new(One))), 0);
+}

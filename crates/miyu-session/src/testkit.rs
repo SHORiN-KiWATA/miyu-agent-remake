@@ -12,6 +12,7 @@ use miyu_kernel::event::{CallError, ErrorClass, Usage};
 use miyu_kernel::id::{ModelName, ProviderId, Seq};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
+use miyu_kernel::session::Limits;
 
 use crate::port::{Cancel, ForSession, ModelPort, Models, Reports};
 
@@ -65,6 +66,8 @@ pub struct Script {
     plays: Arc<Mutex<VecDeque<Play>>>,
     requests: Arc<Mutex<Vec<(Seq, Request)>>>,
     cancelled: Arc<Mutex<Vec<Seq>>>,
+    /// 交给内核的窗口；没有的不主动压（施工 6-3 上）。
+    window: Option<u64>,
 }
 
 impl Script {
@@ -82,7 +85,15 @@ impl Script {
             plays: Arc::new(Mutex::new(plays.into_iter().collect())),
             requests: Arc::new(Mutex::new(Vec::new())),
             cancelled: Arc::new(Mutex::new(Vec::new())),
+            window: None,
         }
+    }
+
+    /// 同一份剧本，模型的窗口是 `window`：会话照它算压缩线（施工 6-3 上）。
+    #[must_use]
+    pub fn window(mut self, window: u64) -> Script {
+        self.window = Some(window);
+        self
     }
 
     /// 交给它的每一次请求，照先后：看到了第几条为止，和请求本身。
@@ -111,6 +122,15 @@ impl Models for Script {
 impl ModelPort for Script {
     fn model(&self) -> &Model {
         &self.model
+    }
+
+    fn limits(&self) -> Limits {
+        Limits {
+            model: self.model.clone(),
+            window: self.window,
+            max_output: None,
+            images: None,
+        }
     }
 
     fn call(&self, seen: Seq, request: Request, reports: Reports, cancel: Cancel) {

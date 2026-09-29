@@ -31,6 +31,9 @@ fn models(server: &Server, inputs: Inputs) -> HttpModels {
             inputs,
         },
         idle: Duration::from_secs(5),
+        window: None,
+        max_output: None,
+        images: None,
     }
 }
 

@@ -148,6 +148,14 @@ impl Stage {
         })
     }
 
+    /// 发这几块内容，例如带图的（施工 6-3 上）。
+    pub fn send(&mut self, blocks: Vec<Block>) -> CommandId {
+        self.command(Command::Send {
+            blocks,
+            urgent: false,
+        })
+    }
+
     /// 急着插话。
     pub fn say_urgently(&mut self, words: &str) -> CommandId {
         self.command(Command::Send {
@@ -198,23 +206,6 @@ impl Stage {
     /// 恢复最近一次撤销。
     pub fn unrevert(&mut self) -> CommandId {
         self.command(Command::Unrevert)
-    }
-
-    /// 交模型限额：替身的模型，窗口和最大输出照给的（施工 6-2 上）。
-    pub fn limits(&mut self, window: Option<u64>, max_output: Option<u64>) {
-        let limits = Limits {
-            model: super::respond::model(),
-            window,
-            max_output,
-        };
-        self.limits = Some(limits.clone());
-        self.run(Input::Limits(limits));
-    }
-
-    /// 从现在起，最后一块是 `instruction` 的请求是摘要请求，一律照 `line` 回，不占剧本：随机的剧本事先不知道哪一次
-    /// 会压（施工 6-2 上）。
-    pub fn summarize_with(&mut self, instruction: &str, line: Line) {
-        self.summaries = Some((instruction.to_string(), line));
     }
 
     /// 工作目录换成 `cwd`。
@@ -428,7 +419,7 @@ impl Stage {
     }
 
     /// 送一条输入，跑到没事可做。
-    fn run(&mut self, input: Input) {
+    pub(super) fn run(&mut self, input: Input) {
         self.drain(VecDeque::from([input]));
     }
 

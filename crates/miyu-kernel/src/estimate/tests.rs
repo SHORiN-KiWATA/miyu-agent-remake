@@ -401,3 +401,22 @@ fn an_event_is_counted_by_what_goes_into_the_context() {
     let called = called(7, 3, 2, Some(500), "ok");
     assert_eq!(super::event(&called, &FLAT), 0);
 }
+
+/// 驱动交了图片算法的，图片照它，文件照固定的数；没交的都照固定的数（施工 6-3 上）。
+#[test]
+fn a_driver_image_price_replaces_the_flat_one_for_images_only() {
+    struct Area;
+    impl ImagePrice for Area {
+        fn tokens(&self, width: u32, height: u32) -> u64 {
+            u64::from(width) * u64::from(height)
+        }
+    }
+    let flat = Flat { image: 7, file: 9 };
+    let priced = WithImages {
+        images: Some(&Area),
+        flat,
+    };
+    assert_eq!((priced.image(3, 4), priced.file()), (12, 9));
+    let unpriced = WithImages { images: None, flat };
+    assert_eq!((unpriced.image(3, 4), unpriced.file()), (7, 9));
+}

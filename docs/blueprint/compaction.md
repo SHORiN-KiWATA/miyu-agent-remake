@@ -8,7 +8,7 @@
 
 另有一种不请求模型的办法：**裁剪**（trim），把最老的几轮整块移出，由代码写一句说明。它给群聊用，随通讯平台做（第五条）。
 
-状态：图纸（2026-09-29 定），M6 照它施工（施工方案第三节 M6 那张表）。第一、二条 6-1 做好了（`crates/miyu-kernel/src/estimate.rs`），6-2 接进了回合：执行器交了模型限额的会话，发主请求之前到线就在这一轮里先压，fork 式摘要请求、取摘要、写 `context.compacted`、推 `compaction.progress`、压完再注入事实、留尾巴都照第三条做了（上下两步）。还没做的：真执行器交限额、模型资料、`miyu ask` 印压缩那一行（6-3）；第三条第 7 条的隔离式回退、第 10 条（6-6），现在回复里调了工具的、取不出摘要的照 `bad_summary` 出错结束。做完一步，这一页照做好的样子改写那几节，相关的几页（`kernel/events-bodies.md`、`kernel/history.md`、`kernel/session.md`、`protocol.md`、`cli/`）跟着改。
+状态：图纸（2026-09-29 定），M6 照它施工（施工方案第三节 M6 那张表）。第一、二条 6-1 做好了（`crates/miyu-kernel/src/estimate.rs`），6-2 接进了回合：执行器交了模型限额的会话，发主请求之前到线就在这一轮里先压，fork 式摘要请求、取摘要、写 `context.compacted`、推 `compaction.progress`、压完再注入事实、留尾巴都照第三条做了（上下两步）。6-3（上）接上了真执行器：模型资料（models.dev 的快照）、开发用的 `MIYU_DEV_WINDOW`、DeepSeek 的图片算法，会话 actor 造会话、载入以后交限额。还没做的：`miyu ask` 印压缩那一行、真模型上的几项实测（6-3 下）；第三条第 7 条的隔离式回退、第 10 条（6-6），现在回复里调了工具的、取不出摘要的照 `bad_summary` 出错结束。做完一步，这一页照做好的样子改写那几节，相关的几页（`kernel/events-bodies.md`、`kernel/history.md`、`kernel/session.md`、`protocol.md`、`cli/`）跟着改。
 
 ### 在哪
 

@@ -1,0 +1,34 @@
+{
+  "source": "https://models.dev/api.json",
+  "fetched": "2026-09-29",
+  "providers": {
+    "deepseek": {
+      "models": {
+        "deepseek-flash": {
+          "limit": {
+            "context": 1000000,
+            "output": 393216
+          }
+        },
+        "deepseek-v4-flash": {
+          "limit": {
+            "context": 1000000,
+            "output": 393216
+          }
+        },
+        "deepseek-v4-flash-vision-exp": {
+          "limit": {
+            "context": 1000000,
+            "output": 393216
+          }
+        },
+        "deepseek-v4-pro": {
+          "limit": {
+            "context": 1000000,
+            "output": 393216
+          }
+        }
+      }
+    }
+  }
+}
