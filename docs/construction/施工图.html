@@ -276,7 +276,7 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>119</b><span>/ 131 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑</span></li>
+    <li><b>120</b><span>/ 131 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑</span></li>
     <li><b>7-4</b><span>下一步：两条线并行，7-4 jobs 和 job.stop、7-6 子会话回报（Windows 上跑命令那一步暂停）</span></li>
     <li><b class="mono">6d50be5</b><span>最近一步（7-3 后台命令）的提交</span></li>
   </ul>
@@ -377,7 +377,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-5b"><span class="n">3-5</span>自动重试与接着说（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-5c"><span class="n">3-5</span>试玩台（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-5d"><span class="n">3-5</span>接着说（再补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-5</span>出错带 HTTP 状态码（三补）</span></li>
+        <li><a class="step done" href="#s3-5e"><span class="n">3-5</span>出错带 HTTP 状态码（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-6a"><span class="n">3-6</span>策略快照（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-7a"><span class="n">3-7</span>运行日志（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-7b"><span class="n">3-7</span>会话 actor（中）<span class="st">✓</span></a></li>
@@ -3832,6 +3832,60 @@ a.step:hover{border-color:var(--primary)}
         <li><code>docs/designs/02-内核.md</code> 第六节第 4 条、<code>05-内核接口.md</code> 第七节、<code>08-上下文投影.md</code> 第七节、<code>15-模型与供应商.md</code> M5。</li>
         <li><code>docs/designs/26-提示词.md</code>：两条原则、J2 的补充、J12、第十节登记簿。</li>
         <li><code>docs/construction/3-5-接着说（再补）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s3-5e" aria-labelledby="h-s35e">
+  <div class="sheet-head"><h2 id="h-s35e"><span class="no">3-5</span>出错带 HTTP 状态码（三补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">模型调用出错时，把供应商回的 HTTP 状态码单独记一格：<code>model.called</code> 的 <code>error</code>、推给头的重试状态多一个可以没有的 <code>status</code>。终端界面照它分出 429、402、404，前面加一句人话（项目主人定的界面说法）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">出错的那一格</span><span class="dir-note">event/model.rs、drivers/classify.rs</span></div>
+            <ol class="pipe" aria-label="改了什么">
+              <li><code>{"class":"other","message":"HTTP 404: …","status":404}</code></li>
+              <li>连不上、流里报的、内核自己查出来的不写；旧日志没有这一格照读</li>
+              <li>分类不动：分类管内核重试不重试，界面的说法照状态码另说</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">字符串不当类型</span><span class="rl">头不从原话里抠状态码</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-5 三补</dd></div>
+        <div><dt>名称</dt><dd>出错带 HTTP 状态码</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">e7b9b0a</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>CallError</code>、<code>Retry</code> 各加 <code>status</code>；驱动照 HTTP 状态码写，二十来处构造补上没有。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>各状态码都带上、连不上和流里报的不带；样本一带一不带；6 个变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/3-5-出错带 HTTP 状态码（三补）.md</code>。</li>
       </ul>
     </div>
   </div>
