@@ -110,7 +110,10 @@ fn message(n: u64, words: &str, urgent: bool) -> Input {
 }
 
 fn stored(upto: u64) -> Input {
-    Input::Stored { upto: seq(upto) }
+    Input::Stored {
+        at: at(0),
+        upto: seq(upto),
+    }
 }
 
 fn accepted_reply(n: u64, events: &[u64]) -> Action {

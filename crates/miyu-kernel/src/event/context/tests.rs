@@ -1,7 +1,7 @@
 //! 上下文事件的测试：图纸上的两种读写一字不差、认得出种类；压缩的几种原因、代码写的几段和重读的文件；坏的报错说清是
 //! 哪一种。
 
-use crate::event::{Body, CompactTrigger, Event};
+use crate::event::{Body, CompactTrigger, Event, PauseReason};
 use crate::test_support::{event_line, read_body, rejected};
 
 const INJECTED: &str = r#"{"kind":"env","text":"<env time=\"Fri 2026-09-25 16:00–17:00\" timezone=\"UTC+09:00\" cwd=\"~/src/miyu\"/>"}"#;
@@ -62,6 +62,49 @@ fn notes_and_restored_files_are_written_and_read_back() {
 }
 
 #[test]
+fn quick_refills_are_written_and_read_back() {
+    // 施工 6-6 上：压完很快又到线连着的第几次，排在最后；没有的不写（上面那一条守着）。
+    let body = r#"{"upto":53,"summary":"S","trigger":"auto","refills":2}"#;
+    let Body::ContextCompacted(compacted) = read_body("context.compacted", body) else {
+        panic!("{body}");
+    };
+    assert_eq!(compacted.refills, Some(2));
+    assert_eq!(serde_json::to_string(&compacted).unwrap(), body);
+}
+
+#[test]
+fn each_pause_reason_is_written_and_read_back() {
+    for (body, reason, failures, entry) in [
+        (
+            r#"{"reason":"failures","failures":3}"#,
+            PauseReason::Failures,
+            Some(3),
+            None,
+        ),
+        (
+            r#"{"reason":"too_large","entry":57}"#,
+            PauseReason::TooLarge,
+            None,
+            Some(57),
+        ),
+        (
+            r#"{"reason":"budget"}"#,
+            PauseReason::Other("budget".to_string()),
+            None,
+            None,
+        ),
+    ] {
+        let Body::CompactionPaused(paused) = read_body("context.compaction_paused", body) else {
+            panic!("{body}");
+        };
+        assert_eq!(paused.reason, reason);
+        assert_eq!(paused.failures, failures);
+        assert_eq!(paused.entry.map(|entry| entry.get()), entry);
+        assert_eq!(serde_json::to_string(&paused).unwrap(), body);
+    }
+}
+
+#[test]
 fn broken_context_bodies_say_which_kind() {
     for (kind, body) in [
         // 类别不合模块名的规矩；少了原文。
@@ -70,6 +113,16 @@ fn broken_context_bodies_say_which_kind() {
         // 序号从 1 开始；少了摘要。
         ("context.compacted", r#"{"upto":0,"summary":""}"#),
         ("context.compacted", r#"{"upto":52}"#),
+        // 少了原因；序号从 1 开始；次数不带负号。
+        ("context.compaction_paused", r#"{"failures":3}"#),
+        (
+            "context.compaction_paused",
+            r#"{"reason":"too_large","entry":0}"#,
+        ),
+        (
+            "context.compaction_paused",
+            r#"{"reason":"failures","failures":-1}"#,
+        ),
     ] {
         let line = event_line(kind, body);
         rejected::<Event>(&line, &format!("body of {kind} not readable"));

@@ -20,6 +20,7 @@ fn with_tail(tail: u64) -> Stage {
                 file: 50,
             },
             rebuild: None,
+            pause: None,
         });
         policy
     };

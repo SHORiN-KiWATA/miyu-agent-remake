@@ -4,6 +4,7 @@
 //! 施工 3-6（上）时只有人设。别的块跟着各自的功能来，按 J12 先实测证明不加不行：核心的两行规则
 //! （检查点、权限）2026-09-27 项目主人定先不拼，到 M6、M4 实测再定；场所说明也等实测出需要再加。
 
+use crate::pause::PAUSE;
 use crate::rebuild::REBUILD;
 use crate::snapshot::{CompactionNumbers, CoreTexts, Snapshot, TAIL};
 
@@ -11,7 +12,7 @@ use crate::snapshot::{CompactionNumbers, CoreTexts, Snapshot, TAIL};
 const RESUMES: u32 = 3;
 
 /// 压缩用的数的出厂值（`compaction.md`「对外的样子」）：输出预留的上限 20000、余量 13000（照 Claude Code），
-/// 一张图、一个文件各算 2000，尾巴至多 16000（2026-09-29 项目主人定）。
+/// 一张图、一个文件各算 2000，尾巴至多 16000（2026-09-29 项目主人定）；压后重建、熔断照各自的出厂数。
 const COMPACTION: CompactionNumbers = CompactionNumbers {
     reserve_cap: 20_000,
     margin: 13_000,
@@ -19,6 +20,7 @@ const COMPACTION: CompactionNumbers = CompactionNumbers {
     file: 2_000,
     tail: TAIL,
     rebuild: Some(REBUILD),
+    pause: Some(PAUSE),
 };
 
 /// 读好的原文：随核心附带的字，和这个人格的字。执行器从资源目录读（`miyu-store` 的资源目录）。

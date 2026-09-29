@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::event::CompactTrigger;
 use crate::id::{ContentHash, ModelName, ProviderId, Seq};
 use crate::request::{Difference, Role};
 use crate::text_enum::text_enum;
@@ -40,6 +41,10 @@ pub struct ModelCalled {
     /// 出错的分类和原话，只在出错时有。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<CallError>,
+    /// 这是哪一种压缩的摘要请求（施工 6-6 上）；主请求没有。日志里靠它认出摘要请求，失败照它数（`compaction.md`
+    /// 第十条第 3 条）。以前的日志没有这一格。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compaction: Option<CompactTrigger>,
 }
 
 /// 第一处不同在哪：工具面、system，或者第几条消息。
@@ -152,6 +157,8 @@ text_enum!(
         EmptyReply = "empty_reply",
         /// 摘要请求的回复里取不出摘要：是空的，或者调了工具（`compaction.md` 第三条第 6、7 条）。
         BadSummary = "bad_summary",
+        /// 自动压缩暂停着，这一次请求明知放不下，没发（`compaction.md` 第二条第 5 条，施工 6-6 上）。
+        CompactionPaused = "compaction_paused",
     }
 );
 

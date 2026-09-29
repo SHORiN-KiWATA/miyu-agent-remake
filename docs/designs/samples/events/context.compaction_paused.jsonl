@@ -1,0 +1,1 @@
+{"seq":96,"at":"2026-09-25T07:50:41.300Z","kind":"context.compaction_paused","turn":94,"by":{"kind":"kernel"},"cause":"cmd-5e81","body":{"reason":"failures","failures":3}}

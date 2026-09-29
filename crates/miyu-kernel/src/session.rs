@@ -9,6 +9,7 @@
 
 mod action;
 mod approval;
+mod breaker;
 mod call;
 mod compaction;
 mod input;
@@ -33,7 +34,7 @@ pub use action::{Action, Outcome, Reason};
 pub use input::{Answer, Command, Injection, Input, Limits, Queued, Received, Reread, Verdict};
 pub use limits::ContextLimits;
 pub use load::LoadError;
-pub use policy::{Compaction, Notes, Policy, Rebuild};
+pub use policy::{Compaction, Notes, Pause, Policy, Rebuild};
 pub use restore::{Expect, Step, StepAction};
 
 use crate::event::{Body, Event, MessageUser, Permission, SessionCreated, ToolResult, ToolStatus};
@@ -136,7 +137,7 @@ impl Session {
     pub fn handle(&mut self, input: Input) -> Vec<Action> {
         match input {
             Input::Command(received) => self.receive(received),
-            Input::Stored { upto } => self.stored(upto),
+            Input::Stored { at, upto } => self.stored(at, upto),
             Input::Environment(environment) => {
                 self.environment = environment;
                 Vec::new()
@@ -320,8 +321,8 @@ impl Session {
 
     /// 到第 `upto` 条为止落了盘：先推送这些事件，再回应事件全落了盘的命令（`04-核心协议.md`
     /// 第六节第 2 条：先见结果，后见回应），再跑结束了的回合的挂接点，然后回合往下走。`upto` 超出追加过的，多出来的
-    /// 不算；不比上一次往后的，什么都不做。
-    fn stored(&mut self, upto: Seq) -> Vec<Action> {
+    /// 不算；不比上一次往后的，什么都不做。`at` 是落完盘的时刻。
+    fn stored(&mut self, at: Timestamp, upto: Seq) -> Vec<Action> {
         let split = self.unstored.partition_point(|event| event.seq <= upto);
         if split == 0 {
             return Vec::new();
@@ -337,7 +338,7 @@ impl Session {
             }
         }
         actions.extend(self.closed());
-        actions.extend(self.advance());
+        actions.extend(self.advance(at));
         actions
     }
 }

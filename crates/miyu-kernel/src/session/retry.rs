@@ -106,7 +106,7 @@ impl Session {
         if !events.is_empty() {
             actions.push(Action::Append(events));
         }
-        actions.extend(self.advance());
+        actions.extend(self.advance(at));
         actions
     }
 }

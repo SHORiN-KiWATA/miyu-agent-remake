@@ -63,7 +63,7 @@ use crate::tool::Access;
 use asking::{some_answer, some_question, some_reply, some_verdict};
 use compacting::{random_policy, some_limits};
 use kinds::InputKind;
-use paths::EXPECTED_PATHS;
+use paths::{EXPECTED_PATHS, LONG_PATHS};
 use rereading::some_reread;
 use restoring::some_restored;
 use rng::Rng;
@@ -492,5 +492,8 @@ fn random_inputs_keep_the_rules() {
 #[test]
 #[ignore = "长跑，CI 的长跑那一项用 --ignored 跑（施工 2-10）"]
 fn random_inputs_keep_the_rules_for_longer() {
-    run(300..20_300);
+    let (paths, _) = run(300..20_300);
+    for path in LONG_PATHS {
+        assert!(paths.contains(path), "两万例里一次都没走到「{path}」");
+    }
 }

@@ -52,6 +52,25 @@ fn a_failed_call_before_it_was_sent_has_only_what_is_known() {
 }
 
 #[test]
+fn a_summary_request_says_which_compaction_it_is_for() {
+    // 施工 6-6 上：摘要请求多一格 `compaction`，排在最后；主请求没有，以前的日志读进来再写出去一字不差（上面那一条）。
+    for (text, trigger) in [
+        ("auto", CompactTrigger::Auto),
+        ("manual", CompactTrigger::Manual),
+        ("overflow", CompactTrigger::Overflow),
+        ("scheduled", CompactTrigger::Other("scheduled".to_string())),
+    ] {
+        let body = format!(
+            r#"{{"seen":44,"messages":1,"result":"error","error":{{"class":"bad_summary","message":"no summary in the reply"}},"compaction":"{text}"}}"#
+        );
+        let summary = called(&body);
+        assert_eq!(summary.compaction, Some(trigger));
+        assert_eq!(serde_json::to_string(&summary).unwrap(), body);
+    }
+    assert_eq!(called(CALLED).compaction, None);
+}
+
+#[test]
 fn each_error_class_reads_into_its_own_variant() {
     for (text, class) in [
         ("retryable", ErrorClass::Retryable),
@@ -63,6 +82,7 @@ fn each_error_class_reads_into_its_own_variant() {
         ("bad_stream", ErrorClass::BadStream),
         ("empty_reply", ErrorClass::EmptyReply),
         ("bad_summary", ErrorClass::BadSummary),
+        ("compaction_paused", ErrorClass::CompactionPaused),
         ("overloaded", ErrorClass::Other("overloaded".to_string())),
     ] {
         let body = format!(

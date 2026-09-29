@@ -167,6 +167,7 @@ impl Language {
             "bad_stream" => ("回复的流不对", "bad stream"),
             "empty_reply" => ("回复是空的", "empty reply"),
             "bad_summary" => ("取不出摘要", "no summary in the reply"),
+            "compaction_paused" => ("自动压缩暂停着", "automatic compaction is paused"),
             _ => ("模型出错", "model error"),
         };
         match self {

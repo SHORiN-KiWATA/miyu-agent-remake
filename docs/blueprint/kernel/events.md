@@ -58,12 +58,12 @@
 | `question.asked` | 一个在跑的调用请人回答一组题 | 那次调用 | 必带 | `question.asked.jsonl` |
 | `question.answered` | 人对一组题的回答 | 回答的人 | 必带 | `question.answered.jsonl` |
 | `context.injected` | 注入进上下文的一块事实 | 内核；回合开始的挂接点交回来的，是交它的模块（现在的执行器一块都不交） | 回合进行中注入的带上 | `context.injected.jsonl` |
-| `context.compacted` | 压缩的检查点 | 内核 | 必带：压缩发生在哪一轮 | `context.compacted.jsonl` |
+| `context.compacted` | 压缩的检查点 | 内核 | 带上：压缩发生在哪一轮 | `context.compacted.jsonl` |
 | `context.compaction_paused` | 暂停了自动压缩（施工 6-6 上） | 内核 | 必带 | `context.compaction_paused.jsonl` |
 | `model.called` | 一次模型请求的记录 | 内核 | 回合进行中的带上 | `model.called.jsonl` |
 
 - 「—」是现在还没有哪里写这一种：读得懂、账本查得了、投影认得，就是不产生（下面「还没有的」）。
-- `turn` 那一列的「必带」「它自己的序号」「不带」，账本在追加时查：`turn.started` 的 `turn` 要是它自己的序号；带 `turn` 的要是正在进行的那个回合；「必带」的八种不带就不收；`turn.reverted`、`files.restored` 在有回合进行时不收（`kernel/history.md`）。
+- `turn` 那一列的「必带」「它自己的序号」「不带」，账本在追加时查：`turn.started` 的 `turn` 要是它自己的序号；带 `turn` 的要是正在进行的那个回合；「必带」的九种不带就不收；`turn.reverted`、`files.restored` 在有回合进行时不收（`kernel/history.md`）。
 - 模块自己的种类写成 `ext.<模块>.<种类>`，内核不认识，照不认识的种类处理。
 
 **瞬时事件** `Transient`：外壳和持久事件同一种写法，只少了 `seq`，它不进日志。`cause` 留着：一个命令引起的事，从持久的到瞬时的，一路追得下去。

@@ -10,6 +10,7 @@
 
 mod compose;
 mod guard;
+mod pause;
 mod rebuild;
 mod snapshot;
 mod tools;
@@ -19,6 +20,7 @@ mod test_support;
 
 pub use compose::{PersonaTexts, Sources, compose};
 pub use guard::GuardTexts;
+pub use pause::{PAUSE, PauseNumbers};
 pub use rebuild::{REBUILD, RebuildNumbers, RebuildTexts};
 pub use snapshot::{
     BuildError, CompactionNumbers, CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts,

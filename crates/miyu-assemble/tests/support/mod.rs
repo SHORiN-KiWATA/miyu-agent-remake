@@ -77,6 +77,7 @@ pub fn policy() -> Policy {
                 file: 2000,
             },
             rebuild: None,
+            pause: None,
         }),
         notes: None,
     }

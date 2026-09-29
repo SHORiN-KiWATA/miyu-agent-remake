@@ -344,6 +344,7 @@ impl Stage {
                 trigger: None,
                 notes: String::new(),
                 restored: Vec::new(),
+                refills: None,
             }),
         });
         self.reload();

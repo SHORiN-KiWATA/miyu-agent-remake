@@ -169,6 +169,7 @@ impl<'p> Follow<'p> {
             "model.called" => self.called(body, screen),
             "compaction.progress" => self.compaction_progress(body, screen),
             "compaction.done" => self.compaction_done(body, screen),
+            "context.compaction_paused" => self.compaction_paused(body, screen),
             "turn.ended" => {
                 return Step::Done(self.end(body["reason"].as_str().unwrap_or_default(), screen));
             }

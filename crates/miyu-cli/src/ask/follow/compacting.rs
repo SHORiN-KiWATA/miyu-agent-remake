@@ -3,7 +3,8 @@
 //!
 //! - 压缩中：`· 正在压缩上下文… 已写 3,120 字`；
 //! - 压好了：`· 上下文压缩好了：812.3k → 31k token`；
-//! - 失败：`· 压缩失败：<原因>`。
+//! - 失败：`· 压缩失败：<原因>`；
+//! - 暂停了自动压缩（施工 6-6 上）：红，照原因一行。
 
 use serde_json::Value;
 
@@ -79,6 +80,12 @@ impl Follow<'_> {
         self.finish(&line, screen);
     }
 
+    /// 暂停了自动压缩（施工 6-6 上）：红，照原因印一行。连续失败的，前面刚印过「压缩失败」那一行。
+    pub(super) fn compaction_paused(&mut self, body: &Value, screen: &mut Screen<'_>) {
+        let line = Line::inked(Ink::Red, paused(&self.plan.language, body));
+        self.finish(&line, screen);
+    }
+
     /// 结果那一行：终端里画着进度的，擦掉换成它；没画的，照旁白印。
     fn finish(&mut self, line: &Line, screen: &mut Screen<'_>) {
         if self.plan.format != Format::Text {
@@ -120,6 +127,33 @@ fn failed(language: &Language, reason: &str) -> String {
     match language {
         Language::Chinese => format!("· 压缩失败：{reason}"),
         Language::English => format!("· Compaction failed: {reason}"),
+    }
+}
+
+/// 暂停那一行：连续失败的带次数，内容太大的带是第几条；不认识的原因、缺了数的，只说暂停了、可以怎么办。
+fn paused(language: &Language, body: &Value) -> String {
+    let (reason, failures, entry) = (
+        body["reason"].as_str(),
+        body["failures"].as_u64(),
+        body["entry"].as_u64(),
+    );
+    match (language, reason, failures, entry) {
+        (Language::Chinese, Some("failures"), Some(n), _) => {
+            format!("· 自动压缩连续失败 {n} 次，已暂停：可以手动压缩、换一个模型，或者开新会话")
+        }
+        (Language::English, Some("failures"), Some(n), _) => format!(
+            "· Automatic compaction failed {n} times and is paused: compact manually, switch models, or start a new session"
+        ),
+        (Language::Chinese, Some("too_large"), _, Some(seq)) => {
+            format!("· 第 {seq} 条内容太大，压完很快又满了，自动压缩已暂停")
+        }
+        (Language::English, Some("too_large"), _, Some(seq)) => format!(
+            "· Entry {seq} is too large and keeps filling the context; automatic compaction is paused"
+        ),
+        (Language::Chinese, ..) => {
+            "· 自动压缩已暂停：可以手动压缩、换一个模型，或者开新会话".to_string()
+        }
+        (Language::English, ..) => "· Automatic compaction is paused: compact manually, switch models, or start a new session".to_string(),
     }
 }
 

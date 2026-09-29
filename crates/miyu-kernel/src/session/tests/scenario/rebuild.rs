@@ -32,6 +32,7 @@ fn rebuilding_up_to(tail: u64, total: u64) -> Stage {
                 min_window: 100,
                 candidates: 3,
             }),
+            pause: None,
         });
         let template = |source: &str| Template::parse(source).unwrap();
         policy.notes = Some(Notes {

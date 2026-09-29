@@ -27,6 +27,11 @@ impl Watch {
     /// 的回合结束，要么再来。
     pub(super) fn model_called(&mut self, called: &ModelCalled, events: &[Event], k: usize) {
         let seed = self.seed;
+        // 暂停着明知放不下、没发出去的那一条：没交给过执行器（施工 6-6 上，`watch/breaker.rs`）。
+        if self.refused(called, events.get(k + 1).map(|event| &event.body)) {
+            return;
+        }
+        self.breaker_called(called);
         assert!(
             self.issued.contains(&called.seen),
             "种子 {seed}：没交给执行器的请求 {} 记了一条",

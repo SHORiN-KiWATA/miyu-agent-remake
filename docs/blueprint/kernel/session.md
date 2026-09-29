@@ -41,13 +41,13 @@
 | 输入 | 带着 | 见 |
 |---|---|---|
 | `Command(Received)` | `id` 命令编号、`by` 谁发的（取自连接）、`at` 到的时刻、`command` | 「命令和回应」 |
-| `Stored { upto }` | 落了盘的最后一条的序号 | 「命令和回应」第 8 条 |
+| `Stored { at, upto }` | 落完盘的时刻（执行器的时钟），落了盘的最后一条的序号。时刻是给「接着发请求」时熔断要写的事件用的（施工 6-6 上） | 「命令和回应」第 8 条 |
 | `Environment(Environment)` | `offset` 时区、`cwd` 工作目录（头报的、人看到的写法）、`dirs` 加进来的目录（施工 5-10 上） | 换掉会话的环境，什么都不出；下一个边界才用 |
 | `Limits(Limits)` | `model` 发给哪个端点的哪个模型、`window` 上下文窗口、`max_output` 最大输出，没报的是 `None`（施工 6-2 上）；`images` 一张图怎么算（`estimate::ImagePrice`，驱动交的，没有的照策略里的固定数，施工 6-3 上） | 换掉会话的模型限额，什么都不出；只在内存里，载入以后执行器再交一次。没交过的不主动压缩（`compaction.md` 第二条） |
 | `TurnStartHooksDone { at, turn, injected }` | 哪个回合；各模块的注入 `Injection { module, fact }`，照固定的先后 | 「回合」第 4 条 |
 | `RequestSent { at, seen, model, request }` | 哪次请求；发给了哪个端点的哪个模型（`Model { endpoint, model }`）；驱动编码以后的请求字节的哈希 | 「收回复」 |
 | `ModelDelta { at, seen, delta }` | 一段增量：`Start { index, kind }`、`Text { index, text }`、`Private { index, private }`、`End { index }` | 「收回复」 |
-| `ModelEnded { at, seen, usage, error, wait_ms }` | 用量；出错的分类和原话；供应商说要等多少毫秒。没发出去就失败的不报 `RequestSent`，直接报这一条 | 「收回复」「出错再来」 |
+| `ModelEnded { at, seen, usage, error, wait_ms, excess }` | 用量；出错的分类和原话；供应商说要等多少毫秒；超长的超了多少 token（施工 6-6 中，不进日志）。没发出去就失败的不报 `RequestSent`，直接报这一条 | 「收回复」「出错再来」 |
 | `Woke { at, seen }` | 为哪一次请求等的；等停着的，是那一步回复的序号 | 「出错再来」「打断」第 7 条 |
 | `ToolDone { at, call_id, error, blocks, duration_ms, human, effects, stopped }` | 出没出错、给模型看的内容、用时、给人看的说法、效果；叫它停以后停在了改之前的，`stopped` 是真的 | 「调工具」「打断」第 7 条 |
 | `ToolProgress { at, call_id, text }` | 一段输出 | 「调工具」 |
@@ -131,7 +131,7 @@
 5. 正在改回文件的时候（撤销、恢复以后），接受过的编号照第 4 条；别的命令一律拒绝，`restoring`。
 6. 命令产生的事件：`at` 是命令到的时刻，`by` 是发命令的一方，`cause` 是命令编号。一条输入产生的几条事件，时刻相同。
 7. 造一条事件：序号照账本给；`turn.started` 的 `turn` 是它自己的序号，别的事件在回合进行中带上这个回合，空闲时没有；先过账本（`history.md`），再进有效历史，等落盘。
-8. **落了盘**（`Stored { upto }`）：追加过、还没落盘的事件里，序号不超过 `upto` 的算落了盘；一条都没有的，什么都不做。有的，照这个先后出：`Push` 这些事件；`Reply` 事件全落了盘的命令，照收到的先后；`RunTurnEndHooks` `turn.ended` 落了盘的回合；然后回合往下走（派工具，或者跑回合开始的挂接点，或者发请求）。
+8. **落了盘**（`Stored { at, upto }`）：追加过、还没落盘的事件里，序号不超过 `upto` 的算落了盘；一条都没有的，什么都不做。有的，照这个先后出：`Push` 这些事件；`Reply` 事件全落了盘的命令，照收到的先后；`RunTurnEndHooks` `turn.ended` 落了盘的回合；然后回合往下走（派工具，或者跑回合开始的挂接点，或者发请求）。
 
 **发一条消息**（`Send`）：
 
@@ -178,7 +178,7 @@
    4. 拼出来一块都没有的不写回复；正常说完的，按出错算：`empty_reply`，「回复里一个块都没有」。
    5. 有的写成 `message.assistant`：`seen` 是这次请求的，出错的多写 `"interrupted":true`，`by` 是那个模型，`cause` 是回合的。
    6. 接着追加 `model.called`（下表），`by` 是内核，`cause` 是回合的。
-   7. 出错的：能再来就等着再来（「出错再来」），不能的结束回合，`error`。收到的半截照样留在日志里。自动压缩的摘要请求这样结束的，是一次失败：最近一个检查点以后数到 3 次，在 `turn.ended` 前面写 `context.compaction_paused`（`compaction.md` 第十条第 4 条）。
+   7. 出错的：摘要请求报 `context_too_long` 的，先截掉最老的几组再发（`compaction.md` 第三条第 10 条，施工 6-6 中）；能再来就等着再来（「出错再来」），不能的结束回合，`error`。收到的半截照样留在日志里。自动压缩的摘要请求这样结束的，是一次失败：最近一次压缩以后写下的数到 3 次，在 `turn.ended` 前面写 `context.compaction_paused`（`compaction.md` 第十条第 4 条）。
    8. 正常说完的：这一步连着出错的次数清零。回复里有工具调用，调工具；没有，结束回合，`completed`。
 
 | `model.called` 的格 | 写什么 |

@@ -380,7 +380,10 @@ impl Actor {
                     }
                     None => {}
                 }
-                Ok(Some(Input::Stored { upto }))
+                Ok(Some(Input::Stored {
+                    at: self.clock.now(),
+                    upto,
+                }))
             }
             Ok((_, Err(error), _)) => {
                 tracing::warn!(target: TARGET, kind = ?error.kind(), "write failed, stopped");

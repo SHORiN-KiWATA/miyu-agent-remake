@@ -142,3 +142,92 @@ fn a_progress_after_a_half_said_answer_starts_on_a_new_line() {
         "{screen:?}"
     );
 }
+
+/// 暂停了自动压缩（施工 6-6 上）。
+fn paused(body: Value) -> Value {
+    event("context.compaction_paused", 3, "ask-4", body)
+}
+
+#[test]
+fn a_pause_after_the_third_failure_is_red_and_says_what_to_do() {
+    let plan = plan(Format::Text, Language::Chinese);
+    let turn = compacted(vec![
+        summary_called("error", Some(("auth", "denied"))),
+        paused(json!({"reason": "failures", "failures": 3})),
+    ]);
+    let Fed { err, .. } = feed(&plan, true, &turn);
+    let red = |text: &str| format!("\x1b[31m{text}\x1b[0m\n");
+    let failed = format!("\r\x1b[2K{}", red("· 压缩失败：认证失败"));
+    let pause = red("· 自动压缩连续失败 3 次，已暂停：可以手动压缩、换一个模型，或者开新会话");
+    assert!(err.contains(&format!("{failed}{pause}")), "{err:?}");
+}
+
+#[test]
+fn each_pause_reason_has_its_line() {
+    for (language, body, line) in [
+        (
+            Language::Chinese,
+            json!({"reason": "too_large", "entry": 57}),
+            "· 第 57 条内容太大，压完很快又满了，自动压缩已暂停",
+        ),
+        (
+            Language::English,
+            json!({"reason": "failures", "failures": 3}),
+            "· Automatic compaction failed 3 times and is paused: compact manually, switch models, or start a new session",
+        ),
+        (
+            Language::English,
+            json!({"reason": "too_large", "entry": 57}),
+            "· Entry 57 is too large and keeps filling the context; automatic compaction is paused",
+        ),
+        // 不认识的原因、缺了数的：只说暂停了、可以怎么办。
+        (
+            Language::Chinese,
+            json!({"reason": "budget"}),
+            "· 自动压缩已暂停：可以手动压缩、换一个模型，或者开新会话",
+        ),
+        (
+            Language::Chinese,
+            json!({"reason": "too_large"}),
+            "· 自动压缩已暂停：可以手动压缩、换一个模型，或者开新会话",
+        ),
+        (
+            Language::English,
+            json!({"reason": "failures"}),
+            "· Automatic compaction is paused: compact manually, switch models, or start a new session",
+        ),
+    ] {
+        let plan = plan(Format::Text, language);
+        let mut turn = a_turn("completed");
+        turn.insert(1, paused(body.clone()));
+        let Fed { screen, .. } = feed(&plan, false, &turn);
+        assert!(
+            screen.starts_with(&format!("{line}\n")),
+            "{body} {screen:?}"
+        );
+    }
+}
+
+#[test]
+fn a_request_that_would_not_fit_while_paused_ends_the_turn_with_the_class() {
+    let plan = plan(Format::Text, Language::Chinese);
+    let message =
+        "the request would not fit: 126400 tokens used + 20000 reserved for output > window 128000";
+    let turn = [
+        event("turn.started", 3, "ask-4", json!({"trigger": 2})),
+        event(
+            "model.called",
+            3,
+            "ask-4",
+            json!({"seen": 3, "messages": 12, "result": "error",
+                "error": {"class": "compaction_paused", "message": message}}),
+        ),
+        event("turn.ended", 3, "ask-4", json!({"reason": "error"})),
+    ];
+    let Fed { screen, step, .. } = feed(&plan, false, &turn);
+    assert_eq!(step, Step::Done(exit::ERROR));
+    assert!(
+        screen.ends_with(&format!("出错了：自动压缩暂停着：{message}\n")),
+        "{screen:?}"
+    );
+}
