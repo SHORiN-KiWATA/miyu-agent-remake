@@ -12,6 +12,7 @@ mod compose;
 mod guard;
 mod pause;
 mod rebuild;
+mod shorten;
 mod snapshot;
 mod tools;
 
@@ -22,6 +23,7 @@ pub use compose::{PersonaTexts, Sources, compose};
 pub use guard::GuardTexts;
 pub use pause::{PAUSE, PauseNumbers};
 pub use rebuild::{REBUILD, RebuildNumbers, RebuildTexts};
+pub use shorten::{SHORTEN, ShortenNumbers, ShortenTexts};
 pub use snapshot::{
     BuildError, CompactionNumbers, CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts,
     PermissionTexts, Snapshot, SnapshotError, ToolResultTexts, TurnEndedTexts,

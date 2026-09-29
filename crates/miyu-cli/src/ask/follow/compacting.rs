@@ -16,6 +16,9 @@ use crate::shown::{Ink, Line, write};
 /// 回到行首、擦掉这一行：终端里原地刷新用。
 const REDRAW: &str = "\r\x1b[2K";
 
+/// 内核在摘要请求调了工具、接着改走隔离式时，原话末尾写的（`docs/blueprint/compaction.md` 第三条第 7 条）。
+const ISOLATING: &str = "trying again without tools";
+
 /// 正在压缩的那一次。
 #[derive(Debug, Default)]
 pub(super) struct Compacting {
@@ -72,9 +75,15 @@ impl Follow<'_> {
         if body["result"].as_str() != Some("error") {
             return;
         }
-        self.compacting.seen = None;
         let class = body["error"]["class"].as_str().unwrap_or("other");
         let message = body["error"]["message"].as_str().unwrap_or_default();
+        // 调了工具、接着改走隔离式的（施工 6-6 下）：不是失败，灰色说一句，这次压缩接着来进度。
+        if class == "bad_summary" && message.ends_with(ISOLATING) {
+            let line = Line::gray(isolating(&self.plan.language));
+            self.finish(&line, screen);
+            return;
+        }
+        self.compacting.seen = None;
         let reason = reason(&self.plan.language, class, message);
         let line = Line::inked(Ink::Red, failed(&self.plan.language, &reason));
         self.finish(&line, screen);
@@ -127,6 +136,16 @@ fn failed(language: &Language, reason: &str) -> String {
     match language {
         Language::Chinese => format!("· 压缩失败：{reason}"),
         Language::English => format!("· Compaction failed: {reason}"),
+    }
+}
+
+/// 改走隔离式那一行（施工 6-6 下）。
+fn isolating(language: &Language) -> String {
+    match language {
+        Language::Chinese => "· 摘要请求里调了工具，改用不带工具的再压".to_string(),
+        Language::English => {
+            "· The summary called a tool; compacting again without tools".to_string()
+        }
     }
 }
 

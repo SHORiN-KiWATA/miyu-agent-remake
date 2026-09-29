@@ -22,6 +22,8 @@ pub struct Line {
     pub error: Option<CallError>,
     /// 出错时供应商说了要等多久，毫秒。
     pub wait_ms: Option<u64>,
+    /// 超长时驱动解析出超了多少 token（施工 6-6 中）。
+    pub excess: Option<u64>,
     /// 说到一半停住。
     pub hold: bool,
     /// 说完了报的用量；没有的照默认：没命中缓存的 100，输出 10（施工 6-2 上）。
@@ -45,6 +47,7 @@ impl Line {
                 .collect(),
             error: None,
             wait_ms: None,
+            excess: None,
             hold: false,
             usage: None,
         }
@@ -81,6 +84,14 @@ impl Line {
     pub fn waits(self, wait_ms: u64) -> Line {
         Line {
             wait_ms: Some(wait_ms),
+            ..self
+        }
+    }
+
+    /// 同样的超长，驱动解析出超了 `tokens`（施工 6-6 中）。
+    pub fn exceeds(self, tokens: u64) -> Line {
+        Line {
+            excess: Some(tokens),
             ..self
         }
     }

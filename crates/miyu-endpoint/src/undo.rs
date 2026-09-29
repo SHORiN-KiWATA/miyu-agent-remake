@@ -1,5 +1,5 @@
 //! 撤销、恢复的回应里给人看的几样（`docs/designs/04-核心协议.md` 第九节，施工 4-7 下）：撤的是哪一轮（那一轮人说的
-//! 那句话）、撤掉的几轮执行过几条命令、每个文件怎样、之后又被改过的差异。「该显示什么」写在核心里（`01-架构.md`
+//! 那句话）、撤掉的几轮执行过几条命令、撤掉了几次压缩（施工 6-9）、每个文件怎样、之后又被改过的差异。「该显示什么」写在核心里（`01-架构.md`
 //! D1），头照着印；做视图投影（M8）时这几样挪进视图，字段只加不改。
 //!
 //! 照会话的日志读：撤销（恢复）和改回文件的结局都落了盘才回应，这时读得到。碰磁盘，在阻塞线程里调。
@@ -91,6 +91,9 @@ pub(crate) struct Report {
     /// 撤掉的几轮执行过几条命令：撤销时才有。
     #[serde(skip_serializing_if = "Option::is_none")]
     commands: Option<usize>,
+    /// 撤掉了几次压缩（施工 6-9）：撤销时才有，是 0 的不写。头照它说一句上下文回到了压缩前。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    compactions: Option<usize>,
     /// 改回的每一步，照先后。
     files: Vec<File>,
 }
@@ -144,6 +147,9 @@ pub(crate) fn report(sources: &Sources, events: &[u64]) -> Report {
         turns: turns.len(),
         said: turns.first().and_then(|turn| said(&log, *turn)),
         commands: undo.then(|| commands(&log, &turns, &sources.executing)),
+        compactions: undo
+            .then(|| compactions(&log, &turns))
+            .filter(|count| *count > 0),
         files: restored
             .iter()
             .map(|file| entry(file, &log, &blobs, undo))
@@ -170,6 +176,14 @@ fn said(log: &[Event], turn: TurnId) -> Option<String> {
             .map(str::to_string),
         _ => None,
     })
+}
+
+/// 这几轮里有几次压缩（施工 6-9）：`context.compacted` 带的回合在这几轮里的。
+fn compactions(log: &[Event], turns: &[TurnId]) -> usize {
+    log.iter()
+        .filter(|event| event.turn.is_some_and(|turn| turns.contains(&turn)))
+        .filter(|event| matches!(event.body, Body::ContextCompacted(_)))
+        .count()
 }
 
 /// 这几轮里真跑过几条命令：回复里调的、照工具目录是执行命令的那几件，结果是成了、出错、可能跑了一半的；

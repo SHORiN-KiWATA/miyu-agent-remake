@@ -3,6 +3,9 @@
 //! 从最近一次压缩算起，去掉撤销掉的回合。账本（[`crate::ledger`]）查过的事件才交给这里，
 //! 这里只留还要发给模型的那些。压缩一次就丢掉更早的；撤销一次，撤掉的先放在一边，下一轮开始、
 //! 压缩了才丢（`history/undo.rs`）。所以占的内存随上下文窗口走，不随日志走（`07-存储.md` 第七节）。
+//!
+//! 撤销能撤掉压缩（施工 6-9）：更早的那一段从日志读回来，从留着一切的一份（[`History::whole`]）收起，收完落到
+//! 检查点上（[`History::settle`]，`docs/blueprint/kernel/history.md`「从日志的一段重建」）。载入也这样重建。
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -39,7 +42,8 @@ impl History {
         }
     }
 
-    /// 放进最近一个检查点里重读的文件的原文（施工 6-5）：压完时照执行器交回的，载入以后照 `Input::Recalled`。
+    /// 放进现在这个检查点里重读的文件的原文（施工 6-5）：压完时照执行器交回的，别的时候照 `Input::Recalled`（施工
+    /// 6-9）。
     pub fn recall(&mut self, texts: BTreeMap<ContentHash, String>) {
         self.recalled.extend(texts);
     }
@@ -82,6 +86,23 @@ impl History {
         }
     }
 
+    /// 有效历史的后一段：检查点照留，之后的事件只留第 `cut` 条以后的，放在一边的撤销不要（施工 6-6 中）。摘要请求超长
+    /// 截掉最老的几组再试时，照 `until(N)` 再截它组装（`compaction.md` 第三条第 10 条）。
+    pub fn after(&self, cut: Seq) -> History {
+        History {
+            checkpoint: self.checkpoint.clone(),
+            events: self
+                .events
+                .iter()
+                .filter(|event| event.seq > cut)
+                .cloned()
+                .collect(),
+            undone: Vec::new(),
+            whole: self.whole,
+            recalled: self.recalled.clone(),
+        }
+    }
+
     /// 检查点之后还有效的事件，照每次请求当时看到的样子排好（03 第六节「照每次请求
     /// 看到的范围排」）。投影照这个先后一条条渲染。
     ///
@@ -107,12 +128,39 @@ impl History {
         segments.into_iter().flat_map(reply_first).collect()
     }
 
+    /// 落到检查点上（施工 6-9）：事件里有 `context.compacted` 的，最近的那一条当检查点，换掉原来的；事件只留序号大于
+    /// 它的 `upto`、不是 `context.compacted` 的；重读的原文清掉。交回检查点换了没有。放在一边的不动：里面的压缩，等
+    /// 恢复放回来再落。
+    ///
+    /// 留着一切的那一份（[`History::whole`]）调过它，就成了平时那一份：从日志的一段重建就是这样收完的。平时那一份的
+    /// 事件里只有恢复放回来的才有压缩。
+    pub fn settle(&mut self) -> bool {
+        self.whole = false;
+        let Some(k) = self
+            .events
+            .iter()
+            .rposition(|event| matches!(event.body, Body::ContextCompacted(_)))
+        else {
+            return false;
+        };
+        let checkpoint = self.events.remove(k);
+        if let Body::ContextCompacted(compacted) = &checkpoint.body {
+            let upto = compacted.upto;
+            self.events
+                .retain(|kept| kept.seq > upto && !matches!(kept.body, Body::ContextCompacted(_)));
+        }
+        self.checkpoint = Some(checkpoint);
+        self.recalled.clear();
+        true
+    }
+
     /// 追加一条账本查过的事件。
     ///
     /// 压缩：换上新的检查点，序号在它 `upto` 之前的事件和旧的检查点一起丢掉，
     /// 新摘要里已经包着它们；留着一切的那一份（[`History::whole`]）什么都不丢，压缩照先后留成一条。撤销：撤掉的回合连同跟着撤的话拿走，先放在一边；恢复：放回原处
     /// （`history/undo.rs`）；下一轮开始、压缩了，放在一边的就丢掉。撤回：丢掉撤回的消息。`turn.reverted`、
-    /// `turn.unreverted`、`message.withdrawn` 本身用过就丢，它们不进上下文。其余的照先后留着。
+    /// `turn.unreverted`、`message.withdrawn` 本身用过就丢，它们不进上下文。其余的照先后留着。放回来的里面有压缩的（撤掉
+    /// 压缩的那一次撤销放在一边的），再落到检查点上（[`History::settle`]）。
     pub fn append(&mut self, event: Event) {
         match &event.body {
             Body::ContextCompacted(_) if self.whole => {

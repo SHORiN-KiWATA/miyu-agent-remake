@@ -33,6 +33,8 @@ fn rebuilding_up_to(tail: u64, total: u64) -> Stage {
                 candidates: 3,
             }),
             pause: None,
+            shorten: None,
+            isolate: false,
         });
         let template = |source: &str| Template::parse(source).unwrap();
         policy.notes = Some(Notes {
@@ -40,6 +42,7 @@ fn rebuilding_up_to(tail: u64, total: u64) -> Stage {
             files_more: template("<more {count}/>\n"),
             retrieve: template("<retrieve {upto}/>\n"),
             too_large: template("<too-large {files}/>\n"),
+            uncovered: None,
         });
         policy
     };
@@ -276,4 +279,39 @@ fn a_result_that_does_not_match_the_candidates_is_ignored() {
         .map(|file| file.path.as_str())
         .collect();
     assert_eq!(restored, ["d.rs", "c.rs"]);
+}
+
+/// 检查点换了、原文不在内存里，取回它重读过的文件的原文（施工 6-9）：撤掉压缩回到没有检查点的，不取；恢复了、载入
+/// 以后、撤掉后来的一次回到它的，都取回它那几份。
+#[test]
+fn a_checkpoint_that_counts_again_gets_its_reread_files_recalled() {
+    let mut stage = rebuilding(0);
+    read_then_compact(&mut stage, ["a", "b", "c", "d"], 120);
+    let blobs: Vec<ContentHash> = compacted(&stage)
+        .restored
+        .iter()
+        .map(|file| file.blob.clone())
+        .collect();
+    assert_eq!(blobs, [ContentHash::of(b"d"), ContentHash::of(b"c")]);
+    let compacting = stage.turns()[1];
+    stage.revert(compacting);
+    assert!(stage.recalls().is_empty(), "撤到没有检查点，不取");
+    stage.unrevert();
+    assert_eq!(
+        stage.recalls(),
+        std::slice::from_ref(&blobs),
+        "恢复了压缩，取回它的"
+    );
+    stage.crash();
+    assert_eq!(stage.recalls().len(), 2, "载入以后也取回");
+    stage.compact("S2");
+    assert_eq!(stage.recalls().len(), 2, "新的检查点没重读过文件，不取");
+    let later = *stage.turns().last().unwrap();
+    stage.revert(later);
+    assert_eq!(
+        stage.recalls().last(),
+        Some(&blobs),
+        "撤掉后来的一次，回到它"
+    );
+    assert_eq!(stage.recalls().len(), 3);
 }

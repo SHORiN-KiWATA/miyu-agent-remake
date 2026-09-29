@@ -186,6 +186,7 @@ impl ModelPort for NoModel {
                 message: "no model: set DEEPSEEK_API_KEY".to_string(),
             }),
             None,
+            None,
         );
     }
 }

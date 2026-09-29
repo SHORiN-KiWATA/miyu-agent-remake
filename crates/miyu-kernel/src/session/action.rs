@@ -3,7 +3,7 @@
 //! 会话自己不做 I/O：要追加的事件、要回应的命令、要推送的事件，都写成动作交给执行器。
 
 use crate::event::{Event, Permission, Response, Transient};
-use crate::id::{CallId, CommandId, Seq, TurnId};
+use crate::id::{CallId, CommandId, ContentHash, Seq, TurnId};
 use crate::request::{Difference, Request};
 use crate::time::Timestamp;
 
@@ -112,6 +112,18 @@ pub enum Action {
         /// 单个最多多少字节：超了的不读完，报太大。
         limit: u64,
     },
+    /// 撤销撤掉压缩时读回日志（`compaction.md` 第十一条，施工 6-9）：只读地读这个会话的日志，从第 `from` 条到最后
+    /// 一条，送回 [`super::Input::ReadBack`]，读完才收收件箱。读不了的，会话停下。
+    ReadBack {
+        /// 从第几条起：撤完以后还算数的最近一次压缩替代到的下一条，一次都没有的是第 1 条。
+        from: Seq,
+    },
+    /// 取回检查点里重读的文件的原文（`compaction.md` 第九条，施工 6-9）：检查点换了、原文不在内存里的时候（载入以后、
+    /// 撤掉了压缩、恢复了压缩）。照 blob 读出原文，送回 [`super::Input::Recalled`]，读不出来的不交；读完才收收件箱。
+    Recall {
+        /// 新检查点里重读的文件的 blob，照先后。
+        blobs: Vec<ContentHash>,
+    },
     /// 执行一次工具调用。执行中的输出、执行完了，都带着调用编号回报
     /// （`02-内核.md` 第六节「工具怎么调、下一步怎么走」）。
     RunTool {
@@ -168,13 +180,11 @@ pub enum Reason {
     BadAnswer,
     /// 有回合在进行，撤销不了：头先打断再撤（`02-内核.md` 第六节「撤销与恢复」）。
     TurnRunning,
-    /// 要撤的那一轮不在有效历史里：没有这一轮，或者已经撤掉了。
+    /// 要撤的那一轮没有，或者已经撤掉了。压缩以前的回合照样能撤（施工 6-9）。
     UnknownTurn,
-    /// 要撤的那一轮已经压缩进摘要了：要回到那之前，从那里分叉。
-    Compacted,
     /// 没有能恢复的撤销：没撤过，或者撤了以后开过回合、压缩过。
     NothingToUnrevert,
-    /// 正在改回文件（撤销、恢复以后）：等它做完再来（施工 4-7 上）。
+    /// 撤销、恢复还没做完：正在读回更早的日志（施工 6-9）、正在改回文件（施工 4-7 上）。等它做完再来。
     Restoring,
     /// 撤最后一轮（不写回合编号）时一轮都没有：没说过话、都撤掉了、都压缩进了摘要（施工 4-7 下）。
     NothingToRevert,
@@ -194,7 +204,6 @@ impl Reason {
             Reason::BadAnswer => "bad_answer",
             Reason::TurnRunning => "turn_running",
             Reason::UnknownTurn => "unknown_turn",
-            Reason::Compacted => "compacted",
             Reason::NothingToUnrevert => "nothing_to_unrevert",
             Reason::Restoring => "restoring",
             Reason::NothingToRevert => "nothing_to_revert",

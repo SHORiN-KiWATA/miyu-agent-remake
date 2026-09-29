@@ -27,7 +27,8 @@
 //! - 打断时在跑的改文件的调用：叫它停，等它交回来、到点、又打断一次才收尾（施工 4-9 再补一，
 //!   `watch/stopping.rs`）；
 //! - 压缩：交了限额、用量过了线，先发摘要请求，替代到的 N 照规矩；说完了写压缩，取不出摘要的出错收场；压完的
-//!   请求照检查点以后的；撤不到替代掉的回合（施工 6-2 上，`watch/compaction.rs`）。
+//!   请求照检查点以后的（施工 6-2 上，`watch/compaction.rs`）；撤销能撤掉压缩：先读回日志，对不上的不理，恢复不读，
+//!   检查点换了取回原文（施工 6-9，`watch/undo.rs`、`random/undoing.rs`）。
 //!
 //! 每一步还照九条不变量查（`watch/invariants.rs`，`02-内核.md` 第九节「不变量怎么查」）。
 //!
@@ -36,12 +37,14 @@
 
 mod asking;
 mod compacting;
+mod endings;
 mod kinds;
 mod paths;
 mod rereading;
 mod restoring;
 mod rng;
 mod stopping;
+mod undoing;
 mod watch;
 
 use std::collections::BTreeSet;
@@ -49,7 +52,6 @@ use std::collections::BTreeSet;
 use super::approval::answer;
 use super::permission::{read_only, switch};
 use super::question::reply;
-use super::revert::{revert, revert_last, unrevert};
 use super::*;
 use crate::accumulate::{Delta, Kind};
 use crate::event::{
@@ -61,13 +63,15 @@ use crate::origin::Model;
 use crate::raw::RawJson;
 use crate::tool::Access;
 use asking::{some_answer, some_question, some_reply, some_verdict};
-use compacting::{random_policy, some_limits};
+use compacting::{random_policy, some_limits, some_overflow};
+use endings::some_ending;
 use kinds::InputKind;
 use paths::{EXPECTED_PATHS, LONG_PATHS};
 use rereading::some_reread;
 use restoring::some_restored;
 use rng::Rng;
 use stopping::some_stop_end;
+use undoing::{read_back_now, some_read_back, some_undo};
 use watch::Watch;
 
 /// 随机测试的会话，一个回合最多请求几次模型。
@@ -174,25 +178,6 @@ fn scrambled_delta(rng: &mut Rng) -> Delta {
         },
         _ => Delta::End { index },
     }
-}
-
-/// 说完了的结局：四回里有一回出错，出错的带着供应商说的要等多久（施工 3-5 下）。多半是可以重试的
-/// 503；也有限速的（等 3 秒，或者 10 分钟：太久不等）、认证失败的（不重试）。
-fn some_ending(rng: &mut Rng) -> (Option<CallError>, Option<u64>) {
-    if rng.below(4) > 0 {
-        return (None, None);
-    }
-    let (class, message, wait) = match rng.below(8) {
-        0 => (ErrorClass::Auth, "401", None),
-        1 => (ErrorClass::RateLimited, "429", Some(3000)),
-        2 => (ErrorClass::RateLimited, "429", Some(600_000)),
-        _ => (ErrorClass::Retryable, "503", None),
-    };
-    let error = CallError {
-        class,
-        message: message.to_string(),
-    };
-    (Some(error), wait)
 }
 
 /// 到点了：为 `seen` 那次请求等的。
@@ -308,6 +293,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
                 usage: None,
                 error,
                 wait_ms,
+                excess: None,
             }
         }
         22 => progress(watch.some_call(rng)),
@@ -332,36 +318,6 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
         28 => read_only(next_command(next_id), !watch.writing && rng.below(2) == 0),
         _ => switch(next_command(next_id), Some(some_level(rng)), None),
     }
-}
-
-/// 撤销、恢复，另用一串随机数：原来那串输入不跟着错开。空闲时四回里有一回，回合开着时五十回里
-/// 一回（该被拒）。能恢复的时候一半是恢复，不能的时候十回里一回（该被拒）；撤销多半从还在有效历史
-/// 里的最后三轮之一起，偶尔是对不上的。
-fn some_undo(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> Option<Input> {
-    let chance = if watch.turn_open() { 50 } else { 4 };
-    if rng.below(chance) != 0 {
-        return None;
-    }
-    let n = next_command(next_id);
-    let redo = match watch.undo.can_unrevert() {
-        true => rng.below(2) == 0,
-        false => rng.below(10) == 0,
-    };
-    if redo {
-        return Some(unrevert(n));
-    }
-    // 四回里有一回不写回合编号，撤最后一轮（施工 4-7 下）。
-    if rng.below(4) == 0 {
-        return Some(revert_last(n));
-    }
-    let effective = &watch.undo.effective;
-    let turn = match effective.len() {
-        k if k > 0 && rng.below(6) > 0 => effective[k - 1 - rng.below(k.min(3) as u64) as usize]
-            .started()
-            .get(),
-        _ => 1 + rng.below(watch.last()),
-    };
-    Some(revert(n, turn))
 }
 
 /// 常用的那一级：多半是认识的，偶尔是不认识的，要被拒绝。
@@ -419,7 +375,9 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let mut rng = Rng(seed);
         // 五个种子里有一个没人能确认。
         let attended = seed % 5 != 4;
-        let mut session = session_with(random_policy(attended));
+        // 三个种子里有一个有隔离式那句 system（施工 6-6 下）：别的调了工具照失败算，连续失败、暂停才走得到。
+        let isolate = seed % 3 == 1;
+        let mut session = session_with(random_policy(attended, isolate));
         let mut watch = Watch::new(seed);
         watch.approvals.attended = attended;
         // 双数的种子风平浪静：打断、乱来的增量少，一轮才走得深；单数的种子专门捣乱。
@@ -434,14 +392,19 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let mut restores = Rng(seed ^ 0x5E57_04ED);
         let mut limits = Rng(seed ^ 0x11A1_7500);
         let mut rereads = Rng(seed ^ 0x2E2E_AD00);
+        let mut overflows = Rng(seed ^ 0x0F10_0D00);
+        let mut readbacks = Rng(seed ^ 0x2EAD_BAC0);
         for _ in 0..300 {
             if watch.all_stored() && crashes.below(200) == 0 {
                 let planned = crashes.below(2) == 0;
-                session = watch.reload(session, planned, random_policy(attended));
-                if let Some(input) = watch.recalled_after_reload() {
+                session = watch.reload(session, planned, random_policy(attended, isolate));
+                if let Some(input) = watch.recall_answer() {
                     watch.feed(&mut session, input);
                 }
                 continue;
+            }
+            if let Some(input) = some_read_back(&mut readbacks, &watch, &mut next_id) {
+                watch.feed(&mut session, input);
             }
             if let Some(input) = some_undo(&mut undos, &watch, &mut next_id) {
                 watch.feed(&mut session, input);
@@ -455,7 +418,13 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
             if let Some(input) = some_reread(&mut rereads, &watch) {
                 watch.feed(&mut session, input);
             }
+            if let Some(input) = some_overflow(&mut overflows, &watch) {
+                watch.feed(&mut session, input);
+            }
             let input = some_input(&mut rng, &mut watch, &mut next_id);
+            watch.feed(&mut session, input);
+        }
+        if let Some(input) = read_back_now(&watch) {
             watch.feed(&mut session, input);
         }
         if let Some(steps) = watch.restoring.pending.clone() {

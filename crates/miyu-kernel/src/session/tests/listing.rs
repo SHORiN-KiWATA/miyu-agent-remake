@@ -27,14 +27,37 @@ impl Assembler for Listing {
         }
     }
 
-    /// 截到第 `upto` 条的清单，最后一条写着「summarize」。
-    fn summarize(&self, history: &History, upto: Seq) -> Request {
-        let mut request = self.assemble(&history.until(upto));
+    /// 截到第 `upto` 条的清单，最后一条写着「summarize」。截短重试的（施工 6-6 中）：只列第 `cut` 条以后的，最前面一条
+    /// 写着「truncated after <cut>」，看守照它重建。
+    fn summarize(&self, history: &History, upto: Seq, cut: Option<Seq>) -> Request {
+        let kept = history.until(upto);
+        let kept = match cut {
+            Some(cut) => kept.after(cut),
+            None => kept,
+        };
+        let mut request = self.assemble(&kept);
+        if let Some(cut) = cut {
+            request.messages.insert(
+                0,
+                Message::User {
+                    blocks: vec![Block::Text(Text {
+                        text: format!("truncated after {cut}"),
+                    })],
+                },
+            );
+        }
         request.messages.push(Message::User {
             blocks: vec![Block::Text(Text {
                 text: "summarize".to_string(),
             })],
         });
+        request
+    }
+
+    /// 隔离式（施工 6-6 下）：一样的清单，system 写着「isolated」。
+    fn summarize_isolated(&self, history: &History, upto: Seq, cut: Option<Seq>) -> Request {
+        let mut request = self.summarize(history, upto, cut);
+        request.system = "isolated".to_string();
         request
     }
 

@@ -7,6 +7,8 @@
 use miyu_kernel::event::{CallError, ErrorClass};
 use serde_json::Value;
 
+mod excess;
+
 /// 出了错的一次请求：状态、响应头、响应体。流里报的错没有状态，也没有头。
 #[derive(Debug, Clone, Copy)]
 pub struct Failure<'a> {
@@ -36,6 +38,8 @@ pub struct Classified {
     pub error: CallError,
     /// 供应商说了要等多久，毫秒。没说的没有，由执行器退避。
     pub retry_after_ms: Option<u64>,
+    /// 超长的超了多少 token（施工 6-6 中）：内核照它截短摘要请求。别的分类、原话里解析不出来的没有。
+    pub excess: Option<u64>,
 }
 
 /// 原话最长多少字节：出错页可能是一整页 HTML。
@@ -154,6 +158,9 @@ pub fn classify(failure: &Failure<'_>) -> Classified {
             Some(_) => ErrorClass::Unclassified,
         }
     };
+    let excess = (class == ErrorClass::ContextTooLong)
+        .then(|| excess::excess(&text))
+        .flatten();
     let message = match failure.status {
         Some(status) => format!("HTTP {status}: {}", said.message),
         None => said.message,
@@ -164,6 +171,7 @@ pub fn classify(failure: &Failure<'_>) -> Classified {
             message: clip(&message, MESSAGE_LIMIT).to_string(),
         },
         retry_after_ms: retry_after(failure.headers, &text),
+        excess,
     }
 }
 

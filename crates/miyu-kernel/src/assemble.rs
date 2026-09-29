@@ -19,8 +19,13 @@ pub trait Assembler {
     fn assemble(&self, history: &History) -> Request;
 
     /// 压缩的摘要请求：有效历史到第 `upto` 条为止的投影，最后是摘要指令（`compaction.md` 第三条第 3 条）。
-    /// 同样是纯函数。
-    fn summarize(&self, history: &History, upto: Seq) -> Request;
+    /// 同样是纯函数。`cut` 是截短重试截到第几条（施工 6-6 中，第三条第 10 条）：检查点后面第 `cut` 条及以前的不要，
+    /// 截过的要照组装器的写法标出来；没有是不截。
+    fn summarize(&self, history: &History, upto: Seq, cut: Option<Seq>) -> Request;
+
+    /// 隔离式的摘要请求（施工 6-6 下，`compaction.md` 第四条）：和 [`Assembler::summarize`] 一样的消息，system 换成隔离式
+    /// 那一句，工具面空的。fork 式的摘要回复里调了工具时改发它。
+    fn summarize_isolated(&self, history: &History, upto: Seq, cut: Option<Seq>) -> Request;
 
     /// 从摘要请求的回复里取出摘要；取不出来的（空的）是 `None`（`compaction.md` 第三条第 6 条）。指令和取法是
     /// 一对，所以都归组装。

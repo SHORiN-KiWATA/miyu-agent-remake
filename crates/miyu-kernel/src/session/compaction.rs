@@ -9,8 +9,8 @@ use std::collections::BTreeSet;
 use super::Session;
 use super::action::Action;
 use super::call::Call;
-use super::call::Summarized;
 use super::input::Reread;
+use super::summary::Summarized;
 use super::turn::Stage;
 use crate::accumulate::{Delta, Kind};
 use crate::estimate::{self, Price, WithImages};
@@ -56,6 +56,12 @@ pub(super) struct Compacting {
     paths: Vec<String>,
     /// 执行器送回的重读结果，和 `paths` 一个对一个；没收到的没有。
     reread: Option<Vec<Reread>>,
+    /// 截短重试截到第几条（施工 6-6 中，`shorten.rs`）；没截过的没有。
+    cut: Option<Seq>,
+    /// 截着再试了几次。
+    tries: u32,
+    /// 是隔离式（施工 6-6 下）：不带工具面，system 换成那一句。
+    isolated: bool,
 }
 
 impl Compacting {
@@ -76,6 +82,16 @@ impl Compacting {
     /// 哪一种压缩。
     pub(super) fn trigger(&self) -> &CompactTrigger {
         &self.trigger
+    }
+
+    /// 截到第几条、截着再试了几次（施工 6-6 中）。
+    pub(super) fn shortened(&self) -> (Option<Seq>, u32) {
+        (self.cut, self.tries)
+    }
+
+    /// 是隔离式（施工 6-6 下）。
+    pub(super) fn isolated(&self) -> bool {
+        self.isolated
     }
 
     /// 压完很快又到线连着的第几次。
@@ -245,7 +261,22 @@ impl Session {
         } = due;
         let paths = self.reread_paths(upto);
         let limit = self.reread_limit();
-        let request = self.policy.assembler.summarize(&self.history, upto);
+        // 同一步里摘要请求报过超长、调过工具的，照记下的再发（施工 6-6 中、下）；替代到的变了，照头一次发。
+        let again = self
+            .turn
+            .as_mut()
+            .and_then(|turn| turn.again.take())
+            .filter(|again| again.upto == upto);
+        let (cut, tries, isolated) = again.map_or((None, 0, false), |again| {
+            (again.cut, again.tries, again.isolated)
+        });
+        let request = match isolated {
+            true => self
+                .policy
+                .assembler
+                .summarize_isolated(&self.history, upto, cut),
+            false => self.policy.assembler.summarize(&self.history, upto, cut),
+        };
         let fingerprint = request.fingerprint();
         let difference = self
             .last_request
@@ -265,6 +296,9 @@ impl Session {
             texts: BTreeSet::new(),
             paths: paths.clone(),
             reread: None,
+            cut,
+            tries,
+            isolated,
         };
         let call = Call::new(upto, request.messages.len(), difference).compacting(compacting);
         turn.stage = Stage::Asking(call);
@@ -315,6 +349,7 @@ impl Session {
             upto,
             trigger,
             refills,
+            cut,
             summary,
             before,
             usage,
@@ -322,7 +357,7 @@ impl Session {
             paths,
             reread,
         } = summarized;
-        let rebuilt = self.rebuild(at, upto, &summary, &paths, reread.as_deref());
+        let rebuilt = self.rebuild(at, upto, cut, &summary, &paths, reread.as_deref());
         let body = Body::ContextCompacted(ContextCompacted {
             upto,
             summary,
@@ -384,7 +419,7 @@ fn tail_upto(ordered: &[&Event], budget: u64, price: &dyn Price) -> Option<Seq> 
 }
 
 /// 投影里第 `i` 条前面能不能切：前面的序号都比从它起的小，能的交回切在哪（从它起最小的序号前面那一条）。
-fn cuts(ordered: &[&Event]) -> Vec<Option<Seq>> {
+pub(super) fn cuts(ordered: &[&Event]) -> Vec<Option<Seq>> {
     let mut before = 0u64;
     let prefix: Vec<u64> = ordered
         .iter()

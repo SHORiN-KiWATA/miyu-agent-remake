@@ -26,7 +26,9 @@ mod restart;
 mod restore;
 mod retry;
 mod revert;
+mod shorten;
 mod step;
+mod summary;
 mod tools;
 mod turn;
 
@@ -34,7 +36,7 @@ pub use action::{Action, Outcome, Reason};
 pub use input::{Answer, Command, Injection, Input, Limits, Queued, Received, Reread, Verdict};
 pub use limits::ContextLimits;
 pub use load::LoadError;
-pub use policy::{Compaction, Notes, Pause, Policy, Rebuild};
+pub use policy::{Compaction, Notes, Pause, Policy, Rebuild, Shorten};
 pub use restore::{Expect, Step, StepAction};
 
 use crate::event::{Body, Event, MessageUser, Permission, SessionCreated, ToolResult, ToolStatus};
@@ -46,7 +48,7 @@ use crate::origin::By;
 use crate::request::Fingerprint;
 use crate::time::Timestamp;
 use recent::Recent;
-use revert::Restoring;
+use revert::{ReadingBack, Restoring};
 use turn::Turn;
 
 /// 一个会话的状态机。
@@ -80,6 +82,8 @@ pub struct Session {
     closing: Vec<(TurnId, Seq)>,
     /// 撤销、恢复以后正在改回文件（施工 4-7 上）：交出去了，结局还没回来。
     restoring: Option<Restoring>,
+    /// 撤掉压缩的撤销正在读回日志（施工 6-9）：交出去了，读回的还没来。
+    reading: Option<ReadingBack>,
     /// 模型的限额，执行器交来的；没交过的不主动压缩（施工 6-2 上）。只在内存里。
     limits: Option<Limits>,
 }
@@ -116,6 +120,7 @@ impl Session {
             last_request: None,
             closing: Vec::new(),
             restoring: None,
+            reading: None,
             limits: None,
         };
         let event = session.record(at, by, Some(id.clone()), Body::SessionCreated(created));
@@ -123,10 +128,13 @@ impl Session {
         (session, vec![Action::Append(vec![event])])
     }
 
-    /// 空闲：没有在跑的回合，也没有结束了、`turn.ended` 还没落盘的，也没在改回文件。核心看它决定能不能空闲退出
-    /// （`12-进程形态与分发.md` 第二节，施工 3-9 上）。
+    /// 空闲：没有在跑的回合，也没有结束了、`turn.ended` 还没落盘的，也没在读回日志、改回文件。核心看它决定能不能空闲
+    /// 退出（`12-进程形态与分发.md` 第二节，施工 3-9 上）。
     pub fn idle(&self) -> bool {
-        self.turn.is_none() && self.closing.is_empty() && self.restoring.is_none()
+        self.turn.is_none()
+            && self.closing.is_empty()
+            && self.restoring.is_none()
+            && self.reading.is_none()
     }
 
     /// 送进一条输入，出来一串动作。
@@ -167,7 +175,8 @@ impl Session {
                 usage,
                 error,
                 wait_ms,
-            } => self.model_ended(at, seen, usage, error, wait_ms),
+                excess,
+            } => self.model_ended(at, seen, usage, error, wait_ms, excess),
             Input::Woke { at, seen } => self.woke(at, seen),
             Input::ToolDone {
                 at,
@@ -207,6 +216,7 @@ impl Session {
                 questions,
             } => self.tool_asks(at, call_id, questions),
             Input::Restored { at, files } => self.restored(at, files),
+            Input::ReadBack { at, from, events } => self.read_back(at, from, events),
             Input::Restarting { at } => self.restart(at),
         }
     }
@@ -223,8 +233,8 @@ impl Session {
             let events = events.to_vec();
             return self.reply_when_stored(id, events);
         }
-        // 改回文件的时候不接命令：会话 actor 做完才接下一个，这是兜底（施工 4-7 上）。
-        if self.restoring.is_some() {
+        // 读回日志、改回文件的时候不接命令：会话 actor 做完才接下一个，这是兜底（施工 4-7 上、6-9）。
+        if self.restoring.is_some() || self.reading.is_some() {
             return vec![rejected(id, Reason::Restoring)];
         }
         match command {

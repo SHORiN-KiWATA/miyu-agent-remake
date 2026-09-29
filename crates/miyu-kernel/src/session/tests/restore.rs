@@ -16,7 +16,7 @@ fn hash(text: &str) -> ContentHash {
 }
 
 /// 调用 `call_id` 执行完了，把 `/w/a.txt` 从 A 改成了 B。
-fn changed(call_id: CallId) -> Input {
+pub(super) fn changed(call_id: CallId) -> Input {
     Input::ToolDone {
         at: at(50),
         call_id,
@@ -34,7 +34,7 @@ fn changed(call_id: CallId) -> Input {
 }
 
 /// 一轮（3 号）：她调了一次 `write`，把 `/w/a.txt` 从 A 改成了 B，说完了，全落了盘。交回工具结果的序号。
-fn edited() -> (Logged, Seq) {
+pub(super) fn edited() -> (Logged, Seq) {
     let mut logged = Logged::new();
     let seen = logged.ask(1, "改一下");
     logged.tools(seen, &[("write", r#"{"file_path":"a.txt"}"#)]);
@@ -60,7 +60,7 @@ fn edited() -> (Logged, Seq) {
 }
 
 /// 这一批交出的改回文件。
-fn steps_of(actions: &[Action]) -> Vec<Step> {
+pub(super) fn steps_of(actions: &[Action]) -> Vec<Step> {
     actions
         .iter()
         .filter_map(|action| match action {

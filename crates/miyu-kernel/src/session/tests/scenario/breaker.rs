@@ -28,6 +28,8 @@ fn compaction(pause: Option<Pause>) -> Compaction {
         },
         rebuild: None,
         pause,
+        shorten: None,
+        isolate: false,
     }
 }
 

@@ -1,6 +1,6 @@
 //! 照核心交回的几样写成一行行给人看的（样子是项目主人 2026-09-28 定的，`docs/construction/4-7-miyu undo、miyu
-//! redo（下）.md`）：第一行说撤的是哪一轮，每个文件一行，没动的同一行写原因，之后又被改过的下面印差异，执行过命令的
-//! 说一句撤不回，撤销的最后说怎么恢复。只管写成什么样，不管往哪写。
+//! redo（下）.md`）：第一行说撤的是哪一轮，撤掉了压缩的说一句上下文回到了压缩前（施工 6-9），每个文件一行，没动的同一行
+//! 写原因，之后又被改过的下面印差异，执行过命令的说一句撤不回，撤销的最后说怎么恢复。只管写成什么样，不管往哪写。
 
 use serde_json::Value;
 
@@ -33,6 +33,13 @@ pub(super) fn lines(result: &Value, plan: &UndoPlan) -> Vec<Line> {
         said.as_deref(),
         turns,
     ))];
+    // 撤掉了几次压缩，核心撤销时才交，是 0 的不交：几次都说同一句；恢复不说（施工 6-9）。
+    let compacted = result["compactions"]
+        .as_u64()
+        .is_some_and(|count| count > 0);
+    if compacted && plan.direction == Direction::Undo {
+        lines.push(Line::gray(language.compaction_undone()));
+    }
     let cwd = result["cwd"].as_str().unwrap_or_default();
     for file in result["files"].as_array().into_iter().flatten() {
         lines.extend(file_lines(file, cwd, plan));

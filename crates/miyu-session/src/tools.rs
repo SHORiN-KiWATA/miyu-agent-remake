@@ -20,7 +20,7 @@ use tracing::Instrument;
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Effect, Permission, Restored};
-use miyu_kernel::id::CallId;
+use miyu_kernel::id::{CallId, ContentHash};
 use miyu_kernel::session::{Input, Reread, Step};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_policy::RunTexts;
@@ -170,6 +170,12 @@ impl Tools {
     pub(crate) async fn reread(&self, paths: Vec<String>, limit: u64) -> Vec<Reread> {
         let blobs = self.blobs.clone();
         blocking(move || crate::reread::reread(&paths, limit, &blobs)).await
+    }
+
+    /// 取回原文（施工 6-9）：在阻塞线程里照 blob 读这个会话的 blob，读不出来的、不是 UTF-8 的不交。
+    pub(crate) async fn recall(&self, blobs: Vec<ContentHash>) -> BTreeMap<ContentHash, String> {
+        let store = self.blobs.clone();
+        blocking(move || crate::reread::recall(&blobs, &store)).await
     }
 
     /// 执行一次调用：在自己的任务里跑，马上返回。目录里没有这件工具的，不派，当场交回出错的结果。沙盒照派出去

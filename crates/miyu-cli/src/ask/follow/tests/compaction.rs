@@ -231,3 +231,45 @@ fn a_request_that_would_not_fit_while_paused_ends_the_turn_with_the_class() {
         "{screen:?}"
     );
 }
+
+#[test]
+fn a_tool_call_in_the_summary_falls_back_in_gray_and_the_compaction_goes_on() {
+    // 施工 6-6 下：内核改走隔离式，原话写着接着再压；灰色说一句，后面照常有进度、压好了。
+    for (language, line) in [
+        (
+            Language::Chinese,
+            "· 摘要请求里调了工具，改用不带工具的再压",
+        ),
+        (
+            Language::English,
+            "· The summary called a tool; compacting again without tools",
+        ),
+    ] {
+        let plan = plan(Format::Text, language);
+        let turn = compacted(vec![
+            summary_called(
+                "error",
+                Some((
+                    "bad_summary",
+                    "the summary reply called a tool; trying again without tools",
+                )),
+            ),
+            event(
+                "compaction.progress",
+                3,
+                "ask-4",
+                json!({"seen": 2, "written": 0, "expected": 20000}),
+            ),
+            summary_called("ok", None),
+            done(),
+        ]);
+        let Fed { screen, .. } = feed(&plan, false, &turn);
+        assert!(screen.starts_with(&format!("{line}\n")), "{screen:?}");
+        assert!(!screen.contains("压缩失败") && !screen.contains("Compaction failed"));
+        let compacted = match language {
+            Language::Chinese => "· 上下文压缩好了：812.3k → 31k token\n",
+            Language::English => "· Context compacted: 812.3k → 31k tokens\n",
+        };
+        assert!(screen.contains(compacted), "{screen:?}");
+    }
+}

@@ -1,5 +1,6 @@
 //! 写盘的端口（施工 3-7 中「我定的」）：actor 追加的事件往哪里写。平时是会话日志；测试里换成写不进去
-//! 的，查停下的那条路。不对外。撤销、恢复以后重算她看过的，从这里重读一遍日志（施工 4-7 上）。
+//! 的，查停下的那条路。不对外。撤销、恢复以后重算她看过的，从这里重读一遍日志（施工 4-7 上）；撤掉压缩时读回更早的
+//! 一段，也从这里读（施工 6-9）。
 //!
 //! 交给 `history` 的日志只读入口也在这里（施工 6-4）：照会话的目录一段一段读。
 
@@ -7,6 +8,7 @@ use std::io;
 use std::path::PathBuf;
 
 use miyu_kernel::event::Event;
+use miyu_kernel::id::Seq;
 use miyu_store::log::{SessionLog, read_events, read_segments};
 use miyu_tool::ReadLog;
 
@@ -17,6 +19,9 @@ pub(crate) trait Store: Send + 'static {
 
     /// 只读地读回整份日志。
     fn events(&self) -> Result<Vec<Event>, String>;
+
+    /// 只读地读回第 `from` 条起的日志（施工 6-9）：一段一段读，只留要的。
+    fn events_from(&self, from: Seq) -> Result<Vec<Event>, String>;
 }
 
 impl Store for SessionLog {
@@ -26,6 +31,16 @@ impl Store for SessionLog {
 
     fn events(&self) -> Result<Vec<Event>, String> {
         read_events(self.dir()).map_err(|error| error.to_string())
+    }
+
+    fn events_from(&self, from: Seq) -> Result<Vec<Event>, String> {
+        let mut kept = Vec::new();
+        read_segments(self.dir(), |segment| {
+            kept.extend(segment.into_iter().filter(|event| event.seq >= from));
+            true
+        })
+        .map_err(|error| error.to_string())?;
+        Ok(kept)
     }
 }
 

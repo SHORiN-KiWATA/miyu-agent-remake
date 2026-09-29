@@ -18,6 +18,7 @@ mod question;
 mod queue;
 mod rebuild;
 mod restore;
+mod shorten;
 mod stopping;
 mod undo;
 
@@ -86,6 +87,8 @@ pub(super) struct Watch {
     pub(super) stopping: stopping::Stopping,
     /// 压缩：交过的摘要请求、在路上的那次、最近一次替代到哪（施工 6-2 上）。
     compactions: compaction::Compactions,
+    /// 截短重试（施工 6-6 中）。
+    shortenings: shorten::Shortenings,
 }
 
 impl Watch {
@@ -129,6 +132,7 @@ impl Watch {
             retries: model::Retries::default(),
             stopping: stopping::Stopping::default(),
             compactions: compaction::Compactions::default(),
+            shortenings: shorten::Shortenings::default(),
         }
     }
 
@@ -222,6 +226,10 @@ impl Watch {
             self.check(action);
         }
         self.interrupting = None;
+        // 取回原文：执行器做完才收收件箱，马上交回（施工 6-9）。
+        if let Some(recalled) = self.recall_answer() {
+            self.feed(session, recalled);
+        }
     }
 
     fn check(&mut self, action: Action) {
@@ -289,6 +297,9 @@ impl Watch {
             } => self.guard(call_id, &name, &cwd, &permission),
             Action::RunTool { call_id, .. } => self.run(call_id),
             Action::Restore { steps } => self.restore_asked(steps),
+            // 读回日志照撤销的规矩查（`watch/undo.rs`）；取回原文在这一条输入送完以后交回。
+            Action::ReadBack { .. } => {}
+            Action::Recall { blobs } => self.compactions.rebuild.recalling = Some(blobs),
             Action::AnswerTool { call_id, answers } => self.handed(call_id, &answers),
             Action::StopTool { call_id } => self.stop_asked(call_id),
             Action::CancelTool { call_id } => {
@@ -462,6 +473,7 @@ impl Watch {
             match &event.body {
                 Body::TurnEnded(ended) => {
                     self.main_request_sent();
+                    self.shorten_turn_ended();
                     self.all_resulted(self.open_turn());
                     self.note_ended(event, &ended.reason);
                     self.retry_ended();

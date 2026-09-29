@@ -24,6 +24,12 @@ pub struct Texts {
     pub turn_ended: TurnEndedTexts,
     /// 压缩的摘要指令，摘要请求的最后一块（`core/compaction/summarize-task.txt`，施工 6-2 上）。
     pub summarize_task: String,
+    /// 截短重试的摘要请求、留下的第一条是助手的，前面补的那一条 user（`core/compaction/truncated.txt`，施工 6-6 中）。
+    /// 以前造的快照里没有，是空的：那些会话不截短。
+    pub truncated: String,
+    /// 隔离式的摘要请求那一句 system（`core/compaction/summarize-system.txt`，施工 6-6 下）。以前造的快照里没有，是空的：
+    /// 那些会话不改走隔离式。
+    pub summarize_system: String,
 }
 
 /// 重读的文件那一块的头尾（施工 6-5）：头上写路径，原文夹在中间不转义。

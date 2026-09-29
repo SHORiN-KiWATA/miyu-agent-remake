@@ -108,7 +108,7 @@ impl Log {
         self.push(by, "context.injected", &body);
     }
 
-    /// 压缩，替代到上一条为止。
+    /// 压缩，替代到上一条为止：在正在进行的回合里（压缩带着它所在的回合，施工 6-9）。
     fn compact(&mut self) {
         let upto = self.ledger.next_seq().get() - 1;
         self.push(
@@ -271,8 +271,8 @@ fn after_a_compaction_every_block_is_injected_again() {
     log.inject(KERNEL, "env", "A");
     log.inject(KERNEL, "permission", "W");
     log.end();
-    log.compact();
     log.start();
+    log.compact();
     assert_eq!(
         log.changed(&[fact("env", "A"), fact("permission", "W")]),
         ["A", "W"]

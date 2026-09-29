@@ -78,6 +78,8 @@ pub fn policy() -> Policy {
             },
             rebuild: None,
             pause: None,
+            shorten: None,
+            isolate: false,
         }),
         notes: None,
     }
@@ -441,6 +443,11 @@ fn texts() -> Texts {
         },
         summarize_task: include_str!("../../../../resources/core/compaction/summarize-task.txt")
             .to_string(),
+        truncated: include_str!("../../../../resources/core/compaction/truncated.txt").to_string(),
+        summarize_system: include_str!(
+            "../../../../resources/core/compaction/summarize-system.txt"
+        )
+        .to_string(),
     }
 }
 

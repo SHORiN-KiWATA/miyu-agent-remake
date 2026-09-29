@@ -9,7 +9,7 @@ use std::io;
 use std::path::Path;
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::{Level, Permission};
+use miyu_kernel::event::{Event, Level, Permission};
 use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{AccountId, ModelName, ProviderId, VenueId};
 use miyu_kernel::origin::{By, Model, Person};
@@ -39,6 +39,10 @@ impl Store for Failing {
     }
 
     fn events(&self) -> Result<Vec<Event>, String> {
+        Err("读不回来".to_string())
+    }
+
+    fn events_from(&self, _: Seq) -> Result<Vec<Event>, String> {
         Err("读不回来".to_string())
     }
 }

@@ -45,6 +45,8 @@ pub struct Notes {
     pub retrieve: Template,
     /// 太大没重读的：字段 `files`。
     pub too_large: Template,
+    /// 摘要请求截短过的，摘要没看到的那一段：字段 `from`、`to`（施工 6-6 中）。没有的不写。
+    pub uncovered: Option<Template>,
 }
 
 /// 压后重建的数（`compaction.md` 第九条，施工 6-5）。数值是数据，放在策略快照里。
@@ -77,6 +79,19 @@ pub struct Compaction {
     pub rebuild: Option<Rebuild>,
     /// 熔断的数（施工 6-6 上）；没有的不熔断。
     pub pause: Option<Pause>,
+    /// 摘要请求超长时截短再试的数（施工 6-6 中）；没有的不截，照失败算。
+    pub shorten: Option<Shorten>,
+    /// fork 式的摘要回复里调了工具，改走隔离式（施工 6-6 下）。以前的快照没有隔离式那句 system，是假：照失败算。
+    pub isolate: bool,
+}
+
+/// 摘要请求超长时截短再试的数（`compaction.md` 第三条第 10 条，施工 6-6 中）。数值是数据，放在策略快照里。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Shorten {
+    /// 截着最多再试几次。出厂 3。
+    pub tries: u32,
+    /// 供应商没说超了多少时，去掉剩下的组的百分之几（向上取整、至少一组）。出厂 20。
+    pub percent: u32,
 }
 
 /// 熔断的数（`compaction.md` 第十条，施工 6-6 上）。数值是数据，放在策略快照里。

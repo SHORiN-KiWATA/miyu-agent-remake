@@ -77,12 +77,20 @@ impl Reports {
         self.send(Report::Delta(delta));
     }
 
-    /// 说完了：正常说完的带用量，出错的带分类和原话，供应商说了要等多久的带上毫秒数。
-    pub fn ended(self, usage: Option<Usage>, error: Option<CallError>, wait_ms: Option<u64>) {
+    /// 说完了：正常说完的带用量，出错的带分类和原话，供应商说了要等多久的带上毫秒数，超长的带上超了多少 token
+    /// （施工 6-6 中）。
+    pub fn ended(
+        self,
+        usage: Option<Usage>,
+        error: Option<CallError>,
+        wait_ms: Option<u64>,
+        excess: Option<u64>,
+    ) {
         self.send(Report::Ended {
             usage,
             error,
             wait_ms,
+            excess,
         });
     }
 
@@ -130,6 +138,7 @@ pub(crate) enum Report {
         usage: Option<Usage>,
         error: Option<CallError>,
         wait_ms: Option<u64>,
+        excess: Option<u64>,
     },
 }
 

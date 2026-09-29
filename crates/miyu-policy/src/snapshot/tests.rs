@@ -24,7 +24,7 @@ fn the_same_sources_give_the_same_bytes_and_they_read_back() {
     let text = String::from_utf8(one.to_bytes()).unwrap();
     assert!(text.starts_with(r#"{"persona":"engineer","system":"You are a helpful software engineer.","core":{"checkpoint_open":"#), "{text}");
     assert!(
-        text.ends_with(r#""step_limit":null,"attended":true,"resumes":3,"compaction":{"reserve_cap":20000,"margin":13000,"image":2000,"file":2000,"tail":16000,"rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10},"pause":{"failures":3,"turns":3,"refills":3}}}"#),
+        text.ends_with(r#""step_limit":null,"attended":true,"resumes":3,"compaction":{"reserve_cap":20000,"margin":13000,"image":2000,"file":2000,"tail":16000,"rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10},"pause":{"failures":3,"turns":3,"refills":3},"shorten":{"tries":3,"percent":20}}}"#),
         "{text}"
     );
     // 改一个字，哈希就变了。
@@ -175,7 +175,7 @@ fn the_tail_is_16000_and_older_snapshots_read_it_so() {
     let snapshot = engineer();
     assert_eq!(snapshot.policy().unwrap().compaction.unwrap().tail, 16_000);
     let text = String::from_utf8(snapshot.to_bytes()).unwrap();
-    let numbers = r#","tail":16000,"rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10},"pause":{"failures":3,"turns":3,"refills":3}}}"#;
+    let numbers = r#","tail":16000,"rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10},"pause":{"failures":3,"turns":3,"refills":3},"shorten":{"tries":3,"percent":20}}}"#;
     assert!(text.ends_with(numbers), "{text}");
     let older = text.replace(numbers, "}}");
     let read = Snapshot::from_bytes(older.as_bytes()).unwrap();
@@ -256,5 +256,45 @@ fn pause_numbers_go_in_and_older_snapshots_lack_them() {
     assert_ne!(older, text);
     let read = Snapshot::from_bytes(older.as_bytes()).unwrap();
     assert!(read.policy().unwrap().compaction.unwrap().pause.is_none());
+    assert_eq!(read.to_bytes(), older.as_bytes());
+}
+
+/// 截短重试（施工 6-6 中）：出厂的快照带着字和数（再试 3 次、20%），内核拿到截短的数、摘要没看到的那一段的模板，组装器
+/// 拿到补的那一条；以前造的快照里没有，读成没有，不截短，读进来再写出去一字不差；只有数、没有字的也不截短。
+#[test]
+fn shorten_texts_and_numbers_go_in_and_older_snapshots_lack_them() {
+    let snapshot = engineer();
+    let policy = snapshot.policy().unwrap();
+    let shorten = policy.compaction.unwrap().shorten.unwrap();
+    assert_eq!((shorten.tries, shorten.percent), (3, 20));
+    assert!(policy.notes.unwrap().uncovered.is_some());
+    let text = String::from_utf8(snapshot.to_bytes()).unwrap();
+    let start = text.find(r#","shorten":{"truncated""#).unwrap();
+    let end = start + text[start..].find(r#""}"#).unwrap() + 2;
+    let only_numbers = text[..start].to_string() + &text[end..];
+    let read = Snapshot::from_bytes(only_numbers.as_bytes()).unwrap();
+    let policy = read.policy().unwrap();
+    assert!(policy.compaction.unwrap().shorten.is_none());
+    assert!(policy.notes.unwrap().uncovered.is_none());
+    let older = only_numbers.replace(r#","shorten":{"tries":3,"percent":20}"#, "");
+    assert_ne!(older, only_numbers);
+    let read = Snapshot::from_bytes(older.as_bytes()).unwrap();
+    assert!(read.policy().unwrap().compaction.unwrap().shorten.is_none());
+    assert_eq!(read.to_bytes(), older.as_bytes());
+}
+
+/// 隔离式那一句 system（施工 6-6 下）：出厂的快照带着，内核改走隔离式、组装器拿到那一句；以前造的快照里没有，读成没有，
+/// 不改走，读进来再写出去一字不差。
+#[test]
+fn the_isolated_system_line_goes_in_and_older_snapshots_lack_it() {
+    let snapshot = engineer();
+    assert!(snapshot.policy().unwrap().compaction.unwrap().isolate);
+    let text = String::from_utf8(snapshot.to_bytes()).unwrap();
+    let start = text.find(r#","summarize_system":""#).unwrap();
+    let rest = &text[start + r#","summarize_system":""#.len()..];
+    let end = start + r#","summarize_system":""#.len() + rest.find('"').unwrap() + 1;
+    let older = text[..start].to_string() + &text[end..];
+    let read = Snapshot::from_bytes(older.as_bytes()).unwrap();
+    assert!(!read.policy().unwrap().compaction.unwrap().isolate);
     assert_eq!(read.to_bytes(), older.as_bytes());
 }

@@ -18,8 +18,10 @@ pub(in super::super) struct Rebuilds {
     answered: Option<Vec<Reread>>,
     /// 送过一次结果了（随机的输入不再送）。
     fed: bool,
-    /// 读到过的原文，照 blob：载入以后交回去。
+    /// 读到过的原文，照 blob：取回原文时交回去。
     pub(in super::super) texts: BTreeMap<ContentHash, String>,
+    /// 内核要取回原文的那几份，还没交回（施工 6-9）：执行器做完才收收件箱，看守送完这一条输入马上交回。
+    pub(super) recalling: Option<Vec<ContentHash>>,
 }
 
 impl Watch {
@@ -33,6 +35,7 @@ impl Watch {
         self.compactions.rebuild = Rebuilds {
             asked: Some((seen, paths.to_vec())),
             texts: std::mem::take(&mut self.compactions.rebuild.texts),
+            recalling: self.compactions.rebuild.recalling.take(),
             ..Rebuilds::default()
         };
     }
@@ -71,9 +74,9 @@ impl Watch {
     pub(super) fn rebuild_checked(&mut self, compacted: &ContextCompacted) {
         let seed = self.seed;
         let rebuild = std::mem::take(&mut self.compactions.rebuild);
-        let texts = rebuild.texts.clone();
-        self.compactions.rebuild.texts = texts;
-        let numbers = random_policy(true)
+        self.compactions.rebuild.texts = rebuild.texts.clone();
+        self.compactions.rebuild.recalling = rebuild.recalling.clone();
+        let numbers = random_policy(true, true)
             .compaction
             .and_then(|compaction| compaction.rebuild)
             .expect("随机测试的策略开着压后重建");
@@ -121,23 +124,17 @@ impl Watch {
         );
     }
 
-    /// 载入以后交回的原文：最近一次压缩重读过的，照记着的原文。
-    pub(in super::super) fn recalled_after_reload(&self) -> Option<Input> {
-        let restored = self
-            .events
+    /// 取回原文的回报（施工 6-9）：内核要的那几份，照记着的原文，没有的不交。没在要的，没有。
+    pub(in super::super) fn recall_answer(&mut self) -> Option<Input> {
+        let blobs = self.compactions.rebuild.recalling.take()?;
+        self.seen_paths.insert("取回了原文");
+        let texts = blobs
             .iter()
-            .rev()
-            .find_map(|event| match &event.body {
-                Body::ContextCompacted(compacted) => Some(&compacted.restored),
-                _ => None,
-            })?;
-        let texts: BTreeMap<ContentHash, String> = restored
-            .iter()
-            .filter_map(|file| {
-                let text = self.compactions.rebuild.texts.get(&file.blob)?;
-                Some((file.blob.clone(), text.clone()))
+            .filter_map(|blob| {
+                let text = self.compactions.rebuild.texts.get(blob)?;
+                Some((blob.clone(), text.clone()))
             })
             .collect();
-        (!texts.is_empty()).then_some(Input::Recalled { texts })
+        Some(Input::Recalled { texts })
     }
 }

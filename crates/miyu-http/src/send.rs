@@ -228,9 +228,11 @@ async fn exchange(
     Outcome::Ended {
         usage: ending.usage,
         // 流里报的错带着解码器留下的要等多久（施工 4-9 再补三下）。
+        // 超了多少只从 HTTP 的出错里解析：流里报超长的少见，报了照没有算。
         error: error.map(|error| Classified {
             error,
             retry_after_ms: ending.retry_after_ms,
+            excess: None,
         }),
     }
 }
@@ -269,6 +271,7 @@ fn misconfigured(why: &str) -> Outcome {
                 message: format!("地址或者头写得不对：{why}"),
             },
             retry_after_ms: None,
+            excess: None,
         }),
     }
 }
@@ -283,6 +286,7 @@ fn idle(idle: Duration) -> Outcome {
                 message: format!("空闲超时：{} 秒没有收到新的内容", idle.as_secs_f64()),
             },
             retry_after_ms: None,
+            excess: None,
         }),
     }
 }

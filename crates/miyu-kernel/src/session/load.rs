@@ -2,6 +2,9 @@
 //! 重建有效历史、现在的权限、最近的命令编号。日志停在一个没结束的回合里，就是崩了：那一轮收尾，
 //! 等人开口。最后一轮是被有计划的重启打断的：自动开一轮接着干；那以后撤销过的不接（第六节
 //! 「撤销与恢复」）。
+//!
+//! 载入过两遍（施工 6-9，`docs/blueprint/kernel/history.md`「载入」）：先整份过账本，账本认出哪几次压缩还算数（撤掉
+//! 了的不算）；有效历史再从还算数的最近一次压缩替代到的下一条起重建。
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -74,7 +77,8 @@ struct Ended {
 
 impl Session {
     /// 从日志载入一个会话：日志一条条交给账本查过（坏日志在这里就拦下），重建有效历史、现在的
-    /// 权限、最近接受的命令编号。读进来的都已经落了盘。
+    /// 权限、最近接受的命令编号。读进来的都已经落了盘。有效历史从还算数的最近一次压缩替代到的下一条起，留着一切地
+    /// 收、再落到检查点上（施工 6-9）；那个检查点重读过文件的，交回的动作里第一个是 `Recall`。
     ///
     /// 日志停在一个没结束的回合里，就是崩了：还没有结果的调用各补一条「已取消：Miyu 重启了，没跑完」，
     /// 再结束这一轮，原因 `aborted`，等人开口。最后一轮是被有计划的重启打断的（`restarted`），自动
@@ -91,14 +95,18 @@ impl Session {
         environment: Environment,
     ) -> Result<(Session, Vec<Action>), LoadError> {
         let mut ledger = Ledger::default();
-        let mut history = History::default();
         let mut replay = Replay::default();
-        for event in events {
+        for event in &events {
             let queued = ledger.queued();
-            ledger.append(&event).map_err(LoadError::Broken)?;
-            replay.note(&event, queued);
+            ledger.append(event).map_err(LoadError::Broken)?;
+            replay.note(event, queued);
+        }
+        let from = ledger.compacted().map_or(Seq::FIRST, Seq::next);
+        let mut history = History::whole();
+        for event in events.into_iter().filter(|event| event.seq >= from) {
             history.append(event);
         }
+        history.settle();
         let Some(permission) = replay.permission.clone() else {
             return Err(LoadError::Empty);
         };
@@ -121,13 +129,14 @@ impl Session {
             last_request: None,
             closing: Vec::new(),
             restoring: None,
+            reading: None,
             limits: None,
         };
+        let mut actions: Vec<Action> = session.recall().into_iter().collect();
         let events = session.recover(at, replay);
-        let actions = match events.is_empty() {
-            true => Vec::new(),
-            false => vec![Action::Append(events)],
-        };
+        if !events.is_empty() {
+            actions.push(Action::Append(events));
+        }
         Ok((session, actions))
     }
 
@@ -149,6 +158,7 @@ impl Session {
                 refresh: false,
                 compacted: false,
                 interrupting: None,
+                again: None,
             });
             let text = self.policy.tool_texts.restarted();
             let mut events: Vec<Event> = self

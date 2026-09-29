@@ -6,16 +6,16 @@ use crate::id::ContentHash;
 #[test]
 fn recalled_texts_go_with_the_checkpoint_until_the_next_one() {
     let mut events = two_turns();
-    events.push(compacted(10, 9));
+    events.extend(compaction_turn(10, 9, 10));
     let mut history = feed(events);
     let blob = ContentHash::of(b"alpha\n");
     history.recall(BTreeMap::from([(blob.clone(), "alpha\n".to_string())]));
     assert_eq!(history.recalled(&blob), Some("alpha\n"));
     assert_eq!(
-        history.until(Seq::new(10).unwrap()).recalled(&blob),
+        history.until(Seq::new(12).unwrap()).recalled(&blob),
         Some("alpha\n")
     );
     let mut ledger_checked = history.clone();
-    ledger_checked.append(compacted(11, 10));
+    ledger_checked.append(compacted(13, 12, 10));
     assert_eq!(ledger_checked.recalled(&blob), None, "换了检查点");
 }

@@ -8,7 +8,8 @@ use crate::accumulate::Delta;
 use crate::block::Block;
 use crate::estimate::ImagePrice;
 use crate::event::{
-    CallError, ContextInjected, Decision, Effect, Level, Question, Response, Restored, Said, Usage,
+    CallError, ContextInjected, Decision, Effect, Event, Level, Question, Response, Restored, Said,
+    Usage,
 };
 use crate::facts::Environment;
 use crate::id::{CallId, CommandId, ContentHash, ModuleId, Seq, TurnId};
@@ -75,6 +76,8 @@ pub enum Input {
         error: Option<CallError>,
         /// 出错时供应商说了要等多久再试，毫秒（施工 3-5 下）；没说的，没有。
         wait_ms: Option<u64>,
+        /// 超长时超了多少 token，驱动从原话里解析的（施工 6-6 中）：摘要请求照它截短。解析不出来的、别的出错，没有。
+        excess: Option<u64>,
     },
     /// 到点了：内核交出去的「到点叫醒」到时候了（`02-内核.md` 第四节）。回合已经不在等了的，不理。
     Woke {
@@ -138,7 +141,18 @@ pub enum Input {
         /// 每一个读得怎么样，照交出去的先后。
         files: Vec<Reread>,
     },
-    /// 最近一个检查点里重读的文件的原文，照 blob 找（施工 6-5）：载入以后、别的输入之前交，什么都不出。
+    /// 撤销撤掉压缩时读回的日志（施工 6-9）：[`super::Action::ReadBack`] 的回报，从第 `from` 条起，一条接一条连到
+    /// 最后一条。对得上正在读回的那一次才记撤销；对不上的当过时的不理。
+    ReadBack {
+        /// 到的时刻，取自执行器的时钟：撤销那一条记这一刻。
+        at: Timestamp,
+        /// 从第几条起，照交出去的。
+        from: Seq,
+        /// 读回的事件，照先后。
+        events: Vec<Event>,
+    },
+    /// 检查点里重读的文件的原文，照 blob 找（施工 6-5）：[`super::Action::Recall`] 的回报（施工 6-9）。放进有效历史，
+    /// 什么都不出；不是现在这个检查点的，组装时找不到它。
     Recalled {
         /// 原文，照 blob 找。
         texts: BTreeMap<ContentHash, String>,

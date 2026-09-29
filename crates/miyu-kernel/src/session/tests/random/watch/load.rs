@@ -19,10 +19,11 @@ pub(in super::super) struct Restarts {
 }
 
 impl Watch {
-    /// 追加过的事件都落了盘没有，也没在改回文件：崩在这时候才不会丢回应（改回文件做到一半崩了不重做，施工 4-7 上
-    /// 「风险」，随机测试不在那时候崩）。
+    /// 追加过的事件都落了盘没有，也没在改回文件、读回日志：崩在这时候才不会丢回应（改回文件做到一半崩了不重做，施工
+    /// 4-7 上「风险」，随机测试不在那时候崩）。
     pub(in super::super) fn all_stored(&self) -> bool {
         self.restoring.pending.is_none()
+            && self.undo.reading.is_none()
             && self
                 .events
                 .iter()
@@ -111,6 +112,26 @@ impl Watch {
             })
             .flatten()
             .collect();
+        // 还算数的检查点重读过文件的，第一个动作是取回原文，要的就是它那几份（施工 6-9）。
+        let recall = self
+            .compactions
+            .live
+            .last()
+            .map(|live| live.blobs.clone())
+            .filter(|blobs| !blobs.is_empty());
+        let recalls: Vec<&Action> = actions
+            .iter()
+            .filter(|action| matches!(action, Action::Recall { .. }))
+            .collect();
+        match &recall {
+            Some(blobs) => assert!(
+                matches!(actions.first(), Some(Action::Recall { blobs: got }) if got == blobs)
+                    && recalls.len() == 1,
+                "种子 {seed}：载入以后取回原文排在最前：{actions:?}"
+            ),
+            None => assert!(recalls.is_empty(), "种子 {seed}：没有要取回的原文"),
+        }
+        let rest = &actions[recalls.len()..];
         match (crashed, resume) {
             (Some(turn), _) => {
                 self.seen_paths.insert("崩了以后收尾");
@@ -146,7 +167,7 @@ impl Watch {
                     .insert(TurnId::new(appended[0].seq), queued.unwrap_or_default());
             }
             (None, None) => assert!(
-                actions.is_empty(),
+                rest.is_empty(),
                 "种子 {seed}：不用收尾、不用接着开的，什么都不补：{actions:?}"
             ),
         }

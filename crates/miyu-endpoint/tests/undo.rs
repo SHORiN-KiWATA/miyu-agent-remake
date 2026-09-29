@@ -79,6 +79,10 @@ async fn an_undo_says_which_turn_and_what_came_back() {
     assert_eq!(result["turns"], json!(1));
     assert_eq!(result["said"], json!("改一下"));
     assert_eq!(result["commands"], json!(1));
+    assert!(
+        result.get("compactions").is_none(),
+        "没撤掉压缩的不写：{result}"
+    );
     let path = plain(&home.work.join("a.txt"));
     assert_eq!(
         result["files"],
@@ -95,6 +99,7 @@ async fn an_undo_says_which_turn_and_what_came_back() {
     let result = result_of(&reply);
     assert_eq!(result["said"], json!("改一下"));
     assert!(result.get("commands").is_none(), "{result}");
+    assert!(result.get("compactions").is_none(), "{result}");
     assert_eq!(result["files"][0]["outcome"], json!("restored"));
 }
 

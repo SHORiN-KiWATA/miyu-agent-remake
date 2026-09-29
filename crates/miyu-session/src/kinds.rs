@@ -21,6 +21,7 @@ pub(crate) fn input(input: &Input) -> &'static str {
         Input::ToolAsks { .. } => "tool_asks",
         Input::Restarting { .. } => "restarting",
         Input::Restored { .. } => "restored",
+        Input::ReadBack { .. } => "read_back",
         Input::Reread { .. } => "reread",
         Input::Recalled { .. } => "recalled",
         Input::ToolGuarded { .. } => "tool_guarded",
@@ -46,6 +47,8 @@ pub(crate) fn action(action: &Action) -> &'static str {
         Action::RunTool { .. } => "run_tool",
         Action::Restore { .. } => "restore",
         Action::Reread { .. } => "reread",
+        Action::ReadBack { .. } => "read_back",
+        Action::Recall { .. } => "recall",
     }
 }
 

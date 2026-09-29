@@ -6,7 +6,8 @@ use super::*;
 /// 随机测试的策略：一个回合最多请求 [`STEP_LIMIT`] 次；`attended` 是有没有人能确认、回答。压缩的数很小：替身的
 /// 组装一条事件约五个 token，几十条就过线（施工 6-2 上）。熔断的数调松了（施工 6-6 上）：8 个回合内又到线算快、连着 2 次就暂停，
 /// 随机的会话难得连着压好几次，照出厂的 3、3 长跑也走不到暂停。
-pub(super) fn random_policy(attended: bool) -> Policy {
+/// `isolate` 是快照里有没有隔离式那句 system（施工 6-6 下）：没有的，摘要回复里调了工具照失败算，连续失败才走得到。
+pub(super) fn random_policy(attended: bool, isolate: bool) -> Policy {
     let mut limited = policy();
     limited.step_limit = Some(STEP_LIMIT);
     limited.attended = attended;
@@ -30,6 +31,11 @@ pub(super) fn random_policy(attended: bool) -> Policy {
             turns: 8,
             refills: 2,
         }),
+        shorten: Some(crate::session::Shorten {
+            tries: 3,
+            percent: 20,
+        }),
+        isolate,
     });
     let template = |source: &str| crate::template::Template::parse(source).unwrap();
     limited.notes = Some(crate::session::Notes {
@@ -37,8 +43,30 @@ pub(super) fn random_policy(attended: bool) -> Policy {
         files_more: template("<more {count}/>"),
         retrieve: template("<retrieve {upto}/>"),
         too_large: template("<too-large {files}/>"),
+        uncovered: Some(template("<uncovered {from}-{to}/>")),
     });
     limited
+}
+
+/// 在路上的摘要请求报超长（施工 6-6 中），另用一串随机数：原来那串输入不跟着错开。只在捣乱的种子里，有摘要请求在路上时，十回里有一回；
+/// 一半说了超多少。
+pub(super) fn some_overflow(rng: &mut Rng, watch: &Watch) -> Option<Input> {
+    let seen = watch.summarizing().filter(|_| !watch.calm)?;
+    if rng.below(10) != 0 {
+        return None;
+    }
+    let excess = (rng.below(2) == 0).then(|| 5 * (1 + rng.below(20)));
+    Some(Input::ModelEnded {
+        at: at(45),
+        seen,
+        usage: None,
+        error: Some(CallError {
+            class: ErrorClass::ContextTooLong,
+            message: "413".to_string(),
+        }),
+        wait_ms: None,
+        excess,
+    })
 }
 
 /// 模型的限额，另用一串随机数：原来那串输入不跟着错开。三十回里有一回；窗口多半小到几十条事件就过线，偶尔没有

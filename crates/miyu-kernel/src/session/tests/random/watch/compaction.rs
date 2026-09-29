@@ -5,10 +5,11 @@
 //! - 它的 `model.called`：说完了的，后面紧跟着替代到 N 的 `context.compacted`，`trigger` 是 `auto`、`by` 是内核；
 //!   取不出摘要的（`bad_summary`），紧跟着出错的回合结束；
 //! - 推给头的进度是在路上的那次摘要请求的，字数只增不减；摘要请求不推增量；
-//! - 压完以后：请求照检查点以后的事件（`Watch::effective_events`）；撤销撤不到替代掉的回合，原因码 `compacted`。
+//! - 压完以后：请求照还算数的检查点以后的事件（`Watch::effective_events`）；撤销能撤掉压缩（施工 6-9，`watch/undo.rs`）。
 
 use super::*;
 use crate::event::{CompactTrigger, CompactionProgress, ContextCompacted, ModelCalled};
+use crate::id::ContentHash;
 
 /// 看守记着的压缩。
 #[derive(Default)]
@@ -21,14 +22,29 @@ pub(in super::super) struct Compactions {
     pub(super) summarizing: Option<(Seq, u64)>,
     /// 最近发的那一次摘要请求：说完了、写压缩时照它对。带了尾巴，没成的那一次的 N 可以比后来的大，不能拿交过的里最大的。
     latest: Option<Seq>,
-    /// 最近一次压缩替代到哪。
-    pub(super) upto: Option<Seq>,
+    /// 还算数的几次压缩，照先后（施工 6-9）：撤掉的记在那一次撤销上，恢复了放回来。
+    pub(super) live: Vec<Live>,
     /// 压完了，还没发这一步的主请求：一步至多压一次（施工 6-2 下）。
     pending: bool,
     /// 刚交出的重读，还没跟上它那次摘要请求（施工 6-5）。
     pub(super) reread: Option<Seq>,
     /// 压后重建（施工 6-5，`watch/rebuild.rs`）。
     pub(super) rebuild: super::rebuild::Rebuilds,
+}
+
+/// 一次还算数的压缩：在哪一轮、替代到哪、重读的文件的 blob。
+#[derive(Clone)]
+pub(super) struct Live {
+    pub(super) turn: TurnId,
+    pub(super) upto: Seq,
+    pub(super) blobs: Vec<ContentHash>,
+}
+
+impl Compactions {
+    /// 还算数的最近一次压缩替代到哪。
+    pub(super) fn upto(&self) -> Option<Seq> {
+        self.live.last().map(|live| live.upto)
+    }
 }
 
 impl Watch {
@@ -45,7 +61,7 @@ impl Watch {
     /// 还在有效历史里、请求里该有的事件：造会话那一条算在里面；撤回的、撤掉的，撤回、撤销、恢复那几条本身，
     /// 压缩替代掉的，和检查点本身除外。
     pub(super) fn effective_events(&self) -> Vec<Event> {
-        let upto = self.compactions.upto;
+        let upto = self.compactions.upto();
         std::iter::once(self.created())
             .chain(self.events.iter().cloned())
             .filter(|event| !self.undo.gone.contains(&event.seq))
@@ -64,16 +80,18 @@ impl Watch {
         );
         let expected = self.expected_upto();
         assert_eq!(Some(seen), expected, "种子 {seed}：摘要请求替代到的不对");
+        let cut = self.summary_cut(seen, request);
         let effective = self.effective_events();
         let kept: Vec<Event> = effective
             .iter()
-            .filter(|event| event.seq <= seen)
+            .filter(|event| event.seq <= seen && cut.is_none_or(|cut| event.seq > cut))
             .cloned()
             .collect();
+        let head = cut.map_or(String::new(), |cut| format!("truncated after {cut}\n"));
         assert_eq!(
             listed_request(request),
-            format!("{}summarize\n", listing(&kept)),
-            "种子 {seed}：摘要请求照有效历史到第 {seen} 条"
+            format!("{head}{}summarize\n", listing(&kept)),
+            "种子 {seed}：摘要请求照有效历史到第 {seen} 条，截过的从截到的以后"
         );
         let turn = self.open_turn();
         let replied = effective.iter().any(|event| {
@@ -170,7 +188,7 @@ impl Watch {
                 break;
             }
         }
-        if self.compactions.upto.is_some_and(|last| upto <= last) {
+        if self.compactions.upto().is_some_and(|last| upto <= last) {
             return None;
         }
         effective
@@ -185,12 +203,17 @@ impl Watch {
             .then_some(upto)
     }
 
-    /// 照看守记下的日志重建有效历史，交回投影的先后（`History::ordered`）。
+    /// 照看守记下的日志重建有效历史，交回投影的先后（`History::ordered`）：撤掉过压缩的日志一条条收不出来，照载入的办法
+    /// 从还算数的最近一次压缩替代到的下一条起重建（施工 6-9）。
     fn rendered_order(&self) -> Vec<Event> {
-        let mut history = History::default();
+        let from = self.compactions.upto().map_or(Seq::FIRST, Seq::next);
+        let mut history = History::whole();
         for event in std::iter::once(self.created()).chain(self.events.iter().cloned()) {
-            history.append(event);
+            if event.seq >= from {
+                history.append(event);
+            }
         }
+        history.settle();
         history.ordered().into_iter().cloned().collect()
     }
 
@@ -252,6 +275,19 @@ impl Watch {
                     called.seen
                 );
             }
+            (CallResult::Error, Some(ErrorClass::BadSummary))
+                if called
+                    .error
+                    .as_ref()
+                    .is_some_and(|error| error.message.ends_with("trying again without tools")) =>
+            {
+                // 调了工具、改走隔离式（施工 6-6 下）：这一轮不结束，后面只跟着发之前照查的事实。
+                assert!(
+                    after.is_none_or(|body| matches!(body, Body::ContextInjected(_))),
+                    "种子 {seed}：改走隔离式的，这一轮不结束"
+                );
+                self.summary_isolating(called.seen);
+            }
             (CallResult::Error, Some(ErrorClass::BadSummary)) => {
                 self.seen_paths.insert("取不出摘要");
                 // 连续失败到了次数的，中间夹一条暂停（施工 6-6 上）。
@@ -265,19 +301,32 @@ impl Watch {
                 self.seen_paths.insert("打断了摘要请求");
             }
             _ => {
-                self.seen_paths.insert("摘要请求出错");
                 let after = self.breaker_failed(events, k);
-                self.failed(called.seen, before, after);
+                // 报超长、这一轮没结束的：截短了等着再发，不交到点叫醒；后面只跟着发之前照查的事实（施工 6-6 中）。
+                let too_long = called
+                    .error
+                    .as_ref()
+                    .is_some_and(|error| error.class == ErrorClass::ContextTooLong);
+                if too_long && after.is_none_or(|body| matches!(body, Body::ContextInjected(_))) {
+                    self.summary_too_long(called.seen);
+                } else {
+                    if too_long {
+                        self.seen_paths.insert("截不动算失败");
+                    }
+                    self.seen_paths.insert("摘要请求出错");
+                    self.failed(called.seen, before, after);
+                }
             }
         }
         self.compactions.summarizing = None;
     }
 
-    /// 追加了一条压缩：替代到刚说完的那次摘要请求的 N；`trigger` 是 `auto`，`by` 是内核，在开着的回合里。撤销从此
-    /// 撤不到它替代掉的回合，也恢复不了更早的撤销。
+    /// 追加了一条压缩：替代到刚说完的那次摘要请求的 N；`trigger` 是 `auto`，`by` 是内核，在开着的回合里。它是还算数
+    /// 的最近一次；更早的撤销恢复不了。
     pub(super) fn compaction_appended(&mut self, event: &Event, compacted: &ContextCompacted) {
         self.rebuild_checked(compacted);
         self.breaker_compacted(compacted);
+        self.shorten_compacted(compacted);
         let seed = self.seed;
         self.seen_paths.insert("压缩了");
         let issued = self.compactions.latest;
@@ -290,9 +339,17 @@ impl Watch {
         assert_eq!(event.by, By::Kernel);
         assert_eq!(event.turn, Some(self.open_turn()));
         assert!(!compacted.summary.is_empty(), "种子 {seed}：摘要不是空的");
-        self.compactions.upto = Some(compacted.upto);
+        self.compactions.live.push(Live {
+            turn: self.open_turn(),
+            upto: compacted.upto,
+            blobs: compacted
+                .restored
+                .iter()
+                .map(|file| file.blob.clone())
+                .collect(),
+        });
         self.compactions.pending = true;
-        self.undo.compacted(compacted.upto);
+        self.undo.compacted();
     }
 
     /// 推了进度：是在路上的那次摘要请求的，发出去了，字数只增不减。
@@ -338,7 +395,12 @@ impl Watch {
             self.compactions.pending,
             "种子 {seed}：没压、或者已经发了主请求，却推了压好了"
         );
-        assert_eq!(Some(done.seen), self.compactions.upto, "种子 {seed}");
+        assert_eq!(Some(done.seen), self.compactions.upto(), "种子 {seed}");
+    }
+
+    /// 在路上的那次摘要请求（施工 6-6 中：另一串随机数照它报超长）。
+    pub(in super::super) fn summarizing(&self) -> Option<Seq> {
+        self.compactions.summarizing.map(|(seen, _)| seen)
     }
 
     /// 推了增量：不是摘要请求的。
@@ -348,13 +410,6 @@ impl Watch {
             "种子 {}：摘要请求推了增量",
             self.seed
         );
-    }
-
-    /// 撤销的那一轮替代掉了：撤不到它，原因码 `compacted`。
-    pub(super) fn compacted_turn(&self, turn: TurnId) -> bool {
-        self.compactions
-            .upto
-            .is_some_and(|upto| turn.started() <= upto)
     }
 }
 

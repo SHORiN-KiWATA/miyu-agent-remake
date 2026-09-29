@@ -23,19 +23,27 @@ impl Watch {
         }
     }
 
-    /// 3、6：请求只由日志决定。照看守记下的日志一条条过账本、重建有效历史，用同一个组装器组装，
-    /// 要和会话发出去的一字不差：载入的那条路和活着的那条路走得一样。摘要请求照同一份历史截到 `seen`。
+    /// 3、6：请求只由日志决定。照看守记下的日志照载入的办法重建有效历史（整份过账本，从还算数的最近一次压缩替代到
+    /// 的下一条起留着一切地收、再落到检查点上，施工 6-9），用同一个组装器组装，要和会话发出去的一字不差：载入的那条路
+    /// 和活着的那条路走得一样。摘要请求照同一份历史截到 `seen`。
     pub(super) fn request_from_log(&self, seen: Seq, request: &Request) {
+        let log: Vec<Event> = std::iter::once(self.created())
+            .chain(self.events.iter().cloned())
+            .collect();
         let mut ledger = Ledger::default();
-        let mut history = History::default();
-        for event in std::iter::once(self.created()).chain(self.events.iter().cloned()) {
+        for event in &log {
             ledger
-                .append(&event)
+                .append(event)
                 .unwrap_or_else(|e| panic!("种子 {}：日志过不了账本：{e}", self.seed));
+        }
+        let from = ledger.compacted().map_or(Seq::FIRST, Seq::next);
+        let mut history = History::whole();
+        for event in log.into_iter().filter(|event| event.seq >= from) {
             history.append(event);
         }
+        history.settle();
         let rebuilt = match Watch::is_summary(request) {
-            true => Listing.summarize(&history, seen),
+            true => Listing.summarize(&history, seen, Watch::truncated(request)),
             false => Listing.assemble(&history),
         };
         assert_eq!(

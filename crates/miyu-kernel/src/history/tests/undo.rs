@@ -216,6 +216,8 @@ fn the_next_turn_or_a_compaction_drops_what_was_undone() {
     next.push(message(11, ALICE));
     next.extend(turn(12, 11));
     assert!(feed(next).undone.is_empty(), "下一轮开始，放在一边的就丢掉");
-    events.push(compacted(11, 10));
-    assert!(feed(events).undone.is_empty(), "压缩了也丢掉");
+    // 压缩在回合里：撤掉以后开了一轮，就丢了；平时那一份收到压缩也丢（留着一切的那一份同样，见 `whole.rs`）。
+    let mut history = feed(events);
+    history.append(compacted(11, 10, 3));
+    assert!(history.undone.is_empty(), "压缩了也丢掉");
 }

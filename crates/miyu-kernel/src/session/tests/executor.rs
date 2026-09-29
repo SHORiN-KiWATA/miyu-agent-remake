@@ -66,6 +66,7 @@ pub(super) fn ended(seen: u64) -> Input {
         usage: Some(usage()),
         error: None,
         wait_ms: None,
+        excess: None,
     }
 }
 
@@ -80,6 +81,7 @@ pub(super) fn failed(seen: u64, class: ErrorClass, message: &str) -> Input {
             message: message.to_string(),
         }),
         wait_ms: None,
+        excess: None,
     }
 }
 
