@@ -1,4 +1,4 @@
-//! 替身和压缩有关的几样（施工 6-2、6-3 上）：交模型限额，回摘要请求；手动压缩（施工 6-8）。
+//! 替身和压缩有关的几样（施工 6-2、6-3 上）：交模型限额，回摘要请求；手动压缩（施工 6-8）；清空（施工 6-8 补）。
 
 use super::Stage;
 use super::script::Line;
@@ -33,5 +33,10 @@ impl Stage {
         self.command(Command::Compact {
             instructions: instructions.map(str::to_string),
         })
+    }
+
+    /// 清空上下文（施工 6-8 补，`session.clear`）。
+    pub fn request_clear(&mut self) -> CommandId {
+        self.command(Command::Clear)
     }
 }

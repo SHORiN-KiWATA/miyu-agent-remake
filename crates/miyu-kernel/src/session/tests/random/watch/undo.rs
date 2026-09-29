@@ -33,7 +33,8 @@ pub(in super::super) struct Undo {
     /// 上一次请求以后撤过、恢复过没有；净撤了几次。
     touched: bool,
     net: usize,
-    /// 上一次请求是摘要请求：下一次和它比，第一处不同就在摘要指令那里，不查接着往下长。
+    /// 上一次请求是摘要请求：下一次和它比，第一处不同就在摘要指令那里，不查接着往下长。这以后清空过的也不查：前缀和压完
+    /// 一样重置了（施工 6-8 补）。
     after_summary: bool,
     /// 该接着上一次请求往下长的请求，照 `seen`。
     clean: BTreeSet<Seq>,
@@ -48,6 +49,12 @@ impl Undo {
     /// 压缩了：更早的撤销恢复不了。压缩以前的回合照样能撤（施工 6-9）。
     pub(super) fn compacted(&mut self) {
         self.stack.clear();
+    }
+
+    /// 清空了（施工 6-8 补）：和压缩一样，更早的撤销恢复不了；没有摘要请求，前缀照样重置，下一次请求不和清空以前的比。
+    pub(super) fn cleared(&mut self) {
+        self.compacted();
+        self.after_summary = true;
     }
 }
 

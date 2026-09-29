@@ -1,7 +1,7 @@
 //! 把有效历史渲染成消息（`docs/designs/08-上下文投影.md` 第四节「默认的组装怎么写」
 //! 第 2 到 4 条）。
 //!
-//! 检查点排在最前；之后照有效历史排好的先后（[`History::ordered`]）一条条渲染。
+//! 检查点排在最前（清空的不出字，施工 6-8 补）；之后照有效历史排好的先后（[`History::ordered`]）一条条渲染。
 //! 人这一边的块（检查点、事实、人的消息）先攒着，碰到模型的回复或工具的结果，再合成一条
 //! user 消息放在它前面：照攒进来的先后，只有一处例外，每个回合开始的地方，放这一回合开始时
 //! 注入的事实和触发它的那条，先事实、后触发。「开始时注入的」到这一轮有了回复、结束，或者第一次
@@ -10,7 +10,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::{Body, ContextCompacted, ToolStatus};
+use miyu_kernel::event::{Body, CompactTrigger, ContextCompacted, ToolStatus};
 use miyu_kernel::history::History;
 use miyu_kernel::id::{Seq, TurnId};
 use miyu_kernel::origin::By;
@@ -22,8 +22,10 @@ use crate::texts::Texts;
 /// 渲染有效历史：检查点和历史，照先后排好的消息。稳定区不在这里。
 pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
     let mut transcript = Transcript::default();
+    // 清空的检查点什么都不出（施工 6-8 补）：她看到的上下文从这里起是空的。
     if let Some(checkpoint) = history.checkpoint()
         && let Body::ContextCompacted(compacted) = &checkpoint.body
+        && compacted.trigger != Some(CompactTrigger::Clear)
     {
         transcript.add(
             checkpoint.seq,

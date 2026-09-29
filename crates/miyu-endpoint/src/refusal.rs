@@ -150,6 +150,8 @@ impl Refusal {
                 "没有能压的：还没压过的内容都在原样留着的最近一段里。",
                 "Not enough to compact: everything not yet compacted is in the recent part that stays as it is.",
             ),
+            // 2026-09-30 项目主人定（施工 6-8 补）：头把它当一条提示通知显示。
+            "nothing_to_clear" => ("上下文为空", "The context is empty."),
             _ => ("被拒绝了。", "Refused."),
         };
         match locale {

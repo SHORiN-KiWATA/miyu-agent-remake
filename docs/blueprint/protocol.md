@@ -2,7 +2,7 @@
 
 ### 是什么
 
-头和核心之间说的话：一个连接上一行一条 JSON-RPC 2.0。连上先握手，之后能造会话、列出会话、说话、打断、撤销、恢复、手动压缩、切权限级别，订阅会话的事件流。连接从哪来不管：本机的套接字、命名管道（`ipc.md`），测试里的内存管道。
+头和核心之间说的话：一个连接上一行一条 JSON-RPC 2.0。连上先握手，之后能造会话、列出会话、说话、打断、撤销、恢复、手动压缩、切权限级别、清空上下文，订阅会话的事件流。连接从哪来不管：本机的套接字、命名管道（`ipc.md`），测试里的内存管道。
 
 撤销、恢复的回应另写一页：`protocol/undo.md`。
 
@@ -106,6 +106,7 @@
 | `session.revert`、`session.unrevert` | 撤销、恢复最近一次撤销（`protocol/undo.md`） |
 | `session.compact` | 手动压缩：单开一轮只做压缩（施工 6-8） |
 | `session.set_permission_level` | 切权限级别：开关只读，改常用的那一级（施工 3-8 再补） |
+| `session.clear` | 清空上下文：单开一轮压成一个空的检查点，不请求模型（施工 6-8 补） |
 | `subscribe`、`unsubscribe` | 订阅、取消订阅会话的事件流 |
 
 带 `session` 的，它要合会话编号的写法：UUID 的标准写法，小写十六进制，8-4-4-4-12；不合的 `bad_params`。找会话照下面「会话表」。
@@ -196,6 +197,18 @@
 5. 改成完全放开之前请人确认一次，是头的事（`04-核心协议.md` 第九节），核心不问。
 6. 先找会话，找不到的回的是找不到。
 
+**`session.clear`**（施工 6-8 补，`compaction.md` 第十四条）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `session` | 字符串，必写 | 哪个会话 |
+
+回应照 `session.compact`：`events` 是 `[<那一轮 turn.started 的序号>]`。那一轮的开头、空的检查点、结束同一批，都落了盘才回：回应到的时候，推送里已经有这三条（`turn.started` 没有 `trigger`，`context.compacted` 的 `trigger` 是 `clear`、`summary` 是空的，`turn.ended` 是 `completed`），没有 `compaction.progress`、`compaction.done`。
+
+1. 开的那一轮，三条的 `cause` 都是这一条的 `id`：头照它认出自己的那一轮。
+2. 有回合在进行：`turn_running`。上下文本来就是空的：`nothing_to_clear`（`compaction.md` 第十四条第 2 条），头把它那一句当一条提示通知显示。正在改回文件：`restoring`。先找会话，找不到的回的是找不到。
+3. 撤掉那一轮（`session.revert`）上下文回到清空以前，回应里 `clears` 数它一次、`compactions` 不算它、没有 `said`（`protocol/undo.md`）。
+
 **`subscribe`、`unsubscribe`**
 
 | 参数 | 类型 | 说明 |
@@ -271,7 +284,7 @@
 2. 没有这个会话的日志：`session_not_found`。别的载入不了（日志、策略快照坏了、读不了）：`session_broken`，原因记进运行日志。
 3. 发命令、订阅时会话已经停了（写不进去、出了 bug）：从表里拿掉，回 `session_stopped`；下一次用到再载入。
 4. `session.send` 带着 `cwd`、`dirs`，和这个会话上一次报的不一样：照「工作目录太宽」重新定实际干活的目录，送进会话，到下一个边界才注入（`kernel/request.md`）；会话这时停了的，回 `session_stopped`。不带的、一样的，照旧。
-5. 载入时没有报来的 `cwd`（`session.interrupt`、`session.revert`、`session.unrevert`、`session.compact`、`session.set_permission_level`、`subscribe` 载入的）：照日志里最后一条带 `cwd` 的 `turn.started`（加进来的目录照最后一条 `turn.started` 的 `dirs`，没有就是没有（施工 5-10 上）），没有就照 `session.created` 的，都没有（之前的日志）才当报来的是 `~`，退回管理员的工作区（施工 4-9 再补三上）。核心重启以后撤销，路径照会话真正的目录写短。
+5. 载入时没有报来的 `cwd`（`session.interrupt`、`session.revert`、`session.unrevert`、`session.compact`、`session.set_permission_level`、`session.clear`、`subscribe` 载入的）：照日志里最后一条带 `cwd` 的 `turn.started`（加进来的目录照最后一条 `turn.started` 的 `dirs`，没有就是没有（施工 5-10 上）），没有就照 `session.created` 的，都没有（之前的日志）才当报来的是 `~`，退回管理员的工作区（施工 4-9 再补三上）。核心重启以后撤销，路径照会话真正的目录写短。
 6. 会话一直留在表里，直到核心退出、停下全部会话，或者用到时发现它停了。
 7. 造会话、载入时，交给会话一份造子会话的端口（施工 7-5，`session/tools.md`「派子代理」）：会话里派出去的子会话由会话表造，放进表里，和头造的一样照编号找得到、只起一个；子会话也算进「有没有会话忙着」，停下全部会话时一起停。
 
@@ -317,14 +330,15 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `empty_message` | -32010 | `session.send` 的 `text` 是空的 |
 | `dir_too_wide` | -32010 | 加进来的目录太宽（「加进来的目录」（施工 5-10 上）） |
 | `not_running` | -32010 | 打断时没有回合在进行 |
-| `turn_running` | -32010 | 撤销、手动压缩时有回合在进行 |
+| `turn_running` | -32010 | 撤销、手动压缩、清空时有回合在进行 |
 | `unknown_turn` | -32010 | 要撤的那一轮不在有效历史里：没有，或者已经撤掉了 |
 | `nothing_to_unrevert` | -32010 | 没有能恢复的撤销：没撤过，或者撤了以后开过回合、压缩过 |
 | `nothing_to_revert` | -32010 | 不写 `turn` 的撤销，一轮都没有 |
 | `nothing_to_compact` | -32010 | 手动压缩时没有能压的：上一次压缩以后没有新的消息、回复、工具结果，或者全在尾巴里（施工 6-8） |
+| `nothing_to_clear` | -32010 | 清空时上下文本来就是空的：没有摘要，最近的检查点后面也没有人的消息、回复、工具结果、回报（施工 6-8 补） |
 | `restoring` | -32010 | 撤销、恢复还没做完（正在读回更早的日志、正在改回文件）时来的命令。兜底：会话做完才接下一个命令，照常碰不到 |
 
-- 从 `empty_message` 起，除了 `dir_too_wide`，八个是内核拒命令时给的原因码（`kernel/session.md`）。
+- 从 `empty_message` 起，除了 `dir_too_wide`，九个是内核拒命令时给的原因码（`kernel/session.md`）。
 - 内核还有六个原因码，现在没有方法碰得到：`unknown_level`（协议上的级别只认两种，别的先是 `bad_params`）、`not_asking`、`unknown_decision`、`no_rule`、`unexpected_reason`、`bad_answer`。它们没有配话，说的是最后那一句「被拒绝了」。
 
 运行日志（目标 `miyu::endpoint`，`log.md`）：
@@ -376,6 +390,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `restoring` | 正在撤销、恢复，等它做完再来。 | An undo or restore is still in progress; try again when it is done. |
 | `nothing_to_revert` | 没有能撤销的回合。 | There is no turn to undo. |
 | `nothing_to_compact` | 没有能压的：还没压过的内容都在原样留着的最近一段里。 | Not enough to compact: everything not yet compacted is in the recent part that stays as it is. |
+| `nothing_to_clear` | 上下文为空 | The context is empty. |
 | 别的 | 被拒绝了。 | Refused. |
 
 ### 守着它的
@@ -393,6 +408,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/revert.rs` | 协议上撤销、恢复；三种拒绝的中文；`turn` 写 0 |
 | `crates/miyu-endpoint/tests/permission.rs` | 协议上切权限级别（施工 3-8 再补）：切到完全放开、开只读、两样一起换，各记一条、推给订阅着的头、回应 `{}`；和现在一样的四种什么都不记不推；两格都不写（含写 `null`、会话没有的）、级别和只读的值不对、会话编号不对、没写会话是参数不对；没有的会话找不到，停了的会话是停了；回合进行中收紧成只读，真核心走一遍：等着的写入当场补 `denied`、和切权限同一批、推送在回应前面，放行以后请求之前注入只读那一块，写的一次没跑 |
 | `crates/miyu-endpoint/tests/compact.rs` | 协议上手动压缩（施工 6-8）：回应是那一轮的开头、推送里压好了；要求原样到了摘要请求里；撤掉那一轮的回应里没有 `said`；有回合在进行、没有能压的两种拒绝，中文、英文；`instructions` 不是字符串的参数不对 |
+| `crates/miyu-endpoint/tests/clear.rs` | 协议上清空（施工 6-8 补）：回应是那一轮的开头、订阅的推送里是那一批三条、不请求模型；下一次请求里没有清空以前的；撤掉那一轮回应里撤掉了一次压缩、没有 `said`，再问看得到了；有回合在进行、本来就空的两种拒绝，中文、英文；会话编号不对、没写的参数不对 |
 | `crates/miyu-endpoint/tests/workspace.rs` | 太宽的五种（`~`、家目录、根目录、数据根、数据根里面）和读不出家目录时的 `~`；项目目录、账号的工作区照旧；回应里的 `cwd`、重发的造会话 |
 | `crates/miyu-endpoint/tests/dirs.rs` | 加进来的目录（施工 5-10 上）：造会话、说话时报的记进这一轮，不写的照旧、写空的就没有；太宽的五种整条命令都不收、什么都没写；核心重启以后照最后一轮的 |
 | `crates/miyu-endpoint/tests/idle.rs` | 连着连接、跑着回合不空闲；停下全部会话，跑到一半的记成重启了 |

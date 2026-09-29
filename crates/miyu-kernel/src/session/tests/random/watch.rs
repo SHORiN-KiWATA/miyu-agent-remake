@@ -8,6 +8,7 @@ use super::*;
 
 mod approval;
 mod breaker;
+mod clear;
 mod compaction;
 mod invariants;
 mod jobs;
@@ -186,6 +187,7 @@ impl Watch {
         let reverting = undone.as_ref().and_then(undo::Expect::turns);
         let restore = self.before_restore(&input);
         let compact = self.before_compact(&input).filter(|_| !refused);
+        let clear = self.before_clear(&input).filter(|_| !refused);
         let report = self.before_report(&input).filter(|_| !refused);
         let stop = self.before_stop(&input);
         let fresh_interrupt = match &input {
@@ -236,6 +238,7 @@ impl Watch {
         self.after_undo(&actions, undone);
         self.after_restore(&actions, restore);
         self.after_compact(&actions, compact);
+        self.after_clear(&actions, clear);
         self.after_report(&actions, report);
         self.restore_matches(&actions, reverting);
         for action in actions {

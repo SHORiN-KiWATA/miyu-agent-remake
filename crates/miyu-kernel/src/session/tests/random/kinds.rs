@@ -42,6 +42,8 @@ kinds! {
     Unrevert,
     /// 手动压缩（施工 6-8）。
     Compact,
+    /// 清空上下文（施工 6-8 补）。
+    Clear,
     /// 子会话交来的回报（施工 7-2）。
     Report,
     /// 后台命令结束了（施工 7-2）。
@@ -107,6 +109,7 @@ impl InputKind {
                 Command::Revert { .. } => InputKind::Revert,
                 Command::Unrevert => InputKind::Unrevert,
                 Command::Compact { .. } => InputKind::Compact,
+                Command::Clear => InputKind::Clear,
                 Command::Report(_) => InputKind::Report,
             },
             Input::Stored { .. } => InputKind::Stored,

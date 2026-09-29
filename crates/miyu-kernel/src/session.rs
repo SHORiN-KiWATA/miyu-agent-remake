@@ -11,6 +11,7 @@ mod action;
 mod approval;
 mod breaker;
 mod call;
+mod clear;
 mod compaction;
 mod input;
 mod interrupt;
@@ -323,6 +324,7 @@ impl Session {
             Command::Revert { turn } => self.revert(id, by, at, turn),
             Command::Unrevert => self.unrevert(id, by, at),
             Command::Compact { instructions } => self.compact(id, at, instructions),
+            Command::Clear => self.clear(id, at),
             Command::Report(reported) => self.report(id, by, at, reported),
         }
     }

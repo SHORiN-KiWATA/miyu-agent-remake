@@ -4,6 +4,7 @@
 
 mod asking;
 mod breaker;
+mod clear;
 mod commands;
 mod compaction;
 mod done;

@@ -100,6 +100,7 @@
 | `turn.ended` 时这一轮的调用都有了结果 | call <编号最小的那个> has no result when the turn ends |
 | `context.compacted` 的 `upto` 在它之前 | upto <n> should come before this event |
 | `upto` 不早于还算数的最近一次压缩的：撤掉的压缩不算，撤掉以后再压可以比它早 | upto <n> is before the last compaction's <n>; compaction only moves forward |
+| `summary` 是空的，`trigger` 得是 `clear`：别的压缩取不到摘要算失败，写不成检查点（施工 6-8 补，`compaction.md` 第十四条） | the summary is empty; only a clear has an empty summary |
 | `model.called` 的 `seen` 在它之前 | seen <n> should come before this event |
 | `message.withdrawn` 的列表不是空的 | the list of withdrawn messages is empty |
 | 撤回的每一条都是这一轮里排着队的消息，不重复 | event <n> is not a queued message of the running turn: not a message, already seen by a request, not in this turn, or already withdrawn |
@@ -181,7 +182,7 @@
 
 1. 每一轮的触发，还在有效历史里、是人亲口说的，拿走。
 2. 触发它的是上一轮排着的消息（它带着上一轮的编号），或者上一轮里到的回报（回报不带回合编号，上一轮就是紧挨着这一轮开头结束的那一轮：它的 `turn.ended` 正好是前一条，施工 7-2），上一轮又不在这次撤的里面：上一轮结束时还排着的、人亲口说的，也拿走。回报自己是别处来的，留着（第 3 条）。「还排着的」是带着上一轮编号、序号大于上一轮的请求看到过的最后一条的 `message.user`；请求看到哪里，看上一轮的 `model.called` 和回复的 `seen`，取最大的；自动压缩暂停着、明知放不下没发出去的那一条 `model.called`（分类 `compaction_paused`）不算，排着的话她没听到，由下一轮接过去（施工 6-8 随机长跑撞到，和 6-6 上排队的规矩对齐）；上一轮一次都没请求过的，它里面的 `message.user` 都算。
-3. 别处来的留着：子代理、后台命令、定时触发、群里别人说的、另一个会话发来的。触发不是 `message.user` 的（例如重启以后接着干的那一轮，由 `turn.ended` 触发）、没有触发的（手动压缩单开的那一轮，施工 6-8）不拿别的。
+3. 别处来的留着：子代理、后台命令、定时触发、群里别人说的、另一个会话发来的。触发不是 `message.user` 的（例如重启以后接着干的那一轮，由 `turn.ended` 触发）、没有触发的（手动压缩、清空单开的那一轮，施工 6-8、6-8 补）不拿别的。
 4. 崩了的那一轮留下的排着的消息，归那一轮：后来人开口开的一轮是由新消息触发的，撤它不带走它们。
 
 **照请求看到的范围排**（`ordered`）：
@@ -279,7 +280,7 @@
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-kernel/src/ledger/tests.rs` | 一整个会话追加得进；序号；只有第 1 条是会话创建；回合开始；`turn` 是正在进行的；调用编号；结果要有在等的调用；回合结束时调用都有结果；压缩只前进，撤掉的压缩不算；不带 `turn` 的压缩不收；回复、`model.called` 的 `seen`；只能撤回排着的；请求和决定、题和回答跟着调用 |
-| `crates/miyu-kernel/src/ledger/tests/manual.rs` | 没有 `trigger` 的回合开始也收，别的回合的规矩照查（施工 6-8） |
+| `crates/miyu-kernel/src/ledger/tests/manual.rs` | 没有 `trigger` 的回合开始也收，别的回合的规矩照查（施工 6-8）；摘要是空的只许清空，没写原因、别的几种、不认识的都拦下（施工 6-8 补） |
 | `crates/miyu-kernel/src/ledger/tests/jobs.rs`、`jobs/reports.rs` | 施工 7-1 的每一条各一个被拦下的例子、一个放行的例子：编号不重复（同一条里、后来的、撤掉的回合里的）；`agent` 带会话、`command` 不带、不认识的种类不管；后台命令只报一次结束、回报对不上的；子代理的回报对得上会话和 `by`、报好几次、停了的不再报、`aborted` 以后还能报；两种回报带 `turn` 的要是正在进行的那一轮；子会话的 `depth`、`parent` |
 | `crates/miyu-kernel/src/ledger/tests/undo.rs` | 压缩以前的也能撤，撤的范围里的压缩不再算数，恢复了跟着回来；`read_back_from` 从哪一条起、撤不到压缩的没有；撤一轮和它以后的全部；回合进行中不能撤；只恢复最近一次；下一轮开始、压缩以后不能恢复；改回文件只在回合之间 |
 | `crates/miyu-kernel/src/history/tests.rs` | 压缩重开有效历史；被动压缩的尾巴；最新的检查点换掉旧的；照请求看到的范围排（图上那一轮、请求在路上时来的话、压缩以后的尾巴）；撤回的和撤回本身都不留 |

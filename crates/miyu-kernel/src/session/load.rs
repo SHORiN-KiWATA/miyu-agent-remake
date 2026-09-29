@@ -15,7 +15,7 @@ use super::jobs::{self, Arrived};
 use super::policy::Policy;
 use super::recent::Recent;
 use super::report::Duty;
-use super::turn::{Stage, Turn};
+use super::turn::Stage;
 use crate::event::{Body, EndReason, Event, Permission, PolicyChanged, ToolStatus};
 use crate::facts::Environment;
 use crate::history::History;
@@ -187,26 +187,7 @@ impl Session {
     fn recover(&mut self, at: Timestamp, replay: Replay) -> Vec<Event> {
         if let Some(id) = self.ledger.open_turn() {
             let cause = replay.opened;
-            self.turn = Some(Turn {
-                id,
-                cause: cause.clone(),
-                stage: Stage::Settling,
-                cwd: self.environment.cwd.clone(),
-                dirs: self.environment.dirs.clone(),
-                requests: 0,
-                retries: 0,
-                retrying: false,
-                interjected: None,
-                queued: Vec::new(),
-                reports: Vec::new(),
-                refresh: false,
-                compacted: false,
-                interrupting: None,
-                again: None,
-                passive: None,
-                overflowed: false,
-                manual: None,
-            });
+            self.turn = Some(self.new_turn(id.started(), cause.clone(), Stage::Settling));
             let text = self.policy.tool_texts.restarted();
             let mut events: Vec<Event> = self
                 .ledger

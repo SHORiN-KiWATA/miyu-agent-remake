@@ -1,6 +1,7 @@
 //! 握手以后的方法（`docs/designs/04-核心协议.md` 第九节「先做的几样怎么写」）：造会话、说话、打断，
 //! 列出会话（施工 3-9 下），撤销、恢复（施工 4-7 上；回应带上给人看的几样，施工 4-7 下），手动压缩（施工 6-8），切权限级别
-//! （施工 3-8 再补）。命令交给会话，等它的回应：接受的回 `events`（切权限级别的回 `{}`），拒绝的回原因码。造会话、说话的
+//! （施工 3-8 再补），清空上下文（施工 6-8 补）。命令交给会话，等它的回应：接受的回 `events`（切权限级别的回 `{}`），拒绝的
+//! 回原因码。造会话、说话的
 //! 回应再带上会话实际在哪个目录里干活（施工 4-5 下）。
 
 use std::sync::Arc;
@@ -83,6 +84,12 @@ struct RevertParams {
 /// `session.unrevert` 的参数（施工 4-7 上）。
 #[derive(Debug, Deserialize)]
 struct UnrevertParams {
+    session: String,
+}
+
+/// `session.clear` 的参数（施工 6-8 补）。
+#[derive(Debug, Deserialize)]
+struct ClearParams {
     session: String,
 }
 
@@ -234,6 +241,13 @@ pub(crate) async fn call(
             };
             command_to(core, request, &session, &found.handle, command).await?;
             Ok(json!({}))
+        }
+        "session.clear" => {
+            let params: ClearParams = params(request)?;
+            let session = session(&params.session)?;
+            let found = core.sessions.get(core, &session, None, None).await?;
+            let events = command_to(core, request, &session, &found.handle, Command::Clear).await?;
+            Ok(json!({ "events": events }))
         }
         _ => Err(Refusal::UNKNOWN_METHOD),
     }

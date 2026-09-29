@@ -185,7 +185,8 @@ pub enum Reason {
     UnexpectedReason,
     /// 回答对不上题目：题数不对、选了没有的选项、单选的选了几项、同一项选了两次。
     BadAnswer,
-    /// 有回合在进行，撤销、手动压缩不了（施工 6-8）：头先打断，或者等它做完（`02-内核.md` 第六节「撤销与恢复」）。
+    /// 有回合在进行，撤销、手动压缩（施工 6-8）、清空（施工 6-8 补）不了：头先打断，或者等它做完（`02-内核.md` 第六节
+    /// 「撤销与恢复」）。
     TurnRunning,
     /// 要撤的那一轮没有，或者已经撤掉了。压缩以前的回合照样能撤（施工 6-9）。
     UnknownTurn,
@@ -198,6 +199,9 @@ pub enum Reason {
     /// 手动压缩时没有能压的：上一次压缩以后没有新的消息、回复、工具结果，或者全在压完要原样留着的尾巴里（施工 6-8，
     /// `compaction.md` 第七条第 2 条）。
     NothingToCompact,
+    /// 清空时上下文本来就是空的：有效历史里没有摘要，最近的检查点后面也没有人的消息、回复、工具结果、回报（施工 6-8 补，
+    /// `compaction.md` 第十四条第 2 条）。
+    NothingToClear,
     /// 子会话交来的回报对不上一个还会报的子代理（施工 7-2）：没有这个任务、不是子代理、会话不对、不是那个子会话发的、
     /// 被停掉过（账本的几条，`docs/blueprint/kernel/history.md`）。
     UnknownJob,
@@ -221,6 +225,7 @@ impl Reason {
             Reason::Restoring => "restoring",
             Reason::NothingToRevert => "nothing_to_revert",
             Reason::NothingToCompact => "nothing_to_compact",
+            Reason::NothingToClear => "nothing_to_clear",
             Reason::UnknownJob => "unknown_job",
         }
     }

@@ -1,5 +1,5 @@
 //! 撤销、恢复的回应里给人看的几样（`docs/designs/04-核心协议.md` 第九节，施工 4-7 下）：撤的是哪一轮（那一轮人说的
-//! 那句话）、撤掉的几轮执行过几条命令、撤掉了几次压缩（施工 6-9）、每个文件怎样、之后又被改过的差异。「该显示什么」写在核心里（`01-架构.md`
+//! 那句话）、撤掉的几轮执行过几条命令、撤掉了几次压缩（施工 6-9）、几次清空（施工 6-8 补）、每个文件怎样、之后又被改过的差异。「该显示什么」写在核心里（`01-架构.md`
 //! D1），头照着印；做视图投影（M8）时这几样挪进视图，字段只加不改。
 //!
 //! 照会话的日志读：撤销（恢复）和改回文件的结局都落了盘才回应，这时读得到。碰磁盘，在阻塞线程里调。
@@ -12,7 +12,9 @@ use serde_json::{Value, json};
 use similar::TextDiff;
 
 use miyu_kernel::block::Block;
-use miyu_kernel::event::{Body, Effect, Event, RestoreOutcome, Restored, ToolResult, ToolStatus};
+use miyu_kernel::event::{
+    Body, CompactTrigger, Effect, Event, RestoreOutcome, Restored, ToolResult, ToolStatus,
+};
 use miyu_kernel::id::{ContentHash, SessionId, TurnId};
 use miyu_kernel::origin::By;
 use miyu_kernel::tool::Access;
@@ -91,9 +93,12 @@ pub(crate) struct Report {
     /// 撤掉的几轮执行过几条命令：撤销时才有。
     #[serde(skip_serializing_if = "Option::is_none")]
     commands: Option<usize>,
-    /// 撤掉了几次压缩（施工 6-9）：撤销时才有，是 0 的不写。头照它说一句上下文回到了压缩前。
+    /// 撤掉了几次压缩（施工 6-9）：撤销时才有，是 0 的不写。头照它说一句上下文回到了压缩前。清空不算在里面。
     #[serde(skip_serializing_if = "Option::is_none")]
     compactions: Option<usize>,
+    /// 撤掉了几次清空（施工 6-8 补）：撤销时才有，是 0 的不写。头照它说一句上下文回到了清空以前。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    clears: Option<usize>,
     /// 改回的每一步，照先后。
     files: Vec<File>,
 }
@@ -148,7 +153,10 @@ pub(crate) fn report(sources: &Sources, events: &[u64]) -> Report {
         said: turns.first().and_then(|turn| said(&log, *turn)),
         commands: undo.then(|| commands(&log, &turns, &sources.executing)),
         compactions: undo
-            .then(|| compactions(&log, &turns))
+            .then(|| compactions(&log, &turns, false))
+            .filter(|count| *count > 0),
+        clears: undo
+            .then(|| compactions(&log, &turns, true))
             .filter(|count| *count > 0),
         files: restored
             .iter()
@@ -157,8 +165,8 @@ pub(crate) fn report(sources: &Sources, events: &[u64]) -> Report {
     }
 }
 
-/// 回合 `turn` 里人说的那句话的第一行：照 `turn.started` 找引起它的那一条，是人亲口说的才算。没有触发的（手动压缩
-/// 单开的那一轮，施工 6-8）没有。
+/// 回合 `turn` 里人说的那句话的第一行：照 `turn.started` 找引起它的那一条，是人亲口说的才算。没有触发的（手动压缩、
+/// 清空单开的那一轮，施工 6-8、6-8 补）没有。
 fn said(log: &[Event], turn: TurnId) -> Option<String> {
     let trigger = log.iter().find_map(|event| match &event.body {
         Body::TurnStarted(started) if event.seq == turn.started() => started.trigger,
@@ -179,11 +187,15 @@ fn said(log: &[Event], turn: TurnId) -> Option<String> {
     })
 }
 
-/// 这几轮里有几次压缩（施工 6-9）：`context.compacted` 带的回合在这几轮里的。
-fn compactions(log: &[Event], turns: &[TurnId]) -> usize {
+/// 这几轮里有几次压缩（施工 6-9）：`context.compacted` 带的回合在这几轮里的。`clears` 是数清空的（`trigger` 是
+/// `clear`，施工 6-8 补），不是的数别的几种。
+fn compactions(log: &[Event], turns: &[TurnId], clears: bool) -> usize {
     log.iter()
         .filter(|event| event.turn.is_some_and(|turn| turns.contains(&turn)))
-        .filter(|event| matches!(event.body, Body::ContextCompacted(_)))
+        .filter(|event| {
+            matches!(&event.body, Body::ContextCompacted(compacted)
+            if (compacted.trigger == Some(CompactTrigger::Clear)) == clears)
+        })
         .count()
 }
 

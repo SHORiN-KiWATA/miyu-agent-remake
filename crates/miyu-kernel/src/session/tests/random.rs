@@ -31,6 +31,7 @@
 //!   检查点换了取回原文（施工 6-9，`watch/undo.rs`、`random/undoing.rs`）；
 //! - 手动压缩：照规矩收下或者拒绝；收下的单开一轮，不跑挂接点、不注入，只发摘要请求，写完压缩同一批结束；失败不数进
 //!   熔断；被重启打断的不接着干（施工 6-8，`watch/manual.rs`）；
+//! - 清空：照规矩收下或者拒绝；收下的同一批单开一轮、写空的检查点、结束，不请求模型（施工 6-8 补，`watch/clear.rs`）；
 //! - 回报：对不上的拒绝、不理；闲着时开一轮还是只记下，正忙时排着、回合结束时接着开，恢复撤销以后接着开（施工 7-2，
 //!   `watch/reports.rs`、`random/reporting.rs`）。
 //!
@@ -68,7 +69,7 @@ use crate::origin::Model;
 use crate::raw::RawJson;
 use crate::tool::Access;
 use asking::{some_answer, some_question, some_reply, some_verdict};
-use compacting::{random_policy, some_compact, some_limits, some_overflow};
+use compacting::{random_policy, some_clear, some_compact, some_limits, some_overflow};
 use endings::some_ending;
 use kinds::InputKind;
 use paths::{EXPECTED_PATHS, LONG_PATHS};
@@ -409,6 +410,7 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let mut readbacks = Rng(seed ^ 0x2EAD_BAC0);
         let mut compacts = Rng(seed ^ 0xC0_4AC7);
         let mut reports = Rng(seed ^ 0x2E90_2750);
+        let mut clears = Rng(seed ^ 0xC1EA_2000);
         for _ in 0..300 {
             if watch.all_stored() && crashes.below(200) == 0 {
                 let planned = crashes.below(2) == 0;
@@ -440,6 +442,9 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
                 watch.feed(&mut session, input);
             }
             if let Some(input) = reporting::some_report(&mut reports, &watch, &mut next_id) {
+                watch.feed(&mut session, input);
+            }
+            if let Some(input) = some_clear(&mut clears, &watch, &mut next_id) {
                 watch.feed(&mut session, input);
             }
             let input = some_input(&mut rng, &mut watch, &mut next_id);

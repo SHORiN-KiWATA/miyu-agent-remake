@@ -61,7 +61,7 @@
 | `message.user` | 算 | `user` |
 | `message.assistant` | 算：正文和工具调用；思考不给 | `assistant` |
 | `tool.result` | 算 | `tool` |
-| `context.compacted` | 算：以前的摘要，以前压缩掉的也找得到 | `assistant` |
+| `context.compacted` | 算：以前的摘要，以前压缩掉的也找得到。清空的摘要是空的，一个字都没有，不算（施工 6-8 补）；清空以前的照样找得到 | `assistant` |
 | 撤掉的回合里的（里面的压缩也是，施工 6-9）、撤回的消息 | 不算：撤了就跟没说过一样 | |
 | 她自己翻记录的那几步：`history` 的调用、结果 | 不算（施工 6-4）：找的时候会找到自己这一次调用（参数里就有要找的词），翻出来的旧结果又和原文重复。回复里别的正文、别的工具调用照算 | |
 | 事实注入、`model.called`、回合和会话的事件、`files.restored` | 不算 | |

@@ -8,7 +8,7 @@
 //! - 压完以后：请求照还算数的检查点以后的事件（`Watch::effective_events`）；撤销能撤掉压缩（施工 6-9，`watch/undo.rs`）。
 
 use super::*;
-use crate::event::{CompactionProgress, ContextCompacted, ModelCalled};
+use crate::event::{CompactTrigger, CompactionProgress, ContextCompacted, ModelCalled};
 use crate::id::ContentHash;
 use cut::{cut_at, expected_tail};
 
@@ -35,6 +35,8 @@ pub(in super::super) struct Compactions {
     just: Option<(Seq, TurnId)>,
     /// 手动压缩单开的那一轮（施工 6-8，`watch/manual.rs`）。
     pub(super) manual: Option<super::manual::ManualTurn>,
+    /// 收下了的清空替代到哪，写检查点时对上（施工 6-8 补，`watch/clear.rs`）。
+    pub(super) clearing: Option<Seq>,
     /// 压后重建（施工 6-5，`watch/rebuild.rs`）。
     pub(super) rebuild: super::rebuild::Rebuilds,
 }
@@ -354,6 +356,9 @@ impl Watch {
     /// 追加了一条压缩：替代到刚说完的那次摘要请求的 N；`trigger` 是 `auto`（手动那一轮的是 `manual`，带着收命令时的
     /// 要求，施工 6-8），`by` 是内核，在开着的回合里。它是还算数的最近一次；更早的撤销恢复不了。
     pub(super) fn compaction_appended(&mut self, event: &Event, compacted: &ContextCompacted) {
+        if compacted.trigger == Some(CompactTrigger::Clear) {
+            return self.clear_appended(event, compacted);
+        }
         self.rebuild_checked(compacted);
         self.breaker_compacted(compacted);
         self.shorten_compacted(compacted);
