@@ -219,6 +219,7 @@ impl ResourceRoot {
                     restored_open: core(&["compaction", "restored-open.txt"])?,
                     restored_close: core(&["compaction", "restored-close.txt"])?,
                 }),
+                summarize_system: Some(core(&["compaction", "summarize-system.txt"])?),
                 shorten: Some(ShortenTexts {
                     truncated: core(&["compaction", "truncated.txt"])?,
                     notes_uncovered: core(&["compaction", "notes-uncovered.txt"])?,

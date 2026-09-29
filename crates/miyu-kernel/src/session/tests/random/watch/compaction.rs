@@ -275,6 +275,19 @@ impl Watch {
                     called.seen
                 );
             }
+            (CallResult::Error, Some(ErrorClass::BadSummary))
+                if called
+                    .error
+                    .as_ref()
+                    .is_some_and(|error| error.message.ends_with("trying again without tools")) =>
+            {
+                // 调了工具、改走隔离式（施工 6-6 下）：这一轮不结束，后面只跟着发之前照查的事实。
+                assert!(
+                    after.is_none_or(|body| matches!(body, Body::ContextInjected(_))),
+                    "种子 {seed}：改走隔离式的，这一轮不结束"
+                );
+                self.summary_isolating(called.seen);
+            }
             (CallResult::Error, Some(ErrorClass::BadSummary)) => {
                 self.seen_paths.insert("取不出摘要");
                 // 连续失败到了次数的，中间夹一条暂停（施工 6-6 上）。

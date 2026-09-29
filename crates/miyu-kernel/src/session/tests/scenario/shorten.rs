@@ -30,6 +30,7 @@ fn shortening(shorten: Option<Shorten>) -> Stage {
             rebuild: None,
             pause: None,
             shorten,
+            isolate: false,
         });
         let template = |source: &str| Template::parse(source).unwrap();
         policy.notes = Some(Notes {

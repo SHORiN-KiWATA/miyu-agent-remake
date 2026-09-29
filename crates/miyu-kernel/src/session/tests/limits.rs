@@ -19,6 +19,7 @@ const COMPACTION: Compaction = Compaction {
     rebuild: None,
     pause: None,
     shorten: None,
+    isolate: false,
 };
 
 /// 策略里有压缩的会话。

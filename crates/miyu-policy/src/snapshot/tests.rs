@@ -282,3 +282,19 @@ fn shorten_texts_and_numbers_go_in_and_older_snapshots_lack_them() {
     assert!(read.policy().unwrap().compaction.unwrap().shorten.is_none());
     assert_eq!(read.to_bytes(), older.as_bytes());
 }
+
+/// 隔离式那一句 system（施工 6-6 下）：出厂的快照带着，内核改走隔离式、组装器拿到那一句；以前造的快照里没有，读成没有，
+/// 不改走，读进来再写出去一字不差。
+#[test]
+fn the_isolated_system_line_goes_in_and_older_snapshots_lack_it() {
+    let snapshot = engineer();
+    assert!(snapshot.policy().unwrap().compaction.unwrap().isolate);
+    let text = String::from_utf8(snapshot.to_bytes()).unwrap();
+    let start = text.find(r#","summarize_system":""#).unwrap();
+    let rest = &text[start + r#","summarize_system":""#.len()..];
+    let end = start + r#","summarize_system":""#.len() + rest.find('"').unwrap() + 1;
+    let older = text[..start].to_string() + &text[end..];
+    let read = Snapshot::from_bytes(older.as_bytes()).unwrap();
+    assert!(!read.policy().unwrap().compaction.unwrap().isolate);
+    assert_eq!(read.to_bytes(), older.as_bytes());
+}

@@ -404,6 +404,9 @@ impl Assembler for Nothing {
     fn summarize(&self, history: &History, _upto: Seq, _cut: Option<Seq>) -> Request {
         self.assemble(history)
     }
+    fn summarize_isolated(&self, history: &History, _upto: Seq, _cut: Option<Seq>) -> Request {
+        self.assemble(history)
+    }
 
     fn summary(&self, _reply: &[miyu_kernel::block::Block]) -> Option<String> {
         None

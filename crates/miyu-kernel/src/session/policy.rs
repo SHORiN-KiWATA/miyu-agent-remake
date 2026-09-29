@@ -81,6 +81,8 @@ pub struct Compaction {
     pub pause: Option<Pause>,
     /// 摘要请求超长时截短再试的数（施工 6-6 中）；没有的不截，照失败算。
     pub shorten: Option<Shorten>,
+    /// fork 式的摘要回复里调了工具，改走隔离式（施工 6-6 下）。以前的快照没有隔离式那句 system，是假：照失败算。
+    pub isolate: bool,
 }
 
 /// 摘要请求超长时截短再试的数（`compaction.md` 第三条第 10 条，施工 6-6 中）。数值是数据，放在策略快照里。

@@ -6,6 +6,7 @@ mod asking;
 mod breaker;
 mod compaction;
 mod done;
+mod isolate;
 mod rebuild;
 mod retrying;
 mod shorten;

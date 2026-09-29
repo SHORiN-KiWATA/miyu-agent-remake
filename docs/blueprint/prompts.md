@@ -95,6 +95,19 @@ Reply with the <analysis> block and then the <summary> block, nothing else. Do n
 Earlier messages were cut to fit this request.
 ```
 
+### 隔离式摘要请求的 system
+
+#### `core/compaction/summarize-system.txt`
+
+- 什么时候加进来：fork 式的摘要回复里调了工具，改发的隔离式摘要请求；只在那一次请求里
+- token：22（2026-09-29 照项目主人给的端点量）
+- 为什么加：隔离式不带工具面，system 换成这一句：说清是在给一段对话写摘要、没有工具（施工 6-6 下，`compaction.md` 第四条）。照 Claude Code 回退时那句极简的 system
+- 指纹：`419f5adc`
+
+```text
+You summarize a conversation between a user and an AI agent. Tools are not available; reply with text only.
+```
+
 ### 检查点里代码写的几段
 
 #### `core/compaction/notes-files.txt`

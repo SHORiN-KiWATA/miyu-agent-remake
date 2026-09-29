@@ -54,6 +54,13 @@ impl Assembler for Listing {
         request
     }
 
+    /// 隔离式（施工 6-6 下）：一样的清单，system 写着「isolated」。
+    fn summarize_isolated(&self, history: &History, upto: Seq, cut: Option<Seq>) -> Request {
+        let mut request = self.summarize(history, upto, cut);
+        request.system = "isolated".to_string();
+        request
+    }
+
     /// 正文块连起来，去掉前后空白；空的取不到。
     fn summary(&self, reply: &[Block]) -> Option<String> {
         let text: String = reply

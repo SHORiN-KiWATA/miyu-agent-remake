@@ -285,3 +285,30 @@ fn a_truncated_summary_request_keeps_what_is_after_the_cut() {
     );
     assert!(!shapes.iter().any(|shape| shape.contains("<truncated/>")));
 }
+
+/// 隔离式的摘要请求（施工 6-6 下）：消息和 fork 式一样，system 换成那一句，工具面空的；截短照样截。
+#[test]
+fn an_isolated_summary_request_has_the_same_messages_without_tools() {
+    let assembler = DefaultAssembler::new(stable(&["read"], vec![]), texts());
+    let seq = |n: u64| miyu_kernel::id::Seq::new(n).unwrap();
+    let mut log = Log::new();
+    let hi = log.say("hi");
+    log.start(hi);
+    let reply = log.reply(&format!("[{}]", text_json("好。")));
+    let fork = assembler.summarize(log.history(), seq(reply), None);
+    let isolated = assembler.summarize_isolated(log.history(), seq(reply), None);
+    assert_eq!(isolated.messages, fork.messages);
+    assert!(isolated.tools.is_empty() && !fork.tools.is_empty());
+    assert_eq!(isolated.system, "<isolated/>");
+    assert!(!isolated.continuation);
+    let cut = assembler.summarize_isolated(log.history(), seq(reply), Some(seq(reply - 1)));
+    assert_eq!(
+        shape(&cut.messages),
+        [
+            "user: <truncated/>",
+            "assistant: 好。",
+            "user: <summarize/>"
+        ]
+    );
+    assert_eq!(cut.system, "<isolated/>");
+}

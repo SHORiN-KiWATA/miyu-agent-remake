@@ -117,6 +117,10 @@ pub struct CompactionTexts {
     /// 截短重试的字（施工 6-6 中）。以前造的快照里没有，读成没有：不截短。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shorten: Option<ShortenTexts>,
+    /// 隔离式那一句 system（`summarize-system.txt`，施工 6-6 下）。以前造的快照里没有，读成没有：摘要回复里调了工具照
+    /// 失败算。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summarize_system: Option<String>,
 }
 
 /// 权限策略拒绝时写给她的两句（施工 4-3 下）。
@@ -316,6 +320,7 @@ impl Snapshot {
                 .shorten_texts()
                 .map(|shorten| shorten.truncated.clone())
                 .unwrap_or_default(),
+            summarize_system: self.summarize_system().unwrap_or_default().to_string(),
         };
         let (face, rules) = tools::split(&self.tools)?;
         let stable = Stable {
@@ -357,6 +362,11 @@ impl Snapshot {
         Ok(Some(notes))
     }
 
+    /// 隔离式那一句 system：有的才改走隔离式（施工 6-6 下）。
+    fn summarize_system(&self) -> Option<&str> {
+        self.core.compaction.as_ref()?.summarize_system.as_deref()
+    }
+
     /// 截短重试的字：有的才截短（施工 6-6 中）。
     fn shorten_texts(&self) -> Option<&ShortenTexts> {
         self.core.compaction.as_ref()?.shorten.as_ref()
@@ -388,6 +398,7 @@ impl Snapshot {
                 .shorten
                 .filter(|_| self.shorten_texts().is_some())
                 .map(ShortenNumbers::kernel),
+            isolate: self.summarize_system().is_some(),
         })
     }
 

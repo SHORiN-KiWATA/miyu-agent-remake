@@ -1,11 +1,12 @@
 //! 截短重试（`docs/blueprint/compaction.md` 第三条第 10 条，施工 6-6 中）：摘要请求自己报超长，截掉检查点后面最老的
-//! 几组再发，最多截几次；截不动、截够了的，照一次压缩失败算。
+//! 几组再发，最多截几次；截不动、截够了的，照一次压缩失败算。隔离式回退（第三条第 7 条、第四条，施工 6-6 下）：fork 式的
+//! 摘要回复里调了工具，改发一次不带工具面的。两样都是同一次压缩换个样子再发一次摘要请求（[`Again`]）。
 //!
 //! 组和切法同留尾巴（`compaction.rs` 的 `cuts`）：一组从一条人的消息或者一条回复开始，只切在切得开的地方。按组不按轮：
 //! 一轮任务里可以有几十组工具调用，按轮截，一轮的会话一组都截不掉。
 //!
-//! 报了超长那一刻不当场重发：截到哪记在回合上，回到准备好，这一批落了盘照常走发请求那一步（先落盘，后请求），发摘要
-//! 请求时照它截（`compaction.rs` 的 `start_compaction`）。
+//! 出了事那一刻不当场重发：怎么再发记在回合上，回到准备好，这一批落了盘照常走发请求那一步（先落盘，后请求），发摘要
+//! 请求时照它发（`compaction.rs` 的 `start_compaction`）。
 
 use super::Session;
 use super::compaction::{Compacting, cuts};
@@ -14,12 +15,13 @@ use crate::estimate;
 use crate::event::Body;
 use crate::id::Seq;
 
-/// 截短了、等着再发的那一次摘要请求：替代到哪、截到第几条、截着再试了几次（算上这一次）。
+/// 等着再发的那一次摘要请求：替代到哪、截到第几条（没截过的没有）、截着再试了几次、是不是隔离式。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct Shortening {
+pub(super) struct Again {
     pub(super) upto: Seq,
-    pub(super) cut: Seq,
+    pub(super) cut: Option<Seq>,
     pub(super) tries: u32,
+    pub(super) isolated: bool,
 }
 
 impl Session {
@@ -41,14 +43,45 @@ impl Session {
         let Some(next) = self.next_cut(compacting.upto(), cut, excess, shorten.percent) else {
             return false;
         };
+        self.again(Again {
+            upto: compacting.upto(),
+            cut: Some(next),
+            tries: tries + 1,
+            isolated: compacting.isolated(),
+        })
+    }
+
+    /// fork 式的摘要回复里调了工具（第三条第 7 条，施工 6-6 下）：还没改走过、快照里有隔离式那句 system 的，记下改走
+    /// 隔离式（截到哪照这一次的），回到准备好，交回真；别的交回假，照失败算。
+    pub(super) fn isolate(&mut self, compacting: &Compacting) -> bool {
+        if !self.can_isolate(compacting) {
+            return false;
+        }
+        let (cut, tries) = compacting.shortened();
+        self.again(Again {
+            upto: compacting.upto(),
+            cut,
+            tries,
+            isolated: true,
+        })
+    }
+
+    /// 这一次调了工具的，能不能改走隔离式：还没改走过，快照里有那句 system。
+    pub(super) fn can_isolate(&self, compacting: &Compacting) -> bool {
+        !compacting.isolated()
+            && self
+                .policy
+                .compaction
+                .as_ref()
+                .is_some_and(|compaction| compaction.isolate)
+    }
+
+    /// 记下怎么再发，回到准备好。
+    fn again(&mut self, again: Again) -> bool {
         let Some(turn) = self.turn.as_mut() else {
             return false;
         };
-        turn.shorten = Some(Shortening {
-            upto: compacting.upto(),
-            cut: next,
-            tries: tries + 1,
-        });
+        turn.again = Some(again);
         turn.stage = Stage::Ready;
         true
     }

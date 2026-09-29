@@ -87,6 +87,14 @@ impl Assembler for DefaultAssembler {
         request
     }
 
+    /// 隔离式（施工 6-6 下）：和 fork 式一样的消息，system 换成那一句，工具面空的；稳定区的示范对话照留在消息里。
+    fn summarize_isolated(&self, history: &History, upto: Seq, cut: Option<Seq>) -> Request {
+        let mut request = self.summarize(history, upto, cut);
+        request.system = self.texts.summarize_system.clone();
+        request.tools = Vec::new();
+        request
+    }
+
     fn summary(&self, reply: &[Block]) -> Option<String> {
         summary::extract(reply)
     }

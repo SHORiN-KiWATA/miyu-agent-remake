@@ -35,6 +35,7 @@ pub(crate) fn texts() -> Texts {
         },
         summarize_task: "<summarize/>".to_string(),
         truncated: "<truncated/>".to_string(),
+        summarize_system: "<isolated/>".to_string(),
     }
 }
 

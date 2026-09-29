@@ -34,6 +34,7 @@ fn rebuilding_up_to(tail: u64, total: u64) -> Stage {
             }),
             pause: None,
             shorten: None,
+            isolate: false,
         });
         let template = |source: &str| Template::parse(source).unwrap();
         policy.notes = Some(Notes {

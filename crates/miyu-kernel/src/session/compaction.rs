@@ -9,8 +9,8 @@ use std::collections::BTreeSet;
 use super::Session;
 use super::action::Action;
 use super::call::Call;
-use super::call::Summarized;
 use super::input::Reread;
+use super::summary::Summarized;
 use super::turn::Stage;
 use crate::accumulate::{Delta, Kind};
 use crate::estimate::{self, Price, WithImages};
@@ -60,6 +60,8 @@ pub(super) struct Compacting {
     cut: Option<Seq>,
     /// 截着再试了几次。
     tries: u32,
+    /// 是隔离式（施工 6-6 下）：不带工具面，system 换成那一句。
+    isolated: bool,
 }
 
 impl Compacting {
@@ -85,6 +87,11 @@ impl Compacting {
     /// 截到第几条、截着再试了几次（施工 6-6 中）。
     pub(super) fn shortened(&self) -> (Option<Seq>, u32) {
         (self.cut, self.tries)
+    }
+
+    /// 是隔离式（施工 6-6 下）。
+    pub(super) fn isolated(&self) -> bool {
+        self.isolated
     }
 
     /// 压完很快又到线连着的第几次。
@@ -254,16 +261,22 @@ impl Session {
         } = due;
         let paths = self.reread_paths(upto);
         let limit = self.reread_limit();
-        // 同一步里摘要请求报过超长的，照记下的截（施工 6-6 中）；替代到的变了，照没截过的发。
-        let shortening = self
+        // 同一步里摘要请求报过超长、调过工具的，照记下的再发（施工 6-6 中、下）；替代到的变了，照头一次发。
+        let again = self
             .turn
             .as_mut()
-            .and_then(|turn| turn.shorten.take())
-            .filter(|shortening| shortening.upto == upto);
-        let (cut, tries) = shortening.map_or((None, 0), |shortening| {
-            (Some(shortening.cut), shortening.tries)
+            .and_then(|turn| turn.again.take())
+            .filter(|again| again.upto == upto);
+        let (cut, tries, isolated) = again.map_or((None, 0, false), |again| {
+            (again.cut, again.tries, again.isolated)
         });
-        let request = self.policy.assembler.summarize(&self.history, upto, cut);
+        let request = match isolated {
+            true => self
+                .policy
+                .assembler
+                .summarize_isolated(&self.history, upto, cut),
+            false => self.policy.assembler.summarize(&self.history, upto, cut),
+        };
         let fingerprint = request.fingerprint();
         let difference = self
             .last_request
@@ -285,6 +298,7 @@ impl Session {
             reread: None,
             cut,
             tries,
+            isolated,
         };
         let call = Call::new(upto, request.messages.len(), difference).compacting(compacting);
         turn.stage = Stage::Asking(call);

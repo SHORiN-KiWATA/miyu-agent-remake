@@ -22,6 +22,7 @@ fn with_tail(tail: u64) -> Stage {
             rebuild: None,
             pause: None,
             shorten: None,
+            isolate: false,
         });
         policy
     };

@@ -45,6 +45,10 @@ impl Assembler for Drifting {
         Listing.summarize(history, upto, cut)
     }
 
+    fn summarize_isolated(&self, history: &History, upto: Seq, cut: Option<Seq>) -> Request {
+        Listing.summarize_isolated(history, upto, cut)
+    }
+
     fn summary(&self, reply: &[Block]) -> Option<String> {
         Listing.summary(reply)
     }

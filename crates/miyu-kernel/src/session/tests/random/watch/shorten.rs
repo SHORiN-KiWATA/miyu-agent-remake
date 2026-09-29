@@ -3,7 +3,9 @@
 //! - 摘要请求报超长、这一批到它的 `model.called` 为止的，是截短了等着再发：不交到点叫醒；
 //! - 截过的摘要请求只跟在报了超长的那一次后面，替代到的一样；截到的一次比一次晚，最多截 3 次；请求是截到的以后、
 //!   第 N 条以前的清单，最前面写着截到哪；
-//! - 截过的压缩，代码写的几段最后是摘要没看到的那一段：从上一个检查点后面第一条到截到的那一条；没截过的没有。
+//! - 截过的压缩，代码写的几段最后是摘要没看到的那一段：从上一个检查点后面第一条到截到的那一条；没截过的没有；
+//! - 隔离式（施工 6-6 下）：只跟在调了工具、原话写着改走的那一次后面，替代到的、截到的都一样；一次压缩只改走一次，之后
+//!   截短再发的还是隔离式。
 
 use super::*;
 use crate::event::ContextCompacted;
@@ -18,6 +20,10 @@ pub(super) struct Shortenings {
     pending: Option<(Seq, Option<Seq>, u32)>,
     /// 最近发的那一次摘要请求：替代到哪、截到哪、截了几次。
     current: Option<(Seq, Option<Seq>, u32)>,
+    /// 调了工具、等着改走隔离式的那一次摘要请求的 N（施工 6-6 下）。
+    isolating: Option<Seq>,
+    /// 最近发的那一次摘要请求是隔离式。
+    isolated: bool,
 }
 
 impl Watch {
@@ -41,10 +47,40 @@ impl Watch {
         self.shortenings.pending = Some((seen, cut, tries));
     }
 
-    /// 发了一次摘要请求：截过的，要跟在报了超长的那一次后面、截到的比上一次晚。交回截到哪。
+    /// 摘要回复里调了工具，原话写着改走隔离式（施工 6-6 下）：一次压缩只改走一次。
+    pub(super) fn summary_isolating(&mut self, seen: Seq) {
+        let seed = self.seed;
+        self.seen_paths.insert("调了工具改走隔离式");
+        let same = self
+            .shortenings
+            .current
+            .is_some_and(|(upto, _, _)| upto == seen);
+        assert!(
+            !(same && self.shortenings.isolated),
+            "种子 {seed}：隔离式又改走隔离式"
+        );
+        self.shortenings.isolating = Some(seen);
+    }
+
+    /// 发了一次摘要请求：截过的，要跟在报了超长的那一次后面、截到的比上一次晚；隔离式的，要跟在改走的那一次后面，截到的
+    /// 不变。交回截到哪。
     pub(super) fn summary_cut(&mut self, seen: Seq, request: &Request) -> Option<Seq> {
         let seed = self.seed;
         let cut = Watch::truncated(request);
+        let isolated = request.system == "isolated";
+        let before = self.shortenings.current;
+        let same = before.filter(|(upto, _, _)| *upto == seen);
+        if self.shortenings.isolating.take() == Some(seen) && same.is_some() {
+            self.seen_paths.insert("隔离式再发");
+            assert!(isolated, "种子 {seed}：调了工具，再发的不是隔离式");
+            let (_, before_cut, tries) = same.unwrap_or((seen, None, 0));
+            assert_eq!(cut, before_cut, "种子 {seed}：改走隔离式，截到的变了");
+            self.shortenings.pending = None;
+            self.shortenings.current = Some((seen, cut, tries));
+            self.shortenings.isolated = true;
+            return cut;
+        }
+        let was_isolated = self.shortenings.isolated && same.is_some();
         let pending = self.shortenings.pending.take();
         let tries = match (cut, pending) {
             (Some(cut), Some((upto, before, tries))) if upto == seen => {
@@ -63,7 +99,13 @@ impl Watch {
             }
             (None, None) => 0,
         };
+        assert_eq!(
+            isolated,
+            was_isolated && tries > 0,
+            "种子 {seed}：隔离式只跟着改走以后的那几次"
+        );
         self.shortenings.current = Some((seen, cut, tries));
+        self.shortenings.isolated = isolated;
         cut
     }
 
@@ -96,5 +138,6 @@ impl Watch {
     /// 回合结束了：等着再发的作废。
     pub(super) fn shorten_turn_ended(&mut self) {
         self.shortenings.pending = None;
+        self.shortenings.isolating = None;
     }
 }

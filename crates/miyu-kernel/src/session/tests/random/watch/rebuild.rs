@@ -76,7 +76,7 @@ impl Watch {
         let rebuild = std::mem::take(&mut self.compactions.rebuild);
         self.compactions.rebuild.texts = rebuild.texts.clone();
         self.compactions.rebuild.recalling = rebuild.recalling.clone();
-        let numbers = random_policy(true)
+        let numbers = random_policy(true, true)
             .compaction
             .and_then(|compaction| compaction.rebuild)
             .expect("随机测试的策略开着压后重建");

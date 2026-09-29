@@ -8,13 +8,13 @@ use super::Session;
 use super::action::Action;
 use super::compaction::Compacting;
 use super::input::Reread;
+use super::summary::{Summarized, called_tool};
 use super::turn::Stage;
 use crate::accumulate::{Accumulator, Delta};
 use crate::block::{Block, ToolCall};
 use crate::event::{
-    Body, CallError, CallResult, CompactTrigger, CompactionProgress, EndReason, ErrorClass, Event,
-    FirstDifference, MessageAssistant, ModelCalled, ModelDelta, Piece, Transient, TransientBody,
-    Usage,
+    Body, CallError, CallResult, CompactionProgress, EndReason, ErrorClass, Event, FirstDifference,
+    MessageAssistant, ModelCalled, ModelDelta, Piece, Transient, TransientBody, Usage,
 };
 use crate::id::{CommandId, ContentHash, Seq};
 use crate::origin::{By, Model};
@@ -123,23 +123,8 @@ struct Settled {
     summary: Option<Summarized>,
     /// 摘要请求多记的，交回来：报了超长的照它截短再发（施工 6-6 中）。
     compaction: Option<Box<Compacting>>,
-}
-
-/// 摘要请求取到了摘要：替代到哪、摘要、压之前的用量，和这次摘要请求的用量、用时（施工 6-3 下：推 `compaction.done`）。
-pub(super) struct Summarized {
-    pub(super) upto: Seq,
-    /// 哪一种压缩、压完很快又到线连着的第几次（施工 6-6 上）。
-    pub(super) trigger: CompactTrigger,
-    pub(super) refills: Option<u32>,
-    /// 截短重试截到第几条（施工 6-6 中）：写压缩时照它写摘要没看到的那一段。
-    pub(super) cut: Option<Seq>,
-    pub(super) summary: String,
-    pub(super) before: u64,
-    pub(super) usage: Option<Usage>,
-    pub(super) duration_ms: Option<u64>,
-    /// 交给执行器重读的候选、送回的结果（施工 6-5）。
-    pub(super) paths: Vec<String>,
-    pub(super) reread: Option<Vec<Reread>>,
+    /// 摘要回复里调了工具、要改走隔离式（施工 6-6 下）。
+    isolating: bool,
 }
 
 /// 要推给头的：主请求的一段增量，和它的 `by`，那个模型；摘要请求的进度。
@@ -248,6 +233,16 @@ impl Session {
                 events.extend(self.refresh_facts(at));
                 return vec![Action::Append(events)];
             }
+            // fork 式的摘要回复里调了工具：改走隔离式，落了盘再发（施工 6-6 下）。
+            if settled.isolating
+                && settled
+                    .compaction
+                    .as_deref()
+                    .is_some_and(|compacting| self.isolate(compacting))
+            {
+                events.extend(self.refresh_facts(at));
+                return vec![Action::Append(events)];
+            }
             if let Some(wait) = self.retry_wait(&error, wait_ms) {
                 // 再来的是摘要请求，不标「下一次是重试」：它后面那一次主请求照常算一步。
                 if let Some(turn) = self.turn.as_mut() {
@@ -320,6 +315,7 @@ impl Session {
         let mut reply = None;
         let mut calls = Vec::new();
         let mut summary = None;
+        let mut isolating = false;
         match &sent {
             None if !cut && error.is_none() => {
                 error = Some(bad_stream("请求还没发出去就说完了".to_string()));
@@ -328,9 +324,15 @@ impl Session {
             Some(_) if compaction.is_some() => {
                 if !cut && error.is_none() {
                     let blocks = accumulator.finish(self.ledger.next_seq());
-                    match self.summary_of(&blocks) {
+                    let isolates = compaction
+                        .as_deref()
+                        .is_some_and(|compacting| self.can_isolate(compacting));
+                    match self.summary_of(&blocks, isolates) {
                         Ok(text) => summary = Some(text),
-                        Err(bad) => error = Some(bad),
+                        Err(bad) => {
+                            isolating = isolates && called_tool(&blocks);
+                            error = Some(bad);
+                        }
                     }
                 }
             }
@@ -425,34 +427,8 @@ impl Session {
             error,
             summary,
             compaction,
+            isolating,
         }
-    }
-
-    /// 摘要请求的回复里取出摘要：一个块都没有的，照回复是空的算，可以重试；调了工具的、取不出来的，是
-    /// `bad_summary`（`compaction.md` 第三条第 6、7 条）。
-    fn summary_of(&self, blocks: &[Block]) -> Result<String, CallError> {
-        if blocks.is_empty() {
-            return Err(CallError {
-                class: ErrorClass::EmptyReply,
-                message: "回复里一个块都没有".to_string(),
-            });
-        }
-        if blocks
-            .iter()
-            .any(|block| matches!(block, Block::ToolCall(_)))
-        {
-            return Err(CallError {
-                class: ErrorClass::BadSummary,
-                message: "the summary reply called a tool".to_string(),
-            });
-        }
-        self.policy
-            .assembler
-            .summary(blocks)
-            .ok_or_else(|| CallError {
-                class: ErrorClass::BadSummary,
-                message: "no summary in the reply".to_string(),
-            })
     }
 
     /// 执行器送回了第 `seen` 次摘要请求的重读结果（施工 6-5）：记在那次请求上。不是在路上的那一次的，不理。

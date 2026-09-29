@@ -375,7 +375,9 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let mut rng = Rng(seed);
         // 五个种子里有一个没人能确认。
         let attended = seed % 5 != 4;
-        let mut session = session_with(random_policy(attended));
+        // 三个种子里有一个有隔离式那句 system（施工 6-6 下）：别的调了工具照失败算，连续失败、暂停才走得到。
+        let isolate = seed % 3 == 1;
+        let mut session = session_with(random_policy(attended, isolate));
         let mut watch = Watch::new(seed);
         watch.approvals.attended = attended;
         // 双数的种子风平浪静：打断、乱来的增量少，一轮才走得深；单数的种子专门捣乱。
@@ -395,7 +397,7 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         for _ in 0..300 {
             if watch.all_stored() && crashes.below(200) == 0 {
                 let planned = crashes.below(2) == 0;
-                session = watch.reload(session, planned, random_policy(attended));
+                session = watch.reload(session, planned, random_policy(attended, isolate));
                 if let Some(input) = watch.recall_answer() {
                     watch.feed(&mut session, input);
                 }
