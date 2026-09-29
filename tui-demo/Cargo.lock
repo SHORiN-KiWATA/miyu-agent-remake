@@ -1208,6 +1208,7 @@ dependencies = [
 name = "miyu-tui-demo"
 version = "0.0.1"
 dependencies = [
+ "base64",
  "image",
  "jiff",
  "mermaid-rs-renderer",

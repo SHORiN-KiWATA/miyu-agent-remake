@@ -179,6 +179,20 @@ impl Transcript {
             entry.progress = progress;
         }
     }
+
+    /// 清空了（`context.compacted` 的 `trigger` 是 `clear`）：正文一行绿点「上下文已清空」，这一轮不另起收尾行
+    /// （「正文」第 9 条）。
+    pub(super) fn cleared(&mut self, texts: &Texts) {
+        let words = &texts.compaction;
+        // 归到清空那一轮：撤掉那一轮时跟着藏起来（`note` 不归到哪一轮）。
+        self.push(Kind::Note, words.cleared.clone());
+        if let Some(entry) = self.entries.last_mut() {
+            entry.mark = Some(words.done_mark.clone());
+        }
+        self.cleared = true;
+        // 上下文用量清零，下一次请求再照实际的写（「正文」第 9 条）。
+        self.context = 0;
+    }
 }
 
 /// 压缩那一行换成压好了的结果：绿色记号，字暗，不再转、不再画条。

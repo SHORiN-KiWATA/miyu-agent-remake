@@ -28,7 +28,7 @@ fn the_call_after_a_compaction_or_an_undo_is_excused_once() {
         &mut t,
         vec![
             sent(3, false),
-            Push::Compacted,
+            Push::Compacted { clear: false },
             sent(9, true),
             sent(12, true),
         ],
@@ -51,7 +51,7 @@ fn a_summary_looking_back_is_not_a_break_and_keeps_the_excuse_for_the_main_call(
         vec![
             sent(20, false),
             sent(14, true),
-            Push::Compacted,
+            Push::Compacted { clear: false },
             sent(22, true),
         ],
     );
@@ -71,7 +71,7 @@ fn a_summary_request_is_known_by_its_flag() {
                 changed: true,
                 summary: true,
             },
-            Push::Compacted,
+            Push::Compacted { clear: false },
             sent(22, true),
         ],
     );

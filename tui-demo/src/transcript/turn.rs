@@ -28,6 +28,7 @@ impl Transcript {
         self.turn_level = self.level;
         // 手动压缩那一轮没有 `trigger`，不是哪一句开的（施工 6-8，蓝图「正文」第 9 条）。
         self.manual = trigger.is_none();
+        self.cleared = false;
         if trigger.is_none() {
             return;
         }
@@ -70,6 +71,8 @@ impl Transcript {
         }
         let (took, failure) = self.wind_up();
         match reason {
+            // 清空那一轮：正文已经有「上下文已清空」那一行，不另起收尾行、不接用时（「正文」第 9 条）。
+            EndReason::Completed if self.cleared => {}
             EndReason::Completed => {
                 // 手动压缩压好了：用时和用量接在结果那一行后面，不另起收尾行（「正文」第 9 条）。
                 let usage = words::turn_usage(&self.turn_usage, texts);

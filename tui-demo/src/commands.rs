@@ -51,6 +51,8 @@ pub enum Run {
     Compact,
     /// 开新会话：清界面回首页，第一句话时再开（蓝图「斜杠命令」`/new`）。
     New,
+    /// 清空上下文，会话不变（`session.clear`，蓝图「正文」第 9 条）。
+    Clear,
     /// 换下一套主题。
     Theme,
     /// 换下一套图标（蓝图「图标」）。
@@ -196,6 +198,20 @@ mod tests {
             .collect();
         assert_eq!(names.first(), Some(&"exit"));
         assert!(names.contains(&"level"), "含着 e 的也在：{names:?}");
+    }
+
+    #[test]
+    fn clear_can_also_be_typed_as_reset() {
+        // 2026-09-30 项目主人：/clear 别名 /reset，会话不变、清空上下文。
+        let commands = commands();
+        assert_eq!(
+            commands.find("clear").map(|s| s.run),
+            Some(super::Run::Clear)
+        );
+        assert_eq!(
+            commands.find("reset").map(|s| s.run),
+            Some(super::Run::Clear)
+        );
     }
 
     #[test]

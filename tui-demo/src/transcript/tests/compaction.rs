@@ -373,3 +373,39 @@ fn a_manual_compaction_puts_its_time_and_usage_on_the_result_line() {
         "普通的一轮照旧有收尾行"
     );
 }
+
+#[test]
+fn a_clear_turn_leaves_one_green_line_and_no_done_line() {
+    // 2026-09-30 项目主人要的 /clear：正文一行 `● 上下文已清空`，不另起收尾行，也不接用时（「正文」第 9 条）。
+    let mut t = Transcript {
+        context: 1800,
+        ..Transcript::default()
+    };
+    apply(
+        &mut t,
+        vec![
+            Push::TurnStarted(1, None),
+            Push::Compacted { clear: true },
+            Push::TurnEnded(EndReason::Completed),
+        ],
+    );
+    // 上下文用量清零，下一次请求再照实际的写（同一天项目主人：原来不刷新）。
+    assert_eq!(t.context, 0);
+    let shown: Vec<_> = t
+        .entries
+        .iter()
+        .map(|e| (e.kind.clone(), e.mark.clone(), e.text.clone()))
+        .collect();
+    assert_eq!(
+        shown,
+        [(
+            Kind::Note,
+            Some("● ".to_string()),
+            "上下文已清空".to_string()
+        )]
+    );
+    assert!(!t.busy());
+    // 撤掉清空那一轮：这一行跟着藏起来（2026-09-30 真模型实测：原来归不到这一轮，撤了还在）。
+    apply(&mut t, vec![Push::Reverted(vec![1])]);
+    assert!(t.entries.iter().all(|e| e.hidden), "撤掉那一轮就藏起来");
+}

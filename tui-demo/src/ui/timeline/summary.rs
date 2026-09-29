@@ -76,7 +76,16 @@ pub fn line(segment: &Segment, ctx: &Ctx, base: Style) -> Vec<Span<'static>> {
         parts.push((count(tally.errors, &words.errors), false));
     }
     parts.push((took, false));
-    clip_spans(spans(parts, style, changed(segment, ctx)), room(ctx))
+    let mut out = spans(parts, style, changed(segment, ctx));
+    // 出错的那一格红：整行不红的时候也看得出有一步没成（2026-09-30 项目主人：写入被拒和写成了看起来一样）。
+    let errs = count(tally.errors, &words.errors);
+    for span in out
+        .iter_mut()
+        .filter(|s| tally.errors > 0 && s.content == errs)
+    {
+        span.style = theme::error();
+    }
+    clip_spans(out, room(ctx))
 }
 
 /// 这一行能写几列：去掉行首两格槽。
@@ -115,6 +124,8 @@ fn changed(segment: &Segment, ctx: &Ctx) -> (usize, usize) {
     segment
         .steps
         .iter()
+        // 出错、被拒的编辑没改成：不算加减的行数。
+        .filter(|step| !step.failed())
         .filter_map(|step| match &step.kind {
             StepKind::Tool { name, parsed, .. } => {
                 let kind = ctx.config.timeline.kinds.get(name).copied();

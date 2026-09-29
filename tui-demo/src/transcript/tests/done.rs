@@ -93,7 +93,8 @@ fn the_done_line_keeps_the_level_its_turn_ran_with() {
     use crate::core::Level;
     let order = Config::builtin().unwrap().layout.level_cycle;
     let mut t = Transcript::default();
-    t.next_level(&order); // 工作区 → 开放权限
+    let next = t.next_level(&order); // 工作区 → 开放权限
+    apply(&mut t, vec![super::policy(next)]);
     apply(
         &mut t,
         vec![
@@ -103,7 +104,8 @@ fn the_done_line_keeps_the_level_its_turn_ran_with() {
     );
     assert_eq!(t.entries.last().unwrap().level, Some(Level::Full));
     // 之后换了级别，已经写出来的不跟着变；被打断的那一行也记着。
-    t.next_level(&order); // → 只读
+    let next = t.next_level(&order); // → 只读
+    apply(&mut t, vec![super::policy(next)]);
     assert_eq!(t.entries.last().unwrap().level, Some(Level::Full));
     apply(
         &mut t,

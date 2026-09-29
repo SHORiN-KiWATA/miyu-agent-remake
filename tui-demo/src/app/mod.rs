@@ -6,6 +6,7 @@ mod jobs;
 pub use jobs::Panel;
 mod keys;
 mod mouse;
+mod notify;
 mod session;
 
 use std::cell::RefCell;
@@ -28,6 +29,7 @@ use crate::input::{Action, Draft, InputBox, PasteRule};
 use crate::jobs::{Board, Feed};
 use crate::mascot::{Gaze, Idle, Perch};
 use crate::menu::Menu;
+use crate::notify::Notifier;
 use crate::pulse::Pulse;
 use crate::side_select::SideSelect;
 use crate::tips::Tips;
@@ -59,6 +61,8 @@ pub struct Notice {
 pub struct App {
     /// 界面上的字和布局的数值。
     pub config: Config,
+    /// 系统通知、报给 herdr（蓝图「系统通知」）。
+    pub notifier: Notifier,
     /// 输入框。
     pub input: InputBox,
     /// 会话：正文、在不在跑、用量。
@@ -160,8 +164,21 @@ impl App {
             chars: layout.paste_fold_chars,
             label: config.text.paste_label.clone(),
         });
+        // 提示音写到机器缓存目录（「系统通知」第 5 条）；找不到的不响。
+        let sounds = miyu_store::root::cache_root(&miyu_store::env::Env::current())
+            .ok()
+            .map(|root| root.join("tui").join("sounds"));
+        let mut notifier = Notifier::new(
+            config.notify.clone(),
+            config.text.notify.clone(),
+            |name| std::env::var(name).ok(),
+            sounds,
+        );
+        // 界面一开就报空闲：herdr 侧栏上马上看得到（「系统通知」第 6 条）。
+        notifier.state(crate::notify::State::Idle);
         Self {
             config,
+            notifier,
             input,
             transcript: Transcript::default(),
             core,
@@ -256,6 +273,11 @@ impl App {
                 Action::None
             }
             Event::Mouse(mouse) => self.mouse(mouse),
+            // 终端报的在不在前台：系统通知照它（「系统通知」第 2 条）。
+            Event::FocusGained | Event::FocusLost => {
+                self.notifier.focus(matches!(event, Event::FocusGained));
+                Action::None
+            }
             _ => Action::None,
         };
         match action {
@@ -334,6 +356,12 @@ impl App {
             && *block != Block::Text
         {
             self.view.resume();
+        }
+        // 系统通知、报给 herdr：在正文收它之前量这一轮用了多久（「系统通知」）。
+        self.notify_core(&update);
+        // 清空了：像 Ctrl+L 一样清屏，「上下文已清空」在新的一屏顶上（「正文」第 9 条）。
+        if matches!(update, Update::Push(Push::Compacted { clear: true })) {
+            self.view.clear();
         }
         let folds = self.transcript.folds();
         self.transcript.update(update, &self.config.text);

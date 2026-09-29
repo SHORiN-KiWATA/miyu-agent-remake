@@ -91,6 +91,8 @@ pub struct Transcript {
     spoke: bool,
     /// 这一轮是手动压缩（`turn.started` 没有 `trigger`，施工 6-8）：压好了不另起收尾行。
     manual: bool,
+    /// 这一轮是清空（`/clear`）：结束时不另起收尾行、不接用时（「正文」第 9 条）。
+    cleared: bool,
     /// 最近一次请求出字的速度，每秒几个 token。
     pub speed: Option<f64>,
     /// 正在重试时给人看的一句。
@@ -129,6 +131,7 @@ impl Default for Transcript {
             compacting: None,
             spoke: false,
             manual: false,
+            cleared: false,
             speed: None,
             retry: None,
             failure: None,
@@ -180,15 +183,12 @@ impl Transcript {
         }
     }
 
-    /// 换到 `order` 里的下一档，到头回到第一档；现在的不在里面的，换到第一档。
-    ///
-    /// 只改界面上的样子：协议还没有改权限的方法，核心不知道（蓝图 `tui.md`「权限级别」第 2 条）。
-    pub fn next_level(&mut self, order: &[Level]) {
+    /// `order` 里的下一档，到头回到第一档；现在的不在里面的，是第一档。只算不改：切到哪一档由核心推来的
+    /// `session.policy_changed` 定（蓝图 `tui.md`「权限级别」第 2 条）。
+    pub fn next_level(&self, order: &[Level]) -> Level {
         let at = order.iter().position(|l| *l == self.level);
         let next = at.map_or(0, |i| (i + 1) % order.len().max(1));
-        if let Some(level) = order.get(next) {
-            self.level = *level;
-        }
+        order.get(next).copied().unwrap_or(self.level)
     }
 
     /// 有没有还在进行的步骤、正在压缩：有就要转圈。
@@ -199,6 +199,11 @@ impl Transcript {
                 .iter()
                 .filter_map(|e| e.segment.as_ref())
                 .any(|s| s.steps.iter().any(Step::busy))
+    }
+
+    /// 在跑的（刚结束的）这一轮是不是手动压缩、清空：核心单开的一轮，不是回答（「系统通知」第 1 条）。
+    pub fn manual_turn(&self) -> bool {
+        self.manual
     }
 
     /// 开新会话（`/new`）：正文、用量、撤销记录清掉，权限级别回到工作区；连接、模型、窗口照旧。条目编号接着往上数：
@@ -361,7 +366,12 @@ impl Transcript {
                 summary,
             } => self.cache.sent(seen, changed, summary),
             Push::Compaction(push) => self.compaction(push, texts),
-            Push::Compacted => self.cache.compacted(),
+            Push::Compacted { clear } => {
+                self.cache.compacted();
+                if clear {
+                    self.cleared(texts);
+                }
+            }
             Push::Speed { output, ms } => {
                 self.speed = Some(output as f64 * 1000.0 / ms as f64);
             }

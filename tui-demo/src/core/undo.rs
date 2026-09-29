@@ -17,6 +17,8 @@ pub struct Report {
     pub untouched: u64,
     /// 撤掉的几轮里有几次压缩（施工 6-9）：撤掉了压缩，上下文回到了压缩前。只有撤销有，是 0 的核心不写。
     pub compactions: u64,
+    /// 撤掉的几轮里有几次清空（施工 6-8 补）：撤掉了清空，上下文回到了清空以前。是 0 的核心不写。
+    pub clears: u64,
 }
 
 impl Report {
@@ -34,6 +36,7 @@ impl Report {
             restored,
             untouched: files.len() as u64 - restored,
             compactions: result["compactions"].as_u64().unwrap_or_default(),
+            clears: result["clears"].as_u64().unwrap_or_default(),
         }
     }
 }
@@ -49,7 +52,7 @@ mod tests {
         let result = json!({"commands": 2, "cwd": "/home/me/proj", "events": [14, 15],
             "files": [{"action": "write", "outcome": "restored", "path": "/a"},
                       {"action": "write", "outcome": "changed", "path": "/b", "diff": ["@@ -3 +3 @@"]}],
-            "said": "把 README 改成中文", "turns": 1, "compactions": 1});
+            "said": "把 README 改成中文", "turns": 1, "compactions": 1, "clears": 1});
         assert_eq!(
             Report::read(&result),
             Report {
@@ -58,7 +61,8 @@ mod tests {
                 commands: 2,
                 restored: 1,
                 untouched: 1,
-                compactions: 1
+                compactions: 1,
+                clears: 1
             }
         );
     }

@@ -174,12 +174,20 @@ fn undo_rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
         vec![Span::styled(clip(&head, ctx.width), style)],
     )];
     // 撤掉的几轮里有压缩：下面一行说一句，和「已撤销」对齐（施工 6-9，照 `miyu undo`）。
-    if entry.undo.as_ref().is_some_and(|r| r.compactions > 0) {
+    // 撤掉的几轮里有清空：一样说一句（`/clear`，照 `miyu undo`）。
+    let report = entry.undo.as_ref();
+    for (count, said) in [
+        (report.map_or(0, |r| r.compactions), &text.undo_compactions),
+        (report.map_or(0, |r| r.clears), &text.undo_clears),
+    ] {
+        if count == 0 {
+            continue;
+        }
         let indent = " ".repeat(ctx.config.layout.undo_icon.width());
         out.push(ctx.led_row(
             ctx.blank_slot(),
             vec![Span::raw(indent)],
-            vec![Span::styled(text.undo_compactions.clone(), style)],
+            vec![Span::styled(said.clone(), style)],
         ));
     }
     if entry.open {
@@ -386,6 +394,29 @@ mod tests {
         assert!(
             head.contains("已撤销 · /restore 恢复 · 第一行") && !head.contains("轮"),
             "{head}"
+        );
+    }
+
+    #[test]
+    fn undoing_a_clear_says_so_under_the_undo_line() {
+        // 施工 6-8 补：撤掉的几轮里有清空，照 `miyu undo` 说一句。
+        use crate::transcript::{Kind, Transcript};
+        use crate::ui::test_support::Fixture;
+        let f = Fixture::new();
+        let mut t = Transcript::default();
+        t.note(Kind::Undo, "第一行".into());
+        t.entries[0].undo = Some(crate::core::Report {
+            turns: 1,
+            clears: 1,
+            ..Default::default()
+        });
+        let rows = super::entry_rows(0, &t.entries[0], &f.ctx());
+        let lines: Vec<String> = rows.iter().map(|r| r.line.to_string()).collect();
+        assert!(
+            lines
+                .iter()
+                .any(|l| l.contains("撤掉了清空，上下文回到了清空以前")),
+            "{lines:?}"
         );
     }
 

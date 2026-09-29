@@ -47,6 +47,10 @@ pub enum Command {
     Compact(Option<String>),
     /// 开新会话（`/new`）：退订现在这个，等第一句话再开（蓝图「斜杠命令」`/new`）。
     New,
+    /// 切权限级别（`session.set_permission_level`）：切到这一级。会话还没开的记着，开了再发。
+    Level(Level),
+    /// 清空上下文（`session.clear`，`/clear`）。
+    Clear,
 }
 
 /// 核心那边的消息，交给界面。
@@ -128,6 +132,8 @@ async fn run(
     notify: &impl Fn(Update) -> bool,
 ) {
     let mut session = None;
+    // 会话还没开时切的权限级别：开会话时补发（「权限级别」第 2 条）。
+    let mut pending = None;
     loop {
         // 连不上一直试；这期间界面发的命令在通道里排着，连上再发（第 1、7 条）。
         let mut rpc = loop {
@@ -153,7 +159,7 @@ async fn run(
             }
         };
         wait.reset();
-        match serve(&mut rpc, &mut session, &mut commands, notify).await {
+        match serve(&mut rpc, &mut session, &mut pending, &mut commands, notify).await {
             Served::Quit => return,
             Served::Lost if !notify(Update::Disconnected) => return,
             Served::Lost => {}
@@ -176,6 +182,7 @@ async fn open(session: Option<&str>) -> Result<(Rpc, Option<String>, Option<Limi
 async fn serve(
     rpc: &mut Rpc,
     session: &mut Option<String>,
+    pending: &mut Option<Level>,
     commands: &mut mpsc::UnboundedReceiver<Command>,
     notify: &impl Fn(Update) -> bool,
 ) -> Served {
@@ -197,11 +204,23 @@ async fn serve(
                         }
                         continue;
                     }
+                    Command::Level(level) if session.is_none() => {
+                        *pending = Some(level);
+                        continue;
+                    }
                     Command::Send(_) if session.is_none() => {
                         match fresh(rpc).await {
                             Ok((id, limits)) => {
                                 if !notify(Update::Ready(id.clone())) || !notify(Update::Limits(limits)) {
                                     return Served::Quit;
+                                }
+                                // 会话还没开时切过权限级别：先补发，再说话。
+                                if let Some(level) = pending.take() {
+                                    let mut params = level.permission();
+                                    params["session"] = json!(id);
+                                    if rpc.send("session.set_permission_level", params).await.is_err() {
+                                        return Served::Lost;
+                                    }
                                 }
                                 *session = Some(id);
                             }
@@ -278,6 +297,12 @@ fn request(
             }
             ("session.compact", params)
         }
+        Command::Level(level) => {
+            let mut params = level.permission();
+            params["session"] = json!(session);
+            ("session.set_permission_level", params)
+        }
+        Command::Clear => ("session.clear", json!({"session": session})),
         Command::New => return None,
     })
 }
@@ -320,5 +345,40 @@ async fn take(
             true
         }
         _ => true,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::{Command, Level, request};
+
+    #[test]
+    fn switching_the_level_writes_only_what_changes() {
+        // 「权限级别」第 2 条：工作区、开放权限写常用的那一级、关掉只读；只读只开只读。
+        let (method, params) = request(Command::Level(Level::Full), "s1", ".").unwrap();
+        assert_eq!(method, "session.set_permission_level");
+        assert_eq!(
+            params,
+            json!({"session": "s1", "level": "full", "read_only": false})
+        );
+        let (_, params) = request(Command::Level(Level::ReadOnly), "s1", ".").unwrap();
+        assert_eq!(params, json!({"session": "s1", "read_only": true}));
+        let (_, params) = request(Command::Level(Level::Workspace), "s1", ".").unwrap();
+        assert_eq!(
+            params,
+            json!({"session": "s1", "level": "workspace", "read_only": false})
+        );
+    }
+
+    #[test]
+    fn clear_asks_for_session_clear_and_new_asks_for_nothing() {
+        let (method, params) = request(Command::Clear, "s1", ".").unwrap();
+        assert_eq!(
+            (method, params),
+            ("session.clear", json!({"session": "s1"}))
+        );
+        assert!(request(Command::New, "s1", ".").is_none());
     }
 }

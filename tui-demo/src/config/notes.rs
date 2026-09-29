@@ -16,6 +16,8 @@ pub struct CompactionTexts {
     pub done: String,
     /// 压好了那一行前面的记号，连同它后面的空格：绿色（主题的 `good`）。
     pub done_mark: String,
+    /// 清空了（`/clear`）那一行，前面照样是 `done_mark`。
+    pub cleared: String,
     /// 摘要请求出错，`{reason}` 原因。
     pub failed: String,
     /// 摘要请求里调了工具（取不出摘要的一种）。

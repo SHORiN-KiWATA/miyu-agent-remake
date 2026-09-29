@@ -1,5 +1,5 @@
 //! 和核心的会话打交道的几样：连不上时发不出去（蓝图 `tui.md`「连核心」第 8 条）、`/new` 开新会话、刚开还没说话时
-//! 撤销和压缩当场答（「斜杠命令」`/new`）。
+//! 撤销、压缩、清空当场答（「斜杠命令」`/new`），切权限级别（「权限级别」第 2 条）。
 
 use super::App;
 use crate::commands::Run;
@@ -25,6 +25,19 @@ impl App {
         self.panel = None;
     }
 
+    /// Tab、Shift+Tab：切到下一档，告诉核心，等 `session.policy_changed` 来了再画（「权限级别」第 2 条）。会话还没开的
+    /// 界面先照按的画，核心那边开会话时补发；连不上核心的发不出去。
+    pub(super) fn cycle_level(&mut self) {
+        if !self.reachable() {
+            return;
+        }
+        let target = self.transcript.next_level(&self.config.layout.level_cycle);
+        if self.not_opened() {
+            self.transcript.level = target;
+        }
+        self.core.send(Command::Level(target));
+    }
+
     /// 按过 `/new`、还没说话：连着核心，却还没开会话。
     pub(super) fn not_opened(&self) -> bool {
         self.transcript.session.is_none() && self.transcript.link == Link::Ready
@@ -35,6 +48,7 @@ impl App {
         let reason = match run {
             Run::Revert => "nothing_to_revert",
             Run::Unrevert => "nothing_to_unrevert",
+            Run::Clear => "nothing_to_clear",
             _ => "nothing_to_compact",
         };
         self.core(Update::Refused {

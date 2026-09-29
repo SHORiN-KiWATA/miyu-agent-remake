@@ -164,8 +164,11 @@ pub enum Push {
     },
     /// 压缩的几样（蓝图 `tui.md`「正文」第 9 条）。
     Compaction(Compaction),
-    /// 压缩了一次（`context.compacted`）。
-    Compacted,
+    /// 压缩了一次（`context.compacted`）；`clear` 是清空（`trigger` 是 `clear`，`/clear`）。
+    Compacted {
+        /// 是清空。
+        clear: bool,
+    },
     /// 一次请求出字的速度：输出了多少 token、从第一个字到最后花了多少毫秒。
     Speed {
         /// 输出的 token 数。
@@ -227,7 +230,9 @@ pub fn read(event: &Value) -> Vec<Push> {
         }
         "turn.reverted" => out.push(Push::Reverted(turns(&body["turns"]))),
         "turn.unreverted" => out.push(Push::Unreverted(turns(&body["turns"]))),
-        "context.compacted" => out.push(Push::Compacted),
+        "context.compacted" => out.push(Push::Compacted {
+            clear: body["trigger"] == "clear",
+        }),
         "compaction.progress" => out.push(Push::Compaction(Compaction::Progress {
             written: body["written"].as_u64().unwrap_or_default(),
             expected: body["expected"].as_u64().filter(|&n| n > 0),

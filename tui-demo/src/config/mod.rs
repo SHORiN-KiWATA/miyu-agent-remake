@@ -19,6 +19,7 @@ mod figures;
 mod icons;
 mod motion;
 mod notes;
+mod notify;
 mod panels;
 mod timeline;
 
@@ -26,6 +27,7 @@ pub use figures::{FigureLook, Room};
 pub use icons::Icons;
 pub use motion::CompactionMotion;
 pub use notes::CompactionTexts;
+pub use notify::{NotifyLook, NotifyTexts};
 pub use panels::{HistoryTexts, MenuTexts};
 pub use timeline::{Summary, Timeline, ToolKind};
 
@@ -284,6 +286,8 @@ pub struct Texts {
     pub not_connected: String,
     /// 崩了以后终端里说调用栈记在哪，`{path}` 是文件（蓝图「崩了」）。
     pub crash_saved: String,
+    /// 系统通知上的字（蓝图「系统通知」第 3 条）。
+    pub notify: NotifyTexts,
     /// 一条请求被拒，`{reason}` 是核心说的原因。
     pub refused: String,
     /// 这一轮被打断了。
@@ -334,6 +338,8 @@ pub struct Texts {
     pub undone: String,
     /// 撤掉的几轮里有压缩时，撤销那一行下面那一句（施工 6-9）。
     pub undo_compactions: String,
+    /// 撤掉的几轮里有清空：撤销那一行下面说一句（`/clear`，照 `miyu undo`）。
+    pub undo_clears: String,
     /// 改回了几个文件，`{count}`。
     pub restored: String,
     /// 几个文件没动，`{count}`。
@@ -375,6 +381,8 @@ pub struct Config {
     pub math: Math,
     /// 正文里的图。
     pub figures: FigureLook,
+    /// 系统通知怎么弹、怎么响（`resources/notify.json`）。
+    pub notify: NotifyLook,
     /// 运行状态行的词库。
     pub pulse: Words,
     /// 首页的吉祥物。
@@ -413,6 +421,7 @@ impl Config {
             languages: parse("code.json", include_str!("../../resources/code.json"))?,
             math: parse("math.json", include_str!("../../resources/math.json"))?,
             figures: parse("figures.json", include_str!("../../resources/figures.json"))?,
+            notify: parse("notify.json", include_str!("../../resources/notify.json"))?,
             pulse: parse("pulse.json", include_str!("../../resources/pulse.json"))?,
             mascot: parse("mascot.json", include_str!("../../resources/mascot.json"))?,
             fake: parse("fake.json", include_str!("../../resources/fake.json"))?,

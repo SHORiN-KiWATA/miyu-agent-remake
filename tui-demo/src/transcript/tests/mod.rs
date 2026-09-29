@@ -10,6 +10,7 @@ mod compaction;
 mod done;
 mod failure;
 mod folds;
+mod level;
 mod link;
 mod queue;
 mod waiting;
@@ -296,20 +297,19 @@ fn undo_counts_skip_zero() {
     assert_eq!(super::words::undo_counts(&Default::default(), &texts), None);
 }
 
-#[test]
-fn shift_tab_cycles_workspace_full_read_only() {
-    let mut t = Transcript::default();
-    let order = Config::builtin().unwrap().layout.level_cycle;
-    let mut seen = Vec::new();
-    for _ in 0..4 {
-        t.next_level(&order);
-        seen.push(t.level);
-    }
+/// 核心推来的权限变化：只读开着的写 `read_only`，常用的那一级照旧。
+fn policy(level: crate::core::Level) -> Push {
     use crate::core::Level;
-    assert_eq!(
-        seen,
-        vec![Level::Full, Level::ReadOnly, Level::Workspace, Level::Full]
-    );
+    match level {
+        Level::ReadOnly => Push::Policy {
+            level: Level::Full,
+            read_only: true,
+        },
+        level => Push::Policy {
+            level,
+            read_only: false,
+        },
+    }
 }
 
 #[test]
@@ -366,18 +366,6 @@ fn the_next_block_closes_the_ones_before_it() {
         ),
         "在写的这一件还在准备"
     );
-}
-
-#[test]
-fn what_you_said_keeps_the_level_it_was_sent_with() {
-    let mut t = Transcript::default();
-    t.user("你好".into(), Vec::new());
-    let order = Config::builtin().unwrap().layout.level_cycle;
-    t.next_level(&order);
-    t.user("再来".into(), Vec::new());
-    let levels: Vec<_> = t.entries.iter().map(|e| e.level).collect();
-    use crate::core::Level;
-    assert_eq!(levels, vec![Some(Level::Workspace), Some(Level::Full)]);
 }
 
 #[test]

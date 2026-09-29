@@ -21,6 +21,7 @@ mod markdown;
 mod mascot;
 mod menu;
 mod meter;
+mod notify;
 mod open;
 mod pointer;
 mod pulse;
@@ -31,14 +32,15 @@ mod tips;
 mod transcript;
 mod ui;
 
-use std::io::{self, stdout};
+use std::io::{self, Write, stdout};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use ratatui::crossterm::event::{
-    self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
-    Event, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
+    self, DisableBracketedPaste, DisableFocusChange, DisableMouseCapture, EnableBracketedPaste,
+    EnableFocusChange, EnableMouseCapture, Event, KeyboardEnhancementFlags,
+    PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
 };
 use ratatui::crossterm::{execute, terminal};
 
@@ -94,7 +96,13 @@ fn enter() -> io::Result<bool> {
 
 /// 打开鼠标、括号粘贴，`keyboard` 为真时再打开 kitty 键盘协议。
 fn modes_on(keyboard: bool) -> io::Result<()> {
-    execute!(stdout(), EnableMouseCapture, EnableBracketedPaste)?;
+    // 焦点上报：终端报在不在前台，系统通知照它（蓝图「系统通知」第 2 条）。
+    execute!(
+        stdout(),
+        EnableMouseCapture,
+        EnableBracketedPaste,
+        EnableFocusChange
+    )?;
     if keyboard {
         execute!(
             stdout(),
@@ -109,7 +117,12 @@ fn leave(keyboard: bool) -> io::Result<()> {
     if keyboard {
         execute!(stdout(), PopKeyboardEnhancementFlags)?;
     }
-    execute!(stdout(), DisableMouseCapture, DisableBracketedPaste)
+    execute!(
+        stdout(),
+        DisableMouseCapture,
+        DisableBracketedPaste,
+        DisableFocusChange
+    )
 }
 
 /// 主循环等的东西：终端的事件，或者核心的消息。
@@ -242,6 +255,12 @@ fn frame(
     });
     pointer.set(app.pointing(), &mut stdout())?;
     execute!(stdout(), terminal::EndSynchronizedUpdate)?;
+    // 系统通知的转义序列（kitty 的 OSC 99、OSC 9）：画完一帧再写，一条一次写完，不被别的输出劈开（「系统通知」第 4 条）。
+    let mut out = stdout();
+    for sequence in app.notifier.outbox() {
+        out.write_all(sequence.as_bytes())?;
+    }
+    out.flush()?;
     drawn.map(|_| ())
 }
 

@@ -24,6 +24,16 @@ impl Level {
             _ => None,
         }
     }
+
+    /// 切到这一级要给 `session.set_permission_level` 写的几格：工作区、开放权限写常用的那一级、关掉只读；只读只开
+    /// 只读，常用的那一级照旧（蓝图 `tui.md`「权限级别」第 2 条）。
+    pub fn permission(self) -> serde_json::Value {
+        match self {
+            Level::Workspace => serde_json::json!({"level": "workspace", "read_only": false}),
+            Level::Full => serde_json::json!({"level": "full", "read_only": false}),
+            Level::ReadOnly => serde_json::json!({"read_only": true}),
+        }
+    }
 }
 
 /// 工具结果的状态（`tool.result` 的 `status`）。

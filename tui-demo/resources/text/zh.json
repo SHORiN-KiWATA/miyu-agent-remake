@@ -34,6 +34,13 @@
   "missing_core": "找不到核心程序：{path}",
   "not_connected": "核心未连接",
   "crash_saved": "调用栈记在 {path}",
+  "notify": {
+    "title": "Miyu",
+    "replied": "已完成",
+    "failed": "出错了",
+    "approving": "在等你确认",
+    "asking": "在等你回答"
+  },
   "refused": "核心拒绝了：{reason}",
   "interrupted": "已中断",
   "failed": "出错了：{reason}",
@@ -50,6 +57,7 @@
   "context": "{used}/{window}({percent}%)",
   "undone": "已撤销 · /restore 恢复",
   "undo_compactions": "撤掉了压缩，上下文回到了压缩前",
+  "undo_clears": "撤掉了清空，上下文回到了清空以前",
   "restored": "改回 {count} 个文件",
   "untouched": "{count} 个文件没动：之后又被改过，或者已经不在了",
   "commands": "{count} 条命令的改动撤不回",
@@ -106,7 +114,7 @@
   "figure_pending": "⋯ 正在画图",
   "figure_zoom": "点开看大图",
   "markdown": { "image": "[图片: ", "details": "详细信息", "details_marks": ["▶ ", "▼ "], "bullets": ["▪", "•", "◦"] },
-  "refusal_hints": { "nothing_to_compact": "上下文过少" },
+  "refusal_hints": { "nothing_to_compact": "上下文过少", "nothing_to_clear": "上下文为空" },
   "refusals": {
     "nothing_to_unrevert": "没有能恢复的撤销",
     "nothing_to_revert": "没有能撤销的",
@@ -122,6 +130,7 @@
     "percent": "\u00a0{percent}%",
     "done": "上下文已压缩：{before} → {after} token",
     "done_mark": "● ",
+    "cleared": "上下文已清空",
     "failed": "· 压缩失败：{reason}",
     "called_a_tool": "摘要请求里调了工具",
     "isolating": "· 摘要请求里调了工具，改用不带工具的再压",

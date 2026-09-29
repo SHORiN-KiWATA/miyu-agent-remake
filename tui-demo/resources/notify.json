@@ -1,0 +1,33 @@
+{
+  "enabled": true,
+  "sound": true,
+  "app": "Miyu",
+  "osc9_programs": [
+    "iTerm.app",
+    "WezTerm",
+    "ghostty"
+  ],
+  "players": {
+    "linux": [
+      [
+        "pw-play"
+      ],
+      [
+        "paplay"
+      ],
+      [
+        "canberra-gtk-play",
+        "-f"
+      ],
+      [
+        "aplay",
+        "-q"
+      ]
+    ],
+    "macos": [
+      [
+        "afplay"
+      ]
+    ]
+  }
+}

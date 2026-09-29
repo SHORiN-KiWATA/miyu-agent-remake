@@ -90,7 +90,7 @@ impl App {
             return Action::None;
         }
         if cycles_level(&key, menu_open) {
-            self.transcript.next_level(&self.config.layout.level_cycle);
+            self.cycle_level();
             return Action::None;
         }
         // 正文里有选区：Ctrl+C、Ctrl+Shift+C 复制它，Esc 取消它；都先于输入框（`tui.md`「按键」）。
@@ -211,12 +211,13 @@ impl App {
         self.input.remember(Draft::plain(&line));
         self.view.follow();
         match spec.run {
-            Run::Revert | Run::Unrevert | Run::Compact if !self.reachable() => {
+            Run::Revert | Run::Unrevert | Run::Compact | Run::Clear if !self.reachable() => {
                 self.input.editor.set_draft(Draft::plain(&line));
             }
-            Run::Revert | Run::Unrevert | Run::Compact if self.not_opened() => {
+            Run::Revert | Run::Unrevert | Run::Compact | Run::Clear if self.not_opened() => {
                 self.nothing_yet(spec.run);
             }
+            Run::Clear => self.core.send(Command::Clear),
             Run::New => self.new_session(),
             Run::Revert => self.core.send(Command::Revert),
             Run::Unrevert => self.core.send(Command::Unrevert),

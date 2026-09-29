@@ -28,7 +28,12 @@ impl App {
             }
             _ => return,
         };
+        let was_open = self.drawers.open();
         self.drawers.push(drawer);
+        // 新开的抽屉：弹「在等你」（「系统通知」第 1 条）；前一个还没了结的排着，轮到它时再弹。
+        if !was_open {
+            self.notify_drawer();
+        }
     }
 
     /// 抽屉开着时按键先归它，带 `Ctrl` 的照旧归外面（复制、退出），编辑时的 `Ctrl+J` 换行除外（第 4 条）。
@@ -125,6 +130,12 @@ impl App {
         }
         if *outcome == Outcome::Cancelled && self.transcript.running.is_some() {
             self.core.send(Command::Interrupt { send: true });
+        }
+        // 轮到下一个抽屉的弹「在等你」，都了结了回到在做或空闲（「系统通知」第 1、6 条）。
+        if self.drawers.open() {
+            self.notify_drawer();
+        } else {
+            self.settle_state();
         }
     }
 }

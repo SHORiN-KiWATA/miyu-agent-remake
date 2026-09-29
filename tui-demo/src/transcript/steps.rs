@@ -152,12 +152,13 @@ impl Step {
         }
     }
 
-    /// 出错了：图标换成叉，字变红。只认 `error`；被拒、跳过这些不算坏。
+    /// 出错了：图标换成叉，字变红。认 `error` 和 `denied`（被拒：只读时的写入、确认时不允许的；2026-09-30 项目主人：
+    /// 写入被拒和写成了看起来一模一样）；打断、跳过不算坏。
     pub fn failed(&self) -> bool {
         matches!(
             &self.kind,
             StepKind::Tool {
-                state: ToolState::Done(ToolStatus::Error),
+                state: ToolState::Done(ToolStatus::Error | ToolStatus::Denied),
                 ..
             }
         )
@@ -213,6 +214,8 @@ impl Tally {
                 }
                 StepKind::Tool { name, .. } => match kind_of(name) {
                     Some(ToolKind::Command) => tally.commands += 1,
+                    // 出错、被拒的编辑没改成：算成用过一件工具、一个出错，不算编辑（「时间线」收起那一行）。
+                    Some(ToolKind::Edit) if step.failed() => tally.tools += 1,
                     Some(ToolKind::Edit) => tally.edits += 1,
                     _ => tally.tools += 1,
                 },

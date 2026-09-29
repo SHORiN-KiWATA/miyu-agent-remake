@@ -85,7 +85,7 @@ fn a_sent_call_says_whether_its_prefix_changed() {
         "body": {"seen": 5, "messages": 1, "result": "error", "error": {"class": "auth", "message": "no key"}}});
     assert!(!read(&unsent).iter().any(|p| matches!(p, Push::Sent { .. })));
     let compacted = json!({"kind": "context.compacted", "by": {"kind": "kernel"}, "body": {}});
-    assert_eq!(read(&compacted), vec![Push::Compacted]);
+    assert_eq!(read(&compacted), vec![Push::Compacted { clear: false }]);
 }
 
 #[test]
@@ -232,4 +232,15 @@ fn a_call_error_may_carry_its_http_status_and_a_good_call_clears_it() {
         !read(&summary).contains(&Push::CallOk),
         "摘要请求成了不算这一轮的"
     );
+}
+
+#[test]
+fn a_clear_is_a_compaction_marked_clear() {
+    // 施工 6-8 补：清空写 `context.compacted`，`trigger` 是 `clear`。
+    let clear = json!({"kind": "context.compacted", "by": {"kind": "kernel"},
+        "body": {"trigger": "clear", "summary": ""}});
+    assert_eq!(read(&clear), vec![Push::Compacted { clear: true }]);
+    let auto = json!({"kind": "context.compacted", "by": {"kind": "kernel"},
+        "body": {"trigger": "auto"}});
+    assert_eq!(read(&auto), vec![Push::Compacted { clear: false }]);
 }

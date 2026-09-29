@@ -12,6 +12,12 @@
       "run": "unrevert"
     },
     {
+      "name": "clear",
+      "aliases": ["reset"],
+      "summary": "清空上下文，会话不变",
+      "run": "clear"
+    },
+    {
       "name": "compact",
       "summary": "现在就压缩上下文，后面可以写给摘要的要求",
       "run": "compact",
