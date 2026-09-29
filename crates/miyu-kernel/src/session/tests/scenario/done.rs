@@ -17,6 +17,7 @@ fn compacting() -> Stage {
                 image: 50,
                 file: 50,
             },
+            rebuild: None,
         });
         policy
     };

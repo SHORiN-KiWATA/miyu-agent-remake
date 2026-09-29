@@ -9,6 +9,7 @@
 //! - [`Stage`]：替身本身，人的每个动作以后一直跑到没事可做；
 //! - [`restored`]：替身改回的一步。
 
+mod disk;
 mod limits;
 mod respond;
 mod script;

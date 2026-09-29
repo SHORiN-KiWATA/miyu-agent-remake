@@ -14,12 +14,13 @@
 use std::fs;
 use std::path::PathBuf;
 
-use miyu_assemble::{DefaultAssembler, Stable, Texts, TurnEndedTexts};
+use miyu_assemble::{DefaultAssembler, RestoredWrap, Stable, Texts, TurnEndedTexts};
 use miyu_kernel::assemble::Assembler;
 use miyu_kernel::event::Event;
 use miyu_kernel::history::History;
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::request::ToolSpec;
+use miyu_kernel::template::Template;
 
 /// 样本会话的工具面：只有一件 `read`。
 const READ: &str = "Read a text file by line pages, an image, a PDF, or list a directory. Prefer this over `cat` in the shell: files read here come back after compaction.";
@@ -30,6 +31,15 @@ fn texts() -> Texts {
     Texts {
         checkpoint_open: include_str!("../../../resources/core/checkpoint-open.txt").to_string(),
         checkpoint_close: include_str!("../../../resources/core/checkpoint-close.txt").to_string(),
+        checkpoint_end: include_str!("../../../resources/core/checkpoint-end.txt").to_string(),
+        restored: Some(RestoredWrap {
+            open: Template::parse(include_str!(
+                "../../../resources/core/compaction/restored-open.txt"
+            ))
+            .expect("出厂的模板合写法"),
+            close: include_str!("../../../resources/core/compaction/restored-close.txt")
+                .to_string(),
+        }),
         turn_ended: TurnEndedTexts {
             interrupted: include_str!("../../../resources/core/turn-ended/interrupted.txt")
                 .to_string(),

@@ -121,16 +121,26 @@ impl Watch {
     /// 工具报的效果，不占随机数（原来那串输入不跟着错开）：照有了结果的调用数轮着来，三条里一条新建了一个文件、
     /// 一条改了一个文件，一条什么都没报。撤销、恢复时才有要改回的。
     pub(in super::super) fn some_effects(&self) -> Vec<Effect> {
-        let before = match self.resulted.len() % 3 {
+        let n = self.resulted.len();
+        // 读过的文件换着来（施工 6-5）：压后重建挑候选时，尾巴里没读过的才重读。
+        let read = Effect::FileRead(crate::event::FileRead {
+            path: format!("/w/r{}.txt", n % 4),
+            lines: Some([1, 2]),
+            hash: ContentHash::of(b"read"),
+        });
+        let before = match n % 3 {
             0 => None,
             1 => Some(ContentHash::of(b"before")),
-            _ => return Vec::new(),
+            _ => return vec![read],
         };
-        vec![Effect::FileChanged(FileChanged {
-            path: "/w/a.txt".to_string(),
-            before,
-            after: ContentHash::of(b"after"),
-        })]
+        vec![
+            Effect::FileChanged(FileChanged {
+                path: "/w/a.txt".to_string(),
+                before,
+                after: ContentHash::of(b"after"),
+            }),
+            read,
+        ]
     }
 
     /// 这几轮里的工具结果一共改过几次文件。撤销、恢复以后没交出改回文件的，这里该是 0。
@@ -139,7 +149,11 @@ impl Watch {
             .iter()
             .filter(|event| event.turn.is_some_and(|turn| turns.contains(&turn)))
             .map(|event| match &event.body {
-                Body::ToolResult(result) => result.effects.len(),
+                Body::ToolResult(result) => result
+                    .effects
+                    .iter()
+                    .filter(|effect| !matches!(effect, Effect::FileRead(_)))
+                    .count(),
                 _ => 0,
             })
             .sum()

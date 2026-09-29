@@ -17,18 +17,30 @@ The earlier part of this conversation was compacted into the summary below. It i
 <summary>
 ```
 
-### 检查点的结尾
+### 检查点里摘要的收尾
 
 #### `core/checkpoint-close.txt`
 
 - 什么时候加进来：同上
-- token：30
-- 为什么加：同上。结尾那一句「Carry on … without redoing work it records as done」是检查点规则挪进来的（J12，施工 6-3 下）：回合中途压完，什么都不加的 4 次她都把摘要里记着读完了的文件再读一遍核对，有一次读完又到线，一轮压了 5 次；加了这一句的 3 次都直接答，一轮只压 2 次。这一句 19 个 token（2026-09-29 照项目主人给的端点实测，改前改后相减），只有压缩过的会话带
-- 指纹：`c16ebf29`
+- token：3
+- 为什么加：`</summary>` 那一行（施工 6-5 从原来的结尾里拆出来：代码写的几段、重读的文件排在摘要后面、规则那一句前面）
+- 指纹：`ea84786f`
 
 ```text
 
 </summary>
+```
+
+### 检查点的结尾
+
+#### `core/checkpoint-end.txt`
+
+- 什么时候加进来：同上
+- token：26
+- 为什么加：「Carry on … without redoing work it records as done」是检查点规则挪进来的（J12，施工 6-3 下）：回合中途压完，什么都不加的 4 次她都把摘要里记着读完了的文件再读一遍核对，有一次读完又到线，一轮压了 5 次；加了这一句的 3 次都直接答，一轮只压 2 次。这一句 19 个 token（和 `</conversation-checkpoint>` 一起 26 个）（2026-09-29 照项目主人给的端点实测，改前改后相减），只有压缩过的会话带。施工 6-5 从 `checkpoint-close.txt` 挪来，放在检查点最后
+- 指纹：`4a5ccb77`
+
+```text
 Carry on from where the summary leaves off, without redoing work it records as done.
 </conversation-checkpoint>
 ```
@@ -68,6 +80,77 @@ Then write the summary in <summary> tags, with these sections:
 9. Optional Next Step: the next step, only if it follows directly from the user's latest explicit request and the current work. Quote the latest messages verbatim to show where you left off. If the last task is done, list no step unless the user asked for one.
 
 Reply with the <analysis> block and then the <summary> block, nothing else. Do not call any tool.
+```
+
+### 检查点里代码写的几段
+
+#### `core/compaction/notes-files.txt`
+
+- 什么时候加进来：压缩时被替代的那一段里读过、改过文件的；写进 `context.compacted` 的 `notes`，之后每次请求照原文带
+- token：8（不算下面一个一行的路径）（2026-09-29 照项目主人给的端点量）
+- 为什么加：读过、改过的文件清单的头一行，下面一个一行由内核写（施工 6-5，`compaction.md` 第八条）。照日志里的效果算，不照工具名猜：旧版照工具名猜，一个都没认出来
+- 指纹：`13e7d1d4`
+
+```text
+Files read or changed before this checkpoint:
+```
+
+#### `core/compaction/notes-files-more.txt`
+
+- 什么时候加进来：清单超过 30 个
+- token：6（2026-09-29 照项目主人给的端点量）
+- 为什么加：清单放不下的还有几个（施工 6-5）
+- 指纹：`deb9138e`
+
+```text
+- and {count} more
+```
+
+#### `core/compaction/notes-retrieve.txt`
+
+- 什么时候加进来：每次压缩
+- token：20（2026-09-29 照项目主人给的端点量）
+- 为什么加：取回指路：被替代的是第几到第几条、用 `history` 取回（施工 6-5）。6-4 真模型上她不知道序号，只能从头往下翻
+- 指纹：`7d8f58c7`
+
+```text
+Entries 1-{upto} were compacted. history still finds them by number, words or time.
+```
+
+#### `core/compaction/notes-too-large.txt`
+
+- 什么时候加进来：候选里有太大、放不下没重读的
+- token：21（两个路径）（2026-09-29 照项目主人给的端点量）
+- 为什么加：告诉她哪几个没重读、要看自己读（施工 6-5）
+- 指纹：`8baa8550`
+
+```text
+Not shown again, read them if you need them: {files}
+```
+
+### 检查点里重读的文件那一块
+
+#### `core/compaction/restored-open.txt`
+
+- 什么时候加进来：压后重读了文件的，每个文件一块
+- token：8（路径按 `src/lib.rs` 算）（2026-09-29 照项目主人给的端点量）
+- 为什么加：写明是哪个文件（施工 6-5，`compaction.md` 第九条）：压完不用她自己再读一遍核对，6-3 下真模型上她会这样做
+- 指纹：`3a6aef8a`
+
+```text
+<file path="{path}">
+```
+
+#### `core/compaction/restored-close.txt`
+
+- 什么时候加进来：同上
+- token：3（2026-09-29 照项目主人给的端点量）
+- 为什么加：那一块的收尾（施工 6-5）
+- 指纹：`ad249d92`
+
+```text
+
+</file>
 ```
 
 ### 还没进请求

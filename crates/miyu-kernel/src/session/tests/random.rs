@@ -38,6 +38,7 @@ mod asking;
 mod compacting;
 mod kinds;
 mod paths;
+mod rereading;
 mod restoring;
 mod rng;
 mod stopping;
@@ -63,6 +64,7 @@ use asking::{some_answer, some_question, some_reply, some_verdict};
 use compacting::{random_policy, some_limits};
 use kinds::InputKind;
 use paths::EXPECTED_PATHS;
+use rereading::some_reread;
 use restoring::some_restored;
 use rng::Rng;
 use stopping::some_stop_end;
@@ -431,10 +433,14 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let mut undos = Rng(seed ^ 0x0DD0_0DD0);
         let mut restores = Rng(seed ^ 0x5E57_04ED);
         let mut limits = Rng(seed ^ 0x11A1_7500);
+        let mut rereads = Rng(seed ^ 0x2E2E_AD00);
         for _ in 0..300 {
             if watch.all_stored() && crashes.below(200) == 0 {
                 let planned = crashes.below(2) == 0;
                 session = watch.reload(session, planned, random_policy(attended));
+                if let Some(input) = watch.recalled_after_reload() {
+                    watch.feed(&mut session, input);
+                }
                 continue;
             }
             if let Some(input) = some_undo(&mut undos, &watch, &mut next_id) {
@@ -444,6 +450,9 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
                 watch.feed(&mut session, input);
             }
             if let Some(input) = some_limits(&mut limits) {
+                watch.feed(&mut session, input);
+            }
+            if let Some(input) = some_reread(&mut rereads, &watch) {
                 watch.feed(&mut session, input);
             }
             let input = some_input(&mut rng, &mut watch, &mut next_id);

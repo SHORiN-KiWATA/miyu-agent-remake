@@ -3,10 +3,13 @@
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::Event;
 use miyu_kernel::history::History;
+use miyu_kernel::id::ContentHash;
 use miyu_kernel::ledger::Ledger;
 use miyu_kernel::request::Message;
 
-use crate::texts::{Texts, TurnEndedTexts};
+use miyu_kernel::template::Template;
+
+use crate::texts::{RestoredWrap, Texts, TurnEndedTexts};
 
 pub(crate) const KERNEL: &str = r#"{"kind":"kernel"}"#;
 const ALICE: &str = r#"{"kind":"person","account":"alice"}"#;
@@ -18,6 +21,11 @@ pub(crate) fn texts() -> Texts {
     Texts {
         checkpoint_open: "<checkpoint>\n".to_string(),
         checkpoint_close: "\n</checkpoint>\n".to_string(),
+        checkpoint_end: String::new(),
+        restored: Some(RestoredWrap {
+            open: Template::parse("<file {path}>\n").expect("模板合写法"),
+            close: "\n</file>\n".to_string(),
+        }),
         turn_ended: TurnEndedTexts {
             interrupted: "<interrupted/>".to_string(),
             error: "<error/>".to_string(),
@@ -165,6 +173,43 @@ impl Log {
     pub(crate) fn compact(&mut self, upto: u64, summary: &str) {
         let body = format!(r#"{{"upto":{upto},"summary":{}}}"#, quoted(summary));
         self.push(KERNEL, "context.compacted", &body);
+    }
+
+    /// 同 [`Log::compact`]，带着代码写的几段 `notes`、重读的文件 `restored`（路径和原文，施工 6-5）。`recalled` 的原文交给
+    /// 有效历史，没交的那一份当 blob 读不出来。
+    pub(crate) fn compact_rebuilt(
+        &mut self,
+        upto: u64,
+        summary: &str,
+        notes: &str,
+        restored: &[(&str, &str)],
+        recalled: bool,
+    ) {
+        let files: Vec<String> = restored
+            .iter()
+            .map(|(path, text)| {
+                format!(
+                    r#"{{"path":{},"blob":"{}","tokens":1}}"#,
+                    quoted(path),
+                    ContentHash::of(text.as_bytes())
+                )
+            })
+            .collect();
+        let body = format!(
+            r#"{{"upto":{upto},"summary":{},"notes":{},"restored":[{}]}}"#,
+            quoted(summary),
+            quoted(notes),
+            files.join(",")
+        );
+        self.push(KERNEL, "context.compacted", &body);
+        if recalled {
+            self.history.recall(
+                restored
+                    .iter()
+                    .map(|(_, text)| (ContentHash::of(text.as_bytes()), text.to_string()))
+                    .collect(),
+            );
+        }
     }
 }
 

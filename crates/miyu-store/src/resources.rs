@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 
 use miyu_policy::{
     CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts, PermissionTexts, PersonaTexts,
-    Sources, ToolResultTexts, TurnEndedTexts,
+    RebuildTexts, Sources, ToolResultTexts, TurnEndedTexts,
 };
 
 use crate::env::Env;
@@ -168,6 +168,7 @@ impl ResourceRoot {
         Ok(CoreTexts {
             checkpoint_open: core(&["checkpoint-open.txt"])?,
             checkpoint_close: core(&["checkpoint-close.txt"])?,
+            checkpoint_end: core(&["checkpoint-end.txt"])?,
             turn_ended: TurnEndedTexts {
                 interrupted: ended("interrupted.txt")?,
                 error: ended("error.txt")?,
@@ -210,6 +211,14 @@ impl ResourceRoot {
             },
             compaction: Some(CompactionTexts {
                 summarize_task: core(&["compaction", "summarize-task.txt"])?,
+                rebuild: Some(RebuildTexts {
+                    notes_files: core(&["compaction", "notes-files.txt"])?,
+                    notes_files_more: core(&["compaction", "notes-files-more.txt"])?,
+                    notes_retrieve: core(&["compaction", "notes-retrieve.txt"])?,
+                    notes_too_large: core(&["compaction", "notes-too-large.txt"])?,
+                    restored_open: core(&["compaction", "restored-open.txt"])?,
+                    restored_close: core(&["compaction", "restored-close.txt"])?,
+                }),
             }),
         })
     }

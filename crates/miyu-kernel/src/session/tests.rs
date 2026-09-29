@@ -222,6 +222,7 @@ fn policy() -> Policy {
         attended: true,
         resumes: 3,
         compaction: None,
+        notes: None,
     }
 }
 

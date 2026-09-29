@@ -12,7 +12,7 @@ pub use anchor::anchored;
 
 use std::collections::BTreeMap;
 
-use miyu_assemble::{DefaultAssembler, Stable, Texts, TurnEndedTexts};
+use miyu_assemble::{DefaultAssembler, RestoredWrap, Stable, Texts, TurnEndedTexts};
 use miyu_drivers::openai_chat::{self, Compat, Encoded};
 use miyu_drivers::{Call, DriverTextSources, DriverTexts, Inputs};
 use miyu_kernel::block::{Block, Text};
@@ -23,6 +23,7 @@ use miyu_kernel::id::{CallId, ModelName, Seq};
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::request::{Message, Request, ToolSpec};
 use miyu_kernel::session::{Compaction, Policy};
+use miyu_kernel::template::Template;
 use miyu_kernel::testkit::{Line, Stage};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_kernel::tool::{Access, ToolRule, ToolTextSources, ToolTexts};
@@ -75,7 +76,9 @@ pub fn policy() -> Policy {
                 image: 2000,
                 file: 2000,
             },
+            rebuild: None,
         }),
+        notes: None,
     }
 }
 
@@ -416,6 +419,15 @@ fn texts() -> Texts {
         checkpoint_open: include_str!("../../../../resources/core/checkpoint-open.txt").to_string(),
         checkpoint_close: include_str!("../../../../resources/core/checkpoint-close.txt")
             .to_string(),
+        checkpoint_end: include_str!("../../../../resources/core/checkpoint-end.txt").to_string(),
+        restored: Some(RestoredWrap {
+            open: Template::parse(include_str!(
+                "../../../../resources/core/compaction/restored-open.txt"
+            ))
+            .expect("出厂的模板合写法"),
+            close: include_str!("../../../../resources/core/compaction/restored-close.txt")
+                .to_string(),
+        }),
         turn_ended: TurnEndedTexts {
             interrupted: include_str!("../../../../resources/core/turn-ended/interrupted.txt")
                 .to_string(),

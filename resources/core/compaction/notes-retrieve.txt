@@ -1,0 +1,1 @@
+Entries 1-{upto} were compacted. history still finds them by number, words or time.

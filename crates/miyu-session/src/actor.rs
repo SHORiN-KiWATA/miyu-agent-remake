@@ -338,6 +338,15 @@ impl Actor {
                     files,
                 })
             }
+            // 压完重读（施工 6-5）：当场在阻塞线程里读完、存成 blob，再做下一个动作（它后面紧跟着摘要请求）。
+            Action::Reread { seen, paths, limit } => {
+                let files = self.tools.reread(paths, limit).await;
+                Some(Input::Reread {
+                    at: self.clock.now(),
+                    seen,
+                    files,
+                })
+            }
             // 工具执行中问人随施工 4-9：这之前没有工具会问。
             Action::AnswerTool { .. } => {
                 tracing::error!(target: TARGET, action = kind, "answer without a question");

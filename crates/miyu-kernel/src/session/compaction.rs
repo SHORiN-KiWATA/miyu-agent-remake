@@ -10,6 +10,7 @@ use super::Session;
 use super::action::Action;
 use super::call::Call;
 use super::call::Summarized;
+use super::input::Reread;
 use super::turn::Stage;
 use crate::accumulate::{Delta, Kind};
 use crate::estimate::{self, Price, WithImages};
@@ -17,6 +18,7 @@ use crate::event::{
     Body, CompactTrigger, CompactionDone, CompactionProgress, ContextCompacted, Event, Transient,
     TransientBody,
 };
+use crate::history::History;
 use crate::id::{CommandId, Seq};
 use crate::origin::By;
 use crate::request::Request;
@@ -39,6 +41,10 @@ pub(super) struct Compacting {
     written: u64,
     /// 正文块的编号：只数它们的字，思考不数。
     texts: BTreeSet<usize>,
+    /// 交给执行器重读的候选，真实的位置（施工 6-5）；没交的是空的。
+    paths: Vec<String>,
+    /// 执行器送回的重读结果，和 `paths` 一个对一个；没收到的没有。
+    reread: Option<Vec<Reread>>,
 }
 
 impl Compacting {
@@ -54,6 +60,18 @@ impl Compacting {
     /// 压之前的用量。
     pub(super) fn before(&self) -> u64 {
         self.before
+    }
+
+    /// 执行器送回了重读结果（施工 6-5）：一个对一个的才收。
+    pub(super) fn reread(&mut self, files: Vec<Reread>) {
+        if files.len() == self.paths.len() {
+            self.reread = Some(files);
+        }
+    }
+
+    /// 交给执行器的候选，和送回来的重读结果（施工 6-5）。
+    pub(super) fn rebuild_inputs(&self) -> (Vec<String>, Option<Vec<Reread>>) {
+        (self.paths.clone(), self.reread.clone())
     }
 
     /// 收到一段增量：正文块的字记上。是正文的一段字，交回要推给头的进度。
@@ -88,13 +106,7 @@ impl Session {
             return None;
         }
         let compaction = self.policy.compaction.as_ref()?;
-        let limits = self.limits.as_ref()?;
-        let line = estimate::line(
-            limits.window,
-            limits.max_output,
-            compaction.reserve_cap,
-            compaction.margin,
-        )?;
+        let line = self.line()?;
         let price = self.price()?;
         let used = self.used(request)?;
         if used <= line {
@@ -102,6 +114,18 @@ impl Session {
         }
         let budget = compaction.tail.min(line / 4);
         Some((self.compaction_upto(budget, &price)?, used))
+    }
+
+    /// 压缩线（`compaction.md` 第二条第 2 条）。策略里没有压缩、没交限额、没有窗口的，没有。
+    pub(super) fn line(&self) -> Option<u64> {
+        let compaction = self.policy.compaction.as_ref()?;
+        let limits = self.limits.as_ref()?;
+        estimate::line(
+            limits.window,
+            limits.max_output,
+            compaction.reserve_cap,
+            compaction.margin,
+        )
     }
 
     /// 估算图片、文件的办法：驱动交了图片算法的照它，别的照策略里的固定数。策略里没有压缩、没交限额的，没有。
@@ -114,8 +138,13 @@ impl Session {
 
     /// 这份请求算出的用量（`compaction.md` 第一条）。
     fn used(&self, request: &Request) -> Option<u64> {
+        self.used_in(&self.history, request)
+    }
+
+    /// 照有效历史 `history` 算这份请求的用量：锚取自它（施工 6-5：压后重建先照一份试着压过的算）。
+    pub(super) fn used_in(&self, history: &History, request: &Request) -> Option<u64> {
         let limits = self.limits.as_ref()?;
-        let anchor = estimate::anchor(&self.history);
+        let anchor = estimate::anchor(history);
         Some(estimate::usage(
             request,
             anchor.as_ref(),
@@ -188,6 +217,8 @@ impl Session {
     /// 发摘要请求：有效历史到第 `upto` 条的投影加摘要指令，名字是 `upto`。不算步数；也记进「上一次请求」，压完的
     /// 第一次主请求照它比出前缀从哪变了。
     pub(super) fn start_compaction(&mut self, upto: Seq, used: u64) -> Vec<Action> {
+        let paths = self.reread_paths(upto);
+        let limit = self.reread_limit();
         let request = self.policy.assembler.summarize(&self.history, upto);
         let fingerprint = request.fingerprint();
         let difference = self
@@ -204,14 +235,26 @@ impl Session {
             expected: used.clamp(EXPECTED.0, EXPECTED.1),
             written: 0,
             texts: BTreeSet::new(),
+            paths: paths.clone(),
+            reread: None,
         };
         let call = Call::new(upto, request.messages.len(), difference).compacting(compacting);
         turn.stage = Stage::Asking(call);
-        vec![Action::CallModel {
+        // 重读排在摘要请求前面（施工 6-5）：执行器读完再发，摘要回来时结果已经记在这次请求上了。
+        let mut actions = Vec::new();
+        if !paths.is_empty() {
+            actions.push(Action::Reread {
+                seen: upto,
+                paths,
+                limit,
+            });
+        }
+        actions.push(Action::CallModel {
             seen: upto,
             request,
             changed: difference,
-        }]
+        });
+        actions
     }
 
     /// 推给头的进度：哪一回合、内核引起的。
@@ -230,7 +273,8 @@ impl Session {
         }
     }
 
-    /// 取到了摘要：写 `context.compacted`；环境、权限两块事实和压缩以后的有效历史比，比不到的注入；回到「准备好」，
+    /// 取到了摘要：挑好代码写的几段、重读的文件（施工 6-5，[`Session::rebuild`]），写 `context.compacted`，重读的原文
+    /// 交给有效历史；环境、权限两块事实和压缩以后的有效历史比，比不到的注入；回到「准备好」，
     /// 这一批落了盘再组装主请求。返回追加的事件，和推给头的 `compaction.done`：压前、压后的用量，摘要请求的用量、
     /// 用时（施工 6-3 下）。压后照这时的有效历史组装一次算，和这一步接着要发的主请求一样。
     pub(super) fn compacted(
@@ -245,13 +289,19 @@ impl Session {
             before,
             usage,
             duration_ms,
+            paths,
+            reread,
         } = summarized;
+        let rebuilt = self.rebuild(at, upto, &summary, &paths, reread.as_deref());
         let body = Body::ContextCompacted(ContextCompacted {
             upto,
             summary,
             trigger: Some(CompactTrigger::Auto),
+            notes: rebuilt.notes,
+            restored: rebuilt.restored,
         });
         let mut events = vec![self.record(at, By::Kernel, cause.clone(), body)];
+        self.history.recall(rebuilt.texts);
         let turn = self.turn.as_mut().map(|turn| {
             turn.stage = Stage::Ready;
             turn.refresh = true;

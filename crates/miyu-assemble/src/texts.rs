@@ -5,18 +5,34 @@
 //! 不读文件。文件的内容原样用，行尾的换行也算。
 
 use miyu_kernel::event::EndReason;
+use miyu_kernel::template::Template;
 
 /// 组装时要用的几句固定的字。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Texts {
     /// 检查点包装的开头，摘要紧接在它后面（`core/checkpoint-open.txt`）。
     pub checkpoint_open: String,
-    /// 检查点包装的结尾，紧接在摘要后面（`core/checkpoint-close.txt`）。
+    /// 摘要的收尾，紧接在摘要后面（`core/checkpoint-close.txt`）。
     pub checkpoint_close: String,
+    /// 包装的结尾，在代码写的几段、重读的文件后面（`core/checkpoint-end.txt`，施工 6-5 从 close 里拆出来）。以前造的
+    /// 快照里没有，是空的：那时的 close 里本来就带着那一句。
+    pub checkpoint_end: String,
+    /// 重读的文件那一块的头尾（`core/compaction/restored-open.txt`、`restored-close.txt`，施工 6-5）；没有的不写重读的
+    /// 文件。
+    pub restored: Option<RestoredWrap>,
     /// 回合没走完时，排在下一条人的消息前面的那一句。
     pub turn_ended: TurnEndedTexts,
     /// 压缩的摘要指令，摘要请求的最后一块（`core/compaction/summarize-task.txt`，施工 6-2 上）。
     pub summarize_task: String,
+}
+
+/// 重读的文件那一块的头尾（施工 6-5）：头上写路径，原文夹在中间不转义。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RestoredWrap {
+    /// 头：字段 `path`。
+    pub open: Template,
+    /// 尾。
+    pub close: String,
 }
 
 /// 回合没走完的五句，一种原因一句（`core/turn-ended/<原因>.txt`）。正常走完的不说。

@@ -22,7 +22,7 @@ mod tool;
 mod transient;
 mod turn;
 
-pub use context::{CompactTrigger, ContextCompacted, ContextInjected};
+pub use context::{CompactTrigger, ContextCompacted, ContextInjected, RestoredFile};
 pub use effect::{Effect, FileChanged, FileRead, FileTrashed};
 pub use message::{MessageAssistant, MessageUser, MessageWithdrawn};
 pub use model::{

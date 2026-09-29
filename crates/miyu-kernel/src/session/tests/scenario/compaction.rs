@@ -19,6 +19,7 @@ const COMPACTION: Compaction = Compaction {
         image: 50,
         file: 50,
     },
+    rebuild: None,
 };
 
 /// 一个会压缩的替身；`step_limit` 是一个回合最多请求几次。

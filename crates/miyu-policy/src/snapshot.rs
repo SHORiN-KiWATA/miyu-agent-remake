@@ -15,6 +15,7 @@ use miyu_kernel::template::TemplateError;
 use miyu_kernel::tool::{ToolTextSources, ToolTexts};
 use serde::{Deserialize, Serialize};
 
+use crate::rebuild::{RebuildNumbers, RebuildTexts};
 use crate::tools::{self, ToolEntry};
 
 /// 一份策略快照。字段的先后就是字节里的先后：改了先后，快照的字节就变了。
@@ -55,6 +56,9 @@ pub struct CompactionNumbers {
     /// 尾巴至多多少 token（施工 6-2 下）。6-2（上）造的快照里没有，读成出厂的 16000。
     #[serde(default = "default_tail")]
     pub tail: u64,
+    /// 压后重建的数（施工 6-5）。以前造的快照里没有，读成没有：不重读。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rebuild: Option<RebuildNumbers>,
 }
 
 /// 尾巴的预算上限的出厂值（`compaction.md` 第三条第 2 条，2026-09-29 项目主人定）。
@@ -71,8 +75,12 @@ fn default_tail() -> u64 {
 pub struct CoreTexts {
     /// 压缩检查点的开头（`checkpoint-open.txt`）。
     pub checkpoint_open: String,
-    /// 压缩检查点的结尾（`checkpoint-close.txt`）。
+    /// 摘要的收尾（`checkpoint-close.txt`）。
     pub checkpoint_close: String,
+    /// 包装的结尾（`checkpoint-end.txt`，施工 6-5 从 close 里拆出来）。以前造的快照里没有，读成空的：那时的 close 里本来
+    /// 就带着那一句，拼出来一字不差。
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub checkpoint_end: String,
     /// 回合没走完的几句（`turn-ended/`）。
     pub turn_ended: TurnEndedTexts,
     /// 事实的模板（`facts/`）。
@@ -95,6 +103,9 @@ pub struct CoreTexts {
 pub struct CompactionTexts {
     /// 摘要指令（`summarize-task.txt`）。
     pub summarize_task: String,
+    /// 压后重建的字（施工 6-5）。以前造的快照里没有，读成没有：不写那几段、不重读。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rebuild: Option<RebuildTexts>,
 }
 
 /// 权限策略拒绝时写给她的两句（施工 4-3 下）。
@@ -276,6 +287,8 @@ impl Snapshot {
         let texts = Texts {
             checkpoint_open: core.checkpoint_open.clone(),
             checkpoint_close: core.checkpoint_close.clone(),
+            checkpoint_end: core.checkpoint_end.clone(),
+            restored: self.rebuild_texts().map(RebuildTexts::wrap).transpose()?,
             turn_ended: miyu_assemble::TurnEndedTexts {
                 interrupted: ended.interrupted.clone(),
                 error: ended.error.clone(),
@@ -313,7 +326,13 @@ impl Snapshot {
             attended: self.attended,
             resumes: self.resumes,
             compaction: self.compaction(),
+            notes: self.rebuild_texts().map(RebuildTexts::notes).transpose()?,
         })
+    }
+
+    /// 压后重建的字：有的才写那几段、重读（施工 6-5）。
+    fn rebuild_texts(&self) -> Option<&RebuildTexts> {
+        self.core.compaction.as_ref()?.rebuild.as_ref()
     }
 
     /// 压缩的数和摘要指令都有，才主动压。
@@ -328,6 +347,10 @@ impl Snapshot {
                 image: numbers.image,
                 file: numbers.file,
             },
+            rebuild: numbers
+                .rebuild
+                .filter(|_| self.rebuild_texts().is_some())
+                .map(RebuildNumbers::kernel),
         })
     }
 

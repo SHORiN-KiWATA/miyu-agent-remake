@@ -21,7 +21,7 @@ use tracing::Instrument;
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Effect, Permission, Restored};
 use miyu_kernel::id::CallId;
-use miyu_kernel::session::{Input, Step};
+use miyu_kernel::session::{Input, Reread, Step};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_policy::RunTexts;
 use miyu_store::blob::Blobs;
@@ -164,6 +164,12 @@ impl Tools {
         let blobs = self.blobs.clone();
         let home = self.home.clone();
         blocking(move || crate::restore::restore(&steps, &blobs, home.as_deref())).await
+    }
+
+    /// 压完重读（施工 6-5）：在阻塞线程里一个一个读，读到的存进这个会话的 blob。
+    pub(crate) async fn reread(&self, paths: Vec<String>, limit: u64) -> Vec<Reread> {
+        let blobs = self.blobs.clone();
+        blocking(move || crate::reread::reread(&paths, limit, &blobs)).await
     }
 
     /// 执行一次调用：在自己的任务里跑，马上返回。目录里没有这件工具的，不派，当场交回出错的结果。沙盒照派出去

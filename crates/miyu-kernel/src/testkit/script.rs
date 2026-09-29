@@ -120,12 +120,27 @@ pub enum Play {
     Asks(Vec<Question>),
     /// 跑到一半停住，等 [`super::Stage::release_tool`] 放行，再照里面那样回。
     Held(Box<Play>),
+    /// 读了一个文件（施工 6-5）：结果是它的内容，报 `file.read`，真实的位置是 `path`。
+    Read {
+        /// 真实的位置。
+        path: String,
+        /// 内容。
+        text: String,
+    },
 }
 
 impl Play {
     /// 执行完了，结果是 `text`。
     pub fn done(text: &str) -> Play {
         Play::Done(text.to_string())
+    }
+
+    /// 读了真实的位置 `path` 上的文件，内容是 `text`（施工 6-5）。
+    pub fn read(path: &str, text: &str) -> Play {
+        Play::Read {
+            path: path.to_string(),
+            text: text.to_string(),
+        }
     }
 
     /// 同样的回法，跑到一半停住。

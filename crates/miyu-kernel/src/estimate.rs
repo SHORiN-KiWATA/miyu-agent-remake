@@ -178,6 +178,11 @@ pub fn message(message: &Message, price: &dyn Price) -> u64 {
     blocks_of(blocks, price)
 }
 
+/// 一段字的本地估算：UTF-8 字节除以 4，向上取整。压后重读的文件照它算（施工 6-5）。
+pub fn text(text: &str) -> u64 {
+    tokens(text.len())
+}
+
 /// 一条事件的本地估算，留尾巴时用（施工 6-2 下）：人的消息、回复、工具结果照它们的内容块，和 [`message`] 一样数；
 /// 事实照它的原文；别的事件不进上下文，算 0。
 pub fn event(event: &Event, price: &dyn Price) -> u64 {

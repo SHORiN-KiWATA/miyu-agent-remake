@@ -281,8 +281,9 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let offset = environment.offset;
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
-    let (log, events, policy, texts, run, guard) = blocking(move || {
+    let (log, events, policy, texts, run, guard, recalled) = blocking(move || {
         let (log, events) = SessionLog::open(&dir, SEGMENT_LIMIT).map_err(LoadError::Log)?;
+        let recalled = crate::reread::recalled(&events, &store);
         let hash = match events.first().map(|event| &event.body) {
             Some(Body::SessionCreated(created)) => created.policy.clone(),
             _ => return Err(LoadError::NotCreated),
@@ -293,7 +294,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         let texts = snapshot.driver_texts().map_err(LoadError::Policy)?;
         let run = snapshot.run_texts().map_err(LoadError::Policy)?;
         let guard = snapshot.guard_texts().map_err(LoadError::Policy)?;
-        Ok((log, events, policy, texts, run, guard))
+        Ok((log, events, policy, texts, run, guard, recalled))
     })
     .await?;
     let kept = blobs.clone();
@@ -307,8 +308,12 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let seen = effects::seen_in(&events);
     let (mut session, first) =
         Session::load(events, clock.now(), policy, environment).map_err(LoadError::Kernel)?;
-    // 重启以后接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）。
+    // 重启以后接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）；最近一个检查点重读过的文件，原文也先交回去（施工
+    // 6-5）。
     session.handle(Input::Limits(model.limits()));
+    if !recalled.is_empty() {
+        session.handle(Input::Recalled { texts: recalled });
+    }
     let (inbox, mailbox) = mpsc::unbounded_channel();
     let guard = Guard::new(
         tools.clone(),

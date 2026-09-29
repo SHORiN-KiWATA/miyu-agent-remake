@@ -4,6 +4,7 @@
 use super::*;
 use crate::ledger::Ledger;
 
+mod recall;
 mod undo;
 mod whole;
 

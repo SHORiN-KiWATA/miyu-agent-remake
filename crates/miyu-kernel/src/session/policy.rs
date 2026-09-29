@@ -6,6 +6,7 @@ use std::fmt;
 use crate::assemble::Assembler;
 use crate::estimate::Flat;
 use crate::facts::FactTemplates;
+use crate::template::Template;
 use crate::tool::{ToolRule, ToolTexts};
 
 /// 冻结在会话上的策略：造会话时由执行器照策略快照造好交进来（施工 3-6），会话里不再变。
@@ -29,6 +30,36 @@ pub struct Policy {
     pub resumes: u32,
     /// 压缩用的数；没有的不主动压（`compaction.md`，施工 6-2 上）。
     pub compaction: Option<Compaction>,
+    /// 检查点里代码写的几段的模板（`compaction.md` 第八条，施工 6-5）；没有的不写那几段。
+    pub notes: Option<Notes>,
+}
+
+/// 检查点里代码写的几段的模板（施工 6-5）：`compaction/notes-*.txt`。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Notes {
+    /// 读过、改过的文件清单的头一行；下面一个一行由内核写。
+    pub files: Template,
+    /// 清单放不下的还有几个：字段 `count`。
+    pub files_more: Template,
+    /// 取回指路：字段 `upto`。
+    pub retrieve: Template,
+    /// 太大没重读的：字段 `files`。
+    pub too_large: Template,
+}
+
+/// 压后重建的数（`compaction.md` 第九条，施工 6-5）。数值是数据，放在策略快照里。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Rebuild {
+    /// 最多重读几个。出厂 5。
+    pub files: usize,
+    /// 单个最多多少 token，超了只进清单。出厂 5000。
+    pub file_tokens: u64,
+    /// 合计最多多少 token。出厂 50000。
+    pub total: u64,
+    /// 窗口不到这么多的不重读，只写清单和取回指路。出厂 32000。
+    pub min_window: u64,
+    /// 交给执行器的候选最多几个：有读不到、太大的，挑满要留余地。出厂 10。
+    pub candidates: usize,
 }
 
 /// 压缩用的数（`compaction.md`「对外的样子」的策略数据）。数值是数据，放在策略快照里。
@@ -42,6 +73,8 @@ pub struct Compaction {
     pub tail: u64,
     /// 本地估算时一张图、一个文件各算多少 token。出厂各 2000。
     pub price: Flat,
+    /// 压后重建的数（施工 6-5）；没有的不重读。
+    pub rebuild: Option<Rebuild>,
 }
 
 /// 组装器是外面交进来的，不一定能打印，跳过它。
@@ -55,6 +88,7 @@ impl fmt::Debug for Policy {
             .field("attended", &self.attended)
             .field("resumes", &self.resumes)
             .field("compaction", &self.compaction)
+            .field("notes", &self.notes)
             .finish_non_exhaustive()
     }
 }

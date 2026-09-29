@@ -5,8 +5,8 @@ use super::Stage;
 use super::script::{Line, Play};
 use crate::accumulate::{Delta, Kind};
 use crate::block::{Block, Text};
-use crate::event::{Response, Usage};
-use crate::id::{CallId, ModelName, ProviderId, Seq};
+use crate::event::{Effect, FileRead, Response, Usage};
+use crate::id::{CallId, ContentHash, ModelName, ProviderId, Seq};
 use crate::origin::Model;
 use crate::request::{Message, Request};
 use crate::session::{Action, Input, Verdict};
@@ -77,6 +77,8 @@ impl Stage {
                 self.held_tools.retain(|(held, _)| *held != call_id);
                 Vec::new()
             }
+            // 压完重读（施工 6-5）：照「磁盘」回。
+            Action::Reread { seen, paths, limit } => self.reread(seen, paths, limit),
             // 改回文件（施工 4-7 上）：替身不碰文件，每一步都当改回了。
             Action::Restore { steps } => vec![Input::Restored {
                 at: self.tick(),
@@ -172,6 +174,17 @@ impl Stage {
             Play::Held(play) => {
                 self.held_tools.push((call_id, *play));
                 Vec::new()
+            }
+            Play::Read { path, text } => {
+                let mut done = self.done(call_id, false, &text);
+                if let Input::ToolDone { effects, .. } = &mut done {
+                    effects.push(Effect::FileRead(FileRead {
+                        path,
+                        lines: Some([1, text.lines().count().max(1) as u64]),
+                        hash: ContentHash::of(text.as_bytes()),
+                    }));
+                }
+                vec![done]
             }
         }
     }

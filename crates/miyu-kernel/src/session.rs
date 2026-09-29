@@ -18,6 +18,7 @@ mod permission;
 mod policy;
 mod question;
 mod queue;
+mod rebuild;
 mod recent;
 mod restart;
 mod restore;
@@ -28,9 +29,9 @@ mod tools;
 mod turn;
 
 pub use action::{Action, Outcome, Reason};
-pub use input::{Answer, Command, Injection, Input, Limits, Queued, Received, Verdict};
+pub use input::{Answer, Command, Injection, Input, Limits, Queued, Received, Reread, Verdict};
 pub use load::LoadError;
-pub use policy::{Compaction, Policy};
+pub use policy::{Compaction, Notes, Policy, Rebuild};
 pub use restore::{Expect, Step, StepAction};
 
 use crate::event::{Body, Event, MessageUser, Permission, SessionCreated, ToolResult, ToolStatus};
@@ -140,6 +141,11 @@ impl Session {
             }
             Input::Limits(limits) => {
                 self.limits = Some(limits);
+                Vec::new()
+            }
+            Input::Reread { seen, files, .. } => self.reread_done(seen, files),
+            Input::Recalled { texts } => {
+                self.history.recall(texts);
                 Vec::new()
             }
             Input::TurnStartHooksDone { at, turn, injected } => {

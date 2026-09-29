@@ -1,4 +1,5 @@
-//! 随机测试的策略和模型的限额（施工 6-2 上）：压缩的数很小，限额另用一串随机数交，好让压缩和别的输入交错。
+//! 随机测试的策略和模型的限额（施工 6-2 上）：压缩的数很小，限额另用一串随机数交，好让压缩和别的输入交错。压后重建
+//! 的数也很小，几段的模板短，一眼认得出（施工 6-5）。
 
 use super::*;
 
@@ -16,6 +17,20 @@ pub(super) fn random_policy(attended: bool) -> Policy {
             image: 50,
             file: 50,
         },
+        rebuild: Some(crate::session::Rebuild {
+            files: 2,
+            file_tokens: 20,
+            total: 30,
+            min_window: 100,
+            candidates: 3,
+        }),
+    });
+    let template = |source: &str| crate::template::Template::parse(source).unwrap();
+    limited.notes = Some(crate::session::Notes {
+        files: template("<files/>"),
+        files_more: template("<more {count}/>"),
+        retrieve: template("<retrieve {upto}/>"),
+        too_large: template("<too-large {files}/>"),
     });
     limited
 }

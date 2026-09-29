@@ -4,6 +4,7 @@
 //! 施工 3-6（上）时只有人设。别的块跟着各自的功能来，按 J12 先实测证明不加不行：核心的两行规则
 //! （检查点、权限）2026-09-27 项目主人定先不拼，到 M6、M4 实测再定；场所说明也等实测出需要再加。
 
+use crate::rebuild::REBUILD;
 use crate::snapshot::{CompactionNumbers, CoreTexts, Snapshot, TAIL};
 
 /// 有计划的重启打断了一轮，再起来时连着接着干几次：`02-内核.md` 第六节「载入、崩溃、重启」的初值。
@@ -17,6 +18,7 @@ const COMPACTION: CompactionNumbers = CompactionNumbers {
     image: 2_000,
     file: 2_000,
     tail: TAIL,
+    rebuild: Some(REBUILD),
 };
 
 /// 读好的原文：随核心附带的字，和这个人格的字。执行器从资源目录读（`miyu-store` 的资源目录）。
