@@ -276,8 +276,8 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>114</b><span>/ 115 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求</span></li>
-    <li><b>M7</b><span>下一步：拆 M7 分身（子代理、后台命令、给子代理留言），拆好请你批准（Windows 上跑命令那一步暂停）</span></li>
+    <li><b>114</b><span>/ 126 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求</span></li>
+    <li><b>7-1</b><span>下一步：M7 分身拆好了（11 步，图纸是蓝图 <code>agents.md</code>），从任务的事件开工（Windows 上跑命令那一步暂停）</span></li>
     <li><b class="mono">c9c0a2e</b><span>最近一步（6-3 再补 压好了那一行改说法）的提交</span></li>
   </ul>
 </header>
@@ -312,7 +312,7 @@ a.step:hover{border-color:var(--primary)}
 
 <section class="sched" aria-labelledby="h-sched">
   <h2 id="h-sched">工程表</h2>
-  <p class="sub">M0 到 M6 拆到了每一步；M7 以后，到了跟前再拆。</p>
+  <p class="sub">M0 到 M7 拆到了每一步；M8 到了跟前再拆。</p>
   <ol class="ms">
     <li>
       <div class="ms-head"><span class="ms-id">M0</span><span class="ms-name">准备</span><span class="ms-goal">仓库有了规矩和门禁</span></div>
@@ -467,8 +467,24 @@ a.step:hover{border-color:var(--primary)}
       </ol>
     </li>
     <li>
-      <div class="ms-head"><span class="ms-id">M7–M8</span><span class="ms-name">分身 · 有界面</span></div>
-      <p class="later">到了跟前再拆。M8 的第一件事是先画界面的版式图纸。</p>
+      <div class="ms-head"><span class="ms-id">M7</span><span class="ms-name">分身</span><span class="ms-goal">子代理、后台命令，做完回报叫醒她；父子之间能来回说话</span></div>
+      <ol class="chips">
+        <li><span class="step"><span class="n">7-1</span>任务的事件</span></li>
+        <li><span class="step"><span class="n">7-2</span>回报到了</span></li>
+        <li><span class="step"><span class="n">7-3</span>后台命令</span></li>
+        <li><span class="step"><span class="n">7-4</span>jobs 和 job.stop</span></li>
+        <li><span class="step"><span class="n">7-5</span>派子代理</span></li>
+        <li><span class="step"><span class="n">7-6</span>子会话回报</span></li>
+        <li><span class="step"><span class="n">7-7</span>父子之间留言</span></li>
+        <li><span class="step"><span class="n">7-8</span>撤销、删除和压缩</span></li>
+        <li><span class="step"><span class="n">7-9</span>miyu ask 等子代理</span></li>
+        <li><span class="step"><span class="n">7-10</span>别的 harness 发消息</span></li>
+        <li><span class="step"><span class="n">7-11</span>M7 验收</span></li>
+      </ol>
+    </li>
+    <li>
+      <div class="ms-head"><span class="ms-id">M8</span><span class="ms-name">有界面</span></div>
+      <p class="later">到了跟前再拆。第一件事是先画界面的版式图纸。</p>
     </li>
   </ol>
   <ul class="legend" aria-label="图例">
