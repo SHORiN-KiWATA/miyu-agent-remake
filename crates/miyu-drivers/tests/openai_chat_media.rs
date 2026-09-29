@@ -18,7 +18,9 @@ use support::{
 const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR";
 const SHOT: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rscreenshot";
 const PDF: &[u8] = b"%PDF-1.7\n%\xe2\xe3\xcf\xd3\n";
-const ZIP: &[u8] = b"PK\x03\x04";
+/// 压缩包的开头：签名、版本号，版本号的高位是 0。有 NUL，不是文本（施工 3-9 三补：原来只有 4 个字节的签名，没有 NUL，
+/// 会被当成文本文件照字发）。
+const ZIP: &[u8] = b"PK\x03\x04\x14\x00";
 
 fn request(messages: Vec<Message>) -> Request {
     Request {
@@ -195,18 +197,21 @@ fn a_missing_blob_is_reported() {
 
 #[test]
 fn the_blobs_it_needs_follow_what_the_model_can_take() {
+    // 图片照能不能看图；文件每一个都要（施工 3-9 三补）：发不了的也要认是不是文本、要写有多大。
     let request = attachments();
-    let all: BTreeSet<ContentHash> = [ContentHash::of(PNG), ContentHash::of(PDF)].into();
+    let files = [ContentHash::of(PDF), ContentHash::of(ZIP)];
+    let all: BTreeSet<ContentHash> =
+        [ContentHash::of(PNG), files[0].clone(), files[1].clone()].into();
     assert_eq!(blobs_needed(&request, &call(sees_all(), None)), all);
     let images_only = Inputs {
         images: true,
         pdf: false,
     };
+    assert_eq!(blobs_needed(&request, &call(images_only, None)), all);
     assert_eq!(
-        blobs_needed(&request, &call(images_only, None)),
-        BTreeSet::from([ContentHash::of(PNG)])
+        blobs_needed(&request, &call(Inputs::default(), None)),
+        BTreeSet::from(files)
     );
-    assert!(blobs_needed(&request, &call(Inputs::default(), None)).is_empty());
     // 工具结果里的也算；只取要用的：编码时一个都不缺。
     let request = tool_attachments();
     let needed = blobs_needed(&request, &call(sees_all(), None));

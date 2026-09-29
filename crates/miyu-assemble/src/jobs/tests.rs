@@ -80,6 +80,7 @@ fn child(reason: ChildReason, text: &str, truncated: bool, person: bool) -> Chil
         text: text.to_string(),
         truncated,
         person,
+        by_model: false,
     }
 }
 

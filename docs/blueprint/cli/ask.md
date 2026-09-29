@@ -2,7 +2,7 @@
 
 ### 是什么
 
-在 shell 里跟她说一句话：连上核心（没在跑就拉起来），开一个一次性会话或者接着说；她的回答边收边打，她做的每一步印成一行，问完印一行用量。
+在 shell 里跟她说一句话，可以附上文件：连上核心（没在跑就拉起来），开一个一次性会话或者接着说；她的回答边收边打，她做的每一步印成一行，问完印一行用量。
 
 ### 在哪
 
@@ -10,7 +10,7 @@
 |---|---|
 | `crates/miyu/src/main.rs` | 子命令 `ask`；换上帮助页；拉起核心用的命令是自己加上 `core` |
 | `crates/miyu-cli/src/ask.rs` | 参数、退出码、找数据根、连核心、Ctrl+C |
-| `crates/miyu-cli/src/ask/talk.rs` | 握手、找会话、订阅、发、跟着那一轮 |
+| `crates/miyu-cli/src/ask/talk.rs` | 握手、传附件（施工 3-9 三补）、找会话、订阅、发、跟着那一轮 |
 | `crates/miyu-cli/src/ask/follow.rs` | 收推送：回答、思考、每一步、用量、结束 |
 | `crates/miyu-cli/src/ask/steps.rs` | 每一步的标题、目录太宽那一句、沙盒用不了那一句（施工 5-4 下）、最后那一句 |
 | `crates/miyu-cli/src/ask/steps/blocks.rs` | 执行命令、编辑那一块下面印什么（施工 4-11） |
@@ -30,6 +30,7 @@
 | `-c`、`--continue` | 接着最新的那个一次性会话说 |
 | `--format text\|json` | 默认 `text` |
 | `--add-dir <目录>` | 多放行一个目录：和工作区一样能读能写；可以写好几次（施工 5-10 上） |
+| `--file <文件>` | 附上一个文件：图片、PDF、文本……；可以写好几次，照写的先后（施工 3-9 三补） |
 
 - 界面语言：`LC_ALL`、`LC_MESSAGES`、`LANG` 里第一个设了、不是空的（`cli/main.md`），`zh` 开头说中文，别的说英文。帮助页也照它。
 - 用到的环境变量：`MIYU_HOME`（数据根，不设是 `~/.miyu`）、`MIYU_RESOURCES`（资源目录，开发时用）、`DEEPSEEK_API_KEY`、`NO_COLOR`。
@@ -45,16 +46,19 @@
 3. **握手** `hello`：`protocol` 是 `[1, 1]`；`head` 是 `{"kind": "cli", "version": <版本>}`；`locale` 是 `zh-CN` 或 `en`；`caps.input` 是 `false`；带上本机令牌。
    - `caps.input` 是 `false`：`miyu ask` 里没有确认的界面，要确认的那一步，核心当场拒绝。
    - 回应里的 `sandbox` 说用不了：执行命令都要确认，这里确认不了。第一步之前、目录太宽那一句之前说一句，照原因和这台机器的系统写（下面「给人看的字」），一次（施工 5-4 下）。
-4. **找会话**：
+4. **传附件**（施工 3-9 三补）：`--file` 的每一个，读参数时相对的照敲命令时的目录接成绝对的（在不在、多大不查，由核心说），照写的先后发 `blob.put`，带 `{"path": <绝对路径>}`；写了几次附几次，不去重。
+   - 被拒绝的：标准错误上印 `附不上 <绝对路径>：<核心照握手时的语言说的原因>`，退出码 1，不再往下：不造会话、不发话，也不留下空的会话。核心断开的，照第 11 条。
+   - 在找会话之前传：`--continue`、`--session` 的，传不上也什么都不送进那个会话。
+5. **找会话**：
    1. 不写：`session.create`，带 `cwd`（敲命令时的目录；读不出来的写 `.`）、`dirs`（加进来的目录，没有的写空的）和 `oneshot: true`。回应里的 `cwd` 和敲命令时的目录不一样（目录太宽，退回账号的工作区），第一步之前说一句。
    2. `--continue`：`session.list`，带 `oneshot: true`、`limit: 1`，取第一个。一个都没有：说「还没有 miyu ask 开过的会话」，退出码 1。
    3. `--session`：照写的。
-5. **订阅** `subscribe`：`{"session": …, "stream": "events"}`。
-6. **发** `session.send`：`{"session": …, "text": …, "cwd": …, "dirs": […]}`：`dirs` 每次都写，没有 `--add-dir` 就是空的，所以 `--continue` 时各次照各次的。请求的编号是 `ask-<16 位十六进制>-<序号>`：前缀每个进程随机一次（取不到随机数的，用进程号和此刻的纳秒，各写成十六进制接在一起），序号从 1 数起。被拒绝的：核心照握手时的语言写的原因，照原样印在标准错误上，退出码 1。回应里有 `cwd`、和前面说过的不一样的，也说一句目录太宽，一次 `miyu ask` 至多说一次。
-7. **跟着那一轮**：`turn.started` 的 `cause` 是自己发的那条命令的，就是它；之后只收这一轮的推送，照回合编号认。收到 `resync`（掉队了），重新订阅，不补看掉的那些。
-8. **收尾**：`turn.ended` 来了，照下面「样子」印完，交回退出码。
-9. **Ctrl+C**：第一次发 `session.interrupt`，带 `queued: "return"`，等这一轮收尾；第二次不等了，说「打断了」，退出码 3。
-10. **核心断开**：说「核心断开了」，退出码 1。
+6. **订阅** `subscribe`：`{"session": …, "stream": "events"}`。
+7. **发** `session.send`：`{"session": …, "text": …, "cwd": …, "dirs": […]}`：`dirs` 每次都写，没有 `--add-dir` 就是空的，所以 `--continue` 时各次照各次的。有附件的，再带 `attachments`：第 4 条的 `blob.put` 回应照先后原样放进去；没有附件的不写这一格。请求的编号是 `ask-<16 位十六进制>-<序号>`：前缀每个进程随机一次（取不到随机数的，用进程号和此刻的纳秒，各写成十六进制接在一起），序号从 1 数起。被拒绝的：核心照握手时的语言写的原因，照原样印在标准错误上，退出码 1。回应里有 `cwd`、和前面说过的不一样的，也说一句目录太宽，一次 `miyu ask` 至多说一次。
+8. **跟着那一轮**：`turn.started` 的 `cause` 是自己发的那条命令的，就是它；之后只收这一轮的推送，照回合编号认。收到 `resync`（掉队了），重新订阅，不补看掉的那些。
+9. **收尾**：`turn.ended` 来了，照下面「样子」印完，交回退出码。
+10. **Ctrl+C**：第一次发 `session.interrupt`，带 `queued: "return"`，等这一轮收尾；第二次不等了，说「打断了」，退出码 3。
+11. **核心断开**：说「核心断开了」，退出码 1。
 
 ### 样子：`--format text`
 
@@ -239,6 +243,7 @@ todo.md
 | 一步没做成的词 | 出错、没做、打断了、跳过了 | failed、not done、interrupted、skipped |
 | 没有模型 | 没有可用的模型：设环境变量 DEEPSEEK_API_KEY | No model available: set DEEPSEEK_API_KEY |
 | 没有一次性会话 | 还没有 miyu ask 开过的会话 | No session opened by miyu ask yet |
+| 附件传不上（施工 3-9 三补） | 附不上 <文件>：<核心说的原因> | Cannot attach <file>: <reason> |
 | 打断了 | 打断了 | Interrupted |
 | 核心断开 | 核心断开了 | The core went away |
 | 没走完 | 这一轮没走完：<原因> | The turn did not finish: <reason> |
@@ -276,6 +281,7 @@ todo.md
   -s, --session <编号>    接着这个会话说
       --format text|json  text 给人看（默认），json 给脚本
       --add-dir <目录>    多放行一个目录，她能读能写，可以写好几次
+      --file <文件>       附上一个文件，图片、PDF、文本都行，可以写好几次
   -h, --help              印帮助
 ```
 
@@ -291,6 +297,7 @@ Options:
   -s, --session <id>      Go on in this session
       --format text|json  text for people (default), json for scripts
       --add-dir <dir>     Let her read and write this directory too; repeatable
+      --file <file>       Attach a file: image, PDF, text…; repeatable
   -h, --help              Print help
 ```
 
@@ -307,7 +314,8 @@ Options:
 | `crates/miyu-cli/src/ask/steps/tests.rs` | 每一步的标题：符号、显示名、参数的值、结果那一句、颜色；没有显示名的写 `⚙` |
 | `crates/miyu-cli/src/ask/steps/blocks/tests.rs` | 执行命令那一块：几行的命令、工具自己写的才印、控制序列去掉、红的 `$`；编辑那一块：`-`、`+`、两处之间的 `…`、读不出的那一处不印、不是 `ok` 的不印 |
 | `crates/miyu-cli/src/ask/usage/tests.rs` | 用量加法、命中率、三位一撇 |
-| `crates/miyu-cli/src/ask/tests.rs` | 几个词用空格连起来；给人看的字照界面语言读，读不出来的当没有；加进来的目录照写的先后、去掉重复的；相对的接成绝对的，不是目录的读不成（施工 5-10 上） |
+| `crates/miyu-cli/src/ask/tests.rs` | 几个词用空格连起来；给人看的字照界面语言读，读不出来的当没有；加进来的目录照写的先后、去掉重复的；相对的接成绝对的，不是目录的读不成（施工 5-10 上）；`--file` 相对的接成绝对的、不查在不在，照写的先后、不去重（施工 3-9 三补） |
+| `crates/miyu-cli/tests/attach.rs` | 真的核心走一遍 `--file`（施工 3-9 三补）：文字在前、附件照写的先后变成块，图片的宽高、文本的媒体类型；没有的、太大的说是哪个文件、为什么，中文、英文，退出码 1，不造会话 |
 | `crates/miyu-cli/tests/ask.rs` | 真的核心：开一次性会话、`--continue`、没有会话可接、被拒绝、没有模型、Ctrl+C 一次和两次；加进来的目录跟着每一次 `miyu ask`：`--continue` 不写的那一轮就没有，太宽的造会话时就被拒、不留空会话（施工 5-10 上） |
 | `crates/miyu-cli/tests/steps.rs` | 真的核心、真的工具走一遍：每一步、执行命令和编辑那两块、目录太宽、给脚本的只看退出码。要确认的一步是写到工作区外面（施工 5-4 上起读哪儿都不问）；执行命令经 cargo 编出来的助手在沙盒里跑 |
 | `crates/miyu-cli/src/shown/tests.rs` | 原色的段不带控制序列，上过色的行尾回到原色 |
@@ -315,7 +323,7 @@ Options:
 
 ### 出处
 
-- `22-命令行.md` 第二节（输出的规矩、退出码）、第三节（`miyu ask`）、O1 到 O3。
+- `22-命令行.md` 第二节（输出的规矩、退出码）、第三节（`miyu ask`，`--file`）、O1 到 O3。
 - `04-核心协议.md` 第九节：`session.create`、`session.send` 的回应带 `cwd`。
 - `11-权限与沙盒.md` 第四节（目录太宽退回账号的工作区）、A11（没有确认界面的场所）。
 - `10-自带软件.md` 第十节：路径怎么写。
@@ -324,7 +332,7 @@ Options:
 
 设计里有、还没做的（`22-命令行.md` 第三节）：
 
-- `--persona`、`--preset`、`--model`、`--file`、`--tools`、`--no-memory`、`--timeout`，`--format stream-json`。
+- `--persona`、`--preset`、`--model`、`--tools`、`--no-memory`、`--timeout`，`--format stream-json`。
 - 管道进来的内容当附件。
 - 还没配模型时，先问首次引导的那两件事。
 - 等子代理回报完才退出（M7）。

@@ -52,6 +52,31 @@ impl Stage {
             text: text.to_string(),
             truncated,
             person,
+            by_model: false,
+        };
+        self.command_as(by, Command::Report(reported))
+    }
+
+    /// 子会话 `session` 交来子代理 `j<job>` 被停掉的回报（施工 7-4）：`by_model` 是她自己用 `jobs` 停的，不是人停的。返回这个
+    /// 命令的编号。
+    ///
+    /// # Panics
+    ///
+    /// 同上。
+    pub fn child_stopped(&mut self, job: u64, session: &str, by_model: bool) -> CommandId {
+        let session =
+            SessionId::parse(session).unwrap_or_else(|e| panic!("会话编号的写法坏了：{e}"));
+        let by = By::Session(Session {
+            id: session.clone(),
+        });
+        let reported = ChildReported {
+            job: job_id(job),
+            session,
+            reason: ChildReason::Stopped,
+            text: String::new(),
+            truncated: false,
+            person: false,
+            by_model,
         };
         self.command_as(by, Command::Report(reported))
     }
@@ -81,6 +106,7 @@ impl Stage {
             text: text.to_string(),
             truncated: false,
             person: false,
+            by_model: false,
         };
         let at = self.tick();
         self.run(Input::Command(Received {

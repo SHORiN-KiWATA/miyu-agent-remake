@@ -234,6 +234,21 @@ fn the_quiet_reports_only_record_and_the_next_turn_hears_them() {
 }
 
 #[test]
+fn a_subagent_she_stopped_herself_only_records() {
+    let mut s = dispatched(stage());
+    let before = s.log().len();
+    s.child_stopped(1, CHILD, true);
+    assert_eq!(s.log().len(), before + 1, "只记下，不开轮（施工 7-4）");
+    assert_eq!(s.log()[before].body.kind(), "child.reported");
+    s.model([Line::says("知道了。")]);
+    s.say("怎么样了");
+    assert!(
+        last_request(&s).contains(&format!("{} child.reported\n", before + 1)),
+        "下一轮开始时在请求里"
+    );
+}
+
+#[test]
 fn a_person_stopping_a_subagent_still_wakes_her() {
     let mut s = dispatched(stage());
     s.model([Line::says("它被停了。")]);

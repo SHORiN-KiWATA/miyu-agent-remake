@@ -4,6 +4,8 @@
 //!   文件的分成几段，连着的文字照样拼成一段。
 //! - assistant：正文、思考各自直接接上，它们本来就是一整段；工具调用的编号用供应商自己的。
 //! - tool：文字照 user 的拼法；图片、PDF 挪到这一串 tool 消息后面的一条 user 消息里。
+//! - 文件发不了 PDF 的：内容是文本的照字放进消息，带着文件名（施工 3-9 三补，[`crate::text_file`]）；别的写一句占位，
+//!   带文件名、媒体类型、大小。
 //! - 接着写的：最后那条 user（只有被打断的那一句）不发，半截那条 assistant 加上接着写的字段。
 
 use std::collections::BTreeMap;
@@ -17,7 +19,7 @@ use serde::de::IgnoredAny;
 
 use super::wire::{Content, FileData, FunctionCall, Part, ToolCall as WireCall, Url, Wire};
 use super::{Compat, ContinuationField, EncodeError, FAMILY, ReasoningField, ReasoningReplay};
-use crate::{BlobBytes, Call, DriverTexts, base64};
+use crate::{BlobBytes, Call, DriverTexts, base64, text_file};
 
 /// 写全部消息：system 在最前，每条 tool 消息串后面跟着挪出来的图片、文件。`continuing` 有的是
 /// 接着写：最后那条 user 不发，半截那条加上这个字段。
@@ -78,7 +80,7 @@ pub(super) fn write(
 }
 
 /// 这是不是一个 PDF：只有 PDF 能作为文件发。
-pub(super) fn is_pdf(file: &File) -> bool {
+fn is_pdf(file: &File) -> bool {
     file.media_type.as_str() == "application/pdf"
 }
 
@@ -106,7 +108,7 @@ impl Writer<'_> {
                 Block::File(file) if self.call.inputs.pdf && is_pdf(file) => {
                     pieces.part(self.file_part(file)?);
                 }
-                Block::File(file) => pieces.text(&self.file_omitted(file)),
+                Block::File(file) => pieces.text(&self.file_text(file)?),
                 Block::Reasoning(_) | Block::ToolCall(_) | Block::Unknown(_) => {}
             }
         }
@@ -173,7 +175,7 @@ impl Writer<'_> {
                 Block::File(file) if self.call.inputs.pdf && is_pdf(file) => {
                     attachments.push(self.file_part(file)?);
                 }
-                Block::File(file) => join(&mut content, &self.file_omitted(file)),
+                Block::File(file) => join(&mut content, &self.file_text(file)?),
                 Block::Reasoning(_) | Block::ToolCall(_) | Block::Unknown(_) => {}
             }
         }
@@ -222,22 +224,32 @@ impl Writer<'_> {
         })
     }
 
-    fn file_omitted(&self, file: &File) -> String {
-        self.texts
-            .file_omitted(file.name.as_str(), file.media_type.as_str())
+    /// 发不了 PDF 的文件写成字：内容是文本的、快照里有那三句的，照字放进来；别的写一句占位，带文件名、媒体类型、
+    /// 大小（施工 3-9 三补）。
+    fn file_text(&self, file: &File) -> Result<String, EncodeError> {
+        let bytes = self.bytes(&file.blob)?;
+        let name = file.name.as_str();
+        let text = text_file::as_text(bytes).and_then(|text| self.texts.text_file(name, text));
+        Ok(text.unwrap_or_else(|| {
+            self.texts
+                .file_omitted(name, file.media_type.as_str(), bytes.len())
+        }))
     }
 
     /// `data:<类型>;base64,<内容>`。
     fn data_url(&self, media_type: &MediaType, blob: &ContentHash) -> Result<String, EncodeError> {
-        let bytes = self
-            .blobs
-            .bytes(blob)
-            .ok_or_else(|| EncodeError::MissingBlob(blob.clone()))?;
         Ok(format!(
             "data:{};base64,{}",
             media_type.as_str(),
-            base64::encode(bytes)
+            base64::encode(self.bytes(blob)?)
         ))
+    }
+
+    /// 执行器照 [`super::blobs_needed`] 先取好的字节；没交进来的报缺了哪一个。
+    fn bytes(&self, blob: &ContentHash) -> Result<&[u8], EncodeError> {
+        self.blobs
+            .bytes(blob)
+            .ok_or_else(|| EncodeError::MissingBlob(blob.clone()))
     }
 }
 

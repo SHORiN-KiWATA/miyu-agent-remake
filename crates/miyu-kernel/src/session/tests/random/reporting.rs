@@ -80,8 +80,8 @@ fn job_ended(rng: &mut Rng, watch: &Watch) -> Input {
     }
 }
 
-/// 子会话的回报：多半是还没停掉的子代理、由它的会话交，偶尔对不上（该拒）。原因照份数抽：做完了 4、被停掉 1、撤销 1、
-/// 崩了 1。
+/// 子会话的回报：多半是还没停掉的子代理、由它的会话交，偶尔对不上（该拒）。原因照份数抽：做完了 4、人停掉 1、她自己用
+/// `jobs` 停掉 1（施工 7-4）、撤销 1、崩了 1。
 fn child_reports(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> Input {
     let (job, known) = pick(rng, watch, |job| job.session.is_some() && !job.over);
     let fallback = || SessionId::parse("01a0d78c-ca52-7d19-8b64-00000000ffff").unwrap();
@@ -94,11 +94,12 @@ fn child_reports(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> Input {
             id: session.clone(),
         }),
     };
-    let reason = match rng.below(7) {
-        0..=3 => ChildReason::Done,
-        4 => ChildReason::Stopped,
-        5 => ChildReason::Undone,
-        _ => ChildReason::Aborted,
+    let (reason, by_model) = match rng.below(8) {
+        0..=3 => (ChildReason::Done, false),
+        4 => (ChildReason::Stopped, false),
+        5 => (ChildReason::Stopped, true),
+        6 => (ChildReason::Undone, false),
+        _ => (ChildReason::Aborted, false),
     };
     Input::Command(Received {
         id: id(next_command(next_id)),
@@ -111,6 +112,7 @@ fn child_reports(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> Input {
             text: ["", "done", "line\n"][rng.below(3) as usize].to_string(),
             truncated: rng.below(4) == 0,
             person: rng.below(4) == 0,
+            by_model,
         }),
     })
 }

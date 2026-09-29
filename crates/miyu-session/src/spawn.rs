@@ -3,7 +3,7 @@
 //! 下层定义窄接口，上层实现）。执行器派子代理时经它造子会话、把交代送进去（`crate::agents`）；子会话经它向上回报
 //! （`crate::report`），父会话载入以后经它叫起还没回报的子会话（施工 7-6）。
 //!
-//! 测试里自己造的会话没有它：`agent` 照派不了出错。
+//! 测试里自己造的会话没有它：`agent` 照派不了出错。`jobs` 停子代理、读它在做什么也经它（施工 7-4）。
 
 use std::future::Future;
 use std::pin::Pin;
@@ -12,6 +12,8 @@ use miyu_kernel::event::Permission;
 use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Outcome};
+
+use crate::jobs::Peek;
 
 /// 造子会话、给别的会话发命令。原因是英文的一句，执行器记进运行日志，不给她看。
 pub trait SessionPort: Send + Sync {
@@ -31,6 +33,13 @@ pub trait SessionPort: Send + Sync {
         by: By,
         command: Command,
     ) -> Pending<'_, Result<Outcome, String>>;
+
+    /// 停下会话 `session`（施工 7-4，`agents.md` 第五条）：打断它在跑的一轮（排着的退回），再停掉它派出去、还没结束的，
+    /// 连它们派的一起。打断记成 `by` 发的、编号 `id`。停好了才交回。会话没在跑的，照会话表的规矩先载入。
+    fn stop(&self, session: SessionId, id: CommandId, by: By) -> Pending<'_, Result<(), String>>;
+
+    /// 会话 `session` 这会儿的样子（施工 7-4）：照它的日志算，不载入它。
+    fn peek(&self, session: SessionId) -> Pending<'_, Result<Peek, String>>;
 }
 
 /// 端口交回的 future。

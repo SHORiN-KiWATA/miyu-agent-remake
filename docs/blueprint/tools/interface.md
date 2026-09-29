@@ -12,7 +12,7 @@
 | `crates/miyu-tool/src/run.rs` | 一次调用：`Call`、`Seen`、`Target`、`Done`、`Effect`、`Progress`、`Running` |
 | `crates/miyu-tool/src/agents.rs` | 派子代理的端口 `AgentPort`、`Spawned`、`NotSpawned`，那件工具的名字 `AGENT`（施工 7-5） |
 | `crates/miyu-tool/src/catalog.rs` | 工具目录，登记时查的三条 |
-| `crates/miyu-tool/src/jobs.rs` | 任务端口 `JobPort`、交出去的后台命令 `Background`、它的进程 `Process`、怎么结束的 `Exit`（施工 7-3） |
+| `crates/miyu-tool/src/jobs.rs` | 任务端口 `JobPort`、交出去的后台命令 `Background`、它的进程 `Process`、怎么结束的 `Exit`（施工 7-3）；列出来的 `Listed`、读到的 `Output`、读不了停不了的 `JobError`（施工 7-4） |
 | `crates/miyu-tool/src/testkit.rs` | 测试用的假工具（`testkit` 开关打开时才编）；`testkit/held.rs` 是假的后台命令 `Held`（施工 7-3） |
 | `crates/miyu-core/src/lib.rs` | `tools()`：核心起来时登记基础系统 |
 | `crates/miyu-session/src/open.rs` | 造会话时照目录把工具面写进策略快照 |
@@ -56,10 +56,11 @@
 | `log` | 这个会话日志的只读入口（`Log`，里面是一个 `ReadLog`）：一段一段交出事件，交给的函数说不读了就停。只有 `history` 用（施工 6-4，`tools/history.md`）；没有的是空的 |
 | `offset` | 会话的时区：照会话现在的环境。只有 `history` 用（施工 6-4）；测试里照 UTC |
 | `agents` | 派子代理的端口（`Arc<dyn AgentPort>`，施工 7-5）：执行器照这一次调用抄好父会话的那几样（`session/tools.md`「派子代理」）。只有 `agent` 用；没有的（测试里的假调用、没装会话表的核心）是空的，`agent` 照派不了出错 |
-| `jobs` | 任务端口（`Arc<dyn JobPort>`，施工 7-3）：执行器照这一次调用造一个，起它的命令自己退出了，`job.reported` 的 `by` 是这次调用、`cause` 是它所在那一轮的。只有 `shell` 用；没有的（会话外面的调用，例如测试）是空的，不能放到后台 |
+| `jobs` | 任务端口（`Arc<dyn JobPort>`，施工 7-3）：执行器照这一次调用造一个，起它的命令自己退出了，`job.reported` 的 `by` 是这次调用、`cause` 是它所在那一轮的。`shell` 交后台命令，`jobs` 查、停（施工 7-4）；没有的（会话外面的调用，例如测试）是空的，不能放到后台，也查不到任务 |
 
 - `Seen`：换成真实位置以后的路径 → 她最后一次看到的整份文件的内容哈希（`sha256:` 加 64 位小写十六进制）。
 - 任务端口（施工 7-3）：`start(Background)` 把起好的后台命令交给执行器的任务表，交回编号，当场返回；收不下的（输出的文件建不起来、会话已经停了），任务表整组杀掉它，交回出错。`Background` 两格：`output` 是一段段交出来的输出（已经照前台的规矩合法化，读完了就没有了），`process` 是 `Process`：`wait()` 等它结束、交回 `Exit`（退出码或者信号），`kill()` 整组杀、已经结束了的什么都不做。两个端口比的是不是同一个（`Call` 照格子比较时用）。
+- 任务端口的查和停（施工 7-4，`tools/jobs.md`）：`list()` 交回这个会话派出去、还没结束的全部和最近结束的 5 个（`Listed`：编号、种类、标题、结束了的是最后那条回报的 `reason`、用时毫秒），照编号；`output(编号)` 交回一个 future，给 `Output`（种类、读得到的字 `text`（`Read`，没有是空的）、还在跑没有、子代理这一步在跑的工具），没有这个任务给 `JobError::Unknown`；`stop(编号)` 交回一个 future，停好了（回报由执行器记，带 `by_model`）给 `()`，没有给 `Unknown`、已经结束了给 `Ended`。子代理那一头执行器经会话表去读、去停（`session/tools.md` 第 6 条），工具不认识会话表。
 - `Target`：`path` 是她给的原样，`write` 是真的就是要写（新建、改、删），不是就是读；`itself` 是真的，碰的是这一条本身：最后一段是链接的不跟（`trash` 删的是链接本身，施工 4-9 再补二）。
 
 **工具交回的** `Done`：
@@ -167,7 +168,7 @@
 
 每一份以一个换行结尾；登记在 `26-提示词.md` 第十节。
 
-**工具面的预算**（`10-自带软件.md` 第九节，施工 4-10）：`resources/software/basesystem/tools/` 下的几份说明（说明和参数）加起来不超过 6100 字节，回车 `\r` 不算。预算是实测加一成：施工 7-3 以后九件的边际份量合计 1476 个 token、5494 字节（2026-09-30 量），约 3.7 字节一个 token，加一成是 1624 个 token；仓库里没有分词器，所以照字节守。加工具、改说明超了，重新量过再改预算。
+**工具面的预算**（`10-自带软件.md` 第九节，施工 4-10）：`resources/software/basesystem/tools/` 下的几份说明（说明和参数）加起来不超过 6600 字节，回车 `\r` 不算。预算是实测加一成：施工 7-4 以后十件的边际份量合计 1603 个 token、5941 字节（2026-09-30 量），约 3.7 字节一个 token，加一成是 1764 个 token；仓库里没有分词器，所以照字节守。加工具、改说明超了，重新量过再改预算。
 
 ### 出错
 

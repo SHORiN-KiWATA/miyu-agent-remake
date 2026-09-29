@@ -9,9 +9,10 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 
 use miyu_kernel::event::{Event, Transient};
 use miyu_kernel::facts::Environment;
-use miyu_kernel::id::{CommandId, SessionId};
+use miyu_kernel::id::{CommandId, JobId, SessionId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, ContextLimits, Outcome};
+use miyu_tool::JobError;
 
 /// 一个会话：它的 actor 的收件箱。可以复制，几个头一起拿着。
 #[derive(Debug, Clone)]
@@ -41,6 +42,28 @@ pub(crate) enum Message {
     Stop(oneshot::Sender<()>),
     /// 环境变了：工作目录、时区。
     Environment(Environment),
+    /// 停掉派出去的任务（施工 7-4）。
+    Halt(Halt),
+}
+
+/// 停掉派出去的任务（施工 7-4，`docs/blueprint/session/actor.md`「停掉任务」）。
+#[derive(Debug)]
+pub(crate) enum Halt {
+    /// 人用 `job.stop` 停一个：`by` 是人，`cause` 是那条命令。停好了、回报落了盘才回；没有、已经结束了的回
+    /// [`JobError`]。
+    One {
+        job: JobId,
+        by: By,
+        cause: CommandId,
+        reply: oneshot::Sender<Result<(), JobError>>,
+    },
+    /// 这个会话被父会话停下：还在跑的全停，连它们派的，都只记下、不叫醒（带 `by_model`）。后台命令那几条 `by`、`cause`
+    /// 照给的。都停好了才回。
+    All {
+        by: By,
+        cause: CommandId,
+        reply: oneshot::Sender<()>,
+    },
 }
 
 impl Handle {
@@ -127,6 +150,40 @@ impl Handle {
     /// 会话停了。
     pub fn environment(&self, environment: Environment) -> Result<(), Stopped> {
         self.send(Message::Environment(environment))
+    }
+
+    /// 人停掉任务 `job`（施工 7-4，协议的 `job.stop`）：`by` 是停它的人，`cause` 是那条命令。后台命令整组杀掉，记
+    /// `job.reported`（`stopped`）；子代理停掉它这一轮连它派的，记 `child.reported`（`stopped`）。两种都叫醒她。回报落了盘才回。
+    ///
+    /// # Errors
+    ///
+    /// 会话停了。里面那一层：这个会话没有这个任务、它已经结束了。
+    pub async fn stop_job(
+        &self,
+        job: JobId,
+        by: By,
+        cause: CommandId,
+    ) -> Result<Result<(), JobError>, Stopped> {
+        let (reply, answer) = oneshot::channel();
+        self.send(Message::Halt(Halt::One {
+            job,
+            by,
+            cause,
+            reply,
+        }))?;
+        answer.await.map_err(|_| Stopped)
+    }
+
+    /// 停掉这个会话派出去、还没结束的全部任务，连它们派的（施工 7-4）：父会话停下它的时候，会话表经端口来调。都只记下、
+    /// 不叫醒它；后台命令那几条的 `by`、`cause` 照给的。都停好了才回。
+    ///
+    /// # Errors
+    ///
+    /// 会话停了。
+    pub async fn stop_jobs(&self, by: By, cause: CommandId) -> Result<(), Stopped> {
+        let (reply, answer) = oneshot::channel();
+        self.send(Message::Halt(Halt::All { by, cause, reply }))?;
+        answer.await.map_err(|_| Stopped)
     }
 
     fn send(&self, message: Message) -> Result<(), Stopped> {

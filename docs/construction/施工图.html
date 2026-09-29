@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>124</b><span>/ 135 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来</span></li>
-    <li><b>7-4</b><span>下一步：两条线并行，7-4 jobs 和 job.stop、7-6 子会话回报（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">6373ac7</b><span>最近一步（7-6 子会话回报）的提交</span></li>
+    <li><b>126</b><span>/ 135 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的</span></li>
+    <li><b>7-7</b><span>下一步：7-7 父子之间留言、7-1 补编号带父会话的编号，另有附件、改名删除、重做在做（Windows 上跑命令那一步暂停）</span></li>
+    <li><b class="mono">89c7b1b</b><span>最近一步（3-9 三补 附件）的提交</span></li>
   </ul>
 </header>
 
@@ -392,7 +392,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-9b"><span class="n">3-9</span>miyu ask（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9c"><span class="n">3-9</span>会话编号照先后（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9d"><span class="n">3-9</span>开发用的地址和模型（再补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-9</span>附件（三补）</span></li>
+        <li><a class="step done" href="#s3-9e"><span class="n">3-9</span>附件（三补）<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -481,7 +481,7 @@ a.step:hover{border-color:var(--primary)}
         <li><span class="step"><span class="n">7-1</span>编号带上父会话的编号（补）</span></li>
         <li><a class="step done" href="#s7-2"><span class="n">7-2</span>回报到了<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-3"><span class="n">7-3</span>后台命令<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">7-4</span>jobs 和 job.stop</span></li>
+        <li><a class="step done" href="#s7-4"><span class="n">7-4</span>jobs 和 job.stop<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-5"><span class="n">7-5</span>派子代理<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-6"><span class="n">7-6</span>子会话回报<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-7</span>父子之间留言</span></li>
@@ -4758,6 +4758,56 @@ a.step:hover{border-color:var(--primary)}
         <li><code>docs/designs/22-命令行.md</code> 第三节：施工中定的写法。</li>
         <li><code>docs/designs/04-核心协议.md</code> 第九节：oneshot、session.list、命令编号不撞。</li>
         <li><code>docs/construction/3-9-miyu-ask（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s3-9e" aria-labelledby="h-s39e">
+  <div class="sheet-head"><h2 id="h-s39e"><span class="no">3-9</span>附件（三补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">说话时能带上图片和文件：网页拖进来的、命令行 <code>miyu ask --file</code> 给的，都进她这一轮的消息。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">blob.put → session.send</span><span class="dir-note">miyu-endpoint/src/attach.rs</span></div>
+            <ol class="pipe" aria-label="附件怎么走">
+              <li><code>blob.put</code> 存成 blob，一个最多 20 MiB，照内容认是图片还是文件</li>
+              <li><code>session.send</code> 带上 <code>attachments</code>，接在文字后面</li>
+              <li>图片、PDF 照驱动原来的规矩；文本文件照字给她，最多 64 KiB</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">只照内容认</span><span class="rl">不看扩展名</span></div>
+          <div class="tile"><span class="nm">以后再说</span><span class="rl">文本附件的用量估算、分块上传</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-9 三补</dd></div>
+        <div><dt>名称</dt><dd>附件</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">89c7b1b</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>39 个变异逮住 38 个，剩下 1 个等价；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型：读出图上的字，照文本附件答对</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/3-9-附件（三补）.md</code>。</li>
       </ul>
     </div>
   </div>
@@ -9185,6 +9235,64 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>agents.md</code> 第四条、<code>tools/shell.md</code>、<code>session/tools.md</code>、<code>core.md</code>。</li>
         <li><code>docs/construction/7-3-后台命令.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s7-4" aria-labelledby="h-s74">
+  <div class="sheet-head"><h2 id="h-s74"><span class="no">7-4</span>jobs 和 job.stop</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她能看自己派出去的任务、读后台命令的输出、停掉它们；头能用 <code>job.stop</code> 停掉一个任务。后台命令和子代理都管。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">jobs list|output|stop</span><span class="dir-note">basesystem/src/jobs.rs</span></div>
+            <ol class="pipe" aria-label="三个动作">
+              <li><code>list</code>：还在跑的和最近结束的 5 个，编号、种类、标题、状态、用时</li>
+              <li><code>output</code>：后台命令照 <code>read</code> 分页读（<code>offset</code>）；子代理读最近的回答、在做什么</li>
+              <li><code>stop</code>：后台命令整组杀、子代理连它派的一起停；她停的不叫醒她</li>
+              <li>协议 <code>job.stop</code>：人停的照样叫醒她；没有的、结束了的拒 <code>unknown_job</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">by_model 放宽</span><span class="rl">不是人直接停的都算，连带停的不叫醒谁</span></div>
+          <div class="tile new"><span class="nm">截头尾一份</span><span class="rl">停子代理和向上回报共用 Reports::cut</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-4</dd></div>
+        <div><dt>名称</dt><dd>jobs 和 job.stop</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">6a11c7a</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>工具 <code>jobs</code>、端口的查和停、执行器的名册；和 7-6 合并时截头尾并成一份。工具面十件，预算 6600 字节。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>手写 36 个变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型：列、停、读输出都对，她停的不叫醒</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>agents.md</code> 第五条、<code>tools/jobs.md</code>。</li>
+        <li><code>docs/construction/7-4-jobs 和 job.stop.md</code>。</li>
       </ul>
     </div>
   </div>

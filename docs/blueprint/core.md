@@ -70,7 +70,7 @@
 10. 找沙盒的助手、探一次（`sandbox.md`「怎么走」第 1、2 条）：记一行 `INFO` `sandbox` 或者 `WARN` `sandbox unavailable`（施工 5-1）。探到的结果（能不能用、为什么，`Availability`）交给协议端点：握手时报给头（施工 5-4 下）；能用的，造会话、载入时把助手交给会话，权限策略照它判执行命令，执行器照它带沙盒（施工 5-4 上）；用不了的，会话里当沙盒用不了。
     - 再算出缓存目录（`store.md` 第 3 条），沙盒的缓存放在它下面的 `sandbox/<账号>/`，造会话、载入时照属主交给会话（`session/tools.md` 第 1a 条，施工 5-4 下）。算不出来的：记一行 `WARN sandbox cache unavailable`，`reason` 是 `no home directory` 或者 `no LOCALAPPDATA`（运行日志一律英文），沙盒里不设工具链的变量。你的 cargo 目录：核心的环境里 `CARGO_HOME` 设了、不是空的照它，不然 `~/.cargo`。
     - 这两样都不影响起不起得来。
-11. 工具目录：登记基础系统，九件：`agent`（施工 7-5）、`edit`、`glob`、`grep`、`history`、`read`、`shell`、`trash`、`write`；工具的字从资源目录读，登记完就冻结（`tools/interface.md`）。
+11. 工具目录：登记基础系统，十件：`agent`（施工 7-5）、`edit`、`glob`、`grep`、`history`、`jobs`（施工 7-4）、`read`、`shell`、`trash`、`write`；工具的字从资源目录读，登记完就冻结（`tools/interface.md`）。
 12. 核心的家底：数据根、资源目录、模型、工具目录、系统的家目录、管理员 `admin`、本机令牌，会话表是空的，执行器的任务表是空的（施工 7-3，`protocol.md`）。会话表造会话、载入时交给会话一份造子会话的端口（施工 7-5，`protocol.md`「会话表」第 7 条）。
 13. 往标准输出写一行 `ready`。
 14. 一个个接连接，直到停下（下面「停下」）。

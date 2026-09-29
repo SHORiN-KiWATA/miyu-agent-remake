@@ -186,8 +186,8 @@ impl Session {
     }
 }
 
-/// 这条回报叫不叫醒她（`agents.md` 第三条第 3 条）：她自己用 `jobs` 停的、撤销停掉的、重启停掉的、崩了的，只记下；别的
-/// 叫醒，被人停掉的子代理也叫醒，她不会白等。不认识的原因叫醒：她至少知道结束了。
+/// 这条回报叫不叫醒她（`agents.md` 第三条第 3 条）：她自己用 `jobs` 停的（两种都带 `by_model`，子代理的施工 7-4 加）、撤销
+/// 停掉的、重启停掉的、崩了的，只记下；别的叫醒，被人停掉的子代理也叫醒，她不会白等。不认识的原因叫醒：她至少知道结束了。
 pub(super) fn wakes(body: &Body) -> bool {
     match body {
         Body::JobReported(reported) => match reported.reason {
@@ -195,9 +195,11 @@ pub(super) fn wakes(body: &Body) -> bool {
             JobReason::Stopped => !reported.by_model,
             JobReason::Undone | JobReason::Restarted | JobReason::Aborted => false,
         },
-        Body::ChildReported(reported) => {
-            !matches!(reported.reason, ChildReason::Undone | ChildReason::Aborted)
-        }
+        Body::ChildReported(reported) => match reported.reason {
+            ChildReason::Stopped => !reported.by_model,
+            ChildReason::Undone | ChildReason::Aborted => false,
+            ChildReason::Done | ChildReason::Other(_) => true,
+        },
         _ => false,
     }
 }

@@ -11,12 +11,13 @@ mod texts;
 
 pub use anchor::anchored;
 use texts::texts;
+pub use texts::{SUMMARIZE, VENUE};
 
 use std::collections::BTreeMap;
 
 use miyu_assemble::{DefaultAssembler, Stable};
 use miyu_drivers::openai_chat::{self, Compat, Encoded};
-use miyu_drivers::{Call, DriverTextSources, DriverTexts, Inputs};
+use miyu_drivers::{Call, DriverTextSources, DriverTexts, Inputs, TextFileSources};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::estimate::Flat;
 use miyu_kernel::event::{Body, Event};
@@ -31,15 +32,6 @@ use miyu_kernel::tool::{Access, ToolRule, ToolTextSources, ToolTexts};
 
 /// 会话开始的时刻：东九区 16:00。
 const START: &str = "2026-09-25T07:00:00.000Z";
-/// 出厂的摘要指令：摘要请求的最后一块（施工 6-2 上）；正文接最后那一句（施工 6-8 拆开）。
-pub const SUMMARIZE: &str = concat!(
-    include_str!("../../../../resources/core/compaction/summarize-task.txt"),
-    include_str!("../../../../resources/core/compaction/summarize-end.txt")
-);
-
-/// 子代理的场所说明（施工 7-5）：出厂的原文，子会话的 system 接在人设后面。
-pub const VENUE: &str = include_str!("../../../../resources/core/jobs/subagent-venue.txt");
-
 /// 探针里子会话的父会话。
 pub const PARENT: &str = "01a0d75d-2180-7a3c-9e41-5b7d2c8f6a10";
 
@@ -372,6 +364,11 @@ fn driver_texts() -> DriverTexts {
         tool_attachments_only: include_str!(
             "../../../../resources/core/drivers/tool-attachments-only.txt"
         ),
+        text_file: Some(TextFileSources {
+            file_open: include_str!("../../../../resources/core/drivers/file-open.txt"),
+            file_cut: include_str!("../../../../resources/core/drivers/file-cut.txt"),
+            file_close: include_str!("../../../../resources/core/drivers/file-close.txt"),
+        }),
     })
     .expect("出厂的占位用得了")
 }

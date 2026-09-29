@@ -29,7 +29,7 @@ use crate::effects;
 use crate::guard::Guard;
 use crate::handle::Handle;
 use crate::job_ids::JobIds;
-use crate::jobs::Jobs;
+use crate::jobs::{Jobs, Roster};
 use crate::port::{ForSession, Models};
 use crate::report::{Reporter, Upstream, wake_children};
 use crate::sandbox::SandboxCache;
@@ -218,6 +218,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             venue: venue.clone(),
             depth: Agents::depth_of(lineage.as_ref()),
             attended,
+            reports: policy.reports.clone(),
         })
     });
     let created = SessionCreated {
@@ -244,6 +245,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         dir: jobs_dir,
         blobs: kept.clone(),
         ids: Arc::clone(&job_ids),
+        roster: Roster::default(),
+        agents: agents.clone(),
     };
     let (inbox, mailbox) = mpsc::unbounded_channel();
     let guard = Guard::new(
@@ -391,6 +394,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             venue: created.venue,
             depth: created.depth.unwrap_or(0),
             attended,
+            reports: policy.reports.clone(),
         })
     });
     let kept = blobs.clone();
@@ -400,8 +404,9 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         .last()
         .map_or_else(Clock::default, |event| Clock::since(event.at));
     let count = events.len();
-    // 她看过的文件从日志里的效果重建（施工 4-6 上）：内核收走日志之前。
+    // 她看过的文件（施工 4-6 上）、派出去的任务（施工 7-4）从日志里重建：内核收走日志之前。
     let seen = effects::seen_in(&events);
+    let roster = Roster::from_events(&events);
     let (mut session, first) =
         Session::load(events, clock.now(), policy, environment).map_err(LoadError::Kernel)?;
     // 重启以后接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）；给头看的限额同上（施工 6-3 补）。检查点重读过的
@@ -414,6 +419,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         dir: jobs_dir,
         blobs: kept.clone(),
         ids: Arc::clone(&job_ids),
+        roster,
+        agents: agents.clone(),
     };
     let waiting = session.waiting_children();
     let (inbox, mailbox) = mpsc::unbounded_channel();

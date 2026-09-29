@@ -184,6 +184,7 @@ fn printing(language: Language) -> Plan {
         format: Format::Text,
         cwd: String::new(),
         dirs: Vec::new(),
+        files: Vec::new(),
         language,
         human: Human::default(),
         home: None,

@@ -17,9 +17,10 @@
 | `crates/miyu-drivers/src/openai_chat/usage.rs` | 各家的用量归成四项 |
 | `crates/miyu-drivers/src/sse.rs` | SSE 分帧 |
 | `crates/miyu-drivers/src/classify.rs` | 出错分类、要等多久、原话 |
-| `crates/miyu-drivers/src/texts.rs` | 给模型看的五句占位 |
+| `crates/miyu-drivers/src/texts.rs` | 给模型看的几句：五句占位，文本文件的三句（施工 3-9 三补） |
+| `crates/miyu-drivers/src/text_file.rs` | 什么算文本文件、最多给多少（施工 3-9 三补） |
 | `crates/miyu-drivers/src/base64.rs` | data URL 用的 base64 |
-| `resources/core/drivers/` | 五句占位的原文 |
+| `resources/core/drivers/` | 那几句的原文 |
 
 ### 对外的样子
 
@@ -60,7 +61,7 @@
 2. **system**：第一条 `{"role":"system","content":…}`；空的不发。
 3. **user**：
    - 全是文字的，`content` 是一个字符串：相邻两块之间补一个换行，前一块已经以换行结尾的不补；空的一块什么都不接。
-   - 有能发的图片、文件的（第 9 条），`content` 是几段：`{"type":"text","text":…}`、`{"type":"image_url","image_url":{"url":…}}`、`{"type":"file","file":{"filename":…,"file_data":…}}`；连着的文字照上面拼成一段。
+   - 有能发的图片、文件的（第 9 条），`content` 是几段：`{"type":"text","text":…}`、`{"type":"image_url","image_url":{"url":…}}`、`{"type":"file","file":{"filename":…,"file_data":…}}`；连着的文字照上面拼成一段。发不了的图片、文件换成的字（占位、文本文件的内容）照文字拼。
    - 思考、工具调用、不认识的块不写。一个字都没有的，`content` 是空串。
 4. **assistant**：
    - 正文各块直接接上，不补换行，写进 `content`。没有正文、有工具调用的，`content` 写 `null`；两样都没有的，写空串。
@@ -72,20 +73,24 @@
    - `arguments`：参数原文是一个 JSON 对象的，一个字节不改；空的、坏的、不是对象的，写 `{}`。
 6. **tool**：`{"role":"tool","tool_call_id":…,"content":…}`。
    - `tool_call_id` 和对应那次调用的 `id` 一样。
-   - 文字照 user 的拼法；一个字都没有的，写 `no-output.txt` 那一句；只有能发的图片、文件、没有字的，写 `tool-attachments-only.txt` 那一句。
+   - 文字照 user 的拼法，发不了的图片、文件换成的字也照文字拼；一个字都没有的，写 `no-output.txt` 那一句；只有能发的图片、文件、没有字的，写 `tool-attachments-only.txt` 那一句。
    - 统一的请求里的 `error` 不发：出错写在内容里。
 7. **挪出来的附件**：tool 消息里能发的图片、PDF 挪走，一串 tool 消息完了（下一条不是 tool、或者到了最后），插一条 user：第一段是 `tool-attachments.txt` 那一句，后面照先后放它们。没有要挪的不插。
 8. **工具面**：`[{"type":"function","function":{"name":…,"description":…,"parameters":…}}]`，照统一的请求的先后，参数格式原样。工具面是空的、历史里也没有工具调用的，不发 `tools`；历史里有调用的，发 `[]`（有的网关要）。
 9. **图片、文件**：
    - 图片：`Call.inputs.images` 是真的，写成 data URL；不是的，换成 `image-omitted.txt` 那一句，照文字接上。
-   - 文件：`Call.inputs.pdf` 是真的、媒体类型正好是 `application/pdf` 的，写成 data URL 放进 `file`，`filename` 是文件名；别的换成 `file-omitted.txt` 那一句，带文件名和媒体类型。
+   - 文件，照这个先后，先对上的算：
+     1. `Call.inputs.pdf` 是真的、媒体类型正好是 `application/pdf` 的：写成 data URL 放进 `file`，`filename` 是文件名。
+     2. 内容是文本文件（整份是合法的 UTF-8，又没有 NUL 字节；媒体类型、扩展名不看，`crates/miyu-drivers/src/text_file.rs`），快照里有文本文件的三句的（施工 3-9 三补）：照文字接上，`file-open.txt`（带文件名）、内容、`file-close.txt`。内容原样，不转义（和检查点里重读的文件一样，`kernel/request.md`）；末尾没有换行的补一个，空的只有开头收尾。最多给 64 KiB（65,536 字节），多的截在字的边界上，开头那一行后面先写 `file-cut.txt`：给了多少、一共多少字节。原文整份留在 blob 里。
+     3. 别的：换成 `file-omitted.txt` 那一句，带文件名、媒体类型、大小（字节数），照文字接上。
+   - 为什么文本文件照字给（施工 3-9 三补，2026-09-30 项目主人定附件现在就排）：哪个模型都读得了字，不用另有本事；64 KiB 的上限是一个附件不占掉大半个上下文，它每次请求都跟着。以前造的快照里没有那三句，文本文件照第 3 小条写占位（`file-omitted.txt` 那时也没有大小）。
    - data URL：`data:<媒体类型>;base64,<内容>`，base64 用 RFC 4648 的标准字母表，末尾补 `=`。字节由执行器照 `blobs_needed` 先取出来交进来，驱动不碰文件。
 10. **接着写**：开关是 `Prefix`、统一的请求带着 `continuation` 的：
     - 最后一条是 user 的（只有被打断的那一句），不发；
     - 写好以后最后一条是 assistant（半截那条）的，加上 `"prefix":true` 或 `"partial":true`；
     - `path` 是开关里的路径：只看开关和记号，最后几条的样子不对也发到那里。
     - 别的情形（开关是 `None`，或者没带记号）照原样发，`path` 是 `/chat/completions`。
-11. **要哪些 blob**（`blobs_needed`）：user 和 tool 消息里的图片（能看图时）、PDF（能读 PDF 时）。assistant 里的不算。
+11. **要哪些 blob**（`blobs_needed`）：user 和 tool 消息里的图片（能看图时）、每一个文件（施工 3-9 三补：发不了的也要认是不是文本、要写有多大）。assistant 里的不算。
 12. **`Encoded.messages`**：每条线上的消息 JSON 在 `body` 里的起止，照先后。
 
 ### 怎么走：解码
@@ -197,6 +202,7 @@
 | `empty-tools.json` | 工具面是空的、历史里有调用：`"tools":[]` |
 | `unknown-block.json` | 不认识的块不写 |
 | `media.json`、`media-omitted.json` | 图片、PDF 写成 data URL；不能收的换成占位 |
+| `text-files.json` | 文本文件照字放进消息、带着文件名，空的只有开头收尾；二进制的、不是 UTF-8 的、读不了的 PDF 换成占位，带大小（施工 3-9 三补） |
 | `tool-attachments.json`、`tool-attachments-omitted.json` | 工具结果里的图挪到后面；不能看图的就地换成占位 |
 | `reasoning-dropped.json`、`reasoning-deepseek.json`、`reasoning-field.json` | 思考不回传；DeepSeek 每条都带；写进 `reasoning` |
 | `continuation-deepseek.json` | 接着写：没有最后那句提示，半截带 `"prefix":true` |
@@ -205,17 +211,36 @@
 
 **流**，样本在同一目录的 `streams/` 下：`.sse` 是进去的字节，`.txt` 是解出来的，一行一条：`deepseek-reasoning-tools`、`openai-text`（CRLF）、`tool-call-fragments`、`late-name`、`moonshot-usage-in-choice`、`gateway-noise`、`stream-error`、`cut-off`、`content-filter`、`length`、`bad-json`、`done-without-finish`、`ended-early`。
 
-**给模型看的占位**，原文在 `resources/core/drivers/`，行尾的换行也算，登记在 `26-提示词.md` 第十节：
+**给模型看的几句**，原文在 `resources/core/drivers/`，行尾的换行也算，登记在 `26-提示词.md` 第十节：
 
 | 文件 | 原文 | 字段 |
 |---|---|---|
 | `image-omitted.txt` | `An image was attached here, but this model cannot view images.` | 没有 |
-| `file-omitted.txt` | `A file was attached here ({name}, {media_type}), but this model cannot read it.` | `name`、`media_type`，照模板的规矩转义 |
+| `file-omitted.txt` | `A file was attached here ({name}, {media_type}, {size} bytes), but this model cannot read it.` | `name`、`media_type`、`size`（字节数，施工 3-9 三补），照模板的规矩转义 |
 | `no-output.txt` | `The tool returned no output.` | 没有 |
 | `tool-attachments.txt` | `These images and files were returned by the tool calls above.` | 没有 |
 | `tool-attachments-only.txt` | `The tool returned only images or files. They are in the next message.` | 没有 |
+| `file-open.txt` | `<file name="{name}">` | `name`，照模板的规矩转义（施工 3-9 三补） |
+| `file-cut.txt` | `Only the first {shown} of {total} bytes of this file are shown.` | `shown`、`total`（施工 3-9 三补） |
+| `file-close.txt` | `</file>` | 没有（施工 3-9 三补） |
 
-五份在 `DriverTexts::new` 时读成模板，拿字段试换一次：`file-omitted` 只能要 `name`、`media_type`，别的四份不能要字段。原文随会话的策略快照（`policy.md`）。
+几份在 `DriverTexts::new` 时读成模板，拿字段试换一次：`file-omitted` 只能要 `name`、`media_type`、`size`，`file-open` 只能要 `name`，`file-cut` 只能要 `shown`、`total`，别的不能要字段。原文随会话的策略快照（`policy.md`）；文本文件的三句以前造的快照里没有。
+
+`text-files.json` 这份样本里那条 user 的 `content`，写开来是：
+
+```text
+看看这几个文件
+<file name="notes.md">
+# 待办
+- 写测试
+- 跑 CI
+</file>
+<file name="empty.txt">
+</file>
+A file was attached here (data.bin, application/octet-stream, 12 bytes), but this model cannot read it.
+A file was attached here (old.txt, text/plain, 5 bytes), but this model cannot read it.
+A file was attached here (报告.pdf, application/pdf, 15 bytes), but this model cannot read it.
+```
 
 ### 出错
 
@@ -236,12 +261,14 @@
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-drivers/tests/openai_chat.rs` | 只有文字；输出上限和用量两个开关；工具调用、编号、参数兜底、没有输出的占位；user 的换行；空工具面；不认识的块；空的 system 不发；每条消息的位置 |
-| `crates/miyu-drivers/tests/openai_chat_media.rs` | 图片、PDF 写成 data URL；不能收的占位；工具结果里的附件挪到后面、或者就地占位；思考的三种回传；缺 blob 报错；要哪些 blob |
+| `crates/miyu-drivers/tests/openai_chat_media.rs` | 图片、PDF 写成 data URL；不能收的占位；工具结果里的附件挪到后面、或者就地占位；思考的三种回传；缺 blob 报错；要哪些 blob（文件每一个都要） |
+| `crates/miyu-drivers/tests/openai_chat_files.rs` | 文本文件（施工 3-9 三补）：照字放进消息、带文件名，空的，二进制的、不是 UTF-8 的、读不了的 PDF 写占位带大小（样本）；能读 PDF 的照旧发 `file`；超过 64 KiB 的截掉、写明给了多少；工具结果里的照字进 `content`；以前造的快照没有那三句的写占位；缺 blob 报错 |
+| `crates/miyu-drivers/src/text_file/tests.rs` | 什么算文本：空的、UTF-8、BOM 算，NUL（在后面的也算）、Latin-1、PDF 不算；截到 64 KiB、截在字的边界上 |
 | `crates/miyu-drivers/tests/openai_chat_continuation.rs` | DeepSeek 接着写（样本、路径、半截带思考）；没有开关或者没有记号一字不变；`partial` 的写法 |
 | `crates/miyu-drivers/tests/openai_chat_streams.rs` | 十三份流的样本；从哪里切开喂都一样；累积器一条都不拒；解出来的编码回去用供应商的编号；驱动的接口走一遍；`error` 是 `false`、`0`、`[]` 的是噪声，有内容的照旧出错；流里的限速连同要等多久交回；`finished()` 在 `finish_reason` 到了以后才说是 |
 | `crates/miyu-drivers/src/sse/tests.rs` | 三种换行、切开的 CRLF、几行 data 和注释、只有注释、事件名、切开的汉字、断在半条上、从哪里切开都一样 |
 | `crates/miyu-drivers/src/classify/tests.rs` | 每一类的例子；提到 token 的限速不当超长；额度算认证失败；要等多久的四种写法；`x-should-retry`；原话和 2000 字节；HTTP 状态码另记一格，连不上的、流里报的没有（施工 3-5 三补） |
-| `crates/miyu-drivers/src/texts/tests.rs` | 文件名换进去、转义；不该有的字段报错 |
+| `crates/miyu-drivers/src/texts/tests.rs` | 文件名换进去、转义；以前的 `file-omitted` 没有大小照样换得出；文本文件带文件名、补换行、空的、截过的写明、文件名转义内容原样；没有那三句的交回空的；不该有的字段报错 |
 | `crates/miyu-drivers/src/base64/tests.rs` | RFC 4648 的测试值，`+`、`/` |
 | `crates/miyu-assemble/tests/probe.rs`、`random_logs.rs` | 编码以后也是上一次的前缀延伸（接着写那一次拿不接着写的编码比） |
 

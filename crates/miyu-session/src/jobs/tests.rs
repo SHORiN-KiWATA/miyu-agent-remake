@@ -50,13 +50,15 @@ fn session(
     used: u64,
 ) -> (SessionJobs, mpsc::UnboundedReceiver<Back>) {
     let (backs, back) = mpsc::unbounded_channel();
-    let jobs = SessionJobs::new(
-        table,
-        scratch.0.join("session"),
-        scratch.blobs(),
-        Arc::new(JobIds::starting_after(used)),
-        backs,
-    );
+    let kit = Kit {
+        table: Arc::clone(table),
+        dir: scratch.0.join("session"),
+        blobs: scratch.blobs(),
+        ids: Arc::new(JobIds::starting_after(used)),
+        roster: Roster::default(),
+        agents: None,
+    };
+    let jobs = SessionJobs::new(kit, backs);
     (jobs, back)
 }
 
@@ -247,4 +249,47 @@ async fn an_output_file_that_cannot_be_made_refuses_the_job() {
     assert!(jobs.port(call(), cause()).start(held.background()).is_err());
     assert_eq!(held.killed(), 1, "收不下的整组杀掉");
     assert!(!table.running());
+}
+
+/// 她、人停的（施工 7-4）：还在表里、还没人报过的才停。
+fn who() -> Who {
+    Who {
+        by: By::Tool(Tool { call_id: call() }),
+        cause: cause(),
+        by_model: true,
+    }
+}
+
+#[tokio::test]
+async fn stopping_after_it_ended_on_its_own_does_nothing() {
+    let scratch = Scratch::new();
+    let table = Arc::new(Jobs::new());
+    let (jobs, mut back) = session(&scratch, &table, 0);
+    let held = Held::new(&[]);
+    let job = jobs.port(call(), cause()).start(held.background()).unwrap();
+    held.end(Exit::Code(0));
+    // 自己退出的已经报了、还没落盘：表里还有它，停也不再杀、不再报第二条。
+    let ended = next_end(&mut back).await;
+    assert!(table.running(), "还没落盘，还在表里");
+    assert!(jobs.stop_command(job, who()).await.is_none(), "只认先到的");
+    assert_eq!(held.killed(), 0);
+    assert_eq!(ended.reported.reason, JobReason::Exited);
+}
+
+#[tokio::test]
+async fn a_stopped_job_is_not_reported_again_when_its_process_ends() {
+    let scratch = Scratch::new();
+    let table = Arc::new(Jobs::new());
+    let (jobs, mut back) = session(&scratch, &table, 0);
+    let held = Held::new(&["x\n"]);
+    let job = jobs.port(call(), cause()).start(held.background()).unwrap();
+    until_written(&scratch.output(1), "x\n").await;
+    let stopped = jobs.stop_command(job, who()).await.expect("在跑，停得了");
+    assert_eq!(stopped.reported.reason, JobReason::Stopped);
+    assert!(stopped.reported.by_model);
+    assert_eq!(stopped.reported.chars, Some(2), "带到这时的输出");
+    assert_eq!(held.killed(), 1);
+    // 杀掉以后等着它的那一头照常去报：表里已经记成报了，收件箱里什么都不来。
+    let later = tokio::time::timeout(Duration::from_millis(300), back.recv()).await;
+    assert!(later.is_err(), "不交第二次：{later:?}");
 }

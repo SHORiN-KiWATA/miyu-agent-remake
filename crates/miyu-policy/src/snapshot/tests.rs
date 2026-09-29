@@ -130,11 +130,26 @@ fn each_driver_placeholder_is_its_own() {
     assert_eq!(texts.no_output(), drivers.no_output);
     assert_eq!(texts.tool_attachments(), drivers.tool_attachments);
     assert_eq!(texts.tool_attachments_only(), drivers.tool_attachments_only);
+    let omitted = texts.file_omitted("a.pdf", "application/pdf", 1234);
     assert!(
-        texts
-            .file_omitted("a.pdf", "application/pdf")
-            .contains("a.pdf")
+        omitted.contains("a.pdf") && omitted.contains("1234"),
+        "{omitted}"
     );
+    // 文本文件的三句（施工 3-9 三补）：出厂的快照带着，开头、截过的、收尾各是各的。
+    let text = drivers.text_file.expect("出厂的带着");
+    let wrapped = texts
+        .text_file("a.md", &"x".repeat(70_000))
+        .expect("有三句");
+    assert!(wrapped.starts_with(&text.file_open.replace("{name}", "a.md")));
+    assert!(
+        wrapped.contains(
+            &text
+                .file_cut
+                .replace("{shown}", "65536")
+                .replace("{total}", "70000")
+        )
+    );
+    assert!(wrapped.ends_with(&text.file_close));
 }
 
 /// 压缩（施工 6-2 上）：出厂的快照带着压缩的数和摘要指令，造出的策略会主动压；以前造的快照没有这两格，读回来照旧，

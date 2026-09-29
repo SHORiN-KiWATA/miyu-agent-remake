@@ -21,7 +21,8 @@
 | `crates/miyu-session/src/kinds.rs`、`lines.rs` | 运行日志里的输入、动作种类名，和几种写法 |
 | `crates/miyu-session/src/blocking.rs` | 在阻塞线程里做完磁盘上的事 |
 | `crates/miyu-session/src/tools.rs`、`effects.rs`、`restore.rs` | 执行工具、效果、改回文件（`session/tools.md`） |
-| `crates/miyu-session/src/jobs.rs`、`job_ids.rs` | 执行器的任务表、任务编号（`session/tools.md` 第 5 条，施工 7-3） |
+| `crates/miyu-session/src/jobs.rs`、`job_ids.rs` | 执行器的任务表、任务编号（`session/tools.md` 第 5 条，施工 7-3）；列出、读、停（第 6 条，施工 7-4） |
+| `crates/miyu-session/src/actor/halt.rs` | 停掉任务：人停一个、父会话停下时全停（施工 7-4） |
 | `crates/miyu-session/src/reread.rs` | 压完重读文件、照 blob 取回原文（`compaction.md` 第九条） |
 | `crates/miyu-session/src/guard.rs` | 权限策略（`session/guard.md`） |
 | `crates/miyu-session/src/spawn.rs`、`agents.rs`、`job_ids.rs` | 造子会话的端口、派子代理、领任务编号（施工 7-5，`session/tools.md`「派子代理」） |
@@ -52,6 +53,8 @@
 | `command(编号, 谁, 命令)` | 发一个命令，等回应：接受的，它产生的事件落了盘才回；拒绝的当场回。编号由发的一方生成，同一个编号只生效一次（`kernel/session.md`） |
 | `subscribe()` | 订阅：从这一刻起的推送 |
 | `stop()` | 有计划地停下，停好了才回 |
+| `stop_job(编号, 谁, 命令编号)` | 人停掉派出去的一个任务（协议的 `job.stop`，施工 7-4）：回报落了盘才回；没有、已经结束了的交回 `JobError` |
+| `stop_jobs(谁, 命令编号)` | 停掉这个会话派出去、还没结束的全部，连它们派的（父会话停下它时，会话表经端口来调，施工 7-4）：都带 `by_model`、不叫醒它，停好了才回 |
 | `environment(环境)` | 环境变了：工作目录、时区 |
 
 `Pushed` 有两种：`Events`，落了盘的几条事件，照先后；`Transient`，一条瞬时事件，不落盘。`Subscription` 有 `next()`（等下一份）、`try_next()`（不等，没到的是空的）；断了的是 `Ended::Lagged`（掉了队）或 `Ended::Stopped`（会话停了）。
@@ -104,6 +107,7 @@
    | 订阅 | 当场交回一个订阅，不进内核 |
    | 环境变了 | 送进内核：不当场注入，到下一个边界再查（`kernel/session.md`） |
    | 停下 | 第 9 条 |
+   | 停掉任务（施工 7-4） | 后台命令当场在阻塞线程里杀、存，回报当场交进内核、落了盘再回；子代理另起一个任务经会话表去停，回报送回来落了盘再回：不在收件箱里等，回报才送得进来（`crates/miyu-session/src/actor/halt.rs`，`session/tools.md` 第 6 条） |
 
 5. 执行器的一封，照 actor 的时钟记下到的时刻：
 

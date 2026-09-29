@@ -25,6 +25,7 @@ fn ask(words: &[&str]) -> Ask {
         resume: false,
         format: Format::Text,
         add_dir: Vec::new(),
+        file: Vec::new(),
     }
 }
 
@@ -83,4 +84,27 @@ fn an_added_dir_is_made_absolute_and_must_be_a_directory() {
     assert!(directory("no-such-dir-for-miyu-cli-tests").is_err());
     let file = Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
     assert!(directory(&file.to_string_lossy()).is_err(), "文件不算");
+}
+
+/// `--file`（施工 3-9 三补）：读参数时只换成绝对的，不查在不在；照写的先后，写了几次附几次。
+#[test]
+fn files_are_made_absolute_and_kept_in_order() {
+    let here = std::env::current_dir().expect("有工作目录");
+    assert_eq!(absolute("a.png"), Ok(here.join("a.png")));
+    assert_eq!(
+        absolute("no-such-file"),
+        Ok(here.join("no-such-file")),
+        "在不在由核心说"
+    );
+    let root = if cfg!(windows) { r"C:\x.png" } else { "/x.png" };
+    assert_eq!(absolute(root), Ok(PathBuf::from(root)));
+    let resources = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");
+    let (a, b) = (PathBuf::from("/work/a.png"), PathBuf::from("/work/b.md"));
+    let args = Ask {
+        file: vec![a.clone(), b.clone(), a.clone()],
+        ..ask(&["hi"])
+    };
+    let planned = plan(args, &env(resources, None), Language::English);
+    let shown = |path: &PathBuf| path.to_string_lossy().into_owned();
+    assert_eq!(planned.files, [shown(&a), shown(&b), shown(&a)]);
 }

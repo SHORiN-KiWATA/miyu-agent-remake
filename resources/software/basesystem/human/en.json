@@ -46,6 +46,11 @@
       "name": "Subagent",
       "subject": "description",
       "icon": "↗"
+    },
+    "jobs": {
+      "name": "Jobs",
+      "subject": "action",
+      "icon": "≡"
     }
   },
   "said": {
@@ -114,6 +119,12 @@
     "history/none": "Nothing found",
     "history/no-log": "Could not read the history: {error}",
     "agent/started": "Started {job}",
-    "agent/not-started": "Could not start"
+    "agent/not-started": "Could not start",
+    "jobs/listed": "Listed {count} jobs",
+    "jobs/none": "No jobs",
+    "jobs/output": "Read the output of {job}",
+    "jobs/stopped": "Stopped {job}",
+    "jobs/unknown": "No job {id}",
+    "jobs/ended": "{job} has already ended"
   }
 }

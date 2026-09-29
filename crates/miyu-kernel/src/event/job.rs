@@ -71,6 +71,10 @@ pub struct ChildReported {
     /// （`agents.md` 第二条第 4 条）。
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub person: bool,
+    /// 不是人停的：只跟着 `stopped`。她自己用 `jobs` 停的，或者它的父会话被停下时连它一起停的（施工 7-4）；只记下，不叫醒
+    /// 父会话（`agents.md` 第三条第 3 条）。人用 `job.stop` 停的是假，叫醒她。
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub by_model: bool,
 }
 
 text_enum!(

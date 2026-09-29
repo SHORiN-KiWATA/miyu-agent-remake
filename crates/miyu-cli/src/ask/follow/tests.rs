@@ -25,6 +25,7 @@ fn plan(format: Format, language: Language) -> Plan {
         format,
         cwd: under(&["work"]).to_string_lossy().into_owned(),
         dirs: Vec::new(),
+        files: Vec::new(),
         language,
         human: Human::load(&resources, language.code()).expect("出厂的字读得出来"),
         home: Some(under(&["home"])),

@@ -13,17 +13,14 @@ fn reports(chars: usize) -> Reports {
 
 #[test]
 fn a_text_up_to_the_limit_is_kept_whole() {
-    assert_eq!(cut("", &reports(4)), (String::new(), false));
-    assert_eq!(
-        cut("一二三四", &reports(4)),
-        ("一二三四".to_string(), false)
-    );
+    assert_eq!(reports(4).cut(""), (String::new(), false));
+    assert_eq!(reports(4).cut("一二三四"), ("一二三四".to_string(), false));
 }
 
 #[test]
 fn a_longer_text_keeps_half_its_limit_from_each_end() {
     assert_eq!(
-        cut("一二三四五六七", &reports(4)),
+        reports(4).cut("一二三四五六七"),
         (
             "一二\n[... 3 characters omitted ...]\n六七".to_string(),
             true
@@ -31,7 +28,7 @@ fn a_longer_text_keeps_half_its_limit_from_each_end() {
     );
     // 上限是单数的，尾巴多一个字。
     assert_eq!(
-        cut("abcdefg", &reports(3)),
+        reports(3).cut("abcdefg"),
         ("a\n[... 4 characters omitted ...]\nfg".to_string(), true)
     );
 }
@@ -42,5 +39,5 @@ fn an_empty_omitted_line_leaves_a_line_break() {
         chars: 2,
         omitted: Template::parse("").unwrap(),
     };
-    assert_eq!(cut("abcd", &bare), ("a\nd".to_string(), true));
+    assert_eq!(bare.cut("abcd"), ("a\nd".to_string(), true));
 }

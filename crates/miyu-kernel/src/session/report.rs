@@ -111,7 +111,7 @@ impl Duty {
     pub(super) fn take(&mut self, reports: &Reports) -> Option<Upward> {
         let (turn, reason) = self.ended.clone()?;
         let person = self.owed.take()?;
-        let (text, truncated) = cut(&self.answer, reports);
+        let (text, truncated) = reports.cut(&self.answer);
         let upward = Upward {
             turn,
             reason: match reason {
@@ -153,24 +153,31 @@ impl Session {
     }
 }
 
-/// 截正文：超过 `reports.chars` 个字的留头尾各一半，中间接一行省了多少个字。交回正文和截没截过。
-fn cut(text: &str, reports: &Reports) -> (String, bool) {
-    let total = text.chars().count();
-    if total <= reports.chars {
-        return (text.to_string(), false);
+impl Reports {
+    /// 截回报的正文：超过 `chars` 个字的留头尾各一半，中间接一行省了多少个字。交回正文和截没截过。子会话向上回报用它，
+    /// 父会话那边停掉子代理时交回的回报也用它（施工 7-4，`miyu-session` 的 `jobs/stop.rs`）：两处截出来的一样。
+    ///
+    /// # Panics
+    ///
+    /// 实际不会：造策略时拿 `count` 试换过那一行。
+    pub fn cut(&self, text: &str) -> (String, bool) {
+        let total = text.chars().count();
+        if total <= self.chars {
+            return (text.to_string(), false);
+        }
+        let head_chars = self.chars / 2;
+        let tail_chars = self.chars - head_chars;
+        let head: String = text.chars().take(head_chars).collect();
+        let tail: String = text.chars().skip(total - tail_chars).collect();
+        let count = (total - self.chars).to_string();
+        let seam = self
+            .omitted
+            .render(&BTreeMap::from([("count", count.as_str())]))
+            .unwrap_or_else(|error| {
+                panic!("the omitted line was tried with count when the policy was built: {error}")
+            });
+        (format!("{head}\n{seam}{tail}"), true)
     }
-    let head_chars = reports.chars / 2;
-    let tail_chars = reports.chars - head_chars;
-    let head: String = text.chars().take(head_chars).collect();
-    let tail: String = text.chars().skip(total - tail_chars).collect();
-    let count = (total - reports.chars).to_string();
-    let seam = reports
-        .omitted
-        .render(&BTreeMap::from([("count", count.as_str())]))
-        .unwrap_or_else(|error| {
-            panic!("the omitted line was tried with count when the policy was built: {error}")
-        });
-    (format!("{head}\n{seam}{tail}"), true)
 }
 
 #[cfg(test)]

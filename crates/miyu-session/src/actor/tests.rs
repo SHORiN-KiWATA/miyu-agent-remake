@@ -163,6 +163,8 @@ async fn a_write_that_fails_stops_the_session() {
             dir: std::path::PathBuf::new(),
             blobs: miyu_store::blob::Blobs::new(std::path::PathBuf::new()),
             ids: Arc::new(crate::job_ids::JobIds::starting_after(0)),
+            roster: crate::jobs::Roster::default(),
+            agents: None,
         },
         guard,
         mailbox,

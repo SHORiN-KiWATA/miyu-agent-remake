@@ -82,6 +82,20 @@ impl SessionPort for Table {
         let events = vec![Seq::new(2).expect("从 1 数起")];
         Box::pin(async move { Ok(Outcome::Accepted { events }) })
     }
+
+    /// 派子代理用不到停和看（施工 7-4）。
+    fn stop(
+        &self,
+        _session: SessionId,
+        _id: CommandId,
+        _by: By,
+    ) -> Pending<'_, Result<(), String>> {
+        Box::pin(async { Ok(()) })
+    }
+
+    fn peek(&self, _session: SessionId) -> Pending<'_, Result<miyu_session::Peek, String>> {
+        Box::pin(async { Ok(miyu_session::Peek::default()) })
+    }
 }
 
 /// 第 `n` 个子会话的编号。

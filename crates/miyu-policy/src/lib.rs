@@ -15,6 +15,7 @@ mod pause;
 mod rebuild;
 mod shorten;
 mod snapshot;
+mod text_file;
 mod tools;
 
 #[cfg(test)]
@@ -30,4 +31,5 @@ pub use snapshot::{
     BuildError, CompactionNumbers, CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts,
     PermissionTexts, Snapshot, SnapshotError, ToolResultTexts, TurnEndedTexts,
 };
+pub use text_file::TextFileTexts;
 pub use tools::{RunTexts, ToolEntry};

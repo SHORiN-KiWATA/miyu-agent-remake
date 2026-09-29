@@ -76,10 +76,35 @@ impl Refusal {
         code: REFUSED,
         reason: "session_broken",
     };
+    /// 没有这个任务，或者它已经结束了（施工 7-4，`job.stop`）。
+    pub(crate) const UNKNOWN_JOB: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_job",
+    };
     /// 加进来的目录太宽（施工 5-10 上）：家目录、根目录、包含数据根的、落在数据根里的。
     pub(crate) const DIR_TOO_WIDE: Refusal = Refusal {
         code: REFUSED,
         reason: "dir_too_wide",
+    };
+    /// `blob.put` 读不了这个文件（施工 3-9 三补）：换不成真实的位置、没有、不是普通文件、没有权限。
+    pub(crate) const ATTACHMENT_UNREADABLE: Refusal = Refusal {
+        code: REFUSED,
+        reason: "attachment_unreadable",
+    };
+    /// 附件太大（施工 3-9 三补）：超过 20 MiB；图片超过 5 MiB，或者哪一边超过 8000 像素。
+    pub(crate) const ATTACHMENT_TOO_BIG: Refusal = Refusal {
+        code: REFUSED,
+        reason: "attachment_too_big",
+    };
+    /// `blob.put` 的文件在数据根里、管理员的工作区以外（施工 3-9 三补）。
+    pub(crate) const ATTACHMENT_IN_DATA_ROOT: Refusal = Refusal {
+        code: REFUSED,
+        reason: "attachment_in_data_root",
+    };
+    /// `session.send` 附的 blob 这个核心里没有（施工 3-9 三补）。
+    pub(crate) const UNKNOWN_ATTACHMENT: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_attachment",
     };
 
     /// 内核拒了这个命令。
@@ -125,6 +150,22 @@ impl Refusal {
                 "加进来的目录太宽：家目录、根目录、Miyu 的数据根不能整个放行。",
                 "An added directory is too wide: the home directory, the root and Miyu's data root cannot be opened up whole.",
             ),
+            "attachment_unreadable" => (
+                "读不了这个文件：没有、不是普通文件，或者没有权限。",
+                "This file cannot be read: it is missing, not a regular file, or not permitted.",
+            ),
+            "attachment_too_big" => (
+                "附件太大：一个最多 20 MiB，图片最多 5 MiB、每边最多 8000 像素。",
+                "The attachment is too big: at most 20 MiB, and an image at most 5 MiB and 8000 pixels a side.",
+            ),
+            "attachment_in_data_root" => (
+                "Miyu 的数据根里的文件不能当附件。",
+                "Files in Miyu's data root cannot be attached.",
+            ),
+            "unknown_attachment" => (
+                "附件不在核心里：先用 blob.put 传上来。",
+                "The attachment is not in the core; upload it with blob.put first.",
+            ),
             "not_running" => (
                 "没有正在进行的回合，打断不了。",
                 "No turn is running, so there is nothing to interrupt.",
@@ -146,6 +187,10 @@ impl Refusal {
                 "An undo or restore is still in progress; try again when it is done.",
             ),
             "nothing_to_revert" => ("没有能撤销的回合。", "There is no turn to undo."),
+            "unknown_job" => (
+                "没有这个任务，或者它已经结束了。",
+                "There is no such job, or it has already ended.",
+            ),
             "nothing_to_compact" => (
                 "没有能压的：还没压过的内容都在原样留着的最近一段里。",
                 "Not enough to compact: everything not yet compacted is in the recent part that stays as it is.",
