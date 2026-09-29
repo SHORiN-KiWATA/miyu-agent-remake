@@ -23,9 +23,20 @@ pub struct History {
     events: Vec<Event>,
     /// 还能恢复的几次撤销，各拿走了哪些事件（照日志的先后），最近的一次在最后。
     undone: Vec<Vec<Event>>,
+    /// 留着一切的那一份（[`History::whole`]）：压缩替代掉的不丢。
+    whole: bool,
 }
 
 impl History {
+    /// 留着一切的一份（施工 6-4）：压缩替代掉的不丢，`context.compacted` 自己也照先后留在 [`History::events`] 里，
+    /// 没有检查点；撤销、恢复、撤回照同一套规矩算。`history` 照它算日志里哪些还算数。
+    pub fn whole() -> History {
+        History {
+            whole: true,
+            ..History::default()
+        }
+    }
+
     /// 最近一次压缩的检查点；没压缩过就没有。
     pub fn checkpoint(&self) -> Option<&Event> {
         self.checkpoint.as_ref()
@@ -54,6 +65,7 @@ impl History {
                 .cloned()
                 .collect(),
             undone: Vec::new(),
+            whole: self.whole,
         }
     }
 
@@ -85,11 +97,15 @@ impl History {
     /// 追加一条账本查过的事件。
     ///
     /// 压缩：换上新的检查点，序号在它 `upto` 之前的事件和旧的检查点一起丢掉，
-    /// 新摘要里已经包着它们。撤销：撤掉的回合连同跟着撤的话拿走，先放在一边；恢复：放回原处
+    /// 新摘要里已经包着它们；留着一切的那一份（[`History::whole`]）什么都不丢，压缩照先后留成一条。撤销：撤掉的回合连同跟着撤的话拿走，先放在一边；恢复：放回原处
     /// （`history/undo.rs`）；下一轮开始、压缩了，放在一边的就丢掉。撤回：丢掉撤回的消息。`turn.reverted`、
     /// `turn.unreverted`、`message.withdrawn` 本身用过就丢，它们不进上下文。其余的照先后留着。
     pub fn append(&mut self, event: Event) {
         match &event.body {
+            Body::ContextCompacted(_) if self.whole => {
+                self.events.push(event);
+                self.undone.clear();
+            }
             Body::ContextCompacted(compacted) => {
                 let upto = compacted.upto;
                 self.events.retain(|kept| kept.seq > upto);

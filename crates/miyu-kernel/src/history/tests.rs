@@ -1,10 +1,11 @@
 //! 有效历史的测试：没压缩过时全都在；压缩一次、再压一次；被动压缩保下来的尾巴；照请求排；
-//! 撤回。撤销与恢复在 `tests/undo.rs`。事件都先交给账本查过，保证测的是合规的日志。
+//! 撤回。撤销与恢复在 `tests/undo.rs`，留着一切的那一份在 `tests/whole.rs`。事件都先交给账本查过，保证测的是合规的日志。
 
 use super::*;
 use crate::ledger::Ledger;
 
 mod undo;
+mod whole;
 
 const CREATED: &str = r#"{"owner":"alice","venue":"local","policy":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","permission":{"level":"workspace","read_only":false}}"#;
 const ALICE: &str = r#"{"kind":"person","account":"alice"}"#;

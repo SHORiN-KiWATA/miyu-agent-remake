@@ -5,27 +5,9 @@ mod support;
 
 use miyu_kernel::event::Said;
 use miyu_kernel::id::ContentHash;
-use miyu_store::human::Human;
-use miyu_store::resources::ResourceRoot;
-use miyu_tool::{Done, Seen};
+use miyu_tool::Seen;
 
-use support::{Site, resources};
-
-/// 基础系统的说法。
-fn said(key: &str) -> Said {
-    Said::new(format!("software/basesystem/{key}"))
-}
-
-/// 核对 `got` 就是 `want`，记下来，最后一起查两份字里有没有。
-fn check(checked: &mut Vec<Said>, got: Said, want: Said) {
-    assert_eq!(got, want);
-    checked.push(got);
-}
-
-/// 这次调用给人看的说法。
-fn human(done: Done) -> Said {
-    done.human.expect("每一种结果都带说法")
-}
+use support::{Site, check, human, readable, said};
 
 #[tokio::test]
 async fn every_outcome_says_something_people_can_read() {
@@ -224,23 +206,6 @@ async fn every_outcome_says_something_people_can_read() {
     );
 
     readable(&checked, &["read", "glob", "grep"]);
-}
-
-/// 会说的每一种，中文、英文两份字里都有，换得出字；这几件工具都有显示名。
-fn readable(checked: &[Said], tools: &[&str]) {
-    let root = ResourceRoot::at(resources());
-    for language in ["zh", "en"] {
-        let words = Human::load(&root, language).expect("给人看的字读得出来");
-        for said in checked {
-            assert!(words.say(said).is_some(), "{language} 没有 {said:?}");
-        }
-        for tool in tools {
-            assert!(
-                words.tool(tool).is_some(),
-                "{language} 没有 {tool} 的显示名"
-            );
-        }
-    }
 }
 
 #[tokio::test]

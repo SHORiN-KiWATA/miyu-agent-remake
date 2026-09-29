@@ -15,6 +15,7 @@ use miyu_kernel::event::{Level, Permission};
 use miyu_kernel::id::ModuleId;
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::session::Verdict;
+use miyu_kernel::time::UtcOffset;
 use miyu_kernel::tool::{Access, Worded};
 use miyu_policy::GuardTexts;
 use miyu_tool::{Call, Catalog, Stop, Target};
@@ -108,6 +109,8 @@ impl Guard {
             seen: Arc::default(),
             stop: Stop::default(),
             sandbox: None,
+            log: None,
+            offset: UtcOffset::UTC,
         });
         if targets.is_empty() {
             return untargeted(level, name, access, self.sandboxed);

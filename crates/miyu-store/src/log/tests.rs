@@ -1,5 +1,5 @@
 //! 会话日志的测试：写几批、关掉再打开；换段；崩了留下的半行；坏了的几种；空的最后一段；没有这个
-//! 会话；真会话来回一趟。都在临时目录里。
+//! 会话；只读地一段一段读；真会话来回一趟。都在临时目录里。
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -308,6 +308,44 @@ fn reading_skips_a_half_written_line_and_writes_nothing() {
     let (_, events) = SessionLog::open(&dir, 64).unwrap();
     assert_eq!(events, said_range(1, 3));
     assert_ne!(fs::read_to_string(&last).unwrap(), text, "载入截掉了半行");
+}
+
+#[test]
+fn segments_are_read_one_at_a_time_until_told_to_stop() {
+    // 施工 6-4：`history` 一段一段读，叫停了不读下去。
+    let scratch = Scratch::new();
+    let dir = dir(&scratch);
+    let mut log = SessionLog::create(&dir, 10).unwrap();
+    log.append(&said_range(1, 2)).unwrap();
+    log.append(&said_range(3, 5)).unwrap();
+    log.append(&said_range(6, 6)).unwrap();
+    let last = dir.join(segment_names(&dir).last().unwrap());
+    let mut text = fs::read_to_string(&last).unwrap();
+    text.push_str("{\"seq\":7,\"at\"");
+    fs::write(&last, &text).unwrap();
+    let mut got = Vec::new();
+    read_segments(&dir, |events| {
+        got.push(events);
+        true
+    })
+    .unwrap();
+    assert_eq!(got, [said_range(1, 2), said_range(3, 5), said_range(6, 6)]);
+    assert_eq!(
+        fs::read_to_string(&last).unwrap(),
+        text,
+        "半行跳过，一个字节都没动"
+    );
+    let mut got = Vec::new();
+    read_segments(&dir, |events| {
+        got.push(events);
+        false
+    })
+    .unwrap();
+    assert_eq!(got, [said_range(1, 2)], "说了不读就停");
+    assert!(matches!(
+        read_segments(&scratch.path().join("nobody"), |_| true),
+        Err(OpenError::Missing(_))
+    ));
 }
 
 #[test]

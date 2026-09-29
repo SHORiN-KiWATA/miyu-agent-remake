@@ -133,6 +133,39 @@ impl Timestamp {
         let end = hour + 1;
         format!("{weekday} {year:04}-{month:02}-{day:02} {hour:02}:00–{end:02}:00")
     }
+
+    /// 这个时刻在 `offset` 那个时区的钟点，到分钟：`2026-09-29 14:03`（施工 6-4，`history` 给每一条写时刻）。
+    pub fn local_minute(self, offset: UtcOffset) -> String {
+        let local = self.0 + i64::from(offset.0) * 60_000;
+        let (year, month, day) = civil_from_days(local.div_euclid(MS_PER_DAY));
+        let minutes = local.rem_euclid(MS_PER_DAY) / 60_000;
+        format!(
+            "{year:04}-{month:02}-{day:02} {:02}:{:02}",
+            minutes / 60,
+            minutes % 60
+        )
+    }
+
+    /// `offset` 那个时区的某年某月某日某时某分，换回时刻（施工 6-4，`history` 读 `since`、`until`）。日期不存在的、
+    /// 钟点不在 0:00 到 23:59 之间的、出了 0000 年到 9999 年的，没有。
+    pub fn from_local(
+        year: i64,
+        month: i64,
+        day: i64,
+        hour: i64,
+        minute: i64,
+        offset: UtcOffset,
+    ) -> Option<Timestamp> {
+        let exists = (1..=12).contains(&month)
+            && (1..=days_in_month(year, month)).contains(&day)
+            && (0..24).contains(&hour)
+            && (0..60).contains(&minute);
+        if !exists {
+            return None;
+        }
+        let local = days_from_civil(year, month, day) * MS_PER_DAY + (hour * 60 + minute) * 60_000;
+        Timestamp::from_unix_millis(local - i64::from(offset.0) * 60_000)
+    }
 }
 
 /// 一个时区：比 UTC 早多少分钟，东边是正的。
@@ -143,6 +176,9 @@ impl Timestamp {
 pub struct UtcOffset(i32);
 
 impl UtcOffset {
+    /// 零时区。
+    pub const UTC: UtcOffset = UtcOffset(0);
+
     /// 由分钟数得到时区，东边是正的。超出 −14:00 到 +14:00 返回 `None`。
     pub fn from_minutes(minutes: i32) -> Option<UtcOffset> {
         (-MAX_OFFSET_MINUTES..=MAX_OFFSET_MINUTES)

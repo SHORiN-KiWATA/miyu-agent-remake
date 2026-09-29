@@ -147,6 +147,9 @@ async fn a_write_that_fails_stops_the_session() {
             seen: miyu_tool::Seen::new(),
             sandbox: None,
             sandbox_cache: None,
+            // 这个测试不跑工具：日志不会被读。
+            log: miyu_tool::Log::new(crate::store::LogDir(std::path::PathBuf::new())),
+            offset: miyu_kernel::time::UtcOffset::UTC,
         },
         guard,
         mailbox,

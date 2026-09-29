@@ -72,17 +72,6 @@ Reply with the <analysis> block and then the <summary> block, nothing else. Do n
 
 ### 还没进请求
 
-#### `core/checkpoint-rule.txt`
-
-- 什么时候加进来：不拼（2026-09-27 项目主人定）。施工 6-3 下实测以后挪进了检查点包装的结尾，换成更短的一句（见 `checkpoint-close.txt`）；这一份没有程序读
-- token：41
-- 为什么加：压缩以后接着干、不复述摘要（施工 1-12）。只有压缩过的会话用得上
-- 指纹：`0c320f4c`
-
-```text
-A <conversation-checkpoint> replaces the earlier part of a long conversation with a summary. After one, continue any work in progress without asking whether to. Do not acknowledge or recap the summary.
-```
-
 #### `core/permission-rule.txt`
 
 - 什么时候加进来：不拼（2026-09-27 项目主人定）。施工 5-4 下实测：不拼它，被沙盒挡住的写 4 次都认得出是沙盒、不绕（`11-权限与沙盒.md` 第四节），照旧不拼
@@ -861,6 +850,94 @@ Could not run {shell}: {error}.
 Running in the background is not available yet. Run the command in the foreground, with a larger timeout if it is slow.
 ```
 
+#### `software/basesystem/history/none.txt`
+
+- 什么时候加进来：筛完、找完一条都没有
+- token：4（2026-09-29 量）
+- 为什么加：照「没找到」的规矩：不算出错，说一句（施工 6-4）
+- 指纹：`d5cd41ae`
+
+```text
+No entries found
+```
+
+#### `software/basesystem/history/more-found.txt`
+
+- 什么时候加进来：「找」命中的多过这一页
+- token：18（2026-09-29 量）
+- 为什么加：一共几条、往前翻从哪接（`to` 是这一页最早那一条的前一条，施工 6-4）
+- 指纹：`c76053e0`
+
+```text
+(Showing {shown} of {total} results. Use to={next} to see older ones.)
+```
+
+#### `software/basesystem/history/more-read.txt`
+
+- 什么时候加进来：「读」这一页后面还有
+- token：15（2026-09-29 量）
+- 为什么加：这一页是第几到第几条、往下从哪接（施工 6-4）
+- 指纹：`580bd2f2`
+
+```text
+(Showing entries {first}-{last}. Use from={next} to continue.)
+```
+
+#### `software/basesystem/history/cut.txt`
+
+- 什么时候加进来：一条就超过整页的上限，截掉的那一条末尾
+- token：13（2026-09-29 量）
+- 为什么加：说清这一条截了、一共多少字（施工 6-4）
+- 指纹：`0bbec816`
+
+```text
+(This entry is cut at {shown} of its {total} characters.)
+```
+
+#### `software/basesystem/history/bad-time.txt`
+
+- 什么时候加进来：`since`、`until` 写得不对
+- token：34（2026-09-29 量）
+- 为什么加：带上正确的写法，她下一次照着写（施工 6-4）
+- 指纹：`53f79d4f`
+
+```text
+"{value}" is not a time. Write it like 2026-09-29 14:00, or just 2026-09-29.
+```
+
+#### `software/basesystem/history/no-log.txt`
+
+- 什么时候加进来：读不了这个会话的日志
+- token：13 加原因（2026-09-29 量）
+- 为什么加：每次调用都要有结果，带上原因（施工 6-4）
+- 指纹：`88ffadd8`
+
+```text
+Could not read the log: {error}
+```
+
+#### `software/basesystem/history/image.txt`
+
+- 什么时候加进来：一条里的图片
+- token：3（2026-09-29 量）
+- 为什么加：占位：原图不重发（施工 6-4）
+- 指纹：`5d6bf8aa`
+
+```text
+[image]
+```
+
+#### `software/basesystem/history/file.txt`
+
+- 什么时候加进来：一条里的文件
+- token：5（2026-09-29 量）
+- 为什么加：占位，写上文件名（施工 6-4）
+- 指纹：`2f11a44e`
+
+```text
+[file {name}]
+```
+
 #### `software/basesystem/common/not-read.txt`
 
 - 什么时候加进来：`write`、`edit` 要改的文件已经在了、她这个会话里没看过
@@ -1040,6 +1117,20 @@ The tool returned only images or files. They are in the next message.
 {
   "description": "Search file contents with a regular expression (ripgrep syntax), respecting .gitignore. Prefer this over grep or rg in the shell. `output_mode` picks file paths (default), matching lines, or counts per file.",
   "parameters": {"type":"object","properties":{"pattern":{"type":"string","description":"Literal braces need escaping, like interface\\{\\}."},"path":{"type":"string","description":"The file or directory to search. Default is the working directory."},"glob":{"type":"string","description":"Searches only files matching this glob, like *.rs."},"output_mode":{"type":"string","enum":["content","files_with_matches","count"],"description":"Default files_with_matches."},"-i":{"type":"boolean","description":"Case-insensitive."},"context":{"type":"integer","description":"Lines shown before and after each match in content mode."},"head_limit":{"type":"integer","description":"Results to show at most. Default 250. 0 means no limit."},"offset":{"type":"integer","description":"Results to skip first. Default 0."}},"required":["pattern"]}
+}
+```
+
+#### `software/basesystem/tools/history.json`
+
+- 什么时候加进来：会话的工具面里有 `history`（每次请求都带）
+- token：197
+- 为什么加：`history` 的说明和参数（施工 6-4）：说明两句，是什么、压缩换出去的也找得回；参数照图纸，`limit` 只写默认值。量法同上，八件一起时的边际份量（2026-09-29 照项目主人给的端点、`deepseek-v4.1-flash` 量）
+- 指纹：`65964932`
+
+```json
+{
+  "description": "Search or read back earlier parts of this conversation, including what compaction moved out of context. Entries are numbered in log order.",
+  "parameters": {"type":"object","properties":{"query":{"type":"string","description":"Words to look for. Without it, entries are listed in order."},"from":{"type":"integer","description":"First entry number."},"to":{"type":"integer","description":"Last entry number."},"since":{"type":"string","description":"Earliest time, like 2026-09-29 14:00."},"until":{"type":"string","description":"Latest time."},"by":{"type":"string","enum":["user","assistant","tool"]},"limit":{"type":"integer","description":"Default 20."}}}
 }
 ```
 

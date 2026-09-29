@@ -17,7 +17,7 @@ use miyu_store::blob::{BlobError, Blobs};
 use miyu_store::log::{OpenError, SEGMENT_LIMIT, SessionLog, abandon};
 use miyu_store::resources::{ResourceRoot, SourceError};
 use miyu_store::root::DataRoot;
-use miyu_tool::{Catalog, Seen};
+use miyu_tool::{Catalog, Log, Seen};
 
 use crate::TARGET;
 use crate::actor::{self, Actor};
@@ -28,6 +28,7 @@ use crate::guard::Guard;
 use crate::handle::Handle;
 use crate::port::{ForSession, Models};
 use crate::sandbox::SandboxCache;
+use crate::store::LogDir;
 use crate::tools::ToolKit;
 
 /// 造一个会话要的。
@@ -156,6 +157,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let count = face.len();
     let dir = root.session_dir(&owner, &id);
     let abandoned = dir.clone();
+    let log_dir = LogDir(dir.clone());
+    let offset = environment.offset;
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
     let (snapshot, policy, texts, run, guard, log) = blocking(move || {
@@ -209,6 +212,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             seen: Seen::new(),
             sandbox: sandbox.map(Path::to_path_buf),
             sandbox_cache,
+            log: Log::new(log_dir),
+            offset,
         },
         guard,
         mailbox,
@@ -272,6 +277,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     } = setup;
     let span = actor::span(&id);
     let dir = root.session_dir(&owner, &id);
+    let log_dir = LogDir(dir.clone());
+    let offset = environment.offset;
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
     let (log, events, policy, texts, run, guard) = blocking(move || {
@@ -323,6 +330,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             seen,
             sandbox: sandbox.map(Path::to_path_buf),
             sandbox_cache,
+            log: Log::new(log_dir),
+            offset,
         },
         guard,
         mailbox,

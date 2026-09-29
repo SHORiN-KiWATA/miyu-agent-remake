@@ -9,8 +9,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, SystemTime};
 
 use miyu_kernel::block::Block;
+use miyu_kernel::event::{Event, Said};
 use miyu_sandbox::Sandboxed;
-use miyu_tool::{Call, Done, Progress, Seen, Stop, Tool};
+use miyu_store::human::Human;
+use miyu_store::resources::ResourceRoot;
+use miyu_tool::{Call, Done, Log, Progress, ReadLog, Seen, Stop, Tool};
 
 /// 源码树里的资源目录。
 pub fn resources() -> PathBuf {
@@ -128,6 +131,20 @@ impl Site {
         tool(name).run(call, Progress::new(|_| {})).await
     }
 
+    /// 在 `work/` 里调一次工具，交给它这个会话的日志 `events`（施工 6-4：`history` 读它）。
+    pub async fn done_with_log(
+        &self,
+        name: &str,
+        args: serde_json::Value,
+        events: Vec<Event>,
+    ) -> Done {
+        let call = Call {
+            log: Some(Log::new(OneSegment(events))),
+            ..self.call_for("work", args, Seen::new(), Stop::default())
+        };
+        tool(name).run(call, Progress::new(|_| {})).await
+    }
+
     /// 在场地里的 `cwd` 这个工作目录里的一次调用，不关进沙盒。
     fn call_for(&self, cwd: &str, args: serde_json::Value, seen: Seen, stop: Stop) -> Call {
         Call {
@@ -138,6 +155,8 @@ impl Site {
             seen: Arc::new(seen),
             stop,
             sandbox: None,
+            log: None,
+            offset: miyu_kernel::time::UtcOffset::UTC,
         }
     }
 }
@@ -163,5 +182,48 @@ pub fn absolute(real: &Path) -> String {
     match text.strip_prefix(r"\\?\") {
         Some(rest) => rest.to_string(),
         None => text.into_owned(),
+    }
+}
+
+/// 假的会话日志：只有一段（施工 6-4）。
+struct OneSegment(Vec<Event>);
+
+impl ReadLog for OneSegment {
+    fn read(&self, each: &mut dyn FnMut(Vec<Event>) -> bool) -> Result<(), String> {
+        each(self.0.clone());
+        Ok(())
+    }
+}
+
+/// 基础系统的说法。
+pub fn said(key: &str) -> Said {
+    Said::new(format!("software/basesystem/{key}"))
+}
+
+/// 核对 `got` 就是 `want`，记下来，最后一起查两份字里有没有。
+pub fn check(checked: &mut Vec<Said>, got: Said, want: Said) {
+    assert_eq!(got, want);
+    checked.push(got);
+}
+
+/// 这次调用给人看的说法。
+pub fn human(done: Done) -> Said {
+    done.human.expect("每一种结果都带说法")
+}
+
+/// 查过的每一种说法，中文、英文两份字里都有、换得出字；`tools` 这几件都有显示名。
+pub fn readable(checked: &[Said], tools: &[&str]) {
+    let root = ResourceRoot::at(resources());
+    for language in ["zh", "en"] {
+        let words = Human::load(&root, language).expect("给人看的字读得出来");
+        for said in checked {
+            assert!(words.say(said).is_some(), "{language} 没有 {said:?}");
+        }
+        for tool in tools {
+            assert!(
+                words.tool(tool).is_some(),
+                "{language} 没有 {tool} 的显示名"
+            );
+        }
     }
 }

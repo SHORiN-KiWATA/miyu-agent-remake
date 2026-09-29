@@ -192,7 +192,10 @@ impl Actor {
                 Mail::Done
             }
             Message::Stop(reply) => Mail::Stop(reply),
-            Message::Environment(environment) => Mail::Input(Input::Environment(environment)),
+            Message::Environment(environment) => {
+                self.tools.locate(environment.offset);
+                Mail::Input(Input::Environment(environment))
+            }
         }
     }
 

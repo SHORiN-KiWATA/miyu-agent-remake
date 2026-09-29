@@ -68,6 +68,8 @@ fn grep_comes_from_the_resources() {
         seen: Default::default(),
         stop: Default::default(),
         sandbox: None,
+        log: None,
+        offset: miyu_kernel::time::UtcOffset::UTC,
     });
     assert_eq!(targets[0].path, "src");
     assert!(!targets[0].write);

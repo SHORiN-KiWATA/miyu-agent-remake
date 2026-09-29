@@ -39,6 +39,8 @@ fn glob_comes_from_the_resources() {
             seen: Default::default(),
             stop: Default::default(),
             sandbox: None,
+            log: None,
+            offset: miyu_kernel::time::UtcOffset::UTC,
         })
     };
     assert_eq!(target(r#"{"pattern":"*.rs"}"#)[0].path, ".");
