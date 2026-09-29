@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>118</b><span>/ 128 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理</span></li>
-    <li><b>7-3</b><span>下一步：两条线并行，7-3 后台命令（接上 main 中）和 7-6 子会话回报（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">977b5e4</b><span>最近一步（7-5 派子代理）的提交</span></li>
+    <li><b>119</b><span>/ 128 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑</span></li>
+    <li><b>7-4</b><span>下一步：两条线并行，7-4 jobs 和 job.stop、7-6 子会话回报（Windows 上跑命令那一步暂停）</span></li>
+    <li><b class="mono">6d50be5</b><span>最近一步（7-3 后台命令）的提交</span></li>
   </ul>
 </header>
 
@@ -473,7 +473,7 @@ a.step:hover{border-color:var(--primary)}
       <ol class="chips">
         <li><a class="step done" href="#s7-1"><span class="n">7-1</span>任务的事件<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-2"><span class="n">7-2</span>回报到了<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">7-3</span>后台命令</span></li>
+        <li><a class="step done" href="#s7-3"><span class="n">7-3</span>后台命令<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-4</span>jobs 和 job.stop</span></li>
         <li><a class="step done" href="#s7-5"><span class="n">7-5</span>派子代理<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-6</span>子会话回报</span></li>
@@ -8897,6 +8897,65 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>kernel/session.md</code>、<code>kernel/request.md</code>、<code>kernel/history.md</code>、<code>agents.md</code>。</li>
         <li><code>docs/construction/7-2-回报到了.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s7-3" aria-labelledby="h-s73">
+  <div class="sheet-head"><h2 id="h-s73"><span class="no">7-3</span>后台命令</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她能把命令放到后台跑：<code>shell</code> 写了 <code>run_in_background</code> 的，起来就返回编号，命令接着跑，跑完记 <code>job.reported</code>，照 7-2 的规矩叫醒她。核心有后台命令就不空闲退出，重启、崩了都有交代。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">shell run_in_background</span><span class="dir-note">miyu-session/src/jobs.rs</span></div>
+            <ol class="pipe" aria-label="后台命令怎么走">
+              <li>照前台判权限、进沙盒、同一份环境变量白名单；起来交给任务表，当场返回编号</li>
+              <li>输出一直写进会话目录的 <code>jobs/&lt;编号&gt;.out</code>；结束了存 blob、记 <code>job.reported</code>，落了盘才从表里拿掉</li>
+              <li>有计划地停：先记 <code>restarted</code> 再整组杀；载入时没结束的补 <code>aborted</code></li>
+              <li>任务编号和子代理共用一串（和 7-5 合并时对齐）</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">timeout 不管后台</span><span class="rl">一直开着的服务不结束，也就不回报</span></div>
+          <div class="tile"><span class="nm">留到 7-8</span><span class="rl">核心崩了后台命令还活着：各平台的进程树管理</span></div>
+          <div class="tile"><span class="nm">留到 7-9</span><span class="rl">miyu ask 里印给人看的「放到后台了」</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-3</dd></div>
+        <div><dt>名称</dt><dd>后台命令</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">6d50be5</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>端口 <code>JobPort</code>、执行器的任务表、<code>shell/background.rs</code>；核心空闲判断算上后台命令。和 7-5 并行施工，工具面九件重量，预算 6100 字节。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>三个平台的真进程测试、沙盒里照样关着；手写 34 个变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型：这一轮里跑完的下一步看到；<code>miyu ask</code> 退出以后跑完的只记下，<code>-c</code> 时看到</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>agents.md</code> 第四条、<code>tools/shell.md</code>、<code>session/tools.md</code>、<code>core.md</code>。</li>
+        <li><code>docs/construction/7-3-后台命令.md</code>。</li>
       </ul>
     </div>
   </div>
