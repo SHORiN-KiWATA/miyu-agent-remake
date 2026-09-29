@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>113</b><span>/ 115 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求</span></li>
-    <li><b>6-3</b><span>下一步：压好了那一行改成「上下文已压缩」；拆 M7 分身在做（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">754ed30</b><span>最近一步（6-10 M6 验收）的提交</span></li>
+    <li><b>114</b><span>/ 115 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求</span></li>
+    <li><b>M7</b><span>下一步：拆 M7 分身（子代理、后台命令、给子代理留言），拆好请你批准（Windows 上跑命令那一步暂停）</span></li>
+    <li><b class="mono">c9c0a2e</b><span>最近一步（6-3 再补 压好了那一行改说法）的提交</span></li>
   </ul>
 </header>
 
@@ -453,7 +453,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s6-3a"><span class="n">6-3</span>模型资料和限额（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-3b"><span class="n">6-3</span>接上真模型（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-3c"><span class="n">6-3</span>限额推给头（补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">6-3</span>压好了那一行改说法（再补）</span></li>
+        <li><a class="step done" href="#s6-3d"><span class="n">6-3</span>压好了那一行改说法（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-4"><span class="n">6-4</span>history<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-5"><span class="n">6-5</span>检查点里的几段和压后重建<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-6a"><span class="n">6-6</span>失败和熔断（上）<span class="st">✓</span></a></li>
@@ -8011,6 +8011,59 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>protocol.md</code>（<code>subscribe</code>）、<code>kernel/session.md</code>、<code>session/actor.md</code>；设计 04 第九节。</li>
         <li><code>docs/construction/6-3-会话的模型限额推给头（补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s6-3d" aria-labelledby="h-s63d">
+  <div class="sheet-head"><h2 id="h-s63d"><span class="no">6-3</span>压好了那一行改说法（再补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">压缩好了那一行，中文从「上下文压缩好了」改成「上下文已压缩」，<code>miyu ask</code>、<code>miyu compact</code> 和终端界面说法一致。英文 <code>Context compacted</code> 不动。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">压好了那一行</span><span class="dir-note">ask/follow/compacting.rs</span></div>
+            <ol class="pipe" aria-label="改了什么">
+              <li><code>· 上下文已压缩：812.3k → 31k token</code></li>
+              <li>样本、蓝图三页跟着改；旧施工单里记的当时印出来的不改</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">两个头一个说法</span><span class="rl">照终端界面的改（项目主人定）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-3 再补</dd></div>
+        <div><dt>名称</dt><dd>压好了那一行改说法</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">c9c0a2e</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>先改期望，改代码以前 6 个测试红；改了那一句和两处注释。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>门禁八项全过，三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/6-3-压好了那一行改说法（再补）.md</code>。</li>
       </ul>
     </div>
   </div>
