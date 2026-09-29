@@ -36,6 +36,7 @@
 | `MIYU_RESOURCES` | 资源目录，开发时指到源码树的 `resources/`（`store.md`） |
 | `MIYU_LOG` | 运行日志记到哪一级（`log.md`） |
 | `DEEPSEEK_API_KEY` | 模型的 key，起来时读一次 |
+| `MIYU_DEV_BASE_URL`、`MIYU_DEV_MODEL` | 开发用：设了 key 的，替换地址、模型（下面「模型」第 1 条，施工 3-9 再补）。不进 `-h`，配置系统做好以后删掉 |
 | `XDG_RUNTIME_DIR`（Linux）、`TMPDIR` | 套接字放哪（`ipc.md`） |
 | `HTTPS_PROXY`、`HTTP_PROXY`、`NO_PROXY` 这些 | 请求模型走不走代理（`http.md`） |
 
@@ -103,6 +104,8 @@
    | 空闲超时 | 180 秒：多久没收到新的字节就算断了（`http.md`） |
    | 代理 | 照环境变量（`http.md`） |
    | key | 去掉前后空白；只在内存里，不落盘、不写配置、不进日志 |
+
+   开发用的两个变量（施工 3-9 再补，2026-09-29 项目主人定）：`MIYU_DEV_BASE_URL` 去掉前后空白不是空的，替换地址，端点的编号改成 `dev`；`MIYU_DEV_MODEL` 去掉前后空白不是空的，替换模型名，不合模型名写法的起不来，原因写明是这个变量。别的照上表。设了哪个，`INFO` 记一条 `dev endpoint base_url=<地址> model=<模型>`。
 
    HTTP 客户端造不出来（系统的证书读不了之类）：起不来。
 2. 没设、空的、全是空白：照样起来，记一条 `WARN DEEPSEEK_API_KEY not set, no model`。每次请求都当场说完、没发出去：出错，分类 `auth`（认证失败），原话 `no model: set DEEPSEEK_API_KEY`；`model.called` 里没有端点和模型（没发出去）。分类是认证失败，内核不重试（`kernel/session.md`）。运行日志里 `request` 那一行写 `endpoint=none model=none`。
