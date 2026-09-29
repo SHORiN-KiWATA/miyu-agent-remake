@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>122</b><span>/ 134 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑</span></li>
+    <li><b>123</b><span>/ 134 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来</span></li>
     <li><b>7-4</b><span>下一步：两条线并行，7-4 jobs 和 job.stop、7-6 子会话回报（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">c2a56a7</b><span>最近一步（2-3 补 回复每一块的起止时刻）的提交</span></li>
+    <li><b class="mono">6373ac7</b><span>最近一步（7-6 子会话回报）的提交</span></li>
   </ul>
 </header>
 
@@ -482,7 +482,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s7-3"><span class="n">7-3</span>后台命令<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-4</span>jobs 和 job.stop</span></li>
         <li><a class="step done" href="#s7-5"><span class="n">7-5</span>派子代理<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">7-6</span>子会话回报</span></li>
+        <li><a class="step done" href="#s7-6"><span class="n">7-6</span>子会话回报<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-7</span>父子之间留言</span></li>
         <li><span class="step"><span class="n">7-8</span>撤销、删除和压缩</span></li>
         <li><span class="step"><span class="n">7-9</span>miyu ask 等子代理</span></li>
@@ -9185,6 +9185,65 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>agents.md</code> 第一条、<code>tools/agent.md</code>。</li>
         <li><code>docs/construction/7-5-派子代理.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s7-6" aria-labelledby="h-s76">
+  <div class="sheet-head"><h2 id="h-s76"><span class="no">7-6</span>子会话回报</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">子会话的一轮结束时，该报的向上回报：父会话收到 <code>child.reported</code>，7-2 的规矩开轮、排队、渲染。孙代理都报完了才报；崩了的补报，父会话不会一直等。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一轮结束</span><span class="dir-note">session/report.rs</span></div>
+            <ol class="pipe" aria-label="要不要报">
+              <li>父会话开的、进过父会话留言的报；人自己开的、自己的子代理开的不报</li>
+              <li>还有派出去没报完的先不报，都报完、被叫醒的几轮结束再一起报</li>
+              <li>报最后的回答，超 3 万字留头尾；人插过话注明；出错、步数上限照报</li>
+              <li>执行器经端口交给父会话，<code>unknown_job</code> 退避重试 30 秒（父会话还没记下派它的那一次）</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">载入再交一次</span><span class="rl">送到一半崩了，同一个编号重交，父会话认得出</span></div>
+          <div class="tile new"><span class="nm">叫起子会话</span><span class="rl">父会话载入时把没回报的子会话叫起来</span></div>
+          <div class="tile"><span class="nm">编号同名</span><span class="rl">孙代理也叫 j1，7-1 补改成 j2.1</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-6</dd></div>
+        <div><dt>名称</dt><dd>子会话回报</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">6373ac7</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>内核向上回报、执行器交回报、会话表的 <code>open</code>；和 7-3 的载入合在一起（先 Recall，再重交回报，再补后台命令的 aborted）。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>内核场景 26 条、执行器 3 条、真核心两层和重启叫起；手写 36 个变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型：两个子代理、一个孙代理，回报一层层上来，<code>-c</code> 时她把三份合起来答对</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>agents.md</code> 第二条、第八条、<code>kernel/session.md</code>「向上回报」。</li>
+        <li><code>docs/construction/7-6-子会话回报.md</code>。</li>
       </ul>
     </div>
   </div>
