@@ -25,6 +25,7 @@
 | `crates/miyu-session/src/reread.rs` | 压完重读文件、照 blob 取回原文（`compaction.md` 第九条） |
 | `crates/miyu-session/src/guard.rs` | 权限策略（`session/guard.md`） |
 | `crates/miyu-session/src/spawn.rs`、`agents.rs`、`job_ids.rs` | 造子会话的端口、派子代理、领任务编号（施工 7-5，`session/tools.md`「派子代理」） |
+| `crates/miyu-session/src/report.rs` | 向上回报：子会话把内核交出的回报经端口交给父会话；父会话载入以后叫起还没回报的子会话（施工 7-6） |
 | `crates/miyu-session/src/testkit.rs` | 测试用的、照剧本回的端口，`testkit` 开关打开才有 |
 
 ### 对外的样子
@@ -37,7 +38,7 @@
 | `Handle` | 一个会话的收件箱，可以复制，几个头一起拿着 |
 | `Pushed`、`Subscription`、`Ended`、`Stopped` | 推送、订阅、订阅断了、会话停了 |
 | `Models`、`ForSession`、`ModelPort`、`Reports`、`Cancel` | 请求模型的端口 |
-| `SessionPort`、`Child`、`Lineage`、`Pending` | 造子会话、给别的会话发命令的端口（施工 7-5）：会话表实现，造会话、载入时交进来 |
+| `SessionPort`、`Child`、`Lineage`、`Pending` | 造子会话、给别的会话发命令的端口（施工 7-5）：会话表实现，造会话、载入时交进来。`create(子会话)`、`command(会话, 编号, 谁, 命令)`，`open(会话)` 叫起一个会话：没在跑的照会话表的规矩载入（施工 7-6） |
 | `HttpModels`、`IDLE` | 端口的真实现；空闲超时 180 秒 |
 | `Jobs` | 执行器的任务表，核心里一张：`Jobs::new()`，`running()` 有没有在跑的后台命令（结束了、记录还没落盘的也算，施工 7-3） |
 
@@ -70,7 +71,7 @@
 2. 造请求模型的端口。时钟从现在起。
 3. `session.created` 写属主、场所、快照的哈希、开始时的权限，`oneshot` 照交进来的，子会话写 `parent`、`depth`（施工 7-5）；交给内核造会话，`cause` 是造会话的命令。
    马上交给内核这个模型的限额（`Input::Limits`，端口的 `limits()`：窗口、最大输出、一张图怎么算，施工 6-3 上），在别的输入之前；什么动作都不出。接着向内核要一份给头看的限额（`context_limits()`），交回的 `Handle` 带着它（施工 6-3 补）。
-4. 造权限策略、执行工具的端口（她看过的是空的；任务编号照内核的 `last_job_number()` 往下数，派子代理要照抄的那一份照交进来的，施工 7-5；actor 建它那一份任务表，和派子代理共用这一串编号，施工 7-3）、actor；记下造会话的命令在等回应。
+4. 造权限策略、执行工具的端口（她看过的是空的；任务编号照内核的 `last_job_number()` 往下数，派子代理要照抄的那一份照交进来的，施工 7-5；actor 建它那一份任务表，和派子代理共用这一串编号，施工 7-3）、actor；子会话交回报的那一头（「向上回报」，施工 7-6）；记下造会话的命令在等回应。
 5. 在会话的 span 里记一行 `created`，起 actor。
 6. 等回应：`session.created` 落了盘，内核回应这个命令，交回 `Handle`。actor 在那之前停了的，交回 `CreateError::Stopped`（「出错」一节），在阻塞线程里删掉这个会话的目录：只剩一段空的第一段时才删，别的不动（施工 4-9 再补四下：原来留在磁盘上）。已经存下的快照留着：按内容存，别的会话可能也在用，回收随 blob 回收那一步。
 
@@ -85,7 +86,7 @@
 4. 从日志里的效果重建她看过的（`session/tools.md`）。
 5. 交给内核载入：交回会话，和一串要回的动作。有计划的重启打断了的一轮接着干，崩了的那一轮标成没走完（`kernel/session.md`）。
    马上交给内核这个模型的限额，同上：接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）；给头看的那一份也同上（施工 6-3 补）。检查点重读过的文件，内核在那一串动作的第一个交出 `Recall`，照下面第 4 条读（施工 6-9：认哪个检查点还算数是内核的事，执行器不自己找）。
-6. 造权限策略、执行工具的端口（任务编号、派子代理要照抄的那一份照日志里的 `session.created` 和快照，施工 7-5）、actor；记一行 `loaded`；起 actor，先回那一串动作。
+6. 造权限策略、执行工具的端口（任务编号、派子代理要照抄的那一份照日志里的 `session.created` 和快照，施工 7-5）、actor；子会话交回报的那一头（「向上回报」，施工 7-6）；记一行 `loaded`；叫起还没回报的子会话（内核的 `waiting_children()`，一个一个起任务叫、不等：会话表这时正拿着表的锁载入它，等载入完才轮得到，施工 7-6）；起 actor，先回那一串动作。
 7. 马上交回 `Handle`，不等那一串动作做完。
 
 **3. 收件箱**
@@ -139,6 +140,16 @@
 | 读回日志（`ReadBack`，施工 6-9） | 在阻塞线程里只读地一段一段读这个会话的日志（`store.md` 的 `read_segments`），只留第 `from` 条起的。这期间不收收件箱。读不了的（日志坏了、磁盘出错）：记一行 `read back failed, stopped`，会话停下（第 9 条），和写不进去一样：从磁盘重新载入最清楚 | 读回的事件，从第 `from` 条到最后一条（`kernel/history.md`「撤掉压缩」） |
 | 取回原文（`Recall`，施工 6-9） | 在阻塞线程里照 blob 一个一个读这个会话的 blob，读不出来的、不是 UTF-8 的跳过。这期间不收收件箱 | 读出来的原文，照 blob 找（`kernel/history.md`「重读的原文」） |
 | 把回答交给工具 | 现在没有工具会问：记一行 `ERROR` | |
+| 向上回报（`Report`，施工 7-6） | 交给交回报的那一头，不等（「向上回报」）；没有那一头的（测试里自己造的子会话）交不出去 | |
+
+**向上回报**（施工 7-6，`report.rs`，`agents.md` 第二条第 5 条）
+
+1. 子会话才有交回报的那一头：造会话、载入时，有父会话（`lineage`、日志里 `session.created` 的 `parent`）、有造子会话的端口、造它的命令编号读得出任务编号（`<父会话>/<编号>`，派子代理时写的）才造。有父会话、读不出任务编号的，记一行 `subagent without a job id`，它的回报交不出去。
+2. 内核交出的回报补上任务编号、这个子会话，写成 `child.reported` 的正文，经端口交给父会话：命令 `Report`，`by` 是这个子会话，命令编号 `<子会话>/report/<报的那一轮>`。同一份再交（载入时），编号一样，父会话认得出是重的（`kernel/session.md`「回报」第 10 条）。
+3. 一个会话一个任务，照先后一个一个交，等父会话回应再交下一个：不挡着 actor，先后不乱。actor 退出以后，已经交进来的照样交完。
+4. 父会话拒绝、原因是 `unknown_job` 的，退避着再交同一份（同一个命令编号）：等 100 毫秒，每次翻倍，一共等到 30 秒（`RETRY_FIRST_MS`、`RETRY_TOTAL_MS`）。子代理做得快，回报可能赶在父会话记下派它的那次调用之前，派它的调用一落盘就对得上了（`agents.md` 第二条第 5 条，施工 7-6）。等着的时候后面的回报排着，先后不乱。
+5. 父会话接受了记一行 `reported`；拒绝了（别的原因，或者 `unknown_job` 等满了）记 `report refused`，写原因码；交不到（父会话没了、核心正在停、父会话停了）记 `report not delivered`。都丢掉，不再交：父会话没了的本该一起停了（`agents.md` 第七条第 5 条）；别的拒绝再交也一样。
+6. 父会话载入以后，执行器照内核的 `waiting_children()` 经端口的 `open` 叫起还没回报过的子会话（「载入」第 6 条）：崩了的由它们自己载入时补报，重启打断的接着干（`agents.md` 第八条第 3 条）。叫不起来的记一行 `subagent not woken`。
 
 **5. 落盘、推送、回应**
 
@@ -220,6 +231,11 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | INFO | `subagent started` | `job`、`child` | 派出去一个子代理（施工 7-5，`session/tools.md`「派子代理」） |
 | WARN | `subagent not created` | `job`、`error` | 会话表造不成子会话 |
 | WARN | `subagent not given its task` | `job`、`child`、`error` | 交代没送进子会话 |
+| INFO | `reported` | `job`、`parent` | 父会话接受了回报（施工 7-6，「向上回报」） |
+| WARN | `report refused` | `job`、`parent`、`reason` | 父会话拒绝了回报 |
+| WARN | `report not delivered` | `job`、`parent`、`error` | 回报交不到父会话 |
+| WARN | `subagent without a job id` | `parent` | 有父会话、造它的命令编号读不出任务编号：回报交不出去 |
+| WARN | `subagent not woken` | `child`、`error` | 父会话载入以后叫不起子会话 |
 | WARN | `seen files not rebuilt` | `error` | 第 5 条第 4 点 |
 | WARN | `write failed, stopped` | `kind` | 写不进去 |
 | WARN | `read back failed, stopped` | `error` | 读回日志读不了（第 4 条，施工 6-9） |
@@ -236,7 +252,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | DEBUG | `action` | `kind` | 每一个动作做之前；推送增量、推送执行中的输出记在 TRACE |
 
 - 输入的种类：`command`、`stored`、`environment`、`turn_start_hooks_done`、`request_sent`、`model_delta`、`model_ended`、`woke`、`tool_done`、`tool_progress`、`tool_asks`、`restarting`、`restored`、`read_back`、`recalled`、`tool_guarded`、`job_ended`。
-- 动作的种类：`append`、`reply`、`push`、`run_turn_start_hooks`、`call_model`、`push_transient`、`cancel_model`、`wake`、`run_turn_end_hooks`、`cancel_tool`、`guard_tool`、`answer_tool`、`run_tool`、`restore`、`read_back`、`recall`。
+- 动作的种类：`append`、`reply`、`push`、`run_turn_start_hooks`、`call_model`、`push_transient`、`cancel_model`、`wake`、`run_turn_end_hooks`、`cancel_tool`、`guard_tool`、`answer_tool`、`run_tool`、`restore`、`read_back`、`recall`、`report`（施工 7-6）。
 - 只写种类、编号、数，不写里面的字。
 
 ### 出错
@@ -269,6 +285,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | `crates/miyu-session/src/actor/tests.rs` | 写不进去就停下：等着的命令收到「会话停了」、记一行 `WARN`、不再算在跑、订阅不了、日志里没有对话的字 |
 | `crates/miyu-session/tests/read_back_log.rs`（施工 6-9） | 撤掉压缩时日志读不回来：会话停下，撤销收到「会话停了」，记一行 `read back failed, stopped` |
 | `crates/miyu-session/tests/undo_compaction.rs`（施工 6-9） | 真的会话：撤掉压缩所在的那一轮再恢复，不请求模型，检查点回来、重读的原文照 blob 取回；撤掉以后停了再载入，请求回到压缩前，那次压缩不算了 |
+| `crates/miyu-session/tests/report_up.rs`（施工 7-6） | 子会话把回报交给父会话：命令编号照报的那一轮、`by` 是子会话、任务编号照造它的命令读回；父会话先拒两次 `unknown_job` 再收，同一份交了三次；停了再载入同一份再交一次；父会话载入以后叫起还没回报的子会话，交代不再送 |
 | `crates/miyu-session/src/handle/tests.rs` | 掉过一次队就一直是掉队；会话停了读完剩下的；`try_next` 只拿已经到了的 |
 | `crates/miyu-session/src/clock/tests.rs` | 时钟不往回走、1970 年以前当 0、出了范围停在最后一刻；会话编号是那一刻的 UUIDv7；同一毫秒里连造一千个照先后 |
 | `crates/miyu-session/tests/http.rs` | 经假服务器回复；限速照服务器说的等；打断断开连接；缺 blob 出错、不发；回复断了接着说；卡住的回复照空闲超时；图片照字节发出去 |

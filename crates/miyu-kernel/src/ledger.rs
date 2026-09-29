@@ -13,7 +13,7 @@ use std::fmt;
 
 use crate::block::Block;
 use crate::event::{Body, Event};
-use crate::id::{CallId, JobId, Seq, TurnId};
+use crate::id::{CallId, CommandId, JobId, Seq, SessionId, TurnId};
 
 mod jobs;
 mod undo;
@@ -144,6 +144,16 @@ impl Ledger {
     /// 还没报过结束的后台命令，照编号（施工 7-3：载入时给它们补 `aborted`）。
     pub fn running_commands(&self) -> Vec<JobId> {
         self.jobs.running_commands()
+    }
+
+    /// 派出去、一次都还没回报过的子代理的子会话，照任务编号（施工 7-6）。
+    pub fn waiting_children(&self) -> impl Iterator<Item = &SessionId> {
+        self.jobs.waiting()
+    }
+
+    /// 子代理 `job` 最近一次回报就是命令 `id` 交来的：交回那一条的序号（施工 7-6）。
+    pub fn reported_as(&self, job: JobId, id: &CommandId) -> Option<Seq> {
+        self.jobs.reported_as(job, id)
     }
 
     /// 查 `event` 能不能追加；能，就记下它带来的变化。
@@ -323,7 +333,7 @@ impl Ledger {
     /// 记下查过的这一条带来的变化。
     fn record(&mut self, event: &Event) {
         self.next = event.seq.next();
-        self.jobs.record(&event.body);
+        self.jobs.record(event);
         match &event.body {
             Body::TurnStarted(_) => {
                 let turn = TurnId::new(event.seq);

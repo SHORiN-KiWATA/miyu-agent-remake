@@ -1,6 +1,7 @@
 //! 造子会话、给别的会话发命令的端口（`docs/blueprint/agents.md`「在哪」，施工 7-5）：会话表在协议端点（`miyu-endpoint`），
 //! 比会话 actor 高一层，所以端口在这里定义、由会话表造会话和载入时交进来（`00-设计理念.md` 第四节「依赖与接口的规矩」：
-//! 下层定义窄接口，上层实现）。执行器派子代理时经它造子会话、把交代送进去（`crate::agents`）。
+//! 下层定义窄接口，上层实现）。执行器派子代理时经它造子会话、把交代送进去（`crate::agents`）；子会话经它向上回报
+//! （`crate::report`），父会话载入以后经它叫起还没回报的子会话（施工 7-6）。
 //!
 //! 测试里自己造的会话没有它：`agent` 照派不了出错。
 
@@ -17,7 +18,12 @@ pub trait SessionPort: Send + Sync {
     /// 照 `child` 造一个子会话：`session.created` 落了盘、会话表里有了它才交回编号。
     fn create(&self, child: Child) -> Pending<'_, Result<SessionId, String>>;
 
-    /// 给会话 `session` 发一个命令，等回应：编号 `id`，谁发的 `by`。会话没在跑的，照会话表的规矩先载入。
+    /// 叫起会话 `session`（施工 7-6）：没在跑的照会话表的规矩载入，在跑的什么都不做。父会话载入以后叫起还没回报的子会话：
+    /// 崩了的由它们自己补报、重启打断的接着干（`agents.md` 第八条）。
+    fn open(&self, session: SessionId) -> Pending<'_, Result<(), String>>;
+
+    /// 给会话 `session` 发一个命令，等回应：编号 `id`，谁发的 `by`。会话没在跑的，照会话表的规矩先载入。子会话向上回报也
+    /// 经它交给父会话（施工 7-6，`crate::report`）。
     fn command(
         &self,
         session: SessionId,

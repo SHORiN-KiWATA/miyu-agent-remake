@@ -32,6 +32,19 @@ pub struct Policy {
     pub compaction: Option<Compaction>,
     /// 检查点里代码写的几段的模板（`compaction.md` 第八条，施工 6-5）；没有的不写那几段。
     pub notes: Option<Notes>,
+    /// 子会话向上回报的正文怎么截（施工 7-6，`report.rs`）。
+    pub reports: Reports,
+}
+
+/// 子会话向上回报的正文怎么截（施工 7-6，`docs/blueprint/agents.md` 第二条第 3 条）：超过 `chars` 个字的留头尾各一半，
+/// 中间接一行 `omitted`。数和字都是数据，放在策略快照里。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Reports {
+    /// 正文最多几个字（Unicode 字符）：策略数据 `jobs.report_chars`，出厂 30000。
+    pub chars: usize,
+    /// 截在中间的那一行：字段 `count` 是省掉的字数（`core/jobs/subagent-omitted.txt`）。以前造的快照没有，是空的：头尾
+    /// 之间只空一行。
+    pub omitted: Template,
 }
 
 /// 检查点里代码写的几段的模板（施工 6-5）：`compaction/notes-*.txt`。
@@ -117,6 +130,7 @@ impl fmt::Debug for Policy {
             .field("resumes", &self.resumes)
             .field("compaction", &self.compaction)
             .field("notes", &self.notes)
+            .field("reports", &self.reports)
             .finish_non_exhaustive()
     }
 }

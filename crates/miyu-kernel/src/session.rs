@@ -25,6 +25,7 @@ mod question;
 mod queue;
 mod rebuild;
 mod recent;
+mod report;
 mod restart;
 mod restore;
 mod retry;
@@ -40,13 +41,14 @@ pub use action::{Action, Outcome, Reason};
 pub use input::{Answer, Command, Injection, Input, Limits, Queued, Received, Reread, Verdict};
 pub use limits::ContextLimits;
 pub use load::LoadError;
-pub use policy::{Compaction, Notes, Pause, Policy, Rebuild, Shorten};
+pub use policy::{Compaction, Notes, Pause, Policy, Rebuild, Reports, Shorten};
+pub use report::Upward;
 pub use restore::{Expect, Step, StepAction};
 
 use crate::event::{Body, Event, MessageUser, Permission, SessionCreated, ToolResult, ToolStatus};
 use crate::facts::Environment;
 use crate::history::History;
-use crate::id::{CommandId, Seq, TurnId};
+use crate::id::{CommandId, Seq, SessionId, TurnId};
 use crate::ledger::{Ledger, LedgerError};
 use crate::origin::By;
 use crate::request::Fingerprint;
@@ -100,6 +102,8 @@ pub struct Session {
     deferred: Vec<Arrived>,
     /// 收到了「要重启了」（施工 7-3）：要关了，之后到的回报只记下、不开轮。只在内存里。
     restarting: bool,
+    /// 子会话欠着父会话的回报（施工 7-6，`report.rs`）：每追加一条记一次。
+    duty: report::Duty,
 }
 
 impl Session {
@@ -140,6 +144,7 @@ impl Session {
             watched: false,
             deferred: Vec::new(),
             restarting: false,
+            duty: report::Duty::default(),
         };
         let event = session.record(at, by, Some(id.clone()), Body::SessionCreated(created));
         session.accept(id, vec![event.seq]);
@@ -159,6 +164,12 @@ impl Session {
     /// 照它建领号的，新派的任务从下一个数起（`session/tools.md`「任务编号」）。
     pub fn last_job_number(&self) -> u64 {
         self.ledger.last_job_number()
+    }
+
+    /// 派出去、一次都还没回报过的子代理的子会话（施工 7-6）：撤掉的回合里派的也在，被停掉的不在。纯查询：会话 actor 载入
+    /// 以后把它们叫起来，崩了的、重启了的由它们自己补报、接着干（`agents.md` 第八条）。
+    pub fn waiting_children(&self) -> Vec<SessionId> {
+        self.ledger.waiting_children().cloned().collect()
     }
 
     /// 送进一条输入，出来一串动作。
@@ -341,6 +352,7 @@ impl Session {
     /// 追加一条造好的事件：交给账本查过，记在账上，交给有效历史，等着落盘。过不了账本的什么都不动，交回违反了哪一条。
     fn commit(&mut self, event: &Event) -> Result<(), LedgerError> {
         self.ledger.append(event)?;
+        self.duty.note(event);
         self.history.append(event.clone());
         self.unstored.push(event.clone());
         Ok(())
@@ -390,6 +402,7 @@ impl Session {
             }
         }
         actions.extend(self.closed());
+        actions.extend(self.report_up());
         actions.extend(self.advance(at));
         actions
     }

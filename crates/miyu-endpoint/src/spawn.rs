@@ -1,5 +1,6 @@
 //! 会话表交给会话的端口（施工 7-5，`docs/blueprint/agents.md`「在哪」）：会话 actor 比会话表低一层，派子代理要造子会话、
-//! 给子会话发命令，经 `miyu-session` 定义的 [`SessionPort`]，这里照会话表实现。会话表造会话、载入时交进去一份。
+//! 给子会话发命令，经 `miyu-session` 定义的 [`SessionPort`]，这里照会话表实现。会话表造会话、载入时交进去一份。子会话向上
+//! 回报、父会话载入以后叫起子会话也经它（施工 7-6）。
 //!
 //! 端口拿着核心的弱引用：会话由核心的会话表拿着，端口再强拿着核心就成了环。核心没了（正在退出）的，派不了。
 
@@ -34,6 +35,17 @@ impl SessionPort for Table {
         Box::pin(async move {
             let core = self.core()?;
             core.sessions.spawn(&core, child).await
+        })
+    }
+
+    fn open(&self, session: SessionId) -> Pending<'_, Result<(), String>> {
+        Box::pin(async move {
+            let core = self.core()?;
+            core.sessions
+                .get(&core, &session, None, None)
+                .await
+                .map(|_| ())
+                .map_err(|refusal| format!("session {session} not opened: {refusal:?}"))
         })
     }
 

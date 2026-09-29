@@ -121,6 +121,7 @@ impl Stage {
             limits: None,
             summaries: None,
             disk: super::disk::Disk::default(),
+            upward: Vec::new(),
         };
         stage.settle(actions);
         stage

@@ -316,6 +316,8 @@ impl Watch {
                     "种子 {seed}：叫停的 {call_id} 不是在跑时被取消的"
                 );
             }
+            // 随机的会话都是主会话（施工 7-6）：没有父会话，什么都不欠。
+            Action::Report(upward) => panic!("种子 {seed}：主会话向上回报了：{upward:?}"),
         }
     }
 

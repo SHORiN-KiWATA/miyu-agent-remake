@@ -151,6 +151,8 @@ fn jobs() -> crate::JobTexts {
         subagent_silent: include_str!("../../../resources/core/jobs/subagent-silent.txt")
             .to_string(),
         subagent_close: include_str!("../../../resources/core/jobs/subagent-close.txt").to_string(),
+        subagent_omitted: include_str!("../../../resources/core/jobs/subagent-omitted.txt")
+            .to_string(),
     }
 }
 

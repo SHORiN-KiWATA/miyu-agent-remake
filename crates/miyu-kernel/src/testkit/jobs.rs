@@ -1,12 +1,13 @@
 //! 替身交任务的回报（施工 7-2，`docs/blueprint/kernel/session.md`「回报」）：子会话交来的回报（命令 `Report`，发命令的
 //! 是那个子会话），执行器交来的后台命令结束（输入 `JobEnded`），会话 actor 交的有没有头订阅着（输入 `Watched`）。派任务
-//! 照剧本回：[`super::Play::starts_command`]、[`super::Play::starts_agent`]。
+//! 照剧本回：[`super::Play::starts_command`]、[`super::Play::starts_agent`]。子会话交出来的向上回报记下来（施工 7-6）。
 
 use super::Stage;
+use crate::block::{Block, Text};
 use crate::event::{ChildReason, ChildReported, JobReason, JobReported};
 use crate::id::{CommandId, ContentHash, JobId, SessionId};
 use crate::origin::{By, Session};
-use crate::session::{Command, Input};
+use crate::session::{Command, Input, Received, Upward};
 
 impl Stage {
     /// 子会话 `session` 交来子代理 `j<job>` 的回报：原因 `reason`，正文 `text`，截没截过、人插没插过话照写。返回这个命令的
@@ -55,6 +56,41 @@ impl Stage {
         self.command_as(by, Command::Report(reported))
     }
 
+    /// 子会话再交一次同一份回报：命令编号是 `id`（施工 7-6：子会话载入时再交最后报的那一份）。
+    ///
+    /// # Panics
+    ///
+    /// `job` 是 0，或者 `session` 不是会话编号的写法。
+    pub fn child_reports_again(
+        &mut self,
+        id: &CommandId,
+        job: u64,
+        session: &str,
+        reason: ChildReason,
+        text: &str,
+    ) {
+        let session =
+            SessionId::parse(session).unwrap_or_else(|e| panic!("会话编号的写法坏了：{e}"));
+        let by = By::Session(Session {
+            id: session.clone(),
+        });
+        let reported = ChildReported {
+            job: job_id(job),
+            session,
+            reason,
+            text: text.to_string(),
+            truncated: false,
+            person: false,
+        };
+        let at = self.tick();
+        self.run(Input::Command(Received {
+            id: id.clone(),
+            by,
+            at,
+            command: Command::Report(reported),
+        }));
+    }
+
     /// 执行器交来后台命令 `j<job>` 结束了，`by`、`cause` 照给的；自己退出的带退出码 0、用时和一份输出。
     ///
     /// # Panics
@@ -84,6 +120,31 @@ impl Stage {
             cause,
             reported,
         });
+    }
+
+    /// 子会话交出来的向上回报，照先后（施工 7-6）。
+    pub fn reported_up(&self) -> &[Upward] {
+        &self.upward
+    }
+
+    /// 人（alice）说一句：子会话的替身平常说话的是父会话，人切进来说的用这个（施工 7-6）。返回这个命令的编号。
+    ///
+    /// # Panics
+    ///
+    /// alice 的写法坏了才会：那是替身自己的 bug。
+    pub fn person_says(&mut self, words: &str) -> CommandId {
+        let alice: By = serde_json::from_str(r#"{"kind":"person","account":"alice"}"#)
+            .unwrap_or_else(|e| panic!("alice 的写法坏了：{e}"));
+        let blocks = vec![Block::Text(Text {
+            text: words.to_string(),
+        })];
+        self.command_as(
+            alice,
+            Command::Send {
+                blocks,
+                urgent: false,
+            },
+        )
     }
 
     /// 会话 actor 交来：有没有头订阅着（施工 7-2）。

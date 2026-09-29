@@ -229,6 +229,10 @@ fn policy() -> Policy {
         resumes: 3,
         compaction: None,
         notes: None,
+        reports: Reports {
+            chars: 40,
+            omitted: crate::template::Template::parse("[{count} cut]\n").unwrap(),
+        },
     }
 }
 

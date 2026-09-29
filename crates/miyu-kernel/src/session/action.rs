@@ -7,6 +7,7 @@ use crate::id::{CallId, CommandId, ContentHash, Seq, TurnId};
 use crate::request::{Difference, Request};
 use crate::time::Timestamp;
 
+use super::report::Upward;
 use super::restore::Step;
 
 /// 会话要执行器做的一件事。
@@ -124,6 +125,9 @@ pub enum Action {
         /// 新检查点里重读的文件的 blob，照先后。
         blobs: Vec<ContentHash>,
     },
+    /// 向上回报（施工 7-6，`report.rs`）：子会话交给父会话的一份。执行器补上任务编号、子会话，经端口交给父会话（命令
+    /// `Report`，发命令的是这个子会话），不送回；父会话落了盘就算送到，父会话没了的丢掉。
+    Report(Upward),
     /// 执行一次工具调用。执行中的输出、执行完了，都带着调用编号回报
     /// （`02-内核.md` 第六节「工具怎么调、下一步怎么走」）。
     RunTool {

@@ -10,12 +10,12 @@ use miyu_kernel::estimate::Flat;
 use miyu_kernel::event::{Permission, SessionCreated};
 use miyu_kernel::facts::FactTemplates;
 use miyu_kernel::id::{AccountId, ContentHash, VenueId};
-use miyu_kernel::session::{Compaction, Notes, Policy};
+use miyu_kernel::session::{Compaction, Notes, Policy, Reports};
 use miyu_kernel::template::TemplateError;
 use miyu_kernel::tool::{ToolTextSources, ToolTexts};
 use serde::{Deserialize, Serialize};
 
-use crate::jobs::JobTexts;
+use crate::jobs::{JobNumbers, JobTexts, REPORT_CHARS};
 use crate::pause::PauseNumbers;
 use crate::rebuild::{RebuildNumbers, RebuildTexts};
 use crate::shorten::{ShortenNumbers, ShortenTexts};
@@ -43,6 +43,9 @@ pub struct Snapshot {
     /// 压缩用的数（施工 6-2 上）。以前造的快照里没有，读成没有：那些会话不主动压。没有的不写，旧快照的字节不变。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub compaction: Option<CompactionNumbers>,
+    /// 任务用的数（施工 7-6）。以前造的快照里没有，读成没有：照出厂的数截回报。没有的不写，旧快照的字节不变。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub jobs: Option<JobNumbers>,
 }
 
 /// 压缩用的数（`compaction.md`「对外的样子」的策略数据）。
@@ -371,6 +374,21 @@ impl Snapshot {
             resumes: self.resumes,
             compaction: self.compaction(),
             notes: self.notes()?,
+            reports: self.reports()?,
+        })
+    }
+
+    /// 子会话回报的正文怎么截（施工 7-6）：快照里的数，以前造的没有照出厂的；截在中间的那一行，以前造的没有是空的。
+    fn reports(&self) -> Result<Reports, BuildError> {
+        let chars = self.jobs.map_or(REPORT_CHARS, |jobs| jobs.report_chars);
+        let omitted = self
+            .core
+            .jobs
+            .as_ref()
+            .map_or("", |jobs| jobs.subagent_omitted.as_str());
+        Ok(Reports {
+            chars: usize::try_from(chars).unwrap_or(usize::MAX),
+            omitted: crate::jobs::template(omitted, &["count"])?,
         })
     }
 

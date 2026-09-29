@@ -377,6 +377,7 @@
 | `aborted` | 核心崩了，它那一轮没走完：载入时补 |
 
 - 不认识的原样留着。
+- 子会话交来的命令编号是 `<子会话>/report/<报的那一轮>`（施工 7-6）：`cause` 就是它，子会话的哪一轮看它；同一份再交，父会话照它认出是重的，不再记（`kernel/session.md`「回报」第 10 条）。
 - 一个子代理可以报好几次：父会话留言叫醒它，那一轮结束时再报（`agents.md` 第六条）。以 `stopped`、`undone` 报过的不再报，被停掉的不会再起来；`aborted` 以后还能再报（`agents.md` 第八条），不认识的也不拦。
 
 **两种回报的 `turn`**：一律不带（2026-09-30 定）：回报不属于哪一轮，带了这一轮的编号，撤这一轮时会跟着被拿走，和「别处来的留着」冲突（`kernel/history.md`「拿走什么」）。账本照「带 `turn` 的是正在进行的那个回合」查，不另立规矩。谁写、到了开不开一轮见 `kernel/session.md`「回报」，渲染成什么样见 `kernel/request.md`「回报」（施工 7-2）。
@@ -419,7 +420,7 @@
 
 - `session.created` 的分叉来源：做分叉时加（`03-事件模型.md` 第七节）。
 - `tool.result` 里大输出的全文（`03-事件模型.md` 第三节，`08-上下文投影.md` C9）。
-- `job.started` 的后台命令由 `shell` 写、`job.reported` 由执行器的任务表交、载入时内核补 `aborted`（施工 7-3）；子代理的 `job.started`、`session.created` 的 `parent`、`depth` 还没有哪里写（7-5），`child.reported` 内核收得下、渲染得出（施工 7-2），还没有子会话交（7-6）。
+- `job.started` 的后台命令由 `shell` 写、`job.reported` 由执行器的任务表交、载入时内核补 `aborted`（施工 7-3）；子代理的 `job.started`、`session.created` 的 `parent`、`depth` 由派子代理写（施工 7-5），`child.reported` 由子会话交（施工 7-6）。
 - 会问人的工具：`question.asked` 读写都有了，还没有工具会问（`ask_user`，`10-自带软件.md` 第三节）。
 - 选了「本会话都允许」「这个工作区以后都允许」的，决定记下了，执行前的链还不照它放行；工作区的那种还要存进工作区的配置（`02-内核.md` 第六节「确认怎么走」第 3 条，M5）。
 - `session.policy_changed` 的 `policy`：换策略快照（目录变了、配置改了）还没有，内核只写过换权限（`05-内核接口.md` 第八节，`02-内核.md` K3）。

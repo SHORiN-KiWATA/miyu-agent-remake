@@ -22,7 +22,7 @@ mod test_support;
 
 pub use compose::{PersonaTexts, Sources, compose};
 pub use guard::GuardTexts;
-pub use jobs::{DEPTH as JOB_DEPTH, JobTexts};
+pub use jobs::{DEPTH as JOB_DEPTH, JobNumbers, JobTexts, REPORT_CHARS};
 pub use pause::{PAUSE, PauseNumbers};
 pub use rebuild::{REBUILD, RebuildNumbers, RebuildTexts};
 pub use shorten::{SHORTEN, ShortenNumbers, ShortenTexts};

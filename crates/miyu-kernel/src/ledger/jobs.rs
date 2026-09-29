@@ -8,9 +8,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::event::{
-    Body, ChildReason, ChildReported, Effect, JobKind, JobReported, JobStarted, SessionCreated,
+    Body, ChildReason, ChildReported, Effect, Event, JobKind, JobReported, JobStarted,
+    SessionCreated,
 };
-use crate::id::{JobId, SessionId};
+use crate::id::{CommandId, JobId, Seq, SessionId};
 use crate::origin::{By, Session};
 
 /// 派出去过的任务，照编号。
@@ -22,8 +23,13 @@ pub(super) struct Jobs(BTreeMap<JobId, Job>);
 enum Job {
     /// 后台命令；`ended`：报过结束了，哪一种 `reason` 都算。
     Command { ended: bool },
-    /// 子代理：它的子会话；`stopped`：以 `stopped`、`undone` 报过了，被停掉的不会再起来。
-    Agent { session: SessionId, stopped: bool },
+    /// 子代理：它的子会话；`stopped`：以 `stopped`、`undone` 报过了，被停掉的不会再起来；`last`：最近一次回报的命令编号
+    /// 和序号，一次都没报过的没有（施工 7-6：还在等它的回报；子会话再交同一份回报，照它认出是重的）。
+    Agent {
+        session: SessionId,
+        stopped: bool,
+        last: Option<(Option<CommandId>, Seq)>,
+    },
     /// 不认识的种类：编号占着，两种回报都对不上它。
     Other,
 }
@@ -73,7 +79,10 @@ impl Jobs {
     /// 子会话的回报：对得上一个派出去的子代理，会话是它记的那个，`by` 是那个子会话，它没被停掉过。
     pub(super) fn check_child(&self, reported: &ChildReported, by: &By) -> Result<(), String> {
         let job = reported.job;
-        let Some(Job::Agent { session, stopped }) = self.0.get(&job) else {
+        let Some(Job::Agent {
+            session, stopped, ..
+        }) = self.0.get(&job)
+        else {
             return Err(format!(
                 "job {job} is not a subagent: no such job, or it is not an agent"
             ));
@@ -106,9 +115,35 @@ impl Jobs {
             .collect()
     }
 
-    /// 记下查过的这一条带来的变化：派出去的记下，后台命令报了就结束，子代理以 `stopped`、`undone` 报了就不会再报。
-    pub(super) fn record(&mut self, body: &Body) {
-        match body {
+    /// 派出去、一次都还没回报过的子代理的子会话，照编号（施工 7-6）：派了孙代理的子会话等它们都报完再向上报；载入以后
+    /// 执行器把它们叫起来，崩了的补报（`agents.md` 第八条）。被停掉的报过了，不在里面。
+    pub(super) fn waiting(&self) -> impl Iterator<Item = &SessionId> {
+        self.0.values().filter_map(|job| match job {
+            Job::Agent {
+                session,
+                last: None,
+                ..
+            } => Some(session),
+            _ => None,
+        })
+    }
+
+    /// 子代理 `job` 最近一次回报就是命令 `id` 交来的：交回那一条的序号（施工 7-6）。子会话载入时再交一次它最后报的那一份，
+    /// 父会话照它认出是重的，不再记。
+    pub(super) fn reported_as(&self, job: JobId, id: &CommandId) -> Option<Seq> {
+        match self.0.get(&job) {
+            Some(Job::Agent {
+                last: Some((Some(cause), seq)),
+                ..
+            }) if cause == id => Some(*seq),
+            _ => None,
+        }
+    }
+
+    /// 记下查过的这一条带来的变化：派出去的记下，后台命令报了就结束，子代理报了记下是哪一条，以 `stopped`、`undone` 报了
+    /// 就不会再报。
+    pub(super) fn record(&mut self, event: &Event) {
+        match &event.body {
             Body::ToolResult(result) => {
                 for started in started(&result.effects) {
                     let job = match (&started.what, &started.session) {
@@ -116,6 +151,7 @@ impl Jobs {
                         (JobKind::Agent, Some(session)) => Job::Agent {
                             session: session.clone(),
                             stopped: false,
+                            last: None,
                         },
                         _ => Job::Other,
                     };
@@ -127,11 +163,11 @@ impl Jobs {
                     *ended = true;
                 }
             }
-            Body::ChildReported(reported)
-                if matches!(reported.reason, ChildReason::Stopped | ChildReason::Undone) =>
-            {
-                if let Some(Job::Agent { stopped, .. }) = self.0.get_mut(&reported.job) {
-                    *stopped = true;
+            Body::ChildReported(reported) => {
+                if let Some(Job::Agent { stopped, last, .. }) = self.0.get_mut(&reported.job) {
+                    *last = Some((event.cause.clone(), event.seq));
+                    *stopped |=
+                        matches!(reported.reason, ChildReason::Stopped | ChildReason::Undone);
                 }
             }
             _ => {}
