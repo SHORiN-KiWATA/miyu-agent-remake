@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>127</b><span>/ 135 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话</span></li>
+    <li><b>128</b><span>/ 135 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话</span></li>
     <li><b>7-7</b><span>下一步：7-7 父子之间留言、7-1 补编号带父会话的编号，另有附件、改名删除、重做在做（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">b4cc30c</b><span>最近一步（7-7 父子之间留言）的提交</span></li>
+    <li><b class="mono">a98a458</b><span>最近一步（3-8 三补 改名和删除会话）的提交</span></li>
   </ul>
 </header>
 
@@ -387,7 +387,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-8c"><span class="n">3-8</span>协议端点（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8d"><span class="n">3-8</span>Windows 命名管道（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8c"><span class="n">3-8</span>协议收切权限级别（再补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-8</span>改名和删除会话（三补）</span></li>
+        <li><a class="step done" href="#s3-8d"><span class="n">3-8</span>改名和删除会话（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9a"><span class="n">3-9</span>主程序和拉起核心（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9b"><span class="n">3-9</span>miyu ask（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9c"><span class="n">3-9</span>会话编号照先后（补）<span class="st">✓</span></a></li>
@@ -4610,6 +4610,56 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/3-8-协议收切权限级别（再补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s3-8d" aria-labelledby="h-s38d">
+  <div class="sheet-head"><h2 id="h-s38d"><span class="no">3-8</span>改名和删除会话（三补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头能给会话改名、置顶，能删除会话。删了的挪进回收处，留 7 天再真删（项目主人定现在就做）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">session.set_meta、session.delete</span><span class="dir-note">miyu-endpoint/src/sessions/delete.rs</span></div>
+            <ol class="pipe" aria-label="怎么走">
+              <li>改名、置顶：变了才记 <code>session.meta_changed</code>；列会话带标题、置顶</li>
+              <li>删除：回合进行中拒；子会话一层层停下，后台命令杀掉，目录挪进回收处</li>
+              <li>单独删一个子会话，照人停掉它：父会话收到 <code>stopped</code>，被叫醒</li>
+              <li>核心起来时清一次回收处，满 7 天的真删</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">欠回报的算在跑</span><span class="rl">被留了言又在干活的子代理停得掉、删得掉</span></div>
+          <div class="tile"><span class="nm">留到以后</span><span class="rl">找回删了的会话、列会话的索引</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-8 三补</dd></div>
+        <div><dt>名称</dt><dd>改名和删除会话</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">a98a458</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>41 个变异逮住 39 个，没逮住的 2 个只关先后；三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/3-8-改名和删除会话（三补）.md</code>。</li>
       </ul>
     </div>
   </div>
