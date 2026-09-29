@@ -21,7 +21,7 @@ use crate::theme;
 use crate::transcript::{Entry, Kind, undo_counts};
 
 /// 点一行时点中的东西。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Target {
     /// 时间线的一段（第几条正文）：展开、收起。
     Segment(usize),
@@ -127,25 +127,19 @@ impl Ctx<'_> {
     }
 }
 
-/// 把看得见的正文排成行，一条之间空一行。
-pub fn build(entries: &[Entry], ctx: &Ctx) -> Vec<Row> {
-    let mut rows = Vec::new();
-    for (i, entry) in entries.iter().enumerate().filter(|(_, e)| shown(e)) {
-        if !rows.is_empty() {
-            rows.push(ctx.row(ctx.blank_slot(), Vec::new()));
-        }
-        match (&entry.segment, entry.kind.clone()) {
-            (Some(segment), _) => rows.extend(timeline::rows(i, segment, ctx)),
-            (None, Kind::Undo) => rows.extend(undo_rows(i, entry, ctx)),
-            (None, Kind::Job) => rows.extend(job_rows::rows(i, entry, ctx)),
-            (None, Kind::Reply) => rows.extend(reply_rows(i, entry, ctx)),
-            (None, _) => rows.extend(text_rows(entry, ctx)),
-        }
+/// 正文第 `i` 条排成的行（不带前后的空行）。
+pub fn entry_rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
+    match (&entry.segment, entry.kind.clone()) {
+        (Some(segment), _) => timeline::rows(i, segment, ctx),
+        (None, Kind::Undo) => undo_rows(i, entry, ctx),
+        (None, Kind::Job) => job_rows::rows(i, entry, ctx),
+        (None, Kind::Reply) => reply_rows(i, entry, ctx),
+        (None, _) => text_rows(entry, ctx),
     }
-    rows
 }
 
-fn shown(entry: &Entry) -> bool {
+/// 这一条画不画：藏起来的、排着队的、空的时间线段、空的字不画。
+pub fn shown(entry: &Entry) -> bool {
     !entry.hidden
         && !entry.queued
         && match &entry.segment {
@@ -300,6 +294,10 @@ fn text_rows(entry: &Entry, ctx: &Ctx) -> Vec<Row> {
             Style::new(),
         ),
         Kind::Note | Kind::Done => (ctx.blank_slot(), theme::dim()),
+        Kind::Answered => (
+            Span::styled(layout.user_bar.clone(), theme::dim()),
+            theme::dim(),
+        ),
         Kind::Error => (ctx.blank_slot(), theme::error()),
         Kind::Reply | Kind::Steps | Kind::Undo | Kind::Job => (ctx.blank_slot(), Style::new()),
     };

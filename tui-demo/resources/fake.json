@@ -69,5 +69,176 @@
       "提交"
     ],
     "every_ms": 3000
-  }
+  },
+  "asks": [
+    {
+      "body": {
+        "call_id": "demo_ask_1",
+        "questions": [
+          {
+            "header": "build",
+            "question": "旧的 build 目录要删掉，还是保留？",
+            "options": [
+              {
+                "label": "删掉",
+                "description": "下次编译从头来"
+              },
+              {
+                "label": "保留",
+                "description": "只清掉缓存"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "body": {
+        "call_id": "demo_ask_preview",
+        "questions": [
+          {
+            "header": "布局",
+            "question": "待办放在哪里比较顺手？",
+            "options": [
+              {
+                "label": "侧边栏（推荐）",
+                "description": "宽屏时一直看得到，不占正文",
+                "preview": "┌──────────────┬────────┐\n│ 正文         │ 待办   │\n│ ...          │ ☑ 一   │\n│ ...          │ ■ 二   │\n│              │ ☐ 三   │\n├──────────────┤        │\n│ ❯ 输入框     │        │\n└──────────────┴────────┘"
+              },
+              {
+                "label": "输入框上面",
+                "description": "窄屏也看得到，会把正文往上推",
+                "preview": "┌───────────────────────┐\n│ 正文                  │\n│ ...                   │\n│ 待办 1/3              │\n│ ☑ 一  ■ 二  ☐ 三      │\n├───────────────────────┤\n│ ❯ 输入框              │\n└───────────────────────┘"
+              },
+              {
+                "label": "不常驻，按键调出",
+                "description": "平时干净，要看时按一下",
+                "preview": "┌───────────────────────┐\n│ 正文                  │\n│ ...                   │\n│                       │\n│                       │\n├───────────────────────┤\n│ ❯ 输入框   Ctrl+T 待办│\n└───────────────────────┘"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "body": {
+        "call_id": "demo_ask_tall",
+        "questions": [
+          {
+            "header": "流程",
+            "question": "改完代码以后，按哪个流程走？",
+            "options": [
+              {
+                "label": "先跑测试再给你看",
+                "description": "慢一点，但你看到的都是绿的",
+                "preview": "┌────────────┐\n│ 她写改动   │\n└──────┬─────┘\n       ↓\n┌────────────┐\n│ 跑测试     │\n└──────┬─────┘\n       ↓\n┌────────────┐\n│ 你看差异   │\n└──────┬─────┘\n       ↓\n┌────────────┐\n│ 提交       │\n└────────────┘"
+              },
+              {
+                "label": "直接给你看",
+                "description": "快，测试你看完再跑",
+                "preview": "┌────────────┐\n│ 她写改动   │\n└──────┬─────┘\n       ↓\n┌────────────┐\n│ 你看差异   │\n└──────┬─────┘\n       ↓\n┌────────────┐\n│ 提交       │\n└────────────┘"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "body": {
+        "call_id": "demo_ask_2",
+        "questions": [
+          {
+            "header": "范围",
+            "question": "这次重构先动哪几块？",
+            "multiple": true,
+            "options": [
+              {
+                "label": "输入框",
+                "description": "粘贴折叠和路径补全"
+              },
+              {
+                "label": "时间线",
+                "description": "收起那一行的写法"
+              },
+              {
+                "label": "侧边栏"
+              },
+              {
+                "label": "主题",
+                "description": "terminal 那一套重配"
+              }
+            ]
+          },
+          {
+            "header": "测试",
+            "question": "改完要跑哪一档测试？",
+            "options": [
+              {
+                "label": "只跑单元测试",
+                "description": "几秒钟"
+              },
+              {
+                "label": "连伪终端走查一起跑",
+                "description": "要几分钟，看得到真画面"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "who": "子代理 查资料",
+      "body": {
+        "call_id": "demo_ask_3",
+        "questions": [
+          {
+            "question": "找到三份旧版的缓存记录，最新的那份是 09-24 的。要我只看最新的，还是三份都对一遍？",
+            "options": [
+              {
+                "label": "只看最新的"
+              },
+              {
+                "label": "三份都对一遍",
+                "description": "慢一些，能看出是哪天开始断的"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "approvals": [
+    {
+      "body": {
+        "call_id": "demo_approve_1",
+        "access": "write",
+        "rule": {
+          "tool": "write",
+          "write": [
+            "/home/alice"
+          ]
+        },
+        "detail": {
+          "paths": [
+            {
+              "path": "/home/alice/.editorconfig",
+              "write": true,
+              "zone": "outside"
+            }
+          ],
+          "tool": "write"
+        }
+      }
+    },
+    {
+      "who": "后台命令 cargo build",
+      "body": {
+        "call_id": "demo_approve_2",
+        "access": "exec",
+        "detail": {
+          "tool": "cargo clean"
+        }
+      }
+    }
+  ]
 }

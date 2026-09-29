@@ -37,6 +37,19 @@ impl Segment {
         self.open.unwrap_or(!self.finished || !fold)
     }
 
+    /// 在转圈的那一步（蓝图「时间线」第 19 条）：她还在写（思考中、准备……）的是最后那一步；都写完了，是最前面
+    /// 那一个没结果的（核心不报哪一个开始跑了，排在前面的就是在跑的那个）。都有结果了是 `None`。
+    pub fn active(&self) -> Option<usize> {
+        let writing = self.steps.last().is_some_and(|s| match &s.kind {
+            StepKind::Thought { .. } => s.busy(),
+            StepKind::Tool { state, .. } => *state == ToolState::Preparing,
+        });
+        if writing {
+            return Some(self.steps.len() - 1);
+        }
+        self.steps.iter().position(Step::busy)
+    }
+
     /// 这一段结束了：还在准备、在跑的步骤，照原样留着（它们的结果还会来）；在想的停表。
     pub fn finish(&mut self) {
         self.finished = true;

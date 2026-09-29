@@ -79,6 +79,8 @@ pub struct Palette {
     pub picked: Tone,
     /// 思考的字。
     pub thought: Tone,
+    /// 悬停时思考的字：同色系亮一档，不变成灰色。
+    pub thought_hover: Tone,
     /// 点开的一步的底色。
     pub shade: Tone,
     /// 标题里的 `+N`。

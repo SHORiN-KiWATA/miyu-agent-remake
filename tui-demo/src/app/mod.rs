@@ -1,5 +1,6 @@
 //! 程序的状态，和把终端事件、核心的消息分给各块。按键在 `keys.rs`，鼠标在 `mouse.rs`。
 
+mod drawer;
 mod jobs;
 
 pub use jobs::Panel;
@@ -18,6 +19,7 @@ use crate::clipboard;
 use crate::commands::{self, Spec};
 use crate::config::Config;
 use crate::core::{Command, Core, Update};
+use crate::drawer::Drawers;
 use crate::figures::Figures;
 use crate::focus::Focus;
 use crate::history::History;
@@ -30,6 +32,7 @@ use crate::side_select::SideSelect;
 use crate::tips::Tips;
 use crate::transcript::{Kind, Transcript};
 use crate::ui::Areas;
+use crate::ui::row_cache::RowCache;
 use crate::ui::rows::MdCache;
 
 /// 按下鼠标时落在哪一块：拖动、松开都归它，拖出了那一块也一样。
@@ -83,6 +86,12 @@ pub struct App {
     feed: Feed,
     /// 开着的面板（后台）。
     pub panel: Option<Panel>,
+    /// 确认和提问的抽屉：现在这一个和排着的（蓝图「确认和提问的抽屉」）。
+    pub drawers: Drawers,
+    /// 抽屉每一行是第几项（点哪一行点中哪一项）；上一帧排出来的。
+    pub drawer_rows: Vec<Option<usize>>,
+    /// `/demo-ask`、`/demo-approve` 各出到第几个。
+    demo_drawers: (usize, usize),
     /// 待办点开了，列出全部（`tui.md`「后台命令、子代理和侧边栏」第 4 条）。
     pub todo_full: bool,
     /// 后台面板每一行是第几条命令（点哪一行点中哪一条）；上一帧排出来的。
@@ -105,6 +114,8 @@ pub struct App {
     pub human: Human,
     /// 回答排好的行的缓存（`ui/rows.rs`）。
     pub md_cache: RefCell<MdCache>,
+    /// 正文按条缓存排好的行（`ui/row_cache`）。
+    pub row_cache: RefCell<RowCache>,
     /// 正文里做好的图（蓝图「图片、公式和 mermaid 图」）。
     pub figures: RefCell<Figures>,
     /// 程序启动的时刻：转圈照它算第几帧。
@@ -168,6 +179,9 @@ impl App {
             board: Board::default(),
             feed: Feed::default(),
             panel: None,
+            drawers: Drawers::default(),
+            drawer_rows: Vec::new(),
+            demo_drawers: (0, 0),
             todo_full: false,
             panel_rows: Vec::new(),
             focus: Focus::Input,
@@ -184,6 +198,7 @@ impl App {
             view: BodyView::default(),
             human,
             md_cache: RefCell::new(MdCache::new()),
+            row_cache: RefCell::new(RowCache::default()),
             figures: RefCell::new(figures),
             started: Instant::now(),
             grab: None,
@@ -209,6 +224,7 @@ impl App {
             Event::Key(key)
                 if key.code == KeyCode::Esc
                     && !menu_open
+                    && !self.drawers.open()
                     && self.input.editor.selection().is_none()
                     && self.view.select.is_none()
                     && (self.transcript.running.is_some() || !self.input.editor.is_empty()) =>
@@ -220,6 +236,10 @@ impl App {
             // 输入历史列表开着时，粘贴的字进「搜索：」。
             Event::Paste(text) if self.history.open => {
                 self.history.type_text(&text.replace(['\r', '\n'], " "));
+                Action::None
+            }
+            Event::Paste(text) if self.drawers.open() => {
+                self.drawer_paste(&text);
                 Action::None
             }
             Event::Paste(text) => {
@@ -319,6 +339,7 @@ impl App {
             .chain(idling)
             .chain(walking)
             .chain(self.jobs_deadline())
+            .chain(self.drawer_deadline())
             .min()
     }
 
@@ -337,6 +358,7 @@ impl App {
     /// 到点了：收掉过期的提示。
     pub fn tick(&mut self) {
         self.advance_jobs();
+        self.drawer_tick();
         if self
             .notice
             .as_ref()

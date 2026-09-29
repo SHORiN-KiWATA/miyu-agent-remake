@@ -60,6 +60,10 @@ impl App {
             self.history_key(key);
             return Action::None;
         }
+        // 确认和提问的抽屉开着时按键先归它（`tui.md`「确认和提问的抽屉」第 4 条）。
+        if self.drawer_key(key) {
+            return Action::None;
+        }
         // Tab、Shift+Tab（终端报成 BackTab）轮换权限级别；命令列表开着时 Tab 归列表（`tui.md`「按键」）。
         let menu_open = self.menu_matches().is_some();
         // 整屏看输出、后台面板、后台按钮先拿按键（`tui.md`「后台命令、子代理和侧边栏」）。
@@ -181,6 +185,7 @@ impl App {
                 self.transcript.note(Kind::Note, note);
             }
             Run::DemoShell | Run::DemoAgent | Run::DemoTodo => self.demo(spec.run),
+            Run::DemoAsk | Run::DemoApprove => self.demo_drawer(spec.run),
         }
     }
 

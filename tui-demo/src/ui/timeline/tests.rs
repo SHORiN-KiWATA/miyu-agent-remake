@@ -224,11 +224,70 @@ fn a_running_segment_has_no_head_and_a_command_without_text_has_no_preview() {
     );
 }
 
+/// 一件还没结果的 shell：`state` 是准备中或者在跑。
+fn pending(state: ToolState) -> Step {
+    Step::new(StepKind::Tool {
+        name: "shell".into(),
+        args: String::new(),
+        parsed: json!({"command": "sleep 3", "description": "等一会"}),
+        state,
+        output: String::new(),
+        said: None,
+    })
+}
+
+/// 转圈的行：槽里是转圈的帧。
+fn spinning(rows: &[Row], spinner: &[String]) -> usize {
+    rows.iter()
+        .filter(|r| {
+            let line = r.line.to_string();
+            spinner.iter().any(|f| line.starts_with(f.as_str()))
+        })
+        .count()
+}
+
+#[test]
+fn only_one_step_spins_at_a_time() {
+    let f = Fixture::new();
+    let spinner = &f.config.timeline.spinner;
+    let t0 = Instant::now();
+    // 她一次发两件：第一件参数写完了，第二件还在写。只转还在写的那一件（`tui.md`「时间线」第 19 条）。
+    let mut seg = segment(
+        vec![pending(ToolState::Running), pending(ToolState::Preparing)],
+        None,
+    );
+    seg.finished = false;
+    let got = rows(0, &seg, &f.ctx());
+    assert_eq!(spinning(&got, spinner), 1, "{:?}", text(&got));
+    let turning: Vec<String> = text(&got)
+        .into_iter()
+        .filter(|l| spinner.iter().any(|f| l.starts_with(f.as_str())))
+        .collect();
+    assert!(
+        turning[0].contains("准备"),
+        "转的是还在写的那一件：{turning:?}"
+    );
+    // 都写完了、等结果：转最前面那一件；有了结果的不转，后面等着的也不转。
+    let mut seg = segment(
+        vec![
+            command(t0, 0, ToolStatus::Ok),
+            pending(ToolState::Running),
+            pending(ToolState::Running),
+        ],
+        None,
+    );
+    seg.finished = false;
+    let got = rows(0, &seg, &f.ctx());
+    assert_eq!(spinning(&got, spinner), 1, "{:?}", text(&got));
+    assert_eq!(seg.active(), Some(1));
+}
+
 #[test]
 fn a_thought_scrolls_its_last_lines_and_keeps_them_when_done() {
     let f = Fixture::new();
     let tl = &f.config.timeline;
-    let text: String = (1..=14).map(|i| format!("第 {i} 行\n")).collect();
+    let text: String = (1..=20).map(|i| format!("第 {i} 行\n")).collect();
+    assert_eq!(tl.thought_rows, 15, "思考的预览 15 行，和命令的分开");
     let mut running = segment(Vec::new(), None);
     running.finished = false;
     running
@@ -240,16 +299,16 @@ fn a_thought_scrolls_its_last_lines_and_keeps_them_when_done() {
         "标题不带一瞥：{}",
         live[0]
     );
-    assert_eq!(live.len(), 1 + tl.preview_rows, "下面滚着最后几行");
-    assert_eq!(live.last().unwrap(), "  │ 第 14 行");
+    assert_eq!(live.len(), 1 + tl.thought_rows, "下面滚着最后几行");
+    assert_eq!(live.last().unwrap(), "  │ 第 20 行");
     // 想完：预览不收起，还是最后几行。
     let t0 = Instant::now();
     let done = step(StepKind::Thought { text }, t0, 0, 2);
     let seg = segment(vec![done, command(t0, 2, ToolStatus::Ok)], Some(true));
     let lines = self::text(&rows(0, &seg, &f.ctx()));
     let at = lines.iter().position(|l| l.contains("已思考")).unwrap();
-    assert_eq!(lines[at + tl.preview_rows], "  │ 第 14 行", "{lines:?}");
-    assert_eq!(lines[at + 1], "  │ 第 5 行");
+    assert_eq!(lines[at + tl.thought_rows], "  │ 第 20 行", "{lines:?}");
+    assert_eq!(lines[at + 1], "  │ 第 6 行");
 }
 
 #[test]
@@ -273,7 +332,7 @@ fn a_folded_thought_only_segment_is_just_its_time() {
 }
 
 #[test]
-fn icons_share_the_title_colour_and_a_thought_preview_is_dim() {
+fn icons_share_the_title_colour_and_a_thought_preview_has_its_own_colour() {
     let f = Fixture::new();
     let tl = &f.config.timeline;
     let t0 = Instant::now();
@@ -299,7 +358,29 @@ fn icons_share_the_title_colour_and_a_thought_preview_is_dim() {
     assert_eq!(icon_style(5, &tl.tools["shell"].icon), Some(theme::dim()));
     let preview = rows[3].line.spans.last().unwrap();
     assert_eq!(preview.content, "先看看目录");
-    assert_eq!(preview.style, theme::dim(), "和命令预览一样暗，不斜");
+    assert_eq!(
+        preview.style,
+        theme::thought(),
+        "用主题的 thought，和命令预览分开"
+    );
+    assert_ne!(theme::thought(), theme::dim());
+    // 竖线照旧暗；悬停时和别的步一样亮一档。
+    assert!(
+        rows[3]
+            .line
+            .spans
+            .iter()
+            .any(|s| s.content == "│ " && s.style == theme::dim())
+    );
+    let mut ctx = f.ctx();
+    ctx.hover = Some(crate::ui::rows::Target::Step(0, 0));
+    let lit = super::rows(0, &seg, &ctx);
+    assert_eq!(
+        lit[3].line.spans.last().unwrap().style,
+        theme::thought_hover(),
+        "悬停亮成同色系，不变灰"
+    );
+    assert_ne!(theme::thought_hover(), theme::hover());
 }
 
 #[test]

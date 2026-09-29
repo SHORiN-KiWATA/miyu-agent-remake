@@ -16,7 +16,7 @@ use ratatui::crossterm::event::{
 use ratatui::layout::{Position, Rect};
 
 pub use editor::Editor;
-pub use wrap::{VisualLine, locate, offset_at, pieces, wrap};
+pub use wrap::{VisualLine, locate, offset_at, pieces, tail_pieces, wrap};
 
 /// 输入框处理完一个事件后，要外面做的事。
 #[derive(Debug, PartialEq, Eq)]

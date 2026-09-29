@@ -42,13 +42,20 @@ pub fn rows(entry: usize, segment: &Segment, ctx: &Ctx) -> Vec<Row> {
             return out;
         }
     }
+    // 同一时刻只转一处（`tui.md`「时间线」第 19 条）。
+    let active = segment.active();
     for (j, step) in segment.steps.iter().enumerate() {
         if !out.is_empty() {
             // 上一步出错：竖线一路红到这一步的标题（`tui.md`「时间线」第 12 条）。
             let failed = j > 0 && segment.steps[j - 1].failed();
             out.push(connector(ctx, failed));
         }
-        out.extend(step_rows(Target::Step(entry, j), step, ctx));
+        out.extend(step_rows(
+            Target::Step(entry, j),
+            step,
+            active == Some(j),
+            ctx,
+        ));
     }
     out
 }
@@ -62,11 +69,11 @@ fn connector(ctx: &Ctx, failed: bool) -> Row {
     )
 }
 
-/// 一步的行：标题，下面接着预览或点开的内容。
-fn step_rows(target: Target, step: &Step, ctx: &Ctx) -> Vec<Row> {
+/// 一步的行：标题，下面接着预览或点开的内容。`spinning` 是这一步在转圈（这一段正在动的那一步）。
+fn step_rows(target: Target, step: &Step, spinning: bool, ctx: &Ctx) -> Vec<Row> {
     let tl = &ctx.config.timeline;
     let style = step::style(step, ctx.hover == Some(target));
-    let slot = if step.busy() {
+    let slot = if spinning {
         let frame = &tl.spinner[ctx.frame % tl.spinner.len().max(1)];
         Span::styled(format!("{frame} "), theme::dim())
     } else {

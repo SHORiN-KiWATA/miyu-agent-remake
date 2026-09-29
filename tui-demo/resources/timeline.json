@@ -42,6 +42,7 @@
   ],
   "spinner_ms": 80,
   "preview_rows": 10,
+  "thought_rows": 15,
   "line": "│",
   "omitted": "⋮",
   "fold": true,

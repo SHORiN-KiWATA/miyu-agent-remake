@@ -84,6 +84,16 @@
       "name": "demo-todo",
       "summary": "演示：推一份假的待办",
       "run": "demo_todo"
+    },
+    {
+      "name": "demo-ask",
+      "summary": "演示：她问一个假的问题，看提问的抽屉",
+      "run": "demo_ask"
+    },
+    {
+      "name": "demo-approve",
+      "summary": "演示：要一次假的权限确认，看确认的抽屉",
+      "run": "demo_approve"
     }
   ]
 }

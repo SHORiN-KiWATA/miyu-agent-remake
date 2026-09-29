@@ -125,5 +125,43 @@
     "fail_mark": "✗ ",
     "todo_folded": "做完 {count} 项",
     "todo_more": "… 还有 {count} 项"
+  },
+  "drawer": {
+    "asking": "{who} 在问",
+    "answered_tab": " ✓",
+    "review_tab": "确认",
+    "pointer": "› ",
+    "unchecked": "[ ] ",
+    "checked": "[✓] ",
+    "other": "输入其他答案",
+    "custom": "自定义：{text}",
+    "notes_label": "补充",
+    "decisions": [
+      "允许这一次",
+      "这个会话都允许",
+      "这个工作区都允许",
+      "不允许"
+    ],
+    "reason_hint": "写上理由（可以不写）",
+    "access": {
+      "write": "要写 {count} 个文件",
+      "read": "要读 {count} 个文件",
+      "exec": "要运行 {tool}"
+    },
+    "access_other": "要用 {tool}",
+    "outside": "工作区外",
+    "unanswered": "未回答",
+    "keys": "↑/↓ 选择 · Enter 提交 · n 补充 · Esc ×2 取消",
+    "keys_multi": "↑/↓ 选择 · Space 勾选 · Enter 提交 · n 补充 · Esc ×2 取消",
+    "keys_approve": "↑/↓ 选择 · Enter 确定 · Esc ×2 取消",
+    "keys_review": "Enter 提交 · Esc ×2 取消",
+    "keys_edit": "Enter 保存 · Esc 退出编辑",
+    "keys_tabs": " · ←/→ 换题",
+    "answered_title": "已回答",
+    "answered_line": "{label}：{answer}",
+    "notes_suffix": "（补充：{notes}）",
+    "denied_with": "不允许 · {reason}",
+    "cancelled": "已取消",
+    "cancel_hint": "再按一次 Esc 取消"
   }
 }

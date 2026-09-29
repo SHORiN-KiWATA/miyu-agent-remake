@@ -8,40 +8,11 @@ use ratatui::crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 use unicode_width::UnicodeWidthChar;
 
-use crate::ui::rows::{Row, Target};
+use crate::ui::row_cache::Rows;
+use crate::ui::rows::Target;
 
 /// 滚轮一格翻几行。
 const WHEEL: usize = 3;
-
-/// 一行里鼠标要知道的几样。
-#[derive(Debug, Clone)]
-pub struct Meta {
-    /// 点它点中的东西。
-    pub target: Option<Target>,
-    /// 内容的字。
-    pub plain: String,
-    /// 内容从正文区左边第几列起。
-    pub content_x: u16,
-    /// 这一行是上一行折下来的。
-    pub joined: bool,
-    /// 链接：从内容开头算的起列、止列（不含）、地址。
-    pub links: Vec<(u16, u16, String)>,
-    /// 复制时带不带这一行。
-    pub copy: bool,
-}
-
-impl From<&Row> for Meta {
-    fn from(row: &Row) -> Self {
-        Self {
-            target: row.target,
-            plain: row.plain.clone(),
-            content_x: row.content_x,
-            joined: row.joined,
-            links: row.links.clone(),
-            copy: row.copy,
-        }
-    }
-}
 
 /// 选区的一头：第几行（全部行里的）、正文区里第几列。
 pub type Point = (usize, u16);
@@ -75,8 +46,8 @@ pub struct BodyView {
     /// 跟着最新的时，视口底边至少露到第几行（不含）：只往下走、不往回退，内容变短时看着的行不掉下来；
     /// 记底边不记第一行，视口变高变矮时贴着底边走，不留空白（`tui.md`「正文」第 1 条）。
     pub floor_end: usize,
-    /// 上一帧的全部行。
-    pub rows: Vec<Meta>,
+    /// 上一帧的全部行（引用按条缓存的那一份，不复制）。
+    pub rows: Rows,
     /// 上一帧正文区的位置。
     pub area: Rect,
     /// 选中的一段，两头照拖的先后；画和复制时再排前后。
@@ -272,23 +243,35 @@ pub(crate) fn slice(text: &str, from: u16, to: u16) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{BodyView, Meta, slice};
+    use super::{BodyView, slice};
+    use crate::ui::rows::Row;
     use ratatui::layout::Rect;
+    use ratatui::text::Line;
 
-    fn view() -> BodyView {
-        let row = |plain: &str| Meta {
+    fn row(plain: &str) -> Row {
+        Row {
+            line: Line::default(),
             target: None,
+            shade: false,
             plain: plain.into(),
             content_x: 4,
             joined: false,
             links: Vec::new(),
             copy: true,
-        };
+            figure: None,
+        }
+    }
+
+    fn view_of(rows: Vec<Row>) -> BodyView {
         BodyView {
-            rows: vec![row("你好世界"), row("second line")],
+            rows: rows.into(),
             area: Rect::new(0, 0, 40, 10),
             ..BodyView::default()
         }
+    }
+
+    fn view() -> BodyView {
+        view_of(vec![row("你好世界"), row("second line")])
     }
 
     #[test]
@@ -327,11 +310,10 @@ mod tests {
 
     #[test]
     fn folded_rows_copy_back_as_one_line() {
-        let mut v = view();
         // 第二行是第一行折下来的：复制出来是一行，折行处的空格留着。
-        v.rows[0].plain = "hello ".into();
-        v.rows[1].plain = "world".into();
-        v.rows[1].joined = true;
+        let mut folded = row("world");
+        folded.joined = true;
+        let mut v = view_of(vec![row("hello "), folded]);
         v.select = Some(((0, 4), (1, 20)));
         assert_eq!(v.selected_text(), "hello world");
     }

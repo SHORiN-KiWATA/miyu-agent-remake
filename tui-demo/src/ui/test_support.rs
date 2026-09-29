@@ -43,3 +43,16 @@ impl Fixture {
         }
     }
 }
+
+/// 整份重排：把看得见的正文排成行，一条之间空一行。按条缓存的 `row_cache::build` 要和它排出来的一模一样。
+pub fn fresh_rows(entries: &[crate::transcript::Entry], ctx: &Ctx) -> Vec<crate::ui::rows::Row> {
+    use crate::ui::rows::{entry_rows, shown};
+    let mut rows = Vec::new();
+    for (i, entry) in entries.iter().enumerate().filter(|(_, e)| shown(e)) {
+        if !rows.is_empty() {
+            rows.push(ctx.row(ctx.blank_slot(), Vec::new()));
+        }
+        rows.extend(entry_rows(i, entry, ctx));
+    }
+    rows
+}

@@ -9,6 +9,7 @@ mod commands;
 mod config;
 mod core;
 mod diff;
+mod drawer;
 mod figures;
 mod focus;
 mod history;

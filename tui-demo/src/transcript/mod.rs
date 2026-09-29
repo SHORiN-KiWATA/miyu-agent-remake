@@ -38,8 +38,10 @@ pub enum Kind {
     Done,
     /// 撤销了几轮：一行说明，点开看你说的那句的全文（`text`）。
     Undo,
-    /// 一条后台任务结束的通知（`job` 里是记号和能点开看的全文）。
+    /// 一条后台任务结束的通知（`job` 里是记号和能点开看的全文）；抽屉了结以后的那一行（不允许、取消）也是它。
     Job,
+    /// 提问答了：旧版的引用块，行首暗色竖线、整块暗色（蓝图「确认和提问的抽屉」第 6 条）。
+    Answered,
 }
 
 /// 后台任务结束的通知：成败决定记号的颜色（蓝图「后台命令、子代理和侧边栏」第 5 条）。
@@ -65,6 +67,8 @@ pub struct JobNote {
 /// 正文里的一条。
 #[derive(Debug, Clone)]
 pub struct Entry {
+    /// 生出来时发的编号，这次启动里不重复：排好的行按它记（`ui/row_cache`），不按它在正文里排第几。
+    pub id: u64,
     /// 种类。
     pub kind: Kind,
     /// 字；时间线那一条没有字。
@@ -150,6 +154,8 @@ pub struct Transcript {
     returned: Vec<String>,
     /// 最近一次 `turn.reverted` 撤掉的几轮：撤销的回应来了，照它找你说的那句全文。
     reverted: Vec<u64>,
+    /// 下一条正文的编号。
+    next_id: u64,
 }
 
 impl Default for Transcript {
@@ -174,6 +180,7 @@ impl Default for Transcript {
             failure: None,
             turn: None,
             reverted: Vec::new(),
+            next_id: 0,
             returned: Vec::new(),
         }
     }
@@ -187,7 +194,9 @@ impl Transcript {
 
     /// 在正文末尾写一句旁白，不属于哪一轮。
     pub fn note(&mut self, kind: Kind, text: String) {
+        let id = self.fresh_id();
         self.entries.push(Entry {
+            id,
             kind,
             text,
             segment: None,
@@ -417,7 +426,9 @@ impl Transcript {
             Kind::Done => Some(self.turn_level),
             _ => None,
         };
+        let id = self.fresh_id();
         self.entries.push(Entry {
+            id,
             kind,
             text,
             segment: None,
@@ -430,5 +441,11 @@ impl Transcript {
             level,
             job: None,
         });
+    }
+
+    /// 发一个新编号。
+    fn fresh_id(&mut self) -> u64 {
+        self.next_id += 1;
+        self.next_id
     }
 }

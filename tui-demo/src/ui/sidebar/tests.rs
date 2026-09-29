@@ -173,7 +173,11 @@ fn the_sidebar_is_laid_out_in_sections() {
     let (lines, _) = super::info_lines(&t, &config, 36, "~/src");
     let text: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
     assert_eq!(text[0], "整理 src 目录");
-    assert_eq!(lines[0].style, crate::theme::side_title(), "起了名字的标题一样蓝、不加粗");
+    assert_eq!(
+        lines[0].style,
+        crate::theme::side_title(),
+        "起了名字的标题一样蓝、不加粗"
+    );
     let at = text.iter().position(|l| l == "上下文").unwrap();
     assert_eq!(text[at + 1], "  200k / 1M · 20%");
     let bar = &text[at + 2];

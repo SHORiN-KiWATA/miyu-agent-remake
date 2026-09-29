@@ -57,6 +57,24 @@ pub fn pieces(text: &str, width: u16) -> Vec<(String, bool)> {
         .collect()
 }
 
+/// 只要折好的最后 `rows` 行：从末尾往前照原文的换行一段段折，够了就停。和整段 `pieces` 以后取最后几行一样，
+/// 但不管前面有多长都只折最后那几段（思考的预览每一帧都要，整段重折的时间跟着思考长度涨）。
+pub fn tail_pieces(text: &str, width: u16, rows: usize) -> Vec<(String, bool)> {
+    let mut groups = Vec::new();
+    let mut have = 0;
+    for paragraph in text.rsplit('\n') {
+        if have >= rows {
+            break;
+        }
+        let lines = pieces(paragraph, width);
+        have += lines.len();
+        groups.push(lines);
+    }
+    let all: Vec<(String, bool)> = groups.into_iter().rev().flatten().collect();
+    let skip = all.len().saturating_sub(rows);
+    all.into_iter().skip(skip).collect()
+}
+
 /// 光标在第几行、第几列。
 ///
 /// 软折行处，上一行的结尾和下一行的开头是同一个下标，这时光标算在下一行开头：

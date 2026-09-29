@@ -6,6 +6,9 @@
   "top_gap": 1,
   "pad_left": 3,
   "pad_right": 2,
+  "compact_below": 80,
+  "compact_pad_left": 2,
+  "compact_pad_right": 1,
   "max_rows": 8,
   "double_click_ms": 400,
   "notice_ms": 2000,
@@ -30,6 +33,7 @@
   ],
   "undo_icon": "↶ ",
   "esc_window_ms": 1500,
+  "drawer_keep_rows": 6,
   "dots": {
     "mark": ".",
     "count": 3

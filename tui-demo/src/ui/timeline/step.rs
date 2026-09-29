@@ -10,7 +10,7 @@ use super::super::rows::{Ctx, clip};
 use super::lit;
 use crate::config::ToolKind;
 use crate::diff;
-use crate::input::pieces;
+use crate::input::{pieces, tail_pieces};
 use crate::meter;
 use crate::theme;
 use crate::transcript::{Step, StepKind, ToolState};
@@ -133,15 +133,13 @@ pub fn preview(step: &Step, style: Style, ctx: &Ctx) -> Vec<Piece> {
         // 思考：滚着显示最后几行，想完也不收起（`tui.md`「时间线」第 5 条）。
         StepKind::Thought { text } => {
             // 首尾的空行不画：流到一半停在换行上时，不冒出一根空竖线。
-            let lines = pieces(text.trim(), width);
-            let skip = lines.len().saturating_sub(tl.preview_rows);
-            lines
+            // 只折最后那几行：整段重折的时间跟着思考长度涨，做完的思考也每帧都画。
+            tail_pieces(text.trim(), width, tl.thought_rows)
                 .into_iter()
-                .skip(skip)
                 .map(|(l, joined)| Piece {
                     lead: bar(theme::dim()),
-                    // 和命令的预览一样暗（悬停一起变亮）、正体（第 5 条）。
-                    content: vec![Span::styled(l, style)],
+                    // 字用主题的 thought（淡紫），和命令的预览分开；悬停时和别的步一起亮一档（第 5 条）。
+                    content: vec![Span::styled(l, thought_text(style))],
                     joined,
                 })
                 .collect()
@@ -232,5 +230,14 @@ fn kind(step: &Step, ctx: &Ctx) -> Option<ToolKind> {
     match &step.kind {
         StepKind::Tool { name, .. } => ctx.config.timeline.tools.get(name).and_then(|t| t.kind),
         StepKind::Thought { .. } => None,
+    }
+}
+
+/// 思考预览的字：平时用主题的 `thought`；悬停（`style` 亮了一档）时用同色系亮一档的 `thought_hover`。
+fn thought_text(style: Style) -> Style {
+    if style == theme::dim() {
+        theme::thought()
+    } else {
+        theme::thought_hover()
     }
 }

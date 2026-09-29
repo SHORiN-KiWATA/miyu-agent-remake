@@ -18,6 +18,22 @@ impl App {
         if self.jobs_mouse(mouse, at) {
             return Action::None;
         }
+        // 抽屉开着：悬停选中那一项，点一下等于 `Enter`（`tui.md`「确认和提问的抽屉」第 4 条）。
+        if self.drawers.open() && self.areas.text.contains(at) {
+            let row = usize::from(at.y - self.areas.text.y);
+            if let Some(index) = self.drawer_rows.get(row).copied().flatten() {
+                match mouse.kind {
+                    MouseEventKind::Moved => {
+                        if let Some(d) = self.drawers.current.as_mut() {
+                            d.cursor[d.tab] = index;
+                        }
+                    }
+                    MouseEventKind::Down(_) => self.drawer_click(index),
+                    _ => {}
+                }
+            }
+            return Action::None;
+        }
         let under = if self.areas.menu.contains(at) {
             Some(Grab::Menu)
         } else if self.areas.frame.contains(at) {

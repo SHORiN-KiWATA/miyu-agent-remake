@@ -5,6 +5,8 @@ use std::time::{Duration, Instant};
 
 use serde::Deserialize;
 
+use crate::drawer::{Approval, Asked, Fake};
+
 use super::{Board, Job, JobKind, JobState, Todo, TodoState};
 
 /// 一条假的后台命令。
@@ -57,6 +59,10 @@ pub struct Script {
     pub agents: Vec<AgentScript>,
     /// 待办，`/demo-todo` 推。
     pub todos: TodoScript,
+    /// 提问，`/demo-ask` 轮着出（蓝图「确认和提问的抽屉」）。
+    pub asks: Vec<Fake<Asked>>,
+    /// 权限确认，`/demo-approve` 轮着出。
+    pub approvals: Vec<Fake<Approval>>,
 }
 
 /// 正在演的一段。

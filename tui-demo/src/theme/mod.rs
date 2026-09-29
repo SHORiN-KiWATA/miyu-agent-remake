@@ -127,9 +127,14 @@ pub fn model() -> Style {
     Style::new().add_modifier(Modifier::BOLD)
 }
 
-/// 思考的字：斜体，主题的 `thought`，不叠「变暗」（叠了在深色底上发闷，2026-09-29 项目主人嫌不好看）。
+/// 思考的字：正体，主题的 `thought`，不叠「变暗」（叠了在深色底上发闷，2026-09-29 项目主人嫌不好看）。
 pub fn thought() -> Style {
     fg(|p| p.thought)
+}
+
+/// 悬停时思考的字：同色系亮一档（蓝图「时间线」第 5 条）。
+pub fn thought_hover() -> Style {
+    fg(|p| p.thought_hover)
 }
 
 /// 点开的步骤的底色。256 色里的深灰，亮色主题下也还分得出来。

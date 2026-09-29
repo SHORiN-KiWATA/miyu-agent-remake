@@ -9,13 +9,12 @@ use ratatui::layout::Rect;
 use super::Areas;
 use crate::app::App;
 use crate::config::Layout;
-use crate::input::InputBox;
 
 /// 首页各块的位置。`mascot` 是吉祥物占几列几行，`menu_rows` 是列表要露出几行（贴在输入框上面，盖住上面的东西，
 /// 输入框不挪）。
 pub fn areas(
     area: Rect,
-    input: &InputBox,
+    rows: &dyn Fn(u16) -> u16,
     layout: &Layout,
     mascot: (u16, u16),
     menu_rows: u16,
@@ -25,10 +24,9 @@ pub fn areas(
     // 首页的输入框收窄，和吉祥物成一组（「空会话的首页」第 2 条）。
     let width = super::box_width(area.width, layout).min(layout.home_max_width);
     let x = area.x + (area.width - width) / 2;
-    let text_width = width
-        .saturating_sub(2 + layout.pad_left + layout.pad_right)
-        .max(1);
-    let rows = input.rows(text_width);
+    let m = super::margins::margins(layout, area.width);
+    let text_width = width.saturating_sub(2 + m.pad_left + m.pad_right).max(1);
+    let rows = rows(text_width);
     // 输入框（上下两条边和字）和框下面那一行一直在；待办、吉祥物各连下面的空行。
     let todo_h = if todo_rows > 0 { todo_rows + 1 } else { 0 };
     // 框下面那一行下面：空一行、工作目录（第 2 条）。
@@ -46,7 +44,7 @@ pub fn areas(
         Rect::new(area.x, y, 0, 0)
     };
     let frame = Rect::new(x, y + todo_h, width, rows + 2).intersection(area);
-    let inner_x = frame.x + 1 + layout.pad_left;
+    let inner_x = frame.x + 1 + m.pad_left;
     let text = Rect::new(inner_x, frame.y + 1, text_width, rows).intersection(frame);
     let footer = Rect::new(inner_x, frame.bottom(), text_width, 1).intersection(area);
     let cwd = Rect::new(inner_x, footer.bottom() + 1, text_width, 1).intersection(area);
@@ -91,8 +89,9 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
     } else {
         areas.menu.y
     };
-    let needed =
-        (areas.menu.height > 0).then(|| i32::from(top) - 1 - i32::from(areas.mascot.height));
+    // 抽屉把输入框撑高时也一样顶上去（「确认和提问的抽屉」第 2 条）。
+    let pushed = areas.menu.height > 0 || app.drawers.open();
+    let needed = pushed.then(|| i32::from(top) - 1 - i32::from(areas.mascot.height));
     let now = Instant::now();
     let Some(y) = app.perch.place(areas.mascot.y, needed, now, &look.perch) else {
         return;
@@ -142,7 +141,7 @@ mod tests {
         let layout = Config::builtin().unwrap().layout;
         let a = areas(
             Rect::new(0, 0, 100, 40),
-            &input(),
+            &|w| input().rows(w),
             &layout,
             (36, 16),
             0,
@@ -165,7 +164,7 @@ mod tests {
         let layout = Config::builtin().unwrap().layout;
         let a = areas(
             Rect::new(0, 0, 200, 40),
-            &input(),
+            &|w| input().rows(w),
             &layout,
             (36, 16),
             0,
@@ -176,7 +175,7 @@ mod tests {
         assert_eq!(a.frame.x, (200 - layout.home_max_width) / 2, "左右居中");
         let b = areas(
             Rect::new(0, 0, 60, 40),
-            &input(),
+            &|w| input().rows(w),
             &layout,
             (36, 16),
             0,
@@ -191,7 +190,7 @@ mod tests {
         let layout = Config::builtin().unwrap().layout;
         let a = areas(
             Rect::new(0, 0, 100, 40),
-            &input(),
+            &|w| input().rows(w),
             &layout,
             (36, 15),
             0,
@@ -213,7 +212,7 @@ mod tests {
         let layout = Config::builtin().unwrap().layout;
         let a = areas(
             Rect::new(0, 0, 100, 40),
-            &input(),
+            &|w| input().rows(w),
             &layout,
             (36, 15),
             0,
@@ -228,7 +227,7 @@ mod tests {
         // 开着列表：待办在列表上面，输入框不挪。
         let b = areas(
             Rect::new(0, 0, 100, 40),
-            &input(),
+            &|w| input().rows(w),
             &layout,
             (36, 15),
             4,
@@ -250,7 +249,7 @@ mod tests {
         let layout = Config::builtin().unwrap().layout;
         let a = areas(
             Rect::new(0, 0, 100, 12),
-            &input(),
+            &|w| input().rows(w),
             &layout,
             (36, 16),
             0,
@@ -271,7 +270,7 @@ mod tests {
         let layout = Config::builtin().unwrap().layout;
         let closed = areas(
             Rect::new(0, 0, 100, 40),
-            &input(),
+            &|w| input().rows(w),
             &layout,
             (36, 15),
             0,
@@ -280,7 +279,7 @@ mod tests {
         );
         let open = areas(
             Rect::new(0, 0, 100, 40),
-            &input(),
+            &|w| input().rows(w),
             &layout,
             (36, 15),
             5,

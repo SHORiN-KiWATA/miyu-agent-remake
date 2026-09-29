@@ -9,6 +9,7 @@ use ratatui::text::Span;
 use ratatui::widgets::Widget;
 use ratatui_image::sliced::{SignedPosition, SlicedImage};
 
+use super::row_cache::Rows;
 use super::rows::{Ctx, FigureCell, Row, md_row};
 use crate::figures::{Figures, Look};
 use crate::markdown::Figure;
@@ -71,13 +72,9 @@ fn zoom_row(lead: Vec<Span<'static>>, file: &std::path::Path, ctx: &Ctx) -> Row 
 
 /// 画视口里露出来的图：每张图从它第 0 行该在的位置画起（在视口上面的是负的），
 /// 视口外的那一截由 `SlicedImage` 切掉。`first` 是视口第一行是正文的第几行。
-pub fn draw(buf: &mut Buffer, area: Rect, rows: &[Row], first: usize, figures: &Figures) {
+pub fn draw(buf: &mut Buffer, area: Rect, rows: &Rows, first: usize, figures: &Figures) {
     let mut drawn = HashSet::new();
-    let visible = rows
-        .iter()
-        .enumerate()
-        .skip(first)
-        .take(usize::from(area.height));
+    let visible = rows.window(first, usize::from(area.height));
     for (i, row) in visible {
         let Some(FigureCell { key, row: at }) = row.figure else {
             continue;

@@ -50,12 +50,20 @@ pub struct Layout {
     pub pad_left: u16,
     /// 文字和框的右边之间留几列。至少要一列，给行尾的光标。
     pub pad_right: u16,
+    /// 窗口少于这么多列换紧凑版面：框贴着两边，框里只留提示符和光标的地方（蓝图「输入框」第 10 条）。
+    pub compact_below: u16,
+    /// 紧凑版面框里左边几列（提示符的宽度）。
+    pub compact_pad_left: u16,
+    /// 紧凑版面框里右边几列（光标的一列）。
+    pub compact_pad_right: u16,
     /// 输入框最多长到几行，再多就在框里滚。
     pub max_rows: u16,
     /// 两次点击隔多久以内算双击，毫秒。
     pub double_click_ms: u64,
-    /// 在回答时按了第一下 `Esc`，多久以内再按一下才打断，毫秒。
+    /// 按了第一下 `Esc`，多久以内再按一下才打断（抽屉开着时是取消），毫秒。
     pub esc_window_ms: u64,
+    /// 抽屉带文字画时可以高过半屏，但屏幕顶上至少留这么多行（蓝图「确认和提问的抽屉」第 2 条）。
+    pub drawer_keep_rows: u16,
     /// 输入框左上方的提示停多久，毫秒。
     pub notice_ms: u64,
     /// 运行状态行词后面的三个点：一直在，和词一起被流光扫（`tui.md`「运行状态行和排队的消息」第 2 条）。
@@ -222,6 +230,8 @@ pub struct Texts {
     pub side_hit: String,
     /// 后台命令、子代理、待办的字。
     pub jobs: JobTexts,
+    /// 确认和提问的抽屉上的字。
+    pub drawer: crate::drawer::Texts,
     /// 空会话的首页上，输入框空着时固定写的提示（蓝图「输入框」第 9 条）。
     pub home_placeholder: String,
     /// 权限级别的叫法：`workspace`、`full`、`read_only`（`kernel/events-bodies.md` 的 `permission`）。
@@ -342,8 +352,10 @@ pub struct Timeline {
     pub spinner: Vec<String>,
     /// 转圈一帧多少毫秒。
     pub spinner_ms: u64,
-    /// 思考、命令的预览最多几行。
+    /// 命令的预览最多几行。
     pub preview_rows: usize,
+    /// 思考滚着显示最后几行。
+    pub thought_rows: usize,
     /// 步与步之间的连接线，预览行首的竖线也是它。
     pub line: String,
     /// 预览放不下时那一行打头的符号。

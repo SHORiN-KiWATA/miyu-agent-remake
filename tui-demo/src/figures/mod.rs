@@ -67,6 +67,8 @@ pub struct Figures {
     /// 后台线程；终端显示不了图时没有。
     jobs: Option<Sender<Job>>,
     keep: usize,
+    /// 做好、做坏、扔掉一张就加一：正文按条缓存排好的行，图占几行变了要全排一遍（`ui/row_cache`）。
+    revision: u64,
 }
 
 impl Figures {
@@ -88,6 +90,7 @@ impl Figures {
             order: VecDeque::new(),
             jobs,
             keep: keep.max(1),
+            revision: 0,
         }
     }
 
@@ -135,6 +138,12 @@ impl Figures {
     pub fn forget(&mut self) {
         self.slots.clear();
         self.order.clear();
+        self.revision += 1;
+    }
+
+    /// 图的状态变过几次：做好、做坏、扔掉一张都算。
+    pub fn revision(&self) -> u64 {
+        self.revision
     }
 
     /// 后台做完一张。已经被扔掉的（记满了）不再记。
@@ -144,6 +153,7 @@ impl Figures {
                 Ok(drawn) => Slot::Ready(drawn),
                 Err(_) => Slot::Failed,
             };
+            self.revision += 1;
         }
     }
 
@@ -153,6 +163,7 @@ impl Figures {
         while self.order.len() > self.keep {
             if let Some(oldest) = self.order.pop_front() {
                 self.slots.remove(&oldest);
+                self.revision += 1;
             }
         }
     }

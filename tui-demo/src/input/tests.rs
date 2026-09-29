@@ -7,7 +7,7 @@ use ratatui::crossterm::event::{
 };
 use ratatui::layout::Rect;
 
-use super::{Action, Editor, InputBox, VisualLine, locate, offset_at, pieces, wrap};
+use super::{Action, Editor, InputBox, VisualLine, locate, offset_at, pieces, tail_pieces, wrap};
 
 fn typed(text: &str) -> Editor {
     let mut e = Editor::default();
@@ -309,4 +309,29 @@ fn picking_from_history_keeps_what_was_in_the_box() {
     i.editor.set("又写了一句");
     i.pick("跑一下测试");
     assert_eq!(i.sent().last().map(String::as_str), Some("又写了一句"));
+}
+
+#[test]
+fn tail_pieces_match_the_end_of_a_full_wrap() {
+    // 只折最后几行（思考的预览，`tui.md`「时间线」第 5 条）：和整段折完取最后几行一模一样，连「折下来的」标记。
+    let texts = [
+        "",
+        "一行",
+        "a\n\nb\n",
+        "很长的一段中文没有换行一直写下去直到超过宽度好几倍为止看看折得对不对",
+        "第一段\n第二段比较长比较长比较长比较长比较长\n\n第三段\nlast line with english words",
+    ];
+    for text in texts {
+        for width in [1u16, 4, 9, 30] {
+            let full = pieces(text, width);
+            for rows in [0usize, 1, 3, 15, 100] {
+                let want = full[full.len().saturating_sub(rows)..].to_vec();
+                assert_eq!(
+                    tail_pieces(text, width, rows),
+                    want,
+                    "{text:?} 宽 {width} 取 {rows}"
+                );
+            }
+        }
+    }
 }

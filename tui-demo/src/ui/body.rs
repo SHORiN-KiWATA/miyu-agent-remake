@@ -7,9 +7,9 @@ use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 
 use super::Areas;
-use super::rows::{self, Ctx, Row};
+use super::row_cache::{self, Rows};
+use super::rows::Ctx;
 use crate::app::App;
-use crate::body_view::Meta;
 use crate::theme;
 
 /// 画正文，顺手把这一帧的行记进 `app.view`，鼠标要用。
@@ -29,10 +29,10 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
         frame: usize::try_from(app.started.elapsed().as_millis() / u128::from(spinner_ms))
             .unwrap_or(0),
     };
-    let rows = rows::build(&app.transcript.entries, &ctx);
+    let rows = row_cache::build(&app.transcript.entries, &ctx, &app.row_cache);
     let first = first_row(&rows, area, &mut app.view);
     let height = usize::from(area.height);
-    for (i, row) in rows.iter().enumerate().skip(first).take(height) {
+    for (i, row) in rows.window(first, height) {
         let y = area.y + u16::try_from(i - first).unwrap_or(0);
         let line_area = Rect::new(area.x, y, area.width, 1);
         // 先铺底色再写字：没带底色的片段留着底下的灰，差异行自己的红底、青底盖在上面。
@@ -51,10 +51,11 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
         first,
         &app.figures.borrow(),
     );
-    app.view.rows = rows.iter().map(Meta::from).collect();
+    // 鼠标、复制照这一帧的行；共享记着的那一份，不复制。
+    app.view.rows = rows.clone();
     // 悬停在链接上：这个链接露出来的每一截都加下划线。
     if let Some(url) = &app.view.hover_link {
-        for (i, row) in rows.iter().enumerate().skip(first).take(height) {
+        for (i, row) in rows.window(first, height) {
             let y = area.y + u16::try_from(i - first).unwrap_or(0);
             for (from, to, _) in row.links.iter().filter(|(_, _, u)| u == url) {
                 let x = area.x + row.content_x + from;
@@ -64,7 +65,7 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
             }
         }
     }
-    for (i, row) in rows.iter().enumerate().skip(first).take(height) {
+    for (i, row) in rows.window(first, height) {
         // 图的行不铺反色：kitty 的图靠格子的前景色认是哪张图，反了就画不出来。
         if row.figure.is_some() {
             continue;
@@ -80,7 +81,7 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
 
 /// 第一行露出的是第几行：有锚点的照锚点，滚过的照滚到的，别的跟着最新的、只往下走。滚到底了就回到跟着最新的。
 /// 顺手记下这一帧的区域（`view.area`），下一帧照它看窗口宽度变没变。
-fn first_row(rows: &[Row], area: Rect, view: &mut crate::body_view::BodyView) -> usize {
+fn first_row(rows: &Rows, area: Rect, view: &mut crate::body_view::BodyView) -> usize {
     let height = usize::from(area.height);
     let bottom = rows.len().saturating_sub(height);
     if let Some((target, y)) = view.anchor.take()
@@ -128,7 +129,7 @@ mod tests {
     use crate::body_view::BodyView;
     use crate::ui::rows::Row;
 
-    fn rows(n: usize) -> Vec<Row> {
+    fn rows(n: usize) -> crate::ui::row_cache::Rows {
         let row = Row {
             line: Line::default(),
             target: None,
@@ -140,7 +141,7 @@ mod tests {
             copy: true,
             figure: None,
         };
-        vec![row; n]
+        vec![row; n].into()
     }
 
     #[test]
@@ -213,7 +214,7 @@ mod tests {
     fn ctrl_l_empties_the_view_and_keeps_the_rows() {
         let area = Rect::new(0, 0, 10, 10);
         let mut view = BodyView::default();
-        view.rows = vec![crate::body_view::Meta::from(&rows(1)[0]); 30];
+        view.rows = rows(30);
         view.clear();
         // 30 行全顶上去，视口是空的；往回滚还在。
         assert_eq!(first_row(&rows(30), area, &mut view), 30);
@@ -228,7 +229,7 @@ mod tests {
         let tall = Rect::new(0, 0, 10, 10);
         let short = Rect::new(0, 0, 10, 7);
         let mut view = BodyView::default();
-        view.rows = vec![crate::body_view::Meta::from(&rows(1)[0]); 30];
+        view.rows = rows(30);
         view.clear();
         assert_eq!(first_row(&rows(30), tall, &mut view), 30);
         // 发出一句话（4 行），运行状态行那一块长出来，视口矮了 3 行：还从清屏那一行露起，不切掉开头。
@@ -262,7 +263,7 @@ mod tests {
     fn scrolling_after_ctrl_l_does_not_bring_the_rows_back() {
         let area = Rect::new(0, 0, 10, 10);
         let mut view = BodyView::default();
-        view.rows = vec![crate::body_view::Meta::from(&rows(1)[0]); 30];
+        view.rows = rows(30);
         view.clear();
         assert_eq!(first_row(&rows(30), area, &mut view), 30);
         // 往下滚：还是空的。
