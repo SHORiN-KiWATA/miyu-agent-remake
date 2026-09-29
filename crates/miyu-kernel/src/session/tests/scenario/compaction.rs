@@ -21,6 +21,7 @@ const COMPACTION: Compaction = Compaction {
     },
     rebuild: None,
     pause: None,
+    shorten: None,
 };
 
 /// 一个会压缩的替身；`step_limit` 是一个回合最多请求几次。

@@ -121,7 +121,7 @@ impl Route {
         let encoded = match self.driver.encode(&request, &self.call, &fetched) {
             Ok(encoded) => encoded,
             Err(EncodeError::MissingBlob(hash)) => {
-                return reports.ended(None, Some(missing(&hash)), None);
+                return reports.ended(None, Some(missing(&hash)), None, None);
             }
         };
         let attempt = Attempt {
@@ -141,7 +141,13 @@ impl Route {
             let wait_ms = error
                 .as_ref()
                 .and_then(|classified| classified.retry_after_ms);
-            reports.ended(usage, error.map(|classified| classified.error), wait_ms);
+            let excess = error.as_ref().and_then(|classified| classified.excess);
+            reports.ended(
+                usage,
+                error.map(|classified| classified.error),
+                wait_ms,
+                excess,
+            );
         }
     }
 }

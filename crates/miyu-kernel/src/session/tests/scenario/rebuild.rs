@@ -33,6 +33,7 @@ fn rebuilding_up_to(tail: u64, total: u64) -> Stage {
                 candidates: 3,
             }),
             pause: None,
+            shorten: None,
         });
         let template = |source: &str| Template::parse(source).unwrap();
         policy.notes = Some(Notes {
@@ -40,6 +41,7 @@ fn rebuilding_up_to(tail: u64, total: u64) -> Stage {
             files_more: template("<more {count}/>\n"),
             retrieve: template("<retrieve {upto}/>\n"),
             too_large: template("<too-large {files}/>\n"),
+            uncovered: None,
         });
         policy
     };

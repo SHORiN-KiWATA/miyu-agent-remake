@@ -19,6 +19,7 @@ fn compacting() -> Stage {
             },
             rebuild: None,
             pause: None,
+            shorten: None,
         });
         policy
     };

@@ -34,6 +34,7 @@ pub(crate) fn texts() -> Texts {
             restarted: "<restarted/>".to_string(),
         },
         summarize_task: "<summarize/>".to_string(),
+        truncated: "<truncated/>".to_string(),
     }
 }
 

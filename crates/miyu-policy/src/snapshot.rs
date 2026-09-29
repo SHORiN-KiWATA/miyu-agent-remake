@@ -10,13 +10,14 @@ use miyu_kernel::estimate::Flat;
 use miyu_kernel::event::{Permission, SessionCreated};
 use miyu_kernel::facts::FactTemplates;
 use miyu_kernel::id::{AccountId, ContentHash, VenueId};
-use miyu_kernel::session::{Compaction, Policy};
+use miyu_kernel::session::{Compaction, Notes, Policy};
 use miyu_kernel::template::TemplateError;
 use miyu_kernel::tool::{ToolTextSources, ToolTexts};
 use serde::{Deserialize, Serialize};
 
 use crate::pause::PauseNumbers;
 use crate::rebuild::{RebuildNumbers, RebuildTexts};
+use crate::shorten::{ShortenNumbers, ShortenTexts};
 use crate::tools::{self, ToolEntry};
 
 /// 一份策略快照。字段的先后就是字节里的先后：改了先后，快照的字节就变了。
@@ -63,6 +64,9 @@ pub struct CompactionNumbers {
     /// 熔断的数（施工 6-6 上）。以前造的快照里没有，读成没有：不熔断。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pause: Option<PauseNumbers>,
+    /// 截短重试的数（施工 6-6 中）。以前造的快照里没有，读成没有：摘要请求超长照失败算。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shorten: Option<ShortenNumbers>,
 }
 
 /// 尾巴的预算上限的出厂值（`compaction.md` 第三条第 2 条，2026-09-29 项目主人定）。
@@ -110,6 +114,9 @@ pub struct CompactionTexts {
     /// 压后重建的字（施工 6-5）。以前造的快照里没有，读成没有：不写那几段、不重读。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rebuild: Option<RebuildTexts>,
+    /// 截短重试的字（施工 6-6 中）。以前造的快照里没有，读成没有：不截短。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shorten: Option<ShortenTexts>,
 }
 
 /// 权限策略拒绝时写给她的两句（施工 4-3 下）。
@@ -305,6 +312,10 @@ impl Snapshot {
                 .as_ref()
                 .map(|compaction| compaction.summarize_task.clone())
                 .unwrap_or_default(),
+            truncated: self
+                .shorten_texts()
+                .map(|shorten| shorten.truncated.clone())
+                .unwrap_or_default(),
         };
         let (face, rules) = tools::split(&self.tools)?;
         let stable = Stable {
@@ -330,8 +341,25 @@ impl Snapshot {
             attended: self.attended,
             resumes: self.resumes,
             compaction: self.compaction(),
-            notes: self.rebuild_texts().map(RebuildTexts::notes).transpose()?,
+            notes: self.notes()?,
         })
+    }
+
+    /// 检查点里代码写的几段的模板：压后重建的几段（施工 6-5），有截短重试的字的，加上摘要没看到的那一段（施工 6-6 中）。
+    fn notes(&self) -> Result<Option<Notes>, BuildError> {
+        let Some(mut notes) = self.rebuild_texts().map(RebuildTexts::notes).transpose()? else {
+            return Ok(None);
+        };
+        notes.uncovered = self
+            .shorten_texts()
+            .map(ShortenTexts::uncovered)
+            .transpose()?;
+        Ok(Some(notes))
+    }
+
+    /// 截短重试的字：有的才截短（施工 6-6 中）。
+    fn shorten_texts(&self) -> Option<&ShortenTexts> {
+        self.core.compaction.as_ref()?.shorten.as_ref()
     }
 
     /// 压后重建的字：有的才写那几段、重读（施工 6-5）。
@@ -356,6 +384,10 @@ impl Snapshot {
                 .filter(|_| self.rebuild_texts().is_some())
                 .map(RebuildNumbers::kernel),
             pause: numbers.pause.map(PauseNumbers::kernel),
+            shorten: numbers
+                .shorten
+                .filter(|_| self.shorten_texts().is_some())
+                .map(ShortenNumbers::kernel),
         })
     }
 

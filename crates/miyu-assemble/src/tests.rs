@@ -175,7 +175,11 @@ fn the_summary_request_is_the_history_up_to_n_and_the_instruction() {
     log.end("completed");
     let again = log.say("再说");
     log.start(again);
-    let request = assembler.summarize(log.history(), miyu_kernel::id::Seq::new(upto).unwrap());
+    let request = assembler.summarize(
+        log.history(),
+        miyu_kernel::id::Seq::new(upto).unwrap(),
+        None,
+    );
     assert_eq!(request.tools, assembler.assemble(log.history()).tools);
     assert_eq!(request.system, "You are Miyu.");
     assert_eq!(
@@ -184,7 +188,11 @@ fn the_summary_request_is_the_history_up_to_n_and_the_instruction() {
     );
     assert!(!request.continuation);
     // 截到触发的那句：它是最后一条 user，指令并进去。
-    let request = assembler.summarize(log.history(), miyu_kernel::id::Seq::new(again).unwrap());
+    let request = assembler.summarize(
+        log.history(),
+        miyu_kernel::id::Seq::new(again).unwrap(),
+        None,
+    );
     assert_eq!(
         shape(&request.messages),
         ["user: hi", "assistant: 好。", "user: 再说 | <summarize/>"]
@@ -214,11 +222,65 @@ fn a_summary_request_never_continues_a_cut_reply() {
     );
     assert!(assembler.assemble(log.history()).continuation);
     let upto = miyu_kernel::id::Seq::new(log.next() - 1).unwrap();
-    assert!(!assembler.summarize(log.history(), upto).continuation);
+    assert!(!assembler.summarize(log.history(), upto, None).continuation);
     assert_eq!(
         assembler
             .summary(&[text("<summary>S</summary>")])
             .as_deref(),
         Some("S")
     );
+}
+
+/// 截短重试的摘要请求（施工 6-6 中）：只要截到的以后的；留下的第一条是助手的，前面补一条 user；有检查点的，第一条是
+/// 检查点那条 user，不补。
+#[test]
+fn a_truncated_summary_request_keeps_what_is_after_the_cut() {
+    let assembler = DefaultAssembler::new(stable(&[], vec![]), texts());
+    let seq = |n: u64| miyu_kernel::id::Seq::new(n).unwrap();
+    let mut log = Log::new();
+    let hi = log.say("hi");
+    log.start(hi);
+    let first = log.reply(&format!("[{}]", text_json("好。")));
+    log.end("completed");
+    let again = log.say("再说");
+    log.start(again);
+    log.reply(&format!("[{}]", text_json("嗯。")));
+    let upto = log.next() - 1;
+    // 截在第一条回复前面：留下的第一条是回复，补一条 user。
+    let request = assembler.summarize(log.history(), seq(upto), Some(seq(first - 1)));
+    assert_eq!(
+        shape(&request.messages),
+        [
+            "user: <truncated/>",
+            "assistant: 好。",
+            "user: 再说",
+            "assistant: 嗯。",
+            "user: <summarize/>"
+        ]
+    );
+    assert!(!request.continuation);
+    // 截在第二句前面：第一条就是 user，不补。
+    let request = assembler.summarize(log.history(), seq(upto), Some(seq(again - 1)));
+    assert_eq!(
+        shape(&request.messages),
+        ["user: 再说", "assistant: 嗯。", "user: <summarize/>"]
+    );
+    // 有检查点的：检查点那条 user 在最前面，截掉的是它后面的，不补。
+    let mut log = Log::new();
+    let hi = log.say("hi");
+    log.start(hi);
+    log.reply(&format!("[{}]", text_json("好。")));
+    log.end("completed");
+    let upto = log.next() - 1;
+    log.compact(upto, "S1");
+    let again = log.say("再说");
+    log.start(again);
+    let reply = log.reply(&format!("[{}]", text_json("嗯。")));
+    let request = assembler.summarize(log.history(), seq(reply), Some(seq(reply - 1)));
+    let shapes = shape(&request.messages);
+    assert!(
+        shapes[0].starts_with("user: <checkpoint>") && shapes[1] == "assistant: 嗯。",
+        "{shapes:?}"
+    );
+    assert!(!shapes.iter().any(|shape| shape.contains("<truncated/>")));
 }

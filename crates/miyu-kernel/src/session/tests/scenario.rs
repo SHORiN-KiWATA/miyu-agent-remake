@@ -8,6 +8,7 @@ mod compaction;
 mod done;
 mod rebuild;
 mod retrying;
+mod shorten;
 mod stopping;
 mod tail;
 

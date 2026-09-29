@@ -24,6 +24,21 @@ pub(crate) fn instruct(messages: &mut Vec<Message>, instruction: &str) {
     }
 }
 
+/// 截短重试的摘要请求（施工 6-6 中，`compaction.md` 第三条第 10 条）：稳定区后面留下的第一条是助手的，前面补一条 user，
+/// 说更早的对话为了压缩截掉了。有检查点的，第一条是检查点那条 user，不补。
+pub(crate) fn mark_truncated(messages: &mut Vec<Message>, stable: usize, truncated: &str) {
+    if matches!(messages.get(stable), Some(Message::Assistant { .. })) {
+        messages.insert(
+            stable,
+            Message::User {
+                blocks: vec![Block::Text(Text {
+                    text: truncated.to_string(),
+                })],
+            },
+        );
+    }
+}
+
 /// 从回复里取出摘要：只看正文块，思考不要。先去掉草稿：草稿里会顺嘴提到 `<summary>` 这个标签
 /// （`Now writing the <summary>.`），从那儿取就把草稿的尾巴带进了摘要（施工 6-3 下真模型两次都这样）。剩下的有 `<summary>` 的，取它到
 /// 最后一个 `</summary>` 之间的：摘要里引的 HTML 也有 `</summary>`，真收尾的在最后；没有收尾的（输出到了上限）取到

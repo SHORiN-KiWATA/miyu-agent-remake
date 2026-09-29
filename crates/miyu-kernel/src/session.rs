@@ -26,6 +26,7 @@ mod restart;
 mod restore;
 mod retry;
 mod revert;
+mod shorten;
 mod step;
 mod tools;
 mod turn;
@@ -34,7 +35,7 @@ pub use action::{Action, Outcome, Reason};
 pub use input::{Answer, Command, Injection, Input, Limits, Queued, Received, Reread, Verdict};
 pub use limits::ContextLimits;
 pub use load::LoadError;
-pub use policy::{Compaction, Notes, Pause, Policy, Rebuild};
+pub use policy::{Compaction, Notes, Pause, Policy, Rebuild, Shorten};
 pub use restore::{Expect, Step, StepAction};
 
 use crate::event::{Body, Event, MessageUser, Permission, SessionCreated, ToolResult, ToolStatus};
@@ -167,7 +168,8 @@ impl Session {
                 usage,
                 error,
                 wait_ms,
-            } => self.model_ended(at, seen, usage, error, wait_ms),
+                excess,
+            } => self.model_ended(at, seen, usage, error, wait_ms, excess),
             Input::Woke { at, seen } => self.woke(at, seen),
             Input::ToolDone {
                 at,

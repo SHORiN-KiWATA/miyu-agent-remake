@@ -47,6 +47,8 @@ pub(super) struct Turn {
     pub(super) compacted: bool,
     /// 打断了，在等停着的改文件的调用交回来（施工 4-9 再补一）：等齐了才收尾。
     pub(super) interrupting: Option<Interrupting>,
+    /// 摘要请求报了超长、截短了再发（施工 6-6 中，`shorten.rs`）：落了盘再发时照它截。发出去就取走。
+    pub(super) shorten: Option<super::shorten::Shortening>,
 }
 
 /// 打断以后在等停着的调用：谁打断的、哪个命令、排着队的怎么办，等的那一次 `Wake` 的记号。
@@ -124,6 +126,7 @@ impl Session {
             refresh: false,
             compacted: false,
             interrupting: None,
+            shorten: None,
         });
         self.effective = self.permission.clone();
         let facts = vec![

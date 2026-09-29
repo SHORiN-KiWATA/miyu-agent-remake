@@ -82,6 +82,23 @@ impl History {
         }
     }
 
+    /// 有效历史的后一段：检查点照留，之后的事件只留第 `cut` 条以后的，放在一边的撤销不要（施工 6-6 中）。摘要请求超长
+    /// 截掉最老的几组再试时，照 `until(N)` 再截它组装（`compaction.md` 第三条第 10 条）。
+    pub fn after(&self, cut: Seq) -> History {
+        History {
+            checkpoint: self.checkpoint.clone(),
+            events: self
+                .events
+                .iter()
+                .filter(|event| event.seq > cut)
+                .cloned()
+                .collect(),
+            undone: Vec::new(),
+            whole: self.whole,
+            recalled: self.recalled.clone(),
+        }
+    }
+
     /// 检查点之后还有效的事件，照每次请求当时看到的样子排好（03 第六节「照每次请求
     /// 看到的范围排」）。投影照这个先后一条条渲染。
     ///

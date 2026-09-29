@@ -67,6 +67,7 @@ impl Session {
         &self,
         at: Timestamp,
         upto: Seq,
+        cut: Option<Seq>,
         summary: &str,
         paths: &[String],
         reread: Option<&[Reread]>,
@@ -80,11 +81,31 @@ impl Session {
             .map(|path| self.shown(path))
             .collect();
         let head = files_and_retrieve(notes, &listed, upto);
+        // 摘要请求截短过的：摘要没看到的那一段，从检查点后面第一条到截到的那一条（施工 6-6 中）。写在最后，估算照算。
+        let uncovered = cut
+            .zip(notes.uncovered.as_ref())
+            .map(|(cut, uncovered)| {
+                let from =
+                    self.history
+                        .checkpoint()
+                        .map_or(1, |checkpoint| match &checkpoint.body {
+                            Body::ContextCompacted(compacted) => compacted.upto.get() + 1,
+                            _ => 1,
+                        });
+                say(
+                    uncovered,
+                    &[("from", &from.to_string()), ("to", &cut.to_string())],
+                )
+            })
+            .unwrap_or_default();
         let mut rebuilt = Rebuilt::default();
         let mut too_large = Vec::new();
-        let picked = reread
-            .zip(self.rebuild_numbers())
-            .zip(self.room(at, upto, summary, &head));
+        let picked = reread.zip(self.rebuild_numbers()).zip(self.room(
+            at,
+            upto,
+            summary,
+            &format!("{head}{uncovered}"),
+        ));
         if let Some(((reread, rebuild), room)) = picked {
             let mut total = 0u64;
             for (path, file) in paths.iter().zip(reread) {
@@ -118,6 +139,7 @@ impl Session {
                 .notes
                 .push_str(&say(&notes.too_large, &[("files", &too_large.join(", "))]));
         }
+        rebuilt.notes.push_str(&uncovered);
         rebuilt
     }
 

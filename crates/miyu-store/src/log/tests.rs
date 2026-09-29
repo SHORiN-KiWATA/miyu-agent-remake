@@ -401,7 +401,7 @@ impl Assembler for Nothing {
         }
     }
 
-    fn summarize(&self, history: &History, _upto: Seq) -> Request {
+    fn summarize(&self, history: &History, _upto: Seq, _cut: Option<Seq>) -> Request {
         self.assemble(history)
     }
 

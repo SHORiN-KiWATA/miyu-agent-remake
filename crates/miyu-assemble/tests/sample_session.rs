@@ -51,6 +51,7 @@ fn texts() -> Texts {
         },
         summarize_task: include_str!("../../../resources/core/compaction/summarize-task.txt")
             .to_string(),
+        truncated: include_str!("../../../resources/core/compaction/truncated.txt").to_string(),
     }
 }
 

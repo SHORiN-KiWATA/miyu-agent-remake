@@ -35,7 +35,7 @@ impl Watch {
             history.append(event);
         }
         let rebuilt = match Watch::is_summary(request) {
-            true => Listing.summarize(&history, seen),
+            true => Listing.summarize(&history, seen, Watch::truncated(request)),
             false => Listing.assemble(&history),
         };
         assert_eq!(

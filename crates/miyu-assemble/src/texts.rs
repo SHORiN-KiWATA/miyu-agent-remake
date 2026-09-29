@@ -24,6 +24,9 @@ pub struct Texts {
     pub turn_ended: TurnEndedTexts,
     /// 压缩的摘要指令，摘要请求的最后一块（`core/compaction/summarize-task.txt`，施工 6-2 上）。
     pub summarize_task: String,
+    /// 截短重试的摘要请求、留下的第一条是助手的，前面补的那一条 user（`core/compaction/truncated.txt`，施工 6-6 中）。
+    /// 以前造的快照里没有，是空的：那些会话不截短。
+    pub truncated: String,
 }
 
 /// 重读的文件那一块的头尾（施工 6-5）：头上写路径，原文夹在中间不转义。

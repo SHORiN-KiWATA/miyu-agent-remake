@@ -82,6 +82,19 @@ Then write the summary in <summary> tags, with these sections:
 Reply with the <analysis> block and then the <summary> block, nothing else. Do not call any tool.
 ```
 
+### 摘要请求的开头，人这边
+
+#### `core/compaction/truncated.txt`
+
+- 什么时候加进来：摘要请求报超长、截掉最老的几组再发，留下的第一条是助手的；只在那一次请求里
+- token：10（2026-09-29 照项目主人给的端点量）
+- 为什么加：截过的请求得从 user 开头，她也要知道前面少了一截（施工 6-6 中，`compaction.md` 第三条第 10 条）。照 Claude Code 截短重试补的那一条
+- 指纹：`b27161b8`
+
+```text
+Earlier messages were cut to fit this request.
+```
+
 ### 检查点里代码写的几段
 
 #### `core/compaction/notes-files.txt`
@@ -126,6 +139,17 @@ Entries 1-{upto} were compacted. history still finds them by number, words or ti
 
 ```text
 Not shown again, read them if you need them: {files}
+```
+
+#### `core/compaction/notes-uncovered.txt`
+
+- 什么时候加进来：摘要请求截短过的压缩
+- token：25（按第 1 到 5 条算）（2026-09-29 照项目主人给的端点量）
+- 为什么加：告诉她摘要没看到哪一段、还能用 `history` 取回（施工 6-6 中）：不写，她会以为摘要是全的
+- 指纹：`a9d80f5b`
+
+```text
+Entries {from}-{to} were cut to fit the summary request, so the summary misses them. history still finds them.
 ```
 
 ### 检查点里重读的文件那一块

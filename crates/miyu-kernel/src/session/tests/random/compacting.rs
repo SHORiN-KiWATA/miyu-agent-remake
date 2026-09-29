@@ -30,6 +30,10 @@ pub(super) fn random_policy(attended: bool) -> Policy {
             turns: 8,
             refills: 2,
         }),
+        shorten: Some(crate::session::Shorten {
+            tries: 3,
+            percent: 20,
+        }),
     });
     let template = |source: &str| crate::template::Template::parse(source).unwrap();
     limited.notes = Some(crate::session::Notes {
@@ -37,8 +41,30 @@ pub(super) fn random_policy(attended: bool) -> Policy {
         files_more: template("<more {count}/>"),
         retrieve: template("<retrieve {upto}/>"),
         too_large: template("<too-large {files}/>"),
+        uncovered: Some(template("<uncovered {from}-{to}/>")),
     });
     limited
+}
+
+/// 在路上的摘要请求报超长（施工 6-6 中），另用一串随机数：原来那串输入不跟着错开。只在捣乱的种子里，有摘要请求在路上时，十回里有一回；
+/// 一半说了超多少。
+pub(super) fn some_overflow(rng: &mut Rng, watch: &Watch) -> Option<Input> {
+    let seen = watch.summarizing().filter(|_| !watch.calm)?;
+    if rng.below(10) != 0 {
+        return None;
+    }
+    let excess = (rng.below(2) == 0).then(|| 5 * (1 + rng.below(20)));
+    Some(Input::ModelEnded {
+        at: at(45),
+        seen,
+        usage: None,
+        error: Some(CallError {
+            class: ErrorClass::ContextTooLong,
+            message: "413".to_string(),
+        }),
+        wait_ms: None,
+        excess,
+    })
 }
 
 /// 模型的限额，另用一串随机数：原来那串输入不跟着错开。三十回里有一回；窗口多半小到几十条事件就过线，偶尔没有

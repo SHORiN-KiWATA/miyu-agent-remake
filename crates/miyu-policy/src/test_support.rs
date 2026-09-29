@@ -111,6 +111,14 @@ pub(crate) fn core() -> CoreTexts {
                 )
                 .to_string(),
             }),
+            shorten: Some(crate::ShortenTexts {
+                truncated: include_str!("../../../resources/core/compaction/truncated.txt")
+                    .to_string(),
+                notes_uncovered: include_str!(
+                    "../../../resources/core/compaction/notes-uncovered.txt"
+                )
+                .to_string(),
+            }),
         }),
     }
 }

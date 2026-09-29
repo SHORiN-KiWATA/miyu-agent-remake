@@ -64,16 +64,18 @@ impl Watch {
         );
         let expected = self.expected_upto();
         assert_eq!(Some(seen), expected, "种子 {seed}：摘要请求替代到的不对");
+        let cut = self.summary_cut(seen, request);
         let effective = self.effective_events();
         let kept: Vec<Event> = effective
             .iter()
-            .filter(|event| event.seq <= seen)
+            .filter(|event| event.seq <= seen && cut.is_none_or(|cut| event.seq > cut))
             .cloned()
             .collect();
+        let head = cut.map_or(String::new(), |cut| format!("truncated after {cut}\n"));
         assert_eq!(
             listed_request(request),
-            format!("{}summarize\n", listing(&kept)),
-            "种子 {seed}：摘要请求照有效历史到第 {seen} 条"
+            format!("{head}{}summarize\n", listing(&kept)),
+            "种子 {seed}：摘要请求照有效历史到第 {seen} 条，截过的从截到的以后"
         );
         let turn = self.open_turn();
         let replied = effective.iter().any(|event| {
@@ -265,9 +267,21 @@ impl Watch {
                 self.seen_paths.insert("打断了摘要请求");
             }
             _ => {
-                self.seen_paths.insert("摘要请求出错");
                 let after = self.breaker_failed(events, k);
-                self.failed(called.seen, before, after);
+                // 报超长、这一轮没结束的：截短了等着再发，不交到点叫醒；后面只跟着发之前照查的事实（施工 6-6 中）。
+                let too_long = called
+                    .error
+                    .as_ref()
+                    .is_some_and(|error| error.class == ErrorClass::ContextTooLong);
+                if too_long && after.is_none_or(|body| matches!(body, Body::ContextInjected(_))) {
+                    self.summary_too_long(called.seen);
+                } else {
+                    if too_long {
+                        self.seen_paths.insert("截不动算失败");
+                    }
+                    self.seen_paths.insert("摘要请求出错");
+                    self.failed(called.seen, before, after);
+                }
             }
         }
         self.compactions.summarizing = None;
@@ -278,6 +292,7 @@ impl Watch {
     pub(super) fn compaction_appended(&mut self, event: &Event, compacted: &ContextCompacted) {
         self.rebuild_checked(compacted);
         self.breaker_compacted(compacted);
+        self.shorten_compacted(compacted);
         let seed = self.seed;
         self.seen_paths.insert("压缩了");
         let issued = self.compactions.latest;
@@ -339,6 +354,11 @@ impl Watch {
             "种子 {seed}：没压、或者已经发了主请求，却推了压好了"
         );
         assert_eq!(Some(done.seen), self.compactions.upto, "种子 {seed}");
+    }
+
+    /// 在路上的那次摘要请求（施工 6-6 中：另一串随机数照它报超长）。
+    pub(in super::super) fn summarizing(&self) -> Option<Seq> {
+        self.compactions.summarizing.map(|(seen, _)| seen)
     }
 
     /// 推了增量：不是摘要请求的。

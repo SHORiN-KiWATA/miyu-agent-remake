@@ -63,6 +63,35 @@ fn context_too_long() {
     );
 }
 
+/// 超长的带着超了多少（施工 6-6 中）：解析得出的有，解析不出来的、别的分类没有。
+#[test]
+fn too_long_says_how_many_tokens_over() {
+    let excess = |status: u16, body: &str| classify(&failure(Some(status), &[], body)).excess;
+    assert_eq!(
+        excess(
+            400,
+            r#"{"error":{"message":"This model's maximum context length is 65536 tokens. However, you requested 70000 tokens. Please reduce the length of the messages or completion.","type":"invalid_request_error","code":"invalid_request_error"}}"#
+        ),
+        Some(4_464)
+    );
+    assert_eq!(
+        excess(
+            400,
+            r#"{"error":{"message":"prompt is too long: 210000 tokens > 200000 maximum"}}"#
+        ),
+        Some(10_000)
+    );
+    assert_eq!(excess(413, "Request Entity Too Large"), None);
+    // 限速的原话里也有两个数，不是超长就不解析。
+    assert_eq!(
+        excess(
+            429,
+            r#"{"error":{"message":"maximum context length is 1000 tokens, you requested 2000 tokens per minute","code":"rate_limit_exceeded"}}"#
+        ),
+        None
+    );
+}
+
 #[test]
 fn a_rate_limit_that_mentions_tokens_is_not_too_long() {
     let body = r#"{"error":{"message":"Rate limit reached for gpt-4o in organization org-x on tokens per min (TPM): Limit 30000, Used 29000, Requested 2000. Please try again in 2.5s. Too many tokens.","type":"tokens","code":"rate_limit_exceeded"}}"#;

@@ -36,6 +36,7 @@
 
 mod asking;
 mod compacting;
+mod endings;
 mod kinds;
 mod paths;
 mod rereading;
@@ -61,7 +62,8 @@ use crate::origin::Model;
 use crate::raw::RawJson;
 use crate::tool::Access;
 use asking::{some_answer, some_question, some_reply, some_verdict};
-use compacting::{random_policy, some_limits};
+use compacting::{random_policy, some_limits, some_overflow};
+use endings::some_ending;
 use kinds::InputKind;
 use paths::{EXPECTED_PATHS, LONG_PATHS};
 use rereading::some_reread;
@@ -174,25 +176,6 @@ fn scrambled_delta(rng: &mut Rng) -> Delta {
         },
         _ => Delta::End { index },
     }
-}
-
-/// 说完了的结局：四回里有一回出错，出错的带着供应商说的要等多久（施工 3-5 下）。多半是可以重试的
-/// 503；也有限速的（等 3 秒，或者 10 分钟：太久不等）、认证失败的（不重试）。
-fn some_ending(rng: &mut Rng) -> (Option<CallError>, Option<u64>) {
-    if rng.below(4) > 0 {
-        return (None, None);
-    }
-    let (class, message, wait) = match rng.below(8) {
-        0 => (ErrorClass::Auth, "401", None),
-        1 => (ErrorClass::RateLimited, "429", Some(3000)),
-        2 => (ErrorClass::RateLimited, "429", Some(600_000)),
-        _ => (ErrorClass::Retryable, "503", None),
-    };
-    let error = CallError {
-        class,
-        message: message.to_string(),
-    };
-    (Some(error), wait)
 }
 
 /// 到点了：为 `seen` 那次请求等的。
@@ -308,6 +291,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
                 usage: None,
                 error,
                 wait_ms,
+                excess: None,
             }
         }
         22 => progress(watch.some_call(rng)),
@@ -434,6 +418,7 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let mut restores = Rng(seed ^ 0x5E57_04ED);
         let mut limits = Rng(seed ^ 0x11A1_7500);
         let mut rereads = Rng(seed ^ 0x2E2E_AD00);
+        let mut overflows = Rng(seed ^ 0x0F10_0D00);
         for _ in 0..300 {
             if watch.all_stored() && crashes.below(200) == 0 {
                 let planned = crashes.below(2) == 0;
@@ -453,6 +438,9 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
                 watch.feed(&mut session, input);
             }
             if let Some(input) = some_reread(&mut rereads, &watch) {
+                watch.feed(&mut session, input);
+            }
+            if let Some(input) = some_overflow(&mut overflows, &watch) {
                 watch.feed(&mut session, input);
             }
             let input = some_input(&mut rng, &mut watch, &mut next_id);

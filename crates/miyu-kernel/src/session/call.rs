@@ -121,6 +121,8 @@ struct Settled {
     calls: Vec<ToolCall>,
     error: Option<CallError>,
     summary: Option<Summarized>,
+    /// 摘要请求多记的，交回来：报了超长的照它截短再发（施工 6-6 中）。
+    compaction: Option<Box<Compacting>>,
 }
 
 /// 摘要请求取到了摘要：替代到哪、摘要、压之前的用量，和这次摘要请求的用量、用时（施工 6-3 下：推 `compaction.done`）。
@@ -129,6 +131,8 @@ pub(super) struct Summarized {
     /// 哪一种压缩、压完很快又到线连着的第几次（施工 6-6 上）。
     pub(super) trigger: CompactTrigger,
     pub(super) refills: Option<u32>,
+    /// 截短重试截到第几条（施工 6-6 中）：写压缩时照它写摘要没看到的那一段。
+    pub(super) cut: Option<Seq>,
     pub(super) summary: String,
     pub(super) before: u64,
     pub(super) usage: Option<Usage>,
@@ -207,7 +211,7 @@ impl Session {
                 progress,
             ))],
             Err(error) => {
-                let mut actions = self.model_ended(at, seen, None, Some(error), None);
+                let mut actions = self.model_ended(at, seen, None, Some(error), None, None);
                 actions.push(Action::CancelModel { seen });
                 actions
             }
@@ -224,6 +228,7 @@ impl Session {
         usage: Option<Usage>,
         error: Option<CallError>,
         wait_ms: Option<u64>,
+        excess: Option<u64>,
     ) -> Vec<Action> {
         let Some((call, cause)) = self.take_call(seen) else {
             return Vec::new();
@@ -232,6 +237,17 @@ impl Session {
         let settled = self.settle(at, call, cause.clone(), Ending::Said { usage, error });
         let mut events = settled.events;
         if let Some(error) = settled.error {
+            // 摘要请求自己超长：截掉最老的几组，落了盘再发（施工 6-6 中，`shorten.rs`）。
+            if error.class == ErrorClass::ContextTooLong
+                && settled
+                    .compaction
+                    .as_deref()
+                    .is_some_and(|compacting| self.shorten(compacting, excess))
+            {
+                // 和到点再来一样，发之前这一轮切过的权限、环境照查一遍。
+                events.extend(self.refresh_facts(at));
+                return vec![Action::Append(events)];
+            }
             if let Some(wait) = self.retry_wait(&error, wait_ms) {
                 // 再来的是摘要请求，不标「下一次是重试」：它后面那一次主请求照常算一步。
                 if let Some(turn) = self.turn.as_mut() {
@@ -392,6 +408,7 @@ impl Session {
                     upto: compacting.upto(),
                     trigger: compacting.trigger().clone(),
                     refills: compacting.refills(),
+                    cut: compacting.shortened().0,
                     summary,
                     before: compacting.before(),
                     usage: called.usage,
@@ -407,6 +424,7 @@ impl Session {
             calls,
             error,
             summary,
+            compaction,
         }
     }
 

@@ -167,7 +167,7 @@ impl ModelPort for Script {
                     {
                         reports.delta(delta);
                     }
-                    reports.ended(Some(usage()), None, None);
+                    reports.ended(Some(usage()), None, None, None);
                 }
                 Play::Floods(n) => says(reports, &"字".repeat(n), n),
                 Play::Calls(calls) => {
@@ -183,7 +183,7 @@ impl ModelPort for Script {
                     for end in ends {
                         reports.delta(end);
                     }
-                    reports.ended(Some(usage()), None, None);
+                    reports.ended(Some(usage()), None, None, None);
                 }
                 Play::Fails { class, wait_ms } => reports.ended(
                     None,
@@ -192,6 +192,7 @@ impl ModelPort for Script {
                         message: "HTTP 429: slow down".to_string(),
                     }),
                     wait_ms,
+                    None,
                 ),
                 Play::Holds => {
                     for delta in text_block("…", 1).into_iter().take(2) {
@@ -214,7 +215,7 @@ fn says(reports: Reports, text: &str, pieces: usize) {
     for delta in text_block(text, pieces) {
         reports.delta(delta);
     }
-    reports.ended(Some(usage()), None, None);
+    reports.ended(Some(usage()), None, None, None);
 }
 
 /// 剧本报的用量：60 没命中、40 命中、10 输出。

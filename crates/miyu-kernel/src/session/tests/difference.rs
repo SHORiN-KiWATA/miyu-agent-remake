@@ -41,8 +41,8 @@ impl Assembler for Drifting {
         request
     }
 
-    fn summarize(&self, history: &History, upto: Seq) -> Request {
-        Listing.summarize(history, upto)
+    fn summarize(&self, history: &History, upto: Seq, cut: Option<Seq>) -> Request {
+        Listing.summarize(history, upto, cut)
     }
 
     fn summary(&self, reply: &[Block]) -> Option<String> {

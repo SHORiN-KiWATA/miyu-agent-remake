@@ -452,6 +452,7 @@ impl Actor {
                     usage,
                     error,
                     wait_ms,
+                    excess,
                 } => {
                     self.ended(seen, usage.as_ref(), error.as_ref());
                     Input::ModelEnded {
@@ -460,6 +461,7 @@ impl Actor {
                         usage,
                         error,
                         wait_ms,
+                        excess,
                     }
                 }
             },

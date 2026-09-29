@@ -74,6 +74,7 @@ impl RebuildTexts {
             files_more: template(&self.notes_files_more, &["count"])?,
             retrieve: template(&self.notes_retrieve, &["upto"])?,
             too_large: template(&self.notes_too_large, &["files"])?,
+            uncovered: None,
         })
     }
 
@@ -91,7 +92,7 @@ impl RebuildTexts {
 }
 
 /// 读一份模板，拿 `fields` 里的每个字段试换一次。
-fn template(source: &str, fields: &[&str]) -> Result<Template, BuildError> {
+pub(crate) fn template(source: &str, fields: &[&str]) -> Result<Template, BuildError> {
     let bad = |error| BuildError::Texts {
         which: "compaction rebuild texts",
         error,
