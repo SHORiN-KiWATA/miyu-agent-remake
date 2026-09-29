@@ -276,7 +276,7 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>116</b><span>/ 127 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到</span></li>
+    <li><b>117</b><span>/ 127 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到</span></li>
     <li><b>7-3</b><span>下一步：两条线并行，7-3 后台命令和 7-5 派子代理（Windows 上跑命令那一步暂停）</span></li>
     <li><b class="mono">e21e81e</b><span>最近一步（7-2 回报到了）的提交</span></li>
   </ul>
@@ -454,7 +454,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s6-3b"><span class="n">6-3</span>接上真模型（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-3c"><span class="n">6-3</span>限额推给头（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-3d"><span class="n">6-3</span>压好了那一行改说法（再补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">6-3</span>已写 0 字不印（三补）</span></li>
+        <li><a class="step done" href="#s6-3e"><span class="n">6-3</span>已写 0 字不印（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-4"><span class="n">6-4</span>history<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-5"><span class="n">6-5</span>检查点里的几段和压后重建<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-6a"><span class="n">6-6</span>失败和熔断（上）<span class="st">✓</span></a></li>
@@ -8081,6 +8081,59 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/6-3-压好了那一行改说法（再补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s6-3e" aria-labelledby="h-s63e">
+  <div class="sheet-head"><h2 id="h-s63e"><span class="no">6-3</span>已写 0 字不印（三补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">压缩刚开始、摘要请求还没收到字时，<code>miyu ask</code>、<code>miyu compact</code> 那一行只印「· 正在压缩上下文…」，不印「已写 0 字」，和终端界面一致（项目主人定）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">压缩中那一行</span><span class="dir-note">ask/follow/compacting.rs</span></div>
+            <ol class="pipe" aria-label="改了什么">
+              <li>0 字：<code>· 正在压缩上下文…</code> / <code>· Compacting the context…</code></li>
+              <li>有字了照旧：<code>· 正在压缩上下文… 已写 3,120 字</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">0 不显示</span><span class="rl">「已写 0 字」看着像卡住了</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-3 三补</dd></div>
+        <div><dt>名称</dt><dd>已写 0 字不印</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">e0b587c</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>先改期望，改代码以前 4 个测试红；改了那一句，<code>miyu compact</code> 共用。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>门禁八项全过，三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/6-3-已写 0 字不印（三补）.md</code>。</li>
       </ul>
     </div>
   </div>
