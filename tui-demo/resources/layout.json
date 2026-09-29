@@ -15,6 +15,7 @@
   "double_click_ms": 400,
   "notice_ms": 2000,
   "frame_ms": 33,
+  "reconnect_ms": [500, 5000],
   "user_bar": "┃ ",
   "done_icon": "✻ ",
   "done_gap": {

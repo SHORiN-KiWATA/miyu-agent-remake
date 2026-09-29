@@ -10,6 +10,7 @@ mod compaction;
 mod done;
 mod failure;
 mod folds;
+mod link;
 mod queue;
 mod waiting;
 

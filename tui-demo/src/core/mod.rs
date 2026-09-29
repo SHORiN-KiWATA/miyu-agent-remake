@@ -6,6 +6,8 @@
 //! 拉起核心只认 `MIYU_CORE_BIN`，不去 PATH 里找 `miyu`：装着旧版的机器上，PATH 里的 `miyu` 是旧版，
 //! 给它 `core` 这个参数，它会把这个词当成一句话发给旧版的后台。
 
+mod backoff;
+mod connect;
 mod kinds;
 mod limits;
 mod push;
@@ -13,19 +15,18 @@ mod rpc;
 mod undo;
 
 use std::collections::HashMap;
-use std::process::Command as Process;
 use std::thread;
 
 use serde_json::json;
 use tokio::sync::mpsc;
 
-use miyu_store::env::Env;
-use miyu_store::root::DataRoot;
+use backoff::Backoff;
+use connect::{connect, create, cwd, subscribe};
 
 pub use kinds::{EndReason, Level, ToolStatus};
 pub use limits::Limits;
 pub use push::{Block, CallError, Compaction, Push, Usage};
-use rpc::{Failure, Rpc};
+use rpc::Rpc;
 pub use undo::Report;
 
 /// 界面要核心做的事。
@@ -44,6 +45,8 @@ pub enum Command {
     Unrevert,
     /// 现在就压缩上下文（`session.compact`，施工 6-8），带着给摘要的要求。
     Compact(Option<String>),
+    /// 开新会话（`/new`）：退订现在这个，等第一句话再开（蓝图「斜杠命令」`/new`）。
+    New,
 }
 
 /// 核心那边的消息，交给界面。
@@ -53,6 +56,10 @@ pub enum Update {
     Ready(String),
     /// 核心没在跑，也没给 `MIYU_CORE_BIN`，拉不起来。
     NoCoreBin,
+    /// `MIYU_CORE_BIN` 指的程序不存在：路径（蓝图「连核心」第 8 条）。
+    Missing(String),
+    /// 断开以后又连上了，接着订阅着原来那个会话（第 7 条）。
+    Reconnected,
     /// 连不上、握手或开会话被拒：原因。
     Failed(String),
     /// 一条请求被拒绝：原因码（`data.reason`，没有的是 `None`），和核心照握手时的语言说的原话。
@@ -90,15 +97,16 @@ impl Core {
     }
 }
 
-/// 起一个线程去连核心。`notify` 把消息交给界面，界面那头关了就交回 `false`，这边跟着停。
-pub fn spawn(notify: impl Fn(Update) -> bool + Send + 'static) -> Core {
+/// 起一个线程去连核心。`reconnect` 是连不上时隔多久再试（`layout.json` 的 `reconnect_ms`）；`notify` 把消息
+/// 交给界面，界面那头关了就交回 `false`，这边跟着停。
+pub fn spawn(reconnect: [u64; 2], notify: impl Fn(Update) -> bool + Send + 'static) -> Core {
     let (commands, receiver) = mpsc::unbounded_channel();
     thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build();
         match runtime {
-            Ok(runtime) => runtime.block_on(run(receiver, &notify)),
+            Ok(runtime) => runtime.block_on(run(receiver, Backoff::new(reconnect), &notify)),
             Err(e) => {
                 notify(Update::Failed(e.to_string()));
             }
@@ -107,68 +115,171 @@ pub fn spawn(notify: impl Fn(Update) -> bool + Send + 'static) -> Core {
     Core { commands }
 }
 
-async fn run(mut commands: mpsc::UnboundedReceiver<Command>, notify: &impl Fn(Update) -> bool) {
-    let (mut rpc, session, limits) = match open().await {
-        Ok(opened) => opened,
-        Err(update) => {
-            notify(update);
-            return;
+/// 一条连接用到头了：界面关了，或者连接断了。
+enum Served {
+    Quit,
+    Lost,
+}
+
+/// 连上、开会话、订阅，然后收发；断了就重连，订阅原来那个会话（蓝图「连核心」第 7 条）。
+async fn run(
+    mut commands: mpsc::UnboundedReceiver<Command>,
+    mut wait: Backoff,
+    notify: &impl Fn(Update) -> bool,
+) {
+    let mut session = None;
+    loop {
+        // 连不上一直试；这期间界面发的命令在通道里排着，连上再发（第 1、7 条）。
+        let mut rpc = loop {
+            match open(session.as_deref()).await {
+                Ok((rpc, opened, limits)) => {
+                    // 新开的会话（刚启动；按过 `/new` 还没说话就断了的）告诉界面编号，订阅原来的只说又连上了。
+                    let said = match (&session, &opened) {
+                        (None, Some(id)) => notify(Update::Ready(id.clone())),
+                        _ => notify(Update::Reconnected),
+                    };
+                    if !said || limits.is_some_and(|l| !notify(Update::Limits(l))) {
+                        return;
+                    }
+                    session = opened;
+                    break rpc;
+                }
+                Err(update) => {
+                    if !notify(update) {
+                        return;
+                    }
+                    tokio::time::sleep(wait.next()).await;
+                }
+            }
+        };
+        wait.reset();
+        match serve(&mut rpc, &mut session, &mut commands, notify).await {
+            Served::Quit => return,
+            Served::Lost if !notify(Update::Disconnected) => return,
+            Served::Lost => {}
         }
-    };
-    if !notify(Update::Ready(session.clone())) || !notify(Update::Limits(limits)) {
-        return;
     }
+}
+
+/// 连上；有会话的订阅它，还没有的（刚启动）开一个再订阅。交回连接、会话和限额。
+async fn open(session: Option<&str>) -> Result<(Rpc, Option<String>, Option<Limits>), Update> {
+    let mut rpc = connect().await?;
+    let session = match session {
+        Some(id) => id.to_string(),
+        None => create(&mut rpc).await?,
+    };
+    let limits = subscribe(&mut rpc, &session).await?;
+    Ok((rpc, Some(session), Some(limits)))
+}
+
+/// 在一条连接上收发，直到界面关了或者连接断了。
+async fn serve(
+    rpc: &mut Rpc,
+    session: &mut Option<String>,
+    commands: &mut mpsc::UnboundedReceiver<Command>,
+    notify: &impl Fn(Update) -> bool,
+) -> Served {
     let cwd = cwd();
     // 等着回应、回应要交给界面的请求：编号到「是不是恢复」。
     let mut undos: HashMap<String, bool> = HashMap::new();
     loop {
         tokio::select! {
             command = commands.recv() => {
-                let Some(command) = command else { return };
+                let Some(command) = command else { return Served::Quit };
+                match command {
+                    // 懒着开（施工会话 09-30 建议）：只退订旧的，等第一句话再开，连按几下不留空会话。
+                    Command::New => {
+                        if let Some(old) = session.take() {
+                            let params = json!({"session": old, "stream": "events"});
+                            if rpc.send("unsubscribe", params).await.is_err() {
+                                return Served::Lost;
+                            }
+                        }
+                        continue;
+                    }
+                    Command::Send(_) if session.is_none() => {
+                        match fresh(rpc).await {
+                            Ok((id, limits)) => {
+                                if !notify(Update::Ready(id.clone())) || !notify(Update::Limits(limits)) {
+                                    return Served::Quit;
+                                }
+                                *session = Some(id);
+                            }
+                            Err(Update::Disconnected) => return Served::Lost,
+                            Err(update) => {
+                                if !notify(update) {
+                                    return Served::Quit;
+                                }
+                                continue;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+                // 还没开会话时别的命令没有对象：界面那头当场说了（`app/keys.rs`）。
+                let Some(session) = session.as_deref() else { continue };
                 let restore = match command {
                     Command::Revert => Some(false),
                     Command::Unrevert => Some(true),
                     _ => None,
                 };
-                let (method, params) = match command {
-                    Command::Send(text) => ("session.send", json!({"session": session, "text": text, "cwd": cwd})),
-                    Command::Interrupt { send } => {
-                        let queued = if send { "send" } else { "return" };
-                        ("session.interrupt", json!({"session": session, "queued": queued}))
-                    }
-                    Command::Revert => ("session.revert", json!({"session": session})),
-                    Command::Unrevert => ("session.unrevert", json!({"session": session})),
-                    Command::Compact(words) => {
-                        let mut params = json!({"session": session});
-                        if let Some(words) = words {
-                            params["instructions"] = json!(words);
-                        }
-                        ("session.compact", params)
-                    }
-                };
+                let Some((method, params)) = request(command, session, &cwd) else { continue };
                 match rpc.send(method, params).await {
                     Ok(id) => {
                         if let Some(restore) = restore {
                             undos.insert(id, restore);
                         }
                     }
-                    Err(_) => {
-                        notify(Update::Disconnected);
-                        return;
-                    }
+                    Err(_) => return Served::Lost,
                 }
             }
             message = rpc.next() => {
-                let Some(message) = message else {
-                    notify(Update::Disconnected);
-                    return;
-                };
-                if !take(&mut rpc, &session, &message, &mut undos, notify).await {
-                    return;
+                let Some(message) = message else { return Served::Lost };
+                let session = session.as_deref().unwrap_or_default();
+                if !take(rpc, session, &message, &mut undos, notify).await {
+                    return Served::Quit;
                 }
             }
         }
     }
+}
+
+/// `/new` 以后的第一句话：开会话、订阅。
+async fn fresh(rpc: &mut Rpc) -> Result<(String, Limits), Update> {
+    let id = create(rpc).await?;
+    let limits = subscribe(rpc, &id).await?;
+    Ok((id, limits))
+}
+
+/// 一个命令写成核心的方法和参数；`/new` 不是发给会话的，交回 `None`。
+fn request(
+    command: Command,
+    session: &str,
+    cwd: &str,
+) -> Option<(&'static str, serde_json::Value)> {
+    Some(match command {
+        Command::Send(text) => (
+            "session.send",
+            json!({"session": session, "text": text, "cwd": cwd}),
+        ),
+        Command::Interrupt { send } => {
+            let queued = if send { "send" } else { "return" };
+            (
+                "session.interrupt",
+                json!({"session": session, "queued": queued}),
+            )
+        }
+        Command::Revert => ("session.revert", json!({"session": session})),
+        Command::Unrevert => ("session.unrevert", json!({"session": session})),
+        Command::Compact(words) => {
+            let mut params = json!({"session": session});
+            if let Some(words) = words {
+                params["instructions"] = json!(words);
+            }
+            ("session.compact", params)
+        }
+        Command::New => return None,
+    })
 }
 
 /// 处理一条读进来的：推送、回应。交回界面还在不在。
@@ -194,70 +305,20 @@ async fn take(
     if let Some(limits) = Limits::of(message) {
         return notify(Update::Limits(limits));
     }
+    // 只收现在这个会话的：`/new` 以后，旧会话退订之前推来的不要（蓝图「斜杠命令」`/new`）。
+    if message["params"]["session"].as_str() != Some(session) {
+        return true;
+    }
     match message["method"].as_str() {
         Some("event") => push::read(&message["params"]["event"])
             .into_iter()
             .all(|p| notify(Update::Push(p))),
-        // 掉了队：重新订阅，掉了的不补（`protocol.md`「慢和掉队」）。
+        // 掉了队：重新订阅，掉了的不补（`protocol.md`「慢和掉队」）。发不出去是连接断了，下一条读不到，照断开重连。
         Some("resync") => {
             let params = json!({"session": session, "stream": "events"});
-            rpc.send("subscribe", params).await.is_ok() || notify(Update::Disconnected)
+            let _resubscribed = rpc.send("subscribe", params).await;
+            true
         }
         _ => true,
     }
-}
-
-/// 连上、握手、开会话、订阅。交回连接、会话编号和订阅的回应里的限额。
-async fn open() -> Result<(Rpc, String, Limits), Update> {
-    let env = Env::current();
-    let root = DataRoot::locate(&env).map_err(|e| Update::Failed(e.to_string()))?;
-    root.prepare().map_err(|e| Update::Failed(e.to_string()))?;
-    let connected = match std::env::var_os("MIYU_CORE_BIN") {
-        Some(bin) => miyu_ipc::connect_or_start(&root, move || {
-            let mut core = Process::new(bin);
-            core.arg("core");
-            core
-        })
-        .await
-        .map_err(|e| Update::Failed(e.to_string())),
-        None => miyu_ipc::connect(&root).await.map_err(|e| match e {
-            miyu_ipc::ConnectError::NotRunning => Update::NoCoreBin,
-            e => Update::Failed(e.to_string()),
-        }),
-    };
-    let (connection, token) = connected?;
-    let mut rpc = Rpc::new(connection);
-    // 还没有确认的抽屉，先说没人能当场回答：要确认的那一步，核心当场拒绝，不会一直等着。
-    let hello = json!({
-        "protocol": [1, 1],
-        "head": {"kind": "tui", "version": env!("CARGO_PKG_VERSION")},
-        "locale": "zh-CN",
-        "caps": {"input": false},
-        "token": token,
-    });
-    rpc.call("hello", hello).await.map_err(refused)?;
-    let created = rpc
-        .call("session.create", json!({"cwd": cwd()}))
-        .await
-        .map_err(refused)?;
-    let session = created["session"].as_str().unwrap_or_default().to_string();
-    let subscribed = rpc
-        .call("subscribe", json!({"session": session, "stream": "events"}))
-        .await
-        .map_err(refused)?;
-    let limits = Limits::of(&json!({ "result": subscribed })).unwrap_or_default();
-    Ok((rpc, session, limits))
-}
-
-fn refused(failure: Failure) -> Update {
-    match failure {
-        Failure::Io(e) => Update::Failed(e.to_string()),
-        Failure::Disconnected => Update::Disconnected,
-        Failure::Refused(reason) => Update::Failed(reason),
-    }
-}
-
-/// 启动时的目录，读不出来的写 `.`（照 `miyu ask`）。
-fn cwd() -> String {
-    std::env::current_dir().map_or_else(|_| ".".to_string(), |d| d.display().to_string())
 }

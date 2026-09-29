@@ -6,6 +6,7 @@ mod jobs;
 pub use jobs::Panel;
 mod keys;
 mod mouse;
+mod session;
 
 use std::cell::RefCell;
 use std::time::{Duration, Instant};

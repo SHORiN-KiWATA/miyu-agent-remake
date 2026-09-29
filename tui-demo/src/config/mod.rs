@@ -88,6 +88,8 @@ pub struct Layout {
     pub notice_ms: u64,
     /// 最多每多少毫秒画一帧：这中间来的推送、按键攒着，到点一起画（蓝图「每一帧」）。
     pub frame_ms: u64,
+    /// 连不上核心时隔多久再试，`[最短, 最长]` 毫秒，每次翻倍（蓝图「连核心」第 7 条）。
+    pub reconnect_ms: [u64; 2],
     /// 运行状态行词后面的三个点：一直在，和词一起被流光扫（`tui.md`「运行状态行和排队的消息」第 2 条）。
     pub dots: Dots,
     /// 运行状态行的流光。
@@ -272,8 +274,14 @@ pub struct Texts {
     pub no_core_bin: String,
     /// 连不上核心，`{reason}` 是原因。
     pub core_failed: String,
-    /// 核心断开了。
-    pub disconnected: String,
+    /// 核心断开了，正在重新连接（蓝图「连核心」第 7 条）。
+    pub reconnecting: String,
+    /// 核心断开时在进行的那一轮收尾那一行。
+    pub turn_cut: String,
+    /// `MIYU_CORE_BIN` 指的程序不存在，`{path}` 是路径（第 8 条）。
+    pub missing_core: String,
+    /// 连不上核心时按 `Enter`：发不出去，字留在输入框里。
+    pub not_connected: String,
     /// 一条请求被拒，`{reason}` 是核心说的原因。
     pub refused: String,
     /// 这一轮被打断了。

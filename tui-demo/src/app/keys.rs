@@ -187,6 +187,11 @@ impl App {
             }
             Line::Talk => {}
         }
+        // 连不上核心：发不出去，字留在输入框里（「连核心」第 8 条）。
+        if !self.reachable() {
+            self.input.editor.set_draft(draft);
+            return;
+        }
         self.view.follow();
         // 输入框里的粘贴块发出去换回原文；输入历史和正文里照输入框的样子（`tui.md`「输入框」第 11 条）。
         let full = draft.expand();
@@ -206,6 +211,13 @@ impl App {
         self.input.remember(Draft::plain(&line));
         self.view.follow();
         match spec.run {
+            Run::Revert | Run::Unrevert | Run::Compact if !self.reachable() => {
+                self.input.editor.set_draft(Draft::plain(&line));
+            }
+            Run::Revert | Run::Unrevert | Run::Compact if self.not_opened() => {
+                self.nothing_yet(spec.run);
+            }
+            Run::New => self.new_session(),
             Run::Revert => self.core.send(Command::Revert),
             Run::Unrevert => self.core.send(Command::Unrevert),
             Run::Compact => self.core.send(Command::Compact(words.map(str::to_string))),

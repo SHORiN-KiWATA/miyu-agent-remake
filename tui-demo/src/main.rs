@@ -124,7 +124,10 @@ fn run(
 ) -> io::Result<()> {
     let (sender, incoming) = mpsc::channel();
     let to_core = sender.clone();
-    let core = core::spawn(move |update| to_core.send(Incoming::Core(update)).is_ok());
+    let reconnect = config.layout.reconnect_ms;
+    let core = core::spawn(reconnect, move |update| {
+        to_core.send(Incoming::Core(update)).is_ok()
+    });
     let to_main = sender.clone();
     // 点开看的 mermaid 大图放在机器共用的缓存目录下（蓝图「图片、公式和 mermaid 图」第 4 条）。
     let zoom_dir = miyu_store::root::cache_root(&Env::current())

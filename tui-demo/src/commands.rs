@@ -49,6 +49,8 @@ pub enum Run {
     Unrevert,
     /// 现在就压缩上下文（`session.compact`），后面的字是给摘要的要求。
     Compact,
+    /// 开新会话：清界面回首页，第一句话时再开（蓝图「斜杠命令」`/new`）。
+    New,
     /// 换下一套主题。
     Theme,
     /// 换下一套图标（蓝图「图标」）。

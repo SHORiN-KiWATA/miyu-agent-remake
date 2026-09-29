@@ -130,6 +130,7 @@ fn left(app: &App) -> Vec<Span<'_>> {
     let t = &app.transcript;
     match &t.link {
         Link::Connecting => vec![Span::styled(text.connecting.as_str(), theme::dim())],
+        Link::Reconnecting => vec![Span::styled(text.reconnecting.as_str(), theme::warn())],
         Link::Down(reason) => vec![Span::styled(reason.as_str(), theme::error())],
         Link::Ready => {
             let level = t.level;

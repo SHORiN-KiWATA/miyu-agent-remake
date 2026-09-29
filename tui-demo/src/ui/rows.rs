@@ -307,7 +307,7 @@ fn text_rows(entry: &Entry, ctx: &Ctx) -> Vec<Row> {
             Span::styled(layout.user_bar.clone(), theme::dim()),
             theme::dim(),
         ),
-        Kind::Error => (ctx.blank_slot(), theme::error()),
+        Kind::Error | Kind::Cut => (ctx.blank_slot(), theme::error()),
         Kind::User | Kind::Reply | Kind::Steps | Kind::Undo | Kind::Job => {
             (ctx.blank_slot(), Style::new())
         }
@@ -318,7 +318,9 @@ fn text_rows(entry: &Entry, ctx: &Ctx) -> Vec<Row> {
     let width = ctx.width.saturating_sub(mark_width).max(1);
     let pieces = match entry.kind {
         // 收尾行只在 ` · ` 处折（「窗口小的时候」第 5 条）。
-        Kind::Done => done_row::pieces(&done_row::line(entry.level, &entry.text, layout), width),
+        Kind::Done | Kind::Cut => {
+            done_row::pieces(&done_row::line(entry.level, &entry.text, layout), width)
+        }
         // 模型的回答常以换行开头、结尾，前后的空行不画。
         _ => pieces(entry.text.trim_matches('\n'), width),
     };
@@ -342,6 +344,30 @@ fn text_rows(entry: &Entry, ctx: &Ctx) -> Vec<Row> {
 mod tests {
     use super::cache_key;
     use crate::theme;
+
+    #[test]
+    fn a_turn_cut_off_by_the_core_looks_like_an_interrupted_one_in_red() {
+        use crate::core::Level;
+        use crate::transcript::{Kind, Transcript};
+        use crate::ui::test_support::Fixture;
+        let f = Fixture::new();
+        let mut t = Transcript::default();
+        t.note(Kind::Cut, "核心断开连接".into());
+        t.entries[0].level = Some(Level::Workspace);
+        let rows = super::entry_rows(0, &t.entries[0], &f.ctx());
+        let icon = &f.config.layout.level_icons[&Level::Workspace];
+        let text = rows[0].line.to_string();
+        assert!(
+            text.trim_start().starts_with(icon.as_str()) && text.ends_with("核心断开连接"),
+            "{text}"
+        );
+        let words = rows[0]
+            .line
+            .spans
+            .iter()
+            .find(|s| s.content.contains("断开"));
+        assert_eq!(words.unwrap().style.fg, theme::error().fg, "整行红");
+    }
 
     #[test]
     fn the_undo_line_just_says_undone() {

@@ -30,7 +30,7 @@
     {
       "name": "new",
       "summary": "开一个新会话",
-      "run": "fake"
+      "run": "new"
     },
     {
       "name": "sessions",

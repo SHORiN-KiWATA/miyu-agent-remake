@@ -37,7 +37,9 @@ pub enum Link {
     Connecting,
     /// 连上了。
     Ready,
-    /// 连不上、断开了：给人看的一句。
+    /// 断开了，正在重新连接（「连核心」第 7 条）。
+    Reconnecting,
+    /// 连不上：给人看的一句（第 8 条）。
     Down(String),
 }
 
@@ -199,6 +201,16 @@ impl Transcript {
                 .any(|s| s.steps.iter().any(Step::busy))
     }
 
+    /// 开新会话（`/new`）：正文、用量、撤销记录清掉，权限级别回到工作区；连接、模型、窗口照旧。条目编号接着往上数：
+    /// 按条缓存排好的行认编号，不能重用。
+    pub fn fresh(&mut self) {
+        let old = std::mem::take(self);
+        self.link = old.link;
+        self.model = old.model;
+        self.limits = old.limits;
+        self.next_id = old.next_id;
+    }
+
     /// 收一条核心那边的消息。
     pub fn update(&mut self, update: Update, texts: &Texts) {
         match update {
@@ -208,12 +220,17 @@ impl Transcript {
                 self.session = Some(session);
             }
             Update::NoCoreBin => self.link = Link::Down(texts.no_core_bin.clone()),
+            Update::Missing(path) => {
+                self.link = Link::Down(texts.missing_core.replace("{path}", &path));
+            }
+            Update::Reconnected => self.link = Link::Ready,
             Update::Failed(reason) => {
                 self.link = Link::Down(texts.core_failed.replace("{reason}", &reason));
             }
+            // 核心断开了：在进行的那一轮当场收尾，马上重连（「连核心」第 7 条）。
             Update::Disconnected => {
-                self.link = Link::Down(texts.disconnected.clone());
-                self.running = None;
+                self.cut_off(texts);
+                self.link = Link::Reconnecting;
             }
             // 认得的原因码写一句短话，认不得的照核心的原话（`tui.md`「正文」第 6 条）。
             Update::Refused { reason, message } => {
@@ -397,7 +414,7 @@ impl Transcript {
         // 你说的话记发出去时的级别（竖线的颜色）；收尾行记这一轮开始时的（打头的图标）。
         let level = match kind {
             Kind::User => Some(self.level),
-            Kind::Done => Some(self.turn_level),
+            Kind::Done | Kind::Cut => Some(self.turn_level),
             _ => None,
         };
         let id = self.fresh_id();

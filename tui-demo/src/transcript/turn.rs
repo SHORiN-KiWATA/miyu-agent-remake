@@ -62,19 +62,13 @@ impl Transcript {
         self.bring_in(&picked, turn);
     }
 
-    /// 一轮结束了（`turn.ended`）：停表、收起时间线、写收尾行或打断、出错的那一行。
+    /// 一轮结束了（`turn.ended`）：停表、收起时间线、写收尾行或打断、出错的那一行。没有在进行的不管：核心断开时
+    /// 界面当场收过尾了，核心重启以后补推的那一轮的结束不再写（「连核心」第 7 条）。
     pub(super) fn end(&mut self, reason: EndReason, texts: &Texts) {
-        let took = self
-            .running
-            .take()
-            .map_or(std::time::Duration::ZERO, |start| start.elapsed());
-        self.retry = None;
-        self.drop_compacting();
-        self.blocks.clear();
-        self.unnamed.clear();
-        self.finish_segment();
-        self.settle_leftovers();
-        let failure = self.failure.take();
+        if self.turn.is_none() && self.running.is_none() {
+            return;
+        }
+        let (took, failure) = self.wind_up();
         match reason {
             EndReason::Completed => {
                 // 手动压缩压好了：用时和用量接在结果那一行后面，不另起收尾行（「正文」第 9 条）。
@@ -110,6 +104,31 @@ impl Transcript {
             EndReason::Other(other) => self.push(Kind::Note, other),
         }
         self.turn = None;
+    }
+
+    /// 核心断开了：在进行的那一轮当场收尾，写一行和被打断的一个样子、整行红的（「连核心」第 7 条）。
+    pub(super) fn cut_off(&mut self, texts: &Texts) {
+        if self.turn.is_none() && self.running.is_none() {
+            return;
+        }
+        self.wind_up();
+        self.push(Kind::Cut, texts.turn_cut.clone());
+        self.turn = None;
+    }
+
+    /// 一轮到头了：停表、收起时间线、停掉还在转的步。交回用了多久、记着的出错。
+    fn wind_up(&mut self) -> (std::time::Duration, Option<crate::core::CallError>) {
+        let took = self
+            .running
+            .take()
+            .map_or(std::time::Duration::ZERO, |start| start.elapsed());
+        self.retry = None;
+        self.drop_compacting();
+        self.blocks.clear();
+        self.unnamed.clear();
+        self.finish_segment();
+        self.settle_leftovers();
+        (took, self.failure.take())
     }
 
     /// 这一轮结束了还没有结果的步骤（被打断的）：停表、不再转圈。
