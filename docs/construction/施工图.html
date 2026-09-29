@@ -276,7 +276,7 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>123</b><span>/ 135 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来</span></li>
+    <li><b>124</b><span>/ 135 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来</span></li>
     <li><b>7-4</b><span>下一步：两条线并行，7-4 jobs 和 job.stop、7-6 子会话回报（Windows 上跑命令那一步暂停）</span></li>
     <li><b class="mono">6373ac7</b><span>最近一步（7-6 子会话回报）的提交</span></li>
   </ul>
@@ -469,7 +469,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s6-6d"><span class="n">6-6</span>出错再来照截过的发（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-7"><span class="n">6-7</span>被动压缩<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-8"><span class="n">6-8</span>手动压缩<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">6-8</span>清空上下文（补）</span></li>
+        <li><a class="step done" href="#s6-8b"><span class="n">6-8</span>清空上下文（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-9"><span class="n">6-9</span>撤销能撤掉压缩<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-10"><span class="n">6-10</span>M6 验收<span class="st">✓</span></a></li>
       </ol>
@@ -8817,6 +8817,64 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>compaction.md</code> 第七条、<code>protocol.md</code>、<code>cli/compact.md</code>、<code>kernel/session.md</code>。</li>
         <li><code>docs/construction/6-8-手动压缩.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s6-8b" aria-labelledby="h-s68b">
+  <div class="sheet-head"><h2 id="h-s68b"><span class="no">6-8</span>清空上下文（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">人能叫她从这里起清空看到的上下文，会话不变：协议 <code>session.clear</code>，终端界面的 <code>/clear</code>（项目主人要）。等于压成一个空的检查点，不请求模型；日志照留，撤销那一轮就回到清空以前。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">session.clear</span><span class="dir-note">session/clear.rs</span></div>
+            <ol class="pipe" aria-label="怎么走">
+              <li>空闲时收，单开一轮；同一批写 <code>context.compacted</code>（<code>trigger: clear</code>，摘要空的）和 <code>turn.ended</code></li>
+              <li>渲染时什么都不出；下一轮开头照常注入环境、权限</li>
+              <li>回合进行中拒 <code>turn_running</code>；本来就空的拒 <code>nothing_to_clear</code>「上下文为空」</li>
+              <li>撤掉清空：<code>miyu undo</code> 说「撤掉了清空，上下文回到了清空以前」</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">照样能翻</span><span class="rl">清空以后 history 还翻得到以前的（项目主人定）</span></div>
+          <div class="tile new"><span class="nm">造回合共用</span><span class="rl">平常的、手动压缩、清空都走 new_turn</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-8 补</dd></div>
+        <div><dt>名称</dt><dd>清空上下文</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">0251dae</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>内核 <code>Command::Clear</code>、账本「摘要空的只许清空」、组装不出字、协议 <code>session.clear</code>、撤销回应多 <code>clears</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>内核、账本、组装、协议、命令行各有测试，探针多一段清空过的会话；手写 30 个变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型那一条挪到终端界面接上 <code>/clear</code> 时一起看</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>compaction.md</code> 第十四条。</li>
+        <li><code>docs/construction/6-8-清空上下文（补）.md</code>。</li>
       </ul>
     </div>
   </div>
