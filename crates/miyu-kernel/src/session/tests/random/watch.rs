@@ -13,6 +13,7 @@ mod invariants;
 mod load;
 mod lookup;
 mod model;
+mod overflow;
 mod permission;
 mod question;
 mod queue;
@@ -87,8 +88,9 @@ pub(super) struct Watch {
     pub(super) stopping: stopping::Stopping,
     /// 压缩：交过的摘要请求、在路上的那次、最近一次替代到哪（施工 6-2 上）。
     compactions: compaction::Compactions,
-    /// 截短重试（施工 6-6 中）。
+    /// 截短重试（施工 6-6 中）、被动压缩（施工 6-7）。
     shortenings: shorten::Shortenings,
+    passives: overflow::Passives,
 }
 
 impl Watch {
@@ -133,6 +135,7 @@ impl Watch {
             stopping: stopping::Stopping::default(),
             compactions: compaction::Compactions::default(),
             shortenings: shorten::Shortenings::default(),
+            passives: overflow::Passives::default(),
         }
     }
 
@@ -474,6 +477,7 @@ impl Watch {
                 Body::TurnEnded(ended) => {
                     self.main_request_sent();
                     self.shorten_turn_ended();
+                    self.passive_turn_ended();
                     self.all_resulted(self.open_turn());
                     self.note_ended(event, &ended.reason);
                     self.retry_ended();

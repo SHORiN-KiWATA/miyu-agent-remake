@@ -48,10 +48,13 @@ pub(super) fn random_policy(attended: bool, isolate: bool) -> Policy {
     limited
 }
 
-/// 在路上的摘要请求报超长（施工 6-6 中），另用一串随机数：原来那串输入不跟着错开。只在捣乱的种子里，有摘要请求在路上时，十回里有一回；
-/// 一半说了超多少。
+/// 在路上的请求报超长，另用一串随机数：原来那串输入不跟着错开。只在捣乱的种子里，有请求在路上时，十回里有一回；
+/// 一半说了超多少。摘要请求的走截短（施工 6-6 中），主请求的走被动压缩（施工 6-7）。
 pub(super) fn some_overflow(rng: &mut Rng, watch: &Watch) -> Option<Input> {
-    let seen = watch.summarizing().filter(|_| !watch.calm)?;
+    let seen = watch
+        .summarizing()
+        .or_else(|| watch.asking_main())
+        .filter(|_| !watch.calm)?;
     if rng.below(10) != 0 {
         return None;
     }

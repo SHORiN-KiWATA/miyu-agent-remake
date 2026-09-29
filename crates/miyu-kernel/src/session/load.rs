@@ -159,6 +159,8 @@ impl Session {
                 compacted: false,
                 interrupting: None,
                 again: None,
+                passive: None,
+                overflowed: false,
             });
             let text = self.policy.tool_texts.restarted();
             let mut events: Vec<Event> = self

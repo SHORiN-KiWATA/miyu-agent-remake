@@ -8,7 +8,7 @@
 //! - 压完以后：请求照还算数的检查点以后的事件（`Watch::effective_events`）；撤销能撤掉压缩（施工 6-9，`watch/undo.rs`）。
 
 use super::*;
-use crate::event::{CompactTrigger, CompactionProgress, ContextCompacted, ModelCalled};
+use crate::event::{CompactionProgress, ContextCompacted, ModelCalled};
 use crate::id::ContentHash;
 
 /// 看守记着的压缩。
@@ -78,7 +78,11 @@ impl Watch {
             !self.compactions.pending,
             "种子 {seed}：压完了还没发主请求，又压了一次"
         );
-        let expected = self.expected_upto();
+        // 被动压缩的（施工 6-7）：头一次照至少留最后一组算；再来的照上一次定的。
+        let expected = match self.passive_summary(seen) {
+            Some(again) => Some(again),
+            None => self.expected_upto(self.passive_current()),
+        };
         assert_eq!(Some(seen), expected, "种子 {seed}：摘要请求替代到的不对");
         let cut = self.summary_cut(seen, request);
         let effective = self.effective_events();
@@ -115,7 +119,7 @@ impl Watch {
     /// 看守照规矩算的 N：这一轮要回应的话（以前的回合里的请求、这一轮的回复都没看到过的人的消息；这一轮还没有回复的，
     /// 加上触发它的那一条）里最早的那条当边界，N 是它前面那一条；没有的，是最后一条。不比上一次的 `upto` 晚、前面
     /// 没有能压的，不压。
-    fn expected_upto(&mut self) -> Option<Seq> {
+    fn expected_upto(&mut self, keep_last: bool) -> Option<Seq> {
         let effective = self.effective_events();
         let turn = self.open_turn();
         let asked_before = effective
@@ -153,7 +157,7 @@ impl Watch {
         };
         let ordered = self.rendered_order();
         // 留尾巴：尾巴只会让 N 往前挪。
-        if let Some(tail) = self.expected_tail(&ordered)
+        if let Some(tail) = self.expected_tail(&ordered, keep_last)
             && tail < upto
         {
             self.seen_paths.insert("留了尾巴");
@@ -220,10 +224,15 @@ impl Watch {
     /// 看守照规矩算的尾巴：预算是 min(30, 压缩线的四分之一)（随机测试的策略）。照投影的先后，一组从人的消息或者回复
     /// 开始；从最新的一组往回，尾巴（这一组起到最后的全部事件）还在预算以内、这里切得开的，N 可以是这一组前面那一条，
     /// 取最早的；加上就超了的停下。
-    fn expected_tail(&self, ordered: &[Event]) -> Option<Seq> {
+    fn expected_tail(&self, ordered: &[Event], keep_last: bool) -> Option<Seq> {
         let limits = self.compactions.limits.as_ref()?;
-        let line = crate::estimate::line(limits.window, limits.max_output, 10, 10)?;
-        let budget = (line / 4).min(30);
+        let line = crate::estimate::line(limits.window, limits.max_output, 10, 10);
+        // 被动压缩（施工 6-7）没有线也压，预算照策略的 30；最后一组比预算大也留。
+        let budget = match line {
+            Some(line) => (line / 4).min(30),
+            None if keep_last => 30,
+            None => return None,
+        };
         let price = crate::estimate::Flat {
             image: 50,
             file: 50,
@@ -237,16 +246,20 @@ impl Watch {
                 .iter()
                 .map(|event| crate::estimate::event(event, &price))
                 .sum();
-            if size > budget {
-                break;
-            }
             let lowest = ordered[index..]
                 .iter()
                 .map(|event| event.seq)
                 .min()
                 .unwrap();
             // 这一组前面切得开：前面的序号都比从这一组起的小。
-            if ordered[..index].iter().all(|event| event.seq < lowest) {
+            let cuttable = ordered[..index].iter().all(|event| event.seq < lowest);
+            if size > budget {
+                if keep_last && tail.is_none() && cuttable {
+                    tail = Some(seq(lowest.get() - 1));
+                }
+                break;
+            }
+            if cuttable {
                 tail = Some(seq(lowest.get() - 1));
             }
         }
@@ -287,6 +300,7 @@ impl Watch {
                     "种子 {seed}：改走隔离式的，这一轮不结束"
                 );
                 self.summary_isolating(called.seen);
+                self.passive_again();
             }
             (CallResult::Error, Some(ErrorClass::BadSummary)) => {
                 self.seen_paths.insert("取不出摘要");
@@ -309,12 +323,17 @@ impl Watch {
                     .is_some_and(|error| error.class == ErrorClass::ContextTooLong);
                 if too_long && after.is_none_or(|body| matches!(body, Body::ContextInjected(_))) {
                     self.summary_too_long(called.seen);
+                    self.passive_again();
                 } else {
                     if too_long {
                         self.seen_paths.insert("截不动算失败");
                     }
                     self.seen_paths.insert("摘要请求出错");
                     self.failed(called.seen, before, after);
+                    // 再来的（施工 6-7）：被动压缩的下一次还是它。
+                    if self.retries.expecting == Some(called.seen) {
+                        self.passive_again();
+                    }
                 }
             }
         }
@@ -335,7 +354,11 @@ impl Watch {
             issued,
             "种子 {seed}：压缩替代到的是摘要请求的 N"
         );
-        assert_eq!(compacted.trigger, Some(CompactTrigger::Auto));
+        assert_eq!(
+            compacted.trigger,
+            Some(self.summary_trigger()),
+            "种子 {seed}"
+        );
         assert_eq!(event.by, By::Kernel);
         assert_eq!(event.turn, Some(self.open_turn()));
         assert!(!compacted.summary.is_empty(), "种子 {seed}：摘要不是空的");
@@ -396,6 +419,11 @@ impl Watch {
             "种子 {seed}：没压、或者已经发了主请求，却推了压好了"
         );
         assert_eq!(Some(done.seen), self.compactions.upto(), "种子 {seed}");
+    }
+
+    /// 在路上的主请求（施工 6-7：另一串随机数照它报超长）。
+    pub(in super::super) fn asking_main(&self) -> Option<Seq> {
+        self.asking.filter(|seen| !self.summary_seen(*seen))
     }
 
     /// 在路上的那次摘要请求（施工 6-6 中：另一串随机数照它报超长）。

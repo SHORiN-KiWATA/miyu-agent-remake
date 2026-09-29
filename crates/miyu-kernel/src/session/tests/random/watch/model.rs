@@ -13,7 +13,7 @@ use crate::event::{ModelCalled, Status};
 #[derive(Debug, Default)]
 pub(super) struct Retries {
     /// 记了出错、该交出到点叫醒的那次请求。
-    expecting: Option<Seq>,
+    pub(super) expecting: Option<Seq>,
     /// 交出了到点叫醒、还在等的那次。
     pub(super) waiting: Option<Seq>,
     /// 到点了：下一次请求是重试。
@@ -56,7 +56,7 @@ impl Watch {
         }
         if self.summary_seen(called.seen) {
             self.summary_ended(called, events, k);
-        } else {
+        } else if !self.main_too_long(called, events, k) {
             self.reply_ended(called, before, after);
         }
         self.undo_called(called);
@@ -72,6 +72,7 @@ impl Watch {
             CallResult::Ok => {
                 self.seen_paths.insert("说完了");
                 self.retries.failures = 0;
+                self.passive_step_done();
                 assert!(
                     matches!(before, Some(Body::MessageAssistant(reply)) if reply.seen == called.seen),
                     "种子 {seed}：说完了的，前面是它的回复"

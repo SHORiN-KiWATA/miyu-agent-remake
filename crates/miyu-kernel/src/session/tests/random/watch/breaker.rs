@@ -37,7 +37,19 @@ impl Watch {
     }
 
     /// 最近一次压缩以后，自动压缩出错结束了几轮。
-    fn breaker_failures(&self) -> u32 {
+    pub(super) fn breaker_failures(&self) -> u32 {
+        // 最近一次压缩是被动的，它所在的那一轮重发还超长，也算（施工 6-7）。
+        let passive = self
+            .events
+            .iter()
+            .filter(|event| !self.undo.gone.contains(&event.seq))
+            .rev()
+            .find_map(|event| match &event.body {
+                Body::ContextCompacted(compacted) => Some((compacted.trigger.clone(), event.turn)),
+                _ => None,
+            })
+            .filter(|(trigger, _)| *trigger == Some(CompactTrigger::Overflow))
+            .and_then(|(_, turn)| turn);
         let mut count = 0;
         let mut last: Option<&ModelCalled> = None;
         for event in self.since_compaction() {
@@ -47,8 +59,16 @@ impl Watch {
                 Body::TurnEnded(ended)
                     if ended.reason == EndReason::Error
                         && last.is_some_and(|called| {
-                            called.result == CallResult::Error
-                                && called.compaction == Some(CompactTrigger::Auto)
+                            (called.result == CallResult::Error
+                                && called.compaction == Some(CompactTrigger::Auto))
+                                || called.compaction == Some(CompactTrigger::Overflow)
+                                    && called.result == CallResult::Error
+                                || (passive.is_some()
+                                    && event.turn == passive
+                                    && called.compaction.is_none()
+                                    && called.error.as_ref().is_some_and(|error| {
+                                        error.class == ErrorClass::ContextTooLong
+                                    }))
                         }) =>
                 {
                     count += 1;
@@ -95,7 +115,7 @@ impl Watch {
     pub(super) fn breaker_called(&mut self, called: &ModelCalled) {
         let expected = self
             .summary_seen(called.seen)
-            .then_some(CompactTrigger::Auto);
+            .then(|| self.summary_trigger());
         assert_eq!(called.compaction, expected, "种子 {}", self.seed);
     }
 
