@@ -55,7 +55,7 @@
 |---|---|
 | `Dirs` | 找套接字放哪要看的快照：`platform`、`runtime_dir`（核对过的 `$XDG_RUNTIME_DIR`）、`temp_dir`、`uid`（Unix 上是有效用户编号，Windows 上没有）。`Dirs::current` 从进程里读一次；测试喂一份快照，不改进程的环境变量 |
 | `Opened` | 核心起来了：`listener` 等连接，`token` 这一次的本机令牌。打出来时不带令牌 |
-| `Listener` | 等连接：`accept` 等下一个，`path` 套接字在哪。丢掉它：先删套接字文件，再放锁 |
+| `Listener` | 等连接：`accept` 等下一个，`path` 套接字在哪。丢掉它：先删套接字文件，放在 `$XDG_RUNTIME_DIR/miyu-<指纹>/` 里的连这一层目录一起删，再放锁 |
 | `Connection` | 连上的一个连接：异步的字节流，能读能写，交给协议端点（`protocol.md`） |
 | `Lock` | 拿着的单实例锁，丢掉就放开 |
 | `Ready` | 核心写的那一行：`Ready`、`Running`、`Failed(原因)` |
@@ -80,6 +80,7 @@
    - 套接字文件，试着连一下被拒绝的：上一个核心崩了留下的旧套接字，删掉，记一条 `INFO stale socket removed socket=…`，再绑。
    - 不是套接字的文件，或者连得上的套接字（别的程序正在听，例如指纹撞了的另一个数据根的核心）：`Occupied`，不动它。
 4. 套接字文件本身的权限不另外设：靠所在的目录挡住别人。
+5. 核心走的时候删套接字文件（`DEBUG socket file not removed error=…`）。放在 `$XDG_RUNTIME_DIR/miyu-<指纹>/` 里的，这一层目录空了一起删（`DEBUG runtime dir not removed error=…`）；数据根的 `run/`、临时目录下几个数据根共用的 `miyu-<uid>/` 不删（施工 5-11 补：以前留着这一层，一个数据根留一个）。
 
 **命名管道**（Windows）
 
