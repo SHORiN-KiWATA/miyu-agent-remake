@@ -2,7 +2,7 @@
 
 ### 是什么
 
-头和核心之间说的话：一个连接上一行一条 JSON-RPC 2.0。连上先握手，之后能造会话、列出会话、说话、打断、撤销、恢复、手动压缩，订阅会话的事件流。连接从哪来不管：本机的套接字、命名管道（`ipc.md`），测试里的内存管道。
+头和核心之间说的话：一个连接上一行一条 JSON-RPC 2.0。连上先握手，之后能造会话、列出会话、说话、打断、撤销、恢复、手动压缩、切权限级别，订阅会话的事件流。连接从哪来不管：本机的套接字、命名管道（`ipc.md`），测试里的内存管道。
 
 撤销、恢复的回应另写一页：`protocol/undo.md`。
 
@@ -105,6 +105,7 @@
 | `session.interrupt` | 打断在进行的回合 |
 | `session.revert`、`session.unrevert` | 撤销、恢复最近一次撤销（`protocol/undo.md`） |
 | `session.compact` | 手动压缩：单开一轮只做压缩（施工 6-8） |
+| `session.set_permission_level` | 切权限级别：开关只读，改常用的那一级（施工 3-8 再补） |
 | `subscribe`、`unsubscribe` | 订阅、取消订阅会话的事件流 |
 
 带 `session` 的，它要合会话编号的写法：UUID 的标准写法，小写十六进制，8-4-4-4-12；不合的 `bad_params`。找会话照下面「会话表」。
@@ -177,6 +178,23 @@
 1. 开的那一轮，`turn.started` 的 `cause` 是这一条的 `id`，没有 `trigger`：头照 `cause` 认出自己的那一轮。
 2. 有回合在进行：`turn_running`。没有能压的：`nothing_to_compact`（`compaction.md` 第七条第 2 条）。正在改回文件：`restoring`。先找会话，找不到的回的是找不到。
 3. `instructions` 不是字符串（数字、数组……）：`bad_params`。
+
+**`session.set_permission_level`**（施工 3-8 再补，`kernel/session.md`「切权限级别」）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `session` | 字符串，必写 | 哪个会话 |
+| `level` | `"workspace"` 或 `"full"`，可以不写 | 常用的那一级：工作区、完全放开 |
+| `read_only` | 布尔，可以不写 | 只读开关 |
+
+回应：`{}`。切了没有、切成了什么，看推送里的 `session.policy_changed`。
+
+1. 改哪样写哪样，没写的那一格照旧。两格都不写（写 `null` 也算没写）：`bad_params`，不找会话。
+2. `level` 只认这两种，别的（`read_only`、大写的、不是字符串的）：`bad_params`，和 `queued`、`stream` 一样。内核的 `unknown_level` 因此从协议上碰不到。
+3. 和现在一样的：什么都不记，照样回 `{}`。
+4. 不一样的：记一条 `session.policy_changed`，`permission` 两格都写，`by` 取自连接（现在都是管理员），`cause` 是这一条的 `id`，回合进行中切的带上这个回合；落了盘才回应。收紧的当场生效：收紧成只读的，这一步里还没跑的写入当场补 `denied`，和它同一批落盘、推送；放宽的下一次请求才生效（`kernel/session.md`「切权限级别」第 4、5 条）。
+5. 改成完全放开之前请人确认一次，是头的事（`04-核心协议.md` 第九节），核心不问。
+6. 先找会话，找不到的回的是找不到。
 
 **`subscribe`、`unsubscribe`**
 
@@ -253,7 +271,7 @@
 2. 没有这个会话的日志：`session_not_found`。别的载入不了（日志、策略快照坏了、读不了）：`session_broken`，原因记进运行日志。
 3. 发命令、订阅时会话已经停了（写不进去、出了 bug）：从表里拿掉，回 `session_stopped`；下一次用到再载入。
 4. `session.send` 带着 `cwd`、`dirs`，和这个会话上一次报的不一样：照「工作目录太宽」重新定实际干活的目录，送进会话，到下一个边界才注入（`kernel/request.md`）；会话这时停了的，回 `session_stopped`。不带的、一样的，照旧。
-5. 载入时没有报来的 `cwd`（`session.interrupt`、`session.revert`、`session.unrevert`、`session.compact`、`subscribe` 载入的）：照日志里最后一条带 `cwd` 的 `turn.started`（加进来的目录照最后一条 `turn.started` 的 `dirs`，没有就是没有（施工 5-10 上）），没有就照 `session.created` 的，都没有（之前的日志）才当报来的是 `~`，退回管理员的工作区（施工 4-9 再补三上）。核心重启以后撤销，路径照会话真正的目录写短。
+5. 载入时没有报来的 `cwd`（`session.interrupt`、`session.revert`、`session.unrevert`、`session.compact`、`session.set_permission_level`、`subscribe` 载入的）：照日志里最后一条带 `cwd` 的 `turn.started`（加进来的目录照最后一条 `turn.started` 的 `dirs`，没有就是没有（施工 5-10 上）），没有就照 `session.created` 的，都没有（之前的日志）才当报来的是 `~`，退回管理员的工作区（施工 4-9 再补三上）。核心重启以后撤销，路径照会话真正的目录写短。
 6. 会话一直留在表里，直到核心退出、停下全部会话，或者用到时发现它停了。
 7. 造会话、载入时，交给会话一份造子会话的端口（施工 7-5，`session/tools.md`「派子代理」）：会话里派出去的子会话由会话表造，放进表里，和头造的一样照编号找得到、只起一个；子会话也算进「有没有会话忙着」，停下全部会话时一起停。
 
@@ -287,7 +305,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `parse_error` | -32700 | 不是 JSON；一行太长（之后断开） |
 | `invalid_request` | -32600 | 是 JSON，不是请求（「请求」的表） |
 | `unknown_method` | -32601 | 握手以后，没有这个方法 |
-| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events` |
+| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`；切权限级别两格都不写、`level` 不是 `workspace`、`full` |
 | `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了 |
 | `hello_first` | -32010 | 握手以前发了别的方法 |
 | `protocol_mismatch` | -32010 | 头支持的主版本里没有 1（之后断开） |
@@ -307,7 +325,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `restoring` | -32010 | 撤销、恢复还没做完（正在读回更早的日志、正在改回文件）时来的命令。兜底：会话做完才接下一个命令，照常碰不到 |
 
 - 从 `empty_message` 起，除了 `dir_too_wide`，八个是内核拒命令时给的原因码（`kernel/session.md`）。
-- 内核还有六个原因码，现在没有方法碰得到：`unknown_level`、`not_asking`、`unknown_decision`、`no_rule`、`unexpected_reason`、`bad_answer`。它们没有配话，说的是最后那一句「被拒绝了」。
+- 内核还有六个原因码，现在没有方法碰得到：`unknown_level`（协议上的级别只认两种，别的先是 `bad_params`）、`not_asking`、`unknown_decision`、`no_rule`、`unexpected_reason`、`bad_answer`。它们没有配话，说的是最后那一句「被拒绝了」。
 
 运行日志（目标 `miyu::endpoint`，`log.md`）：
 
@@ -373,6 +391,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/list.rs` | 从新到旧、只要一次性的、`limit`、参数不对、空的 |
 | `crates/miyu-endpoint/tests/spawn.rs` | 会话里派子代理，会话表造出子会话、交代送进去、替身模型在子会话里答话；`session.list` 里子会话写着父会话、主会话写 `null`（施工 7-5） |
 | `crates/miyu-endpoint/tests/revert.rs` | 协议上撤销、恢复；三种拒绝的中文；`turn` 写 0 |
+| `crates/miyu-endpoint/tests/permission.rs` | 协议上切权限级别（施工 3-8 再补）：切到完全放开、开只读、两样一起换，各记一条、推给订阅着的头、回应 `{}`；和现在一样的四种什么都不记不推；两格都不写（含写 `null`、会话没有的）、级别和只读的值不对、会话编号不对、没写会话是参数不对；没有的会话找不到，停了的会话是停了；回合进行中收紧成只读，真核心走一遍：等着的写入当场补 `denied`、和切权限同一批、推送在回应前面，放行以后请求之前注入只读那一块，写的一次没跑 |
 | `crates/miyu-endpoint/tests/compact.rs` | 协议上手动压缩（施工 6-8）：回应是那一轮的开头、推送里压好了；要求原样到了摘要请求里；撤掉那一轮的回应里没有 `said`；有回合在进行、没有能压的两种拒绝，中文、英文；`instructions` 不是字符串的参数不对 |
 | `crates/miyu-endpoint/tests/workspace.rs` | 太宽的五种（`~`、家目录、根目录、数据根、数据根里面）和读不出家目录时的 `~`；项目目录、账号的工作区照旧；回应里的 `cwd`、重发的造会话 |
 | `crates/miyu-endpoint/tests/dirs.rs` | 加进来的目录（施工 5-10 上）：造会话、说话时报的记进这一轮，不写的照旧、写空的就没有；太宽的五种整条命令都不收、什么都没写；核心重启以后照最后一轮的 |
@@ -384,6 +403,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 
 - `04-核心协议.md` 第二节（JSON-RPC、分帧、拒绝的写法）、第三节（一次连接的全过程：订阅时先拿会话状态）、第四节（连接即身份、本机令牌）、第五节（事件流；会话状态由核心算）、第六节第 1、2、4 条、第七节（慢、`resync`）、第八节（版本）、第九节「先做的几样怎么写」；P1、P2。
 - `09-压缩.md` 第二节：压缩线。
+- `04-核心协议.md` 第九节 `session.set_permission_level`、`02-内核.md` 第六节「权限级别怎么切」、`11-权限与沙盒.md` 第二节：切权限级别。
 - `02-内核.md` 第四节（拒绝附原因码）、不变量 9（同一个编号只生效一次）。
 - `06-多用户与身份.md` 第二节、U13：本机连上来的是管理员 `admin`。
 - `07-存储.md` 第七节：会话按需载入。
@@ -393,12 +413,13 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 
 设计里有、还没做的：
 
-- 第九节表里的其余方法：`session.fork`、`session.configure`、`session.set_permission_level`、`session.answer`、`command.run`、`blob.put`、查询、账号、配置……（`04-核心协议.md` 第九节）。
+- 第九节表里的其余方法：`session.fork`、`session.configure`、`session.answer`（随 M8 的抽屉）、`command.run`、`blob.put`、查询、账号、配置……（`04-核心协议.md` 第九节）。
 - 视图流、会话列表流，`view.*`、`sessions.changed`、`config.changed` 这些推送；核心决定「显示什么」（第五节、P3）。
 - 事件流重连时报出最后看到的序号、补发之后的（第七节）；队列紧张时先合并同一条目的连续增量（第七节）。
 - 头发现核心比自己旧，请求它空闲时重启（第八节，`kernel.restart_when_idle`）。
 - 远程连接、登录令牌、WebSocket 和它的 Origin 检查；扩展、桥当提供者，反向调用（第二节、第四节）。
 - 事件流只对会话的属主和有 `events.read` 能力的扩展开放（第五节）：现在连上来的只有管理员。
+- 成员只能切到只读和工作区（`11-权限与沙盒.md`）：现在连上来的只有管理员，`session.set_permission_level` 不拦，多用户那一步再拦。
 - 消息结构只在 Rust 类型里定义一次，生成 JSON Schema 和 TypeScript 类型（第二节）。
 - 会话空闲一段时间后 actor 退出（`07-存储.md` 第七节）。
 - 换模型（`session.configure`，随配置和多供应商那一步）：那时限额会在会话中途变，推一条瞬时事件带新的限额和模型，头照最新的画。现在造会话、载入以后就不变，只在 `subscribe` 的回应里。
