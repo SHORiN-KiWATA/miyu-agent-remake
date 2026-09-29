@@ -11,7 +11,7 @@ use miyu_kernel::id::JobId;
 use crate::durable;
 
 /// 后台命令 `job` 的输出放在会话目录 `session_dir` 下的哪里：`jobs/<编号>.out`，例如 `jobs/j1.out`。
-pub fn output_path(session_dir: &Path, job: JobId) -> PathBuf {
+pub fn output_path(session_dir: &Path, job: &JobId) -> PathBuf {
     session_dir.join("jobs").join(format!("{job}.out"))
 }
 
@@ -21,7 +21,7 @@ pub fn output_path(session_dir: &Path, job: JobId) -> PathBuf {
 /// # Errors
 ///
 /// 建不了目录、建不了文件。
-pub fn create_output(session_dir: &Path, job: JobId) -> io::Result<File> {
+pub fn create_output(session_dir: &Path, job: &JobId) -> io::Result<File> {
     let path = output_path(session_dir, job);
     if let Some(dir) = path.parent() {
         durable::create_dir(dir)?;
@@ -37,13 +37,19 @@ mod tests {
     fn the_output_lives_under_jobs_in_the_session_dir() {
         let dir = std::env::temp_dir().join(format!("miyu-store-jobs-{}", std::process::id()));
         let job = JobId::new(3).unwrap();
-        assert_eq!(output_path(&dir, job), dir.join("jobs").join("j3.out"));
+        assert_eq!(output_path(&dir, &job), dir.join("jobs").join("j3.out"));
+        let deep = JobId::parse("j2.1.3").unwrap();
+        assert_eq!(
+            output_path(&dir, &deep),
+            dir.join("jobs").join("j2.1.3.out"),
+            "子会话的带着前缀（施工 7-1 补）"
+        );
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::create_dir_all(dir.join("jobs")).unwrap();
-        std::fs::write(output_path(&dir, job), b"old").unwrap();
-        drop(create_output(&dir, job).unwrap());
+        std::fs::write(output_path(&dir, &job), b"old").unwrap();
+        drop(create_output(&dir, &job).unwrap());
         assert_eq!(
-            std::fs::read(output_path(&dir, job)).unwrap(),
+            std::fs::read(output_path(&dir, &job)).unwrap(),
             b"",
             "已经有的清空"
         );
@@ -56,7 +62,7 @@ mod tests {
         use std::os::unix::fs::PermissionsExt;
         let dir = std::env::temp_dir().join(format!("miyu-store-jobs-mode-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        drop(create_output(&dir, JobId::new(1).unwrap()).unwrap());
+        drop(create_output(&dir, &JobId::new(1).unwrap()).unwrap());
         let mode = std::fs::metadata(dir.join("jobs"))
             .unwrap()
             .permissions()

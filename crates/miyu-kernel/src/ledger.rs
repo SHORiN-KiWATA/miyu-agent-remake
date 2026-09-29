@@ -135,8 +135,8 @@ impl Ledger {
         self.undone.last().map(|undone| undone.turns.as_slice())
     }
 
-    /// 日志里用过的最大任务编号（施工 7-5）：撤掉的回合里派的也算，一个都没派过的是 0。编号不回收，执行器新派的任务从
-    /// 它的下一个数起（`kernel/ids.md`「任务编号」）。
+    /// 日志里用过的任务编号最后一段最大的数（施工 7-5；照最后一段数，施工 7-1 补）：撤掉的回合里派的也算，一个都没派过的
+    /// 是 0。编号不回收，执行器新派的任务从它的下一个数起（`kernel/ids.md`「任务编号」）。
     pub fn last_job_number(&self) -> u64 {
         self.jobs.last()
     }
@@ -162,7 +162,7 @@ impl Ledger {
     }
 
     /// 子代理 `job` 最近一次回报就是命令 `id` 交来的：交回那一条的序号（施工 7-6）。
-    pub fn reported_as(&self, job: JobId, id: &CommandId) -> Option<Seq> {
+    pub fn reported_as(&self, job: &JobId, id: &CommandId) -> Option<Seq> {
         self.jobs.reported_as(job, id)
     }
 

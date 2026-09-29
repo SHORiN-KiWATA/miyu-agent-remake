@@ -24,10 +24,10 @@ pub(crate) fn command(
     reported: &JobReported,
     texts: &JobTexts,
 ) -> Option<String> {
-    let dispatched = shown(history, reported.job)?;
+    let dispatched = shown(history, &reported.job)?;
     let mut block = open(
         &texts.command_open,
-        reported.job,
+        &reported.job,
         dispatched,
         reported.reason.as_str(),
     );
@@ -67,10 +67,10 @@ pub(crate) fn subagent(
     reported: &ChildReported,
     texts: &JobTexts,
 ) -> Option<String> {
-    let dispatched = shown(history, reported.job)?;
+    let dispatched = shown(history, &reported.job)?;
     let mut block = open(
         &texts.subagent_open,
-        reported.job,
+        &reported.job,
         dispatched,
         reported.reason.as_str(),
     );
@@ -132,14 +132,14 @@ pub(crate) fn message(
 }
 
 /// 派出去过、派它的那一轮还在的任务。
-fn shown(history: &History, job: JobId) -> Option<&Dispatched> {
+fn shown<'h>(history: &'h History, job: &JobId) -> Option<&'h Dispatched> {
     history
         .dispatched(job)
         .filter(|dispatched| !dispatched.undone)
 }
 
 /// 标签那一行：编号、标题、原因，字段照模板的规矩转义。
-fn open(template: &Template, job: JobId, dispatched: &Dispatched, reason: &str) -> String {
+fn open(template: &Template, job: &JobId, dispatched: &Dispatched, reason: &str) -> String {
     let job = job.to_string();
     fill(
         template,

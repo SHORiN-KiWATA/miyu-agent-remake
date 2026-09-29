@@ -72,7 +72,8 @@ pub struct FileTrashed {
 /// 由账本查（`kernel/history.md`）。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JobStarted {
-    /// 任务编号：一个会话里从 `j1` 数起，后台命令和子代理共用一串，不回收。
+    /// 任务编号：一个会话里从 1 数起，后台命令和子代理共用一串，不回收；子会话派的带上它在父会话里的编号（`j2.1`，施工
+    /// 7-1 补）。
     pub job: JobId,
     /// 派的是什么。
     pub what: JobKind,

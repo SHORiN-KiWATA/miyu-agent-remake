@@ -42,7 +42,7 @@ impl Jobs {
                             undone: false,
                             turn: event.turn,
                         };
-                        self.0.insert(started.job, dispatched);
+                        self.0.insert(started.job.clone(), dispatched);
                     }
                 }
             }
@@ -53,8 +53,8 @@ impl Jobs {
     }
 
     /// 编号是 `job` 的那一个；没派过的没有。
-    pub(super) fn get(&self, job: JobId) -> Option<&Dispatched> {
-        self.0.get(&job)
+    pub(super) fn get(&self, job: &JobId) -> Option<&Dispatched> {
+        self.0.get(job)
     }
 
     /// 在会话 `session` 里跑的子代理：编号和它（施工 7-7）。不是这个会话派的子代理的没有。
@@ -62,7 +62,7 @@ impl Jobs {
         self.0
             .iter()
             .find(|(_, job)| job.session.as_ref() == Some(session))
-            .map(|(id, job)| (*id, job))
+            .map(|(id, job)| (id.clone(), job))
     }
 
     /// 在这几轮里派的，标成撤掉了没有。

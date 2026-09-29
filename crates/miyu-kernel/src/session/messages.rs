@@ -36,7 +36,7 @@ impl Session {
             .subagents()
             .filter(|(job, _, _)| {
                 self.history
-                    .dispatched(*job)
+                    .dispatched(job)
                     .is_some_and(|dispatched| !dispatched.undone)
             })
             .map(|(job, session, stopped)| {

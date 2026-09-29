@@ -29,7 +29,7 @@ pub(crate) enum Target {
 impl Shared {
     /// 能停的 `job` 是什么：这个会话没派过的（不认识的种类也算）是 [`JobError::Unknown`]，已经有回报的是
     /// [`JobError::Ended`]。子代理报了 `done` 也算结束了：它那一轮完了（父子留言叫醒它随 7-7）。
-    pub(super) fn target(&self, job: JobId) -> Result<Target, JobError> {
+    pub(super) fn target(&self, job: &JobId) -> Result<Target, JobError> {
         let roster = self.roster();
         let record = roster.get(job).ok_or(JobError::Unknown)?;
         if record.end.is_some() {
@@ -44,7 +44,7 @@ impl Shared {
 
     /// 停一个：后台命令在阻塞线程里杀、存，报给 actor；子代理经会话表停。她用 `jobs` 停的走这里。
     pub(super) async fn stop(self: &Arc<Shared>, job: JobId, who: Who) -> Result<(), JobError> {
-        match self.target(job)? {
+        match self.target(&job)? {
             Target::Command => {
                 let shared = Arc::clone(self);
                 let ended = blocking(move || shared.stop_command(job, &who))
@@ -65,7 +65,7 @@ impl Shared {
     pub(super) async fn output(&self, job: JobId) -> Result<Output, JobError> {
         let (what, session, stored, running) = {
             let roster = self.roster();
-            let record = roster.get(job).ok_or(JobError::Unknown)?;
+            let record = roster.get(&job).ok_or(JobError::Unknown)?;
             (
                 record.what.clone(),
                 record.session.clone(),
@@ -77,7 +77,7 @@ impl Shared {
             (JobKind::Command, _) => {
                 let path = match stored {
                     Some(hash) => self.blobs.path(&hash),
-                    None => output_path(&self.dir, job),
+                    None => output_path(&self.dir, &job),
                 };
                 let text = blocking(move || File::open(path).ok()).await;
                 Ok(Output {
@@ -108,7 +108,7 @@ impl Shared {
 
     /// 停好的后台命令交给 actor 记下。actor 已经停了的送不进去：没人会落它的盘了，从表里拿掉。
     fn back(&self, ended: Ended) {
-        let key = ended.key;
+        let key = ended.key.clone();
         if self.backs.send(Back::Job(ended)).is_err() {
             self.table.lock().remove(&key);
         }
@@ -117,7 +117,7 @@ impl Shared {
 
 impl SessionJobs {
     /// 能停的 `job` 是什么（人用 `job.stop` 停的）。
-    pub(crate) fn target(&self, job: JobId) -> Result<Target, JobError> {
+    pub(crate) fn target(&self, job: &JobId) -> Result<Target, JobError> {
         self.shared.target(job)
     }
 

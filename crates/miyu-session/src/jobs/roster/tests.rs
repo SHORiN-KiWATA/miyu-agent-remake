@@ -73,7 +73,7 @@ fn started_jobs_run_until_their_report_arrives() {
         .expect("写法对"),
     );
     assert_eq!(quick.list(at("2026-09-26T00:00:00.000Z"))[0].took_ms, 5);
-    let j1 = ended.get(JobId::new(1).expect("从 1 数起")).expect("记着");
+    let j1 = ended.get(&JobId::new(1).expect("从 1 数起")).expect("记着");
     assert!(
         j1.end.as_ref().and_then(|end| end.output.clone()).is_some(),
         "记着输出的 blob"

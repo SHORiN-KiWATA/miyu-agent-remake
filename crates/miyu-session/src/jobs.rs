@@ -211,7 +211,7 @@ impl SessionJobs {
                 .filter(|((owner, _), entry)| *owner == self.shared.owner && !entry.reported)
                 .map(|((_, job), entry)| {
                     entry.reported = true;
-                    (*job, Arc::clone(&entry.output), entry.started)
+                    (job.clone(), Arc::clone(&entry.output), entry.started)
                 })
                 .collect()
         };
@@ -290,7 +290,7 @@ impl Shared {
             let keys: Vec<Key> = table
                 .keys()
                 .filter(|(owner, _)| *owner == self.owner)
-                .copied()
+                .cloned()
                 .collect();
             keys.iter().filter_map(|key| table.remove(key)).collect()
         };
@@ -311,7 +311,7 @@ impl Shared {
             return;
         }
         entry.reported = true;
-        let key = ended.key;
+        let key = ended.key.clone();
         if self.backs.send(Back::Job(ended)).is_err() {
             table.remove(&key);
         }

@@ -35,7 +35,7 @@ impl Shared {
     /// 回报（到这时的用时、输出，没有退出码、信号：杀的时候还没等到）。已经报过、不在表里的（自己退出了、停下时报了
     /// `restarted`）交回空的。杀进程、碰磁盘，在阻塞线程里调。
     pub(super) fn stop_command(&self, job: JobId, who: &Who) -> Option<Ended> {
-        let key = (self.owner, job);
+        let key = (self.owner, job.clone());
         let (process, output, started) = {
             let mut table = self.table.lock();
             let entry = table.get_mut(&key).filter(|entry| !entry.reported)?;
@@ -87,7 +87,7 @@ pub(super) async fn stop_agent(
     let job_text = job.to_string();
     if let Err(error) = agents
         .port
-        .stop(child.clone(), command_id(parent, job, "/stop"), by)
+        .stop(child.clone(), command_id(parent, &job, "/stop"), by)
         .await
     {
         tracing::warn!(target: TARGET, job = job_text.as_str(), child = child.as_str(), error = error.as_str(), "subagent not stopped");
@@ -97,7 +97,7 @@ pub(super) async fn stop_agent(
         _ => (String::new(), false),
     };
     let report = Command::Report(ChildReported {
-        job,
+        job: job.clone(),
         session: child.clone(),
         reason: ChildReason::Stopped,
         text,
@@ -106,7 +106,7 @@ pub(super) async fn stop_agent(
         by_model,
     });
     let from_child = By::Session(Session { id: child.clone() });
-    let id = command_id(parent, job, "/stopped");
+    let id = command_id(parent, &job, "/stopped");
     match agents
         .port
         .command(parent.clone(), id, from_child, report)

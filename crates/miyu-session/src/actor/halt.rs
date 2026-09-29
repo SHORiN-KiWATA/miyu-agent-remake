@@ -28,7 +28,7 @@ impl Actor {
                     cause: Some(cause),
                     by_model: false,
                 };
-                match self.jobs.target(job) {
+                match self.jobs.target(&job) {
                     Err(error) => answer(reply, Err(error)),
                     Ok(Target::Command) => {
                         let result = self.stop_command(job, who).await?;

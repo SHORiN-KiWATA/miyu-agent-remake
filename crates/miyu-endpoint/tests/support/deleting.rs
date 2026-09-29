@@ -125,6 +125,21 @@ pub fn started_jobs(log: &[Event]) -> usize {
         .count()
 }
 
+/// 日志里 `job.started` 的编号，照先后（施工 7-1 补）。
+pub fn started_ids(log: &[Event]) -> Vec<String> {
+    log.iter()
+        .filter_map(|event| match &event.body {
+            Body::ToolResult(result) => Some(&result.effects),
+            _ => None,
+        })
+        .flatten()
+        .filter_map(|effect| match effect {
+            Effect::JobStarted(started) => Some(started.job.to_string()),
+            _ => None,
+        })
+        .collect()
+}
+
 /// 日志里有没有回报：后台命令结束的、子会话交来的。
 pub fn reported_jobs(log: &[Event]) -> bool {
     log.iter()

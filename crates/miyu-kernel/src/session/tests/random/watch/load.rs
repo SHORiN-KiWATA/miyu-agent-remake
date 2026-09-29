@@ -124,7 +124,7 @@ impl Watch {
             .jobs
             .iter()
             .filter(|(_, job)| job.session.is_none() && !job.over)
-            .map(|(job, _)| *job)
+            .map(|(job, _)| job.clone())
             .collect();
         let aborted: Vec<JobId> = appended
             .iter()
@@ -132,7 +132,7 @@ impl Watch {
                 Body::JobReported(reported)
                     if reported.reason == JobReason::Aborted && event.by == By::Kernel =>
                 {
-                    Some(reported.job)
+                    Some(reported.job.clone())
                 }
                 _ => None,
             })

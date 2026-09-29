@@ -23,7 +23,7 @@
 | `crates/miyu-session/src/jobs/query.rs`、`stop.rs` | 任务端口的列出、读、停；停后台命令、停子代理（施工 7-4） |
 | `crates/miyu-session/src/jobs/peek.rs` | 照子会话的日志算它在做什么（施工 7-4） |
 | `crates/miyu-session/src/actor/halt.rs` | 人停一个、父会话停下时全停（施工 7-4） |
-| `crates/miyu-session/src/job_ids.rs` | 任务编号的分配器 `JobIds`：一个会话 actor 一份，照日志往后数（施工 7-3、7-5 共用） |
+| `crates/miyu-session/src/job_ids.rs` | 任务编号的分配器 `JobIds`：一个会话 actor 一份，照日志往后数（施工 7-3、7-5 共用），子会话的带上它在父会话里的编号（施工 7-1 补） |
 | `crates/miyu-store` 的 `jobs` | 输出文件放在哪：会话目录下的 `jobs/<编号>.out`（`store.md`） |
 | `crates/miyu-session/src/blocking.rs` | 在阻塞线程里做完 |
 | `crates/miyu-fs` 的 `replace`、`trash` | 写回、进出回收站，和写的工具用的是同一份（`fs.md`） |
@@ -95,7 +95,8 @@ The tool "{name}" stopped because of an internal error. It may have been partly 
 
 **1b. 派子代理**（`crates/miyu-session/src/agents.rs`，施工 7-5；`agents.md` 第一条）
 
-1. 任务编号：一个会话一份（`JobIds`），造会话、载入以后照内核的 `last_job_number()`（日志里用过的最大编号，撤掉的、不认识的种类也算，没有是 0）往下数。几次调用一起跑的，各领各的，不重不漏。领了没派成的不回收；载入以后照日志里记下的数，没记下的那几个号没人用过，照样可以再发。
+1. 任务编号：一个会话一份（`JobIds`），造会话、载入以后照内核的 `last_job_number()`（日志里用过的编号最后一段最大的数，撤掉的、不认识的种类也算，没有是 0）往下数。几次调用一起跑的，各领各的，不重不漏。领了没派成的不回收；载入以后照日志里记下的数，没记下的那几个号没人用过，照样可以再发。
+   - 子会话领的号前面带上它自己在父会话里的编号（施工 7-1 补，`agents.md`「对外的样子」）：造会话时照 `Create` 的命令编号、载入时照 `session.created` 的 `cause`，读 `<父会话>/<编号>`（`agents::job_in`，和向上回报读的是同一个）。`j2` 这个子会话领的是 `j2.1`、`j2.2`；主会话、读不出编号的子会话没有前缀，领的是 `j1`、`j2`。以前的日志里子会话派的 `j1` 照样占着 1：接着领的是 `j2.2`。
 2. 一个会话一份要照抄的（`Agents`）：会话表交进来的端口 `SessionPort`，这个会话的编号、属主、场所、第几层（主会话是 0）、父会话（主会话没有，施工 7-7 留言用），快照里有没有人能确认。造会话时照交进来的；载入时属主照交进来的，场所、第几层、父会话照 `session.created`，能不能确认照快照。会话表没交端口的（测试里自己造的会话），没有这一份，每次调用的 `agents` 是空的。
 3. 每一次调用（第 1 条第 3 步）照这一轮的工作目录、加进来的目录、派出去那一刻实际的权限造一个端口交给工具。
 4. 工具调它 `spawn(description, prompt)`：
@@ -192,7 +193,7 @@ The tool "{name}" stopped because of an internal error. It may have been partly 
 
 **5. 后台命令**（施工 7-3，`agents.md` 第四条、第八条）
 
-执行器的任务表 `Jobs`：核心里一张，所有会话共用，核心看它空不空闲（`core.md`「停下」）。一个会话 actor 一份 `SessionJobs`，actor 造好时建：任务编号从内核照日志算的用过的最大编号（`Session::last_job_number`，撤掉的回合里用过的也算，`kernel/session.md`）往后数，一个 actor 一个 `JobIds`，工具并行跑时各自领、领到的不一样。表里一项的钥匙是「哪个 actor 的哪个编号」：同一个会话停了又载入，前一个 actor 起的命令还没死透时编号可能重，actor 不会。
+执行器的任务表 `Jobs`：核心里一张，所有会话共用，核心看它空不空闲（`core.md`「停下」）。一个会话 actor 一份 `SessionJobs`，actor 造好时建：任务编号从内核照日志算的用过的最大编号（`Session::last_job_number`，撤掉的回合里用过的也算，`kernel/session.md`）往后数，子会话的带上前缀（第 1b 条第 1 条），一个 actor 一个 `JobIds`，工具并行跑时各自领、领到的不一样。表里一项的钥匙是「哪个 actor 的哪个编号」：同一个会话停了又载入，前一个 actor 起的命令还没死透时编号可能重，actor 不会。
 
 1. **收下**（任务端口的 `start`）：领一个编号；在会话目录下建 `jobs/<编号>.out`（没有 `jobs/` 的先建，Unix 上 0700；已经有的清空，`store.md`）；拿着表的锁看 actor 还在不在，在的登记进表（进程、输出文件、交来的那一刻、还没报结束）。建不起来、actor 已经停了的：整组杀掉它，另起一个线程等它（免得留下没人收的僵尸进程），交回出错。收下了起两个线程，都带着派活时的 span：
    - 读输出的线程：一段段写进输出文件，不截。写不进去（磁盘满了之类）记一行 `WARN` `job output not written`，关上文件，之后照读不写：不让命令卡在写满的管道上。
@@ -235,13 +236,13 @@ The tool "{name}" stopped because of an internal error. It may have been partly 
 | `crates/miyu-session/tests/read.rs`、`search.rs` | 真的 `read`、`glob`、`grep` 在会话里跑：工作区里的读得到、搜得到；边界以外的也读得到、搜得到，没人能确认也不用问（施工 5-4 上）；数据根里的读被拒；从上面往下搜不进数据根 |
 | `crates/miyu-session/tests/sandbox.rs` | 执行器写的沙盒（施工 5-4 上）：工具链的缓存只在工作区这一级放、设五个变量、建出来只给本人、cargo 配置的链接（有的建、指错了的换、没有的不建）、没交进来缓存的不设（施工 5-4 下）；工作区能写工作目录、临时目录，藏数据根；只读（连同不认识的级别）哪儿都不能写；完全放开不带；数据根在临时目录里的用 `<数据根>-sandbox-tmp`、`TMPDIR` 指过去，建出来是 0700，有了照用；别人进得去的不用，这次调用不跑、照崩了交回；Unix 上有收紧手段的，真的经助手跑 `shell`：工作区里写得进，外面写不进、读得到，数据根读不到，只读时写不进；加进来的目录在工作区这一级能写、排在工作目录后面、`~` 接家目录，只读的哪儿都写不了（施工 5-10 上） |
 | `crates/miyu-session/tests/sandbox_log.rs` | 沙盒写不成：记一行 `ERROR sandbox not set up`，带原因，再照崩了记一行，没跑（施工 5-4 上） |
-| `crates/miyu-session/tests/spawn.rs` | 派子代理（施工 7-5）：交给会话表的子会话抄对了父会话的每一样（属主、场所、权限连同只读、能不能确认、工作目录、加进来的目录、第几层、命令编号、人格），交代原样、`by` 是父会话；一步里调两次派两个、各领各的编号；造不成的不送交代、编号不回收，载入以后接着数、照日志和快照抄；没有会话表的派不了；主会话和第 1 层有 `agent`，第 2 层、群里没有、调了照没有的工具拒掉，子会话的 system 接上场所说明 |
+| `crates/miyu-session/tests/spawn.rs` | 派子代理（施工 7-5）：交给会话表的子会话抄对了父会话的每一样（属主、场所、权限连同只读、能不能确认、工作目录、加进来的目录、第几层、命令编号、人格），交代原样、`by` 是父会话；一步里调两次派两个、各领各的编号；造不成的不送交代、编号不回收，载入以后接着数、照日志和快照抄；子会话派的带上它在父会话里的编号，载入以后照 `cause` 读回（施工 7-1 补）；没有会话表的派不了；主会话和第 1 层有 `agent`，第 2 层、群里没有、调了照没有的工具拒掉，子会话的 system 接上场所说明 |
 | `crates/miyu-session/tests/spawn_log.rs` | 派出去、造不成、交代被拒各一行，标题、交代的字不进日志（施工 7-5） |
-| `crates/miyu-session/src/job_ids.rs` | 编号接着用过的往下数；几个线程一起领，不重不漏（施工 7-5） |
+| `crates/miyu-session/src/job_ids.rs` | 编号接着用过的往下数；几个线程一起领，不重不漏（施工 7-5）；带前缀的、孙会话的三段、旧日志里的 `j1` 占着 1（施工 7-1 补） |
 | `crates/miyu-session/tests/restore.rs` | 改过的写回去、恢复时再改回来；之后被人改过的不动、记下现在的哈希；撤掉的那一轮里读过的不算、恢复以后又算；已经回到原样的算改回了；改前没存下来的记 `unsaved` |
 | `crates/miyu-session/src/jobs/tests.rs`（施工 7-3） | 假的后台命令：编号照日志往后数；输出一段段写进 `jobs/<编号>.out`；自己退出了存成 blob、字数按字数、`by` 是那次调用、`cause` 是那一轮的；落了盘才从表里拿掉；被信号杀掉的写信号；停下时只报还在跑的（`restarted`、`by` 是内核、到这时的输出、落盘之前不杀），报过的自己结束了不再报，杀的只是还在跑的，停了以后不收新的、收不下的整组杀掉；actor 停了只杀它的、别的会话的不动；输出文件建不起来的不收 |
 | `crates/miyu-session/src/job_ids.rs` | 从用过的往后数；并行领的不重 |
-| `crates/miyu-session/tests/jobs.rs`（施工 7-3） | 真的 `shell` 放到后台：这一轮结束了命令还在跑，结束了记 `job.reported`（退出码、`by`、`cause`、不带回合编号、输出的 blob、字数、`jobs/j1.out`），闲着的她被它叫醒；撤掉、重新载入以后编号接着往后数；有计划地停下先记 `restarted`、落了盘再杀；没记就停了的再载入补 `aborted`、不开轮；Unix 上有收紧手段的，后台命令照样关在沙盒里 |
+| `crates/miyu-session/tests/jobs.rs`（施工 7-3） | 真的 `shell` 放到后台：这一轮结束了命令还在跑，结束了记 `job.reported`（退出码、`by`、`cause`、不带回合编号、输出的 blob、字数、`jobs/j1.out`），闲着的她被它叫醒；撤掉、重新载入以后编号接着往后数；孙会话的后台命令三段、输出在 `jobs/j2.1.1.out`，旧日志里子会话的 `j1` 照认、`jobs` 照它列出来、接着领 `j2.2`（施工 7-1 补）；有计划地停下先记 `restarted`、落了盘再杀；没记就停了的再载入补 `aborted`、不开轮；Unix 上有收紧手段的，后台命令照样关在沙盒里 |
 | `crates/miyu-session/tests/messages.rs`、`messages_log.rs`（施工 7-7） | 留言：送到 `j1` 的子会话、`by` 是这个会话、命令编号照这次调用、原话一块字、`job.messaged` 记进日志；到了深度上限的发给父；主会话写 `parent`、没派过的、派它的那一轮撤掉了的、被停掉的、对方拒收、没有会话表各一句；本机的主会话、子会话工具面里有 `message_agent`，群里没有；送到、送不到各一行运行日志，留言的字不进日志 |
 | `crates/miyu-session/tests/jobs_stop.rs`、`jobs_stop/agents.rs`（施工 7-4） | 真的 `jobs` 在会话里：读到这时的输出、说还在跑，停掉（`by` 是那次调用、`cause` 是那一轮的、`by_model`、用时和到这时的输出、整组杀了），列出来是停掉的，不叫醒她；人停的叫醒她、回应之前推过了、`by` 是人、`cause` 是那条命令，再停、没有的交回已经结束了、没有；自己先退出了的停不了、不记第二条；子代理最近的回答和在跑的工具，停掉它（经会话表停、命令编号、回报记成它交来的、正文、`by_model`、不叫醒）；人停子代理叫醒她、停过的不再停；全停连后台命令和子代理、都带 `by_model`、不叫醒；太长的回答照向上回报的截法截（施工 7-4） |
 | `crates/miyu-session/src/jobs/roster/tests.rs`、`peek/tests.rs` | 名册照事件样本记、用时三种算法、最近结束的 5 个；报过以后又被留了言的记回在跑，留言发出以后到的回报算回了、被停掉的不记回（施工 3-8 三补）；子代理最近的回答、这一轮完没完、在跑的工具（施工 7-4） |

@@ -84,9 +84,10 @@ fn decide(request: &Request) -> Play {
         return match last {
             Some(result) if result.starts_with("Started") => Play::Says("等孙代理。"),
             Some(_) => Play::Says("告诉它了，等它做完。"),
-            None if heard("<subagent-message") => {
-                calls("message_agent", json!({"to": "j1", "message": "用 a.rs。"}))
-            }
+            None if heard("<subagent-message") => calls(
+                "message_agent",
+                json!({"to": "j1.1", "message": "用 a.rs。"}),
+            ),
             None => calls("agent", json!({"description": "查 B", "prompt": "查 B"})),
         };
     }
@@ -205,12 +206,12 @@ async fn the_middle_layer_answers_its_subagent_and_reports_the_whole_task_once()
     assert_eq!(message.turn, None, "子代理的留言不带回合编号");
     let messaged = child_log.iter().any(|event| {
         matches!(&event.body, Body::ToolResult(result) if result.effects
-            == [Effect::JobMessaged(JobMessaged { job: JobId::new(1).unwrap() })])
+            == [Effect::JobMessaged(JobMessaged { job: JobId::parse("j1.1").unwrap() })])
     });
     assert!(messaged, "给孙代理的留言报了 job.messaged");
     let tagged = brain.requests().iter().any(|request| {
         said(request).iter().any(|block| {
-            block.starts_with("<subagent-message job=\"j1\" title=\"查 B\">\n要改哪一个文件？\n")
+            block.starts_with("<subagent-message job=\"j1.1\" title=\"查 B\">\n要改哪一个文件？\n")
         })
     });
     assert!(tagged, "子代理的请求里注明了是哪个孙代理说的");
