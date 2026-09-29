@@ -86,7 +86,7 @@
 | `tool.progress` | 工具执行中的一段输出：`call_id` 哪一次调用，`text` 一段输出。结果以 `tool.result` 为准，这些只给人看着它在跑 | 那次调用 |
 | `status` | 出了错，等着重试：`seen` 哪一次请求；`retry` 里 `attempt` 这是第几次重试（从 1 数起）、`limit` 一共最多几次（现在是 5，`kernel/session.md`）、`wait_ms` 等多久（毫秒）、`class` 出错的分类、`message` 出错的原话 | 内核 |
 | `compaction.progress` | 摘要写到哪了（施工 6-2 上）：`seen` 哪一次摘要请求（它替代到的那一条）、`written` 到这时收到的正文字数（草稿加摘要，照 Unicode 字符数）、`expected` 估计要写多少字（压缩前的用量，夹在 20000 到 80000 之间） | 内核 |
-| `compaction.done` | 压好了（施工 6-3 下）：`seen` 哪一次摘要请求；`before` 压之前的用量（过了线的那一次主请求算出的）、`after` 压完的用量（照这时的有效历史组装一次算的），都是估算，和压缩线同一个算法；`usage` 摘要请求的用量、`duration_ms` 它的用时，照它的 `model.called`，没有就不写 | 内核 |
+| `compaction.done` | 压好了（施工 6-3 下）：`seen` 哪一次摘要请求；`trigger` 哪一种压缩，`auto`、`manual`，和那一条 `context.compacted` 一样（施工 6-8：运行日志照它写）；`before` 压之前的用量（自动的是过了线的那一次主请求算出的，手动的是那一轮开头落了盘时照有效历史组装一次算的）、`after` 压完的用量（照这时的有效历史组装一次算的），都是估算，和压缩线同一个算法；`usage` 摘要请求的用量、`duration_ms` 它的用时，照它的 `model.called`，没有就不写 | 内核 |
 
 `model.delta` 的那一段增量：
 

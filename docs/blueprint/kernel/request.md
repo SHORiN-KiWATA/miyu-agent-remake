@@ -57,8 +57,8 @@
 | 方法 | 做什么 |
 |---|---|
 | `assemble(&History) -> Request` | 从有效历史组装请求 |
-| `summarize(&History, upto, cut) -> Request` | 压缩的摘要请求：有效历史截到第 `upto` 条照平常组装，最后接摘要指令（施工 6-2 上，`compaction.md` 第三条第 3 条）。`cut` 是截短重试截到第几条（施工 6-6 中）：检查点后面第 `cut` 条及以前的不要，留下的第一条是助手的，前面补一条 user（`truncated.txt`）；没有是不截 |
-| `summarize_isolated(&History, upto, cut) -> Request` | 隔离式的摘要请求（施工 6-6 下，`compaction.md` 第四条）：和 `summarize` 一样的消息，system 换成 `summarize-system.txt`，工具面空的 |
+| `summarize(&History, upto, cut, instructions) -> Request` | 压缩的摘要请求：有效历史截到第 `upto` 条照平常组装，最后接摘要指令（施工 6-2 上，`compaction.md` 第三条第 3 条）。`cut` 是截短重试截到第几条（施工 6-6 中）：检查点后面第 `cut` 条及以前的不要，留下的第一条是助手的，前面补一条 user（`truncated.txt`）；没有是不截。`instructions` 是手动压缩时人附的要求，`None` 是没附（施工 6-8） |
+| `summarize_isolated(&History, upto, cut, instructions) -> Request` | 隔离式的摘要请求（施工 6-6 下，`compaction.md` 第四条）：和 `summarize` 一样的消息，system 换成 `summarize-system.txt`，工具面空的；手动压缩附的要求照样夹在指令里（施工 6-8） |
 | `summary(&[Block]) -> Option<String>` | 从摘要请求的回复里取出摘要；取不出来的是 `None`（`compaction.md` 第三条第 6 条）。指令和取法是一对，都归组装 |
 
 **默认的组装器** `DefaultAssembler::new(Stable, Texts)`：
@@ -70,9 +70,9 @@
 | | `demos` | 示范对话。照策略快照造的总是空的 |
 | `Texts` | `checkpoint_open`、`checkpoint_close`、`checkpoint_end`、`restored_open`、`restored_close` | 检查点包装的开头、摘要的收尾、包装的结尾（施工 6-5 拆开），重读的文件那一块的头尾 |
 | | `turn_ended` | `TurnEndedTexts`：`interrupted`、`error`、`step_limit`、`aborted`、`restarted` 五句 |
-| | `summarize_task` | 摘要指令（`core/compaction/summarize-task.txt`，施工 6-2 上） |
+| | `summarize_task`、`summarize_instructions`、`summarize_end` | 摘要指令的正文、要求前面那一行、最后那一句（`core/compaction/summarize-task.txt` 施工 6-2 上；另两份 `summarize-instructions.txt`、`summarize-end.txt` 施工 6-8 拆出来。以前造的快照里没有这两份，是空的：那时的正文里本来就带着最后那一句） |
 
-默认的 `summarize`：截到第 `upto` 条照平常组装；最后一条是 user 的，指令并进这一条做最后一块，不是的另起一条 user；`continuation` 是假。默认的 `summary`：只看正文块，有 `<summary>` 的取到 `</summary>` 或者末尾，没有的去掉 `<analysis>…</analysis>`，前后空白去掉，空的是 `None`（`crates/miyu-assemble/src/summary.rs`）。
+默认的 `summarize`：截到第 `upto` 条照平常组装；最后一条是 user 的，指令并进这一条做最后一块，不是的另起一条 user；`continuation` 是假。指令是一个文本块：`summarize_task`；有要求的接 `summarize_instructions` 和要求（原样，不转义，末尾没有换行的补一个）；最后是 `summarize_end`（施工 6-8，`compaction.md` 第七条第 3 条）。默认的 `summary`：只看正文块，有 `<summary>` 的取到 `</summary>` 或者末尾，没有的去掉 `<analysis>…</analysis>`，前后空白去掉，空的是 `None`（`crates/miyu-assemble/src/summary.rs`）。
 
 **事实**：
 
@@ -104,8 +104,8 @@
 |---|---|
 | `message.user` | 它的内容块，攒进人这一边 |
 | `context.injected` | 一个文本块，就是它的原文，攒进人这一边 |
-| `turn.started` | 不出块。记下这个回合开始的地方、触发它的那一条 |
-| `turn.ended` | 原因是 `interrupted`、`error`、`step_limit`、`aborted`、`restarted` 的，出一个文本块，就是那一句，攒进人这一边；`completed` 和不认识的原因不出 |
+| `turn.started` | 不出块。记下这个回合开始的地方、触发它的那一条；没有触发的（手动压缩单开的那一轮，施工 6-8）不记 |
+| `turn.ended` | 原因是 `interrupted`、`error`、`step_limit`、`aborted`、`restarted` 的，出一个文本块，就是那一句，攒进人这一边；`completed` 和不认识的原因不出；没有触发的那一轮的不出：她没看到过那一轮，写了她会当成是上一轮没走完（施工 6-8，`compaction.md` 第七条第 8 条） |
 | `message.assistant` | 一条 assistant，内容块原样 |
 | `tool.result` | 一条 tool：`call_id`；状态不是 `ok` 的（包括不认识的状态），`error` 是真；内容块 |
 | `session.*`、`tool.approval_*`、`question.*`、`model.called`、`files.restored`、不认识的种类 | 不渲染 |
@@ -256,10 +256,11 @@ Carry on from where the summary leaves off, without redoing work it records as d
 | `crates/miyu-kernel/src/request/tests.rs` | 同样的请求字节、哈希一样；参数格式一个字节不改；消息以角色开头；第一处不同的四种情形 |
 | `crates/miyu-kernel/tests/request_sample.rs` | 样本 `second-step.json` 就是规范的字节；哈希是它的 SHA-256 |
 | `crates/miyu-assemble/src/tests.rs` | 工具面照名字排；示范对话在前、算进 `stable`；接着写的记号什么时候真、什么时候假 |
-| `crates/miyu-assemble/src/render/tests.rs` | 每种事件渲染成什么；回合开始的事实和触发放到回合开始的地方；等重试时切了级别，事实排在触发后面；早到的触发；重启以后接着干；检查点在最前、摘要不转义；回合没走完的五句；不认识的块和不进上下文的种类 |
+| `crates/miyu-assemble/src/render/tests.rs` | 每种事件渲染成什么；回合开始的事实和触发放到回合开始的地方；等重试时切了级别，事实排在触发后面；早到的触发；重启以后接着干；检查点在最前、摘要不转义；回合没走完的五句；没有触发的那一轮出错、打断、崩了、重启都不出那一句（施工 6-8）；不认识的块和不进上下文的种类 |
 | `crates/miyu-assemble/tests/sample_session.rs` | 样本会话组装出两份样本请求；撤回的、确认和提问的事件不进请求 |
 | `crates/miyu-assemble/tests/probe.rs` | 一段八轮的终端会话由真内核跑出来，每次请求和存档（`requests/`、`openai-chat/`）逐字节一样；五条性质；什么都没收到的再来一字不差 |
-| `crates/miyu-assemble/tests/random_logs.rs` | 五百份随机会话，每次请求查五条性质：同样的日志同样的字节、前缀延伸（统一的请求和线上的字节两层；中间撤销、恢复、压缩过的那一次不查）、调用和结果成对、没有连着的 user、回合第一次请求的最后一块是触发；CI 长跑两万份；重试的回合里，一半在等着重试时切一下只读 |
+| `crates/miyu-assemble/src/summary/tests.rs` | 摘要指令怎么拼：没附要求的和原来的整份一字不差；附了的夹在中间、原样、补换行；旧快照没有那两份的（施工 6-8）；取摘要的每一种 |
+| `crates/miyu-assemble/tests/random_logs.rs` | 五百份随机会话（有手动压缩单开的那一轮，施工 6-8），每次请求查五条性质：同样的日志同样的字节、前缀延伸（统一的请求和线上的字节两层；中间撤销、恢复、压缩过的那一次不查）、调用和结果成对、没有连着的 user、回合第一次请求的最后一块是触发；CI 长跑两万份；重试的回合里，一半在等着重试时切一下只读 |
 | `crates/miyu-kernel/src/facts/tests.rs` | 模板造的时候查；两块的写法、目录转义、实际生效的级别；该不该注入的八种情形 |
 | `crates/miyu-kernel/tests/sample_facts.rs` | 用出厂模板，样本会话每个边界该注入的几块 |
 | `crates/miyu-kernel/src/session/tests/turn.rs`、`permission.rs`、`reply.rs`、`scenario/retrying.rs` | 回合开始注入、切级别以后在哪个边界注入、第二轮只注入变了的、断了以后追加 `reply_cut` |

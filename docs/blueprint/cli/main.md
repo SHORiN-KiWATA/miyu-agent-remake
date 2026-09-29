@@ -2,16 +2,16 @@
 
 ### 是什么
 
-一个程序，像 busybox 那样按子命令分发：`ask`、`undo`（别名 `rewind`）、`restore`、`sandbox` 是命令行的头，`core` 是核心进程。不认识的子命令就报错，绝不当成对话发给核心。给人看的话跟着界面语言。
+一个程序，像 busybox 那样按子命令分发：`ask`、`undo`（别名 `rewind`）、`restore`、`compact`、`sandbox` 是命令行的头，`core` 是核心进程。不认识的子命令就报错，绝不当成对话发给核心。给人看的话跟着界面语言。
 
 ### 在哪
 
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu/src/main.rs` | 子命令；换上帮助页；参数不对时交给 `misuse`；拉起核心用的命令 |
-| `crates/miyu-cli/src/help.rs`、`help/{zh,en}/{miyu,ask,undo,restore,sandbox}.txt` | 帮助页：一种语言五页，编进程序（施工 4-11；`sandbox` 那一页施工 5-8） |
+| `crates/miyu-cli/src/help.rs`、`help/{zh,en}/{miyu,ask,undo,restore,compact,sandbox}.txt` | 帮助页：一种语言六页，编进程序（施工 4-11；`sandbox` 那一页施工 5-8，`compact` 那一页施工 6-8） |
 | `crates/miyu-cli/src/misuse.rs` | 参数写错时说的那一句，不认识的子命令也在这里（施工 4-11）；少了子命令、嵌着的子命令写错、成对的选项少了一个（施工 5-8） |
-| `crates/miyu-cli/src/lib.rs` | 命令行的头对外的几样：`Ask`、`ask`、`talk`、`Format`、`Plan`、`Screen`、`Target`、`exit`，`Undo`、`undo`、`undo_on`、`Direction`、`UndoPlan`，`Sandbox`、`sandbox`，`help`、`misuse`、`language` |
+| `crates/miyu-cli/src/lib.rs` | 命令行的头对外的几样：`Ask`、`ask`、`talk`、`Format`、`Plan`、`Screen`、`Target`、`exit`，`Undo`、`undo`、`undo_on`、`Direction`、`UndoPlan`，`Compact`、`compact`（施工 6-8），`Sandbox`、`sandbox`，`help`、`misuse`、`language` |
 | `crates/miyu-cli/src/language.rs` | 界面语言；这一页和 `miyu ask` 给人看的字 |
 | `crates/miyu-cli/src/language/undo.rs` | `miyu undo`、`miyu restore` 给人看的字（`cli/undo.md`） |
 | `crates/miyu-cli/src/sandbox.rs`、`sandbox/flow.rs`、`language/sandbox.rs` | `miyu sandbox setup`、`remove`（`sandbox/windows.md`，施工 5-8） |
@@ -24,6 +24,7 @@
 | `ask` | 说一句话，打印她的回答 | `cli/ask.md` |
 | `undo`（别名 `rewind`） | 撤掉当前会话的最后一轮，把她改过的文件改回去 | `cli/undo.md` |
 | `restore` | 发下一句之前，恢复最近一次撤销（原来叫 `redo`，施工 4-7 补改名，2026-09-29 项目主人定） | `cli/undo.md` |
+| `compact` | 把当前会话的上下文压缩成摘要，可以附上要求（施工 6-8，命令名 2026-09-29 项目主人定） | `cli/compact.md` |
 | `sandbox` | `setup`、`remove`：Windows 上装好、撤掉沙盒用户，要管理员权限；别的平台上说一句不用装 | `sandbox/windows.md` |
 | `core` | 核心进程：由头拉起，平时不用人敲；不写进帮助 | `core.md` |
 | `help` | clap 自带：印帮助，`miyu help <子命令>` 印那一条的 | |
@@ -42,18 +43,18 @@
 
 ### 怎么走
 
-1. 先照界面语言给主程序和 `ask`、`undo`、`restore`、`sandbox`（连同它的 `setup`、`remove`）换上帮助页（clap 的 `override_help`；`rewind` 是 `undo` 的别名，用同一页），再解析参数。
+1. 先照界面语言给主程序和 `ask`、`undo`、`restore`、`compact`、`sandbox`（连同它的 `setup`、`remove`）换上帮助页（clap 的 `override_help`；`rewind` 是 `undo` 的别名，用同一页），再解析参数。
 2. 解析参数，不对的：
    1. 不认识的子命令：标准错误上说「没有 <名字> 这个子命令。想和她对话，用 miyu ask "…"」，退出码 2。不连核心，不拉起，什么都不发。
    2. `-h`、`--help`、`help`、`help <子命令>`：把那一页原样印在标准输出上，退出码 0。`-V`、`--version`：印 `miyu <版本>`，退出码 0。
    3. 别的：标准错误上说一句（下面「参数写错时」），退出码 2。
 3. 没写子命令：标准错误上说「终端界面还没做好。想和她对话，用 miyu ask "…"」，退出码 2。
-4. `ask`、`undo`（`rewind`）、`restore`：交给命令行的头（`cli/ask.md`、`cli/undo.md`），连同拉起核心用的命令。
+4. `ask`、`undo`（`rewind`）、`restore`、`compact`：交给命令行的头（`cli/ask.md`、`cli/undo.md`、`cli/compact.md`），连同拉起核心用的命令。
 5. 拉起核心用的命令：自己这个程序（`std::env::current_exe`，拿不到的用 `miyu`，照 `PATH` 找），加上 `core`。别的参数、环境变量不加；工作目录、标准输入输出、跟终端脱开，由拉起的那一边接（`ipc.md`）。
 6. `core`：跑核心进程，`--idle-seconds <秒>` 是空闲多少秒退出，不写是 600（`core.md`）。
 7. `sandbox setup`、`sandbox remove`：交给命令行的头（`sandbox/windows.md`）。
 
-**帮助页**：自己写的，一种语言五页（`miyu`、`ask`、`undo`、`restore`、`sandbox`），编进程序，资源目录找不到也印得出；每页以一个换行结尾，最宽 80 列（中文字算两列）。`ask`、`undo`、`restore` 的三页见 `cli/ask.md`、`cli/undo.md`，`sandbox` 那一页见 `sandbox/windows.md`；`miyu sandbox setup -h`、`miyu sandbox remove -h` 印的也是它。`help` 子命令、`core` 不列；`miyu core --help` 照样印得出，是 clap 照代码注释生成的。
+**帮助页**：自己写的，一种语言六页（`miyu`、`ask`、`undo`、`restore`、`compact`、`sandbox`），编进程序，资源目录找不到也印得出；每页以一个换行结尾，最宽 80 列（中文字算两列）。`ask`、`undo`、`restore`、`compact` 的四页见 `cli/ask.md`、`cli/undo.md`、`cli/compact.md`，`sandbox` 那一页见 `sandbox/windows.md`；`miyu sandbox setup -h`、`miyu sandbox remove -h` 印的也是它。`help` 子命令、`core` 不列；`miyu core --help` 照样印得出，是 clap 照代码注释生成的。
 
 样本 `crates/miyu-cli/src/help/zh/miyu.txt`（帮助页，中文）：
 
@@ -151,9 +152,9 @@ Examples:
 | 0 | 成功；`--help`、`--version` |
 | 1 | 出错了：核心、模型、工具出了问题 |
 | 2 | 用法不对：不认识的子命令、参数不对、只敲了 `miyu` |
-| 3 | 被打断了（`miyu ask`） |
+| 3 | 被打断了（`miyu ask`、`miyu compact`） |
 | 4 | 有几步要人确认，这里确认不了，没做（`miyu ask`） |
-| 5 | 没有可用的模型（`miyu ask`） |
+| 5 | 没有可用的模型（`miyu ask`、`miyu compact`） |
 
 `miyu core` 的另见 `core.md`。
 
@@ -176,6 +177,7 @@ Examples:
 | `crates/miyu-cli/src/misuse/tests.rs` | 七种错各说哪一句、两种语言；值的连法；控制字符换掉；全部子命令里必写的只有 `ask` 的要说的话；成对的少了一个、少了子命令、嵌着的子命令写错（施工 5-8）；`--add-dir` 后面不是已经有的目录（施工 5-10 上） |
 | `crates/miyu/tests/ask.rs` | 参数不对退出码 2（什么都不写、`--session` 和 `--continue` 一起写）；`miyu ask --help` 跟着界面语言；没有 key、核心没在跑的不拉起 |
 | `crates/miyu/tests/undo.rs` | `miyu undo --help`、`miyu rewind -h`、`miyu restore --help` 跟着界面语言；`undo`、`restore` 各接各的；`redo` 是不认识的子命令 |
+| `crates/miyu/tests/compact.rs` | `miyu compact --help` 跟着界面语言；没有 key、核心没在跑的不拉起（施工 6-8） |
 | `crates/miyu/tests/core.rs` | 拉起的是真的 `miyu core`（`core.md`、`ipc.md`） |
 
 ### 出处
@@ -187,6 +189,6 @@ Examples:
 ### 还没有的
 
 - 只敲 `miyu` 打开终端界面（`22-命令行.md` 第五节、`13-终端界面.md`）：现在只说还没做好。
-- 会话怎么接：现在每次 `miyu ask` 开一个一次性会话，`--continue`、`undo`、`restore` 管的都是上一次 `miyu ask` 开的那个，容易让人迷惑。做头的时候和终端里的会话一起重定（2026-09-28 项目主人定）。
+- 会话怎么接：现在每次 `miyu ask` 开一个一次性会话，`--continue`、`undo`、`restore`、`compact` 管的都是上一次 `miyu ask` 开的那个，容易让人迷惑。做头的时候和终端里的会话一起重定（2026-09-28 项目主人定）。
 - 第五节表里的其余命令：`stdio`、`web`、`setup`、`status`、`doctor`、`logs`、`session`、`config`、`persona`、`preset`、`memory`、`kb`、`venue`、`listen`、`stt`、`pkg`、`tools`、`account`、`service`、`upgrade`、`shell-init`、`completions`。
 - 界面语言是配置里跟着人走的一项（`14-配置.md` 第一节、`16-人格与预设.md` 第五节）；界面的字放在代码之外（`00-设计理念.md` 第六节）：现在照环境变量，字写在代码里。

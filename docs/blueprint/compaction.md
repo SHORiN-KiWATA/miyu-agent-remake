@@ -27,7 +27,7 @@
 | `crates/miyu-session/src/reread.rs`、`store.rs`、`actor/store.rs` | 执行器这边：重读文件存成 blob，照 blob 读出原文；撤销撤掉压缩时从磁盘读回更早的日志（第十一条） |
 | `crates/miyu-core/src/models.rs` | 模型的资料：上下文窗口、最大输出 |
 | `crates/miyu-endpoint/src/methods.rs` | `session.compact`（`protocol.md`） |
-| `crates/miyu-cli/` | `miyu ask` 印压缩那一行（6-3 下）；手动压缩的命令 `miyu compact`（6-8，2026-09-29 项目主人定）；`miyu undo` 撤掉压缩时说一句（6-9） |
+| `crates/miyu-cli/` | `miyu ask` 印压缩那一行（6-3 下）；手动压缩的命令 `miyu compact`（`cli/compact.md`，6-8，命令名 2026-09-29 项目主人定）；`miyu undo` 撤掉压缩时说一句（6-9） |
 | `crates/miyu-endpoint/src/undo.rs` | 撤销的回应里撤掉了几次压缩（`protocol/undo.md`，6-9） |
 | `crates/miyu-basesystem/src/history.rs` | `history`（`tools/history.md`） |
 | `resources/core/compaction/` | 给模型看的字：摘要指令、检查点里代码写的几段 |
@@ -64,7 +64,7 @@
 | `upto` | 序号 | 必有 | 替代到哪个序号为止，这一条也替代掉 |
 | `summary` | 字符串 | 必有 | 摘要正文，草稿已经剥掉 |
 | `trigger` | `auto`、`manual`、`overflow` | 可以没有，没有就是 `auto` | 为什么压：到线了、人要的、供应商报超长 |
-| `instructions` | 字符串 | 可以没有 | 手动压缩时人附的要求，原样 |
+| `instructions` | 字符串 | 可以没有 | 手动压缩时人附的要求，原样；没附的、只有空白的不写（第七条第 3 条） |
 | `notes` | 字符串 | 可以没有 | 代码写的几段，原文照存，以后逐字节回放（第八条） |
 | `restored` | 数组 | 可以没有 | 压后重读的文件：`path`、`blob`（内容的哈希）、`tokens`（估算），照渲染的先后 |
 | `refills` | 整数 | 可以没有 | 压完很快又到线，连着的第几次（第十条第 4 条，施工 6-6 上）；不是的没有 |
@@ -82,19 +82,19 @@
 
 **事件** `model.called` 多一格 `compaction`（`auto`、`manual`、`overflow`，可以没有）：这是哪一种压缩的摘要请求，主请求没有（施工 6-6 上）。有了它，日志里认得出哪几次是摘要请求，失败照它数。以前的日志没有这一格。
 
-**事件** `turn.started`：`trigger` 改成可以没有。人要的压缩单开一轮，它不是哪一句话引起的（第七条）。
+**事件** `turn.started`：`trigger` 改成可以没有。人要的压缩单开一轮，它不是哪一句话引起的（第七条）。没有 `trigger` 的那一轮只做压缩：载入时不接着干，渲染时不进上下文（第七条第 7、8 条）。
 
 **协议** `session.compact`（`protocol.md`）：
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | `session` | 字符串，必写 | 哪个会话 |
-| `instructions` | 字符串，可以不写 | 人附的要求，例如「重点保留数据库设计的讨论」 |
+| `instructions` | 字符串，可以不写 | 人附的要求，例如「重点保留数据库设计的讨论」；去掉前后空白是空的，当没写 |
 
 - 回应：压缩那一轮的 `turn.started` 落了盘就回，`events` 是它的序号，和 `session.send` 一样不等这一轮做完。压好了没有，看事件流里的 `context.compacted`、`turn.ended`。
-- 有回合在进行：`turn_running`。上一次压缩以后，有效历史里还没有新的消息、工具结果：`nothing_to_compact`。
+- 有回合在进行：`turn_running`。照第七条第 2 条定出来的 N 以前没有能压的（上一次压缩以后没有新的消息、回复、工具结果，或者全在尾巴里）：`nothing_to_compact`；策略里没有压缩的（6-2 以前造的快照）、执行器没交过限额的，也是它。正在改回文件：`restoring`（`kernel/session.md`）。
 - 压缩期间推送瞬时的 `compaction.progress`：`written` 已经收到多少字，`expected` 估计要写多少字。头照它画进度，不让人对着空白等。
-- 压好了推瞬时的 `compaction.done`（6-3 下）：`seen` 哪一次摘要请求；`before` 压之前的用量（过了线的那一次主请求算出的），`after` 压完的用量（照这时的有效历史组装一次算的），都是估算，和压缩线同一个算法；`usage`、`duration_ms` 是摘要请求的用量、用时，照它的 `model.called`。中途被打断、出错的不推（`kernel/events.md`）。
+- 压好了推瞬时的 `compaction.done`（6-3 下）：`seen` 哪一次摘要请求；`trigger` 哪一种压缩（`auto`、`manual`，施工 6-8：运行日志照它写）；`before` 压之前的用量（自动的是过了线的那一次主请求算出的，手动的是那一轮开头落了盘时照有效历史组装一次算的），`after` 压完的用量（照这时的有效历史组装一次算的），都是估算，和压缩线同一个算法；`usage`、`duration_ms` 是摘要请求的用量、用时，照它的 `model.called`。中途被打断、出错的不推（`kernel/events.md`）。
 
 ### 怎么走
 
@@ -136,7 +136,7 @@
    - 有效历史里第 N 条及以前没有人的消息、回复或工具结果的，不压，照旧发主请求（压了也腾不出地方，还会一直压下去）。N 不比上一次压缩的 `upto` 晚的也是这样：那以前的早就替代掉了。
    - 回合开头（第一次请求之前）：这一轮要回应的话一定在尾巴里，超了预算也留。它们是触发这一轮的那句，连同由上一轮排着队接过来的几句（`kernel/history.md`「拿走什么」认的那几句），和这一轮开头注入的事实。所以这一轮第一次请求的最后一块，照旧是触发它的那句（`08-上下文投影.md` 第七节）。
    - 被动压缩：见第六条。
-3. **请求** = 有效历史到第 N 条为止的投影，原样，加一条 user 消息放摘要指令（`summarize-task.txt`）。这一段是上一次请求的前缀，几乎全部命中缓存。尾巴不进摘要请求，摘要和尾巴不重复；摘要指令里说一句：这之后最近的一段会原样留着。这是 Claude Code「压到某一条为止」那种局部压缩的做法。
+3. **请求** = 有效历史到第 N 条为止的投影，原样，加一条 user 消息放摘要指令。摘要指令是 `summarize-task.txt`（正文）接 `summarize-end.txt`（最后那句不许调工具，施工 6-8 从正文里拆出来，拼出来和原来一字不差）；手动压缩附了要求的，两份中间夹 `summarize-instructions.txt`（`Additional Instructions:` 那一行）和要求（第七条第 3 条）。这一段是上一次请求的前缀，几乎全部命中缓存。尾巴不进摘要请求，摘要和尾巴不重复；摘要指令里说一句：这之后最近的一段会原样留着。这是 Claude Code「压到某一条为止」那种局部压缩的做法。
 4. 用会话自己的驱动、模型、端点。缓存在端点上，换一家就全部落空（旧版撞过）。
 5. 工具照样声明，思考的设置照样带，输出上限照会话原来的请求带：前缀要一字不差。不让她调工具：摘要指令开头、末尾写明只许输出文字。不带 `tool_choice: none`：6-3（下）在 DeepSeek 上实测，同一个 9045 token 的带工具请求，带不带都命中 8832，不掉缓存；可是也挡不住，一句「用 read 打开 README.md」带了照样调 `read`。她要是调了工具，照第 7 条。
 6. **取摘要**：回复先是 `<analysis>` 草稿，再是 `<summary>` 摘要。只看正文块，思考不要。先去掉草稿：草稿里会顺嘴提到 `<summary>` 这个标签（`Now writing the <summary>.`），从那儿取就把草稿的尾巴带进了摘要（6-3 下真模型两次都这样）。剩下的有 `<summary>` 的，取它到最后一个 `</summary>` 之间的：摘要里引的 HTML 也有 `</summary>`，真收尾的在最后；没有收尾的（输出到了上限）取到末尾。没有 `<summary>` 的，剩下的当摘要。草稿没收尾的，摘要写在它里面的从最后一个 `<summary>` 起留下，没有的到末尾都算草稿。前后空白去掉，取出来是空的，算失败：`model.called` 记成出错，分类 `bad_summary`。
@@ -160,6 +160,7 @@
   - 原来写的是把待压缩的内容压平成一段文字（每段标明角色、工具调用只写名字和参数的键名、图片文件换成占位）。2026-09-29 施工 6-6 下实测开发端点（DeepSeek 的写法）：不带工具面的请求里，照样带着以前的工具调用和结果、思考，收，她只回文字、没有调工具。照原样发就不用另造一套给模型看的标签。哪一家不收没有工具面的工具调用的（Anthropic 的接口要求带着工具定义），由那一家的驱动自己压平，随那个驱动做。
   - 思考照驱动平常的设置，不另关：统一的请求里还没有思考的开关，为这一处加一个不划算（随模型配置那一步再看）。
 - 不带只读的读取工具（Claude Code 的回退带着 `Read`）：带了工具，摘要请求就成了一个会调工具的小回合，要多一套派工具、收结果的路；最近的文件压后会重读（第九条）。
+- 手动压缩附的要求照样夹在摘要指令里（第七条第 3 条，施工 6-8）。
 - 取摘要、进度、超长重试照第三条。
 
 **五、裁剪（trim，随通讯平台）**
@@ -181,15 +182,27 @@
 4. 压完重发还是超长，这一轮照出错结束，算一次失败（第十条）。
 5. 真模型上撑爆窗口太贵（开发端点一百万 token），这一条靠执行器替身和随机测试守着（施工 6-7）。
 
-**七、手动压缩**（`trigger` 是 `manual`）
+**七、手动压缩**（`trigger` 是 `manual`，施工 6-8）
 
-1. `session.compact`，空闲时才收。
-2. 单开一轮，只做压缩：`turn.started` 没有 `trigger`，`by` 是内核，`cause` 是这个命令。不注入事实，不跑回合开始的挂接点。尾巴照第三条第 2 条留，和自动压缩一样（2026-09-29 定，照推荐）；想从头来，开新会话。
-3. 人附的要求接在摘要指令后面（`Additional Instructions:` 后面），原样记进 `instructions`。
-4. 写完 `context.compacted`，这一轮结束，`completed`；失败的照出错结束，`error`。
-5. 人打断：压缩取消，什么都不写，这一轮 `interrupted`。
-6. 压缩期间来的消息照排队的规矩排着，这一轮结束以后接着开下一轮（`kernel/session.md`「排队的消息」）。
-7. 有计划的重启打断的这一轮，再起来不接着压：人再要一次就是。
+1. `session.compact`，空闲时才收：有回合在进行的拒绝，`turn_running`；正在改回文件的拒绝，`restoring`。自动压缩暂停着也收（第十条第 6 条）。
+2. **替代到哪**：收下命令时就定，照第三条第 2 条，尾巴一样留（2026-09-29 定，照推荐；想从头来，开新会话）。和自动压缩不一样的几处：
+   - 「这一轮要回应的话」换成还没有哪次请求看到过的人的消息：以前的回合里的请求（`model.called` 的 `seen`）、回复都没看到过的。例如开了一轮、第一次请求之前就打断了的那一句。
+   - 没有这样的话，N 至多是这时落了盘的最后一条：单开的这一轮自己（它的 `turn.started`）不压进去。
+   - 尾巴的预算照第三条第 2 条；模型的资料没报窗口、没有压缩线的，就是策略的 `tail`（16000）：没报窗口的不主动压，手动的照样能压。
+   - 定出来的 N 照第三条第 2 条是「不压」的那两种（第 N 条及以前没有人的消息、回复、工具结果，或者不比上一次压缩的 `upto` 晚）：自动的照旧发主请求，手动的拒绝，`nothing_to_compact`。策略里没有压缩的（6-2 以前造的快照，连摘要指令都没有）、执行器没交过限额的（算不了尾巴）也是它：只在开发时的旧会话、内核测试里有，不另开原因码。
+3. **人附的要求**：去掉前后空白是空的，当没写。有的，摘要指令拼成 `summarize-task.txt`、`summarize-instructions.txt`、要求、`summarize-end.txt`；要求原样放，不转义（是人亲口说的，和 `message.user` 一样），末尾没有换行的补一个。原样记进 `context.compacted` 的 `instructions`。
+   - 照 Claude Code（openclaude `getCompactPrompt`）：要求夹在正文和最后那句提醒中间，最后一句还是不许调工具。
+   - 以前造的快照里没有拆出来的两份，读成空的：自动压缩拼出来一字不差；附的要求直接接在旧的整份指令后面。
+4. **单开一轮**，只做压缩：追加 `turn.started`，没有 `trigger`，`by` 是内核，`cause` 是这个命令，`cwd`、`dirs` 照会话现在的环境写。不注入事实，不换实际生效的权限，不跑回合开始的挂接点：这一轮不请求主模型、不调工具。回应是它的序号，落了盘就回，和 `session.send` 一样不等这一轮做完。
+5. 开头那一批落了盘，发摘要请求，名字是 N，照第三条第 3 到 9 条（压后重读照第九条）。`before` 照这时的有效历史组装一次算。不算步数。出了能再来的错，照「出错再来」等着，到点照同一个 N、同样的要求再发。摘要请求报了超长截短再发（第三条第 10 条）、调了工具改走隔离式（第三条第 7 条、第四条）的，要求照样夹在指令里，`model.called` 的 `compaction` 照样是 `manual`。
+6. **取到了摘要**：写 `context.compacted`（`trigger` 是 `manual`，带 `instructions`、`notes`、`restored`，不写 `refills`），推 `compaction.done`，接着 `turn.ended`（`completed`），同一批。这一轮不注入事实：下一轮开头照常和检查点后面的比着注入。压缩期间来的消息照排队的规矩排着，同一批接着开下一轮（`kernel/session.md`「排队的消息」）。
+7. **没压成**：
+   - 出了不再来的错、再来够了、取不出摘要：这一轮 `error`，原因在摘要请求的 `model.called` 里（`compaction` 是 `manual`）。不数进熔断、不写暂停（第十条第 3 条）。
+   - 人打断：摘要请求照打断的规矩记 `model.called`（`interrupted`），不写 `context.compacted`，这一轮 `interrupted`。
+   - 有计划的重启：这一轮 `restarted`，再起来不接着压：人再要一次就是。没有 `trigger` 的那一轮不接着干，排着的留在日志里，和崩了一样等人开口（`kernel/session.md`「载入和崩溃」）。
+8. **不进上下文**：没有 `trigger` 的那一轮，渲染时不记回合开始，它的 `turn.ended` 不出「这一轮没走完」那一句（`kernel/request.md`「组装」）。她没看到过这一轮；写了，失败、打断以后下一轮前面多一句「这一轮出错了」，她会当成是上一轮。摘要请求的 `model.called` 本来就不进上下文。
+9. 回合结束的挂接点照常跑（广播，不等）。
+10. 手动的不算「压完很快又到线」（第十条第 5 条）：不写 `refills`，之后自动压缩的 `refills` 从头数。成了以后检查点换了，以前的失败、暂停都写在它前面，自动压缩恢复（第十条第 6 条）。
 
 **八、检查点长什么样**
 
@@ -247,7 +260,7 @@
 6. **暂停着**：有效历史里、最近一次压缩那一条以后写下了 `context.compaction_paused`。
    - 到线不压；明知会超长的请求不发（第二条第 5 条）。
    - 告诉人可以怎么办：手动压缩、换一个模型、开新会话（「给人看的字」）。
-   - 人手动压缩成功，检查点换了，暂停在它前面，恢复自动压缩（6-8）。撤掉写着暂停的那一轮，暂停跟着撤掉。
+   - 暂停着也收手动压缩（第七条）。人手动压缩成功，检查点换了，暂停在它前面，恢复自动压缩（6-8）。撤掉写着暂停的那一轮，暂停跟着撤掉。
    - 全从有效历史算：载入、重启不另记，和不重启一样。
 7. 无人值守的场所（随通讯平台）：不暂停，改成裁剪一次（第五条），同时通知管理员（2026-09-29 项目主人定，照推荐）。
 
@@ -285,7 +298,7 @@
 INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 summary_in=14147 summary_cached=2816 summary_out=2666 took_ms=11816
 ```
 
-- `seen` 哪一次摘要请求；`trigger` 为什么压（现在只有 `auto`）；`before`、`after` 压前、压后的估算。
+- `seen` 哪一次摘要请求；`trigger` 为什么压，照 `compaction.done` 的 `trigger`（`auto`、`manual`，施工 6-8）；`before`、`after` 压前、压后的估算。
 - `summary_in`、`summary_cached`、`summary_out`、`took_ms`：摘要请求的输入（没命中的、命中的、写进缓存的加起来）、命中、输出、用时，照它的 `model.called`，没有的不写。
 - 截过几次、重读了几个文件随 6-6、6-5 加。
 
@@ -295,7 +308,9 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 
 | 文件 | 什么时候出现 | 哪一步 |
 |---|---|---|
-| `summarize-task.txt` | 摘要指令，任务型 | 6-2 |
+| `summarize-task.txt` | 摘要指令的正文，任务型 | 6-2；6-8 把最后那句拆进 `summarize-end.txt` |
+| `summarize-end.txt` | 摘要指令的最后一句：只回草稿和摘要，不许调工具 | 6-8 |
+| `summarize-instructions.txt` | 手动压缩附了要求的，要求前面那一行 `Additional Instructions:` | 6-8 |
 | `summarize-system.txt` | 隔离式那一句 system | 6-6 下 |
 | `truncated.txt` | 摘要请求截掉最老的一段、留下的第一条是助手的，前面补的那一条 user | 6-6 中 |
 | `notes-files.txt`、`notes-files-more.txt`、`notes-retrieve.txt`、`notes-too-large.txt` | 检查点里代码写的几段 | 6-5 |
@@ -309,14 +324,14 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 - 开头：只许输出文字，调工具会被拒、这一次就白费了；
 - 先写 `<analysis>` 草稿：按时间逐条过一遍对话，用户的要求、做法、文件名、完整的代码片段、报错和修法、用户的纠正；
 - 再写 `<summary>` 九节：Primary Request and Intent、Key Technical Concepts、Files and Code Sections、Errors and fixes、Problem Solving、All user messages（工具结果以外的每一条）、Pending Tasks、Current Work、Optional Next Step（逐字引用最近的对话）；
-- 人附的要求写在 `Additional Instructions:` 后面；
-- 末尾再提醒一次不许调工具。
+- 人附的要求写在 `Additional Instructions:` 后面（`summarize-instructions.txt`，只有附了要求的手动压缩有）；
+- 末尾再提醒一次不许调工具（`summarize-end.txt`）。
 
 删掉 Claude Code 里只对它自己有用的几句（例如「Compact Instructions」那两个例子讲的是它的 `CLAUDE.md`），再加一句：只有 user 角色的消息算用户说的话。旧版的 `compact.md` 只当证据，不照搬（`26-提示词.md` 第六节）。
 
 例子：`notes-retrieve.txt`（英文，大意）：第 1 到 N 条被这份摘要替代了，原文还在，用 `history` 按序号、关键词、时间取回。
 
-`miyu ask` 里压缩那一行（6-3 下，照项目主人 2026-09-29 定的样子）：灰色旁白，终端里原地刷新进度，压好了换成结果，失败的红；管道里只印结果（`cli/ask.md`）。
+`miyu ask` 里压缩那一行（6-3 下，照项目主人 2026-09-29 定的样子）：灰色旁白，终端里原地刷新进度，压好了换成结果，失败的红；管道里只印结果（`cli/ask.md`）。`miyu compact` 印的是同一行（`cli/compact.md`）。
 
 ```text
 · 正在压缩上下文… 已写 3,120 字
@@ -334,7 +349,7 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 | 暂停 | 自动压缩连续失败 <n> 次，已暂停：可以手动压缩、换一个模型，或者开新会话 | Automatic compaction failed <n> times and is paused: compact manually, switch models, or start a new session |
 | 内容太大 | 第 <序号> 条内容太大，压完很快又满了，自动压缩已暂停 | Entry <seq> is too large and keeps filling the context; automatic compaction is paused |
 | 暂停着、这一次放不下（出错那一行的分类） | 自动压缩暂停着 | automatic compaction is paused |
-| 没有能压的 | 上一次压缩以后还没有新内容 | Nothing new since the last compaction |
+| 没有能压的（`nothing_to_compact` 的那一句，`protocol.md`） | 没有能压的：还没压过的内容都在原样留着的最近一段里。 | Not enough to compact: everything not yet compacted is in the recent part that stays as it is. |
 | 撤掉了压缩（撤掉一次、几次都是这一句，2026-09-29 项目主人定） | 撤掉了压缩，上下文回到了压缩前 | Undid the compaction; the context is back to how it was before |
 | 快满了（M8） | 上下文快满了，到线会自动压缩 | The context is nearly full; it will be compacted automatically |
 | 裁剪了（随通讯平台） | 移出了最早的 <几> 条消息，还能用 history 查 | Moved the <n> oldest messages out of context; history can still find them |
@@ -345,12 +360,13 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 
 | 测试 | 守哪几条 |
 |---|---|
-| 内核的单元测试 | 用量的锚和本地估算，换过模型锚作废、报的比估的小取估的；压缩线；尾巴的切点：一组不拆、预算、最后一组太大不留、回合开头这一轮的话一定留；尾巴里的思考照回放的规矩；只在发主请求之前查、出错再来不查；回合开头到线时这一轮要回应的话留在检查点后面；fork 式请求是日志到 N 的投影加指令；取摘要；工具调用作废改隔离式；超长重试的三种截法；被动压缩只重发一次、收到输出的不重发；手动压缩那一轮；熔断的计数、清零、暂停期间不发超长请求；内容异常 |
+| 内核的单元测试 | 用量的锚和本地估算，换过模型锚作废、报的比估的小取估的；压缩线；尾巴的切点：一组不拆、预算、最后一组太大不留、回合开头这一轮的话一定留；尾巴里的思考照回放的规矩；只在发主请求之前查、出错再来不查；回合开头到线时这一轮要回应的话留在检查点后面；fork 式请求是日志到 N 的投影加指令；取摘要；工具调用作废改隔离式；超长重试的三种截法；被动压缩只重发一次、收到输出的不重发；手动压缩那一轮（空闲才收、没有能压的、切点、要求怎么拼、成了就结束、失败不数、打断不写、重启不接着压、暂停着也收、成了以后自动压缩恢复）；熔断的计数、清零、暂停期间不发超长请求；内容异常 |
 | 撤销的单元测试 | 撤一轮连带里面的压缩；撤掉压缩要读回更早的日志，读回来的对不上的不理；恢复把压缩放回来、不请求模型、不读磁盘；换回来的检查点取回重读的原文；载入时认出哪次压缩还算数；不带 `turn` 的压缩账本不收；随机测试里撤销、恢复、压缩随机交错（`kernel/history.md`「守着它的」） |
 | 撤销的回应、`miyu undo` | 回应里撤掉了几次压缩；`miyu undo` 那一句，一次、几次同一句，两种语言（`protocol/undo.md`、`cli/undo.md`） |
 | 组装的样本 | 压缩后的请求逐字节比对（`docs/designs/samples/requests/`） |
 | 请求形状探针 | 压缩恰好让前缀重置一次，两次压缩之间只追加；摘要请求是上一次请求的前缀延伸（`08-上下文投影.md` 第七节） |
-| 会话的测试 | 压缩期间别的会话照常；打断取消；重读的文件存成 blob、重放时逐字节相同 |
+| 会话的测试 | 压缩期间别的会话照常；打断取消；重读的文件存成 blob、重放时逐字节相同；运行日志 `compacted` 的 `trigger` 照 `compaction.done` |
+| 协议、命令行的测试 | `session.compact` 的参数、回应、拒绝；`miyu compact` 印的几行、退出码（`protocol.md`、`cli/compact.md`，施工 6-8） |
 | 真模型实测 | 慢模型加长上下文（旧版的教训：快模型短会话绕开了超时）；摘要请求的缓存命中；压缩质量评测：压完问之前的约定、让她接着做 |
 
 ### 出处
