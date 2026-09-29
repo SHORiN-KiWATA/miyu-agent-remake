@@ -76,6 +76,11 @@ impl Refusal {
         code: REFUSED,
         reason: "session_broken",
     };
+    /// 没有这个任务，或者它已经结束了（施工 7-4，`job.stop`）。
+    pub(crate) const UNKNOWN_JOB: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_job",
+    };
     /// 加进来的目录太宽（施工 5-10 上）：家目录、根目录、包含数据根的、落在数据根里的。
     pub(crate) const DIR_TOO_WIDE: Refusal = Refusal {
         code: REFUSED,
@@ -146,6 +151,10 @@ impl Refusal {
                 "An undo or restore is still in progress; try again when it is done.",
             ),
             "nothing_to_revert" => ("没有能撤销的回合。", "There is no turn to undo."),
+            "unknown_job" => (
+                "没有这个任务，或者它已经结束了。",
+                "There is no such job, or it has already ended.",
+            ),
             "nothing_to_compact" => (
                 "没有能压的：还没压过的内容都在原样留着的最近一段里。",
                 "Not enough to compact: everything not yet compacted is in the recent part that stays as it is.",

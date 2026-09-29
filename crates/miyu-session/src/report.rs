@@ -111,6 +111,7 @@ impl Upstream {
             text: upward.text,
             truncated: upward.truncated,
             person: upward.person,
+            by_model: false,
         };
         let parent = self.parent.as_str();
         let (mut wait, mut waited) = (RETRY_FIRST_MS, 0);

@@ -1,7 +1,7 @@
 //! 握手以后的方法（`docs/designs/04-核心协议.md` 第九节「先做的几样怎么写」）：造会话、说话、打断，
 //! 列出会话（施工 3-9 下），撤销、恢复（施工 4-7 上；回应带上给人看的几样，施工 4-7 下），手动压缩（施工 6-8），切权限级别
-//! （施工 3-8 再补），清空上下文（施工 6-8 补）。命令交给会话，等它的回应：接受的回 `events`（切权限级别的回 `{}`），拒绝的
-//! 回原因码。造会话、说话的
+//! （施工 3-8 再补），清空上下文（施工 6-8 补），停掉一个任务（施工 7-4）。命令交给会话，等它的回应：接受的回 `events`
+//! （切权限级别、停掉任务的回 `{}`），拒绝的回原因码。造会话、说话的
 //! 回应再带上会话实际在哪个目录里干活（施工 4-5 下）。
 
 use std::sync::Arc;
@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::Level;
-use miyu_kernel::id::{Seq, SessionId, TurnId};
+use miyu_kernel::id::{JobId, Seq, SessionId, TurnId};
 use miyu_kernel::session::{Command, Outcome, Queued};
 use miyu_session::Handle;
 
@@ -118,6 +118,13 @@ struct PermissionParams {
 enum LevelParam {
     Workspace,
     Full,
+}
+
+/// `job.stop` 的参数（施工 7-4）：哪个会话的哪个任务。
+#[derive(Debug, Deserialize)]
+struct JobStopParams {
+    session: String,
+    job: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -248,6 +255,24 @@ pub(crate) async fn call(
             let found = core.sessions.get(core, &session, None, None).await?;
             let events = command_to(core, request, &session, &found.handle, Command::Clear).await?;
             Ok(json!({ "events": events }))
+        }
+        "job.stop" => {
+            let params: JobStopParams = params(request)?;
+            let session = session(&params.session)?;
+            let job = JobId::parse(&params.job).map_err(|_| Refusal::BAD_PARAMS)?;
+            let found = core.sessions.get(core, &session, None, None).await?;
+            match found
+                .handle
+                .stop_job(job, admin(core), request.id.clone())
+                .await
+            {
+                Ok(Ok(())) => Ok(json!({})),
+                Ok(Err(_)) => Err(Refusal::UNKNOWN_JOB),
+                Err(_) => {
+                    core.sessions.forget(&session).await;
+                    Err(Refusal::STOPPED)
+                }
+            }
         }
         _ => Err(Refusal::UNKNOWN_METHOD),
     }

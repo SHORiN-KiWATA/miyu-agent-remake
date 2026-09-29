@@ -42,7 +42,7 @@ mod tools;
 pub use clock::new_id;
 pub use handle::{Ended, Handle, Pushed, Stopped, Subscription};
 pub use http::{HttpModels, IDLE};
-pub use jobs::Jobs;
+pub use jobs::{Jobs, Peek, peek};
 pub use open::{Create, CreateError, Load, LoadError, create, load};
 pub use port::{Cancel, ForSession, ModelPort, Models, Reports};
 pub use sandbox::SandboxCache;

@@ -12,17 +12,19 @@ use miyu_kernel::event::{JobReason, JobReported};
 use miyu_kernel::id::{CommandId, JobId};
 use miyu_kernel::origin::By;
 use miyu_store::jobs::{create_output, output_path};
-use miyu_tool::{Background, Exit, JobPort, Process};
+use miyu_tool::{Asking, Background, Exit, JobError, JobPort, Listed, Output as Read, Process};
 
 use super::output::Output;
+use super::stop::Who;
 use super::{Ended, Entry, Key, Shared};
 use crate::TARGET;
+use crate::clock::Clock;
 use crate::lines::millis;
 
 /// 命令退出以后，读输出的线程最多再等多久：还有东西拿着管道的（Windows 上它放出去的孙进程），不等它，和前台一样。
 const DRAIN: Duration = Duration::from_millis(500);
 
-/// 一次调用的任务端口：它起的命令自己退出了，照 `by`、`cause` 报。
+/// 一次调用的任务端口：它起的命令自己退出了，照 `by`、`cause` 报；她用它停掉的，也照这两样报（施工 7-4）。
 pub(super) struct Port {
     shared: Arc<Shared>,
     by: By,
@@ -96,6 +98,24 @@ impl JobPort for Port {
             watch.run(&*process, &sink, &read);
         });
         Ok(job)
+    }
+
+    fn list(&self) -> Vec<Listed> {
+        self.shared.roster().list(Clock::default().now())
+    }
+
+    fn output(&self, job: JobId) -> Asking<'_, Result<Read, JobError>> {
+        Box::pin(self.shared.output(job))
+    }
+
+    /// 她用 `jobs` 停的：`by` 是这次调用，`cause` 是它所在那一轮的，带 `by_model`，不叫醒她（施工 7-4）。
+    fn stop(&self, job: JobId) -> Asking<'_, Result<(), JobError>> {
+        let who = Who {
+            by: self.by.clone(),
+            cause: self.cause.clone(),
+            by_model: true,
+        };
+        Box::pin(self.shared.stop(job, who))
     }
 }
 

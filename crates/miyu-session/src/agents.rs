@@ -38,6 +38,8 @@ pub(crate) struct Agents {
     pub(crate) depth: u32,
     /// 有没有人能确认：快照里的。
     pub(crate) attended: bool,
+    /// 回报的正文怎么截：快照里的（施工 7-4）。停掉子代理时交回的回报照它截，和子会话自己向上回报的一样。
+    pub(crate) reports: miyu_kernel::session::Reports,
 }
 
 impl Agents {
@@ -141,7 +143,7 @@ impl AgentPort for Spawner {
 
 /// 父会话发给子会话的命令编号：`<父会话>/<任务编号><后缀>`。父会话的编号整个数据根里不重，任务编号一个会话里不重，
 /// 所以它在哪儿都不重。
-fn command_id(parent: &SessionId, job: JobId, suffix: &str) -> CommandId {
+pub(crate) fn command_id(parent: &SessionId, job: JobId, suffix: &str) -> CommandId {
     CommandId::parse(&format!("{parent}/{job}{suffix}"))
         .unwrap_or_else(|e| unreachable!("会话编号、任务编号都短，合命令编号的写法：{e}"))
 }

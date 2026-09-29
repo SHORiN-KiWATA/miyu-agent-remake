@@ -252,11 +252,16 @@ impl Watch {
                 };
                 (reported.job, wakes, true)
             }
-            Body::ChildReported(reported) => (
-                reported.job,
-                !matches!(reported.reason, ChildReason::Undone | ChildReason::Aborted),
-                matches!(reported.reason, ChildReason::Stopped | ChildReason::Undone),
-            ),
+            Body::ChildReported(reported) => {
+                // 她自己停的子代理不叫醒她（施工 7-4），人停的叫醒。
+                let wakes = match reported.reason {
+                    ChildReason::Stopped => !reported.by_model,
+                    ChildReason::Undone | ChildReason::Aborted => false,
+                    ChildReason::Done | ChildReason::Other(_) => true,
+                };
+                let over = matches!(reported.reason, ChildReason::Stopped | ChildReason::Undone);
+                (reported.job, wakes, over)
+            }
             _ => unreachable!("只有两种回报"),
         };
         if let Some(known) = self.reports.jobs.get_mut(&job) {

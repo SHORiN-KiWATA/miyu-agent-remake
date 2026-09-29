@@ -104,6 +104,7 @@ fn child_reported_from_the_drawing_round_trips() {
                 text: "CI 红是因为……".to_string(),
                 truncated: false,
                 person: false,
+                by_model: false,
             }
         ),
         other => panic!("{other:?}"),
@@ -122,6 +123,17 @@ fn child_reported_from_the_drawing_round_trips() {
         "child.reported",
         &format!(r#"{{"job":"j2","session":"{CHILD}","reason":"stopped","text":""}}"#),
     );
+    // 她自己用 `jobs` 停的（施工 7-4）：写 `by_model`，读写一字不差。
+    let stopped = format!(
+        r#"{{"job":"j2","session":"{CHILD}","reason":"stopped","text":"","by_model":true}}"#
+    );
+    let line = event_line("child.reported", &stopped);
+    let event = Event::from_line(&line).unwrap();
+    match &event.body {
+        Body::ChildReported(reported) => assert!(reported.by_model),
+        other => panic!("{other:?}"),
+    }
+    assert_eq!(event.to_line(), line);
 }
 
 #[test]
@@ -147,7 +159,7 @@ fn false_and_absent_fields_are_not_written() {
     let line = event_line(
         "child.reported",
         &format!(
-            r#"{{"job":"j2","session":"{CHILD}","reason":"done","text":"好了","truncated":false,"person":false}}"#
+            r#"{{"job":"j2","session":"{CHILD}","reason":"done","text":"好了","truncated":false,"person":false,"by_model":false}}"#
         ),
     );
     let tidy = event_line(

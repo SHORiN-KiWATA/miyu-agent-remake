@@ -3,13 +3,19 @@
 //!
 //! 工具只拿端口，不认识任务表（`agents.md`「在哪」）：怎么读输出、怎么等、怎么整组杀，是起它的工具知道的事，照
 //! [`Process`] 交出来；编号怎么数、输出写到哪、结束了告诉谁，是执行器的事。
+//!
+//! 查和停（施工 7-4，`docs/blueprint/tools/jobs.md`）：`jobs` 经同一个端口列出这个会话派出去的任务、读输出、停掉。后台命令和
+//! 子代理都管：子代理那一头执行器经会话表的端口去读、去停，工具不认识会话表。
 
 use std::fmt;
-use std::io;
+use std::future::Future;
+use std::io::{self, Read};
+use std::pin::Pin;
 
+use miyu_kernel::event::JobKind;
 use miyu_kernel::id::JobId;
 
-/// 任务端口：执行器照这一次调用造一个，交给工具（[`crate::Call::jobs`]）。只有 `shell` 用。
+/// 任务端口：执行器照这一次调用造一个，交给工具（[`crate::Call::jobs`]）。`shell` 交后台命令，`jobs` 查、停（施工 7-4）。
 pub trait JobPort: Send + Sync {
     /// 把起好的后台命令交给任务表，交回它的编号。当场返回，不等它：输出一直读、写进会话目录，结束了由任务表告诉会话。
     ///
@@ -17,7 +23,79 @@ pub trait JobPort: Send + Sync {
     ///
     /// 任务表收不下（输出的文件建不起来、会话已经停了）：这时任务表已经整组杀掉了它，交回原因。
     fn start(&self, command: Background) -> io::Result<JobId>;
+
+    /// 这个会话派出去的任务（施工 7-4）：还没结束的全部，和最近结束的几个，照编号排。照日志算，用时照这一刻。
+    fn list(&self) -> Vec<Listed>;
+
+    /// 读任务 `job` 的输出（施工 7-4）：后台命令读到这时的输出，结束了的读存下的那一份；子代理读它最近的回答和这一步在跑
+    /// 什么。
+    fn output(&self, job: JobId) -> Asking<'_, Result<Output, JobError>>;
+
+    /// 停掉任务 `job`（施工 7-4）：后台命令整组杀掉，子代理停掉它这一轮连它派的。回报由执行器记下，带 `by_model`，不叫醒
+    /// 她。停好了才交回。
+    fn stop(&self, job: JobId) -> Asking<'_, Result<(), JobError>>;
 }
+
+/// 查、停交回的 future（施工 7-4）。
+pub type Asking<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+
+/// 列出来的一个任务（施工 7-4）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Listed {
+    /// 编号。
+    pub job: JobId,
+    /// 后台命令、子代理，不认识的原样。
+    pub what: JobKind,
+    /// 派它时给的标题。
+    pub title: String,
+    /// 结束了的是最后那条回报的 `reason`（`exited`、`stopped`、`done`……）；还在跑的是空的。
+    pub ended: Option<String>,
+    /// 用时，毫秒：结束了的到结束，还在跑的到这一刻。
+    pub took_ms: u64,
+}
+
+/// 读到的一个任务的输出（施工 7-4）。
+pub struct Output {
+    /// 后台命令、子代理。
+    pub what: JobKind,
+    /// 读到的字：后台命令的输出，子代理最近的回答，已经是合法的 UTF-8。没有的（输出没存下来、子代理还没说过话）是空的。
+    pub text: Option<Box<dyn Read + Send>>,
+    /// 还在跑：后台命令还没结束，子代理这一轮还没完。
+    pub running: bool,
+    /// 子代理这一步在跑的工具，照先后；后台命令、闲着的子代理是空的。
+    pub doing: Vec<String>,
+}
+
+impl fmt::Debug for Output {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Output")
+            .field("what", &self.what)
+            .field("text", &self.text.is_some())
+            .field("running", &self.running)
+            .field("doing", &self.doing)
+            .finish()
+    }
+}
+
+/// 读不了、停不了（施工 7-4）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JobError {
+    /// 这个会话没有这个任务。
+    Unknown,
+    /// 已经结束了：停不了。
+    Ended,
+}
+
+impl fmt::Display for JobError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            JobError::Unknown => "no such job",
+            JobError::Ended => "the job has already ended",
+        })
+    }
+}
+
+impl std::error::Error for JobError {}
 
 /// 一条起好的后台命令：它的输出、它的进程。
 pub struct Background {

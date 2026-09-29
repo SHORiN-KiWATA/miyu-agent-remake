@@ -21,7 +21,7 @@ use crate::blocking::blocking;
 use crate::clock::Clock;
 use crate::guard::Guard;
 use crate::handle::{Message, Pushed};
-use crate::jobs::{Jobs, SessionJobs};
+use crate::jobs::SessionJobs;
 use crate::kinds;
 use crate::lines::note;
 use crate::port::{Back, ModelPort, Report};
@@ -29,6 +29,7 @@ use crate::report::Reporter;
 use crate::store::Store;
 use crate::tools::{Dispatch, ToolKit, Tools};
 
+mod halt;
 mod model;
 mod stop;
 mod store;
@@ -70,18 +71,8 @@ pub(crate) struct Actor {
 /// 会话停了：写不进去。
 pub(crate) struct Stop;
 
-/// 任务表里这个会话的那一份要的（施工 7-3）：核心里的那张表、会话目录（输出写在它下面的 `jobs/`）、属主的 blob、这个
-/// 会话的任务编号（和派子代理的共用一个，施工 7-5）。
-pub(crate) struct JobKit {
-    /// 核心里的那张表。
-    pub(crate) table: Arc<Jobs>,
-    /// 会话目录。
-    pub(crate) dir: std::path::PathBuf,
-    /// 属主的 blob。
-    pub(crate) blobs: miyu_store::blob::Blobs,
-    /// 这个会话的任务编号：从内核照日志算的用过的最大编号往后数。
-    pub(crate) ids: Arc<crate::job_ids::JobIds>,
-}
+/// 任务表里这个会话的那一份要的（施工 7-3；施工 7-4 挪到 `jobs.rs`，多了名册和会话表的端口）。
+pub(crate) use crate::jobs::Kit as JobKit;
 
 /// 会话的 span：开在 `ERROR` 级。span 也照级别筛，开在 `INFO` 的话，调到 `WARN` 它就被筛掉了，底下的
 /// 行就没了会话编号（`miyu-log` 的说明，施工 3-7 上）。
@@ -116,6 +107,8 @@ enum Mail {
     Done,
     /// 有计划地停下，停好了回这一头。
     Stop(oneshot::Sender<()>),
+    /// 停掉派出去的任务（施工 7-4）：要等杀掉、存好，在 `halt.rs` 里办。
+    Halt(crate::handle::Halt),
 }
 
 impl Actor {
@@ -136,7 +129,7 @@ impl Actor {
     ) -> Actor {
         let (backs, back) = mpsc::unbounded_channel();
         let tools = Tools::new(tools, backs.clone());
-        let jobs = SessionJobs::new(&jobs.table, jobs.dir, jobs.blobs, jobs.ids, backs.clone());
+        let jobs = SessionJobs::new(jobs, backs.clone());
         let (pushes, _) = broadcast::channel(PUSH_QUEUE);
         let busy = Arc::new(AtomicBool::new(!session.idle()));
         Actor {
@@ -189,6 +182,10 @@ impl Actor {
                     Some(Mail::Input(input)) => input,
                     Some(Mail::Done) => continue,
                     Some(Mail::Stop(reply)) => return self.stop(reply).await,
+                    Some(Mail::Halt(halt)) => match self.halt(halt).await {
+                        Ok(()) => continue,
+                        Err(Stop) => return,
+                    },
                     None => {
                         tracing::info!(target: TARGET, "closed");
                         return;
@@ -224,6 +221,7 @@ impl Actor {
                 Mail::Done
             }
             Message::Stop(reply) => Mail::Stop(reply),
+            Message::Halt(halt) => Mail::Halt(halt),
             Message::Environment(environment) => {
                 self.tools.locate(environment.offset);
                 Mail::Input(Input::Environment(environment))

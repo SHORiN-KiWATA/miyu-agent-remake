@@ -287,4 +287,20 @@ impl JobPort for Taken {
         commands.push(command);
         Ok(JobId::new(6 + commands.len() as u64).expect("从 1 数起"))
     }
+
+    /// `shell` 用不到查和停（施工 7-4）：一个都没有。
+    fn list(&self) -> Vec<miyu_tool::Listed> {
+        Vec::new()
+    }
+
+    fn output(
+        &self,
+        _job: JobId,
+    ) -> miyu_tool::Asking<'_, Result<miyu_tool::Output, miyu_tool::JobError>> {
+        Box::pin(async { Err(miyu_tool::JobError::Unknown) })
+    }
+
+    fn stop(&self, _job: JobId) -> miyu_tool::Asking<'_, Result<(), miyu_tool::JobError>> {
+        Box::pin(async { Err(miyu_tool::JobError::Unknown) })
+    }
 }

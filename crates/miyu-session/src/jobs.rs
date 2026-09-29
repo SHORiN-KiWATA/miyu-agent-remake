@@ -6,10 +6,16 @@
 //! - 输出一直写进会话目录的 `jobs/<编号>.out`，不截；结束了存成 blob，把 `job.reported` 要的交回会话 actor，actor 交进
 //!   内核、落了盘，才从表里拿掉：表空了，结束的记录一定都落了盘；
 //! - 有计划地停下：在跑的各报一条 `restarted`，落了盘再整组杀；actor 因为别的停了（写不进去、panic、没人拿着了），整组
-//!   杀掉、不记，再载入时内核补 `aborted`。
+//!   杀掉、不记，再载入时内核补 `aborted`；
+//! - 查和停（施工 7-4）：这个会话派出去的任务照日志记在 [`Roster`] 里，任务端口经它列出、读输出、停掉，后台命令和子代理
+//!   都管（`query.rs`、`stop.rs`）。
 
 mod output;
+mod peek;
+mod query;
+mod roster;
 mod run;
+mod stop;
 #[cfg(test)]
 mod tests;
 
@@ -21,7 +27,7 @@ use std::time::Instant;
 
 use tokio::sync::mpsc;
 
-use miyu_kernel::event::{JobReason, JobReported};
+use miyu_kernel::event::{Event, JobReason, JobReported};
 use miyu_kernel::id::{CallId, CommandId, JobId};
 use miyu_kernel::origin::{By, Tool};
 use miyu_kernel::session::Input;
@@ -29,12 +35,17 @@ use miyu_kernel::time::Timestamp;
 use miyu_store::blob::Blobs;
 use miyu_tool::{JobPort, Process};
 
+use crate::agents::Agents;
 use crate::blocking::blocking;
 use crate::job_ids::JobIds;
 use crate::lines::millis;
 use crate::port::Back;
 use output::Output;
+pub use peek::{Peek, peek};
+pub(crate) use query::Target;
+pub(crate) use roster::Roster;
 use run::Port;
+pub(crate) use stop::Who;
 
 /// 表里一项的钥匙：哪个会话 actor（一个 actor 一个号）的哪个任务。同一个会话停了又载入，前一个 actor 起的命令还没
 /// 死透时编号可能重，actor 的号不会。
@@ -106,6 +117,10 @@ struct Shared {
     ids: Arc<JobIds>,
     /// 结束了交回 actor 的那一头。
     backs: mpsc::UnboundedSender<Back>,
+    /// 这个会话派出去的任务（施工 7-4）：actor 每落一批盘跟着记，端口查。
+    roster: Mutex<Roster>,
+    /// 停子代理、读它在做什么要的会话表的端口（施工 7-4）：会话表交进来了才有。
+    agents: Option<Arc<Agents>>,
 }
 
 /// 一条后台命令结束了，交回 actor 的：`job.reported` 的 `by`、`cause`、`body`（`kernel/session.md`「回报」第 2 条）。
@@ -118,26 +133,39 @@ pub(crate) struct Ended {
 }
 
 impl SessionJobs {
-    /// 会话目录 `dir`、属主的 blob `blobs`，编号照这个会话的 `ids` 领（和派子代理的共用一串），结束了交回 `backs`。
-    pub(crate) fn new(
-        table: &Arc<Jobs>,
-        dir: PathBuf,
-        blobs: Blobs,
-        ids: Arc<JobIds>,
-        backs: mpsc::UnboundedSender<Back>,
-    ) -> SessionJobs {
+    /// 照 `kit` 造：会话目录、属主的 blob，编号照这个会话的那一串领（和派子代理的共用），派出去的任务从名册记起（载入时照
+    /// 日志建的），停子代理经会话表的端口；结束了交回 `backs`。
+    pub(crate) fn new(kit: Kit, backs: mpsc::UnboundedSender<Back>) -> SessionJobs {
+        let Kit {
+            table,
+            dir,
+            blobs,
+            ids,
+            roster,
+            agents,
+        } = kit;
         let owner = table.owners.fetch_add(1, Ordering::Relaxed);
         SessionJobs {
             shared: Arc::new(Shared {
-                table: Arc::clone(table),
+                table,
                 owner,
                 open: AtomicBool::new(true),
                 dir,
                 blobs,
                 ids,
                 backs,
+                roster: Mutex::new(roster),
+                agents,
             }),
             landing: Vec::new(),
+        }
+    }
+
+    /// 落了盘的一批：派出去的任务、回报记进 [`Roster`]（施工 7-4）。
+    pub(crate) fn note(&self, events: &[Event]) {
+        let mut roster = self.shared.roster();
+        for event in events {
+            roster.note(event);
         }
     }
 
@@ -226,6 +254,22 @@ impl SessionJobs {
     }
 }
 
+/// 造 [`SessionJobs`] 要的、一个会话一份的几样（施工 7-3；施工 7-4 从会话 actor 挪进来，多了名册和会话表的端口）。
+pub(crate) struct Kit {
+    /// 核心里的那张表。
+    pub(crate) table: Arc<Jobs>,
+    /// 会话目录：输出写在它下面的 `jobs/`。
+    pub(crate) dir: PathBuf,
+    /// 属主的 blob。
+    pub(crate) blobs: Blobs,
+    /// 任务编号：和派子代理的共用一串。
+    pub(crate) ids: Arc<JobIds>,
+    /// 派出去的任务：新会话是空的，载入的照日志建。
+    pub(crate) roster: Roster,
+    /// 会话表的端口和这个会话的编号：没交进来的停不了子代理。
+    pub(crate) agents: Option<Arc<Agents>>,
+}
+
 /// actor 停了：这个会话在跑的都整组杀掉。有计划地停下的已经杀过了，这里什么都没有。
 impl Drop for SessionJobs {
     fn drop(&mut self) {
@@ -234,6 +278,10 @@ impl Drop for SessionJobs {
 }
 
 impl Shared {
+    fn roster(&self) -> MutexGuard<'_, Roster> {
+        self.roster.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
     /// 不再收新的，这个会话还在表里的都拿掉、整组杀掉、不再写输出。已经结束了的，杀也不碍事（[`Process::kill`]）。
     fn close(&self) {
         let gone: Vec<Entry> = {

@@ -150,6 +150,7 @@ async fn reports_come_up_one_layer_at_a_time() {
             text: "A 查完了，B 也在里面。".to_string(),
             truncated: false,
             person: false,
+            by_model: false,
         },
         "孙代理报完、它被叫醒的那一轮结束了，才报；报的是那一轮最后说的"
     );

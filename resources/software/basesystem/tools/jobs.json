@@ -1,0 +1,4 @@
+{
+  "description": "List your background commands and subagents, read a command's output, or stop one. Finished jobs report to you on their own, so there is no need to poll.",
+  "parameters": {"type":"object","properties":{"action":{"type":"string","enum":["list","output","stop"]},"id":{"type":"string","description":"Job id, like j1."},"offset":{"type":"integer","description":"Line to start reading the output from."}},"required":["action"]}
+}

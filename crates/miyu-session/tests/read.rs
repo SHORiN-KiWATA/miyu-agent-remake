@@ -140,7 +140,7 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
     assert_eq!(
         names,
         [
-            "agent", "edit", "glob", "grep", "history", "read", "shell", "trash", "write"
+            "agent", "edit", "glob", "grep", "history", "jobs", "read", "shell", "trash", "write"
         ]
     );
 }

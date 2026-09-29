@@ -559,7 +559,7 @@ No files found
 #### `software/basesystem/read/more.txt`
 
 - 什么时候加进来：一次没读完
-- token：约 21（估的）
+- token：19（2026-09-30 和 `jobs/more.txt` 同一次量，字段按 `1`、`850`、`2000`、`851` 算；原来估的约 21）
 - 为什么加：调用之后才用得上的知识写进输出：下一次从哪一行接着读（施工 4-4 上）。4-4 下改成 opencode、pi 的说法 `to continue`
 - 指纹：`ea003235`
 
@@ -1117,6 +1117,116 @@ Started subagent {job}: "{title}".
 The subagent could not be started.
 ```
 
+#### `software/basesystem/jobs/listed.txt`
+
+- 什么时候加进来：`list`：一个任务一行
+- token：15（字段按 `j1`、`command`、`跑全部测试`、`running`、`72134` 算，2026-09-30 量）
+- 为什么加：编号、种类、标题、状态、用时：她要停、要读的编号，和哪个还在跑（施工 7-4，`agents.md` 第五条）
+- 指纹：`338a17b9`
+
+```text
+{job} {what} "{title}": {status}, {ms} ms
+```
+
+#### `software/basesystem/jobs/none.txt`
+
+- 什么时候加进来：`list`：一个都没有
+- token：4（2026-09-30 量）
+- 为什么加：照「没找到」的规矩：不然结果一个字都没有（施工 7-4）
+- 指纹：`d6164dbb`
+
+```text
+No jobs yet.
+```
+
+#### `software/basesystem/jobs/unknown.txt`
+
+- 什么时候加进来：`output`、`stop`：没有这个任务
+- token：7（`{id}` 按 `j9` 算，2026-09-30 量）
+- 为什么加：每次调用都要有结果，带上她给的编号，她好改（施工 7-4）
+- 指纹：`975eb04f`
+
+```text
+There is no job {id}.
+```
+
+#### `software/basesystem/jobs/ended.txt`
+
+- 什么时候加进来：`stop`：已经结束了
+- token：6（`{job}` 按 `j1` 算，2026-09-30 量）
+- 为什么加：说清停不了的原因：结束的回报已经到了或者正在路上（施工 7-4）
+- 指纹：`92e0ff4c`
+
+```text
+{job} has already ended.
+```
+
+#### `software/basesystem/jobs/stopped.txt`
+
+- 什么时候加进来：`stop`：停了
+- token：6（`{job}` 按 `j1` 算，2026-09-30 量）
+- 为什么加：每次调用都要有结果；停掉的回报随后照回报的写法渲染，这里不重复（施工 7-4）
+- 指纹：`a198eb76`
+
+```text
+Stopped {job}.
+```
+
+#### `software/basesystem/jobs/more.txt`
+
+- 什么时候加进来：`output`：这一页后面还有
+- token：19（字段按 `1`、`850`、`2000`、`851` 算，2026-09-30 量）
+- 为什么加：调用之后才用得上的知识写进输出：往下从哪接，和 `read/more.txt` 一字不差（施工 7-4）
+- 指纹：`ea003235`
+
+```text
+(Showing lines {from}-{to} of {total}. Use offset={next} to continue.)
+```
+
+#### `software/basesystem/jobs/past-end.txt`
+
+- 什么时候加进来：`output`：`offset` 过了结尾
+- token：15（字段按 `2`、`3` 算，2026-09-30 量）
+- 为什么加：告诉她一共几行，好改 `offset`，照 `read/past-end.txt`（施工 7-4）
+- 指纹：`595f147d`
+
+```text
+(The output has {total} lines; offset {offset} is past the end.)
+```
+
+#### `software/basesystem/jobs/empty.txt`
+
+- 什么时候加进来：`output`：一行都没有（没输出、没存下来、子代理还没说话）
+- token：3（2026-09-30 量）
+- 为什么加：照「没找到」的规矩说一句（施工 7-4）
+- 指纹：`6a06553f`
+
+```text
+No output.
+```
+
+#### `software/basesystem/jobs/running.txt`
+
+- 什么时候加进来：`output`：还在跑，接在输出后面
+- token：6（`{job}` 按 `j1` 算，2026-09-30 量）
+- 为什么加：不说的话她分不清读到的是全部还是一半（`agents.md` 第五条第 2 条，施工 7-4）
+- 指纹：`72bed1d4`
+
+```text
+({job} is still running.)
+```
+
+#### `software/basesystem/jobs/using.txt`
+
+- 什么时候加进来：`output`：子代理还在跑、这一步在跑工具，接在它最近的回答后面
+- token：14（字段按 `j2`、`read, grep` 算，2026-09-30 量）
+- 为什么加：「这一轮在做什么」（施工单）：最近的回答说了打算，在跑的工具说了做到哪（施工 7-4）
+- 指纹：`f3bce389`
+
+```text
+({job} is still running. It is using {tools} now.)
+```
+
 #### `software/basesystem/common/not-read.txt`
 
 - 什么时候加进来：`write`、`edit` 要改的文件已经在了、她这个会话里没看过
@@ -1529,6 +1639,20 @@ You are a subagent, started by another session to do one task. That parent sessi
 {
   "description": "Start a subagent in a new session to do one task in the background; its report arrives as a message when it finishes. It sees nothing of this conversation, so the prompt must stand on its own: background, what is already known, the goal and what to report.",
   "parameters": {"type":"object","properties":{"description":{"type":"string","description":"A short title for the task, 3 to 5 words."},"prompt":{"type":"string","description":"The task for the subagent to perform."}},"required":["description","prompt"]}
+}
+```
+
+#### `software/basesystem/tools/jobs.json`
+
+- 什么时候加进来：会话的工具面里有 `jobs`（每次请求都带）
+- token：127（2026-09-30 照项目主人给的端点、`deepseek-v4.1-flash` 量，十件一起时的边际份量）
+- 为什么加：`jobs` 的说明和参数（施工 7-4）：说明照附录的草稿，两句：列出、读、停后台命令和子代理，做完会自己报、不用轮询（旧版实测：子代理反复查后台任务的状态，09-18 项目主人要求加上）。参数 `action`（三个动作，名字和 enum 说清了，不写说明）、`id`、`offset` 各一句；`offset` 草稿里没有，照 `read` 分页往下读要它。量法同上，十件一起时的边际份量
+- 指纹：`31346664`
+
+```json
+{
+  "description": "List your background commands and subagents, read a command's output, or stop one. Finished jobs report to you on their own, so there is no need to poll.",
+  "parameters": {"type":"object","properties":{"action":{"type":"string","enum":["list","output","stop"]},"id":{"type":"string","description":"Job id, like j1."},"offset":{"type":"integer","description":"Line to start reading the output from."}},"required":["action"]}
 }
 ```
 

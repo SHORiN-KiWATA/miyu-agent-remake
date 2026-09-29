@@ -52,6 +52,20 @@ impl SessionPort for Table {
         Box::pin(async { Ok(session(CHILD)) })
     }
 
+    /// 交回报用不到停和看（施工 7-4）。
+    fn stop(
+        &self,
+        _session: SessionId,
+        _id: CommandId,
+        _by: By,
+    ) -> Pending<'_, Result<(), String>> {
+        Box::pin(async { Ok(()) })
+    }
+
+    fn peek(&self, _session: SessionId) -> Pending<'_, Result<miyu_session::Peek, String>> {
+        Box::pin(async { Ok(miyu_session::Peek::default()) })
+    }
+
     fn open(&self, session: SessionId) -> Pending<'_, Result<(), String>> {
         self.opened
             .lock()
@@ -115,6 +129,7 @@ fn expected_report(child: &SessionId) -> (SessionId, CommandId, By, Command) {
             text: "查完了。".to_string(),
             truncated: false,
             person: false,
+            by_model: false,
         }),
     )
 }

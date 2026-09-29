@@ -19,6 +19,8 @@ impl Actor {
         };
         let mut store = self.store.take().ok_or(Stop)?;
         let reseen = effects::reverts(&events);
+        // 派出去的任务、回报记进名册（施工 7-4）：写不进去的，会话照样停下，记了也不要紧。
+        self.jobs.note(&events);
         let written = tokio::task::spawn_blocking(move || {
             let result = store.append(&events);
             let seen = (reseen && result.is_ok())

@@ -46,6 +46,11 @@
       "name": "派子代理",
       "subject": "description",
       "icon": "↗"
+    },
+    "jobs": {
+      "name": "任务",
+      "subject": "action",
+      "icon": "≡"
     }
   },
   "said": {
@@ -114,6 +119,12 @@
     "history/none": "没有找到",
     "history/no-log": "读不了记录：{error}",
     "agent/started": "派出去了：{job}",
-    "agent/not-started": "派不出去"
+    "agent/not-started": "派不出去",
+    "jobs/listed": "列出 {count} 个任务",
+    "jobs/none": "没有任务",
+    "jobs/output": "读了 {job} 的输出",
+    "jobs/stopped": "停掉了 {job}",
+    "jobs/unknown": "没有任务 {id}",
+    "jobs/ended": "{job} 已经结束了"
   }
 }

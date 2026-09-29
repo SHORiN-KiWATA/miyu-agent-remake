@@ -254,7 +254,7 @@
 2. `job.reported` 的 `by` 照原因（2026-09-30 定），执行器照这个填：`exited` 是起它的那次调用（`cause` 是那次调用的）；`stopped` 是停它的人（`cause` 是停它的命令），或者停它的那次 `jobs` 调用；`undone` 是撤销的人（`cause` 是撤销的命令）；`restarted`、`aborted` 是内核。
 3. 回报一律不带回合编号（2026-09-30 定）：它不属于哪一轮。带了这一轮的编号，撤这一轮时会跟着被拿走，和「别处来的留着」冲突（`history.md`「拿走什么」）。回合中途到的，照它在日志里的位置和请求看到的范围排（`History::ordered`），下一次请求就在那一步的工具结果后面（`request.md`「回报」）。
 4. 先过账本（`history.md`「账本查的规矩」）：对不上的，`Report` 拒绝，`unknown_job`；`JobEnded` 不理；都什么都不记。改回文件、读回日志的时候来的 `Report` 照别的命令拒绝，`restoring`。
-5. 记下以后看叫不叫醒她。只记下、不叫醒的：`job.reported` 的 `undone`、`restarted`、`aborted`，和带 `by_model` 的 `stopped`（她自己停的）；`child.reported` 的 `undone`、`aborted`；派它的那一轮撤掉了的（有效历史的「派出去过的任务」标着撤掉了，`history.md`；这种回报不渲染，开了轮她也看不到）。别的叫醒她，被人停掉的子代理也叫醒（`agents.md` 第三条第 4 条），不认识的原因也叫醒：
+5. 记下以后看叫不叫醒她。只记下、不叫醒的：`job.reported` 的 `undone`、`restarted`、`aborted`，和带 `by_model` 的 `stopped`（她自己停的）；`child.reported` 的 `undone`、`aborted`，和带 `by_model` 的 `stopped`（施工 7-4）；派它的那一轮撤掉了的（有效历史的「派出去过的任务」标着撤掉了，`history.md`；这种回报不渲染，开了轮她也看不到）。别的叫醒她，被人停掉的子代理也叫醒（`agents.md` 第三条第 4 条），不认识的原因也叫醒：
    - 她正忙（有回合在进行）：排进这一轮的回报队，下一次请求算听到了（「回合」第 5 条）；回合结束时还没听到的，照「排队的消息」第 2 条接着开下一轮。
    - 她闲着（没有回合在进行，`turn.ended` 没落盘的也算），这时开得了：由它开一轮（`trigger` 是它，`cause` 是它的），和它同一批。
    - 她闲着，这时开不了：记在一边（第 7 条）。

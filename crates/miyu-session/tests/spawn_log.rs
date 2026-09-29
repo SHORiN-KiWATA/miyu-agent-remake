@@ -54,6 +54,20 @@ impl SessionPort for Table {
         };
         Box::pin(async move { Ok(answer) })
     }
+
+    /// 派子代理用不到停和看（施工 7-4）。
+    fn stop(
+        &self,
+        _session: SessionId,
+        _id: CommandId,
+        _by: By,
+    ) -> Pending<'_, Result<(), String>> {
+        Box::pin(async { Ok(()) })
+    }
+
+    fn peek(&self, _session: SessionId) -> Pending<'_, Result<miyu_session::Peek, String>> {
+        Box::pin(async { Ok(miyu_session::Peek::default()) })
+    }
 }
 
 #[tokio::test]
