@@ -278,7 +278,7 @@ a.step:hover{border-color:var(--primary)}
   <ul class="facts">
     <li><b>103</b><span>/ 109 步<strong>已完成</strong>，M6 压缩做到 6-5：到线就压，检查点里带着读过的文件，压完接着干，换出去的她用 <code>history</code> 找得回</span></li>
     <li><b>6-6</b><span>下一步：失败和熔断（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">327483d</b><span>最近一步（6-5 检查点里的几段和压后重建）的提交</span></li>
+    <li><b class="mono">317a46e</b><span>最近一步（4-7 补 撤销、恢复的命令改名）的提交</span></li>
   </ul>
 </header>
 
@@ -406,6 +406,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-6c"><span class="n">4-6</span>删除（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-7a"><span class="n">4-7</span>撤销时恢复文件（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-7b"><span class="n">4-7</span>undo、redo 命令（下）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s4-7c"><span class="n">4-7</span>命令改名（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-8"><span class="n">4-8</span>执行命令<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9"><span class="n">4-9</span>没人能确认时说清楚<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9b"><span class="n">4-9</span>补完蓝图（补）<span class="st">✓</span></a></li>
@@ -5556,6 +5557,63 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li><code>docs/designs/22-命令行.md</code> 第三节，<code>04</code> 第九节的回应，<code>02</code> 的原因码。</li>
         <li><code>docs/construction/4-7-miyu undo、miyu redo（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s4-7c" aria-labelledby="h-s47c">
+  <div class="sheet-head"><h2 id="h-s47c"><span class="no">4-7</span>撤销、恢复的命令改名（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">恢复那条命令叫 <code>restore</code>，撤销多一个别名 <code>rewind</code>（2026-09-29 项目主人定，终端演示那边提的）。只改人敲的名字，协议和内核里的不动。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">命令行</span><span class="dir-note">终端界面照同样的名字</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">miyu undo · miyu rewind</span><span class="rl">发 session.revert</span></div>
+              <div class="tile new"><span class="nm">miyu restore</span><span class="rl">发 session.unrevert，原来叫 redo</span></div>
+              <div class="tile new"><span class="nm">miyu redo</span><span class="rl">不认识的子命令，退出码 2</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不留旧名</span><span class="rl">还没发布，没人用过</span></div>
+          <div class="tile new"><span class="nm">内部说法不改</span><span class="rl">revert、unrevert 照旧</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-7 补</dd></div>
+        <div><dt>名称</dt><dd>撤销、恢复的命令改名</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">317a46e</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>子命令表加别名、改名；帮助页 <code>restore.txt</code>；撤销以后的提示、恢复的第一行、核心拒绝时的英文跟着改。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真跑主程序：undo、restore、rewind 各接对了自己的那一个，redo 退出码 2</span></li>
+        <li><span class="ok">✓</span><span>手写 5 个变异全被逮住；门禁八项全过，三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>cli/undo.md</code>、<code>cli/main.md</code>；设计 22、13。</li>
+        <li><code>docs/construction/4-7-撤销、恢复的命令改名（补）.md</code>。</li>
       </ul>
     </div>
   </div>
