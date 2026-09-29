@@ -44,7 +44,7 @@ pub enum TransientBody {
 }
 
 /// `compaction.done` 的 `body`：压好了。压前、压后都是本地估算，和压缩线同一个算法；摘要请求的用量、用时取自它的
-/// `model.called`（施工 6-3 下，`compaction.md` 第十三条）。头照它印「上下文压缩好了」，核心照它记度量。
+/// `model.called`（施工 6-3 下，`compaction.md` 第十三条）。头照它印「上下文已压缩」，核心照它记度量。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CompactionDone {
     /// 哪一次摘要请求：它替代到的那一条。

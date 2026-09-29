@@ -2,7 +2,7 @@
 //! 红。标准错误不是终端的，压缩中不印，只印结果那一行。`--format json` 不印。
 //!
 //! - 压缩中：`· 正在压缩上下文… 已写 3,120 字`；
-//! - 压好了：`· 上下文压缩好了：812.3k → 31k token`；
+//! - 压好了：`· 上下文已压缩：812.3k → 31k token`；
 //! - 失败：`· 压缩失败：<原因>`；
 //! - 暂停了自动压缩（施工 6-6 上）：红，照原因一行。
 
@@ -126,7 +126,7 @@ fn progress(language: &Language, written: u64) -> String {
 fn done(language: &Language, before: u64, after: u64) -> String {
     let (before, after) = (tokens(before), tokens(after));
     match language {
-        Language::Chinese => format!("· 上下文压缩好了：{before} → {after} token"),
+        Language::Chinese => format!("· 上下文已压缩：{before} → {after} token"),
         Language::English => format!("· Context compacted: {before} → {after} tokens"),
     }
 }

@@ -192,7 +192,7 @@ fn in_a_terminal_the_progress_is_redrawn_then_replaced() {
             "\r\x1b[2K{}\r\x1b[2K{}\r\x1b[2K{}\n",
             gray("· 正在压缩上下文… 已写 0 字"),
             gray("· 正在压缩上下文… 已写 3,120 字"),
-            gray("· 上下文压缩好了：812.3k → 31k token"),
+            gray("· 上下文已压缩：812.3k → 31k token"),
         )),
         "{err:?}"
     );
