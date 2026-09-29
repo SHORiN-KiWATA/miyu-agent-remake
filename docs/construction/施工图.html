@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>126</b><span>/ 135 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的</span></li>
+    <li><b>127</b><span>/ 135 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话</span></li>
     <li><b>7-7</b><span>下一步：7-7 父子之间留言、7-1 补编号带父会话的编号，另有附件、改名删除、重做在做（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">89c7b1b</b><span>最近一步（3-9 三补 附件）的提交</span></li>
+    <li><b class="mono">b4cc30c</b><span>最近一步（7-7 父子之间留言）的提交</span></li>
   </ul>
 </header>
 
@@ -484,7 +484,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s7-4"><span class="n">7-4</span>jobs 和 job.stop<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-5"><span class="n">7-5</span>派子代理<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-6"><span class="n">7-6</span>子会话回报<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">7-7</span>父子之间留言</span></li>
+        <li><a class="step done" href="#s7-7"><span class="n">7-7</span>父子之间留言<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-8</span>撤销、删除和压缩</span></li>
         <li><span class="step"><span class="n">7-9</span>miyu ask 等子代理</span></li>
         <li><span class="step"><span class="n">7-10</span>别的 harness 发消息</span></li>
@@ -9411,6 +9411,57 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>agents.md</code> 第二条、第八条、<code>kernel/session.md</code>「向上回报」。</li>
         <li><code>docs/construction/7-6-子会话回报.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s7-7" aria-labelledby="h-s77">
+  <div class="sheet-head"><h2 id="h-s77"><span class="no">7-7</span>父子之间留言</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">父子两个 agent 能来回说话：父会话给自己派的子代理留言，子代理也能中途给父会话留言。只在树上相邻的两层之间（项目主人定）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">message_agent to message</span><span class="dir-note">basesystem/src/message_agent.rs</span></div>
+            <ol class="pipe" aria-label="怎么走">
+              <li><code>to</code> 是自己派的子代理的编号，或者 <code>parent</code>；别的都拒</li>
+              <li>对方在跑就下一步看到，闲着就开一轮；父会话里注明是哪个子代理发来的</li>
+              <li>给子代理留言记一条 <code>job.messaged</code>：它欠一份回报，报完才把整件活往上报</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">到上限也有</span><span class="rl">第 2 层的会话能给父留言</span></div>
+          <div class="tile new"><span class="nm">说明不串句</span><span class="rl">合并时去掉分号，153 token</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-7</dd></div>
+        <div><dt>名称</dt><dd>父子之间留言</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">b4cc30c</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>27 个变异全逮住；三台机器的 CI 和长跑全绿；真核心三层走一遍</span></li>
+        <li><span class="ok">✓</span><span>真模型：子代理缺一样信息就向父会话问，答复经父会话转过去，它改好文件再报回来</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>agents.md</code> 第六条、<code>tools/message_agent.md</code>。</li>
+        <li><code>docs/construction/7-7-父子之间留言.md</code>。</li>
       </ul>
     </div>
   </div>
