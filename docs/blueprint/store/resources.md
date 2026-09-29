@@ -39,7 +39,7 @@
 <资源目录>/
 ├── core/                                随核心附带的
 │   ├── checkpoint-open.txt、checkpoint-close.txt
-│   ├── checkpoint-rule.txt、permission-rule.txt      没有程序读：还没进请求
+│   ├── permission-rule.txt              没有程序读：还没进请求
 │   ├── turn-ended/<原因>.txt             5 份
 │   ├── facts/env.txt、permission.txt、reply-cut.txt
 │   ├── tool-results/<哪一句>.txt         15 份

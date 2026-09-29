@@ -49,7 +49,7 @@
 
 **缓存目录** `cache_root(env)`：只找不建。核心起来时算一次，沙盒的缓存放在它下面的 `sandbox/<账号>/`（施工 5-4 下，`core.md`）。
 
-**会话日志** `SessionLog`：`create(目录, 上限)`、`open(目录, 上限)`、`append(一批事件)`、`next_seq()`、`dir()`；只读的 `read_events(目录)`、`first_event(目录)`。一段的上限 `SEGMENT_LIMIT` 是 64 MiB（67,108,864 字节）。
+**会话日志** `SessionLog`：`create(目录, 上限)`、`open(目录, 上限)`、`append(一批事件)`、`next_seq()`、`dir()`；只读的 `read_events(目录)`、`read_segments(目录, 每一段)`、`first_event(目录)`。一段的上限 `SEGMENT_LIMIT` 是 64 MiB（67,108,864 字节）。
 
 **blob** `Blobs::new(目录)`：`put(内容)` 交回内容哈希，`get(哈希)` 交回内容，`path(哈希)` 交回它放在哪。
 
@@ -139,6 +139,7 @@
 **7. 只读地读**
 
 - `read_events`：和打开时一样自检，只是最后一段末尾的半行跳过、不截，一个字节都不写：会话可能正在往里写。撤销、恢复以后会话重算她看过的（`session/actor.md`），撤销的回应读日志（`protocol.md`），用的都是它。
+- `read_segments`：同 `read_events`，只是读一段交一段给 `每一段`，它交回 `false` 就不读下去（施工 6-4：`history` 翻长会话，叫停了不用读完整份）。
 - `first_event`：只读第一段开头那一行，不截、不写，列会话时用。第一段是空的、第一行还没写完：当没有这个会话。第一行读不懂：报坏了（第 1 行）。第一行不是 UTF-8：读写出错。
 
 **8. 列会话**（`DataRoot::sessions`）：`home/<账号>/sessions/` 下名字合会话编号写法的（36 个字符的小写 UUID 写法），照编号的字倒着排：会话编号是 UUIDv7，倒着排就是从新到旧。不合写法的不算，是不是目录不看。目录还没有的，是空的。

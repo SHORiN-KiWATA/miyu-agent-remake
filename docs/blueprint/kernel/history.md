@@ -43,6 +43,7 @@
 | `ordered()` | 同一些事件，照每次请求看到的范围排好 |
 | `last_undone()` | 最近一次还能恢复的撤销拿走的事件，照日志的先后 |
 | `until(upto)` | 截到第 `upto` 条的有效历史：检查点照留，之后的事件只留第 `upto` 条及以前的，放在一边的撤销不要。压缩的摘要请求照它组装（施工 6-2 上） |
+| `whole()` | 一份留着一切的：压缩替代掉的不丢，`context.compacted` 自己也照先后留在 `events()` 里，没有检查点；撤销、恢复、撤回照同一套规矩算。`history` 照它算哪些还算数（施工 6-4，`tools/history.md`） |
 
 **命令**：`Revert { turn }`（`session.revert`，从哪一轮起，`None` 是最后一轮）记 `turn.reverted { turns }`；`Unrevert`（`session.unrevert`）记 `turn.unreverted { turns }`。拒绝的原因码见下面「撤销」「恢复」。
 

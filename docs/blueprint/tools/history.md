@@ -4,7 +4,7 @@
 
 翻这个会话自己的日志：按关键词找，按序号读，也能按时间、谁说的筛。压缩换出去的旧内容都还在日志里，她用它取回（`09-压缩.md` Z1）。只读这个会话自己的日志，不碰文件，不报效果。
 
-状态：图纸（2026-09-29 定），M6 照它施工（6-4）。
+状态：图纸（2026-09-29 定），M6 照它施工（6-4）。施工 6-4 定下的技术细节写在各节里。
 
 ### 在哪
 
@@ -12,13 +12,22 @@
 
 | 代码 | 管什么 |
 |---|---|
-| `crates/miyu-basesystem/src/history.rs` | 参数、哪些算一条、筛、找 |
-| `crates/miyu-basesystem/src/history/render.rs` | 一条怎么写、分页、给人看的说法 |
-| `crates/miyu-tool/` | 一次调用交给工具的 `Call` 多两格：这个会话日志的只读入口、会话的时区 |
-| `crates/miyu-session/src/tools.rs` | 执行器把这个会话日志的只读入口交给这次调用 |
+| `crates/miyu-basesystem/src/history.rs` | 参数、读日志、筛、找、读 |
+| `crates/miyu-basesystem/src/history/entry.rs` | 哪些算一条、一条的原文怎么写 |
+| `crates/miyu-basesystem/src/history/time.rs` | `since`、`until` 的写法 |
+| `crates/miyu-kernel/src/history.rs` | `History::whole()`：留着压缩替代掉的，撤销、恢复、撤回照有效历史的规矩算（`kernel/history.md`） |
+| `crates/miyu-kernel/src/time.rs` | 照时区写到分钟、照时区的日期和钟点换回时刻 |
+| `crates/miyu-tool/src/log.rs` | 这个会话日志的只读入口：`ReadLog`，`Call.log` 带着 |
+| `crates/miyu-store/src/log/open.rs` | `read_segments`：只读地一段一段读 |
+| `crates/miyu-session/src/tools.rs` | 执行器把这个会话日志的只读入口、会话的时区交给这次调用 |
 | `resources/software/basesystem/tools/history.json` | 说明和参数格式 |
 | `resources/software/basesystem/history/*.txt` | 输出里给她看的几句 |
 | `resources/software/basesystem/human/{zh,en}.json` | 显示名、结果那一句 |
+
+**交给工具的**（施工 6-4）：一次调用的 `Call` 多两格，别的工具不看。
+
+- `log`：这个会话日志的只读入口（`ReadLog`）。一段一段交出事件，交给的函数交回「不读了」就停；最后一段末尾没写完的半行跳过，一个字节都不写：会话正在往里写。执行器照会话的目录造，底下是存储的 `read_segments`。测试里的假调用没有，`history` 照「读不了日志」出错。
+- `offset`：会话的时区，执行器照会话现在的环境交（`kernel/facts` 的 `Environment`，头报上来换了跟着换）。没有环境的测试照 UTC。
 
 ### 对外的样子
 
@@ -58,11 +67,11 @@
 ### 怎么走
 
 1. 读参数，读不懂的：参数不对。时刻写法不对：时刻写得不对，带上正确的写法。
-2. 从头到尾一段一段读这个会话的日志，照撤销、恢复、撤回算出哪些不算。
+2. 从头到尾一段一段读这个会话的日志，照撤销、恢复、撤回算出哪些不算：交给内核的 `History::whole()`，和有效历史同一套规矩，只是压缩替代掉的留着，`context.compacted` 自己也算一条。读不了的：`Could not read the log: <原因>`，算出错。
 3. 照 `from`、`to`、`since`、`until`、`by` 筛。
 4. **找**（有 `query`）：
    1. 每个词都出现的算命中，不分大小写，照原样比，中文不分词。
-   2. 新的在前。一条一行：`#<序号> <时刻> <谁>: <摘出来的一段>`，摘第一处命中前后，一共最多 200 个字。
+   2. 新的在前。一条一行：`#<序号> <时刻> <谁>: <摘出来的一段>`，摘第一处命中前后，一共最多 200 个字；连着的空白（换行也算）换成一个空格，前后截掉了的写 `…`。比的是「读」时这一条下面的原文。
    3. 还有更早的：末尾接 `(Showing {n} of {total} results. Use to={next} to see older ones.)`，`next` 是这一页最早那一条的序号减一。
 5. **读**（没有 `query`）：
    1. 照先后，从范围的第一条起。每条头一行 `#<序号> <时刻> <谁>`，下面是原文：工具调用写成 `→ <工具名> <参数原文>`；图片、文件写占位。
@@ -70,7 +79,14 @@
    3. 还有：末尾接 `(Showing entries {first}-{last}. Use from={next} to continue.)`。
 6. 什么都没有：`No entries found`，不算出错。
 7. 叫停：读下一段日志之前看一眼。
-8. 时刻照这个会话的时区写，到分钟：`2026-09-29 14:03`。
+8. 时刻照这个会话的时区写，到分钟：`2026-09-29 14:03`。`until` 写到分钟的，那一分钟里的都算。
+9. `limit` 不是正整数的：参数不对。`from` 比 `to` 大、范围里一条都没有的：`No entries found`。
+
+**一条的原文**：
+
+- 人说的话、工具结果：正文照原样；图片写 `[image]`，文件写 `[file <名字>]`（`history/image.txt`、`history/file.txt`）。
+- 她的回复：正文照原样，每个工具调用一行 `→ <工具名> <参数原文>`；思考不给。
+- 以前的摘要：摘要正文。
 
 - M6 不建索引，每次从头读：会话再长，日志也就几十兆，先量；慢了再建。全文索引随记忆、知识库那一套一起做（`07-存储.md` 第七节、`19-知识库.md`）。
 - 日志里的原文是别人写的（工具输出、网页），当数据给她看，和当时她看到的是同一份。
@@ -104,6 +120,9 @@
 | 找到了 | 找到 <n> 条 | Found <n> entries |
 | 读了 | 读了第 <a>–<b> 条 | Read entries <a>–<b> |
 | 什么都没有 | 没有找到 | Nothing found |
+| 读不了日志 | 读不了记录：<原因> | Could not read the history: <reason> |
+
+显示名那一格照别的工具：图标 `✱`，参数里挑 `query` 写在后面，没有 `query` 的只写名字。
 
 ### 守着它的
 
@@ -111,7 +130,10 @@
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-basesystem/src/history/tests.rs` | 哪些算一条；撤掉的、撤回的不算；四种筛；找：每个词都要、不分大小写、新的在前、摘一段、往前翻；读：先后、工具调用的写法、整页上限、一条太长；时刻的写法和时区；参数不对 |
+| `crates/miyu-basesystem/src/history/tests.rs` | 哪些算一条；撤掉的、撤回的不算；四种筛；找：每个词都要、不分大小写、新的在前、摘一段、往前翻；读：先后、工具调用的写法、整页上限、一条太长；时刻的写法和时区；参数不对；读不了日志；叫停 |
+| `crates/miyu-kernel/src/history/tests.rs` | `History::whole()`：压缩替代掉的留着，摘要也是一条；撤销、恢复、撤回和有效历史一样 |
+| `crates/miyu-store/src/log/tests.rs` | `read_segments`：一段一段交、叫停就不读下去、半行跳过不截 |
+| `crates/miyu-session/tests/history.rs` | 真的会话：压缩以后 `history` 找得到压缩以前的话，时刻照会话的时区 |
 | `crates/miyu-basesystem/tests/human.rs` | 每一种结果的说法，两种语言都换得出字 |
 | 真模型实测（M6 验收） | 压缩以后问她压缩前的细节，她会用 `history` 取回 |
 

@@ -67,7 +67,7 @@
 
 1. 人格的编号要合写法：小写字母开头，只有小写字母、数字、`-`、`_`，最长 64 个字符。它是一层目录的名字，不许带路径。
 2. 读 `CoreTexts` 表里的每一份，再读 `personas/<编号>/prompts/persona.md`。原文照抄，行尾的换行也算。
-3. `checkpoint-rule.txt`、`permission-rule.txt` 不读：它们现在不进请求。
+3. `permission-rule.txt` 不读：它现在不进请求。
 
 **拼**（`compose`）
 

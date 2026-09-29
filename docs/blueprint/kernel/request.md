@@ -226,7 +226,7 @@ Carry on from where the summary leaves off, without redoing work it records as d
 
 - 结尾那份以一个换行开头，所以摘要后面换一行。
 - 结尾那一句是检查点的规则，施工 6-3 下挪进来的（`compaction.md` 第八条）：回合中途压完，这一轮的最后一条只有检查点和事实，没有它，她不知道这时该做什么，会把摘要里记着做完了的再做一遍核对。
-- `checkpoint-rule.txt`、`permission-rule.txt` 在资源目录里，不读进快照，不进请求。
+- `permission-rule.txt` 在资源目录里，不读进快照，不进请求。
 - 样本：`docs/designs/samples/requests/second-step.json`（第一轮两块事实排在触发消息前面、调一次工具以后的那次请求）、`after-compaction.json`（压缩以后只剩检查点）；`docs/designs/samples/probe/terminal/requests/` 是一段终端会话的每一次请求，第 11 次带接着写的记号。
 
 ### 出错
