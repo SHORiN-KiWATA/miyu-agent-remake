@@ -235,3 +235,23 @@ fn undoing_a_turn_without_a_trigger_takes_nothing_else() {
     let history = feed(events);
     assert_eq!(seqs(&history), vec![1, 2]);
 }
+
+/// 暂停着明知放不下、没发出去的那一次请求（施工 6-6 上）她没听到排着的话：那几句由下一轮接过去，撤掉下一轮时一起撤。
+#[test]
+fn a_request_that_was_never_sent_heard_nothing_that_was_queued() {
+    let refused = r#"{"seen":5,"messages":3,"result":"error","error":{"class":"compaction_paused","message":"the request would not fit"}}"#;
+    let events = vec![
+        created(),
+        message(2, ALICE),
+        started(3, 2),
+        queued(4, 3, ALICE),
+        queued(5, 3, ALICE),
+        event(6, Some(3), KERNEL, "model.called", refused),
+        ended(7, 3, "error"),
+        started(8, 5),
+        ended(9, 8, "error"),
+        reverted(10, &[8]),
+    ];
+    let history = feed(events);
+    assert_eq!(seqs(&history), vec![1, 2, 3, 6, 7]);
+}
