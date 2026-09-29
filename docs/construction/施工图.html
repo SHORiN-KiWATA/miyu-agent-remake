@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>103</b><span>/ 109 步<strong>已完成</strong>，M6 压缩做到 6-5：到线就压，检查点里带着读过的文件，压完接着干，换出去的她用 <code>history</code> 找得回</span></li>
+    <li><b>105</b><span>/ 112 步<strong>已完成</strong>，M6 压缩做到 6-5：到线就压，检查点里带着读过的文件，压完接着干，换出去的她用 <code>history</code> 找得回</span></li>
     <li><b>6-6</b><span>下一步：失败和熔断（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">317a46e</b><span>最近一步（4-7 补 撤销、恢复的命令改名）的提交</span></li>
+    <li><b class="mono">faf5ad9</b><span>最近一步（6-3 补 会话的模型限额推给头）的提交</span></li>
   </ul>
 </header>
 
@@ -452,9 +452,11 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s6-2b"><span class="n">6-2</span>留尾巴（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-3a"><span class="n">6-3</span>模型资料和限额（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-3b"><span class="n">6-3</span>接上真模型（下）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s6-3c"><span class="n">6-3</span>限额推给头（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-4"><span class="n">6-4</span>history<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-5"><span class="n">6-5</span>检查点里的几段和压后重建<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">6-6</span>失败和熔断</span></li>
+        <li><span class="step"><span class="n">6-6</span>失败和熔断（上）</span></li>
+        <li><span class="step"><span class="n">6-6</span>截短重试和隔离式（下）</span></li>
         <li><span class="step"><span class="n">6-7</span>被动压缩</span></li>
         <li><span class="step"><span class="n">6-8</span>手动压缩</span></li>
         <li><span class="step"><span class="n">6-9</span>撤销越过压缩</span></li>
@@ -7947,6 +7949,65 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>compaction.md</code>（第三条、第八条、第十条、第十三条）、<code>kernel/events.md</code>、<code>cli/ask.md</code>、<code>session/actor.md</code>。</li>
         <li><code>docs/construction/6-3-接上真模型（下）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s6-3c" aria-labelledby="h-s63c">
+  <div class="sheet-head"><h2 id="h-s63c"><span class="no">6-3</span>会话的模型限额推给头（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头订阅一个会话，就拿到它实际用的窗口和压缩线，照它画「用量 / 窗口」、离压缩还有多少，不再照模型名自己查表（终端演示那边报的缺口）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">subscribe 的回应</span><span class="dir-note">不进日志，不推瞬时事件</span></div>
+            <ol class="pipe" aria-label="限额怎么到头那里">
+              <li>造会话、载入：执行器交完 <code>Input::Limits</code>，当场向内核要一份 <code>context_limits()</code></li>
+              <li><code>Handle</code> 带着这一份；会话里不变</li>
+              <li>头 <code>subscribe</code>：回 <code>{"limits":{"compaction_line":…,"window":…}}</code>，没有的格不写</li>
+              <li>再订阅、别的连接接进来、核心重启后载入的都带</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">压缩线内核算</span><span class="rl">和判到线的是同一条</span></div>
+          <div class="tile new"><span class="nm">不带最大输出、模型名</span><span class="rl">头用不上</span></div>
+          <div class="tile new"><span class="nm">换模型推事件</span><span class="rl">随换模型那一步</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-3 补</dd></div>
+        <div><dt>名称</dt><dd>会话的模型限额推给头</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">faf5ad9</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>内核 <code>session/limits.rs</code>（<code>ContextLimits</code>）；会话的 <code>Handle::limits()</code>；协议端点 <code>subscribe</code> 回限额。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>回应和蓝图的例子一字不差；没窗口、窗口太小、再订阅、重启后载入各有测试</span></li>
+        <li><span class="ok">✓</span><span>手写 12 个变异全被逮住；门禁八项全过，三台机器的 CI 全绿（分身施工，主会话审过合并）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>protocol.md</code>（<code>subscribe</code>）、<code>kernel/session.md</code>、<code>session/actor.md</code>；设计 04 第九节。</li>
+        <li><code>docs/construction/6-3-会话的模型限额推给头（补）.md</code>。</li>
       </ul>
     </div>
   </div>
