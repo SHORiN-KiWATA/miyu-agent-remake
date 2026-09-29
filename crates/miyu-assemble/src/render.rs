@@ -70,7 +70,8 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
             }),
             // 不进上下文的：会话的事件、请人确认和人的决定、问人和人的回答（她看到的只有工具
             // 结果）、改回文件的结局（她不知道被撤过）、暂停了自动压缩（给人看的）、不认识的种类。压缩、撤销、恢复、撤回已经由
-            // 有效历史用掉了，这里碰不到。一个个列出来，加一种事件时编译器会逼着决定它渲不渲染。
+            // 有效历史用掉了，这里碰不到。任务的两种回报现在照不认识的种类一样跳过，渲染成什么样随 7-2（施工 7-1）。
+            // 一个个列出来，加一种事件时编译器会逼着决定它渲不渲染。
             Body::SessionCreated(_)
             | Body::PolicyChanged(_)
             | Body::MetaChanged(_)
@@ -84,6 +85,8 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
             | Body::QuestionAnswered(_)
             | Body::ContextCompacted(_)
             | Body::CompactionPaused(_)
+            | Body::JobReported(_)
+            | Body::ChildReported(_)
             | Body::Unknown { .. } => {}
         }
     }

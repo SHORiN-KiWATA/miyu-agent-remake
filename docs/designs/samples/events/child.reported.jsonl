@@ -1,0 +1,1 @@
+{"seq":115,"at":"2026-09-25T07:55:40.000Z","kind":"child.reported","by":{"kind":"session","id":"01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91"},"cause":"cmd-9a0b","body":{"job":"j2","session":"01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91","reason":"done","text":"CI 红在 macOS：测试的临时目录在 /var 下，/var 是链接，安全打开不走链接，拒绝了。先把临时目录换成真实路径就好。"}}

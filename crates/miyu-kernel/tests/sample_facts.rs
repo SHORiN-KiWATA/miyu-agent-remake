@@ -46,6 +46,10 @@ fn events() -> Vec<Event> {
             events.push(event);
         }
     }
+    // 带 `parent` 的 `session.created` 是样本会话派的子代理自己日志里的第一条，不是这个会话的（施工 7-1）。
+    events.retain(
+        |event| !matches!(&event.body, Body::SessionCreated(created) if created.parent.is_some()),
+    );
     events.sort_by_key(|event| event.seq);
     events
 }

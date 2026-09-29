@@ -1,5 +1,5 @@
 //! 会话事件的测试：图纸上的写法读写一字不差、认得出种类；权限两格都要写；
-//! 不认识的级别原样留着；坏的报错说清是哪一种。
+//! 不认识的级别原样留着；坏的报错说清是哪一种；子会话带着父会话和第几层（施工 7-1）。
 
 use super::*;
 use crate::event::{Body, Event};
@@ -47,6 +47,52 @@ fn a_oneshot_session_says_so_and_others_do_not() {
     match read_body("session.created", &created("workspace")) {
         Body::SessionCreated(created) => assert!(!created.oneshot, "不写就不是"),
         other => panic!("{other:?}"),
+    }
+}
+
+/// 子会话的 `session.created` 多两格（施工 7-1）：父会话、第几层，写在最后；主会话不写，原来的日志一个字节不变。
+#[test]
+fn a_child_session_names_its_parent_and_depth() {
+    let parent = "01a0d75d-2180-7a3c-9e41-5b7d2c8f6a10";
+    let child = format!(
+        r#"{{"owner":"alice","venue":"local","policy":"{HASH}","permission":{{"level":"workspace","read_only":false}},"cwd":"~/src/miyu","parent":"{parent}","depth":1}}"#
+    );
+    match read_body("session.created", &child) {
+        Body::SessionCreated(created) => {
+            assert_eq!(
+                created.parent.map(|p| p.to_string()),
+                Some(parent.to_string())
+            );
+            assert_eq!(created.depth, Some(1));
+        }
+        other => panic!("{other:?}"),
+    }
+    match read_body("session.created", &created("workspace")) {
+        Body::SessionCreated(created) => assert_eq!((created.parent, created.depth), (None, None)),
+        other => panic!("{other:?}"),
+    }
+    // 写成 null 的当没有。
+    let nulls = created("workspace").replace("}}", r#"},"parent":null,"depth":null}"#);
+    let line = event_line("session.created", &nulls);
+    let event = Event::from_line(&line).unwrap();
+    assert_eq!(
+        event.to_line(),
+        event_line("session.created", &created("workspace"))
+    );
+    // 父会话不合写法、层数不是整数的，读不进来。
+    for (bad, why) in [
+        (r#""parent":"p-1","depth":1"#, "bad session id"),
+        (
+            &format!(r#""parent":"{parent}","depth":-1"#) as &str,
+            "invalid value",
+        ),
+        (
+            &format!(r#""parent":"{parent}","depth":"1""#) as &str,
+            "invalid type",
+        ),
+    ] {
+        let body = created("workspace").replace("}}", &format!("}},{bad}}}"));
+        rejected::<Event>(&event_line("session.created", &body), why);
     }
 }
 

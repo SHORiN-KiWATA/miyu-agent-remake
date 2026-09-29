@@ -1,5 +1,6 @@
 //! 效果的测试（施工 4-6 上）：三种认识的读写一字不差；一行都没显示的不写 `lines`，新建的 `before` 写成
-//! `null`；不认识的种类整块原样留着；缺了 `kind`、认识的种类缺了字段，报错。
+//! `null`；不认识的种类整块原样留着；缺了 `kind`、认识的种类缺了字段，报错。`job.started`（施工 7-1）：两种任务
+//! 读写一字不差，不认识的 `what` 原样留着，后台命令不写 `session`。
 
 use super::*;
 
@@ -81,6 +82,47 @@ fn nothing_shown_has_no_lines_and_a_new_file_has_a_null_before() {
     assert_eq!(without, created);
 }
 
+/// 图纸上的两条（`agents.md`「对外的样子」）：一个子代理带着会话，一个后台命令没有。
+#[test]
+fn a_started_job_round_trips() {
+    let agent = r#"{"kind":"job.started","job":"j2","what":"agent","title":"查 CI 为什么红","session":"01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91"}"#;
+    assert_eq!(
+        round_trip(agent),
+        Effect::JobStarted(JobStarted {
+            job: JobId::parse("j2").unwrap(),
+            what: JobKind::Agent,
+            title: "查 CI 为什么红".to_string(),
+            session: Some(SessionId::parse("01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91").unwrap()),
+        })
+    );
+    let command = Effect::JobStarted(JobStarted {
+        job: JobId::parse("j1").unwrap(),
+        what: JobKind::Command,
+        title: "跑全部测试".to_string(),
+        session: None,
+    });
+    let json = r#"{"kind":"job.started","job":"j1","what":"command","title":"跑全部测试"}"#;
+    assert_eq!(
+        serde_json::to_string(&command).unwrap(),
+        json,
+        "没有会话的不写这一格"
+    );
+    assert_eq!(round_trip(json), command);
+    // 写成 null 的当没有。
+    let null: Effect = serde_json::from_str(&json.replace("}", r#","session":null}"#)).unwrap();
+    assert_eq!(null, command);
+}
+
+/// 新版本才有的任务种类：原样留着，写出去还是原样；会话照写着的读。
+#[test]
+fn an_unknown_job_kind_is_kept_as_it_is() {
+    let json = r#"{"kind":"job.started","job":"j3","what":"cron","title":"每天八点"}"#;
+    match round_trip(json) {
+        Effect::JobStarted(started) => assert_eq!(started.what, JobKind::Other("cron".to_string())),
+        other => panic!("{other:?}"),
+    }
+}
+
 #[test]
 fn an_unknown_kind_is_kept_as_it_is() {
     let json = r#"{"kind":"diagram.drawn", "file" : "a.svg","scale":1.50}"#;
@@ -96,6 +138,12 @@ fn broken_effects_are_errors() {
         r#"{"kind":"file.changed","path":"/a","before":null}"#,
         r#"{"kind":"file.read","path":"/a","hash":"md5:00"}"#,
         r#"{"kind":"file.trashed","path":"/a"}"#,
+        r#"{"kind":"job.started","what":"command","title":"t"}"#,
+        r#"{"kind":"job.started","job":"j0","what":"command","title":"t"}"#,
+        r#"{"kind":"job.started","job":"1","what":"command","title":"t"}"#,
+        r#"{"kind":"job.started","job":"j1","title":"t"}"#,
+        r#"{"kind":"job.started","job":"j1","what":"command"}"#,
+        r#"{"kind":"job.started","job":"j1","what":"agent","title":"t","session":"s-1"}"#,
     ] {
         assert!(serde_json::from_str::<Effect>(json).is_err(), "{json}");
     }

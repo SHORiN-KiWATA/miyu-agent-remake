@@ -10,6 +10,7 @@ mod approval;
 mod breaker;
 mod compaction;
 mod invariants;
+mod jobs;
 mod load;
 mod lookup;
 mod manual;
@@ -431,6 +432,7 @@ impl Watch {
                         "种子 {seed}：{} 有了两条结果",
                         result.call_id
                     );
+                    self.jobs_seen(result);
                     let was_running = self.running.remove(&result.call_id);
                     self.stopping.calls.remove(&result.call_id);
                     if matches!(event.by, By::Tool(_)) {

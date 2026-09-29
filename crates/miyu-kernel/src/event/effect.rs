@@ -1,12 +1,14 @@
 //! 效果（`docs/designs/10-自带软件.md` 第五节、`03-事件模型.md` 第三节，施工 4-6 上）：随 `tool.result` 记进
 //! 日志，给内核和头看，不发给模型。diff、撤销、改之前的核对、压缩后的工作集都照它们算。
 //!
-//! 认识的三种读成对应的类型；不认识的（第三方的工具报来的）整块原样留着，内核不解读。
+//! 认识的四种读成对应的类型；不认识的（第三方的工具报来的）整块原样留着，内核不解读。`job.started` 是派出去一个
+//! 任务的记录（施工 7-1，`agents.md`）：派它的那次调用本身就在历史里，不另记事件。
 
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::id::ContentHash;
+use crate::id::{ContentHash, JobId, SessionId};
 use crate::raw::{self, RawJson};
+use crate::text_enum::text_enum;
 
 /// 一样效果，照 `kind` 分。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -21,6 +23,9 @@ pub enum Effect {
     /// 把一个文件移进了回收站。
     #[serde(rename = "file.trashed")]
     FileTrashed(FileTrashed),
+    /// 派出去一个任务：后台命令，或者子代理（施工 7-1）。
+    #[serde(rename = "job.started")]
+    JobStarted(JobStarted),
     /// 不认识的种类：整块原样留着，写出去还是原样。
     #[serde(untagged)]
     Unknown(RawJson),
@@ -59,6 +64,31 @@ pub struct FileTrashed {
     pub trash: String,
 }
 
+/// `job.started`：派出去一个任务（`agents.md`「对外的样子」）。编号整份日志里不重复、`agent` 带会话、`command` 不带，
+/// 由账本查（`kernel/history.md`）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JobStarted {
+    /// 任务编号：一个会话里从 `j1` 数起，后台命令和子代理共用一串，不回收。
+    pub job: JobId,
+    /// 派的是什么。
+    pub what: JobKind,
+    /// 调用时给的 `description`，头显示用。
+    pub title: String,
+    /// 子代理的会话；后台命令没有。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session: Option<SessionId>,
+}
+
+text_enum!(
+    /// 派出去的任务是什么。不认识的是新版本才有的，账本不查它带不带会话，两种回报都对不上它。
+    JobKind {
+        /// 后台命令：`shell` 的 `run_in_background`。
+        Command = "command",
+        /// 子代理：一个子会话。
+        Agent = "agent",
+    }
+);
+
 impl<'de> Deserialize<'de> for Effect {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         raw::read_tagged(
@@ -69,6 +99,7 @@ impl<'de> Deserialize<'de> for Effect {
                     "file.read" => raw::parse(json).map(Effect::FileRead),
                     "file.changed" => raw::parse(json).map(Effect::FileChanged),
                     "file.trashed" => raw::parse(json).map(Effect::FileTrashed),
+                    "job.started" => raw::parse(json).map(Effect::JobStarted),
                     _ => return None,
                 })
             },

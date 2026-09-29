@@ -6,11 +6,11 @@
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::id::{
-    AccountId, CallId, ExternalId, ModelName, ModuleId, ProviderId, SessionId, VenueId,
+    AccountId, CallId, ExternalId, HarnessName, ModelName, ModuleId, ProviderId, SessionId, VenueId,
 };
 use crate::raw::{self, RawJson};
 
-/// 这件事由谁引起。JSON 里用 `kind` 分开七种；读到不认识的，整块原样留着。
+/// 这件事由谁引起。JSON 里用 `kind` 分开八种；读到不认识的，整块原样留着。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum By {
@@ -28,6 +28,8 @@ pub enum By {
     Session(Session),
     /// 内核自己，例如崩溃重启后给没走完的回合补上的「中断」（`02-内核.md` 不变量 8）。
     Kernel,
+    /// 别的 harness：经 `miyu ask --from` 发来的话（施工 7-1，`agents.md` 第十一条）。
+    Harness(Harness),
     /// 不认识的种类，新版本才有的：整块原样留着，写出去还是原样。
     #[serde(untagged)]
     Unknown(RawJson),
@@ -79,6 +81,13 @@ pub struct Session {
     pub id: SessionId,
 }
 
+/// 别的 harness。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Harness {
+    /// 它自己报的名字，不可信：写法照短名字查，给模型看之前照不可信的文本处理（`kernel/ids.md`）。
+    pub name: HarnessName,
+}
+
 impl<'de> Deserialize<'de> for By {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         raw::read_tagged(
@@ -93,6 +102,7 @@ impl<'de> Deserialize<'de> for By {
                     "module" => raw::parse(json).map(By::Module),
                     "session" => raw::parse(json).map(By::Session),
                     "kernel" => Ok(By::Kernel),
+                    "harness" => raw::parse(json).map(By::Harness),
                     _ => return None,
                 })
             },

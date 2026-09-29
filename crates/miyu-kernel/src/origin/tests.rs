@@ -1,4 +1,4 @@
-//! `by` 的测试：图纸上的七种读写一字不差；不认识的原样留着；坏的报错。
+//! `by` 的测试：图纸上的八种读写一字不差；不认识的原样留着；坏的报错。
 
 use super::*;
 use crate::test_support::{rejected, round_trip};
@@ -13,6 +13,7 @@ fn every_kind_from_the_drawing_round_trips() {
         r#"{"kind":"module","id":"memory"}"#,
         r#"{"kind":"session","id":"0192f3a0-1111-7abc-8def-001122334455"}"#,
         r#"{"kind":"kernel"}"#,
+        r#"{"kind":"harness","name":"claude-code"}"#,
     ] {
         round_trip::<By>(json);
         let by: By = serde_json::from_str(json).unwrap();
@@ -27,6 +28,9 @@ fn each_kind_reads_into_its_own_variant() {
     assert_eq!(by, By::Person(Person { account }));
     let by: By = serde_json::from_str(r#"{"kind":"kernel"}"#).unwrap();
     assert_eq!(by, By::Kernel);
+    let by: By = serde_json::from_str(r#"{"kind":"harness","name":"claude-code"}"#).unwrap();
+    let name = HarnessName::parse("claude-code").unwrap();
+    assert_eq!(by, By::Harness(Harness { name }));
 }
 
 #[test]
@@ -52,4 +56,15 @@ fn broken_by_is_an_error() {
     rejected::<By>(r#"{"kind":"person","account":"Alice"}"#, "bad account");
     rejected::<By>(r#"{"kind":"person"}"#, "account");
     rejected::<By>(r#""person""#, "invalid type");
+    // 别的 harness 自己报的名字不可信：照短名字的规则查（施工 7-1）。
+    rejected::<By>(r#"{"kind":"harness"}"#, "missing field `name`");
+    rejected::<By>(r#"{"kind":"harness","name":""}"#, "bad harness name");
+    rejected::<By>(
+        r#"{"kind":"harness","name":"claude\u0007code"}"#,
+        "control characters",
+    );
+    rejected::<By>(
+        &format!(r#"{{"kind":"harness","name":"{}"}}"#, "h".repeat(129)),
+        "128 bytes",
+    );
 }
