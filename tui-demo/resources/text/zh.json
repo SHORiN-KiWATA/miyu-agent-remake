@@ -1,0 +1,129 @@
+{
+  "tips": [
+    "Tab 切换权限级别",
+    "Ctrl+R 翻输入历史",
+    "/ 打开命令列表",
+    "Shift+Enter 换行",
+    "↑ 翻出上一句发过的话",
+    "Ctrl+S 暂存这段话，再按一下取回",
+    "两下 Esc 清空输入框",
+    "拖选正文，Ctrl+C 复制",
+    "PgUp、PgDn 翻正文",
+    "Ctrl+Z 挂到后台，fg 回来",
+    "/undo 撤销上一轮，/redo 恢复",
+    "有后台命令时，空着按 ↓ 打开后台面板"
+  ],
+  "untitled": "未命名会话",
+  "side_id": "#{id}",
+  "side_cwd": "工作目录",
+  "side_context": "上下文",
+  "side_context_value": "{used} / {window} · {percent}%",
+  "side_usage": "用量",
+  "side_total": "共 {tokens} token",
+  "side_split": "输入 {input} · 输出 {output}",
+  "side_hit": "缓存命中 {percent}%",
+  "copied": "已复制 {count} 个字",
+  "copy_failed": "复制失败：{reason}",
+  "connecting": "正在连核心…",
+  "no_core_bin": "核心没在跑：启动时设 MIYU_CORE_BIN 指向重制版的 miyu",
+  "core_failed": "连不上核心：{reason}",
+  "disconnected": "核心断开了",
+  "refused": "核心拒绝了：{reason}",
+  "interrupted": "已中断",
+  "failed": "出错了：{class}：{message}",
+  "retry": "重试 {attempt}/{limit}：{message}",
+  "total": "Σ{tokens}(C{percent}%)",
+  "done": "{time} · {endpoint}/{model} · {elapsed}",
+  "speed": "{rate} tok/s",
+  "context": "{used}/{window}({percent}%)",
+  "undone": "撤销了 {turns} 轮 · /redo 恢复",
+  "restored": "改回 {count} 个文件",
+  "untouched": "{count} 个文件没动：之后又被改过，或者已经不在了",
+  "commands": "{count} 条命令的改动撤不回",
+  "unknown_command": "命令不存在",
+  "fake_command": "/{name} 是演示用的假命令，还不做事",
+  "thinking": "思考中",
+  "thought": "已思考",
+  "prepare": "准备{name}",
+  "omitted": "已省略 {count} 行",
+  "summary": {
+    "ran": [
+      "Ran 1 command",
+      "Ran {count} commands"
+    ],
+    "used": [
+      "Used 1 tool",
+      "Used {count} tools"
+    ],
+    "made": [
+      "Made 1 edit",
+      "Made {count} edits"
+    ],
+    "edits": [
+      "1 edit",
+      "{count} edits"
+    ],
+    "tools": [
+      "1 tool",
+      "{count} tools"
+    ],
+    "thoughts": [
+      "1 thought",
+      "{count} thoughts"
+    ],
+    "errors": [
+      "1 err",
+      "{count} err"
+    ],
+    "thought_for": "Thought for {elapsed}"
+  },
+  "levels": {
+    "workspace": "工作区",
+    "full": "开放权限",
+    "read_only": "只读"
+  },
+  "home_placeholder": "Tab 切换权限级别",
+  "exit_hint": "按 Ctrl+D 退出",
+  "esc_hint": "再按一次 Esc 打断",
+  "stashed": "> 暂存",
+  "esc_clear_hint": "再按一次 Esc 清空",
+  "no_clear_running": "回答进行中不清屏",
+  "theme_changed": "主题：{name}",
+  "figure_pending": "⋯ 正在画图",
+  "figure_zoom": "点开看大图",
+  "refusals": {
+    "nothing_to_unrevert": "没有能恢复的撤销",
+    "nothing_to_revert": "没有能撤销的",
+    "turn_running": "回答进行中，先打断再撤销",
+    "compacted": "那一轮已经压缩进摘要，撤不了",
+    "unknown_turn": "找不到要撤的那一轮",
+    "restoring": "正在改回文件，稍等"
+  },
+  "done_usage": " · {tokens}(C{percent}%)",
+  "history_search": "搜索：",
+  "history_empty": "没有对得上的",
+  "no_history": "还没有发过的话",
+  "history_more": "⋮ 还有 {count} 行",
+  "jobs": {
+    "button": "{count} 个后台命令",
+    "title": "后台",
+    "active": "{count} 个在跑的命令",
+    "hint": "↑/↓ 选 · Enter 展开 · x 停止 · Esc 关闭",
+    "running": "（运行中 {elapsed}）",
+    "done": "（完成 {elapsed}）",
+    "failed": "（失败 · 退出码 {code}）",
+    "stopped": "（已停止）",
+    "main": "主会话",
+    "more": "还有 {count} 个",
+    "switch_todo": "切进子会话还没做",
+    "todo": "待办 {done}/{total}",
+    "done_note": "后台命令完成 · {title} · {elapsed}",
+    "failed_note": "后台命令失败 · {title} · 退出码 {code}",
+    "stopped_note": "后台命令已停止 · {title}",
+    "agent_note": "后台任务完成 · {title} · {elapsed}",
+    "ok_mark": "✓ ",
+    "fail_mark": "✗ ",
+    "todo_folded": "做完 {count} 项",
+    "todo_more": "… 还有 {count} 项"
+  }
+}

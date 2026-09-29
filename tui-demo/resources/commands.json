@@ -1,0 +1,89 @@
+{
+  "commands": [
+    {
+      "name": "undo",
+      "summary": "撤销上一轮，她改过的文件改回去",
+      "run": "revert"
+    },
+    {
+      "name": "redo",
+      "summary": "恢复刚才撤销的那一轮",
+      "run": "unrevert"
+    },
+    {
+      "name": "theme",
+      "summary": "换一套颜色：tokyonight-night、terminal 轮着换",
+      "run": "theme"
+    },
+    {
+      "name": "new",
+      "summary": "开一个新会话",
+      "run": "fake"
+    },
+    {
+      "name": "sessions",
+      "summary": "列出会话，切过去",
+      "run": "fake"
+    },
+    {
+      "name": "model",
+      "summary": "换这个会话的模型",
+      "run": "fake"
+    },
+    {
+      "name": "readonly",
+      "summary": "开关只读，和 Shift+Tab 一样",
+      "run": "fake"
+    },
+    {
+      "name": "level",
+      "summary": "改常用的权限级别：工作区或完全放开",
+      "run": "fake"
+    },
+    {
+      "name": "compact",
+      "summary": "现在就压缩上下文",
+      "run": "fake"
+    },
+    {
+      "name": "tools",
+      "summary": "工具设置：哪些常驻、哪些按需加载",
+      "run": "fake"
+    },
+    {
+      "name": "settings",
+      "summary": "打开设置",
+      "run": "fake"
+    },
+    {
+      "name": "copy",
+      "summary": "复制她的上一段回答",
+      "run": "fake"
+    },
+    {
+      "name": "help",
+      "summary": "看看按键和命令",
+      "run": "fake"
+    },
+    {
+      "name": "exit",
+      "summary": "退出",
+      "run": "quit"
+    },
+    {
+      "name": "demo-bg",
+      "summary": "演示：起一条假的后台命令",
+      "run": "demo_shell"
+    },
+    {
+      "name": "demo-agent",
+      "summary": "演示：派一个假的子代理",
+      "run": "demo_agent"
+    },
+    {
+      "name": "demo-todo",
+      "summary": "演示：推一份假的待办",
+      "run": "demo_todo"
+    }
+  ]
+}

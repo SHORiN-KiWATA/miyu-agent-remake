@@ -1,0 +1,64 @@
+{
+  "width_percent": 90,
+  "narrow_below": 20,
+  "home_max_width": 80,
+  "side_gap": 2,
+  "top_gap": 1,
+  "pad_left": 3,
+  "pad_right": 2,
+  "max_rows": 8,
+  "double_click_ms": 400,
+  "notice_ms": 2000,
+  "user_bar": "┃ ",
+  "done_icon": "✻ ",
+  "done_gap": {
+    "workspace": " "
+  },
+  "prompt": "❯ ",
+  "menu_rows": 5,
+  "history_rows": 8,
+  "history_preview_rows": 12,
+  "level_icons": {
+    "workspace": "▣ ",
+    "full": "⏵⏵ ",
+    "read_only": "⏸ "
+  },
+  "level_cycle": [
+    "workspace",
+    "full",
+    "read_only"
+  ],
+  "undo_icon": "↶ ",
+  "esc_window_ms": 1500,
+  "dots": {
+    "mark": ".",
+    "count": 3
+  },
+  "shimmer": {
+    "sweep_seconds": 3.0,
+    "band": 1.5,
+    "dim": 0.85,
+    "lift": 0.35
+  },
+  "stash_prompt": " ",
+  "queued_mark": "↳ ",
+  "theme": "tokyonight-night",
+  "tool_language": "zh",
+  "sidebar_from": 120,
+  "sidebar_width": 38,
+  "agent_rows": 5,
+  "todo_marks": {
+    "pending": "☐ ",
+    "active": "■ ",
+    "done": "☑ "
+  },
+  "job_preview_rows": 12,
+  "todo_rows": 5,
+  "mascot_home": true,
+  "mascot_sidebar": true,
+  "bar": {
+    "full": "▰",
+    "empty": "▱",
+    "width": 20
+  }
+}

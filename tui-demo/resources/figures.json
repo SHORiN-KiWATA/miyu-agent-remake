@@ -1,0 +1,10 @@
+{
+  "max_rows": 200,
+  "fonts": [
+    "Noto Sans CJK SC",
+    "PingFang SC"
+  ],
+  "math_scale": 1.0,
+  "keep": 32,
+  "zoom_keep": 64
+}

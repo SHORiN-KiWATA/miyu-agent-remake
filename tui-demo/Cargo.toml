@@ -1,0 +1,70 @@
+[package]
+name = "miyu-tui-demo"
+version = "0.0.1"
+edition = "2024"
+publish = false
+license = "GPL-3.0-or-later"
+description = "终端界面的演示程序：和后端并行开发，先搭全屏框架和输入框。"
+
+[dependencies]
+# 界面上的字和布局的数值住在 resources/ 的 JSON 里，不写死在代码里。
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# 收尾行上写做完的时刻，要本地时间；仓库别处也用它（crates/miyu-log）。
+jiff = "0.2"
+# 连核心：和 miyu ask 用同一套（crates/miyu-cli）。只认数据根、拉起核心、本机令牌这几样。
+miyu-ipc = { path = "../crates/miyu-ipc" }
+miyu-store = { path = "../crates/miyu-store" }
+# 工具结果那一句（`Said`）的类型：推送里的 `human` 照它读，和核心同一份定义。
+miyu-kernel = { path = "../crates/miyu-kernel" }
+# 她的回答按 Markdown 画（蓝图 tui.md「她的回答：Markdown」）；旧版用的也是它。
+pulldown-cmark = { version = "0.13", default-features = false }
+# 编辑、写入的差异按行比：和 crates/miyu-endpoint 用的是同一个。
+similar = { version = "2", default-features = false, features = ["text"] }
+# 连接是异步的；界面主循环照旧同步，连核心的活在单独的线程里跑一个运行时。
+tokio = { version = "1", features = ["io-util", "macros", "rt", "sync"] }
+# 全屏界面的框架；按键、鼠标经它转出来的 crossterm 读。
+ratatui = "0.30"
+# 字素簇：光标、删除都按用户看到的一个字走，不切开 emoji 和组合字符。
+unicode-segmentation = "1"
+# 显示宽度：中文占两列。
+unicode-width = "0.2"
+# 正文里的图（蓝图 tui.md「图片、公式和 mermaid 图」）：问终端认哪种图片协议、一格多少像素，
+# kitty、sixel、iTerm2 在进程里编码，切片画露出来的那一截。不要它的半格拼图和 chafa。
+ratatui-image = { version = "11.1", default-features = false, features = ["crossterm"] }
+# 读图片文件；只开常见的四种格式。
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+# mermaid 出 SVG：设计 13 第九节定的库（旧版用的也是它）。不要它自带的命令行和 PNG 输出。
+mermaid-rs-renderer = { version = "0.3", default-features = false }
+# SVG 栅格化：按要显示的像素数一次渲到位。
+resvg = { version = "0.47", default-features = false, features = ["text", "system-fonts", "memmap-fonts"] }
+# 块级公式排成图：RaTeX，纯 Rust，带 KaTeX 字体（旧版用的也是它）。
+ratex-parser = "0.1.14"
+ratex-layout = "0.1.14"
+ratex-types = "0.1.14"
+ratex-render = { version = "0.1.14", features = ["embed-fonts"] }
+
+# RaTeX 第一次找中文字体时往 stderr 打字，全屏会被搅乱：那一下把 stderr 临时指到空设备（蓝图「图片、公式和 mermaid 图」第 7 条）；
+# Ctrl+Z 挂起时给自己发 SIGTSTP（蓝图「按键」）。
+# 用它的安全接口，演示程序不写 unsafe。crossterm 已经带着它。
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "1", features = ["stdio", "process"] }
+
+# 和仓库工作区的 lints 一样（根目录 Cargo.toml），演示程序也照这套规矩。
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+let_underscore_must_use = "deny"
+unused_result_ok = "deny"
+unwrap_used = "deny"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+
+[profile.dev]
+opt-level = 1
+
+# 演示程序不进仓库的 workspace，自己单独编，门禁不查它。
+[workspace]

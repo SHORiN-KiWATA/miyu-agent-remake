@@ -1,0 +1,53 @@
+{
+  "tools": {
+    "shell": {
+      "icon": "$",
+      "kind": "command"
+    },
+    "edit": {
+      "icon": "",
+      "kind": "edit"
+    },
+    "write": {
+      "icon": "",
+      "kind": "edit"
+    },
+    "trash": {
+      "icon": ""
+    },
+    "read": {
+      "icon": ""
+    },
+    "glob": {
+      "icon": ""
+    },
+    "grep": {
+      "icon": ""
+    }
+  },
+  "tool_icon": "",
+  "think_icon": "󰝨",
+  "error_icon": "",
+  "spinner": [
+    "⠋",
+    "⠙",
+    "⠹",
+    "⠸",
+    "⠼",
+    "⠴",
+    "⠦",
+    "⠧",
+    "⠇",
+    "⠏"
+  ],
+  "spinner_ms": 80,
+  "preview_rows": 10,
+  "line": "│",
+  "omitted": "⋮",
+  "fold": true,
+  "expand": {
+    "thought": false,
+    "command": false,
+    "edit": false
+  }
+}

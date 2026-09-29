@@ -1,0 +1,242 @@
+//! 按键：列表开着时先归列表，别的给输入框；两下 `Esc`、翻正文、清屏、斜杠命令的执行（`tui.md`「按键」）。
+
+use std::time::{Duration, Instant};
+
+use ratatui::crossterm::event::{KeyCode, KeyEvent};
+
+use super::App;
+use crate::commands::{self, Run, Spec};
+use crate::core::Command;
+use crate::input::Action;
+use crate::transcript::Kind;
+
+impl App {
+    /// 按了要按两下的 `Esc`：在回答时打断（排着队的接着发），没在回答时清空输入框。
+    /// 上一下还在时限里就做，不然只提示再按一次。
+    pub(super) fn esc(&mut self) {
+        let window = Duration::from_millis(self.config.layout.esc_window_ms);
+        let running = self.transcript.running.is_some();
+        match self.esc_at.take() {
+            Some(at) if at.elapsed() <= window => {
+                self.notice = None;
+                if running {
+                    self.core.send(Command::Interrupt { send: true });
+                } else {
+                    self.input.editor.take();
+                }
+            }
+            _ => {
+                self.esc_at = Some(Instant::now());
+                let text = &self.config.text;
+                let hint = if running {
+                    &text.esc_hint
+                } else {
+                    &text.esc_clear_hint
+                };
+                self.hint(hint.clone(), false);
+            }
+        }
+    }
+
+    /// 换下一套主题，只管这一次启动（`tui.md`「主题」第 3 条）。
+    pub(super) fn next_theme(&mut self) {
+        let themes = &self.config.themes;
+        let at = themes
+            .iter()
+            .position(|(name, _)| *name == self.theme)
+            .unwrap_or(0);
+        if let Some((name, palette)) = themes.get((at + 1) % themes.len().max(1)) {
+            crate::theme::set(palette.clone());
+            self.theme = name.clone();
+            let text = self.config.text.theme_changed.replace("{name}", name);
+            self.hint(text, true);
+        }
+    }
+
+    /// 按键：列表开着时，上下、Tab、Enter、Esc 归列表，别的照旧给输入框。
+    pub(super) fn key(&mut self, key: KeyEvent) -> Action {
+        // 输入历史列表开着时，按键先归它（`tui.md`「输入历史列表」）。
+        if self.history.open {
+            self.history_key(key);
+            return Action::None;
+        }
+        // Tab、Shift+Tab（终端报成 BackTab）轮换权限级别；命令列表开着时 Tab 归列表（`tui.md`「按键」）。
+        let menu_open = self.menu_matches().is_some();
+        // 整屏看输出、后台面板、后台按钮先拿按键（`tui.md`「后台命令、子代理和侧边栏」）。
+        if self.jobs_key(key, menu_open) {
+            return Action::None;
+        }
+        if cycles_level(&key, menu_open) {
+            self.transcript.next_level(&self.config.layout.level_cycle);
+            return Action::None;
+        }
+        // 正文里有选区：Ctrl+C、Ctrl+Shift+C 复制它，Esc 取消它；都先于输入框（`tui.md`「按键」）。
+        let ctrl = key
+            .modifiers
+            .contains(ratatui::crossterm::event::KeyModifiers::CONTROL);
+        // 侧边栏有选区：Ctrl+C 复制它，Esc 取消它（`tui.md`「后台命令、子代理和侧边栏」第 7 条）。
+        if self.side_select.active() {
+            if ctrl && matches!(key.code, KeyCode::Char('c' | 'C')) {
+                let text = self.side_select.text();
+                self.copy(&text);
+                return Action::None;
+            }
+            if key.code == KeyCode::Esc {
+                self.side_select.clear();
+                return Action::None;
+            }
+        }
+        if self.view.select.is_some() {
+            if ctrl && matches!(key.code, KeyCode::Char('c' | 'C')) {
+                let text = self.view.selected_text();
+                self.copy(&text);
+                return Action::None;
+            }
+            if key.code == KeyCode::Esc {
+                self.view.select = None;
+                return Action::None;
+            }
+        }
+        // Ctrl+L：清屏，把视口顶空，往回滚内容还在；回答进行中不清（新的字马上又冒出来）。
+        if ctrl && key.code == KeyCode::Char('l') {
+            if self.transcript.running.is_some() {
+                self.hint(self.config.text.no_clear_running.clone(), false);
+            } else {
+                self.view.clear();
+            }
+            return Action::None;
+        }
+        // PgUp、PgDn：翻正文。
+        if matches!(key.code, KeyCode::PageUp | KeyCode::PageDown) {
+            self.view.page(key.code == KeyCode::PageDown);
+            return Action::None;
+        }
+        // Ctrl+R：调出输入历史列表；恢复撤销只用 /redo（`tui.md`「按键」）。
+        if ctrl && key.code == KeyCode::Char('r') {
+            if self.input.sent().is_empty() {
+                self.hint(self.config.text.no_history.clone(), false);
+            } else {
+                self.history.open();
+            }
+            return Action::None;
+        }
+        // Ctrl+Z：挂起到后台；主循环照 `suspend` 还原终端、发信号（`tui.md`「按键」）。Windows 没有作业控制。
+        if ctrl && key.code == KeyCode::Char('z') {
+            self.suspend = cfg!(unix);
+            return Action::None;
+        }
+        let Some(matches) = self.menu_matches() else {
+            return self.input.key(key);
+        };
+        let selected = matches.get(self.menu.selected).cloned();
+        match (key.code, selected) {
+            (KeyCode::Up, _) => self.menu.step(false, matches.len()),
+            (KeyCode::Down, _) => self.menu.step(true, matches.len()),
+            (KeyCode::Tab, Some(spec)) => {
+                self.input.editor.take();
+                self.input.paste(&format!("/{}", spec.name));
+            }
+            (KeyCode::Enter, Some(spec)) => {
+                self.input.editor.take();
+                self.run(&spec);
+            }
+            (KeyCode::Esc, _) => self.menu.dismiss(self.input.editor.text()),
+            _ => return self.input.key(key),
+        }
+        Action::None
+    }
+
+    /// 回车发出去的字：是命令就执行；像命令又没有这个命令的弹提示「命令不存在」，字留在输入框里（`tui.md`
+    /// 「斜杠命令列表」第 4 条）；别的发给她。
+    pub(super) fn submit(&mut self, text: String) {
+        if let Some(name) = commands::typed(&text).filter(|_| !text.trim().contains(' ')) {
+            match self.config.commands.find(name).cloned() {
+                Some(spec) => self.run(&spec),
+                None => {
+                    let note = self.config.text.unknown_command.clone();
+                    self.hint(note, false);
+                    self.input.paste(&text);
+                }
+            }
+            return;
+        }
+        self.view.follow();
+        self.input.remember(&text);
+        self.transcript.user(text.clone());
+        self.core.send(Command::Send(text));
+    }
+
+    /// 执行一条命令。
+    pub(super) fn run(&mut self, spec: &Spec) {
+        // 命令也记进输入历史：从列表里回车、点的，和整条打出来回车的一样（`tui.md`「按键」↑、↓）。
+        self.input.remember(&format!("/{}", spec.name));
+        self.view.follow();
+        match spec.run {
+            Run::Revert => self.core.send(Command::Revert),
+            Run::Unrevert => self.core.send(Command::Unrevert),
+            Run::Theme => self.next_theme(),
+            Run::Quit => self.quit = true,
+            Run::Fake => {
+                let note = self.config.text.fake_command.replace("{name}", &spec.name);
+                self.transcript.note(Kind::Note, note);
+            }
+            Run::DemoShell | Run::DemoAgent | Run::DemoTodo => self.demo(spec.run),
+        }
+    }
+
+    /// 输入历史列表开着时的按键：`↑`、`Ctrl+R` 往更早的走，`↓` 往更新的走，打字进搜索，
+    /// `Enter` 挑中放进输入框，`Tab` 展开全文，`Esc` 关掉（`tui.md`「输入历史列表」第 2–4、7 条）。
+    fn history_key(&mut self, key: KeyEvent) {
+        use ratatui::crossterm::event::KeyModifiers;
+        let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+        let plain = !ctrl && !key.modifiers.contains(KeyModifiers::ALT);
+        let count = self.history.matches(self.input.sent()).len();
+        match key.code {
+            KeyCode::Up => self.history.older(count),
+            KeyCode::Char('r') if ctrl => self.history.older(count),
+            KeyCode::Down => self.history.newer(),
+            KeyCode::Enter => self.pick_history(),
+            KeyCode::Tab => self.history.toggle_full(),
+            KeyCode::Esc => self.history.close(),
+            KeyCode::Backspace => self.history.backspace(),
+            KeyCode::Char(c) if plain => self.history.type_text(&c.to_string()),
+            _ => {}
+        }
+    }
+
+    /// 挑中选中的那一条：放进输入框，关掉列表。
+    pub(super) fn pick_history(&mut self) {
+        let picked = self
+            .history
+            .matches(self.input.sent())
+            .get(self.history.selected)
+            .map(|text| (*text).to_string());
+        self.history.close();
+        if let Some(text) = picked {
+            self.input.pick(&text);
+        }
+    }
+}
+
+/// 这一下是不是轮换权限级别：`Shift+Tab` 什么时候都是；`Tab` 在命令列表没开时是（开着时补全命令）。
+fn cycles_level(key: &KeyEvent, menu_open: bool) -> bool {
+    key.code == KeyCode::BackTab
+        || (key.code == KeyCode::Tab && key.modifiers.is_empty() && !menu_open)
+}
+
+#[cfg(test)]
+mod tests {
+    use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    use super::cycles_level;
+
+    #[test]
+    fn tab_and_shift_tab_cycle_the_level_unless_the_menu_wants_tab() {
+        let tab = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
+        let back = KeyEvent::new(KeyCode::BackTab, KeyModifiers::SHIFT);
+        assert!(cycles_level(&tab, false), "Tab 轮换");
+        assert!(cycles_level(&back, false), "Shift+Tab 留着");
+        assert!(!cycles_level(&tab, true), "命令列表开着：Tab 补全命令");
+        assert!(cycles_level(&back, true));
+    }
+}
