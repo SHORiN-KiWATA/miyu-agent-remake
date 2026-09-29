@@ -15,7 +15,7 @@ use miyu_kernel::origin::{By, Person};
 use miyu_kernel::session::{Command, Outcome};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_session::{
-    Create, Handle, Lineage, Load, Models, Pushed, SandboxCache, SessionPort, Stopped,
+    Create, Handle, Jobs, Lineage, Load, Models, Pushed, SandboxCache, SessionPort, Stopped,
     Subscription, create, load, new_id,
 };
 use miyu_store::env::{Env, Platform};
@@ -61,6 +61,8 @@ pub struct Home {
     pub root: DataRoot,
     pub resources: ResourceRoot,
     pub home: PathBuf,
+    /// 执行器的任务表（施工 7-3）：这个场地里的会话共用一张，和核心里一样。
+    pub jobs: Arc<Jobs>,
 }
 
 /// 造会话时可以换的几样（施工 4-3 下）。
@@ -152,6 +154,7 @@ impl Home {
             scratch,
             root,
             home,
+            jobs: Arc::new(Jobs::new()),
             resources: ResourceRoot::at(
                 Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"),
             ),
@@ -211,6 +214,7 @@ impl Home {
             sandbox_cache: opening.sandbox_cache,
             lineage: lines.lineage,
             sessions: lines.sessions,
+            jobs: &self.jobs,
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -266,6 +270,7 @@ impl Home {
             sandbox: None,
             sandbox_cache: None,
             sessions,
+            jobs: &self.jobs,
         });
         within("载入", loaded).await.expect("载入得了会话")
     }

@@ -107,8 +107,9 @@ fn a_report_for_an_undone_job_in_the_last_step_opens_nothing() {
 fn a_report_after_its_start_was_compacted_still_opens_a_turn() {
     let mut s = dispatched(stage());
     s.compact("派了两个任务。");
-    s.model([Line::says("测试过了。")]);
-    s.job_ends(2, JobReason::Exited, starter(), None);
+    s.model([Line::says("看到了。")]);
+    // 压缩时载入过：在跑的后台命令 j2 补了 aborted（施工 7-3），这里用还会回报的子代理。
+    s.child_reports(1, CHILD, ChildReason::Done, "先报一次。");
     assert_eq!(s.turns().len(), 3, "载入时压缩以前派的也记着，照常开");
     // 撤掉后来的一次压缩、读回的是前一次压缩以后的那一段：派它的那一条不在里面，也照常开。
     s.model([Line::says("好。")]);
@@ -242,18 +243,39 @@ fn undoing_a_turn_a_report_carried_on_takes_the_queued_message_and_keeps_the_rep
 
 #[test]
 fn a_command_ending_while_reading_back_waits_for_the_undo() {
+    // 载入给在跑的后台命令补 aborted（施工 7-3）：压缩时的载入已经补了 j2，这里读回时到的是载入以后派的 j3。
     let mut s = dispatched(stage());
     s.compact("S");
-    let log = s.log().to_vec();
-    let (mut session, _) = load(log.clone());
-    let actions = session.handle(undo(20, 3));
+    let (session, actions) = load(s.log().to_vec());
+    assert!(appended_events(&actions).is_empty(), "j2 已经补过了");
+    let mut logged = Logged {
+        session,
+        log: s.log().to_vec(),
+    };
+    let seen = logged.ask(40, "再跑一次");
+    logged.tools(seen, &[("shell", "{}")]);
+    let reply = logged.last() - 1;
+    let mut done = super::super::executor::done(call(reply, 1), "Started j3.");
+    if let Input::ToolDone { effects, .. } = &mut done {
+        effects.push(Effect::JobStarted(JobStarted {
+            job: JobId::new(3).unwrap(),
+            what: JobKind::Command,
+            title: "跑测试".to_string(),
+            session: None,
+        }));
+    }
+    logged.handle(done);
+    let actions = logged.handle(stored(logged.last()));
+    let (seen, _) = calls(&actions).remove(0);
+    logged.say(seen.get(), "放出去了。");
+    let actions = logged.handle(undo(20, 3));
     assert_eq!(actions, [Action::ReadBack { from: seq(1) }]);
     let ended = Input::JobEnded {
         at: at(57),
         by: starter(),
-        cause: Some(id(1)),
+        cause: Some(id(40)),
         reported: crate::event::JobReported {
-            job: crate::id::JobId::new(2).unwrap(),
+            job: crate::id::JobId::new(3).unwrap(),
             reason: JobReason::Exited,
             exit_code: Some(0),
             signal: None,
@@ -263,11 +285,11 @@ fn a_command_ending_while_reading_back_waits_for_the_undo() {
             chars: None,
         },
     };
-    assert_eq!(session.handle(ended), [], "读回的时候先放着");
-    let actions = session.handle(Input::ReadBack {
+    assert_eq!(logged.session.handle(ended), [], "读回的时候先放着");
+    let actions = logged.session.handle(Input::ReadBack {
         at: at(58),
         from: seq(1),
-        events: log,
+        events: logged.log.clone(),
     });
     let events = appended_events(&actions);
     let kinds: Vec<&str> = events.iter().map(|event| event.body.kind()).collect();

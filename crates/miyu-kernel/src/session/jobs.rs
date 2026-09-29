@@ -126,16 +126,49 @@ impl Session {
         self.open_turn(at, last.seq, last.cause)
     }
 
+    /// 载入时：有 `job.started`、还没报过结束的后台命令，进程跟着崩了的核心没了，照编号各补一条 `job.reported`
+    /// （`aborted`），`by` 是内核，没有 `cause`，时刻是载入的那一刻（施工 7-3，`agents.md` 第八条第 1 条，不变量 8）。
+    /// 不写用时、输出：进程什么时候没的不知道。只记下，不叫醒她。交回追加的事件。
+    ///
+    /// # Panics
+    ///
+    /// 过不了账本：内核自己的 bug，和内核自己造的别的事件一样停下。
+    pub(super) fn abort_commands(&mut self, at: Timestamp) -> Vec<Event> {
+        let mut events = Vec::new();
+        for job in self.ledger.running_commands() {
+            let reported = JobReported {
+                job,
+                reason: JobReason::Aborted,
+                exit_code: None,
+                signal: None,
+                by_model: false,
+                duration_ms: None,
+                output: None,
+                chars: None,
+            };
+            match self.arrive(at, By::Kernel, None, Body::JobReported(reported)) {
+                Ok(recorded) => events.extend(recorded),
+                Err(error) => {
+                    panic!("the kernel's own event failed the ledger, a kernel bug: {error}")
+                }
+            }
+        }
+        events
+    }
+
     /// 没人看着的一次性会话：`miyu ask` 开的，这时没有头订阅着。回报只记下，等人开口（2026-09-29 项目主人定）。
     pub(super) fn unwatched(&self) -> bool {
         self.oneshot && !self.watched
     }
 
     /// 闲着时回报这时开得了一轮：能恢复撤销的时候不开，恢复了或者人说了下一句再说（`02-内核.md` 第六节「撤销与恢复」）；
-    /// 正在改回文件的时候不开；没人看着的一次性会话不开。读回日志的时候回报到不了这里：后台命令结束先放着，子会话的回报
-    /// 照别的命令拒绝。
+    /// 正在改回文件的时候不开；没人看着的一次性会话不开；要重启了的不开（施工 7-3）。读回日志的时候回报到不了这里：后台
+    /// 命令结束先放着，子会话的回报照别的命令拒绝。
     fn can_wake(&self) -> bool {
-        !self.unwatched() && self.ledger.last_reverted().is_none() && self.restoring.is_none()
+        !self.unwatched()
+            && !self.restarting
+            && self.ledger.last_reverted().is_none()
+            && self.restoring.is_none()
     }
 
     /// 派它的那一轮撤掉了：回报不渲染，也不叫醒她（`agents.md` 第七条第 2 条）。没派过的一样。

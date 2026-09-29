@@ -416,7 +416,7 @@
 
 - `session.created` 的分叉来源：做分叉时加（`03-事件模型.md` 第七节）。
 - `tool.result` 里大输出的全文（`03-事件模型.md` 第三节，`08-上下文投影.md` C9）。
-- `job.started`、`session.created` 的 `parent`、`depth`：读写、账本都有了，还没有哪里写（7-3、7-5）。`job.reported`、`child.reported` 内核收得下、渲染得出（施工 7-2），还没有真的执行器、子会话交（7-3、7-6）。
+- `job.started` 的后台命令由 `shell` 写、`job.reported` 由执行器的任务表交、载入时内核补 `aborted`（施工 7-3）；子代理的 `job.started`、`session.created` 的 `parent`、`depth` 还没有哪里写（7-5），`child.reported` 内核收得下、渲染得出（施工 7-2），还没有子会话交（7-6）。
 - 会问人的工具：`question.asked` 读写都有了，还没有工具会问（`ask_user`，`10-自带软件.md` 第三节）。
 - 选了「本会话都允许」「这个工作区以后都允许」的，决定记下了，执行前的链还不照它放行；工作区的那种还要存进工作区的配置（`02-内核.md` 第六节「确认怎么走」第 3 条，M5）。
 - `session.policy_changed` 的 `policy`：换策略快照（目录变了、配置改了）还没有，内核只写过换权限（`05-内核接口.md` 第八节，`02-内核.md` K3）。

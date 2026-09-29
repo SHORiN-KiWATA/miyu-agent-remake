@@ -57,11 +57,16 @@ impl Home {
 
     /// 一份核心：管理员 admin，请求模型照 `models`。
     pub fn core(&self, models: Arc<dyn Models>, token: &str) -> Arc<Core> {
+        self.core_with(models, token, Catalog::default())
+    }
+
+    /// 同上，工具目录是 `tools`（施工 7-3）。
+    pub fn core_with(&self, models: Arc<dyn Models>, token: &str, tools: Catalog) -> Arc<Core> {
         Arc::new(Core::new(
             self.root.clone(),
             ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")),
             models,
-            Catalog::default(),
+            tools,
             None,
             miyu_core::admin(),
             token.to_string(),

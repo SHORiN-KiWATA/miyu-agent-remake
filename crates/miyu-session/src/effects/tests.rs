@@ -199,3 +199,24 @@ fn what_she_saw_is_rebuilt_from_the_log() {
     );
     assert_eq!(rebuilt.len(), 2);
 }
+
+/// 派出去的任务照原样换成内核的 `job.started`（施工 7-3），不是看过的文件。
+#[test]
+fn a_started_job_passes_through_and_is_not_a_seen_file() {
+    use miyu_kernel::event::{JobKind, JobStarted};
+    let scratch = Scratch::new();
+    let started = JobStarted {
+        job: miyu_kernel::id::JobId::new(1).unwrap(),
+        what: JobKind::Command,
+        title: "跑测试".to_string(),
+        session: None,
+    };
+    let effects = store(
+        &Blobs::new(scratch.0.join("blobs")),
+        vec![miyu_tool::Effect::JobStarted(started.clone())],
+    );
+    assert_eq!(effects, [Effect::JobStarted(started)]);
+    let mut seen = Seen::new();
+    saw(&mut seen, &effects);
+    assert!(seen.is_empty());
+}

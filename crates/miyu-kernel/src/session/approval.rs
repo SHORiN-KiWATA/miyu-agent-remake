@@ -58,6 +58,7 @@ impl Session {
                     &cwd,
                     &dirs,
                     &self.effective,
+                    cause.as_ref(),
                 )];
             }
             Verdict::Deny {

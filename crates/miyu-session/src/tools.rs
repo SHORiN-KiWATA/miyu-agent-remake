@@ -25,7 +25,7 @@ use miyu_kernel::session::{Input, Reread, Step};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_policy::RunTexts;
 use miyu_store::blob::Blobs;
-use miyu_tool::{Call, Catalog, Done, Log, Progress, Seen, Stop};
+use miyu_tool::{Call, Catalog, Done, JobPort, Log, Progress, Seen, Stop};
 
 use crate::TARGET;
 use crate::agents::Agents;
@@ -130,6 +130,8 @@ pub(crate) struct Dispatch {
     pub(crate) dirs: Vec<String>,
     /// 派出去那一刻实际生效的那一级：沙盒照它写规格。
     pub(crate) permission: Permission,
+    /// 这次调用的任务端口（施工 7-3）：`shell` 把后台命令交给它。
+    pub(crate) jobs: Arc<dyn JobPort>,
 }
 
 impl Tools {
@@ -200,6 +202,7 @@ impl Tools {
             cwd,
             dirs,
             permission,
+            jobs,
         } = dispatch;
         let stop = Stop::default();
         // 派子代理的端口照这一轮的目录、这一刻的权限抄（施工 7-5）：沙盒下面照样要用它们。
@@ -218,6 +221,7 @@ impl Tools {
             log: Some(self.log.clone()),
             offset: self.offset,
             agents,
+            jobs: Some(jobs),
         };
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name).cloned() else {

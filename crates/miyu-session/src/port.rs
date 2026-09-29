@@ -151,4 +151,6 @@ pub(crate) enum Back {
     Woke { seen: Seq },
     /// 跑工具的任务送回来的（施工 4-2）。
     Tool(crate::tools::ToolBack),
+    /// 一条后台命令结束了（施工 7-3）。
+    Job(crate::jobs::Ended),
 }

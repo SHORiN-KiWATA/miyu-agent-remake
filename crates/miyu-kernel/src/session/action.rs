@@ -139,6 +139,9 @@ pub enum Action {
         dirs: Vec<String>,
         /// 派出去那一刻实际生效的那一级（施工 5-4 上）：执行器照它给这次调用写沙盒的规格。
         permission: Permission,
+        /// 这一轮的 `cause`，也是这次调用的结果的（施工 7-3）：它起的后台命令自己退出了，执行器照它填 `job.reported` 的
+        /// `cause`（`kernel/session.md`「回报」第 2 条）。
+        cause: Option<CommandId>,
     },
 }
 

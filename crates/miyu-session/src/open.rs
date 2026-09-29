@@ -21,7 +21,7 @@ use miyu_store::root::DataRoot;
 use miyu_tool::{AGENT, Catalog, Log, Seen};
 
 use crate::TARGET;
-use crate::actor::{self, Actor};
+use crate::actor::{self, Actor, JobKit};
 use crate::agents::Agents;
 use crate::blocking::blocking;
 use crate::clock::Clock;
@@ -29,6 +29,7 @@ use crate::effects;
 use crate::guard::Guard;
 use crate::handle::Handle;
 use crate::job_ids::JobIds;
+use crate::jobs::Jobs;
 use crate::port::{ForSession, Models};
 use crate::sandbox::SandboxCache;
 use crate::spawn::{Lineage, SessionPort};
@@ -79,6 +80,8 @@ pub struct Create<'a> {
     /// 造子会话、给别的会话发命令的端口（施工 7-5）：会话表交进来，派子代理经它。没有的（测试里自己造的），`agent` 照派
     /// 不了出错。
     pub sessions: Option<Arc<dyn SessionPort>>,
+    /// 执行器的任务表，核心里一张（施工 7-3）：后台命令交给它。
+    pub jobs: &'a Arc<Jobs>,
 }
 
 /// 载入一个会话要的。
@@ -105,6 +108,8 @@ pub struct Load<'a> {
     pub sandbox_cache: Option<SandboxCache>,
     /// 造子会话、给别的会话发命令的端口（施工 7-5）：同 [`Create::sessions`]。
     pub sessions: Option<Arc<dyn SessionPort>>,
+    /// 执行器的任务表，核心里一张（施工 7-3）：后台命令交给它，任务编号照日志往后数。
+    pub jobs: &'a Arc<Jobs>,
 }
 
 /// 造不成。
@@ -165,6 +170,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         sandbox_cache,
         lineage,
         sessions,
+        jobs,
     } = setup;
     let span = actor::span(&id);
     let (resources, name) = (resources.clone(), persona.to_string());
@@ -177,6 +183,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let offset = environment.offset;
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
+    let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
     let (snapshot, policy, texts, run, guard, log) = blocking(move || {
         let sources = resources.sources(&name).map_err(CreateError::Persona)?;
         let mut snapshot = compose(&name, sources, attended).with_tools(face);
@@ -225,6 +232,12 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     session.handle(Input::Limits(model.limits()));
     let limits = session.context_limits();
     let job_ids = Arc::new(JobIds::starting_after(session.last_job_number()));
+    let jobs = JobKit {
+        table,
+        dir: jobs_dir,
+        blobs: kept.clone(),
+        ids: Arc::clone(&job_ids),
+    };
     let (inbox, mailbox) = mpsc::unbounded_channel();
     let guard = Guard::new(
         tools.clone(),
@@ -251,6 +264,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             job_ids,
             agents,
         },
+        jobs,
         guard,
         mailbox,
         clock,
@@ -313,6 +327,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         sandbox,
         sandbox_cache,
         sessions,
+        jobs,
     } = setup;
     let span = actor::span(&id);
     let dir = root.session_dir(&owner, &id);
@@ -320,6 +335,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let offset = environment.offset;
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
+    let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
     let (log, events, created, attended, policy, texts, run, guard) = blocking(move || {
         let (log, events) = SessionLog::open(&dir, SEGMENT_LIMIT).map_err(LoadError::Log)?;
         let created = match events.first().map(|event| &event.body) {
@@ -362,6 +378,12 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     session.handle(Input::Limits(model.limits()));
     let limits = session.context_limits();
     let job_ids = Arc::new(JobIds::starting_after(session.last_job_number()));
+    let jobs = JobKit {
+        table,
+        dir: jobs_dir,
+        blobs: kept.clone(),
+        ids: Arc::clone(&job_ids),
+    };
     let (inbox, mailbox) = mpsc::unbounded_channel();
     let guard = Guard::new(
         tools.clone(),
@@ -388,6 +410,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             job_ids,
             agents,
         },
+        jobs,
         guard,
         mailbox,
         clock,

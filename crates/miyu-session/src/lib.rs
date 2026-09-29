@@ -12,6 +12,7 @@
 //!   执行器请求（施工 3-7 下），测试里照剧本回；
 //! - [`new_id`]：新的会话编号；
 //! - [`SessionPort`]：造子会话、给别的会话发命令的端口（施工 7-5），会话表实现、造会话和载入时交进来。
+//! - [`Jobs`]：执行器的任务表，核心里一张：后台命令活过起它的那次调用（施工 7-3）。
 
 mod actor;
 mod agents;
@@ -22,6 +23,7 @@ mod guard;
 mod handle;
 mod http;
 mod job_ids;
+mod jobs;
 mod kinds;
 mod lines;
 mod open;
@@ -39,6 +41,7 @@ mod tools;
 pub use clock::new_id;
 pub use handle::{Ended, Handle, Pushed, Stopped, Subscription};
 pub use http::{HttpModels, IDLE};
+pub use jobs::Jobs;
 pub use open::{Create, CreateError, Load, LoadError, create, load};
 pub use port::{Cancel, ForSession, ModelPort, Models, Reports};
 pub use sandbox::SandboxCache;

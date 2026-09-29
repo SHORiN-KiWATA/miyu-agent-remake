@@ -94,7 +94,8 @@ impl Session {
     /// 日志停在一个没结束的回合里，就是崩了：还没有结果的调用各补一条「已取消：Miyu 重启了，没跑完」，
     /// 再结束这一轮，原因 `aborted`，等人开口。最后一轮是被有计划的重启打断的（`restarted`），自动
     /// 开一轮接着干；连着被打断的轮数超过了策略里的上限，就不接。补的、开的事件在返回的动作里，
-    /// 时刻是 `at`，`by` 是内核。没听到的回报不因为载入开轮：记在一边的照日志算回来，恢复了撤销再说；有没有头订阅着
+    /// 时刻是 `at`，`by` 是内核。有 `job.started`、还没报过结束的后台命令，先各补一条 `job.reported`（`aborted`，施工
+    /// 7-3）。没听到的回报不因为载入开轮：记在一边的照日志算回来，恢复了撤销再说；有没有头订阅着
     /// 当没有，头订阅了再交（施工 7-2）。
     ///
     /// # Errors
@@ -150,9 +151,12 @@ impl Session {
             oneshot: replay.oneshot,
             watched: false,
             deferred: std::mem::take(&mut replay.deferred),
+            restarting: false,
         };
         let mut actions: Vec<Action> = session.recall().into_iter().collect();
-        let events = session.recover(at, replay);
+        // 崩了的核心带走了在跑的后台命令：先补它们的结束，再收拾没走完的那一轮（施工 7-3）。
+        let mut events = session.abort_commands(at);
+        events.extend(session.recover(at, replay));
         if !events.is_empty() {
             actions.push(Action::Append(events));
         }

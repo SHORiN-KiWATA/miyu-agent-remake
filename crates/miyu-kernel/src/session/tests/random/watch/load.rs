@@ -3,11 +3,14 @@
 //! - 有计划的重启：正在进行的回合以 `restarted` 结束，排着队的不接着开；
 //! - 崩了再载入：日志停在没结束的回合里的，没结果的调用都补上，以 `aborted` 结束，不接着开；
 //! - 再起来：最后一轮以 `restarted` 结束、连着被打断的没超过上限，接着开一轮，由排着队的最后一条
-//!   触发，没有就由那条结束触发；超过了上限，什么都不补。
+//!   触发，没有就由那条结束触发；超过了上限，什么都不补；
+//! - 还没结束的后台命令，照编号各补一条 `aborted`（`by` 是内核），排在最前（施工 7-3）。
 //!
 //! 只在全都落了盘的时候崩：没落盘的丢了，对内核来说就是在更早那一刻崩的。
 
 use super::*;
+use crate::event::JobReason;
+use crate::id::JobId;
 
 /// 看守记着的重启：连着几轮被有计划的重启打断，最后那一轮结束时排着队的消息。
 #[derive(Default)]
@@ -115,6 +118,30 @@ impl Watch {
             })
             .flatten()
             .collect();
+        // 还没结束的后台命令先各补一条 aborted，照编号（施工 7-3）；下面照原来的查剩下的。
+        let running: Vec<JobId> = self
+            .reports
+            .jobs
+            .iter()
+            .filter(|(_, job)| job.session.is_none() && !job.over)
+            .map(|(job, _)| *job)
+            .collect();
+        let aborted: Vec<JobId> = appended
+            .iter()
+            .map_while(|event| match &event.body {
+                Body::JobReported(reported)
+                    if reported.reason == JobReason::Aborted && event.by == By::Kernel =>
+                {
+                    Some(reported.job)
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            aborted, running,
+            "种子 {seed}：没结束的后台命令照编号各补一条 aborted，排在最前：{appended:?}"
+        );
+        let appended = appended[aborted.len()..].to_vec();
         // 还算数的检查点重读过文件的，第一个动作是取回原文，要的就是它那几份（施工 6-9）。
         let recall = self
             .compactions
@@ -170,8 +197,8 @@ impl Watch {
                     .insert(TurnId::new(appended[0].seq), queued.unwrap_or_default());
             }
             (None, None) => assert!(
-                rest.is_empty(),
-                "种子 {seed}：不用收尾、不用接着开的，什么都不补：{actions:?}"
+                appended.is_empty() && rest.len() == usize::from(!aborted.is_empty()),
+                "种子 {seed}：不用收尾、不用接着开的，只补没结束的后台命令：{actions:?}"
             ),
         }
         for action in actions {

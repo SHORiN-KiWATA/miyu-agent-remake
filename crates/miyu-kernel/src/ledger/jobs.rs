@@ -97,6 +97,15 @@ impl Jobs {
         Ok(())
     }
 
+    /// 还没报过结束的后台命令，照编号（施工 7-3）。
+    pub(super) fn running_commands(&self) -> Vec<JobId> {
+        self.0
+            .iter()
+            .filter(|(_, job)| matches!(job, Job::Command { ended: false }))
+            .map(|(id, _)| *id)
+            .collect()
+    }
+
     /// 记下查过的这一条带来的变化：派出去的记下，后台命令报了就结束，子代理以 `stopped`、`undone` 报了就不会再报。
     pub(super) fn record(&mut self, body: &Body) {
         match body {

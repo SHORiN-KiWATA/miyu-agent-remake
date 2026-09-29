@@ -191,3 +191,16 @@ fn a_tail_that_starts_at_a_line_start_keeps_that_line() {
         &tail[..20]
     );
 }
+
+/// 后台命令的输出一段段换行尾（施工 7-3）：`\r\n` 切在两段中间的也换，单独的 `\r` 不动，最后留着的交回来。
+#[test]
+fn line_ends_are_made_unix_across_pieces() {
+    let mut crlf = Crlf::default();
+    let pieces = ["a\r", "\nb\r", "c\r", "", "\r\n", "d\r"];
+    let mut got: String = pieces.iter().map(|piece| crlf.push(piece)).collect();
+    got.push_str(&crlf.finish());
+    let whole: String = pieces.concat();
+    assert_eq!(got, whole.replace("\r\n", "\n"), "和一整段换出来的一样");
+    assert_eq!(got, "a\nb\rc\r\nd\r");
+    assert_eq!(crlf.finish(), "", "交回过了就没有了");
+}

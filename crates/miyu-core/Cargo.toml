@@ -41,6 +41,8 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 [dev-dependencies]
 # 测试里请求模型照剧本回。
 miyu-session = { path = "../miyu-session", features = ["testkit"] }
+# 测试里的假工具：把假的后台命令交给任务表（施工 7-3）。
+miyu-tool = { path = "../miyu-tool", features = ["testkit"] }
 tokio = { version = "1", features = ["io-util", "macros", "rt", "time"] }
 
 [lints]

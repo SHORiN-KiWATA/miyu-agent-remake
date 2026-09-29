@@ -8,12 +8,14 @@
 //! - [`log`]：会话日志，按段存成 JSONL，一批一次写入、一次同步，打开时自检；
 //! - [`blob`]：大内容按内容哈希存，先写临时文件、同步、再改名，读的时候核对哈希；
 //! - [`resources`]：资源目录在哪，读出一个人格要用的原文，交给 `miyu-policy` 拼快照；
-//! - [`human`]：资源目录里给人看的字，照说法换成一句话（施工 4-5 上）。
+//! - [`human`]：资源目录里给人看的字，照说法换成一句话（施工 4-5 上）；
+//! - [`jobs`]：会话目录下后台命令的输出（施工 7-3）。
 
 pub mod blob;
 mod durable;
 pub mod env;
 pub mod human;
+pub mod jobs;
 pub mod log;
 pub mod resources;
 pub mod root;

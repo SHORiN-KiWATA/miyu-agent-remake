@@ -97,6 +97,8 @@ pub struct Session {
     /// 闲着时到的、会叫醒她、这时却开不了一轮的回报，照先后（施工 7-2，`jobs.rs`）：随便哪一轮开了就清掉；恢复了撤销、
     /// 这时开得了，由最后那条接着开。
     deferred: Vec<Arrived>,
+    /// 收到了「要重启了」（施工 7-3）：要关了，之后到的回报只记下、不开轮。只在内存里。
+    restarting: bool,
 }
 
 impl Session {
@@ -136,6 +138,7 @@ impl Session {
             oneshot: created.oneshot,
             watched: false,
             deferred: Vec::new(),
+            restarting: false,
         };
         let event = session.record(at, by, Some(id.clone()), Body::SessionCreated(created));
         session.accept(id, vec![event.seq]);

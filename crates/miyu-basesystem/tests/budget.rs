@@ -5,12 +5,14 @@
 //! token，说明合计 3998 字节，约 3.7 字节一个 token；预算是实测加一成，1184 个 token，合 4400 字节（项目主人定照
 //! 字节守）。施工 4-13 重量：`read` 加上图片、`shell` 加 `description`，合计 1119 个 token、4149 字节，预算改成
 //! 1231 个 token，合 4600 字节。施工 6-4 加了 `history`：八件合计 1306 个 token、4832 字节，预算改成 1437 个 token，合 5400
-//! 字节。施工 7-5 加了 `agent`（边际份量 140）：九件合计 1444 个 token、5369 字节，预算改成 1589 个 token，合 6000 字节。加工具、改说明超了，重新量过再改这里和设计。
+//! 字节。施工 7-5 加了 `agent`（边际份量 140）：九件合计 1444 个 token、5369 字节，预算改成 1589 个 token，合 6000 字节。施工 7-3 给
+//! `shell` 加 `run_in_background`（边际份量 152 → 183）：九件合计 1476 个 token、5494 字节，预算改成 1624 个 token，合 6100
+//! 字节。加工具、改说明超了，重新量过再改这里和设计。
 
 use std::path::Path;
 
 /// 预算：字节，回车 `\r` 不算（Windows 上检出的可能多出回车）。
-const BUDGET: usize = 6000;
+const BUDGET: usize = 6100;
 
 #[test]
 fn the_tool_face_stays_within_its_budget() {

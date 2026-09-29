@@ -121,6 +121,7 @@ impl Sessions {
             sandbox_cache: core.sandbox_cache_of(&core.admin),
             lineage: None,
             sessions: Some(spawn::port(core)),
+            jobs: &core.jobs,
         })
         .await;
         let handle = match created {
@@ -224,6 +225,7 @@ impl Sessions {
             sandbox: core.sandbox.helper(),
             sandbox_cache: core.sandbox_cache_of(&core.admin),
             sessions: Some(spawn::port(core)),
+            jobs: &core.jobs,
         })
         .await;
         let handle = match loaded {
@@ -277,6 +279,7 @@ impl Sessions {
             sandbox: core.sandbox.helper(),
             lineage: Some(child.lineage),
             sessions: Some(spawn::port(core)),
+            jobs: &core.jobs,
         })
         .await
         .map_err(|error| error.to_string())?;

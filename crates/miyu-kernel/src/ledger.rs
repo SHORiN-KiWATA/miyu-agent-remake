@@ -13,7 +13,7 @@ use std::fmt;
 
 use crate::block::Block;
 use crate::event::{Body, Event};
-use crate::id::{CallId, Seq, TurnId};
+use crate::id::{CallId, JobId, Seq, TurnId};
 
 mod jobs;
 mod undo;
@@ -139,6 +139,11 @@ impl Ledger {
     /// 它的下一个数起（`kernel/ids.md`「任务编号」）。
     pub fn last_job_number(&self) -> u64 {
         self.jobs.last()
+    }
+
+    /// 还没报过结束的后台命令，照编号（施工 7-3：载入时给它们补 `aborted`）。
+    pub fn running_commands(&self) -> Vec<JobId> {
+        self.jobs.running_commands()
     }
 
     /// 查 `event` 能不能追加；能，就记下它带来的变化。

@@ -2,7 +2,8 @@
 //! 到时、叫停时整组杀掉。
 //!
 //! - Unix 上命令自成一个进程组，用 `rustix` 的安全接口 `kill(-pgid, SIGKILL)` 杀整组。命令退出以后，组里还在跑的
-//!   （`&` 放到后台的）也杀掉：前台命令做完了，它起的东西不留（后台命令随 M7）。
+//!   （`&` 放到后台的）也杀掉：命令做完了，它起的东西不留。后台命令（施工 7-3）照同一套起、同一套杀，见
+//!   `background.rs`。
 //! - Windows 上用系统自带的 `taskkill /T /F` 杀整棵进程树，只在命令还在跑的时候杀：进程编号回收得快，退出以后再
 //!   按编号杀可能杀错。
 //! - 命令退出以后，管道最多再读 [`DRAIN`]：还有东西拿着管道的（Windows 上它放出去的孙进程），不等它。
@@ -57,15 +58,13 @@ pub(super) struct Started {
     read: mpsc::Receiver<()>,
 }
 
-/// 起命令：读到的一段段解成字交给 `progress`。
+/// 起命令：标准输入接空的，标准输出、标准错误接到同一根管道上，自成一组。交回它的进程、整组杀的时候认它的那个编号、
+/// 管道读的一头。前台、后台（施工 7-3）都这样起。
 ///
 /// # Errors
 ///
 /// 管道建不起来，或者程序起不来（找不到、工作目录不在）。
-pub(super) fn start(
-    mut command: Command,
-    progress: impl Fn(String) + Send + 'static,
-) -> io::Result<Started> {
+pub(super) fn spawn(mut command: Command) -> io::Result<(Child, Group, io::PipeReader)> {
     let (pipe, writer) = io::pipe()?;
     command
         .stdin(Stdio::null())
@@ -75,6 +74,19 @@ pub(super) fn start(
     // 父进程手里的写端在 `command` 里，这个函数一返回就跟着它关掉：留着的话，命令都退出了读的一头也读不到结尾。
     let child = command.spawn()?;
     let group = Group(child.id());
+    Ok((child, group, pipe))
+}
+
+/// 起前台的命令：读到的一段段解成字交给 `progress`。
+///
+/// # Errors
+///
+/// 同 [`spawn`]。
+pub(super) fn start(
+    command: Command,
+    progress: impl Fn(String) + Send + 'static,
+) -> io::Result<Started> {
+    let (child, group, pipe) = spawn(command)?;
     let output = Arc::new(Mutex::new(Capture::default()));
     let (done, read) = mpsc::channel();
     let theirs = Arc::clone(&output);
@@ -209,7 +221,7 @@ impl Group {
     }
 
     /// 命令退出以后，组里还在跑的也杀掉。Windows 上不杀：退出以后按编号杀可能杀错。
-    fn leftovers(self) {
+    pub(super) fn leftovers(self) {
         if cfg!(unix) {
             kill(self.0);
         }

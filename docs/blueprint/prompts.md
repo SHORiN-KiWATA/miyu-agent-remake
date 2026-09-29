@@ -987,13 +987,24 @@ Could not run {shell}: {error}.
 
 #### `software/basesystem/shell/no-background.txt`
 
-- 什么时候加进来：写了 `run_in_background: true`
-- token：约 25（估的）
-- 为什么加：后台命令随 M7；照 Claude Code 的习惯写了的，告诉她在前台跑、慢的放宽 `timeout`
-- 指纹：`4e7264a9`
+- 什么时候加进来：写了 `run_in_background: true`，这次调用却没有任务端口（会话外面的调用，例如测试；会话里总有）
+- token：25
+- 为什么加：告诉她在前台跑、慢的放宽 `timeout`。施工 7-3 起会话里放得到后台，`yet` 改成 `here`（2026-09-30 量）
+- 指纹：`5a85e7d4`
 
 ```text
-Running in the background is not available yet. Run the command in the foreground, with a larger timeout if it is slow.
+Running in the background is not available here. Run the command in the foreground, with a larger timeout if it is slow.
+```
+
+#### `software/basesystem/shell/started.txt`
+
+- 什么时候加进来：放到后台了，调用当场返回
+- token：22（`{job}` 按 `j1` 算）
+- 为什么加：她要知道编号、不用等也不用去查（结束了回报自己来，`agents.md` 第三条），和看输出的路；标题是她自己写的，不重复（施工 7-3，照 Claude Code 后台命令的回执）
+- 指纹：`64203e85`
+
+```text
+Started {job} in the background. You will be told when it ends. Read its output with jobs output.
 ```
 
 #### `software/basesystem/history/none.txt`
@@ -1455,14 +1466,14 @@ You are a subagent, started by another session to do one task. That parent sessi
 #### `software/basesystem/tools/shell.json`
 
 - 什么时候加进来：会话的工具面里有 `shell`（每次请求都带）
-- token：152
-- 为什么加：`shell` 的说明和参数，照 Claude Code：`command` 看名字就懂，不写说明；`timeout` 是毫秒、上限和默认值写在那一句里。说明三句：用哪种 shell（`{shell}` 在核心起来时换成 `bash`、`zsh`、`PowerShell 7`、`Windows PowerShell 5.1`，会话里不变），编译、测试、git 用它、读搜改文件用专用的工具，每次从工作目录起、`cd` 不带到下一次。`run_in_background` 这一步不声明（施工 4-8）。施工 4-13 加必填的 `description`：这条命令在做什么的短标题，前端显示用，名字照 Claude Code、opencode（2026-09-28 项目主人定，+30）
-- 指纹：`994cd6cf`
+- token：183
+- 为什么加：`shell` 的说明和参数，照 Claude Code：`command` 看名字就懂，不写说明；`timeout` 是毫秒、上限和默认值写在那一句里。说明三句：用哪种 shell（`{shell}` 在核心起来时换成 `bash`、`zsh`、`PowerShell 7`、`Windows PowerShell 5.1`，会话里不变），编译、测试、git 用它、读搜改文件用专用的工具，每次从工作目录起、`cd` 不带到下一次（施工 4-8）。施工 4-13 加必填的 `description`：这条命令在做什么的短标题，前端显示用，名字照 Claude Code、opencode（2026-09-28 项目主人定，+30）。施工 7-3 声明 `run_in_background`，一句：放到后台、不管超时、当场交回编号；「结束了会告诉你」是调用之后才用得上的，写进结果那一句（2026-09-30 量，+31；和 `agent` 一起九件时重量，照样 183）
+- 指纹：`7f8f4246`
 
 ```json
 {
   "description": "Execute a command with {shell} and return its output. Use it for builds, tests, git and other programs, not to read, search or edit files. Every call starts in the working directory, so cd does not carry over to the next call.",
-  "parameters": {"type":"object","properties":{"command":{"type":"string"},"description":{"type":"string","description":"Short title of what the command does, in a few words."},"timeout":{"type":"integer","description":"Milliseconds before the command is stopped, up to 600000. Default 120000."}},"required":["command","description"]}
+  "parameters": {"type":"object","properties":{"command":{"type":"string"},"description":{"type":"string","description":"Short title of what the command does, in a few words."},"timeout":{"type":"integer","description":"Milliseconds before the command is stopped, up to 600000. Default 120000."},"run_in_background":{"type":"boolean","description":"Run it in the background with no timeout and return a job id at once."}},"required":["command","description"]}
 }
 ```
 

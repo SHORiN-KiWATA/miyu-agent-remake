@@ -241,9 +241,19 @@ impl Stage {
 
     /// 有计划地重启：送进「要重启了」，再从「磁盘」载入。停住的请求、调用跟着没了。
     pub fn restart(&mut self) {
+        self.restarting();
+        self.reload();
+    }
+
+    /// 只送进「要重启了」，不载入：执行器停下之前还要交后台命令的结束（施工 7-3）。
+    pub fn restarting(&mut self) {
         let at = self.tick();
         self.run(Input::Restarting { at });
-        self.reload();
+    }
+
+    /// 内核照日志算的用过的最大任务编号（施工 7-3）：执行器从它往后数。
+    pub fn last_job_number(&self) -> u64 {
+        self.session.last_job_number()
     }
 
     /// 崩了：停住的请求、调用跟着没了，从「磁盘」载入。

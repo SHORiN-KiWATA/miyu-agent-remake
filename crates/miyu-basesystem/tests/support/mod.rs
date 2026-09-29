@@ -10,10 +10,13 @@ use std::time::{Duration, SystemTime};
 
 use miyu_kernel::block::Block;
 use miyu_kernel::event::{Event, Said};
+use miyu_kernel::id::JobId;
 use miyu_sandbox::Sandboxed;
 use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
-use miyu_tool::{AgentPort, Call, Done, Log, Progress, ReadLog, Seen, Stop, Tool};
+use miyu_tool::{
+    AgentPort, Background, Call, Done, JobPort, Log, Progress, ReadLog, Seen, Stop, Tool,
+};
 
 /// 源码树里的资源目录。
 pub fn resources() -> PathBuf {
@@ -159,6 +162,22 @@ impl Site {
         tool(name).run(call, Progress::new(|_| {})).await
     }
 
+    /// 在 `work/` 里调一次工具，任务端口是 `jobs`，关进沙盒 `sandbox`（施工 7-3：后台命令交给它）。
+    pub async fn done_jobs(
+        &self,
+        name: &str,
+        args: serde_json::Value,
+        jobs: Option<Arc<dyn JobPort>>,
+        sandbox: Option<Sandboxed>,
+    ) -> Done {
+        let call = Call {
+            jobs,
+            sandbox: sandbox.map(Arc::new),
+            ..self.call_for("work", args, Seen::new(), Stop::default())
+        };
+        tool(name).run(call, Progress::new(|_| {})).await
+    }
+
     /// 在场地里的 `cwd` 这个工作目录里的一次调用，不关进沙盒。
     fn call_for(&self, cwd: &str, args: serde_json::Value, seen: Seen, stop: Stop) -> Call {
         Call {
@@ -172,6 +191,7 @@ impl Site {
             log: None,
             offset: miyu_kernel::time::UtcOffset::UTC,
             agents: None,
+            jobs: None,
         }
     }
 }
@@ -240,5 +260,31 @@ pub fn readable(checked: &[Said], tools: &[&str]) {
                 "{language} 没有 {tool} 的显示名"
             );
         }
+    }
+}
+
+/// 测试用的任务端口（施工 7-3）：收下交来的后台命令，编号从 `j7` 数起；`refuse` 的不收，照任务表的规矩整组杀掉。
+#[derive(Default)]
+pub struct Taken {
+    pub commands: std::sync::Mutex<Vec<Background>>,
+    pub refuse: bool,
+}
+
+impl Taken {
+    /// 收下的第 `k` 条（从 0 数），拿走。
+    pub fn take(&self, k: usize) -> Background {
+        self.commands.lock().expect("没 panic").remove(k)
+    }
+}
+
+impl JobPort for Taken {
+    fn start(&self, command: Background) -> std::io::Result<JobId> {
+        if self.refuse {
+            command.process.kill();
+            return Err(std::io::Error::other("the session stopped"));
+        }
+        let mut commands = self.commands.lock().expect("没 panic");
+        commands.push(command);
+        Ok(JobId::new(6 + commands.len() as u64).expect("从 1 数起"))
     }
 }
