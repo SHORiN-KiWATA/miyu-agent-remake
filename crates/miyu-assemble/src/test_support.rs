@@ -170,7 +170,7 @@ impl Log {
         seq
     }
 
-    /// 压缩：摘要替代到第 `upto` 条为止。
+    /// 压缩：摘要替代到第 `upto` 条为止。压缩带着它所在的回合（施工 6-9）：在 [`Log::start`] 开的回合里压。
     pub(crate) fn compact(&mut self, upto: u64, summary: &str) {
         let body = format!(r#"{{"upto":{upto},"summary":{}}}"#, quoted(summary));
         self.push(KERNEL, "context.compacted", &body);

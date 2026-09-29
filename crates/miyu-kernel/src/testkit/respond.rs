@@ -79,6 +79,9 @@ impl Stage {
             }
             // 压完重读（施工 6-5）：照「磁盘」回。
             Action::Reread { seen, paths, limit } => self.reread(seen, paths, limit),
+            // 读回日志、取回原文（施工 6-9）：照「磁盘」回。
+            Action::ReadBack { from } => self.read_back(from),
+            Action::Recall { blobs } => self.recall(blobs),
             // 改回文件（施工 4-7 上）：替身不碰文件，每一步都当改回了。
             Action::Restore { steps } => vec![Input::Restored {
                 at: self.tick(),

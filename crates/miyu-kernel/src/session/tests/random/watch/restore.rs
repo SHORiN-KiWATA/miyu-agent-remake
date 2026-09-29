@@ -1,7 +1,7 @@
 //! 看守查改回文件（`docs/designs/10-自带软件.md` 第七节「改回文件的细则」，施工 4-7 上）：
 //!
 //! - 撤销、恢复的那几轮里改过文件的，同一批交出改回文件，一个改过的文件一步；没改过的不交；
-//! - 改回文件的时候，新来的命令一律拒绝，原因码 `restoring`；不开新的一轮；
+//! - 改回文件、读回日志（施工 6-9）的时候，新来的命令一律拒绝，原因码 `restoring`；不开新的一轮；
 //! - 结局回来了，只追加一条 `files.restored`，一步一项照原样，`by` 是撤销、恢复的人，不属于哪一轮；
 //! - 没在改的时候来的结局是过时的，不理。
 
@@ -26,9 +26,9 @@ pub(super) enum Expect {
 }
 
 impl Watch {
-    /// 新来的命令是不是撞上了改回文件：撞上的，别的看守不再照自己的规矩判。
+    /// 新来的命令是不是撞上了改回文件、读回日志：撞上的，别的看守不再照自己的规矩判。
     pub(super) fn restoring_refuses(&self, input: &Input) -> bool {
-        self.restoring.pending.is_some()
+        (self.restoring.pending.is_some() || self.undo.reading.is_some())
             && matches!(input, Input::Command(received) if self.fresh(&received.id))
     }
 
@@ -50,7 +50,10 @@ impl Watch {
         match expect {
             None => {}
             Some(Expect::Refused) => {
-                self.seen_paths.insert("改回文件时来的命令被拒");
+                self.seen_paths.insert(match self.undo.reading {
+                    Some(_) => "读回日志时来的命令被拒",
+                    None => "改回文件时来的命令被拒",
+                });
                 assert!(
                     matches!(
                         actions,

@@ -39,7 +39,7 @@ fn result(call: &str, status: &str) -> String {
 }
 
 /// 一段合规的会话：第一轮调了两个工具，结果倒着回来；第二轮被打断，又被撤销；
-/// 中间一条不认识的种类；然后压缩一次，再开一轮。
+/// 中间一条不认识的种类；然后再开一轮，一开头就压缩（压缩带着它所在的回合，施工 6-9）。
 fn session() -> Vec<Event> {
     vec![
         event(1, None, "session.created", CREATED),
@@ -68,14 +68,14 @@ fn session() -> Vec<Event> {
         event(14, Some(11), "turn.ended", r#"{"reason":"interrupted"}"#),
         event(15, None, "turn.reverted", r#"{"turns":[11]}"#),
         event(16, None, "ext.memory.recalled", r#"{"hits":[]}"#),
+        event(17, None, "message.user", SAID),
+        event(18, Some(18), "turn.started", r#"{"trigger":17}"#),
         event(
-            17,
-            None,
+            19,
+            Some(18),
             "context.compacted",
             r#"{"upto":16,"summary":"…"}"#,
         ),
-        event(18, None, "message.user", SAID),
-        event(19, Some(19), "turn.started", r#"{"trigger":18}"#),
     ]
 }
 
@@ -232,17 +232,38 @@ fn a_turn_ends_only_when_every_call_has_a_result() {
 
 #[test]
 fn compaction_only_moves_forward() {
+    let mut ledger = after(18);
+    refused(
+        &mut ledger,
+        &event(
+            19,
+            Some(18),
+            "context.compacted",
+            r#"{"upto":19,"summary":""}"#,
+        ),
+        "should come before this event",
+    );
+    let mut ledger = after(19);
+    refused(
+        &mut ledger,
+        &event(
+            20,
+            Some(18),
+            "context.compacted",
+            r#"{"upto":15,"summary":""}"#,
+        ),
+        "is before the last compaction's 16",
+    );
+}
+
+/// 压缩跟着它所在的回合撤（施工 6-9）：不带回合的压缩没有哪一轮撤得掉，账本不收。
+#[test]
+fn a_compaction_happens_only_in_a_turn() {
     let mut ledger = after(16);
     refused(
         &mut ledger,
-        &event(17, None, "context.compacted", r#"{"upto":17,"summary":""}"#),
-        "should come before this event",
-    );
-    let mut ledger = after(17);
-    refused(
-        &mut ledger,
-        &event(18, None, "context.compacted", r#"{"upto":15,"summary":""}"#),
-        "is before the last compaction's 16",
+        &event(17, None, "context.compacted", r#"{"upto":16,"summary":""}"#),
+        "context.compacted happens only in a turn and needs turn",
     );
 }
 

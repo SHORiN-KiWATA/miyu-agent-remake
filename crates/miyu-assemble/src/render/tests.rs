@@ -151,9 +151,11 @@ fn the_checkpoint_comes_first_and_the_summary_is_not_escaped() {
     log.reply(&format!("[{}]", text_json("hello")));
     log.end("completed");
     let summary = "Alice said \"hi\".\nNothing <b>& in</b> progress.";
-    log.compact(log.next() - 1, summary);
+    // 回合开头就压（压缩带着它所在的回合，施工 6-9）：替代到上一轮为止。
+    let upto = log.next() - 1;
     let again = log.say("go on");
     log.start(again);
+    log.compact(upto, summary);
     log.fact("<env/>");
     let messages = render(log.history(), &texts());
     assert_eq!(
@@ -175,7 +177,6 @@ fn notes_and_reread_files_follow_the_summary_inside_the_checkpoint() {
     let hi = log.say("hi");
     log.start(hi);
     log.reply(&format!("[{}]", text_json("hello")));
-    log.end("completed");
     let file = "fn a() { \"x\" }\n";
     log.compact_rebuilt(
         log.next() - 1,
@@ -184,6 +185,7 @@ fn notes_and_reread_files_follow_the_summary_inside_the_checkpoint() {
         &[("src/a.rs", file), ("b.rs", "b")],
         true,
     );
+    log.end("completed");
     let mut texts = texts();
     texts.checkpoint_end = "<end/>\n".to_string();
     let messages = render(log.history(), &texts);
@@ -202,8 +204,8 @@ fn a_reread_file_whose_text_is_missing_is_left_out() {
     let mut log = Log::new();
     let hi = log.say("hi");
     log.start(hi);
-    log.end("completed");
     log.compact_rebuilt(log.next() - 1, "S", "", &[("a.rs", "a")], false);
+    log.end("completed");
     let messages = render(log.history(), &texts());
     assert_eq!(
         messages,

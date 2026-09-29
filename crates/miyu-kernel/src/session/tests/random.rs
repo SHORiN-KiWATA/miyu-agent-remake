@@ -27,7 +27,8 @@
 //! - 打断时在跑的改文件的调用：叫它停，等它交回来、到点、又打断一次才收尾（施工 4-9 再补一，
 //!   `watch/stopping.rs`）；
 //! - 压缩：交了限额、用量过了线，先发摘要请求，替代到的 N 照规矩；说完了写压缩，取不出摘要的出错收场；压完的
-//!   请求照检查点以后的；撤不到替代掉的回合（施工 6-2 上，`watch/compaction.rs`）。
+//!   请求照检查点以后的（施工 6-2 上，`watch/compaction.rs`）；撤销能撤掉压缩：先读回日志，对不上的不理，恢复不读，
+//!   检查点换了取回原文（施工 6-9，`watch/undo.rs`、`random/undoing.rs`）。
 //!
 //! 每一步还照九条不变量查（`watch/invariants.rs`，`02-内核.md` 第九节「不变量怎么查」）。
 //!
@@ -43,6 +44,7 @@ mod rereading;
 mod restoring;
 mod rng;
 mod stopping;
+mod undoing;
 mod watch;
 
 use std::collections::BTreeSet;
@@ -50,7 +52,6 @@ use std::collections::BTreeSet;
 use super::approval::answer;
 use super::permission::{read_only, switch};
 use super::question::reply;
-use super::revert::{revert, revert_last, unrevert};
 use super::*;
 use crate::accumulate::{Delta, Kind};
 use crate::event::{
@@ -70,6 +71,7 @@ use rereading::some_reread;
 use restoring::some_restored;
 use rng::Rng;
 use stopping::some_stop_end;
+use undoing::{read_back_now, some_read_back, some_undo};
 use watch::Watch;
 
 /// 随机测试的会话，一个回合最多请求几次模型。
@@ -318,36 +320,6 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
     }
 }
 
-/// 撤销、恢复，另用一串随机数：原来那串输入不跟着错开。空闲时四回里有一回，回合开着时五十回里
-/// 一回（该被拒）。能恢复的时候一半是恢复，不能的时候十回里一回（该被拒）；撤销多半从还在有效历史
-/// 里的最后三轮之一起，偶尔是对不上的。
-fn some_undo(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> Option<Input> {
-    let chance = if watch.turn_open() { 50 } else { 4 };
-    if rng.below(chance) != 0 {
-        return None;
-    }
-    let n = next_command(next_id);
-    let redo = match watch.undo.can_unrevert() {
-        true => rng.below(2) == 0,
-        false => rng.below(10) == 0,
-    };
-    if redo {
-        return Some(unrevert(n));
-    }
-    // 四回里有一回不写回合编号，撤最后一轮（施工 4-7 下）。
-    if rng.below(4) == 0 {
-        return Some(revert_last(n));
-    }
-    let effective = &watch.undo.effective;
-    let turn = match effective.len() {
-        k if k > 0 && rng.below(6) > 0 => effective[k - 1 - rng.below(k.min(3) as u64) as usize]
-            .started()
-            .get(),
-        _ => 1 + rng.below(watch.last()),
-    };
-    Some(revert(n, turn))
-}
-
 /// 常用的那一级：多半是认识的，偶尔是不认识的，要被拒绝。
 fn some_level(rng: &mut Rng) -> Level {
     match rng.below(5) {
@@ -419,14 +391,18 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let mut limits = Rng(seed ^ 0x11A1_7500);
         let mut rereads = Rng(seed ^ 0x2E2E_AD00);
         let mut overflows = Rng(seed ^ 0x0F10_0D00);
+        let mut readbacks = Rng(seed ^ 0x2EAD_BAC0);
         for _ in 0..300 {
             if watch.all_stored() && crashes.below(200) == 0 {
                 let planned = crashes.below(2) == 0;
                 session = watch.reload(session, planned, random_policy(attended));
-                if let Some(input) = watch.recalled_after_reload() {
+                if let Some(input) = watch.recall_answer() {
                     watch.feed(&mut session, input);
                 }
                 continue;
+            }
+            if let Some(input) = some_read_back(&mut readbacks, &watch, &mut next_id) {
+                watch.feed(&mut session, input);
             }
             if let Some(input) = some_undo(&mut undos, &watch, &mut next_id) {
                 watch.feed(&mut session, input);
@@ -444,6 +420,9 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
                 watch.feed(&mut session, input);
             }
             let input = some_input(&mut rng, &mut watch, &mut next_id);
+            watch.feed(&mut session, input);
+        }
+        if let Some(input) = read_back_now(&watch) {
             watch.feed(&mut session, input);
         }
         if let Some(steps) = watch.restoring.pending.clone() {

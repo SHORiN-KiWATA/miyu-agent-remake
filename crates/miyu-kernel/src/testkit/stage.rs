@@ -6,8 +6,7 @@ use std::collections::VecDeque;
 use super::script::{Line, Play};
 use crate::block::{Block, Text};
 use crate::event::{
-    Body, ContextCompacted, Decision, Event, Level, ModelCalled, Response, SessionCreated,
-    Transient,
+    Body, Decision, Event, Level, ModelCalled, Response, SessionCreated, Transient,
 };
 use crate::facts::Environment;
 use crate::id::{CallId, CommandId, Seq, TurnId};
@@ -309,47 +308,6 @@ impl Stage {
         self.reload();
     }
 
-    /// 压缩：替代到「磁盘」上的最后一条，检查点写 `summary`。真的压缩是 M6 的事，这里先顶着：
-    /// 往「磁盘」追加一条 `context.compacted`（`by` 是内核），再载入会话（`08-上下文投影.md`
-    /// 第七节「测试门禁」）。
-    ///
-    /// # Panics
-    ///
-    /// 有回合在进行：M6 以前没有回合中途压缩这种走法。
-    pub fn compact(&mut self, summary: &str) {
-        let started = self
-            .log
-            .iter()
-            .rposition(|event| matches!(event.body, Body::TurnStarted(_)));
-        let ended = self
-            .log
-            .iter()
-            .rposition(|event| matches!(event.body, Body::TurnEnded(_)));
-        assert!(started <= ended, "有回合在进行，M6 以前不在回合中途压缩");
-        let upto = self
-            .log
-            .last()
-            .map(|event| event.seq)
-            .unwrap_or_else(|| panic!("日志是空的"));
-        let at = self.tick();
-        self.log.push(Event {
-            seq: upto.next(),
-            at,
-            turn: None,
-            by: By::Kernel,
-            cause: None,
-            body: Body::ContextCompacted(ContextCompacted {
-                upto,
-                summary: summary.to_string(),
-                trigger: None,
-                notes: String::new(),
-                restored: Vec::new(),
-                refills: None,
-            }),
-        });
-        self.reload();
-    }
-
     /// 「磁盘」上的事件，照先后。
     pub fn log(&self) -> &[Event] {
         &self.log
@@ -449,7 +407,7 @@ impl Stage {
     }
 
     /// 从「磁盘」载入一个新会话，回它吐出来的动作。
-    fn reload(&mut self) {
+    pub(super) fn reload(&mut self) {
         self.held_model = None;
         self.held_tools.clear();
         self.held_wake = None;
@@ -464,9 +422,6 @@ impl Stage {
         self.session = session;
         if let Some(limits) = self.limits.clone() {
             self.session.handle(Input::Limits(limits));
-        }
-        if let Some(recalled) = self.recalled() {
-            self.session.handle(recalled);
         }
         self.settle(actions);
     }

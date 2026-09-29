@@ -1,7 +1,10 @@
 //! 撤销与恢复（`docs/designs/02-内核.md` 第六节「撤销与恢复」）：从选中的那一轮起往后全撤，落了盘
-//! 才回应；跑着时、不在有效历史里、压缩掉的，拒绝；撤了以后说一句，请求里没有撤掉的，第一处不同
+//! 才回应；跑着时、没有、撤掉了的，拒绝；撤了以后说一句，请求里没有撤掉的，第一处不同
 //! 记下来，撤掉的事实重新注入；恢复最近一次，一次一次地恢复，下一次请求接着撤销前那一次往下长；
-//! 开了下一轮就不能恢复；载入以后照样能恢复、和不崩一样；被重启打断以后撤销过的，不接着干。
+//! 开了下一轮就不能恢复；载入以后照样能恢复、和不崩一样；被重启打断以后撤销过的，不接着干。撤掉压缩的在
+//! [`compaction`]（施工 6-9）。
+
+mod compaction;
 
 use super::executor::*;
 use super::load::{Logged, load};
@@ -187,43 +190,6 @@ fn undo_of_a_turn_not_in_history_is_refused() {
         logged.handle(revert(4, 10)),
         [rejected(id(4), Reason::UnknownTurn)],
         "撤过的不再撤"
-    );
-}
-
-#[test]
-fn undo_of_a_compacted_turn_is_refused() {
-    // 两轮之后压缩到 13，两轮都进了摘要；载入以后再走一轮，16 号。
-    let logged = two_turns();
-    let mut log = logged.log;
-    log.push(Event {
-        seq: seq(14),
-        at: at(54),
-        turn: None,
-        by: By::Kernel,
-        cause: None,
-        body: Body::ContextCompacted(ContextCompacted {
-            upto: seq(13),
-            summary: "…".to_string(),
-            trigger: None,
-            notes: String::new(),
-            restored: Vec::new(),
-            refills: None,
-        }),
-    });
-    let (session, _) = load(log.clone());
-    let mut logged = Logged { session, log };
-    let seen = logged.ask(3, "接着来");
-    logged.say(seen, "好");
-    for turn in [3, 10, 13] {
-        assert_eq!(
-            logged.handle(revert(4, turn)),
-            [rejected(id(4), Reason::Compacted)]
-        );
-    }
-    assert_eq!(
-        appended(&logged.handle(revert(4, 16))).len(),
-        1,
-        "压缩以后的照样能撤"
     );
 }
 

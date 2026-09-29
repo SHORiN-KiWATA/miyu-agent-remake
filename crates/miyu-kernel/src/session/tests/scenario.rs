@@ -280,22 +280,28 @@ fn after_a_compaction_the_facts_come_again() {
     stage.say("hi");
     stage.compact("The user said hi.");
     stage.say("接着来");
+    // 替身的压缩单开一轮（施工 6-9：压缩带着它所在的回合）。
     assert_eq!(
         story(&stage)[8..],
         [
-            "9 context.compacted kernel",
-            "10 message.user alice",
-            "11 turn.started kernel t11",
-            "12 context.injected:env kernel t11",
-            "13 context.injected:permission kernel t11",
-            "14 message.assistant model t11",
-            "15 model.called:ok kernel t11",
-            "16 turn.ended:completed kernel t11",
+            "9 turn.started kernel t9",
+            "10 context.compacted kernel t9",
+            "11 turn.ended:completed kernel t9",
+            "12 message.user alice",
+            "13 turn.started kernel t13",
+            "14 context.injected:env kernel t13",
+            "15 context.injected:permission kernel t13",
+            "16 message.assistant model t13",
+            "17 model.called:ok kernel t13",
+            "18 turn.ended:completed kernel t13",
         ]
     );
     // 请求从检查点以后算起：压缩掉的都不在了。
     let second = listed_request(&stage.requests()[1].1);
-    assert!(second.starts_with("10 message.user"), "{second}");
+    assert!(
+        second.starts_with("9 turn.started\n11 turn.ended\n12 message.user"),
+        "{second}"
+    );
     // 回合进行中不许这样压。
     stage.model([Line::says("说到一半").held()]);
     stage.say("再来");

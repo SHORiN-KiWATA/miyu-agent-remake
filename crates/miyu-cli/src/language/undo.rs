@@ -138,6 +138,14 @@ impl Language {
         }
     }
 
+    /// 撤掉了压缩的那一句（施工 6-9，`compaction.md`「给人看的字」）：撤掉一次、几次都是这一句（2026-09-29 项目主人定）。
+    pub(crate) fn compaction_undone(&self) -> &'static str {
+        match self {
+            Language::Chinese => "· 撤掉了压缩，上下文回到了压缩前",
+            Language::English => "· Undid the compaction; the context is back to how it was before",
+        }
+    }
+
     /// 撤销的最后一行。
     pub(crate) fn restore_hint(&self) -> &'static str {
         match self {

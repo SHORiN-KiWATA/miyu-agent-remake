@@ -270,9 +270,10 @@ fn a_truncated_summary_request_keeps_what_is_after_the_cut() {
     let hi = log.say("hi");
     log.start(hi);
     log.reply(&format!("[{}]", text_json("好。")));
-    log.end("completed");
+    // 压缩带着它所在的回合（施工 6-9）：在这一轮里压，替代到回复为止。
     let upto = log.next() - 1;
     log.compact(upto, "S1");
+    log.end("completed");
     let again = log.say("再说");
     log.start(again);
     let reply = log.reply(&format!("[{}]", text_json("嗯。")));

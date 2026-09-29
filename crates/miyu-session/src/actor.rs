@@ -12,7 +12,6 @@ use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::Instrument;
 
-use miyu_kernel::event::Event;
 use miyu_kernel::id::{CommandId, Seq, SessionId};
 use miyu_kernel::session::{Action, Input, Outcome, Received, Session};
 use miyu_kernel::time::Timestamp;
@@ -20,7 +19,6 @@ use miyu_kernel::time::Timestamp;
 use crate::TARGET;
 use crate::blocking::blocking;
 use crate::clock::Clock;
-use crate::effects;
 use crate::guard::Guard;
 use crate::handle::{Message, Pushed};
 use crate::kinds;
@@ -30,6 +28,7 @@ use crate::store::Store;
 use crate::tools::{Dispatch, ToolKit, Tools};
 
 mod model;
+mod store;
 
 /// 推送的队列：一个会话最多攒这么多份还没被读走的。读得慢的订阅者被挤掉，掉了队
 /// （`04-核心协议.md` 第七节）。
@@ -347,55 +346,18 @@ impl Actor {
                     files,
                 })
             }
+            // 撤掉压缩时读回日志（施工 6-9）：当场在阻塞线程里读完再收收件箱；读不了的，会话停下。
+            Action::ReadBack { from } => Some(self.read_back(from).await?),
+            // 取回原文（施工 6-9）：当场照 blob 读完，排在收件箱里别的前面送回去。
+            Action::Recall { blobs } => Some(Input::Recalled {
+                texts: self.tools.recall(blobs).await,
+            }),
             // 工具执行中问人随施工 4-9：这之前没有工具会问。
             Action::AnswerTool { .. } => {
                 tracing::error!(target: TARGET, action = kind, "answer without a question");
                 None
             }
         })
-    }
-
-    /// 在阻塞线程里写、同步，写完交回「落盘了」。写不进去就停下。撤销、恢复落了盘，她看过的照日志重算一遍
-    /// （施工 4-7 上）：重算不出来的记一条运行日志，照旧用原来的，改的工具照样先核对。
-    async fn append(&mut self, events: Vec<Event>) -> Result<Option<Input>, Stop> {
-        let Some(upto) = events.last().map(|event| event.seq) else {
-            return Ok(None);
-        };
-        let mut store = self.store.take().ok_or(Stop)?;
-        let reseen = effects::reverts(&events);
-        let written = tokio::task::spawn_blocking(move || {
-            let result = store.append(&events);
-            let seen = (reseen && result.is_ok())
-                .then(|| store.events().map(|all| effects::seen_in(&all)));
-            (store, result, seen)
-        })
-        .await;
-        match written {
-            Ok((store, Ok(()), seen)) => {
-                self.store = Some(store);
-                match seen {
-                    Some(Ok(seen)) => self.tools.see(seen),
-                    Some(Err(error)) => {
-                        tracing::warn!(target: TARGET, error = %error, "seen files not rebuilt");
-                    }
-                    None => {}
-                }
-                Ok(Some(Input::Stored {
-                    at: self.clock.now(),
-                    upto,
-                }))
-            }
-            Ok((_, Err(error), _)) => {
-                tracing::warn!(target: TARGET, kind = ?error.kind(), "write failed, stopped");
-                Err(Stop)
-            }
-            Err(error) => {
-                if error.is_panic() {
-                    tracing::error!(target: TARGET, "panicked, stopped");
-                }
-                Err(Stop)
-            }
-        }
     }
 
     /// 回应命令 `id`：交给等着它的最早的那一头。

@@ -77,7 +77,7 @@ impl Watch {
         match cut {
             Some(cut) => {
                 self.seen_paths.insert("截过的压缩写明没看到的");
-                let from = self.compactions.upto.map_or(1, |upto| upto.get() + 1);
+                let from = self.compactions.upto().map_or(1, |upto| upto.get() + 1);
                 assert!(
                     compacted
                         .notes

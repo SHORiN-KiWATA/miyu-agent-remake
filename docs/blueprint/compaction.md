@@ -8,7 +8,7 @@
 
 另有一种不请求模型的办法：**裁剪**（trim），把最老的几轮整块移出，由代码写一句说明。它给群聊用，随通讯平台做（第五条）。
 
-状态：图纸（2026-09-29 定），M6 照它施工（施工方案第三节 M6 那张表）。第一、二条 6-1 做好了（`crates/miyu-kernel/src/estimate.rs`），6-2 接进了回合：执行器交了模型限额的会话，发主请求之前到线就在这一轮里先压，fork 式摘要请求、取摘要、写 `context.compacted`、推 `compaction.progress`、压完再注入事实、留尾巴都照第三条做了（上下两步）。6-3（上）接上了真执行器：模型资料（models.dev 的快照）、开发用的 `MIYU_DEV_WINDOW`、DeepSeek 的图片算法，会话 actor 造会话、载入以后交限额。6-3（下）：`miyu ask` 印压缩那一行，推 `compaction.done`，日志记度量；真模型上量完了关掉工具调用、摘要请求的缓存命中，检查点的规则照实测写进包装的结尾（第八条），取摘要先去草稿。6-5：检查点里代码写的几段（清单、取回指路、太大没重读的），压后重读最近的文件（第八、九条）。6-6（上）：熔断，连续失败、压完很快又满就暂停自动压缩，暂停着明知放不下的请求不发（第十条、第二条第 5 条）。6-6（中）：摘要请求自己超长，截掉最老的几组再试（第三条第 10 条）。还没做的：第三条第 7 条的隔离式回退（6-6 下），现在回复里调了工具的、取不出摘要的照 `bad_summary` 出错结束。做完一步，这一页照做好的样子改写那几节，相关的几页（`kernel/events-bodies.md`、`kernel/history.md`、`kernel/session.md`、`protocol.md`、`cli/`）跟着改。
+状态：图纸（2026-09-29 定），M6 照它施工（施工方案第三节 M6 那张表）。第一、二条 6-1 做好了（`crates/miyu-kernel/src/estimate.rs`），6-2 接进了回合：执行器交了模型限额的会话，发主请求之前到线就在这一轮里先压，fork 式摘要请求、取摘要、写 `context.compacted`、推 `compaction.progress`、压完再注入事实、留尾巴都照第三条做了（上下两步）。6-3（上）接上了真执行器：模型资料（models.dev 的快照）、开发用的 `MIYU_DEV_WINDOW`、DeepSeek 的图片算法，会话 actor 造会话、载入以后交限额。6-3（下）：`miyu ask` 印压缩那一行，推 `compaction.done`，日志记度量；真模型上量完了关掉工具调用、摘要请求的缓存命中，检查点的规则照实测写进包装的结尾（第八条），取摘要先去草稿。6-5：检查点里代码写的几段（清单、取回指路、太大没重读的），压后重读最近的文件（第八、九条）。6-6（上）：熔断，连续失败、压完很快又满就暂停自动压缩，暂停着明知放不下的请求不发（第十条、第二条第 5 条）。6-6（中）：摘要请求自己超长，截掉最老的几组再试（第三条第 10 条）。6-9：撤销能撤掉压缩，压缩带着它所在的回合，撤到它时读回更早的日志，恢复放回来，换回来的检查点取回原文，`miyu undo` 说一句（第十一条）。还没做的：第三条第 7 条的隔离式回退（6-6 下），现在回复里调了工具的、取不出摘要的照 `bad_summary` 出错结束。做完一步，这一页照做好的样子改写那几节，相关的几页（`kernel/events-bodies.md`、`kernel/history.md`、`kernel/session.md`、`protocol.md`、`cli/`）跟着改。
 
 ### 在哪
 
@@ -24,7 +24,7 @@
 | `crates/miyu-assemble/src/summary.rs` | 摘要请求：fork 式、隔离式；从回复里取出摘要 |
 | `crates/miyu-assemble/src/render.rs` | 检查点的渲染：包装、摘要、代码写的几段、重读的文件 |
 | `crates/miyu-policy/` | 策略快照里压缩的数据和给模型看的字 |
-| `crates/miyu-session/src/reread.rs`、`store.rs`、`actor.rs` | 执行器这边：重读文件存成 blob，照 blob 读出原文；撤销撤掉压缩时从磁盘读回更早的日志（第十一条） |
+| `crates/miyu-session/src/reread.rs`、`store.rs`、`actor/store.rs` | 执行器这边：重读文件存成 blob，照 blob 读出原文；撤销撤掉压缩时从磁盘读回更早的日志（第十一条） |
 | `crates/miyu-core/src/models.rs` | 模型的资料：上下文窗口、最大输出 |
 | `crates/miyu-endpoint/src/methods.rs` | `session.compact`（`protocol.md`） |
 | `crates/miyu-cli/` | `miyu ask` 印压缩那一行（6-3 下）；手动压缩的命令 `miyu compact`（6-8，2026-09-29 项目主人定）；`miyu undo` 撤掉压缩时说一句（6-9） |

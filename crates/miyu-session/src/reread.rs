@@ -1,12 +1,12 @@
 //! 压完重读（`docs/blueprint/compaction.md` 第九条，施工 6-5）：内核交出要重读的文件，执行器在阻塞线程里一个一个读，
-//! 读到的存成 blob，一个一项交回去。照「安全地打开」开：不跟最后一层的链接，不是普通文件的不读。
+//! 读到的存成 blob，一个一项交回去。照「安全地打开」开：不跟最后一层的链接，不是普通文件的不读。检查点换了，内核要
+//! 回原文，照 blob 读出来交回（施工 6-9）。
 
 use std::collections::BTreeMap;
 use std::io::Read;
 use std::path::Path;
 
 use miyu_fs::open_file;
-use miyu_kernel::event::{Body, Event};
 use miyu_kernel::id::ContentHash;
 use miyu_kernel::session::Reread;
 use miyu_store::blob::Blobs;
@@ -20,21 +20,15 @@ pub(crate) fn reread(paths: &[String], limit: u64, blobs: &Blobs) -> Vec<Reread>
         .collect()
 }
 
-/// 载入以后交回内核的原文（施工 6-5）：日志里最近一个检查点重读过的文件，照 blob 读出来。读不出来的、不是 UTF-8 的
-/// 不交，渲染时那一份整块不写。
-pub(crate) fn recalled(events: &[Event], blobs: &Blobs) -> BTreeMap<ContentHash, String> {
-    let Some(restored) = events.iter().rev().find_map(|event| match &event.body {
-        Body::ContextCompacted(compacted) => Some(&compacted.restored),
-        _ => None,
-    }) else {
-        return BTreeMap::new();
-    };
-    restored
+/// 取回原文（施工 6-9，`kernel/history.md`「重读的原文」）：内核要的检查点里重读过的文件，照 blob 读出来。读不出来的、
+/// 不是 UTF-8 的不交，渲染时那一份整块不写。哪个检查点还算数是内核认的，执行器不自己找。
+pub(crate) fn recall(wanted: &[ContentHash], blobs: &Blobs) -> BTreeMap<ContentHash, String> {
+    wanted
         .iter()
-        .filter_map(|file| {
-            let bytes = blobs.get(&file.blob).ok()?;
+        .filter_map(|blob| {
+            let bytes = blobs.get(blob).ok()?;
             let text = String::from_utf8(bytes).ok()?;
-            Some((file.blob.clone(), text))
+            Some((blob.clone(), text))
         })
         .collect()
 }

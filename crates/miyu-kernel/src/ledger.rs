@@ -1,7 +1,8 @@
 //! 日志的账本：追加一条事件之前，照规矩查一遍（`docs/designs/02-内核.md` 第九节
 //! 「日志追加时查的规矩」）。
 //!
-//! 账本只记查规矩要用的几样，不留事件本身，所以不随日志变长（`07-存储.md` 第七节）。
+//! 账本只记查规矩要用的几样，不留事件本身（`07-存储.md` 第七节）。撤销能撤掉压缩（施工 6-9），压缩以前还没撤掉的
+//! 回合也记着：账本只随回合数长，一轮一个编号，不随日志的字节长（`02-内核.md` 第九节，2026-09-29 项目主人定）。
 //! 新写的事件和从磁盘载入的事件都从这里过，规矩只有一套。
 
 use std::collections::BTreeSet;
@@ -32,14 +33,13 @@ pub struct Ledger {
     asking: BTreeSet<CallId>,
     /// 其中在等人回答的：问了一组题，还没有回答，也还没有结果（「提问怎么走」）。
     questioning: BTreeSet<CallId>,
-    /// 最近一次压缩替代到哪。
-    compacted: Option<Seq>,
-    /// 最近一次压缩以后开过、还没撤掉的回合，撤销只能撤它们。压缩一次，更早的就丢掉；撤掉的
-    /// 拿走，恢复了再放回来。
-    turns: BTreeSet<TurnId>,
-    /// 还能恢复的几次撤销，各撤了哪几轮，最近的一次在最后。下一轮开始、压缩了，就都不能恢复了
-    /// （`02-内核.md` 第六节「撤销与恢复」）。
-    undone: Vec<Vec<TurnId>>,
+    /// 还算数的几次压缩，照先后：它所在的那一轮还没撤掉（`compaction.md` 第十一条，施工 6-9）。
+    compactions: Vec<Compaction>,
+    /// 开过、还没撤掉的回合，照先后，压缩以前的也在：撤销能撤到压缩以前（施工 6-9）。撤销拿走后面的一截，恢复原样
+    /// 放回，开一轮接在最后，所以一直是排好的。
+    turns: Vec<TurnId>,
+    /// 还能恢复的几次撤销，最近的一次在最后。下一轮开始、压缩了，就都不能恢复了（`02-内核.md` 第六节「撤销与恢复」）。
+    undone: Vec<Undone>,
     /// 正在进行的回合里排着队的消息：回合中途来的 `message.user`，还没被哪次请求看到过。
     /// 只有它们能撤回（`02-内核.md` 第六节「排队的消息」）。请求看到了、回合结束了，就清掉。
     queued: BTreeSet<Seq>,
@@ -54,8 +54,8 @@ impl Default for Ledger {
             pending: BTreeSet::new(),
             asking: BTreeSet::new(),
             questioning: BTreeSet::new(),
-            compacted: None,
-            turns: BTreeSet::new(),
+            compactions: Vec::new(),
+            turns: Vec::new(),
             undone: Vec::new(),
             queued: BTreeSet::new(),
         }
@@ -83,27 +83,44 @@ impl Ledger {
         self.queued.iter().copied().collect()
     }
 
-    /// 还在有效历史里的回合 `turn`，和它以后还在的每一轮，照先后：从它起撤销，撤的就是这些。
-    /// `turn` 不在有效历史里的，没有。
+    /// 还没撤掉的回合 `turn`，和它以后还没撤掉的每一轮，照先后，压缩以前的也算：从它起撤销，撤的就是这些。
+    /// `turn` 撤掉了、不是一轮的开头的，没有。
     pub fn turns_from(&self, turn: TurnId) -> Option<Vec<TurnId>> {
         self.turns
-            .contains(&turn)
-            .then(|| self.turns.range(turn..).copied().collect())
+            .binary_search(&turn)
+            .ok()
+            .map(|k| self.turns[k..].to_vec())
     }
 
-    /// 还在有效历史里的最后一轮：不写回合编号的撤销撤它（施工 4-7 下）。一轮都没有的，没有。
+    /// 还没撤掉的最后一轮：不写回合编号的撤销撤它（施工 4-7 下）。一轮都没有的，没有。
     pub fn last_turn(&self) -> Option<TurnId> {
         self.turns.last().copied()
     }
 
-    /// 最近一次压缩替代到哪；没压缩过就没有。
+    /// 还算数的最近一次压缩替代到哪；没有还算数的压缩就没有。
     pub fn compacted(&self) -> Option<Seq> {
-        self.compacted
+        self.compactions.last().map(|compaction| compaction.upto)
+    }
+
+    /// 从还没撤掉的回合 `turn` 起撤，会撤掉还算数的压缩（它所在的那一轮不早于 `turn`）的：要从第几条读回日志
+    /// （施工 6-9，`kernel/history.md`「撤掉压缩」）。是撤完以后还算数的最近一次压缩替代到的下一条，一次都没有的
+    /// 是第 1 条。撤不到压缩的，没有：照以前在内存里撤。
+    pub fn read_back_from(&self, turn: TurnId) -> Option<Seq> {
+        let kept = self
+            .compactions
+            .partition_point(|compaction| compaction.turn < turn);
+        if kept == self.compactions.len() {
+            return None;
+        }
+        Some(match kept.checked_sub(1) {
+            Some(k) => self.compactions[k].upto.next(),
+            None => Seq::FIRST,
+        })
     }
 
     /// 最近一次还能恢复的撤销，撤了哪几轮；没有能恢复的就没有。
     pub fn last_reverted(&self) -> Option<&[TurnId]> {
-        self.undone.last().map(Vec::as_slice)
+        self.undone.last().map(|undone| undone.turns.as_slice())
     }
 
     /// 查 `event` 能不能追加；能，就记下它带来的变化。
@@ -271,12 +288,15 @@ impl Ledger {
         let Some(&first) = turns.first() else {
             return Err("the list of undone turns is empty".to_string());
         };
-        if let Some(turn) = turns.iter().find(|turn| !self.turns.contains(turn)) {
+        if let Some(turn) = turns
+            .iter()
+            .find(|turn| self.turns.binary_search(turn).is_err())
+        {
             return Err(format!(
-                "turn {turn} is not in the current history: no such turn, before the last compaction, or already undone"
+                "turn {turn} is not in the current history: no such turn, or already undone"
             ));
         }
-        let expected: Vec<TurnId> = self.turns.range(first..).copied().collect();
+        let expected = self.turns_from(first).unwrap_or_default();
         match turns == expected.as_slice() {
             true => Ok(()),
             false => Err(format!(
@@ -288,11 +308,11 @@ impl Ledger {
 
     /// 恢复：正好是最近一次撤销的那几轮；那以后没开过回合，也没压缩过。
     fn check_unrevert(&self, turns: &[TurnId]) -> Result<(), String> {
-        match self.undone.last() {
+        match self.last_reverted() {
             None => Err(
                 "nothing to redo: no undo yet, or a turn or a compaction came after it".to_string(),
             ),
-            Some(last) if last.as_slice() != turns => Err(format!(
+            Some(last) if last != turns => Err(format!(
                 "redo the turns of the latest undo: {}",
                 listed(last)
             )),
@@ -300,12 +320,12 @@ impl Ledger {
         }
     }
 
-    /// 压缩只前进：替代到的位置在这一条之前，而且不早于上一次。
+    /// 压缩只前进：替代到的位置在这一条之前，而且不早于还算数的最近一次。撤掉的压缩不算：撤掉以后再压，可以比它早。
     fn check_compaction(&self, seq: Seq, upto: Seq) -> Result<(), String> {
         if upto >= seq {
             return Err(format!("upto {upto} should come before this event"));
         }
-        match self.compacted {
+        match self.compacted() {
             Some(last) if upto < last => Err(format!(
                 "upto {upto} is before the last compaction's {last}; compaction only moves forward"
             )),
@@ -320,7 +340,7 @@ impl Ledger {
             Body::TurnStarted(_) => {
                 let turn = TurnId::new(event.seq);
                 self.open = Some(turn);
-                self.turns.insert(turn);
+                self.turns.push(turn);
                 self.undone.clear();
                 self.queued.clear();
             }
@@ -360,20 +380,36 @@ impl Ledger {
                 self.open = None;
                 self.queued.clear();
             }
+            // 查过了：压缩带着正在进行的回合。
             Body::ContextCompacted(compacted) => {
-                self.compacted = Some(compacted.upto);
-                self.turns.retain(|turn| turn.started() > compacted.upto);
+                if let Some(turn) = event.turn {
+                    self.compactions.push(Compaction {
+                        turn,
+                        upto: compacted.upto,
+                    });
+                }
                 self.undone.clear();
             }
+            // 查过了：撤的正好是从第一轮起还没撤掉的后面一截；这几轮里的压缩跟着撤掉，记在这一次撤销上。
             Body::TurnReverted(reverted) => {
-                for turn in &reverted.turns {
-                    self.turns.remove(turn);
-                }
-                self.undone.push(reverted.turns.clone());
+                let Some(&first) = reverted.turns.first() else {
+                    return;
+                };
+                let turns = self.turns.partition_point(|turn| *turn < first);
+                self.turns.truncate(turns);
+                let kept = self
+                    .compactions
+                    .partition_point(|compaction| compaction.turn < first);
+                self.undone.push(Undone {
+                    turns: reverted.turns.clone(),
+                    compactions: self.compactions.split_off(kept),
+                });
             }
-            Body::TurnUnreverted(unreverted) => {
-                self.undone.pop();
-                self.turns.extend(unreverted.turns.iter().copied());
+            Body::TurnUnreverted(_) => {
+                if let Some(undone) = self.undone.pop() {
+                    self.turns.extend(undone.turns);
+                    self.compactions.extend(undone.compactions);
+                }
             }
             _ => {}
         }
@@ -381,7 +417,8 @@ impl Ledger {
 }
 
 /// 只在回合里发生的种类：模型的回复、工具的结果、请人确认和人的决定、问人和人的回答、
-/// 撤回排着队的消息、回合结束。
+/// 撤回排着队的消息、回合结束、暂停自动压缩、压缩。压缩跟着它所在的回合撤（施工 6-9）：不在回合里的压缩没有哪一轮撤得掉，
+/// 它替代掉的回合也就撤不了。
 fn in_turn_only(body: &Body) -> bool {
     matches!(
         body,
@@ -394,7 +431,22 @@ fn in_turn_only(body: &Body) -> bool {
             | Body::MessageWithdrawn(_)
             | Body::TurnEnded(_)
             | Body::CompactionPaused(_)
+            | Body::ContextCompacted(_)
     )
+}
+
+/// 一次还算数的压缩：在哪一轮、替代到哪。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Compaction {
+    turn: TurnId,
+    upto: Seq,
+}
+
+/// 还能恢复的一次撤销：撤了哪几轮，跟着撤掉了哪几次压缩。
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Undone {
+    turns: Vec<TurnId>,
+    compactions: Vec<Compaction>,
 }
 
 /// 几个回合编号，写成「11、12」。

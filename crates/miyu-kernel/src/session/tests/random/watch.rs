@@ -226,6 +226,10 @@ impl Watch {
             self.check(action);
         }
         self.interrupting = None;
+        // 取回原文：执行器做完才收收件箱，马上交回（施工 6-9）。
+        if let Some(recalled) = self.recall_answer() {
+            self.feed(session, recalled);
+        }
     }
 
     fn check(&mut self, action: Action) {
@@ -293,6 +297,9 @@ impl Watch {
             } => self.guard(call_id, &name, &cwd, &permission),
             Action::RunTool { call_id, .. } => self.run(call_id),
             Action::Restore { steps } => self.restore_asked(steps),
+            // 读回日志照撤销的规矩查（`watch/undo.rs`）；取回原文在这一条输入送完以后交回。
+            Action::ReadBack { .. } => {}
+            Action::Recall { blobs } => self.compactions.rebuild.recalling = Some(blobs),
             Action::AnswerTool { call_id, answers } => self.handed(call_id, &answers),
             Action::StopTool { call_id } => self.stop_asked(call_id),
             Action::CancelTool { call_id } => {

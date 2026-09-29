@@ -24,11 +24,15 @@ impl History {
     }
 
     /// 恢复最近一次撤销：放在一边的照序号放回原处。恢复只在下一轮开始之前，中间没发过请求，
-    /// 所以放回去以后和撤销之前一模一样。
+    /// 所以放回去以后和撤销之前一模一样。撤掉过压缩的，放回来的里面有压缩：平时那一份再落到最近的那一次上（施工
+    /// 6-9）；留着一切的那一份照先后留着它。
     pub(super) fn unrevert(&mut self) {
         if let Some(back) = self.undone.pop() {
             self.events.extend(back);
             self.events.sort_by_key(|event| event.seq);
+            if !self.whole {
+                self.settle();
+            }
         }
     }
 

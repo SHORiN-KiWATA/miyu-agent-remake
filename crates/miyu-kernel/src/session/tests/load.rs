@@ -276,3 +276,37 @@ fn load_errors_say_it_in_english() {
         "the log is broken: event 4 cannot be appended: seq should be 3"
     );
 }
+
+/// 还算数的检查点重读过文件的，载入交回的动作里第一个是取回原文，崩了的那一轮收尾排在它后面（施工 6-9）。
+#[test]
+fn a_checkpoint_with_reread_files_recalls_them_first() {
+    let mut logged = Logged::new();
+    logged.ask(1, "hi");
+    let blob = crate::id::ContentHash::of(b"fn main() {}\n");
+    let seq_now = seq(logged.last() + 1);
+    logged.log.push(Event {
+        seq: seq_now,
+        at: at(54),
+        turn: Some(turn3()),
+        by: By::Kernel,
+        cause: None,
+        body: Body::ContextCompacted(crate::event::ContextCompacted {
+            upto: seq(2),
+            summary: "S".to_string(),
+            trigger: None,
+            notes: String::new(),
+            restored: vec![crate::event::RestoredFile {
+                path: "main.rs".to_string(),
+                blob: blob.clone(),
+                tokens: 4,
+            }],
+            refills: None,
+        }),
+    });
+    let (_, actions) = load(logged.log);
+    assert_eq!(actions[0], Action::Recall { blobs: vec![blob] });
+    assert!(
+        matches!(&actions[1..], [Action::Append(events)] if matches!(events.last().map(|event| &event.body), Some(Body::TurnEnded(_)))),
+        "崩了的那一轮收尾排在后面：{actions:?}"
+    );
+}

@@ -5,6 +5,7 @@ use super::*;
 use crate::ledger::Ledger;
 
 mod recall;
+mod settle;
 mod undo;
 mod whole;
 
@@ -75,9 +76,26 @@ fn result(seq: u64, turn: u64, call: &str) -> Event {
     event(seq, Some(turn), KERNEL, "tool.result", &body)
 }
 
-fn compacted(seq: u64, upto: u64) -> Event {
+/// 回合 `turn` 里的一次压缩，替代到 `upto`。压缩一定在回合里（施工 6-9）。
+fn compacted(seq: u64, upto: u64, turn: u64) -> Event {
     let body = format!(r#"{{"upto":{upto},"summary":"…"}}"#);
-    event(seq, None, ALICE, "context.compacted", &body)
+    event(seq, Some(turn), KERNEL, "context.compacted", &body)
+}
+
+/// 单开的一轮只做压缩（照手动压缩的样子）：由 `trigger` 触发，从 `start` 开始，替代到 `upto`，占三个序号。
+fn compaction_turn(start: u64, trigger: u64, upto: u64) -> Vec<Event> {
+    let body = format!(r#"{{"trigger":{trigger}}}"#);
+    vec![
+        event(start, Some(start), KERNEL, "turn.started", &body),
+        compacted(start + 1, upto, start),
+        event(
+            start + 2,
+            Some(start),
+            KERNEL,
+            "turn.ended",
+            r#"{"reason":"completed"}"#,
+        ),
+    ]
 }
 
 fn reverted(seq: u64, turns: &[u64]) -> Event {
@@ -139,34 +157,34 @@ fn without_compaction_everything_stays() {
 #[test]
 fn a_compaction_starts_the_history_over() {
     let mut events = two_turns();
-    events.push(compacted(10, 9));
-    events.push(message(11, ALICE));
+    events.extend(compaction_turn(10, 9, 10));
+    events.push(message(13, ALICE));
     let history = feed(events);
-    assert_eq!(checkpoint(&history), Some(10));
-    assert_eq!(seqs(&history), vec![11]);
+    assert_eq!(checkpoint(&history), Some(11));
+    assert_eq!(seqs(&history), vec![12, 13]);
 }
 
-/// 被动压缩保下最近一组：替代到 5，6 到 9 原样留着，排在检查点后面。
+/// 被动压缩保下最近一组：替代到 5，6 到 10 原样留着，排在检查点后面。
 #[test]
 fn a_passive_compaction_keeps_its_tail_after_the_checkpoint() {
     let mut events = two_turns();
-    events.push(compacted(10, 5));
+    events.extend(compaction_turn(10, 9, 5));
     let history = feed(events);
-    assert_eq!(checkpoint(&history), Some(10));
-    assert_eq!(seqs(&history), vec![6, 7, 8, 9]);
+    assert_eq!(checkpoint(&history), Some(11));
+    assert_eq!(seqs(&history), vec![6, 7, 8, 9, 10, 12]);
 }
 
-/// 第二次压缩替代到 11：旧的检查点 10 和 6 到 11 都丢掉，新摘要里已经包着它们。
+/// 第二次压缩替代到 13：旧的检查点 11 和 6 到 13 都丢掉，新摘要里已经包着它们。
 #[test]
 fn the_latest_checkpoint_replaces_the_one_before() {
     let mut events = two_turns();
-    events.push(compacted(10, 5));
-    events.push(message(11, ALICE));
-    events.extend(turn(12, 11));
-    events.push(compacted(15, 11));
+    events.extend(compaction_turn(10, 9, 5));
+    events.push(message(13, ALICE));
+    events.extend(turn(14, 13));
+    events.extend(compaction_turn(17, 16, 13));
     let history = feed(events);
-    assert_eq!(checkpoint(&history), Some(15));
-    assert_eq!(seqs(&history), vec![12, 13, 14]);
+    assert_eq!(checkpoint(&history), Some(18));
+    assert_eq!(seqs(&history), vec![14, 15, 16, 17, 19]);
 }
 
 /// 03 第六节那一回合，序号挪了一挪：回复 5 调了两个工具、看到 4；第二个调用的结果 6 先回来；
@@ -251,7 +269,7 @@ fn the_kept_tail_after_a_compaction_is_ordered_the_same_way() {
     ));
     events.push(message(10, ALICE));
     events.push(result(11, 7, "call_9_1"));
-    events.push(compacted(12, 8));
+    events.push(compacted(12, 8, 7));
     let history = feed(events);
     assert_eq!(checkpoint(&history), Some(12));
     assert_eq!(ordered(&history), vec![9, 11, 10]);
@@ -295,18 +313,18 @@ fn withdrawn_messages_are_gone_and_so_is_the_withdrawal() {
 #[test]
 fn until_cuts_the_history_after_the_given_event() {
     let mut events = two_turns();
-    events.push(compacted(10, 5));
-    events.push(message(11, ALICE));
-    events.extend(turn(12, 11));
-    events.push(reverted(15, &[12]));
+    events.extend(compaction_turn(10, 9, 5));
+    events.push(message(13, ALICE));
+    events.extend(turn(14, 13));
+    events.push(reverted(17, &[14]));
     let history = feed(events);
     assert!(!history.last_undone().is_empty());
     let cut = history.until(crate::id::Seq::new(8).unwrap());
-    assert_eq!(checkpoint(&cut), Some(10));
+    assert_eq!(checkpoint(&cut), Some(11));
     assert_eq!(seqs(&cut), vec![6, 7, 8]);
     assert!(cut.last_undone().is_empty());
-    // 截在最后一条上，事件原样；撤掉的第二轮照样不在。
-    let whole = history.until(crate::id::Seq::new(15).unwrap());
+    // 截在最后一条上，事件原样；撤掉的那一轮照样不在。
+    let whole = history.until(crate::id::Seq::new(17).unwrap());
     assert_eq!(seqs(&whole), seqs(&history));
-    assert!(!seqs(&whole).contains(&12));
+    assert!(!seqs(&whole).contains(&14));
 }

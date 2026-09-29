@@ -7,6 +7,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::Session;
+use super::action::Action;
 use super::input::Reread;
 use super::policy::{Notes, Rebuild};
 use crate::estimate;
@@ -30,6 +31,20 @@ pub(super) struct Rebuilt {
 }
 
 impl Session {
+    /// 取回原文（施工 6-9，`kernel/history.md`「重读的原文」）：现在的检查点重读过文件的，照先后交出它们的 blob；没有
+    /// 检查点、没重读过的，没有。检查点换了、原文不在内存里的时候出（载入以后、撤掉了压缩、恢复了压缩）。
+    pub(super) fn recall(&self) -> Option<Action> {
+        let Body::ContextCompacted(compacted) = &self.history.checkpoint()?.body else {
+            return None;
+        };
+        let blobs: Vec<ContentHash> = compacted
+            .restored
+            .iter()
+            .map(|file| file.blob.clone())
+            .collect();
+        (!blobs.is_empty()).then_some(Action::Recall { blobs })
+    }
+
     /// 压后重建的数：策略里有、窗口够的才有（第九条第 2 条）。
     fn rebuild_numbers(&self) -> Option<Rebuild> {
         let rebuild = self.policy.compaction.as_ref()?.rebuild?;

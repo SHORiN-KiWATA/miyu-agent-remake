@@ -322,3 +322,33 @@ fn every_first_line_of_a_restore_names_it_restore() {
         "· 恢复撤销的那一轮"
     );
 }
+
+/// 撤掉了压缩（施工 6-9）：第一行下面、文件的几行上面说一句，撤掉一次、几次都是这一句（2026-09-29 项目主人定）；是 0
+/// 的、没有这一格的、恢复的不说。
+#[test]
+fn an_undone_compaction_is_said_once_below_the_first_line() {
+    let result = |compactions: u64| {
+        json!({"cwd": under(&["w"]), "turns": 1, "said": "接着来", "compactions": compactions, "files": [
+            {"path": under(&["w", "a"]), "action": "write", "outcome": "restored"},
+        ]})
+    };
+    let once = "· 撤销「接着来」这一轮\n· 撤掉了压缩，上下文回到了压缩前\n· 改回 a\n发下一句之前，可以用 miyu restore 恢复。\n";
+    assert_eq!(printed_as(&result(1), Direction::Undo), once);
+    assert_eq!(
+        printed_as(&result(2), Direction::Undo),
+        once,
+        "几次都是同一句"
+    );
+    assert!(!printed_as(&result(0), Direction::Undo).contains("压缩"));
+    let mut without = result(1);
+    without.as_object_mut().map(|map| map.remove("compactions"));
+    assert!(!printed_as(&without, Direction::Undo).contains("压缩"));
+    assert!(!printed_as(&result(1), Direction::Restore).contains("压缩"));
+    let english = printed(&result(3), &plan(Direction::Undo, Language::English));
+    assert!(
+        english.contains(
+            "\n· Undid the compaction; the context is back to how it was before\n· Restored a\n"
+        ),
+        "{english}"
+    );
+}

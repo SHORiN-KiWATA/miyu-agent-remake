@@ -66,6 +66,8 @@ kinds! {
     Restarting,
     /// 改回文件做完了（施工 4-7 上）。
     Restored,
+    /// 读回的日志（施工 6-9）。
+    ReadBack,
     Reread,
     Recalled,
     /// 到点了：重试前等的那一会儿到了（施工 3-5 下）。
@@ -110,6 +112,7 @@ impl InputKind {
             Input::ToolAsks { .. } => InputKind::ToolAsks,
             Input::Restarting { .. } => InputKind::Restarting,
             Input::Restored { .. } => InputKind::Restored,
+            Input::ReadBack { .. } => InputKind::ReadBack,
             Input::Reread { .. } => InputKind::Reread,
             Input::Recalled { .. } => InputKind::Recalled,
             Input::Woke { .. } => InputKind::Woke,
