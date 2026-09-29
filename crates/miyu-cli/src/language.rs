@@ -152,6 +152,11 @@ impl Language {
     }
 
     /// 出错的分类怎么说（`model.called` 的 `error.class`）。
+    /// 出错的分类说成给人看的（施工 6-3 下：压缩失败那一行也用）。
+    pub(crate) fn class_name(&self, class: &str) -> &'static str {
+        self.class(class)
+    }
+
     fn class(&self, class: &str) -> &'static str {
         let (chinese, english) = match class {
             "retryable" => ("暂时出错", "temporary error"),
@@ -161,6 +166,7 @@ impl Language {
             "content_policy" => ("被内容策略拦下了", "blocked by content policy"),
             "bad_stream" => ("回复的流不对", "bad stream"),
             "empty_reply" => ("回复是空的", "empty reply"),
+            "bad_summary" => ("取不出摘要", "no summary in the reply"),
             _ => ("模型出错", "model error"),
         };
         match self {

@@ -7,6 +7,8 @@
 //!
 //! 有几步因为要确认、这里没人能确认被拒的，数着：这一轮照常结束的，退出码 4，用量后面再印一行（施工 4-9）。
 
+mod compacting;
+
 use std::collections::BTreeMap;
 
 use serde_json::{Value, json};
@@ -73,6 +75,8 @@ pub(crate) struct Follow<'p> {
     failure: Option<Failure>,
     /// 因为要确认、这里没人能确认被拒的有几步（施工 4-9）。
     unattended: u64,
+    /// 正在压缩（施工 6-3 下）：哪一次摘要请求，终端里那一行进度画了没有。
+    compacting: compacting::Compacting,
 }
 
 impl<'p> Follow<'p> {
@@ -98,6 +102,7 @@ impl<'p> Follow<'p> {
             usage: Sum::default(),
             failure: None,
             unattended: 0,
+            compacting: compacting::Compacting::default(),
         }
     }
 
@@ -161,7 +166,9 @@ impl<'p> Follow<'p> {
                 self.steps.reply(body);
             }
             "tool.result" => self.result(event, screen),
-            "model.called" => self.called(body),
+            "model.called" => self.called(body, screen),
+            "compaction.progress" => self.compaction_progress(body, screen),
+            "compaction.done" => self.compaction_done(body, screen),
             "turn.ended" => {
                 return Step::Done(self.end(body["reason"].as_str().unwrap_or_default(), screen));
             }
@@ -345,8 +352,10 @@ impl<'p> Follow<'p> {
         self.answer.push_str(&text);
     }
 
-    /// 一次请求的记录：用量加起来；出错的记下，后来又成了的（重试）当没出过。
-    fn called(&mut self, body: &Value) {
+    /// 一次请求的记录：用量加起来；出错的记下，后来又成了的（重试）当没出过。压缩的摘要请求出错的，说压缩失败
+    /// （施工 6-3 下）。
+    fn called(&mut self, body: &Value, screen: &mut Screen<'_>) {
+        self.compaction_called(body, screen);
         self.usage.add(&body["usage"]);
         self.failure = match body["result"].as_str() {
             Some("error") => Some(Failure {

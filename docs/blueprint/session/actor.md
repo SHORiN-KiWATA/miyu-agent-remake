@@ -116,7 +116,7 @@
 | 追加事件 | 在阻塞线程里写一批、同步（第 5 条） | 落盘了，到这一批最后一条为止 |
 | 回应命令 | 交给等这个编号的最早那一头；它不等了，丢掉；没人在等的，不理 | |
 | 推送事件 | 推给订阅了的；没有订阅的，丢掉 | |
-| 推送瞬时事件 | 同上；是 `status`（现在只有等着重试这一种）的，先记一行 `retrying` | |
+| 推送瞬时事件 | 同上；是 `status`（现在只有等着重试这一种）的，先记一行 `retrying`；是 `compaction.done` 的，先记一行 `compacted`（施工 6-3 下） | |
 | 跑回合开始的挂接点 | 现在没有模块挂它 | 挂接点跑完了，没有注入 |
 | 请求模型 | 交给端口（第 7 条） | |
 | 到点叫醒 | 起一个定时的任务，到那一刻送回「到点了」；那一刻已经过了的，马上送 | |
@@ -198,6 +198,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | INFO | `ended` | `seen`、`took_ms`、`in`、`hit`、`write`、`out` | 请求说完 |
 | INFO | `cancelled` | `seen`、`took_ms` | 不要这次请求了 |
 | WARN | `retrying` | `seen`、`attempt`、`limit`、`wait_ms`、`class` | 等着重试 |
+| INFO | `compacted` | `seen`、`trigger`、`before`、`after`、`summary_in`、`summary_cached`、`summary_out`、`took_ms` | 压好了（`compaction.md` 第十三条）：摘要请求的输入、命中、输出、用时照它的 `model.called`，没有的不写 |
 | INFO | `running` | `call`、`tool` | 开始跑一次调用（`session/tools.md`） |
 | INFO | `ran` | `call`、`took_ms`、`error`（出错的才有，是 `true`） | 一次调用跑完 |
 | INFO | `stopped` | `call`、`took_ms` | 叫停一次在跑的调用 |

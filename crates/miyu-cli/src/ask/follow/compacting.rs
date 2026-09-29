@@ -1,0 +1,152 @@
+//! 压缩那几行（施工 6-3 下，照项目主人 2026-09-29 定的样子）：灰色旁白，终端里原地刷新进度，压好了换成结果，失败的
+//! 红。标准错误不是终端的，压缩中不印，只印结果那一行。`--format json` 不印。
+//!
+//! - 压缩中：`· 正在压缩上下文… 已写 3,120 字`；
+//! - 压好了：`· 上下文压缩好了：812.3k → 31k token`；
+//! - 失败：`· 压缩失败：<原因>`。
+
+use serde_json::Value;
+
+use super::{Follow, Format, Screen};
+use crate::ask::usage::thousands;
+use crate::language::Language;
+use crate::shown::{Ink, Line, write};
+
+/// 回到行首、擦掉这一行：终端里原地刷新用。
+const REDRAW: &str = "\r\x1b[2K";
+
+/// 正在压缩的那一次。
+#[derive(Debug, Default)]
+pub(super) struct Compacting {
+    /// 摘要请求的名字（它替代到的那一条）；没在压的没有。
+    seen: Option<u64>,
+    /// 终端里那一行进度画着，还没换成结果。
+    drawn: bool,
+}
+
+impl Follow<'_> {
+    /// 进度：记下是哪一次；终端里原地刷新那一行。
+    pub(super) fn compaction_progress(&mut self, body: &Value, screen: &mut Screen<'_>) {
+        self.compacting.seen = body["seen"].as_u64();
+        if self.plan.format != Format::Text || !screen.live {
+            return;
+        }
+        let written = body["written"].as_u64().unwrap_or(0);
+        let line = Line::gray(progress(&self.plan.language, written));
+        if !self.compacting.drawn {
+            self.close_answer(screen);
+            self.thought();
+            self.settle(screen);
+            if !self.err_ends_line {
+                write(screen.err, "\n");
+            }
+        }
+        let painted = line.paint(screen.gray);
+        write(
+            screen.err,
+            &format!("{REDRAW}{}", painted.trim_end_matches('\n')),
+        );
+        self.compacting.drawn = true;
+        self.err_ends_line = false;
+        self.aside = true;
+        self.blank = false;
+    }
+
+    /// 压好了：换成结果那一行。
+    pub(super) fn compaction_done(&mut self, body: &Value, screen: &mut Screen<'_>) {
+        self.compacting.seen = None;
+        let (before, after) = (
+            body["before"].as_u64().unwrap_or(0),
+            body["after"].as_u64().unwrap_or(0),
+        );
+        let line = Line::gray(done(&self.plan.language, before, after));
+        self.finish(&line, screen);
+    }
+
+    /// 摘要请求的记录：出错的说压缩失败，照分类说原因。被打断的不说：这一轮的收尾会说。
+    pub(super) fn compaction_called(&mut self, body: &Value, screen: &mut Screen<'_>) {
+        if self.compacting.seen.is_none() || body["seen"].as_u64() != self.compacting.seen {
+            return;
+        }
+        if body["result"].as_str() != Some("error") {
+            return;
+        }
+        self.compacting.seen = None;
+        let class = body["error"]["class"].as_str().unwrap_or("other");
+        let message = body["error"]["message"].as_str().unwrap_or_default();
+        let reason = reason(&self.plan.language, class, message);
+        let line = Line::inked(Ink::Red, failed(&self.plan.language, &reason));
+        self.finish(&line, screen);
+    }
+
+    /// 结果那一行：终端里画着进度的，擦掉换成它；没画的，照旁白印。
+    fn finish(&mut self, line: &Line, screen: &mut Screen<'_>) {
+        if self.plan.format != Format::Text {
+            self.compacting.drawn = false;
+            return;
+        }
+        if std::mem::take(&mut self.compacting.drawn) {
+            write(screen.err, REDRAW);
+            write(screen.err, &line.paint(screen.gray));
+            self.err_ends_line = true;
+            self.aside = true;
+            self.blank = false;
+        } else {
+            self.aside(line, screen);
+        }
+    }
+}
+
+/// 压缩中那一行。
+fn progress(language: &Language, written: u64) -> String {
+    let written = thousands(written);
+    match language {
+        Language::Chinese => format!("· 正在压缩上下文… 已写 {written} 字"),
+        Language::English => format!("· Compacting the context… {written} characters written"),
+    }
+}
+
+/// 压好了那一行。
+fn done(language: &Language, before: u64, after: u64) -> String {
+    let (before, after) = (tokens(before), tokens(after));
+    match language {
+        Language::Chinese => format!("· 上下文压缩好了：{before} → {after} token"),
+        Language::English => format!("· Context compacted: {before} → {after} tokens"),
+    }
+}
+
+/// 失败那一行。
+fn failed(language: &Language, reason: &str) -> String {
+    match language {
+        Language::Chinese => format!("· 压缩失败：{reason}"),
+        Language::English => format!("· Compaction failed: {reason}"),
+    }
+}
+
+/// 为什么失败：取不出摘要的分两种，调了工具的单说；别的照出错的分类说。
+fn reason(language: &Language, class: &str, message: &str) -> String {
+    if class == "bad_summary" && message.contains("called a tool") {
+        return match language {
+            Language::Chinese => "摘要请求里调了工具".to_string(),
+            Language::English => "the summary called a tool".to_string(),
+        };
+    }
+    language.class_name(class).to_string()
+}
+
+/// token 数写成给人看的：不到一千照写；一千以上写 `k`，一百万以上写 `M`，一位小数，整的不写小数。
+fn tokens(n: u64) -> String {
+    let (value, unit) = match n {
+        0..1_000 => return n.to_string(),
+        1_000..1_000_000 => (n as f64 / 1_000.0, "k"),
+        _ => (n as f64 / 1_000_000.0, "M"),
+    };
+    let tenths = (value * 10.0).round() / 10.0;
+    match tenths.fract() == 0.0 {
+        true => format!("{tenths:.0}{unit}"),
+        false => format!("{tenths:.1}{unit}"),
+    }
+}
+
+#[cfg(test)]
+mod tests;

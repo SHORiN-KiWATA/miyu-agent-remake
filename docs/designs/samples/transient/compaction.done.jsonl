@@ -1,0 +1,1 @@
+{"at":"2026-09-25T07:30:00.000Z","kind":"compaction.done","by":{"kind":"kernel"},"cause":"cmd-b5e2","body":{"seen":53,"before":812345,"after":31020,"usage":{"uncached":2345,"cache_read":810112,"cache_write":0,"output":2412},"duration_ms":41250}}

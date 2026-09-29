@@ -22,13 +22,14 @@ The earlier part of this conversation was compacted into the summary below. It i
 #### `core/checkpoint-close.txt`
 
 - 什么时候加进来：同上
-- token：11
-- 为什么加：同上
-- 指纹：`62697dc1`
+- token：30
+- 为什么加：同上。结尾那一句「Carry on … without redoing work it records as done」是检查点规则挪进来的（J12，施工 6-3 下）：回合中途压完，什么都不加的 4 次她都把摘要里记着读完了的文件再读一遍核对，有一次读完又到线，一轮压了 5 次；加了这一句的 3 次都直接答，一轮只压 2 次。这一句 19 个 token（2026-09-29 照项目主人给的端点实测，改前改后相减），只有压缩过的会话带
+- 指纹：`c16ebf29`
 
 ```text
 
 </summary>
+Carry on from where the summary leaves off, without redoing work it records as done.
 </conversation-checkpoint>
 ```
 
@@ -73,7 +74,7 @@ Reply with the <analysis> block and then the <summary> block, nothing else. Do n
 
 #### `core/checkpoint-rule.txt`
 
-- 什么时候加进来：不拼（2026-09-27 项目主人定），M6 压缩时实测再定，先试挪进检查点的包装
+- 什么时候加进来：不拼（2026-09-27 项目主人定）。施工 6-3 下实测以后挪进了检查点包装的结尾，换成更短的一句（见 `checkpoint-close.txt`）；这一份没有程序读
 - token：41
 - 为什么加：压缩以后接着干、不复述摘要（施工 1-12）。只有压缩过的会话用得上
 - 指纹：`0c320f4c`

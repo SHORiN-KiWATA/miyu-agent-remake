@@ -24,7 +24,7 @@ use crate::effects;
 use crate::guard::Guard;
 use crate::handle::{Message, Pushed};
 use crate::kinds;
-use crate::lines::retrying;
+use crate::lines::note;
 use crate::port::{Back, ModelPort, Report};
 use crate::store::Store;
 use crate::tools::{Dispatch, ToolKit, Tools};
@@ -252,7 +252,7 @@ impl Actor {
                 None
             }
             Action::PushTransient(transient) => {
-                retrying(&transient);
+                note(&transient);
                 self.push(Pushed::Transient(transient));
                 None
             }

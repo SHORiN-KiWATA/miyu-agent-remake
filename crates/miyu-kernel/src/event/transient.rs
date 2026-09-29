@@ -8,7 +8,7 @@
 use serde::{Serialize, Serializer};
 
 use crate::accumulate::Kind;
-use crate::event::ErrorClass;
+use crate::event::{ErrorClass, Usage};
 use crate::id::{CallId, CommandId, Seq, TurnId};
 use crate::origin::By;
 use crate::time::Timestamp;
@@ -39,6 +39,26 @@ pub enum TransientBody {
     Status(Status),
     /// `compaction.progress`：摘要写到哪了（施工 6-2 上）。
     CompactionProgress(CompactionProgress),
+    /// `compaction.done`：压好了，压前、压后的用量（施工 6-3 下）。
+    CompactionDone(CompactionDone),
+}
+
+/// `compaction.done` 的 `body`：压好了。压前、压后都是本地估算，和压缩线同一个算法；摘要请求的用量、用时取自它的
+/// `model.called`（施工 6-3 下，`compaction.md` 第十三条）。头照它印「上下文压缩好了」，核心照它记度量。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CompactionDone {
+    /// 哪一次摘要请求：它替代到的那一条。
+    pub seen: Seq,
+    /// 压之前的用量。
+    pub before: u64,
+    /// 压完这一步接着要发的请求的用量。
+    pub after: u64,
+    /// 摘要请求的用量；供应商没报的没有。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage: Option<Usage>,
+    /// 摘要请求从发出去到说完的毫秒数；没发出去的没有。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
 }
 
 /// `compaction.progress` 的 `body`：摘要请求收到了多少字，估计要写多少字，头照它画进度（`compaction.md`
@@ -118,6 +138,7 @@ impl TransientBody {
             TransientBody::ToolProgress(_) => "tool.progress",
             TransientBody::Status(_) => "status",
             TransientBody::CompactionProgress(_) => "compaction.progress",
+            TransientBody::CompactionDone(_) => "compaction.done",
         }
     }
 }
@@ -167,6 +188,7 @@ impl Serialize for TransientBody {
             TransientBody::ToolProgress(progress) => progress.serialize(s),
             TransientBody::Status(status) => status.serialize(s),
             TransientBody::CompactionProgress(progress) => progress.serialize(s),
+            TransientBody::CompactionDone(done) => done.serialize(s),
         }
     }
 }

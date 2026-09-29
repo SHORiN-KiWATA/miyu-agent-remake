@@ -9,11 +9,13 @@ use std::collections::BTreeSet;
 use super::Session;
 use super::action::Action;
 use super::call::Call;
+use super::call::Summarized;
 use super::turn::Stage;
 use crate::accumulate::{Delta, Kind};
 use crate::estimate::{self, Price, WithImages};
 use crate::event::{
-    Body, CompactTrigger, CompactionProgress, ContextCompacted, Event, Transient, TransientBody,
+    Body, CompactTrigger, CompactionDone, CompactionProgress, ContextCompacted, Event, Transient,
+    TransientBody,
 };
 use crate::id::{CommandId, Seq};
 use crate::origin::By;
@@ -29,6 +31,8 @@ const EXPECTED: (u64, u64) = (20_000, 80_000);
 pub(super) struct Compacting {
     /// 替代到哪一条，也是这次请求的 `seen`。
     upto: Seq,
+    /// 压之前的用量：过了线的那一次主请求算出的（施工 6-3 下，推 `compaction.done`）。
+    before: u64,
     /// 估计要写多少字。
     expected: u64,
     /// 到这时收到的正文字数。
@@ -38,6 +42,20 @@ pub(super) struct Compacting {
 }
 
 impl Compacting {
+    /// 刚发出去、还没写字的进度（施工 6-3 下）。
+    pub(super) fn started(&self) -> CompactionProgress {
+        CompactionProgress {
+            seen: self.upto,
+            written: 0,
+            expected: self.expected,
+        }
+    }
+
+    /// 压之前的用量。
+    pub(super) fn before(&self) -> u64 {
+        self.before
+    }
+
     /// 收到一段增量：正文块的字记上。是正文的一段字，交回要推给头的进度。
     pub(super) fn take(&mut self, delta: &Delta) -> Option<CompactionProgress> {
         match delta {
@@ -77,17 +95,33 @@ impl Session {
             compaction.reserve_cap,
             compaction.margin,
         )?;
-        let anchor = estimate::anchor(&self.history);
-        let price = WithImages {
-            images: limits.images.as_deref(),
-            flat: compaction.price,
-        };
-        let used = estimate::usage(request, anchor.as_ref(), &limits.model, &price);
+        let price = self.price()?;
+        let used = self.used(request)?;
         if used <= line {
             return None;
         }
         let budget = compaction.tail.min(line / 4);
         Some((self.compaction_upto(budget, &price)?, used))
+    }
+
+    /// 估算图片、文件的办法：驱动交了图片算法的照它，别的照策略里的固定数。策略里没有压缩、没交限额的，没有。
+    fn price(&self) -> Option<WithImages<'_>> {
+        Some(WithImages {
+            images: self.limits.as_ref()?.images.as_deref(),
+            flat: self.policy.compaction.as_ref()?.price,
+        })
+    }
+
+    /// 这份请求算出的用量（`compaction.md` 第一条）。
+    fn used(&self, request: &Request) -> Option<u64> {
+        let limits = self.limits.as_ref()?;
+        let anchor = estimate::anchor(&self.history);
+        Some(estimate::usage(
+            request,
+            anchor.as_ref(),
+            &limits.model,
+            &self.price()?,
+        ))
     }
 
     /// 替代到哪（`compaction.md` 第三条第 2 条）：尾巴一组一组地留，不超过 `budget`（[`tail_upto`]）；这一轮要回应的话
@@ -166,6 +200,7 @@ impl Session {
         };
         let compacting = Compacting {
             upto,
+            before: used,
             expected: used.clamp(EXPECTED.0, EXPECTED.1),
             written: 0,
             texts: BTreeSet::new(),
@@ -196,27 +231,49 @@ impl Session {
     }
 
     /// 取到了摘要：写 `context.compacted`；环境、权限两块事实和压缩以后的有效历史比，比不到的注入；回到「准备好」，
-    /// 这一批落了盘再组装主请求。返回追加的事件。
+    /// 这一批落了盘再组装主请求。返回追加的事件，和推给头的 `compaction.done`：压前、压后的用量，摘要请求的用量、
+    /// 用时（施工 6-3 下）。压后照这时的有效历史组装一次算，和这一步接着要发的主请求一样。
     pub(super) fn compacted(
         &mut self,
         at: Timestamp,
-        upto: Seq,
-        summary: String,
+        summarized: Summarized,
         cause: Option<CommandId>,
-    ) -> Vec<Event> {
+    ) -> (Vec<Event>, Option<Transient>) {
+        let Summarized {
+            upto,
+            summary,
+            before,
+            usage,
+            duration_ms,
+        } = summarized;
         let body = Body::ContextCompacted(ContextCompacted {
             upto,
             summary,
             trigger: Some(CompactTrigger::Auto),
         });
-        let mut events = vec![self.record(at, By::Kernel, cause, body)];
-        if let Some(turn) = self.turn.as_mut() {
+        let mut events = vec![self.record(at, By::Kernel, cause.clone(), body)];
+        let turn = self.turn.as_mut().map(|turn| {
             turn.stage = Stage::Ready;
             turn.refresh = true;
             turn.compacted = true;
-        }
+            turn.id
+        });
         events.extend(self.refresh_facts(at));
-        events
+        let request = self.policy.assembler.assemble(&self.history);
+        let done = self.used(&request).map(|after| Transient {
+            at,
+            turn,
+            by: By::Kernel,
+            cause,
+            body: TransientBody::CompactionDone(CompactionDone {
+                seen: upto,
+                before,
+                after,
+                usage,
+                duration_ms,
+            }),
+        });
+        (events, done)
     }
 }
 

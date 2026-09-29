@@ -1,3 +1,4 @@
 
 </summary>
+Carry on from where the summary leaves off, without redoing work it records as done.
 </conversation-checkpoint>

@@ -4,6 +4,7 @@
 
 mod asking;
 mod compaction;
+mod done;
 mod retrying;
 mod stopping;
 mod tail;

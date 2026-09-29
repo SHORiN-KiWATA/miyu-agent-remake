@@ -24,8 +24,10 @@ pub(crate) fn instruct(messages: &mut Vec<Message>, instruction: &str) {
     }
 }
 
-/// 从回复里取出摘要：只看正文块，思考不要。有 `<summary>` 的，取它和 `</summary>` 之间的，没有收尾的（输出到了上限）
-/// 取到末尾；没有的，去掉 `<analysis>…</analysis>` 那一段，剩下的当摘要。前后空白去掉，是空的就是没取到。
+/// 从回复里取出摘要：只看正文块，思考不要。先去掉草稿：草稿里会顺嘴提到 `<summary>` 这个标签
+/// （`Now writing the <summary>.`），从那儿取就把草稿的尾巴带进了摘要（施工 6-3 下真模型两次都这样）。剩下的有 `<summary>` 的，取它到
+/// 最后一个 `</summary>` 之间的：摘要里引的 HTML 也有 `</summary>`，真收尾的在最后；没有收尾的（输出到了上限）取到
+/// 末尾。没有 `<summary>` 的，剩下的当摘要。前后空白去掉，是空的就是没取到。
 pub(crate) fn extract(reply: &[Block]) -> Option<String> {
     let text: String = reply
         .iter()
@@ -34,26 +36,29 @@ pub(crate) fn extract(reply: &[Block]) -> Option<String> {
             _ => None,
         })
         .collect();
+    let text = without_analysis(&text);
     let summary = match text.find(SUMMARY.0) {
         Some(start) => {
             let body = &text[start + SUMMARY.0.len()..];
-            body.find(SUMMARY.1).map_or(body, |end| &body[..end])
+            body.rfind(SUMMARY.1).map_or(body, |end| &body[..end])
         }
-        None => &without_analysis(&text),
+        None => &text,
     };
     let summary = summary.trim();
     (!summary.is_empty()).then(|| summary.to_string())
 }
 
-/// 去掉第一段 `<analysis>…</analysis>`；没收尾的草稿一直到末尾都算草稿。
+/// 去掉第一段 `<analysis>…</analysis>`。没收尾的草稿，摘要写在它里面的，从最后一个 `<summary>` 起留下（前面提到的
+/// 标签都在草稿里）；没有的一直到末尾都算草稿。
 fn without_analysis(text: &str) -> String {
     let Some(start) = text.find(ANALYSIS.0) else {
         return text.to_string();
     };
     let rest = &text[start..];
-    let after = rest
-        .find(ANALYSIS.1)
-        .map_or("", |end| &rest[end + ANALYSIS.1.len()..]);
+    let after = match rest.find(ANALYSIS.1) {
+        Some(end) => &rest[end + ANALYSIS.1.len()..],
+        None => rest.rfind(SUMMARY.0).map_or("", |at| &rest[at..]),
+    };
     format!("{}{after}", &text[..start])
 }
 

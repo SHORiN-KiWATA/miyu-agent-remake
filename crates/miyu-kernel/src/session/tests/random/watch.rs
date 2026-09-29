@@ -378,6 +378,7 @@ impl Watch {
             }
             TransientBody::Status(status) => self.retry_status(status),
             TransientBody::CompactionProgress(progress) => self.compaction_progress(progress),
+            TransientBody::CompactionDone(done) => self.compaction_done(done),
         }
     }
 

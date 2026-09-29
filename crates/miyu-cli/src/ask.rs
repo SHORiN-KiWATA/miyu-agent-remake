@@ -144,6 +144,8 @@ pub struct Screen<'a> {
     pub err: &'a mut dyn Write,
     /// 标准错误是终端、没设 `NO_COLOR`。
     pub gray: bool,
+    /// 标准错误是终端：压缩的进度在一行里原地刷新（施工 6-3 下）；不是的只印结果那一行。
+    pub live: bool,
 }
 
 /// 跑一次 `miyu ask`，交回退出码。`start` 给出拉起核心的命令：主程序自己加上 `core`。
@@ -195,11 +197,13 @@ async fn run(args: Ask, start: impl FnOnce() -> Command, language: Language) -> 
     let presses = presses();
     let mut out = io::stdout();
     let mut err = io::stderr();
-    let gray = shown::colored(err.is_terminal(), std::env::var_os("NO_COLOR").as_deref());
+    let live = err.is_terminal();
+    let gray = shown::colored(live, std::env::var_os("NO_COLOR").as_deref());
     let mut screen = Screen {
         out: &mut out,
         err: &mut err,
         gray,
+        live,
     };
     talk(connection, &token, &plan, &mut screen, presses).await
 }

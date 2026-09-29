@@ -5,7 +5,8 @@
 //! - 这几段增量交给累积器，拼出来的就是样本里 45 号回复的内容块：推给头的和写进日志的对得上；
 //! - 45 号回复里那次 `read` 执行中的一段输出（`tool.progress`）；
 //! - 44 号请求出了限速的错，等 1 秒再来的状态（`status`，施工 3-5 下）；
-//! - 54 号压缩写摘要时的两段进度（`compaction.progress`，施工 6-2 上）。
+//! - 54 号压缩写摘要时的两段进度（`compaction.progress`，施工 6-2 上），和压好了的那一条（`compaction.done`，
+//!   施工 6-3 下）。
 //!
 //! 瞬时事件内核只推不读，所以样本在代码里照着造，不从文件读回来。
 
@@ -14,8 +15,8 @@ use std::path::PathBuf;
 
 use miyu_kernel::accumulate::{Accumulator, Delta, Kind};
 use miyu_kernel::event::{
-    Body, CompactionProgress, ErrorClass, Event, ModelDelta, Piece, Retry, Status, ToolProgress,
-    Transient, TransientBody,
+    Body, CompactionDone, CompactionProgress, ErrorClass, Event, ModelDelta, Piece, Retry, Status,
+    ToolProgress, Transient, TransientBody, Usage,
 };
 use miyu_kernel::id::{CallId, CommandId, ModelName, ProviderId, Seq, TurnId};
 use miyu_kernel::origin::{By, Model, Tool};
@@ -191,4 +192,27 @@ fn the_compaction_progress_sample_is_written_exactly() {
             progress("2026-09-25T07:29:59.100Z", 957),
         ]
     );
+}
+
+#[test]
+fn the_compaction_done_sample_is_written_exactly() {
+    let done = Transient {
+        at: Timestamp::parse("2026-09-25T07:30:00.000Z").expect("样本的时刻合写法"),
+        turn: None,
+        by: By::Kernel,
+        cause: Some(CommandId::parse("cmd-b5e2").expect("命令编号合写法")),
+        body: TransientBody::CompactionDone(CompactionDone {
+            seen: Seq::new(53).expect("53 是合法的序号"),
+            before: 812_345,
+            after: 31_020,
+            usage: Some(Usage {
+                uncached: 2345,
+                cache_read: 810_112,
+                cache_write: 0,
+                output: 2412,
+            }),
+            duration_ms: Some(41_250),
+        }),
+    };
+    assert_eq!(lines("transient/compaction.done.jsonl"), [done.to_line()]);
 }
