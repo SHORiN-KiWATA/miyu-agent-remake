@@ -139,6 +139,9 @@ pub enum Action {
         dirs: Vec<String>,
         /// 派出去那一刻实际生效的那一级（施工 5-4 上）：执行器照它给这次调用写沙盒的规格。
         permission: Permission,
+        /// 这一轮的 `cause`，也是这次调用的结果的（施工 7-3）：它起的后台命令自己退出了，执行器照它填 `job.reported` 的
+        /// `cause`（`kernel/session.md`「回报」第 2 条）。
+        cause: Option<CommandId>,
     },
 }
 
@@ -191,6 +194,9 @@ pub enum Reason {
     /// 手动压缩时没有能压的：上一次压缩以后没有新的消息、回复、工具结果，或者全在压完要原样留着的尾巴里（施工 6-8，
     /// `compaction.md` 第七条第 2 条）。
     NothingToCompact,
+    /// 子会话交来的回报对不上一个还会报的子代理（施工 7-2）：没有这个任务、不是子代理、会话不对、不是那个子会话发的、
+    /// 被停掉过（账本的几条，`docs/blueprint/kernel/history.md`）。
+    UnknownJob,
 }
 
 impl Reason {
@@ -211,6 +217,7 @@ impl Reason {
             Reason::Restoring => "restoring",
             Reason::NothingToRevert => "nothing_to_revert",
             Reason::NothingToCompact => "nothing_to_compact",
+            Reason::UnknownJob => "unknown_job",
         }
     }
 }

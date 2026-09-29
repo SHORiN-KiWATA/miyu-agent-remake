@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
 
-use miyu_kernel::event::Event;
+use miyu_kernel::event::{Body, Event};
 use miyu_kernel::time::UtcOffset;
 use miyu_tool::{Call, Done, Log, Progress, ReadLog, Stop, Tool};
 
@@ -55,6 +55,8 @@ fn sample() -> Vec<Vec<Event>> {
                 .collect::<Vec<_>>()
         })
         .filter(|event| event.seq.get() <= 86)
+        // 带 `parent` 的 `session.created` 是样本会话派的子代理自己日志里的第一条，不是这个会话的（施工 7-1）。
+        .filter(|event| !matches!(&event.body, Body::SessionCreated(created) if created.parent.is_some()))
         .collect();
     events.sort_by_key(|event| event.seq);
     let (first, rest) = events.split_at(20);
@@ -93,6 +95,8 @@ fn call(args: Value, log: Option<Log>, minutes: i32) -> Call {
         sandbox: None,
         log,
         offset: UtcOffset::from_minutes(minutes).expect("在范围里"),
+        agents: None,
+        jobs: None,
     }
 }
 

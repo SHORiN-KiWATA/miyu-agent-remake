@@ -987,13 +987,24 @@ Could not run {shell}: {error}.
 
 #### `software/basesystem/shell/no-background.txt`
 
-- 什么时候加进来：写了 `run_in_background: true`
-- token：约 25（估的）
-- 为什么加：后台命令随 M7；照 Claude Code 的习惯写了的，告诉她在前台跑、慢的放宽 `timeout`
-- 指纹：`4e7264a9`
+- 什么时候加进来：写了 `run_in_background: true`，这次调用却没有任务端口（会话外面的调用，例如测试；会话里总有）
+- token：25
+- 为什么加：告诉她在前台跑、慢的放宽 `timeout`。施工 7-3 起会话里放得到后台，`yet` 改成 `here`（2026-09-30 量）
+- 指纹：`5a85e7d4`
 
 ```text
-Running in the background is not available yet. Run the command in the foreground, with a larger timeout if it is slow.
+Running in the background is not available here. Run the command in the foreground, with a larger timeout if it is slow.
+```
+
+#### `software/basesystem/shell/started.txt`
+
+- 什么时候加进来：放到后台了，调用当场返回
+- token：22（`{job}` 按 `j1` 算）
+- 为什么加：她要知道编号、不用等也不用去查（结束了回报自己来，`agents.md` 第三条），和看输出的路；标题是她自己写的，不重复（施工 7-3，照 Claude Code 后台命令的回执）
+- 指纹：`64203e85`
+
+```text
+Started {job} in the background. You will be told when it ends. Read its output with jobs output.
 ```
 
 #### `software/basesystem/history/none.txt`
@@ -1084,6 +1095,28 @@ Could not read the log: {error}
 [file {name}]
 ```
 
+#### `software/basesystem/agent/started.txt`
+
+- 什么时候加进来：派出去了
+- token：10（字段按 `j1`、`查导出` 算，2026-09-30 量）
+- 为什么加：每次调用都要有结果：编号和标题（`agents.md` 第一条第 3 条）。编号以后 `jobs`、留言用，回报的标签里也是它；标题让她认得出是哪一个（施工 7-5）
+- 指纹：`9427c97b`
+
+```text
+Started subagent {job}: "{title}".
+```
+
+#### `software/basesystem/agent/not-started.txt`
+
+- 什么时候加进来：派不了：子会话造不成、交代送不进去、核心正在停
+- token：8（2026-09-30 量）
+- 为什么加：每次调用都要有结果；原因记进运行日志，不给她看（施工 7-5）
+- 指纹：`ead733e3`
+
+```text
+The subagent could not be started.
+```
+
 #### `software/basesystem/common/not-read.txt`
 
 - 什么时候加进来：`write`、`edit` 要改的文件已经在了、她这个会话里没看过
@@ -1163,6 +1196,142 @@ These images and files were returned by the tool calls above.
 
 ```text
 The tool returned only images or files. They are in the next message.
+```
+
+### 人这边：任务的回报（一块带标签的事实）
+
+#### `core/jobs/command-open.txt`
+
+- 什么时候加进来：标签那一行，后台命令结束了（`job.reported`），派它的那一轮还在；闲着时是开这一轮的那条，正忙时排在那一步的工具结果后面，之后每次请求照原文带
+- token：19（字段按 `j1`、`跑全部测试`、`exited` 算）
+- 为什么加：标签带编号、标题、原因，她认得出是哪一个任务、怎么结束的（施工 7-2，`agents.md` 第九条第 1 条：回报必须渲染，标签的写法照 `turn-ended/` 的样子）
+- 指纹：`614609de`
+
+```text
+<command-ended job="{job}" title="{title}" reason="{reason}">
+```
+
+#### `core/jobs/command-exit.txt`
+
+- 什么时候加进来：有退出码
+- token：5（`0`）
+- 为什么加：退出码是她判断成没成的依据，照前台 `shell` 的 `Exit code` 写（施工 7-2）
+- 指纹：`1f7d2552`
+
+```text
+Exit code {code}.
+```
+
+#### `core/jobs/command-signal.txt`
+
+- 什么时候加进来：被信号杀掉（Unix），没有退出码
+- token：7（`9`）
+- 为什么加：没有退出码时说清是怎么停的，照前台 `shell` 的写法（施工 7-2）
+- 指纹：`a4dd255f`
+
+```text
+Killed by signal {signal}.
+```
+
+#### `core/jobs/command-duration.txt`
+
+- 什么时候加进来：有用时（载入时补的 `aborted` 没有）
+- token：7（`81234`）
+- 为什么加：跑了多久，照 `agents.md` 第九条第 1 条（施工 7-2）
+- 指纹：`835d7b4e`
+
+```text
+Ran for {ms} ms.
+```
+
+#### `core/jobs/command-output.txt`
+
+- 什么时候加进来：存下了整份输出
+- token：14（`48213`）
+- 为什么加：不带输出本身，只写有多少字、怎么看（`agents.md` 第九条第 1 条，照 Claude Code、dsh）：调用之后才用得上的知识写进输出（施工 7-2）
+- 指纹：`78b1d7b5`
+
+```text
+The output has {chars} characters. Read it with jobs output.
+```
+
+#### `core/jobs/command-close.txt`
+
+- 什么时候加进来：收尾那一行，同 `command-open.txt`
+- token：4
+- 为什么加：标签的收尾（施工 7-2）
+- 指纹：`e02d8ce7`
+
+```text
+</command-ended>
+```
+
+#### `core/jobs/subagent-open.txt`
+
+- 什么时候加进来：标签那一行，子会话交来回报（`child.reported`），派它的那一轮还在；排法同 `command-open.txt`
+- token：21（字段按 `j2`、`查 CI 为什么红`、`done` 算）
+- 为什么加：标签带编号、标题、原因，正文是它最后的回答（施工 7-2，`agents.md` 第九条第 1 条，照 Claude Code、opencode：子代理的通知直接带最后的回复）
+- 指纹：`0033e3a4`
+
+```text
+<subagent-report job="{job}" title="{title}" reason="{reason}">
+```
+
+#### `core/jobs/subagent-person.txt`
+
+- 什么时候加进来：正文前面一行，那一轮里人插过话，或者那一轮是人开的、进过父会话的留言（`person`）
+- token：12
+- 为什么加：免得她对不上自己派的活（`agents.md` 第二条第 4 条，施工 7-2）
+- 指纹：`62c8ec85`
+
+```text
+The user also talked to this subagent during the task.
+```
+
+#### `core/jobs/subagent-truncated.txt`
+
+- 什么时候加进来：正文前面一行，正文超过上限、截过头尾（`truncated`）
+- token：16
+- 为什么加：告诉她中间少了、全文怎么看（`agents.md` 第二条第 3 条，施工 7-2）
+- 指纹：`6da93049`
+
+```text
+The middle of this report was cut. Read all of it with jobs output.
+```
+
+#### `core/jobs/subagent-silent.txt`
+
+- 什么时候加进来：代替正文，子代理一个字都没说就结束了
+- token：8
+- 为什么加：不然标签里是空的，她分不清是没说还是丢了（`agents.md` 第二条第 3 条，施工 7-2）
+- 指纹：`05f30353`
+
+```text
+The subagent ended without saying anything.
+```
+
+#### `core/jobs/subagent-close.txt`
+
+- 什么时候加进来：收尾那一行，同 `subagent-open.txt`
+- token：5
+- 为什么加：标签的收尾（施工 7-2）
+- 指纹：`0ed409f7`
+
+```text
+</subagent-report>
+```
+
+### system，子会话：人设后面空一行
+
+#### `core/jobs/subagent-venue.txt`
+
+- 什么时候加进来：子会话的每次请求（施工 7-5，`agents.md` 第九条第 3 条）
+- token：60（2026-09-30 照项目主人给的端点、`deepseek-v4.1-flash` 量）
+- 为什么加：子会话的场所说明：它是被派出来的，交代来自父会话、不是人，最后的回答就是交回去的回报，做完不用去查、不用等。照旧版子会话的交付约定（「回报对象是父会话」「不要轮询」，第五节）改写成英文；旧版里「改文件前先读行号」这类由工具保证的不带。常驻在子会话的 system：每个子会话一开始就要知道自己是谁、答给谁（施工 7-5）
+- 指纹：`40bbaadc`
+
+```text
+You are a subagent, started by another session to do one task. That parent session wrote the task, not a person. Your final answer is your report and goes back to the parent on its own. When the task is done, give that answer and stop, without checking back or waiting.
 ```
 
 ### 人这边
@@ -1297,14 +1466,14 @@ The tool returned only images or files. They are in the next message.
 #### `software/basesystem/tools/shell.json`
 
 - 什么时候加进来：会话的工具面里有 `shell`（每次请求都带）
-- token：152
-- 为什么加：`shell` 的说明和参数，照 Claude Code：`command` 看名字就懂，不写说明；`timeout` 是毫秒、上限和默认值写在那一句里。说明三句：用哪种 shell（`{shell}` 在核心起来时换成 `bash`、`zsh`、`PowerShell 7`、`Windows PowerShell 5.1`，会话里不变），编译、测试、git 用它、读搜改文件用专用的工具，每次从工作目录起、`cd` 不带到下一次。`run_in_background` 这一步不声明（施工 4-8）。施工 4-13 加必填的 `description`：这条命令在做什么的短标题，前端显示用，名字照 Claude Code、opencode（2026-09-28 项目主人定，+30）
-- 指纹：`994cd6cf`
+- token：183
+- 为什么加：`shell` 的说明和参数，照 Claude Code：`command` 看名字就懂，不写说明；`timeout` 是毫秒、上限和默认值写在那一句里。说明三句：用哪种 shell（`{shell}` 在核心起来时换成 `bash`、`zsh`、`PowerShell 7`、`Windows PowerShell 5.1`，会话里不变），编译、测试、git 用它、读搜改文件用专用的工具，每次从工作目录起、`cd` 不带到下一次（施工 4-8）。施工 4-13 加必填的 `description`：这条命令在做什么的短标题，前端显示用，名字照 Claude Code、opencode（2026-09-28 项目主人定，+30）。施工 7-3 声明 `run_in_background`，一句：放到后台、不管超时、当场交回编号；「结束了会告诉你」是调用之后才用得上的，写进结果那一句（2026-09-30 量，+31；和 `agent` 一起九件时重量，照样 183）
+- 指纹：`7f8f4246`
 
 ```json
 {
   "description": "Execute a command with {shell} and return its output. Use it for builds, tests, git and other programs, not to read, search or edit files. Every call starts in the working directory, so cd does not carry over to the next call.",
-  "parameters": {"type":"object","properties":{"command":{"type":"string"},"description":{"type":"string","description":"Short title of what the command does, in a few words."},"timeout":{"type":"integer","description":"Milliseconds before the command is stopped, up to 600000. Default 120000."}},"required":["command","description"]}
+  "parameters": {"type":"object","properties":{"command":{"type":"string"},"description":{"type":"string","description":"Short title of what the command does, in a few words."},"timeout":{"type":"integer","description":"Milliseconds before the command is stopped, up to 600000. Default 120000."},"run_in_background":{"type":"boolean","description":"Run it in the background with no timeout and return a job id at once."}},"required":["command","description"]}
 }
 ```
 
@@ -1333,6 +1502,20 @@ The tool returned only images or files. They are in the next message.
 {
   "description": "Create a file, or replace all of its content. A file that already exists must be read first. To change part of a file, use `edit`.",
   "parameters": {"type":"object","properties":{"file_path":{"type":"string","description":"Absolute, or relative to the working directory."},"content":{"type":"string"}},"required":["file_path","content"]}
+}
+```
+
+#### `software/basesystem/tools/agent.json`
+
+- 什么时候加进来：会话的工具面里有 `agent`：本机、没到深度上限的会话（每次请求都带）
+- token：140（2026-09-30 照项目主人给的端点、`deepseek-v4.1-flash` 量，九件一起时的边际份量）
+- 为什么加：`agent` 的说明和参数（施工 7-5）：说明照附录的草稿，两句：在后台派一个子会话做一件事、回报自己送来，它看不到这边的对话、交代要自己说得清（背景、已知的、目标、要报什么）。参数只声明 `description`、`prompt`（`agents.md`「还没有的」：挡位、人格、预设随配置和预设），各一句，名字照 Claude Code。量法同上，九件一起时的边际份量
+- 指纹：`67a06362`
+
+```json
+{
+  "description": "Start a subagent in a new session to do one task in the background; its report arrives as a message when it finishes. It sees nothing of this conversation, so the prompt must stand on its own: background, what is already known, the goal and what to report.",
+  "parameters": {"type":"object","properties":{"description":{"type":"string","description":"A short title for the task, 3 to 5 words."},"prompt":{"type":"string","description":"The task for the subagent to perform."}},"required":["description","prompt"]}
 }
 ```
 

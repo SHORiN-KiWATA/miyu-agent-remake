@@ -5,12 +5,17 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
+use miyu_kernel::event::{JobKind, JobStarted};
 use miyu_kernel::id::MediaType;
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::tool::Access;
 use tokio::sync::Barrier;
 
-use crate::{Call, Done, Picture, Progress, Running, Spec, Stop, Target, Tool};
+use crate::{Call, Done, Effect, Picture, Progress, Running, Spec, Stop, Target, Tool};
+
+mod held;
+
+pub use held::Held;
 
 /// 假工具跑起来做什么。
 #[derive(Debug, Clone)]
@@ -33,6 +38,9 @@ pub enum Act {
     Panics,
     /// 回一句成功 `shown`，再交一张 2×1 的 PNG，字节是给的这些（施工 4-13）。
     Shows(&'static [u8]),
+    /// 把这条假的后台命令交给任务端口（施工 7-3）：交上了回一句成功 `started <编号>`，报 `job.started`（后台命令，标题
+    /// `fake`）；交不上、没有端口的回一句出错。
+    Background(Arc<Held>),
 }
 
 /// 一件假工具。
@@ -179,10 +187,27 @@ impl Tool for Fake {
                     width: 2,
                     height: 1,
                 }),
+                Act::Background(held) => background(&call, &held),
             };
             guard.finished = true;
             done
         })
+    }
+}
+
+/// 交给任务端口：交上了报 `job.started`。
+fn background(call: &Call, held: &Arc<Held>) -> Done {
+    let Some(port) = &call.jobs else {
+        return Done::error("no job port");
+    };
+    match port.start(held.background()) {
+        Ok(job) => Done::ok(format!("started {job}")).effect(Effect::JobStarted(JobStarted {
+            job,
+            what: JobKind::Command,
+            title: "fake".to_string(),
+            session: None,
+        })),
+        Err(error) => Done::error(error.to_string()),
     }
 }
 

@@ -11,6 +11,7 @@
 | `crates/miyu-session/src/open.rs` | 造会话、载入：备好磁盘上的，交给内核，起 actor |
 | `crates/miyu-session/src/actor.rs` | actor 本身：收件箱、一批批送进内核、每个动作怎么回、停下 |
 | `crates/miyu-session/src/actor/model.rs` | 请求模型：交给端口、叫停、说完了记一行 |
+| `crates/miyu-session/src/actor/stop.rs` | 有计划地停下：要重启了、后台命令记 `restarted`、落了盘再整组杀（施工 7-3） |
 | `crates/miyu-session/src/actor/store.rs` | 写盘；撤掉压缩时读回日志（施工 6-9） |
 | `crates/miyu-session/src/handle.rs` | `Handle`：发命令、订阅、停下；推送和订阅 |
 | `crates/miyu-session/src/port.rs` | 请求模型的端口：`Models`、`ModelPort`、`Reports`、`Cancel` |
@@ -20,8 +21,10 @@
 | `crates/miyu-session/src/kinds.rs`、`lines.rs` | 运行日志里的输入、动作种类名，和几种写法 |
 | `crates/miyu-session/src/blocking.rs` | 在阻塞线程里做完磁盘上的事 |
 | `crates/miyu-session/src/tools.rs`、`effects.rs`、`restore.rs` | 执行工具、效果、改回文件（`session/tools.md`） |
+| `crates/miyu-session/src/jobs.rs`、`job_ids.rs` | 执行器的任务表、任务编号（`session/tools.md` 第 5 条，施工 7-3） |
 | `crates/miyu-session/src/reread.rs` | 压完重读文件、照 blob 取回原文（`compaction.md` 第九条） |
 | `crates/miyu-session/src/guard.rs` | 权限策略（`session/guard.md`） |
+| `crates/miyu-session/src/spawn.rs`、`agents.rs`、`job_ids.rs` | 造子会话的端口、派子代理、领任务编号（施工 7-5，`session/tools.md`「派子代理」） |
 | `crates/miyu-session/src/testkit.rs` | 测试用的、照剧本回的端口，`testkit` 开关打开才有 |
 
 ### 对外的样子
@@ -34,9 +37,11 @@
 | `Handle` | 一个会话的收件箱，可以复制，几个头一起拿着 |
 | `Pushed`、`Subscription`、`Ended`、`Stopped` | 推送、订阅、订阅断了、会话停了 |
 | `Models`、`ForSession`、`ModelPort`、`Reports`、`Cancel` | 请求模型的端口 |
+| `SessionPort`、`Child`、`Lineage`、`Pending` | 造子会话、给别的会话发命令的端口（施工 7-5）：会话表实现，造会话、载入时交进来 |
 | `HttpModels`、`IDLE` | 端口的真实现；空闲超时 180 秒 |
+| `Jobs` | 执行器的任务表，核心里一张：`Jobs::new()`，`running()` 有没有在跑的后台命令（结束了、记录还没落盘的也算，施工 7-3） |
 
-`Create` 的格：数据根 `root`、资源目录 `resources`、会话编号 `id`、人格 `persona`、场所 `venue`、属主 `owner`、开始时的权限 `permission`、有没有人能确认 `attended`、一次性的 `oneshot`、环境 `environment`（时区、工作目录）、造会话的命令编号 `command`、谁发的 `by`、造端口的 `models`、工具目录 `tools`、系统的家目录 `home`（读不出来的是空的）、沙盒的助手 `sandbox`（这台机器上的沙盒能用才有，施工 5-4 上）、沙盒的缓存 `sandbox_cache`（`<缓存目录>/sandbox/<属主>`，核心算不出缓存目录的没有，施工 5-4 下）。`Load` 的格：`root`、`owner`、`id`、`environment`、`models`、`tools`、`home`、`sandbox`、`sandbox_cache`。
+`Create` 的格：数据根 `root`、资源目录 `resources`、会话编号 `id`、人格 `persona`、场所 `venue`、属主 `owner`、开始时的权限 `permission`、有没有人能确认 `attended`、一次性的 `oneshot`、环境 `environment`（时区、工作目录）、造会话的命令编号 `command`、谁发的 `by`、造端口的 `models`、工具目录 `tools`、系统的家目录 `home`（读不出来的是空的）、沙盒的助手 `sandbox`（这台机器上的沙盒能用才有，施工 5-4 上）、沙盒的缓存 `sandbox_cache`（`<缓存目录>/sandbox/<属主>`，核心算不出缓存目录的没有，施工 5-4 下）、父会话和第几层 `lineage`（子会话才有，施工 7-5）、造子会话的端口 `sessions`（会话表交进来的，测试里自己造的没有，施工 7-5）、任务表 `jobs`（核心里那一张，施工 7-3）。`Load` 的格：`root`、`owner`、`id`、`environment`、`models`、`tools`、`home`、`sandbox`、`sandbox_cache`、`sessions`、`jobs`。
 
 | `Handle` 的方法 | 做什么 |
 |---|---|
@@ -58,14 +63,14 @@
 
 1. 在阻塞线程里依次做，哪一步不成就交回那一种错，actor 不起；已经存下的快照留着：
    1. 读出这个人格要用的原文（`store/resources.md`）。
-   2. 拼策略快照：人格、有没有人能确认、工具目录里每件工具的名字、说明、参数格式、访问类别，照名字排（`policy.md`）。
+   2. 拼策略快照：人格、有没有人能确认、工具目录里每件工具的名字、说明、参数格式、访问类别，照名字排（`policy.md`）。不在本机、到了深度上限的，工具面里不给 `agent`；子会话读出场所说明（`core/jobs/subagent-venue.txt`，读不了的算人格读不出来），接在 system 的人设后面（施工 7-5，`session/tools.md`「工具面」）。
    3. 照快照造内核的策略、驱动的占位、替工具写的两句（`session/tools.md`）、权限策略拒绝时的三句（`session/guard.md`）。
    4. 快照存成属主的 blob：先落 blob，再写引用它的事件。
    5. 建会话目录和空的第一段（`store.md`）。
 2. 造请求模型的端口。时钟从现在起。
-3. `session.created` 写属主、场所、快照的哈希、开始时的权限，`oneshot` 照交进来的；交给内核造会话，`cause` 是造会话的命令。
+3. `session.created` 写属主、场所、快照的哈希、开始时的权限，`oneshot` 照交进来的，子会话写 `parent`、`depth`（施工 7-5）；交给内核造会话，`cause` 是造会话的命令。
    马上交给内核这个模型的限额（`Input::Limits`，端口的 `limits()`：窗口、最大输出、一张图怎么算，施工 6-3 上），在别的输入之前；什么动作都不出。接着向内核要一份给头看的限额（`context_limits()`），交回的 `Handle` 带着它（施工 6-3 补）。
-4. 造权限策略、执行工具的端口（她看过的是空的）、actor；记下造会话的命令在等回应。
+4. 造权限策略、执行工具的端口（她看过的是空的；任务编号照内核的 `last_job_number()` 往下数，派子代理要照抄的那一份照交进来的，施工 7-5；actor 建它那一份任务表，和派子代理共用这一串编号，施工 7-3）、actor；记下造会话的命令在等回应。
 5. 在会话的 span 里记一行 `created`，起 actor。
 6. 等回应：`session.created` 落了盘，内核回应这个命令，交回 `Handle`。actor 在那之前停了的，交回 `CreateError::Stopped`（「出错」一节），在阻塞线程里删掉这个会话的目录：只剩一段空的第一段时才删，别的不动（施工 4-9 再补四下：原来留在磁盘上）。已经存下的快照留着：按内容存，别的会话可能也在用，回收随 blob 回收那一步。
 
@@ -80,7 +85,7 @@
 4. 从日志里的效果重建她看过的（`session/tools.md`）。
 5. 交给内核载入：交回会话，和一串要回的动作。有计划的重启打断了的一轮接着干，崩了的那一轮标成没走完（`kernel/session.md`）。
    马上交给内核这个模型的限额，同上：接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）；给头看的那一份也同上（施工 6-3 补）。检查点重读过的文件，内核在那一串动作的第一个交出 `Recall`，照下面第 4 条读（施工 6-9：认哪个检查点还算数是内核的事，执行器不自己找）。
-6. 造权限策略、执行工具的端口、actor；记一行 `loaded`；起 actor，先回那一串动作。
+6. 造权限策略、执行工具的端口（任务编号、派子代理要照抄的那一份照日志里的 `session.created` 和快照，施工 7-5）、actor；记一行 `loaded`；起 actor，先回那一串动作。
 7. 马上交回 `Handle`，不等那一串动作做完。
 
 **3. 收件箱**
@@ -88,7 +93,7 @@
 1. 一个会话一个 tokio 任务，带着会话的 span：`error_span!`，目标 `miyu::session`，名字 `session`，一格 `session` 是会话编号。开在 `ERROR` 级，调到 `WARN` 也筛不掉，底下的行都带着会话编号（`log.md`）。外面再套一个看着它的任务。
 2. 两条通道，都不设上限：
    - 人的：`Handle` 发来的命令、订阅、停下、环境变了。拿着 `Handle` 的都放下了，它就关了。
-   - 执行器的回报：请求的回报、到点了、工具的回报。actor 自己也拿着一头，它不会自己关。
+   - 执行器的回报：请求的回报、到点了、工具的回报、后台命令结束了（施工 7-3）。actor 自己也拿着一头，它不会自己关。
 3. 两条都有的时候，先收执行器的回报：读流不断。
 4. 人的一封：
 
@@ -108,9 +113,10 @@
    | 请求说完了 | 先记一行收场（第 7 条），再送用量、出错（分类和原话）、供应商说要等多久 |
    | 到点了 | 为哪一次请求等的 |
    | 工具的回报 | 见 `session/tools.md`；已经叫停了的不理 |
+   | 后台命令结束了（施工 7-3） | `JobEnded`：`by`、`cause`、`body` 照任务表交来的；记下它，这一批落了盘从任务表里拿掉（`session/tools.md` 第 5 条第 3 款） |
 
 6. 一封送进内核，内核交回一串动作，照第 4 条一个个做。当场就能回的输入（落盘了、挂接点跑完了、链判完了、改回了、工具不在目录里的结果）不回收件箱，排进本地的队列，接着送，队列空了才收下一封：它们先于收件箱里的任何一封。
-7. 每送完一批，照内核说的空不空闲，写一次「有没有在跑的回合」。
+7. 每送完一批：交进去的后台命令结束从任务表里拿掉（这一批都落了盘了，施工 7-3）；照内核说的空不空闲，写一次「有没有在跑的回合」。
 
 **4. 每个动作怎么做**
 
@@ -126,7 +132,7 @@
 | 不要这次请求了 | 叫端口停下（第 7 条） | |
 | 跑回合结束的挂接点 | 现在没有模块挂它，什么都不做 | |
 | 过执行前的链 | 权限策略在阻塞线程里判，等它判完（`session/guard.md`） | 链判完了 |
-| 执行工具 | 交给执行工具的端口（`session/tools.md`） | 目录里没有这件工具的：一条出错的结果 |
+| 执行工具 | 照调用编号和这一轮的 `cause` 造一个任务端口（施工 7-3），一起交给执行工具的端口（`session/tools.md`） | 目录里没有这件工具的：一条出错的结果 |
 | 停下工具 | 掐掉跑它的任务（`session/tools.md`） | |
 | 改回文件 | 在阻塞线程里一步步做完，这期间不收收件箱（`session/tools.md`） | 改回了，一步一项结局 |
 | 压完重读（`Reread`，施工 6-5） | 在阻塞线程里一个一个读：照安全打开（`fs.md`），超过上限的不读完，不是普通文件、读不了、不是 UTF-8 的算读不到；读到的存进这个会话的 blob。这期间不收收件箱 | 一个一项：读到了（`blob`、原文）、太大、读不到（`compaction.md` 第九条） |
@@ -179,12 +185,12 @@
 
 | 怎么停的 | 怎么走 |
 |---|---|
-| 有计划地停下（`Handle::stop`） | 送进「要重启了」；它产生的事件落了盘，记一行 `stopped`，回一声，actor 退出。再载入时被打断的那一轮接着干 |
+| 有计划地停下（`Handle::stop`） | 先把这个会话在跑的后台命令记成报了、各写一条 `restarted`（`session/tools.md` 第 5 条第 4 款）；收件箱里已经到了的后台命令结束拿出来，别的回报不要了。依次送进「要重启了」、这几条结束（排在后面：内核这时只记下、不开轮，`kernel/session.md`「有计划的重启」）、那几条 `restarted`；都落了盘，这个会话的后台命令整组杀掉，记一行 `stopped`，回一声，actor 退出。再载入时被打断的那一轮接着干（施工 7-3） |
 | 拿着 `Handle` 的都放下了 | 记一行 `closed`，actor 退出 |
 | 写不进去、写盘的线程 panic 了 | 第 5 条 |
 | actor 自己 panic 了（内核的 bug、端口的 bug） | 看着它的任务记一行 `panicked, stopped`，别的会话照常 |
 
-actor 退出以后：等着回应的命令、要订阅的、要停下的，都收到「会话停了」；订阅读完剩下的是 `Ended::Stopped`；路上的请求被叫停；在跑的工具被掐掉；不再算在跑。协议端点照「会话停了」把它从表里拿掉，下次用到再从磁盘载入（`protocol.md`）。
+actor 退出以后：等着回应的命令、要订阅的、要停下的，都收到「会话停了」；订阅读完剩下的是 `Ended::Stopped`；路上的请求被叫停；在跑的工具被掐掉；这个会话还在任务表里的后台命令整组杀掉、不记（再载入时内核补 `aborted`，施工 7-3）；不再算在跑。协议端点照「会话停了」把它从表里拿掉，下次用到再从磁盘载入（`protocol.md`）。
 
 **10. 时钟和会话编号**
 
@@ -211,10 +217,17 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | ERROR | `crashed` | `call`、`tool`、`took_ms` | 工具 panic 了 |
 | WARN | `unavailable` | `call`、`tool` | 目录里没有这件工具 |
 | WARN | `effect content not stored` | `error` | 效果里的内容存不成 blob |
+| INFO | `subagent started` | `job`、`child` | 派出去一个子代理（施工 7-5，`session/tools.md`「派子代理」） |
+| WARN | `subagent not created` | `job`、`error` | 会话表造不成子会话 |
+| WARN | `subagent not given its task` | `job`、`child`、`error` | 交代没送进子会话 |
 | WARN | `seen files not rebuilt` | `error` | 第 5 条第 4 点 |
 | WARN | `write failed, stopped` | `kind` | 写不进去 |
 | WARN | `read back failed, stopped` | `error` | 读回日志读不了（第 4 条，施工 6-9） |
 | WARN | `abandoned session not removed` | `error` | 造会话那一条没落盘，收拾会话目录时删不掉（第 1 条第 6 点，施工 4-9 再补四下） |
+| WARN | `job output not written` | `error` | 后台命令的输出写不进文件（`session/tools.md` 第 5 条，施工 7-3） |
+| WARN | `job output not stored` | `error` | 后台命令的输出读不出来、存不成 blob |
+| WARN | `job not waited` | `error` | 等不了后台命令结束 |
+| DEBUG | `job output still open after the command ended` | | 后台命令退出了，还有东西拿着它的管道 |
 | ERROR | `panicked, stopped` | | actor、写盘的线程 panic 了 |
 | ERROR | `answer without a question` | `action`：`answer_tool` | 内核要把回答交给工具 |
 | INFO | `stopped` | | 有计划地停好了 |
@@ -222,7 +235,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | DEBUG | `input` | `kind` | 每一条输入送进内核之前；增量、执行中的输出记在 TRACE |
 | DEBUG | `action` | `kind` | 每一个动作做之前；推送增量、推送执行中的输出记在 TRACE |
 
-- 输入的种类：`command`、`stored`、`environment`、`turn_start_hooks_done`、`request_sent`、`model_delta`、`model_ended`、`woke`、`tool_done`、`tool_progress`、`tool_asks`、`restarting`、`restored`、`read_back`、`recalled`、`tool_guarded`。
+- 输入的种类：`command`、`stored`、`environment`、`turn_start_hooks_done`、`request_sent`、`model_delta`、`model_ended`、`woke`、`tool_done`、`tool_progress`、`tool_asks`、`restarting`、`restored`、`read_back`、`recalled`、`tool_guarded`、`job_ended`。
 - 动作的种类：`append`、`reply`、`push`、`run_turn_start_hooks`、`call_model`、`push_transient`、`cancel_model`、`wake`、`run_turn_end_hooks`、`cancel_tool`、`guard_tool`、`answer_tool`、`run_tool`、`restore`、`read_back`、`recall`。
 - 只写种类、编号、数，不写里面的字。
 
@@ -250,6 +263,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 
 | 测试 | 守哪几条 |
 |---|---|
+| `crates/miyu-session/tests/jobs.rs`（施工 7-3） | 有计划地停下先记 `restarted`、杀的时候已经落了盘；没人拿着了停下的，整组杀掉不记、再载入补 `aborted`（`session/tools.md`「守着它的」） |
 | `crates/miyu-session/tests/actor.rs` | 造会话先存快照、第一条是 `session.created`；一轮先落盘、再推送、再回应，增量在回复落盘之前推过来；能重试的错到点才再请求、原样重发；打断叫停路上的请求；停下再载入接着干；同一个命令两次回两次、只生效一次；停在一轮中间的，落了盘、载入后接着干；载入的会话时刻不往回走；没人拿着了叫停路上的请求；换了工作目录下一轮才看到 |
 | `crates/miyu-session/tests/limits.rs` | 造会话、载入以后先交限额，到线就压，没有窗口的不压（施工 6-3 上）；`Handle` 带着端口交的窗口和内核算的压缩线，载入的也一样，没报窗口的两格都没有（施工 6-3 补） |
 | `crates/miyu-session/src/actor/tests.rs` | 写不进去就停下：等着的命令收到「会话停了」、记一行 `WARN`、不再算在跑、订阅不了、日志里没有对话的字 |
@@ -278,4 +292,4 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 - 工具执行中问人、把回答交给工具（`02-内核.md` 第四节、第六节「提问怎么走」）：现在没有工具会问，这个动作只记一行 `ERROR`。
 - 资源调度器：端点的并发上限、限速、优先级夹在请求模型的中间（`02-内核.md` 第七节）。
 - 推送的队列紧张时，先合并同一条目的连续增量（`04-核心协议.md` 第七节）：现在攒满了就让读得慢的掉队。
-- 子会话、后台命令，撤销时一起停下（`02-内核.md` 第七节）。
+- 子会话、后台命令，撤销时一起停下（`02-内核.md` 第七节，7-8）。

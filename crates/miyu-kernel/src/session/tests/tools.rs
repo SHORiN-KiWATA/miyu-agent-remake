@@ -302,3 +302,31 @@ fn a_tool_that_stops_unasked_counts_as_cancelled() {
     let actions = allowing(&mut session, stored(8));
     assert_eq!(calls(&actions)[0].0, seq(8), "这一步齐了，请求下一次");
 }
+
+/// 派出去的调用带着这一轮的 `cause`（施工 7-3）：它起的后台命令自己退出了，执行器照它记 `job.reported` 的 `cause`。链当场
+/// 放行的、等人允许了的，两条路一样。
+#[test]
+fn a_dispatched_call_carries_the_cause_of_its_turn() {
+    use super::approval::{answer, ask};
+    use crate::event::Decision;
+    use crate::tool::Access;
+    let causes = |actions: &[Action]| -> Vec<Option<CommandId>> {
+        actions
+            .iter()
+            .filter_map(|action| match action {
+                Action::RunTool { cause, .. } => Some(cause.clone()),
+                _ => None,
+            })
+            .collect()
+    };
+    let mut session = asking();
+    call_tools(&mut session, 5, &[("read", "{}")]);
+    assert_eq!(causes(&allowing(&mut session, stored(7))), [Some(id(1))]);
+    let mut session = asking();
+    call_tools(&mut session, 5, &[("write", "{}")]);
+    session.handle(stored(7));
+    session.handle(guarded(call(6, 1), ask(Access::Write, false)));
+    session.handle(stored(8));
+    session.handle(answer(2, call(6, 1), Decision::Once, None));
+    assert_eq!(causes(&session.handle(stored(9))), [Some(id(1))]);
+}

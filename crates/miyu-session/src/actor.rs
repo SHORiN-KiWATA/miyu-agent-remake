@@ -21,6 +21,7 @@ use crate::blocking::blocking;
 use crate::clock::Clock;
 use crate::guard::Guard;
 use crate::handle::{Message, Pushed};
+use crate::jobs::{Jobs, SessionJobs};
 use crate::kinds;
 use crate::lines::note;
 use crate::port::{Back, ModelPort, Report};
@@ -28,6 +29,7 @@ use crate::store::Store;
 use crate::tools::{Dispatch, ToolKit, Tools};
 
 mod model;
+mod stop;
 mod store;
 
 /// 推送的队列：一个会话最多攒这么多份还没被读走的。读得慢的订阅者被挤掉，掉了队
@@ -54,6 +56,8 @@ pub(crate) struct Actor {
     clock: Clock,
     /// 执行工具的端口（施工 4-2）。
     tools: Tools,
+    /// 这个会话的后台命令（施工 7-3）：丢掉它就整组杀掉。
+    jobs: SessionJobs,
     /// 执行前的链：权限策略（施工 4-3 下）。在阻塞线程里判，所以放在 `Arc` 里交过去（施工 4-9 再补四下）。
     guard: Arc<Guard>,
     /// 有没有在跑的回合，和 `Handle` 共用：每送完一批输入写一次；actor 退出了写成没有（施工 3-9 上）。
@@ -62,6 +66,19 @@ pub(crate) struct Actor {
 
 /// 会话停了：写不进去。
 pub(crate) struct Stop;
+
+/// 任务表里这个会话的那一份要的（施工 7-3）：核心里的那张表、会话目录（输出写在它下面的 `jobs/`）、属主的 blob、这个
+/// 会话的任务编号（和派子代理的共用一个，施工 7-5）。
+pub(crate) struct JobKit {
+    /// 核心里的那张表。
+    pub(crate) table: Arc<Jobs>,
+    /// 会话目录。
+    pub(crate) dir: std::path::PathBuf,
+    /// 属主的 blob。
+    pub(crate) blobs: miyu_store::blob::Blobs,
+    /// 这个会话的任务编号：从内核照日志算的用过的最大编号往后数。
+    pub(crate) ids: Arc<crate::job_ids::JobIds>,
+}
 
 /// 会话的 span：开在 `ERROR` 级。span 也照级别筛，开在 `INFO` 的话，调到 `WARN` 它就被筛掉了，底下的
 /// 行就没了会话编号（`miyu-log` 的说明，施工 3-7 上）。
@@ -99,18 +116,24 @@ enum Mail {
 }
 
 impl Actor {
-    /// 一个 actor：会话的状态机、写盘的地方、请求模型的端口、工具目录和替工具写的两句、权限策略、收件箱、时钟。
+    /// 一个 actor：会话的状态机、写盘的地方、请求模型的端口、工具目录和替工具写的两句、任务表、权限策略、收件箱、时钟。
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "造 actor 的几样各不相干，拼成一个结构体也只是换个地方列"
+    )]
     pub(crate) fn new(
         session: Session,
         store: Box<dyn Store>,
         model: Arc<dyn ModelPort>,
         tools: ToolKit,
+        jobs: JobKit,
         guard: Guard,
         inbox: mpsc::UnboundedReceiver<Message>,
         clock: Clock,
     ) -> Actor {
         let (backs, back) = mpsc::unbounded_channel();
         let tools = Tools::new(tools, backs.clone());
+        let jobs = SessionJobs::new(&jobs.table, jobs.dir, jobs.blobs, jobs.ids, backs.clone());
         let (pushes, _) = broadcast::channel(PUSH_QUEUE);
         let busy = Arc::new(AtomicBool::new(!session.idle()));
         Actor {
@@ -125,6 +148,7 @@ impl Actor {
             calls: BTreeMap::new(),
             clock,
             tools,
+            jobs,
             guard: Arc::new(guard),
             busy,
         }
@@ -198,19 +222,6 @@ impl Actor {
         }
     }
 
-    /// 有计划地停下：送进「要重启了」，它产生的事件落了盘，回一声。
-    async fn stop(&mut self, reply: oneshot::Sender<()>) {
-        let at = self.clock.now();
-        if self
-            .drain(VecDeque::from([Input::Restarting { at }]))
-            .await
-            .is_ok()
-        {
-            tracing::info!(target: TARGET, "stopped");
-            answer(reply, ());
-        }
-    }
-
     /// 回一串动作，再把当场回的输入送进去。
     async fn settle(&mut self, actions: Vec<Action>) -> Result<(), Stop> {
         let mut inputs = VecDeque::new();
@@ -232,6 +243,8 @@ impl Actor {
                 inputs.extend(self.act(action).await?);
             }
         }
+        // 交进去的后台命令结束都落了盘，才从任务表里拿掉：核心看表空了才空闲退出（施工 7-3）。
+        self.jobs.land();
         self.busy.store(!self.session.idle(), Ordering::Release);
         Ok(())
     }
@@ -306,8 +319,10 @@ impl Actor {
                 cwd,
                 dirs,
                 permission,
+                cause,
             } => {
                 let at = self.clock.now();
+                let jobs = self.jobs.port(call_id, cause);
                 self.tools.run(
                     at,
                     Dispatch {
@@ -317,6 +332,7 @@ impl Actor {
                         cwd,
                         dirs,
                         permission,
+                        jobs,
                     },
                 )
             }
@@ -402,6 +418,7 @@ impl Actor {
         Some(match back {
             Back::Woke { seen } => Input::Woke { at, seen },
             Back::Tool(back) => return self.tools.back(at, back),
+            Back::Job(ended) => self.jobs.arrived(at, ended),
             Back::Report { seen, report } => match report {
                 Report::Sent { model, request } => Input::RequestSent {
                     at,

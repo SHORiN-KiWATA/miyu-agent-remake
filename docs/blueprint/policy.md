@@ -47,6 +47,7 @@
 | `drivers` | `image_omitted`、`file_omitted`、`no_output`、`tool_attachments`、`tool_attachments_only` | `drivers/` 下，下划线换成 `-` 的同名文件 |
 | `permissions` | `forbidden`、`unresolvable` | `permissions/forbidden.txt`、`permissions/unresolvable.txt` |
 | `compaction` | `summarize_task`、`summarize_instructions`、`summarize_end`、`notes_files`、`notes_files_more`、`notes_retrieve`、`notes_too_large`、`restored_open`、`restored_close`、`truncated`、`notes_uncovered`、`summarize_system` | `compaction/` 下，下划线换成 `-` 的同名文件（摘要指令施工 6-2 上，截短重试的两份施工 6-6 中，隔离式那一句施工 6-6 下，别的施工 6-5；`summarize_instructions`、`summarize_end` 施工 6-8 从摘要指令里拆出来）。以前造的快照里没有，读成没有；没有的不写：没有 `notes_*` 的不写那一段，没有 `restored_*` 的不重读，没有截短重试的两份的不截短，没有 `summarize_system` 的不改走隔离式；有 `summarize_task`、没有 `summarize_instructions`、`summarize_end` 的，那两份读成空的：那时的 `summarize_task` 里本来就带着最后那一句，拼出来一字不差 |
+| `jobs` | `command_open`、`command_exit`、`command_signal`、`command_duration`、`command_output`、`command_close`、`subagent_open`、`subagent_person`、`subagent_truncated`、`subagent_silent`、`subagent_close` | `jobs/` 下，下划线换成 `-` 的同名文件（施工 7-2，两种回报的写法，`kernel/request.md`「回报」）。以前造的快照里没有，读成没有、不写：回报不渲染，那些会话也派不出任务 |
 
 **函数**：
 
@@ -54,6 +55,8 @@
 |---|---|
 | `compose(人格, Sources, attended)` | 拼一份快照。`Sources` 是读好的原文：`core`（`CoreTexts`）、`persona`（`PersonaTexts { persona }`，人设的原文） |
 | `Snapshot::with_tools(工具)` | 带上工具面 |
+| `Snapshot::with_venue(说明)` | 带上场所说明：system 的第二块，接在人设后面（施工 7-5）。现在只有子会话有 |
+| `JOB_DEPTH` | 策略数据 `jobs.depth` 的出厂值 2（`agents.md`「对外的样子」，施工 7-5）：造会话定工具面时用，不进快照 |
 | `to_bytes()`、`hash()`、`from_bytes(字节)` | 规范的字节、内容哈希、读回来 |
 | `session_created(属主, 场所, 权限)` | 造会话那一条的 `body`：`owner`、`venue`、`policy`（这份快照的哈希）、`permission`、`oneshot: false` |
 | `policy()` | 照快照造出内核的 `Policy` |
@@ -71,7 +74,7 @@
 
 **拼**（`compose`）
 
-1. `system` 照 `26-提示词.md` 第四节的先后拼：每一块去掉末尾的空白，空的块不要，块和块之间空一行（`\n\n`）。开头的空白是人格自己写的，照留。现在只有人设这一块，所以软件工程师的 system 就是 `You are a helpful software engineer.`。
+1. `system` 照 `26-提示词.md` 第四节的先后拼：每一块去掉末尾的空白，空的块不要，块和块之间空一行（`\n\n`）。开头的空白是人格自己写的，照留。现在只有人设这一块，所以软件工程师的 system 就是 `You are a helpful software engineer.`；子会话多一块场所说明（`core/jobs/subagent-venue.txt`），`with_venue` 照同样的规矩接在人设后面（施工 7-5，`agents.md` 第九条第 3 条）。
 2. `tools` 先是空的；`with_tools` 带上工具面，照名字的字节序排，稳定排序：交进来的先后不影响字节。
 3. `step_limit` 是 `null`，`resumes` 是 3，`attended` 照交进来的，`compaction` 是出厂的四个数。
 
@@ -84,7 +87,7 @@
 
 **造会话**（`crates/miyu-session/src/open.rs` 的 `create`，在阻塞线程里做）
 
-1. 照人格读原文；拼快照，带上核心工具目录里每一件的规格（名字、说明、参数格式、访问类别）。人格是 `session.create` 写的，不写是 `engineer`；`attended` 是握手时头报的能不能输入（`protocol.md`）。
+1. 照人格读原文；拼快照，带上核心工具目录里每一件的规格（名字、说明、参数格式、访问类别）。人格是 `session.create` 写的，不写是 `engineer`；`attended` 是握手时头报的能不能输入（`protocol.md`）。不能派子代理的会话（不在本机、到了深度上限）不带 `agent`；子会话带上场所说明（施工 7-5，`session/tools.md`「工具面」）。
 2. 先造一遍策略、驱动的占位、执行器的两句、权限策略的三句：哪一样造不出来，会话造不成，什么都不存。
 3. 快照存成属主家目录里的 blob。先落 blob，再写引用它的事件。
 4. 建会话目录和日志，内核记第 1 条 `session.created`：`owner`、`venue`、`policy`（快照的哈希）、`permission`，一次性的再带 `"oneshot":true`。
@@ -99,7 +102,7 @@
 
 **造策略**（`policy()`），照这个先后查，先错的先报：
 
-1. 检查点的包装、回合没走完的五句、摘要指令（没有的是空的），交给组装器（`kernel/request.md`）。
+1. 检查点的包装、回合没走完的五句、摘要指令（没有的是空的）、回报的写法（没有的是没有；有的，带字段的七份读成模板，拿各自的字段试换一次：标签的两份 `job`、`title`、`reason`，另外四份各一个 `code`、`signal`、`ms`、`chars`，写坏了、要了别的字段的造不出，说是 `job report texts`），交给组装器（`kernel/request.md`）。
 2. 工具面拆成两份，照快照里的先后：组装器的工具面（名字、说明、参数格式），内核的工具规则（名字 → 访问类别、参数格式）。两件同名的，造不出。
 3. 稳定区：工具面、`system`，示范对话是空的。
 4. 三份事实模板，造的时候试换（`kernel/request.md`）。
@@ -167,7 +170,7 @@
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-policy/src/snapshot/tests.rs` | 软件工程师的 system 就是那一句、`step_limit`、`resumes`；同样的原文同样的字节和哈希，读得回来，开头结尾的样子，改一个字哈希就变；坏字节读不回来；造得出策略，坏模板说是哪一类；`session.created` 带着哈希；开关照给的带；五句占位各是各的 |
-| `crates/miyu-policy/src/compose.rs`（内嵌的测试） | system 每块去掉末尾空白、空的不要、空一行 |
+| `crates/miyu-policy/src/compose.rs`（内嵌的测试） | system 每块去掉末尾空白、空的不要、空一行；场所说明接在人设后面、空的不留空行（施工 7-5） |
 | `crates/miyu-policy/src/tools/tests.rs` | 工具面照名字排、读回来一样、交进来的先后不影响字节；没有工具的不写 `tools`，带上空的字节不变；造策略时拆成两份；同名的造不出（读回来的也造不出）；执行器的两句带名字、转义、说法；坏的说是哪一类；缺了这两格的快照读成空的 |
 | `crates/miyu-policy/src/guard/tests.rs` | 三句带路径和原因、转义；说法；坏的说是哪一类；缺了 `permissions` 的快照读成空的 |
 | `crates/miyu-store/tests/snapshot.rs` | 从源码树的资源拼出快照，存成 blob，哈希就是快照的哈希；取回来一样；两份策略跑同一个剧本，每一次请求逐字节一样 |
@@ -187,7 +190,7 @@
 ### 还没有的
 
 - 示范对话：快照里还没有这一格（`03-事件模型.md` E5，`16-人格与预设.md`）。
-- system 只有人设：场所说明、核心和软件包的几行、技能与知识库的列表、没开的软件、子代理能选的人格、风格锁（`26-提示词.md` 第四节）。
+- system 只有人设和子会话的场所说明：别的场所的说明、核心和软件包的几行、技能与知识库的列表、没开的软件、子代理能选的人格、风格锁（`26-提示词.md` 第四节）。
 - 没人盯着的场所（例如群聊）的步数上限，随预设定；出厂不设（`02-内核.md` 第六节「工具怎么调、下一步怎么走」第 6 条）。
 - 预设、人格的覆盖链：自己的家目录、系统区、出厂的（`16-人格与预设.md` 第四节）；现在只读资源目录。
 - 会话中途换快照：`session.policy_changed` 带新的 `policy`，下一个回合开始时换（`02-内核.md` K3，`03-事件模型.md` 第三节）。

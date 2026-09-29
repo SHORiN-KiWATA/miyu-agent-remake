@@ -15,7 +15,8 @@ use miyu_kernel::origin::{By, Person};
 use miyu_kernel::session::{Command, Outcome};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_session::{
-    Create, Handle, Load, Models, Pushed, SandboxCache, Stopped, Subscription, create, load, new_id,
+    Create, Handle, Jobs, Lineage, Load, Models, Pushed, SandboxCache, SessionPort, Stopped,
+    Subscription, create, load, new_id,
 };
 use miyu_store::env::{Env, Platform};
 use miyu_store::log::read_events;
@@ -60,6 +61,8 @@ pub struct Home {
     pub root: DataRoot,
     pub resources: ResourceRoot,
     pub home: PathBuf,
+    /// 执行器的任务表（施工 7-3）：这个场地里的会话共用一张，和核心里一样。
+    pub jobs: Arc<Jobs>,
 }
 
 /// 造会话时可以换的几样（施工 4-3 下）。
@@ -77,6 +80,27 @@ pub struct Opening {
     pub sandbox: Option<PathBuf>,
     /// 沙盒的缓存（施工 5-4 下）：没有的沙盒里不设工具链的变量。
     pub sandbox_cache: Option<SandboxCache>,
+}
+
+/// 造会话时另外可以换的三样（施工 7-5）：派子代理用的。
+pub struct Lines {
+    /// 场所：默认在本机。
+    pub venue: VenueId,
+    /// 父会话和第几层：子会话才有。
+    pub lineage: Option<Lineage>,
+    /// 造子会话、给别的会话发命令的端口：没有的派不了子代理。
+    pub sessions: Option<Arc<dyn SessionPort>>,
+}
+
+impl Default for Lines {
+    /// 本机的主会话，派不了子代理。
+    fn default() -> Lines {
+        Lines {
+            venue: VenueId::parse("local").expect("场所合写法"),
+            lineage: None,
+            sessions: None,
+        }
+    }
 }
 
 impl Default for Opening {
@@ -130,6 +154,7 @@ impl Home {
             scratch,
             root,
             home,
+            jobs: Arc::new(Jobs::new()),
             resources: ResourceRoot::at(
                 Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"),
             ),
@@ -153,12 +178,24 @@ impl Home {
         tools: &Catalog,
         opening: Opening,
     ) -> Handle {
+        self.create_full(models, tools, opening, Lines::default())
+            .await
+    }
+
+    /// 同 [`Home::create_as`]，场所、父会话、造子会话的端口照 `lines`（施工 7-5）。
+    pub async fn create_full(
+        &self,
+        models: &dyn Models,
+        tools: &Catalog,
+        opening: Opening,
+        lines: Lines,
+    ) -> Handle {
         let created = create(Create {
             root: &self.root,
             resources: &self.resources,
             id: new_id(now()),
             persona: "engineer",
-            venue: VenueId::parse("local").expect("场所合写法"),
+            venue: lines.venue,
             owner: alice_account(),
             permission: opening.permission,
             attended: opening.attended,
@@ -175,6 +212,9 @@ impl Home {
             home: Some(&self.home),
             sandbox: opening.sandbox.as_deref(),
             sandbox_cache: opening.sandbox_cache,
+            lineage: lines.lineage,
+            sessions: lines.sessions,
+            jobs: &self.jobs,
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -203,6 +243,18 @@ impl Home {
         tools: &Catalog,
         cwd: &str,
     ) -> Handle {
+        self.load_full(session, models, tools, cwd, None).await
+    }
+
+    /// 同 [`Home::load_at`]，造子会话的端口是 `sessions`（施工 7-5）。
+    pub async fn load_full(
+        &self,
+        session: &SessionId,
+        models: &dyn Models,
+        tools: &Catalog,
+        cwd: &str,
+        sessions: Option<Arc<dyn SessionPort>>,
+    ) -> Handle {
         let loaded = load(Load {
             root: &self.root,
             owner: alice_account(),
@@ -217,6 +269,8 @@ impl Home {
             // 载入以后的测试不执行命令：沙盒用不了。
             sandbox: None,
             sandbox_cache: None,
+            sessions,
+            jobs: &self.jobs,
         });
         within("载入", loaded).await.expect("载入得了会话")
     }

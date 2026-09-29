@@ -18,7 +18,11 @@ impl Session {
     ///
     /// 打断以后在等停着的（施工 4-9 再补一）：那次打断照样算数，先照不等了收尾（[`Self::force_stop`]），不然这一轮
     /// 以 `restarted` 结束，再起来会接着干。收尾时接着开了下一轮的，再照上面收拾那一轮。
+    ///
+    /// 之后到的回报只记下、不开轮（施工 7-3）：要关了。执行器停下之前交来的后台命令结束（`restarted`，和正好在这时自己
+    /// 退出的）照常记，再起来时接着干的那一轮、或者下一轮开始时她一起看到。
     pub(super) fn restart(&mut self, at: Timestamp) -> Vec<Action> {
+        self.restarting = true;
         let mut events = Vec::new();
         let mut stops = Vec::new();
         for action in self.force_stop(at, None) {

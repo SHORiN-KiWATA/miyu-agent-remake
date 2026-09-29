@@ -44,12 +44,14 @@
 | `tools/interface.md` | 工具接口、目录、一次调用带什么、效果 |
 | `tools/read.md`、`glob.md`、`grep.md`、`write.md`、`edit.md`、`trash.md`、`shell.md` | 每件工具一页 |
 | `tools/history.md` | 翻这个会话自己的日志：图纸，M6 施工（2026-09-29） |
+| `tools/agent.md` | 派子代理（施工 7-5） |
 | `cli/ask.md`、`cli/undo.md`、`cli/compact.md`、`cli/main.md` | 每条命令一页（`cli/compact.md` 施工 6-8）；主程序 |
 | `sandbox.md` | 沙盒：规格、助手 `miyu-sandbox`、探测、找助手（施工 5-1 起） |
 | `sandbox/linux.md` | 沙盒在 Linux 上怎么收紧：只用 Landlock，整盘能读、只管写（施工 5-2 起，5-3 改成只管写） |
 | `sandbox/macos.md` | 沙盒在 macOS 上怎么收紧：Seatbelt 配置的底子、照规格生成的规则、换成真实的位置、装上、探测报 `seatbelt`（施工 5-7 起） |
 | `sandbox/windows.md` | 沙盒在 Windows 上要一次管理员权限的安装：沙盒用户、装和卸（施工 5-8 起） |
 | `compaction.md` | 压缩：什么时候压、摘要请求、检查点、压后重建、熔断、撤销能撤掉压缩：图纸，M6 施工（2026-09-29） |
+| `agents.md` | 分身：子代理和后台命令，派出去、回报、留言、停、撤销、载入、`miyu ask` 等回报、别的 harness 发消息：图纸，M7 施工（2026-09-29） |
 | `tui.md` | 终端界面的演示：版式、按键、鼠标、时间线、斜杠命令；和设计 13 的出入（分支 `proto/tui-demo`） |
 | `licenses.md` | 仓库用什么许可证；门禁查依赖的许可证能不能和它合在一起发（施工 4-12） |
 | `prompts.md` | 给模型看的每一份字的原文，按进到请求的哪里分组，带 token 数、什么时候出现；由门禁从 `resources/` 和登记簿生成（施工 4-9 三补） |

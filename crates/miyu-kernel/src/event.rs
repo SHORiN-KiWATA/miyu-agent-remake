@@ -13,6 +13,7 @@ use crate::time::Timestamp;
 
 mod context;
 mod effect;
+mod job;
 mod message;
 mod model;
 mod question;
@@ -25,7 +26,8 @@ mod turn;
 pub use context::{
     CompactTrigger, CompactionPaused, ContextCompacted, ContextInjected, PauseReason, RestoredFile,
 };
-pub use effect::{Effect, FileChanged, FileRead, FileTrashed};
+pub use effect::{Effect, FileChanged, FileRead, FileTrashed, JobKind, JobStarted};
+pub use job::{ChildReason, ChildReported, JobReason, JobReported};
 pub use message::{MessageAssistant, MessageUser, MessageWithdrawn};
 pub use model::{
     CallError, CallResult, ErrorClass, FirstDifference, MessageRole, ModelCalled, Part, Usage,
@@ -151,6 +153,10 @@ bodies! {
     CompactionPaused = "context.compaction_paused",
     /// 一次模型请求的记录。
     ModelCalled = "model.called",
+    /// 后台命令结束了（施工 7-1）。
+    JobReported = "job.reported",
+    /// 子会话的回报（施工 7-1）。
+    ChildReported = "child.reported",
 }
 
 impl Event {

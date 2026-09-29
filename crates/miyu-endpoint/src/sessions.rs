@@ -6,20 +6,22 @@
 
 use std::collections::{BTreeMap, VecDeque};
 use std::path::Path;
+use std::sync::Arc;
 
 use tokio::sync::Mutex;
 
 use miyu_kernel::event::{Body, Level, Permission};
 use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{CommandId, SessionId, VenueId};
-use miyu_kernel::origin::{By, Person};
+use miyu_kernel::origin::{By, Person, Session};
 use miyu_kernel::time::{Timestamp, UtcOffset};
-use miyu_session::{Create, CreateError, Handle, Load, LoadError, create, load, new_id};
+use miyu_session::{Child, Create, CreateError, Handle, Load, LoadError, create, load, new_id};
 use miyu_store::log::{OpenError, first_event, read_events};
 use miyu_store::resources::SourceError;
 
 use crate::Core;
 use crate::refusal::Refusal;
+use crate::spawn;
 
 /// 记住最近多少个造会话的命令编号：断线重发的造会话不再造一个新的（`04-核心协议.md` 第六节第 1 条）。核心重启以后
 /// 第一次造会话时，从最新的这么多个会话的 `session.created` 里补回来（施工 4-9 再补三上）。
@@ -71,7 +73,7 @@ impl Sessions {
     /// 同一个命令编号重发，交回上一次造的那一个。
     pub(crate) async fn create(
         &self,
-        core: &Core,
+        core: &Arc<Core>,
         command: CommandId,
         persona: &str,
         cwd: String,
@@ -117,6 +119,9 @@ impl Sessions {
             home: core.home.as_deref(),
             sandbox: core.sandbox.helper(),
             sandbox_cache: core.sandbox_cache_of(&core.admin),
+            lineage: None,
+            sessions: Some(spawn::port(core)),
+            jobs: &core.jobs,
         })
         .await;
         let handle = match created {
@@ -162,7 +167,7 @@ impl Sessions {
     /// 上）和会话现在的不一样，先送进会话；`dirs` 里有太宽的，整条命令都不收。
     pub(crate) async fn get(
         &self,
-        core: &Core,
+        core: &Arc<Core>,
         id: &SessionId,
         cwd: Option<&str>,
         dirs: Option<&[String]>,
@@ -219,6 +224,8 @@ impl Sessions {
             home: core.home.as_deref(),
             sandbox: core.sandbox.helper(),
             sandbox_cache: core.sandbox_cache_of(&core.admin),
+            sessions: Some(spawn::port(core)),
+            jobs: &core.jobs,
         })
         .await;
         let handle = match loaded {
@@ -242,6 +249,49 @@ impl Sessions {
             handle,
             cwd: workspace,
         })
+    }
+
+    /// 造一个子会话（施工 7-5，`agents.md` 第一条）：照执行器填好的 `child`，由父会话造（`by` 是它）。放进表里，和头造的
+    /// 一样照编号找得到：一个会话只起一个 actor。造不成的交回原因，由执行器记进运行日志。
+    pub(crate) async fn spawn(&self, core: &Arc<Core>, child: Child) -> Result<SessionId, String> {
+        let mut open = self.open.lock().await;
+        let id = new_id(now());
+        let parent = By::Session(Session {
+            id: child.lineage.parent.clone(),
+        });
+        let handle = create(Create {
+            root: &core.root,
+            resources: &core.resources,
+            id: id.clone(),
+            persona: &child.persona,
+            venue: child.venue,
+            sandbox_cache: core.sandbox_cache_of(&child.owner),
+            owner: child.owner,
+            permission: child.permission,
+            attended: child.attended,
+            oneshot: false,
+            environment: environment(child.cwd.clone(), child.dirs.clone()),
+            command: child.command,
+            by: parent,
+            models: &*core.models,
+            tools: &core.tools,
+            home: core.home.as_deref(),
+            sandbox: core.sandbox.helper(),
+            lineage: Some(child.lineage),
+            sessions: Some(spawn::port(core)),
+            jobs: &core.jobs,
+        })
+        .await
+        .map_err(|error| error.to_string())?;
+        // 工作目录是父会话这一轮实际干活的那一个，已经定过宽不宽。
+        let running = Running {
+            handle,
+            cwd: child.cwd.clone(),
+            workspace: child.cwd,
+            dirs: child.dirs,
+        };
+        open.running.insert(id.clone(), running);
+        Ok(id)
     }
 
     /// 会话 `id` 停了：从表里拿掉，下次用到再载入。

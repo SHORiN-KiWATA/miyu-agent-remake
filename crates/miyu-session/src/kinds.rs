@@ -25,6 +25,8 @@ pub(crate) fn input(input: &Input) -> &'static str {
         Input::Reread { .. } => "reread",
         Input::Recalled { .. } => "recalled",
         Input::ToolGuarded { .. } => "tool_guarded",
+        Input::JobEnded { .. } => "job_ended",
+        Input::Watched { .. } => "watched",
     }
 }
 

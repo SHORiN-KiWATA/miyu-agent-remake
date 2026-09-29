@@ -152,6 +152,34 @@ impl Decoder {
     }
 }
 
+/// 边读边把 `\r\n` 换成 `\n`（施工 7-3，后台命令的输出一段段写进文件）：一段以 `\r` 结尾的，留着它，看下一段是不是
+/// 以 `\n` 开头。单独的 `\r` 不动，和截给她看的一样。
+#[derive(Debug, Default)]
+pub(super) struct Crlf(bool);
+
+impl Crlf {
+    /// 又解出一段字：交回换好的。
+    pub(super) fn push(&mut self, text: &str) -> String {
+        let mut text = match std::mem::take(&mut self.0) {
+            true => format!("\r{text}"),
+            false => text.to_string(),
+        };
+        if text.ends_with('\r') {
+            text.pop();
+            self.0 = true;
+        }
+        unix(&text)
+    }
+
+    /// 读完了：留着的 `\r` 交回来。
+    pub(super) fn finish(&mut self) -> String {
+        match std::mem::take(&mut self.0) {
+            true => "\r".to_string(),
+            false => String::new(),
+        }
+    }
+}
+
 /// 末尾有几个字节是一个还没读完的字。
 fn unfinished(bytes: &[u8]) -> usize {
     for back in 1..=bytes.len().min(3) {

@@ -53,6 +53,44 @@ fn call_id_accepts_only_what_the_kernel_writes() {
     assert_eq!(call.index(), 1);
 }
 
+/// 任务编号（施工 7-1，`kernel/ids.md` 第 25、26 条）：只认 `j` 加从 1 起的十进制数，内核自己写出去的样子。
+#[test]
+fn job_id_accepts_only_what_the_kernel_writes() {
+    for (bad, why) in [
+        ("1", "must start with j"),
+        ("J1", "must start with j"),
+        ("", "must start with j"),
+        ("job1", "decimal number from 1 after j"),
+        ("j", "decimal number from 1 after j"),
+        ("j0", "decimal number from 1 after j"),
+        ("j01", "decimal number from 1 after j"),
+        ("j+1", "decimal number from 1 after j"),
+        ("j1x", "decimal number from 1 after j"),
+        ("j 1", "decimal number from 1 after j"),
+        ("j18446744073709551616", "decimal number from 1 after j"),
+    ] {
+        rejected::<JobId>(&format!("\"{bad}\""), why);
+        let err = JobId::parse(bad).unwrap_err();
+        assert_eq!(err.what, "job id", "{bad}");
+    }
+    rejected::<JobId>("1", "invalid type");
+    let job = JobId::new(12).unwrap();
+    assert_eq!(job.to_string(), "j12");
+    assert_eq!(JobId::parse("j12"), Ok(job));
+    assert_eq!(job.get(), 12);
+    assert_eq!(JobId::new(0), None);
+    round_trip::<JobId>(r#""j1""#);
+    round_trip::<JobId>(r#""j18446744073709551615""#);
+}
+
+/// 排序照那个数，不照字符串：`j2` 在 `j10` 前面。
+#[test]
+fn job_ids_sort_by_number() {
+    let parse = |text| JobId::parse(text).unwrap();
+    assert!(parse("j2") < parse("j10"));
+    assert!(parse("j9") < parse("j10"));
+}
+
 #[test]
 fn account_is_like_a_linux_login_name() {
     let longest = "a".repeat(32);
@@ -160,6 +198,14 @@ fn short_names_are_opaque_but_bounded() {
     rejected::<ProviderId>(r#""""#, "must not be empty");
     rejected::<VenueId>(&format!("\"{}\"", "v".repeat(129)), "128 bytes");
     rejected::<ExternalId>(r#""qq:\u000710086""#, "control characters");
+    // 别的 harness 报的名字（施工 7-1）：照 external 的做法，只管长度和控制字符。
+    round_trip::<HarnessName>(r#""claude-code""#);
+    round_trip::<HarnessName>(r#""Codex CLI 0.9 / 工作站""#);
+    rejected::<HarnessName>(r#""""#, "must not be empty");
+    rejected::<HarnessName>(&format!("\"{}\"", "h".repeat(129)), "128 bytes");
+    rejected::<HarnessName>(r#""claude\ncode""#, "control characters");
+    rejected::<HarnessName>(r#""claude\u001b[31mcode""#, "control characters");
+    assert_eq!(HarnessName::parse("").unwrap_err().what, "harness name");
 }
 
 #[test]

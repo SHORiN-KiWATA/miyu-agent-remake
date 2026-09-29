@@ -86,9 +86,10 @@ impl Watch {
             .unwrap_or_else(|| panic!("种子 {}：没有调用 {call_id}", self.seed))
     }
 
-    /// 造会话那一条的样子，替身的组装只看序号和种类。
+    /// 造会话那一条的样子，替身的组装只看序号和种类。一次性的种子带 `oneshot`（施工 7-2）。
     pub(super) fn created(&self) -> Event {
-        let created: SessionCreated = serde_json::from_str(CREATED).unwrap();
+        let mut created: SessionCreated = serde_json::from_str(CREATED).unwrap();
+        created.oneshot = self.reports.oneshot;
         Event {
             seq: seq(1),
             at: at(0),

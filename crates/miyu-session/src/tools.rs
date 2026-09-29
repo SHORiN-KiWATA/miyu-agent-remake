@@ -25,11 +25,13 @@ use miyu_kernel::session::{Input, Reread, Step};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_policy::RunTexts;
 use miyu_store::blob::Blobs;
-use miyu_tool::{Call, Catalog, Done, Log, Progress, Seen, Stop};
+use miyu_tool::{Call, Catalog, Done, JobPort, Log, Progress, Seen, Stop};
 
 use crate::TARGET;
+use crate::agents::Agents;
 use crate::blocking::blocking;
 use crate::effects;
+use crate::job_ids::JobIds;
 use crate::lines::millis;
 use crate::pictures;
 use crate::port::Back;
@@ -57,6 +59,10 @@ pub(crate) struct ToolKit {
     pub(crate) log: Log,
     /// 会话的时区：开会话时的环境里的（施工 6-4）。
     pub(crate) offset: UtcOffset,
+    /// 这个会话的任务编号（施工 7-5）：从日志里用过的最大编号往下数，几次调用一起跑的各领各的。
+    pub(crate) job_ids: Arc<JobIds>,
+    /// 派子代理要的（施工 7-5）：会话表交进来了端口才有。
+    pub(crate) agents: Option<Arc<Agents>>,
 }
 
 /// 执行工具的端口：一个会话一份。
@@ -74,6 +80,10 @@ pub(crate) struct Tools {
     log: Log,
     /// 会话现在的时区：头报上来换了跟着换（施工 6-4）。
     offset: UtcOffset,
+    /// 任务编号（施工 7-5）。
+    job_ids: Arc<JobIds>,
+    /// 派子代理要的（施工 7-5）：交给每一次调用一个照这一轮抄好的端口。
+    agents: Option<Arc<Agents>>,
     /// 在跑的调用：掐掉它的那一头、它的旗、开始跑的那一刻、工具名。
     running: BTreeMap<CallId, Running>,
     backs: mpsc::UnboundedSender<Back>,
@@ -120,6 +130,8 @@ pub(crate) struct Dispatch {
     pub(crate) dirs: Vec<String>,
     /// 派出去那一刻实际生效的那一级：沙盒照它写规格。
     pub(crate) permission: Permission,
+    /// 这次调用的任务端口（施工 7-3）：`shell` 把后台命令交给它。
+    pub(crate) jobs: Arc<dyn JobPort>,
 }
 
 impl Tools {
@@ -143,6 +155,8 @@ impl Tools {
             sandbox,
             log: kit.log,
             offset: kit.offset,
+            job_ids: kit.job_ids,
+            agents: kit.agents,
             running: BTreeMap::new(),
             backs,
         }
@@ -188,8 +202,14 @@ impl Tools {
             cwd,
             dirs,
             permission,
+            jobs,
         } = dispatch;
         let stop = Stop::default();
+        // 派子代理的端口照这一轮的目录、这一刻的权限抄（施工 7-5）：沙盒下面照样要用它们。
+        let agents = self.agents.as_ref().map(|agents| {
+            let ids = Arc::clone(&self.job_ids);
+            agents.for_call(ids, cwd.clone(), dirs.clone(), permission.clone())
+        });
         let call = Call {
             args,
             cwd,
@@ -200,6 +220,8 @@ impl Tools {
             sandbox: None,
             log: Some(self.log.clone()),
             offset: self.offset,
+            agents,
+            jobs: Some(jobs),
         };
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name).cloned() else {

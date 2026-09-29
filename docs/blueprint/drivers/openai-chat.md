@@ -52,7 +52,7 @@
 
 常量：`FAMILY` = `openai-chat`，`PATH` = `/chat/completions`，`MESSAGE_LIMIT` = 2000（原话最多几个字节，在 `classify.rs`）。
 
-**出错的输入** `Failure { status, headers, body }`：HTTP 状态（没有的是连不上、流里报的）、响应头（名字不分大小写）、响应体。`Failure::stream(body)` 是流里报的错，没有状态和头。**分好的类** `Classified { error, retry_after_ms, excess }`：分类和原话，供应商说了要等多久（毫秒），超长的超了多少 token（施工 6-6 中）。分类是内核的 `ErrorClass`：`context_too_long`、`content_policy`、`auth`、`rate_limited`、`retryable`、`other`，解码时还会出 `bad_stream`。
+**出错的输入** `Failure { status, headers, body }`：HTTP 状态（没有的是连不上、流里报的）、响应头（名字不分大小写）、响应体。`Failure::stream(body)` 是流里报的错，没有状态和头。**分好的类** `Classified { error, retry_after_ms, excess }`：分类、原话和 HTTP 状态码，供应商说了要等多久（毫秒），超长的超了多少 token（施工 6-6 中）。分类是内核的 `ErrorClass`：`context_too_long`、`content_policy`、`auth`、`rate_limited`、`retryable`、`other`，解码时还会出 `bad_stream`。
 
 ### 怎么走：编码
 
@@ -176,7 +176,7 @@
    - 内容策略的错误码：`content_filter`、`responsibleaipolicyviolation`、`content_policy_violation`、`image_content_policy_violation`、`refusal`、`cyber_policy`、`bio_policy`、`misalignment_policy_violation`。
    - 内容策略的说法：`violating our usage policy`、`blocked by content filtering policy`、`content policy`、`content-policy`、`content_policy`、`contentpolicy`、`rejected as a result of our safety system`。
    - 额度的说法（也找错误码、类型，因为它们在找说法的字里）：`insufficient_quota`、`insufficient quota`、`insufficient balance`、`insufficient_balance`、`exceeded your current quota`、`quota exceeded`、`billing_hard_limit_reached`、`credit balance is too low`、`usagelimiterror`。
-5. **原话**：有 HTTP 状态的写成 `HTTP <状态>: <原话>`，流里报的只写原话；最长 2000 字节，截在字的边界上。原话给查问题的人看，不进上下文。
+5. **原话**：有 HTTP 状态的写成 `HTTP <状态>: <原话>`，流里报的只写原话；最长 2000 字节，截在字的边界上。原话给查问题的人看，不进上下文。HTTP 状态码另写进 `status`，原话开头的 `HTTP <状态>: ` 照留；连不上的、流里报的没有，流里的 `code` 只拿来分类（施工 3-5 三补）。
 6. **要等多久**，先有的算：头 `retry-after-ms`（毫秒）；头 `retry-after`（秒，可以带小数；写成日期的不认）；找说法的字里的 `try again in <数>`，单位 `ms` 是毫秒、`s` 开头的是秒（`s`、`seconds`）。非负的数才算，四舍五入到毫秒。都没有就不写，由内核退避。头的名字不分大小写，值去掉前后空白。流里报的错，解码器连同要等多久一起留下，收尾时交给 HTTP 执行器（施工 4-9 再补三下）。
 7. **超了多少**（施工 6-6 中，`compaction.md` 第三条第 10 条）：分成 `context_too_long` 的，从找说法的字里解析，先对上的算：`maximum context length is <N>` 后面跟着 `resulted in <M>` 或者 `requested <M>`（OpenAI、DeepSeek 的写法）；`prompt is too long: <M> tokens > <N>`（Anthropic 的写法）。数可以带千分位的逗号。M 比 N 大才算，`excess` 是 M 减 N；别的分类、解析不出来的没有。
 
@@ -240,7 +240,7 @@
 | `crates/miyu-drivers/tests/openai_chat_continuation.rs` | DeepSeek 接着写（样本、路径、半截带思考）；没有开关或者没有记号一字不变；`partial` 的写法 |
 | `crates/miyu-drivers/tests/openai_chat_streams.rs` | 十三份流的样本；从哪里切开喂都一样；累积器一条都不拒；解出来的编码回去用供应商的编号；驱动的接口走一遍；`error` 是 `false`、`0`、`[]` 的是噪声，有内容的照旧出错；流里的限速连同要等多久交回；`finished()` 在 `finish_reason` 到了以后才说是 |
 | `crates/miyu-drivers/src/sse/tests.rs` | 三种换行、切开的 CRLF、几行 data 和注释、只有注释、事件名、切开的汉字、断在半条上、从哪里切开都一样 |
-| `crates/miyu-drivers/src/classify/tests.rs` | 每一类的例子；提到 token 的限速不当超长；额度算认证失败；要等多久的四种写法；`x-should-retry`；原话和 2000 字节 |
+| `crates/miyu-drivers/src/classify/tests.rs` | 每一类的例子；提到 token 的限速不当超长；额度算认证失败；要等多久的四种写法；`x-should-retry`；原话和 2000 字节；HTTP 状态码另记一格，连不上的、流里报的没有（施工 3-5 三补） |
 | `crates/miyu-drivers/src/texts/tests.rs` | 文件名换进去、转义；不该有的字段报错 |
 | `crates/miyu-drivers/src/base64/tests.rs` | RFC 4648 的测试值，`+`、`/` |
 | `crates/miyu-assemble/tests/probe.rs`、`random_logs.rs` | 编码以后也是上一次的前缀延伸（接着写那一次拿不接着写的编码比） |

@@ -190,6 +190,13 @@ impl Stage {
                 }
                 vec![done]
             }
+            Play::Starts { text, started } => {
+                let mut done = self.done(call_id, false, &text);
+                if let Input::ToolDone { effects, .. } = &mut done {
+                    effects.push(Effect::JobStarted(started));
+                }
+                vec![done]
+            }
         }
     }
 

@@ -1,9 +1,10 @@
 //! 编号和名字：事件里出现的每一种编号、每一种名字各是一种类型。
 //!
 //! - 数字：[`Seq`] 序号、[`TurnId`] 回合编号；
-//! - 内核分配的：[`CallId`] 调用编号，写成 `call_44_1`；
+//! - 内核分配的：[`CallId`] 调用编号，写成 `call_44_1`（`id/call.rs`）；[`JobId`] 任务编号，写成 `j1`（`id/job.rs`，
+//!   施工 7-1）；
 //! - 字符串：会话编号、命令编号、账号、内容哈希、模块、驱动家族、场所、外部身份、供应商、模型、
-//!   媒体类型、文件名、事件种类。
+//!   媒体类型、文件名、事件种类、别的 harness 的名字。
 //!
 //! 各自的写法见 `docs/designs/03-事件模型.md` 第二节「编号和时间的写法」。
 //! 读和写一样严：写出去是什么样，读进来就只认什么样，对不上的报 [`FormatError`]。
@@ -16,6 +17,12 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sha2::{Digest, Sha256};
 
 use crate::format_error::FormatError;
+
+mod call;
+mod job;
+
+pub use call::CallId;
+pub use job::JobId;
 
 /// 生成一种用字符串存的编号或名字。每一种只是检查的规则不同，其余都一样：
 /// `parse` 按规则检查；JSON 里写成字符串；从 JSON 读的时候照样检查。
@@ -206,6 +213,15 @@ text_id!(
     FactKind,
     "fact category",
     check_name
+);
+
+text_id!(
+    /// 别的 harness 报的名字（施工 7-1，`agents.md` 第十一条）：`miyu ask --from` 写的，对方自己报的，不可信。
+    /// 照外部身份的做法只管写法：1 到 128 字节、没有控制字符；收的那一边先去掉控制字符、截短再造它（`kernel/ids.md`）。
+    /// 给模型看之前照不可信的文本处理。
+    HarnessName,
+    "harness name",
+    check_short_text
 );
 
 fn is_lower_hex(b: u8) -> bool {
@@ -414,78 +430,12 @@ impl fmt::Display for TurnId {
     }
 }
 
-/// 调用编号：`call_<助手消息的序号>_<这条消息里的第几个调用>`，从 1 数起，由内核分配。
-/// 带着序号，一个会话里不会重复；供应商自己的编号放在驱动私有数据里。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CallId {
-    message: Seq,
-    index: u32,
-}
-
-impl CallId {
-    /// `index` 从 1 数起，0 不是调用编号。
-    pub fn new(message: Seq, index: u32) -> Option<CallId> {
-        (index >= 1).then_some(CallId { message, index })
-    }
-
-    /// 发起这个调用的助手消息的序号。
-    pub fn message(self) -> Seq {
-        self.message
-    }
-
-    /// 这是那条助手消息里的第几个调用，从 1 数起。
-    pub fn index(self) -> u32 {
-        self.index
-    }
-
-    /// 读 `call_44_1` 这样的写法。
-    ///
-    /// # Errors
-    ///
-    /// 只认内核自己写出去的样子。前缀不对、少了一段、数字不是从 1 开始的十进制写法
-    /// （例如 `0`、`01`、`+1`），都返回 [`FormatError`]。
-    pub fn parse(text: &str) -> Result<CallId, FormatError> {
-        let bad = |why| FormatError::new("call id", text, why);
-        let rest = text
-            .strip_prefix("call_")
-            .ok_or_else(|| bad("must start with call_"))?;
-        let (message, index) = rest
-            .split_once('_')
-            .ok_or_else(|| bad("write it as call_<seq>_<index>"))?;
-        let message = decimal(message)
-            .and_then(Seq::new)
-            .ok_or_else(|| bad("seq must be a decimal number from 1"))?;
-        decimal(index)
-            .and_then(|n| u32::try_from(n).ok())
-            .and_then(|n| CallId::new(message, n))
-            .ok_or_else(|| bad("index must be a decimal number from 1"))
-    }
-}
-
-/// 十进制数，只认我们自己写出去的样子：全是数字，不带正负号，不以 0 开头。
+/// 十进制数，只认我们自己写出去的样子：全是数字，不带正负号，不以 0 开头。调用编号、任务编号都用它。
 fn decimal(text: &str) -> Option<u64> {
     if text.is_empty() || text.starts_with('0') || !text.bytes().all(|b| b.is_ascii_digit()) {
         return None;
     }
     text.parse().ok()
-}
-
-impl fmt::Display for CallId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "call_{}_{}", self.message, self.index)
-    }
-}
-
-impl Serialize for CallId {
-    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        s.collect_str(self)
-    }
-}
-
-impl<'de> Deserialize<'de> for CallId {
-    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        CallId::parse(&String::deserialize(d)?).map_err(D::Error::custom)
-    }
 }
 
 #[cfg(test)]

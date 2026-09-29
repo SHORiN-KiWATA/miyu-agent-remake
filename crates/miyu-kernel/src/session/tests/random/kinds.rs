@@ -42,6 +42,12 @@ kinds! {
     Unrevert,
     /// 手动压缩（施工 6-8）。
     Compact,
+    /// 子会话交来的回报（施工 7-2）。
+    Report,
+    /// 后台命令结束了（施工 7-2）。
+    JobEnded,
+    /// 有没有头订阅着（施工 7-2）。
+    Watched,
     /// 落盘了。
     Stored,
     /// 环境变了。
@@ -101,6 +107,7 @@ impl InputKind {
                 Command::Revert { .. } => InputKind::Revert,
                 Command::Unrevert => InputKind::Unrevert,
                 Command::Compact { .. } => InputKind::Compact,
+                Command::Report(_) => InputKind::Report,
             },
             Input::Stored { .. } => InputKind::Stored,
             Input::Environment(_) => InputKind::Environment,
@@ -119,6 +126,8 @@ impl InputKind {
             Input::Reread { .. } => InputKind::Reread,
             Input::Recalled { .. } => InputKind::Recalled,
             Input::Woke { .. } => InputKind::Woke,
+            Input::JobEnded { .. } => InputKind::JobEnded,
+            Input::Watched { .. } => InputKind::Watched,
         }
     }
 }

@@ -40,7 +40,8 @@ impl History {
     ///
     /// - 触发它们的那条；
     /// - 由上一轮排着队的消息接着开的那一轮（`02-内核.md` 第六节「排队的消息」第 2 条），上一轮
-    ///   结束时还排着的那几条：它们带的是上一轮的编号，可她是在这一轮才听到的。
+    ///   结束时还排着的那几条：它们带的是上一轮的编号，可她是在这一轮才听到的。由上一轮里到的回报接着开的也一样
+    ///   （施工 7-2）：回报不带回合编号，上一轮就是紧挨着这一轮开头结束的那一轮。
     ///
     /// 别处来的留着：子代理的回报、后台命令结束、定时触发、群里别人说的话、另一个会话发来的
     /// 消息，撤掉的只是她对它们的反应。
@@ -57,13 +58,15 @@ impl History {
             let Some(trigger) = started.trigger.and_then(|trigger| self.find(trigger)) else {
                 continue;
             };
-            if !matches!(trigger.body, Body::MessageUser(_)) {
-                continue;
-            }
+            let previous = match &trigger.body {
+                Body::MessageUser(_) => trigger.turn,
+                Body::JobReported(_) | Body::ChildReported(_) => self.ended_before(event.seq),
+                _ => continue,
+            };
             if said_by_the_person(trigger) {
                 taken.insert(trigger.seq);
             }
-            if let Some(previous) = trigger.turn.filter(|turn| !turns.contains(turn)) {
+            if let Some(previous) = previous.filter(|turn| !turns.contains(turn)) {
                 taken.extend(
                     self.left_queued(previous)
                         .filter(|message| said_by_the_person(message))
@@ -102,6 +105,15 @@ impl History {
             .filter(in_turn)
             .filter(|event| matches!(event.body, Body::MessageUser(_)))
             .filter(move |event| heard.is_none_or(|heard| event.seq > heard))
+    }
+
+    /// 紧挨着第 `started` 条（一轮的开头）结束的那一轮：回合结束时由排着的接着开，两条挨着（施工 7-2）。前一条不是
+    /// `turn.ended` 的（闲着时由回报开的、恢复撤销以后开的），没有。
+    fn ended_before(&self, started: Seq) -> Option<TurnId> {
+        let previous = Seq::new(started.get().checked_sub(1)?)?;
+        self.find(previous)
+            .filter(|event| matches!(event.body, Body::TurnEnded(_)))
+            .and_then(|event| event.turn)
     }
 
     /// 序号是 `seq` 的那条，还在有效历史里的话。

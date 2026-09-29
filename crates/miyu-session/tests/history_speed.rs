@@ -77,6 +77,8 @@ async fn how_long_fifty_thousand_events_take() {
             sandbox: None,
             log: Some(Log::new(Dir(dir.clone()))),
             offset: UtcOffset::UTC,
+            agents: None,
+            jobs: None,
         };
         let started = Instant::now();
         let done = history.run(call, Progress::new(|_| {})).await;

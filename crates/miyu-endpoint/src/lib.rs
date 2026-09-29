@@ -7,7 +7,7 @@
 //! - [`Core`]：核心的家底：数据根、资源目录、给会话造请求模型的端口、管理员、本机令牌、会话表；
 //! - [`serve`]：和一个连接说话，直到它关了；
 //! - [`run`]：在本机的监听器上一个个接连接，每个交给 [`serve`]；
-//! - [`Core::idle`]：没有连接、也没有在跑的回合，核心据此空闲退出（施工 3-9 上）。
+//! - [`Core::idle`]：没有连接、没有在跑的回合、也没有在跑的后台命令，核心据此空闲退出（施工 3-9 上、7-3）。
 
 mod connection;
 mod hello;
@@ -16,6 +16,7 @@ mod listen;
 mod methods;
 mod refusal;
 mod sessions;
+mod spawn;
 mod subscriptions;
 mod undo;
 mod wire;
@@ -31,7 +32,7 @@ use std::time::Duration;
 
 use miyu_kernel::id::AccountId;
 use miyu_sandbox::{Availability, Unusable};
-use miyu_session::{Models, SandboxCache};
+use miyu_session::{Jobs, Models, SandboxCache};
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_tool::Catalog;
@@ -62,6 +63,8 @@ pub struct Core {
     token: String,
     /// 会话表。
     sessions: Sessions,
+    /// 执行器的任务表（施工 7-3）：所有会话的后台命令，核心里一张。
+    jobs: Arc<Jobs>,
     /// 连着几个连接：`serve` 开始时加一，走的时候减一（施工 3-9 上）。
     connections: AtomicUsize,
     /// 连上以后最多等多久握手（施工 4-9 再补三上）：等不来就断开，不然一个连上不说话的本机进程能让核心一直
@@ -94,6 +97,7 @@ impl Core {
             admin,
             token,
             sessions: Sessions::default(),
+            jobs: Arc::new(Jobs::new()),
             connections: AtomicUsize::new(0),
             hello_wait: HELLO_WAIT,
         }
@@ -136,10 +140,10 @@ impl Core {
         self.connections.load(Ordering::Acquire)
     }
 
-    /// 空闲：没有连接，也没有在跑的回合。核心看它决定能不能空闲退出（`12-进程形态与分发.md` 第二节，
-    /// 施工 3-9 上）。
+    /// 空闲：没有连接，没有在跑的回合，也没有在跑的后台命令（施工 7-3）。核心看它决定能不能空闲退出
+    /// （`12-进程形态与分发.md` 第二节、R1，施工 3-9 上）。
     pub async fn idle(&self) -> bool {
-        self.connections() == 0 && !self.sessions.busy().await
+        self.connections() == 0 && !self.jobs.running() && !self.sessions.busy().await
     }
 
     /// 有计划地停下全部在跑的会话：核心收到停的信号时。跑到一半的回合记成「重启了」，下次载入接着干。

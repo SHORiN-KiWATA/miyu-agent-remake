@@ -336,7 +336,7 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 
 ```text
 · 正在压缩上下文… 已写 3,120 字
-· 上下文压缩好了：812.3k → 31k token
+· 上下文已压缩：812.3k → 31k token
 · 压缩失败：取不出摘要
 ```
 
@@ -345,7 +345,7 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 | 什么时候 | 中文 | 英文 |
 |---|---|---|
 | 压缩中 | 正在压缩上下文… | Compacting the context… |
-| 压好了 | 上下文压缩好了：<压前> → <压后> token | Context compacted: <before> → <after> tokens |
+| 压好了 | 上下文已压缩：<压前> → <压后> token | Context compacted: <before> → <after> tokens |
 | 失败 | 压缩失败：<原因> | Compaction failed: <reason> |
 | 暂停 | 自动压缩连续失败 <n> 次，已暂停：可以手动压缩、换一个模型，或者开新会话 | Automatic compaction failed <n> times and is paused: compact manually, switch models, or start a new session |
 | 内容太大 | 第 <序号> 条内容太大，压完很快又满了，自动压缩已暂停 | Entry <seq> is too large and keeps filling the context; automatic compaction is paused |

@@ -4,6 +4,7 @@
 use std::fmt;
 use std::io;
 use std::path::Path;
+use std::sync::Arc;
 
 use tokio::sync::{mpsc, oneshot};
 
@@ -17,17 +18,21 @@ use miyu_store::blob::{BlobError, Blobs};
 use miyu_store::log::{OpenError, SEGMENT_LIMIT, SessionLog, abandon};
 use miyu_store::resources::{ResourceRoot, SourceError};
 use miyu_store::root::DataRoot;
-use miyu_tool::{Catalog, Log, Seen};
+use miyu_tool::{AGENT, Catalog, Log, Seen};
 
 use crate::TARGET;
-use crate::actor::{self, Actor};
+use crate::actor::{self, Actor, JobKit};
+use crate::agents::Agents;
 use crate::blocking::blocking;
 use crate::clock::Clock;
 use crate::effects;
 use crate::guard::Guard;
 use crate::handle::Handle;
+use crate::job_ids::JobIds;
+use crate::jobs::Jobs;
 use crate::port::{ForSession, Models};
 use crate::sandbox::SandboxCache;
+use crate::spawn::{Lineage, SessionPort};
 use crate::store::LogDir;
 use crate::tools::ToolKit;
 
@@ -69,6 +74,14 @@ pub struct Create<'a> {
     /// 沙盒的缓存：属主的那一份在哪、你的 cargo 目录在哪（施工 5-4 下）。核心算不出缓存目录的没有，沙盒里不设工具链的
     /// 变量。
     pub sandbox_cache: Option<SandboxCache>,
+    /// 父会话和第几层（施工 7-5）：子会话才有，写进 `session.created`；system 接上子会话的场所说明；到了深度上限的，
+    /// 工具面里不给 `agent`。
+    pub lineage: Option<Lineage>,
+    /// 造子会话、给别的会话发命令的端口（施工 7-5）：会话表交进来，派子代理经它。没有的（测试里自己造的），`agent` 照派
+    /// 不了出错。
+    pub sessions: Option<Arc<dyn SessionPort>>,
+    /// 执行器的任务表，核心里一张（施工 7-3）：后台命令交给它。
+    pub jobs: &'a Arc<Jobs>,
 }
 
 /// 载入一个会话要的。
@@ -93,6 +106,10 @@ pub struct Load<'a> {
     /// 沙盒的缓存：属主的那一份在哪、你的 cargo 目录在哪（施工 5-4 下）。核心算不出缓存目录的没有，沙盒里不设工具链的
     /// 变量。
     pub sandbox_cache: Option<SandboxCache>,
+    /// 造子会话、给别的会话发命令的端口（施工 7-5）：同 [`Create::sessions`]。
+    pub sessions: Option<Arc<dyn SessionPort>>,
+    /// 执行器的任务表，核心里一张（施工 7-3）：后台命令交给它，任务编号照日志往后数。
+    pub jobs: &'a Arc<Jobs>,
 }
 
 /// 造不成。
@@ -126,11 +143,12 @@ pub enum LoadError {
 }
 
 /// 造一个会话：先把策略快照存成 blob（先落 blob，再写引用它的事件），再建会话目录和日志，交给内核
-/// 造会话；`session.created` 落了盘，才交回 [`Handle`]。
+/// 造会话；`session.created` 落了盘，才交回 [`Handle`]。子会话（带着 [`Create::lineage`]）的 system 接上场所说明
+/// （施工 7-5）。
 ///
 /// # Errors
 ///
-/// 人格读不出来、策略造不出来、磁盘上建不成；造会话那一条没落盘。
+/// 人格、子会话的场所说明读不出来，策略造不出来、磁盘上建不成；造会话那一条没落盘。
 pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let Create {
         root,
@@ -150,10 +168,14 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         home,
         sandbox,
         sandbox_cache,
+        lineage,
+        sessions,
+        jobs,
     } = setup;
     let span = actor::span(&id);
     let (resources, name) = (resources.clone(), persona.to_string());
-    let face = face(tools);
+    let face = face(tools, Agents::allowed(&venue, lineage.as_ref()));
+    let child = lineage.is_some();
     let count = face.len();
     let dir = root.session_dir(&owner, &id);
     let abandoned = dir.clone();
@@ -161,9 +183,14 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let offset = environment.offset;
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
+    let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
     let (snapshot, policy, texts, run, guard, log) = blocking(move || {
         let sources = resources.sources(&name).map_err(CreateError::Persona)?;
-        let snapshot = compose(&name, sources, attended).with_tools(face);
+        let mut snapshot = compose(&name, sources, attended).with_tools(face);
+        if child {
+            let venue = resources.subagent_venue().map_err(CreateError::Persona)?;
+            snapshot = snapshot.with_venue(&venue);
+        }
         let policy = snapshot.policy().map_err(CreateError::Policy)?;
         let texts = snapshot.driver_texts().map_err(CreateError::Policy)?;
         let run = snapshot.run_texts().map_err(CreateError::Policy)?;
@@ -176,9 +203,21 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let kept = blobs.clone();
     let model = models.port(ForSession { texts, blobs });
     let mut clock = Clock::default();
+    let agents = sessions.map(|port| {
+        Arc::new(Agents {
+            port,
+            session: id.clone(),
+            owner: owner.clone(),
+            venue: venue.clone(),
+            depth: Agents::depth_of(lineage.as_ref()),
+            attended,
+        })
+    });
     let created = SessionCreated {
         oneshot,
         cwd: Some(environment.cwd.clone()),
+        parent: lineage.as_ref().map(|lineage| lineage.parent.clone()),
+        depth: lineage.as_ref().map(|lineage| lineage.depth),
         ..snapshot.session_created(owner, venue.clone(), permission)
     };
     let (mut session, first) = Session::create(
@@ -192,6 +231,13 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     // 模型的限额在别的输入之前交（施工 6-3 上）：什么动作都不出。给头看的那一份当场要，`Handle` 带着（施工 6-3 补）。
     session.handle(Input::Limits(model.limits()));
     let limits = session.context_limits();
+    let job_ids = Arc::new(JobIds::starting_after(session.last_job_number()));
+    let jobs = JobKit {
+        table,
+        dir: jobs_dir,
+        blobs: kept.clone(),
+        ids: Arc::clone(&job_ids),
+    };
     let (inbox, mailbox) = mpsc::unbounded_channel();
     let guard = Guard::new(
         tools.clone(),
@@ -215,7 +261,10 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             sandbox_cache,
             log: Log::new(log_dir),
             offset,
+            job_ids,
+            agents,
         },
+        jobs,
         guard,
         mailbox,
         clock,
@@ -245,10 +294,12 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     }
 }
 
-/// 目录里每件工具的规格，换成快照里的写法。
-fn face(tools: &Catalog) -> Vec<ToolEntry> {
+/// 目录里每件工具的规格，换成快照里的写法。不能派子代理的会话（`spawns` 是假的）不给 `agent`（施工 7-5）：工具面造会话时
+/// 定，一个会话里不变，给了也只会被拒（`agents.md` 第一条第 6 条）。
+fn face(tools: &Catalog, spawns: bool) -> Vec<ToolEntry> {
     tools
         .specs()
+        .filter(|spec| spawns || spec.name != AGENT)
         .map(|spec| ToolEntry {
             name: spec.name.clone(),
             description: spec.description.clone(),
@@ -275,6 +326,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         home,
         sandbox,
         sandbox_cache,
+        sessions,
+        jobs,
     } = setup;
     let span = actor::span(&id);
     let dir = root.session_dir(&owner, &id);
@@ -282,21 +335,33 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let offset = environment.offset;
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
-    let (log, events, policy, texts, run, guard) = blocking(move || {
+    let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
+    let (log, events, created, attended, policy, texts, run, guard) = blocking(move || {
         let (log, events) = SessionLog::open(&dir, SEGMENT_LIMIT).map_err(LoadError::Log)?;
-        let hash = match events.first().map(|event| &event.body) {
-            Some(Body::SessionCreated(created)) => created.policy.clone(),
+        let created = match events.first().map(|event| &event.body) {
+            Some(Body::SessionCreated(created)) => created.clone(),
             _ => return Err(LoadError::NotCreated),
         };
-        let bytes = store.get(&hash).map_err(LoadError::Blob)?;
+        let bytes = store.get(&created.policy).map_err(LoadError::Blob)?;
         let snapshot = Snapshot::from_bytes(&bytes).map_err(LoadError::Snapshot)?;
         let policy = snapshot.policy().map_err(LoadError::Policy)?;
         let texts = snapshot.driver_texts().map_err(LoadError::Policy)?;
         let run = snapshot.run_texts().map_err(LoadError::Policy)?;
         let guard = snapshot.guard_texts().map_err(LoadError::Policy)?;
-        Ok((log, events, policy, texts, run, guard))
+        let attended = snapshot.attended;
+        Ok((log, events, created, attended, policy, texts, run, guard))
     })
     .await?;
+    let agents = sessions.map(|port| {
+        Arc::new(Agents {
+            port,
+            session: id.clone(),
+            owner: owner.clone(),
+            venue: created.venue,
+            depth: created.depth.unwrap_or(0),
+            attended,
+        })
+    });
     let kept = blobs.clone();
     let model = models.port(ForSession { texts, blobs });
     // 系统时间比日志里最后一条还早（往回拨过），照最后一条的：时刻不往回走。
@@ -312,6 +377,13 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     // 文件，内核在载入吐出来的动作里第一个要回原文（施工 6-9），actor 起来先做它。
     session.handle(Input::Limits(model.limits()));
     let limits = session.context_limits();
+    let job_ids = Arc::new(JobIds::starting_after(session.last_job_number()));
+    let jobs = JobKit {
+        table,
+        dir: jobs_dir,
+        blobs: kept.clone(),
+        ids: Arc::clone(&job_ids),
+    };
     let (inbox, mailbox) = mpsc::unbounded_channel();
     let guard = Guard::new(
         tools.clone(),
@@ -335,7 +407,10 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             sandbox_cache,
             log: Log::new(log_dir),
             offset,
+            job_ids,
+            agents,
         },
+        jobs,
         guard,
         mailbox,
         clock,

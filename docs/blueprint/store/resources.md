@@ -8,7 +8,7 @@
 
 | 代码 | 管什么 |
 |---|---|
-| `crates/miyu-store/src/resources.rs` | 找资源目录；读出一个人格要用的原文 |
+| `crates/miyu-store/src/resources.rs` | 找资源目录；读出一个人格要用的原文、子会话的场所说明 |
 | `crates/miyu-store/src/human.rs` | 读给人看的字；照说法换成一句话；换进去的字段把控制字符换成 `�` |
 | `crates/miyu-store/src/env.rs` | 找资源目录要看的 `MIYU_RESOURCES`、程序的位置（`store.md`） |
 | `resources/` | 源码树里的资源目录，开发时 `MIYU_RESOURCES` 指到它 |
@@ -21,6 +21,7 @@
 | `ResourceRoot::at(路径)` | 就用这个目录，测试、工具指定的 |
 | `ResourceRoot::path()` | 资源目录本身 |
 | `ResourceRoot::sources(人格)` | 读出这个人格要用的原文，交给 `miyu-policy` 拼策略快照（`policy.md`） |
+| `ResourceRoot::subagent_venue()` | 读出子会话的场所说明 `core/jobs/subagent-venue.txt`，造子会话时接在人设后面（施工 7-5）；读不了的写明是哪一份 |
 | `ResourceRoot::models()` | 模型资料的原文（`models/models-dev.json`，施工 6-3 上），怎么读由核心定（`core.md`「模型」） |
 | `Human::load(资源目录, 语言)` | 读这种语言的给人看的字 |
 | `Human::tool(工具名)` | 这件工具给人看的样子 `Face`；没有的是空的 |
@@ -46,6 +47,7 @@
 │   ├── permissions/forbidden.txt、unresolvable.txt
 │   ├── drivers/<哪一句>.txt              5 份
 │   ├── compaction/<哪一份>.txt           摘要指令、代码写的几段、重读的文件的头尾、截短重试的两份、隔离式那一句 system，12 份
+│   ├── jobs/<哪一份>.txt                 两种回报的写法，11 份（施工 7-2）
 │   └── human/zh.json、en.json            给人看的字
 ├── personas/<人格>/prompts/persona.md    人设；出厂的只有 engineer
 └── software/<软件包>/                    出厂的只有 basesystem
@@ -56,7 +58,8 @@
 
 | 哪几份 | 谁读 | 什么时候 |
 |---|---|---|
-| `core/` 下的 `.txt`（两份 `*-rule.txt` 除外）、`personas/<人格>/prompts/persona.md` | `ResourceRoot::sources` | 造会话时，拼进策略快照 |
+| `core/` 下的 `.txt`（两份 `*-rule.txt`、`jobs/subagent-venue.txt` 除外）、`personas/<人格>/prompts/persona.md` | `ResourceRoot::sources` | 造会话时，拼进策略快照 |
+| `core/jobs/subagent-venue.txt` | `ResourceRoot::subagent_venue` | 造子会话时，接进 system（施工 7-5） |
 | `core/human/`、`software/<软件包>/human/` | `Human::load` | `miyu ask` 起来时读一次，印每一步用（`cli/ask.md`） |
 | `software/basesystem/` 下别的 | `miyu-basesystem` | 核心起来时登记工具（`tools/*.md`） |
 | `models/models-dev.json` | `ResourceRoot::models` | 核心起来时读一次，查模型的窗口、最大输出（施工 6-3 上）。是数据，不发给模型，不进登记簿 |
@@ -93,6 +96,7 @@
 | `core/permissions/forbidden.txt`、`unresolvable.txt` | 权限策略拒绝时的话（`session/guard.md`） |
 | `core/drivers/image-omitted.txt`、`file-omitted.txt`、`no-output.txt`、`tool-attachments.txt`、`tool-attachments-only.txt` | 驱动的占位 |
 | `core/compaction/summarize-task.txt`、`summarize-instructions.txt`、`summarize-end.txt`、`notes-files.txt`、`notes-files-more.txt`、`notes-retrieve.txt`、`notes-too-large.txt`、`restored-open.txt`、`restored-close.txt`、`truncated.txt`、`notes-uncovered.txt`、`summarize-system.txt` | 压缩的字：摘要指令（施工 6-2 上；施工 6-8 拆出最后那一句、加上手动压缩的要求前面那一行，`compaction.md` 第七条），检查点里代码写的几段、重读的文件那一块的头尾（施工 6-5，`compaction.md` 第八条），截过的摘要请求前面补的那一条、摘要没看到的那一段（施工 6-6 中，第三条第 10 条），隔离式那一句 system（施工 6-6 下，第四条） |
+| `core/jobs/command-open.txt`、`command-exit.txt`、`command-signal.txt`、`command-duration.txt`、`command-output.txt`、`command-close.txt`、`subagent-open.txt`、`subagent-person.txt`、`subagent-truncated.txt`、`subagent-silent.txt`、`subagent-close.txt` | 两种回报的写法（施工 7-2，`kernel/request.md`「回报」） |
 | `personas/<人格>/prompts/persona.md` | 人设 |
 
 **3. 读给人看的字**（`Human::load`）
@@ -156,7 +160,7 @@
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-store/src/resources/tests.rs` | `MIYU_RESOURCES` 优先、开头的 `~` 照家目录接、要是绝对路径、要是目录；程序旁边的 `resources/`、上一级的 `share/miyu/`；都没有时写明找过哪两处、不知道程序在哪；读出软件工程师的人设和随核心附带的字；人设文件缺了写明是哪一份；不合写法的编号拒绝 |
+| `crates/miyu-store/src/resources/tests.rs` | `MIYU_RESOURCES` 优先、开头的 `~` 照家目录接、要是绝对路径、要是目录；程序旁边的 `resources/`、上一级的 `share/miyu/`；都没有时写明找过哪两处、不知道程序在哪；读出软件工程师的人设和随核心附带的字；人设文件缺了写明是哪一份；不合写法的编号拒绝；子会话的场所说明是它自己那份文件，没有的写明是哪一份（施工 7-5） |
 | `crates/miyu-store/tests/human.rs` | 内核给模型的每一句（`core/tool-results/`、`core/permissions/`）两种语言都有给人看的一句，要的字段不多于给模型的；照语言换成字，没有的语言照英文，没有这一句、少了字段的换不出；工具的显示名、后面跟的参数、符号、下面那一块，`block` 写别的读不懂；控制字符换掉、引号反斜杠照原样；什么都没有不算错，只有英文的照英文，读不懂的写明是哪一份、哪一句 |
 | `crates/miyu-store/tests/snapshot.rs` | 从源码树的资源目录拼出软件工程师的快照 |
 

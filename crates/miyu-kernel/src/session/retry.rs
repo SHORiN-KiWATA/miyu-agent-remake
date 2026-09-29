@@ -70,6 +70,7 @@ impl Session {
                     wait_ms: wait,
                     class: error.class,
                     message: error.message,
+                    status: error.status,
                 },
             }),
         };

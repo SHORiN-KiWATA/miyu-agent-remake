@@ -4,12 +4,15 @@
 
 mod asking;
 mod breaker;
+mod commands;
 mod compaction;
 mod done;
 mod isolate;
 mod manual;
 mod overflow;
 mod rebuild;
+mod reports;
+mod reports_undo;
 mod retrying;
 mod shorten;
 mod stopping;
@@ -60,6 +63,7 @@ fn told(event: &Event) -> String {
         By::Tool(tool) => format!("tool {}", tool.call_id),
         By::Module(module) => module.id.as_str().to_string(),
         By::Kernel => "kernel".to_string(),
+        By::Session(_) => "child".to_string(),
         other => format!("{other:?}"),
     };
     let turn = event

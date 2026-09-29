@@ -1,5 +1,5 @@
 //! 列出会话（`docs/construction/3-9-miyu-ask（下）.md`）：造会话时标了一次性的，`session.list` 看得出来；
-//! 从新到旧；只要一次性的、最多几个。
+//! 从新到旧；只要一次性的、最多几个。主会话的 `parent` 是 `null`（施工 7-5；子会话的见 `spawn.rs`）。
 
 mod support;
 
@@ -32,9 +32,9 @@ async fn sessions_are_listed_newest_first_and_oneshot_ones_can_be_picked() {
     assert_eq!(
         reply["result"]["sessions"],
         json!([
-            {"session": plain, "oneshot": false},
-            {"session": second, "oneshot": true},
-            {"session": first, "oneshot": true},
+            {"session": plain, "oneshot": false, "parent": null},
+            {"session": second, "oneshot": true, "parent": null},
+            {"session": first, "oneshot": true, "parent": null},
         ]),
         "从新到旧"
     );
@@ -43,7 +43,7 @@ async fn sessions_are_listed_newest_first_and_oneshot_ones_can_be_picked() {
         .await;
     assert_eq!(
         reply["result"]["sessions"],
-        json!([{"session": second, "oneshot": true}]),
+        json!([{"session": second, "oneshot": true, "parent": null}]),
         "最新的一次性会话"
     );
     let reply = client

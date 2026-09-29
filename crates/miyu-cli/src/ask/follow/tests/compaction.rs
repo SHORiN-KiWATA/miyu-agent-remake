@@ -57,9 +57,9 @@ fn in_a_terminal_the_progress_is_redrawn_in_place_then_replaced() {
     let gray = |text: &str| format!("\x1b[90m{text}\x1b[0m");
     let expected_start = format!(
         "\r\x1b[2K{}\r\x1b[2K{}\r\x1b[2K{}\n",
-        gray("· 正在压缩上下文… 已写 0 字"),
+        gray("· 正在压缩上下文…"),
         gray("· 正在压缩上下文… 已写 3,120 字"),
-        gray("· 上下文压缩好了：812.3k → 31k token"),
+        gray("· 上下文已压缩：812.3k → 31k token"),
     );
     assert!(err.starts_with(&expected_start), "{err:?}");
 }
@@ -72,7 +72,7 @@ fn in_a_pipe_only_the_result_is_printed() {
     assert_eq!(step, Step::Done(exit::OK));
     assert_eq!(
         screen,
-        "· 上下文压缩好了：812.3k → 31k token\n\n想一想\n\n你好。\n· 输入 105 · 命中缓存 40（38%）· 输出 13\n",
+        "· 上下文已压缩：812.3k → 31k token\n\n想一想\n\n你好。\n· 输入 105 · 命中缓存 40（38%）· 输出 13\n",
     );
 }
 
@@ -138,8 +138,8 @@ fn a_progress_after_a_half_said_answer_starts_on_a_new_line() {
     ];
     let Fed { screen, .. } = feed(&plan, true, &turn);
     assert!(
-        screen.starts_with("我先读一下。\n\r\x1b[2K\x1b[90m· 正在压缩上下文… 已写 0 字"),
-        "{screen:?}"
+        screen.starts_with("我先读一下。\n\r\x1b[2K\x1b[90m· 正在压缩上下文…\x1b[0m"),
+        "还没收到字的不写字数：{screen:?}"
     );
 }
 
@@ -267,7 +267,7 @@ fn a_tool_call_in_the_summary_falls_back_in_gray_and_the_compaction_goes_on() {
         assert!(screen.starts_with(&format!("{line}\n")), "{screen:?}");
         assert!(!screen.contains("压缩失败") && !screen.contains("Compaction failed"));
         let compacted = match language {
-            Language::Chinese => "· 上下文压缩好了：812.3k → 31k token\n",
+            Language::Chinese => "· 上下文已压缩：812.3k → 31k token\n",
             Language::English => "· Context compacted: 812.3k → 31k tokens\n",
         };
         assert!(screen.contains(compacted), "{screen:?}");

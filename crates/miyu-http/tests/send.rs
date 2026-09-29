@@ -164,6 +164,8 @@ async fn an_http_error_is_classified() {
     assert_eq!(error.error.class, ErrorClass::RateLimited);
     assert_eq!(error.retry_after_ms, Some(7000));
     assert_eq!(error.error.message, "HTTP 429: Rate limit reached");
+    // HTTP 状态码另记一格（施工 3-5 三补）。
+    assert_eq!(error.error.status, Some(429));
 }
 
 #[tokio::test]
@@ -240,6 +242,7 @@ async fn nobody_listening_is_retryable() {
         panic!("应该出错：{outcome:?}");
     };
     assert_eq!(error.error.class, ErrorClass::Retryable);
+    assert_eq!(error.error.status, None, "连不上，没有 HTTP 状态码");
     // 原话里没有地址（施工 4-9 再补三下：原来 reqwest 的错带着整个地址）。
     let message = &error.error.message;
     assert!(!message.contains("sk-in-path"), "{message}");
@@ -335,6 +338,8 @@ async fn a_rate_limit_in_the_stream_says_how_long_to_wait() {
         panic!("应该出错：{outcome:?}");
     };
     assert_eq!(error.error.class, ErrorClass::RateLimited);
+    // 流里报的：回的是 200，`code` 的 429 只拿来分类，不当 HTTP 状态码（施工 3-5 三补）。
+    assert_eq!(error.error.status, None);
     // 供应商说的 1.5 秒交回去，内核照这个等（施工 4-9 再补三下：原来丢掉，内核照自己的退避）。
     assert_eq!(error.retry_after_ms, Some(1500));
 }

@@ -1,5 +1,6 @@
 //! 看守查排队的消息（`docs/designs/02-内核.md` 第六节「排队的消息」）：回合结束时还有排着队的，
-//! 下一条就是由最后那条触发的新回合，没有的就不接着开；退回时撤回的，正好是排着队的那几条。
+//! 下一条就是由最后那条触发的新回合，没有的就不接着开；退回时撤回的，正好是排着队的那几条。还没听到的回报照同一条走
+//! （施工 7-2，`watch/reports.rs`）：和排着的消息比，后来的那条接着开；打断的、没人看着的一次性会话不由回报接着开。
 
 use super::*;
 
@@ -45,22 +46,32 @@ impl Watch {
             }
             Body::TurnEnded(ended) => {
                 let next = events.get(k + 1).map(|event| &event.body);
-                match self.queued.last() {
-                    Some(&last) => {
+                let message = self.queued.last().copied();
+                let report = self.report_trigger(&ended.reason);
+                if report.is_some() {
+                    self.seen_paths.insert("回报接着开了一轮");
+                }
+                if ended.reason == EndReason::Interrupted && !self.reports.pending.is_empty() {
+                    self.seen_paths.insert("打断时排着的回报不接着开");
+                }
+                match message.into_iter().chain(report).max() {
+                    Some(last) => {
                         assert!(
                             matches!(next, Some(Body::TurnStarted(started)) if started.trigger == Some(last)),
-                            "种子 {seed}：还有排着队的 {last}，回合结束后应该由它接着开一轮"
+                            "种子 {seed}：还有排着队的 {last}，回合结束后应该由后来的那条接着开一轮"
                         );
                         // 接着开的那一轮，接过去的是排着的这几句：撤它的时候一起撤。
                         self.undo
                             .picked
                             .insert(TurnId::new(events[k + 1].seq), self.queued.clone());
-                        self.seen_paths
-                            .insert(if ended.reason == EndReason::Interrupted {
-                                "打断后排队的接着发"
-                            } else {
-                                "排队的接着开了一轮"
-                            });
+                        if message.is_some() {
+                            self.seen_paths
+                                .insert(if ended.reason == EndReason::Interrupted {
+                                    "打断后排队的接着发"
+                                } else {
+                                    "排队的接着开了一轮"
+                                });
+                        }
                     }
                     None => assert!(
                         !matches!(next, Some(Body::TurnStarted(_))),

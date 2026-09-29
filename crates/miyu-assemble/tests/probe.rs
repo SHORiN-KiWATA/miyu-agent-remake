@@ -1,8 +1,9 @@
 //! 请求形状探针（`docs/designs/08-上下文投影.md` 第七节「测试门禁」，`26-提示词.md` 第七节）：
 //! 一段终端会话，由真内核照剧本跑出来（执行器替身，施工 2-9 下），每一次请求和存档逐字节比对，
-//! 再查五条性质。
+//! 再查五条性质。另一段是有回报的会话（施工 7-2）：派出去的任务回报到了，闲着时开一轮、正忙时排在工具结果后面。还有一段
+//! 是子代理的会话（施工 7-5）：父会话的交代开了第一轮，system 多一段场所说明。
 //!
-//! 存档在 `docs/designs/samples/probe/terminal/`：`log.jsonl` 是真内核记下的日志，`requests/`
+//! 存档在 `docs/designs/samples/probe/<会话>/`（`terminal`、`reports`、`subagent`）：`log.jsonl` 是真内核记下的日志，`requests/`
 //! 下一次请求一个文件，写的是规范字节，末尾一个换行；`openai-chat/` 下是同一次请求编码成 OpenAI
 //! 兼容接口的字节（施工 3-4 上）。字节变了必须是有意的：设上 `MIYU_PROBE_WRITE=1` 跑一遍，重写
 //! 存档，提交说明里写为什么变。
@@ -12,11 +13,13 @@ mod support;
 use std::fs;
 use std::path::PathBuf;
 
-use miyu_kernel::block::Block;
-use miyu_kernel::event::ErrorClass;
+use miyu_kernel::block::{Block, Text};
+use miyu_kernel::event::{ChildReason, ErrorClass, JobReason};
+use miyu_kernel::origin::{By, Tool};
+use miyu_kernel::request::Message;
 use miyu_kernel::session::Queued;
 use miyu_kernel::testkit::{Line, Play, Stage};
-use support::{anchored, check, lines, sent, stage, summarizes, wire};
+use support::{PARENT, VENUE, anchored, check, child_stage, lines, sent, stage, summarizes, wire};
 
 /// 终端会话的剧本，十一个回合，1-12、1-13 画过的走法都走一遍，最后两段是自动压缩（施工 6-2 上）。照真内核会怎么走写（施工 2-9 下）：
 /// 回合中途的那句话在工具还在跑时说；两轮之间换只读，改成请求还在路上时先切、再打断。
@@ -133,9 +136,88 @@ fn terminal() -> Stage {
     s
 }
 
+/// 子代理的会话。
+const CHILD: &str = "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91";
+
+/// 有回报的会话的剧本（施工 7-2）。探针的工具面只有 `read`、`write`，派任务的那两次调用借 `read` 的名字：真的是 `shell`
+/// 的后台命令、`agent`（7-3、7-5），这里看的是回报渲染进请求的样子。
+fn reports() -> Stage {
+    let mut s = stage();
+
+    // 1. 派出去两个：后台命令 j1 跑测试、子代理 j2 查 CI。
+    s.model([
+        Line::calls(
+            "我派出去，回报来了接着看。",
+            &[
+                ("read", r#"{"path":"tests"}"#),
+                ("read", r#"{"path":".github"}"#),
+            ],
+        ),
+        Line::says("派出去了。"),
+    ]);
+    s.tools([
+        Play::starts_command(1, "跑全部测试"),
+        Play::starts_agent(2, "查 CI 为什么红", CHILD),
+    ]);
+    let asked = s.say("跑一下全部测试，顺便查查 CI 为什么红");
+    let started = s.ran()[0].0;
+
+    // 2. 她闲着，子代理回报：由它开一轮，回合开始的地方就是这条回报。
+    s.advance(3);
+    s.model([Line::says("CI 的原因找到了：macOS 上临时目录在链接下面。")]);
+    s.child_reports(
+        2,
+        CHILD,
+        ChildReason::Done,
+        "CI 红在 macOS：测试的临时目录在 /var 下，/var 是链接，安全打开不走链接，拒绝了。先把临时目录换成真实路径就好。",
+    );
+
+    // 3. 人问一句，她读文件；读的时候测试跑完了：下一次请求里排在这一步的工具结果后面，不另开一轮。
+    s.advance(2);
+    s.model([
+        Line::calls(
+            "我看看测试的临时目录是怎么建的。",
+            &[("read", r#"{"path":"tests/support/mod.rs"}"#)],
+        ),
+        Line::says("测试也都过了，把临时目录换成真实路径就行。"),
+    ]);
+    s.tools([Play::done("fn temp_dir() -> PathBuf { std::env::temp_dir() }").held()]);
+    s.say("那该怎么改？");
+    let reading = s.ran().last().expect("派了读").0;
+    let starter = By::Tool(Tool { call_id: started });
+    s.job_ends(1, JobReason::Exited, starter, Some(asked));
+    s.release_tool(reading);
+
+    // 4. 人再说一句，她正回着话时子代理又回报了一次（它被叫醒、说了没说完就崩了，只记下），接着人又说了一句：回合结束时
+    //    由排着的那句接着开，只记下的那条回报在它前面一起看到。
+    s.advance(2);
+    s.model([Line::says("好的。").held(), Line::says("知道了，先不动。")]);
+    s.say("先别改");
+    s.child_reports(2, CHILD, ChildReason::Aborted, "");
+    s.say("等我看完日志再说");
+    s.release_model();
+
+    s
+}
+
+/// 子代理的会话的剧本（施工 7-5）：父会话的交代开了它的第一轮，她读一个文件，最后的回答就是交回去的回报。`on` 造替身：
+/// 子会话的，或者同一份剧本的主会话，两张脸只差 system 里的场所说明。
+fn subagent(on: fn() -> Stage) -> Stage {
+    let mut s = on();
+    s.model([
+        Line::calls("我先读 lib.rs。", &[("read", r#"{"path":"src/lib.rs"}"#)]),
+        Line::says("lib.rs 只导出了 assemble 这一个模块。"),
+    ]);
+    s.tools([Play::done("pub mod assemble;")]);
+    s.say("Read src/lib.rs and tell me what it exports. Report the module names.");
+    s
+}
+
 /// 存档所在的目录：这个 crate 的目录往上两级是仓库根。
-fn archive() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs/designs/samples/probe/terminal")
+fn archive(name: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../docs/designs/samples/probe")
+        .join(name)
 }
 
 /// 这段会话要存档的几个文件：相对存档目录的路径，和内容。
@@ -152,8 +234,52 @@ fn files(stage: &Stage) -> Vec<(String, String)> {
 
 #[test]
 fn the_terminal_session_matches_the_archive() {
-    let files = files(&terminal());
-    let dir = archive();
+    matches_the_archive("terminal", &terminal());
+}
+
+#[test]
+fn the_reports_session_matches_the_archive() {
+    matches_the_archive("reports", &reports());
+}
+
+#[test]
+fn the_subagent_session_matches_the_archive() {
+    matches_the_archive("subagent", &subagent(child_stage));
+}
+
+/// 子代理这张脸（施工 7-5）：五条性质照查；交代是父会话发的、开了第一轮；和同一份剧本的主会话比，每一次请求只多 system
+/// 里的场所说明那一段。
+#[test]
+fn the_subagent_session_differs_only_by_its_venue_note() {
+    let child = subagent(child_stage);
+    if let Err(why) = check(&sent(&child)) {
+        panic!("{why}");
+    }
+    let prompt = child
+        .log()
+        .iter()
+        .find(|event| event.body.kind() == "message.user")
+        .expect("交代");
+    assert_eq!(
+        prompt.by.clone(),
+        serde_json::from_str::<By>(&format!(r#"{{"kind":"session","id":"{PARENT}"}}"#)).unwrap()
+    );
+    let main = subagent(stage);
+    assert_eq!(child.requests().len(), 2);
+    for ((_, child), (_, main)) in child.requests().iter().zip(main.requests()) {
+        assert_eq!(child.tools, main.tools);
+        assert_eq!(child.messages, main.messages);
+        assert_eq!(
+            child.system,
+            format!("{}\n\n{}", main.system, VENUE.trim_end())
+        );
+    }
+}
+
+/// 这段会话和存档 `name` 逐字节比；设了 `MIYU_PROBE_WRITE` 的重写存档。
+fn matches_the_archive(name: &str, stage: &Stage) {
+    let files = files(stage);
+    let dir = archive(name);
     if std::env::var_os("MIYU_PROBE_WRITE").is_some() {
         if dir.exists() {
             fs::remove_dir_all(&dir).expect("删得掉旧的存档");
@@ -235,4 +361,58 @@ fn the_terminal_session_keeps_the_properties() {
 #[test]
 fn the_same_script_gives_the_same_bytes() {
     assert_eq!(files(&terminal()), files(&terminal()));
+    assert_eq!(files(&reports()), files(&reports()));
+    assert_eq!(files(&subagent(child_stage)), files(&subagent(child_stage)));
+}
+
+/// 有回报的会话（施工 7-2）：五条性质照查；回报开的那一轮第一次请求的最后一块是那条回报，回合中途到的排在工具结果后面，
+/// 只记下的在人那一句前面。
+#[test]
+fn the_reports_session_keeps_the_properties() {
+    let session = reports();
+    let sent = sent(&session);
+    if let Err(why) = check(&sent) {
+        panic!("{why}");
+    }
+    let texts: Vec<Vec<String>> = session
+        .requests()
+        .iter()
+        .map(|(_, request)| last_user(request))
+        .collect();
+    let opened = &texts[2];
+    assert!(
+        opened.last().is_some_and(|text| text.starts_with(
+            "<subagent-report job=\"j2\" title=\"查 CI 为什么红\" reason=\"done\">\n"
+        )),
+        "回报开的那一轮，最后一块是那条回报：{opened:?}"
+    );
+    let busy = &session.requests()[4].1;
+    assert!(
+        matches!(busy.messages.last(), Some(Message::User { blocks }) if matches!(blocks.as_slice(), [Block::Text(Text { text })] if text.starts_with("<command-ended job=\"j1\""))),
+        "回合中途到的，单独一条 user 排在工具结果后面：{:?}",
+        busy.messages.last()
+    );
+    let last = texts.last().expect("有请求");
+    let aborted = last
+        .iter()
+        .position(|text| text.contains("reason=\"aborted\""));
+    let said = last.iter().position(|text| text == "等我看完日志再说");
+    assert!(
+        aborted.is_some() && aborted < said,
+        "只记下的在人那一句前面：{last:?}"
+    );
+}
+
+/// 请求最后一条 user 的每一块文字。
+fn last_user(request: &miyu_kernel::request::Request) -> Vec<String> {
+    match request.messages.last() {
+        Some(Message::User { blocks }) => blocks
+            .iter()
+            .filter_map(|block| match block {
+                Block::Text(text) => Some(text.text.clone()),
+                _ => None,
+            })
+            .collect(),
+        _ => Vec::new(),
+    }
 }

@@ -14,6 +14,7 @@
 | `crates/miyu-store/src/log.rs` | 会话日志：新建、追加、换段 |
 | `crates/miyu-store/src/log/open.rs` | 打开时自检、截半行；只读地读；只读第一条 |
 | `crates/miyu-store/src/blob.rs` | blob：存、取、核对哈希 |
+| `crates/miyu-store/src/jobs.rs` | 会话目录下后台命令的输出：`jobs/<编号>.out`（施工 7-3） |
 | `crates/miyu-store/src/resources.rs`、`human.rs` | 资源目录、给人看的字（`store/resources.md`） |
 
 ### 对外的样子
@@ -64,7 +65,8 @@
 │       ├── workspace/                  头报来的工作目录太宽时，退回这里（protocol.md）
 │       ├── sessions/<会话编号>/         会话日志，一段一个文件
 │       │   ├── 000000000001.jsonl
-│       │   └── …
+│       │   ├── …
+│       │   └── jobs/<编号>.out          后台命令的输出，例如 jobs/j1.out（施工 7-3）
 │       └── blobs/
 │           ├── tmp/<进程号>-<计数>      存的时候的临时文件
 │           └── <前两位>/<64 位十六进制>
@@ -160,6 +162,8 @@
 
 **10. blob：取**（`Blobs::get`）：读出来，重新算哈希。没有这个文件：「no blob <哈希>」。算出来和名字对不上：报错，写明是哪一个，不自动修，也不删。
 
+**11. 后台命令的输出**（施工 7-3，`output_path`、`create_output`）：会话目录下的 `jobs/<编号>.out`，一条后台命令一份，执行器的任务表边跑边写、不截（`session/tools.md` 第 5 条）。建的时候没有 `jobs/` 的先建（第 4 条，Unix 上 0700）；文件已经有的清空重写：编号在这个会话里不重复，已经有的只会是崩溃前起了、没来得及记下的那一条留下的。会话日志只认名字是 12 位数字的段（第 6 条），`jobs/` 不碍着它。删会话删整个会话目录，`jobs/` 跟着一起删（删会话随 `session.delete`、7-8；造会话没成时收拾会话目录的 `abandon` 只删只剩空的第一段的目录，那时还起不了后台命令）。结束了整份存成 blob，`job.reported` 里记它的哈希。
+
 **谁存、谁取**：造会话时存策略快照，载入时照 `session.created` 的哈希取（`session/actor.md`）；工具效果里改前改后的内容存成 blob，撤销时取回来写回（`session/tools.md`），撤销的回应里比出改了什么时也取（`protocol.md`）；编码请求时取图片、文件（`session/actor.md`、`drivers/openai-chat.md`）。
 
 ### 出错
@@ -202,6 +206,7 @@
 | `crates/miyu-store/src/durable/tests.rs` | 一层层建、都是 0700、建两次不出错；挡路的文件报错 |
 | `crates/miyu-store/src/log/tests.rs` | 写了读得回，每行 `\n`、没有 `\r`；满了换段、一批不拆；截半行；中间一行坏了、序号接不上、段名对不上、不是最后一段有半行，都只报不修；空的最后一段接着写、名字不对报坏了；没有会话；第一段已有的不覆盖；只读第一条不动日志；只读地读跳过半行、一个字节不写；造到一半的会话没有第一条；序号接不上的一批不写；真会话写进去、读回来载入得了 |
 | `crates/miyu-store/src/blob/tests.rs` | 存了取得回、`tmp/` 是空的；放在前两位下、文件名没有冒号；同一份只存一个、刷修改时间；崩在改名前只留临时文件；撞名换名；改名时目标已经有了算成；读出来不对报错、不删；两个账号各存各的 |
+| `crates/miyu-store/src/jobs.rs` 的测试（施工 7-3） | 输出放在会话目录的 `jobs/<编号>.out`；已经有的清空；Unix 上 `jobs/` 是 0700 |
 | `crates/miyu-store/tests/snapshot.rs` | 策略快照存成 blob 的哈希就是快照的哈希，取回来重建，两份策略发的请求逐字节一样 |
 
 ### 出处

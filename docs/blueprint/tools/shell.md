@@ -2,7 +2,7 @@
 
 ### 是什么
 
-在这一轮的工作目录里用这台机器的 shell 执行一条命令，跑完交回输出和退出码。只有前台：到时、叫停时整组杀掉。每次调用起一个新的 shell，`cd`、变量都不带到下一次。命令只拿到白名单上的环境变量，不读用户的启动文件。不报效果：命令改了哪些文件内核看不懂，撤销不了。
+在这一轮的工作目录里用这台机器的 shell 执行一条命令，跑完交回输出和退出码。前台的到时、叫停时整组杀掉；写了 `run_in_background` 的放到后台（施工 7-3）：照前台一样起，交给执行器的任务表，当场交回编号，结束了由任务表记 `job.reported`。每次调用起一个新的 shell，`cd`、变量都不带到下一次。命令只拿到白名单上的环境变量，不读用户的启动文件。不报改了哪些文件：内核看不懂，撤销不了；后台的只报派出去了（`job.started`）。
 
 ### 在哪
 
@@ -12,7 +12,8 @@
 | `crates/miyu-basesystem/src/shell/program.rs` | 用哪个 shell、怎么起 |
 | `crates/miyu-basesystem/src/shell/env.rs` | 命令拿得到哪些环境变量 |
 | `crates/miyu-basesystem/src/shell/process.rs` | 起命令、读输出、等它结束、整组杀 |
-| `crates/miyu-basesystem/src/shell/output.rs` | 输出：边读边解成字、内存里只留头尾、截成头尾两段 |
+| `crates/miyu-basesystem/src/shell/background.rs` | 后台命令：起好交出去的输出和进程（`miyu_tool::Background`），等它、整组杀（施工 7-3） |
+| `crates/miyu-basesystem/src/shell/output.rs` | 输出：边读边解成字、内存里只留头尾、截成头尾两段；后台的边读边换行尾（`Crlf`） |
 | `crates/miyu-basesystem/src/load.rs` | 说明是一段模板，核心起来时换进 shell 的名字 |
 | `resources/software/basesystem/tools/shell.json` | 说明和参数格式 |
 | `resources/software/basesystem/shell/*.txt`、`common/bad-args.txt` | 输出里给她看的几句 |
@@ -27,7 +28,7 @@
 ```json
 {
   "description": "Execute a command with {shell} and return its output. Use it for builds, tests, git and other programs, not to read, search or edit files. Every call starts in the working directory, so cd does not carry over to the next call.",
-  "parameters": {"type":"object","properties":{"command":{"type":"string"},"description":{"type":"string","description":"Short title of what the command does, in a few words."},"timeout":{"type":"integer","description":"Milliseconds before the command is stopped, up to 600000. Default 120000."}},"required":["command","description"]}
+  "parameters": {"type":"object","properties":{"command":{"type":"string"},"description":{"type":"string","description":"Short title of what the command does, in a few words."},"timeout":{"type":"integer","description":"Milliseconds before the command is stopped, up to 600000. Default 120000."},"run_in_background":{"type":"boolean","description":"Run it in the background with no timeout and return a job id at once."}},"required":["command","description"]}
 }
 ```
 
@@ -37,16 +38,17 @@
 | 参数 | 必填 | 怎么认 |
 |---|---|---|
 | `command` | 是 | 要执行的命令 |
-| `description` | 是 | 这条命令在做什么的短标题，几个词。不用它跑命令，记在调用里，前端显示用（施工 4-13，2026-09-28 项目主人定；前端随 M8）。没写的，参数不对 |
-| `timeout` | 否 | 毫秒。没给、给了 0，是 120000；大过 600000 的照 600000。要是不小于 0 的整数，负数参数不对 |
+| `description` | 是 | 这条命令在做什么的短标题，几个词。前台的不用它跑命令，记在调用里，前端显示用（施工 4-13，2026-09-28 项目主人定；前端随 M8）；后台的是任务的标题，记进 `job.started`（施工 7-3）。没写的，参数不对 |
+| `timeout` | 否 | 毫秒。没给、给了 0，是 120000；大过 600000 的照 600000。要是不小于 0 的整数，负数参数不对。后台的不看它，照样查写法 |
+| `run_in_background` | 否 | 布尔，没写是假。真的放到后台（施工 7-3，下面「后台」）。写成字符串的（`"true"`）内核照参数格式修正成布尔 |
 
-- 参数格式里不写、写了也认的：`run_in_background` 是真的，不跑（下面第 2 条），它写成字符串的（`"true"`）参数不对：参数格式里没声明，内核不修正。别的参数不认，也不报错。
+- 别的参数不认，也不报错。
 - 不报要碰的路径。权限策略照访问类别判：完全放开放行；工作区、只读两级，沙盒能用就放行、在沙盒里跑，用不了的问人（施工 5-4 上，`session/guard.md`）。
 
 ### 怎么走
 
 1. 读参数，读不懂的（没写 `command`、类型不对）：参数不对。
-2. `run_in_background` 是真的：不跑，说还不能放到后台，让她在前台跑、慢的放宽 `timeout`；出错。
+2. `run_in_background` 是真的：照下面「后台」走，不定超时。
 3. 定超时（上面的表）。
    - 调用带了沙盒的（`Call.sandbox`，施工 5-1）：命令写成 `<助手> run --spec <规格的 JSON> -- <shell> <shell 的参数…>`，别的都照下面走：Unix 上助手换成了 shell，是同一个进程；Windows 上助手起子进程、等它（`sandbox.md`）。规格写不成 JSON 的（里面有不是 UTF-8 的路径）：照下面「起不来」说，不会不经沙盒就跑。沙盒带的环境变量（`Sandboxed.env`，例如 `TMPDIR`）照白名单之后设上，同名的盖掉（施工 5-4 上）。
 4. 起命令：
@@ -80,8 +82,19 @@
 
    - 「几行」是换行的个数，最后一段没有换行的也算一行。
    - `{timeout}` 是这一次实际用的毫秒数，`{max}` 是 600000。`seconds` 是它换成秒：整秒的不带小数，不然带一位小数（`300` 毫秒写成 `0.3`）。
-10. 不报效果。
+10. 不报效果：改了哪些文件内核看不懂。
 11. 叫停：丢掉这次调用时整组杀掉（Unix 上 `kill(-pgid, SIGKILL)`，Windows 上 `taskkill /T /F /PID`）。
+
+**后台**（施工 7-3，`agents.md` 第四条）
+
+1. 这次调用没有任务端口（`Call.jobs` 是空的，会话外面的调用，例如测试）：不跑，说这里不能放到后台，让她在前台跑、慢的放宽 `timeout`；出错。会话里的调用总有。
+2. 照前台一样造命令：同一个 shell、同一份环境变量白名单、同一个沙盒（`Call.sandbox`），在这一轮的工作目录里；标准输入接空的，标准输出、标准错误接到同一根管道上，自成一组（上面第 3、4 条）。起不来、造不成的照前台说起不来。
+3. 起来了，把输出和进程（`miyu_tool::Background`）交给任务端口，拿回编号。端口收不下（输出的文件建不起来、会话已经停了）：任务表已经整组杀掉了它，照起不来说，原因是端口的原话；出错，不报效果。
+4. 交上了：给她的字是 `started.txt` 换进编号，说法 `shell/background`（字段 `job`），效果 `job.started`（`job` 是编号，`what` 是 `command`，`title` 是 `description`，没有 `session`）。
+5. 从起命令到交回结果一个 `await` 都没有：交上了就一定交回，不会交上了却被掐掉、没人知道它在跑。
+6. 交出去的输出一段一段读：一次读 8192 字节，照 UTF-8 边读边解，一个字切在两段中间的留到下一段，读完了剩下的换成 `�`；`\r\n` 换成 `\n`，一段以 `\r` 结尾的留着它看下一段，单独的 `\r` 不动；不截。读不了的当读完了，记一行 `DEBUG` `command output not readable`。
+7. 交出去的进程：等它结束交回退出码，没有退出码的（Unix 上被信号杀掉）交回信号的编号。等到了先记下它结束了、再放下句柄，Unix 上组里还在跑的（`&` 放到后台的）也杀掉，和前台一样。整组杀照前台：Unix `kill(-pgid, SIGKILL)`，Windows `taskkill /T /F /PID`；已经结束了的不再按编号杀，可能杀错：杀的那一头拿着「结束了没有」那把锁杀，杀完之前句柄放不下，Windows 上编号也就不会被别的进程拿去。
+8. 之后的事是任务表的：输出写进会话目录的 `jobs/<编号>.out`，结束了记 `job.reported`（`session/tools.md`「后台命令」）。
 
 **用哪个 shell**（核心起来时找一次，照核心环境里的 `PATH`）：
 
@@ -149,10 +162,11 @@ Exit code 2
 | 退出码不是 0 | `exit.txt` | `Exit code {code}` |
 | 被信号杀掉 | `signal.txt` | `Killed by signal {signal}` |
 | 到时了 | `timed-out.txt` | `Stopped after {timeout} ms because the command took too long. If it needs more time, pass a larger timeout, up to {max}.` |
+| 放到后台了 | `started.txt` | `Started {job} in the background. You will be told when it ends. Read its output with jobs output.` |
 | 截在中间 | `omitted.txt` | `[... {count} characters omitted ...]` |
 | 截了，末尾 | `truncated.txt` | `(Showed the start and the end of {total} characters. To see all of it, write the output to a file and read the file.)` |
 | 执行不了 | `failed.txt` | `Could not run {shell}: {error}.` |
-| 要放到后台 | `no-background.txt` | `Running in the background is not available yet. Run the command in the foreground, with a larger timeout if it is slow.` |
+| 要放到后台，没有任务端口 | `no-background.txt` | `Running in the background is not available here. Run the command in the foreground, with a larger timeout if it is slow.` |
 
 输出本身不转义；换进这几句的字段照模板的规矩转义（`tools/read.md` 第 8 条）。
 
@@ -161,8 +175,8 @@ Exit code 2
 | 什么时候 | 给她的字 | 说法 |
 |---|---|---|
 | 参数不对 | `The arguments are not right: {error}.` | `common/bad-args`，字段 `error` |
-| 要放到后台 | `no-background.txt` | `shell/no-background` |
-| 起不来、等不了 | `Could not run {shell}: {error}.` | `shell/failed`，字段 `error` |
+| 要放到后台，没有任务端口 | `no-background.txt` | `shell/no-background` |
+| 起不来、等不了；后台的任务端口收不下 | `Could not run {shell}: {error}.` | `shell/failed`，字段 `error` |
 | 退出码不是 0、被信号杀掉、到时了 | 见「怎么走」第 9 条 | 同上 |
 
 - `{shell}` 是说明里的那个名字；`{error}` 是系统的原话，例如工作目录不在时的 `No such file or directory (os error 2)`。
@@ -179,7 +193,8 @@ Exit code 2
 | `shell/signal`（`signal`） | `被信号 {signal} 停掉了` | `killed by signal {signal}` |
 | `shell/timed-out`（`seconds`） | `超过 {seconds} 秒，停掉了` | `stopped after {seconds} s` |
 | `shell/failed`（`error`） | `执行不了：{error}` | `can't run: {error}` |
-| `shell/no-background` | 还不能放到后台跑 | can't run in the background yet |
+| `shell/no-background` | 这里不能放到后台跑 | can't run in the background here |
+| `shell/background`（`job`） | `放到后台了：{job}` | `running in the background as {job}` |
 | `common/bad-args`（`error`） | `参数不对：{error}` | `bad arguments: {error}` |
 
 ### 三个平台
@@ -190,6 +205,7 @@ Exit code 2
 | 整组杀 | `kill(-pgid, SIGKILL)` | 同 Linux | `taskkill /T /F /PID`，杀整棵进程树 |
 | 命令退出以后剩下的 | 杀掉 | 杀掉 | 不杀 |
 | 被信号杀掉 | 说是哪个信号 | 同 Linux | 没有信号，总有退出码 |
+| 后台的整组杀 | 同前台 | 同前台 | 同前台；结束了的不再杀 |
 | 环境变量的名字 | 分大小写 | 分大小写 | 不分 |
 | 标准错误和标准输出的先后 | 照写出来的先后 | 同 Linux | PowerShell 两条输出各有缓冲，先后不一定 |
 
@@ -197,6 +213,9 @@ Exit code 2
 
 | 测试 | 守哪几条 |
 |---|---|
+| `crates/miyu-basesystem/tests/background.rs`（施工 7-3） | 真的起进程、三个平台：当场返回编号、说法、`job.started`（标题是 `description`），命令接着跑；标准错误合进来、`\r\n` 换成 `\n`；退出码；`timeout` 不管后台的；白名单一样；杀掉就停；没有任务端口的不跑；端口收不下的说起不来、不报效果。Unix：整组杀连它放到后台的、自己退出以后组里剩下的也停了、信号照原样、单独的 `\r` 不动、最后半个字换成 `�` |
+| `crates/miyu-basesystem/src/shell/output/tests.rs` 的 `line_ends_are_made_unix_across_pieces`（施工 7-3） | `\r\n` 切在两段中间也换，和一整段换出来的一样 |
+| `crates/miyu-basesystem/tests/shell_sandbox.rs` 的 `a_sandboxed_background_command_runs_through_the_helper`（施工 7-3） | 后台命令一样经沙盒的助手起 |
 | `crates/miyu-basesystem/tests/shell.rs` | 说明里写的是这台机器的 shell、换过字段、不报路径；在工作目录里跑；标准错误合进来、照先后；退出码；没有输出；超时整组杀、说法的秒数；只拿到白名单上的变量、`GIT_TERMINAL_PROMPT` 是 0；中文照原样；太长截成头尾、一共多少个字，尾巴从行首起的不多丢一行；参数不对、要放后台的不跑、没写 `description` 参数不对；工作目录不在、`~` 开头的照家目录接；输出边跑边推、最后半个字换成 `�`；Unix：放到后台的在命令退出以后停了、叫停时整组停了、被信号杀掉 |
 | `crates/miyu-basesystem/src/shell/tests.rs` | 超时的上下限；秒数怎么写；参数格式里写的上限、默认值和代码一样；每一段以换行结尾 |
 | `crates/miyu-basesystem/src/shell/output/tests.rs` | 数行、数字；`\r\n`；内存只留头尾；截在行尾；中间丢过的照样数；一整行很长的照字数截；正好 30000 个字的整段给；切开的字等配齐；离截处太远的换行不用 |
@@ -212,13 +231,14 @@ Exit code 2
 
 ### 出处
 
-- `10-自带软件.md` 第三节（「`shell` 的细则」）、第五节（`shell` 不报改了哪些文件）、第七节（经过 `shell` 的改动撤销不了）、第八节（B8：各平台的 shell）、第十节（不记 `cd`；先不声明 `description`、`run_in_background`）。
+- `10-自带软件.md` 第三节（「`shell` 的细则」）、第五节（`shell` 不报改了哪些文件）、第七节（经过 `shell` 的改动撤销不了）、第八节（B8：各平台的 shell）、第十节（不记 `cd`；参数名照 Claude Code）。
+- `agents.md` 第四条（后台命令，施工 7-3）。
 - `11-权限与沙盒.md` 第二节（沙盒能用时执行命令不问，用不了时问人）、第四节（环境变量只传白名单）。
 - `26-提示词.md` 第十节：登记簿里的 `tools/shell.json`、`shell/*.txt`。
 
 ### 还没有的
 
-- 后台命令、`run_in_background`、查看和停掉后台任务的 `jobs`：随 M7（`10-自带软件.md` 第三节）。
+- 查看和停掉后台任务的 `jobs`：7-4（`10-自带软件.md` 第三节）。
 - 沙盒：命令现在以本人的身份直接跑，碰得到任何地方；只读时每条都问人（`11-权限与沙盒.md` 第二节、第六节，M5）。放行规则照命令开头记，也随 M5（第二节）。
 - Windows 上改用 Git Bash 的配置（`10-自带软件.md` 第八节）。
 - 环境变量的名单是策略数据，配置那一步能改（`11-权限与沙盒.md` 第四节）：现在写在代码里。

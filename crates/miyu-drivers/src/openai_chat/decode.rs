@@ -115,6 +115,7 @@ impl Decoder {
             return (!self.done).then(|| CallError {
                 class: ErrorClass::Retryable,
                 message: "流断了：没等到 finish_reason，也没等到 [DONE]".to_string(),
+                status: None,
             });
         };
         let class = match reason.as_str() {
@@ -126,6 +127,7 @@ impl Decoder {
         Some(CallError {
             class,
             message: format!("finish_reason: {reason}"),
+            status: None,
         })
     }
 
@@ -152,12 +154,14 @@ impl Decoder {
                 self.error = Some(CallError {
                     class: ErrorClass::Retryable,
                     message: format!("流断在半段 JSON 上：{}", clip(data)),
+                    status: None,
                 });
             }
             Err(_) => {
                 self.error = Some(CallError {
                     class: ErrorClass::BadStream,
                     message: format!("流里有一段不是 JSON：{}", clip(data)),
+                    status: None,
                 });
             }
         }

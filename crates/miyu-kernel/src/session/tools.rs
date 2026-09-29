@@ -18,8 +18,8 @@ use crate::origin::{By, Tool};
 use crate::time::Timestamp;
 use crate::tool::{Access, Worded, repair};
 
-/// 派一次调用的动作：带上这一轮的工作目录、加进来的目录，和这一刻实际生效的那一级。派出去的两条路（链当场放行的、
-/// 等人决定了的）都经它，派出去的是同一个样子（施工 5-10 上）。
+/// 派一次调用的动作：带上这一轮的工作目录、加进来的目录、这一刻实际生效的那一级，和这一轮的 `cause`（施工 7-3）。派出去
+/// 的两条路（链当场放行的、等人决定了的）都经它，派出去的是同一个样子（施工 5-10 上）。
 pub(super) fn run_tool(
     call_id: CallId,
     name: &str,
@@ -27,6 +27,7 @@ pub(super) fn run_tool(
     cwd: &str,
     dirs: &[String],
     permission: &Permission,
+    cause: Option<&CommandId>,
 ) -> Action {
     Action::RunTool {
         call_id,
@@ -35,6 +36,7 @@ pub(super) fn run_tool(
         cwd: cwd.to_string(),
         dirs: dirs.to_vec(),
         permission: permission.clone(),
+        cause: cause.cloned(),
     }
 }
 
@@ -147,6 +149,7 @@ impl Session {
                         &turn.cwd,
                         &turn.dirs,
                         &self.effective,
+                        turn.cause.as_ref(),
                     ));
                 }
                 State::Answered { answered } if answered <= stored => {

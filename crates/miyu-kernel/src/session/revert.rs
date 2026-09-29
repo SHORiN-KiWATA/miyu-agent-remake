@@ -9,6 +9,7 @@
 //! 那一段不在内存里，先叫执行器读回日志，读回来照它重建有效历史再记。恢复不读磁盘：撤掉的连同压缩都放在一边。
 
 use super::action::{Action, Reason};
+use super::input::Input;
 use super::restore::{self, Step};
 use super::{Session, rejected};
 use crate::event::{Body, Event, FilesRestored, Restored, TurnReverted, TurnUnreverted};
@@ -34,6 +35,8 @@ pub(super) struct ReadingBack {
     by: By,
     turns: Vec<TurnId>,
     from: Seq,
+    /// 读回的时候到的后台命令结束（施工 7-2，`jobs.rs`）：读回来、记了撤销再照先后送进去。
+    pub(super) later: Vec<Input>,
 }
 
 impl Session {
@@ -66,6 +69,7 @@ impl Session {
                 by,
                 turns,
                 from,
+                later: Vec::new(),
             });
             return vec![Action::ReadBack { from }];
         }
@@ -77,7 +81,8 @@ impl Session {
 
     /// 读回的日志来了（施工 6-9）：对得上正在读回的那一次（`from` 一样，事件从第 `from` 条起一条接一条，连到追加过的
     /// 最后一条），有效历史照它重建：留着一切地收这一段，收下 `turn.reverted`，再落到检查点上。之后和撤销一样算改回的
-    /// 几步；新的检查点重读过文件的，紧跟着 `Append` 出 `Recall`。对不上的当过时的不理。
+    /// 几步；新的检查点重读过文件的，紧跟着 `Append` 出 `Recall`。对不上的当过时的不理。派出去过的任务照原来那份的：
+    /// 读回的那一段以前派的只有它记着（施工 7-2）。读回的时候到的后台命令结束，最后照先后送进去。
     pub(super) fn read_back(
         &mut self,
         at: Timestamp,
@@ -93,13 +98,21 @@ impl Session {
             && (0..)
                 .zip(&events)
                 .all(|(k, event)| event.seq.get() == from.get() + k);
-        let Some(ReadingBack { id, by, turns, .. }) = self.reading.take_if(|_| fits) else {
+        let Some(ReadingBack {
+            id,
+            by,
+            turns,
+            later,
+            ..
+        }) = self.reading.take_if(|_| fits)
+        else {
             return Vec::new();
         };
         let mut history = History::whole();
         for event in events {
             history.append(event);
         }
+        history.jobs_from(&self.history);
         self.history = history;
         let body = Body::TurnReverted(TurnReverted { turns });
         let event = self.record(at, by.clone(), Some(id.clone()), body);
@@ -110,13 +123,17 @@ impl Session {
         if let Some(recall) = recall {
             actions.insert(1, recall);
         }
+        for input in later {
+            actions.extend(self.handle(input));
+        }
         actions
     }
 
     /// 恢复最近一次撤销：记一条 `turn.unreverted`，列的就是那一次撤掉的那几轮，`by` 是恢复的人，
     /// `cause` 是这个命令。那几轮改过的文件，跟着改回撤销前的样子。没有能恢复的（没撤过，或者撤了以后开过回合、
     /// 压缩过），拒绝，原因码 `nothing_to_unrevert`。那一次撤掉了压缩的，压缩跟着回来，不读磁盘；检查点换了、重读过
-    /// 文件的，紧跟着 `Append` 出 `Recall`（施工 6-9）。
+    /// 文件的，紧跟着 `Append` 出 `Recall`（施工 6-9）。没有要改回的文件的，记在一边的回报这时开得了，由最后那条接着开一轮，
+    /// 和恢复那一条同一批（施工 7-2，`jobs.rs`）；有的，等改完。
     pub(super) fn unrevert(&mut self, id: CommandId, by: By, at: Timestamp) -> Vec<Action> {
         let Some(turns) = self.ledger.last_reverted().map(<[TurnId]>::to_vec) else {
             return vec![rejected(id, Reason::NothingToUnrevert)];
@@ -130,6 +147,11 @@ impl Session {
             false => self.recall(),
         };
         let mut actions = self.settle_files(id, by, event, steps);
+        if self.restoring.is_none()
+            && let Some(Action::Append(events)) = actions.first_mut()
+        {
+            events.extend(self.wake_deferred(at));
+        }
         if let Some(recall) = recall {
             actions.insert(1, recall);
         }
@@ -164,7 +186,7 @@ impl Session {
     }
 
     /// 改回文件做完了：记一条 `files.restored`，`by`、`cause` 和撤销、恢复的那一条一样；两条都落了盘才回应。没在改的
-    /// （过时的结局）不理。
+    /// （过时的结局）不理。记在一边的回报这时开得了（恢复以后），由最后那条接着开一轮，同一批（施工 7-2）。
     pub(super) fn restored(&mut self, at: Timestamp, files: Vec<Restored>) -> Vec<Action> {
         let Some(Restoring {
             id,
@@ -179,6 +201,8 @@ impl Session {
         let body = Body::FilesRestored(FilesRestored { files });
         let event = self.record(at, by, Some(id.clone()), body);
         self.accept(id, vec![first, event.seq]);
-        vec![Action::Append(vec![event])]
+        let mut events = vec![event];
+        events.extend(self.wake_deferred(at));
+        vec![Action::Append(events)]
     }
 }

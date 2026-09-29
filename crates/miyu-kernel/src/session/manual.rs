@@ -60,6 +60,7 @@ impl Session {
             retrying: false,
             interjected: None,
             queued: Vec::new(),
+            reports: Vec::new(),
             refresh: false,
             compacted: false,
             interrupting: None,
@@ -68,6 +69,8 @@ impl Session {
             overflowed: false,
             manual: Some(Manual { upto, instructions }),
         });
+        // 记在一边的回报不再由它们另开一轮（施工 7-2）：随便哪一轮开了就清掉，和平常的回合一样。
+        self.deferred.clear();
         self.accept(id, vec![started.seq]);
         vec![Action::Append(vec![started])]
     }

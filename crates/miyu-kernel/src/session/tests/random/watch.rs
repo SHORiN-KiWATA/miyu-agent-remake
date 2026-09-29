@@ -10,6 +10,7 @@ mod approval;
 mod breaker;
 mod compaction;
 mod invariants;
+mod jobs;
 mod load;
 mod lookup;
 mod manual;
@@ -19,10 +20,14 @@ mod permission;
 mod question;
 mod queue;
 mod rebuild;
+mod reports;
 mod restore;
 mod shorten;
 mod stopping;
+mod transient;
 mod undo;
+
+pub(super) use reports::Job;
 
 /// 看守。
 pub(super) struct Watch {
@@ -92,6 +97,8 @@ pub(super) struct Watch {
     /// 截短重试（施工 6-6 中）、被动压缩（施工 6-7）。
     shortenings: shorten::Shortenings,
     passives: overflow::Passives,
+    /// 回报（施工 7-2）：派出去的任务、排着的、记在一边的、有没有头订阅着。
+    pub(super) reports: reports::Reports,
 }
 
 impl Watch {
@@ -137,6 +144,7 @@ impl Watch {
             compactions: compaction::Compactions::default(),
             shortenings: shorten::Shortenings::default(),
             passives: overflow::Passives::default(),
+            reports: reports::Reports::default(),
         }
     }
 
@@ -178,6 +186,7 @@ impl Watch {
         let reverting = undone.as_ref().and_then(undo::Expect::turns);
         let restore = self.before_restore(&input);
         let compact = self.before_compact(&input).filter(|_| !refused);
+        let report = self.before_report(&input).filter(|_| !refused);
         let stop = self.before_stop(&input);
         let fresh_interrupt = match &input {
             Input::Command(command) if !refused => match command.command {
@@ -227,6 +236,7 @@ impl Watch {
         self.after_undo(&actions, undone);
         self.after_restore(&actions, restore);
         self.after_compact(&actions, compact);
+        self.after_report(&actions, report);
         self.restore_matches(&actions, reverting);
         for action in actions {
             self.check(action);
@@ -367,39 +377,6 @@ impl Watch {
         }
     }
 
-    /// 推给头的：增量是在路上的那次请求的；工具的输出是在跑的调用的。
-    fn transient(&mut self, transient: &Transient) {
-        let seed = self.seed;
-        self.transient_turn(transient);
-        match &transient.body {
-            TransientBody::ModelDelta(delta) => {
-                self.seen_paths.insert("推了增量");
-                self.not_summarizing(delta.seen);
-                assert_eq!(
-                    Some(delta.seen),
-                    self.asking,
-                    "种子 {seed}：推的增量不是在路上的那次请求的"
-                );
-                assert!(
-                    self.sent.contains(&delta.seen),
-                    "种子 {seed}：请求还没发出去就推了增量"
-                );
-                assert!(matches!(transient.by, By::Model(_)));
-            }
-            TransientBody::ToolProgress(progress) => {
-                self.seen_paths.insert("推了工具的输出");
-                assert!(
-                    self.running.contains(&progress.call_id),
-                    "种子 {seed}：{} 不在跑，却推了它的输出",
-                    progress.call_id
-                );
-            }
-            TransientBody::Status(status) => self.retry_status(status),
-            TransientBody::CompactionProgress(progress) => self.compaction_progress(progress),
-            TransientBody::CompactionDone(done) => self.compaction_done(transient.turn, done),
-        }
-    }
-
     /// 追加的一批：序号连着；`model.called` 每次请求至多一条（`watch/model.rs`）；工具结果每个
     /// 调用一条；步数上限只在请求满了的回合。
     fn appended(&mut self, events: Vec<Event>) {
@@ -431,6 +408,7 @@ impl Watch {
                         "种子 {seed}：{} 有了两条结果",
                         result.call_id
                     );
+                    self.jobs_seen(result);
                     let was_running = self.running.remove(&result.call_id);
                     self.stopping.calls.remove(&result.call_id);
                     if matches!(event.by, By::Tool(_)) {
@@ -485,6 +463,7 @@ impl Watch {
             }
             self.queue_check(&events, k);
             self.undo_check(&events, k);
+            self.report_check(&events, k);
             self.permission_check(&events, k);
             self.approval_check(&events, k);
             self.question_check(&events, k);

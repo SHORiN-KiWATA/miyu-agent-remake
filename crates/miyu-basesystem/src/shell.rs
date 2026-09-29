@@ -1,10 +1,12 @@
 //! `shell`（`10-自带软件.md` 第三节「`shell` 的细则」，施工 4-8）：在这一轮的工作目录里执行一条命令，交回输出和
-//! 退出码。前台的：跑完才交回，超时、叫停时整组杀掉。后台命令随 M7。
+//! 退出码。前台的：跑完才交回，超时、叫停时整组杀掉。写了 `run_in_background` 的放到后台（施工 7-3）：照前台一样起，
+//! 交给任务端口，当场交回编号。
 //!
 //! 用哪个 shell（[`program`]）、命令拿得到哪些环境变量（[`env`](mod@env)）、起命令和整组杀（[`process`]）、输出怎么截
-//! （[`output`]）各在一处。每次调用起一个新的 shell，`cd`、变量都不带到下一次。调用带了沙盒的，经沙盒的助手起
-//! （施工 5-1），别的都照旧。
+//! （[`output`]）、后台命令（[`background`]）各在一处。每次调用起一个新的 shell，`cd`、变量都不带到下一次。调用带了
+//! 沙盒的，经沙盒的助手起（施工 5-1），别的都照旧。
 
+mod background;
 mod env;
 mod output;
 mod process;
@@ -19,9 +21,10 @@ use std::time::Duration;
 use serde::Deserialize;
 
 use miyu_fs::tilde;
+use miyu_kernel::event::{JobKind, JobStarted};
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
-use miyu_tool::{Call, Done, Progress, Running, Spec, Tool};
+use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Tool};
 
 use crate::blocking::blocking;
 use crate::common::{Common, said};
@@ -54,15 +57,17 @@ struct Texts {
     truncated: Template,
     failed: Template,
     no_background: Template,
+    started: Template,
 }
 
-/// 她给的参数。照 Claude Code 的习惯写了 `description` 的照样认，不用它。
+/// 她给的参数。
 #[derive(Deserialize)]
 struct Args {
     command: String,
-    /// 这条命令在做什么的短标题（施工 4-13，2026-09-28 项目主人定）：必填，执行不用它，记在调用里给前端显示。
-    #[expect(dead_code, reason = "只要她写，执行时用不上；前端从调用的参数里读")]
+    /// 这条命令在做什么的短标题（施工 4-13，2026-09-28 项目主人定）：必填，前台的执行不用它，记在调用里给前端显示；
+    /// 后台的是任务的标题，记进 `job.started`（施工 7-3）。
     description: String,
+    /// 前台的超时；后台的不看它（施工 7-3）。
     timeout: Option<u64>,
     #[serde(default)]
     run_in_background: bool,
@@ -90,6 +95,7 @@ impl Shell {
                 truncated: text("truncated", &["total"])?,
                 failed: text("failed", &["shell", "error"])?,
                 no_background: text("no-background", &[])?,
+                started: text("started", &["job"])?,
             },
             program,
         })
@@ -103,6 +109,39 @@ impl Shell {
             &[("shell", self.program.kind.name()), ("error", &error)],
         ))
         .said(said("shell/failed").with("error", error))
+    }
+
+    /// 放到后台（施工 7-3）：照前台一样造命令、起进程，交给任务端口，当场交回编号，报 `job.started`。这里一个 `await`
+    /// 都没有：交上了就一定交回结果，不会交上了却被掐掉、没人知道它在跑。没有任务端口的（会话外面的调用）不跑。
+    fn background(&self, call: &Call, args: Args) -> Done {
+        let Some(jobs) = &call.jobs else {
+            return Done::error(say(&self.texts.no_background, &[]))
+                .said(said("shell/no-background"));
+        };
+        let started = self
+            .program
+            .command(
+                &args.command,
+                &workdir(call),
+                env::passed(std::env::vars_os()),
+                call.sandbox.as_deref(),
+            )
+            .and_then(background::start)
+            .and_then(|command| jobs.start(command));
+        match started {
+            Ok(job) => {
+                let id = job.to_string();
+                Done::ok(say(&self.texts.started, &[("job", &id)]))
+                    .said(said("shell/background").with("job", id))
+                    .effect(Effect::JobStarted(JobStarted {
+                        job,
+                        what: JobKind::Command,
+                        title: args.description,
+                        session: None,
+                    }))
+            }
+            Err(error) => self.failed(&error),
+        }
     }
 
     /// 跑完了：输出，加上它怎么结束的。
@@ -168,8 +207,7 @@ impl Tool for Shell {
                 Err(error) => return self.texts.common.bad_args(&error),
             };
             if args.run_in_background {
-                return Done::error(say(&self.texts.no_background, &[]))
-                    .said(said("shell/no-background"));
+                return self.background(&call, args);
             }
             let timeout = limit(args.timeout);
             let command = match self.program.command(

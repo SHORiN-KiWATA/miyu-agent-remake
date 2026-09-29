@@ -373,6 +373,7 @@ impl Session {
                         error = Some(CallError {
                             class: ErrorClass::EmptyReply,
                             message: "回复里一个块都没有".to_string(),
+                            status: None,
                         });
                     }
                 } else {
@@ -484,6 +485,7 @@ fn bad_stream(message: String) -> CallError {
     CallError {
         class: ErrorClass::BadStream,
         message,
+        status: None,
     }
 }
 

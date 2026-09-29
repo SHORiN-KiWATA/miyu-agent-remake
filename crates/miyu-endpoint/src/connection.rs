@@ -147,7 +147,7 @@ struct StreamParams {
 /// 订阅会话的事件流：没在跑的照样先载入；已经订阅着的，还是那一个。回应带会话的限额（施工 6-3 补）：订阅着的也从会话表
 /// 拿，在跑的直接用，不多载入。
 async fn subscribe(
-    core: &Core,
+    core: &Arc<Core>,
     subscriptions: &mut Subscriptions,
     request: &Request,
     out: &mpsc::Sender<String>,

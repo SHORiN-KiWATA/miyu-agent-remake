@@ -71,8 +71,9 @@ impl Watch {
                 self.seen_paths.insert("改回文件的结局记下了");
                 self.restoring.pending = None;
                 let expected = Body::FilesRestored(FilesRestored { files });
+                // 后面还有的，是恢复以后记在一边的回报接着开的那一轮（施工 7-2，`watch/reports.rs` 查）。
                 assert!(
-                    matches!(actions, [Action::Append(events)] if matches!(events.as_slice(), [event] if event.body == expected && event.by == alice() && event.turn.is_none())),
+                    matches!(actions, [Action::Append(events)] if matches!(events.as_slice(), [event, ..] if event.body == expected && event.by == alice() && event.turn.is_none())),
                     "种子 {seed}：结局只追加一条 files.restored，照原样：{actions:?}"
                 );
             }
@@ -122,7 +123,8 @@ impl Watch {
     }
 
     /// 工具报的效果，不占随机数（原来那串输入不跟着错开）：照有了结果的调用数轮着来，三条里一条新建了一个文件、
-    /// 一条改了一个文件，一条什么都没报。撤销、恢复时才有要改回的。
+    /// 一条改了一个文件，一条什么都没报。撤销、恢复时才有要改回的。每一条还派一个任务（施工 7-1，`jobs.rs`）：
+    /// 执行器交回来记下的结果三百例里只有二十来条，少派几个就凑不齐一个会话派两个。
     pub(in super::super) fn some_effects(&self) -> Vec<Effect> {
         let n = self.resulted.len();
         // 读过的文件换着来（施工 6-5）：压后重建挑候选时，尾巴里没读过的才重读。
@@ -131,22 +133,23 @@ impl Watch {
             lines: Some([1, 2]),
             hash: ContentHash::of(b"read"),
         });
-        let before = match n % 3 {
-            0 => None,
-            1 => Some(ContentHash::of(b"before")),
-            _ => return vec![read],
-        };
-        vec![
+        let changed = |before| {
             Effect::FileChanged(FileChanged {
                 path: "/w/a.txt".to_string(),
                 before,
                 after: ContentHash::of(b"after"),
-            }),
-            read,
-        ]
+            })
+        };
+        let mut effects = match n % 3 {
+            0 => vec![changed(None), read],
+            1 => vec![changed(Some(ContentHash::of(b"before"))), read],
+            _ => vec![read],
+        };
+        effects.push(self.some_job(n));
+        effects
     }
 
-    /// 这几轮里的工具结果一共改过几次文件。撤销、恢复以后没交出改回文件的，这里该是 0。
+    /// 这几轮里的工具结果一共改过几次文件：读过的、派了任务的不算。撤销、恢复以后没交出改回文件的，这里该是 0。
     pub(super) fn changes_in(&self, turns: &[TurnId]) -> usize {
         self.events
             .iter()
@@ -155,7 +158,9 @@ impl Watch {
                 Body::ToolResult(result) => result
                     .effects
                     .iter()
-                    .filter(|effect| !matches!(effect, Effect::FileRead(_)))
+                    .filter(|effect| {
+                        matches!(effect, Effect::FileChanged(_) | Effect::FileTrashed(_))
+                    })
                     .count(),
                 _ => 0,
             })

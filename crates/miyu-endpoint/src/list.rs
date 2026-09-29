@@ -12,7 +12,7 @@ use miyu_store::root::DataRoot;
 use crate::Core;
 use crate::refusal::Refusal;
 
-/// 管理员的会话，从新到旧，最多 `limit` 个：`[{session, oneshot}]`。
+/// 管理员的会话，从新到旧，最多 `limit` 个：`[{session, oneshot, parent}]`。
 pub(crate) async fn list(
     core: &Core,
     oneshot: bool,
@@ -59,7 +59,10 @@ fn scan(
         if oneshot && !created.oneshot {
             continue;
         }
-        found.push(json!({"session": id.as_str(), "oneshot": created.oneshot}));
+        // 父会话（施工 7-5）：子会话写它的编号，主会话写 `null`。
+        found.push(
+            json!({"session": id.as_str(), "oneshot": created.oneshot, "parent": created.parent}),
+        );
     }
     Ok(found)
 }

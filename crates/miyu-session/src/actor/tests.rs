@@ -154,6 +154,15 @@ async fn a_write_that_fails_stops_the_session() {
             // 这个测试不跑工具：日志不会被读。
             log: miyu_tool::Log::new(crate::store::LogDir(std::path::PathBuf::new())),
             offset: miyu_kernel::time::UtcOffset::UTC,
+            job_ids: Arc::new(crate::job_ids::JobIds::starting_after(0)),
+            agents: None,
+        },
+        crate::actor::JobKit {
+            table: Arc::new(crate::jobs::Jobs::new()),
+            // 这个测试不跑工具：不会起后台命令。
+            dir: std::path::PathBuf::new(),
+            blobs: miyu_store::blob::Blobs::new(std::path::PathBuf::new()),
+            ids: Arc::new(crate::job_ids::JobIds::starting_after(0)),
         },
         guard,
         mailbox,

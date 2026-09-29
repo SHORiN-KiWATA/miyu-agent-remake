@@ -64,7 +64,7 @@ async fn the_last_ask_is_compacted_with_what_was_asked() {
     assert_eq!(compacted.code, 0, "{}", compacted.err);
     assert_eq!(compacted.out, "", "标准输出上什么都不印");
     assert!(
-        compacted.err.starts_with("· 上下文压缩好了："),
+        compacted.err.starts_with("· 上下文已压缩："),
         "{}",
         compacted.err
     );

@@ -15,6 +15,7 @@ use miyu_kernel::template::TemplateError;
 use miyu_kernel::tool::{ToolTextSources, ToolTexts};
 use serde::{Deserialize, Serialize};
 
+use crate::jobs::JobTexts;
 use crate::pause::PauseNumbers;
 use crate::rebuild::{RebuildNumbers, RebuildTexts};
 use crate::shorten::{ShortenNumbers, ShortenTexts};
@@ -104,6 +105,9 @@ pub struct CoreTexts {
     /// 压缩的几句（`compaction/`，施工 6-2 上）。以前造的快照里没有，读成没有，那些会话不主动压；没有的不写。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub compaction: Option<CompactionTexts>,
+    /// 两种回报的写法（`jobs/`，施工 7-2）。以前造的快照里没有，读成没有：那些会话派不出任务；没有的不写。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub jobs: Option<JobTexts>,
 }
 
 /// 压缩的几句（施工 6-2 上）。
@@ -280,7 +284,7 @@ impl Snapshot {
     }
 
     /// 造会话的那一条：属主、场所、这份快照的哈希、开始时的权限（`03-事件模型.md` 第三节）。工作目录由造会话的一方
-    /// 填上。
+    /// 填上。造出来的是主会话：父会话、第几层没有（子会话随 M7，`agents.md`）。
     pub fn session_created(
         &self,
         owner: AccountId,
@@ -294,6 +298,8 @@ impl Snapshot {
             permission,
             oneshot: false,
             cwd: None,
+            parent: None,
+            depth: None,
         }
     }
 
@@ -338,6 +344,7 @@ impl Snapshot {
                 .as_ref()
                 .map(|compaction| compaction.summarize_end.clone())
                 .unwrap_or_default(),
+            jobs: core.jobs.as_ref().map(JobTexts::rendered).transpose()?,
         };
         let (face, rules) = tools::split(&self.tools)?;
         let stable = Stable {

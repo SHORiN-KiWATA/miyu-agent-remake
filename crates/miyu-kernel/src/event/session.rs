@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::id::{AccountId, ContentHash, VenueId};
+use crate::id::{AccountId, ContentHash, SessionId, VenueId};
 use crate::text_enum::text_enum;
 
 /// `session.created`：会话创建。
@@ -24,6 +24,12 @@ pub struct SessionCreated {
     /// 之前的日志没有这一格。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cwd: Option<String>,
+    /// 父会话：派它的那个会话（施工 7-1，`agents.md`）。主会话没有；子会话不写 `oneshot`。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent: Option<SessionId>,
+    /// 第几层：父会话的加一，主会话是第 0 层、不写。和 `parent` 同有同无、至少是 1，由账本查（`kernel/history.md`）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub depth: Option<u32>,
 }
 
 /// `session.policy_changed`：换了策略快照，或者换了权限，也可以一起换。

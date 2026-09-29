@@ -5,9 +5,7 @@ use std::collections::VecDeque;
 
 use super::script::{Line, Play};
 use crate::block::{Block, Text};
-use crate::event::{
-    Body, Decision, Event, Level, ModelCalled, Response, SessionCreated, Transient,
-};
+use crate::event::{Body, Decision, Event, Level, ModelCalled, Response, Transient};
 use crate::facts::Environment;
 use crate::id::{CallId, CommandId, Seq, TurnId};
 use crate::origin::By;
@@ -17,9 +15,6 @@ use crate::session::{
     Verdict,
 };
 use crate::time::Timestamp;
-
-/// 造会话时的样子：alice 的会话，在本机，工作区的权限，只读关着。
-const CREATED: &str = r#"{"owner":"alice","venue":"local","policy":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","permission":{"level":"workspace","read_only":false}}"#;
 
 /// 执行器替身。
 ///
@@ -70,58 +65,6 @@ pub struct Stage {
 }
 
 impl Stage {
-    /// 在 `now` 这一刻，照 `policy` 造一个会话，在 `environment` 里。造会话的命令编号是 `cmd-0`。
-    ///
-    /// # Panics
-    ///
-    /// 造会话那一条的写法坏了才会：那是替身自己的 bug。
-    pub fn new(
-        policy: impl Fn() -> Policy + 'static,
-        environment: Environment,
-        now: Timestamp,
-    ) -> Stage {
-        let by: By = serde_json::from_str(r#"{"kind":"person","account":"alice"}"#)
-            .unwrap_or_else(|e| panic!("alice 的写法坏了：{e}"));
-        let created: SessionCreated =
-            serde_json::from_str(CREATED).unwrap_or_else(|e| panic!("造会话的写法坏了：{e}"));
-        let (session, actions) = Session::create(
-            command_id(0),
-            by.clone(),
-            now,
-            created,
-            policy(),
-            environment.clone(),
-        );
-        let mut stage = Stage {
-            session,
-            policy: Box::new(policy),
-            environment,
-            log: Vec::new(),
-            requests: Vec::new(),
-            marks: Vec::new(),
-            replies: Vec::new(),
-            transients: Vec::new(),
-            ran: Vec::new(),
-            lines: VecDeque::new(),
-            plays: VecDeque::new(),
-            verdicts: VecDeque::new(),
-            injections: VecDeque::new(),
-            held_model: None,
-            hold_wakes: false,
-            held_wake: None,
-            held_tools: Vec::new(),
-            stops: Vec::new(),
-            now,
-            next: 1,
-            by,
-            limits: None,
-            summaries: None,
-            disk: super::disk::Disk::default(),
-        };
-        stage.settle(actions);
-        stage
-    }
-
     /// 模型接下来几次请求，照先后这样回。
     pub fn model(&mut self, lines: impl IntoIterator<Item = Line>) {
         self.lines.extend(lines);
@@ -298,9 +241,19 @@ impl Stage {
 
     /// 有计划地重启：送进「要重启了」，再从「磁盘」载入。停住的请求、调用跟着没了。
     pub fn restart(&mut self) {
+        self.restarting();
+        self.reload();
+    }
+
+    /// 只送进「要重启了」，不载入：执行器停下之前还要交后台命令的结束（施工 7-3）。
+    pub fn restarting(&mut self) {
         let at = self.tick();
         self.run(Input::Restarting { at });
-        self.reload();
+    }
+
+    /// 内核照日志算的用过的最大任务编号（施工 7-3）：执行器从它往后数。
+    pub fn last_job_number(&self) -> u64 {
+        self.session.last_job_number()
     }
 
     /// 崩了：停住的请求、调用跟着没了，从「磁盘」载入。
@@ -370,12 +323,17 @@ impl Stage {
 
     /// 送一个命令，跑到没事可做。
     pub(super) fn command(&mut self, command: Command) -> CommandId {
+        self.command_as(self.by.clone(), command)
+    }
+
+    /// 以 `by` 的名义送一个命令，跑到没事可做（施工 7-2：子会话交回报）。
+    pub(super) fn command_as(&mut self, by: By, command: Command) -> CommandId {
         let id = command_id(self.next);
         self.next += 1;
         let at = self.tick();
         self.run(Input::Command(Received {
             id: id.clone(),
-            by: self.by.clone(),
+            by,
             at,
             command,
         }));
@@ -398,7 +356,7 @@ impl Stage {
     }
 
     /// 载入吐出来的、造会话吐出来的动作，也照样回。
-    fn settle(&mut self, actions: Vec<Action>) {
+    pub(super) fn settle(&mut self, actions: Vec<Action>) {
         let mut inputs = VecDeque::new();
         for action in actions {
             inputs.extend(self.act(action));
@@ -435,7 +393,7 @@ impl Stage {
 }
 
 /// 编号是 `n` 的命令：`cmd-<n>`。
-fn command_id(n: u64) -> CommandId {
+pub(super) fn command_id(n: u64) -> CommandId {
     CommandId::parse(&format!("cmd-{n}")).unwrap_or_else(|e| panic!("命令编号的写法坏了：{e}"))
 }
 

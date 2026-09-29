@@ -111,6 +111,8 @@ impl Guard {
             sandbox: None,
             log: None,
             offset: UtcOffset::UTC,
+            agents: None,
+            jobs: None,
         });
         if targets.is_empty() {
             return untargeted(level, name, access, self.sandboxed);

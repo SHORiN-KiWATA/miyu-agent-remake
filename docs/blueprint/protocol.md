@@ -16,7 +16,8 @@
 | `crates/miyu-endpoint/src/wire.rs` | 读一行、认成请求、回应写成一行 |
 | `crates/miyu-endpoint/src/hello.rs` | 握手 |
 | `crates/miyu-endpoint/src/methods.rs` | 握手以后的方法 |
-| `crates/miyu-endpoint/src/sessions.rs` | 会话表：造会话、找会话、载入；工作目录太宽的退回工作区 |
+| `crates/miyu-endpoint/src/sessions.rs` | 会话表：造会话、找会话、载入；工作目录太宽的退回工作区；造子会话（施工 7-5） |
+| `crates/miyu-endpoint/src/spawn.rs` | 会话表交给会话的端口：造子会话、给会话发命令（施工 7-5，`session/tools.md`「派子代理」） |
 | `crates/miyu-endpoint/src/list.rs` | `session.list` |
 | `crates/miyu-endpoint/src/subscriptions.rs` | 订阅：每个订阅一个转发任务，推 `event`、`resync` |
 | `crates/miyu-endpoint/src/undo.rs` | 撤销、恢复的回应里给人看的几样（`protocol/undo.md`） |
@@ -132,9 +133,9 @@
 | `oneshot` | 布尔，不写是 `false` | `true` 只要一次性的 |
 | `limit` | 非负整数，可以不写 | 最多几个；不写是全部，`0` 是一个都不要 |
 
-回应：`{"sessions":[{"oneshot":<布尔>,"session":"<编号>"}, …]}`。
+回应：`{"sessions":[{"oneshot":<布尔>,"parent":<编号或 null>,"session":"<编号>"}, …]}`。`parent` 是子会话的父会话，主会话写 `null`（施工 7-5，`agents.md`）。
 
-1. 只列管理员的会话，从新到旧：照编号倒着排，编号照造的先后。
+1. 只列管理员的会话，从新到旧：照编号倒着排，编号照造的先后。子会话也列，和主会话排在一起。
 2. 读每个会话日志的第一条，只读不写。跳过：目录名不合会话编号写法的、没有日志的（第一行还没写完的也算没有）、第一条读不出来的（记一条运行日志）、第一条不是 `session.created` 的。
 3. `limit` 数的是列进去的。
 4. 读不了放会话的目录：`internal_error`。
@@ -254,6 +255,7 @@
 4. `session.send` 带着 `cwd`、`dirs`，和这个会话上一次报的不一样：照「工作目录太宽」重新定实际干活的目录，送进会话，到下一个边界才注入（`kernel/request.md`）；会话这时停了的，回 `session_stopped`。不带的、一样的，照旧。
 5. 载入时没有报来的 `cwd`（`session.interrupt`、`session.revert`、`session.unrevert`、`session.compact`、`subscribe` 载入的）：照日志里最后一条带 `cwd` 的 `turn.started`（加进来的目录照最后一条 `turn.started` 的 `dirs`，没有就是没有（施工 5-10 上）），没有就照 `session.created` 的，都没有（之前的日志）才当报来的是 `~`，退回管理员的工作区（施工 4-9 再补三上）。核心重启以后撤销，路径照会话真正的目录写短。
 6. 会话一直留在表里，直到核心退出、停下全部会话，或者用到时发现它停了。
+7. 造会话、载入时，交给会话一份造子会话的端口（施工 7-5，`session/tools.md`「派子代理」）：会话里派出去的子会话由会话表造，放进表里，和头造的一样照编号找得到、只起一个；子会话也算进「有没有会话忙着」，停下全部会话时一起停。
 
 **工作目录太宽**
 
@@ -271,8 +273,9 @@
 
 **空闲和停下**
 
-- `Core::idle`：没有连接，会话表里也没有哪个会话忙着：在跑回合、回合结束了 `turn.ended` 还没落盘、在改回文件，都算忙；停了的会话不算。核心照它空闲退出（`core.md`）。
-- `Core::stop_sessions`：有计划地停下表里全部的会话，跑到一半的回合记成「重启了」，下次载入接着干（`kernel/session.md`）；会话表清空。
+- `Core::idle`：没有连接，执行器的任务表里没有在跑的后台命令（结束了、记录还没落盘的也算，施工 7-3），会话表里也没有哪个会话忙着：在跑回合、回合结束了 `turn.ended` 还没落盘、在改回文件，都算忙；停了的会话不算。核心照它空闲退出（`core.md`）。
+- `Core::stop_sessions`：有计划地停下表里全部的会话，跑到一半的回合记成「重启了」，下次载入接着干（`kernel/session.md`）；各会话在跑的后台命令先记 `restarted`、落了盘再整组杀（`session/actor.md` 第 9 条，施工 7-3）；会话表清空。
+- 任务表（`miyu_session::Jobs`）是核心的家底里的一张，造会话、载入时交给会话（施工 7-3）。
 - 接不了连接（例如打开的文件太多）：歇 100 毫秒再接，不空转。
 
 ### 出错
@@ -368,6 +371,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/restart.rs` | 核心重启以后：不带 `cwd` 载入的会话照最后一轮的工作目录、没开过回合的照造会话时的；重发的造会话交回原来那一个 |
 | `crates/miyu-endpoint/tests/edges.rs` | 不握手的到时断开、握手了的不受管；数组的 `params` 参数不对；握手被拒照它报的语言说；人格目录不存在是 `unknown_persona`、目录在而读不了是 `internal_error` |
 | `crates/miyu-endpoint/tests/list.rs` | 从新到旧、只要一次性的、`limit`、参数不对、空的 |
+| `crates/miyu-endpoint/tests/spawn.rs` | 会话里派子代理，会话表造出子会话、交代送进去、替身模型在子会话里答话；`session.list` 里子会话写着父会话、主会话写 `null`（施工 7-5） |
 | `crates/miyu-endpoint/tests/revert.rs` | 协议上撤销、恢复；三种拒绝的中文；`turn` 写 0 |
 | `crates/miyu-endpoint/tests/compact.rs` | 协议上手动压缩（施工 6-8）：回应是那一轮的开头、推送里压好了；要求原样到了摘要请求里；撤掉那一轮的回应里没有 `said`；有回合在进行、没有能压的两种拒绝，中文、英文；`instructions` 不是字符串的参数不对 |
 | `crates/miyu-endpoint/tests/workspace.rs` | 太宽的五种（`~`、家目录、根目录、数据根、数据根里面）和读不出家目录时的 `~`；项目目录、账号的工作区照旧；回应里的 `cwd`、重发的造会话 |

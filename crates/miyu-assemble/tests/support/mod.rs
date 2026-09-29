@@ -7,12 +7,14 @@
 #![allow(dead_code, reason = "两个测试各用其中一部分")]
 
 mod anchor;
+mod texts;
 
 pub use anchor::anchored;
+use texts::texts;
 
 use std::collections::BTreeMap;
 
-use miyu_assemble::{DefaultAssembler, RestoredWrap, Stable, Texts, TurnEndedTexts};
+use miyu_assemble::{DefaultAssembler, Stable};
 use miyu_drivers::openai_chat::{self, Compat, Encoded};
 use miyu_drivers::{Call, DriverTextSources, DriverTexts, Inputs};
 use miyu_kernel::block::{Block, Text};
@@ -23,7 +25,6 @@ use miyu_kernel::id::{CallId, ModelName, Seq};
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::request::{Message, Request, ToolSpec};
 use miyu_kernel::session::{Compaction, Policy};
-use miyu_kernel::template::Template;
 use miyu_kernel::testkit::{Line, Stage};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_kernel::tool::{Access, ToolRule, ToolTextSources, ToolTexts};
@@ -35,6 +36,15 @@ pub const SUMMARIZE: &str = concat!(
     include_str!("../../../../resources/core/compaction/summarize-task.txt"),
     include_str!("../../../../resources/core/compaction/summarize-end.txt")
 );
+
+/// 子代理的场所说明（施工 7-5）：出厂的原文，子会话的 system 接在人设后面。
+pub const VENUE: &str = include_str!("../../../../resources/core/jobs/subagent-venue.txt");
+
+/// 探针里子会话的父会话。
+pub const PARENT: &str = "01a0d75d-2180-7a3c-9e41-5b7d2c8f6a10";
+
+/// 探针的人设：软件工程师的那一句。
+const PERSONA: &str = "You are a helpful software engineer.";
 
 /// 两件工具的参数格式：一个路径。
 const PATH: &str =
@@ -55,12 +65,22 @@ pub struct Sent {
 /// 探针和随机日志的策略：出厂的组装、事实模板、写给模型的句子；读、写两件工具；一个回合最多
 /// 请求三次模型。
 pub fn policy() -> Policy {
+    policy_with(PERSONA.to_string())
+}
+
+/// 子代理这张脸的策略（施工 7-5）：system 照拼快照的规矩在人设后面空一行接上场所说明，别的和 [`policy`] 一样。
+pub fn child_policy() -> Policy {
+    policy_with(format!("{PERSONA}\n\n{}", VENUE.trim_end()))
+}
+
+/// 同 [`policy`]，system 是 `system`。
+fn policy_with(system: String) -> Policy {
     let rule = |access: Access| ToolRule {
         access,
         parameters: serde_json::from_str(PATH).expect("参数格式是 JSON"),
     };
     Policy {
-        assembler: Box::new(DefaultAssembler::new(stable(), texts())),
+        assembler: Box::new(DefaultAssembler::new(stable(system), texts())),
         facts: templates(),
         tools: BTreeMap::from([
             ("read".to_string(), rule(Access::Read)),
@@ -99,13 +119,26 @@ pub fn summarizes(stage: &mut Stage) {
 
 /// 一个替身：照 [`policy`] 造的会话，在 `~/src/miyu`，从东九区 16:00 开始。
 pub fn stage() -> Stage {
-    let environment = Environment {
+    Stage::new(policy, environment(), start())
+}
+
+/// 同 [`stage`]，造的是 [`PARENT`] 派出来的子会话，照 [`child_policy`]（施工 7-5）：人说的话都是父会话发的。
+pub fn child_stage() -> Stage {
+    Stage::child(child_policy, environment(), start(), PARENT)
+}
+
+/// 替身的环境：东九区，在 `~/src/miyu`。
+fn environment() -> Environment {
+    Environment {
         offset: UtcOffset::from_minutes(540).expect("东九区在范围里"),
         cwd: "~/src/miyu".to_string(),
         dirs: Vec::new(),
-    };
-    let start = Timestamp::parse(START).expect("开始的时刻合写法");
-    Stage::new(policy, environment, start)
+    }
+}
+
+/// 会话开始的时刻。
+fn start() -> Timestamp {
+    Timestamp::parse(START).expect("开始的时刻合写法")
 }
 
 /// 替身的日志，一条一行。
@@ -398,8 +431,8 @@ fn ends_with(request: &Request, trigger: &Block) -> Result<(), String> {
     }
 }
 
-/// 探针的稳定区：两件假工具，一句 system。真的等施工 3-6。
-fn stable() -> Stable {
+/// 探针的稳定区：两件假工具，system 是 `system`。
+fn stable(system: String) -> Stable {
     let tool = |name: &str, description: &str| ToolSpec {
         name: name.to_string(),
         description: description.to_string(),
@@ -413,46 +446,8 @@ fn stable() -> Stable {
             tool("write", "Write a text file."),
             tool("read", "Read a text file or list a directory."),
         ],
-        system: "You are a helpful software engineer.".to_string(),
+        system,
         demos: vec![],
-    }
-}
-
-/// 出厂的英文，资源目录里的真文件。
-fn texts() -> Texts {
-    // 压缩的几份字：`resources/core/compaction/` 下的同名文件。
-    macro_rules! compaction {
-        ($name:literal) => {
-            include_str!(concat!("../../../../resources/core/compaction/", $name)).to_string()
-        };
-    }
-    Texts {
-        checkpoint_open: include_str!("../../../../resources/core/checkpoint-open.txt").to_string(),
-        checkpoint_close: include_str!("../../../../resources/core/checkpoint-close.txt")
-            .to_string(),
-        checkpoint_end: include_str!("../../../../resources/core/checkpoint-end.txt").to_string(),
-        restored: Some(RestoredWrap {
-            open: Template::parse(include_str!(
-                "../../../../resources/core/compaction/restored-open.txt"
-            ))
-            .expect("出厂的模板合写法"),
-            close: compaction!("restored-close.txt"),
-        }),
-        turn_ended: TurnEndedTexts {
-            interrupted: include_str!("../../../../resources/core/turn-ended/interrupted.txt")
-                .to_string(),
-            error: include_str!("../../../../resources/core/turn-ended/error.txt").to_string(),
-            step_limit: include_str!("../../../../resources/core/turn-ended/step_limit.txt")
-                .to_string(),
-            aborted: include_str!("../../../../resources/core/turn-ended/aborted.txt").to_string(),
-            restarted: include_str!("../../../../resources/core/turn-ended/restarted.txt")
-                .to_string(),
-        },
-        summarize_task: compaction!("summarize-task.txt"),
-        truncated: compaction!("truncated.txt"),
-        summarize_system: compaction!("summarize-system.txt"),
-        summarize_instructions: compaction!("summarize-instructions.txt"),
-        summarize_end: compaction!("summarize-end.txt"),
     }
 }
 

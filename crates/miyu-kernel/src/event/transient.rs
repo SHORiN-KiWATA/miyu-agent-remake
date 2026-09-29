@@ -44,7 +44,7 @@ pub enum TransientBody {
 }
 
 /// `compaction.done` 的 `body`：压好了。压前、压后都是本地估算，和压缩线同一个算法；摘要请求的用量、用时取自它的
-/// `model.called`（施工 6-3 下，`compaction.md` 第十三条）。头照它印「上下文压缩好了」，核心照它记度量。
+/// `model.called`（施工 6-3 下，`compaction.md` 第十三条）。头照它印「上下文已压缩」，核心照它记度量。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CompactionDone {
     /// 哪一次摘要请求：它替代到的那一条。
@@ -85,7 +85,7 @@ pub struct Status {
     pub retry: Retry,
 }
 
-/// 等着重试：第几次、一共最多几次、等多久，出错的分类和原话。
+/// 等着重试：第几次、一共最多几次、等多久，出错的分类、原话和 HTTP 状态码。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Retry {
     /// 这是第几次重试，从 1 数起。
@@ -98,6 +98,9 @@ pub struct Retry {
     pub class: ErrorClass,
     /// 出错的原话，给人看。
     pub message: String,
+    /// 出错的 HTTP 状态码，照那一次的 `model.called` 带过来（施工 3-5 三补）；没有的不写。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<u16>,
 }
 
 /// `tool.progress` 的 `body`：哪一次调用、一段输出（`03-事件模型.md` 第五节）。结果以

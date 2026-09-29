@@ -13,8 +13,11 @@
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu-kernel/src/ledger.rs` | 账本：查规矩、记下变化 |
+| `crates/miyu-kernel/src/ledger/undo.rs` | 账本里撤销、恢复的几条：撤的是哪几轮、能不能恢复 |
+| `crates/miyu-kernel/src/ledger/jobs.rs` | 账本里任务的几条：编号不重复、回报对得上派出去的任务、子会话的 `parent`、`depth`（施工 7-1） |
 | `crates/miyu-kernel/src/history.rs` | 有效历史：收事件、压缩、撤回、排先后、落到检查点上 |
 | `crates/miyu-kernel/src/history/undo.rs` | 撤掉的拿走、放回；跟着撤的话 |
+| `crates/miyu-kernel/src/history/jobs.rs` | 派出去过的任务：标题、种类、派它的那一轮撤掉了没有（施工 7-2） |
 | `crates/miyu-kernel/src/session/revert.rs` | 撤销、恢复两个命令，改回文件的来回，撤掉压缩时读回日志的来回，取回重读的原文 |
 | `crates/miyu-kernel/src/session/load.rs` | 载入：整份过账本，从还算数的最近一次压缩起重建有效历史（`kernel/session.md`） |
 | `crates/miyu-kernel/src/session/restore.rs` | 改回的几步怎么算 |
@@ -22,9 +25,10 @@
 
 ### 对外的样子
 
-**账本**（`Ledger`）：`Ledger::default()` 是一个还没有事件的会话。只记查规矩要用的几样，不留事件本身：下一条的序号、正在进行的回合、上一条回复的序号、这一轮还没有结果的调用和其中在等确认的、在等回答的、排着队的消息、开过还没撤掉的回合（压缩以前的也在）、还算数的几次压缩各在哪一轮、替代到哪、还能恢复的几次撤销各撤了哪几轮和跟着撤掉的压缩。
+**账本**（`Ledger`）：`Ledger::default()` 是一个还没有事件的会话。只记查规矩要用的几样，不留事件本身：下一条的序号、正在进行的回合、上一条回复的序号、这一轮还没有结果的调用和其中在等确认的、在等回答的、排着队的消息、开过还没撤掉的回合（压缩以前的也在）、还算数的几次压缩各在哪一轮、替代到哪、还能恢复的几次撤销各撤了哪几轮和跟着撤掉的压缩、派出去过的任务（施工 7-1：编号，是后台命令还是子代理，子代理的会话，后台命令结束了没有，子代理还会不会再报；撤掉的回合里派的也在）。
 
-- 回合的编号一轮一个（8 个字节），压缩一次一项：撤销能撤掉压缩、撤到压缩以前的回合，压缩以前的回合也要记着（施工 6-9）。账本只随回合数长，不随日志的字节长：十万轮约 0.8 MB，一个活动会话的预算是 5 MB（`23-性能预算.md`，2026-09-29 项目主人定）。
+- 从账本读的两样（施工 7-3）：`last_job()` 派出去过的最大任务编号，撤掉的回合里派的也算，没派过的是 0（`Session::last_job_number` 交给执行器往后数）；`running_commands()` 还没报过结束的后台命令，照编号（载入时补 `aborted`，`kernel/session.md`「载入和崩溃」第 9 条）。
+- 回合的编号一轮一个（8 个字节），压缩一次一项：撤销能撤掉压缩、撤到压缩以前的回合，压缩以前的回合也要记着（施工 6-9）。任务一个一项：编号不回收要看整份日志（施工 7-1）。账本只随回合数、任务数长，不随日志的字节长：十万轮约 0.8 MB，一个活动会话的预算是 5 MB（`23-性能预算.md`，2026-09-29 项目主人定）。
 - 还没撤掉的回合照先后排：撤销从某一轮起拿走后面的全部，恢复原样放回，开一轮接在最后。
 
 | 方法 | 交回什么 |
@@ -51,6 +55,9 @@
 | `last_undone()` | 最近一次还能恢复的撤销拿走的事件，照日志的先后 |
 | `until(upto)` | 截到第 `upto` 条的有效历史：检查点照留，之后的事件只留第 `upto` 条及以前的，放在一边的撤销不要。压缩的摘要请求照它组装（施工 6-2 上） |
 | `recall(texts)`、`recalled(blob)` | 现在这个检查点里重读的文件的原文，照 blob 找：压完时内核照执行器交回的放进来，别的时候照 `Input::Recalled` 放进来（下面「重读的原文」）；换了检查点就清掉。组装时照它取（施工 6-5，`compaction.md` 第九条） |
+| `dispatched(job)` | 派出去过的任务（`Dispatched`）：`what` 种类、`title` 标题、`undone` 派它的那一轮撤掉了（下面「派出去过的任务」，施工 7-2）；没派过的没有 |
+| `note(event)` | 只记派出去的任务，不留这一条：载入时重建的那一段以前的事件照它过（施工 7-2） |
+| `jobs_from(before)` | 派出去过的任务照 `before` 那一份的：撤掉压缩时换了一份有效历史（施工 7-2） |
 | `whole()` | 一份留着一切的：压缩替代掉的不丢，`context.compacted` 自己也照先后留在 `events()` 里，没有检查点；撤销、恢复、撤回照同一套规矩算，撤掉的回合里的压缩跟着拿走。`history` 照它算哪些还算数（施工 6-4，`tools/history.md`）；从日志的一段重建也从它起（施工 6-9） |
 | `settle()` | 落到检查点上（下面「落到检查点上」），交回检查点换了没有。留着一切的那一份调过它，就成了平时那一份（施工 6-9） |
 
@@ -103,8 +110,21 @@
 | `turn.unreverted` 时有能恢复的撤销 | nothing to redo: no undo yet, or a turn or a compaction came after it |
 | 恢复的正好是最近一次撤销的那几轮 | redo the turns of the latest undo: <几个编号> |
 | `files.restored` 时没有回合在进行 | turn <编号> is still running; files are restored only after an undo or a redo |
+| `session.created` 的 `depth` 至少是 1（施工 7-1） | depth should be at least 1 |
+| `session.created` 的 `parent`、`depth` 同有同无：子会话两格都有，主会话都没有 | parent and depth go together: a child session has both, the main session neither |
+| `tool.result` 效果里 `job.started` 的编号整份日志里没用过：撤掉的回合里的也算，同一条结果里也不重复（编号不回收） | job <编号> is already taken: job ids are never reused, even after an undo |
+| `job.started` 的 `agent` 带 `session` | job <编号> is an agent and needs session |
+| `job.started` 的 `command` 不带 `session` | job <编号> is a command and has no session |
+| `job.reported` 对得上一个 `command` 的 `job.started` | job <编号> is not a background command: no such job, or it is not a command |
+| 这个后台命令还没报过结束 | job <编号> has already ended |
+| `child.reported` 对得上一个 `agent` 的 `job.started` | job <编号> is not a subagent: no such job, or it is not an agent |
+| `child.reported` 的 `session` 和那条 `job.started` 记的一样 | job <编号> runs in session <记的>, not <这一条写的> |
+| `child.reported` 的 `by` 是那个子会话 | child.reported for job <编号> should be by session <记的> |
+| 以 `stopped`、`undone` 报过的不再报：被停掉的不会再起来。别的（`done`、`aborted`、不认识的）报过以后还能再报：留言叫醒它，它会再报 | job <编号> was stopped or undone and cannot report again |
 
-不认识的种类（例如模块的 `ext.*`）只查序号和 `turn`。报错的全文是「event <序号> cannot be appended: <why>」。
+- 不认识的种类（例如模块的 `ext.*`）只查序号和 `turn`。报错的全文是「event <序号> cannot be appended: <why>」。
+- `job.started` 只出现在 `tool.result` 的效果里：效果只有工具结果有，写法本身就保证了，不另查。工具结果照上面先查调用对不对得上，再查它的效果。
+- 两种回报带不带 `turn` 不另立规矩：带的要是正在进行的那个回合，照上面那一条；它们不在「必须带 `turn`」的那几种里。内核记的一律不带（2026-09-30 定，`kernel/session.md`「回报」第 3 条）。
 
 **账本记下的变化**：
 
@@ -122,6 +142,9 @@
 | `context.compacted` | 记下这一次压缩：在哪一轮、替代到哪，它是还算数的最近一次；还能恢复的撤销清掉。压缩以前的回合照旧能撤（施工 6-9） |
 | `turn.reverted` | 撤的几轮撤掉了；在这几轮里的压缩不再算数；记下这一次撤销，连同跟着撤掉的那几次压缩 |
 | `turn.unreverted` | 最近一次撤销去掉，那几轮和跟着撤掉的压缩回来 |
+| `tool.result` 效果里的 `job.started` | 记下这个任务：编号，是后台命令还是子代理，子代理的会话（施工 7-1）。撤销、恢复、压缩都不动它 |
+| `job.reported` | 这个后台命令结束了，不管 `reason` 是哪一种 |
+| `child.reported`，`reason` 是 `stopped`、`undone` | 这个子代理不会再报 |
 
 **有效历史收事件**：
 
@@ -132,6 +155,14 @@
 5. `turn.started`：放在一边的撤销丢掉，这一条照留。
 6. 别的照先后留着，`model.called`、确认、提问、`files.restored` 也在里面：进不进请求是组装的事。
 7. 内存里只留这一段：压缩一次，丢掉更早的；撤掉的下一轮开始、压缩了才丢。撤掉压缩的撤销、载入，照下面「从日志的一段重建」。
+8. 每一条先记派出去的任务（下面「派出去过的任务」），再照上面收。
+
+**派出去过的任务**（施工 7-2）：渲染回报要标题、种类；派它的那一轮撤掉了的，回报不渲染、不叫醒她（`agents.md` 第七条第 2 条）。这些在派它的那条 `tool.result` 里，那一条会被压缩换掉、被撤销拿走，回报却可能在那以后才到，所以另记一张表：
+
+1. `tool.result` 效果里的 `job.started`：记下编号、种类、标题、那条结果所在的回合。
+2. `turn.reverted`：在撤的那几轮里派的，标成撤掉了；`turn.unreverted`：在恢复的那几轮里派的，去掉这个标。撤销恢复不了了也照样标着。
+3. 压缩、落到检查点上不动它；`until`、`after` 截出来的那一份带着它。一个任务一项，随任务数长。
+4. 载入时重建的那一段以前的事件照 `note` 过一遍，表才是全的；撤掉压缩时换的那一份照原来的（`jobs_from`），读回的那一段再收一遍，结果一样。
 
 **落到检查点上**（`settle`，施工 6-9）：
 
@@ -142,14 +173,14 @@
 **从日志的一段重建**（施工 6-9：撤掉压缩的撤销、载入）：
 
 1. 这一段从还算数的最近一次压缩替代到的下一条起，一次都没有的从第 1 条起，到日志的最后一条。撤销时照撤完以后算（账本的 `read_back_from`），载入时照整份日志过完账本以后算（`compacted()`）。
-2. 从 `whole()` 起，一条条收：撤销、恢复、撤回照同一套规矩，撤掉的回合里的压缩跟着拿走，放在一边。撤掉压缩的那一次撤销，它的 `turn.reverted` 也这样收。
+2. 从 `whole()` 起，一条条收：撤销、恢复、撤回照同一套规矩，撤掉的回合里的压缩跟着拿走，放在一边。撤掉压缩的那一次撤销，它的 `turn.reverted` 也这样收。派出去过的任务照「派出去过的任务」第 4 条。
 3. 收完落到检查点上：还算数的最近一次压缩当检查点。这一段里比它还早的压缩（上一次留下的尾巴里，序号比它的 `upto` 大的）一起丢掉。
 4. 为什么从那一条起就够：检查点一换，它替代到的以前的就都丢了；这一段里的撤销、恢复、撤回，碰到那以前的也只是碰到早晚要丢的。算「上一轮还排着的」看的是那一轮的请求看到了哪里，看到它们的请求都在它们后面，也在这一段里。所以没有撤掉过压缩的日志，重建出来的检查点、事件、放在一边的，和一条条收过来的一样。
 
 **拿走什么**：撤掉的几轮里带着它们回合编号的事件，加上这几轮接过去的、人亲口说的话（`message.user`，`by` 是有账号的人）：
 
 1. 每一轮的触发，还在有效历史里、是人亲口说的，拿走。
-2. 触发它的是上一轮排着的消息（它带着上一轮的编号），上一轮又不在这次撤的里面：上一轮结束时还排着的、人亲口说的，也拿走。「还排着的」是带着上一轮编号、序号大于上一轮的请求看到过的最后一条的 `message.user`；请求看到哪里，看上一轮的 `model.called` 和回复的 `seen`，取最大的；自动压缩暂停着、明知放不下没发出去的那一条 `model.called`（分类 `compaction_paused`）不算，排着的话她没听到，由下一轮接过去（施工 6-8 随机长跑撞到，和 6-6 上排队的规矩对齐）；上一轮一次都没请求过的，它里面的 `message.user` 都算。
+2. 触发它的是上一轮排着的消息（它带着上一轮的编号），或者上一轮里到的回报（回报不带回合编号，上一轮就是紧挨着这一轮开头结束的那一轮：它的 `turn.ended` 正好是前一条，施工 7-2），上一轮又不在这次撤的里面：上一轮结束时还排着的、人亲口说的，也拿走。回报自己是别处来的，留着（第 3 条）。「还排着的」是带着上一轮编号、序号大于上一轮的请求看到过的最后一条的 `message.user`；请求看到哪里，看上一轮的 `model.called` 和回复的 `seen`，取最大的；自动压缩暂停着、明知放不下没发出去的那一条 `model.called`（分类 `compaction_paused`）不算，排着的话她没听到，由下一轮接过去（施工 6-8 随机长跑撞到，和 6-6 上排队的规矩对齐）；上一轮一次都没请求过的，它里面的 `message.user` 都算。
 3. 别处来的留着：子代理、后台命令、定时触发、群里别人说的、另一个会话发来的。触发不是 `message.user` 的（例如重启以后接着干的那一轮，由 `turn.ended` 触发）、没有触发的（手动压缩单开的那一轮，施工 6-8）不拿别的。
 4. 崩了的那一轮留下的排着的消息，归那一轮：后来人开口开的一轮是由新消息触发的，撤它不带走它们。
 
@@ -249,9 +280,11 @@
 |---|---|
 | `crates/miyu-kernel/src/ledger/tests.rs` | 一整个会话追加得进；序号；只有第 1 条是会话创建；回合开始；`turn` 是正在进行的；调用编号；结果要有在等的调用；回合结束时调用都有结果；压缩只前进，撤掉的压缩不算；不带 `turn` 的压缩不收；回复、`model.called` 的 `seen`；只能撤回排着的；请求和决定、题和回答跟着调用 |
 | `crates/miyu-kernel/src/ledger/tests/manual.rs` | 没有 `trigger` 的回合开始也收，别的回合的规矩照查（施工 6-8） |
+| `crates/miyu-kernel/src/ledger/tests/jobs.rs`、`jobs/reports.rs` | 施工 7-1 的每一条各一个被拦下的例子、一个放行的例子：编号不重复（同一条里、后来的、撤掉的回合里的）；`agent` 带会话、`command` 不带、不认识的种类不管；后台命令只报一次结束、回报对不上的；子代理的回报对得上会话和 `by`、报好几次、停了的不再报、`aborted` 以后还能报；两种回报带 `turn` 的要是正在进行的那一轮；子会话的 `depth`、`parent` |
 | `crates/miyu-kernel/src/ledger/tests/undo.rs` | 压缩以前的也能撤，撤的范围里的压缩不再算数，恢复了跟着回来；`read_back_from` 从哪一条起、撤不到压缩的没有；撤一轮和它以后的全部；回合进行中不能撤；只恢复最近一次；下一轮开始、压缩以后不能恢复；改回文件只在回合之间 |
 | `crates/miyu-kernel/src/history/tests.rs` | 压缩重开有效历史；被动压缩的尾巴；最新的检查点换掉旧的；照请求看到的范围排（图上那一轮、请求在路上时来的话、压缩以后的尾巴）；撤回的和撤回本身都不留 |
 | `crates/miyu-kernel/src/history/tests/undo.rs` | 撤掉回合和触发它的话；没有触发的那一轮不拿别的（施工 6-8）；暂停着没发出去的请求不算听到过（施工 6-8）；撤以后的几轮；别处来的留着；接过去的排着的一起撤；上一轮听到过的留着；出错的请求也算听到过；崩了的排着的归那一轮；恢复放回原处、一次一次地恢复；下一轮、压缩丢掉放在一边的 |
+| `crates/miyu-kernel/src/history/tests/jobs.rs`（施工 7-2） | 派出去过的任务：标题、种类压缩掉派它的那一条也在；撤掉派它的那一轮标上、恢复去掉、恢复不了了照样标着；只记任务不留事件，换一份照原来的；由上一轮里到的回报接着开的一轮撤掉，带走上一轮排着的话、回报留着；闲着时由回报开的一轮撤掉，不拿别的 |
 | `crates/miyu-kernel/src/history/tests/settle.rs`（施工 6-9） | 落到检查点上：最近的压缩当检查点、比它早的一起丢、原文清掉、没有压缩的不动；从日志的一段重建：撤掉的回合里的压缩放在一边，恢复放回来换检查点；没有撤掉过压缩的日志，重建的和一条条收的一样；留着一切的那一份恢复了压缩照先后留成一条 |
 | `crates/miyu-kernel/src/session/tests/revert.rs` | 撤最后一轮、从前面的一轮撤；回合进行中拒绝；没有、撤掉了的拒绝；恢复以后请求接着往下长；两次撤销一次一次恢复；下一轮以后没得恢复；载入以后一样；撤过的重启轮不接 |
 | `crates/miyu-kernel/src/session/tests/restore.rs` | 改过文件的撤销等改完才回应、改的时候拒绝命令（手动压缩也拒绝，施工 6-8）、不算空闲；恢复一样；没改过文件的照旧；过时的结局不理；交回的少了一项，补一项 `failed` |
@@ -260,6 +293,7 @@
 | `crates/miyu-kernel/src/session/tests/scenario/rebuild.rs` | 检查点换了取回重读的原文：撤到没有检查点的不取，恢复了、载入以后、撤掉后来的一次回到它的，都取回它那几份（施工 6-9） |
 | `crates/miyu-kernel/src/session/tests/scenario.rs` | 撤销、恢复、再说一句；压缩以后事实重新注入（替身的压缩单开一轮，施工 6-9） |
 | `crates/miyu-kernel/src/session/tests/random/watch/undo.rs`、`watch/restore.rs`、`random/restoring.rs`、`random/undoing.rs`（施工 6-9） | 随机输入里撤销、恢复、改回文件照规矩接受或拒绝；撤销、恢复、压缩随机交错：撤掉压缩的先读回、恢复不读、换回来的检查点取回原文；请求照撤销、恢复以后的历史；只交出改过的文件；结局只记一条；过时的、对不上的读回不理 |
+| `crates/miyu-kernel/src/session/tests/random/watch/jobs.rs`（施工 7-1） | 执行器替身在工具结果里派任务，后台命令和子代理轮着来，编号接着用过的最大的往下数：随机的撤销、恢复、压缩、崩了载入里账本照收（载入时整份日志再过一遍）。两种回报施工 7-2 接上（`watch/reports.rs`，`kernel/session.md`「守着它的」） |
 | `crates/miyu-kernel/src/facts/tests.rs`、`crates/miyu-kernel/tests/sample_facts.rs` | 事实照有效历史比：压缩、撤销以后重新注入 |
 
 ### 出处
@@ -270,9 +304,10 @@
 - `09-压缩.md` 第九节、Z10：压缩能撤销，撤掉压缩时读回更早的一段（施工 6-9；蓝图 `compaction.md` 第十一条）。
 - `10-自带软件.md` 第七节「撤销」「改回文件的细则」、B7。
 - `04-核心协议.md` 第九节：`session.revert`、`session.unrevert` 的参数、回应、原因码。
+- `agents.md`「对外的样子」：任务的几条规矩（施工 7-1）。
 
 ### 还没有的
 
 - 分叉（`03-事件模型.md` 第七节）：想回到压缩以前、又想留着后来的几轮，要从那里分叉，现在没有分叉。
-- 撤销时一起停下这几轮派出去的子代理、后台命令；能恢复时来了它们的回报要不要先不开回合（`02-内核.md` 第七节、第六节「撤销与恢复」，M7）。
+- 撤销时一起停下这几轮派出去的子代理、后台命令（`02-内核.md` 第七节，7-8）。能恢复时来了回报先不开回合，施工 7-2 做好了（`kernel/session.md`「回报」）。
 - 隐私抹除（`03-事件模型.md` 第七节）：存储层的事，不是事件。

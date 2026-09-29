@@ -1,0 +1,5 @@
+<command-ended job="j1" title="跑全部测试" reason="exited">
+Exit code 0.
+Ran for 81234 ms.
+The output has 48213 characters. Read it with jobs output.
+</command-ended>

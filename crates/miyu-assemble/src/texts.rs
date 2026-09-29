@@ -36,6 +36,8 @@ pub struct Texts {
     /// 摘要指令的最后一句：只回草稿和摘要，不许调工具（`core/compaction/summarize-end.txt`，施工 6-8 从正文里拆出来）。
     /// 以前造的快照里没有，是空的：那时的正文里本来就带着这一句，拼出来一字不差。
     pub summarize_end: String,
+    /// 两种回报的写法（`core/jobs/`，施工 7-2）。以前造的快照里没有，是没有：那些会话派不出任务，也就没有回报。
+    pub jobs: Option<JobTexts>,
 }
 
 impl Texts {
@@ -93,4 +95,32 @@ impl TurnEndedTexts {
             EndReason::Completed | EndReason::Other(_) => None,
         }
     }
+}
+
+/// 两种回报的写法（施工 7-2，`docs/blueprint/kernel/request.md`「回报」）：一块带标签的事实，开头一行是标签，中间一行
+/// 一句，最后是收尾的标签。每一份以一个换行结尾。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct JobTexts {
+    /// 后台命令结束的标签（`command-open.txt`）：字段 `job`、`title`、`reason`。
+    pub command_open: Template,
+    /// 退出码（`command-exit.txt`）：字段 `code`。
+    pub command_exit: Template,
+    /// 被信号杀掉（`command-signal.txt`）：字段 `signal`。
+    pub command_signal: Template,
+    /// 用时（`command-duration.txt`）：字段 `ms`。
+    pub command_duration: Template,
+    /// 输出有多少字、怎么看（`command-output.txt`）：字段 `chars`。
+    pub command_output: Template,
+    /// 收尾（`command-close.txt`）。
+    pub command_close: String,
+    /// 子代理的回报的标签（`subagent-open.txt`）：字段 `job`、`title`、`reason`。
+    pub subagent_open: Template,
+    /// 人插过话（`subagent-person.txt`）。
+    pub subagent_person: String,
+    /// 正文截过（`subagent-truncated.txt`）。
+    pub subagent_truncated: String,
+    /// 一个字都没说（`subagent-silent.txt`）。
+    pub subagent_silent: String,
+    /// 收尾（`subagent-close.txt`）。
+    pub subagent_close: String,
 }

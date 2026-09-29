@@ -18,6 +18,7 @@ pub(super) fn some_ending(rng: &mut Rng) -> (Option<CallError>, Option<u64>) {
     let error = CallError {
         class,
         message: message.to_string(),
+        status: None,
     };
     (Some(error), wait)
 }

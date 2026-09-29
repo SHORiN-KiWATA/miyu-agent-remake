@@ -11,6 +11,7 @@ use std::fmt;
 
 use super::Session;
 use super::action::Action;
+use super::jobs::{self, Arrived};
 use super::policy::Policy;
 use super::recent::Recent;
 use super::turn::{Stage, Turn};
@@ -63,6 +64,12 @@ struct Replay {
     index: BTreeMap<CommandId, usize>,
     /// 最后开的那个回合里，每条消息的 `cause`：接着干时，找触发它的那一条的 `cause`。
     causes: BTreeMap<Seq, Option<CommandId>>,
+    /// 一次性的会话（`session.created` 的 `oneshot`，施工 7-2）。
+    oneshot: bool,
+    /// 这时有回合开着：回报到的时候闲不闲（施工 7-2）。
+    open: bool,
+    /// 记在一边的回报：最后一次开回合以后、闲着时到的、会叫醒她的（施工 7-2，`jobs.rs`）。
+    deferred: Vec<Arrived>,
 }
 
 /// 结束了的一个回合。
@@ -87,7 +94,9 @@ impl Session {
     /// 日志停在一个没结束的回合里，就是崩了：还没有结果的调用各补一条「已取消：Miyu 重启了，没跑完」，
     /// 再结束这一轮，原因 `aborted`，等人开口。最后一轮是被有计划的重启打断的（`restarted`），自动
     /// 开一轮接着干；连着被打断的轮数超过了策略里的上限，就不接。补的、开的事件在返回的动作里，
-    /// 时刻是 `at`，`by` 是内核。
+    /// 时刻是 `at`，`by` 是内核。有 `job.started`、还没报过结束的后台命令，先各补一条 `job.reported`（`aborted`，施工
+    /// 7-3）。没听到的回报不因为载入开轮：记在一边的照日志算回来，恢复了撤销再说；有没有头订阅着
+    /// 当没有，头订阅了再交（施工 7-2）。
     ///
     /// # Errors
     ///
@@ -107,8 +116,12 @@ impl Session {
         }
         let from = ledger.compacted().map_or(Seq::FIRST, Seq::next);
         let mut history = History::whole();
-        for event in events.into_iter().filter(|event| event.seq >= from) {
-            history.append(event);
+        // 那一段以前的只记派出去的任务：回报的标题、派它的那一轮撤掉了没有照它（施工 7-2）。
+        for event in events {
+            match event.seq >= from {
+                true => history.append(event),
+                false => history.note(&event),
+            }
         }
         history.settle();
         let Some(permission) = replay.permission.clone() else {
@@ -135,9 +148,15 @@ impl Session {
             restoring: None,
             reading: None,
             limits: None,
+            oneshot: replay.oneshot,
+            watched: false,
+            deferred: std::mem::take(&mut replay.deferred),
+            restarting: false,
         };
         let mut actions: Vec<Action> = session.recall().into_iter().collect();
-        let events = session.recover(at, replay);
+        // 崩了的核心带走了在跑的后台命令：先补它们的结束，再收拾没走完的那一轮（施工 7-3）。
+        let mut events = session.abort_commands(at);
+        events.extend(session.recover(at, replay));
         if !events.is_empty() {
             actions.push(Action::Append(events));
         }
@@ -159,6 +178,7 @@ impl Session {
                 retrying: false,
                 interjected: None,
                 queued: Vec::new(),
+                reports: Vec::new(),
                 refresh: false,
                 compacted: false,
                 interrupting: None,
@@ -217,8 +237,21 @@ impl Replay {
     /// 读进来一条：记下它带来的变化。`queued` 是这一条之前还排着队的消息。
     fn note(&mut self, event: &Event, queued: Vec<Seq>) {
         self.last = Some(event.seq);
+        if !self.open
+            && jobs::wakes(&event.body)
+            && let Some(job) = jobs::job_of(&event.body)
+        {
+            self.deferred.push(Arrived {
+                seq: event.seq,
+                cause: event.cause.clone(),
+                job,
+            });
+        }
         match &event.body {
-            Body::SessionCreated(created) => self.permission = Some(created.permission.clone()),
+            Body::SessionCreated(created) => {
+                self.permission = Some(created.permission.clone());
+                self.oneshot = created.oneshot;
+            }
             Body::PolicyChanged(PolicyChanged {
                 permission: Some(permission),
                 ..
@@ -230,11 +263,14 @@ impl Replay {
                 self.opened = event.cause.clone();
                 self.triggered = started.trigger.is_some();
                 self.causes.clear();
+                self.open = true;
+                self.deferred.clear();
             }
             Body::MessageUser(_) => {
                 self.causes.insert(event.seq, event.cause.clone());
             }
             Body::TurnEnded(ended) => {
+                self.open = false;
                 self.restarts = match ended.reason {
                     EndReason::Restarted => self.restarts + 1,
                     _ => 0,

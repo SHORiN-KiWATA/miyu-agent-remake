@@ -12,7 +12,7 @@ use miyu_tool::Seen;
 
 use crate::TARGET;
 
-/// 工具报的效果写成内核的：改前改后的内容存成 blob，换成它们的哈希。存不下来的（磁盘满了之类）照样记下哈希，
+/// 工具报的效果写成内核的：改前改后的内容存成 blob，换成它们的哈希；派出去的任务照原样。存不下来的（磁盘满了之类）照样记下哈希，
 /// 写一条运行日志：撤销时发现 blob 没了，说改前的内容没存下来。碰磁盘，在阻塞线程里调。
 pub(crate) fn store(blobs: &Blobs, effects: Vec<miyu_tool::Effect>) -> Vec<Effect> {
     effects
@@ -36,6 +36,8 @@ pub(crate) fn store(blobs: &Blobs, effects: Vec<miyu_tool::Effect>) -> Vec<Effec
                 path: text(&path),
                 trash,
             }),
+            // 派出去的任务照原样（施工 7-5）：没有要存的内容。
+            miyu_tool::Effect::JobStarted(started) => Effect::JobStarted(started),
         })
         .collect()
 }
@@ -53,7 +55,8 @@ pub(crate) fn saw(seen: &mut Seen, effects: &[Effect]) {
             Effect::FileTrashed(trashed) => {
                 seen.remove(Path::new(&trashed.path));
             }
-            Effect::Unknown(_) => {}
+            // 派出去的任务不是看过的文件（施工 7-1）。
+            Effect::JobStarted(_) | Effect::Unknown(_) => {}
         }
     }
 }

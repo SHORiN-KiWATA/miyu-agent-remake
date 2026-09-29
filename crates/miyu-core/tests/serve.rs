@@ -1,6 +1,7 @@
 //! 核心进程的后半段（`docs/construction/3-9-主程序和拉起核心（上）.md` 验收第 2 条）：没有连接、也没有在跑的
-//! 回合，空闲够久了就退出；有连接的、有回合在跑的不退；收到停的信号，先让在跑的会话有计划地停下；没设
-//! key 的，每次请求都回「没有可用的模型」。在进程里跑，请求模型照剧本回。
+//! 回合，空闲够久了就退出；有连接的、有回合在跑的、有后台命令在跑的（施工 7-3）不退；收到停的信号，先让在跑的会话
+//! 有计划地停下，后台命令先记 `restarted` 再杀；没设 key 的，每次请求都回「没有可用的模型」。在进程里跑，请求模型照
+//! 剧本回，后台命令是假的（`miyu_tool::testkit::Held`）。
 
 mod support;
 
@@ -9,9 +10,19 @@ use std::time::Duration;
 
 use miyu_core::{Stopped, models, serve};
 use miyu_ipc::{ConnectError, Lock};
-use miyu_kernel::event::{Body, CallResult, EndReason, ErrorClass};
+use miyu_kernel::event::{Body, CallResult, EndReason, ErrorClass, JobReason};
+use miyu_kernel::origin::By;
+use miyu_kernel::tool::Access;
 use miyu_session::testkit::{Play, Script};
+use miyu_tool::testkit::{Act, Fake, Held};
+use miyu_tool::{Catalog, Exit, Tool};
 use support::{Head, Home, within};
+
+/// 只有一件假工具 `start`：把 `held` 交给任务表。
+fn starting(held: &Arc<Held>) -> Catalog {
+    let tool = Fake::new("start", Access::Read, Act::Background(Arc::clone(held)));
+    Catalog::new([tool as Arc<dyn Tool>]).expect("合写法")
+}
 
 /// 测试里的空闲时限。
 const IDLE: Duration = Duration::from_millis(200);
@@ -132,6 +143,92 @@ async fn a_stop_signal_stops_the_running_sessions_first() {
         Some(EndReason::Restarted),
         "跑到一半的回合记成重启了"
     );
+}
+
+#[tokio::test]
+async fn a_running_background_command_keeps_it_running() {
+    let home = Home::new();
+    let opened = home.open();
+    let held = Held::new(&[]);
+    let script = Script::new([
+        Play::calls(&[("start", "{}")]),
+        Play::Says("放出去了。"),
+        Play::Says("结束了。"),
+    ]);
+    let core = home.core_with(Arc::new(script), &opened.token, starting(&held));
+    let running = tokio::spawn(serve(opened.listener, core, IDLE, std::future::pending()));
+    let mut head = Head::connect(&home.root).await;
+    let session = head.create().await;
+    head.say(&session, "放一个").await;
+    home.until_turn_ends(&session).await;
+    drop(head);
+    tokio::time::sleep(WAIT).await;
+    assert!(!running.is_finished(), "后台命令还在跑，不退");
+    held.end(Exit::Code(0));
+    let stopped = within("命令结束以后空闲退出", running)
+        .await
+        .expect("没 panic");
+    assert_eq!(stopped, Stopped::Idle);
+    let reasons: Vec<JobReason> = home
+        .log(&session)
+        .into_iter()
+        .filter_map(|event| match event.body {
+            Body::JobReported(reported) => Some(reported.reason),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(reasons, [JobReason::Exited], "退之前记下了");
+}
+
+#[tokio::test]
+async fn a_stop_signal_records_background_commands_as_restarted_then_kills_them() {
+    let home = Home::new();
+    let opened = home.open();
+    let held = Held::new(&[]);
+    let script = Script::new([Play::calls(&[("start", "{}")]), Play::Says("放出去了。")]);
+    let core = home.core_with(Arc::new(script), &opened.token, starting(&held));
+    let (stop, stopping) = tokio::sync::oneshot::channel::<()>();
+    let running = tokio::spawn(serve(
+        opened.listener,
+        core,
+        Duration::from_secs(600),
+        async {
+            if stopping.await.is_err() {
+                std::future::pending::<()>().await;
+            }
+        },
+    ));
+    let mut head = Head::connect(&home.root).await;
+    let session = head.create().await;
+    head.say(&session, "放一个").await;
+    home.until_turn_ends(&session).await;
+    let recorded = Arc::new(std::sync::Mutex::new(false));
+    let (log_root, seen, id) = (
+        home.root.clone(),
+        Arc::clone(&recorded),
+        miyu_kernel::id::SessionId::parse(&session).expect("合写法"),
+    );
+    held.on_kill(move || {
+        let dir = log_root.session_dir(&miyu_core::admin(), &id);
+        let log = miyu_store::log::read_events(&dir).unwrap_or_default();
+        *seen.lock().expect("没 panic") = log.iter().any(|event| {
+            matches!(&event.body, Body::JobReported(reported) if reported.reason == JobReason::Restarted)
+        });
+    });
+    stop.send(()).expect("还在跑");
+    let stopped = within("收到信号停下", running).await.expect("没 panic");
+    assert_eq!(stopped, Stopped::Signal);
+    assert_eq!(held.killed(), 1, "整组杀掉");
+    assert!(
+        *recorded.lock().expect("没 panic"),
+        "杀之前 restarted 落了盘"
+    );
+    let reported = home
+        .log(&session)
+        .into_iter()
+        .find(|event| matches!(event.body, Body::JobReported(_)))
+        .expect("记了");
+    assert_eq!(reported.by, By::Kernel);
 }
 
 #[tokio::test]

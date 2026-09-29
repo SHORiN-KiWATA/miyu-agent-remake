@@ -127,13 +127,17 @@ text_enum!(
     }
 );
 
-/// 出错的分类和原话。
+/// 出错的分类、原话，有的话还有 HTTP 状态码。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CallError {
     /// 分类。
     pub class: ErrorClass,
     /// 原话，给查问题的人看，不进上下文。
     pub message: String,
+    /// 供应商回的 HTTP 状态码（施工 3-5 三补）：头照它分 429、402、404 说人话，不从原话里抠。连不上的、流里报的、
+    /// 内核自己查出来的没有；以前的日志没有这一格，照读。分类不看它：分类管的是内核怎么办。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<u16>,
 }
 
 text_enum!(

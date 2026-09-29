@@ -232,8 +232,9 @@ impl Watch {
                 if back {
                     self.seen_paths.insert("恢复了压缩");
                 }
+                // 后面还有的，是记在一边的回报接着开的那一轮（施工 7-2，`watch/reports.rs` 查）。
                 assert!(
-                    matches!(appended.as_slice(), [event] if event.body == Body::TurnUnreverted(TurnUnreverted { turns }) && event.by == alice()),
+                    matches!(appended.as_slice(), [event, ..] if event.body == Body::TurnUnreverted(TurnUnreverted { turns }) && event.by == alice()),
                     "种子 {seed}：恢复只记一条，列的是最近一次撤销的那几轮：{actions:?}"
                 );
                 assert!(

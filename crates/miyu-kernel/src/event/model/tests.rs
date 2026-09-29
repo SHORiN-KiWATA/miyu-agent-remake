@@ -47,7 +47,31 @@ fn a_failed_call_before_it_was_sent_has_only_what_is_known() {
         Some(CallError {
             class: ErrorClass::RateLimited,
             message: "429 Too Many Requests".to_string(),
+            status: None,
         })
+    );
+}
+
+/// 出错带着 HTTP 状态码（施工 3-5 三补）：排在原话后面，读写一字不差；以前的日志没有这一格，照读，写出去还是
+/// 没有，不写成 `null`。
+#[test]
+fn an_error_keeps_its_http_status_and_old_logs_without_it_still_read() {
+    let body = r#"{"seen":44,"messages":1,"result":"error","error":{"class":"other","message":"HTTP 404: Model Not Exist","status":404}}"#;
+    assert_eq!(
+        called(body).error,
+        Some(CallError {
+            class: ErrorClass::Unclassified,
+            message: "HTTP 404: Model Not Exist".to_string(),
+            status: Some(404),
+        })
+    );
+    let old = r#"{"seen":44,"messages":1,"result":"error","error":{"class":"rate_limited","message":"HTTP 429: Rate limit reached"}}"#;
+    let error = called(old).error.expect("出错的有 error");
+    assert_eq!(error.status, None);
+    let written = serde_json::to_string(&error).unwrap();
+    assert_eq!(
+        written,
+        r#"{"class":"rate_limited","message":"HTTP 429: Rate limit reached"}"#
     );
 }
 

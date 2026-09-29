@@ -1,0 +1,2 @@
+<command-ended job="j1" title="跑全部测试" reason="aborted">
+</command-ended>

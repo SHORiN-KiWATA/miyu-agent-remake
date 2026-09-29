@@ -12,8 +12,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use miyu_policy::{
-    CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts, PermissionTexts, PersonaTexts,
-    RebuildTexts, ShortenTexts, Sources, ToolResultTexts, TurnEndedTexts,
+    CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts, JobTexts, PermissionTexts,
+    PersonaTexts, RebuildTexts, ShortenTexts, Sources, ToolResultTexts, TurnEndedTexts,
 };
 
 use crate::env::Env;
@@ -154,6 +154,16 @@ impl ResourceRoot {
         })
     }
 
+    /// 子会话的场所说明（施工 7-5，`agents.md` 第九条第 3 条）：`core/jobs/subagent-venue.txt` 的原文，造子会话时接在人设
+    /// 后面（`Snapshot::with_venue`）。只在造子会话时读：别的会话的快照里没有它。
+    ///
+    /// # Errors
+    ///
+    /// 读不了这份文件，写明是哪一份。
+    pub fn subagent_venue(&self) -> Result<String, SourceError> {
+        self.read(&["core", "jobs", "subagent-venue.txt"])
+    }
+
     /// 随核心附带的字。
     fn core(&self) -> Result<CoreTexts, SourceError> {
         let core = |parts: &[&str]| {
@@ -165,6 +175,7 @@ impl ResourceRoot {
         let fact = |name: &str| core(&["facts", name]);
         let result = |name: &str| core(&["tool-results", name]);
         let driver = |name: &str| core(&["drivers", name]);
+        let job = |name: &str| core(&["jobs", name]);
         Ok(CoreTexts {
             checkpoint_open: core(&["checkpoint-open.txt"])?,
             checkpoint_close: core(&["checkpoint-close.txt"])?,
@@ -226,6 +237,19 @@ impl ResourceRoot {
                     truncated: core(&["compaction", "truncated.txt"])?,
                     notes_uncovered: core(&["compaction", "notes-uncovered.txt"])?,
                 }),
+            }),
+            jobs: Some(JobTexts {
+                command_open: job("command-open.txt")?,
+                command_exit: job("command-exit.txt")?,
+                command_signal: job("command-signal.txt")?,
+                command_duration: job("command-duration.txt")?,
+                command_output: job("command-output.txt")?,
+                command_close: job("command-close.txt")?,
+                subagent_open: job("subagent-open.txt")?,
+                subagent_person: job("subagent-person.txt")?,
+                subagent_truncated: job("subagent-truncated.txt")?,
+                subagent_silent: job("subagent-silent.txt")?,
+                subagent_close: job("subagent-close.txt")?,
             }),
         })
     }

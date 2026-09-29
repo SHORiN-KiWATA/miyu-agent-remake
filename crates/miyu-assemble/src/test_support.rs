@@ -9,7 +9,7 @@ use miyu_kernel::request::Message;
 
 use miyu_kernel::template::Template;
 
-use crate::texts::{RestoredWrap, Texts, TurnEndedTexts};
+use crate::texts::{JobTexts, RestoredWrap, Texts, TurnEndedTexts};
 
 pub(crate) const KERNEL: &str = r#"{"kind":"kernel"}"#;
 const ALICE: &str = r#"{"kind":"person","account":"alice"}"#;
@@ -38,6 +38,25 @@ pub(crate) fn texts() -> Texts {
         summarize_system: "<isolated/>".to_string(),
         summarize_instructions: "<instructions>".to_string(),
         summarize_end: "<end/>".to_string(),
+        jobs: Some(job_texts()),
+    }
+}
+
+/// 替身的回报写法（施工 7-2）：一行一样，一眼认得出是哪一句。
+fn job_texts() -> JobTexts {
+    let template = |text: &str| Template::parse(text).expect("模板合写法");
+    JobTexts {
+        command_open: template("<command {job} {title} {reason}>\n"),
+        command_exit: template("exit {code}\n"),
+        command_signal: template("signal {signal}\n"),
+        command_duration: template("ms {ms}\n"),
+        command_output: template("chars {chars}\n"),
+        command_close: "</command>\n".to_string(),
+        subagent_open: template("<subagent {job} {title} {reason}>\n"),
+        subagent_person: "person\n".to_string(),
+        subagent_truncated: "truncated\n".to_string(),
+        subagent_silent: "silent\n".to_string(),
+        subagent_close: "</subagent>\n".to_string(),
     }
 }
 
@@ -103,6 +122,14 @@ impl Log {
         let event = Event::from_line(&line).unwrap();
         self.ledger.append(&event).unwrap();
         self.history.append(event);
+        seq
+    }
+
+    /// 追加一条不带回合编号的：任务的回报（施工 7-2），回合进行中到的也不带。返回它的序号。
+    pub(crate) fn detached(&mut self, by: &str, kind: &str, body: &str) -> u64 {
+        let turn = self.turn.take();
+        let seq = self.push(by, kind, body);
+        self.turn = turn;
         seq
     }
 

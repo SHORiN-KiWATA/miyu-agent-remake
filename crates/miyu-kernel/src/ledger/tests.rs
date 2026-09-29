@@ -1,8 +1,10 @@
 //! 账本的测试：一段合规的会话从头追加到尾；02 第九节表里的每一条规矩各有被拦下的例子，
-//! 被拦下时报错说清是哪一条，账本不变。撤销与恢复的在 `tests/undo.rs`，没有触发的回合在 `tests/manual.rs`。
+//! 被拦下时报错说清是哪一条，账本不变。撤销与恢复的在 `tests/undo.rs`，没有触发的回合在 `tests/manual.rs`，
+//! 任务的几条在 `tests/jobs.rs`（施工 7-1）。
 
 use super::*;
 
+mod jobs;
 mod manual;
 mod undo;
 

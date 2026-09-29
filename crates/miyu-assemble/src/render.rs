@@ -16,6 +16,7 @@ use miyu_kernel::id::{Seq, TurnId};
 use miyu_kernel::origin::By;
 use miyu_kernel::request::Message;
 
+use crate::jobs;
 use crate::texts::Texts;
 
 /// 渲染有效历史：检查点和历史，照先后排好的消息。稳定区不在这里。
@@ -61,6 +62,22 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
                 transcript.push(Message::Assistant {
                     blocks: known(&reply.blocks),
                 });
+            }
+            // 回报不带回合编号，照它在日志里的位置排：闲着时到的就是开这一轮的那条，照触发挪到回合开始的地方；回合中途
+            // 到的排在那一步的工具结果后面（施工 7-2，`jobs.rs`）。
+            Body::JobReported(reported) => {
+                let block = texts
+                    .jobs
+                    .as_ref()
+                    .and_then(|jobs| jobs::command(history, reported, jobs));
+                transcript.add(event.seq, None, block.into_iter().map(text_block).collect());
+            }
+            Body::ChildReported(reported) => {
+                let block = texts
+                    .jobs
+                    .as_ref()
+                    .and_then(|jobs| jobs::subagent(history, reported, jobs));
+                transcript.add(event.seq, None, block.into_iter().map(text_block).collect());
             }
             Body::ToolResult(result) => transcript.push(Message::Tool {
                 call_id: result.call_id,

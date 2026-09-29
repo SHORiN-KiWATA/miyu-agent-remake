@@ -115,6 +115,29 @@ fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
             .checkpoint_open
             .contains("conversation-checkpoint")
     );
+    // 回报的写法（施工 7-2）：每一格是它自己那份文件。
+    let jobs = sources.core.jobs.expect("出厂的有回报的写法");
+    macro_rules! job {
+        ($name:literal) => {
+            include_str!(concat!("../../../../resources/core/jobs/", $name))
+        };
+    }
+    let read = [
+        (&jobs.command_open, job!("command-open.txt")),
+        (&jobs.command_exit, job!("command-exit.txt")),
+        (&jobs.command_signal, job!("command-signal.txt")),
+        (&jobs.command_duration, job!("command-duration.txt")),
+        (&jobs.command_output, job!("command-output.txt")),
+        (&jobs.command_close, job!("command-close.txt")),
+        (&jobs.subagent_open, job!("subagent-open.txt")),
+        (&jobs.subagent_person, job!("subagent-person.txt")),
+        (&jobs.subagent_truncated, job!("subagent-truncated.txt")),
+        (&jobs.subagent_silent, job!("subagent-silent.txt")),
+        (&jobs.subagent_close, job!("subagent-close.txt")),
+    ];
+    for (got, file) in read {
+        assert_eq!(got, file);
+    }
 }
 
 #[test]
@@ -143,5 +166,28 @@ fn a_missing_persona_names_the_file_and_a_bad_id_is_refused() {
             .unwrap_or_default();
         assert!(said.starts_with("persona id "), "{said}");
         assert!(said.is_ascii(), "{said}");
+    }
+}
+
+/// 子会话的场所说明（施工 7-5）：读的是 `core/jobs/subagent-venue.txt` 的原文；没有这份的说是哪一份。
+#[test]
+fn the_subagent_venue_note_is_its_own_file() {
+    let venue = repo().subagent_venue().unwrap();
+    assert_eq!(
+        venue,
+        include_str!("../../../../resources/core/jobs/subagent-venue.txt")
+    );
+    let scratch = Scratch::new();
+    let error = ResourceRoot::at(scratch.path())
+        .subagent_venue()
+        .unwrap_err();
+    match error {
+        SourceError::Read { path, .. } => {
+            assert!(
+                path.ends_with(Path::new("core/jobs/subagent-venue.txt")),
+                "{path:?}"
+            );
+        }
+        other => panic!("该是读不了：{other:?}"),
     }
 }

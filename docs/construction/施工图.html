@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>113</b><span>/ 114 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求</span></li>
-    <li><b>M7</b><span>下一步：拆 M7 分身（子代理、后台命令、给子代理留言）；Windows 上跑命令那一步暂停</span></li>
-    <li><b class="mono">754ed30</b><span>最近一步（6-10 M6 验收）的提交</span></li>
+    <li><b>120</b><span>/ 131 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑</span></li>
+    <li><b>7-4</b><span>下一步：两条线并行，7-4 jobs 和 job.stop、7-6 子会话回报（Windows 上跑命令那一步暂停）</span></li>
+    <li><b class="mono">6d50be5</b><span>最近一步（7-3 后台命令）的提交</span></li>
   </ul>
 </header>
 
@@ -312,7 +312,7 @@ a.step:hover{border-color:var(--primary)}
 
 <section class="sched" aria-labelledby="h-sched">
   <h2 id="h-sched">工程表</h2>
-  <p class="sub">M0 到 M6 拆到了每一步；M7 以后，到了跟前再拆。</p>
+  <p class="sub">M0 到 M7 拆到了每一步；M8 到了跟前再拆。</p>
   <ol class="ms">
     <li>
       <div class="ms-head"><span class="ms-id">M0</span><span class="ms-name">准备</span><span class="ms-goal">仓库有了规矩和门禁</span></div>
@@ -349,6 +349,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s2-2"><span class="n">2-2</span>流式累积器<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-3a"><span class="n">2-3</span>最简单的一轮（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-3b"><span class="n">2-3</span>最简单的一轮（下）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">2-3</span>回复每一块的起止时刻（补）</span></li>
         <li><a class="step done" href="#s2-4"><span class="n">2-4</span>调工具<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-5"><span class="n">2-5</span>打断<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-6"><span class="n">2-6</span>排队的消息<span class="st">✓</span></a></li>
@@ -376,6 +377,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-5b"><span class="n">3-5</span>自动重试与接着说（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-5c"><span class="n">3-5</span>试玩台（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-5d"><span class="n">3-5</span>接着说（再补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s3-5e"><span class="n">3-5</span>出错带 HTTP 状态码（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-6a"><span class="n">3-6</span>策略快照（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-7a"><span class="n">3-7</span>运行日志（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-7b"><span class="n">3-7</span>会话 actor（中）<span class="st">✓</span></a></li>
@@ -384,6 +386,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-8b"><span class="n">3-8</span>协议端点（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8c"><span class="n">3-8</span>协议端点（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8d"><span class="n">3-8</span>Windows 命名管道（补）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">3-8</span>协议收切权限级别（再补）</span></li>
         <li><a class="step done" href="#s3-9a"><span class="n">3-9</span>主程序和拉起核心（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9b"><span class="n">3-9</span>miyu ask（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9c"><span class="n">3-9</span>会话编号照先后（补）<span class="st">✓</span></a></li>
@@ -453,6 +456,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s6-3a"><span class="n">6-3</span>模型资料和限额（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-3b"><span class="n">6-3</span>接上真模型（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-3c"><span class="n">6-3</span>限额推给头（补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s6-3d"><span class="n">6-3</span>压好了那一行改说法（再补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s6-3e"><span class="n">6-3</span>已写 0 字不印（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-4"><span class="n">6-4</span>history<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-5"><span class="n">6-5</span>检查点里的几段和压后重建<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-6a"><span class="n">6-6</span>失败和熔断（上）<span class="st">✓</span></a></li>
@@ -461,13 +466,30 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s6-6d"><span class="n">6-6</span>出错再来照截过的发（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-7"><span class="n">6-7</span>被动压缩<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-8"><span class="n">6-8</span>手动压缩<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">6-8</span>清空上下文（补）</span></li>
         <li><a class="step done" href="#s6-9"><span class="n">6-9</span>撤销能撤掉压缩<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-10"><span class="n">6-10</span>M6 验收<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
-      <div class="ms-head"><span class="ms-id">M7–M8</span><span class="ms-name">分身 · 有界面</span></div>
-      <p class="later">到了跟前再拆。M8 的第一件事是先画界面的版式图纸。</p>
+      <div class="ms-head"><span class="ms-id">M7</span><span class="ms-name">分身</span><span class="ms-goal">子代理、后台命令，做完回报叫醒她；父子之间能来回说话</span></div>
+      <ol class="chips">
+        <li><a class="step done" href="#s7-1"><span class="n">7-1</span>任务的事件<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s7-2"><span class="n">7-2</span>回报到了<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s7-3"><span class="n">7-3</span>后台命令<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">7-4</span>jobs 和 job.stop</span></li>
+        <li><a class="step done" href="#s7-5"><span class="n">7-5</span>派子代理<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">7-6</span>子会话回报</span></li>
+        <li><span class="step"><span class="n">7-7</span>父子之间留言</span></li>
+        <li><span class="step"><span class="n">7-8</span>撤销、删除和压缩</span></li>
+        <li><span class="step"><span class="n">7-9</span>miyu ask 等子代理</span></li>
+        <li><span class="step"><span class="n">7-10</span>别的 harness 发消息</span></li>
+        <li><span class="step"><span class="n">7-11</span>M7 验收</span></li>
+      </ol>
+    </li>
+    <li>
+      <div class="ms-head"><span class="ms-id">M8</span><span class="ms-name">有界面</span></div>
+      <p class="later">到了跟前再拆。第一件事是先画界面的版式图纸。</p>
     </li>
   </ol>
   <ul class="legend" aria-label="图例">
@@ -3810,6 +3832,60 @@ a.step:hover{border-color:var(--primary)}
         <li><code>docs/designs/02-内核.md</code> 第六节第 4 条、<code>05-内核接口.md</code> 第七节、<code>08-上下文投影.md</code> 第七节、<code>15-模型与供应商.md</code> M5。</li>
         <li><code>docs/designs/26-提示词.md</code>：两条原则、J2 的补充、J12、第十节登记簿。</li>
         <li><code>docs/construction/3-5-接着说（再补）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s3-5e" aria-labelledby="h-s35e">
+  <div class="sheet-head"><h2 id="h-s35e"><span class="no">3-5</span>出错带 HTTP 状态码（三补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">模型调用出错时，把供应商回的 HTTP 状态码单独记一格：<code>model.called</code> 的 <code>error</code>、推给头的重试状态多一个可以没有的 <code>status</code>。终端界面照它分出 429、402、404，前面加一句人话（项目主人定的界面说法）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">出错的那一格</span><span class="dir-note">event/model.rs、drivers/classify.rs</span></div>
+            <ol class="pipe" aria-label="改了什么">
+              <li><code>{"class":"other","message":"HTTP 404: …","status":404}</code></li>
+              <li>连不上、流里报的、内核自己查出来的不写；旧日志没有这一格照读</li>
+              <li>分类不动：分类管内核重试不重试，界面的说法照状态码另说</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">字符串不当类型</span><span class="rl">头不从原话里抠状态码</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-5 三补</dd></div>
+        <div><dt>名称</dt><dd>出错带 HTTP 状态码</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">e7b9b0a</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li><code>CallError</code>、<code>Retry</code> 各加 <code>status</code>；驱动照 HTTP 状态码写，二十来处构造补上没有。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>各状态码都带上、连不上和流里报的不带；样本一带一不带；6 个变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/3-5-出错带 HTTP 状态码（三补）.md</code>。</li>
       </ul>
     </div>
   </div>
@@ -8015,6 +8091,112 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s6-3d" aria-labelledby="h-s63d">
+  <div class="sheet-head"><h2 id="h-s63d"><span class="no">6-3</span>压好了那一行改说法（再补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">压缩好了那一行，中文从「上下文压缩好了」改成「上下文已压缩」，<code>miyu ask</code>、<code>miyu compact</code> 和终端界面说法一致。英文 <code>Context compacted</code> 不动。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">压好了那一行</span><span class="dir-note">ask/follow/compacting.rs</span></div>
+            <ol class="pipe" aria-label="改了什么">
+              <li><code>· 上下文已压缩：812.3k → 31k token</code></li>
+              <li>样本、蓝图三页跟着改；旧施工单里记的当时印出来的不改</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">两个头一个说法</span><span class="rl">照终端界面的改（项目主人定）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-3 再补</dd></div>
+        <div><dt>名称</dt><dd>压好了那一行改说法</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">c9c0a2e</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>先改期望，改代码以前 6 个测试红；改了那一句和两处注释。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>门禁八项全过，三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/6-3-压好了那一行改说法（再补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s6-3e" aria-labelledby="h-s63e">
+  <div class="sheet-head"><h2 id="h-s63e"><span class="no">6-3</span>已写 0 字不印（三补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">压缩刚开始、摘要请求还没收到字时，<code>miyu ask</code>、<code>miyu compact</code> 那一行只印「· 正在压缩上下文…」，不印「已写 0 字」，和终端界面一致（项目主人定）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">压缩中那一行</span><span class="dir-note">ask/follow/compacting.rs</span></div>
+            <ol class="pipe" aria-label="改了什么">
+              <li>0 字：<code>· 正在压缩上下文…</code> / <code>· Compacting the context…</code></li>
+              <li>有字了照旧：<code>· 正在压缩上下文… 已写 3,120 字</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">0 不显示</span><span class="rl">「已写 0 字」看着像卡住了</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-3 三补</dd></div>
+        <div><dt>名称</dt><dd>已写 0 字不印</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">e0b587c</dd></div>
+        <div><dt>验收</dt><dd>CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>先改期望，改代码以前 4 个测试红；改了那一句，<code>miyu compact</code> 共用。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>门禁八项全过，三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/6-3-已写 0 字不印（三补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="s6-4" aria-labelledby="h-s64">
   <div class="sheet-head"><h2 id="h-s64"><span class="no">6-4</span>history</h2><span class="pill done">已完成</span></div>
   <p class="purpose">她能翻这个会话自己的记录：按关键词找、按序号读，按时间、谁说的筛；压缩换出去的旧内容都找得回。基础系统第 8 件。</p>
@@ -8647,6 +8829,249 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/6-10-M6 验收.md</code>：施工单和验收结果。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s7-1" aria-labelledby="h-s71">
+  <div class="sheet-head"><h2 id="h-s71"><span class="no">7-1</span>任务的事件</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">M7 的底子：日志记得下后台命令和子代理的开始、结束、回报，账本守得住它们的规矩。只做事件的类型、读写、账本、样本；谁来写、写了以后怎么走，是 7-2 以后的事。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-kernel</span><span class="dir-note">事件和账本</span></div>
+            <ol class="pipe" aria-label="新的几样">
+              <li>效果 <code>job.started</code>：编号 <code>j1</code>、<code>j2</code>，<code>command</code> 或 <code>agent</code>（带子会话编号）</li>
+              <li>事件 <code>job.reported</code>、<code>child.reported</code>；<code>session.created</code> 多 <code>parent</code>、<code>depth</code></li>
+              <li><code>by</code> 多一种 <code>harness</code>，带它自己报的名字</li>
+              <li>账本：编号不回收；结束的对得上开始；子代理能报好几次，被停掉的不再报</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">退出码带符号</span><span class="rl">Windows 的退出码可能是负的</span></div>
+          <div class="tile new"><span class="nm">拆文件</span><span class="rl">账本、编号两个文件到了 500 行，拆开</span></div>
+          <div class="tile"><span class="nm">留给 7-2</span><span class="rl">回报不带回合，撤销留着它；by 按原因记</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-1</dd></div>
+        <div><dt>名称</dt><dd>任务的事件</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">d686cb3</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>新文件 <code>event/job.rs</code>、<code>id/job.rs</code>、<code>ledger/jobs.rs</code>；撤销那几条挪进 <code>ledger/undo.rs</code>。渲染、改回文件、执行器照效果的几处，先跳过新的种类。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>账本每条新规矩一拦一放；样本读写一字不差；随机的执行器每个结果都开一个任务</span></li>
+        <li><span class="ok">✓</span><span>手写 38 个变异全逮住；门禁八项全过，三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>kernel/events-bodies.md</code>、<code>ids.md</code>、<code>history.md</code>、<code>events.md</code>、<code>agents.md</code>。</li>
+        <li><code>docs/construction/7-1-任务的事件.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s7-2" aria-labelledby="h-s72">
+  <div class="sheet-head"><h2 id="h-s72"><span class="no">7-2</span>回报到了</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">内核收得下子会话的回报、后台命令的结束：她闲着由它开一轮，正忙在下一步看到，该只记下的只记下；请求里是一块带标签的事实。这一步由执行器替身喂，真的后台进程、子会话在 7-3、7-5 接上。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">回报到了</span><span class="dir-note">session/jobs.rs</span></div>
+            <ol class="pipe" aria-label="回报怎么走">
+              <li>闲着：由它开一轮；正忙：另排一队，下一次请求算听到了</li>
+              <li>只记下：她自己停的、撤销、重启、崩了、派它的那一轮撤掉了的</li>
+              <li>先记在一边：还能恢复撤销、正在改回文件、没人看着的一次性会话</li>
+              <li>回报不带回合编号：撤销留着它（别处来的留着）</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">请求里</span><span class="dir-note">miyu-assemble/src/jobs.rs</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">&lt;command-ended&gt;</span><span class="rl">退出码、用时、多少字、用 jobs 看；整块 49 token</span></div>
+              <div class="tile new"><span class="nm">&lt;subagent-report&gt;</span><span class="rl">正文照带；截过的、人插过话的、没说话的各一句</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">由最后那条开</span><span class="rl">恢复撤销以后照排队的消息的规矩</span></div>
+          <div class="tile new"><span class="nm">真模型读得懂</span><span class="rl">失败的回报她当场去读输出；人插过话她点得出</span></div>
+          <div class="tile"><span class="nm">留到后面</span><span class="rl">有没有头看着随 7-9；没听到的回报和压缩随 7-8</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-2</dd></div>
+        <div><dt>名称</dt><dd>回报到了</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">e21e81e</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>内核：命令 <code>Report</code>，输入 <code>JobEnded</code>、<code>Watched</code>；有效历史记下派出去过的任务。组装：两种回报的写法，十一份字进登记簿。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>场景 24 条、组装 7 条、随机测试走到 12 条新路（5 条在长跑里）；请求形状探针多一份，终端会话的字节不变</span></li>
+        <li><span class="ok">✓</span><span>手写 48 个变异，除 1 个等价的全逮住；门禁八项全过，三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>kernel/session.md</code>、<code>kernel/request.md</code>、<code>kernel/history.md</code>、<code>agents.md</code>。</li>
+        <li><code>docs/construction/7-2-回报到了.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s7-3" aria-labelledby="h-s73">
+  <div class="sheet-head"><h2 id="h-s73"><span class="no">7-3</span>后台命令</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她能把命令放到后台跑：<code>shell</code> 写了 <code>run_in_background</code> 的，起来就返回编号，命令接着跑，跑完记 <code>job.reported</code>，照 7-2 的规矩叫醒她。核心有后台命令就不空闲退出，重启、崩了都有交代。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">shell run_in_background</span><span class="dir-note">miyu-session/src/jobs.rs</span></div>
+            <ol class="pipe" aria-label="后台命令怎么走">
+              <li>照前台判权限、进沙盒、同一份环境变量白名单；起来交给任务表，当场返回编号</li>
+              <li>输出一直写进会话目录的 <code>jobs/&lt;编号&gt;.out</code>；结束了存 blob、记 <code>job.reported</code>，落了盘才从表里拿掉</li>
+              <li>有计划地停：先记 <code>restarted</code> 再整组杀；载入时没结束的补 <code>aborted</code></li>
+              <li>任务编号和子代理共用一串（和 7-5 合并时对齐）</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">timeout 不管后台</span><span class="rl">一直开着的服务不结束，也就不回报</span></div>
+          <div class="tile"><span class="nm">留到 7-8</span><span class="rl">核心崩了后台命令还活着：各平台的进程树管理</span></div>
+          <div class="tile"><span class="nm">留到 7-9</span><span class="rl">miyu ask 里印给人看的「放到后台了」</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-3</dd></div>
+        <div><dt>名称</dt><dd>后台命令</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">6d50be5</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>端口 <code>JobPort</code>、执行器的任务表、<code>shell/background.rs</code>；核心空闲判断算上后台命令。和 7-5 并行施工，工具面九件重量，预算 6100 字节。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>三个平台的真进程测试、沙盒里照样关着；手写 34 个变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型：这一轮里跑完的下一步看到；<code>miyu ask</code> 退出以后跑完的只记下，<code>-c</code> 时看到</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>agents.md</code> 第四条、<code>tools/shell.md</code>、<code>session/tools.md</code>、<code>core.md</code>。</li>
+        <li><code>docs/construction/7-3-后台命令.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s7-5" aria-labelledby="h-s75">
+  <div class="sheet-head"><h2 id="h-s75"><span class="no">7-5</span>派子代理</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她能用 <code>agent</code> 派一个子会话去做一件事：子会话照父会话抄好权限和目录，拿着交代开它的第一轮，在后台跑；调用当场返回编号。子会话做完怎么回报是 7-6。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">agent 描述 交代</span><span class="dir-note">miyu-session/src/spawn.rs</span></div>
+            <ol class="pipe" aria-label="派出去怎么走">
+              <li>领一个编号（<code>j1</code>…，撤掉的不回收），执行器经会话表造子会话</li>
+              <li>抄父会话：属主、场所、目录、权限级别和只读、能不能确认；人格软件工程师；<code>depth</code> 加一</li>
+              <li>交代原样记成父会话发来的话，开子会话的第一轮；调用当场返回，效果 <code>job.started</code></li>
+              <li>到深度上限的、群里的会话工具面里没有 <code>agent</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">访问类别是读</span><span class="rl">一步里能并行派几个，只读时也能派</span></div>
+          <div class="tile new"><span class="nm">场所说明</span><span class="rl">子会话 system 里一段，60 token</span></div>
+          <div class="tile"><span class="nm">留到 7-8</span><span class="rl">交代送不进去、派到一半被打断留下的空子会话</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-5</dd></div>
+        <div><dt>名称</dt><dd>派子代理</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">977b5e4</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>工具 <code>agent</code>、端口 <code>AgentPort</code>、会话表给每个会话一份造子会话的端口；<code>session.list</code> 带 <code>parent</code>。和 7-3 并行施工。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>子会话抄的每一样、编号不撞不回收、真核心走一遍；请求形状探针多一张子代理的脸，只差场所说明</span></li>
+        <li><span class="ok">✓</span><span>手写 33 个变异，除 1 个等价的全逮住；三台机器的 CI 和长跑全绿；真模型：子代理照交代干完，最后的回答就是回报</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>agents.md</code> 第一条、<code>tools/agent.md</code>。</li>
+        <li><code>docs/construction/7-5-派子代理.md</code>。</li>
       </ul>
     </div>
   </div>
