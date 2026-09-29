@@ -151,6 +151,16 @@ impl Ledger {
         self.jobs.waiting()
     }
 
+    /// 在会话 `session` 里跑的、这个会话派的子代理的编号（施工 7-7）：被停掉的、撤掉的回合里派的也认；别的会话没有。
+    pub fn subagent_in(&self, session: &SessionId) -> Option<JobId> {
+        self.jobs.agent_in(session)
+    }
+
+    /// 派出去过的子代理，照编号（施工 7-7）：编号、子会话、被停掉了没有。撤掉的回合里派的也在。
+    pub fn subagents(&self) -> impl Iterator<Item = (JobId, &SessionId, bool)> {
+        self.jobs.agents()
+    }
+
     /// 子代理 `job` 最近一次回报就是命令 `id` 交来的：交回那一条的序号（施工 7-6）。
     pub fn reported_as(&self, job: JobId, id: &CommandId) -> Option<Seq> {
         self.jobs.reported_as(job, id)

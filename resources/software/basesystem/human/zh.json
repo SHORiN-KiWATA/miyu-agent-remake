@@ -51,6 +51,11 @@
       "name": "任务",
       "subject": "action",
       "icon": "≡"
+    },
+    "message_agent": {
+      "name": "留言",
+      "subject": "to",
+      "icon": "↗"
     }
   },
   "said": {
@@ -125,6 +130,11 @@
     "jobs/output": "读了 {job} 的输出",
     "jobs/stopped": "停掉了 {job}",
     "jobs/unknown": "没有任务 {id}",
-    "jobs/ended": "{job} 已经结束了"
+    "jobs/ended": "{job} 已经结束了",
+    "message_agent/sent": "送到了：{to}",
+    "message_agent/no-parent": "没有父会话",
+    "message_agent/not-yours": "{to} 不是它派的子代理",
+    "message_agent/stopped": "{to} 已经停了",
+    "message_agent/not-sent": "没送到"
   }
 }

@@ -42,6 +42,7 @@ fn glob_comes_from_the_resources() {
             log: None,
             offset: miyu_kernel::time::UtcOffset::UTC,
             agents: None,
+            messages: None,
             jobs: None,
         })
     };

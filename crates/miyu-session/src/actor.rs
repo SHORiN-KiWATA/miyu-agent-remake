@@ -340,6 +340,7 @@ impl Actor {
                         dirs,
                         permission,
                         jobs,
+                        subagents: self.session.subagents(),
                     },
                 )
             }

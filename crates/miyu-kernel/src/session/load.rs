@@ -19,7 +19,7 @@ use super::turn::Stage;
 use crate::event::{Body, EndReason, Event, Permission, PolicyChanged, ToolStatus};
 use crate::facts::Environment;
 use crate::history::History;
-use crate::id::{CommandId, Seq};
+use crate::id::{CommandId, JobId, Seq};
 use crate::ledger::{Ledger, LedgerError};
 use crate::origin::By;
 use crate::time::Timestamp;
@@ -69,7 +69,7 @@ struct Replay {
     oneshot: bool,
     /// 这时有回合开着：回报到的时候闲不闲（施工 7-2）。
     open: bool,
-    /// 记在一边的回报：最后一次开回合以后、闲着时到的、会叫醒她的（施工 7-2，`jobs.rs`）。
+    /// 记在一边的回报、子代理的留言：最后一次开回合以后、闲着时到的、会叫醒她的（施工 7-2，`jobs.rs`；施工 7-7）。
     deferred: Vec<Arrived>,
 }
 
@@ -120,7 +120,7 @@ impl Session {
             let queued = ledger.queued();
             ledger.append(event).map_err(LoadError::Broken)?;
             duty.note(event);
-            replay.note(event, queued);
+            replay.note(event, queued, jobs::waking(&ledger, event));
         }
         if duty.due(&ledger) {
             duty.take(&policy.reports);
@@ -235,12 +235,12 @@ impl Replay {
         })
     }
 
-    /// 读进来一条：记下它带来的变化。`queued` 是这一条之前还排着队的消息。
-    fn note(&mut self, event: &Event, queued: Vec<Seq>) {
+    /// 读进来一条：记下它带来的变化。`queued` 是这一条之前还排着队的消息；`waking` 是它会叫醒她时说的那个任务（会叫醒她
+    /// 的回报、子代理的留言）。
+    fn note(&mut self, event: &Event, queued: Vec<Seq>, waking: Option<JobId>) {
         self.last = Some(event.seq);
         if !self.open
-            && jobs::wakes(&event.body)
-            && let Some(job) = jobs::job_of(&event.body)
+            && let Some(job) = waking
         {
             self.deferred.push(Arrived {
                 seq: event.seq,

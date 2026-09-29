@@ -153,7 +153,7 @@
 3. 一个会话一个任务，照先后一个一个交，等父会话回应再交下一个：不挡着 actor，先后不乱。actor 退出以后，已经交进来的照样交完。
 4. 父会话拒绝、原因是 `unknown_job` 的，退避着再交同一份（同一个命令编号）：等 100 毫秒，每次翻倍，一共等到 30 秒（`RETRY_FIRST_MS`、`RETRY_TOTAL_MS`）。子代理做得快，回报可能赶在父会话记下派它的那次调用之前，派它的调用一落盘就对得上了（`agents.md` 第二条第 5 条，施工 7-6）。等着的时候后面的回报排着，先后不乱。
 5. 父会话接受了记一行 `reported`；拒绝了（别的原因，或者 `unknown_job` 等满了）记 `report refused`，写原因码；交不到（父会话没了、核心正在停、父会话停了）记 `report not delivered`。都丢掉，不再交：父会话没了的本该一起停了（`agents.md` 第七条第 5 条）；别的拒绝再交也一样。
-6. 父会话载入以后，执行器照内核的 `waiting_children()` 经端口的 `open` 叫起还没回报过的子会话（「载入」第 6 条）：崩了的由它们自己载入时补报，重启打断的接着干（`agents.md` 第八条第 3 条）。叫不起来的记一行 `subagent not woken`。
+6. 父会话载入以后，执行器照内核的 `waiting_children()` 经端口的 `open` 叫起欠着它回报的子会话（还没回报过的，留了言还没报的，施工 7-7）（「载入」第 6 条）：崩了的由它们自己载入时补报，重启打断的接着干（`agents.md` 第八条第 3 条）。叫不起来的记一行 `subagent not woken`。
 
 **5. 落盘、推送、回应**
 
@@ -235,6 +235,8 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | INFO | `subagent started` | `job`、`child` | 派出去一个子代理（施工 7-5，`session/tools.md`「派子代理」） |
 | WARN | `subagent not created` | `job`、`error` | 会话表造不成子会话 |
 | WARN | `subagent not given its task` | `job`、`child`、`error` | 交代没送进子会话 |
+| INFO | `message sent` | `to` | 留言送到了：`to` 是 `parent` 或者任务编号（施工 7-7，`session/tools.md`「父子之间留言」） |
+| WARN | `message not delivered` | `to`、`error` | 留言送不到：被拒的写 `refused: <原因码>` |
 | INFO | `reported` | `job`、`parent` | 父会话接受了回报（施工 7-6，「向上回报」） |
 | WARN | `report refused` | `job`、`parent`、`reason` | 父会话拒绝了回报 |
 | WARN | `report not delivered` | `job`、`parent`、`error` | 回报交不到父会话 |

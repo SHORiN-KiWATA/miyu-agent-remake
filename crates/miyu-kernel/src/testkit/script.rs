@@ -147,6 +147,8 @@ pub enum Play {
         /// 派出去的任务。
         started: JobStarted,
     },
+    /// 给子代理 `job` 留了言（施工 7-7）：报 `job.messaged`。
+    Messages(JobId),
 }
 
 impl Play {
@@ -194,6 +196,15 @@ impl Play {
                 session,
             },
         }
+    }
+
+    /// 给子代理 `j<job>` 留了言（施工 7-7）：结果是一句送到了，报 `job.messaged`。
+    ///
+    /// # Panics
+    ///
+    /// `job` 是 0。
+    pub fn messages(job: u64) -> Play {
+        Play::Messages(JobId::new(job).unwrap_or_else(|| panic!("任务编号从 1 数起")))
     }
 
     /// 同样的回法，跑到一半停住。

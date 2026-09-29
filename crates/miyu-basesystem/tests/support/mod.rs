@@ -15,7 +15,8 @@ use miyu_sandbox::Sandboxed;
 use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
 use miyu_tool::{
-    AgentPort, Background, Call, Done, JobPort, Log, Progress, ReadLog, Seen, Stop, Tool,
+    AgentPort, Background, Call, Done, JobPort, Log, MessagePort, Progress, ReadLog, Seen, Stop,
+    Tool,
 };
 
 /// 源码树里的资源目录。
@@ -162,6 +163,20 @@ impl Site {
         tool(name).run(call, Progress::new(|_| {})).await
     }
 
+    /// 在 `work/` 里调一次工具，留言的端口是 `messages`（施工 7-7：`message_agent` 经它送）。
+    pub async fn done_with_messages(
+        &self,
+        name: &str,
+        args: serde_json::Value,
+        messages: Option<Arc<dyn MessagePort>>,
+    ) -> Done {
+        let call = Call {
+            messages,
+            ..self.call_for("work", args, Seen::new(), Stop::default())
+        };
+        tool(name).run(call, Progress::new(|_| {})).await
+    }
+
     /// 在 `work/` 里调一次工具，任务端口是 `jobs`，关进沙盒 `sandbox`（施工 7-3：后台命令交给它）。
     pub async fn done_jobs(
         &self,
@@ -191,6 +206,7 @@ impl Site {
             log: None,
             offset: miyu_kernel::time::UtcOffset::UTC,
             agents: None,
+            messages: None,
             jobs: None,
         }
     }

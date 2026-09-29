@@ -8,7 +8,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::event::{
-    Body, ChildReason, ChildReported, Effect, Event, JobKind, JobReported, JobStarted,
+    Body, ChildReason, ChildReported, Effect, Event, JobKind, JobMessaged, JobReported, JobStarted,
     SessionCreated,
 };
 use crate::id::{CommandId, JobId, Seq, SessionId};
@@ -24,11 +24,13 @@ enum Job {
     /// 后台命令；`ended`：报过结束了，哪一种 `reason` 都算。
     Command { ended: bool },
     /// 子代理：它的子会话；`stopped`：以 `stopped`、`undone` 报过了，被停掉的不会再起来；`last`：最近一次回报的命令编号
-    /// 和序号，一次都没报过的没有（施工 7-6：还在等它的回报；子会话再交同一份回报，照它认出是重的）。
+    /// 和序号，一次都没报过的没有（施工 7-6：还在等它的回报；子会话再交同一份回报，照它认出是重的）；`messaged`：最近一次
+    /// 回报以后给它留过言，它欠一份回报（施工 7-7）。
     Agent {
         session: SessionId,
         stopped: bool,
         last: Option<(Option<CommandId>, Seq)>,
+        messaged: bool,
     },
     /// 不认识的种类：编号占着，两种回报都对不上它。
     Other,
@@ -40,9 +42,17 @@ impl Jobs {
         self.0.last_key_value().map_or(0, |(job, _)| job.get())
     }
 
-    /// 一条工具结果的效果里派出去的任务：编号没用过，同一条里也不重复；`agent` 带会话，`command` 不带，不认识的
-    /// 种类不查。照效果的先后，第一个违反的报出来。
+    /// 一条工具结果的效果：留了言的（施工 7-7）先查，对得上这个会话派的一个子代理；再查派出去的任务，编号没用过，同一条
+    /// 里也不重复，`agent` 带会话，`command` 不带，不认识的种类不查。照效果的先后，第一个违反的报出来。
     pub(super) fn check_started(&self, effects: &[Effect]) -> Result<(), String> {
+        for messaged in messaged(effects) {
+            let job = messaged.job;
+            if !matches!(self.0.get(&job), Some(Job::Agent { .. })) {
+                return Err(format!(
+                    "job {job} was messaged but is not a subagent: no such job, or it is not an agent"
+                ));
+            }
+        }
         let mut here = BTreeSet::new();
         for started in started(effects) {
             let job = started.job;
@@ -115,15 +125,36 @@ impl Jobs {
             .collect()
     }
 
-    /// 派出去、一次都还没回报过的子代理的子会话，照编号（施工 7-6）：派了孙代理的子会话等它们都报完再向上报；载入以后
-    /// 执行器把它们叫起来，崩了的补报（`agents.md` 第八条）。被停掉的报过了，不在里面。
+    /// 欠着一份回报的子代理的子会话，照编号：派出去一次都还没回报过的（施工 7-6），和最近一次回报以后又给它留过言的（施工
+    /// 7-7）。派了孙代理的子会话等它们都报完再向上报；载入以后执行器把它们叫起来，崩了的补报（`agents.md` 第八条）。被停掉的
+    /// 报过了，不在里面。
     pub(super) fn waiting(&self) -> impl Iterator<Item = &SessionId> {
         self.0.values().filter_map(|job| match job {
             Job::Agent {
                 session,
-                last: None,
+                last,
+                messaged,
                 ..
-            } => Some(session),
+            } if last.is_none() || *messaged => Some(session),
+            _ => None,
+        })
+    }
+
+    /// 在会话 `session` 里跑的子代理的编号（施工 7-7）：子会话发来的留言照发命令的会话认出是哪一个。被停掉的也认，撤掉的
+    /// 回合里派的也认；不是这个会话派的子代理的没有。
+    pub(super) fn agent_in(&self, session: &SessionId) -> Option<JobId> {
+        self.0.iter().find_map(|(job, known)| match known {
+            Job::Agent { session: own, .. } if own == session => Some(*job),
+            _ => None,
+        })
+    }
+
+    /// 派出去过的子代理，照编号（施工 7-7）：编号、子会话、被停掉了没有（以 `stopped`、`undone` 报过）。撤掉的回合里派的也在。
+    pub(super) fn agents(&self) -> impl Iterator<Item = (JobId, &SessionId, bool)> {
+        self.0.iter().filter_map(|(job, known)| match known {
+            Job::Agent {
+                session, stopped, ..
+            } => Some((*job, session, *stopped)),
             _ => None,
         })
     }
@@ -140,8 +171,8 @@ impl Jobs {
         }
     }
 
-    /// 记下查过的这一条带来的变化：派出去的记下，后台命令报了就结束，子代理报了记下是哪一条，以 `stopped`、`undone` 报了
-    /// 就不会再报。
+    /// 记下查过的这一条带来的变化：派出去的记下，留了言的子代理欠一份回报（施工 7-7），后台命令报了就结束，子代理报了记下
+    /// 是哪一条、不再欠，以 `stopped`、`undone` 报了就不会再报。
     pub(super) fn record(&mut self, event: &Event) {
         match &event.body {
             Body::ToolResult(result) => {
@@ -152,10 +183,19 @@ impl Jobs {
                             session: session.clone(),
                             stopped: false,
                             last: None,
+                            messaged: false,
                         },
                         _ => Job::Other,
                     };
                     self.0.insert(started.job, job);
+                }
+                // 留言送到、这次调用的结果还没记下，它就做完报上来了（这次调用发出以后到的回报）：算回了这句留言，不再等。
+                // 不这样，父会话会一直等一份不会再来的回报；这样错的一边只是早报一次（施工 7-7）。
+                let issued = result.call_id.message();
+                for message in messaged(&result.effects) {
+                    if let Some(Job::Agent { messaged, last, .. }) = self.0.get_mut(&message.job) {
+                        *messaged = last.as_ref().is_none_or(|(_, seq)| *seq < issued);
+                    }
                 }
             }
             Body::JobReported(reported) => {
@@ -164,8 +204,15 @@ impl Jobs {
                 }
             }
             Body::ChildReported(reported) => {
-                if let Some(Job::Agent { stopped, last, .. }) = self.0.get_mut(&reported.job) {
+                if let Some(Job::Agent {
+                    stopped,
+                    last,
+                    messaged,
+                    ..
+                }) = self.0.get_mut(&reported.job)
+                {
                     *last = Some((event.cause.clone(), event.seq));
+                    *messaged = false;
                     *stopped |=
                         matches!(reported.reason, ChildReason::Stopped | ChildReason::Undone);
                 }
@@ -173,6 +220,14 @@ impl Jobs {
             _ => {}
         }
     }
+}
+
+/// 效果里给子代理留的言，照先后（施工 7-7）。
+fn messaged(effects: &[Effect]) -> impl Iterator<Item = &JobMessaged> {
+    effects.iter().filter_map(|effect| match effect {
+        Effect::JobMessaged(messaged) => Some(messaged),
+        _ => None,
+    })
 }
 
 /// 效果里派出去的任务，照先后。

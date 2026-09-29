@@ -40,8 +40,8 @@ impl History {
     ///
     /// - 触发它们的那条；
     /// - 由上一轮排着队的消息接着开的那一轮（`02-内核.md` 第六节「排队的消息」第 2 条），上一轮
-    ///   结束时还排着的那几条：它们带的是上一轮的编号，可她是在这一轮才听到的。由上一轮里到的回报接着开的也一样
-    ///   （施工 7-2）：回报不带回合编号，上一轮就是紧挨着这一轮开头结束的那一轮。
+    ///   结束时还排着的那几条：它们带的是上一轮的编号，可她是在这一轮才听到的。由上一轮里到的回报、子代理的留言接着开的
+    ///   也一样（施工 7-2、7-7）：它们不带回合编号，上一轮就是紧挨着这一轮开头结束的那一轮。
     ///
     /// 别处来的留着：子代理的回报、后台命令结束、定时触发、群里别人说的话、另一个会话发来的
     /// 消息，撤掉的只是她对它们的反应。
@@ -58,9 +58,12 @@ impl History {
             let Some(trigger) = started.trigger.and_then(|trigger| self.find(trigger)) else {
                 continue;
             };
+            // 不带回合编号的触发（回报、子代理的留言，施工 7-7；闲着时来的话）：上一轮是紧挨着这一轮开头结束的那一轮。
             let previous = match &trigger.body {
-                Body::MessageUser(_) => trigger.turn,
-                Body::JobReported(_) | Body::ChildReported(_) => self.ended_before(event.seq),
+                Body::MessageUser(_) if trigger.turn.is_some() => trigger.turn,
+                Body::MessageUser(_) | Body::JobReported(_) | Body::ChildReported(_) => {
+                    self.ended_before(event.seq)
+                }
                 _ => continue,
             };
             if said_by_the_person(trigger) {

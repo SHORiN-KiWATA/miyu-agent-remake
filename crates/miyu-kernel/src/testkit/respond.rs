@@ -5,7 +5,7 @@ use super::Stage;
 use super::script::{Line, Play};
 use crate::accumulate::{Delta, Kind};
 use crate::block::{Block, Text};
-use crate::event::{Effect, FileRead, Response, Usage};
+use crate::event::{Effect, FileRead, JobMessaged, Response, Usage};
 use crate::id::{CallId, ContentHash, ModelName, ProviderId, Seq};
 use crate::origin::Model;
 use crate::request::{Message, Request};
@@ -199,6 +199,13 @@ impl Stage {
                 let mut done = self.done(call_id, false, &text);
                 if let Input::ToolDone { effects, .. } = &mut done {
                     effects.push(Effect::JobStarted(started));
+                }
+                vec![done]
+            }
+            Play::Messages(job) => {
+                let mut done = self.done(call_id, false, &format!("Message sent to {job}."));
+                if let Input::ToolDone { effects, .. } = &mut done {
+                    effects.push(Effect::JobMessaged(JobMessaged { job }));
                 }
                 vec![done]
             }

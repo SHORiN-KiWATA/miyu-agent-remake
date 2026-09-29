@@ -10,6 +10,7 @@ mod compaction;
 mod done;
 mod isolate;
 mod manual;
+mod messages;
 mod overflow;
 mod rebuild;
 mod reports;

@@ -26,6 +26,7 @@ mod job_ids;
 mod jobs;
 mod kinds;
 mod lines;
+mod messages;
 mod open;
 mod pictures;
 mod port;

@@ -19,6 +19,7 @@ mod jobs;
 mod limits;
 mod load;
 mod manual;
+mod messages;
 mod overflow;
 mod permission;
 mod policy;
@@ -42,6 +43,7 @@ pub use action::{Action, Outcome, Reason};
 pub use input::{Answer, Command, Injection, Input, Limits, Queued, Received, Reread, Verdict};
 pub use limits::ContextLimits;
 pub use load::LoadError;
+pub use messages::Subagent;
 pub use policy::{Compaction, Notes, Pause, Policy, Rebuild, Reports, Shorten};
 pub use report::Upward;
 pub use restore::{Expect, Step, StepAction};
@@ -287,6 +289,10 @@ impl Session {
             Command::Send { blocks, urgent } => {
                 if blocks.is_empty() {
                     return vec![rejected(id, Reason::EmptyMessage)];
+                }
+                // 子代理发来的留言照回报的规矩到（施工 7-7，`messages.rs`）。
+                if let Some(job) = self.subagent_sending(&by) {
+                    return self.subagent_says(id, by, at, blocks, job);
                 }
                 let body = Body::MessageUser(MessageUser { blocks });
                 let message = self.record(at, by.clone(), Some(id.clone()), body);

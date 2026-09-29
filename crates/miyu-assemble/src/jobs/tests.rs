@@ -10,6 +10,8 @@ use super::*;
 use crate::test_support::{KERNEL, Log, shape, text_json, texts};
 use crate::{DefaultAssembler, Stable};
 
+mod messages;
+
 const CHILD: &str = "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91";
 
 /// 第一轮派出去后台命令 `j1`（跑全部测试）、子代理 `j2`（查 CI 为什么红），说完了。
@@ -48,6 +50,8 @@ fn shipped() -> JobTexts {
         subagent_truncated: job!("subagent-truncated.txt"),
         subagent_silent: job!("subagent-silent.txt"),
         subagent_close: job!("subagent-close.txt"),
+        subagent_message_open: template(job!("subagent-message-open.txt")),
+        subagent_message_close: job!("subagent-message-close.txt"),
     }
 }
 

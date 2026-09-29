@@ -13,7 +13,7 @@
 | `crates/miyu-kernel/src/event/restore.rs` | `files.restored`（`Restored`、`RestoreAction`、`RestoreOutcome`） |
 | `crates/miyu-kernel/src/event/message.rs` | `message.user`、`message.assistant`、`message.withdrawn` |
 | `crates/miyu-kernel/src/event/tool.rs` | `tool.result`（`ToolStatus`、给人看的说法 `Said`）、`tool.approval_requested`、`tool.approval_decided`（`Decision`） |
-| `crates/miyu-kernel/src/event/effect.rs` | 效果 `Effect`：`file.read`、`file.changed`、`file.trashed`、`job.started`（`JobStarted`、`JobKind`，施工 7-1） |
+| `crates/miyu-kernel/src/event/effect.rs` | 效果 `Effect`：`file.read`、`file.changed`、`file.trashed`、`job.started`（`JobStarted`、`JobKind`，施工 7-1）、`job.messaged`（`JobMessaged`，施工 7-7） |
 | `crates/miyu-kernel/src/event/question.rs` | `question.asked`、`question.answered`；回答对不对得上 `fits` |
 | `crates/miyu-kernel/src/event/context.rs` | `context.injected`、`context.compacted`、`context.compaction_paused`（`PauseReason`） |
 | `crates/miyu-kernel/src/event/model.rs` | `model.called`（`FirstDifference`、`Usage`、`BlockSpan`、`CallResult`、`CallError`、`ErrorClass`） |
@@ -131,7 +131,7 @@
 
 除了 `restored`，都是没动。几步怎么算、谁来做，见 `kernel/history.md`、`session/actor.md`。
 
-**`message.user`**：人发来的消息，或者另一个会话发来的消息。
+**`message.user`**：人发来的消息，或者另一个会话发来的消息：父会话发给子会话的交代、留言（`by` 是父会话），子代理发给父会话的留言（`by` 是子会话，不带回合编号，施工 7-7，`kernel/session.md`「子代理的留言」）。
 
 | 格 | 写法 | 有没有 | 是什么 |
 |---|---|---|---|
@@ -204,11 +204,12 @@
 | | `what`，必有 | `command` 后台命令，`agent` 子代理；不认识的原样留着 |
 | | `title`，必有 | 调用时给的 `description`，头显示用 |
 | | `session`，可以没有 | 子代理的会话编号：`agent` 必有，`command` 没有，不认识的种类不管，由账本查 |
+| `job.messaged` | `job`，必有 | 给这个任务编号的子代理留了言（施工 7-7，`agents.md` 第六条）：`message_agent` 那次调用报一条，它欠一份回报。对得上这个会话派的一个子代理，由账本查 |
 
 - 改前改后的内容由执行器存成 blob，效果里是它们的哈希（`session/actor.md`）。
 - 缺了 `kind`、认识的种类缺了必有的格、哈希或者任务编号不合写法的，读不进来。
 - 不认识的种类，例如第三方的工具报来的，整块原样留着，内核不解读。
-- 撤销、恢复照效果改回文件（`kernel/history.md`）；她看过的文件也照效果记（`session/actor.md`）。`job.started` 不改回什么，撤销时也不算改过文件。
+- 撤销、恢复照效果改回文件（`kernel/history.md`）；她看过的文件也照效果记（`session/actor.md`）。`job.started`、`job.messaged` 不改回什么，撤销时也不算改过文件。
 - `job.started` 的编号整份日志里不重复，撤掉的回合里的也算，由账本查（`kernel/history.md`）。
 
 **`tool.approval_requested`**：请人确认一次调用。
@@ -400,7 +401,7 @@
 | `crates/miyu-kernel/src/event/restore/tests.rs` | `files.restored` 的每一格读写一字不差；新的 `action`、`outcome` 原样留着 |
 | `crates/miyu-kernel/src/event/message/tests.rs` | `message.assistant` 图纸上的写法、`seen` 必有、`interrupted` 只在是真时写；`message.withdrawn` 的写法和序号从 1 起 |
 | `crates/miyu-kernel/src/event/tool/tests.rs` | `tool.result` 的五种状态、不认识的原样留着、没真执行过的没有用时、说法怎么记；确认的两种：每种决定、没写规则、说明、理由的不写这几格；坏的说是哪一种 |
-| `crates/miyu-kernel/src/event/effect/tests.rs` | 四种效果读写一字不差；没显示行的不写 `lines`；新建的 `before` 写成 `null`、没写的当新建；不认识的原样留着；`job.started` 不认识的 `what` 原样留着、命令不写 `session`；坏的读不进来 |
+| `crates/miyu-kernel/src/event/effect/tests.rs` | 四种效果读写一字不差；没显示行的不写 `lines`；新建的 `before` 写成 `null`、没写的当新建；不认识的原样留着；`job.started` 不认识的 `what` 原样留着、命令不写 `session`；`job.messaged` 读写一字不差（施工 7-7）；坏的读不进来 |
 | `crates/miyu-kernel/src/event/job/tests.rs` | 两种回报（施工 7-1）：图纸上的写法读写一字不差、每种 `reason` 读成自己那一种、不认识的原样留着、不写是假的几格是假时不写、没有的格不写、负的退出码、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/question/tests.rs` | 提问的两种：图纸上的写法、没写的格子不写、第 4 条对不对得上题目、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/context/tests.rs` | 上下文的几种：图纸上的写法、手动压缩带着要求（施工 6-8）、清空的空摘要照样写出 `summary`（施工 6-8 补）、坏的说是哪一种 |

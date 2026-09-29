@@ -10,7 +10,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::event::{Body, Event};
-use crate::id::{ContentHash, JobId, Seq};
+use crate::id::{ContentHash, JobId, Seq, SessionId};
 
 mod jobs;
 mod undo;
@@ -62,6 +62,12 @@ impl History {
     /// 的没有。
     pub fn dispatched(&self, job: JobId) -> Option<&Dispatched> {
         self.jobs.get(job)
+    }
+
+    /// 在会话 `session` 里跑的子代理：编号和派它时记下的（施工 7-7）。子代理发来的留言照发消息的会话认出是哪一个，标签里
+    /// 写它的编号、标题。不是这个会话派的子代理的没有。
+    pub fn subagent(&self, session: &SessionId) -> Option<(JobId, &Dispatched)> {
+        self.jobs.in_session(session)
     }
 
     /// 只记派出去的任务，不留这一条（施工 7-2）：载入时，有效历史重建的那一段以前的事件照它过一遍，派出去过的任务才是
