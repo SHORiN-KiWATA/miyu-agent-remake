@@ -16,6 +16,7 @@ mod listen;
 mod methods;
 mod refusal;
 mod sessions;
+mod spawn;
 mod subscriptions;
 mod undo;
 mod wire;

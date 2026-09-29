@@ -41,6 +41,7 @@ fn glob_comes_from_the_resources() {
             sandbox: None,
             log: None,
             offset: miyu_kernel::time::UtcOffset::UTC,
+            agents: None,
         })
     };
     assert_eq!(target(r#"{"pattern":"*.rs"}"#)[0].path, ".");

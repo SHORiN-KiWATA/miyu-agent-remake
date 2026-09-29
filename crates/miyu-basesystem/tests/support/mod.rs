@@ -13,7 +13,7 @@ use miyu_kernel::event::{Event, Said};
 use miyu_sandbox::Sandboxed;
 use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
-use miyu_tool::{Call, Done, Log, Progress, ReadLog, Seen, Stop, Tool};
+use miyu_tool::{AgentPort, Call, Done, Log, Progress, ReadLog, Seen, Stop, Tool};
 
 /// 源码树里的资源目录。
 pub fn resources() -> PathBuf {
@@ -145,6 +145,20 @@ impl Site {
         tool(name).run(call, Progress::new(|_| {})).await
     }
 
+    /// 在 `work/` 里调一次工具，派子代理的端口是 `agents`（施工 7-5：`agent` 经它派）。
+    pub async fn done_with_agents(
+        &self,
+        name: &str,
+        args: serde_json::Value,
+        agents: Option<Arc<dyn AgentPort>>,
+    ) -> Done {
+        let call = Call {
+            agents,
+            ..self.call_for("work", args, Seen::new(), Stop::default())
+        };
+        tool(name).run(call, Progress::new(|_| {})).await
+    }
+
     /// 在场地里的 `cwd` 这个工作目录里的一次调用，不关进沙盒。
     fn call_for(&self, cwd: &str, args: serde_json::Value, seen: Seen, stop: Stop) -> Call {
         Call {
@@ -157,6 +171,7 @@ impl Site {
             sandbox: None,
             log: None,
             offset: miyu_kernel::time::UtcOffset::UTC,
+            agents: None,
         }
     }
 }

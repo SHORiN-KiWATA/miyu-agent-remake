@@ -56,6 +56,16 @@ pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
     }
 }
 
+impl Snapshot {
+    /// 带上场所说明（施工 7-5）：system 的第二块，接在人设后面（26 第四节）。现在只有子会话有，原文是
+    /// `core/jobs/subagent-venue.txt`（`agents.md` 第九条第 3 条）；照拼 system 的规矩去掉末尾的空白、空一行。
+    #[must_use]
+    pub fn with_venue(mut self, venue: &str) -> Snapshot {
+        self.system = system(&[&self.system, venue]);
+        self
+    }
+}
+
 /// system：照先后，每一块去掉末尾的空白，没有的块不留空行，块和块之间空一行。
 fn system(pieces: &[&str]) -> String {
     pieces
@@ -80,5 +90,15 @@ mod tests {
         assert_eq!(system(&[]), "");
         // 开头的空白是人格自己写的，照留。
         assert_eq!(system(&["  缩进的第一行\n"]), "  缩进的第一行");
+    }
+
+    #[test]
+    fn the_venue_note_follows_the_persona_after_a_blank_line() {
+        let snapshot = crate::test_support::engineer();
+        let persona = snapshot.system.clone();
+        let child = snapshot.with_venue("You are a subagent.\n");
+        assert_eq!(child.system, format!("{persona}\n\nYou are a subagent."));
+        let blank = crate::test_support::engineer().with_venue("\n");
+        assert_eq!(blank.system, persona, "空的说明不留空行");
     }
 }

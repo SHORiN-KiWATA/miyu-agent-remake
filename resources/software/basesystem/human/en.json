@@ -41,6 +41,11 @@
       "name": "History",
       "subject": "query",
       "icon": "✱"
+    },
+    "agent": {
+      "name": "Subagent",
+      "subject": "description",
+      "icon": "↗"
     }
   },
   "said": {
@@ -106,6 +111,8 @@
     "history/found": "Found {count} entries",
     "history/read": "Read entries {from}–{to}",
     "history/none": "Nothing found",
-    "history/no-log": "Could not read the history: {error}"
+    "history/no-log": "Could not read the history: {error}",
+    "agent/started": "Started {job}",
+    "agent/not-started": "Could not start"
   }
 }

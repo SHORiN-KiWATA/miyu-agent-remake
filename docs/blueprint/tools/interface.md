@@ -10,6 +10,7 @@
 |---|---|
 | `crates/miyu-tool/src/lib.rs` | 规格 `Spec`、接口 `Tool` |
 | `crates/miyu-tool/src/run.rs` | 一次调用：`Call`、`Seen`、`Target`、`Done`、`Effect`、`Progress`、`Running` |
+| `crates/miyu-tool/src/agents.rs` | 派子代理的端口 `AgentPort`、`Spawned`、`NotSpawned`，那件工具的名字 `AGENT`（施工 7-5） |
 | `crates/miyu-tool/src/catalog.rs` | 工具目录，登记时查的三条 |
 | `crates/miyu-tool/src/testkit.rs` | 测试用的假工具（`testkit` 开关打开时才编） |
 | `crates/miyu-core/src/lib.rs` | `tools()`：核心起来时登记基础系统 |
@@ -53,6 +54,7 @@
 | `sandbox` | 要关进沙盒的：助手的路径、规格、要设的环境变量（`Sandboxed`，`sandbox.md`）；空的照旧直接跑。施工 5-1 加的，5-4（上）起执行器照这一刻实际生效的级别带（`session/tools.md`） |
 | `log` | 这个会话日志的只读入口（`Log`，里面是一个 `ReadLog`）：一段一段交出事件，交给的函数说不读了就停。只有 `history` 用（施工 6-4，`tools/history.md`）；没有的是空的 |
 | `offset` | 会话的时区：照会话现在的环境。只有 `history` 用（施工 6-4）；测试里照 UTC |
+| `agents` | 派子代理的端口（`Arc<dyn AgentPort>`，施工 7-5）：执行器照这一次调用抄好父会话的那几样（`session/tools.md`「派子代理」）。只有 `agent` 用；没有的（测试里的假调用、没装会话表的核心）是空的，`agent` 照派不了出错 |
 
 - `Seen`：换成真实位置以后的路径 → 她最后一次看到的整份文件的内容哈希（`sha256:` 加 64 位小写十六进制）。
 - `Target`：`path` 是她给的原样，`write` 是真的就是要写（新建、改、删），不是就是读；`itself` 是真的，碰的是这一条本身：最后一段是链接的不跟（`trash` 删的是链接本身，施工 4-9 再补二）。
@@ -78,6 +80,9 @@
 | `Read` | `path`；`lines`：读了第几行到第几行（从 1 数起，含两头），一行都没显示的是空的；`hash`：整份文件的内容哈希 | `file.read` |
 | `Changed` | `path`；`before`：改前的内容本身，新建的是空的；`after`：改后的内容本身 | `file.changed`，内容换成 blob 的哈希 |
 | `Trashed` | `path`：移走之前的位置；`trash`：回收站里的位置，各平台自己的写法 | `file.trashed` |
+| `JobStarted` | 内核的 `JobStarted` 本身：编号、种类、标题、子会话（施工 7-5） | `job.started`，照原样 |
+
+**派子代理的端口** `AgentPort`（`Send + Sync`，施工 7-5）：`spawn(description, prompt)` 交回一个 future，子会话造好、交代送进去就给 `Spawned`（任务编号 `job`、子会话 `session`），派不了给 `NotSpawned`（原因执行器记进运行日志，不给她看）。两个端口比的是不是同一个（`Call` 照格子比较时用）。`AGENT` 是派子代理的那件工具的名字：造会话时照它把 `agent` 从不能派的会话的工具面上拿掉（`session/tools.md`）。
 
 **执行中的输出** `Progress`：`Progress::new(收的那一头)`，`push(一段字)`。
 
@@ -100,7 +105,7 @@
 1. 内核先查（`kernel/`）：工具面上没有这个名字的、参数不是 JSON 对象的，当场记出错的结果；只读时写文件的（访问类别是 `write` 和不认识的）当场拦下。别的照参数格式修正参数：被写成字符串的数组、对象、整数、数字、布尔还原回去，声明成字符串的一个字节不碰，什么都没写的当成 `{}`。
 2. 轮到的先过权限策略（`crates/miyu-session/src/guard.rs`）：目录里没有这件工具的放行（执行时报用不了）；照 `targets` 报的路径判；一条都不报的，照访问类别判。交给 `targets` 的 `Call` 里 `seen` 是空的：报路径只看参数。
 3. 派出去（`crates/miyu-session/src/tools.rs`）：
-   1. 造 `Call`：`args` 是修正过的参数；`cwd` 是回合开始时的工作目录；`home` 是核心起来时读的系统家目录；`data_root` 是数据根；`seen` 是这个会话她看过的文件，共享一份；`log` 照会话的目录造，`offset` 是会话现在的时区（施工 6-4）。
+   1. 造 `Call`：`args` 是修正过的参数；`cwd` 是回合开始时的工作目录；`home` 是核心起来时读的系统家目录；`data_root` 是数据根；`seen` 是这个会话她看过的文件，共享一份；`log` 照会话的目录造，`offset` 是会话现在的时区（施工 6-4）；`agents` 照这一轮的工作目录、加进来的目录、派出去那一刻的权限造（施工 7-5，会话表交进来了端口才有）。
    2. 快照里有、核心的目录里没有这件（核心升级拿掉了，老会话照样调）：不派，当场交回出错的结果（下面「执行器替工具写的两句」），没有用时。
    3. 在自己的任务里跑 `run` 交回的 future，记下开始跑的那一刻。
    4. `push` 的每一段，这次调用还在跑的，送回会话，推给头（瞬时的 `tool.progress`），不落盘；叫停了的不理。
@@ -129,6 +134,7 @@
    | `write`、`edit` | `file_path`，写 |
    | `trash` | `file_path`，写，碰的是这一条本身 |
    | `shell` | 一条都不报 |
+   | `agent` | 一条都不报：访问类别是读，放行（`tools/agent.md`） |
 
 #### 四、效果和她看过的
 
@@ -158,7 +164,7 @@
 
 每一份以一个换行结尾；登记在 `26-提示词.md` 第十节。
 
-**工具面的预算**（`10-自带软件.md` 第九节，施工 4-10）：`resources/software/basesystem/tools/` 下的几份说明（说明和参数）加起来不超过 4400 字节，回车 `\r` 不算。预算是 2026-09-28 实测加一成：七件的边际份量合计 1076 个 token，约 3.7 字节一个 token；仓库里没有分词器，所以照字节守。加工具、改说明超了，重新量过再改预算。
+**工具面的预算**（`10-自带软件.md` 第九节，施工 4-10）：`resources/software/basesystem/tools/` 下的几份说明（说明和参数）加起来不超过 6000 字节，回车 `\r` 不算。预算是实测加一成：施工 7-5 九件的边际份量合计 1444 个 token、5369 字节（2026-09-30 量），约 3.7 字节一个 token，加一成是 1589 个 token；仓库里没有分词器，所以照字节守。加工具、改说明超了，重新量过再改预算。
 
 ### 出错
 

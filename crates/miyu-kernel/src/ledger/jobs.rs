@@ -29,6 +29,11 @@ enum Job {
 }
 
 impl Jobs {
+    /// 用过的最大编号：撤掉的回合里派的、不认识的种类都算，一个都没派过的是 0（施工 7-5）。执行器照它接着往下领号。
+    pub(super) fn last(&self) -> u64 {
+        self.0.last_key_value().map_or(0, |(job, _)| job.get())
+    }
+
     /// 一条工具结果的效果里派出去的任务：编号没用过，同一条里也不重复；`agent` 带会话，`command` 不带，不认识的
     /// 种类不查。照效果的先后，第一个违反的报出来。
     pub(super) fn check_started(&self, effects: &[Effect]) -> Result<(), String> {

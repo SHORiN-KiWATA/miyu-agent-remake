@@ -13,6 +13,7 @@ mod compact;
 mod disk;
 mod jobs;
 mod limits;
+mod opening;
 mod respond;
 mod script;
 mod stage;

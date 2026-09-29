@@ -36,6 +36,7 @@ fn read_comes_from_the_resources_with_its_schema_as_written() {
         sandbox: None,
         log: None,
         offset: miyu_kernel::time::UtcOffset::UTC,
+        agents: None,
     });
     assert_eq!(targets.len(), 1);
     assert_eq!(targets[0].path, "src/a.rs");

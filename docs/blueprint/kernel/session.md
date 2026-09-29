@@ -35,6 +35,7 @@
 | `Session::create(id, by, at, created, policy, environment)` | 造会话：追加第 1 条 `session.created`，`cause` 是 `id`，出来一个 `Append`；落了盘回应 `id`。开始时的权限取自 `created.permission` |
 | `Session::load(events, at, policy, environment)` | 从日志载入，出来会话和要补的动作；载入不了的是 `LoadError`（「载入和崩溃」） |
 | `handle(input)` | 送进一条输入，出来一串动作 |
+| `last_job_number()` | 日志里用过的最大任务编号（施工 7-5）：撤掉的回合里派的、不认识的种类也算，一个都没派过的是 0。只读。执行器照它往下领号（`session/tools.md`「派子代理」） |
 | `idle()` | 空闲：没有回合在进行，没有结束了、`turn.ended` 还没落盘的回合，没在读回日志、改回文件。核心照它决定能不能空闲退出 |
 | `context_limits()` | 给头看的限额 `ContextLimits`（施工 6-3 补）：`window` 上下文窗口，`compaction_line` 压缩线，和内核判到线用的是同一条（`compaction.md` 第二条第 2 条）。没交过限额的、没报窗口的，两格都没有；策略里没有压缩的、算不出正数的，没有压缩线。只读，不出动作。协议照它回 `subscribe`（`protocol.md`） |
 

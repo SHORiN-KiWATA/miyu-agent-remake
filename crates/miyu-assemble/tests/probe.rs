@@ -1,8 +1,9 @@
 //! 请求形状探针（`docs/designs/08-上下文投影.md` 第七节「测试门禁」，`26-提示词.md` 第七节）：
 //! 一段终端会话，由真内核照剧本跑出来（执行器替身，施工 2-9 下），每一次请求和存档逐字节比对，
-//! 再查五条性质。另一段是有回报的会话（施工 7-2）：派出去的任务回报到了，闲着时开一轮、正忙时排在工具结果后面。
+//! 再查五条性质。另一段是有回报的会话（施工 7-2）：派出去的任务回报到了，闲着时开一轮、正忙时排在工具结果后面。还有一段
+//! 是子代理的会话（施工 7-5）：父会话的交代开了第一轮，system 多一段场所说明。
 //!
-//! 存档在 `docs/designs/samples/probe/<会话>/`（`terminal`、`reports`）：`log.jsonl` 是真内核记下的日志，`requests/`
+//! 存档在 `docs/designs/samples/probe/<会话>/`（`terminal`、`reports`、`subagent`）：`log.jsonl` 是真内核记下的日志，`requests/`
 //! 下一次请求一个文件，写的是规范字节，末尾一个换行；`openai-chat/` 下是同一次请求编码成 OpenAI
 //! 兼容接口的字节（施工 3-4 上）。字节变了必须是有意的：设上 `MIYU_PROBE_WRITE=1` 跑一遍，重写
 //! 存档，提交说明里写为什么变。
@@ -18,7 +19,7 @@ use miyu_kernel::origin::{By, Tool};
 use miyu_kernel::request::Message;
 use miyu_kernel::session::Queued;
 use miyu_kernel::testkit::{Line, Play, Stage};
-use support::{anchored, check, lines, sent, stage, summarizes, wire};
+use support::{PARENT, VENUE, anchored, check, child_stage, lines, sent, stage, summarizes, wire};
 
 /// 终端会话的剧本，十一个回合，1-12、1-13 画过的走法都走一遍，最后两段是自动压缩（施工 6-2 上）。照真内核会怎么走写（施工 2-9 下）：
 /// 回合中途的那句话在工具还在跑时说；两轮之间换只读，改成请求还在路上时先切、再打断。
@@ -199,6 +200,19 @@ fn reports() -> Stage {
     s
 }
 
+/// 子代理的会话的剧本（施工 7-5）：父会话的交代开了它的第一轮，她读一个文件，最后的回答就是交回去的回报。`on` 造替身：
+/// 子会话的，或者同一份剧本的主会话，两张脸只差 system 里的场所说明。
+fn subagent(on: fn() -> Stage) -> Stage {
+    let mut s = on();
+    s.model([
+        Line::calls("我先读 lib.rs。", &[("read", r#"{"path":"src/lib.rs"}"#)]),
+        Line::says("lib.rs 只导出了 assemble 这一个模块。"),
+    ]);
+    s.tools([Play::done("pub mod assemble;")]);
+    s.say("Read src/lib.rs and tell me what it exports. Report the module names.");
+    s
+}
+
 /// 存档所在的目录：这个 crate 的目录往上两级是仓库根。
 fn archive(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -226,6 +240,40 @@ fn the_terminal_session_matches_the_archive() {
 #[test]
 fn the_reports_session_matches_the_archive() {
     matches_the_archive("reports", &reports());
+}
+
+#[test]
+fn the_subagent_session_matches_the_archive() {
+    matches_the_archive("subagent", &subagent(child_stage));
+}
+
+/// 子代理这张脸（施工 7-5）：五条性质照查；交代是父会话发的、开了第一轮；和同一份剧本的主会话比，每一次请求只多 system
+/// 里的场所说明那一段。
+#[test]
+fn the_subagent_session_differs_only_by_its_venue_note() {
+    let child = subagent(child_stage);
+    if let Err(why) = check(&sent(&child)) {
+        panic!("{why}");
+    }
+    let prompt = child
+        .log()
+        .iter()
+        .find(|event| event.body.kind() == "message.user")
+        .expect("交代");
+    assert_eq!(
+        prompt.by.clone(),
+        serde_json::from_str::<By>(&format!(r#"{{"kind":"session","id":"{PARENT}"}}"#)).unwrap()
+    );
+    let main = subagent(stage);
+    assert_eq!(child.requests().len(), 2);
+    for ((_, child), (_, main)) in child.requests().iter().zip(main.requests()) {
+        assert_eq!(child.tools, main.tools);
+        assert_eq!(child.messages, main.messages);
+        assert_eq!(
+            child.system,
+            format!("{}\n\n{}", main.system, VENUE.trim_end())
+        );
+    }
 }
 
 /// 这段会话和存档 `name` 逐字节比；设了 `MIYU_PROBE_WRITE` 的重写存档。
@@ -314,6 +362,7 @@ fn the_terminal_session_keeps_the_properties() {
 fn the_same_script_gives_the_same_bytes() {
     assert_eq!(files(&terminal()), files(&terminal()));
     assert_eq!(files(&reports()), files(&reports()));
+    assert_eq!(files(&subagent(child_stage)), files(&subagent(child_stage)));
 }
 
 /// 有回报的会话（施工 7-2）：五条性质照查；回报开的那一轮第一次请求的最后一块是那条回报，回合中途到的排在工具结果后面，

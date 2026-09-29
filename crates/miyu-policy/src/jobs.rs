@@ -9,6 +9,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::snapshot::BuildError;
 
+/// 派生的深度上限（策略数据 `jobs.depth` 的出厂值，`agents.md`「对外的样子」，施工 7-5）：主会话是第 0 层，它派的子代理
+/// 是第 1 层，子代理派的孙代理是第 2 层（2026-09-29 项目主人定）。到了上限的会话，造会话时工具面里不给 `agent`。配置那一步
+/// 能改。
+pub const DEPTH: u32 = 2;
+
 /// 两种回报的写法（`jobs/` 下，文件名是下划线换成 `-` 的同名 `.txt`）。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JobTexts {

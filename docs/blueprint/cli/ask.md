@@ -139,6 +139,7 @@ todo.md
 | `edit` | `←` | 编辑 | Edit | `file_path` | `edits` |
 | `trash` | `←` | 删除 | Delete | `file_path` | |
 | `shell` | `$` | 执行命令 | Run | `command` | `command` |
+| `agent` | `↗` | 派子代理 | Subagent | `description` | |
 
 | 结果的状态 | ` · ` 后面 |
 |---|---|

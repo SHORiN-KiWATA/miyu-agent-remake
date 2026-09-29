@@ -1084,6 +1084,28 @@ Could not read the log: {error}
 [file {name}]
 ```
 
+#### `software/basesystem/agent/started.txt`
+
+- 什么时候加进来：派出去了
+- token：10（字段按 `j1`、`查导出` 算，2026-09-30 量）
+- 为什么加：每次调用都要有结果：编号和标题（`agents.md` 第一条第 3 条）。编号以后 `jobs`、留言用，回报的标签里也是它；标题让她认得出是哪一个（施工 7-5）
+- 指纹：`9427c97b`
+
+```text
+Started subagent {job}: "{title}".
+```
+
+#### `software/basesystem/agent/not-started.txt`
+
+- 什么时候加进来：派不了：子会话造不成、交代送不进去、核心正在停
+- token：8（2026-09-30 量）
+- 为什么加：每次调用都要有结果；原因记进运行日志，不给她看（施工 7-5）
+- 指纹：`ead733e3`
+
+```text
+The subagent could not be started.
+```
+
 #### `software/basesystem/common/not-read.txt`
 
 - 什么时候加进来：`write`、`edit` 要改的文件已经在了、她这个会话里没看过
@@ -1288,6 +1310,19 @@ The subagent ended without saying anything.
 </subagent-report>
 ```
 
+### system，子会话：人设后面空一行
+
+#### `core/jobs/subagent-venue.txt`
+
+- 什么时候加进来：子会话的每次请求（施工 7-5，`agents.md` 第九条第 3 条）
+- token：60（2026-09-30 照项目主人给的端点、`deepseek-v4.1-flash` 量）
+- 为什么加：子会话的场所说明：它是被派出来的，交代来自父会话、不是人，最后的回答就是交回去的回报，做完不用去查、不用等。照旧版子会话的交付约定（「回报对象是父会话」「不要轮询」，第五节）改写成英文；旧版里「改文件前先读行号」这类由工具保证的不带。常驻在子会话的 system：每个子会话一开始就要知道自己是谁、答给谁（施工 7-5）
+- 指纹：`40bbaadc`
+
+```text
+You are a subagent, started by another session to do one task. That parent session wrote the task, not a person. Your final answer is your report and goes back to the parent on its own. When the task is done, give that answer and stop, without checking back or waiting.
+```
+
 ### 人这边
 
 #### `core/turn-ended/interrupted.txt`
@@ -1456,6 +1491,20 @@ The subagent ended without saying anything.
 {
   "description": "Create a file, or replace all of its content. A file that already exists must be read first. To change part of a file, use `edit`.",
   "parameters": {"type":"object","properties":{"file_path":{"type":"string","description":"Absolute, or relative to the working directory."},"content":{"type":"string"}},"required":["file_path","content"]}
+}
+```
+
+#### `software/basesystem/tools/agent.json`
+
+- 什么时候加进来：会话的工具面里有 `agent`：本机、没到深度上限的会话（每次请求都带）
+- token：140（2026-09-30 照项目主人给的端点、`deepseek-v4.1-flash` 量，九件一起时的边际份量）
+- 为什么加：`agent` 的说明和参数（施工 7-5）：说明照附录的草稿，两句：在后台派一个子会话做一件事、回报自己送来，它看不到这边的对话、交代要自己说得清（背景、已知的、目标、要报什么）。参数只声明 `description`、`prompt`（`agents.md`「还没有的」：挡位、人格、预设随配置和预设），各一句，名字照 Claude Code。量法同上，九件一起时的边际份量
+- 指纹：`67a06362`
+
+```json
+{
+  "description": "Start a subagent in a new session to do one task in the background; its report arrives as a message when it finishes. It sees nothing of this conversation, so the prompt must stand on its own: background, what is already known, the goal and what to report.",
+  "parameters": {"type":"object","properties":{"description":{"type":"string","description":"A short title for the task, 3 to 5 words."},"prompt":{"type":"string","description":"The task for the subagent to perform."}},"required":["description","prompt"]}
 }
 ```
 

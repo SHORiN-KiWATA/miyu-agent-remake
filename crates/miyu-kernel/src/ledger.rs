@@ -135,6 +135,12 @@ impl Ledger {
         self.undone.last().map(|undone| undone.turns.as_slice())
     }
 
+    /// 日志里用过的最大任务编号（施工 7-5）：撤掉的回合里派的也算，一个都没派过的是 0。编号不回收，执行器新派的任务从
+    /// 它的下一个数起（`kernel/ids.md`「任务编号」）。
+    pub fn last_job_number(&self) -> u64 {
+        self.jobs.last()
+    }
+
     /// 查 `event` 能不能追加；能，就记下它带来的变化。
     ///
     /// # Errors

@@ -70,6 +70,7 @@ fn grep_comes_from_the_resources() {
         sandbox: None,
         log: None,
         offset: miyu_kernel::time::UtcOffset::UTC,
+        agents: None,
     });
     assert_eq!(targets[0].path, "src");
     assert!(!targets[0].write);

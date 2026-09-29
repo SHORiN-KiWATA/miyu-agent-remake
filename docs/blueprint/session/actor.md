@@ -22,6 +22,7 @@
 | `crates/miyu-session/src/tools.rs`、`effects.rs`、`restore.rs` | 执行工具、效果、改回文件（`session/tools.md`） |
 | `crates/miyu-session/src/reread.rs` | 压完重读文件、照 blob 取回原文（`compaction.md` 第九条） |
 | `crates/miyu-session/src/guard.rs` | 权限策略（`session/guard.md`） |
+| `crates/miyu-session/src/spawn.rs`、`agents.rs`、`job_ids.rs` | 造子会话的端口、派子代理、领任务编号（施工 7-5，`session/tools.md`「派子代理」） |
 | `crates/miyu-session/src/testkit.rs` | 测试用的、照剧本回的端口，`testkit` 开关打开才有 |
 
 ### 对外的样子
@@ -34,9 +35,10 @@
 | `Handle` | 一个会话的收件箱，可以复制，几个头一起拿着 |
 | `Pushed`、`Subscription`、`Ended`、`Stopped` | 推送、订阅、订阅断了、会话停了 |
 | `Models`、`ForSession`、`ModelPort`、`Reports`、`Cancel` | 请求模型的端口 |
+| `SessionPort`、`Child`、`Lineage`、`Pending` | 造子会话、给别的会话发命令的端口（施工 7-5）：会话表实现，造会话、载入时交进来 |
 | `HttpModels`、`IDLE` | 端口的真实现；空闲超时 180 秒 |
 
-`Create` 的格：数据根 `root`、资源目录 `resources`、会话编号 `id`、人格 `persona`、场所 `venue`、属主 `owner`、开始时的权限 `permission`、有没有人能确认 `attended`、一次性的 `oneshot`、环境 `environment`（时区、工作目录）、造会话的命令编号 `command`、谁发的 `by`、造端口的 `models`、工具目录 `tools`、系统的家目录 `home`（读不出来的是空的）、沙盒的助手 `sandbox`（这台机器上的沙盒能用才有，施工 5-4 上）、沙盒的缓存 `sandbox_cache`（`<缓存目录>/sandbox/<属主>`，核心算不出缓存目录的没有，施工 5-4 下）。`Load` 的格：`root`、`owner`、`id`、`environment`、`models`、`tools`、`home`、`sandbox`、`sandbox_cache`。
+`Create` 的格：数据根 `root`、资源目录 `resources`、会话编号 `id`、人格 `persona`、场所 `venue`、属主 `owner`、开始时的权限 `permission`、有没有人能确认 `attended`、一次性的 `oneshot`、环境 `environment`（时区、工作目录）、造会话的命令编号 `command`、谁发的 `by`、造端口的 `models`、工具目录 `tools`、系统的家目录 `home`（读不出来的是空的）、沙盒的助手 `sandbox`（这台机器上的沙盒能用才有，施工 5-4 上）、沙盒的缓存 `sandbox_cache`（`<缓存目录>/sandbox/<属主>`，核心算不出缓存目录的没有，施工 5-4 下）、父会话和第几层 `lineage`（子会话才有，施工 7-5）、造子会话的端口 `sessions`（会话表交进来的，测试里自己造的没有，施工 7-5）。`Load` 的格：`root`、`owner`、`id`、`environment`、`models`、`tools`、`home`、`sandbox`、`sandbox_cache`、`sessions`。
 
 | `Handle` 的方法 | 做什么 |
 |---|---|
@@ -58,14 +60,14 @@
 
 1. 在阻塞线程里依次做，哪一步不成就交回那一种错，actor 不起；已经存下的快照留着：
    1. 读出这个人格要用的原文（`store/resources.md`）。
-   2. 拼策略快照：人格、有没有人能确认、工具目录里每件工具的名字、说明、参数格式、访问类别，照名字排（`policy.md`）。
+   2. 拼策略快照：人格、有没有人能确认、工具目录里每件工具的名字、说明、参数格式、访问类别，照名字排（`policy.md`）。不在本机、到了深度上限的，工具面里不给 `agent`；子会话读出场所说明（`core/jobs/subagent-venue.txt`，读不了的算人格读不出来），接在 system 的人设后面（施工 7-5，`session/tools.md`「工具面」）。
    3. 照快照造内核的策略、驱动的占位、替工具写的两句（`session/tools.md`）、权限策略拒绝时的三句（`session/guard.md`）。
    4. 快照存成属主的 blob：先落 blob，再写引用它的事件。
    5. 建会话目录和空的第一段（`store.md`）。
 2. 造请求模型的端口。时钟从现在起。
-3. `session.created` 写属主、场所、快照的哈希、开始时的权限，`oneshot` 照交进来的；交给内核造会话，`cause` 是造会话的命令。
+3. `session.created` 写属主、场所、快照的哈希、开始时的权限，`oneshot` 照交进来的，子会话写 `parent`、`depth`（施工 7-5）；交给内核造会话，`cause` 是造会话的命令。
    马上交给内核这个模型的限额（`Input::Limits`，端口的 `limits()`：窗口、最大输出、一张图怎么算，施工 6-3 上），在别的输入之前；什么动作都不出。接着向内核要一份给头看的限额（`context_limits()`），交回的 `Handle` 带着它（施工 6-3 补）。
-4. 造权限策略、执行工具的端口（她看过的是空的）、actor；记下造会话的命令在等回应。
+4. 造权限策略、执行工具的端口（她看过的是空的；任务编号照内核的 `last_job_number()` 往下数，派子代理要照抄的那一份照交进来的，施工 7-5）、actor；记下造会话的命令在等回应。
 5. 在会话的 span 里记一行 `created`，起 actor。
 6. 等回应：`session.created` 落了盘，内核回应这个命令，交回 `Handle`。actor 在那之前停了的，交回 `CreateError::Stopped`（「出错」一节），在阻塞线程里删掉这个会话的目录：只剩一段空的第一段时才删，别的不动（施工 4-9 再补四下：原来留在磁盘上）。已经存下的快照留着：按内容存，别的会话可能也在用，回收随 blob 回收那一步。
 
@@ -80,7 +82,7 @@
 4. 从日志里的效果重建她看过的（`session/tools.md`）。
 5. 交给内核载入：交回会话，和一串要回的动作。有计划的重启打断了的一轮接着干，崩了的那一轮标成没走完（`kernel/session.md`）。
    马上交给内核这个模型的限额，同上：接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）；给头看的那一份也同上（施工 6-3 补）。检查点重读过的文件，内核在那一串动作的第一个交出 `Recall`，照下面第 4 条读（施工 6-9：认哪个检查点还算数是内核的事，执行器不自己找）。
-6. 造权限策略、执行工具的端口、actor；记一行 `loaded`；起 actor，先回那一串动作。
+6. 造权限策略、执行工具的端口（任务编号、派子代理要照抄的那一份照日志里的 `session.created` 和快照，施工 7-5）、actor；记一行 `loaded`；起 actor，先回那一串动作。
 7. 马上交回 `Handle`，不等那一串动作做完。
 
 **3. 收件箱**
@@ -211,6 +213,9 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | ERROR | `crashed` | `call`、`tool`、`took_ms` | 工具 panic 了 |
 | WARN | `unavailable` | `call`、`tool` | 目录里没有这件工具 |
 | WARN | `effect content not stored` | `error` | 效果里的内容存不成 blob |
+| INFO | `subagent started` | `job`、`child` | 派出去一个子代理（施工 7-5，`session/tools.md`「派子代理」） |
+| WARN | `subagent not created` | `job`、`error` | 会话表造不成子会话 |
+| WARN | `subagent not given its task` | `job`、`child`、`error` | 交代没送进子会话 |
 | WARN | `seen files not rebuilt` | `error` | 第 5 条第 4 点 |
 | WARN | `write failed, stopped` | `kind` | 写不进去 |
 | WARN | `read back failed, stopped` | `error` | 读回日志读不了（第 4 条，施工 6-9） |

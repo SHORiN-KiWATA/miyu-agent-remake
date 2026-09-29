@@ -36,6 +36,8 @@ pub(crate) fn store(blobs: &Blobs, effects: Vec<miyu_tool::Effect>) -> Vec<Effec
                 path: text(&path),
                 trash,
             }),
+            // 派出去的任务照原样（施工 7-5）：没有要存的内容。
+            miyu_tool::Effect::JobStarted(started) => Effect::JobStarted(started),
         })
         .collect()
 }

@@ -154,6 +154,16 @@ impl ResourceRoot {
         })
     }
 
+    /// 子会话的场所说明（施工 7-5，`agents.md` 第九条第 3 条）：`core/jobs/subagent-venue.txt` 的原文，造子会话时接在人设
+    /// 后面（`Snapshot::with_venue`）。只在造子会话时读：别的会话的快照里没有它。
+    ///
+    /// # Errors
+    ///
+    /// 读不了这份文件，写明是哪一份。
+    pub fn subagent_venue(&self) -> Result<String, SourceError> {
+        self.read(&["core", "jobs", "subagent-venue.txt"])
+    }
+
     /// 随核心附带的字。
     fn core(&self) -> Result<CoreTexts, SourceError> {
         let core = |parts: &[&str]| {

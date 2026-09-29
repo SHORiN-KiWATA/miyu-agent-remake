@@ -41,6 +41,11 @@
       "name": "翻记录",
       "subject": "query",
       "icon": "✱"
+    },
+    "agent": {
+      "name": "派子代理",
+      "subject": "description",
+      "icon": "↗"
     }
   },
   "said": {
@@ -106,6 +111,8 @@
     "history/found": "找到 {count} 条",
     "history/read": "读了第 {from}–{to} 条",
     "history/none": "没有找到",
-    "history/no-log": "读不了记录：{error}"
+    "history/no-log": "读不了记录：{error}",
+    "agent/started": "派出去了：{job}",
+    "agent/not-started": "派不出去"
   }
 }

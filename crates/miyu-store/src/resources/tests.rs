@@ -168,3 +168,26 @@ fn a_missing_persona_names_the_file_and_a_bad_id_is_refused() {
         assert!(said.is_ascii(), "{said}");
     }
 }
+
+/// 子会话的场所说明（施工 7-5）：读的是 `core/jobs/subagent-venue.txt` 的原文；没有这份的说是哪一份。
+#[test]
+fn the_subagent_venue_note_is_its_own_file() {
+    let venue = repo().subagent_venue().unwrap();
+    assert_eq!(
+        venue,
+        include_str!("../../../../resources/core/jobs/subagent-venue.txt")
+    );
+    let scratch = Scratch::new();
+    let error = ResourceRoot::at(scratch.path())
+        .subagent_venue()
+        .unwrap_err();
+    match error {
+        SourceError::Read { path, .. } => {
+            assert!(
+                path.ends_with(Path::new("core/jobs/subagent-venue.txt")),
+                "{path:?}"
+            );
+        }
+        other => panic!("该是读不了：{other:?}"),
+    }
+}

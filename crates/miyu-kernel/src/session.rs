@@ -151,6 +151,12 @@ impl Session {
             && self.reading.is_none()
     }
 
+    /// 日志里用过的最大任务编号（施工 7-5）：撤掉的回合里派的也算，一个都没派过的是 0。纯查询：会话 actor 造会话、载入以后
+    /// 照它建领号的，新派的任务从下一个数起（`session/tools.md`「任务编号」）。
+    pub fn last_job_number(&self) -> u64 {
+        self.ledger.last_job_number()
+    }
+
     /// 送进一条输入，出来一串动作。
     ///
     /// # Panics

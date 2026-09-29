@@ -95,6 +95,7 @@ fn call(args: Value, log: Option<Log>, minutes: i32) -> Call {
         sandbox: None,
         log,
         offset: UtcOffset::from_minutes(minutes).expect("在范围里"),
+        agents: None,
     }
 }
 
