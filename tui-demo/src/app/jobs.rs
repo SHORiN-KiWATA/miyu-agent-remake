@@ -239,8 +239,10 @@ impl App {
         if let Some(Panel::Background { open, .. }) = self.panel
             && areas.menu.contains(at)
         {
-            let row = usize::from(at.y - areas.menu.y);
-            if let Some(index) = self.panel_rows.get(row).copied().flatten() {
+            // 点在框的边上不算点中哪一条（「斜杠命令列表」第 3 条）。
+            let row = at.y.checked_sub(areas.menu_text.y).map(usize::from);
+            let index = row.and_then(|row| self.panel_rows.get(row).copied().flatten());
+            if let Some(index) = index.filter(|_| areas.menu_text.contains(at)) {
                 self.panel = Some(Panel::Background {
                     selected: index,
                     open,

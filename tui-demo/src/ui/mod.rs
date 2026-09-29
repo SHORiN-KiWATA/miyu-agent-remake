@@ -48,8 +48,10 @@ use crate::config::Layout;
 pub struct Areas {
     /// 正文。左右和输入框对齐。
     pub body: Rect,
-    /// 斜杠命令列表：贴在输入框上面，没开时高是 0。左右和框里的字对齐。
+    /// 输入框上面的三样（斜杠命令列表、历史列表、后台面板）连框：贴在输入框上面，没开时高是 0。左右和输入框的边对齐。
     pub menu: Rect,
+    /// 那三样框里放字的那一块：左右和输入框里的字对齐（`panel::inside`）。
+    pub menu_text: Rect,
     /// 输入框，含边框。
     pub frame: Rect,
     /// 输入框里放文字的地方。
@@ -107,7 +109,7 @@ pub fn areas(
     // 列表出现时把正文往上推，不盖住正文（13-终端界面.md H4）；只用输入框上面剩下的行（`tui.md`「窗口小的时候」
     // 第 1 条）。
     let menu = above(frame.y, area.y, menu_rows);
-    let menu = Rect::new(inner_x, menu.0, text_width, menu.1);
+    let menu = Rect::new(frame.x, menu.0, frame.width, menu.1);
     // 正文和下面那一块之间：在回答时是 空一行 · 运行状态行 · 排队的消息 · 空一行，再接输入框；没在回答时只空一行
     // （`tui.md`「运行状态行和排队的消息」）。
     // 窄屏的待办常驻在列表（没开时是输入框）上面，下面空一行（`tui.md`「后台命令、子代理和侧边栏」第 4 条）。
@@ -127,6 +129,7 @@ pub fn areas(
     Areas {
         body,
         menu,
+        menu_text: list_text(menu, inner_x, text_width, layout),
         frame,
         text,
         footer,
@@ -136,6 +139,17 @@ pub fn areas(
         todo: Rect::new(inner_x, todo_y, text_width, todo_rows).intersection(area),
         ..Areas::default()
     }
+}
+
+/// 输入框上面三样框里放字的那一块：选中的 `❯` 和输入框的提示符同一列，名字和框里打的字同一列
+/// （`tui.md`「斜杠命令列表」第 3 条）。`text_x`、`text_width` 是输入框里放字的那一块。
+pub(super) fn list_text(outer: Rect, text_x: u16, text_width: u16, layout: &Layout) -> Rect {
+    let lead = u16::try_from(unicode_width::UnicodeWidthStr::width(
+        layout.prompt.as_str(),
+    ))
+    .unwrap_or(0);
+    let x = text_x.saturating_sub(lead).max(outer.x.saturating_add(1));
+    panel::inside(outer, x, text_width + (text_x - x))
 }
 
 /// 贴着 `bottom` 往上要 `rows` 行，顶多到 `top`：交回从第几行起、给了几行。
@@ -261,12 +275,15 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             )
         }
     };
-    // 输入框上面的列表最多能占几行：放不下的由各列表自己瘦身（「窗口小的时候」第 1 条）。
-    let room = place(u16::MAX).menu.height;
+    // 输入框上面的列表最多能占几行（连框）：放不下的由各列表自己瘦身（「窗口小的时候」第 1 条）。框里的几条照这一帧
+    // 量出来的宽度排：首页的输入框窄一些（「斜杠命令列表」第 3 条）。
+    let probe = place(u16::MAX);
+    let room = probe.menu.height;
+    let inner = panel::room(room);
     let now = std::time::Instant::now();
-    let width = text_width(main.width, &app.config.layout);
+    let width = probe.menu_text.width;
     // 历史列表排成的行：占几行、画什么都照它（`history.rs` 的 `lines`）。
-    let history_rows = if app.history.open {
+    let (history_chrome, history_rows) = if app.history.open {
         let found = app.history.matches(app.input.sent());
         history::lines(
             &app.history,
@@ -274,30 +291,30 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             width,
             &app.config,
             now,
-            usize::from(room),
+            usize::from(inner),
         )
     } else {
-        Vec::new()
+        Default::default()
     };
     // 后台面板排成的行（第 3 条）。
-    let (panel_lines, panel_rows) = background::lines(
+    let (panel_chrome, panel_lines, panel_rows) = background::lines(
         app.panel,
         &app.board,
         &app.config,
         width,
         now,
-        usize::from(room),
+        usize::from(inner),
     );
-    let menu_shown = menu::rows(app.config.layout.menu_rows, room);
-    let menu_rows = if app.panel.is_some() {
-        u16::try_from(panel_lines.len()).unwrap_or(u16::MAX)
+    let menu_shown = menu::rows(app.config.layout.menu_rows, inner);
+    // 框里的几条，放得下框的加上上下两条边（`tui.md`「斜杠命令列表」第 3 条）。
+    let items = if app.panel.is_some() {
+        panel_lines.len()
     } else if app.history.open {
-        u16::try_from(history_rows.len()).unwrap_or(u16::MAX)
+        history_rows.len()
     } else {
-        // 露出来的几条，加上顶上那一行标题横线（`tui.md`「斜杠命令列表」第 3 条）。
-        let shown = matches.as_ref().map_or(0, |m| m.len().min(menu_shown));
-        u16::try_from(if shown > 0 { shown + 1 } else { 0 }).unwrap_or(0)
+        matches.as_ref().map_or(0, |m| m.len().min(menu_shown))
     };
+    let menu_rows = panel::height(u16::try_from(items).unwrap_or(u16::MAX), room);
     let mut areas = place(menu_rows);
     areas.sidebar = sidebar;
     app.areas = areas;
@@ -311,20 +328,32 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         input_box::draw_box(frame, areas, app, home);
     }
     if let Some(matches) = &matches {
-        let rows = menu::rows(app.config.layout.menu_rows, areas.menu.height);
-        let lines = menu::lines(
+        let rows = menu::rows(app.config.layout.menu_rows, areas.menu_text.height);
+        let (chrome, lines) = menu::lines(
             matches,
             app.menu.selected,
             rows,
-            areas.menu.width,
+            areas.menu_text.width,
             &app.config.text.menu,
         );
-        menu::draw(frame, areas.menu, lines);
+        menu::draw(frame, areas.menu, areas.menu_text, chrome, lines);
     }
     if app.history.open {
-        history::draw(frame, areas.menu, history_rows);
+        history::draw(
+            frame,
+            areas.menu,
+            areas.menu_text,
+            history_chrome,
+            history_rows,
+        );
     }
-    background::draw(frame, areas.menu, panel_lines);
+    background::draw(
+        frame,
+        areas.menu,
+        areas.menu_text,
+        panel_chrome,
+        panel_lines,
+    );
     app.areas.button = footer::draw(frame, areas.footer, app);
     frame.render_widget(ratatui::widgets::Paragraph::new(todo_lines), areas.todo);
     agents::draw(frame, areas.agents, app);

@@ -165,3 +165,45 @@ fn nothing_above_the_box_covers_it_in_a_short_window() {
     assert!(h.menu.height >= 1, "首页挪出至少一行给列表");
     assert!(h.footer.bottom() <= 7);
 }
+
+#[test]
+fn the_lists_sit_in_a_frame_lined_up_with_the_input_box() {
+    // 2026-09-30 项目主人：输入框上面三样一个框。选中的 ❯ 和提示符同一列、名字和打的字同一列；首页的输入框窄，
+    // 框里的几条照这一帧量出来的宽度排（原来照正文的宽度排，首页后台面板右边的状态被截掉）。
+    let layout = Config::builtin().unwrap().layout;
+    let input = InputBox::new(8, Duration::from_millis(400));
+    let rows = |w: u16| input.rows(w);
+    let lead = u16::try_from(unicode_width::UnicodeWidthStr::width(
+        layout.prompt.as_str(),
+    ))
+    .unwrap();
+    let area = Rect::new(0, 0, 160, 40);
+    for (name, a) in [
+        ("正文", areas(area, &rows, &layout, 7, false, 0, 0, 0)),
+        (
+            "首页",
+            super::home::areas(area, &rows, &layout, (0, 0), 7, 0, 0),
+        ),
+    ] {
+        assert_eq!(
+            (a.menu.x, a.menu.width),
+            (a.frame.x, a.frame.width),
+            "{name}：框和输入框的边对齐"
+        );
+        assert_eq!(a.menu_text.x, a.text.x - lead, "{name}：❯ 和提示符同一列");
+        assert_eq!(
+            a.menu_text.right(),
+            a.text.right(),
+            "{name}：右边和框里的字对齐"
+        );
+        assert!(
+            a.menu_text.x > a.menu.x && a.menu_text.right() < a.menu.right(),
+            "{name}：字在框里"
+        );
+        assert_eq!(
+            (a.menu_text.y, a.menu_text.height),
+            (a.menu.y + 1, a.menu.height - 2),
+            "{name}：上下让出两条边"
+        );
+    }
+}

@@ -1,4 +1,5 @@
-//! 输入历史列表（蓝图 `tui.md`「输入历史列表」）：照后台面板的样子（`panel.rs`），标题后面是条数和搜的字，
+//! 输入历史列表（蓝图 `tui.md`「输入历史列表」）：和命令列表、后台面板一个框（`panel.rs`），上边框写标题、条数和搜的字，
+//! 下边框写按键提示；
 //! 下面对得上的几条，最新的贴着底，越早越往上；选中的停在正中间，到头才往边上走（照命令列表的 [`window`]）。
 //! 每条右边写多久以前发的；命令名、好几行的、粘贴块、搜到的字各有记号。`Tab` 展开着时，选中的那一条写全文。
 //!
@@ -10,21 +11,19 @@ use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::Paragraph;
 
-use super::panel;
+use super::panel::{self, Chrome};
 use crate::config::{Config, HistoryTexts};
 use crate::history::History;
 use crate::input::{Sent, pieces};
 use crate::menu::window;
 use crate::theme;
 
-/// 排好的一行：是对得上的第几条（标题、空行、按键提示、「没有对得上的」是 `None`；展开的一条连「还有几行」都算它），
-/// 和画出来的样子。
+/// 排好的一行：是对得上的第几条（「没有对得上的」是 `None`；展开的一条连「还有几行」都算它），和画出来的样子。
 pub type Row = panel::Row;
 
-/// 列表从上往下的每一行。`matches` 是对得上的几条，最新的在前；`width` 是能写几列；`now` 算多久以前；最多 `max` 行
-/// （输入框上面剩下的，「窗口小的时候」第 1 条）。
+/// 列表的框和框里从上往下的每一行。`matches` 是对得上的几条，最新的在前；`width` 是能写几列；`now` 算多久以前；
+/// 框里最多 `max` 行（输入框上面剩下的，「窗口小的时候」第 1 条）。
 pub fn lines(
     history: &History,
     matches: &[&Sent],
@@ -32,22 +31,22 @@ pub fn lines(
     config: &Config,
     now: Instant,
     max: usize,
-) -> Vec<Row> {
+) -> (Chrome, Vec<Row>) {
     let words = &config.text.history;
+    // 边框上的字和框线一个颜色，只有打的字原色（写明：不写的话照框线的颜色）。
     let mut meta = vec![Span::styled(
         words.count.replace("{count}", &matches.len().to_string()),
         theme::dim(),
     )];
     if !history.query.is_empty() {
         meta.push(Span::styled(words.query.clone(), theme::dim()));
-        meta.push(Span::raw(history.query.clone()));
+        let typed = Style::new().fg(ratatui::style::Color::Reset);
+        meta.push(Span::styled(history.query.clone(), typed));
     }
-    let mut out: Vec<Row> = panel::head(&words.title, meta, width)
-        .into_iter()
-        .map(|line| (None, line))
-        .collect();
+    let chrome = Chrome::new(&words.title, meta).hint(&words.hints);
+    let mut out: Vec<Row> = Vec::new();
     if matches.is_empty() {
-        let empty = vec![Span::styled(words.empty.clone(), theme::dim())];
+        let empty = vec![Span::styled(words.empty.clone(), theme::faint())];
         out.push((None, panel::item(false, empty, None, width)));
     }
     let rows = config.layout.history_rows.max(1);
@@ -55,7 +54,7 @@ pub fn lines(
     let end = (top + rows).min(matches.len());
     for i in (top..end).rev() {
         let picked = i == history.selected;
-        let ago = Span::styled(ago(matches[i].at, now, words), theme::dim());
+        let ago = Span::styled(ago(matches[i].at, now, words), theme::faint());
         if history.is_expanded(matches[i].at) {
             out.extend(full(i, matches[i], picked, ago, width, config));
             continue;
@@ -63,12 +62,7 @@ pub fn lines(
         let content = content(matches[i], &history.query, picked, words);
         out.push((Some(i), panel::item(picked, content, Some(ago), width)));
     }
-    out.extend(
-        panel::hints(&words.hints)
-            .into_iter()
-            .map(|line| (None, line)),
-    );
-    panel::fit(out, Some(history.selected), max)
+    (chrome, panel::fit(out, Some(history.selected), max))
 }
 
 /// 多久以前发的：一分钟以内「刚才」，再往后几分钟、几小时。
@@ -88,10 +82,11 @@ fn content(sent: &Sent, query: &str, picked: bool, words: &HistoryTexts) -> Vec<
     let text = sent.draft.text.trim_end_matches('\n');
     let first = text.split('\n').next().unwrap_or_default();
     let extra = text.split('\n').count() - 1;
+    // 没选中的字暗、命令名强调色；选中的颜色由选中的那一条的底色定（`panel::item`）。
     let base = if picked {
-        theme::picked()
+        Style::new().add_modifier(Modifier::BOLD)
     } else {
-        Style::new()
+        theme::dim()
     };
     let mut styles = vec![base; first.len()];
     if first.starts_with('/') {
@@ -176,9 +171,9 @@ fn full(
     config: &Config,
 ) -> Vec<Row> {
     let style = if picked {
-        theme::picked()
+        Style::new().add_modifier(Modifier::BOLD)
     } else {
-        Style::new()
+        theme::dim()
     };
     let wrapped = pieces(sent.draft.text.trim_end(), width.saturating_sub(2).max(1));
     let cap = config.layout.history_preview_rows.max(2);
@@ -204,21 +199,21 @@ fn full(
             .history
             .more
             .replace("{count}", &more.to_string());
-        let line = panel::more(picked, vec![Span::styled(note, theme::dim())], width);
+        let line = panel::more(picked, vec![Span::styled(note, theme::faint())], width);
         out.push((Some(index), line));
     }
     out
 }
 
-/// 画列表。
-pub fn draw(frame: &mut Frame, area: Rect, rows: Vec<Row>) {
+/// 画列表：`outer` 连框，`text` 是框里放字的那一块。
+pub fn draw(frame: &mut Frame, outer: Rect, text: Rect, chrome: Chrome, rows: Vec<Row>) {
     let lines: Vec<Line> = rows.into_iter().map(|(_, line)| line).collect();
-    frame.render_widget(Paragraph::new(lines), area);
+    panel::draw(frame, outer, text, chrome, lines);
 }
 
-/// 屏幕上第 `y` 行是对得上的第几条；「历史：」那一行、空着的地方是 `None`。
-pub fn index_at(area: Rect, rows: &[Row], y: u16) -> Option<usize> {
-    rows.get(usize::from(y.checked_sub(area.y)?))?.0
+/// 屏幕上第 `y` 行是对得上的第几条；`text` 是框里放字的那一块，框的边、空着的地方是 `None`。
+pub fn index_at(text: Rect, rows: &[Row], y: u16) -> Option<usize> {
+    rows.get(usize::from(y.checked_sub(text.y)?))?.0
 }
 
 #[cfg(test)]

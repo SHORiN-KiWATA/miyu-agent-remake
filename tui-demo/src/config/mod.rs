@@ -282,6 +282,8 @@ pub struct Texts {
     pub missing_core: String,
     /// 连不上核心时按 `Enter`：发不出去，字留在输入框里。
     pub not_connected: String,
+    /// 崩了以后终端里说调用栈记在哪，`{path}` 是文件（蓝图「崩了」）。
+    pub crash_saved: String,
     /// 一条请求被拒，`{reason}` 是核心说的原因。
     pub refused: String,
     /// 这一轮被打断了。

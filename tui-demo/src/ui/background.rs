@@ -5,19 +5,19 @@ use std::time::Instant;
 
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::style::Style;
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Clear, Paragraph};
 use unicode_width::UnicodeWidthStr;
 
+use super::panel::Chrome;
 use super::rows::clip;
 use crate::app::Panel;
 use crate::config::Config;
 use crate::jobs::{Board, Job, JobState};
 use crate::{meter, theme};
 
-/// 开着的面板排成的行，和每一行是后台面板里的第几条命令（点哪一行点中哪一条）；没开是空的。最多 `max` 行
-/// （输入框上面剩下的，「窗口小的时候」第 1 条）。
+/// 开着的面板：框（上边框写标题和在跑几条，下边框写按键提示）、框里排成的行，和每一行是后台面板里的第几条命令
+/// （点哪一行点中哪一条）；没开的行是空的。框里最多 `max` 行（输入框上面剩下的，「窗口小的时候」第 1 条）。
 pub fn lines(
     panel: Option<Panel>,
     board: &Board,
@@ -25,21 +25,28 @@ pub fn lines(
     width: u16,
     now: Instant,
     max: usize,
-) -> (Vec<Line<'static>>, Vec<Option<usize>>) {
+) -> (Chrome, Vec<Line<'static>>, Vec<Option<usize>>) {
+    let words = &config.text.jobs;
     match panel {
-        None => (Vec::new(), Vec::new()),
+        None => (Chrome::default(), Vec::new(), Vec::new()),
         Some(Panel::Background { selected, open }) => {
+            let count = board.shells_running().to_string();
+            let meta = vec![
+                Span::styled(" · ", theme::dim()),
+                Span::styled(words.active.replace("{count}", &count), theme::dim()),
+            ];
+            let chrome = Chrome::new(&words.title, meta).hint(&words.hint);
             let (lines, map) = background(board, selected, open, config, width, now);
             let rows = map.into_iter().zip(lines).collect();
-            super::panel::fit(rows, Some(selected), max)
+            let (map, lines) = super::panel::fit(rows, Some(selected), max)
                 .into_iter()
-                .map(|(item, line)| (line, item))
-                .unzip()
+                .unzip();
+            (chrome, lines, map)
         }
     }
 }
 
-/// 后台面板：标题横线（`── 后台 · 在跑几条 ──`）、空行、每条一行（点开的下面铺底色写输出）、空行、按键提示。
+/// 后台面板框里的：每条一行，点开的下面铺底色写输出。
 fn background(
     board: &Board,
     selected: usize,
@@ -48,23 +55,17 @@ fn background(
     width: u16,
     now: Instant,
 ) -> (Vec<Line<'static>>, Vec<Option<usize>>) {
-    let words = &config.text.jobs;
-    let count = board.shells_running().to_string();
-    let meta = vec![
-        Span::styled(" · ", theme::dim()),
-        Span::styled(words.active.replace("{count}", &count), theme::dim()),
-    ];
-    let mut out = super::panel::head(&words.title, meta, width);
-    let mut map = vec![None; out.len()];
+    let mut out = Vec::new();
+    let mut map = Vec::new();
     for (i, job) in board.shells().into_iter().enumerate() {
         let (state, state_style) = state(job, config, now);
         let picked = i == selected;
         let style = if picked {
-            theme::picked()
+            Style::new().add_modifier(Modifier::BOLD)
         } else {
-            Style::new()
+            theme::dim()
         };
-        // 照输入历史列表的样子：选中的 ❯ 加底色，状态贴着右边（`ui/panel.rs`）。
+        // 照命令列表的样子：选中的 ❯、铺强调色的底，状态贴着右边（`ui/panel.rs`）。
         let title = vec![Span::styled(job.title.clone(), style)];
         let state = Some(Span::styled(state, state_style));
         out.push(super::panel::item(picked, title, state, width));
@@ -76,9 +77,6 @@ fn background(
             }
         }
     }
-    out.push(Line::raw(""));
-    out.push(Line::styled(words.hint.clone(), theme::dim()));
-    map.extend([None, None]);
     (out, map)
 }
 
@@ -101,28 +99,24 @@ fn expanded(job: &Job, rows: usize, width: u16) -> Vec<Line<'static>> {
         .collect()
 }
 
-/// 一条命令后面的状态和颜色：失败的红，别的暗。
+/// 一条命令后面的状态和颜色：失败的红，别的 `faint`。
 fn state(job: &Job, config: &Config, now: Instant) -> (String, Style) {
     let words = &config.text.jobs;
     let elapsed = meter::clock(job.elapsed(now).as_secs());
     match job.state {
-        JobState::Running => (words.running.replace("{elapsed}", &elapsed), theme::dim()),
-        JobState::Done => (words.done.replace("{elapsed}", &elapsed), theme::dim()),
+        JobState::Running => (words.running.replace("{elapsed}", &elapsed), theme::faint()),
+        JobState::Done => (words.done.replace("{elapsed}", &elapsed), theme::faint()),
         JobState::Failed(code) => (
             words.failed.replace("{code}", &code.to_string()),
             theme::error(),
         ),
-        JobState::Stopped => (words.stopped.clone(), theme::dim()),
+        JobState::Stopped => (words.stopped.clone(), theme::faint()),
     }
 }
 
-/// 画面板：先清掉底下的东西。
-pub fn draw(frame: &mut Frame, area: Rect, lines: Vec<Line<'static>>) {
-    if lines.is_empty() {
-        return;
-    }
-    frame.render_widget(Clear, area);
-    frame.render_widget(Paragraph::new(lines), area);
+/// 画面板：`outer` 连框，`text` 是框里放字的那一块。
+pub fn draw(frame: &mut Frame, outer: Rect, text: Rect, chrome: Chrome, lines: Vec<Line<'static>>) {
+    super::panel::draw(frame, outer, text, chrome, lines);
 }
 
 #[cfg(test)]
@@ -159,7 +153,7 @@ mod tests {
             selected: 0,
             open: None,
         });
-        let (lines, map) = lines(
+        let (chrome, lines, map) = lines(
             panel,
             &board,
             &config,
@@ -168,32 +162,26 @@ mod tests {
             usize::MAX,
         );
         let text: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
-        // 标题写在横线上（2026-09-29 项目主人）。
+        // 2026-09-30 项目主人：三样一个框，标题嵌在上边框、按键提示嵌在下边框，框里不空行。
+        let title: String = chrome.title.iter().map(|s| s.content.as_ref()).collect();
+        assert_eq!(title, "后台 · 1 个在跑的命令");
+        assert_eq!(
+            chrome.hint.as_deref(),
+            Some("↑/↓ 选 · Enter 展开 · x 停止 · Esc 关闭")
+        );
         assert!(
-            text[0].starts_with("── 后台 · 1 个在跑的命令 ─"),
-            "{}",
+            text[0].starts_with("❯ npm run build"),
+            "在跑的在前、选中的带 ❯：{}",
             text[0]
         );
-        assert_eq!(lines[0].width(), 70, "横线铺满");
-        assert_eq!(text[1], "");
-        assert!(
-            text[2].starts_with("❯ npm run build"),
-            "在跑的在前、选中的带 ❯：{}",
-            text[2]
-        );
-        assert!(text[2].ends_with("（运行中 12s）"));
-        assert!(text[3].starts_with("  cargo test"), "结束了的在后");
-        assert!(text[3].ends_with("（已停止）"));
-        assert_eq!(lines[2].spans[0].style, theme::picked());
-        // 和输入历史列表一个样子：选中的整行铺底色，状态贴着右边（2026-09-29 项目主人）。
-        assert_eq!(lines[2].style.bg, theme::shade().bg);
-        assert_eq!(lines[2].width(), 70);
-        assert_eq!(lines[3].style.bg, None, "没选中的不铺");
-        assert_eq!(
-            text.last().unwrap(),
-            "↑/↓ 选 · Enter 展开 · x 停止 · Esc 关闭"
-        );
-        assert_eq!(map[2..4], [Some(0), Some(1)], "点哪一行点中哪一条");
+        assert!(text[0].ends_with("（运行中 12s）"));
+        assert!(text[1].starts_with("  cargo test"), "结束了的在后");
+        assert!(text[1].ends_with("（已停止）"));
+        // 选中的铺强调色的底、字深色，状态贴着右边。
+        assert_eq!(lines[0].style, theme::picked_bar());
+        assert_eq!(lines[0].width(), 70);
+        assert_ne!(lines[1].style, theme::picked_bar(), "没选中的不铺");
+        assert_eq!(map, [Some(0), Some(1)], "点哪一行点中哪一条");
     }
 
     #[test]
@@ -206,7 +194,7 @@ mod tests {
             selected: 0,
             open: Some(id),
         });
-        let (lines, map) = lines(
+        let (_, lines, map) = lines(
             panel,
             &board,
             &config,
@@ -219,17 +207,17 @@ mod tests {
             .map(|l| l.to_string().trim_end().to_string())
             .collect();
         let out = &board.shells()[0].output;
-        assert_eq!(text[3], "", "点开的下面先空一行");
-        assert_eq!(text[4], format!("  {}", out[0]), "输出缩进两格");
-        assert_eq!(text[3 + out.len() + 1], "");
+        assert_eq!(text[1], "", "点开的下面先空一行");
+        assert_eq!(text[2], format!("  {}", out[0]), "输出缩进两格");
+        assert_eq!(text[1 + out.len() + 1], "");
         assert!(
-            text[3 + out.len() + 2].starts_with("  cargo test"),
+            text[1 + out.len() + 2].starts_with("  cargo test"),
             "下一条接着"
         );
-        assert_eq!(lines[4].style, theme::shade(), "铺底色");
-        assert_eq!(lines[4].width(), 70, "铺满宽度");
+        assert_eq!(lines[2].style, theme::shade(), "铺底色");
+        assert_eq!(lines[2].width(), 70, "铺满宽度");
         assert!(
-            map[3..3 + out.len() + 2].iter().all(|m| *m == Some(0)),
+            map[1..1 + out.len() + 2].iter().all(|m| *m == Some(0)),
             "点开的那一块都算这一条"
         );
     }

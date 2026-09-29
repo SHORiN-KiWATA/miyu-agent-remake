@@ -1,26 +1,76 @@
-//! 贴在输入框上面的面板共用的样子（蓝图 `tui.md`「输入历史列表」第 1 条、「斜杠命令列表」第 3 条、后台面板）：
-//! 标题写在强调色的横线上 `── 标题 · 条数 ────`，空一行；一条一行，选中的写 `❯ `、整行铺底色，右边一截暗色的字
-//! 贴着右边；空一行，最后一行暗色的按键提示。斜杠命令列表只用标题横线和一条一行（每打一个 `/` 都弹，不要太高）。
+//! 贴在输入框上面的三样共用的样子（蓝图 `tui.md`「斜杠命令列表」第 3 条、「输入历史列表」第 1 条、后台面板）：
+//! 圆角框，框线和输入框的边一个颜色（暗），左右和输入框的边对齐；标题嵌在上边框，按键提示嵌在下边框，边框上的字
+//! 和框线一个颜色。
+//! 一条一行，行首两格；选中的写 `❯ `，整行铺强调色的底、上面的字是深色（`picked_bar`）。放不下框（不到 3 行）的只画
+//! 那几条。
 
+use ratatui::Frame;
+use ratatui::layout::Rect;
 use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, BorderType, Clear, Paragraph};
 use unicode_width::UnicodeWidthStr;
 
 use crate::theme;
 
-/// 面板排好的一行：是第几条（标题、空行、按键提示是 `None`；点开的一条下面几行都算它），和画出来的样子。
+/// 面板排好的一行：是第几条（「没有对得上的」这类是 `None`；点开的一条下面几行都算它），和画出来的样子。
 pub type Row = (Option<usize>, Line<'static>);
 
-/// 放进 `max` 行（`tui.md`「窗口小的时候」第 1 条）：先去掉空行，再去掉最后那行按键提示，再从离选中那一条
-/// （`picked`）最远的起少露几条，最后才去掉标题横线。
+/// 框要几行才画得下：上下两条边，中间至少一条。
+const FRAMED: u16 = 3;
+
+/// 框的样子：上边框的标题（标题、条数这些），下边框的按键提示（没有的只是一条线）。
+#[derive(Debug, Clone, Default)]
+pub struct Chrome {
+    /// 嵌在上边框的字。
+    pub title: Vec<Span<'static>>,
+    /// 嵌在下边框的按键提示。
+    pub hint: Option<String>,
+}
+
+impl Chrome {
+    /// 标题和框线一个颜色，`meta`（条数、搜的字）跟在后面。
+    pub fn new(title: &str, meta: Vec<Span<'static>>) -> Self {
+        let mut spans = vec![Span::styled(title.to_string(), theme::dim())];
+        spans.extend(meta);
+        Self {
+            title: spans,
+            hint: None,
+        }
+    }
+
+    /// 下边框写这句按键提示。
+    pub fn hint(mut self, hint: &str) -> Self {
+        self.hint = Some(hint.to_string());
+        self
+    }
+}
+
+/// 给了 `outer` 这么高，框里放得下几条：画得下框的去掉上下两条边。
+pub fn room(outer: u16) -> u16 {
+    if outer >= FRAMED { outer - 2 } else { outer }
+}
+
+/// 放 `rows` 条要多高：连框（放得下的话，照 `outer` 给的最多多高算）。
+pub fn height(rows: u16, outer: u16) -> u16 {
+    if rows == 0 {
+        0
+    } else if outer >= FRAMED {
+        rows + 2
+    } else {
+        rows
+    }
+}
+
+/// 框里放字的那一块：画得下框的去掉上下两条边；左右照输入框里的字（`text_x`、`text_width`）。
+pub fn inside(outer: Rect, text_x: u16, text_width: u16) -> Rect {
+    let rows = room(outer.height);
+    let top = outer.y + (outer.height - rows) / 2;
+    Rect::new(text_x, top, text_width, rows)
+}
+
+/// 放进 `max` 条：从离选中那一条（`picked`）最远的起少露几条（「窗口小的时候」第 1 条）。
 pub fn fit(mut rows: Vec<Row>, picked: Option<usize>, max: usize) -> Vec<Row> {
-    if rows.len() <= max {
-        return rows;
-    }
-    rows.retain(|(item, line)| item.is_some() || line.width() > 0);
-    if rows.len() > max && rows.len() > 1 && rows.last().is_some_and(|(item, _)| item.is_none()) {
-        rows.pop();
-    }
     while rows.len() > max {
         let anchor = rows
             .iter()
@@ -35,52 +85,48 @@ pub fn fit(mut rows: Vec<Row>, picked: Option<usize>, max: usize) -> Vec<Row> {
         let Some(far) = far else { break };
         rows.remove(far);
     }
-    while rows.len() > max && rows.first().is_some_and(|(item, _)| item.is_none()) {
-        rows.remove(0);
-    }
     rows.truncate(max);
     rows
 }
 
-/// 顶上的两行：标题横线、空行。
-pub fn head(title: &str, meta: Vec<Span<'static>>, width: u16) -> Vec<Line<'static>> {
-    vec![rule(title, meta, width), Line::raw("")]
+/// 画一样：先清掉底下的，画得下框的画框（`outer`），再把几条画进框里（`text`）。
+pub fn draw(frame: &mut Frame, outer: Rect, text: Rect, chrome: Chrome, lines: Vec<Line<'static>>) {
+    if lines.is_empty() || outer.height == 0 {
+        return;
+    }
+    frame.render_widget(Clear, outer);
+    if outer.height >= FRAMED {
+        frame.render_widget(block(chrome), outer);
+    }
+    frame.render_widget(Paragraph::new(lines), text);
 }
 
-/// 标题写在横线上：`── ` 标题（强调色加粗）、`meta`、一格空，横线铺到 `width` 列（2026-09-29 项目主人：标题都写在横线上）。
-pub fn rule(title: &str, meta: Vec<Span<'static>>, width: u16) -> Line<'static> {
-    let accent = theme::accent();
-    let mut spans = vec![
-        Span::styled("── ", accent),
-        Span::styled(title.to_string(), accent.add_modifier(Modifier::BOLD)),
-    ];
-    spans.extend(meta);
-    spans.push(Span::raw(" "));
-    let used: usize = spans.iter().map(Span::width).sum();
-    spans.push(Span::styled(
-        "─".repeat(usize::from(width).saturating_sub(used)),
-        accent,
-    ));
-    Line::from(spans)
+/// 圆角框：标题嵌在上边框 `╭─ 标题 ─…╮`，按键提示嵌在下边框 `╰─ 提示 ─…╯`。
+fn block(chrome: Chrome) -> Block<'static> {
+    let line = theme::dim();
+    let edge = |mut spans: Vec<Span<'static>>| {
+        spans.insert(0, Span::styled("─ ", line));
+        spans.push(Span::styled(" ", line));
+        Line::from(spans)
+    };
+    let mut block = Block::bordered()
+        .border_type(BorderType::Rounded)
+        .border_style(line)
+        .title_top(edge(chrome.title));
+    if let Some(hint) = chrome.hint {
+        block = block.title_bottom(edge(vec![Span::styled(hint, line)]));
+    }
+    block
 }
 
-/// 最后两行：空行、暗色的按键提示。
-pub fn hints(text: &str) -> Vec<Line<'static>> {
-    vec![Line::raw(""), Line::styled(text.to_string(), theme::dim())]
-}
-
-/// 一条：行首两格（选中的写 `❯ `），`content` 放不下截掉加 `…`，`right` 贴着右边；选中的整行铺底色。
+/// 一条：行首两格（选中的写 `❯ `），`content` 放不下截掉加 `…`，`right` 贴着右边；选中的铺强调色的底、字换深色。
 pub fn item(
     picked: bool,
     content: Vec<Span<'static>>,
     right: Option<Span<'static>>,
     width: u16,
 ) -> Line<'static> {
-    let mark = if picked {
-        Span::styled("❯ ", theme::picked())
-    } else {
-        Span::raw("  ")
-    };
+    let mark = Span::raw(if picked { "❯ " } else { "  " });
     let width = usize::from(width);
     let right_width = right.as_ref().map_or(0, |r| r.width() + 1);
     let room = width.saturating_sub(2 + right_width);
@@ -90,26 +136,34 @@ pub fn item(
     let tail = right.as_ref().map_or(0, Span::width);
     spans.push(Span::raw(" ".repeat(width.saturating_sub(used + tail))));
     spans.extend(right);
-    shaded(Line::from(spans), picked)
+    bar(Line::from(spans), picked)
 }
 
-/// 接着上一条往下写的一行（展开的全文）：行首空两格，和上一条的字对齐；选中的铺底色。
+/// 接着上一条往下写的一行（展开的全文）：行首空两格，和上一条的字对齐；选中的照 [`item`] 铺底。
 pub fn more(picked: bool, content: Vec<Span<'static>>, width: u16) -> Line<'static> {
     let width = usize::from(width);
     let mut spans = vec![Span::raw("  ")];
     spans.extend(clip_spans(content, width.saturating_sub(2)));
     let used: usize = spans.iter().map(Span::width).sum();
     spans.push(Span::raw(" ".repeat(width.saturating_sub(used))));
-    shaded(Line::from(spans), picked)
+    bar(Line::from(spans), picked)
 }
 
-/// 选中的整行铺底色。
-fn shaded(line: Line<'static>, picked: bool) -> Line<'static> {
-    if picked {
-        line.style(theme::shade())
-    } else {
-        line
+/// 选中的：整行铺强调色的底，每一段的字换成深色、不要自己的底，加粗这类修饰留着（2026-09-30 项目主人：照 Cline）。
+fn bar(line: Line<'static>, picked: bool) -> Line<'static> {
+    if !picked {
+        return line;
     }
+    let dark = theme::picked_bar();
+    let spans = line
+        .spans
+        .into_iter()
+        .map(|span| {
+            let keep = span.style.add_modifier & (Modifier::BOLD | Modifier::UNDERLINED);
+            Span::styled(span.content, dark.add_modifier(keep))
+        })
+        .collect::<Vec<_>>();
+    Line::from(spans).style(dark)
 }
 
 /// 这几段排到 `room` 列：放不下的截掉，最后一格写 `…`（样子照被截的那一段）。
@@ -145,59 +199,4 @@ pub fn clip_spans(spans: Vec<Span<'static>>, room: usize) -> Vec<Span<'static>> 
 }
 
 #[cfg(test)]
-mod tests {
-    use ratatui::text::Line;
-
-    use super::{Row, fit};
-
-    /// 标题、空行、第 0 到 5 条、空行、按键提示。
-    fn sample() -> Vec<Row> {
-        let mut rows: Vec<Row> = vec![(None, Line::raw("── 历史")), (None, Line::raw(""))];
-        rows.extend((0..6).map(|i| (Some(i), Line::raw(format!("第 {i} 条")))));
-        rows.extend([(None, Line::raw("")), (None, Line::raw("↑/↓ 选"))]);
-        rows
-    }
-
-    fn text(rows: &[Row]) -> Vec<String> {
-        rows.iter().map(|(_, l)| l.to_string()).collect()
-    }
-
-    #[test]
-    fn a_short_room_drops_blanks_then_the_hint_then_far_items_then_the_title() {
-        assert_eq!(fit(sample(), Some(2), 10).len(), 10, "放得下：原样");
-        assert_eq!(
-            text(&fit(sample(), Some(2), 8)),
-            [
-                "── 历史",
-                "第 0 条",
-                "第 1 条",
-                "第 2 条",
-                "第 3 条",
-                "第 4 条",
-                "第 5 条",
-                "↑/↓ 选"
-            ],
-            "先去空行"
-        );
-        assert_eq!(
-            text(&fit(sample(), Some(2), 7)),
-            [
-                "── 历史",
-                "第 0 条",
-                "第 1 条",
-                "第 2 条",
-                "第 3 条",
-                "第 4 条",
-                "第 5 条"
-            ],
-            "再去按键提示"
-        );
-        assert_eq!(
-            text(&fit(sample(), Some(2), 4)),
-            ["── 历史", "第 1 条", "第 2 条", "第 3 条"],
-            "再从离选中那条最远的起少露几条"
-        );
-        assert_eq!(text(&fit(sample(), Some(2), 1)), ["第 2 条"], "最后去标题");
-        assert!(fit(sample(), Some(2), 0).is_empty());
-    }
-}
+mod tests;

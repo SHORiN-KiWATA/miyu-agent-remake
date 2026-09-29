@@ -54,7 +54,7 @@ pub fn areas(
     let cwd = Rect::new(inner_x, footer.bottom() + 1, text_width, 1).intersection(area);
     // 列表只用输入框上面剩下的行（「窗口小的时候」第 1 条）。
     let (menu_y, menu_rows) = super::above(frame.y, area.y, menu_rows);
-    let menu = Rect::new(inner_x, menu_y, text_width, menu_rows);
+    let menu = Rect::new(frame.x, menu_y, frame.width, menu_rows);
     // 待办在列表（没开时是输入框）上面，下面空一行（「后台命令、子代理和侧边栏」第 4 条）。
     let (todo_y, todo_rows) = super::above(menu_y.saturating_sub(1), area.y, todo_rows);
     let todo_y = if todo_rows > 0 { todo_y } else { menu_y };
@@ -64,6 +64,7 @@ pub fn areas(
     Areas {
         body,
         menu,
+        menu_text: super::list_text(menu, inner_x, text_width, layout),
         frame,
         text,
         footer,

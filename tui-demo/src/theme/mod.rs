@@ -151,6 +151,18 @@ pub fn shade() -> Style {
     Style::new().bg(pick(|p| p.shade))
 }
 
+/// 那三样里退到后面的字：没选中的说明、右边那一截，边框上的条数和按键提示。
+pub fn faint() -> Style {
+    fg(|p| p.faint)
+}
+
+/// 那三样里选中的那一条：铺强调色的底，上面的字是深色。
+pub fn picked_bar() -> Style {
+    Style::new()
+        .bg(pick(|p| p.accent))
+        .fg(pick(|p| p.on_accent))
+}
+
 /// 粘贴块这种小块：品红的字铺一层暗紫底（蓝图「输入框」第 11 条）。
 pub fn chip() -> Style {
     picked().bg(pick(|p| p.chip_bg))

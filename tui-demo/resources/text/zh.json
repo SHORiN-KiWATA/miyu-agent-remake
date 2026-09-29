@@ -33,6 +33,7 @@
   "turn_cut": "核心断开连接",
   "missing_core": "找不到核心程序：{path}",
   "not_connected": "核心未连接",
+  "crash_saved": "调用栈记在 {path}",
   "refused": "核心拒绝了：{reason}",
   "interrupted": "已中断",
   "failed": "出错了：{reason}",

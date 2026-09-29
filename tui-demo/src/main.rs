@@ -8,6 +8,7 @@ mod clipboard;
 mod commands;
 mod config;
 mod core;
+mod crash;
 mod diff;
 mod drawer;
 mod figures;
@@ -63,12 +64,17 @@ fn main() -> io::Result<()> {
     // ratatui::init 装的崩溃处理只收拾原始模式和备用屏；鼠标、粘贴、键盘协议也要收，
     // 不然崩了以后终端里一动鼠标就是一串乱码。
     let previous = std::panic::take_hook();
+    let saved = config.text.crash_saved.clone();
     std::panic::set_hook(Box::new(move |info| {
         // 已经在崩了，收拾失败也只能说一声，接着把崩溃信息交给原来的处理。
         if let Err(e) = leave(keyboard) {
             eprintln!("终端没收拾干净：{e}");
         }
         previous(info);
+        // 调用栈记进文件，下一次复现不出来的也留得下位置（蓝图「崩了」）。
+        if let Some(path) = crash::record(info) {
+            eprintln!("{}", saved.replace("{path}", &path.display().to_string()));
+        }
     }));
     // 问终端能不能显示图：进了全屏、还没开始读按键的时候问（蓝图「图片、公式和 mermaid 图」第 1 条）。
     let graphics = figures::terminal::probe();

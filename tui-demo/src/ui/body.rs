@@ -5,6 +5,7 @@
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
+use unicode_width::UnicodeWidthStr;
 
 use super::Areas;
 use super::row_cache::{self, Rows};
@@ -45,12 +46,14 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
         .map(|entry| (entry.id, rows.last_start()));
     let first = first_row(&rows, area, &mut app.view);
     let height = usize::from(area.height);
+    let indent = u16::try_from(ctx.indent.width()).unwrap_or(0);
+    let shade = shade_span(area, indent, ctx.width);
     for (i, row) in rows.window(first, height) {
         let y = area.y + u16::try_from(i - first).unwrap_or(0);
-        let line_area = Rect::new(area.x, y, area.width, 1);
         // 先铺底色再写字：没带底色的片段留着底下的灰，差异行自己的红底、青底盖在上面。
         if row.shade {
-            frame.buffer_mut().set_style(line_area, theme::shade());
+            let cells = Rect::new(shade.0, y, shade.1, 1).intersection(area);
+            frame.buffer_mut().set_style(cells, theme::shade());
         }
         frame
             .buffer_mut()
@@ -90,6 +93,12 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
             frame.buffer_mut().set_style(cols, reversed);
         }
     }
+}
+
+/// 点开的一块铺底色的范围（从第几列起、多宽）：左边和你说的话前面的 `┃` 同一列（缩进 `indent` 以后那两格槽），
+/// 右边比字（`text_width` 列）宽出同样两格（`tui.md`「时间线」第 14 条）。
+fn shade_span(area: Rect, indent: u16, text_width: u16) -> (u16, u16) {
+    (area.x + indent, text_width + 4)
 }
 
 /// 第一行露出的是第几行：有锚点的照锚点，滚过的照滚到的，别的跟着最新的、只往下走。滚到底了就回到跟着最新的。
@@ -171,6 +180,13 @@ mod tests {
             figure: None,
         };
         vec![row; n].into()
+    }
+
+    #[test]
+    fn a_shaded_block_starts_at_the_bar_and_ends_two_past_the_text() {
+        // 2026-09-30 项目主人：原来铺满正文区，两边超出字太多。正文区从第 10 列起、缩进 2 格，字从第 14 列起、宽 73。
+        let area = Rect::new(10, 0, 80, 20);
+        assert_eq!(super::shade_span(area, 2, 73), (12, 77));
     }
 
     #[test]

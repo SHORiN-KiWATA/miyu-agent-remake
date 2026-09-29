@@ -137,6 +137,10 @@ pub struct Palette {
     pub side_title: Tone,
     /// 悬停在时间线的一段、一步、撤销那一行、子代理那一行上：比暗色亮一档（`tui.md`「时间线」第 6 条）。
     pub hover: Tone,
+    /// 那三样里没选中的说明、右边那一截，边框上的条数和按键提示。
+    pub faint: Tone,
+    /// 那三样里选中的那一条（铺强调色的底）上面的字。
+    pub on_accent: Tone,
     /// 首页吉祥物的头（`tui.md`「空会话的首页」第 5 条）。
     pub mascot_head: Tone,
     /// 吉祥物的耳朵。

@@ -35,6 +35,8 @@
   "diagram_backdrop": "#1a1b26",
   "side_title": "blue",
   "hover": "gray",
+  "faint": "darkgray",
+  "on_accent": "black",
   "mascot_head": "default",
   "mascot_ear": "darkgray",
   "mascot_eye": "lightblue",
