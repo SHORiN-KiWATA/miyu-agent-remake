@@ -91,6 +91,8 @@ pub struct Entry {
     pub level: Option<Level>,
     /// 后台任务结束的通知：记号和全文。别的条是 `None`。
     pub job: Option<JobNote>,
+    /// 你说的话里的粘贴块：输入框里写的样子和原文，点开看全文（蓝图「正文」第 2 条）。别的条是空的。
+    pub pasted: Vec<(String, String)>,
 }
 
 /// 连核心的状态。
@@ -150,8 +152,8 @@ pub struct Transcript {
     failure: Option<(String, String)>,
     /// 在跑的这一轮的编号：这期间收到的都记在它名下。
     turn: Option<u64>,
-    /// 被退回的排队消息的字，等输入框拿走（`take_returned`）。
-    returned: Vec<String>,
+    /// 被退回的排队消息：字和里面的粘贴块，等输入框拿走（`take_returned`）。
+    returned: Vec<(String, Vec<(String, String)>)>,
     /// 最近一次 `turn.reverted` 撤掉的几轮：撤销的回应来了，照它找你说的那句全文。
     reverted: Vec<u64>,
     /// 下一条正文的编号。
@@ -188,8 +190,11 @@ impl Default for Transcript {
 
 impl Transcript {
     /// 你说了一句。
-    pub fn user(&mut self, text: String) {
+    pub fn user(&mut self, text: String, pasted: Vec<(String, String)>) {
         self.push(Kind::User, text);
+        if let Some(entry) = self.entries.last_mut() {
+            entry.pasted = pasted;
+        }
     }
 
     /// 在正文末尾写一句旁白，不属于哪一轮。
@@ -208,6 +213,7 @@ impl Transcript {
             open: false,
             level: None,
             job: None,
+            pasted: Vec::new(),
         });
     }
 
@@ -309,7 +315,7 @@ impl Transcript {
                     self.entries
                         .iter()
                         .filter(|e| back(e))
-                        .map(|e| e.text.clone()),
+                        .map(|e| (e.text.clone(), e.pasted.clone())),
                 );
                 self.entries.retain(|e| !back(e));
             }
@@ -403,7 +409,7 @@ impl Transcript {
     }
 
     /// 拿走被退回的排队消息的字，照先后。
-    pub fn take_returned(&mut self) -> Vec<String> {
+    pub fn take_returned(&mut self) -> Vec<(String, Vec<(String, String)>)> {
         std::mem::take(&mut self.returned)
     }
 
@@ -440,6 +446,7 @@ impl Transcript {
             open: false,
             level,
             job: None,
+            pasted: Vec::new(),
         });
     }
 

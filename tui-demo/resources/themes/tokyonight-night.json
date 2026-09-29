@@ -8,6 +8,8 @@
   "thought": "#41a6b5",
   "thought_hover": "#6db3cb",
   "shade": "#292e42",
+  "chip_bg": "#3a3450",
+  "chip_hover_bg": "#4a4165",
   "added": "#9ece6a",
   "removed": "#f7768e",
   "diff_added_fg": "#9ece6a",
@@ -40,5 +42,11 @@
   "code_function": "#7aa2f7",
   "code_string": "#9ece6a",
   "code_number": "#ff9e64",
-  "code_comment": "#565f89"
+  "code_comment": "#565f89",
+  "code_type": "#2ac3de",
+  "code_constant": "#ff9e64",
+  "code_property": "#73daca",
+  "code_operator": "#89ddff",
+  "code_macro": "#7dcfff",
+  "code_parameter": "#e0af68"
 }

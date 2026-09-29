@@ -120,9 +120,10 @@ impl Renderer<'_> {
         };
         let top = format!("{label}{}", "─".repeat(room.saturating_sub(label.width())));
         self.frame(top);
-        let language = self.languages.find(lang);
+        // 一个代码块一个着色的：块注释、三引号字符串接到下一行（`tui.md`「代码着色」第 2 条）。
+        let mut colors = code::Highlighter::new(self.languages.find(lang));
         for line in body.trim_end_matches('\n').split('\n') {
-            let pieces = code::highlight(line, language);
+            let pieces = colors.line(line);
             let pieces = if pieces.is_empty() {
                 vec![Piece::new(" ", Style::new())]
             } else {

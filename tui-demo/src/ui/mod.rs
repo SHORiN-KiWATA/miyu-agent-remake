@@ -24,6 +24,7 @@ pub mod row_cache;
 pub mod rows;
 mod status;
 mod timeline;
+mod user_rows;
 
 #[cfg(test)]
 mod rulers;

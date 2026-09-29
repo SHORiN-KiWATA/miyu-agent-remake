@@ -54,6 +54,7 @@ fn draw_input(
     );
     let scroll = input.place(areas.text);
     let editor = &input.editor;
+    let blocks = editor.blocks();
     let body = if editor.is_empty() {
         vec![Line::styled(placeholder, theme::dim())]
     } else {
@@ -62,7 +63,7 @@ fn draw_input(
             .iter()
             .skip(scroll)
             .take(usize::from(areas.text.height))
-            .map(|l| styled_line(editor.text(), *l, editor.selection()))
+            .map(|l| styled_line(editor.text(), *l, editor.selection(), &blocks))
             .collect()
     };
     frame.render_widget(Paragraph::new(body), areas.text);
@@ -115,16 +116,69 @@ pub(super) fn placeholder(config: &Config, home: bool, tip: usize) -> &str {
 }
 
 /// 一行字，选中的那一段反色。
-fn styled_line(text: &str, line: VisualLine, selection: Option<(usize, usize)>) -> Line<'_> {
+fn styled_line<'a>(
+    text: &'a str,
+    line: VisualLine,
+    selection: Option<(usize, usize)>,
+    blocks: &[(usize, usize)],
+) -> Line<'a> {
     use ratatui::text::Span;
-    let Some((s, e)) = selection else {
-        return Line::raw(&text[line.start..line.end]);
-    };
-    let s = s.clamp(line.start, line.end);
-    let e = e.clamp(line.start, line.end);
-    Line::from(vec![
-        Span::raw(&text[line.start..s]),
-        Span::styled(&text[s..e], theme::selected()),
-        Span::raw(&text[e..line.end]),
-    ])
+    // 这一行里样子变的地方：选区、粘贴块的两头。
+    let mut cuts = vec![line.start, line.end];
+    for &(s, e) in selection.iter().chain(blocks) {
+        cuts.extend([s, e].map(|at| at.clamp(line.start, line.end)));
+    }
+    cuts.sort_unstable();
+    cuts.dedup();
+    let inside =
+        |range: Option<&(usize, usize)>, at: usize| range.is_some_and(|&(s, e)| s <= at && at < e);
+    let spans = cuts
+        .windows(2)
+        .map(|w| {
+            let style = if inside(selection.as_ref(), w[0]) {
+                theme::selected()
+            } else if blocks.iter().any(|b| inside(Some(b), w[0])) {
+                theme::chip()
+            } else {
+                ratatui::style::Style::new()
+            };
+            Span::styled(&text[w[0]..w[1]], style)
+        })
+        .collect::<Vec<_>>();
+    Line::from(spans)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::styled_line;
+    use crate::input::VisualLine;
+    use crate::theme;
+
+    #[test]
+    fn a_paste_block_is_a_chip_and_the_selection_wins() {
+        // 输入框里的粘贴块品红（`tui.md`「输入框」第 11 条）；选中的照旧反色。
+        let text = "看[已粘贴 12 行]吗";
+        let line = VisualLine {
+            start: 0,
+            end: text.len(),
+        };
+        let block = ("看".len(), text.len() - "吗".len());
+        let got = styled_line(text, line, None, &[block]);
+        let label = got
+            .spans
+            .iter()
+            .find(|s| s.content == "[已粘贴 12 行]")
+            .unwrap();
+        assert_eq!(label.style, theme::chip(), "品红字、暗紫底");
+        assert!(theme::chip().bg.is_some());
+        let all: String = got.spans.iter().map(|s| s.content.as_ref()).collect();
+        assert_eq!(all, text);
+        let chosen = styled_line(text, line, Some((0, text.len())), &[block]);
+        assert!(
+            chosen
+                .spans
+                .iter()
+                .all(|s| s.content.is_empty() || s.style == theme::selected())
+        );
+    }
 }

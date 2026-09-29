@@ -83,6 +83,10 @@ pub struct Palette {
     pub thought_hover: Tone,
     /// 点开的一步的底色。
     pub shade: Tone,
+    /// 粘贴块那种小块的底色（字用 `picked`）。
+    pub chip_bg: Tone,
+    /// 悬停时小块的底色：亮一档。
+    pub chip_hover_bg: Tone,
     /// 标题里的 `+N`。
     pub added: Tone,
     /// 标题里的 `-N`。
@@ -149,6 +153,18 @@ pub struct Palette {
     pub code_number: Tone,
     /// 代码的注释。
     pub code_comment: Tone,
+    /// 代码里的类型。
+    pub code_type: Tone,
+    /// 代码里的常量（`true`、`None`、全大写的名字）。
+    pub code_constant: Tone,
+    /// 代码里的键、属性名。
+    pub code_property: Tone,
+    /// 代码里的运算符。
+    pub code_operator: Tone,
+    /// 代码里的宏、属性、装饰器、shell 变量。
+    pub code_macro: Tone,
+    /// shell 命令的参数（`-v`、`--force`）。
+    pub code_parameter: Tone,
 }
 
 /// 出厂的几套：名字和文件。加一套：放一个文件，在这里登记一行。

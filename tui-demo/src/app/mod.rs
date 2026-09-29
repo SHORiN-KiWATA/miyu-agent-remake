@@ -23,7 +23,7 @@ use crate::drawer::Drawers;
 use crate::figures::Figures;
 use crate::focus::Focus;
 use crate::history::History;
-use crate::input::{Action, InputBox};
+use crate::input::{Action, Draft, InputBox, PasteRule};
 use crate::jobs::{Board, Feed};
 use crate::mascot::{Gaze, Idle, Perch};
 use crate::menu::Menu;
@@ -148,10 +148,15 @@ impl App {
         });
         let config_tips = config.text.tips.len();
         let layout = &config.layout;
-        let input = InputBox::new(
+        let mut input = InputBox::new(
             layout.max_rows,
             Duration::from_millis(layout.double_click_ms),
         );
+        input.set_paste_rule(PasteRule {
+            lines: layout.paste_fold_lines,
+            chars: layout.paste_fold_chars,
+            label: config.text.paste_label.clone(),
+        });
         Self {
             config,
             input,
@@ -233,17 +238,8 @@ impl App {
                 Action::None
             }
             Event::Key(key) => self.key(key),
-            // 输入历史列表开着时，粘贴的字进「搜索：」。
-            Event::Paste(text) if self.history.open => {
-                self.history.type_text(&text.replace(['\r', '\n'], " "));
-                Action::None
-            }
-            Event::Paste(text) if self.drawers.open() => {
-                self.drawer_paste(&text);
-                Action::None
-            }
             Event::Paste(text) => {
-                self.input.paste(&text);
+                self.paste(&text);
                 Action::None
             }
             Event::Mouse(mouse) => self.mouse(mouse),
@@ -259,6 +255,29 @@ impl App {
                 self.core.send(Command::Interrupt { send: false });
             }
             Action::ExitHint => self.hint(self.config.text.exit_hint.clone(), false),
+        }
+    }
+
+    /// 粘贴进来的字（终端送来的、`Ctrl+V` 读剪贴板的）：历史列表开着的进「历史：」，抽屉开着的进抽屉里写的字，
+    /// 别的进输入框（大段的收成一块，`tui.md`「输入框」第 11 条）。
+    fn paste(&mut self, text: &str) {
+        if self.history.open {
+            self.history.type_text(&text.replace(['\r', '\n'], " "));
+        } else if self.drawers.open() {
+            self.drawer_paste(text);
+        } else {
+            self.input.paste(text);
+        }
+    }
+
+    /// `Ctrl+V`：读系统剪贴板里的字，照粘贴处理；读不到、是空的，提示一句（`tui.md`「按键」）。
+    fn paste_clipboard(&mut self) {
+        match clipboard::read() {
+            Ok(text) if text.is_empty() => {
+                self.hint(self.config.text.clipboard_empty.clone(), false);
+            }
+            Ok(text) => self.paste(&text),
+            Err(_) => self.hint(self.config.text.clipboard_unreadable.clone(), false),
         }
     }
 
@@ -286,13 +305,17 @@ impl App {
         if self.transcript.folds() > folds {
             self.view.settle();
         }
+        // 被退回的排队消息连同粘贴块放回输入框，一条之间空一行，接在已有的字前面（`tui.md`「输入框」第 8、11 条）。
         let returned = self.transcript.take_returned();
         if !returned.is_empty() {
-            let mut text = returned.join("\n\n");
-            if !self.input.editor.is_empty() {
-                text = format!("{text}\n\n{}", self.input.editor.text());
+            let mut draft = Draft::default();
+            for (text, pasted) in returned {
+                draft.append(Draft::from_pasted(&text, &pasted), "\n\n");
             }
-            self.input.editor.set(&text);
+            if !self.input.editor.is_empty() {
+                draft.append(self.input.draft(), "\n\n");
+            }
+            self.input.editor.set_draft(draft);
         }
         if undone {
             let said = self

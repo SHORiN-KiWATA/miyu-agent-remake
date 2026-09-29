@@ -9,6 +9,8 @@
   "compact_below": 80,
   "compact_pad_left": 2,
   "compact_pad_right": 1,
+  "paste_fold_lines": 10,
+  "paste_fold_chars": 800,
   "max_rows": 8,
   "double_click_ms": 400,
   "notice_ms": 2000,

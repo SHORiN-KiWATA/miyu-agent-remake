@@ -8,6 +8,8 @@
   "thought": "idx:73",
   "thought_hover": "idx:116",
   "shade": "idx:236",
+  "chip_bg": "idx:237",
+  "chip_hover_bg": "idx:239",
   "added": "green",
   "removed": "red",
   "diff_added_fg": "idx:157",
@@ -40,5 +42,11 @@
   "code_function": "#9ccfd8",
   "code_string": "#a6d6a0",
   "code_number": "#f6c177",
-  "code_comment": "green"
+  "code_comment": "green",
+  "code_type": "cyan",
+  "code_constant": "#f6c177",
+  "code_property": "idx:115",
+  "code_operator": "idx:117",
+  "code_macro": "lightcyan",
+  "code_parameter": "yellow"
 }

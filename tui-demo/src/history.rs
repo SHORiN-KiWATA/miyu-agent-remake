@@ -8,7 +8,7 @@
 pub struct History {
     /// 开着。
     pub open: bool,
-    /// 「搜索：」后面打的字。
+    /// 「历史：」后面打的字。
     pub query: String,
     /// 选中的是对得上的第几条，0 是最新的。
     pub selected: usize,

@@ -3,6 +3,7 @@
 //! 画在哪、多大由 `ui` 定；这里只记着上一次画的位置，好把鼠标坐标换回文字下标。
 
 mod editor;
+mod pasted;
 mod wrap;
 
 #[cfg(test)]
@@ -16,6 +17,7 @@ use ratatui::crossterm::event::{
 use ratatui::layout::{Position, Rect};
 
 pub use editor::Editor;
+pub use pasted::{Draft, PasteRule};
 pub use wrap::{VisualLine, locate, offset_at, pieces, tail_pieces, wrap};
 
 /// 输入框处理完一个事件后，要外面做的事。
@@ -23,8 +25,8 @@ pub use wrap::{VisualLine, locate, offset_at, pieces, tail_pieces, wrap};
 pub enum Action {
     /// 什么都不用做。
     None,
-    /// 发出去这段话。
-    Submit(String),
+    /// 发出去这段话（连同里面的粘贴块，`Draft::expand` 是全文）。
+    Submit(Draft),
     /// 把这段字放进剪贴板。
     Copy(String),
     /// 退出程序。
@@ -52,18 +54,22 @@ pub struct InputBox {
     last_click: Option<(Instant, usize)>,
     /// 上一次画的时候，文字区在屏幕上的位置。
     area: Rect,
-    /// `Ctrl+S` 暂存的字。
-    stash: Option<String>,
-    /// 发过的话和命令，从旧到新：翻历史用。
-    history: Vec<String>,
+    /// `Ctrl+S` 暂存的字，连同粘贴块。
+    stash: Option<Draft>,
+    /// 发过的话和命令，从旧到新，连同粘贴块：翻历史用。
+    history: Vec<Draft>,
+    /// 同上，只有字：历史列表照它搜、照它列。
+    history_text: Vec<String>,
     /// 正在翻历史，翻到第几条；没在翻是 `None`。
     browsing: Option<usize>,
     /// 开始翻历史之前没发的那句：翻过最新一条回到它。
-    draft: String,
+    draft: Draft,
     /// 画的时候把光标滚进可见范围。滚轮滚过以后关掉，不然滚一下就被拽回光标那里。
     follow: bool,
     /// 撤销时放回来的那句：恢复时它还没动过的话收回去。
     put_back: Option<String>,
+    /// 大段粘贴什么时候收成一块、块上写什么（`pasted.rs`）。
+    paste_rule: PasteRule,
 }
 
 impl InputBox {
@@ -80,11 +86,23 @@ impl InputBox {
             area: Rect::default(),
             stash: None,
             history: Vec::new(),
+            history_text: Vec::new(),
             browsing: None,
-            draft: String::new(),
+            draft: Draft::default(),
             follow: false,
             put_back: None,
+            paste_rule: PasteRule::never(),
         }
+    }
+
+    /// 照配置设大段粘贴收成一块的门槛和写法（蓝图「输入框」第 11 条）。
+    pub fn set_paste_rule(&mut self, rule: PasteRule) {
+        self.paste_rule = rule;
+    }
+
+    /// 现在输入框里的字，连同粘贴块。
+    pub fn draft(&self) -> Draft {
+        self.editor.draft()
     }
 
     /// 按当前宽度折好的行。
@@ -150,8 +168,7 @@ impl InputBox {
                 }
                 self.scroll = 0;
                 self.browsing = None;
-                let text = self.editor.take();
-                return Action::Submit(text);
+                return Action::Submit(self.editor.take_draft());
             }
             // Ctrl+Shift+C 在认得 kitty 键盘协议的终端里报成大写的 C。
             KeyCode::Char('c' | 'C') if ctrl => return self.ctrl_c(),
@@ -181,7 +198,13 @@ impl InputBox {
     pub fn paste(&mut self, text: &str) {
         self.goal_col = None;
         self.follow = true;
-        self.editor.insert(text);
+        let clean = editor::clean(text);
+        if self.paste_rule.folds(&clean) {
+            let label = self.paste_rule.label(&clean);
+            self.editor.insert_block(label, clean);
+        } else {
+            self.editor.insert(&clean);
+        }
     }
 
     /// 处理一个鼠标事件。`inside` 是这个事件落在输入框的边框之内。
@@ -230,8 +253,9 @@ impl InputBox {
 
     /// Ctrl+C：有选区复制；没有选区但有字，清空；空着不退出，要外面提示用 Ctrl+D 退出。
     fn ctrl_c(&mut self) -> Action {
-        if let Some(text) = self.editor.selected_text() {
-            return Action::Copy(text.to_string());
+        // 复制的是原文：选中的粘贴块换回来（`tui.md`「输入框」第 11 条）。
+        if let Some(text) = self.editor.selected_full() {
+            return Action::Copy(text);
         }
         if self.editor.is_empty() {
             return Action::ExitHint;
@@ -247,9 +271,9 @@ impl InputBox {
 
     /// Ctrl+S 暂存（照旧版）：有字存起来、清空；空着取回来；两边都有互换。
     fn swap_stash(&mut self) {
-        let current = (!self.editor.is_empty()).then(|| self.editor.take());
+        let current = (!self.editor.is_empty()).then(|| self.editor.take_draft());
         if let Some(back) = std::mem::replace(&mut self.stash, current) {
-            self.editor.insert(&back);
+            self.editor.set_draft(back);
         }
     }
 
@@ -277,16 +301,16 @@ impl InputBox {
             return;
         };
         if self.browsing.is_none() {
-            self.draft = self.editor.text().to_string();
+            self.draft = self.editor.draft();
         }
         self.goal_col = None;
         if next == newest {
             self.browsing = None;
             let draft = std::mem::take(&mut self.draft);
-            self.editor.set(&draft);
+            self.editor.set_draft(draft);
         } else {
             self.browsing = Some(next);
-            self.editor.set(&self.history[next].clone());
+            self.editor.set_draft(self.history[next].clone());
         }
     }
 
@@ -314,28 +338,32 @@ impl InputBox {
 
     /// 发过的话和命令，从旧到新（输入历史列表用）。
     pub fn sent(&self) -> &[String] {
-        &self.history
+        &self.history_text
     }
 
     /// 从输入历史列表里挑了一条：放进输入框，光标在末尾。框里原来有字的先存进暂存；暂存里已经有字的，
     /// 原来的字记进输入历史（`↑` 翻得到），不丢（`tui.md`「输入历史列表」第 4 条）。
     pub fn pick(&mut self, text: &str) {
-        let current = self.editor.text().to_string();
-        if !current.is_empty() && current != text {
+        let current = self.editor.draft();
+        if !current.text.is_empty() && current.text != text {
             if self.stash.is_none() {
                 self.stash = Some(current);
             } else {
-                self.remember(&current);
+                self.remember(current);
             }
         }
         self.browsing = None;
-        self.editor.set(text);
+        // 挑中的是记着的那一条：连同粘贴块放回来（同样的字记过几次的，取最近那次）。
+        let picked = self.history.iter().rev().find(|d| d.text == text).cloned();
+        self.editor
+            .set_draft(picked.unwrap_or_else(|| Draft::plain(text)));
     }
 
-    /// 记下一句发出去的话或命令，翻历史用。和上一条一样的不重复记。
-    pub fn remember(&mut self, text: &str) {
-        if self.history.last().is_none_or(|last| last != text) {
-            self.history.push(text.to_string());
+    /// 记下一句发出去的话或命令，连同粘贴块，翻历史用。和上一条一样的不重复记。
+    pub fn remember(&mut self, sent: Draft) {
+        if self.history.last().is_none_or(|last| *last != sent) {
+            self.history_text.push(sent.text.clone());
+            self.history.push(sent);
         }
     }
 

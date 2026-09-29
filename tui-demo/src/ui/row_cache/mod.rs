@@ -132,7 +132,7 @@ fn fingerprint(i: usize, entry: &Entry, ctx: &Ctx, figures: u64) -> Option<u64> 
     let text = entry.text.as_bytes();
     (text.len(), &text[text.len().saturating_sub(64)..]).hash(&mut h);
     (entry.hidden, entry.queued, entry.open, entry.level).hash(&mut h);
-    entry.undo.is_some().hash(&mut h);
+    (entry.undo.is_some(), entry.pasted.len()).hash(&mut h);
     if let Some(job) = &entry.job {
         (discriminant(&job.mark), job.detail.len()).hash(&mut h);
     }

@@ -175,7 +175,7 @@ fn dragging_selects_and_ctrl_c_copies() {
     i.mouse(mouse(MouseEventKind::Drag(MouseButton::Left), 15, 5), true);
     let up = i.mouse(mouse(MouseEventKind::Up(MouseButton::Left), 15, 5), true);
     assert_eq!(up, Action::None, "松开不复制");
-    assert_eq!(i.editor.selected_text(), Some("hello"), "选区留着");
+    assert_eq!(selected(&i), Some("hello"), "选区留着");
     let copied = press(&mut i, KeyCode::Char('c'), KeyModifiers::CONTROL);
     assert_eq!(copied, Action::Copy("hello".into()));
 }
@@ -188,7 +188,7 @@ fn double_click_selects_a_word() {
     i.mouse(down, true);
     i.mouse(mouse(MouseEventKind::Up(MouseButton::Left), 17, 5), true);
     assert_eq!(i.mouse(down, true), Action::None, "双击只选中，不复制");
-    assert_eq!(i.editor.selected_text(), Some("world"));
+    assert_eq!(selected(&i), Some("world"));
 }
 
 #[test]
@@ -254,8 +254,8 @@ fn a_run_of_chinese_is_one_word() {
 #[test]
 fn up_on_the_first_line_browses_history_and_down_returns_the_draft() {
     let mut i = input(20);
-    i.remember("第一句");
-    i.remember("第二句");
+    i.remember("第一句".into());
+    i.remember("第二句".into());
     i.paste("没发的");
     press(&mut i, KeyCode::Up, KeyModifiers::NONE);
     assert_eq!(i.editor.text(), "第二句");
@@ -272,7 +272,7 @@ fn up_on_the_first_line_browses_history_and_down_returns_the_draft() {
 fn an_undone_line_comes_back_selected_and_typing_replaces_it() {
     let mut i = input(40);
     i.put_back("说一句话就好");
-    assert_eq!(i.editor.selected_text(), Some("说一句话就好"));
+    assert_eq!(selected(&i), Some("说一句话就好"));
     // 直接打 /redo：替换掉那句，不拼在后面。
     i.paste("/redo");
     assert_eq!(i.editor.text(), "/redo");
@@ -300,7 +300,7 @@ fn redo_takes_back_the_line_only_if_untouched() {
 #[test]
 fn picking_from_history_keeps_what_was_in_the_box() {
     let mut i = input(40);
-    i.remember("跑一下测试");
+    i.remember("跑一下测试".into());
     i.paste("写到一半");
     i.pick("跑一下测试");
     assert_eq!(i.editor.text(), "跑一下测试");
@@ -334,4 +334,11 @@ fn tail_pieces_match_the_end_of_a_full_wrap() {
             }
         }
     }
+}
+
+mod paste;
+
+/// 选中的字（没选中是 `None`）。
+fn selected(i: &InputBox) -> Option<&str> {
+    i.editor.selection().map(|(s, e)| &i.editor.text()[s..e])
 }

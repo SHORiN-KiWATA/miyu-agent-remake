@@ -74,6 +74,8 @@ fn cached_rows_match_a_fresh_build() {
 
 #[test]
 fn only_changed_entries_are_rebuilt() {
+    // 数重排了几条：主题别在中途被别的测试换掉。
+    let _theme = crate::theme::hold();
     let f = Fixture::new();
     let mut t = sample();
     let mut ctx = f.ctx();
@@ -101,6 +103,8 @@ fn only_changed_entries_are_rebuilt() {
 
 #[test]
 fn a_live_segment_is_rebuilt_every_frame() {
+    // 数重排了几条：主题别在中途被别的测试换掉。
+    let _theme = crate::theme::hold();
     let f = Fixture::new();
     let mut t = sample();
     t.entries[1]
@@ -136,6 +140,8 @@ fn entries_are_known_by_id_not_position() {
 
 #[test]
 fn a_finished_figure_rebuilds_everything() {
+    // 数重排了几条：主题别在中途被别的测试换掉。
+    let _theme = crate::theme::hold();
     let f = Fixture::new();
     let t = sample();
     let ctx = f.ctx();
@@ -145,4 +151,101 @@ fn a_finished_figure_rebuilds_everything() {
     ctx.figures.borrow_mut().forget();
     build(&t.entries, &ctx, &cache);
     assert_eq!(cache.borrow().rebuilt, 4);
+}
+
+#[test]
+fn a_pasted_block_in_what_you_said_is_replaced_by_its_full_text() {
+    // 你说的话里的粘贴块：品红，点它（点中这一条）在下面铺底色展开全文（`tui.md`「正文」第 2 条）。
+    let f = Fixture::new();
+    let mut t = Transcript::default();
+    let full = "报错第一行\n报错第二行".to_string();
+    t.user(
+        "看看：[已粘贴 2 行]".into(),
+        vec![("[已粘贴 2 行]".into(), full)],
+    );
+    let ctx = f.ctx();
+    let rows = fresh_rows(&t.entries, &ctx);
+    let label = rows
+        .iter()
+        .flat_map(|r| r.line.spans.iter())
+        .find(|s| s.content == "[已粘贴 2 行]")
+        .expect("块单独一截");
+    assert_eq!(label.style, crate::theme::chip(), "和输入框里一样的小块");
+    assert!(
+        rows.iter().any(|r| r.target == Some(Target::Entry(0))),
+        "能点"
+    );
+    assert!(!rows.iter().any(|r| r.plain.contains("报错第一行")), "收着");
+    t.entries[0].open = true;
+    let open = fresh_rows(&t.entries, &ctx);
+    let text: Vec<&str> = open.iter().map(|r| r.plain.as_str()).collect();
+    // 原地替换：块换成全文，接在「看看：」后面；不铺底色。
+    assert!(
+        !text.iter().any(|l| l.contains("[已粘贴")),
+        "块换掉了：{text:?}"
+    );
+    assert!(text.contains(&"看看：报错第一行"), "{text:?}");
+    assert!(text.contains(&"报错第二行"), "{text:?}");
+    assert!(!open.iter().any(|r| r.shade), "不铺底色");
+    assert!(
+        open.iter().all(|r| r.target == Some(Target::Entry(0))),
+        "哪一行都能点回去"
+    );
+}
+
+#[test]
+fn hovering_what_you_said_lifts_the_blocks() {
+    // 悬停：块的底色亮一档；展开着的，粘进来的那几段铺上块的底色（`tui.md`「正文」第 2 条）。
+    let f = Fixture::new();
+    let mut t = Transcript::default();
+    t.user(
+        "看看：[已粘贴 2 行]".into(),
+        vec![("[已粘贴 2 行]".into(), "报错第一行\n报错第二行".into())],
+    );
+    let mut ctx = f.ctx();
+    ctx.hover = Some(Target::Entry(0));
+    let rows = fresh_rows(&t.entries, &ctx);
+    let label = rows
+        .iter()
+        .flat_map(|r| r.line.spans.iter())
+        .find(|s| s.content == "[已粘贴 2 行]")
+        .unwrap();
+    assert_eq!(label.style, crate::theme::chip_hover());
+    assert_ne!(crate::theme::chip_hover(), crate::theme::chip());
+    t.entries[0].open = true;
+    let open = fresh_rows(&t.entries, &ctx);
+    let pasted = open
+        .iter()
+        .flat_map(|r| r.line.spans.iter())
+        .find(|s| s.content == "报错第二行")
+        .unwrap();
+    assert_eq!(pasted.style.bg, crate::theme::chip().bg, "粘的那段铺底色");
+    let said = open
+        .iter()
+        .flat_map(|r| r.line.spans.iter())
+        .find(|s| s.content == "看看：")
+        .unwrap();
+    assert_eq!(said.style.bg, None, "自己打的字不铺");
+}
+
+#[test]
+fn same_looking_blocks_in_what_you_said_open_to_their_own_text() {
+    // 两块写出来一样：点开各换成各自的原文（照先后），不是两处都换成第一块的。
+    let f = Fixture::new();
+    let mut t = Transcript::default();
+    t.user(
+        "[已粘贴 1 行]和[已粘贴 1 行]".into(),
+        vec![
+            ("[已粘贴 1 行]".into(), "甲".into()),
+            ("[已粘贴 1 行]".into(), "乙".into()),
+        ],
+    );
+    t.entries[0].open = true;
+    let ctx = f.ctx();
+    let rows = fresh_rows(&t.entries, &ctx);
+    assert!(
+        rows.iter().any(|r| r.plain == "甲和乙"),
+        "{:?}",
+        rows.iter().map(|r| r.plain.clone()).collect::<Vec<_>>()
+    );
 }

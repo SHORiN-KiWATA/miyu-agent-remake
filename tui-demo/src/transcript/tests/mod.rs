@@ -205,7 +205,7 @@ fn an_error_turn_says_why() {
 #[test]
 fn a_reverted_turn_hides_and_comes_back() {
     let mut t = Transcript::default();
-    t.user("你好".into());
+    t.user("你好".into(), Vec::new());
     apply(
         &mut t,
         vec![
@@ -231,7 +231,7 @@ fn a_reverted_turn_hides_and_comes_back() {
 fn undo_is_one_line_with_the_full_prompt_and_redo_removes_it() {
     let mut t = Transcript::default();
     let texts = Config::builtin().unwrap().text;
-    t.user("第一行\n第二行".into());
+    t.user("第一行\n第二行".into(), Vec::new());
     apply(
         &mut t,
         vec![
@@ -362,10 +362,10 @@ fn the_next_block_closes_the_ones_before_it() {
 #[test]
 fn what_you_said_keeps_the_level_it_was_sent_with() {
     let mut t = Transcript::default();
-    t.user("你好".into());
+    t.user("你好".into(), Vec::new());
     let order = Config::builtin().unwrap().layout.level_cycle;
     t.next_level(&order);
-    t.user("再来".into());
+    t.user("再来".into(), Vec::new());
     let levels: Vec<_> = t.entries.iter().map(|e| e.level).collect();
     use crate::core::Level;
     assert_eq!(levels, vec![Some(Level::Workspace), Some(Level::Full)]);
@@ -374,12 +374,12 @@ fn what_you_said_keeps_the_level_it_was_sent_with() {
 #[test]
 fn messages_sent_while_running_queue_until_their_turn() {
     let mut t = Transcript::default();
-    t.user("第一句".into());
+    t.user("第一句".into(), Vec::new());
     apply(
         &mut t,
         vec![Push::UserMessage(1), Push::TurnStarted(2, Some(1))],
     );
-    t.user("排着的".into());
+    t.user("排着的".into(), Vec::new());
     assert!(t.entries[1].queued, "在回答时发的先排着");
     apply(
         &mut t,
@@ -397,9 +397,9 @@ fn messages_sent_while_running_queue_until_their_turn() {
 #[test]
 fn withdrawn_messages_leave_the_body_and_come_back() {
     let mut t = Transcript::default();
-    t.user("在跑的那句".into());
-    t.user("排着的一".into());
-    t.user("排着的二".into());
+    t.user("在跑的那句".into(), Vec::new());
+    t.user("排着的一".into(), Vec::new());
+    t.user("排着的二".into(), Vec::new());
     apply(
         &mut t,
         vec![
@@ -412,7 +412,10 @@ fn withdrawn_messages_leave_the_body_and_come_back() {
     );
     assert_eq!(
         t.take_returned(),
-        vec!["排着的一".to_string(), "排着的二".to_string()]
+        vec![
+            ("排着的一".to_string(), Vec::new()),
+            ("排着的二".to_string(), Vec::new())
+        ]
     );
     let users: Vec<_> = t
         .entries
@@ -430,13 +433,13 @@ fn withdrawn_messages_leave_the_body_and_come_back() {
 #[test]
 fn a_turn_started_by_the_last_queued_one_brings_all_of_them_in_order() {
     let mut t = Transcript::default();
-    t.user("开头".into());
+    t.user("开头".into(), Vec::new());
     apply(
         &mut t,
         vec![Push::UserMessage(1), Push::TurnStarted(2, Some(1))],
     );
     for (i, text) in ["排一", "排二", "排三"].iter().enumerate() {
-        t.user((*text).into());
+        t.user((*text).into(), Vec::new());
         apply(&mut t, vec![Push::UserMessage(10 + i as u64)]);
     }
     apply(

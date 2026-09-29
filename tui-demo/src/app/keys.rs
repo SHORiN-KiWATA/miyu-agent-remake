@@ -7,7 +7,7 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use super::App;
 use crate::commands::{self, Run, Spec};
 use crate::core::Command;
-use crate::input::Action;
+use crate::input::{Action, Draft};
 use crate::transcript::Kind;
 
 impl App {
@@ -55,6 +55,11 @@ impl App {
 
     /// 按键：列表开着时，上下、Tab、Enter、Esc 归列表，别的照旧给输入框。
     pub(super) fn key(&mut self, key: KeyEvent) -> Action {
+        // Ctrl+V：读剪贴板，照粘贴处理；列表、抽屉开着时也一样（`tui.md`「按键」）。
+        if is_paste(&key) {
+            self.paste_clipboard();
+            return Action::None;
+        }
         // 输入历史列表开着时，按键先归它（`tui.md`「输入历史列表」）。
         if self.history.open {
             self.history_key(key);
@@ -152,28 +157,33 @@ impl App {
 
     /// 回车发出去的字：是命令就执行；像命令又没有这个命令的弹提示「命令不存在」，字留在输入框里（`tui.md`
     /// 「斜杠命令列表」第 4 条）；别的发给她。
-    pub(super) fn submit(&mut self, text: String) {
+    pub(super) fn submit(&mut self, draft: Draft) {
+        let text = draft.text.clone();
         if let Some(name) = commands::typed(&text).filter(|_| !text.trim().contains(' ')) {
             match self.config.commands.find(name).cloned() {
                 Some(spec) => self.run(&spec),
                 None => {
                     let note = self.config.text.unknown_command.clone();
                     self.hint(note, false);
-                    self.input.paste(&text);
+                    self.input.editor.set_draft(draft);
                 }
             }
             return;
         }
         self.view.follow();
-        self.input.remember(&text);
-        self.transcript.user(text.clone());
-        self.core.send(Command::Send(text));
+        // 输入框里的粘贴块发出去换回原文；输入历史和正文里照输入框的样子（`tui.md`「输入框」第 11 条）。
+        let full = draft.expand();
+        let pasted = draft.pasted();
+        self.input.remember(draft);
+        self.transcript.user(text, pasted);
+        self.core.send(Command::Send(full));
     }
 
     /// 执行一条命令。
     pub(super) fn run(&mut self, spec: &Spec) {
         // 命令也记进输入历史：从列表里回车、点的，和整条打出来回车的一样（`tui.md`「按键」↑、↓）。
-        self.input.remember(&format!("/{}", spec.name));
+        self.input
+            .remember(Draft::plain(&format!("/{}", spec.name)));
         self.view.follow();
         match spec.run {
             Run::Revert => self.core.send(Command::Revert),
@@ -223,6 +233,12 @@ impl App {
     }
 }
 
+/// 这一下是不是 `Ctrl+V`（认得 kitty 键盘协议的终端里按着 Shift 报成大写的 V，不算：那是终端自己的粘贴）。
+fn is_paste(key: &KeyEvent) -> bool {
+    use ratatui::crossterm::event::KeyModifiers;
+    key.code == KeyCode::Char('v') && key.modifiers == KeyModifiers::CONTROL
+}
+
 /// 这一下是不是轮换权限级别：`Shift+Tab` 什么时候都是；`Tab` 在命令列表没开时是（开着时补全命令）。
 fn cycles_level(key: &KeyEvent, menu_open: bool) -> bool {
     key.code == KeyCode::BackTab
@@ -233,7 +249,7 @@ fn cycles_level(key: &KeyEvent, menu_open: bool) -> bool {
 mod tests {
     use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-    use super::cycles_level;
+    use super::{cycles_level, is_paste};
 
     #[test]
     fn tab_and_shift_tab_cycle_the_level_unless_the_menu_wants_tab() {
@@ -243,5 +259,17 @@ mod tests {
         assert!(cycles_level(&back, false), "Shift+Tab 留着");
         assert!(!cycles_level(&tab, true), "命令列表开着：Tab 补全命令");
         assert!(cycles_level(&back, true));
+    }
+
+    #[test]
+    fn ctrl_v_reads_the_clipboard_but_ctrl_shift_v_is_the_terminals() {
+        let key = |code, m| KeyEvent::new(code, m);
+        assert!(is_paste(&key(KeyCode::Char('v'), KeyModifiers::CONTROL)));
+        // 按着 Shift 的是终端自己的粘贴（走括号粘贴），不读剪贴板。
+        assert!(!is_paste(&key(
+            KeyCode::Char('V'),
+            KeyModifiers::CONTROL | KeyModifiers::SHIFT
+        )));
+        assert!(!is_paste(&key(KeyCode::Char('v'), KeyModifiers::NONE)));
     }
 }

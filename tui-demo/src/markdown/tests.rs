@@ -27,10 +27,19 @@ fn lines(text: &str, width: u16) -> Vec<String> {
 }
 
 #[test]
-fn headings_keep_their_hashes_and_blocks_are_spaced() {
-    assert_eq!(lines("# 标题\n正文", 30), vec!["# 标题", "", "正文"]);
-    let first = &draw("## 小节", 30)[0].folded.spans[0];
-    assert_eq!(first.style, theme::md_heading());
+fn headings_drop_their_hashes_and_blocks_are_spaced() {
+    // 不写 `#`；一级标题加下划线，别的级别一个样（`tui.md`「她的回答：Markdown」第 3 条）。
+    assert_eq!(lines("# 标题\n正文", 30), vec!["标题", "", "正文"]);
+    assert_eq!(lines("### 小小节", 30), vec!["小小节"]);
+    let top = &draw("# 标题", 30)[0].folded.spans[0];
+    assert_eq!(
+        top.style,
+        theme::md_heading().add_modifier(ratatui::style::Modifier::UNDERLINED)
+    );
+    let second = &draw("## 小节", 30)[0].folded.spans[0];
+    let third = &draw("#### 小小节", 30)[0].folded.spans[0];
+    assert_eq!(second.style, theme::md_heading());
+    assert_eq!(third.style, second.style, "二级以下一个样");
 }
 
 #[test]

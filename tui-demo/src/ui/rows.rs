@@ -134,6 +134,7 @@ pub fn entry_rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
         (None, Kind::Undo) => undo_rows(i, entry, ctx),
         (None, Kind::Job) => job_rows::rows(i, entry, ctx),
         (None, Kind::Reply) => reply_rows(i, entry, ctx),
+        (None, Kind::User) => super::user_rows::rows(i, entry, ctx),
         (None, _) => text_rows(entry, ctx),
     }
 }
@@ -282,44 +283,33 @@ pub(super) fn md_row(line: MdLine, ctx: &Ctx) -> Row {
     row
 }
 
-/// 一条字：你说的话带竖线，别的平铺；折行按显示宽度。
+/// 一条字：旁白、出错、收尾行、答完的引用块，平铺；折行按显示宽度。你说的话在 `user_rows.rs`。
 fn text_rows(entry: &Entry, ctx: &Ctx) -> Vec<Row> {
     let layout = &ctx.config.layout;
     let (slot, style) = match entry.kind {
-        Kind::User => (
-            Span::styled(
-                layout.user_bar.clone(),
-                theme::user_bar(entry.level.unwrap_or(ctx.level)),
-            ),
-            Style::new(),
-        ),
         Kind::Note | Kind::Done => (ctx.blank_slot(), theme::dim()),
         Kind::Answered => (
             Span::styled(layout.user_bar.clone(), theme::dim()),
             theme::dim(),
         ),
         Kind::Error => (ctx.blank_slot(), theme::error()),
-        Kind::Reply | Kind::Steps | Kind::Undo | Kind::Job => (ctx.blank_slot(), Style::new()),
+        Kind::User | Kind::Reply | Kind::Steps | Kind::Undo | Kind::Job => {
+            (ctx.blank_slot(), Style::new())
+        }
     };
     let text = match entry.kind {
         Kind::Done => done_line(entry.level, &entry.text, layout),
         // 模型的回答常以换行开头、结尾，前后的空行不画。
         _ => entry.text.trim_matches('\n').to_string(),
     };
-    let mut rows: Vec<Row> = pieces(&text, ctx.width.max(1))
+    pieces(&text, ctx.width.max(1))
         .into_iter()
         .map(|(piece, joined)| {
             let mut row = ctx.row(slot.clone(), vec![Span::styled(piece, style)]);
             row.joined = joined;
             row
         })
-        .collect();
-    // 你说的话上下各多一行竖线，框成一块（`13-终端界面.md` 第三节第 7 条）。
-    if entry.kind == Kind::User {
-        rows.insert(0, ctx.row(slot.clone(), Vec::new()));
-        rows.push(ctx.row(slot, Vec::new()));
-    }
-    rows
+        .collect()
 }
 
 #[cfg(test)]
@@ -346,6 +336,7 @@ mod tests {
 
     #[test]
     fn a_new_theme_redraws_cached_replies() {
+        let _theme = theme::hold();
         let before = cache_key("**粗**");
         // 设回同一套：颜色不变（不扰别的测试），但换过一次，排好的样子就作废。
         let palette = theme::builtin().unwrap().remove(0).1;

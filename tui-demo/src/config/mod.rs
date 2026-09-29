@@ -15,6 +15,10 @@ use crate::mascot::Look;
 use crate::pulse::Words;
 use crate::theme::Palette;
 
+mod timeline;
+
+pub use timeline::{Summary, Timeline, ToolKind};
+
 /// 布局的数值。
 #[derive(Debug, Clone, Deserialize)]
 pub struct Layout {
@@ -56,6 +60,10 @@ pub struct Layout {
     pub compact_pad_left: u16,
     /// 紧凑版面框里右边几列（光标的一列）。
     pub compact_pad_right: u16,
+    /// 一次粘贴超过这么多行，输入框里收成一块（蓝图「输入框」第 11 条）。
+    pub paste_fold_lines: usize,
+    /// 一次粘贴超过这么多字，收成一块。
+    pub paste_fold_chars: usize,
     /// 输入框最多长到几行，再多就在框里滚。
     pub max_rows: u16,
     /// 两次点击隔多久以内算双击，毫秒。
@@ -181,18 +189,6 @@ pub struct Bar {
     pub empty: String,
 }
 
-/// 时间线里哪几样默认铺开全文（`timeline.json` 的 `expand`，蓝图「时间线」第 18 条）。
-#[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Expand {
-    /// 思考。
-    pub thought: bool,
-    /// 执行命令。
-    pub command: bool,
-    /// 编辑、写入的差异。
-    pub edit: bool,
-}
-
 /// 待办每一项前面的记号（`layout.json` 的 `todo_marks`）。
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -232,6 +228,12 @@ pub struct Texts {
     pub jobs: JobTexts,
     /// 确认和提问的抽屉上的字。
     pub drawer: crate::drawer::Texts,
+    /// 输入框里粘贴块上写的，`{lines}` 行数。
+    pub paste_label: String,
+    /// `Ctrl+V` 读不到剪贴板时的提示。
+    pub clipboard_unreadable: String,
+    /// `Ctrl+V` 读到空剪贴板时的提示。
+    pub clipboard_empty: String,
     /// 空会话的首页上，输入框空着时固定写的提示（蓝图「输入框」第 9 条）。
     pub home_placeholder: String,
     /// 权限级别的叫法：`workspace`、`full`、`read_only`（`kernel/events-bodies.md` 的 `permission`）。
@@ -316,76 +318,6 @@ pub struct Texts {
     pub total: String,
 }
 
-/// 时间线收起那一行的几种说法。两个的是 `[一个的写法, 几个的写法]`，`{count}` 是几个。
-#[derive(Debug, Clone, Deserialize)]
-pub struct Summary {
-    /// 跑过命令：打头的那一格。
-    pub ran: [String; 2],
-    /// 没跑命令、用过别的工具：打头的那一格。
-    pub used: [String; 2],
-    /// 只编辑过：打头的那一格。
-    pub made: [String; 2],
-    /// 编辑。
-    pub edits: [String; 2],
-    /// 别的工具。
-    pub tools: [String; 2],
-    /// 思考。
-    pub thoughts: [String; 2],
-    /// 出错。
-    pub errors: [String; 2],
-    /// 只想过：`{elapsed}` 是想了多久。
-    pub thought_for: String,
-}
-
-/// 时间线的样子：图标、转圈、预览几行。头自己定的（`13-终端界面.md` 第三节的表：图标、连接行归终端界面）。
-#[derive(Debug, Clone, Deserialize)]
-pub struct Timeline {
-    /// 每件工具的图标和它算哪一类（`command`、`edit`，没写的算工具）。
-    pub tools: HashMap<String, ToolLook>,
-    /// 没登记的工具的图标。
-    pub tool_icon: String,
-    /// 思考的图标。
-    pub think_icon: String,
-    /// 出错时顶替图标的叉。
-    pub error_icon: String,
-    /// 转圈的一帧帧。
-    pub spinner: Vec<String>,
-    /// 转圈一帧多少毫秒。
-    pub spinner_ms: u64,
-    /// 命令的预览最多几行。
-    pub preview_rows: usize,
-    /// 思考滚着显示最后几行。
-    pub thought_rows: usize,
-    /// 步与步之间的连接线，预览行首的竖线也是它。
-    pub line: String,
-    /// 预览放不下时那一行打头的符号。
-    pub omitted: String,
-    /// 一段做完要不要收成一行（蓝图「时间线」第 18 条）。
-    pub fold: bool,
-    /// 哪几样默认铺开全文。
-    pub expand: Expand,
-}
-
-/// 一件工具在时间线上的样子。
-#[derive(Debug, Clone, Deserialize)]
-pub struct ToolLook {
-    /// 图标。
-    pub icon: String,
-    /// 算哪一类；没写的算工具。
-    #[serde(default)]
-    pub kind: Option<ToolKind>,
-}
-
-/// 一件工具在时间线上算哪一类：数收起那一行、画预览和差异照它。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ToolKind {
-    /// 执行命令：标题写短标题，下面预览命令。
-    Command,
-    /// 编辑、写入：标题写加减的行数，点开是差异。
-    Edit,
-}
-
 /// 模型的数据。核心的协议里还没有模型的窗口多大，先记在这里（等配置系统做出来，由核心推给头）。
 #[derive(Debug, Clone, Deserialize)]
 pub struct Models {
@@ -446,17 +378,23 @@ impl Config {
     /// JSON 写坏了、缺了字段时返回错误，说清是哪一份。
     pub fn builtin() -> Result<Self, String> {
         Ok(Self {
-            layout: parse("layout.json", include_str!("../resources/layout.json"))?,
-            text: parse("text/zh.json", include_str!("../resources/text/zh.json"))?,
-            models: parse("models.json", include_str!("../resources/models.json"))?,
-            commands: parse("commands.json", include_str!("../resources/commands.json"))?,
-            timeline: parse("timeline.json", include_str!("../resources/timeline.json"))?,
-            languages: parse("code.json", include_str!("../resources/code.json"))?,
-            math: parse("math.json", include_str!("../resources/math.json"))?,
-            figures: parse("figures.json", include_str!("../resources/figures.json"))?,
-            pulse: parse("pulse.json", include_str!("../resources/pulse.json"))?,
-            mascot: parse("mascot.json", include_str!("../resources/mascot.json"))?,
-            fake: parse("fake.json", include_str!("../resources/fake.json"))?,
+            layout: parse("layout.json", include_str!("../../resources/layout.json"))?,
+            text: parse("text/zh.json", include_str!("../../resources/text/zh.json"))?,
+            models: parse("models.json", include_str!("../../resources/models.json"))?,
+            commands: parse(
+                "commands.json",
+                include_str!("../../resources/commands.json"),
+            )?,
+            timeline: parse(
+                "timeline.json",
+                include_str!("../../resources/timeline.json"),
+            )?,
+            languages: parse("code.json", include_str!("../../resources/code.json"))?,
+            math: parse("math.json", include_str!("../../resources/math.json"))?,
+            figures: parse("figures.json", include_str!("../../resources/figures.json"))?,
+            pulse: parse("pulse.json", include_str!("../../resources/pulse.json"))?,
+            mascot: parse("mascot.json", include_str!("../../resources/mascot.json"))?,
+            fake: parse("fake.json", include_str!("../../resources/fake.json"))?,
             themes: crate::theme::builtin()?,
         })
     }

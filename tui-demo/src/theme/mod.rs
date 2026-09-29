@@ -15,6 +15,11 @@ pub use palette::{Palette, builtin};
 use crate::config::Shimmer;
 use crate::core::Level;
 
+#[cfg(test)]
+mod test_support;
+#[cfg(test)]
+pub use test_support::hold;
+
 /// 当前主题。启动前是出厂的第一套。
 static CURRENT: LazyLock<RwLock<Palette>> = LazyLock::new(|| {
     let first = palette::BUILTIN[0].1;
@@ -142,6 +147,21 @@ pub fn shade() -> Style {
     Style::new().bg(pick(|p| p.shade))
 }
 
+/// 粘贴块这种小块：品红的字铺一层暗紫底（蓝图「输入框」第 11 条）。
+pub fn chip() -> Style {
+    picked().bg(pick(|p| p.chip_bg))
+}
+
+/// 悬停时的小块：底色亮一档。
+pub fn chip_hover() -> Style {
+    picked().bg(pick(|p| p.chip_hover_bg))
+}
+
+/// 展开着的粘贴、悬停时：字不变，铺上小块的底色，看得出哪些是粘的。
+pub fn chip_ground() -> Style {
+    Style::new().bg(pick(|p| p.chip_bg))
+}
+
 /// 加了几行：绿。
 pub fn added() -> Style {
     fg(|p| p.added)
@@ -245,6 +265,36 @@ pub fn code_number() -> Style {
 /// 代码的注释：绿。
 pub fn code_comment() -> Style {
     fg(|p| p.code_comment)
+}
+
+/// 代码里的类型：内建类型、大写开头的名字。
+pub fn code_type() -> Style {
+    fg(|p| p.code_type)
+}
+
+/// 代码里的常量：`true`、`None`、全大写的名字。
+pub fn code_constant() -> Style {
+    fg(|p| p.code_constant)
+}
+
+/// 代码里的键、属性名：JSON、YAML、TOML、CSS 冒号前、等号前的，HTML 的属性名。
+pub fn code_property() -> Style {
+    fg(|p| p.code_property)
+}
+
+/// 代码里的运算符。
+pub fn code_operator() -> Style {
+    fg(|p| p.code_operator)
+}
+
+/// 代码里的宏、属性、装饰器、shell 变量。
+pub fn code_macro() -> Style {
+    fg(|p| p.code_macro)
+}
+
+/// shell 命令的参数。
+pub fn code_parameter() -> Style {
+    fg(|p| p.code_parameter)
 }
 
 /// 运行状态行第 `index` 个字（一共 `len` 个）在 `t` 秒时的颜色：底色不变；一道亮光从左往右扫过，

@@ -1,4 +1,4 @@
-//! 输入历史列表（蓝图 `tui.md`「输入历史列表」）：第一行「搜索：」加打的字，下面对得上的几条，
+//! 输入历史列表（蓝图 `tui.md`「输入历史列表」）：第一行「历史：」加打的字，下面对得上的几条，
 //! 最新的贴着输入框，越早越往上；选中的停在正中间，到头才往边上走（照命令列表的 [`window`]）。
 //! `Tab` 展开着时，选中的那一条写全文。
 //!
@@ -17,7 +17,7 @@ use crate::input::pieces;
 use crate::menu::window;
 use crate::theme;
 
-/// 排好的一行：是对得上的第几条（「搜索：」那一行、「没有对得上的」是 `None`；展开的一条连「还有几行」都算它），
+/// 排好的一行：是对得上的第几条（「历史：」那一行、「没有对得上的」是 `None`；展开的一条连「还有几行」都算它），
 /// 和画出来的样子。
 pub type Row = (Option<usize>, Line<'static>);
 
@@ -93,7 +93,7 @@ pub fn draw(frame: &mut Frame, area: Rect, rows: Vec<Row>) {
     frame.render_widget(Paragraph::new(lines), area);
 }
 
-/// 屏幕上第 `y` 行是对得上的第几条；「搜索：」那一行、空着的地方是 `None`。
+/// 屏幕上第 `y` 行是对得上的第几条；「历史：」那一行、空着的地方是 `None`。
 pub fn index_at(area: Rect, rows: &[Row], y: u16) -> Option<usize> {
     rows.get(usize::from(y.checked_sub(area.y)?))?.0
 }
@@ -115,7 +115,7 @@ mod tests {
         let config = Config::builtin().unwrap();
         let history = History::default();
         let rows = lines(&history, &["新的", "中间", "早的"], 40, &config);
-        assert_eq!(plain(&rows), ["搜索：", "早的", "中间", "新的"]);
+        assert_eq!(plain(&rows), ["历史：", "早的", "中间", "新的"]);
         let area = Rect::new(0, 10, 40, 4);
         assert_eq!(index_at(area, &rows, 13), Some(0));
         assert_eq!(index_at(area, &rows, 11), Some(2));
@@ -128,7 +128,7 @@ mod tests {
         let mut history = History::default();
         history.toggle_full();
         let rows = lines(&history, &["第一行\n第二行", "早的"], 40, &config);
-        assert_eq!(plain(&rows), ["搜索：", "早的", "第一行", "第二行"]);
+        assert_eq!(plain(&rows), ["历史：", "早的", "第一行", "第二行"]);
         // 展开的两行都算这一条：点哪一行都是它。
         assert_eq!(rows[2].0, Some(0));
         assert_eq!(rows[3].0, Some(0));

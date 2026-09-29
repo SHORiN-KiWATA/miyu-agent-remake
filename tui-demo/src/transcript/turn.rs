@@ -53,6 +53,7 @@ impl Transcript {
             for next in moved {
                 first.text.push('\n');
                 first.text.push_str(&next.text);
+                first.pasted.extend(next.pasted);
             }
             first.turn = Some(turn);
             first.queued = false;

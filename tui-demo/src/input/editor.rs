@@ -5,6 +5,8 @@
 
 use unicode_segmentation::UnicodeSegmentation;
 
+use super::pasted::{Block, Draft};
+
 /// 输入框的文字和光标。换行、滚动这些跟屏幕有关的事不在这里，见 `wrap.rs`。
 #[derive(Debug, Default)]
 pub struct Editor {
@@ -13,6 +15,8 @@ pub struct Editor {
     cursor: usize,
     /// 选区的另一头。和光标相等时等于没有选区。
     anchor: Option<usize>,
+    /// 字里的粘贴块，按位置记着，编辑时跟着挪（`pasted.rs`）：不靠认字，两块写出来一样也各是各的。
+    blocks: Vec<Block>,
 }
 
 impl Editor {
@@ -37,39 +41,97 @@ impl Editor {
         Some((anchor.min(self.cursor), anchor.max(self.cursor)))
     }
 
-    /// 选中的文字。
-    pub fn selected_text(&self) -> Option<&str> {
-        self.selection().map(|(s, e)| &self.text[s..e])
-    }
-
-    /// 在光标处插入文字；有选区时先替换掉选区。
+    /// 在光标处插入文字；有选区时先替换掉选区，插完不留选区。
     ///
     /// 粘贴进来的 `\r\n` 统一成 `\n`，制表符换成四个空格（宽度好算），
     /// 其余控制字符丢掉：它们在终端里画出来会把版面搅乱。
     pub fn insert(&mut self, input: &str) {
         self.delete_selection();
         let clean = clean(input);
-        self.text.insert_str(self.cursor, &clean);
-        self.cursor += clean.len();
+        self.put(&clean);
     }
 
-    /// 退格：有选区删选区，否则删光标前的一个字。
+    /// 在光标处放一段字（光标不会在块中间）：后面的块跟着挪；放完不留选区——点一下输入框会记下选区的起点，
+    /// 不清掉的话光标一挪，新放进来的字就成了选中的样子。
+    fn put(&mut self, text: &str) {
+        let at = self.cursor;
+        for b in self.blocks.iter_mut().filter(|b| b.start >= at) {
+            b.start += text.len();
+            b.end += text.len();
+        }
+        self.text.insert_str(at, text);
+        self.cursor += text.len();
+        self.anchor = None;
+    }
+
+    /// 在光标处放一块粘贴：输入框里写 `label`，原文记着，发出去时换回来（蓝图「输入框」第 11 条）。
+    pub fn insert_block(&mut self, label: String, text: String) {
+        self.delete_selection();
+        let start = self.cursor;
+        self.put(&label);
+        let at = self.blocks.partition_point(|b| b.start < start);
+        self.blocks.insert(
+            at,
+            Block {
+                start,
+                end: start + label.len(),
+                text,
+            },
+        );
+    }
+
+    /// 输入框的字里每一块占的字节范围：画的时候上色用。
+    pub fn blocks(&self) -> Vec<(usize, usize)> {
+        self.blocks.iter().map(|b| (b.start, b.end)).collect()
+    }
+
+    /// 现在的字连同块。
+    pub fn draft(&self) -> Draft {
+        Draft {
+            text: self.text.clone(),
+            blocks: self.blocks.clone(),
+        }
+    }
+
+    /// 拿走字连同块，输入框清空。
+    pub fn take_draft(&mut self) -> Draft {
+        let blocks = std::mem::take(&mut self.blocks);
+        Draft {
+            text: self.take(),
+            blocks,
+        }
+    }
+
+    /// 换成一段带着块的字，光标放到末尾：翻历史、取回暂存、放回退回的消息时用。
+    pub fn set_draft(&mut self, draft: Draft) {
+        self.cursor = draft.text.len();
+        self.anchor = None;
+        self.text = draft.text;
+        self.blocks = draft.blocks;
+    }
+
+    /// 选中的字的全文：选区里的块换回原文（复制用）。
+    pub fn selected_full(&self) -> Option<String> {
+        let (s, e) = self.selection()?;
+        Some(self.draft().expand_range(s, e))
+    }
+
+    /// 退格：有选区删选区，否则删光标前的一个字；光标前是一块的删整块。
     pub fn backspace(&mut self) {
         if self.delete_selection() {
             return;
         }
         let start = self.prev_boundary(self.cursor);
-        self.text.replace_range(start..self.cursor, "");
-        self.cursor = start;
+        self.remove(start, self.cursor);
     }
 
-    /// 删除键：有选区删选区，否则删光标后的一个字。
+    /// 删除键：有选区删选区，否则删光标后的一个字；光标后是一块的删整块。
     pub fn delete(&mut self) {
         if self.delete_selection() {
             return;
         }
         let end = self.next_boundary(self.cursor);
-        self.text.replace_range(self.cursor..end, "");
+        self.remove(self.cursor, end);
     }
 
     /// 把光标挪到 `pos`。`extend` 为真时保留（或开始）选区，像按着 Shift 移动。
@@ -79,7 +141,7 @@ impl Editor {
         } else {
             self.anchor = None;
         }
-        self.cursor = pos.min(self.text.len());
+        self.cursor = self.snap(pos.min(self.text.len()));
     }
 
     /// 向左一个字。不扩选区时，有选区就收到选区的左头，和常见编辑器一样。
@@ -100,8 +162,8 @@ impl Editor {
 
     /// 从 `start` 选到 `end`，光标停在 `end`。
     pub fn select(&mut self, start: usize, end: usize) {
-        self.anchor = Some(start.min(self.text.len()));
-        self.cursor = end.min(self.text.len());
+        self.anchor = Some(self.snap(start.min(self.text.len())));
+        self.cursor = self.snap(end.min(self.text.len()));
     }
 
     /// 全选。
@@ -118,6 +180,7 @@ impl Editor {
     pub fn take(&mut self) -> String {
         self.anchor = None;
         self.cursor = 0;
+        self.blocks.clear();
         std::mem::take(&mut self.text)
     }
 
@@ -141,7 +204,9 @@ impl Editor {
 
     /// 按词往左跳：先跳过空白，再跳过一个词。词照 Unicode 的分词边界，中文一个字一段。
     pub fn word_left(&mut self, extend: bool) {
-        self.move_to(self.word_start(self.cursor), extend);
+        let at = self.word_start(self.cursor);
+        let at = self.inside(at).map_or(at, |(start, _)| start);
+        self.move_to(at, extend);
     }
 
     /// 按词往右跳：先跳过空白，再跳过一个词，落在词尾。
@@ -155,7 +220,9 @@ impl Editor {
                 .find(|(_, c)| kind(*c) != k)
                 .map_or(rest.len(), |(i, _)| at + i)
         });
-        self.move_to(self.cursor + end, extend);
+        let at = self.cursor + end;
+        let at = self.inside(at).map_or(at, |(_, end)| end);
+        self.move_to(at, extend);
     }
 
     /// 删掉光标前的一个词，连同它后面到光标的空白（Ctrl+W）。有选区时删选区。
@@ -164,8 +231,7 @@ impl Editor {
             return;
         }
         let start = self.word_start(self.cursor);
-        self.text.replace_range(start..self.cursor, "");
-        self.cursor = start;
+        self.remove(start, self.cursor);
     }
 
     /// 把整段字换成 `text`，光标放到末尾：翻历史、放回退回的消息时用。
@@ -198,13 +264,51 @@ impl Editor {
         let Some((start, end)) = self.selection() else {
             return false;
         };
-        self.text.replace_range(start..end, "");
-        self.cursor = start;
+        self.remove(start, end);
         self.anchor = None;
         true
     }
 
+    /// 删掉 `[start, end)`，碰到的块整块删（删到一块的一部分也整块删），后面的块跟着挪，光标落在删掉的地方。
+    fn remove(&mut self, mut start: usize, mut end: usize) {
+        for (s, e) in self.blocks() {
+            if s < end && e > start {
+                start = start.min(s);
+                end = end.max(e);
+            }
+        }
+        self.blocks.retain(|b| b.end <= start || b.start >= end);
+        for b in self.blocks.iter_mut().filter(|b| b.start >= end) {
+            b.start -= end - start;
+            b.end -= end - start;
+        }
+        self.text.replace_range(start..end, "");
+        self.cursor = start;
+    }
+
+    /// `pos` 落在哪一块的中间（不含两头）。
+    fn inside(&self, pos: usize) -> Option<(usize, usize)> {
+        self.blocks().into_iter().find(|&(s, e)| s < pos && pos < e)
+    }
+
+    /// 落在一块中间的挪到离得近的那一头。
+    fn snap(&self, pos: usize) -> usize {
+        match self.inside(pos) {
+            Some((s, e)) if pos - s <= e - pos => s,
+            Some((_, e)) => e,
+            None => pos,
+        }
+    }
+
     fn prev_boundary(&self, pos: usize) -> usize {
+        // 光标前是一块：一下跳到块头。
+        if let Some((s, _)) = self
+            .blocks()
+            .into_iter()
+            .find(|&(s, e)| s < pos && pos <= e)
+        {
+            return s;
+        }
         self.text[..pos]
             .grapheme_indices(true)
             .next_back()
@@ -212,6 +316,13 @@ impl Editor {
     }
 
     fn next_boundary(&self, pos: usize) -> usize {
+        if let Some((_, e)) = self
+            .blocks()
+            .into_iter()
+            .find(|&(s, e)| s <= pos && pos < e)
+        {
+            return e;
+        }
         self.text[pos..]
             .graphemes(true)
             .next()
@@ -238,9 +349,12 @@ fn kind(c: char) -> Kind {
     }
 }
 
-fn clean(input: &str) -> String {
+/// 粘贴、打进来的字：`\r\n`、单独的 `\r` 变 `\n`（kitty 这类终端粘贴时把换行送成 `\r`），制表符变四个空格，
+/// 别的控制字符丢掉。
+pub fn clean(input: &str) -> String {
     input
         .replace("\r\n", "\n")
+        .replace('\r', "\n")
         .chars()
         .filter_map(|c| match c {
             '\t' => Some("    ".to_string()),

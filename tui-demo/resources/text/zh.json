@@ -100,9 +100,9 @@
     "restoring": "正在改回文件，稍等"
   },
   "done_usage": " · {tokens}(C{percent}%)",
-  "history_search": "搜索：",
+  "history_search": "历史：",
   "history_empty": "没有对得上的",
-  "no_history": "还没有发过的话",
+  "no_history": "历史发送为空",
   "history_more": "⋮ 还有 {count} 行",
   "jobs": {
     "button": "{count} 个后台命令",
@@ -163,5 +163,8 @@
     "denied_with": "不允许 · {reason}",
     "cancelled": "已取消",
     "cancel_hint": "再按一次 Esc 取消"
-  }
+  },
+  "clipboard_unreadable": "读不到剪贴板：用终端自己的粘贴（kitty 是 Ctrl+Shift+V）",
+  "clipboard_empty": "剪贴板是空的",
+  "paste_label": "[已粘贴 {lines} 行]"
 }

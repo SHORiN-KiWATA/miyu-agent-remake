@@ -11,7 +11,7 @@ mod math;
 mod table;
 
 use pulldown_cmark::{Alignment, CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
-use ratatui::style::Style;
+use ratatui::style::{Modifier, Style};
 use ratatui::text::Span;
 use unicode_width::UnicodeWidthStr;
 
@@ -161,9 +161,13 @@ impl Renderer<'_> {
             Tag::Heading { level, .. } => {
                 self.flush();
                 self.gap();
-                let hashes = "#".repeat(heading_depth(level));
-                self.styles.push(theme::md_heading());
-                self.push(&format!("{hashes} "), Style::new());
+                // 不写 `#`；一级标题加下划线，别的级别一个样（蓝图「她的回答：Markdown」第 3 条）。
+                let style = if level == HeadingLevel::H1 {
+                    theme::md_heading().add_modifier(Modifier::UNDERLINED)
+                } else {
+                    theme::md_heading()
+                };
+                self.styles.push(style);
             }
             Tag::BlockQuote(_) => {
                 self.flush();
@@ -448,17 +452,6 @@ impl Renderer<'_> {
             self.out.pop();
         }
         self.out
-    }
-}
-
-fn heading_depth(level: HeadingLevel) -> usize {
-    match level {
-        HeadingLevel::H1 => 1,
-        HeadingLevel::H2 => 2,
-        HeadingLevel::H3 => 3,
-        HeadingLevel::H4 => 4,
-        HeadingLevel::H5 => 5,
-        HeadingLevel::H6 => 6,
     }
 }
 
