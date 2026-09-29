@@ -2,12 +2,15 @@
 //!
 //! 剧本的回复报 110（60 没命中、40 命中、10 输出）；窗口 33100，没报最大输出，压缩线 = 33100 − 20000 − 13000 = 100：
 //! 第一轮没有锚、请求很短，不压；第二轮的锚是 110，一开头就过线。
+//!
+//! 给头看的那一份（施工 6-3 补）：`Handle` 带着端口交的窗口和内核算的压缩线，造会话、载入的都一样。
 
 mod support;
 
 use miyu_kernel::block::Block;
 use miyu_kernel::event::Body;
 use miyu_kernel::request::Message;
+use miyu_kernel::session::ContextLimits;
 use miyu_session::testkit::{Play, Script};
 use support::{Home, ask, say, stop, until_turn_ends, watch};
 
@@ -96,5 +99,39 @@ async fn without_a_window_it_is_never_compacted() {
         .expect("会话在跑");
     until_turn_ends(&mut pushes).await;
     assert_eq!(script.requests().len(), 2);
+    stop(&handle).await;
+}
+
+#[tokio::test]
+async fn the_handle_carries_the_window_and_the_line_the_kernel_uses() {
+    let home = Home::new();
+    let script = script();
+    let expected = ContextLimits {
+        window: Some(33_100),
+        compaction_line: Some(100),
+    };
+    let handle = home.create(&script).await;
+    assert_eq!(handle.limits(), expected, "造会话的");
+    let session = handle.id().clone();
+    stop(&handle).await;
+    let handle = home.load(&session, &script).await;
+    assert_eq!(handle.limits(), expected, "载入的");
+    stop(&handle).await;
+}
+
+#[tokio::test]
+async fn without_a_window_the_handle_carries_neither() {
+    let home = Home::new();
+    let script = Script::new([]);
+    let nothing = ContextLimits {
+        window: None,
+        compaction_line: None,
+    };
+    let handle = home.create(&script).await;
+    assert_eq!(handle.limits(), nothing, "造会话的");
+    let session = handle.id().clone();
+    stop(&handle).await;
+    let handle = home.load(&session, &script).await;
+    assert_eq!(handle.limits(), nothing, "载入的");
     stop(&handle).await;
 }

@@ -11,7 +11,7 @@ use miyu_kernel::event::{Event, Transient};
 use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{CommandId, SessionId};
 use miyu_kernel::origin::By;
-use miyu_kernel::session::{Command, Outcome};
+use miyu_kernel::session::{Command, ContextLimits, Outcome};
 
 /// 一个会话：它的 actor 的收件箱。可以复制，几个头一起拿着。
 #[derive(Debug, Clone)]
@@ -20,6 +20,9 @@ pub struct Handle {
     inbox: mpsc::UnboundedSender<Message>,
     /// 有没有在跑的回合：actor 每送完一批输入就写一次（施工 3-9 上）。
     busy: Arc<AtomicBool>,
+    /// 给头看的限额：造会话、载入时交完限额向内核要的（施工 6-3 补）。会话里不变：一个核心一个模型，策略冻结在会话上；
+    /// 换模型那一步再改成会变的。
+    limits: ContextLimits,
 }
 
 /// 发给 actor 的。
@@ -45,8 +48,14 @@ impl Handle {
         id: SessionId,
         inbox: mpsc::UnboundedSender<Message>,
         busy: Arc<AtomicBool>,
+        limits: ContextLimits,
     ) -> Handle {
-        Handle { id, inbox, busy }
+        Handle {
+            id,
+            inbox,
+            busy,
+            limits,
+        }
     }
 
     /// 有没有在跑的回合：核心看它决定能不能空闲退出（施工 3-9 上）。会话停了的，不算在跑。
@@ -57,6 +66,11 @@ impl Handle {
     /// 会话编号。
     pub fn id(&self) -> &SessionId {
         &self.id
+    }
+
+    /// 给头看的限额：窗口、压缩线（施工 6-3 补）。协议照它回 `subscribe`（`docs/blueprint/protocol.md`）。
+    pub fn limits(&self) -> ContextLimits {
+        self.limits
     }
 
     /// 发一个命令，等它的回应：接受的，它产生的事件落了盘才回（`07-存储.md` S4）；拒绝的当场回。

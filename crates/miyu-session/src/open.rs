@@ -189,8 +189,9 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         policy,
         environment,
     );
-    // 模型的限额在别的输入之前交（施工 6-3 上）：什么动作都不出。
+    // 模型的限额在别的输入之前交（施工 6-3 上）：什么动作都不出。给头看的那一份当场要，`Handle` 带着（施工 6-3 补）。
     session.handle(Input::Limits(model.limits()));
+    let limits = session.context_limits();
     let (inbox, mailbox) = mpsc::unbounded_channel();
     let guard = Guard::new(
         tools.clone(),
@@ -227,7 +228,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     });
     actor::spawn(actor, first, span);
     match answer.await {
-        Ok(_) => Ok(Handle::new(id, inbox, busy)),
+        Ok(_) => Ok(Handle::new(id, inbox, busy, limits)),
         Err(_) => {
             // 造会话那一条没落盘：只剩空的第一段的会话目录删掉；快照的 blob 留着，按内容存，别的会话可能也在用
             // （施工 4-9 再补四下：原来都留在磁盘上）。
@@ -309,8 +310,9 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let (mut session, first) =
         Session::load(events, clock.now(), policy, environment).map_err(LoadError::Kernel)?;
     // 重启以后接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）；最近一个检查点重读过的文件，原文也先交回去（施工
-    // 6-5）。
+    // 6-5）。给头看的限额同上（施工 6-3 补）。
     session.handle(Input::Limits(model.limits()));
+    let limits = session.context_limits();
     if !recalled.is_empty() {
         session.handle(Input::Recalled { texts: recalled });
     }
@@ -347,7 +349,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         tracing::info!(target: TARGET, events = count, "loaded");
     });
     actor::spawn(actor, first, span);
-    Ok(Handle::new(id, inbox, busy))
+    Ok(Handle::new(id, inbox, busy, limits))
 }
 
 impl fmt::Display for CreateError {

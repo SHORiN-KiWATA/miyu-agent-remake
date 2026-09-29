@@ -144,7 +144,8 @@ struct StreamParams {
     stream: String,
 }
 
-/// 订阅会话的事件流：没在跑的照样先载入；已经订阅着的，还是那一个。
+/// 订阅会话的事件流：没在跑的照样先载入；已经订阅着的，还是那一个。回应带会话的限额（施工 6-3 补）：订阅着的也从会话表
+/// 拿，在跑的直接用，不多载入。
 async fn subscribe(
     core: &Core,
     subscriptions: &mut Subscriptions,
@@ -152,15 +153,15 @@ async fn subscribe(
     out: &mpsc::Sender<String>,
 ) -> Result<Value, Refusal> {
     let session = stream_of(request)?;
+    let handle = core.sessions.get(core, &session, None, None).await?.handle;
     if !subscriptions.has(&session) {
-        let handle = core.sessions.get(core, &session, None, None).await?.handle;
         let Ok(subscription) = handle.subscribe().await else {
             core.sessions.forget(&session).await;
             return Err(Refusal::STOPPED);
         };
         subscriptions.add(session, subscription, out.clone());
     }
-    Ok(json!({}))
+    Ok(json!({"limits": handle.limits()}))
 }
 
 /// 订阅的参数：会话编号，流现在只有 `events`。
