@@ -12,23 +12,31 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use crate::lock::Lock;
 use crate::sys;
 
-/// 核心在套接字上等连接（Windows 上是命名管道）。丢掉它：套接字文件删掉，锁放开。先删文件再放锁：
-/// 放了锁，下一个核心马上就可能在同一个位置上绑。
+/// 核心在套接字上等连接（Windows 上是命名管道）。丢掉它：套接字文件删掉，放在这个数据根专用的目录里的
+/// 连目录一起删，锁放开。先删再放锁：放了锁，下一个核心马上就可能在同一个位置上绑。
 pub struct Listener {
     /// 在等连接的套接字。
     socket: sys::Socket,
     /// 套接字在哪。
     path: PathBuf,
+    /// 套接字所在的这一层是这个数据根专用的（`$XDG_RUNTIME_DIR/miyu-<指纹>/`）：走的时候空了就删。
+    own_dir: Option<PathBuf>,
     /// 单实例锁。放在最后：字段照声明的先后丢，锁最后放。
     _lock: Lock,
 }
 
 impl Listener {
     /// 套接字绑好了，锁拿着了。
-    pub(crate) fn new(socket: sys::Socket, path: PathBuf, lock: Lock) -> Listener {
+    pub(crate) fn new(
+        socket: sys::Socket,
+        path: PathBuf,
+        own_dir: Option<PathBuf>,
+        lock: Lock,
+    ) -> Listener {
         Listener {
             socket,
             path,
+            own_dir,
             _lock: lock,
         }
     }
@@ -51,6 +59,12 @@ impl Listener {
 impl Drop for Listener {
     fn drop(&mut self) {
         sys::remove(&self.path);
+        // 只删空的：里面有别的东西（不该有）就留着。锁这时还拿着，下一个核心还建不了它。
+        if let Some(dir) = &self.own_dir
+            && let Err(error) = std::fs::remove_dir(dir)
+        {
+            tracing::debug!(target: "miyu::ipc", error = %error, "runtime dir not removed");
+        }
     }
 }
 

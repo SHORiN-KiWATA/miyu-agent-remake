@@ -103,3 +103,31 @@ fn windows_uses_a_named_pipe() {
         PathBuf::from(format!(r"\\.\pipe\miyu-{}", fingerprint(&root)))
     );
 }
+
+#[test]
+fn only_the_runtime_dir_layer_is_the_roots_own() {
+    let runtime = dirs(Platform::Linux, Some("/run/user/1000"));
+    assert_eq!(
+        own_dir(
+            Path::new("/run/user/1000/miyu-df81e9ca/core.sock"),
+            &runtime
+        ),
+        Some(PathBuf::from("/run/user/1000/miyu-df81e9ca"))
+    );
+    // 数据根的 run/、临时目录下共用的那一层不是。
+    assert_eq!(
+        own_dir(Path::new("/data/miyu/run/core.sock"), &runtime),
+        None
+    );
+    assert_eq!(
+        own_dir(Path::new("/tmp/miyu-1000/df81e9ca.sock"), &runtime),
+        None
+    );
+    // 没有 $XDG_RUNTIME_DIR 的、macOS 上的都不是。
+    let path = Path::new("/run/user/1000/miyu-df81e9ca/core.sock");
+    assert_eq!(own_dir(path, &dirs(Platform::Linux, None)), None);
+    assert_eq!(
+        own_dir(path, &dirs(Platform::Macos, Some("/run/user/1000"))),
+        None
+    );
+}
