@@ -39,6 +39,38 @@ pub(super) fn some_undo(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> Opti
     Some(revert(n, turn))
 }
 
+/// 重做（施工 4-7 再补），另用一串随机数：空闲时十回里有一回，回合开着时八十回里一回（该被拒）。一半原样，一半换成一句
+/// 话，二十回里有一回换成空的（随机的话没有附件，该被拒）。
+pub(super) fn some_redo(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> Option<Input> {
+    // 最后一轮里压过的、改过文件的，多半重做它：撤它要先读回日志、改回文件，光靠均匀地抽难得碰上（照撤销，施工 6-9）。
+    let last = watch.undo.effective.last();
+    let compacted = watch.compaction_turns().last() == last;
+    let changed = last.is_some_and(|turn| watch.changes_in(&[*turn]) > 0);
+    let chance = match (watch.turn_open(), compacted || changed) {
+        (true, _) => 80,
+        (false, true) => 2,
+        (false, false) => 10,
+    };
+    if rng.below(chance) != 0 {
+        return None;
+    }
+    let text = match rng.below(20) {
+        0 => Some(Vec::new()),
+        k if k % 2 == 0 => Some(vec![Block::Text(Text {
+            text: "again".to_string(),
+        })]),
+        _ => None,
+    };
+    // 五回里一回说不要附件：随机的话都没有附件，换过的只剩字。
+    let attachments = (rng.below(5) == 0).then(Vec::new);
+    Some(Input::Command(Received {
+        id: id(next_command(next_id)),
+        by: alice(),
+        at: at(56),
+        command: Command::Redo { text, attachments },
+    }))
+}
+
 /// 读回日志的回报（施工 6-9）：在读回的时候，八回里有四回照日志回；一回少了最后一条、一回起点不对（都该不理）；两回
 /// 送来一句话（该拒）。它排在每一步的最前面，撤销交出读回以后，这一步别的输入照常夹在中间，也有命令撞上读回。没在
 /// 读回的时候八十回里一回送一个过时的（该不理）。

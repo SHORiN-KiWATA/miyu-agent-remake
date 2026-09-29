@@ -86,6 +86,10 @@ impl Watch {
     /// 送进一条输入之前：新的撤销、恢复，读回的日志，照规矩判出该怎样。不写回合编号的撤最后一轮（施工 4-7 下）。
     pub(super) fn before_undo(&mut self, input: &Input) -> Option<Expect> {
         if let Input::ReadBack { from, events, .. } = input {
+            // 重做在等的读回，照重做判（`watch/redo.rs`，施工 4-7 再补）。
+            if self.redo_reading() {
+                return None;
+            }
             return Some(match self.undo.reading.clone() {
                 Some((turns, reading)) if reading == *from && *events == self.log_from(reading) => {
                     let recall = self.recall_after(turns[0]);
@@ -132,7 +136,7 @@ impl Watch {
     }
 
     /// 从第一轮起撤这几轮：撤到还算数的压缩的先读回，从撤完以后还算数的最近一次压缩替代到的下一条起；别的当场记。
-    fn reverting(&self, turns: Vec<TurnId>) -> Expect {
+    pub(super) fn reverting(&self, turns: Vec<TurnId>) -> Expect {
         let first = turns[0];
         let live = &self.compactions.live;
         if !live.iter().any(|live| live.turn >= first) {
@@ -152,7 +156,7 @@ impl Watch {
     }
 
     /// 从 `first` 起撤完以后的检查点重读过的文件：要取回原文的 blob。
-    fn recall_after(&self, first: TurnId) -> Vec<ContentHash> {
+    pub(super) fn recall_after(&self, first: TurnId) -> Vec<ContentHash> {
         self.compactions
             .live
             .iter()
@@ -300,8 +304,9 @@ impl Watch {
     }
 
     /// 撤掉这几轮要拿走的：它们的事件；触发它们的、人亲口说的那句；由上一轮排着的消息接着开的，
-    /// 接过去的那几句。已经拿走了的不算。
-    fn undone_by(&mut self, turns: &[TurnId]) -> BTreeSet<Seq> {
+    /// 接过去的那几句；触发的那句没有回合编号的（空闲时说的、重做重发的），和它同一个命令、也没有回合编号的人的话
+    /// （施工 4-7 再补）。已经拿走了的不算。
+    pub(super) fn undone_by(&mut self, turns: &[TurnId]) -> BTreeSet<Seq> {
         let gone = &self.undo.gone;
         let mut taken: BTreeSet<Seq> = self
             .events
@@ -321,6 +326,25 @@ impl Watch {
                     && matches!(event.by, By::Person(_))
             });
             taken.extend(said.map(|event| event.seq));
+            let resent: Vec<Seq> = said
+                .filter(|said| said.turn.is_none() && said.cause.is_some())
+                .map(|said| {
+                    self.events
+                        .iter()
+                        .filter(|event| {
+                            event.turn.is_none()
+                                && event.cause == said.cause
+                                && matches!(event.body, Body::MessageUser(_))
+                                && matches!(event.by, By::Person(_))
+                        })
+                        .map(|event| event.seq)
+                        .collect()
+                })
+                .unwrap_or_default();
+            if resent.len() > 1 {
+                self.seen_paths.insert("撤销带走了重做重发的几句");
+            }
+            taken.extend(resent);
             let picked = self.undo.picked.get(turn).cloned().unwrap_or_default();
             if picked.len() > 1 {
                 self.seen_paths.insert("撤销带走了上一轮排着的");

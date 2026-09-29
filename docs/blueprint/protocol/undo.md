@@ -2,7 +2,7 @@
 
 ### 是什么
 
-`session.revert`（撤销）、`session.unrevert`（恢复最近一次撤销）被接受时，回应除了 `events`，还带给人看的几样：会话的工作目录、撤的是哪一轮、撤掉的几轮调过几次执行命令的工具、撤掉了几次压缩、几次清空、每个文件怎样、之后又被改过的差异。这几样由核心算，头照着印（`cli/undo.md`）。
+`session.revert`（撤销）、`session.unrevert`（恢复最近一次撤销）、`session.redo`（重做，施工 4-7 再补：撤销的那一半照撤销写）被接受时，回应除了 `events`，还带给人看的几样：会话的工作目录、撤的是哪一轮、撤掉的几轮调过几次执行命令的工具、撤掉了几次压缩、几次清空、每个文件怎样、之后又被改过的差异。这几样由核心算，头照着印（`cli/undo.md`）。
 
 协议的其余部分见 `protocol.md`。
 
@@ -10,7 +10,7 @@
 
 | 代码 | 管什么 |
 |---|---|
-| `crates/miyu-endpoint/src/methods.rs` | 两个方法的参数；交给会话，等它的回应 |
+| `crates/miyu-endpoint/src/methods.rs` | 三个方法的参数；交给会话，等它的回应 |
 | `crates/miyu-endpoint/src/undo.rs` | 照会话的日志写回应里给人看的几样 |
 | `crates/miyu-kernel/src/session/revert.rs` | 能不能撤、撤哪几轮、能不能恢复（`kernel/history.md`） |
 
@@ -28,13 +28,13 @@
 
 | 格 | 类型 | 是什么 |
 |---|---|---|
-| `events` | 整数的数组 | 这一次产生的事件的序号，照先后：`turn.reverted`（恢复是 `turn.unreverted`）；有要改回的文件的，再加一条 `files.restored` |
+| `events` | 整数的数组 | 这一次产生的事件的序号，照先后：`turn.reverted`（恢复是 `turn.unreverted`）；有要改回的文件的，再加一条 `files.restored`；重做的，最后是重发的每一句 `message.user` |
 | `cwd` | 字符串 | 会话的工作目录，换成了真实的位置 |
 | `turns` | 整数 | 撤了（恢复了）几轮 |
 | `said` | 字符串，可能没有 | 第一轮里人说的那句话的第一行不空的 |
-| `commands` | 整数，只有撤销有 | 撤掉的几轮里真跑过几次执行命令的工具；可以是 `0` |
-| `compactions` | 整数，只有撤销有，可能没有 | 撤掉的几轮里有几次压缩：撤掉了压缩，上下文回到了压缩前（`compaction.md` 第十一条，施工 6-9）；清空不算在里面；是 `0` 的不写这一格 |
-| `clears` | 整数，只有撤销有，可能没有 | 撤掉的几轮里有几次清空：上下文回到了清空以前（`compaction.md` 第十四条，施工 6-8 补）；是 `0` 的不写这一格 |
+| `commands` | 整数，只有撤销（重做）有 | 撤掉的几轮里真跑过几次执行命令的工具；可以是 `0` |
+| `compactions` | 整数，只有撤销（重做）有，可能没有 | 撤掉的几轮里有几次压缩：撤掉了压缩，上下文回到了压缩前（`compaction.md` 第十一条，施工 6-9）；清空不算在里面；是 `0` 的不写这一格 |
+| `clears` | 整数，只有撤销（重做）有，可能没有 | 撤掉的几轮里有几次清空：上下文回到了清空以前（`compaction.md` 第十四条，施工 6-8 补）；是 `0` 的不写这一格 |
 | `files` | 数组 | 改回的每一步，照做的先后；没有要改回的是空的 |
 
 `files` 的每一项：
@@ -74,7 +74,7 @@
 3. **`said`**：那几轮里的第一轮。找到它的 `turn.started`，再找引起它的那一条（`trigger`）：是 `message.user`、`by` 是人的，照先后找第一块不空的文字块，取它第一行不空的（去掉前后空白以后），去掉前后空白。一行都不空的，没有这一格。不是人开的（内核、别的会话……）、找不到的，没有这一格。
 4. **`commands`**：只有撤销有。数那几轮里每条 `message.assistant` 的工具调用，工具在核心的工具目录里访问类别是「执行命令」的才算，现在只有 `shell`（`tools/interface.md`）。只数跑过的：结果是 `ok`、`error` 的，和可能跑了一半的（跑到一半被打断的 `cancelled-running`、重启时没跑完的 `restarted`）；被拒的、没跑过的、跳过的不算。这一格是提醒「命令改的撤不回」，拿不准的宁可算上。
 5. **`compactions`**、**`clears`**：只有撤销有。数日志里 `context.compacted`，`turn` 在那几轮里的才算（施工 6-9）；`trigger` 是 `clear` 的数进 `clears`，别的数进 `compactions`（施工 6-8 补，2026-09-30 项目主人定撤掉清空单说一句）。是 0 的不写。
-6. **`files`**：照 `events` 的第二条 `files.restored`，一步一项，照原来的先后。没有第二条的是空的。
+6. **`files`**：照 `events` 的第二条 `files.restored`，一步一项，照原来的先后。没有第二条的、第二条不是它的（重做没改回文件，第二条是重发的那一句）是空的。
 7. **差异**：只有 `changed` 的才算。
    1. 要对照的内容：撤销时是她改完的样子（这一步照的那个 `file.changed` 效果的改后），恢复时是撤销以后的样子（改前）。恢复时改前是 `null` 的（她新建的），没有差异；这一步照的不是 `file.changed` 的（`file.trashed`），也没有。
    2. 对照的内容从账号的 blob 里取；现在的内容照 `path` 读。
@@ -109,6 +109,7 @@
 |---|---|
 | `crates/miyu-endpoint/tests/undo.rs` | 不写回合编号的撤最后一轮：`events`、`cwd`、`turns`、`said`、`commands`、`files`，没撤掉压缩的不写 `compactions`；恢复时不带 `commands`；之后又被改过的附差异，最多 20 行、`more`；两轮的会话只算撤掉的那一轮、`said` 只取第一行去掉空白；恢复时对照改前的；上下文 3 行、不加「没有换行」；太大的、不是文本的不附差异；工作目录是链接的写真实的位置；被打断的一轮只算跑过的命令、排在后面没派的不算；`said` 跳过开头的空行，全是空白的没有这一格 |
 | `crates/miyu-endpoint/src/undo/tests.rs` | 数跑过的命令：跑过的、可能跑了一半的算，没跑过的不算；数压缩：`turn` 在撤掉的几轮里的才算，一轮里压过两次的是 2（施工 6-9）；清空另数，数压缩的不算它（施工 6-8 补） |
+| `crates/miyu-endpoint/tests/redo.rs` | 重做的回应：撤销那几样照撤销写，`events` 最后是重发的那一句（施工 4-7 再补，`protocol.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/revert.rs` | 撤销、恢复的 `events`；`nothing_to_unrevert`、`unknown_turn`、`nothing_to_revert` 照头的语言；`turn` 写 0 |
 | `crates/miyu-session/tests/restore.rs` | 改回文件的那一半（`kernel/history.md`） |
 

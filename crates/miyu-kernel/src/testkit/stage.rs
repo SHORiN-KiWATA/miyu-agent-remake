@@ -155,6 +155,20 @@ impl Stage {
         self.command(Command::Unrevert)
     }
 
+    /// 重做最后一轮（施工 4-7 再补）：`text` 是开这一轮的那一句里的字换成的块，`None` 是原样重发；附件照原来的。
+    pub fn redo(&mut self, text: Option<Vec<Block>>) -> CommandId {
+        self.redo_with(text, None)
+    }
+
+    /// 同上，附件换成 `attachments`（`None` 是照原来的，空的是不要附件）。
+    pub fn redo_with(
+        &mut self,
+        text: Option<Vec<Block>>,
+        attachments: Option<Vec<Block>>,
+    ) -> CommandId {
+        self.command(Command::Redo { text, attachments })
+    }
+
     /// 工作目录换成 `cwd`。
     pub fn cd(&mut self, cwd: &str) {
         self.environment.cwd = cwd.to_string();

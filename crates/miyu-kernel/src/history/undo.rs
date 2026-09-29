@@ -41,7 +41,9 @@ impl History {
     /// - 触发它们的那条；
     /// - 由上一轮排着队的消息接着开的那一轮（`02-内核.md` 第六节「排队的消息」第 2 条），上一轮
     ///   结束时还排着的那几条：它们带的是上一轮的编号，可她是在这一轮才听到的。由上一轮里到的回报、子代理的留言接着开的
-    ///   也一样（施工 7-2、7-7）：它们不带回合编号，上一轮就是紧挨着这一轮开头结束的那一轮。
+    ///   也一样（施工 7-2、7-7）：它们不带回合编号，上一轮就是紧挨着这一轮开头结束的那一轮；
+    /// - 触发它的是没有回合编号的人的话（空闲时说的、重做重发的）：和它同一个命令、也没有回合编号的那几条（施工 4-7
+    ///   再补）。重做一次重发几句，只有最后一句开了这一轮；不一起拿走，撤这一轮会留下前面几句，再重做也只发最后一句。
     ///
     /// 别处来的留着：子代理的回报、后台命令结束、定时触发、群里别人说的话、另一个会话发来的
     /// 消息，撤掉的只是她对它们的反应。
@@ -68,6 +70,9 @@ impl History {
             };
             if said_by_the_person(trigger) {
                 taken.insert(trigger.seq);
+                if trigger.turn.is_none() {
+                    taken.extend(self.resent_with(trigger).map(|message| message.seq));
+                }
             }
             if let Some(previous) = previous.filter(|turn| !turns.contains(turn)) {
                 taken.extend(
@@ -108,6 +113,17 @@ impl History {
             .filter(in_turn)
             .filter(|event| matches!(event.body, Body::MessageUser(_)))
             .filter(move |event| heard.is_none_or(|heard| event.seq > heard))
+    }
+
+    /// 和 `trigger`（没有回合编号的人的话）同一个命令一起发的、也没有回合编号的人的话：重做重发的几句（施工 4-7 再补）。
+    /// 空闲时说的一句话自己就开一轮，同一个 `cause` 的只有它自己。
+    fn resent_with<'a>(&'a self, trigger: &'a Event) -> impl Iterator<Item = &'a Event> {
+        self.events.iter().filter(move |event| {
+            event.turn.is_none()
+                && trigger.cause.is_some()
+                && event.cause == trigger.cause
+                && said_by_the_person(event)
+        })
     }
 
     /// 紧挨着第 `started` 条（一轮的开头）结束的那一轮：回合结束时由排着的接着开，两条挨着（施工 7-2）。前一条不是

@@ -356,5 +356,6 @@ fn a_refused_message_says_why_and_a_lagging_one_resubscribes() {
 mod asides;
 mod blocks;
 mod compaction;
+mod redo;
 mod sample;
 mod unattended;

@@ -42,6 +42,8 @@ kinds! {
     Revert,
     /// 恢复。
     Unrevert,
+    /// 重做（施工 4-7 再补）。
+    Redo,
     /// 手动压缩（施工 6-8）。
     Compact,
     /// 清空上下文（施工 6-8 补）。
@@ -111,6 +113,7 @@ impl InputKind {
                 } => InputKind::Reply,
                 Command::Revert { .. } => InputKind::Revert,
                 Command::Unrevert => InputKind::Unrevert,
+                Command::Redo { .. } => InputKind::Redo,
                 Command::Compact { .. } => InputKind::Compact,
                 Command::Clear => InputKind::Clear,
                 Command::Report(_) => InputKind::Report,

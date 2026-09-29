@@ -279,6 +279,15 @@ pub enum Command {
     },
     /// `session.unrevert`：恢复最近一次撤销，在下一轮开始、压缩之前。
     Unrevert,
+    /// `session.redo`：重做最后一轮（`docs/blueprint/kernel/history.md`「重做」，施工 4-7 再补）：撤掉它，把开它的那几句
+    /// 人的话再发一次，开新的一轮。最后一轮不是人的话开的、一轮都没有的，拒绝，`not_redoable`。
+    Redo {
+        /// 开这一轮的那一句里的字换成这几块（原来的文字块全换掉，空的是不要字）；`None` 是字照原来的。
+        text: Option<Vec<Block>>,
+        /// 开这一轮的那一句里的附件换成这几块（原来文字以外的块全换掉，空的是不要附件）；`None` 是附件照原来的。两样都是
+        /// `None` 的原样重发。
+        attachments: Option<Vec<Block>>,
+    },
     /// `session.compact`：手动压缩，空闲时才收，单开一轮只做压缩（`compaction.md` 第七条，施工 6-8）。
     Compact {
         /// 人附的要求，原样；`None` 是没附。只有空白的也当没附。

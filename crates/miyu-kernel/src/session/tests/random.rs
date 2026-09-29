@@ -33,6 +33,7 @@
 //!   熔断；被重启打断的不接着干（施工 6-8，`watch/manual.rs`）；
 //! - 清空：照规矩收下或者拒绝；收下的同一批单开一轮、写空的检查点、结束，不请求模型（施工 6-8 补，`watch/clear.rs`）；
 //! - 改标题、置顶：什么时候来都收，照规矩回应（施工 3-8 三补，`random/naming.rs`）；
+//! - 重做：照规矩收下或者拒绝，收下的撤最后一轮、重发撤掉的人的话、由最后一句开一轮（施工 4-7 再补，`watch/redo.rs`）；
 //! - 回报：对不上的拒绝、不理；闲着时开一轮还是只记下，正忙时排着、回合结束时接着开，恢复撤销以后接着开（施工 7-2，
 //!   `watch/reports.rs`、`random/reporting.rs`）。
 //!
@@ -47,6 +48,7 @@ mod endings;
 mod kinds;
 mod naming;
 mod paths;
+mod replies;
 mod reporting;
 mod rereading;
 mod restoring;
@@ -76,123 +78,16 @@ use endings::some_ending;
 use kinds::InputKind;
 use naming::some_meta;
 use paths::{EXPECTED_PATHS, LONG_PATHS};
+use replies::some_injections;
 use rereading::some_reread;
 use restoring::some_restored;
 use rng::Rng;
 use stopping::some_stop_end;
-use undoing::{read_back_now, some_read_back, some_undo};
+use undoing::{read_back_now, some_read_back, some_redo, some_undo};
 use watch::Watch;
 
 /// 随机测试的会话，一个回合最多请求几次模型。
 const STEP_LIMIT: u32 = 2;
-
-impl Watch {
-    /// 下一段增量：多半接着在路上的那次请求像样地往下说，偶尔乱来。工具调用的参数是一个
-    /// 空对象，一次写完。新的一块三回里两回是工具调用；手动压缩那一轮只有摘要请求，倒过来，三回里一回（施工 6-8：
-    /// 摘要回复里调了工具的取不到摘要，不然难得压成）。
-    fn some_delta(&mut self, rng: &mut Rng) -> Delta {
-        if rng.below(if self.calm { 40 } else { 6 }) == 0 {
-            return scrambled_delta(rng);
-        }
-        match self.open_block {
-            None => {
-                let index = self.next_block;
-                self.next_block += 1;
-                let roll = rng.below(3);
-                let tool = match self.manual_turn() {
-                    Some(_) => roll == 0,
-                    None => roll > 0,
-                };
-                self.open_block = Some((index, tool, false));
-                let kind = if tool {
-                    let name = match self.writing {
-                        true => ["read", "write", "write"][rng.below(3) as usize],
-                        false => ["read", "read", "read", "write", "write", "reed"]
-                            [rng.below(6) as usize],
-                    };
-                    Kind::ToolCall {
-                        name: name.to_string(),
-                    }
-                } else {
-                    Kind::Text
-                };
-                Delta::Start { index, kind }
-            }
-            Some((index, true, false)) => {
-                self.open_block = Some((index, true, true));
-                Delta::Text {
-                    index,
-                    text: "{}".to_string(),
-                }
-            }
-            Some((index, true, true)) => {
-                self.open_block = None;
-                Delta::End { index }
-            }
-            Some((index, false, _)) if rng.below(3) == 0 => {
-                self.open_block = None;
-                Delta::End { index }
-            }
-            Some((index, false, _)) => Delta::Text {
-                index,
-                text: "x".to_string(),
-            },
-        }
-    }
-
-    /// 多半是在路上的那次请求，偶尔是对不上的。
-    fn some_seen(&self, rng: &mut Rng) -> Seq {
-        match self.asking {
-            Some(seen) if rng.below(5) > 0 => seen,
-            _ => seq(1 + rng.below(self.last())),
-        }
-    }
-
-    /// 多半是在跑的一个调用，偶尔是对不上的。
-    fn some_call(&self, rng: &mut Rng) -> CallId {
-        let running: Vec<CallId> = self.running.iter().copied().collect();
-        match running.len() {
-            0 => CallId::new(seq(1 + rng.below(self.last())), 1).unwrap(),
-            n if rng.below(5) > 0 => running[rng.below(n as u64) as usize],
-            _ => CallId::new(seq(1 + rng.below(self.last())), 1 + rng.below(3) as u32).unwrap(),
-        }
-    }
-}
-
-/// 挂接点交回来的 0 到 2 块注入。
-fn some_injections(rng: &mut Rng) -> Vec<Injection> {
-    (0..rng.below(3))
-        .map(|k| Injection {
-            module: ModuleId::parse(&format!("m{k}")).unwrap(),
-            fact: ContextInjected {
-                kind: FactKind::parse("memory").unwrap(),
-                text: format!("<memory n=\"{k}\"/>"),
-            },
-        })
-        .collect()
-}
-
-/// 乱来的一段增量：头两块里的一块，正文或者工具调用；先后乱了的，累积器会报错。
-fn scrambled_delta(rng: &mut Rng) -> Delta {
-    let index = rng.below(2) as usize;
-    match rng.below(4) {
-        0 => Delta::Start {
-            index,
-            kind: if rng.below(3) == 0 {
-                Kind::ToolCall {
-                    name: "read".to_string(),
-                }
-            } else {
-                Kind::Text
-            },
-        },
-        1 | 2 => Delta::Text {
-            index,
-            text: "x".to_string(),
-        },
-        _ => Delta::End { index },
-    }
-}
 
 /// 到点了：为 `seen` 那次请求等的。
 fn woke(seen: Seq) -> Input {
@@ -414,6 +309,8 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let mut compacts = Rng(seed ^ 0xC0_4AC7);
         let mut reports = Rng(seed ^ 0x2E90_2750);
         let mut clears = Rng(seed ^ 0xC1EA_2000);
+        // 五个种子里有一个、一次性的会话不重做（施工 4-7 再补）：重做占掉闲着的时候，回报闲着时开一轮、没人看着只记下难得走到。
+        let (mut redos, redoing) = (Rng(seed ^ 0x2ED0_2ED0), seed % 5 != 2 && !oneshot);
         for _ in 0..300 {
             if watch.all_stored() && crashes.below(200) == 0 {
                 let planned = crashes.below(2) == 0;
@@ -448,6 +345,9 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
                 watch.feed(&mut session, input);
             }
             if let Some(input) = some_clear(&mut clears, &watch, &mut next_id) {
+                watch.feed(&mut session, input);
+            }
+            if redoing && let Some(input) = some_redo(&mut redos, &watch, &mut next_id) {
                 watch.feed(&mut session, input);
             }
             let input = some_input(&mut rng, &mut watch, &mut next_id);

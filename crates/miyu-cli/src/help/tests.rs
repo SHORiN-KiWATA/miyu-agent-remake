@@ -7,7 +7,7 @@ use clap::{Args, Command};
 
 use super::{Page, page};
 use crate::language::Language;
-use crate::{Ask, Compact, Sandbox, Undo};
+use crate::{Ask, Compact, Redo, Sandbox, Undo};
 
 /// 一个选项：几种写法（`-c`、`--continue`），和后面写的值（没有的是空的）。
 type Listed = BTreeSet<(Vec<String>, String)>;
@@ -114,9 +114,17 @@ fn each_page_lists_exactly_the_options_there_are() {
             real(&compact, id),
             "{language:?} compact"
         );
-        // 主程序那一页：`ask` 的、`undo`、`restore`、`compact` 的都列，再加 `-V`、`--version`。
+        // `redo` 那一页（施工 4-7 再补）：和 `compact` 一样只有 `-s`，换成的话是位置参数。
+        let redo = Redo::augment_args(Command::new("redo"));
+        assert_eq!(
+            listed(page(language, Page::Redo)),
+            real(&redo, id),
+            "{language:?} redo"
+        );
+        // 主程序那一页：`ask` 的、`undo`、`restore`、`redo`、`compact` 的都列，再加 `-V`、`--version`。
         let mut all = real(&ask, id);
         all.extend(real(&undo, id));
+        all.extend(real(&redo, id));
         all.extend(real(&compact, id));
         all.insert((
             vec!["--version".to_string(), "-V".to_string()],
@@ -149,6 +157,7 @@ fn each_page_is_its_own_file() {
             (Page::Ask, "ask"),
             (Page::Undo, "undo"),
             (Page::Restore, "restore"),
+            (Page::Redo, "redo"),
             (Page::Compact, "compact"),
             (Page::Sandbox, "sandbox"),
         ] {
@@ -183,6 +192,7 @@ fn pages_fit_in_eighty_columns_and_end_with_one_newline() {
             Page::Ask,
             Page::Undo,
             Page::Restore,
+            Page::Redo,
             Page::Compact,
             Page::Sandbox,
         ] {

@@ -6,6 +6,8 @@
 //!   连接上撤一次，测试照它在进程里走一遍；
 //! - [`talk`]：在一条连上了的连接上把一句话说完：握手、找会话、订阅、发、跟着那一轮边收边打。测试照它在
 //!   进程里走一遍；
+//! - [`Redo`]：`miyu redo` 的参数；[`redo()`]：重做一次，交回退出码；[`redo_on`]：在连上了的连接上重做一次，测试照它在
+//!   进程里走一遍（施工 4-7 再补）；
 //! - [`Compact`]：`miyu compact` 的参数；[`compact()`]：压一次，交回退出码；[`compact_on`]：在连上了的连接上压一次，
 //!   测试照它在进程里走一遍（施工 6-8）；
 //! - [`Sandbox`]：`miyu sandbox setup`、`remove` 的参数；[`sandbox()`]：Windows 上装好、撤掉沙盒用户，交回退出码
@@ -18,6 +20,7 @@ pub mod help;
 pub mod language;
 mod link;
 mod misuse;
+mod redo;
 mod rpc;
 mod sandbox;
 mod shown;
@@ -26,5 +29,6 @@ mod undo;
 pub use ask::{Ask, Format, Plan, Screen, Target, ask, exit, talk};
 pub use compact::{Compact, CompactPlan, compact, compact_on};
 pub use misuse::misuse;
+pub use redo::{Redo, RedoPlan, redo, redo_on};
 pub use sandbox::{Action as SandboxAction, OwnerArgs, Sandbox, sandbox};
 pub use undo::{Direction, Undo, UndoPlan, undo, undo_on};

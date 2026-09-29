@@ -2,9 +2,9 @@
 
 ### 是什么
 
-头和核心之间说的话：一个连接上一行一条 JSON-RPC 2.0。连上先握手，之后能造会话、列出会话、传附件、说话（可以带附件）、打断、撤销、恢复、手动压缩、切权限级别、清空上下文、停掉派出去的任务、改标题、置顶、删除会话，订阅会话的事件流。连接从哪来不管：本机的套接字、命名管道（`ipc.md`），测试里的内存管道。
+头和核心之间说的话：一个连接上一行一条 JSON-RPC 2.0。连上先握手，之后能造会话、列出会话、传附件、说话（可以带附件）、打断、撤销、恢复、重做、手动压缩、切权限级别、清空上下文、停掉派出去的任务、改标题、置顶、删除会话，订阅会话的事件流。连接从哪来不管：本机的套接字、命名管道（`ipc.md`），测试里的内存管道。
 
-撤销、恢复的回应另写一页：`protocol/undo.md`。
+撤销、恢复、重做的回应另写一页：`protocol/undo.md`。
 
 ### 在哪
 
@@ -22,8 +22,8 @@
 | `crates/miyu-endpoint/src/spawn.rs` | 会话表交给会话的端口：造子会话、给会话发命令（施工 7-5，`session/tools.md`「派子代理」）；停下子会话、照日志看它（施工 7-4） |
 | `crates/miyu-endpoint/src/list.rs` | `session.list`：标题、置顶照日志算（施工 3-8 三补） |
 | `crates/miyu-endpoint/src/subscriptions.rs` | 订阅：每个订阅一个转发任务，推 `event`、`resync` |
-| `crates/miyu-endpoint/src/undo.rs` | 撤销、恢复的回应里给人看的几样（`protocol/undo.md`） |
-| `crates/miyu-endpoint/src/attach.rs` | 附件（施工 3-9 三补）：`blob.put` 读、存；`session.send` 的附件变成内容块 |
+| `crates/miyu-endpoint/src/undo.rs` | 撤销、恢复、重做的回应里给人看的几样（`protocol/undo.md`） |
+| `crates/miyu-endpoint/src/attach.rs` | 附件（施工 3-9 三补）：`blob.put` 读、存；`session.send`、`session.redo` 的附件变成内容块 |
 | `crates/miyu-endpoint/src/attach/kind.rs` | 认一个附件是什么：图片、PDF、别的文件，媒体类型 |
 | `crates/miyu-endpoint/src/refusal.rs` | 拒绝：错误码、原因码、中英文的话 |
 
@@ -108,6 +108,7 @@
 | `session.send` | 说一句话 |
 | `session.interrupt` | 打断在进行的回合 |
 | `session.revert`、`session.unrevert` | 撤销、恢复最近一次撤销（`protocol/undo.md`） |
+| `session.redo` | 重做最后一轮：撤掉它，把开它的话再发一次（施工 4-7 再补） |
 | `session.compact` | 手动压缩：单开一轮只做压缩（施工 6-8） |
 | `session.set_permission_level` | 切权限级别：开关只读，改常用的那一级（施工 3-8 再补） |
 | `session.clear` | 清空上下文：单开一轮压成一个空的检查点，不请求模型（施工 6-8 补） |
@@ -203,6 +204,22 @@
 | `queued` | `"send"` 或 `"return"`，必写 | 排着队的消息：打断以后马上发，还是退回来 |
 
 回应：`events`，这一次追加的全部事件的序号。没有回合在进行：`not_running`。
+
+**`session.redo`**（施工 4-7 再补，`kernel/history.md`「重做」）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `session` | 字符串，必写 | 哪个会话 |
+| `text` | 字符串，可以不写 | 开这一轮的那一句里的字换成这句话，写法照 `session.send` 的 `text`：照原样成一块文字，空的是不要字。不写的字照原来的 |
+| `attachments` | 数组，可以不写 | 开这一轮的那一句里的附件换成这几个，写法照 `session.send` 的 `attachments`；空的是不要附件。不写的附件照原来的 |
+
+回应照撤销的（`protocol/undo.md`）：`events` 照先后是 `turn.reverted`、`files.restored`（有要改回的文件的）、重发的每一句 `message.user` 的序号；`cwd`、`turns`、`said`、`commands`、`compactions`、`clears`、`files` 照撤销写，`said` 是撤掉的那一轮原来那一句的第一行。重发的都落了盘才回，和 `session.send` 一样不等新的一轮做完。
+
+1. 只重做最后一轮：撤掉它，把开它的那几句人的话（排着接过来的几句，和开这一轮的那一句）照先后再发一次，开新的一轮；附件照带。`text`、`attachments` 两样都不写的原样重发；写了的只换开这一轮的那一句：写了 `text` 的换字、写了 `attachments` 的换附件，没写的那一样照原来的，字在前、附件在后（2026-09-30 项目主人定：网页里编辑上一句也走这里；换附件主会话定）。
+2. 新的一轮，`turn.started` 的 `cause` 是这一条的 `id`：头照它认出自己的那一轮，和 `session.send` 一样。重发的几句 `by` 照原来的，`cause` 也是这一条的 `id`。
+3. 最后一轮不是人说的话开的（回报叫醒的、手动压缩、清空、重启以后接着干的），或者一轮都没有：`not_redoable`，头把它那一句当一条提示通知显示。有回合在进行：`turn_running`。换过的那一句一块都不剩（原来只有字、`text` 是空的，原来只有附件、`attachments` 是空的）：`empty_message`。正在改回文件：`restoring`。附件照 `session.send` 第 5 条先查、再找会话：`bad_params`、`unknown_attachment`、`internal_error`、`attachment_too_big`，拒了的什么都不送。先找会话，找不到的回的是找不到。
+4. 重做以后恢复不了：新的一轮开了（`session.unrevert` 回 `nothing_to_unrevert`）。
+5. `text` 不是字符串（数字、数组……）、`attachments` 不是数组：`bad_params`；写 `null` 等于没写（「请求」最后一条）。不收 `cwd`、`dirs`：新的一轮照会话现在的环境，和 `session.revert` 一样（「会话表」第 5 条）。
 
 **`session.compact`**（施工 6-8，`compaction.md` 第七条）
 
@@ -368,7 +385,7 @@
 2. 没有这个会话的日志：`session_not_found`。别的载入不了（日志、策略快照坏了、读不了）：`session_broken`，原因记进运行日志。
 3. 发命令、订阅时会话已经停了（写不进去、出了 bug）：从表里拿掉，回 `session_stopped`；下一次用到再载入。
 4. `session.send` 带着 `cwd`、`dirs`，和这个会话上一次报的不一样：照「工作目录太宽」重新定实际干活的目录，送进会话，到下一个边界才注入（`kernel/request.md`）；会话这时停了的，回 `session_stopped`。不带的、一样的，照旧。
-5. 载入时没有报来的 `cwd`（`session.interrupt`、`session.revert`、`session.unrevert`、`session.compact`、`session.set_permission_level`、`session.clear`、`session.set_meta`、`subscribe` 载入的）：照日志里最后一条带 `cwd` 的 `turn.started`（加进来的目录照最后一条 `turn.started` 的 `dirs`，没有就是没有（施工 5-10 上）），没有就照 `session.created` 的，都没有（之前的日志）才当报来的是 `~`，退回管理员的工作区（施工 4-9 再补三上）。核心重启以后撤销，路径照会话真正的目录写短。
+5. 载入时没有报来的 `cwd`（`session.interrupt`、`session.revert`、`session.unrevert`、`session.redo`、`session.compact`、`session.set_permission_level`、`session.clear`、`session.set_meta`、`subscribe` 载入的）：照日志里最后一条带 `cwd` 的 `turn.started`（加进来的目录照最后一条 `turn.started` 的 `dirs`，没有就是没有（施工 5-10 上）），没有就照 `session.created` 的，都没有（之前的日志）才当报来的是 `~`，退回管理员的工作区（施工 4-9 再补三上）。核心重启以后撤销，路径照会话真正的目录写短。
 6. 会话一直留在表里，直到核心退出、停下全部会话、删了它（`session.delete`），或者用到时发现它停了。
 7. 造会话、载入时，交给会话一份造子会话的端口（施工 7-5，`session/tools.md`「派子代理」）：会话里派出去的子会话由会话表造，放进表里，和头造的一样照编号找得到、只起一个；子会话也算进「有没有会话忙着」，停下全部会话时一起停。父会话已经不在表里的（删了、停了）不再造，派不了（施工 3-8 三补：不留下没有父会话的子会话）。
 
@@ -402,7 +419,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `parse_error` | -32700 | 不是 JSON；一行太长（之后断开） |
 | `invalid_request` | -32600 | 是 JSON，不是请求（「请求」的表） |
 | `unknown_method` | -32601 | 握手以后，没有这个方法 |
-| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send` 的附件缺了格、格不合写法；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字 |
+| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字 |
 | `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了；附件存不下来、读不出来；删会话时读不了放会话的目录、挪不进回收处、崩了 |
 | `hello_first` | -32010 | 握手以前发了别的方法 |
 | `protocol_mismatch` | -32010 | 头支持的主版本里没有 1（之后断开） |
@@ -411,23 +428,24 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `session_not_found` | -32010 | 没有这个会话，删了的也是 |
 | `session_stopped` | -32010 | 会话停了：写不进去、出了 bug |
 | `session_broken` | -32010 | 会话载入不了：日志、策略快照坏了、读不了 |
-| `empty_message` | -32010 | `session.send` 的 `text` 是空的 |
+| `empty_message` | -32010 | `session.send` 的 `text` 是空的、又没有附件；`session.redo` 换过的那一句一块都不剩 |
 | `dir_too_wide` | -32010 | 加进来的目录太宽（「加进来的目录」（施工 5-10 上）） |
 | `attachment_unreadable` | -32010 | `blob.put` 读不了 `path`：换不成真实的位置、没有、不是普通文件、没有权限（施工 3-9 三补） |
 | `attachment_too_big` | -32010 | 附件超过 20 MiB；图片超过 5 MiB，或者哪一边超过 8000 像素（施工 3-9 三补） |
 | `attachment_in_data_root` | -32010 | `blob.put` 的 `path` 在数据根里、管理员的工作区以外（施工 3-9 三补） |
-| `unknown_attachment` | -32010 | `session.send` 附的 blob 这个核心里没有（施工 3-9 三补） |
+| `unknown_attachment` | -32010 | `session.send`、`session.redo` 附的 blob 这个核心里没有（施工 3-9 三补） |
 | `not_running` | -32010 | 打断时没有回合在进行 |
-| `turn_running` | -32010 | 撤销、手动压缩、清空、删会话时有回合在进行 |
+| `turn_running` | -32010 | 撤销、重做、手动压缩、清空、删会话时有回合在进行 |
 | `unknown_turn` | -32010 | 要撤的那一轮不在有效历史里：没有，或者已经撤掉了 |
 | `nothing_to_unrevert` | -32010 | 没有能恢复的撤销：没撤过，或者撤了以后开过回合、压缩过 |
 | `nothing_to_revert` | -32010 | 不写 `turn` 的撤销，一轮都没有 |
 | `nothing_to_compact` | -32010 | 手动压缩时没有能压的：上一次压缩以后没有新的消息、回复、工具结果，或者全在尾巴里（施工 6-8） |
 | `nothing_to_clear` | -32010 | 清空时上下文本来就是空的：没有摘要，最近的检查点后面也没有人的消息、回复、工具结果、回报（施工 6-8 补） |
 | `unknown_job` | -32010 | `job.stop` 时没有这个任务，或者它已经结束了（施工 7-4） |
+| `not_redoable` | -32010 | 重做时最后一轮不是人说的话开的，或者一轮都没有（施工 4-7 再补） |
 | `restoring` | -32010 | 撤销、恢复还没做完（正在读回更早的日志、正在改回文件）时来的命令、删会话。兜底：会话做完才接下一个命令，照常碰不到 |
 
-- 从 `empty_message` 起，除了 `dir_too_wide` 和附件的四个，十个是内核拒命令时给的原因码（`kernel/session.md`）。
+- 从 `empty_message` 起，除了 `dir_too_wide` 和附件的四个，十一个是内核拒命令时给的原因码（`kernel/session.md`）。
 - 内核还有六个原因码，现在没有方法碰得到：`unknown_level`（协议上的级别只认两种，别的先是 `bad_params`）、`not_asking`、`unknown_decision`、`no_rule`、`unexpected_reason`、`bad_answer`。它们没有配话，说的是最后那一句「被拒绝了」。
 
 运行日志（目标 `miyu::endpoint`，`log.md`）：
@@ -492,6 +510,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `nothing_to_compact` | 没有能压的：还没压过的内容都在原样留着的最近一段里。 | Not enough to compact: everything not yet compacted is in the recent part that stays as it is. |
 | `nothing_to_clear` | 上下文为空 | The context is empty. |
 | `unknown_job` | 没有这个任务，或者它已经结束了。 | There is no such job, or it has already ended. |
+| `not_redoable` | 无法重做 | Cannot redo. |
 | 别的 | 被拒绝了。 | Refused. |
 
 ### 守着它的
@@ -512,6 +531,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/revert.rs` | 协议上撤销、恢复；三种拒绝的中文；`turn` 写 0 |
 | `crates/miyu-endpoint/tests/permission.rs` | 协议上切权限级别（施工 3-8 再补）：切到完全放开、开只读、两样一起换，各记一条、推给订阅着的头、回应 `{}`；和现在一样的四种什么都不记不推；两格都不写（含写 `null`、会话没有的）、级别和只读的值不对、会话编号不对、没写会话是参数不对；没有的会话找不到，停了的会话是停了；回合进行中收紧成只读，真核心走一遍：等着的写入当场补 `denied`、和切权限同一批、推送在回应前面，放行以后请求之前注入只读那一块，写的一次没跑 |
 | `crates/miyu-endpoint/tests/job_stop.rs` | 协议上停子代理（施工 7-4）：回应 `{}`、回应之前父会话记下了回报、子会话那一轮被父会话打断；停过的、没有的 `unknown_job`，中文、英文；编号不合写法、不是字符串的参数不对；没有这个会话 |
+| `crates/miyu-endpoint/tests/redo.rs` | 协议上重做（施工 4-7 再补）：回应带撤销的几样和重发的那一句、推送里是一批撤销、原话、新的一轮，新的一轮的请求和撤掉的那一轮的一字不差；换了话的推送里是新的话、`said` 是原来的；改过文件的先改回、回应带 `files`；重做以后恢复不了；最后一轮是清空、没说过话的，有回合在进行、换成空的拒绝，中文、英文；`text` 不是字符串、会话编号不对的参数不对，写 `null` 当没写；附件照带、换掉、不要，没有的 blob `unknown_attachment` 什么都不写 |
 | `crates/miyu-endpoint/tests/compact.rs` | 协议上手动压缩（施工 6-8）：回应是那一轮的开头、推送里压好了；要求原样到了摘要请求里；撤掉那一轮的回应里没有 `said`；有回合在进行、没有能压的两种拒绝，中文、英文；`instructions` 不是字符串的参数不对 |
 | `crates/miyu-endpoint/tests/clear.rs` | 协议上清空（施工 6-8 补）：回应是那一轮的开头、订阅的推送里是那一批三条、不请求模型；下一次请求里没有清空以前的；撤掉那一轮回应里撤掉了一次压缩、没有 `said`，再问看得到了；有回合在进行、本来就空的两种拒绝，中文、英文；会话编号不对、没写的参数不对 |
 | `crates/miyu-endpoint/src/sessions/tests.rs` | 父会话不在会话表里的不再造子会话、什么都没建（施工 3-8 三补） |

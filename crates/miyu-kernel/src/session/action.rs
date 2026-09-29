@@ -205,6 +205,9 @@ pub enum Reason {
     /// 子会话交来的回报对不上一个还会报的子代理（施工 7-2）：没有这个任务、不是子代理、会话不对、不是那个子会话发的、
     /// 被停掉过（账本的几条，`docs/blueprint/kernel/history.md`）。
     UnknownJob,
+    /// 重做不了（施工 4-7 再补，`docs/blueprint/kernel/history.md`「重做」）：最后一轮不是人说的话开的（回报叫醒的、
+    /// 手动压缩、清空、重启以后接着干的），或者一轮都没有。一个原因码管两种（2026-09-30 项目主人定）。
+    NotRedoable,
 }
 
 impl Reason {
@@ -227,6 +230,7 @@ impl Reason {
             Reason::NothingToCompact => "nothing_to_compact",
             Reason::NothingToClear => "nothing_to_clear",
             Reason::UnknownJob => "unknown_job",
+            Reason::NotRedoable => "not_redoable",
         }
     }
 }

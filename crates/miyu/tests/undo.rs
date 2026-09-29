@@ -1,6 +1,6 @@
 //! 真跑 `miyu undo`（别名 `miyu rewind`）、`miyu restore`（`docs/construction/4-7-miyu undo、miyu redo（下）.md`，改名施工
 //! 4-7 补）：说明跟着界面语言；核心在跑的，撤掉上一次 `miyu ask` 的那一轮、再恢复它，几条命令各接对了自己的那一个；没有
-//! key、核心也没在跑的，不拉起、退出码 5（施工 4-9 再补一）；原来的 `miyu redo` 是不认识的子命令。
+//! key、核心也没在跑的，不拉起、退出码 5（施工 4-9 再补一）。`miyu redo` 施工 4-7 再补又有了，是重做（`tests/redo.rs`）。
 
 mod support;
 
@@ -110,13 +110,4 @@ fn without_a_key_and_a_core_nothing_is_started() {
     );
     assert!(!home.root.run().join("socket").exists(), "没拉起核心");
     assert!(home.core_log().is_empty());
-}
-
-#[test]
-fn redo_is_no_longer_a_command() {
-    // 原来的名字（施工 4-7 补改名）：不认识的子命令，退出码 2，不当成对话发给核心。
-    let home = Home::new();
-    let output = miyu(home.root.path(), "C", &["redo"]);
-    assert_eq!(output.status.code(), Some(2), "{output:?}");
-    assert!(!home.root.run().join("socket").exists(), "没拉起核心");
 }

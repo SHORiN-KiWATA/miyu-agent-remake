@@ -1,5 +1,6 @@
 //! 主程序 `miyu`（`docs/designs/12-进程形态与分发.md` 第三节，施工 3-9）：一个程序，像 busybox 那样按子命令
 //! 分发。`miyu ask` 是最薄的头（施工 3-9 下）；`miyu undo`（`miyu rewind`）、`miyu restore` 撤掉最后一轮、恢复（施工 4-7 下，改名施工 4-7 补）；
+//! `miyu redo` 重做最后一轮（施工 4-7 再补）；
 //! `miyu compact` 手动压缩（施工 6-8）；`miyu sandbox setup`、`remove` 在 Windows 上装好、撤掉沙盒用户（施工 5-8）；`miyu core` 是核心进程，由头拉起，
 //! 不写进帮助。
 //!
@@ -39,6 +40,8 @@ enum Command {
     Undo(miyu_cli::Undo),
     /// 发下一句之前，恢复最近一次撤销（原来叫 `redo`，施工 4-7 补改名）。
     Restore(miyu_cli::Undo),
+    /// 撤掉最后一轮，把人那句话（或者换成写的话）再发一次，让她重新做（施工 4-7 再补）。
+    Redo(miyu_cli::Redo),
     /// 把当前会话的上下文压缩成摘要，可以附上要求（施工 6-8）。
     Compact(miyu_cli::Compact),
     /// 装好、撤掉沙盒用户（Windows，要管理员权限）。
@@ -64,6 +67,9 @@ fn main() -> ExitCode {
         .mut_subcommand("restore", |restore| {
             restore.override_help(page(language, Page::Restore))
         })
+        .mut_subcommand("redo", |redo| {
+            redo.override_help(page(language, Page::Redo))
+        })
         .mut_subcommand("compact", |compact| {
             compact.override_help(page(language, Page::Compact))
         })
@@ -85,6 +91,7 @@ fn main() -> ExitCode {
         Some(Command::Ask(args)) => miyu_cli::ask(args, core),
         Some(Command::Undo(args)) => miyu_cli::undo(args, Direction::Undo, core),
         Some(Command::Restore(args)) => miyu_cli::undo(args, Direction::Restore, core),
+        Some(Command::Redo(args)) => miyu_cli::redo(args, core),
         Some(Command::Compact(args)) => miyu_cli::compact(args, core),
         Some(Command::Sandbox(args)) => miyu_cli::sandbox(args),
         Some(Command::Core { idle_seconds }) => miyu_core::main(miyu_core::Options {

@@ -254,8 +254,9 @@ fn added(dirs: &[PathBuf]) -> Vec<String> {
     out
 }
 
-/// 给人看的字：照界面语言从资源目录读一份。读不出来的当没有，每一步照状态写最泛的一句（施工 4-5 下）。
-fn human(env: &Env, language: &Language) -> Human {
+/// 给人看的字：照界面语言从资源目录读一份。读不出来的当没有，每一步照状态写最泛的一句（施工 4-5 下）。`miyu redo` 也用
+/// （施工 4-7 再补）。
+pub(crate) fn human(env: &Env, language: &Language) -> Human {
     ResourceRoot::locate(env)
         .ok()
         .and_then(|resources| Human::load(&resources, language.code()).ok())

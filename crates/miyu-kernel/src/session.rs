@@ -28,6 +28,7 @@ mod question;
 mod queue;
 mod rebuild;
 mod recent;
+mod redo;
 mod report;
 mod restart;
 mod restore;
@@ -351,6 +352,7 @@ impl Session {
             } => self.answer_question(id, by, at, call_id, answers),
             Command::Revert { turn } => self.revert(id, by, at, turn),
             Command::Unrevert => self.unrevert(id, by, at),
+            Command::Redo { text, attachments } => self.redo(id, by, at, text, attachments),
             Command::Compact { instructions } => self.compact(id, at, instructions),
             Command::Clear => self.clear(id, at),
             Command::Report(reported) => self.report(id, by, at, reported),

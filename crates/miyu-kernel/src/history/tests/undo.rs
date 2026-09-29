@@ -255,3 +255,26 @@ fn a_request_that_was_never_sent_heard_nothing_that_was_queued() {
     let history = feed(events);
     assert_eq!(seqs(&history), vec![1, 2, 3, 6, 7]);
 }
+
+/// 这一条的 `cause` 是命令 `cause`。
+fn caused(mut event: Event, cause: &str) -> Event {
+    event.cause = Some(crate::id::CommandId::parse(cause).unwrap());
+    event
+}
+
+/// 重做一起重发的几句（施工 4-7 再补）：7、8 是同一个命令发的、都没有回合编号，8 开了第二轮；撤第二轮，两句一起拿走。
+/// 另一个命令发的、没有回合编号的 6 留着；第一轮空闲时说的 2 也留着。
+#[test]
+fn undo_takes_the_words_a_redo_said_again_together() {
+    let mut events = vec![created(), caused(message(2, ALICE), "ask-1")];
+    events.extend(turn(3, 2));
+    events.extend([
+        caused(message(6, ALICE), "ask-2"),
+        caused(message(7, ALICE), "redo-1"),
+        caused(message(8, ALICE), "redo-1"),
+    ]);
+    events.extend(turn(9, 8));
+    events.push(reverted(12, &[9]));
+    let history = feed(events);
+    assert_eq!(seqs(&history), vec![1, 2, 3, 4, 5, 6]);
+}
