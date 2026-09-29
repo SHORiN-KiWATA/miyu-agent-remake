@@ -249,3 +249,41 @@ fn same_looking_blocks_in_what_you_said_open_to_their_own_text() {
         rows.iter().map(|r| r.plain.clone()).collect::<Vec<_>>()
     );
 }
+
+#[test]
+fn a_details_title_opens_and_closes_its_reply() {
+    // 回答里的 `<details>`：标题那一行能点，点过的记在这一条上，重排照它开关（蓝图「她的回答：Markdown」第 15 条）。
+    let f = Fixture::new();
+    let mut t = Transcript::default();
+    t.note(
+        Kind::Reply,
+        "<details>\n<summary>点我展开</summary>\n\n里面的字。\n\n</details>".into(),
+    );
+    let cache = RefCell::new(RowCache::default());
+    let plain = |t: &Transcript, ctx: &crate::ui::rows::Ctx| -> Vec<String> {
+        build(&t.entries, ctx, &cache)
+            .iter()
+            .map(|r| r.plain.clone())
+            .collect()
+    };
+    let target = Target::Details(0, 0);
+    let shut = build(&t.entries, &f.ctx(), &cache);
+    let title = shut.iter().find(|r| r.target == Some(target)).unwrap();
+    assert_eq!(title.plain, "点我展开", "标题那一行能点，记号不复制");
+    assert!(!plain(&t, &f.ctx()).iter().any(|l| l.contains("里面的字")));
+    // 点一下：记在这一条上，缓存着的也重排。
+    t.entries[0].details.push(0);
+    assert!(plain(&t, &f.ctx()).iter().any(|l| l.contains("里面的字")));
+    // 悬停：标题变亮。
+    let mut ctx = f.ctx();
+    ctx.hover = Some(target);
+    let lit = build(&t.entries, &ctx, &cache);
+    let row = lit.iter().find(|r| r.target == Some(target)).unwrap();
+    assert!(
+        row.line
+            .spans
+            .iter()
+            .any(|s| s.style.fg == crate::theme::hover().fg),
+        "悬停变亮"
+    );
+}

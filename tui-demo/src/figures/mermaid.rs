@@ -7,14 +7,13 @@
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, OnceLock};
 
 use image::RgbaImage;
 use mermaid_rs_renderer::{LayoutConfig, RenderOptions, Theme};
-use resvg::tiny_skia;
-use resvg::usvg::{self, fontdb};
+use resvg::usvg;
 
-use super::cells::{self, Cell, Fit};
+use super::cells::{Cell, Fit};
+use super::svg;
 use crate::theme::DiagramColors;
 
 /// 出图的样子：颜色、字体。核心出 SVG 时照主题定，现在由头给。
@@ -102,26 +101,11 @@ pub fn draw(
     let svg = detail(source, look, false)?;
     let options = usvg::Options {
         font_family: look.fonts.first().cloned().unwrap_or_default(),
-        fontdb: fonts(),
+        fontdb: svg::font_db(),
         ..usvg::Options::default()
     };
     let tree = usvg::Tree::from_str(&svg, &options).map_err(|e| e.to_string())?;
-    let size = tree.size();
-    let fit = cells::fit(size.width(), size.height(), cell, max_cols, max_rows);
-    let (w, h) = fit.pixels(cell);
-    let mut pixmap = tiny_skia::Pixmap::new(w, h).ok_or("图的尺寸是 0")?;
-    let scale = tiny_skia::Transform::from_scale(fit.scale, fit.scale);
-    resvg::render(&tree, scale, &mut pixmap.as_mut());
-    let rgba: Vec<u8> = pixmap
-        .pixels()
-        .iter()
-        .flat_map(|p| {
-            let c = p.demultiply();
-            [c.red(), c.green(), c.blue(), c.alpha()]
-        })
-        .collect();
-    let image = RgbaImage::from_raw(w, h, rgba).ok_or("像素数对不上")?;
-    Ok((image, fit))
+    svg::raster(&tree, cell, max_cols, max_rows)
 }
 
 /// 点开看的大图：带底的 SVG 写进 `dir`（同一张图同样的颜色只写一次），交回文件的路径；
@@ -170,17 +154,6 @@ fn prune(dir: &Path, keep: usize) {
 
 fn hex((r, g, b): (u8, u8, u8)) -> String {
     format!("#{r:02x}{g:02x}{b:02x}")
-}
-
-/// 系统字体库，每个进程只扫一遍（字体多的机器上冷启动要一秒多，放在后台线程里第一次用时扫）。
-fn fonts() -> Arc<fontdb::Database> {
-    static DB: OnceLock<Arc<fontdb::Database>> = OnceLock::new();
-    DB.get_or_init(|| {
-        let mut db = fontdb::Database::new();
-        db.load_system_fonts();
-        Arc::new(db)
-    })
-    .clone()
 }
 
 #[cfg(test)]

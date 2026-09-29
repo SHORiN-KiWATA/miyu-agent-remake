@@ -1,18 +1,17 @@
 //! Markdown 排版的测试：每种写法排出来的字（蓝图 `tui.md`「她的回答：Markdown」）。
 
-use super::{Languages, Math, MdLine, render};
+use super::{Kit, MdLine, render};
+use crate::config::Config;
 use crate::theme;
 
-fn languages() -> Languages {
-    serde_json::from_str(include_str!("../../resources/code.json")).unwrap()
-}
-
-fn math() -> Math {
-    serde_json::from_str(include_str!("../../resources/math.json")).unwrap()
-}
-
 fn draw(text: &str, width: u16) -> Vec<MdLine> {
-    render(text, width, &languages(), &math())
+    let config = Config::builtin().unwrap();
+    let kit = Kit {
+        languages: &config.languages,
+        math: &config.math,
+        labels: &config.text.markdown,
+    };
+    render(text, width, &kit, &[])
 }
 
 /// 每行：引子加内容。

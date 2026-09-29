@@ -22,10 +22,12 @@ pub fn rows(lead: Vec<Span<'static>>, figure: &Figure, ctx: &Ctx) -> Vec<Row> {
         .width
         .saturating_sub(u16::try_from(lead_width).unwrap_or(u16::MAX))
         .max(1);
-    let look = ctx
-        .figures
-        .borrow_mut()
-        .look(figure.kind, &figure.source, cols);
+    let look = ctx.figures.borrow_mut().look(
+        figure.kind,
+        &figure.source,
+        (figure.width, figure.height),
+        cols,
+    );
     match look {
         Look::Unsupported | Look::Failed => figure
             .fallback
@@ -111,7 +113,12 @@ mod tests {
     use crate::ui::rows::{Ctx, MdCache};
 
     fn figure(config: &Config, text: &str) -> Figure {
-        markdown::render(text, 60, &config.languages, &config.math)
+        let kit = markdown::Kit {
+            languages: &config.languages,
+            math: &config.math,
+            labels: &config.text.markdown,
+        };
+        markdown::render(text, 60, &kit, &[])
             .into_iter()
             .find_map(|l| l.figure)
             .unwrap()

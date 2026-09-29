@@ -95,6 +95,8 @@ pub struct Entry {
     pub job: Option<JobNote>,
     /// 你说的话里的粘贴块：输入框里写的样子和原文，点开看全文（蓝图「正文」第 2 条）。别的条是空的。
     pub pasted: Vec<(String, String)>,
+    /// 她的回答里点过的 `<details>`（第几个，从 0 数）：和它写的 `open` 反过来（蓝图「她的回答：Markdown」第 15 条）。
+    pub details: Vec<usize>,
 }
 
 /// 连核心的状态。
@@ -222,6 +224,7 @@ impl Transcript {
             level: None,
             job: None,
             pasted: Vec::new(),
+            details: Vec::new(),
         });
     }
 
@@ -459,6 +462,7 @@ impl Transcript {
             level,
             job: None,
             pasted: Vec::new(),
+            details: Vec::new(),
         });
     }
 

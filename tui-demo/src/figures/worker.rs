@@ -12,7 +12,7 @@ use ratatui_image::Resize;
 use ratatui_image::sliced::SlicedProtocol;
 
 use super::terminal::Graphics;
-use super::{Drawn, file, math, mermaid};
+use super::{Drawn, file, math, mermaid, svg};
 use crate::config::FigureLook;
 use crate::markdown::FigureKind;
 use crate::theme::DiagramColors;
@@ -28,6 +28,8 @@ pub struct Job {
     pub kind: FigureKind,
     /// 源码。
     pub source: String,
+    /// `<img>` 写的宽高（像素）。
+    pub size: crate::markdown::Size,
     /// 最多几列宽。
     pub cols: u16,
     /// 公式的字色。
@@ -84,7 +86,8 @@ fn draw(
     let cell = graphics.cell();
     let mut zoom = None;
     let (image, fit) = match job.kind {
-        FigureKind::Image => file::draw(&job.source, cell, job.cols, look.max_rows)?,
+        FigureKind::Image => file::draw(&job.source, job.size, cell, job.cols, look.max_rows)?,
+        FigureKind::Svg => svg::draw(&job.source, &look.fonts, cell, job.cols, look.max_rows)?,
         FigureKind::Mermaid => {
             let style = mermaid::Look {
                 colors: job.diagram,

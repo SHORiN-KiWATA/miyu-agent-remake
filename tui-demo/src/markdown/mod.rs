@@ -5,7 +5,10 @@
 
 mod blocks;
 mod code;
+mod html;
 mod inline;
+mod kit;
+mod layout;
 mod links;
 mod math;
 mod table;
@@ -13,12 +16,12 @@ mod table;
 use pulldown_cmark::{Alignment, CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Span;
-use unicode_width::UnicodeWidthStr;
 
-pub use blocks::{Figure, FigureKind};
+pub use blocks::{Figure, FigureKind, Size};
 pub use code::Languages;
 pub use inline::Folded;
 use inline::{Piece, fold};
+pub use kit::{Kit, Labels};
 pub use math::Math;
 use table::Cell;
 
@@ -33,27 +36,30 @@ pub struct MdLine {
     pub folded: Folded,
     /// 复制时带不带这一行：代码块的框线不带。
     pub copy: bool,
-    /// 这一行是一张要画成图的东西（图片、块级公式、mermaid）；内容是空的。
+    /// 这一行是一张要画成图的东西（图片、块级公式、mermaid、SVG）；内容是空的。
     pub figure: Option<Figure>,
+    /// 这一行是第几个 `<details>` 的标题：点它展开、收起。
+    pub details: Option<usize>,
 }
 
-impl MdLine {
-    /// 空行：块与块之间的那种。图的那一行内容也是空的，但不算。
-    fn is_blank(&self) -> bool {
-        self.folded.spans.is_empty() && self.lead.is_empty() && self.figure.is_none()
-    }
-}
-
-/// 把一段 Markdown 排成 `width` 列宽的行。代码着色照 `languages`，公式转写照 `math`。
-pub fn render(text: &str, width: u16, languages: &Languages, math: &Math) -> Vec<MdLine> {
+/// 把一段 Markdown 排成 `width` 列宽的行，照 `kit` 着色、转写公式、写字。`flipped` 是这一条回答里点过的
+/// `<details>`（第几个），和它写的 `open` 反过来。
+pub fn render(text: &str, width: u16, kit: &Kit, flipped: &[usize]) -> Vec<MdLine> {
     let options = Options::ENABLE_TABLES
         | Options::ENABLE_STRIKETHROUGH
         | Options::ENABLE_TASKLISTS
         | Options::ENABLE_MATH;
     let mut r = Renderer {
         width,
-        languages,
-        math,
+        languages: kit.languages,
+        math: kit.math,
+        labels: kit.labels,
+        flipped,
+        details: Vec::new(),
+        details_seen: 0,
+        just_titled: false,
+        html_open: Vec::new(),
+        skip: None,
         images: Vec::new(),
         code_closed: false,
         out: Vec::new(),
@@ -67,6 +73,9 @@ pub fn render(text: &str, width: u16, languages: &Languages, math: &Math) -> Vec
         fresh_item: false,
     };
     for (event, range) in Parser::new_ext(text, options).into_offset_iter() {
+        if r.skips(&event, range.start) || r.svg(text, &event, range.start) {
+            continue;
+        }
         if matches!(event, Event::End(TagEnd::CodeBlock)) {
             r.code_closed = blocks::closed(&text[range]);
         }
@@ -75,10 +84,11 @@ pub fn render(text: &str, width: u16, languages: &Languages, math: &Math) -> Vec
     r.finish()
 }
 
-/// 套在外面的一层：引用，或者列表的一项。
+/// 套在外面的一层：引用、列表的一项，或者展开着的 `<details>`。
 enum Container {
     Quote,
     Item { marker: String, used: bool },
+    Details,
 }
 
 /// 正在收的表格。
@@ -93,8 +103,21 @@ struct Renderer<'a> {
     width: u16,
     languages: &'a Languages,
     math: &'a Math,
-    /// 这一段里本机图片的地址：这一段排完接着画。
-    images: Vec<String>,
+    labels: &'a Labels,
+    /// 这一条回答里点过的 `<details>`（第几个）。
+    flipped: &'a [usize],
+    /// 套着的 `<details>`，外层在前。
+    details: Vec<html::Details>,
+    /// 见过几个 `<details>`：下一个的编号。
+    details_seen: usize,
+    /// 刚画了 `<details>` 的标题，里面还没有内容：紧接着的内容前面不空行。
+    just_titled: bool,
+    /// 开着的行内 HTML 标签（`<b>`、`<a href>`、`<sup>` 这些）：名字、叠了什么。
+    html_open: Vec<(String, html::Opened)>,
+    /// 收走的 `<svg>` 在原文里的范围：里面的事件跳过。
+    skip: Option<(usize, usize)>,
+    /// 这一段里本机图片的地址和写的宽高（`<img>` 才有）：这一段排完接着画。
+    images: Vec<(String, Size)>,
     out: Vec<MdLine>,
     containers: Vec<Container>,
     /// 每一层列表：有序的记着下一个数，无序的是 `None`。
@@ -116,6 +139,7 @@ struct Renderer<'a> {
 
 impl Renderer<'_> {
     fn event(&mut self, event: Event) {
+        self.content_arrives(&event);
         match event {
             Event::Start(tag) => self.start(tag),
             Event::End(tag) => self.end(tag),
@@ -125,16 +149,9 @@ impl Renderer<'_> {
             },
             Event::Code(text) => self.push(&text, theme::md_code()),
             Event::SoftBreak | Event::HardBreak => self.push("\n", Style::new()),
-            Event::Html(html) | Event::InlineHtml(html) => {
-                let tag = html.trim().to_lowercase();
-                let br = matches!(tag.as_str(), "<br>" | "<br/>" | "<br />");
-                self.push(if br { "\n" } else { &html }, Style::new());
-            }
-            Event::Rule => {
-                self.gap();
-                let w = usize::from(self.width / 3).clamp(16, 40);
-                self.emit(vec![Piece::new("─".repeat(w), theme::dim())], true);
-            }
+            Event::Html(html) => self.html(&html, true),
+            Event::InlineHtml(html) => self.html(&html, false),
+            Event::Rule => self.rule(),
             Event::TaskListMarker(done) => {
                 if let Some(Container::Item {
                     marker,
@@ -222,7 +239,8 @@ impl Renderer<'_> {
                 // 先记起点再写「[图片: 」：整行一条链接，悬停时下划线从头连到尾（蓝图第 9、12 条）。
                 self.link_starts
                     .push((dest_url.to_string(), self.pieces.len()));
-                self.push("[图片: ", Style::new());
+                let label = self.labels.image.clone();
+                self.push(&label, Style::new());
             }
             Tag::Table(aligns) => {
                 self.flush();
@@ -251,6 +269,7 @@ impl Renderer<'_> {
                 self.containers.pop();
             }
             TagEnd::CodeBlock => self.code_block(),
+            TagEnd::HtmlBlock => self.flush(),
             TagEnd::List(_) => {
                 self.flush();
                 self.lists.pop();
@@ -292,6 +311,7 @@ impl Renderer<'_> {
                             folded,
                             copy: true,
                             figure: None,
+                            details: None,
                         });
                     }
                 }
@@ -329,8 +349,10 @@ impl Renderer<'_> {
         }
     }
 
-    /// 一段字：不在链接里的，认出裸地址。
+    /// 一段字：不在链接里的，认出裸地址；在 `<sub>`、`<sup>` 里的转成下标、上标。
     fn text(&mut self, text: &str) {
+        let text = self.scripted(text).into_owned();
+        let text = text.as_str();
         let style = self.style();
         if !self.link_starts.is_empty() {
             self.push(text, Style::new());
@@ -377,6 +399,7 @@ impl Renderer<'_> {
     /// 把收着的行内片段排出来。独占一行的「标题 (地址)」改写成链接（蓝图第 9 条）：
     /// 段落、列表项都走这里，所以列表里的也认。
     fn flush(&mut self) {
+        self.close_open_tags();
         let pieces = std::mem::take(&mut self.pieces);
         if !pieces.is_empty() {
             self.emit(links::relink_title(pieces), true);
@@ -392,62 +415,14 @@ impl Renderer<'_> {
                 folded,
                 copy,
                 figure: None,
-            });
-        }
-    }
-
-    /// 行首的引子：引用一层一个 `│ `；列表这一项的第一行写记号，别的行写一样宽的空白。
-    fn lead(&mut self, first: bool) -> Vec<Span<'static>> {
-        let mut spans = Vec::new();
-        for container in &mut self.containers {
-            match container {
-                Container::Quote => spans.push(Span::styled("│ ", theme::dim())),
-                Container::Item { marker, used } => {
-                    let text = if first && !*used {
-                        marker.clone()
-                    } else {
-                        " ".repeat(marker.width())
-                    };
-                    spans.push(Span::styled(text, theme::md_list()));
-                    if first {
-                        *used = true;
-                    }
-                }
-            }
-        }
-        spans
-    }
-
-    /// 内容还剩几列：减去引子。
-    fn room(&self) -> u16 {
-        let lead: usize = self
-            .containers
-            .iter()
-            .map(|c| match c {
-                Container::Quote => 2,
-                Container::Item { marker, .. } => marker.width(),
-            })
-            .sum();
-        self.width
-            .saturating_sub(u16::try_from(lead).unwrap_or(0))
-            .max(1)
-    }
-
-    /// 块与块之间空一行；开头不空，已经空着的不再空。
-    fn gap(&mut self) {
-        let blank = self.out.last().is_some_and(MdLine::is_blank);
-        if !self.out.is_empty() && !blank {
-            self.out.push(MdLine {
-                lead: Vec::new(),
-                folded: Folded::default(),
-                copy: true,
-                figure: None,
+                details: None,
             });
         }
     }
 
     fn finish(mut self) -> Vec<MdLine> {
         self.flush();
+        self.close_all_details();
         while self.out.last().is_some_and(MdLine::is_blank) {
             self.out.pop();
         }

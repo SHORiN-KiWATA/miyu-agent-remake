@@ -12,6 +12,9 @@ use super::inline::{Folded, Piece};
 use super::{MdLine, Renderer, code, math};
 use crate::theme;
 
+/// `<img>` 写的宽、高（像素），没写的是 `None`。
+pub type Size = (Option<u32>, Option<u32>);
+
 /// 要画成图的是哪一种。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FigureKind {
@@ -21,6 +24,8 @@ pub enum FigureKind {
     Mermaid,
     /// 块级公式，源码是 LaTeX。
     Math,
+    /// 回答里写的 `<svg>…</svg>`，源码就是它。
+    Svg,
 }
 
 /// 一张要画成图的东西。
@@ -30,8 +35,12 @@ pub struct Figure {
     pub kind: FigureKind,
     /// 源码：图片的地址、mermaid 的定义、公式的 LaTeX。
     pub source: String,
-    /// 画不成图时写的行：mermaid 是代码块，公式是一行 Unicode，图片没有（那一行 `[图片: …]` 已经写了）。
+    /// 画不成图时写的行：mermaid、SVG 是代码块，公式是一行 Unicode，图片没有（那一行 `[图片: …]` 已经写了）。
     pub fallback: Vec<MdLine>,
+    /// `<img>` 写的宽（像素）；没写的照图本身。
+    pub width: Option<u32>,
+    /// `<img>` 写的高（像素）。
+    pub height: Option<u32>,
 }
 
 /// 围栏代码块收完了没有：`block` 是它在原文里的那一截，最后一个非空行是一排（至少三个）``` 或 ~~~，
@@ -53,7 +62,7 @@ impl Renderer<'_> {
         };
         if lang.eq_ignore_ascii_case("mermaid") && self.code_closed {
             let fallback = self.aside(|r| r.code_lines(&lang, &body));
-            self.figure(FigureKind::Mermaid, body, fallback);
+            self.figure(FigureKind::Mermaid, body, fallback, (None, None));
         } else {
             self.code_lines(&lang, &body);
         }
@@ -64,7 +73,12 @@ impl Renderer<'_> {
         self.flush();
         let text = math::unicode(tex, self.math);
         let fallback = self.aside(|r| r.emit(vec![Piece::new(text, theme::md_math())], true));
-        self.figure(FigureKind::Math, tex.trim().to_string(), fallback);
+        self.figure(
+            FigureKind::Math,
+            tex.trim().to_string(),
+            fallback,
+            (None, None),
+        );
     }
 
     /// 行内公式：转成 Unicode，公式色。
@@ -79,18 +93,25 @@ impl Renderer<'_> {
             .iter()
             .any(|scheme| url.starts_with(scheme));
         if !remote && self.table.is_none() {
-            self.images.push(url.to_string());
+            self.images.push((url.to_string(), (None, None)));
         }
     }
 
     /// 这一段里的图片排在这一段后面。
     pub(super) fn flush_images(&mut self) {
-        for url in std::mem::take(&mut self.images) {
-            self.figure(FigureKind::Image, url, Vec::new());
+        for (url, size) in std::mem::take(&mut self.images) {
+            self.figure(FigureKind::Image, url, Vec::new(), size);
         }
     }
 
-    fn figure(&mut self, kind: FigureKind, source: String, fallback: Vec<MdLine>) {
+    /// 一行「这里有张图」：`size` 是 `<img>` 写的宽高。
+    pub(super) fn figure(
+        &mut self,
+        kind: FigureKind,
+        source: String,
+        fallback: Vec<MdLine>,
+        (width, height): Size,
+    ) {
         let lead = self.lead(false);
         self.out.push(MdLine {
             lead,
@@ -100,18 +121,21 @@ impl Renderer<'_> {
                 kind,
                 source,
                 fallback,
+                width,
+                height,
             }),
+            details: None,
         });
     }
 
     /// 照常排，但排出来的行不放进正文，交回来。
-    fn aside(&mut self, draw: impl FnOnce(&mut Self)) -> Vec<MdLine> {
+    pub(super) fn aside(&mut self, draw: impl FnOnce(&mut Self)) -> Vec<MdLine> {
         let before = self.out.len();
         draw(self);
         self.out.split_off(before)
     }
 
-    fn code_lines(&mut self, lang: &str, body: &str) {
+    pub(super) fn code_lines(&mut self, lang: &str, body: &str) {
         let room = usize::from(self.room());
         let label = if lang.is_empty() {
             "╭─ code ".to_string()
@@ -146,6 +170,7 @@ impl Renderer<'_> {
             folded,
             copy: false,
             figure: None,
+            details: None,
         });
     }
 }

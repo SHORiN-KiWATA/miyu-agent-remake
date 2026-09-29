@@ -98,6 +98,17 @@ impl App {
                     step.open = Some(!step.opened(&self.config.timeline));
                 }
             }
+            // 回答里的 `<details>`：点过的记在这一条上，再点一下去掉（和写的 `open` 反过来）。
+            Target::Details(i, k) => {
+                if let Some(entry) = entries.get_mut(i) {
+                    match entry.details.iter().position(|&d| d == k) {
+                        Some(at) => {
+                            entry.details.remove(at);
+                        }
+                        None => entry.details.push(k),
+                    }
+                }
+            }
         }
     }
 

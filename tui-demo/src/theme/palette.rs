@@ -121,6 +121,8 @@ pub struct Palette {
     pub md_image: Tone,
     /// 引用。
     pub md_quote: Tone,
+    /// 回答里 `<mark>` 高亮的字。
+    pub md_mark: Tone,
     /// 表头。
     pub md_table_head: Tone,
     /// 公式：行内转成的字、块级排成的图。

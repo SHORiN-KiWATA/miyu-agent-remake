@@ -29,6 +29,8 @@ pub enum Target {
     Step(usize, usize),
     /// 正文的某一条（撤销那一行）：点开、收起。
     Entry(usize),
+    /// 她的回答（第几条正文）里第几个 `<details>`：展开、收起（蓝图「她的回答：Markdown」第 15 条）。
+    Details(usize, usize),
 }
 
 /// 排好的一行。
@@ -238,10 +240,10 @@ fn done_mark(level: Option<Level>, layout: &crate::config::Layout) -> &str {
         .unwrap_or(&layout.done_icon)
 }
 
-/// 缓存认的键：字和换过几次主题的哈希（颜色烤在排好的行里，换了主题要重排）。
-fn cache_key(text: &str) -> u64 {
+/// 缓存认的键：字、点过的 `<details>`、换过几次主题的哈希（颜色烤在排好的行里，换了主题要重排）。
+fn cache_key(text: &str, details: &[usize]) -> u64 {
     let mut hasher = DefaultHasher::new();
-    text.hash(&mut hasher);
+    (text, details).hash(&mut hasher);
     theme::generation().hash(&mut hasher);
     hasher.finish()
 }
@@ -252,13 +254,18 @@ pub type MdCache = HashMap<usize, (u64, u16, Vec<MdLine>)>;
 /// 她的回答：按 Markdown 排（蓝图 `tui.md`「她的回答：Markdown」），查缓存。
 fn reply_rows(index: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
     let text = entry.text.trim_matches('\n');
-    let hash = cache_key(text);
+    let hash = cache_key(text, &entry.details);
     let mut cache = ctx.md.borrow_mut();
     let fresh = cache
         .get(&index)
         .is_some_and(|(h, w, _)| *h == hash && *w == ctx.width);
     if !fresh {
-        let lines = markdown::render(text, ctx.width, &ctx.config.languages, &ctx.config.math);
+        let kit = markdown::Kit {
+            languages: &ctx.config.languages,
+            math: &ctx.config.math,
+            labels: &ctx.config.text.markdown,
+        };
+        let lines = markdown::render(text, ctx.width, &kit, &entry.details);
         cache.insert(index, (hash, ctx.width, lines));
     }
     let lines = cache
@@ -269,9 +276,25 @@ fn reply_rows(index: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
         .into_iter()
         .flat_map(|line| match &line.figure {
             Some(figure) => figure_rows::rows(line.lead.clone(), figure, ctx),
-            None => vec![md_row(line, ctx)],
+            None => vec![details_row(index, line, ctx)],
         })
         .collect()
+}
+
+/// 一行 Markdown；是 `<details>` 标题的，整行能点，悬停变亮（蓝图「她的回答：Markdown」第 15 条）。
+fn details_row(index: usize, line: MdLine, ctx: &Ctx) -> Row {
+    let Some(k) = line.details else {
+        return md_row(line, ctx);
+    };
+    let target = Target::Details(index, k);
+    let mut row = md_row(line, ctx);
+    row.target = Some(target);
+    if ctx.hover == Some(target) {
+        for span in &mut row.line.spans {
+            span.style = span.style.patch(theme::hover());
+        }
+    }
+    row
 }
 
 /// 排好的一行 Markdown 放进正文。
@@ -337,10 +360,10 @@ mod tests {
     #[test]
     fn a_new_theme_redraws_cached_replies() {
         let _theme = theme::hold();
-        let before = cache_key("**粗**");
+        let before = cache_key("**粗**", &[]);
         // 设回同一套：颜色不变（不扰别的测试），但换过一次，排好的样子就作废。
         let palette = theme::builtin().unwrap().remove(0).1;
         theme::set(palette);
-        assert_ne!(cache_key("**粗**"), before);
+        assert_ne!(cache_key("**粗**", &[]), before);
     }
 }

@@ -137,7 +137,7 @@ fn fingerprint(i: usize, entry: &Entry, ctx: &Ctx, figures: u64) -> Option<u64> 
     let text = entry.text.as_bytes();
     (text.len(), &text[text.len().saturating_sub(64)..]).hash(&mut h);
     (entry.hidden, entry.queued, entry.open, entry.level).hash(&mut h);
-    (entry.undo.is_some(), entry.pasted.len()).hash(&mut h);
+    (entry.undo.is_some(), entry.pasted.len(), &entry.details).hash(&mut h);
     if let Some(job) = &entry.job {
         (discriminant(&job.mark), job.detail.len()).hash(&mut h);
     }
@@ -170,7 +170,7 @@ fn fingerprint(i: usize, entry: &Entry, ctx: &Ctx, figures: u64) -> Option<u64> 
 /// 点中的东西属于第几条。
 fn owner(target: Target) -> usize {
     match target {
-        Target::Segment(i) | Target::Step(i, _) | Target::Entry(i) => i,
+        Target::Segment(i) | Target::Step(i, _) | Target::Entry(i) | Target::Details(i, _) => i,
     }
 }
 

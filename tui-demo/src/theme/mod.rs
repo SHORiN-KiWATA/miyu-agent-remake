@@ -222,6 +222,11 @@ pub fn md_quote() -> Style {
     fg(|p| p.md_quote).add_modifier(Modifier::ITALIC)
 }
 
+/// 回答里 `<mark>` 高亮的字（蓝图「她的回答：Markdown」第 12 条）。
+pub fn md_mark() -> Style {
+    fg(|p| p.md_mark)
+}
+
 /// 表头：蓝加粗。
 pub fn md_table_head() -> Style {
     fg(|p| p.md_table_head).add_modifier(Modifier::BOLD)

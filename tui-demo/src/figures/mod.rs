@@ -7,6 +7,7 @@ mod cells;
 mod file;
 mod math;
 mod mermaid;
+mod svg;
 pub mod terminal;
 mod worker;
 
@@ -19,7 +20,7 @@ use std::sync::mpsc::Sender;
 use ratatui_image::sliced::SlicedProtocol;
 
 use crate::config::FigureLook;
-use crate::markdown::FigureKind;
+use crate::markdown::{FigureKind, Size};
 use crate::theme;
 pub use terminal::Graphics;
 pub use worker::Done;
@@ -94,12 +95,12 @@ impl Figures {
         }
     }
 
-    /// 这一张现在怎样；没做过的交给后台去做。`cols` 是最多几列宽。
-    pub fn look(&mut self, kind: FigureKind, source: &str, cols: u16) -> Look {
+    /// 这一张现在怎样；没做过的交给后台去做。`size` 是 `<img>` 写的宽高，`cols` 是最多几列宽。
+    pub fn look(&mut self, kind: FigureKind, source: &str, size: Size, cols: u16) -> Look {
         let Some(jobs) = &self.jobs else {
             return Look::Unsupported;
         };
-        let key = key(kind, source, cols);
+        let key = key(kind, source, size, cols);
         match self.slots.get(&key) {
             Some(Slot::Pending) => return Look::Pending,
             Some(Slot::Ready(drawn)) => {
@@ -115,6 +116,7 @@ impl Figures {
             key,
             kind,
             source: source.to_string(),
+            size,
             cols,
             math: theme::math_rgb(),
             diagram: theme::diagram_rgb(),
@@ -169,10 +171,10 @@ impl Figures {
     }
 }
 
-/// 一张图的键：种类、源码、宽度、换过几次主题（颜色烤在图里）。
-fn key(kind: FigureKind, source: &str, cols: u16) -> u64 {
+/// 一张图的键：种类、源码、写的宽高、宽度、换过几次主题（颜色烤在图里）。
+fn key(kind: FigureKind, source: &str, size: Size, cols: u16) -> u64 {
     let mut hasher = DefaultHasher::new();
-    (kind, source, cols, theme::generation()).hash(&mut hasher);
+    (kind, source, size, cols, theme::generation()).hash(&mut hasher);
     hasher.finish()
 }
 

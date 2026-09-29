@@ -50,16 +50,6 @@ pub fn fit(width: f32, height: f32, cell: Cell, max_cols: u16, max_rows: u16) ->
     }
 }
 
-/// 缩到 `fit` 的比例（照片这类位图用；SVG、公式直接按比例渲，不走这里）。
-pub fn shrink(image: RgbaImage, fit: Fit) -> RgbaImage {
-    if fit.scale >= 1.0 {
-        return image;
-    }
-    let w = ((image.width() as f32 * fit.scale).round() as u32).max(1);
-    let h = ((image.height() as f32 * fit.scale).round() as u32).max(1);
-    imageops::resize(&image, w, h, imageops::FilterType::Triangle)
-}
-
 /// 放到正好铺满格子的画布上，多出来的地方是 `fill`：左对齐；`middle` 为真时上下居中（公式），不然贴顶。
 pub fn pad(image: &RgbaImage, fit: Fit, cell: Cell, fill: Rgba<u8>, middle: bool) -> RgbaImage {
     let (w, h) = fit.pixels(cell);

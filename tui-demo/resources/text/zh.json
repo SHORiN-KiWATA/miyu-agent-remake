@@ -93,6 +93,7 @@
   "theme_changed": "主题：{name}",
   "figure_pending": "⋯ 正在画图",
   "figure_zoom": "点开看大图",
+  "markdown": { "image": "[图片: ", "details": "详细信息", "details_marks": ["▶ ", "▼ "] },
   "refusals": {
     "nothing_to_unrevert": "没有能恢复的撤销",
     "nothing_to_revert": "没有能撤销的",

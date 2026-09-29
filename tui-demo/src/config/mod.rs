@@ -206,6 +206,8 @@ pub struct TodoMarks {
 pub struct Texts {
     /// 输入框空着时轮换的提示（蓝图「输入框」第 9 条）。
     pub tips: Vec<String>,
+    /// 回答里 Markdown 要写的几个字（蓝图「她的回答：Markdown」第 12、15 条）。
+    pub markdown: crate::markdown::Labels,
     /// 侧边栏：会话还没起名字时写的（蓝图「后台命令、子代理和侧边栏」第 7 条）。
     pub untitled: String,
     /// 侧边栏的短编号，`{id}` 是完整编号的前 8 位。
