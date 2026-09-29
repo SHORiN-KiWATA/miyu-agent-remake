@@ -6,11 +6,12 @@
 //!
 //! - [`Line`]：模型的一次回复；
 //! - [`Play`]：一次工具调用怎么回；
-//! - [`Stage`]：替身本身，人的每个动作以后一直跑到没事可做；
+//! - [`Stage`]：替身本身，人的每个动作以后一直跑到没事可做；子会话、执行器交来的回报也照样跑（施工 7-2，`jobs.rs`）；
 //! - [`restored`]：替身改回的一步。
 
 mod compact;
 mod disk;
+mod jobs;
 mod limits;
 mod respond;
 mod script;

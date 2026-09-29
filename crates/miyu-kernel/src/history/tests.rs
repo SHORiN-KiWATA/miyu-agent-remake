@@ -1,9 +1,11 @@
 //! 有效历史的测试：没压缩过时全都在；压缩一次、再压一次；被动压缩保下来的尾巴；照请求排；
-//! 撤回。撤销与恢复在 `tests/undo.rs`，留着一切的那一份在 `tests/whole.rs`。事件都先交给账本查过，保证测的是合规的日志。
+//! 撤回。撤销与恢复在 `tests/undo.rs`，留着一切的那一份在 `tests/whole.rs`，派出去过的任务在 `tests/jobs.rs`。事件都先交给账本
+//! 查过，保证测的是合规的日志。
 
 use super::*;
 use crate::ledger::Ledger;
 
+mod jobs;
 mod recall;
 mod settle;
 mod undo;

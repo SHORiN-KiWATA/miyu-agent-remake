@@ -5,7 +5,7 @@
 //!
 //! 1. 稳定区：工具面（照名字排好）、system、示范对话；
 //! 2. 检查点：最近一次压缩的摘要，套上包装；
-//! 3. 历史：照有效历史排好的先后，每种事件渲染成对应的消息或内容块；
+//! 3. 历史：照有效历史排好的先后，每种事件渲染成对应的消息或内容块，任务的两种回报是带标签的事实（`jobs.rs`）；
 //! 4. 人这一边挨着的块合成一条 user 消息：检查点最前，事实其次，人的消息最后。
 //!
 //! 压缩的摘要请求也在这里组装：截到第 N 条照平常组装，最后接摘要指令（`summary.rs`）。
@@ -13,6 +13,7 @@
 //! 冻结在会话上的东西，也就是稳定区和给模型看的几句固定的字，在造组装器的时候交进来，
 //! 一个会话一个（内核 K3）。这里不读文件：出厂的字由执行器从资源目录读好交进来。
 
+mod jobs;
 mod render;
 mod summary;
 mod texts;
@@ -20,7 +21,7 @@ mod texts;
 #[cfg(test)]
 mod test_support;
 
-pub use texts::{RestoredWrap, Texts, TurnEndedTexts};
+pub use texts::{JobTexts, RestoredWrap, Texts, TurnEndedTexts};
 
 use miyu_kernel::assemble::Assembler;
 use miyu_kernel::block::Block;

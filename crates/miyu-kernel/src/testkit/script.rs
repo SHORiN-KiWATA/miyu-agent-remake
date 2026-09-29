@@ -1,7 +1,8 @@
 //! 剧本：模型每次请求说什么，每次调工具怎么回。执行前的链、回合开始的挂接点照默认的来：放行，
 //! 不注入；要别的，交给 [`super::Stage`] 另排。
 
-use crate::event::{CallError, ErrorClass, Question, Usage};
+use crate::event::{CallError, ErrorClass, JobKind, JobStarted, Question, Usage};
+use crate::id::{JobId, SessionId};
 
 /// 模型的一次回复：想的、说的话、调的工具；或者出错。
 ///
@@ -138,6 +139,13 @@ pub enum Play {
         /// 内容。
         text: String,
     },
+    /// 派出去一个任务（施工 7-2）：结果是这段字，报 `job.started`。
+    Starts {
+        /// 结果。
+        text: String,
+        /// 派出去的任务。
+        started: JobStarted,
+    },
 }
 
 impl Play {
@@ -151,6 +159,39 @@ impl Play {
         Play::Read {
             path: path.to_string(),
             text: text.to_string(),
+        }
+    }
+
+    /// 派出去一个后台命令，编号是 `j<job>`，标题是 `title`（施工 7-2）。
+    ///
+    /// # Panics
+    ///
+    /// `job` 是 0：任务编号从 1 数起。
+    pub fn starts_command(job: u64, title: &str) -> Play {
+        Play::starts(job, title, JobKind::Command, None)
+    }
+
+    /// 派出去一个子代理，编号是 `j<job>`，标题是 `title`，子会话是 `session`（施工 7-2）。
+    ///
+    /// # Panics
+    ///
+    /// `job` 是 0，或者 `session` 不是会话编号的写法。
+    pub fn starts_agent(job: u64, title: &str, session: &str) -> Play {
+        let session =
+            SessionId::parse(session).unwrap_or_else(|e| panic!("会话编号的写法坏了：{e}"));
+        Play::starts(job, title, JobKind::Agent, Some(session))
+    }
+
+    fn starts(job: u64, title: &str, what: JobKind, session: Option<SessionId>) -> Play {
+        let job = JobId::new(job).unwrap_or_else(|| panic!("任务编号从 1 数起"));
+        Play::Starts {
+            text: format!("Started {job}."),
+            started: JobStarted {
+                job,
+                what,
+                title: title.to_string(),
+                session,
+            },
         }
     }
 

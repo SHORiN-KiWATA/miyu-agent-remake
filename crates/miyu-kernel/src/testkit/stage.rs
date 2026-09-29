@@ -80,10 +80,33 @@ impl Stage {
         environment: Environment,
         now: Timestamp,
     ) -> Stage {
+        Stage::created(policy, environment, now, false)
+    }
+
+    /// 同上，造的是一次性的会话：`miyu ask` 开的那种（施工 7-2）。
+    ///
+    /// # Panics
+    ///
+    /// 同上。
+    pub fn oneshot(
+        policy: impl Fn() -> Policy + 'static,
+        environment: Environment,
+        now: Timestamp,
+    ) -> Stage {
+        Stage::created(policy, environment, now, true)
+    }
+
+    fn created(
+        policy: impl Fn() -> Policy + 'static,
+        environment: Environment,
+        now: Timestamp,
+        oneshot: bool,
+    ) -> Stage {
         let by: By = serde_json::from_str(r#"{"kind":"person","account":"alice"}"#)
             .unwrap_or_else(|e| panic!("alice 的写法坏了：{e}"));
-        let created: SessionCreated =
+        let mut created: SessionCreated =
             serde_json::from_str(CREATED).unwrap_or_else(|e| panic!("造会话的写法坏了：{e}"));
+        created.oneshot = oneshot;
         let (session, actions) = Session::create(
             command_id(0),
             by.clone(),
@@ -370,12 +393,17 @@ impl Stage {
 
     /// 送一个命令，跑到没事可做。
     pub(super) fn command(&mut self, command: Command) -> CommandId {
+        self.command_as(self.by.clone(), command)
+    }
+
+    /// 以 `by` 的名义送一个命令，跑到没事可做（施工 7-2：子会话交回报）。
+    pub(super) fn command_as(&mut self, by: By, command: Command) -> CommandId {
         let id = command_id(self.next);
         self.next += 1;
         let at = self.tick();
         self.run(Input::Command(Received {
             id: id.clone(),
-            by: self.by.clone(),
+            by,
             at,
             command,
         }));

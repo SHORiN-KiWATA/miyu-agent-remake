@@ -102,6 +102,8 @@ impl Watch {
         let (session, actions) = Session::load(log, at(55), policy, environment)
             .unwrap_or_else(|e| panic!("种子 {seed}：落了盘的日志载入不了：{e}"));
         self.asking = None;
+        // 载入以后当没人看着（施工 7-2）。
+        self.reports.watched = false;
         self.forget_limits();
         self.next_block = 0;
         self.open_block = None;

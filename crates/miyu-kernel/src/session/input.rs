@@ -8,8 +8,8 @@ use crate::accumulate::Delta;
 use crate::block::Block;
 use crate::estimate::ImagePrice;
 use crate::event::{
-    CallError, ContextInjected, Decision, Effect, Event, Level, Question, Response, Restored, Said,
-    Usage,
+    CallError, ChildReported, ContextInjected, Decision, Effect, Event, JobReported, Level,
+    Question, Response, Restored, Said, Usage,
 };
 use crate::facts::Environment;
 use crate::id::{CallId, CommandId, ContentHash, ModuleId, Seq, TurnId};
@@ -162,6 +162,25 @@ pub enum Input {
         /// 到的时刻，取自执行器的时钟。
         at: Timestamp,
     },
+    /// 后台命令结束了（施工 7-2，`docs/blueprint/kernel/session.md`「回报」）：执行器交来，记一条 `job.reported`，不带回合
+    /// 编号。对不上一个还没结束的后台命令的，不理。
+    JobEnded {
+        /// 到的时刻，取自执行器的时钟。
+        at: Timestamp,
+        /// 谁让它结束的，照原因填（2026-09-30 定）：自己退出的是起它的那次调用，被停掉的是停它的人或者那次 `jobs` 调用，
+        /// 撤销停掉的是撤销的人，重启、崩了的是内核。
+        by: By,
+        /// 哪个命令引起的：那次调用所在回合的、停它、撤销的那个命令的。
+        cause: Option<CommandId>,
+        /// 那一条的 `body`。
+        reported: JobReported,
+    },
+    /// 有没有头订阅着这个会话（施工 7-2）：会话 actor 在订阅、退订时交。只在内存里，不进日志；造会话、载入以后当没人
+    /// 看着。没人看着的一次性会话，回报只记下、不开轮（`agents.md` 第三条第 3 条）。
+    Watched {
+        /// 有头订阅着。
+        watched: bool,
+    },
     /// 执行前的链判完了（`02-内核.md` 第六节「确认怎么走」）。
     ToolGuarded {
         /// 到的时刻，取自执行器的时钟。
@@ -257,6 +276,9 @@ pub enum Command {
         /// 人附的要求，原样；`None` 是没附。只有空白的也当没附。
         instructions: Option<String>,
     },
+    /// 子会话交来的回报（施工 7-2，`agents.md` 第二条第 5 条）：子会话的执行器经端口交，发命令的一方就是子会话。记一条
+    /// `child.reported`，不带回合编号。对不上一个还会报的子代理的，拒绝，`unknown_job`。
+    Report(ChildReported),
 }
 
 /// 一次回答：回答确认的，或者回答一组题的。

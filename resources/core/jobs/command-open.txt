@@ -1,0 +1,1 @@
+<command-ended job="{job}" title="{title}" reason="{reason}">

@@ -25,7 +25,7 @@
 | 序号 | 账本 `Ledger::next_seq`，追加一条给一个（`kernel/history.md`） |
 | 调用编号 | 流式累积器，照回复的序号一个个分（`kernel/request.md`） |
 | 命令编号 | 发命令的一方：协议里每个请求的 `id` 就是命令编号，例如 `miyu ask` 的 `ask-<16 位十六进制>-<序号>`（`protocol.md`、`cli/ask.md`） |
-| 任务编号 | 还没有哪里造：派任务的那几步（7-2 起，`agents.md`） |
+| 任务编号 | 还没有哪里造：派任务的那几步（7-3、7-5，`agents.md`） |
 
 内核不读时钟：纯逻辑门禁拦 `SystemTime`、`Instant`。
 
@@ -111,7 +111,7 @@
 
 几格的写法照上面的类型：`account` 是 `AccountId`，`venue` 是 `VenueId`，`id` 依次是 `ExternalId`、`ModuleId`、`SessionId`，`endpoint` 是 `ProviderId`，`model` 是 `ModelName`，`call_id` 是 `CallId`，`name` 是 `HarnessName`。
 
-`harness` 的 `name` 是对方自己报的，不可信，照 `external` 的做法只管写法：短名字的规则，1 到 128 字节、没有控制字符，读的时候不合的报错。收的那一边（协议的 `from`，7-11）先去掉控制字符、截到 128 字节以内（不切断一个字），截完是空的不收；给模型看之前照不可信的文本处理（渲染随 7-2）。
+`harness` 的 `name` 是对方自己报的，不可信，照 `external` 的做法只管写法：短名字的规则，1 到 128 字节、没有控制字符，读的时候不合的报错。收的那一边（协议的 `from`，7-11）先去掉控制字符、截到 128 字节以内（不切断一个字），截完是空的不收；给模型看之前照不可信的文本处理（渲染随 7-10）。
 
 ### 怎么走
 

@@ -8,7 +8,7 @@
 
 通讯只在树上相邻的两层之间（2026-09-29 项目主人定）：孙代理和子代理说话，子代理和父说话，孙代理不能越过子代理找父，兄弟之间也不直接说，要协调经它们的父转。
 
-状态：图纸（2026-09-29 定），M7 照它施工（施工方案第三节 M7 那张表）。做好了的：7-1 事件的类型、读写、账本的规矩、样本（`kernel/events-bodies.md`、`kernel/ids.md`、`kernel/history.md`），还没有哪里写它们。做完一步，这一页照做好的样子改写那几节，相关的几页（`kernel/events-bodies.md`、`kernel/session.md`、`kernel/history.md`、`kernel/request.md`、`session/actor.md`、`protocol.md`、`core.md`、`cli/ask.md`、`tools/`）跟着改。
+状态：图纸（2026-09-29 定），M7 照它施工（施工方案第三节 M7 那张表）。做好了的：7-1 事件的类型、读写、账本的规矩、样本（`kernel/events-bodies.md`、`kernel/ids.md`、`kernel/history.md`）；7-2 内核收得下两种回报、到了开不开一轮（第三条，`kernel/session.md`「回报」），渲染成带标签的事实（第九条第 1 条，`kernel/request.md`「回报」），由执行器替身交，还没有真的后台命令、子会话。做完一步，这一页照做好的样子改写那几节，相关的几页（`kernel/events-bodies.md`、`kernel/session.md`、`kernel/history.md`、`kernel/request.md`、`session/actor.md`、`protocol.md`、`core.md`、`cli/ask.md`、`tools/`）跟着改。
 
 ### 在哪
 
@@ -20,7 +20,9 @@
 | `crates/miyu-kernel/src/event/job.rs` | 事件 `job.reported`、`child.reported` |
 | `crates/miyu-kernel/src/id/job.rs` | 任务编号 `JobId`（施工 7-1） |
 | `crates/miyu-kernel/src/ledger/jobs.rs` | 账本里任务的几条规矩（施工 7-1，`kernel/history.md`） |
-| `crates/miyu-kernel/src/session/jobs.rs` | 内核这边的任务表：从日志算出哪些还没结束；回报到了开一轮还是排着 |
+| `crates/miyu-kernel/src/session/jobs.rs` | 回报到了：记下，开一轮、排着还是只记下（施工 7-2）；从日志算出哪些还没结束随 7-3、7-8 |
+| `crates/miyu-kernel/src/history/jobs.rs` | 有效历史记着的派出去过的任务：标题、种类、派它的那一轮撤掉了没有（施工 7-2） |
+| `crates/miyu-assemble/src/jobs.rs` | 两种回报渲染成带标签的事实（施工 7-2） |
 | `crates/miyu-kernel/src/session/report.rs` | 子会话一轮结束时要不要向上回报、回报什么 |
 | `crates/miyu-tool/src/jobs.rs` | 交给工具的端口：起后台命令、派子会话、留言、查、停（`JobPort`） |
 | `crates/miyu-session/src/jobs.rs` | 执行器的任务表：后台进程活过那一次调用，输出落盘，结束了告诉会话 |
@@ -31,7 +33,7 @@
 | `crates/miyu-basesystem/src/{jobs,agent,message_agent}.rs` | 三件新工具 |
 | `crates/miyu-cli/src/ask/follow/` | `miyu ask` 等子代理回报、`--timeout`、`--from` |
 | `resources/software/basesystem/tools/{jobs,agent,message_agent}.json` | 说明和参数格式 |
-| `resources/core/jobs/*.txt` | 回报、子代理的场所说明这几段给模型看的字 |
+| `resources/core/jobs/*.txt` | 回报的写法（施工 7-2，十一份）、子代理的场所说明（7-5）这几段给模型看的字 |
 
 分层照 `01-架构.md`：内核不碰进程和别的会话，只从日志算状态、交出动作；工具只拿端口，不认识会话表；会话表在 `miyu-endpoint`，比会话 actor 高一层，所以造子会话的端口由 `miyu-session` 定义、`miyu-endpoint` 在核心启动时装上（`00-设计理念.md` 第四节「依赖与接口的规矩」：下层定义窄接口，上层实现）。
 
@@ -122,14 +124,15 @@
 4. 人插过话：这一轮里有人发来的消息，或者这一轮是人开的、里面进过留言，`person` 写 `true`，渲染时注明，免得父会话对不上自己派的活。
 5. 回报是一个命令：子会话的执行器经端口交给父会话，`by` 是子会话。父会话落了盘就算送到。父会话已经被删了的，丢掉（子会话本该一起停了）。
 
-**三、回报、后台命令结束到了父会话**
+**三、回报、后台命令结束到了父会话**（施工 7-2 做好了，细则见 `kernel/session.md`「回报」）
 
-1. 记一条 `child.reported` 或 `job.reported`。
+1. 记一条 `child.reported` 或 `job.reported`，不带回合编号（2026-09-30 定：带了会跟着那一轮被撤掉）。`job.reported` 的 `by` 照原因记：自己退出的是起它的那次调用，被停掉的是停它的人或者那次 `jobs` 调用，撤销停掉的是撤销的人，重启、崩了的是内核（2026-09-30 定）。
 2. 她闲着：由它开一轮（`trigger` 是它）。她正忙：照排队的消息，在下一步的边界看到（`02-内核.md` 第六节「排队的消息」）。
 3. 不开轮、只记下的几种（下一轮开始时她一起看到）：
    - 她自己用 `jobs` 停掉的（`by_model`）：她知道自己停了。
    - `undone`、`restarted`、`aborted`：不是做出来的结果。
-   - 这时还能恢复撤销：先记下不开轮，恢复了或者人说了下一句，照排着的接着开（opencode v2 的做法，`02-内核.md` 第六节第 4 条）。
+   - 这时还能恢复撤销：先记下不开轮，恢复了或者人说了下一句，照排着的接着开，由最后那一条（opencode v2 的做法，`02-内核.md` 第六节第 4 条）。
+   - 派它的那一轮撤掉了的：回报不渲染（第九条），开了轮她也看不到（施工 7-2 定）。
    - 没人看着的一次性会话（`miyu ask` 开的，这时没有头订阅着它：`miyu ask` 已经退出了，或者按 Ctrl+C 不等了）：只记下，下次 `miyu ask -c` 接着说时她一起看到。命令照常跑完，不会没人看着花钱、自己动手（2026-09-29 项目主人定，照 codex 的信箱；opencode、dsh 会叫醒，Claude Code、codex 退出时干脆停掉）。有没有头订阅着由会话 actor 在订阅、退订时告诉内核，不进日志：开没开轮本身记在日志里，载入时照日志。
 4. 被人停掉的子代理（`job.stop`）照样开一轮：设计写明「父会话不会白等」。
 5. 叫醒不设连着几次的上限（2026-09-29 项目主人定）：并行派出去几个、先后回报，就是连着叫醒几次，设了闸反而扣住后面的。dsh 连着叫醒 3 次以后只记下；真撞见她自己转个没完再加。
@@ -179,7 +182,7 @@
 
 **九、上下文**
 
-1. `child.reported`、`job.reported` 渲染成一块带标签的事实：她闲着时就是开这一轮的那条消息，正忙时排在那一步的工具结果后面（`08-上下文投影.md` 第三节）。写法、标签施工时实测，登记（`26-提示词.md` J12）。
+1. `child.reported`、`job.reported` 渲染成一块带标签的事实：她闲着时就是开这一轮的那条消息，正忙时排在那一步的工具结果后面（`08-上下文投影.md` 第三节）。写法、标签见 `kernel/request.md`「回报」，原文在 `resources/core/jobs/`，登记在 `26-提示词.md` 第十节（施工 7-2）。
    - 后台命令结束只写结束了、退出码（或信号、为什么停）、用时、输出有多少字，看输出用 `jobs` 的 `output`，不带输出本身（照 Claude Code、dsh）。实测里她每次都接着去读的，再考虑带上结尾几行。
    - 子代理的回报带正文（照 Claude Code、opencode：子代理的通知直接带最后的回复）。
 2. `job.started` 不单独渲染：派它的调用和结果就在历史里。
@@ -203,7 +206,9 @@
 
 事件的样本在 `docs/designs/samples/events/`（施工 7-1）：`tool.result.jsonl` 的 102、103 号带着 `job.started`（一个后台命令、一个子代理；结果里给模型看的那一句随 7-3、7-5 定，样本里的只是占着位置），`job.reported.jsonl`、`child.reported.jsonl` 是它们的回报，`session.created.jsonl` 的第二行是那个子代理的会话的第一条。
 
-施工时照每一步补：回报渲染出来的样子；`miyu ask` 等子代理时印的样子（给项目主人看过再定）。
+回报渲染出来的样子（施工 7-2）：`kernel/request.md`「样子：给模型看的字」，每种原因各一份样本在 `docs/designs/samples/reports/`，一段有回报的会话的每一次请求在 `docs/designs/samples/probe/reports/`。
+
+施工时照每一步补：`miyu ask` 等子代理时印的样子（给项目主人看过再定）。
 
 ### 给人看的字
 
@@ -216,8 +221,12 @@
 | `crates/miyu-kernel/src/event/effect/tests.rs`、`event/job/tests.rs`、`event/session/tests.rs`、`id/tests.rs`、`origin/tests.rs` | 三种新东西、两格新字段、任务编号、`harness` 读写一字不差，不认识的取值原样留着（施工 7-1） |
 | `crates/miyu-kernel/src/ledger/tests/jobs.rs`、`jobs/reports.rs` | 账本的任务规矩（施工 7-1） |
 | `crates/miyu-kernel/tests/samples.rs` | 样本读写一字不差，子代理的几条对得上（施工 7-1） |
+| `crates/miyu-kernel/src/session/tests/scenario/reports.rs`、`reports_undo.rs` | 回报到了开一轮、排着、只记下、接着开，撤销、恢复、载入、读回日志的时候到的（施工 7-2，`kernel/session.md`「守着它的」） |
+| `crates/miyu-kernel/src/session/tests/random/watch/reports.rs`、`random/reporting.rs` | 随机输入里的回报（施工 7-2） |
+| `crates/miyu-kernel/src/history/tests/jobs.rs` | 有效历史记着的派出去过的任务；由回报接着开的一轮撤掉时拿走什么（施工 7-2） |
+| `crates/miyu-assemble/src/jobs/tests.rs`、`tests/probe.rs` | 回报的写法和样本一字不差、排在哪；有回报的会话的请求形状（施工 7-2） |
 
-以后照每一步补。至少：内核的单元测试和场景（开始、结束、回报开轮还是排着、撤销停掉、载入补中断、子会话回报的条件）；随机测试加回报和后台命令结束；请求形状探针加子代理这种会话（`26-提示词.md` 第六节）；工具面的预算；真核心走一遍后台命令和子代理。
+以后照每一步补。至少：内核的单元测试和场景（开始、结束、撤销停掉、载入补中断、子会话回报的条件）；请求形状探针加子代理这种会话（`26-提示词.md` 第六节）；工具面的预算；真核心走一遍后台命令和子代理。
 
 ### 出处
 
@@ -234,3 +243,4 @@
 - 资源调度器：并发上限、限速、优先级（`02-内核.md` 第七节）。
 - 放行规则跟着子会话抄：执行前的链认放行规则以后。
 - `miyu session show`、`miyu stdio`：管理命令那一步。
+- 会话 actor 在订阅、退订时交 `Watched`（`kernel/session.md`「回报」第 6 条）：随 `miyu ask` 等子代理（7-9）；这之前一次性的会话一直当没人看着，回报只记下。

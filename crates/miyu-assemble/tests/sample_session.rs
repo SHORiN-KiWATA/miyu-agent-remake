@@ -14,7 +14,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use miyu_assemble::{DefaultAssembler, RestoredWrap, Stable, Texts, TurnEndedTexts};
+use miyu_assemble::{DefaultAssembler, JobTexts, RestoredWrap, Stable, Texts, TurnEndedTexts};
 use miyu_kernel::assemble::Assembler;
 use miyu_kernel::event::{Body, Event};
 use miyu_kernel::history::History;
@@ -60,6 +60,30 @@ fn texts() -> Texts {
         .to_string(),
         summarize_end: include_str!("../../../resources/core/compaction/summarize-end.txt")
             .to_string(),
+        jobs: Some(job_texts()),
+    }
+}
+
+/// 出厂的回报写法（施工 7-2），资源目录里的真文件。
+fn job_texts() -> JobTexts {
+    macro_rules! job {
+        ($name:literal) => {
+            include_str!(concat!("../../../resources/core/jobs/", $name)).to_string()
+        };
+    }
+    let template = |text: String| Template::parse(&text).expect("出厂的模板合写法");
+    JobTexts {
+        command_open: template(job!("command-open.txt")),
+        command_exit: template(job!("command-exit.txt")),
+        command_signal: template(job!("command-signal.txt")),
+        command_duration: template(job!("command-duration.txt")),
+        command_output: template(job!("command-output.txt")),
+        command_close: job!("command-close.txt"),
+        subagent_open: template(job!("subagent-open.txt")),
+        subagent_person: job!("subagent-person.txt"),
+        subagent_truncated: job!("subagent-truncated.txt"),
+        subagent_silent: job!("subagent-silent.txt"),
+        subagent_close: job!("subagent-close.txt"),
     }
 }
 
@@ -172,5 +196,19 @@ fn only_the_result_of_a_question_reaches_the_request() {
     assert!(
         !whole.contains("下次编译从头来"),
         "题目里的说明不该在请求里：{whole}"
+    );
+}
+
+/// 任务的两种回报（施工 7-2）：带标签的事实，标题照派它的那条 `job.started`；后台命令不带输出本身。
+#[test]
+fn the_reports_reach_the_request_as_tagged_facts() {
+    let whole = assembled_upto(u64::MAX);
+    assert!(
+        whole.contains(r#"<command-ended job=\"j1\" title=\"跑全部测试\" reason=\"exited\">\nExit code 0.\nRan for 81234 ms.\n"#),
+        "{whole}"
+    );
+    assert!(
+        whole.contains(r#"<subagent-report job=\"j2\" title=\"查 CI 为什么红\" reason=\"done\">\nCI 红在 macOS"#),
+        "{whole}"
     );
 }

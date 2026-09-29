@@ -42,6 +42,9 @@ pub(super) struct Turn {
     pub(super) interjected: Option<Interjection>,
     /// 排着队的消息：回合进行中来的，还没被请求看到过。序号和它的命令，照先后。
     pub(super) queued: Vec<(Seq, Option<CommandId>)>,
+    /// 这一轮里到的、会叫醒她的回报，还没被请求看到过，照先后（施工 7-2，`jobs.rs`）。和排着队的消息一样下一次请求就
+    /// 听到了；回合结束时还没听到的接着开下一轮，打断的不开。打断退回时不撤回：不是人说的话。
+    pub(super) reports: Vec<super::jobs::Arrived>,
     /// 上一次请求以后切过权限级别：下一次请求之前把事实查一遍。
     pub(super) refresh: bool,
     /// 这一步压过了（施工 6-2 下）：压完照常发这一步本来要发的请求，不再压第二次（`compaction.md` 第三条第 1 条）。
@@ -131,6 +134,7 @@ impl Session {
             retrying: false,
             interjected: None,
             queued: Vec::new(),
+            reports: Vec::new(),
             refresh: false,
             compacted: false,
             interrupting: None,
@@ -140,6 +144,8 @@ impl Session {
             manual: None,
         });
         self.effective = self.permission.clone();
+        // 记在一边的回报这一轮就听到了（施工 7-2）：不再由它们另开一轮。
+        self.deferred.clear();
         let facts = vec![
             self.policy.facts.env(at, &self.environment),
             self.policy.facts.permission(&self.permission),
@@ -248,6 +254,7 @@ impl Session {
         turn.compacted = false;
         turn.interjected = None;
         turn.queued.clear();
+        turn.reports.clear();
         turn.stage = Stage::Asking(Call::new(seen, request.messages.len(), difference));
         vec![Action::CallModel {
             seen,

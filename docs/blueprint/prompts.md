@@ -1165,6 +1165,129 @@ These images and files were returned by the tool calls above.
 The tool returned only images or files. They are in the next message.
 ```
 
+### 人这边：任务的回报（一块带标签的事实）
+
+#### `core/jobs/command-open.txt`
+
+- 什么时候加进来：标签那一行，后台命令结束了（`job.reported`），派它的那一轮还在；闲着时是开这一轮的那条，正忙时排在那一步的工具结果后面，之后每次请求照原文带
+- token：19（字段按 `j1`、`跑全部测试`、`exited` 算）
+- 为什么加：标签带编号、标题、原因，她认得出是哪一个任务、怎么结束的（施工 7-2，`agents.md` 第九条第 1 条：回报必须渲染，标签的写法照 `turn-ended/` 的样子）
+- 指纹：`614609de`
+
+```text
+<command-ended job="{job}" title="{title}" reason="{reason}">
+```
+
+#### `core/jobs/command-exit.txt`
+
+- 什么时候加进来：有退出码
+- token：5（`0`）
+- 为什么加：退出码是她判断成没成的依据，照前台 `shell` 的 `Exit code` 写（施工 7-2）
+- 指纹：`1f7d2552`
+
+```text
+Exit code {code}.
+```
+
+#### `core/jobs/command-signal.txt`
+
+- 什么时候加进来：被信号杀掉（Unix），没有退出码
+- token：7（`9`）
+- 为什么加：没有退出码时说清是怎么停的，照前台 `shell` 的写法（施工 7-2）
+- 指纹：`a4dd255f`
+
+```text
+Killed by signal {signal}.
+```
+
+#### `core/jobs/command-duration.txt`
+
+- 什么时候加进来：有用时（载入时补的 `aborted` 没有）
+- token：7（`81234`）
+- 为什么加：跑了多久，照 `agents.md` 第九条第 1 条（施工 7-2）
+- 指纹：`835d7b4e`
+
+```text
+Ran for {ms} ms.
+```
+
+#### `core/jobs/command-output.txt`
+
+- 什么时候加进来：存下了整份输出
+- token：14（`48213`）
+- 为什么加：不带输出本身，只写有多少字、怎么看（`agents.md` 第九条第 1 条，照 Claude Code、dsh）：调用之后才用得上的知识写进输出（施工 7-2）
+- 指纹：`78b1d7b5`
+
+```text
+The output has {chars} characters. Read it with jobs output.
+```
+
+#### `core/jobs/command-close.txt`
+
+- 什么时候加进来：收尾那一行，同 `command-open.txt`
+- token：4
+- 为什么加：标签的收尾（施工 7-2）
+- 指纹：`e02d8ce7`
+
+```text
+</command-ended>
+```
+
+#### `core/jobs/subagent-open.txt`
+
+- 什么时候加进来：标签那一行，子会话交来回报（`child.reported`），派它的那一轮还在；排法同 `command-open.txt`
+- token：21（字段按 `j2`、`查 CI 为什么红`、`done` 算）
+- 为什么加：标签带编号、标题、原因，正文是它最后的回答（施工 7-2，`agents.md` 第九条第 1 条，照 Claude Code、opencode：子代理的通知直接带最后的回复）
+- 指纹：`0033e3a4`
+
+```text
+<subagent-report job="{job}" title="{title}" reason="{reason}">
+```
+
+#### `core/jobs/subagent-person.txt`
+
+- 什么时候加进来：正文前面一行，那一轮里人插过话，或者那一轮是人开的、进过父会话的留言（`person`）
+- token：12
+- 为什么加：免得她对不上自己派的活（`agents.md` 第二条第 4 条，施工 7-2）
+- 指纹：`62c8ec85`
+
+```text
+The user also talked to this subagent during the task.
+```
+
+#### `core/jobs/subagent-truncated.txt`
+
+- 什么时候加进来：正文前面一行，正文超过上限、截过头尾（`truncated`）
+- token：16
+- 为什么加：告诉她中间少了、全文怎么看（`agents.md` 第二条第 3 条，施工 7-2）
+- 指纹：`6da93049`
+
+```text
+The middle of this report was cut. Read all of it with jobs output.
+```
+
+#### `core/jobs/subagent-silent.txt`
+
+- 什么时候加进来：代替正文，子代理一个字都没说就结束了
+- token：8
+- 为什么加：不然标签里是空的，她分不清是没说还是丢了（`agents.md` 第二条第 3 条，施工 7-2）
+- 指纹：`05f30353`
+
+```text
+The subagent ended without saying anything.
+```
+
+#### `core/jobs/subagent-close.txt`
+
+- 什么时候加进来：收尾那一行，同 `subagent-open.txt`
+- token：5
+- 为什么加：标签的收尾（施工 7-2）
+- 指纹：`0ed409f7`
+
+```text
+</subagent-report>
+```
+
 ### 人这边
 
 #### `core/turn-ended/interrupted.txt`

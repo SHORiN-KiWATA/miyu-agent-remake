@@ -344,3 +344,55 @@ fn the_summary_instruction_is_split_and_older_snapshots_read_whole() {
         "没附要求的，拼出来一字不差"
     );
 }
+
+/// 两种回报的写法（施工 7-2）：出厂的快照带着，组装器照它把回报渲染成带标签的事实；写坏了的造不出策略，说是哪一类；以前造
+/// 的快照里没有，读成没有、不渲染，读进来再写出去一字不差。
+#[test]
+fn job_report_texts_go_in_and_older_snapshots_lack_them() {
+    use miyu_kernel::event::Event;
+    use miyu_kernel::history::History;
+    let lines = [
+        r#"{"seq":1,"at":"2026-09-25T07:00:00.000Z","kind":"session.created","by":{"kind":"kernel"},"body":{"owner":"alice","venue":"local","policy":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","permission":{"level":"workspace","read_only":false}}}"#,
+        r#"{"seq":2,"at":"2026-09-25T07:00:00.000Z","kind":"message.user","by":{"kind":"person","account":"alice"},"body":{"blocks":[]}}"#,
+        r#"{"seq":3,"at":"2026-09-25T07:00:00.000Z","kind":"turn.started","turn":3,"by":{"kind":"kernel"},"body":{"trigger":2}}"#,
+        r#"{"seq":4,"at":"2026-09-25T07:00:00.000Z","kind":"message.assistant","turn":3,"by":{"kind":"kernel"},"body":{"blocks":[{"type":"tool_call","call_id":"call_4_1","name":"shell","args":"{}"}],"seen":3}}"#,
+        r#"{"seq":5,"at":"2026-09-25T07:00:00.000Z","kind":"tool.result","turn":3,"by":{"kind":"kernel"},"body":{"call_id":"call_4_1","status":"ok","blocks":[],"effects":[{"kind":"job.started","job":"j1","what":"command","title":"跑测试"}]}}"#,
+        r#"{"seq":6,"at":"2026-09-25T07:00:00.000Z","kind":"job.reported","by":{"kind":"kernel"},"body":{"job":"j1","reason":"aborted"}}"#,
+    ];
+    let mut history = History::default();
+    for line in lines {
+        history.append(Event::from_line(line).unwrap());
+    }
+    let rendered = |snapshot: &Snapshot| {
+        let request = snapshot.policy().unwrap().assembler.assemble(&history);
+        String::from_utf8(request.canonical_bytes()).unwrap()
+    };
+    let snapshot = engineer();
+    assert!(
+        rendered(&snapshot)
+            .contains(r#"<command-ended job=\"j1\" title=\"跑测试\" reason=\"aborted\">"#)
+    );
+    let mut broken = snapshot.clone();
+    if let Some(jobs) = broken.core.jobs.as_mut() {
+        jobs.command_exit = "Exit code {signal}.".to_string();
+    }
+    let error = broken.policy().err().unwrap();
+    assert!(
+        matches!(
+            error,
+            BuildError::Texts {
+                which: "job report texts",
+                ..
+            }
+        ),
+        "{error:?}"
+    );
+    let text = String::from_utf8(snapshot.to_bytes()).unwrap();
+    let start = text.find(r#","jobs":{"#).unwrap();
+    let end = start + text[start..].find(r#""}"#).unwrap() + 2;
+    let older = text[..start].to_string() + &text[end..];
+    let read = Snapshot::from_bytes(older.as_bytes()).unwrap();
+    assert!(read.core.jobs.is_none());
+    assert!(!rendered(&read).contains("command-ended"));
+    assert_eq!(read.to_bytes(), older.as_bytes());
+}

@@ -1,0 +1,5 @@
+<command-ended job="j1" title="跑全部测试" reason="exited">
+Killed by signal 9.
+Ran for 1200 ms.
+The output has 0 characters. Read it with jobs output.
+</command-ended>

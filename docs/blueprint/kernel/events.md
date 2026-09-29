@@ -61,13 +61,13 @@
 | `context.compacted` | 压缩的检查点 | 内核 | 带上：压缩发生在哪一轮 | `context.compacted.jsonl` |
 | `context.compaction_paused` | 暂停了自动压缩（施工 6-6 上） | 内核 | 必带 | `context.compaction_paused.jsonl` |
 | `model.called` | 一次模型请求的记录 | 内核 | 回合进行中的带上 | `model.called.jsonl` |
-| `job.reported` | 后台命令结束了（施工 7-1） | — | 回合进行中到的带上 | `job.reported.jsonl` |
-| `child.reported` | 子会话的回报（施工 7-1） | —：写的时候是那个子会话，账本查 | 回合进行中到的带上 | `child.reported.jsonl` |
+| `job.reported` | 后台命令结束了（施工 7-1） | 内核，`by` 照原因记（施工 7-2，`kernel/session.md`「回报」第 2 条） | 内核记的不带（2026-09-30 定），账本不另查 | `job.reported.jsonl` |
+| `child.reported` | 子会话的回报（施工 7-1） | 内核，`by` 是那个子会话，账本查（施工 7-2） | 内核记的不带（2026-09-30 定），账本不另查 | `child.reported.jsonl` |
 
 - 「—」是现在还没有哪里写这一种：读得懂、账本查得了、投影认得，就是不产生（下面「还没有的」）。
 - `turn` 那一列的「必带」「它自己的序号」「不带」，账本在追加时查：`turn.started` 的 `turn` 要是它自己的序号；带 `turn` 的要是正在进行的那个回合；「必带」的九种不带就不收；`turn.reverted`、`files.restored` 在有回合进行时不收（`kernel/history.md`）。
 - 模块自己的种类写成 `ext.<模块>.<种类>`，内核不认识，照不认识的种类处理。
-- `job.reported`、`child.reported` 现在投影照不认识的种类一样跳过（`crates/miyu-assemble/src/render.rs`）：渲染成什么样随 7-2。
+- `job.reported`、`child.reported` 渲染成带标签的事实（施工 7-2，`kernel/request.md`「回报」）。
 
 **瞬时事件** `Transient`：外壳和持久事件同一种写法，只少了 `seq`，它不进日志。`cause` 留着：一个命令引起的事，从持久的到瞬时的，一路追得下去。
 
@@ -191,7 +191,7 @@ serde_json 在每一句后面加上 ` at line <几> column <几>`（没有测试
 
 ### 还没有的
 
-- `job.reported`、`child.reported`：读写、账本都有了（施工 7-1），还没有哪里写，也不渲染（7-2）。原来的 `child.spawned` 不做了：派它的那次调用的效果 `job.started` 就是开始的记录（`03-事件模型.md` 第三节）。
+- `job.reported`、`child.reported`：内核收得下、渲染得出（施工 7-2），还没有真的执行器、子会话交来（7-3、7-6）。原来的 `child.spawned` 不做了：派它的那次调用的效果 `job.started` 就是开始的记录（`03-事件模型.md` 第三节）。
 - `session.meta_changed`：读得懂，还没有改标题、置顶的命令。
 - `session.policy_changed` 只写过换权限；换策略快照（目录变了、配置改了，下一个回合开始时换）还没有（`05-内核接口.md` 第八节，`02-内核.md` K3）。
 - 模块自己的事件种类 `ext.*`：还没有模块定义（E6）。

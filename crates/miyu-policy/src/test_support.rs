@@ -129,6 +129,28 @@ pub(crate) fn core() -> CoreTexts {
                 .to_string(),
             }),
         }),
+        jobs: Some(jobs()),
+    }
+}
+
+/// 出厂的两种回报的写法（施工 7-2）。
+fn jobs() -> crate::JobTexts {
+    crate::JobTexts {
+        command_open: include_str!("../../../resources/core/jobs/command-open.txt").to_string(),
+        command_exit: include_str!("../../../resources/core/jobs/command-exit.txt").to_string(),
+        command_signal: include_str!("../../../resources/core/jobs/command-signal.txt").to_string(),
+        command_duration: include_str!("../../../resources/core/jobs/command-duration.txt")
+            .to_string(),
+        command_output: include_str!("../../../resources/core/jobs/command-output.txt").to_string(),
+        command_close: include_str!("../../../resources/core/jobs/command-close.txt").to_string(),
+        subagent_open: include_str!("../../../resources/core/jobs/subagent-open.txt").to_string(),
+        subagent_person: include_str!("../../../resources/core/jobs/subagent-person.txt")
+            .to_string(),
+        subagent_truncated: include_str!("../../../resources/core/jobs/subagent-truncated.txt")
+            .to_string(),
+        subagent_silent: include_str!("../../../resources/core/jobs/subagent-silent.txt")
+            .to_string(),
+        subagent_close: include_str!("../../../resources/core/jobs/subagent-close.txt").to_string(),
     }
 }
 

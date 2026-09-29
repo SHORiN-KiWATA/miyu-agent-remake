@@ -14,6 +14,7 @@ mod call;
 mod compaction;
 mod input;
 mod interrupt;
+mod jobs;
 mod limits;
 mod load;
 mod manual;
@@ -45,10 +46,11 @@ use crate::event::{Body, Event, MessageUser, Permission, SessionCreated, ToolRes
 use crate::facts::Environment;
 use crate::history::History;
 use crate::id::{CommandId, Seq, TurnId};
-use crate::ledger::Ledger;
+use crate::ledger::{Ledger, LedgerError};
 use crate::origin::By;
 use crate::request::Fingerprint;
 use crate::time::Timestamp;
+use jobs::Arrived;
 use recent::Recent;
 use revert::{ReadingBack, Restoring};
 use turn::Turn;
@@ -88,6 +90,13 @@ pub struct Session {
     reading: Option<ReadingBack>,
     /// 模型的限额，执行器交来的；没交过的不主动压缩（施工 6-2 上）。只在内存里。
     limits: Option<Limits>,
+    /// 一次性的会话：`miyu ask` 开的（`session.created` 的 `oneshot`）。没人看着的时候回报不叫醒她（施工 7-2）。
+    oneshot: bool,
+    /// 有头订阅着（施工 7-2，[`Input::Watched`]）：只在内存里，造会话、载入以后当没人看着。
+    watched: bool,
+    /// 闲着时到的、会叫醒她、这时却开不了一轮的回报，照先后（施工 7-2，`jobs.rs`）：随便哪一轮开了就清掉；恢复了撤销、
+    /// 这时开得了，由最后那条接着开。
+    deferred: Vec<Arrived>,
 }
 
 impl Session {
@@ -124,6 +133,9 @@ impl Session {
             restoring: None,
             reading: None,
             limits: None,
+            oneshot: created.oneshot,
+            watched: false,
+            deferred: Vec::new(),
         };
         let event = session.record(at, by, Some(id.clone()), Body::SessionCreated(created));
         session.accept(id, vec![event.seq]);
@@ -220,6 +232,16 @@ impl Session {
             Input::Restored { at, files } => self.restored(at, files),
             Input::ReadBack { at, from, events } => self.read_back(at, from, events),
             Input::Restarting { at } => self.restart(at),
+            Input::JobEnded {
+                at,
+                by,
+                cause,
+                reported,
+            } => self.job_ended(at, by, cause, reported),
+            Input::Watched { watched } => {
+                self.watched = watched;
+                Vec::new()
+            }
         }
     }
 
@@ -280,6 +302,7 @@ impl Session {
             Command::Revert { turn } => self.revert(id, by, at, turn),
             Command::Unrevert => self.unrevert(id, by, at),
             Command::Compact { instructions } => self.compact(id, at, instructions),
+            Command::Report(reported) => self.report(id, by, at, reported),
         }
     }
 
@@ -299,12 +322,18 @@ impl Session {
             cause,
             body,
         };
-        if let Err(error) = self.ledger.append(&event) {
+        if let Err(error) = self.commit(&event) {
             panic!("the kernel's own event failed the ledger, a kernel bug: {error}");
         }
+        event
+    }
+
+    /// 追加一条造好的事件：交给账本查过，记在账上，交给有效历史，等着落盘。过不了账本的什么都不动，交回违反了哪一条。
+    fn commit(&mut self, event: &Event) -> Result<(), LedgerError> {
+        self.ledger.append(event)?;
         self.history.append(event.clone());
         self.unstored.push(event.clone());
-        event
+        Ok(())
     }
 
     /// 接受一个命令：记下编号和它产生的事件，等落了盘再回应。

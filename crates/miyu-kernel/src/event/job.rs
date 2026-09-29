@@ -1,8 +1,8 @@
 //! 任务的两种回报（施工 7-1，`docs/blueprint/agents.md`「对外的样子」，`03-事件模型.md` 第三节）：后台命令结束了
 //! `job.reported`，子会话的回报 `child.reported`。任务开始记在派它的那次调用的效果 `job.started` 里（`effect.rs`）。
 //!
-//! 回报对不对得上派出去的任务、子代理还会不会再报，由账本查（`ledger/jobs.rs`）。谁写、到了开不开一轮、渲染成什么样，
-//! 随 7-2。
+//! 回报对不对得上派出去的任务、子代理还会不会再报，由账本查（`ledger/jobs.rs`）。内核记下、到了开不开一轮在
+//! `session/jobs.rs`，渲染成带标签的事实在 `miyu-assemble` 的 `jobs.rs`（施工 7-2）。
 
 use serde::{Deserialize, Serialize};
 

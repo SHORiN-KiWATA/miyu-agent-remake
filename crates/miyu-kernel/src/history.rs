@@ -10,9 +10,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::event::{Body, Event};
-use crate::id::{ContentHash, Seq};
+use crate::id::{ContentHash, JobId, Seq};
 
+mod jobs;
 mod undo;
+
+pub use jobs::Dispatched;
 
 /// 一个会话的有效历史：最近一次压缩的检查点，加上它之后还有效的事件。
 ///
@@ -30,6 +33,8 @@ pub struct History {
     whole: bool,
     /// 最近一个检查点里重读的文件的原文，照 blob 找（施工 6-5）：原文不进日志，由执行器交进来。
     recalled: BTreeMap<ContentHash, String>,
+    /// 派出去过的任务（施工 7-2，`history/jobs.rs`）：压缩不丢，撤销、恢复跟着标。
+    jobs: jobs::Jobs,
 }
 
 impl History {
@@ -51,6 +56,24 @@ impl History {
     /// 重读的文件 `blob` 的原文；没交进来的没有（施工 6-5）。
     pub fn recalled(&self, blob: &ContentHash) -> Option<&str> {
         self.recalled.get(blob).map(String::as_str)
+    }
+
+    /// 派出去过的编号是 `job` 的任务（施工 7-2）：标题、种类、派它的那一轮撤掉了没有。压缩换掉了派它的那一条也在；没派过
+    /// 的没有。
+    pub fn dispatched(&self, job: JobId) -> Option<&Dispatched> {
+        self.jobs.get(job)
+    }
+
+    /// 只记派出去的任务，不留这一条（施工 7-2）：载入时，有效历史重建的那一段以前的事件照它过一遍，派出去过的任务才是
+    /// 全的（`kernel/history.md`「从日志的一段重建」）。
+    pub fn note(&mut self, event: &Event) {
+        self.jobs.note(event);
+    }
+
+    /// 派出去过的任务照 `before` 那一份的（施工 7-2）：撤掉压缩时从读回的一段重建了有效历史，那一段以前派的只有原来那份
+    /// 记着。
+    pub fn jobs_from(&mut self, before: &History) {
+        self.jobs = before.jobs.clone();
     }
 
     /// 最近一次压缩的检查点；没压缩过就没有。
@@ -83,6 +106,7 @@ impl History {
             undone: Vec::new(),
             whole: self.whole,
             recalled: self.recalled.clone(),
+            jobs: self.jobs.clone(),
         }
     }
 
@@ -100,6 +124,7 @@ impl History {
             undone: Vec::new(),
             whole: self.whole,
             recalled: self.recalled.clone(),
+            jobs: self.jobs.clone(),
         }
     }
 
@@ -160,8 +185,9 @@ impl History {
     /// 新摘要里已经包着它们；留着一切的那一份（[`History::whole`]）什么都不丢，压缩照先后留成一条。撤销：撤掉的回合连同跟着撤的话拿走，先放在一边；恢复：放回原处
     /// （`history/undo.rs`）；下一轮开始、压缩了，放在一边的就丢掉。撤回：丢掉撤回的消息。`turn.reverted`、
     /// `turn.unreverted`、`message.withdrawn` 本身用过就丢，它们不进上下文。其余的照先后留着。放回来的里面有压缩的（撤掉
-    /// 压缩的那一次撤销放在一边的），再落到检查点上（[`History::settle`]）。
+    /// 压缩的那一次撤销放在一边的），再落到检查点上（[`History::settle`]）。每一条都先记派出去的任务（[`History::note`]）。
     pub fn append(&mut self, event: Event) {
+        self.jobs.note(&event);
         match &event.body {
             Body::ContextCompacted(_) if self.whole => {
                 self.events.push(event);

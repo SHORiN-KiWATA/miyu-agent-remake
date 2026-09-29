@@ -1,7 +1,7 @@
 //! 派出去的任务（施工 7-1）：执行器替身在工具结果里报 `job.started`，后台命令和子代理轮着来。账本查编号整份日志不重复、
 //! 撤掉的回合里的也算、子代理带会话；随机的撤销、恢复、压缩、崩了载入都照样收得下，载入时整份日志再过一遍账本。
 //!
-//! 两种回报（`job.reported`、`child.reported`）要执行器的新输入和内核的任务表，随 7-2 接上。
+//! 两种回报（`job.reported`、`child.reported`）施工 7-2 接上，在 `watch/reports.rs`。
 
 use super::*;
 use crate::event::{Effect, JobKind, JobStarted};

@@ -1,0 +1,3 @@
+<subagent-report job="j2" title="查 CI 为什么红" reason="aborted">
+先看了 macOS 的日志。
+</subagent-report>

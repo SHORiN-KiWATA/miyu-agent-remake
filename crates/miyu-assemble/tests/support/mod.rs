@@ -7,12 +7,14 @@
 #![allow(dead_code, reason = "两个测试各用其中一部分")]
 
 mod anchor;
+mod texts;
 
 pub use anchor::anchored;
+use texts::texts;
 
 use std::collections::BTreeMap;
 
-use miyu_assemble::{DefaultAssembler, RestoredWrap, Stable, Texts, TurnEndedTexts};
+use miyu_assemble::{DefaultAssembler, Stable};
 use miyu_drivers::openai_chat::{self, Compat, Encoded};
 use miyu_drivers::{Call, DriverTextSources, DriverTexts, Inputs};
 use miyu_kernel::block::{Block, Text};
@@ -23,7 +25,6 @@ use miyu_kernel::id::{CallId, ModelName, Seq};
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::request::{Message, Request, ToolSpec};
 use miyu_kernel::session::{Compaction, Policy};
-use miyu_kernel::template::Template;
 use miyu_kernel::testkit::{Line, Stage};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_kernel::tool::{Access, ToolRule, ToolTextSources, ToolTexts};
@@ -415,44 +416,6 @@ fn stable() -> Stable {
         ],
         system: "You are a helpful software engineer.".to_string(),
         demos: vec![],
-    }
-}
-
-/// 出厂的英文，资源目录里的真文件。
-fn texts() -> Texts {
-    // 压缩的几份字：`resources/core/compaction/` 下的同名文件。
-    macro_rules! compaction {
-        ($name:literal) => {
-            include_str!(concat!("../../../../resources/core/compaction/", $name)).to_string()
-        };
-    }
-    Texts {
-        checkpoint_open: include_str!("../../../../resources/core/checkpoint-open.txt").to_string(),
-        checkpoint_close: include_str!("../../../../resources/core/checkpoint-close.txt")
-            .to_string(),
-        checkpoint_end: include_str!("../../../../resources/core/checkpoint-end.txt").to_string(),
-        restored: Some(RestoredWrap {
-            open: Template::parse(include_str!(
-                "../../../../resources/core/compaction/restored-open.txt"
-            ))
-            .expect("出厂的模板合写法"),
-            close: compaction!("restored-close.txt"),
-        }),
-        turn_ended: TurnEndedTexts {
-            interrupted: include_str!("../../../../resources/core/turn-ended/interrupted.txt")
-                .to_string(),
-            error: include_str!("../../../../resources/core/turn-ended/error.txt").to_string(),
-            step_limit: include_str!("../../../../resources/core/turn-ended/step_limit.txt")
-                .to_string(),
-            aborted: include_str!("../../../../resources/core/turn-ended/aborted.txt").to_string(),
-            restarted: include_str!("../../../../resources/core/turn-ended/restarted.txt")
-                .to_string(),
-        },
-        summarize_task: compaction!("summarize-task.txt"),
-        truncated: compaction!("truncated.txt"),
-        summarize_system: compaction!("summarize-system.txt"),
-        summarize_instructions: compaction!("summarize-instructions.txt"),
-        summarize_end: compaction!("summarize-end.txt"),
     }
 }
 

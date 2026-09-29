@@ -71,8 +71,9 @@ impl Watch {
                 self.seen_paths.insert("改回文件的结局记下了");
                 self.restoring.pending = None;
                 let expected = Body::FilesRestored(FilesRestored { files });
+                // 后面还有的，是恢复以后记在一边的回报接着开的那一轮（施工 7-2，`watch/reports.rs` 查）。
                 assert!(
-                    matches!(actions, [Action::Append(events)] if matches!(events.as_slice(), [event] if event.body == expected && event.by == alice() && event.turn.is_none())),
+                    matches!(actions, [Action::Append(events)] if matches!(events.as_slice(), [event, ..] if event.body == expected && event.by == alice() && event.turn.is_none())),
                     "种子 {seed}：结局只追加一条 files.restored，照原样：{actions:?}"
                 );
             }

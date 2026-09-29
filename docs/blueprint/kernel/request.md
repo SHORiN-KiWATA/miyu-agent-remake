@@ -4,7 +4,7 @@
 
 每次请求模型之前，内核把有效历史组装成一份统一的请求：工具面、system、消息。它和供应商无关，驱动再把它编码成各家的格式（`drivers/openai-chat.md`）。同样的有效历史加同样的策略，出来的字节一样。
 
-这一页还写和它一起用的几样零件：环境和状态的事实块、模板和转义、把模型的增量拼成内容块的累积器、和上一次请求比出的第一处不同。
+这一页还写和它一起用的几样零件：环境和状态的事实块、任务的两种回报（施工 7-2）、模板和转义、把模型的增量拼成内容块的累积器、和上一次请求比出的第一处不同。
 
 ### 在哪
 
@@ -14,13 +14,14 @@
 | `crates/miyu-kernel/src/assemble.rs` | 组装的接口 `Assembler` |
 | `crates/miyu-assemble/src/lib.rs` | 默认的组装器：稳定区、`stable`、接着写的记号 |
 | `crates/miyu-assemble/src/render.rs` | 有效历史渲染成消息；人这一边的块合成一条 user |
-| `crates/miyu-assemble/src/texts.rs` | 检查点的包装、回合没走完的五句 |
+| `crates/miyu-assemble/src/texts.rs` | 检查点的包装、回合没走完的五句、回报的写法 |
+| `crates/miyu-assemble/src/jobs.rs` | 两种回报渲染成带标签的事实（施工 7-2） |
 | `crates/miyu-kernel/src/facts.rs` | 三份事实模板、会话的环境、该不该注入 |
 | `crates/miyu-kernel/src/session/turn.rs`、`permission.rs`、`retry.rs`、`tools.rs`、`call.rs` | 什么时候注入事实、什么时候组装、算第一处不同、记进 `model.called` |
 | `crates/miyu-kernel/src/template.rs` | 模板的写法、换字段、转义 |
 | `crates/miyu-kernel/src/accumulate.rs` | 增量、累积器 |
 | `crates/miyu-kernel/src/time.rs` | 环境块里钟点和时区的写法 |
-| `resources/core/` | 给模型看的字：事实的模板、检查点的包装、回合没走完的五句 |
+| `resources/core/` | 给模型看的字：事实的模板、检查点的包装、回合没走完的五句、回报的写法（`jobs/`，施工 7-2） |
 
 ### 对外的样子
 
@@ -71,6 +72,7 @@
 | `Texts` | `checkpoint_open`、`checkpoint_close`、`checkpoint_end`、`restored_open`、`restored_close` | 检查点包装的开头、摘要的收尾、包装的结尾（施工 6-5 拆开），重读的文件那一块的头尾 |
 | | `turn_ended` | `TurnEndedTexts`：`interrupted`、`error`、`step_limit`、`aborted`、`restarted` 五句 |
 | | `summarize_task`、`summarize_instructions`、`summarize_end` | 摘要指令的正文、要求前面那一行、最后那一句（`core/compaction/summarize-task.txt` 施工 6-2 上；另两份 `summarize-instructions.txt`、`summarize-end.txt` 施工 6-8 拆出来。以前造的快照里没有这两份，是空的：那时的正文里本来就带着最后那一句） |
+| | `jobs` | `JobTexts`：两种回报的写法，`core/jobs/` 下的十一份（施工 7-2，下面「回报」）。以前造的快照里没有，是没有：回报不渲染，那些会话也派不出任务 |
 
 默认的 `summarize`：截到第 `upto` 条照平常组装；最后一条是 user 的，指令并进这一条做最后一块，不是的另起一条 user；`continuation` 是假。指令是一个文本块：`summarize_task`；有要求的接 `summarize_instructions` 和要求（原样，不转义，末尾没有换行的补一个）；最后是 `summarize_end`（施工 6-8，`compaction.md` 第七条第 3 条）。默认的 `summary`：只看正文块，有 `<summary>` 的取到 `</summary>` 或者末尾，没有的去掉 `<analysis>…</analysis>`，前后空白去掉，空的是 `None`（`crates/miyu-assemble/src/summary.rs`）。
 
@@ -108,6 +110,7 @@
 | `turn.ended` | 原因是 `interrupted`、`error`、`step_limit`、`aborted`、`restarted` 的，出一个文本块，就是那一句，攒进人这一边；`completed` 和不认识的原因不出；没有触发的那一轮的不出：她没看到过那一轮，写了她会当成是上一轮没走完（施工 6-8，`compaction.md` 第七条第 8 条） |
 | `message.assistant` | 一条 assistant，内容块原样 |
 | `tool.result` | 一条 tool：`call_id`；状态不是 `ok` 的（包括不认识的状态），`error` 是真；内容块 |
+| `job.reported`、`child.reported` | 一个文本块，带标签的事实（下面「回报」），攒进人这一边；派它的那一轮撤掉了的、没派过的、快照里没有写法的，不出（施工 7-2） |
 | `session.*`、`tool.approval_*`、`question.*`、`model.called`、`files.restored`、不认识的种类 | 不渲染 |
 
 4. 内容块里不认识的种类，不进请求。`context.compacted`、`turn.reverted`、`turn.unreverted`、`message.withdrawn` 已经由有效历史用掉了，渲染时碰不到。
@@ -123,6 +126,14 @@
    - 排在检查点前面的 `model.called` 不算（施工 6-2 上）：那是被替代掉的那段的请求和摘要请求自己，压完的第一次请求前缀本来就从头来。回合开头压的，压完再注入的事实照样和触发的那句放在一起，这一轮第一次主请求的最后一块照旧是触发它的那句。
    - 回合中途注入的事实（第一条回复以后）照先后，排在那一步的工具结果后面。
 7. **接着写的记号**：有效历史照排好的先后倒着看，跳过 `model.called`：最后一条是内核记的 `reply_cut` 事实，再往前一条是带 `interrupted` 的回复，`continuation` 就是真。这时最后一条 user 只有被打断的那一句，前面那条 assistant 是半截。那一句后面又来了别的（人的消息、别的事实），就是假。驱动怎么用它见 `drivers/openai-chat.md`。
+
+**回报**（施工 7-2，`agents.md` 第九条）
+
+1. 回报不带回合编号，照它在日志里的位置排：闲着时到的，就是开这一轮的那一条，照触发挪到回合开始的地方，排在开始时注入的事实后面（「组装」第 6 条）；回合中途到的，照请求看到的范围排在那一步的工具结果后面（`kernel/history.md`「照请求看到的范围排」）；只记下的，排在下一轮触发的那句前面。
+2. 标签那一行带任务编号 `job`、标题 `title`（派它时给的，照有效历史记着的派出去过的任务取，派它的那一条压缩掉了也在）、结束的原因 `reason`（不认识的原样），三个字段照模板的规矩转义。里面一行一句，最后一行是收尾的标签；每一份以一个换行结尾。
+3. 后台命令结束（`command-*.txt`）：有退出码的写退出码（带符号，照原样），被信号杀掉的写信号，有用时的写用时（毫秒），存下了输出的写它有多少字、用 `jobs` 的 `output` 看；不带输出本身（`agents.md` 第九条，照 Claude Code、dsh）。载入时补的 `aborted` 什么都没有，只有标签。
+4. 子代理的回报（`subagent-*.txt`）：人插过话的（`person`）注明一句，正文截过的（`truncated`）注明一句，接着是正文 `text`，原样放、不转义（和检查点里的摘要一样，是模型写的多行正文），末尾没有换行的补一个；一个字都没说的，正文换成它没说话就结束了那一句。
+5. 派它的那一轮撤掉了的不渲染：派它的调用已经不在上下文里了（`agents.md` 第七条第 2 条）；这种回报内核也不叫醒她（`kernel/session.md`「回报」第 5 条）。恢复了撤销，照常渲染。
 
 **事实**
 
@@ -213,6 +224,43 @@
 | `turn-ended/aborted.txt` | `<turn-ended reason="aborted">Miyu stopped unexpectedly and this turn did not finish.</turn-ended>` | 人这一边 |
 | `turn-ended/restarted.txt` | `<turn-ended reason="restarted">A planned restart of Miyu stopped this turn.</turn-ended>` | 人这一边 |
 
+两种回报的写法（`core/jobs/`，施工 7-2，「回报」），标签里的三个字段是 `job`、`title`、`reason`：
+
+| 文件 | 原文 | 什么时候 |
+|---|---|---|
+| `jobs/command-open.txt` | `<command-ended job="{job}" title="{title}" reason="{reason}">` | 后台命令结束，开头 |
+| `jobs/command-exit.txt` | `Exit code {code}.` | 有退出码 |
+| `jobs/command-signal.txt` | `Killed by signal {signal}.` | 被信号杀掉 |
+| `jobs/command-duration.txt` | `Ran for {ms} ms.` | 有用时 |
+| `jobs/command-output.txt` | `The output has {chars} characters. Read it with jobs output.` | 存下了输出 |
+| `jobs/command-close.txt` | `</command-ended>` | 收尾 |
+| `jobs/subagent-open.txt` | `<subagent-report job="{job}" title="{title}" reason="{reason}">` | 子代理的回报，开头 |
+| `jobs/subagent-person.txt` | `The user also talked to this subagent during the task.` | 人插过话 |
+| `jobs/subagent-truncated.txt` | `The middle of this report was cut. Read all of it with jobs output.` | 正文截过 |
+| `jobs/subagent-silent.txt` | `The subagent ended without saying anything.` | 一个字都没说，代替正文 |
+| `jobs/subagent-close.txt` | `</subagent-report>` | 收尾 |
+
+每种原因、截过的、人插过话的、没说话的各一份样本，在 `docs/designs/samples/reports/`，由出厂的字渲染出来逐字节比（`crates/miyu-assemble/src/jobs/tests.rs`）。
+
+样本 `docs/designs/samples/reports/command-exited.txt`（后台命令自己退出了）：
+
+```text
+<command-ended job="j1" title="跑全部测试" reason="exited">
+Exit code 0.
+Ran for 81234 ms.
+The output has 48213 characters. Read it with jobs output.
+</command-ended>
+```
+
+样本 `docs/designs/samples/reports/subagent-person.txt`（子代理做完了，人插过话）：
+
+```text
+<subagent-report job="j2" title="查 CI 为什么红" reason="done">
+The user also talked to this subagent during the task.
+按你说的，只查了 macOS。
+</subagent-report>
+```
+
 检查点的包装，开头 `checkpoint-open.txt`、摘要的收尾 `checkpoint-close.txt`、结尾 `checkpoint-end.txt`，摘要夹在中间，代码写的几段、重读的文件在摘要后面（施工 6-5）：
 
 ```text
@@ -232,7 +280,7 @@ Carry on from where the summary leaves off, without redoing work it records as d
 - 结尾那份以一个换行开头，所以摘要后面换一行。
 - 结尾那一句是检查点的规则，施工 6-3 下挪进来的（`compaction.md` 第八条）：回合中途压完，这一轮的最后一条只有检查点和事实，没有它，她不知道这时该做什么，会把摘要里记着做完了的再做一遍核对。
 - `permission-rule.txt` 在资源目录里，不读进快照，不进请求。
-- 样本：`docs/designs/samples/requests/second-step.json`（第一轮两块事实排在触发消息前面、调一次工具以后的那次请求）、`after-compaction.json`（压缩以后只剩检查点）；`docs/designs/samples/probe/terminal/requests/` 是一段终端会话的每一次请求，第 11 次带接着写的记号。
+- 样本：`docs/designs/samples/requests/second-step.json`（第一轮两块事实排在触发消息前面、调一次工具以后的那次请求）、`after-compaction.json`（压缩以后只剩检查点）；`docs/designs/samples/probe/terminal/requests/` 是一段终端会话的每一次请求，第 11 次带接着写的记号；`docs/designs/samples/probe/reports/requests/` 是一段有回报的会话（施工 7-2）：第 3 次由子代理的回报开，第 5 次后台命令结束排在工具结果后面，第 7 次只记下的回报排在人那一句前面。
 
 ### 出错
 
@@ -257,8 +305,9 @@ Carry on from where the summary leaves off, without redoing work it records as d
 | `crates/miyu-kernel/tests/request_sample.rs` | 样本 `second-step.json` 就是规范的字节；哈希是它的 SHA-256 |
 | `crates/miyu-assemble/src/tests.rs` | 工具面照名字排；示范对话在前、算进 `stable`；接着写的记号什么时候真、什么时候假 |
 | `crates/miyu-assemble/src/render/tests.rs` | 每种事件渲染成什么；回合开始的事实和触发放到回合开始的地方；等重试时切了级别，事实排在触发后面；早到的触发；重启以后接着干；检查点在最前、摘要不转义；回合没走完的五句；没有触发的那一轮出错、打断、崩了、重启都不出那一句（施工 6-8）；不认识的块和不进上下文的种类 |
-| `crates/miyu-assemble/tests/sample_session.rs` | 样本会话组装出两份样本请求；撤回的、确认和提问的事件不进请求 |
-| `crates/miyu-assemble/tests/probe.rs` | 一段八轮的终端会话由真内核跑出来，每次请求和存档（`requests/`、`openai-chat/`）逐字节一样；五条性质；什么都没收到的再来一字不差 |
+| `crates/miyu-assemble/tests/sample_session.rs` | 样本会话组装出两份样本请求；撤回的、确认和提问的事件不进请求；样本里的两种回报渲染成带标签的事实（施工 7-2） |
+| `crates/miyu-assemble/tests/probe.rs` | 一段八轮的终端会话由真内核跑出来，每次请求和存档（`requests/`、`openai-chat/`）逐字节一样；五条性质；什么都没收到的再来一字不差。有回报的会话（施工 7-2）一样和存档比、查五条性质；回报开的那一轮最后一块是那条回报，回合中途到的单独一条 user 排在工具结果后面，只记下的在人那一句前面 |
+| `crates/miyu-assemble/src/jobs/tests.rs` | 两种回报（施工 7-2）：出厂的字渲染出来和样本逐字节一样（每种原因、截过的、人插过话的、没说话的）；负的退出码照原样、没存下输出的不写字数；标题照规矩转义；开这一轮的那条挪到回合开始的地方、事实在前；回合中途到的排在那一步的工具结果后面；派它的那一轮撤掉了的不渲染；派它的那一条压缩掉了照样有标题；旧快照没有写法的不渲染 |
 | `crates/miyu-assemble/src/summary/tests.rs` | 摘要指令怎么拼：没附要求的和原来的整份一字不差；附了的夹在中间、原样、补换行；旧快照没有那两份的（施工 6-8）；取摘要的每一种 |
 | `crates/miyu-assemble/tests/random_logs.rs` | 五百份随机会话（有手动压缩单开的那一轮，施工 6-8），每次请求查五条性质：同样的日志同样的字节、前缀延伸（统一的请求和线上的字节两层；中间撤销、恢复、压缩过的那一次不查）、调用和结果成对、没有连着的 user、回合第一次请求的最后一块是触发；CI 长跑两万份；重试的回合里，一半在等着重试时切一下只读 |
 | `crates/miyu-kernel/src/facts/tests.rs` | 模板造的时候查；两块的写法、目录转义、实际生效的级别；该不该注入的八种情形 |
@@ -284,7 +333,7 @@ Carry on from where the summary leaves off, without redoing work it records as d
 - 示范对话：快照里还没有这一格，`stable` 总是 0（`26-提示词.md` 第四节，`16-人格与预设.md`）。
 - 缓存标记：`stable` 算好了，还没有驱动用它（`08-上下文投影.md` 第六节）。
 - 压缩：检查点里由代码补上的部分、压后重建、压缩以后算一个边界（M6，`09-压缩.md` 第四节）。
-- 群里的发送者标签和群聊近况、子代理的回报、后台命令的回报、模块用模板声明的事件（`08-上下文投影.md` 第四节第 6 条）。
+- 群里的发送者标签和群聊近况、模块用模板声明的事件（`08-上下文投影.md` 第四节第 6 条）。子代理发给父会话的留言注明是哪个子代理、别的 harness 发来的话注明来处（`agents.md` 第九条第 4、5 条，7-7、7-10）。
 - 角色扮演提示，排在触发之后（C2 的例外，`26-提示词.md` J10）。
 - 事实：到分钟的时间、没有工作目录的场所、场所的强制策略、工作区的文件清单、关掉的补一条「已关」（`08-上下文投影.md` 第五节）。
 - 按段记哈希、前缀改写的登记簿（`08-上下文投影.md` 第七节）。

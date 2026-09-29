@@ -30,7 +30,9 @@
 //!   请求照检查点以后的（施工 6-2 上，`watch/compaction.rs`）；撤销能撤掉压缩：先读回日志，对不上的不理，恢复不读，
 //!   检查点换了取回原文（施工 6-9，`watch/undo.rs`、`random/undoing.rs`）；
 //! - 手动压缩：照规矩收下或者拒绝；收下的单开一轮，不跑挂接点、不注入，只发摘要请求，写完压缩同一批结束；失败不数进
-//!   熔断；被重启打断的不接着干（施工 6-8，`watch/manual.rs`）。
+//!   熔断；被重启打断的不接着干（施工 6-8，`watch/manual.rs`）；
+//! - 回报：对不上的拒绝、不理；闲着时开一轮还是只记下，正忙时排着、回合结束时接着开，恢复撤销以后接着开（施工 7-2，
+//!   `watch/reports.rs`、`random/reporting.rs`）。
 //!
 //! 每一步还照九条不变量查（`watch/invariants.rs`，`02-内核.md` 第九节「不变量怎么查」）。
 //!
@@ -42,6 +44,7 @@ mod compacting;
 mod endings;
 mod kinds;
 mod paths;
+mod reporting;
 mod rereading;
 mod restoring;
 mod rng;
@@ -384,8 +387,11 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let attended = seed % 5 != 4;
         // 三个种子里有一个有隔离式那句 system（施工 6-6 下）：别的调了工具照失败算，连续失败、暂停才走得到。
         let isolate = seed % 3 == 1;
-        let mut session = session_with(random_policy(attended, isolate));
+        // 七个种子里有一个是一次性的会话（施工 7-2）：没人看着时回报只记下。
+        let oneshot = seed % 7 == 3;
+        let mut session = reporting::opened(random_policy(attended, isolate), oneshot);
         let mut watch = Watch::new(seed);
+        watch.reports.oneshot = oneshot;
         watch.approvals.attended = attended;
         // 双数的种子风平浪静：打断、乱来的增量少，一轮才走得深；单数的种子专门捣乱。
         watch.calm = seed % 2 == 0;
@@ -402,6 +408,7 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let mut overflows = Rng(seed ^ 0x0F10_0D00);
         let mut readbacks = Rng(seed ^ 0x2EAD_BAC0);
         let mut compacts = Rng(seed ^ 0xC0_4AC7);
+        let mut reports = Rng(seed ^ 0x2E90_2750);
         for _ in 0..300 {
             if watch.all_stored() && crashes.below(200) == 0 {
                 let planned = crashes.below(2) == 0;
@@ -430,6 +437,9 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
                 watch.feed(&mut session, input);
             }
             if let Some(input) = some_compact(&mut compacts, &watch, &mut next_id) {
+                watch.feed(&mut session, input);
+            }
+            if let Some(input) = reporting::some_report(&mut reports, &watch, &mut next_id) {
                 watch.feed(&mut session, input);
             }
             let input = some_input(&mut rng, &mut watch, &mut next_id);

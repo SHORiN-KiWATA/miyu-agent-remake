@@ -115,6 +115,29 @@ fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
             .checkpoint_open
             .contains("conversation-checkpoint")
     );
+    // 回报的写法（施工 7-2）：每一格是它自己那份文件。
+    let jobs = sources.core.jobs.expect("出厂的有回报的写法");
+    macro_rules! job {
+        ($name:literal) => {
+            include_str!(concat!("../../../../resources/core/jobs/", $name))
+        };
+    }
+    let read = [
+        (&jobs.command_open, job!("command-open.txt")),
+        (&jobs.command_exit, job!("command-exit.txt")),
+        (&jobs.command_signal, job!("command-signal.txt")),
+        (&jobs.command_duration, job!("command-duration.txt")),
+        (&jobs.command_output, job!("command-output.txt")),
+        (&jobs.command_close, job!("command-close.txt")),
+        (&jobs.subagent_open, job!("subagent-open.txt")),
+        (&jobs.subagent_person, job!("subagent-person.txt")),
+        (&jobs.subagent_truncated, job!("subagent-truncated.txt")),
+        (&jobs.subagent_silent, job!("subagent-silent.txt")),
+        (&jobs.subagent_close, job!("subagent-close.txt")),
+    ];
+    for (got, file) in read {
+        assert_eq!(got, file);
+    }
 }
 
 #[test]

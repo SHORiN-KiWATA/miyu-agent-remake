@@ -12,8 +12,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use miyu_policy::{
-    CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts, PermissionTexts, PersonaTexts,
-    RebuildTexts, ShortenTexts, Sources, ToolResultTexts, TurnEndedTexts,
+    CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts, JobTexts, PermissionTexts,
+    PersonaTexts, RebuildTexts, ShortenTexts, Sources, ToolResultTexts, TurnEndedTexts,
 };
 
 use crate::env::Env;
@@ -165,6 +165,7 @@ impl ResourceRoot {
         let fact = |name: &str| core(&["facts", name]);
         let result = |name: &str| core(&["tool-results", name]);
         let driver = |name: &str| core(&["drivers", name]);
+        let job = |name: &str| core(&["jobs", name]);
         Ok(CoreTexts {
             checkpoint_open: core(&["checkpoint-open.txt"])?,
             checkpoint_close: core(&["checkpoint-close.txt"])?,
@@ -226,6 +227,19 @@ impl ResourceRoot {
                     truncated: core(&["compaction", "truncated.txt"])?,
                     notes_uncovered: core(&["compaction", "notes-uncovered.txt"])?,
                 }),
+            }),
+            jobs: Some(JobTexts {
+                command_open: job("command-open.txt")?,
+                command_exit: job("command-exit.txt")?,
+                command_signal: job("command-signal.txt")?,
+                command_duration: job("command-duration.txt")?,
+                command_output: job("command-output.txt")?,
+                command_close: job("command-close.txt")?,
+                subagent_open: job("subagent-open.txt")?,
+                subagent_person: job("subagent-person.txt")?,
+                subagent_truncated: job("subagent-truncated.txt")?,
+                subagent_silent: job("subagent-silent.txt")?,
+                subagent_close: job("subagent-close.txt")?,
             }),
         })
     }
