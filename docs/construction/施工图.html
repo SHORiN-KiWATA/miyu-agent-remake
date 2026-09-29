@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>106</b><span>/ 112 步<strong>已完成</strong>，M6 压缩做到 6-6（上）：到线就压，检查点里带着读过的文件，压完接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停</span></li>
-    <li><b>6-6</b><span>下一步：截短重试和隔离式（下）；6-9 撤销能撤掉压缩由分身在做（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">202003a</b><span>最近一步（6-6 上 失败和熔断）的提交</span></li>
+    <li><b>107</b><span>/ 113 步<strong>已完成</strong>，M6 压缩做到 6-6（中）：到线就压，检查点里带着读过的文件，压完接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停，摘要请求超长会截短再试</span></li>
+    <li><b>6-6</b><span>下一步：隔离式回退（下）；6-9 撤销能撤掉压缩、6-8 手动压缩由分身在做（Windows 上跑命令那一步暂停）</span></li>
+    <li><b class="mono">44e342e</b><span>最近一步（6-6 中 截短重试）的提交</span></li>
   </ul>
 </header>
 
@@ -456,7 +456,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s6-4"><span class="n">6-4</span>history<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-5"><span class="n">6-5</span>检查点里的几段和压后重建<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-6a"><span class="n">6-6</span>失败和熔断（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">6-6</span>截短重试和隔离式（下）</span></li>
+        <li><a class="step done" href="#s6-6b"><span class="n">6-6</span>截短重试（中）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">6-6</span>隔离式回退（下）</span></li>
         <li><span class="step"><span class="n">6-7</span>被动压缩</span></li>
         <li><span class="step"><span class="n">6-8</span>手动压缩</span></li>
         <li><span class="step"><span class="n">6-9</span>撤销越过压缩</span></li>
@@ -8223,6 +8224,72 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s6-6b" aria-labelledby="h-s66b">
+  <div class="sheet-head"><h2 id="h-s66b"><span class="no">6-6</span>截短重试（中）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">摘要请求自己超长时，不再当场算一次压缩失败：截掉检查点后面最老的几组再试，最多截 3 次；截过的，检查点里写明摘要没看到哪一段、怎么取回。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">摘要请求报 context_too_long</span><span class="dir-note">session/shorten.rs</span></div>
+            <ol class="pipe" aria-label="截短重试怎么走">
+              <li>驱动从原话里解析超了多少 token（<code>excess</code>），随「说完了」交给内核，不进日志</li>
+              <li>检查点后面的一组一组，从最老的起去掉：有 <code>excess</code> 的刚好盖住，没有的去掉 20%（向上取整、至少一组），至少留一组</li>
+              <li>截到哪记在回合上，落了盘照常走发请求那一步；留下的第一条是回复的，前面补 <code>truncated.txt</code></li>
+              <li>截三次还超长、只剩一组截不动：照一次压缩失败算，熔断照样数</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">检查点</span><span class="dir-note">notes 最后</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">notes-uncovered.txt</span><span class="rl">第几到第几条没看到，history 取回</span></div>
+              <div class="tile new"><span class="nm">truncated.txt</span><span class="rl">截过的请求前面补的 user</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">按组不按轮</span><span class="rl">一轮任务里可以有几十组</span></div>
+          <div class="tile new"><span class="nm">3 · 20%</span><span class="rl">快照 compaction.shorten，旧快照不截</span></div>
+          <div class="tile new"><span class="nm">真模型不测</span><span class="rl">撑爆一百万 token 太贵</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-6 中</dd></div>
+        <div><dt>名称</dt><dd>截短重试</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">44e342e</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>驱动 <code>classify/excess.rs</code>；内核 <code>session/shorten.rs</code>、<code>History::after</code>、<code>summarize</code> 多 <code>cut</code>；策略 <code>shorten.rs</code>；两份字进了登记簿。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>场景 7 条（20% 向上取整、刚好盖住、三次失败、只剩一组、旧快照、没看到的那一段从哪算）；随机另用一串随机数报超长</span></li>
+        <li><span class="ok">✓</span><span>手写 20 个变异全被逮住；门禁八项全过，三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>compaction.md</code>（第三条第 10 条）、<code>drivers/openai-chat.md</code>、<code>kernel/session.md</code>、<code>kernel/request.md</code>、<code>policy.md</code>、<code>store/resources.md</code>；登记簿 26 第十节。</li>
+        <li><code>docs/construction/6-6-截短重试（中）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -8408,7 +8475,7 @@ const BUILD = {
   k_sessions: { by: '3-7', how: 'frame', note: '会话 actor（3-7 中）：命令和执行器的回报进收件箱，动作照表回；先落盘，后回应、后推送；造会话存策略快照，载入照它重建，停在一轮中间的再起来接着干；写不进去就停下。请求模型接上驱动和 HTTP，驱动的占位取自会话的快照（3-7 下）；会话表照编号找会话、没在跑的从磁盘载入，只起一个 actor（3-8 上）' },
   n_models: { by: '3-9', how: 'frame', note: '配置系统做出来之前只认环境变量 DEEPSEEK_API_KEY：设了就接 DeepSeek 官方的 deepseek-flash，key 只在内存里；没设的，每次请求都当场回「没有可用的模型」（3-9 上，项目主人定）；开发用的 MIYU_DEV_BASE_URL、MIYU_DEV_MODEL 替换地址和模型（3-9 再补）' },
   n_cli: { by: '3-9', how: 'frame', note: 'miyu ask：连上核心（没在跑就拉起），开一次性会话或者 --continue、--session 接着说；思考灰色印在标准错误上，回答印在标准输出上，问完一行用量；Ctrl+C 一次打断、两次就走；--format json 给脚本（3-9 下）' },
-  n_compact: { by: '6-1', how: 'frame', note: '用量和压缩线（6-1）：锚是最近一次压缩以后、说完了、带用量的 model.called，盖住工具面、system 和前 messages+1 条；后面新增的照 UTF-8 字节除以 4 估（照 codex）；报的比估的小取估的、换过模型整份估（照 dsh）；压缩线 = 窗口 − min(最大输出, 20000) − 13000。摘要请求（6-2 上）：发主请求之前过了线，在这一轮里先压：有效历史到第 N 条的投影加摘要指令，取出摘要写检查点，这一轮要回应的话留在尾巴里，一组不拆；执行器交了限额才主动压。留尾巴（6-2 下）：照投影的先后一组一组地留，至多 min(16000, 线的四分之一)，只在切得开的地方切；一步至多压一次。模型资料和限额（6-3 上）：models.dev 的快照查窗口，DeepSeek 的图片照官方计算器，会话 actor 造会话、载入以后交给内核，真的会话到线就压。接上真模型（6-3 下）：miyu ask 印压缩那一行（原地刷新进度，压好了换成压前 → 压后），日志记度量；检查点包装的结尾加一句接着做、别重做（J12 实测）；取摘要先去草稿。检查点里的几段和压后重建（6-5）：清单、取回指路、太大没重读的由代码写；发摘要请求之前先重读最近的文件，原文存成 blob 放进检查点。失败和熔断（6-6 上）：连续失败 3 次、压完 3 个回合内又到线连着 3 次，暂停自动压缩，暂停着放不下的请求不发' },
+  n_compact: { by: '6-1', how: 'frame', note: '用量和压缩线（6-1）：锚是最近一次压缩以后、说完了、带用量的 model.called，盖住工具面、system 和前 messages+1 条；后面新增的照 UTF-8 字节除以 4 估（照 codex）；报的比估的小取估的、换过模型整份估（照 dsh）；压缩线 = 窗口 − min(最大输出, 20000) − 13000。摘要请求（6-2 上）：发主请求之前过了线，在这一轮里先压：有效历史到第 N 条的投影加摘要指令，取出摘要写检查点，这一轮要回应的话留在尾巴里，一组不拆；执行器交了限额才主动压。留尾巴（6-2 下）：照投影的先后一组一组地留，至多 min(16000, 线的四分之一)，只在切得开的地方切；一步至多压一次。模型资料和限额（6-3 上）：models.dev 的快照查窗口，DeepSeek 的图片照官方计算器，会话 actor 造会话、载入以后交给内核，真的会话到线就压。接上真模型（6-3 下）：miyu ask 印压缩那一行（原地刷新进度，压好了换成压前 → 压后），日志记度量；检查点包装的结尾加一句接着做、别重做（J12 实测）；取摘要先去草稿。检查点里的几段和压后重建（6-5）：清单、取回指路、太大没重读的由代码写；发摘要请求之前先重读最近的文件，原文存成 blob 放进检查点。失败和熔断（6-6 上）：连续失败 3 次、压完 3 个回合内又到线连着 3 次，暂停自动压缩，暂停着放不下的请求不发。截短重试（6-6 中）：摘要请求自己超长，截掉最老的几组再试，最多 3 次，截过的写明摘要没看到哪一段' },
   n_bus: { by: '3-8', how: 'frame', note: '连接上一行一条 JSON-RPC 2.0：握手（主版本、本机令牌）、造会话、说话、打断，拒绝附原因码（3-8 上）；订阅事件流，回应排在它产生的推送后面，掉队推 resync（3-8 中）；核心在本机的 Unix 套接字上等连接：一个数据根一个核心（锁），本机令牌写进 run/token，实际位置记在 run/socket，套接字放在只有自己能进的目录里（3-8 下）；Windows 上是命名管道，只对本人开放，头连上以后核对另一头是自己的（3-8 补）' },
 };
 
