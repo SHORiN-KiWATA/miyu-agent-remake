@@ -26,6 +26,11 @@ impl Transcript {
         self.turn = Some(turn);
         self.turn_usage = Usage::default();
         self.turn_level = self.level;
+        // 手动压缩那一轮没有 `trigger`，不是哪一句开的（施工 6-8，蓝图「正文」第 9 条）。
+        self.manual = trigger.is_none();
+        if trigger.is_none() {
+            return;
+        }
         // 开这一轮的那一句：照 `trigger` 找序号对得上的；序号还没配上的，退回找还没归到哪一轮的最早那一句。
         let by_seq = self
             .entries
@@ -72,6 +77,13 @@ impl Transcript {
         let failure = self.failure.take();
         match reason {
             EndReason::Completed => {
+                // 手动压缩压好了：用时和用量接在结果那一行后面，不另起收尾行（「正文」第 9 条）。
+                let usage = words::turn_usage(&self.turn_usage, texts);
+                let tail = format!(" · {}{usage}", crate::meter::seconds(took));
+                if self.manual && self.append_to_result(&tail) {
+                    self.turn = None;
+                    return;
+                }
                 let (model, endpoint) = self
                     .model
                     .as_ref()
@@ -83,8 +95,7 @@ impl Transcript {
                     .replace("{model}", model)
                     .replace("{elapsed}", &crate::meter::seconds(took))
                     .replace("{time}", &time);
-                let text = text + &words::turn_usage(&self.turn_usage, texts);
-                self.push(Kind::Done, text);
+                self.push(Kind::Done, text + &usage);
             }
             // 和收尾行一个样子：`✻ 已中断`（`tui.md`「正文」第 4 条）。
             EndReason::Interrupted => self.push(Kind::Done, texts.interrupted.clone()),

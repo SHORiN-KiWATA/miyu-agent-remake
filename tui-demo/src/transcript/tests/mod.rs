@@ -213,7 +213,8 @@ fn a_reverted_turn_hides_and_comes_back() {
     apply(
         &mut t,
         vec![
-            Push::TurnStarted(7, None),
+            Push::UserMessage(1),
+            Push::TurnStarted(7, Some(1)),
             Push::BlockStart {
                 index: 0,
                 block: Block::Text,
@@ -239,7 +240,8 @@ fn undo_is_one_line_with_the_full_prompt_and_restore_removes_it() {
     apply(
         &mut t,
         vec![
-            Push::TurnStarted(7, None),
+            Push::UserMessage(1),
+            Push::TurnStarted(7, Some(1)),
             Push::TurnEnded(crate::core::EndReason::Completed),
             Push::Reverted(vec![7]),
         ],

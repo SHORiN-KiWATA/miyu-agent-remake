@@ -12,6 +12,12 @@
       "run": "unrevert"
     },
     {
+      "name": "compact",
+      "summary": "现在就压缩上下文，后面可以写给摘要的要求",
+      "run": "compact",
+      "args": true
+    },
+    {
       "name": "theme",
       "summary": "换一套颜色：tokyonight-night、terminal 轮着换",
       "run": "theme"
@@ -46,11 +52,7 @@
       "summary": "改常用的权限级别：工作区或完全放开",
       "run": "fake"
     },
-    {
-      "name": "compact",
-      "summary": "现在就压缩上下文",
-      "run": "fake"
-    },
+
     {
       "name": "tools",
       "summary": "工具设置：哪些常驻、哪些按需加载",

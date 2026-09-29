@@ -38,10 +38,22 @@ fn keywords_functions_strings_numbers_comments() {
 }
 
 #[test]
-fn unknown_languages_still_get_strings_and_numbers() {
-    let p = colored(r#"x = "s" 42"#, "没登记的");
-    assert_eq!(style(&p, r#""s""#), Some(theme::code_string()));
-    assert_eq!(style(&p, "42"), Some(theme::code_number()));
+fn unknown_languages_are_not_coloured() {
+    // 2026-09-30 项目主人：列文件名的代码块里，路径中间的数字、`-` 被上了色，看着乱。
+    let p = colored(
+        r#"![](~/Pictures/2026-05-22_16-14-31.png) "s" 42"#,
+        "没登记的",
+    );
+    assert!(
+        p.iter().all(|(_, s)| *s == Style::new()),
+        "没登记的语言照原色：{p:?}"
+    );
+    assert!(
+        colored("x = 42", "")
+            .iter()
+            .all(|(_, s)| *s == Style::new()),
+        "没写语言的一样"
+    );
 }
 
 #[test]

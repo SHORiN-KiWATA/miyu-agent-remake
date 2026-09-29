@@ -38,7 +38,8 @@ pub fn rows(entry: &Entry, ctx: &Ctx) -> Vec<Row> {
             Span::styled(c.to_string(), theme::lifted(style, glow))
         })
         .collect();
-    if let Some(progress) = &entry.progress {
+    // 还一个字都没写的不写 0（「正文」第 9 条）。
+    if let Some(progress) = entry.progress.as_ref().filter(|p| p.written > 0) {
         let count = texts
             .written
             .replace("{written}", &meter::thousands(progress.written));
@@ -48,7 +49,12 @@ pub fn rows(entry: &Entry, ctx: &Ctx) -> Vec<Row> {
     if let Some(progress) = &entry.progress
         && let Some((written, expected)) = progress.capped(&layout.compaction)
     {
-        let percent = (written * 100 + expected / 2) / expected;
+        // 压好了、在走满：百分比跟着格子走到 100，不比压好那一刻的小（只往上走）。
+        let real = (written * 100 + expected / 2) / expected;
+        let percent = match progress.finish {
+            Some(_) => real.max((progress.lit * 100 / layout.bar.width.max(1)) as u64),
+            None => real,
+        };
         out.push(ctx.led_row(
             ctx.blank_slot(),
             bar(progress.lit, percent, t, glow, ctx),
@@ -175,9 +181,25 @@ mod tests {
     }
 
     #[test]
+    fn while_filling_the_percent_only_goes_up() {
+        // 2026-09-29 实测：压好那一刻百分比从 23% 掉到 20%（按亮着的 4 格算）。
+        let f = Fixture::new();
+        let mut t = Transcript::default();
+        t.note(Kind::Note, "正在压缩上下文 4,600".into());
+        let mut p = Progress::new(4_600, Some(20_000), Instant::now());
+        p.lit = 4;
+        p.done(Instant::now(), "上下文已压缩".into(), "● ".into());
+        t.entries[0].progress = Some(p);
+        let got = text(&entry_rows(0, &t.entries[0], &f.ctx()));
+        assert!(got[1].ends_with("\u{a0}23%"), "{:?}", got[1]);
+    }
+
+    #[test]
     fn nothing_lit_yet_and_no_estimate_means_no_bar() {
         let config = Config::builtin().unwrap();
         let got = text(&rows(0, 0, Some(20000)));
+        // 2026-09-29 项目主人经施工会话转告：还一个字都没写，不写 0。
+        assert_eq!(got[0], "  正在压缩上下文.", "0 不显示");
         assert!(got[1].contains(&config.layout.bar.empty.repeat(config.layout.bar.width)));
         assert!(got[1].ends_with("\u{a0}0%"));
         assert_eq!(rows(3120, 0, None).len(), 1, "核心没给估计：只有那一句");

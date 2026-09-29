@@ -86,6 +86,8 @@ pub struct Transcript {
     compacting: Option<usize>,
     /// 这一轮她出过字了（来过一块）：出过就不再算在等第一个字（[`Transcript::waiting`]）。
     spoke: bool,
+    /// 这一轮是手动压缩（`turn.started` 没有 `trigger`，施工 6-8）：压好了不另起收尾行。
+    manual: bool,
     /// 最近一次请求出字的速度，每秒几个 token。
     pub speed: Option<f64>,
     /// 正在重试时给人看的一句。
@@ -123,6 +125,7 @@ impl Default for Transcript {
             limits: Limits::default(),
             compacting: None,
             spoke: false,
+            manual: false,
             speed: None,
             retry: None,
             failure: None,
@@ -162,6 +165,7 @@ impl Transcript {
             pasted: Vec::new(),
             details: Vec::new(),
             progress: None,
+            mark: None,
         });
     }
 
@@ -410,6 +414,7 @@ impl Transcript {
             pasted: Vec::new(),
             details: Vec::new(),
             progress: None,
+            mark: None,
         });
     }
 

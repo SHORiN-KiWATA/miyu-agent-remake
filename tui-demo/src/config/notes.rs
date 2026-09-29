@@ -14,6 +14,8 @@ pub struct CompactionTexts {
     pub percent: String,
     /// 压好了，`{before}`、`{after}` 压前压后的 token 数。
     pub done: String,
+    /// 压好了那一行前面的记号，连同它后面的空格：绿色（主题的 `good`）。
+    pub done_mark: String,
     /// 摘要请求出错，`{reason}` 原因。
     pub failed: String,
     /// 摘要请求里调了工具（取不出摘要的一种）。

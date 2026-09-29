@@ -22,4 +22,8 @@ pub struct CompactionMotion {
     pub breathe_period_ms: u64,
     /// 呼吸最深时往白里偏多少，0 到 1。
     pub breathe_lift: f64,
+    /// 压好了，条从当时亮到的格子走满要多久，毫秒。
+    pub finish_ms: u64,
+    /// 走满以后停多久再换成结果，毫秒。
+    pub finish_hold_ms: u64,
 }

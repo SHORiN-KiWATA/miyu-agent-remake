@@ -74,12 +74,19 @@ pub fn fit(color: Color, depth: Depth) -> Color {
     }
 }
 
-/// 画完的一帧统一换色：每一格的前景、背景、下划线的颜色。真彩色的不用走一遍。
+/// kitty 的图占着的格子写这个字，前景色是图的编号（`ratatui-image` 的 unicode 占位）。
+const KITTY_PLACEHOLDER: char = '\u{10EEEE}';
+
+/// 画完的一帧统一换色：每一格的前景、背景、下划线的颜色。真彩色的不用走一遍。图占着的格子不换：kitty 靠
+/// 前景色认是哪张图，换了只剩空白（设了 `MIYU_COLOR`、`NO_COLOR` 的 kitty 会走到这里）。
 pub fn degrade(buf: &mut Buffer, depth: Depth) {
     if depth == Depth::True {
         return;
     }
     for cell in &mut buf.content {
+        if cell.symbol().starts_with(KITTY_PLACEHOLDER) {
+            continue;
+        }
         cell.fg = fit(cell.fg, depth);
         cell.bg = fit(cell.bg, depth);
         cell.underline_color = fit(cell.underline_color, depth);

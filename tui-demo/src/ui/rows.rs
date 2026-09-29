@@ -85,6 +85,8 @@ pub struct Ctx<'a> {
     pub figures: &'a RefCell<Figures>,
     /// 现在的权限级别：你说的话没记着级别的（不该有），竖线照它上色。
     pub level: Level,
+    /// 窗口有几行高：图最多占它的几分之几（蓝图「图片、公式和 mermaid 图」第 3 条）。
+    pub screen_rows: u16,
 }
 
 impl Ctx<'_> {
@@ -310,19 +312,26 @@ fn text_rows(entry: &Entry, ctx: &Ctx) -> Vec<Row> {
             (ctx.blank_slot(), Style::new())
         }
     };
+    // 前面带绿色记号的（压好了的 `● `）：记号是引子，折下来的行和字对齐（「正文」第 9 条）。
+    let mark = entry.mark.as_deref().unwrap_or_default();
+    let mark_width = u16::try_from(mark.width()).unwrap_or(0);
+    let width = ctx.width.saturating_sub(mark_width).max(1);
     let pieces = match entry.kind {
         // 收尾行只在 ` · ` 处折（「窗口小的时候」第 5 条）。
-        Kind::Done => done_row::pieces(
-            &done_row::line(entry.level, &entry.text, layout),
-            ctx.width.max(1),
-        ),
+        Kind::Done => done_row::pieces(&done_row::line(entry.level, &entry.text, layout), width),
         // 模型的回答常以换行开头、结尾，前后的空行不画。
-        _ => pieces(entry.text.trim_matches('\n'), ctx.width.max(1)),
+        _ => pieces(entry.text.trim_matches('\n'), width),
     };
     pieces
         .into_iter()
-        .map(|(piece, joined)| {
-            let mut row = ctx.row(slot.clone(), vec![Span::styled(piece, style)]);
+        .enumerate()
+        .map(|(i, (piece, joined))| {
+            let lead = match (mark.is_empty(), i) {
+                (true, _) => Vec::new(),
+                (false, 0) => vec![Span::styled(mark.to_string(), theme::good())],
+                (false, _) => vec![Span::raw(" ".repeat(usize::from(mark_width)))],
+            };
+            let mut row = ctx.led_row(slot.clone(), lead, vec![Span::styled(piece, style)]);
             row.joined = joined;
             row
         })
@@ -384,6 +393,31 @@ mod tests {
             super::entry_rows(0, &t.entries[0], &f.ctx()).len(),
             1,
             "没撤掉压缩不说"
+        );
+    }
+
+    #[test]
+    fn a_compacted_line_has_a_green_dot_that_is_not_copied() {
+        // 2026-09-29 项目主人：压好了那一行前面的 `·` 换成绿色的实心圆点。
+        use crate::transcript::{Kind, Transcript};
+        use crate::ui::test_support::Fixture;
+        let f = Fixture::new();
+        let mut t = Transcript::default();
+        t.note(Kind::Note, "上下文已压缩：12.3k → 4k token".into());
+        t.entries[0].mark = Some("● ".into());
+        let rows = super::entry_rows(0, &t.entries[0], &f.ctx());
+        let spans = &rows[0].line.spans;
+        let dot = spans.iter().find(|s| s.content == "● ").unwrap();
+        assert_eq!(dot.style, theme::good(), "绿");
+        let words = spans
+            .iter()
+            .find(|s| s.content.starts_with("上下文"))
+            .unwrap();
+        assert_eq!(words.style, theme::dim(), "字暗");
+        assert!(
+            !rows[0].plain.contains('●'),
+            "复制时不带记号：{}",
+            rows[0].plain
         );
     }
 

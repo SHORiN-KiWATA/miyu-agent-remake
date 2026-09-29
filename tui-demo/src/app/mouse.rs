@@ -155,7 +155,7 @@ impl App {
             MouseEventKind::Down(MouseButton::Left) => {
                 let spec = spec.clone();
                 self.input.editor.take();
-                self.run(&spec);
+                self.run(&spec, None);
             }
             _ => {}
         }

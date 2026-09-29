@@ -3,6 +3,7 @@
 
 use std::time::Instant;
 
+use super::climb::Finish;
 use super::{Kind, Progress, Transcript};
 use crate::config::{CompactionMotion, Texts};
 use crate::core::Compaction;
@@ -19,6 +20,7 @@ impl Transcript {
         match push {
             // 流光、点、下面的进度条画的时候加（`ui/compaction_rows.rs`）。
             Compaction::Progress { written, expected } => {
+                self.settle_filling();
                 let count = words
                     .written
                     .replace("{written}", &meter::thousands(written));
@@ -34,13 +36,26 @@ impl Transcript {
                 };
                 self.compacting_line(Kind::Note, text, Some(progress));
             }
+            // 有进度条的先走满、停一下再换（`climb`）；没有条的当场换。
             Compaction::Done { before, after } => {
                 let text = words
                     .done
                     .replace("{before}", &meter::short(before))
                     .replace("{after}", &meter::short(after));
-                self.compacting_line(Kind::Note, text, None);
-                self.compacting = None;
+                let mark = words.done_mark.clone();
+                let filling = self.compacting_mut().and_then(|e| e.progress.as_mut());
+                match filling {
+                    Some(progress) if progress.expected.is_some() => {
+                        progress.done(Instant::now(), text, mark);
+                    }
+                    _ => {
+                        self.compacting_line(Kind::Note, text, None);
+                        if let Some(entry) = self.compacting_mut() {
+                            entry.mark = Some(mark);
+                        }
+                        self.compacting = None;
+                    }
+                }
             }
             // 调了工具、接着改走隔离式（施工 6-6 下）：不是失败，灰色说一句，这次压缩接着来进度（另起一行）。
             Compaction::Failed { class, message }
@@ -78,17 +93,70 @@ impl Transcript {
     }
 
     /// 一轮结束：还在「正在压缩」的那一行藏起来，这一轮的收尾会说。
+    /// 一轮结束：还在「正在压缩」的那一行藏起来，这一轮的收尾会说。压好了、条还在走满的留着接着走
+    /// （手动压缩那一轮压好就结束），走满了由 `climb` 换成结果。
     pub(super) fn drop_compacting(&mut self) {
+        let filling = self
+            .compacting_mut()
+            .is_some_and(|e| e.progress.as_ref().is_some_and(|p| p.finish.is_some()));
+        if filling {
+            return;
+        }
         if let Some(entry) = self.compacting.take().and_then(|i| self.entries.get_mut(i)) {
             entry.hidden = true;
         }
     }
 
+    /// 走满以前又来了一次压缩：先把走着的那一行换成结果，新的另起一行。
+    fn settle_filling(&mut self) {
+        let Some(entry) = self.compacting_mut() else {
+            return;
+        };
+        if let Some(finish) = entry.progress.as_ref().and_then(|p| p.finish.clone()) {
+            settle(entry, finish);
+            self.compacting = None;
+        }
+    }
+
+    /// 手动压缩那一轮完了：`tail`（用时和用量）接在压好了那一行后面；还在走满的接在它记着的结果上。
+    /// 没有压好了那一行的交回假，照常写收尾行。
+    pub(super) fn append_to_result(&mut self, tail: &str) -> bool {
+        if let Some(finish) = self
+            .compacting_mut()
+            .and_then(|e| e.progress.as_mut())
+            .and_then(|p| p.finish.as_mut())
+        {
+            finish.text.push_str(tail);
+            return true;
+        }
+        match self.entries.iter_mut().rev().find(|e| e.mark.is_some()) {
+            Some(entry) => {
+                entry.text.push_str(tail);
+                true
+            }
+            None => false,
+        }
+    }
+
+    fn compacting_mut(&mut self) -> Option<&mut super::Entry> {
+        self.compacting.and_then(|i| self.entries.get_mut(i))
+    }
+
     /// 每一帧追一下正在压缩那一行的进度条（`app` 的 `tick` 叫）。
     pub fn climb(&mut self, now: Instant, width: usize, look: &CompactionMotion, rng: &mut Rng) {
-        let entry = self.compacting.and_then(|i| self.entries.get_mut(i));
-        if let Some(progress) = entry.and_then(|e| e.progress.as_mut()) {
-            progress.climb(now, width, look, rng);
+        let Some(entry) = self.compacting_mut() else {
+            return;
+        };
+        let Some(progress) = entry.progress.as_mut() else {
+            return;
+        };
+        progress.climb(now, width, look, rng);
+        // 走满、停够了：换成结果。
+        if progress.filled(now, width, look)
+            && let Some(finish) = progress.finish.clone()
+        {
+            settle(entry, finish);
+            self.compacting = None;
         }
     }
 
@@ -119,4 +187,12 @@ pub(super) fn class_name(class: &str, texts: &Texts) -> String {
         .get(class)
         .cloned()
         .unwrap_or_else(|| class.to_string())
+}
+
+/// 压缩那一行换成压好了的结果：绿色记号，字暗，不再转、不再画条。
+fn settle(entry: &mut super::Entry, finish: Finish) {
+    entry.kind = Kind::Note;
+    entry.text = finish.text;
+    entry.mark = Some(finish.mark);
+    entry.progress = None;
 }

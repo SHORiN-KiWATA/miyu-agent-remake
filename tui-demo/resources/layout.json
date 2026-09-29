@@ -14,6 +14,7 @@
   "max_rows": 8,
   "double_click_ms": 400,
   "notice_ms": 2000,
+  "frame_ms": 33,
   "user_bar": "┃ ",
   "done_icon": "✻ ",
   "done_gap": {
@@ -70,7 +71,9 @@
     "blink_low": 0.45,
     "breathe_after_ms": 3000,
     "breathe_period_ms": 2000,
-    "breathe_lift": 0.2
+    "breathe_lift": 0.2,
+    "finish_ms": 400,
+    "finish_hold_ms": 200
   },
   "bar": {
     "full": "▰",

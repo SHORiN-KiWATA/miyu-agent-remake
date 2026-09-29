@@ -25,6 +25,8 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
         width: areas.text.width,
         hover: app.view.hover,
         level: app.transcript.level,
+        // 图最多占窗口高度的几分之几：照窗口的高，不照正文区（开关列表时正文区变矮，照它算每次都要重做）。
+        screen_rows: frame.area().height,
         md: &app.md_cache,
         figures: &app.figures,
         frame: usize::try_from(app.started.elapsed().as_millis() / u128::from(spinner_ms))
@@ -60,7 +62,7 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
         area,
         &rows,
         first,
-        &app.figures.borrow(),
+        &mut app.figures.borrow_mut(),
     );
     // 鼠标、复制照这一帧的行；共享记着的那一份，不复制。
     app.view.rows = rows.clone();

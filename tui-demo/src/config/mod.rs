@@ -15,12 +15,14 @@ use crate::mascot::Look;
 use crate::pulse::Words;
 use crate::theme::Palette;
 
+mod figures;
 mod icons;
 mod motion;
 mod notes;
 mod panels;
 mod timeline;
 
+pub use figures::{FigureLook, Room};
 pub use icons::Icons;
 pub use motion::CompactionMotion;
 pub use notes::CompactionTexts;
@@ -84,6 +86,8 @@ pub struct Layout {
     pub drawer_keep_rows: u16,
     /// 输入框左上方的提示停多久，毫秒。
     pub notice_ms: u64,
+    /// 最多每多少毫秒画一帧：这中间来的推送、按键攒着，到点一起画（蓝图「每一帧」）。
+    pub frame_ms: u64,
     /// 运行状态行词后面的三个点：一直在，和词一起被流光扫（`tui.md`「运行状态行和排队的消息」第 2 条）。
     pub dots: Dots,
     /// 运行状态行的流光。
@@ -294,6 +298,8 @@ pub struct Texts {
     pub done_usage: String,
     /// 请求被拒时，认得的原因码（`data.reason`）写的短话。
     pub refusals: HashMap<String, String>,
+    /// 这几种拒绝不写进正文，只弹提示框（`nothing_to_compact` 的「上下文过少」，蓝图「正文」第 9 条）。
+    pub refusal_hints: HashMap<String, String>,
     /// 输入历史列表上的字（蓝图「输入历史列表」）。
     pub history: HistoryTexts,
     /// 斜杠命令列表上的字（蓝图「斜杠命令列表」）。
@@ -369,22 +375,6 @@ pub struct Config {
     pub icon_sets: Vec<Icons>,
 }
 
-/// 正文里的图（`resources/figures.json`，蓝图「图片、公式和 mermaid 图」）。
-#[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct FigureLook {
-    /// 一张图最多占几行：只防病态，不为塞进一屏。
-    pub max_rows: u16,
-    /// mermaid 图里的字体，照先后找；都没有的由 resvg 从系统里找。
-    pub fonts: Vec<String>,
-    /// 块级公式的字号是一格高的几倍。
-    pub math_scale: f32,
-    /// 最多记着几张做好的图。
-    pub keep: usize,
-    /// 点开看的 mermaid 大图，缓存目录里最多留几张。
-    pub zoom_keep: usize,
-}
-
 impl Config {
     /// 读编译时带进来的那一份。
     ///
@@ -446,5 +436,18 @@ mod tests {
             icons.get(&crate::core::Level::ReadOnly).map(String::as_str),
             Some("⏸ ")
         );
+    }
+
+    #[test]
+    fn nothing_to_compact_is_a_short_hint_not_a_line() {
+        // 2026-09-30 项目主人：没必要在正文里打一行，给个简短的通知就行。
+        let text = Config::builtin().unwrap().text;
+        assert_eq!(
+            text.refusal_hints
+                .get("nothing_to_compact")
+                .map(String::as_str),
+            Some("上下文过少")
+        );
+        assert!(!text.refusals.contains_key("nothing_to_compact"));
     }
 }

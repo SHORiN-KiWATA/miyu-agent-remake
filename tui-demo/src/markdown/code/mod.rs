@@ -121,7 +121,7 @@ pub struct Highlighter<'a> {
 }
 
 impl<'a> Highlighter<'a> {
-    /// 照这种语言着色；没登记的（`None`）只认字符串、数字。
+    /// 照这种语言着色；没登记的（`None`）不上色。
     pub fn new(language: Option<&'a Language>) -> Self {
         let fold = |w: &str| {
             if language.is_some_and(|l| l.ignore_case) {
@@ -147,6 +147,10 @@ impl<'a> Highlighter<'a> {
 
     /// 一行着好色的片段，拼起来就是这一行。
     pub fn line(&mut self, line: &str) -> Vec<Piece> {
+        // 没写语言、没登记的语言不上色（`tui.md`「代码着色」第 3 条）。
+        if self.language.is_none() {
+            return plain(line);
+        }
         if self.language.is_some_and(|l| l.diff) {
             return diff_line(line);
         }
@@ -161,6 +165,18 @@ impl<'a> Highlighter<'a> {
             self.keywords.contains(word)
         }
     }
+}
+
+/// 不上色的一行：照原色。
+fn plain(line: &str) -> Vec<Piece> {
+    if line.is_empty() {
+        return Vec::new();
+    }
+    vec![Piece {
+        text: line.to_string(),
+        style: ratatui::style::Style::new(),
+        link: None,
+    }]
 }
 
 /// diff 的一行：文件头和 `@@` 宏的颜色，`+` 加的颜色，`-` 删的颜色，别的原色。

@@ -20,10 +20,13 @@ use crate::theme::DiagramColors;
 /// 后台线程的名字：它里面的 panic 不收拾终端（见 [`quiet_panics`]）。
 const NAME: &str = "miyu-figures";
 
-/// 一张要做的图。
+/// 一张要做的图。编好的图被扔了、又露出来时照它再做一次。
+#[derive(Clone)]
 pub struct Job {
     /// 做好了按它认回来。
     pub key: u64,
+    /// 是哪一张图（种类、源码、写的宽高），不管多大：拖着窗口改大小时同一张只做最新的尺寸。
+    pub same: u64,
     /// 哪一种。
     pub kind: FigureKind,
     /// 源码。
@@ -32,18 +35,43 @@ pub struct Job {
     pub size: crate::markdown::Size,
     /// 最多几列宽。
     pub cols: u16,
+    /// 最多几行高：照窗口的高算好的（`figures.json` 的 `room`、`picture_room`；`max_rows` 是只防病态的上限）。
+    pub rows: u16,
     /// 公式的字色。
     pub math: (u8, u8, u8),
     /// mermaid 图的颜色。
     pub diagram: DiagramColors,
 }
 
-/// 做完的一张：画好了，或者出错的原因。
+/// 做完的一张。
 pub struct Done {
     /// 哪一张。
     pub key: u64,
     /// 结果。
-    pub result: Result<Drawn, String>,
+    pub result: Outcome,
+}
+
+/// 一张图做得怎样。
+pub enum Outcome {
+    /// 画好了。
+    Drawn(Drawn),
+    /// 出错了：界面写源码。
+    Failed,
+    /// 跳过了：同一张图后面又要了新的尺寸（拖着窗口改大小），只做最新的那个。
+    Skipped,
+}
+
+/// 排着的活里同一张图只留最后要的那个尺寸：交回留下的（照先后）和跳过的键。
+pub(super) fn latest(jobs: Vec<Job>) -> (Vec<Job>, Vec<u64>) {
+    let mut kept: Vec<Job> = Vec::new();
+    let mut skipped = Vec::new();
+    for job in jobs {
+        if let Some(at) = kept.iter().position(|k| k.same == job.same) {
+            skipped.push(kept.remove(at).key);
+        }
+        kept.push(job);
+    }
+    (kept, skipped)
 }
 
 /// 起后台线程，交回送活的口子。`notify` 交回假时（主循环没了）线程收工。
@@ -59,15 +87,32 @@ pub fn spawn(
     let started = thread::Builder::new()
         .name(NAME.to_string())
         .spawn(move || {
-            for job in jobs {
-                let key = job.key;
-                // 渲染库碰到怪输入可能 panic：接住，当出错，界面写源码。
-                let result = panic::catch_unwind(AssertUnwindSafe(|| {
-                    draw(&graphics, &look, zoom_dir.as_deref(), &job)
-                }))
-                .unwrap_or_else(|_| Err("出图时崩了".to_string()));
-                if !notify(Done { key, result }) {
-                    return;
+            while let Ok(first) = jobs.recv() {
+                // 一口气收下排着的活，同一张图只做最后要的尺寸（拖着窗口改大小时一连串地来）。
+                let (kept, skipped) =
+                    latest(std::iter::once(first).chain(jobs.try_iter()).collect());
+                for key in skipped {
+                    if !notify(Done {
+                        key,
+                        result: Outcome::Skipped,
+                    }) {
+                        return;
+                    }
+                }
+                for job in kept {
+                    let key = job.key;
+                    // 渲染库碰到怪输入可能 panic：接住，当出错，界面写源码。
+                    let result = panic::catch_unwind(AssertUnwindSafe(|| {
+                        draw(&graphics, &look, zoom_dir.as_deref(), &job)
+                    }))
+                    .unwrap_or_else(|_| Err("出图时崩了".to_string()));
+                    let result = match result {
+                        Ok(drawn) => Outcome::Drawn(drawn),
+                        Err(_) => Outcome::Failed,
+                    };
+                    if !notify(Done { key, result }) {
+                        return;
+                    }
                 }
             }
         });
@@ -84,16 +129,20 @@ fn draw(
     job: &Job,
 ) -> Result<Drawn, String> {
     let cell = graphics.cell();
+    // 最多几行：照给的（窗口高度的几分之几），不超过只防病态的上限。
+    let max_rows = job.rows.min(look.max_rows).max(1);
     let mut zoom = None;
     let (image, fit) = match job.kind {
-        FigureKind::Image => file::draw(&job.source, job.size, cell, job.cols, look.max_rows)?,
-        FigureKind::Svg => svg::draw(&job.source, &look.fonts, cell, job.cols, look.max_rows)?,
+        FigureKind::Image => {
+            file::draw(&job.source, job.size, cell, job.cols, max_rows, &look.fonts)?
+        }
+        FigureKind::Svg => svg::draw(&job.source, &look.fonts, cell, job.cols, max_rows)?,
         FigureKind::Mermaid => {
             let style = mermaid::Look {
                 colors: job.diagram,
                 fonts: &look.fonts,
             };
-            let drawn = mermaid::draw(&job.source, &style, cell, job.cols, look.max_rows)?;
+            let drawn = mermaid::draw(&job.source, &style, cell, job.cols, max_rows)?;
             // 大图写不进缓存目录也不要紧：图照画，只是没有「点开看大图」那一行。
             zoom = zoom_dir
                 .and_then(|dir| mermaid::zoom(&job.source, &style, dir, look.zoom_keep).ok());
@@ -105,7 +154,7 @@ fn draw(
             look.math_scale,
             cell,
             job.cols,
-            look.max_rows,
+            max_rows,
         )?,
     };
     let size = Size::new(fit.cols, fit.rows);

@@ -23,6 +23,20 @@ pub struct Spec {
     pub summary: String,
     /// 做什么。
     pub run: Run,
+    /// 名字后面空一格能接参数（`/compact 要求`，蓝图「斜杠命令列表」第 5 条）。
+    #[serde(default)]
+    pub args: bool,
+}
+
+/// 回车时输入框里那一行是什么（蓝图「斜杠命令列表」第 4、5 条）。
+#[derive(Debug)]
+pub enum Line<'a> {
+    /// 一条命令，带着名字后面的字（没写的是 `None`）。
+    Command(&'a Spec, Option<&'a str>),
+    /// 像命令，没有这个命令：弹「命令不存在」。
+    Unknown,
+    /// 一句话，发给她。
+    Talk,
 }
 
 /// 命令做什么。
@@ -33,6 +47,8 @@ pub enum Run {
     Revert,
     /// 恢复刚才的撤销（`session.unrevert`）。
     Unrevert,
+    /// 现在就压缩上下文（`session.compact`），后面的字是给摘要的要求。
+    Compact,
     /// 换下一套主题。
     Theme,
     /// 换下一套图标（蓝图「图标」）。
@@ -78,11 +94,36 @@ impl Commands {
     }
 }
 
+impl Commands {
+    /// 回车时这一行是什么：`/名字` 是命令；能带参数的命令后面空一格接着的字是参数；别的后面跟了字的是一句话。
+    pub fn read<'a>(&'a self, text: &'a str) -> Line<'a> {
+        let Some(name) = typed(text) else {
+            return Line::Talk;
+        };
+        // 名字后面的字：`typed` 认过的名字就在 `/` 后面。
+        let words = text[1 + name.len()..].trim();
+        match (self.find(name), words.is_empty()) {
+            (Some(spec), true) => Line::Command(spec, None),
+            (Some(spec), false) if spec.args => Line::Command(spec, Some(words)),
+            (None, true) => Line::Unknown,
+            _ => Line::Talk,
+        }
+    }
+}
+
+/// 命令列表要不要开、照什么筛：像命令名，名字后面还没打空格（打了空格是在写参数，名字已经打全了）。
+pub fn menu_typed(text: &str) -> Option<&str> {
+    let name = typed(text)?;
+    let after = &text[1 + name.len()..];
+    after.is_empty().then_some(name)
+}
+
 /// 输入框里的字要不要当命令：`/` 开头，后面像个命令名（英文字母打头，只有英文字母、数字、`-`、`_`；
 /// 刚打一个 `/` 也算）。`/你吃了吗`、路径这些不算（`tui.md`「斜杠命令列表」第 1、4 条）。交回命令名。
 pub fn typed(text: &str) -> Option<&str> {
     let rest = text.strip_prefix('/')?;
-    let name = rest.split_whitespace().next().unwrap_or_default();
+    // 名字紧挨着 `/`：`/ compact` 这种的名字是空的。
+    let name = rest.split(char::is_whitespace).next().unwrap_or_default();
     let starts = name.chars().next().is_none_or(|c| c.is_ascii_alphabetic());
     let rest_ok = name
         .chars()
@@ -92,7 +133,51 @@ pub fn typed(text: &str) -> Option<&str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Commands, typed};
+    use super::{Commands, Line, menu_typed, typed};
+
+    #[test]
+    fn a_command_that_takes_words_keeps_them() {
+        let c = commands();
+        match c.read("/compact 重点保留 数据库设计") {
+            Line::Command(spec, Some(words)) => {
+                assert_eq!(spec.name, "compact");
+                assert_eq!(words, "重点保留 数据库设计");
+            }
+            other => panic!("{other:?}"),
+        }
+        assert!(matches!(c.read("/compact"), Line::Command(s, None) if s.name == "compact"));
+        assert!(
+            matches!(c.read("/compact   "), Line::Command(_, None)),
+            "只有空白：没写"
+        );
+        assert!(matches!(c.read("/undo"), Line::Command(s, None) if s.name == "undo"));
+        assert!(
+            matches!(c.read("/rewind"), Line::Command(s, None) if s.name == "undo"),
+            "别名"
+        );
+        assert!(
+            matches!(c.read("/theme 深色"), Line::Talk),
+            "不带参数的命令后面跟了字：一句话"
+        );
+        assert!(
+            matches!(c.read("/etc 目录是干什么的"), Line::Talk),
+            "不弹命令不存在"
+        );
+        assert!(matches!(c.read("/nosuch"), Line::Unknown));
+        assert!(matches!(c.read("你好"), Line::Talk));
+        assert!(matches!(c.read("/你吃了吗"), Line::Talk));
+        assert!(matches!(c.read("/ compact"), Line::Talk), "名字要紧挨着 /");
+    }
+
+    #[test]
+    fn typing_words_after_the_name_closes_the_list() {
+        assert_eq!(menu_typed("/comp"), Some("comp"));
+        assert_eq!(menu_typed("/"), Some(""));
+        assert_eq!(menu_typed("/compact "), None, "打了空格：名字打全了");
+        assert_eq!(menu_typed("/compact 重点"), None);
+        assert_eq!(menu_typed("/你吃了吗"), None);
+        assert_eq!(menu_typed("/ compact"), None, "名字要紧挨着 /");
+    }
     use crate::config::Config;
 
     fn commands() -> Commands {

@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 
 use super::App;
-use crate::commands::{self, Run, Spec};
+use crate::commands::{Line, Run, Spec};
 use crate::core::Command;
 use crate::input::{Action, Draft};
 use crate::transcript::Kind;
@@ -161,7 +161,7 @@ impl App {
             }
             (KeyCode::Enter, Some(spec)) => {
                 self.input.editor.take();
-                self.run(&spec);
+                self.run(&spec, None);
             }
             (KeyCode::Esc, _) => self.menu.dismiss(self.input.editor.text()),
             _ => return self.input.key(key),
@@ -173,16 +173,19 @@ impl App {
     /// 「斜杠命令列表」第 4 条）；别的发给她。
     pub(super) fn submit(&mut self, draft: Draft) {
         let text = draft.text.clone();
-        if let Some(name) = commands::typed(&text).filter(|_| !text.trim().contains(' ')) {
-            match self.config.commands.find(name).cloned() {
-                Some(spec) => self.run(&spec),
-                None => {
-                    let note = self.config.text.unknown_command.clone();
-                    self.hint(note, false);
-                    self.input.editor.set_draft(draft);
-                }
+        match self.config.commands.read(&text) {
+            Line::Command(spec, words) => {
+                let (spec, words) = (spec.clone(), words.map(str::to_string));
+                self.run(&spec, words.as_deref());
+                return;
             }
-            return;
+            Line::Unknown => {
+                let note = self.config.text.unknown_command.clone();
+                self.hint(note, false);
+                self.input.editor.set_draft(draft);
+                return;
+            }
+            Line::Talk => {}
         }
         self.view.follow();
         // 输入框里的粘贴块发出去换回原文；输入历史和正文里照输入框的样子（`tui.md`「输入框」第 11 条）。
@@ -193,15 +196,19 @@ impl App {
         self.core.send(Command::Send(full));
     }
 
-    /// 执行一条命令。
-    pub(super) fn run(&mut self, spec: &Spec) {
-        // 命令也记进输入历史：从列表里回车、点的，和整条打出来回车的一样（`tui.md`「按键」↑、↓）。
-        self.input
-            .remember(Draft::plain(&format!("/{}", spec.name)));
+    /// 执行一条命令；`words` 是名字后面的字（能带参数的命令才有，蓝图「斜杠命令列表」第 5 条）。
+    pub(super) fn run(&mut self, spec: &Spec, words: Option<&str>) {
+        // 命令也记进输入历史：从列表里回车、点的，和整条打出来回车的一样，带参数的记整条（`tui.md`「按键」↑、↓）。
+        let line = match words {
+            Some(words) => format!("/{} {words}", spec.name),
+            None => format!("/{}", spec.name),
+        };
+        self.input.remember(Draft::plain(&line));
         self.view.follow();
         match spec.run {
             Run::Revert => self.core.send(Command::Revert),
             Run::Unrevert => self.core.send(Command::Unrevert),
+            Run::Compact => self.core.send(Command::Compact(words.map(str::to_string))),
             Run::Theme => self.next_theme(),
             Run::Icons => self.next_icons(),
             Run::Quit => self.quit = true,

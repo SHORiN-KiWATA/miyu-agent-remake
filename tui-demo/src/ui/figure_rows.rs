@@ -11,22 +11,26 @@ use ratatui_image::sliced::{SignedPosition, SlicedImage};
 
 use super::row_cache::Rows;
 use super::rows::{Ctx, FigureCell, Row, md_row};
-use crate::figures::{Figures, Look};
+use crate::figures::{self, Figures, Look};
 use crate::markdown::Figure;
 use crate::theme;
 
 /// 一张图排成的行。`lead` 是这一行前面的引子（列表缩进、引用的竖线），图接在它后面。
 pub fn rows(lead: Vec<Span<'static>>, figure: &Figure, ctx: &Ctx) -> Vec<Row> {
     let lead_width: usize = lead.iter().map(Span::width).sum();
-    let cols = ctx
+    let text_cols = ctx
         .width
         .saturating_sub(u16::try_from(lead_width).unwrap_or(u16::MAX))
         .max(1);
+    // 最多多大照这一种图的比例（图片最多三分之一屏、正文宽的六成，蓝图第 3 条）。
+    let (cols, rows) =
+        figures::room(&ctx.config.figures, figure.kind).fit(text_cols, ctx.screen_rows);
     let look = ctx.figures.borrow_mut().look(
         figure.kind,
         &figure.source,
         (figure.width, figure.height),
         cols,
+        rows,
     );
     match look {
         Look::Unsupported | Look::Failed => figure
@@ -73,8 +77,10 @@ fn zoom_row(lead: Vec<Span<'static>>, file: &std::path::Path, ctx: &Ctx) -> Row 
 }
 
 /// 画视口里露出来的图：每张图从它第 0 行该在的位置画起（在视口上面的是负的），
-/// 视口外的那一截由 `SlicedImage` 切掉。`first` 是视口第一行是正文的第几行。
-pub fn draw(buf: &mut Buffer, area: Rect, rows: &Rows, first: usize, figures: &Figures) {
+/// 视口外的那一截由 `SlicedImage` 切掉。`first` 是视口第一行是正文的第几行。露出来的记下露过：编好的图记满了
+/// 扔没露出来的，被扔了的这一帧先空着、交给后台重做（蓝图「图片、公式和 mermaid 图」第 6 条）。
+pub fn draw(buf: &mut Buffer, area: Rect, rows: &Rows, first: usize, figures: &mut Figures) {
+    figures.next_frame();
     let mut drawn = HashSet::new();
     let visible = rows.window(first, usize::from(area.height));
     for (i, row) in visible {
@@ -84,7 +90,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, rows: &Rows, first: usize, figures: &F
         if !drawn.insert(key) {
             continue;
         }
-        let Some(figure) = figures.get(key) else {
+        let Some(figure) = figures.shown(key) else {
             continue;
         };
         let top = i64::try_from(i - first).unwrap_or(0) - i64::from(at);
@@ -108,8 +114,8 @@ mod tests {
     use super::rows;
     use crate::config::Config;
     use crate::core::Level;
-    use crate::figures::{Figures, Graphics};
-    use crate::markdown::{self, Figure};
+    use crate::figures::{self, Figures, Graphics};
+    use crate::markdown::{self, Figure, FigureKind};
     use crate::ui::rows::{Ctx, MdCache};
 
     fn figure(config: &Config, text: &str) -> Figure {
@@ -143,6 +149,7 @@ mod tests {
             md: &md,
             figures,
             level: Level::Workspace,
+            screen_rows: 40,
         };
         let math = figure(&config, "$$\\frac{a+1}{b}$$");
         // 终端显示不了图：写一行 Unicode。
@@ -187,5 +194,71 @@ mod tests {
             at,
             (0..u16::try_from(drawn.len()).unwrap()).collect::<Vec<_>>()
         );
+    }
+
+    /// 等后台做好这一张，交回占几行。
+    fn drawn_rows(
+        figure: &Figure,
+        ctx: &Ctx,
+        done: &mpsc::Receiver<crate::figures::Done>,
+    ) -> usize {
+        for _ in 0..5 {
+            let got = rows(Vec::new(), figure, ctx);
+            if got.iter().all(|r| r.figure.is_some()) {
+                return got.len();
+            }
+            let finished = done.recv_timeout(Duration::from_secs(20)).unwrap();
+            ctx.figures.borrow_mut().done(finished);
+        }
+        panic!("没做好");
+    }
+
+    #[test]
+    fn pictures_take_a_third_of_the_window_and_six_tenths_of_the_width() {
+        // 2026-09-30 项目主人：半屏还是太大。45 行高、正文 100 列，一格 10×20 像素。
+        let config = Config::builtin().unwrap();
+        let human = Human::default();
+        let md = RefCell::new(MdCache::new());
+        let mut picker = Picker::halfblocks();
+        picker.set_protocol_type(ProtocolType::Kitty);
+        let (sender, done) = mpsc::channel();
+        let figures = RefCell::new(Figures::start(
+            Some(Graphics { picker }),
+            &config.figures,
+            None,
+            move |d| sender.send(d).is_ok(),
+        ));
+        let ctx = Ctx {
+            config: &config,
+            human: &human,
+            indent: String::new(),
+            width: 100,
+            hover: None,
+            frame: 0,
+            md: &md,
+            figures: &figures,
+            level: Level::Workspace,
+            screen_rows: 45,
+        };
+        let dir = std::env::temp_dir().join(format!("miyu-room-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let picture = |name: &str, w: u32, h: u32| {
+            let path = dir.join(name);
+            image::RgbaImage::from_pixel(w, h, image::Rgba([0, 128, 255, 255]))
+                .save(&path)
+                .unwrap();
+            figure(&config, &format!("![]({})", path.display()))
+        };
+        // 3:1 的横幅：宽最多 60 格（600 像素），高 200 像素是 10 行。
+        let banner = picture("banner.png", 3000, 1000);
+        assert_eq!(drawn_rows(&banner, &ctx, &done), 10, "宽最多正文宽的六成");
+        // 16:9 的壁纸：60 格宽是 17 行，高最多三分之一屏 15 行。
+        let wallpaper = picture("wallpaper.png", 1600, 900);
+        assert_eq!(drawn_rows(&wallpaper, &ctx, &done), 15, "高最多三分之一屏");
+        std::fs::remove_dir_all(&dir).unwrap_or_default();
+        // mermaid、公式、`<svg>` 里是字：照旧最多正文宽、半屏。
+        for kind in [FigureKind::Mermaid, FigureKind::Math, FigureKind::Svg] {
+            assert_eq!(figures::room(&config.figures, kind).fit(100, 45), (100, 22));
+        }
     }
 }

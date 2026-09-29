@@ -26,8 +26,8 @@ pub fn rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
         }
     };
     let (mark, mark_style, text_style) = match job.mark {
-        JobMark::Done => (words.ok_mark.as_str(), theme::good(), Style::new()),
-        JobMark::Failed => (words.fail_mark.as_str(), theme::error(), Style::new()),
+        JobMark::Done => (words.ok_mark.as_str(), theme::good(), theme::dim()),
+        JobMark::Failed => (words.fail_mark.as_str(), theme::error(), theme::dim()),
         JobMark::Stopped => ("", theme::dim(), theme::dim()),
     };
     let width = ctx
@@ -90,16 +90,22 @@ mod tests {
             String::new(),
         );
         let done = rows(0, &t.entries[0], &f.ctx());
-        assert_eq!(done[0].line.to_string().trim(), "✓ 后台命令完成 · ls · 2s");
+        assert_eq!(
+            done[0].line.to_string().trim(),
+            "● 后台命令完成 · ls · 2s",
+            "2026-09-30 项目主人：绿勾换成绿点"
+        );
         let spans = &done[0].line.spans;
         assert!(
             spans
                 .iter()
-                .any(|s| s.content == "✓ " && s.style == theme::good())
+                .any(|s| s.content == "● " && s.style == theme::good())
         );
         assert!(
-            spans.iter().any(|s| s.content.starts_with("后台命令完成")
-                && s.style == ratatui::style::Style::new())
+            spans
+                .iter()
+                .any(|s| s.content.starts_with("后台命令完成") && s.style == theme::dim()),
+            "2026-09-30 项目主人：字改暗，不要白色的字"
         );
         assert!(done[0].target.is_none(), "没有全文的不能点");
         let failed = rows(1, &t.entries[1], &f.ctx());

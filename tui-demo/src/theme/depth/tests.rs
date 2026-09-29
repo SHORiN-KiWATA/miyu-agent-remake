@@ -149,3 +149,42 @@ fn a_frame_is_repainted_once_at_the_end() {
     );
     assert!(cell.modifier.contains(Modifier::BOLD), "修饰照留");
 }
+
+#[test]
+fn the_cells_of_a_kitty_picture_keep_their_colour() {
+    // 2026-09-30 项目主人带着 `MIYU_COLOR=256` 开，图的位置全是空的：kitty 靠格子的前景色认是哪张图。
+    use image::{DynamicImage, Rgba, RgbaImage};
+    use ratatui::layout::Size;
+    use ratatui::widgets::Widget;
+    use ratatui_image::Resize;
+    use ratatui_image::picker::{Picker, ProtocolType};
+    use ratatui_image::sliced::{SignedPosition, SlicedImage, SlicedProtocol};
+
+    let mut picker = Picker::halfblocks();
+    picker.set_protocol_type(ProtocolType::Kitty);
+    let image = DynamicImage::ImageRgba8(RgbaImage::from_pixel(40, 40, Rgba([0, 128, 255, 255])));
+    let protocol =
+        SlicedProtocol::new_with_resize(&picker, image, Size::new(4, 2), Resize::Fit(None))
+            .unwrap();
+    let area = Rect::new(0, 0, 6, 2);
+    let painted = || {
+        let mut buf = Buffer::empty(area);
+        buf.set_string(4, 0, "字", Style::new().fg(Color::Rgb(0x7a, 0xa2, 0xf7)));
+        SlicedImage::new(&protocol, SignedPosition { x: 0, y: 0 }).render(area, &mut buf);
+        buf
+    };
+    let picture: Vec<(u16, u16)> = area
+        .positions()
+        .filter(|p| painted()[(p.x, p.y)].symbol().starts_with('\u{10EEEE}'))
+        .map(|p| (p.x, p.y))
+        .collect();
+    assert!(!picture.is_empty(), "画出了 kitty 的占位格");
+    for depth in [Depth::X256, Depth::Ansi16, Depth::Mono] {
+        let mut buf = painted();
+        degrade(&mut buf, depth);
+        for &at in &picture {
+            assert_eq!(buf[at], painted()[at], "{depth:?}：图的格子不换色");
+        }
+        assert_ne!(buf[(4, 0)].fg, painted()[(4, 0)].fg, "{depth:?}：字照换");
+    }
+}

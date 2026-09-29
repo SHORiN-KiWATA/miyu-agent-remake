@@ -40,6 +40,7 @@ impl Fixture {
             md: &self.md,
             figures: &self.figures,
             level: Level::Workspace,
+            screen_rows: self.config.figures.max_rows,
         }
     }
 }

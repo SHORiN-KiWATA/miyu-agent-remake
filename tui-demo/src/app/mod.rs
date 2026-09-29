@@ -304,6 +304,16 @@ impl App {
 
     /// 收一条核心那边的消息。撤销成了、排队的消息被退回了，字放回输入框（`tui.md`「输入框」第 7、8 条）。
     pub fn core(&mut self, update: Update) {
+        // 这几种拒绝只弹提示框，不写进正文（`tui.md`「正文」第 9 条）。
+        if let Update::Refused {
+            reason: Some(reason),
+            ..
+        } = &update
+            && let Some(hint) = self.config.text.refusal_hints.get(reason)
+        {
+            self.hint(hint.clone(), false);
+            return;
+        }
         let undone = matches!(update, Update::Undone { restore: false, .. });
         if matches!(update, Update::Undone { restore: true, .. }) {
             self.input.take_back();
@@ -427,7 +437,7 @@ impl App {
     /// 列表开着时筛出来的命令；没开是 `None`。每次按输入框里现在的字重新筛，顺手定开不开。
     pub fn menu_matches(&mut self) -> Option<Vec<Spec>> {
         let text = self.input.editor.text();
-        let typed = commands::typed(text);
+        let typed = commands::menu_typed(text);
         let matches: Vec<Spec> = typed
             .map(|t| {
                 self.config

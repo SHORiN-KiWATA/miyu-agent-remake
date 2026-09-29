@@ -43,11 +43,14 @@ fn progress_updates_one_line_then_becomes_the_result() {
         after: 31_000,
     };
     apply(&mut t, vec![Push::Compaction(done)]);
+    assert!(t.entries[0].progress.is_some(), "压好了先走满进度条");
+    frames(&mut t, std::time::Instant::now(), 20);
     assert_eq!(
         shown(&t),
-        [(Kind::Note, "· 上下文已压缩：812.3k → 31k token".to_string())]
+        [(Kind::Note, "上下文已压缩：812.3k → 31k token".to_string())]
     );
-    assert_eq!(t.entries[0].progress, None, "压好了不转、不画进度条");
+    assert_eq!(t.entries[0].progress, None, "走满以后不转、不画进度条");
+    assert_eq!(t.entries[0].mark.as_deref(), Some("● "), "前面绿点");
 }
 
 #[test]
@@ -196,5 +199,169 @@ fn while_compacting_only_that_line_spins() {
         after: 3_800,
     };
     apply(&mut t, vec![Push::Compaction(done)]);
-    assert!(t.waiting(), "压完了还没出字：接着等第一个字");
+    assert!(!t.waiting(), "条在走满：还是它在动");
+    frames(&mut t, std::time::Instant::now(), 20);
+    assert!(t.waiting(), "换成结果了还没出字：接着等第一个字");
+}
+
+/// 每一帧追一下进度条：`from` 起走 `frames` 帧，一帧 80 毫秒。交回走到的时刻。
+fn frames(t: &mut Transcript, from: std::time::Instant, n: u32) -> std::time::Instant {
+    let config = crate::config::Config::builtin().unwrap();
+    let mut rng = crate::rng::Rng::new(9);
+    let mut now = from;
+    for _ in 0..n {
+        now += std::time::Duration::from_millis(80);
+        t.climb(
+            now,
+            config.layout.bar.width,
+            &config.layout.compaction,
+            &mut rng,
+        );
+    }
+    now
+}
+
+#[test]
+fn when_done_the_bar_fills_up_then_turns_into_the_result() {
+    // 2026-09-29 项目主人：条走到一半就一下跳成结果，要先快速走满再跳。
+    let config = crate::config::Config::builtin().unwrap();
+    let width = config.layout.bar.width;
+    let mut t = Transcript::default();
+    apply(&mut t, vec![Push::TurnStarted(1, None), progress(0)]);
+    let now = std::time::Instant::now();
+    let done = Compaction::Done {
+        before: 12_300,
+        after: 4_000,
+    };
+    apply(&mut t, vec![progress(8_000), Push::Compaction(done)]);
+    let entry = |t: &Transcript| {
+        t.entries
+            .iter()
+            .find(|e| e.progress.is_some() || e.text.contains("压缩"))
+            .cloned()
+            .unwrap()
+    };
+    assert!(entry(&t).progress.is_some(), "压好了先不换：条接着走");
+    let now = frames(&mut t, now, 2);
+    let lit = entry(&t).progress.unwrap().lit;
+    assert!(lit > 0 && lit < width, "一格格走，不一下满：{lit}");
+    // 走满、停一会儿以后换成结果：绿点，字暗。
+    frames(&mut t, now, 20);
+    let result = entry(&t);
+    assert!(result.progress.is_none());
+    assert_eq!(result.text, "上下文已压缩：12.3k → 4k token");
+    assert_eq!(result.mark.as_deref(), Some("● "));
+}
+
+#[test]
+fn a_turn_that_ends_while_filling_keeps_filling_and_is_not_hidden() {
+    // 手动压缩那一轮压好就结束（压好和结束同一批到）：条照样走满再换，不当成没压完藏起来。
+    let mut t = Transcript::default();
+    let done = Compaction::Done {
+        before: 12_300,
+        after: 4_000,
+    };
+    apply(
+        &mut t,
+        vec![
+            Push::TurnStarted(1, None),
+            progress(8_000),
+            Push::Compaction(done),
+            Push::TurnEnded(EndReason::Completed),
+        ],
+    );
+    let line = |t: &Transcript| {
+        t.entries
+            .iter()
+            .find(|e| e.progress.is_some() || e.mark.is_some())
+            .cloned()
+            .unwrap()
+    };
+    assert!(!line(&t).hidden);
+    assert!(line(&t).progress.is_some(), "这一轮结束了，条还在走满");
+    assert!(t.busy(), "走满的这几帧照转圈的节拍重画");
+    frames(&mut t, std::time::Instant::now(), 20);
+    let result = line(&t);
+    assert!(
+        result.text.starts_with("上下文已压缩：12.3k → 4k token · "),
+        "手动压缩那一轮：用时接在后面：{}",
+        result.text
+    );
+    assert_eq!(result.mark.as_deref(), Some("● "));
+    assert!(!t.busy(), "换成结果以后不再重画");
+}
+
+#[test]
+fn a_manual_compaction_turn_takes_no_words() {
+    // 施工 6-8：手动压缩那一轮的 turn.started 没有 trigger，不把你说的话归进来。
+    let mut t = Transcript::default();
+    t.user("还没开轮的一句".into(), Vec::new());
+    apply(&mut t, vec![Push::TurnStarted(3, None)]);
+    let words = t
+        .entries
+        .iter()
+        .find(|e| e.text == "还没开轮的一句")
+        .unwrap();
+    assert_eq!(words.turn, None, "不归到压缩那一轮");
+}
+
+#[test]
+fn a_manual_compaction_puts_its_time_and_usage_on_the_result_line() {
+    // 2026-09-29 项目主人：手动压缩以后不另起收尾行，用时和用量接在结果那一行后面。
+    use crate::core::Usage;
+    let mut t = Transcript::default();
+    let done = Compaction::Done {
+        before: 66_300,
+        after: 17_100,
+    };
+    apply(
+        &mut t,
+        vec![
+            Push::TurnStarted(3, None),
+            progress(8_000),
+            Push::Usage(Usage {
+                uncached: 400,
+                cache_read: 58_000,
+                cache_write: 0,
+                output: 0,
+            }),
+            Push::Compaction(done),
+            Push::TurnEnded(EndReason::Completed),
+        ],
+    );
+    frames(&mut t, std::time::Instant::now(), 20);
+    assert!(
+        t.entries.iter().all(|e| e.kind != Kind::Done),
+        "不另起收尾行"
+    );
+    let result = t.entries.iter().find(|e| e.mark.is_some()).unwrap();
+    assert!(
+        result
+            .text
+            .starts_with("上下文已压缩：66.3k → 17.1k token · ")
+            && result.text.ends_with(" · 58.4k(C99.3%)"),
+        "{}",
+        result.text
+    );
+    // 自动压缩发生在普通的一轮里：收尾行照旧。
+    let mut t = Transcript::default();
+    t.user("读一下".into(), Vec::new());
+    let done = Compaction::Done {
+        before: 66_300,
+        after: 17_100,
+    };
+    apply(
+        &mut t,
+        vec![
+            Push::UserMessage(1),
+            Push::TurnStarted(4, Some(1)),
+            progress(8_000),
+            Push::Compaction(done),
+            Push::TurnEnded(EndReason::Completed),
+        ],
+    );
+    assert!(
+        t.entries.iter().any(|e| e.kind == Kind::Done),
+        "普通的一轮照旧有收尾行"
+    );
 }

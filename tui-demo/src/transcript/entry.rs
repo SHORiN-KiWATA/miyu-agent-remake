@@ -80,4 +80,6 @@ pub struct Entry {
     pub details: Vec<usize>,
     /// 正在压缩的那一行的进度（蓝图「正文」第 9 条）。压好了、失败了是 `None`。
     pub progress: Option<Progress>,
+    /// 旁白前面绿色的记号（压好了的 `● `，蓝图「正文」第 9 条）；别的是 `None`。
+    pub mark: Option<String>,
 }

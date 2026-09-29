@@ -147,6 +147,7 @@ fn run(
     let depth = theme::Depth::detect(|name| std::env::var(name).ok());
     while !app.quit {
         frame(terminal, &mut app, &mut pointer, depth)?;
+        let drawn_at = Instant::now();
         let wait = app.deadline().map_or(Duration::from_secs(3600), |d| {
             d.saturating_duration_since(Instant::now())
         });
@@ -156,12 +157,18 @@ fn run(
             Err(RecvTimeoutError::Disconnected) => break,
         };
         while let Some(message) = next {
-            match message {
-                Incoming::Terminal(event) => app.handle(event),
-                Incoming::Core(update) => app.core(update),
-                Incoming::Figure(done) => app.figures.borrow_mut().done(done),
-            }
+            dispatch(&mut app, message);
             next = incoming.try_recv().ok();
+        }
+        // 离上一帧还不到 `frame_ms`：接着收，到点一起画（蓝图「每一帧」：一段段推来的字每段画一帧，
+        // 一秒上百帧，输入法的预编辑跟着光标重画，打字时狂闪）。
+        let gap = Duration::from_millis(app.config.layout.frame_ms);
+        while let Some(left) = gap.checked_sub(drawn_at.elapsed()).filter(|d| !d.is_zero()) {
+            match incoming.recv_timeout(left) {
+                Ok(message) => dispatch(&mut app, message),
+                Err(RecvTimeoutError::Timeout) => break,
+                Err(RecvTimeoutError::Disconnected) => return Ok(()),
+            }
         }
         app.tick();
         if std::mem::take(&mut app.suspend) {
@@ -171,6 +178,15 @@ fn run(
         }
     }
     Ok(())
+}
+
+/// 收一条：终端的事件、核心的消息、做好的图。
+fn dispatch(app: &mut App, message: Incoming) {
+    match message {
+        Incoming::Terminal(event) => app.handle(event),
+        Incoming::Core(update) => app.core(update),
+        Incoming::Figure(done) => app.figures.borrow_mut().done(done),
+    }
 }
 
 /// Ctrl+Z：还原终端、挂起自己；`fg` 回来以后重新进全屏，下一帧整屏重画（蓝图 `tui.md`「按键」）。

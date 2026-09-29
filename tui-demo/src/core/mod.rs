@@ -42,6 +42,8 @@ pub enum Command {
     Revert,
     /// 恢复最近一次撤销（`session.unrevert`）。
     Unrevert,
+    /// 现在就压缩上下文（`session.compact`，施工 6-8），带着给摘要的要求。
+    Compact(Option<String>),
 }
 
 /// 核心那边的消息，交给界面。
@@ -136,6 +138,13 @@ async fn run(mut commands: mpsc::UnboundedReceiver<Command>, notify: &impl Fn(Up
                     }
                     Command::Revert => ("session.revert", json!({"session": session})),
                     Command::Unrevert => ("session.unrevert", json!({"session": session})),
+                    Command::Compact(words) => {
+                        let mut params = json!({"session": session});
+                        if let Some(words) = words {
+                            params["instructions"] = json!(words);
+                        }
+                        ("session.compact", params)
+                    }
                 };
                 match rpc.send(method, params).await {
                     Ok(id) => {

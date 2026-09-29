@@ -24,6 +24,16 @@ pub fn draw(
     max_cols: u16,
     max_rows: u16,
 ) -> Result<(RgbaImage, Fit), String> {
+    raster(&tree(source, fonts)?, cell, max_cols, max_rows)
+}
+
+/// 读 SVG：不读外面的东西（`<image>` 只认 `data:` 内嵌的 SVG），`fonts` 是中文字体。回答里写的 `<svg>`、本机的
+/// `.svg` 文件都照它读。
+///
+/// # Errors
+///
+/// SVG 读不懂时返回原因。
+pub fn tree(source: &str, fonts: &[String]) -> Result<usvg::Tree, String> {
     let options = usvg::Options {
         font_family: fonts.first().cloned().unwrap_or_default(),
         fontdb: font_db(),
@@ -34,8 +44,7 @@ pub fn draw(
         },
         ..usvg::Options::default()
     };
-    let tree = usvg::Tree::from_str(source, &options).map_err(|e| e.to_string())?;
-    raster(&tree, cell, max_cols, max_rows)
+    usvg::Tree::from_str(source, &options).map_err(|e| e.to_string())
 }
 
 /// 照 SVG 的自然大小算格子（宽过 `max_cols` 的等比缩），一次渲到那个尺寸，底透明。
@@ -50,10 +59,35 @@ pub fn raster(
     max_rows: u16,
 ) -> Result<(RgbaImage, Fit), String> {
     let size = tree.size();
-    let fit = cells::fit(size.width(), size.height(), cell, max_cols, max_rows);
+    raster_at(
+        tree,
+        (size.width(), size.height()),
+        cell,
+        max_cols,
+        max_rows,
+    )
+}
+
+/// 照给的大小（像素，`<img>` 写的宽高）算格子、渲出来；和 SVG 的自然大小比例不同的照给的拉伸。
+///
+/// # Errors
+///
+/// 尺寸是 0、像素数对不上时返回原因。
+pub fn raster_at(
+    tree: &usvg::Tree,
+    (width, height): (f32, f32),
+    cell: Cell,
+    max_cols: u16,
+    max_rows: u16,
+) -> Result<(RgbaImage, Fit), String> {
+    let natural = tree.size();
+    let fit = cells::fit(width, height, cell, max_cols, max_rows);
     let (w, h) = fit.pixels(cell);
     let mut pixmap = tiny_skia::Pixmap::new(w, h).ok_or("图的尺寸是 0")?;
-    let scale = tiny_skia::Transform::from_scale(fit.scale, fit.scale);
+    let scale = tiny_skia::Transform::from_scale(
+        fit.scale * width / natural.width().max(f32::EPSILON),
+        fit.scale * height / natural.height().max(f32::EPSILON),
+    );
     resvg::render(tree, scale, &mut pixmap.as_mut());
     let rgba: Vec<u8> = pixmap
         .pixels()

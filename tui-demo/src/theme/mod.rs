@@ -241,7 +241,7 @@ pub fn md_list() -> Style {
     accent()
 }
 
-/// 好消息：后台任务完成的 `✓`。
+/// 好消息：后台任务完成、压好了的 `●`。
 pub fn good() -> Style {
     fg(|p| p.good)
 }

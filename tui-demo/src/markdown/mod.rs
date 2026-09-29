@@ -148,7 +148,7 @@ impl Renderer<'_> {
                 None => self.text(&text),
             },
             Event::Code(text) => self.push(&text, theme::md_code()),
-            Event::SoftBreak | Event::HardBreak => self.push("\n", Style::new()),
+            Event::SoftBreak | Event::HardBreak => self.line_break(),
             Event::Html(html) => self.html(&html, true),
             Event::InlineHtml(html) => self.html(&html, false),
             Event::Rule => self.rule(),
@@ -394,6 +394,20 @@ impl Renderer<'_> {
             Style::new()
         };
         self.styles.iter().fold(base, |s, next| s.patch(*next))
+    }
+
+    /// 一段话里换行。这一行里有本机的图的，先把这一行排出来、紧接着画它的图，再接着排这一段下面的行
+    /// （蓝图「图片、公式和 mermaid 图」第 3 条：每张图画在自己那一行下面）。
+    fn line_break(&mut self) {
+        if self.images.is_empty() {
+            self.push("\n", Style::new());
+            return;
+        }
+        let pieces = std::mem::take(&mut self.pieces);
+        if !pieces.is_empty() {
+            self.emit(links::relink_title(pieces), true);
+        }
+        self.flush_images();
     }
 
     /// 把收着的行内片段排出来。独占一行的「标题 (地址)」改写成链接（蓝图第 9 条）：

@@ -1,5 +1,6 @@
 //! 压缩那一行进度条亮几格（蓝图 `tui.md`「正文」第 9 条）：按整格一顿一顿地追真实的字数。真实的字数够多亮
-//! 几格了，随机停一会儿，再一下多亮一到几格；永远不超过真实的字数够的格数，没压好之前封顶。
+//! 几格了，随机停一会儿，再一下多亮一到几格；永远不超过真实的字数够的格数，没压好之前封顶。压好了，从当时亮到的
+//! 格子一格格走满，停一下再换成结果。
 
 use std::time::{Duration, Instant};
 
@@ -19,6 +20,21 @@ pub struct Progress {
     pub since: Instant,
     /// 下一次追的时刻；没在等的是 `None`。
     next: Option<Instant>,
+    /// 压好了，正在走满；走满、停一下以后换成它记着的结果。
+    pub finish: Option<Finish>,
+}
+
+/// 压好了、正在走满的进度条：走满以后换成的那一行。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Finish {
+    /// 哪一刻压好的。
+    pub at: Instant,
+    /// 那时亮到第几格。
+    pub from: usize,
+    /// 换成的那一行的字。
+    pub text: String,
+    /// 那一行前面绿色的记号。
+    pub mark: String,
 }
 
 impl Progress {
@@ -30,7 +46,27 @@ impl Progress {
             lit: 0,
             since: now,
             next: None,
+            finish: None,
         }
+    }
+
+    /// 压好了：从现在亮到的格子起走满，走满、停一下以后换成 `text`（前面是 `mark`）。
+    pub fn done(&mut self, now: Instant, text: String, mark: String) {
+        self.finish = Some(Finish {
+            at: now,
+            from: self.lit,
+            text,
+            mark,
+        });
+    }
+
+    /// 走满了、也停够了：该换成结果了。
+    pub fn filled(&self, now: Instant, width: usize, look: &CompactionMotion) -> bool {
+        let Some(finish) = &self.finish else {
+            return false;
+        };
+        let hold = Duration::from_millis(look.finish_ms + look.finish_hold_ms);
+        self.lit >= width && now >= finish.at + hold
     }
 
     /// 真实的字数，没压好之前封顶 `cap_percent`；核心没给估计的是 `None`。
@@ -44,6 +80,15 @@ impl Progress {
 
     /// 到点了追一下（每一帧叫一次）。`width` 是条有几格。
     pub fn climb(&mut self, now: Instant, width: usize, look: &CompactionMotion, rng: &mut Rng) {
+        // 压好了：照过去的时间一格格走满，不再随机。
+        if let Some(finish) = &self.finish {
+            let spent = now.saturating_duration_since(finish.at).as_millis();
+            let total = u128::from(look.finish_ms.max(1));
+            let rest = width.saturating_sub(finish.from) as u128;
+            let add = usize::try_from((rest * spent.min(total)).div_ceil(total)).unwrap_or(width);
+            self.lit = self.lit.max(finish.from + add).min(width);
+            return;
+        }
         let Some((written, expected)) = self.capped(look) else {
             return;
         };

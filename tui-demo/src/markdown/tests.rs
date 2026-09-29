@@ -285,6 +285,41 @@ fn only_local_images_are_drawn_after_their_paragraph() {
 }
 
 #[test]
+fn each_image_is_drawn_under_its_own_line() {
+    // 2026-09-30 项目主人：一段里一行一张的，原来地址都列完再连着画图，看不出哪张是哪个地址。
+    let drawn = draw(
+        "插画：\n![](/p/a.png)\n![](/p/b.png)\n- ![](/p/c.png)\n  ![](/p/d.png)",
+        60,
+    );
+    let shape: Vec<String> = drawn
+        .iter()
+        .map(|l| match &l.figure {
+            Some(f) => format!("图 {}", f.source),
+            None => {
+                let lead: String = l.lead.iter().map(|s| s.content.as_ref()).collect();
+                format!("{lead}{}", super::inline::plain(&l.folded))
+            }
+        })
+        .collect();
+    assert_eq!(
+        shape,
+        [
+            "插画：",
+            "[图片: ] </p/a.png>",
+            "图 /p/a.png",
+            "[图片: ] </p/b.png>",
+            "图 /p/b.png",
+            "",
+            "▪ [图片: ] </p/c.png>",
+            "图 /p/c.png",
+            "  [图片: ] </p/d.png>",
+            "图 /p/d.png",
+        ],
+        "每张图紧接着画在自己那一行下面；列表的记号只写一次"
+    );
+}
+
+#[test]
 fn text_after_display_math_is_kept() {
     let text = lines("$$\\text{速度}=\\frac{d}{t}$$\n\n完。", 40);
     assert_eq!(text.last().map(String::as_str), Some("完。"), "{text:?}");

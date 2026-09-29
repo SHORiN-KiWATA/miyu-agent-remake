@@ -1,5 +1,15 @@
 {
   "max_rows": 200,
+  "room": {
+    "height": [1, 2],
+    "width": [1, 1],
+    "min_rows": 3
+  },
+  "picture_room": {
+    "height": [1, 3],
+    "width": [3, 5],
+    "min_rows": 3
+  },
   "fonts": [
     "Noto Sans CJK SC",
     "PingFang SC"
