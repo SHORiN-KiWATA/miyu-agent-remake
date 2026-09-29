@@ -135,7 +135,8 @@ pub fn areas(
         footer,
         pulse,
         queued,
-        agents: Rect::new(inner_x, footer_y + 1, text_width, agent_rows).intersection(area),
+        agents: agents_area(inner_x, text_width, footer_y + 1, agent_rows, layout)
+            .intersection(area),
         todo: Rect::new(inner_x, todo_y, text_width, todo_rows).intersection(area),
         ..Areas::default()
     }
@@ -144,12 +145,31 @@ pub fn areas(
 /// 输入框上面三样框里放字的那一块：选中的 `❯` 和输入框的提示符同一列，名字和框里打的字同一列
 /// （`tui.md`「斜杠命令列表」第 3 条）。`text_x`、`text_width` 是输入框里放字的那一块。
 pub(super) fn list_text(outer: Rect, text_x: u16, text_width: u16, layout: &Layout) -> Rect {
-    let lead = u16::try_from(unicode_width::UnicodeWidthStr::width(
+    let x = text_x
+        .saturating_sub(prompt_width(layout))
+        .max(outer.x.saturating_add(1));
+    panel::inside(outer, x, text_width + (text_x - x))
+}
+
+/// 子代理状态行：每行前面那两格落在提示符那一列，`●` `○` 和框下面那一行的 `▣` 同一列（「后台命令、子代理和
+/// 侧边栏」第 6 条）。`text_x`、`text_width` 是输入框里放字的那一块，`y`、`rows` 是从第几行起、几行。
+pub(super) fn agents_area(
+    text_x: u16,
+    text_width: u16,
+    y: u16,
+    rows: u16,
+    layout: &Layout,
+) -> Rect {
+    let lead = prompt_width(layout).min(text_x);
+    Rect::new(text_x - lead, y, text_width + lead, rows)
+}
+
+/// 输入框的提示符（`layout.json` 的 `prompt`）占几列。
+fn prompt_width(layout: &Layout) -> u16 {
+    u16::try_from(unicode_width::UnicodeWidthStr::width(
         layout.prompt.as_str(),
     ))
-    .unwrap_or(0);
-    let x = text_x.saturating_sub(lead).max(outer.x.saturating_add(1));
-    panel::inside(outer, x, text_width + (text_x - x))
+    .unwrap_or(0)
 }
 
 /// 贴着 `bottom` 往上要 `rows` 行，顶多到 `top`：交回从第几行起、给了几行。

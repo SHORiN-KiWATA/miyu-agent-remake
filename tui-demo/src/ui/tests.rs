@@ -207,3 +207,26 @@ fn the_lists_sit_in_a_frame_lined_up_with_the_input_box() {
         );
     }
 }
+
+#[test]
+fn the_agent_circles_line_up_with_the_level_icon() {
+    // 2026-09-30 项目主人：● ○ 和框下面那一行的 ▣ 同一列，焦点的 ❯ 和提示符同一列（原来圆圈靠右两格）。
+    let layout = Config::builtin().unwrap().layout;
+    let input = InputBox::new(8, Duration::from_millis(400));
+    let rows = |w: u16| input.rows(w);
+    let lead = u16::try_from(unicode_width::UnicodeWidthStr::width(
+        layout.prompt.as_str(),
+    ))
+    .unwrap();
+    let area = Rect::new(0, 0, 160, 40);
+    for (name, a) in [
+        ("正文", areas(area, &rows, &layout, 0, false, 0, 4, 0)),
+        (
+            "首页",
+            super::home::areas(area, &rows, &layout, (0, 0), 0, 4, 0),
+        ),
+    ] {
+        assert_eq!(a.agents.x + lead, a.footer.x, "{name}：圆圈和 ▣ 同一列");
+        assert_eq!(a.agents.right(), a.footer.right(), "{name}：右边照旧");
+    }
+}

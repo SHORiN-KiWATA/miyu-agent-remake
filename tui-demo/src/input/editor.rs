@@ -284,6 +284,9 @@ impl Editor {
         }
         self.text.replace_range(start..end, "");
         self.cursor = start;
+        // 删了字，选区的起点（点一下记下的）作废：不清的话删空以后成了「选中第 0 到 1 个字节」，
+        // 再删这个选区就越界了（2026-09-30 crash.log）。
+        self.anchor = None;
     }
 
     /// `pos` 落在哪一块的中间（不含两头）。

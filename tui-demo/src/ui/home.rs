@@ -70,7 +70,8 @@ pub fn areas(
         footer,
         mascot,
         cwd,
-        agents: Rect::new(inner_x, cwd.bottom(), text_width, agent_rows).intersection(area),
+        agents: super::agents_area(inner_x, text_width, cwd.bottom(), agent_rows, layout)
+            .intersection(area),
         todo,
         ..Areas::default()
     }
@@ -209,7 +210,8 @@ mod tests {
             (a.cwd.bottom(), 4),
             "接在工作目录后面"
         );
-        assert_eq!(a.agents.x, a.footer.x, "和框下面那一行的字左对齐");
+        // 每行前面那两格在提示符那一列，● ○ 和框下面那一行的 ▣ 同一列（2026-09-30 项目主人）。
+        assert_eq!(a.agents.x + 2, a.footer.x, "圆圈和框下面那一行的字左对齐");
         // 吉祥物 15 · 空 · 输入框 3 · 框下面 1 · 空 · 工作目录 · 子代理 4：共 26 行。
         assert_eq!(a.mascot.y, (40 - 26) / 2);
     }

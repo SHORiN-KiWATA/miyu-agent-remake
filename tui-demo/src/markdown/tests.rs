@@ -81,7 +81,7 @@ fn list_markers_are_accented_and_quotes_are_dim_italic() {
 }
 
 #[test]
-fn links_are_dark_blue_bold_is_plain_and_code_is_orange() {
+fn links_are_dark_blue_bold_is_dark_orange_and_code_matches_math() {
     use ratatui::style::{Color, Modifier};
     // 2026-09-29 项目主人：链接原来是高亮的蓝，标题、地址、裸地址一律换成暗蓝。
     let _theme = theme::hold();
@@ -89,10 +89,10 @@ fn links_are_dark_blue_bold_is_plain_and_code_is_orange() {
     assert_eq!(theme::md_link().fg, dark_blue);
     assert_eq!(theme::md_url().fg, dark_blue);
     assert!(theme::md_link().add_modifier.contains(Modifier::BOLD));
-    // 粗体原色加粗（和链接分开），行内代码淡橙（不再是那个亮蓝）。
-    assert_eq!(theme::md_bold().fg, Some(Color::Rgb(0xc0, 0xca, 0xf5)));
+    // 2026-09-30 项目主人：粗体换成原来行内代码的暗橙，行内代码和行内公式一个颜色。
+    assert_eq!(theme::md_bold().fg, Some(Color::Rgb(0xe5, 0xa0, 0x7a)));
     assert!(theme::md_bold().add_modifier.contains(Modifier::BOLD));
-    assert_eq!(theme::md_code().fg, Some(Color::Rgb(0xe5, 0xa0, 0x7a)));
+    assert_eq!(theme::md_code().fg, theme::md_math().fg);
 }
 
 #[test]

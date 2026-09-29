@@ -345,3 +345,29 @@ mod paste;
 fn selected(i: &InputBox) -> Option<&str> {
     i.editor.selection().map(|(s, e)| &i.editor.text()[s..e])
 }
+
+#[test]
+fn a_click_then_backspacing_to_empty_leaves_no_phantom_selection() {
+    // 2026-09-30 项目主人报「空输入框按退格偶尔直接退出」，crash.log：粘贴时删选区，`range end index 1 out of range for
+    // slice of length 0`。点一下记下选区的起点，退格删字不清它，删空以后成了「选中第 0 到 1 个字节」。
+    let mut e = typed("a");
+    e.select(1, 1);
+    e.backspace();
+    assert_eq!((e.text(), e.selection()), ("", None), "删空了不留选区");
+    e.backspace();
+    e.insert("x");
+    assert_eq!(e.text(), "x");
+    // 从真的鼠标事件、按键走一遍：点在字后面，退格两下，再粘贴。
+    let mut i = input(30);
+    for c in "ab".chars() {
+        press(&mut i, KeyCode::Char(c), KeyModifiers::NONE);
+    }
+    i.mouse(mouse(MouseEventKind::Down(MouseButton::Left), 12, 5), true);
+    i.mouse(mouse(MouseEventKind::Up(MouseButton::Left), 12, 5), true);
+    for _ in 0..3 {
+        press(&mut i, KeyCode::Backspace, KeyModifiers::NONE);
+    }
+    press(&mut i, KeyCode::Delete, KeyModifiers::NONE);
+    i.paste("粘贴");
+    assert_eq!(i.editor.text(), "粘贴");
+}
