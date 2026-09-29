@@ -41,6 +41,12 @@ async fn the_http_lines_carry_the_session() {
             inputs: Inputs::default(),
         },
         idle: Duration::from_secs(5),
+
+        window: None,
+
+        max_output: None,
+
+        images: None,
     };
     let home = Home::new();
     let handle = home.create(&models).await;

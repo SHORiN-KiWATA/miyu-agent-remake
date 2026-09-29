@@ -214,6 +214,15 @@ impl ResourceRoot {
         })
     }
 
+    /// 模型资料的原文（`models/models-dev.json`，施工 6-3 上）：从 models.dev 抽出来的窗口、最大输出。怎么读由核心定。
+    ///
+    /// # Errors
+    ///
+    /// 读不出来：写明是哪个文件。
+    pub fn models(&self) -> Result<String, SourceError> {
+        self.read(&["models", "models-dev.json"])
+    }
+
     /// 读资源目录下的一份文件，路径一段一段地接上（三个平台一样）。
     fn read(&self, parts: &[&str]) -> Result<String, SourceError> {
         let path = parts

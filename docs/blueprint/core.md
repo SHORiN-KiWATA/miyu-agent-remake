@@ -108,7 +108,9 @@
 
    开发用的两个变量（施工 3-9 再补，2026-09-29 项目主人定）：`MIYU_DEV_BASE_URL` 去掉前后空白不是空的，替换地址，端点的编号改成 `dev`；`MIYU_DEV_MODEL` 去掉前后空白不是空的，替换模型名，不合模型名写法的起不来，原因写明是这个变量。别的照上表。设了哪个，`INFO` 记一条 `dev endpoint base_url=<地址> model=<模型>`。
 
-   HTTP 客户端造不出来（系统的证书读不了之类）：起不来。
+   **模型的限额**（施工 6-3 上）：照资源目录里的模型资料（`store/resources.md`）查窗口、最大输出。驱动用的是 DeepSeek 的写法，开发端点也照 `deepseek` 那一家查模型名；查不到的没有，不主动压。`MIYU_DEV_WINDOW` 去掉前后空白不是空的：是正整数的当窗口，压过查到的；不是的起不来，原因写明是这个变量。一张图怎么算跟着驱动的写法走：DeepSeek 的交官方计算器 v41 配置的算法（`miyu-drivers` 的 `DeepSeekImages`）。起来时 `INFO` 记一条 `model limits model=<模型> window=<窗口或 none> max_output=<最大输出或 none>`。会话 actor 造会话、载入以后，先把这些交给内核（`Input::Limits`，`session/actor.md`）。
+
+   模型资料读不出来、格式坏了：起不来，原因写明是 `models/models-dev.json`。HTTP 客户端造不出来（系统的证书读不了之类）：起不来。
 2. 没设、空的、全是空白：照样起来，记一条 `WARN DEEPSEEK_API_KEY not set, no model`。每次请求都当场说完、没发出去：出错，分类 `auth`（认证失败），原话 `no model: set DEEPSEEK_API_KEY`；`model.called` 里没有端点和模型（没发出去）。分类是认证失败，内核不重试（`kernel/session.md`）。运行日志里 `request` 那一行写 `endpoint=none model=none`。
 3. key 只在起来时读一次：换了 key，要等这个核心退出、下一次拉起。
 

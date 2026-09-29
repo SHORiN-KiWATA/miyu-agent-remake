@@ -1,7 +1,11 @@
 //! 送进会话的输入，和输入里的命令（`docs/designs/02-内核.md` 第四节「输入、动作、命令怎么写」）。
 
+use std::fmt;
+use std::sync::Arc;
+
 use crate::accumulate::Delta;
 use crate::block::Block;
+use crate::estimate::ImagePrice;
 use crate::event::{
     CallError, ContextInjected, Decision, Effect, Level, Question, Response, Restored, Said, Usage,
 };
@@ -251,7 +255,7 @@ pub struct Injection {
 }
 
 /// 会话要发给的模型的限额（`compaction.md`「对外的样子」模型的资料）：压缩线照它算。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct Limits {
     /// 发给哪个端点的哪个模型：和锚比，换过模型锚作废。
     pub model: Model,
@@ -259,4 +263,34 @@ pub struct Limits {
     pub window: Option<u64>,
     /// 最大输出；没报的没有，输出预留按策略里的上限。
     pub max_output: Option<u64>,
+    /// 一张图怎么算，驱动交的（施工 6-3 上）；没有的照策略里的固定数。
+    pub images: Option<Arc<dyn ImagePrice>>,
 }
+
+/// 图片的算法是驱动交的对象，打印时只说有没有。
+impl fmt::Debug for Limits {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Limits")
+            .field("model", &self.model)
+            .field("window", &self.window)
+            .field("max_output", &self.max_output)
+            .field("images", &self.images.is_some())
+            .finish()
+    }
+}
+
+/// 图片的算法比的是不是同一个对象。
+impl PartialEq for Limits {
+    fn eq(&self, other: &Limits) -> bool {
+        self.model == other.model
+            && self.window == other.window
+            && self.max_output == other.max_output
+            && match (&self.images, &other.images) {
+                (None, None) => true,
+                (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+                _ => false,
+            }
+    }
+}
+
+impl Eq for Limits {}

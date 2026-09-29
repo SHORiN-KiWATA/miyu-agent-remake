@@ -30,6 +30,9 @@ pub(crate) const RESOURCES: &str = "resources";
 /// 给人看的字放在这样的目录里，不登记（施工 4-5 上）。
 const HUMAN: &str = "human";
 
+/// 资源目录最上一层的这个目录放模型资料，是数据，不发给模型，不登记（施工 6-3 上）。
+const DATA: &str = "models";
+
 /// 查一遍，交回对不上的地方。
 pub fn check(root: &Path) -> Vec<String> {
     let text = match std::fs::read_to_string(root.join(PATH)) {
@@ -76,7 +79,7 @@ fn walk(dir: &Path, prefix: &str, files: &mut BTreeMap<String, Vec<u8>>) -> Resu
         let path = format!("{prefix}{name}");
         if entry.file_type().map_err(unreadable)?.is_dir() {
             // 给人看的字不发给模型，不进登记簿（26 第十节，施工 4-5 上）。
-            if name == HUMAN {
+            if name == HUMAN || (prefix.is_empty() && name == DATA) {
                 continue;
             }
             walk(&entry.path(), &format!("{path}/"), files)?;
@@ -184,6 +187,8 @@ mod tests {
             ("core/human/zh.json", "{}"),
             ("software/x/human/en.json", "{}"),
             ("software/x/tools/t.json", "{}"),
+            ("models/models-dev.json", "{}"),
+            ("core/models/m.txt", "m"),
         ] {
             let path = dir.join(path);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -193,10 +198,10 @@ mod tests {
         let walked = walk(&dir, "", &mut found);
         std::fs::remove_dir_all(&dir).unwrap();
         walked.unwrap();
-        // 给人看的字不登记，别的照查。
+        // 给人看的字、最上一层的模型资料不登记，别的照查（别处叫 models 的目录照查）。
         assert_eq!(
             found.keys().collect::<Vec<_>>(),
-            ["core/a.txt", "software/x/tools/t.json"]
+            ["core/a.txt", "core/models/m.txt", "software/x/tools/t.json"]
         );
     }
 }

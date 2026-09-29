@@ -14,10 +14,12 @@ use tracing::Instrument;
 use miyu_drivers::openai_chat::Compat;
 use miyu_drivers::{Call, Driver, EncodeError, OpenAiChat};
 use miyu_http::{Attempt, Client, Endpoint, Outcome, Progress, send};
+use miyu_kernel::estimate::ImagePrice;
 use miyu_kernel::event::{CallError, ErrorClass};
 use miyu_kernel::id::{ContentHash, ProviderId, Seq};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
+use miyu_kernel::session::Limits;
 use miyu_store::blob::Blobs;
 
 use crate::blocking::blocking;
@@ -41,6 +43,12 @@ pub struct HttpModels {
     pub call: Call,
     /// 空闲超时，平时是 [`IDLE`]。
     pub idle: Duration,
+    /// 模型的上下文窗口，照模型资料查的；查不到的没有，不主动压（施工 6-3 上）。
+    pub window: Option<u64>,
+    /// 模型的最大输出，同上。
+    pub max_output: Option<u64>,
+    /// 一张图怎么算：跟着驱动的写法走，DeepSeek 的交官方计算器的算法。
+    pub images: Option<Arc<dyn ImagePrice>>,
 }
 
 impl Models for HttpModels {
@@ -56,6 +64,9 @@ impl Models for HttpModels {
             call: self.call.clone(),
             blobs: session.blobs,
             idle: self.idle,
+            window: self.window,
+            max_output: self.max_output,
+            images: self.images.clone(),
         })))
     }
 }
@@ -72,11 +83,23 @@ struct Route {
     call: Call,
     blobs: Blobs,
     idle: Duration,
+    window: Option<u64>,
+    max_output: Option<u64>,
+    images: Option<Arc<dyn ImagePrice>>,
 }
 
 impl ModelPort for HttpModel {
     fn model(&self) -> &Model {
         &self.0.model
+    }
+
+    fn limits(&self) -> Limits {
+        Limits {
+            model: self.0.model.clone(),
+            window: self.0.window,
+            max_output: self.0.max_output,
+            images: self.0.images.clone(),
+        }
     }
 
     fn call(&self, _: Seq, request: Request, reports: Reports, cancel: Cancel) {

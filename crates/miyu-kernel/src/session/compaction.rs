@@ -11,7 +11,7 @@ use super::action::Action;
 use super::call::Call;
 use super::turn::Stage;
 use crate::accumulate::{Delta, Kind};
-use crate::estimate::{self, Price};
+use crate::estimate::{self, Price, WithImages};
 use crate::event::{
     Body, CompactTrigger, CompactionProgress, ContextCompacted, Event, Transient, TransientBody,
 };
@@ -78,12 +78,16 @@ impl Session {
             compaction.margin,
         )?;
         let anchor = estimate::anchor(&self.history);
-        let used = estimate::usage(request, anchor.as_ref(), &limits.model, &compaction.price);
+        let price = WithImages {
+            images: limits.images.as_deref(),
+            flat: compaction.price,
+        };
+        let used = estimate::usage(request, anchor.as_ref(), &limits.model, &price);
         if used <= line {
             return None;
         }
         let budget = compaction.tail.min(line / 4);
-        Some((self.compaction_upto(budget, &compaction.price)?, used))
+        Some((self.compaction_upto(budget, &price)?, used))
     }
 
     /// 替代到哪（`compaction.md` 第三条第 2 条）：尾巴一组一组地留，不超过 `budget`（[`tail_upto`]）；这一轮要回应的话

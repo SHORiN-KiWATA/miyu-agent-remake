@@ -41,7 +41,7 @@
 | `Command(Received)` | `id` 命令编号、`by` 谁发的（取自连接）、`at` 到的时刻、`command` | 「命令和回应」 |
 | `Stored { upto }` | 落了盘的最后一条的序号 | 「命令和回应」第 8 条 |
 | `Environment(Environment)` | `offset` 时区、`cwd` 工作目录（头报的、人看到的写法）、`dirs` 加进来的目录（施工 5-10 上） | 换掉会话的环境，什么都不出；下一个边界才用 |
-| `Limits(Limits)` | `model` 发给哪个端点的哪个模型、`window` 上下文窗口、`max_output` 最大输出，没报的是 `None`（施工 6-2 上） | 换掉会话的模型限额，什么都不出；只在内存里，载入以后执行器再交一次。没交过的不主动压缩（`compaction.md` 第二条） |
+| `Limits(Limits)` | `model` 发给哪个端点的哪个模型、`window` 上下文窗口、`max_output` 最大输出，没报的是 `None`（施工 6-2 上）；`images` 一张图怎么算（`estimate::ImagePrice`，驱动交的，没有的照策略里的固定数，施工 6-3 上） | 换掉会话的模型限额，什么都不出；只在内存里，载入以后执行器再交一次。没交过的不主动压缩（`compaction.md` 第二条） |
 | `TurnStartHooksDone { at, turn, injected }` | 哪个回合；各模块的注入 `Injection { module, fact }`，照固定的先后 | 「回合」第 4 条 |
 | `RequestSent { at, seen, model, request }` | 哪次请求；发给了哪个端点的哪个模型（`Model { endpoint, model }`）；驱动编码以后的请求字节的哈希 | 「收回复」 |
 | `ModelDelta { at, seen, delta }` | 一段增量：`Start { index, kind }`、`Text { index, text }`、`Private { index, private }`、`End { index }` | 「收回复」 |

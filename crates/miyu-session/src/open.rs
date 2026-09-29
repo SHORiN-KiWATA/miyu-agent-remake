@@ -11,7 +11,7 @@ use miyu_kernel::event::{Body, Permission, SessionCreated};
 use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::By;
-use miyu_kernel::session::{LoadError as Broken, Session};
+use miyu_kernel::session::{Input, LoadError as Broken, Session};
 use miyu_policy::{BuildError, Snapshot, SnapshotError, ToolEntry, compose};
 use miyu_store::blob::{BlobError, Blobs};
 use miyu_store::log::{OpenError, SEGMENT_LIMIT, SessionLog, abandon};
@@ -178,7 +178,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         cwd: Some(environment.cwd.clone()),
         ..snapshot.session_created(owner, venue.clone(), permission)
     };
-    let (session, first) = Session::create(
+    let (mut session, first) = Session::create(
         command.clone(),
         by,
         clock.now(),
@@ -186,6 +186,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         policy,
         environment,
     );
+    // 模型的限额在别的输入之前交（施工 6-3 上）：什么动作都不出。
+    session.handle(Input::Limits(model.limits()));
     let (inbox, mailbox) = mpsc::unbounded_channel();
     let guard = Guard::new(
         tools.clone(),
@@ -296,8 +298,10 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let count = events.len();
     // 她看过的文件从日志里的效果重建（施工 4-6 上）：内核收走日志之前。
     let seen = effects::seen_in(&events);
-    let (session, first) =
+    let (mut session, first) =
         Session::load(events, clock.now(), policy, environment).map_err(LoadError::Kernel)?;
+    // 重启以后接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）。
+    session.handle(Input::Limits(model.limits()));
     let (inbox, mailbox) = mpsc::unbounded_channel();
     let guard = Guard::new(
         tools.clone(),

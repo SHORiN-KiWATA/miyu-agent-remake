@@ -449,7 +449,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s6-1"><span class="n">6-1</span>用量和压缩线<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-2a"><span class="n">6-2</span>摘要请求（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-2b"><span class="n">6-2</span>留尾巴（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">6-3</span>接上真模型</span></li>
+        <li><a class="step done" href="#s6-3a"><span class="n">6-3</span>模型资料和限额（上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">6-3</span>接上真模型（下）</span></li>
         <li><span class="step"><span class="n">6-4</span>history</span></li>
         <li><span class="step"><span class="n">6-5</span>检查点里代码写的几段、压后重建</span></li>
         <li><span class="step"><span class="n">6-6</span>失败和熔断</span></li>
@@ -7758,6 +7759,72 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s6-3a" aria-labelledby="h-s63a">
+  <div class="sheet-head"><h2 id="h-s63a"><span class="no">6-3</span>模型资料和限额（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">真的会话能主动压缩：核心照模型资料查窗口、最大输出，驱动交一张图怎么算，会话 actor 造会话、载入以后先把这些交给内核。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">核心起来时</span><span class="dir-note">一个核心一个模型</span></div>
+            <ol class="pipe" aria-label="限额从哪来">
+              <li>读资源目录的 <code>models/models-dev.json</code>（models.dev 的快照，只留 DeepSeek 那一家）</li>
+              <li>照（deepseek，模型名）查窗口、最大输出；开发端点也照它查</li>
+              <li><code>MIYU_DEV_WINDOW</code> 设了的，当窗口</li>
+              <li>DeepSeek 的写法交官方计算器 v41 的图片算法，一张最多 1024</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">会话 actor</span><span class="dir-note">在别的输入之前</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">造会话、载入以后</span><span class="rl">送一条 Input::Limits</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">图片跟着驱动走</span><span class="rl">不跟着模型资料</span></div>
+          <div class="tile new"><span class="nm">384 改成 1024</span><span class="rl">旧配置的数作废</span></div>
+          <div class="tile new"><span class="nm">models/ 是数据</span><span class="rl">不进登记簿</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-3 上</dd></div>
+        <div><dt>名称</dt><dd>模型资料和限额</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">3ae30e4</dd></div>
+        <div><dt>验收</dt><dd>真模型自测、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>内核 <code>ImagePrice</code>、<code>Limits.images</code>；驱动 <code>DeepSeekImages</code>；会话端口的 <code>limits()</code>；核心的 <code>ModelTable</code> 和 <code>MIYU_DEV_WINDOW</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>官方计算器 13 组对照数据全对；造会话、载入以后到线就压</span></li>
+        <li><span class="ok">✓</span><span>真模型：窗口 60000，读完三个大文件回合中途压，压完答得出压缩以前的事</span></li>
+        <li><span class="ok">✓</span><span>手写 17 个变异全被逮住；门禁八项全过，三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>core.md</code>「模型」、<code>store/resources.md</code>、<code>compaction.md</code>。</li>
+        <li><code>docs/construction/6-3-模型资料和限额（上）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -7943,7 +8010,7 @@ const BUILD = {
   k_sessions: { by: '3-7', how: 'frame', note: '会话 actor（3-7 中）：命令和执行器的回报进收件箱，动作照表回；先落盘，后回应、后推送；造会话存策略快照，载入照它重建，停在一轮中间的再起来接着干；写不进去就停下。请求模型接上驱动和 HTTP，驱动的占位取自会话的快照（3-7 下）；会话表照编号找会话、没在跑的从磁盘载入，只起一个 actor（3-8 上）' },
   n_models: { by: '3-9', how: 'frame', note: '配置系统做出来之前只认环境变量 DEEPSEEK_API_KEY：设了就接 DeepSeek 官方的 deepseek-flash，key 只在内存里；没设的，每次请求都当场回「没有可用的模型」（3-9 上，项目主人定）；开发用的 MIYU_DEV_BASE_URL、MIYU_DEV_MODEL 替换地址和模型（3-9 再补）' },
   n_cli: { by: '3-9', how: 'frame', note: 'miyu ask：连上核心（没在跑就拉起），开一次性会话或者 --continue、--session 接着说；思考灰色印在标准错误上，回答印在标准输出上，问完一行用量；Ctrl+C 一次打断、两次就走；--format json 给脚本（3-9 下）' },
-  n_compact: { by: '6-1', how: 'frame', note: '用量和压缩线（6-1）：锚是最近一次压缩以后、说完了、带用量的 model.called，盖住工具面、system 和前 messages+1 条；后面新增的照 UTF-8 字节除以 4 估（照 codex）；报的比估的小取估的、换过模型整份估（照 dsh）；压缩线 = 窗口 − min(最大输出, 20000) − 13000。摘要请求（6-2 上）：发主请求之前过了线，在这一轮里先压：有效历史到第 N 条的投影加摘要指令，取出摘要写检查点，这一轮要回应的话留在尾巴里，一组不拆；执行器交了限额才主动压。留尾巴（6-2 下）：照投影的先后一组一组地留，至多 min(16000, 线的四分之一)，只在切得开的地方切；一步至多压一次' },
+  n_compact: { by: '6-1', how: 'frame', note: '用量和压缩线（6-1）：锚是最近一次压缩以后、说完了、带用量的 model.called，盖住工具面、system 和前 messages+1 条；后面新增的照 UTF-8 字节除以 4 估（照 codex）；报的比估的小取估的、换过模型整份估（照 dsh）；压缩线 = 窗口 − min(最大输出, 20000) − 13000。摘要请求（6-2 上）：发主请求之前过了线，在这一轮里先压：有效历史到第 N 条的投影加摘要指令，取出摘要写检查点，这一轮要回应的话留在尾巴里，一组不拆；执行器交了限额才主动压。留尾巴（6-2 下）：照投影的先后一组一组地留，至多 min(16000, 线的四分之一)，只在切得开的地方切；一步至多压一次。模型资料和限额（6-3 上）：models.dev 的快照查窗口，DeepSeek 的图片照官方计算器，会话 actor 造会话、载入以后交给内核，真的会话到线就压' },
   n_bus: { by: '3-8', how: 'frame', note: '连接上一行一条 JSON-RPC 2.0：握手（主版本、本机令牌）、造会话、说话、打断，拒绝附原因码（3-8 上）；订阅事件流，回应排在它产生的推送后面，掉队推 resync（3-8 中）；核心在本机的 Unix 套接字上等连接：一个数据根一个核心（锁），本机令牌写进 run/token，实际位置记在 run/socket，套接字放在只有自己能进的目录里（3-8 下）；Windows 上是命名管道，只对本人开放，头连上以后核对另一头是自己的（3-8 补）' },
 };
 

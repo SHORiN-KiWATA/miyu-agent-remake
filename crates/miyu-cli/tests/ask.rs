@@ -102,7 +102,11 @@ async fn an_unknown_session_is_refused_in_the_heads_language() {
 #[tokio::test]
 async fn without_a_model_it_is_exit_code_5() {
     let home = Home::new(
-        miyu_core::models::from_env(&miyu_core::models::ModelEnv::default()).expect("造得出"),
+        miyu_core::models::from_env(
+            &miyu_core::models::ModelEnv::default(),
+            &miyu_core::models::ModelTable::default(),
+        )
+        .expect("造得出"),
     );
     let Asked { code, out, err, .. } = home.ask(&plan("在吗")).await;
     assert_eq!(code, 5, "{err}");

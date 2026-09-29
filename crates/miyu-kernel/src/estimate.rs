@@ -18,7 +18,14 @@ use crate::request::{Message, Request, json};
 /// 中文一个字三个字节，算成 0.75 个 token，偏多；英文偏少一点，只估锚之后那一截，落在余量里。
 const BYTES_PER_TOKEN: u64 = 4;
 
-/// 一张图、一个文件在请求里算多少 token。各家的算法不一样，是驱动的事（DeepSeek 的在 6-3 做）。
+/// 一张图在请求里算多少 token：各家的算法不一样，是驱动的事，经模型的限额交进来（施工 6-3 上，DeepSeek 的在
+/// `miyu-drivers`）。
+pub trait ImagePrice: Send + Sync {
+    /// 一张宽 `width`、高 `height` 像素的图。
+    fn tokens(&self, width: u32, height: u32) -> u64;
+}
+
+/// 一张图、一个文件在请求里算多少 token。
 pub trait Price {
     /// 一张宽 `width`、高 `height` 像素的图。
     fn image(&self, width: u32, height: u32) -> u64;
@@ -45,6 +52,27 @@ impl Price for Flat {
 
     fn file(&self) -> u64 {
         self.file
+    }
+}
+
+/// 驱动交了图片的算法的，图片照它；文件、没交算法的图片照固定的数（施工 6-3 上）。
+pub struct WithImages<'a> {
+    /// 驱动的图片算法；没有的是 `None`。
+    pub images: Option<&'a dyn ImagePrice>,
+    /// 固定的数。
+    pub flat: Flat,
+}
+
+impl Price for WithImages<'_> {
+    fn image(&self, width: u32, height: u32) -> u64 {
+        match self.images {
+            Some(images) => images.tokens(width, height),
+            None => self.flat.image,
+        }
+    }
+
+    fn file(&self) -> u64 {
+        self.flat.file
     }
 }
 

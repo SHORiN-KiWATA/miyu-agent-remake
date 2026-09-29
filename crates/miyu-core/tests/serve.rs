@@ -143,7 +143,7 @@ async fn without_a_key_every_request_says_there_is_no_model() {
             key: key.clone(),
             ..models::ModelEnv::default()
         };
-        let models = models::from_env(&env).expect("造得出");
+        let models = models::from_env(&env, &models::ModelTable::default()).expect("造得出");
         let core = home.core(models, &opened.token);
         let running = tokio::spawn(serve(opened.listener, core, IDLE, std::future::pending()));
         let mut head = Head::connect(&home.root).await;

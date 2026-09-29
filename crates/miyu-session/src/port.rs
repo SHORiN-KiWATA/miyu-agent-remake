@@ -12,6 +12,7 @@ use miyu_kernel::event::{CallError, Usage};
 use miyu_kernel::id::{ContentHash, Seq};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
+use miyu_kernel::session::Limits;
 use miyu_store::blob::Blobs;
 
 /// 给一个会话造请求模型的端口（施工 3-7 下）。造会话、载入时，拿到了这个会话的策略快照再造：驱动的
@@ -34,6 +35,17 @@ pub struct ForSession {
 pub trait ModelPort: Send + Sync {
     /// 发给哪个端点的哪个模型：记进运行日志的 `request` 那一行。
     fn model(&self) -> &Model;
+
+    /// 这个模型的限额：窗口、最大输出、一张图怎么算（施工 6-3 上）。会话 actor 造会话、载入以后交给内核。不知道的
+    /// 都是没有：不主动压。
+    fn limits(&self) -> Limits {
+        Limits {
+            model: self.model().clone(),
+            window: None,
+            max_output: None,
+            images: None,
+        }
+    }
 
     /// 发一次请求。马上返回，在别的任务里发：actor 不等它。
     ///
