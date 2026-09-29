@@ -284,12 +284,11 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `not_running` | -32010 | 打断时没有回合在进行 |
 | `turn_running` | -32010 | 撤销时有回合在进行 |
 | `unknown_turn` | -32010 | 要撤的那一轮不在有效历史里：没有，或者已经撤掉了 |
-| `compacted` | -32010 | 要撤的那一轮已经压缩进摘要了 |
 | `nothing_to_unrevert` | -32010 | 没有能恢复的撤销：没撤过，或者撤了以后开过回合、压缩过 |
 | `nothing_to_revert` | -32010 | 不写 `turn` 的撤销，一轮都没有 |
-| `restoring` | -32010 | 正在改回文件时来的命令。兜底：会话改完文件才接下一个命令，照常碰不到 |
+| `restoring` | -32010 | 撤销、恢复还没做完（正在读回更早的日志、正在改回文件）时来的命令。兜底：会话做完才接下一个命令，照常碰不到 |
 
-- 从 `empty_message` 起的八个是内核拒命令时给的原因码（`kernel/session.md`）。
+- 从 `empty_message` 起，除了 `dir_too_wide`，七个是内核拒命令时给的原因码（`kernel/session.md`）。
 - 内核还有六个原因码，现在没有方法碰得到：`unknown_level`、`not_asking`、`unknown_decision`、`no_rule`、`unexpected_reason`、`bad_answer`。它们没有配话，说的是最后那一句「被拒绝了」。
 
 运行日志（目标 `miyu::endpoint`，`log.md`）：
@@ -337,9 +336,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `not_running` | 没有正在进行的回合，打断不了。 | No turn is running, so there is nothing to interrupt. |
 | `turn_running` | 有回合在进行，撤销不了：先打断再撤。 | A turn is running; interrupt it before undoing. |
 | `unknown_turn` | 没有这一轮，或者它已经撤掉了。 | There is no such turn, or it has already been undone. |
-| `compacted` | 这一轮已经压缩进摘要了，撤不回来。 | That turn is already compacted into the summary and cannot be undone. |
 | `nothing_to_unrevert` | 没有能恢复的撤销：没撤过，或者撤了以后又开过一轮、压缩过。 | There is nothing to restore: nothing was undone, or a turn or compaction came since. |
-| `restoring` | 正在改回文件，等它做完再来。 | Files are being restored; try again when that is done. |
+| `restoring` | 正在撤销、恢复，等它做完再来。 | An undo or restore is still in progress; try again when it is done. |
 | `nothing_to_revert` | 没有能撤销的回合。 | There is no turn to undo. |
 | 别的 | 被拒绝了。 | Refused. |
 

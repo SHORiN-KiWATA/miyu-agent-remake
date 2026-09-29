@@ -77,7 +77,7 @@
 3. 时钟从日志里最后一条的时刻起：系统时间比它还早（往回拨过），照它。
 4. 从日志里的效果重建她看过的（`session/tools.md`）。
 5. 交给内核载入：交回会话，和一串要回的动作。有计划的重启打断了的一轮接着干，崩了的那一轮标成没走完（`kernel/session.md`）。
-   马上交给内核这个模型的限额，同上：接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）；给头看的那一份也同上（施工 6-3 补）。最近一个检查点重读过文件的，接着交 `Input::Recalled`：照它的 `restored` 从 blob 读出原文，读不出来的不交（施工 6-5）。
+   马上交给内核这个模型的限额，同上：接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）；给头看的那一份也同上（施工 6-3 补）。检查点重读过的文件，内核在那一串动作的第一个交出 `Recall`，照下面第 4 条读（施工 6-9：认哪个检查点还算数是内核的事，执行器不自己找）。
 6. 造权限策略、执行工具的端口、actor；记一行 `loaded`；起 actor，先回那一串动作。
 7. 马上交回 `Handle`，不等那一串动作做完。
 
@@ -128,6 +128,8 @@
 | 停下工具 | 掐掉跑它的任务（`session/tools.md`） | |
 | 改回文件 | 在阻塞线程里一步步做完，这期间不收收件箱（`session/tools.md`） | 改回了，一步一项结局 |
 | 压完重读（`Reread`，施工 6-5） | 在阻塞线程里一个一个读：照安全打开（`fs.md`），超过上限的不读完，不是普通文件、读不了、不是 UTF-8 的算读不到；读到的存进这个会话的 blob。这期间不收收件箱 | 一个一项：读到了（`blob`、原文）、太大、读不到（`compaction.md` 第九条） |
+| 读回日志（`ReadBack`，施工 6-9） | 在阻塞线程里只读地一段一段读这个会话的日志（`store.md` 的 `read_segments`），只留第 `from` 条起的。这期间不收收件箱。读不了的（日志坏了、磁盘出错）：记一行 `read back failed, stopped`，会话停下（第 9 条），和写不进去一样：从磁盘重新载入最清楚 | 读回的事件，从第 `from` 条到最后一条（`kernel/history.md`「撤掉压缩」） |
+| 取回原文（`Recall`，施工 6-9） | 在阻塞线程里照 blob 一个一个读这个会话的 blob，读不出来的、不是 UTF-8 的跳过。这期间不收收件箱 | 读出来的原文，照 blob 找（`kernel/history.md`「重读的原文」） |
 | 把回答交给工具 | 现在没有工具会问：记一行 `ERROR` | |
 
 **5. 落盘、推送、回应**
@@ -209,6 +211,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | WARN | `effect content not stored` | `error` | 效果里的内容存不成 blob |
 | WARN | `seen files not rebuilt` | `error` | 第 5 条第 4 点 |
 | WARN | `write failed, stopped` | `kind` | 写不进去 |
+| WARN | `read back failed, stopped` | `error` | 读回日志读不了（第 4 条，施工 6-9） |
 | WARN | `abandoned session not removed` | `error` | 造会话那一条没落盘，收拾会话目录时删不掉（第 1 条第 6 点，施工 4-9 再补四下） |
 | ERROR | `panicked, stopped` | | actor、写盘的线程 panic 了 |
 | ERROR | `answer without a question` | `action`：`answer_tool` | 内核要把回答交给工具 |
@@ -217,8 +220,8 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | DEBUG | `input` | `kind` | 每一条输入送进内核之前；增量、执行中的输出记在 TRACE |
 | DEBUG | `action` | `kind` | 每一个动作做之前；推送增量、推送执行中的输出记在 TRACE |
 
-- 输入的种类：`command`、`stored`、`environment`、`turn_start_hooks_done`、`request_sent`、`model_delta`、`model_ended`、`woke`、`tool_done`、`tool_progress`、`tool_asks`、`restarting`、`restored`、`tool_guarded`。
-- 动作的种类：`append`、`reply`、`push`、`run_turn_start_hooks`、`call_model`、`push_transient`、`cancel_model`、`wake`、`run_turn_end_hooks`、`cancel_tool`、`guard_tool`、`answer_tool`、`run_tool`、`restore`。
+- 输入的种类：`command`、`stored`、`environment`、`turn_start_hooks_done`、`request_sent`、`model_delta`、`model_ended`、`woke`、`tool_done`、`tool_progress`、`tool_asks`、`restarting`、`restored`、`read_back`、`recalled`、`tool_guarded`。
+- 动作的种类：`append`、`reply`、`push`、`run_turn_start_hooks`、`call_model`、`push_transient`、`cancel_model`、`wake`、`run_turn_end_hooks`、`cancel_tool`、`guard_tool`、`answer_tool`、`run_tool`、`restore`、`read_back`、`recall`。
 - 只写种类、编号、数，不写里面的字。
 
 ### 出错
@@ -247,7 +250,8 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 |---|---|
 | `crates/miyu-session/tests/actor.rs` | 造会话先存快照、第一条是 `session.created`；一轮先落盘、再推送、再回应，增量在回复落盘之前推过来；能重试的错到点才再请求、原样重发；打断叫停路上的请求；停下再载入接着干；同一个命令两次回两次、只生效一次；停在一轮中间的，落了盘、载入后接着干；载入的会话时刻不往回走；没人拿着了叫停路上的请求；换了工作目录下一轮才看到 |
 | `crates/miyu-session/tests/limits.rs` | 造会话、载入以后先交限额，到线就压，没有窗口的不压（施工 6-3 上）；`Handle` 带着端口交的窗口和内核算的压缩线，载入的也一样，没报窗口的两格都没有（施工 6-3 补） |
-| `crates/miyu-session/src/actor/tests.rs` | 写不进去就停下：等着的命令收到「会话停了」、记一行 `WARN`、不再算在跑、订阅不了、日志里没有对话的字 |
+| `crates/miyu-session/src/actor/tests.rs` | 写不进去就停下：等着的命令收到「会话停了」、记一行 `WARN`、不再算在跑、订阅不了、日志里没有对话的字；读回日志读不了也一样（施工 6-9） |
+| `crates/miyu-session/tests/undo_compaction.rs`（施工 6-9） | 真的会话：压过一次以后撤掉那一轮，请求回到压缩前、重读的原文照 blob 取回；恢复以后请求和撤之前一样；停了再载入，还算数的是哪一次压缩照撤销、恢复认 |
 | `crates/miyu-session/src/handle/tests.rs` | 掉过一次队就一直是掉队；会话停了读完剩下的；`try_next` 只拿已经到了的 |
 | `crates/miyu-session/src/clock/tests.rs` | 时钟不往回走、1970 年以前当 0、出了范围停在最后一刻；会话编号是那一刻的 UUIDv7；同一毫秒里连造一千个照先后 |
 | `crates/miyu-session/tests/http.rs` | 经假服务器回复；限速照服务器说的等；打断断开连接；缺 blob 出错、不发；回复断了接着说；卡住的回复照空闲超时；图片照字节发出去 |

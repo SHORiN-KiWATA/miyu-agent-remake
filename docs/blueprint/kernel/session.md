@@ -19,7 +19,7 @@
 | `crates/miyu-kernel/src/session/tools.rs`、`step.rs` | 这一步的调用：先查、派、收结果、补结果；每个调用走到了哪、轮到谁 |
 | `crates/miyu-kernel/src/session/queue.rs`、`interrupt.rs` | 排队的消息；打断 |
 | `crates/miyu-kernel/src/session/permission.rs` | 切权限级别、请求之前查事实 |
-| `crates/miyu-kernel/src/session/restart.rs`、`load.rs` | 有计划的重启；从日志载入、崩了的收尾、重启后接着干 |
+| `crates/miyu-kernel/src/session/restart.rs`、`load.rs` | 有计划的重启；从日志载入（认出哪次压缩还算数，`history.md`「载入」）、崩了的收尾、重启后接着干 |
 | `crates/miyu-kernel/src/accumulate.rs` | 增量拼成回复 |
 | `crates/miyu-kernel/src/tool.rs`、`tool/texts.rs` | 访问类别、参数修正；内核替工具写的几句 |
 | `crates/miyu-kernel/src/facts.rs` | 环境、权限两块事实，回复被截断的那一句 |
@@ -33,7 +33,7 @@
 | `Session::create(id, by, at, created, policy, environment)` | 造会话：追加第 1 条 `session.created`，`cause` 是 `id`，出来一个 `Append`；落了盘回应 `id`。开始时的权限取自 `created.permission` |
 | `Session::load(events, at, policy, environment)` | 从日志载入，出来会话和要补的动作；载入不了的是 `LoadError`（「载入和崩溃」） |
 | `handle(input)` | 送进一条输入，出来一串动作 |
-| `idle()` | 空闲：没有回合在进行，没有结束了、`turn.ended` 还没落盘的回合，没在改回文件。核心照它决定能不能空闲退出 |
+| `idle()` | 空闲：没有回合在进行，没有结束了、`turn.ended` 还没落盘的回合，没在读回日志、改回文件。核心照它决定能不能空闲退出 |
 | `context_limits()` | 给头看的限额 `ContextLimits`（施工 6-3 补）：`window` 上下文窗口，`compaction_line` 压缩线，和内核判到线用的是同一条（`compaction.md` 第二条第 2 条）。没交过限额的、没报窗口的，两格都没有；策略里没有压缩的、算不出正数的，没有压缩线。只读，不出动作。协议照它回 `subscribe`（`protocol.md`） |
 
 **输入**（`Input`）：
@@ -53,8 +53,9 @@
 | `ToolProgress { at, call_id, text }` | 一段输出 | 「调工具」 |
 | `ToolGuarded { at, call_id, verdict }`、`ToolAsks { at, call_id, questions }` | 链的结论；一组题 | `asking.md` |
 | `Restored { at, files }` | 改回文件每一步的结局 | `history.md` |
+| `ReadBack { at, from, events }` | 从第 `from` 条读回的日志，连到最后一条（施工 6-9） | 对得上正在读回的那一次，才记撤销（`history.md`「撤掉压缩」）；对不上的不理 |
 | `Reread { at, seen, files }` | 哪一次摘要请求；压完要重读的文件，一个一项，照交出去的先后：读到了（`blob`、原文）、太大、读不到（施工 6-5） | 记在那次摘要请求上，什么都不出（`compaction.md` 第九条） |
-| `Recalled { texts }` | 最近一个检查点里重读的文件的原文，照 blob 找（施工 6-5） | 载入以后、别的输入之前交；什么都不出 |
+| `Recalled { texts }` | `Recall` 读出来的原文，照 blob 找（施工 6-5；6-9 起是 `Recall` 的回报） | 放进有效历史，什么都不出（`history.md`「重读的原文」） |
 | `Restarting { at }` | 要重启了 | 「有计划的重启」 |
 
 **命令**（`Command`）：
@@ -87,6 +88,8 @@
 | `StopTool { call_id }` | 哪次改文件的调用 | 叫它停：停在改之前，或者做完；照常送回 `ToolDone`，停在改之前的带 `stopped`（「打断」第 7 条） |
 | `Restore { steps }` | 改回的几步 | 改回文件，送回 `Restored`（`history.md`） |
 | `Reread { seen, paths, limit }` | 哪一次摘要请求（排在它的「请求模型」前面）；要重读的文件，真实的位置，照先后；单个最多多少字节（施工 6-5） | 读完、存成 blob 再做下一个动作，送回 `Reread`（`compaction.md` 第九条） |
+| `ReadBack { from }` | 从第几条起（施工 6-9） | 只读地读日志，从第 `from` 条到最后一条，读完才收收件箱，送回 `ReadBack`；读不了的，会话停下（`history.md`「撤掉压缩」） |
+| `Recall { blobs }` | 检查点里重读的文件的 blob，照先后（施工 6-9） | 照 blob 读出原文，读完才收收件箱，送回 `Recalled`；读不出来的、不是 UTF-8 的不交（`history.md`「重读的原文」） |
 
 **结局**（`Outcome`）：`Accepted { events }` 接受，附上它产生的事件的序号，照先后；`Rejected { reason }` 拒绝，什么都没产生。原因码是稳定的英文（`Reason::code`）：
 
@@ -101,10 +104,9 @@
 | `unexpected_reason` | `UnexpectedReason` | 不是拒绝，却带了理由 |
 | `bad_answer` | `BadAnswer` | 回答对不上题目 |
 | `turn_running` | `TurnRunning` | 有回合在进行时撤销（`history.md`，下同） |
-| `unknown_turn` | `UnknownTurn` | 要撤的那一轮不在有效历史里 |
-| `compacted` | `Compacted` | 要撤的那一轮压缩进了摘要 |
+| `unknown_turn` | `UnknownTurn` | 要撤的那一轮没有，或者已经撤掉了 |
 | `nothing_to_unrevert` | `NothingToUnrevert` | 没有能恢复的撤销 |
-| `restoring` | `Restoring` | 正在改回文件 |
+| `restoring` | `Restoring` | 撤销、恢复还没做完：正在读回更早的日志，或者正在改回文件 |
 | `nothing_to_revert` | `NothingToRevert` | 不写回合编号的撤销，一轮都没有 |
 
 **策略**（`Policy`）：造会话、载入时由执行器照策略快照造好交进来，会话里不再变。
@@ -128,8 +130,8 @@
 2. 拒绝的当场回应，什么都不追加。编号不记：同一个编号再来，重新判。
 3. 接受的，等它产生的事件都落了盘才回应。附上的序号：发消息的只有 `message.user` 那一条；打断、回答确认的是这一次追加的全部；回答提问、切权限级别的是 `question.answered`、`session.policy_changed` 那一条；切到和现在一样的级别，空的，当场回；撤销、恢复见 `history.md`。
 4. 记着最近接受的 1024 个编号（`recent::CAPACITY`）和它们的序号，满了丢最早的。同一个编号再来，不再生效：它的事件都落了盘的，当场照上一次回应；还没有的，等落了盘再回，来几次回几次。
-5. 正在改回文件的时候（撤销、恢复以后），接受过的编号照第 4 条；别的命令一律拒绝，`restoring`。
-6. 命令产生的事件：`at` 是命令到的时刻，`by` 是发命令的一方，`cause` 是命令编号。一条输入产生的几条事件，时刻相同。
+5. 正在读回日志（撤掉压缩的撤销）、正在改回文件（撤销、恢复以后）的时候，接受过的编号照第 4 条；别的命令一律拒绝，`restoring`。
+6. 命令产生的事件：`at` 是命令到的时刻，`by` 是发命令的一方，`cause` 是命令编号。一条输入产生的几条事件，时刻相同。等执行器回来才记的（撤掉压缩的撤销、改回文件的结局），时刻是回来的那一刻（`history.md`）。
 7. 造一条事件：序号照账本给；`turn.started` 的 `turn` 是它自己的序号，别的事件在回合进行中带上这个回合，空闲时没有；先过账本（`history.md`），再进有效历史，等落盘。
 8. **落了盘**（`Stored { at, upto }`）：追加过、还没落盘的事件里，序号不超过 `upto` 的算落了盘；一条都没有的，什么都不做。有的，照这个先后出：`Push` 这些事件；`Reply` 事件全落了盘的命令，照收到的先后；`RunTurnEndHooks` `turn.ended` 落了盘的回合；然后回合往下走（派工具，或者跑回合开始的挂接点，或者发请求）。
 
@@ -272,13 +274,13 @@
 
 **载入和崩溃**（`Session::load`）：
 
-1. 日志一条条过账本、进有效历史：一条都没有，`LoadError::Empty`；有一条过不了，`LoadError::Broken`，写明第几条、违反了哪一条。读进来的都算落了盘。
+1. 日志整份一条条过账本：一条都没有，`LoadError::Empty`；有一条过不了，`LoadError::Broken`，写明第几条、违反了哪一条。再照 `history.md`「载入」从还算数的最近一次压缩起重建有效历史（施工 6-9）；那个检查点重读过文件的，交回的动作里第一个是 `Recall`。读进来的都算落了盘。
 2. 现在的权限：`session.created` 的，被后来带 `permission` 的 `session.policy_changed` 盖掉；实际生效的就是它。
 3. 最近的命令编号：每个 `cause` 和 `cause` 是它的那几条，照编号第一次出现的先后记进去，多过 1024 个的留后面的。同一个编号再来，回应附上这些，和当时的不一定一样。没产生事件的（切成和当时一样的级别）不在里面，再来重新判。
 4. **崩了**：日志停在一个没结束的回合里。还没有结果的调用照编号的先后各补 `cancelled`（`restarted`），再追加 `turn.ended`（`aborted`）；`by` 是内核，`cause` 是这一轮 `turn.started` 的，时刻是载入的 `at`。在等的确认、题跟着了结。不接着开，等人开口；排着的留在日志里。
 5. **接着干**：最后结束的一轮是 `restarted`，就自动开一轮：由那时排着的最后一条触发，`cause` 是它的；没有排着的，由那条 `turn.ended` 触发，`cause` 是它的。
 6. 连着被重启打断的轮数超过 `resumes`（3）的，不接：接着干开的那一轮再被打断，接着数；别的回合一开，从 0 数。最后结束的那一轮以后撤销过的（`turn.reverted`），不接。
-7. 补的、开的事件在返回的一个 `Append` 里；没有要补的，不出动作。
+7. 补的、开的事件在返回的一个 `Append` 里，排在 `Recall` 后面；没有要补的，不出 `Append`。
 8. 改回文件做到一半停了的（日志里有撤销、恢复，没有 `files.restored`），不补、不重做。
 
 ### 样子：给模型看的
@@ -349,7 +351,7 @@
 | `crates/miyu-kernel/src/session/tests/interrupt.rs` | 空闲时打断被拒；请求前、请求中、调工具时打断；什么都没收到不写回复；急着插话的三种时候；空闲时急着插话开回合；在跑的写叫它停、排在后面的当场补、10 秒以后叫醒、改完了的带着效果记、收了尾到点不理 |
 | `crates/miyu-kernel/src/session/tests/permission.rs` | 空闲时切、切成一样的、不认识的级别；收紧成只读拦下回复里的、这一步里等着的写入；放宽等下一次请求；来回切不注入；挂接点前后切；收紧成工作区什么都不拦；只读下改常用的那一级；事实写这一轮的工作目录 |
 | `crates/miyu-kernel/src/session/tests/restart.rs` | 重启照打断收拾；接着干；排着的由最后一条开；连着 4 次不接；走完一轮、你开口以后从头数 |
-| `crates/miyu-kernel/src/session/tests/load.rs` | 走完的载入一样往下走；坏日志拒绝；崩在哪都收尾、等你开口；崩之前的命令不再生效；生效的权限回来 |
+| `crates/miyu-kernel/src/session/tests/load.rs` | 走完的载入一样往下走；坏日志拒绝；崩在哪都收尾、等你开口；崩之前的命令不再生效；生效的权限回来；检查点重读过文件的，第一个动作是 `Recall`（施工 6-9；撤掉压缩的撤销载入以后见 `history.md`「守着它的」） |
 | `crates/miyu-kernel/src/session/tests/scenario.rs`、`scenario/retrying.rs`、`scenario/stopping.rs` | 执行器替身（`testkit`）把真会话一整轮一整轮地跑：两个读一起跑、中间来一句；只读拦写入；步数上限和失败的请求；重试的每一种（原样再来、半截接着说、半截的调用丢掉、照供应商等、5 次放弃、不该再来的、等的时候打断、重启、切级别、不算步数、说完清零）；打断接着发、重启接着干、崩了等你；停着的写：停在改之前、改完了、到 10 秒、又打断一次、等的时候来的消息排队和撤销被拒、等的时候重启（退回的不再接着干，接着发的交给下一轮） |
 | `crates/miyu-kernel/src/session/tests/random.rs` 和 `random/` | 三百例随机输入（CI 另跑两万例），每一步查：不变量（第 5 条一个会话查不了）；挂接点、请求、派工具、步数上限、只读的规矩；打断时停着的（叫它停只在打断里、停着的交回来才收尾、到点和又打断就不等，十个种子里一个多调写文件的专走这里）；崩了、重启了载入以后照规矩走；每条路、每一种输入都走到过 |
 | `crates/miyu-kernel/src/tool/tests.rs`、`tool/texts/tests.rs` | 参数修正的每一种，嵌套的对象、数组里的也修；访问类别不认识的算写入；那几句的字段转义、每句带说法 |
@@ -372,7 +374,7 @@
 
 - 别的挂接点：命令进入、模型输出后、工具执行后、订阅（`05-内核接口.md` 第五节）。现在只有回合开始、回合结束和执行前的链；回合开始、回合结束还没有模块挂，会话 actor 交回空的注入（`crates/miyu-session/src/actor.rs`）。
 - 换策略快照（`02-内核.md` K3）：内核不写带 `policy` 的 `session.policy_changed`，载入时也不看它。改标题、置顶（`session.meta_changed`）没有命令。
-- 压缩（`compaction.md`）：`context_too_long` 现在结束回合，不先压缩（被动压缩，6-7）；截掉最老的再试、隔离式回退（6-6 下）；手动压缩（6-8）；撤销越过压缩（6-9）。
+- 压缩（`compaction.md`）：`context_too_long` 现在结束回合，不先压缩（被动压缩，6-7）；截掉最老的再试、隔离式回退（6-6 下）；手动压缩（6-8）；撤销能撤掉压缩（6-9）。
 - 子代理、后台命令（`02-内核.md` 第七节，M7）：由回报开的回合，撤销时一起停下，载入时给它们补中断。
 - 等第一个字时的心跳 `status`（`03-事件模型.md` 第五节）；中途连上的头拿「到目前为止的内容」（M8）。
 - 协议上还没有 `session.set_permission_level`、`session.answer`（`04-核心协议.md` 第九节）：内核有这两个命令，核心还不收。
