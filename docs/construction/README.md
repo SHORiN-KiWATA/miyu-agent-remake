@@ -233,7 +233,7 @@ flowchart LR
 
 | 编号 | 名字 | 做什么 |
 |---|---|---|
-| 7-1 | 任务的事件 | 效果 `job.started`、事件 `job.reported`、`child.reported`；`session.created` 的 `parent`、`depth`；`by` 的 `harness`；账本规矩（编号唯一、先开始后结束、结束只一次）；样本。纯内核，「对外的样子」 |
+| 7-1 | 任务的事件 | 效果 `job.started`、事件 `job.reported`、`child.reported`；`session.created` 的 `parent`、`depth`；`by` 的 `harness`；账本规矩（编号唯一、先开始后结束、结束只一次）；样本。纯内核，「对外的样子」。施工单见 `7-1-任务的事件.md` |
 | 7-2 | 回报到了 | 内核收子会话的回报、后台命令结束：她闲着开一轮，正忙照排队的消息在下一步看到，不开轮的几种只记下；渲染成带标签的事实（实测、登记）；撤掉的那几轮派出的回报不进上下文。执行器替身喂，探针、随机测试加上。第三条、第九条 |
 | 7-3 | 后台命令 | `shell` 的 `run_in_background`；执行器的任务表：进程活过调用、输出落盘、结束存 blob 交给会话；核心有后台命令不空闲退出，退出前记 `restarted`；载入补 `aborted`；工具面的预算重量。第四条、第八条 |
 | 7-4 | `jobs` 和 `job.stop` | `list`、`output`、`stop`；协议 `job.stop`、原因码 `unknown_job`。第五条 |
