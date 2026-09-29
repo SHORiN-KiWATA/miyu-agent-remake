@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>114</b><span>/ 126 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求</span></li>
-    <li><b>7-1</b><span>下一步：M7 分身拆好了（11 步，图纸是蓝图 <code>agents.md</code>），从任务的事件开工（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">c9c0a2e</b><span>最近一步（6-3 再补 压好了那一行改说法）的提交</span></li>
+    <li><b>115</b><span>/ 126 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报</span></li>
+    <li><b>7-2</b><span>下一步：回报到了：她闲着由回报开一轮，正忙在下一步看到（Windows 上跑命令那一步暂停）</span></li>
+    <li><b class="mono">d686cb3</b><span>最近一步（7-1 任务的事件）的提交</span></li>
   </ul>
 </header>
 
@@ -469,7 +469,7 @@ a.step:hover{border-color:var(--primary)}
     <li>
       <div class="ms-head"><span class="ms-id">M7</span><span class="ms-name">分身</span><span class="ms-goal">子代理、后台命令，做完回报叫醒她；父子之间能来回说话</span></div>
       <ol class="chips">
-        <li><span class="step"><span class="n">7-1</span>任务的事件</span></li>
+        <li><a class="step done" href="#s7-1"><span class="n">7-1</span>任务的事件<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-2</span>回报到了</span></li>
         <li><span class="step"><span class="n">7-3</span>后台命令</span></li>
         <li><span class="step"><span class="n">7-4</span>jobs 和 job.stop</span></li>
@@ -8717,6 +8717,65 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/6-10-M6 验收.md</code>：施工单和验收结果。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s7-1" aria-labelledby="h-s71">
+  <div class="sheet-head"><h2 id="h-s71"><span class="no">7-1</span>任务的事件</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">M7 的底子：日志记得下后台命令和子代理的开始、结束、回报，账本守得住它们的规矩。只做事件的类型、读写、账本、样本；谁来写、写了以后怎么走，是 7-2 以后的事。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-kernel</span><span class="dir-note">事件和账本</span></div>
+            <ol class="pipe" aria-label="新的几样">
+              <li>效果 <code>job.started</code>：编号 <code>j1</code>、<code>j2</code>，<code>command</code> 或 <code>agent</code>（带子会话编号）</li>
+              <li>事件 <code>job.reported</code>、<code>child.reported</code>；<code>session.created</code> 多 <code>parent</code>、<code>depth</code></li>
+              <li><code>by</code> 多一种 <code>harness</code>，带它自己报的名字</li>
+              <li>账本：编号不回收；结束的对得上开始；子代理能报好几次，被停掉的不再报</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">退出码带符号</span><span class="rl">Windows 的退出码可能是负的</span></div>
+          <div class="tile new"><span class="nm">拆文件</span><span class="rl">账本、编号两个文件到了 500 行，拆开</span></div>
+          <div class="tile"><span class="nm">留给 7-2</span><span class="rl">回报不带回合，撤销留着它；by 按原因记</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-1</dd></div>
+        <div><dt>名称</dt><dd>任务的事件</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">d686cb3</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>新文件 <code>event/job.rs</code>、<code>id/job.rs</code>、<code>ledger/jobs.rs</code>；撤销那几条挪进 <code>ledger/undo.rs</code>。渲染、改回文件、执行器照效果的几处，先跳过新的种类。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>账本每条新规矩一拦一放；样本读写一字不差；随机的执行器每个结果都开一个任务</span></li>
+        <li><span class="ok">✓</span><span>手写 38 个变异全逮住；门禁八项全过，三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>kernel/events-bodies.md</code>、<code>ids.md</code>、<code>history.md</code>、<code>events.md</code>、<code>agents.md</code>。</li>
+        <li><code>docs/construction/7-1-任务的事件.md</code>。</li>
       </ul>
     </div>
   </div>
