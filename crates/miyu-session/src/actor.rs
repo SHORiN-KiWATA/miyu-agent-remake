@@ -24,7 +24,7 @@ use crate::effects;
 use crate::guard::Guard;
 use crate::handle::{Message, Pushed};
 use crate::kinds;
-use crate::lines::retrying;
+use crate::lines::note;
 use crate::port::{Back, ModelPort, Report};
 use crate::store::Store;
 use crate::tools::{Dispatch, ToolKit, Tools};
@@ -192,7 +192,10 @@ impl Actor {
                 Mail::Done
             }
             Message::Stop(reply) => Mail::Stop(reply),
-            Message::Environment(environment) => Mail::Input(Input::Environment(environment)),
+            Message::Environment(environment) => {
+                self.tools.locate(environment.offset);
+                Mail::Input(Input::Environment(environment))
+            }
         }
     }
 
@@ -252,7 +255,7 @@ impl Actor {
                 None
             }
             Action::PushTransient(transient) => {
-                retrying(&transient);
+                note(&transient);
                 self.push(Pushed::Transient(transient));
                 None
             }
@@ -332,6 +335,15 @@ impl Actor {
                 let files = self.tools.restore(steps).await;
                 Some(Input::Restored {
                     at: self.clock.now(),
+                    files,
+                })
+            }
+            // 压完重读（施工 6-5）：当场在阻塞线程里读完、存成 blob，再做下一个动作（它后面紧跟着摘要请求）。
+            Action::Reread { seen, paths, limit } => {
+                let files = self.tools.reread(paths, limit).await;
+                Some(Input::Reread {
+                    at: self.clock.now(),
+                    seen,
                     files,
                 })
             }

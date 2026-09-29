@@ -23,20 +23,45 @@ pub(crate) fn where_(changed: &Difference) -> String {
     }
 }
 
-/// 等着重试的状态提示，记一条 `WARN`：第几次、一共几次、等多久、出错的分类。原话不写：供应商的
-/// 出错信息里可能回显请求里的字。
-pub(crate) fn retrying(transient: &Transient) {
-    if let TransientBody::Status(status) = &transient.body {
-        let retry = &status.retry;
-        tracing::warn!(
-            target: TARGET,
-            seen = status.seen.get(),
-            attempt = retry.attempt,
-            limit = retry.limit,
-            wait_ms = retry.wait_ms,
-            class = retry.class.as_str(),
-            "retrying"
-        );
+/// 要记进运行日志的瞬时事件：
+///
+/// - 等着重试的状态提示，记一条 `WARN`：第几次、一共几次、等多久、出错的分类。原话不写：供应商的出错信息里可能
+///   回显请求里的字。
+/// - 压好了，记一条 `INFO` 度量（施工 6-3 下，`compaction.md` 第十三条）：为什么压、压前、压后，摘要请求的输入、
+///   命中、输出、用时。
+pub(crate) fn note(transient: &Transient) {
+    match &transient.body {
+        TransientBody::Status(status) => {
+            let retry = &status.retry;
+            tracing::warn!(
+                target: TARGET,
+                seen = status.seen.get(),
+                attempt = retry.attempt,
+                limit = retry.limit,
+                wait_ms = retry.wait_ms,
+                class = retry.class.as_str(),
+                "retrying"
+            );
+        }
+        TransientBody::CompactionDone(done) => {
+            let usage = done.usage.as_ref();
+            tracing::info!(
+                target: TARGET,
+                seen = done.seen.get(),
+                trigger = "auto",
+                before = done.before,
+                after = done.after,
+                summary_in = usage.map(|usage| usage
+                    .uncached
+                    .saturating_add(usage.cache_read)
+                    .saturating_add(usage.cache_write)),
+                summary_cached = usage.map(|usage| usage.cache_read),
+                summary_out = usage.map(|usage| usage.output),
+                took_ms = done.duration_ms,
+                "compacted"
+            );
+        }
+        _ => {}
     }
 }
 

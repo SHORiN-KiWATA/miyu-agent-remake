@@ -67,7 +67,7 @@
 | `Stable` | `tools` | 工具面 |
 | | `system` | 拼好的 system（`policy.md`），组装时不再拆开 |
 | | `demos` | 示范对话。照策略快照造的总是空的 |
-| `Texts` | `checkpoint_open`、`checkpoint_close` | 检查点包装的开头、结尾 |
+| `Texts` | `checkpoint_open`、`checkpoint_close`、`checkpoint_end`、`restored_open`、`restored_close` | 检查点包装的开头、摘要的收尾、包装的结尾（施工 6-5 拆开），重读的文件那一块的头尾 |
 | | `turn_ended` | `TurnEndedTexts`：`interrupted`、`error`、`step_limit`、`aborted`、`restarted` 五句 |
 | | `summarize_task` | 摘要指令（`core/compaction/summarize-task.txt`，施工 6-2 上） |
 
@@ -96,7 +96,7 @@
 **组装**
 
 1. 请求 = 工具面 + system + 示范对话 + 渲染出来的消息。工具面在造组装器时照名字的字节序排好，稳定排序；同名的两件，造策略时就拒了（`policy.md`）。`stable` 是示范对话的条数，现在总是 0。
-2. 有检查点的（最近一次压缩），它是人这一边的第一块：`checkpoint_open`、摘要原文、`checkpoint_close` 拼成一个文本块。摘要不转义：它是模型写的多行正文。
+2. 有检查点的（最近一次压缩），它是人这一边的第一块：`checkpoint_open`、摘要原文、`checkpoint_close`、代码写的几段（`notes`）、重读的文件（每个是 `restored_open`、原文、`restored_close`）、`checkpoint_end` 拼成一个文本块（施工 6-5）。摘要、重读的原文不转义：一个是模型写的多行正文，一个是文件本来的样子。重读的原文照 blob 从 `History` 取，取不到的那一份整块不写。
 3. 然后照有效历史排好的先后一条条渲染：以回复为界切段，每段先是那条回复，再是它的工具结果（按调用的先后），再是别的（照日志的先后）。细节见 `kernel/history.md`。
 
 | 事件 | 渲染成 |
@@ -212,7 +212,7 @@
 | `turn-ended/aborted.txt` | `<turn-ended reason="aborted">Miyu stopped unexpectedly and this turn did not finish.</turn-ended>` | 人这一边 |
 | `turn-ended/restarted.txt` | `<turn-ended reason="restarted">A planned restart of Miyu stopped this turn.</turn-ended>` | 人这一边 |
 
-检查点的包装，开头 `checkpoint-open.txt`、结尾 `checkpoint-close.txt`，摘要夹在中间：
+检查点的包装，开头 `checkpoint-open.txt`、摘要的收尾 `checkpoint-close.txt`、结尾 `checkpoint-end.txt`，摘要夹在中间，代码写的几段、重读的文件在摘要后面（施工 6-5）：
 
 ```text
 <conversation-checkpoint>
@@ -220,11 +220,17 @@ The earlier part of this conversation was compacted into the summary below. It i
 <summary>
 （摘要原文）
 </summary>
+（代码写的几段）
+<file path="（路径）">
+（重读的原文）
+</file>
+Carry on from where the summary leaves off, without redoing work it records as done.
 </conversation-checkpoint>
 ```
 
 - 结尾那份以一个换行开头，所以摘要后面换一行。
-- `checkpoint-rule.txt`、`permission-rule.txt` 在资源目录里，不读进快照，不进请求。
+- 结尾那一句是检查点的规则，施工 6-3 下挪进来的（`compaction.md` 第八条）：回合中途压完，这一轮的最后一条只有检查点和事实，没有它，她不知道这时该做什么，会把摘要里记着做完了的再做一遍核对。
+- `permission-rule.txt` 在资源目录里，不读进快照，不进请求。
 - 样本：`docs/designs/samples/requests/second-step.json`（第一轮两块事实排在触发消息前面、调一次工具以后的那次请求）、`after-compaction.json`（压缩以后只剩检查点）；`docs/designs/samples/probe/terminal/requests/` 是一段终端会话的每一次请求，第 11 次带接着写的记号。
 
 ### 出错

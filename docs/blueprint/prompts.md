@@ -17,18 +17,31 @@ The earlier part of this conversation was compacted into the summary below. It i
 <summary>
 ```
 
-### 检查点的结尾
+### 检查点里摘要的收尾
 
 #### `core/checkpoint-close.txt`
 
 - 什么时候加进来：同上
-- token：11
-- 为什么加：同上
-- 指纹：`62697dc1`
+- token：3
+- 为什么加：`</summary>` 那一行（施工 6-5 从原来的结尾里拆出来：代码写的几段、重读的文件排在摘要后面、规则那一句前面）
+- 指纹：`ea84786f`
 
 ```text
 
 </summary>
+```
+
+### 检查点的结尾
+
+#### `core/checkpoint-end.txt`
+
+- 什么时候加进来：同上
+- token：26
+- 为什么加：「Carry on … without redoing work it records as done」是检查点规则挪进来的（J12，施工 6-3 下）：回合中途压完，什么都不加的 4 次她都把摘要里记着读完了的文件再读一遍核对，有一次读完又到线，一轮压了 5 次；加了这一句的 3 次都直接答，一轮只压 2 次。这一句 19 个 token（和 `</conversation-checkpoint>` 一起 26 个）（2026-09-29 照项目主人给的端点实测，改前改后相减），只有压缩过的会话带。施工 6-5 从 `checkpoint-close.txt` 挪来，放在检查点最后
+- 指纹：`4a5ccb77`
+
+```text
+Carry on from where the summary leaves off, without redoing work it records as done.
 </conversation-checkpoint>
 ```
 
@@ -69,18 +82,78 @@ Then write the summary in <summary> tags, with these sections:
 Reply with the <analysis> block and then the <summary> block, nothing else. Do not call any tool.
 ```
 
-### 还没进请求
+### 检查点里代码写的几段
 
-#### `core/checkpoint-rule.txt`
+#### `core/compaction/notes-files.txt`
 
-- 什么时候加进来：不拼（2026-09-27 项目主人定），M6 压缩时实测再定，先试挪进检查点的包装
-- token：41
-- 为什么加：压缩以后接着干、不复述摘要（施工 1-12）。只有压缩过的会话用得上
-- 指纹：`0c320f4c`
+- 什么时候加进来：压缩时被替代的那一段里读过、改过文件的；写进 `context.compacted` 的 `notes`，之后每次请求照原文带
+- token：8（不算下面一个一行的路径）（2026-09-29 照项目主人给的端点量）
+- 为什么加：读过、改过的文件清单的头一行，下面一个一行由内核写（施工 6-5，`compaction.md` 第八条）。照日志里的效果算，不照工具名猜：旧版照工具名猜，一个都没认出来
+- 指纹：`13e7d1d4`
 
 ```text
-A <conversation-checkpoint> replaces the earlier part of a long conversation with a summary. After one, continue any work in progress without asking whether to. Do not acknowledge or recap the summary.
+Files read or changed before this checkpoint:
 ```
+
+#### `core/compaction/notes-files-more.txt`
+
+- 什么时候加进来：清单超过 30 个
+- token：6（2026-09-29 照项目主人给的端点量）
+- 为什么加：清单放不下的还有几个（施工 6-5）
+- 指纹：`deb9138e`
+
+```text
+- and {count} more
+```
+
+#### `core/compaction/notes-retrieve.txt`
+
+- 什么时候加进来：每次压缩
+- token：20（2026-09-29 照项目主人给的端点量）
+- 为什么加：取回指路：被替代的是第几到第几条、用 `history` 取回（施工 6-5）。6-4 真模型上她不知道序号，只能从头往下翻
+- 指纹：`7d8f58c7`
+
+```text
+Entries 1-{upto} were compacted. history still finds them by number, words or time.
+```
+
+#### `core/compaction/notes-too-large.txt`
+
+- 什么时候加进来：候选里有太大、放不下没重读的
+- token：21（两个路径）（2026-09-29 照项目主人给的端点量）
+- 为什么加：告诉她哪几个没重读、要看自己读（施工 6-5）
+- 指纹：`8baa8550`
+
+```text
+Not shown again, read them if you need them: {files}
+```
+
+### 检查点里重读的文件那一块
+
+#### `core/compaction/restored-open.txt`
+
+- 什么时候加进来：压后重读了文件的，每个文件一块
+- token：8（路径按 `src/lib.rs` 算）（2026-09-29 照项目主人给的端点量）
+- 为什么加：写明是哪个文件（施工 6-5，`compaction.md` 第九条）：压完不用她自己再读一遍核对，6-3 下真模型上她会这样做
+- 指纹：`3a6aef8a`
+
+```text
+<file path="{path}">
+```
+
+#### `core/compaction/restored-close.txt`
+
+- 什么时候加进来：同上
+- token：3（2026-09-29 照项目主人给的端点量）
+- 为什么加：那一块的收尾（施工 6-5）
+- 指纹：`ad249d92`
+
+```text
+
+</file>
+```
+
+### 还没进请求
 
 #### `core/permission-rule.txt`
 
@@ -860,6 +933,94 @@ Could not run {shell}: {error}.
 Running in the background is not available yet. Run the command in the foreground, with a larger timeout if it is slow.
 ```
 
+#### `software/basesystem/history/none.txt`
+
+- 什么时候加进来：筛完、找完一条都没有
+- token：4（2026-09-29 量）
+- 为什么加：照「没找到」的规矩：不算出错，说一句（施工 6-4）
+- 指纹：`d5cd41ae`
+
+```text
+No entries found
+```
+
+#### `software/basesystem/history/more-found.txt`
+
+- 什么时候加进来：「找」命中的多过这一页
+- token：18（2026-09-29 量）
+- 为什么加：一共几条、往前翻从哪接（`to` 是这一页最早那一条的前一条，施工 6-4）
+- 指纹：`c76053e0`
+
+```text
+(Showing {shown} of {total} results. Use to={next} to see older ones.)
+```
+
+#### `software/basesystem/history/more-read.txt`
+
+- 什么时候加进来：「读」这一页后面还有
+- token：15（2026-09-29 量）
+- 为什么加：这一页是第几到第几条、往下从哪接（施工 6-4）
+- 指纹：`580bd2f2`
+
+```text
+(Showing entries {first}-{last}. Use from={next} to continue.)
+```
+
+#### `software/basesystem/history/cut.txt`
+
+- 什么时候加进来：一条就超过整页的上限，截掉的那一条末尾
+- token：13（2026-09-29 量）
+- 为什么加：说清这一条截了、一共多少字（施工 6-4）
+- 指纹：`0bbec816`
+
+```text
+(This entry is cut at {shown} of its {total} characters.)
+```
+
+#### `software/basesystem/history/bad-time.txt`
+
+- 什么时候加进来：`since`、`until` 写得不对
+- token：34（2026-09-29 量）
+- 为什么加：带上正确的写法，她下一次照着写（施工 6-4）
+- 指纹：`53f79d4f`
+
+```text
+"{value}" is not a time. Write it like 2026-09-29 14:00, or just 2026-09-29.
+```
+
+#### `software/basesystem/history/no-log.txt`
+
+- 什么时候加进来：读不了这个会话的日志
+- token：13 加原因（2026-09-29 量）
+- 为什么加：每次调用都要有结果，带上原因（施工 6-4）
+- 指纹：`88ffadd8`
+
+```text
+Could not read the log: {error}
+```
+
+#### `software/basesystem/history/image.txt`
+
+- 什么时候加进来：一条里的图片
+- token：3（2026-09-29 量）
+- 为什么加：占位：原图不重发（施工 6-4）
+- 指纹：`5d6bf8aa`
+
+```text
+[image]
+```
+
+#### `software/basesystem/history/file.txt`
+
+- 什么时候加进来：一条里的文件
+- token：5（2026-09-29 量）
+- 为什么加：占位，写上文件名（施工 6-4）
+- 指纹：`2f11a44e`
+
+```text
+[file {name}]
+```
+
 #### `software/basesystem/common/not-read.txt`
 
 - 什么时候加进来：`write`、`edit` 要改的文件已经在了、她这个会话里没看过
@@ -1039,6 +1200,20 @@ The tool returned only images or files. They are in the next message.
 {
   "description": "Search file contents with a regular expression (ripgrep syntax), respecting .gitignore. Prefer this over grep or rg in the shell. `output_mode` picks file paths (default), matching lines, or counts per file.",
   "parameters": {"type":"object","properties":{"pattern":{"type":"string","description":"Literal braces need escaping, like interface\\{\\}."},"path":{"type":"string","description":"The file or directory to search. Default is the working directory."},"glob":{"type":"string","description":"Searches only files matching this glob, like *.rs."},"output_mode":{"type":"string","enum":["content","files_with_matches","count"],"description":"Default files_with_matches."},"-i":{"type":"boolean","description":"Case-insensitive."},"context":{"type":"integer","description":"Lines shown before and after each match in content mode."},"head_limit":{"type":"integer","description":"Results to show at most. Default 250. 0 means no limit."},"offset":{"type":"integer","description":"Results to skip first. Default 0."}},"required":["pattern"]}
+}
+```
+
+#### `software/basesystem/tools/history.json`
+
+- 什么时候加进来：会话的工具面里有 `history`（每次请求都带）
+- token：197
+- 为什么加：`history` 的说明和参数（施工 6-4）：说明两句，是什么、压缩换出去的也找得回；参数照图纸，`limit` 只写默认值。量法同上，八件一起时的边际份量（2026-09-29 照项目主人给的端点、`deepseek-v4.1-flash` 量）
+- 指纹：`65964932`
+
+```json
+{
+  "description": "Search or read back earlier parts of this conversation, including what compaction moved out of context. Entries are numbered in log order.",
+  "parameters": {"type":"object","properties":{"query":{"type":"string","description":"Words to look for. Without it, entries are listed in order."},"from":{"type":"integer","description":"First entry number."},"to":{"type":"integer","description":"Last entry number."},"since":{"type":"string","description":"Earliest time, like 2026-09-29 14:00."},"until":{"type":"string","description":"Latest time."},"by":{"type":"string","enum":["user","assistant","tool"]},"limit":{"type":"integer","description":"Default 20."}}}
 }
 ```
 

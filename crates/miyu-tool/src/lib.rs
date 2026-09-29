@@ -7,15 +7,18 @@
 //! - [`Spec`]：一件工具的规格，第一批四格；
 //! - [`Tool`]：一件工具：报规格，报一次调用要碰的路径（[`Target`]，施工 4-3 下），执行一次调用（[`Call`] 进、
 //!   [`Done`] 出，施工 4-2）；
-//! - [`Catalog`]：工具目录，登记时查重名、名字和参数格式的写法。
+//! - [`Catalog`]：工具目录，登记时查重名、名字和参数格式的写法；
+//! - [`Log`]：这个会话日志的只读入口（施工 6-4），`history` 用。
 
 mod catalog;
+mod log;
 mod run;
 mod stop;
 #[cfg(feature = "testkit")]
 pub mod testkit;
 
 pub use catalog::{Catalog, CatalogError, Problem};
+pub use log::{Log, ReadLog};
 pub use run::{Call, Done, Effect, Picture, Progress, Running, Seen, Target};
 pub use stop::Stop;
 

@@ -84,6 +84,16 @@ pub fn read_events(dir: &Path) -> Result<Vec<Event>, OpenError> {
     read_all(dir, HalfLine::Skip).map(|(events, _, _)| events)
 }
 
+/// 同 [`read_events`]，只是读一段交一段给 `each`，它交回 `false` 就不读下去（施工 6-4：`history` 翻长会话，叫停了
+/// 不用读完整份）。自检照旧，一个字节都不写。
+///
+/// # Errors
+///
+/// 同 [`read_events`]。
+pub fn read_segments(dir: &Path, each: impl FnMut(Vec<Event>) -> bool) -> Result<(), OpenError> {
+    walk(dir, HalfLine::Skip, each).map(|_| ())
+}
+
 /// 最后一段末尾没写完的半行怎么办。
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum HalfLine {
@@ -95,11 +105,25 @@ enum HalfLine {
 
 /// 照段的先后一行行读、自检：交回事件、下一条的序号、最后一段。
 fn read_all(dir: &Path, half: HalfLine) -> Result<(Vec<Event>, Seq, PathBuf), OpenError> {
+    let mut events = Vec::new();
+    let (next, last) = walk(dir, half, |read| {
+        events.extend(read);
+        true
+    })?;
+    Ok((events, next, last))
+}
+
+/// 照段的先后一段段读、自检，每读完一段交给 `each`，它交回 `false` 就停。交回下一条的序号（停下的，是停在哪一段
+/// 后面的那一条）、最后一段。
+fn walk(
+    dir: &Path,
+    half: HalfLine,
+    mut each: impl FnMut(Vec<Event>) -> bool,
+) -> Result<(Seq, PathBuf), OpenError> {
     let segments = segments(dir)?;
     let Some((_, last)) = segments.last() else {
         return Err(OpenError::Missing(dir.to_path_buf()));
     };
-    let mut events = Vec::new();
     let mut next = Seq::FIRST;
     for (k, (first, path)) in segments.iter().enumerate() {
         let is_last = k + 1 == segments.len();
@@ -119,10 +143,14 @@ fn read_all(dir: &Path, half: HalfLine) -> Result<(Vec<Event>, Seq, PathBuf), Op
                     format!("the empty last segment is named {first} but the next event is {next}"),
                 ));
             }
-            _ => events.extend(read),
+            _ => {
+                if !each(read) {
+                    break;
+                }
+            }
         }
     }
-    Ok((events, next, last.clone()))
+    Ok((next, last.clone()))
 }
 
 /// 读一段：每一行读成事件，序号要接着 `next`。最后一段末尾没写完的半行照 `half` 截掉或者跳过；别的

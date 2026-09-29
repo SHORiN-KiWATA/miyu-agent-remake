@@ -1,4 +1,4 @@
-//! 取摘要的测试：有收尾的、没收尾的、只有草稿以外的、空的；思考不算；指令并进最后一条 user 或者另起一条。
+//! 取摘要的测试：有收尾的、没收尾的、只有草稿以外的、空的；草稿里提到标签的、摘要里引了 HTML 的；思考不算；指令并进最后一条 user 或者另起一条。
 
 use miyu_kernel::block::{Block, Reasoning, Text};
 use miyu_kernel::request::Message;
@@ -48,6 +48,31 @@ fn without_summary_tags_the_draft_is_dropped_and_the_rest_kept() {
     );
     // 什么标签都没有：整段就是摘要。
     assert_eq!(extract(&[text("  Plain.  ")]).as_deref(), Some("Plain."));
+}
+
+#[test]
+fn a_tag_mentioned_in_the_draft_does_not_start_the_summary() {
+    // 施工 6-3 下真模型的回复就是这样：草稿里提到了标签。
+    let reply = [text(
+        "<analysis>\nCheck the gaps.\nNow writing the <summary>.\n</analysis>\n\n<summary>\n1. Primary Request: X.\n</summary>\n",
+    )];
+    assert_eq!(extract(&reply).as_deref(), Some("1. Primary Request: X."));
+    // 草稿没收尾、摘要写在它里面：从最后一个 `<summary>` 起。
+    let reply = [text(
+        "<analysis>\nReply with the <summary> block.\n<summary>\n1. Primary Request: X.\n</summary>",
+    )];
+    assert_eq!(extract(&reply).as_deref(), Some("1. Primary Request: X."));
+}
+
+#[test]
+fn html_quoted_in_the_summary_does_not_end_it() {
+    let reply = [text(
+        "<analysis>a</analysis><summary>\n3. Files: `<details><summary>More</summary>` in page.html.\n4. Errors: none.\n</summary>",
+    )];
+    assert_eq!(
+        extract(&reply).as_deref(),
+        Some("3. Files: `<details><summary>More</summary>` in page.html.\n4. Errors: none.")
+    );
 }
 
 #[test]

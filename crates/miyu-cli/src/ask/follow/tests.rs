@@ -138,6 +138,7 @@ fn feed_after(plan: &Plan, gray: bool, unsandboxed: Option<&str>, messages: &[Va
         out: &mut out,
         err: &mut err,
         gray,
+        live: gray,
     };
     let mut follow = Follow::new("s1", "ask-4", plan);
     if let Some(reason) = unsandboxed {
@@ -353,5 +354,6 @@ fn a_refused_message_says_why_and_a_lagging_one_resubscribes() {
 
 mod asides;
 mod blocks;
+mod compaction;
 mod sample;
 mod unattended;

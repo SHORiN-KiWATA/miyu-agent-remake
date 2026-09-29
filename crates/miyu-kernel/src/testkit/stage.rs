@@ -66,6 +66,8 @@ pub struct Stage {
     pub(super) limits: Option<Limits>,
     /// 摘要请求怎么回：最后一块是这段摘要指令的请求，一律照这一句回，不占剧本（施工 6-2 上）。
     pub(super) summaries: Option<(String, Line)>,
+    /// 「磁盘」上的文件、存过的 blob、交过来的重读（施工 6-5，`disk.rs`）。
+    pub(super) disk: super::disk::Disk,
 }
 
 impl Stage {
@@ -115,6 +117,7 @@ impl Stage {
             by,
             limits: None,
             summaries: None,
+            disk: super::disk::Disk::default(),
         };
         stage.settle(actions);
         stage
@@ -339,6 +342,8 @@ impl Stage {
                 upto,
                 summary: summary.to_string(),
                 trigger: None,
+                notes: String::new(),
+                restored: Vec::new(),
             }),
         });
         self.reload();
@@ -458,6 +463,9 @@ impl Stage {
         self.session = session;
         if let Some(limits) = self.limits.clone() {
             self.session.handle(Input::Limits(limits));
+        }
+        if let Some(recalled) = self.recalled() {
+            self.session.handle(recalled);
         }
         self.settle(actions);
     }

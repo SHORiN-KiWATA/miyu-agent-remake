@@ -81,7 +81,7 @@ fn real(command: &Command, values: &[(&str, &str)]) -> Listed {
     options
 }
 
-/// `miyu ask`、`miyu undo`（`redo` 一样）的参数定义。
+/// `miyu ask`、`miyu undo`（`restore` 一样）的参数定义。
 fn commands() -> (Command, Command) {
     (
         Ask::augment_args(Command::new("ask")),
@@ -100,14 +100,14 @@ fn each_page_lists_exactly_the_options_there_are() {
             real(&ask, id),
             "{language:?} ask"
         );
-        for which in [Page::Undo, Page::Redo] {
+        for which in [Page::Undo, Page::Restore] {
             assert_eq!(
                 listed(page(language, which)),
                 real(&undo, id),
                 "{language:?} {which:?}"
             );
         }
-        // 主程序那一页：`ask` 的、`undo`、`redo` 的都列，再加 `-V`、`--version`。
+        // 主程序那一页：`ask` 的、`undo`、`restore` 的都列，再加 `-V`、`--version`。
         let mut all = real(&ask, id);
         all.extend(real(&undo, id));
         all.insert((
@@ -133,14 +133,14 @@ fn each_page_lists_exactly_the_options_there_are() {
 
 #[test]
 fn each_page_is_its_own_file() {
-    // 照文件名去读盘上的那一份比，不拿 `page` 自己当答案：哪两页接错了，这里红（变异测试逮到过 undo 印成 redo 那一页）。
+    // 照文件名去读盘上的那一份比，不拿 `page` 自己当答案：哪两页接错了，这里红（变异测试逮到过 undo 印成恢复那一页）。
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/help");
     for (language, code) in [(Language::Chinese, "zh"), (Language::English, "en")] {
         for (which, name) in [
             (Page::Miyu, "miyu"),
             (Page::Ask, "ask"),
             (Page::Undo, "undo"),
-            (Page::Redo, "redo"),
+            (Page::Restore, "restore"),
             (Page::Sandbox, "sandbox"),
         ] {
             let file = dir.join(code).join(format!("{name}.txt"));
@@ -169,7 +169,13 @@ fn columns(row: &str) -> usize {
 #[test]
 fn pages_fit_in_eighty_columns_and_end_with_one_newline() {
     for language in [Language::Chinese, Language::English] {
-        for which in [Page::Miyu, Page::Ask, Page::Undo, Page::Redo, Page::Sandbox] {
+        for which in [
+            Page::Miyu,
+            Page::Ask,
+            Page::Undo,
+            Page::Restore,
+            Page::Sandbox,
+        ] {
             let text = page(language, which);
             assert!(
                 text.ends_with('\n') && !text.ends_with("\n\n"),

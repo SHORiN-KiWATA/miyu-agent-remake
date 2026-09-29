@@ -70,11 +70,11 @@
 | 格 | 类型 | JSON 里 |
 |---|---|---|
 | `at` | 时刻 | 必有 |
-| `kind` | `model.delta`、`tool.progress`、`status`、`compaction.progress` 四种之一 | 必有 |
+| `kind` | `model.delta`、`tool.progress`、`status`、`compaction.progress`、`compaction.done` 五种之一 | 必有 |
 | `turn` | 回合编号 | 没有就不写 |
 | `by` | 「谁」 | 必有 |
 | `cause` | 命令编号 | 没有就不写 |
-| `body` | 下面四种之一 | 必有 |
+| `body` | 下面五种之一 | 必有 |
 
 - `Transient::to_line()`：写成推给头的一行，不带换行。
 - 只写不读：内核只推。读回来的那一半，做到头读它们的时候再写（M8）。
@@ -85,6 +85,7 @@
 | `tool.progress` | 工具执行中的一段输出：`call_id` 哪一次调用，`text` 一段输出。结果以 `tool.result` 为准，这些只给人看着它在跑 | 那次调用 |
 | `status` | 出了错，等着重试：`seen` 哪一次请求；`retry` 里 `attempt` 这是第几次重试（从 1 数起）、`limit` 一共最多几次（现在是 5，`kernel/session.md`）、`wait_ms` 等多久（毫秒）、`class` 出错的分类、`message` 出错的原话 | 内核 |
 | `compaction.progress` | 摘要写到哪了（施工 6-2 上）：`seen` 哪一次摘要请求（它替代到的那一条）、`written` 到这时收到的正文字数（草稿加摘要，照 Unicode 字符数）、`expected` 估计要写多少字（压缩前的用量，夹在 20000 到 80000 之间） | 内核 |
+| `compaction.done` | 压好了（施工 6-3 下）：`seen` 哪一次摘要请求；`before` 压之前的用量（过了线的那一次主请求算出的）、`after` 压完的用量（照这时的有效历史组装一次算的），都是估算，和压缩线同一个算法；`usage` 摘要请求的用量、`duration_ms` 它的用时，照它的 `model.called`，没有就不写 | 内核 |
 
 `model.delta` 的那一段增量：
 
@@ -125,14 +126,15 @@
 15. `model.delta`：驱动交来的增量，照收到的先后一段推一条。私有数据不推；对不上的（累积器不收的）不推，这次请求按出错算（`kernel/session.md`）。`index` 是驱动给的块编号，`seen` 是这次请求的。
 16. `tool.progress` 只推在跑的调用的；不是这一步在跑的，不推（`kernel/session.md`）。
 17. `status` 在一次请求出了可以重试的错、要等一会儿再试时推一条（`kernel/session.md`）。
-18. `compaction.progress` 在摘要请求的正文块每来一段时推一条；摘要请求不推 `model.delta`（`compaction.md` 第三条第 8 条）。
+18. `compaction.progress` 在摘要请求报发出去时先推一条 `written` 是 0 的（施工 6-3 下：头一收到就能印「正在压缩」），之后正文块每来一段推一条；摘要请求不推 `model.delta`（`compaction.md` 第三条第 8 条）。
+19. `compaction.done` 在取到摘要、写下 `context.compacted` 的同时推一条；压缩中途被打断、出错的不推（`compaction.md` 第三条第 11 条）。
 
 ### 样子
 
 一条事件的样子，就是日志里的那一行。样本：
 
 - `docs/designs/samples/events/<种类>.jsonl`：内核认识的每一种一份，文件名是种类名加 `.jsonl`。内容就是日志里的那几行，这一种在样本会话里出现几次就写几行，以一个换行结尾，没有空行。几份样本讲的是同一个会话：序号不重复，时刻跟着序号不往回走。
-- `docs/designs/samples/transient/model.delta.jsonl`、`tool.progress.jsonl`、`status.jsonl`、`compaction.progress.jsonl`：样本会话里 44 号请求的回复一段段推给头的样子、那次 `read` 执行中的一段输出、44 号请求出了限速的错等 1 秒再试、54 号压缩写摘要时的两段进度。瞬时事件内核不读，测试在代码里照着造，写出去和样本一字不差。
+- `docs/designs/samples/transient/model.delta.jsonl`、`tool.progress.jsonl`、`status.jsonl`、`compaction.progress.jsonl`、`compaction.done.jsonl`：样本会话里 44 号请求的回复一段段推给头的样子、那次 `read` 执行中的一段输出、44 号请求出了限速的错等 1 秒再试、54 号压缩写摘要时的两段进度、一次压好了（81 万压到 3 万）。瞬时事件内核不读，测试在代码里照着造，写出去和样本一字不差。
 
 ### 出错
 

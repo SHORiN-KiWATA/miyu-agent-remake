@@ -221,6 +221,7 @@ pub async fn ask_at(root: &DataRoot, plan: &Plan, presses: mpsc::Receiver<()>) -
         out: &mut out,
         err: &mut err,
         gray: false,
+        live: false,
     };
     let code = within("说完", talk(connection, &token, plan, &mut screen, presses)).await;
     Asked {

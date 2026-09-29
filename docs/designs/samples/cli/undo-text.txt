@@ -9,4 +9,4 @@
     -fn main() {}
     +fn main() { println!("hi"); }
 · 这一轮执行过 2 条命令：命令改的文件撤不回
-发下一句之前，可以用 miyu redo 恢复。
+发下一句之前，可以用 miyu restore 恢复。

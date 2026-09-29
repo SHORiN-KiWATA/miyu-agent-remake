@@ -1,0 +1,1 @@
+(Showing {shown} of {total} results. Use to={next} to see older ones.)

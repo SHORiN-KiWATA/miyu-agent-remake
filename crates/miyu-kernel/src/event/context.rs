@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::id::{FactKind, Seq};
+use crate::id::{ContentHash, FactKind, Seq};
 use crate::text_enum::text_enum;
 
 /// `context.injected`：注入进上下文的一块事实，例如当前时间、记忆召回的结果、
@@ -21,8 +21,8 @@ pub struct ContextInjected {
 
 /// `context.compacted`：压缩的检查点。三种压缩方式都写这一种（`09-压缩.md` 第三节）。
 ///
-/// 检查点里别的东西，例如代码补上的文件清单、取回原文的办法、压完重读的文件，
-/// 做压缩的那一步再加。摘要外面那层包装是投影的模板，不存在这里。
+/// 代码写的几段、压完重读的文件（施工 6-5）也在这里；摘要外面那层包装、重读的文件那一块的头尾是投影的模板，重读的
+/// 原文在 blob 里，都不存在这里。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContextCompacted {
     /// 检查点替代到哪个序号为止，这一条也替代掉。之后的事件照常渲染在检查点后面
@@ -33,6 +33,24 @@ pub struct ContextCompacted {
     /// 为什么压：到线了、人要的、供应商报超长。以前的日志里没有这一格，当作到线了（`compaction.md`）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trigger: Option<CompactTrigger>,
+    /// 代码写的几段：读过、改过的文件清单，取回指路，太大没重读的（`compaction.md` 第八条，施工 6-5）。写的时候拼好，
+    /// 以后逐字节回放。以前的日志里没有，当作空的。
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub notes: String,
+    /// 压完重读的文件，照渲染的先后（施工 6-5）。以前的日志里没有，当作空的。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub restored: Vec<RestoredFile>,
+}
+
+/// 压完重读的一个文件（`compaction.md` 第九条，施工 6-5）：路径照清单的写法，原文在 blob 里。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RestoredFile {
+    /// 路径：在会话的工作目录里的写相对的，别的写绝对的。
+    pub path: String,
+    /// 原文的哈希。
+    pub blob: ContentHash,
+    /// 原文估出来的 token 数。
+    pub tokens: u64,
 }
 
 text_enum!(

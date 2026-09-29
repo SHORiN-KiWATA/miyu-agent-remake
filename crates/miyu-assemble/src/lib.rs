@@ -20,7 +20,7 @@ mod texts;
 #[cfg(test)]
 mod test_support;
 
-pub use texts::{Texts, TurnEndedTexts};
+pub use texts::{RestoredWrap, Texts, TurnEndedTexts};
 
 use miyu_kernel::assemble::Assembler;
 use miyu_kernel::block::Block;

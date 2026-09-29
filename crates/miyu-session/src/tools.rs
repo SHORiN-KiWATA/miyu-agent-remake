@@ -21,11 +21,11 @@ use tracing::Instrument;
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Effect, Permission, Restored};
 use miyu_kernel::id::CallId;
-use miyu_kernel::session::{Input, Step};
-use miyu_kernel::time::Timestamp;
+use miyu_kernel::session::{Input, Reread, Step};
+use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_policy::RunTexts;
 use miyu_store::blob::Blobs;
-use miyu_tool::{Call, Catalog, Done, Progress, Seen, Stop};
+use miyu_tool::{Call, Catalog, Done, Log, Progress, Seen, Stop};
 
 use crate::TARGET;
 use crate::blocking::blocking;
@@ -53,6 +53,10 @@ pub(crate) struct ToolKit {
     pub(crate) sandbox: Option<PathBuf>,
     /// 沙盒的缓存：工具链的缓存用沙盒自己的一份（施工 5-4 下）。核心算不出缓存目录的没有。
     pub(crate) sandbox_cache: Option<SandboxCache>,
+    /// 这个会话日志的只读入口：交给每次调用，`history` 用（施工 6-4）。
+    pub(crate) log: Log,
+    /// 会话的时区：开会话时的环境里的（施工 6-4）。
+    pub(crate) offset: UtcOffset,
 }
 
 /// 执行工具的端口：一个会话一份。
@@ -66,6 +70,10 @@ pub(crate) struct Tools {
     seen: Arc<Seen>,
     /// 给每次调用写沙盒的：这台机器上的沙盒能用才有（施工 5-4 上）。
     sandbox: Option<Sandbox>,
+    /// 这个会话日志的只读入口（施工 6-4）。
+    log: Log,
+    /// 会话现在的时区：头报上来换了跟着换（施工 6-4）。
+    offset: UtcOffset,
     /// 在跑的调用：掐掉它的那一头、它的旗、开始跑的那一刻、工具名。
     running: BTreeMap<CallId, Running>,
     backs: mpsc::UnboundedSender<Back>,
@@ -133,9 +141,16 @@ impl Tools {
             blobs: kit.blobs,
             seen: Arc::new(kit.seen),
             sandbox,
+            log: kit.log,
+            offset: kit.offset,
             running: BTreeMap::new(),
             backs,
         }
+    }
+
+    /// 会话的时区换成 `offset`：头报上来的环境换了（施工 6-4）。以后派出去的调用照它。
+    pub(crate) fn locate(&mut self, offset: UtcOffset) {
+        self.offset = offset;
     }
 
     /// 她看过的文件换成 `seen`：撤销、恢复以后照日志重算的（施工 4-7 上）。在跑的调用拿着的是原来那一份。
@@ -149,6 +164,12 @@ impl Tools {
         let blobs = self.blobs.clone();
         let home = self.home.clone();
         blocking(move || crate::restore::restore(&steps, &blobs, home.as_deref())).await
+    }
+
+    /// 压完重读（施工 6-5）：在阻塞线程里一个一个读，读到的存进这个会话的 blob。
+    pub(crate) async fn reread(&self, paths: Vec<String>, limit: u64) -> Vec<Reread> {
+        let blobs = self.blobs.clone();
+        blocking(move || crate::reread::reread(&paths, limit, &blobs)).await
     }
 
     /// 执行一次调用：在自己的任务里跑，马上返回。目录里没有这件工具的，不派，当场交回出错的结果。沙盒照派出去
@@ -171,6 +192,8 @@ impl Tools {
             seen: Arc::clone(&self.seen),
             stop: stop.clone(),
             sandbox: None,
+            log: Some(self.log.clone()),
+            offset: self.offset,
         };
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name).cloned() else {

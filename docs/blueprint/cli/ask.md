@@ -99,6 +99,13 @@ todo.md
 
 沙盒用不了那一句（施工 5-4 下）：样本里没有它。只在握手的回应说沙盒用不了时有，最先印，在目录太宽那一句前面，一次；标准错误，灰，和目录太宽那一句连着、不空行。
 
+压缩那一行（施工 6-3 下，照项目主人 2026-09-29 定的样子）：样本里没有它。内核压缩时推的 `compaction.progress`、`compaction.done` 和摘要请求的 `model.called` 印成一行旁白，标准错误，灰，前后和一步一样照「换行和空行」：
+
+- 压缩中：`· 正在压缩上下文… 已写 3,120 字`。标准错误是终端的，每来一条进度回到行首、擦掉这一行重画（`\r` 加 `ESC[2K`）；不是终端的，压缩中不印。
+- 压好了：`· 上下文压缩好了：812.3k → 31k token`。终端里擦掉进度那一行换成它。token 数不到一千照写，一千以上写 `k`、一百万以上写 `M`，一位小数，整的不写小数；数是估算（`compaction.md` 第一条），和供应商下一次报的会差一点。
+- 失败：`· 压缩失败：<原因>`，红。原因照摘要请求出错的分类说；取不出摘要的（`bad_summary`）分两种，原话说调了工具的说「摘要请求里调了工具」。被打断的不说：这一轮的收尾会说。
+- `--format json` 不印：脚本读事件流里的 `compaction.done`。
+
 **上色**：标准错误是终端、`NO_COLOR` 没设或者设成空的才上色：no-color.org 的约定是设了、不是空的才不上色（施工 4-9 再补四上：原来设成空的也不上色）。灰是 `ESC[90m`，红是 `ESC[31m`，绿是 `ESC[32m`。一行分几段，换颜色时写新颜色，换回原色写 `ESC[0m`；上过色的行，行尾写 `ESC[0m`，中途退出也不会把终端留成灰的。思考一段一段写，每一段各自包在 `ESC[90m` 和 `ESC[0m` 里。标准输出从不上色。
 
 **换行和空行**：
@@ -217,6 +224,10 @@ todo.md
 | 原因：找不到助手 | 主程序旁边没有 miyu-sandbox：重装一次 Miyu | miyu-sandbox is missing beside the main program: reinstall Miyu |
 | 原因：助手跑不起来 | miyu-sandbox 跑不起来：重装一次 Miyu | miyu-sandbox does not run: reinstall Miyu |
 | 用量 | `· 输入 … · 命中缓存 …（…%）· 输出 …` | `· input … · cache hit … (…%) · output …` |
+| 压缩中 | `· 正在压缩上下文… 已写 <字数> 字` | `· Compacting the context… <n> characters written` |
+| 压好了 | `· 上下文压缩好了：<压前> → <压后> token` | `· Context compacted: <before> → <after> tokens` |
+| 压缩失败 | `· 压缩失败：<原因>` | `· Compaction failed: <reason>` |
+| 原因：摘要请求里调了工具 | 摘要请求里调了工具 | the summary called a tool |
 | 最后那一句，一步 | `· 1 步没做：要你确认，miyu ask 里确认不了` | `· 1 step not done: it needs your approval, which cannot be given in miyu ask` |
 | 最后那一句，几步 | `· 2 步没做：要你确认，miyu ask 里确认不了` | `· 2 steps not done: they need your approval, which cannot be given in miyu ask` |
 | 一步没做成的词 | 出错、没做、打断了、跳过了 | failed、not done、interrupted、skipped |
@@ -238,6 +249,7 @@ todo.md
 | `content_policy` | 被内容策略拦下了 | blocked by content policy |
 | `bad_stream` | 回复的流不对 | bad stream |
 | `empty_reply` | 回复是空的 | empty reply |
+| `bad_summary` | 取不出摘要 | no summary in the reply |
 | 别的 | 模型出错 | model error |
 
 - 核心拒绝时说的话，照核心写的原样印（它照握手时的语言写，`protocol.md`）。
@@ -283,6 +295,7 @@ Options:
 | `crates/miyu-cli/src/ask/follow/tests.rs` | 思考和回答分两条通道、上色、只跟自己那一轮、`--format json`、出错和退出码、重试成了不算出错 |
 | `crates/miyu-cli/src/ask/follow/tests/blocks.rs` | 一块前后的空行：最前面的不空、两块挨着只空一行、后面接回答、接思考、接用量；下面没有东西的照一行印（施工 4-11） |
 | `crates/miyu-cli/src/ask/follow/tests/asides.rs` | 换行和空行；给脚本的两段回答隔开、没隔着步骤的照原样接上；目录太宽那一句只说一次；路径照会话实际干活的目录写短；沙盒用不了那一句：每种原因、最先印、只说一次、`--format json` 不印（施工 5-4 下） |
+| `crates/miyu-cli/src/ask/follow/tests/compaction.rs` | 压缩那一行：终端里进度原地刷新、换成结果，管道里只有结果，失败的红、调了工具的单说，英文，`--format json` 不印（施工 6-3 下）；`follow/compacting/tests.rs` 守 token 数的写法 |
 | `crates/miyu-cli/src/ask/follow/tests/unattended.rs` | 最后那一句、退出码 4、只算内核那一句 |
 | `crates/miyu-cli/src/ask/follow/tests/sample.rs` | 照样本的场景喂一轮，整块屏幕和 `docs/designs/samples/cli/ask-text.txt` 逐字节一样；蓝图里的样本块由门禁和同一份比（施工 4-9 三补） |
 | `crates/miyu-cli/src/ask/steps/tests.rs` | 每一步的标题：符号、显示名、参数的值、结果那一句、颜色；没有显示名的写 `⚙` |

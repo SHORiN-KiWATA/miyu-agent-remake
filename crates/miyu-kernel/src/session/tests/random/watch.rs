@@ -15,6 +15,7 @@ mod model;
 mod permission;
 mod question;
 mod queue;
+mod rebuild;
 mod restore;
 mod stopping;
 mod undo;
@@ -154,6 +155,7 @@ impl Watch {
     /// 被打断的 `turn.ended` 收尾；没开着的，拒绝，原因码 `not_running`。
     pub(super) fn feed(&mut self, session: &mut Session, input: Input) {
         self.fed.insert(InputKind::of(&input));
+        self.reread_fed(&input);
         self.retry_fed(&input);
         let repeated = match &input {
             Input::Command(command) if !self.fresh(&command.id) => Some(command.id.clone()),
@@ -223,8 +225,15 @@ impl Watch {
 
     fn check(&mut self, action: Action) {
         let seed = self.seed;
+        if let Some(pending) = self.compactions.reread.take() {
+            assert!(
+                matches!(&action, Action::CallModel { seen, .. } if *seen == pending),
+                "种子 {seed}：重读后面跟的不是它那次摘要请求：{action:?}"
+            );
+        }
         match action {
             Action::Append(events) => self.appended(events),
+            Action::Reread { seen, paths, .. } => self.reread_issued(seen, &paths),
             Action::Push(events) => self.pushed.extend(events.iter().map(|event| event.seq)),
             Action::Reply { id, outcome } => {
                 if let Outcome::Accepted { events } = &outcome {
@@ -378,6 +387,7 @@ impl Watch {
             }
             TransientBody::Status(status) => self.retry_status(status),
             TransientBody::CompactionProgress(progress) => self.compaction_progress(progress),
+            TransientBody::CompactionDone(done) => self.compaction_done(done),
         }
     }
 

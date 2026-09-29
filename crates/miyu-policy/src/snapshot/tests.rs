@@ -24,7 +24,7 @@ fn the_same_sources_give_the_same_bytes_and_they_read_back() {
     let text = String::from_utf8(one.to_bytes()).unwrap();
     assert!(text.starts_with(r#"{"persona":"engineer","system":"You are a helpful software engineer.","core":{"checkpoint_open":"#), "{text}");
     assert!(
-        text.ends_with(r#""step_limit":null,"attended":true,"resumes":3,"compaction":{"reserve_cap":20000,"margin":13000,"image":2000,"file":2000,"tail":16000}}"#),
+        text.ends_with(r#""step_limit":null,"attended":true,"resumes":3,"compaction":{"reserve_cap":20000,"margin":13000,"image":2000,"file":2000,"tail":16000,"rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10}}}"#),
         "{text}"
     );
     // 改一个字，哈希就变了。
@@ -175,11 +175,65 @@ fn the_tail_is_16000_and_older_snapshots_read_it_so() {
     let snapshot = engineer();
     assert_eq!(snapshot.policy().unwrap().compaction.unwrap().tail, 16_000);
     let text = String::from_utf8(snapshot.to_bytes()).unwrap();
-    assert!(
-        text.ends_with(r#""image":2000,"file":2000,"tail":16000}}"#),
-        "{text}"
-    );
-    let older = text.replace(r#","tail":16000}}"#, "}}");
+    let numbers = r#","tail":16000,"rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10}}}"#;
+    assert!(text.ends_with(numbers), "{text}");
+    let older = text.replace(numbers, "}}");
     let read = Snapshot::from_bytes(older.as_bytes()).unwrap();
     assert_eq!(read.compaction.unwrap().tail, 16_000);
+}
+
+/// 压后重建（施工 6-5）：出厂的快照带着字和数，内核拿到几段的模板和重建的数，组装器拿到重读的文件那一块的头尾；以前
+/// 造的快照里没有，读成没有，内核不写那几段、不重读，包装的结尾读成空的。
+#[test]
+fn rebuild_texts_and_numbers_go_in_and_older_snapshots_lack_them() {
+    let snapshot = engineer();
+    let policy = snapshot.policy().unwrap();
+    assert!(policy.notes.is_some());
+    let rebuild = policy.compaction.unwrap().rebuild.unwrap();
+    assert_eq!(
+        (rebuild.files, rebuild.file_tokens, rebuild.total),
+        (5, 5_000, 50_000)
+    );
+    assert_eq!((rebuild.min_window, rebuild.candidates), (32_000, 10));
+    let text = String::from_utf8(snapshot.to_bytes()).unwrap();
+    let start = text.find(r#","rebuild":{"notes_files""#).unwrap();
+    let close = r#""restored_close":"\n</file>\n"}"#;
+    let end = start + text[start..].find(close).unwrap() + close.len();
+    let older = text[..start].to_string() + &text[end..];
+    let older = older.replace(r#","rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10}"#, "");
+    let older = older.replace(
+        r#","checkpoint_end":"Carry on from where the summary leaves off, without redoing work it records as done.\n</conversation-checkpoint>\n""#,
+        "",
+    );
+    let read = Snapshot::from_bytes(older.as_bytes()).unwrap();
+    assert_eq!(read.core.checkpoint_end, "");
+    let policy = read.policy().unwrap();
+    assert!(policy.notes.is_none());
+    assert!(policy.compaction.unwrap().rebuild.is_none());
+    assert_eq!(read.to_bytes(), older.as_bytes(), "读进来再写出去一字不差");
+    // 只有数、没有字的：也不重读。
+    let only_numbers = text[..start].to_string() + &text[end..];
+    let read = Snapshot::from_bytes(only_numbers.as_bytes()).unwrap();
+    assert!(read.policy().unwrap().compaction.unwrap().rebuild.is_none());
+}
+
+/// 包装的结尾交给了组装器（施工 6-5）：出厂快照组装出来的检查点最后是规则那一句。
+#[test]
+fn the_checkpoint_ends_with_the_rule_from_the_snapshot() {
+    use miyu_kernel::event::Event;
+    use miyu_kernel::history::History;
+    let policy = engineer().policy().unwrap();
+    let mut history = History::default();
+    history.append(
+        Event::from_line(
+            r#"{"seq":2,"at":"2026-09-29T05:00:00.000Z","kind":"context.compacted","by":{"kind":"kernel"},"body":{"upto":1,"summary":"S"}}"#,
+        )
+        .unwrap(),
+    );
+    let request = policy.assembler.assemble(&history);
+    let text = format!("{:?}", request.messages);
+    assert!(
+        text.contains("S\\n</summary>\\nCarry on from where the summary leaves off"),
+        "{text}"
+    );
 }

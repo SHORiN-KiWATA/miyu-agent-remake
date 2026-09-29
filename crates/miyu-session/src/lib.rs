@@ -24,6 +24,7 @@ mod lines;
 mod open;
 mod pictures;
 mod port;
+mod reread;
 mod restore;
 mod sandbox;
 mod store;

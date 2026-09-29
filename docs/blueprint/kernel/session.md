@@ -51,6 +51,8 @@
 | `ToolProgress { at, call_id, text }` | 一段输出 | 「调工具」 |
 | `ToolGuarded { at, call_id, verdict }`、`ToolAsks { at, call_id, questions }` | 链的结论；一组题 | `asking.md` |
 | `Restored { at, files }` | 改回文件每一步的结局 | `history.md` |
+| `Reread { at, seen, files }` | 哪一次摘要请求；压完要重读的文件，一个一项，照交出去的先后：读到了（`blob`、原文）、太大、读不到（施工 6-5） | 记在那次摘要请求上，什么都不出（`compaction.md` 第九条） |
+| `Recalled { texts }` | 最近一个检查点里重读的文件的原文，照 blob 找（施工 6-5） | 载入以后、别的输入之前交；什么都不出 |
 | `Restarting { at }` | 要重启了 | 「有计划的重启」 |
 
 **命令**（`Command`）：
@@ -82,6 +84,7 @@
 | `CancelTool { call_id }` | 哪次调用 | 掐掉，不送回；之后到的不理 |
 | `StopTool { call_id }` | 哪次改文件的调用 | 叫它停：停在改之前，或者做完；照常送回 `ToolDone`，停在改之前的带 `stopped`（「打断」第 7 条） |
 | `Restore { steps }` | 改回的几步 | 改回文件，送回 `Restored`（`history.md`） |
+| `Reread { seen, paths, limit }` | 哪一次摘要请求（排在它的「请求模型」前面）；要重读的文件，真实的位置，照先后；单个最多多少字节（施工 6-5） | 读完、存成 blob 再做下一个动作，送回 `Reread`（`compaction.md` 第九条） |
 
 **结局**（`Outcome`）：`Accepted { events }` 接受，附上它产生的事件的序号，照先后；`Rejected { reason }` 拒绝，什么都没产生。原因码是稳定的英文（`Reason::code`）：
 
@@ -164,11 +167,11 @@
 
 **收回复**：三种回报都带着 `seen`，不是在路上的那一次的，不理。
 
-1. `RequestSent`：记下时刻、模型、请求字节的哈希。报两次的只认第一次。
+1. `RequestSent`：记下时刻、模型、请求字节的哈希。报两次的只认第一次。摘要请求的，推一条 `written` 是 0 的 `compaction.progress`（施工 6-3 下）。
 2. `ModelDelta`：摘要请求的增量照样交给累积器，不推 `model.delta`，正文块的每一段推一条 `compaction.progress`（`compaction.md` 第三条第 8 条）。还没报发出去就来了增量，按出错算：分类 `bad_stream`，原话「请求还没发出去就来了增量」。交给累积器，对不上的也按 `bad_stream` 算，原话是累积器的报错（「出错」）。出错的照下面第 3 条收拾，再出 `CancelModel`。收下的推一条 `model.delta`（`by` 是那个模型，`cause` 是回合的，`body` 是 `seen`、第几块、这一段）；私有数据收下，不推。第一段增量到的时刻记下。
 3. `ModelEnded`：
    1. 没发出去、也没带出错的，按出错算：`bad_stream`，「请求还没发出去就说完了」。没发出去的不写回复。
-   2. 摘要请求不写回复：正常说完的，收到的拼好交给组装取出摘要，取到了写 `context.compacted`（`compaction.md` 第三条第 6、11 条）；调了工具的、取不出来的，按出错算，`bad_summary`，不再来。别的出错照下面第 5、6 条。
+   2. 摘要请求不写回复：正常说完的，收到的拼好交给组装取出摘要，取到了写 `context.compacted`，推 `compaction.done`（`compaction.md` 第三条第 6、11 条）；调了工具的、取不出来的，按出错算，`bad_summary`，不再来。别的出错照下面第 5、6 条。
    3. 发出去了的主请求，收到的拼成回复。正常说完：每一块照收到的拼，没收全的工具调用也留下。出错：只留收全了的工具调用（和打断一样），再把工具调用全去掉。一个字都没有的正文块不要；没有字、也没有私有数据的思考块不要。工具调用编号 `call_<这条回复的序号>_<k>`，`k` 从 1 数留下的（累积器见 `kernel/request.md`）。
    4. 拼出来一块都没有的不写回复；正常说完的，按出错算：`empty_reply`，「回复里一个块都没有」。
    5. 有的写成 `message.assistant`：`seen` 是这次请求的，出错的多写 `"interrupted":true`，`by` 是那个模型，`cause` 是回合的。

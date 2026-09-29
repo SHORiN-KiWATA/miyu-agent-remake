@@ -42,7 +42,7 @@ pub(super) fn lines(result: &Value, plan: &UndoPlan) -> Vec<Line> {
         lines.push(Line::gray(language.commands_note(commands, turns)));
     }
     if plan.direction == Direction::Undo {
-        lines.push(Line::gray(language.redo_hint()));
+        lines.push(Line::gray(language.restore_hint()));
     }
     lines
 }

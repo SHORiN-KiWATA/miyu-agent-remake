@@ -38,13 +38,14 @@
 ```text
 <资源目录>/
 ├── core/                                随核心附带的
-│   ├── checkpoint-open.txt、checkpoint-close.txt
-│   ├── checkpoint-rule.txt、permission-rule.txt      没有程序读：还没进请求
+│   ├── checkpoint-open.txt、checkpoint-close.txt、checkpoint-end.txt
+│   ├── permission-rule.txt              没有程序读：还没进请求
 │   ├── turn-ended/<原因>.txt             5 份
 │   ├── facts/env.txt、permission.txt、reply-cut.txt
 │   ├── tool-results/<哪一句>.txt         15 份
 │   ├── permissions/forbidden.txt、unresolvable.txt
 │   ├── drivers/<哪一句>.txt              5 份
+│   ├── compaction/<哪一份>.txt           摘要指令、代码写的几段、重读的文件的头尾，7 份
 │   └── human/zh.json、en.json            给人看的字
 ├── personas/<人格>/prompts/persona.md    人设；出厂的只有 engineer
 └── software/<软件包>/                    出厂的只有 basesystem
@@ -85,12 +86,13 @@
 
 | 读的文件 | 放进哪一格 |
 |---|---|
-| `core/checkpoint-open.txt`、`core/checkpoint-close.txt` | 检查点包装的开头、结尾 |
+| `core/checkpoint-open.txt`、`core/checkpoint-close.txt`、`core/checkpoint-end.txt` | 检查点包装的开头、摘要的收尾、包装的结尾 |
 | `core/turn-ended/interrupted.txt`、`error.txt`、`step_limit.txt`、`aborted.txt`、`restarted.txt` | 回合没走完的几句 |
 | `core/facts/env.txt`、`permission.txt`、`reply-cut.txt` | 事实的模板 |
 | `core/tool-results/unknown.txt`、`not-an-object.txt`、`cancelled-before.txt`、`cancelled-running.txt`、`skipped.txt`、`read-only.txt`、`denied.txt`、`denied-with-reason.txt`、`unattended.txt`、`question-interrupted.txt`、`question-voided.txt`、`question-unattended.txt`、`restarted.txt`、`unavailable.txt`、`crashed.txt` | 替工具写的结果 |
 | `core/permissions/forbidden.txt`、`unresolvable.txt` | 权限策略拒绝时的话（`session/guard.md`） |
 | `core/drivers/image-omitted.txt`、`file-omitted.txt`、`no-output.txt`、`tool-attachments.txt`、`tool-attachments-only.txt` | 驱动的占位 |
+| `core/compaction/summarize-task.txt`、`notes-files.txt`、`notes-files-more.txt`、`notes-retrieve.txt`、`notes-too-large.txt`、`restored-open.txt`、`restored-close.txt` | 压缩的字：摘要指令（施工 6-2 上），检查点里代码写的几段、重读的文件那一块的头尾（施工 6-5，`compaction.md` 第八条） |
 | `personas/<人格>/prompts/persona.md` | 人设 |
 
 **3. 读给人看的字**（`Human::load`）

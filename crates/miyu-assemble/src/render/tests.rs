@@ -169,6 +169,51 @@ fn the_checkpoint_comes_first_and_the_summary_is_not_escaped() {
 }
 
 #[test]
+fn notes_and_reread_files_follow_the_summary_inside_the_checkpoint() {
+    // 施工 6-5：摘要、收尾、代码写的几段、每个重读的文件（原文不转义）、包装的结尾，拼成一块。
+    let mut log = Log::new();
+    let hi = log.say("hi");
+    log.start(hi);
+    log.reply(&format!("[{}]", text_json("hello")));
+    log.end("completed");
+    let file = "fn a() { \"x\" }\n";
+    log.compact_rebuilt(
+        log.next() - 1,
+        "S",
+        "<notes/>\n",
+        &[("src/a.rs", file), ("b.rs", "b")],
+        true,
+    );
+    let mut texts = texts();
+    texts.checkpoint_end = "<end/>\n".to_string();
+    let messages = render(log.history(), &texts);
+    assert_eq!(
+        messages,
+        [Message::User {
+            blocks: vec![text(&format!(
+                "<checkpoint>\nS\n</checkpoint>\n<notes/>\n<file src/a.rs>\n{file}\n</file>\n<file b.rs>\nb\n</file>\n<end/>\n"
+            ))],
+        }]
+    );
+}
+
+#[test]
+fn a_reread_file_whose_text_is_missing_is_left_out() {
+    let mut log = Log::new();
+    let hi = log.say("hi");
+    log.start(hi);
+    log.end("completed");
+    log.compact_rebuilt(log.next() - 1, "S", "", &[("a.rs", "a")], false);
+    let messages = render(log.history(), &texts());
+    assert_eq!(
+        messages,
+        [Message::User {
+            blocks: vec![text("<checkpoint>\nS\n</checkpoint>\n")],
+        }]
+    );
+}
+
+#[test]
 fn the_tail_kept_by_a_passive_compaction_follows_the_checkpoint() {
     let mut log = Log::new();
     let hi = log.say("look at src");

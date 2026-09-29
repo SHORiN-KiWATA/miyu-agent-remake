@@ -12,6 +12,7 @@ pub(crate) fn core() -> CoreTexts {
     CoreTexts {
         checkpoint_open: include_str!("../../../resources/core/checkpoint-open.txt").to_string(),
         checkpoint_close: include_str!("../../../resources/core/checkpoint-close.txt").to_string(),
+        checkpoint_end: include_str!("../../../resources/core/checkpoint-end.txt").to_string(),
         turn_ended: TurnEndedTexts {
             interrupted: include_str!("../../../resources/core/turn-ended/interrupted.txt")
                 .to_string(),
@@ -88,6 +89,28 @@ pub(crate) fn core() -> CoreTexts {
         compaction: Some(CompactionTexts {
             summarize_task: include_str!("../../../resources/core/compaction/summarize-task.txt")
                 .to_string(),
+            rebuild: Some(crate::RebuildTexts {
+                notes_files: include_str!("../../../resources/core/compaction/notes-files.txt")
+                    .to_string(),
+                notes_files_more: include_str!(
+                    "../../../resources/core/compaction/notes-files-more.txt"
+                )
+                .to_string(),
+                notes_retrieve: include_str!(
+                    "../../../resources/core/compaction/notes-retrieve.txt"
+                )
+                .to_string(),
+                notes_too_large: include_str!(
+                    "../../../resources/core/compaction/notes-too-large.txt"
+                )
+                .to_string(),
+                restored_open: include_str!("../../../resources/core/compaction/restored-open.txt")
+                    .to_string(),
+                restored_close: include_str!(
+                    "../../../resources/core/compaction/restored-close.txt"
+                )
+                .to_string(),
+            }),
         }),
     }
 }

@@ -320,7 +320,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `turn_running` | 有回合在进行，撤销不了：先打断再撤。 | A turn is running; interrupt it before undoing. |
 | `unknown_turn` | 没有这一轮，或者它已经撤掉了。 | There is no such turn, or it has already been undone. |
 | `compacted` | 这一轮已经压缩进摘要了，撤不回来。 | That turn is already compacted into the summary and cannot be undone. |
-| `nothing_to_unrevert` | 没有能恢复的撤销：没撤过，或者撤了以后又开过一轮、压缩过。 | There is nothing to redo: nothing was undone, or a turn or compaction came since. |
+| `nothing_to_unrevert` | 没有能恢复的撤销：没撤过，或者撤了以后又开过一轮、压缩过。 | There is nothing to restore: nothing was undone, or a turn or compaction came since. |
 | `restoring` | 正在改回文件，等它做完再来。 | Files are being restored; try again when that is done. |
 | `nothing_to_revert` | 没有能撤销的回合。 | There is no turn to undo. |
 | 别的 | 被拒绝了。 | Refused. |
@@ -362,3 +362,4 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 - 事件流只对会话的属主和有 `events.read` 能力的扩展开放（第五节）：现在连上来的只有管理员。
 - 消息结构只在 Rust 类型里定义一次，生成 JSON Schema 和 TypeScript 类型（第二节）。
 - 会话空闲一段时间后 actor 退出（`07-存储.md` 第七节）。
+- 头拿不到会话实际用的模型限额（窗口、最大输出）：它们只在内核内存里（`Input::Limits`，施工 6-3 上），终端界面的侧边栏因此画不出「用量 / 窗口」（2026-09-29 终端演示那边报的）。打算照会话状态的一格或者一条瞬时的「限额」事件推，造会话、载入、换模型时各一次；不进 `model.called`：窗口是配置，不是日志。

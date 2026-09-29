@@ -1,5 +1,6 @@
 //! 送进会话的输入，和输入里的命令（`docs/designs/02-内核.md` 第四节「输入、动作、命令怎么写」）。
 
+use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::Arc;
 
@@ -124,6 +125,21 @@ pub enum Input {
         at: Timestamp,
         /// 每一步的结局，照交出去的先后。
         files: Vec<Restored>,
+    },
+    /// 压完要重读的文件读好了（施工 6-5）：[`super::Action::Reread`] 的每一个照先后，一个一项。内核记在那次摘要
+    /// 请求上，什么都不出；不是在路上的那一次的，不理。
+    Reread {
+        /// 到的时刻，取自执行器的时钟。
+        at: Timestamp,
+        /// 哪一次摘要请求。
+        seen: Seq,
+        /// 每一个读得怎么样，照交出去的先后。
+        files: Vec<Reread>,
+    },
+    /// 最近一个检查点里重读的文件的原文，照 blob 找（施工 6-5）：载入以后、别的输入之前交，什么都不出。
+    Recalled {
+        /// 原文，照 blob 找。
+        texts: BTreeMap<ContentHash, String>,
     },
     /// 要重启了：有计划的重启，关之前送进来（`02-内核.md` 第六节「载入、崩溃、重启」第 3 条）。
     Restarting {
@@ -294,3 +310,19 @@ impl PartialEq for Limits {
 }
 
 impl Eq for Limits {}
+
+/// 压完要重读的一个文件读得怎么样（`compaction.md` 第九条，施工 6-5）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Reread {
+    /// 读到了：原文存进了 blob。
+    Read {
+        /// 原文的哈希。
+        blob: ContentHash,
+        /// 原文。
+        text: String,
+    },
+    /// 比上限大，没读完。
+    TooLarge,
+    /// 读不到：没有、读不了、不是普通文件、不是 UTF-8。
+    Unreadable,
+}

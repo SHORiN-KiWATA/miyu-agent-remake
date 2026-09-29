@@ -36,6 +36,11 @@
       "subject": "command",
       "icon": "$",
       "block": "command"
+    },
+    "history": {
+      "name": "翻记录",
+      "subject": "query",
+      "icon": "✱"
     }
   },
   "said": {
@@ -97,6 +102,10 @@
     "shell/signal": "被信号 {signal} 停掉了",
     "shell/timed-out": "超过 {seconds} 秒，停掉了",
     "shell/failed": "执行不了：{error}",
-    "shell/no-background": "还不能放到后台跑"
+    "shell/no-background": "还不能放到后台跑",
+    "history/found": "找到 {count} 条",
+    "history/read": "读了第 {from}–{to} 条",
+    "history/none": "没有找到",
+    "history/no-log": "读不了记录：{error}"
   }
 }

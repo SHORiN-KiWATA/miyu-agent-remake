@@ -17,7 +17,7 @@ use miyu_store::blob::{BlobError, Blobs};
 use miyu_store::log::{OpenError, SEGMENT_LIMIT, SessionLog, abandon};
 use miyu_store::resources::{ResourceRoot, SourceError};
 use miyu_store::root::DataRoot;
-use miyu_tool::{Catalog, Seen};
+use miyu_tool::{Catalog, Log, Seen};
 
 use crate::TARGET;
 use crate::actor::{self, Actor};
@@ -28,6 +28,7 @@ use crate::guard::Guard;
 use crate::handle::Handle;
 use crate::port::{ForSession, Models};
 use crate::sandbox::SandboxCache;
+use crate::store::LogDir;
 use crate::tools::ToolKit;
 
 /// 造一个会话要的。
@@ -156,6 +157,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let count = face.len();
     let dir = root.session_dir(&owner, &id);
     let abandoned = dir.clone();
+    let log_dir = LogDir(dir.clone());
+    let offset = environment.offset;
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
     let (snapshot, policy, texts, run, guard, log) = blocking(move || {
@@ -209,6 +212,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             seen: Seen::new(),
             sandbox: sandbox.map(Path::to_path_buf),
             sandbox_cache,
+            log: Log::new(log_dir),
+            offset,
         },
         guard,
         mailbox,
@@ -272,10 +277,13 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     } = setup;
     let span = actor::span(&id);
     let dir = root.session_dir(&owner, &id);
+    let log_dir = LogDir(dir.clone());
+    let offset = environment.offset;
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
-    let (log, events, policy, texts, run, guard) = blocking(move || {
+    let (log, events, policy, texts, run, guard, recalled) = blocking(move || {
         let (log, events) = SessionLog::open(&dir, SEGMENT_LIMIT).map_err(LoadError::Log)?;
+        let recalled = crate::reread::recalled(&events, &store);
         let hash = match events.first().map(|event| &event.body) {
             Some(Body::SessionCreated(created)) => created.policy.clone(),
             _ => return Err(LoadError::NotCreated),
@@ -286,7 +294,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         let texts = snapshot.driver_texts().map_err(LoadError::Policy)?;
         let run = snapshot.run_texts().map_err(LoadError::Policy)?;
         let guard = snapshot.guard_texts().map_err(LoadError::Policy)?;
-        Ok((log, events, policy, texts, run, guard))
+        Ok((log, events, policy, texts, run, guard, recalled))
     })
     .await?;
     let kept = blobs.clone();
@@ -300,8 +308,12 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let seen = effects::seen_in(&events);
     let (mut session, first) =
         Session::load(events, clock.now(), policy, environment).map_err(LoadError::Kernel)?;
-    // 重启以后接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）。
+    // 重启以后接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）；最近一个检查点重读过的文件，原文也先交回去（施工
+    // 6-5）。
     session.handle(Input::Limits(model.limits()));
+    if !recalled.is_empty() {
+        session.handle(Input::Recalled { texts: recalled });
+    }
     let (inbox, mailbox) = mpsc::unbounded_channel();
     let guard = Guard::new(
         tools.clone(),
@@ -323,6 +335,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             seen,
             sandbox: sandbox.map(Path::to_path_buf),
             sandbox_cache,
+            log: Log::new(log_dir),
+            offset,
         },
         guard,
         mailbox,

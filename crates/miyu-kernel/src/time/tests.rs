@@ -1,6 +1,6 @@
 //! 时间的测试：图纸上的例子；几个标准时刻；1600 到 2400 年一天一天数过去，和换算公式对得上；
 //! 每一种坏写法各一个。时区的写法和范围；当地的钟点：跨日、跨月、跨年、闰日、1970 年以前、
-//! 负的时区、差半小时的时区，一周七天的写法。
+//! 负的时区、差半小时的时区，一周七天的写法；到分钟的钟点，当地的日期、钟点换回时刻（施工 6-4）。
 
 use super::*;
 
@@ -193,4 +193,42 @@ fn every_day_of_the_week_has_its_name() {
         })
         .collect();
     assert_eq!(names, ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
+}
+
+#[test]
+fn the_local_minute_is_the_wall_clock_to_the_minute() {
+    // 施工 6-4：`history` 照会话的时区写时刻。
+    let t = Timestamp::parse("2026-09-29T05:03:59.999Z").unwrap();
+    assert_eq!(t.local_minute(offset(540)), "2026-09-29 14:03");
+    assert_eq!(t.local_minute(UtcOffset::UTC), "2026-09-29 05:03");
+    assert_eq!(t.local_minute(offset(-330)), "2026-09-28 23:33");
+}
+
+#[test]
+fn a_local_date_and_time_turns_back_into_the_moment() {
+    let back = |y, mo, d, h, mi, minutes| {
+        Timestamp::from_local(y, mo, d, h, mi, offset(minutes)).map(Timestamp::unix_millis)
+    };
+    assert_eq!(
+        back(2026, 9, 29, 14, 3, 540),
+        Some(at("2026-09-29T05:03:00.000Z"))
+    );
+    assert_eq!(
+        back(2026, 9, 29, 0, 0, -330),
+        Some(at("2026-09-29T05:30:00.000Z"))
+    );
+    assert_eq!(
+        back(2024, 2, 29, 23, 59, 0),
+        Some(at("2024-02-29T23:59:00.000Z"))
+    );
+    // 不存在的日期、钟点。
+    assert_eq!(back(2026, 2, 29, 0, 0, 0), None);
+    assert_eq!(back(2026, 13, 1, 0, 0, 0), None);
+    assert_eq!(back(2026, 9, 0, 0, 0, 0), None);
+    assert_eq!(back(2026, 9, 29, 24, 0, 0), None);
+    assert_eq!(back(2026, 9, 29, 12, 60, 0), None);
+    assert_eq!(back(10_000, 1, 1, 0, 0, 0), None);
+    // 写回去一样。
+    let t = Timestamp::from_local(2026, 9, 29, 14, 3, offset(540)).unwrap();
+    assert_eq!(t.local_minute(offset(540)), "2026-09-29 14:03");
 }

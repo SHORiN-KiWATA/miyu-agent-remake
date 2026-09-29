@@ -18,13 +18,17 @@ pub(in super::super) struct Compactions {
     /// 交给过执行器的摘要请求，照 `seen`。
     issued: BTreeSet<Seq>,
     /// 在路上的那次摘要请求，和它推过的字数。
-    summarizing: Option<(Seq, u64)>,
+    pub(super) summarizing: Option<(Seq, u64)>,
     /// 最近发的那一次摘要请求：说完了、写压缩时照它对。带了尾巴，没成的那一次的 N 可以比后来的大，不能拿交过的里最大的。
     latest: Option<Seq>,
     /// 最近一次压缩替代到哪。
     pub(super) upto: Option<Seq>,
     /// 压完了，还没发这一步的主请求：一步至多压一次（施工 6-2 下）。
     pending: bool,
+    /// 刚交出的重读，还没跟上它那次摘要请求（施工 6-5）。
+    pub(super) reread: Option<Seq>,
+    /// 压后重建（施工 6-5，`watch/rebuild.rs`）。
+    pub(super) rebuild: super::rebuild::Rebuilds,
 }
 
 impl Watch {
@@ -268,6 +272,7 @@ impl Watch {
     /// 追加了一条压缩：替代到刚说完的那次摘要请求的 N；`trigger` 是 `auto`，`by` 是内核，在开着的回合里。撤销从此
     /// 撤不到它替代掉的回合，也恢复不了更早的撤销。
     pub(super) fn compaction_appended(&mut self, event: &Event, compacted: &ContextCompacted) {
+        self.rebuild_checked(compacted);
         let seed = self.seed;
         self.seen_paths.insert("压缩了");
         let issued = self.compactions.latest;
@@ -293,10 +298,15 @@ impl Watch {
             panic!("种子 {seed}：没有在路上的摘要请求，却推了进度");
         };
         assert_eq!(progress.seen, *seen, "种子 {seed}：进度不是在路上的那次的");
-        assert!(
-            progress.written > *written,
-            "种子 {seed}：进度的字数只增不减"
-        );
+        // 发出去时先推一条 0 字的（施工 6-3 下），之后每一条都比上一条多。
+        if progress.written == 0 {
+            self.seen_paths.insert("推了还没写字的进度");
+        } else {
+            assert!(
+                progress.written > *written,
+                "种子 {seed}：进度的字数只增不减"
+            );
+        }
         assert!((20_000..=80_000).contains(&progress.expected));
         *written = progress.written;
         assert!(
@@ -313,6 +323,17 @@ impl Watch {
     /// 发了主请求，或者这一轮结束了：下一步又能压了。
     pub(super) fn main_request_sent(&mut self) {
         self.compactions.pending = false;
+    }
+
+    /// 推了压好了（施工 6-3 下）：紧跟在压缩后面、这一步的主请求以前，替代到的对得上。
+    pub(super) fn compaction_done(&mut self, done: &crate::event::CompactionDone) {
+        let seed = self.seed;
+        self.seen_paths.insert("推了压好了");
+        assert!(
+            self.compactions.pending,
+            "种子 {seed}：没压、或者已经发了主请求，却推了压好了"
+        );
+        assert_eq!(Some(done.seen), self.compactions.upto, "种子 {seed}");
     }
 
     /// 推了增量：不是摘要请求的。

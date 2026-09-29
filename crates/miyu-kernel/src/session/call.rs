@@ -7,6 +7,7 @@
 use super::Session;
 use super::action::Action;
 use super::compaction::Compacting;
+use super::input::Reread;
 use super::turn::Stage;
 use crate::accumulate::{Accumulator, Delta};
 use crate::block::{Block, ToolCall};
@@ -35,7 +36,7 @@ pub(super) struct Call {
     /// 收到的增量。
     accumulator: Accumulator,
     /// 这是压缩的摘要请求：替代到哪、进度（施工 6-2 上）。主请求没有。
-    compaction: Option<Compacting>,
+    compaction: Option<Box<Compacting>>,
 }
 
 /// 请求发出去时，执行器报来的。
@@ -65,7 +66,7 @@ impl Call {
 
     /// 这一次是压缩的摘要请求。
     pub(super) fn compacting(mut self, compacting: Compacting) -> Call {
-        self.compaction = Some(compacting);
+        self.compaction = Some(Box::new(compacting));
         self
     }
 
@@ -118,7 +119,19 @@ struct Settled {
     reply: Option<Seq>,
     calls: Vec<ToolCall>,
     error: Option<CallError>,
-    summary: Option<(Seq, String)>,
+    summary: Option<Summarized>,
+}
+
+/// 摘要请求取到了摘要：替代到哪、摘要、压之前的用量，和这次摘要请求的用量、用时（施工 6-3 下：推 `compaction.done`）。
+pub(super) struct Summarized {
+    pub(super) upto: Seq,
+    pub(super) summary: String,
+    pub(super) before: u64,
+    pub(super) usage: Option<Usage>,
+    pub(super) duration_ms: Option<u64>,
+    /// 交给执行器重读的候选、送回的结果（施工 6-5）。
+    pub(super) paths: Vec<String>,
+    pub(super) reread: Option<Vec<Reread>>,
 }
 
 /// 要推给头的：主请求的一段增量，和它的 `by`，那个模型；摘要请求的进度。
@@ -136,12 +149,27 @@ impl Session {
         model: Model,
         request: ContentHash,
     ) -> Vec<Action> {
-        if let Some(call) = self.call(seen)
-            && call.sent.is_none()
-        {
-            call.sent = Some(Sent { at, model, request });
+        let Some(turn) = self.turn.as_ref() else {
+            return Vec::new();
+        };
+        let (id, cause) = (turn.id, turn.cause.clone());
+        let Some(call) = self.call(seen) else {
+            return Vec::new();
+        };
+        if call.sent.is_some() {
+            return Vec::new();
         }
-        Vec::new()
+        call.sent = Some(Sent { at, model, request });
+        // 摘要请求发出去了：先推一条还没写字的进度，头一收到就能印「正在压缩」（施工 6-3 下）。
+        match call.compaction.as_ref() {
+            Some(compacting) => vec![Action::PushTransient(Session::progress(
+                at,
+                Some(id),
+                cause,
+                compacting.started(),
+            ))],
+            None => Vec::new(),
+        }
     }
 
     /// 模型的一段增量：交给累积器，收下了就推给头。出错的，这次请求按出错算，叫执行器
@@ -212,9 +240,12 @@ impl Session {
             return vec![Action::Append(events)];
         }
         // 摘要请求说完了不清零：重试次数和这一步的主请求合用一个计数（施工 6-2 下）。
-        if let Some((upto, summary)) = settled.summary {
-            events.extend(self.compacted(at, upto, summary, cause));
-            return vec![Action::Append(events)];
+        if let Some(summarized) = settled.summary {
+            let (compacted, done) = self.compacted(at, summarized, cause);
+            events.extend(compacted);
+            let mut actions = vec![Action::Append(events)];
+            actions.extend(done.map(Action::PushTransient));
+            return actions;
         }
         if let Some(turn) = self.turn.as_mut() {
             turn.retries = 0;
@@ -271,11 +302,10 @@ impl Session {
             }
             // 摘要请求不写回复，说完了的取出摘要（施工 6-2 上）。
             Some(_) if compaction.is_some() => {
-                let upto = compaction.as_ref().map(Compacting::upto);
-                if let Some(upto) = upto.filter(|_| !cut && error.is_none()) {
+                if !cut && error.is_none() {
                     let blocks = accumulator.finish(self.ledger.next_seq());
                     match self.summary_of(&blocks) {
-                        Ok(text) => summary = Some((upto, text)),
+                        Ok(text) => summary = Some(text),
                         Err(bad) => error = Some(bad),
                     }
                 }
@@ -343,6 +373,20 @@ impl Session {
             result,
             error: error.clone(),
         };
+        let summary = summary
+            .zip(compaction.as_ref())
+            .map(|(summary, compacting)| {
+                let (paths, reread) = compacting.rebuild_inputs();
+                Summarized {
+                    upto: compacting.upto(),
+                    summary,
+                    before: compacting.before(),
+                    usage: called.usage,
+                    duration_ms: called.duration_ms,
+                    paths,
+                    reread,
+                }
+            });
         events.push(self.record(at, By::Kernel, cause, Body::ModelCalled(called)));
         Settled {
             events,
@@ -381,6 +425,14 @@ impl Session {
     }
 
     /// 在路上、名字是 `seen` 的那次请求。
+    /// 执行器送回了第 `seen` 次摘要请求的重读结果（施工 6-5）：记在那次请求上。不是在路上的那一次的，不理。
+    pub(super) fn reread_done(&mut self, seen: Seq, files: Vec<Reread>) -> Vec<Action> {
+        if let Some(compacting) = self.call(seen).and_then(|call| call.compaction.as_mut()) {
+            compacting.reread(files);
+        }
+        Vec::new()
+    }
+
     fn call(&mut self, seen: Seq) -> Option<&mut Call> {
         match &mut self.turn.as_mut()?.stage {
             Stage::Asking(call) if call.seen == seen => Some(call),

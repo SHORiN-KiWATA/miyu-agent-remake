@@ -4,10 +4,10 @@
 //! 这里只留还要发给模型的那些。压缩一次就丢掉更早的；撤销一次，撤掉的先放在一边，下一轮开始、
 //! 压缩了才丢（`history/undo.rs`）。所以占的内存随上下文窗口走，不随日志走（`07-存储.md` 第七节）。
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::event::{Body, Event};
-use crate::id::Seq;
+use crate::id::{ContentHash, Seq};
 
 mod undo;
 
@@ -23,9 +23,32 @@ pub struct History {
     events: Vec<Event>,
     /// 还能恢复的几次撤销，各拿走了哪些事件（照日志的先后），最近的一次在最后。
     undone: Vec<Vec<Event>>,
+    /// 留着一切的那一份（[`History::whole`]）：压缩替代掉的不丢。
+    whole: bool,
+    /// 最近一个检查点里重读的文件的原文，照 blob 找（施工 6-5）：原文不进日志，由执行器交进来。
+    recalled: BTreeMap<ContentHash, String>,
 }
 
 impl History {
+    /// 留着一切的一份（施工 6-4）：压缩替代掉的不丢，`context.compacted` 自己也照先后留在 [`History::events`] 里，
+    /// 没有检查点；撤销、恢复、撤回照同一套规矩算。`history` 照它算日志里哪些还算数。
+    pub fn whole() -> History {
+        History {
+            whole: true,
+            ..History::default()
+        }
+    }
+
+    /// 放进最近一个检查点里重读的文件的原文（施工 6-5）：压完时照执行器交回的，载入以后照 `Input::Recalled`。
+    pub fn recall(&mut self, texts: BTreeMap<ContentHash, String>) {
+        self.recalled.extend(texts);
+    }
+
+    /// 重读的文件 `blob` 的原文；没交进来的没有（施工 6-5）。
+    pub fn recalled(&self, blob: &ContentHash) -> Option<&str> {
+        self.recalled.get(blob).map(String::as_str)
+    }
+
     /// 最近一次压缩的检查点；没压缩过就没有。
     pub fn checkpoint(&self) -> Option<&Event> {
         self.checkpoint.as_ref()
@@ -54,6 +77,8 @@ impl History {
                 .cloned()
                 .collect(),
             undone: Vec::new(),
+            whole: self.whole,
+            recalled: self.recalled.clone(),
         }
     }
 
@@ -85,16 +110,21 @@ impl History {
     /// 追加一条账本查过的事件。
     ///
     /// 压缩：换上新的检查点，序号在它 `upto` 之前的事件和旧的检查点一起丢掉，
-    /// 新摘要里已经包着它们。撤销：撤掉的回合连同跟着撤的话拿走，先放在一边；恢复：放回原处
+    /// 新摘要里已经包着它们；留着一切的那一份（[`History::whole`]）什么都不丢，压缩照先后留成一条。撤销：撤掉的回合连同跟着撤的话拿走，先放在一边；恢复：放回原处
     /// （`history/undo.rs`）；下一轮开始、压缩了，放在一边的就丢掉。撤回：丢掉撤回的消息。`turn.reverted`、
     /// `turn.unreverted`、`message.withdrawn` 本身用过就丢，它们不进上下文。其余的照先后留着。
     pub fn append(&mut self, event: Event) {
         match &event.body {
+            Body::ContextCompacted(_) if self.whole => {
+                self.events.push(event);
+                self.undone.clear();
+            }
             Body::ContextCompacted(compacted) => {
                 let upto = compacted.upto;
                 self.events.retain(|kept| kept.seq > upto);
                 self.checkpoint = Some(event);
                 self.undone.clear();
+                self.recalled.clear();
             }
             Body::TurnReverted(reverted) => self.revert(&reverted.turns),
             Body::TurnUnreverted(_) => self.unrevert(),

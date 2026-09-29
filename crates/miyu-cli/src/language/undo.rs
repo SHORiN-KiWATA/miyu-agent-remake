@@ -1,4 +1,4 @@
-//! `miyu undo`、`miyu redo` 给人看的字（施工 4-7 下，样子是项目主人 2026-09-28 定的）。
+//! `miyu undo`、`miyu restore` 给人看的字（施工 4-7 下，样子是项目主人 2026-09-28 定的）。
 
 use super::Language;
 use crate::undo::Direction;
@@ -19,13 +19,13 @@ impl Language {
                 format!("· 撤销「{said}」起的 {turns} 轮")
             }
             (Language::Chinese, Direction::Undo, None, _) => "· 撤销最后一轮".to_string(),
-            (Language::Chinese, Direction::Redo, Some(said), 0 | 1) => {
+            (Language::Chinese, Direction::Restore, Some(said), 0 | 1) => {
                 format!("· 恢复「{said}」这一轮")
             }
-            (Language::Chinese, Direction::Redo, Some(said), turns) => {
+            (Language::Chinese, Direction::Restore, Some(said), turns) => {
                 format!("· 恢复「{said}」起的 {turns} 轮")
             }
-            (Language::Chinese, Direction::Redo, None, _) => "· 恢复撤销的那一轮".to_string(),
+            (Language::Chinese, Direction::Restore, None, _) => "· 恢复撤销的那一轮".to_string(),
             (Language::English, Direction::Undo, Some(said), 0 | 1) => {
                 format!("· Undid the turn \u{201c}{said}\u{201d}")
             }
@@ -33,13 +33,15 @@ impl Language {
                 format!("· Undid {turns} turns from \u{201c}{said}\u{201d}")
             }
             (Language::English, Direction::Undo, None, _) => "· Undid the last turn".to_string(),
-            (Language::English, Direction::Redo, Some(said), 0 | 1) => {
-                format!("· Redid the turn \u{201c}{said}\u{201d}")
+            (Language::English, Direction::Restore, Some(said), 0 | 1) => {
+                format!("· Restored the turn \u{201c}{said}\u{201d}")
             }
-            (Language::English, Direction::Redo, Some(said), turns) => {
-                format!("· Redid {turns} turns from \u{201c}{said}\u{201d}")
+            (Language::English, Direction::Restore, Some(said), turns) => {
+                format!("· Restored {turns} turns from \u{201c}{said}\u{201d}")
             }
-            (Language::English, Direction::Redo, None, _) => "· Redid the undone turn".to_string(),
+            (Language::English, Direction::Restore, None, _) => {
+                "· Restored the undone turn".to_string()
+            }
         }
     }
 
@@ -95,9 +97,9 @@ impl Language {
     pub(crate) fn diff_then(&self, direction: Direction) -> &'static str {
         match (self, direction) {
             (Language::Chinese, Direction::Undo) => "--- 她改完的",
-            (Language::Chinese, Direction::Redo) => "--- 撤销以后的",
+            (Language::Chinese, Direction::Restore) => "--- 撤销以后的",
             (Language::English, Direction::Undo) => "--- as she left it",
-            (Language::English, Direction::Redo) => "--- as undone",
+            (Language::English, Direction::Restore) => "--- as undone",
         }
     }
 
@@ -137,10 +139,10 @@ impl Language {
     }
 
     /// 撤销的最后一行。
-    pub(crate) fn redo_hint(&self) -> &'static str {
+    pub(crate) fn restore_hint(&self) -> &'static str {
         match self {
-            Language::Chinese => "发下一句之前，可以用 miyu redo 恢复。",
-            Language::English => "Until you say something else, miyu redo brings it back.",
+            Language::Chinese => "发下一句之前，可以用 miyu restore 恢复。",
+            Language::English => "Until you say something else, miyu restore brings it back.",
         }
     }
 

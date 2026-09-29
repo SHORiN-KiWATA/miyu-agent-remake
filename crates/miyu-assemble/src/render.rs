@@ -10,7 +10,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::{Body, ToolStatus};
+use miyu_kernel::event::{Body, ContextCompacted, ToolStatus};
 use miyu_kernel::history::History;
 use miyu_kernel::id::{Seq, TurnId};
 use miyu_kernel::origin::By;
@@ -24,12 +24,11 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
     if let Some(checkpoint) = history.checkpoint()
         && let Body::ContextCompacted(compacted) = &checkpoint.body
     {
-        // 摘要原样放进包装里，不转义：它是模型自己写的多行正文，转成一行读不顺。
-        let wrapped = format!(
-            "{}{}{}",
-            texts.checkpoint_open, compacted.summary, texts.checkpoint_close
+        transcript.add(
+            checkpoint.seq,
+            None,
+            vec![text_block(checkpoint_block(history, compacted, texts))],
         );
-        transcript.add(checkpoint.seq, None, vec![text_block(wrapped)]);
     }
     for event in history.ordered() {
         match &event.body {
@@ -84,6 +83,29 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
 }
 
 /// 第 `seq` 条排在检查点前面：被动压缩、回合开头压缩留下的尾巴里的，和摘要请求自己的 `model.called`。
+/// 检查点那一块（`kernel/request.md`「组装」第 2 条）：包装的开头、摘要、摘要的收尾、代码写的几段、重读的文件、包装的
+/// 结尾。摘要、重读的原文原样放，不转义：一个是模型自己写的多行正文，一个是文件本来的样子。重读的原文照 blob 从有效
+/// 历史取，取不到的那一份整块不写（施工 6-5）。
+fn checkpoint_block(history: &History, compacted: &ContextCompacted, texts: &Texts) -> String {
+    let mut block = format!(
+        "{}{}{}{}",
+        texts.checkpoint_open, compacted.summary, texts.checkpoint_close, compacted.notes
+    );
+    if let Some(wrap) = &texts.restored {
+        for file in &compacted.restored {
+            let Some(text) = history.recalled(&file.blob) else {
+                continue;
+            };
+            let fields = BTreeMap::from([("path", file.path.as_str())]);
+            block.push_str(&wrap.open.render(&fields).unwrap_or_default());
+            block.push_str(text);
+            block.push_str(&wrap.close);
+        }
+    }
+    block.push_str(&texts.checkpoint_end);
+    block
+}
+
 fn before_checkpoint(history: &History, seq: Seq) -> bool {
     history
         .checkpoint()
