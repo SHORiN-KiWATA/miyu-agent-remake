@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>112</b><span>/ 114 步<strong>已完成</strong>，M6 压缩做到 6-9：到线就压，检查点里带着读过的文件，压完接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停，摘要请求超长会截短再试、调了工具改走隔离式，出错再来照截过的发；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求</span></li>
-    <li><b>6-10</b><span>下一步：M6 验收，真模型长会话自测，再请你真人试（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">59be637</b><span>最近一步（6-6 补 出错再来照截过的发）的提交</span></li>
+    <li><b>113</b><span>/ 114 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求</span></li>
+    <li><b>M7</b><span>下一步：拆 M7 分身（子代理、后台命令、给子代理留言）；Windows 上跑命令那一步暂停</span></li>
+    <li><b class="mono">754ed30</b><span>最近一步（6-10 M6 验收）的提交</span></li>
   </ul>
 </header>
 
@@ -462,7 +462,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s6-7"><span class="n">6-7</span>被动压缩<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-8"><span class="n">6-8</span>手动压缩<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-9"><span class="n">6-9</span>撤销能撤掉压缩<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">6-10</span>M6 验收</span></li>
+        <li><a class="step done" href="#s6-10"><span class="n">6-10</span>M6 验收<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -8581,6 +8581,72 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>compaction.md</code>（第九、十一条）、<code>kernel/history.md</code>、<code>kernel/session.md</code>、<code>session/actor.md</code>、<code>protocol/undo.md</code>、<code>cli/undo.md</code>；设计 02、04、07。</li>
         <li><code>docs/construction/6-9-撤销能撤掉压缩.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s6-10" aria-labelledby="h-s610">
+  <div class="sheet-head"><h2 id="h-s610"><span class="no">6-10</span>M6 验收</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">M6 长会话的真模型验收：一个会话聊得够长，到线自动压缩，压完不失忆、接着干；压缩能撤、能恢复；人能手动压、附要求；换出去的她用 <code>history</code> 找得回。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">自测：读内核源码</span><span class="dir-note">deepseek-v4.1-flash · 窗口 120000</span></div>
+            <ol class="pipe" aria-label="自测的几件">
+              <li>第 8 轮到线：87.3k → 31.2k token，摘要请求命中缓存 99%、45 秒</li>
+              <li>压完接着把这一轮做完，不重读、不复述，约定照守</li>
+              <li>撤销撤掉压缩、恢复放回来，不再请求模型</li>
+              <li>文件删了，她用 <code>history</code> 搜到那一条、读原文，两行码都对</li>
+              <li>26 个文件只读没读过的 6 个；手动压缩 43.4k → 26.1k</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">项目主人真人试</span><span class="dir-note">窗口 300000</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">自动压缩</span><span class="rl">276k → 39k，摘要请求命中 99.8%、39 秒</span></div>
+              <div class="tile new"><span class="nm">手动压缩</span><span class="rl">53.8k → 24.0k，29 秒</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步看到的</p>
+          <div class="tile"><span class="nm">读整盘放开</span><span class="rl">她先搜到了工作区外的备份：测具的漏洞，删了再测</span></div>
+          <div class="tile"><span class="nm">沙盒要一起编</span><span class="rl">只编 miyu 时命令要确认，miyu ask 里跑不成</span></div>
+          <div class="tile new"><span class="nm">6-6 补</span><span class="rl">验收前修了出错再来丢截法</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-10</dd></div>
+        <div><dt>名称</dt><dd>M6 验收</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">754ed30</dd></div>
+        <div><dt>验收</dt><dd>真模型自测、项目主人真人试 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>不改代码，只验收；结果写在施工单最后。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>自动压缩、压完接着干、撤销恢复、问得回约定、history 找回、手动压缩都过了</span></li>
+        <li><span class="ok">✓</span><span>数据根里没有 key；main 上 CI 三台机器和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/6-10-M6 验收.md</code>：施工单和验收结果。</li>
       </ul>
     </div>
   </div>
