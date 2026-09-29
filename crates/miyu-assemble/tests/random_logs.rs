@@ -12,7 +12,7 @@ use miyu_kernel::event::{Body, ErrorClass, Event, ToolStatus};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::Queued;
 use miyu_kernel::testkit::{Line, Play, Stage};
-use support::{check, lines, sent, stage};
+use support::{anchored, check, lines, sent, stage};
 
 /// SplitMix64：十来行的伪随机数，够造剧本用。
 struct Rng(u64);
@@ -319,6 +319,9 @@ fn run(seeds: std::ops::Range<u64>) -> BTreeSet<&'static str> {
     for seed in seeds {
         let session = random_session(seed);
         if let Err(why) = check(&sent(&session)) {
+            panic!("种子 {seed}：{why}\n{}", lines(&session).join("\n"));
+        }
+        if let Err(why) = anchored(&session) {
             panic!("种子 {seed}：{why}\n{}", lines(&session).join("\n"));
         }
         let again = random_session(seed);

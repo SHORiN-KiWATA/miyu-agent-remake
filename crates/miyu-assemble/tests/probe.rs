@@ -16,7 +16,7 @@ use miyu_kernel::block::Block;
 use miyu_kernel::event::ErrorClass;
 use miyu_kernel::session::Queued;
 use miyu_kernel::testkit::{Line, Play, Stage};
-use support::{check, lines, sent, stage, wire};
+use support::{anchored, check, lines, sent, stage, wire};
 
 /// 终端会话的剧本，八个回合，1-12、1-13 画过的走法都走一遍。照真内核会怎么走写（施工 2-9 下）：
 /// 回合中途的那句话在工具还在跑时说；两轮之间换只读，改成请求还在路上时先切、再打断。
@@ -169,9 +169,20 @@ fn the_terminal_session_matches_the_archive() {
 
 #[test]
 fn the_terminal_session_keeps_the_properties() {
-    let sent = sent(&terminal());
+    let session = terminal();
+    let sent = sent(&session);
     if let Err(why) = check(&sent) {
         panic!("{why}");
+    }
+    // 锚盖住的正好是锚那次请求加上它的回复（施工 6-1）：替身发了十六次请求（出错再来的也算），第一次、压缩以后
+    // 的第一次没有锚。
+    match anchored(&session) {
+        Ok(count) => assert_eq!(
+            (count, session.requests().len()),
+            (14, 16),
+            "有锚的请求的次数"
+        ),
+        Err(why) => panic!("{why}"),
     }
     // 查的是真东西：八个回合的第一次请求都由人的一句话触发，都查了最后一块；撤销、压缩以后的
     // 那两次算改写过。

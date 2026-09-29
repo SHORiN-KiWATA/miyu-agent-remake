@@ -6,6 +6,10 @@
 
 #![allow(dead_code, reason = "两个测试各用其中一部分")]
 
+mod anchor;
+
+pub use anchor::anchored;
+
 use std::collections::BTreeMap;
 
 use miyu_assemble::{DefaultAssembler, Stable, Texts, TurnEndedTexts};
