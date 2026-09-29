@@ -1777,13 +1777,13 @@ You are a subagent, started by another session to do one task. That parent sessi
 #### `software/basesystem/tools/message_agent.json`
 
 - 什么时候加进来：会话的工具面里有 `message_agent`：本机的会话，到了深度上限的也有（每次请求都带）
-- token：152（2026-09-30 照项目主人给的端点、`deepseek-v4.1-flash` 量，十一件一起时的边际份量）
-- 为什么加：`message_agent` 的说明和参数（施工 7-7）：说明照附录的草稿，一字不差，三句：发给自己派的子代理或者父（`to: parent`），对方下一步看到、闲着就开一轮，只发对方现在就得知道的（问题、改变安排的发现），最后的回报自己会送。最后一句防她一有进展就发、刷屏叫醒对方（`agents.md` 第六条第 5 条）。参数 `to`、`message` 各一句
-- 指纹：`92411e28`
+- token：153（2026-09-30 照项目主人给的端点、`deepseek-v4.1-flash` 量，十一件一起时的边际份量）
+- 为什么加：`message_agent` 的说明和参数（施工 7-7）：说明照附录的草稿，一字不差，三句：发给自己派的子代理或者父（`to: parent`），对方下一步看到、闲着就开一轮，只发对方现在就得知道的（问题、改变安排的发现），最后的回报自己会送。最后一句防她一有进展就发、刷屏叫醒对方（`agents.md` 第六条第 5 条）。参数 `to`、`message` 各一句。第三句原来用分号接，合并时照「不用分号把几句串成一句」改成 since，重量多 1 个
+- 指纹：`346da410`
 
 ```json
 {
-  "description": "Send a message to a subagent you started, or to your parent with `to: parent`. The other side reads it at its next step, or starts a new turn with it if idle. Send only what they need to know now, such as a question or a finding that changes their plan; your final report goes up on its own.",
+  "description": "Send a message to a subagent you started, or to your parent with `to: parent`. The other side reads it at its next step, or starts a new turn with it if idle. Send only what they need to know now, such as a question or a finding that changes their plan, since your final report goes up on its own.",
   "parameters": {"type":"object","properties":{"to":{"type":"string","description":"The job id of your subagent, such as j1, or parent."},"message":{"type":"string","description":"The message to send."}},"required":["to","message"]}
 }
 ```

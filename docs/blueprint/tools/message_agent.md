@@ -23,7 +23,7 @@
 
 ```json
 {
-  "description": "Send a message to a subagent you started, or to your parent with `to: parent`. The other side reads it at its next step, or starts a new turn with it if idle. Send only what they need to know now, such as a question or a finding that changes their plan; your final report goes up on its own.",
+  "description": "Send a message to a subagent you started, or to your parent with `to: parent`. The other side reads it at its next step, or starts a new turn with it if idle. Send only what they need to know now, such as a question or a finding that changes their plan, since your final report goes up on its own.",
   "parameters": {"type":"object","properties":{"to":{"type":"string","description":"The job id of your subagent, such as j1, or parent."},"message":{"type":"string","description":"The message to send."}},"required":["to","message"]}
 }
 ```
