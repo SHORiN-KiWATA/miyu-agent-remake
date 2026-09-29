@@ -3,6 +3,15 @@
 use miyu_assemble::{JobTexts, RestoredWrap, Texts, TurnEndedTexts};
 use miyu_kernel::template::Template;
 
+/// 出厂的摘要指令（3-9 三补合并时从 `mod.rs` 挪来）：摘要请求的最后一块（施工 6-2 上）；正文接最后那一句（施工 6-8 拆开）。
+pub const SUMMARIZE: &str = concat!(
+    include_str!("../../../../resources/core/compaction/summarize-task.txt"),
+    include_str!("../../../../resources/core/compaction/summarize-end.txt")
+);
+
+/// 子代理的场所说明（施工 7-5）：出厂的原文，子会话的 system 接在人设后面。
+pub const VENUE: &str = include_str!("../../../../resources/core/jobs/subagent-venue.txt");
+
 /// 出厂的英文，资源目录里的真文件。
 pub(super) fn texts() -> Texts {
     // 压缩的几份字：`resources/core/compaction/` 下的同名文件。

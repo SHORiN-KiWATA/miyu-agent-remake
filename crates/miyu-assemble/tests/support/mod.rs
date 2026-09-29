@@ -11,6 +11,7 @@ mod texts;
 
 pub use anchor::anchored;
 use texts::texts;
+pub use texts::{SUMMARIZE, VENUE};
 
 use std::collections::BTreeMap;
 
@@ -31,15 +32,6 @@ use miyu_kernel::tool::{Access, ToolRule, ToolTextSources, ToolTexts};
 
 /// 会话开始的时刻：东九区 16:00。
 const START: &str = "2026-09-25T07:00:00.000Z";
-/// 出厂的摘要指令：摘要请求的最后一块（施工 6-2 上）；正文接最后那一句（施工 6-8 拆开）。
-pub const SUMMARIZE: &str = concat!(
-    include_str!("../../../../resources/core/compaction/summarize-task.txt"),
-    include_str!("../../../../resources/core/compaction/summarize-end.txt")
-);
-
-/// 子代理的场所说明（施工 7-5）：出厂的原文，子会话的 system 接在人设后面。
-pub const VENUE: &str = include_str!("../../../../resources/core/jobs/subagent-venue.txt");
-
 /// 探针里子会话的父会话。
 pub const PARENT: &str = "01a0d75d-2180-7a3c-9e41-5b7d2c8f6a10";
 
