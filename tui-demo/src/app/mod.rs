@@ -126,6 +126,8 @@ pub struct App {
     theme: String,
     /// 在回答时第一下 `Esc` 的时刻：时限里再按一下才打断。
     esc_at: Option<Instant>,
+    /// 压缩那一行的进度条一顿一顿地追，停多久、追几格要的随机数。
+    rng: crate::rng::Rng,
     /// 该退出了。
     pub quit: bool,
     /// 按了 Ctrl+Z，主循环该把程序挂起到后台了。
@@ -209,6 +211,7 @@ impl App {
             grab: None,
             theme,
             esc_at: None,
+            rng: crate::rng::Rng::from_clock(),
             quit: false,
             suspend: false,
         }
@@ -403,6 +406,14 @@ impl App {
     /// 到点了：收掉过期的提示。
     pub fn tick(&mut self) {
         self.advance_jobs();
+        // 压缩那一行的进度条追一下（`tui.md`「正文」第 9 条）。
+        let layout = &self.config.layout;
+        self.transcript.climb(
+            Instant::now(),
+            layout.bar.width,
+            &layout.compaction,
+            &mut self.rng,
+        );
         self.drawer_tick();
         if self
             .notice

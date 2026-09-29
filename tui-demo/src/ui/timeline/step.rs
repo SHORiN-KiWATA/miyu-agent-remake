@@ -91,11 +91,12 @@ pub fn title(step: &Step, style: Style, width: u16, ctx: &Ctx) -> Vec<Span<'stat
             }
         }
     };
-    let tl = &ctx.config.timeline;
+    // 图标取当前那一套（蓝图「图标」）。
+    let icons = &ctx.config.icons;
     let icon = match &step.kind {
-        _ if step.failed() => &tl.error_icon,
-        StepKind::Thought { .. } => &tl.think_icon,
-        StepKind::Tool { name, .. } => tl.tools.get(name).map_or(&tl.tool_icon, |t| &t.icon),
+        _ if step.failed() => &icons.error,
+        StepKind::Thought { .. } => &icons.think,
+        StepKind::Tool { name, .. } => icons.tool(name),
     };
     let icon = format!("{icon} ");
     let room = usize::from(width)
@@ -132,13 +133,17 @@ pub fn preview(step: &Step, style: Style, ctx: &Ctx) -> Vec<Piece> {
     match &step.kind {
         // 思考：滚着显示最后几行，想完也不收起（`tui.md`「时间线」第 5 条）。
         StepKind::Thought { text } => {
+            // 还一个字都没有的（刚开始想、只有空白）只有标题，不画空的竖线（第 5 条）。
+            if text.trim().is_empty() {
+                return Vec::new();
+            }
             // 首尾的空行不画：流到一半停在换行上时，不冒出一根空竖线。
             // 只折最后那几行：整段重折的时间跟着思考长度涨，做完的思考也每帧都画。
             tail_pieces(text.trim(), width, tl.thought_rows)
                 .into_iter()
                 .map(|(l, joined)| Piece {
                     lead: bar(theme::dim()),
-                    // 字用主题的 thought（淡紫），和命令的预览分开；悬停时和别的步一起亮一档（第 5 条）。
+                    // 字用主题的 thought（青），和命令的预览分开；悬停时和别的步一起亮一档（第 5 条）。
                     content: vec![Span::styled(l, thought_text(style))],
                     joined,
                 })
@@ -228,7 +233,7 @@ pub fn body(step: &Step, style: Style, width: u16, ctx: &Ctx) -> Vec<Piece> {
 /// 这一步的工具算哪一类；思考、没登记的是 `None`。
 fn kind(step: &Step, ctx: &Ctx) -> Option<ToolKind> {
     match &step.kind {
-        StepKind::Tool { name, .. } => ctx.config.timeline.tools.get(name).and_then(|t| t.kind),
+        StepKind::Tool { name, .. } => ctx.config.timeline.kinds.get(name).copied(),
         StepKind::Thought { .. } => None,
     }
 }

@@ -61,7 +61,7 @@ pub fn draw(frame: &mut Frame, area: Rect, app: &mut App) {
 
 /// 被流光扫的那一截：词后面接着点，同一道亮光一路扫过去；点的个数跟着流光轮换，一趟亮光轮一圈，
 /// 没写满的格子留空，长度不变（`tui.md`「运行状态行和排队的消息」第 2 条）。`t` 是这个词换上以后过了几秒。
-fn swept(word: &str, dots: &Dots, t: f64, sweep: f64) -> String {
+pub(super) fn swept(word: &str, dots: &Dots, t: f64, sweep: f64) -> String {
     let count = dots.count.max(1);
     let phase = if sweep > 0.0 {
         t.rem_euclid(sweep) / sweep
@@ -82,8 +82,9 @@ pub fn toast(frame: &mut Frame, text_x: u16, bottom: u16, max_width: u16, app: &
     };
     let text = clip(&notice.text, max_width.saturating_sub(4));
     let width = u16::try_from(text.width()).unwrap_or(0) + 4;
-    let area = Rect::new(text_x.saturating_sub(2), bottom.saturating_sub(2), width, 3)
-        .intersection(frame.area());
+    let Some(area) = toast_area(text_x, bottom, width, frame.area()) else {
+        return;
+    };
     frame.render_widget(Clear, area);
     let block = Block::bordered()
         .border_type(BorderType::Rounded)
@@ -92,6 +93,13 @@ pub fn toast(frame: &mut Frame, text_x: u16, bottom: u16, max_width: u16, app: &
         Rect::new(area.x + 2, area.y + 1, area.width.saturating_sub(4), 1).intersection(area);
     frame.render_widget(block, area);
     frame.render_widget(Paragraph::new(text), inner);
+}
+
+/// 提示的框放在哪：三行高，底边在 `bottom` 那一行。上面放不下三行就不画，不往下盖到输入框上（`tui.md`
+/// 「窗口小的时候」第 2 条）。
+fn toast_area(text_x: u16, bottom: u16, width: u16, screen: Rect) -> Option<Rect> {
+    let top = bottom.checked_sub(2).filter(|&top| top >= screen.y)?;
+    Some(Rect::new(text_x.saturating_sub(2), top, width, 3).intersection(screen))
 }
 
 /// 排队的消息：一条一行，暗色的记号加这句话，放不下截掉加 `…`（`tui.md`「运行状态行和排队的消息」第 5 条）。
@@ -106,8 +114,21 @@ pub fn queued(frame: &mut Frame, area: Rect, texts: &[String], mark: &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::swept;
+    use ratatui::layout::Rect;
+
+    use super::{swept, toast_area};
     use crate::config::Config;
+
+    #[test]
+    fn a_toast_without_three_rows_above_the_box_is_not_drawn() {
+        let screen = Rect::new(0, 0, 30, 7);
+        // 输入框在第 4 行起：底边压在第 3 行，框占第 1 到 3 行。
+        assert_eq!(toast_area(5, 3, 12, screen), Some(Rect::new(3, 1, 12, 3)));
+        assert_eq!(toast_area(5, 2, 12, screen), Some(Rect::new(3, 0, 12, 3)));
+        // 30×7 的首页：输入框在最上面，框上面没有地方。
+        assert_eq!(toast_area(5, 1, 12, screen), None, "不往下盖到输入框上");
+        assert_eq!(toast_area(5, 0, 12, screen), None);
+    }
 
     #[test]
     fn the_dots_are_swept_with_the_word_and_count_up_with_the_sweep() {

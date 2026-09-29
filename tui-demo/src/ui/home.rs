@@ -36,6 +36,10 @@ pub fn areas(
     let show_mascot = cols <= area.width && base + mascot_h <= area.height;
     let total = base + if show_mascot { mascot_h } else { 0 };
     let mut y = area.y + area.height.saturating_sub(total) / 2;
+    // 开着列表、输入框上面放不下：整组往下挪，挪到底为止（「窗口小的时候」第 1 条）。
+    let over = if show_mascot { mascot_h } else { 0 };
+    let lowest = area.bottom().saturating_sub(total);
+    y = y.max((area.y + menu_rows.saturating_sub(over)).min(lowest));
     let mascot = if show_mascot {
         let at = Rect::new(area.x + (area.width - cols) / 2, y, cols, tall);
         y += mascot_h;
@@ -48,11 +52,13 @@ pub fn areas(
     let text = Rect::new(inner_x, frame.y + 1, text_width, rows).intersection(frame);
     let footer = Rect::new(inner_x, frame.bottom(), text_width, 1).intersection(area);
     let cwd = Rect::new(inner_x, footer.bottom() + 1, text_width, 1).intersection(area);
-    let menu_y = frame.y.saturating_sub(menu_rows);
-    let menu = Rect::new(inner_x, menu_y, text_width, menu_rows).intersection(area);
+    // 列表只用输入框上面剩下的行（「窗口小的时候」第 1 条）。
+    let (menu_y, menu_rows) = super::above(frame.y, area.y, menu_rows);
+    let menu = Rect::new(inner_x, menu_y, text_width, menu_rows);
     // 待办在列表（没开时是输入框）上面，下面空一行（「后台命令、子代理和侧边栏」第 4 条）。
-    let todo_y = menu_y.saturating_sub(todo_h);
-    let todo = Rect::new(inner_x, todo_y, text_width, todo_rows).intersection(area);
+    let (todo_y, todo_rows) = super::above(menu_y.saturating_sub(1), area.y, todo_rows);
+    let todo_y = if todo_rows > 0 { todo_y } else { menu_y };
+    let todo = Rect::new(inner_x, todo_y, text_width, todo_rows);
     // 没有正文：高是 0，底边在输入框（开着列表时是列表）上面一行，提示照它浮着（「提示」）。
     let body = Rect::new(frame.x, todo_y.saturating_sub(1), frame.width, 0);
     Areas {

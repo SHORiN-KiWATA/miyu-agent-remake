@@ -118,7 +118,9 @@ impl App {
         let found = self.history.matches(self.input.sent());
         let width = self.areas.menu.width;
         let now = std::time::Instant::now();
-        let rows = crate::ui::history_lines(&self.history, &found, width, &self.config, now);
+        // 和画出来的同一份：放进列表那块的高度（「窗口小的时候」第 1 条）。
+        let max = usize::from(self.areas.menu.height);
+        let rows = crate::ui::history_lines(&self.history, &found, width, &self.config, now, max);
         let at = crate::ui::history_index_at(self.areas.menu, &rows, mouse.row);
         if let Some(index) = at {
             match mouse.kind {
@@ -136,7 +138,8 @@ impl App {
     /// 列表上的鼠标：悬停就选中，点一下就执行。
     pub(super) fn menu_mouse(&mut self, mouse: MouseEvent, matches: &[Spec]) -> Action {
         use ratatui::crossterm::event::{MouseButton, MouseEventKind};
-        let rows = self.config.layout.menu_rows;
+        // 露了几条照画出来的：列表那块的高度减去标题那一行（「窗口小的时候」第 1 条）。
+        let rows = crate::ui::menu_rows(self.config.layout.menu_rows, self.areas.menu.height);
         let at = crate::ui::menu_index_at(
             self.areas.menu,
             matches.len(),

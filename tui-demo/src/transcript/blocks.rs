@@ -101,22 +101,26 @@ impl Transcript {
     }
 
     /// 在进行的那一段：最后一条是这一轮没结束的一段就是它，不是就另起一段。交回它在正文里是第几条。
+    /// 排着队的话不算（它们还没进正文，`queue.rs`）。
     pub(super) fn open_segment(&mut self) -> usize {
-        let open = self.entries.last().is_some_and(|e| {
+        let open = self.tail().filter(|&i| {
+            let e = &self.entries[i];
             e.turn == self.turn && e.segment.as_ref().is_some_and(|s| !s.finished)
         });
-        if !open {
-            self.push(Kind::Steps, String::new());
-            if let Some(last) = self.entries.last_mut() {
-                last.segment = Some(Segment::new());
-            }
+        if let Some(i) = open {
+            return i;
+        }
+        self.push(Kind::Steps, String::new());
+        if let Some(last) = self.entries.last_mut() {
+            last.segment = Some(Segment::new());
         }
         self.entries.len() - 1
     }
 
     /// 收起在进行的那一段（说话就收起）。
     pub(super) fn finish_segment(&mut self) {
-        if let Some(segment) = self.entries.last_mut().and_then(|e| e.segment.as_mut()) {
+        let last = self.tail().and_then(|i| self.entries.get_mut(i));
+        if let Some(segment) = last.and_then(|e| e.segment.as_mut()) {
             segment.finish();
         }
     }

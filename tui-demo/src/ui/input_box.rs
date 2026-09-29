@@ -88,9 +88,9 @@ fn draw_input(
         }
     }
     // 提示符画在第一行文字的左边，住在 pad_left 那几列里，颜色跟着权限级别；放不下就不画。
-    // 暂存着东西换成软盘（`tui.md`「输入框」第 6 条）。
+    // 暂存着东西换成这一套图标的 `stash`（`tui.md`「输入框」第 6 条、「图标」）。
     let prompt = if input.stashed() {
-        config.layout.stash_prompt.as_str()
+        config.icons.stash.as_str()
     } else {
         config.layout.prompt.as_str()
     };

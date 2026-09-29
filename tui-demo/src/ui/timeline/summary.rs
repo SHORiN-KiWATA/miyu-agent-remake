@@ -7,7 +7,8 @@
 use ratatui::style::Style;
 use ratatui::text::Span;
 
-use super::super::rows::Ctx;
+use super::super::panel::clip_spans;
+use super::super::rows::{Ctx, clip};
 use crate::config::ToolKind;
 use crate::transcript::StepKind;
 use crate::transcript::{Segment, Tally};
@@ -17,7 +18,7 @@ use crate::{diff, meter, theme};
 /// （`tui.md`「时间线」第 17 条）。
 pub fn line(segment: &Segment, ctx: &Ctx, base: Style) -> Vec<Span<'static>> {
     let words = &ctx.config.text.summary;
-    let kind_of = |name: &str| ctx.config.timeline.tools.get(name).and_then(|t| t.kind);
+    let kind_of = |name: &str| ctx.config.timeline.kinds.get(name).copied();
     let tally = Tally::count(segment, kind_of);
     let style = if failed(segment, &tally) {
         theme::error()
@@ -47,7 +48,7 @@ pub fn line(segment: &Segment, ctx: &Ctx, base: Style) -> Vec<Span<'static>> {
             parts.push((count(tally.errors, &words.errors), false));
         }
         parts.push((took, false));
-        return spans(parts, style, (0, 0));
+        return clip_title(spans(parts, style, (0, 0)), room(ctx));
     }
     let lead = [
         (tally.commands, &words.ran),
@@ -75,7 +76,33 @@ pub fn line(segment: &Segment, ctx: &Ctx, base: Style) -> Vec<Span<'static>> {
         parts.push((count(tally.errors, &words.errors), false));
     }
     parts.push((took, false));
-    spans(parts, style, changed(segment, ctx))
+    clip_spans(spans(parts, style, changed(segment, ctx)), room(ctx))
+}
+
+/// 这一行能写几列：去掉行首两格槽。
+fn room(ctx: &Ctx) -> usize {
+    usize::from(ctx.width).saturating_sub(2)
+}
+
+/// 放不下时截短标题（第一段）加 `…`，后面的次数、用时留着；短标题截到一个字都放不下，整行截
+/// （`tui.md`「窗口小的时候」第 4 条）。
+fn clip_title(mut spans: Vec<Span<'static>>, room: usize) -> Vec<Span<'static>> {
+    let total: usize = spans.iter().map(Span::width).sum();
+    let Some(first) = spans.first() else {
+        return spans;
+    };
+    if total <= room {
+        return spans;
+    }
+    let rest = total - first.width();
+    match room.checked_sub(rest) {
+        Some(left) if left >= 2 => {
+            let title = clip(&first.content, u16::try_from(left).unwrap_or(u16::MAX));
+            spans[0] = Span::styled(title, first.style);
+            spans
+        }
+        _ => clip_spans(spans, room),
+    }
 }
 
 /// 只有一条命令、它出错了：整行红。
@@ -90,7 +117,7 @@ fn changed(segment: &Segment, ctx: &Ctx) -> (usize, usize) {
         .iter()
         .filter_map(|step| match &step.kind {
             StepKind::Tool { name, parsed, .. } => {
-                let kind = ctx.config.timeline.tools.get(name).and_then(|t| t.kind);
+                let kind = ctx.config.timeline.kinds.get(name).copied();
                 (kind == Some(ToolKind::Edit))
                     .then(|| diff::from_args(parsed))
                     .flatten()

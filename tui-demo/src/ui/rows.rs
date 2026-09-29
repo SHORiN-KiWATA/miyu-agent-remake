@@ -7,7 +7,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use unicode_width::UnicodeWidthStr;
 
-use super::{figure_rows, job_rows, timeline};
+use super::{done_row, figure_rows, job_rows, timeline};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -137,6 +137,7 @@ pub fn entry_rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
         (None, Kind::Job) => job_rows::rows(i, entry, ctx),
         (None, Kind::Reply) => reply_rows(i, entry, ctx),
         (None, Kind::User) => super::user_rows::rows(i, entry, ctx),
+        (None, _) if entry.progress.is_some() => super::compaction_rows::rows(entry, ctx),
         (None, _) => text_rows(entry, ctx),
     }
 }
@@ -170,6 +171,15 @@ fn undo_rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
         ctx.blank_slot(),
         vec![Span::styled(clip(&head, ctx.width), style)],
     )];
+    // 撤掉的几轮里有压缩：下面一行说一句，和「已撤销」对齐（施工 6-9，照 `miyu undo`）。
+    if entry.undo.as_ref().is_some_and(|r| r.compactions > 0) {
+        let indent = " ".repeat(ctx.config.layout.undo_icon.width());
+        out.push(ctx.led_row(
+            ctx.blank_slot(),
+            vec![Span::raw(indent)],
+            vec![Span::styled(text.undo_compactions.clone(), style)],
+        ));
+    }
     if entry.open {
         let width = ctx.width.saturating_sub(2).max(1);
         let blank = || ctx.row(ctx.blank_slot(), Vec::new());
@@ -218,21 +228,6 @@ pub fn clip(text: &str, width: u16) -> String {
     }
     out.push('…');
     out
-}
-
-/// 收尾行：图标，这个级别要多空的（`done_gap`，只有 `▣` 多空一格），再接字（`tui.md`「正文」第 4 条）。
-fn done_line(level: Option<Level>, text: &str, layout: &crate::config::Layout) -> String {
-    let gap = level
-        .and_then(|l| layout.done_gap.get(&l))
-        .map_or("", String::as_str);
-    format!("{}{gap}{text}", done_mark(level, layout))
-}
-
-/// 收尾行打头的符号：这一轮开始时的权限级别的图标；没记着级别的用兜底的 `✻`（`tui.md`「正文」第 4 条）。
-fn done_mark(level: Option<Level>, layout: &crate::config::Layout) -> &str {
-    level
-        .and_then(|l| layout.level_icons.get(&l))
-        .unwrap_or(&layout.done_icon)
 }
 
 /// 缓存认的键：字、点过的 `<details>`、换过几次主题的哈希（颜色烤在排好的行里，换了主题要重排）。
@@ -315,12 +310,16 @@ fn text_rows(entry: &Entry, ctx: &Ctx) -> Vec<Row> {
             (ctx.blank_slot(), Style::new())
         }
     };
-    let text = match entry.kind {
-        Kind::Done => done_line(entry.level, &entry.text, layout),
+    let pieces = match entry.kind {
+        // 收尾行只在 ` · ` 处折（「窗口小的时候」第 5 条）。
+        Kind::Done => done_row::pieces(
+            &done_row::line(entry.level, &entry.text, layout),
+            ctx.width.max(1),
+        ),
         // 模型的回答常以换行开头、结尾，前后的空行不画。
-        _ => entry.text.trim_matches('\n').to_string(),
+        _ => pieces(entry.text.trim_matches('\n'), ctx.width.max(1)),
     };
-    pieces(&text, ctx.width.max(1))
+    pieces
         .into_iter()
         .map(|(piece, joined)| {
             let mut row = ctx.row(slot.clone(), vec![Span::styled(piece, style)]);
@@ -334,23 +333,6 @@ fn text_rows(entry: &Entry, ctx: &Ctx) -> Vec<Row> {
 mod tests {
     use super::cache_key;
     use crate::theme;
-
-    #[test]
-    fn the_done_line_starts_with_its_level_icon() {
-        use super::done_mark;
-        use crate::config::Config;
-        use crate::core::Level;
-        let layout = Config::builtin().unwrap().layout;
-        assert_eq!(done_mark(Some(Level::ReadOnly), &layout), "⏸ ");
-        assert_eq!(done_mark(Some(Level::Workspace), &layout), "▣ ");
-        assert_eq!(done_mark(None, &layout), "✻ ", "没记着级别的兜底");
-        // 只有 `▣` 后面空两格，别的空一格。
-        let line = |level| super::done_line(level, "03:44", &layout);
-        assert_eq!(line(Some(Level::Workspace)), "▣  03:44");
-        assert_eq!(line(Some(Level::Full)), "⏵⏵ 03:44");
-        assert_eq!(line(Some(Level::ReadOnly)), "⏸ 03:44");
-        assert_eq!(line(None), "✻ 03:44");
-    }
 
     #[test]
     fn the_undo_line_just_says_undone() {
@@ -369,6 +351,39 @@ mod tests {
         assert!(
             head.contains("已撤销 · /restore 恢复 · 第一行") && !head.contains("轮"),
             "{head}"
+        );
+    }
+
+    #[test]
+    fn undoing_a_compaction_says_so_under_the_undo_line() {
+        // 施工 6-9：撤掉的几轮里有压缩，撤销那一行下面说一句（`tui.md`「正文」第 5 条，照 `miyu undo`）。
+        use crate::transcript::{Kind, Transcript};
+        use crate::ui::test_support::Fixture;
+        let f = Fixture::new();
+        let mut t = Transcript::default();
+        t.note(Kind::Undo, "第一行".into());
+        t.entries[0].undo = Some(crate::core::Report {
+            turns: 1,
+            compactions: 2,
+            ..Default::default()
+        });
+        let rows = super::entry_rows(0, &t.entries[0], &f.ctx());
+        let lines: Vec<String> = rows.iter().map(|r| r.line.to_string()).collect();
+        assert_eq!(lines.len(), 2, "{lines:?}");
+        assert_eq!(
+            lines[1].trim(),
+            "撤掉了压缩，上下文回到了压缩前",
+            "几次都是这一句"
+        );
+        assert_eq!(
+            rows[1].target, rows[0].target,
+            "和撤销那一行是一条，点它一样点开"
+        );
+        t.entries[0].undo.as_mut().unwrap().compactions = 0;
+        assert_eq!(
+            super::entry_rows(0, &t.entries[0], &f.ctx()).len(),
+            1,
+            "没撤掉压缩不说"
         );
     }
 

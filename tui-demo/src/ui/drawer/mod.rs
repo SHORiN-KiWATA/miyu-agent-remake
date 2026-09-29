@@ -148,29 +148,48 @@ pub fn rows(d: &Drawer, texts: &Texts, width: u16, max: u16) -> u16 {
 
 /// 按高度裁：放得下全画。放不下时最后两行（空行、按键提示）钉在下面，问题那几行钉在上面，中间的选项跟着
 /// 选中那一项滚（照旧版 `panel_layout`）：选项至少留三行（不超过剩下的一半），问题太长留它的后半截。
-/// 交回裁好的样子，顺手把选项滚到哪记进 `scroll`。
+/// 矮到四行以下（「窗口小的时候」第 3 条）：先去按键提示上面那一行空行，再去问题，最后去按键提示，选项至少留一行；
+/// 问题被裁时不留它后面那行空行。交回裁好的样子，顺手把选项滚到哪记进 `scroll`。
 pub fn fit(v: View, height: usize, scroll: &mut usize) -> View {
     let n = v.lines.len();
     if n <= height {
         *scroll = 0;
         return v;
     }
-    let foot = 2.min(height);
-    let body_len = n - foot - v.head;
-    let reserved = body_len.min(3).min((height - foot) / 2);
-    let top = v.head.min(height - foot - reserved);
-    let room = height - foot - top;
+    let tail = 2.min(n - v.head);
+    let body_len = n - tail - v.head;
+    let foot = match height {
+        0 | 1 => 0,
+        2 | 3 => 1,
+        _ => 2,
+    }
+    .min(tail);
+    let avail = height - foot;
+    let reserved = body_len
+        .min(3)
+        .min(avail / 2)
+        .max(body_len.min(1))
+        .min(avail);
+    let top = v.head.min(avail - reserved);
+    let room = avail - top;
+    // 问题被裁时，留下的是问题的字，不是它后面那行空行。
+    let blank = |k: usize| v.lines[k].width() == 0;
+    let head_end = if top < v.head {
+        (0..v.head).rev().find(|&k| !blank(k)).map_or(0, |k| k + 1)
+    } else {
+        v.head
+    };
     let (first, last) = (v.focus.0 - v.head, v.focus.1 - v.head);
     let mut start = (*scroll).min(body_len.saturating_sub(room));
-    if first < start {
+    if first < start || last - first >= room {
         start = first;
     } else if last >= start + room {
         start = (last + 1).saturating_sub(room);
     }
     *scroll = start;
     // 留下的行在原来的第几行：问题的后半截、选项的一段、按键提示。
-    let kept: Vec<usize> = (v.head - top..v.head)
-        .chain(v.head + start..(v.head + start + room).min(n - foot))
+    let kept: Vec<usize> = (head_end.saturating_sub(top)..head_end)
+        .chain(v.head + start..(v.head + start + room).min(n - tail))
         .chain(n - foot..n)
         .collect();
     let at = |row: usize| kept.iter().position(|&k| k == row);

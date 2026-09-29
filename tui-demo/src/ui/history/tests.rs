@@ -36,7 +36,7 @@ fn it_looks_like_the_background_panel_and_clicks_find_their_entry() {
         sent("早的", 7200, now),
     ];
     let found: Vec<&Sent> = list.iter().collect();
-    let rows = lines(&History::default(), &found, 40, &config, now);
+    let rows = lines(&History::default(), &found, 40, &config, now, usize::MAX);
     let text = plain(&rows);
     // 标题写在横线上（2026-09-29 项目主人）。
     assert!(text[0].starts_with("── 历史  3 条 ─"), "{text:?}");
@@ -78,7 +78,7 @@ fn commands_lines_pastes_and_hits_are_marked() {
         pasted,
     ];
     let found: Vec<&Sent> = list.iter().collect();
-    let rows = lines(&History::default(), &found, 60, &config, now);
+    let rows = lines(&History::default(), &found, 60, &config, now, usize::MAX);
     let span = |row: usize, text: &str| {
         rows[row]
             .1
@@ -100,7 +100,7 @@ fn commands_lines_pastes_and_hits_are_marked() {
     };
     let list = [sent("看看 README 再说", 0, now)];
     let found: Vec<&Sent> = list.iter().collect();
-    let rows = lines(&history, &found, 60, &config, now);
+    let rows = lines(&history, &found, 60, &config, now, usize::MAX);
     assert!(plain(&rows)[0].starts_with("── 历史  1 条 · 搜索：read ─"));
     let hit = rows[2]
         .1
@@ -120,7 +120,7 @@ fn a_long_entry_is_clipped_and_keeps_its_time() {
     let long: String = "很长的一句话".repeat(10);
     let list = [sent(&long, 0, now)];
     let found: Vec<&Sent> = list.iter().collect();
-    let rows = lines(&History::default(), &found, 30, &config, now);
+    let rows = lines(&History::default(), &found, 30, &config, now, usize::MAX);
     let row = plain(&rows)[2].clone();
     assert!(row.contains('…') && row.ends_with("刚才"), "{row}");
     assert_eq!(rows[2].1.width(), 30);
@@ -133,7 +133,7 @@ fn nothing_found_says_so() {
         query: "xyz".into(),
         ..History::default()
     };
-    let rows = lines(&history, &[], 40, &config, Instant::now());
+    let rows = lines(&history, &[], 40, &config, Instant::now(), usize::MAX);
     let text = plain(&rows);
     assert!(text[0].starts_with("── 历史  0 条 · 搜索：xyz ─"));
     assert_eq!(text[2], format!("  {}", config.text.history.empty));
@@ -147,7 +147,7 @@ fn tab_shows_the_selected_one_in_full_and_caps_long_ones() {
     let mut history = History::default();
     history.toggle_full(list[0].at);
     let found: Vec<&Sent> = list.iter().collect();
-    let rows = lines(&history, &found, 40, &config, now);
+    let rows = lines(&history, &found, 40, &config, now, usize::MAX);
     let text = plain(&rows);
     assert!(text[2].starts_with("  早的"));
     assert!(text[3].starts_with("❯ 第一行") && text[3].ends_with("刚才"));
@@ -160,7 +160,7 @@ fn tab_shows_the_selected_one_in_full_and_caps_long_ones() {
     let mut history = History::default();
     history.toggle_full(list[0].at);
     let found: Vec<&Sent> = list.iter().collect();
-    let rows = lines(&history, &found, 40, &config, now);
+    let rows = lines(&history, &found, 40, &config, now, usize::MAX);
     let cap = config.layout.history_preview_rows;
     let text = plain(&rows);
     assert_eq!(rows.len(), 2 + cap + 2);
@@ -182,7 +182,7 @@ fn an_expanded_entry_stays_open_and_others_do_not_follow() {
     let mut history = History::default();
     history.toggle_full(list[0].at);
     history.older(3);
-    let rows = lines(&history, &found, 40, &config, now);
+    let rows = lines(&history, &found, 40, &config, now, usize::MAX);
     let text = plain(&rows);
     assert!(
         text.contains(&"❯ 甲 · +1 行".to_string())
@@ -201,10 +201,10 @@ fn an_expanded_entry_stays_open_and_others_do_not_follow() {
     assert_ne!(first.1.style.bg, theme::shade().bg, "没选中的不铺底色");
     // 再按一下 Tab 收起它自己那一条；可以同时展开好几条。
     history.toggle_full(list[1].at);
-    let text = plain(&lines(&history, &found, 40, &config, now));
+    let text = plain(&lines(&history, &found, 40, &config, now, usize::MAX));
     assert!(text.iter().any(|l| l.starts_with("❯ 甲")) && text.iter().any(|l| l == "  乙"));
     assert!(text.iter().any(|l| l == "  第二行"), "两条同时展开");
     history.toggle_full(list[0].at);
-    let text = plain(&lines(&history, &found, 40, &config, now));
+    let text = plain(&lines(&history, &found, 40, &config, now, usize::MAX));
     assert!(!text.iter().any(|l| l == "  第二行"), "再按收回");
 }

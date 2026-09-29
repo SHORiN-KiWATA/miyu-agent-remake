@@ -17,6 +17,11 @@
       "run": "theme"
     },
     {
+      "name": "icons",
+      "summary": "换一套图标：nerd、plain 轮着换",
+      "run": "icons"
+    },
+    {
       "name": "new",
       "summary": "开一个新会话",
       "run": "fake"

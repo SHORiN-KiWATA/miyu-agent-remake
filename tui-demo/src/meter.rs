@@ -11,6 +11,19 @@ pub fn short(n: u64) -> String {
     format!("{}{unit}", text.strip_suffix(".0").unwrap_or(&text))
 }
 
+/// 三位一撇：`3120` 写成 `3,120`（压缩中收到的字数，照 `miyu ask`）。
+pub fn thousands(n: u64) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+
 /// 百分比，保留一位小数，整数不带 `.0`：`0.2`、`4.1`、`12`。分母是 0 的是 `0`。
 pub fn percent_tenths(part: u64, whole: u64) -> String {
     if whole == 0 {

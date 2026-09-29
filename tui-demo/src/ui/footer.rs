@@ -25,9 +25,7 @@ const GAP: usize = 2;
 /// 叠上以后宽字被盖掉一半，下一帧会留下残字。按钮留到最后。
 pub fn draw(frame: &mut Frame, area: Rect, app: &App) -> Rect {
     let focus = app.focus();
-    let left_spans = left(app);
-
-    let left = Line::from(left_spans);
+    let left = left_line(left(app), area.width);
     let count = app.board.shells_running();
     let button = (count > 0).then(|| {
         app.config
@@ -118,6 +116,15 @@ fn fit(mut parts: Vec<Part>, room: usize) -> Vec<Span<'static>> {
     spans
 }
 
+/// 左边那一段：放不下截掉加 `…`（`tui.md`「框下面那一行」）。
+fn left_line(spans: Vec<Span<'_>>, width: u16) -> Line<'static> {
+    let owned = spans
+        .into_iter()
+        .map(|s| Span::styled(s.content.into_owned(), s.style))
+        .collect();
+    Line::from(super::panel::clip_spans(owned, usize::from(width)))
+}
+
 fn left(app: &App) -> Vec<Span<'_>> {
     let text = &app.config.text;
     let t = &app.transcript;
@@ -204,7 +211,27 @@ pub fn context_text(t: &Transcript, config: &Config) -> Option<String> {
 mod tests {
     use ratatui::text::Span;
 
-    use super::{Part, fit, middle, right};
+    use super::{Part, fit, left_line, middle, right};
+
+    #[test]
+    fn a_narrow_left_side_is_clipped_with_an_ellipsis() {
+        // 2026-09-29 28 列实测：`▣ 工作区 · deepseek-v4.` 硬截，没有 `…`。
+        let spans = vec![
+            Span::raw("▣ 工作区"),
+            Span::raw(" · "),
+            Span::raw("deepseek-v4.1-flash"),
+            Span::raw(" dev"),
+        ];
+        assert_eq!(
+            left_line(spans.clone(), 40).to_string(),
+            "▣ 工作区 · deepseek-v4.1-flash dev"
+        );
+        let clipped = left_line(spans, 22).to_string();
+        assert_eq!(
+            clipped, "▣ 工作区 · deepseek-v…",
+            "占满 22 列，最后一格是 …"
+        );
+    }
 
     #[test]
     fn the_button_sits_in_the_middle_of_the_gap() {

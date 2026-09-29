@@ -124,6 +124,29 @@ fn a_live_segment_is_rebuilt_every_frame() {
 }
 
 #[test]
+fn a_running_compaction_line_is_rebuilt_every_frame() {
+    // 流光、闪、呼吸都在动（`tui.md`「正文」第 9 条）：和在进行的时间线一样每帧重排。
+    let _theme = crate::theme::hold();
+    let f = Fixture::new();
+    let mut t = sample();
+    t.note(Kind::Note, "正在压缩上下文 0".into());
+    t.entries.last_mut().unwrap().progress = Some(crate::transcript::Progress::new(
+        0,
+        Some(20000),
+        Instant::now(),
+    ));
+    let ctx = f.ctx();
+    let cache = RefCell::new(RowCache::default());
+    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache);
+    assert_eq!(cache.borrow().rebuilt, 1, "只重排在压的那一行");
+    t.entries.last_mut().unwrap().progress = None;
+    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache);
+    assert_eq!(cache.borrow().rebuilt, 0, "压好了就照常记着");
+}
+
+#[test]
 fn entries_are_known_by_id_not_position() {
     let f = Fixture::new();
     let mut t = sample();

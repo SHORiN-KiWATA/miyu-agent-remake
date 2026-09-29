@@ -5,16 +5,16 @@ use super::*;
 
 impl Transcript {
     /// 在等她的第一个字：一轮在跑、这一轮还一块都没来（出错等重试也算）。界面在正文末尾转圈，
-    /// 步与步之间等她不算（蓝图 `tui.md`「时间线」第 19 条）。
+    /// 步与步之间等她不算（蓝图 `tui.md`「时间线」第 19 条）；正在压缩时那一行自己在转，不算（「正文」第 9 条）。
     pub fn waiting(&self) -> bool {
-        self.running.is_some() && !self.spoke
+        self.running.is_some() && !self.spoke && self.compacting.is_none()
     }
 
     /// 她正在写的这一段正文：这一轮在跑，正文最后一条是这一轮的回答。长过视口时正文区停在它的开头
     /// （蓝图 `tui.md`「正文」第 1 条）。
     pub fn writing(&self) -> Option<&Entry> {
         self.running?;
-        let last = self.entries.last()?;
+        let last = &self.entries[self.tail()?];
         (last.kind == Kind::Reply && last.turn == self.turn).then_some(last)
     }
 
@@ -54,26 +54,7 @@ impl Transcript {
         let picked: Vec<usize> = (0..self.entries.len())
             .filter(|&j| joins(j, &self.entries[j]))
             .collect();
-        let mut moved = Vec::new();
-        for &j in picked.iter().rev() {
-            if self.entries[j].queued {
-                moved.push(self.entries.remove(j));
-            } else {
-                self.entries[j].turn = Some(turn);
-            }
-        }
-        // 几条一起发的拼成你说的一段话，按先后一条一行（`tui.md`「运行状态行和排队的消息」第 5 条）。
-        let mut moved = moved.into_iter().rev();
-        if let Some(mut first) = moved.next() {
-            for next in moved {
-                first.text.push('\n');
-                first.text.push_str(&next.text);
-                first.pasted.extend(next.pasted);
-            }
-            first.turn = Some(turn);
-            first.queued = false;
-            self.entries.push(first);
-        }
+        self.bring_in(&picked, turn);
     }
 
     /// 一轮结束了（`turn.ended`）：停表、收起时间线、写收尾行或打断、出错的那一行。
@@ -83,6 +64,7 @@ impl Transcript {
             .take()
             .map_or(std::time::Duration::ZERO, |start| start.elapsed());
         self.retry = None;
+        self.drop_compacting();
         self.blocks.clear();
         self.unnamed.clear();
         self.finish_segment();
@@ -110,7 +92,7 @@ impl Transcript {
                 let (class, message) = failure.unwrap_or_else(|| ("other".into(), String::new()));
                 let text = texts
                     .failed
-                    .replace("{class}", &class)
+                    .replace("{class}", &super::compaction::class_name(&class, texts))
                     .replace("{message}", message.trim());
                 self.push(Kind::Error, text);
             }

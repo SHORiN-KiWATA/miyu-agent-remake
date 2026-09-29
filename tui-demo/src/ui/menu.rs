@@ -47,6 +47,11 @@ pub fn lines(
     out
 }
 
+/// 露几条：配置的条数，放不下时照列表那块的高度减去标题那一行，至少一条（「窗口小的时候」第 1 条）。
+pub fn rows(configured: usize, height: u16) -> usize {
+    configured.min(usize::from(height).saturating_sub(1)).max(1)
+}
+
 /// 名字那一列写的：`/名字`，有别名的跟上 ` (别名)`（2026-09-29 项目主人：原来在说明里写「也可以打」）。
 fn label(spec: &Spec) -> String {
     if spec.aliases.is_empty() {

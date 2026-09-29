@@ -6,7 +6,9 @@
 mod agents;
 mod background;
 mod body;
+mod compaction_rows;
 mod diff_rows;
+mod done_row;
 mod drawer;
 mod figure_rows;
 mod footer;
@@ -20,7 +22,7 @@ mod panel;
 mod sidebar;
 
 pub use history::{index_at as history_index_at, lines as history_lines};
-pub use menu::index_at as menu_index_at;
+pub use menu::{index_at as menu_index_at, rows as menu_rows};
 mod menu;
 pub mod row_cache;
 pub mod rows;
@@ -28,6 +30,7 @@ mod status;
 mod timeline;
 pub use timeline::release_on_fold;
 mod user_rows;
+pub mod wide;
 
 #[cfg(test)]
 mod rulers;
@@ -101,20 +104,23 @@ pub fn areas(
     let inner_x = frame.x + 1 + pad_left;
     let text = Rect::new(inner_x, frame.y + 1, text_width, rows).intersection(frame);
     let footer = Rect::new(inner_x, footer_y, text_width, 1).intersection(area);
-    // 列表出现时把正文往上推，不盖住正文（13-终端界面.md H4）。
-    let menu_y = frame.y.saturating_sub(menu_rows);
-    let menu = Rect::new(inner_x, menu_y, text_width, menu_rows).intersection(area);
+    // 列表出现时把正文往上推，不盖住正文（13-终端界面.md H4）；只用输入框上面剩下的行（`tui.md`「窗口小的时候」
+    // 第 1 条）。
+    let menu = above(frame.y, area.y, menu_rows);
+    let menu = Rect::new(inner_x, menu.0, text_width, menu.1);
     // 正文和下面那一块之间：在回答时是 空一行 · 运行状态行 · 排队的消息 · 空一行，再接输入框；没在回答时只空一行
     // （`tui.md`「运行状态行和排队的消息」）。
     // 窄屏的待办常驻在列表（没开时是输入框）上面，下面空一行（`tui.md`「后台命令、子代理和侧边栏」第 4 条）。
-    let todo_gap = if todo_rows > 0 { todo_rows + 1 } else { 0 };
-    let todo_y = menu_y.saturating_sub(todo_gap);
+    let (todo_y, todo_rows) = above(menu.y.saturating_sub(1), area.y, todo_rows);
+    let todo_y = if todo_rows > 0 { todo_y } else { menu.y };
     let block = if running { 3 + queued } else { 1 };
-    let block_y = todo_y.saturating_sub(block);
+    let block_y = todo_y.saturating_sub(block).max(area.y);
+    // 运行状态行那一块放不下的不画，不盖到下面去。
+    let free = Rect::new(inner_x, area.y, text_width, todo_y.saturating_sub(area.y));
     let pulse_y = if running { block_y + 1 } else { block_y };
-    let pulse = Rect::new(inner_x, pulse_y, text_width, 1).intersection(area);
+    let pulse = Rect::new(inner_x, pulse_y, text_width, 1).intersection(free);
     let queued_rows = if running { queued } else { 0 };
-    let queued = Rect::new(inner_x, pulse_y + 1, text_width, queued_rows).intersection(area);
+    let queued = Rect::new(inner_x, pulse_y + 1, text_width, queued_rows).intersection(free);
     // 正文和输入框一样宽，上面空出 top_gap 行。
     let top = (area.y + layout.top_gap).min(block_y);
     let body = Rect::new(frame.x, top, frame.width, block_y.saturating_sub(top));
@@ -130,6 +136,12 @@ pub fn areas(
         todo: Rect::new(inner_x, todo_y, text_width, todo_rows).intersection(area),
         ..Areas::default()
     }
+}
+
+/// 贴着 `bottom` 往上要 `rows` 行，顶多到 `top`：交回从第几行起、给了几行。
+pub(super) fn above(bottom: u16, top: u16, rows: u16) -> (u16, u16) {
+    let rows = rows.min(bottom.saturating_sub(top));
+    (bottom - rows, rows)
 }
 
 /// 输入框（连边框）多宽：终端宽的几成，两边留白；太窄时、紧凑版面铺满。
@@ -175,40 +187,6 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     } else {
         app.menu_matches()
     };
-    // 历史列表排成的行：占几行、画什么都照它（`history.rs` 的 `lines`）。
-    let history_rows = if app.history.open {
-        let found = app.history.matches(app.input.sent());
-        let width = text_width(main.width, &app.config.layout);
-        history::lines(
-            &app.history,
-            &found,
-            width,
-            &app.config,
-            std::time::Instant::now(),
-        )
-    } else {
-        Vec::new()
-    };
-    // 后台面板、待办面板排成的行（第 3、4 条）。
-    let (panel_lines, panel_rows) = background::lines(
-        app.panel,
-        &app.board,
-        &app.config,
-        text_width(main.width, &app.config.layout),
-        std::time::Instant::now(),
-    );
-    app.panel_rows = panel_rows;
-    let menu_rows = if app.panel.is_some() {
-        u16::try_from(panel_lines.len()).unwrap_or(u16::MAX)
-    } else if app.history.open {
-        u16::try_from(history_rows.len()).unwrap_or(u16::MAX)
-    } else {
-        // 露出来的几条，加上顶上那一行标题横线（`tui.md`「斜杠命令列表」第 3 条）。
-        let shown = matches
-            .as_ref()
-            .map_or(0, |m| m.len().min(app.config.layout.menu_rows));
-        u16::try_from(if shown > 0 { shown + 1 } else { 0 }).unwrap_or(0)
-    };
     let running = app.transcript.running.is_some();
     let queued: Vec<String> = app
         .transcript
@@ -251,38 +229,79 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         Some(d) => drawer::rows(d, texts, w, drawer_max),
         None => app.input.rows(w),
     };
-    // 空会话是首页：整组上下居中，吉祥物在中间（`tui.md`「空会话的首页」）。
-    let mut areas = if home {
-        let look = &app.config.mascot;
-        // 首页的吉祥物能关（「后台命令、子代理和侧边栏」第 7 条）。
-        let mascot = if app.config.layout.mascot_home {
-            (look.cols, look.rows)
+    // 空会话是首页：整组上下居中，吉祥物在中间（`tui.md`「空会话的首页」）。列表占几行交给 `place` 定位。
+    let place = |menu_rows: u16| {
+        if home {
+            let look = &app.config.mascot;
+            // 首页的吉祥物能关（「后台命令、子代理和侧边栏」第 7 条）。
+            let mascot = if app.config.layout.mascot_home {
+                (look.cols, look.rows)
+            } else {
+                (0, 0)
+            };
+            home::areas(
+                main,
+                &box_rows,
+                &app.config.layout,
+                mascot,
+                menu_rows,
+                agent_rows,
+                todo_rows,
+            )
         } else {
-            (0, 0)
-        };
-        home::areas(
-            main,
-            &box_rows,
-            &app.config.layout,
-            mascot,
-            menu_rows,
-            agent_rows,
-            todo_rows,
+            areas(
+                main,
+                &box_rows,
+                &app.config.layout,
+                menu_rows,
+                running,
+                count,
+                agent_rows,
+                todo_rows,
+            )
+        }
+    };
+    // 输入框上面的列表最多能占几行：放不下的由各列表自己瘦身（「窗口小的时候」第 1 条）。
+    let room = place(u16::MAX).menu.height;
+    let now = std::time::Instant::now();
+    let width = text_width(main.width, &app.config.layout);
+    // 历史列表排成的行：占几行、画什么都照它（`history.rs` 的 `lines`）。
+    let history_rows = if app.history.open {
+        let found = app.history.matches(app.input.sent());
+        history::lines(
+            &app.history,
+            &found,
+            width,
+            &app.config,
+            now,
+            usize::from(room),
         )
     } else {
-        areas(
-            main,
-            &box_rows,
-            &app.config.layout,
-            menu_rows,
-            running,
-            count,
-            agent_rows,
-            todo_rows,
-        )
+        Vec::new()
     };
+    // 后台面板排成的行（第 3 条）。
+    let (panel_lines, panel_rows) = background::lines(
+        app.panel,
+        &app.board,
+        &app.config,
+        width,
+        now,
+        usize::from(room),
+    );
+    let menu_shown = menu::rows(app.config.layout.menu_rows, room);
+    let menu_rows = if app.panel.is_some() {
+        u16::try_from(panel_lines.len()).unwrap_or(u16::MAX)
+    } else if app.history.open {
+        u16::try_from(history_rows.len()).unwrap_or(u16::MAX)
+    } else {
+        // 露出来的几条，加上顶上那一行标题横线（`tui.md`「斜杠命令列表」第 3 条）。
+        let shown = matches.as_ref().map_or(0, |m| m.len().min(menu_shown));
+        u16::try_from(if shown > 0 { shown + 1 } else { 0 }).unwrap_or(0)
+    };
+    let mut areas = place(menu_rows);
     areas.sidebar = sidebar;
     app.areas = areas;
+    app.panel_rows = panel_rows;
     if home {
         // 先画输入框（吉祥物照输入光标转头），再画吉祥物；开着列表时吉祥物已经让到列表上面。
         input_box::draw_box(frame, areas, app, home);
@@ -292,7 +311,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         input_box::draw_box(frame, areas, app, home);
     }
     if let Some(matches) = &matches {
-        let rows = app.config.layout.menu_rows;
+        let rows = menu::rows(app.config.layout.menu_rows, areas.menu.height);
         let lines = menu::lines(
             matches,
             app.menu.selected,
@@ -322,137 +341,4 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::time::Duration;
-
-    use ratatui::layout::Rect;
-
-    use super::areas;
-    use crate::config::Config;
-    use crate::input::InputBox;
-
-    #[test]
-    fn while_answering_one_blank_above_the_status_and_one_below_it() {
-        let layout = Config::builtin().unwrap().layout;
-        let input = InputBox::new(8, Duration::from_millis(400));
-        let a = areas(
-            Rect::new(0, 0, 100, 40),
-            &|w| input.rows(w),
-            &layout,
-            0,
-            true,
-            2,
-            0,
-            0,
-        );
-        // 正文 · 空一行 · 运行状态行 · 两条排队的 · 空一行 · 输入框（`tui.md`「运行状态行和排队的消息」）。
-        assert_eq!(a.pulse.y, a.body.bottom() + 1, "上面空一行");
-        assert_eq!((a.queued.y, a.queued.height), (a.pulse.y + 1, 2));
-        assert_eq!(a.frame.y, a.queued.bottom() + 1, "下面空一行");
-        // 没有排队的：空行直接在运行状态行下面。
-        let b = areas(
-            Rect::new(0, 0, 100, 40),
-            &|w| input.rows(w),
-            &layout,
-            0,
-            true,
-            0,
-            0,
-            0,
-        );
-        assert_eq!(b.frame.y, b.pulse.y + 2);
-        // 没在回答：只空一行。
-        let c = areas(
-            Rect::new(0, 0, 100, 40),
-            &|w| input.rows(w),
-            &layout,
-            0,
-            false,
-            0,
-            0,
-            0,
-        );
-        assert_eq!(c.frame.y, c.body.bottom() + 1);
-    }
-
-    #[test]
-    fn the_narrow_todo_list_sits_above_the_box_with_a_blank_between() {
-        let layout = Config::builtin().unwrap().layout;
-        let input = InputBox::new(8, Duration::from_millis(400));
-        // 没在回答：正文 · 空一行 · 待办 6 行 · 空一行 · 输入框。
-        let a = areas(
-            Rect::new(0, 0, 100, 40),
-            &|w| input.rows(w),
-            &layout,
-            0,
-            false,
-            0,
-            0,
-            6,
-        );
-        assert_eq!((a.todo.height, a.todo.bottom() + 1), (6, a.frame.y));
-        assert_eq!(a.todo.y, a.body.bottom() + 1);
-        assert_eq!(a.todo.x, a.text.x, "和框里的字左对齐");
-        // 开着列表：列表在待办和输入框之间。
-        let b = areas(
-            Rect::new(0, 0, 100, 40),
-            &|w| input.rows(w),
-            &layout,
-            4,
-            false,
-            0,
-            0,
-            6,
-        );
-        assert_eq!(b.menu.bottom(), b.frame.y);
-        assert_eq!(b.todo.bottom() + 1, b.menu.y);
-        // 在回答：运行状态行那一块在待办上面。
-        let c = areas(
-            Rect::new(0, 0, 100, 40),
-            &|w| input.rows(w),
-            &layout,
-            0,
-            true,
-            0,
-            0,
-            6,
-        );
-        assert_eq!(c.pulse.y + 2, c.todo.y);
-    }
-
-    #[test]
-    fn a_narrow_window_drops_the_margins() {
-        // 少于 80 列换紧凑版面：框贴着两边，`❯` 紧挨左边线，右边只留光标一列（`tui.md`「输入框」第 10 条）。
-        let layout = Config::builtin().unwrap().layout;
-        let input = InputBox::new(8, Duration::from_millis(400));
-        let rows = |w: u16| input.rows(w);
-        let a = areas(Rect::new(0, 0, 44, 30), &rows, &layout, 0, false, 0, 0, 0);
-        assert_eq!((a.frame.x, a.frame.width), (0, 44), "框贴着两边");
-        assert_eq!(a.text.x, 3, "边线一列，提示符两列");
-        assert_eq!(a.text.width, 44 - 3 - 2, "右边只留光标一列和边线");
-        assert_eq!(a.footer.x, a.text.x, "框下面那一行跟着字对齐");
-        let h = super::home::areas(Rect::new(0, 0, 44, 30), &rows, &layout, (0, 0), 0, 0, 0);
-        assert_eq!((h.frame.x, h.text.x, h.text.width), (0, 3, 39), "首页一样");
-        // 79 列还是紧凑的；80 列起照旧留白。
-        let c = areas(Rect::new(0, 0, 79, 30), &rows, &layout, 0, false, 0, 0, 0);
-        assert_eq!((c.frame.x, c.text.x), (0, 3), "79 列紧凑");
-        let b = areas(Rect::new(0, 0, 80, 30), &rows, &layout, 0, false, 0, 0, 0);
-        assert_eq!(b.text.x, b.frame.x + 1 + layout.pad_left);
-        assert!(b.frame.x >= layout.side_gap);
-    }
-
-    #[test]
-    fn the_home_screen_always_shows_the_level_tip() {
-        let config = Config::builtin().unwrap();
-        // 首页：固定这一条，不管轮到哪一条（`tui.md`「输入框」第 9 条）。
-        assert_eq!(
-            super::input_box::placeholder(&config, true, 3),
-            "Tab 切换权限级别"
-        );
-        // 离开首页：照轮换的。
-        assert_eq!(
-            super::input_box::placeholder(&config, false, 3),
-            config.text.tips[3]
-        );
-    }
-}
+mod tests;

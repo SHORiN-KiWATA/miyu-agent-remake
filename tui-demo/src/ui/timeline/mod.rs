@@ -109,8 +109,11 @@ fn connector(ctx: &Ctx, failed: bool) -> Row {
 /// 一步的行：标题，下面接着预览或点开的内容。`spinning` 是这一步在转圈（这一段正在动的那一步）。
 fn step_rows(target: Target, step: &Step, spinning: bool, ctx: &Ctx) -> Vec<Row> {
     let style = step::style(step, ctx.hover == Some(target));
+    // 同一时刻只转一处；别的没结果的排着队，槽里一个暗色的 `·`（`tui.md`「时间线」第 19 条）。
     let slot = if spinning {
         spinner(ctx)
+    } else if step.busy() {
+        Span::styled(format!("{} ", ctx.config.timeline.queued), theme::dim())
     } else {
         ctx.blank_slot()
     };
@@ -136,7 +139,7 @@ fn step_rows(target: Target, step: &Step, spinning: bool, ctx: &Ctx) -> Vec<Row>
 }
 
 /// 转圈那一格：照帧数取一个，后面空一格。
-fn spinner(ctx: &Ctx) -> Span<'static> {
+pub(super) fn spinner(ctx: &Ctx) -> Span<'static> {
     let tl = &ctx.config.timeline;
     let frame = &tl.spinner[ctx.frame % tl.spinner.len().max(1)];
     Span::styled(format!("{frame} "), theme::dim())

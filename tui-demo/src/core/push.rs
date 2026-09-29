@@ -39,6 +39,41 @@ impl Usage {
     }
 }
 
+/// 压缩的几样：进度、压好了、摘要请求出错、暂停了自动压缩。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Compaction {
+    /// 摘要写到哪了（瞬时的 `compaction.progress`）：收到多少字。
+    Progress {
+        /// 收到的正文字数。
+        written: u64,
+        /// 核心估计要写多少字（压前的用量夹在 2 万到 8 万之间）；以前的核心不给。
+        expected: Option<u64>,
+    },
+    /// 压好了（瞬时的 `compaction.done`）：压之前、压完的用量，都是估算。
+    Done {
+        /// 压之前的用量。
+        before: u64,
+        /// 压完的用量。
+        after: u64,
+    },
+    /// 摘要请求出错（`model.called` 带 `compaction`、`result` 是 `error`）：分类和原话。
+    Failed {
+        /// 分类，例如 `bad_summary`。
+        class: String,
+        /// 原话。
+        message: String,
+    },
+    /// 暂停了自动压缩（`context.compaction_paused`，施工 6-6 上）。
+    Paused {
+        /// `failures`、`too_large`，认不得的照原样。
+        reason: String,
+        /// 连着失败了几次。
+        failures: Option<u64>,
+        /// 估得最大的那一条的序号。
+        entry: Option<u64>,
+    },
+}
+
 /// 界面关心的一件事。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Push {
@@ -69,6 +104,9 @@ pub enum Push {
         model: String,
     },
     /// 一次请求里第 `index` 块开始了。
+    /// 这次请求看到了第几条为止（`model.delta` 的 `seen`，一块开头时报一次）：排着队的话序号够着它，就是这次
+    /// 请求带上了（`kernel/session.md`「排队的消息」第 1 条）。
+    Heard(u64),
     BlockStart {
         /// 这一块在这一次请求里的序号。
         index: u64,
@@ -105,7 +143,11 @@ pub enum Push {
         seen: u64,
         /// 前缀和上一次请求比变了（带 `first_difference`），不是只往后接着加。
         changed: bool,
+        /// 是压缩的摘要请求（带 `compaction`，施工 6-6 上）。
+        summary: bool,
     },
+    /// 压缩的几样（蓝图 `tui.md`「正文」第 9 条）。
+    Compaction(Compaction),
     /// 压缩了一次（`context.compacted`）。
     Compacted,
     /// 一次请求出字的速度：输出了多少 token、从第一个字到最后花了多少毫秒。
@@ -173,10 +215,26 @@ pub fn read(event: &Value) -> Vec<Push> {
         "turn.reverted" => out.push(Push::Reverted(turns(&body["turns"]))),
         "turn.unreverted" => out.push(Push::Unreverted(turns(&body["turns"]))),
         "context.compacted" => out.push(Push::Compacted),
+        "compaction.progress" => out.push(Push::Compaction(Compaction::Progress {
+            written: body["written"].as_u64().unwrap_or_default(),
+            expected: body["expected"].as_u64().filter(|&n| n > 0),
+        })),
+        "compaction.done" => out.push(Push::Compaction(Compaction::Done {
+            before: body["before"].as_u64().unwrap_or_default(),
+            after: body["after"].as_u64().unwrap_or_default(),
+        })),
+        "context.compaction_paused" => out.push(Push::Compaction(Compaction::Paused {
+            reason: text(&body["reason"]),
+            failures: body["failures"].as_u64(),
+            entry: body["entry"].as_u64(),
+        })),
         "turn.ended" => out.push(Push::TurnEnded(EndReason::parse(&text(&body["reason"])))),
         "model.delta" => {
             let index = body["index"].as_u64().unwrap_or_default();
             if let Some(start) = body["start"].as_str() {
+                if let Some(seen) = body["seen"].as_u64() {
+                    out.push(Push::Heard(seen));
+                }
                 let block = match start {
                     "text" => Block::Text,
                     "reasoning" => Block::Reasoning,
@@ -221,10 +279,12 @@ pub fn read(event: &Value) -> Vec<Push> {
                     output: n("output"),
                 }));
             }
+            let summary = !body["compaction"].is_null();
             if !body["request"].is_null() {
                 out.push(Push::Sent {
                     seen: body["seen"].as_u64().unwrap_or_default(),
                     changed: body["first_difference"].is_object(),
+                    summary,
                 });
             }
             let output = usage["output"].as_u64().unwrap_or_default();
@@ -241,7 +301,13 @@ pub fn read(event: &Value) -> Vec<Push> {
                     ms: duration - first,
                 });
             }
-            if body["result"] == "error" {
+            // 摘要请求出错说压缩失败，不算这一轮的出错（蓝图「正文」第 9 条）。
+            if body["result"] == "error" && summary {
+                out.push(Push::Compaction(Compaction::Failed {
+                    class: text(&body["error"]["class"]),
+                    message: text(&body["error"]["message"]),
+                }));
+            } else if body["result"] == "error" {
                 out.push(Push::CallFailed {
                     class: text(&body["error"]["class"]),
                     message: text(&body["error"]["message"]),
@@ -274,129 +340,4 @@ fn turns(list: &Value) -> Vec<u64> {
 }
 
 #[cfg(test)]
-mod tests {
-    use serde_json::json;
-
-    use super::ToolStatus;
-
-    use super::{Block, Push, read};
-
-    #[test]
-    fn a_new_title_comes_from_meta_changed() {
-        // 照 docs/designs/samples/events/session.meta_changed.jsonl。
-        let event = json!({"seq": 51, "kind": "session.meta_changed", "by": {"kind": "person", "account": "alice"},
-            "body": {"title": "整理 src 目录"}});
-        assert_eq!(read(&event), vec![Push::Title("整理 src 目录".into())]);
-        let pinned = json!({"kind": "session.meta_changed", "by": {"kind": "person"}, "body": {"pinned": true}});
-        assert!(read(&pinned).is_empty(), "没带标题的不算");
-    }
-
-    #[test]
-    fn delta_start_and_text_come_with_the_model() {
-        let event = json!({"kind": "model.delta", "by": {"kind": "model", "endpoint": "deepseek", "model": "deepseek-flash"},
-            "body": {"seen": 3, "index": 0, "start": "reasoning"}});
-        assert_eq!(
-            read(&event),
-            vec![
-                Push::Model {
-                    endpoint: "deepseek".into(),
-                    model: "deepseek-flash".into()
-                },
-                Push::BlockStart {
-                    index: 0,
-                    block: Block::Reasoning
-                },
-            ]
-        );
-    }
-
-    #[test]
-    fn a_failed_call_carries_class_and_message() {
-        let event = json!({"kind": "model.called", "by": {"kind": "kernel"},
-            "body": {"result": "error", "error": {"class": "auth", "message": "no key"}}});
-        assert_eq!(
-            read(&event),
-            vec![Push::CallFailed {
-                class: "auth".into(),
-                message: "no key".into()
-            }]
-        );
-    }
-
-    #[test]
-    fn a_sent_call_says_whether_its_prefix_changed() {
-        let changed = json!({"kind": "model.called", "by": {"kind": "kernel"},
-            "body": {"seen": 13, "request": "sha256:96e5", "messages": 1,
-                "first_difference": {"part": "message", "index": 0, "role": "user"}, "result": "ok"}});
-        assert_eq!(
-            read(&changed),
-            vec![Push::Sent {
-                seen: 13,
-                changed: true
-            }]
-        );
-        let grown = json!({"kind": "model.called", "by": {"kind": "kernel"},
-            "body": {"seen": 5, "request": "sha256:f8b2", "messages": 1, "result": "ok"}});
-        assert_eq!(
-            read(&grown),
-            vec![Push::Sent {
-                seen: 5,
-                changed: false
-            }]
-        );
-        // 没编码就失败的，没有 `request`：不算发出去。
-        let unsent = json!({"kind": "model.called", "by": {"kind": "kernel"},
-            "body": {"seen": 5, "messages": 1, "result": "error", "error": {"class": "auth", "message": "no key"}}});
-        assert!(!read(&unsent).iter().any(|p| matches!(p, Push::Sent { .. })));
-        let compacted = json!({"kind": "context.compacted", "by": {"kind": "kernel"}, "body": {}});
-        assert_eq!(read(&compacted), vec![Push::Compacted]);
-    }
-
-    #[test]
-    fn a_call_reports_its_usage() {
-        let event = json!({"kind": "model.called", "by": {"kind": "kernel"},
-            "body": {"result": "ok", "usage": {"uncached": 10, "cache_read": 30, "cache_write": 0, "output": 5}}});
-        let usage = super::Usage {
-            uncached: 10,
-            cache_read: 30,
-            cache_write: 0,
-            output: 5,
-        };
-        assert_eq!(read(&event), vec![Push::Usage(usage)]);
-        assert_eq!(usage.input(), 40);
-    }
-
-    #[test]
-    fn turns_carry_their_numbers() {
-        let started = json!({"kind": "turn.started", "turn": 42, "by": {"kind": "kernel"}, "body": {"trigger": 41}});
-        assert_eq!(read(&started), vec![Push::TurnStarted(42, Some(41))]);
-        let reverted =
-            json!({"kind": "turn.reverted", "by": {"kind": "person"}, "body": {"turns": [42, 56]}});
-        assert_eq!(read(&reverted), vec![Push::Reverted(vec![42, 56])]);
-    }
-
-    #[test]
-    fn tool_calls_and_results_carry_their_ids() {
-        let assistant = json!({"kind": "message.assistant", "by": {"kind": "model", "endpoint": "e", "model": "m"},
-            "body": {"blocks": [{"type": "text", "text": "看看"}, {"type": "tool_call", "call_id": "c1", "name": "read", "args": "{}"}]}});
-        assert_eq!(read(&assistant)[1], Push::Calls(vec!["c1".into()]));
-        let result = json!({"kind": "tool.result", "by": {"kind": "tool"},
-            "body": {"call_id": "c1", "status": "ok", "blocks": [{"type": "text", "text": "a"}, {"type": "text", "text": "b"}]}});
-        assert_eq!(
-            read(&result),
-            vec![Push::ToolResult {
-                call_id: "c1".into(),
-                status: ToolStatus::Ok,
-                text: "a\nb".into(),
-                said: None,
-            }]
-        );
-        let end = json!({"kind": "model.delta", "by": {"kind": "kernel"}, "body": {"index": 1, "end": true}});
-        assert_eq!(read(&end), vec![Push::BlockEnd(1)]);
-    }
-
-    #[test]
-    fn events_the_screen_ignores_read_as_nothing() {
-        assert!(read(&json!({"kind": "session.created", "by": {"kind": "person"}})).is_empty());
-    }
-}
+mod tests;

@@ -30,6 +30,7 @@ fn only_the_wait_for_the_first_word_counts() {
             Push::Sent {
                 seen: 3,
                 changed: false,
+                summary: false,
             },
         ],
     );

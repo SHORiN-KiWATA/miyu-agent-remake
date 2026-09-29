@@ -171,6 +171,41 @@ fn a_tall_drawer_scrolls_the_options_and_pins_the_question_and_keys() {
 }
 
 #[test]
+fn a_very_short_drawer_keeps_the_picked_option_before_the_blank_line() {
+    // 2026-09-29 30×7 实测：抽屉只剩问题的最后一行、空行、按键提示，选项一行都没有（「窗口小的时候」第 3 条）。
+    let d = Drawer::question(None, asked(4));
+    let full = view(&d, &texts(), 60);
+    let keys = text(full.lines.last().unwrap());
+    let picked = full
+        .lines
+        .iter()
+        .map(text)
+        .find(|l| l.starts_with("› "))
+        .unwrap();
+    let fitted = |height: usize| -> Vec<String> {
+        let mut scroll = 0;
+        fit(view(&d, &texts(), 60), height, &mut scroll)
+            .lines
+            .iter()
+            .map(text)
+            .collect()
+    };
+    let three = fitted(3);
+    assert_eq!(three.len(), 3);
+    assert_eq!(three[1], picked, "先去空行，留一行选项：{three:?}");
+    assert_eq!(three[2], keys);
+    assert_eq!(fitted(2), [picked.clone(), keys], "再去问题");
+    assert_eq!(
+        fitted(1),
+        std::slice::from_ref(&picked),
+        "最后连按键提示也去掉"
+    );
+    // 四行起照旧：问题、选项、空行、按键提示。
+    let four = fitted(4);
+    assert_eq!((four[1].as_str(), four[2].as_str()), (picked.as_str(), ""));
+}
+
+#[test]
 fn the_first_esc_turns_the_keys_line_into_a_warning() {
     use std::time::{Duration, Instant};
     let mut d = Drawer::question(None, asked(1));

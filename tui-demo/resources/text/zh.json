@@ -39,6 +39,7 @@
   "speed": "{rate} tok/s",
   "context": "{used}/{window}({percent}%)",
   "undone": "已撤销 · /restore 恢复",
+  "undo_compactions": "撤掉了压缩，上下文回到了压缩前",
   "restored": "改回 {count} 个文件",
   "untouched": "{count} 个文件没动：之后又被改过，或者已经不在了",
   "commands": "{count} 条命令的改动撤不回",
@@ -91,6 +92,7 @@
   "esc_clear_hint": "再按一次 Esc 清空",
   "no_clear_running": "回答进行中不清屏",
   "theme_changed": "主题：{name}",
+  "icons_changed": "图标：{name}",
   "figure_pending": "⋯ 正在画图",
   "figure_zoom": "点开看大图",
   "markdown": { "image": "[图片: ", "details": "详细信息", "details_marks": ["▶ ", "▼ "], "bullets": ["▪", "•", "◦"] },
@@ -98,12 +100,35 @@
     "nothing_to_unrevert": "没有能恢复的撤销",
     "nothing_to_revert": "没有能撤销的",
     "turn_running": "回答进行中，先打断再撤销",
-    "compacted": "那一轮已经压缩进摘要，撤不了",
     "unknown_turn": "找不到要撤的那一轮",
-    "restoring": "正在改回文件，稍等"
+    "restoring": "上一次撤销、恢复还没做完，稍等"
   },
   "done_usage": " · {tokens}(C{percent}%)",
   "menu": { "title": "命令", "count": " {count} 条" },
+  "compaction": {
+    "progress": "正在压缩上下文",
+    "written": " {written}",
+    "percent": "\u00a0{percent}%",
+    "done": "· 上下文已压缩：{before} → {after} token",
+    "failed": "· 压缩失败：{reason}",
+    "called_a_tool": "摘要请求里调了工具",
+    "isolating": "· 摘要请求里调了工具，改用不带工具的再压",
+    "paused_failures": "· 自动压缩连续失败 {n} 次，已暂停：可以手动压缩、换一个模型，或者开新会话",
+    "paused_too_large": "· 第 {entry} 条内容太大，压完很快又满了，自动压缩已暂停",
+    "paused": "· 自动压缩已暂停：可以手动压缩、换一个模型，或者开新会话"
+  },
+  "error_classes": {
+    "retryable": "暂时出错",
+    "rate_limited": "被限速了",
+    "context_too_long": "上下文太长",
+    "auth": "认证失败",
+    "content_policy": "被内容策略拦下了",
+    "bad_stream": "回复的流不对",
+    "empty_reply": "回复是空的",
+    "bad_summary": "取不出摘要",
+    "compaction_paused": "自动压缩暂停着",
+    "other": "模型出错"
+  },
   "history": {
     "title": "历史",
     "count": "  {count} 条",

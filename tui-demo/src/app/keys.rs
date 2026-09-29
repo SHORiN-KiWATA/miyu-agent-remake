@@ -53,6 +53,20 @@ impl App {
         }
     }
 
+    /// 换下一套图标，只管这一次启动（`tui.md`「图标」第 4 条）。排好的时间线照图标那一套的名字重排。
+    pub(super) fn next_icons(&mut self) {
+        let sets = &self.config.icon_sets;
+        let at = sets
+            .iter()
+            .position(|s| s.name == self.config.icons.name)
+            .unwrap_or(0);
+        if let Some(next) = sets.get((at + 1) % sets.len().max(1)).cloned() {
+            let text = self.config.text.icons_changed.replace("{name}", &next.name);
+            self.config.icons = next;
+            self.hint(text, true);
+        }
+    }
+
     /// 按键：列表开着时，上下、Tab、Enter、Esc 归列表，别的照旧给输入框。
     pub(super) fn key(&mut self, key: KeyEvent) -> Action {
         // Ctrl+V：读剪贴板，照粘贴处理；列表、抽屉开着时也一样（`tui.md`「按键」）。
@@ -189,6 +203,7 @@ impl App {
             Run::Revert => self.core.send(Command::Revert),
             Run::Unrevert => self.core.send(Command::Unrevert),
             Run::Theme => self.next_theme(),
+            Run::Icons => self.next_icons(),
             Run::Quit => self.quit = true,
             Run::Fake => {
                 let note = self.config.text.fake_command.replace("{name}", &spec.name);

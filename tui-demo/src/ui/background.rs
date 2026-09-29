@@ -16,18 +16,25 @@ use crate::config::Config;
 use crate::jobs::{Board, Job, JobState};
 use crate::{meter, theme};
 
-/// 开着的面板排成的行，和每一行是后台面板里的第几条命令（点哪一行点中哪一条）；没开是空的。
+/// 开着的面板排成的行，和每一行是后台面板里的第几条命令（点哪一行点中哪一条）；没开是空的。最多 `max` 行
+/// （输入框上面剩下的，「窗口小的时候」第 1 条）。
 pub fn lines(
     panel: Option<Panel>,
     board: &Board,
     config: &Config,
     width: u16,
     now: Instant,
+    max: usize,
 ) -> (Vec<Line<'static>>, Vec<Option<usize>>) {
     match panel {
         None => (Vec::new(), Vec::new()),
         Some(Panel::Background { selected, open }) => {
-            background(board, selected, open, config, width, now)
+            let (lines, map) = background(board, selected, open, config, width, now);
+            let rows = map.into_iter().zip(lines).collect();
+            super::panel::fit(rows, Some(selected), max)
+                .into_iter()
+                .map(|(item, line)| (line, item))
+                .unzip()
         }
     }
 }
@@ -52,19 +59,15 @@ fn background(
     for (i, job) in board.shells().into_iter().enumerate() {
         let (state, state_style) = state(job, config, now);
         let picked = i == selected;
-        let mark = if picked { "❯ " } else { "  " };
-        let room = usize::from(width).saturating_sub(mark.width() + state.width() + 1);
         let style = if picked {
             theme::picked()
         } else {
             Style::new()
         };
-        out.push(Line::from(vec![
-            Span::styled(mark, style),
-            Span::styled(clip(&job.title, u16::try_from(room).unwrap_or(0)), style),
-            Span::raw(" "),
-            Span::styled(state, state_style),
-        ]));
+        // 照输入历史列表的样子：选中的 ❯ 加底色，状态贴着右边（`ui/panel.rs`）。
+        let title = vec![Span::styled(job.title.clone(), style)];
+        let state = Some(Span::styled(state, state_style));
+        out.push(super::panel::item(picked, title, state, width));
         map.push(Some(i));
         if open == Some(job.id) {
             for line in expanded(job, config.layout.job_preview_rows, width) {
@@ -156,7 +159,14 @@ mod tests {
             selected: 0,
             open: None,
         });
-        let (lines, map) = lines(panel, &board, &config, 70, t0 + Duration::from_secs(12));
+        let (lines, map) = lines(
+            panel,
+            &board,
+            &config,
+            70,
+            t0 + Duration::from_secs(12),
+            usize::MAX,
+        );
         let text: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
         // 标题写在横线上（2026-09-29 项目主人）。
         assert!(
@@ -175,6 +185,10 @@ mod tests {
         assert!(text[3].starts_with("  cargo test"), "结束了的在后");
         assert!(text[3].ends_with("（已停止）"));
         assert_eq!(lines[2].spans[0].style, theme::picked());
+        // 和输入历史列表一个样子：选中的整行铺底色，状态贴着右边（2026-09-29 项目主人）。
+        assert_eq!(lines[2].style.bg, theme::shade().bg);
+        assert_eq!(lines[2].width(), 70);
+        assert_eq!(lines[3].style.bg, None, "没选中的不铺");
         assert_eq!(
             text.last().unwrap(),
             "↑/↓ 选 · Enter 展开 · x 停止 · Esc 关闭"
@@ -192,7 +206,14 @@ mod tests {
             selected: 0,
             open: Some(id),
         });
-        let (lines, map) = lines(panel, &board, &config, 70, t0 + Duration::from_secs(5));
+        let (lines, map) = lines(
+            panel,
+            &board,
+            &config,
+            70,
+            t0 + Duration::from_secs(5),
+            usize::MAX,
+        );
         let text: Vec<String> = lines
             .iter()
             .map(|l| l.to_string().trim_end().to_string())

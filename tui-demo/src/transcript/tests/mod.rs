@@ -6,8 +6,10 @@ use crate::core::{Block, Push, Update};
 
 mod beat;
 mod cache;
+mod compaction;
 mod done;
 mod folds;
+mod queue;
 mod waiting;
 
 fn apply(t: &mut Transcript, pushes: Vec<Push>) {
@@ -201,7 +203,7 @@ fn an_error_turn_says_why() {
         ],
     );
     assert_eq!(t.entries[0].kind, Kind::Error);
-    assert!(t.entries[0].text.contains("auth：no key"));
+    assert!(t.entries[0].text.contains("认证失败：no key"));
 }
 
 #[test]

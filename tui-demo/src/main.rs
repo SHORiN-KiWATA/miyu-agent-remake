@@ -23,6 +23,7 @@ mod meter;
 mod open;
 mod pointer;
 mod pulse;
+mod rng;
 mod side_select;
 mod theme;
 mod tips;
@@ -142,8 +143,10 @@ fn run(
     let human = human(&config.layout.tool_language);
     let mut app = App::new(config, core, human, figures);
     let mut pointer = pointer::Pointer::default();
+    // 终端显示得了几种颜色，启动时看一次（蓝图「主题」第 5 条）。
+    let depth = theme::Depth::detect(|name| std::env::var(name).ok());
     while !app.quit {
-        frame(terminal, &mut app, &mut pointer)?;
+        frame(terminal, &mut app, &mut pointer, depth)?;
         let wait = app.deadline().map_or(Duration::from_secs(3600), |d| {
             d.saturating_duration_since(Instant::now())
         });
@@ -198,14 +201,20 @@ fn suspend(_screen: &mut ratatui::DefaultTerminal, _keyboard: bool) -> io::Resul
 
 /// 画一帧，用同步输出包起来（蓝图 `tui.md`「每一帧」）：终端收齐了再画，传图的那一帧不会闪、光标不乱跳。
 /// 不认的终端当没有。画失败了也要把结尾发出去，不然认得的终端会一直等。
-/// 顺手照这一帧悬停的是不是链接，换鼠标指针的样子。
+/// 顺手照这一帧悬停的是不是链接，换鼠标指针的样子。画完、交给终端之前把宽字后面那格清空，再照色深统一换色
+/// （蓝图「每一帧」、「主题」第 6 条）。
 fn frame(
     terminal: &mut ratatui::DefaultTerminal,
     app: &mut App,
     pointer: &mut pointer::Pointer,
+    depth: theme::Depth,
 ) -> io::Result<()> {
     execute!(stdout(), terminal::BeginSynchronizedUpdate)?;
-    let drawn = terminal.draw(|frame| ui::draw(frame, app));
+    let drawn = terminal.draw(|frame| {
+        ui::draw(frame, app);
+        ui::wide::tidy(frame.buffer_mut());
+        theme::degrade(frame.buffer_mut(), depth);
+    });
     pointer.set(app.pointing(), &mut stdout())?;
     execute!(stdout(), terminal::EndSynchronizedUpdate)?;
     drawn.map(|_| ())

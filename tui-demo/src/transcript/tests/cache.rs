@@ -6,7 +6,11 @@ use super::apply;
 use crate::core::Push;
 
 fn sent(seen: u64, changed: bool) -> Push {
-    Push::Sent { seen, changed }
+    Push::Sent {
+        seen,
+        changed,
+        summary: false,
+    }
 }
 
 #[test]
@@ -47,6 +51,26 @@ fn a_summary_looking_back_is_not_a_break_and_keeps_the_excuse_for_the_main_call(
         vec![
             sent(20, false),
             sent(14, true),
+            Push::Compacted,
+            sent(22, true),
+        ],
+    );
+    assert_eq!((t.cache.compactions, t.cache.breaks), (1, 0));
+}
+
+#[test]
+fn a_summary_request_is_known_by_its_flag() {
+    // 6-6 上起摘要请求的记录带 `compaction`：看到的不比之前少也认得出，不算断裂，也不用掉压缩给主请求的那一次免数。
+    let mut t = Transcript::default();
+    apply(
+        &mut t,
+        vec![
+            sent(20, false),
+            Push::Sent {
+                seen: 20,
+                changed: true,
+                summary: true,
+            },
             Push::Compacted,
             sent(22, true),
         ],

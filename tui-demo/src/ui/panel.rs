@@ -8,6 +8,40 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::theme;
 
+/// 面板排好的一行：是第几条（标题、空行、按键提示是 `None`；点开的一条下面几行都算它），和画出来的样子。
+pub type Row = (Option<usize>, Line<'static>);
+
+/// 放进 `max` 行（`tui.md`「窗口小的时候」第 1 条）：先去掉空行，再去掉最后那行按键提示，再从离选中那一条
+/// （`picked`）最远的起少露几条，最后才去掉标题横线。
+pub fn fit(mut rows: Vec<Row>, picked: Option<usize>, max: usize) -> Vec<Row> {
+    if rows.len() <= max {
+        return rows;
+    }
+    rows.retain(|(item, line)| item.is_some() || line.width() > 0);
+    if rows.len() > max && rows.len() > 1 && rows.last().is_some_and(|(item, _)| item.is_none()) {
+        rows.pop();
+    }
+    while rows.len() > max {
+        let anchor = rows
+            .iter()
+            .position(|(item, _)| item.is_some() && *item == picked)
+            .unwrap_or(rows.len());
+        let far = rows
+            .iter()
+            .enumerate()
+            .filter(|(_, (item, _))| item.is_some() && *item != picked)
+            .max_by_key(|(k, _)| k.abs_diff(anchor))
+            .map(|(k, _)| k);
+        let Some(far) = far else { break };
+        rows.remove(far);
+    }
+    while rows.len() > max && rows.first().is_some_and(|(item, _)| item.is_none()) {
+        rows.remove(0);
+    }
+    rows.truncate(max);
+    rows
+}
+
 /// 顶上的两行：标题横线、空行。
 pub fn head(title: &str, meta: Vec<Span<'static>>, width: u16) -> Vec<Line<'static>> {
     vec![rule(title, meta, width), Line::raw("")]
@@ -79,7 +113,7 @@ fn shaded(line: Line<'static>, picked: bool) -> Line<'static> {
 }
 
 /// 这几段排到 `room` 列：放不下的截掉，最后一格写 `…`（样子照被截的那一段）。
-fn clip_spans(spans: Vec<Span<'static>>, room: usize) -> Vec<Span<'static>> {
+pub fn clip_spans(spans: Vec<Span<'static>>, room: usize) -> Vec<Span<'static>> {
     let total: usize = spans.iter().map(Span::width).sum();
     if total <= room {
         return spans;
@@ -108,4 +142,62 @@ fn clip_spans(spans: Vec<Span<'static>>, room: usize) -> Vec<Span<'static>> {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use ratatui::text::Line;
+
+    use super::{Row, fit};
+
+    /// 标题、空行、第 0 到 5 条、空行、按键提示。
+    fn sample() -> Vec<Row> {
+        let mut rows: Vec<Row> = vec![(None, Line::raw("── 历史")), (None, Line::raw(""))];
+        rows.extend((0..6).map(|i| (Some(i), Line::raw(format!("第 {i} 条")))));
+        rows.extend([(None, Line::raw("")), (None, Line::raw("↑/↓ 选"))]);
+        rows
+    }
+
+    fn text(rows: &[Row]) -> Vec<String> {
+        rows.iter().map(|(_, l)| l.to_string()).collect()
+    }
+
+    #[test]
+    fn a_short_room_drops_blanks_then_the_hint_then_far_items_then_the_title() {
+        assert_eq!(fit(sample(), Some(2), 10).len(), 10, "放得下：原样");
+        assert_eq!(
+            text(&fit(sample(), Some(2), 8)),
+            [
+                "── 历史",
+                "第 0 条",
+                "第 1 条",
+                "第 2 条",
+                "第 3 条",
+                "第 4 条",
+                "第 5 条",
+                "↑/↓ 选"
+            ],
+            "先去空行"
+        );
+        assert_eq!(
+            text(&fit(sample(), Some(2), 7)),
+            [
+                "── 历史",
+                "第 0 条",
+                "第 1 条",
+                "第 2 条",
+                "第 3 条",
+                "第 4 条",
+                "第 5 条"
+            ],
+            "再去按键提示"
+        );
+        assert_eq!(
+            text(&fit(sample(), Some(2), 4)),
+            ["── 历史", "第 1 条", "第 2 条", "第 3 条"],
+            "再从离选中那条最远的起少露几条"
+        );
+        assert_eq!(text(&fit(sample(), Some(2), 1)), ["第 2 条"], "最后去标题");
+        assert!(fit(sample(), Some(2), 0).is_empty());
+    }
 }

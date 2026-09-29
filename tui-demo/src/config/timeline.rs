@@ -1,4 +1,4 @@
-//! 时间线的样子（`resources/timeline.json`、`text/zh.json` 的 `summary`，蓝图「时间线」）：图标、转圈、预览几行、
+//! 时间线的样子（`resources/timeline.json`、`text/zh.json` 的 `summary`，蓝图「时间线」）：工具的分类、转圈、预览几行、
 //! 收起那一行的说法、哪几样默认铺开。
 
 use std::collections::HashMap;
@@ -26,17 +26,11 @@ pub struct Summary {
     pub thought_for: String,
 }
 
-/// 时间线的样子：图标、转圈、预览几行。头自己定的（`13-终端界面.md` 第三节的表：图标、连接行归终端界面）。
+/// 时间线的样子：工具的分类、转圈、预览几行。头自己定的（`13-终端界面.md` 第三节的表：图标、连接行归终端界面）。
 #[derive(Debug, Clone, Deserialize)]
 pub struct Timeline {
-    /// 每件工具的图标和它算哪一类（`command`、`edit`，没写的算工具）。
-    pub tools: HashMap<String, ToolLook>,
-    /// 没登记的工具的图标。
-    pub tool_icon: String,
-    /// 思考的图标。
-    pub think_icon: String,
-    /// 出错时顶替图标的叉。
-    pub error_icon: String,
+    /// 哪几件工具算哪一类（`command`、`edit`），没写的算工具。图标在 `resources/icons/`（蓝图「图标」）。
+    pub kinds: HashMap<String, ToolKind>,
     /// 转圈的一帧帧。
     pub spinner: Vec<String>,
     /// 转圈一帧多少毫秒。
@@ -47,6 +41,8 @@ pub struct Timeline {
     pub thought_rows: usize,
     /// 步与步之间的连接线，预览行首的竖线也是它。
     pub line: String,
+    /// 排着队、还没开始的步，转圈那一格写的（`tui.md`「时间线」第 19 条）。
+    pub queued: String,
     /// 限制工具时间线滚动区域：进行中的那一段最多露一步完整思考、完整命令的高度，收起时不放开视口
     /// （蓝图「时间线」第 20 条）。关掉是全部展开、收起时放开一次视口。
     pub limit_live: bool,
@@ -56,16 +52,6 @@ pub struct Timeline {
     pub fold: bool,
     /// 哪几样默认铺开全文。
     pub expand: Expand,
-}
-
-/// 一件工具在时间线上的样子。
-#[derive(Debug, Clone, Deserialize)]
-pub struct ToolLook {
-    /// 图标。
-    pub icon: String,
-    /// 算哪一类；没写的算工具。
-    #[serde(default)]
-    pub kind: Option<ToolKind>,
 }
 
 /// 一件工具在时间线上算哪一类：数收起那一行、画预览和差异照它。

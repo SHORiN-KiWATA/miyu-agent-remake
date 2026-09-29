@@ -29,10 +29,11 @@ impl CacheWatch {
         self.excused = true;
     }
 
-    /// 发出去一次请求：看到第 `seen` 条为止，前缀变没变。
-    pub fn sent(&mut self, seen: u64, changed: bool) {
-        // 往回看的是摘要请求：不算，也不用掉压缩给主请求的那一次免数。
-        if self.furthest.is_some_and(|f| seen < f) {
+    /// 发出去一次请求：看到第 `seen` 条为止，前缀变没变，是不是压缩的摘要请求（`summary`）。
+    pub fn sent(&mut self, seen: u64, changed: bool, summary: bool) {
+        // 摘要请求不算，也不用掉压缩给主请求的那一次免数：6-6 上起记录带 `compaction` 认得出；以前的日志没有，
+        // 照「看到的比之前少」（往回看）认。
+        if summary || self.furthest.is_some_and(|f| seen < f) {
             return;
         }
         if changed && !self.excused {

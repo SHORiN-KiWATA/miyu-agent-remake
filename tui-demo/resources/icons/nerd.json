@@ -1,0 +1,15 @@
+{
+  "tools": {
+    "shell": "$",
+    "edit": "",
+    "write": "",
+    "trash": "",
+    "read": "",
+    "glob": "",
+    "grep": ""
+  },
+  "tool": "",
+  "think": "󰝨",
+  "error": "",
+  "stash": " "
+}

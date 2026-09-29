@@ -103,7 +103,7 @@ fn a_lone_command_names_the_folded_line_and_turns_red_when_it_failed() {
 #[test]
 fn an_open_segment_lists_its_steps_with_icons_and_connectors() {
     let f = Fixture::new();
-    let tl = &f.config.timeline;
+    let icons = &f.config.icons;
     let t0 = Instant::now();
     let seg = segment(
         vec![
@@ -114,19 +114,19 @@ fn an_open_segment_lists_its_steps_with_icons_and_connectors() {
         Some(true),
     );
     let rows = rows(0, &seg, &f.ctx());
-    let shell = &tl.tools["shell"].icon;
+    let shell = icons.tool("shell");
     assert_eq!(
         text(&rows),
         [
             "  Ran 2 commands · 1 thought · 1 err · 3s".to_string(),
             "  │".into(),
-            format!("  {} 已思考 · 1.0s", tl.think_icon),
+            format!("  {} 已思考 · 1.0s", icons.think),
             "  │ 先看看目录".into(),
             "  │".into(),
             format!("  {shell} shell · 列目录"),
             "  │ ls".into(),
             "  │".into(),
-            format!("  {} shell · 列目录", tl.error_icon),
+            format!("  {} shell · 列目录", icons.error),
             "  │ ls".into(),
         ]
     );
@@ -212,14 +212,14 @@ fn a_running_segment_has_no_head_and_a_command_without_text_has_no_preview() {
     }));
     let lines = text(&rows(0, &running, &f.ctx()));
     // 进行中的不画打头那一行；参数还在流、命令还没有字，只有「准备」那一行，不画一根空的竖线。
-    let tl = &f.config.timeline;
+    let icons = &f.config.icons;
     assert_eq!(
         lines,
         [
-            format!("  {} 已思考 · 1.0s", tl.think_icon),
+            format!("  {} 已思考 · 1.0s", icons.think),
             "  │ 先看看目录".into(),
             "  │".into(),
-            format!("⠋ {} 准备shell", tl.tools["shell"].icon),
+            format!("⠋ {} 准备shell", icons.tool("shell")),
         ]
     );
 }
@@ -280,6 +280,34 @@ fn only_one_step_spins_at_a_time() {
     let got = rows(0, &seg, &f.ctx());
     assert_eq!(spinning(&got, spinner), 1, "{:?}", text(&got));
     assert_eq!(seg.active(), Some(1));
+    // 排着队、还没开始的：槽里一个暗色的 `·`（2026-09-29 项目主人）。
+    let queued: Vec<&Row> = got
+        .iter()
+        .filter(|r| r.line.to_string().starts_with("· "))
+        .collect();
+    assert_eq!(queued.len(), 1, "只有后面等着的那一件：{:?}", text(&got));
+    let mark = queued[0]
+        .line
+        .spans
+        .iter()
+        .find(|s| s.content == "· ")
+        .unwrap();
+    assert_eq!(mark.style, theme::dim());
+}
+
+#[test]
+fn an_empty_thought_has_only_its_title() {
+    // 还一个字都没有的思考不画空的竖线（2026-09-29 项目主人）。
+    let f = Fixture::new();
+    for text in ["", "  \n "] {
+        let mut seg = segment(Vec::new(), None);
+        seg.finished = false;
+        seg.steps
+            .push(Step::new(StepKind::Thought { text: text.into() }));
+        let got = self::text(&rows(0, &seg, &f.ctx()));
+        assert_eq!(got.len(), 1, "只有标题：{got:?}");
+        assert!(got[0].contains("思考中"));
+    }
 }
 
 #[test]
@@ -329,58 +357,6 @@ fn a_folded_thought_only_segment_is_just_its_time() {
         ["  Thought for 2s"],
         "不接思考的字"
     );
-}
-
-#[test]
-fn icons_share_the_title_colour_and_a_thought_preview_has_its_own_colour() {
-    let f = Fixture::new();
-    let tl = &f.config.timeline;
-    let t0 = Instant::now();
-    let seg = segment(
-        vec![thought(t0, 0), command(t0, 1, ToolStatus::Ok)],
-        Some(true),
-    );
-    let rows = rows(0, &seg, &f.ctx());
-    let icon_style = |row: usize, icon: &str| {
-        rows[row]
-            .line
-            .spans
-            .iter()
-            .find(|s| s.content.starts_with(icon))
-            .map(|s| s.style)
-    };
-    // 第 2 行思考的标题、第 3 行它的预览、第 5 行命令的标题（`tui.md`「时间线」第 3、5 条）。
-    assert_eq!(
-        icon_style(2, &tl.think_icon),
-        Some(theme::dim()),
-        "图标和字一个颜色"
-    );
-    assert_eq!(icon_style(5, &tl.tools["shell"].icon), Some(theme::dim()));
-    let preview = rows[3].line.spans.last().unwrap();
-    assert_eq!(preview.content, "先看看目录");
-    assert_eq!(
-        preview.style,
-        theme::thought(),
-        "用主题的 thought，和命令预览分开"
-    );
-    assert_ne!(theme::thought(), theme::dim());
-    // 竖线照旧暗；悬停时和别的步一样亮一档。
-    assert!(
-        rows[3]
-            .line
-            .spans
-            .iter()
-            .any(|s| s.content == "│ " && s.style == theme::dim())
-    );
-    let mut ctx = f.ctx();
-    ctx.hover = Some(crate::ui::rows::Target::Step(0, 0));
-    let lit = super::rows(0, &seg, &ctx);
-    assert_eq!(
-        lit[3].line.spans.last().unwrap().style,
-        theme::thought_hover(),
-        "悬停亮成同色系，不变灰"
-    );
-    assert_ne!(theme::thought_hover(), theme::hover());
 }
 
 #[test]
@@ -478,5 +454,7 @@ fn folding_and_opening_follow_the_config_until_someone_clicks() {
     assert_eq!(rows(0, &seg, &f.ctx()).len(), 1);
 }
 
+mod icons;
 mod live;
+mod narrow;
 mod waiting;

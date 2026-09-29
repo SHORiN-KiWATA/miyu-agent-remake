@@ -119,13 +119,11 @@ impl Step {
             let expand = &timeline.expand;
             match &self.kind {
                 StepKind::Thought { .. } => expand.thought,
-                StepKind::Tool { name, .. } => {
-                    match timeline.tools.get(name).and_then(|t| t.kind) {
-                        Some(ToolKind::Command) => expand.command,
-                        Some(ToolKind::Edit) => expand.edit,
-                        None => false,
-                    }
-                }
+                StepKind::Tool { name, .. } => match timeline.kinds.get(name) {
+                    Some(ToolKind::Command) => expand.command,
+                    Some(ToolKind::Edit) => expand.edit,
+                    None => false,
+                },
             }
         })
     }

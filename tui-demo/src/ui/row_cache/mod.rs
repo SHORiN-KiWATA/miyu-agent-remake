@@ -113,21 +113,26 @@ pub fn build(entries: &[Entry], ctx: &Ctx, cache: &RefCell<RowCache>) -> Rows {
     out
 }
 
-/// 这一条和排版条件的指纹：变了就重排。在进行的那一段（还有步骤在转圈、在走表）是 `None`，每帧重排。
+/// 这一条和排版条件的指纹：变了就重排。在进行的那一段（还有步骤在转圈、在走表）、正在压缩的那一行（行首在转圈）
+/// 是 `None`，每帧重排。
 fn fingerprint(i: usize, entry: &Entry, ctx: &Ctx, figures: u64) -> Option<u64> {
     if let Some(segment) = &entry.segment
         && (!segment.finished || segment.steps.iter().any(Step::busy))
     {
         return None;
     }
+    if entry.progress.is_some() {
+        return None;
+    }
     let mut h = DefaultHasher::new();
-    // 排版的条件：行里带着条目的位置（点中的东西），颜色烤在行里，图占几行看图做好没有。
+    // 排版的条件：行里带着条目的位置（点中的东西），颜色、图标烤在行里，图占几行看图做好没有。
     (
         i,
         ctx.width,
         ctx.indent.len(),
         ctx.level,
         theme::generation(),
+        &ctx.config.icons.name,
         figures,
     )
         .hash(&mut h);

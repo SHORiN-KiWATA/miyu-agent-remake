@@ -21,15 +21,17 @@ use crate::theme;
 
 /// 排好的一行：是对得上的第几条（标题、空行、按键提示、「没有对得上的」是 `None`；展开的一条连「还有几行」都算它），
 /// 和画出来的样子。
-pub type Row = (Option<usize>, Line<'static>);
+pub type Row = panel::Row;
 
-/// 列表从上往下的每一行。`matches` 是对得上的几条，最新的在前；`width` 是能写几列；`now` 算多久以前。
+/// 列表从上往下的每一行。`matches` 是对得上的几条，最新的在前；`width` 是能写几列；`now` 算多久以前；最多 `max` 行
+/// （输入框上面剩下的，「窗口小的时候」第 1 条）。
 pub fn lines(
     history: &History,
     matches: &[&Sent],
     width: u16,
     config: &Config,
     now: Instant,
+    max: usize,
 ) -> Vec<Row> {
     let words = &config.text.history;
     let mut meta = vec![Span::styled(
@@ -66,7 +68,7 @@ pub fn lines(
             .into_iter()
             .map(|line| (None, line)),
     );
-    out
+    panel::fit(out, Some(history.selected), max)
 }
 
 /// 多久以前发的：一分钟以内「刚才」，再往后几分钟、几小时。

@@ -15,9 +15,15 @@ use crate::mascot::Look;
 use crate::pulse::Words;
 use crate::theme::Palette;
 
+mod icons;
+mod motion;
+mod notes;
 mod panels;
 mod timeline;
 
+pub use icons::Icons;
+pub use motion::CompactionMotion;
+pub use notes::CompactionTexts;
 pub use panels::{HistoryTexts, MenuTexts};
 pub use timeline::{Summary, Timeline, ToolKind};
 
@@ -36,8 +42,10 @@ pub struct Layout {
     pub sidebar_width: u16,
     /// 首页画不画吉祥物（蓝图「后台命令、子代理和侧边栏」第 7 条）。
     pub mascot_home: bool,
-    /// 侧边栏上下文那一段的进度条：占了的、没占的。
+    /// 侧边栏上下文那一段的进度条：占了的、没占的。压缩那一行的进度条也照它。
     pub bar: Bar,
+    /// 压缩那一行的进度条怎么动（蓝图「正文」第 9 条）。
+    pub compaction: CompactionMotion,
     /// 侧边栏画不画吉祥物。
     pub mascot_sidebar: bool,
     /// 子代理状态行最多几行（不算主会话）。
@@ -82,6 +90,8 @@ pub struct Layout {
     pub shimmer: Shimmer,
     /// 用哪套主题（`resources/themes/` 里的名字）。
     pub theme: String,
+    /// 用哪套图标（`resources/icons/` 里的名字，蓝图「图标」）；没有这一套的用出厂的第一套。
+    pub icons: String,
     /// 工具的显示名、结果那一句用哪种语言（仓库 `resources/software/basesystem/human/<它>.json`）。
     pub tool_language: String,
     /// `Shift+Tab` 轮换权限级别的顺序。
@@ -92,8 +102,6 @@ pub struct Layout {
     pub prompt: String,
     /// 排队的消息前面的记号，连同它后面的空格。
     pub queued_mark: String,
-    /// 暂存着东西时的提示符，连同它后面的空格。
-    pub stash_prompt: String,
     /// 斜杠命令列表最多露出几行。取单数，选中的那一行才停得在正中间。
     pub menu_rows: usize,
     /// 输入历史列表最多露几条（`tui.md`「输入历史列表」）。
@@ -290,14 +298,22 @@ pub struct Texts {
     pub history: HistoryTexts,
     /// 斜杠命令列表上的字（蓝图「斜杠命令列表」）。
     pub menu: MenuTexts,
+    /// 压缩那几行（蓝图「正文」第 9 条）。
+    pub compaction: CompactionTexts,
+    /// 出错的分类写成人话（蓝图「正文」第 4 条，和 `miyu ask` 同一张表）；认不得的照原样。
+    pub error_classes: HashMap<String, String>,
     /// 图还在做时那一行占位。
     pub figure_pending: String,
     /// mermaid 图下面那一行，点了开大图。
     pub figure_zoom: String,
     /// 换了主题，`{name}` 是名字。
     pub theme_changed: String,
+    /// 换了图标，`{name}` 是那一套的名字。
+    pub icons_changed: String,
     /// 撤销那一行：`已撤销 · /restore 恢复`（不写几轮：撤销只能一轮一轮撤）。
     pub undone: String,
+    /// 撤掉的几轮里有压缩时，撤销那一行下面那一句（施工 6-9）。
+    pub undo_compactions: String,
     /// 改回了几个文件，`{count}`。
     pub restored: String,
     /// 几个文件没动，`{count}`。
@@ -347,6 +363,10 @@ pub struct Config {
     pub fake: Script,
     /// 出厂的主题：名字和颜色，照登记的先后。
     pub themes: Vec<(String, Palette)>,
+    /// 当前这一套图标（`/icons` 换的是它）。
+    pub icons: Icons,
+    /// 出厂的几套图标，照登记的先后。
+    pub icon_sets: Vec<Icons>,
 }
 
 /// 正文里的图（`resources/figures.json`，蓝图「图片、公式和 mermaid 图」）。
@@ -372,8 +392,11 @@ impl Config {
     ///
     /// JSON 写坏了、缺了字段时返回错误，说清是哪一份。
     pub fn builtin() -> Result<Self, String> {
+        let layout: Layout = parse("layout.json", include_str!("../../resources/layout.json"))?;
+        let icon_sets = icons::builtin()?;
+        let icons = icons::pick(&icon_sets, &layout.icons).ok_or("resources/icons/ 一套都没有")?;
         Ok(Self {
-            layout: parse("layout.json", include_str!("../../resources/layout.json"))?,
+            layout,
             text: parse("text/zh.json", include_str!("../../resources/text/zh.json"))?,
             commands: parse(
                 "commands.json",
@@ -390,6 +413,8 @@ impl Config {
             mascot: parse("mascot.json", include_str!("../../resources/mascot.json"))?,
             fake: parse("fake.json", include_str!("../../resources/fake.json"))?,
             themes: crate::theme::builtin()?,
+            icons,
+            icon_sets,
         })
     }
 }
