@@ -125,7 +125,11 @@ async fn run(
         Ok(opened) => opened,
         Err(error) => return failed("socket", error.to_string()),
     };
-    let models = match models::from_env(std::env::var("DEEPSEEK_API_KEY").ok()) {
+    let models = match models::from_env(&models::ModelEnv {
+        key: std::env::var("DEEPSEEK_API_KEY").ok(),
+        base_url: std::env::var("MIYU_DEV_BASE_URL").ok(),
+        model: std::env::var("MIYU_DEV_MODEL").ok(),
+    }) {
         Ok(models) => models,
         Err(error) => return failed("models", error),
     };
