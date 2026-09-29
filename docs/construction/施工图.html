@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>101</b><span>/ 109 步<strong>已完成</strong>，M6 压缩做到 6-3：真模型上到线就压，压完接着干，<code>miyu ask</code> 看得见压缩那一行</span></li>
-    <li><b>6-4</b><span>下一步：<code>history</code>（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">3365375</b><span>最近一步（6-3 下 接上真模型）的提交</span></li>
+    <li><b>102</b><span>/ 109 步<strong>已完成</strong>，M6 压缩做到 6-4：到线就压，压完接着干，压缩换出去的她用 <code>history</code> 找得回</span></li>
+    <li><b>6-5</b><span>下一步：检查点里代码写的几段、压后重建（Windows 上跑命令那一步暂停）</span></li>
+    <li><b class="mono">5e39d26</b><span>最近一步（6-4 history）的提交</span></li>
   </ul>
 </header>
 
@@ -451,7 +451,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s6-2b"><span class="n">6-2</span>留尾巴（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-3a"><span class="n">6-3</span>模型资料和限额（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-3b"><span class="n">6-3</span>接上真模型（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">6-4</span>history</span></li>
+        <li><a class="step done" href="#s6-4"><span class="n">6-4</span>history<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">6-5</span>检查点里代码写的几段、压后重建</span></li>
         <li><span class="step"><span class="n">6-6</span>失败和熔断</span></li>
         <li><span class="step"><span class="n">6-7</span>被动压缩</span></li>
@@ -7894,6 +7894,77 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s6-4" aria-labelledby="h-s64">
+  <div class="sheet-head"><h2 id="h-s64"><span class="no">6-4</span>history</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她能翻这个会话自己的记录：按关键词找、按序号读，按时间、谁说的筛；压缩换出去的旧内容都找得回。基础系统第 8 件。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一次调用</span><span class="dir-note">只读会话自己的日志</span></div>
+            <ol class="pipe" aria-label="history 怎么走">
+              <li>执行器交给调用：会话日志的只读入口、会话现在的时区</li>
+              <li>一段一段读（<code>read_segments</code>），读下一段之前看一眼旗</li>
+              <li>内核的 <code>History::whole()</code> 算哪些还算数：撤掉的、撤回的不算，压缩换出去的留着</li>
+              <li>挑出算一条的：人说的、她说的、工具结果、以前的摘要；她自己翻记录的那几步不算</li>
+              <li>筛（序号、时间、谁说的），再找（新的在前，摘一段）或者读（照先后，一页三万字）</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">新加的</span><span class="dir-note">各在各的层</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">ReadLog · Log</span><span class="rl">miyu-tool：Call 多 log、offset</span></div>
+              <div class="tile new"><span class="nm">read_segments</span><span class="rl">miyu-store：只读，说停就停</span></div>
+              <div class="tile new"><span class="nm">History::whole()</span><span class="rl">内核：留着一切的那一份</span></div>
+              <div class="tile new"><span class="nm">history</span><span class="rl">miyu-basesystem：entry、page、time</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">自己翻的不算</span><span class="rl">不然先找到自己这一次</span></div>
+          <div class="tile new"><span class="nm">每个词都要</span><span class="rl">不分大小写，中文不分词</span></div>
+          <div class="tile new"><span class="nm">不建索引</span><span class="rl">五万条 0.38 秒</span></div>
+          <div class="tile new"><span class="nm">工具面 1437 token</span><span class="rl">history 占 197</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-4</dd></div>
+        <div><dt>名称</dt><dd>history</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-29</dd></div>
+        <div><dt>提交</dt><dd class="mono">5e39d26</dd></div>
+        <div><dt>验收</dt><dd>真模型自测、变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>做了什么</h3>
+      <ul>
+        <li>基础系统的 <code>history</code>；调用的只读日志入口和时区；存储的 <code>read_segments</code>；内核的 <code>History::whole()</code>、到分钟的钟点；登记簿九份字，删掉不用的 <code>checkpoint-rule.txt</code>。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>样本会话里撤掉的、撤回的找不到，以前的摘要找得到；真的会话压了两次以后找得回压缩前的话</span></li>
+        <li><span class="ok">✓</span><span>真模型：压缩以后问 shell 印过的第 17 个随机串，她翻记录答对了</span></li>
+        <li><span class="ok">✓</span><span>手写 36 个变异全被逮住；门禁八项全过，三台机器的 CI 全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>蓝图 <code>tools/history.md</code>、<code>kernel/history.md</code>、<code>tools/interface.md</code>、<code>store.md</code>。</li>
+        <li><code>docs/construction/6-4-history.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -8071,7 +8142,7 @@ const BUILD = {
   k_turn: { by: '2-1', how: 'frame', note: '会话的骨架、累积器、一轮走到底、调工具、打断、排队、权限级别、确认、提问、载入、崩溃恢复、撤销与恢复；执行器替身把它一整轮一整轮跑完；出了错自己再来，说了一半的带着半截接着说（3-5 下）' },
   k_tools: { by: '2-4', how: 'frame', note: '先查、修正参数、只读的一起跑、只读时拦写文件的、执行前的链、等人确认；执行端口（4-2）：照名字在目录里找，一件一个任务地跑，叫停就掐掉；快照里有、目录里没有的报现在用不了，崩了的报内部错误，会话照常走' },
   n_sandbox: { by: '4-3', how: 'frame', note: '文件工具的路径边界（4-3 上）：边界表（工作区、数据根、临时目录、系统和工具链目录，几片重叠时有先后），换成真实的位置（~、链接、还不存在的），安全地打开（不跟随最后一层的链接、不阻塞、只开普通文件）。权限策略（4-3 下）：工具报要碰的路径，照边界和级别判放行、问人还是拒绝，数据根哪一级都拒绝；工作目录太宽退回账号的工作区。沙盒的底子（5-1）：规格、助手 miyu-sandbox，shell 带了规格的经它起，核心起来时探一次。Linux 的文件用 Landlock 照规格放行（5-2）；只管读写、不管网络，挡住能替命令在沙盒外读写的系统服务（5-1 补，项目主人 09-29 定）；照 dsh 整盘能读、只管写，数据根一级级绕开（5-3）；.git 不另外护' },
-  n_software: { by: '4-4', how: 'frame', note: '基础系统（4-4 上、下）：读的三件 read、glob、grep，名字、参数、输出照成熟 harness 的规范（以 Claude Code 为主）；说明、参数格式、输出里的几句都在资源目录的 software/basesystem/ 下、进登记簿；核心起来时登记' },
+  n_software: { by: '4-4', how: 'frame', note: '基础系统（4-4 上、下）：读的三件 read、glob、grep，名字、参数、输出照成熟 harness 的规范（以 Claude Code 为主）；说明、参数格式、输出里的几句都在资源目录的 software/basesystem/ 下、进登记簿；核心起来时登记。history（6-4）：翻会话自己的日志，关键词加筛选，压缩换出去的找得回' },
   k_catalog: { by: '4-1', how: 'frame', note: '工具目录：每件工具报出规格（名字、说明、参数格式、访问类别），核心起来时登记一次就冻结；重名的、名字不合写法的、参数格式不是对象的当场拒绝。造会话时工具面照名字排好存进策略快照，载入以后逐字节一样。现在目录是空的，第一批工具在 4-4（4-1）' },
   n_store: { by: '3-1', how: 'frame', note: '数据根：家目录的 .miyu、MIYU_HOME、骨架、认标记（认不出的只有一种说法，不认旧版）；会话日志：按段的 JSONL，一批一次写入一次同步，打开时自检截尾；blob：按内容哈希存，先写临时文件、同步、再改名，读的时候核对；资源目录：MIYU_RESOURCES、程序旁边的 resources/、上一级的 share/miyu/，读出一个人格的原文（3-6 上）' },
   n_prompt: { by: '3-6', how: 'frame', note: '策略快照：人格从资源目录拼成快照，按内容哈希存档，载入时照哈希重建，请求逐字节一样；现在只有软件工程师（3-6 上）' },
