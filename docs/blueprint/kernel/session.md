@@ -51,6 +51,8 @@
 | `ToolProgress { at, call_id, text }` | 一段输出 | 「调工具」 |
 | `ToolGuarded { at, call_id, verdict }`、`ToolAsks { at, call_id, questions }` | 链的结论；一组题 | `asking.md` |
 | `Restored { at, files }` | 改回文件每一步的结局 | `history.md` |
+| `Reread { at, files }` | 压完重读的文件，一个一项，照交出去的先后：读到了（`blob`、原文）、太大、读不到（施工 6-5） | `compaction.md` 第九条 |
+| `Recalled { texts }` | 最近一个检查点里重读的文件的原文，照 blob 找（施工 6-5） | 载入以后、别的输入之前交；什么都不出 |
 | `Restarting { at }` | 要重启了 | 「有计划的重启」 |
 
 **命令**（`Command`）：
@@ -82,6 +84,7 @@
 | `CancelTool { call_id }` | 哪次调用 | 掐掉，不送回；之后到的不理 |
 | `StopTool { call_id }` | 哪次改文件的调用 | 叫它停：停在改之前，或者做完；照常送回 `ToolDone`，停在改之前的带 `stopped`（「打断」第 7 条） |
 | `Restore { steps }` | 改回的几步 | 改回文件，送回 `Restored`（`history.md`） |
+| `Reread { paths, limit }` | 压完要重读的文件，真实的位置，照先后；单个最多多少字节（施工 6-5） | 读、存成 blob，送回 `Reread`（`compaction.md` 第九条） |
 
 **结局**（`Outcome`）：`Accepted { events }` 接受，附上它产生的事件的序号，照先后；`Rejected { reason }` 拒绝，什么都没产生。原因码是稳定的英文（`Reason::code`）：
 

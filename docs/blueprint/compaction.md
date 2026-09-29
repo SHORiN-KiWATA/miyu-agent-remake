@@ -176,13 +176,14 @@
 
 1. 包装的开头（`resources/core/checkpoint-open.txt`，已有）。
 2. 摘要正文。
-3. 代码写的几段（`notes`）：
-   - 读过、改过的文件清单：照日志里的效果算（`file.read`、`file.changed`），不照工具名猜。旧版照工具名猜，一个都没认出来。
-   - 取回指路：被替代的是第 1 到 N 条，用 `history` 按序号、关键词、时间取回。
-   - 摘要请求截过最老的一段的，写明没有覆盖到哪一段。
-   - 压前读过、太大没重读的文件，写明要看自己读。
-4. 重读的文件（`restored`）：每个一块，写明路径；内容照 blob 原样。
-5. 包装的结尾（`resources/core/checkpoint-close.txt`，已有）。
+3. 摘要的收尾（`resources/core/checkpoint-close.txt`：`</summary>`；施工 6-5 把原来一起写在里面的规则那一句挪到了第 6 条，没有第 4、5 条的会话，请求的字节不变）。
+4. 代码写的几段（`notes`，施工 6-5）：写的时候照模板拼好，原文存进事件，以后逐字节回放。
+   - 读过、改过的文件清单：照被替代的那一段里的效果算（`file.read`、`file.changed`），不照工具名猜，旧版照工具名猜，一个都没认出来。最近的在前，去重，最多 30 个，多的写还有几个（`compaction/notes-files.txt`、`notes-files-more.txt`）。路径在会话现在的工作目录里的写相对的，别的写绝对的。
+   - 取回指路：被替代的是第 1 到 N 条，原文还在日志里，用 `history` 按序号、关键词、时间取回（`compaction/notes-retrieve.txt`）。6-4 真模型上她不知道序号，只能从头往下翻。
+   - 压前读过、太大没重读的文件，写明要看自己读（`compaction/notes-too-large.txt`）。
+   - 摘要请求截过最老的一段的，写明没有覆盖到哪一段（6-6）。
+5. 重读的文件（`restored`，施工 6-5）：照挑中的先后，每个一块：`compaction/restored-open.txt`（`<file path="…">`，路径照清单的写法）、原文（照 blob，不转义）、`compaction/restored-close.txt`（`</file>`）。
+6. 包装的结尾（`resources/core/checkpoint-end.txt`：规则那一句和 `</conversation-checkpoint>`）。
 
 - 环境和状态（时间、工作目录、权限级别）不在检查点里：压缩后的第一次请求照事实注入的规矩各注入一块，紧跟在检查点后面（第三条第 11 条）。
 - 检查点的规则写在包装的结尾，不进 system（6-3 下照 `26-提示词.md` J12 实测定的）：`Carry on from where the summary leaves off, without redoing work it records as done.`，19 个 token，只有压缩过的会话带。
@@ -197,10 +198,18 @@
 
 1. 最近读过、改过的文件，照日志里效果的先后，最近的优先：
    - 最多 5 个；单个 5000 token，超了不重读，只进清单（第八条）；合计 50000 token，放不下的跳过。
-   - 尾巴里已经有完整内容的，跳过。
-   - 从磁盘重读，照 `fs.md` 的安全打开；读不到的（删了、没权限）跳过，清单照写。
+   - 尾巴里已经有完整内容的，跳过：施工 6-5 照「尾巴（第 N 条以后）里读过、改过这个文件的」算，尾巴里有她最近看到的那一版或者改动。只读了一段的也算，宁可少重读一个。
+   - 从磁盘重读，照 `fs.md` 的安全打开；读不到的（删了、没权限、不是普通文件、不是 UTF-8）跳过，清单照写。
    - 重读的内容存成 blob，哈希记进 `restored`，重放时逐字节相同。
 2. 封顶：重读以后，压完的整份请求（工具面、system、检查点、事实、尾巴）的估算不超过压缩线的一半，放不下的跳过。窗口在 32000 token 以下的不重读，只写清单和取回的办法。
+
+**内核和执行器怎么交接**（施工 6-5，照撤销时改回文件那一对的样子：内核不碰磁盘）：
+
+1. 取到摘要以后，窗口够、有候选的，内核交出「重读」`Action::Reread { paths, limit }`：候选照第 1 条的先后，最多 10 个（挑满 5 个要留余地），路径是效果里换成真实位置以后的；`limit` 是单个的上限折成的字节（5000 × 4）。没有候选、窗口不够的，不交，直接写。
+2. 执行器在阻塞线程里一个一个读：照安全打开，超过 `limit` 的不读完、报太大，读到的存成 blob。交回 `Input::Reread { at, files }`，一个一项，照交出去的先后：读到了（`blob`、原文）、太大、读不到。存了没挑中的 blob 没人引用，等 blob 的回收收走（`07-存储.md` 第五节，还没做）。
+3. 内核照先后挑：读到了的、估出来不超过 5000 token 的，一个一个加，合计不超过 50000，加上以后整份请求的估算不超过压缩线的一半，挑满 5 个为止。太大的进清单。然后写 `context.compacted`（带 `notes`、`restored`），推 `compaction.done`，接着组装主请求。`restored` 每一项的 `tokens` 是这份原文估出来的。
+4. 等着重读时被打断、要重启：摘要照写，不带重读的文件（摘要请求已经付过钱，清单和取回指路照写），再照打断、重启收尾。
+5. 重读的原文不进日志，日志里只记 blob。内核在 `History` 里拿着最近一个检查点那几份的原文，组装时照 blob 取。载入以后，执行器照最近一个检查点的 `restored` 从 blob 读出原文，造会话、载入以后在别的输入之前交一条 `Input::Recalled { texts }`，和交限额一样。读不出来的那一份，渲染时整块不写。
 3. 以后有了的也照这里带上：用过的技能（单个 5000、合计 25000 token，最近用过的优先）、计划、待办、还在跑的后台命令和子代理、没回答的提问（M7、M8 做出来时加）。
 
 **十、失败和熔断**
@@ -253,7 +262,9 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 | `summarize-task.txt` | 摘要指令，任务型 | 6-2 |
 | `summarize-system.txt` | 隔离式那一句 system | 6-6 |
 | `truncated.txt` | 摘要请求截掉最老的一段时补的那一行 | 6-6 |
-| `notes-files.txt`、`notes-retrieve.txt`、`notes-uncovered.txt`、`notes-too-large.txt` | 检查点里代码写的几段 | 6-5、6-6 |
+| `notes-files.txt`、`notes-files-more.txt`、`notes-retrieve.txt`、`notes-too-large.txt` | 检查点里代码写的几段 | 6-5 |
+| `restored-open.txt`、`restored-close.txt` | 重读的文件那一块的头尾 | 6-5 |
+| `notes-uncovered.txt` | 摘要请求截过最老的一段时写的那一段 | 6-6 |
 | `summarize-chat.txt` | 摘要指令，聊天型：写法靠压缩质量评测打磨。做出来以前，`chat` 也用任务型的 | 以后 |
 | `trimmed.txt` | 裁剪的说明 | 随通讯平台 |
 

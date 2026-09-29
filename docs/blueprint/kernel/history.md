@@ -43,6 +43,7 @@
 | `ordered()` | 同一些事件，照每次请求看到的范围排好 |
 | `last_undone()` | 最近一次还能恢复的撤销拿走的事件，照日志的先后 |
 | `until(upto)` | 截到第 `upto` 条的有效历史：检查点照留，之后的事件只留第 `upto` 条及以前的，放在一边的撤销不要。压缩的摘要请求照它组装（施工 6-2 上） |
+| `recall(texts)`、`recalled(blob)` | 最近一个检查点里重读的文件的原文，照 blob 找：压完时内核照执行器交回的放进来，载入以后照 `Input::Recalled` 放进来；换了检查点就清掉。组装时照它取（施工 6-5，`compaction.md` 第九条） |
 | `whole()` | 一份留着一切的：压缩替代掉的不丢，`context.compacted` 自己也照先后留在 `events()` 里，没有检查点；撤销、恢复、撤回照同一套规矩算。`history` 照它算哪些还算数（施工 6-4，`tools/history.md`） |
 
 **命令**：`Revert { turn }`（`session.revert`，从哪一轮起，`None` 是最后一轮）记 `turn.reverted { turns }`；`Unrevert`（`session.unrevert`）记 `turn.unreverted { turns }`。拒绝的原因码见下面「撤销」「恢复」。
