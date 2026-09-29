@@ -165,5 +165,6 @@ fn missing(hash: &ContentHash) -> CallError {
     CallError {
         class: ErrorClass::Unclassified,
         message: format!("编码要用的 blob {hash} 取不出来"),
+        status: None,
     }
 }

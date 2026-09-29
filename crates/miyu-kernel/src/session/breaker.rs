@@ -157,6 +157,7 @@ impl Session {
             message: format!(
                 "the request would not fit: {used} tokens used + {reserve} reserved for output > window {window}"
             ),
+            status: None,
         })
     }
 

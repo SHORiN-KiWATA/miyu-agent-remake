@@ -59,6 +59,40 @@ fn nothing_received_is_asked_again() {
     assert_eq!(status[0].retry.message, "503 Service Unavailable");
 }
 
+/// 重试状态照 `model.called` 带着 HTTP 状态码（施工 3-5 三补）：头照它说人话；没有状态码的（连不上）不带。
+#[test]
+fn the_retry_status_carries_the_http_status() {
+    let mut stage = stage();
+    let limited = Line {
+        error: Some(CallError {
+            class: ErrorClass::RateLimited,
+            message: "HTTP 429: Rate limit reached".to_string(),
+            status: Some(429),
+        }),
+        ..Line::says("")
+    };
+    stage.model([
+        limited,
+        Line::fails(ErrorClass::Retryable, "connection refused"),
+        Line::says("好。"),
+    ]);
+    stage.say("hi");
+    let logged: Vec<Option<u16>> = stage
+        .log()
+        .iter()
+        .filter_map(|event| match &event.body {
+            Body::ModelCalled(called) => called.error.as_ref().map(|error| error.status),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(logged, [Some(429), None]);
+    let pushed: Vec<Option<u16>> = statuses(&stage)
+        .iter()
+        .map(|status| status.retry.status)
+        .collect();
+    assert_eq!(pushed, [Some(429), None]);
+}
+
 #[test]
 fn a_half_reply_is_kept_and_she_is_told_it_was_cut() {
     let mut stage = stage();
@@ -114,6 +148,7 @@ fn a_half_written_call_is_dropped() {
         error: Some(CallError {
             class: ErrorClass::Retryable,
             message: "connection reset".to_string(),
+            status: None,
         }),
         ..Line::calls("我读一下。", &[("read", r#"{"pa"#)])
     };

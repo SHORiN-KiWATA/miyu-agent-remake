@@ -60,6 +60,7 @@ impl Line {
             error: Some(CallError {
                 class,
                 message: message.to_string(),
+                status: None,
             }),
             ..Line::says("")
         }

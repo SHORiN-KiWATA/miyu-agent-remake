@@ -146,6 +146,11 @@ async fn a_rate_limit_waits_as_long_as_the_server_says() {
         calls[0].error.as_ref().map(|error| error.class.clone()),
         Some(ErrorClass::RateLimited)
     );
+    // HTTP 状态码一路带进日志（施工 3-5 三补）。
+    assert_eq!(
+        calls[0].error.as_ref().and_then(|error| error.status),
+        Some(429)
+    );
 }
 
 #[tokio::test]

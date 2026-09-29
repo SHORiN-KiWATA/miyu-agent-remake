@@ -34,7 +34,7 @@ impl<'a> Failure<'a> {
 /// 分好的类。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Classified {
-    /// 分类和原话，记进 `model.called`。
+    /// 分类、原话和 HTTP 状态码，记进 `model.called`。
     pub error: CallError,
     /// 供应商说了要等多久，毫秒。没说的没有，由执行器退避。
     pub retry_after_ms: Option<u64>,
@@ -169,6 +169,8 @@ pub fn classify(failure: &Failure<'_>) -> Classified {
         error: CallError {
             class,
             message: clip(&message, MESSAGE_LIMIT).to_string(),
+            // 只记 HTTP 回的：流里报的 `code` 只拿来分类（施工 3-5 三补）。
+            status: failure.status,
         },
         retry_after_ms: retry_after(failure.headers, &text),
         excess,

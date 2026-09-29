@@ -235,3 +235,42 @@ fn the_message_is_the_providers_words() {
     assert!(got.error.message.len() <= MESSAGE_LIMIT);
     assert!(got.error.message.ends_with('错'));
 }
+
+/// HTTP 状态码另记一格（施工 3-5 三补）：每一类的状态码都带上，原话开头的 `HTTP <状态>: ` 照留；分类照旧（404 是
+/// `other`，402 是 `auth`）。连不上的、流里报的没有，流里的 `code` 只拿来分类。
+#[test]
+fn the_http_status_is_kept_in_its_own_field() {
+    for (status, class) in [
+        (400, ErrorClass::Unclassified),
+        (401, ErrorClass::Auth),
+        (402, ErrorClass::Auth),
+        (403, ErrorClass::Auth),
+        (404, ErrorClass::Unclassified),
+        (408, ErrorClass::Retryable),
+        (413, ErrorClass::ContextTooLong),
+        (429, ErrorClass::RateLimited),
+        (500, ErrorClass::Retryable),
+        (503, ErrorClass::Retryable),
+    ] {
+        let got = classify(&failure(Some(status), &[], "Not Found"));
+        assert_eq!(
+            (&got.error.class, got.error.status),
+            (&class, Some(status)),
+            "{status}"
+        );
+        assert_eq!(got.error.message, format!("HTTP {status}: Not Found"));
+    }
+    let refused = classify(&failure(
+        None,
+        &[],
+        "error sending request: Connection refused",
+    ));
+    assert_eq!(refused.error.status, None);
+    let streamed = classify(&Failure::stream(
+        br#"{"error":{"message":"Provider returned error","code":429}}"#,
+    ));
+    assert_eq!(
+        (streamed.error.class, streamed.error.status),
+        (ErrorClass::RateLimited, None)
+    );
+}

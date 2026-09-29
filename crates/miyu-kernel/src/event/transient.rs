@@ -85,7 +85,7 @@ pub struct Status {
     pub retry: Retry,
 }
 
-/// 等着重试：第几次、一共最多几次、等多久，出错的分类和原话。
+/// 等着重试：第几次、一共最多几次、等多久，出错的分类、原话和 HTTP 状态码。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Retry {
     /// 这是第几次重试，从 1 数起。
@@ -98,6 +98,9 @@ pub struct Retry {
     pub class: ErrorClass,
     /// 出错的原话，给人看。
     pub message: String,
+    /// 出错的 HTTP 状态码，照那一次的 `model.called` 带过来（施工 3-5 三补）；没有的不写。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<u16>,
 }
 
 /// `tool.progress` 的 `body`：哪一次调用、一段输出（`03-事件模型.md` 第五节）。结果以

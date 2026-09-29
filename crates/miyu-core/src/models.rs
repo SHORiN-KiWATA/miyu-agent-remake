@@ -184,6 +184,7 @@ impl ModelPort for NoModel {
             Some(CallError {
                 class: ErrorClass::Auth,
                 message: "no model: set DEEPSEEK_API_KEY".to_string(),
+                status: None,
             }),
             None,
             None,

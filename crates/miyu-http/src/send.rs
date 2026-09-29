@@ -217,6 +217,7 @@ async fn exchange(
         (Some(error), Some(broken)) if error.class == ErrorClass::Retryable => Some(CallError {
             class: ErrorClass::Retryable,
             message: format!("连接断了：{broken}"),
+            status: None,
         }),
         (error, _) => error,
     };
@@ -269,6 +270,7 @@ fn misconfigured(why: &str) -> Outcome {
             error: CallError {
                 class: ErrorClass::Unclassified,
                 message: format!("地址或者头写得不对：{why}"),
+                status: None,
             },
             retry_after_ms: None,
             excess: None,
@@ -284,6 +286,7 @@ fn idle(idle: Duration) -> Outcome {
             error: CallError {
                 class: ErrorClass::Retryable,
                 message: format!("空闲超时：{} 秒没有收到新的内容", idle.as_secs_f64()),
+                status: None,
             },
             retry_after_ms: None,
             excess: None,

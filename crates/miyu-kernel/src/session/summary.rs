@@ -33,6 +33,7 @@ impl Session {
             return Err(CallError {
                 class: ErrorClass::EmptyReply,
                 message: "回复里一个块都没有".to_string(),
+                status: None,
             });
         }
         if called_tool(blocks) {
@@ -43,6 +44,7 @@ impl Session {
             return Err(CallError {
                 class: ErrorClass::BadSummary,
                 message: message.to_string(),
+                status: None,
             });
         }
         self.policy
@@ -51,6 +53,7 @@ impl Session {
             .ok_or_else(|| CallError {
                 class: ErrorClass::BadSummary,
                 message: "no summary in the reply".to_string(),
+                status: None,
             })
     }
 }

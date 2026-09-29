@@ -190,6 +190,7 @@ impl ModelPort for Script {
                     Some(CallError {
                         class,
                         message: "HTTP 429: slow down".to_string(),
+                        status: None,
                     }),
                     wait_ms,
                     None,

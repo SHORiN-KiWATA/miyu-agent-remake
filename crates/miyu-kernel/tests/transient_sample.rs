@@ -4,7 +4,8 @@
 //! - 代码里造出同样的几条，写出去和样本一字不差；
 //! - 这几段增量交给累积器，拼出来的就是样本里 45 号回复的内容块：推给头的和写进日志的对得上；
 //! - 45 号回复里那次 `read` 执行中的一段输出（`tool.progress`）；
-//! - 44 号请求出了限速的错，等 1 秒再来的状态（`status`，施工 3-5 下）；
+//! - 44 号请求出了限速的错，等 1 秒再来的状态（`status`，施工 3-5 下）；117 号请求的限速带着 HTTP 状态码
+//!   （施工 3-5 三补）；
 //! - 54 号压缩写摘要时的两段进度（`compaction.progress`，施工 6-2 上），和压好了的那一条（`compaction.done`，
 //!   施工 6-3 下）。
 //!
@@ -148,25 +149,37 @@ fn the_tool_progress_sample_is_written_exactly() {
     assert_eq!(lines("transient/tool.progress.jsonl"), [progress.to_line()]);
 }
 
+/// 第一行是施工 3-5 下写的，那时还没有 HTTP 状态码那一格；第二行是 118 号 `model.called` 的限速，带着 429
+/// （施工 3-5 三补）。没有状态码的不写这一格。
 #[test]
 fn the_status_sample_is_written_exactly() {
-    let status = Transient {
-        at: Timestamp::parse("2026-09-25T07:04:07.200Z").expect("样本的时刻合写法"),
-        turn: Some(TurnId::new(Seq::new(42).expect("42 是合法的序号"))),
-        by: By::Kernel,
-        cause: Some(CommandId::parse("cmd-7f3a").expect("命令编号合写法")),
-        body: TransientBody::Status(Status {
-            seen: Seq::new(44).expect("44 是合法的序号"),
-            retry: Retry {
-                attempt: 1,
-                limit: 5,
-                wait_ms: 1000,
-                class: ErrorClass::RateLimited,
-                message: "HTTP 429: Rate limit reached".to_string(),
-            },
-        }),
+    let status = |at: &str, turn: u64, cause: &str, seen: u64, status: Option<u16>| {
+        Transient {
+            at: Timestamp::parse(at).expect("样本的时刻合写法"),
+            turn: Some(TurnId::new(Seq::new(turn).expect("合法的序号"))),
+            by: By::Kernel,
+            cause: Some(CommandId::parse(cause).expect("命令编号合写法")),
+            body: TransientBody::Status(Status {
+                seen: Seq::new(seen).expect("合法的序号"),
+                retry: Retry {
+                    attempt: 1,
+                    limit: 5,
+                    wait_ms: 1000,
+                    class: ErrorClass::RateLimited,
+                    message: "HTTP 429: Rate limit reached".to_string(),
+                    status,
+                },
+            }),
+        }
+        .to_line()
     };
-    assert_eq!(lines("transient/status.jsonl"), [status.to_line()]);
+    assert_eq!(
+        lines("transient/status.jsonl"),
+        [
+            status("2026-09-25T07:04:07.200Z", 42, "cmd-7f3a", 44, None),
+            status("2026-09-25T07:58:12.400Z", 117, "cmd-d4e7", 117, Some(429)),
+        ]
+    );
 }
 
 #[test]

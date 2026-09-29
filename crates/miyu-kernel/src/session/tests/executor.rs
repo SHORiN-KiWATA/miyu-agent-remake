@@ -79,6 +79,7 @@ pub(super) fn failed(seen: u64, class: ErrorClass, message: &str) -> Input {
         error: Some(CallError {
             class,
             message: message.to_string(),
+            status: None,
         }),
         wait_ms: None,
         excess: None,
