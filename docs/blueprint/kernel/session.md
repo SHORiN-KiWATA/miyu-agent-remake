@@ -15,6 +15,7 @@
 | `crates/miyu-kernel/src/session/policy.rs`、`recent.rs` | 冻结在会话上的策略；最近接受的命令编号 |
 | `crates/miyu-kernel/src/session/turn.rs`、`call.rs`、`retry.rs` | 开回合、发请求、结束回合；收回复、记 `model.called`；出错再来 |
 | `crates/miyu-kernel/src/session/compaction.rs` | 压缩这一步：到没到线、替代到哪、发摘要请求、收回来写 `context.compacted`（`compaction.md`，施工 6-2 上） |
+| `crates/miyu-kernel/src/session/limits.rs` | 给头看的限额 `ContextLimits`：窗口、压缩线（施工 6-3 补） |
 | `crates/miyu-kernel/src/session/tools.rs`、`step.rs` | 这一步的调用：先查、派、收结果、补结果；每个调用走到了哪、轮到谁 |
 | `crates/miyu-kernel/src/session/queue.rs`、`interrupt.rs` | 排队的消息；打断 |
 | `crates/miyu-kernel/src/session/permission.rs` | 切权限级别、请求之前查事实 |
@@ -33,6 +34,7 @@
 | `Session::load(events, at, policy, environment)` | 从日志载入，出来会话和要补的动作；载入不了的是 `LoadError`（「载入和崩溃」） |
 | `handle(input)` | 送进一条输入，出来一串动作 |
 | `idle()` | 空闲：没有回合在进行，没有结束了、`turn.ended` 还没落盘的回合，没在改回文件。核心照它决定能不能空闲退出 |
+| `context_limits()` | 给头看的限额 `ContextLimits`（施工 6-3 补）：`window` 上下文窗口，`compaction_line` 压缩线，和内核判到线用的是同一条（`compaction.md` 第二条第 2 条）。没交过限额的、没报窗口的，两格都没有；策略里没有压缩的、算不出正数的，没有压缩线。只读，不出动作。协议照它回 `subscribe`（`protocol.md`） |
 
 **输入**（`Input`）：
 
@@ -153,7 +155,7 @@
 2. **事实**：环境一块（`kind` 是 `env`：这一刻到小时、时区、工作目录）、权限一块（`permission`：实际生效的那一级），`by` 是内核。和有效历史里内核记的同一类最近一块逐字节一样的，不追加。写法、比法见 `kernel/request.md`「事实」。
 3. 开头那一批落了盘，出 `RunTurnStartHooks`，一个回合一次。
 4. **挂接点跑完了**：回合对得上、正在等挂接点的才收；别的（打断以后迟到的、第二次来的、别的回合的、空闲时来的）不理。注入照交回来的先后追加成 `context.injected`，`by` 是各自的模块，`cause` 是回合的；这一轮里切过权限级别的，再查一遍事实（「切权限级别」第 6 条）。
-5. **发请求**：到了 `Ready`，追加过的事件都落了盘。拿有效历史组装；用量过了压缩线的，先发摘要请求（`compaction.md` 第二、三条：名字是替代到的 N，不算请求数，也记进「上一次的指纹」），这一次的主请求等压完再组装。没过线的：`seen` 是落了盘的最后一条；算出请求的指纹，和这个会话上一次组装的比出第一处不同（工具面、system，或者第几条消息，从 0 数起，和它的角色；上一次有、这一次少了的，从少了的那一条算），只是接着加的是 `None`。上一次的指纹只在内存里：造会话、载入以后的第一次都是 `None`（`kernel/request.md`「第一处不同」）。不是重试的，这一轮的请求数加一。急着插话的记号、排着队的清单清掉。出 `CallModel`。
+5. **发请求**：到了 `Ready`，追加过的事件都落了盘。拿有效历史组装；先问熔断（`session/breaker.rs`，`compaction.md` 第二条第 5 条、第十条，施工 6-6 上）：暂停着、放不下的，记一条没发出去的 `model.called`，结束回合 `error`；压完很快又到线第 3 次的，写 `context.compaction_paused`，回到 `Ready`。用量过了压缩线的，先发摘要请求（`compaction.md` 第二、三条：名字是替代到的 N，不算请求数，也记进「上一次的指纹」），这一次的主请求等压完再组装。没过线的：`seen` 是落了盘的最后一条；算出请求的指纹，和这个会话上一次组装的比出第一处不同（工具面、system，或者第几条消息，从 0 数起，和它的角色；上一次有、这一次少了的，从少了的那一条算），只是接着加的是 `None`。上一次的指纹只在内存里：造会话、载入以后的第一次都是 `None`（`kernel/request.md`「第一处不同」）。不是重试的，这一轮的请求数加一。急着插话的记号、排着队的清单清掉。出 `CallModel`。
 6. **结束回合**：追加 `turn.ended`，会话空闲；它落了盘才出 `RunTurnEndHooks`。还有排着队的，同一批接着开下一轮；重启、崩了收尾的不开（「排队的消息」）。
 
 | 结束的原因 | 什么时候 | `by` |
@@ -176,7 +178,7 @@
    4. 拼出来一块都没有的不写回复；正常说完的，按出错算：`empty_reply`，「回复里一个块都没有」。
    5. 有的写成 `message.assistant`：`seen` 是这次请求的，出错的多写 `"interrupted":true`，`by` 是那个模型，`cause` 是回合的。
    6. 接着追加 `model.called`（下表），`by` 是内核，`cause` 是回合的。
-   7. 出错的：能再来就等着再来（「出错再来」），不能的结束回合，`error`。收到的半截照样留在日志里。
+   7. 出错的：能再来就等着再来（「出错再来」），不能的结束回合，`error`。收到的半截照样留在日志里。自动压缩的摘要请求这样结束的，是一次失败：最近一个检查点以后数到 3 次，在 `turn.ended` 前面写 `context.compaction_paused`（`compaction.md` 第十条第 4 条）。
    8. 正常说完的：这一步连着出错的次数清零。回复里有工具调用，调工具；没有，结束回合，`completed`。
 
 | `model.called` 的格 | 写什么 |
@@ -190,6 +192,7 @@
 | `duration_ms` | 发出去到说完（或者打断）；没发出去的没有。时钟往回拨了算 0 |
 | `result` | `interrupted` 被打断，`error` 出错，别的 `ok` |
 | `error` | 出错的分类和原话 |
+| `compaction` | 摘要请求的：哪一种压缩（现在只有 `auto`）；主请求没有 |
 
 **出错再来**：
 
@@ -335,6 +338,7 @@
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-kernel/src/session/tests.rs` | 造会话落了盘才回应；消息落了盘才回应；空消息；同一个编号落盘前后再来；拒绝过的重新判；落盘到一半只回应落全了的；落盘超出追加过的；只记最近 1024 个 |
+| `crates/miyu-kernel/src/session/tests/limits.rs` | 给头看的限额（施工 6-3 补）：没交过的两格都没有；压缩线照窗口、最大输出算（最大输出比预留的上限大、小、没有）；窗口太小没有压缩线；策略里没有压缩的只有窗口；再交一次照新的 |
 | `crates/miyu-kernel/src/session/tests/idle.rs` | 有回合、`turn.ended` 没落盘都不算空闲（改回文件时不算空闲在 `session/tests/restore.rs`，`history.md`） |
 | `crates/miyu-kernel/src/session/tests/turn.rs` | 空闲时消息和回合的开头同一批；挂接点等开头落盘；挂接点跑完才请求；注入照交回的先后；中途的消息并进这一轮；挂接点跑的时候来的消息，落了盘才请求；对不上的挂接点结果不理；报的最后一个环境才注入 |
 | `crates/miyu-kernel/src/session/tests/dirs.rs` | 加进来的目录（施工 5-10 上）：`turn.started` 带着它、没有就不写这一格；判权限、派工具都带上；回合中途报来的下一轮才用 |
@@ -368,7 +372,7 @@
 
 - 别的挂接点：命令进入、模型输出后、工具执行后、订阅（`05-内核接口.md` 第五节）。现在只有回合开始、回合结束和执行前的链；回合开始、回合结束还没有模块挂，会话 actor 交回空的注入（`crates/miyu-session/src/actor.rs`）。
 - 换策略快照（`02-内核.md` K3）：内核不写带 `policy` 的 `session.policy_changed`，载入时也不看它。改标题、置顶（`session.meta_changed`）没有命令。
-- 压缩（`09-压缩.md`，M6）：内核不写 `context.compacted`；`context_too_long` 现在结束回合，不先压缩；压缩以后的事实边界。
+- 压缩（`compaction.md`）：`context_too_long` 现在结束回合，不先压缩（被动压缩，6-7）；截掉最老的再试、隔离式回退（6-6 下）；手动压缩（6-8）；撤销越过压缩（6-9）。
 - 子代理、后台命令（`02-内核.md` 第七节，M7）：由回报开的回合，撤销时一起停下，载入时给它们补中断。
 - 等第一个字时的心跳 `status`（`03-事件模型.md` 第五节）；中途连上的头拿「到目前为止的内容」（M8）。
 - 协议上还没有 `session.set_permission_level`、`session.answer`（`04-核心协议.md` 第九节）：内核有这两个命令，核心还不收。

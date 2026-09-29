@@ -2,7 +2,7 @@
 
 ### 是什么
 
-内核认识的 19 种事件，每一种的 `body`：每一格叫什么、是什么写法、有没有、没有时怎么写。外壳、一行怎么读写、瞬时事件见 `kernel/events.md`。
+内核认识的 20 种事件，每一种的 `body`：每一格叫什么、是什么写法、有没有、没有时怎么写。外壳、一行怎么读写、瞬时事件见 `kernel/events.md`。
 
 ### 在哪
 
@@ -15,7 +15,7 @@
 | `crates/miyu-kernel/src/event/tool.rs` | `tool.result`（`ToolStatus`、给人看的说法 `Said`）、`tool.approval_requested`、`tool.approval_decided`（`Decision`） |
 | `crates/miyu-kernel/src/event/effect.rs` | 效果 `Effect`：`file.read`、`file.changed`、`file.trashed` |
 | `crates/miyu-kernel/src/event/question.rs` | `question.asked`、`question.answered`；回答对不对得上 `fits` |
-| `crates/miyu-kernel/src/event/context.rs` | `context.injected`、`context.compacted` |
+| `crates/miyu-kernel/src/event/context.rs` | `context.injected`、`context.compacted`、`context.compaction_paused`（`PauseReason`） |
 | `crates/miyu-kernel/src/event/model.rs` | `model.called`（`FirstDifference`、`Usage`、`CallResult`、`CallError`、`ErrorClass`） |
 
 每一种的样本在 `docs/designs/samples/events/<种类>.jsonl`。
@@ -265,6 +265,15 @@
 | `trigger` | `auto`、`manual`、`overflow` | 可以没有 | 为什么压：到线了、人要的、供应商报超长。以前的日志里没有，当作 `auto`；不认识的原样留着。现在内核只写 `auto`（施工 6-2 上） |
 | `notes` | 字符串 | 可以没有，没有就是空的 | 代码写的几段：读过、改过的文件清单，取回指路，太大没重读的（`compaction.md` 第八条）。写的时候拼好，以后逐字节回放（施工 6-5） |
 | `restored` | 数组 | 可以没有，没有就是空的 | 压后重读的文件，照渲染的先后，一个一项：`path` 照清单的写法、`blob` 原文的哈希、`tokens` 估出来的（施工 6-5） |
+| `refills` | 整数 | 可以没有 | 压完很快又到线，连着的第几次；不是的没有（`compaction.md` 第十条第 5 条，施工 6-6 上） |
+
+**`context.compaction_paused`**：暂停了自动压缩（`compaction.md` 第十条，施工 6-6 上）。不进上下文；最近一个检查点以后的有效历史里有它，就是暂停着。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `reason` | `failures`、`too_large` | 必有 | 连续失败；压完很快又到线。不认识的原样留着 |
+| `failures` | 整数 | 可以没有 | `failures` 的：连着失败了几次 |
+| `entry` | 序号 | 可以没有 | `too_large` 的：估得最大的那一条 |
 
 摘要外面那层包装、重读的文件那一块的头尾是投影的模板（`resources/core/checkpoint-open.txt`、`checkpoint-close.txt`、`checkpoint-end.txt`、`compaction/restored-*.txt`），不存在这里；重读的原文在 blob 里。
 
@@ -283,6 +292,7 @@
 | `duration_ms` | 整数 | 可以没有 | 从请求发出去到说完的毫秒数，被打断的算到打断为止。没发出去的没有 |
 | `result` | 取值 | 必有 | `ok` 说完了；`error` 出错；`interrupted` 被人打断 |
 | `error` | 出错 | 可以没有 | 出错的分类和原话，只在出错时有 |
+| `compaction` | `auto`、`manual`、`overflow` | 可以没有 | 这是哪一种压缩的摘要请求；主请求没有。以前的日志没有这一格（施工 6-6 上） |
 
 第一处不同：
 
@@ -309,6 +319,7 @@
 | `bad_stream` | 增量对不上，或者执行器的回报先后不对：驱动或执行器的错；流里有一段不是 JSON 的，驱动也分成它 | 内核；驱动 |
 | `empty_reply` | 回复里一个块都没有 | 内核 |
 | `bad_summary` | 摘要请求的回复里取不出摘要：空的，或者调了工具（施工 6-2 上） | 内核 |
+| `compaction_paused` | 自动压缩暂停着，这一次请求明知放不下，没发（施工 6-6 上） | 内核 |
 
 ### 怎么走
 

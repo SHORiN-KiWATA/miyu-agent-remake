@@ -13,6 +13,7 @@ mod call;
 mod compaction;
 mod input;
 mod interrupt;
+mod limits;
 mod load;
 mod permission;
 mod policy;
@@ -30,6 +31,7 @@ mod turn;
 
 pub use action::{Action, Outcome, Reason};
 pub use input::{Answer, Command, Injection, Input, Limits, Queued, Received, Reread, Verdict};
+pub use limits::ContextLimits;
 pub use load::LoadError;
 pub use policy::{Compaction, Notes, Policy, Rebuild};
 pub use restore::{Expect, Step, StepAction};

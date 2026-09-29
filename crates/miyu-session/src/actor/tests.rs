@@ -165,7 +165,11 @@ async fn a_write_that_fails_stops_the_session() {
         Ok(Outcome::Accepted { .. })
     ));
 
-    let handle = Handle::new(session.clone(), inbox, busy);
+    let nothing = miyu_kernel::session::ContextLimits {
+        window: None,
+        compaction_line: None,
+    };
+    let handle = Handle::new(session.clone(), inbox, busy, nothing);
     assert!(!handle.busy(), "刚造出来，没有回合");
     let first = within(
         "第一句的回应",

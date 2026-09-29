@@ -17,7 +17,8 @@
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu-kernel/src/estimate.rs` | 用量：供应商报的加本地估算 |
-| `crates/miyu-kernel/src/session/compaction.rs` | 压缩这一步：到没到线、发摘要请求、收回来、写 `context.compacted`；失败和暂停 |
+| `crates/miyu-kernel/src/session/compaction.rs` | 压缩这一步：到没到线、发摘要请求、收回来、写 `context.compacted` |
+| `crates/miyu-kernel/src/session/breaker.rs` | 熔断：数失败、算压完多快又到线、暂停着的请求放不放得下（第十条，施工 6-6 上） |
 | `crates/miyu-kernel/src/event/context.rs` | `context.compacted` 的几格 |
 | `crates/miyu-kernel/src/ledger.rs`、`history.rs`、`session/revert.rs` | 撤销越过压缩（第十一条） |
 | `crates/miyu-assemble/src/summary.rs` | 摘要请求：fork 式、隔离式；从回复里取出摘要 |
@@ -41,7 +42,7 @@
 | 尾巴 | 16000 token，不超过压缩线的四分之一 | 压完原样留着的最近一段（第三条第 2 条） |
 | 重读的文件 | 最多 5 个；单个 5000 token；合计 50000 token | 压后重建（第九条） |
 | 不重读文件的窗口 | 32000 token 以下 | 同上 |
-| 暂停自动压缩 | 连续失败 3 次；或者压完 3 个回合内又到线，连续 3 次 | 第十条 |
+| 暂停自动压缩 | 连续失败 3 次；或者压完 3 个回合内又到线，连续 3 次 | 第十条。快照里是 `compaction.pause` 的 `failures`、`turns`、`refills` 三个数（施工 6-6 上）；以前的快照没有，读成没有：不熔断 |
 | 摘要请求超长时 | 最多试 3 次；解析不出超了多少时，去掉最老的 20% | 第三条第 10 条 |
 | `compaction.max_context` | 不设 | 上下文最多用到多少 token，到了也压（随配置那一步） |
 | `compaction.mode` | `summarize` | 群聊 `trim`（随通讯平台） |
@@ -53,6 +54,7 @@
 - 以后的来源（随配置和多供应商那一步），照 M2 的先后：配置里手写的；用出来的；供应商的 `/models`（多数不给窗口，OpenAI 标准的就没有；旧版认 `context_window`、`context_length`、`max_context_length`）；models.dev 的目录；驱动的保守默认。
 - 一张图多少 token 是驱动的事，跟着驱动的写法走，不跟着模型资料：DeepSeek 的写法照官方计算器的 v41 配置，一张最多 1024（dsh 2026-09-28 的版本照 DeepSeek 文档的计算器移植的；原来写的 384 是旧配置的数），6-3（上）做；没有算法的一张按 2000（Claude Code 的做法）。
 - 没报窗口的不主动压，只在供应商报超长时被动压：不拿一个没根据的数去压。没报最大输出的，输出预留按 20000。
+- 头从 `subscribe` 的回应拿窗口和压缩线（`protocol.md`，施工 6-3 补）：压缩线由内核照第二条第 2 条算好，头不照公式自己算。
 
 **事件** `context.compacted`（`kernel/events-bodies.md`）：带 `turn`，是压缩发生在哪一轮（第十一条）。
 
@@ -64,9 +66,20 @@
 | `instructions` | 字符串 | 可以没有 | 手动压缩时人附的要求，原样 |
 | `notes` | 字符串 | 可以没有 | 代码写的几段，原文照存，以后逐字节回放（第八条） |
 | `restored` | 数组 | 可以没有 | 压后重读的文件：`path`、`blob`（内容的哈希）、`tokens`（估算），照渲染的先后 |
+| `refills` | 整数 | 可以没有 | 压完很快又到线，连着的第几次（第十条第 4 条，施工 6-6 上）；不是的没有 |
 
 - 原来只有 `upto`、`summary` 两格的日志照旧读得出来。
 - 裁剪的那一种再加一格 `mode`，随通讯平台加（第五条）。
+
+**事件** `context.compaction_paused`（施工 6-6 上）：暂停了自动压缩（第十条）。`by` 是内核，带 `turn`，`cause` 是回合的；不进上下文。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `reason` | `failures`、`too_large` | 必有 | 连续失败；压完很快又到线（内容异常）。不认识的原样留着，也算暂停 |
+| `failures` | 整数 | 可以没有 | `failures` 的：连着失败了几次 |
+| `entry` | 序号 | 可以没有 | `too_large` 的：最近一个检查点以后估得最大的那一条 |
+
+**事件** `model.called` 多一格 `compaction`（`auto`、`manual`、`overflow`，可以没有）：这是哪一种压缩的摘要请求，主请求没有（施工 6-6 上）。有了它，日志里认得出哪几次是摘要请求，失败照它数。以前的日志没有这一格。
 
 **事件** `turn.started`：`trigger` 改成可以没有。人要的压缩单开一轮，它不是哪一句话引起的（第七条）。
 
@@ -106,7 +119,7 @@
    - 一步长得比余量还多的（例如一次读进一个很大的文件）：下一次发请求之前照样到线就压；摘要请求本身放不下，走第三条第 10 条截掉最老的再试；供应商报超长，走被动压缩（第六条）。
 3. 设了 `compaction.max_context` 的，压缩线取它和上面那条里小的（随配置那一步）。
 4. 模型的资料没报窗口的，不主动压。
-5. 自动压缩暂停着的（第十条）：不压；用量加输出预留超过窗口、明知会超长的请求不发，这一轮照出错结束，原因写明。
+5. 自动压缩暂停着的（第十条）：不压；用量加输出预留超过窗口、明知会超长的请求不发：记一条没发出去的 `model.called`（没有 `endpoint`、`model`、`request`，分类 `compaction_paused`，原话写明用量、预留、窗口），这一轮照出错结束。没超的照发（施工 6-6 上）。
 
 **三、压缩这一步：fork 式**
 
@@ -212,17 +225,23 @@
 5. 重读的原文不进日志，日志里只记 blob。内核在 `History` 里拿着最近一个检查点那几份的原文，组装时照 blob 取。载入以后，执行器照最近一个检查点的 `restored` 从 blob 读出原文，造会话、载入以后在别的输入之前交一条 `Input::Recalled { texts }`，和交限额一样。读不出来的那一份，渲染时整块不写。
 3. 以后有了的也照这里带上：用过的技能（单个 5000、合计 25000 token，最近用过的优先）、计划、待办、还在跑的后台命令和子代理、没回答的提问（M7、M8 做出来时加）。
 
-**十、失败和熔断**
+**十、失败和熔断**（施工 6-6 上）
 
-1. 一次压缩失败：超长重试 3 次还是超长；供应商出错（驱动的出错分类照常重试完了）；摘要取出来是空的；被动压缩重发还是超长。
-2. 失败的那一次：这一轮照出错结束，原因写明。
-3. **连续失败 3 次**：暂停自动压缩，停到人处理（2026-09-29 项目主人定）。
-   - 暂停期间，明知会超长的请求不发（第二条第 5 条）。
-   - 告诉人可以怎么办：手动压缩、换一个模型、开新会话。
-   - 人手动压缩成功，恢复自动压缩。
-4. **内容异常**：压完 3 个回合内又到线，连续 3 次，说明有异常巨大的内容。暂停自动压缩，告诉人是哪一条太大（`09-压缩.md` Z9）。同一轮里一步接一步地压也照这样数：6-3（下）真模型上窗口设得很小（压缩线 12000），压完她又把刚读过的 1.2 万 token 的文件读回来核对，读完又到线，一轮里压了 9 次还没答。
-5. 成功压缩一次，连续失败的次数清零。
-6. 无人值守的场所（随通讯平台）：不暂停，改成裁剪一次（第五条），同时通知管理员（2026-09-29 项目主人定，照推荐）。
+1. 一次压缩失败：超长重试 3 次还是超长（6-6 下）；供应商出错（驱动的出错分类照常重试完了）；摘要取出来是空的、调了工具（隔离式做好以前，6-6 下）；被动压缩重发还是超长（6-7）。
+2. 失败的那一次：这一轮照出错结束，原因在摘要请求的 `model.called` 里。
+3. **怎么从日志认出一次失败**：一轮以 `error` 结束，它最后一条 `model.called` 带着 `compaction`，是 `auto` 或者 `overflow`，结果是 `error`。打断、重启、崩了的不算；主请求出的错不算；手动压缩失败不算：人就在跟前，他自己看得到。
+4. **连续失败 3 次**：最近一个检查点以后的有效历史里，这样的回合数到 3，在这一轮的 `turn.ended` 前面写 `context.compaction_paused`，`reason` 是 `failures`（2026-09-29 项目主人定：停到人处理）。
+   - 成功压缩一次，检查点换了，以前的失败都在它前面，次数自然清零。
+5. **内容异常**：到线、切点也定好了，要压之前算这一次是不是「压完很快又到线」：
+   - 上一个检查点所在的那一轮算第 1 个回合，这一轮是第 3 个以内的（策略的 `turns`），就是。同一轮里一步接一步地压也照这样算：6-3（下）真模型上窗口设得很小（压缩线 12000），压完她又把刚读过的 1.2 万 token 的文件读回来核对，读完又到线，一轮里压了 9 次还没答。
+   - 是的，`refills` 是上一个检查点的加一（没有的算 0），写进这次的 `context.compacted`；不是的不写。`refills` 是写下时的事实，撤销回到前一个检查点时照它原样用。
+   - 算出来到了 3（策略的 `refills`）：不压，写 `context.compaction_paused`，`reason` 是 `too_large`，`entry` 是最近一个检查点以后有效历史里估得最大的那一条（照第一条第 2 条的数法，一样大的取早的），告诉人是哪一条太大（`09-压缩.md` Z9）。回到准备好，落了盘再来，这时已经暂停着了。
+6. **暂停着**：最近一个检查点以后的有效历史里有 `context.compaction_paused`。
+   - 到线不压；明知会超长的请求不发（第二条第 5 条）。
+   - 告诉人可以怎么办：手动压缩、换一个模型、开新会话（「给人看的字」）。
+   - 人手动压缩成功，检查点换了，暂停在它前面，恢复自动压缩（6-8）。撤掉写着暂停的那一轮，暂停跟着撤掉。
+   - 全从有效历史算：载入、重启不另记，和不重启一样。
+7. 无人值守的场所（随通讯平台）：不暂停，改成裁剪一次（第五条），同时通知管理员（2026-09-29 项目主人定，照推荐）。
 
 **十一、撤销和压缩**（2026-09-29 项目主人提：压缩也是一次请求，应该能撤销）
 
@@ -295,8 +314,9 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 | 压缩中 | 正在压缩上下文… | Compacting the context… |
 | 压好了 | 上下文压缩好了：<压前> → <压后> token | Context compacted: <before> → <after> tokens |
 | 失败 | 压缩失败：<原因> | Compaction failed: <reason> |
-| 暂停 | 自动压缩连续失败 3 次，已暂停：可以手动压缩、换一个模型，或者开新会话 | Automatic compaction failed three times and is paused: compact manually, switch models, or start a new session |
+| 暂停 | 自动压缩连续失败 <n> 次，已暂停：可以手动压缩、换一个模型，或者开新会话 | Automatic compaction failed <n> times and is paused: compact manually, switch models, or start a new session |
 | 内容太大 | 第 <序号> 条内容太大，压完很快又满了，自动压缩已暂停 | Entry <seq> is too large and keeps filling the context; automatic compaction is paused |
+| 暂停着、这一次放不下（出错那一行的分类） | 自动压缩暂停着 | automatic compaction is paused |
 | 没有能压的 | 上一次压缩以后还没有新内容 | Nothing new since the last compaction |
 | 撤掉了压缩 | 撤掉了一次压缩，上下文回到了压缩前 | Undid a compaction; the context is back to how it was before |
 | 快满了（M8） | 上下文快满了，到线会自动压缩 | The context is nearly full; it will be compacted automatically |
@@ -331,4 +351,5 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 - 聊天型模板：靠压缩质量评测打磨。
 - 技能、计划、待办、后台任务、提问的压后重建：随 M7、M8。
 - `history` 的向量检索：随记忆一起做（`tools/history.md`）。
+- 换了模型以后解不解除暂停：随换模型那一步（第十条第 6 条）。
 - 分叉：`03-事件模型.md` 第七节。

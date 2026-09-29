@@ -104,6 +104,7 @@ todo.md
 - 压缩中：`· 正在压缩上下文… 已写 3,120 字`。标准错误是终端的，每来一条进度回到行首、擦掉这一行重画（`\r` 加 `ESC[2K`）；不是终端的，压缩中不印。
 - 压好了：`· 上下文压缩好了：812.3k → 31k token`。终端里擦掉进度那一行换成它。token 数不到一千照写，一千以上写 `k`、一百万以上写 `M`，一位小数，整的不写小数；数是估算（`compaction.md` 第一条），和供应商下一次报的会差一点。
 - 失败：`· 压缩失败：<原因>`，红。原因照摘要请求出错的分类说；取不出摘要的（`bad_summary`）分两种，原话说调了工具的说「摘要请求里调了工具」。被打断的不说：这一轮的收尾会说。
+- 暂停了（`context.compaction_paused`，施工 6-6 上）：红，照 `reason` 印一行，写法见下表。不认识的 `reason` 照连续失败的那一行印，不带次数。暂停着、这一次放不下的，照出错那一行印，分类说「自动压缩暂停着」。
 - `--format json` 不印：脚本读事件流里的 `compaction.done`。
 
 **上色**：标准错误是终端、`NO_COLOR` 没设或者设成空的才上色：no-color.org 的约定是设了、不是空的才不上色（施工 4-9 再补四上：原来设成空的也不上色）。灰是 `ESC[90m`，红是 `ESC[31m`，绿是 `ESC[32m`。一行分几段，换颜色时写新颜色，换回原色写 `ESC[0m`；上过色的行，行尾写 `ESC[0m`，中途退出也不会把终端留成灰的。思考一段一段写，每一段各自包在 `ESC[90m` 和 `ESC[0m` 里。标准输出从不上色。
@@ -227,6 +228,8 @@ todo.md
 | 压缩中 | `· 正在压缩上下文… 已写 <字数> 字` | `· Compacting the context… <n> characters written` |
 | 压好了 | `· 上下文压缩好了：<压前> → <压后> token` | `· Context compacted: <before> → <after> tokens` |
 | 压缩失败 | `· 压缩失败：<原因>` | `· Compaction failed: <reason>` |
+| 暂停：连续失败 | `· 自动压缩连续失败 <n> 次，已暂停：可以手动压缩、换一个模型，或者开新会话` | `· Automatic compaction failed <n> times and is paused: compact manually, switch models, or start a new session` |
+| 暂停：内容太大 | `· 第 <序号> 条内容太大，压完很快又满了，自动压缩已暂停` | `· Entry <seq> is too large and keeps filling the context; automatic compaction is paused` |
 | 原因：摘要请求里调了工具 | 摘要请求里调了工具 | the summary called a tool |
 | 最后那一句，一步 | `· 1 步没做：要你确认，miyu ask 里确认不了` | `· 1 step not done: it needs your approval, which cannot be given in miyu ask` |
 | 最后那一句，几步 | `· 2 步没做：要你确认，miyu ask 里确认不了` | `· 2 steps not done: they need your approval, which cannot be given in miyu ask` |
