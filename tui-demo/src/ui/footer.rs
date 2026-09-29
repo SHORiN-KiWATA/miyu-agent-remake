@@ -186,11 +186,8 @@ pub fn context_text(t: &Transcript, config: &Config) -> Option<String> {
         return None;
     }
     let used = meter::short(t.context);
-    let window = t
-        .model
-        .as_ref()
-        .and_then(|(model, _)| config.models.context_windows.get(model))
-        .copied();
+    // 窗口照核心在订阅的回应里给的，头不自己照模型名查。
+    let window = t.limits.window;
     let text = match window {
         None => used,
         Some(window) => config

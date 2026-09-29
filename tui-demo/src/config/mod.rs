@@ -296,7 +296,7 @@ pub struct Texts {
     pub figure_zoom: String,
     /// 换了主题，`{name}` 是名字。
     pub theme_changed: String,
-    /// 撤销那一行，`{turns}` 几轮。
+    /// 撤销那一行：`已撤销 · /restore 恢复`（不写几轮：撤销只能一轮一轮撤）。
     pub undone: String,
     /// 改回了几个文件，`{count}`。
     pub restored: String,
@@ -322,13 +322,6 @@ pub struct Texts {
     pub total: String,
 }
 
-/// 模型的数据。核心的协议里还没有模型的窗口多大，先记在这里（等配置系统做出来，由核心推给头）。
-#[derive(Debug, Clone, Deserialize)]
-pub struct Models {
-    /// 模型名到上下文窗口的 token 数。
-    pub context_windows: HashMap<String, u64>,
-}
-
 /// 全部配置。
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -336,8 +329,6 @@ pub struct Config {
     pub layout: Layout,
     /// 界面上的字。
     pub text: Texts,
-    /// 模型的数据。
-    pub models: Models,
     /// 斜杠命令。
     pub commands: Commands,
     /// 时间线的样子。
@@ -384,7 +375,6 @@ impl Config {
         Ok(Self {
             layout: parse("layout.json", include_str!("../../resources/layout.json"))?,
             text: parse("text/zh.json", include_str!("../../resources/text/zh.json"))?,
-            models: parse("models.json", include_str!("../../resources/models.json"))?,
             commands: parse(
                 "commands.json",
                 include_str!("../../resources/commands.json"),

@@ -3,7 +3,7 @@
     {
       "name": "undo",
       "aliases": ["rewind"],
-      "summary": "撤销上一轮，她改过的文件改回去（也可以打 /rewind）",
+      "summary": "撤销上一轮，她改过的文件改回去",
       "run": "revert"
     },
     {

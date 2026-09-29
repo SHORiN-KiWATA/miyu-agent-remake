@@ -151,7 +151,7 @@ pub fn shown(entry: &Entry) -> bool {
         }
 }
 
-/// 撤销那一行：`↶ 撤销了 1 轮 · Ctrl+R 恢复 · 那一句的预览…`，只占一行。点开铺底色：全文、改回几个文件那一行。
+/// 撤销那一行：`↶ 已撤销 · /restore 恢复 · 那一句的预览…`，只占一行。点开铺底色：全文、改回几个文件那一行。
 fn undo_rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
     let target = Target::Entry(i);
     let style = if ctx.hover == Some(target) {
@@ -160,12 +160,7 @@ fn undo_rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
         theme::dim()
     };
     let text = &ctx.config.text;
-    let turns = entry.undo.as_ref().map_or(0, |r| r.turns);
-    let mut head = format!(
-        "{}{}",
-        ctx.config.layout.undo_icon,
-        text.undone.replace("{turns}", &turns.to_string())
-    );
+    let mut head = format!("{}{}", ctx.config.layout.undo_icon, text.undone);
     let peek: String = entry.text.split_whitespace().collect::<Vec<_>>().join(" ");
     if !peek.is_empty() {
         head.push_str(" · ");
@@ -355,6 +350,26 @@ mod tests {
         assert_eq!(line(Some(Level::Full)), "⏵⏵ 03:44");
         assert_eq!(line(Some(Level::ReadOnly)), "⏸ 03:44");
         assert_eq!(line(None), "✻ 03:44");
+    }
+
+    #[test]
+    fn the_undo_line_just_says_undone() {
+        // 2026-09-29 项目主人：撤销只能一轮一轮撤，写几轮没意义。
+        use crate::transcript::{Kind, Transcript};
+        use crate::ui::test_support::Fixture;
+        let f = Fixture::new();
+        let mut t = Transcript::default();
+        t.note(Kind::Undo, "第一行".into());
+        t.entries[0].undo = Some(crate::core::Report {
+            turns: 1,
+            ..Default::default()
+        });
+        let rows = super::entry_rows(0, &t.entries[0], &f.ctx());
+        let head = rows[0].line.to_string();
+        assert!(
+            head.contains("已撤销 · /restore 恢复 · 第一行") && !head.contains("轮"),
+            "{head}"
+        );
     }
 
     #[test]

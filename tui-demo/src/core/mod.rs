@@ -7,6 +7,7 @@
 //! 给它 `core` 这个参数，它会把这个词当成一句话发给旧版的后台。
 
 mod kinds;
+mod limits;
 mod push;
 mod rpc;
 mod undo;
@@ -22,6 +23,7 @@ use miyu_store::env::Env;
 use miyu_store::root::DataRoot;
 
 pub use kinds::{EndReason, Level, ToolStatus};
+pub use limits::Limits;
 pub use push::{Block, Push, Usage};
 use rpc::{Failure, Rpc};
 pub use undo::Report;
@@ -60,6 +62,8 @@ pub enum Update {
     },
     /// 核心断开了。
     Disconnected,
+    /// 会话的限额（订阅的回应里的 `limits`）：窗口、压缩线，侧边栏和框下面那一行照它写上下文。
+    Limits(Limits),
     /// 会话里的事。
     Push(Push),
     /// 撤销（`restore` 为假）或恢复成了：核心算好的给人看的几样（`protocol/undo.md`）。
@@ -102,14 +106,14 @@ pub fn spawn(notify: impl Fn(Update) -> bool + Send + 'static) -> Core {
 }
 
 async fn run(mut commands: mpsc::UnboundedReceiver<Command>, notify: &impl Fn(Update) -> bool) {
-    let (mut rpc, session) = match open().await {
+    let (mut rpc, session, limits) = match open().await {
         Ok(opened) => opened,
         Err(update) => {
             notify(update);
             return;
         }
     };
-    if !notify(Update::Ready(session.clone())) {
+    if !notify(Update::Ready(session.clone())) || !notify(Update::Limits(limits)) {
         return;
     }
     let cwd = cwd();
@@ -177,6 +181,10 @@ async fn take(
         let report = Report::read(&message["result"]);
         return notify(Update::Undone { restore, report });
     }
+    // 掉队后重新订阅的回应：限额照样带着，照它更新（核心重启以后载入的也是这样）。
+    if let Some(limits) = Limits::of(message) {
+        return notify(Update::Limits(limits));
+    }
     match message["method"].as_str() {
         Some("event") => push::read(&message["params"]["event"])
             .into_iter()
@@ -190,8 +198,8 @@ async fn take(
     }
 }
 
-/// 连上、握手、开会话、订阅。交回连接和会话编号。
-async fn open() -> Result<(Rpc, String), Update> {
+/// 连上、握手、开会话、订阅。交回连接、会话编号和订阅的回应里的限额。
+async fn open() -> Result<(Rpc, String, Limits), Update> {
     let env = Env::current();
     let root = DataRoot::locate(&env).map_err(|e| Update::Failed(e.to_string()))?;
     root.prepare().map_err(|e| Update::Failed(e.to_string()))?;
@@ -224,10 +232,12 @@ async fn open() -> Result<(Rpc, String), Update> {
         .await
         .map_err(refused)?;
     let session = created["session"].as_str().unwrap_or_default().to_string();
-    rpc.call("subscribe", json!({"session": session, "stream": "events"}))
+    let subscribed = rpc
+        .call("subscribe", json!({"session": session, "stream": "events"}))
         .await
         .map_err(refused)?;
-    Ok((rpc, session))
+    let limits = Limits::of(&json!({ "result": subscribed })).unwrap_or_default();
+    Ok((rpc, session, limits))
 }
 
 fn refused(failure: Failure) -> Update {

@@ -54,8 +54,8 @@ pub fn lines(
     for i in (top..end).rev() {
         let picked = i == history.selected;
         let ago = Span::styled(ago(matches[i].at, now, words), theme::dim());
-        if picked && history.expanded {
-            out.extend(full(i, matches[i], ago, width, config));
+        if history.is_expanded(matches[i].at) {
+            out.extend(full(i, matches[i], picked, ago, width, config));
             continue;
         }
         let content = content(matches[i], &history.query, picked, words);
@@ -163,8 +163,21 @@ fn hits(text: &str, query: &str) -> Vec<(usize, usize)> {
     out
 }
 
-/// 展开的一条：原来的换行照留，太长的折行，和一行时的字对齐；最多 `history_preview_rows` 行，再长的最后一行写还有几行。
-fn full(index: usize, sent: &Sent, ago: Span<'static>, width: u16, config: &Config) -> Vec<Row> {
+/// 展开的一条：原来的换行照留，太长的折行，和一行时的字对齐；选中着的品红、铺底色。最多 `history_preview_rows` 行，
+/// 再长的最后一行写还有几行。
+fn full(
+    index: usize,
+    sent: &Sent,
+    picked: bool,
+    ago: Span<'static>,
+    width: u16,
+    config: &Config,
+) -> Vec<Row> {
+    let style = if picked {
+        theme::picked()
+    } else {
+        Style::new()
+    };
     let wrapped = pieces(sent.draft.text.trim_end(), width.saturating_sub(2).max(1));
     let cap = config.layout.history_preview_rows.max(2);
     let shown = if wrapped.len() > cap {
@@ -174,11 +187,11 @@ fn full(index: usize, sent: &Sent, ago: Span<'static>, width: u16, config: &Conf
     };
     let mut out: Vec<Row> = Vec::new();
     for (n, (piece, _)) in wrapped.iter().take(shown).enumerate() {
-        let content = vec![Span::styled(piece.clone(), theme::picked())];
+        let content = vec![Span::styled(piece.clone(), style)];
         let line = if n == 0 {
-            panel::item(true, content, Some(ago.clone()), width)
+            panel::item(picked, content, Some(ago.clone()), width)
         } else {
-            panel::more(true, content, width)
+            panel::more(picked, content, width)
         };
         out.push((Some(index), line));
     }
@@ -189,7 +202,7 @@ fn full(index: usize, sent: &Sent, ago: Span<'static>, width: u16, config: &Conf
             .history
             .more
             .replace("{count}", &more.to_string());
-        let line = panel::more(true, vec![Span::styled(note, theme::dim())], width);
+        let line = panel::more(picked, vec![Span::styled(note, theme::dim())], width);
         out.push((Some(index), line));
     }
     out

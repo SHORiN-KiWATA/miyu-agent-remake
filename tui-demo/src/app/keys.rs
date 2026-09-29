@@ -211,7 +211,13 @@ impl App {
             KeyCode::Char('r') if ctrl => self.history.older(count),
             KeyCode::Down => self.history.newer(),
             KeyCode::Enter => self.pick_history(),
-            KeyCode::Tab => self.history.toggle_full(),
+            KeyCode::Tab => {
+                let selected = self.history.selected;
+                let found = self.history.matches(self.input.sent());
+                if let Some(at) = found.get(selected).map(|s| s.at) {
+                    self.history.toggle_full(at);
+                }
+            }
             KeyCode::Esc => self.history.close(),
             KeyCode::Backspace => self.history.backspace(),
             KeyCode::Char(c) if plain => self.history.type_text(&c.to_string()),

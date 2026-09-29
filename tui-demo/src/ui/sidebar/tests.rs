@@ -168,6 +168,7 @@ fn the_sidebar_is_laid_out_in_sections() {
     // 起了名字、用过了：接上下文（带进度条）、用量。
     t.title = Some("整理 src 目录".into());
     t.model = Some(("deepseek-flash".into(), "deepseek".into()));
+    t.limits.window = Some(1_000_000);
     t.context = 200_000;
     t.total.output = 3500;
     let (lines, _) = super::info_lines(&t, &config, 36, "~/src");
@@ -203,6 +204,7 @@ fn compactions_and_cache_breaks_show_only_once_they_happen() {
     let config = Config::builtin().unwrap();
     let mut t = Transcript::default();
     t.model = Some(("deepseek-flash".into(), "deepseek".into()));
+    t.limits.window = Some(1_000_000);
     t.context = 200_000;
     t.total.output = 3500;
     let text = |t: &Transcript| -> Vec<String> {
@@ -268,4 +270,29 @@ fn a_little_context_still_lights_one_cell() {
     );
     let empty = super::bar(0, 1_000_000, 34, &marks).to_string();
     assert_eq!(empty.chars().filter(|c| *c == '▰').count(), 0);
+}
+
+#[test]
+fn the_window_comes_from_the_core_not_the_model_name() {
+    // 2026-09-29 接上 main 的会话限额：窗口照订阅回应里的 limits，头不自己照模型名查。
+    use crate::transcript::Transcript;
+    let config = Config::builtin().unwrap();
+    let mut t = Transcript::default();
+    t.model = Some(("deepseek-v4.1-flash".into(), "dev".into()));
+    t.context = 12_000;
+    let text = |t: &Transcript| -> Vec<String> {
+        let (lines, _) = super::info_lines(t, &config, 36, "~/src");
+        lines.iter().map(|l| l.to_string()).collect()
+    };
+    let at = |text: &[String]| text.iter().position(|l| l == "上下文").unwrap();
+    let before = text(&t);
+    assert_eq!(
+        before[at(&before) + 1],
+        "  12k",
+        "核心没给窗口：只写用了多少、不画条"
+    );
+    t.limits.window = Some(300_000);
+    let after = text(&t);
+    assert_eq!(after[at(&after) + 1], "  12k / 300k · 4%");
+    assert!(after[at(&after) + 2].contains('▰'), "有窗口就画条");
 }

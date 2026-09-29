@@ -176,11 +176,8 @@ pub fn info_lines(
     );
     if t.context > 0 {
         let used = meter::short(t.context);
-        let window = t
-            .model
-            .as_ref()
-            .and_then(|(model, _)| config.models.context_windows.get(model))
-            .copied();
+        // 窗口照核心在订阅的回应里给的（`tui.md` 第 7 条），头不自己照模型名查。
+        let window = t.limits.window;
         out.push(Line::raw(""));
         out.push(Line::styled(text.side_context.clone(), bold));
         match window {

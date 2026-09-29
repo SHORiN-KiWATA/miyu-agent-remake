@@ -114,3 +114,17 @@ fn the_done_line_keeps_the_level_its_turn_ran_with() {
     );
     assert_eq!(t.entries.last().unwrap().level, Some(Level::ReadOnly));
 }
+
+#[test]
+fn the_core_limits_are_kept_for_the_sidebar_and_footer() {
+    use crate::config::Config;
+    use crate::core::{Limits, Update};
+    let mut t = Transcript::default();
+    let texts = Config::builtin().unwrap().text;
+    let limits = Limits {
+        window: Some(300_000),
+        compaction_line: Some(267_000),
+    };
+    t.update(Update::Limits(limits), &texts);
+    assert_eq!(t.limits, limits);
+}

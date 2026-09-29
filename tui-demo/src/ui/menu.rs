@@ -29,20 +29,31 @@ pub fn lines(
         width,
     )];
     let top = window(selected, matches.len(), rows);
-    let column = matches.iter().map(|s| s.name.width()).max().unwrap_or(0) + 3;
+    let column = matches.iter().map(|s| label(s).width()).max().unwrap_or(0) + 3;
     for (i, spec) in matches.iter().enumerate().skip(top).take(rows) {
         let picked = i == selected;
         let name = format!("/{}", spec.name);
-        let pad = " ".repeat(column.saturating_sub(name.width()));
+        let pad = " ".repeat(column.saturating_sub(label(spec).width()));
         let (name_style, summary_style) = looks(picked);
-        let content = vec![
-            Span::styled(name, name_style),
-            Span::raw(pad),
-            Span::styled(spec.summary.clone(), summary_style),
-        ];
+        let mut content = vec![Span::styled(name, name_style)];
+        if !spec.aliases.is_empty() {
+            let aliases = format!(" ({})", spec.aliases.join(", "));
+            content.push(Span::styled(aliases, theme::dim()));
+        }
+        content.push(Span::raw(pad));
+        content.push(Span::styled(spec.summary.clone(), summary_style));
         out.push(panel::item(picked, content, None, width));
     }
     out
+}
+
+/// 名字那一列写的：`/名字`，有别名的跟上 ` (别名)`（2026-09-29 项目主人：原来在说明里写「也可以打」）。
+fn label(spec: &Spec) -> String {
+    if spec.aliases.is_empty() {
+        format!("/{}", spec.name)
+    } else {
+        format!("/{} ({})", spec.name, spec.aliases.join(", "))
+    }
 }
 
 /// 画列表。
@@ -75,6 +86,13 @@ mod tests {
     use crate::config::Config;
     use crate::theme;
 
+    fn lines_all(
+        matches: &[crate::commands::Spec],
+        config: &Config,
+    ) -> Vec<ratatui::text::Line<'static>> {
+        lines(matches, usize::MAX, matches.len(), 80, &config.text.menu)
+    }
+
     #[test]
     fn names_stand_out_and_summaries_recede() {
         assert_eq!(looks(false), (theme::accent(), theme::dim()));
@@ -97,6 +115,21 @@ mod tests {
         assert!(text[1].starts_with("  /"));
         assert!(text[2].starts_with("❯ /"), "{}", text[2]);
         assert_eq!(lines[2].style.bg, theme::shade().bg, "选中的整行铺底色");
+        // 别名暗色跟在后面的括号里，说明里不再写（2026-09-29 项目主人）。
+        let undo = matches.iter().position(|s| s.name == "undo").unwrap();
+        let all = lines_all(&matches, &config);
+        let row = &all[1 + undo];
+        let text = row.to_string();
+        assert!(
+            text.contains("/undo (rewind)") && !text.contains("也可以打"),
+            "{text}"
+        );
+        let alias = row
+            .spans
+            .iter()
+            .find(|s| s.content.contains("(rewind)"))
+            .unwrap();
+        assert_eq!(alias.style, theme::dim());
         let area = Rect::new(0, 10, 60, 6);
         assert_eq!(
             index_at(area, matches.len(), 1, rows, 10),

@@ -3,6 +3,8 @@
 //! 列的是输入框记着的发过的话和命令（和 `↑`、`↓` 翻的是同一份）。对得上的照「最新的在前」排，
 //! 选中的是其中第几条：0 是最新的，画的时候最新的贴着输入框。
 
+use std::time::Instant;
+
 use crate::input::Sent;
 
 /// 列表的状态。
@@ -14,8 +16,9 @@ pub struct History {
     pub query: String,
     /// 选中的是对得上的第几条，0 是最新的。
     pub selected: usize,
-    /// `Tab` 展开着：选中的那一条写全文，换一条也展开着。
-    pub expanded: bool,
+    /// `Tab` 展开着的几条，照发出去的时刻认：展开是那一条自己的，光标移走照旧展开着，移到别的条上也不跟着展开
+    /// （蓝图「输入历史列表」第 7 条）。
+    pub expanded: Vec<Instant>,
 }
 
 impl History {
@@ -27,9 +30,19 @@ impl History {
         };
     }
 
-    /// `Tab`：选中的那一条展开成全文，再按收回一行。
-    pub fn toggle_full(&mut self) {
-        self.expanded = !self.expanded;
+    /// `Tab`：`at` 发的那一条展开成全文，再按收回一行。
+    pub fn toggle_full(&mut self, at: Instant) {
+        match self.expanded.iter().position(|a| *a == at) {
+            Some(i) => {
+                self.expanded.remove(i);
+            }
+            None => self.expanded.push(at),
+        }
+    }
+
+    /// `at` 发的那一条展开着。
+    pub fn is_expanded(&self, at: Instant) -> bool {
+        self.expanded.contains(&at)
     }
 
     /// 关掉。

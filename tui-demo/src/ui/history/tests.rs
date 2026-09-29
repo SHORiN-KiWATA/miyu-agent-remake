@@ -143,9 +143,9 @@ fn nothing_found_says_so() {
 fn tab_shows_the_selected_one_in_full_and_caps_long_ones() {
     let config = Config::builtin().unwrap();
     let now = Instant::now();
-    let mut history = History::default();
-    history.toggle_full();
     let list = [sent("第一行\n第二行", 0, now), sent("早的", 0, now)];
+    let mut history = History::default();
+    history.toggle_full(list[0].at);
     let found: Vec<&Sent> = list.iter().collect();
     let rows = lines(&history, &found, 40, &config, now);
     let text = plain(&rows);
@@ -157,10 +157,54 @@ fn tab_shows_the_selected_one_in_full_and_caps_long_ones() {
     // 太长的：最多 history_preview_rows 行，最后一行写还有几行。
     let long: String = (1..=20).map(|n| format!("第 {n} 行\n")).collect();
     let list = [sent(&long, 0, now)];
+    let mut history = History::default();
+    history.toggle_full(list[0].at);
     let found: Vec<&Sent> = list.iter().collect();
     let rows = lines(&history, &found, 40, &config, now);
     let cap = config.layout.history_preview_rows;
     let text = plain(&rows);
     assert_eq!(rows.len(), 2 + cap + 2);
     assert_eq!(text[2 + cap - 1], format!("  ⋮ 还有 {} 行", 20 - (cap - 1)));
+}
+
+#[test]
+fn an_expanded_entry_stays_open_and_others_do_not_follow() {
+    // 2026-09-29 项目主人：展开的那一条光标移走不收起，移到别的条上也不跟着展开。
+    let _theme = theme::hold();
+    let config = Config::builtin().unwrap();
+    let now = Instant::now();
+    let list = [
+        sent("第一行\n第二行", 0, now),
+        sent("甲\n乙", 60, now),
+        sent("丙\n丁", 120, now),
+    ];
+    let found: Vec<&Sent> = list.iter().collect();
+    let mut history = History::default();
+    history.toggle_full(list[0].at);
+    history.older(3);
+    let rows = lines(&history, &found, 40, &config, now);
+    let text = plain(&rows);
+    assert!(
+        text.contains(&"❯ 甲 · +1 行".to_string())
+            || text.iter().any(|l| l.starts_with("❯ 甲 · +1 行")),
+        "新选中的不跟着展开：{text:?}"
+    );
+    assert!(
+        text.iter().any(|l| l.starts_with("  第一行")),
+        "移走了照旧展开着"
+    );
+    assert!(text.iter().any(|l| l == "  第二行"));
+    let first = rows
+        .iter()
+        .find(|(_, l)| l.to_string().starts_with("  第一行"))
+        .unwrap();
+    assert_ne!(first.1.style.bg, theme::shade().bg, "没选中的不铺底色");
+    // 再按一下 Tab 收起它自己那一条；可以同时展开好几条。
+    history.toggle_full(list[1].at);
+    let text = plain(&lines(&history, &found, 40, &config, now));
+    assert!(text.iter().any(|l| l.starts_with("❯ 甲")) && text.iter().any(|l| l == "  乙"));
+    assert!(text.iter().any(|l| l == "  第二行"), "两条同时展开");
+    history.toggle_full(list[0].at);
+    let text = plain(&lines(&history, &found, 40, &config, now));
+    assert!(!text.iter().any(|l| l == "  第二行"), "再按收回");
 }

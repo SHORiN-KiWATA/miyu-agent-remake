@@ -38,7 +38,7 @@
   "done": "{time} · {endpoint}/{model} · {elapsed}",
   "speed": "{rate} tok/s",
   "context": "{used}/{window}({percent}%)",
-  "undone": "撤销了 {turns} 轮 · /restore 恢复",
+  "undone": "已撤销 · /restore 恢复",
   "restored": "改回 {count} 个文件",
   "untouched": "{count} 个文件没动：之后又被改过，或者已经不在了",
   "commands": "{count} 条命令的改动撤不回",

@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use crate::config::Texts;
-use crate::core::{EndReason, Level, Push, Report, ToolStatus, Update, Usage};
+use crate::core::{EndReason, Level, Limits, Push, Report, ToolStatus, Update, Usage};
 
 pub use cache::CacheWatch;
 pub use steps::{Segment, Step, StepKind, Tally, ToolState};
@@ -150,6 +150,8 @@ pub struct Transcript {
     pub context: u64,
     /// 压过几次、意外断过几次缓存（侧边栏写）。
     pub cache: CacheWatch,
+    /// 会话的限额：核心在订阅的回应里给的窗口、压缩线（`core/limits.rs`）。
+    pub limits: Limits,
     /// 这一轮她出过字了（来过一块）：出过就不再算在等第一个字（[`Transcript::waiting`]）。
     spoke: bool,
     /// 最近一次请求出字的速度，每秒几个 token。
@@ -186,6 +188,7 @@ impl Default for Transcript {
             turn_level: Level::Workspace,
             context: 0,
             cache: CacheWatch::default(),
+            limits: Limits::default(),
             spoke: false,
             speed: None,
             retry: None,
@@ -258,6 +261,7 @@ impl Transcript {
     /// 收一条核心那边的消息。
     pub fn update(&mut self, update: Update, texts: &Texts) {
         match update {
+            Update::Limits(limits) => self.limits = limits,
             Update::Ready(session) => {
                 self.link = Link::Ready;
                 self.session = Some(session);
