@@ -22,7 +22,9 @@ mod tool;
 mod transient;
 mod turn;
 
-pub use context::{CompactTrigger, ContextCompacted, ContextInjected, RestoredFile};
+pub use context::{
+    CompactTrigger, CompactionPaused, ContextCompacted, ContextInjected, PauseReason, RestoredFile,
+};
 pub use effect::{Effect, FileChanged, FileRead, FileTrashed};
 pub use message::{MessageAssistant, MessageUser, MessageWithdrawn};
 pub use model::{
@@ -145,6 +147,8 @@ bodies! {
     ContextInjected = "context.injected",
     /// 压缩的检查点。
     ContextCompacted = "context.compacted",
+    /// 暂停了自动压缩（施工 6-6 上）。
+    CompactionPaused = "context.compaction_paused",
     /// 一次模型请求的记录。
     ModelCalled = "model.called",
 }

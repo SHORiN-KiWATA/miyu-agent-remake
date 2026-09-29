@@ -28,11 +28,22 @@ use crate::time::Timestamp;
 /// 相抵就是用量本身（openclaude 的做法）。
 const EXPECTED: (u64, u64) = (20_000, 80_000);
 
+/// 要压：替代到哪、压之前的用量、压完很快又到线连着的第几次（施工 6-6 上，`breaker.rs`）。
+pub(super) struct Due {
+    pub(super) upto: Seq,
+    pub(super) used: u64,
+    pub(super) refills: Option<u32>,
+}
+
 /// 在路上的摘要请求多记的。
 #[derive(Debug)]
 pub(super) struct Compacting {
     /// 替代到哪一条，也是这次请求的 `seen`。
     upto: Seq,
+    /// 哪一种压缩：记进这次请求的 `model.called`，失败照它数（施工 6-6 上）。现在只有 `auto`。
+    trigger: CompactTrigger,
+    /// 压完很快又到线连着的第几次，写进 `context.compacted`（施工 6-6 上）。
+    refills: Option<u32>,
     /// 压之前的用量：过了线的那一次主请求算出的（施工 6-3 下，推 `compaction.done`）。
     before: u64,
     /// 估计要写多少字。
@@ -60,6 +71,16 @@ impl Compacting {
     /// 压之前的用量。
     pub(super) fn before(&self) -> u64 {
         self.before
+    }
+
+    /// 哪一种压缩。
+    pub(super) fn trigger(&self) -> &CompactTrigger {
+        &self.trigger
+    }
+
+    /// 压完很快又到线连着的第几次。
+    pub(super) fn refills(&self) -> Option<u32> {
+        self.refills
     }
 
     /// 执行器送回了重读结果（施工 6-5）：一个对一个的才收。
@@ -100,7 +121,7 @@ impl Compacting {
 
 impl Session {
     /// 这一次主请求发之前要不要先压（`compaction.md` 第二条）：用量过了压缩线，而且有得压，交回替代到哪和压缩前的
-    /// 用量。策略里没有压缩、没交限额、没有窗口的，不主动压；这一步已经压过的，照发。
+    /// 用量。策略里没有压缩、没交限额、没有窗口的，不主动压；这一步已经压过的，照发。暂停着的由熔断先拦下（`breaker.rs`）。
     pub(super) fn compaction_due(&self, request: &Request) -> Option<(Seq, u64)> {
         if self.turn.as_ref()?.compacted {
             return None;
@@ -129,7 +150,7 @@ impl Session {
     }
 
     /// 估算图片、文件的办法：驱动交了图片算法的照它，别的照策略里的固定数。策略里没有压缩、没交限额的，没有。
-    fn price(&self) -> Option<WithImages<'_>> {
+    pub(super) fn price(&self) -> Option<WithImages<'_>> {
         Some(WithImages {
             images: self.limits.as_ref()?.images.as_deref(),
             flat: self.policy.compaction.as_ref()?.price,
@@ -216,7 +237,12 @@ impl Session {
 
     /// 发摘要请求：有效历史到第 `upto` 条的投影加摘要指令，名字是 `upto`。不算步数；也记进「上一次请求」，压完的
     /// 第一次主请求照它比出前缀从哪变了。
-    pub(super) fn start_compaction(&mut self, upto: Seq, used: u64) -> Vec<Action> {
+    pub(super) fn start_compaction(&mut self, due: Due) -> Vec<Action> {
+        let Due {
+            upto,
+            used,
+            refills,
+        } = due;
         let paths = self.reread_paths(upto);
         let limit = self.reread_limit();
         let request = self.policy.assembler.summarize(&self.history, upto);
@@ -231,6 +257,8 @@ impl Session {
         };
         let compacting = Compacting {
             upto,
+            trigger: CompactTrigger::Auto,
+            refills,
             before: used,
             expected: used.clamp(EXPECTED.0, EXPECTED.1),
             written: 0,
@@ -285,6 +313,8 @@ impl Session {
     ) -> (Vec<Event>, Option<Transient>) {
         let Summarized {
             upto,
+            trigger,
+            refills,
             summary,
             before,
             usage,
@@ -296,9 +326,10 @@ impl Session {
         let body = Body::ContextCompacted(ContextCompacted {
             upto,
             summary,
-            trigger: Some(CompactTrigger::Auto),
+            trigger: Some(trigger),
             notes: rebuilt.notes,
             restored: rebuilt.restored,
+            refills,
         });
         let mut events = vec![self.record(at, By::Kernel, cause.clone(), body)];
         self.history.recall(rebuilt.texts);

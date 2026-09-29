@@ -24,6 +24,8 @@ pub enum Input {
     Command(Received),
     /// 追加的事件已经同步到磁盘，到第 `upto` 条为止（`07-存储.md` S4）。
     Stored {
+        /// 落完盘的时刻：落了盘接着发请求时，熔断要写的事件照它记（施工 6-6 上）。
+        at: Timestamp,
         /// 落了盘的最后一条的序号。
         upto: Seq,
     },

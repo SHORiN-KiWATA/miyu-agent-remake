@@ -10,7 +10,15 @@ impl Watch {
         let event = &events[k];
         match &event.body {
             Body::MessageUser(_) if event.turn.is_some() => self.queued.push(event.seq),
-            Body::ModelCalled(called) => self.queued.retain(|queued| *queued > called.seen),
+            // 暂停着没发出去的那一条，她没听到排着的话（施工 6-6 上）：照摘要请求失败一样，回合结束时接着开。
+            Body::ModelCalled(called)
+                if called
+                    .error
+                    .as_ref()
+                    .is_none_or(|error| error.class != ErrorClass::CompactionPaused) =>
+            {
+                self.queued.retain(|queued| *queued > called.seen);
+            }
             Body::MessageWithdrawn(withdrawn) => {
                 self.seen_paths.insert("打断后排队的退回");
                 // 等停着的那次打断，收尾时照它（又打断了一次的，照后来那次）。

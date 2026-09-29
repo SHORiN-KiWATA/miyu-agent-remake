@@ -6,6 +6,7 @@
 
 use super::Session;
 use super::action::Action;
+use super::breaker::Before;
 use super::call::Call;
 use super::input::Injection;
 use super::step::Step;
@@ -169,15 +170,15 @@ impl Session {
         if !events.is_empty() {
             actions.push(Action::Append(events));
         }
-        actions.extend(self.advance());
+        actions.extend(self.advance(at));
         actions
     }
 
     /// 回合往下走：开头那一批落了盘，叫执行器跑回合开始的挂接点；挂接点跑完了、追加过的
     /// 事件都落了盘，拿有效历史组装请求，交给执行器去请求模型（到了压缩线的先压）（`08-上下文投影.md` 第一节
     /// 第 2 条「先落盘，后请求」）。发请求时算出指纹，和上一次请求的比出第一处不同。
-    /// 回复里有工具调用的，回复落了盘就派。
-    pub(super) fn advance(&mut self) -> Vec<Action> {
+    /// 回复里有工具调用的，回复落了盘就派。`at` 是这一刻：熔断要写事件时照它记（施工 6-6 上）。
+    pub(super) fn advance(&mut self, at: Timestamp) -> Vec<Action> {
         let dispatched = self.dispatch();
         if !dispatched.is_empty() {
             return dispatched;
@@ -190,19 +191,23 @@ impl Session {
                 turn.stage = Stage::Hooking;
                 vec![Action::RunTurnStartHooks { turn: turn.id }]
             }
-            Stage::Ready if self.unstored.is_empty() => self.ask(),
+            Stage::Ready if self.unstored.is_empty() => self.ask(at),
             _ => Vec::new(),
         }
     }
 
-    /// 发这一步的请求：拿有效历史组装，用量过了压缩线的先压（`compaction.rs`），没过的交给执行器去请求模型。
-    fn ask(&mut self) -> Vec<Action> {
+    /// 发这一步的请求：拿有效历史组装，先问熔断（`breaker.rs`）：暂停着放不下的不发，压完很快又到线到了次数的写暂停；
+    /// 用量过了压缩线的先压（`compaction.rs`），没过的交给执行器去请求模型。
+    fn ask(&mut self, at: Timestamp) -> Vec<Action> {
         let Some(seen) = self.stored else {
             return Vec::new();
         };
         let request = self.policy.assembler.assemble(&self.history);
-        if let Some((upto, used)) = self.compaction_due(&request) {
-            return self.start_compaction(upto, used);
+        match self.before_asking(&request) {
+            Before::Send => {}
+            Before::Compact(due) => return self.start_compaction(due),
+            Before::Pause(paused) => return self.pause(at, paused),
+            Before::Refuse(error) => return self.refuse(at, seen, &request, error),
         }
         let fingerprint = request.fingerprint();
         let difference = self

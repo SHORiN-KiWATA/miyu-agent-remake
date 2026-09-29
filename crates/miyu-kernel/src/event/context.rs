@@ -40,6 +40,24 @@ pub struct ContextCompacted {
     /// 压完重读的文件，照渲染的先后（施工 6-5）。以前的日志里没有，当作空的。
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub restored: Vec<RestoredFile>,
+    /// 压完很快又到线，连着的第几次（`compaction.md` 第十条第 5 条，施工 6-6 上）；不是的没有。是写下时的事实：撤销回到
+    /// 前一个检查点时照它原样用，以后改了几个回合算快，旧检查点照旧。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refills: Option<u32>,
+}
+
+/// `context.compaction_paused`：暂停了自动压缩（`compaction.md` 第十条，施工 6-6 上）。不进上下文；有效历史里、最近
+/// 一次压缩那一条以后写下了它，就是暂停着。又压缩了一次、撤掉写着它的那一轮，暂停就不算了。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompactionPaused {
+    /// 为什么暂停。
+    pub reason: PauseReason,
+    /// 连续失败的：连着失败了几次。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failures: Option<u32>,
+    /// 内容太大的：最近一个检查点以后估得最大的那一条。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entry: Option<Seq>,
 }
 
 /// 压完重读的一个文件（`compaction.md` 第九条，施工 6-5）：路径照清单的写法，原文在 blob 里。
@@ -52,6 +70,16 @@ pub struct RestoredFile {
     /// 原文估出来的 token 数。
     pub tokens: u64,
 }
+
+text_enum!(
+    /// 为什么暂停自动压缩（`compaction.md` 第十条）。不认识的原样留着，也算暂停。
+    PauseReason {
+        /// 连续失败到了次数。
+        Failures = "failures",
+        /// 压完很快又到线，连着到了次数：有异常巨大的内容（`09-压缩.md` Z9）。
+        TooLarge = "too_large",
+    }
+);
 
 text_enum!(
     /// 为什么压缩（`compaction.md`「对外的样子」）。

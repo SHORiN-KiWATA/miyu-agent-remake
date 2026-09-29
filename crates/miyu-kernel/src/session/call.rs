@@ -12,8 +12,9 @@ use super::turn::Stage;
 use crate::accumulate::{Accumulator, Delta};
 use crate::block::{Block, ToolCall};
 use crate::event::{
-    Body, CallError, CallResult, CompactionProgress, EndReason, ErrorClass, Event, FirstDifference,
-    MessageAssistant, ModelCalled, ModelDelta, Piece, Transient, TransientBody, Usage,
+    Body, CallError, CallResult, CompactTrigger, CompactionProgress, EndReason, ErrorClass, Event,
+    FirstDifference, MessageAssistant, ModelCalled, ModelDelta, Piece, Transient, TransientBody,
+    Usage,
 };
 use crate::id::{CommandId, ContentHash, Seq};
 use crate::origin::{By, Model};
@@ -125,6 +126,9 @@ struct Settled {
 /// 摘要请求取到了摘要：替代到哪、摘要、压之前的用量，和这次摘要请求的用量、用时（施工 6-3 下：推 `compaction.done`）。
 pub(super) struct Summarized {
     pub(super) upto: Seq,
+    /// 哪一种压缩、压完很快又到线连着的第几次（施工 6-6 上）。
+    pub(super) trigger: CompactTrigger,
+    pub(super) refills: Option<u32>,
     pub(super) summary: String,
     pub(super) before: u64,
     pub(super) usage: Option<Usage>,
@@ -235,6 +239,10 @@ impl Session {
                 }
                 let cut = settled.reply.is_some();
                 return self.wait_to_retry(at, seen, cause, events, cut, error, wait);
+            }
+            // 摘要请求不再来了，是一次压缩失败：连着数到了次数，暂停排在 `turn.ended` 前面（施工 6-6 上）。
+            if compacting {
+                events.extend(self.after_failure(at, cause.clone()));
             }
             events.extend(self.finish_turn(at, By::Kernel, cause, EndReason::Error));
             return vec![Action::Append(events)];
@@ -372,6 +380,9 @@ impl Session {
             duration_ms: sent.as_ref().map(|sent| millis(sent.at, at)),
             result,
             error: error.clone(),
+            compaction: compaction
+                .as_ref()
+                .map(|compacting| compacting.trigger().clone()),
         };
         let summary = summary
             .zip(compaction.as_ref())
@@ -379,6 +390,8 @@ impl Session {
                 let (paths, reread) = compacting.rebuild_inputs();
                 Summarized {
                     upto: compacting.upto(),
+                    trigger: compacting.trigger().clone(),
+                    refills: compacting.refills(),
                     summary,
                     before: compacting.before(),
                     usage: called.usage,
@@ -424,7 +437,6 @@ impl Session {
             })
     }
 
-    /// 在路上、名字是 `seen` 的那次请求。
     /// 执行器送回了第 `seen` 次摘要请求的重读结果（施工 6-5）：记在那次请求上。不是在路上的那一次的，不理。
     pub(super) fn reread_done(&mut self, seen: Seq, files: Vec<Reread>) -> Vec<Action> {
         if let Some(compacting) = self.call(seen).and_then(|call| call.compaction.as_mut()) {
@@ -433,6 +445,7 @@ impl Session {
         Vec::new()
     }
 
+    /// 在路上、名字是 `seen` 的那次请求。
     fn call(&mut self, seen: Seq) -> Option<&mut Call> {
         match &mut self.turn.as_mut()?.stage {
             Stage::Asking(call) if call.seen == seen => Some(call),

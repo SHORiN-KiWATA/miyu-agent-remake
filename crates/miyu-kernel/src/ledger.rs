@@ -393,6 +393,7 @@ fn in_turn_only(body: &Body) -> bool {
             | Body::QuestionAnswered(_)
             | Body::MessageWithdrawn(_)
             | Body::TurnEnded(_)
+            | Body::CompactionPaused(_)
     )
 }
 

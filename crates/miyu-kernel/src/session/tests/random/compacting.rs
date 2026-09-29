@@ -4,7 +4,8 @@
 use super::*;
 
 /// 随机测试的策略：一个回合最多请求 [`STEP_LIMIT`] 次；`attended` 是有没有人能确认、回答。压缩的数很小：替身的
-/// 组装一条事件约五个 token，几十条就过线（施工 6-2 上）。
+/// 组装一条事件约五个 token，几十条就过线（施工 6-2 上）。熔断的数调松了（施工 6-6 上）：8 个回合内又到线算快、连着 2 次就暂停，
+/// 随机的会话难得连着压好几次，照出厂的 3、3 长跑也走不到暂停。
 pub(super) fn random_policy(attended: bool) -> Policy {
     let mut limited = policy();
     limited.step_limit = Some(STEP_LIMIT);
@@ -23,6 +24,11 @@ pub(super) fn random_policy(attended: bool) -> Policy {
             total: 30,
             min_window: 100,
             candidates: 3,
+        }),
+        pause: Some(crate::session::Pause {
+            failures: 3,
+            turns: 8,
+            refills: 2,
         }),
     });
     let template = |source: &str| crate::template::Template::parse(source).unwrap();

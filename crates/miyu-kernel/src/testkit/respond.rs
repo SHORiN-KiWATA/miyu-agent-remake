@@ -19,7 +19,7 @@ impl Stage {
             Action::Append(events) => {
                 let upto = events.last().map(|event| event.seq);
                 self.log.extend(events);
-                upto.map(|upto| Input::Stored { upto })
+                upto.map(|upto| Input::Stored { at: self.now, upto })
                     .into_iter()
                     .collect()
             }

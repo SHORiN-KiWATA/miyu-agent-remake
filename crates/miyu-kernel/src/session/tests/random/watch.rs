@@ -7,6 +7,7 @@ use super::kinds::InputKind;
 use super::*;
 
 mod approval;
+mod breaker;
 mod compaction;
 mod invariants;
 mod load;
@@ -415,6 +416,7 @@ impl Watch {
                 }
                 Body::ModelCalled(called) => self.model_called(called, &events, k),
                 Body::ContextCompacted(compacted) => self.compaction_appended(event, compacted),
+                Body::CompactionPaused(paused) => self.pause_appended(event, paused),
                 Body::ToolResult(result) => {
                     assert!(
                         self.resulted.insert(result.call_id),

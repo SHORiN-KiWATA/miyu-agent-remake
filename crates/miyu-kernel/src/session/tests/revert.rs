@@ -207,6 +207,7 @@ fn undo_of_a_compacted_turn_is_refused() {
             trigger: None,
             notes: String::new(),
             restored: Vec::new(),
+            refills: None,
         }),
     });
     let (session, _) = load(log.clone());

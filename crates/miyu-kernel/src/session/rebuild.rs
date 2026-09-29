@@ -137,6 +137,7 @@ impl Session {
                 trigger: Some(CompactTrigger::Auto),
                 notes: notes.to_string(),
                 restored: Vec::new(),
+                refills: None,
             }),
         });
         let request = self.policy.assembler.assemble(&trial);

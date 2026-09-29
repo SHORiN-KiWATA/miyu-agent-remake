@@ -17,6 +17,7 @@ const COMPACTION: Compaction = Compaction {
         file: 2_000,
     },
     rebuild: None,
+    pause: None,
 };
 
 /// 策略里有压缩的会话。

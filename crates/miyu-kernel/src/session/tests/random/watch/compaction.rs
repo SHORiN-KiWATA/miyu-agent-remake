@@ -57,6 +57,7 @@ impl Watch {
     /// 发了一次摘要请求：替代到的 N 照规矩；请求是有效历史到 N 的清单加 `summarize`。
     pub(super) fn summary_called(&mut self, seen: Seq, request: &Request) {
         let seed = self.seed;
+        self.breaker_summary_called();
         assert!(
             !self.compactions.pending,
             "种子 {seed}：压完了还没发主请求，又压了一次"
@@ -253,6 +254,8 @@ impl Watch {
             }
             (CallResult::Error, Some(ErrorClass::BadSummary)) => {
                 self.seen_paths.insert("取不出摘要");
+                // 连续失败到了次数的，中间夹一条暂停（施工 6-6 上）。
+                let after = self.breaker_failed(events, k);
                 assert!(
                     matches!(after, Some(Body::TurnEnded(ended)) if ended.reason == EndReason::Error),
                     "种子 {seed}：取不出摘要的，紧跟着出错的回合结束"
@@ -263,6 +266,7 @@ impl Watch {
             }
             _ => {
                 self.seen_paths.insert("摘要请求出错");
+                let after = self.breaker_failed(events, k);
                 self.failed(called.seen, before, after);
             }
         }
@@ -273,6 +277,7 @@ impl Watch {
     /// 撤不到它替代掉的回合，也恢复不了更早的撤销。
     pub(super) fn compaction_appended(&mut self, event: &Event, compacted: &ContextCompacted) {
         self.rebuild_checked(compacted);
+        self.breaker_compacted(compacted);
         let seed = self.seed;
         self.seen_paths.insert("压缩了");
         let issued = self.compactions.latest;

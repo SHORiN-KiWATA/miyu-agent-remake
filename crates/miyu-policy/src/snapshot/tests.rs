@@ -24,7 +24,7 @@ fn the_same_sources_give_the_same_bytes_and_they_read_back() {
     let text = String::from_utf8(one.to_bytes()).unwrap();
     assert!(text.starts_with(r#"{"persona":"engineer","system":"You are a helpful software engineer.","core":{"checkpoint_open":"#), "{text}");
     assert!(
-        text.ends_with(r#""step_limit":null,"attended":true,"resumes":3,"compaction":{"reserve_cap":20000,"margin":13000,"image":2000,"file":2000,"tail":16000,"rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10}}}"#),
+        text.ends_with(r#""step_limit":null,"attended":true,"resumes":3,"compaction":{"reserve_cap":20000,"margin":13000,"image":2000,"file":2000,"tail":16000,"rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10},"pause":{"failures":3,"turns":3,"refills":3}}}"#),
         "{text}"
     );
     // 改一个字，哈希就变了。
@@ -175,7 +175,7 @@ fn the_tail_is_16000_and_older_snapshots_read_it_so() {
     let snapshot = engineer();
     assert_eq!(snapshot.policy().unwrap().compaction.unwrap().tail, 16_000);
     let text = String::from_utf8(snapshot.to_bytes()).unwrap();
-    let numbers = r#","tail":16000,"rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10}}}"#;
+    let numbers = r#","tail":16000,"rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10},"pause":{"failures":3,"turns":3,"refills":3}}}"#;
     assert!(text.ends_with(numbers), "{text}");
     let older = text.replace(numbers, "}}");
     let read = Snapshot::from_bytes(older.as_bytes()).unwrap();
@@ -200,7 +200,7 @@ fn rebuild_texts_and_numbers_go_in_and_older_snapshots_lack_them() {
     let close = r#""restored_close":"\n</file>\n"}"#;
     let end = start + text[start..].find(close).unwrap() + close.len();
     let older = text[..start].to_string() + &text[end..];
-    let older = older.replace(r#","rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10}"#, "");
+    let older = older.replace(r#","rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10},"pause":{"failures":3,"turns":3,"refills":3}"#, "");
     let older = older.replace(
         r#","checkpoint_end":"Carry on from where the summary leaves off, without redoing work it records as done.\n</conversation-checkpoint>\n""#,
         "",
@@ -236,4 +236,25 @@ fn the_checkpoint_ends_with_the_rule_from_the_snapshot() {
         text.contains("S\\n</summary>\\nCarry on from where the summary leaves off"),
         "{text}"
     );
+}
+
+/// 熔断的数（施工 6-6 上）：出厂的快照带着 3、3、3，内核拿到；以前造的快照里没有，读成没有，不熔断，读进来再写出去一字
+/// 不差。
+#[test]
+fn pause_numbers_go_in_and_older_snapshots_lack_them() {
+    let snapshot = engineer();
+    let pause = snapshot
+        .policy()
+        .unwrap()
+        .compaction
+        .unwrap()
+        .pause
+        .unwrap();
+    assert_eq!((pause.failures, pause.turns, pause.refills), (3, 3, 3));
+    let text = String::from_utf8(snapshot.to_bytes()).unwrap();
+    let older = text.replace(r#","pause":{"failures":3,"turns":3,"refills":3}"#, "");
+    assert_ne!(older, text);
+    let read = Snapshot::from_bytes(older.as_bytes()).unwrap();
+    assert!(read.policy().unwrap().compaction.unwrap().pause.is_none());
+    assert_eq!(read.to_bytes(), older.as_bytes());
 }

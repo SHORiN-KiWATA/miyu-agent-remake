@@ -75,6 +75,19 @@ pub struct Compaction {
     pub price: Flat,
     /// 压后重建的数（施工 6-5）；没有的不重读。
     pub rebuild: Option<Rebuild>,
+    /// 熔断的数（施工 6-6 上）；没有的不熔断。
+    pub pause: Option<Pause>,
+}
+
+/// 熔断的数（`compaction.md` 第十条，施工 6-6 上）。数值是数据，放在策略快照里。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Pause {
+    /// 自动压缩连续失败几次就暂停。出厂 3。
+    pub failures: u32,
+    /// 上一个检查点所在的那一轮算第 1 个回合，第几个回合以内又到线算「很快」。出厂 3。
+    pub turns: u32,
+    /// 连着很快又到线几次就暂停：到了这一次不压，改写暂停。出厂 3。
+    pub refills: u32,
 }
 
 /// 组装器是外面交进来的，不一定能打印，跳过它。

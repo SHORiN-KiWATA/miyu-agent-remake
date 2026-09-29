@@ -15,6 +15,7 @@ use miyu_kernel::template::TemplateError;
 use miyu_kernel::tool::{ToolTextSources, ToolTexts};
 use serde::{Deserialize, Serialize};
 
+use crate::pause::PauseNumbers;
 use crate::rebuild::{RebuildNumbers, RebuildTexts};
 use crate::tools::{self, ToolEntry};
 
@@ -59,6 +60,9 @@ pub struct CompactionNumbers {
     /// 压后重建的数（施工 6-5）。以前造的快照里没有，读成没有：不重读。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rebuild: Option<RebuildNumbers>,
+    /// 熔断的数（施工 6-6 上）。以前造的快照里没有，读成没有：不熔断。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pause: Option<PauseNumbers>,
 }
 
 /// 尾巴的预算上限的出厂值（`compaction.md` 第三条第 2 条，2026-09-29 项目主人定）。
@@ -351,6 +355,7 @@ impl Snapshot {
                 .rebuild
                 .filter(|_| self.rebuild_texts().is_some())
                 .map(RebuildNumbers::kernel),
+            pause: numbers.pause.map(PauseNumbers::kernel),
         })
     }
 

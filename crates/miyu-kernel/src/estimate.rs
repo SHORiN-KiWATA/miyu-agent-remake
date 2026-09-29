@@ -149,6 +149,11 @@ pub fn usage(request: &Request, anchor: Option<&Anchor>, model: &Model, price: &
         .saturating_add(added)
 }
 
+/// 输出预留：min(模型的最大输出, `reserve_cap`)；没报最大输出的，按 `reserve_cap`（`compaction.md` 第二条第 2 条）。
+pub fn reserve(max_output: Option<u64>, reserve_cap: u64) -> u64 {
+    max_output.map_or(reserve_cap, |max| max.min(reserve_cap))
+}
+
 /// 压缩线：用量超过它就该压（Z3）。= 窗口 − min(最大输出, `reserve_cap`) − `margin`。
 ///
 /// 没报最大输出的，输出预留按 `reserve_cap`。没有窗口的、算出来不是正数的（窗口比预留加余量还小），
@@ -160,7 +165,7 @@ pub fn line(
     reserve_cap: u64,
     margin: u64,
 ) -> Option<u64> {
-    let reserve = max_output.map_or(reserve_cap, |max| max.min(reserve_cap));
+    let reserve = reserve(max_output, reserve_cap);
     window?
         .checked_sub(reserve)?
         .checked_sub(margin)
