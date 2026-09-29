@@ -100,7 +100,7 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
         mascot: Rect { y, ..areas.mascot },
         ..areas
     };
-    super::mascot_view::draw(frame, areas.mascot, app);
+    super::mascot_view::draw(frame, areas.mascot, app, false);
 }
 
 /// 放进 `width` 列：放不下的从前面截掉、打头写 `…`。

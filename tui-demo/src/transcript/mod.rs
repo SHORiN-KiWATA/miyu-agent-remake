@@ -5,6 +5,7 @@
 
 mod beat;
 mod blocks;
+mod cache;
 mod steps;
 mod turn;
 mod words;
@@ -18,6 +19,7 @@ use std::time::Instant;
 use crate::config::Texts;
 use crate::core::{EndReason, Level, Push, Report, ToolStatus, Update, Usage};
 
+pub use cache::CacheWatch;
 pub use steps::{Segment, Step, StepKind, Tally, ToolState};
 pub use words::undo_counts;
 
@@ -144,6 +146,10 @@ pub struct Transcript {
     turn_level: Level,
     /// 最近一次请求占了多少上下文：输入加输出。
     pub context: u64,
+    /// 压过几次、意外断过几次缓存（侧边栏写）。
+    pub cache: CacheWatch,
+    /// 这一轮她出过字了（来过一块）：出过就不再算在等第一个字（[`Transcript::waiting`]）。
+    spoke: bool,
     /// 最近一次请求出字的速度，每秒几个 token。
     pub speed: Option<f64>,
     /// 正在重试时给人看的一句。
@@ -177,6 +183,8 @@ impl Default for Transcript {
             turn_usage: Usage::default(),
             turn_level: Level::Workspace,
             context: 0,
+            cache: CacheWatch::default(),
+            spoke: false,
             speed: None,
             retry: None,
             failure: None,
@@ -324,12 +332,14 @@ impl Transcript {
                 self.level = if read_only { Level::ReadOnly } else { level };
             }
             Push::Reverted(turns) => {
+                self.cache.reverted();
                 self.hide(&turns, true);
                 self.reverted = turns;
             }
             Push::Unreverted(turns) => self.hide(&turns, false),
             Push::Model { endpoint, model } => self.model = Some((model, endpoint)),
             Push::BlockStart { index, block } => {
+                self.spoke = true;
                 self.retry = None;
                 self.close_open_blocks();
                 let slot = self.open_block(block);
@@ -379,6 +389,8 @@ impl Transcript {
                 self.turn_usage.output += usage.output;
                 self.context = usage.input() + usage.output;
             }
+            Push::Sent { seen, changed } => self.cache.sent(seen, changed),
+            Push::Compacted => self.cache.compacted(),
             Push::Speed { output, ms } => {
                 self.speed = Some(output as f64 * 1000.0 / ms as f64);
             }

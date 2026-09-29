@@ -224,6 +224,10 @@ pub struct Texts {
     pub side_split: String,
     /// 缓存命中率，`{percent}`。
     pub side_hit: String,
+    /// 压缩过几次，`{n}`；没压过不写。
+    pub side_compactions: String,
+    /// 意外断过几次缓存，`{n}`；没断过不写。
+    pub side_breaks: String,
     /// 后台命令、子代理、待办的字。
     pub jobs: JobTexts,
     /// 确认和提问的抽屉上的字。

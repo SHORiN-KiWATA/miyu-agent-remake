@@ -99,6 +99,15 @@ pub enum Push {
     },
     /// 一次请求的用量（`model.called` 的 `usage`，供应商没报的没有这一条）。
     Usage(Usage),
+    /// 一次真发出去的请求（`model.called` 带 `request`；没编码就失败的没有这一条）：侧边栏数缓存断裂用。
+    Sent {
+        /// 看到第几条为止（`seen`）。
+        seen: u64,
+        /// 前缀和上一次请求比变了（带 `first_difference`），不是只往后接着加。
+        changed: bool,
+    },
+    /// 压缩了一次（`context.compacted`）。
+    Compacted,
     /// 一次请求出字的速度：输出了多少 token、从第一个字到最后花了多少毫秒。
     Speed {
         /// 输出的 token 数。
@@ -163,6 +172,7 @@ pub fn read(event: &Value) -> Vec<Push> {
         }
         "turn.reverted" => out.push(Push::Reverted(turns(&body["turns"]))),
         "turn.unreverted" => out.push(Push::Unreverted(turns(&body["turns"]))),
+        "context.compacted" => out.push(Push::Compacted),
         "turn.ended" => out.push(Push::TurnEnded(EndReason::parse(&text(&body["reason"])))),
         "model.delta" => {
             let index = body["index"].as_u64().unwrap_or_default();
@@ -210,6 +220,12 @@ pub fn read(event: &Value) -> Vec<Push> {
                     cache_write: n("cache_write"),
                     output: n("output"),
                 }));
+            }
+            if !body["request"].is_null() {
+                out.push(Push::Sent {
+                    seen: body["seen"].as_u64().unwrap_or_default(),
+                    changed: body["first_difference"].is_object(),
+                });
             }
             let output = usage["output"].as_u64().unwrap_or_default();
             let (duration, first) = (
@@ -305,6 +321,35 @@ mod tests {
                 message: "no key".into()
             }]
         );
+    }
+
+    #[test]
+    fn a_sent_call_says_whether_its_prefix_changed() {
+        let changed = json!({"kind": "model.called", "by": {"kind": "kernel"},
+            "body": {"seen": 13, "request": "sha256:96e5", "messages": 1,
+                "first_difference": {"part": "message", "index": 0, "role": "user"}, "result": "ok"}});
+        assert_eq!(
+            read(&changed),
+            vec![Push::Sent {
+                seen: 13,
+                changed: true
+            }]
+        );
+        let grown = json!({"kind": "model.called", "by": {"kind": "kernel"},
+            "body": {"seen": 5, "request": "sha256:f8b2", "messages": 1, "result": "ok"}});
+        assert_eq!(
+            read(&grown),
+            vec![Push::Sent {
+                seen: 5,
+                changed: false
+            }]
+        );
+        // 没编码就失败的，没有 `request`：不算发出去。
+        let unsent = json!({"kind": "model.called", "by": {"kind": "kernel"},
+            "body": {"seen": 5, "messages": 1, "result": "error", "error": {"class": "auth", "message": "no key"}}});
+        assert!(!read(&unsent).iter().any(|p| matches!(p, Push::Sent { .. })));
+        let compacted = json!({"kind": "context.compacted", "by": {"kind": "kernel"}, "body": {}});
+        assert_eq!(read(&compacted), vec![Push::Compacted]);
     }
 
     #[test]

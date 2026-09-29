@@ -18,7 +18,7 @@ use crate::body_view::BodyView;
 use crate::clipboard;
 use crate::commands::{self, Spec};
 use crate::config::Config;
-use crate::core::{Command, Core, Update};
+use crate::core::{Block, Command, Core, Push, Update};
 use crate::drawer::Drawers;
 use crate::figures::Figures;
 use crate::focus::Focus;
@@ -296,13 +296,26 @@ impl App {
         if matches!(update, Update::Undone { redo: true, .. }) {
             self.input.take_back();
         }
+        // 限制了进行中那一段的高度就不放开视口（`tui.md`「正文」第 1 条、「时间线」第 20 条）。
+        // 限制着的，一轮结束运行状态行收起时也按住不往下落。
+        let release = crate::ui::release_on_fold(&self.config.timeline);
         if matches!(update, Update::Push(crate::core::Push::TurnEnded(_))) {
-            self.view.settle();
+            if release {
+                self.view.settle();
+            } else {
+                self.view.hold();
+            }
+        }
+        // 她开始下一步：长正文替人停着的，回到最底下接着跟（`tui.md`「正文」第 1 条）。
+        if let Update::Push(Push::BlockStart { block, .. }) = &update
+            && *block != Block::Text
+        {
+            self.view.resume();
         }
         let folds = self.transcript.folds();
         self.transcript.update(update, &self.config.text);
         // 一段刚收起（她开口、一轮结束）：放开一次视口，收起留下的空白由上面的行补满（`tui.md`「正文」第 1 条）。
-        if self.transcript.folds() > folds {
+        if release && self.transcript.folds() > folds {
             self.view.settle();
         }
         // 被退回的排队消息连同粘贴块放回输入框，一条之间空一行，接在已有的字前面（`tui.md`「输入框」第 8、11 条）。

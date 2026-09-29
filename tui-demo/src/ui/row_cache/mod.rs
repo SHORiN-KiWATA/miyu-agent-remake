@@ -49,7 +49,12 @@ impl Rows {
         (first..first.saturating_add(n).min(self.len())).filter_map(|i| Some((i, self.get(i)?)))
     }
 
-    fn push(&mut self, chunk: Rc<[Row]>) {
+    /// 最后一块从第几行起（正文最后露出来的那一条）。
+    pub fn last_start(&self) -> usize {
+        self.ends.len().checked_sub(2).map_or(0, |k| self.ends[k])
+    }
+
+    pub(super) fn push(&mut self, chunk: Rc<[Row]>) {
         if chunk.is_empty() {
             return;
         }

@@ -11,8 +11,9 @@ use ratatui::widgets::Paragraph;
 use crate::app::App;
 use crate::{mascot, theme};
 
-/// 在 `rect` 里画吉祥物（`rect` 是它自己那么大的一块）。
-pub fn draw(frame: &mut Frame, rect: Rect, app: &mut App) {
+/// 在 `rect` 里画吉祥物（`rect` 是它自己那么大的一块）。`far`：它在侧边栏，看的东西都在左边很远，
+/// 虚拟距离放远到屏幕最左边刚好转到头（`tui.md`「后台命令、子代理和侧边栏」第 7 条）。
+pub fn draw(frame: &mut Frame, rect: Rect, app: &mut App, far: bool) {
     let now = Instant::now();
     let look = &app.config.mascot;
     let areas_mascot = rect;
@@ -33,11 +34,16 @@ pub fn draw(frame: &mut Frame, rect: Rect, app: &mut App) {
     } else {
         look.gaze.half_life_ms
     };
+    let gaze = if far {
+        mascot::reaching(&look.gaze, face.0)
+    } else {
+        look.gaze.clone()
+    };
     let aim = match idling.glance {
         Some(angles) => angles,
         None => target.map_or((0.0, 0.0), |p| {
             let at = (f64::from(p.x) + 0.5, f64::from(p.y) + 0.5);
-            mascot::toward(face, at, look.cell_aspect, &look.gaze)
+            mascot::toward(face, at, look.cell_aspect, &gaze)
         }),
     };
     app.gaze.aim(aim);

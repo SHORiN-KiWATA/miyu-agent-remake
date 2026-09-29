@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use super::{Gaze, Idle, Part, Perch, Pose, render, toward};
+use super::{Gaze, Idle, Part, Perch, Pose, reaching, render, toward};
 use crate::config::Config;
 
 fn look() -> super::Look {
@@ -98,6 +98,29 @@ fn the_head_turns_toward_the_target_up_to_its_limits() {
     );
     let far = toward((20.0, 8.0), (-500.0, -500.0), 2.1, &g);
     assert_eq!(far, (-g.max_yaw, -g.max_pitch), "到上限就停");
+}
+
+#[test]
+fn far_away_the_head_still_follows_the_target() {
+    let g = look().gaze;
+    // 侧边栏：脸在第 140 列，输入光标在第 10 列、第 100 列。
+    let face = (140.0, 8.0);
+    let far = reaching(&g, 140.0);
+    let left = toward(face, (10.0, 8.0), 2.1, &far).0;
+    let right = toward(face, (100.0, 8.0), 2.1, &far).0;
+    assert!(
+        left < right && right < 0.0,
+        "都朝左，光标往右挪头跟着回来一些：{left} {right}"
+    );
+    let edge = toward(face, (0.0, 8.0), 2.1, &far).0;
+    assert!((edge + g.max_yaw).abs() < 1e-9, "屏幕最左边刚好转到头");
+    // 照首页的距离：两处都转到头，看不出来。
+    assert_eq!(
+        toward(face, (10.0, 8.0), 2.1, &g).0,
+        toward(face, (100.0, 8.0), 2.1, &g).0
+    );
+    // 近处不用放远：首页照旧。
+    assert_eq!(reaching(&g, 10.0).distance, g.distance);
 }
 
 #[test]

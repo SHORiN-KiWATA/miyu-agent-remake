@@ -196,6 +196,12 @@ pub fn info_lines(
             }
             None => out.push(item(used, theme::dim())),
         }
+        if t.cache.compactions > 0 {
+            let compactions = text
+                .side_compactions
+                .replace("{n}", &t.cache.compactions.to_string());
+            out.push(item(compactions, theme::dim()));
+        }
     }
     let input = t.total.input();
     if input + t.total.output > 0 {
@@ -213,6 +219,10 @@ pub fn info_lines(
         out.push(item(split, theme::dim()));
         let hit = meter::hit_rate(t.total.cache_read, input);
         out.push(item(text.side_hit.replace("{percent}", &hit), theme::dim()));
+        if t.cache.breaks > 0 {
+            let breaks = text.side_breaks.replace("{n}", &t.cache.breaks.to_string());
+            out.push(item(breaks, theme::dim()));
+        }
     }
     (out, id_row)
 }
@@ -306,7 +316,7 @@ pub fn draw(frame: &mut Frame, area: Rect, app: &mut App) {
         let cols = look.cols.min(area.width);
         let mascot =
             Rect::new(area.x + (area.width - cols) / 2, top, cols, look.rows).intersection(area);
-        super::mascot_view::draw(frame, mascot, app);
+        super::mascot_view::draw(frame, mascot, app, true);
         top = mascot.bottom() + 1;
     }
     let (info, id_row) = info_lines(&app.transcript, &app.config, inner, &app.cwd);

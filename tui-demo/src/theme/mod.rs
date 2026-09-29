@@ -217,9 +217,9 @@ pub fn md_image() -> Style {
     fg(|p| p.md_image)
 }
 
-/// 引用的字：暗一些的灰蓝，正体（2026-09-29 项目主人：绿太显眼，中文斜体是硬压歪的）。
+/// 引用的字：暗灰蓝、斜体（2026-09-29 项目主人：绿太显眼；改过正体，又嫌不够暗、要斜体）。
 pub fn md_quote() -> Style {
-    fg(|p| p.md_quote)
+    fg(|p| p.md_quote).add_modifier(Modifier::ITALIC)
 }
 
 /// 表头：蓝加粗。

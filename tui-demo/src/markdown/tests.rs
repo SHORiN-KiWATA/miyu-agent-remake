@@ -61,9 +61,10 @@ fn lists_nest_and_align_their_continuations() {
 }
 
 #[test]
-fn list_markers_are_accented_and_quotes_are_upright() {
-    use ratatui::style::Modifier;
-    // 2026-09-29 项目主人：列表记号暗色和字分不开层次，换主题色；中文斜体是硬压歪的，引用改正体。
+fn list_markers_are_accented_and_quotes_are_dim_italic() {
+    use ratatui::style::{Color, Modifier};
+    let _theme = theme::hold();
+    // 2026-09-29 项目主人：列表记号暗色和字分不开层次，换主题色；引用暗一些、斜体（先改过正体，又改回来）。
     let list = draw("- 苹果", 30);
     let marker = &list[0].lead[0];
     assert_eq!(marker.content, "• ");
@@ -71,7 +72,8 @@ fn list_markers_are_accented_and_quotes_are_upright() {
     assert_eq!(marker.style, theme::md_list());
     let quoted = draw("> 引用的话", 30);
     let style = quoted[0].folded.spans[0].style;
-    assert!(!style.add_modifier.contains(Modifier::ITALIC), "引用不斜");
+    assert!(style.add_modifier.contains(Modifier::ITALIC), "引用斜体");
+    assert_eq!(style.fg, Some(Color::Rgb(0x82, 0x8b, 0xb8)), "暗灰蓝");
 }
 
 #[test]

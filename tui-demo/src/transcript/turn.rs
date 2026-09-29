@@ -4,9 +4,24 @@
 use super::*;
 
 impl Transcript {
+    /// 在等她的第一个字：一轮在跑、这一轮还一块都没来（出错等重试也算）。界面在正文末尾转圈，
+    /// 步与步之间等她不算（蓝图 `tui.md`「时间线」第 19 条）。
+    pub fn waiting(&self) -> bool {
+        self.running.is_some() && !self.spoke
+    }
+
+    /// 她正在写的这一段正文：这一轮在跑，正文最后一条是这一轮的回答。长过视口时正文区停在它的开头
+    /// （蓝图 `tui.md`「正文」第 1 条）。
+    pub fn writing(&self) -> Option<&Entry> {
+        self.running?;
+        let last = self.entries.last()?;
+        (last.kind == Kind::Reply && last.turn == self.turn).then_some(last)
+    }
+
     /// 一轮开始了（`turn.started`）：开表、清这一轮的用量，把开这一轮的排队消息挪进正文。
     pub(super) fn start(&mut self, turn: u64, trigger: Option<u64>) {
         self.running = Some(Instant::now());
+        self.spoke = false;
         self.failure = None;
         self.turn = Some(turn);
         self.turn_usage = Usage::default();

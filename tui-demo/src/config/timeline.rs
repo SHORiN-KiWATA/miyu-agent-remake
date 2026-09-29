@@ -47,6 +47,9 @@ pub struct Timeline {
     pub thought_rows: usize,
     /// 步与步之间的连接线，预览行首的竖线也是它。
     pub line: String,
+    /// 限制工具时间线滚动区域：进行中的那一段最多露一步完整思考、完整命令的高度，收起时不放开视口
+    /// （蓝图「时间线」第 20 条）。关掉是全部展开、收起时放开一次视口。
+    pub limit_live: bool,
     /// 预览放不下时那一行打头的符号。
     pub omitted: String,
     /// 一段做完要不要收成一行（蓝图「时间线」第 18 条）。

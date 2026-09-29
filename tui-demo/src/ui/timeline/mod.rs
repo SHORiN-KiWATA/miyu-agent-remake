@@ -18,6 +18,15 @@ use crate::theme;
 use crate::transcript::{Segment, Step};
 use step::Piece;
 
+/// 等她的第一个字时（`Transcript::waiting`），接在正文末尾的两行：空一行，一行只有转圈
+/// （蓝图 `tui.md`「时间线」第 19 条）。第一步来了正好落在转圈那一行上。
+pub fn tail_rows(ctx: &Ctx) -> Vec<Row> {
+    vec![
+        ctx.row(ctx.blank_slot(), Vec::new()),
+        ctx.row(spinner(ctx), Vec::new()),
+    ]
+}
+
 /// 一段排成的行。`entry` 是它在正文里是第几条。
 pub fn rows(entry: usize, segment: &Segment, ctx: &Ctx) -> Vec<Row> {
     let target = Target::Segment(entry);
@@ -57,7 +66,35 @@ pub fn rows(entry: usize, segment: &Segment, ctx: &Ctx) -> Vec<Row> {
             ctx,
         ));
     }
+    // 限制着、进行中、没人点过的：最多露一步完整思考、完整命令的高度（第 20 条）。
+    if ctx.config.timeline.limit_live && !segment.finished && segment.open.is_none() {
+        clip_live(&mut out, ctx);
+        // 里面的步也点不开：只露十几行，点开了多半看不全。链接、拖选照常。
+        for row in &mut out {
+            row.target = None;
+        }
+    }
     out
+}
+
+/// 进行中的那一段最多露几行：刚好放得下一步完整的思考、一步完整的命令——思考预览的行数和命令预览的行数加
+/// 「⋮ 已省略 N 行」那一行，取大的，再加上标题。调大了哪个预览，封顶跟着变。
+pub fn live_cap(tl: &crate::config::Timeline) -> usize {
+    tl.thought_rows.max(tl.preview_rows + 1) + 1
+}
+
+/// 一段收起时放不放开视口：限制了进行中那一段的高度就不放开（收起最多空出十几行，由接下来的字填上；
+/// 放开会把顶上去的内容落回来、画面瞬移），没限制的放开一次（不然整屏空着）。蓝图「正文」第 1 条。
+pub fn release_on_fold(tl: &crate::config::Timeline) -> bool {
+    !tl.limit_live
+}
+
+/// 只留最新的几行，上面的直接不画（不加提示、不能点开；做完收成一行以后点它看全部）。
+fn clip_live(out: &mut Vec<Row>, ctx: &Ctx) {
+    let cap = live_cap(&ctx.config.timeline);
+    if out.len() > cap {
+        out.drain(..out.len() - cap);
+    }
 }
 
 /// 步与步之间那一行 `│`，和图标同一列；上一步出错的红。
@@ -71,11 +108,9 @@ fn connector(ctx: &Ctx, failed: bool) -> Row {
 
 /// 一步的行：标题，下面接着预览或点开的内容。`spinning` 是这一步在转圈（这一段正在动的那一步）。
 fn step_rows(target: Target, step: &Step, spinning: bool, ctx: &Ctx) -> Vec<Row> {
-    let tl = &ctx.config.timeline;
     let style = step::style(step, ctx.hover == Some(target));
     let slot = if spinning {
-        let frame = &tl.spinner[ctx.frame % tl.spinner.len().max(1)];
-        Span::styled(format!("{frame} "), theme::dim())
+        spinner(ctx)
     } else {
         ctx.blank_slot()
     };
@@ -98,6 +133,13 @@ fn step_rows(target: Target, step: &Step, spinning: bool, ctx: &Ctx) -> Vec<Row>
         row.target = Some(target);
     }
     out
+}
+
+/// 转圈那一格：照帧数取一个，后面空一格。
+fn spinner(ctx: &Ctx) -> Span<'static> {
+    let tl = &ctx.config.timeline;
+    let frame = &tl.spinner[ctx.frame % tl.spinner.len().max(1)];
+    Span::styled(format!("{frame} "), theme::dim())
 }
 
 /// 点开的内容：空行、全部内容、空行；内容缩进两格，和图标后面的字对齐。

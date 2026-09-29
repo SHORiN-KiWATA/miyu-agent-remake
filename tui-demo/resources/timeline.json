@@ -43,6 +43,7 @@
   "spinner_ms": 80,
   "preview_rows": 10,
   "thought_rows": 15,
+  "limit_live": true,
   "line": "│",
   "omitted": "⋮",
   "fold": true,

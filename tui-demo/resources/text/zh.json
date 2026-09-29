@@ -22,6 +22,8 @@
   "side_total": "共 {tokens} token",
   "side_split": "输入 {input} · 输出 {output}",
   "side_hit": "缓存命中 {percent}%",
+  "side_compactions": "压缩 {n} 次",
+  "side_breaks": "缓存断裂 {n} 次",
   "copied": "已复制 {count} 个字",
   "copy_failed": "复制失败：{reason}",
   "connecting": "正在连核心…",

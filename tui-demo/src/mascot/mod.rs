@@ -93,5 +93,14 @@ pub fn toward(from: (f64, f64), to: (f64, f64), aspect: f64, gaze: &GazeLook) ->
     )
 }
 
+/// 看的东西横着最远在 `reach` 列外（侧边栏里，屏幕最左边）：虚拟距离放远到那里刚好转到头，近处照原样。
+/// 照原来的距离，远处的目标在哪都超过最大角度，头卡在头上不跟着动（`tui.md`「后台命令、子代理和侧边栏」第 7 条）。
+pub fn reaching(gaze: &GazeLook, reach: f64) -> GazeLook {
+    GazeLook {
+        distance: gaze.distance.max(reach / gaze.max_yaw.to_radians().tan()),
+        ..gaze.clone()
+    }
+}
+
 #[cfg(test)]
 mod tests;

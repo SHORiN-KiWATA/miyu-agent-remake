@@ -24,6 +24,7 @@ pub mod row_cache;
 pub mod rows;
 mod status;
 mod timeline;
+pub use timeline::release_on_fold;
 mod user_rows;
 
 #[cfg(test)]

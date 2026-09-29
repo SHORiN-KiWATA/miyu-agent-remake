@@ -9,6 +9,7 @@ use ratatui::style::{Modifier, Style};
 use super::Areas;
 use super::row_cache::{self, Rows};
 use super::rows::Ctx;
+use super::timeline;
 use crate::app::App;
 use crate::theme;
 
@@ -29,7 +30,17 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
         frame: usize::try_from(app.started.elapsed().as_millis() / u128::from(spinner_ms))
             .unwrap_or(0),
     };
-    let rows = row_cache::build(&app.transcript.entries, &ctx, &app.row_cache);
+    let mut rows = row_cache::build(&app.transcript.entries, &ctx, &app.row_cache);
+    // 等她的第一个字：正文末尾先转着（`tui.md`「时间线」第 19 条）。
+    if app.transcript.waiting() {
+        rows.push(timeline::tail_rows(&ctx).into());
+    }
+    // 她正在写的正文，露出来了的是最后一块：长过视口时停在它的开头（`tui.md`「正文」第 1 条）。
+    app.view.reading = app
+        .transcript
+        .writing()
+        .filter(|entry| super::rows::shown(entry))
+        .map(|entry| (entry.id, rows.last_start()));
     let first = first_row(&rows, area, &mut app.view);
     let height = usize::from(area.height);
     for (i, row) in rows.window(first, height) {
@@ -88,10 +99,15 @@ fn first_row(rows: &Rows, area: Rect, view: &mut crate::body_view::BodyView) -> 
         && let Some(i) = rows.iter().position(|r| r.target == Some(target))
     {
         view.top = Some(i.saturating_sub(usize::from(y.saturating_sub(area.y))));
+        view.auto = false;
     }
     // 窗口变宽变窄，行重新折过，上一帧记的行号对不上了：不守它（`tui.md`「正文」第 1 条）。
     if view.area.width != area.width {
         view.floor_end = 0;
+    }
+    // 一轮结束按住了：视口长高的那几行记进底边，第一行不往回退（`view.hold`）。
+    if std::mem::take(&mut view.hold) && view.floor_end > 0 {
+        view.floor_end += usize::from(area.height.saturating_sub(view.area.height));
     }
     // 清过屏的，最底下是清屏那一刻的位置：往下滚还是空的，滚回底又是空的（`tui.md`「按键」Ctrl+L）。
     let lowest = view
@@ -106,11 +122,22 @@ fn first_row(rows: &Rows, area: Rect, view: &mut crate::body_view::BodyView) -> 
             } else {
                 rows.len().saturating_sub(1)
             };
-            lowest.max(view.floor_end.saturating_sub(height)).min(cap)
+            let follow = lowest.max(view.floor_end.saturating_sub(height)).min(cap);
+            // 她正在写的一段正文长过视口：第一行顶到最上面就停住，一段只停一次（`tui.md`「正文」第 1 条）。
+            match view.reading {
+                Some((id, start)) if follow > start && view.paused != Some(id) => {
+                    view.paused = Some(id);
+                    view.top = Some(start);
+                    view.auto = true;
+                    start
+                }
+                _ => follow,
+            }
         }
     };
     if first >= lowest {
         view.top = None;
+        view.auto = false;
     }
     // 内容还放得下（从第一行露起；清过屏的，从清屏那一行露起）时不记：视口变矮时不把开头的行挤出去
     // （`tui.md`「正文」第 1 条、「按键」Ctrl+L）。
@@ -208,6 +235,73 @@ mod tests {
         // 一轮结束：放开一次，上面的行补满空白。
         view.settle();
         assert_eq!(first_row(&rows(22), area, &mut view), 12);
+    }
+
+    #[test]
+    fn a_long_reply_stops_at_its_first_row_until_her_next_step() {
+        let area = Rect::new(0, 0, 10, 10);
+        let mut view = BodyView::default();
+        // 她的正文（编号 7）从第 15 行起。
+        view.reading = Some((7, 15));
+        assert_eq!(
+            first_row(&rows(20), area, &mut view),
+            10,
+            "放得下：照旧跟着"
+        );
+        assert_eq!(
+            first_row(&rows(26), area, &mut view),
+            15,
+            "开头顶到最上面：停住"
+        );
+        assert_eq!(
+            first_row(&rows(40), area, &mut view),
+            15,
+            "后面的字在下面长"
+        );
+        // 她开始下一步：回到最底下接着跟。
+        view.resume();
+        assert_eq!(first_row(&rows(42), area, &mut view), 32);
+        // 下一段正文长了，又停在它的开头。
+        view.reading = Some((9, 44));
+        assert_eq!(first_row(&rows(60), area, &mut view), 44);
+    }
+
+    #[test]
+    fn scrolled_back_to_the_bottom_the_same_reply_does_not_stop_again() {
+        let area = Rect::new(0, 0, 10, 10);
+        let mut view = BodyView::default();
+        view.area = area;
+        view.reading = Some((7, 15));
+        view.first = first_row(&rows(30), area, &mut view);
+        assert_eq!(view.first, 15);
+        // 人往下翻到底：跟着最新的，这一段不再停。
+        while view.top.is_some() {
+            view.page(true);
+            view.first = first_row(&rows(30), area, &mut view);
+        }
+        assert_eq!(first_row(&rows(36), area, &mut view), 26);
+        // 人自己滚上去的：她开始下一步也不动。
+        view.page(false);
+        view.first = first_row(&rows(36), area, &mut view);
+        let kept = view.first;
+        view.resume();
+        assert_eq!(first_row(&rows(40), area, &mut view), kept);
+    }
+
+    #[test]
+    fn with_the_cap_the_end_of_a_turn_does_not_drop_the_rows() {
+        let running = Rect::new(0, 0, 10, 10);
+        let idle = Rect::new(0, 0, 10, 12);
+        let mut view = BodyView::default();
+        assert_eq!(first_row(&rows(13), running, &mut view), 3);
+        // 一轮结束，运行状态行那一块收起，视口长高两行：开着封顶时不往下落，多出的两行空着。
+        view.hold();
+        assert_eq!(first_row(&rows(13), idle, &mut view), 3);
+        assert_eq!(first_row(&rows(13), idle, &mut view), 3, "下一帧照旧不动");
+        // 没按住的：贴着底边落两行（命令列表关了、输入框变矮了照这样）。
+        let mut view = BodyView::default();
+        assert_eq!(first_row(&rows(13), running, &mut view), 3);
+        assert_eq!(first_row(&rows(13), idle, &mut view), 1);
     }
 
     #[test]

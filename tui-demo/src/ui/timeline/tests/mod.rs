@@ -477,3 +477,6 @@ fn folding_and_opening_follow_the_config_until_someone_clicks() {
     seg.open = Some(false);
     assert_eq!(rows(0, &seg, &f.ctx()).len(), 1);
 }
+
+mod live;
+mod waiting;

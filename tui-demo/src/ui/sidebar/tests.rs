@@ -198,6 +198,34 @@ fn the_sidebar_is_laid_out_in_sections() {
 }
 
 #[test]
+fn compactions_and_cache_breaks_show_only_once_they_happen() {
+    use crate::transcript::Transcript;
+    let config = Config::builtin().unwrap();
+    let mut t = Transcript::default();
+    t.model = Some(("deepseek-flash".into(), "deepseek".into()));
+    t.context = 200_000;
+    t.total.output = 3500;
+    let text = |t: &Transcript| -> Vec<String> {
+        let (lines, _) = super::info_lines(t, &config, 36, "~/src");
+        lines.iter().map(|l| l.to_string()).collect()
+    };
+    let before = text(&t);
+    assert!(
+        !before
+            .iter()
+            .any(|l| l.contains("压缩") || l.contains("断裂")),
+        "没压过、没断过：都不写"
+    );
+    t.cache.compactions = 2;
+    t.cache.breaks = 1;
+    let after = text(&t);
+    let at = after.iter().position(|l| l == "上下文").unwrap();
+    assert_eq!(after[at + 3], "  压缩 2 次", "在进度条下面");
+    let at = after.iter().position(|l| l == "用量").unwrap();
+    assert_eq!(after[at + 4], "  缓存断裂 1 次", "在命中率下面");
+}
+
+#[test]
 fn a_section_title_is_blue_and_its_lines_indented() {
     use ratatui::style::Modifier;
     use ratatui::text::Line;

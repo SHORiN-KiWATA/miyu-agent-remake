@@ -46,6 +46,14 @@ pub struct BodyView {
     /// 跟着最新的时，视口底边至少露到第几行（不含）：只往下走、不往回退，内容变短时看着的行不掉下来；
     /// 记底边不记第一行，视口变高变矮时贴着底边走，不留空白（`tui.md`「正文」第 1 条）。
     pub floor_end: usize,
+    /// 下一帧视口长高（一轮结束，运行状态行那一块收起）时不往下落，见 [`BodyView::hold`]。
+    pub hold: bool,
+    /// 她正在写的那段正文：编号、第一行是第几行。画之前由正文区填上；长过视口时停在它的开头（`tui.md`「正文」第 1 条）。
+    pub reading: Option<(u64, usize)>,
+    /// 已经停过的那段正文的编号：一段只停一次，人滚回底以后不再停。
+    pub paused: Option<u64>,
+    /// 现在钉着的地方是替人停的（不是人滚的）：她开始下一步时放开，见 [`BodyView::resume`]。
+    pub auto: bool,
     /// 上一帧的全部行（引用按条缓存的那一份，不复制）。
     pub rows: Rows,
     /// 上一帧正文区的位置。
@@ -159,11 +167,25 @@ impl BodyView {
     /// 不因为发了一句话往回跳（撤销后底下空着的那一截，由新的字填上）。
     pub fn follow(&mut self) {
         self.top = None;
+        self.auto = false;
+    }
+
+    /// 她开始下一步（思考、调工具）：长正文替人停着的，回到最底下接着跟；人自己滚上去的不动（`tui.md`「正文」第 1 条）。
+    pub fn resume(&mut self) {
+        if self.auto {
+            self.follow();
+        }
     }
 
     /// 一轮结束：放开「只往下走」一次，思考、工具收起留下的空白由上面的行补满（`tui.md`「正文」第 1 条）。
     pub fn settle(&mut self) {
         self.floor_end = 0;
+    }
+
+    /// 一轮结束、开着「限制工具时间线滚动区域」：运行状态行那一块收起、视口长高的那几行空着，
+    /// 不贴着底边往下落，顶出屏幕的行不回来（`tui.md`「正文」第 1 条）。只管下一帧。
+    pub fn hold(&mut self) {
+        self.hold = true;
     }
 
     /// Ctrl+L：把视口顶空，往回滚内容还在（照旧版）。新的字从空着的视口顶上往下长：
@@ -187,6 +209,7 @@ impl BodyView {
 
     fn scroll_to(&mut self, first: usize) {
         self.top = Some(first);
+        self.auto = false;
     }
 
     /// 这一格上的链接。

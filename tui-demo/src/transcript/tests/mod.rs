@@ -5,8 +5,10 @@ use crate::config::Config;
 use crate::core::{Block, Push, Update};
 
 mod beat;
+mod cache;
 mod done;
 mod folds;
+mod waiting;
 
 fn apply(t: &mut Transcript, pushes: Vec<Push>) {
     let texts = Config::builtin().unwrap().text;
