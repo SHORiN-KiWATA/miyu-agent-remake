@@ -310,7 +310,7 @@ impl Session {
         } = due;
         let paths = self.reread_paths(upto);
         let limit = self.reread_limit();
-        // 同一步里摘要请求报过超长、调过工具的，照记下的再发（施工 6-6 中、下）；替代到的变了，照头一次发。
+        // 同一步里摘要请求报过超长、调过工具、出错再来的，照记下的再发（施工 6-6 中、下、补）；替代到的变了，照头一次发。
         let again = self
             .turn
             .as_mut()

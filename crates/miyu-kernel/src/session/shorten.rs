@@ -147,6 +147,17 @@ impl Session {
     }
 }
 
+/// 出错再来的（施工 6-6 补）：照这一次截到哪、截了几次、是不是隔离式再发。
+pub(super) fn as_before(compacting: &Compacting) -> Again {
+    let (cut, tries) = compacting.shortened();
+    Again {
+        upto: compacting.upto(),
+        cut,
+        tries,
+        isolated: compacting.isolated(),
+    }
+}
+
 /// 被动压缩的（施工 6-7），再发时照它再压。
 pub(super) fn passive(compacting: &Compacting) -> Option<Due> {
     (*compacting.trigger() == CompactTrigger::Overflow).then(|| compacting.due())

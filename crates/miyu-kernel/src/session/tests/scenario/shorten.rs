@@ -212,6 +212,39 @@ fn it_tries_three_times_then_the_compaction_fails() {
 }
 
 #[test]
+fn asked_again_after_an_error_it_keeps_the_cut_and_the_count() {
+    let mut stage = shortening(Some(SHORTEN));
+    // 五组（到 17）：截过一次以后出错、到点再来，照截过的那一份发，截的次数接着数；截满三次还超长，这次压缩失败
+    // （施工 6-6 补）。
+    groups(&mut stage, 3);
+    stage.model([
+        too_long(),
+        Line::fails(ErrorClass::Retryable, "503 Service Unavailable"),
+        too_long(),
+        too_long(),
+        too_long(),
+    ]);
+    stage.say("再说");
+    assert_eq!(
+        summaries(&stage),
+        [
+            (17, None),
+            (17, Some(5)),
+            (17, Some(5)),
+            (17, Some(8)),
+            (17, Some(11))
+        ]
+    );
+    assert!(
+        story(&stage)
+            .last()
+            .is_some_and(|line| line.contains("turn.ended:error")),
+        "截满三次还超长，这一轮出错结束"
+    );
+    assert!(last_compaction(&stage).is_none());
+}
+
+#[test]
 fn with_one_group_left_it_cannot_cut_and_fails() {
     let mut stage = shortening(Some(Shorten {
         tries: 5,

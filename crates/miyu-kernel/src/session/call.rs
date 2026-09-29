@@ -257,14 +257,14 @@ impl Session {
             }
             if let Some(wait) = self.retry_wait(&error, wait_ms) {
                 // 再来的是摘要请求，不标「下一次是重试」：它后面那一次主请求照常算一步。被动压缩的摘要请求连压什么也记回去，
-                // 到点了照它再压（施工 6-7）：它不看压缩线。
-                let passive = settled
-                    .compaction
-                    .as_deref()
-                    .and_then(super::shorten::passive);
+                // 到点了照它再压（施工 6-7）：它不看压缩线。截到哪、截了几次、是不是隔离式也记回去，照它再发（施工 6-6 补）。
+                let compaction = settled.compaction.as_deref();
+                let passive = compaction.and_then(super::shorten::passive);
+                let again = compaction.map(super::shorten::as_before);
                 if let Some(turn) = self.turn.as_mut() {
                     turn.retrying |= !compacting;
                     turn.passive = passive.map(super::overflow::Passive::Again);
+                    turn.again = again.or(turn.again);
                 }
                 let cut = settled.reply.is_some();
                 return self.wait_to_retry(at, seen, cause, events, cut, error, wait);
