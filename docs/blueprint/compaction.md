@@ -142,12 +142,13 @@
 7. 回复里有工具调用：这一次作废，改走隔离式（第四条）。隔离式做好以前（6-6），算失败，记法同上。
 8. **进度**：摘要请求报发出去时先推一条 `written` 是 0 的 `compaction.progress`，头一收到就能印「正在压缩」；之后收到的正文（草稿加摘要）照字数推；`expected` = 压缩前用量折成的字数，夹在 20000 到 80000 之间（openclaude 的做法）。
 9. **不设总超时**：流一直在出字就等着，界面上有进度，人可以打断；卡住不出字的，由 HTTP 的空闲超时管（`http.md`：连接 30 秒、空闲 180 秒，没有总超时，6-3 下核对过）。旧版写死 90 秒，长会话一压就超时。
-10. **摘要请求本身超长**（供应商报超长）：
-    1. 报错里解析得出超了多少 token 的：检查点留着，从它后面最老的一轮起，一整轮一整轮去掉，去掉的估算加起来刚好盖过超出的量。
-    2. 解析不出来的：去掉最老的 20% 的轮，至少一轮。
-    3. 至少留一轮。去掉以后第一条是助手的，前面补一行说明：更早的对话为了压缩被截掉了（`truncated.txt`）。
-    4. 最多试 3 次。截过的，`notes` 里写明摘要没有覆盖到哪一段（第八条）。
-    5. 截过以后前缀变了，这一次不再命中缓存，照常发。
+10. **摘要请求本身超长**（供应商报 `context_too_long`，施工 6-6 中）：
+    1. 超了多少：驱动从报错原话里解析（`excess`），照几家常见的说法（「maximum context length is N … resulted in / requested M」「prompt is too long: M tokens > N」），M 减 N；解析不出来的没有。它随「说完了」交给内核（`Input::ModelEnded`），和要等多久一样不进日志。
+    2. 截掉哪些：有效历史到第 N 条的投影里，检查点后面的一组一组，从最老的起去掉，只切在切得开的地方（组和切法同第 2 条的留尾巴）。有 `excess` 的，去掉的估算（第一条第 2 条）加起来刚好盖过它；没有的，去掉 20% 的组，向上取整、至少一组。至少留一组；留不下的，这次压缩失败。按组不按轮（2026-09-29 施工 6-6 中定）：一轮任务里可以有几十组工具调用，按轮截，一轮的会话一组都截不掉；Claude Code 截的也是一组一组。
+    3. 截过的摘要请求：检查点、留下的几组、摘要指令。留下的第一条是助手的，前面补一条 user：更早的对话为了压缩截掉了（`truncated.txt`）。组装器的 `summarize` 多一个参数：截到第几条，没有是不截。
+    4. 截着最多再试 3 次，第 3 次还超长，这次压缩失败（第十条）。每一次都记一条 `model.called`（`compaction`、出错 `context_too_long`），`seen` 照旧是 N。重读（第九条）不重做，照第一次交回的；进度照常，每次发出去先推 0 字的。
+    5. 截过的，写压缩时 `notes` 最后多一段（`notes-uncovered.txt`）：第几到第几条摘要没看到，原文还在，用 `history` 取回（第八条第 4 条）。
+    6. 截过以后前缀变了，这一次不再命中缓存，照常发。
 11. **写 `context.compacted`**：`turn` 是这一轮，`by` 是内核，`cause` 是回合的。同时推瞬时的 `compaction.done`（见「对外的样子」）。之后照常组装下一次请求：环境、权限两块事实和检查点后面还在的同类比，比不到的注入（`kernel/request.md`「事实」）。
 12. 摘要请求照常记一条 `model.called`，`seen` 是 N。
 
@@ -194,7 +195,7 @@
    - 读过、改过的文件清单：照被替代的那一段里的效果算（`file.read`、`file.changed`），不照工具名猜，旧版照工具名猜，一个都没认出来。最近的在前，去重，最多 30 个，多的写还有几个（`compaction/notes-files.txt`、`notes-files-more.txt`）。路径在会话现在的工作目录里的写相对的，别的写绝对的。
    - 取回指路：被替代的是第 1 到 N 条，原文还在日志里，用 `history` 按序号、关键词、时间取回（`compaction/notes-retrieve.txt`）。6-4 真模型上她不知道序号，只能从头往下翻。
    - 压前读过、太大没重读的文件，写明要看自己读（`compaction/notes-too-large.txt`）。
-   - 摘要请求截过最老的一段的，写明没有覆盖到哪一段（6-6）。
+   - 摘要请求截过最老的一段的，写明第几到第几条摘要没看到、用 `history` 取回（`compaction/notes-uncovered.txt`，施工 6-6 中）。
 5. 重读的文件（`restored`，施工 6-5）：照挑中的先后，每个一块：`compaction/restored-open.txt`（`<file path="…">`，路径照清单的写法）、原文（照 blob，不转义）、`compaction/restored-close.txt`（`</file>`）。
 6. 包装的结尾（`resources/core/checkpoint-end.txt`：规则那一句和 `</conversation-checkpoint>`）。
 
@@ -279,11 +280,11 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 | 文件 | 什么时候出现 | 哪一步 |
 |---|---|---|
 | `summarize-task.txt` | 摘要指令，任务型 | 6-2 |
-| `summarize-system.txt` | 隔离式那一句 system | 6-6 |
-| `truncated.txt` | 摘要请求截掉最老的一段时补的那一行 | 6-6 |
+| `summarize-system.txt` | 隔离式那一句 system | 6-6 下 |
+| `truncated.txt` | 摘要请求截掉最老的一段、留下的第一条是助手的，前面补的那一条 user | 6-6 中 |
 | `notes-files.txt`、`notes-files-more.txt`、`notes-retrieve.txt`、`notes-too-large.txt` | 检查点里代码写的几段 | 6-5 |
 | `restored-open.txt`、`restored-close.txt` | 重读的文件那一块的头尾 | 6-5 |
-| `notes-uncovered.txt` | 摘要请求截过最老的一段时写的那一段 | 6-6 |
+| `notes-uncovered.txt` | 摘要请求截过最老的一段时写的那一段：字段 `from`、`to` | 6-6 中 |
 | `summarize-chat.txt` | 摘要指令，聊天型：写法靠压缩质量评测打磨。做出来以前，`chat` 也用任务型的 | 以后 |
 | `trimmed.txt` | 裁剪的说明 | 随通讯平台 |
 

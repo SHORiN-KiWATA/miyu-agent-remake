@@ -57,7 +57,7 @@
 | 方法 | 做什么 |
 |---|---|
 | `assemble(&History) -> Request` | 从有效历史组装请求 |
-| `summarize(&History, upto) -> Request` | 压缩的摘要请求：有效历史截到第 `upto` 条照平常组装，最后接摘要指令（施工 6-2 上，`compaction.md` 第三条第 3 条） |
+| `summarize(&History, upto, cut) -> Request` | 压缩的摘要请求：有效历史截到第 `upto` 条照平常组装，最后接摘要指令（施工 6-2 上，`compaction.md` 第三条第 3 条）。`cut` 是截短重试截到第几条（施工 6-6 中）：检查点后面第 `cut` 条及以前的不要，留下的第一条是助手的，前面补一条 user（`truncated.txt`）；没有是不截 |
 | `summary(&[Block]) -> Option<String>` | 从摘要请求的回复里取出摘要；取不出来的是 `None`（`compaction.md` 第三条第 6 条）。指令和取法是一对，都归组装 |
 
 **默认的组装器** `DefaultAssembler::new(Stable, Texts)`：
