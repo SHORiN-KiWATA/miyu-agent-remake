@@ -192,6 +192,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             let venue = resources.subagent_venue().map_err(CreateError::Persona)?;
             snapshot = snapshot.with_venue(&venue);
         }
+        let lines = resources.core_lines().map_err(CreateError::Persona)?;
+        let snapshot = snapshot.with_core_lines(&lines);
         let policy = snapshot.policy().map_err(CreateError::Policy)?;
         let texts = snapshot.driver_texts().map_err(CreateError::Policy)?;
         let run = snapshot.run_texts().map_err(CreateError::Policy)?;

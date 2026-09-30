@@ -63,6 +63,7 @@ fn texts() -> Texts {
         jobs: Some(job_texts()),
         harness: None,
         recap: None,
+        title: None,
     }
 }
 

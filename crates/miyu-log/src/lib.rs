@@ -8,13 +8,15 @@
 //! - [`install`]：程序入口装一次，交回 [`Guard`]；
 //! - [`level()`]：`MIYU_LOG` 的值怎么读；
 //! - [`RotatingFile`]：按大小轮换的文件；
-//! - [`LineLayer`]：把一条事件写成一行，交给 [`Sink`]。测试里拿 [`Memory`] 接住。
+//! - [`LineLayer`]：把一条事件写成一行，交给 [`Sink`]。测试里拿 [`Memory`] 接住；
+//! - [`settings`]：配置项 `log.level`（施工 8-1）。
 
 mod home;
 mod layer;
 mod level;
 mod line;
 mod rotate;
+pub mod settings;
 
 pub use layer::{LineLayer, Memory, Sink};
 pub use level::{Level, level};

@@ -1,8 +1,8 @@
 //! 拼快照（`docs/designs/26-提示词.md` 第四节「怎么拼」）：system 照第四节的先后排，每一块去掉末尾的
 //! 空白，块和块之间空一行，没有的块不留空行。
 //!
-//! 施工 3-6（上）时只有人设。别的块跟着各自的功能来，按 J12 先实测证明不加不行：核心的两行规则
-//! （检查点、权限）2026-09-27 项目主人定先不拼，到 M6、M4 实测再定；场所说明也等实测出需要再加。
+//! 施工 3-6（上）时只有人设。别的块跟着各自的功能来，按 J12 先实测证明不加不行：场所说明施工 7-5 加（子会话）；核心的
+//! 几行施工 2-7 补加，权限那一行和本机文件的路径那一行，2026-10-01 主会话 A/B 实测过（`26-提示词.md` 第十节）。
 
 use crate::pause::PAUSE;
 use crate::rebuild::REBUILD;
@@ -56,10 +56,37 @@ pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
         compaction: Some(COMPACTION),
         jobs: Some(crate::jobs::JOB_NUMBERS),
         recap: Some(RECAP),
+        title: Some(crate::title::TITLE),
     }
 }
 
+/// 核心的几行（`26-提示词.md` 第四节第 3 块，施工 2-7 补）：执行器从资源目录读好交进来，造会话时拼进 system。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoreLines {
+    /// `<permission>` 那一块怎么读、每一级能做什么、只有人能切（`core/permission-rule.txt`）。没有工具的会话不带。
+    pub permission: String,
+    /// 回答里提到本机的文件写绝对路径（`core/local-paths-rule.txt`）。
+    pub local_paths: String,
+}
+
 impl Snapshot {
+    /// 带上核心的几行（施工 2-7 补）：system 的第三块，接在人设、场所说明后面，所以在 [`Snapshot::with_tools`]、
+    /// [`Snapshot::with_venue`] 以后最后调。块里一行一句，先权限、后本机文件的路径；工具面是空的会话用不上权限那一句，
+    /// 不带（26 第十节）。以前造的快照 system 里没有这一块，载入照快照发，前缀一字不变。
+    #[must_use]
+    pub fn with_core_lines(mut self, lines: &CoreLines) -> Snapshot {
+        let permission = (!self.tools.is_empty()).then_some(lines.permission.as_str());
+        let block = permission
+            .into_iter()
+            .chain([lines.local_paths.as_str()])
+            .map(str::trim_end)
+            .filter(|line| !line.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n");
+        self.system = system(&[&self.system, &block]);
+        self
+    }
+
     /// 带上场所说明（施工 7-5）：system 的第二块，接在人设后面（26 第四节）。现在只有子会话有，原文是
     /// `core/jobs/subagent-venue.txt`（`agents.md` 第九条第 3 条）；照拼 system 的规矩去掉末尾的空白、空一行。
     #[must_use]
@@ -103,5 +130,61 @@ mod tests {
         assert_eq!(child.system, format!("{persona}\n\nYou are a subagent."));
         let blank = crate::test_support::engineer().with_venue("\n");
         assert_eq!(blank.system, persona, "空的说明不留空行");
+    }
+
+    /// 核心的几行（施工 2-7 补）：两句，一行一句，排在人设、场所说明后面，空一行。
+    fn lines() -> CoreLines {
+        CoreLines {
+            permission: "Permission rule.\n".to_string(),
+            local_paths: "Local paths rule.\n".to_string(),
+        }
+    }
+
+    /// 一件工具：有它，工具面就不是空的。
+    fn a_tool() -> crate::tools::ToolEntry {
+        serde_json::from_str(r#"{"name":"read","description":"Read.","parameters":{"type":"object"},"access":"read"}"#)
+            .unwrap()
+    }
+
+    #[test]
+    fn the_core_lines_come_after_the_persona_and_the_venue() {
+        let persona = crate::test_support::engineer().system;
+        let main = crate::test_support::engineer()
+            .with_tools(vec![a_tool()])
+            .with_core_lines(&lines());
+        assert_eq!(
+            main.system,
+            format!("{persona}\n\nPermission rule.\nLocal paths rule.")
+        );
+        let child = crate::test_support::engineer()
+            .with_tools(vec![a_tool()])
+            .with_venue("You are a subagent.\n")
+            .with_core_lines(&lines());
+        assert_eq!(
+            child.system,
+            format!("{persona}\n\nYou are a subagent.\n\nPermission rule.\nLocal paths rule.")
+        );
+    }
+
+    #[test]
+    fn a_session_without_tools_has_no_permission_line() {
+        let persona = crate::test_support::engineer().system;
+        let bare = crate::test_support::engineer().with_core_lines(&lines());
+        assert_eq!(bare.system, format!("{persona}\n\nLocal paths rule."));
+    }
+
+    #[test]
+    fn without_the_core_lines_the_system_is_as_before() {
+        let tooled = crate::test_support::engineer().with_tools(vec![a_tool()]);
+        assert_eq!(tooled.system, "You are a helpful software engineer.");
+        let empty = CoreLines {
+            permission: "\n".to_string(),
+            local_paths: String::new(),
+        };
+        assert_eq!(
+            tooled.clone().with_core_lines(&empty).system,
+            tooled.system,
+            "空的几行不留空行"
+        );
     }
 }

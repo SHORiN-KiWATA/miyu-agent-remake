@@ -10,6 +10,7 @@
 
 mod compose;
 mod drivers;
+mod facts;
 mod guard;
 mod harness;
 mod image_name;
@@ -20,13 +21,15 @@ mod recap;
 mod shorten;
 mod snapshot;
 mod text_file;
+mod title;
 mod tools;
 
 #[cfg(test)]
 mod test_support;
 
-pub use compose::{PersonaTexts, Sources, compose};
+pub use compose::{CoreLines, PersonaTexts, Sources, compose};
 pub use drivers::DriverPlaceholders;
+pub use facts::FactTexts;
 pub use guard::GuardTexts;
 pub use harness::HarnessTexts;
 pub use image_name::ImageNameTexts;
@@ -36,8 +39,9 @@ pub use rebuild::{REBUILD, RebuildNumbers, RebuildTexts};
 pub use recap::{RECAP, RecapNumbers, RecapTexts};
 pub use shorten::{SHORTEN, ShortenNumbers, ShortenTexts};
 pub use snapshot::{
-    BuildError, CompactionNumbers, CompactionTexts, CoreTexts, FactTexts, PermissionTexts,
-    Snapshot, SnapshotError, ToolResultTexts, TurnEndedTexts,
+    BuildError, CompactionNumbers, CompactionTexts, CoreTexts, PermissionTexts, Snapshot,
+    SnapshotError, ToolResultTexts, TurnEndedTexts,
 };
 pub use text_file::TextFileTexts;
+pub use title::{TITLE, TitleNumbers, TitleTexts};
 pub use tools::{RunTexts, ToolEntry};

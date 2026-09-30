@@ -42,6 +42,18 @@ pub struct Texts {
     pub harness: Option<HarnessTexts>,
     /// 回顾的请求要用的（`core/recap/`，施工 3-8 四补）。以前造的快照里没有，是没有：那些会话不做回顾。
     pub recap: Option<Recap>,
+    /// 起标题的请求要用的（`core/title/`，施工 3-8 五补）：对话记录的标签和截断的记号借回顾的，两样都有才起标题。以前造的
+    /// 快照里没有，是没有：那些会话不起标题。
+    pub title: Option<Title>,
+}
+
+/// 起标题的请求要用的（施工 3-8 五补，`docs/blueprint/kernel/request.md`「起标题的请求」）：指令，和一个数，是策略数据。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Title {
+    /// 指令（`instruction.txt`）：最后一行是 `Conversation:`，后面紧跟对话记录。
+    pub instruction: String,
+    /// 整份（连指令）最多约多少 token，照本地估算的字节/4 折成字节（出厂 1024）。
+    pub tokens: u64,
 }
 
 /// 回顾的请求要用的（施工 3-8 四补，`docs/blueprint/kernel/request.md`「回顾的请求」）：指令、两种标签、两句记号，照 codex 的

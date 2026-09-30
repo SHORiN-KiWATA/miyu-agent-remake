@@ -18,6 +18,7 @@ mod limits;
 mod listing;
 mod load;
 mod meta;
+mod peers;
 mod permission;
 mod question;
 mod queue;
@@ -30,6 +31,7 @@ mod restore;
 mod revert;
 mod scenario;
 mod spans;
+mod title;
 mod tools;
 mod turn;
 
@@ -187,6 +189,7 @@ fn policy() -> Policy {
             r#"<p l="{level}"/>"#,
             "<reply-cut/>",
             None,
+            None,
         )
         .unwrap(),
         tools: BTreeMap::from([
@@ -238,6 +241,7 @@ fn policy() -> Policy {
             chars: 40,
             omitted: crate::template::Template::parse("[{count} cut]\n").unwrap(),
         },
+        titles: None,
     }
 }
 

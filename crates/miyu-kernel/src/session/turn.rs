@@ -13,7 +13,6 @@ use super::manual::Manual;
 use super::overflow::Passive;
 use super::step::Step;
 use crate::event::{Body, EndReason, Event, TurnEnded, TurnStarted};
-use crate::facts::changed;
 use crate::id::{CommandId, Seq, TurnId};
 use crate::origin::{By, Module};
 use crate::time::Timestamp;
@@ -153,12 +152,15 @@ impl Session {
         self.effective = self.permission.clone();
         // 记在一边的回报这一轮就听到了（施工 7-2）：不再由它们另开一轮。
         self.deferred.clear();
-        let facts = self
-            .policy
-            .facts
-            .boundary(at, &self.environment, &self.permission, &self.id);
+        let facts = self.policy.facts.boundary(
+            &self.history,
+            at,
+            &self.environment,
+            &self.permission,
+            &self.id,
+        );
         let mut events = vec![started];
-        for fact in changed(&self.history, &By::Kernel, facts) {
+        for fact in facts {
             events.push(self.record(at, By::Kernel, cause.clone(), Body::ContextInjected(fact)));
         }
         if let (Some(turn), Some(last)) = (self.turn.as_mut(), events.last()) {
@@ -286,8 +288,9 @@ impl Session {
         ended
     }
 
-    /// `turn.ended` 落了盘的回合：叫执行器跑回合结束的挂接点（广播，不等结果）。
-    pub(super) fn closed(&mut self) -> Vec<Action> {
+    /// `turn.ended` 落了盘的回合，照结束的先后：执行器跑它们回合结束的挂接点（广播，不等结果），答完了的起标题（施工
+    /// 3-8 五补）。
+    pub(super) fn closed(&mut self) -> Vec<TurnId> {
         let Some(stored) = self.stored else {
             return Vec::new();
         };
@@ -295,8 +298,6 @@ impl Session {
             .into_iter()
             .partition(|&(_, ended)| ended <= stored);
         self.closing = waiting;
-        done.into_iter()
-            .map(|(turn, _)| Action::RunTurnEndHooks { turn })
-            .collect()
+        done.into_iter().map(|(turn, _)| turn).collect()
     }
 }

@@ -8,7 +8,7 @@
 
 | 代码 | 管什么 |
 |---|---|
-| `crates/miyu-kernel/src/id.rs` | 十五种用字符串写的编号和名字；序号 `Seq`、回合编号 `TurnId`；内容哈希怎么算（`ContentHash::of`、`Hasher`） |
+| `crates/miyu-kernel/src/id.rs` | 十五种用字符串写的编号和名字；序号 `Seq`、回合编号 `TurnId`；内容哈希怎么算（`ContentHash::of`、`Hasher`）；会话的短编号 `SessionId::short`（施工 C-1） |
 | `crates/miyu-kernel/src/id/call.rs` | 调用编号 `CallId` |
 | `crates/miyu-kernel/src/id/job.rs` | 任务编号 `JobId`（施工 7-1；带上父会话的编号，施工 7-1 补） |
 | `crates/miyu-kernel/src/time.rs` | 时刻 `Timestamp`；时区 `UtcOffset`；给模型看的当地钟点 `local_hour` |
@@ -50,6 +50,12 @@
 | `FileName` | 文件名，给人看的名字，不是路径 | 文件名 | `file name` | `报告.pdf` |
 | `EventKind` | 事件种类 | 事件种类 | `event kind` | `message.user`、`ext.memory.recalled` |
 | `HarnessName` | 别的 harness 报的名字（施工 7-1） | 短名字 | `harness name` | `claude-code` |
+
+**会话的短编号**（施工 C-1，`cross-session.md`）：`SessionId::short()`，会话编号最后 8 个字符，就是最后一段的后 8 位十六进制。`0192f3a0-1111-7abc-8def-001122334455` 的短编号是 `22334455`。
+
+- 为什么取后面：会话编号是 UUIDv7，前 12 位十六进制是造的那一毫秒，前 8 位约 65 秒才变一次，同一分钟里开的几个会话前 8 位一样。最后 32 位是随机数（`uuid` 1.26 的 `ContextV7`：42 位计数器之外的位补随机数）。
+- 从编号算得出，不另存。给模型看的、头显示的、标签里的，都是这一个写法。
+- 撞了：列表里有两个会话的后 8 位一样，这几个写后 12 位（整个最后一段），还一样的写整个编号；标签里一律写 8 位，从 `by` 算，不看撞没撞（前缀要稳）。认的时候收整个编号，或者至少 8 位的小写十六进制，照后缀对。这两样由列会话、认编号的那一步做（施工 C-3），内核只有 `short()`。
 
 **数字的两种**：
 
@@ -105,9 +111,19 @@
 | `model` | 模型：它的回复，连同里面的工具调用 | `endpoint`：经哪个供应商；`model`：模型 | `{"kind":"model","endpoint":"deepseek","model":"deepseek-v4"}` |
 | `tool` | 一次工具调用：执行时引起的 | `call_id`：调用编号 | `{"kind":"tool","call_id":"call_44_1"}` |
 | `module` | 模块，包括扩展 | `id`：模块 | `{"kind":"module","id":"memory"}` |
-| `session` | 另一个会话 | `id`：会话编号 | `{"kind":"session","id":"0192f3a0-1111-7abc-8def-001122334455"}` |
+| `session` | 另一个会话：照它和这个会话的关系分三种（下面） | `id`：会话编号 | `{"kind":"session","id":"0192f3a0-1111-7abc-8def-001122334455"}` |
 | `harness` | 别的 harness：经 `miyu ask --from` 发来的话（`agents.md` 第十一条，施工 7-1） | `name`：它自己报的名字 | `{"kind":"harness","name":"claude-code"}` |
 | `kernel` | 内核自己 | 没有 | `{"kind":"kernel"}` |
+
+`by` 是 `session` 的，照它和这个会话的关系分三种，不另加种类（施工 C-1，`cross-session.md`「谁」）：
+
+| `by` 是 | 是什么 | 照哪条收 |
+|---|---|---|
+| 这个会话的父会话（`session.created` 的 `parent`） | 交代、留言 | 「发一条消息」，子会话欠一份回报（`kernel/session.md`） |
+| 这个会话派的子代理的子会话（`job.started` 的 `session`） | 子代理的留言、回报 | 「子代理的留言」「回报」（`kernel/session.md`） |
+| 别的会话 | 别的会话发来的话、空了的通知 | `cross-session.md` 第四条、第六条 |
+
+- 关系在日志里都查得到，旧核心照样读得懂。现在内核认前两种；别的会话发来的话由施工 C-2 认，`peer.idle` 的 `by` 由账本查（`kernel/history.md`）。
 
 几格的写法照上面的类型：`account` 是 `AccountId`，`venue` 是 `VenueId`，`id` 依次是 `ExternalId`、`ModuleId`、`SessionId`，`endpoint` 是 `ProviderId`，`model` 是 `ModelName`，`call_id` 是 `CallId`，`name` 是 `HarnessName`。
 
@@ -194,6 +210,7 @@
 | 接着写被打断的回复 | 最后一块 `reply_cut` 事实要是 `kernel` 记的 | `kernel/request.md` |
 | `miyu undo` 的回应 | 引起那一轮的是 `person` 发来的 `message.user`，才写出那句话的第一行 | `protocol.md` |
 | 子代理的回报 | `child.reported` 的 `by` 要是那个子会话（`session`） | `kernel/history.md`（施工 7-1） |
+| 空了的通知 | `peer.idle` 的 `by`：`idle` 的是那个会话，`expired`、`gone` 的是内核 | `kernel/history.md`（施工 C-1） |
 
 **内容哈希怎么算**：
 
@@ -220,7 +237,8 @@ bad session id: must be 36 characters (got "x")
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-kernel/src/id/tests.rs` | 图纸上的例子读写一字不差（`samples_from_the_drawing_round_trip`、`names_from_the_drawing_round_trip`）；会话编号（`session_id_must_be_lowercase_uuid_text`）；短名字（`command_id_is_short_printable_text`、`short_names_are_opaque_but_bounded`）；路径里的名字（`account_is_like_a_linux_login_name`、`module_driver_and_fact_names_follow_the_account_rule`）；内容哈希的写法和算法（`content_hash_is_sha256_in_lowercase_hex`、`content_hash_of_known_contents`、`hashing_piece_by_piece_is_the_same_as_all_at_once`）；媒体类型、文件名、事件种类各自的规则；序号和回合编号（`seq_starts_at_one`、`turn_id_reads_like_a_seq`）；调用编号第 9 到 12 条（`call_id_accepts_only_what_the_kernel_writes`）；任务编号第 25、26 条和排序（`job_id_accepts_only_what_the_kernel_writes`、`job_ids_sort_by_number`，施工 7-1；几段的、`under`、`last`，施工 7-1 补）；报错的样子和 80 个字符（`error_says_what_why_and_what_was_read`、`long_text_in_errors_is_cut`） |
+| `crates/miyu-kernel/src/id/tests.rs` | 图纸上的例子读写一字不差（`samples_from_the_drawing_round_trip`、`names_from_the_drawing_round_trip`）；会话编号（`session_id_must_be_lowercase_uuid_text`）；短名字（`command_id_is_short_printable_text`、`short_names_are_opaque_but_bounded`）；路径里的名字（`account_is_like_a_linux_login_name`、`module_driver_and_fact_names_follow_the_account_rule`）；内容哈希的写法和算法（`content_hash_is_sha256_in_lowercase_hex`、`content_hash_of_known_contents`、`hashing_piece_by_piece_is_the_same_as_all_at_once`）；媒体类型、文件名、事件种类各自的规则；序号和回合编号（`seq_starts_at_one`、`turn_id_reads_like_a_seq`）；会话的短编号（`a_short_session_id_is_its_last_eight_characters`，施工 C-1）；调用编号第 9 到 12 条（`call_id_accepts_only_what_the_kernel_writes`）；任务编号第 25、26 条和排序（`job_id_accepts_only_what_the_kernel_writes`、`job_ids_sort_by_number`，施工 7-1；几段的、`under`、`last`，施工 7-1 补）；报错的样子和 80 个字符（`error_says_what_why_and_what_was_read`、`long_text_in_errors_is_cut`） |
+| `crates/miyu-session/src/clock/tests.rs` 的 `ids_made_together_differ_in_their_short_form`（施工 C-1） | 真造的编号：同一刻连造的几个前 8 位一样，短编号是最后 8 位、各不一样。内核不造编号，所以放在造编号的那一层 |
 | `crates/miyu-kernel/src/time/tests.rs` | 图纸上的例子；几个标准时刻和两头的界（`well_known_moments`、`years_outside_0000_to_9999_are_refused`）；闰年；1600 年到 2400 年一天一天数过去和换算对得上；第 13 到 17 条每种坏写法；时区的写法和范围；第 18 条当地钟点（`the_local_hour_is_the_wall_clock_to_the_hour`；23 点到 24 点 `the_last_hour_of_a_day_ends_at_24`，施工 1-13 补）；七天的写法 |
 | `crates/miyu-kernel/src/origin/tests.rs` | 八种读写一字不差、各读成自己那一种；不认识的一字不差；认识的种类多出来的格不管；第 19 条的几种坏写法；`harness` 的名字照短名字的规则（施工 7-1） |
 | `xtask/src/purity.rs`（门禁「纯逻辑」） | 内核的 `src/` 里没有 `SystemTime`、`Instant`：不读时钟 |
@@ -234,10 +252,12 @@ bad session id: must be 36 characters (got "x")
 - `07-存储.md` 第五节：blob 的文件名是去掉 `sha256:` 的 64 位。
 - `08-上下文投影.md` 第五节「环境和状态的事实怎么写」：时间到小时、时区写成 `UTC+09:00`。
 - `agents.md`「对外的样子」：任务编号 `j1`、`j2`，`by` 多一种 `harness`（施工 7-1）；子会话派的带上它在父会话里的编号（施工 7-1 补）。
+- `cross-session.md`「会话的短编号」「谁」：短编号取后 8 位，`session` 分三种关系（施工 C-1，2026-10-01 项目主人批准图纸）。
 
 ### 还没有的
 
 - 到分钟的当地时间：通讯平台、桌面语音这类场所用（`08-上下文投影.md` 第五节「环境和状态的事实怎么写」的「还没有的」）。
 - `external` 这种 `by` 读得懂，还没有哪里造：通讯平台（`18-通讯平台.md`）做到时才有。`session` 由子会话造（施工 7-5 起），`harness` 由 `session.send` 的 `from` 造（施工 7-10）。
 - 按 `by` 判权限：现在只有本机的管理员，执行前的链不看 `by`（`06-多用户与身份.md` 第五节）。
+- 短编号撞了放长、照后缀认编号：施工 C-3（`cross-session.md`「会话的短编号」）。
 - 远程连接、成员账号、扩展身份（`06-多用户与身份.md` 第二节）。

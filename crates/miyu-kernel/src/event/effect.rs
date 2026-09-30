@@ -1,9 +1,10 @@
 //! 效果（`docs/designs/10-自带软件.md` 第五节、`03-事件模型.md` 第三节，施工 4-6 上）：随 `tool.result` 记进
 //! 日志，给内核和头看，不发给模型。diff、撤销、改之前的核对、压缩后的工作集都照它们算。
 //!
-//! 认识的五种读成对应的类型；不认识的（第三方的工具报来的）整块原样留着，内核不解读。`job.started` 是派出去一个
+//! 认识的六种读成对应的类型；不认识的（第三方的工具报来的）整块原样留着，内核不解读。`job.started` 是派出去一个
 //! 任务的记录（施工 7-1，`agents.md`）：派它的那次调用本身就在历史里，不另记事件。`job.messaged` 是给子代理留了言的
-//! 记录（施工 7-7）：它欠一份回报。
+//! 记录（施工 7-7）：它欠一份回报。`peer.watch` 是订了「空了告诉我」的记录（施工 C-1，`cross-session.md`）：账本照它算在
+//! 等哪几个会话。
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -30,6 +31,9 @@ pub enum Effect {
     /// 给自己派的一个子代理留了言（施工 7-7）：它欠一份回报。
     #[serde(rename = "job.messaged")]
     JobMessaged(JobMessaged),
+    /// 订了别的会话的「空了告诉我」（施工 C-1）。
+    #[serde(rename = "peer.watch")]
+    PeerWatch(PeerWatch),
     /// 不认识的种类：整块原样留着，写出去还是原样。
     #[serde(untagged)]
     Unknown(RawJson),
@@ -93,6 +97,15 @@ pub struct JobMessaged {
     pub job: JobId,
 }
 
+/// `peer.watch`：`send_message` 订了「空了告诉我」，那次调用报一条（施工 C-1，`cross-session.md`「效果 peer.watch」）。
+/// 这就是订的记录，不另记事件：账本照它算在等哪几个会话、从这条结果的时刻算起；订的不是这个会话自己，也由账本查
+/// （`kernel/history.md`）。被等的那一边不记。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PeerWatch {
+    /// 被等的会话的整个编号。
+    pub session: SessionId,
+}
+
 text_enum!(
     /// 派出去的任务是什么。不认识的是新版本才有的，账本不查它带不带会话，两种回报都对不上它。
     JobKind {
@@ -115,6 +128,7 @@ impl<'de> Deserialize<'de> for Effect {
                     "file.trashed" => raw::parse(json).map(Effect::FileTrashed),
                     "job.started" => raw::parse(json).map(Effect::JobStarted),
                     "job.messaged" => raw::parse(json).map(Effect::JobMessaged),
+                    "peer.watch" => raw::parse(json).map(Effect::PeerWatch),
                     _ => return None,
                 })
             },

@@ -24,6 +24,11 @@ mod renamed;
 
 /// 场所说明的原文。
 const VENUE: &str = include_str!("../../../resources/core/jobs/subagent-venue.txt");
+/// 核心的几行（施工 2-7 补）：权限那一句、本机文件的路径那一句，一行一句。
+const LINES: &str = concat!(
+    include_str!("../../../resources/core/permission-rule.txt"),
+    include_str!("../../../resources/core/local-paths-rule.txt"),
+);
 
 /// 假的会话表：记下要它造的子会话、发的命令。造的第 n 个子会话编号末位是 n；`failing` 里的第几次造不成。
 #[derive(Default)]
@@ -357,16 +362,20 @@ fn child_at(depth: u32) -> Lines {
 #[tokio::test]
 async fn only_local_sessions_below_the_depth_limit_can_spawn() {
     let persona = "You are a helpful software engineer.";
-    // 主会话：有 `subagent`、没有以前的名字 `agent`（施工 7-5 再补），system 只有人设。
+    let lines = LINES.trim_end();
+    // 主会话：有 `subagent`、没有以前的名字 `agent`（施工 7-5 再补），system 是人设和核心的几行（施工 2-7 补）。
     let table = Arc::new(Table::default());
     let (request, _) = first_request(Lines::default(), &table).await;
     assert!(names(&request).contains(&"subagent"));
     assert!(!names(&request).contains(&"agent"), "{:?}", names(&request));
-    assert_eq!(request.system, persona);
-    // 第 1 层：还能派孙代理；system 接上场所说明。
+    assert_eq!(request.system, format!("{persona}\n\n{lines}"));
+    // 第 1 层：还能派孙代理；场所说明接在人设后面，核心的几行在最后。
     let (request, _) = first_request(child_at(1), &table).await;
     assert!(names(&request).contains(&"subagent"));
-    assert_eq!(request.system, format!("{persona}\n\n{}", VENUE.trim_end()));
+    assert_eq!(
+        request.system,
+        format!("{persona}\n\n{}\n\n{lines}", VENUE.trim_end())
+    );
     assert_eq!(table.made().len(), 2);
     assert_eq!(table.made()[1].lineage.depth, 2, "孙代理是第 2 层");
 

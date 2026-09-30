@@ -4,7 +4,7 @@
 
 翻这个会话自己的日志：按关键词找，按序号读，也能按时间、谁说的筛。压缩换出去的旧内容都还在日志里，她用它取回（`09-压缩.md` Z1）。只读这个会话自己的日志，不碰文件，不报效果。
 
-状态：6-4 做好了（2026-09-29）：关键词加筛选，读会话自己的整份日志，压缩换出去的找得回。施工定下的技术细节写在各节里；向量一路、索引见「还没有的」。
+状态：6-4 做好了（2026-09-29）：关键词加筛选，读会话自己的整份日志，压缩换出去的找得回。2-7 补（2026-10-01）列出人切权限级别。施工定下的技术细节写在各节里；向量一路、索引见「还没有的」。
 
 ### 在哪
 
@@ -13,7 +13,7 @@
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu-basesystem/src/history.rs` | 参数、读日志、筛 |
-| `crates/miyu-basesystem/src/history/entry.rs` | 哪些算一条、一条的原文怎么写、「谁」那一格（别的 harness 发来的写名字，施工 7-10） |
+| `crates/miyu-basesystem/src/history/entry.rs` | 哪些算一条、一条的原文怎么写、「谁」那一格（别的 harness 发来的写名字，施工 7-10）；人切权限级别的那一条（施工 2-7 补） |
 | `crates/miyu-basesystem/src/history/page.rs` | 找、读：一页怎么写、往下翻、整页上限、摘一段 |
 | `crates/miyu-basesystem/src/history/time.rs` | `since`、`until` 的写法 |
 | `crates/miyu-kernel/src/history.rs` | `History::whole()`：留着压缩替代掉的，撤销、恢复、撤回照有效历史的规矩算（`kernel/history.md`） |
@@ -22,7 +22,7 @@
 | `crates/miyu-store/src/log/open.rs` | `read_segments`：只读地一段一段读 |
 | `crates/miyu-session/src/tools.rs` | 执行器把这个会话日志的只读入口、会话的时区交给这次调用 |
 | `resources/software/basesystem/tools/history.json` | 说明和参数格式 |
-| `resources/software/basesystem/history/*.txt` | 输出里给她看的几句；`agent.txt` 是别的 harness 发来的那一条的「谁」（施工 7-10） |
+| `resources/software/basesystem/history/*.txt` | 输出里给她看的几句；`agent.txt` 是别的 harness 发来的那一条的「谁」（施工 7-10）；`permission.txt` 是人切权限级别的那一条的原文（施工 2-7 补） |
 | `resources/software/basesystem/human/{zh,en}.json` | 显示名、结果那一句 |
 
 **交给工具的**（施工 6-4）：一次调用的 `Call` 多两格，别的工具不看。
@@ -48,7 +48,7 @@
 | `query` | 否 | 要找的词，空格隔开。有它是「找」，没有是「读」 |
 | `from`、`to` | 否 | 序号的范围，两头都算。没给的是从头、到尾 |
 | `since`、`until` | 否 | 时刻的范围，两头都算，照这个会话的时区：`2026-09-29 14:00`。只写日期的，`since` 是那一天的 0 点，`until` 是那一天的 24 点 |
-| `by` | 否 | 谁说的：`user` 人说的话，`assistant` 她的回复，`tool` 工具结果 |
+| `by` | 否 | 谁说的：`user` 人说的话（人切权限级别也算，施工 2-7 补），`assistant` 她的回复，`tool` 工具结果 |
 | `limit` | 否 | 这一页最多几条，默认 20 |
 
 - 参数照两路检索定下来（2026-09-29 项目主人定）：M6 只有关键词一路；以后接上向量一路，`query` 还是它，只是排名变了（`17-记忆.md` 第四节）。混合召回以关键词匹配为主、向量为辅（2026-09-29 项目主人定）；向量那一路怎么做、开关放哪，做记忆、知识库时再定。
@@ -62,14 +62,15 @@
 | `message.assistant` | 算：正文和工具调用；思考不给 | `assistant` |
 | `tool.result` | 算 | `tool` |
 | `context.compacted` | 算：以前的摘要，以前压缩掉的也找得到。清空的摘要是空的，一个字都没有，不算（施工 6-8 补）；清空以前的照样找得到 | `assistant` |
-| 撤掉的回合里的（里面的压缩也是，施工 6-9）、撤回的消息 | 不算：撤了就跟没说过一样 | |
+| 带 `permission` 的 `session.policy_changed`：人切了权限级别（施工 2-7 补） | 算。「谁」那一格写 `user`，原文照 `history/permission.txt` 写切成了哪一级（`Changed the permission level to <级别>`，级别的写法和事实里的一样：只读开着是 `read_only`，不认识的级别是 `read_only`，`kernel/request.md` 的 `effective_level`）。撤掉的回合里切的也算：撤销不改现在的权限（`kernel/session.md`「切权限级别」第 7 条，施工 2-7 补照内核的算法核对过：载入时照整份日志算，活着时撤销不动它）。只换了策略快照、没带 `permission` 的不算 | `user` |
+| 撤掉的回合里的（里面的压缩也是，施工 6-9）、撤回的消息 | 不算：撤了就跟没说过一样。人切权限级别的除外（上一行） | |
 | 她自己翻记录的那几步：`history` 的调用、结果 | 不算（施工 6-4）：找的时候会找到自己这一次调用（参数里就有要找的词），翻出来的旧结果又和原文重复。回复里别的正文、别的工具调用照算 | |
-| 事实注入、`model.called`、回合和会话的事件、`files.restored` | 不算 | |
+| 事实注入、`model.called`、回合和会话的事件（上面切权限的除外）、`files.restored` | 不算 | |
 
 ### 怎么走
 
 1. 读参数，读不懂的：参数不对。时刻写法不对：时刻写得不对，带上正确的写法。
-2. 从头到尾一段一段读这个会话的日志，照撤销、恢复、撤回算出哪些不算：交给内核的 `History::whole()`，和有效历史同一套规矩，只是压缩替代掉的留着，`context.compacted` 自己也算一条。读不了的：`Could not read the log: <原因>`，算出错。
+2. 从头到尾一段一段读这个会话的日志，照撤销、恢复、撤回算出哪些不算：交给内核的 `History::whole()`，和有效历史同一套规矩，只是压缩替代掉的留着，`context.compacted` 自己也算一条。人切权限级别的那几条不经它，照读来的原样挑出来，和别的照序号排在一起（施工 2-7 补）。读不了的：`Could not read the log: <原因>`，算出错。
 3. 照 `from`、`to`、`since`、`until`、`by` 筛。
 4. **找**（有 `query`）：
    1. 每个词都出现的算命中，不分大小写，照原样比，中文不分词。
@@ -89,6 +90,7 @@
 - 人说的话、工具结果：正文照原样；图片写 `[image]`，文件写 `[file <名字>]`（`history/image.txt`、`history/file.txt`）。
 - 她的回复：正文照原样，每个工具调用一行 `→ <工具名> <参数原文>`；思考不给。
 - 以前的摘要：摘要正文。
+- 人切了权限级别：`Changed the permission level to <级别>`（施工 2-7 补）。
 
 - M6 不建索引，每次从头读：会话再长，日志也就几十兆，先量；慢了再建。全文索引随记忆、知识库那一套一起做（`07-存储.md` 第七节、`19-知识库.md`）。
 - 日志里的原文是别人写的（工具输出、网页），当数据给她看，和当时她看到的是同一份。
@@ -137,6 +139,7 @@
 | `crates/miyu-kernel/src/history/tests.rs` | `History::whole()`：压缩替代掉的留着，摘要也是一条；撤销、恢复、撤回和有效历史一样；撤掉压缩所在的那一轮，摘要跟着不算（施工 6-9） |
 | `crates/miyu-store/src/log/tests.rs` | `read_segments`：一段一段交、叫停就不读下去、半行跳过不截 |
 | `crates/miyu-session/tests/history.rs` | 真的会话：压缩以后 `history` 找得到压缩以前的话，时刻照会话的时区 |
+| `crates/miyu-basesystem/src/history/tests/permission.rs`（施工 2-7 补） | 人切权限级别：找、读都列出，「谁」是 `user`、原文写切成的那一级；筛 `user` 时在里面，筛 `assistant`、`tool` 时不在；撤掉的回合里切的照样列，只读开着写只读，只换了策略快照的不算。样本会话里的 52、63 两条跟着出现在 `tests.rs`、`read.rs` 的清单里 |
 | `crates/miyu-basesystem/src/history/tests/harness.rs`（施工 7-10） | 别的 harness 发来的话：找、读的「谁」那一格写名字、名字照规矩转义；筛 `user` 时在里面，筛 `assistant`、`tool` 时不在 |
 | `crates/miyu-basesystem/tests/human_history.rs` | 每一种结果的说法，两种语言都换得出字，显示名也有 |
 | 真模型实测（M6 验收） | 压缩以后问她压缩前的细节，她会用 `history` 取回 |

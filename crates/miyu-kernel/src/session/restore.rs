@@ -139,10 +139,11 @@ pub(super) fn undo(reverted: &[Event], history: &[Event]) -> Vec<Step> {
                         Some(Place::Back(_)) => return None,
                     },
                 ),
-                // 派出去的任务不是改文件：撤销时停下它们随 7-8（`agents.md` 第七条）。
+                // 派出去的任务不是改文件：撤销时停下它们随 7-8（`agents.md` 第七条）。订别的会话也不是（施工 C-1）。
                 Effect::FileRead(_)
                 | Effect::JobStarted(_)
                 | Effect::JobMessaged(_)
+                | Effect::PeerWatch(_)
                 | Effect::Unknown(_) => return None,
             };
             Some(Step {
@@ -183,10 +184,11 @@ pub(super) fn redo(unreverted: &[Event], history: &[Event]) -> Vec<Step> {
                         None | Some(Place::Trash(_)) => return None,
                     },
                 ),
-                // 派出去的任务不是改文件：撤销时停下它们随 7-8（`agents.md` 第七条）。
+                // 派出去的任务不是改文件：撤销时停下它们随 7-8（`agents.md` 第七条）。订别的会话也不是（施工 C-1）。
                 Effect::FileRead(_)
                 | Effect::JobStarted(_)
                 | Effect::JobMessaged(_)
+                | Effect::PeerWatch(_)
                 | Effect::Unknown(_) => return None,
             };
             Some(Step {

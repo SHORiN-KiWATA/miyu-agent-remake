@@ -12,6 +12,8 @@
 //!   测试照它在进程里走一遍（施工 6-8）；
 //! - [`Recap`]：`miyu recap` 的参数；[`recap()`]：要一句回顾，印出来，交回退出码；[`recap_on`]：在连上了的连接上要一次，
 //!   测试照它在进程里走一遍（施工 3-8 四补）；
+//! - [`Rename`]：`miyu rename` 的参数；[`rename()`]：给会话起名，交回退出码；[`rename_on`]：在连上了的连接上起一次名，
+//!   测试照它在进程里走一遍（施工 3-8 五补）；
 //! - [`Sandbox`]：`miyu sandbox setup`、`remove` 的参数；[`sandbox()`]：Windows 上装好、撤掉沙盒用户，交回退出码
 //!   （施工 5-8）；
 //! - [`language`]：给人看的话跟着界面语言。
@@ -24,6 +26,7 @@ mod link;
 mod misuse;
 mod recap;
 mod redo;
+mod rename;
 mod rpc;
 mod sandbox;
 mod shown;
@@ -34,5 +37,6 @@ pub use compact::{Compact, CompactPlan, compact, compact_on};
 pub use misuse::misuse;
 pub use recap::{Recap, RecapPlan, recap, recap_on};
 pub use redo::{Redo, RedoPlan, redo, redo_on};
+pub use rename::{Rename, RenamePlan, rename, rename_on};
 pub use sandbox::{Action as SandboxAction, OwnerArgs, Sandbox, sandbox};
 pub use undo::{Direction, Undo, UndoPlan, undo, undo_on};

@@ -10,7 +10,7 @@
 //! 4. 人这一边挨着的块合成一条 user 消息：检查点最前，事实其次，人的消息最后。
 //!
 //! 压缩的摘要请求也在这里组装：截到第 N 条照平常组装，最后接摘要指令（`summary.rs`）。回顾的请求也是（`recap.rs`，施工 3-8
-//! 四补），它不接稳定区，只喂最近几轮的对话正文。
+//! 四补），它不接稳定区，只喂最近几轮的对话正文；起标题的请求照它的写法只喂第一轮（`title.rs`，施工 3-8 五补）。
 //!
 //! 冻结在会话上的东西，也就是稳定区和给模型看的几句固定的字，在造组装器的时候交进来，
 //! 一个会话一个（内核 K3）。这里不读文件：出厂的字由执行器从资源目录读好交进来。
@@ -22,11 +22,12 @@ mod render;
 mod summary;
 mod tag;
 mod texts;
+mod title;
 
 #[cfg(test)]
 mod test_support;
 
-pub use texts::{HarnessTexts, JobTexts, Recap, RestoredWrap, Texts, TurnEndedTexts};
+pub use texts::{HarnessTexts, JobTexts, Recap, RestoredWrap, Texts, Title, TurnEndedTexts};
 
 use miyu_kernel::assemble::Assembler;
 use miyu_kernel::block::Block;
@@ -122,6 +123,11 @@ impl Assembler for DefaultAssembler {
     /// 回顾的请求（施工 3-8 四补，`recap.rs`）：不接稳定区，一条 user，指令接对话记录。快照里没有回顾的字的，没有。
     fn recap(&self, history: &History) -> Option<(Request, Seq)> {
         recap::request(history, &self.texts)
+    }
+
+    /// 起标题的请求（`title.rs`，施工 3-8 五补）：只喂第一轮，一条 user，不接稳定区。
+    fn title(&self, history: &History) -> Option<(Request, Seq)> {
+        title::request(history, &self.texts)
     }
 }
 

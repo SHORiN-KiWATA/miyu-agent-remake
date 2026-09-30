@@ -15,6 +15,7 @@ fn with_session() -> Policy {
         r#"<p l="{level}"/>"#,
         "<reply-cut/>",
         Some(r#"<s i="{id}"/>"#),
+        None,
     )
     .unwrap();
     policy

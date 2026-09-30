@@ -23,20 +23,20 @@ async fn entries_come_in_order_with_calls_written_out() {
 #[tokio::test]
 async fn the_next_page_starts_after_the_last_shown() {
     let done = run_on(sample(), json!({"limit": 2})).await;
-    assert_eq!(seqs(&done), [54, 55]);
+    assert_eq!(seqs(&done), [52, 54]);
     assert!(
-        text(&done).ends_with("(Showing entries 54-55. Use from=56 to continue.)\n"),
+        text(&done).ends_with("(Showing entries 52-54. Use from=55 to continue.)\n"),
         "{}",
         text(&done)
     );
     assert!(
-        human(&done).contains("\"54\"") && human(&done).contains("\"55\""),
+        human(&done).contains("\"52\"") && human(&done).contains("\"54\""),
         "{}",
         human(&done)
     );
     let done = run_on(sample(), json!({"limit": 3, "from": 56})).await;
-    assert_eq!(seqs(&done), [64, 67, 71]);
-    assert!(text(&done).ends_with("(Showing entries 64-71. Use from=72 to continue.)\n"));
+    assert_eq!(seqs(&done), [63, 64, 67]);
+    assert!(text(&done).ends_with("(Showing entries 63-67. Use from=68 to continue.)\n"));
     // 读到最后一页，不写往下翻那一句。
     let done = run_on(sample(), json!({"from": 80})).await;
     assert_eq!(seqs(&done), [81, 82]);

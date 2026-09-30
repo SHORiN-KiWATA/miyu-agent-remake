@@ -1,4 +1,38 @@
 {
+  "config": {
+    "items": {
+      "log.level": {
+        "name": "Runtime log level",
+        "description": "How much the runtime log records. Set debug when chasing a problem. MIYU_LOG, when set, wins for that launch.",
+        "options": {
+          "error": "Errors only",
+          "warn": "Errors and warnings",
+          "info": "What happens",
+          "debug": "More detail, for debugging",
+          "trace": "Everything",
+          "off": "Nothing"
+        }
+      },
+      "ui.language": {
+        "name": "Interface language",
+        "description": "The language terminals, the web page and the command line use for you. auto follows the terminal or browser.",
+        "options": {
+          "auto": "Follow the system",
+          "zh": "中文",
+          "en": "English",
+          "ja": "日本語"
+        }
+      }
+    },
+    "pages": {
+      "general": "General",
+      "advanced": "Advanced"
+    },
+    "groups": {
+      "display": "Display",
+      "log": "Runtime log"
+    }
+  },
   "said": {
     "tool-results/unknown": "no such tool",
     "tool-results/not-an-object": "the arguments are not a JSON object",
@@ -16,6 +50,17 @@
     "tool-results/unavailable": "not available right now",
     "tool-results/crashed": "crashed, may be partly done",
     "permissions/forbidden": "Miyu's own data, off limits",
-    "permissions/unresolvable": "can't tell where it points: {reason}"
+    "permissions/unresolvable": "can't tell where it points: {reason}",
+    "config/reference-header": "Every Miyu setting and its default. This file is generated. Editing it has no effect.",
+    "config/reference-where": "Write the system config in system/config.toml and personal settings in home/<account>/settings.toml.",
+    "config/reference-item": "{name}: {description}",
+    "config/facts": "Allowed: {values}. Only in {layers}. {applies}.",
+    "config/schema-description": "{description} {facts}",
+    "config/layer/system": "the system config",
+    "config/layer/personal": "personal settings",
+    "config/applies/now": "Takes effect at once",
+    "config/or": "{rest} or {last}",
+    "config/or-values": "{rest} or {last}",
+    "config/list": "{rest}, {next}"
   }
 }

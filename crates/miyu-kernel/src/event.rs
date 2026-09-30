@@ -16,6 +16,7 @@ mod effect;
 mod job;
 mod message;
 mod model;
+mod peer;
 mod question;
 mod restore;
 mod session;
@@ -26,13 +27,16 @@ mod turn;
 pub use context::{
     CompactTrigger, CompactionPaused, ContextCompacted, ContextInjected, PauseReason, RestoredFile,
 };
-pub use effect::{Effect, FileChanged, FileRead, FileTrashed, JobKind, JobMessaged, JobStarted};
+pub use effect::{
+    Effect, FileChanged, FileRead, FileTrashed, JobKind, JobMessaged, JobStarted, PeerWatch,
+};
 pub use job::{ChildReason, ChildReported, JobReason, JobReported};
 pub use message::{MessageAssistant, MessageUser, MessageWithdrawn};
 pub use model::{
     BlockSpan, CallError, CallResult, ErrorClass, FirstDifference, MessageRole, ModelCalled, Part,
     Purpose, Usage,
 };
+pub use peer::{IdleReason, PeerIdle};
 pub use question::{Choice, Question, QuestionAnswered, QuestionAsked, Response, fits};
 pub use restore::{FilesRestored, RestoreAction, RestoreOutcome, Restored};
 pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated, SessionRecapped};
@@ -160,6 +164,8 @@ bodies! {
     JobReported = "job.reported",
     /// 子会话的回报（施工 7-1）。
     ChildReported = "child.reported",
+    /// 等的那个会话空下来了，或者等不到了（施工 C-1）。
+    PeerIdle = "peer.idle",
 }
 
 impl Event {

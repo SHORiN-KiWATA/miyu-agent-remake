@@ -10,7 +10,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use miyu_kernel::event::{Body, ChildReported, Effect, Event, JobKind, JobStarted};
+use miyu_kernel::event::{Body, ChildReported, Effect, Event, IdleReason, JobKind, JobStarted};
 use miyu_kernel::id::JobId;
 use miyu_kernel::origin::By;
 
@@ -175,4 +175,44 @@ fn the_child_in_the_samples_is_the_one_the_parent_started() {
             started_as(&reported.job, JobKind::Command);
         }
     }
+}
+
+/// 跨会话的几条对得上（施工 C-1，`cross-session.md`「事件 peer.idle」）：每一条 `peer.idle` 等的会话，前面有一次调用报了
+/// `peer.watch` 订它；`idle` 的 `by` 是那个会话，`expired`、`gone` 的是内核。样本里一条空了的、一条作废的。
+#[test]
+fn the_notices_in_the_samples_answer_the_watches() {
+    let mut events: Vec<Event> = events()
+        .into_iter()
+        .filter(|event| !in_the_child_log(event))
+        .collect();
+    events.sort_by_key(|event| event.seq);
+    let mut watched = Vec::new();
+    let mut reasons = Vec::new();
+    for event in &events {
+        match &event.body {
+            Body::ToolResult(result) => {
+                watched.extend(result.effects.iter().filter_map(|effect| match effect {
+                    Effect::PeerWatch(watch) => Some(watch.session.clone()),
+                    _ => None,
+                }));
+            }
+            Body::PeerIdle(notice) => {
+                assert!(
+                    watched.contains(&notice.session),
+                    "{} 号等的会话前面没订过",
+                    event.seq
+                );
+                let by = match notice.reason {
+                    IdleReason::Idle => {
+                        matches!(&event.by, By::Session(by) if by.id == notice.session)
+                    }
+                    _ => matches!(event.by, By::Kernel),
+                };
+                assert!(by, "{} 号的 by 对不上：{:?}", event.seq, event.by);
+                reasons.push(notice.reason.clone());
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(reasons, [IdleReason::Idle, IdleReason::Expired]);
 }

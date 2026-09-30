@@ -12,9 +12,9 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use miyu_policy::{
-    CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts, HarnessTexts, ImageNameTexts,
-    JobTexts, PermissionTexts, PersonaTexts, RebuildTexts, RecapTexts, ShortenTexts, Sources,
-    TextFileTexts, ToolResultTexts, TurnEndedTexts,
+    CompactionTexts, CoreLines, CoreTexts, DriverPlaceholders, FactTexts, HarnessTexts,
+    ImageNameTexts, JobTexts, PermissionTexts, PersonaTexts, RebuildTexts, RecapTexts,
+    ShortenTexts, Sources, TextFileTexts, TitleTexts, ToolResultTexts, TurnEndedTexts,
 };
 
 use crate::env::Env;
@@ -165,6 +165,19 @@ impl ResourceRoot {
         self.read(&["core", "jobs", "subagent-venue.txt"])
     }
 
+    /// 核心的几行（施工 2-7 补，`26-提示词.md` 第四节第 3 块）：`core/permission-rule.txt`、`core/local-paths-rule.txt` 的
+    /// 原文，造会话时拼进 system（`Snapshot::with_core_lines`）。只在造会话时读：以前造的快照 system 里没有它们。
+    ///
+    /// # Errors
+    ///
+    /// 读不了其中一份，写明是哪一份。
+    pub fn core_lines(&self) -> Result<CoreLines, SourceError> {
+        Ok(CoreLines {
+            permission: self.read(&["core", "permission-rule.txt"])?,
+            local_paths: self.read(&["core", "local-paths-rule.txt"])?,
+        })
+    }
+
     /// 随核心附带的字。
     fn core(&self) -> Result<CoreTexts, SourceError> {
         let core = |parts: &[&str]| {
@@ -193,6 +206,7 @@ impl ResourceRoot {
                 permission: fact("permission.txt")?,
                 reply_cut: fact("reply-cut.txt")?,
                 session: Some(fact("session.txt")?),
+                permission_changed: Some(fact("permission-changed.txt")?),
             },
             tool_results: ToolResultTexts {
                 unknown: result("unknown.txt")?,
@@ -277,6 +291,9 @@ impl ResourceRoot {
                 assistant: core(&["recap", "assistant.txt"])?,
                 omitted: core(&["recap", "omitted.txt"])?,
                 excerpted: core(&["recap", "excerpted.txt"])?,
+            }),
+            title: Some(TitleTexts {
+                instruction: core(&["title", "instruction.txt"])?,
             }),
         })
     }

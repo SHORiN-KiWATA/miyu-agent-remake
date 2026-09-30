@@ -77,6 +77,20 @@ text_id!(
     check_session
 );
 
+/// 会话的短编号有几个字符（`kernel/ids.md`「会话的短编号」）。
+const SHORT_SESSION: usize = 8;
+
+impl SessionId {
+    /// 会话的短编号（施工 C-1，`kernel/ids.md`「会话的短编号」）：编号最后 8 个字符，就是最后一段的后 8 位十六进制。
+    ///
+    /// 取后面是因为会话编号是 UUIDv7：前 8 位是那一毫秒的前 32 位，约 65 秒才变一次，同一分钟里开的几个会话一样；最后
+    /// 32 位是随机数。从编号算得出，不另存。给模型看的、头显示的、标签里的都是这一个写法。撞了放长、认的时候照后缀对，
+    /// 是列会话、认编号那边的事（`cross-session.md`）。
+    pub fn short(&self) -> &str {
+        &self.0[self.0.len() - SHORT_SESSION..]
+    }
+}
+
 text_id!(
     /// 命令编号：发送方生成，1 到 128 字节，不含控制字符。它会写进每一条事件的 `cause`。
     CommandId,

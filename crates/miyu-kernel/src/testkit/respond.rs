@@ -38,8 +38,12 @@ impl Stage {
                 injected: self.injections.pop_front().unwrap_or_default(),
             }],
             Action::CallModel { seen, request, .. } => self.call(seen, request),
-            // 回顾（施工 3-8 四补）：照回顾的剧本回，`recap.rs`。
-            Action::Recap { upto, request } => self.recap_call(upto, request),
+            // 回顾（施工 3-8 四补）、起标题（五补）：照各自的剧本回，`aside.rs`。
+            Action::Aside {
+                purpose,
+                upto,
+                request,
+            } => self.aside_call(purpose, upto, request),
             Action::Wake { at, seen } if self.hold_wakes => {
                 self.held_wake = Some((at, seen));
                 Vec::new()

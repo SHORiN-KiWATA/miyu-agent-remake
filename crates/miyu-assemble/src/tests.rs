@@ -147,6 +147,21 @@ fn a_recap_after_the_notice_still_continues() {
     assert!(assemble(&log).continuation);
 }
 
+/// 被打断的那一句后面内核起了标题（施工 3-8 五补：上一轮起的标题在这一轮中途才回来）：改标题不进上下文，照样接着写。
+#[test]
+fn a_title_after_the_notice_still_continues() {
+    let mut log = cut_log();
+    notice(&mut log);
+    let seen = log.next() - 1;
+    log.detached(
+        KERNEL,
+        "model.called",
+        &format!(r#"{{"seen":{seen},"messages":1,"result":"ok","purpose":"title"}}"#),
+    );
+    log.detached(KERNEL, "session.meta_changed", r#"{"title":"数数"}"#);
+    assert!(assemble(&log).continuation);
+}
+
 #[test]
 fn a_cut_without_the_notice_is_not_a_continuation() {
     // 人打断的：半截后面是回合结束，没有被打断的那一句。

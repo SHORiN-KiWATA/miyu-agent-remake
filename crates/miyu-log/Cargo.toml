@@ -14,6 +14,8 @@ tracing = { version = "0.1", default-features = false, features = ["std", "relea
 tracing-subscriber = { version = "0.3", default-features = false, features = ["registry", "std"] }
 # 本机时间和时区，三个平台都认系统时区。
 jiff = "0.2"
+# 配置项 `log.level` 照配置清单声明（施工 8-1）。
+miyu-config = { path = "../miyu-config" }
 
 [lints]
 workspace = true

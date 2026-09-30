@@ -1,7 +1,7 @@
 //! 出厂的英文：组装器要的固定字、驱动的占位，资源目录里的真文件（施工 7-2 从 `mod.rs` 挪出来，加上回报的写法；驱动的占位
 //! 3-9 四补挪来；别的 harness 发来的话的标签，施工 7-10）。
 
-use miyu_assemble::{HarnessTexts, JobTexts, Recap, RestoredWrap, Texts, TurnEndedTexts};
+use miyu_assemble::{HarnessTexts, JobTexts, Recap, RestoredWrap, Texts, Title, TurnEndedTexts};
 use miyu_drivers::{DriverTextSources, DriverTexts, ImageNameSources, TextFileSources};
 use miyu_kernel::template::Template;
 
@@ -13,6 +13,12 @@ pub const SUMMARIZE: &str = concat!(
 
 /// 子代理的场所说明（施工 7-5）：出厂的原文，子会话的 system 接在人设后面。
 pub const VENUE: &str = include_str!("../../../../resources/core/jobs/subagent-venue.txt");
+
+/// 核心的几行（施工 2-7 补）：出厂的两句，一行一句，system 的最后一块。探针的工具面不是空的，权限那一句也带。
+pub const LINES: &str = concat!(
+    include_str!("../../../../resources/core/permission-rule.txt"),
+    include_str!("../../../../resources/core/local-paths-rule.txt"),
+);
 
 /// 出厂的英文，资源目录里的真文件。
 pub(super) fn texts() -> Texts {
@@ -58,6 +64,15 @@ pub(super) fn texts() -> Texts {
             close: include_str!("../../../../resources/core/harness/message-close.txt").to_string(),
         }),
         recap: Some(recap()),
+        title: Some(title()),
+    }
+}
+
+/// 出厂的起标题的字（施工 3-8 五补），资源目录里的真文件；数照 `miyu-policy` 的出厂数（`TITLE`）。
+pub fn title() -> Title {
+    Title {
+        instruction: include_str!("../../../../resources/core/title/instruction.txt").to_string(),
+        tokens: 1_024,
     }
 }
 

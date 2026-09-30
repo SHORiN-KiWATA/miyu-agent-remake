@@ -13,11 +13,12 @@
 | `crates/miyu-kernel/src/event/restore.rs` | `files.restored`（`Restored`、`RestoreAction`、`RestoreOutcome`） |
 | `crates/miyu-kernel/src/event/message.rs` | `message.user`、`message.assistant`、`message.withdrawn` |
 | `crates/miyu-kernel/src/event/tool.rs` | `tool.result`（`ToolStatus`、给人看的说法 `Said`）、`tool.approval_requested`、`tool.approval_decided`（`Decision`） |
-| `crates/miyu-kernel/src/event/effect.rs` | 效果 `Effect`：`file.read`、`file.changed`、`file.trashed`、`job.started`（`JobStarted`、`JobKind`，施工 7-1）、`job.messaged`（`JobMessaged`，施工 7-7） |
+| `crates/miyu-kernel/src/event/effect.rs` | 效果 `Effect`：`file.read`、`file.changed`、`file.trashed`、`job.started`（`JobStarted`、`JobKind`，施工 7-1）、`job.messaged`（`JobMessaged`，施工 7-7）、`peer.watch`（`PeerWatch`，施工 C-1） |
 | `crates/miyu-kernel/src/event/question.rs` | `question.asked`、`question.answered`；回答对不对得上 `fits` |
 | `crates/miyu-kernel/src/event/context.rs` | `context.injected`、`context.compacted`、`context.compaction_paused`（`PauseReason`） |
 | `crates/miyu-kernel/src/event/model.rs` | `model.called`（`FirstDifference`、`Usage`、`BlockSpan`、`CallResult`、`CallError`、`ErrorClass`，辅助请求的用途 `Purpose`、是不是辅助请求 `aside()`，施工 3-8 四补） |
 | `crates/miyu-kernel/src/event/job.rs` | `job.reported`（`JobReason`）、`child.reported`（`ChildReason`）（施工 7-1） |
+| `crates/miyu-kernel/src/event/peer.rs` | `peer.idle`（`PeerIdle`、`IdleReason`，施工 C-1） |
 
 每一种的样本在 `docs/designs/samples/events/<种类>.jsonl`。
 
@@ -76,6 +77,7 @@
 
 - 标题的写法由协议端点管（`protocol.md` 的 `session.set_meta`）：头写的去掉前后空白再量，空的、超过 200 个字的不收；头写 `null` 去掉标题，这里记成空的 `""`，事件里从不写 `null`（上面「可以没有」的格写成 `null` 当没有）。读的时候不查长短：以后放宽了，老的照样读得进来（施工 3-8 三补）。
 - 现在的标题、置顶是日志里的这些一条条盖上去的结果：没写的格照旧；撤掉的回合里的也算（`kernel/session.md`「改标题、置顶」）。
+- 谁改的看 `by`：人改的（`session.set_meta`）`by` 是人、`cause` 是那个命令；内核自己起的标题（施工 3-8 五补，`kernel/session.md`「起标题」）`by` 是内核，只写 `title`，没有 `cause`、不带 `turn`，前面紧跟着那一次起标题请求的 `model.called`（`purpose` 是 `title`），同一批追加。内核起的标题取回复的第一行，超过 50 个字的截掉，所以也在 1 到 200 个字里。
 
 **`session.recapped`**：一句回顾（施工 3-8 四补，`kernel/session.md`「回顾」）。头要的（`protocol.md` 的 `session.recap`），推给所有订阅着的头；不进她的上下文（渲染时不出，`kernel/request.md`「组装」），`history` 也不列。`by` 是内核，`cause` 是要它的那个命令（在路上又来的几个并进去，照第一个），不带 `turn`。
 
@@ -144,7 +146,7 @@
 
 除了 `restored`，都是没动。几步怎么算、谁来做，见 `kernel/history.md`、`session/actor.md`。
 
-**`message.user`**：人发来的消息，或者另一个会话发来的消息：父会话发给子会话的交代、留言（`by` 是父会话），子代理发给父会话的留言（`by` 是子会话，不带回合编号，施工 7-7，`kernel/session.md`「子代理的留言」）。
+**`message.user`**：人发来的消息，或者另一个会话发来的消息：父会话发给子会话的交代、留言（`by` 是父会话），子代理发给父会话的留言（`by` 是子会话，不带回合编号，施工 7-7，`kernel/session.md`「子代理的留言」），别的会话发来的话（`by` 是那个会话，不带回合编号；收它随施工 C-2，`cross-session.md` 第四条）。`by` 是会话的照关系分三种，见 `kernel/ids.md`「谁」。
 
 | 格 | 写法 | 有没有 | 是什么 |
 |---|---|---|---|
@@ -218,11 +220,12 @@
 | | `title`，必有 | 调用时给的 `description`，头显示用 |
 | | `session`，可以没有 | 子代理的会话编号：`agent` 必有，`command` 没有，不认识的种类不管，由账本查 |
 | `job.messaged` | `job`，必有 | 给这个任务编号的子代理留了言（施工 7-7，`agents.md` 第六条）：`message_agent` 那次调用报一条，它欠一份回报。对得上这个会话派的一个子代理，由账本查 |
+| `peer.watch` | `session`，必有 | 订了别的会话的「空了告诉我」（施工 C-1，`cross-session.md`「效果 peer.watch」）：被等的会话的整个编号。`send_message` 写 `notify_when_idle` 的那次调用报一条（工具随施工 C-6），这就是订的记录，账本照它算在等哪几个会话、从这条结果的时刻算起；不是这个会话自己，由账本查 |
 
 - 改前改后的内容由执行器存成 blob，效果里是它们的哈希（`session/actor.md`）。
 - 缺了 `kind`、认识的种类缺了必有的格、哈希或者任务编号不合写法的，读不进来。
 - 不认识的种类，例如第三方的工具报来的，整块原样留着，内核不解读。
-- 撤销、恢复照效果改回文件（`kernel/history.md`）；她看过的文件也照效果记（`session/actor.md`）。`job.started`、`job.messaged` 不改回什么，撤销时也不算改过文件。
+- 撤销、恢复照效果改回文件（`kernel/history.md`）；她看过的文件也照效果记（`session/actor.md`）。`job.started`、`job.messaged`、`peer.watch` 不改回什么，撤销时也不算改过文件。
 - `job.started` 的编号整份日志里不重复，撤掉的回合里的也算，由账本查（`kernel/history.md`）。
 
 **`tool.approval_requested`**：请人确认一次调用。
@@ -319,9 +322,9 @@
 | `result` | 取值 | 必有 | `ok` 说完了；`error` 出错；`interrupted` 被人打断 |
 | `error` | 出错 | 可以没有 | 出错的分类、原话，有的话还有 HTTP 状态码；只在出错时有 |
 | `compaction` | `auto`、`manual`、`overflow` | 可以没有 | 这是哪一种压缩的摘要请求；主请求没有。以前的日志没有这一格（施工 6-6 上） |
-| `purpose` | `recap` | 可以没有 | 辅助请求的用途（施工 3-8 四补，`26-提示词.md` J6）：现在只有回顾。主请求、摘要请求没有；以前的日志没有这一格。不认识的原样留着，也算辅助请求 |
+| `purpose` | `recap`、`title` | 可以没有 | 辅助请求的用途（施工 3-8 四补，`26-提示词.md` J6）：回顾，起标题（施工 3-8 五补）。主请求、摘要请求没有；以前的日志没有这一格。不认识的原样留着，也算辅助请求 |
 
-- 带 `purpose` 的是辅助请求（`ModelCalled::aside()`）：它和主对话无关，她没在这次请求里听到什么，它报的用量也不是主对话的大小。所以用量的锚（`compaction.md` 第一条）、排着的话她听到没有（`kernel/history.md`）、压缩的边界（`compaction.md` 第三条第 2 条）、渲染时回合开始的那几块（`kernel/request.md`「组装」）都不看它。它不带 `turn`、没有回复，`seen` 是它照到的那一条，`first_difference`、`blocks` 没有。
+- 带 `purpose` 的是辅助请求（`ModelCalled::aside()`）：它和主对话无关，她没在这次请求里听到什么，它报的用量也不是主对话的大小。所以用量的锚（`compaction.md` 第一条）、排着的话她听到没有（`kernel/history.md`）、压缩的边界（`compaction.md` 第三条第 2 条）、渲染时回合开始的那几块（`kernel/request.md`「组装」）都不看它。它不带 `turn`、没有回复，`seen` 是它照到的那一条，`first_difference`、`blocks` 没有。回顾的 `cause` 是要它的命令；起标题的没有 `cause`（内核自己要的）。
 - `first_difference` 在代码里装在盒子里（施工 3-8 四补）：它多半没有；`purpose` 加进来以后 `model.called` 比别的种类大出两百字节，clippy 的 `large_enum_variant` 拦下了。JSON 的写法不变。
 
 第一处不同：
@@ -399,6 +402,26 @@
 - 子会话交来的命令编号是 `<子会话>/report/<报的那一轮>`（施工 7-6）：`cause` 就是它，子会话的哪一轮看它；同一份再交，父会话照它认出是重的，不再记（`kernel/session.md`「回报」第 10 条）。
 - 一个子代理可以报好几次：父会话留言叫醒它，那一轮结束时再报（`agents.md` 第六条）。以 `stopped`、`undone` 报过的不再报，被停掉的不会再起来；`aborted` 以后还能再报（`agents.md` 第八条），不认识的也不拦。
 
+**`peer.idle`**：等的那个会话空下来了，或者等不到了（施工 C-1，`cross-session.md`「事件 peer.idle」），记在等的那一边。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `session` | 会话编号 | 必有 | 等的是哪个会话 |
+| `reason` | 取值 | 必有 | 下表 |
+| `status` | 字符串 | 可以没有 | `idle` 的才有：它最近结束的那一轮最后一条有字的回复的第一行，截到 `peers.status_chars`。没说话的不写 |
+
+| `reason` | 是什么 | `by` |
+|---|---|---|
+| `idle` | 空下来了 | 那个会话 |
+| `expired` | 订了 `peers.watch_hours`（12 小时）没等到，作废了 | 内核 |
+| `gone` | 那个会话不在了 | 内核 |
+
+- 不认识的原样留着：新版本才有的，也算等到了头，账本不查它的 `by`（`kernel/history.md`）。
+- `by` 由账本查：这时在等 `session`，`idle` 的是那个会话、`expired`、`gone` 的是内核（`kernel/history.md`）。
+- `cause`：`idle` 的是交来通知的那个命令，`<被等的会话>/idle/<等的会话>/<被等的会话这时日志最后一条的序号>`；`expired`、`gone` 的是订它的那一轮的 `cause`（施工 C-6）。
+- 不带回合编号：它是别处来的，撤哪一轮都不拿走（`cross-session.md` 第七条第 2 款）。账本照「带 `turn` 的是正在进行的那个回合」查，不另立规矩，和两种回报一样。
+- 名字不叫 `session.*`：渲染表里 `session.*` 一律不进上下文（`kernel/request.md`「组装」第 3 条）。现在不渲染，渲染随施工 C-6。
+
 **两种回报的 `turn`**：一律不带（2026-09-30 定）：回报不属于哪一轮，带了这一轮的编号，撤这一轮时会跟着被拿走，和「别处来的留着」冲突（`kernel/history.md`「拿走什么」）。账本照「带 `turn` 的是正在进行的那个回合」查，不另立规矩。谁写、到了开不开一轮见 `kernel/session.md`「回报」，渲染成什么样见 `kernel/request.md`「回报」（施工 7-2）。
 
 ### 怎么走
@@ -407,7 +430,7 @@
 2. 「不写是假」「空的不写」的格写成 `null`，读不进来：只有「可以没有」的格（和 `file.changed` 的 `before`）把 `null` 当没有（照 serde 的读法推的，没有测试证实）。
 3. 空的列表格式上读得进来。空的撤销、撤回的列表，账本不收；空的消息，发的时候就拒绝（`kernel/history.md`、`kernel/session.md`）。
 4. 回答对不对得上题目（`fits`）：几道题几条；选的都是那道题选项的标题；同一条里不重复；不能多选的至多选一项。自己写的不查。对不上的回答，收命令时就拒绝，写不进日志（`kernel/asking.md`）。
-5. `turn.started`、`message.assistant`、`tool.result` 这些种类之间怎么对得上（有 `trigger` 的 `trigger` 在前、`seen` 在前、调用编号接得上、结果对得上一个还在等的调用），追加时由账本查（`kernel/history.md`）。任务的几种也是（施工 7-1）：`job.started` 的编号不重复、`agent` 带会话、`command` 不带；两种回报对得上一个派出去的任务；`session.created` 的 `parent`、`depth` 同有同无。
+5. `turn.started`、`message.assistant`、`tool.result` 这些种类之间怎么对得上（有 `trigger` 的 `trigger` 在前、`seen` 在前、调用编号接得上、结果对得上一个还在等的调用），追加时由账本查（`kernel/history.md`）。任务的几种也是（施工 7-1）：`job.started` 的编号不重复、`agent` 带会话、`command` 不带；两种回报对得上一个派出去的任务；`session.created` 的 `parent`、`depth` 同有同无。跨会话的也是（施工 C-1）：`peer.watch` 订的不是这个会话自己；`peer.idle` 对得上在等的会话，`by` 对得上原因。
 
 ### 守着它的
 
@@ -418,8 +441,9 @@
 | `crates/miyu-kernel/src/event/restore/tests.rs` | `files.restored` 的每一格读写一字不差；新的 `action`、`outcome` 原样留着 |
 | `crates/miyu-kernel/src/event/message/tests.rs` | `message.assistant` 图纸上的写法、`seen` 必有、`interrupted` 只在是真时写；`message.withdrawn` 的写法和序号从 1 起 |
 | `crates/miyu-kernel/src/event/tool/tests.rs` | `tool.result` 的五种状态、不认识的原样留着、没真执行过的没有用时、说法怎么记；确认的两种：每种决定、没写规则、说明、理由的不写这几格；坏的说是哪一种 |
-| `crates/miyu-kernel/src/event/effect/tests.rs` | 四种效果读写一字不差；没显示行的不写 `lines`；新建的 `before` 写成 `null`、没写的当新建；不认识的原样留着；`job.started` 不认识的 `what` 原样留着、命令不写 `session`；`job.messaged` 读写一字不差（施工 7-7）；坏的读不进来 |
+| `crates/miyu-kernel/src/event/effect/tests.rs` | 四种效果读写一字不差；没显示行的不写 `lines`；新建的 `before` 写成 `null`、没写的当新建；不认识的原样留着；`job.started` 不认识的 `what` 原样留着、命令不写 `session`；`job.messaged` 读写一字不差（施工 7-7）；`peer.watch` 读写一字不差（`a_watch_on_another_session_round_trips`，施工 C-1）；坏的读不进来 |
 | `crates/miyu-kernel/src/event/job/tests.rs` | 两种回报（施工 7-1）：图纸上的写法读写一字不差、每种 `reason` 读成自己那一种、不认识的原样留着、不写是假的几格是假时不写、没有的格不写、负的退出码、坏的说是哪一种 |
+| `crates/miyu-kernel/src/event/peer/tests.rs`（施工 C-1） | `peer.idle`：图纸上的两行读写一字不差、每种 `reason` 读成自己那一种、不认识的原样留着、`status` 写成 `null` 的不写、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/question/tests.rs` | 提问的两种：图纸上的写法、没写的格子不写、第 4 条对不对得上题目、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/context/tests.rs` | 上下文的几种：图纸上的写法、手动压缩带着要求（施工 6-8）、清空的空摘要照样写出 `summary`（施工 6-8 补）、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/model/tests.rs` | `model.called` 图纸上的写法；没发出去就失败的只有知道的几格；每种出错的分类；出错带着 HTTP 状态码、没有这一格的旧日志照读（施工 3-5 三补）；块的起止读写一字不差、没有这一格的旧日志照读（施工 2-3 补）；第一处不同的写法；`purpose` 读写一字不差、不认识的原样留着、带了的才是辅助请求（施工 3-8 四补） |
@@ -435,12 +459,14 @@
 - `11-权限与沙盒.md` 第二节：三个级别和只读开关，四个选项；A13：拒绝以后她接着干。
 - `agents.md`「对外的样子」：效果 `job.started`、`job.reported`、`child.reported`、子会话的 `parent`、`depth`（施工 7-1）；`03-事件模型.md` 第三节：派子代理不另记 `child.spawned`。
 - `04-核心协议.md` 第九节 `session.recap`：那一句另记一条事件推给所有头，不进她的上下文；请求记进 `model.called`（2026-10-01 项目主人定）。`26-提示词.md` J6：辅助请求各自声明用途（`purpose`，施工 3-8 四补）。
+- `cross-session.md`「效果 peer.watch」「事件 peer.idle」（施工 C-1）。
 
 ### 还没有的
 
 - `session.created` 的分叉来源：做分叉时加（`03-事件模型.md` 第七节）。
 - `tool.result` 里大输出的全文（`03-事件模型.md` 第三节，`08-上下文投影.md` C9）。
 - `job.started` 的后台命令由 `shell` 写、`job.reported` 由执行器的任务表交、载入时内核补 `aborted`（施工 7-3）；子代理的 `job.started`、`session.created` 的 `parent`、`depth` 由派子代理写（施工 7-5），`child.reported` 由子会话交（施工 7-6）。
+- `peer.watch`、`peer.idle` 读写、账本都有了，还没有工具报 `peer.watch`、没有哪里写 `peer.idle`：施工 C-6。
 - 会问人的工具：`question.asked` 读写都有了，还没有工具会问（`ask_user`，`10-自带软件.md` 第三节）。
 - 选了「本会话都允许」「这个工作区以后都允许」的，决定记下了，执行前的链还不照它放行；工作区的那种还要存进工作区的配置（`02-内核.md` 第六节「确认怎么走」第 3 条，M5）。
 - `session.policy_changed` 的 `policy`：换策略快照（目录变了、配置改了）还没有，内核只写过换权限（`05-内核接口.md` 第八节，`02-内核.md` K3）。

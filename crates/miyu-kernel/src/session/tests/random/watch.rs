@@ -299,7 +299,7 @@ impl Watch {
             }
             Action::RunTurnStartHooks { turn } => self.start_hooks(turn),
             Action::CallModel { seen, request, .. } => self.called(seen, &request),
-            Action::Recap { upto, request } => self.recap_issued(upto, &request),
+            Action::Aside { upto, request, .. } => self.recap_issued(upto, &request),
             Action::Wake { seen, .. } => self.wake_asked(seen),
             Action::PushTransient(transient) => self.transient(&transient),
             Action::CancelModel { seen } => {

@@ -27,9 +27,9 @@ pub(crate) fn input(input: &Input) -> &'static str {
         Input::ToolGuarded { .. } => "tool_guarded",
         Input::JobEnded { .. } => "job_ended",
         Input::Watched { .. } => "watched",
-        Input::RecapSent { .. } => "recap_sent",
-        Input::RecapDelta { .. } => "recap_delta",
-        Input::RecapEnded { .. } => "recap_ended",
+        Input::AsideSent { .. } => "aside_sent",
+        Input::AsideDelta { .. } => "aside_delta",
+        Input::AsideEnded { .. } => "aside_ended",
     }
 }
 
@@ -56,7 +56,7 @@ pub(crate) fn action(action: &Action) -> &'static str {
         Action::Recall { .. } => "recall",
         Action::Report(_) => "report",
         Action::StopJobs { .. } => "stop_jobs",
-        Action::Recap { .. } => "recap",
+        Action::Aside { .. } => "aside",
     }
 }
 
@@ -64,7 +64,7 @@ pub(crate) fn action(action: &Action) -> &'static str {
 pub(crate) fn chatty_input(input: &Input) -> bool {
     matches!(
         input,
-        Input::ModelDelta { .. } | Input::RecapDelta { .. } | Input::ToolProgress { .. }
+        Input::ModelDelta { .. } | Input::AsideDelta { .. } | Input::ToolProgress { .. }
     )
 }
 

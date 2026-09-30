@@ -23,7 +23,7 @@ use crate::texts::{Recap, Texts};
 use crate::{harness, jobs};
 
 /// 段与段、轮与轮之间空一行：记录的格式，照 codex。
-const GAP: &str = "\n\n";
+pub(crate) const GAP: &str = "\n\n";
 
 /// 回顾的请求，和它照到的那一条：喂进去的最新那一条消息的序号。快照里没有回顾的字的、她一个带正文的回复都没有的，没有。
 pub(crate) fn request(history: &History, texts: &Texts) -> Option<(Request, Seq)> {
@@ -50,10 +50,10 @@ pub(crate) fn request(history: &History, texts: &Texts) -> Option<(Request, Seq)
 
 /// 一轮：人这边的话，她的回答（都可以是空的，不会都空），和这一轮里最新那一条的序号。
 #[derive(Debug, Default)]
-struct Exchange {
-    user: String,
-    assistant: String,
-    last: Option<Seq>,
+pub(crate) struct Exchange {
+    pub(crate) user: String,
+    pub(crate) assistant: String,
+    pub(crate) last: Option<Seq>,
 }
 
 impl Exchange {
@@ -108,15 +108,15 @@ fn exchanges(history: &History, texts: &Texts, turns: usize) -> Option<Vec<Excha
 }
 
 /// 记录里的一段：哪一条、是不是她的回答、原话（去掉了前后空白，不是空的）。
-struct Entry {
-    seq: Seq,
-    assistant: bool,
-    text: String,
+pub(crate) struct Entry {
+    pub(crate) seq: Seq,
+    pub(crate) assistant: bool,
+    pub(crate) text: String,
 }
 
 /// 照投影的先后（`History::ordered`）取人这边的话和她每一轮最后一条有正文的回复。人这边的话照主请求里的写法渲染：别的
 /// harness、子代理发来的包着外壳，派它的那一轮撤掉了的子代理的话不出（`harness.rs`、`jobs.rs`）。只要字，附件不要。
-fn entries(history: &History, texts: &Texts) -> Vec<Entry> {
+pub(crate) fn entries(history: &History, texts: &Texts) -> Vec<Entry> {
     let answers = last_answers(history);
     let mut entries = Vec::new();
     for event in history.ordered() {
@@ -178,7 +178,7 @@ fn written(blocks: &[Block]) -> String {
 
 /// 对话记录，至多 `room` 字节（照 codex 的 `recap_history`）：放得下的照原样；放不下的先整轮去掉最老的，最前写一行省略了；
 /// 还放不下，每一段留头尾、截掉中间。最新那一轮一定留，它没答的，前一轮（最新的回答）也留。
-fn transcript(exchanges: &[Exchange], recap: &Recap, room: usize) -> String {
+pub(crate) fn transcript(exchanges: &[Exchange], recap: &Recap, room: usize) -> String {
     let blocks: Vec<String> = exchanges
         .iter()
         .map(|exchange| {

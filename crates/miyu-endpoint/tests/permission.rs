@@ -297,8 +297,10 @@ async fn tightening_mid_turn_denies_the_waiting_write_on_the_spot() {
         "{:?}",
         result.blocks
     );
+    // 她看到过工作区那一块，切到只读用切换那一份写，带上一级（施工 2-7 补）。
     let injected = log.iter().any(|event| {
-        matches!(&event.body, Body::ContextInjected(fact) if fact.text.contains(r#"<permission level="read_only"/>"#))
+        matches!(&event.body, Body::ContextInjected(fact)
+            if fact.text.starts_with(r#"<permission level="read_only" previous="workspace">"#))
     });
     assert!(injected, "请求之前注入了只读那一块");
     assert_eq!(script.requests().len(), 2);

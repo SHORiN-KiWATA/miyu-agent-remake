@@ -90,6 +90,8 @@ async fn the_log_says_what_happened_and_nothing_that_was_said() {
 
     let requests = script.requests();
     let (first, second) = (requests[0].0.get(), requests[1].0.get());
+    // 答完了起标题（施工 3-8 五补）：剧本没排它，一直在路上，只有交给端口的那一行。
+    let titled = script.titled()[0].0.get();
     let lines = memory.lines();
     let mine: Vec<String> = lines
         .iter()
@@ -107,6 +109,9 @@ async fn the_log_says_what_happened_and_nothing_that_was_said() {
             ),
             format!("INFO  session  {s} request seen={second} endpoint=deepseek model=deepseek-v4"),
             format!("INFO  session  {s} ended seen={second} took_ms=_ in=100 hit=40 out=10"),
+            format!(
+                "INFO  session  {s} title request seen={titled} endpoint=deepseek model=deepseek-v4"
+            ),
             format!("INFO  session  {s} stopped"),
             format!("INFO  session  {s} loaded events={events}"),
             format!("INFO  session  {s} closed"),
@@ -162,7 +167,7 @@ async fn the_log_says_what_happened_and_nothing_that_was_said() {
     let requests: Vec<String> = memory
         .lines()
         .iter()
-        .filter(|line| line.contains(&r) && line.contains(" request "))
+        .filter(|line| line.contains(&format!("{r} request ")))
         .map(|line| shape(line))
         .collect();
     assert_eq!(requests.len(), 2, "{requests:#?}");
