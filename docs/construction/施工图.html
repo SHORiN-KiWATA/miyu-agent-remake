@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>137</b><span>/ 140 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的</span></li>
+    <li><b>138</b><span>/ 140 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
     <li><b>7-7</b><span>下一步：7-7 父子之间留言、7-1 补编号带父会话的编号，另有附件、改名删除、重做在做（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">2789a56</b><span>最近一步（7-9 补 留了言的子代理也等）的提交</span></li>
+    <li><b class="mono">04c3266</b><span>最近一步（7-4 补 协议读后台命令的输出）的提交</span></li>
   </ul>
 </header>
 
@@ -484,7 +484,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s7-2c"><span class="n">7-2</span>人停的回报写明是人停的（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-3"><span class="n">7-3</span>后台命令<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-4"><span class="n">7-4</span>jobs 和 job.stop<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">7-4</span>协议读后台命令的输出（补）</span></li>
+        <li><a class="step done" href="#s7-4b"><span class="n">7-4</span>协议读后台命令的输出（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-5"><span class="n">7-5</span>派子代理<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-6"><span class="n">7-6</span>子会话回报<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-7"><span class="n">7-7</span>父子之间留言<span class="st">✓</span></a></li>
@@ -9549,6 +9549,56 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>agents.md</code> 第五条、<code>tools/jobs.md</code>。</li>
         <li><code>docs/construction/7-4-jobs 和 job.stop.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s7-4b" aria-labelledby="h-s74b">
+  <div class="sheet-head"><h2 id="h-s74b"><span class="no">7-4</span>协议读后台命令的输出（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头能读一条后台命令的输出，跑着的也能读到这时为止的。项目主人要在网页的后台任务浮层里点一条命令就看输出，终端界面的面板也要（2026-10-01 两边转来）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">job.output {session, job, tail?}</span><span class="dir-note">protocol.md · tools/jobs.md 第 3 条</span></div>
+            <ol class="pipe" aria-label="怎么读">
+              <li>回应 <code>{output, lines, truncated, running}</code>：和 <code>jobs</code> 工具读的是同一份（执行器的 <code>Shared::output</code>），跑着的读 <code>jobs/&lt;编号&gt;.out</code>，结束的读 blob</li>
+              <li><code>tail</code> 默认 200、1 到 2000，不对的 <code>bad_params</code></li>
+              <li>一次最多 128 KiB：控制字符写进 JSON 最坏一个字节变六个，这样放得进一行 1 MiB；超了从前面按整行去掉</li>
+              <li>没有这个任务 <code>unknown_job</code>；子代理的 <code>not_a_command</code>，去订阅它的子会话</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">一个新原因码</span><span class="rl"><code>not_a_command</code>，两种语言</span></div>
+          <div class="tile"><span class="nm">以后再说</span><span class="rl">推增量随 M8 的视图流；多用户照会话的读权限</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-4 补</dd></div>
+        <div><dt>名称</dt><dd>协议读后台命令的输出</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">04c3266</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过；网页接浮层复测</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>37 个手写的变异全逮住；三台机器的 CI 和长跑一次全绿；最坏情况（全是控制字符、行数最大）写出来的一行不超过 1 MiB</span></li>
+        <li><span class="ok">…</span><span>网页演示接上后台任务浮层试一次</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/7-4-协议读后台命令的输出（补）.md</code>。</li>
       </ul>
     </div>
   </div>
