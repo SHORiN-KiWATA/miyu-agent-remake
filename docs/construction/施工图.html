@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>136</b><span>/ 140 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的</span></li>
+    <li><b>137</b><span>/ 140 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的</span></li>
     <li><b>7-7</b><span>下一步：7-7 父子之间留言、7-1 补编号带父会话的编号，另有附件、改名删除、重做在做（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">7ea3978</b><span>最近一步（7-8 补 检查点里不列任务）的提交</span></li>
+    <li><b class="mono">2789a56</b><span>最近一步（7-9 补 留了言的子代理也等）的提交</span></li>
   </ul>
 </header>
 
@@ -491,7 +491,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s7-8"><span class="n">7-8</span>撤销和压缩里的任务<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-8b"><span class="n">7-8</span>检查点里不列任务（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-9"><span class="n">7-9</span>miyu ask 等子代理<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">7-9</span>留了言的子代理也等（补）</span></li>
+        <li><a class="step done" href="#s7-9b"><span class="n">7-9</span>留了言的子代理也等（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-10"><span class="n">7-10</span>别的 harness 发消息<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-11</span>M7 验收</span></li>
       </ol>
@@ -9870,6 +9870,56 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/7-9-miyu ask 等子代理.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s7-9b" aria-labelledby="h-s79b">
+  <div class="sheet-head"><h2 id="h-s79b"><span class="no">7-9</span>留了言的子代理也等（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">人答了子代理的问题、她把答复转给它以后，<code>miyu ask</code> 等它改完报回来，再印她看完回报的那一轮。M7 验收自测撞见的：子代理是上一次派的，这一次留了言，<code>miyu ask</code> 当场就退出了，回报只记下、没叫醒她。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">cli/ask.md「等子代理」</span><span class="dir-note">只改命令行</span></div>
+            <ol class="pipe" aria-label="等谁">
+              <li>这一次跟着的几轮里有 <code>job.messaged</code> 的子代理，不管是不是这一次派的，都算欠一份回报</li>
+              <li>这边没见过它派出去那一条的，没有标题：<code>· j5 报回来了</code>（英文 <code>· j5 reported back</code>）</li>
+              <li>留言发出以后、结果记下以前就到的那一份，照内核的账本算回了这句留言</li>
+              <li>这一次以前派、这一次没留言的，照旧不等</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不改协议</span><span class="rl">头照事件自己数，照旧</span></div>
+          <div class="tile"><span class="nm">顺手修的</span><span class="rl">蓝图里一处 <code>\r</code> 被写成了真的控制字符</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-9 补</dd></div>
+        <div><dt>名称</dt><dd>留了言的子代理也等</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">2789a56</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>13 个手写的变异全逮住；三台机器的 CI 和长跑一次全绿；新样本 <code>ask-agents-messaged-text.txt</code> 由真核心逐字节比</span></li>
+        <li><span class="ok">✓</span><span>真模型：派子代理改 port、它问上来；<code>miyu ask -c "port 改成 8080。"</code> 等到「· j1 报回来了」和她看完回报的那一轮才退出，文件改好了</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/7-9-留了言的子代理也等（补）.md</code>。</li>
       </ul>
     </div>
   </div>
