@@ -39,6 +39,7 @@ pub(crate) fn item(
         kind: Kind::Option(options),
         default: Value::Text(Cow::Borrowed(default)),
         layers: &[Layer::System, Layer::Personal],
+        tighten: None,
         env: None,
         applies: Applies::Now,
         ui: Ui {
@@ -87,12 +88,52 @@ pub(crate) fn words(items: &[Item]) -> Fake {
         ("config/or", "{rest}或{last}"),
         ("config/or-values", "{rest} 或 {last}"),
         ("config/list", "{rest}、{next}"),
+        ("config/layer/default", "默认值"),
+        ("config/layer/project", "项目配置"),
+        ("config/unreadable", "读不了这份文件：{why}"),
+        ("config/too-big", "这份文件超过 1 MiB，不读"),
+        ("config/not-utf8", "这份文件不是 UTF-8"),
+        ("config/syntax", "TOML 写法不对：{why}"),
+        (
+            "config/unknown-key",
+            "没有 {key} 这一项。是不是想写 {suggest}？",
+        ),
+        ("config/unknown-key-plain", "没有 {key} 这一项"),
+        ("config/wrong-type", "{key} 要写 {expected}，写的是 {got}"),
+        (
+            "config/not-an-option",
+            "{key} 只能是 {options}，写的是 {got}",
+        ),
+        (
+            "config/wrong-layer",
+            "{key} 只能写在{layers}里，写在{layer}里不算",
+        ),
+        (
+            "config/not-tightening",
+            "项目配置只能让限制更严。{key} 现在是 {current}，这里写的 {got} 更宽，不算",
+        ),
+        ("config/untrusted-project", "这份项目配置还没信任，先不用"),
+        ("config/fix-example", "改成其中一个，例如 {example}"),
+        ("config/fix-write", "改成 {example}"),
+        ("config/fix-move", "挪到{layers}里去"),
+        ("config/kept", "这一行先不管，原样留着"),
+        ("config/using-value", "这一项先照 {value} 用着（{from}）"),
+        ("config/using-last-good", "这份文件先照上一次读进来的用着"),
+        ("config/using-nothing", "这份文件先不用"),
+        ("config/expected/bool", "true 或 false"),
+        ("config/expected/table", "一张表"),
+        ("config/sentence", "{text}。"),
+        ("config/then", "{rest}{next}"),
+        ("config/stops", "。？！"),
     ];
     Fake {
         items: items
             .iter()
             .map(|item| {
-                let Kind::Option(options) = item.kind;
+                let options: &[&str] = match item.kind {
+                    Kind::Option(options) => options,
+                    Kind::Bool => &[],
+                };
                 let name = format!("{} 的名字", item.key);
                 let description = format!("{} 的说明。", item.key);
                 (item.key.to_string(), said(&name, &description, options))

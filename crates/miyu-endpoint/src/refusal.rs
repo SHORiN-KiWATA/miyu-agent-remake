@@ -4,12 +4,14 @@
 use miyu_kernel::session::Reason;
 
 /// 一次拒绝：JSON-RPC 的错误码，和原因码。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Refusal {
     /// JSON-RPC 的错误码。
     pub(crate) code: i64,
     /// 原因码：稳定的英文，给程序看。
     pub(crate) reason: &'static str,
+    /// `data` 里除了 `reason` 多的几格（施工 8-2：`unknown_config_key` 的 `problems`）；没有的是空的。
+    pub(crate) data: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
 /// Miyu 自己的拒绝，一律这个码，原因写在 `data.reason` 里。
@@ -20,108 +22,139 @@ impl Refusal {
     pub(crate) const PARSE: Refusal = Refusal {
         code: -32700,
         reason: "parse_error",
+        data: None,
     };
     /// 是 JSON，但不是请求。
     pub(crate) const INVALID: Refusal = Refusal {
         code: -32600,
         reason: "invalid_request",
+        data: None,
     };
     /// 没有这个方法。
     pub(crate) const UNKNOWN_METHOD: Refusal = Refusal {
         code: -32601,
         reason: "unknown_method",
+        data: None,
     };
     /// 参数不对。
     pub(crate) const BAD_PARAMS: Refusal = Refusal {
         code: -32602,
         reason: "bad_params",
+        data: None,
     };
     /// 核心自己出了问题：装坏了、磁盘上建不成。
     pub(crate) const INTERNAL: Refusal = Refusal {
         code: -32603,
         reason: "internal_error",
+        data: None,
     };
     /// 连上以后第一条不是 `hello`。
     pub(crate) const HELLO_FIRST: Refusal = Refusal {
         code: REFUSED,
         reason: "hello_first",
+        data: None,
     };
     /// 头支持的主版本和核心的没有交集。
     pub(crate) const PROTOCOL: Refusal = Refusal {
         code: REFUSED,
         reason: "protocol_mismatch",
+        data: None,
     };
     /// 本机令牌不对。
     pub(crate) const BAD_TOKEN: Refusal = Refusal {
         code: REFUSED,
         reason: "bad_token",
+        data: None,
     };
     /// 没有这个人格。
     pub(crate) const UNKNOWN_PERSONA: Refusal = Refusal {
         code: REFUSED,
         reason: "unknown_persona",
+        data: None,
     };
     /// 没有这个会话。
     pub(crate) const NOT_FOUND: Refusal = Refusal {
         code: REFUSED,
         reason: "session_not_found",
+        data: None,
     };
     /// 会话停了：写不进去、出了 bug。
     pub(crate) const STOPPED: Refusal = Refusal {
         code: REFUSED,
         reason: "session_stopped",
+        data: None,
     };
     /// 会话载入不了：日志或者策略快照坏了、读不了。
     pub(crate) const BROKEN: Refusal = Refusal {
         code: REFUSED,
         reason: "session_broken",
+        data: None,
     };
     /// 没有这个任务，或者它已经结束了（施工 7-4，`job.stop`）。
     pub(crate) const UNKNOWN_JOB: Refusal = Refusal {
         code: REFUSED,
         reason: "unknown_job",
+        data: None,
     };
     /// 读输出的是子代理，不是后台命令（施工 7-4 补，`job.output`）：头订阅它的子会话看。
     pub(crate) const NOT_A_COMMAND: Refusal = Refusal {
         code: REFUSED,
         reason: "not_a_command",
+        data: None,
     };
     /// 加进来的目录太宽（施工 5-10 上）：家目录、根目录、包含数据根的、落在数据根里的。
     pub(crate) const DIR_TOO_WIDE: Refusal = Refusal {
         code: REFUSED,
         reason: "dir_too_wide",
+        data: None,
     };
     /// `blob.put` 读不了这个文件（施工 3-9 三补）：换不成真实的位置、没有、不是普通文件、没有权限。
     pub(crate) const ATTACHMENT_UNREADABLE: Refusal = Refusal {
         code: REFUSED,
         reason: "attachment_unreadable",
+        data: None,
     };
     /// 附件太大（施工 3-9 三补）：超过 20 MiB；图片超过 5 MiB，或者哪一边超过 8000 像素。
     pub(crate) const ATTACHMENT_TOO_BIG: Refusal = Refusal {
         code: REFUSED,
         reason: "attachment_too_big",
+        data: None,
     };
     /// `blob.put` 的文件在数据根里、管理员的工作区以外（施工 3-9 三补）。
     pub(crate) const ATTACHMENT_IN_DATA_ROOT: Refusal = Refusal {
         code: REFUSED,
         reason: "attachment_in_data_root",
+        data: None,
     };
     /// `session.send` 附的 blob 这个核心里没有（施工 3-9 三补）。
     pub(crate) const UNKNOWN_ATTACHMENT: Refusal = Refusal {
         code: REFUSED,
         reason: "unknown_attachment",
+        data: None,
     };
+
+    /// 请求里写了清单里没有的配置项（施工 8-2，`config.schema`、`config.get`）：`data.problems` 里每个不认识的一条。
+    pub(crate) fn unknown_config_key(problems: Vec<serde_json::Value>) -> Refusal {
+        let mut data = serde_json::Map::new();
+        data.insert("problems".to_string(), serde_json::Value::Array(problems));
+        Refusal {
+            code: REFUSED,
+            reason: "unknown_config_key",
+            data: Some(data),
+        }
+    }
 
     /// 内核拒了这个命令。
     pub(crate) fn kernel(reason: Reason) -> Refusal {
         Refusal {
             code: REFUSED,
             reason: reason.code(),
+            data: None,
         }
     }
 
     /// 给人看的话，照头的语言。
-    pub(crate) fn message(self, locale: Locale) -> &'static str {
+    pub(crate) fn message(&self, locale: Locale) -> &'static str {
         let (zh, en) = match self.reason {
             "parse_error" => ("读不懂这条消息。", "The message could not be read."),
             "invalid_request" => ("这不是一条请求。", "This is not a request."),
@@ -210,6 +243,8 @@ impl Refusal {
             "not_redoable" => ("无法重做", "Cannot redo."),
             // 2026-10-01 主会话定（施工 3-8 四补）。
             "nothing_to_recap" => ("还没有可回顾的内容", "There is nothing to recap yet."),
+            // 施工 8-2（`config.md`「协议拒绝时的话」）。
+            "unknown_config_key" => ("没有这一项配置。", "There is no such setting."),
             "recap_failed" => (
                 "回顾没写成：请求模型出错了。",
                 "The recap could not be written: the model request failed.",

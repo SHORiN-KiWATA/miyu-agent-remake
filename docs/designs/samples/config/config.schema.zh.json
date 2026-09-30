@@ -20,6 +20,17 @@
       },
       "type": "object"
     },
+    "permission": {
+      "properties": {
+        "start_read_only": {
+          "default": false,
+          "description": "打开以后，新会话一开始就是只读。她只能查、写计划，要改文件时你再关掉只读。项目配置里只能把它打开。能写：true 或 false。只能写在系统配置、个人设置或项目配置里。以后开的会话生效。",
+          "title": "新会话开局只读",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "ui": {
       "properties": {
         "language": {

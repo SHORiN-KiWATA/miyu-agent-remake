@@ -122,3 +122,45 @@ fn every_problem_is_reported() {
         "每一样都报，两项各报一遍，重复再一句：{problems:?}"
     );
 }
+
+#[test]
+fn a_project_item_says_how_it_tightens_and_only_then() {
+    use crate::item::Tighten;
+    let switch = Item {
+        kind: Kind::Bool,
+        default: Value::Bool(false),
+        layers: &[Layer::System, Layer::Project],
+        tighten: Some(Tighten::TrueOnly),
+        ..item("permission.start_read_only", &[], "")
+    };
+    assert_eq!(one(switch.clone()), Vec::<String>::new());
+    assert_eq!(
+        one(Item {
+            tighten: None,
+            ..switch.clone()
+        }),
+        vec!["permission.start_read_only：能放进项目配置，要写怎么收紧"]
+    );
+    assert_eq!(
+        one(Item {
+            layers: &[Layer::System],
+            ..switch.clone()
+        }),
+        vec!["permission.start_read_only：不能放进项目配置，不写收紧"]
+    );
+    assert_eq!(
+        one(Item {
+            layers: &[Layer::Project],
+            tighten: Some(Tighten::TrueOnly),
+            ..item("ui.language", &["a", "b"], "a")
+        }),
+        vec!["ui.language：只能打开只给开关"]
+    );
+    assert_eq!(
+        one(Item {
+            default: Value::Text(Cow::Borrowed("false")),
+            ..switch
+        }),
+        vec!["permission.start_read_only：默认值 \"false\" 过不了自己的校验"]
+    );
+}

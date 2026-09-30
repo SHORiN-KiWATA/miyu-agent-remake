@@ -22,15 +22,21 @@
           "en": "English",
           "ja": "日本語"
         }
+      },
+      "permission.start_read_only": {
+        "name": "Start new sessions read-only",
+        "description": "When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on."
       }
     },
     "pages": {
       "general": "General",
-      "advanced": "Advanced"
+      "advanced": "Advanced",
+      "permissions": "Permissions"
     },
     "groups": {
       "display": "Display",
-      "log": "Runtime log"
+      "log": "Runtime log",
+      "sessions": "Sessions"
     }
   },
   "said": {
@@ -61,6 +67,33 @@
     "config/applies/now": "Takes effect at once",
     "config/or": "{rest} or {last}",
     "config/or-values": "{rest} or {last}",
-    "config/list": "{rest}, {next}"
+    "config/list": "{rest}, {next}",
+    "config/layer/project": "a project config",
+    "config/layer/default": "the default",
+    "config/layer/env": "the environment",
+    "config/applies/new_session": "Applies to sessions opened from now on",
+    "config/unreadable": "Cannot read this file: {why}",
+    "config/too-big": "The file is over 1 MiB and is not read",
+    "config/not-utf8": "The file is not UTF-8",
+    "config/syntax": "Not valid TOML: {why}",
+    "config/unknown-key": "There is no {key}. Did you mean {suggest}?",
+    "config/unknown-key-plain": "There is no {key}",
+    "config/wrong-type": "{key} needs {expected}, not {got}",
+    "config/not-an-option": "{key} must be {options}, not {got}",
+    "config/wrong-layer": "{key} belongs in {layers}. It does not count in {layer}",
+    "config/not-tightening": "A project config can only make limits stricter. {key} is {current}, and {got} here is looser, so it does not count",
+    "config/untrusted-project": "This project config is not trusted yet and is not used",
+    "config/fix-example": "Write one of them, e.g. {example}",
+    "config/fix-write": "Write {example}",
+    "config/fix-move": "Move it to {layers}",
+    "config/kept": "The line is ignored and kept as it is",
+    "config/using-value": "Using {value} ({from}) for now",
+    "config/using-last-good": "Using what was read from this file last time",
+    "config/using-nothing": "The file is not used for now",
+    "config/expected/bool": "true or false",
+    "config/expected/table": "a table",
+    "config/sentence": "{text}.",
+    "config/then": "{rest} {next}",
+    "config/stops": ".?!"
   }
 }

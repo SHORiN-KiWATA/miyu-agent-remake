@@ -55,7 +55,7 @@ fn generated(root: &DataRoot, resources: &ResourceRoot, locale: Option<&str>) ->
     let memory = Memory::new();
     tracing::subscriber::with_default(
         miyu_log::subscriber(memory.clone(), LevelFilter::INFO, None),
-        || generate(root, resources, locale),
+        || generate(root, resources, locale, &Values::defaults(&items())),
     );
     memory.lines()
 }

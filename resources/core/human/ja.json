@@ -22,15 +22,21 @@
           "en": "English",
           "ja": "日本語"
         }
+      },
+      "permission.start_read_only": {
+        "name": "新しいセッションを読み取り専用で始める",
+        "description": "オンにすると、新しいセッションは読み取り専用で始まります。調査と計画だけを行い、ファイルを変更するときに読み取り専用をオフにします。プロジェクト設定ではオンにすることしかできません。"
       }
     },
     "pages": {
       "general": "一般",
-      "advanced": "詳細"
+      "advanced": "詳細",
+      "permissions": "権限"
     },
     "groups": {
       "display": "表示",
-      "log": "実行ログ"
+      "log": "実行ログ",
+      "sessions": "セッション"
     }
   },
   "said": {
@@ -61,6 +67,33 @@
     "config/applies/now": "すぐに反映されます",
     "config/or": "{rest}または{last}",
     "config/or-values": "{rest} または {last}",
-    "config/list": "{rest}、{next}"
+    "config/list": "{rest}、{next}",
+    "config/layer/project": "プロジェクト設定",
+    "config/layer/default": "既定値",
+    "config/layer/env": "環境変数",
+    "config/applies/new_session": "これから開くセッションに反映されます",
+    "config/unreadable": "このファイルを読めません：{why}",
+    "config/too-big": "このファイルは 1 MiB を超えているので読みません",
+    "config/not-utf8": "このファイルは UTF-8 ではありません",
+    "config/syntax": "TOML の書き方が正しくありません：{why}",
+    "config/unknown-key": "{key} という項目はありません。{suggest} のことですか？",
+    "config/unknown-key-plain": "{key} という項目はありません",
+    "config/wrong-type": "{key} には {expected} を書きます。書かれているのは {got} です",
+    "config/not-an-option": "{key} に書けるのは {options} だけです。書かれているのは {got} です",
+    "config/wrong-layer": "{key} は{layers}にだけ書けます。{layer}に書いても効きません",
+    "config/not-tightening": "プロジェクト設定では制限を厳しくすることしかできません。{key} は今 {current} で、ここに書かれた {got} のほうが緩いので効きません",
+    "config/untrusted-project": "このプロジェクト設定はまだ信頼されていないので、使いません",
+    "config/fix-example": "どれかに直してください。例：{example}",
+    "config/fix-write": "{example} に直してください",
+    "config/fix-move": "{layers}に移してください",
+    "config/kept": "この行はそのまま残し、使いません",
+    "config/using-value": "この項目はひとまず {value} を使います（{from}）",
+    "config/using-last-good": "このファイルはひとまず前回読んだ内容を使います",
+    "config/using-nothing": "このファイルはひとまず使いません",
+    "config/expected/bool": "true または false",
+    "config/expected/table": "テーブル",
+    "config/sentence": "{text}。",
+    "config/then": "{rest}{next}",
+    "config/stops": "。？！"
   }
 }

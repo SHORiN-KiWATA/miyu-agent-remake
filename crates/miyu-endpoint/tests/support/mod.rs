@@ -99,6 +99,45 @@ impl Home {
         )
     }
 
+    /// 一份核心，配置照磁盘上现在的几份读（施工 8-2）：清单是端点的两项加上 `log.level`，系统的家目录是 `home`，
+    /// 带 `env` 的项照 `env` 读环境变量。
+    pub fn core_configured(
+        &self,
+        script: &Script,
+        home: Option<PathBuf>,
+        env: &[(&str, &str)],
+    ) -> Arc<Core> {
+        let items = [
+            miyu_endpoint::settings::UiSettings::ITEMS,
+            miyu_endpoint::settings::PermissionSettings::ITEMS,
+            miyu_log::settings::LogSettings::ITEMS,
+        ]
+        .concat();
+        let lookup = |name: &str| {
+            env.iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| value.to_string())
+        };
+        let config = miyu_endpoint::config::Config::load(
+            &self.root,
+            &alice(),
+            home.as_deref(),
+            items,
+            &lookup,
+        );
+        Arc::new(
+            self.core_full(script, Catalog::default(), home, TOKEN)
+                .with_config(config),
+        )
+    }
+
+    /// 写一份配置文件：`relative` 是相对数据根的路径（`system/config.toml`），目录没有的建上。
+    pub fn write(&self, relative: &str, text: &str) {
+        let path = self.root.path().join(relative);
+        std::fs::create_dir_all(path.parent().expect("有上一级")).expect("建得了目录");
+        std::fs::write(path, text).expect("写得进");
+    }
+
     /// 一份核心，工具目录是 `tools`，沙盒用不了（施工 5-4 上）。
     pub fn core_without_sandbox(&self, script: &Script, tools: Catalog) -> Arc<Core> {
         Arc::new(self.core_full(script, tools, None, TOKEN))

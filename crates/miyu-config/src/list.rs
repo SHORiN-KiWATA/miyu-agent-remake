@@ -1,9 +1,9 @@
 //! 查清单写得对不对（`docs/blueprint/config.md`「怎么走」第一条第 2 到 4 条，G10）：两个键不指同一件事，键合
-//! 写法，默认值过自己的校验。清单写在代码里，写错了是程序的错：核心的测试照登记的全部清单查一遍，不在起来时查。
+//! 写法，默认值过自己的校验，能放进项目配置的写了怎么收紧（「收紧」）。清单写在代码里，写错了是程序的错：核心的测试照登记的全部清单查一遍，不在起来时查。
 
 use std::collections::BTreeSet;
 
-use crate::item::{Item, Kind};
+use crate::item::{Item, Kind, Layer, Tighten};
 
 /// 留给扩展的第一段：内置的模块不许用（`14-配置.md` 第二节）。
 const EXTENSIONS: &str = "ext";
@@ -27,6 +27,7 @@ pub fn check(items: &[Item]) -> Vec<String> {
             problems.push(format!("{key}：层写重了"));
         }
         problems.extend(kind_problems(item));
+        problems.extend(tighten_problem(item));
         if !item.kind.accepts(&item.default) {
             problems.push(format!(
                 "{key}：默认值 {} 过不了自己的校验",
@@ -72,9 +73,24 @@ fn key_problem(key: &str) -> Option<&'static str> {
     None
 }
 
+/// 收紧写得对不对：能放进项目配置的必写，别的不写；「只能打开」只给开关。
+fn tighten_problem(item: &Item) -> Option<String> {
+    let key = item.key;
+    let project = item.layers.contains(&Layer::Project);
+    match (project, item.tighten, item.kind) {
+        (true, None, _) => Some(format!("{key}：能放进项目配置，要写怎么收紧")),
+        (false, Some(_), _) => Some(format!("{key}：不能放进项目配置，不写收紧")),
+        (true, Some(Tighten::TrueOnly), Kind::Option(_)) => {
+            Some(format!("{key}：只能打开只给开关"))
+        }
+        _ => None,
+    }
+}
+
 /// 类型本身写得对不对：选项至少两个、不重复。
 fn kind_problems(item: &Item) -> Vec<String> {
     match item.kind {
+        Kind::Bool => Vec::new(),
         Kind::Option(options) => {
             let mut problems = Vec::new();
             if options.len() < 2 {

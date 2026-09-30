@@ -161,6 +161,16 @@ impl<'p> Follow<'p> {
         self.redo = Some(Vec::new());
     }
 
+    /// 握手的回应说配置里有几处错误（施工 8-2）：说一句，`miyu config check` 看是哪里。
+    pub(crate) fn config_errors(&mut self, errors: u64, screen: &mut Screen<'_>) {
+        if self.plan.format == Format::Text {
+            self.aside(
+                &Line::gray(self.plan.language.config_errors(errors)),
+                screen,
+            );
+        }
+    }
+
     /// 握手的回应说沙盒用不了，原因是 `reason`（协议上的写法）：执行命令都要确认，这里确认不了，说一句（施工 5-4 下）。
     /// 只给人看的时候说。
     pub(crate) fn unsandboxed(&mut self, reason: &str, screen: &mut Screen<'_>) {

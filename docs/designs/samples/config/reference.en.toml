@@ -6,6 +6,11 @@
 # Allowed: error, warn, info, debug, trace or off. Only in the system config. Takes effect at once.
 level = "info"
 
+[permission]
+# Start new sessions read-only: When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on.
+# Allowed: true or false. Only in the system config, personal settings or a project config. Applies to sessions opened from now on.
+start_read_only = false
+
 [ui]
 # Interface language: The language terminals, the web page and the command line use for you. auto follows the terminal or browser.
 # Allowed: auto, zh, en or ja. Only in the system config or personal settings. Takes effect at once.

@@ -28,6 +28,7 @@
 | `Human::say(说法)` | 照说法换成的一句话；换不出来的是空的 |
 | `Human::fields(编号)` | 这一句要哪些字段，照出现的先后，重复的算一次；没有这一句的是空的 |
 | `clean(字)` | 控制字符换成 `�`，别的照原样 |
+| `Human::page`、`Human::group` | 设置页的页、组的名字（施工 8-2，`config.schema`） |
 | `Human` 实现的 `miyu_config::Words` | `item(键)`：配置那一格里这一项的名字、说明、选项名；`sentence(编号, 字段)`：内核那一份 `said` 里的一句，编号前面加 `core/`，例如 `config/facts` 就是说法 `core/config/facts`（施工 8-1，`config.md`「给人看的字」） |
 | `FALLBACK` | `"en"`：找不到别的语言时用的那一种 |
 
@@ -151,7 +152,7 @@
 - `tools` 里每件工具只许有 `name`（必填）、`subject`、`icon`、`block`（都可以不写）；`block` 只能是 `command` 或者 `edits`。
 - 这一份在 `software/basesystem/human/zh.json` 里，`read/lines` 就是说法 `software/basesystem/read/lines`：字段 `count` 是 `37` 时，换成「37 行」。
 - 每件工具的显示名、结果那一句，见 `tools/*.md` 和 `cli/ask.md`。
-- `config` 里只许有 `items`、`pages`、`groups`；一项只许有 `name`、`description`（必填）、`options`（可以不写）。写了什么、和配置清单怎么对上，见 `config.md`「给人看的字」「怎么走」第一条第 5 条。内核那一份的 `said` 里还有生成文件要的几句 `config/…`。
+- `config` 里只许有 `items`、`pages`、`groups`；一项只许有 `name`、`description`（必填）、`options`（可以不写）。写了什么、和配置清单怎么对上，见 `config.md`「给人看的字」「怎么走」第一条第 5 条。内核那一份的 `said` 里还有生成文件要的几句、报错的话和接句子的三句 `config/…`（施工 8-1、8-2，`config.md`「给人看的字」）。
 
 ### 出错
 

@@ -166,6 +166,16 @@ impl Human {
         template.fill(&fields, clean).ok()
     }
 
+    /// 设置页编号 `id` 那一页的名字；没有的是空的（施工 8-2，`config.schema`）。
+    pub fn page(&self, id: &str) -> Option<&str> {
+        self.config.pages.get(id).map(String::as_str)
+    }
+
+    /// 设置页编号 `id` 那一组的名字；没有的是空的（施工 8-2，`config.schema`）。
+    pub fn group(&self, id: &str) -> Option<&str> {
+        self.config.groups.get(id).map(String::as_str)
+    }
+
     /// 说法 `key` 这一句要哪些字段；没有这一句的是空的。
     pub fn fields(&self, key: &str) -> Option<Vec<&str>> {
         self.said.get(key).map(Template::fields)

@@ -1,10 +1,11 @@
-//! 给人看的话跟着界面语言（`docs/designs/22-命令行.md` 第二节）：照 `LC_ALL`、`LC_MESSAGES`、`LANG`，`zh`
-//! 开头的说中文，别的说英文。配置系统做出来以后照这个人的界面语言设置；界面的字先写在这里，做界面
+//! 给人看的话跟着界面语言（`docs/designs/22-命令行.md` 第二节）：握手以前照系统的语言，`zh` 开头的说中文，别的说
+//! 英文；握手以后照核心回的 `language`，它照这个人的 `ui.language` 算（施工 8-2）。界面的字先写在这里，做界面
 //! 语言的那一步挪进资源文件（`00-设计理念.md` 第六节）。
 
 use crate::ask::usage_line;
 
 mod agents;
+mod config;
 mod harness;
 mod sandbox;
 mod undo;
@@ -31,18 +32,31 @@ pub(crate) enum Word {
     Skipped,
 }
 
-/// 从进程的环境里读。
+/// 握手以前的界面语言：照系统的语言（`miyu_store::env::locale`：`LC_ALL`、`LC_MESSAGES`、`LANG`，都没设的看系统设置，
+/// 施工 8-2），`zh` 开头的说中文，别的说英文。握手以后照核心回的 `language`（[`Language::from_code`]）。
 pub fn current() -> Language {
-    let set = ["LC_ALL", "LC_MESSAGES", "LANG"]
-        .iter()
-        .find_map(|name| std::env::var(name).ok().filter(|value| !value.is_empty()));
-    match set {
+    of_locale(miyu_store::env::locale().as_deref())
+}
+
+/// 照系统的语言 `locale` 挑：`zh` 开头的是中文，别的、没有的是英文。
+pub fn of_locale(locale: Option<&str>) -> Language {
+    match locale {
         Some(value) if value.starts_with("zh") => Language::Chinese,
         _ => Language::English,
     }
 }
 
 impl Language {
+    /// 核心握手时回的 `language`（`zh`、`en`、`ja`）换成命令行的界面语言（施工 8-2）：命令行自己的字只有中文、英文，
+    /// `ja` 的照英文。认不出的是空的。
+    pub fn from_code(code: &str) -> Option<Language> {
+        match code {
+            "zh" => Some(Language::Chinese),
+            "en" | "ja" => Some(Language::English),
+            _ => None,
+        }
+    }
+
     /// 握手时报给核心的语言：核心的拒绝照它说。
     pub fn locale(&self) -> &'static str {
         match self {

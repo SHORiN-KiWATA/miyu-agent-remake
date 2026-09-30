@@ -116,15 +116,17 @@ pub(crate) fn result(id: &CommandId, result: Value) -> String {
     json!({"jsonrpc": "2.0", "id": id.as_str(), "result": result}).to_string()
 }
 
-/// 拒绝的回应，写成一行（不带换行）：`code`、照头的语言写的话、`data.reason`。
+/// 拒绝的回应，写成一行（不带换行）：`code`、照头的语言写的话、`data.reason`，和这种拒绝多的几格（施工 8-2）。
 pub(crate) fn error(id: Value, refusal: Refusal, locale: Locale) -> String {
+    let mut data = refusal.data.clone().unwrap_or_default();
+    data.insert("reason".to_string(), json!(refusal.reason));
     json!({
         "jsonrpc": "2.0",
         "id": id,
         "error": {
             "code": refusal.code,
             "message": refusal.message(locale),
-            "data": {"reason": refusal.reason},
+            "data": data,
         },
     })
     .to_string()

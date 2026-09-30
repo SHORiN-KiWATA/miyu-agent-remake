@@ -4,7 +4,7 @@
 //! 找数据根只照快照算，不直接读进程的环境：测试喂一份快照就行，不用改进程的环境变量（改了会串到
 //! 同时跑的别的测试）。平台也是快照的一格，三个平台的默认位置在任何一台机器上都测得到。
 //!
-//! 系统的语言另读（[`locale`]，施工 8-1）：只有核心要用语言、又没有头的时候用。
+//! 系统的语言另读（[`locale`]，施工 8-1；环境变量都没设的看系统设置，施工 8-2）。
 
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
@@ -89,17 +89,28 @@ impl Env {
 const LOCALE_VARS: [&str; 3] = ["LC_ALL", "LC_MESSAGES", "LANG"];
 
 /// 系统的语言：`LC_ALL`、`LC_MESSAGES`、`LANG` 照这个先后，取第一个设了、不是空的（不是 UTF-8 的当没设），和命令行
-/// 认界面语言的一样（`cli/main.md`「界面语言」）；都没设的是空的。核心要用语言、又没有头的时候照它，例如生成配置的
-/// Schema 和参考文件（`config.md` 第一条第 6 条）。这几个都没设时看 macOS、Windows 的系统设置，随 8-2 换成 `sys-locale`。
+/// 认界面语言的一样（`cli/main.md`「界面语言」）；这几个都没设的，照系统设置（[`system_locale`]：macOS 的首选语言、
+/// Windows 的界面语言，施工 8-2）；都没有的是空的。核心要用语言、又没有头的时候照它，例如生成配置的 Schema 和参考
+/// 文件（`config.md` 第一条第 6 条）；命令行握手以前照它挑界面语言、握手时报给核心（第二条第 8 条）。
 pub fn locale() -> Option<String> {
-    locale_from(|name| std::env::var(name).ok())
+    locale_from(|name| std::env::var(name).ok(), system_locale)
 }
 
-/// 同 [`locale`]，环境变量照 `var` 读：测试喂一份，不改进程的环境。
-fn locale_from(var: impl Fn(&str) -> Option<String>) -> Option<String> {
+/// 系统设置里的语言，BCP 47 的写法（`zh-CN`、`ja-JP`）：`sys-locale` 读。Linux 上它也只看环境变量（多看一个
+/// `LANGUAGE`），macOS 看首选语言，Windows 看用户的界面语言。读不出来、是空的，交回空的。
+pub fn system_locale() -> Option<String> {
+    sys_locale::get_locale().filter(|locale| !locale.is_empty())
+}
+
+/// 同 [`locale`]，环境变量照 `var` 读、系统设置照 `system` 读：测试喂一份，不改进程的环境。
+fn locale_from(
+    var: impl Fn(&str) -> Option<String>,
+    system: impl FnOnce() -> Option<String>,
+) -> Option<String> {
     LOCALE_VARS
         .iter()
         .find_map(|name| var(name).filter(|value| !value.is_empty()))
+        .or_else(system)
 }
 
 #[cfg(test)]

@@ -1,0 +1,15 @@
+用法：miyu config <命令> [选项]
+
+看配置。改配置、信任项目配置的命令随后加上。
+
+命令：
+  get [键…]     印出最终的值，只写一个键时只印值
+  check [文件]  检查配置有没有写错
+  explain <键>  这一项每一层写的什么、哪一个生效
+  path          印出配置文件在哪
+
+选项：
+      --system            系统配置，不写是个人设置（check、path）
+      --project           当前目录的项目配置（check、path）
+      --format text|json  get、check、explain：json 给脚本
+  -h, --help              印帮助

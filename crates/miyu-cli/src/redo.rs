@@ -134,11 +134,25 @@ pub async fn redo_on(
     presses: mpsc::Receiver<()>,
 ) -> u8 {
     let mut rpc = Rpc::new(connection, "redo");
-    let language = &plan.language;
-    let unsandboxed = match link::hello(&mut rpc, token, language, false, screen.err).await {
-        Ok(hello) => link::unsandboxed(&hello),
+    let hello = match link::hello(&mut rpc, token, &plan.language, false, screen.err).await {
+        Ok(hello) => hello,
         Err(code) => return code,
     };
+    let unsandboxed = link::unsandboxed(&hello);
+    // 握手以后照核心回的语言说（施工 8-2）：换了的，给人看的字也照新的那种读一份。
+    let spoken;
+    let plan = match link::spoken(&hello, plan.language) {
+        language if language == plan.language => plan,
+        language => {
+            spoken = RedoPlan {
+                language,
+                human: human(&miyu_store::env::Env::current(), &language),
+                ..plan.clone()
+            };
+            &spoken
+        }
+    };
+    let language = &plan.language;
     let session = match &plan.session {
         Some(session) => session.clone(),
         None => match link::latest_oneshot(&mut rpc, language, screen.err).await {

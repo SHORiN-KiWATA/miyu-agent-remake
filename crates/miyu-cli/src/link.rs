@@ -33,6 +33,19 @@ pub(crate) async fn hello(
     request(rpc, "hello", hello, language, err).await
 }
 
+/// 握手以后说哪种话（施工 8-2）：照回应的 `language`；老的核心没回的，还是 `asked`（握手以前的那一种）。
+pub(crate) fn spoken(hello: &Value, asked: Language) -> Language {
+    hello["language"]
+        .as_str()
+        .and_then(Language::from_code)
+        .unwrap_or(asked)
+}
+
+/// 握手的回应说配置里有几处错误（施工 8-2）：没有的是 0。
+pub(crate) fn config_errors(hello: &Value) -> u64 {
+    hello["config_errors"].as_u64().unwrap_or(0)
+}
+
 /// 握手的回应说沙盒用不了：交回原因（协议上的写法）；能用的、没说的（老的核心）是空的。
 pub(crate) fn unsandboxed(hello: &Value) -> Option<String> {
     let sandbox = &hello["sandbox"];
@@ -111,3 +124,6 @@ pub(crate) async fn request_saying(
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
