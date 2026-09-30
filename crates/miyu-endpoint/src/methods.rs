@@ -3,7 +3,8 @@
 //! （施工 6-8），切权限级别（施工 3-8 再补），清空上下文（施工 6-8 补），回顾（施工 3-8 四补，回应是那一句），停掉一个任务（施工 7-4），读后台命令的输出（施工 7-4 补），
 //! 传附件（施工 3-9 三补），改标题、置顶，删除会话（施工 3-8 三补）。别的 harness 带着名字说话（`session.send` 的 `from`，
 //! 施工 7-10）。命令交给会话，等它的回应：接受的回 `events`（切权限级别、停掉任务、改标题的回 `{}`），拒绝的回原因码；删除
-//! 由会话表办。造会话、说话的回应再带上会话实际在哪个目录里干活（施工 4-5 下）。
+//! 由会话表办。造会话、说话的回应再带上会话实际在哪个目录里干活（施工 4-5 下），这个目录的项目配置还没问过信不信任的，
+//! 再带上它在哪（`untrusted_project`，施工 8-2）。查配置的三个方法在 `config/methods.rs`（施工 8-2）。
 
 use std::sync::Arc;
 
@@ -19,6 +20,7 @@ use miyu_session::Handle;
 
 use crate::Core;
 use crate::attach::{self, Attachment};
+use crate::config;
 use crate::from;
 use crate::hello::Peer;
 use crate::job_output;
@@ -194,7 +196,12 @@ pub(crate) async fn call(
                     who,
                 )
                 .await?;
-            Ok(json!({"session": created.id.as_str(), "events": [1], "cwd": created.cwd}))
+            let mut reply =
+                json!({"session": created.id.as_str(), "events": [1], "cwd": created.cwd});
+            if let Some(file) = created.untrusted {
+                reply["untrusted_project"] = json!(file);
+            }
+            Ok(reply)
         }
         "session.list" => {
             let params: ListParams = params(request)?;
@@ -227,7 +234,11 @@ pub(crate) async fn call(
                 )
                 .await?;
             let events = command_by(core, request, &session, &found.handle, by, command).await?;
-            Ok(json!({"events": events, "cwd": found.cwd}))
+            let mut reply = json!({"events": events, "cwd": found.cwd});
+            if let Some(file) = core.config.untrusted(&found.cwd) {
+                reply["untrusted_project"] = json!(file);
+            }
+            Ok(reply)
         }
         "session.interrupt" => {
             let params: InterruptParams = params(request)?;
@@ -343,6 +354,9 @@ pub(crate) async fn call(
             }
         }
         "job.output" => job_output::read(core, params(request)?).await,
+        "config.schema" => config::methods::schema(core, peer, params(request)?),
+        "config.get" => config::methods::get(core, peer, params(request)?),
+        "config.check" => config::methods::check(core, peer, params(request)?),
         "blob.put" => attach::put(core, params(request)?).await,
         "session.set_meta" => {
             let params: MetaParams = params(request)?;

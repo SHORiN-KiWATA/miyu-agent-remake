@@ -2,7 +2,7 @@
 //! recap_history.rs`、`context-fragments/src/recap_prompt.rs`，2026-10-01 看过源码后定），单独一次辅助请求，不接主对话的前缀、
 //! 不带 system 和工具面：长会话也不用把整段上下文再读一遍，快满窗口时也不会超长。
 //!
-//! 只喂有效历史里最近几轮你看得到的对话：人这边的话（别的 harness、子代理发来的照主请求里的外壳写，看得出来处），她每一轮
+//! 只喂有效历史里最近几轮你看得到的对话：人这边的话（别的 harness、别的会话、子代理发来的照主请求里的外壳写，看得出来处），她每一轮
 //! 最后一条有正文的回复；工具调用、工具结果、思考、注入的事实都不要。一轮是一段人这边的话，连同她接着的回答：从新往旧数，
 //! 答过的至多 `turns` 轮，最新那一轮没答的也带上。
 //!
@@ -16,11 +16,9 @@ use miyu_kernel::estimate::BYTES_PER_TOKEN;
 use miyu_kernel::event::Body;
 use miyu_kernel::history::History;
 use miyu_kernel::id::{Seq, TurnId};
-use miyu_kernel::origin::By;
 use miyu_kernel::request::{Message, Request};
 
 use crate::texts::{Recap, Texts};
-use crate::{harness, jobs};
 
 /// 段与段、轮与轮之间空一行：记录的格式，照 codex。
 pub(crate) const GAP: &str = "\n\n";
@@ -115,20 +113,16 @@ pub(crate) struct Entry {
 }
 
 /// 照投影的先后（`History::ordered`）取人这边的话和她每一轮最后一条有正文的回复。人这边的话照主请求里的写法渲染：别的
-/// harness、子代理发来的包着外壳，派它的那一轮撤掉了的子代理的话不出（`harness.rs`、`jobs.rs`）。只要字，附件不要。
+/// harness、别的会话、子代理发来的包着外壳，派它的那一轮撤掉了的子代理的话不出（`render.rs` 的 `said`）。只要字，附件不要。
 pub(crate) fn entries(history: &History, texts: &Texts) -> Vec<Entry> {
     let answers = last_answers(history);
     let mut entries = Vec::new();
     for event in history.ordered() {
         let (assistant, blocks) = match &event.body {
-            Body::MessageUser(message) => {
-                let blocks = message.blocks.clone();
-                let blocks = match &event.by {
-                    By::Harness(from) => harness::message(from, blocks, texts.harness.as_ref()),
-                    by => jobs::message(history, by, blocks, texts.jobs.as_ref()),
-                };
-                (false, blocks)
-            }
+            Body::MessageUser(message) => (
+                false,
+                crate::render::said(history, &event.by, message.blocks.clone(), texts),
+            ),
             Body::MessageAssistant(reply)
                 if event
                     .turn

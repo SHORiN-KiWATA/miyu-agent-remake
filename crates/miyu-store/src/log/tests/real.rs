@@ -92,6 +92,11 @@ fn policy() -> Policy {
             omitted: miyu_kernel::template::Template::parse("").expect("空的模板读得进来"),
         },
         titles: None,
+        peers: miyu_kernel::session::Peers {
+            burst: 5,
+            window: 600,
+            unread: 50,
+        },
     }
 }
 

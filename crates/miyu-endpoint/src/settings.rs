@@ -1,7 +1,8 @@
-//! 端点的配置项（`docs/blueprint/config.md`「M8 的配置项」，施工 8-1）：界面语言 `ui.language`。
+//! 端点的配置项（`docs/blueprint/config.md`「M8 的配置项」）：界面语言 `ui.language`（施工 8-1），新会话开局只读
+//! `permission.start_read_only`（施工 8-2）。
 //!
-//! 这一步只声明，进清单；核心起来时照它的最终值（这一步还不读配置，就是默认值 `auto`）挑生成的文件用哪种语言。
-//! 握手时照它算连接的语言随 8-2（第二条第 8 条）。
+//! 核心起来时照 `ui.language` 的最终值挑生成的文件用哪种语言；握手时照它和头报的系统语言算这个连接的语言（第二条
+//! 第 8 条）。造会话时照 `permission.start_read_only` 的最终值（带上信任着的项目配置）定开局是不是只读（第二条第 9 条）。
 
 miyu_config::settings! {
     /// 界面的配置。
@@ -12,6 +13,20 @@ miyu_config::settings! {
             layers: [System, Personal],
             applies: now,
             ui: { page: "general", group: "display", common: true, control: select },
+        },
+    }
+}
+
+miyu_config::settings! {
+    /// 权限的配置（施工 8-2）。
+    pub struct PermissionSettings in "permission" {
+        /// 新会话一开局就是只读：她只能查、写计划。项目配置只能把它打开。
+        start_read_only: bool = false {
+            kind: bool,
+            layers: [System, Personal, Project],
+            tighten: true_only,
+            applies: new_session,
+            ui: { page: "permissions", group: "sessions", control: toggle },
         },
     }
 }

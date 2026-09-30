@@ -243,6 +243,11 @@ fn policy() -> Policy {
             omitted: crate::template::Template::parse("[{count} cut]\n").unwrap(),
         },
         titles: None,
+        peers: crate::session::Peers {
+            burst: 5,
+            window: 600,
+            unread: 50,
+        },
     }
 }
 

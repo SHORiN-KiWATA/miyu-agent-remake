@@ -247,6 +247,13 @@ pub enum Reason {
     /// 回顾没写成（施工 3-8 四补）：请求出了错，或者回复里没有正文。原因记在那一次的 `model.called` 里；不再来，头要再要一次
     /// 就是。
     RecapFailed,
+    /// 别的会话发来的话（施工 C-2，`docs/blueprint/cross-session.md` 第五条第 1 款）：这个发话方在过去一个窗口里已经记下了
+    /// 够数的几句。只回给核心里别的会话，不经协议给头。
+    TooManyMessages,
+    /// 别的会话发来的话（施工 C-2，第五条第 2 款）：这个发话方在过去一个窗口里发过一字不差的一句。
+    DuplicateMessage,
+    /// 别的会话发来的话（施工 C-2，第五条第 3 款）：还没听到的别的会话的话已经够数了。
+    InboxFull,
 }
 
 impl Reason {
@@ -272,6 +279,9 @@ impl Reason {
             Reason::NotRedoable => "not_redoable",
             Reason::NothingToRecap => "nothing_to_recap",
             Reason::RecapFailed => "recap_failed",
+            Reason::TooManyMessages => "too_many_messages",
+            Reason::DuplicateMessage => "duplicate_message",
+            Reason::InboxFull => "inbox_full",
         }
     }
 }

@@ -8,7 +8,8 @@
 
 | 代码 | 管什么 |
 |---|---|
-| `crates/miyu-store/src/env.rs` | 环境快照：找数据根、资源目录要看的几样，从进程里读一次；系统的语言 `locale`（施工 8-1） |
+| `crates/miyu-store/src/env.rs` | 环境快照：找数据根、资源目录要看的几样，从进程里读一次；系统的语言 `locale`（施工 8-1，都没设的看系统设置 `system_locale`，施工 8-2） |
+| `crates/miyu-store/src/config_file.rs` | 读配置文件（施工 8-2，`config.md`「怎么走」第二条第 2 条）：没有的是空的，1 MiB 的上限，去掉开头的 BOM，不是 UTF-8 的报错，版本是整份字节的 SHA-256。写的那一半随 8-3 |
 | `crates/miyu-store/src/root.rs` | 数据根在哪、建骨架、认标记；账号的目录；缓存目录在哪 |
 | `crates/miyu-store/src/durable.rs` | 建目录、同步目录；新建临时文件（只许新建，撞名换下一个）、删用不上的临时文件（施工 8-1 从 `blob.rs` 挪来，两处共用） |
 | `crates/miyu-store/src/generated.rs` | 核心生成的派生文件：一样的不写，不一样的先写临时文件再替换（施工 8-1，`config.md`「怎么走」第一条第 7 条） |
@@ -35,7 +36,7 @@
 
 没设的、读不到的是空的。空的、相对的算不算数，由用它的地方定。
 
-**系统的语言 `env::locale()`**（施工 8-1）：`LC_ALL`、`LC_MESSAGES`、`LANG` 照这个先后，取第一个设了、不是空的（不是 UTF-8 的当没设），和命令行认界面语言的一样；都没设的是空的。不在快照里，只有核心要用语言、又没有头的时候读一次（生成配置的 Schema 和参考文件，`config.md`「怎么走」第一条第 6 条）。这几个都没设时看 macOS、Windows 的系统设置，随 8-2 换成 `sys-locale`。
+**系统的语言 `env::locale()`**（施工 8-1）：`LC_ALL`、`LC_MESSAGES`、`LANG` 照这个先后，取第一个设了、不是空的（不是 UTF-8 的当没设），和命令行认界面语言的一样；都没设的是空的。不在快照里，只有核心要用语言、又没有头的时候读一次（生成配置的 Schema 和参考文件，`config.md`「怎么走」第一条第 6 条）。这几个都没设时看系统设置（`system_locale`，用 `sys-locale`：macOS 的首选语言、Windows 的界面语言，Linux 上它看 `LANGUAGE`，施工 8-2）。命令行握手以前也照它挑界面语言（`cli/main.md`）。
 
 **生成的文件 `generated::write(路径, 字节)`**（施工 8-1）：和磁盘上已经有的逐字节比，一样的不写，交回 `false`；不一样的在旁边新建临时文件 `.<文件名>.<进程号>-<计数>.tmp`、写进去、同步、关上，改名盖上，再同步目录，交回 `true`；没有的目录建上（Unix 上 0700）。写到一半失败的，临时文件删掉。不顺着链接找本体、不带原来的权限位、Windows 上改名失败不重试：它们是派生的，下次起来再写（`config.md`「怎么走」第一条第 7 条）。
 
@@ -68,9 +69,12 @@
 ```text
 <数据根>/
 ├── .miyu-root                          标记，一行字
-├── system/                             现在空着
+├── system/
+│   └── config.toml                     系统配置（config.md，施工 8-2 读）
 ├── home/
 │   └── <账号>/                         核心起来时给 admin 建；退回工作区时缺了再补建
+│       ├── settings.toml               个人设置（config.md，施工 8-2 读）
+│       ├── trust.toml                  项目配置的信任（config.md，施工 8-2 读，8-3 写）
 │       ├── workspace/                  头报来的工作目录太宽时，退回这里（protocol.md）
 │       ├── sessions/<会话编号>/         会话日志，一段一个文件
 │       │   ├── 000000000001.jsonl

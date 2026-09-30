@@ -6,14 +6,20 @@
 //!
 //! - [`list::check`]：查清单写得对不对（键不重复、不互为前缀、合写法，默认值过自己的校验）；
 //! - [`words::check`]：查资源里给人看的字和清单对不对得上；
-//! - [`schema::render`]、[`reference::render`]：生成两份 JSON Schema 和参考文件。
+//! - [`schema::render`]、[`reference::render`]：生成两份 JSON Schema 和参考文件；
+//! - [`parse::parse`]：读一份配置的字，照清单认，记下每一项在第几行，写错的报 [`problem::Problem`]（施工 8-2）；
+//! - [`merge::merge`]：分层合出最终值和来源，项目配置只认收紧的（施工 8-2）；
+//! - [`problem::tell`]：一条问题照一种语言说成话（施工 8-2）。
 //!
 //! 给人看的字（名字、说明、几句话）住在资源目录里，由读资源的那一层照 [`Words`] 交进来。
 //!
-//! 现在只有选项一种类型（[`Kind`]）：照「不为以后写代码」，别的类型哪一步用到哪一步加。
+//! 现在有选项、开关两种类型（[`Kind`]）：照「不为以后写代码」，别的类型哪一步用到哪一步加。
 
 mod item;
 pub mod list;
+pub mod merge;
+pub mod parse;
+pub mod problem;
 pub mod reference;
 pub mod schema;
 mod value;
@@ -22,6 +28,6 @@ pub mod words;
 #[cfg(test)]
 mod test_support;
 
-pub use item::{Applies, Control, Item, Kind, Layer, Ui};
+pub use item::{Applies, Control, Item, Kind, Layer, Tighten, Ui};
 pub use value::{Value, Values};
 pub use words::{ConfigWords, ItemWords, Missing, Words};

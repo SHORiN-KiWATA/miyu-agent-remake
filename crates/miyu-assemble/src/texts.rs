@@ -40,6 +40,8 @@ pub struct Texts {
     pub jobs: Option<JobTexts>,
     /// 别的 harness 发来的话的标签（`core/harness/`，施工 7-10）。以前造的快照里没有，是没有：那种话照人的话原样渲染。
     pub harness: Option<HarnessTexts>,
+    /// 别的会话发来的话的标签（`core/peers/`，施工 C-2）。以前造的快照里没有，是没有：那种话照人的话原样渲染。
+    pub peers: Option<PeerTexts>,
     /// 回顾的请求要用的（`core/recap/`，施工 3-8 四补）。以前造的快照里没有，是没有：那些会话不做回顾。
     pub recap: Option<Recap>,
     /// 起标题的请求要用的（`core/title/`，施工 3-8 五补）：对话记录的标签和截断的记号借回顾的，两样都有才起标题。以前造的
@@ -173,6 +175,16 @@ pub struct JobTexts {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HarnessTexts {
     /// 标签（`message-open.txt`）：字段 `name`，它自己报的名字，照模板的规矩转义。
+    pub open: Template,
+    /// 收尾（`message-close.txt`）。
+    pub close: String,
+}
+
+/// 别的会话发来的话的标签（施工 C-2，`docs/blueprint/kernel/request.md`「别的会话发来的话」）：一块带标签的事实，写法照
+/// 别的 harness 发来的话。每一份以一个换行结尾。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PeerTexts {
+    /// 标签（`message-open.txt`）：字段 `id`，发话的会话的短编号，照 `by` 算。
     pub open: Template,
     /// 收尾（`message-close.txt`）。
     pub close: String,

@@ -33,7 +33,7 @@ pub struct History {
     whole: bool,
     /// 最近一个检查点里重读的文件的原文，照 blob 找（施工 6-5）：原文不进日志，由执行器交进来。
     recalled: BTreeMap<ContentHash, String>,
-    /// 派出去过的任务（施工 7-2，`history/jobs.rs`）：压缩不丢，撤销、恢复跟着标。
+    /// 派出去过的任务（施工 7-2，`history/jobs.rs`）：压缩不丢，撤销、恢复跟着标。父会话也记在那里（施工 C-2）。
     jobs: jobs::Jobs,
 }
 
@@ -73,6 +73,12 @@ impl History {
     /// 写它的编号、标题。不是这个会话派的子代理的没有。
     pub fn subagent(&self, session: &SessionId) -> Option<(JobId, &Dispatched)> {
         self.jobs.in_session(session)
+    }
+
+    /// 会话 `session` 发来的话是别的会话发来的（施工 C-2，`docs/blueprint/cross-session.md` 第四条第 1 款）：它不是这个
+    /// 会话的父会话，也不是这个会话派的子代理（派它的那一轮撤掉了的也算派过）。渲染、`history` 照它写标签、「谁」。
+    pub fn is_peer(&self, session: &SessionId) -> bool {
+        !self.jobs.is_parent(session) && self.jobs.in_session(session).is_none()
     }
 
     /// 只记派出去的任务，不留这一条（施工 7-2）：载入时，有效历史重建的那一段以前的事件照它过一遍，派出去过的任务才是

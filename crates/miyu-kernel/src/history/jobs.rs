@@ -9,9 +9,13 @@ use std::collections::BTreeMap;
 use crate::event::{Body, Effect, Event, JobKind};
 use crate::id::{JobId, SessionId, TurnId};
 
-/// 派出去过的任务，照编号。
+/// 派出去过的任务，照编号；和这个会话的父会话（施工 C-2：认别的会话发来的话，和子代理一样压缩不丢）。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(super) struct Jobs(BTreeMap<JobId, Dispatched>);
+pub(super) struct Jobs {
+    dispatched: BTreeMap<JobId, Dispatched>,
+    /// 父会话：`session.created` 的 `parent`，主会话没有。
+    parent: Option<SessionId>,
+}
 
 /// 派出去的一个任务：渲染回报、判回报叫不叫醒她用。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,6 +36,7 @@ impl Jobs {
     /// 记下这一条带来的变化：工具结果的效果里派出去的记下；撤掉的那几轮里派的标成撤掉了，恢复的去掉这个标。
     pub(super) fn note(&mut self, event: &Event) {
         match &event.body {
+            Body::SessionCreated(created) => self.parent = created.parent.clone(),
             Body::ToolResult(result) => {
                 for effect in &result.effects {
                     if let Effect::JobStarted(started) = effect {
@@ -42,7 +47,7 @@ impl Jobs {
                             undone: false,
                             turn: event.turn,
                         };
-                        self.0.insert(started.job.clone(), dispatched);
+                        self.dispatched.insert(started.job.clone(), dispatched);
                     }
                 }
             }
@@ -54,20 +59,25 @@ impl Jobs {
 
     /// 编号是 `job` 的那一个；没派过的没有。
     pub(super) fn get(&self, job: &JobId) -> Option<&Dispatched> {
-        self.0.get(job)
+        self.dispatched.get(job)
     }
 
     /// 在会话 `session` 里跑的子代理：编号和它（施工 7-7）。不是这个会话派的子代理的没有。
     pub(super) fn in_session(&self, session: &SessionId) -> Option<(JobId, &Dispatched)> {
-        self.0
+        self.dispatched
             .iter()
             .find(|(_, job)| job.session.as_ref() == Some(session))
             .map(|(id, job)| (id.clone(), job))
     }
 
+    /// 会话 `session` 是这个会话的父会话（施工 C-2）。
+    pub(super) fn is_parent(&self, session: &SessionId) -> bool {
+        self.parent.as_ref() == Some(session)
+    }
+
     /// 在这几轮里派的，照编号（施工 7-8：撤销停掉它们）。
     pub(super) fn in_turns<'a>(&'a self, turns: &'a [TurnId]) -> impl Iterator<Item = JobId> + 'a {
-        self.0
+        self.dispatched
             .iter()
             .filter(|(_, job)| job.turn.is_some_and(|turn| turns.contains(&turn)))
             .map(|(id, _)| id.clone())
@@ -75,7 +85,7 @@ impl Jobs {
 
     /// 在这几轮里派的，标成撤掉了没有。
     fn mark(&mut self, turns: &[TurnId], undone: bool) {
-        for job in self.0.values_mut() {
+        for job in self.dispatched.values_mut() {
             if job.turn.is_some_and(|turn| turns.contains(&turn)) {
                 job.undone = undone;
             }

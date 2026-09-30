@@ -10,6 +10,7 @@ use std::path::{MAIN_SEPARATOR, Path};
 pub(crate) const GRAY: &str = "\x1b[90m";
 const RED: &str = "\x1b[31m";
 const GREEN: &str = "\x1b[32m";
+const YELLOW: &str = "\x1b[33m";
 pub(crate) const RESET: &str = "\x1b[0m";
 
 /// 上不上色：写到的是终端，`NO_COLOR` 又没设或者设成空的。no-color.org 的约定是设了、不是空的才不上色（施工 4-9
@@ -18,13 +19,16 @@ pub(crate) fn colored(terminal: bool, no_color: Option<&OsStr>) -> bool {
     terminal && no_color.is_none_or(OsStr::is_empty)
 }
 
-/// 一段字是什么颜色。绿的只有差异里加上的行（施工 4-7 下）；原色的是每一步的标题、执行命令的输出（施工 4-11）。
+/// 一段字是什么颜色。绿的只有差异里加上的行（施工 4-7 下）；原色的是每一步的标题、执行命令的输出（施工 4-11）；黄的
+/// 只有配置的警告（施工 8-2）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Ink {
     Plain,
     Gray,
     Red,
     Green,
+    /// 警告（施工 8-2，`miyu config check`）。
+    Yellow,
 }
 
 impl Ink {
@@ -35,6 +39,7 @@ impl Ink {
             Ink::Gray => GRAY,
             Ink::Red => RED,
             Ink::Green => GREEN,
+            Ink::Yellow => YELLOW,
         }
     }
 }

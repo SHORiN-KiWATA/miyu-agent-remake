@@ -51,6 +51,10 @@ GPL-3.0-or-later，见 `LICENSE`。
 |---|---|
 | `xtask/src/licenses/tests.rs` | 表达式：`OR`、`AND`、`WITH`、括号、`/`；能用的、不能用的、没写的；同一个包几个平台只报一次；报的那一句 |
 
+### 依赖记录
+
+- 施工 8-2 加了 `toml_edit`（MIT OR Apache-2.0，读配置的 TOML，纯逻辑层的白名单里）和它带进来的 `toml_parser`、`toml_datetime`、`winnow`（MIT 或 Apache-2.0；`indexmap` 这些原来就有）；`sys-locale`（MIT OR Apache-2.0，系统设置里的语言）。都在能用的名单里，门禁过了。
+
 ### 出处
 
 - `12-进程形态与分发.md` R15：为什么是 GPL-3.0-or-later。

@@ -5,7 +5,8 @@
 //! - 会叫醒她的（不是只记下的那几种，派它的那一轮还在）：闲着、这时开得了，同一批由它开一轮；闲着开不了的记在一边；正忙
 //!   的排着，下一次主请求听到，回合结束时还没听到的照排队的消息接着开（`watch/queue.rs`）；
 //! - 恢复了撤销、这时开得了，记在一边的里面派它的那一轮还在的，由最后那条接着开，和恢复那一条、改回文件的结局同一批；
-//! - 有没有头订阅着什么都不出；载入以后当没人看着（`watch/load.rs`）。
+//! - 有没有头订阅着什么都不出；载入以后当没人看着（`watch/load.rs`）；
+//! - 别的会话发来的话（施工 C-2，`watch/peers.rs`）叫不叫醒她也照这一套，它不是哪个任务的，一律算会叫醒她的。
 
 use super::*;
 use crate::event::{ChildReason, Effect, JobKind, JobReason};
@@ -23,8 +24,8 @@ pub(in super::super) struct Reports {
     pub(in super::super) jobs: BTreeMap<JobId, Job>,
     /// 这一轮里到的、会叫醒她、还没被主请求听到的。
     pub(super) pending: Vec<Seq>,
-    /// 闲着时到的、会叫醒她却没开轮的：序号、任务。
-    deferred: Vec<(Seq, JobId)>,
+    /// 闲着时到的、会叫醒她却没开轮的：序号、任务（别的会话发来的话没有，施工 C-2）。
+    deferred: Vec<(Seq, Option<JobId>)>,
 }
 
 /// 看守记着的一个任务。
@@ -189,10 +190,36 @@ impl Watch {
                         (true, false) => "没人看着只记下",
                     });
                     if wakes {
-                        self.reports.deferred.push((event.seq, job));
+                        self.reports.deferred.push((event.seq, Some(job)));
                     }
                 }
             }
+            // 别的会话发来的话（施工 C-2，`watch/peers.rs`）：不是哪个任务的，一律算会叫醒她的。
+            Body::MessageUser(_) if event.turn.is_none() && self.is_peer(&event.by) => {
+                self.peer_said(event);
+                let opens = next == Some(event.seq);
+                if self.turn_open() {
+                    assert!(!opens, "种子 {seed}：正忙时到的别的会话的话不开轮");
+                    self.seen_paths.insert("回合中途到的别的会话的话排着");
+                    self.reports.pending.push(event.seq);
+                } else if self.can_wake() {
+                    self.seen_paths.insert("闲着时别的会话的话开了一轮");
+                    assert!(
+                        opens,
+                        "种子 {seed}：闲着时到的别的会话的话 {} 该开一轮",
+                        event.seq
+                    );
+                } else {
+                    assert!(
+                        !opens,
+                        "种子 {seed}：别的会话的话 {} 只记下，不开轮",
+                        event.seq
+                    );
+                    self.seen_paths.insert("别的会话的话只记下");
+                    self.reports.deferred.push((event.seq, None));
+                }
+            }
+            Body::MessageAssistant(reply) => self.peers_heard(reply.seen),
             Body::TurnStarted(_) => self.reports.deferred.clear(),
             Body::ModelCalled(called)
                 if called.compaction.is_none()
@@ -205,6 +232,7 @@ impl Watch {
                 self.reports
                     .pending
                     .retain(|pending| *pending > called.seen);
+                self.peers_heard(called.seen);
             }
             Body::TurnEnded(_) => self.reports.pending.clear(),
             Body::TurnUnreverted(unreverted) if self.changes_in(&unreverted.turns) == 0 => {
@@ -229,7 +257,7 @@ impl Watch {
             .deferred
             .iter()
             .rev()
-            .find(|(_, job)| !self.hidden(job))
+            .find(|(_, job)| job.as_ref().is_none_or(|job| !self.hidden(job)))
             .map(|(seq, _)| *seq)
             .filter(|_| self.can_wake());
         if expected.is_some() {

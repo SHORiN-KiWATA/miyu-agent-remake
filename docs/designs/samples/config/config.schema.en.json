@@ -20,6 +20,17 @@
       },
       "type": "object"
     },
+    "permission": {
+      "properties": {
+        "start_read_only": {
+          "default": false,
+          "description": "When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on. Allowed: true or false. Only in the system config, personal settings or a project config. Applies to sessions opened from now on.",
+          "title": "Start new sessions read-only",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "ui": {
       "properties": {
         "language": {

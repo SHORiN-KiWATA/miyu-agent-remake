@@ -33,6 +33,8 @@ pub(super) enum Waker {
     /// 别的 harness 发来的话（施工 7-10，`kernel/session.md`「别的 harness 发来的话」）：不是哪个任务的，没有「派它的那一轮
     /// 撤掉了」这回事，一律叫醒。
     Harness,
+    /// 别的会话发来的话（施工 C-2，`peers.rs`）：和别的 harness 发来的话一样，一律叫醒。
+    Peer,
 }
 
 impl Session {
@@ -223,15 +225,15 @@ impl Session {
             && self.restoring.is_none()
     }
 
-    /// 派它的那一轮撤掉了：回报不渲染，也不叫醒她（`agents.md` 第七条第 2 条）。没派过的一样。别的 harness 发来的话不是哪个
-    /// 任务的，不会这样。
+    /// 派它的那一轮撤掉了：回报不渲染，也不叫醒她（`agents.md` 第七条第 2 条）。没派过的一样。别的 harness、别的会话发来的
+    /// 话不是哪个任务的，不会这样。
     fn hidden(&self, waker: &Waker) -> bool {
         match waker {
             Waker::Job(job) => self
                 .history
                 .dispatched(job)
                 .is_none_or(|dispatched| dispatched.undone),
-            Waker::Harness => false,
+            Waker::Harness | Waker::Peer => false,
         }
     }
 }
@@ -264,7 +266,7 @@ fn job_of(body: &Body) -> Option<JobId> {
 }
 
 /// 这一条到了会叫醒她：交回是谁的（载入时算记在一边的用）。会叫醒她的回报，这个会话派的子代理发来的留言（施工 7-7），
-/// 别的 harness 发来的话（施工 7-10，`messages.rs`）；别的没有。`ledger` 是记过这一条的账本。
+/// 别的 harness 发来的话（施工 7-10，`messages.rs`），别的会话发来的话（施工 C-2）；别的没有。`ledger` 是记过这一条的账本。
 pub(super) fn waking(ledger: &Ledger, event: &Event) -> Option<Waker> {
     match &event.body {
         Body::MessageUser(_) => super::messages::sent_by(ledger, &event.by),

@@ -11,6 +11,7 @@ use std::collections::BTreeSet;
 use miyu_kernel::block::Block;
 use miyu_kernel::event::{Body, Event, PolicyChanged};
 use miyu_kernel::facts::effective_level;
+use miyu_kernel::history::History as Kept;
 use miyu_kernel::id::CallId;
 use miyu_kernel::origin::By;
 use miyu_kernel::template::Template;
@@ -56,32 +57,36 @@ pub(super) struct Entry {
     pub(super) at: Timestamp,
     /// 谁说的：筛的时候照它。
     pub(super) who: Who,
-    /// 「谁」那一格另写的：别的 harness 发来的话写 `agent "<名字>"`（施工 7-10）；没有的照 `who` 写。
+    /// 「谁」那一格另写的：别的 harness 发来的话写 `agent "<名字>"`（施工 7-10），别的会话发来的话写 `session <短编号>`
+    /// （施工 C-2）；没有的照 `who` 写。
     pub(super) from: Option<String>,
     /// 「读」时这一条下面的原文；「找」也比它。
     pub(super) text: String,
 }
 
 impl Entry {
-    /// 「谁」那一格：别的 harness 发来的写它的名字，别的写 `by` 的那三种写法。
+    /// 「谁」那一格：别的 harness 发来的写它的名字，别的会话发来的写它的短编号，别的写 `by` 的那三种写法。
     pub(super) fn said_by(&self) -> &str {
         self.from.as_deref().unwrap_or(self.who.name())
     }
 }
 
 /// 一条里代码写的几样：图片、文件的占位（`history/image.txt`、`history/file.txt`），别的 harness 发来的那一条的「谁」
-/// （`history/agent.txt`，施工 7-10），人切了权限级别的那一条的原文（`history/permission.txt`，施工 2-7 补）。
+/// （`history/agent.txt`，施工 7-10），别的会话发来的那一条的「谁」（`history/session.txt`，施工 C-2），人切了权限级别的
+/// 那一条的原文（`history/permission.txt`，施工 2-7 补）。
 #[derive(Clone)]
 pub(super) struct Placeholders {
     pub(super) image: Template,
     pub(super) file: Template,
     pub(super) agent: Template,
+    pub(super) session: Template,
     pub(super) permission: Template,
 }
 
 /// 还算数的事件里挑出算一条的，照日志的先后。一个字都没有的（例如只想了没说就被打断的回复）不算；末尾的空白去掉。
-/// 工具名是 `own` 的调用和它们的结果不算：她自己翻记录的那几步。
-pub(super) fn entries(events: &[Event], placeholders: &Placeholders, own: &str) -> Vec<Entry> {
+/// 工具名是 `own` 的调用和它们的结果不算：她自己翻记录的那几步。`kept` 是整份日志算出来的有效历史：谁是别的会话照它认。
+pub(super) fn entries(kept: &Kept, placeholders: &Placeholders, own: &str) -> Vec<Entry> {
+    let events = kept.events();
     let lookups: BTreeSet<CallId> = events
         .iter()
         .filter_map(|event| match &event.body {
@@ -111,7 +116,7 @@ pub(super) fn entries(events: &[Event], placeholders: &Placeholders, own: &str) 
                 seq: event.seq.get(),
                 at: event.at,
                 who,
-                from: from(event, placeholders),
+                from: from(kept, event, placeholders),
                 text: text.to_string(),
             })
         })
@@ -162,13 +167,17 @@ fn blocks(blocks: &[Block], placeholders: &Placeholders, own: &str) -> String {
 }
 
 /// 别的 harness 发来的话（`message.user`，`by` 是 `harness`，施工 7-10）：「谁」那一格照 `history/agent.txt` 写它的名字，
-/// 名字照模板的规矩转义，和请求里那块标签是同一个名字。别的没有。
-fn from(event: &Event, placeholders: &Placeholders) -> Option<String> {
+/// 名字照模板的规矩转义，和请求里那块标签是同一个名字。别的会话发来的话（`by` 是会话，既不是父会话、也不是派的子代理，
+/// 施工 C-2）：照 `history/session.txt` 写它的短编号，和请求里那块标签是同一个编号。别的没有。
+fn from(kept: &Kept, event: &Event, placeholders: &Placeholders) -> Option<String> {
     match (&event.body, &event.by) {
         (Body::MessageUser(_), By::Harness(harness)) => Some(inline(say(
             &placeholders.agent,
             &[("name", harness.name.as_str())],
         ))),
+        (Body::MessageUser(_), By::Session(session)) if kept.is_peer(&session.id) => Some(inline(
+            say(&placeholders.session, &[("id", session.id.short())]),
+        )),
         _ => None,
     }
 }

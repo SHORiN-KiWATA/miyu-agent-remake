@@ -1,6 +1,9 @@
 //! 握手（`docs/designs/04-核心协议.md` 第三节、第八节，第九节「先做的几样怎么写」）：协议的主版本取双方
 //! 都支持的最高的；本机连接出示本机令牌（第四节）。握手以后这个连接就是管理员（`06-多用户与身份.md`
 //! 第二节）。
+//!
+//! 回应带这个连接给人看的字用哪种语言 `language`，和配置里有几处错误 `config_errors`（施工 8-2，`config.md`
+//! 「协议」）：语言照 `ui.language` 的最终值，是 `auto` 的照头报的系统语言 `locale`。
 
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -9,6 +12,7 @@ use miyu_sandbox::Availability;
 
 use crate::Core;
 use crate::refusal::{Locale, Refusal};
+use crate::settings::UiSettings;
 
 /// 核心支持的协议主版本：现在只有 1。
 pub(crate) const PROTOCOL: u32 = 1;
@@ -20,7 +24,7 @@ struct Params {
     protocol: [u32; 2],
     /// 头的种类和版本。
     head: Head,
-    /// 头的语言，给人看的话照它写。
+    /// 头所在系统的语言：`ui.language` 是 `auto` 时照它（施工 8-2）。
     #[serde(default)]
     locale: Option<String>,
     /// 头能做什么。
@@ -49,8 +53,10 @@ struct Caps {
 /// 握手以后的这个连接。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Peer {
-    /// 给人看的话用哪种语言。
+    /// 核心拒绝时的话用哪种语言：只有中文、英文，`ja` 的照英文。
     pub(crate) locale: Locale,
+    /// 给人看的字用哪种语言：`zh`、`en`、`ja` 之一（施工 8-2）。配置的名字、说明、报错的话照它。
+    pub(crate) language: &'static str,
     /// 能让人输入：它造的会话有人确认。
     pub(crate) input: bool,
 }
@@ -85,17 +91,35 @@ pub(crate) fn hello(core: &Core, params: Value) -> Result<(Peer, Value), (Refusa
         protocol = PROTOCOL,
         "connected"
     );
+    let language = language(core, params.locale.as_deref());
     let peer = Peer {
-        locale: Locale::of(params.locale.as_deref()),
+        locale: Locale::of(Some(language)),
+        language,
         input: params.caps.input,
     };
-    let result = json!({
+    let mut result = json!({
         "protocol": PROTOCOL,
         "core": {"version": env!("CARGO_PKG_VERSION")},
         "account": core.admin.as_str(),
         "sandbox": sandbox(&core.sandbox),
+        "language": language,
     });
+    let errors = core.config.errors();
+    if errors > 0 {
+        result["config_errors"] = json!(errors);
+    }
     Ok((peer, result))
+}
+
+/// 这个连接给人看的字用哪种语言（`config.md` 第二条第 8 条）：`ui.language` 的最终值（不算项目配置）定了的就是它，
+/// `auto` 的照头报的系统语言 `locale`。
+fn language(core: &Core, locale: Option<&str>) -> &'static str {
+    let ui = UiSettings::from(&core.config.resolved().values());
+    match ui.language_for(locale) {
+        "zh" => "zh",
+        "ja" => "ja",
+        _ => "en",
+    }
 }
 
 /// 握手的回应里的 `sandbox`：能用的 `{"usable": true}`，用不了的带原因（施工 5-4 下）。

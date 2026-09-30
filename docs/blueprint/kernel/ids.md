@@ -123,7 +123,7 @@
 | 这个会话派的子代理的子会话（`job.started` 的 `session`） | 子代理的留言、回报 | 「子代理的留言」「回报」（`kernel/session.md`） |
 | 别的会话 | 别的会话发来的话、空了的通知 | `cross-session.md` 第四条、第六条 |
 
-- 关系在日志里都查得到，旧核心照样读得懂。现在内核认前两种；别的会话发来的话由施工 C-2 认，`peer.idle` 的 `by` 由账本查（`kernel/history.md`）。
+- 关系在日志里都查得到，旧核心照样读得懂。三种内核都认（别的会话发来的话施工 C-2，账本的 `is_peer`、有效历史的 `is_peer` 同一个认法），`peer.idle` 的 `by` 由账本查（`kernel/history.md`）。
 
 几格的写法照上面的类型：`account` 是 `AccountId`，`venue` 是 `VenueId`，`id` 依次是 `ExternalId`、`ModuleId`、`SessionId`，`endpoint` 是 `ProviderId`，`model` 是 `ModelName`，`call_id` 是 `CallId`，`name` 是 `HarnessName`。
 

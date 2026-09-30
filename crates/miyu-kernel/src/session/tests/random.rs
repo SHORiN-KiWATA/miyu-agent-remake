@@ -35,7 +35,8 @@
 //! - 改标题、置顶：什么时候来都收，照规矩回应（施工 3-8 三补，`random/naming.rs`）；
 //! - 重做：照规矩收下或者拒绝，收下的撤最后一轮、重发撤掉的人的话、由最后一句开一轮（施工 4-7 再补，`watch/redo.rs`）；
 //! - 回报：对不上的拒绝、不理；闲着时开一轮还是只记下，正忙时排着、回合结束时接着开，恢复撤销以后接着开（施工 7-2，
-//!   `watch/reports.rs`、`random/reporting.rs`）。
+//!   `watch/reports.rs`、`random/reporting.rs`）；
+//! - 别的会话发来的话：防刷屏照规矩拒，收下的照回报的规矩叫不叫醒她（施工 C-2，`watch/peers.rs`、`random/peering.rs`）。
 //!
 //! 每一步还照九条不变量查（`watch/invariants.rs`，`02-内核.md` 第九节「不变量怎么查」）。
 //!
@@ -48,6 +49,7 @@ mod endings;
 mod kinds;
 mod naming;
 mod paths;
+mod peering;
 mod recapping;
 mod replies;
 mod reporting;
@@ -311,6 +313,8 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let mut compacts = Rng(seed ^ 0xC0_4AC7);
         let mut reports = Rng(seed ^ 0x2E90_2750);
         let mut clears = Rng(seed ^ 0xC1EA_2000);
+        // 四个种子里有一个有别的会话发来的话（施工 C-2）：避开多调写文件的种子，别的种子照原来的走。
+        let (mut peers, peering) = (Rng(seed ^ 0x9EE2_5000), seed % 4 == 3);
         // 四个种子里有一个要回顾（施工 3-8 四补）：别的种子照原来的走，原来走得到的路照样走得到。
         let (mut recaps, recapping) = (Rng(seed ^ 0x2EC4_9A00), seed % 4 == 1);
         // 五个种子里有一个、一次性的会话不重做（施工 4-7 再补）：重做占掉闲着的时候，回报闲着时开一轮、没人看着只记下难得走到。
@@ -350,6 +354,9 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
                 watch.feed(&mut session, input);
             }
             if let Some(input) = some_clear(&mut clears, &watch, &mut next_id) {
+                watch.feed(&mut session, input);
+            }
+            if peering && let Some(input) = peering::some_peer(&mut peers, &watch, &mut next_id) {
                 watch.feed(&mut session, input);
             }
             if redoing && let Some(input) = some_redo(&mut redos, &watch, &mut next_id) {

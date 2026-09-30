@@ -19,6 +19,7 @@ use crate::facts::FactTexts;
 use crate::harness::HarnessTexts;
 use crate::jobs::{JobNumbers, JobTexts};
 use crate::pause::PauseNumbers;
+use crate::peers::{PeerNumbers, PeerTexts};
 use crate::rebuild::{RebuildNumbers, RebuildTexts};
 use crate::recap::{RecapNumbers, RecapTexts};
 use crate::shorten::{ShortenNumbers, ShortenTexts};
@@ -56,6 +57,9 @@ pub struct Snapshot {
     /// 起标题用的数（施工 3-8 五补）。以前造的快照里没有，读成没有：不起标题。没有的不写，旧快照的字节不变。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<TitleNumbers>,
+    /// 防刷屏的数（施工 C-2，`peers.rs`）。以前造的快照里没有，读成没有：照出厂的数。没有的不写，旧快照的字节不变。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub peers: Option<PeerNumbers>,
 }
 
 /// 压缩用的数（`compaction.md`「对外的样子」的策略数据）。
@@ -125,6 +129,9 @@ pub struct CoreTexts {
     /// 不写。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub harness: Option<HarnessTexts>,
+    /// 别的会话发来的话的标签（`peers/`，施工 C-2）。以前造的快照里没有，读成没有：那种话照人的话原样渲染；没有的不写。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub peers: Option<PeerTexts>,
     /// 回顾的字（`recap/`，施工 3-8 四补）。以前造的快照里没有，读成没有：不做回顾；没有的不写。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recap: Option<RecapTexts>,
@@ -347,6 +354,7 @@ impl Snapshot {
                 .as_ref()
                 .map(HarnessTexts::rendered)
                 .transpose()?,
+            peers: core.peers.as_ref().map(PeerTexts::rendered).transpose()?,
             recap: self.recap(),
             title: self.title(),
         };
@@ -369,6 +377,7 @@ impl Snapshot {
             notes: self.notes()?,
             reports: self.reports()?,
             titles: self.titles(),
+            peers: self.peers(),
         })
     }
 

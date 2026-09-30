@@ -17,6 +17,7 @@ mod lookup;
 mod manual;
 mod model;
 mod overflow;
+mod peers;
 mod permission;
 mod question;
 mod queue;
@@ -104,6 +105,8 @@ pub(super) struct Watch {
     passives: overflow::Passives,
     /// 回报（施工 7-2）：派出去的任务、排着的、记在一边的、有没有头订阅着。
     pub(super) reports: reports::Reports,
+    /// 别的会话发来的话（施工 C-2）：收下的、还没听到的。
+    peers: peers::Peers,
     /// 回顾（施工 3-8 四补）：在路上的那一次、等着的回应。
     pub(super) recaps: recap::Recaps,
 }
@@ -153,6 +156,7 @@ impl Watch {
             shortenings: shorten::Shortenings::default(),
             passives: overflow::Passives::default(),
             reports: reports::Reports::default(),
+            peers: peers::Peers::default(),
             recaps: recap::Recaps::default(),
         }
     }
@@ -202,6 +206,7 @@ impl Watch {
         let compact = self.before_compact(&input).filter(|_| !refused);
         let clear = self.before_clear(&input).filter(|_| !refused);
         let report = self.before_report(&input).filter(|_| !refused);
+        let peer = self.before_peer(&input).filter(|_| !refused);
         let recap = self.before_recap(&input, refused);
         let stop = self.before_stop(&input);
         let fresh_interrupt = match &input {
@@ -262,6 +267,7 @@ impl Watch {
         self.after_compact(&actions, compact);
         self.after_clear(&actions, clear);
         self.after_report(&actions, report);
+        self.after_peer(&actions, peer);
         self.after_recap(&actions, recap);
         self.restore_matches(&actions, reverting);
         for action in actions {

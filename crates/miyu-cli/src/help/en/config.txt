@@ -1,0 +1,17 @@
+Usage: miyu config <command> [options]
+
+See settings. Commands to change them and to trust a project config come
+later.
+
+Commands:
+  get [key…]      Print the values in effect, or just the value of one key
+  check [file]    Look for mistakes
+  explain <key>   What each layer says and which one wins
+  path            Print where the file is
+
+Options:
+      --system            The system config, instead of personal settings
+                          (check, path)
+      --project           The project config here (check, path)
+      --format text|json  For get, check, explain: json for scripts
+  -h, --help              Print help

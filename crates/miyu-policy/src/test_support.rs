@@ -158,6 +158,12 @@ pub(crate) fn core() -> CoreTexts {
             message_close: include_str!("../../../resources/core/harness/message-close.txt")
                 .to_string(),
         }),
+        peers: Some(crate::PeerTexts {
+            message_open: include_str!("../../../resources/core/peers/message-open.txt")
+                .to_string(),
+            message_close: include_str!("../../../resources/core/peers/message-close.txt")
+                .to_string(),
+        }),
         recap: Some(crate::RecapTexts {
             instruction: include_str!("../../../resources/core/recap/instruction.txt").to_string(),
             user: include_str!("../../../resources/core/recap/user.txt").to_string(),
@@ -218,3 +224,6 @@ pub(crate) fn engineer() -> Snapshot {
         true,
     )
 }
+
+/// 出厂快照字节里防刷屏的数那一格，排在最后（施工 C-2）；任务、回顾、起标题的几格在 `snapshot/tests.rs`。
+pub(crate) const PEER_NUMBERS: &str = r#","peers":{"burst":5,"window":600,"unread":50}"#;

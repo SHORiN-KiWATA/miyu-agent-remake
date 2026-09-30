@@ -17,6 +17,10 @@ miyu-config = { path = "../miyu-config" }
 # 给人看的字一种语言一份 JSON（施工 4-5 上）。
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+# 配置文件的版本：整份字节的 SHA-256（施工 8-2）。
+sha2 = { version = "0.11", default-features = false }
+# 系统的语言：`LC_ALL`、`LC_MESSAGES`、`LANG` 都没设的，看 macOS、Windows 的系统设置（施工 8-2）。
+sys-locale = "0.3"
 
 [dev-dependencies]
 # 测试里拿执行器替身跑一段真会话，写进日志、读回来、载入（施工 3-2）。

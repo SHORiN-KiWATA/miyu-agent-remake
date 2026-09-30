@@ -14,6 +14,7 @@
 //! - [`trash`]：回收处，删掉的会话挪进来、满了时限再真删（施工 3-8 三补）。
 
 pub mod blob;
+pub mod config_file;
 mod durable;
 pub mod env;
 pub mod generated;

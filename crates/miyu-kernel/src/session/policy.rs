@@ -36,6 +36,9 @@ pub struct Policy {
     pub reports: Reports,
     /// 起标题的两个数（施工 3-8 五补，`title.rs`）；没有的不起标题：以前造的快照里没有。
     pub titles: Option<Titles>,
+    /// 别的会话发来的话怎么防刷屏（施工 C-2，`peers.rs`）。以前造的快照里没有的，执行器照出厂的数交进来：防刷屏不能因为
+    /// 会话旧就不管（`docs/blueprint/cross-session.md`「对外的样子」）。
+    pub peers: Peers,
 }
 
 /// 起标题的两个数（施工 3-8 五补，`docs/blueprint/kernel/session.md`「起标题」）：数值是数据，放在策略快照里。
@@ -45,6 +48,18 @@ pub struct Titles {
     pub tries: u32,
     /// 标题最多几个字（Unicode 字符），超了截掉：出厂 50（2026-10-01 项目主人定）。
     pub chars: usize,
+}
+
+/// 别的会话发来的话怎么防刷屏（施工 C-2，`docs/blueprint/cross-session.md` 第五条第 1 到 3 款）。数是策略数据，放在策略
+/// 快照里。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Peers {
+    /// 同一个发话方在一个窗口里最多几句：策略数据 `peers.burst`，出厂 5。
+    pub burst: usize,
+    /// 限速、去重看多久以内的，单位秒：策略数据 `peers.window`，出厂 600。含正好这么久以前的那一刻。
+    pub window: u64,
+    /// 还没听到的别的会话的话最多几句，不分发话方：策略数据 `peers.unread`，出厂 50。
+    pub unread: usize,
 }
 
 /// 子会话向上回报的正文怎么截（施工 7-6，`docs/blueprint/agents.md` 第二条第 3 条）：超过 `chars` 个字的留头尾各一半，
@@ -142,6 +157,7 @@ impl fmt::Debug for Policy {
             .field("compaction", &self.compaction)
             .field("notes", &self.notes)
             .field("reports", &self.reports)
+            .field("peers", &self.peers)
             .finish_non_exhaustive()
     }
 }

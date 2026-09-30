@@ -70,6 +70,9 @@ fn property(item: &Item, words: &dyn Words) -> Result<Json, Missing> {
             property.insert("type".to_string(), json!("string"));
             property.insert("enum".to_string(), json!(options));
         }
+        Kind::Bool => {
+            property.insert("type".to_string(), json!("boolean"));
+        }
     }
     Ok(Json::Object(property))
 }

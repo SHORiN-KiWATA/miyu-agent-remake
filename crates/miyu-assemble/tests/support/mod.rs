@@ -8,11 +8,13 @@
 
 mod anchor;
 mod archive;
+mod sent;
 mod texts;
 mod titled;
 
 pub use anchor::anchored;
 pub use archive::{files, matches_the_archive};
+pub use sent::{Sent, sent};
 pub use texts::{LINES, SUMMARIZE, VENUE, recap, title};
 use texts::{driver_texts, texts};
 pub use titled::titled_stage;
@@ -46,18 +48,6 @@ const PERSONA: &str = "You are a helpful software engineer.";
 /// 两件工具的参数格式：一个路径。
 const PATH: &str =
     r#"{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}"#;
-
-/// 一次请求，和发它时的情形。
-pub struct Sent {
-    /// 组装出来的请求。
-    pub request: Request,
-    /// 上一次请求以后撤销、恢复或者压缩过：前缀可以改写。
-    pub rewritten: bool,
-    /// 这是一个回合的第一次请求，由人的一句话触发：那句话的最后一块。
-    pub trigger: Option<Block>,
-    /// 这是压缩的摘要请求：最后一块是摘要指令（施工 6-2 上）。
-    pub summary: bool,
-}
 
 /// 探针和随机日志的策略：出厂的组装、事实模板、写给模型的句子；读、写两件工具；一个回合最多
 /// 请求三次模型。system 是人设，空一行接核心的几行（施工 2-7 补）。
@@ -111,6 +101,11 @@ fn policy_with(system: String) -> Policy {
             omitted: miyu_kernel::template::Template::parse("").expect("空的模板读得进来"),
         },
         titles: None,
+        peers: miyu_kernel::session::Peers {
+            burst: 5,
+            window: 600,
+            unread: 50,
+        },
     }
 }
 
@@ -156,55 +151,6 @@ fn start() -> Timestamp {
 /// 替身的日志，一条一行。
 pub fn lines(stage: &Stage) -> Vec<String> {
     stage.log().iter().map(Event::to_line).collect()
-}
-
-/// 替身发过的每一次请求，和发它时的情形：上一次请求交出去以后、这一次交出去以前，日志里有撤销、恢复、压缩的，算
-/// 改写过；一个回合的第一次主请求（上一次主请求在这一轮开始以前），触发它的是人的消息的，记下那句话的最后一块。摘要请求
-/// 看到的比交出去时的日志早（施工 6-2 下），所以改写照交出去的那一刻算，第一次照上一次主请求算。
-pub fn sent(stage: &Stage) -> Vec<Sent> {
-    let log = stage.log();
-    let mut before: Option<Seq> = None;
-    let mut before_main: Option<Seq> = None;
-    let mut sent = Vec::new();
-    for ((seen, request), mark) in stage.requests().iter().zip(stage.marks()) {
-        let since =
-            |event: &&Event| before.is_none_or(|before| event.seq > before) && event.seq <= *mark;
-        let rewritten = log.iter().filter(since).any(|event| {
-            matches!(
-                event.body,
-                Body::TurnReverted(_) | Body::TurnUnreverted(_) | Body::ContextCompacted(_)
-            )
-        });
-        let summary = is_summary(request);
-        let trigger = log
-            .iter()
-            .filter(|event| event.seq <= *seen)
-            .rev()
-            .find_map(|event| match &event.body {
-                Body::TurnStarted(started) => Some((event.seq, started.trigger)),
-                _ => None,
-            })
-            .filter(|_| !summary)
-            .filter(|(turn, _)| before_main.is_none_or(|before| before < *turn))
-            .and_then(|(_, trigger)| log.iter().find(|event| Some(event.seq) == trigger))
-            // 别的 harness 发来的话渲染时包了一层标签（施工 7-10）：最后一块照它自己的探针查（`probe_harness.rs`）。
-            .filter(|event| !matches!(event.by, By::Harness(_)))
-            .and_then(|event| match &event.body {
-                Body::MessageUser(message) => message.blocks.last().cloned(),
-                _ => None,
-            });
-        sent.push(Sent {
-            summary,
-            request: request.clone(),
-            rewritten,
-            trigger,
-        });
-        before = Some(*mark);
-        if !summary {
-            before_main = Some(*seen);
-        }
-    }
-    sent
 }
 
 /// 查每一次请求的五条性质：同样的日志出同样的字节（由调用的一方造两遍来比）之外的四条：
