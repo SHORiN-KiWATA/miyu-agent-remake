@@ -1,6 +1,7 @@
-//! 项目配置的信任（施工 8-2 读的那一半，`docs/blueprint/config.md`「怎么走」第三条）：没有记录的、内容变了的、仓库挪了的
-//! 不算，报 `untrusted_project`，造会话、说话的回应带它；信任着、版本一样的算，只认收紧的；选了不信任的不算、不再提醒。
-//! 记录由人手写（`config.trust` 随 8-3）。
+//! 项目配置的信任（`docs/blueprint/config.md`「怎么走」第三条）：没有记录的、内容变了的、仓库挪了的不算，报
+//! `untrusted_project`，造会话、说话的回应带它；信任着、版本一样的算，只认收紧的；选了不信任的不算、不再提醒（施工 8-2，
+//! 记录由人手写）。`config.trust`（施工 8-3）：版本对不上、没有项目配置、参数不对的拒绝；一个仓库一条，新的盖掉旧的；
+//! 记账号日志 `trust.changed`；手改过的 `trust.toml` 在新的字上记。
 
 mod support;
 
@@ -182,4 +183,138 @@ async fn get_with_a_directory_shows_the_project_and_its_trust() {
     );
     let layers = &reply["result"]["items"]["permission.start_read_only"]["layers"];
     assert_eq!(layers[0]["problem"], "not_tightening");
+}
+
+/// 照 `cwd` 信任（`trust`）版本是 `text` 的那一份。
+async fn answer(client: &mut Client, id: &str, cwd: &Path, text: &str, trust: bool) -> Value {
+    client
+        .call(
+            id,
+            "config.trust",
+            json!({"cwd": cwd.to_string_lossy(), "version": version(text.as_bytes()), "trust": trust}),
+        )
+        .await
+}
+
+#[tokio::test]
+async fn trusting_records_the_answer_once_per_repository() {
+    let home = Home::new();
+    let repo = repo(&home, "app", STRICT);
+    let mut client = Client::connect(home.core_configured(&Script::new([]), None, &[]));
+    client.hello().await;
+    let reply = answer(
+        &mut client,
+        "config-9f2c4e1a7b3d5f60-2",
+        &repo.join("src"),
+        STRICT,
+        true,
+    )
+    .await;
+    let file = repo.join(".miyu").join("config.toml");
+    let shown = file
+        .to_string_lossy()
+        .trim_start_matches(r"\\?\")
+        .to_string();
+    assert_eq!(
+        reply["result"],
+        json!({"file": shown, "trusted": true}),
+        "{reply}"
+    );
+    let trust = home.root.path().join("home/alice/trust.toml");
+    let written = std::fs::read_to_string(&trust).expect("写了");
+    assert!(
+        written.starts_with(
+            "# Miyu 记着的项目配置的信任：哪个仓库、哪一份内容、信不信任。\n[[project]]\n"
+        ),
+        "{written}"
+    );
+    let (created, _, read_only) = open(&home, &repo).await;
+    assert!(created["result"].get("untrusted_project").is_none());
+    assert!(read_only, "信任了就算");
+
+    let mut client = Client::connect(home.core_configured(&Script::new([]), None, &[]));
+    client.hello().await;
+    answer(&mut client, "c2", &repo, STRICT, false).await;
+    let again = std::fs::read_to_string(&trust).expect("在");
+    assert_eq!(
+        again.matches("[[project]]").count(),
+        1,
+        "一个仓库一条：{again}"
+    );
+    assert!(again.contains("trusted = false"));
+    let (created, _, read_only) = open(&home, &repo).await;
+    assert!(
+        created["result"].get("untrusted_project").is_none(),
+        "不信任的不再提醒"
+    );
+    assert!(!read_only);
+
+    let logged: Vec<Value> =
+        std::fs::read_to_string(home.root.path().join("home/alice/journal.jsonl"))
+            .expect("记了")
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("JSON"))
+            .collect();
+    assert_eq!(logged.len(), 2);
+    assert_eq!(logged[0]["kind"], "trust.changed");
+    assert_eq!(logged[0]["cause"], "config-9f2c4e1a7b3d5f60-2");
+    assert_eq!(
+        logged[0]["body"]["version"],
+        json!(version(STRICT.as_bytes()))
+    );
+    assert_eq!(logged[0]["body"]["trusted"], true);
+    assert_eq!(logged[1]["seq"], 2);
+    assert_eq!(logged[1]["body"]["trusted"], false);
+}
+
+#[tokio::test]
+async fn the_answer_must_be_about_the_version_that_was_looked_at() {
+    let home = Home::new();
+    let repo = repo(&home, "app", STRICT);
+    let mut client = Client::connect(home.core_configured(&Script::new([]), None, &[]));
+    client.hello().await;
+    let stale = answer(&mut client, "c1", &repo, "[permission]\n", true).await;
+    assert_eq!(reason(&stale), Some("config_conflict"));
+    assert_eq!(
+        stale["error"]["data"]["version"],
+        json!(version(STRICT.as_bytes()))
+    );
+    let nowhere = answer(&mut client, "c2", &home.work, STRICT, true).await;
+    assert_eq!(reason(&nowhere), Some("no_project_config"));
+    assert_eq!(nowhere["error"]["message"], "这个目录找不到项目配置。");
+    let missing = client
+        .call(
+            "c3",
+            "config.trust",
+            json!({"cwd": repo.to_string_lossy(), "trust": true}),
+        )
+        .await;
+    assert_eq!(reason(&missing), Some("bad_params"));
+    assert!(
+        !home.root.path().join("home/alice/trust.toml").exists(),
+        "什么都没记"
+    );
+}
+
+#[tokio::test]
+async fn a_hand_edited_record_file_is_kept() {
+    let home = Home::new();
+    let other = repo(&home, "other", STRICT);
+    let app = repo(&home, "app", STRICT);
+    let mut client = Client::connect(home.core_configured(&Script::new([]), None, &[]));
+    client.hello().await;
+    // 核心起来以后手写一条：信任 other。
+    record(&home, &other, STRICT, true);
+    let hand = std::fs::read_to_string(home.root.path().join("home/alice/trust.toml")).expect("在");
+    answer(&mut client, "c1", &app, STRICT, true).await;
+    let written =
+        std::fs::read_to_string(home.root.path().join("home/alice/trust.toml")).expect("在");
+    assert!(written.starts_with(&hand), "手写的一字不动：{written}");
+    let got = client
+        .call("c2", "config.get", json!({"cwd": other.to_string_lossy()}))
+        .await;
+    assert_eq!(
+        got["result"]["files"]["project"]["trusted"], true,
+        "同一个核心换上了连手写的在内的记录"
+    );
 }

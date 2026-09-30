@@ -28,7 +28,7 @@
 | `compact` | 把当前会话的上下文压缩成摘要，可以附上要求（施工 6-8，命令名 2026-09-29 项目主人定） | `cli/compact.md` |
 | `recap` | 一句话回顾当前会话：在做什么、做完了什么、卡在哪（施工 3-8 四补） | `cli/recap.md` |
 | `rename` | 给当前会话起名（施工 3-8 五补） | `cli/rename.md` |
-| `config` | `get`、`check`、`explain`、`path`：看配置（施工 8-2）；改、写、信任的几个随 8-3 | `cli/config.md` |
+| `config` | `get`、`check`、`explain`、`path`：看配置（施工 8-2）；`set`、`unset`、`edit`、`trust`：改配置、信任项目配置（施工 8-3） | `cli/config.md` |
 | `sandbox` | `setup`、`remove`：Windows 上装好、撤掉沙盒用户，要管理员权限；别的平台上说一句不用装 | `sandbox/windows.md` |
 | `core` | 核心进程：由头拉起，平时不用人敲；不写进帮助 | `core.md` |
 | `help` | clap 自带：印帮助，`miyu help <子命令>` 印那一条的 | |
@@ -47,7 +47,7 @@
 
 ### 怎么走
 
-1. 先照界面语言给主程序和 `ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename`、`config`（连同它的四个子命令）、`sandbox`（连同它的 `setup`、`remove`）换上帮助页（clap 的 `override_help`；`rewind` 是 `undo` 的别名，用同一页），再解析参数。
+1. 先照界面语言给主程序和 `ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename`、`config`（连同它的八个子命令）、`sandbox`（连同它的 `setup`、`remove`）换上帮助页（clap 的 `override_help`；`rewind` 是 `undo` 的别名，用同一页），再解析参数。
 2. 解析参数，不对的：
    1. 不认识的子命令：标准错误上说「没有 <名字> 这个子命令。想和她对话，用 miyu ask "…"」，退出码 2。不连核心，不拉起，什么都不发。
    2. `-h`、`--help`、`help`、`help <子命令>`：把那一页原样印在标准输出上，退出码 0。`-V`、`--version`：印 `miyu <版本>`，退出码 0。
@@ -73,7 +73,7 @@
   compact [要求]        把上下文压缩成摘要，可以附上要求
   recap                 一句话回顾：在做什么、做完了什么、卡在哪
   rename <标题>         给会话起名
-  config <命令>         看配置：最终值、每一层写的、有没有写错、文件在哪
+  config <命令>         看配置、改配置、信任项目配置
   sandbox setup|remove  装好、撤掉沙盒用户（Windows，要管理员权限）
 
 ask 的选项：
@@ -114,7 +114,7 @@ Commands:
   compact [words]       Compact the context into a summary
   recap                 Recap the session: goal, progress, blockers
   rename <title>        Give the session a title
-  config <command>      See settings: values, layers, mistakes, files
+  config <command>      See and change settings, trust a project config
   sandbox setup|remove  Set up or remove the sandbox user (Windows, needs admin)
 
 ask options:

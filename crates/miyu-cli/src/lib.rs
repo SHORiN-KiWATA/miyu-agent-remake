@@ -37,7 +37,7 @@ mod undo;
 
 pub use ask::{Ask, Format, Plan, Screen, Target, ask, exit, talk};
 pub use compact::{Compact, CompactPlan, compact, compact_on};
-pub use config::{Config, ConfigCommand, ConfigPlan, config, config_on};
+pub use config::{Config, ConfigCommand, ConfigPlan, Console, Terminal, config, config_on};
 pub use misuse::misuse;
 pub use recap::{Recap, RecapPlan, recap, recap_on};
 pub use redo::{Redo, RedoPlan, redo, redo_on};

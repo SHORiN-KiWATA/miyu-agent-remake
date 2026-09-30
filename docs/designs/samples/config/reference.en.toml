@@ -11,6 +11,11 @@ level = "info"
 # Allowed: true or false. Only in the system config, personal settings or a project config. Applies to sessions opened from now on.
 start_read_only = false
 
+[tui]
+# On start, open: Whether the terminal interface starts a new session or picks up the most recent one.
+# Allowed: new or recent. Only in the system config or personal settings. Takes effect the next time the interface opens.
+startup = "new"
+
 [ui]
 # Interface language: The language terminals, the web page and the command line use for you. auto follows the terminal or browser.
 # Allowed: auto, zh, en or ja. Only in the system config or personal settings. Takes effect at once.

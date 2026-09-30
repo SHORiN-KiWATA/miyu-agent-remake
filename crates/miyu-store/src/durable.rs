@@ -1,10 +1,12 @@
 //! 落盘的几件小事（`docs/designs/07-存储.md` 第四节「各平台的坑」）：同步目录；建目录时，新建的
 //! 每一层都同步它的上一层。新建文件、新建目录、改名以后，上一层不同步，断电以后这一项可能没了。
-//! 先写临时文件再改名的，临时文件怎么建、用不上了怎么删（blob、生成的文件共用，施工 8-1 从 `blob.rs` 挪来）。
+//! 先写临时文件再改名的，临时文件怎么建、叫什么、用不上了怎么删（blob、生成的文件、配置文件共用，施工 8-1 从 `blob.rs`
+//! 挪来，名字施工 8-3 从 `generated.rs` 挪来）。
 
 use std::fs::{self, File, OpenOptions};
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// 临时文件的名字最多换几次：撞上的都是崩溃留下的，换几次总能换开。
 const TEMP_TRIES: u32 = 64;
@@ -86,6 +88,17 @@ pub(crate) fn create_temp(
             dir.display()
         ),
     ))
+}
+
+/// 替换一份文件时的临时文件的名字：点开头（大多数系统上不显示），带上原来的名字 `name`、进程号和一个计数
+/// （`.<文件名>.<进程号>-<计数>.tmp`，生成的文件、配置文件共用，施工 8-3 从 `generated.rs` 挪来）。
+pub(crate) fn temp_name(name: &str) -> String {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    format!(
+        ".{name}.{}-{}.tmp",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    )
 }
 
 /// 删掉用不上的临时文件。

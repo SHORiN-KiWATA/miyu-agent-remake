@@ -3,7 +3,8 @@
 //! 一项有这几格：键、类型、默认值、能放在哪几层、哪个环境变量压过它、什么时候生效、界面提示。名字和说明
 //! 给人看，跟着界面语言，不在这里，住在资源目录里（[`crate::words`]）。各格的取值照「不为以后写代码」一样一样加：
 //! 哪一步第一次有一项用到它，哪一步加（类型有选项、开关，层有系统、个人、项目，收紧只有「只能打开」，生效有当场、
-//! 以后开的会话，控件有下拉、开关；开关、项目、收紧、以后开的会话随 8-2 的 `permission.start_read_only`）。
+//! 以后开的会话、头下次启动，控件有下拉、开关；开关、项目、收紧、以后开的会话随 8-2 的 `permission.start_read_only`，
+//! 头下次启动随 8-3 的 `tui.startup`）。
 
 use crate::value::Value;
 
@@ -128,14 +129,17 @@ pub enum Applies {
     Now,
     /// 以后开的会话：已经开着的会话不跟着变（施工 8-2）。
     NewSession,
+    /// 头下次启动（施工 8-3，`tui.startup`）：头自己读、启动时读一次的项，核心不管它，改了要等头再起来。
+    HeadStart,
 }
 
 impl Applies {
-    /// 协议上、资源里的写法：`now`、`new_session`。
+    /// 协议上、资源里的写法：`now`、`new_session`、`head_start`。
     pub fn as_str(self) -> &'static str {
         match self {
             Applies::Now => "now",
             Applies::NewSession => "new_session",
+            Applies::HeadStart => "head_start",
         }
     }
 }
@@ -381,6 +385,9 @@ macro_rules! __settings_applies {
     };
     (new_session) => {
         $crate::Applies::NewSession
+    };
+    (head_start) => {
+        $crate::Applies::HeadStart
     };
 }
 

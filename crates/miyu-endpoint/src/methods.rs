@@ -4,7 +4,8 @@
 //! 传附件（施工 3-9 三补），改标题、置顶，删除会话（施工 3-8 三补）。别的 harness 带着名字说话（`session.send` 的 `from`，
 //! 施工 7-10）。命令交给会话，等它的回应：接受的回 `events`（切权限级别、停掉任务、改标题的回 `{}`），拒绝的回原因码；删除
 //! 由会话表办。造会话、说话的回应再带上会话实际在哪个目录里干活（施工 4-5 下），这个目录的项目配置还没问过信不信任的，
-//! 再带上它在哪（`untrusted_project`，施工 8-2）。查配置的三个方法在 `config/methods.rs`（施工 8-2）。
+//! 再带上它在哪（`untrusted_project`，施工 8-2）。查配置的三个方法在 `config/methods.rs`（施工 8-2），改配置的 `config.set`、
+//! 信任项目配置的 `config.trust` 在 `config/set.rs`、`config/trusting.rs`（施工 8-3）。
 
 use std::sync::Arc;
 
@@ -235,7 +236,8 @@ pub(crate) async fn call(
                 .await?;
             let events = command_by(core, request, &session, &found.handle, by, command).await?;
             let mut reply = json!({"events": events, "cwd": found.cwd});
-            if let Some(file) = core.config.untrusted(&found.cwd) {
+            let untrusted = core.config().untrusted(&found.cwd);
+            if let Some(file) = untrusted {
                 reply["untrusted_project"] = json!(file);
             }
             Ok(reply)
@@ -357,6 +359,8 @@ pub(crate) async fn call(
         "config.schema" => config::methods::schema(core, peer, params(request)?),
         "config.get" => config::methods::get(core, peer, params(request)?),
         "config.check" => config::methods::check(core, peer, params(request)?),
+        "config.set" => config::set::set(core, peer, &request.id, params(request)?),
+        "config.trust" => config::trusting::trust(core, peer, &request.id, params(request)?),
         "blob.put" => attach::put(core, params(request)?).await,
         "session.set_meta" => {
             let params: MetaParams = params(request)?;

@@ -10,7 +10,8 @@
 //! - [`Core::idle`]：没有连接、没有在跑的回合、也没有在跑的后台命令，核心据此空闲退出（施工 3-9 上、7-3）；
 //! - [`settings`]：端点的配置项，界面语言 `ui.language`（施工 8-1）、新会话开局只读 `permission.start_read_only`
 //!   （施工 8-2）；
-//! - [`config`]：配置服务：起来时读的几份配置、最终值，`config.schema`、`config.get`、`config.check`（施工 8-2）。
+//! - [`config`]：配置服务：起来时读的几份配置、最终值，`config.schema`、`config.get`、`config.check`（施工 8-2）；
+//!   `config.set`、`config.trust`（施工 8-3）。
 
 mod attach;
 pub mod config;
@@ -80,8 +81,8 @@ pub struct Core {
     /// 连上以后最多等多久握手（施工 4-9 再补三上）：等不来就断开，不然一个连上不说话的本机进程能让核心一直
     /// 不空闲退出。
     hello_wait: Duration,
-    /// 配置（施工 8-2）：起来时读的几份和最终值。
-    config: Config,
+    /// 配置（施工 8-2）：起来时读的几份和最终值。施工 8-3 起能改，住在一把锁里（[`Core::config`]）。
+    config: std::sync::Mutex<Config>,
 }
 
 /// 连上以后最多等多久握手。
@@ -105,7 +106,7 @@ impl Core {
         .concat();
         let config = Config::defaults(&root, &admin, items);
         Core {
-            config,
+            config: std::sync::Mutex::new(config),
             root,
             resources,
             models,
@@ -132,8 +133,16 @@ impl Core {
     /// 同一份家底，配置照 `config`（施工 8-2）：核心起来时读好交进来。没设的全是默认值，只认端点自己的两项。
     #[must_use]
     pub fn with_config(mut self, config: Config) -> Core {
-        self.config = config;
+        self.config = std::sync::Mutex::new(config);
         self
+    }
+
+    /// 配置服务（施工 8-3）：改、查排着队一件件办（`config.md` 第五条第 1 条）。拿着它的时候不许 `.await`：别的连接的
+    /// 查询会一直等着。上一个拿着它的出了 bug、崩了的，照样拿：配置服务改到一半不会留下半截（先写好文件才换上）。
+    pub(crate) fn config(&self) -> std::sync::MutexGuard<'_, Config> {
+        self.config
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     /// 同一份家底，这台机器上的沙盒照 `sandbox`（施工 5-4 上、下）。用不了的，会话里工作区、只读两级执行命令都要问人；

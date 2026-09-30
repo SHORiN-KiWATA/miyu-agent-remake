@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use miyu_config::parse::{Parsed, parse};
 use miyu_config::problem::{Code, Problem, Severity};
 use miyu_config::{Item, Layer};
-use miyu_store::config_file::{self, ReadError};
+use miyu_store::config_file::{self, ConfigText, ReadError};
 
 /// 读好的一份。
 #[derive(Debug, Clone)]
@@ -21,6 +21,10 @@ pub(crate) struct File {
     pub(crate) shown: String,
     /// 版本；文件还没有的是空的。
     pub(crate) version: Option<String>,
+    /// 字，开头的 BOM 去掉了；还没有、读不进来的是空的（施工 8-3：改一项在它上面改）。
+    pub(crate) text: String,
+    /// 开头有没有 BOM：写回时照样加回。
+    pub(crate) bom: bool,
     /// 读好的项和一项一项的问题；整份读不进来的是空的。
     pub(crate) parsed: Parsed,
     /// 整份的问题。
@@ -30,28 +34,20 @@ pub(crate) struct File {
 impl File {
     /// 照清单 `items` 读 `layer` 这一层的 `path`，写法是 `shown`。
     pub(crate) fn read(items: &[Item], layer: Layer, path: PathBuf, shown: String) -> File {
-        let mut file = File {
-            layer,
-            path,
-            shown,
-            version: None,
-            parsed: Parsed::default(),
-            broken: None,
-        };
-        let text = match config_file::read(&file.path) {
-            Ok(Some(text)) => text,
-            Ok(None) => return file,
+        let mut file = File::nothing(layer, &path, &shown);
+        match config_file::read(&file.path) {
+            Ok(Some(text)) => File::of(items, file, text),
+            Ok(None) => file,
             Err(error) => {
                 file.broken = Some(broken(layer, &error));
-                return file;
+                file
             }
-        };
-        file.version = Some(text.version);
-        match parse(items, layer, &text.text) {
-            Ok(parsed) => file.parsed = parsed,
-            Err(problem) => file.broken = Some(*problem),
         }
-        file
+    }
+
+    /// 照清单 `items` 认读好的字 `text`：写成了以后记下新的字当「上一次读的」（第五条第 8 条），不再读一次盘。
+    pub(crate) fn written(items: &[Item], old: &File, text: ConfigText) -> File {
+        File::of(items, File::nothing(old.layer, &old.path, &old.shown), text)
     }
 
     /// 什么都没读的一层：核心没给配置的时候（测试里）。
@@ -61,9 +57,23 @@ impl File {
             path: path.to_path_buf(),
             shown: shown.to_string(),
             version: None,
+            text: String::new(),
+            bom: false,
             parsed: Parsed::default(),
             broken: None,
         }
+    }
+
+    /// 在空的一份 `file` 上记下读好的字，解析。
+    fn of(items: &[Item], mut file: File, text: ConfigText) -> File {
+        file.version = Some(text.version);
+        file.bom = text.bom;
+        match parse(items, file.layer, &text.text) {
+            Ok(parsed) => file.parsed = parsed,
+            Err(problem) => file.broken = Some(*problem),
+        }
+        file.text = text.text;
+        file
     }
 
     /// 这份文件的全部问题：整份的在前。

@@ -1,17 +1,26 @@
-//! `miyu config`（`docs/blueprint/cli/config.md`，`config.md`「命令行」第十条，施工 8-2）：看配置的四个子命令，
-//! `get`、`check`、`explain`、`path`。它们只是协议的客户端（`22-命令行.md` O5）：连上核心，`config.get`、
-//! `config.schema`、`config.check`，照回应印。改、写、信任的几个随 8-3。
+//! `miyu config`（`docs/blueprint/cli/config.md`，`config.md`「命令行」第十条）：看配置的四个子命令 `get`、`check`、
+//! `explain`、`path`（施工 8-2），改配置、信任项目配置的四个 `set`、`unset`、`edit`、`trust`（施工 8-3）。它们只是协议的
+//! 客户端（`22-命令行.md` O5）：连上核心，`config.get`、`config.schema`、`config.check`、`config.set`、`config.trust`，照回应
+//! 印。`edit`、`trust` 要问人、开编辑器，经 [`Console`]：测试换成照剧本回的。
 //!
 //! 连核心照 `miyu recap`：核心在跑的照样连；没在跑、又没设 `DEEPSEEK_API_KEY` 的不拉起，说没有可用的模型，退出码 5
 //! （8-6 以后 key 来自配置，改成一律拉起）。握手以后给人看的字照回应的 `language`（施工 8-2）。
 //!
-//! 退出码：0 成了（`check` 没有错误）；1 核心拒绝了、`check` 有错误、连不上核心；2 参数不对（在主程序里）；5 同上。
+//! 退出码：0 成了（`check` 没有错误、`edit` 没改、`unset` 本来就没写、`trust` 记下了或本来就信任着）；1 核心拒绝了、`check`
+//! 有错误、`edit` 放弃了或编辑器出错或冲突、`trust` 这里没有项目配置或冲突、连不上核心；2 参数不对（在主程序里；`edit`、
+//! `trust` 不在终端里又没写 `--yes`、`--no`；`set --project`）；5 同上。
 
 mod check;
+mod console;
+mod edit;
 mod paths;
 mod render;
+mod set;
 #[cfg(test)]
 mod tests;
+mod trust;
+
+pub use console::{Console, Terminal};
 
 use std::io::{self, IsTerminal, Write};
 use std::path::PathBuf;
@@ -38,6 +47,9 @@ pub struct Config {
     #[command(subcommand)]
     pub command: ConfigCommand,
 }
+
+/// 参数不对（`cli/main.md`「参数写错时」）：不在终端里的 `edit`、`trust`，`set --project`（施工 8-3）。
+const MISUSE: u8 = 2;
 
 /// `miyu config` 的子命令。
 #[derive(Debug, Clone, Subcommand)]
@@ -81,6 +93,45 @@ pub enum ConfigCommand {
         #[arg(long)]
         project: bool,
     },
+    /// 改一项（施工 8-3）。
+    Set {
+        /// 哪一项。
+        key: String,
+        /// 改成什么，照这一项的类型读。
+        value: String,
+        /// 改系统配置；不写改个人设置。
+        #[arg(long, conflicts_with = "project")]
+        system: bool,
+        /// 项目配置只能手改：写了是参数不对，说一句怎么改。
+        #[arg(long)]
+        project: bool,
+    },
+    /// 从这一层删掉一项（施工 8-3）。
+    Unset {
+        /// 哪一项。
+        key: String,
+        /// 从系统配置删；不写从个人设置删。
+        #[arg(long)]
+        system: bool,
+    },
+    /// 用编辑器打开，存盘时先检查（施工 8-3）。
+    Edit {
+        /// 系统配置。
+        #[arg(long, conflicts_with = "project")]
+        system: bool,
+        /// 当前目录的项目配置。
+        #[arg(long)]
+        project: bool,
+    },
+    /// 看当前目录的项目配置会改什么，信任或者不信任它（施工 8-3）。
+    Trust {
+        /// 信任，不问。
+        #[arg(long, conflicts_with = "no")]
+        yes: bool,
+        /// 不信任，不问。
+        #[arg(long)]
+        no: bool,
+    },
 }
 
 /// 这一次做什么、在哪、怎么印。
@@ -98,6 +149,8 @@ pub struct ConfigPlan {
     pub home: Option<PathBuf>,
     /// 标准输出上不上色。
     pub color: bool,
+    /// 标准错误上的灰字上不上色（施工 8-3：`set`、`edit`、`trust` 印的那一行）。
+    pub gray: bool,
 }
 
 /// 跑一次 `miyu config`，交回退出码。`start` 给出拉起核心的命令：主程序自己加上 `core`。
@@ -118,6 +171,10 @@ pub fn config(args: Config, start: impl FnOnce() -> Command) -> ExitCode {
 /// 在运行时里：找数据根、连上核心、照子命令办。
 async fn run(args: Config, start: impl FnOnce() -> Command) -> u8 {
     let language = language::current();
+    let mut console = Terminal::current();
+    if let Some(code) = early(&args.command, language, &console, &mut io::stderr()) {
+        return code;
+    }
     let env = Env::current();
     let root = match DataRoot::locate(&env) {
         Ok(root) => root,
@@ -155,25 +212,35 @@ async fn run(args: Config, start: impl FnOnce() -> Command) -> u8 {
             io::stdout().is_terminal(),
             std::env::var_os("NO_COLOR").as_deref(),
         ),
+        gray: shown::colored(
+            io::stderr().is_terminal(),
+            std::env::var_os("NO_COLOR").as_deref(),
+        ),
     };
     config_on(
         connection,
         &token,
         &plan,
+        &mut console,
         &mut io::stdout(),
         &mut io::stderr(),
     )
     .await
 }
 
-/// 在一条连上了的连接上办一次 `miyu config`：握手，照子命令问核心、印，交回退出码。测试照它在进程里走一遍。
+/// 在一条连上了的连接上办一次 `miyu config`：握手，照子命令问核心、印，交回退出码。要问人、开编辑器的经 `console`。测试
+/// 照它在进程里走一遍。
 pub async fn config_on(
     connection: Connection,
     token: &str,
     plan: &ConfigPlan,
+    console: &mut dyn Console,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> u8 {
+    if let Some(code) = early(&plan.command, plan.language, console, err) {
+        return code;
+    }
     let mut rpc = Rpc::new(connection, "config");
     let plan = match link::hello(&mut rpc, token, &plan.language, false, err).await {
         Ok(hello) => ConfigPlan {
@@ -200,7 +267,46 @@ pub async fn config_on(
             let only = check::Only::of(*system, *project);
             check::check(&mut talk, file.as_deref(), only, *format, out).await
         }
+        ConfigCommand::Set {
+            key, value, system, ..
+        } => set::set(&mut talk, key, value, *system).await,
+        ConfigCommand::Unset { key, system } => set::unset(&mut talk, key, *system).await,
+        ConfigCommand::Edit { system, project } => {
+            edit::edit(&mut talk, check::Only::of(*system, *project), console).await
+        }
+        ConfigCommand::Trust { yes, no } => {
+            let answer = match (yes, no) {
+                (true, _) => Some(true),
+                (_, true) => Some(false),
+                _ => None,
+            };
+            trust::trust(&mut talk, answer, console, out).await
+        }
     }
+}
+
+/// 核心的回应。
+pub(crate) enum Reply {
+    /// 接受了：`result`。
+    Done(Value),
+    /// 拒绝了：`error`。
+    Refused(Value),
+}
+
+/// 连核心以前就知道不对的（施工 8-3）：`set --project`（项目配置只能手改）、不在终端里的 `edit`。说一句，交回退出码 2。
+fn early(
+    command: &ConfigCommand,
+    language: Language,
+    console: &dyn Console,
+    err: &mut dyn Write,
+) -> Option<u8> {
+    let said = match command {
+        ConfigCommand::Set { project: true, .. } => language.project_by_hand(),
+        ConfigCommand::Edit { .. } if !console.terminal() => language.edit_needs_terminal(),
+        _ => return None,
+    };
+    say(err, said);
+    Some(MISUSE)
 }
 
 /// 问核心时手里的几样。
@@ -211,25 +317,22 @@ pub(crate) struct Talk<'a> {
 }
 
 impl Talk<'_> {
-    /// 发一条请求，交回 `result`。被拒绝的：写了 `data.problems` 的一条一句（不认识的键带最近的键名），没写的说核心的
-    /// 原话；核心断开的说一句。都交回退出码。
+    /// 发一条请求，交回 `result`。被拒绝的照 [`Talk::refused`] 说一句；核心断开的说一句。都交回退出码。
     pub(crate) async fn ask(&mut self, method: &str, params: Value) -> Result<Value, u8> {
+        match self.request(method, params).await? {
+            Reply::Done(result) => Ok(result),
+            Reply::Refused(error) => Err(self.refused(&error)),
+        }
+    }
+
+    /// 发一条请求，交回回应：接受了的、被拒绝的（原因由调用的一方看，施工 8-3：`edit`、`trust` 的冲突另说一句）。核心断开的、
+    /// 写不出去的说一句，交回退出码。
+    pub(crate) async fn request(&mut self, method: &str, params: Value) -> Result<Reply, u8> {
         let language = self.plan.language;
         match self.rpc.call(method, params).await {
             Ok(Some(reply)) => match reply.get("error") {
-                None => Ok(reply["result"].clone()),
-                Some(error) => {
-                    let problems = error["data"]["problems"].as_array();
-                    match problems.filter(|problems| !problems.is_empty()) {
-                        Some(problems) => {
-                            for problem in problems {
-                                say(self.err, problem["message"].as_str().unwrap_or_default());
-                            }
-                        }
-                        None => say(self.err, error["message"].as_str().unwrap_or_default()),
-                    }
-                    Err(exit::ERROR)
-                }
+                None => Ok(Reply::Done(reply["result"].clone())),
+                Some(error) => Ok(Reply::Refused(error.clone())),
             },
             Ok(None) => {
                 say(self.err, &language.disconnected());
@@ -240,6 +343,20 @@ impl Talk<'_> {
                 Err(exit::ERROR)
             }
         }
+    }
+
+    /// 被拒绝了：写了 `data.problems` 的一条一句（不认识的键带最近的键名），没写的说核心的原话。交回退出码。
+    pub(crate) fn refused(&mut self, error: &Value) -> u8 {
+        let problems = error["data"]["problems"].as_array();
+        match problems.filter(|problems| !problems.is_empty()) {
+            Some(problems) => {
+                for problem in problems {
+                    say(self.err, problem["message"].as_str().unwrap_or_default());
+                }
+            }
+            None => say(self.err, error["message"].as_str().unwrap_or_default()),
+        }
+        exit::ERROR
     }
 
     /// 工作目录，照协议的写法。

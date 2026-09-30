@@ -23,6 +23,14 @@
           "ja": "日本語"
         }
       },
+      "tui.startup": {
+        "name": "On start, open",
+        "description": "Whether the terminal interface starts a new session or picks up the most recent one.",
+        "options": {
+          "new": "A new session",
+          "recent": "The most recent session"
+        }
+      },
       "permission.start_read_only": {
         "name": "Start new sessions read-only",
         "description": "When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on."
@@ -30,11 +38,13 @@
     },
     "pages": {
       "general": "General",
+      "interface": "Interface",
       "advanced": "Advanced",
       "permissions": "Permissions"
     },
     "groups": {
       "display": "Display",
+      "tui": "Terminal interface",
       "log": "Runtime log",
       "sessions": "Sessions"
     }
@@ -72,6 +82,8 @@
     "config/layer/default": "the default",
     "config/layer/env": "the environment",
     "config/applies/new_session": "Applies to sessions opened from now on",
+    "config/applies/head_start": "Takes effect the next time the interface opens",
+    "config/trust-header": "Which project configs Miyu trusts: the repository, the exact content, and the answer.",
     "config/unreadable": "Cannot read this file: {why}",
     "config/too-big": "The file is over 1 MiB and is not read",
     "config/not-utf8": "The file is not UTF-8",

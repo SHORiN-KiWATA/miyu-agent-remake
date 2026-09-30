@@ -20,7 +20,8 @@
 | `crates/miyu-cli/src/ask/steps/blocks.rs` | 执行命令、编辑那一块下面印什么（施工 4-11） |
 | `crates/miyu-cli/src/ask/usage.rs` | 用量加起来 |
 | `crates/miyu-cli/src/link.rs`、`rpc.rs`、`shown.rs` | 握手、发请求等回应、请求的编号、一行怎么上色、路径怎么写短；和 `miyu undo` 共用。`rpc.rs` 放下时掐掉读的任务，连接当场关上（施工 7-9） |
-| `crates/miyu-cli/src/language.rs`、`language/agents.rs`、`language/harness.rs`、`language/config.rs` | 给人看的字；等子代理时的那几句（施工 7-9）；`--from` 不等了的两句（施工 7-10）；配置有错那一句（施工 8-2） |
+| `crates/miyu-cli/src/language.rs`、`language/agents.rs`、`language/harness.rs`、`language/config.rs` | 给人看的字；等子代理时的那几句（施工 7-9）；`--from` 不等了的两句（施工 7-10）；配置有错那一句（施工 8-2）、项目配置没信任那一句（施工 8-3） |
+| `crates/miyu-cli/src/ask/follow/opening.rs` | 开头那几行旁白：配置有错、项目配置没信任、沙盒用不了、目录太宽（施工 8-3 从 `follow.rs` 挪出来） |
 | `crates/miyu-cli/src/help/{zh,en}/ask.txt` | 帮助页（`cli/main.md`「帮助页」） |
 | `resources/software/basesystem/human/{zh,en}.json` | 每件工具的符号、显示名、下面印哪一块，结果那一句 |
 | `resources/core/human/{zh,en}.json` | 内核记的那几句结果的说法（例如 `tool-results/unattended`） |
@@ -53,7 +54,7 @@
    - `caps.input` 是 `false`：`miyu ask` 里没有确认的界面，要确认的那一步，核心当场拒绝。
    - 回应里的 `sandbox` 说用不了：执行命令都要确认，这里确认不了。第一步之前、目录太宽那一句之前说一句，照原因和这台机器的系统写（下面「给人看的字」），一次（施工 5-4 下）。
    - 之后给人看的字照回应的 `language` 说（施工 8-2，`cli/main.md`「界面语言」）：`zh` 的中文，`en`、`ja` 的英文，没回的照握手以前的；换了的，给人看的字（`human/<语言>.json`）照新的那种重读一份。
-   - 回应里有 `config_errors` 的：最先说一句配置里有几处错误，在沙盒用不了那一句前面，一次；`--format json` 的不说（施工 8-2，`config.md` 第十条第 10 条）。造会话、说话的回应里有 `untrusted_project` 的那一句随 8-3。
+   - 回应里有 `config_errors` 的：最先说一句配置里有几处错误，在沙盒用不了那一句前面，一次；`--format json` 的不说（施工 8-2，`config.md` 第十条第 10 条）。造会话、说话的回应里有 `untrusted_project` 的：接着说一句这里的项目配置还没信任、这次没用它，一次 `miyu ask` 只说一次；`--format json` 的不说（施工 8-3，`config.md` 第十条第 10 条）。新开的会话照造会话的回应说，接着说的会话照说话的回应说。
 4. **传附件**（施工 3-9 三补）：`--file` 的每一个，读参数时相对的照敲命令时的目录接成绝对的（在不在、多大不查，由核心说），照写的先后发 `blob.put`，带 `{"path": <绝对路径>}`；写了几次附几次，不去重。
    - 被拒绝的：标准错误上印 `附不上 <绝对路径>：<核心照握手时的语言说的原因>`，退出码 1，不再往下：不造会话、不发话，也不留下空的会话。核心断开的，照第 11 条。
    - 在找会话之前传：`--continue`、`--session` 的，传不上也什么都不送进那个会话。
@@ -114,6 +115,8 @@ todo.md
 | 19 | 有几步因为要确认没做：最后那一句 | 标准错误 | 灰；「没做」红 |
 
 配置有错那一句（施工 8-2）：样本里没有它。只在握手的回应有 `config_errors` 时有，最先印，在沙盒用不了那一句前面，一次；标准错误，灰。
+
+项目配置没信任那一句（施工 8-3）：样本里没有它。造会话、说话的回应里有 `untrusted_project` 时有，在配置有错那一句后面、沙盒用不了那一句前面（接着说的会话，说话的回应到了才说），一次；标准错误，灰。
 
 沙盒用不了那一句（施工 5-4 下）：样本里没有它。只在握手的回应说沙盒用不了时有，在配置有错那一句后面、目录太宽那一句前面，一次；标准错误，灰，和目录太宽那一句连着、不空行。
 
@@ -302,6 +305,7 @@ C 也查完了。
 | 什么时候 | 中文 | 英文 |
 |---|---|---|
 | 配置有错（施工 8-2） | `· 配置里有 <n> 处错误：miyu config check 看是哪里` | `· <n> errors in the config: run miyu config check to see them`（1 处：`· 1 error in the config: run miyu config check to see it`） |
+| 项目配置没信任（施工 8-3） | `· 这里的项目配置 <文件> 还没信任，这次没用它：miyu config trust 看一眼再定` | `· The project config at <file> is not trusted yet, so it was not used: run miyu config trust to review it` |
 | 目录太宽 | `· 目录太宽（<目录>），这次在 <目录> 里干活` | `· Working directory too wide (<dir>), using <dir> this time` |
 | 沙盒用不了（一行：括号里的原因，接着那半句后果） | `· 沙盒用不了（<原因>）：执行命令要你确认，miyu ask 里确认不了` | `· Sandbox unavailable (<reason>): commands need your approval, which cannot be given in miyu ask` |
 | 原因：Linux 上没有手段 | 内核没有能用的 Landlock：要 Linux 5.13 起，启动参数的 lsm= 里开着 | the kernel has no usable Landlock: Linux 5.13 or later, enabled in the lsm= boot parameter |

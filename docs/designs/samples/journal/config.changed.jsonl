@@ -1,0 +1,1 @@
+{"seq":1,"at":"2026-10-01T08:00:00.000Z","kind":"config.changed","by":{"kind":"person","account":"admin"},"cause":"config-9f2c4e1a7b3d5f60-1","body":{"layer":"personal","file":"home/admin/settings.toml","via":"set","changes":[{"key":"ui.language","old":"en","new":"zh"}]}}

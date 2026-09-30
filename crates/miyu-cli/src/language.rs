@@ -6,6 +6,7 @@ use crate::ask::usage_line;
 
 mod agents;
 mod config;
+mod config_write;
 mod harness;
 mod sandbox;
 mod undo;

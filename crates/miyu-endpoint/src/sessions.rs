@@ -102,7 +102,7 @@ impl Sessions {
         }
         let workspace = workspace(core, &cwd);
         // 开局只读照这个会话实际干活的目录算，带上信任着的项目配置（`config.md` 第二条第 9 条）。
-        let (resolved, project) = core.config.with_project(&workspace);
+        let (resolved, project) = core.config().with_project(&workspace);
         let untrusted = project.and_then(|project| project.untrusted());
         if let Some((_, session)) = open.created.iter().find(|(id, _)| *id == command) {
             let id = session.clone();
@@ -404,8 +404,8 @@ fn offset() -> UtcOffset {
         .unwrap_or_else(|| unreachable!("UTC 在偏移的范围里"))
 }
 
-/// 现在：造会话编号用，编号的前 48 位是它。
-fn now() -> Timestamp {
+/// 现在：造会话编号用，编号的前 48 位是它；配置的日志也照它记时刻（施工 8-3）。
+pub(crate) fn now() -> Timestamp {
     let millis = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |since| i64::try_from(since.as_millis()).unwrap_or(0));

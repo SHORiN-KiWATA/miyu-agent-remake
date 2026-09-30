@@ -159,7 +159,7 @@ fn each_page_lists_exactly_the_options_there_are() {
             String::new(),
         ));
         assert_eq!(listed(page(language, Page::Miyu)), all, "{language:?} miyu");
-        // `config` 那一页（施工 8-2）：四个子命令的选项合在一起列，每个子命令印的都是它。
+        // `config` 那一页（施工 8-2、8-3）：八个子命令的选项合在一起列，每个子命令印的都是它。
         let config = Config::augment_args(Command::new("config"));
         let mut options = Listed::new();
         for command in config.get_subcommands() {
@@ -167,8 +167,8 @@ fn each_page_lists_exactly_the_options_there_are() {
         }
         assert_eq!(
             config.get_subcommands().count(),
-            4,
-            "get、check、explain、path"
+            8,
+            "get、check、explain、path、set、unset、edit、trust"
         );
         assert_eq!(
             listed(page(language, Page::Config)),
