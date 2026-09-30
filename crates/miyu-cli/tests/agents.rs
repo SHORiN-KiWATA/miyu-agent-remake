@@ -25,7 +25,7 @@ fn home(router: Router) -> Home {
 /// 派一个子代理：标题和交代都是 `task`。
 fn agent(task: &str) -> Play {
     let args = json!({"description": task, "prompt": task}).to_string();
-    Play::calls(&[("agent", &args)])
+    Play::calls(&[("subagent", &args)])
 }
 
 /// 日志里有几轮开了头。

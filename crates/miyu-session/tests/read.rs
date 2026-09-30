@@ -140,7 +140,6 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
     assert_eq!(
         names,
         [
-            "agent",
             "edit",
             "glob",
             "grep",
@@ -149,6 +148,7 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
             "message_agent",
             "read",
             "shell",
+            "subagent",
             "trash",
             "write"
         ]

@@ -13,7 +13,7 @@ use miyu_kernel::id::{AccountId, CommandId, JobId, SessionId, VenueId};
 use miyu_kernel::origin::{By, Session};
 use miyu_kernel::session::{Command, Outcome};
 use miyu_policy::{JOB_DEPTH, ToolEntry};
-use miyu_tool::{AGENT, AgentPort, Catalog, MESSAGE_AGENT, NotSpawned, Spawned, Spawning};
+use miyu_tool::{AgentPort, Catalog, MESSAGE_AGENT, NotSpawned, SUBAGENT, Spawned, Spawning};
 
 use crate::TARGET;
 use crate::job_ids::JobIds;
@@ -47,12 +47,12 @@ pub(crate) struct Agents {
 
 impl Agents {
     /// 会话能不能派子代理（`agents.md` 第一条第 5、6 条）：在本机，还没到深度上限（[`JOB_DEPTH`]）。场所会话（群）里不能
-    /// 派，外部身份只从场所会话进来，也就派不了；到了上限的，子会话再往下就超了。造会话时照它定工具面里有没有 `agent`。
+    /// 派，外部身份只从场所会话进来，也就派不了；到了上限的，子会话再往下就超了。造会话时照它定工具面里有没有 `subagent`。
     pub(crate) fn allowed(venue: &VenueId, lineage: Option<&Lineage>) -> bool {
         venue.as_str() == LOCAL && Agents::depth_of(lineage) < JOB_DEPTH
     }
 
-    /// 造会话时定的工具面（施工 7-5、7-7）：目录里每件工具的规格换成快照里的写法。不能派子代理的会话不给 `agent`；场所
+    /// 造会话时定的工具面（施工 7-5、7-7）：目录里每件工具的规格换成快照里的写法。不能派子代理的会话不给 `subagent`；场所
     /// 会话（群）不给 `message_agent`：它没有父，也派不了子代理。到了深度上限的子会话照样有 `message_agent`，只能发给父。
     /// 工具面造会话时定，一个会话里不变，给了只会被拒的不给（`agents.md` 第一条第 6 条）。
     pub(crate) fn face(
@@ -64,7 +64,7 @@ impl Agents {
         let local = venue.as_str() == LOCAL;
         tools
             .specs()
-            .filter(|spec| spawns || spec.name != AGENT)
+            .filter(|spec| spawns || spec.name != SUBAGENT)
             .filter(|spec| local || spec.name != MESSAGE_AGENT)
             .map(|spec| ToolEntry {
                 name: spec.name.clone(),

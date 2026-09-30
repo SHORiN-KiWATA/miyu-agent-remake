@@ -104,3 +104,55 @@ fn the_parameters_are_kept_byte_for_byte() {
     let spec = catalog.specs().next().unwrap();
     assert_eq!(spec.parameters.get(), text);
 }
+
+/// 改过名的一件（施工 7-5 再补）：规格、执行照 `tool`，以前叫 `formerly`。
+struct Former(Arc<dyn Tool>, &'static [&'static str]);
+
+impl Tool for Former {
+    fn spec(&self) -> &Spec {
+        self.0.spec()
+    }
+
+    fn run(&self, call: crate::Call, progress: crate::Progress) -> crate::Running<'_> {
+        self.0.run(call, progress)
+    }
+
+    fn formerly(&self) -> &'static [&'static str] {
+        self.1
+    }
+}
+
+fn former(name: &str, formerly: &'static [&'static str]) -> Arc<dyn Tool> {
+    Arc::new(Former(object(name), formerly))
+}
+
+#[test]
+fn a_renamed_tool_is_found_by_its_old_name_but_offered_only_by_its_new_one() {
+    let catalog = Catalog::new([object("read"), former("subagent", &["agent"])]).unwrap();
+    assert_eq!(
+        names(&catalog),
+        ["read", "subagent"],
+        "以前的名字不进工具面"
+    );
+    let found = catalog.get("agent").expect("照以前的名字找得到");
+    assert_eq!(found.spec().name, "subagent");
+    assert_eq!(catalog.get("subagent").unwrap().spec().name, "subagent");
+    assert!(catalog.get("read").is_some());
+    assert!(catalog.get("agents").is_none());
+}
+
+#[test]
+fn an_old_name_that_clashes_is_refused() {
+    let duplicate = |tool: &str| CatalogError {
+        tool: tool.to_string(),
+        problem: Problem::Duplicate,
+    };
+    // 以前的名字撞上前面登记的：现在的名字、以前的名字。
+    let taken = Catalog::new([object("agent"), former("subagent", &["agent"])]);
+    assert_eq!(taken.unwrap_err(), duplicate("agent"));
+    let twice = Catalog::new([former("a", &["old"]), former("b", &["old"])]);
+    assert_eq!(twice.unwrap_err(), duplicate("old"));
+    // 后登记的现在的名字撞上前面的以前的名字。
+    let later = Catalog::new([former("subagent", &["agent"]), object("agent")]);
+    assert_eq!(later.unwrap_err(), duplicate("agent"));
+}

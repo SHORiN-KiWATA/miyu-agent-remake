@@ -328,7 +328,11 @@ async fn a_subagent_is_not_a_command() {
     let home = Home::new();
     let args = json!({"description": "查 crate", "prompt": "Read Cargo.toml."}).to_string();
     // 派出去以后，父会话的下一次请求和子会话的第一次请求都停住。
-    let script = Script::new([Play::calls(&[("agent", &args)]), Play::Holds, Play::Holds]);
+    let script = Script::new([
+        Play::calls(&[("subagent", &args)]),
+        Play::Holds,
+        Play::Holds,
+    ]);
     let core = home.core_with_tools(&script, tools(&Held::new(&[])), TOKEN);
     let mut client = Client::connect(core.clone());
     client.hello().await;

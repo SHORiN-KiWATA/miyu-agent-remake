@@ -3,8 +3,8 @@
 //! 子会话。父会话载入时收掉：会话表里 `parent` 是它、它的日志里又没有这个子会话的 `job.started` 的，连同它们派的，停下、
 //! 挪进回收处（照删会话，`delete.rs`，施工 3-8 三补）。
 //!
-//! 只在父会话的日志里有没派成的 `agent` 调用（结果里没有 `job.started`，或者还没有结果）时才去认：认要把会话表里每个会话
-//! 的第一条都读一遍，平常的载入不该为它慢下来。
+//! 只在父会话的日志里有没派成的 `subagent` 调用（结果里没有 `job.started`，或者还没有结果）时才去认：认要把会话表里每个会话
+//! 的第一条都读一遍，平常的载入不该为它慢下来。改名以前造的会话，日志里的调用叫 `agent`，一样认（施工 7-5 再补）。
 
 use std::collections::BTreeSet;
 
@@ -14,7 +14,7 @@ use miyu_kernel::id::{AccountId, SessionId};
 use miyu_store::log::{first_event, read_events};
 use miyu_store::root::DataRoot;
 use miyu_store::trash;
-use miyu_tool::AGENT;
+use miyu_tool::is_subagent;
 
 use super::delete::descendants;
 use super::{Open, now};
@@ -78,7 +78,7 @@ fn orphans(root: &DataRoot, account: &AccountId, parent: &SessionId) -> Vec<Sess
         match &event.body {
             Body::MessageAssistant(reply) => {
                 calls.extend(reply.blocks.iter().filter_map(|block| match block {
-                    Block::ToolCall(call) if call.name == AGENT => Some(call.call_id),
+                    Block::ToolCall(call) if is_subagent(&call.name) => Some(call.call_id),
                     _ => None,
                 }))
             }

@@ -101,13 +101,13 @@ impl SessionPort for Table {
     }
 }
 
-/// 真的 `jobs`、`agent`，和一件假工具 `start`：把 `held` 交给任务端口。
+/// 真的 `jobs`、`subagent`，和一件假工具 `start`：把 `held` 交给任务端口。
 fn tools(held: &Arc<Held>) -> Catalog {
     let resources = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");
     let mut tools: Vec<Arc<dyn Tool>> = miyu_basesystem::tools(&resources)
         .expect("出厂的资源读得出来")
         .into_iter()
-        .filter(|tool| ["jobs", "agent"].contains(&tool.spec().name.as_str()))
+        .filter(|tool| ["jobs", "subagent"].contains(&tool.spec().name.as_str()))
         .collect();
     tools.push(Fake::new(
         "start",

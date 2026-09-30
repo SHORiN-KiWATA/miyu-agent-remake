@@ -1,6 +1,6 @@
 //! 派子代理，执行器这一头（施工 7-5，`docs/blueprint/agents.md` 第一条、`session/tools.md`「派子代理」）：会话表的端口换成
 //! 假的，看执行器交给它的子会话抄对了父会话的每一样、交代记成父会话发的、一步里调几次派几个；编号接着日志往下数，领了没派成
-//! 的不回收；工具面上什么时候有 `agent`（本机、没到深度上限），子会话的 system 接上场所说明；没有端口的派不了。
+//! 的不回收；工具面上什么时候有 `subagent`（本机、没到深度上限），子会话的 system 接上场所说明；没有端口的派不了。
 
 mod support;
 
@@ -17,6 +17,10 @@ use miyu_session::{Child, Handle, Lineage, Pending, SessionPort};
 use miyu_tool::Catalog;
 
 use support::*;
+
+/// 派子代理的那件改名 `subagent`，以前造的会话照旧认 `agent`（施工 7-5 再补）。
+#[path = "spawn/renamed.rs"]
+mod renamed;
 
 /// 场所说明的原文。
 const VENUE: &str = include_str!("../../../resources/core/jobs/subagent-venue.txt");
@@ -103,15 +107,15 @@ fn child_id(n: usize) -> SessionId {
     SessionId::parse(&format!("01a0d78c-ca52-7d19-8b64-0e3f5a7c2d9{n}")).expect("合写法")
 }
 
-/// 真的基础系统：`agent` 在里面。
+/// 真的基础系统：`subagent` 在里面。
 fn basesystem(home: &Home) -> Catalog {
     Catalog::new(miyu_basesystem::tools(home.resources.path()).expect("读得出")).expect("合写法")
 }
 
-/// 调一次 `agent`。
-fn agent(title: &str, prompt: &str) -> (&'static str, String) {
+/// 调一次 `subagent`。
+fn subagent(title: &str, prompt: &str) -> (&'static str, String) {
     let args = serde_json::json!({"description": title, "prompt": prompt});
-    ("agent", args.to_string())
+    ("subagent", args.to_string())
 }
 
 /// 一次回复里调这几次。
@@ -186,7 +190,10 @@ async fn the_child_copies_the_parent_and_gets_the_task_from_it() {
     let home = Home::new();
     let table = Arc::new(Table::default());
     let prompt = "Read src/lib.rs and list what it exports.\nOnly public items.";
-    let script = Script::new([calls(&[agent("查导出", prompt)]), Play::Says("派出去了。")]);
+    let script = Script::new([
+        calls(&[subagent("查导出", prompt)]),
+        Play::Says("派出去了。"),
+    ]);
     let handle = parent(&home, &script, &table).await;
     let log = one_turn(&home, &handle, 1).await;
     let parent = handle.id().clone();
@@ -237,7 +244,7 @@ async fn several_calls_in_one_step_start_several_children() {
     let home = Home::new();
     let table = Arc::new(Table::default());
     let script = Script::new([
-        calls(&[agent("甲", "Task A."), agent("乙", "Task B.")]),
+        calls(&[subagent("甲", "Task A."), subagent("乙", "Task B.")]),
         Play::Says("两个都派出去了。"),
     ]);
     let handle = parent(&home, &script, &table).await;
@@ -270,11 +277,11 @@ async fn numbers_go_on_after_a_failure_and_a_reload() {
     let home = Home::new();
     let table = Table::failing(&[1]);
     let script = Script::new([
-        calls(&[agent("甲", "Task A.")]),
+        calls(&[subagent("甲", "Task A.")]),
         Play::Says("派不出去。"),
-        calls(&[agent("乙", "Task B.")]),
+        calls(&[subagent("乙", "Task B.")]),
         Play::Says("派出去了。"),
-        calls(&[agent("丙", "Task C.")]),
+        calls(&[subagent("丙", "Task C.")]),
         Play::Says("又派了一个。"),
     ]);
     let handle = parent(&home, &script, &table).await;
@@ -311,7 +318,7 @@ async fn numbers_go_on_after_a_failure_and_a_reload() {
 #[tokio::test]
 async fn without_the_table_the_agent_is_not_started() {
     let home = Home::new();
-    let script = Script::new([calls(&[agent("甲", "Task A.")]), Play::Says("派不了。")]);
+    let script = Script::new([calls(&[subagent("甲", "Task A.")]), Play::Says("派不了。")]);
     let handle = home
         .create_as(&script, &basesystem(&home), Opening::default())
         .await;
@@ -320,10 +327,10 @@ async fn without_the_table_the_agent_is_not_started() {
     assert_eq!(text(result), "The subagent could not be started.\n");
 }
 
-/// 造一个会话、说一句：交回它发出的第一次请求，和这一轮里调 `agent` 的结果。
+/// 造一个会话、说一句：交回它发出的第一次请求，和这一轮里调 `subagent` 的结果。
 async fn first_request(lines: Lines, table: &Arc<Table>) -> (Request, Vec<ToolResult>) {
     let home = Home::new();
-    let script = Script::new([calls(&[agent("甲", "Task A.")]), Play::Says("好。")]);
+    let script = Script::new([calls(&[subagent("甲", "Task A.")]), Play::Says("好。")]);
     let lines = Lines {
         sessions: Some(Arc::clone(table) as Arc<dyn SessionPort>),
         ..lines
@@ -350,19 +357,20 @@ fn child_at(depth: u32) -> Lines {
 #[tokio::test]
 async fn only_local_sessions_below_the_depth_limit_can_spawn() {
     let persona = "You are a helpful software engineer.";
-    // 主会话：有 `agent`，system 只有人设。
+    // 主会话：有 `subagent`、没有以前的名字 `agent`（施工 7-5 再补），system 只有人设。
     let table = Arc::new(Table::default());
     let (request, _) = first_request(Lines::default(), &table).await;
-    assert!(names(&request).contains(&"agent"));
+    assert!(names(&request).contains(&"subagent"));
+    assert!(!names(&request).contains(&"agent"), "{:?}", names(&request));
     assert_eq!(request.system, persona);
     // 第 1 层：还能派孙代理；system 接上场所说明。
     let (request, _) = first_request(child_at(1), &table).await;
-    assert!(names(&request).contains(&"agent"));
+    assert!(names(&request).contains(&"subagent"));
     assert_eq!(request.system, format!("{persona}\n\n{}", VENUE.trim_end()));
     assert_eq!(table.made().len(), 2);
     assert_eq!(table.made()[1].lineage.depth, 2, "孙代理是第 2 层");
 
-    // 第 2 层到了上限、场所会话（群）：工具面里没有 `agent`，调了只会被当成没有的工具拒掉，一个都派不出去。
+    // 第 2 层到了上限、场所会话（群）：工具面里没有 `subagent`，调了只会被当成没有的工具拒掉，一个都派不出去。
     let group = Lines {
         venue: VenueId::parse("qq:group:123456").unwrap(),
         ..Lines::default()
@@ -370,11 +378,15 @@ async fn only_local_sessions_below_the_depth_limit_can_spawn() {
     for (lines, child) in [(child_at(2), true), (group, false)] {
         let table = Arc::new(Table::default());
         let (request, results) = first_request(lines, &table).await;
-        assert!(!names(&request).contains(&"agent"), "{:?}", names(&request));
+        assert!(
+            !names(&request).contains(&"subagent"),
+            "{:?}",
+            names(&request)
+        );
         assert!(names(&request).contains(&"read"), "别的工具照给");
         assert_eq!(request.system.contains(VENUE.trim_end()), child);
         let [result] = results.try_into().expect("一次调用");
-        assert_eq!(text(&result), "There is no tool named \"agent\".\n");
+        assert_eq!(text(&result), "There is no tool named \"subagent\".\n");
         assert!(table.made().is_empty());
     }
 }
@@ -385,9 +397,9 @@ async fn a_loaded_child_still_knows_its_depth() {
     let home = Home::new();
     let table = Arc::new(Table::default());
     let script = Script::new([
-        calls(&[agent("甲", "Task A.")]),
+        calls(&[subagent("甲", "Task A.")]),
         Play::Says("好。"),
-        calls(&[agent("乙", "Task B.")]),
+        calls(&[subagent("乙", "Task B.")]),
         Play::Says("好。"),
     ]);
     let lines = Lines {
@@ -420,9 +432,9 @@ async fn a_child_numbers_its_jobs_under_its_own() {
     let home = Home::new();
     let table = Arc::new(Table::default());
     let script = Script::new([
-        calls(&[agent("甲", "Task A.")]),
+        calls(&[subagent("甲", "Task A.")]),
         Play::Says("好。"),
-        calls(&[agent("乙", "Task B.")]),
+        calls(&[subagent("乙", "Task B.")]),
         Play::Says("好。"),
     ]);
     let lines = Lines {

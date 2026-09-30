@@ -74,7 +74,7 @@ fn decide(request: &Request) -> Play {
         return match (last, heard("<subagent-report")) {
             (Some(_), _) => Play::Says("派出去了。"),
             (None, true) => Play::Says("都查完了。"),
-            (None, false) => calls("agent", json!({"description": "查", "prompt": "查 A"})),
+            (None, false) => calls("subagent", json!({"description": "查", "prompt": "查 A"})),
         };
     }
     if said.contains(&"查 A") {
@@ -88,7 +88,7 @@ fn decide(request: &Request) -> Play {
                 "message_agent",
                 json!({"to": "j1.1", "message": "用 a.rs。"}),
             ),
-            None => calls("agent", json!({"description": "查 B", "prompt": "查 B"})),
+            None => calls("subagent", json!({"description": "查 B", "prompt": "查 B"})),
         };
     }
     if said.contains(&"查 B") {

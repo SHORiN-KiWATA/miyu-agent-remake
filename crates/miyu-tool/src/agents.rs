@@ -1,9 +1,9 @@
-//! 派子代理的端口（`docs/blueprint/agents.md` 第一条，`tools/interface.md`，施工 7-5）：`agent` 这件工具只拿它，不认识
+//! 派子代理的端口（`docs/blueprint/agents.md` 第一条，`tools/interface.md`，施工 7-5）：`subagent` 这件工具只拿它，不认识
 //! 会话表。执行器照父会话抄好属主、场所、工作目录、权限、能不能确认，领一个任务编号，造子会话、把交代送进去，交回编号和
 //! 子会话的编号。
 //!
 //! 端口由下层定义、上层装（`00-设计理念.md` 第四节「依赖与接口的规矩」）：这里只定义形状，执行器（`miyu-session`）照
-//! 每一次调用造一个，交给 [`crate::Call::agents`]。测试里的假调用没有，`agent` 照「派不了」出错。
+//! 每一次调用造一个，交给 [`crate::Call::agents`]。测试里的假调用没有，`subagent` 照「派不了」出错。
 
 use std::fmt;
 use std::future::Future;
@@ -12,7 +12,19 @@ use std::pin::Pin;
 use miyu_kernel::id::{JobId, SessionId};
 
 /// 派子代理的那件工具的名字（`agents.md` 第一条第 5、6 条）：场所会话、到了深度上限的会话，造会话时从工具面上拿掉它。
-pub const AGENT: &str = "agent";
+/// 施工 7-5 再补从 `agent` 改名（`tools/subagent.md`「以前的名字」）：在 Miyu 里「agent」可能指她自己、子代理、别的会话，
+/// 叫 `subagent` 一看就知道是派子代理（2026-10-01 项目主人定）。
+pub const SUBAGENT: &str = "subagent";
+
+/// 它以前的名字（施工 7-5 再补）：那以前造的会话，快照里冻着的工具面上是这个名字，前缀不能变，她照旧这样调；工具目录照它
+/// 也找得到这一件（[`crate::Tool::formerly`]），新造的会话工具面上没有它。
+pub const SUBAGENT_FORMERLY: &str = "agent";
+
+/// 调的是不是派子代理的那件：现在的名字、以前的名字都算。从日志里认派子代理的调用时用（派到一半的空子会话，施工 7-8）：
+/// 以前造的会话，日志里记的是以前的名字。
+pub fn is_subagent(name: &str) -> bool {
+    name == SUBAGENT || name == SUBAGENT_FORMERLY
+}
 
 /// 派子代理：交标题和整段交代，拿回任务编号和子会话的编号。
 pub trait AgentPort: Send + Sync {

@@ -34,7 +34,11 @@ async fn a_person_stops_a_subagent() {
     let tools = Catalog::new(miyu_basesystem::tools(&default_resources()).unwrap()).unwrap();
     let args = json!({"description": "查 crate", "prompt": "Read Cargo.toml."}).to_string();
     // 派出去以后，父会话的下一次请求和子会话的第一次请求都停住：谁先到都一样。
-    let script = Script::new([Play::calls(&[("agent", &args)]), Play::Holds, Play::Holds]);
+    let script = Script::new([
+        Play::calls(&[("subagent", &args)]),
+        Play::Holds,
+        Play::Holds,
+    ]);
     let mut client = Client::connect(home.core_with_tools(&script, tools, TOKEN));
     client.hello().await;
     let work = home.work.to_string_lossy().into_owned();

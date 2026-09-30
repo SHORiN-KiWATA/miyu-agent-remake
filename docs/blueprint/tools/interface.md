@@ -10,11 +10,11 @@
 |---|---|
 | `crates/miyu-tool/src/lib.rs` | 规格 `Spec`、接口 `Tool` |
 | `crates/miyu-tool/src/run.rs` | 一次调用：`Call`、`Seen`、`Target`、`Done`、`Effect`、`Progress`、`Running` |
-| `crates/miyu-tool/src/agents.rs` | 派子代理的端口 `AgentPort`、`Spawned`、`NotSpawned`，那件工具的名字 `AGENT`（施工 7-5） |
+| `crates/miyu-tool/src/agents.rs` | 派子代理的端口 `AgentPort`、`Spawned`、`NotSpawned`，那件工具的名字 `SUBAGENT`、以前的名字 `SUBAGENT_FORMERLY`、两个都认的 `is_subagent`（施工 7-5，7-5 再补） |
 | `crates/miyu-tool/src/messages.rs` | 留言的端口 `MessagePort`、发给谁 `Recipient`、没送出去 `NotSent`，那件工具的名字 `MESSAGE_AGENT`（施工 7-7） |
-| `crates/miyu-tool/src/catalog.rs` | 工具目录，登记时查的三条 |
+| `crates/miyu-tool/src/catalog.rs` | 工具目录，登记时查的几条；改过名的照以前的名字也找得到（施工 7-5 再补） |
 | `crates/miyu-tool/src/jobs.rs` | 任务端口 `JobPort`、交出去的后台命令 `Background`、它的进程 `Process`、怎么结束的 `Exit`（施工 7-3）；列出来的 `Listed`、读到的 `Output`、读不了停不了的 `JobError`（施工 7-4） |
-| `crates/miyu-tool/src/testkit.rs` | 测试用的假工具（`testkit` 开关打开时才编）；`testkit/held.rs` 是假的后台命令 `Held`（施工 7-3） |
+| `crates/miyu-tool/src/testkit.rs` | 测试用的假工具（`testkit` 开关打开时才编）；`testkit/held.rs` 是假的后台命令 `Held`（施工 7-3）；`testkit/renamed.rs` 是换了名字的一件 `Renamed`，造改名以前的核心的目录（施工 7-5 再补） |
 | `crates/miyu-core/src/lib.rs` | `tools()`：核心起来时登记基础系统 |
 | `crates/miyu-session/src/open.rs` | 造会话时照目录把工具面写进策略快照 |
 | `crates/miyu-session/src/tools.rs` | 执行工具的端口：造 `Call`、跑、量用时、叫停、没有的、崩了的 |
@@ -42,6 +42,7 @@
 | `spec()` | 交出规格 |
 | `targets(&Call)` | 这次调用要碰的路径、是读是写；默认一条都没有 |
 | `run(Call, Progress)` | 执行一次调用，交回 `Running`：一个交回 `Done` 的 future |
+| `formerly()` | 以前的名字：改过名的工具，改名以前造的会话快照里冻着旧名字，她照旧名字调；默认没有（施工 7-5 再补，`tools/subagent.md`「以前的名字」） |
 
 **一次调用交给工具的** `Call`：
 
@@ -56,7 +57,7 @@
 | `sandbox` | 要关进沙盒的：助手的路径、规格、要设的环境变量（`Sandboxed`，`sandbox.md`）；空的照旧直接跑。施工 5-1 加的，5-4（上）起执行器照这一刻实际生效的级别带（`session/tools.md`） |
 | `log` | 这个会话日志的只读入口（`Log`，里面是一个 `ReadLog`）：一段一段交出事件，交给的函数说不读了就停。只有 `history` 用（施工 6-4，`tools/history.md`）；没有的是空的 |
 | `offset` | 会话的时区：照会话现在的环境。只有 `history` 用（施工 6-4）；测试里照 UTC |
-| `agents` | 派子代理的端口（`Arc<dyn AgentPort>`，施工 7-5）：执行器照这一次调用抄好父会话的那几样（`session/tools.md`「派子代理」）。只有 `agent` 用；没有的（测试里的假调用、没装会话表的核心）是空的，`agent` 照派不了出错 |
+| `agents` | 派子代理的端口（`Arc<dyn AgentPort>`，施工 7-5）：执行器照这一次调用抄好父会话的那几样（`session/tools.md`「派子代理」）。只有 `subagent` 用；没有的（测试里的假调用、没装会话表的核心）是空的，`subagent` 照派不了出错 |
 | `messages` | 留言的端口（`Arc<dyn MessagePort>`，施工 7-7）：执行器照这一次调用抄好这个会话的父会话、它派出去的子代理（`session/tools.md`「父子之间留言」）。只有 `message_agent` 用；没有的（测试里的假调用、没装会话表的核心）是空的，`message_agent` 照送不到出错 |
 | `jobs` | 任务端口（`Arc<dyn JobPort>`，施工 7-3）：执行器照这一次调用造一个，起它的命令自己退出了，`job.reported` 的 `by` 是这次调用、`cause` 是它所在那一轮的。`shell` 交后台命令，`jobs` 查、停（施工 7-4）；没有的（会话外面的调用，例如测试）是空的，不能放到后台，也查不到任务 |
 
@@ -89,25 +90,26 @@
 | `JobStarted` | 内核的 `JobStarted` 本身：编号、种类、标题、子会话（施工 7-5；`shell` 的后台命令也报它，施工 7-3） | `job.started`，照原样 |
 | `JobMessaged` | 内核的 `JobMessaged` 本身：留了言的子代理的编号（施工 7-7，`message_agent` 报） | `job.messaged`，照原样 |
 
-**派子代理的端口** `AgentPort`（`Send + Sync`，施工 7-5）：`spawn(description, prompt)` 交回一个 future，子会话造好、交代送进去就给 `Spawned`（任务编号 `job`、子会话 `session`），派不了给 `NotSpawned`（原因执行器记进运行日志，不给她看）。两个端口比的是不是同一个（`Call` 照格子比较时用）。`AGENT` 是派子代理的那件工具的名字：造会话时照它把 `agent` 从不能派的会话的工具面上拿掉（`session/tools.md`）。
+**派子代理的端口** `AgentPort`（`Send + Sync`，施工 7-5）：`spawn(description, prompt)` 交回一个 future，子会话造好、交代送进去就给 `Spawned`（任务编号 `job`、子会话 `session`），派不了给 `NotSpawned`（原因执行器记进运行日志，不给她看）。两个端口比的是不是同一个（`Call` 照格子比较时用）。`SUBAGENT` 是派子代理的那件工具的名字：造会话时照它把 `subagent` 从不能派的会话的工具面上拿掉（`session/tools.md`）。`SUBAGENT_FORMERLY` 是它以前的名字 `agent`，`is_subagent` 两个名字都认（施工 7-5 再补，从日志里认派子代理的调用用）。
 
 **留言的端口** `MessagePort`（`Send + Sync`，施工 7-7）：`send(to, message)` 交回一个 future，对方落了盘就给 `Ok`，没送出去给 `NotSent`：`NoParent` 没有父（主会话）、`NotYours` 不是这个会话派的子代理、`Stopped` 被停掉了、`Undelivered` 送不到（原因执行器记进运行日志）。`to` 是 `Recipient`：`Parent` 父会话，`Child(任务编号)` 自己派的子代理。两个端口比的是不是同一个。`MESSAGE_AGENT` 是那件工具的名字：造会话时照它把 `message_agent` 从场所会话的工具面上拿掉（`session/tools.md`「工具面」）。
 
 **执行中的输出** `Progress`：`Progress::new(收的那一头)`，`push(一段字)`。
 
-**工具目录** `Catalog`：`Catalog::new(几件)` 登记，`specs()` 照名字的先后交出每件的规格，`get(名字)` 找那一件；`Catalog::default()` 是空的；`Debug` 写成名字的列表。登记不上是 `CatalogError`：哪一件（`tool`）、哪一条（`problem`）。
+**工具目录** `Catalog`：`Catalog::new(几件)` 登记，`specs()` 照名字的先后交出每件的规格，`get(名字)` 找那一件，照以前的名字也找得到（施工 7-5 再补）；`Catalog::default()` 是空的；`Debug` 写成名字的列表。登记不上是 `CatalogError`：哪一件（`tool`）、哪一条（`problem`）。
 
 ### 怎么走
 
 #### 一、登记
 
 1. 核心起来时（`miyu-core` 的 `tools()`）：照资源目录造出基础系统的七件（`tools/read.md` 等），交给 `Catalog::new`。字读不出来、写法不对，或者登记查不过：核心起不来，说是哪一份、哪一件、哪一条。
-2. 照交进来的先后一件件查，每件依次查三条，有一件不过，整个目录登记不上，报排在前面的那一件：
+2. 照交进来的先后一件件查，每件依次查下面四条，有一件不过，整个目录登记不上，报排在前面的那一件：
    1. 名字：1 到 64 个字节，只用 ASCII 字母、数字、`_`、`-`。不合的，每次请求都会被供应商拒收。
    2. 参数格式：读得成 JSON，顶层的 `type` 是字符串 `"object"`。`{"type":["object","null"]}`、没有 `type` 的都不算。
-   3. 已经有一件同名的：她调的是哪一件，说不清。
-3. 目录照名字排，交进来的先后不影响。登记完就冻结，核心跑着的时候不变。现在没有预设，目录里的全开。
-4. 造会话时（`crates/miyu-session/src/open.rs`）：每件的名字、说明、参数格式、访问类别写进策略快照，照名字排（`crates/miyu-policy/src/tools.rs`）。这个会话以后一直照快照发，核心换了目录也不变。
+   3. 已经有一件同名的：她调的是哪一件，说不清。别的工具以前的名字也算。
+   4. 它以前的名字（`formerly()`，施工 7-5 再补）一个个跟着它现在的名字登记，只查同名：撞上已经登记的（别的工具现在的、以前的名字），报那个以前的名字。
+3. 目录照名字排，交进来的先后不影响。以前的名字不进 `specs()`：只有 `get` 认它。登记完就冻结，核心跑着的时候不变。现在没有预设，目录里的全开。
+4. 造会话时（`crates/miyu-session/src/open.rs`）：每件的名字、说明、参数格式、访问类别写进策略快照，照名字排（`crates/miyu-policy/src/tools.rs`）。这个会话以后一直照快照发，核心换了目录也不变：工具改了名，以前造的会话照旧发旧名字，她照旧名字调，`get` 照以前的名字找到它（施工 7-5 再补）。
 
 #### 二、一次调用
 
@@ -143,7 +145,7 @@
    | `write`、`edit` | `file_path`，写 |
    | `trash` | `file_path`，写，碰的是这一条本身 |
    | `shell` | 一条都不报 |
-   | `agent` | 一条都不报：访问类别是读，放行（`tools/agent.md`） |
+   | `subagent` | 一条都不报：访问类别是读，放行（`tools/subagent.md`） |
    | `message_agent` | 一条都不报：访问类别是读，放行（`tools/message_agent.md`） |
 
 #### 四、效果和她看过的
@@ -174,7 +176,7 @@
 
 每一份以一个换行结尾；登记在 `26-提示词.md` 第十节。
 
-**工具面的预算**（`10-自带软件.md` 第九节，施工 4-10）：`resources/software/basesystem/tools/` 下的几份说明（说明和参数）加起来不超过 7200 字节，回车 `\r` 不算。预算是实测加一成：施工 7-7 以后十一件的边际份量合计 1756 个 token、6496 字节（2026-09-30 量），约 3.7 字节一个 token，加一成是 1931 个 token；仓库里没有分词器，所以照字节守。加工具、改说明超了，重新量过再改预算。
+**工具面的预算**（`10-自带软件.md` 第九节，施工 4-10）：`resources/software/basesystem/tools/` 下的几份说明（说明和参数）加起来不超过 7200 字节，回车 `\r` 不算。预算是实测加一成：施工 7-7 以后十一件的边际份量合计 1756 个 token、6496 字节（2026-09-30 量），约 3.7 字节一个 token，加一成是 1931 个 token；施工 7-5 再补改名以后十一件合计 1757 个（2026-10-01 量），字节不变，还在预算里；仓库里没有分词器，所以照字节守。加工具、改说明超了，重新量过再改预算。
 
 ### 出错
 
@@ -211,7 +213,7 @@
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-tool/src/catalog/tests.rs` | 照名字排、空目录、同名、名字的写法（空的、65 个字节、空格、中文、`.`、`/`；64 个字节的行）、参数格式不是对象、报排在前面的那一件、参数格式一字不差 |
+| `crates/miyu-tool/src/catalog/tests.rs` | 照名字排、空目录、同名、名字的写法（空的、65 个字节、空格、中文、`.`、`/`；64 个字节的行）、参数格式不是对象、报排在前面的那一件、参数格式一字不差；照以前的名字找得到、以前的名字不进工具面、以前的名字撞名（施工 7-5 再补） |
 | `crates/miyu-policy/src/tools/tests.rs` | 快照里的工具面照名字排、读得回来；没有工具的快照字节不变；两件同名造不出策略；两句带上工具名；两句写坏了说是哪一份 |
 | `crates/miyu-session/tests/tools.rs` | 请求照名字带工具面、载入的老会话照快照发、在这一轮的工作目录里跑、出错的结果、执行中的输出推给头不落盘、两件只读的一起跑、打断丢掉在跑的、目录里没有的、崩了会话照常、会话停了丢掉在跑的 |
 | `crates/miyu-session/tests/tool_log.rs` | 运行日志的那几行，参数和结果的字不进日志 |

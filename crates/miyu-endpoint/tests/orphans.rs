@@ -1,6 +1,7 @@
 //! 派到一半的空子会话（施工 7-8，`docs/blueprint/agents.md` 第一条第 7 条，`protocol.md`「会话表」第 8 条）：真核心走一遍。
 //! 父会话派出去一个子代理，子会话造好了、交代也送进去了，父会话却没来得及记下 `job.started` 就崩了（日志截在派它的那条
-//! 回复后面）：再载入父会话时，子会话挪进回收处；记下了的照留。
+//! 回复后面）：再载入父会话时，子会话挪进回收处；记下了的照留。改名以前造的父会话（调的是 `agent`）换现在的核心载入，
+//! 照样收（施工 7-5 再补）。
 
 mod support;
 
@@ -9,16 +10,19 @@ use std::sync::Arc;
 use miyu_kernel::event::Body;
 use miyu_kernel::id::SessionId;
 use miyu_session::testkit::{Play, Script};
-use support::deleting::{Router, agent, base_tools, in_place, started_child, trashed};
+use miyu_tool::Catalog;
+use support::deleting::{
+    Router, agent, base_tools, in_place, started_child, tools_before_the_rename, trashed,
+};
 use support::{Client, Home, alice, until};
 
-/// 主会话派一个子代理、说一句；子代理停在请求上。
-fn scripts() -> Router {
+/// 主会话调 `tool` 派一个子代理、说一句；子代理停在请求上。
+fn scripts(tool: &str) -> Router {
     Router(Arc::new(vec![
         (
             "派一个去查",
             Script::new([
-                Play::calls(&[("agent", &agent("查 A"))]),
+                Play::calls(&[(tool, &agent("查 A"))]),
                 Play::Says("派出去了。"),
             ]),
         ),
@@ -26,9 +30,9 @@ fn scripts() -> Router {
     ]))
 }
 
-/// 派出去，等子代理停在请求上，核心有计划地停下：交回主会话、子会话。
-async fn dispatched(home: &Home, router: &Router) -> (String, SessionId) {
-    let core = home.core_with_models(Arc::new(router.clone()), base_tools());
+/// 派出去，等子代理停在请求上，核心有计划地停下：交回主会话、子会话。核心的工具是 `tools`。
+async fn dispatched(home: &Home, router: &Router, tools: Catalog) -> (String, SessionId) {
+    let core = home.core_with_models(Arc::new(router.clone()), tools);
     let mut client = Client::connect(core.clone());
     client.hello().await;
     let parent = client.create("c1", &home.work.to_string_lossy()).await;
@@ -70,8 +74,8 @@ fn crash_before_the_job_was_recorded(home: &Home, session: &str, kept: usize) {
 #[tokio::test]
 async fn a_child_its_parent_never_recorded_goes_to_the_trash_when_the_parent_loads() {
     let home = Home::new();
-    let router = scripts();
-    let (parent, child) = dispatched(&home, &router).await;
+    let router = scripts("subagent");
+    let (parent, child) = dispatched(&home, &router, base_tools()).await;
     crash_before_the_job_was_recorded(&home, &parent, 0);
     let mut client = Client::connect(home.core_with_models(Arc::new(router), base_tools()));
     client.hello().await;
@@ -89,11 +93,25 @@ async fn a_child_its_parent_never_recorded_goes_to_the_trash_when_the_parent_loa
     assert!(started_child(&log).is_none(), "父会话从来没记下它");
 }
 
+/// 改名以前造的父会话（施工 7-5 再补）：日志里派子代理的调用叫 `agent`，换了现在的核心载入，照样认得出派到一半的、收掉。
+#[tokio::test]
+async fn a_parent_made_before_the_rename_still_has_its_orphan_swept() {
+    let home = Home::new();
+    let router = scripts("agent");
+    let (parent, child) = dispatched(&home, &router, tools_before_the_rename()).await;
+    crash_before_the_job_was_recorded(&home, &parent, 0);
+    let mut client = Client::connect(home.core_with_models(Arc::new(router), base_tools()));
+    client.hello().await;
+    client.subscribe("s1", &parent).await;
+    assert!(!in_place(&home, child.as_str()), "空子会话挪走了");
+    assert!(trashed(&home, child.as_str()).join("deleted_at").exists());
+}
+
 #[tokio::test]
 async fn a_child_its_parent_recorded_stays() {
     let home = Home::new();
-    let router = scripts();
-    let (parent, child) = dispatched(&home, &router).await;
+    let router = scripts("subagent");
+    let (parent, child) = dispatched(&home, &router, base_tools()).await;
     let mut client = Client::connect(home.core_with_models(Arc::new(router), base_tools()));
     client.hello().await;
     client.subscribe("s1", &parent).await;
@@ -108,7 +126,7 @@ async fn only_the_child_its_parent_never_recorded_goes() {
         (
             "派两个去查",
             Script::new([
-                Play::calls(&[("agent", &agent("查 A")), ("agent", &agent("查 B"))]),
+                Play::calls(&[("subagent", &agent("查 A")), ("subagent", &agent("查 B"))]),
                 Play::Says("派出去了。"),
             ]),
         ),
