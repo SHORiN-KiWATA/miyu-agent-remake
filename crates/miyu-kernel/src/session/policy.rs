@@ -60,17 +60,6 @@ pub struct Notes {
     pub too_large: Template,
     /// 摘要请求截短过的，摘要没看到的那一段：字段 `from`、`to`（施工 6-6 中）。没有的不写。
     pub uncovered: Option<Template>,
-    /// 还在跑的任务那一段（施工 7-8）。以前造的快照没有，不写这一段。
-    pub running: Option<RunningNotes>,
-}
-
-/// 检查点里还在跑的任务那一段（施工 7-8，`compaction.md` 第八条）：`compaction/notes-jobs.txt`、`notes-job.txt`。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RunningNotes {
-    /// 头一行。
-    pub head: Template,
-    /// 一个任务一行：字段 `job`、`what`、`title`。
-    pub item: Template,
 }
 
 /// 压后重建的数（`compaction.md` 第九条，施工 6-5）。数值是数据，放在策略快照里。

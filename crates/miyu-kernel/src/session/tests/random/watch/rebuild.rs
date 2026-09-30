@@ -122,48 +122,6 @@ impl Watch {
             "种子 {seed}：代码写的几段没有取回指路：{:?}",
             compacted.notes
         );
-        self.running_listed(&compacted.notes);
-    }
-
-    /// 检查点里还在跑的任务那一段（施工 7-8）：列的都是派出去、还没报过结束的，照编号，有列的才有头一行。随机的会话不给
-    /// 子代理留言，报过的就结束了。
-    fn running_listed(&mut self, notes: &str) {
-        let seed = self.seed;
-        let listed: Vec<crate::id::JobId> = notes
-            .match_indices("<job ")
-            .filter_map(|(at, _)| {
-                let rest = &notes[at + "<job ".len()..];
-                crate::id::JobId::parse(&rest[..rest.find(' ')?]).ok()
-            })
-            .collect();
-        assert_eq!(
-            notes.contains("<running/>"),
-            !listed.is_empty(),
-            "种子 {seed}：还在跑的那一段的头一行对不上：{notes:?}"
-        );
-        if listed.is_empty() {
-            return;
-        }
-        self.seen_paths.insert("检查点里列了还在跑的任务");
-        assert!(
-            listed.is_sorted() && listed.windows(2).all(|pair| pair[0] < pair[1]),
-            "种子 {seed}：还在跑的没照编号：{listed:?}"
-        );
-        for job in listed {
-            let started = self.events.iter().any(|event| {
-                matches!(&event.body, Body::ToolResult(result) if result.effects.iter().any(|effect|
-                    matches!(effect, crate::event::Effect::JobStarted(started) if started.job == job)))
-            });
-            let ended = self.events.iter().any(|event| match &event.body {
-                Body::JobReported(reported) => reported.job == job,
-                Body::ChildReported(reported) => reported.job == job,
-                _ => false,
-            });
-            assert!(
-                started && !ended,
-                "种子 {seed}：列了不在跑的 j{job}：{notes:?}"
-            );
-        }
     }
 
     /// 取回原文的回报（施工 6-9）：内核要的那几份，照记着的原文，没有的不交。没在要的，没有。

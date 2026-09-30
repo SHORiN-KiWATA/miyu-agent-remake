@@ -11,7 +11,6 @@ fn notes() -> Notes {
         retrieve: template("<retrieve {upto}/>\n"),
         too_large: template("<too-large {files}/>\n"),
         uncovered: None,
-        running: None,
     }
 }
 

@@ -8,7 +8,7 @@
 
 另有一种不请求模型的办法：**裁剪**（trim），把最老的几轮整块移出，由代码写一句说明。它给群聊用，随通讯平台做（第五条）。
 
-状态：图纸（2026-09-29 定），M6 照它施工（施工方案第三节 M6 那张表）。第一、二条 6-1 做好了（`crates/miyu-kernel/src/estimate.rs`），6-2 接进了回合：执行器交了模型限额的会话，发主请求之前到线就在这一轮里先压，fork 式摘要请求、取摘要、写 `context.compacted`、推 `compaction.progress`、压完再注入事实、留尾巴都照第三条做了（上下两步）。6-3（上）接上了真执行器：模型资料（models.dev 的快照）、开发用的 `MIYU_DEV_WINDOW`、DeepSeek 的图片算法，会话 actor 造会话、载入以后交限额。6-3（下）：`miyu ask` 印压缩那一行，推 `compaction.done`，日志记度量；真模型上量完了关掉工具调用、摘要请求的缓存命中，检查点的规则照实测写进包装的结尾（第八条），取摘要先去草稿。6-5：检查点里代码写的几段（清单、取回指路、太大没重读的），压后重读最近的文件（第八、九条）。6-6（上）：熔断，连续失败、压完很快又满就暂停自动压缩，暂停着明知放不下的请求不发（第十条、第二条第 5 条）。6-6（中）：摘要请求自己超长，截掉最老的几组再试（第三条第 10 条）。6-9：撤销能撤掉压缩，压缩带着它所在的回合，撤到它时读回更早的日志，恢复放回来，换回来的检查点取回原文，`miyu undo` 说一句（第十一条）。6-6（下）：摘要回复里调了工具，改走隔离式（第三条第 7 条、第四条）。6-7：主请求报超长，先压再重发一次（第六条）。6-8：手动压缩，`session.compact`、`miyu compact`，单开一轮只做压缩、附的要求夹在摘要指令里（截过的、隔离式的也带着）、失败不数进熔断（第七条）。6-8（补）：清空上下文，`session.clear`，单开一轮压成一个空的检查点，不请求模型，渲染时什么都不出（第十四条）。7-8：还没听到的回报算这一轮要回应的，不压进摘要；检查点里代码写的几段多一段还在跑的任务（第三条第 2 条、第八条第 4 条）。做完一步，这一页照做好的样子改写那几节，相关的几页（`kernel/events-bodies.md`、`kernel/history.md`、`kernel/session.md`、`protocol.md`、`cli/`）跟着改。
+状态：图纸（2026-09-29 定），M6 照它施工（施工方案第三节 M6 那张表）。第一、二条 6-1 做好了（`crates/miyu-kernel/src/estimate.rs`），6-2 接进了回合：执行器交了模型限额的会话，发主请求之前到线就在这一轮里先压，fork 式摘要请求、取摘要、写 `context.compacted`、推 `compaction.progress`、压完再注入事实、留尾巴都照第三条做了（上下两步）。6-3（上）接上了真执行器：模型资料（models.dev 的快照）、开发用的 `MIYU_DEV_WINDOW`、DeepSeek 的图片算法，会话 actor 造会话、载入以后交限额。6-3（下）：`miyu ask` 印压缩那一行，推 `compaction.done`，日志记度量；真模型上量完了关掉工具调用、摘要请求的缓存命中，检查点的规则照实测写进包装的结尾（第八条），取摘要先去草稿。6-5：检查点里代码写的几段（清单、取回指路、太大没重读的），压后重读最近的文件（第八、九条）。6-6（上）：熔断，连续失败、压完很快又满就暂停自动压缩，暂停着明知放不下的请求不发（第十条、第二条第 5 条）。6-6（中）：摘要请求自己超长，截掉最老的几组再试（第三条第 10 条）。6-9：撤销能撤掉压缩，压缩带着它所在的回合，撤到它时读回更早的日志，恢复放回来，换回来的检查点取回原文，`miyu undo` 说一句（第十一条）。6-6（下）：摘要回复里调了工具，改走隔离式（第三条第 7 条、第四条）。6-7：主请求报超长，先压再重发一次（第六条）。6-8：手动压缩，`session.compact`、`miyu compact`，单开一轮只做压缩、附的要求夹在摘要指令里（截过的、隔离式的也带着）、失败不数进熔断（第七条）。6-8（补）：清空上下文，`session.clear`，单开一轮压成一个空的检查点，不请求模型，渲染时什么都不出（第十四条）。7-8：还没听到的回报算这一轮要回应的，不压进摘要（第三条第 2 条）。7-8（补）：7-8 在检查点里代码写的几段加过一段还在跑的任务，实测后去掉（第八条第 4 条）。做完一步，这一页照做好的样子改写那几节，相关的几页（`kernel/events-bodies.md`、`kernel/history.md`、`kernel/session.md`、`protocol.md`、`cli/`）跟着改。
 
 ### 在哪
 
@@ -24,7 +24,7 @@
 | `crates/miyu-kernel/src/event/context.rs` | `context.compacted` 的几格 |
 | `crates/miyu-kernel/src/ledger.rs`、`history.rs`、`session/revert.rs`、`session/load.rs` | 撤销能撤掉压缩、载入时认出哪次压缩还算数（第十一条） |
 | `crates/miyu-assemble/src/summary.rs` | 摘要请求：fork 式、隔离式；从回复里取出摘要 |
-| `crates/miyu-kernel/src/session/rebuild.rs` | 代码写的几段、压后重读的挑法；还在跑的任务那一段（`running_notes`，施工 7-8） |
+| `crates/miyu-kernel/src/session/rebuild.rs` | 代码写的几段、压后重读的挑法 |
 | `crates/miyu-assemble/src/render.rs` | 检查点的渲染：包装、摘要、代码写的几段、重读的文件；清空的不出字 |
 | `crates/miyu-policy/` | 策略快照里压缩的数据和给模型看的字 |
 | `crates/miyu-session/src/reread.rs`、`store.rs`、`actor/store.rs` | 执行器这边：重读文件存成 blob，照 blob 读出原文；撤销撤掉压缩时从磁盘读回更早的日志（第十一条） |
@@ -220,7 +220,7 @@
    - 读过、改过的文件清单：照被替代的那一段里的效果算（`file.read`、`file.changed`），不照工具名猜，旧版照工具名猜，一个都没认出来。最近的在前，去重，最多 30 个，多的写还有几个（`compaction/notes-files.txt`、`notes-files-more.txt`）。路径在会话现在的工作目录里的写相对的，别的写绝对的。
    - 取回指路：被替代的是第 1 到 N 条，原文还在日志里，用 `history` 按序号、关键词、时间取回（`compaction/notes-retrieve.txt`）。6-4 真模型上她不知道序号，只能从头往下翻。
    - 压前读过、太大没重读的文件，写明要看自己读（`compaction/notes-too-large.txt`）。
-   - 还在跑的任务（施工 7-8，`agents.md` 第十条）：账本说还在跑的后台命令和子代理（`running_jobs`，和撤销停哪几个是同一个），派它的那一轮撤掉了的不列，照编号一个一行，编号、种类、标题（`compaction/notes-jobs.txt` 是头一行，`notes-job.txt` 是一个一行，标题照模板转义）；一个都没有的不写。排在取回指路后面、太大没重读的前面。她还没看到的回报不另列：它们算这一轮要回应的（第三条第 2 条），原样留在检查点后面，再列是同一件事写两次（2026-09-30 主会话同意）。
+   - 不列还在跑的任务（施工 7-8 补，2026-10-01 项目主人定，`agents.md` 第十条第 1 条）：还在跑的后台命令和子代理交给摘要记。7-8 在这里加过一段，照编号列账本说还在跑的（`compaction/notes-jobs.txt`、`notes-job.txt`）；2026-10-01 主会话实测没证出非加不可，照「非必要不加」（`26-提示词.md` J12）去掉：开发端点的 `deepseek-v4.1-flash`、窗口设 40000，有这一段的和没有的都让她在后台跑长命令、读大文件读到自动压缩，再不许用工具问她还有哪些在跑；压一次、连压三次两边都答对，没有这一段的那一边，摘要里记着编号、标题。以后实测撞见摘要丢了还在跑的任务，再加回来。7-8 以后造的快照里带着那两份模板的，读回来不理（`policy.md`「字节和哈希」第 4 条），也就不写；已经写进日志的 `notes` 照原样回放。她还没看到的回报也不列：它们算这一轮要回应的（第三条第 2 条），原样留在检查点后面。
    - 摘要请求截过最老的一段的，写明第几到第几条摘要没看到、用 `history` 取回（`compaction/notes-uncovered.txt`，施工 6-6 中）。
 5. 重读的文件（`restored`，施工 6-5）：照挑中的先后，每个一块：`compaction/restored-open.txt`（`<file path="…">`，路径照清单的写法）、原文（照 blob，不转义）、`compaction/restored-close.txt`（`</file>`）。
 6. 包装的结尾（`resources/core/checkpoint-end.txt`：规则那一句和 `</conversation-checkpoint>`）。
@@ -250,7 +250,7 @@
 3. 取到摘要以后，内核照先后挑：读到了的、估出来不超过 5000 token 的，一个一个加，合计不超过 50000，加上以后整份请求的估算不超过压缩线的一半，挑满 5 个为止。太大的进清单。然后写 `context.compacted`（带 `notes`、`restored`），推 `compaction.done`，接着组装主请求。`restored` 每一项的 `tokens` 是这份原文估出来的。没收到重读结果的（执行器没做），照没有候选写。
 4. 摘要请求被打断、要重启的，和以前一样什么都不写：重读的结果跟着这次请求一起丢掉。
 5. 重读的原文不进日志，日志里只记 blob。内核在 `History` 里拿着现在这个检查点那几份的原文，组装时照 blob 取。检查点换了、原文不在内存里的时候（载入以后、撤掉了压缩、恢复了压缩，第十一条），内核出「取回原文」`Action::Recall { blobs }`：新检查点 `restored` 里每一份的 blob，照先后；没有重读过文件的不出。执行器照 blob 读出原文，交回 `Input::Recalled { texts }`，做完才收收件箱（`kernel/history.md`「重读的原文」）。读不出来的那一份，渲染时整块不写。
-3. 以后有了的也照这里带上：用过的技能（单个 5000、合计 25000 token，最近用过的优先）、计划、待办、没回答的提问（M8 做出来时加）。还在跑的后台命令和子代理施工 7-8 做好了，不重读东西，只在代码写的几段里列一行（第八条第 4 条）。
+3. 以后有了的也照这里带上：用过的技能（单个 5000、合计 25000 token，最近用过的优先）、计划、待办、没回答的提问（M8 做出来时加）。还在跑的后台命令和子代理不带，交给摘要记（施工 7-8 补，第八条第 4 条）。
 
 **十、失败和熔断**（施工 6-6 上）
 
@@ -343,7 +343,6 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 | `notes-files.txt`、`notes-files-more.txt`、`notes-retrieve.txt`、`notes-too-large.txt` | 检查点里代码写的几段 | 6-5 |
 | `restored-open.txt`、`restored-close.txt` | 重读的文件那一块的头尾 | 6-5 |
 | `notes-uncovered.txt` | 摘要请求截过最老的一段时写的那一段：字段 `from`、`to` | 6-6 中 |
-| `notes-jobs.txt`、`notes-job.txt` | 检查点里还在跑的任务那一段：头一行；一个任务一行，字段 `job`、`what`、`title` | 7-8 |
 | `summarize-chat.txt` | 摘要指令，聊天型：写法靠压缩质量评测打磨。做出来以前，`chat` 也用任务型的 | 以后 |
 | `trimmed.txt` | 裁剪的说明 | 随通讯平台 |
 
@@ -358,16 +357,6 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 删掉 Claude Code 里只对它自己有用的几句（例如「Compact Instructions」那两个例子讲的是它的 `CLAUDE.md`），再加一句：只有 user 角色的消息算用户说的话。旧版的 `compact.md` 只当证据，不照搬（`26-提示词.md` 第六节）。
 
 例子：`notes-retrieve.txt`（英文，大意）：第 1 到 N 条被这份摘要替代了，原文还在，用 `history` 按序号、关键词、时间取回。
-
-还在跑的任务那一段（施工 7-8），照出厂的两份模板写，还在跑一个子代理、一个后台命令的：
-
-样本 `docs/designs/samples/reports/checkpoint-jobs.txt`
-
-```text
-Jobs still running at this checkpoint:
-- j1 agent "查 CI"
-- j2 command "跑测试"
-```
 
 `miyu ask` 里压缩那一行（6-3 下，照项目主人 2026-09-29 定的样子）：灰色旁白，终端里原地刷新进度，压好了换成结果，失败的红；管道里只印结果（`cli/ask.md`）。`miyu compact` 印的是同一行（`cli/compact.md`）。
 
@@ -407,7 +396,7 @@ Jobs still running at this checkpoint:
 | 请求形状探针 | 压缩恰好让前缀重置一次，两次压缩之间只追加；摘要请求是上一次请求的前缀延伸（`08-上下文投影.md` 第七节）；清空过的会话，清空以后的第一次请求只剩工具面、system、两块事实和那一句（`docs/designs/samples/probe/cleared/`，施工 6-8 补） |
 | 会话的测试 | 压缩期间别的会话照常；打断取消；重读的文件存成 blob、重放时逐字节相同；运行日志 `compacted` 的 `trigger` 照 `compaction.done` |
 | 协议、命令行的测试 | `session.compact` 的参数、回应、拒绝；`miyu compact` 印的几行、退出码（`protocol.md`、`cli/compact.md`，施工 6-8）；`session.clear` 的回应、推送、两种拒绝两种语言、撤掉它上下文回来（施工 6-8 补） |
-| 压缩里的任务（施工 7-8） | 还在跑的那一段和样本一字不差、报过的和派它的那一轮撤掉了的不列、没有的不写、还没听到的回报留在检查点后面（`scenario/checkpoint_jobs.rs`）；随机测试里列的都在跑（`random/watch/rebuild.rs`）；快照里带两份模板，以前造的快照读成没有、不写（`miyu-policy` 的 `snapshot/tests.rs`） |
+| 压缩里的任务（施工 7-8、7-8 补） | 还没听到的回报留在检查点后面（`scenario/checkpoint_jobs.rs`）；还在跑的任务不列，代码写的几段只有取回指路（`scenario/checkpoint_jobs.rs`，照出厂资源的真会话 `miyu-session` 的 `tests/rebuild.rs`）；7-8 以后造的快照带着那两份模板照样读得回来，读成和出厂的一样（`miyu-policy` 的 `snapshot/tests.rs`） |
 | 真模型实测 | 慢模型加长上下文（旧版的教训：快模型短会话绕开了超时）；摘要请求的缓存命中；压缩质量评测：压完问之前的约定、让她接着做 |
 
 ### 出处
@@ -424,7 +413,7 @@ Jobs still running at this checkpoint:
 - `compaction.*` 在配置里改：随配置那一步。
 - 快满了的提示、局部压缩（人选中一条消息压到那里）：随 M8 的终端界面。
 - 聊天型模板：靠压缩质量评测打磨。
-- 技能、计划、待办、提问的压后重建：随 M8（后台任务、子代理施工 7-8 在代码写的几段里列出来）。
+- 技能、计划、待办、提问的压后重建：随 M8（后台任务、子代理不列，交给摘要记，施工 7-8 补）。
 - `history` 的向量检索：随记忆一起做（`tools/history.md`）。
 - 换了模型以后解不解除暂停：随换模型那一步（第十条第 6 条）。
 - QQ 的 `/reset` 走清空：随通讯平台（第十四条）。

@@ -243,7 +243,7 @@ fn rebuild_texts_and_numbers_go_in_and_older_snapshots_lack_them() {
     assert_eq!((rebuild.min_window, rebuild.candidates), (32_000, 10));
     let text = String::from_utf8(snapshot.to_bytes()).unwrap();
     let start = text.find(r#","rebuild":{"notes_files""#).unwrap();
-    let close = r#""notes_job":"- {job} {what} \"{title}\"\n"}"#;
+    let close = r#""restored_close":"\n</file>\n"}"#;
     let end = start + text[start..].find(close).unwrap() + close.len();
     let older = text[..start].to_string() + &text[end..];
     let older = older.replace(r#","rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10},"pause":{"failures":3,"turns":3,"refills":3}"#, "");
@@ -263,20 +263,21 @@ fn rebuild_texts_and_numbers_go_in_and_older_snapshots_lack_them() {
     assert!(read.policy().unwrap().compaction.unwrap().rebuild.is_none());
 }
 
-/// 检查点里还在跑的任务那一段（施工 7-8）：出厂的快照带着两份模板，内核拿到那一段；7-8 以前造的快照里没有，读成没有、
-/// 不写那一段，读进来再写出去一字不差。
+/// 检查点里还在跑的任务那一段 7-8 加过、2026-10-01 实测后去掉（施工 7-8 补）：出厂的快照不再带那两份模板。7-8 以后造的
+/// 快照带着，照样读得回来：那两格不认识、不理（`policy.md`「字节和哈希」第 4 条），读成和出厂的一样，造出来的策略也就
+/// 不写那一段。
 #[test]
-fn running_notes_go_in_and_snapshots_from_before_lack_them() {
+fn snapshots_made_since_7_8_still_read_and_their_running_notes_go_unused() {
     let snapshot = engineer();
-    assert!(snapshot.policy().unwrap().notes.unwrap().running.is_some());
     let text = String::from_utf8(snapshot.to_bytes()).unwrap();
+    assert!(!text.contains("notes_job"), "出厂的快照不带那两份模板");
+    let close = r#""restored_close":"\n</file>\n""#;
     let fields = r#","notes_jobs":"Jobs still running at this checkpoint:\n","notes_job":"- {job} {what} \"{title}\"\n""#;
-    assert!(text.contains(fields), "两份模板照原文进快照");
-    let older = text.replace(fields, "");
-    let read = Snapshot::from_bytes(older.as_bytes()).unwrap();
-    let notes = read.policy().unwrap().notes.unwrap();
-    assert!(notes.running.is_none());
-    assert_eq!(read.to_bytes(), older.as_bytes(), "读进来再写出去一字不差");
+    let made = text.replacen(close, &format!("{close}{fields}"), 1);
+    assert_ne!(made, text, "照 7-8 的样子插进去了");
+    let read = Snapshot::from_bytes(made.as_bytes()).unwrap();
+    assert_eq!(read, snapshot, "那两格不理，读成和出厂的一样");
+    assert!(read.policy().unwrap().notes.is_some());
 }
 
 /// 包装的结尾交给了组装器（施工 6-5）：出厂快照组装出来的检查点最后是规则那一句。

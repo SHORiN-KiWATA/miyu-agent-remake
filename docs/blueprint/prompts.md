@@ -191,28 +191,6 @@ Not shown again, read them if you need them: {files}
 Entries {from}-{to} were cut to fit the summary request, so the summary misses them. history still finds them.
 ```
 
-#### `core/compaction/notes-jobs.txt`
-
-- 什么时候加进来：压缩那一刻账本说还有在跑的任务（派它的那一轮没撤掉）；写进 `context.compacted` 的 `notes`，之后每次请求照原文带
-- token：7（2026-09-30 量）
-- 为什么加：还在跑的任务那一段的头一行，下面一个一行（施工 7-8，`compaction.md` 第八条，`agents.md` 第十条）：派它的调用压进了摘要，摘要又不一定提它，她不知道它还在跑，回报到了也对不上
-- 指纹：`8b3e5007`
-
-```text
-Jobs still running at this checkpoint:
-```
-
-#### `core/compaction/notes-job.txt`
-
-- 什么时候加进来：同上，一个还在跑的任务一行
-- token：8（字段按 `j1`、`agent`、`查 CI` 算，2026-09-30 量）
-- 为什么加：编号、种类、标题，照 `jobs` 列出来的写法；她要停、要读输出照编号找得到（施工 7-8）。她还没看到的回报不另列：它们算这一轮要回应的，原样留在检查点后面，再列是同一件事写两次（2026-09-30 主会话同意）
-- 指纹：`dd57469e`
-
-```text
-- {job} {what} "{title}"
-```
-
 ### 检查点里重读的文件那一块
 
 #### `core/compaction/restored-open.txt`

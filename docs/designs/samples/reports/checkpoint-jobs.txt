@@ -1,3 +1,0 @@
-Jobs still running at this checkpoint:
-- j1 agent "查 CI"
-- j2 command "跑测试"
