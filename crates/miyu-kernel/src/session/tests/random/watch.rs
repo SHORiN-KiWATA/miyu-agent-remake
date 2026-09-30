@@ -21,6 +21,7 @@ mod permission;
 mod question;
 mod queue;
 mod rebuild;
+mod recap;
 mod redo;
 mod reports;
 mod restore;
@@ -103,6 +104,8 @@ pub(super) struct Watch {
     passives: overflow::Passives,
     /// 回报（施工 7-2）：派出去的任务、排着的、记在一边的、有没有头订阅着。
     pub(super) reports: reports::Reports,
+    /// 回顾（施工 3-8 四补）：在路上的那一次、等着的回应。
+    pub(super) recaps: recap::Recaps,
 }
 
 impl Watch {
@@ -150,6 +153,7 @@ impl Watch {
             shortenings: shorten::Shortenings::default(),
             passives: overflow::Passives::default(),
             reports: reports::Reports::default(),
+            recaps: recap::Recaps::default(),
         }
     }
 
@@ -198,6 +202,7 @@ impl Watch {
         let compact = self.before_compact(&input).filter(|_| !refused);
         let clear = self.before_clear(&input).filter(|_| !refused);
         let report = self.before_report(&input).filter(|_| !refused);
+        let recap = self.before_recap(&input, refused);
         let stop = self.before_stop(&input);
         let fresh_interrupt = match &input {
             Input::Command(command) if !refused => match command.command {
@@ -210,6 +215,10 @@ impl Watch {
         let was_open = self.turn_open();
         let command = match &input {
             Input::Command(command) => Some(command.id.clone()),
+            _ => None,
+        };
+        let input_kind = match &input {
+            Input::Command(command) => Some(command.command.clone()),
             _ => None,
         };
         match &input {
@@ -230,7 +239,9 @@ impl Watch {
         if let Some(id) = &repeated {
             self.applied_once(id, &actions);
         }
-        if let Some(id) = command {
+        // 回顾不记编号（施工 3-8 四补）：再来一次就是再要一次。
+        let recapping = matches!(&input_kind, Some(Command::Recap));
+        if let Some(id) = command.filter(|_| !recapping) {
             let rejected = actions.iter().any(|action| {
                 matches!(action, Action::Reply { id: replied, outcome: Outcome::Rejected { .. } } if *replied == id)
             });
@@ -251,6 +262,7 @@ impl Watch {
         self.after_compact(&actions, compact);
         self.after_clear(&actions, clear);
         self.after_report(&actions, report);
+        self.after_recap(&actions, recap);
         self.restore_matches(&actions, reverting);
         for action in actions {
             self.check(action);
@@ -275,6 +287,7 @@ impl Watch {
             Action::Reread { seen, paths, .. } => self.reread_issued(seen, &paths),
             Action::Push(events) => self.pushed.extend(events.iter().map(|event| event.seq)),
             Action::Reply { id, outcome } => {
+                self.recap_replied(&id, &outcome);
                 if let Outcome::Accepted { events } = &outcome {
                     assert!(
                         events.iter().all(|event| self.pushed.contains(event)),
@@ -286,6 +299,7 @@ impl Watch {
             }
             Action::RunTurnStartHooks { turn } => self.start_hooks(turn),
             Action::CallModel { seen, request, .. } => self.called(seen, &request),
+            Action::Recap { upto, request } => self.recap_issued(upto, &request),
             Action::Wake { seen, .. } => self.wake_asked(seen),
             Action::PushTransient(transient) => self.transient(&transient),
             Action::CancelModel { seen } => {
@@ -336,64 +350,6 @@ impl Watch {
         }
     }
 
-    /// 请求模型：挂接点跑完了、事件都落了盘、上一步的调用都有了结果；请求照全部历史；
-    /// 一个回合的请求不超过上限。摘要请求照压缩的规矩查（`watch/compaction.rs`），不算步数。
-    fn called(&mut self, seen: Seq, request: &Request) {
-        let seed = self.seed;
-        let turn = self.open_turn();
-        assert!(
-            self.done.contains(&turn),
-            "种子 {seed}：挂接点还没跑完就请求"
-        );
-        assert!(
-            self.events
-                .iter()
-                .all(|event| self.pushed.contains(&event.seq)),
-            "种子 {seed}：还有事件没落盘就请求"
-        );
-        assert!(
-            self.calls_in(turn)
-                .all(|call| self.resulted.contains(&call)),
-            "种子 {seed}：上一步还有调用没结果就请求"
-        );
-        self.request_from_log(seen, request);
-        match Watch::is_summary(request) {
-            true => self.undo_summary(),
-            false => self.undo_request(seen),
-        }
-        self.manual_request(request);
-        self.issued.insert(seen);
-        self.sent.remove(&seen);
-        self.asking = Some(seen);
-        self.next_block = 0;
-        self.open_block = None;
-        if Watch::is_summary(request) {
-            self.retry_summary();
-            self.summary_called(seen, request);
-            return;
-        }
-        self.main_request_sent();
-        assert_eq!(seen.get(), self.last(), "种子 {seed}：seen 是最后一条");
-        // 请求照的是全部历史，撤回的、撤掉的，撤回、撤销、恢复那几条本身，和压缩替代掉的除外。
-        assert_eq!(
-            listed_request(request),
-            listing(&self.effective_events()),
-            "种子 {seed}：请求照全部历史，撤回的、撤掉的、压缩掉的除外"
-        );
-        let retry = self.retry_request();
-        let count = self.requests.entry(turn).or_default();
-        if !retry {
-            *count += 1;
-        }
-        assert!(
-            *count <= STEP_LIMIT,
-            "种子 {seed}：回合 {turn} 请求超过了上限"
-        );
-        if *count > 1 {
-            self.seen_paths.insert("一步接一步");
-        }
-    }
-
     /// 追加的一批：序号连着；`model.called` 每次请求至多一条（`watch/model.rs`）；工具结果每个
     /// 调用一条；步数上限只在请求满了的回合。
     fn appended(&mut self, events: Vec<Event>) {
@@ -417,6 +373,7 @@ impl Watch {
                     self.seen_paths.insert("回复里有工具调用");
                 }
                 Body::ModelCalled(called) => self.model_called(called, &events, k),
+                Body::SessionRecapped(_) => self.recapped_appended(event, &events, k),
                 Body::ContextCompacted(compacted) => self.compaction_appended(event, compacted),
                 Body::CompactionPaused(paused) => self.pause_appended(event, paused),
                 Body::ToolResult(result) => {

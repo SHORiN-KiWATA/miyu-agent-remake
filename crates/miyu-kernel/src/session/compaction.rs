@@ -263,7 +263,8 @@ impl Session {
             .rev()
             .filter(|event| event.seq < started)
             .find_map(|event| match &event.body {
-                Body::ModelCalled(called) => Some(called.seen),
+                // 回顾这类辅助请求不是主对话的请求，她没在里面听到什么（施工 3-8 四补）。
+                Body::ModelCalled(called) if !called.aside() => Some(called.seen),
                 _ => None,
             });
         // 回复的 `seen` 一次比一次大，最后一条看到的最多。

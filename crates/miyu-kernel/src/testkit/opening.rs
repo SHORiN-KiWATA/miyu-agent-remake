@@ -134,6 +134,9 @@ impl Stage {
             disk: super::disk::Disk::default(),
             upward: Vec::new(),
             stopping: Vec::new(),
+            recaps: Vec::new(),
+            recap_lines: VecDeque::new(),
+            held_recap: None,
         };
         stage.settle(actions);
         stage

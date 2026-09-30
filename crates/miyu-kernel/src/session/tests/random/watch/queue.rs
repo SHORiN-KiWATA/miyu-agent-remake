@@ -12,11 +12,13 @@ impl Watch {
         match &event.body {
             Body::MessageUser(_) if event.turn.is_some() => self.queued.push(event.seq),
             // 暂停着没发出去的那一条，她没听到排着的话（施工 6-6 上）：照摘要请求失败一样，回合结束时接着开。
+            // 回顾这类辅助请求也不算她听到了（施工 3-8 四补）。
             Body::ModelCalled(called)
-                if called
-                    .error
-                    .as_ref()
-                    .is_none_or(|error| error.class != ErrorClass::CompactionPaused) =>
+                if !called.aside()
+                    && called
+                        .error
+                        .as_ref()
+                        .is_none_or(|error| error.class != ErrorClass::CompactionPaused) =>
             {
                 self.queued.retain(|queued| *queued > called.seen);
             }

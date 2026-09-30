@@ -1,11 +1,13 @@
 //! 账本的测试：一段合规的会话从头追加到尾；02 第九节表里的每一条规矩各有被拦下的例子，
 //! 被拦下时报错说清是哪一条，账本不变。撤销与恢复的在 `tests/undo.rs`，没有触发的回合在 `tests/manual.rs`，
-//! 任务的几条在 `tests/jobs.rs`（施工 7-1）。
+//! 任务的几条在 `tests/jobs.rs`（施工 7-1），模型调用的记录和回顾在 `tests/model.rs`（施工 3-8 四补），跨会话在 `tests/peers.rs`（施工 C-1）。
 
 use super::*;
 
 mod jobs;
 mod manual;
+mod model;
+mod peers;
 mod undo;
 
 const CREATED: &str = r#"{"owner":"alice","venue":"local","policy":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","permission":{"level":"workspace","read_only":false}}"#;
@@ -285,21 +287,6 @@ fn a_reply_saw_what_came_before_it_including_the_last_reply() {
         &event(8, Some(3), "message.assistant", &reply(8, 4, 0, false)),
         "seen 4 is before the previous reply 5",
     );
-}
-
-/// 模型调用的记录，看到的在它自己之前（03 第三节「模型调用怎么写」）。
-#[test]
-fn a_model_call_saw_what_came_before_it() {
-    let called = |seen: u64| format!(r#"{{"seen":{seen},"messages":1,"result":"ok"}}"#);
-    let mut ledger = after(5);
-    refused(
-        &mut ledger,
-        &event(6, Some(3), "model.called", &called(6)),
-        "seen 6 should come before this event",
-    );
-    ledger
-        .append(&event(6, Some(3), "model.called", &called(4)))
-        .unwrap();
 }
 
 /// 撤回的都是正在进行的回合里排着队的消息（02 第六节「排队的消息」）：撤了听到过的，

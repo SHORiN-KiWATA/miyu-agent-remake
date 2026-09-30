@@ -1,0 +1,7 @@
+Usage: miyu recap [options]
+
+Recap the session in a few lines: the goal, what is done, what is blocked.
+
+Options:
+  -s, --session <id>  Which session; default is the one the last miyu ask opened
+  -h, --help          Print help

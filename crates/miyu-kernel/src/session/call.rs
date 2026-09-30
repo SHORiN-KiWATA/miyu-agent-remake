@@ -406,7 +406,8 @@ impl Session {
             model: sent.as_ref().map(|sent| sent.model.model.clone()),
             request: sent.as_ref().map(|sent| sent.request.clone()),
             messages: messages as u64,
-            first_difference: difference.map(FirstDifference::from),
+            first_difference: difference
+                .map(|difference| Box::new(FirstDifference::from(difference))),
             usage,
             first_token_ms: sent
                 .as_ref()
@@ -419,6 +420,7 @@ impl Session {
             compaction: compaction
                 .as_ref()
                 .map(|compacting| compacting.trigger().clone()),
+            purpose: None,
         };
         let summary = summary
             .zip(compaction.as_ref())

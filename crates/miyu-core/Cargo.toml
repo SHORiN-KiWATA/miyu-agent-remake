@@ -18,6 +18,8 @@ miyu-http = { path = "../miyu-http" }
 miyu-ipc = { path = "../miyu-ipc" }
 # 编号、出错的分类、发给了谁。
 miyu-kernel = { path = "../miyu-kernel" }
+# 配置清单：登记各模块的几项，起来时生成 JSON Schema 和参考文件（施工 8-1）。
+miyu-config = { path = "../miyu-config" }
 # 运行日志：state/logs/core.log（施工 3-7 上）。
 miyu-log = { path = "../miyu-log" }
 # 请求模型的端口（施工 3-7）。

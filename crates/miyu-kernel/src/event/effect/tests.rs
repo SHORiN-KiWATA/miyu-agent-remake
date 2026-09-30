@@ -1,6 +1,7 @@
 //! 效果的测试（施工 4-6 上）：三种认识的读写一字不差；一行都没显示的不写 `lines`，新建的 `before` 写成
 //! `null`；不认识的种类整块原样留着；缺了 `kind`、认识的种类缺了字段，报错。`job.started`（施工 7-1）：两种任务
-//! 读写一字不差，不认识的 `what` 原样留着，后台命令不写 `session`。`job.messaged`（施工 7-7）读写一字不差。
+//! 读写一字不差，不认识的 `what` 原样留着，后台命令不写 `session`。`job.messaged`（施工 7-7）、`peer.watch`（施工 C-1）
+//! 读写一字不差。
 
 use super::*;
 
@@ -141,6 +142,17 @@ fn a_message_to_a_subagent_round_trips() {
     );
 }
 
+/// 订了「空了告诉我」（施工 C-1，`cross-session.md`「效果 peer.watch」）：只带被等的会话的整个编号，读写一字不差。
+#[test]
+fn a_watch_on_another_session_round_trips() {
+    assert_eq!(
+        round_trip(r#"{"kind":"peer.watch","session":"0192f3a0-2222-7abc-8def-5566778899aa"}"#),
+        Effect::PeerWatch(PeerWatch {
+            session: SessionId::parse("0192f3a0-2222-7abc-8def-5566778899aa").unwrap()
+        })
+    );
+}
+
 #[test]
 fn broken_effects_are_errors() {
     for json in [
@@ -157,6 +169,9 @@ fn broken_effects_are_errors() {
         r#"{"kind":"job.started","job":"j1","what":"agent","title":"t","session":"s-1"}"#,
         r#"{"kind":"job.messaged"}"#,
         r#"{"kind":"job.messaged","job":"j0"}"#,
+        r#"{"kind":"peer.watch"}"#,
+        r#"{"kind":"peer.watch","session":"22334455"}"#,
+        r#"{"kind":"peer.watch","session":null}"#,
     ] {
         assert!(serde_json::from_str::<Effect>(json).is_err(), "{json}");
     }

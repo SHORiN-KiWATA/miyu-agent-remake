@@ -113,7 +113,7 @@ impl Session {
         policy: Policy,
         environment: Environment,
     ) -> Result<(Session, Vec<Action>), LoadError> {
-        let mut ledger = Ledger::default();
+        let mut ledger = Ledger::for_session(session.clone());
         let mut replay = Replay::default();
         let mut duty = Duty::default();
         for event in &events {
@@ -170,6 +170,7 @@ impl Session {
             restarting: false,
             duty,
             meta: std::mem::take(&mut replay.meta),
+            recapping: None,
         };
         let mut actions: Vec<Action> = session.recall().into_iter().collect();
         // 最后报的那一份再交一次（施工 7-6）：送到一半崩了的不漏，父会话照命令编号认出重的，不重。

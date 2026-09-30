@@ -56,8 +56,11 @@ pub(crate) fn saw(seen: &mut Seen, effects: &[Effect]) {
             Effect::FileTrashed(trashed) => {
                 seen.remove(Path::new(&trashed.path));
             }
-            // 派出去的任务、留的言不是看过的文件（施工 7-1、7-7）。
-            Effect::JobStarted(_) | Effect::JobMessaged(_) | Effect::Unknown(_) => {}
+            // 派出去的任务、留的言、订的别的会话不是看过的文件（施工 7-1、7-7、C-1）。
+            Effect::JobStarted(_)
+            | Effect::JobMessaged(_)
+            | Effect::PeerWatch(_)
+            | Effect::Unknown(_) => {}
         }
     }
 }

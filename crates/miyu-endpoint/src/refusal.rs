@@ -208,6 +208,12 @@ impl Refusal {
             "nothing_to_clear" => ("上下文为空", "The context is empty."),
             // 2026-09-30 项目主人定（施工 4-7 再补）：两种情况一句话，头把它当一条提示通知显示。
             "not_redoable" => ("无法重做", "Cannot redo."),
+            // 2026-10-01 主会话定（施工 3-8 四补）。
+            "nothing_to_recap" => ("还没有可回顾的内容", "There is nothing to recap yet."),
+            "recap_failed" => (
+                "回顾没写成：请求模型出错了。",
+                "The recap could not be written: the model request failed.",
+            ),
             _ => ("被拒绝了。", "Refused."),
         };
         match locale {

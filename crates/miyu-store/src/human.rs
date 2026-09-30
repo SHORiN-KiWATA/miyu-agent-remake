@@ -1,12 +1,14 @@
 //! 给人看的字（`docs/designs/26-提示词.md` 第三节「写法」里的「双槽」、第八节，施工 4-5 上）。
 //!
 //! 内核和每个软件包各有一份 `human/<语言>.json`：内核的在 `core/human/`，软件包的在 `software/<软件包>/human/`。
-//! 每份里两样：
+//! 每份里三样：
 //!
 //! - `tools`：每件工具给人看的显示名 `name`，显示名后面跟哪一个参数的值 `subject`，写在最前面的符号 `icon`，标题
 //!   下面还印一块什么 `block`（施工 4-11）；
 //! - `said`：每一种说法的字，模板照 `{字段}` 写，编号照这一份所在的地方往下写，例如内核那一份里的
-//!   `tool-results/unattended` 就是说法 `core/tool-results/unattended`。
+//!   `tool-results/unattended` 就是说法 `core/tool-results/unattended`；
+//! - `config`：配置项的名字、说明、选项名，设置页的页和组的名字（[`ConfigWords`]，施工 8-1）。读好的字照
+//!   [`Words`] 交给配置清单生成 JSON Schema 和参考文件，那几句话是内核那一份 `said` 里的 `config/…`。
 //!
 //! 头照一次调用的说法（`tool.result` 的 `human`）换成字。这些字不进请求，所以换进去的字段不转义成 JSON 的样子，
 //! 只把控制字符换成 `�`（[`clean`]）：路径、参数是她给的，里面要是混着终端的控制序列，原样印出来会把终端弄乱。
@@ -19,6 +21,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
+use miyu_config::{ConfigWords, ItemWords, Words};
 use miyu_kernel::event::Said;
 use miyu_kernel::template::Template;
 
@@ -32,6 +35,7 @@ pub const FALLBACK: &str = "en";
 pub struct Human {
     tools: BTreeMap<String, Face>,
     said: BTreeMap<String, Template>,
+    config: ConfigWords,
 }
 
 /// 一件工具给人看的样子。
@@ -69,6 +73,8 @@ struct File {
     tools: BTreeMap<String, Face>,
     #[serde(default)]
     said: BTreeMap<String, String>,
+    #[serde(default)]
+    config: ConfigWords,
 }
 
 /// 一份给人看的字读不懂。
@@ -138,6 +144,9 @@ impl Human {
             self.said.insert(format!("{prefix}/{key}"), template);
         }
         self.tools.extend(parsed.tools);
+        self.config.items.extend(parsed.config.items);
+        self.config.pages.extend(parsed.config.pages);
+        self.config.groups.extend(parsed.config.groups);
         Ok(())
     }
 
@@ -160,6 +169,22 @@ impl Human {
     /// 说法 `key` 这一句要哪些字段；没有这一句的是空的。
     pub fn fields(&self, key: &str) -> Option<Vec<&str>> {
         self.said.get(key).map(Template::fields)
+    }
+}
+
+/// 配置清单要的字：项照 `config` 那一格，几句话照内核那一份 `said` 里的，编号前面加上 `core/`。
+impl Words for Human {
+    fn item(&self, key: &str) -> Option<&ItemWords> {
+        self.config.items.get(key)
+    }
+
+    fn sentence(&self, key: &str, fields: &[(&str, &str)]) -> Option<String> {
+        let said = fields
+            .iter()
+            .fold(Said::new(format!("core/{key}")), |said, (field, value)| {
+                said.with(field, *value)
+            });
+        self.say(&said)
     }
 }
 

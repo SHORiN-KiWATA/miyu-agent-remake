@@ -12,7 +12,7 @@ mod texts;
 
 pub use anchor::anchored;
 pub use archive::{files, matches_the_archive};
-pub use texts::{SUMMARIZE, VENUE};
+pub use texts::{LINES, SUMMARIZE, VENUE, recap};
 use texts::{driver_texts, texts};
 
 use std::collections::BTreeMap;
@@ -58,14 +58,19 @@ pub struct Sent {
 }
 
 /// 探针和随机日志的策略：出厂的组装、事实模板、写给模型的句子；读、写两件工具；一个回合最多
-/// 请求三次模型。
+/// 请求三次模型。system 是人设，空一行接核心的几行（施工 2-7 补）。
 pub fn policy() -> Policy {
-    policy_with(PERSONA.to_string())
+    policy_with(format!("{PERSONA}\n\n{}", LINES.trim_end()))
 }
 
-/// 子代理这张脸的策略（施工 7-5）：system 照拼快照的规矩在人设后面空一行接上场所说明，别的和 [`policy`] 一样。
+/// 子代理这张脸的策略（施工 7-5）：system 照拼快照的规矩在人设后面空一行接上场所说明，再空一行接核心的几行，别的和
+/// [`policy`] 一样。
 pub fn child_policy() -> Policy {
-    policy_with(format!("{PERSONA}\n\n{}", VENUE.trim_end()))
+    policy_with(format!(
+        "{PERSONA}\n\n{}\n\n{}",
+        VENUE.trim_end(),
+        LINES.trim_end()
+    ))
 }
 
 /// 同 [`policy`]，system 是 `system`。
@@ -118,6 +123,11 @@ pub fn summarizes(stage: &mut Stage) {
 
 /// 一个替身：照 [`policy`] 造的会话，在 `~/src/miyu`，从东九区 16:00 开始。
 pub fn stage() -> Stage {
+    stage_with(policy)
+}
+
+/// 同 [`stage`]，策略照 `policy` 造（施工 2-7 补：切权限那张脸拿以前造的快照比）。
+pub fn stage_with(policy: fn() -> Policy) -> Stage {
     Stage::new(policy, environment(), start())
 }
 
@@ -438,13 +448,16 @@ fn stable(system: String) -> Stable {
     }
 }
 
-/// 出厂的四个事实模板。
+/// 出厂的五个事实模板。
 fn templates() -> FactTemplates {
     FactTemplates::new(
         include_str!("../../../../resources/core/facts/env.txt"),
         include_str!("../../../../resources/core/facts/permission.txt"),
         include_str!("../../../../resources/core/facts/reply-cut.txt"),
         Some(include_str!("../../../../resources/core/facts/session.txt")),
+        Some(include_str!(
+            "../../../../resources/core/facts/permission-changed.txt"
+        )),
     )
     .expect("出厂的模板用得了")
 }

@@ -7,7 +7,8 @@
 //! - [`Core`]：核心的家底：数据根、资源目录、给会话造请求模型的端口、管理员、本机令牌、会话表；
 //! - [`serve`]：和一个连接说话，直到它关了；
 //! - [`run`]：在本机的监听器上一个个接连接，每个交给 [`serve`]；
-//! - [`Core::idle`]：没有连接、没有在跑的回合、也没有在跑的后台命令，核心据此空闲退出（施工 3-9 上、7-3）。
+//! - [`Core::idle`]：没有连接、没有在跑的回合、也没有在跑的后台命令，核心据此空闲退出（施工 3-9 上、7-3）；
+//! - [`settings`]：端点的配置项，界面语言 `ui.language`（施工 8-1）。
 
 mod attach;
 mod connection;
@@ -20,6 +21,7 @@ mod meta;
 mod methods;
 mod refusal;
 mod sessions;
+pub mod settings;
 mod spawn;
 mod subscriptions;
 mod undo;

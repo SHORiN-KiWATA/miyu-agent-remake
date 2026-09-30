@@ -7,7 +7,7 @@ use clap::{Args, Command};
 
 use super::{Page, page};
 use crate::language::Language;
-use crate::{Ask, Compact, Redo, Sandbox, Undo};
+use crate::{Ask, Compact, Recap, Redo, Sandbox, Undo};
 
 /// 一个选项：几种写法（`-c`、`--continue`），和后面写的值（没有的是空的）。
 type Listed = BTreeSet<(Vec<String>, String)>;
@@ -133,8 +133,16 @@ fn each_page_lists_exactly_the_options_there_are() {
             real(&redo, id),
             "{language:?} redo"
         );
-        // 主程序那一页：`ask` 的、`undo`、`restore`、`redo`、`compact` 的都列，再加 `-V`、`--version`。
+        // `recap` 那一页（施工 3-8 四补）：只有 `-s`。
+        let recap = Recap::augment_args(Command::new("recap"));
+        assert_eq!(
+            listed(page(language, Page::Recap)),
+            real(&recap, id),
+            "{language:?} recap"
+        );
+        // 主程序那一页：`ask` 的、`undo`、`restore`、`redo`、`compact`、`recap` 的都列，再加 `-V`、`--version`。
         let mut all = real(&ask, id);
+        all.extend(real(&recap, id));
         all.extend(real(&undo, id));
         all.extend(real(&redo, id));
         all.extend(real(&compact, id));
@@ -171,6 +179,7 @@ fn each_page_is_its_own_file() {
             (Page::Restore, "restore"),
             (Page::Redo, "redo"),
             (Page::Compact, "compact"),
+            (Page::Recap, "recap"),
             (Page::Sandbox, "sandbox"),
         ] {
             let file = dir.join(code).join(format!("{name}.txt"));
@@ -206,6 +215,7 @@ fn pages_fit_in_eighty_columns_and_end_with_one_newline() {
             Page::Restore,
             Page::Redo,
             Page::Compact,
+            Page::Recap,
             Page::Sandbox,
         ] {
             let text = page(language, which);

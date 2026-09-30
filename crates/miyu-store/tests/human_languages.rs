@@ -1,5 +1,6 @@
 //! 给人看的字的每一种语言（施工 4-5 补）：内核和每个软件包都有中文、英文、日文三份，键、工具的样子、每一句
-//! 要的字段和英文那一份一样。找不到的语言会退回英文，所以这里直接查文件，不经 `Human::load`。
+//! 要的字段、配置那一格的项和选项、页、组（施工 8-1）和英文那一份一样。找不到的语言会退回英文，所以这里直接查文件，
+//! 不经 `Human::load`。
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -81,6 +82,47 @@ fn tools(value: &Value) -> BTreeMap<String, Value> {
         .unwrap_or_default()
 }
 
+/// 配置那一格的样子：每一项的选项，页和组的编号；名字、说明都不是空的。
+fn config(
+    value: &Value,
+) -> (
+    BTreeMap<String, BTreeSet<String>>,
+    BTreeSet<String>,
+    BTreeSet<String>,
+) {
+    let Some(config) = value.get("config") else {
+        return Default::default();
+    };
+    let words: miyu_config::ConfigWords =
+        serde_json::from_value(config.clone()).expect("配置那一格写法对");
+    let filled = |text: &str| !text.trim().is_empty();
+    let mut items = BTreeMap::new();
+    for (key, said) in &words.items {
+        assert!(
+            filled(&said.name) && filled(&said.description),
+            "{key} 的名字、说明"
+        );
+        assert!(
+            said.options.values().all(|name| filled(name)),
+            "{key} 的选项名"
+        );
+        items.insert(key.clone(), said.options.keys().cloned().collect());
+    }
+    assert!(
+        words
+            .pages
+            .values()
+            .chain(words.groups.values())
+            .all(|name| filled(name)),
+        "页、组的名字"
+    );
+    (
+        items,
+        words.pages.keys().cloned().collect(),
+        words.groups.keys().cloned().collect(),
+    )
+}
+
 #[test]
 fn every_language_has_the_same_sentences_and_tools_as_english() {
     for place in places() {
@@ -97,6 +139,12 @@ fn every_language_has_the_same_sentences_and_tools_as_english() {
                 tools(&words),
                 tools(&english),
                 "{} 的 {language}：工具和英文的不一样",
+                place.display()
+            );
+            assert_eq!(
+                config(&words),
+                config(&english),
+                "{} 的 {language}：配置的项、选项、页、组和英文的不一样",
                 place.display()
             );
         }

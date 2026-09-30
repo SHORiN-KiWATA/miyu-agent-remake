@@ -43,4 +43,14 @@ pub trait Assembler {
     /// 从摘要请求的回复里取出摘要；取不出来的（空的）是 `None`（`compaction.md` 第三条第 6 条）。指令和取法是
     /// 一对，所以都归组装。
     fn summary(&self, reply: &[Block]) -> Option<String>;
+
+    /// 回顾的请求（施工 3-8 四补，`docs/blueprint/kernel/request.md`「回顾的请求」）：单独的一次辅助请求，不接主对话的前缀，
+    /// 只喂 `history` 里最近几轮人说的话和她的回答正文。交回请求，和它照到的那一条：喂进去的最新那一条消息的序号。
+    /// `history` 是这一刻落了盘的有效历史。同样是纯函数。
+    ///
+    /// 没有能回顾的（她一个带正文的回复都没有）是 `None`。默认的是 `None`：不做回顾的组装。
+    fn recap(&self, history: &History) -> Option<(Request, Seq)> {
+        let _ = history;
+        None
+    }
 }

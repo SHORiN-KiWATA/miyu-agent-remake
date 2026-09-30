@@ -114,6 +114,13 @@ fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
         sources.core.facts.session.as_deref(),
         Some(include_str!("../../../../resources/core/facts/session.txt"))
     );
+    // 切了级别以后的权限那一份（施工 2-7 补）。
+    assert_eq!(
+        sources.core.facts.permission_changed.as_deref(),
+        Some(include_str!(
+            "../../../../resources/core/facts/permission-changed.txt"
+        ))
+    );
     assert!(
         sources
             .core
@@ -166,6 +173,22 @@ fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
         harness.message_close,
         include_str!("../../../../resources/core/harness/message-close.txt")
     );
+    // 回顾的五份（施工 3-8 四补）：每一格是它自己那份文件。
+    let recap = sources.core.recap.expect("出厂的有回顾的字");
+    macro_rules! recap {
+        ($name:literal) => {
+            include_str!(concat!("../../../../resources/core/recap/", $name))
+        };
+    }
+    for (got, file) in [
+        (recap.instruction, recap!("instruction.txt")),
+        (recap.user, recap!("user.txt")),
+        (recap.assistant, recap!("assistant.txt")),
+        (recap.omitted, recap!("omitted.txt")),
+        (recap.excerpted, recap!("excerpted.txt")),
+    ] {
+        assert_eq!(got, file);
+    }
     // 文本文件照字放进消息的三句（施工 3-9 三补）：每一格是它自己那份文件。
     let drivers = sources.core.drivers;
     let text = drivers.text_file.expect("出厂的有文本文件的三句");
@@ -232,6 +255,30 @@ fn the_subagent_venue_note_is_its_own_file() {
         SourceError::Read { path, .. } => {
             assert!(
                 path.ends_with(Path::new("core/jobs/subagent-venue.txt")),
+                "{path:?}"
+            );
+        }
+        other => panic!("该是读不了：{other:?}"),
+    }
+}
+
+/// 核心的几行（施工 2-7 补）：读的是 `core/permission-rule.txt`、`core/local-paths-rule.txt` 的原文；没有的说是哪一份。
+#[test]
+fn the_core_lines_are_their_own_files() {
+    let lines = repo().core_lines().unwrap();
+    assert_eq!(
+        lines.permission,
+        include_str!("../../../../resources/core/permission-rule.txt")
+    );
+    assert_eq!(
+        lines.local_paths,
+        include_str!("../../../../resources/core/local-paths-rule.txt")
+    );
+    let scratch = Scratch::new();
+    match ResourceRoot::at(scratch.path()).core_lines().unwrap_err() {
+        SourceError::Read { path, .. } => {
+            assert!(
+                path.ends_with(Path::new("core/permission-rule.txt")),
                 "{path:?}"
             );
         }

@@ -16,7 +16,8 @@
 |---|---|
 | `crates/miyu-kernel/src/ledger.rs` | 账本：查规矩、记下变化 |
 | `crates/miyu-kernel/src/ledger/undo.rs` | 账本里撤销、恢复的几条：撤的是哪几轮、能不能恢复 |
-| `crates/miyu-kernel/src/ledger/jobs.rs` | 账本里任务的几条：编号不重复、回报对得上派出去的任务、子会话的 `parent`、`depth`（施工 7-1） |
+| `crates/miyu-kernel/src/ledger/jobs.rs` | 账本里任务的几条：编号不重复、回报对得上派出去的任务、子会话的 `parent`、`depth`（施工 7-1）；从账本读任务的几样（`last_job_number`、`running_jobs` 这些，施工 C-1 从 `ledger.rs` 挪来） |
+| `crates/miyu-kernel/src/ledger/peers.rs` | 账本里跨会话的几条：在等哪几个会话的通知、订的不是自己、`peer.idle` 只认在等的（施工 C-1，`cross-session.md`） |
 | `crates/miyu-kernel/src/history.rs` | 有效历史：收事件、压缩、撤回、排先后、落到检查点上 |
 | `crates/miyu-kernel/src/history/undo.rs` | 撤掉的拿走、放回；跟着撤的话 |
 | `crates/miyu-kernel/src/history/jobs.rs` | 派出去过的任务：标题、种类、派它的那一轮撤掉了没有（施工 7-2）；在哪几轮里派的（施工 7-8） |
@@ -29,9 +30,10 @@
 
 ### 对外的样子
 
-**账本**（`Ledger`）：`Ledger::default()` 是一个还没有事件的会话。只记查规矩要用的几样，不留事件本身：下一条的序号、正在进行的回合、上一条回复的序号、这一轮还没有结果的调用和其中在等确认的、在等回答的、排着队的消息、开过还没撤掉的回合（压缩以前的也在）、还算数的几次压缩各在哪一轮、替代到哪、还能恢复的几次撤销各撤了哪几轮和跟着撤掉的压缩、派出去过的任务（施工 7-1：编号，是后台命令还是子代理，子代理的会话，后台命令结束了没有，子代理还会不会再报；撤掉的回合里派的也在）。
+**账本**（`Ledger`）：`Ledger::default()` 是一个还没有事件的会话。只记查规矩要用的几样，不留事件本身：下一条的序号、正在进行的回合、上一条回复的序号、这一轮还没有结果的调用和其中在等确认的、在等回答的、排着队的消息、开过还没撤掉的回合（压缩以前的也在）、还算数的几次压缩各在哪一轮、替代到哪、还能恢复的几次撤销各撤了哪几轮和跟着撤掉的压缩、派出去过的任务（施工 7-1：编号，是后台命令还是子代理，子代理的会话，后台命令结束了没有，子代理还会不会再报；撤掉的回合里派的也在）、在等别的会话的通知（施工 C-1：每个被等的会话，上一次收到它的通知以后订的几次，各在哪一轮、从哪一刻算起）。
 
-- 从账本读的两样（施工 7-3）：`last_job()` 派出去过的任务编号最后一段最大的数（施工 7-1 补：子会话的编号带着前缀，以前的日志里又有不带的，照整个编号排最大的那个不一定数得最大，`j5.8` 排在 `j7` 前面），撤掉的回合里派的也算，没派过的是 0（`Session::last_job_number` 交给执行器往后数）；`running_commands()` 还没报过结束的后台命令，照编号（载入时补 `aborted`，`kernel/session.md`「载入和崩溃」第 9 条）。施工 7-7 多三样：`waiting_children()` 欠着一份回报的子代理的子会话（一次都没报过的，留了言还没报的）；`subagent_in(会话)` 在那个会话里跑的子代理的编号（认子代理发来的留言，被停掉的、撤掉的回合里派的也认）；`subagents()` 派出去过的子代理：编号、子会话、被停掉了没有。施工 7-8 多一样：`running_jobs()` 还在跑的任务，照编号：还没报过结束的后台命令，没被停掉、欠着一份回报的子代理（一次都没报过的，报过以后又被留了言的）；撤掉的回合里派的也在。撤销停哪几个、撤销的回应列哪几个都照它。
+- 知道自己是哪个会话的账本（施工 C-1）：`Ledger::for_session(会话)`，和 `Ledger::default()` 一样是空的，只是查 `peer.watch` 订的不是自己。内核造会话、载入都用它；只拿账本数东西的读者（撤销的回应算停掉的任务，`crates/miyu-endpoint/src/undo/jobs.rs`）用 `default`，不查这一条。
+- 从账本读的两样（施工 7-3）：`last_job()` 派出去过的任务编号最后一段最大的数（施工 7-1 补：子会话的编号带着前缀，以前的日志里又有不带的，照整个编号排最大的那个不一定数得最大，`j5.8` 排在 `j7` 前面），撤掉的回合里派的也算，没派过的是 0（`Session::last_job_number` 交给执行器往后数）；`running_commands()` 还没报过结束的后台命令，照编号（载入时补 `aborted`，`kernel/session.md`「载入和崩溃」第 9 条）。施工 7-7 多三样：`waiting_children()` 欠着一份回报的子代理的子会话（一次都没报过的，留了言还没报的）；`subagent_in(会话)` 在那个会话里跑的子代理的编号（认子代理发来的留言，被停掉的、撤掉的回合里派的也认）；`subagents()` 派出去过的子代理：编号、子会话、被停掉了没有。施工 7-8 多一样：`running_jobs()` 还在跑的任务，照编号：还没报过结束的后台命令，没被停掉、欠着一份回报的子代理（一次都没报过的，报过以后又被留了言的）；撤掉的回合里派的也在。撤销停哪几个、撤销的回应列哪几个都照它。施工 C-1 多一样：`watching()` 在等哪几个会话的通知、各从哪一刻算起，照编号（下面「在等的通知」）；施工 C-6 的执行器照它去订、计时。
 - 回合的编号一轮一个（8 个字节），压缩一次一项：撤销能撤掉压缩、撤到压缩以前的回合，压缩以前的回合也要记着（施工 6-9）。任务一个一项：编号不回收要看整份日志（施工 7-1）。账本只随回合数、任务数长，不随日志的字节长：十万轮约 0.8 MB，一个活动会话的预算是 5 MB（`23-性能预算.md`，2026-09-29 项目主人定）。
 - 还没撤掉的回合照先后排：撤销从某一轮起拿走后面的全部，恢复原样放回，开一轮接在最后。
 
@@ -108,6 +110,7 @@
 | `upto` 不早于还算数的最近一次压缩的：撤掉的压缩不算，撤掉以后再压可以比它早 | upto <n> is before the last compaction's <n>; compaction only moves forward |
 | `summary` 是空的，`trigger` 得是 `clear`：别的压缩取不到摘要算失败，写不成检查点（施工 6-8 补，`compaction.md` 第十四条） | the summary is empty; only a clear has an empty summary |
 | `model.called` 的 `seen` 在它之前 | seen <n> should come before this event |
+| `session.recapped` 的 `upto` 在它之前（施工 3-8 四补） | upto <n> should come before this event |
 | `message.withdrawn` 的列表不是空的 | the list of withdrawn messages is empty |
 | 撤回的每一条都是这一轮里排着队的消息，不重复 | event <n> is not a queued message of the running turn: not a message, already seen by a request, not in this turn, or already withdrawn |
 | `turn.reverted` 时没有回合在进行 | turn <编号> is still running; nothing can be undone |
@@ -129,10 +132,14 @@
 | `child.reported` 的 `session` 和那条 `job.started` 记的一样 | job <编号> runs in session <记的>, not <这一条写的> |
 | `child.reported` 的 `by` 是那个子会话 | child.reported for job <编号> should be by session <记的> |
 | 以 `stopped`、`undone` 报过的不再报：被停掉的不会再起来。别的（`done`、`aborted`、不认识的）报过以后还能再报：留言叫醒它，它会再报 | job <编号> was stopped or undone and cannot report again |
+| `tool.result` 效果里的 `peer.watch` 订的不是这个会话自己（施工 C-1）：照效果的先后，一个是自己的整条不收。不知道自己是谁的账本不查 | session <编号> is this session: a session cannot watch itself |
+| `peer.idle` 的会话这时在等（施工 C-1，下面「在等的通知」）：没订过、订它的那一轮撤掉了、已经等到过的都不收 | session <编号> is not being watched: never watched, the watching turn was undone, or its notice already came |
+| `peer.idle` 的 `by`：`idle` 的是那个会话，`expired`、`gone` 的是内核；不认识的原因不查（新版本才有的，谁记的由新版本定，旧核心照样载入得了） | peer.idle for session <编号> with reason <原因> should be by <session <编号> 或 the kernel> |
 
 - 不认识的种类（例如模块的 `ext.*`）只查序号和 `turn`。报错的全文是「event <序号> cannot be appended: <why>」。
 - `job.started` 只出现在 `tool.result` 的效果里：效果只有工具结果有，写法本身就保证了，不另查。工具结果照上面先查调用对不对得上，再查它的效果。
-- 两种回报带不带 `turn` 不另立规矩：带的要是正在进行的那个回合，照上面那一条；它们不在「必须带 `turn`」的那几种里。内核记的一律不带（2026-09-30 定，`kernel/session.md`「回报」第 3 条）。
+- 两种回报带不带 `turn` 不另立规矩：带的要是正在进行的那个回合，照上面那一条；它们不在「必须带 `turn`」的那几种里。内核记的一律不带（2026-09-30 定，`kernel/session.md`「回报」第 3 条）。`peer.idle` 也一样（施工 C-1）。
+- `peer.watch` 的会话合不合编号的写法，读的时候就查了（`kernel/ids.md`）。工具结果先查调用、再查任务，最后查订的。
 
 **账本记下的变化**：
 
@@ -141,7 +148,7 @@
 | 每一条 | 下一条的序号加一 |
 | `turn.started` | 它是正在进行的回合，也是还没撤掉的一轮，接在最后；还能恢复的撤销、排着队的都清掉 |
 | `message.user`，带着正在进行的回合 | 排进队 |
-| `model.called`、`message.assistant` | 序号不大于它的 `seen` 的出队。回复还记下它是上一条回复，里面的工具调用都等结果 |
+| `model.called`、`message.assistant` | 序号不大于它的 `seen` 的出队。回复还记下它是上一条回复，里面的工具调用都等结果。带 `purpose` 的 `model.called`（回顾这类辅助请求，施工 3-8 四补）不出队：它不是这一轮的请求，她没在里面听到排着的话，打断时照样撤得回 |
 | `tool.result` | 这个调用有了结果，在等的请求、题跟着了结 |
 | `tool.approval_requested`、`tool.approval_decided` | 这个调用开始、不再等确认 |
 | `question.asked`、`question.answered` | 这个调用开始、不再等回答 |
@@ -155,6 +162,17 @@
 | `tool.result` 效果里的 `job.messaged` | 这个子代理欠一份回报（施工 7-7）。留言那次调用发出以后（序号大于那次调用所在的回复）已经到了回报的，算回了，不欠：送到了，它手快、先报上来了，不能让父会话一直等一份不再来的回报 |
 | `child.reported` | 记下这是它最近一次回报（命令编号、序号），留过言的不再欠（施工 7-6、7-7） |
 | `child.reported`，`reason` 是 `stopped`、`undone` | 这个子代理不会再报 |
+| `tool.result` 效果里的 `peer.watch` | 记下订了那个会话一次：在这条结果的回合里，从这条结果的时刻算起（施工 C-1） |
+| `peer.idle` | 那个会话以前订的几次都了结、清掉，不管 `reason` 是哪一种 |
+
+**在等的通知**（施工 C-1，`cross-session.md` 第六条、第七条第 3 款）：
+
+1. 订的记录是工具结果的效果 `peer.watch`，一次订记一项：在哪一轮、从这条结果的 `at` 算起。撤销、恢复、压缩都不动这些记录。
+2. 在等一个会话：上一次收到它的通知以后订过它，订它的那一轮还没撤掉（压缩以前的回合也算）。从哪一刻算起：这样的几次里最近订的那一次。
+3. 所以撤掉订它的那一轮，就不在等了，之后到的通知不收；恢复了，又在等，从原来的时刻算起；撤了以后开了新的一轮、恢复不了了，就一直不算。
+4. 又订了一次（`cross-session.md` 第六条第 2 款），从新的时刻算；撤掉又订的那一轮，回到前一次的时刻。
+5. 收到 `peer.idle`，那个会话以前订的都了结：再订从新的算起，撤掉再订的那一轮就不在等了。
+6. 账本随订的次数长，收到通知时清掉那个会话的：一次订一项，和任务一样随调用数长，不随日志的字节长。
 
 **有效历史收事件**：
 
@@ -213,6 +231,7 @@
 7. 有要改的：出 `Append` 和 `Restore { steps }`，会话进入改回文件。这时来的命令，接受过的照上一次回应，别的拒绝，`restoring`；这个撤销命令自己的编号这时还没记下，它再来也是 `restoring`。会话不算空闲。
 8. `Restored` 回来：先对照交出去的几步：一步一项、先后一样，每一项的 `result`、`effect`、`path`、`action` 和那一步一样；移进回收站成了的（`trash` 那一步 `restored`）要带着 `trash`。对不上的那一项改成 `failed`，`error` 写 `executor report did not match`；少了的照那一步补一项 `failed`，多出来的不要。然后记一条 `files.restored`，`files` 照对过的记，`by`、`cause` 和撤销那一条一样，不带回合编号；两条都落了盘才回应，附上两条的序号。不在改回文件时来的 `Restored` 是过时的，不理。
 9. 撤了就跟没说过一样：请求里不写撤销过什么。
+10. 撤销不改现在的权限：撤掉的回合里切的级别照样算（`kernel/session.md`「切权限级别」第 7 条）。跟着撤掉的只是她看到过的那几块权限，下一个边界照有效历史里还剩的最近一块比，级别不一样的用切换那一份告诉她（`kernel/request.md`「事实」第 2 条，施工 2-7 补）。
 
 **重做**（`Redo { text, attachments }`，施工 4-7 再补，2026-09-30 项目主人定：一个命令，只重做最后一轮）：
 
@@ -305,8 +324,11 @@
 |---|---|
 | `crates/miyu-kernel/src/ledger/tests.rs` | 一整个会话追加得进；序号；只有第 1 条是会话创建；回合开始；`turn` 是正在进行的；调用编号；结果要有在等的调用；回合结束时调用都有结果；压缩只前进，撤掉的压缩不算；不带 `turn` 的压缩不收；回复、`model.called` 的 `seen`；只能撤回排着的；请求和决定、题和回答跟着调用 |
 | `crates/miyu-kernel/src/ledger/tests/manual.rs` | 没有 `trigger` 的回合开始也收，别的回合的规矩照查（施工 6-8）；摘要是空的只许清空，没写原因、别的几种、不认识的都拦下（施工 6-8 补） |
+| `crates/miyu-kernel/src/ledger/tests/model.rs`（施工 3-8 四补从 `tests.rs` 分出来） | `model.called` 的 `seen`；回顾的两条不带回合编号，有回合在进行时也收；`session.recapped` 照到的在它之前；回顾的 `model.called` 照到了排着的那句，那句照样撤得回，主请求的照到了就撤不回 |
 | `crates/miyu-kernel/src/ledger/tests/jobs.rs`、`jobs/reports.rs`、`jobs/numbers.rs` | 施工 7-1 的每一条各一个被拦下的例子、一个放行的例子：编号不重复（同一条里、后来的、撤掉的回合里的；照整个编号比、用过的最大编号照最后一段数，`jobs/numbers.rs` 的 `prefixed_job_ids_count_by_their_last_part`，施工 7-1 补）；`agent` 带会话、`command` 不带、不认识的种类不管；后台命令只报一次结束、回报对不上的；子代理的回报对得上会话和 `by`、报好几次、停了的不再报、`aborted` 以后还能报；两种回报带 `turn` 的要是正在进行的那一轮；子会话的 `depth`、`parent` |
 | `crates/miyu-kernel/src/ledger/tests/jobs.rs` 的 `a_message_to_a_subagent_makes_it_owe_a_report`、`a_report_that_arrives_while_the_message_is_on_its_way_answers_it`（施工 7-7） | `job.messaged` 只能给这个会话派的子代理（后台命令、不认识的种类、没派过的拦下）；留了言欠一份回报、报了不欠；调用发出以后到的回报算回了；`subagent_in`、`subagents` |
+| `crates/miyu-kernel/src/ledger/tests/peers.rs`（施工 C-1） | 订的是自己的拒、同一条结果里有一个是自己的整条不收、不知道自己是谁的账本不查（`a_session_cannot_watch_itself`）；`peer.idle` 只认在等的：没订过的、订了别的、等到过的都拒，订它的那一轮还在进行时到的照收（`a_notice_is_taken_only_while_watching`）；`by` 对得上原因、不认识的原因不查、哪一种都算等到了头（`a_notice_is_by_the_session_or_by_the_kernel`）；撤掉订它的那一轮不算在等、恢复了照原来的时刻又算、恢复不了了一直不算（`undoing_the_watching_turn_stops_the_watch`）；又订从新的时刻算、撤掉又订的回到前一次、等到过以后再订的撤掉就不在等（`watching_again_counts_from_the_new_moment`） |
+| `crates/miyu-kernel/src/session/tests/peers.rs`（施工 C-1） | 会话知道自己是谁：造的会话订自己当场停下，载入的日志订自己拒绝，订别的会话的照收、载入以后照样在等 |
 | `crates/miyu-kernel/src/ledger/tests/undo.rs` | 压缩以前的也能撤，撤的范围里的压缩不再算数，恢复了跟着回来；`read_back_from` 从哪一条起、撤不到压缩的没有；撤一轮和它以后的全部；回合进行中不能撤；只恢复最近一次；下一轮开始、压缩以后不能恢复；改回文件只在回合之间 |
 | `crates/miyu-kernel/src/history/tests.rs` | 压缩重开有效历史；被动压缩的尾巴；最新的检查点换掉旧的；照请求看到的范围排（图上那一轮、请求在路上时来的话、压缩以后的尾巴）；撤回的和撤回本身都不留 |
 | `crates/miyu-kernel/src/history/tests/undo.rs` | 撤掉回合和触发它的话；重做一起重发的几句一起撤、别的命令的不撤（施工 4-7 再补）；没有触发的那一轮不拿别的（施工 6-8）；暂停着没发出去的请求不算听到过（施工 6-8）；撤以后的几轮；别处来的留着；接过去的排着的一起撤；上一轮听到过的留着；出错的请求也算听到过；崩了的排着的归那一轮；恢复放回原处、一次一次地恢复；下一轮、压缩丢掉放在一边的 |
@@ -334,6 +356,7 @@
 - `10-自带软件.md` 第七节「撤销」「改回文件的细则」、B7。
 - `04-核心协议.md` 第九节：`session.revert`、`session.unrevert`、`session.redo` 的参数、回应、原因码。
 - `agents.md`「对外的样子」：任务的几条规矩（施工 7-1）。
+- `cross-session.md`「效果 peer.watch」「事件 peer.idle」第六条、第七条第 3 款：在等的通知（施工 C-1）。
 
 ### 还没有的
 

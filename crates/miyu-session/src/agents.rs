@@ -152,7 +152,7 @@ impl AgentPort for Spawner {
                 )
                 .await;
             let why = match sent {
-                Ok(Outcome::Accepted { .. }) => {
+                Ok(Outcome::Accepted { .. } | Outcome::Recapped { .. }) => {
                     tracing::info!(target: TARGET, job = job_text.as_str(), child = session.as_str(), "subagent started");
                     return Ok(Spawned { job, session });
                 }

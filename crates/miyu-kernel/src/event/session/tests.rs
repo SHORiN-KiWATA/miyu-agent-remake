@@ -33,6 +33,15 @@ fn session_events_from_the_drawing_round_trip() {
     );
     read_body("session.meta_changed", r#"{"title":"整理 src 目录"}"#);
     read_body("session.meta_changed", r#"{"pinned":true}"#);
+    match read_body("session.recapped", r#"{"text":"在打招呼。","upto":6}"#) {
+        Body::SessionRecapped(recapped) => {
+            assert_eq!(
+                (recapped.text.as_str(), recapped.upto.get()),
+                ("在打招呼。", 6)
+            );
+        }
+        other => panic!("{other:?}"),
+    }
 }
 
 #[test]
@@ -137,4 +146,9 @@ fn broken_session_bodies_say_which_kind() {
     rejected::<Event>(&line, "body of session.created not readable");
     let line = event_line("session.meta_changed", r#"{"pinned":"yes"}"#);
     rejected::<Event>(&line, "body of session.meta_changed not readable");
+    // 回顾两格都要写（施工 3-8 四补）。
+    for body in [r#"{"upto":6}"#, r#"{"text":"x"}"#] {
+        let line = event_line("session.recapped", body);
+        rejected::<Event>(&line, "body of session.recapped not readable");
+    }
 }

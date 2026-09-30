@@ -3,9 +3,9 @@
 
 use crate::compose::{PersonaTexts, Sources, compose};
 use crate::drivers::DriverPlaceholders;
+use crate::facts::FactTexts;
 use crate::snapshot::{
-    CompactionTexts, CoreTexts, FactTexts, PermissionTexts, Snapshot, ToolResultTexts,
-    TurnEndedTexts,
+    CompactionTexts, CoreTexts, PermissionTexts, Snapshot, ToolResultTexts, TurnEndedTexts,
 };
 
 /// 出厂的随核心附带的字。
@@ -28,6 +28,9 @@ pub(crate) fn core() -> CoreTexts {
             permission: include_str!("../../../resources/core/facts/permission.txt").to_string(),
             reply_cut: include_str!("../../../resources/core/facts/reply-cut.txt").to_string(),
             session: Some(include_str!("../../../resources/core/facts/session.txt").to_string()),
+            permission_changed: Some(
+                include_str!("../../../resources/core/facts/permission-changed.txt").to_string(),
+            ),
         },
         tool_results: ToolResultTexts {
             unknown: include_str!("../../../resources/core/tool-results/unknown.txt").to_string(),
@@ -154,6 +157,13 @@ pub(crate) fn core() -> CoreTexts {
                 .to_string(),
             message_close: include_str!("../../../resources/core/harness/message-close.txt")
                 .to_string(),
+        }),
+        recap: Some(crate::RecapTexts {
+            instruction: include_str!("../../../resources/core/recap/instruction.txt").to_string(),
+            user: include_str!("../../../resources/core/recap/user.txt").to_string(),
+            assistant: include_str!("../../../resources/core/recap/assistant.txt").to_string(),
+            omitted: include_str!("../../../resources/core/recap/omitted.txt").to_string(),
+            excerpted: include_str!("../../../resources/core/recap/excerpted.txt").to_string(),
         }),
     }
 }

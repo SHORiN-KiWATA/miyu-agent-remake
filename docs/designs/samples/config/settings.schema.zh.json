@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "ui": {
+      "properties": {
+        "language": {
+          "default": "auto",
+          "description": "终端、网页、命令行给你看的字用哪种话。auto 跟着终端或浏览器的语言。能写：auto、zh、en 或 ja。只能写在系统配置或个人设置里。当场生效。",
+          "enum": [
+            "auto",
+            "zh",
+            "en",
+            "ja"
+          ],
+          "title": "界面语言",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "type": "object"
+}

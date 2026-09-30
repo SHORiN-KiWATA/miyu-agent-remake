@@ -18,10 +18,12 @@ mod limits;
 mod listing;
 mod load;
 mod meta;
+mod peers;
 mod permission;
 mod question;
 mod queue;
 mod random;
+mod recap;
 mod redo;
 mod reply;
 mod restart;
@@ -185,6 +187,7 @@ fn policy() -> Policy {
             r#"<e t="{time}" z="{timezone}" d="{cwd}"/>"#,
             r#"<p l="{level}"/>"#,
             "<reply-cut/>",
+            None,
             None,
         )
         .unwrap(),

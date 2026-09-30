@@ -62,6 +62,7 @@ fn texts() -> Texts {
             .to_string(),
         jobs: Some(job_texts()),
         harness: None,
+        recap: None,
     }
 }
 

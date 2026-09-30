@@ -42,6 +42,23 @@ fn a_new_id_is_a_uuid_v7_of_that_moment() {
     assert!(id_with(earlier, &order).as_str() > next.as_str());
 }
 
+/// 真造的编号的短编号（施工 C-1，`kernel/ids.md`「会话的短编号」）：同一刻连造的几个，前 8 位一样（那一毫秒的前 32
+/// 位），短编号是最后 8 位，各不一样（`ContextV7` 的 42 位计数器之外补的 32 位随机数）。随机数撞上的机会约 16²/2³³，
+/// 小到可以不管。
+#[test]
+fn ids_made_together_differ_in_their_short_form() {
+    let at = Timestamp::parse("2026-09-27T07:00:00.123Z").expect("时刻合写法");
+    let order = Mutex::new(ContextV7::new());
+    let ids: Vec<SessionId> = (0..16).map(|_| id_with(at, &order)).collect();
+    let mut shorts = std::collections::BTreeSet::new();
+    for id in &ids {
+        let text = id.as_str();
+        assert_eq!(text[..8], ids[0].as_str()[..8], "{text}");
+        assert_eq!(id.short(), &text[text.len() - 8..], "{text}");
+        assert!(shorts.insert(id.short()), "{text} 的短编号撞了");
+    }
+}
+
 #[test]
 fn ids_made_in_the_same_millisecond_keep_their_order() {
     // 同一刻连造一千个：一个比一个大，列会话时照造的先后（施工 3-9 补）。

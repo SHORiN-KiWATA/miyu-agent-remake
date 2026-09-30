@@ -1,11 +1,12 @@
 //! `history` 的测试（施工 6-4）：哪些算一条（撤掉的、撤回的不算，以前的摘要算）；四种筛；时刻的写法和时区；参数
-//! 不对；读不了日志；叫停。找在 `tests/find.rs`，读在 `tests/read.rs`。
+//! 不对；读不了日志；叫停。找在 `tests/find.rs`，读在 `tests/read.rs`，人切权限级别在 `tests/permission.rs`（施工 2-7 补）。
 //!
 //! 日志用样本会话（`docs/designs/samples/events/`）第 86 条以前的：第 42 轮撤掉了、第 54 条压缩、第 59 条撤回、
-//! 第 76 轮撤了又恢复。还算数的是 54、55、64、67、71、72、75、77、81、82。
+//! 第 76 轮撤了又恢复。还算数的是 52、54、55、63、64、67、71、72、75、77、81、82；52、63 是人切权限级别（施工 2-7 补）。
 
 mod find;
 mod harness;
+mod permission;
 mod read;
 
 use std::path::{Path, PathBuf};
@@ -154,7 +155,10 @@ fn human(done: &Done) -> String {
 async fn undone_and_withdrawn_entries_do_not_count_but_the_summary_does() {
     let done = run_on(sample(), json!({})).await;
     assert!(!done.error);
-    assert_eq!(seqs(&done), [54, 55, 64, 67, 71, 72, 75, 77, 81, 82]);
+    assert_eq!(
+        seqs(&done),
+        [52, 54, 55, 63, 64, 67, 71, 72, 75, 77, 81, 82]
+    );
     // 撤掉的第 42 轮、撤回的第 59 条找不到；以前的摘要找得到，算她说的。
     let done = run_on(sample(), json!({"query": "README"})).await;
     assert_eq!(text(&done), "No entries found\n");
@@ -168,16 +172,19 @@ async fn undone_and_withdrawn_entries_do_not_count_but_the_summary_does() {
 #[tokio::test]
 async fn entries_can_be_picked_by_number_time_and_who() {
     let pick = |args: Value| async move { seqs(&run_on(sample(), args).await) };
-    assert_eq!(pick(json!({"by": "user"})).await, [55, 64, 75]);
+    assert_eq!(pick(json!({"by": "user"})).await, [52, 55, 63, 64, 75]);
     assert_eq!(pick(json!({"by": "tool"})).await, [71, 81]);
     assert_eq!(pick(json!({"from": 64, "to": 72})).await, [64, 67, 71, 72]);
     assert_eq!(pick(json!({"from": "75"})).await, [75, 77, 81, 82]);
     // 16:33 那一分钟里的四条（照 +09:00）。
     let minute = json!({"since": "2026-09-25 16:33", "until": "2026-09-25 16:33"});
     assert_eq!(pick(minute).await, [64, 67, 71, 72]);
-    assert_eq!(pick(json!({"until": "2026-09-25 16:31"})).await, [54, 55]);
+    assert_eq!(
+        pick(json!({"until": "2026-09-25 16:31"})).await,
+        [52, 54, 55]
+    );
     // 第 55 条正好在 16:31:00：到 16:30 那一分钟完为止的不含它。
-    assert_eq!(pick(json!({"until": "2026-09-25 16:30"})).await, [54]);
+    assert_eq!(pick(json!({"until": "2026-09-25 16:30"})).await, [52, 54]);
     assert_eq!(
         pick(json!({"since": "2026-09-25T16:40:00"})).await,
         [75, 77, 81, 82]
@@ -187,7 +194,7 @@ async fn entries_can_be_picked_by_number_time_and_who() {
         pick(json!({"since": "2026-09-25", "until": "2026-09-25"}))
             .await
             .len(),
-        10
+        12
     );
     assert_eq!(
         pick(json!({"since": "2026-09-26"})).await,
@@ -231,7 +238,7 @@ async fn times_are_written_in_the_session_time_zone() {
         -300,
     ))
     .await;
-    assert_eq!(seqs(&early), [54]);
+    assert_eq!(seqs(&early), [52, 54]);
 }
 
 #[tokio::test]
@@ -281,7 +288,7 @@ async fn bad_arguments_say_what_is_wrong() {
     )
     .await;
     assert!(!done.error);
-    assert_eq!(seqs(&done).len(), 10);
+    assert_eq!(seqs(&done).len(), 12);
 }
 
 #[tokio::test]
