@@ -1,0 +1,140 @@
+{
+  "tools": {
+    "read": {
+      "name": "読み取り",
+      "subject": "file_path",
+      "icon": "→"
+    },
+    "glob": {
+      "name": "ファイル検索",
+      "subject": "pattern",
+      "icon": "✱"
+    },
+    "grep": {
+      "name": "内容検索",
+      "subject": "pattern",
+      "icon": "✱"
+    },
+    "write": {
+      "name": "書き込み",
+      "subject": "file_path",
+      "icon": "←"
+    },
+    "edit": {
+      "name": "編集",
+      "subject": "file_path",
+      "icon": "←",
+      "block": "edits"
+    },
+    "trash": {
+      "name": "削除",
+      "subject": "file_path",
+      "icon": "←"
+    },
+    "shell": {
+      "name": "コマンド実行",
+      "subject": "command",
+      "icon": "$",
+      "block": "command"
+    },
+    "history": {
+      "name": "履歴",
+      "subject": "query",
+      "icon": "✱"
+    },
+    "agent": {
+      "name": "サブエージェント起動",
+      "subject": "description",
+      "icon": "↗"
+    },
+    "jobs": {
+      "name": "タスク",
+      "subject": "action",
+      "icon": "≡"
+    },
+    "message_agent": {
+      "name": "メッセージ",
+      "subject": "to",
+      "icon": "↗"
+    }
+  },
+  "said": {
+    "read/lines": "{count} 行",
+    "read/lines-part": "{from}–{to} 行目（全 {total} 行）",
+    "read/entries": "{count} 件",
+    "read/entries-part": "{from}–{to} 件目（全 {total} 件）",
+    "read/empty": "空です",
+    "read/past-end": "末尾を過ぎています（全 {total} 行）",
+    "read/past-end-entries": "末尾を過ぎています（全 {total} 件）",
+    "read/not-a-file": "通常のファイルでもディレクトリでもありません",
+    "read/binary": "バイナリファイルなので読んでいません",
+    "read/image": "画像 {width}×{height}",
+    "read/image-too-big": "画像が大きすぎるため（{size}）読んでいません",
+    "read/image-too-wide": "画像が大きすぎるため（{width}×{height}）読んでいません",
+    "common/missing": "そのファイルはありません",
+    "common/missing-similar": "そのファイルはありません。{similar} のことですか",
+    "common/failed": "読み取れません：{error}",
+    "common/bad-args": "引数が正しくありません：{error}",
+    "common/bad-glob": "ワイルドカードの書き方が正しくありません：{error}",
+    "common/no-files": "一つも見つかりません",
+    "glob/files": "{count} 個のファイル",
+    "glob/files-more": "{total} 個のファイル、{shown} 個を表示",
+    "glob/not-a-directory": "ディレクトリではありません",
+    "grep/files": "{count} 個のファイル",
+    "grep/files-part": "{from}–{to} 個目のファイル（全 {total} 個）",
+    "grep/counts": "{count} 個のファイル",
+    "grep/counts-part": "{from}–{to} 個目のファイル（全 {total} 個）",
+    "grep/matches": "{count} 箇所",
+    "grep/matches-part": "{from}–{to} 箇所目",
+    "grep/matches-more": "{from}–{to} 箇所目、続きがあります",
+    "grep/none": "見つかりません",
+    "grep/past-end": "すべてスキップしました（全 {total} 件）",
+    "grep/bad-pattern": "正規表現の書き方が正しくありません：{error}",
+    "write/created": "新規作成、{count} 行",
+    "write/updated": "上書き、{count} 行",
+    "common/not-read": "まだ読んでいません。先に読んでください",
+    "common/stale": "読んだ後に変更されています。読み直してください",
+    "common/directory": "ディレクトリです",
+    "common/not-a-regular-file": "通常のファイルではありません",
+    "common/write-failed": "書き込めません：{error}",
+    "edit/edited": "{count} 箇所を変更",
+    "edit/no-edits": "変更内容がありません",
+    "edit/empty": "{index} 箇所目の元の文字列が空です",
+    "edit/same": "{index} 箇所目は変更前後が同じです",
+    "edit/not-found": "{index} 箇所目が見つかりません",
+    "edit/not-found-near": "{index} 箇所目が見つかりません。いちばん近いのは {line} 行目です",
+    "edit/not-unique": "{index} 箇所目が {count} 箇所に一致します",
+    "edit/overlap": "{first} 箇所目と {second} 箇所目が重なっています",
+    "edit/not-text": "テキストファイルではありません",
+    "trash/trashed": "ゴミ箱に移しました",
+    "trash/unavailable": "ゴミ箱に入れられないため、削除していません",
+    "trash/protected": "作業ディレクトリ、その上位、ホーム、ルートは削除できません",
+    "trash/lost": "削除しましたが、ゴミ箱に見つかりません",
+    "trash/failed": "削除できません：{error}",
+    "shell/done": "出力 {count} 行",
+    "shell/quiet": "出力なし",
+    "shell/exited": "終了コード {code}",
+    "shell/signal": "シグナル {signal} で停止しました",
+    "shell/timed-out": "{seconds} 秒を超えたため停止しました",
+    "shell/failed": "実行できません：{error}",
+    "shell/no-background": "ここではバックグラウンドで実行できません",
+    "shell/background": "バックグラウンドで実行：{job}",
+    "history/found": "{count} 件見つかりました",
+    "history/read": "{from}–{to} 件目を読みました",
+    "history/none": "見つかりません",
+    "history/no-log": "記録を読めません：{error}",
+    "agent/started": "起動しました：{job}",
+    "agent/not-started": "起動できません",
+    "jobs/listed": "{count} 件のタスク",
+    "jobs/none": "タスクはありません",
+    "jobs/output": "{job} の出力を読みました",
+    "jobs/stopped": "{job} を停止しました",
+    "jobs/unknown": "タスク {id} はありません",
+    "jobs/ended": "{job} はすでに終了しています",
+    "message_agent/sent": "送りました：{to}",
+    "message_agent/no-parent": "親セッションがありません",
+    "message_agent/not-yours": "{to} はこのセッションが起動したサブエージェントではありません",
+    "message_agent/stopped": "{to} はすでに停止しています",
+    "message_agent/not-sent": "送れませんでした"
+  }
+}
