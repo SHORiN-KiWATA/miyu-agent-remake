@@ -3,6 +3,8 @@
 
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
 
+pub mod router;
+
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -32,6 +34,7 @@ use miyu_tool::Catalog;
 pub struct Home {
     dir: PathBuf,
     pub root: DataRoot,
+    core: Arc<Core>,
     running: tokio::task::JoinHandle<std::convert::Infallible>,
 }
 
@@ -86,8 +89,13 @@ impl Home {
             )
             .with_sandbox(sandbox),
         );
-        let running = tokio::spawn(miyu_endpoint::run(opened.listener, core));
-        Home { dir, root, running }
+        let running = tokio::spawn(miyu_endpoint::run(opened.listener, Arc::clone(&core)));
+        Home {
+            dir,
+            root,
+            core,
+            running,
+        }
     }
 
     /// 在真的套接字上连上核心，照 `plan` 说一句。`presses` 是 Ctrl+C。
@@ -214,6 +222,49 @@ impl Home {
         read_events(&self.root.session_dir(&AccountIdOf::admin(), session)).unwrap_or_default()
     }
 
+    /// `miyu ask` 开的那一个一次性会话：子会话不是一次性的（施工 7-9）。等它造出来，最多十秒。
+    pub async fn oneshot(&self) -> SessionId {
+        within("造出一次性会话", async {
+            loop {
+                let found = self.sessions().into_iter().find(|session| {
+                    self.log(session).first().is_some_and(
+                        |first| matches!(&first.body, Body::SessionCreated(created) if created.oneshot),
+                    )
+                });
+                if let Some(session) = found {
+                    return session;
+                }
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+    }
+
+    /// 等核心那边的连接都断了，最多十秒（施工 7-9）：断了，头的订阅都放下了，会话知道没人看着了。
+    pub async fn until_disconnected(&self) {
+        within("连接都断了", async {
+            while self.core.connections() > 0 {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await;
+    }
+
+    /// 等会话 `session` 的日志里结束了 `turns` 轮，最多十秒（施工 7-9）。
+    pub async fn until_ended(&self, session: &SessionId, turns: usize) {
+        let ended = |log: &[Event]| {
+            log.iter()
+                .filter(|event| matches!(event.body, Body::TurnEnded(_)))
+                .count()
+        };
+        within("结束那几轮", async {
+            while ended(&self.log(session)) < turns {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await;
+    }
+
     /// 等到有一个会话开了回合，交回它。最多十秒。
     pub async fn until_a_turn_starts(&self) -> SessionId {
         within("开了回合", async {
@@ -272,8 +323,17 @@ pub fn dirs() -> Dirs {
 
 /// 在真的套接字上连上 `root` 的核心，照 `plan` 说一句。`presses` 是 Ctrl+C。
 pub async fn ask_at(root: &DataRoot, plan: &Plan, presses: mpsc::Receiver<()>) -> Asked {
+    ask_onto(root, plan, presses, Tape::default()).await
+}
+
+/// 同 [`ask_at`]，印在 `tape` 上：测试一边说一边看屏幕，看到哪一行再按 Ctrl+C（施工 7-9）。
+pub async fn ask_onto(
+    root: &DataRoot,
+    plan: &Plan,
+    presses: mpsc::Receiver<()>,
+    tape: Tape,
+) -> Asked {
     let (connection, token) = miyu_ipc::connect(root).await.expect("连得上");
-    let tape = Tape::default();
     let (mut out, mut err) = (tape.pen(false), tape.pen(true));
     let mut screen = Screen {
         out: &mut out,
@@ -385,6 +445,7 @@ pub fn plan(text: &str) -> Plan {
         language: Language::Chinese,
         human: Human::load(&resources(), "zh").expect("出厂的字读得出来"),
         home: None,
+        timeout: None,
     }
 }
 

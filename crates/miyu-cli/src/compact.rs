@@ -163,6 +163,7 @@ pub async fn compact_on(
         session: &session,
         queued: "send",
         language,
+        deadline: None,
     };
     follow_turn(&mut rpc, &mut follow, &watching, screen, presses).await
 }
@@ -188,6 +189,7 @@ fn printing(language: Language) -> Plan {
         language,
         human: Human::default(),
         home: None,
+        timeout: None,
     }
 }
 

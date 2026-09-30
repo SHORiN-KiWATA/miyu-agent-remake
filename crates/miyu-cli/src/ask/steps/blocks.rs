@@ -8,13 +8,13 @@ use crate::language::Language;
 use crate::shown::{Ink, Line, keep_tabs, strip_escapes};
 
 /// 执行命令那一块：标题是 `<符号> <命令的第一行>`，不写显示名，不截；第二行起一行一行放在下面，前面写 `> `。
-/// 结果是工具自己写的（`by_tool`），下面接着印结果里的字，标题不写结果那一句；不是的（被拒了、没跑就被打断了……），
-/// 标题后面写结果那一句，下面不印。状态是 `error` 的，符号是红的。
+/// `output` 是结果里的字是命令的输出（工具自己写的、不是放到后台的回执，施工 7-9）：下面接着印，标题不写结果那一句；
+/// 不是的（被拒了、没跑就被打断了、放到后台了……），标题后面写结果那一句，下面不印。状态是 `error` 的，符号是红的。
 pub(super) fn command(
     icon: &str,
     command: &str,
     body: &Value,
-    by_tool: bool,
+    output: bool,
     outcome: &Outcome,
     language: &Language,
 ) -> Drawn {
@@ -30,8 +30,8 @@ pub(super) fn command(
     let mut below: Vec<Line> = rows
         .map(|row| Line::inked(Ink::Plain, format!("> {}", keep_tabs(row))))
         .collect();
-    match by_tool {
-        true => below.extend(output(body)),
+    match output {
+        true => below.extend(printed(body)),
         false => outcome.tell(&mut title, language),
     }
     Drawn { title, below }
@@ -40,7 +40,7 @@ pub(super) fn command(
 /// 结果里的字，她看到的原样：几块文字照先后接起来，一行一行印；终端的控制序列去掉；末尾的换行不多出一个空行。
 /// 开头、末尾的空行不印，行首的缩进照留：一块前后的空行由印的这边管（施工 4-11 实测：`cargo test` 末尾自带一个
 /// 空行，接上一块后面的空行，就空了两行）。
-fn output(body: &Value) -> Vec<Line> {
+fn printed(body: &Value) -> Vec<Line> {
     let text: String = body["blocks"]
         .as_array()
         .into_iter()

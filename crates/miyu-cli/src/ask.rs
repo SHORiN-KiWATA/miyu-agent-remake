@@ -1,5 +1,6 @@
 //! `miyu ask`（`docs/designs/22-命令行.md` 第三节，施工 3-9 下）：连上核心（没在跑就拉起来），开一个一次性
-//! 会话，或者接着说；把一句话发给她，边收边打，她做的每一步印成一行（施工 4-5 下）；问完印一行用量。
+//! 会话，或者接着说；把一句话发给她，边收边打，她做的每一步印成一行（施工 4-5 下）；问完印一行用量。她派了子代理的，
+//! 等它们都报回来、被叫醒的几轮也印完才退出（施工 7-9）。
 
 pub(crate) mod follow;
 mod steps;
@@ -32,6 +33,7 @@ pub(crate) fn usage_line(language: &Language, sum: &Sum) -> String {
 use std::io::{self, IsTerminal, Write};
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};
+use std::time::Duration;
 
 use clap::{Args, ValueEnum};
 use tokio::sync::mpsc;
@@ -51,7 +53,7 @@ pub mod exit {
     pub const OK: u8 = 0;
     /// 出错了：核心、模型或工具出了问题。
     pub const ERROR: u8 = 1;
-    /// 被打断了：按了 Ctrl+C。
+    /// 被打断了：按了 Ctrl+C；等子代理的时候不等了，到了 `--timeout`（施工 7-9）。
     pub const INTERRUPTED: u8 = 3;
     /// 有几步要人确认，这里不问，没做（`22-命令行.md` O3）。
     pub const UNATTENDED: u8 = 4;
@@ -80,6 +82,9 @@ pub struct Ask {
     /// 附件：可以写好几次，照写的先后（施工 3-9 三补）。读参数时只换成绝对的，读不读得了、多大由核心说。
     #[arg(long = "file", value_name = "FILE", value_parser = absolute)]
     pub file: Vec<PathBuf>,
+    /// 最多等多久（施工 7-9）：从发出算到全部了结，到了打断、不再等。
+    #[arg(long, value_name = "TIME", value_parser = duration)]
+    pub timeout: Option<Duration>,
 }
 
 /// `--file` 的值：相对的照敲命令时的目录接成绝对的。
@@ -101,6 +106,29 @@ fn directory(value: &str) -> Result<PathBuf, String> {
     } else {
         Err("not a directory".to_string())
     }
+}
+
+/// `--timeout` 的值（施工 7-9）：正整数，后面可以跟单位 `s`、`m`、`h`，不写是秒，照 GNU `timeout` 的写法；0、负数、小数、
+/// 别的单位读不成，照「参数写错时」说（`cli/main.md`）。
+fn duration(value: &str) -> Result<Duration, String> {
+    let (number, seconds) = match value.as_bytes().last() {
+        Some(b's') => (&value[..value.len() - 1], 1),
+        Some(b'm') => (&value[..value.len() - 1], 60),
+        Some(b'h') => (&value[..value.len() - 1], 3600),
+        _ => (value, 1),
+    };
+    let bad = || "not a duration".to_string();
+    // `u64` 自己读的时候认前面的 `+`：先查只有数字。
+    if number.is_empty() || !number.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Err(bad());
+    }
+    number
+        .parse::<u64>()
+        .ok()
+        .filter(|n| *n > 0)
+        .and_then(|n| n.checked_mul(seconds))
+        .map(Duration::from_secs)
+        .ok_or_else(bad)
 }
 
 /// 输出的格式。
@@ -144,6 +172,8 @@ pub struct Plan {
     pub human: Human,
     /// 家目录：路径写成 `~/…`。
     pub home: Option<PathBuf>,
+    /// 最多等多久（施工 7-9）：从发出算到全部了结；没有的一直等。
+    pub timeout: Option<Duration>,
 }
 
 /// 写到哪里：回答写 `out`，思考、用量、出错写 `err`；`gray` 的思考、用量是灰色。
@@ -239,6 +269,7 @@ fn plan(args: Ask, env: &Env, language: Language) -> Plan {
         language,
         human: human(env, &language),
         home: env.home.clone(),
+        timeout: args.timeout,
     }
 }
 

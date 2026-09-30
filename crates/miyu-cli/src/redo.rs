@@ -177,6 +177,7 @@ pub async fn redo_on(
         session: &session,
         queued: "return",
         language,
+        deadline: None,
     };
     follow_turn(&mut rpc, &mut follow, &watching, screen, presses).await
 }
@@ -201,6 +202,7 @@ fn printing(plan: &RedoPlan) -> Plan {
         language: plan.language,
         human: plan.human.clone(),
         home: plan.home.clone(),
+        timeout: None,
     }
 }
 

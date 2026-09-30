@@ -36,8 +36,10 @@ pub(crate) enum Message {
         command: Command,
         reply: oneshot::Sender<Outcome>,
     },
-    /// 要订阅：从这一刻起的推送都交给它。
+    /// 要订阅：从这一刻起的推送都交给它。一个订阅算一个在看着的头（施工 7-9）。
     Subscribe(oneshot::Sender<broadcast::Receiver<Arc<Pushed>>>),
+    /// 放下了一个订阅（施工 7-9）：订阅被丢掉时由它自己送来，连同要订阅、没等到回答就不等了的。
+    Unsubscribed,
     /// 有计划地停下：它的事件都落了盘，actor 退出以前交回一声。
     Stop(oneshot::Sender<()>),
     /// 删会话之前停下（施工 3-8 三补）：`force` 是假的，内核说删不了就交回原因、照常跑；删得了、或者 `force`，后台命令
@@ -127,13 +129,22 @@ impl Handle {
     /// 订阅：从这一刻起，落了盘的事件和瞬时事件照先后交过来。在发命令之前订阅的，这个命令产生的
     /// 事件一定先于它的回应到（`04-核心协议.md` 第六节第 2 条）。
     ///
+    /// 拿着订阅就算一个头在看着这个会话：没人看着的一次性会话，回报只记下、不叫醒她（`agents.md` 第三条第 3 条，施工
+    /// 7-9）。订阅放下了（丢掉它、连接断了），自己告诉 actor。
+    ///
     /// # Errors
     ///
     /// 会话停了。
     pub async fn subscribe(&self) -> Result<Subscription, Stopped> {
         let (reply, answer) = oneshot::channel();
         self.send(Message::Subscribe(reply))?;
-        answer.await.map(Subscription::new).map_err(|_| Stopped)
+        // 送进去了才算数：等回答的时候不等了（这个 future 被丢掉），它照样放下、告诉 actor，一来一去对得上。
+        let watching = Watching(self.inbox.downgrade());
+        let pushes = answer.await.map_err(|_| Stopped)?;
+        Ok(Subscription {
+            _watching: Some(watching),
+            ..Subscription::new(pushes)
+        })
     }
 
     /// 有计划地停下：送进「要重启了」，等它产生的事件落了盘，actor 退出（`02-内核.md` 第六节
@@ -252,6 +263,25 @@ pub struct Subscription {
     pushes: broadcast::Receiver<Arc<Pushed>>,
     /// 掉过队了：这个订阅作废，头重新订阅。
     lagged: bool,
+    /// 放下时告诉 actor 少了一个看着的头（施工 7-9）；测试里直接造的没有。只为了它放下的那一刻拿着，不读。
+    _watching: Option<Watching>,
+}
+
+/// 一个看着会话的头：跟着订阅走，放下时往 actor 的收件箱送一声（施工 7-9）。拿的是弱的一头：不因为还有订阅，就不让
+/// 拿着 `Handle` 的都放下以后 actor 退出（`docs/blueprint/session/actor.md` 第 9 条）。
+#[derive(Debug)]
+struct Watching(mpsc::WeakUnboundedSender<Message>);
+
+impl Drop for Watching {
+    #[expect(
+        clippy::let_underscore_must_use,
+        reason = "actor 已经退出了：没人要知道少了一个头，丢掉"
+    )]
+    fn drop(&mut self) {
+        if let Some(inbox) = self.0.upgrade() {
+            let _ = inbox.send(Message::Unsubscribed);
+        }
+    }
 }
 
 /// 订阅断了。
@@ -268,6 +298,7 @@ impl Subscription {
         Subscription {
             pushes,
             lagged: false,
+            _watching: None,
         }
     }
 

@@ -12,7 +12,7 @@
 |---|---|
 | `crates/miyu/src/main.rs` | 子命令 `compact`；换上帮助页；拉起核心用的命令是自己加上 `core`（`cli/main.md`） |
 | `crates/miyu-cli/src/compact.rs` | 参数、找数据根、连核心、握手、找会话、订阅、发、跟着那一轮、Ctrl+C、退出码 |
-| `crates/miyu-cli/src/ask/talk.rs` 的 `follow_turn`，`ask/follow.rs`、`ask/follow/compacting.rs` | 跟着那一轮、Ctrl+C；收推送：压缩那一行、用量那一行、说为什么结束的那一句；和 `miyu ask` 共用 |
+| `crates/miyu-cli/src/ask/talk.rs` 的 `follow_turn`，`ask/follow.rs`、`ask/follow/compacting.rs`、`ask/follow/ending.rs` | 跟着那一轮、Ctrl+C；收推送：压缩那一行、用量那一行、说为什么结束的那一句（收尾在 `ending.rs`，施工 7-9 挪过去）；和 `miyu ask` 共用，不等子代理 |
 | `crates/miyu-cli/src/link.rs`、`rpc.rs`、`shown.rs` | 握手、发请求等回应、找最新的一次性会话、请求的编号、上色；和 `miyu ask`、`miyu undo` 共用 |
 | `crates/miyu-cli/src/help/{zh,en}/compact.txt` | 帮助页（`cli/main.md`「帮助页」） |
 

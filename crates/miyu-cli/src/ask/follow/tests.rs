@@ -29,6 +29,7 @@ fn plan(format: Format, language: Language) -> Plan {
         language,
         human: Human::load(&resources, language.code()).expect("出厂的字读得出来"),
         home: Some(under(&["home"])),
+        timeout: None,
     }
 }
 
@@ -359,3 +360,4 @@ mod compaction;
 mod redo;
 mod sample;
 mod unattended;
+mod waiting;

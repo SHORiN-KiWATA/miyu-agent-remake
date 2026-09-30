@@ -181,3 +181,17 @@ fn an_added_dir_that_is_not_there_has_its_sentence() {
         "--add-dir needs an existing directory: no-such-dir-for-miyu-cli-tests"
     );
 }
+
+/// `--timeout` 后面不是一个时长（施工 7-9）：照写的原样说是哪一个，举几个能写的样子。
+#[test]
+fn a_timeout_that_is_not_a_duration_has_its_sentence() {
+    let args = ["ask", "--timeout", "5min", "hi"];
+    assert_eq!(
+        said(&args, Language::Chinese),
+        "--timeout 后面要写一个时长，例如 30s、10m、1h：5min"
+    );
+    assert_eq!(
+        said(&args, Language::English),
+        "--timeout needs a duration such as 30s, 10m or 1h: 5min"
+    );
+}

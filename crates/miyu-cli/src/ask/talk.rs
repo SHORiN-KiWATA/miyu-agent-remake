@@ -1,12 +1,13 @@
 //! 在一条连上了的连接上把一句话说完（施工 3-9 下）：握手、传附件（施工 3-9 三补）、找会话、订阅、发，跟着那一轮边收
-//! 边打。跟着那一轮的那一段（[`follow_turn`]）`miyu compact` 也用（施工 6-8）。
+//! 边打；她派了子代理的，接着等它们报回来（施工 7-9）。跟着那一轮的那一段（[`follow_turn`]）`miyu compact` 也用（施工 6-8）。
 
 use serde_json::{Value, json};
 use tokio::sync::mpsc;
+use tokio::time::Instant;
 
 use miyu_ipc::Connection;
 
-use super::follow::{Follow, Step};
+use super::follow::{Follow, Leaving, Step};
 use super::{Plan, Screen, Target, exit};
 use crate::language::Language;
 use crate::link;
@@ -14,7 +15,8 @@ use crate::rpc::Rpc;
 use crate::shown::say;
 
 /// 握手、找会话、订阅、发，跟着那一轮边收边打，交回退出码。`presses` 是一次次的 Ctrl+C：第一次打断这一轮
-/// （排着的退回），等它收尾；第二次不等了。
+/// （排着的退回），等它收尾；第二次不等了。她派了子代理的，等它们都报回来、被叫醒的几轮也结束（施工 7-9）：等的时候按
+/// Ctrl+C 是不等了；`plan.timeout` 从发出算起，到了打断、不再等。
 pub async fn talk(
     connection: Connection,
     token: &str,
@@ -55,6 +57,10 @@ pub async fn talk(
     if !attachments.is_empty() {
         send["attachments"] = Value::Array(attachments);
     }
+    // 从发出算起（施工 7-9）；长到算不出那一刻的，当没写。
+    let deadline = plan
+        .timeout
+        .and_then(|timeout| Instant::now().checked_add(timeout));
     let sent = match rpc.send("session.send", send).await {
         Ok(sent) => sent,
         Err(error) => {
@@ -63,6 +69,7 @@ pub async fn talk(
         }
     };
     let mut follow = Follow::new(&session, &sent, plan);
+    follow.waits();
     // 握手的回应说沙盒用不了：执行命令都要确认，这里确认不了，最先说一句（施工 5-4 下）。
     if let Some(reason) = &unsandboxed {
         follow.unsandboxed(reason, screen);
@@ -76,20 +83,24 @@ pub async fn talk(
         session: &session,
         queued: "return",
         language: &plan.language,
+        deadline,
     };
     follow_turn(&mut rpc, &mut follow, &watching, screen, presses).await
 }
 
-/// 跟着一轮时要的几样：重新订阅用的参数、哪个会话、打断时排着的怎么办（`return` 退回、`send` 接着发）、界面语言。
+/// 跟着一轮时要的几样：重新订阅用的参数、哪个会话、打断时排着的怎么办（`return` 退回、`send` 接着发）、界面语言、最多等到
+/// 什么时候（`--timeout`，施工 7-9；没有的一直等）。
 pub(crate) struct Watching<'a> {
     pub(crate) subscribe: &'a Value,
     pub(crate) session: &'a str,
     pub(crate) queued: &'a str,
     pub(crate) language: &'a Language,
+    pub(crate) deadline: Option<Instant>,
 }
 
 /// 跟着那一轮边收边打，交回退出码（施工 6-8 从 [`talk`] 拆出来，`miyu compact` 也用）：收到 `resync` 重新订阅，不补看
-/// 掉的那些；第一次 Ctrl+C 打断这一轮，排着的照 `watching.queued` 办，等它收尾；第二次不等了，说「打断了」。
+/// 掉的那些；第一次 Ctrl+C 打断这一轮，排着的照 `watching.queued` 办，等它收尾；第二次不等了，说「打断了」。等子代理的
+/// 时候（施工 7-9）按 Ctrl+C 不等了；到了 `watching.deadline`，有回合在进行的打断它，不再等。
 pub(crate) async fn follow_turn(
     rpc: &mut Rpc,
     follow: &mut Follow<'_>,
@@ -102,7 +113,9 @@ pub(crate) async fn follow_turn(
         session,
         queued,
         language,
+        deadline,
     } = watching;
+    let interrupt = json!({"session": session, "queued": queued});
     let mut interrupting = false;
     loop {
         tokio::select! {
@@ -123,18 +136,36 @@ pub(crate) async fn follow_turn(
                 }
             }
             Some(()) = presses.recv() => {
+                if follow.waiting() {
+                    return follow.leave(Leaving::Pressed, screen);
+                }
                 if interrupting {
                     say(screen.err, &language.interrupted());
                     return exit::INTERRUPTED;
                 }
                 interrupting = true;
-                let interrupt = json!({"session": session, "queued": queued});
-                if rpc.send("session.interrupt", interrupt).await.is_err() {
+                if rpc.send("session.interrupt", interrupt.clone()).await.is_err() {
                     say(screen.err, &language.disconnected());
                     return exit::ERROR;
                 }
             }
+            () = until(*deadline) => {
+                // 有回合在进行（还没认出第一轮的也当它在进行）：叫它打断，不等它收尾。发不出去的，核心已经断开了。
+                if !follow.waiting() && rpc.send("session.interrupt", interrupt.clone()).await.is_err() {
+                    say(screen.err, &language.disconnected());
+                    return exit::ERROR;
+                }
+                return follow.leave(Leaving::TimedOut, screen);
+            }
         }
+    }
+}
+
+/// 等到 `deadline`；没有的一直等。
+async fn until(deadline: Option<Instant>) {
+    match deadline {
+        Some(deadline) => tokio::time::sleep_until(deadline).await,
+        None => std::future::pending().await,
     }
 }
 

@@ -82,7 +82,7 @@ pub struct Opening {
     pub sandbox_cache: Option<SandboxCache>,
 }
 
-/// 造会话时另外可以换的三样（施工 7-5）：派子代理用的。
+/// 造会话时另外可以换的几样：派子代理用的三样（施工 7-5），一次性的（施工 7-9）。
 pub struct Lines {
     /// 场所：默认在本机。
     pub venue: VenueId,
@@ -92,6 +92,8 @@ pub struct Lines {
     pub sessions: Option<Arc<dyn SessionPort>>,
     /// 造会话的命令编号：默认 `cmd-0`；子会话向上回报时照它读回任务编号（`<父会话>/<编号>`，施工 7-6）。
     pub command: Option<CommandId>,
+    /// 一次性的（`miyu ask` 开的那种）：没有头订阅着时回报只记下（施工 7-9）。默认不是。
+    pub oneshot: bool,
 }
 
 impl Default for Lines {
@@ -102,6 +104,7 @@ impl Default for Lines {
             lineage: None,
             sessions: None,
             command: None,
+            oneshot: false,
         }
     }
 }
@@ -202,7 +205,7 @@ impl Home {
             owner: alice_account(),
             permission: opening.permission,
             attended: opening.attended,
-            oneshot: false,
+            oneshot: lines.oneshot,
             environment: Environment {
                 cwd: opening.cwd,
                 dirs: opening.dirs,

@@ -26,6 +26,7 @@ fn ask(words: &[&str]) -> Ask {
         format: Format::Text,
         add_dir: Vec::new(),
         file: Vec::new(),
+        timeout: None,
     }
 }
 
@@ -107,4 +108,42 @@ fn files_are_made_absolute_and_kept_in_order() {
     let planned = plan(args, &env(resources, None), Language::English);
     let shown = |path: &PathBuf| path.to_string_lossy().into_owned();
     assert_eq!(planned.files, [shown(&a), shown(&b), shown(&a)]);
+}
+
+/// `--timeout` 的写法（施工 7-9）：正整数跟 `s`、`m`、`h`，不写是秒；别的读不成。带进这一次的打算里。
+#[test]
+fn timeout_is_a_whole_number_of_seconds_minutes_or_hours() {
+    for (value, seconds) in [
+        ("30", 30),
+        ("30s", 30),
+        ("10m", 600),
+        ("1h", 3600),
+        ("007", 7),
+    ] {
+        assert_eq!(duration(value), Ok(Duration::from_secs(seconds)), "{value}");
+    }
+    for value in [
+        "",
+        "0",
+        "0s",
+        "s",
+        "-5",
+        "+5",
+        "1.5",
+        "5d",
+        "5 m",
+        "1ms",
+        "五分",
+        "99999999999999999999",
+        "18446744073709551615h",
+    ] {
+        assert!(duration(value).is_err(), "{value}");
+    }
+    let resources = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");
+    let waiting = Ask {
+        timeout: Some(Duration::from_secs(5)),
+        ..ask(&["hi"])
+    };
+    let plan = plan(waiting, &env(resources, None), Language::Chinese);
+    assert_eq!(plan.timeout, Some(Duration::from_secs(5)));
 }

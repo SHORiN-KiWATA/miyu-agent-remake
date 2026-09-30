@@ -4,6 +4,7 @@
 
 use crate::ask::usage_line;
 
+mod agents;
 mod sandbox;
 mod undo;
 

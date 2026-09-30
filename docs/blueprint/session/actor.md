@@ -10,10 +10,11 @@
 |---|---|
 | `crates/miyu-session/src/open.rs` | 造会话、载入：备好磁盘上的，交给内核，起 actor |
 | `crates/miyu-session/src/actor.rs` | actor 本身：收件箱、一批批送进内核、每个动作怎么回、停下 |
+| `crates/miyu-session/src/actor/mail.rs` | 人的那条收件箱里的一封怎么办；数着拿着订阅的头，交内核 `Watched`（施工 7-9 从 `actor.rs` 挪出来） |
 | `crates/miyu-session/src/actor/model.rs` | 请求模型：交给端口、叫停、说完了记一行 |
 | `crates/miyu-session/src/actor/stop.rs` | 有计划地停下：要重启了、后台命令记 `restarted`、落了盘再整组杀（施工 7-3） |
 | `crates/miyu-session/src/actor/store.rs` | 写盘；撤掉压缩时读回日志（施工 6-9） |
-| `crates/miyu-session/src/handle.rs` | `Handle`：发命令、订阅、停下；推送和订阅 |
+| `crates/miyu-session/src/handle.rs` | `Handle`：发命令、订阅、停下；推送和订阅；订阅放下时告诉 actor（施工 7-9） |
 | `crates/miyu-session/src/port.rs` | 请求模型的端口：`Models`、`ModelPort`、`Reports`、`Cancel` |
 | `crates/miyu-session/src/http.rs` | 端口的真实现：经驱动和 HTTP 执行器请求 |
 | `crates/miyu-session/src/clock.rs` | 会话的时钟、新的会话编号 |
@@ -59,7 +60,7 @@
 | `discard()` | 同 `delete()`，只是不问删不删得了：父会话被删，子会话一起停（`agents.md` 第七条第 5 条） |
 | `environment(环境)` | 环境变了：工作目录、时区 |
 
-`Pushed` 有两种：`Events`，落了盘的几条事件，照先后；`Transient`，一条瞬时事件，不落盘。`Subscription` 有 `next()`（等下一份）、`try_next()`（不等，没到的是空的）；断了的是 `Ended::Lagged`（掉了队）或 `Ended::Stopped`（会话停了）。
+`Pushed` 有两种：`Events`，落了盘的几条事件，照先后；`Transient`，一条瞬时事件，不落盘。`Subscription` 有 `next()`（等下一份）、`try_next()`（不等，没到的是空的）；断了的是 `Ended::Lagged`（掉了队）或 `Ended::Stopped`（会话停了）。拿着一个 `Subscription` 就算一个在看着这个会话的头，放下它（丢掉、连接断了）自己告诉 actor（施工 7-9，第 3 条）。
 
 端口：`Models::port(ForSession)` 给一个会话造端口，`ForSession` 带这个会话的驱动占位（取自策略快照）和属主的 blob。`ModelPort::model()` 交回端点的编号和模型名；`ModelPort::call(seen, 请求, Reports, Cancel)` 马上返回，在别的任务里发。`Reports` 有 `sent(模型, 请求字节的哈希)`、`delta(增量)`、`ended(用量, 出错, 要等多久)`；`Cancel::wait()` 等到被叫停。
 
@@ -98,7 +99,7 @@
 
 1. 一个会话一个 tokio 任务，带着会话的 span：`error_span!`，目标 `miyu::session`，名字 `session`，一格 `session` 是会话编号。开在 `ERROR` 级，调到 `WARN` 也筛不掉，底下的行都带着会话编号（`log.md`）。外面再套一个看着它的任务。
 2. 两条通道，都不设上限：
-   - 人的：`Handle` 发来的命令、订阅、停下、删之前停下（施工 3-8 三补）、环境变了。拿着 `Handle` 的都放下了，它就关了。
+   - 人的：`Handle` 发来的命令、订阅、放下了订阅（施工 7-9）、停下、删之前停下（施工 3-8 三补）、环境变了。拿着 `Handle` 的都放下了，它就关了：订阅放下时往里送一声拿的是弱的一头，不因为还有订阅就不关。
    - 执行器的回报：请求的回报、到点了、工具的回报、后台命令结束了（施工 7-3）。actor 自己也拿着一头，它不会自己关。
 3. 两条都有的时候，先收执行器的回报：读流不断。
 4. 人的一封：
@@ -106,7 +107,8 @@
    | 来的 | 怎么办 |
    |---|---|
    | 命令 | 记下等它回应的那一头，照 actor 的时钟记下到的时刻，送进内核 |
-   | 订阅 | 当场交回一个订阅，不进内核 |
+   | 订阅 | 当场交回一个订阅。拿着订阅的头从没有变成有，送 `Watched { watched: true }` 进内核（施工 7-9） |
+   | 放下了订阅（施工 7-9） | `Subscription` 被丢掉时自己送来（要订阅、送进来了、没等到回答就不等了的也送）。拿着订阅的头从有变成没有，送 `Watched { watched: false }` 进内核；别的不进内核。造会话、载入时是 0 个，和内核一样当没人看着（`kernel/session.md`「回报」第 6 条） |
    | 环境变了 | 送进内核：不当场注入，到下一个边界再查（`kernel/session.md`） |
    | 停下 | 第 9 条 |
    | 停掉任务（施工 7-4） | 后台命令当场在阻塞线程里杀、存，回报当场交进内核、落了盘再回；子代理另起一个任务经会话表去停，回报送回来落了盘再回：不在收件箱里等，回报才送得进来（`crates/miyu-session/src/actor/halt.rs`，`session/tools.md` 第 6 条） |
@@ -262,7 +264,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | DEBUG | `input` | `kind` | 每一条输入送进内核之前；增量、执行中的输出记在 TRACE |
 | DEBUG | `action` | `kind` | 每一个动作做之前；推送增量、推送执行中的输出记在 TRACE |
 
-- 输入的种类：`command`、`stored`、`environment`、`turn_start_hooks_done`、`request_sent`、`model_delta`、`model_ended`、`woke`、`tool_done`、`tool_progress`、`tool_asks`、`restarting`、`restored`、`read_back`、`recalled`、`tool_guarded`、`job_ended`。
+- 输入的种类：`command`、`stored`、`environment`、`turn_start_hooks_done`、`request_sent`、`model_delta`、`model_ended`、`woke`、`tool_done`、`tool_progress`、`tool_asks`、`restarting`、`restored`、`read_back`、`recalled`、`tool_guarded`、`job_ended`、`watched`（施工 7-9）。
 - 动作的种类：`append`、`reply`、`push`、`run_turn_start_hooks`、`call_model`、`push_transient`、`cancel_model`、`wake`、`run_turn_end_hooks`、`cancel_tool`、`guard_tool`、`answer_tool`、`run_tool`、`restore`、`read_back`、`recall`、`report`（施工 7-6）。
 - 只写种类、编号、数，不写里面的字。
 
@@ -300,6 +302,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | `crates/miyu-session/tests/undo_compaction.rs`（施工 6-9） | 真的会话：撤掉压缩所在的那一轮再恢复，不请求模型，检查点回来、重读的原文照 blob 取回；撤掉以后停了再载入，请求回到压缩前，那次压缩不算了 |
 | `crates/miyu-session/tests/report_up.rs`（施工 7-6） | 子会话把回报交给父会话：命令编号照报的那一轮、`by` 是子会话、任务编号照造它的命令读回；父会话先拒两次 `unknown_job` 再收，同一份交了三次；停了再载入同一份再交一次；父会话载入以后叫起还没回报的子会话，交代不再送 |
 | `crates/miyu-session/src/handle/tests.rs` | 掉过一次队就一直是掉队；会话停了读完剩下的；`try_next` 只拿已经到了的 |
+| `crates/miyu-session/tests/watched.rs`（施工 7-9） | 有没有头看着：一次性会话有头订阅着，后台命令结束叫醒她；走了一个头还有一个照样叫醒；订阅都放下了只记下；造会话以后没人订阅过的当没人看着，后来有头订阅也不因为以前的开轮 |
 | `crates/miyu-session/src/clock/tests.rs` | 时钟不往回走、1970 年以前当 0、出了范围停在最后一刻；会话编号是那一刻的 UUIDv7；同一毫秒里连造一千个照先后 |
 | `crates/miyu-session/tests/http.rs` | 经假服务器回复；限速照服务器说的等；打断断开连接；缺 blob 出错、不发；回复断了接着说；卡住的回复照空闲超时；图片照字节发出去 |
 | `crates/miyu-session/tests/log.rs` | 会话造、请求、出错、重试、收场、停下、载入、没人拿着、端口 panic 的几行；手动压缩的 `compacted` 写 `trigger=manual`（施工 6-8）；撤销以后 `changed=message:0:user`；`DEBUG` 的输入和动作、增量在 `TRACE`；没有对话的字 |
