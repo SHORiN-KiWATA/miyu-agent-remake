@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>144</b><span>/ 154 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；M8 下一步 8-2；在做 2-7 补、3-8 五补、C-1 等合并</span></li>
-    <li><b class="mono">d375ece0</b><span>最近一步（8-1 配置清单）的提交</span></li>
+    <li><b>146</b><span>/ 154 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 8-2 读配置、3-8 五补自动起标题；跨会话下一步 C-2、C-3</span></li>
+    <li><b class="mono">c44d9169</b><span>最近一步（2-7 补 切了权限告诉她）的提交</span></li>
   </ul>
 </header>
 
@@ -357,7 +357,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s2-7a"><span class="n">2-7</span>权限级别（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-7b"><span class="n">2-7</span>确认（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-7c"><span class="n">2-7</span>提问（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">2-7</span>切了权限告诉她（补）</span></li>
+        <li><a class="step done" href="#s2-7d"><span class="n">2-7</span>切了权限告诉她（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-8a"><span class="n">2-8</span>载入与崩溃恢复（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-8b"><span class="n">2-8</span>撤销与恢复（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-9a"><span class="n">2-9</span>执行器替身与场景（上）<span class="st">✓</span></a></li>
@@ -527,7 +527,7 @@ a.step:hover{border-color:var(--primary)}
     <li>
       <div class="ms-head"><span class="ms-id">C</span><span class="ms-name">跨会话</span><span class="ms-goal">她能列出、读、给别的会话发话，等它空下来；和 M8、M9 并行（2026-10-01 图纸 cross-session.md 定稿，项目主人批准）</span></div>
       <ol class="chips">
-        <li><span class="step"><span class="n">C-1</span>跨会话的事件和编号</span></li>
+        <li><a class="step done" href="#sC-1"><span class="n">C-1</span>跨会话的事件和编号<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">C-2</span>收别的会话发来的话</span></li>
         <li><span class="step"><span class="n">C-3</span>列会话</span></li>
         <li><span class="step"><span class="n">C-4</span>读别的会话</span></li>
@@ -2676,6 +2676,57 @@ a.step:hover{border-color:var(--primary)}
         <li><code>docs/designs/02-内核.md</code> 第六节「提问怎么走」「确认怎么走」第 4 条，第四节、第九节的表。</li>
         <li><code>docs/designs/03-事件模型.md</code> 第三节「提问的事件怎么写」；<code>04-核心协议.md</code> 的 <code>session.answer</code>；<code>10-自带软件.md</code> 的 <code>ask_user</code>；<code>13-终端界面.md</code> 第四节。</li>
         <li><code>docs/construction/2-7-提问（下）.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s2-7d" aria-labelledby="h-s27d">
+  <div class="sheet-head"><h2 id="h-s27d"><span class="no">2-7 补</span>切了权限告诉她（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">网页验收撞见：人把权限切到完全放开，她只看到光秃秃一行 <code>&lt;permission level="full"/&gt;</code>，<code>history</code> 也翻不到，只当成一句核实不了的声明。现在切过以后那一块写明从哪一级切来、是人切的，<code>history</code> 列出切换；system 多了「核心的几行」：权限规则、本机文件写绝对路径。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">切了权限告诉她（补）</span><span class="dir-note">2-7 补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>切过以后的边界用 <code>permission-changed.txt</code>：<code>level</code>、<code>previous</code>，写明 The user changed the permission level</li>
+              <li><code>history</code> 列带权限的 <code>session.policy_changed</code>，「谁」写 user</li>
+              <li>system 里核心的两句：<code>permission-rule.txt</code>（73）、<code>local-paths-rule.txt</code>（25）；没有工具的不带权限那句，以前造的会话不带</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">A/B 定 C</span><span class="rl">新模板 4 遍里 2 遍起疑、试探；加上权限规则 4 遍 0 遍</span></div>
+          <div class="tile new"><span class="nm">绝对路径那句</span><span class="rl">不加 3/4 用相对路径，一张图载入失败；加了写成图片的全是绝对路径</span></div>
+          <div class="tile"><span class="nm">头不画一行</span><span class="rl">项目主人定：时间线不画切换，底栏换级别</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-7 补</dd></div>
+        <div><dt>名称</dt><dd>切了权限告诉她（补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">c44d9169</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 A/B · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>变异 28 个，逮住 27 个，另 1 个是等价的；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型 A/B 三组 9 遍、图片路径 8 遍；合并前照 C 剧本复核两遍</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/2-7-切了权限告诉她（补）.md</code>；蓝图 <code>kernel/request.md</code>「事实」、<code>tools/history.md</code>、<code>policy.md</code>。</li>
       </ul>
     </div>
   </div>
@@ -10372,6 +10423,58 @@ a.step:hover{border-color:var(--primary)}
     </div>
   </div>
 </section>
+
+<section class="sheet" id="sC-1" aria-labelledby="h-sC1">
+  <div class="sheet-head"><h2 id="h-sC1"><span class="no">C-1</span>跨会话的事件和编号</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">跨会话这条线的第一步，和 M8 并行：会话的短编号，事件 <code>peer.idle</code>、效果 <code>peer.watch</code> 的类型、读写、样本，账本认得在等哪几个会话。这一步不收话、不列、不读、不发、不订，她和头都还看不到变化。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">跨会话的事件和编号</span><span class="dir-note">C-1</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>SessionId::short()</code>：会话编号最后 8 个字符</li>
+              <li><code>peer.idle</code>（idle、expired、gone）和 <code>peer.watch</code>，不认识的原因原样留着</li>
+              <li>账本 <code>ledger/peers.rs</code>：订自己的拒；通知只认在等的、<code>by</code> 对得上；撤掉订它的那一轮就不算在等</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">账本知道自己是谁</span><span class="rl"><code>Ledger::for_session</code>，内核造会话、载入时交</span></div>
+          <div class="tile new"><span class="nm">不认识的原因照收</span><span class="rl">新版本加的原因，旧核心也载入得了</span></div>
+          <div class="tile"><span class="nm">不渲染</span><span class="rl">peer.idle 进上下文随 C-6</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">C-1</dd></div>
+        <div><dt>名称</dt><dd>跨会话的事件和编号</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">35f6694b</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>26 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>变基到回顾以后样本挪号（126、130、134、138），ledger.rs 拆出任务的查询</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/C-1-跨会话的事件和编号.md</code>；蓝图 <code>cross-session.md</code>、<code>kernel/history.md</code>「在等的通知」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 
 
 <footer class="foot">
