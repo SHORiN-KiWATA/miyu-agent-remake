@@ -81,6 +81,11 @@ impl Refusal {
         code: REFUSED,
         reason: "unknown_job",
     };
+    /// 读输出的是子代理，不是后台命令（施工 7-4 补，`job.output`）：头订阅它的子会话看。
+    pub(crate) const NOT_A_COMMAND: Refusal = Refusal {
+        code: REFUSED,
+        reason: "not_a_command",
+    };
     /// 加进来的目录太宽（施工 5-10 上）：家目录、根目录、包含数据根的、落在数据根里的。
     pub(crate) const DIR_TOO_WIDE: Refusal = Refusal {
         code: REFUSED,
@@ -190,6 +195,10 @@ impl Refusal {
             "unknown_job" => (
                 "没有这个任务，或者它已经结束了。",
                 "There is no such job, or it has already ended.",
+            ),
+            "not_a_command" => (
+                "这是子代理，不是后台命令：去看它的会话。",
+                "This is a subagent, not a background command; open its session instead.",
             ),
             "nothing_to_compact" => (
                 "没有能压的：还没压过的内容都在原样留着的最近一段里。",

@@ -10,7 +10,7 @@ use std::time::Duration;
 use serde_json::{Value, json};
 use tokio::sync::mpsc;
 
-use miyu_cli::{Format, Plan};
+use miyu_cli::{Format, Plan, Target};
 use miyu_kernel::event::Body;
 use miyu_session::testkit::Play;
 use support::router::{Gate, Router};
@@ -152,6 +152,91 @@ async fn a_subagent_messaged_after_it_reported_is_waited_for_again() {
         "↗ 派子代理 查 A · 派出去了：j1\n\n派出去了。\n· 等 1 个子代理回报…（按 Ctrl+C 不等了）\n· j1「查 A」报回来了\n↗ 留言 j1 · 送到了：j1\n\n答它了。\n· j1「查 A」报回来了\n\nA 加好了。\n· 输入 500 · 命中缓存 200（40%）· 输出 50\n",
         "答了它以后还在等，它再报、叫醒的那一轮也印了"
     );
+}
+
+#[tokio::test]
+async fn a_subagent_from_before_is_waited_for_once_messaged_like_the_sample() {
+    // 施工 7-9 补（M7 验收自测撞见）：上一次派的 j1 在回报里问了一句，那时没人看着，只记下。这一次人答了，她留言转给 j1，
+    // 又派了 j3：两个都等，j1 那一行没有标题（这边没见过派它的那一条），j3 的照旧有；上一次派的 j2 没留言，不等（等它的话
+    // 它一直不报，说不完）。
+    let answer = json!({"to": "j1", "message": "改成 8080"}).to_string();
+    let mut router = Router::new(
+        "派 A、B 去查",
+        [
+            agent("查 A"),
+            agent("查 B"),
+            Play::Says("派出去了。"),
+            Play::calls(&[("message_agent", &answer)]),
+            agent("查 C"),
+            Play::Says("转给 A 了，C 也派出去了。"),
+            Play::Says("A 改好了。"),
+            Play::Says("C 也查完了。"),
+        ],
+    );
+    let a = router.gated(
+        "查 A",
+        [Play::Says("port 改成多少？"), Play::Says("改成 8080 了。")],
+    );
+    let _b = router.gated("查 B", [Play::Says("B 的结果。")]);
+    let c = router.gated("查 C", [Play::Says("C 的结果。")]);
+    let home = home(router);
+    // 上一次：派了 j1、j2，等的时候按 Ctrl+C 走了；j1 问的那一句到的时候没人看着。
+    let (press, presses) = mpsc::channel(4);
+    let tape = Tape::default();
+    let before = plan("派 A、B 去查");
+    let asking = ask_onto(&home.root, &before, presses, tape.clone());
+    let pressing = async {
+        within("印出等的那一行", async {
+            while !tape.text(|_| true).contains("等 2 个子代理回报") {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await;
+        press.send(()).await.expect("还在等");
+    };
+    let (Asked { code, err, .. }, ()) = tokio::join!(asking, pressing);
+    assert_eq!(code, 3, "{err}");
+    let main = home.oneshot().await;
+    home.until_connections(0).await;
+    a.open();
+    within("j1 问的那一句记下", async {
+        while !home
+            .log(&main)
+            .iter()
+            .any(|event| matches!(event.body, Body::ChildReported(_)))
+        {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await;
+    // 这一次：接着说，答 j1 的问题。
+    let (_press, presses) = mpsc::channel(1);
+    let now = Plan {
+        target: Target::Continue,
+        ..plan("port 改成 8080，再派个人查 C。")
+    };
+    let asking = ask_onto(&home.root, &now, presses, Tape::default());
+    let releasing = async {
+        home.until_ended(&main, 2).await;
+        a.open();
+        home.until_ended(&main, 3).await;
+        c.open();
+    };
+    let (
+        Asked {
+            code,
+            out,
+            err,
+            screen,
+        },
+        (),
+    ) = tokio::join!(asking, releasing);
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(out, "转给 A 了，C 也派出去了。\nA 改好了。\nC 也查完了。\n");
+    let sample = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../docs/designs/samples/cli/ask-agents-messaged-text.txt");
+    let drawn = std::fs::read_to_string(&sample).expect("有样本");
+    assert_eq!(screen, drawn, "和样本逐字节一样");
 }
 
 #[tokio::test]

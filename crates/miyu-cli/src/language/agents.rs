@@ -16,11 +16,15 @@ impl Language {
         }
     }
 
-    /// 子代理 `job`（标题 `title`）报回来了。
-    pub(crate) fn reported(&self, job: &str, title: &str) -> String {
-        match self {
-            Language::Chinese => format!("· {job}「{title}」报回来了"),
-            Language::English => format!("· {job} \u{201c}{title}\u{201d} reported back"),
+    /// 子代理 `job` 报回来了，标题是 `title`：这一次以前派、这一次留了言的，没见过派它的那一条，没有标题（施工 7-9 补）。
+    pub(crate) fn reported(&self, job: &str, title: Option<&str>) -> String {
+        match (self, title) {
+            (Language::Chinese, Some(title)) => format!("· {job}「{title}」报回来了"),
+            (Language::Chinese, None) => format!("· {job} 报回来了"),
+            (Language::English, Some(title)) => {
+                format!("· {job} \u{201c}{title}\u{201d} reported back")
+            }
+            (Language::English, None) => format!("· {job} reported back"),
         }
     }
 

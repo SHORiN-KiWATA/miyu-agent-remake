@@ -11,7 +11,7 @@
 | `crates/miyu-basesystem/src/jobs.rs` | 参数、三个动作的结果那几句 |
 | `crates/miyu-basesystem/src/jobs/page.rs` | 读输出的一页：照 `read` 分页，一页最多 30000 个字 |
 | `crates/miyu-tool/src/jobs.rs` | 任务端口 `JobPort` 的 `list`、`output`、`stop`，`Listed`、`Output`、`JobError`（`tools/interface.md`） |
-| `crates/miyu-session/src/jobs/roster.rs`、`query.rs`、`stop.rs`、`peek.rs` | 执行器这一头：派出去的任务照日志记着，读、停（`session/tools.md` 第 6 条） |
+| `crates/miyu-session/src/jobs/roster.rs`、`query.rs`、`stop.rs`、`peek.rs` | 执行器这一头：派出去的任务照日志记着，读、停（`session/tools.md` 第 6 条）；读后台命令的输出，协议的 `job.output` 和这件工具共用 `query.rs` 的同一份（施工 7-4 补） |
 | `resources/software/basesystem/tools/jobs.json` | 说明和参数格式 |
 | `resources/software/basesystem/jobs/*.txt` | 输出里给她看的几句 |
 | `resources/software/basesystem/human/{zh,en}.json` | 显示名、结果那一句 |
@@ -48,7 +48,7 @@
    2. 后面还有的，接 `more.txt`（这一页是第几到第几行、一共几行、往下从哪接）。一共的行数边读边数，不把整份读进内存。
    3. 一行都没有的（没存下来、空的、子代理还没说过话）：`empty.txt`。`offset` 过了结尾：`past-end.txt`。
    4. 还在跑的，末尾再接一句：后台命令、子代理这一步没在跑工具的 `running.txt`；子代理这一步在跑工具的 `using.txt`，工具名照先后用 `, ` 接起来。
-   - 后台命令读什么：结束了、输出存成了 blob 的读 blob；别的读会话目录下的 `jobs/<编号>.out`（跑着的读到这时的，载入时补 `aborted` 的读到崩的那一刻）。子代理读什么：执行器经会话表照它的日志看：最近的回答是最后一条回复里的字，这一轮完没完，这一步在跑的是最后那条回复里调了、还没有结果的工具（`session/tools.md` 第 6 条）。
+   - 后台命令读什么：结束了、输出存成了 blob 的读 blob；别的读会话目录下的 `jobs/<编号>.out`（跑着的读到这时的，载入时补 `aborted` 的读到崩的那一刻）。头经协议读的（`job.output`，施工 7-4 补，`protocol.md`）是同一份：执行器同一个函数交出字来，工具照这里分页，协议只取最后几行，行照同一种数法数。子代理读什么：执行器经会话表照它的日志看：最近的回答是最后一条回复里的字，这一轮完没完，这一步在跑的是最后那条回复里调了、还没有结果的工具（`session/tools.md` 第 6 条）。
 4. `stop`：没写 `id`、没有这个任务同上。交给端口停：
    - 停了：`Stopped {job}.`（`stopped.txt`）。回报由执行器记下，带 `by_model`：后台命令 `job.reported`（`stopped`，`by` 是这次调用，`cause` 是这一轮的），子代理 `child.reported`（`stopped`）；都只记下、不叫醒她（`agents.md` 第三条第 3 条），下一次请求里照回报的写法渲染出来。
    - 已经结束了（回报到了，或者正好自己退出了：只认先到的那一个）：`ended.txt`，出错。子代理报过 `done` 也算结束了；报过以后她又给它留了言的（`job.messaged`，施工 7-7），又在跑了，停得了、列成 `running`（施工 3-8 三补，`session/tools.md` 第 6 条第 4 款）。

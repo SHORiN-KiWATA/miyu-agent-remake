@@ -1,5 +1,6 @@
 //! 查和停（施工 7-4，`docs/blueprint/session/tools.md`「查和停」）：任务端口的 `list`、`output`、`stop`，和 actor 替人停、替
-//! 父会话停下时用的几样。都照 [`super::Roster`] 查是什么、结束了没有。
+//! 父会话停下时用的几样。都照 [`super::Roster`] 查是什么、结束了没有。头经协议读后台命令的输出（施工 7-4 补）也在这里，
+//! 读的和 `jobs` 是同一份（[`Shared::output`]）。
 
 use std::fs::File;
 use std::future::Future;
@@ -16,6 +17,15 @@ use super::{Ended, SessionJobs, Shared};
 use crate::TARGET;
 use crate::blocking::blocking;
 use crate::port::Back;
+
+/// 头读不了这个任务的输出（施工 7-4 补，协议的 `job.output`）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Unreadable {
+    /// 这个会话没派过这个任务（不认识的种类也算）。
+    Unknown,
+    /// 是子代理，不是后台命令：它说了什么，头订阅它的子会话看。
+    Agent,
+}
 
 /// 要停的是什么。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,7 +71,8 @@ impl Shared {
     }
 
     /// 读 `job` 的输出：后台命令结束了、输出存成了 blob 的读 blob，别的读会话目录下的输出文件（跑着的读到这时的，载入时补
-    /// `aborted` 的读到崩的那一刻的）；子代理经会话表看它的日志。
+    /// `aborted` 的读到崩的那一刻的）；子代理经会话表看它的日志。她用 `jobs` 读的、头经协议读的后台命令
+    /// （[`SessionJobs::command_output`]，施工 7-4 补）都走这里：两处读的是同一份。
     pub(super) async fn output(&self, job: JobId) -> Result<Output, JobError> {
         let (what, session, stored, running) = {
             let roster = self.roster();
@@ -133,6 +144,24 @@ impl SessionJobs {
                 _ => None,
             })
             .collect()
+    }
+
+    /// 头读后台命令 `job` 的输出（施工 7-4 补，协议的 `job.output`）：是什么当场照名册看，读的是 `jobs` 读的同一份
+    /// （[`Shared::output`]：结束了、存成 blob 的读 blob，别的读输出文件）。交回的 future 拿着自己要的：actor 另起一个任务跑它，
+    /// 开文件不占 actor。子代理不读：头订阅它的子会话。
+    pub(crate) fn command_output(
+        &self,
+        job: JobId,
+    ) -> impl Future<Output = Result<Output, Unreadable>> + Send + 'static {
+        let shared = Arc::clone(&self.shared);
+        let what = shared.roster().get(&job).map(|record| record.what.clone());
+        async move {
+            match what {
+                Some(JobKind::Command) => shared.output(job).await.map_err(|_| Unreadable::Unknown),
+                Some(JobKind::Agent) => Err(Unreadable::Agent),
+                _ => Err(Unreadable::Unknown),
+            }
+        }
     }
 
     /// 停掉后台命令 `job`，交回回报，由 actor 当场交进内核：人停的，回应排在它落盘之后。已经结束了的交回空的。

@@ -4,10 +4,13 @@
 //! - `child.reported` 到了就不欠了，哪一种原因都算（停了、崩了的也算报过）；
 //! - 效果 `job.messaged`（她给它留了言，施工 7-7）又欠一份，除非留言那次调用发出以后已经报过：它手快，做完先报了，照内核的
 //!   账本算回了这句留言（`kernel/history.md`）。
+//! - 这一次以前派、这一次留了言的也等（施工 7-9 补，M7 验收自测撞见）：没见过派它的那一条，没有标题。还没留言时到的回报
+//!   不认，只记着序号，留言时照它算留言以后报过没有。
 //!
 //! 还要知道叫醒的那一轮会不会来：回报和它叫醒的那一轮在内核里是同一批（`kernel/session.md`「回报」第 5 条），头先看到回报，
 //! 再看到 `turn.started`。闲着时到的、会叫醒她的，等那一轮开头；一轮里到的、这一轮最后一次请求没看到的（序号比请求的
-//! `seen` 大），这一轮不是打断结束的，内核同一批接着开下一轮（「排队的消息」第 2 条），也等。这次 `miyu ask` 以前派出去的不数。
+//! `seen` 大），这一轮不是打断结束的，内核同一批接着开下一轮（「排队的消息」第 2 条），也等。这次 `miyu ask` 以前派出去、这一次
+//! 没留言的不数。
 
 use std::collections::BTreeMap;
 
@@ -15,11 +18,13 @@ use serde_json::Value;
 
 use miyu_kernel::id::CallId;
 
-/// 这次 `miyu ask` 里派出去的子代理。
+/// 这次 `miyu ask` 等的子代理：这一次派出去的，和这一次留过言的（施工 7-9 补）。
 #[derive(Debug, Default)]
 pub(super) struct Agents {
-    /// 照任务编号：标题，欠不欠一份回报，最近一次回报的序号。
+    /// 照任务编号：等的子代理的标题，欠不欠一份回报，最近一次回报的序号。
     jobs: BTreeMap<String, Agent>,
+    /// 还不等的子代理（这一次以前派、还没留言的）最近一次回报的序号：给它留言时照它算留言以后报过没有（施工 7-9 补）。
+    heard: BTreeMap<String, u64>,
     /// 这一轮里到的、会叫醒她的回报，最后那一条的序号。
     arrived: Option<u64>,
     /// 这一轮的请求看到了第几条为止：`model.called` 的 `seen`，取最大的。
@@ -28,11 +33,11 @@ pub(super) struct Agents {
     expecting: bool,
 }
 
-/// 派出去的一个子代理。
+/// 等的一个子代理。
 #[derive(Debug)]
 struct Agent {
-    /// 标题：派它时写的 `description`。
-    title: String,
+    /// 标题：派它时写的 `description`。这一次以前派、这一次留了言的，没见过派它的那一条，没有（施工 7-9 补）。
+    title: Option<String>,
     /// 欠着一份回报。
     owed: bool,
     /// 最近一次回报的序号：一次都没报过的没有。
@@ -40,7 +45,8 @@ struct Agent {
 }
 
 impl Agents {
-    /// 一次工具结果（`tool.result` 的 `body`）：派出去的子代理记下，留了言的又欠一份回报。
+    /// 一次工具结果（`tool.result` 的 `body`）：派出去的子代理记下，留了言的又欠一份回报；还没记下的（这一次以前派的）也记下，
+    /// 没有标题（施工 7-9 补）。
     pub(super) fn result(&mut self, body: &Value) {
         // 留言那次调用发出去的时刻：它所在的那条回复的序号（`call_<序号>_<第几个>`，`kernel/ids.md`）。读不出来的当刚发。
         let issued = body["call_id"]
@@ -55,32 +61,45 @@ impl Agents {
                 Some("job.started") if effect["what"] == "agent" => {
                     let title = effect["title"].as_str().unwrap_or_default().to_string();
                     let agent = Agent {
-                        title,
+                        title: Some(title),
                         owed: true,
                         reported: None,
                     };
                     self.jobs.insert(job.to_string(), agent);
                 }
                 Some("job.messaged") => {
-                    if let Some(agent) = self.jobs.get_mut(job) {
-                        agent.owed = match (agent.reported, issued) {
-                            (Some(reported), Some(issued)) => reported < issued,
-                            _ => true,
-                        };
-                    }
+                    let heard = &mut self.heard;
+                    let agent = self.jobs.entry(job.to_string()).or_insert_with(|| Agent {
+                        title: None,
+                        owed: true,
+                        reported: heard.remove(job),
+                    });
+                    agent.owed = match (agent.reported, issued) {
+                        (Some(reported), Some(issued)) => reported < issued,
+                        _ => true,
+                    };
                 }
                 _ => {}
             }
         }
     }
 
-    /// 一条回报（`child.reported` 整条事件）到了。`running` 是这时有没有跟着的回合在进行。交回它的编号和标题；不是这次
-    /// 派出去的，没有。
-    pub(super) fn reported(&mut self, event: &Value, running: bool) -> Option<(String, String)> {
+    /// 一条回报（`child.reported` 整条事件）到了。`running` 是这时有没有跟着的回合在进行。交回它的编号和标题（没见过派它的
+    /// 那一条的没有标题）；还不等它的（这一次以前派、还没留言的）不认，交回没有，只记着序号（施工 7-9 补）。
+    pub(super) fn reported(
+        &mut self,
+        event: &Value,
+        running: bool,
+    ) -> Option<(String, Option<String>)> {
         let body = &event["body"];
         let job = body["job"].as_str()?;
-        let agent = self.jobs.get_mut(job)?;
         let seq = event["seq"].as_u64();
+        let Some(agent) = self.jobs.get_mut(job) else {
+            if let Some(seq) = seq {
+                self.heard.insert(job.to_string(), seq);
+            }
+            return None;
+        };
         agent.owed = false;
         agent.reported = seq;
         let title = agent.title.clone();

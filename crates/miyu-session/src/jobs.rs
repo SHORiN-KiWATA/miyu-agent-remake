@@ -8,7 +8,7 @@
 //! - 有计划地停下：在跑的各报一条 `restarted`，落了盘再整组杀；actor 因为别的停了（写不进去、panic、没人拿着了），整组
 //!   杀掉、不记，再载入时内核补 `aborted`；
 //! - 查和停（施工 7-4）：这个会话派出去的任务照日志记在 [`Roster`] 里，任务端口经它列出、读输出、停掉，后台命令和子代理
-//!   都管（`query.rs`、`stop.rs`）。
+//!   都管（`query.rs`、`stop.rs`）；头经协议读后台命令的输出（施工 7-4 补），读的和 `jobs` 是同一份。
 
 mod output;
 mod peek;
@@ -43,6 +43,7 @@ use crate::port::Back;
 use output::Output;
 pub use peek::{Peek, peek};
 pub(crate) use query::Target;
+pub use query::Unreadable;
 pub(crate) use roster::Roster;
 use run::Port;
 pub(crate) use stop::{Who, Why};
