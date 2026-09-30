@@ -13,6 +13,7 @@ mod attach;
 mod connection;
 mod from;
 mod hello;
+mod job_output;
 mod list;
 mod listen;
 mod meta;

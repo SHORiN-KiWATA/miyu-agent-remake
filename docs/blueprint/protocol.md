@@ -2,7 +2,7 @@
 
 ### 是什么
 
-头和核心之间说的话：一个连接上一行一条 JSON-RPC 2.0。连上先握手，之后能造会话、列出会话、传附件、说话（可以带附件）、打断、撤销、恢复、重做、手动压缩、切权限级别、清空上下文、停掉派出去的任务、改标题、置顶、删除会话，订阅会话的事件流。连接从哪来不管：本机的套接字、命名管道（`ipc.md`），测试里的内存管道。
+头和核心之间说的话：一个连接上一行一条 JSON-RPC 2.0。连上先握手，之后能造会话、列出会话、传附件、说话（可以带附件）、打断、撤销、恢复、重做、手动压缩、切权限级别、清空上下文、停掉派出去的任务、读后台命令的输出、改标题、置顶、删除会话，订阅会话的事件流。连接从哪来不管：本机的套接字、命名管道（`ipc.md`），测试里的内存管道。
 
 撤销、恢复、重做的回应另写一页：`protocol/undo.md`。
 
@@ -16,6 +16,7 @@
 | `crates/miyu-endpoint/src/wire.rs` | 读一行、认成请求、回应写成一行 |
 | `crates/miyu-endpoint/src/hello.rs` | 握手 |
 | `crates/miyu-endpoint/src/methods.rs` | 握手以后的方法 |
+| `crates/miyu-endpoint/src/job_output.rs` | `job.output`：取最后几行、量上限（施工 7-4 补） |
 | `crates/miyu-endpoint/src/meta.rs` | `session.set_meta` 的参数：标题去掉前后空白、量长短，`null` 是去掉标题（施工 3-8 三补） |
 | `crates/miyu-endpoint/src/sessions.rs` | 会话表：造会话、找会话；工作目录太宽的退回工作区；造子会话（施工 7-5） |
 | `crates/miyu-endpoint/src/sessions/found.rs` | 找会话、载入（施工 7-8 从 `sessions.rs` 挪出来：表的锁在调的一方手里） |
@@ -116,6 +117,7 @@
 | `session.set_permission_level` | 切权限级别：开关只读，改常用的那一级（施工 3-8 再补） |
 | `session.clear` | 清空上下文：单开一轮压成一个空的检查点，不请求模型（施工 6-8 补） |
 | `job.stop` | 停掉一个后台命令或者子代理（施工 7-4） |
+| `job.output` | 读一条后台命令到这时为止的输出（施工 7-4 补） |
 | `blob.put` | 传一个附件，存成 blob（施工 3-9 三补） |
 | `session.set_meta` | 改标题、置顶（施工 3-8 三补） |
 | `session.delete` | 删除会话：挪进回收处，留 7 天（施工 3-8 三补） |
@@ -283,6 +285,29 @@
 2. 没有这个任务、已经结束了（回报到了，子代理报过 `done` 也算；正好自己退出了的只认先到的）：`unknown_job`，什么都没写。先找会话，找不到的回的是找不到。
 3. `job` 不合任务编号的写法（`j` 加一段或几段不带前导零的正整数，段之间用 `.`，`kernel/ids.md`）、不是字符串：`bad_params`。
 
+**`job.output`**（施工 7-4 补，`tools/jobs.md` 第 3 条，`session/tools.md` 第 6 条第 3 款）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `session` | 字符串，必写 | 哪个会话派出去的 |
+| `job` | 字符串，必写 | 任务编号，`j1` 这样 |
+| `tail` | 整数，不写是 200 | 要最后几行：1 到 2000 |
+
+回应：`lines` 一共几行、`output` 交的字、`running` 还在不在跑、`truncated` 前面还有没有没交的。查询，不改会话：什么都不写，不推送。例子（格照名字的字母先后排）：
+
+```json
+{"id":"o1","jsonrpc":"2.0","result":{"lines":2,"output":"building\nhalf\n","running":true,"truncated":false}}
+```
+
+1. 读的和她用 `jobs` 读的是同一份，执行器同一个函数交出来（`Handle::job_output`，`session/tools.md` 第 6 条第 3 款）：这条命令到这时为止的输出，标准输出、标准错误照写进去的先后合在一起；结束了、输出存成了 blob 的读 blob，别的读会话目录下的 `jobs/<编号>.out`（跑着的读到这时的，载入时补 `aborted` 的读到崩的那一刻的）；开不了的当是空的。`running` 是它的回报（`job.reported`）还没落盘。
+2. `output` 只交最后 `tail` 行，照原样接起来：每一行带着它的换行，最后一段没有换行的照样没有；解不开的字节换成 `�`，和 `jobs` 一样。`lines` 照 `jobs` 的数法数一共几行：照换行切，最后一段没有换行的也算一行，只有 `\r` 的不切。一行都没有的，`output` 是空字符串、`lines` 是 0。
+3. 一次最多交 128 KiB（131,072 字节，照 UTF-8 算）：一行最长 1 MiB（「一行一条」），字写进 JSON 最坏一个字节变六个（控制字符写成 `\u001b` 这样），回应的其余部分不到 1 KiB，6 × 128 KiB + 1 KiB 放得进一行。最后 `tail` 行超了的，从前面按整行去掉；最后一行自己就超了的，只交它的末尾：不过 128 KiB，从一个字的开头起，前面的行都不交（接着别的行，看着就像它从那里开头）。
+4. `truncated` 是前面还有没交的：去掉了前面的行，或者只交了最后一行的末尾。
+5. 在阻塞线程里读，整份边读边数，不整份读进内存：一行再长，留在内存里的也只有它的末尾。每读一次都从头数：头照 1 秒读一次（网页演示这样接），推增量随 M8（「还没有的」）。
+6. `tail` 先查：写了 0、负数、超过 2000、不是整数的（小数、字符串、`null`……）：`bad_params`，不找会话。`job` 照 `job.stop` 第 3 条，不合写法的 `bad_params`。先找会话，找不到的回的是找不到；没在跑的照「会话表」载入。
+7. 这个会话没派过这个任务（不认识的种类也算）：`unknown_job`，和 `job.stop` 同一个原因码。是子代理的：`not_a_command`，它说了什么，头订阅它的子会话看（`agents.md`）。
+8. 谁能读照 `job.stop`：现在连上来的只有管理员（「还没有的」）。
+
 **`session.set_meta`**（施工 3-8 三补，`kernel/session.md`「改标题、置顶」）
 
 | 参数 | 类型 | 说明 |
@@ -428,8 +453,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `parse_error` | -32700 | 不是 JSON；一行太长（之后断开） |
 | `invalid_request` | -32600 | 是 JSON，不是请求（「请求」的表） |
 | `unknown_method` | -32601 | 握手以后，没有这个方法 |
-| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；`session.send` 的 `from` 不是字符串、去掉控制字符以后是空的（施工 7-10）；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字 |
-| `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了；附件存不下来、读不出来；删会话时读不了放会话的目录、挪不进回收处、崩了 |
+| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；`session.send` 的 `from` 不是字符串、去掉控制字符以后是空的（施工 7-10）；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字；`job.stop`、`job.output` 的任务编号不合写法（施工 7-4），`job.output` 的 `tail` 不是 1 到 2000 的整数（施工 7-4 补） |
+| `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了；附件存不下来、读不出来；删会话时读不了放会话的目录、挪不进回收处、崩了；读后台命令的输出时崩了（施工 7-4 补） |
 | `hello_first` | -32010 | 握手以前发了别的方法 |
 | `protocol_mismatch` | -32010 | 头支持的主版本里没有 1（之后断开） |
 | `bad_token` | -32010 | 本机令牌没带、不对（之后断开） |
@@ -450,11 +475,12 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `nothing_to_revert` | -32010 | 不写 `turn` 的撤销，一轮都没有 |
 | `nothing_to_compact` | -32010 | 手动压缩时没有能压的：上一次压缩以后没有新的消息、回复、工具结果，或者全在尾巴里（施工 6-8） |
 | `nothing_to_clear` | -32010 | 清空时上下文本来就是空的：没有摘要，最近的检查点后面也没有人的消息、回复、工具结果、回报（施工 6-8 补） |
-| `unknown_job` | -32010 | `job.stop` 时没有这个任务，或者它已经结束了（施工 7-4） |
+| `unknown_job` | -32010 | `job.stop` 时没有这个任务，或者它已经结束了（施工 7-4）；`job.output` 时没有这个任务（施工 7-4 补） |
+| `not_a_command` | -32010 | `job.output` 读的是子代理，不是后台命令（施工 7-4 补） |
 | `not_redoable` | -32010 | 重做时最后一轮不是人说的话开的，或者一轮都没有（施工 4-7 再补） |
 | `restoring` | -32010 | 撤销、恢复还没做完（正在读回更早的日志、正在改回文件）时来的命令、删会话。兜底：会话做完才接下一个命令，照常碰不到 |
 
-- 从 `empty_message` 起，除了 `dir_too_wide` 和附件的四个，十一个是内核拒命令时给的原因码（`kernel/session.md`）。
+- 从 `empty_message` 起，除了 `dir_too_wide`、附件的四个和 `not_a_command`，十一个是内核拒命令时给的原因码（`kernel/session.md`）。
 - 内核还有六个原因码，现在没有方法碰得到：`unknown_level`（协议上的级别只认两种，别的先是 `bad_params`）、`not_asking`、`unknown_decision`、`no_rule`、`unexpected_reason`、`bad_answer`。它们没有配话，说的是最后那一句「被拒绝了」。
 
 运行日志（目标 `miyu::endpoint`，`log.md`）：
@@ -486,6 +512,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `WARN` | `attachment not stored error=…` | `blob.put` 存不下来（施工 3-9 三补） |
 | `WARN` | `attachment not read blob=… error=…` | `session.send` 的附件读不出来：坏了、读不了 |
 | `ERROR` | `attachment panicked error=…` | 读、存附件时崩了 |
+| `ERROR` | `job output panicked error=…` | 读后台命令的输出时崩了（施工 7-4 补） |
 
 撤销、恢复的回应写不成的两行见 `protocol/undo.md`。
 
@@ -522,6 +549,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `nothing_to_compact` | 没有能压的：还没压过的内容都在原样留着的最近一段里。 | Not enough to compact: everything not yet compacted is in the recent part that stays as it is. |
 | `nothing_to_clear` | 上下文为空 | The context is empty. |
 | `unknown_job` | 没有这个任务，或者它已经结束了。 | There is no such job, or it has already ended. |
+| `not_a_command` | 这是子代理，不是后台命令：去看它的会话。 | This is a subagent, not a background command; open its session instead. |
 | `not_redoable` | 无法重做 | Cannot redo. |
 | 别的 | 被拒绝了。 | Refused. |
 
@@ -545,6 +573,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/revert.rs` | 协议上撤销、恢复；三种拒绝的中文；`turn` 写 0 |
 | `crates/miyu-endpoint/tests/permission.rs` | 协议上切权限级别（施工 3-8 再补）：切到完全放开、开只读、两样一起换，各记一条、推给订阅着的头、回应 `{}`；和现在一样的四种什么都不记不推；两格都不写（含写 `null`、会话没有的）、级别和只读的值不对、会话编号不对、没写会话是参数不对；没有的会话找不到，停了的会话是停了；回合进行中收紧成只读，真核心走一遍：等着的写入当场补 `denied`、和切权限同一批、推送在回应前面，放行以后请求之前注入只读那一块，写的一次没跑 |
 | `crates/miyu-endpoint/tests/job_stop.rs` | 协议上停子代理（施工 7-4）：回应 `{}`、回应之前父会话记下了回报、子会话那一轮被父会话打断；停过的、没有的 `unknown_job`，中文、英文；编号不合写法、不是字符串的参数不对；没有这个会话 |
+| `crates/miyu-endpoint/tests/job_output.rs` | 协议上读后台命令的输出（施工 7-4 补），后台命令用假的：跑着的读到这时为止的、`running` 是真，和她用 `jobs` 读到的一样；结束了的读 blob（拿掉输出文件照样读得到）、`running` 是假，和 `jobs` 读到的一字不差；`tail` 截尾、`truncated`、`lines`，最后一段没有换行的照样，不写 `tail` 交最后 200 行；超了上限从前面按整行去掉；开不了的输出文件当是空的；空的；没有这个任务、编号不合写法、`tail` 不对的七种（先查、不找会话）、没有这个会话、子代理的拒绝，中文、英文；拒绝的什么都不写 |
+| `crates/miyu-endpoint/src/job_output/tests.rs` | 取尾巴（施工 7-4 补）：照 `jobs` 数行、只照换行切；最后几行；上限正好 131,072 字节的一行整行给、多一个字节只留末尾；超了从前面按整行去掉；最后一行太长只交末尾、前面的不接上（前面那一行正好放得下也不接），读的时候就去掉过前面的也一样；中间太长的一行、截过的一行后面又来了行，整行去掉；截处从一个字的开头起，剩半个字的跳过；解不开的字节换成 `�`；读不下去的读到多少算多少；最坏的回应（每个字节都转义成六个、编号全是引号）放得进一行；回应的格 |
 | `crates/miyu-endpoint/tests/redo.rs` | 协议上重做（施工 4-7 再补）：回应带撤销的几样和重发的那一句、推送里是一批撤销、原话、新的一轮，新的一轮的请求和撤掉的那一轮的一字不差；换了话的推送里是新的话、`said` 是原来的；改过文件的先改回、回应带 `files`；重做以后恢复不了；最后一轮是清空、没说过话的，有回合在进行、换成空的拒绝，中文、英文；`text` 不是字符串、会话编号不对的参数不对，写 `null` 当没写；附件照带、换掉、不要，没有的 blob `unknown_attachment` 什么都不写 |
 | `crates/miyu-endpoint/tests/compact.rs` | 协议上手动压缩（施工 6-8）：回应是那一轮的开头、推送里压好了；要求原样到了摘要请求里；撤掉那一轮的回应里没有 `said`；有回合在进行、没有能压的两种拒绝，中文、英文；`instructions` 不是字符串的参数不对 |
 | `crates/miyu-endpoint/tests/clear.rs` | 协议上清空（施工 6-8 补）：回应是那一轮的开头、订阅的推送里是那一批三条、不请求模型；下一次请求里没有清空以前的；撤掉那一轮回应里撤掉了一次压缩、没有 `said`，再问看得到了；有回合在进行、本来就空的两种拒绝，中文、英文；会话编号不对、没写的参数不对 |
@@ -584,6 +614,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 - 头发现核心比自己旧，请求它空闲时重启（第八节，`kernel.restart_when_idle`）。
 - 远程连接、登录令牌、WebSocket 和它的 Origin 检查；扩展、桥当提供者，反向调用（第二节、第四节）。
 - 事件流只对会话的属主和有 `events.read` 能力的扩展开放（第五节）：现在连上来的只有管理员。
+- `job.output` 照会话的读权限：现在连上来的只有管理员，不拦，多用户那一步再拦（施工 7-4 补）。
+- 后台命令的输出推给头（施工 7-4 补定不做）：现在头照 1 秒读一次 `job.output`，每次从头数；推增量随 M8 的视图流再说。
 - 成员只能切到只读和工作区（`11-权限与沙盒.md`）：现在连上来的只有管理员，`session.set_permission_level` 不拦，多用户那一步再拦。
 - 消息结构只在 Rust 类型里定义一次，生成 JSON Schema 和 TypeScript 类型（第二节）。
 - 会话空闲一段时间后 actor 退出（`07-存储.md` 第七节）。

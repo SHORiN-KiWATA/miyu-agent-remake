@@ -1,5 +1,6 @@
 //! 人的那条收件箱里的一封怎么办（`docs/blueprint/session/actor.md` 第 3 条第 4 点）：命令照 actor 的时钟记下到的时刻送进
 //! 内核，订阅当场办；拿着订阅的头从没有到有、从有到没有，交内核 `Watched`（施工 7-9）。施工 7-9 从 `actor.rs` 挪出来。
+//! 头读后台命令的输出（施工 7-4 补）不进内核：另起一个任务读，当场办完。
 
 use tokio::sync::oneshot;
 
@@ -52,6 +53,12 @@ impl Actor {
             Message::Environment(environment) => {
                 self.tools.locate(environment.offset);
                 Mail::Input(Input::Environment(environment))
+            }
+            Message::Output { job, reply } => {
+                // 是什么当场照名册看；开文件另起一个任务，不在收件箱里等（施工 7-4 补）。
+                let reading = self.jobs.command_output(job);
+                tokio::spawn(async move { answer(reply, reading.await) });
+                Mail::Done
             }
         }
     }

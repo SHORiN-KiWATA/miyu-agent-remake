@@ -12,7 +12,9 @@ use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{CommandId, JobId, SessionId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, ContextLimits, Outcome, Reason};
-use miyu_tool::JobError;
+use miyu_tool::{JobError, Output};
+
+use crate::jobs::Unreadable;
 
 /// 一个会话：它的 actor 的收件箱。可以复制，几个头一起拿着。
 #[derive(Debug, Clone)]
@@ -52,6 +54,11 @@ pub(crate) enum Message {
     Environment(Environment),
     /// 停掉派出去的任务（施工 7-4）。
     Halt(Halt),
+    /// 头读一条后台命令的输出（施工 7-4 补）：不进内核、不写盘。
+    Output {
+        job: JobId,
+        reply: oneshot::Sender<Result<Output, Unreadable>>,
+    },
 }
 
 /// 停掉派出去的任务（施工 7-4，`docs/blueprint/session/actor.md`「停掉任务」）。
@@ -222,6 +229,19 @@ impl Handle {
             cause,
             reply,
         }))?;
+        answer.await.map_err(|_| Stopped)
+    }
+
+    /// 头读后台命令 `job` 的输出（施工 7-4 补，协议的 `job.output`）：交回读得到的字、它还在不在跑。读的和她用 `jobs` 读的
+    /// 是同一份（`docs/blueprint/session/tools.md` 第 6 条第 3 款）：结束了、存成 blob 的读 blob，别的读会话目录下的输出
+    /// 文件，跑着的读到这时的。不进内核、不写盘：是什么照名册当场看，开文件另起一个任务，不占 actor。
+    ///
+    /// # Errors
+    ///
+    /// 会话停了。里面那一层：这个会话没派过这个任务（[`Unreadable::Unknown`]），或者它是子代理（[`Unreadable::Agent`]）。
+    pub async fn job_output(&self, job: JobId) -> Result<Result<Output, Unreadable>, Stopped> {
+        let (reply, answer) = oneshot::channel();
+        self.send(Message::Output { job, reply })?;
         answer.await.map_err(|_| Stopped)
     }
 
