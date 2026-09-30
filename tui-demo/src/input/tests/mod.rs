@@ -18,7 +18,7 @@ fn typed(text: &str) -> Editor {
     e
 }
 
-/// 测试用的附件规矩：图片认 png、jpg，PDF、音频、视频各认一种。
+/// 测试用的附件规矩：图片认 png、jpg，PDF、音频、视频各认一种；文件块的名字最多 24 列。
 pub(super) fn attach_rule() -> AttachRule {
     let kind = |name: &str, exts: &[&str], label: &str| AttachKind {
         name: name.into(),
@@ -32,6 +32,9 @@ pub(super) fn attach_rule() -> AttachRule {
             kind("audio", &["mp3"], "[音频 {n}]"),
             kind("video", &["mp4"], "[视频 {n}]"),
         ],
+        file: "[{name}]".into(),
+        folder: "[{name}/]".into(),
+        name_cols: 24,
     }
 }
 

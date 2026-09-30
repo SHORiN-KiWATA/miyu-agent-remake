@@ -37,7 +37,7 @@ fn backspace(i: &mut InputBox) {
 
 #[test]
 fn dropped_files_become_blocks_by_kind_and_other_files_stay_paths() {
-    // 2026-09-30 项目主人：图片、音频、视频、PDF 做成附件；别的文件照路径写进去。
+    // 2026-09-30 项目主人：图片、音频、视频、PDF 做成附件；别的文件收成写着文件名的文件块，发出去换回路径。
     let (dir, f) = files(
         "kinds",
         &["a.png", "报告 1.pdf", "b.MP3", "c.mp4", "说明.txt"],
@@ -58,7 +58,22 @@ fn dropped_files_become_blocks_by_kind_and_other_files_stay_paths() {
     );
     let mut i = attaching();
     i.paste(&f[4].display().to_string());
-    assert_eq!(i.editor.text(), f[4].display().to_string());
+    assert_eq!(i.editor.text(), "[说明.txt]");
+    let draft = submit(&mut i);
+    assert_eq!(draft.expand(), f[4].display().to_string(), "发出去是路径");
+    assert!(draft.attachments().is_empty(), "不当附件");
+    // 目录也是，名字后面带 /；点它打开的是那个目录。
+    let mut i = attaching();
+    i.paste(&dir.display().to_string());
+    let name = dir.file_name().unwrap().to_string_lossy().into_owned();
+    let name = crate::input::attach::short_name(&name, 24);
+    assert_eq!(i.editor.text(), format!("[{name}/]"));
+    let opens: Vec<_> = i
+        .editor
+        .openable()
+        .map(|(_, _, p)| p.to_path_buf())
+        .collect();
+    assert_eq!(opens, std::slice::from_ref(&dir));
     std::fs::remove_dir_all(&dir).unwrap_or_default();
 }
 
@@ -135,10 +150,15 @@ fn a_kitty_drop_of_a_mixed_batch_splits_by_line_and_keeps_other_files_as_paths()
     i.paste(&lines.join("\n"));
     assert_eq!(
         i.editor.text(),
-        format!("[视频 1] [图片 1] {} '{}'", f[3].display(), f[4].display()),
-        "认得出的收成块，别的照路径写，带空格的加引号"
+        "[视频 1] [图片 1] [links.md] [my notes.txt]",
+        "认得出的收成附件，别的收成文件块"
     );
     assert_eq!(i.draft().attachments(), [f[1].clone(), f[2].clone()]);
+    assert_eq!(
+        i.draft().expand(),
+        format!("[视频 1] [图片 1] {} '{}'", f[3].display(), f[4].display()),
+        "文件块发出去换回路径，带空格的加引号"
+    );
     std::fs::remove_dir_all(&dir).unwrap_or_default();
 }
 

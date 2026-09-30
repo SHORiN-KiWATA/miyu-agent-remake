@@ -107,6 +107,7 @@
   "home_placeholder": "Tab 切换权限级别",
   "exit_hint": "按 Ctrl+D 退出",
   "input_cleared": "已清空 · ↑ 找回",
+  "editing": " 编辑上一句 · Esc 取消 ",
   "open": {
     "refused": "不开这种地址：{url}",
     "missing": "找不到这个文件：{path}",
@@ -121,7 +122,12 @@
   "figure_pending": "⋯ 正在画图",
   "figure_zoom": "点开看大图",
   "markdown": { "image": "[图片: ", "details": "详细信息", "details_marks": ["▶ ", "▼ "], "bullets": ["▪", "•", "◦"] },
-  "refusal_hints": { "nothing_to_compact": "上下文过少", "nothing_to_clear": "上下文为空" },
+  "refusal_hints": {
+    "nothing_to_compact": "上下文过少",
+    "nothing_to_clear": "上下文为空",
+    "not_redoable": "无法重做",
+    "empty_message": "改完一个字都不剩了"
+  },
   "refusals": {
     "nothing_to_unrevert": "没有能恢复的撤销",
     "nothing_to_revert": "没有能撤销的",
@@ -233,10 +239,14 @@
   "clipboard_unreadable": "读不到剪贴板：用终端自己的粘贴（kitty 是 Ctrl+Shift+V）",
   "clipboard_empty": "剪贴板是空的",
   "paste_label": "[已粘贴 {lines} 行]",
-  "attachment_labels": {
-    "image": "[图片 {n}]",
-    "pdf": "[PDF {n}]",
-    "audio": "[音频 {n}]",
-    "video": "[视频 {n}]"
+  "attach": {
+    "labels": {
+      "image": "[图片 {n}]",
+      "pdf": "[PDF {n}]",
+      "audio": "[音频 {n}]",
+      "video": "[视频 {n}]"
+    },
+    "file": "[{name}]",
+    "folder": "[{name}/]"
   }
 }

@@ -47,6 +47,10 @@ pub enum Run {
     Revert,
     /// 恢复刚才的撤销（`session.unrevert`）。
     Unrevert,
+    /// 这一轮原样重来一遍（`session.redo`，蓝图「斜杠命令」`/redo`）。
+    Redo,
+    /// 编辑上一句：放进输入框改，回车照改过的重来（蓝图「输入框」第 13 条）。
+    Edit,
     /// 现在就压缩上下文（`session.compact`），后面的字是给摘要的要求。
     Compact,
     /// 开新会话：清界面回首页，第一句话时再开（蓝图「斜杠命令」`/new`）。
@@ -198,7 +202,11 @@ mod tests {
             .iter()
             .map(|s| s.name.as_str())
             .collect();
-        assert_eq!(names.first(), Some(&"exit"));
+        assert_eq!(
+            names[..2],
+            ["edit", "exit"],
+            "开头对得上的在前，照登记的先后"
+        );
         assert!(names.contains(&"level"), "含着 e 的也在：{names:?}");
     }
 
@@ -218,7 +226,8 @@ mod tests {
 
     #[test]
     fn undo_and_restore_follow_the_core_names() {
-        // 2026-09-29 跟 main 的命令改名：恢复叫 /restore，撤销也可以打 /rewind，/redo 不再认。
+        // 2026-09-29 跟 main 的命令改名：恢复叫 /restore，撤销也可以打 /rewind。/redo 09-30 回来了，换成核心的
+        // 重做（施工 4-7 再补），不是恢复。
         let commands = commands();
         assert_eq!(
             commands.find("restore").map(|s| s.run),
@@ -228,7 +237,7 @@ mod tests {
             commands.find("rewind").map(|s| s.run),
             Some(super::Run::Revert)
         );
-        assert!(commands.find("redo").is_none());
+        assert_eq!(commands.find("redo").map(|s| s.run), Some(super::Run::Redo));
         let names: Vec<_> = commands
             .filter("rew")
             .iter()

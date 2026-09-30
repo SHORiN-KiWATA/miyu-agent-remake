@@ -11,18 +11,23 @@ use super::{Kind, Transcript};
 pub struct Chip {
     /// 块上写的：`[已粘贴 14 行]`、`[图片 1]`。
     pub label: String,
-    /// 原文：粘贴块点开换成它；附件的就是块上的字。
+    /// 原文：粘贴块点开换成它；附件的就是块上的字，文件块的是路径。
     pub full: String,
     /// 附件是哪一种（`image`、`pdf`、`audio`、`video`）；粘贴块是 `None`。
     pub kind: Option<String>,
-    /// 附件是本机的哪个文件：点块用系统的程序打开它（「输入框」第 12 条）。粘贴块是 `None`。
+    /// 附件、文件块是本机的哪个文件：点块用系统的程序打开它（「输入框」第 12 条）。粘贴块是 `None`。
     pub file: Option<PathBuf>,
 }
 
 impl Chip {
-    /// 是附件：不展开，点块打开文件。
+    /// 是附件：编号照它数。
     pub fn attachment(&self) -> bool {
         self.kind.is_some()
+    }
+
+    /// 点开换成全文的粘贴块：附件、文件块不展开，点块打开文件（「输入框」第 12 条）。
+    pub fn expandable(&self) -> bool {
+        self.kind.is_none() && self.file.is_none()
     }
 }
 

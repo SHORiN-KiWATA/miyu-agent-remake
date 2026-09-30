@@ -7,6 +7,7 @@ mod dropped;
 mod editor;
 mod mouse;
 mod pasted;
+mod recall;
 mod wrap;
 
 #[cfg(test)]
@@ -76,6 +77,8 @@ pub struct InputBox {
     put_back: Option<String>,
     /// 大段粘贴什么时候收成一块、块上写什么（`pasted.rs`）。
     paste_rule: PasteRule,
+    /// 在编辑上一句（`/edit`）：改之前的那句，回车时外面拿去比附件换没换（「输入框」第 13 条）。
+    editing: Option<Draft>,
     /// `Ctrl+C` 刚清掉的那一句，只留最近一份：空着按 `↑` 先拿回它；发出去一句话、再清一次就换掉。
     cleared: Option<Draft>,
     /// 在附件块上按下去、还没拖：松开时打开这个文件，光标不动（`mouse.rs`）。
@@ -108,6 +111,7 @@ impl InputBox {
             put_back: None,
             paste_rule: PasteRule::never(),
             cleared: None,
+            editing: None,
             pressed: None,
             hover: None,
             attach_rule: AttachRule::default(),
@@ -223,13 +227,15 @@ impl InputBox {
             KeyCode::Down => self.vertical(1, shift),
             KeyCode::Home => self.line_edge(false, shift),
             KeyCode::End => self.line_edge(true, shift),
+            // 编辑上一句时 `Esc` 是取消：不编辑了，框里清空（「输入框」第 13 条）。
+            KeyCode::Esc if self.editing() => self.cancel_edit(),
             KeyCode::Esc => self.editor.clear_selection(),
             _ => {}
         }
         Action::None
     }
 
-    /// 处理一次粘贴。拖进终端的一批文件里认得出种类的收成附件，别的照路径写（蓝图「输入框」第 12 条）。
+    /// 处理一次粘贴。拖进终端的一批文件里认得出种类的收成附件，别的收成文件块（蓝图「输入框」第 12 条）。
     pub fn paste(&mut self, text: &str) {
         self.goal_col = None;
         self.follow = true;
@@ -241,7 +247,10 @@ impl InputBox {
                 }
                 match item {
                     Dropped::File(file, kind) => self.attach(file, &kind),
-                    Dropped::Path(path) => self.editor.insert(&dropped::quoted(&path)),
+                    Dropped::Path(path) => {
+                        let label = self.attach_rule.file_label(&path);
+                        self.editor.insert_file(label, dropped::quoted(&path), path);
+                    }
                 }
             }
             return;
@@ -279,6 +288,7 @@ impl InputBox {
         // 清掉的连同块、附件留最近一份，不进输入历史；空着按 `↑` 先拿回它（「按键」`Ctrl+C`）。正在翻历史的照旧，
         // 翻之前没发的那句还在，翻过最新一条回到它。
         self.cleared = Some(self.editor.take_draft());
+        self.editing = None;
         Action::Cleared
     }
 
@@ -342,33 +352,6 @@ impl InputBox {
         }
     }
 
-    /// 撤销成了：撤掉的那句放回来，整段选中，直接打字就替换掉它（打 `/restore` 不会拼在后面）；
-    /// 框里已经有字的不动（`tui.md`「输入框」第 7 条）。
-    pub fn put_back(&mut self, said: &str) {
-        if !self.editor.is_empty() {
-            return;
-        }
-        // 核心给的是发出去的全文：输入历史里找得到这句的，照发出去时的样子放回来，长文、附件还是块（第 7 条）。
-        let sent = self.history.iter().rev().find(|s| s.draft.expand() == said);
-        match sent.map(|s| s.draft.clone()) {
-            Some(draft) => self.editor.set_draft(draft),
-            None => self.editor.set(said),
-        }
-        self.editor.select_all();
-        self.put_back = Some(said.to_string());
-    }
-
-    /// 恢复了：撤销时放回来的那句还没动过的，收回去，免得回车再发一遍（`tui.md`「正文」第 6 条）。
-    pub fn take_back(&mut self) {
-        if self
-            .put_back
-            .take()
-            .is_some_and(|said| self.editor.draft().expand() == said)
-        {
-            self.editor.take();
-        }
-    }
-
     /// 发过的话和命令，从旧到新（输入历史列表用）。
     pub fn sent(&self) -> &[Sent] {
         &self.history
@@ -405,11 +388,6 @@ impl InputBox {
                 at: Instant::now(),
             });
         }
-    }
-
-    /// 发出去一句话了：`Ctrl+C` 清掉的那一份不要了，`↑` 照旧先翻到刚发的（「按键」`Ctrl+C`）。
-    pub fn forget_cleared(&mut self) {
-        self.cleared = None;
     }
 
     fn line_edge(&mut self, end: bool, extend: bool) {

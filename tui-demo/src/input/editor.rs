@@ -69,13 +69,19 @@ impl Editor {
 
     /// 在光标处放一块粘贴：输入框里写 `label`，原文记着，发出去时换回来（蓝图「输入框」第 11 条）。
     pub fn insert_block(&mut self, label: String, text: String) {
-        self.put_block(label, text, None);
+        self.put_block(label, text, None, None);
+    }
+
+    /// 在光标处放一个文件块：输入框里写 `label`（文件名），发出去换成 `text`（路径），点了打开 `path`（蓝图「输入框」
+    /// 第 12 条）。
+    pub fn insert_file(&mut self, label: String, text: String, path: std::path::PathBuf) {
+        self.put_block(label, text, None, Some(path));
     }
 
     /// 在光标处放一个附件：输入框里写 `label`，记着文件，发出去时先传给核心（蓝图「输入框」第 12 条）。编号随后由
     /// [`Self::renumber`] 照先后定。
     pub fn insert_attachment(&mut self, label: String, attachment: Attachment) {
-        self.put_block(label.clone(), label, Some(attachment));
+        self.put_block(label.clone(), label, Some(attachment), None);
     }
 
     /// 附件的块照先后重新编号：`label(种类, 这一种在输入框里的第几个)` 是块上该写的字。字变了长短的，后面的块、
@@ -116,7 +122,13 @@ impl Editor {
         }
     }
 
-    fn put_block(&mut self, label: String, text: String, attachment: Option<Attachment>) {
+    fn put_block(
+        &mut self,
+        label: String,
+        text: String,
+        attachment: Option<Attachment>,
+        path: Option<std::path::PathBuf>,
+    ) {
         self.delete_selection();
         let start = self.cursor;
         self.put(&label);
@@ -128,16 +140,16 @@ impl Editor {
                 end: start + label.len(),
                 text,
                 attachment,
+                path,
             },
         );
     }
 
-    /// 附件块：字节范围和文件（点它打开，`mouse.rs`）。
-    pub fn attachments(&self) -> impl Iterator<Item = (usize, usize, &std::path::Path)> {
-        self.blocks.iter().filter_map(|b| {
-            let a = b.attachment.as_ref()?;
-            Some((b.start, b.end, a.file.as_path()))
-        })
+    /// 能点开的块（附件、文件块）：字节范围和文件（`mouse.rs`）。
+    pub fn openable(&self) -> impl Iterator<Item = (usize, usize, &std::path::Path)> {
+        self.blocks
+            .iter()
+            .filter_map(|b| Some((b.start, b.end, b.opens()?)))
     }
 
     /// 输入框的字里每一块占的字节范围：画的时候上色用。

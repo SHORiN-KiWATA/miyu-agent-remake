@@ -1,4 +1,4 @@
-//! 输入框的鼠标（蓝图 `tui.md`「鼠标」输入框那一行）：点放光标、拖选字、双击选词、滚轮滚。附件块点一下用系统的程序
+//! 输入框的鼠标（蓝图 `tui.md`「鼠标」输入框那一行）：点放光标、拖选字、双击选词、滚轮滚。附件块、文件块点一下用系统的程序
 //! 打开那个文件，光标不动；从块上按下去拖是拖选；悬停在块上记着，画的时候加下划线、指针变手（「输入框」第 12 条）。
 
 use std::path::PathBuf;
@@ -94,7 +94,7 @@ impl InputBox {
         let line = lines.get(usize::from(row - a.y) + self.scroll)?;
         let c = usize::from(column - a.x);
         let text = self.editor.text();
-        self.editor.attachments().find_map(|(s, e, file)| {
+        self.editor.openable().find_map(|(s, e, file)| {
             let (from, to) = (s.max(line.start), e.min(line.end));
             if from >= to {
                 return None;

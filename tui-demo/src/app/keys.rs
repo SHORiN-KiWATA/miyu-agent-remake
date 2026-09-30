@@ -173,6 +173,8 @@ impl App {
     /// 「斜杠命令列表」第 4 条）；别的发给她。
     pub(super) fn submit(&mut self, draft: Draft) {
         let text = draft.text.clone();
+        // 在编辑上一句：打了命令就不编辑了；打错了命令、发不出去的，接着编辑（「输入框」第 13 条）。
+        let edit = self.input.take_edit();
         match self.config.commands.read(&text) {
             Line::Command(spec, words) => {
                 let (spec, words) = (spec.clone(), words.map(str::to_string));
@@ -183,6 +185,9 @@ impl App {
                 let note = self.config.text.unknown_command.clone();
                 self.hint(note, false);
                 self.input.editor.set_draft(draft);
+                if let Some(original) = edit {
+                    self.input.resume_edit(original);
+                }
                 return;
             }
             Line::Talk => {}
@@ -190,6 +195,13 @@ impl App {
         // 连不上核心：发不出去，字留在输入框里（「连核心」第 8 条）。
         if !self.reachable() {
             self.input.editor.set_draft(draft);
+            if let Some(original) = edit {
+                self.input.resume_edit(original);
+            }
+            return;
+        }
+        if let Some(original) = edit {
+            self.submit_edit(original, draft);
             return;
         }
         self.view.follow();
@@ -198,6 +210,11 @@ impl App {
         let full = draft.expand();
         let chips = super::paste::chips(&draft);
         let files = draft.attachments();
+        self.unsent = Some(super::Unsent {
+            draft: Some(draft.clone()),
+            original: None,
+            turn: None,
+        });
         self.input.remember(draft);
         self.input.forget_cleared();
         self.transcript.user(text, chips);
@@ -214,12 +231,18 @@ impl App {
         self.input.remember(Draft::plain(&line));
         self.view.follow();
         match spec.run {
-            Run::Revert | Run::Unrevert | Run::Compact | Run::Clear if !self.reachable() => {
+            Run::Revert | Run::Unrevert | Run::Compact | Run::Clear | Run::Redo | Run::Edit
+                if !self.reachable() =>
+            {
                 self.input.editor.set_draft(Draft::plain(&line));
             }
-            Run::Revert | Run::Unrevert | Run::Compact | Run::Clear if self.not_opened() => {
+            Run::Revert | Run::Unrevert | Run::Compact | Run::Clear | Run::Redo | Run::Edit
+                if self.not_opened() =>
+            {
                 self.nothing_yet(spec.run);
             }
+            Run::Redo => self.redo(),
+            Run::Edit => self.edit_last(),
             Run::Clear => self.core.send(Command::Clear),
             Run::Copy => self.copy_reply(),
             Run::New => self.new_session(),

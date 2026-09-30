@@ -1,4 +1,4 @@
-//! 输入框这一格：圆角框里画输入的字、提示符、暂存标记；抽屉开着时框里画抽屉（蓝图 `tui.md`「输入框」、
+//! 输入框这一格：圆角框里画输入的字、提示符、暂存标记，编辑上一句时上边框写一句；抽屉开着时框里画抽屉（蓝图 `tui.md`「输入框」、
 //! 「确认和提问的抽屉」第 2 条）。
 
 use ratatui::Frame;
@@ -46,12 +46,14 @@ fn draw_input(
     level: Level,
     placeholder: &str,
 ) {
-    frame.render_widget(
-        Block::bordered()
-            .border_type(BorderType::Rounded)
-            .border_style(theme::dim()),
-        areas.frame,
-    );
+    let mut border = Block::bordered()
+        .border_type(BorderType::Rounded)
+        .border_style(theme::dim());
+    // 编辑上一句：上边框写一句，框线的颜色（「输入框」第 13 条）。
+    if input.editing() {
+        border = border.title(Line::styled(config.text.editing.as_str(), theme::dim()));
+    }
+    frame.render_widget(border, areas.frame);
     let scroll = input.place(areas.text);
     let editor = &input.editor;
     let blocks = editor.blocks();

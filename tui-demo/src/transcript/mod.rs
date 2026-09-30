@@ -12,6 +12,7 @@ mod compaction;
 mod entry;
 mod failure;
 mod queue;
+mod redo;
 mod steps;
 mod turn;
 mod words;
@@ -257,8 +258,9 @@ impl Transcript {
                 self.cut_off(texts);
                 self.link = Link::Reconnecting;
             }
-            // 认得的原因码写一句短话，认不得的照核心的原话（`tui.md`「正文」第 6 条）。
-            Update::Refused { reason, message } => {
+            // 认得的原因码写一句短话，认不得的照核心的原话（`tui.md`「正文」第 6 条）。没发出去的，先画上的那句
+            // 界面已经撤掉了（`app/redo.rs`）。
+            Update::Refused { reason, message } | Update::Unsent { reason, message } => {
                 let short = reason.as_deref().and_then(|r| texts.refusals.get(r));
                 let text = short
                     .cloned()
@@ -428,7 +430,7 @@ impl Transcript {
         std::mem::take(&mut self.returned)
     }
 
-    fn hide(&mut self, turns: &[u64], hidden: bool) {
+    pub(super) fn hide(&mut self, turns: &[u64], hidden: bool) {
         for entry in &mut self.entries {
             if entry.turn.is_some_and(|t| turns.contains(&t)) {
                 entry.hidden = hidden;

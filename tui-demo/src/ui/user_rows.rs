@@ -18,8 +18,8 @@ pub fn rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
         theme::user_bar(entry.level.unwrap_or(ctx.level)),
     );
     let said = entry.text.trim_matches('\n');
-    // 有粘贴块的才能点；只有附件的点了没反应（「输入框」第 12 条）。
-    let clickable = entry.pasted.iter().any(|c| !c.attachment());
+    // 有粘贴块的才能点开；只有附件、文件块的，点块以外的地方没反应（「输入框」第 12 条）。
+    let clickable = entry.pasted.iter().any(Chip::expandable);
     let hovered = clickable && ctx.hover == Some(Target::Entry(i));
     let (text, pieces) = shaped(said, &entry.pasted, entry.open, hovered);
     let mut out = vec![ctx.row(bar.clone(), Vec::new())];
@@ -65,7 +65,7 @@ fn shaped(text: &str, chips: &[Chip], open: bool, hovered: bool) -> (String, Vec
         out.push_str(&text[at..start]);
         let from = out.len();
         let file = c.file.as_ref().map(|f| f.display().to_string());
-        if open && !c.attachment() {
+        if open && c.expandable() {
             out.push_str(c.full.trim_matches('\n'));
             if hovered {
                 let style = theme::chip_ground();

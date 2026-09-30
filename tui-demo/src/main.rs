@@ -11,6 +11,7 @@ mod core;
 mod crash;
 mod diff;
 mod drawer;
+mod editor;
 mod figures;
 mod focus;
 mod history;
@@ -25,6 +26,7 @@ mod notify;
 mod open;
 mod pointer;
 mod pulse;
+mod reader;
 mod rng;
 mod side_select;
 mod theme;
@@ -34,15 +36,14 @@ mod ui;
 
 use std::io::{self, Write, stdout};
 use std::sync::mpsc::{self, RecvTimeoutError};
-use std::thread;
 use std::time::{Duration, Instant};
 
 use ratatui::crossterm::event::{
-    self, DisableBracketedPaste, DisableFocusChange, DisableMouseCapture, EnableBracketedPaste,
+    DisableBracketedPaste, DisableFocusChange, DisableMouseCapture, EnableBracketedPaste,
     EnableFocusChange, EnableMouseCapture, Event, KeyboardEnhancementFlags,
     PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
 };
-use ratatui::crossterm::{execute, terminal};
+use ratatui::crossterm::{cursor, execute, terminal};
 
 use miyu_store::env::Env;
 use miyu_store::human::Human;
@@ -155,13 +156,8 @@ fn run(
     let figures = figures::Figures::start(graphics, &config.figures, zoom_dir, move |done| {
         to_main.send(Incoming::Figure(done)).is_ok()
     });
-    thread::spawn(move || {
-        while let Ok(event) = event::read() {
-            if sender.send(Incoming::Terminal(event)).is_err() {
-                return;
-            }
-        }
-    });
+    // 读按键的线程：让出终端给编辑器时停下（`reader.rs`）。
+    let reader = reader::Reader::spawn(move |event| sender.send(Incoming::Terminal(event)).is_ok());
     let human = human(&config.layout.tool_language);
     let mut app = App::new(config, core, human, figures);
     let mut pointer = pointer::Pointer::default();
@@ -198,6 +194,12 @@ fn run(
             app.figures.borrow_mut().forget();
             pointer = pointer::Pointer::default();
         }
+        // 点了本机的文本文件：让出终端给编辑器，退出了再回来（蓝图「她的回答：Markdown」第 10 条）。
+        if let Some((editor, file)) = app.edit.take() {
+            let edited = edit(terminal, keyboard, &reader, &editor, &file);
+            app.edited(edited);
+            pointer = pointer::Pointer::default();
+        }
     }
     Ok(())
 }
@@ -218,9 +220,13 @@ fn suspend(screen: &mut ratatui::DefaultTerminal, keyboard: bool) -> io::Result<
     leave(keyboard)?;
     ratatui::restore();
     rustix::process::kill_process(rustix::process::getpid(), rustix::process::Signal::TSTP)?;
-    // 到这里已经 `fg` 回来了。不能调 ratatui 的 `clear`、不能重新探测键盘协议：它们都要读终端的回话，
-    // 而读按键的线程一直占着读的锁，读不到就超时报错。所以自己清屏、换一块新画布（下一帧整屏重画），
-    // 键盘协议照启动时探到的开回去。
+    // 到这里已经 `fg` 回来了。
+    reenter(screen, keyboard)
+}
+
+/// 回全屏：不能调 ratatui 的 `clear`、不能重新探测键盘协议：它们都要读终端的回话，而读按键的线程一直占着读的锁，
+/// 读不到就超时报错。所以自己清屏、换一块新画布（下一帧整屏重画），键盘协议照启动时探到的开回去。
+fn reenter(screen: &mut ratatui::DefaultTerminal, keyboard: bool) -> io::Result<()> {
     terminal::enable_raw_mode()?;
     execute!(
         stdout(),
@@ -230,6 +236,28 @@ fn suspend(screen: &mut ratatui::DefaultTerminal, keyboard: bool) -> io::Result<
     modes_on(keyboard)?;
     *screen = ratatui::Terminal::new(ratatui::backend::CrosstermBackend::new(stdout()))?;
     Ok(())
+}
+
+/// 让出终端给编辑器：关掉鼠标、粘贴、键盘协议和原始模式，读按键的停下；编辑器退出了回全屏（它自己离开了备用屏的
+/// 马上进回去）、接着读（蓝图「她的回答：Markdown」第 10 条）。
+/// 核心在别的线程，推来的攒在通道里，回来再画。
+fn edit(
+    screen: &mut ratatui::DefaultTerminal,
+    keyboard: bool,
+    reader: &reader::Reader,
+    editor: &str,
+    file: &std::path::Path,
+) -> io::Result<()> {
+    reader.pause();
+    leave(keyboard)?;
+    // 不离开备用屏：离开会露出底下 shell 的内容，光标先飞到左下角再飞进编辑器（2026-09-30 项目主人）。这一帧留着，
+    // 光标藏起来，等编辑器自己画上来。
+    execute!(stdout(), cursor::Hide)?;
+    terminal::disable_raw_mode()?;
+    let ran = editor::run(editor, file);
+    let back = reenter(screen, keyboard);
+    reader.resume();
+    ran.and(back)
 }
 
 #[cfg(not(unix))]

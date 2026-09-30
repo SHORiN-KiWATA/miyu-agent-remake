@@ -77,9 +77,17 @@ impl App {
         }
     }
 
-    /// 点了链接、你发出去的附件块：用系统的程序打开；开不了的提示一句（「她的回答：Markdown」第 10 条）。
+    /// 点了链接、附件块、文件块：本机的文本文件在这个终端里用编辑器开，别的用系统的程序打开；开不了的提示一句（「她的
+    /// 回答：Markdown」第 10 条）。
     pub(super) fn open_link(&mut self, url: &str) {
         use crate::open::OpenError;
+        // 本机的文本文件：在这个终端里用编辑器开，主循环让出终端（第 10 条）。
+        if let Some(editor) = self.editor.clone()
+            && let Some(file) = crate::local::resolve(url).filter(|f| crate::editor::is_text(f))
+        {
+            self.edit = Some((editor, file));
+            return;
+        }
         let words = &self.config.text.open;
         let note = match crate::open::open(url) {
             Ok(()) => return,
@@ -88,6 +96,20 @@ impl App {
             Err(OpenError::Spawn(e)) => words.failed.replace("{reason}", &e.to_string()),
         };
         self.hint(note, false);
+    }
+
+    /// 编辑器用完了、回到界面：起不来的提示一句。
+    pub fn edited(&mut self, result: std::io::Result<()>) {
+        self.figures.borrow_mut().forget();
+        if let Err(e) = result {
+            let note = self
+                .config
+                .text
+                .open
+                .failed
+                .replace("{reason}", &e.to_string());
+            self.hint(note, false);
+        }
     }
 
     /// 点开、收起时间线的一段或一步。

@@ -10,20 +10,19 @@ use crate::transcript::Chip;
 /// 剪贴板里的截图算哪一种附件（`attachments.json` 里的名字）。
 const IMAGE: &str = "image";
 
-/// 照配置定附件的规矩：每一种认哪些扩展名（`attachments.json`）、块上写什么（`attachment_labels`）。
+/// 照配置定附件的规矩：每一种认哪些扩展名、文件块上的名字最多几列（`attachments.json`），块上写什么（`attach`）。
 pub(super) fn attach_rule(config: &Config) -> AttachRule {
+    let words = &config.text.attach;
     let kinds = config.attachments.kinds.iter().map(|k| AttachKind {
         name: k.name.clone(),
         extensions: k.extensions.clone(),
-        label: config
-            .text
-            .attachment_labels
-            .get(&k.name)
-            .cloned()
-            .unwrap_or_default(),
+        label: words.labels.get(&k.name).cloned().unwrap_or_default(),
     });
     AttachRule {
         kinds: kinds.collect(),
+        file: words.file.clone(),
+        folder: words.folder.clone(),
+        name_cols: config.attachments.file_name_cols,
     }
 }
 
@@ -36,7 +35,7 @@ pub(super) fn chips(draft: &Draft) -> Vec<Chip> {
             label: draft.text[b.start..b.end].to_string(),
             full: b.text.clone(),
             kind: b.attachment.as_ref().map(|a| a.kind.clone()),
-            file: b.attachment.as_ref().map(|a| a.file.clone()),
+            file: b.opens().map(std::path::Path::to_path_buf),
         })
         .collect()
 }

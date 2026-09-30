@@ -58,7 +58,7 @@ impl Transcript {
 
     /// 第 `at` 条从正文里拿走了：记着的下标（在接的块、还没配上编号的调用、调用编号到那一步、正在压缩那一行）
     /// 在它后面的往前挪一格。
-    fn removed(&mut self, at: usize) {
+    pub(super) fn removed(&mut self, at: usize) {
         let shift = |i: &mut usize| {
             if *i > at {
                 *i -= 1;

@@ -8,7 +8,9 @@ mod keys;
 mod mouse;
 mod notify;
 mod paste;
+mod redo;
 mod session;
+mod updates;
 
 use std::cell::RefCell;
 use std::time::{Duration, Instant};
@@ -20,7 +22,7 @@ use ratatui::layout::Position;
 use crate::body_view::BodyView;
 use crate::commands::{self, Spec};
 use crate::config::Config;
-use crate::core::{Block, Command, Core, Push, Update};
+use crate::core::{Command, Core};
 use crate::drawer::Drawers;
 use crate::figures::Figures;
 use crate::focus::Focus;
@@ -33,7 +35,7 @@ use crate::notify::Notifier;
 use crate::pulse::Pulse;
 use crate::side_select::SideSelect;
 use crate::tips::Tips;
-use crate::transcript::{Kind, Transcript};
+use crate::transcript::Transcript;
 use crate::ui::Areas;
 use crate::ui::row_cache::RowCache;
 use crate::ui::rows::MdCache;
@@ -57,6 +59,16 @@ pub struct Notice {
     pub good: bool,
 }
 
+/// 最近发出去的一句，没发出去时撤回来用（「输入框」第 12、13 条）。
+struct Unsent {
+    /// 放回输入框的字：说的话、编辑上一句改过的；`/redo` 原样重来的没有。
+    draft: Option<Draft>,
+    /// 编辑上一句的，改之前的那句：放回去以后接着编辑。
+    original: Option<Draft>,
+    /// 重做先藏掉的那一轮：显示回来。
+    turn: Option<u64>,
+}
+
 /// 整个程序的状态。
 pub struct App {
     /// 界面上的字和布局的数值。
@@ -65,6 +77,8 @@ pub struct App {
     pub notifier: Notifier,
     /// 输入框。
     pub input: InputBox,
+    /// 最近发出去的一句：没发出去时撤回来（`redo.rs`）。
+    unsent: Option<Unsent>,
     /// `Ctrl+V` 贴的截图暂存在哪（「输入框」第 12 条）；找不到缓存目录的是 `None`，贴不了图。
     staging: Option<crate::clipboard::Staging>,
     /// 会话：正文、在不在跑、用量。
@@ -139,6 +153,10 @@ pub struct App {
     pub quit: bool,
     /// 按了 Ctrl+Z，主循环该把程序挂起到后台了。
     pub suspend: bool,
+    /// 本机的文本文件用哪个编辑器开（`$VISUAL`、`$EDITOR`）；没有的交给系统（`editor.rs`）。
+    editor: Option<String>,
+    /// 点了本机的文本文件：主循环让出终端给编辑器，编辑器和文件。
+    pub edit: Option<(String, std::path::PathBuf)>,
 }
 
 impl App {
@@ -186,6 +204,7 @@ impl App {
             notifier,
             input,
             staging,
+            unsent: None,
             transcript: Transcript::default(),
             core,
             menu: Menu::default(),
@@ -238,6 +257,8 @@ impl App {
             rng: crate::rng::Rng::from_clock(),
             quit: false,
             suspend: false,
+            editor: crate::editor::command(|name| std::env::var(name).ok()),
+            edit: None,
         }
     }
 
@@ -263,6 +284,16 @@ impl App {
         let action = match event {
             // Windows 上松开键也报一次，只认按下和按住。
             Event::Key(key) if key.kind == KeyEventKind::Release => Action::None,
+            // 编辑上一句时一下就取消（「输入框」第 13 条），不照下面有字时两下清空的规矩。
+            Event::Key(key)
+                if key.code == KeyCode::Esc
+                    && self.input.editing()
+                    && self.esc_for_input(menu_open)
+                    && self.transcript.running.is_none() =>
+            {
+                self.input.cancel_edit();
+                Action::None
+            }
             // Esc 由近及远（`13-终端界面.md` 第十节）：列表、选区归 `key`；在回答时第一下只提示，
             // 一小会儿以内再按一下才打断；没在回答、有字时，两下清空。
             Event::Key(key)
@@ -308,75 +339,6 @@ impl App {
             until: Instant::now() + Duration::from_millis(self.config.layout.notice_ms),
             good,
         });
-    }
-
-    /// 收一条核心那边的消息。撤销成了、排队的消息被退回了，字放回输入框（`tui.md`「输入框」第 7、8 条）。
-    pub fn core(&mut self, update: Update) {
-        // 这几种拒绝只弹提示框，不写进正文（`tui.md`「正文」第 9 条）。
-        if let Update::Refused {
-            reason: Some(reason),
-            ..
-        } = &update
-            && let Some(hint) = self.config.text.refusal_hints.get(reason)
-        {
-            self.hint(hint.clone(), false);
-            return;
-        }
-        let undone = matches!(update, Update::Undone { restore: false, .. });
-        if matches!(update, Update::Undone { restore: true, .. }) {
-            self.input.take_back();
-        }
-        // 限制了进行中那一段的高度就不放开视口（`tui.md`「正文」第 1 条、「时间线」第 20 条）。
-        // 限制着的，一轮结束运行状态行收起时也按住不往下落。
-        let release = crate::ui::release_on_fold(&self.config.timeline);
-        if matches!(update, Update::Push(crate::core::Push::TurnEnded(_))) {
-            if release {
-                self.view.settle();
-            } else {
-                self.view.hold();
-            }
-        }
-        // 她开始下一步：长正文替人停着的，回到最底下接着跟（`tui.md`「正文」第 1 条）。
-        if let Update::Push(Push::BlockStart { block, .. }) = &update
-            && *block != Block::Text
-        {
-            self.view.resume();
-        }
-        // 系统通知、报给 herdr：在正文收它之前量这一轮用了多久（「系统通知」）。
-        self.notify_core(&update);
-        // 清空了：像 Ctrl+L 一样清屏，「上下文已清空」在新的一屏顶上（「正文」第 9 条）。
-        if matches!(update, Update::Push(Push::Compacted { clear: true })) {
-            self.view.clear();
-        }
-        let folds = self.transcript.folds();
-        self.transcript.update(update, &self.config.text);
-        // 一段刚收起（她开口、一轮结束）：放开一次视口，收起留下的空白由上面的行补满（`tui.md`「正文」第 1 条）。
-        if release && self.transcript.folds() > folds {
-            self.view.settle();
-        }
-        // 被退回的排队消息连同粘贴块放回输入框，一条之间空一行，接在已有的字前面（`tui.md`「输入框」第 8、11 条）。
-        let returned = self.transcript.take_returned();
-        if !returned.is_empty() {
-            let mut draft = Draft::default();
-            for (text, chips) in returned {
-                draft.append(Draft::from_pasted(&text, &paste::pasted(chips)), "\n\n");
-            }
-            if !self.input.editor.is_empty() {
-                draft.append(self.input.draft(), "\n\n");
-            }
-            self.input.editor.set_draft(draft);
-        }
-        if undone {
-            let said = self
-                .transcript
-                .entries
-                .iter()
-                .rev()
-                .find(|e| e.kind == Kind::Undo);
-            if let Some(said) = said.map(|e| e.text.clone()) {
-                self.input.put_back(&said);
-            }
-        }
     }
 
     /// 下一次要自己醒来的时刻：提示到点消失；在跑时每秒走一下用时。没有就是 `None`，一直等事件。

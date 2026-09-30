@@ -1,7 +1,7 @@
 //! 拖进终端的文件（蓝图 `tui.md`「输入框」第 12 条）：终端把文件的路径当一次粘贴送进来。kitty 一行一个、不加引号；
-//! 别的终端多是加引号、反斜杠、空格隔开，也有 `file://`（`%20` 这样的转义）的。粘进来的全是本机现成的文件、目录，
-//! 而且至少有一个认得出种类（图片、PDF、音频、视频，`attachments.json`）的，交回一项一项，由输入框放：认得出的收成
-//! 附件，别的照路径写（她要看自己用工具读）。不是的交回 `None`，照字原样粘。
+//! 别的终端多是加引号、反斜杠、空格隔开，也有 `file://`（`%20` 这样的转义）的。粘进来的全是本机现成的文件、目录的，
+//! 交回一项一项，由输入框放：认得出种类（图片、PDF、音频、视频，`attachments.json`）的收成附件，别的收成文件块
+//! （发出去换回路径，她要看自己用工具读）。有一个不是现成的交回 `None`，照字原样粘。
 
 use std::path::{Path, PathBuf};
 
@@ -12,24 +12,20 @@ use super::attach::AttachRule;
 pub enum Dropped {
     /// 认得出种类的文件：收成附件。
     File(PathBuf, String),
-    /// 别的文件、目录：照路径写进去。
+    /// 别的文件、目录：收成文件块，发出去换回路径。
     Path(PathBuf),
 }
 
-/// 粘进来的一段字是不是拖进来的一批文件、里面有没有能收成附件的：是的交回一项一项，不是的交回 `None`。`home` 是
-/// 家目录（`~` 换成它）。
+/// 粘进来的一段字是不是拖进来的一批文件：是的交回一项一项，不是的交回 `None`。`home` 是家目录（`~` 换成它）。
 pub fn dropped(text: &str, home: Option<&str>, rule: &AttachRule) -> Option<Vec<Dropped>> {
-    let items: Vec<Dropped> = paths(text, home)?
-        .into_iter()
-        .map(|p| match rule.kind_of(&p).filter(|_| p.is_file()) {
-            Some(kind) => Dropped::File(p.clone(), kind.to_string()),
-            None => Dropped::Path(p),
-        })
-        .collect();
-    items
-        .iter()
-        .any(|i| matches!(i, Dropped::File(..)))
-        .then_some(items)
+    let items =
+        paths(text, home)?
+            .into_iter()
+            .map(|p| match rule.kind_of(&p).filter(|_| p.is_file()) {
+                Some(kind) => Dropped::File(p.clone(), kind.to_string()),
+                None => Dropped::Path(p),
+            });
+    Some(items.collect())
 }
 
 /// 照路径写进输入框的样子：带空白、引号的加单引号（里面的单引号照 shell 的样子写成 `'\''`）。
@@ -203,8 +199,12 @@ mod tests {
             ]),
             "别的文件、目录照路径"
         );
-        // 一个能收成附件的都没有、有一个不是现成的、夹着别的字：照字原样粘。
-        assert_eq!(found(&note.display().to_string()), None);
+        // 别的文件单拖进来也收成文件块（2026-09-30 项目主人定：所有文件都做成能点开的块）。
+        assert_eq!(
+            found(&note.display().to_string()),
+            Some(vec![Dropped::Path(note.clone())])
+        );
+        // 有一个不是现成的、夹着别的字：照字原样粘。
         assert_eq!(
             found(&format!("{}\n/nonexistent/a.png", doc.display())),
             None

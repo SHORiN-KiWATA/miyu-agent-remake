@@ -11,6 +11,7 @@ mod connect;
 mod kinds;
 mod limits;
 mod push;
+mod request;
 mod rpc;
 mod undo;
 mod upload;
@@ -23,6 +24,7 @@ use tokio::sync::mpsc;
 
 use backoff::Backoff;
 use connect::{connect, create, cwd, subscribe};
+use request::request;
 
 pub use kinds::{EndReason, Level, ToolStatus};
 pub use limits::Limits;
@@ -57,6 +59,14 @@ pub enum Command {
     Level(Level),
     /// 清空上下文（`session.clear`，`/clear`）。
     Clear,
+    /// 重做最后一轮（`session.redo`，`/redo`、`/edit`）：`text` 换开这一轮的那句字，`files` 换附件（空的是不要附件），
+    /// 都是 `None` 的原样重来。
+    Redo {
+        /// 改过的字。
+        text: Option<String>,
+        /// 换了的附件：本机的文件，发之前先 `blob.put`。
+        files: Option<Vec<std::path::PathBuf>>,
+    },
 }
 
 /// 核心那边的消息，交给界面。
@@ -92,6 +102,27 @@ pub enum Update {
         /// 回应里给人看的几样。
         report: Report,
     },
+    /// 说的话、重做没发出去（核心拒了、附件传不上）：和 [`Update::Refused`] 一样的两样；先画进正文的那句要撤掉，
+    /// 字放回输入框（「输入框」第 12、13 条）。
+    Unsent {
+        /// 原因码，例如 `not_redoable`。
+        reason: Option<String>,
+        /// 核心的原话。
+        message: String,
+    },
+}
+
+/// 等着回应、回应要另外办的请求（`serve` 记着请求的编号）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Awaiting {
+    /// 撤销：回应里给人看的几样交给界面。
+    Revert,
+    /// 恢复：同上。
+    Unrevert,
+    /// 说一句话：成了不用管，拒了要撤掉先画上的那句。
+    Send,
+    /// 重做：同上。
+    Redo,
 }
 
 /// 连着核心的这一头，界面拿着它发命令。
@@ -193,8 +224,8 @@ async fn serve(
     notify: &impl Fn(Update) -> bool,
 ) -> Served {
     let cwd = cwd();
-    // 等着回应、回应要交给界面的请求：编号到「是不是恢复」。
-    let mut undos: HashMap<String, bool> = HashMap::new();
+    // 等着回应、回应要另外办的请求：编号到是哪一种。
+    let mut awaiting: HashMap<String, Awaiting> = HashMap::new();
     loop {
         tokio::select! {
             command = commands.recv() => {
@@ -243,19 +274,32 @@ async fn serve(
                 }
                 // 还没开会话时别的命令没有对象：界面那头当场说了（`app/keys.rs`）。
                 let Some(session) = session.as_deref() else { continue };
-                let restore = match command {
-                    Command::Revert => Some(false),
-                    Command::Unrevert => Some(true),
+                let kind = match command {
+                    Command::Revert => Some(Awaiting::Revert),
+                    Command::Unrevert => Some(Awaiting::Unrevert),
+                    Command::Send { .. } => Some(Awaiting::Send),
+                    Command::Redo { .. } => Some(Awaiting::Redo),
                     _ => None,
                 };
-                // 带附件的：先把每个文件交给核心，传不上的整句不发（「输入框」第 12 条）。
-                let mut attachments = Vec::new();
-                if let Command::Send { files, .. } = &command
-                    && !files.is_empty()
-                {
-                    match upload::attach(rpc, files).await {
-                        Ok(got) => attachments = got,
+                // 带附件的：先把每个文件交给核心，传不上的整句不发（「输入框」第 12 条）。重做换了附件的也一样，
+                // 换成没有附件的带一个空的（「输入框」第 13 条）。
+                let files = match &command {
+                    Command::Send { files, .. } if !files.is_empty() => Some(files.clone()),
+                    Command::Redo { files, .. } => files.clone(),
+                    _ => None,
+                };
+                let mut attachments = None;
+                if let Some(files) = files {
+                    match upload::attach(rpc, &files).await {
+                        Ok(got) => attachments = Some(got),
                         Err(Update::Disconnected) => return Served::Lost,
+                        // 传不上：这一句没发出去（「输入框」第 12 条）。
+                        Err(Update::Refused { reason, message }) => {
+                            if !notify(Update::Unsent { reason, message }) {
+                                return Served::Quit;
+                            }
+                            continue;
+                        }
                         Err(update) => {
                             if !notify(update) {
                                 return Served::Quit;
@@ -265,13 +309,13 @@ async fn serve(
                     }
                 }
                 let Some((method, mut params)) = request(command, session, &cwd) else { continue };
-                if !attachments.is_empty() {
+                if let Some(attachments) = attachments {
                     params["attachments"] = json!(attachments);
                 }
                 match rpc.send(method, params).await {
                     Ok(id) => {
-                        if let Some(restore) = restore {
-                            undos.insert(id, restore);
+                        if let Some(kind) = kind {
+                            awaiting.insert(id, kind);
                         }
                     }
                     Err(_) => return Served::Lost,
@@ -280,7 +324,7 @@ async fn serve(
             message = rpc.next() => {
                 let Some(message) = message else { return Served::Lost };
                 let session = session.as_deref().unwrap_or_default();
-                if !take(rpc, session, &message, &mut undos, notify).await {
+                if !take(rpc, session, &message, &mut awaiting, notify).await {
                     return Served::Quit;
                 }
             }
@@ -295,61 +339,32 @@ async fn fresh(rpc: &mut Rpc) -> Result<(String, Limits), Update> {
     Ok((id, limits))
 }
 
-/// 一个命令写成核心的方法和参数；`/new` 不是发给会话的，交回 `None`。
-fn request(
-    command: Command,
-    session: &str,
-    cwd: &str,
-) -> Option<(&'static str, serde_json::Value)> {
-    Some(match command {
-        Command::Send { text, .. } => (
-            "session.send",
-            json!({"session": session, "text": text, "cwd": cwd}),
-        ),
-        Command::Interrupt { send } => {
-            let queued = if send { "send" } else { "return" };
-            (
-                "session.interrupt",
-                json!({"session": session, "queued": queued}),
-            )
-        }
-        Command::Revert => ("session.revert", json!({"session": session})),
-        Command::Unrevert => ("session.unrevert", json!({"session": session})),
-        Command::Compact(words) => {
-            let mut params = json!({"session": session});
-            if let Some(words) = words {
-                params["instructions"] = json!(words);
-            }
-            ("session.compact", params)
-        }
-        Command::Level(level) => {
-            let mut params = level.permission();
-            params["session"] = json!(session);
-            ("session.set_permission_level", params)
-        }
-        Command::Clear => ("session.clear", json!({"session": session})),
-        Command::New => return None,
-    })
-}
-
 /// 处理一条读进来的：推送、回应。交回界面还在不在。
 async fn take(
     rpc: &mut Rpc,
     session: &str,
     message: &serde_json::Value,
-    undos: &mut HashMap<String, bool>,
+    awaiting: &mut HashMap<String, Awaiting>,
     notify: &impl Fn(Update) -> bool,
 ) -> bool {
-    let restore = message["id"].as_str().and_then(|id| undos.remove(id));
+    let kind = message["id"].as_str().and_then(|id| awaiting.remove(id));
     if let Some(error) = message.get("error") {
-        return notify(Update::Refused {
-            reason: error["data"]["reason"].as_str().map(str::to_string),
-            message: error["message"].as_str().unwrap_or_default().to_string(),
+        let reason = error["data"]["reason"].as_str().map(str::to_string);
+        let message = error["message"].as_str().unwrap_or_default().to_string();
+        return notify(match kind {
+            Some(Awaiting::Send | Awaiting::Redo) => Update::Unsent { reason, message },
+            _ => Update::Refused { reason, message },
         });
     }
-    if let Some(restore) = restore {
-        let report = Report::read(&message["result"]);
-        return notify(Update::Undone { restore, report });
+    match kind {
+        Some(Awaiting::Revert | Awaiting::Unrevert) => {
+            let restore = kind == Some(Awaiting::Unrevert);
+            let report = Report::read(&message["result"]);
+            return notify(Update::Undone { restore, report });
+        }
+        // 说的话、重做成了：落盘、开轮都照推送来，回应不用管。
+        Some(Awaiting::Send | Awaiting::Redo) => return true,
+        None => {}
     }
     // 掉队后重新订阅的回应：限额照样带着，照它更新（核心重启以后载入的也是这样）。
     if let Some(limits) = Limits::of(message) {

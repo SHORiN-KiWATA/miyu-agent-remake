@@ -54,6 +54,16 @@ pub struct Block {
     pub text: String,
     /// 附件：本机的哪个文件、哪一种。粘贴块是 `None`。
     pub attachment: Option<Attachment>,
+    /// 文件块：拖进来的别的文件、目录，`text` 是写进话里的路径（蓝图「输入框」第 12 条）。别的块是 `None`。
+    pub path: Option<std::path::PathBuf>,
+}
+
+impl Block {
+    /// 点这一块打开哪个文件：附件的文件、文件块的路径；粘贴块是 `None`。
+    pub fn opens(&self) -> Option<&std::path::Path> {
+        let attached = self.attachment.as_ref().map(|a| a.file.as_path());
+        attached.or(self.path.as_deref())
+    }
 }
 
 /// 发过的一句：连同粘贴块，和发出去的时刻（输入历史列表写「几分钟前」，蓝图「输入历史列表」第 1 条）。
@@ -95,6 +105,7 @@ impl Draft {
                     end: start + label.len(),
                     text: full.clone(),
                     attachment: None,
+                    path: None,
                 });
                 from = start + label.len();
             }

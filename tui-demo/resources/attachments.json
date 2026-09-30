@@ -1,4 +1,5 @@
 {
+  "file_name_cols": 24,
   "kinds": [
     { "name": "image", "extensions": ["png", "jpg", "jpeg", "gif", "webp"] },
     { "name": "pdf", "extensions": ["pdf"] },

@@ -12,6 +12,16 @@
       "run": "unrevert"
     },
     {
+      "name": "redo",
+      "summary": "这一轮原样重来一遍",
+      "run": "redo"
+    },
+    {
+      "name": "edit",
+      "summary": "编辑上一句，改完回车重来",
+      "run": "edit"
+    },
+    {
       "name": "clear",
       "aliases": ["reset"],
       "summary": "清空上下文，会话不变",

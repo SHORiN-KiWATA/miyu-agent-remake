@@ -247,6 +247,13 @@ fn attachments_stay_blocks_and_open_their_file_like_a_link() {
         "[图片 4]".into(),
         vec![attached("[图片 4]", "/tmp/看图/b.png")],
     );
+    // 文件块：写着文件名，原文是路径；点开这一条也不换成路径，点块打开文件。
+    let file_chip = Chip {
+        file: Some("/tmp/看图/notes.txt".into()),
+        ..chip("[notes.txt]", "/tmp/看图/notes.txt", None)
+    };
+    t.user("[notes.txt]".into(), vec![file_chip]);
+    t.entries[2].open = true;
     let ctx = f.ctx();
     t.entries[0].open = true;
     let rows = fresh_rows(&t.entries, &ctx);
@@ -280,6 +287,18 @@ fn attachments_stay_blocks_and_open_their_file_like_a_link() {
         "只有图的那句整条不能点开"
     );
     assert!(rows.iter().any(|r| r.target == Some(Target::Entry(0))));
+    assert!(
+        links.contains(&&(0, 11, "/tmp/看图/notes.txt".to_string())),
+        "{links:?}"
+    );
+    assert!(
+        !rows.iter().any(|r| r.plain.contains("/tmp/看图/notes.txt")),
+        "文件块不展开成路径"
+    );
+    assert!(
+        !rows.iter().any(|r| r.target == Some(Target::Entry(2))),
+        "只有文件块的那句整条不能点开"
+    );
 }
 
 #[test]

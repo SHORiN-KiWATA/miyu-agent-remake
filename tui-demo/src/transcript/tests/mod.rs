@@ -15,6 +15,7 @@ mod folds;
 mod level;
 mod link;
 mod queue;
+mod redo;
 mod waiting;
 
 fn apply(t: &mut Transcript, pushes: Vec<Push>) {

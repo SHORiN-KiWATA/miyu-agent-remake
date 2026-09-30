@@ -25,7 +25,7 @@ mod open;
 mod panels;
 mod timeline;
 
-pub use attach::AttachLook;
+pub use attach::{AttachLook, AttachTexts};
 pub use figures::{FigureLook, Room};
 pub use icons::Icons;
 pub use motion::CompactionMotion;
@@ -258,8 +258,8 @@ pub struct Texts {
     pub drawer: crate::drawer::Texts,
     /// 输入框里粘贴块上写的，`{lines}` 行数。
     pub paste_label: String,
-    /// 附件的块上写的，照种类的名字（`attachments.json`）找：`{n}` 这一种的第几个（蓝图「输入框」第 12 条）。
-    pub attachment_labels: HashMap<String, String>,
+    /// 附件、文件块上写的（蓝图「输入框」第 12 条）。
+    pub attach: AttachTexts,
     /// `Ctrl+V` 读不到剪贴板时的提示。
     pub clipboard_unreadable: String,
     /// `Ctrl+V` 读到空剪贴板时的提示。
@@ -314,6 +314,8 @@ pub struct Texts {
     pub exit_hint: String,
     /// `Ctrl+C` 清空了输入框的提示：清掉的按 `↑` 找回。
     pub input_cleared: String,
+    /// 编辑上一句时输入框上边框写的（「输入框」第 13 条）。
+    pub editing: String,
     /// 开不了链接、文件时的提示。
     pub open: OpenTexts,
     /// 在回答时按第一下 `Esc` 的提示。
