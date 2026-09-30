@@ -19,7 +19,7 @@
 | `crates/miyu-assemble/src/harness.rs` | 别的 harness 发来的话包一层带名字的标签（施工 7-10） |
 | `crates/miyu-assemble/src/recap.rs` | 回顾的请求：取最近几轮的对话正文、截到上限、接在回顾的指令后面（施工 3-8 四补，下面「回顾的请求」） |
 | `crates/miyu-assemble/src/tag.rs` | 一块带标签的事实：开头、原话、收尾，字以外的块接在后面（子代理的留言和别的 harness 发来的话共用，施工 7-10 从 `jobs.rs` 拿出来） |
-| `crates/miyu-kernel/src/facts.rs` | 四份事实模板、会话的环境、一个边界上查哪几块、该不该注入 |
+| `crates/miyu-kernel/src/facts.rs` | 五份事实模板、会话的环境、一个边界上该注入哪几块（权限比级别、切了用哪份模板） |
 | `crates/miyu-kernel/src/session/turn.rs`、`permission.rs`、`retry.rs`、`tools.rs`、`call.rs` | 什么时候注入事实、什么时候组装、算第一处不同、记进 `model.called` |
 | `crates/miyu-kernel/src/template.rs` | 模板的写法、换字段、转义 |
 | `crates/miyu-kernel/src/accumulate.rs` | 增量、累积器 |
@@ -84,11 +84,12 @@
 
 **事实**：
 
-- `FactTemplates::new(env, permission, reply_cut, session)`：四份模板的原文；`session` 是 `Option`，以前造的快照没有这一份，是 `None`（施工 1-13 再补）。
-- `env(此刻, &Environment)`、`permission(&Permission)`、`reply_cut()`：各交回一块 `ContextInjected { kind, text }`，`kind` 是 `env`、`permission`、`reply_cut`。`session(&SessionId)` 交回 `kind` 是 `session` 的一块，没有这份模板的交回 `None`。
-- `boundary(此刻, &Environment, &Permission, &SessionId)`：一个边界上要查的几块，照环境、权限、会话编号的先后，没有编号模板的只有前两块。回合开始、这一轮切过级别以后的边界都用它，再交给 `changed`。
+- `FactTemplates::new(env, permission, reply_cut, session, permission_changed)`：五份模板的原文；`session`、`permission_changed` 是 `Option`，以前造的快照没有这两份，是 `None`（施工 1-13 再补、2-7 补）。
+- `env(此刻, &Environment)`、`permission(&Permission)`、`reply_cut()`：各交回一块 `ContextInjected { kind, text }`，`kind` 是 `env`、`permission`、`reply_cut`。`session(&SessionId)` 交回 `kind` 是 `session` 的一块，没有这份模板的交回 `None`。`permission_changed(&Permission, 上一级)` 交回切换那一份写的一块，`kind` 也是 `permission`，没有这份模板的交回 `None`（施工 2-7 补）。
+- `boundary(有效历史, 此刻, &Environment, &Permission, &SessionId)`：一个边界上该注入的几块，照环境、权限、会话编号的先后，没有编号模板的不查编号。环境、编号交给 `changed` 比；权限比级别、挑模板（「事实」第 2 条，施工 2-7 补）。回合开始、这一轮切过级别以后的边界都用它。
+- `effective_level(&Permission)`：实际生效的那一级的写法（「事实」第 6 条）。`history` 列切权限的那一条也用它（`tools/history.md`，施工 2-7 补）。
 - `Environment { offset, cwd }`：时区（`UtcOffset`，按分钟，−14:00 到 +14:00，东边是正的）；工作目录，头报上来的写法，例如 `~/src/miyu`，内核不改写。造会话、载入时交进来，执行器报「环境变了」就整个换掉。
-- `changed(有效历史, by, 几块)`：这几块里该注入的，照原来的先后。
+- `changed(有效历史, by, 几块)`：这几块里该注入的，照原来的先后，逐字节比原文。边界上的权限那一块不走它。
 
 **模板** `Template`：`parse(原文)`、`render(字段)`、`fill(字段, 清理)`、`fields()`；另有 `escape(值)`。字段用 `BTreeMap<&str, &str>` 交进来。
 
@@ -184,15 +185,22 @@
 | `kind` | 什么时候查 | 字段 |
 |---|---|---|
 | `env` | 回合开始；这一轮切过级别以后的边界 | `time`、`timezone`、`cwd` |
-| `permission` | 同上 | `level` |
+| `permission` | 同上 | `level`；切换那一份另有 `previous`（施工 2-7 补） |
 | `session` | 同上；快照里没有这份模板的不查（施工 1-13 再补） | `id` |
 | `reply_cut` | 说到一半断了、要带着半截再请求 | 没有 |
 
-2. **该不该注入**（`changed`）：`env`、`permission`、`session` 各和有效历史里同一个 `by`、同一个 `kind` 的最近一块比，原文逐字节相同就不注入。
+2. **该不该注入**：`env`、`permission`、`session` 各和有效历史里同一个 `by`、同一个 `kind` 的最近一块比。`env`、`session` 比原文，逐字节相同就不注入（`changed`）；`permission` 比级别（下面）。
    - 比最近那一块：先是 A，一个边界变成 B，下一个边界又回到 A，要注入 A。
    - 压缩替掉的、撤销掉的不在有效历史里，不算：压缩以后、撤销了带着它们的那一轮以后，下一个边界几块都重新注入。
    - 模块注入的同类块不算。
    - `session` 一个会话里不变，所以只在第一轮、压缩以后、撤掉了带着它的那一轮以后注入；载入以后编号一样，不重发。不和 `env` 并成一块：`env` 每过整点重发，编号跟着重发就白花。
+   - `permission` 比的是最近那一块说的是哪一级，不是原文：切换那一份带着上一级，和同一级的平常那一份原文不一样（施工 2-7 补，2026-10-01 项目主人要她看得出是人切的、从哪一级切过来）。
+     - 最近那一块说的就是现在这一级：不注入。一个边界之前切过去又切回来的，也就不注入。
+     - 没有上一块（会话第一轮，压缩以后，撤掉了带着它们的那几轮以后）：用平常那一份 `facts/permission.txt`。
+     - 有上一块、级别不一样：用切换那一份 `facts/permission-changed.txt`，`previous` 是上一块的级别。上一块本身是切换那一份写的，算它的 `level`。
+     - 快照里没有切换那一份的（以前造的会话）：用平常那一份，和以前逐字节比原文一模一样，前缀一字不变。
+     - 最近那一块说的是哪一级，照会话冻结的模板认：平常那一份写出的三级、切换那一份从三级里任一级切过来写出的，对上哪一种就是哪一级。认不出的当作级别不一样、又没有上一级，用平常那一份（和逐字节比一样）。
+     - 只有人能切级别（`kernel/session.md`「切权限级别」），所以级别变了就是人切的：撤销、压缩都不改现在的权限，只改她看到过什么。
    - `reply_cut` 不比，每次都注入。
 3. **回合开始**：照第 2 条查过，变了的和 `turn.started` 同一批追加，照环境、权限、会话编号的先后（`boundary`）。时刻取开这一轮那一刻（送进来的那条输入的时刻；载入以后接着干的，是载入的时刻）；时区、工作目录取会话现在的；权限取人最近一次切成的；编号取会话自己的，执行器造会话、载入时交进来（`kernel/session.md`「对外的样子」）。放宽的级别这时生效。
 4. **这一轮里切过级别**（切成了和原来不一样的）：到下面的边界，几块再查一遍，照第 2 条：
@@ -207,10 +215,11 @@
    - `time`：此刻在那个时区落在哪一个小时，写成这个小时的起止：`Fri 2026-09-25 16:00–17:00`。星期三个字母（`Sun` 到 `Sat`），年-月-日，二十四小时制，分钟都写 `00`，中间是连接号 `–`；23 点写 `23:00–24:00`（施工 1-13 补，`kernel/ids.md`「当地钟点」）。
    - `timezone`：`UTC+09:00`、`UTC-05:30`，零时区写 `UTC+00:00`。
    - `cwd`：`Environment.cwd` 原样。
-   - `level`：只读开着写 `read_only`；关着写常用的那一级，`workspace` 或 `full`；不认识的级别写 `read_only`。
+   - `level`：只读开着写 `read_only`；关着写常用的那一级，`workspace` 或 `full`；不认识的级别写 `read_only`（`effective_level`）。
+   - `previous`：有效历史里最近那一块权限说的那一级，写法同 `level`（施工 2-7 补）。
    - `id`：这个会话自己的编号（`SessionId`，UUIDv7 的写法），子会话写它自己的，不是父会话的。
    - 字段都照模板的规矩转义（下面）。模板文件行尾的换行也算，所以每块以换行结尾。
-7. **造的时候就查**：`FactTemplates::new` 读四份模板，拿全部字段（值是空的）试换一次：`env` 给 `time`、`timezone`、`cwd`，`permission` 给 `level`，`session` 给 `id`（没有这份的不试），`reply_cut` 什么都不给。写法坏了、要了没给的字段，当场报错。模板可以只用其中几个字段。
+7. **造的时候就查**：`FactTemplates::new` 读五份模板，拿全部字段（值是空的）试换一次：`env` 给 `time`、`timezone`、`cwd`，`permission` 给 `level`，`session` 给 `id`（没有这份的不试），`permission_changed` 给 `level`、`previous`（没有这份的不试，施工 2-7 补），`reply_cut` 什么都不给。写法坏了、要了没给的字段，当场报错。模板可以只用其中几个字段。
 
 **模板**
 
@@ -230,7 +239,7 @@
    转出来只有一行，没有引号、尖括号、`&`：伪造不了标签、属性和一行一条的记录。前后加上引号，就是一段合法的 JSON 字符串，读回来和原文一样。
 4. `fill(字段, 清理)`：每个字段过交进来的清理，不转义。给人看的字用它，不进请求。
 5. `fields()`：模板要的字段名，照出现的先后，重复的只算一次；`{{` 不算。
-6. 用 `render` 的：四份事实、内核替工具写的几句（`kernel/tools.md`）、驱动的占位（`drivers/openai-chat.md`）、权限策略和执行器替工具写的几句（`policy.md`）、自带软件输出里的几句和 `shell` 的说明（`tools/`）。
+6. 用 `render` 的：五份事实、内核替工具写的几句（`kernel/tools.md`）、驱动的占位（`drivers/openai-chat.md`）、权限策略和执行器替工具写的几句（`policy.md`）、自带软件输出里的几句和 `shell` 的说明（`tools/`）。
 
 **累积器**
 
@@ -260,9 +269,12 @@
 
 | 文件 | 原文 | 进到哪 |
 |---|---|---|
+| `permission-rule.txt` | `A <permission> block gives the permission level from that point on. In read_only, neither file tools nor commands can write anything. In workspace, commands can write only inside the workspace and the temp directory, and file tools need the user's approval to write outside the workspace. In full, there are no limits. Only the user can change the level.` | system，核心的几行的第一行；工具面是空的会话不带（施工 2-7 补） |
+| `local-paths-rule.txt` | `When a reply links or embeds a local file, write its absolute path. Relative paths resolve against the session working directory.` | system，核心的几行的第二行（施工 2-7 补） |
 | `facts/env.txt` | `<env time="{time}" timezone="{timezone}" cwd="{cwd}"/>` | 事实 `env` |
 | `facts/permission.txt` | `<permission level="{level}"/>` | 事实 `permission` |
 | `facts/session.txt` | `<session id="{id}"/>` | 事实 `session`（施工 1-13 再补） |
+| `facts/permission-changed.txt` | `<permission level="{level}" previous="{previous}">The user changed the permission level.</permission>` | 事实 `permission`：人切了级别以后的边界、她看到过上一块的（施工 2-7 补；原文等主会话 A/B 定） |
 | `facts/reply-cut.txt` | `<reply-cut>The reply above was cut off before it was finished. The user has already seen it. Continue from exactly where it stopped, without repeating it.</reply-cut>` | 事实 `reply_cut` |
 | `turn-ended/interrupted.txt` | `<turn-ended reason="interrupted">The user interrupted this turn.</turn-ended>` | 人这一边 |
 | `turn-ended/error.txt` | `<turn-ended reason="error">This turn stopped on an error.</turn-ended>` | 人这一边 |
@@ -384,8 +396,8 @@ Carry on from where the summary leaves off, without redoing work it records as d
 
 - 结尾那份以一个换行开头，所以摘要后面换一行。
 - 结尾那一句是检查点的规则，施工 6-3 下挪进来的（`compaction.md` 第八条）：回合中途压完，这一轮的最后一条只有检查点和事实，没有它，她不知道这时该做什么，会把摘要里记着做完了的再做一遍核对。
-- `permission-rule.txt` 在资源目录里，不读进快照，不进请求。
-- 样本：`docs/designs/samples/requests/second-step.json`（第一轮两块事实排在触发消息前面、调一次工具以后的那次请求）、`after-compaction.json`（压缩以后只剩检查点）；`docs/designs/samples/probe/terminal/requests/` 是一段终端会话的每一次请求，第 11 次带接着写的记号；`docs/designs/samples/probe/reports/requests/` 是一段有回报的会话（施工 7-2）：第 3 次由子代理的回报开，第 5 次后台命令结束排在工具结果后面，第 7 次只记下的回报排在人那一句前面；`docs/designs/samples/probe/cleared/requests/` 是一段清空过的会话（施工 6-8 补）：第 3 次是清空以后的，只剩工具面、system、三块事实和那一句；`docs/designs/samples/probe/harness/requests/` 是一段有别的 harness 来话的会话（施工 7-10）：第 2 次由它开，第 4 次它在回合中途到、排在工具结果后面，和同一份剧本里换成人说的比，每次请求只多标签那两段。
+- system 由拼快照的一步拼好（`policy.md`「拼」），组装时原样用，不再拆开。新会话的 system 是人设、场所说明（子会话）、核心的几行，块和块之间空一行（`26-提示词.md` 第四节）。核心的几行施工 2-7 补加，一行一句，先 `permission-rule.txt`（工具面是空的会话不带）、后 `local-paths-rule.txt`；以前造的快照 system 里没有这一块，照快照发，前缀一字不变。
+- 样本：`docs/designs/samples/requests/second-step.json`（第一轮两块事实排在触发消息前面、调一次工具以后的那次请求）、`after-compaction.json`（压缩以后只剩检查点）；探针几张脸的 system 都以核心的几行结尾（施工 2-7 补）；`docs/designs/samples/probe/terminal/requests/` 是一段终端会话的每一次请求，第 7 次起带着切到只读的那一块（切换那一份，施工 2-7 补），第 11 次带接着写的记号；`docs/designs/samples/probe/reports/requests/` 是一段有回报的会话（施工 7-2）：第 3 次由子代理的回报开，第 5 次后台命令结束排在工具结果后面，第 7 次只记下的回报排在人那一句前面；`docs/designs/samples/probe/cleared/requests/` 是一段清空过的会话（施工 6-8 补）：第 3 次是清空以后的，只剩工具面、system、三块事实和那一句；`docs/designs/samples/probe/harness/requests/` 是一段有别的 harness 来话的会话（施工 7-10）：第 2 次由它开，第 4 次它在回合中途到、排在工具结果后面，和同一份剧本里换成人说的比，每次请求只多标签那两段；`docs/designs/samples/probe/permission/requests/` 是一段人切了权限级别的会话（施工 2-7 补）：第 2 次开头是切到完全放开的那一块，第 3 轮开了只读又关掉、不注入，第 7 次切到只读的那一块排在工具结果后面。
 
 ### 出错
 
@@ -411,7 +423,7 @@ Carry on from where the summary leaves off, without redoing work it records as d
 | `crates/miyu-assemble/src/tests.rs` | 工具面照名字排；示范对话在前、算进 `stable`；接着写的记号什么时候真、什么时候假 |
 | `crates/miyu-assemble/src/render/tests.rs` | 每种事件渲染成什么；回合开始的事实和触发放到回合开始的地方；等重试时切了级别，事实排在触发后面；早到的触发；重启以后接着干；检查点在最前、摘要不转义；回合没走完的五句；没有触发的那一轮出错、打断、崩了、重启都不出那一句（施工 6-8）；清空的检查点不出字，压缩过再清空的摘要也跟着没了（`render/tests/clear.rs`，施工 6-8 补）；不认识的块和不进上下文的种类 |
 | `crates/miyu-assemble/tests/sample_session.rs` | 样本会话组装出两份样本请求；撤回的、确认和提问的事件不进请求；样本里的两种回报渲染成带标签的事实（施工 7-2） |
-| `crates/miyu-assemble/tests/probe.rs` | 一段八轮的终端会话由真内核跑出来，每次请求和存档（`requests/`、`openai-chat/`）逐字节一样；五条性质；什么都没收到的再来一字不差。有回报的会话（施工 7-2）一样和存档比、查五条性质；回报开的那一轮最后一块是那条回报，回合中途到的单独一条 user 排在工具结果后面，只记下的在人那一句前面。清空过的会话（施工 6-8 补）一样和存档比、查五条性质；清空以后的那一次算改写过，只剩工具面、system 和一条 user：三块事实、那一句。子代理的会话（施工 7-5）和同一份剧本的主会话比，只多 system 里的场所说明，会话编号那一块写的是它自己的（施工 1-13 再补）。有别的 harness 来话的会话（施工 7-10，`tests/probe_harness.rs`）一样和存档比、查五条性质，和换成人说的同一份剧本比，每次请求只多标签那两段 |
+| `crates/miyu-assemble/tests/probe.rs` | 一段八轮的终端会话由真内核跑出来，每次请求和存档（`requests/`、`openai-chat/`）逐字节一样；五条性质；什么都没收到的再来一字不差。有回报的会话（施工 7-2）一样和存档比、查五条性质；回报开的那一轮最后一块是那条回报，回合中途到的单独一条 user 排在工具结果后面，只记下的在人那一句前面。清空过的会话（施工 6-8 补）一样和存档比、查五条性质；清空以后的那一次算改写过，只剩工具面、system 和一条 user：三块事实、那一句。子代理的会话（施工 7-5）和同一份剧本的主会话比，只多 system 里的场所说明，会话编号那一块写的是它自己的（施工 1-13 再补）。有别的 harness 来话的会话（施工 7-10，`tests/probe_harness.rs`）一样和存档比、查五条性质，和换成人说的同一份剧本比，每次请求只多标签那两段。人切了权限级别的会话（施工 2-7 补，`tests/probe_permission.rs`）一样和存档比、查五条性质；切换那一块在第二轮开头、紧挨着那句话，回合中途切的单独一条 user 排在工具结果后面；和以前造的快照（没有切换那一份）跑同一份剧本比，每次请求只差切换那几块，换回平常那一份一字不差 |
 | `crates/miyu-assemble/src/jobs/tests.rs` | 两种回报（施工 7-2）：出厂的字渲染出来和样本逐字节一样（每种原因、截过的、人插过话的、没说话的；停掉的分她停的、人停的，施工 7-2 补）；人停的那一句紧跟标签那一行；旧快照没有那一句的，人停的照原来的写；负的退出码照原样、没存下输出的不写字数；标题照规矩转义；开这一轮的那条挪到回合开始的地方、事实在前；回合中途到的排在那一步的工具结果后面；派它的那一轮撤掉了的不渲染；派它的那一条压缩掉了照样有标题；旧快照没有写法的不渲染 |
 | `crates/miyu-assemble/src/jobs/tests/messages.rs`（施工 7-7） | 子代理的留言：出厂的字渲染出来和样本一字不差、末尾有换行的不再补；人、别的会话发来的原样；开这一轮的挪到回合开始的地方、事实在前；回合中途到的排在那一步的工具结果后面；派它的那一轮撤掉了的不渲染；旧快照没有标签的只剩它的话 |
 | `crates/miyu-assemble/src/harness/tests.rs`（施工 7-10） | 别的 harness 发来的话：出厂的字渲染出来和两份样本一字不差（带转义的名字）、末尾有换行的不再补；附件接在标签那一块后面；只有附件的是开头接收尾；开这一轮的挪到回合开始的地方、事实在前；回合中途到的排在那一步的工具结果后面；旧快照没有标签的和人的话一字不差；别的 `by` 原样 |
@@ -421,8 +433,10 @@ Carry on from where the summary leaves off, without redoing work it records as d
 | `crates/miyu-assemble/src/summary/tests.rs` | 摘要指令怎么拼：没附要求的和原来的整份一字不差；附了的夹在中间、原样、补换行；旧快照没有那两份的（施工 6-8）；取摘要的每一种 |
 | `crates/miyu-assemble/tests/random_logs.rs` | 五百份随机会话（有手动压缩单开的那一轮，施工 6-8），每次请求查五条性质：同样的日志同样的字节、前缀延伸（统一的请求和线上的字节两层；中间撤销、恢复、压缩过的那一次不查）、调用和结果成对、没有连着的 user、回合第一次请求的最后一块是触发；CI 长跑两万份；重试的回合里，一半在等着重试时切一下只读 |
 | `crates/miyu-kernel/src/facts/tests.rs` | 模板造的时候查（会话编号的模板只要 `id`）；三块的写法、目录转义、实际生效的级别；一个边界上查哪几块、先后；以前的模板没有会话编号的，边界上只有两块（施工 1-13 再补）；该不该注入的八种情形 |
-| `crates/miyu-kernel/tests/sample_facts.rs` | 用出厂模板，样本会话每个边界该注入的几块 |
+| `crates/miyu-kernel/src/facts/tests/permission.rs`（施工 2-7 补） | 切换那一份造的时候查；它写出现在的一级和上一级；边界上比级别：没有上一块的写平常那一份，一样的不写，不一样的用切换那一份、带上一级（只读开着写只读）；上一块是切换那一份的算它新的那一级；以前的模板照旧写平常那一份；认不出的上一块照原文比；模块注入的不算；压缩以后、撤掉带着它们的几轮以后照剩下的算 |
+| `crates/miyu-kernel/tests/sample_facts.rs` | 用出厂模板（少切换那一份：样本会话造在施工 2-7 补以前），样本会话每个边界该注入的几块 |
 | `crates/miyu-kernel/src/session/tests/turn.rs`、`permission.rs`、`reply.rs`、`scenario/retrying.rs` | 回合开始注入、切级别以后在哪个边界注入、第二轮只注入变了的、断了以后追加 `reply_cut` |
+| `crates/miyu-kernel/src/session/tests/scenario/permission_changed.rs`（施工 2-7 补） | 人切了级别：空闲时切的，下一轮开头用切换那一份、带上一级；一个边界之前切过去又切回来的（空闲时、工具在跑时）不注入；回合中途切的，排在工具结果后面、这一轮下一次请求看得到；连着切的写她最近看到的那一级；压缩以后写平常那一份；撤掉切到完全放开的那一轮以后，上一级是她还看得到的工作区；撤掉所有带着权限的轮以后写平常那一份；撤掉的回合里切的，载入以后照样算；崩了载入以后不重发；以前的快照写平常那一份 |
 | `crates/miyu-kernel/src/session/tests/scenario/session_fact.rs`（施工 1-13 再补） | 会话编号：第一轮排在环境、权限后面注入，第二轮不注入；压缩以后再注入一次；撤掉带着它的那一轮以后下一轮重新注入；崩了载入以后编号一样、不重发；子会话写它自己的编号；以前的快照没有模板的不注入 |
 | `crates/miyu-kernel/src/session/tests/difference.rs` | 第一处不同交给执行器、记进 `model.called` |
 | `crates/miyu-kernel/src/time/tests.rs` | 钟点到小时、星期、时区的写法和范围 |

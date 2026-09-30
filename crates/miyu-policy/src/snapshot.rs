@@ -8,7 +8,6 @@ use miyu_assemble::{DefaultAssembler, Stable, Texts};
 use miyu_drivers::DriverTexts;
 use miyu_kernel::estimate::Flat;
 use miyu_kernel::event::{Permission, SessionCreated};
-use miyu_kernel::facts::FactTemplates;
 use miyu_kernel::id::{AccountId, ContentHash, VenueId};
 use miyu_kernel::session::{Compaction, Notes, Policy, Reports};
 use miyu_kernel::template::TemplateError;
@@ -16,6 +15,7 @@ use miyu_kernel::tool::{ToolTextSources, ToolTexts};
 use serde::{Deserialize, Serialize};
 
 use crate::drivers::DriverPlaceholders;
+use crate::facts::FactTexts;
 use crate::harness::HarnessTexts;
 use crate::jobs::{JobNumbers, JobTexts, REPORT_CHARS};
 use crate::pause::PauseNumbers;
@@ -172,21 +172,6 @@ pub struct TurnEndedTexts {
     pub aborted: String,
     /// 被有计划的重启打断（`restarted.txt`）。
     pub restarted: String,
-}
-
-/// 事实的模板。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FactTexts {
-    /// 环境（`env.txt`）。
-    pub env: String,
-    /// 权限级别（`permission.txt`）。
-    pub permission: String,
-    /// 回复没说完就断了（`reply-cut.txt`）。
-    pub reply_cut: String,
-    /// 会话编号（`session.txt`，施工 1-13 再补）。以前造的快照里没有，读成没有：那些会话不注入这一块；没有的不写，
-    /// 旧快照的字节不变。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub session: Option<String>,
 }
 
 /// 内核替工具写给模型的几句，名字照 `resources/core/tool-results/` 里的文件。
@@ -363,16 +348,7 @@ impl Snapshot {
             system: self.system.clone(),
             demos: Vec::new(),
         };
-        let facts = FactTemplates::new(
-            &core.facts.env,
-            &core.facts.permission,
-            &core.facts.reply_cut,
-            core.facts.session.as_deref(),
-        )
-        .map_err(|error| BuildError::Texts {
-            which: "fact templates",
-            error,
-        })?;
+        let facts = core.facts.templates()?;
         Ok(Policy {
             assembler: Box::new(DefaultAssembler::new(stable, texts)),
             facts,

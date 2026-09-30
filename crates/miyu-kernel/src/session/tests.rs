@@ -188,6 +188,7 @@ fn policy() -> Policy {
             r#"<p l="{level}"/>"#,
             "<reply-cut/>",
             None,
+            None,
         )
         .unwrap(),
         tools: BTreeMap::from([

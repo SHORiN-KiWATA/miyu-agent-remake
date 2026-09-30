@@ -14,6 +14,12 @@ pub const SUMMARIZE: &str = concat!(
 /// 子代理的场所说明（施工 7-5）：出厂的原文，子会话的 system 接在人设后面。
 pub const VENUE: &str = include_str!("../../../../resources/core/jobs/subagent-venue.txt");
 
+/// 核心的几行（施工 2-7 补）：出厂的两句，一行一句，system 的最后一块。探针的工具面不是空的，权限那一句也带。
+pub const LINES: &str = concat!(
+    include_str!("../../../../resources/core/permission-rule.txt"),
+    include_str!("../../../../resources/core/local-paths-rule.txt"),
+);
+
 /// 出厂的英文，资源目录里的真文件。
 pub(super) fn texts() -> Texts {
     // 压缩的几份字：`resources/core/compaction/` 下的同名文件。

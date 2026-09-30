@@ -14,6 +14,7 @@ mod isolate;
 mod manual;
 mod messages;
 mod overflow;
+mod permission_changed;
 mod rebuild;
 mod recap;
 mod redo;

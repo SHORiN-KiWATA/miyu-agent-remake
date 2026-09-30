@@ -2,11 +2,15 @@
 //!
 //! 撤掉的、撤回的交给内核的 `History::whole()` 算过，这里只看剩下的：人说的话、她的回复、工具结果、以前的摘要。
 //! 她自己翻记录的那几步（`history` 的调用和结果）不算：找的时候会找到自己这一次调用，翻出来的旧结果又和原文重复。
+//!
+//! 人切权限级别另算（[`switched`]，施工 2-7 补）：撤销不改现在的权限（`docs/blueprint/kernel/session.md`「载入和崩溃」
+//! 第 2 条），所以撤掉的回合里切的也列，不经 `History::whole()`。
 
 use std::collections::BTreeSet;
 
 use miyu_kernel::block::Block;
-use miyu_kernel::event::{Body, Event};
+use miyu_kernel::event::{Body, Event, PolicyChanged};
+use miyu_kernel::facts::effective_level;
 use miyu_kernel::id::CallId;
 use miyu_kernel::origin::By;
 use miyu_kernel::template::Template;
@@ -66,12 +70,13 @@ impl Entry {
 }
 
 /// 一条里代码写的几样：图片、文件的占位（`history/image.txt`、`history/file.txt`），别的 harness 发来的那一条的「谁」
-/// （`history/agent.txt`，施工 7-10）。
+/// （`history/agent.txt`，施工 7-10），人切了权限级别的那一条的原文（`history/permission.txt`，施工 2-7 补）。
 #[derive(Clone)]
 pub(super) struct Placeholders {
     pub(super) image: Template,
     pub(super) file: Template,
     pub(super) agent: Template,
+    pub(super) permission: Template,
 }
 
 /// 还算数的事件里挑出算一条的，照日志的先后。一个字都没有的（例如只想了没说就被打断的回复）不算；末尾的空白去掉。
@@ -111,6 +116,29 @@ pub(super) fn entries(events: &[Event], placeholders: &Placeholders, own: &str) 
             })
         })
         .collect()
+}
+
+/// 人切了权限级别（带 `permission` 的 `session.policy_changed`）算一条，「谁」是 `user`，原文写切成了哪一级，写法和
+/// 事实里的一样（施工 2-7 补）。别的事件、只换了策略快照的没有。照日志原样读来的事件交给它，不管撤没撤掉：现在的权限就是
+/// 这样算的，撤销不改它。
+pub(super) fn switched(event: &Event, placeholders: &Placeholders) -> Option<Entry> {
+    let Body::PolicyChanged(PolicyChanged {
+        permission: Some(permission),
+        ..
+    }) = &event.body
+    else {
+        return None;
+    };
+    Some(Entry {
+        seq: event.seq.get(),
+        at: event.at,
+        who: Who::User,
+        from: None,
+        text: inline(say(
+            &placeholders.permission,
+            &[("level", effective_level(permission))],
+        )),
+    })
 }
 
 /// 几块写成原文，一块一段：正文照原样；工具调用写成 `→ <工具名> <参数原文>`，工具名是 `own` 的不写；图片、文件写

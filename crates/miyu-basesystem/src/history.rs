@@ -2,7 +2,8 @@
 //! 时间、谁说的筛。压缩换出去的旧内容都还在日志里，她用它取回。只读会话自己的日志，不碰文件，不报效果。
 //!
 //! 日志经 [`Call::log`] 一段一段读，交给内核的 `History::whole()` 算出哪些还算数（撤掉的、撤回的不算），再挑出
-//! 算一条的（[`entry`]），筛过以后写成一页（[`page`]）。M6 不建索引，每次从头读。
+//! 算一条的（[`entry`]），筛过以后写成一页（[`page`]）。人切权限级别的那几条照读来的原样挑，撤掉的回合里的也算（施工
+//! 2-7 补）。M6 不建索引，每次从头读。
 
 mod entry;
 mod page;
@@ -89,6 +90,7 @@ impl History {
                     image: text("image", &[])?,
                     file: text("file", &["name"])?,
                     agent: text("agent", &["name"])?,
+                    permission: text("permission", &["level"])?,
                 },
                 footers: Footers {
                     more_found: text("more-found", &["shown", "total", "next"])?,
@@ -172,11 +174,13 @@ fn look(texts: &Texts, call: &Call, wanted: &Wanted, stop: &Stop) -> Done {
         return no_log(texts, "this call has no log");
     };
     let mut kept = Kept::whole();
+    let mut switches = Vec::new();
     let read = log.read(|events| {
         if stop.stopped() {
             return false;
         }
         for event in events {
+            switches.extend(entry::switched(&event, &texts.placeholders));
             kept.append(event);
         }
         true
@@ -187,10 +191,10 @@ fn look(texts: &Texts, call: &Call, wanted: &Wanted, stop: &Stop) -> Done {
     if stop.stopped() {
         return Done::stopped();
     }
-    let entries: Vec<Entry> = entry::entries(kept.events(), &texts.placeholders, NAME)
-        .into_iter()
-        .filter(|entry| picked(entry, wanted))
-        .collect();
+    let mut entries = entry::entries(kept.events(), &texts.placeholders, NAME);
+    entries.extend(switches);
+    entries.sort_by_key(|entry| entry.seq);
+    entries.retain(|entry| picked(entry, wanted));
     let (page, human) = if wanted.words.is_empty() {
         let page = page::read(&entries, wanted.limit, call.offset, &texts.footers);
         let human = said("history/read")

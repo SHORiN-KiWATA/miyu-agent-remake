@@ -18,7 +18,7 @@ use miyu_kernel::request::Message;
 use miyu_kernel::session::Queued;
 use miyu_kernel::testkit::{CHILD_SESSION, Line, Play, SESSION, Stage};
 use support::{
-    PARENT, VENUE, anchored, check, child_stage, files, matches_the_archive, sent, stage,
+    LINES, PARENT, VENUE, anchored, check, child_stage, files, matches_the_archive, sent, stage,
     summarizes,
 };
 
@@ -62,7 +62,7 @@ fn terminal() -> Stage {
 
     // 3. 过了整点，环境重新注入；回复还在路上，人插了一句，又切成只读，再打断：收全了的那次调用
     //    补「已取消」。
-    // 4. 插的那一句接着开了下一轮，排在回合开始的地方；权限重新注入；一次调用被只读拦下。
+    // 4. 插的那一句接着开了下一轮，排在回合开始的地方；权限用切换那一份重新注入（施工 2-7 补）；一次调用被只读拦下。
     s.advance(60);
     s.model([
         Line::calls("我先改 main.rs", &[("write", r#"{"path":"src/main.rs"}"#)]).held(),
@@ -115,11 +115,12 @@ fn terminal() -> Stage {
     s.model([Line::says("好的。")]);
     s.say("接着来");
 
-    // 9. 交了限额（窗口 33400，压缩线 400，尾巴的预算 100）；这一轮问得长（约 200 个 token），报的用量是 40000。
+    // 9. 交了限额（窗口 33525，压缩线 525，尾巴的预算 131）；这一轮问得长（约 200 个 token），报的用量是 40000。system 多了
+    //    核心的几行（施工 2-7 补，约 125 个 token），窗口跟着加 125，走法和原来一样。
     // 10. 下一轮一开头就过线：先压，最近几组留作尾巴（施工 6-2 下）：第 9 轮的回复和这一轮的那句，长的那一问压进
     //     摘要；压完三块事实重新注入，和触发的那句放在一起。
     summarizes(&mut s);
-    s.limits(Some(33_400), None);
+    s.limits(Some(33_525), None);
     s.model([Line::says("README 里写了怎么装。").reports(40_000)]);
     s.say(&"README 写了什么？装的时候要注意什么，每个平台有什么不一样？".repeat(8));
     s.model([Line::says("装好以后跑 miyu ask。").reports(100)]);
@@ -269,12 +270,18 @@ fn the_subagent_session_differs_only_by_its_venue_note() {
     );
     let main = subagent(stage);
     assert_eq!(child.requests().len(), 2);
+    // 场所说明插在人设和核心的几行中间（施工 2-7 补）。
+    let lines = format!("\n\n{}", LINES.trim_end());
     for ((_, child), (_, main)) in child.requests().iter().zip(main.requests()) {
         assert_eq!(child.tools, main.tools);
         assert_eq!(as_main(&child.messages), main.messages);
+        let persona = main
+            .system
+            .strip_suffix(&lines)
+            .expect("主会话以核心的几行结尾");
         assert_eq!(
             child.system,
-            format!("{}\n\n{}", main.system, VENUE.trim_end())
+            format!("{persona}\n\n{}{lines}", VENUE.trim_end())
         );
     }
 }

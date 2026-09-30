@@ -231,6 +231,7 @@
 7. 有要改的：出 `Append` 和 `Restore { steps }`，会话进入改回文件。这时来的命令，接受过的照上一次回应，别的拒绝，`restoring`；这个撤销命令自己的编号这时还没记下，它再来也是 `restoring`。会话不算空闲。
 8. `Restored` 回来：先对照交出去的几步：一步一项、先后一样，每一项的 `result`、`effect`、`path`、`action` 和那一步一样；移进回收站成了的（`trash` 那一步 `restored`）要带着 `trash`。对不上的那一项改成 `failed`，`error` 写 `executor report did not match`；少了的照那一步补一项 `failed`，多出来的不要。然后记一条 `files.restored`，`files` 照对过的记，`by`、`cause` 和撤销那一条一样，不带回合编号；两条都落了盘才回应，附上两条的序号。不在改回文件时来的 `Restored` 是过时的，不理。
 9. 撤了就跟没说过一样：请求里不写撤销过什么。
+10. 撤销不改现在的权限：撤掉的回合里切的级别照样算（`kernel/session.md`「切权限级别」第 7 条）。跟着撤掉的只是她看到过的那几块权限，下一个边界照有效历史里还剩的最近一块比，级别不一样的用切换那一份告诉她（`kernel/request.md`「事实」第 2 条，施工 2-7 补）。
 
 **重做**（`Redo { text, attachments }`，施工 4-7 再补，2026-09-30 项目主人定：一个命令，只重做最后一轮）：
 

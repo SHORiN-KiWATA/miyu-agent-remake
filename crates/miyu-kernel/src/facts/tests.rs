@@ -1,5 +1,8 @@
 //! 事实的测试：模板造的时候就查；三块的写法；一个边界上查哪几块、先后；以前的快照没有会话编号的模板；该不该注入：
 //! 第一次、一样、变了、隔着边界变回去、别的来源和别的类不算、压缩以后、撤销以后。日志都先交给账本查过（[`Log`]）。
+//! 权限那一块比级别、切了用哪份模板在 `tests/permission.rs`（施工 2-7 补）。
+
+mod permission;
 
 use super::*;
 use crate::event::Event;
@@ -18,6 +21,7 @@ fn templates() -> FactTemplates {
         r#"<p l="{level}"/>"#,
         "<cut/>",
         Some(r#"<s i="{id}"/>"#),
+        None,
     )
     .unwrap()
 }
@@ -147,17 +151,25 @@ fn a_template_asking_for_a_field_it_does_not_have_is_refused() {
         r#"<p l="{level}"/>"#,
         "<cut/>",
         None,
+        None,
     )
     .unwrap_err();
     assert!(env.why.contains("weather"), "{env}");
-    let permission =
-        FactTemplates::new(r#"<e t="{time}"/>"#, r#"<p t="{time}"/>"#, "<cut/>", None).unwrap_err();
+    let permission = FactTemplates::new(
+        r#"<e t="{time}"/>"#,
+        r#"<p t="{time}"/>"#,
+        "<cut/>",
+        None,
+        None,
+    )
+    .unwrap_err();
     assert!(permission.why.contains("time"), "{permission}");
     // 被打断的那一句没有字段。
     let cut = FactTemplates::new(
         r#"<e t="{time}"/>"#,
         r#"<p l="{level}"/>"#,
         r#"<cut n="{count}"/>"#,
+        None,
         None,
     )
     .unwrap_err();
@@ -168,6 +180,7 @@ fn a_template_asking_for_a_field_it_does_not_have_is_refused() {
         r#"<p l="{level}"/>"#,
         "<cut/>",
         Some(r#"<s t="{time}"/>"#),
+        None,
     )
     .unwrap_err();
     assert!(session.why.contains("time"), "{session}");
@@ -176,7 +189,14 @@ fn a_template_asking_for_a_field_it_does_not_have_is_refused() {
 #[test]
 fn a_broken_template_is_refused() {
     assert!(
-        FactTemplates::new(r#"<e t="{time"/>"#, r#"<p l="{level}"/>"#, "<cut/>", None).is_err()
+        FactTemplates::new(
+            r#"<e t="{time"/>"#,
+            r#"<p l="{level}"/>"#,
+            "<cut/>",
+            None,
+            None
+        )
+        .is_err()
     );
     assert!(
         FactTemplates::new(
@@ -184,6 +204,7 @@ fn a_broken_template_is_refused() {
             r#"<p l="{level}"/>"#,
             "<cut/>",
             Some(r#"<s i="{id"/>"#),
+            None,
         )
         .is_err()
     );
@@ -199,6 +220,7 @@ fn the_session_block_has_the_session_id() {
 #[test]
 fn a_boundary_checks_the_env_the_permission_and_the_session_in_that_order() {
     let facts = templates().boundary(
+        &History::default(),
         now(),
         &environment("~/src/miyu"),
         &permission(Level::Workspace, false),
@@ -216,10 +238,12 @@ fn older_templates_without_the_session_one_have_no_session_block() {
         r#"<p l="{level}"/>"#,
         "<cut/>",
         None,
+        None,
     )
     .unwrap();
     assert_eq!(older.session(&session()), None);
     let facts = older.boundary(
+        &History::default(),
         now(),
         &environment("~/src/miyu"),
         &permission(Level::Workspace, false),

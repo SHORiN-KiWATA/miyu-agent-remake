@@ -13,6 +13,7 @@
 | `crates/miyu-policy/src/lib.rs` | 对外的几样 |
 | `crates/miyu-policy/src/compose.rs` | 拼快照：system 怎么拼、重启以后接着干几次 |
 | `crates/miyu-policy/src/snapshot.rs` | 快照的类型、字节、哈希、读回来、造会话的那一条、造策略、驱动的占位 |
+| `crates/miyu-policy/src/facts.rs` | 快照里事实的模板 `FactTexts`，造成内核的 `FactTemplates`（施工 2-7 补从 `snapshot.rs` 挪出来） |
 | `crates/miyu-policy/src/drivers.rs` | 快照里驱动的几句占位 `DriverPlaceholders`，读成驱动的占位（施工 3-9 四补从 `snapshot.rs` 挪出来） |
 | `crates/miyu-policy/src/tools.rs` | 工具面：排序、拆成两份；执行器替工具写的两句 |
 | `crates/miyu-policy/src/guard.rs` | 权限策略拒绝时写的三句 |
@@ -47,7 +48,7 @@
 |---|---|---|
 | `checkpoint_open`、`checkpoint_close`、`checkpoint_end` | | `checkpoint-open.txt`、`checkpoint-close.txt`、`checkpoint-end.txt`（施工 6-5 从 close 里拆出来。以前造的快照里没有 end，读成空的：close 里原本就带着那一句，拼出来一字不差） |
 | `turn_ended` | `interrupted`、`error`、`step_limit`、`aborted`、`restarted` | `turn-ended/<同名>.txt` |
-| `facts` | `env`、`permission`、`reply_cut`、`session` | `facts/env.txt`、`facts/permission.txt`、`facts/reply-cut.txt`、`facts/session.txt`（施工 1-13 再补，会话编号。以前造的快照里没有，读成没有、不写：那些会话不注入这一块） |
+| `facts` | `env`、`permission`、`reply_cut`、`session`、`permission_changed` | `facts/env.txt`、`facts/permission.txt`、`facts/reply-cut.txt`、`facts/session.txt`（施工 1-13 再补，会话编号。以前造的快照里没有，读成没有、不写：那些会话不注入这一块）、`facts/permission-changed.txt`（施工 2-7 补，切了级别以后的权限那一块，读法照 `session`：以前造的快照里没有，读成没有、不写，那些会话切了照旧写平常那一份，快照的字节、请求的前缀都一字不变） |
 | `tool_results` | `unknown`、`not_an_object`、`cancelled_before`、`cancelled_running`、`skipped`、`read_only`、`denied`、`denied_with_reason`、`unattended`、`question_interrupted`、`question_voided`、`question_unattended`、`restarted`、`unavailable`、`crashed` | `tool-results/` 下，下划线换成 `-` 的同名文件 |
 | `drivers` | `image_omitted`、`file_omitted`、`no_output`、`tool_attachments`、`tool_attachments_only`；`text_file` 里的 `file_open`、`file_cut`、`file_close`；`image_name` 里的 `image_open`、`image_close`、`image_omitted_named` | `drivers/` 下，下划线换成 `-` 的同名文件。`text_file`（施工 3-9 三补，文本文件照字放进消息，`drivers/openai-chat.md` 第 9 条）以前造的快照里没有，读成没有、不写：文本文件照别的文件写占位。`image_name`（施工 3-9 四补，带名字的图片，同一条）也是：以前造的快照里没有，读成没有、不写，带名字的图片照不带名字的写 |
 | `permissions` | `forbidden`、`unresolvable` | `permissions/forbidden.txt`、`permissions/unresolvable.txt` |
@@ -63,6 +64,7 @@
 | `compose(人格, Sources, attended)` | 拼一份快照。`Sources` 是读好的原文：`core`（`CoreTexts`）、`persona`（`PersonaTexts { persona }`，人设的原文） |
 | `Snapshot::with_tools(工具)` | 带上工具面 |
 | `Snapshot::with_venue(说明)` | 带上场所说明：system 的第二块，接在人设后面（施工 7-5）。现在只有子会话有 |
+| `Snapshot::with_core_lines(&CoreLines)` | 带上核心的几行（施工 2-7 补）：system 的第三块，所以在 `with_tools`、`with_venue` 以后最后调。`CoreLines` 有两格：`permission`（`permission-rule.txt`）、`local_paths`（`local-paths-rule.txt`）。一行一句，先权限、后路径；工具面是空的不带权限那一句 |
 | `REPORT_CHARS` | 策略数据 `jobs.report_chars` 的出厂值 30000（施工 7-6）：拼快照时写进 `jobs` |
 | `JOB_DEPTH` | 策略数据 `jobs.depth` 的出厂值 2（`agents.md`「对外的样子」，施工 7-5）：造会话定工具面时用，不进快照 |
 | `RECAP` | 回顾用的数的出厂值：8 轮、8192 个 token（施工 3-8 四补）：拼快照时写进 `recap` |
@@ -79,11 +81,11 @@
 
 1. 人格的编号要合写法：小写字母开头，只有小写字母、数字、`-`、`_`，最长 64 个字符。它是一层目录的名字，不许带路径。
 2. 读 `CoreTexts` 表里的每一份，再读 `personas/<编号>/prompts/persona.md`。原文照抄，行尾的换行也算。
-3. `permission-rule.txt` 不读：它现在不进请求。
+3. 核心的几行 `core/permission-rule.txt`、`core/local-paths-rule.txt` 另读（`ResourceRoot::core_lines`，施工 2-7 补），交给 `with_core_lines`；它们只拼进 system，不另存进快照的 `core`。
 
 **拼**（`compose`）
 
-1. `system` 照 `26-提示词.md` 第四节的先后拼：每一块去掉末尾的空白，空的块不要，块和块之间空一行（`\n\n`）。开头的空白是人格自己写的，照留。现在只有人设这一块，所以软件工程师的 system 就是 `You are a helpful software engineer.`；子会话多一块场所说明（`core/jobs/subagent-venue.txt`），`with_venue` 照同样的规矩接在人设后面（施工 7-5，`agents.md` 第九条第 3 条）。
+1. `system` 照 `26-提示词.md` 第四节的先后拼：每一块去掉末尾的空白，空的块不要，块和块之间空一行（`\n\n`）。开头的空白是人格自己写的，照留。现在只有人设这一块，所以软件工程师的 system 就是 `You are a helpful software engineer.`；子会话多一块场所说明（`core/jobs/subagent-venue.txt`），`with_venue` 照同样的规矩接在人设后面（施工 7-5，`agents.md` 第九条第 3 条）。造会话时最后接上核心的几行（`with_core_lines`，施工 2-7 补）：`You are a helpful software engineer.`、空一行、权限那一句、换行、路径那一句。以前造的快照 system 已经拼好存着，载入照它发，前缀一字不变。
 2. `tools` 先是空的；`with_tools` 带上工具面，照名字的字节序排，稳定排序：交进来的先后不影响字节。
 3. `step_limit` 是 `null`，`resumes` 是 3，`attended` 照交进来的，`compaction` 是出厂的四个数，`recap` 是出厂的两个数（施工 3-8 四补）。
 
@@ -114,7 +116,7 @@
 1. 检查点的包装、回合没走完的五句、摘要指令（没有的是空的）、回顾的字和数（两样都有的才有，缺一样就是没有、不做回顾，施工 3-8 四补）、回报的写法（没有的是没有；有的，带字段的七份读成模板，拿各自的字段试换一次：标签的两份 `job`、`title`、`reason`，另外四份各一个 `code`、`signal`、`ms`、`chars`，写坏了、要了别的字段的造不出，说是 `job report texts`），交给组装器（`kernel/request.md`）。
 2. 工具面拆成两份，照快照里的先后：组装器的工具面（名字、说明、参数格式），内核的工具规则（名字 → 访问类别、参数格式）。两件同名的，造不出。
 3. 稳定区：工具面、`system`，示范对话是空的。
-4. 事实模板，造的时候试换（`kernel/request.md`）：三份，加上会话编号那一份（有的话）。
+4. 事实模板，造的时候试换（`kernel/request.md`）：三份，加上会话编号、切换那两份（有的话）。
 5. 内核替工具写的十三句（`kernel/tools.md`）。
 6. `Policy` 的几格：`assembler`、`facts`、`tools`、`step_limit`、`tool_texts`、`attended`、`resumes`，照快照的带；`compaction`：快照里压缩的数和摘要指令都有的，照数带上，缺一样就是没有，不主动压。
 
@@ -178,14 +180,14 @@
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-policy/src/snapshot/tests.rs`、`snapshot/tests/facts.rs` | 软件工程师的 system 就是那一句、`step_limit`、`resumes`；同样的原文同样的字节和哈希，读得回来，开头结尾的样子，改一个字哈希就变；坏字节读不回来；造得出策略，坏模板说是哪一类；`session.created` 带着哈希；开关照给的带；五句占位各是各的，带名字的图片的三句也是，以前造的快照没有这三句的读回来一字不差、照不带名字的写（施工 3-9 四补）；会话编号的模板进快照、造的策略写得出那一块、坏了说是事实的模板，以前造的快照没有这一格的读进来再写出去一字不差、没有那一块（`facts.rs`，施工 1-13 再补） |
-| `crates/miyu-policy/src/compose.rs`（内嵌的测试） | system 每块去掉末尾空白、空的不要、空一行；场所说明接在人设后面、空的不留空行（施工 7-5） |
+| `crates/miyu-policy/src/snapshot/tests.rs`、`snapshot/tests/facts.rs` | 软件工程师的 system 就是那一句、`step_limit`、`resumes`；同样的原文同样的字节和哈希，读得回来，开头结尾的样子，改一个字哈希就变；坏字节读不回来；造得出策略，坏模板说是哪一类；`session.created` 带着哈希；开关照给的带；五句占位各是各的，带名字的图片的三句也是，以前造的快照没有这三句的读回来一字不差、照不带名字的写（施工 3-9 四补）；会话编号的模板进快照、造的策略写得出那一块、坏了说是事实的模板，以前造的快照没有这一格的读进来再写出去一字不差、没有那一块（`facts.rs`，施工 1-13 再补）；切了级别以后的那一份一样：进快照、写得出那一块、坏了说是事实的模板，以前造的没有这一格的读回来一字不差、没有那一块（`facts.rs`，施工 2-7 补） |
+| `crates/miyu-policy/src/compose.rs`（内嵌的测试） | system 每块去掉末尾空白、空的不要、空一行；场所说明接在人设后面、空的不留空行（施工 7-5）；核心的几行排在人设、场所说明后面，一行一句，工具面是空的不带权限那一句，没接它的 system 和原来一样、空的几行不留空行（施工 2-7 补） |
 | `crates/miyu-policy/src/tools/tests.rs` | 工具面照名字排、读回来一样、交进来的先后不影响字节；没有工具的不写 `tools`，带上空的字节不变；造策略时拆成两份；同名的造不出（读回来的也造不出）；执行器的两句带名字、转义、说法；坏的说是哪一类；缺了这两格的快照读成空的 |
 | `crates/miyu-policy/src/snapshot/tests/recap.rs`（施工 3-8 四补） | 回顾进快照：出厂的快照带着五份字和两个数，造出的组装器回顾得出来；字、数少一样都不回顾；快照里的数照快照的；以前造的快照没有这两格，读进来再写出去一字不差，不回顾 |
 | `crates/miyu-policy/src/jobs/tests.rs` | 人停的那一句：出厂的快照带着、交给组装器；以前造的快照没有，读成空的，读回来一字不差（施工 7-2 补） |
 | `crates/miyu-policy/src/guard/tests.rs` | 三句带路径和原因、转义；说法；坏的说是哪一类；缺了 `permissions` 的快照读成空的 |
 | `crates/miyu-store/tests/snapshot.rs` | 从源码树的资源拼出快照，存成 blob，哈希就是快照的哈希；取回来一样；两份策略跑同一个剧本，每一次请求逐字节一样 |
-| `crates/miyu-store/src/resources/tests.rs` | 读出软件工程师的一句和随核心附带的字（会话编号的模板是它那份文件，施工 1-13 再补；回顾的五份各是各的文件，施工 3-8 四补）；没有的人格说是哪个文件，坏编号被拒 |
+| `crates/miyu-store/src/resources/tests.rs` | 读出软件工程师的一句和随核心附带的字（会话编号的模板是它那份文件，施工 1-13 再补；回顾的五份各是各的文件，施工 3-8 四补；切了级别以后的权限那一份也是，施工 2-7 补）；没有的人格说是哪个文件，坏编号被拒 |
 | `crates/miyu-session/tests/actor.rs` | 造会话先存快照：`session.created` 记的哈希取得出快照 |
 | `crates/miyu-endpoint/tests/tools.rs` | 协议上造的会话，工具面照核心的目录存进快照；换一份核心以后载入，照新核心的目录执行 |
 | `crates/miyu-endpoint/tests/endpoint.rs` | 不能输入的头造的会话，快照里没人能确认 |

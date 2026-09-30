@@ -60,8 +60,21 @@ fn the_tool_result_sentences_are_usable() {
     }
 }
 
-/// system 里核心的那一行：每一级能做什么、只有人能切（`26-提示词.md` J2）。施工 3-6 拼进
-/// system；现在先查它是一整行英文，行尾一个换行，没有分号。
+/// system 里核心的几行（`26-提示词.md` 第四节第 3 块，施工 2-7 补拼进 system）：本机文件的路径那一句也是一整行英文，
+/// 行尾一个换行，没有分号。
+#[test]
+fn the_local_paths_rule_is_one_plain_line() {
+    let rule = include_str!("../../../resources/core/local-paths-rule.txt");
+    assert!(
+        rule.ends_with(".\n") && rule.matches('\n').count() == 1,
+        "{rule:?}"
+    );
+    assert!(!rule.contains(';'), "{rule}");
+    assert!(rule.contains("absolute path"), "{rule}");
+}
+
+/// system 里核心的那一行：每一级能做什么、只有人能切（`26-提示词.md` J2）。施工 2-7 补拼进
+/// system（有工具的会话）；查它是一整行英文，行尾一个换行，没有分号。
 #[test]
 fn the_permission_rule_is_one_plain_line() {
     let rule = include_str!("../../../resources/core/permission-rule.txt");
