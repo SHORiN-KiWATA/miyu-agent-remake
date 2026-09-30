@@ -19,6 +19,19 @@
 }
 @media (prefers-reduced-motion: reduce) { .composer-input { transition: none; } }
 .composer-input::placeholder { color: var(--text-faint); }
+/* 文件块（蓝图 web.md「`@` 选文件」第 5 条）：框底下垫一层同样排版的字，字透明，只给块铺一层浅底；框里的字是框自己画的，在上面 */
+.composer-field { position: relative; }
+.composer-field > .composer-input { position: relative; z-index: 1; }
+/* 两层排字的设置写成一模一样，不让浏览器对输入框、普通文字各用各的默认（字距、连字、字偶间距、渲染方式） */
+.composer-field > .composer-input, .composer-backdrop {
+  letter-spacing: normal; word-spacing: normal; font-kerning: normal; font-variant-ligatures: normal; font-feature-settings: normal;
+  text-rendering: auto; tab-size: 8; text-indent: 0; box-sizing: border-box;
+}
+.composer-backdrop {
+  position: absolute; inset: 0; overflow: hidden; padding: 14px 18px 0; color: transparent; font: 15px/1.6 var(--sans);
+  white-space: pre-wrap; overflow-wrap: break-word; pointer-events: none;
+}
+.composer-block { border-radius: 4px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: transparent; }
 .composer-bar { display: flex; justify-content: flex-end; align-items: center; padding: 2px 10px 10px; }
 /* 下面一排左边：软件包挂的按钮（附件，挂载位 composer.bar）；右边预览工作区的开关、发送 */
 .composer-tools { display: flex; align-items: center; gap: 2px; margin-right: auto; }

@@ -3,9 +3,10 @@
 //! 清掉的那句怎么拿回来、列表怎么搜、一条怎么写成一行。纯的：框里的字、光标在哪都从外面给。
 
 /**
- * @typedef {{text: string, at: number, session?: string, parts?: Record<string, any>}} Item 一条：原样的字、发出去的时刻；带了附件的
- *   还有发在哪个会话、跟着话一起发的几样记成的样子（按挂载位 `composer.payload` 里那一件的编号，附件是核心存好的那一份）
- * @typedef {{session: string, parts: Record<string, any>}} Extra 带过去的附件那些
+ * @typedef {{text: string, at: number, session?: string, parts?: Record<string, any>, blocks?: [string, string][], sent?: string}} Item
+ *   一条：原样的字（框里的样子）、发出去的时刻；带了附件的还有发在哪个会话、跟着话一起发的几样记成的样子（按挂载位
+ *   `composer.payload` 里那一件的编号，附件是核心存好的那一份）；有文件块的还有用到的块（名字 → 路径）、发出去的样子（块换回了路径）
+ * @typedef {{session?: string, parts?: Record<string, any>, blocks?: [string, string][], sent?: string}} Extra 带过去的附件、文件块那些
  */
 /** @typedef {{start: boolean, first: boolean, last: boolean}} Caret 光标：在最前面（没选着字）、前面没有换行、后面没有换行 */
 

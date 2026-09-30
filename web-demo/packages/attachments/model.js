@@ -60,6 +60,11 @@ export function kindOf(file) {
   return 'file';
 }
 
+/** `@` 选文件交过来的收不收（蓝图 `web.md`「`@` 选文件」第 5 条）：图片、PDF、音频、视频收成附件，别的照路径写进话里。 */
+export function attachable(file) {
+  return ['image', 'pdf', 'audio', 'video'].includes(kindOf(file));
+}
+
 /** 文字文件有几行：最后一行没有换行也算一行；空的是 0 行（卡片上那一行小字，蓝图「附件」第 3 条）。 */
 export function lineCount(text) {
   if (!text) return 0;
@@ -129,6 +134,12 @@ export class Tray {
     const [item] = this.items.splice(at, 1);
     this.changed();
     return item;
+  }
+
+  /** 键盘拿掉最后一块（光标在最前面按退格，蓝图「附件」第 3 条）：拿掉了交回 `true`，一块都没有的 `false`。 */
+  dropLast() {
+    const last = this.items.at(-1);
+    return last ? !!this.remove(last.id) : false;
   }
 
   has() {

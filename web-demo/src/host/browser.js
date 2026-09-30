@@ -131,6 +131,8 @@ function watchDrop(target, on) {
 function preview(key, ref) {
   if (!/^(image|video)\//.test(ref.type)) return null;
   if (ref.stored) return { url: urls(key).blob(ref.stored.session, ref.stored.hash, ref.type), release: () => {} };
+  // 本机的文件（`@` 选文件交过来的，只有路径）：照桥的 `/file` 取
+  if (ref.path && !(ref.file instanceof Blob)) return { url: urls(key).file('', ref.path), release: () => {} };
   if (!(ref.file instanceof Blob)) return null;
   const url = URL.createObjectURL(ref.file);
   return { url, release: () => URL.revokeObjectURL(url) };
@@ -144,8 +146,9 @@ function preview(key, ref) {
 async function text(key, ref, max) {
   if (ref.size > max) return null;
   try {
-    if (ref.stored) {
-      const got = await fetch(urls(key).blob(ref.stored.session, ref.stored.hash, 'text/plain'));
+    if (ref.stored || (ref.path && !(ref.file instanceof Blob))) {
+      const url = ref.stored ? urls(key).blob(ref.stored.session, ref.stored.hash, 'text/plain') : urls(key).file('', /** @type {string} */ (ref.path));
+      const got = await fetch(url);
       return got.ok ? await got.text() : null;
     }
     return ref.file instanceof Blob ? await ref.file.text() : null;

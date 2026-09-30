@@ -22,8 +22,17 @@ test('内容还没一屏高：停在顶上，不垫', () => {
   assert.deepEqual(anchorAt(0, 500, 300), { top: 0, pad: 0 });
 });
 
-test('到过的最深处比整个内容还深：照样停在那里，垫满一屏', () => {
-  assert.deepEqual(anchorAt(400, 500, 300), { top: 400, pad: 600 });
+test('收得少（最新的底边还在视口四成往下）：照旧停在到过的最深处', () => {
+  assert.deepEqual(anchorAt(400, 500, 820, 200), { top: 400, pad: 80 });
+});
+
+test('收得多、最新的内容要整个退到视口上面去（长的时间线收起）：视口跟着往上走，最新的底边留在视口四成的地方（2026-10-01）', () => {
+  assert.deepEqual(anchorAt(400, 500, 300, 200), { top: 100, pad: 300 });
+  assert.deepEqual(anchorAt(3000, 500, 1200, 200), { top: 1000, pad: 300 });
+});
+
+test('清空过的：跟着往上走也不越过「上下文已清空」那一行', () => {
+  assert.deepEqual(anchorAt(400, 500, 300, 200, 350), { top: 350, pad: 550 });
 });
 
 test('离底边够近才算在底下', () => {

@@ -1,10 +1,11 @@
 {
-  "note": "时间线的配置（蓝图 web.md「时间线」，照旧版网页）：工具算哪一类（收起那一行照它数，和 TUI 的一样）、每件工具的图标（resources/lucide.json 里的名字）、在想时滚几行、命令写几行、收着时的那一小段取多少字；一段做完收不收，思考、命令、编辑默认点不点开。 tick_ms 是在走的用时多久刷一次（一位小数要这么快）；fold_ms 是一段展开、收起有多长（0.38 秒，CSS 的 .tl-wrap 照它，对话区放开的这一次、钉住被点的一段也照它）；step_ms 是一步展开、收起有多长（0.32 秒，CSS 的 .tl-fold、回报那一行照它，钉住被点的一步也照它）。",
+  "note": "时间线的配置（蓝图 web.md「时间线」，照旧版网页）：工具算哪一类（收起那一行照它数，和 TUI 的一样）、每件工具的图标（resources/lucide.json 里的名字）、在想时滚几行、命令写几行、收着时的那一小段取多少字；一段做完收不收，思考、命令、编辑默认点不点开。 tick_ms 是在走的用时多久刷一次（一位小数要这么快）；fold_ms 是一段展开、收起有多长（0.38 秒，CSS 的 .tl-wrap 照它，对话区放开的这一次、钉住被点的一段也照它）；step_ms 是一步展开、收起有多长（0.32 秒，CSS 的 .tl-fold、回报那一行照它，钉住被点的一步也照它）。 派子代理的工具 2026-10-01 起叫 subagent（施工 7-5 再补），以前的会话里冻着 agent，两个都认。",
   "kinds": {
     "shell": "command",
     "edit": "edit",
     "write": "edit",
     "agent": "agent",
+    "subagent": "agent",
     "message_agent": "message"
   },
   "icons": {
@@ -17,6 +18,7 @@
     "edit": "square-pen",
     "trash": "square-pen",
     "agent": "bot",
+    "subagent": "bot",
     "message_agent": "bot-message-square",
     "jobs": "list-checks"
   },

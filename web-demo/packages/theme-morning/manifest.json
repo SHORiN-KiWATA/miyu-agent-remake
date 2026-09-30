@@ -212,7 +212,7 @@
     },
     "composer_focus_shadow": {
       "type": "text",
-      "default": "0 0 0 1px rgba(40, 32, 20, 0.05), 0 2px 6px rgba(40, 32, 20, 0.07), 0 16px 40px -12px rgba(40, 32, 20, 0.26)",
+      "default": "0 0 0 1px rgba(40, 32, 20, 0.05), 0 2px 8px rgba(40, 32, 20, 0.08), 0 10px 26px -14px rgba(40, 32, 20, 0.18)",
       "name": {
         "zh": "composer_focus_shadow"
       },

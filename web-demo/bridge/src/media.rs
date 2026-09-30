@@ -50,7 +50,7 @@ impl Types {
     }
 
     /// 照扩展名：表里没有的当 UTF-8 文字。
-    fn of(&self, path: &Path) -> String {
+    pub(crate) fn of(&self, path: &Path) -> String {
         let ext = path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase).unwrap_or_default();
         self.by_ext.get(&ext).cloned().unwrap_or_else(|| self.text.clone())
     }

@@ -1,0 +1,8 @@
+{
+  "note": "@ 选文件（蓝图 web.md「`@` 选文件」，照 TUI 的 mention.json）：桥读。cap 是模糊找的清单最多几个、depth 最深几层、skip 跳过哪些目录（另外认 .gitignore、跳过隐藏目录），shown 是最多列几条，refresh_secs 是隔多久以上再开列表重建清单。",
+  "cap": 20000,
+  "depth": 8,
+  "skip": ["node_modules", "target"],
+  "shown": 50,
+  "refresh_secs": 10
+}

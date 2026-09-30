@@ -16,14 +16,17 @@ const PARENT = 'parent';
 /** 一件工具算哪一类：`command`、`edit`、`agent`、`message`；没登记的是 `null`（`timeline.json` 的 `kinds`，收起那一行照它数）。 */
 export const kindOf = (name) => res.timeline.kinds[name] ?? null;
 
-/** 出错了：图标换成 `circle-alert`、整行变红。只认 `error`；被拒、跳过这些不算坏。 */
-export const failed = (step) => step.kind === 'tool' && step.status === 'error';
+/**
+ * 出错了：图标换成 `circle-alert`、整行变红。`error` 和 `denied`（被拒：只读时的写入、要确认却没人能确认的）都算，被拒的写入不能
+ * 看着像写成了（照 `tui.md`「时间线」第 12 条）；打断的不算。
+ */
+export const failed = (step) => step.kind === 'tool' && (step.status === 'error' || step.status === 'denied');
 
 /**
  * @typedef {{since: number, format: 'secs'|'tenths'|'job'}} Timer 走表：从 `since` 起，`secs` 整秒 `12s`、`tenths`
  *   一位小数 `1.2 s`、`job` 读秒 `3m 05s`
  * @typedef {{icon: string, name: string, subject: string|null, mono: boolean, said: string|null, took: string|null,
- *   timer: Timer|null, failed: boolean}} Row
+ *   timer: Timer|null, failed: boolean, diff: {added: number, removed: number}|null}} Row `diff`：编辑、写入这一步加减的行数
  */
 
 /**
@@ -33,7 +36,7 @@ export const failed = (step) => step.kind === 'tool' && step.status === 'error';
  * @returns {Row}
  */
 export function row(step, home) {
-  const base = { subject: null, mono: false, said: null, took: null, timer: null, failed: false };
+  const base = { subject: null, mono: false, said: null, took: null, timer: null, failed: false, diff: null };
   if (step.kind === 'thought') {
     if (step.state === 'thinking') {
       return { ...base, icon: 'atom', name: t('timeline.thinking'), timer: step.start != null ? { since: step.start, format: 'secs' } : null };
@@ -72,7 +75,7 @@ export function row(step, home) {
     return { ...base, icon, name, subject, said: step.status === 'ok' ? null : say(step.said), failed: bad };
   }
   const subject = face?.subject ? arg(step, face.subject) : null;
-  return { ...base, icon, name, subject: subject ? tilde(subject, home) : null, mono: true, said: say(step.said), failed: bad };
+  return { ...base, icon, name, subject: subject ? tilde(subject, home) : null, mono: true, said: say(step.said), failed: bad, diff: counts(step) };
 }
 
 /**
@@ -87,6 +90,24 @@ export function peek(step) {
   let tail = text.slice(from);
   if (/\w/.test(text[from - 1]) && /^\w/.test(tail)) tail = tail.replace(/^\w+\s*/, '');
   return `…${tail}`;
+}
+
+/**
+ * 没改成的编辑（有了结果、不是成了：出错、被拒、打断）：不算 edit、不算加减的行数，算成用过一件工具（照 `tui.md`「时间线」第 17 条）。
+ * 还在跑的照参数算。
+ */
+function unchanged(step) {
+  return step.kind === 'tool' && kindOf(step.name) === 'edit' && step.status != null && step.status !== 'ok';
+}
+
+/**
+ * 编辑、写入这一步加减的行数（照 `tui.md`「差异」第 5 条，和收起那一行同一份，照参数算）：加减都是 0 的、没改成的（出错、被拒、
+ * 打断）是 `null`，免得看着像改了；在跑的照参数写。
+ */
+function counts(step) {
+  if (kindOf(step.name) !== 'edit' || unchanged(step)) return null;
+  const d = fromArgs(step.parsed);
+  return d && d.added + d.removed > 0 ? { added: d.added, removed: d.removed } : null;
 }
 
 /**
@@ -183,7 +204,7 @@ export function summary(steps, now) {
     if (kind === 'command') n.commands += 1;
     else if (kind === 'agent') n.agents += 1;
     else if (kind === 'message') n.messages += 1;
-    else if (kind === 'edit') n.edits += 1;
+    else if (kind === 'edit' && !unchanged(step)) n.edits += 1;
     else n.tools += 1;
   }
   const count = (k, forms) => forms[k === 1 ? 0 : 1].replace('{count}', String(k));
@@ -260,7 +281,7 @@ function changed(steps) {
   let added = 0;
   let removed = 0;
   for (const step of steps) {
-    if (step.kind !== 'tool' || kindOf(step.name) !== 'edit') continue;
+    if (step.kind !== 'tool' || kindOf(step.name) !== 'edit' || unchanged(step)) continue;
     const d = fromArgs(step.parsed);
     added += d?.added ?? 0;
     removed += d?.removed ?? 0;

@@ -4,6 +4,8 @@
 //!
 //! - 跟着最新的时视口只往下走、不往回退：内容变短时停在到过的最深处，底下垫一块空白等她接下来的字填上。一段时间线收起
 //!   （她开口、一轮结束）也一样：从下往上收，上面的不动（2026-09-30 项目主人定：原来收起那一刻放开一次，看着是从上往下收）。
+//!   收得多、最新的内容要整个退到视口上面去的，视口跟着往上走，最新的底边留在视口从上往下 `follow_keep`（四成）的地方
+//!   （2026-10-01 项目主人指出：长的时间线收起到上面去了，视口没跟过去，只剩空白）。
 //!   一轮结束了（不会再有字来填）还垫着的，收起的动画走完以后慢慢收掉（`release`），不越过清空那一行（同一天项目主人指出：
 //!   一轮结束以后底下留着一大块空档，发一句话才没）。
 //! - 清空了上下文：「上下文已清空」那一行顶到视口最上面，下面空着接新的（`toTop`，照终端的 `Ctrl+L`）；之后发话、她回答都从它
@@ -145,7 +147,8 @@ export class Follow {
       return;
     }
     if (!this.follow) return;
-    let { top } = anchorAt(this.floor, view, natural);
+    // 收得多、最新的要整个退到视口上面去的：跟着往上走，底边留在视口 `follow_keep` 那么深的地方（不越过清空那一行）
+    let { top } = anchorAt(this.floor, view, natural, view * res.layout.follow_keep, this.base);
     if (reply?.streaming && !this.pinned.has(reply.key)) {
       const pin = pinAt(top, offsetIn(reply.node, this.list), margin);
       if (pin.pinned) {

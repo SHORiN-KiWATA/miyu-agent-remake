@@ -20,7 +20,8 @@ export function apply(ctx) {
   const sprite = new Sprite(c);
   const props = new Props(c, () => sprite.colors);
   const body = h('div.mascot-body', sprite.canvas, props.el);
-  const el = h('div.mascot', { title: ctx.text('label') }, body);
+  // 放到第一个位置之前藏着：不然刷新时先在左上角露一帧
+  const el = h('div.mascot', { title: ctx.text('label'), style: 'visibility: hidden' }, body);
   const layer = h('div.mascot-layer', el);
   document.body.append(layer);
   const box = ctx.composer.box;
@@ -48,6 +49,7 @@ export function apply(ctx) {
       // 脚底是画布里最下面一行有东西的底边：照它对到台子上，歪绕着脚（蹲、抻在模型里画，不拉伸图片）
       const foot = (sprite.bottom + 1) * c.pixel;
       el.style.transform = `translate(${Math.round(x - size().w / 2)}px, ${Math.round(y - foot)}px)`;
+      el.style.visibility = '';
       body.style.transformOrigin = `50% ${foot}px`;
       body.style.transform = `rotate(${rot.toFixed(2)}deg)`;
       body.style.setProperty('--foot-gap', `${size().h - foot}px`);

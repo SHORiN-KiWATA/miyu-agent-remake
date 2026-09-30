@@ -46,6 +46,8 @@ export class App {
     this.ext = { slots: ctx.slots, lightbox, storage: ctx.storage, account: info.account ?? null, titleOf: (id) => this.titleOf(id) };
     this.store = store;
     this.cwd = info.cwd;
+    /** 家目录（`@` 选文件写路径照它写成 `~/…`） */
+    this.home = info.home ?? null;
     this.home = info.home;
     this.current = /** @type {string|null} */ (null);
     /** 还没开的新会话上点过的权限级别；`null` 是没点过（核心开出来是什么就是什么）。 */
@@ -131,6 +133,9 @@ export class App {
         save: (items) => ctx.storage.set(HISTORY, items),
       },
       session: () => this.current,
+      // `@` 选文件（蓝图「`@` 选文件」）：桥列、找（`web.files`），照这个会话的工作目录
+      files: (params) => this.store.conn.request('web.files', { ...params, cwd: this.workdir() }),
+      where: () => ({ cwd: this.workdir(), home: this.home }),
     }, () => this.commands.list(), () => ctx.slots.list('composer.payload'));
     // 框里：下面一排左边的按钮、写字的地方上面一排（附件这类软件包画）；跟着话一起发的不画，发的时候交出来
     const failedSlot = (owner, reason) => h('div.slot-failed', t('slot_failed', { owner, reason }));
@@ -241,6 +246,12 @@ export class App {
    * 说一句话：新会话第一句话发出去时才开会话。`extra` 是跟着发的（附件）。交回核心收没收。
    * 核心拒绝的，在输入框上面提示一句：认得的原因码照 `refusals` 写，别的照核心的原话。
    */
+  /** 正在看的会话在哪个目录里干活（开它时的 `cwd`）；还没开的新会话是起桥的目录。 */
+  workdir() {
+    const events = this.current ? this.store.sessions.get(this.current)?.events ?? [] : [];
+    return events.find((e) => e.kind === 'session.created')?.body.cwd ?? this.cwd;
+  }
+
   async send(text, extra = {}) {
     try {
       if (!this.current) {

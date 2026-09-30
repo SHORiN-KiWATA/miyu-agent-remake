@@ -17,8 +17,8 @@
 /* 提示在回答时浮到运行状态行上面：用独立的 translate，不碰提示自己的定位和 transform */
 .composer-dock.is-running .composer-notice { translate: 0 calc(-1 * (var(--pulse-row) * var(--pulse-lines, 1) + var(--pulse-gap))); }
 
-/* ── 命令列表、选语言的浮层、输入历史列表：浮在框上面，和框一样宽；半透明的 surface-1 加毛玻璃，一圈细线，浮起来的阴影 ── */
-.dock-commands, .dock-picker, .dock-history {
+/* ── 命令列表、选语言的浮层、输入历史列表、@ 选文件的列表：浮在框上面，和框一样宽；半透明的 surface-1 加毛玻璃，一圈细线，浮起来的阴影 ── */
+.dock-commands, .dock-picker, .dock-history, .dock-mention {
   position: absolute; z-index: 3; right: -1px; bottom: calc(100% + 1px + var(--list-gap)); left: -1px;
   padding: 6px; border: 1px solid var(--line); border-radius: 14px;
   background: color-mix(in srgb, var(--surface-1) 90%, transparent);
@@ -26,7 +26,7 @@
   box-shadow: var(--float-shadow);
   animation: rise-in var(--motion-in) var(--ease-out) both;
 }
-.dock-commands.is-leaving, .dock-picker.is-leaving, .dock-history.is-leaving { animation: sink-out var(--motion-out) var(--ease-in) both; }
+.dock-commands.is-leaving, .dock-picker.is-leaving, .dock-history.is-leaving, .dock-mention.is-leaving { animation: sink-out var(--motion-out) var(--ease-in) both; }
 .commands-head { padding: 4px 10px 6px; color: var(--text-faint); font-size: 12px; line-height: 16px; }
 /* 最多露 --rows 条（layout.json 的 command_rows），多的在里面滚；名字一列照最长的对齐 */
 .commands-list {
@@ -79,6 +79,23 @@
 .history-empty { padding: 7px 10px; color: var(--text-faint); font-size: 13px; }
 .history-hint { padding: 6px 10px 2px; color: var(--text-faint); font-size: 12px; line-height: 16px; }
 
+/* ── @ 选文件的列表（蓝图 web.md「`@` 选文件」第 4 条）：头一行「@ 打的字 · N 个」和暗色的一句；一条一行，目录那一截暗、名字原色，
+   对上的字 accent 加下划线，选中的铺底、字变 accent；最多露 --rows 行；最下面一行暗色写按键 ── */
+.mention-head { display: flex; align-items: baseline; gap: 8px; padding: 5px 10px 8px; line-height: 18px; }
+.mention-title { flex: none; color: var(--text); font-size: 13px; font-weight: 600; }
+.mention-note { min-width: 0; overflow: hidden; color: var(--text-faint); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.mention-list { --row-h: 32px; max-height: calc(var(--rows) * var(--row-h)); overflow-y: auto; overscroll-behavior: contain; }
+.mention-row { display: flex; align-items: center; height: var(--row-h); padding: 0 10px; border-radius: 9px; cursor: pointer; }
+.mention-row.is-selected { background: var(--surface-2); }
+.mention-path { min-width: 0; overflow: hidden; font: 13px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.mention-dir { color: var(--text-faint); }
+.mention-name { color: var(--text); }
+.mention-row.is-selected .mention-name { color: var(--accent); }
+.mention-path .is-mark { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.mention-empty { padding: 7px 10px; color: var(--text-faint); font-size: 13px; }
+.mention-empty.is-error { color: var(--t-warn); }
+.mention-hint { padding: 6px 10px 2px; color: var(--text-faint); font-size: 12px; line-height: 16px; }
+
 @media (prefers-reduced-motion: reduce) {
-  .pulse-shine, .dock-commands, .dock-picker, .dock-history { animation: none; }
+  .pulse-shine, .dock-commands, .dock-picker, .dock-history, .dock-mention { animation: none; }
 }

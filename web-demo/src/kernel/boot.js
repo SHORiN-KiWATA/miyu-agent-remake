@@ -110,7 +110,7 @@ export async function boot(root) {
       const module = await import(new URL(`packages/${id}/index.js`, base).href);
       return { manifest, apply: module.apply };
     },
-    // 包的样式跟着包挂上、撤下
+    // 包的样式跟着包挂上、撤下；交回下载完了没有（下载不了的也算完，不卡着包），加载器等它再跑包
     styles: (id, files) => {
       const links = files.map((f) => {
         const link = document.createElement('link');
@@ -120,7 +120,11 @@ export async function boot(root) {
         document.head.append(link);
         return link;
       });
-      return () => links.forEach((l) => l.remove());
+      const ready = Promise.all(links.map((l) => new Promise((done) => {
+        l.addEventListener('load', done, { once: true });
+        l.addEventListener('error', done, { once: true });
+      })));
+      return { ready, remove: () => links.forEach((l) => l.remove()) };
     },
   });
   const sync = () => loader.sync(rows(distro.packages, storage.get(USER_LAYER, {})));

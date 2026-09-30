@@ -24,7 +24,7 @@ function world() {
       if (!p) throw new Error(`没有 ${id} 这个包`);
       return p;
     },
-    styles: () => () => {},
+    styles: () => ({ ready: Promise.resolve(), remove: () => {} }),
   });
   return { log, loader };
 }
@@ -87,7 +87,7 @@ test('只改了 live 的项：当场交给这个包（ctx.config 换成新的、
         ctx.effect(() => () => log.push('撤'));
       },
     }),
-    styles: () => () => {},
+    styles: () => ({ ready: Promise.resolve(), remove: () => {} }),
   });
   const row = (user) => [{ id: 'theme', disabled: false, distro: {}, user }];
   await loader.sync(row({}));
@@ -95,4 +95,24 @@ test('只改了 live 的项：当场交给这个包（ctx.config 换成新的、
   assert.deepEqual(log, ['起 -', '换成 tokyonight']);
   await loader.sync(row({ palette: 'tokyonight', size: 2 }));
   assert.deepEqual(log.slice(2), ['撤', '起 tokyonight']);
+});
+
+test('包有样式的：先挂上样式、等它下载完再跑包（不然刷新时先没样式地画出来，跳转条闪一下，2026-10-01）', async () => {
+  const log = [];
+  let loaded = () => {};
+  const loader = new Loader(new Registry(), {
+    load: async () => ({ manifest: { id: 'rail', settings: {}, styles: ['style.css'] }, apply: () => log.push('rail 起') }),
+    styles: (id, files) => {
+      log.push(`挂上 ${files.join(',')}`);
+      return { ready: new Promise((resolve) => { loaded = resolve; }), remove: () => log.push('撤下样式') };
+    },
+  });
+  const done = loader.sync([{ id: 'rail', disabled: false, distro: {}, user: {} }]);
+  await new Promise((r) => setTimeout(r, 10));
+  assert.deepEqual(log, ['挂上 style.css'], '样式没到：包还没跑');
+  loaded();
+  await done;
+  assert.deepEqual(log, ['挂上 style.css', 'rail 起']);
+  await loader.sync([{ id: 'rail', disabled: true, distro: {}, user: {} }]);
+  assert.deepEqual(log.at(-1), '撤下样式', '停用了样式跟着撤');
 });

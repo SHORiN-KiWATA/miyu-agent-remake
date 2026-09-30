@@ -52,8 +52,8 @@ flowchart TB
 | `urls` 本机文件、blob、链接卡片配图的地址 | 桥的 `/file`、`/blob`、`/link-image`，带口令 | 外壳注册的自定义协议（`miyu://file?…`，Windows 上是 `http://miyu.localhost/…`），规矩和桥一样：数据根不给、只给这个会话日志里出现过的哈希 |
 | `files.pick()` 选文件 | `<input type=file>`，交回浏览器的文件 | 系统的选文件对话框，交回路径 |
 | `files.watchDrop(目标, 进、到上面、出、放下)` 拖进来 | 页面上的拖放事件：拖进窗口、到了目标上面、离开，只在目标上松开才收（附件给的目标是整页：在哪松开都收），别处松开不让页面去打开那个文件 | 窗口的拖放事件（网页视图里的拖放拿不到路径）照落点算在不在目标上，交回路径 |
-| `files.text(文件, 最多多大)` 读文字文件的内容（框里的卡写有几行） | 浏览器文件的内容；核心存好的那一份（输入历史翻出来的附件，文件上带 `stored`：会话、编号）照桥的 `/blob` 读；超过的、读不了的交 `null` | 外壳读那个路径，超过的、读不了的交 `null` |
-| `files.preview(文件)` 框里的缩略图 | 浏览器文件的临时地址；核心存好的那一份是桥的 `/blob` 地址 | 本机路径换成的地址 |
+| `files.text(文件, 最多多大)` 读文字文件的内容（框里的卡写有几行） | 浏览器文件的内容；核心存好的那一份（输入历史翻出来的附件，文件上带 `stored`：会话、编号）照桥的 `/blob` 读，本机的文件照 `/file` 读；超过的、读不了的交 `null` | 外壳读那个路径，超过的、读不了的交 `null` |
+| `files.preview(文件)` 框里的缩略图 | 浏览器文件的临时地址；核心存好的那一份是桥的 `/blob` 地址；本机的文件（`@` 选文件交过来的，只有路径）是桥的 `/file` 地址 | 本机路径换成的地址 |
 | `files.stage(文件)` 附件变成核心读得到的路径 | 交给桥存进临时目录（`/upload`），交回路径 | 有路径的就是它，不传；粘贴来的（只有内容）由外壳写进临时目录 |
 | `open(地址)` 外面的链接 | 新标签页 | 系统的浏览器 |
 | `intercept(根)` 接住页面里的链接 | 什么都不做 | 点 `target=_blank` 的链接改走 `open`，点带 `download` 的改走存文件的对话框（网页视图不一定管下载） |
@@ -216,6 +216,8 @@ flowchart TB
 | `web-demo/src/kernel/language.js` | 界面语言：内核的设置项 `language`、照浏览器的语言认、`/language` 浮层里的几行（`options`）（`web.md`「界面语言」） |
 | `web-demo/src/model/history.js` | 输入历史：记什么、`↑` `↓` 怎么翻、两下 `Esc` 清掉的那句、列表怎么搜、一条切成几段（`web.md`「输入历史」） |
 | `web-demo/src/ui/history.js` | 输入历史列表（`Ctrl+R`） |
+| `web-demo/src/model/mention.js` | `@` 选文件：光标前面的 `@` 词、两种找法、写进话里的路径、`Tab` 进目录（`web.md`「`@` 选文件」） |
+| `web-demo/src/ui/mention.js` | `@` 选文件的列表；列、找由桥的 `web.files` 做（`bridge/src/mention.rs`） |
 | `web-demo/src/ui/picker.js` | 选一样的浮层（`/language`）：浮在输入框上面，`↑` `↓` 选、`Enter` 选定、`Esc` 关，悬停选中、点一下选定 |
 | `web-demo/src/kernel/slots.js` | 挂载位：声明、挂、三种的排法、兜底、各自兜错 |
 | `web-demo/src/kernel/seams.js` | 职能：提供者、怎么选 |

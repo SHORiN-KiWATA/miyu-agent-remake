@@ -25,6 +25,8 @@ mermaid-rs-renderer = { version = "=0.3.1", default-features = false }
 # 链接卡片（`web.link_preview`）去抓别人家的页面：和仓库的 `miyu-http` 同一个库、同一套 TLS（rustls，证书认系统的和
 # webpki 自带的两份，不依赖 OpenSSL）。重定向自己跟、每一跳钉住解析好的地址，都要它的 `ClientBuilder`。MIT 或 Apache-2.0。
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots", "rustls-tls-webpki-roots"] }
+# `@` 选文件往下走目录（`web.files`，`mention.rs`）：和核心的 glob、grep 同一个库，认 .gitignore；树里本来就有。MIT 或 Unlicense。
+ignore = "0.4"
 # 链接卡片的图按内容的 SHA-256 编号：同一张图（好些页面共用的 favicon）只记一份，编号也不带来源。和 miyu-ipc、
 # miyu-kernel 同一个版本，树里本来就有。MIT 或 Apache-2.0。
 sha2 = { version = "0.11", default-features = false }

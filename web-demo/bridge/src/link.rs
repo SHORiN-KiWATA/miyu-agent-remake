@@ -152,6 +152,18 @@ pub async fn run(stream: TcpStream, site: Arc<Site>) {
                 if out.send(reply(Ok(json!({"path": real}))).to_string()).is_err() { break }
                 continue;
             }
+            Some("web.files") => {
+                // `@` 选文件（`mention.rs`）：列一层、模糊找；建清单要走一遍目录，另起一个线程，数据根不给
+                let (params, site) = (message["params"].clone(), site.clone());
+                let got = tokio::task::spawn_blocking(move || {
+                    let root = DataRoot::locate(&Env::current()).map_err(|e| format!("找不到数据根：{e}"))?;
+                    site.mention.request(&params, root.path(), &|p| site.types.of(p))
+                })
+                .await
+                .unwrap_or_else(|e| Err(format!("找文件的线程出错了：{e}")));
+                if out.send(reply(got).to_string()).is_err() { break }
+                continue;
+            }
             Some("web.upload_done") => {
                 // 核心存好了附件（`blob.put`），桥先收下的那一份删掉（`upload.rs`）
                 let got = upload::done(message["params"]["path"].as_str().unwrap_or(""));

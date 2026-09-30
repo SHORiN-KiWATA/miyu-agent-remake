@@ -2,16 +2,20 @@
 //! 对话区跟着最新的时停在哪（蓝图 `web.md`「对话区」的滚动那一行，规矩照 `tui.md`「正文」第 1 条）。纯函数。
 //!
 //! 跟着最新的时视口只往下走、不往回退：内容变短（时间线的一段收起、准备的那一行换掉）时停在到过的最深处，
-//! 差的高度垫在内容底下，等她接下来的字填上。
+//! 差的高度垫在内容底下，等她接下来的字填上。收得多、最新的内容要整个退到视口上面去的，视口跟着往上走，最新的底边最多退到
+//! 视口从上往下 `keep` 那么深的地方（2026-10-01 项目主人指出：长的时间线收起到上面去了，视口没跟过去，只剩空白）。
 
 /**
  * 视口停在哪、底下垫多高（px）。
  * @param {number} floor 跟着最新的时视口到过的最深处（`scrollTop`）
  * @param {number} view 视口多高
  * @param {number} natural 内容本来多高（不算垫的）
+ * @param {number} [keep] 最新的内容的底边最多退到视口从上往下多深（px，`layout.json` 的 `follow_keep` 乘视口高）；不给的不管
+ * @param {number} [base] 新的一屏从哪起（清空过的「上下文已清空」那一行）：跟着往上走也不越过它
  */
-export function anchorAt(floor, view, natural) {
-  const top = Math.max(floor, natural - view, 0);
+export function anchorAt(floor, view, natural, keep = -Infinity, base = 0) {
+  const held = Math.min(floor, natural - keep);
+  const top = Math.max(held, natural - view, base, 0);
   return { top, pad: padFor(top, view, natural) };
 }
 

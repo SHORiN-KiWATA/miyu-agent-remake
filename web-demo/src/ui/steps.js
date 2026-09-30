@@ -46,8 +46,9 @@ export class StepView {
     });
     if (this.thought) {
       this.peek = h('span.tl-peek', h('span'));
+      // 那一小段前面的 `·` 单独一个：放不下时那一小段左边淡出，点不跟着淡没
       this.row = h('button.tl-row', { type: 'button', onclick: toggle },
-        this.node, this.name, this.time, this.peek, h('span.tl-chevron', icon('chevron-right')));
+        this.node, this.name, this.time, h('span.tl-peek-dot', t('timeline.peek_sep')), this.peek, h('span.tl-chevron', icon('chevron-right')));
       // 在想时滚着的那几行：和那一行一样能点（2026-09-30 项目主人：原来只能点那一行）
       this.window = h('div.tl-window', { onclick: toggle });
       // 点开的全文也整块能点：点了收起（选着字的时候不收，`guard`），悬停亮一档（2026-09-30 项目主人定）
@@ -57,13 +58,15 @@ export class StepView {
     } else {
       this.subject = h('span.tl-subject');
       this.said = h('span.tl-said');
+      // 编辑、写入：加减的行数（`+3 -1`）
+      this.diff = h('span.tl-diff');
       this.status = h('span.tl-status');
       // 留言：收着时那一行后面接留言开头的预览（2026-10-01 项目主人定）
       const message = kindOf(step.name) === 'message';
       // 编号和预览中间一个 `·`（2026-10-01 项目主人定）
       this.peek = message ? h('span.tl-peek', h('span.tl-peek-sep', t('timeline.peek_sep')), h('span')) : null;
       this.row = h('button.tl-row', { type: 'button', onclick: toggle },
-        this.node, h('span.tl-head', this.name, this.time, this.subject, this.said), this.peek, this.status);
+        this.node, h('span.tl-head', this.name, this.time, this.subject, this.said, this.diff), this.peek, this.status);
       this.command = h('div.tl-command', { onclick: toggle });
       this.body = h('div.tl-body');
       this.el = h(`div.tl-step.is-tool${message ? '.is-message' : ''}${fresh ? '.is-new' : ''}`, this.row, this.command, h('div.tl-fold', h('div.tl-fold-inner', this.body)));
@@ -128,6 +131,12 @@ export class StepView {
     this.subject.hidden = !r.subject;
     this.said.textContent = r.said ?? '';
     this.said.hidden = !r.said;
+    const diff = r.diff ? `+${r.diff.added} -${r.diff.removed}` : '';
+    if (this.diff.dataset.sig !== diff) {
+      this.diff.dataset.sig = diff;
+      replace(this.diff, r.diff ? [h('span.tl-added', `+${r.diff.added}`), ' ', h('span.tl-removed', `-${r.diff.removed}`)] : []);
+    }
+    this.diff.hidden = !r.diff;
     if (this.peek) {
       const text = messagePeek(step);
       setText(/** @type {HTMLElement} */ (this.peek.lastChild), text);

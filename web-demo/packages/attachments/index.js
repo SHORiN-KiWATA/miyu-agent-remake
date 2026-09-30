@@ -13,7 +13,7 @@
 
 import { h, icon } from '../../src/lib/dom.js';
 import { show, hide } from '../../src/lib/motion.js';
-import { Tray, admit, mediaType } from './model.js';
+import { Tray, admit, mediaType, attachable } from './model.js';
 import { TrayView } from './tray.js';
 
 /** @param {any} ctx */
@@ -67,6 +67,14 @@ export function apply(ctx) {
     keep: (given) => tray.keep(given),
     recall: (saved) => tray.recall(saved?.kept ?? null, saved?.session ?? null),
     settle: () => tray.settle(),
+    // 光标在最前面按退格：拿掉最后一张（蓝图「附件」第 3 条）
+    dropLast: () => tray.dropLast(),
+    // `@` 选文件交过来的（蓝图「`@` 选文件」第 5 条）：图片、PDF、音频、视频收下（本机的路径直接交给核心存），交回不收的
+    offer: (refs) => {
+      const mine = refs.filter(attachable);
+      take(mine);
+      return refs.filter((r) => !mine.includes(r));
+    },
   });
 
   // 粘贴：粘的是文件（截图）的收下，是字的照旧

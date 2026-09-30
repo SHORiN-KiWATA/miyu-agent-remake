@@ -7,7 +7,7 @@
 //! - 同一时刻只转一处（`model/timeline.js` 的 `active`）；在走的用时由 [`Ticker`] 走表，不重画。
 
 import { h, icon } from './dom.js';
-import { res } from '../util/res.js';
+import { res, t } from '../util/res.js';
 import { active } from '../model/timeline.js';
 import { summary } from '../model/words.js';
 import { seconds, jobDuration } from '../model/format.js';
@@ -34,7 +34,8 @@ export class SegmentView {
     // 在想时滚几行、命令写几行：CSS 照它定高（`timeline.json`）
     const tl = res.timeline;
     this.el = h(`div.tl-segment${fresh ? '' : '.is-static'}`,
-      { style: `--tl-rows: ${tl.thinking_rows}; --tl-cmd-rows: ${tl.command_rows}; --tl-fold: ${tl.fold_ms}ms; --tl-step: ${tl.step_ms}ms` },
+      // 一行里几段之间的分隔（`·`，蓝图「时间线」的「工具一行」）：CSS 照它画
+      { style: `--tl-rows: ${tl.thinking_rows}; --tl-cmd-rows: ${tl.command_rows}; --tl-fold: ${tl.fold_ms}ms; --tl-step: ${tl.step_ms}ms; --tl-sep: ${JSON.stringify(t('timeline.peek_sep'))}` },
       this.summary, h('div.tl-wrap', h('div.tl-clip', this.steps)));
     this.summary.append(this.summaryText, h('span.tl-chevron', icon('chevron-right')));
   }

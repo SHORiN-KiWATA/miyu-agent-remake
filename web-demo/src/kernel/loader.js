@@ -11,7 +11,8 @@ import { resolve, problems } from './config.js';
  * @typedef {{disabled?: boolean, config?: Record<string, any>}} UserPatch 个人那一层给一个包的补丁
  * @typedef {{id: string, disabled: boolean, distro: Record<string, any>, user: Record<string, any>}} Row 合好的一行
  * @typedef {{load: (id: string) => Promise<import('./context.js').Package>,
- *   styles: (id: string, files: string[]) => () => void}} Drivers 怎么拿到一个包（清单加入口）、怎么挂它的样式
+ *   styles: (id: string, files: string[]) => {ready: Promise<unknown>, remove: () => void}}} Drivers 怎么拿到一个包（清单加入口）、
+ *   怎么挂它的样式（交回下载完了没有、怎么撤下来）
  */
 
 /**
@@ -37,7 +38,7 @@ export class Loader {
   constructor(registry, drivers) {
     this.registry = registry;
     this.drivers = drivers;
-    /** @type {Map<string, {sig: string, fiber: Fiber|null, state?: string, reason?: string, errors: any[], settings?: Record<string, any>, values?: Record<string, any>}>} */
+    /** @type {Map<string, {sig: string, fiber: Fiber|null, state?: string, reason?: string, errors: any[], settings?: Record<string, any>, values?: Record<string, any>, unstyle?: () => void}>} */
     this.loaded = new Map();
     /** @type {Row[]} */
     this.current = [];
@@ -55,6 +56,7 @@ export class Loader {
       if (row && !row.disabled && JSON.stringify(row) === had.sig) continue;
       if (row && !row.disabled && this.live(had, row)) continue;
       had.fiber?.dispose();
+      had.unstyle?.();
       this.loaded.delete(id);
     }
     for (const row of next) {
@@ -97,15 +99,13 @@ export class Loader {
       return;
     }
     const config = resolve(settings, [{ name: 'distro', values: row.distro }, { name: 'user', values: row.user }]);
+    // 包的样式先挂上、等它下载完（下载不了的也不卡着）再跑包：不然刷新时包先没样式地画出来，闪一下（2026-10-01 项目主人撞见
+    // 跳转条）。样式跟着包：停用、撤回时撤下
     const styles = pkg.manifest.styles ?? [];
-    const fiber = new Fiber(this.registry, {
-      manifest: pkg.manifest,
-      apply: (ctx) => {
-        if (styles.length) ctx.effect(() => this.drivers.styles(row.id, styles));
-        pkg.apply(ctx);
-      },
-    }, config.values);
-    this.loaded.set(row.id, { sig, fiber, errors: config.errors, settings, values: config.values });
+    const sheet = styles.length ? this.drivers.styles(row.id, styles) : null;
+    if (sheet) await sheet.ready.catch(() => {});
+    const fiber = new Fiber(this.registry, { manifest: pkg.manifest, apply: (ctx) => pkg.apply(ctx) }, config.values);
+    this.loaded.set(row.id, { sig, fiber, errors: config.errors, settings, values: config.values, unstyle: sheet?.remove });
     fiber.start();
   }
 

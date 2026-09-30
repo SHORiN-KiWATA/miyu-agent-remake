@@ -85,11 +85,11 @@
     "to": "发给",
     "message": "消息",
     "parent": "父会话",
-    "message_subject": "· {to}",
+    "message_subject": "{to}",
     "message_to": "{job} · {title}",
     "peek_sep": "·",
-    "agent_subject": "· {job} · {title}",
-    "agent_pending": "· {title}",
+    "agent_subject": "{job} · {title}",
+    "agent_pending": "{title}",
     "created": "新建",
     "changed": "修改",
     "summary": {
@@ -208,6 +208,15 @@
     "more": "⋮ 还有 {count} 行",
     "attachments": " · {count} 个附件",
     "attachments_only": "{count} 个附件"
+  },
+  "mention": {
+    "title": "@{word} · {count} 个",
+    "layer": "只读这一层",
+    "partial": "只列了一部分，打 / 按目录找",
+    "partial_layer": "只列了前 {shown} 个，接着打名字",
+    "no_match": "没有对得上的",
+    "hint": "↑↓ 选择 · Tab 进目录 · Enter 选定 · Esc 关闭",
+    "no_api": "桥太旧，列不了文件：重新编译、重启桥"
   },
   "refusals": {
     "nothing_to_revert": "没有能撤销的",

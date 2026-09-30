@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { Tray, admit, mediaType, extOf } from '../../packages/attachments/model.js';
+import { Tray, admit, mediaType, extOf, attachable } from '../../packages/attachments/model.js';
 
 /** 这个包的设置项的出厂值 */
 const config = Object.fromEntries(Object.entries(JSON.parse(readFileSync(new URL('../../packages/attachments/manifest.json', import.meta.url), 'utf8')).settings).map(([k, s]) => [k, s.default]));
@@ -142,4 +142,25 @@ test('输入历史翻出来的：换掉上一次跟着翻出来的，自己放�
   tray.recall(null, null);
   assert.deepEqual(tray.items.map((it) => it.name), ['mine.txt', 'a.png'], '留下的不再拿掉');
   assert.deepEqual(/** @type {any} */ (tray.take()).attachments.map((x) => x.blob), ['sha256:00', 'sha256:aa']);
+});
+
+test('@ 选文件交过来的：图片、PDF、音频、视频收成附件，别的（文字、代码、目录）不收，照路径写进话里', () => {
+  const ref = (name, type) => ({ name, size: 1, type, path: `/p/${name}` });
+  assert.equal(attachable(ref('a.png', 'image/png')), true);
+  assert.equal(attachable(ref('b.pdf', 'application/pdf')), true);
+  assert.equal(attachable(ref('c.mp3', 'audio/mpeg')), true);
+  assert.equal(attachable(ref('d.mp4', 'video/mp4')), true);
+  assert.equal(attachable(ref('e.rs', 'text/plain; charset=utf-8')), false);
+  assert.equal(attachable(ref('f.zip', 'application/zip')), false);
+});
+
+test('键盘拿掉：光标在最前面按退格，拿掉最后一张（在传的也能拿）；一张都没有的交回 false，退格照常', () => {
+  const tray = new Tray();
+  const a = tray.add({ name: 'a.png', size: 1, type: 'image/png' });
+  tray.ready(a.id, { blob: 'sha256:aa', name: 'a.png', media_type: 'image/png' });
+  tray.add({ name: 'b.pdf', size: 1, type: 'application/pdf' });
+  assert.equal(tray.dropLast(), true);
+  assert.deepEqual(tray.items.map((it) => it.name), ['a.png']);
+  assert.equal(tray.dropLast(), true);
+  assert.equal(tray.dropLast(), false);
 });

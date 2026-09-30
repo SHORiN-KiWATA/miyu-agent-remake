@@ -85,11 +85,11 @@
     "to": "宛先",
     "message": "メッセージ",
     "parent": "親セッション",
-    "message_subject": "· {to}",
+    "message_subject": "{to}",
     "message_to": "{job} · {title}",
     "peek_sep": "·",
-    "agent_subject": "· {job} · {title}",
-    "agent_pending": "· {title}",
+    "agent_subject": "{job} · {title}",
+    "agent_pending": "{title}",
     "created": "新規作成",
     "changed": "変更",
     "summary": {
@@ -208,6 +208,15 @@
     "more": "⋮ さらに {count} 行",
     "attachments": " · 添付 {count} 件",
     "attachments_only": "添付 {count} 件"
+  },
+  "mention": {
+    "title": "@{word} · {count} 件",
+    "layer": "この階層のみ",
+    "partial": "一部のみ表示、/ でフォルダを探せます",
+    "partial_layer": "先頭 {shown} 件のみ、続けて名前を入力",
+    "no_match": "該当なし",
+    "hint": "↑↓ 選択 · Tab フォルダを開く · Enter 決定 · Esc 閉じる",
+    "no_api": "ブリッジが古いためファイルを一覧できません：再ビルドして再起動してください"
   },
   "refusals": {
     "nothing_to_revert": "取り消せるものがありません",

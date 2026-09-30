@@ -7,6 +7,9 @@
 //! 先归列表（`ui/commands.js`）。焦点不在哪个输入框里时按 `/`，只把焦点放回这里，不打进这个 `/`。
 //! `↑` `↓` 翻输入历史、`Ctrl+R` 开输入历史列表（蓝图「输入历史」：怎么翻是 `model/history.js` 的 `Recall`，列表在
 //! `ui/history.js`）；发出去的话、执行的命令记进去，两下 `Esc` 清掉的那句单独留一份，空着按 `↑` 先拿回它。
+//! 光标前面是 `@` 词时开 `@` 选文件的列表（蓝图「`@` 选文件」：词怎么认、写进去的路径在 `model/mention.js`，列表在
+//! `ui/mention.js`，列、找由桥做）；选定的图片这些交给跟着话一起发的（附件）收，别的在框里写成一块 `[文件名]`（`model/blocks.js`：
+//! 框底下垫一层同样排版的字给块铺底，退格、`Delete` 整块删，发出去换回路径）。
 //!
 //! 框（`box`）上面浮着的几样挂在框上：提示、命令列表、运行状态行（`ui/pulse.js`，整页挂）；待办在框上面的流里
 //! （`ui/todo.js`，整页挂）。在回答时整块带 `is-running`：提示浮到运行状态行上面，待办下面给它空出地方（`styles/dock.css`）。
@@ -23,14 +26,19 @@ import { read } from '../model/commands.js';
 import { CommandList } from './commands.js';
 import { Picker } from './picker.js';
 import { HistoryList } from './history.js';
+import { MentionList } from './mention.js';
+import { wordAt, plan, pathText, dirWord, splice, failure } from '../model/mention.js';
+import { blockLabel, expand, used, erase, pieces } from '../model/blocks.js';
 import { Recall } from '../model/history.js';
 import { show, hide, span } from '../lib/motion.js';
 
 /**
  * @typedef {{id: string, has: () => boolean, busy: () => boolean, take: () => Record<string, any>|null, putBack: (given: any) => void,
- *   keep?: (given: any) => any, recall?: (saved: {session: string, kept: any}|null) => void, settle?: () => void}} Payload
+ *   keep?: (given: any) => any, recall?: (saved: {session: string, kept: any}|null) => void, settle?: () => void,
+ *   offer?: (refs: any[]) => any[], dropLast?: () => boolean}} Payload
  *   跟着话一起发的一样（挂载位 `composer.payload` 的一件，蓝图 `web/architecture.md`）；`keep`、`recall`、`settle` 是输入历史用的：
- *   交出去的记成能存下来的样子、翻出来的换上（`null` 拿掉）、改了字留下（蓝图「输入历史」第 1、2 条）
+ *   交出去的记成能存下来的样子、翻出来的换上（`null` 拿掉）、改了字留下（蓝图「输入历史」第 1、2 条）；`offer` 是 `@` 选文件交过来的
+ *   本机文件，收下它认得的，交回不收的（蓝图「`@` 选文件」第 5 条）；`dropLast` 是光标在最前面按退格，拿掉最后一块，拿掉了交回 `true`
  */
 
 export class Composer {
@@ -38,7 +46,9 @@ export class Composer {
    * @param {{send: (text: string, extra: Record<string, any>) => Promise<boolean>, interrupt: () => void, cycleLevel: () => void,
    *   command: (spec: import('../model/commands.js').Spec, words: string|null) => void,
    *   history: {load: () => import('../model/history.js').Item[], save: (items: import('../model/history.js').Item[]) => void},
-   *   session: () => string|null} on `send` 交回核心收没收；`history` 读、存输入历史（这台设备上、按账号分开）；`session` 正在看的会话
+   *   session: () => string|null, files: (params: any) => Promise<any>, where: () => {cwd: string|null, home: string|null}} on
+   *   `send` 交回核心收没收；`history` 读、存输入历史（这台设备上、按账号分开）；`session` 正在看的会话；`files` 问桥列、找文件
+   *   （`web.files`）；`where` 这个会话的工作目录、家目录（`@` 选文件写路径照它）
    * @param {() => import('../model/commands.js').Spec[]} specs 现在的全部斜杠命令（出厂的加软件包登记的）
    * @param {() => Payload[]} payload 现在跟着话一起发的几样（挂载位 `composer.payload`）
    */
@@ -55,7 +65,8 @@ export class Composer {
       onkeydown: (ev) => this.key(ev),
       oninput: () => this.changed(),
     }));
-    this.sendButton = h('button.composer-send', { type: 'button', title: t('send'), onclick: () => this.submit() }, icon('arrow-up'));
+    // 一开始框里没字：先灰着（原来先是能发的蓝色，挂好了才变灰，刷新时右下角闪一下）
+    this.sendButton = h('button.composer-send', { type: 'button', title: t('send'), disabled: true, onclick: () => this.submit() }, icon('arrow-up'));
     this.notice = h('div.composer-notice', { hidden: true });
     /** 框下面左边：级别那一格一直是这一个按钮（换级别时字卷上去、换新的，见 `drawLevel`），后面是模型 */
     this.levelRoll = h('span.level-roll');
@@ -73,12 +84,23 @@ export class Composer {
     /** 翻输入历史（蓝图「输入历史」） */
     this.recall = new Recall(on.history.load());
     this.historyList = new HistoryList({ choose: (item) => this.chosen(item), closed: () => this.input.focus() });
+    /** `@` 选文件（蓝图「`@` 选文件」）：现在的词（`key` 是位置加字）、`Esc` 关掉的那个词、问到第几次（旧的回来了不要） */
+    this.mention = new MentionList({ pick: (entry, how) => this.pickFile(entry, how), dismiss: () => this.dismissMention() });
+    this.mentionAt = /** @type {{start: number, end: number, word: string, key: string}|null} */ (null);
+    this.mentionDismissed = /** @type {string|null} */ (null);
+    this.mentionSeq = 0;
+    this.mentionTimer = 0;
+    /** 框里的文件块：名字 → 写进话里的路径（发出去换回去；发成了清掉） */
+    this.blocks = /** @type {Map<string, string>} */ (new Map());
+    /** 框底下垫的那层字：和框同样排版，只给块铺底（框里的字是框自己画的） */
+    this.backdrop = h('div.composer-backdrop', { 'aria-hidden': 'true' });
+    this.input.addEventListener('scroll', () => { this.backdrop.scrollTop = this.input.scrollTop; });
     /** 选一样的浮层（`/language`）：和命令列表同一个位置 */
     this.picker = new Picker();
     this.head = h('div.composer-head');
     this.tools = h('span.composer-tools');
     this.float = h('div.composer-float');
-    this.box = h('div.composer', this.notice, this.head, this.input, this.bar = h('div.composer-bar', this.tools, this.sendButton), this.menu.el, this.picker.el, this.historyList.el, this.float);
+    this.box = h('div.composer', this.notice, this.head, h('div.composer-field', this.backdrop, this.input), this.bar = h('div.composer-bar', this.tools, this.sendButton), this.menu.el, this.picker.el, this.historyList.el, this.mention.el, this.float);
     this.el = h('div.composer-dock', this.box, this.footer);
     this.parts = /** @type {{key: string, text: string}[]} */ ([]);
     /** 撤销时放回框里的那句：恢复时还没动过的收回去（`tui.md`「输入框」第 7 条）。 */
@@ -88,6 +110,8 @@ export class Composer {
     fit.observe(this.footer);
     fit.observe(this.middle);
     document.addEventListener('keydown', (ev) => this.slash(ev));
+    // 光标挪了（点、左右键）：照光标前面的词重看要不要开 `@` 选文件
+    document.addEventListener('selectionchange', () => { if (document.activeElement === this.input) this.syncMention(); });
   }
 
   focus() { this.input.focus(); }
@@ -134,7 +158,9 @@ export class Composer {
       void el.offsetHeight;
     }
     el.style.height = `${to}px`;
+    this.drawBlocks();
     this.syncButton();
+    this.syncMention();
   }
 
   /**
@@ -165,12 +191,23 @@ export class Composer {
     }
     const taken = parts.map((p) => ({ p, given: p.take() })).filter((x) => x.given);
     this.set('');
-    const ok = await this.on.send(text, Object.assign({}, ...taken.map((x) => x.given)));
-    // 记进输入历史：发成了的连带过去的附件（核心存好的那一份、发在哪个会话；新会话发了才有编号）
+    // 文件块换回路径写在原来的位置（蓝图「`@` 选文件」第 5 条）
+    const blocks = used(text, this.blocks);
+    const sent = expand(text, this.blocks);
+    const ok = await this.on.send(sent, Object.assign({}, ...taken.map((x) => x.given)));
+    // 记进输入历史：框里的样子加上用到的块（翻出来照样是块）；发成了的连带过去的附件（核心存好的那一份、发在哪个会话；
+    // 新会话发了才有编号）
     const kept = ok ? taken.map((x) => [x.p.id, x.p.keep?.(x.given)]).filter(([, v]) => v) : [];
     const session = this.on.session();
-    this.remember(text, kept.length && session ? { session, parts: Object.fromEntries(kept) } : null);
-    if (ok) return;
+    const extra = {
+      ...(kept.length && session ? { session, parts: Object.fromEntries(kept) } : {}),
+      ...(blocks.length ? { blocks, sent } : {}),
+    };
+    this.remember(text, Object.keys(extra).length ? extra : null);
+    if (ok) {
+      this.blocks = new Map();
+      return;
+    }
     // 拒了：字放回去（框里又写了的不覆盖），附件放回去
     if (this.input.value === '') this.set(text);
     for (const x of taken) x.p.putBack(x.given);
@@ -199,8 +236,12 @@ export class Composer {
   /** 撤销成了：撤掉的那句放回来、整段选中，直接打字就替换掉它；框里已经有字的不动（`tui.md`「输入框」第 7 条）。 */
   putBack(said) {
     if (this.input.value !== '') return;
-    this.set(said);
-    this.putBackText = said;
+    // 在输入历史里找得到的（发出去的样子一样），照框里的样子放回来：块还是块
+    const hit = this.recall.items.find((x) => x.sent === said);
+    for (const [label, path] of hit?.blocks ?? []) this.blocks.set(label, path);
+    const text = hit ? hit.text : said;
+    this.set(text);
+    this.putBackText = text;
     this.input.select();
   }
 
@@ -224,6 +265,7 @@ export class Composer {
 
   key(ev) {
     if (ev.isComposing || ev.keyCode === 229) return;
+    if (this.mention.key(ev)) return;
     if (this.menu.key(ev)) return;
     // ↑ ↓：翻输入历史；不接的归浏览器挪光标
     if ((ev.key === 'ArrowUp' || ev.key === 'ArrowDown') && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
@@ -233,6 +275,23 @@ export class Composer {
       ev.preventDefault();
       this.put(text);
       this.bring(this.recall.item());
+      return;
+    }
+    // 块整块删：光标在块后面退格、在块前面 Delete（蓝图「`@` 选文件」第 5 条）
+    if ((ev.key === 'Backspace' || ev.key === 'Delete') && !ev.ctrlKey && !ev.metaKey && !ev.altKey && this.input.selectionStart === this.input.selectionEnd) {
+      const labels = [...this.blocks.keys()].filter((l) => this.input.value.includes(l));
+      const cut = erase(this.input.value, this.input.selectionStart, labels, ev.key === 'Backspace' ? 'back' : 'forward');
+      if (cut) {
+        ev.preventDefault();
+        this.input.value = cut.value;
+        this.input.setSelectionRange(cut.caret, cut.caret);
+        this.changed();
+        return;
+      }
+    }
+    // 光标在最前面（没选着字）按退格：拿掉最后一张附件（卡排在字的前面，照 TUI 退格整块删块；蓝图「附件」第 3 条）
+    if (ev.key === 'Backspace' && !ev.ctrlKey && !ev.metaKey && !ev.altKey && this.input.selectionStart === 0 && this.input.selectionEnd === 0) {
+      if (this.payload().some((p) => p.dropLast?.())) ev.preventDefault();
       return;
     }
     // Ctrl+R：输入历史列表（只在这个框里接，别处照浏览器的刷新）
@@ -289,6 +348,8 @@ export class Composer {
    * @param {import('../model/history.js').Item|null} item
    */
   bring(item) {
+    for (const [label, path] of item?.blocks ?? []) this.blocks.set(label, path);
+    this.drawBlocks();
     for (const p of this.payload()) p.recall?.(item?.session && item.parts?.[p.id] ? { session: item.session, kept: item.parts[p.id] } : null);
   }
 
@@ -319,6 +380,90 @@ export class Composer {
     this.bring(item);
     for (const p of this.payload()) p.settle?.();
     this.input.focus();
+  }
+
+  /**
+   * `@` 选文件：光标前面是 `@` 词（没选着字）的，隔一小会儿（`mention_delay_ms`）问桥列、找，旧的回来了不要；开列表时带
+   * `fresh`（清单隔一阵的重建）。不是的、命令列表或输入历史列表开着的关掉；`Esc` 关掉的那个词没变就一直关着。
+   */
+  syncMention() {
+    const el = this.input;
+    const w = el.selectionStart === el.selectionEnd ? wordAt(el.value, el.selectionStart) : null;
+    if (!w || this.menu.open || this.historyList.open) {
+      if (!w) this.mentionDismissed = null;
+      this.mentionAt = null;
+      this.mentionSeq += 1;
+      this.mention.close();
+      return;
+    }
+    const key = `${w.start}:${w.word}`;
+    if (key === this.mentionDismissed || key === this.mentionAt?.key) return;
+    const fresh = !this.mention.open;
+    this.mentionAt = { ...w, key };
+    const seq = ++this.mentionSeq;
+    clearTimeout(this.mentionTimer);
+    this.mentionTimer = window.setTimeout(async () => {
+      // 问不到的写清楚为什么（桥太旧、工作目录不在、数据目录不列……），不画成空列表
+      const found = await this.on.files({ ...plan(w.word), ...(fresh ? { fresh: true } : {}) })
+        .catch((err) => ({ items: [], partial: false, layer: false, error: failure(err) }));
+      if (seq === this.mentionSeq) this.mention.show({ word: w.word, ...found });
+    }, res.layout.mention_delay_ms);
+  }
+
+  /** `Esc`：关掉，这个词没变就不再开。 */
+  dismissMention() {
+    this.mentionDismissed = this.mentionAt?.key ?? null;
+    this.mentionSeq += 1;
+    this.mention.close();
+  }
+
+  /**
+   * 选定了一条（蓝图「`@` 选文件」第 5 条）：`Tab` 在目录上是进这个目录接着列；图片、PDF、音频、视频交给附件收（词拿掉）；
+   * 别的文件、目录把词换成它的路径（后面补一个空格）。
+   */
+  pickFile(entry, how) {
+    const at = this.mentionAt;
+    if (!at) return;
+    const p = plan(at.word);
+    const put = (text) => {
+      const next = splice(this.input.value, at.start, at.end, text);
+      this.input.value = next.value;
+      this.input.setSelectionRange(next.caret, next.caret);
+      this.changed();
+    };
+    if (entry.dir && how === 'tab') {
+      put(dirWord(p.mode === 'dir' ? p.dir + entry.path : entry.path));
+      return;
+    }
+    this.mentionSeq += 1;
+    this.mention.close();
+    this.mentionAt = null;
+    if (!entry.dir) {
+      const name = entry.full.split('/').pop() ?? entry.full;
+      let left = [{ name, size: entry.size ?? 0, type: entry.type ?? '', path: entry.full }];
+      for (const part of this.payload()) if (part.offer) left = part.offer(left);
+      if (!left.length) {
+        put('');
+        return;
+      }
+    }
+    // 别的文件、目录：框里写成一块 `[文件名]`，记着它的路径，发出去换回去
+    const where = this.on.where();
+    const path = pathText(entry.full, entry.dir, where.cwd, where.home);
+    const label = blockLabel(path, entry.dir, this.blocks, res.layout.block_name_max);
+    this.blocks.set(label, path);
+    put(`${label} `);
+  }
+
+  /** 框底下垫的那层字：和框里的字一样，块铺底（结尾补一个空格：框里最后是换行时，垫的那层也要多一行）。 */
+  drawBlocks() {
+    const value = this.input.value;
+    const labels = [...this.blocks.keys()].filter((l) => value.includes(l));
+    const sig = `${value}\u0000${labels.join('\u0000')}`;
+    if (this.backdrop.dataset.sig === sig) return;
+    this.backdrop.dataset.sig = sig;
+    replace(this.backdrop, [...pieces(value, labels).map((p) => (p.block ? h('mark.composer-block', p.text) : p.text)), ' ']);
+    this.backdrop.scrollTop = this.input.scrollTop;
   }
 
   /** 提示：浮在输入框上面的小框，停一会儿；新的顶掉旧的。`good` 的框是绿的（`tui.md`「提示」）。 */

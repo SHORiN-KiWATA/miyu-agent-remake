@@ -56,10 +56,12 @@ test('别的工具：显示名、等宽的对象（家目录写成 ~）、结果
   assert.equal(row(tool('edit', { file_path: '/a' }), HOME).icon, 'square-pen');
 });
 
-test('出错的：图标换成 circle-alert；被拒绝的不算出错', () => {
+test('出错的、被拒的：图标换成 circle-alert、整行红（被拒的写入不能看着像写成了，照 TUI）；打断的不算', () => {
   const r = row(tool('shell', { command: 'x' }, { status: 'error' }), HOME);
   assert.deepEqual([r.icon, r.failed], ['circle-alert', true]);
-  assert.equal(row(tool('shell', { command: 'x' }, { status: 'denied' }), HOME).failed, false);
+  const d = row(tool('write', { file_path: '/home/me/a.txt', content: 'x' }, { status: 'denied' }), HOME);
+  assert.deepEqual([d.icon, d.failed], ['circle-alert', true]);
+  assert.equal(row(tool('shell', { command: 'x' }, { status: 'cancelled' }), HOME).failed, false);
 });
 
 test('还在写参数：照种类写「准备执行」「准备编辑」「准备工具」，一位小数走表', () => {
@@ -170,11 +172,11 @@ test('派子代理那一步：写「派子代理 · 编号 · 标题」（编号
   const spawned = tool('agent', args, { state: 'done', status: 'ok', job: 'j2', said: { key: 'agent/started', fields: { job: 'j2' } }, output: 'started j2' });
   const r = row(spawned, HOME);
   assert.equal(r.name, '派子代理');
-  assert.equal(r.subject, '· j2 · Fix 2 mismatches');
+  assert.equal(r.subject, 'j2 · Fix 2 mismatches');
   assert.equal(r.said, null);
   assert.deepEqual(details(spawned), [{ kind: 'text', label: '提示词', text: '你是子代理。\n先读 docs/，再改两处不一致。' }]);
   const running = tool('agent', args, { state: 'running' });
-  assert.equal(row(running, HOME).subject, '· Fix 2 mismatches', '还没派出去（没有编号）的只写标题');
+  assert.equal(row(running, HOME).subject, 'Fix 2 mismatches', '还没派出去（没有编号）的只写标题');
 });
 
 test('留言那一步：写「留言 · j2」，送到了不接结果那一句；收着时后面是留言开头的预览，点开是发给谁、完整的消息（2026-10-01）', () => {
@@ -182,7 +184,7 @@ test('留言那一步：写「留言 · j2」，送到了不接结果那一句�
   const sent = tool('message_agent', { to: 'j2', message: text }, { toTitle: 'Fix 2 mismatches', said: { key: 'software/basesystem/message_agent/sent', fields: { to: 'j2' } }, output: 'Message sent to j2.' });
   const r = row(sent, HOME);
   assert.equal(r.name, '留言');
-  assert.equal(r.subject, '· j2');
+  assert.equal(r.subject, 'j2');
   assert.equal(r.mono, false);
   assert.equal(r.said, null, '送到了那一句和对象重了，不写');
   assert.equal(messagePeek(sent), '先别改 a.rs， 我这边刚发现它被别处引用了。', '空白压成一个空格');
@@ -193,7 +195,7 @@ test('留言那一步：写「留言 · j2」，送到了不接结果那一句�
   // 找不到标题的只写编号；发给父会话的写「父会话」
   assert.equal(details(tool('message_agent', { to: 'j3', message: 'x' }))[0].text, 'j3');
   const up = tool('message_agent', { to: 'parent', message: '做完一半了' });
-  assert.equal(row(up, HOME).subject, '· 父会话');
+  assert.equal(row(up, HOME).subject, '父会话');
   assert.equal(details(up)[0].text, '父会话');
   // 没送到的照写结果那一句，点开接着结果
   const stopped = tool('message_agent', { to: 'j2', message: 'x' }, { status: 'error', said: { key: 'software/basesystem/message_agent/stopped', fields: { to: 'j2' } }, output: 'Subagent j2 was stopped and takes no more messages.' });
@@ -227,4 +229,37 @@ test('收起那一行：手动定了语言的照那种语言写（中文、日�
   } finally {
     res.text.timeline.summary = english;
   }
+});
+
+test('编辑、写入那一行：结果那一句后面接这一步加减的行数（和收起那一行同一份）；加减都是 0、没改成的不写（2026-10-01）', () => {
+  const write = tool('write', { file_path: '/tmp/a.txt', content: '一行\n' }, { said: { key: 'software/basesystem/write/created', fields: { lines: '1' } } });
+  assert.deepEqual(row(write, HOME).diff, { added: 1, removed: 0 });
+  const edit = tool('edit', { file_path: '/tmp/a.txt', edits: [{ old_string: 'a\nb\n', new_string: 'a\nc\nd\n' }] });
+  assert.deepEqual(row(edit, HOME).diff, { added: 2, removed: 1 });
+  assert.deepEqual(row(tool('edit', edit.parsed, { state: 'running', status: null }), HOME).diff, { added: 2, removed: 1 }, '在跑的照参数写');
+  assert.equal(row(tool('edit', edit.parsed, { status: 'error' }), HOME).diff, null, '出错的不写');
+  assert.equal(row(tool('edit', edit.parsed, { status: 'cancelled' }), HOME).diff, null, '打断的不写');
+  assert.equal(row(tool('edit', { file_path: '/tmp/a.txt', edits: [{ old_string: 'x', new_string: 'x' }] }), HOME).diff, null, '加减都是 0');
+  assert.equal(row(tool('read', { file_path: '/tmp/a.txt' }), HOME).diff, null, '不是编辑');
+});
+
+test('收起那一行：没改成的编辑（出错、被拒、打断）不算 edit、不算加减，算成用过一件工具，出错、被拒的再算一个 err（照 TUI）', () => {
+  const ok = tool('write', { file_path: '/tmp/a.txt', content: '一行\n' });
+  const denied = tool('write', { file_path: '/home/me/b.txt', content: '一行\n' }, { status: 'denied' });
+  const broken = tool('edit', { file_path: '/tmp/a.txt', edits: [{ old_string: 'a', new_string: 'b' }] }, { status: 'error' });
+  const cut = tool('edit', { file_path: '/tmp/a.txt', edits: [{ old_string: 'a', new_string: 'b' }] }, { status: 'cancelled' });
+  assert.equal(line([ok, denied]), 'Used 1 tool · 1 edit +1 -0 · 1 err · 1s');
+  assert.equal(line([ok, broken]), 'Used 1 tool · 1 edit +1 -0 · 1 err · 1s');
+  assert.equal(line([ok, cut]), 'Used 1 tool · 1 edit +1 -0 · 1s');
+  assert.equal(line([denied]), 'Used 1 tool · 1 err · 1s');
+});
+
+test('派子代理的工具改名 subagent（施工 7-5 再补）：新旧两个名字都认成派子代理，图标、那一行、收起那一行一样', () => {
+  const args = { description: '查文档', prompt: '去查' };
+  const neu = tool('subagent', args, { job: 'j3' });
+  assert.equal(row(neu, HOME).icon, 'bot');
+  assert.equal(row(neu, HOME).subject, 'j3 · 查文档');
+  assert.equal(line([neu]), 'Spawned 1 agent · 1s');
+  assert.equal(line([neu, tool('agent', args)]), 'Spawned 2 agents · 1s', '旧会话里的 agent 照旧认');
+  assert.deepEqual(details(neu), [{ kind: 'text', label: '提示词', text: '去查' }]);
 });
