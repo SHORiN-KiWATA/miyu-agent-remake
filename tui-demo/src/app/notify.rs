@@ -12,7 +12,10 @@ impl App {
         let seen = self.transcript.running.is_some();
         let manual = self.transcript.manual_turn();
         match update {
-            Update::Push(Push::TurnStarted(..)) => self.notifier.state(State::Working),
+            // 一轮开始：有抽屉开着的照旧在等（别处来的话可以在抽屉开着时开一轮）。
+            Update::Push(Push::TurnStarted(..)) => {
+                self.notifier.state(herdr_state(self.drawers.open(), true));
+            }
             Update::Push(Push::TurnEnded(reason)) => {
                 if seen && !manual {
                     match reason {
@@ -22,12 +25,7 @@ impl App {
                     }
                 }
                 // 一轮结束：还有开着的抽屉的在等，不然空闲。
-                let state = if self.drawers.open() {
-                    State::Blocked
-                } else {
-                    State::Idle
-                };
-                self.notifier.state(state);
+                self.notifier.state(herdr_state(self.drawers.open(), false));
             }
             Update::Disconnected => self.notifier.state(State::Idle),
             _ => {}
@@ -50,13 +48,33 @@ impl App {
 
     /// 没有在等你的了：一轮还在跑的在做，不然空闲；还有开着的抽屉的在等。
     pub(super) fn settle_state(&mut self) {
-        let state = if self.drawers.open() {
-            State::Blocked
-        } else if self.transcript.running.is_some() {
-            State::Working
-        } else {
-            State::Idle
-        };
+        let state = herdr_state(self.drawers.open(), self.transcript.running.is_some());
         self.notifier.state(state);
+    }
+}
+
+/// 在 herdr 里报哪种（蓝图「系统通知」第 6 条）：有抽屉开着就是在等，在等你比在做要紧；不然一轮在跑是在做，都没有是空闲。
+fn herdr_state(drawer_open: bool, running: bool) -> State {
+    if drawer_open {
+        State::Blocked
+    } else if running {
+        State::Working
+    } else {
+        State::Idle
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::herdr_state;
+    use crate::notify::State;
+
+    #[test]
+    fn an_open_drawer_outranks_a_running_turn() {
+        // 2026-10-01 查出来：别处来的话在抽屉开着时开了一轮，原来报成在做，一轮结束才改回在等。
+        assert_eq!(herdr_state(true, true), State::Blocked);
+        assert_eq!(herdr_state(true, false), State::Blocked);
+        assert_eq!(herdr_state(false, true), State::Working);
+        assert_eq!(herdr_state(false, false), State::Idle);
     }
 }

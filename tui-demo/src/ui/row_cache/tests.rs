@@ -172,7 +172,7 @@ fn entries_are_known_by_id_not_position() {
 }
 
 #[test]
-fn a_finished_figure_rebuilds_everything() {
+fn a_finished_figure_rebuilds_only_entries_with_figures() {
     // 数重排了几条：主题别在中途被别的测试换掉。
     let _theme = crate::theme::hold();
     let f = Fixture::new();
@@ -180,10 +180,34 @@ fn a_finished_figure_rebuilds_everything() {
     let ctx = f.ctx();
     let cache = RefCell::new(RowCache::default());
     build(&t.entries, &ctx, &cache);
-    // 图做好了、被扔掉了：占几行变了，全排一遍。
+    // 图做好了、被扔掉了：只有带图的条目占几行会变；这四条都没有图，一条都不排（2026-10-01 性能体检：原来全排）。
     ctx.figures.borrow_mut().forget();
     build(&t.entries, &ctx, &cache);
-    assert_eq!(cache.borrow().rebuilt, 4);
+    assert_eq!(cache.borrow().rebuilt, 0);
+}
+
+#[test]
+fn switching_the_level_rebuilds_only_what_you_said_without_a_level() {
+    // 权限级别只有没记下当时级别的「你说的话」用得上（它的竖线照现在的级别上色）：别的条目换级别不重排。
+    let _theme = crate::theme::hold();
+    let f = Fixture::new();
+    let t = sample();
+    let mut ctx = f.ctx();
+    let cache = RefCell::new(RowCache::default());
+    build(&t.entries, &ctx, &cache);
+    let unlevelled = t
+        .entries
+        .iter()
+        .filter(|e| matches!(e.kind, Kind::User) && e.level.is_none())
+        .count();
+    ctx.level = if ctx.level == crate::core::Level::ReadOnly {
+        crate::core::Level::Workspace
+    } else {
+        crate::core::Level::ReadOnly
+    };
+    build(&t.entries, &ctx, &cache);
+    assert_eq!(cache.borrow().rebuilt, unlevelled);
+    assert!(unlevelled < 4);
 }
 
 #[test]

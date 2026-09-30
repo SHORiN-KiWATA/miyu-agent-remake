@@ -130,6 +130,8 @@ pub struct App {
     pub drawer_rows: Vec<Option<usize>>,
     /// 这一帧的光标停在哪、显不显示；画的时候填，画完 `main` 写出去（蓝图「每一帧」）。
     pub caret: crate::caret::Caret,
+    /// 启动时照系统认出来的界面语言：`/language` 选回自动用它，框的第一行写它（蓝图「界面语言」）。
+    pub system_language: crate::language::Language,
     /// `/demo-ask`、`/demo-approve` 各出到第几个。
     demo_drawers: (usize, usize),
     /// 待办点开了，列出全部（`tui.md`「后台命令、子代理和侧边栏」第 4 条）。
@@ -185,6 +187,9 @@ pub struct App {
 impl App {
     /// 刚启动时的样子：输入框空着，正文空着，核心在连。
     pub fn new(config: Config, core: Core, human: Human, figures: Figures) -> Self {
+        // 启动时的配置照系统语言读的（自动）：记下它，选回自动时用。
+        let system_language = config.language.clone();
+        let md_keep = config.layout.markdown_cache;
         // 照配置设主题；没有这一套的用出厂的第一套。
         let chosen = config
             .themes
@@ -260,6 +265,7 @@ impl App {
             drawers: Drawers::default(),
             drawer_rows: Vec::new(),
             caret: crate::caret::Caret::default(),
+            system_language,
             demo_drawers: (0, 0),
             todo_full: false,
             panel_rows: Vec::new(),
@@ -283,7 +289,7 @@ impl App {
             areas: Areas::default(),
             view: BodyView::default(),
             human,
-            md_cache: RefCell::new(MdCache::new()),
+            md_cache: RefCell::new(MdCache::new(md_keep)),
             row_cache: RefCell::new(RowCache::default()),
             figures: RefCell::new(figures),
             started: Instant::now(),
@@ -452,6 +458,10 @@ impl App {
 
     /// 列表开着时筛出来的命令；没开是 `None`。每次按输入框里现在的字重新筛，顺手定开不开。
     pub fn menu_matches(&mut self) -> Option<Vec<Spec>> {
+        // 翻输入历史翻出来的命令还没改过：不弹，`↑` `↓` 接着翻（蓝图「按键」`↑`、`↓`）。
+        if self.input.recalled() {
+            return None;
+        }
         let text = self.input.editor.text();
         let typed = commands::menu_typed(text);
         let matches: Vec<Spec> = typed

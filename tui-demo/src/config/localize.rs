@@ -28,6 +28,19 @@ pub(super) fn text(language: &Language) -> Result<(String, &'static str), String
         })
 }
 
+/// `language` 那一份里收起那一行的说法（界面语言是自动时借用，蓝图「时间线」第 17 条）。
+///
+/// # Errors
+///
+/// 这种语言没编进来，或者那一份的 `summary` 写坏了。
+pub(super) fn summary(language: &Language) -> Result<super::timeline::Summary, String> {
+    let (name, json) = text(language)?;
+    let value: serde_json::Value =
+        serde_json::from_str(json).map_err(|e| format!("resources/{name} 读不懂：{e}"))?;
+    serde_json::from_value(value.get("summary").cloned().unwrap_or_default())
+        .map_err(|e| format!("resources/{name} 的 summary 读不懂：{e}"))
+}
+
 /// 写了几种语言的（只拿表里的语言代码做键的一格）挑 `language` 那一种，再照 `T` 读（命令的说明、运行状态行的词）。
 pub(super) fn localized<T: for<'de> Deserialize<'de>>(
     name: &str,
@@ -145,7 +158,7 @@ mod tests {
     #[test]
     fn each_language_picks_its_own_words() {
         let table = LanguageTable::builtin().unwrap();
-        let en = Config::load(&table.find("en").unwrap()).unwrap();
+        let en = Config::load(&table.find("en").unwrap(), true).unwrap();
         let undo = en
             .commands
             .commands
@@ -158,14 +171,14 @@ mod tests {
             "英文的词"
         );
         assert_eq!(en.text.language_switched, "Interface language: English");
-        let zh = Config::load(&table.find("zh").unwrap()).unwrap();
+        let zh = Config::load(&table.find("zh").unwrap(), true).unwrap();
         assert!(
             zh.commands
                 .commands
                 .iter()
                 .any(|c| c.summary.contains("撤销"))
         );
-        let ja = Config::load(&table.find("ja").unwrap()).unwrap();
+        let ja = Config::load(&table.find("ja").unwrap(), false).unwrap();
         assert_eq!(ja.text.language_switched, "表示言語：日本語");
         assert_eq!(ja.language, table.find("ja").unwrap());
         assert!(

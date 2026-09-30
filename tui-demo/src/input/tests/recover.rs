@@ -116,3 +116,28 @@ fn a_line_is_found_in_the_history_as_it_was_sent() {
     assert_eq!(i.sent_by_text("别的话"), None);
     std::fs::remove_file(&file).unwrap_or_default();
 }
+
+#[test]
+fn a_recalled_line_stays_recalled_until_it_is_edited() {
+    // 2026-10-01 项目主人报：往上翻得动、往下翻不回来。翻出来的命令还没改过时不弹列表，界面照 `recalled` 定。
+    let mut i = InputBox::new(8, std::time::Duration::from_millis(400));
+    // 照画出来的宽度折行：一行放得下这几句，`↑` `↓` 在第一行、最后一行时翻历史。
+    i.place(ratatui::layout::Rect::new(0, 0, 40, 8));
+    i.remember(Draft::plain("/help"));
+    i.remember(Draft::plain("/copy"));
+    assert!(!i.recalled(), "没在翻");
+    press(&mut i, KeyCode::Up, KeyModifiers::NONE);
+    assert_eq!(i.editor.text(), "/copy");
+    assert!(i.recalled());
+    press(&mut i, KeyCode::Up, KeyModifiers::NONE);
+    assert_eq!(i.editor.text(), "/help");
+    assert!(i.recalled());
+    press(&mut i, KeyCode::Down, KeyModifiers::NONE);
+    press(&mut i, KeyCode::Down, KeyModifiers::NONE);
+    assert_eq!(i.editor.text(), "", "翻回没发的那句（空的）");
+    assert!(!i.recalled());
+    press(&mut i, KeyCode::Up, KeyModifiers::NONE);
+    press(&mut i, KeyCode::Char('x'), KeyModifiers::NONE);
+    assert_eq!(i.editor.text(), "/copyx");
+    assert!(!i.recalled(), "改了一个字：照常弹列表");
+}

@@ -11,6 +11,8 @@ use crate::transcript::{Segment, Step, StepKind, ToolState};
 use crate::ui::rows::Row;
 use crate::ui::test_support::Fixture;
 
+mod language;
+
 /// 一步：从 `start` 秒开始，用了 `took` 秒。
 fn step(kind: StepKind, t0: Instant, start: u64, took: u64) -> Step {
     let mut s = Step::new(kind);

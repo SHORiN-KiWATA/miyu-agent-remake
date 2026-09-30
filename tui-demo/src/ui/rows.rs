@@ -9,7 +9,6 @@ use unicode_width::UnicodeWidthStr;
 
 use super::{done_row, figure_rows, job_rows, timeline};
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 use crate::config::Config;
@@ -54,6 +53,8 @@ pub struct Row {
     pub copy: bool,
     /// 这一行是一张图的第几行（蓝图「图片、公式和 mermaid 图」第 2 条）。
     pub figure: Option<FigureCell>,
+    /// 这一行是「正在画图」：图做好了要重排（按条记着的行认它，「正文」第 8 条）。
+    pub figure_pending: bool,
 }
 
 /// 图的一行：哪张图（做好的图的键）的第几行。
@@ -122,6 +123,7 @@ impl Ctx<'_> {
             links: Vec::new(),
             copy: true,
             figure: None,
+            figure_pending: false,
         }
     }
 
@@ -248,30 +250,20 @@ fn cache_key(text: &str, details: &[usize]) -> u64 {
     hasher.finish()
 }
 
-/// 回答排好的行的缓存：第几条 → （字的哈希、宽度、排好的行）。字、宽度没变的不重排，只有在收的那一条每帧重排。
-pub type MdCache = HashMap<usize, (u64, u16, Vec<MdLine>)>;
+pub use super::md_cache::MdCache;
 
 /// 她的回答：按 Markdown 排（蓝图 `tui.md`「她的回答：Markdown」），查缓存。
 fn reply_rows(index: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
     let text = entry.text.trim_matches('\n');
     let hash = cache_key(text, &entry.details);
-    let mut cache = ctx.md.borrow_mut();
-    let fresh = cache
-        .get(&index)
-        .is_some_and(|(h, w, _)| *h == hash && *w == ctx.width);
-    if !fresh {
+    let lines = ctx.md.borrow_mut().lines(index, hash, ctx.width, || {
         let kit = markdown::Kit {
             languages: &ctx.config.languages,
             math: &ctx.config.math,
             labels: &ctx.config.text.markdown,
         };
-        let lines = markdown::render(text, ctx.width, &kit, &entry.details);
-        cache.insert(index, (hash, ctx.width, lines));
-    }
-    let lines = cache
-        .get(&index)
-        .map(|(_, _, l)| l.clone())
-        .unwrap_or_default();
+        markdown::render(text, ctx.width, &kit, &entry.details)
+    });
     lines
         .into_iter()
         .flat_map(|line| match &line.figure {

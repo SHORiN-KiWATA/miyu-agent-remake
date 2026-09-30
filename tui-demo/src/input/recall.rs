@@ -20,6 +20,13 @@ impl InputBox {
         self.put_back = Some(said.to_string());
     }
 
+    /// 框里是翻输入历史翻出来的那一句、还没改过：这时不弹命令列表、`@` 文件列表，`↑` `↓` 接着翻（蓝图「按键」`↑`、`↓`）。
+    pub fn recalled(&self) -> bool {
+        self.browsing
+            .and_then(|at| self.history.get(at))
+            .is_some_and(|sent| sent.draft == self.editor.draft())
+    }
+
     /// 恢复了：撤销时放回来的那句还没动过的，收回去，免得回车再发一遍（`tui.md`「正文」第 6 条）。
     pub fn take_back(&mut self) {
         if self

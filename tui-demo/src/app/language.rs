@@ -1,5 +1,5 @@
-//! `/language`：开一个框选界面语言（蓝图 `tui.md`「界面语言」）。`↑` `↓` 选，`Enter` 换成选中的那种，`Esc` 关；鼠标悬停
-//! 选中、点一下等于 `Enter`。换了以后界面上的字、命令的说明、运行状态行的词、工具的显示名照新语言；已经画在正文里的不改，
+//! `/language`：开一个框选界面语言（蓝图 `tui.md`「界面语言」）。第一行是自动（跟随系统），下面一种一行是手动选。
+//! `↑` `↓` 选，`Enter` 换成选中的那一档，`Esc` 关；鼠标悬停选中、点一下等于 `Enter`。换了以后界面上的字、命令的说明、运行状态行的词、工具的显示名照新语言；已经画在正文里的不改，
 //! 新画的照新语言。只管这一次启动。
 
 use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent, MouseEventKind};
@@ -9,16 +9,21 @@ use super::{App, Panel};
 use crate::config::Config;
 
 impl App {
-    /// 打开框，选中现在用的那种。
+    /// 打开框，选中现在用的那一档：自动是第 0 行，手动的第几种是第几加一行。
     pub(super) fn open_languages(&mut self) {
         let table = &self.config.language_table;
-        let selected = table.position(&self.config.language).unwrap_or(0);
+        let selected = if self.config.auto {
+            0
+        } else {
+            table.position(&self.config.language).map_or(0, |i| i + 1)
+        };
         self.panel = Some(Panel::Language { selected });
     }
 
     /// 框开着时的按键。
     pub(super) fn language_key(&mut self, selected: usize, key: KeyEvent) {
-        let last = self.config.language_table.languages.len().saturating_sub(1);
+        // 第 0 行是自动，下面每种一行。
+        let last = self.config.language_table.languages.len();
         match key.code {
             KeyCode::Up => {
                 self.panel = Some(Panel::Language {
@@ -56,25 +61,42 @@ impl App {
         true
     }
 
-    /// 换成第 `index` 种，关框，提示一句；选的就是现在的只关框。
+    /// 换成第 `index` 行那一档（第 0 行自动，跟启动时认出来的系统语言），关框，提示一句；选的就是现在的只关框。
     fn choose_language(&mut self, index: usize) {
         self.panel = None;
-        let Some(next) = self.config.language_table.nth(index) else {
-            return;
+        let table = &self.config.language_table;
+        let (next, auto) = if index == 0 {
+            (self.system_language.clone(), true)
+        } else {
+            let Some(language) = table.nth(index - 1) else {
+                return;
+            };
+            (language, false)
         };
-        if next == self.config.language {
+        if next == self.config.language && auto == self.config.auto {
             return;
         }
-        let Ok(fresh) = Config::load(&next) else {
+        let Ok(fresh) = Config::load(&next, auto) else {
             return;
         };
         self.config.text = fresh.text;
         self.config.commands = fresh.commands;
         self.config.pulse = fresh.pulse;
         self.human = next.human();
+        let hint = if auto {
+            let name = fresh.language_table.name(&next);
+            self.config
+                .text
+                .languages
+                .auto_switched
+                .replace("{name}", name)
+        } else {
+            self.config.text.language_switched.clone()
+        };
         self.config.language = next;
-        // 排好的行里有旧语言的字（时间线的标题、工具的显示名）：重排。
+        self.config.auto = auto;
+        // 排好的行里有旧语言的字（时间线的标题、收起那一行、工具的显示名）：重排。
         *self.row_cache.borrow_mut() = Default::default();
-        self.hint(self.config.text.language_switched.clone(), false);
+        self.hint(hint, false);
     }
 }

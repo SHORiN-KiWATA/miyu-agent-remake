@@ -12,7 +12,9 @@ use crate::mention::{Found, escape};
 impl App {
     /// 这一帧开着的 `@` 列表：历史列表、后台面板、抽屉开着时不开。
     pub fn mention_found(&mut self) -> Option<Found> {
-        if self.history.open || self.panel.is_some() || self.drawers.open() {
+        // 翻输入历史翻出来的那句还没改过：不弹，`↑` `↓` 接着翻（蓝图「按键」`↑`、`↓`）。
+        if self.history.open || self.panel.is_some() || self.drawers.open() || self.input.recalled()
+        {
             return None;
         }
         let cwd = std::env::current_dir().ok()?;

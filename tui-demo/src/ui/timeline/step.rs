@@ -85,7 +85,7 @@ pub fn title(step: &Step, style: Style, width: u16, ctx: &Ctx) -> Vec<Span<'stat
                     label.push_str(&crate::local::home_short(subject));
                 }
                 // 别的工具后面跟结果那一句（「读取 · src · 12 项」）；命令有预览，编辑有加减的行数，不写。
-                if kind.is_none()
+                if matches!(kind, None | Some(ToolKind::Message))
                     && let Some(said) = said
                     && let Some(text) = ctx.human.say(said)
                 {

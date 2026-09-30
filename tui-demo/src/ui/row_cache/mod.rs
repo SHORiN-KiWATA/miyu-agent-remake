@@ -11,7 +11,7 @@ use std::rc::Rc;
 
 use super::rows::{self, Ctx, Row, Target};
 use crate::theme;
-use crate::transcript::{Entry, Step, StepKind, ToolState};
+use crate::transcript::{Entry, Kind, Step, StepKind, ToolState};
 
 /// 这一帧的全部行：一条一块，共享记着的那一份。
 #[derive(Debug, Clone, Default)]
@@ -72,10 +72,10 @@ impl From<Vec<Row>> for Rows {
     }
 }
 
-/// 记着的行：条目的编号到（指纹、排好的行）。
+/// 记着的行：条目的编号到（指纹、排好的行、排出来带不带图）。
 #[derive(Debug, Default)]
 pub struct RowCache {
-    entries: HashMap<u64, (u64, Rc<[Row]>)>,
+    entries: HashMap<u64, (u64, Rc<[Row]>, bool)>,
     /// 上一帧重排了几条（测试、量尺看）。
     pub rebuilt: usize,
 }
@@ -92,16 +92,21 @@ pub fn build(entries: &[Entry], ctx: &Ctx, cache: &RefCell<RowCache>) -> Rows {
         if !out.is_empty() {
             out.push(blank.clone());
         }
-        let key = fingerprint(i, entry, ctx, figures);
+        // 图做好了几张只算上次排出来带图的条目（没记着的照样算上，反正要排）。
+        let with_figures = cache.entries.get(&entry.id).is_none_or(|kept| kept.2);
+        let key = fingerprint(i, entry, ctx, with_figures.then_some(figures));
         let kept = match (key, cache.entries.get(&entry.id)) {
-            (Some(key), Some((old, rows))) if *old == key => Some(rows.clone()),
+            (Some(key), Some((old, rows, _))) if *old == key => Some(rows.clone()),
             _ => None,
         };
         let chunk = kept.unwrap_or_else(|| {
             cache.rebuilt += 1;
             let rows: Rc<[Row]> = rows::entry_rows(i, entry, ctx).into();
-            if let Some(key) = key {
-                cache.entries.insert(entry.id, (key, rows.clone()));
+            let has_figures = rows.iter().any(|r| r.figure.is_some() || r.figure_pending);
+            if let Some(key) = fingerprint(i, entry, ctx, has_figures.then_some(figures)) {
+                cache
+                    .entries
+                    .insert(entry.id, (key, rows.clone(), has_figures));
             }
             rows
         });
@@ -115,7 +120,7 @@ pub fn build(entries: &[Entry], ctx: &Ctx, cache: &RefCell<RowCache>) -> Rows {
 
 /// 这一条和排版条件的指纹：变了就重排。在进行的那一段（还有步骤在转圈、在走表）、正在压缩的那一行（行首在转圈）
 /// 是 `None`，每帧重排。
-fn fingerprint(i: usize, entry: &Entry, ctx: &Ctx, figures: u64) -> Option<u64> {
+fn fingerprint(i: usize, entry: &Entry, ctx: &Ctx, figures: Option<u64>) -> Option<u64> {
     if let Some(segment) = &entry.segment
         && (!segment.finished || segment.steps.iter().any(Step::busy))
     {
@@ -125,12 +130,14 @@ fn fingerprint(i: usize, entry: &Entry, ctx: &Ctx, figures: u64) -> Option<u64> 
         return None;
     }
     let mut h = DefaultHasher::new();
-    // 排版的条件：行里带着条目的位置（点中的东西），颜色、图标烤在行里，图占几行看图做好没有。
+    // 排版的条件：行里带着条目的位置（点中的东西），颜色、图标烤在行里，图占几行看图做好没有（只算带图的条目）。
+    // 权限级别只有没记下当时级别的「你说的话」用得上：它的竖线照现在的级别上色（「正文」第 8 条）。
+    let level = (matches!(entry.kind, Kind::User) && entry.level.is_none()).then_some(ctx.level);
     (
         i,
         ctx.width,
         ctx.indent.len(),
-        ctx.level,
+        level,
         theme::generation(),
         &ctx.config.icons.name,
         figures,

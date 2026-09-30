@@ -327,3 +327,17 @@ fn job_effects_reports_and_foreign_messages_are_read() {
     let session = json!({"kind": "session", "id": "s-child"});
     assert_eq!(foreign(session).1, Sender::Session("s-child".into()));
 }
+
+#[test]
+fn a_subagent_effect_is_read_as_an_agent_like_the_old_name() {
+    // 2026-10-01 核心把派子代理的工具从 agent 改名 subagent，旧会话里冻着旧名：两个都认成子代理。
+    for what in ["agent", "subagent"] {
+        let result = json!({"seq": 9, "kind": "tool.result", "by": {"kind": "tool", "call_id": "c"},
+            "body": {"call_id": "c", "status": "ok", "blocks": [],
+                "effects": [{"kind": "job.started", "job": "j3", "what": what, "title": "t"}]}});
+        let Push::JobStarted(start) = &read_mine(&result)[0] else {
+            panic!("派出去的任务")
+        };
+        assert!(start.agent, "{what}");
+    }
+}

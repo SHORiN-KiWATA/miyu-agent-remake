@@ -42,6 +42,7 @@ pub fn rows(lead: Vec<Span<'static>>, figure: &Figure, ctx: &Ctx) -> Vec<Row> {
             let text = Span::styled(ctx.config.text.figure_pending.clone(), theme::dim());
             let mut row = ctx.led_row(ctx.blank_slot(), lead, vec![text]);
             row.copy = false;
+            row.figure_pending = true;
             vec![row]
         }
         Look::Ready { key, rows } => {
@@ -138,7 +139,7 @@ mod tests {
     fn a_figure_is_a_placeholder_then_rows_of_image_and_source_without_images() {
         let config = Config::builtin().unwrap();
         let human = Human::default();
-        let md = RefCell::new(MdCache::new());
+        let md = RefCell::new(MdCache::new(8));
         let ctx = |figures| Ctx {
             config: &config,
             human: &human,
@@ -218,7 +219,7 @@ mod tests {
         // 2026-09-30 项目主人：半屏还是太大。45 行高、正文 100 列，一格 10×20 像素。
         let config = Config::builtin().unwrap();
         let human = Human::default();
-        let md = RefCell::new(MdCache::new());
+        let md = RefCell::new(MdCache::new(8));
         let mut picker = Picker::halfblocks();
         picker.set_protocol_type(ProtocolType::Kitty);
         let (sender, done) = mpsc::channel();

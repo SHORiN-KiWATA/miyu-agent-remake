@@ -21,6 +21,7 @@ mod job_rows;
 pub mod languages;
 mod margins;
 mod mascot_view;
+mod md_cache;
 mod panel;
 mod sidebar;
 
@@ -222,7 +223,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     // 后台面板也占那个地方，开着时两个列表都不开。
     let drawer_open = app.drawers.open();
     // `@` 文件列表也占这个地方，开着时不开斜杠命令列表（「`@` 文件列表」第 1 条）。
-    let mentions = app.mention_found();
+    let mentions = crate::frame_log::section("mention", || app.mention_found());
     let matches = if app.history.open || app.panel.is_some() || drawer_open || mentions.is_some() {
         None
     } else {
@@ -336,9 +337,13 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             let map = vec![None; lines.len()];
             (chrome, lines, map)
         }
-        Some(crate::app::Panel::Language { selected }) => {
-            languages::lines(&app.config, selected, width, usize::from(inner))
-        }
+        Some(crate::app::Panel::Language { selected }) => languages::lines(
+            &app.config,
+            &app.system_language,
+            selected,
+            width,
+            usize::from(inner),
+        ),
         _ => background::lines(
             app.panel,
             &app.board,
@@ -364,13 +369,14 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     areas.sidebar = sidebar;
     app.areas = areas;
     app.panel_rows = panel_rows;
+    use crate::frame_log::section;
     if home {
         // 先画输入框（吉祥物照输入光标转头），再画吉祥物；开着列表时吉祥物已经让到列表上面。
-        input_box::draw_box(frame, areas, app, home);
-        home::draw(frame, areas, app);
+        section("input", || input_box::draw_box(frame, areas, app, home));
+        section("home", || home::draw(frame, areas, app));
     } else {
-        body::draw(frame, areas, app);
-        input_box::draw_box(frame, areas, app, home);
+        section("body", || body::draw(frame, areas, app));
+        section("input", || input_box::draw_box(frame, areas, app, home));
     }
     if let Some(matches) = &matches {
         let rows = menu::rows(app.config.layout.menu_rows, areas.menu_text.height);
@@ -412,11 +418,11 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         panel_chrome,
         panel_lines,
     );
-    app.areas.button = footer::draw(frame, areas.footer, app);
+    app.areas.button = section("footer", || footer::draw(frame, areas.footer, app));
     frame.render_widget(ratatui::widgets::Paragraph::new(todo_lines), areas.todo);
-    agents::draw(frame, areas.agents, app);
-    sidebar::draw(frame, sidebar, app);
-    status::draw(frame, areas.pulse, app);
+    section("agents", || agents::draw(frame, areas.agents, app));
+    section("sidebar", || sidebar::draw(frame, sidebar, app));
+    section("status", || status::draw(frame, areas.pulse, app));
     status::queued(frame, areas.queued, &queued, &app.config.layout.queued_mark);
     // 提示最后画，浮在正文上面；底边紧贴输入框，在回答时紧贴运行状态行（`tui.md`「提示」）。
     let toast_bottom = if running {

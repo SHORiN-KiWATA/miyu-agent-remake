@@ -32,6 +32,8 @@ impl Language {
 pub struct LanguageTable {
     /// 认不出系统语言时用的，也是别的资源缺了这种语言时退回的。
     pub fallback: String,
+    /// 界面语言是自动时，时间线收起那一行用哪种的说法（蓝图「时间线」第 17 条）。
+    pub auto_summary: String,
     /// 有哪几种，`/language` 的框照这个顺序列。
     pub languages: Vec<Entry>,
 }
@@ -57,11 +59,13 @@ impl LanguageTable {
     pub fn builtin() -> Result<Self, String> {
         let table: Self = serde_json::from_str(include_str!("../resources/languages.json"))
             .map_err(|e| format!("resources/languages.json 读不懂：{e}"))?;
-        if table.find(&table.fallback).is_none() {
-            return Err(format!(
-                "resources/languages.json：退回的 {} 不在表里",
-                table.fallback
-            ));
+        for (what, code) in [
+            ("退回的", &table.fallback),
+            ("自动时收起行用的", &table.auto_summary),
+        ] {
+            if table.find(code).is_none() {
+                return Err(format!("resources/languages.json：{what} {code} 不在表里"));
+            }
         }
         Ok(table)
     }
@@ -89,6 +93,14 @@ impl LanguageTable {
             .iter()
             .find(|e| e.code == code)
             .map(|e| Language(e.code.clone()))
+    }
+
+    /// 代码是 `code` 的那一种自己的名字（`中文`、`English`）。
+    pub fn name<'a>(&'a self, language: &'a Language) -> &'a str {
+        self.languages
+            .iter()
+            .find(|e| e.code == language.0)
+            .map_or(language.code(), |e| e.name.as_str())
     }
 
     /// 第 `index` 种。

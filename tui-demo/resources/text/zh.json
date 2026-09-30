@@ -70,34 +70,38 @@
   "omitted": "已省略 {count} 行",
   "summary": {
     "ran": [
-      "Ran 1 command",
-      "Ran {count} commands"
+      "执行了 1 条命令",
+      "执行了 {count} 条命令"
     ],
     "used": [
-      "Used 1 tool",
-      "Used {count} tools"
+      "用了 1 个工具",
+      "用了 {count} 个工具"
     ],
     "made": [
-      "Made 1 edit",
-      "Made {count} edits"
+      "编辑了 1 处",
+      "编辑了 {count} 处"
     ],
     "edits": [
-      "1 edit",
-      "{count} edits"
+      "1 处编辑",
+      "{count} 处编辑"
     ],
     "tools": [
-      "1 tool",
-      "{count} tools"
+      "1 个工具",
+      "{count} 个工具"
     ],
     "thoughts": [
-      "1 thought",
-      "{count} thoughts"
+      "1 次思考",
+      "{count} 次思考"
     ],
     "errors": [
-      "1 err",
-      "{count} err"
+      "1 个出错",
+      "{count} 个出错"
     ],
-    "thought_for": "Thought for {elapsed}"
+    "thought_for": "思考了 {elapsed}",
+    "spawned": ["派了 1 个子代理", "派了 {count} 个子代理"],
+    "messaged": ["给 1 个子代理留言", "给 {count} 个子代理留言"],
+    "agents": ["1 个子代理", "{count} 个子代理"],
+    "messages": ["1 条留言", "{count} 条留言"]
   },
   "levels": {
     "workspace": "工作区",
@@ -379,6 +383,8 @@
   "languages": {
     "title": "界面语言",
     "hint": "↑/↓ 选择 · Enter 切换 · Esc 关闭",
-    "current": "当前"
+    "current": "当前",
+    "auto": "自动（跟随系统：{name}）",
+    "auto_switched": "界面语言：自动（跟随系统：{name}）"
   }
 }

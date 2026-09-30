@@ -285,7 +285,7 @@ pub struct Texts {
     pub prepare: String,
     /// 预览放不下时最后一行，`{count}` 是省略了几行。
     pub omitted: String,
-    /// 时间线收起那一行的字：永远是英文，和中文正文分开（`13-终端界面.md` 第三节第 4 条）。
+    /// 时间线收起那一行的字：界面语言是自动时换成语言表 `auto_summary` 那一种（英文），手动选了哪种照哪种（蓝图「时间线」第 17 条）。
     pub summary: Summary,
     /// 累计用量和缓存命中率，紧凑写法照旧版：`{tokens}` 写短的 token 数，`{percent}` 命中率的整数。
     pub total: String,
@@ -330,6 +330,8 @@ pub struct Config {
     pub language_table: LanguageTable,
     /// 这一份照哪种语言读的。
     pub language: Language,
+    /// 界面语言是自动（跟系统）的，不是手动选的：收起那一行照 `language_table.auto_summary` 那一种（蓝图「界面语言」）。
+    pub auto: bool,
 }
 
 impl Config {
@@ -341,7 +343,7 @@ impl Config {
     #[cfg(test)]
     pub fn builtin() -> Result<Self, String> {
         let table = LanguageTable::builtin()?;
-        Self::load(&table.find("zh").ok_or("languages.json 里没有中文")?)
+        Self::load(&table.find("zh").ok_or("languages.json 里没有中文")?, true)
     }
 
     /// 读编译时带进来的那一份，照 `language` 挑界面上的字、命令的说明、运行状态行的词（蓝图「界面语言」）。
@@ -349,15 +351,20 @@ impl Config {
     /// # Errors
     ///
     /// JSON 写坏了、缺了字段时返回错误，说清是哪一份。
-    pub fn load(language: &Language) -> Result<Self, String> {
+    pub fn load(language: &Language, auto: bool) -> Result<Self, String> {
         let table = LanguageTable::builtin()?;
         let (text_name, text_json) = localize::text(language)?;
+        let mut text: Texts = parse(&text_name, text_json)?;
+        // 自动时收起那一行照语言表定的那一种（英文）；手动选了哪种照哪种（蓝图「时间线」第 17 条）。
+        if auto && let Some(summary_language) = table.find(&table.auto_summary) {
+            text.summary = localize::summary(&summary_language)?;
+        }
         let layout: Layout = parse("layout.json", include_str!("../../resources/layout.json"))?;
         let icon_sets = icons::builtin()?;
         let icons = icons::pick(&icon_sets, &layout.icons).ok_or("resources/icons/ 一套都没有")?;
         Ok(Self {
             layout,
-            text: parse(&text_name, text_json)?,
+            text,
             commands: localized(
                 "commands.json",
                 include_str!("../../resources/commands.json"),
@@ -390,6 +397,7 @@ impl Config {
             icon_sets,
             language_table: table,
             language: language.clone(),
+            auto,
         })
     }
 }
@@ -434,5 +442,19 @@ mod tests {
             Some("上下文过少")
         );
         assert!(!text.refusals.contains_key("nothing_to_compact"));
+    }
+
+    #[test]
+    fn the_renamed_subagent_tool_is_drawn_like_agent() {
+        // 2026-10-01 核心把派子代理的工具从 agent 改名 subagent，旧会话里冻着旧名：分类、图标都一样。
+        let config = Config::builtin().unwrap();
+        let kinds = &config.timeline.kinds;
+        assert!(kinds.get("agent").is_some());
+        assert_eq!(kinds.get("subagent"), kinds.get("agent"));
+        assert_eq!(config.icons.tool("subagent"), config.icons.tool("agent"));
+        assert_ne!(
+            config.icons.tool("subagent"),
+            config.icons.tool("没登记的工具")
+        );
     }
 }

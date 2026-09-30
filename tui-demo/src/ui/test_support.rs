@@ -21,10 +21,11 @@ impl Fixture {
     pub fn new() -> Self {
         let config = Config::builtin().unwrap();
         let figures = RefCell::new(Figures::start(None, &config.figures, None, |_| true));
+        let md = RefCell::new(MdCache::new(config.layout.markdown_cache));
         Self {
             config,
             human: Human::default(),
-            md: RefCell::new(MdCache::new()),
+            md,
             figures,
         }
     }

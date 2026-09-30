@@ -15,6 +15,7 @@ mod drawer;
 mod editor;
 mod figures;
 mod focus;
+mod frame_log;
 mod history;
 mod input;
 mod jobs;
@@ -28,6 +29,7 @@ mod menu;
 mod meter;
 mod notify;
 mod open;
+mod pacing;
 mod pointer;
 mod pulse;
 mod reader;
@@ -60,7 +62,8 @@ fn main() -> io::Result<()> {
     // 界面语言照系统语言（蓝图「界面语言」）。
     let table = language::LanguageTable::builtin().map_err(io::Error::other)?;
     let language = table.detect(|name| std::env::var(name).ok());
-    let config = Config::load(&language).map_err(io::Error::other)?;
+    // 启动时是自动：照系统语言（蓝图「界面语言」）。
+    let config = Config::load(&language, true).map_err(io::Error::other)?;
     let mut terminal = ratatui::init();
     let keyboard = match enter() {
         Ok(keyboard) => keyboard,
@@ -168,8 +171,12 @@ fn run(
     let mut pointer = pointer::Pointer::default();
     // 终端显示得了几种颜色，启动时看一次（蓝图「主题」第 5 条）。
     let depth = theme::Depth::detect(|name| std::env::var(name).ok());
+    // 量性能用：给了路径才记每一帧的耗时（蓝图「环境变量」）。
+    let log_path = std::env::var_os("MIYU_TUI_FRAME_LOG").map(std::path::PathBuf::from);
+    let slow = Duration::from_millis(app.config.layout.slow_frame_ms);
+    let mut log = frame_log::FrameLog::open(log_path.as_deref(), slow);
     while !app.quit {
-        frame(terminal, &mut app, &mut pointer, depth)?;
+        frame(terminal, &mut app, &mut pointer, depth, &mut log)?;
         let drawn_at = Instant::now();
         let wait = app.deadline().map_or(Duration::from_secs(3600), |d| {
             d.saturating_duration_since(Instant::now())
@@ -179,16 +186,30 @@ fn run(
             Err(RecvTimeoutError::Timeout) => None,
             Err(RecvTimeoutError::Disconnected) => break,
         };
+        let mut urgent = false;
         while let Some(message) = next {
+            urgent |= matches!(&message, Incoming::Terminal(e) if pacing::urgent(e));
             dispatch(&mut app, message);
             next = incoming.try_recv().ok();
         }
         // 离上一帧还不到 `frame_ms`：接着收，到点一起画（蓝图「每一帧」：一段段推来的字每段画一帧，
-        // 一秒上百帧，输入法的预编辑跟着光标重画，打字时狂闪）。
-        let gap = Duration::from_millis(app.config.layout.frame_ms);
-        while let Some(left) = gap.checked_sub(drawn_at.elapsed()).filter(|d| !d.is_zero()) {
+        // 一秒上百帧，输入法的预编辑跟着光标重画，打字时狂闪）。按了键、粘贴的不等这一拍，只再等
+        // `key_burst_ms` 把一串一起到的收齐就画。
+        let beat = Duration::from_millis(app.config.layout.frame_ms);
+        let burst = Duration::from_millis(app.config.layout.key_burst_ms);
+        let mut until = pacing::deadline(drawn_at, beat, Instant::now(), burst, urgent);
+        while let Some(left) = until
+            .checked_duration_since(Instant::now())
+            .filter(|d| !d.is_zero())
+        {
             match incoming.recv_timeout(left) {
-                Ok(message) => dispatch(&mut app, message),
+                Ok(message) => {
+                    if matches!(&message, Incoming::Terminal(e) if pacing::urgent(e)) {
+                        until = pacing::deadline(drawn_at, beat, Instant::now(), burst, true)
+                            .min(until);
+                    }
+                    dispatch(&mut app, message);
+                }
                 Err(RecvTimeoutError::Timeout) => break,
                 Err(RecvTimeoutError::Disconnected) => return Ok(()),
             }
@@ -279,12 +300,18 @@ fn frame(
     app: &mut App,
     pointer: &mut pointer::Pointer,
     depth: theme::Depth,
+    log: &mut frame_log::FrameLog,
 ) -> io::Result<()> {
+    let started = log.on().then(Instant::now);
+    log.begin();
+    let mut prep = Duration::ZERO;
     execute!(stdout(), terminal::BeginSynchronizedUpdate)?;
     let drawn = terminal.draw(|frame| {
+        let at = started.map(|_| Instant::now());
         ui::draw(frame, app);
         ui::wide::tidy(frame.buffer_mut());
         theme::degrade(frame.buffer_mut(), depth);
+        prep = at.map_or(Duration::ZERO, |t| t.elapsed());
     });
     // 光标最后挪：先挪到插入点、要显示时再显示，不显示也停在那里（蓝图「每一帧」）。
     caret::place(app.caret, &mut stdout())?;
@@ -296,5 +323,8 @@ fn frame(
         out.write_all(sequence.as_bytes())?;
     }
     out.flush()?;
+    if let Some(started) = started {
+        log.record(prep, started.elapsed());
+    }
     drawn.map(|_| ())
 }

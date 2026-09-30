@@ -30,7 +30,7 @@ pub fn line(segment: &Segment, ctx: &Ctx, base: Style) -> Vec<Span<'static>> {
     };
     // 用时：四舍五入到整秒，不到一秒的写 1s，照运行状态行的读秒写。
     let took = meter::clock(((tally.span.as_millis() + 500) / 1000).max(1) as u64);
-    if tally.commands + tally.tools + tally.edits == 0 {
+    if tally.commands + tally.tools + tally.edits + tally.agents + tally.messages == 0 {
         let secs = format!("{}s", tally.thinking.as_secs().max(1));
         return vec![Span::styled(
             words.thought_for.replace("{elapsed}", &secs),
@@ -50,23 +50,36 @@ pub fn line(segment: &Segment, ctx: &Ctx, base: Style) -> Vec<Span<'static>> {
         parts.push((took, false));
         return clip_title(spans(parts, style, (0, 0)), room(ctx));
     }
-    let lead = [
-        (tally.commands, &words.ran),
-        (tally.tools, &words.used),
-        (tally.edits, &words.made),
-    ]
-    .into_iter()
-    .position(|(n, _)| n > 0);
-    match lead {
-        Some(0) => parts.push((count(tally.commands, &words.ran), false)),
-        Some(1) => parts.push((count(tally.tools, &words.used), false)),
-        _ => parts.push((count(tally.edits, &words.made), true)),
-    }
-    // 打头那一格已经写过的类不再写一遍。
-    if lead != Some(2) && tally.edits > 0 {
+    // 打头那一格：命令、子代理、留言、别的工具、编辑，先有哪样写哪样（派子代理的不写 Used 1 tool，2026-10-01 项目主人；
+    // 和网页演示一样）；别的类依次跟在后面，打头那一格写过的类不再写。
+    let lead = if tally.commands > 0 {
+        Lead::Commands
+    } else if tally.agents > 0 {
+        Lead::Agents
+    } else if tally.messages > 0 {
+        Lead::Messages
+    } else if tally.tools > 0 {
+        Lead::Tools
+    } else {
+        Lead::Edits
+    };
+    parts.push(match lead {
+        Lead::Commands => (count(tally.commands, &words.ran), false),
+        Lead::Agents => (count(tally.agents, &words.spawned), false),
+        Lead::Messages => (count(tally.messages, &words.messaged), false),
+        Lead::Tools => (count(tally.tools, &words.used), false),
+        Lead::Edits => (count(tally.edits, &words.made), true),
+    });
+    if lead != Lead::Edits && tally.edits > 0 {
         parts.push((count(tally.edits, &words.edits), true));
     }
-    if lead == Some(0) && tally.tools > 0 {
+    if lead != Lead::Agents && tally.agents > 0 {
+        parts.push((count(tally.agents, &words.agents), false));
+    }
+    if lead != Lead::Messages && tally.messages > 0 {
+        parts.push((count(tally.messages, &words.messages), false));
+    }
+    if lead != Lead::Tools && tally.tools > 0 {
         parts.push((count(tally.tools, &words.tools), false));
     }
     if tally.thoughts > 0 {
@@ -158,4 +171,14 @@ fn spans(
         }
     }
     out
+}
+
+/// 收起那一行打头的是哪一类。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Lead {
+    Commands,
+    Agents,
+    Messages,
+    Tools,
+    Edits,
 }

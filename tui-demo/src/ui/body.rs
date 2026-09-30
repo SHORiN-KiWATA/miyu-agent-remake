@@ -33,7 +33,9 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
         frame: usize::try_from(app.started.elapsed().as_millis() / u128::from(spinner_ms))
             .unwrap_or(0),
     };
-    let mut rows = row_cache::build(&app.transcript.entries, &ctx, &app.row_cache);
+    let mut rows = crate::frame_log::section("rows", || {
+        row_cache::build(&app.transcript.entries, &ctx, &app.row_cache)
+    });
     // 等她的第一个字：正文末尾先转着（`tui.md`「时间线」第 19 条）。
     if app.transcript.waiting() {
         rows.push(timeline::tail_rows(&ctx).into());
@@ -60,13 +62,15 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
             .set_line(area.x, y, &row.line, area.width);
     }
     app.view.first = first;
-    super::figure_rows::draw(
-        frame.buffer_mut(),
-        area,
-        &rows,
-        first,
-        &mut app.figures.borrow_mut(),
-    );
+    crate::frame_log::section("figures", || {
+        super::figure_rows::draw(
+            frame.buffer_mut(),
+            area,
+            &rows,
+            first,
+            &mut app.figures.borrow_mut(),
+        );
+    });
     // 鼠标、复制照这一帧的行；共享记着的那一份，不复制。
     app.view.rows = rows.clone();
     // 悬停在链接上：这个链接露出来的每一截都加下划线。
@@ -178,6 +182,7 @@ mod tests {
             links: Vec::new(),
             copy: true,
             figure: None,
+            figure_pending: false,
         };
         vec![row; n].into()
     }

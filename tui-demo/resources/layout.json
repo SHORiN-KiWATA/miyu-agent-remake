@@ -15,6 +15,9 @@
   "double_click_ms": 400,
   "notice_ms": 2000,
   "frame_ms": 33,
+  "key_burst_ms": 2,
+  "markdown_cache": 8,
+  "slow_frame_ms": 8,
   "reconnect_ms": [
     500,
     5000

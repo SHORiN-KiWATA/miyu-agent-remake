@@ -3,7 +3,9 @@
     "shell": "command",
     "edit": "edit",
     "write": "edit",
-    "agent": "agent"
+    "agent": "agent",
+    "subagent": "agent",
+    "message_agent": "message"
   },
   "spinner": [
     "⠋",

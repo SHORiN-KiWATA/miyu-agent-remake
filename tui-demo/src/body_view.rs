@@ -282,6 +282,7 @@ mod tests {
             links: Vec::new(),
             copy: true,
             figure: None,
+            figure_pending: false,
         }
     }
 

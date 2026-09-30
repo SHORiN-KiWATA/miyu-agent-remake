@@ -70,34 +70,38 @@
   "omitted": "{count} 行を省略しました",
   "summary": {
     "ran": [
-      "Ran 1 command",
-      "Ran {count} commands"
+      "コマンドを 1 件実行",
+      "コマンドを {count} 件実行"
     ],
     "used": [
-      "Used 1 tool",
-      "Used {count} tools"
+      "ツールを 1 件使用",
+      "ツールを {count} 件使用"
     ],
     "made": [
-      "Made 1 edit",
-      "Made {count} edits"
+      "1 件編集",
+      "{count} 件編集"
     ],
     "edits": [
-      "1 edit",
-      "{count} edits"
+      "編集 1 件",
+      "編集 {count} 件"
     ],
     "tools": [
-      "1 tool",
-      "{count} tools"
+      "ツール 1 件",
+      "ツール {count} 件"
     ],
     "thoughts": [
-      "1 thought",
-      "{count} thoughts"
+      "思考 1 回",
+      "思考 {count} 回"
     ],
     "errors": [
-      "1 err",
-      "{count} err"
+      "エラー 1 件",
+      "エラー {count} 件"
     ],
-    "thought_for": "Thought for {elapsed}"
+    "thought_for": "思考時間 {elapsed}",
+    "spawned": ["サブエージェントを 1 件派遣", "サブエージェントを {count} 件派遣"],
+    "messaged": ["サブエージェント 1 件にメッセージ", "サブエージェント {count} 件にメッセージ"],
+    "agents": ["サブエージェント 1 件", "サブエージェント {count} 件"],
+    "messages": ["メッセージ 1 件", "メッセージ {count} 件"]
   },
   "levels": {
     "workspace": "ワークスペース",
@@ -379,6 +383,8 @@
   "languages": {
     "title": "表示言語",
     "hint": "↑/↓ 選択 · Enter 切り替え · Esc 閉じる",
-    "current": "現在"
+    "current": "現在",
+    "auto": "自動（システムに合わせる：{name}）",
+    "auto_switched": "表示言語：自動（システムに合わせる：{name}）"
   }
 }

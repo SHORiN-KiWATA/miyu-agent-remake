@@ -1,4 +1,4 @@
-//! 时间线的样子（`resources/timeline.json`、`text/zh.json` 的 `summary`，蓝图「时间线」）：工具的分类、转圈、预览几行、
+//! 时间线的样子（`resources/timeline.json`、`text/<语言>.json` 的 `summary`，蓝图「时间线」）：工具的分类、转圈、预览几行、
 //! 收起那一行的说法、哪几样默认铺开。
 
 use std::collections::HashMap;
@@ -22,6 +22,14 @@ pub struct Summary {
     pub thoughts: [String; 2],
     /// 出错。
     pub errors: [String; 2],
+    /// 派过子代理：打头的那一格。
+    pub spawned: [String; 2],
+    /// 给子代理留过言：打头的那一格。
+    pub messaged: [String; 2],
+    /// 派子代理（不打头时）。
+    pub agents: [String; 2],
+    /// 留言（不打头时）。
+    pub messages: [String; 2],
     /// 只想过：`{elapsed}` 是想了多久。
     pub thought_for: String,
 }
@@ -64,6 +72,8 @@ pub enum ToolKind {
     Edit,
     /// 派子代理：标题写任务编号和描述，点开是交代的活（`prompt`）（2026-09-30 项目主人：原来写结果那一句，点开是它）。
     Agent,
+    /// 给子代理留言：画法和别的工具一样，收起那一行单算一类（`Messaged 1 agent`）。
+    Message,
 }
 
 /// 时间线里哪几样默认铺开全文（`timeline.json` 的 `expand`，蓝图「时间线」第 18 条）。

@@ -97,7 +97,11 @@
       "1 err",
       "{count} err"
     ],
-    "thought_for": "Thought for {elapsed}"
+    "thought_for": "Thought for {elapsed}",
+    "spawned": ["Spawned 1 agent", "Spawned {count} agents"],
+    "messaged": ["Messaged 1 agent", "Messaged {count} agents"],
+    "agents": ["1 agent", "{count} agents"],
+    "messages": ["1 message", "{count} messages"]
   },
   "levels": {
     "workspace": "Workspace",
@@ -379,6 +383,8 @@
   "languages": {
     "title": "Interface language",
     "hint": "↑/↓ select · Enter switch · Esc close",
-    "current": "current"
+    "current": "current",
+    "auto": "Auto (system: {name})",
+    "auto_switched": "Interface language: Auto (system: {name})"
   }
 }
