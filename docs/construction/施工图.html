@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>130</b><span>/ 136 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话</span></li>
+    <li><b>131</b><span>/ 136 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话</span></li>
     <li><b>7-7</b><span>下一步：7-7 父子之间留言、7-1 补编号带父会话的编号，另有附件、改名删除、重做在做（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">fbb0764</b><span>最近一步（3-9 四补 图片附件带名字）的提交</span></li>
+    <li><b class="mono">b0dccac</b><span>最近一步（7-1 补 编号带上父会话的编号）的提交</span></li>
   </ul>
 </header>
 
@@ -479,7 +479,7 @@ a.step:hover{border-color:var(--primary)}
       <div class="ms-head"><span class="ms-id">M7</span><span class="ms-name">分身</span><span class="ms-goal">子代理、后台命令，做完回报叫醒她；父子之间能来回说话</span></div>
       <ol class="chips">
         <li><a class="step done" href="#s7-1"><span class="n">7-1</span>任务的事件<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">7-1</span>编号带上父会话的编号（补）</span></li>
+        <li><a class="step done" href="#s7-1b"><span class="n">7-1</span>编号带上父会话的编号（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-2"><span class="n">7-2</span>回报到了<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-3"><span class="n">7-3</span>后台命令<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-4"><span class="n">7-4</span>jobs 和 job.stop<span class="st">✓</span></a></li>
@@ -9262,6 +9262,57 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>kernel/events-bodies.md</code>、<code>ids.md</code>、<code>history.md</code>、<code>events.md</code>、<code>agents.md</code>。</li>
         <li><code>docs/construction/7-1-任务的事件.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s7-1b" aria-labelledby="h-s71b">
+  <div class="sheet-head"><h2 id="h-s71b"><span class="no">7-1</span>编号带上父会话的编号（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">子会话派的任务，编号前面带上它自己在父会话里的编号，一棵树上不重名。7-6 实测撞见的：孙代理也叫 <code>j1</code>，和主会话派的同名，回报、留言里分不清。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">j2 → j2.1 → j2.1.1</span><span class="dir-note">kernel/ids · session/tools</span></div>
+            <ol class="pipe" aria-label="编号怎么数">
+              <li>主会话派的 <code>j2</code>，<code>j2</code> 派的孙代理 <code>j2.1</code>，孙代理放到后台的命令 <code>j2.1.1</code></li>
+              <li>前缀照 <code>session.created</code> 的 <code>cause</code> 读回来；主会话没有前缀</li>
+              <li>接着领号看每个编号的最后一段取最大；旧日志里子会话的 <code>j1</code> 照认</li>
+              <li><code>jobs</code>、<code>message_agent</code> 的 <code>to</code>、<code>job.stop</code> 都认新写法</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">一段一段比</span><span class="rl"><code>j2</code> 在 <code>j2.1</code> 前面，<code>j2.9</code> 在 <code>j10</code> 前面</span></div>
+          <div class="tile new"><span class="nm">读写一样严</span><span class="rl"><code>j0</code>、<code>j1.0</code>、<code>j1.</code>、<code>j1..2</code>、<code>J1</code> 都拒</span></div>
+          <div class="tile"><span class="nm">给模型的字不变</span><span class="rl">参数说明里的「like j1」照样对</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-1 补</dd></div>
+        <div><dt>名称</dt><dd>编号带上父会话的编号</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">b0dccac</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>13 个手写的变异全逮住；三台机器的 CI 和长跑全绿（随机日志里新旧写法混着跑）</span></li>
+        <li><span class="ok">✓</span><span>真核心走两层：孙代理是 <code>j1.1</code>，删孙会话时子会话收到的回报也是 <code>j1.1</code></span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/7-1-编号带上父会话的编号（补）.md</code>。</li>
       </ul>
     </div>
   </div>
