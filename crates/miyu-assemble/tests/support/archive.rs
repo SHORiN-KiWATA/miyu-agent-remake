@@ -1,7 +1,7 @@
 //! 探针的存档（施工 7-10 从 `probe.rs` 挪出来，`probe_harness.rs` 也用）：存档在 `docs/designs/samples/probe/<会话>/`，
 //! `log.jsonl` 是真内核记下的日志，`requests/` 下一次请求一个文件（规范字节，末尾一个换行），`openai-chat/` 下是同一次请求
 //! 编码成 OpenAI 兼容接口的字节。要过回顾的（施工 3-8 四补），回顾的请求另放在 `recaps/`、`recaps/openai-chat/` 下：它是
-//! 单独的一次请求，照它自己的存档比。字节变了必须是有意的：设上 `MIYU_PROBE_WRITE=1` 跑一遍，重写存档，提交说明里写为什么变。
+//! 单独的一次请求，照它自己的存档比；起标题的（施工 3-8 五补）照样放在 `titles/`、`titles/openai-chat/` 下。字节变了必须是有意的：设上 `MIYU_PROBE_WRITE=1` 跑一遍，重写存档，提交说明里写为什么变。
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -25,6 +25,7 @@ pub fn files(stage: &Stage) -> Vec<(String, String)> {
     let mut files = vec![("log.jsonl".to_string(), lines(stage).join("\n") + "\n")];
     requests(&mut files, "", stage.requests());
     requests(&mut files, "recaps/", stage.recaps());
+    requests(&mut files, "titles/", stage.titles());
     files
 }
 

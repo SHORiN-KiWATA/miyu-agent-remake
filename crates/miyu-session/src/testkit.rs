@@ -8,7 +8,7 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, PoisonError};
 
 use miyu_kernel::accumulate::{Delta, Kind};
-use miyu_kernel::event::{CallError, ErrorClass, Usage};
+use miyu_kernel::event::{CallError, ErrorClass, Purpose, Usage};
 use miyu_kernel::id::{ModelName, ProviderId, Seq};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
@@ -68,6 +68,10 @@ pub struct Script {
     cancelled: Arc<Mutex<Vec<Seq>>>,
     /// 交给内核的窗口；没有的不主动压（施工 6-3 上）。
     window: Option<u64>,
+    /// 起标题的请求另排的剧本，和交来的起标题的请求（施工 3-8 五补）：它在每一轮答完以后自己来，不占主剧本、不算在
+    /// [`Script::requests`] 里；没排的只记下、不回（一直在路上），不管标题的测试不用替它排。
+    titles: Arc<Mutex<VecDeque<Play>>>,
+    titled: Arc<Mutex<Vec<(Seq, Request)>>>,
 }
 
 impl Script {
@@ -86,7 +90,21 @@ impl Script {
             requests: Arc::new(Mutex::new(Vec::new())),
             cancelled: Arc::new(Mutex::new(Vec::new())),
             window: None,
+            titles: Arc::new(Mutex::new(VecDeque::new())),
+            titled: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+
+    /// 起标题的请求照先后这样回（施工 3-8 五补）。
+    #[must_use]
+    pub fn titles(self, plays: impl IntoIterator<Item = Play>) -> Script {
+        lock(&self.titles).extend(plays);
+        self
+    }
+
+    /// 交来的起标题的请求，照先后：照到第几条为止，和请求本身。
+    pub fn titled(&self) -> Vec<(Seq, Request)> {
+        lock(&self.titled).clone()
     }
 
     /// 同一份剧本，模型的窗口是 `window`：会话照它算压缩线（施工 6-3 上）。
@@ -135,17 +153,22 @@ impl ModelPort for Script {
 
     fn call(&self, seen: Seq, request: Request, reports: Reports, cancel: Cancel) {
         let hash = request.hash();
-        let asked = {
-            let mut requests = self.requests.lock().unwrap_or_else(PoisonError::into_inner);
-            requests.push((seen, request));
-            requests.len()
+        let play = if reports.purpose() == Some(&Purpose::Title) {
+            lock(&self.titled).push((seen, request));
+            match lock(&self.titles).pop_front() {
+                Some(play) => play,
+                None => return,
+            }
+        } else {
+            let asked = {
+                let mut requests = lock(&self.requests);
+                requests.push((seen, request));
+                requests.len()
+            };
+            lock(&self.plays)
+                .pop_front()
+                .unwrap_or_else(|| panic!("剧本里没排第 {asked} 次请求说什么"))
         };
-        let play = self
-            .plays
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .pop_front()
-            .unwrap_or_else(|| panic!("剧本里没排第 {asked} 次请求说什么"));
         if matches!(play, Play::Panics) {
             panic!("端口自己的 bug");
         }
@@ -209,6 +232,11 @@ impl ModelPort for Script {
             }
         });
     }
+}
+
+/// 拿锁：拿着锁的线程 panic 了，照样拿（剧本、记录只是测试的记账）。
+fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 /// 说完一句：正文分成 `pieces` 段交出去，报用量：60 没命中、40 命中、10 输出。

@@ -5,7 +5,7 @@
 use super::executor::deepseek;
 use super::*;
 use crate::accumulate::{Delta, Kind};
-use crate::event::{CallError, ErrorClass, ModelCalled};
+use crate::event::{CallError, ErrorClass, ModelCalled, Purpose};
 use crate::id::ContentHash;
 use crate::testkit::{Line, Stage};
 
@@ -47,8 +47,9 @@ fn recap(n: u64) -> Input {
 
 /// 回顾 `upto` 发出去了，在 07:00:`second`。
 fn sent(upto: u64, second: u64) -> Input {
-    Input::RecapSent {
+    Input::AsideSent {
         at: at(second),
+        purpose: Purpose::Recap,
         upto: seq(upto),
         model: deepseek(),
         request: ContentHash::of(b"recap"),
@@ -57,8 +58,9 @@ fn sent(upto: u64, second: u64) -> Input {
 
 /// 回顾 `upto` 的一段增量。
 fn delta(upto: u64, delta: Delta) -> Input {
-    Input::RecapDelta {
+    Input::AsideDelta {
         at: at(42),
+        purpose: Purpose::Recap,
         upto: seq(upto),
         delta,
     }
@@ -66,8 +68,9 @@ fn delta(upto: u64, delta: Delta) -> Input {
 
 /// 回顾 `upto` 的一块正文：07:00:42 开始，07:00:43 来字。
 fn said(upto: u64, text: &str) -> [Input; 2] {
-    let text = Input::RecapDelta {
+    let text = Input::AsideDelta {
         at: at(43),
+        purpose: Purpose::Recap,
         upto: seq(upto),
         delta: Delta::Text {
             index: 0,
@@ -83,8 +86,9 @@ fn said(upto: u64, text: &str) -> [Input; 2] {
 
 /// 回顾 `upto` 在 07:00:45 说完了；出错的带上分类。
 fn ended(upto: u64, error: Option<ErrorClass>) -> Input {
-    Input::RecapEnded {
+    Input::AsideEnded {
         at: at(45),
+        purpose: Purpose::Recap,
         upto: seq(upto),
         usage: None,
         error: error.map(|class| CallError {
@@ -116,7 +120,7 @@ fn it_goes_by_what_is_stored_and_answers_once_the_line_is_stored() {
     let opened = session.handle(send(20, "again"));
     assert_eq!(appended(&opened), seqs(&[9, 10]));
     let asked = session.handle(recap(21));
-    let [Action::Recap { upto, request }] = asked.as_slice() else {
+    let [Action::Aside { upto, request, .. }] = asked.as_slice() else {
         panic!("交出一次回顾：{asked:?}");
     };
     assert_eq!(*upto, seq(6));
@@ -237,7 +241,7 @@ fn the_same_id_asks_again() {
     session.handle(stored(9));
     let again = session.handle(recap(20));
     assert!(
-        matches!(again.as_slice(), [Action::Recap { upto, .. }] if *upto == seq(6)),
+        matches!(again.as_slice(), [Action::Aside { upto, .. }] if *upto == seq(6)),
         "没写成的再要一次，照样请求：{again:?}"
     );
 }

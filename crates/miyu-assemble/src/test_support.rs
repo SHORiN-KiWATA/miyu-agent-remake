@@ -9,7 +9,7 @@ use miyu_kernel::request::Message;
 
 use miyu_kernel::template::Template;
 
-use crate::texts::{HarnessTexts, JobTexts, Recap, RestoredWrap, Texts, TurnEndedTexts};
+use crate::texts::{HarnessTexts, JobTexts, Recap, RestoredWrap, Texts, Title, TurnEndedTexts};
 
 pub(crate) const KERNEL: &str = r#"{"kind":"kernel"}"#;
 const ALICE: &str = r#"{"kind":"person","account":"alice"}"#;
@@ -44,6 +44,15 @@ pub(crate) fn texts() -> Texts {
             close: "</agent>\n".to_string(),
         }),
         recap: Some(recap_texts()),
+        title: Some(title_texts()),
+    }
+}
+
+/// 替身的起标题的字（施工 3-8 五补）：短，一眼认得出；数照出厂的。
+pub(crate) fn title_texts() -> Title {
+    Title {
+        instruction: "<title>\n".to_string(),
+        tokens: 1_024,
     }
 }
 

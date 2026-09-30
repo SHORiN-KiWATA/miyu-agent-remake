@@ -189,6 +189,11 @@ fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
     ] {
         assert_eq!(got, file);
     }
+    // 起标题的指令（施工 3-8 五补）。
+    assert_eq!(
+        sources.core.title.expect("出厂的有起标题的字").instruction,
+        include_str!("../../../../resources/core/title/instruction.txt")
+    );
     // 文本文件照字放进消息的三句（施工 3-9 三补）：每一格是它自己那份文件。
     let drivers = sources.core.drivers;
     let text = drivers.text_file.expect("出厂的有文本文件的三句");

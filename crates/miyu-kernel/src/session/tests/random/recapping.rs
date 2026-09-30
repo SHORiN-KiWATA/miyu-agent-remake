@@ -5,6 +5,7 @@
 //! 要一句回顾，刚写好一句、还没别的事的，三回里一回再要一次（该交回这一句）。
 
 use super::*;
+use crate::event::Purpose;
 
 /// 这一次该送什么（`None` 是不送，别的输入照常来）。
 pub(super) fn some_recap(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> Option<Input> {
@@ -19,8 +20,9 @@ pub(super) fn some_recap(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> Opt
         1 => Some(recap(next_id)),
         2 | 3 => None,
         4 if !flight.sent => Some(delta(upto, flight.next_delta())),
-        _ if !flight.sent => Some(Input::RecapSent {
+        _ if !flight.sent => Some(Input::AsideSent {
             at: at(47),
+            purpose: Purpose::Recap,
             upto,
             model: model(),
             request: ContentHash::of(b"recap"),
@@ -47,8 +49,9 @@ pub(super) fn finish_recap(watch: &Watch) -> Vec<Input> {
     };
     let mut inputs = Vec::new();
     if !flight.sent {
-        inputs.push(Input::RecapSent {
+        inputs.push(Input::AsideSent {
             at: at(47),
+            purpose: Purpose::Recap,
             upto: flight.upto,
             model: model(),
             request: ContentHash::of(b"recap"),
@@ -71,8 +74,9 @@ fn recap(next_id: &mut u64) -> Input {
 
 /// 回顾 `upto` 的一段增量。
 fn delta(upto: Seq, delta: Delta) -> Input {
-    Input::RecapDelta {
+    Input::AsideDelta {
         at: at(48),
+        purpose: Purpose::Recap,
         upto,
         delta,
     }
@@ -80,8 +84,9 @@ fn delta(upto: Seq, delta: Delta) -> Input {
 
 /// 回顾 `upto` 说完了：出错的带上分类和原话。
 fn ended(upto: Seq, error: Option<CallError>) -> Input {
-    Input::RecapEnded {
+    Input::AsideEnded {
         at: at(49),
+        purpose: Purpose::Recap,
         upto,
         usage: None,
         error,

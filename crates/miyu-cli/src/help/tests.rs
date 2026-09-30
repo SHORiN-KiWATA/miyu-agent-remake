@@ -7,7 +7,7 @@ use clap::{Args, Command};
 
 use super::{Page, page};
 use crate::language::Language;
-use crate::{Ask, Compact, Recap, Redo, Sandbox, Undo};
+use crate::{Ask, Compact, Recap, Redo, Rename, Sandbox, Undo};
 
 /// 一个选项：几种写法（`-c`、`--continue`），和后面写的值（没有的是空的）。
 type Listed = BTreeSet<(Vec<String>, String)>;
@@ -140,9 +140,17 @@ fn each_page_lists_exactly_the_options_there_are() {
             real(&recap, id),
             "{language:?} recap"
         );
-        // 主程序那一页：`ask` 的、`undo`、`restore`、`redo`、`compact`、`recap` 的都列，再加 `-V`、`--version`。
+        // `rename` 那一页（施工 3-8 五补）：只有 `-s`，标题是位置参数。
+        let rename = Rename::augment_args(Command::new("rename"));
+        assert_eq!(
+            listed(page(language, Page::Rename)),
+            real(&rename, id),
+            "{language:?} rename"
+        );
+        // 主程序那一页：`ask` 的、`undo`、`restore`、`redo`、`compact`、`recap`、`rename` 的都列，再加 `-V`、`--version`。
         let mut all = real(&ask, id);
         all.extend(real(&recap, id));
+        all.extend(real(&rename, id));
         all.extend(real(&undo, id));
         all.extend(real(&redo, id));
         all.extend(real(&compact, id));
@@ -180,6 +188,7 @@ fn each_page_is_its_own_file() {
             (Page::Redo, "redo"),
             (Page::Compact, "compact"),
             (Page::Recap, "recap"),
+            (Page::Rename, "rename"),
             (Page::Sandbox, "sandbox"),
         ] {
             let file = dir.join(code).join(format!("{name}.txt"));

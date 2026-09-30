@@ -288,8 +288,9 @@ impl Session {
         ended
     }
 
-    /// `turn.ended` 落了盘的回合：叫执行器跑回合结束的挂接点（广播，不等结果）。
-    pub(super) fn closed(&mut self) -> Vec<Action> {
+    /// `turn.ended` 落了盘的回合，照结束的先后：执行器跑它们回合结束的挂接点（广播，不等结果），答完了的起标题（施工
+    /// 3-8 五补）。
+    pub(super) fn closed(&mut self) -> Vec<TurnId> {
         let Some(stored) = self.stored else {
             return Vec::new();
         };
@@ -297,8 +298,6 @@ impl Session {
             .into_iter()
             .partition(|&(_, ended)| ended <= stored);
         self.closing = waiting;
-        done.into_iter()
-            .map(|(turn, _)| Action::RunTurnEndHooks { turn })
-            .collect()
+        done.into_iter().map(|(turn, _)| turn).collect()
     }
 }

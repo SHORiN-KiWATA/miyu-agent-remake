@@ -1,0 +1,1 @@
+{"tools":[],"system":"","messages":[{"role":"user","blocks":[{"type":"text","text":"Write a title of 3 to 7 words for this conversation, in the language of the conversation. Reply with the title only, without quotes or a final period.\n\nConversation:\nUser: CI 为什么红了？\n\nAssistant: CI 红在 macOS：临时目录在 /var 这个链接下面，安全打开不走链接，拒绝了。"}]}],"stable":0}

@@ -9,6 +9,7 @@
 
 mod action;
 mod approval;
+mod aside;
 mod breaker;
 mod call;
 mod clear;
@@ -40,6 +41,7 @@ mod shorten;
 mod spans;
 mod step;
 mod summary;
+mod title;
 mod tools;
 mod turn;
 
@@ -48,7 +50,7 @@ pub use input::{Answer, Command, Injection, Input, Limits, Queued, Received, Rer
 pub use limits::ContextLimits;
 pub use load::LoadError;
 pub use messages::Subagent;
-pub use policy::{Compaction, Notes, Pause, Policy, Rebuild, Reports, Shorten};
+pub use policy::{Compaction, Notes, Pause, Policy, Rebuild, Reports, Shorten, Titles};
 pub use report::Upward;
 pub use restore::{Expect, Step, StepAction};
 
@@ -118,6 +120,10 @@ pub struct Session {
     meta: meta::Meta,
     /// 在路上的那一次回顾（施工 3-8 四补，`recap.rs`）：只在内存里，载入以后没有。
     recapping: Option<recap::Recapping>,
+    /// 起标题的账（施工 3-8 五补，`title.rs`）：每追加一条记一次。
+    naming: title::Naming,
+    /// 在路上的那一次起标题（施工 3-8 五补）：只在内存里，载入以后没有。
+    titling: Option<aside::Aside>,
 }
 
 impl Session {
@@ -163,6 +169,8 @@ impl Session {
             duty: report::Duty::default(),
             meta: meta::Meta::default(),
             recapping: None,
+            naming: title::Naming::default(),
+            titling: None,
         };
         let event = session.record(at, by, Some(id.clone()), Body::SessionCreated(created));
         session.accept(id, vec![event.seq]);
@@ -176,6 +184,12 @@ impl Session {
             && self.closing.is_empty()
             && self.restoring.is_none()
             && self.reading.is_none()
+    }
+
+    /// 落了盘的最后一条（施工 3-8 六补）：`Stored` 送进来那一刻就推送了，所以也是推过的最后一条；还没落过盘的没有，载入的
+    /// 是日志里最后一条。纯查询：会话 actor 订阅时照它定补发补到哪一条（`docs/blueprint/session/actor.md` 第 6 条）。
+    pub fn landed(&self) -> Option<Seq> {
+        self.stored
     }
 
     /// 删得了没有（施工 3-8 三补，`protocol.md` 的 `session.delete`）：不空闲的删不了，正在读回日志、改回文件的是
@@ -294,19 +308,26 @@ impl Session {
                 cause,
                 reported,
             } => self.job_ended(at, by, cause, reported),
-            Input::RecapSent {
+            Input::AsideSent {
                 at,
+                purpose,
                 upto,
                 model,
                 request,
-            } => self.recap_sent(at, upto, model, request),
-            Input::RecapDelta { at, upto, delta } => self.recap_delta(at, upto, delta),
-            Input::RecapEnded {
+            } => self.aside_sent(at, &purpose, upto, model, request),
+            Input::AsideDelta {
                 at,
+                purpose,
+                upto,
+                delta,
+            } => self.aside_delta(at, &purpose, upto, delta),
+            Input::AsideEnded {
+                at,
+                purpose,
                 upto,
                 usage,
                 error,
-            } => self.recap_ended(at, upto, usage, error),
+            } => self.aside_ended(at, &purpose, upto, usage, error),
             Input::Watched { watched } => {
                 self.watched = watched;
                 Vec::new()
@@ -412,13 +433,14 @@ impl Session {
     fn commit(&mut self, event: &Event) -> Result<(), LedgerError> {
         self.ledger.append(event)?;
         self.duty.note(event);
+        self.naming.note(event);
         self.history.append(event.clone());
         self.unstored.push(event.clone());
         Ok(())
     }
 
     /// 到第 `upto` 条为止落了盘：先推送这些事件，再回应事件全落了盘的命令（`04-核心协议.md`
-    /// 第六节第 2 条：先见结果，后见回应），再跑结束了的回合的挂接点，然后回合往下走。`upto` 超出追加过的，多出来的
+    /// 第六节第 2 条：先见结果，后见回应），再跑结束了的回合的挂接点、向上回报、起标题（施工 3-8 五补），然后回合往下走。`upto` 超出追加过的，多出来的
     /// 不算；不比上一次往后的，什么都不做。`at` 是落完盘的时刻。
     fn stored(&mut self, at: Timestamp, upto: Seq) -> Vec<Action> {
         let split = self.unstored.partition_point(|event| event.seq <= upto);
@@ -435,8 +457,10 @@ impl Session {
                 self.waiting.push((id, events, outcome));
             }
         }
-        actions.extend(self.closed());
+        let closed = self.closed();
+        actions.extend(closed.iter().map(|&turn| Action::RunTurnEndHooks { turn }));
         actions.extend(self.report_up());
+        actions.extend(self.title_up(&closed));
         actions.extend(self.advance(at));
         actions
     }

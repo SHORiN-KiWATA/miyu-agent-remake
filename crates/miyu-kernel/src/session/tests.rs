@@ -14,6 +14,7 @@ mod dirs;
 mod executor;
 mod idle;
 mod interrupt;
+mod landed;
 mod limits;
 mod listing;
 mod load;
@@ -31,6 +32,7 @@ mod restore;
 mod revert;
 mod scenario;
 mod spans;
+mod title;
 mod tools;
 mod turn;
 
@@ -240,6 +242,7 @@ fn policy() -> Policy {
             chars: 40,
             omitted: crate::template::Template::parse("[{count} cut]\n").unwrap(),
         },
+        titles: None,
     }
 }
 

@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use miyu_policy::{
     CompactionTexts, CoreLines, CoreTexts, DriverPlaceholders, FactTexts, HarnessTexts,
     ImageNameTexts, JobTexts, PermissionTexts, PersonaTexts, RebuildTexts, RecapTexts,
-    ShortenTexts, Sources, TextFileTexts, ToolResultTexts, TurnEndedTexts,
+    ShortenTexts, Sources, TextFileTexts, TitleTexts, ToolResultTexts, TurnEndedTexts,
 };
 
 use crate::env::Env;
@@ -291,6 +291,9 @@ impl ResourceRoot {
                 assistant: core(&["recap", "assistant.txt"])?,
                 omitted: core(&["recap", "omitted.txt"])?,
                 excerpted: core(&["recap", "excerpted.txt"])?,
+            }),
+            title: Some(TitleTexts {
+                instruction: core(&["title", "instruction.txt"])?,
             }),
         })
     }

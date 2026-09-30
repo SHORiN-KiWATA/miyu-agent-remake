@@ -165,6 +165,11 @@ impl Tools {
         }
     }
 
+    /// 这个会话日志的只读入口（施工 3-8 六补）：订阅时交给补发的那一截，由拿着它的一方去读。
+    pub(crate) fn log(&self) -> Log {
+        self.log.clone()
+    }
+
     /// 会话的时区换成 `offset`：头报上来的环境换了（施工 6-4）。以后派出去的调用照它。
     pub(crate) fn locate(&mut self, offset: UtcOffset) {
         self.offset = offset;

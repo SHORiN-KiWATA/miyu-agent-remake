@@ -8,7 +8,9 @@ use miyu_assemble::JobTexts as Rendered;
 use miyu_kernel::template::Template;
 use serde::{Deserialize, Serialize};
 
-use crate::snapshot::BuildError;
+use miyu_kernel::session::Reports;
+
+use crate::snapshot::{BuildError, Snapshot};
 
 /// 派生的深度上限（策略数据 `jobs.depth` 的出厂值，`agents.md`「对外的样子」，施工 7-5）：主会话是第 0 层，它派的子代理
 /// 是第 1 层，子代理派的孙代理是第 2 层（2026-09-29 项目主人定）。到了上限的会话，造会话时工具面里不给 `agent`。配置那一步
@@ -110,6 +112,22 @@ pub(crate) fn template(source: &str, fields: &[&str]) -> Result<Template, BuildE
     let trial: BTreeMap<&str, &str> = fields.iter().map(|field| (*field, "")).collect();
     template.render(&trial).map_err(bad)?;
     Ok(template)
+}
+
+impl Snapshot {
+    /// 子会话回报的正文怎么截（施工 7-6）：快照里的数，以前造的没有照出厂的；截在中间的那一行，以前造的没有是空的。
+    pub(crate) fn reports(&self) -> Result<Reports, BuildError> {
+        let chars = self.jobs.map_or(REPORT_CHARS, |jobs| jobs.report_chars);
+        let omitted = self
+            .core
+            .jobs
+            .as_ref()
+            .map_or("", |jobs| jobs.subagent_omitted.as_str());
+        Ok(Reports {
+            chars: usize::try_from(chars).unwrap_or(usize::MAX),
+            omitted: template(omitted, &["count"])?,
+        })
+    }
 }
 
 #[cfg(test)]

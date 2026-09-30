@@ -1,7 +1,7 @@
 //! 主程序 `miyu`（`docs/designs/12-进程形态与分发.md` 第三节，施工 3-9）：一个程序，像 busybox 那样按子命令
 //! 分发。`miyu ask` 是最薄的头（施工 3-9 下）；`miyu undo`（`miyu rewind`）、`miyu restore` 撤掉最后一轮、恢复（施工 4-7 下，改名施工 4-7 补）；
 //! `miyu redo` 重做最后一轮（施工 4-7 再补）；
-//! `miyu compact` 手动压缩（施工 6-8）；`miyu recap` 一句话回顾（施工 3-8 四补）；`miyu sandbox setup`、`remove` 在 Windows 上装好、撤掉沙盒用户（施工 5-8）；`miyu core` 是核心进程，由头拉起，
+//! `miyu compact` 手动压缩（施工 6-8）；`miyu recap` 一句话回顾（施工 3-8 四补）；`miyu rename` 给会话起名（施工 3-8 五补）；`miyu sandbox setup`、`remove` 在 Windows 上装好、撤掉沙盒用户（施工 5-8）；`miyu core` 是核心进程，由头拉起，
 //! 不写进帮助。
 //!
 //! 不认识的子命令就报错，退出码 2，绝不当成对话发给核心（R4，`22-命令行.md` 第二节）。帮助页、参数写错时说的
@@ -46,6 +46,8 @@ enum Command {
     Compact(miyu_cli::Compact),
     /// 一句话回顾当前会话：在做什么、做完了什么、卡在哪（施工 3-8 四补）。
     Recap(miyu_cli::Recap),
+    /// 给当前会话起名（施工 3-8 五补）。
+    Rename(miyu_cli::Rename),
     /// 装好、撤掉沙盒用户（Windows，要管理员权限）。
     Sandbox(miyu_cli::Sandbox),
     /// 核心进程：由头拉起，平时不用人敲。
@@ -78,6 +80,9 @@ fn main() -> ExitCode {
         .mut_subcommand("recap", |recap| {
             recap.override_help(page(language, Page::Recap))
         })
+        .mut_subcommand("rename", |rename| {
+            rename.override_help(page(language, Page::Rename))
+        })
         .mut_subcommand("sandbox", |sandbox| {
             let help = page(language, Page::Sandbox);
             sandbox
@@ -99,6 +104,7 @@ fn main() -> ExitCode {
         Some(Command::Redo(args)) => miyu_cli::redo(args, core),
         Some(Command::Compact(args)) => miyu_cli::compact(args, core),
         Some(Command::Recap(args)) => miyu_cli::recap(args, core),
+        Some(Command::Rename(args)) => miyu_cli::rename(args, core),
         Some(Command::Sandbox(args)) => miyu_cli::sandbox(args),
         Some(Command::Core { idle_seconds }) => miyu_core::main(miyu_core::Options {
             idle: idle_seconds.map_or(miyu_core::IDLE, Duration::from_secs),

@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::Instrument;
 
+use miyu_kernel::event::Purpose;
 use miyu_kernel::id::{CommandId, Seq, SessionId};
 use miyu_kernel::session::{Action, Input, Outcome, Session};
 use miyu_kernel::time::Timestamp;
@@ -58,9 +59,9 @@ pub(crate) struct Actor {
     replies: BTreeMap<CommandId, VecDeque<oneshot::Sender<Outcome>>>,
     /// 还没说完的请求：叫停它的那一头，和交给端口的那一刻（算用时）。
     calls: BTreeMap<Seq, (oneshot::Sender<()>, Instant)>,
-    /// 还没说完的那一次回顾（施工 3-8 四补，`model.rs`）：照到第几条、叫停它的那一头（拿着不用：actor 停了放下它，请求跟着
-    /// 停）、交给端口的那一刻。
-    recap: Option<(Seq, oneshot::Sender<()>, Instant)>,
+    /// 还没说完的辅助请求（施工 3-8 四补的回顾、五补的起标题，`model.rs`）：用途、照到第几条、叫停它的那一头（拿着不用：
+    /// actor 停了放下它，请求跟着停）、交给端口的那一刻。一种用途至多一个。
+    asides: Vec<(Purpose, Seq, oneshot::Sender<()>, Instant)>,
     clock: Clock,
     /// 执行工具的端口（施工 4-2）。
     tools: Tools,
@@ -139,7 +140,7 @@ impl Actor {
             pushes,
             replies: BTreeMap::new(),
             calls: BTreeMap::new(),
-            recap: None,
+            asides: Vec::new(),
             clock,
             tools,
             jobs,
@@ -267,8 +268,12 @@ impl Actor {
                 self.wake(at, seen);
                 None
             }
-            Action::Recap { upto, request } => {
-                self.recap(upto, request);
+            Action::Aside {
+                purpose,
+                upto,
+                request,
+            } => {
+                self.aside(purpose, upto, request);
                 None
             }
             Action::CancelModel { seen } => {
@@ -416,24 +421,11 @@ impl Actor {
             Back::Woke { seen } => Input::Woke { at, seen },
             Back::Tool(back) => return self.tools.back(at, back),
             Back::Job(ended) => self.jobs.arrived(at, ended),
-            Back::Recap { upto, report } => match report {
-                Report::Sent { model, request } => Input::RecapSent {
-                    at,
-                    upto,
-                    model,
-                    request,
-                },
-                Report::Delta(delta) => Input::RecapDelta { at, upto, delta },
-                Report::Ended { usage, error, .. } => {
-                    self.recap_ended(upto, usage.as_ref(), error.as_ref());
-                    Input::RecapEnded {
-                        at,
-                        upto,
-                        usage,
-                        error,
-                    }
-                }
-            },
+            Back::Aside {
+                purpose,
+                upto,
+                report,
+            } => self.aside_back(at, purpose, upto, report),
             Back::Report { seen, report } => match report {
                 Report::Sent { model, request } => Input::RequestSent {
                     at,

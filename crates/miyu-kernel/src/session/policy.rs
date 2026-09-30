@@ -34,6 +34,17 @@ pub struct Policy {
     pub notes: Option<Notes>,
     /// 子会话向上回报的正文怎么截（施工 7-6，`report.rs`）。
     pub reports: Reports,
+    /// 起标题的两个数（施工 3-8 五补，`title.rs`）；没有的不起标题：以前造的快照里没有。
+    pub titles: Option<Titles>,
+}
+
+/// 起标题的两个数（施工 3-8 五补，`docs/blueprint/kernel/session.md`「起标题」）：数值是数据，放在策略快照里。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Titles {
+    /// 一个会话最多试几次，都没起成就不再试：出厂 2。
+    pub tries: u32,
+    /// 标题最多几个字（Unicode 字符），超了截掉：出厂 50（2026-10-01 项目主人定）。
+    pub chars: usize,
 }
 
 /// 子会话向上回报的正文怎么截（施工 7-6，`docs/blueprint/agents.md` 第二条第 3 条）：超过 `chars` 个字的留头尾各一半，

@@ -21,6 +21,7 @@ mod recap;
 mod shorten;
 mod snapshot;
 mod text_file;
+mod title;
 mod tools;
 
 #[cfg(test)]
@@ -42,4 +43,5 @@ pub use snapshot::{
     SnapshotError, ToolResultTexts, TurnEndedTexts,
 };
 pub use text_file::TextFileTexts;
+pub use title::{TITLE, TitleNumbers, TitleTexts};
 pub use tools::{RunTexts, ToolEntry};

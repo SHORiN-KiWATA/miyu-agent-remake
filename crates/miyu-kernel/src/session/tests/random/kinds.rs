@@ -52,10 +52,10 @@ kinds! {
     Report,
     /// 要一句回顾（施工 3-8 四补）。
     Recap,
-    /// 回顾的请求发出去了、一段增量、说完了（施工 3-8 四补）。
-    RecapSent,
-    RecapDelta,
-    RecapEnded,
+    /// 辅助请求（回顾，施工 3-8 四补）发出去了、一段增量、说完了。
+    AsideSent,
+    AsideDelta,
+    AsideEnded,
     /// 后台命令结束了（施工 7-2）。
     JobEnded,
     /// 有没有头订阅着（施工 7-2）。
@@ -144,9 +144,9 @@ impl InputKind {
             Input::Woke { .. } => InputKind::Woke,
             Input::JobEnded { .. } => InputKind::JobEnded,
             Input::Watched { .. } => InputKind::Watched,
-            Input::RecapSent { .. } => InputKind::RecapSent,
-            Input::RecapDelta { .. } => InputKind::RecapDelta,
-            Input::RecapEnded { .. } => InputKind::RecapEnded,
+            Input::AsideSent { .. } => InputKind::AsideSent,
+            Input::AsideDelta { .. } => InputKind::AsideDelta,
+            Input::AsideEnded { .. } => InputKind::AsideEnded,
         }
     }
 }

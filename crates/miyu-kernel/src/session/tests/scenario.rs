@@ -26,6 +26,7 @@ mod shorten;
 mod spans;
 mod stopping;
 mod tail;
+mod title;
 mod undo_jobs;
 mod upward;
 mod upward_load;
