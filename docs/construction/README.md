@@ -292,7 +292,7 @@ flowchart LR
 | 编号 | 名字 | 做什么 |
 |---|---|---|
 | 8-1 | 配置清单 | 每一项在 Rust 的设置类型上声明一次：键、类型、默认值、范围、能放在哪几层、谁能改、什么时候生效、界面提示；名字和说明三种语言（中、英、日）放资源文件。从它生成 JSON Schema 和只读的参考文件。门禁守着：每项有默认值、数值有范围、每种语言有名字说明、默认值过自己的校验、两个键不指同一件事（G1、G10）。施工单见 `8-1-配置清单.md` |
-| 8-2 | 读配置 | 默认值、系统配置 `system/config.toml`、个人设置 `home/<账号>/settings.toml`、项目配置 `.miyu/config.toml` 分层合出最终值，每个值说得出来自哪一层、哪个文件第几行；项目配置只认收紧的项；校验报文件、行、列、期望、收到、改法，键名拼错给最近的；不认识的键警告、保留；写错继续用上一份好的；`miyu config get`、`explain`、`check`、`path`（G2、G3、G8） |
+| 8-2 | 读配置 | 默认值、系统配置 `system/config.toml`、个人设置 `home/<账号>/settings.toml`、项目配置 `.miyu/config.toml` 分层合出最终值，每个值说得出来自哪一层、哪个文件第几行；项目配置只认收紧的项；校验报文件、行、列、期望、收到、改法，键名拼错给最近的；不认识的键警告、保留；写错继续用上一份好的；`miyu config get`、`explain`、`check`、`path`（G2、G3、G8）。施工单见 `8-2-读配置.md` |
 | 8-3 | 写配置 | `config.set`：只改那一项、保留注释和排版，先写临时文件再替换，顺着符号链接写，写前查有没有被手改过，带版本号防两个头同时改；改动记进账号日志、系统日志（`journal.jsonl`，`07-存储.md` 第二节）；`miyu config set`、`unset`、`edit`（G4、G5、G6） |
 | 8-4 | 监视与生效 | 监视配置所在的目录（Linux inotify、macOS FSEvents、Windows ReadDirectoryChangesW），手改了重读；`config.changed` 推送；生效时机照清单：当场、下一个回合开始、重启核心；回合开始时冻结一份快照（G7、K3） |
 | 8-5 | 密钥 | `system/secrets.toml`（成员的放自己家目录），配置里只写 `{ secret = … }` 或 `{ env = … }`；`secret.set`、`secret.delete`、`secret.list`，只能写、删，不能读回（G9） |
