@@ -48,7 +48,7 @@
 | `crates/miyu-session/src/actor/mail.rs` | 有没有头看着：拿着订阅的头从没有到有、从有到没有，交内核 `Watched`（施工 7-9，`session/actor.md` 第 3 条） |
 | `crates/miyu-cli/src/ask/follow/` | `miyu ask` 等子代理回报：照事件流数还有几个没报（`agents.rs`），等的那一行、报回来了那一行（`waiting.rs`），收尾（`ending.rs`）（施工 7-9，`cli/ask.md`「等子代理」）；`--timeout`、Ctrl+C 不等了在 `ask/talk.rs`；`--from` 随 7-10 |
 | `resources/software/basesystem/tools/{jobs,agent,message_agent}.json` | 说明和参数格式 |
-| `resources/core/jobs/*.txt` | 回报的写法（施工 7-2，十一份）、子代理的场所说明（7-5）、子代理留言的标签（7-7，两份）这几段给模型看的字 |
+| `resources/core/jobs/*.txt` | 回报的写法（施工 7-2，十一份）、子代理的场所说明（7-5）、子代理留言的标签（7-7，两份）、人停的那一句（7-2 补）这几段给模型看的字 |
 | `resources/core/compaction/notes-jobs.txt`、`notes-job.txt` | 检查点里还在跑的任务那一段的头一行、一个任务一行（施工 7-8） |
 
 分层照 `01-架构.md`：内核不碰进程和别的会话，只从日志算状态、交出动作；工具只拿端口，不认识会话表；会话表在 `miyu-endpoint`，比会话 actor 高一层，所以造子会话的端口由 `miyu-session` 定义、`miyu-endpoint` 在核心启动时装上（`00-设计理念.md` 第四节「依赖与接口的规矩」：下层定义窄接口，上层实现）。

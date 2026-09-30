@@ -1,0 +1,4 @@
+<subagent-report job="j2" title="查 CI 为什么红" reason="stopped">
+The user stopped this.
+查到一半：只看了 Linux 的日志。
+</subagent-report>

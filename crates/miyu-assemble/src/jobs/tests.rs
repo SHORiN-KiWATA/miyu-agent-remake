@@ -1,6 +1,7 @@
 //! 两种回报的写法（施工 7-2，`docs/blueprint/kernel/request.md`「回报」）：出厂的字渲染出来和样本逐字节一样，每种原因、
-//! 截过的、人插过话的、没说话的各一个（`docs/designs/samples/reports/`）；闲着时开这一轮的那条挪到回合开始的地方，排在事实
-//! 后面；回合中途到的排在那一步的工具结果后面；派它的那一轮撤掉了的不渲染；派它的那一条压缩掉了，照样有标题。
+//! 截过的、人插过话的、没说话的各一个，停掉的分她停的、人停的（施工 7-2 补）（`docs/designs/samples/reports/`）；以前造的
+//! 快照没有人停的那一句，照原来的写；闲着时开这一轮的那条挪到回合开始的地方，排在事实后面；回合中途到的排在那一步的工具
+//! 结果后面；派它的那一轮撤掉了的不渲染；派它的那一条压缩掉了，照样有标题。
 
 use miyu_kernel::assemble::Assembler;
 use miyu_kernel::event::{ChildReason, ChildReported, JobReason, JobReported};
@@ -13,6 +14,9 @@ use crate::{DefaultAssembler, Stable};
 mod messages;
 
 const CHILD: &str = "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91";
+
+/// 停在半路的子代理最后说的话：停掉的几份样本共用。
+const HALF: &str = "查到一半：只看了 Linux 的日志。";
 
 /// 第一轮派出去后台命令 `j1`（跑全部测试）、子代理 `j2`（查 CI 为什么红），说完了。
 fn dispatched() -> Log {
@@ -50,6 +54,7 @@ fn shipped() -> JobTexts {
         subagent_truncated: job!("subagent-truncated.txt"),
         subagent_silent: job!("subagent-silent.txt"),
         subagent_close: job!("subagent-close.txt"),
+        stopped_by_user: job!("stopped-by-user.txt"),
         subagent_message_open: template(job!("subagent-message-open.txt")),
         subagent_message_close: job!("subagent-message-close.txt"),
     }
@@ -107,15 +112,24 @@ fn a_command_ending_reads_like_the_samples() {
             sample!("command-killed.txt"),
             ended(JobReason::Exited, None, Some(9), Some(1_200), Some(0)),
         ),
+        // 她自己用 `jobs` 停的：不写人停的那一句。
         (
             sample!("command-stopped.txt"),
-            ended(
-                JobReason::Stopped,
-                None,
-                Some(15),
-                Some(300_000),
-                Some(5_120),
-            ),
+            JobReported {
+                by_model: true,
+                ..ended(
+                    JobReason::Stopped,
+                    None,
+                    Some(15),
+                    Some(300_000),
+                    Some(5_120),
+                )
+            },
+        ),
+        // 人停的（施工 7-2 补）：标签后面先写这一句。停的那条路不带退出码、信号。
+        (
+            sample!("command-stopped-by-user.txt"),
+            ended(JobReason::Stopped, None, None, Some(300_000), Some(5_120)),
         ),
         (
             sample!("command-undone.txt"),
@@ -166,14 +180,18 @@ fn a_subagent_report_reads_like_the_samples() {
             sample!("subagent-done.txt"),
             child(ChildReason::Done, done, false, false),
         ),
+        // 她自己停的：不写人停的那一句。
         (
             sample!("subagent-stopped.txt"),
-            child(
-                ChildReason::Stopped,
-                "查到一半：只看了 Linux 的日志。",
-                false,
-                false,
-            ),
+            ChildReported {
+                by_model: true,
+                ..child(ChildReason::Stopped, HALF, false, false)
+            },
+        ),
+        // 人停的（施工 7-2 补）。
+        (
+            sample!("subagent-stopped-by-user.txt"),
+            child(ChildReason::Stopped, HALF, false, false),
         ),
         (
             sample!("subagent-undone.txt"),
@@ -217,6 +235,44 @@ fn a_subagent_report_reads_like_the_samples() {
     let person = both.find("talked").unwrap();
     let cut = both.find("was cut").unwrap();
     assert!(person < cut && cut < both.find("正文").unwrap(), "{both}");
+    // 人停的那一句紧跟标签那一行，在别的几句前面。
+    let all = subagent(
+        log.history(),
+        &child(ChildReason::Stopped, "正文", true, true),
+        &texts,
+    )
+    .unwrap();
+    assert_eq!(
+        all.split_inclusive('\n').nth(1),
+        Some(texts.stopped_by_user.as_str()),
+        "{all}"
+    );
+}
+
+/// 以前造的快照里没有人停的那一句（施工 7-2 补），是空的：人停的照原来的写，和她自己停的一个字节不差。
+#[test]
+fn an_old_snapshot_writes_a_stop_by_the_user_as_before() {
+    let log = dispatched();
+    let old = JobTexts {
+        stopped_by_user: String::new(),
+        ..shipped()
+    };
+    let command_stopped = ended(
+        JobReason::Stopped,
+        None,
+        Some(15),
+        Some(300_000),
+        Some(5_120),
+    );
+    assert_eq!(
+        command(log.history(), &command_stopped, &old).as_deref(),
+        Some(sample!("command-stopped.txt"))
+    );
+    let subagent_stopped = child(ChildReason::Stopped, HALF, false, false);
+    assert_eq!(
+        subagent(log.history(), &subagent_stopped, &old).as_deref(),
+        Some(sample!("subagent-stopped.txt"))
+    );
 }
 
 #[test]
