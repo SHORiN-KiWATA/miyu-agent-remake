@@ -9583,7 +9583,7 @@ a.step:hover{border-color:var(--primary)}
         <div><dt>名称</dt><dd>协议读后台命令的输出</dd></div>
         <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
         <div><dt>提交</dt><dd class="mono">04c3266</dd></div>
-        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过；网页接浮层复测</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、网页实测 · 通过</dd></div>
       </dl>
     </figcaption>
   </figure>
@@ -9592,7 +9592,7 @@ a.step:hover{border-color:var(--primary)}
       <h3>验收</h3>
       <ul class="checks">
         <li><span class="ok">✓</span><span>37 个手写的变异全逮住；三台机器的 CI 和长跑一次全绿；最坏情况（全是控制字符、行数最大）写出来的一行不超过 1 MiB</span></li>
-        <li><span class="ok">…</span><span>网页演示接上后台任务浮层试一次</span></li>
+        <li><span class="ok">✓</span><span>网页演示接上后台任务浮层实测（main e5b5053）：跑着的每秒读一次，输出从 11 行长到 13 行、<code>running</code> 真；结束的 <code>seq 1 300</code> 读回 <code>lines</code> 300、<code>truncated</code> 真、交回最后 200 行</span></li>
       </ul>
     </div>
     <div>
