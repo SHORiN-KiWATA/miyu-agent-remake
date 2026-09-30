@@ -3,8 +3,8 @@
 //!
 //! - 等的时候印一行灰字 `· 等 <N> 个子代理回报…（按 Ctrl+C 不等了）`：标准错误是终端的原地刷新，数目变了重画，别的东西来了
 //!   先擦掉；不是终端的只印一次。
-//! - 这次派出去的子代理报回来了，印一行灰字 `· <编号>「<标题>」报回来了`：回报和它叫醒的那一轮同一批到，这一行就在那一轮
-//!   前面；一轮里到的，印在那一步前后。
+//! - 等的子代理报回来了，印一行灰字 `· <编号>「<标题>」报回来了`；这一次以前派、这一次留了言的没有标题，印
+//!   `· <编号> 报回来了`（施工 7-9 补）。回报和它叫醒的那一轮同一批到，这一行就在那一轮前面；一轮里到的，印在那一步前后。
 
 use serde_json::{Value, json};
 
@@ -54,8 +54,8 @@ impl Follow<'_> {
         self.joining.begin(joined);
     }
 
-    /// 子代理的回报（`child.reported` 整条事件）：这次派出去的，印一行报回来了。闲着时到的，都了结了就收尾；回报叫醒她的，
-    /// 等那一轮；还有没报的，刷新等的那一行。不等子代理的不理。
+    /// 子代理的回报（`child.reported` 整条事件）：等的（这一次派出去的、留过言的），印一行报回来了。闲着时到的，都了结了就
+    /// 收尾；回报叫醒她的，等那一轮；还有没报的，刷新等的那一行。不等子代理的不理。
     pub(super) fn child_reported(&mut self, event: &Value, screen: &mut Screen<'_>) -> Step {
         if !self.waits {
             return Step::Going;
@@ -66,8 +66,9 @@ impl Follow<'_> {
         };
         if self.plan.format == Format::Text {
             self.unwait(screen);
-            let (job, title) = (steps::one_line(&job), steps::one_line(&title));
-            let line = Line::gray(self.plan.language.reported(&job, &title));
+            let job = steps::one_line(&job);
+            let title = title.as_deref().map(steps::one_line);
+            let line = Line::gray(self.plan.language.reported(&job, title.as_deref()));
             self.aside(&line, screen);
         }
         if running || !self.ended_first {

@@ -107,7 +107,7 @@ pub(crate) struct Follow<'p> {
     turns: Vec<Value>,
     /// 跟过的每一轮每次请求的用量加起来：最后那一行（施工 7-9）。`usage` 只是这一轮的。
     total: Sum,
-    /// 派出去的子代理，还有几个没报（施工 7-9）。
+    /// 等的子代理（这一次派出去的，施工 7-9；这一次留过言的，施工 7-9 补），还有几个没报。
     agents: agents::Agents,
     /// 等子代理的那一行画着没有（施工 7-9）。
     waiting: waiting::Waiting,
