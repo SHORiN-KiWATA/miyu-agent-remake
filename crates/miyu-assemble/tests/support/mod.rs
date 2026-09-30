@@ -4,12 +4,14 @@
 //! 那一套。替身发过的每一次请求，连同发它时的情形（[`Sent`]），交给 [`check`] 查五条性质。
 //! 1-14 那时还没有回合状态机，这里是一个照图纸推日志的假内核；2-9（下）换成了真会话。
 
-#![allow(dead_code, reason = "两个测试各用其中一部分")]
+#![allow(dead_code, unused_imports, reason = "几个测试各用其中一部分")]
 
 mod anchor;
+mod archive;
 mod texts;
 
 pub use anchor::anchored;
+pub use archive::{files, matches_the_archive};
 pub use texts::{SUMMARIZE, VENUE};
 use texts::{driver_texts, texts};
 
@@ -23,6 +25,7 @@ use miyu_kernel::estimate::Flat;
 use miyu_kernel::event::{Body, Event};
 use miyu_kernel::facts::{Environment, FactTemplates};
 use miyu_kernel::id::{CallId, ModelName, Seq};
+use miyu_kernel::origin::By;
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::request::{Message, Request, ToolSpec};
 use miyu_kernel::session::{Compaction, Policy};
@@ -171,6 +174,8 @@ pub fn sent(stage: &Stage) -> Vec<Sent> {
             .filter(|_| !summary)
             .filter(|(turn, _)| before_main.is_none_or(|before| before < *turn))
             .and_then(|(_, trigger)| log.iter().find(|event| Some(event.seq) == trigger))
+            // 别的 harness 发来的话渲染时包了一层标签（施工 7-10）：最后一块照它自己的探针查（`probe_harness.rs`）。
+            .filter(|event| !matches!(event.by, By::Harness(_)))
             .and_then(|event| match &event.body {
                 Body::MessageUser(message) => message.blocks.last().cloned(),
                 _ => None,

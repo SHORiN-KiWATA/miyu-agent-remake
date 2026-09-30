@@ -12,8 +12,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use miyu_policy::{
-    CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts, ImageNameTexts, JobTexts,
-    PermissionTexts, PersonaTexts, RebuildTexts, ShortenTexts, Sources, TextFileTexts,
+    CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts, HarnessTexts, ImageNameTexts,
+    JobTexts, PermissionTexts, PersonaTexts, RebuildTexts, ShortenTexts, Sources, TextFileTexts,
     ToolResultTexts, TurnEndedTexts,
 };
 
@@ -267,6 +267,10 @@ impl ResourceRoot {
                 stopped_by_user: job("stopped-by-user.txt")?,
                 subagent_message_open: job("subagent-message-open.txt")?,
                 subagent_message_close: job("subagent-message-close.txt")?,
+            }),
+            harness: Some(HarnessTexts {
+                message_open: core(&["harness", "message-open.txt"])?,
+                message_close: core(&["harness", "message-close.txt"])?,
             }),
         })
     }

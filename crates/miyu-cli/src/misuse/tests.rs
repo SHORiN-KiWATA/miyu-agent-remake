@@ -195,3 +195,23 @@ fn a_timeout_that_is_not_a_duration_has_its_sentence() {
         "--timeout needs a duration such as 30s, 10m or 1h: 5min"
     );
 }
+
+/// `--from` 后面是空的、只有空白（施工 7-10）：说要写别的 harness 的名字；后面什么都没写的照「少了值」说。
+#[test]
+fn a_blank_from_has_its_sentence() {
+    for value in ["", "  "] {
+        let args = ["ask", "--from", value, "hi"];
+        assert_eq!(
+            said(&args, Language::Chinese),
+            "--from 后面要写别的 harness 的名字"
+        );
+        assert_eq!(
+            said(&args, Language::English),
+            "--from needs the name of the other harness"
+        );
+    }
+    assert_eq!(
+        said(&["ask", "hi", "--from"], Language::Chinese),
+        "--from 后面少了值"
+    );
+}

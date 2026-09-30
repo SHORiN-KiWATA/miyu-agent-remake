@@ -26,8 +26,9 @@ impl Follow<'_> {
         self.waits && self.ended_first && self.turn.is_none()
     }
 
-    /// 一轮开了头（`turn.started` 整条事件）：第一轮是自己发的那条命令开的；第一轮结束以后，等子代理的时候开的每一轮都跟
-    /// （被回报叫醒的，施工 7-9）。有跟着的回合在进行的不理。
+    /// 一轮开了头（`turn.started` 整条事件）：第一轮是自己发的那条命令开的（她正忙时由别人开的、会听到这一句的那一轮，
+    /// 在它后面的推送里接上，施工 7-10，`joining.rs`）；第一轮结束以后，等子代理的时候开的每一轮都跟（被回报叫醒的，施工
+    /// 7-9）。有跟着的回合在进行的不理。
     pub(super) fn started(&mut self, event: &Value, screen: &mut Screen<'_>) {
         let ours = match self.ended_first {
             false => event["cause"] == json!(self.sent),
@@ -36,6 +37,11 @@ impl Follow<'_> {
         if self.turn.is_some() || !ours {
             return;
         }
+        self.begin(event["turn"].as_u64(), false, screen);
+    }
+
+    /// 跟第 `turn` 轮：这一轮的回答、用量、出错从头记。`joined` 是它不是这一句开的，是接上的（施工 7-10）。
+    pub(super) fn begin(&mut self, turn: Option<u64>, joined: bool, screen: &mut Screen<'_>) {
         self.unwait(screen);
         self.agents.turn_started();
         self.kinds.clear();
@@ -44,7 +50,8 @@ impl Follow<'_> {
         self.usage = super::Sum::default();
         self.failure = None;
         self.compacting = super::compacting::Compacting::default();
-        self.turn = event["turn"].as_u64();
+        self.turn = turn;
+        self.joining.begin(joined);
     }
 
     /// 子代理的回报（`child.reported` 整条事件）：这次派出去的，印一行报回来了。闲着时到的，都了结了就收尾；回报叫醒她的，

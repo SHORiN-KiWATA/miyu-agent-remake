@@ -152,6 +152,12 @@ pub(crate) fn core() -> CoreTexts {
             }),
         }),
         jobs: Some(jobs()),
+        harness: Some(crate::HarnessTexts {
+            message_open: include_str!("../../../resources/core/harness/message-open.txt")
+                .to_string(),
+            message_close: include_str!("../../../resources/core/harness/message-close.txt")
+                .to_string(),
+        }),
     }
 }
 

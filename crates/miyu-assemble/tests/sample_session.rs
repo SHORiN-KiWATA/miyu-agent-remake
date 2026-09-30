@@ -61,6 +61,7 @@ fn texts() -> Texts {
         summarize_end: include_str!("../../../resources/core/compaction/summarize-end.txt")
             .to_string(),
         jobs: Some(job_texts()),
+        harness: None,
     }
 }
 

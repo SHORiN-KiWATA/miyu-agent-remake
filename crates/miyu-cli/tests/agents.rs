@@ -186,7 +186,7 @@ async fn a_background_command_is_not_waited_for_and_says_it_went_to_the_backgrou
         .iter()
         .any(|event| matches!(event.body, Body::JobReported(_)));
     assert!(!ended, "退出时后台命令还在跑");
-    home.until_disconnected().await;
+    home.until_connections(0).await;
     // 头走了：它结束了只记下，不叫醒她。
     within("后台命令结束", async {
         while !home
@@ -233,7 +233,7 @@ async fn ctrl_c_while_waiting_leaves_and_the_late_report_is_only_recorded() {
     );
     // 头走了才回报：只记下，不叫醒她。
     let main = home.oneshot().await;
-    home.until_disconnected().await;
+    home.until_connections(0).await;
     a.open();
     within("回报记下", async {
         while !home

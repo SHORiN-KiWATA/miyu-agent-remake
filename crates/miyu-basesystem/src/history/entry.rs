@@ -8,6 +8,7 @@ use std::collections::BTreeSet;
 use miyu_kernel::block::Block;
 use miyu_kernel::event::{Body, Event};
 use miyu_kernel::id::CallId;
+use miyu_kernel::origin::By;
 use miyu_kernel::template::Template;
 use miyu_kernel::time::Timestamp;
 
@@ -49,17 +50,28 @@ pub(super) struct Entry {
     pub(super) seq: u64,
     /// 写下的时刻。
     pub(super) at: Timestamp,
-    /// 谁说的。
+    /// 谁说的：筛的时候照它。
     pub(super) who: Who,
+    /// 「谁」那一格另写的：别的 harness 发来的话写 `agent "<名字>"`（施工 7-10）；没有的照 `who` 写。
+    pub(super) from: Option<String>,
     /// 「读」时这一条下面的原文；「找」也比它。
     pub(super) text: String,
 }
 
-/// 图片、文件的占位：`history/image.txt`、`history/file.txt`。
+impl Entry {
+    /// 「谁」那一格：别的 harness 发来的写它的名字，别的写 `by` 的那三种写法。
+    pub(super) fn said_by(&self) -> &str {
+        self.from.as_deref().unwrap_or(self.who.name())
+    }
+}
+
+/// 一条里代码写的几样：图片、文件的占位（`history/image.txt`、`history/file.txt`），别的 harness 发来的那一条的「谁」
+/// （`history/agent.txt`，施工 7-10）。
 #[derive(Clone)]
 pub(super) struct Placeholders {
     pub(super) image: Template,
     pub(super) file: Template,
+    pub(super) agent: Template,
 }
 
 /// 还算数的事件里挑出算一条的，照日志的先后。一个字都没有的（例如只想了没说就被打断的回复）不算；末尾的空白去掉。
@@ -94,6 +106,7 @@ pub(super) fn entries(events: &[Event], placeholders: &Placeholders, own: &str) 
                 seq: event.seq.get(),
                 at: event.at,
                 who,
+                from: from(event, placeholders),
                 text: text.to_string(),
             })
         })
@@ -118,6 +131,18 @@ fn blocks(blocks: &[Block], placeholders: &Placeholders, own: &str) -> String {
         })
         .collect();
     parts.join("\n")
+}
+
+/// 别的 harness 发来的话（`message.user`，`by` 是 `harness`，施工 7-10）：「谁」那一格照 `history/agent.txt` 写它的名字，
+/// 名字照模板的规矩转义，和请求里那块标签是同一个名字。别的没有。
+fn from(event: &Event, placeholders: &Placeholders) -> Option<String> {
+    match (&event.body, &event.by) {
+        (Body::MessageUser(_), By::Harness(harness)) => Some(inline(say(
+            &placeholders.agent,
+            &[("name", harness.name.as_str())],
+        ))),
+        _ => None,
+    }
 }
 
 /// 占位写在一行里：去掉字的文件末尾那个换行。

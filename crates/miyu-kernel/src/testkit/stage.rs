@@ -7,8 +7,8 @@ use super::script::{Line, Play};
 use crate::block::{Block, Text};
 use crate::event::{Body, Decision, Event, Level, ModelCalled, Response, Transient};
 use crate::facts::Environment;
-use crate::id::{CallId, CommandId, Seq, TurnId};
-use crate::origin::By;
+use crate::id::{CallId, CommandId, HarnessName, Seq, TurnId};
+use crate::origin::{By, Harness};
 use crate::request::Request;
 use crate::session::{
     Action, Answer, Command, Injection, Input, Limits, Outcome, Policy, Queued, Received, Session,
@@ -103,6 +103,23 @@ impl Stage {
             blocks,
             urgent: false,
         })
+    }
+
+    /// 别的 harness `name` 说一句（施工 7-10）：`by` 是 `harness`，一块字。返回这个命令的编号。
+    ///
+    /// # Panics
+    ///
+    /// `name` 不合短名字的写法。
+    pub fn harness_says(&mut self, name: &str, words: &str) -> CommandId {
+        let name = HarnessName::parse(name).unwrap_or_else(|e| panic!("名字的写法坏了：{e}"));
+        let by = By::Harness(Harness { name });
+        self.command_as(
+            by,
+            Command::Send {
+                blocks: text(words),
+                urgent: false,
+            },
+        )
     }
 
     /// 急着插话。

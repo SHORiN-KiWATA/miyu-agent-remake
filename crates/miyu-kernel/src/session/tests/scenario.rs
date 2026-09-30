@@ -9,6 +9,7 @@ mod clear;
 mod commands;
 mod compaction;
 mod done;
+mod harness;
 mod isolate;
 mod manual;
 mod messages;
@@ -72,6 +73,7 @@ fn told(event: &Event) -> String {
         By::Module(module) => module.id.as_str().to_string(),
         By::Kernel => "kernel".to_string(),
         By::Session(_) => "child".to_string(),
+        By::Harness(harness) => format!("harness {}", harness.name),
         other => format!("{other:?}"),
     };
     let turn = event

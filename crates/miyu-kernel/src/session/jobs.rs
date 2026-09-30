@@ -17,12 +17,22 @@ use crate::ledger::{Ledger, LedgerError};
 use crate::origin::By;
 use crate::time::Timestamp;
 
-/// 一条会叫醒她的回报：序号、它的 `cause`、哪个任务。
+/// 一条会叫醒她的回报：序号、它的 `cause`、是谁的。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Arrived {
     pub(super) seq: Seq,
     pub(super) cause: Option<CommandId>,
-    pub(super) job: JobId,
+    pub(super) waker: Waker,
+}
+
+/// 别处来的、会叫醒她的一条是谁的。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum Waker {
+    /// 派出去的一个任务：它的回报、子代理的留言（施工 7-7）。派它的那一轮撤掉了的不叫醒。
+    Job(JobId),
+    /// 别的 harness 发来的话（施工 7-10，`kernel/session.md`「别的 harness 发来的话」）：不是哪个任务的，没有「派它的那一轮
+    /// 撤掉了」这回事，一律叫醒。
+    Harness,
 }
 
 impl Session {
@@ -104,20 +114,20 @@ impl Session {
         cause: Option<CommandId>,
         body: Body,
     ) -> Result<Vec<Event>, LedgerError> {
-        let wake = job_of(&body).filter(|_| wakes(&body));
+        let wake = job_of(&body).filter(|_| wakes(&body)).map(Waker::Job);
         self.land(at, by, cause, body, wake)
     }
 
-    /// 记下别处来的一条（回报，子代理的留言：施工 7-7），不带回合编号；`wake` 是它会叫醒她时说的那个任务。会叫醒她的、
-    /// 派它的那一轮还在的：正忙排进这一轮的回报队，闲着、这时开得了由它开一轮，开不了的记在一边。交回追加的事件：这一条，
-    /// 和由它开的那一轮的开头。过不了账本的什么都不记。
+    /// 记下别处来的一条（回报，子代理的留言：施工 7-7，别的 harness 发来的话：施工 7-10），不带回合编号；`wake` 是它会叫醒
+    /// 她时是谁的。会叫醒她的、派它的那一轮还在的：正忙排进这一轮的回报队，闲着、这时开得了由它开一轮，开不了的记在一边。
+    /// 交回追加的事件：这一条，和由它开的那一轮的开头。过不了账本的什么都不记。
     pub(super) fn land(
         &mut self,
         at: Timestamp,
         by: By,
         cause: Option<CommandId>,
         body: Body,
-        wake: Option<JobId>,
+        wake: Option<Waker>,
     ) -> Result<Vec<Event>, LedgerError> {
         let event = Event {
             seq: self.ledger.next_seq(),
@@ -128,14 +138,14 @@ impl Session {
             body,
         };
         self.commit(&event)?;
-        let Some(job) = wake else {
+        let Some(waker) = wake else {
             return Ok(vec![event]);
         };
-        let hidden = self.hidden(&job);
+        let hidden = self.hidden(&waker);
         let arrived = Arrived {
             seq: event.seq,
             cause: event.cause.clone(),
-            job,
+            waker,
         };
         let mut events = vec![event];
         if let Some(turn) = self.turn.as_mut() {
@@ -160,7 +170,7 @@ impl Session {
             .deferred
             .iter()
             .rev()
-            .find(|arrived| !self.hidden(&arrived.job))
+            .find(|arrived| !self.hidden(&arrived.waker))
             .cloned()
         else {
             return Vec::new();
@@ -213,11 +223,16 @@ impl Session {
             && self.restoring.is_none()
     }
 
-    /// 派它的那一轮撤掉了：回报不渲染，也不叫醒她（`agents.md` 第七条第 2 条）。没派过的一样。
-    fn hidden(&self, job: &JobId) -> bool {
-        self.history
-            .dispatched(job)
-            .is_none_or(|dispatched| dispatched.undone)
+    /// 派它的那一轮撤掉了：回报不渲染，也不叫醒她（`agents.md` 第七条第 2 条）。没派过的一样。别的 harness 发来的话不是哪个
+    /// 任务的，不会这样。
+    fn hidden(&self, waker: &Waker) -> bool {
+        match waker {
+            Waker::Job(job) => self
+                .history
+                .dispatched(job)
+                .is_none_or(|dispatched| dispatched.undone),
+            Waker::Harness => false,
+        }
     }
 }
 
@@ -248,11 +263,11 @@ fn job_of(body: &Body) -> Option<JobId> {
     }
 }
 
-/// 这一条到了会叫醒她：交回它说的那个任务（载入时算记在一边的用）。会叫醒她的回报，和这个会话派的子代理发来的留言
-/// （施工 7-7，`messages.rs`）；别的没有。`ledger` 是记过这一条的账本。
-pub(super) fn waking(ledger: &Ledger, event: &Event) -> Option<JobId> {
+/// 这一条到了会叫醒她：交回是谁的（载入时算记在一边的用）。会叫醒她的回报，这个会话派的子代理发来的留言（施工 7-7），
+/// 别的 harness 发来的话（施工 7-10，`messages.rs`）；别的没有。`ledger` 是记过这一条的账本。
+pub(super) fn waking(ledger: &Ledger, event: &Event) -> Option<Waker> {
     match &event.body {
         Body::MessageUser(_) => super::messages::sent_by(ledger, &event.by),
-        body => job_of(body).filter(|_| wakes(body)),
+        body => job_of(body).filter(|_| wakes(body)).map(Waker::Job),
     }
 }

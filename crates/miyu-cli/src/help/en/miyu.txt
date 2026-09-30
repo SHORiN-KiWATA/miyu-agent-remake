@@ -15,6 +15,7 @@ ask options:
       --add-dir <dir>     Let her read and write this directory too; repeatable
       --file <file>       Attach a file: image, PDF, text…; repeatable
       --timeout <time>    Stop waiting after this long: 30s, 10m, 1h
+      --from <name>       For another harness: its name, e.g. claude-code
 
 undo, restore, redo, compact options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened

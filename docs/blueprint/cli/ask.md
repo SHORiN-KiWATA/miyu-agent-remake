@@ -9,17 +9,18 @@
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu/src/main.rs` | 子命令 `ask`；换上帮助页；拉起核心用的命令是自己加上 `core` |
-| `crates/miyu-cli/src/ask.rs` | 参数、退出码、找数据根、连核心、Ctrl+C |
+| `crates/miyu-cli/src/ask.rs` | 参数、退出码、找数据根、连核心、Ctrl+C；`--from`（施工 7-10） |
 | `crates/miyu-cli/src/ask/talk.rs` | 握手、传附件（施工 3-9 三补）、找会话、订阅、发、跟着那一轮；等子代理时按 Ctrl+C 不等了、`--timeout`（施工 7-9） |
 | `crates/miyu-cli/src/ask/follow.rs` | 收推送：回答、思考、每一步、用量 |
 | `crates/miyu-cli/src/ask/follow/ending.rs` | 一轮结束、都结束了、不等了：收尾印的几行，退出码（施工 7-9 从 `follow.rs` 挪出来） |
 | `crates/miyu-cli/src/ask/follow/waiting.rs` | 等子代理：跟被回报叫醒的几轮，等的那一行，报回来了那一行（施工 7-9） |
 | `crates/miyu-cli/src/ask/follow/agents.rs` | 照事件流数还有几个子代理没报、回报叫醒的那一轮来不来（施工 7-9） |
+| `crates/miyu-cli/src/ask/follow/joining.rs` | 她正忙时，跟住听到这一句的那一轮（施工 7-10，「怎么走」第 8 条） |
 | `crates/miyu-cli/src/ask/steps.rs` | 每一步的标题、目录太宽那一句、沙盒用不了那一句（施工 5-4 下）、最后那一句 |
 | `crates/miyu-cli/src/ask/steps/blocks.rs` | 执行命令、编辑那一块下面印什么（施工 4-11） |
 | `crates/miyu-cli/src/ask/usage.rs` | 用量加起来 |
 | `crates/miyu-cli/src/link.rs`、`rpc.rs`、`shown.rs` | 握手、发请求等回应、请求的编号、一行怎么上色、路径怎么写短；和 `miyu undo` 共用。`rpc.rs` 放下时掐掉读的任务，连接当场关上（施工 7-9） |
-| `crates/miyu-cli/src/language.rs`、`language/agents.rs` | 给人看的字；等子代理时的那几句（施工 7-9） |
+| `crates/miyu-cli/src/language.rs`、`language/agents.rs`、`language/harness.rs` | 给人看的字；等子代理时的那几句（施工 7-9）；`--from` 不等了的两句（施工 7-10） |
 | `crates/miyu-cli/src/help/{zh,en}/ask.txt` | 帮助页（`cli/main.md`「帮助页」） |
 | `resources/software/basesystem/human/{zh,en}.json` | 每件工具的符号、显示名、下面印哪一块，结果那一句 |
 | `resources/core/human/{zh,en}.json` | 内核记的那几句结果的说法（例如 `tool-results/unattended`） |
@@ -34,6 +35,7 @@
 | `--format text\|json` | 默认 `text` |
 | `--add-dir <目录>` | 多放行一个目录：和工作区一样能读能写；可以写好几次（施工 5-10 上） |
 | `--file <文件>` | 附上一个文件：图片、PDF、文本……；可以写好几次，照写的先后（施工 3-9 三补） |
+| `--from <名字>` | 别的 harness 发的（施工 7-10，`agents.md` 第十一条第 4 条）：写上它的名字，这一句记成它说的，不是本人。和 `-s`、`-c` 一起用是往那个会话里发；都不写开一个新会话。空的、只有空白的照「参数写错时」说（`cli/main.md`），退出码 2 |
 | `--timeout <时长>` | 最多等多久：从发出算到全部了结，到了不再等，退出码 3（施工 7-9，「等子代理」第 8 条）。正整数，后面可以跟 `s`、`m`、`h`，不写是秒（`30`、`30s`、`10m`、`1h`），照 GNU `timeout` 的写法；0、负数、小数、别的单位照「参数写错时」说（`cli/main.md`），退出码 2。长到算不出那一刻的，当没写 |
 
 - 界面语言：`LC_ALL`、`LC_MESSAGES`、`LANG` 里第一个设了、不是空的（`cli/main.md`），`zh` 开头说中文，别的说英文。帮助页也照它。
@@ -58,12 +60,15 @@
    2. `--continue`：`session.list`，带 `oneshot: true`、`limit: 1`，取第一个。一个都没有：说「还没有 miyu ask 开过的会话」，退出码 1。
    3. `--session`：照写的。
 6. **订阅** `subscribe`：`{"session": …, "stream": "events"}`。
-7. **发** `session.send`（写了 `--timeout` 的，从这一刻算起）：`{"session": …, "text": …, "cwd": …, "dirs": […]}`：`dirs` 每次都写，没有 `--add-dir` 就是空的，所以 `--continue` 时各次照各次的。有附件的，再带 `attachments`：第 4 条的 `blob.put` 回应照先后原样放进去；没有附件的不写这一格。请求的编号是 `ask-<16 位十六进制>-<序号>`：前缀每个进程随机一次（取不到随机数的，用进程号和此刻的纳秒，各写成十六进制接在一起），序号从 1 数起。被拒绝的：核心照握手时的语言写的原因，照原样印在标准错误上，退出码 1。回应里有 `cwd`、和前面说过的不一样的，也说一句目录太宽，一次 `miyu ask` 至多说一次。
+7. **发** `session.send`（写了 `--timeout` 的，从这一刻算起）：`{"session": …, "text": …, "cwd": …, "dirs": […]}`：`dirs` 每次都写，没有 `--add-dir` 就是空的，所以 `--continue` 时各次照各次的。写了 `--from` 的（施工 7-10）：带上 `"from": <名字>`，照写的原样，去控制字符、截短由核心做（`protocol.md` 的 `session.send` 第 6 条）；不带 `cwd`，`dirs` 只在写了 `--add-dir` 时带（2026-09-30 主会话定：会话的工作目录、加进来的目录是人的，别的 harness 发一句不该把它们换成自己的）。开新会话时 `session.create` 照常带 `cwd`、`dirs`：那个会话是它开的。有附件的，再带 `attachments`：第 4 条的 `blob.put` 回应照先后原样放进去；没有附件的不写这一格。请求的编号是 `ask-<16 位十六进制>-<序号>`：前缀每个进程随机一次（取不到随机数的，用进程号和此刻的纳秒，各写成十六进制接在一起），序号从 1 数起。被拒绝的：核心照握手时的语言写的原因，照原样印在标准错误上，退出码 1。回应里有 `cwd`、和前面说过的不一样的，也说一句目录太宽，一次 `miyu ask` 至多说一次。
 8. **跟着那一轮**：`turn.started` 的 `cause` 是自己发的那条命令的，就是它；之后只收这一轮的推送，照回合编号认。收到 `resync`（掉队了），重新订阅，不补看掉的那些。
+   - 她正忙（施工 7-10，2026-09-30 主会话定，平常的和 `--from` 一样）：这一句不另开一轮，由在进行的那一轮下一步听到。推过来的那条 `message.user`（`cause` 是自己的命令）带着回合编号的（人的话排进了那一轮），跟那一轮；不带的（`--from` 的话），它后面第一条带回合编号的推送是哪一轮的就跟哪一轮，闲着时由它开的那一轮照上面认。从接上的那一刻起印，之前的不补。
+   - 跟住的那一轮是接上的、结束时还没听到这一句（这一轮每次请求的 `seen` 都比这一句的序号小：她在最后一步，或者被打断了），不收尾，也不算第一轮结束：内核同一批接着开下一轮（打断时排着的接着发的也是），跟那一轮。听到了的，照它怎么结束收尾。
 9. **收尾**：`turn.ended` 来了，她派出去的子代理还有没报的、回报叫醒她的那一轮要来的，接着等（下面「等子代理」）；别的照下面「样子」印完，交回退出码。
-10. **Ctrl+C**：有回合在进行（还没认出第一轮的也算）：第一次发 `session.interrupt`，带 `queued: "return"`，等这一轮收尾；第二次不等了，说「打断了」，退出码 3。等子代理的时候按：不等了（「等子代理」第 7 条）。
+10. **Ctrl+C**：有回合在进行（还没认出第一轮的也算）：第一次发 `session.interrupt`，带 `queued: "return"`，等这一轮收尾；第二次不等了，说「打断了」，退出码 3。等子代理的时候按：不等了（「等子代理」第 7 条）。写了 `--from` 的（施工 7-10，2026-09-30 主会话定）：不打断，按一次就不等了，照第 13 条。
 11. **核心断开**：说「核心断开了」，退出码 1。
-12. **`--timeout` 到了**：有回合在进行的（还没认出第一轮的也算）发 `session.interrupt`，带 `queued: "return"`，不等它收尾；照「等子代理」第 8 条印完，退出码 3。
+12. **`--timeout` 到了**：有回合在进行的（还没认出第一轮的也算）发 `session.interrupt`，带 `queued: "return"`，不等它收尾；照「等子代理」第 8 条印完，退出码 3。写了 `--from` 的不打断，照第 13 条。
+13. **别的 harness 不等了**（`--from`，施工 7-10，2026-09-30 主会话定）：按 Ctrl+C、到了 `--timeout`，都只是不等了，不发 `session.interrupt`：那一轮是她的，会话是人的，别的 harness 不该打断人的会话。有回合在进行的（还没认出第一轮的也算），照收尾印用量、最后那一句，再印一行灰字 `· 不等了，她那一轮还在接着跑`、`· 等到时间了，她那一轮还在接着跑`，退出码 3。在等子代理的时候，照「等子代理」第 7、8 条。平常的 `miyu ask` 照旧打断。
 
 ### 样子：`--format text`
 
@@ -264,7 +269,7 @@ B 也查完了，都齐了。
 | 0 | 这一轮照常结束 |
 | 1 | 出错：找不到数据根、连不上、被拒绝、核心断开、模型出错、这一轮没走完、一个一次性会话都没有 |
 | 2 | 参数不对（`cli/main.md`） |
-| 3 | 按了两次 Ctrl+C；或者这一轮被打断了；等子代理的时候按了 Ctrl+C、到了 `--timeout`（施工 7-9） |
+| 3 | 按了两次 Ctrl+C；或者这一轮被打断了；等子代理的时候按了 Ctrl+C、到了 `--timeout`（施工 7-9）；`--from` 按了一次 Ctrl+C、到了 `--timeout`（施工 7-10） |
 | 4 | 这一轮照常结束，可有几步因为要确认没做 |
 | 5 | 没有可用的模型：没设 key、核心也没在跑；或者没发出去就认证失败 |
 
@@ -298,12 +303,15 @@ B 也查完了，都齐了。
 | 附件传不上（施工 3-9 三补） | 附不上 <文件>：<核心说的原因> | Cannot attach <file>: <reason> |
 | 打断了 | 打断了 | Interrupted |
 | 核心断开 | 核心断开了 | The core went away |
+| `--from` 后面是空的、只有空白（施工 7-10） | `--from 后面要写别的 harness 的名字` | `--from needs the name of the other harness` |
 | 等子代理，一个（施工 7-9） | `· 等 1 个子代理回报…（按 Ctrl+C 不等了）` | `· Waiting for 1 subagent to report… (Ctrl+C stops waiting)` |
 | 等子代理，几个 | `· 等 2 个子代理回报…（按 Ctrl+C 不等了）` | `· Waiting for 2 subagents to report… (Ctrl+C stops waiting)` |
 | 报回来了 | `· j1「查 A」报回来了` | `· j1 “查 A” reported back` |
 | 等的时候按了 Ctrl+C | `· 不等了，子代理还在后台跑，下次 miyu ask -c 时她会看到结果` | `· Stopped waiting; the subagents keep running, and she will see their results at the next miyu ask -c` |
 | 到了 `--timeout`，还有子代理没报 | `· 等到时间了，没回报的子代理还在后台跑` | `· Time is up; the subagents that have not reported keep running` |
 | 到了 `--timeout`，没有 | `· 等到时间了` | `· Time is up` |
+| `--from` 按了 Ctrl+C，她那一轮还在进行（施工 7-10） | `· 不等了，她那一轮还在接着跑` | `· Stopped waiting; her turn keeps going` |
+| `--from` 到了 `--timeout`，她那一轮还在进行 | `· 等到时间了，她那一轮还在接着跑` | `· Time is up; her turn keeps going` |
 | 没走完 | 这一轮没走完：<原因> | The turn did not finish: <reason> |
 | 出错 | 出错了：<分类>：<原话> | Error: <kind>: <message> |
 
@@ -342,6 +350,7 @@ B 也查完了，都齐了。
       --add-dir <目录>    多放行一个目录，她能读能写，可以写好几次
       --file <文件>       附上一个文件，图片、PDF、文本都行，可以写好几次
       --timeout <时长>    最多等多久，到了就不等了：30s、10m、1h
+      --from <名字>       别的 harness 用：写上它的名字，例如 claude-code
   -h, --help              印帮助
 ```
 
@@ -360,6 +369,7 @@ Options:
       --add-dir <dir>     Let her read and write this directory too; repeatable
       --file <file>       Attach a file: image, PDF, text…; repeatable
       --timeout <time>    Stop waiting after this long: 30s, 10m, 1h
+      --from <name>       For another harness: its name, e.g. claude-code
   -h, --help              Print help
 ```
 
@@ -379,7 +389,9 @@ Options:
 | `crates/miyu-cli/src/ask/follow/tests/waiting.rs`（施工 7-9） | 等子代理：终端里等的那一行原地刷新、数目变了重画、别的来了先擦掉；不是终端的只印一次；报回来了那一行；用量、几步没做几轮加起来，只印一次；回报没被听到的等下一轮、不印等的那一行；不是这次派的不印不数；不等子代理的头跟完一轮就走；打断结束的不再等；不等了、到时间了的两种说法；什么时候算在等；`--format json` 列出每一轮、等的时候什么都不印、不等了也印那一行 JSON；英文 |
 | `crates/miyu-cli/src/ask/follow/agents/tests.rs`（施工 7-9） | 数还有几个没报：后台命令不数、哪种原因的回报都算报过、不是这次派的不认；留言以后又欠、留言发出以后先到的回报算回了；闲着时到的会不会叫醒她（每种原因）；一轮里没听到的回报等下一轮、打断结束的不等、她自己停的不排进回报队 |
 | `crates/miyu-cli/tests/agents.rs`（施工 7-9） | 真的核心、出厂的工具、替身模型在主会话和子会话里各答各的：派两个子代理、先后回报，屏幕和 `docs/designs/samples/cli/ask-agents-text.txt` 逐字节一样；`--format json` 的 `turns`；报过又被留言的再等它报；后台命令不等、那一步印「放到后台了」、头走了以后它结束只记下；等的时候按 Ctrl+C 退出码 3、头走了以后的回报只记下；`--timeout` 在等的时候到了、在一轮里到了（打断那一轮），退出码 3 |
-| `crates/miyu-cli/src/ask/tests.rs` | 几个词用空格连起来；给人看的字照界面语言读，读不出来的当没有；加进来的目录照写的先后、去掉重复的；相对的接成绝对的，不是目录的读不成（施工 5-10 上）；`--file` 相对的接成绝对的、不查在不在，照写的先后、不去重（施工 3-9 三补）；`--timeout` 的写法，读不成的几种（施工 7-9） |
+| `crates/miyu-cli/tests/from.rs`（施工 7-10） | 真的核心：`--from` 和 `-s`、`-c` 一起用往那个会话里发、都不写开新会话，记成 `harness`、带着名字，她收到的请求里是带标签的那一块；带 `from`、不带 `cwd`，写了 `--add-dir` 才带 `dirs`，会话的工作目录不变；往正忙的会话里发，平常的和 `--from` 都跟住听到它的那一轮、印它的回答、退出码 0；`--from` 按 Ctrl+C、到了 `--timeout` 退出码 3、说那一轮还在接着跑，她那一轮没被打断、照常答完 |
+| `crates/miyu-cli/src/ask/follow/tests/joining.rs`（施工 7-10） | 接上正忙的那一轮：人的话带着回合编号的当场接上，`--from` 的话接下一条带回合编号的推送；接上以前的推送不印；接上的那一轮没听到就结束的（被打断的也是）接着跟下一轮、不收尾，听到了的照它怎么结束收尾；闲着时由它开的那一轮照旧认；`--from` 在她那一轮还在进行时不等了的两种说法，两种语言，在等子代理时照旧 |
+| `crates/miyu-cli/src/ask/tests.rs` | 几个词用空格连起来；给人看的字照界面语言读，读不出来的当没有；加进来的目录照写的先后、去掉重复的；相对的接成绝对的，不是目录的读不成（施工 5-10 上）；`--file` 相对的接成绝对的、不查在不在，照写的先后、不去重（施工 3-9 三补）；`--timeout` 的写法，读不成的几种（施工 7-9）；`--from` 空的、只有空白的读不成，别的照原样（施工 7-10） |
 | `crates/miyu-cli/tests/attach.rs` | 真的核心走一遍 `--file`（施工 3-9 三补）：文字在前、附件照写的先后变成块，图片的宽高、文本的媒体类型；没有的、太大的说是哪个文件、为什么，中文、英文，退出码 1，不造会话 |
 | `crates/miyu-cli/tests/ask.rs` | 真的核心：开一次性会话、`--continue`、没有会话可接、被拒绝、没有模型、Ctrl+C 一次和两次；加进来的目录跟着每一次 `miyu ask`：`--continue` 不写的那一轮就没有，太宽的造会话时就被拒、不留空会话（施工 5-10 上） |
 | `crates/miyu-cli/tests/steps.rs` | 真的核心、真的工具走一遍：每一步、执行命令和编辑那两块、目录太宽、给脚本的只看退出码。要确认的一步是写到工作区外面（施工 5-4 上起读哪儿都不问）；执行命令经 cargo 编出来的助手在沙盒里跑 |
@@ -400,4 +412,4 @@ Options:
 - `--persona`、`--preset`、`--model`、`--tools`、`--no-memory`，`--format stream-json`。
 - 管道进来的内容当附件。
 - 还没配模型时，先问首次引导的那两件事。
-- 别的 harness 发消息（`--from`，7-10）。
+- 这一句一时没有哪一轮听到它的，一直等到有一轮听到它：接上的那一轮被打断、这一句被退回了（`return`），或者 `--from` 的话被打断以后只记下、那个会话还能恢复撤销时只记下。按 Ctrl+C 或者用 `--timeout`（施工 7-10）。

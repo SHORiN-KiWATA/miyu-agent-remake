@@ -11,7 +11,7 @@ use std::fmt;
 
 use super::Session;
 use super::action::Action;
-use super::jobs::{self, Arrived};
+use super::jobs::{self, Arrived, Waker};
 use super::meta::Meta;
 use super::policy::Policy;
 use super::recent::Recent;
@@ -20,7 +20,7 @@ use super::turn::Stage;
 use crate::event::{Body, EndReason, Event, Permission, PolicyChanged, ToolStatus};
 use crate::facts::Environment;
 use crate::history::History;
-use crate::id::{CommandId, JobId, Seq};
+use crate::id::{CommandId, Seq};
 use crate::ledger::{Ledger, LedgerError};
 use crate::origin::By;
 use crate::time::Timestamp;
@@ -239,17 +239,17 @@ impl Replay {
         })
     }
 
-    /// 读进来一条：记下它带来的变化。`queued` 是这一条之前还排着队的消息；`waking` 是它会叫醒她时说的那个任务（会叫醒她
-    /// 的回报、子代理的留言）。
-    fn note(&mut self, event: &Event, queued: Vec<Seq>, waking: Option<JobId>) {
+    /// 读进来一条：记下它带来的变化。`queued` 是这一条之前还排着队的消息；`waking` 是它会叫醒她时是谁的（会叫醒她
+    /// 的回报、子代理的留言、别的 harness 发来的话）。
+    fn note(&mut self, event: &Event, queued: Vec<Seq>, waking: Option<Waker>) {
         self.last = Some(event.seq);
         if !self.open
-            && let Some(job) = waking
+            && let Some(waker) = waking
         {
             self.deferred.push(Arrived {
                 seq: event.seq,
                 cause: event.cause.clone(),
-                job,
+                waker,
             });
         }
         match &event.body {

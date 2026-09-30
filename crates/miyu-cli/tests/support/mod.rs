@@ -240,10 +240,11 @@ impl Home {
         .await
     }
 
-    /// 等核心那边的连接都断了，最多十秒（施工 7-9）：断了，头的订阅都放下了，会话知道没人看着了。
-    pub async fn until_disconnected(&self) {
-        within("连接都断了", async {
-            while self.core.connections() > 0 {
+    /// 等核心那边只剩 `left` 个连接，最多十秒：都断了（`left` 是 0），头的订阅都放下了，会话知道没人看着了（施工 7-9）；一个
+    /// 连接上的请求一条条办，断开时它发过的都办完了（施工 7-10）。
+    pub async fn until_connections(&self, left: usize) {
+        within("连接断到只剩那几个", async {
+            while self.core.connections() > left {
                 tokio::time::sleep(Duration::from_millis(5)).await;
             }
         })
@@ -446,6 +447,7 @@ pub fn plan(text: &str) -> Plan {
         human: Human::load(&resources(), "zh").expect("出厂的字读得出来"),
         home: None,
         timeout: None,
+        from: None,
     }
 }
 

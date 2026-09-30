@@ -16,8 +16,8 @@ use miyu_kernel::id::{Seq, TurnId};
 use miyu_kernel::origin::By;
 use miyu_kernel::request::Message;
 
-use crate::jobs;
 use crate::texts::Texts;
+use crate::{harness, jobs};
 
 /// 渲染有效历史：检查点和历史，照先后排好的消息。稳定区不在这里。
 pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
@@ -35,10 +35,14 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
     }
     for event in history.ordered() {
         match &event.body {
-            // 子代理发来的留言注明是哪个子代理（施工 7-7，`jobs.rs`）；别人发的原样。
+            // 子代理发来的留言注明是哪个子代理（施工 7-7，`jobs.rs`），别的 harness 发来的话注明是它、叫什么（施工 7-10，
+            // `harness.rs`）；别人发的原样。
             Body::MessageUser(message) => {
                 let blocks = known(&message.blocks);
-                let blocks = jobs::message(history, &event.by, blocks, texts.jobs.as_ref());
+                let blocks = match &event.by {
+                    By::Harness(from) => harness::message(from, blocks, texts.harness.as_ref()),
+                    by => jobs::message(history, by, blocks, texts.jobs.as_ref()),
+                };
                 transcript.add(event.seq, None, blocks);
             }
             Body::ContextInjected(fact) => {

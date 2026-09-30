@@ -1,8 +1,9 @@
 //! 握手以后的方法（`docs/designs/04-核心协议.md` 第九节「先做的几样怎么写」）：造会话、说话、打断，
 //! 列出会话（施工 3-9 下），撤销、恢复（施工 4-7 上；回应带上给人看的几样，施工 4-7 下），重做（施工 4-7 再补），手动压缩
 //! （施工 6-8），切权限级别（施工 3-8 再补），清空上下文（施工 6-8 补），停掉一个任务（施工 7-4），传附件（施工 3-9 三补），改标题、
-//! 置顶，删除会话（施工 3-8 三补）。命令交给会话，等它的回应：接受的回 `events`（切权限级别、停掉任务、改标题的回 `{}`），拒绝的
-//! 回原因码；删除由会话表办。造会话、说话的回应再带上会话实际在哪个目录里干活（施工 4-5 下）。
+//! 置顶，删除会话（施工 3-8 三补）。别的 harness 带着名字说话（`session.send` 的 `from`，施工 7-10）。命令交给会话，等它的
+//! 回应：接受的回 `events`（切权限级别、停掉任务、改标题的回 `{}`），拒绝的回原因码；删除由会话表办。造会话、说话的回应再带上
+//! 会话实际在哪个目录里干活（施工 4-5 下）。
 
 use std::sync::Arc;
 
@@ -12,11 +13,13 @@ use serde_json::{Value, json};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::Level;
 use miyu_kernel::id::{JobId, Seq, SessionId, TurnId};
+use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Outcome, Queued};
 use miyu_session::Handle;
 
 use crate::Core;
 use crate::attach::{self, Attachment};
+use crate::from;
 use crate::hello::Peer;
 use crate::list;
 use crate::meta::MetaParams;
@@ -68,6 +71,9 @@ struct SendParams {
     /// 附件（施工 3-9 三补）：`blob.put` 的回应，照先后接在文字后面；不写、写 `null` 的是没有。
     #[serde(default)]
     attachments: Option<Vec<Attachment>>,
+    /// 别的 harness 报的名字（施工 7-10）：写了的，这一句是它说的；不写、写 `null` 的是本人。
+    #[serde(default)]
+    from: Option<String>,
 }
 
 /// `session.interrupt` 的参数。
@@ -190,6 +196,11 @@ pub(crate) async fn call(
         }
         "session.send" => {
             let params: SendParams = params(request)?;
+            // 别的 harness 报的名字先查（施工 7-10）：不对的，会话里什么都不送。
+            let by = match &params.from {
+                Some(name) => from::harness(name)?,
+                None => admin(core),
+            };
             let mut blocks = said(params.text);
             let session = session(&params.session)?;
             // 附件先查，再找会话：不对的，会话里什么都不送，`cwd`、`dirs` 也不送（施工 3-9 三补）。
@@ -208,7 +219,7 @@ pub(crate) async fn call(
                     params.dirs.as_deref(),
                 )
                 .await?;
-            let events = command_to(core, request, &session, &found.handle, command).await?;
+            let events = command_by(core, request, &session, &found.handle, by, command).await?;
             Ok(json!({"events": events, "cwd": found.cwd}))
         }
         "session.interrupt" => {
@@ -331,7 +342,7 @@ pub(crate) async fn call(
     }
 }
 
-/// 把命令交给会话 `session`（把手是 `handle`），等它的回应：接受的交回它产生的事件的序号。会话停了的
+/// 把命令交给会话 `session`（把手是 `handle`），记成管理员发的，等它的回应：接受的交回它产生的事件的序号。会话停了的
 /// 从表里拿掉。
 async fn command_to(
     core: &Core,
@@ -340,10 +351,19 @@ async fn command_to(
     handle: &Handle,
     command: Command,
 ) -> Result<Vec<u64>, Refusal> {
-    match handle
-        .command(request.id.clone(), admin(core), command)
-        .await
-    {
+    command_by(core, request, session, handle, admin(core), command).await
+}
+
+/// 同 [`command_to`]，记成 `by` 发的：别的 harness 发来的话（施工 7-10）。
+async fn command_by(
+    core: &Core,
+    request: &Request,
+    session: &SessionId,
+    handle: &Handle,
+    by: By,
+    command: Command,
+) -> Result<Vec<u64>, Refusal> {
+    match handle.command(request.id.clone(), by, command).await {
         Ok(Outcome::Accepted { events }) => Ok(events.iter().map(|seq| seq.get()).collect()),
         Ok(Outcome::Rejected { reason }) => Err(Refusal::kernel(reason)),
         Err(_) => {

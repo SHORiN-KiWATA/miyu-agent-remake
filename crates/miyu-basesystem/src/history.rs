@@ -88,6 +88,7 @@ impl History {
                 placeholders: Placeholders {
                     image: text("image", &[])?,
                     file: text("file", &["name"])?,
+                    agent: text("agent", &["name"])?,
                 },
                 footers: Footers {
                     more_found: text("more-found", &["shown", "total", "next"])?,

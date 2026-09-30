@@ -16,6 +16,7 @@ use miyu_kernel::tool::{ToolTextSources, ToolTexts};
 use serde::{Deserialize, Serialize};
 
 use crate::drivers::DriverPlaceholders;
+use crate::harness::HarnessTexts;
 use crate::jobs::{JobNumbers, JobTexts, REPORT_CHARS};
 use crate::pause::PauseNumbers;
 use crate::rebuild::{RebuildNumbers, RebuildTexts};
@@ -112,6 +113,10 @@ pub struct CoreTexts {
     /// 两种回报的写法（`jobs/`，施工 7-2）。以前造的快照里没有，读成没有：那些会话派不出任务；没有的不写。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub jobs: Option<JobTexts>,
+    /// 别的 harness 发来的话的标签（`harness/`，施工 7-10）。以前造的快照里没有，读成没有：那种话照人的话原样渲染；没有的
+    /// 不写。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub harness: Option<HarnessTexts>,
 }
 
 /// 压缩的几句（施工 6-2 上）。
@@ -334,6 +339,11 @@ impl Snapshot {
                 .map(|compaction| compaction.summarize_end.clone())
                 .unwrap_or_default(),
             jobs: core.jobs.as_ref().map(JobTexts::rendered).transpose()?,
+            harness: core
+                .harness
+                .as_ref()
+                .map(HarnessTexts::rendered)
+                .transpose()?,
         };
         let (face, rules) = tools::split(&self.tools)?;
         let stable = Stable {

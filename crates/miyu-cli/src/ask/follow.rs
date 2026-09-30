@@ -10,12 +10,15 @@
 //! `miyu redo` 也照这里跟着新的一轮（施工 4-7 再补）：回应到了先照 `miyu undo` 印撤掉了哪一轮（[`Follow::redoing`]）。核心写
 //! 回应里给人看的几样要读日志，回应到的时候新的一轮可能已经开口、甚至说完了：在那以前推过来的先攒着，印完那几行再接着收。
 //!
+//! 她正忙时这一句不另开一轮，跟的是听到它的那一轮（施工 7-10，`joining.rs`）。
+//!
 //! `miyu ask` 还等子代理（施工 7-9，[`Follow::waits`]）：这一轮结束了，派出去的子代理还有没报的，接着跟被回报叫醒的几轮，
 //! 都了结了才收尾（`waiting.rs`、`agents.rs`）；收尾的几行在 `ending.rs`。
 
 mod agents;
 mod compacting;
 mod ending;
+mod joining;
 mod waiting;
 
 use std::collections::BTreeMap;
@@ -108,6 +111,8 @@ pub(crate) struct Follow<'p> {
     agents: agents::Agents,
     /// 等子代理的那一行画着没有（施工 7-9）。
     waiting: waiting::Waiting,
+    /// 她正忙时跟住听到这一句的那一轮（施工 7-10）。
+    joining: joining::Joining,
 }
 
 impl<'p> Follow<'p> {
@@ -142,6 +147,7 @@ impl<'p> Follow<'p> {
             total: Sum::default(),
             agents: agents::Agents::default(),
             waiting: waiting::Waiting::default(),
+            joining: joining::Joining::default(),
         }
     }
 
@@ -245,6 +251,8 @@ impl<'p> Follow<'p> {
             "child.reported" => return self.child_reported(event, screen),
             _ => {}
         }
+        // 她正忙时接上听到这一句的那一轮（施工 7-10，`joining.rs`）。
+        self.join(event, screen);
         if self.turn.is_none() || event["turn"].as_u64() != self.turn {
             return Step::Going;
         }
@@ -261,6 +269,7 @@ impl<'p> Follow<'p> {
             }
             "model.called" => {
                 self.agents.called(body);
+                self.joining.called(body);
                 self.called(body, screen);
             }
             "compaction.progress" => self.compaction_progress(body, screen),

@@ -203,6 +203,7 @@ fn printing(plan: &RedoPlan) -> Plan {
         human: plan.human.clone(),
         home: plan.home.clone(),
         timeout: None,
+        from: None,
     }
 }
 

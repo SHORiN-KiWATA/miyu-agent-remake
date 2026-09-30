@@ -13,7 +13,7 @@
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu-basesystem/src/history.rs` | 参数、读日志、筛 |
-| `crates/miyu-basesystem/src/history/entry.rs` | 哪些算一条、一条的原文怎么写 |
+| `crates/miyu-basesystem/src/history/entry.rs` | 哪些算一条、一条的原文怎么写、「谁」那一格（别的 harness 发来的写名字，施工 7-10） |
 | `crates/miyu-basesystem/src/history/page.rs` | 找、读：一页怎么写、往下翻、整页上限、摘一段 |
 | `crates/miyu-basesystem/src/history/time.rs` | `since`、`until` 的写法 |
 | `crates/miyu-kernel/src/history.rs` | `History::whole()`：留着压缩替代掉的，撤销、恢复、撤回照有效历史的规矩算（`kernel/history.md`） |
@@ -22,7 +22,7 @@
 | `crates/miyu-store/src/log/open.rs` | `read_segments`：只读地一段一段读 |
 | `crates/miyu-session/src/tools.rs` | 执行器把这个会话日志的只读入口、会话的时区交给这次调用 |
 | `resources/software/basesystem/tools/history.json` | 说明和参数格式 |
-| `resources/software/basesystem/history/*.txt` | 输出里给她看的几句 |
+| `resources/software/basesystem/history/*.txt` | 输出里给她看的几句；`agent.txt` 是别的 harness 发来的那一条的「谁」（施工 7-10） |
 | `resources/software/basesystem/human/{zh,en}.json` | 显示名、结果那一句 |
 
 **交给工具的**（施工 6-4）：一次调用的 `Call` 多两格，别的工具不看。
@@ -58,7 +58,7 @@
 
 | 事件 | 算不算 | `by` |
 |---|---|---|
-| `message.user` | 算 | `user` |
+| `message.user` | 算。`by` 是 `harness` 的（别的 harness 发来的话，施工 7-10），「谁」那一格照 `history/agent.txt` 写成 `agent "<名字>"`，名字照模板的规矩转义，和请求里那块标签是同一个名字（`kernel/request.md`「别的 harness 发来的话」）；筛的时候照样算 `user` | `user` |
 | `message.assistant` | 算：正文和工具调用；思考不给 | `assistant` |
 | `tool.result` | 算 | `tool` |
 | `context.compacted` | 算：以前的摘要，以前压缩掉的也找得到。清空的摘要是空的，一个字都没有，不算（施工 6-8 补）；清空以前的照样找得到 | `assistant` |
@@ -73,10 +73,10 @@
 3. 照 `from`、`to`、`since`、`until`、`by` 筛。
 4. **找**（有 `query`）：
    1. 每个词都出现的算命中，不分大小写，照原样比，中文不分词。
-   2. 新的在前。一条一行：`#<序号> <时刻> <谁>: <摘出来的一段>`，摘第一处命中前后，一共最多 200 个字；连着的空白（换行也算）换成一个空格，前后截掉了的写 `…`。比的是「读」时这一条下面的原文。
+   2. 新的在前。一条一行：`#<序号> <时刻> <谁>: <摘出来的一段>`（`<谁>` 是 `by` 的那三种写法，别的 harness 发来的是 `agent "<名字>"`），摘第一处命中前后，一共最多 200 个字；连着的空白（换行也算）换成一个空格，前后截掉了的写 `…`。比的是「读」时这一条下面的原文。
    3. 还有更早的：末尾接 `(Showing {n} of {total} results. Use to={next} to see older ones.)`，`next` 是这一页最早那一条的序号减一。
 5. **读**（没有 `query`）：
-   1. 照先后，从范围的第一条起。每条头一行 `#<序号> <时刻> <谁>`，下面是原文：工具调用写成 `→ <工具名> <参数原文>`；图片、文件写占位。
+   1. 照先后，从范围的第一条起。每条头一行 `#<序号> <时刻> <谁>`（`<谁>` 同第 4 条），下面是原文：工具调用写成 `→ <工具名> <参数原文>`；图片、文件写占位。
    2. 整页最多 30000 个字，和 `shell` 一样；一条就超过的，截到上限，写明这一条一共多少字。
    3. 还有：末尾接 `(Showing entries {first}-{last}. Use from={next} to continue.)`。
 6. 什么都没有：`No entries found`，不算出错。
@@ -98,9 +98,10 @@
 找：
 
 ```text
+#230 2026-09-29 15:10 agent "claude-code": …迁移脚本写好了，按会话分区…
 #212 2026-09-29 14:05 user: …数据库那张表改成按会话分区，别再用一张大表…
 #87 2026-09-29 11:40 assistant: …按会话分区的话，迁移要…
-(Showing 2 of 5 results. Use to=86 to see older ones.)
+(Showing 3 of 5 results. Use to=86 to see older ones.)
 ```
 
 读：
@@ -136,6 +137,7 @@
 | `crates/miyu-kernel/src/history/tests.rs` | `History::whole()`：压缩替代掉的留着，摘要也是一条；撤销、恢复、撤回和有效历史一样；撤掉压缩所在的那一轮，摘要跟着不算（施工 6-9） |
 | `crates/miyu-store/src/log/tests.rs` | `read_segments`：一段一段交、叫停就不读下去、半行跳过不截 |
 | `crates/miyu-session/tests/history.rs` | 真的会话：压缩以后 `history` 找得到压缩以前的话，时刻照会话的时区 |
+| `crates/miyu-basesystem/src/history/tests/harness.rs`（施工 7-10） | 别的 harness 发来的话：找、读的「谁」那一格写名字、名字照规矩转义；筛 `user` 时在里面，筛 `assistant`、`tool` 时不在 |
 | `crates/miyu-basesystem/tests/human_history.rs` | 每一种结果的说法，两种语言都换得出字，显示名也有 |
 | 真模型实测（M6 验收） | 压缩以后问她压缩前的细节，她会用 `history` 取回 |
 

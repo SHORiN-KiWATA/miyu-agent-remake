@@ -21,6 +21,7 @@
 | `crates/miyu-endpoint/src/sessions/found.rs` | 找会话、载入（施工 7-8 从 `sessions.rs` 挪出来：表的锁在调的一方手里） |
 | `crates/miyu-endpoint/src/sessions/orphans.rs` | 载入时收掉派到一半的空子会话（施工 7-8，「会话表」第 8 条） |
 | `crates/miyu-endpoint/src/sessions/delete.rs` | 会话表删会话：认出它派的子会话、停下、挪进回收处（施工 3-8 三补）；删子会话照人停掉它、父会话记回报，都在表的锁里（施工 7-8） |
+| `crates/miyu-endpoint/src/from.rs` | `session.send` 的 `from`：去掉控制字符、截到 128 字节，记成 `harness`（施工 7-10） |
 | `crates/miyu-endpoint/src/spawn.rs` | 会话表交给会话的端口：造子会话、给会话发命令（施工 7-5，`session/tools.md`「派子代理」）；停下子会话、照日志看它（施工 7-4） |
 | `crates/miyu-endpoint/src/list.rs` | `session.list`：标题、置顶照日志算（施工 3-8 三补） |
 | `crates/miyu-endpoint/src/subscriptions.rs` | 订阅：每个订阅一个转发任务，推 `event`、`resync` |
@@ -164,14 +165,18 @@
 | `cwd` | 字符串，可以不写 | 头现在的工作目录 |
 | `dirs` | 字符串的数组，可以不写 | 加进来的目录（施工 5-10 上）。不写的照旧；写了的，这一句以后开的回合照它，空的就是没有 |
 | `attachments` | 数组，可以不写 | 附件（施工 3-9 三补）：`blob.put` 的回应，照先后。每一项要 `blob`、`name`、`media_type`，别的格不看 |
+| `from` | 字符串，可以不写 | 别的 harness 报的自己的名字（施工 7-10，`agents.md` 第十一条第 4 条）：写了的，这一句是它说的，不是本人 |
 
 回应：`events` 是 `[<这一句 message.user 的序号>]`；`cwd` 是收下这一句的 `cwd` 以后，会话实际在哪个目录里干活。
 
-1. 没有回合在进行的，这一句开一轮；有的，排队，`urgent` 的插进下一步（`kernel/session.md`）。
+1. 没有回合在进行的，这一句开一轮；有的，排队，`urgent` 的插进下一步（`kernel/session.md`）。带 `from` 的照第 7 条。
 2. 开的那一轮，`turn.started` 的 `cause` 是这一条的 `id`：头照它认出自己的那一轮。
 3. `text` 是空的、又没有附件：`empty_message`。先找会话，找不到的回的是找不到。只有附件、`text` 是空的，也是一句话。
 4. 附件变成内容块，照先后接在文字那一块后面（施工 3-9 三补）：核心照 blob 的内容照 `blob.put` 第 4 条再认一遍，同一份代码。图片是图片块，宽、高、媒体类型照这一次量的，头交回来的 `kind`、`width`、`height` 不算，`name` 照交回来的（施工 3-9 四补：一句话附了几张图，她分得清哪张是哪个文件）；文件是文件块，`name` 照交回来的，媒体类型照交回来的再过一遍第 4 条（内容是 PDF 的写 `application/pdf`，交回来写成 PDF、图片而内容不是的照内容认）。
 5. 附件先查，再找会话：一项缺了格、格不合写法（`kernel/ids.md`）：`bad_params`；blob 不在管理员的 blob 里：`unknown_attachment`；读不出来（坏了、读不了）：`internal_error`，记一条运行日志；是超了上限的图（不是 `blob.put` 传的 blob 才会有）：`attachment_too_big`。拒了的，会话里什么都不送，`cwd`、`dirs` 也不送。
+6. `from`（施工 7-10）：写了的，这条 `message.user` 的 `by` 记成 `{"kind":"harness","name":<名字>}`；不写的、写 `null` 的照旧记成本人。名字照短名字的规矩收（`kernel/ids.md`）：先去掉控制字符（Unicode 的 Cc 类），再截到 128 字节以内，不截断一个字；剩下是空的，`bad_params`。不是字符串的（数字、数组……）也是 `bad_params`。名字不核对，照它报的记；给模型看之前照不可信的文本转义（`kernel/request.md`「别的 harness 发来的话」）。它先查，查在附件前面：拒了的什么都不送。
+7. 带 `from` 的这一句是别处来的，内核照「别的 harness 发来的话」收（`kernel/session.md`，和子代理的留言一样）：她闲着开一轮，`turn.started` 的 `cause` 是这一条的 `id`；正忙的，下一步看到；不带回合编号，打断时不撤回，不作废在等本人答的题。`urgent` 不看。附件照收，和本人附的一样。
+8. 只有 `session.send` 收 `from`：`session.create`、`session.redo` 写了也不理（「请求」最后一条）。会话照旧是本人造的；重做的撤销记成发重做的人，重发的只有人说的话（`by` 照原来的），别的 harness 发来的话开的那一轮重做不了（`session.redo` 第 3 条）。
 
 **`blob.put`**（施工 3-9 三补，`04-核心协议.md` 第九节）
 
@@ -219,7 +224,7 @@
 
 1. 只重做最后一轮：撤掉它，把开它的那几句人的话（排着接过来的几句，和开这一轮的那一句）照先后再发一次，开新的一轮；附件照带。`text`、`attachments` 两样都不写的原样重发；写了的只换开这一轮的那一句：写了 `text` 的换字、写了 `attachments` 的换附件，没写的那一样照原来的，字在前、附件在后（2026-09-30 项目主人定：网页里编辑上一句也走这里；换附件主会话定）。
 2. 新的一轮，`turn.started` 的 `cause` 是这一条的 `id`：头照它认出自己的那一轮，和 `session.send` 一样。重发的几句 `by` 照原来的，`cause` 也是这一条的 `id`。
-3. 最后一轮不是人说的话开的（回报叫醒的、手动压缩、清空、重启以后接着干的），或者一轮都没有：`not_redoable`，头把它那一句当一条提示通知显示。有回合在进行：`turn_running`。换过的那一句一块都不剩（原来只有字、`text` 是空的，原来只有附件、`attachments` 是空的）：`empty_message`。正在改回文件：`restoring`。附件照 `session.send` 第 5 条先查、再找会话：`bad_params`、`unknown_attachment`、`internal_error`、`attachment_too_big`，拒了的什么都不送。先找会话，找不到的回的是找不到。
+3. 最后一轮不是人说的话开的（回报叫醒的、别的 harness 发来的话开的（施工 7-10）、手动压缩、清空、重启以后接着干的），或者一轮都没有：`not_redoable`，头把它那一句当一条提示通知显示。有回合在进行：`turn_running`。换过的那一句一块都不剩（原来只有字、`text` 是空的，原来只有附件、`attachments` 是空的）：`empty_message`。正在改回文件：`restoring`。附件照 `session.send` 第 5 条先查、再找会话：`bad_params`、`unknown_attachment`、`internal_error`、`attachment_too_big`，拒了的什么都不送。先找会话，找不到的回的是找不到。
 4. 重做以后恢复不了：新的一轮开了（`session.unrevert` 回 `nothing_to_unrevert`）。
 5. `text` 不是字符串（数字、数组……）、`attachments` 不是数组：`bad_params`；写 `null` 等于没写（「请求」最后一条）。不收 `cwd`、`dirs`：新的一轮照会话现在的环境，和 `session.revert` 一样（「会话表」第 5 条）。
 
@@ -423,7 +428,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `parse_error` | -32700 | 不是 JSON；一行太长（之后断开） |
 | `invalid_request` | -32600 | 是 JSON，不是请求（「请求」的表） |
 | `unknown_method` | -32601 | 握手以后，没有这个方法 |
-| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字 |
+| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；`session.send` 的 `from` 不是字符串、去掉控制字符以后是空的（施工 7-10）；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字 |
 | `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了；附件存不下来、读不出来；删会话时读不了放会话的目录、挪不进回收处、崩了 |
 | `hello_first` | -32010 | 握手以前发了别的方法 |
 | `protocol_mismatch` | -32010 | 头支持的主版本里没有 1（之后断开） |
@@ -549,6 +554,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/idle.rs` | 连着连接、跑着回合不空闲；停下全部会话，跑到一半的记成重启了 |
 | `crates/miyu-endpoint/tests/attach.rs` | `blob.put`（施工 3-9 三补）：传路径、传内容；照内容认图片（扩展名不算）、PDF、文本、别的文件，量宽高，回应的格照字母排、存成管理员的 blob；写了的媒体类型什么时候算、改名、写 `null` 等于没写；太大（20 MiB、图片的宽高和 5 MiB，正好在线上的收）；数据根里的不给、管理员的工作区给、指到数据根里的链接不给；读不了（没有、目录、没有家目录时的 `~`）；参数不对的十二种、一个都没存；四种拒绝的中英文 |
 | `crates/miyu-endpoint/tests/attach_send.rs` | `session.send` 带附件（施工 3-9 三补）：照先后接在文字后面，宽高、种类照核心量的，图片块带着 `blob.put` 的名字（施工 3-9 四补），她收到的请求里就是这几块；只有附件也是一句话，`null` 是没有；blob 不在的拒绝、什么都没写、换的工作目录也没送进会话；附件的格不对的七种 |
+| `crates/miyu-endpoint/tests/from.rs`、`src/from/tests.rs` | `session.send` 带 `from`（施工 7-10）：记成 `harness`、带着名字，不带的、`null` 照旧记成本人；闲着开一轮、`cause` 是这一条，正忙排进这一轮；附件照收；控制字符去掉、截到 128 字节不截断一个字；空的、只有控制字符的、不是字符串的参数不对，什么都没写；`session.create`、`session.redo` 写了不理 |
 | `crates/miyu-endpoint/src/attach/kind/tests.rs` | 认附件：量得出的图是图片、头写的不算，量不出的当文件；图片的上限和线上的；PDF 照开头认；别的文件照头写的，写成 PDF、图片的照内容认，文本、空的、二进制、不是 UTF-8 的 |
 | `crates/miyu-endpoint/tests/tools.rs` | 造会话、载入时用核心的工具目录；核心的沙盒造会话、载入时都交给会话，沙盒用不了的核心上执行命令没人能确认就拒（施工 5-4 上） |
 | `crates/miyu-endpoint/tests/socket.rs` | 真的套接字（Windows 上是命名管道）上握手、造会话、说话，第二个头也连得上 |

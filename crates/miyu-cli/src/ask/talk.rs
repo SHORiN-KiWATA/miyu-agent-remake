@@ -52,11 +52,7 @@ pub async fn talk(
     if let Err(code) = subscribed {
         return code;
     }
-    let mut send =
-        json!({"session": session, "text": plan.text, "cwd": plan.cwd, "dirs": plan.dirs});
-    if !attachments.is_empty() {
-        send["attachments"] = Value::Array(attachments);
-    }
+    let send = send_params(&session, plan, attachments);
     // 从发出算起（施工 7-9）；长到算不出那一刻的，当没写。
     let deadline = plan
         .timeout
@@ -100,7 +96,8 @@ pub(crate) struct Watching<'a> {
 
 /// 跟着那一轮边收边打，交回退出码（施工 6-8 从 [`talk`] 拆出来，`miyu compact` 也用）：收到 `resync` 重新订阅，不补看
 /// 掉的那些；第一次 Ctrl+C 打断这一轮，排着的照 `watching.queued` 办，等它收尾；第二次不等了，说「打断了」。等子代理的
-/// 时候（施工 7-9）按 Ctrl+C 不等了；到了 `watching.deadline`，有回合在进行的打断它，不再等。
+/// 时候（施工 7-9）按 Ctrl+C 不等了；到了 `watching.deadline`，有回合在进行的打断它，不再等。别的 harness 说的（`--from`，
+/// 施工 7-10）两样都不打断，只是不等了。
 pub(crate) async fn follow_turn(
     rpc: &mut Rpc,
     follow: &mut Follow<'_>,
@@ -136,7 +133,8 @@ pub(crate) async fn follow_turn(
                 }
             }
             Some(()) = presses.recv() => {
-                if follow.waiting() {
+                // 等子代理的时候、别的 harness 说的（施工 7-10）：不等了，不打断。
+                if follow.waiting() || !follow.interrupts() {
                     return follow.leave(Leaving::Pressed, screen);
                 }
                 if interrupting {
@@ -150,8 +148,12 @@ pub(crate) async fn follow_turn(
                 }
             }
             () = until(*deadline) => {
-                // 有回合在进行（还没认出第一轮的也当它在进行）：叫它打断，不等它收尾。发不出去的，核心已经断开了。
-                if !follow.waiting() && rpc.send("session.interrupt", interrupt.clone()).await.is_err() {
+                // 有回合在进行（还没认出第一轮的也当它在进行）：叫它打断，不等它收尾；别的 harness 说的不打断（施工 7-10）。发不
+                // 出去的，核心已经断开了。
+                if !follow.waiting()
+                    && follow.interrupts()
+                    && rpc.send("session.interrupt", interrupt.clone()).await.is_err()
+                {
                     say(screen.err, &language.disconnected());
                     return exit::ERROR;
                 }
@@ -167,6 +169,29 @@ async fn until(deadline: Option<Instant>) {
         Some(deadline) => tokio::time::sleep_until(deadline).await,
         None => std::future::pending().await,
     }
+}
+
+/// `session.send` 的参数。本人说的带 `cwd`、`dirs`，`dirs` 每次都写；别的 harness 说的（`--from`，施工 7-10）带 `from`，不带
+/// `cwd`，`dirs` 只在写了 `--add-dir` 时带：会话的工作目录、加进来的目录是人的，别的 harness 发一句不该把它们换成自己的
+/// （2026-09-30 主会话定）。有附件的再带上附件，照 `blob.put` 的回应原样放。
+fn send_params(session: &str, plan: &Plan, attachments: Vec<Value>) -> Value {
+    let mut send = json!({"session": session, "text": plan.text});
+    match &plan.from {
+        None => {
+            send["cwd"] = json!(plan.cwd);
+            send["dirs"] = json!(plan.dirs);
+        }
+        Some(from) => {
+            send["from"] = json!(from);
+            if !plan.dirs.is_empty() {
+                send["dirs"] = json!(plan.dirs);
+            }
+        }
+    }
+    if !attachments.is_empty() {
+        send["attachments"] = Value::Array(attachments);
+    }
+    send
 }
 
 /// 照先后把 `--file` 的每一个传给核心（`blob.put`，传路径），交回回应：说话时照原样带着。传不上的，说是哪个文件、核心

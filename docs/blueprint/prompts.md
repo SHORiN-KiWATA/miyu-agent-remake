@@ -1128,6 +1128,17 @@ Could not read the log: {error}
 [file {name}]
 ```
 
+#### `software/basesystem/history/agent.txt`
+
+- 什么时候加进来：别的 harness 发来的那一条，「谁」那一格代替 `user`
+- token：6（字段按 `claude-code` 算，去掉行尾换行量也是 6，比它代替的 `user` 多 5；2026-09-30 量）
+- 为什么加：注明来处：`history` 读出来的这种话，她分得清是别的代理说的、叫什么，和请求里那块标签是同一个名字（`tools/history.md`，施工 7-10）
+- 指纹：`483a7934`
+
+```text
+agent "{name}"
+```
+
 #### `software/basesystem/agent/started.txt`
 
 - 什么时候加进来：派出去了
@@ -1643,6 +1654,30 @@ You are a subagent, started by another session to do one task. That parent sessi
 
 ```text
 </subagent-message>
+```
+
+### 人这边：别的 harness 发来的话（一块带标签的事实）
+
+#### `core/harness/message-open.txt`
+
+- 什么时候加进来：标签那一行，`session.send` 带 `from` 发来的话（`message.user`，`by` 是 `harness`）；闲着时是开这一轮的那条，正忙时排在那一步的工具结果后面，之后每次请求照原文带
+- token：10（字段按 `claude-code` 算，2026-09-30 照项目主人给的端点、`deepseek-v4.1-flash` 量）
+- 为什么加：注明是别的代理说的、叫什么：不注明她会当成人说的话（`agents.md` 第九条第 4 条，施工 7-10）。写法照子代理留言的标签；名字是对方自己报的，照模板的规矩转义
+- 指纹：`e676ee1f`
+
+```text
+<agent-message from="{name}">
+```
+
+#### `core/harness/message-close.txt`
+
+- 什么时候加进来：收尾那一行，同 `message-open.txt`
+- token：5（2026-09-30 量）
+- 为什么加：标签的收尾（施工 7-10）
+- 指纹：`8df1db64`
+
+```text
+</agent-message>
 ```
 
 ### 人这边

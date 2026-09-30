@@ -13,13 +13,14 @@
 
 use std::collections::BTreeMap;
 
-use miyu_kernel::block::{Block, Text};
+use miyu_kernel::block::Block;
 use miyu_kernel::event::{ChildReason, ChildReported, JobReason, JobReported};
 use miyu_kernel::history::{Dispatched, History};
 use miyu_kernel::id::JobId;
 use miyu_kernel::origin::By;
 use miyu_kernel::template::Template;
 
+use crate::tag::tagged;
 use crate::texts::JobTexts;
 
 /// 后台命令结束的那一块：人停的先写一句，再是退出码或者信号、用时、输出；派它的那一轮撤掉了、没派过的，没有。
@@ -124,21 +125,8 @@ pub(crate) fn message(
     }
     let job = job.to_string();
     let open = &texts.subagent_message_open;
-    let mut text = fill(open, &[("job", &job), ("title", &dispatched.title)]);
-    let mut rest = Vec::new();
-    for block in blocks {
-        match block {
-            Block::Text(said) => text.push_str(&said.text),
-            other => rest.push(other),
-        }
-    }
-    if !text.ends_with('\n') {
-        text.push('\n');
-    }
-    text.push_str(&texts.subagent_message_close);
-    let mut tagged = vec![Block::Text(Text { text })];
-    tagged.extend(rest);
-    tagged
+    let open = fill(open, &[("job", &job), ("title", &dispatched.title)]);
+    tagged(open, blocks, &texts.subagent_message_close)
 }
 
 /// 派出去过、派它的那一轮还在的任务。

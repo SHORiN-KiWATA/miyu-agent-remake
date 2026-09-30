@@ -312,9 +312,9 @@ impl Session {
                 if blocks.is_empty() {
                     return vec![rejected(id, Reason::EmptyMessage)];
                 }
-                // 子代理发来的留言照回报的规矩到（施工 7-7，`messages.rs`）。
-                if let Some(job) = self.subagent_sending(&by) {
-                    return self.subagent_says(id, by, at, blocks, job);
+                // 别处来的（子代理的留言，施工 7-7；别的 harness 发来的话，施工 7-10）照回报的规矩到（`messages.rs`）。
+                if let Some(waker) = self.elsewhere(&by) {
+                    return self.elsewhere_says(id, by, at, blocks, waker);
                 }
                 let body = Body::MessageUser(MessageUser { blocks });
                 let message = self.record(at, by.clone(), Some(id.clone()), body);

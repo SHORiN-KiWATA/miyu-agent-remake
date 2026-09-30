@@ -77,6 +77,7 @@ ask 的选项：
       --add-dir <目录>    多放行一个目录，她能读能写，可以写好几次
       --file <文件>       附上一个文件，图片、PDF、文本都行，可以写好几次
       --timeout <时长>    最多等多久，到了就不等了：30s、10m、1h
+      --from <名字>       别的 harness 用：写上它的名字，例如 claude-code
 
 undo、restore、redo、compact 的选项：
   -s, --session <编号>  哪个会话；不写就是上一次 miyu ask 开的
@@ -114,6 +115,7 @@ ask options:
       --add-dir <dir>     Let her read and write this directory too; repeatable
       --file <file>       Attach a file: image, PDF, text…; repeatable
       --timeout <time>    Stop waiting after this long: 30s, 10m, 1h
+      --from <name>       For another harness: its name, e.g. claude-code
 
 undo, restore, redo, compact options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened
@@ -146,6 +148,7 @@ Examples:
 | 值不认识 | `<选项> 只能是 <值> 或 <值>` | `<选项> must be <值> or <值>` |
 | `--add-dir` 后面不是一个已经有的目录（施工 5-10 上） | `--add-dir 后面要写一个已经有的目录：<值>` | `--add-dir needs an existing directory: <值>` |
 | `--timeout` 后面不是一个时长（施工 7-9，写法见 `cli/ask.md`） | `--timeout 后面要写一个时长，例如 30s、10m、1h：<值>` | `--timeout needs a duration such as 30s, 10m or 1h: <值>` |
+| `--from` 后面是空的、只有空白（施工 7-10，`cli/ask.md`） | `--from 后面要写别的 harness 的名字` | `--from needs the name of the other harness` |
 | 别的 | `参数不对：<clap 的原话>` | `Bad arguments: <clap 的原话>` |
 
 - `<参数>` 照敲的原样；`<选项>` 照 clap 报的，是长的写法，去掉后面的值名（`--session <SESSION>` 写成 `--session`）。
@@ -188,7 +191,7 @@ Examples:
 |---|---|
 | `crates/miyu/tests/commands.rs` | 不认识的子命令：中文、英文的那一句，退出码 2，不拉起核心、核心没起来过；只敲 `miyu`：退出码 2、说用 `miyu ask`；`-h`、`--help`、`help` 印那一页，中文、英文各和样本一样，退出码 0；`--version` 印 `miyu ` 开头；参数写错的几种，中文、英文各说那一句，退出码 2；主程序换了文件名，说的还是 `miyu`（施工 5-8） |
 | `crates/miyu-cli/src/help/tests.rs` | 每一页列的选项和程序真有的一一对得上（长短写法、值名），最宽 80 列，以一个换行结尾；值名照表换成页里的写法（`<编号>`、`<目录>`）（施工 5-10 上）、`<时长>`（施工 7-9） |
-| `crates/miyu-cli/src/misuse/tests.rs` | 七种错各说哪一句、两种语言；值的连法；控制字符换掉；全部子命令里必写的只有 `ask` 的要说的话；成对的少了一个、少了子命令、嵌着的子命令写错（施工 5-8）；`--add-dir` 后面不是已经有的目录（施工 5-10 上）；`--timeout` 后面不是时长（施工 7-9） |
+| `crates/miyu-cli/src/misuse/tests.rs` | 七种错各说哪一句、两种语言；值的连法；控制字符换掉；全部子命令里必写的只有 `ask` 的要说的话；成对的少了一个、少了子命令、嵌着的子命令写错（施工 5-8）；`--add-dir` 后面不是已经有的目录（施工 5-10 上）；`--timeout` 后面不是时长（施工 7-9）；`--from` 后面是空的、只有空白（施工 7-10） |
 | `crates/miyu/tests/ask.rs` | 参数不对退出码 2（什么都不写、`--session` 和 `--continue` 一起写）；`miyu ask --help` 跟着界面语言；没有 key、核心没在跑的不拉起 |
 | `crates/miyu/tests/undo.rs` | `miyu undo --help`、`miyu rewind -h`、`miyu restore --help` 跟着界面语言；`undo`、`restore` 各接各的 |
 | `crates/miyu/tests/redo.rs` | `miyu redo --help`、`miyu help redo` 跟着界面语言，`redo` 印的是重做那一页、不是恢复那一页；没有 key、核心没在跑的不拉起（施工 4-7 再补） |

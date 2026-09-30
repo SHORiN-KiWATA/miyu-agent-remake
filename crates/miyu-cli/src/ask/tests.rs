@@ -27,6 +27,7 @@ fn ask(words: &[&str]) -> Ask {
         add_dir: Vec::new(),
         file: Vec::new(),
         timeout: None,
+        from: None,
     }
 }
 
@@ -146,4 +147,22 @@ fn timeout_is_a_whole_number_of_seconds_minutes_or_hours() {
     };
     let plan = plan(waiting, &env(resources, None), Language::Chinese);
     assert_eq!(plan.timeout, Some(Duration::from_secs(5)));
+}
+
+/// `--from` 的写法（施工 7-10）：空的、只有空白的读不成；别的照原样，去控制字符、截短由核心做。带进这一次的打算里。
+#[test]
+fn from_takes_any_name_but_a_blank_one() {
+    for value in ["", " ", "\t \n"] {
+        assert!(harness_name(value).is_err(), "{value:?}");
+    }
+    for value in ["claude-code", " opencode ", "我的脚本", "a\u{7}b"] {
+        assert_eq!(harness_name(value), Ok(value.to_string()), "{value:?}");
+    }
+    let resources = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");
+    let from = Ask {
+        from: Some("claude-code".to_string()),
+        ..ask(&["hi"])
+    };
+    let plan = plan(from, &env(resources, None), Language::Chinese);
+    assert_eq!(plan.from.as_deref(), Some("claude-code"));
 }

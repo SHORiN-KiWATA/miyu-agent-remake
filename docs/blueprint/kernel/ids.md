@@ -111,7 +111,7 @@
 
 几格的写法照上面的类型：`account` 是 `AccountId`，`venue` 是 `VenueId`，`id` 依次是 `ExternalId`、`ModuleId`、`SessionId`，`endpoint` 是 `ProviderId`，`model` 是 `ModelName`，`call_id` 是 `CallId`，`name` 是 `HarnessName`。
 
-`harness` 的 `name` 是对方自己报的，不可信，照 `external` 的做法只管写法：短名字的规则，1 到 128 字节、没有控制字符，读的时候不合的报错。收的那一边（协议的 `from`，7-11）先去掉控制字符、截到 128 字节以内（不切断一个字），截完是空的不收；给模型看之前照不可信的文本处理（渲染随 7-10）。
+`harness` 的 `name` 是对方自己报的，不可信，照 `external` 的做法只管写法：短名字的规则，1 到 128 字节、没有控制字符，读的时候不合的报错。收的那一边（协议的 `from`，施工 7-10，`protocol.md` 的 `session.send` 第 6 条）先去掉控制字符、截到 128 字节以内（不切断一个字），截完是空的不收；给模型看之前照模板的规矩转义（`kernel/request.md`「别的 harness 发来的话」）。
 
 ### 怎么走
 
@@ -238,6 +238,6 @@ bad session id: must be 36 characters (got "x")
 ### 还没有的
 
 - 到分钟的当地时间：通讯平台、桌面语音这类场所用（`08-上下文投影.md` 第五节「环境和状态的事实怎么写」的「还没有的」）。
-- `external`、`session`、`harness` 三种 `by` 读得懂，还没有哪里造：通讯平台（`18-通讯平台.md`）、子会话（M7）、`miyu ask --from`（7-11）做到时才有。
+- `external` 这种 `by` 读得懂，还没有哪里造：通讯平台（`18-通讯平台.md`）做到时才有。`session` 由子会话造（施工 7-5 起），`harness` 由 `session.send` 的 `from` 造（施工 7-10）。
 - 按 `by` 判权限：现在只有本机的管理员，执行前的链不看 `by`（`06-多用户与身份.md` 第五节）。
 - 远程连接、成员账号、扩展身份（`06-多用户与身份.md` 第二节）。

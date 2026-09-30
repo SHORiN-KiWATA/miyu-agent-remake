@@ -37,7 +37,7 @@ fn listed(page: &str) -> Listed {
 
 /// 程序真有的选项：`command` 里有名字的参数，加上 clap 给每条命令都加的 `-h`、`--help`。要写值的，值写成能写的几样
 /// 用 `|` 连起来；不限的照 clap 的值名在 `values` 里查页里写成什么（`SESSION` 是 `<编号>`，`DIR` 是 `<目录>`，施工 5-10
-/// 上；`FILE` 是 `<文件>`，施工 3-9 三补；`TIME` 是 `<时长>`，施工 7-9），查不到的写成 `<值名>`。藏起来的不算：它们不给人用（`sandbox` 那两个，施工 5-8）。
+/// 上；`FILE` 是 `<文件>`，施工 3-9 三补；`TIME` 是 `<时长>`，施工 7-9；`NAME` 是 `<名字>`，施工 7-10），查不到的写成 `<值名>`。藏起来的不算：它们不给人用（`sandbox` 那两个，施工 5-8）。
 fn real(command: &Command, values: &[(&str, &str)]) -> Listed {
     let mut options = Listed::new();
     for arg in command.get_arguments().filter(|arg| !arg.is_hide_set()) {
@@ -97,12 +97,14 @@ fn each_page_lists_exactly_the_options_there_are() {
         ("DIR", "<目录>"),
         ("FILE", "<文件>"),
         ("TIME", "<时长>"),
+        ("NAME", "<名字>"),
     ];
     let english = [
         ("SESSION", "<id>"),
         ("DIR", "<dir>"),
         ("FILE", "<file>"),
         ("TIME", "<time>"),
+        ("NAME", "<name>"),
     ];
     for (language, id) in [(Language::Chinese, &chinese), (Language::English, &english)] {
         assert_eq!(

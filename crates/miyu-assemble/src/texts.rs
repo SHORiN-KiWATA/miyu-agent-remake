@@ -38,6 +38,8 @@ pub struct Texts {
     pub summarize_end: String,
     /// 两种回报的写法（`core/jobs/`，施工 7-2）。以前造的快照里没有，是没有：那些会话派不出任务，也就没有回报。
     pub jobs: Option<JobTexts>,
+    /// 别的 harness 发来的话的标签（`core/harness/`，施工 7-10）。以前造的快照里没有，是没有：那种话照人的话原样渲染。
+    pub harness: Option<HarnessTexts>,
 }
 
 impl Texts {
@@ -130,4 +132,14 @@ pub struct JobTexts {
     pub subagent_message_open: Template,
     /// 留言的收尾（`subagent-message-close.txt`，施工 7-7）。以前造的快照里没有，是空的。
     pub subagent_message_close: String,
+}
+
+/// 别的 harness 发来的话的标签（施工 7-10，`docs/blueprint/kernel/request.md`「别的 harness 发来的话」）：一块带标签的事实，
+/// 写法照子代理的留言。每一份以一个换行结尾。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HarnessTexts {
+    /// 标签（`message-open.txt`）：字段 `name`，它自己报的名字，照模板的规矩转义。
+    pub open: Template,
+    /// 收尾（`message-close.txt`）。
+    pub close: String,
 }

@@ -85,6 +85,18 @@ pub struct Ask {
     /// 最多等多久（施工 7-9）：从发出算到全部了结，到了打断、不再等。
     #[arg(long, value_name = "TIME", value_parser = duration)]
     pub timeout: Option<Duration>,
+    /// 别的 harness 报的自己的名字（施工 7-10）：这一句记成它说的。空的、只有空白的读不成；别的照原样交给核心，去控制字符、
+    /// 截短由核心做。
+    #[arg(long, value_name = "NAME", value_parser = harness_name)]
+    pub from: Option<String>,
+}
+
+/// `--from` 的值（施工 7-10）：空的、只有空白的读不成，照「参数写错时」说（`cli/main.md`）；别的照原样。
+fn harness_name(value: &str) -> Result<String, String> {
+    match value.trim().is_empty() {
+        true => Err("empty name".to_string()),
+        false => Ok(value.to_string()),
+    }
 }
 
 /// `--file` 的值：相对的照敲命令时的目录接成绝对的。
@@ -174,6 +186,8 @@ pub struct Plan {
     pub home: Option<PathBuf>,
     /// 最多等多久（施工 7-9）：从发出算到全部了结；没有的一直等。
     pub timeout: Option<Duration>,
+    /// 别的 harness 报的名字（施工 7-10）：有的，`session.send` 带上 `from`，不带 `cwd`，`dirs` 只在写了 `--add-dir` 时带。
+    pub from: Option<String>,
 }
 
 /// 写到哪里：回答写 `out`，思考、用量、出错写 `err`；`gray` 的思考、用量是灰色。
@@ -270,6 +284,7 @@ fn plan(args: Ask, env: &Env, language: Language) -> Plan {
         human: human(env, &language),
         home: env.home.clone(),
         timeout: args.timeout,
+        from: args.from,
     }
 }
 

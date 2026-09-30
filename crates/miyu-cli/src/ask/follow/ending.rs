@@ -25,9 +25,13 @@ impl Follow<'_> {
         self.turns
             .push(json!({"text": self.answer, "usage": self.usage.json()}));
         self.turn = None;
-        self.ended_first = true;
         self.reason = reason.to_string();
         self.agents.turn_ended(reason);
+        // 接上的那一轮没听到这一句（施工 7-10，`joining.rs`）：同一批接着开的下一轮才是，不收尾，也不算第一轮结束了。
+        if self.joining.missed() {
+            return Step::Going;
+        }
+        self.ended_first = true;
         if self.waits && reason != "interrupted" && !self.agents.settled() {
             self.wait_line(screen);
             return Step::Going;
@@ -44,6 +48,12 @@ impl Follow<'_> {
         self.part(screen, "");
         self.close_answer(screen);
         self.thought();
+    }
+
+    /// Ctrl+C、`--timeout` 打不打断她那一轮：本人说的打断；别的 harness 说的（`--from`，施工 7-10，2026-09-30 主会话定）不
+    /// 打断，只是不等了：那一轮是她的，会话是人的。
+    pub(crate) fn interrupts(&self) -> bool {
+        self.plan.from.is_none()
     }
 
     /// 都结束了：印用量，有几步因为要确认没做的说一句，说为什么结束，交回退出码。照最后一轮怎么结束的算：照常结束、又有
@@ -71,13 +81,17 @@ impl Follow<'_> {
         code
     }
 
-    /// 不等了（施工 7-9）：等子代理的时候按了 Ctrl+C，或者到了 `--timeout`（有回合在进行的，头已经叫它打断了）。收好屏幕，
+    /// 不等了（施工 7-9）：等子代理的时候按了 Ctrl+C，或者到了 `--timeout`（有回合在进行的，头已经叫它打断了）。写了
+    /// `--from` 的，她那一轮还在进行时按 Ctrl+C 也是不等了，两样都不打断她（施工 7-10，[`Follow::interrupts`]）。收好屏幕，
     /// 照常印用量、最后那一句，再说一句为什么不等了；交回 3。
     pub(crate) fn leave(&mut self, why: Leaving, screen: &mut Screen<'_>) -> u8 {
         let language = self.plan.language;
-        let line = match why {
-            Leaving::Pressed => language.stopped_waiting(),
-            Leaving::TimedOut => language.timed_out(self.agents.owed() > 0),
+        let running = !self.interrupts() && !self.waiting();
+        let line = match (why, running) {
+            (Leaving::Pressed, true) => language.left_running(false),
+            (Leaving::TimedOut, true) => language.left_running(true),
+            (Leaving::Pressed, false) => language.stopped_waiting(),
+            (Leaving::TimedOut, false) => language.timed_out(self.agents.owed() > 0),
         };
         self.unwait(screen);
         self.close_turn(screen);

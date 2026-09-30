@@ -11,6 +11,7 @@
 mod compose;
 mod drivers;
 mod guard;
+mod harness;
 mod image_name;
 mod jobs;
 mod pause;
@@ -26,6 +27,7 @@ mod test_support;
 pub use compose::{PersonaTexts, Sources, compose};
 pub use drivers::DriverPlaceholders;
 pub use guard::GuardTexts;
+pub use harness::HarnessTexts;
 pub use image_name::ImageNameTexts;
 pub use jobs::{DEPTH as JOB_DEPTH, JobNumbers, JobTexts, REPORT_CHARS};
 pub use pause::{PAUSE, PauseNumbers};
