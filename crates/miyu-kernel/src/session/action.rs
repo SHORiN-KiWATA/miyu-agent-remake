@@ -2,7 +2,7 @@
 //!
 //! 会话自己不做 I/O：要追加的事件、要回应的命令、要推送的事件，都写成动作交给执行器。
 
-use crate::event::{Event, Permission, Response, Transient};
+use crate::event::{Event, Permission, Purpose, Response, Transient};
 use crate::id::{CallId, CommandId, ContentHash, JobId, Seq, TurnId};
 use crate::origin::By;
 use crate::request::{Difference, Request};
@@ -141,11 +141,13 @@ pub enum Action {
     /// 向上回报（施工 7-6，`report.rs`）：子会话交给父会话的一份。执行器补上任务编号、子会话，经端口交给父会话（命令
     /// `Report`，发命令的是这个子会话），不送回；父会话落了盘就算送到，父会话没了的丢掉。
     Report(Upward),
-    /// 发回顾的请求（施工 3-8 四补，`recap.rs`）：单独的一次辅助请求，交给这个会话的模型，和主请求不相干。发出去了、每一段
-    /// 增量、说完了，都带着 `upto` 回报（[`super::Input::RecapSent`]、`RecapDelta`、`RecapEnded`）。不叫停：会话停了，执行器
-    /// 放下它就停了。
-    Recap {
-        /// 照到第几条，也是这一次回顾的名字。
+    /// 发一次辅助请求（施工 3-8 四补 `recap.rs`；五补起回顾、起标题共用，`aside.rs`）：单独的一次请求，交给这个会话的模型，
+    /// 和主请求不相干。发出去了、每一段增量、说完了，都带着用途和 `upto` 回报（[`super::Input::AsideSent`]、`AsideDelta`、
+    /// `AsideEnded`）。不叫停：会话停了，执行器放下它就停了。
+    Aside {
+        /// 哪一种：回顾、起标题。
+        purpose: Purpose,
+        /// 照到第几条，也是这一次的名字。
         upto: Seq,
         /// 统一的请求：一条 user，没有 system、工具面。
         request: Request,

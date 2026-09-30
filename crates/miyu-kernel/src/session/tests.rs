@@ -31,6 +31,7 @@ mod restore;
 mod revert;
 mod scenario;
 mod spans;
+mod title;
 mod tools;
 mod turn;
 
@@ -240,6 +241,7 @@ fn policy() -> Policy {
             chars: 40,
             omitted: crate::template::Template::parse("[{count} cut]\n").unwrap(),
         },
+        titles: None,
     }
 }
 

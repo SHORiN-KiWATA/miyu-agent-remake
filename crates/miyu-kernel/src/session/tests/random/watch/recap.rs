@@ -84,17 +84,17 @@ impl Watch {
             Input::Command(received) if received.command == Command::Recap && !refused => {
                 Some(self.expect_recap(received.id.clone()))
             }
-            Input::RecapSent { upto, .. }
-            | Input::RecapDelta { upto, .. }
-            | Input::RecapEnded { upto, .. } => {
+            Input::AsideSent { upto, .. }
+            | Input::AsideDelta { upto, .. }
+            | Input::AsideEnded { upto, .. } => {
                 let Some(flight) = self.recaps.flight.as_mut().filter(|f| f.upto == *upto) else {
                     self.seen_paths.insert("对不上的回顾回报不理");
                     return Some(Expect::Stale);
                 };
                 match input {
-                    Input::RecapSent { .. } => flight.sent = true,
-                    Input::RecapDelta { delta, .. } => flight.take(delta),
-                    Input::RecapEnded { error, .. } => {
+                    Input::AsideSent { .. } => flight.sent = true,
+                    Input::AsideDelta { delta, .. } => flight.take(delta),
+                    Input::AsideEnded { error, .. } => {
                         let text = flight.text.trim().to_string();
                         let written = error.is_none() && !flight.broken && flight.sent;
                         flight.ended = Some((written && !text.is_empty()).then_some(text));
@@ -183,7 +183,7 @@ impl Watch {
             }
             Expect::Issued(id, upto) => {
                 assert!(
-                    matches!(actions, [Action::Recap { upto: asked, .. }] if *asked == upto),
+                    matches!(actions, [Action::Aside { upto: asked, .. }] if *asked == upto),
                     "种子 {seed}：该交出一次回顾，照到第 {upto} 条：{actions:?}"
                 );
                 self.recaps.flight = Some(Flight {

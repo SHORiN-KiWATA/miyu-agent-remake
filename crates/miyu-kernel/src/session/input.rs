@@ -9,7 +9,7 @@ use crate::block::Block;
 use crate::estimate::ImagePrice;
 use crate::event::{
     CallError, ChildReported, ContextInjected, Decision, Effect, Event, JobReported, Level,
-    Question, Response, Restored, Said, Usage,
+    Purpose, Question, Response, Restored, Said, Usage,
 };
 use crate::facts::Environment;
 use crate::id::{CallId, CommandId, ContentHash, ModuleId, Seq, TurnId};
@@ -175,33 +175,39 @@ pub enum Input {
         /// 那一条的 `body`。
         reported: JobReported,
     },
-    /// 回顾的请求发出去了（施工 3-8 四补，`recap.rs`）：和主请求的 [`Input::RequestSent`] 一样，名字是它照到的那一条
-    /// `upto`。不是在路上的那一次的，不理。
-    RecapSent {
+    /// 辅助请求发出去了（施工 3-8 四补 `recap.rs`；五补起回顾、起标题共用这一路，`aside.rs`）：和主请求的
+    /// [`Input::RequestSent`] 一样，名字是用途加它照到的那一条 `upto`。不是在路上的那一次的，不理。
+    AsideSent {
         /// 到的时刻，取自执行器的时钟。用时从这一刻算起。
         at: Timestamp,
-        /// 哪一次回顾。
+        /// 哪一种辅助请求。
+        purpose: Purpose,
+        /// 哪一次：照到的那一条。
         upto: Seq,
         /// 发给了哪个端点的哪个模型。
         model: Model,
         /// 驱动编码以后的请求字节的哈希。
         request: ContentHash,
     },
-    /// 回顾的请求的一段增量（施工 3-8 四补）。不推给头：回顾只交回说完了的那一句。
-    RecapDelta {
+    /// 辅助请求的一段增量。不推给头：辅助请求只用说完了的那一句。
+    AsideDelta {
         /// 到的时刻，取自执行器的时钟。
         at: Timestamp,
-        /// 哪一次回顾。
+        /// 哪一种辅助请求。
+        purpose: Purpose,
+        /// 哪一次。
         upto: Seq,
         /// 这一段增量。
         delta: Delta,
     },
-    /// 回顾的请求说完了（施工 3-8 四补）：正常说完的附上用量，出错的附上分类和原话。回顾出错不再来，要等多久、超了多少都
-    /// 用不上。没发出去就失败了的，不报「发出去了」，直接报这一条。
-    RecapEnded {
+    /// 辅助请求说完了：正常说完的附上用量，出错的附上分类和原话。辅助请求出错不自动重试，要等多久、超了多少都用不上。
+    /// 没发出去就失败了的，不报「发出去了」，直接报这一条。
+    AsideEnded {
         /// 到的时刻，取自执行器的时钟。
         at: Timestamp,
-        /// 哪一次回顾。
+        /// 哪一种辅助请求。
+        purpose: Purpose,
+        /// 哪一次。
         upto: Seq,
         /// 用量。供应商没报的，没有。
         usage: Option<Usage>,

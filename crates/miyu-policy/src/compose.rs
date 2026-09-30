@@ -56,6 +56,7 @@ pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
         compaction: Some(COMPACTION),
         jobs: Some(crate::jobs::JOB_NUMBERS),
         recap: Some(RECAP),
+        title: Some(crate::title::TITLE),
     }
 }
 

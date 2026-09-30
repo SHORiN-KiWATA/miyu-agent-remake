@@ -8,7 +8,7 @@ use tokio::sync::{mpsc, oneshot};
 
 use miyu_drivers::DriverTexts;
 use miyu_kernel::accumulate::Delta;
-use miyu_kernel::event::{CallError, Usage};
+use miyu_kernel::event::{CallError, Purpose, Usage};
 use miyu_kernel::id::{ContentHash, Seq};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
@@ -59,8 +59,8 @@ pub trait ModelPort: Send + Sync {
 #[derive(Debug)]
 pub struct Reports {
     seen: Seq,
-    /// 是回顾的请求（施工 3-8 四补）：回报另走一路，不和主请求的 `seen` 撞。
-    recap: bool,
+    /// 辅助请求的用途（施工 3-8 四补的回顾、五补的起标题）：回报另走一路，不和主请求的 `seen` 撞。主请求没有。
+    purpose: Option<Purpose>,
     back: mpsc::UnboundedSender<Back>,
 }
 
@@ -68,18 +68,23 @@ impl Reports {
     pub(crate) fn new(seen: Seq, back: mpsc::UnboundedSender<Back>) -> Reports {
         Reports {
             seen,
-            recap: false,
+            purpose: None,
             back,
         }
     }
 
-    /// 回顾的请求的回报（施工 3-8 四补）：名字是它照到的那一条 `upto`。
-    pub(crate) fn recap(upto: Seq, back: mpsc::UnboundedSender<Back>) -> Reports {
+    /// 辅助请求的回报（施工 3-8 四补、五补）：名字是用途和它照到的那一条 `upto`。
+    pub(crate) fn aside(purpose: Purpose, upto: Seq, back: mpsc::UnboundedSender<Back>) -> Reports {
         Reports {
             seen: upto,
-            recap: true,
+            purpose: Some(purpose),
             back,
         }
+    }
+
+    /// 是哪一种辅助请求；主请求没有（施工 3-8 五补）。端口照请求发，用不着它；测试的端口照它分剧本。
+    pub fn purpose(&self) -> Option<&Purpose> {
+        self.purpose.as_ref()
     }
 
     /// 发出去了：发给了哪个模型，请求字节的哈希。
@@ -114,12 +119,13 @@ impl Reports {
         reason = "会话停了就送不进去：回报没人要了，丢掉"
     )]
     fn send(&self, report: Report) {
-        let back = match self.recap {
-            true => Back::Recap {
+        let back = match &self.purpose {
+            Some(purpose) => Back::Aside {
+                purpose: purpose.clone(),
                 upto: self.seen,
                 report,
             },
-            false => Back::Report {
+            None => Back::Report {
                 seen: self.seen,
                 report,
             },
@@ -169,8 +175,12 @@ pub(crate) enum Report {
 pub(crate) enum Back {
     /// 请求 `seen` 的一样回报。
     Report { seen: Seq, report: Report },
-    /// 回顾 `upto` 的请求的一样回报（施工 3-8 四补）。
-    Recap { upto: Seq, report: Report },
+    /// 辅助请求（用途 `purpose`、照到 `upto`）的一样回报（施工 3-8 四补、五补）。
+    Aside {
+        purpose: Purpose,
+        upto: Seq,
+        report: Report,
+    },
     /// 为请求 `seen` 等的时刻到了。
     Woke { seen: Seq },
     /// 跑工具的任务送回来的（施工 4-2）。

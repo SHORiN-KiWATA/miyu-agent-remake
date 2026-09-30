@@ -218,6 +218,7 @@
 | `crates/miyu-session/tests/blocking_log.rs` | 存效果的 blob 存不进去那一行在阻塞线程里发，带会话编号（Unix） |
 | `crates/miyu-basesystem/tests/log.rs` | `shell` 的行来源是 `shell`；命令退出了输出还没关那一行在阻塞线程里发，带会话编号（Linux） |
 | `crates/miyu-session/tests/recap_log.rs` | 回顾的请求的几行前面带 `recap`（施工 3-8 四补）；不写对话的字 |
+| `crates/miyu-session/tests/title_log.rs` | 起标题的请求的几行前面带 `title`（施工 3-8 五补）：两次都没起成就只有两对 `title request`、`title failed`；起成了的 `title ended`；不写对话的字 |
 | `crates/miyu-session/tests/http_log.rs` | HTTP 的两行带会话编号；key 不在日志里 |
 | `crates/miyu-http/tests/log.rs` | HTTP 的几行；key、请求体、回复的字、地址的路径和参数、出错的原话都不在日志里 |
 | `crates/miyu/tests/core.rs` | 真的核心：起来写一行 `starting`，空闲了写 `stopped reason=idle`；第二个核心不写；`starting` 那一行有进程号、数据根（家目录写成 `~`）、和 UTC 差多少；起不来的那一行只写 `stage` |

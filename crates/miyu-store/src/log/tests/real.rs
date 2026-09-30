@@ -91,6 +91,7 @@ fn policy() -> Policy {
             chars: 30_000,
             omitted: miyu_kernel::template::Template::parse("").expect("空的模板读得进来"),
         },
+        titles: None,
     }
 }
 

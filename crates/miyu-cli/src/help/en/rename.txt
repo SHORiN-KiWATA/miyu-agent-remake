@@ -1,0 +1,7 @@
+Usage: miyu rename [options] <title>
+
+Give the session a title, so it is easy to spot in the session list.
+
+Options:
+  -s, --session <id>  Which session; default is the one the last miyu ask opened
+  -h, --help          Print help

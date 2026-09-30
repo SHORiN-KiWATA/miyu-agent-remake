@@ -2,7 +2,9 @@
 //! `facts.rs`。
 
 mod facts;
+mod jobs;
 mod recap;
+mod title;
 
 use super::*;
 use crate::compose::{PersonaTexts, Sources, compose};
@@ -28,7 +30,7 @@ fn the_same_sources_give_the_same_bytes_and_they_read_back() {
     let text = String::from_utf8(one.to_bytes()).unwrap();
     assert!(text.starts_with(r#"{"persona":"engineer","system":"You are a helpful software engineer.","core":{"checkpoint_open":"#), "{text}");
     assert!(
-        text.ends_with(r#""step_limit":null,"attended":true,"resumes":3,"compaction":{"reserve_cap":20000,"margin":13000,"image":2000,"file":2000,"tail":16000,"rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10},"pause":{"failures":3,"turns":3,"refills":3},"shorten":{"tries":3,"percent":20}},"jobs":{"report_chars":30000},"recap":{"turns":8,"tokens":8192}}"#),
+        text.ends_with(r#""step_limit":null,"attended":true,"resumes":3,"compaction":{"reserve_cap":20000,"margin":13000,"image":2000,"file":2000,"tail":16000,"rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10},"pause":{"failures":3,"turns":3,"refills":3},"shorten":{"tries":3,"percent":20}},"jobs":{"report_chars":30000},"recap":{"turns":8,"tokens":8192},"title":{"tokens":1024,"chars":50,"tries":2}}"#),
         "{text}"
     );
     // 改一个字，哈希就变了。
@@ -225,7 +227,8 @@ fn the_tail_is_16000_and_older_snapshots_read_it_so() {
     let text = String::from_utf8(snapshot.to_bytes())
         .unwrap()
         .replace(JOB_NUMBERS, "")
-        .replace(RECAP_NUMBERS, "");
+        .replace(RECAP_NUMBERS, "")
+        .replace(TITLE_NUMBERS, "");
     let numbers = r#","tail":16000,"rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10},"pause":{"failures":3,"turns":3,"refills":3},"shorten":{"tries":3,"percent":20}}}"#;
     assert!(text.ends_with(numbers), "{text}");
     let older = text.replace(numbers, "}}");
@@ -465,35 +468,7 @@ fn job_report_texts_go_in_and_older_snapshots_lack_them() {
     assert_eq!(read.to_bytes(), older.as_bytes());
 }
 
-/// 任务用的数（施工 7-6），后面是回顾用的数，在快照的最后（施工 3-8 四补）。
+/// 任务用的数（施工 7-6），后面是回顾用的数（施工 3-8 四补）、起标题用的数（施工 3-8 五补），在快照的最后。
 const JOB_NUMBERS: &str = r#","jobs":{"report_chars":30000}"#;
 const RECAP_NUMBERS: &str = r#","recap":{"turns":8,"tokens":8192}"#;
-
-/// 子会话回报的正文怎么截（施工 7-6）：出厂的快照带着 30000 和截在中间的那一行；以前造的快照里没有，读成出厂的数、空的
-/// 那一行，读进来再写出去一字不差。
-#[test]
-fn report_numbers_and_the_omitted_line_go_in_and_older_snapshots_lack_them() {
-    let snapshot = engineer();
-    let reports = snapshot.policy().unwrap().reports;
-    assert_eq!(reports.chars, 30_000);
-    let count = std::collections::BTreeMap::from([("count", "12")]);
-    assert_eq!(
-        reports.omitted.render(&count).unwrap(),
-        "[... 12 characters omitted ...]\n"
-    );
-    let text = String::from_utf8(snapshot.to_bytes()).unwrap();
-    let tail = format!("{JOB_NUMBERS}{RECAP_NUMBERS}}}");
-    assert!(text.ends_with(&tail), "{text}");
-    let omitted = r#","subagent_omitted":"[... {count} characters omitted ...]\n""#;
-    assert!(text.contains(omitted), "{text}");
-    let older = text.replace(JOB_NUMBERS, "").replace(omitted, "");
-    let read = Snapshot::from_bytes(older.as_bytes()).unwrap();
-    assert_eq!(read.to_bytes(), older.as_bytes(), "读进来再写出去一字不差");
-    let reports = read.policy().unwrap().reports;
-    assert_eq!(reports.chars, 30_000);
-    assert_eq!(reports.omitted.render(&count).unwrap(), "");
-    // 快照里的数照快照的。
-    let mut smaller = snapshot.clone();
-    smaller.jobs = Some(crate::JobNumbers { report_chars: 7 });
-    assert_eq!(smaller.policy().unwrap().reports.chars, 7);
-}
+const TITLE_NUMBERS: &str = r#","title":{"tokens":1024,"chars":50,"tries":2}"#;

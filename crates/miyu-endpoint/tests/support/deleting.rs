@@ -6,7 +6,7 @@ use std::sync::Arc;
 use serde_json::{Value, json};
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::{Body, Effect, Event};
+use miyu_kernel::event::{Body, Effect, Event, Purpose};
 use miyu_kernel::id::{Seq, SessionId};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::{Message, Request};
@@ -90,6 +90,10 @@ impl ModelPort for Router {
     }
 
     fn call(&self, seen: Seq, request: Request, reports: Reports, cancel: Cancel) {
+        // 起标题的请求（施工 3-8 五补）不带哪一份的原话：不回，一直在路上，不碍这里测的。
+        if reports.purpose() == Some(&Purpose::Title) {
+            return;
+        }
         let script = self.script(&request).clone();
         script.call(seen, request, reports, cancel);
     }

@@ -9,11 +9,13 @@
 mod anchor;
 mod archive;
 mod texts;
+mod titled;
 
 pub use anchor::anchored;
 pub use archive::{files, matches_the_archive};
-pub use texts::{LINES, SUMMARIZE, VENUE, recap};
+pub use texts::{LINES, SUMMARIZE, VENUE, recap, title};
 use texts::{driver_texts, texts};
+pub use titled::titled_stage;
 
 use std::collections::BTreeMap;
 
@@ -108,6 +110,7 @@ fn policy_with(system: String) -> Policy {
             chars: 30_000,
             omitted: miyu_kernel::template::Template::parse("").expect("空的模板读得进来"),
         },
+        titles: None,
     }
 }
 

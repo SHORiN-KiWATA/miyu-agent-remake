@@ -122,13 +122,14 @@ fn a_summary_request_says_which_compaction_it_is_for() {
     assert_eq!(called(CALLED).compaction, None);
 }
 
-/// 辅助请求多一格 `purpose`，排在最后（施工 3-8 四补）：回顾是 `recap`，不认识的原样留着，也算辅助请求；主请求、摘要请求
-/// 没有这一格，不是辅助请求。
+/// 辅助请求多一格 `purpose`，排在最后（施工 3-8 四补）：回顾是 `recap`，起标题是 `title`（施工 3-8 五补），不认识的原样
+/// 留着，也算辅助请求；主请求、摘要请求没有这一格，不是辅助请求。
 #[test]
 fn an_aside_request_says_what_it_is_for() {
     for (text, purpose) in [
         ("recap", Purpose::Recap),
-        ("title", Purpose::Other("title".to_string())),
+        ("title", Purpose::Title),
+        ("vision", Purpose::Other("vision".to_string())),
     ] {
         let body = format!(r#"{{"seen":44,"messages":1,"result":"ok","purpose":"{text}"}}"#);
         let aside = called(&body);

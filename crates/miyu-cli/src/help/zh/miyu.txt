@@ -7,6 +7,7 @@
   redo [话]             撤掉最后一轮，重新做；写了话的换成这句
   compact [要求]        把上下文压缩成摘要，可以附上要求
   recap                 一句话回顾：在做什么、做完了什么、卡在哪
+  rename <标题>         给会话起名
   sandbox setup|remove  装好、撤掉沙盒用户（Windows，要管理员权限）
 
 ask 的选项：
@@ -18,11 +19,11 @@ ask 的选项：
       --timeout <时长>    最多等多久，到了就不等了：30s、10m、1h
       --from <名字>       别的 harness 用：写上它的名字，例如 claude-code
 
-undo、restore、redo、compact、recap 的选项：
+undo、restore、redo、compact、recap、rename 的选项：
   -s, --session <编号>  哪个会话；不写就是上一次 miyu ask 开的
 
 每次 miyu ask 都新开一个会话；-c、undo、restore、redo、compact、
-recap 管的是上一次开的那个。
+recap、rename 管的是上一次开的那个。
 
 例子：
   miyu ask "这个项目是做什么的"

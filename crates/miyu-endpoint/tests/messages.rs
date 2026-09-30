@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use serde_json::json;
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::{Body, ChildReported, Effect, Event, JobMessaged};
+use miyu_kernel::event::{Body, ChildReported, Effect, Event, JobMessaged, Purpose};
 use miyu_kernel::id::{JobId, Seq, SessionId};
 use miyu_kernel::origin::{By, Model, Session};
 use miyu_kernel::request::{Message, Request};
@@ -119,6 +119,10 @@ impl ModelPort for Brain {
     }
 
     fn call(&self, seen: Seq, request: Request, reports: Reports, cancel: Cancel) {
+        // 起标题的请求（施工 3-8 五补）不带哪一份的原话：不回，一直在路上，不碍这里测的。
+        if reports.purpose() == Some(&Purpose::Title) {
+            return;
+        }
         let play = decide(&request);
         self.0
             .lock()

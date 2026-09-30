@@ -1,7 +1,7 @@
 //! 出厂的英文：组装器要的固定字、驱动的占位，资源目录里的真文件（施工 7-2 从 `mod.rs` 挪出来，加上回报的写法；驱动的占位
 //! 3-9 四补挪来；别的 harness 发来的话的标签，施工 7-10）。
 
-use miyu_assemble::{HarnessTexts, JobTexts, Recap, RestoredWrap, Texts, TurnEndedTexts};
+use miyu_assemble::{HarnessTexts, JobTexts, Recap, RestoredWrap, Texts, Title, TurnEndedTexts};
 use miyu_drivers::{DriverTextSources, DriverTexts, ImageNameSources, TextFileSources};
 use miyu_kernel::template::Template;
 
@@ -64,6 +64,15 @@ pub(super) fn texts() -> Texts {
             close: include_str!("../../../../resources/core/harness/message-close.txt").to_string(),
         }),
         recap: Some(recap()),
+        title: Some(title()),
+    }
+}
+
+/// 出厂的起标题的字（施工 3-8 五补），资源目录里的真文件；数照 `miyu-policy` 的出厂数（`TITLE`）。
+pub fn title() -> Title {
+    Title {
+        instruction: include_str!("../../../../resources/core/title/instruction.txt").to_string(),
+        tokens: 1_024,
     }
 }
 

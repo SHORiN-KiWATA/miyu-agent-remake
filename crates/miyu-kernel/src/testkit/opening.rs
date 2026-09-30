@@ -137,6 +137,9 @@ impl Stage {
             recaps: Vec::new(),
             recap_lines: VecDeque::new(),
             held_recap: None,
+            titles: Vec::new(),
+            title_lines: VecDeque::new(),
+            held_title: None,
         };
         stage.settle(actions);
         stage

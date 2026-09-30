@@ -165,6 +165,9 @@ pub(crate) fn core() -> CoreTexts {
             omitted: include_str!("../../../resources/core/recap/omitted.txt").to_string(),
             excerpted: include_str!("../../../resources/core/recap/excerpted.txt").to_string(),
         }),
+        title: Some(crate::TitleTexts {
+            instruction: include_str!("../../../resources/core/title/instruction.txt").to_string(),
+        }),
     }
 }
 

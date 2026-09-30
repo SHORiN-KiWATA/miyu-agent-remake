@@ -16,6 +16,7 @@ use super::meta::Meta;
 use super::policy::Policy;
 use super::recent::Recent;
 use super::report::Duty;
+use super::title::Naming;
 use super::turn::Stage;
 use crate::event::{Body, EndReason, Event, Permission, PolicyChanged, ToolStatus};
 use crate::facts::Environment;
@@ -116,6 +117,7 @@ impl Session {
         let mut ledger = Ledger::for_session(session.clone());
         let mut replay = Replay::default();
         let mut duty = Duty::default();
+        let mut naming = Naming::default();
         for event in &events {
             // 向上回报照活着时的算（施工 7-6）：活着时落了盘就报，接着开的一轮和结束在同一批里，那时不该报。
             if !matches!(event.body, Body::TurnStarted(_)) && duty.due(&ledger) {
@@ -124,6 +126,7 @@ impl Session {
             let queued = ledger.queued();
             ledger.append(event).map_err(LoadError::Broken)?;
             duty.note(event);
+            naming.note(event);
             replay.note(event, queued, jobs::waking(&ledger, event));
         }
         if duty.due(&ledger) {
@@ -171,6 +174,8 @@ impl Session {
             duty,
             meta: std::mem::take(&mut replay.meta),
             recapping: None,
+            naming,
+            titling: None,
         };
         let mut actions: Vec<Action> = session.recall().into_iter().collect();
         // 最后报的那一份再交一次（施工 7-6）：送到一半崩了的不漏，父会话照命令编号认出重的，不重。

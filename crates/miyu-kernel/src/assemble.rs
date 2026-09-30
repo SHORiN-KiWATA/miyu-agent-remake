@@ -53,4 +53,14 @@ pub trait Assembler {
         let _ = history;
         None
     }
+
+    /// 起标题的请求（施工 3-8 五补，`docs/blueprint/kernel/request.md`「起标题的请求」）：和回顾一样单独的一次辅助请求，只喂
+    /// `history` 里的第一轮：第一个回答以前人这边的话，和那个回答的正文。交回请求，和它照到的那一条：那个回答的序号。
+    /// `history` 是这一刻落了盘的有效历史。同样是纯函数。
+    ///
+    /// 她一个带正文的回复都没有的是 `None`。默认的是 `None`：不做起标题的组装。
+    fn title(&self, history: &History) -> Option<(Request, Seq)> {
+        let _ = history;
+        None
+    }
 }

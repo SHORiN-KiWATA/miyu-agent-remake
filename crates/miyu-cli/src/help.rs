@@ -1,4 +1,4 @@
-//! 帮助页（施工 4-11，`docs/blueprint/cli/main.md`「帮助页」）：自己写的，一种语言八页（施工 3-8 四补加了 `recap`），编进程序，资源目录找不到
+//! 帮助页（施工 4-11，`docs/blueprint/cli/main.md`「帮助页」）：自己写的，一种语言九页（施工 3-8 四补加了 `recap`，五补加了 `rename`），编进程序，资源目录找不到
 //! 也印得出。主程序把它们交给 clap 的 `override_help`：`-h`、`--help`、`miyu help <子命令>` 印的都是这几页。
 
 use crate::language::Language;
@@ -20,6 +20,8 @@ pub enum Page {
     Compact,
     /// `miyu recap -h`（施工 3-8 四补）。
     Recap,
+    /// `miyu rename -h`（施工 3-8 五补）。
+    Rename,
     /// `miyu sandbox -h`，`miyu sandbox setup -h`、`miyu sandbox remove -h` 也印它（施工 5-8）。
     Sandbox,
 }
@@ -34,6 +36,7 @@ pub fn page(language: Language, page: Page) -> &'static str {
         (Language::Chinese, Page::Redo) => include_str!("help/zh/redo.txt"),
         (Language::Chinese, Page::Compact) => include_str!("help/zh/compact.txt"),
         (Language::Chinese, Page::Recap) => include_str!("help/zh/recap.txt"),
+        (Language::Chinese, Page::Rename) => include_str!("help/zh/rename.txt"),
         (Language::English, Page::Miyu) => include_str!("help/en/miyu.txt"),
         (Language::English, Page::Ask) => include_str!("help/en/ask.txt"),
         (Language::English, Page::Undo) => include_str!("help/en/undo.txt"),
@@ -41,6 +44,7 @@ pub fn page(language: Language, page: Page) -> &'static str {
         (Language::English, Page::Redo) => include_str!("help/en/redo.txt"),
         (Language::English, Page::Compact) => include_str!("help/en/compact.txt"),
         (Language::English, Page::Recap) => include_str!("help/en/recap.txt"),
+        (Language::English, Page::Rename) => include_str!("help/en/rename.txt"),
         (Language::Chinese, Page::Sandbox) => include_str!("help/zh/sandbox.txt"),
         (Language::English, Page::Sandbox) => include_str!("help/en/sandbox.txt"),
     }

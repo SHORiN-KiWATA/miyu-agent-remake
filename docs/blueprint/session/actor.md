@@ -15,7 +15,7 @@
 | `crates/miyu-session/src/actor/stop.rs` | 有计划地停下：要重启了、后台命令记 `restarted`、落了盘再整组杀（施工 7-3） |
 | `crates/miyu-session/src/actor/store.rs` | 写盘；撤掉压缩时读回日志（施工 6-9） |
 | `crates/miyu-session/src/handle.rs` | `Handle`：发命令、订阅、停下；推送和订阅；订阅放下时告诉 actor（施工 7-9） |
-| `crates/miyu-session/src/port.rs` | 请求模型的端口：`Models`、`ModelPort`、`Reports`（回顾的请求的回报另走一路，`Reports::recap`，施工 3-8 四补）、`Cancel` |
+| `crates/miyu-session/src/port.rs` | 请求模型的端口：`Models`、`ModelPort`、`Reports`（辅助请求的回报另走一路，`Reports::aside`，施工 3-8 四补；五补起回顾、起标题共用，`purpose()` 交回用途）、`Cancel` |
 | `crates/miyu-session/src/http.rs` | 端口的真实现：经驱动和 HTTP 执行器请求 |
 | `crates/miyu-session/src/clock.rs` | 会话的时钟、新的会话编号 |
 | `crates/miyu-session/src/store.rs` | 写盘的端口：平时是会话日志，测试里换成写不进去的；也从这里读回日志（施工 6-9） |
@@ -28,7 +28,7 @@
 | `crates/miyu-session/src/guard.rs` | 权限策略（`session/guard.md`） |
 | `crates/miyu-session/src/spawn.rs`、`agents.rs`、`job_ids.rs` | 造子会话的端口、派子代理、领任务编号（施工 7-5，`session/tools.md`「派子代理」） |
 | `crates/miyu-session/src/report.rs` | 向上回报：子会话把内核交出的回报经端口交给父会话；父会话载入以后叫起还没回报的子会话（施工 7-6） |
-| `crates/miyu-session/src/testkit.rs` | 测试用的、照剧本回的端口，`testkit` 开关打开才有 |
+| `crates/miyu-session/src/testkit.rs` | 测试用的、照剧本回的端口，`testkit` 开关打开才有。起标题的请求另排剧本（`Script::titles`），记在 `titled()` 里，不占主剧本；没排的只记下、不回（施工 3-8 五补：它每一轮答完自己来，不管标题的测试不用替它排） |
 
 ### 对外的样子
 
@@ -192,7 +192,7 @@
 4. 不要这次请求了：叫端口停下，记一行 `cancelled`，`seen`、`took_ms`。已经说完了的，什么都不做。
 5. 会话停了也算叫停：actor 退出时放下了叫停的那一头，路上的请求跟着停下，不白花 token。
 6. 重试是内核定的：能再来的错，内核推一条等着重试的状态提示、交出「到点叫醒」（`kernel/session.md`）。actor 照状态提示记一行 `retrying`：`seen`、第几次 `attempt`、最多几次 `limit`、等多久 `wait_ms`、分类 `class`；出错的原话不写，里面可能回显请求里的字。到点送回「到点了」，内核再交一次「请求模型」。
-7. **回顾的请求**（`Recap { upto, request }`，施工 3-8 四补，`kernel/session.md`「回顾」）：交给同一个端口，名字是它照到的那一条。回报另走一路（`Reports::recap`，送回的是 `RecapSent`、`RecapDelta`、`RecapEnded`），和主请求的 `seen` 撞了也分得开：回合进行中的主请求多半就照到那一条。一次只有一个，它的叫停那一头 actor 拿着不用（内核不叫停回顾），actor 退出时放下，请求跟着停。记的几行和主请求的一样，前面带 `recap`：交给端口之前 `recap request`（`seen` 是照到的那一条、端点、模型，没有 `changed`：它不和主请求比），说完了 `recap ended`、`recap failed`，格和第 3 条一样。
+7. **辅助请求**（`Aside { purpose, upto, request }`：回顾，施工 3-8 四补，`kernel/session.md`「回顾」；起标题，施工 3-8 五补，「起标题」）：交给同一个端口，名字是用途和它照到的那一条。回报另走一路（`Reports::aside`，送回的是 `AsideSent`、`AsideDelta`、`AsideEnded`，带着用途），和主请求的 `seen` 撞了也分得开：回合进行中的主请求多半就照到那一条。一种用途一次只有一个，它的叫停那一头 actor 拿着不用（内核不叫停辅助请求），actor 退出时放下，请求跟着停。记的几行和主请求的一样，前面带用途：交给端口之前 `recap request`、`title request`（`seen` 是照到的那一条、端点、模型，没有 `changed`：它不和主请求比），说完了 `recap ended`、`recap failed`、`title ended`、`title failed`，格和第 3 条一样。起标题两次都没起成就不再试，第二行 `title failed` 就是那一行。
 
 **8. 经驱动和 HTTP 请求**（`HttpModels`）
 
@@ -238,6 +238,9 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | INFO | `recap request` | `seen`、`endpoint`、`model` | 回顾的请求交给端口之前（第 7 条第 7 款，施工 3-8 四补） |
 | INFO | `recap failed` | `seen`、`took_ms`、`class` | 回顾的请求出错收场 |
 | INFO | `recap ended` | `seen`、`took_ms`、`in`、`hit`、`write`、`out` | 回顾的请求说完 |
+| INFO | `title request` | `seen`、`endpoint`、`model` | 起标题的请求交给端口之前（第 7 条，施工 3-8 五补） |
+| INFO | `title failed` | `seen`、`took_ms`、`class` | 起标题的请求出错、没有正文收场；第二行是不再试的那一行 |
+| INFO | `title ended` | `seen`、`took_ms`、`in`、`hit`、`write`、`out` | 起标题的请求说完 |
 | WARN | `retrying` | `seen`、`attempt`、`limit`、`wait_ms`、`class` | 等着重试 |
 | INFO | `compacted` | `seen`、`trigger`、`before`、`after`、`summary_in`、`summary_cached`、`summary_out`、`took_ms` | 压好了（`compaction.md` 第十三条）：摘要请求的输入、命中、输出、用时照它的 `model.called`，没有的不写 |
 | INFO | `running` | `call`、`tool` | 开始跑一次调用（`session/tools.md`） |
@@ -272,8 +275,8 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | DEBUG | `input` | `kind` | 每一条输入送进内核之前；增量、执行中的输出记在 TRACE |
 | DEBUG | `action` | `kind` | 每一个动作做之前；推送增量、推送执行中的输出记在 TRACE |
 
-- 输入的种类：`command`、`stored`、`environment`、`turn_start_hooks_done`、`request_sent`、`model_delta`、`model_ended`、`woke`、`tool_done`、`tool_progress`、`tool_asks`、`restarting`、`restored`、`read_back`、`recalled`、`tool_guarded`、`job_ended`、`watched`（施工 7-9）、`recap_sent`、`recap_delta`（记在 TRACE）、`recap_ended`（施工 3-8 四补）。
-- 动作的种类：`append`、`reply`、`push`、`run_turn_start_hooks`、`call_model`、`push_transient`、`cancel_model`、`wake`、`run_turn_end_hooks`、`cancel_tool`、`guard_tool`、`answer_tool`、`run_tool`、`restore`、`read_back`、`recall`、`report`（施工 7-6）、`recap`（施工 3-8 四补）。
+- 输入的种类：`command`、`stored`、`environment`、`turn_start_hooks_done`、`request_sent`、`model_delta`、`model_ended`、`woke`、`tool_done`、`tool_progress`、`tool_asks`、`restarting`、`restored`、`read_back`、`recalled`、`tool_guarded`、`job_ended`、`watched`（施工 7-9）、`aside_sent`、`aside_delta`（记在 TRACE）、`aside_ended`（施工 3-8 四补叫 `recap_*`，五补起回顾、起标题共用，改成这个名字）。
+- 动作的种类：`append`、`reply`、`push`、`run_turn_start_hooks`、`call_model`、`push_transient`、`cancel_model`、`wake`、`run_turn_end_hooks`、`cancel_tool`、`guard_tool`、`answer_tool`、`run_tool`、`restore`、`read_back`、`recall`、`report`（施工 7-6）、`aside`（施工 3-8 四补叫 `recap`，五补改名）。
 - 只写种类、编号、数，不写里面的字。
 
 ### 出错
@@ -316,6 +319,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | `crates/miyu-session/tests/http.rs` | 经假服务器回复；限速照服务器说的等；打断断开连接；缺 blob 出错、不发；回复断了接着说；卡住的回复照空闲超时；图片照字节发出去 |
 | `crates/miyu-session/tests/log.rs` | 会话造、请求、出错、重试、收场、停下、载入、没人拿着、端口 panic 的几行；手动压缩的 `compacted` 写 `trigger=manual`（施工 6-8）；撤销以后 `changed=message:0:user`；`DEBUG` 的输入和动作、增量在 `TRACE`；没有对话的字 |
 | `crates/miyu-session/tests/recap_log.rs`（施工 3-8 四补） | 回顾的请求记 `recap request`、`recap ended`、`recap failed`，`seen` 是照到的那一条，格和主请求的一样；没有对话的字 |
+| `crates/miyu-session/tests/title_log.rs`（施工 3-8 五补） | 起标题的请求记 `title request`、`title ended`、`title failed`，`seen` 是照到的那一条；两次都没起成，第三轮不再试；没有对话的字 |
 | `crates/miyu-session/tests/http_log.rs` | HTTP 的两行带会话编号，key 不在日志里 |
 
 ### 出处

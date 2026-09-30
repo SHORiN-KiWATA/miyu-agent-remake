@@ -120,6 +120,44 @@ impl Assembler for Listing {
         Some((request, upto))
     }
 
+    /// 起标题（施工 3-8 五补）：有效历史里第一条有正文的回复和它前面人的消息的清单，最后一条写着「title」；照到的是那条
+    /// 回复。一条有正文的回复都没有的，没有。
+    fn title(&self, history: &History) -> Option<(Request, Seq)> {
+        let events = history.events();
+        let answer = events.iter().position(|event| match &event.body {
+            Body::MessageAssistant(reply) => reply
+                .blocks
+                .iter()
+                .any(|block| matches!(block, Block::Text(text) if !text.text.trim().is_empty())),
+            _ => false,
+        })?;
+        let mut messages: Vec<Message> = events[..=answer]
+            .iter()
+            .filter(|event| matches!(event.body, Body::MessageUser(_) | Body::MessageAssistant(_)))
+            .filter(|event| {
+                event.seq == events[answer].seq || matches!(event.body, Body::MessageUser(_))
+            })
+            .map(|event| Message::User {
+                blocks: vec![Block::Text(Text {
+                    text: format!("{} {}", event.seq, event.body.kind()),
+                })],
+            })
+            .collect();
+        messages.push(Message::User {
+            blocks: vec![Block::Text(Text {
+                text: "title".to_string(),
+            })],
+        });
+        let request = Request {
+            tools: Vec::new(),
+            system: String::new(),
+            messages,
+            stable: 0,
+            continuation: false,
+        };
+        Some((request, events[answer].seq))
+    }
+
     /// 正文块连起来，去掉前后空白；空的取不到。
     fn summary(&self, reply: &[Block]) -> Option<String> {
         let text: String = reply
