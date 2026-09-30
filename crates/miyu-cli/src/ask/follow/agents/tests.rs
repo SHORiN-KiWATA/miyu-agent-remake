@@ -37,7 +37,7 @@ fn subagents_are_owed_until_they_report_and_commands_are_not_counted() {
     assert!(!agents.settled());
     assert_eq!(
         agents.reported(&report(20, "j1", "done"), true),
-        Some(("j1".to_string(), "查 A".to_string()))
+        Some(("j1".to_string(), Some("查 A".to_string())))
     );
     assert_eq!(agents.owed(), 1);
     // 停掉的、崩了补报的也算报过。
@@ -69,18 +69,18 @@ fn a_message_after_its_report_makes_it_owe_again() {
         json!([{"kind": "job.messaged", "job": "j1"}]),
     ));
     assert_eq!(agents.owed(), 1, "只剩 j2");
-    // 给不是这次派的留言：不认。
+    // 给这一次以前派的留言：也等它（施工 7-9 补）。
     agents.result(&result(
         "call_40_1",
         json!([{"kind": "job.messaged", "job": "j7"}]),
     ));
-    assert_eq!(agents.owed(), 1);
+    assert_eq!(agents.owed(), 2, "j2、j7");
     // 调用编号读不出来的：当刚发，欠着。
     agents.result(&result(
         "bad",
         json!([{"kind": "job.messaged", "job": "j1"}]),
     ));
-    assert_eq!(agents.owed(), 2);
+    assert_eq!(agents.owed(), 3);
 }
 
 #[test]
@@ -140,4 +140,39 @@ fn a_report_the_last_request_missed_brings_the_next_turn() {
     agents.reported(&stopped, true);
     agents.turn_ended("completed");
     assert!(agents.settled());
+}
+
+#[test]
+fn a_subagent_from_before_is_owed_once_she_messages_it() {
+    // 施工 7-9 补：这一次以前派的 j5，没留言以前它的回报不认、不数；这一次给它留了言，也等它。
+    let mut agents = Agents::default();
+    assert_eq!(
+        agents.reported(&report(20, "j5", "done"), true),
+        None,
+        "还没留言：不认"
+    );
+    assert!(agents.settled());
+    agents.result(&result(
+        "call_30_1",
+        json!([{"kind": "job.messaged", "job": "j5"}]),
+    ));
+    assert_eq!(agents.owed(), 1, "留言以前到的回报不算回了这句留言");
+    assert_eq!(
+        agents.reported(&report(40, "j5", "done"), false),
+        Some(("j5".to_string(), None)),
+        "留了言以后的回报认，没有标题"
+    );
+    assert_eq!(agents.owed(), 0);
+    assert!(!agents.settled(), "等它叫醒的那一轮");
+    // 留言发出去以后、结果记下以前它就报了：和这一次派的一样，算回了这句留言，不欠。
+    let mut quick = Agents::default();
+    quick.reported(&report(35, "j6", "done"), true);
+    quick.result(&result(
+        "call_30_1",
+        json!([{"kind": "job.messaged", "job": "j6"}]),
+    ));
+    assert_eq!(quick.owed(), 0, "留言发出以后先到的回报算回了");
+    // 没留言的以前派的：一直不数。
+    quick.reported(&report(50, "j7", "done"), false);
+    assert!(quick.settled(), "不等它叫醒的那一轮");
 }
