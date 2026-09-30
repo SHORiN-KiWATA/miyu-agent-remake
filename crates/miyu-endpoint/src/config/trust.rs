@@ -69,6 +69,31 @@ pub(crate) fn records(text: &str) -> Result<Vec<Record>, String> {
         .collect())
 }
 
+/// 手改了记录以后，哪几个仓库的回答变了（施工 8-4）：`new` 里每个仓库（照写的 `path` 认）算数的那一条（最后一条），和
+/// `old` 里的不一样、或者 `old` 里没有的，照在 `new` 里的先后。删掉了的仓库不算：删掉就是还没问过，不是一个回答。
+pub(crate) fn changed(old: &[Record], new: &[Record]) -> Vec<Record> {
+    let last = |records: &[Record], path: &str| -> Option<Record> {
+        records
+            .iter()
+            .rev()
+            .find(|record| record.path == path)
+            .cloned()
+    };
+    let mut changed: Vec<Record> = Vec::new();
+    for record in new {
+        if changed.iter().any(|seen| seen.path == record.path) {
+            continue;
+        }
+        let now = last(new, &record.path);
+        if now != last(old, &record.path)
+            && let Some(now) = now
+        {
+            changed.push(now);
+        }
+    }
+    changed
+}
+
 /// 一个回答。
 pub(crate) struct Answer<'a> {
     /// 仓库在哪，真实的位置：找已有的那一条照它比。

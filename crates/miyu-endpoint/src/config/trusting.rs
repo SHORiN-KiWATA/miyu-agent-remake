@@ -6,7 +6,7 @@
 //!    只能是他看过的那一份。
 //! 3. 收下的：先重读 `trust.toml`（手改过的在新的字上记），记下这个回答，照改配置的规矩写盘（顺着链接、临时文件、替换前再读、
 //!    有人手改就重来，最多三次）；换上新的记录，记账号日志 `trust.changed`、运行日志 `INFO project trust`，再回应。
-//! 4. 不推送：项目配置不推（第三条第 5 条）。下一个会话、下一句话照新的。
+//! 4. 不推送：项目配置不推（第三条第 5 条）。下一个会话、下一句话、开着的会话的下一个回合照新的（施工 8-4）。
 //!
 //! `trust.toml` 读不懂（手改坏了）、写不成的：`internal_error`，记一条 `WARN config not written`，一个字节不动。
 
@@ -75,6 +75,8 @@ pub(crate) fn trust(
             Ok(records) => {
                 config.trust = records;
                 done(&config, cause, &answer);
+                // 不推，只交给会话：下一个回合照新的信任读项目配置（施工 8-4）。
+                core.hub.publish(&config, None);
                 return Ok(json!({"file": project.file.shown, "trusted": params.trust}));
             }
             Err(WriteError::Changed) => {}
@@ -115,6 +117,7 @@ fn done(config: &Config, cause: &CommandId, answer: &Answer<'_>) {
         path: answer.shown,
         version: answer.version,
         trusted: answer.trusted,
+        via: None,
     };
     let by = By::Person(Person {
         account: config.places.account.clone(),
@@ -124,7 +127,7 @@ fn done(config: &Config, cause: &CommandId, answer: &Answer<'_>) {
         &config.places.shown(miyu_store::journal::FILE),
         crate::sessions::now(),
         by,
-        cause,
+        Some(cause),
         "trust.changed",
         &body,
     );

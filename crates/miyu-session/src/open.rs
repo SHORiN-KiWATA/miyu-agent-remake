@@ -24,6 +24,7 @@ use crate::actor::{self, Actor, JobKit};
 use crate::agents::{Agents, job_in};
 use crate::blocking::blocking;
 use crate::clock::Clock;
+use crate::config::{Configs, Turning};
 use crate::effects;
 use crate::guard::Guard;
 use crate::handle::Handle;
@@ -88,6 +89,8 @@ pub struct Create<'a> {
     pub jobs: &'a Arc<Jobs>,
     /// 属主的会话列表的索引（施工 3-8 七补）：日志每落一批，顺手更新这个会话的那一行。没有的（测试里自己造的）不更新。
     pub index: Option<Arc<SessionIndex>>,
+    /// 从哪取配置（施工 8-4）：回合开始时照它冻结这一轮的配置。没有配置服务的（测试里）给 [`crate::fixed`] 的一份。
+    pub configs: Configs,
 }
 
 /// 载入一个会话要的。
@@ -118,6 +121,8 @@ pub struct Load<'a> {
     pub jobs: &'a Arc<Jobs>,
     /// 同 [`Create::index`]。
     pub index: Option<Arc<SessionIndex>>,
+    /// 同 [`Create::configs`]。
+    pub configs: Configs,
 }
 
 /// 造一个会话：先把策略快照存成 blob（先落 blob，再写引用它的事件），再建会话目录和日志，交给内核
@@ -150,8 +155,10 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         sessions,
         jobs,
         index,
+        configs,
     } = setup;
     let span = actor::span(&id);
+    let config = Turning::start(configs, environment.cwd.clone()).await;
     let (resources, name) = (resources.clone(), persona.to_string());
     let face = Agents::face(tools, &venue, lineage.as_ref());
     let child = lineage.is_some();
@@ -264,6 +271,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         guard,
         mailbox,
         clock,
+        config,
     );
     if let Some(upstream) = upstream {
         actor.report_to(Reporter::start(upstream, span.clone()));
@@ -313,8 +321,10 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         sessions,
         jobs,
         index,
+        configs,
     } = setup;
     let span = actor::span(&id);
+    let config = Turning::start(configs, environment.cwd.clone()).await;
     let dir = root.session_dir(&owner, &id);
     let log_dir = LogDir(dir.clone());
     let offset = environment.offset;
@@ -432,6 +442,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         guard,
         mailbox,
         clock,
+        config,
     );
     let busy = actor.busy();
     if let Some(upstream) = upstream {

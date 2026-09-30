@@ -9,7 +9,10 @@
 //!    `config_invalid`。
 //! 4. 只改那几项（`miyu_config::edit`），先写临时文件再替换；替换前发现这一瞬间有人手改了，从第 3 步重来，最多三次，还不行
 //!    的回 `config_conflict`。写不成：`internal_error`，记一条 `WARN config not written`。
-//! 5. 写成了：换上新的最终值，记日志（第六条），记一条 `INFO config changed`，回应。先落盘，后回应。
+//! 5. 写成了：换上新的最终值，记日志（第六条），记一条 `INFO config changed`，推 `config.changed`（施工 8-4），回应。先落盘，
+//!    后回应。
+//!
+//! 第 3 步的重读和监视看到手改走同一条路（`observe.rs`）：手改过的先当手改推、记，再改。
 
 use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Value as Json, json};
@@ -24,8 +27,10 @@ use miyu_store::config_file::{self, ConfigText, WriteError};
 use miyu_store::human::Human;
 
 use super::file::File;
-use super::journal::{self, ConfigChanged, KeyChange};
+use super::hub::Pushing;
 use super::methods::{said, selected, told, words};
+use super::observe::{differences, observe, record};
+use super::push::{self, Via};
 use super::{Config, TARGET, wire};
 use crate::Core;
 use crate::hello::Peer;
@@ -112,11 +117,11 @@ pub(crate) fn set(
     let mut config = core.config();
     let plan = plan(&config, layer, params, &words)?;
     let via = match &plan {
-        Plan::Changes(_) => "set",
-        Plan::Text(..) => "edit",
+        Plan::Changes(_) => Via::Set,
+        Plan::Text(..) => Via::Edit,
     };
     for _ in 0..TRIES {
-        config.reread(layer);
+        observe(core, &mut config, layer);
         let file = config.file(layer);
         let Some(text) = edited(&config, file, &plan, &words)? else {
             return Ok(json!({"keys": {}, "version": file.version}));
@@ -129,7 +134,7 @@ pub(crate) fn set(
                     text,
                     bom: file.bom,
                 };
-                return Ok(done(&mut config, layer, written, via, cause));
+                return Ok(done(core, &mut config, layer, written, via, cause));
             }
             Err(WriteError::Changed) => {}
             Err(WriteError::Io(error)) => {
@@ -138,7 +143,7 @@ pub(crate) fn set(
             }
         }
     }
-    config.reread(layer);
+    observe(core, &mut config, layer);
     Err(Refusal::config_conflict_version(
         config.file(layer).version.clone(),
     ))
@@ -256,7 +261,7 @@ fn edited(
             }
             let layers = config.layers(None);
             let problems = match parse(config.items(), file.layer, text) {
-                Err(problem) => vec![said(config, &layers, &problem, None, false, words)?],
+                Err(problem) => vec![said(config, &layers, &problem, None, words)?],
                 Ok(parsed) => {
                     let mut problems = Vec::new();
                     for problem in parsed
@@ -264,7 +269,7 @@ fn edited(
                         .iter()
                         .filter(|problem| problem.severity() == Severity::Error)
                     {
-                        problems.push(said(config, &layers, problem, None, false, words)?);
+                        problems.push(said(config, &layers, problem, None, words)?);
                     }
                     problems
                 }
@@ -288,14 +293,7 @@ fn changed(
         let layers = config.layers(None);
         let mut problems = Vec::new();
         for problem in file.problems() {
-            problems.push(said(
-                config,
-                &layers,
-                problem,
-                Some(&file.shown),
-                true,
-                words,
-            )?);
+            problems.push(said(config, &layers, problem, Some(file), words)?);
         }
         Ok(Refusal::config_file_broken(problems))
     };
@@ -337,12 +335,14 @@ fn changed(
     Ok((text != start).then_some(text))
 }
 
-/// 写成了：换上新的一份、重算最终值，记日志和运行日志，交回回应。
+/// 写成了：换上新的一份、重算最终值，记日志和运行日志，推给订阅着配置的头（发这一条的连接先见推送、后见回应，施工 8-4），
+/// 交回回应。
 fn done(
+    core: &Core,
     config: &mut Config,
     layer: Layer,
     written: ConfigText,
-    via: &str,
+    via: Via,
     cause: &CommandId,
 ) -> Json {
     let old = config.file(layer).clone();
@@ -350,89 +350,20 @@ fn done(
     let version = new.version.clone();
     let changes = differences(&old, &new);
     config.replace(new);
-    let journal = match layer {
-        Layer::System => &config.places.system_journal,
-        _ => &config.places.account_journal,
-    };
-    let journal_shown = match layer {
-        Layer::System => format!("system/{}", miyu_store::journal::FILE),
-        _ => config.places.shown(miyu_store::journal::FILE),
-    };
-    let body = ConfigChanged {
-        layer: layer.as_str(),
-        file: &old.shown,
-        via,
-        changes: changes
-            .iter()
-            .map(|(key, old, new)| KeyChange {
-                key,
-                old: old.as_ref().map(Value::json),
-                new: new.as_ref().map(Value::json),
-            })
-            .collect(),
-    };
     let by = By::Person(Person {
         account: config.places.account.clone(),
     });
-    journal::record(
-        journal,
-        &journal_shown,
-        crate::sessions::now(),
-        by,
-        cause,
-        "config.changed",
-        &body,
+    record(config, layer, via, by.clone(), Some(cause), &changes);
+    let keys: Vec<&'static str> = changes.iter().map(|(key, _, _)| *key).collect();
+    let listed = push::keys(config, layer, &keys);
+    core.hub.publish(
+        config,
+        Some(Pushing {
+            layer,
+            via,
+            by: Some(by),
+            keys,
+        }),
     );
-    let keys: Vec<&str> = changes.iter().map(|(key, _, _)| *key).collect();
-    tracing::info!(
-        target: TARGET,
-        layer = %layer.as_str(),
-        via = %via,
-        keys = %keys.join(","),
-        "config changed"
-    );
-    let shown = |at: Layer| Some(config.file(at).shown.clone());
-    let mut listed = Map::new();
-    for (key, _, new) in &changes {
-        let Some(item) = config.items().iter().find(|item| item.key == *key) else {
-            continue;
-        };
-        let mut entry = Map::new();
-        entry.insert("applies".to_string(), json!(item.applies.as_str()));
-        if let Some((value, origin)) = config.resolved().get(key) {
-            entry.insert("effective".to_string(), value.json());
-            entry.insert("origin".to_string(), wire::origin(origin, &shown));
-        }
-        if let Some(new) = new {
-            entry.insert("value".to_string(), new.json());
-        }
-        listed.insert((*key).to_string(), Json::Object(entry));
-    }
     json!({"keys": listed, "version": version})
-}
-
-/// 这一层真变了的几项：键、之前的值、之后的值（没写的是空的），照键名排。只看这一层算数的项。
-fn differences(old: &File, new: &File) -> Vec<(&'static str, Option<Value>, Option<Value>)> {
-    let value = |file: &File, key: &str| {
-        file.parsed
-            .entries
-            .get(key)
-            .filter(|entry| entry.counts)
-            .map(|entry| entry.value.clone())
-    };
-    let mut keys: Vec<&'static str> = old
-        .parsed
-        .entries
-        .keys()
-        .chain(new.parsed.entries.keys())
-        .copied()
-        .collect();
-    keys.sort_unstable();
-    keys.dedup();
-    keys.into_iter()
-        .filter_map(|key| {
-            let (before, after) = (value(old, key), value(new, key));
-            (before != after).then_some((key, before, after))
-        })
-        .collect()
 }

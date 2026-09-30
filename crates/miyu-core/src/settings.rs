@@ -4,6 +4,8 @@
 //!
 //! 生成的三份是派生的：一样的不重写，写不成的记一条 `WARN config schema not written`，照样起来，缺了只是编辑器没有
 //! 补全。字照管理员的 `ui.language` 的最终值，`auto` 的照核心所在系统的语言。
+//!
+//! 运行中配置换了（施工 8-4，[`follow()`]）：`log.level` 变了当场换级别，`ui.language` 变了照新的语言重写这三份。
 
 use std::path::Path;
 
@@ -13,7 +15,7 @@ use miyu_endpoint::config::Config;
 use miyu_endpoint::settings::{PermissionSettings, UiSettings};
 use miyu_kernel::id::AccountId;
 use miyu_log::settings::LogSettings;
-use miyu_log::{Guard, Level};
+use miyu_log::{Guard, Level, Levels};
 use miyu_store::generated;
 use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
@@ -83,8 +85,6 @@ pub fn read(root: &DataRoot, admin: &AccountId, home: Option<&Path>) -> Config {
 /// 就照它了），读不懂的记一条 `WARN MIYU_LOG not understood, using config`，照配置。再记一条 `INFO log level`：级别和
 /// 从哪来（`env`、`config`、`default`）。`from_env` 是装日志时读的 `MIYU_LOG`。
 pub fn log_level(config: &Config, from_env: &Level, log: &Guard) {
-    let resolved = config.resolved();
-    let settings = LogSettings::from(&resolved.values());
     if let Some(unknown) = &from_env.unknown {
         tracing::warn!(
             target: TARGET,
@@ -92,12 +92,19 @@ pub fn log_level(config: &Config, from_env: &Level, log: &Guard) {
             "MIYU_LOG not understood, using config"
         );
     }
+    set_level(config, &log.levels());
+}
+
+/// 照 `config` 里 `log.level` 的最终值换级别，记一条 `INFO log level`：级别和从哪来。
+fn set_level(config: &Config, levels: &Levels) {
+    let resolved = config.resolved();
+    let settings = LogSettings::from(&resolved.values());
     let from = match resolved.get("log.level").map(|(_, origin)| origin) {
         Some(Origin::Env(_)) => "env",
         Some(Origin::File { .. }) => "config",
         _ => "default",
     };
-    log.set_level(miyu_log::level(Some(&settings.level)).filter);
+    levels.set(miyu_log::level(Some(&settings.level)).filter);
     tracing::info!(target: TARGET, level = %settings.level, from, "log level");
 }
 
@@ -125,6 +132,10 @@ pub fn generate(root: &DataRoot, resources: &ResourceRoot, locale: Option<&str>,
         }
     }
 }
+
+mod follow;
+
+pub use follow::follow;
 
 #[cfg(test)]
 mod tests;

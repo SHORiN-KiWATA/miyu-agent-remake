@@ -11,7 +11,7 @@
 //! - [`settings`]：端点的配置项，界面语言 `ui.language`（施工 8-1）、新会话开局只读 `permission.start_read_only`
 //!   （施工 8-2）；
 //! - [`config`]：配置服务：起来时读的几份配置、最终值，`config.schema`、`config.get`、`config.check`（施工 8-2）；
-//!   `config.set`、`config.trust`（施工 8-3）。
+//!   `config.set`、`config.trust`（施工 8-3）；监视配置文件、推 `config.changed`、把当前的一份交给会话和核心（施工 8-4）。
 
 mod attach;
 pub mod config;
@@ -49,6 +49,7 @@ use miyu_store::root::DataRoot;
 use miyu_tool::Catalog;
 
 use config::Config;
+use config::hub::Hub;
 use sessions::Sessions;
 
 /// 核心的家底：一个核心一份，各个连接一起用。
@@ -86,6 +87,8 @@ pub struct Core {
     hello_wait: Duration,
     /// 配置（施工 8-2）：起来时读的几份和最终值。施工 8-3 起能改，住在一把锁里（[`Core::config`]）。
     config: std::sync::Mutex<Config>,
+    /// 配置换了交给谁（施工 8-4）：会话、核心取当前的一份，订阅着配置的连接收推送。
+    hub: Hub,
 }
 
 /// 连上以后最多等多久握手。
@@ -111,6 +114,7 @@ impl Core {
         let index = Arc::new(list::open_index(&root, &admin));
         Core {
             index,
+            hub: Hub::new(&config),
             config: std::sync::Mutex::new(config),
             root,
             resources,
@@ -138,8 +142,15 @@ impl Core {
     /// 同一份家底，配置照 `config`（施工 8-2）：核心起来时读好交进来。没设的全是默认值，只认端点自己的两项。
     #[must_use]
     pub fn with_config(mut self, config: Config) -> Core {
+        self.hub = Hub::new(&config);
         self.config = std::sync::Mutex::new(config);
         self
+    }
+
+    /// 当前的配置（施工 8-4）：配置服务每换上一份新的（`config.set`、手改被看到的、`config.trust`），这里就是新的一份。核心
+    /// 照它当场换运行日志的级别、重写生成的文件。
+    pub fn config_now(&self) -> tokio::sync::watch::Receiver<Arc<Config>> {
+        self.hub.current()
     }
 
     /// 配置服务（施工 8-3）：改、查排着队一件件办（`config.md` 第五条第 1 条）。拿着它的时候不许 `.await`：别的连接的

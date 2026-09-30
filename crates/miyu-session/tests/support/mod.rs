@@ -15,8 +15,8 @@ use miyu_kernel::origin::{By, Person};
 use miyu_kernel::session::{Command, Outcome};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_session::{
-    Create, Handle, Jobs, Lineage, Load, Models, Pushed, SandboxCache, SessionPort, Stopped,
-    Subscription, create, load, new_id,
+    Configs, Create, Handle, Jobs, Lineage, Load, Models, Pushed, SandboxCache, SessionPort,
+    Stopped, Subscription, create, load, new_id,
 };
 use miyu_store::env::{Env, Platform};
 use miyu_store::index::{FILE, SessionIndex};
@@ -66,6 +66,8 @@ pub struct Home {
     pub jobs: Arc<Jobs>,
     /// alice 的会话列表的索引（施工 3-8 七补）：这个场地里造的、载入的会话都往里写，和核心里一样。
     pub index: Arc<SessionIndex>,
+    /// 造的、载入的会话从这里取配置（施工 8-4）：默认是全空的一份，测试换成自己的。
+    pub configs: Configs,
 }
 
 /// 造会话时可以换的几样（施工 4-3 下）。
@@ -166,6 +168,7 @@ impl Home {
             home,
             jobs: Arc::new(Jobs::new()),
             index: Arc::new(index),
+            configs: miyu_session::fixed(Default::default()),
             resources: ResourceRoot::at(
                 Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"),
             ),
@@ -227,6 +230,7 @@ impl Home {
             sessions: lines.sessions,
             jobs: &self.jobs,
             index: Some(Arc::clone(&self.index)),
+            configs: self.configs.clone(),
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -284,6 +288,7 @@ impl Home {
             sessions,
             jobs: &self.jobs,
             index: Some(Arc::clone(&self.index)),
+            configs: self.configs.clone(),
         });
         within("载入", loaded).await.expect("载入得了会话")
     }

@@ -23,7 +23,7 @@ pub(super) struct ConfigChanged<'a> {
     pub(super) layer: &'a str,
     /// 给人看的写法，相对数据根。
     pub(super) file: &'a str,
-    /// `set` 经 `config.set` 改几项，`edit` 整份换（`file` 手改被看到的随 8-4）。
+    /// `set` 经 `config.set` 改几项，`edit` 整份换，`file` 手改被看到的（施工 8-4）。
     pub(super) via: &'a str,
     /// 变了的每一项，照键名排。
     pub(super) changes: Vec<KeyChange>,
@@ -51,16 +51,19 @@ pub(super) struct TrustChanged<'a> {
     pub(super) version: &'a str,
     /// 信不信任。
     pub(super) trusted: bool,
+    /// 手改 `trust.toml` 被看到的是 `file`（施工 8-4）；经 `config.trust` 记的不写。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) via: Option<&'a str>,
 }
 
-/// 往 `path`（给人看的写法是 `shown`）追加一条 `kind`，内容是 `body`：谁 `by`、哪个命令 `cause`、什么时候 `at`。写不进
-/// 去的记一条 `WARN`，不往上报。
+/// 往 `path`（给人看的写法是 `shown`）追加一条 `kind`，内容是 `body`：谁 `by`、哪个命令 `cause`（手改被看到的没有）、
+/// 什么时候 `at`。写不进去的记一条 `WARN`，不往上报。
 pub(super) fn record(
     path: &Path,
     shown: &str,
     at: miyu_kernel::time::Timestamp,
     by: By,
-    cause: &CommandId,
+    cause: Option<&CommandId>,
     kind: &str,
     body: &impl Serialize,
 ) {
@@ -74,7 +77,7 @@ fn append(
     path: &Path,
     at: Timestamp,
     by: By,
-    cause: &CommandId,
+    cause: Option<&CommandId>,
     kind: &str,
     body: &impl Serialize,
 ) -> Result<(), String> {
@@ -82,7 +85,7 @@ fn append(
     let entry = Entry {
         at,
         by,
-        cause: Some(cause.clone()),
+        cause: cause.cloned(),
         kind: EventKind::parse(kind).map_err(|error| error.to_string())?,
         body: serde_json::from_str::<RawJson>(&body).map_err(|error| error.to_string())?,
     };

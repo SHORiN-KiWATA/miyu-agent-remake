@@ -89,13 +89,20 @@ impl ModelPort for Router {
         self.0[0].1.model()
     }
 
-    fn call(&self, seen: Seq, request: Request, reports: Reports, cancel: Cancel) {
+    fn call(
+        &self,
+        seen: Seq,
+        request: Request,
+        config: &miyu_session::TurnConfig,
+        reports: Reports,
+        cancel: Cancel,
+    ) {
         // 起标题的请求（施工 3-8 五补）不带哪一份的原话：不回，一直在路上，不碍这里测的。
         if reports.purpose() == Some(&Purpose::Title) {
             return;
         }
         let script = self.script(&request).clone();
-        script.call(seen, request, reports, cancel);
+        script.call(seen, request, config, reports, cancel);
     }
 }
 

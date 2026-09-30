@@ -49,9 +49,14 @@ pub struct Guard {
 }
 
 impl Guard {
-    /// 换成记到 `filter` 这一级（施工 8-2：读完配置，`MIYU_LOG` 没设的照 `log.level`）。
+    /// 换成记到 `filter` 这一级（施工 8-2：读完配置，`MIYU_LOG` 没设的照 `log.level`；施工 8-4：运行中改了当场换）。
     pub fn set_level(&self, filter: LevelFilter) {
         self.level.set(filter);
+    }
+
+    /// 换级别的把手，交给运行中照配置换级别的那一头（施工 8-4）：和 [`Guard::set_level`] 换的是同一处。
+    pub fn levels(&self) -> Levels {
+        self.level.clone()
     }
 }
 
