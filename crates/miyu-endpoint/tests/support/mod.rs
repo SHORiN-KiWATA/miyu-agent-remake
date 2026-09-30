@@ -280,6 +280,19 @@ impl Client {
         .await
     }
 
+    /// 带 `after` 订阅会话 `session` 的事件流（施工 3-8 六补）：交回回应之前读到的推送（补的在里面），和回应。
+    pub async fn subscribe_after(
+        &mut self,
+        id: &str,
+        session: &str,
+        after: Value,
+    ) -> (Vec<Value>, Value) {
+        let params = json!({"session": session, "stream": "events", "after": after});
+        let request = json!({"jsonrpc": "2.0", "id": id, "method": "subscribe", "params": params});
+        self.line(&request.to_string()).await;
+        self.until_reply(id).await
+    }
+
     /// 一直读，读到 `id` 的回应为止：交回回应之前读到的推送，和回应。
     pub async fn until_reply(&mut self, id: &str) -> (Vec<Value>, Value) {
         let mut pushed = Vec::new();
@@ -396,5 +409,22 @@ pub fn kinds(pushed: &[Value]) -> Vec<String> {
                 .unwrap_or("?")
                 .to_string()
         })
+        .collect()
+}
+
+/// 推送里的事件，照先后（施工 3-8 六补）。
+pub fn events(pushed: &[Value]) -> Vec<Value> {
+    pushed
+        .iter()
+        .filter(|push| push["method"] == json!("event"))
+        .map(|push| push["params"]["event"].clone())
+        .collect()
+}
+
+/// 磁盘上会话 `session` 的日志，每条写成 JSON，照先后（施工 3-8 六补）：和推送里的比。
+pub fn logged(home: &Home, session: &str) -> Vec<Value> {
+    home.log(session)
+        .iter()
+        .map(|event| serde_json::from_str(&event.to_line()).expect("事件是 JSON"))
         .collect()
 }

@@ -13,6 +13,7 @@ use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::sync::mpsc;
 
 use miyu_kernel::id::SessionId;
+use miyu_session::Handle;
 
 use crate::hello::{Peer, hello};
 use crate::methods;
@@ -105,8 +106,12 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
             },
             (_, None) => (wire::error(id(), Refusal::HELLO_FIRST, locale), None, false),
             ("subscribe", Some(_)) => {
-                let result = subscribe(&core, &mut subscriptions, &request, &out).await;
-                (answer(&request, result, locale), None, false)
+                let (result, target) =
+                    match subscribe(&core, &mut subscriptions, &request, &out).await {
+                        Ok((result, target)) => (Ok(result), target),
+                        Err(refusal) => (Err(refusal), None),
+                    };
+                (answer(&request, result, locale), target, false)
             }
             ("unsubscribe", Some(_)) => {
                 let result = stream_of(&request).map(|session| {
@@ -145,23 +150,64 @@ struct StreamParams {
 }
 
 /// 订阅会话的事件流：没在跑的照样先载入；已经订阅着的，还是那一个。回应带会话的限额（施工 6-3 补）：订阅着的也从会话表
-/// 拿，在跑的直接用，不多载入。
+/// 拿，在跑的直接用，不多载入。写了 `after` 的，先补之前的事件（[`subscribe_after`]）。交回回应，和回应经哪个订阅写出去：
+/// 补了的经新的订阅，排在补的后面；别的直接写。
 async fn subscribe(
     core: &Arc<Core>,
     subscriptions: &mut Subscriptions,
     request: &Request,
     out: &mpsc::Sender<String>,
-) -> Result<Value, Refusal> {
+) -> Result<(Value, Option<SessionId>), Refusal> {
     let session = stream_of(request)?;
+    let after = after_of(request)?;
     let handle = core.sessions.get(core, &session, None, None).await?.handle;
+    let limits = handle.limits();
+    if let Some(after) = after {
+        let upto = subscribe_after(core, subscriptions, &handle, &session, after, out).await?;
+        return Ok((json!({"limits": limits, "upto": upto}), Some(session)));
+    }
     if !subscriptions.has(&session) {
         let Ok(subscription) = handle.subscribe().await else {
             core.sessions.forget(&session).await;
             return Err(Refusal::STOPPED);
         };
-        subscriptions.add(session, subscription, out.clone());
+        subscriptions.add(session, subscription, Vec::new(), out.clone());
     }
-    Ok(json!({"limits": handle.limits()}))
+    Ok((json!({"limits": limits}), None))
+}
+
+/// 带 `after` 订阅（施工 3-8 六补）：总是换一个新的。原来有一个的，先等它把交给它的推送、回应都放完、拿回它的订阅，补的
+/// 就不和它的交错；新的拿到了才放下旧的，这个头一直算看着（施工 7-9）。补发的那一截和新的订阅在会话 actor 的同一步里拿，
+/// 在这里读完（会话照常跑，推送攒在新的订阅里），交给新的转发任务先写。交回补到哪一条。
+async fn subscribe_after(
+    core: &Arc<Core>,
+    subscriptions: &mut Subscriptions,
+    handle: &Handle,
+    session: &SessionId,
+    after: u64,
+    out: &mpsc::Sender<String>,
+) -> Result<u64, Refusal> {
+    let old = subscriptions.take(session).await;
+    let Ok((subscription, backlog)) = handle.subscribe_after(after).await else {
+        core.sessions.forget(session).await;
+        return Err(Refusal::STOPPED);
+    };
+    drop(old);
+    let upto = backlog.upto();
+    let backlog = backlog.read().await.map_err(|error| {
+        tracing::warn!(target: "miyu::endpoint", session = session.as_str(), error = %error, "replay not read");
+        Refusal::BROKEN
+    })?;
+    subscriptions.add(session.clone(), subscription, backlog, out.clone());
+    Ok(upto)
+}
+
+/// `subscribe` 的 `after`（施工 3-8 六补）：可以不写，写 `null` 等于没写；写了要是非负整数，别的 `bad_params`。
+fn after_of(request: &Request) -> Result<Option<u64>, Refusal> {
+    match request.params.get("after") {
+        None | Some(Value::Null) => Ok(None),
+        Some(after) => after.as_u64().map(Some).ok_or(Refusal::BAD_PARAMS),
+    }
 }
 
 /// 订阅的参数：会话编号，流现在只有 `events`。
