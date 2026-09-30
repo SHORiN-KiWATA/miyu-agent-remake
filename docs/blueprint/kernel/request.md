@@ -119,6 +119,7 @@
 | `tool.result` | 一条 tool：`call_id`；状态不是 `ok` 的（包括不认识的状态），`error` 是真；内容块 |
 | `job.reported`、`child.reported` | 一个文本块，带标签的事实（下面「回报」），攒进人这一边；派它的那一轮撤掉了的、没派过的、快照里没有写法的，不出（施工 7-2） |
 | `session.*`、`tool.approval_*`、`question.*`、`model.called`、`files.restored`、不认识的种类 | 不渲染。`session.recapped` 也在这里（施工 3-8 四补）：回顾不进她的上下文 |
+| `peer.idle` | 现在不渲染（施工 C-1 只有类型和账本）；渲染成带标签的事实随施工 C-6（`cross-session.md` 第八条第 4 款） |
 
 4. 内容块里不认识的种类，不进请求。`context.compacted`、`turn.reverted`、`turn.unreverted`、`message.withdrawn` 已经由有效历史用掉了，渲染时碰不到。
 5. **人这一边合成一条 user**：碰到 assistant 或者 tool，攒着的块先合成一条 user，放在它前面；渲染完了，剩下的也合成一条；什么都没攒，不出消息。

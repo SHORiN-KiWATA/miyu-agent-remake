@@ -1,0 +1,2 @@
+{"seq":130,"at":"2026-09-25T08:12:05.000Z","kind":"peer.idle","by":{"kind":"session","id":"01a0cf12-7e40-7d1b-8c3a-51d49f03b21c"},"cause":"01a0cf12-7e40-7d1b-8c3a-51d49f03b21c/idle/01a0d75d-2180-7a3c-9e41-5b7d2c8f6a10/57","body":{"session":"01a0cf12-7e40-7d1b-8c3a-51d49f03b21c","reason":"idle","status":"CI 修好了：macOS 上的临时目录换成了真实路径。"}}
+{"seq":138,"at":"2026-09-25T20:20:00.000Z","kind":"peer.idle","by":{"kind":"kernel"},"cause":"cmd-e5f8","body":{"session":"01a09b7e-3c15-7a62-b4e1-2f8e0c5d77aa","reason":"expired"}}

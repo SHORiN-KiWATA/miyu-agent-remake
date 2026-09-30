@@ -12,6 +12,8 @@
 
 状态：图纸，定稿（2026-10-01 起草，主会话审过，项目主人同一天批准）。定了的六条和防刷屏在 `docs/designs/29-跨会话.md` 第一、二节，这一页把第三节留下的技术细节定下来（末尾「起草时定的」）。每一节标着由哪一步做，步子见末尾「施工步子」（C-1 到 C-7，正式编号）。做完一步，这一页照做好的样子改写那几节，相关的几页跟着改（末尾「要跟着改的别的页」）。
 
+做好了的：C-1 会话的短编号（`kernel/ids.md`）；事件 `peer.idle`、效果 `peer.watch` 的类型、读写、样本（`kernel/events.md`、`kernel/events-bodies.md`）；`by` 是会话的三种关系（`kernel/ids.md`「谁」）；账本在等哪几个会话、`peer.idle` 只认在等的（`kernel/history.md`「在等的通知」）。还没有哪里报 `peer.watch`、写 `peer.idle`，她和头都看不到变化。
+
 ### 在哪
 
 施工时照这个放（C-1 到 C-6）：
@@ -84,7 +86,7 @@
 ```
 
 - `session`：被等的会话的整个编号。
-- 账本查：合会话编号的写法，不是这个会话自己。
+- 账本查：合会话编号的写法（读的时候就查了），不是这个会话自己（账本知道自己是哪个会话：内核造会话、载入时用 `Ledger::for_session`，`kernel/history.md`）。施工 C-1 做好了类型、读写和账本，还没有工具报它（C-6）。
 
 **事件** `peer.idle`（C-1、C-6）：等的那个会话空下来了，或者等不到了。记在等的那一边。
 
@@ -102,7 +104,7 @@
 - `by`：`idle` 的是那个会话，编号和 `session` 一样。`expired`、`gone` 的是内核。
 - `cause`：`idle` 的是交来通知的那个命令。`expired`、`gone` 的是订它的那一轮的 `cause`。
 - 不带回合编号：它是别处来的，撤哪一轮都不拿走（第七条第 2 款）。
-- 账本查：这时在等 `session` 的通知。`by` 是会话的，编号要和 `session` 一样。
+- 账本查：这时在等 `session` 的通知（订它的那一轮还没撤掉、那以后没收到过它的通知）。`by`：`idle` 的是那个会话，`expired`、`gone` 的是内核，不认识的原因不查（「起草时定的」第 29 条）。带不带回合编号不另立规矩，和两种回报一样。施工 C-1 做好了类型、读写、样本和账本，还没有哪里写它，也不渲染（C-6）。
 - 名字不叫 `session.*`：渲染表里 `session.*` 一律不进上下文（`kernel/request.md`「组装」第 3 条）。
 
 **内核多的输入和原因码**（C-2、C-6，写进 `kernel/session.md`）：
@@ -441,10 +443,11 @@ No notice came within 12 hours, so the request was dropped.
 
 | 测试 | 守哪几条 | 步 |
 |---|---|---|
-| `crates/miyu-kernel/src/id/tests.rs` | 短编号：取后 8 位，测试里写死的编号、真造的编号 | C-1 |
-| `crates/miyu-kernel/src/event/peer/tests.rs`、`event/effect/tests.rs` | `peer.idle`、`peer.watch` 读写一字不差，不认识的原因原样留着 | C-1 |
-| `crates/miyu-kernel/src/ledger/tests/peers.rs` | `peer.watch` 的编号是自己的拒。`peer.idle` 只认在等的、`by` 对得上。撤掉订它的那一轮就不算在等。再订从新时刻算 | C-1、C-6 |
-| `crates/miyu-kernel/tests/samples.rs` | 样本读写一字不差 | C-1 |
+| `crates/miyu-kernel/src/id/tests.rs` 的 `a_short_session_id_is_its_last_eight_characters`、`crates/miyu-session/src/clock/tests.rs` 的 `ids_made_together_differ_in_their_short_form` | 短编号：取后 8 位，测试里写死的编号；真造的编号前 8 位一样、短编号各不一样（内核不造编号，放在造编号的那一层，「起草时定的」第 31 条） | C-1 |
+| `crates/miyu-kernel/src/event/peer/tests.rs`、`event/effect/tests.rs` 的 `a_watch_on_another_session_round_trips` | `peer.idle`、`peer.watch` 读写一字不差，不认识的原因原样留着，坏的说是哪一种 | C-1 |
+| `crates/miyu-kernel/src/ledger/tests/peers.rs` | `peer.watch` 的编号是自己的拒。`peer.idle` 只认在等的、`by` 对得上。撤掉订它的那一轮就不算在等，恢复了照原来的时刻又算。再订从新时刻算，撤掉再订的回到前一次（`kernel/history.md`「守着它的」） | C-1、C-6 |
+| `crates/miyu-kernel/src/session/tests/peers.rs` | 造的、载入的会话，账本都知道自己是哪个会话：订自己的当场停下、载入拒绝 | C-1 |
+| `crates/miyu-kernel/tests/samples.rs` | 样本读写一字不差；样本里的通知对得上前面订的、`by` 对得上原因（`the_notices_in_the_samples_answer_the_watches`） | C-1 |
 | `crates/miyu-kernel/src/session/tests/scenario/peers.rs` | 别的会话发来的话：认三种关系。闲着开一轮、正忙下一步听到、最后一步里到的接着开、不带回合编号、打断不撤回不接着开、不作废在等人的题、没人看着只记下、能恢复撤销时记在一边、载入算回来、撤销不带走、重做不了。限速第 6 句拒、窗口过了又收、正好 600 秒那一刻、一字不差的拒且不占数、没听到的第 51 句拒、听到以后又收、重启以后数照日志算回来。旧快照没有 `peers` 照出厂值 | C-2 |
 | `crates/miyu-kernel/src/session/tests/scenario/watch.rs` | 空了的通知：在等的记下、叫醒。不在等的拒。作废只在到点以后、只记下不叫醒。`gone` 只记下。「空了」要子代理都报完。`last_line()` 的截法、没说话的 | C-6 |
 | `crates/miyu-kernel/src/session/tests/random/` | 随机输入里别的会话的话、通知和回报、撤销交错 | C-2、C-6 |
@@ -502,7 +505,7 @@ No notice came within 12 hours, so the request was dropped.
 
 ### 起草时定的
 
-技术细节照推荐定了，主会话审过一轮（2026-10-01）。第 4 条和第 24 到 27 条原来是给项目主人的题，主会话照推荐定了，项目主人批准图纸时都认了（2026-10-01，下一节）。
+技术细节照推荐定了，主会话审过一轮（2026-10-01）。第 4 条和第 24 到 27 条原来是给项目主人的题，主会话照推荐定了，项目主人批准图纸时都认了（2026-10-01，下一节）。第 28 条起是施工时照推荐定的技术细节，标着是哪一步。
 
 | # | 定了什么 | 为什么 | 别的选法 |
 |---|---|---|---|
@@ -534,6 +537,10 @@ No notice came within 12 hours, so the request was dropped.
 | 25 | 被等的那边不显示「有会话在等你空下来」（同上） | 单订不花 token、不留痕，那边的日志不动 | 显示一行，那边日志多记一条 |
 | 26 | `miyu ask` 不等「空了告诉我」的通知（同上） | 可能要几个小时，和后台命令一样。通知记下，`miyu ask -c` 接着说时她看到 | 等到通知来或者 `--timeout` |
 | 27 | 一次只搜一个会话（同上） | 设计 29 第一节第 2 条说的是和翻自己的日志一样。现在没有索引，全搜要把每个会话的日志读一遍 | `history` 的 `session` 写 `all` 搜全部 |
+| 28 | 账本知道自己是哪个会话：`Ledger::for_session(会话)`，内核造会话、载入都用它；`Ledger::default()` 不知道，不查订的是不是自己（施工 C-1，2026-10-01） | 日志里没有自己的编号，得由内核交给账本。只拿账本数东西的读者（撤销的回应算停掉的任务）用不着这一条，照旧 | `Ledger::new` 一律带编号（十几处测试跟着改，和同时施工的几步冲突）。由内核在追加之前查（载入的日志查不到） |
+| 29 | `peer.idle` 不认识的原因不查 `by`，照样算等到了头，只查在不在等（施工 C-1） | 新版本加的原因谁记由新版本定，旧核心要载入得了。照 `child.reported` 不认识的原因不拦 | 只许那个会话或者内核 |
+| 30 | 算不算在等照回合现算：每次订记一项（在哪一轮、从哪一刻），撤销、恢复不动记录；撤掉又订的那一轮，回到前一次的时刻（施工 C-1） | 撤了就跟没做过一样，前一次订它的那一轮没撤。恢复不用另记什么。收到通知清掉那个会话的，账本随订的次数长 | 撤掉又订的一律不在等。撤销时删掉记录（恢复就回不来了） |
+| 31 | 真造的编号的短编号测试放在造编号的 `miyu-session`（`clock/tests.rs`），内核的只测写死的（施工 C-1） | 内核不造编号，也没有 `uuid` 依赖，纯逻辑门禁只许白名单里的 | 内核加 `uuid` 的开发依赖 |
 
 ### 定的（2026-10-01）
 
@@ -553,12 +560,12 @@ No notice came within 12 hours, so the request was dropped.
 - `tools/history.md`：参数 `session`、怎么走第 2 条（读哪份日志）、「谁」多 `session <短编号>`、出错、给人看的字、守着它的。C-2、C-4。
 - `tools/sessions.md`：新页。C-3。
 - `tools/interface.md`：`Call` 多 `sessions` 端口，`MessagePort` 的 `Recipient`、`NotSent` 多几种，只订不发时认出会话。C-3 到 C-6。
-- `kernel/ids.md`：短编号，`by` 的 `session` 那一行写三种关系。C-1。
-- `kernel/events.md`：种类表加 `peer.idle`。C-1。
-- `kernel/events-bodies.md`：`message.user` 的说明多别的会话，`peer.idle`，效果 `peer.watch`。C-1。
+- `kernel/ids.md`：短编号，`by` 的 `session` 那一行写三种关系。C-1（改好了）。
+- `kernel/events.md`：种类表加 `peer.idle`。C-1（改好了）。
+- `kernel/events-bodies.md`：`message.user` 的说明多别的会话，`peer.idle`，效果 `peer.watch`。C-1（改好了）。
 - `kernel/session.md`：「发一条消息」第 2 条，新两节「别的会话发来的话」「空了的通知」，输入、命令、查询、原因码，守着它的。C-2、C-6。
-- `kernel/history.md`：账本在等的通知、`peer.idle` 只认在等的、最近收下的别的会话的话。「拿走什么」「重做」多两种别处来的。C-1、C-2、C-6。
-- `kernel/request.md`：渲染表 `message.user` 多一种、`peer.idle` 一行。新两段。`Texts` 多 `peers`。样子的表。C-2、C-6。
+- `kernel/history.md`：账本在等的通知、`peer.idle` 只认在等的（C-1 改好了）、最近收下的别的会话的话。「拿走什么」「重做」多两种别处来的。C-1、C-2、C-6。
+- `kernel/request.md`：渲染表 `message.user` 多一种、`peer.idle` 一行（C-1 先写了「现在不渲染」）。新两段。`Texts` 多 `peers`。样子的表。C-2、C-6。
 - `session/actor.md`：被等的名单、每批以后看空没空、先交通知再报空闲。C-6。
 - `session/tools.md`：工具面（`sessions` 只给本机主会话），「父子之间留言」扩成认会话编号，订、计时、再订。C-3、C-5、C-6。
 - `protocol.md`：`session.list` 三格，`session.redo` 第 3 条，守着它的。C-2、C-3、C-6。
@@ -569,6 +576,6 @@ No notice came within 12 hours, so the request was dropped.
 - `prompts.md`：门禁生成，跟着新字。
 - `docs/designs/26-提示词.md` 第十节登记簿（新字各一行、量法那几段），附录（`sessions` 一行，`send_message`、`history` 改）。C-2 到 C-6。
 - `docs/designs/10-自带软件.md` 第三节（13 件变 14 件）、第五节（效果 `peer.watch`）、第九节（预算）、第十一节决定。C-3、C-6。
-- `docs/designs/03-事件模型.md` 第三节（`peer.idle`）、`08-上下文投影.md` 第三节（两种新的块）。C-1、C-2、C-6。
+- `docs/designs/03-事件模型.md` 第三节（`peer.idle`，C-1 改好了）、`08-上下文投影.md` 第三节（两种新的块）。C-1、C-2、C-6。
 - `docs/designs/29-跨会话.md` 第三节：改成指到这一页，第四节写做到哪了。批准以后。
 - `docs/construction/README.md` 第三节、`施工图.html`：这条线的步子。批准以后。

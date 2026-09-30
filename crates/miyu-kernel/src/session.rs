@@ -139,8 +139,8 @@ impl Session {
         environment: Environment,
     ) -> (Session, Vec<Action>) {
         let mut session = Session {
+            ledger: Ledger::for_session(session.clone()),
             id: session,
-            ledger: Ledger::default(),
             history: History::default(),
             unstored: Vec::new(),
             stored: None,

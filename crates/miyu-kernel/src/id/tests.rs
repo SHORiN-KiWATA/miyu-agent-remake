@@ -26,6 +26,18 @@ fn session_id_must_be_lowercase_uuid_text() {
     rejected::<SessionId>(r#""0192f3a0_1111-7abc-8def-001122334455""#, "must be -");
 }
 
+/// 会话的短编号（施工 C-1，`kernel/ids.md`「会话的短编号」）：最后 8 个字符。图纸上的例子；只差在前面几段的两个编号
+/// 短编号一样，差在最后 8 位里的不一样。
+#[test]
+fn a_short_session_id_is_its_last_eight_characters() {
+    let short = |id: &str| SessionId::parse(id).unwrap().short().to_string();
+    assert_eq!(short("0192f3a0-1111-7abc-8def-001122334455"), "22334455");
+    assert_eq!(short("0192f3a0-2222-7abc-8def-5566778899aa"), "778899aa");
+    assert_eq!(short("ffffffff-ffff-7fff-bfff-ffff22334455"), "22334455");
+    assert_eq!(short("0192f3a0-1111-7abc-8def-001122334450"), "22334450");
+    assert_eq!(short("0192f3a0-1111-7abc-8def-0011a2334455"), "a2334455");
+}
+
 #[test]
 fn command_id_is_short_printable_text() {
     rejected::<CommandId>(r#""""#, "must not be empty");

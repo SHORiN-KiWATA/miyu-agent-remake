@@ -113,7 +113,7 @@ impl Session {
         policy: Policy,
         environment: Environment,
     ) -> Result<(Session, Vec<Action>), LoadError> {
-        let mut ledger = Ledger::default();
+        let mut ledger = Ledger::for_session(session.clone());
         let mut replay = Replay::default();
         let mut duty = Duty::default();
         for event in &events {

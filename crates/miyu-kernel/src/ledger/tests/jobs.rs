@@ -4,6 +4,7 @@
 //! 一个不认识的种类 `j3`；然后回合结束，闲着。两种回报的几条在 `jobs/reports.rs`，用过的最大编号在 `jobs/numbers.rs`。
 
 use super::*;
+use crate::id::{JobId, SessionId};
 
 mod numbers;
 mod reports;

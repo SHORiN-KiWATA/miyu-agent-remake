@@ -18,6 +18,7 @@ mod limits;
 mod listing;
 mod load;
 mod meta;
+mod peers;
 mod permission;
 mod question;
 mod queue;

@@ -6,19 +6,22 @@
 //! （`02-内核.md` 第九节，2026-09-29 项目主人定）。
 //! 新写的事件和从磁盘载入的事件都从这里过，规矩只有一套。
 //!
-//! 撤销、恢复的几条在 `ledger/undo.rs`，派出去的任务和子会话的几条在 `ledger/jobs.rs`（施工 7-1）。
+//! 撤销、恢复的几条在 `ledger/undo.rs`，派出去的任务和子会话的几条在 `ledger/jobs.rs`（施工 7-1），在等别的会话的通知在
+//! `ledger/peers.rs`（施工 C-1）。
 
 use std::collections::BTreeSet;
 use std::fmt;
 
 use crate::block::Block;
 use crate::event::{Body, CompactTrigger, ContextCompacted, Event};
-use crate::id::{CallId, CommandId, JobId, Seq, SessionId, TurnId};
+use crate::id::{CallId, Seq, TurnId};
 
 mod jobs;
+mod peers;
 mod undo;
 
 use jobs::Jobs;
+use peers::Peers;
 use undo::Undone;
 
 /// 一个会话的日志的账本。
@@ -54,6 +57,8 @@ pub struct Ledger {
     queued: BTreeSet<Seq>,
     /// 派出去过的任务，撤掉的回合里派的也在：编号不回收（施工 7-1）。
     jobs: Jobs,
+    /// 在等别的会话的通知：每一次订在哪一轮、从哪一刻算起（施工 C-1）。
+    peers: Peers,
 }
 
 impl Default for Ledger {
@@ -70,6 +75,7 @@ impl Default for Ledger {
             undone: Vec::new(),
             queued: BTreeSet::new(),
             jobs: Jobs::default(),
+            peers: Peers::default(),
         }
     }
 }
@@ -135,42 +141,6 @@ impl Ledger {
         self.undone.last().map(|undone| undone.turns.as_slice())
     }
 
-    /// 日志里用过的任务编号最后一段最大的数（施工 7-5；照最后一段数，施工 7-1 补）：撤掉的回合里派的也算，一个都没派过的
-    /// 是 0。编号不回收，执行器新派的任务从它的下一个数起（`kernel/ids.md`「任务编号」）。
-    pub fn last_job_number(&self) -> u64 {
-        self.jobs.last()
-    }
-
-    /// 还没报过结束的后台命令，照编号（施工 7-3：载入时给它们补 `aborted`）。
-    pub fn running_commands(&self) -> Vec<JobId> {
-        self.jobs.running_commands()
-    }
-
-    /// 还在跑的任务，照编号（施工 7-8）：还没报过结束的后台命令，欠着一份回报、没被停掉的子代理。撤掉的回合里派的也在。
-    pub fn running_jobs(&self) -> Vec<JobId> {
-        self.jobs.running()
-    }
-
-    /// 派出去、一次都还没回报过的子代理的子会话，照任务编号（施工 7-6）。
-    pub fn waiting_children(&self) -> impl Iterator<Item = &SessionId> {
-        self.jobs.waiting()
-    }
-
-    /// 在会话 `session` 里跑的、这个会话派的子代理的编号（施工 7-7）：被停掉的、撤掉的回合里派的也认；别的会话没有。
-    pub fn subagent_in(&self, session: &SessionId) -> Option<JobId> {
-        self.jobs.agent_in(session)
-    }
-
-    /// 派出去过的子代理，照编号（施工 7-7）：编号、子会话、被停掉了没有。撤掉的回合里派的也在。
-    pub fn subagents(&self) -> impl Iterator<Item = (JobId, &SessionId, bool)> {
-        self.jobs.agents()
-    }
-
-    /// 子代理 `job` 最近一次回报就是命令 `id` 交来的：交回那一条的序号（施工 7-6）。
-    pub fn reported_as(&self, job: &JobId, id: &CommandId) -> Option<Seq> {
-        self.jobs.reported_as(job, id)
-    }
-
     /// 查 `event` 能不能追加；能，就记下它带来的变化。
     ///
     /// # Errors
@@ -208,7 +178,8 @@ impl Ledger {
             }
             Body::ToolResult(result) => {
                 self.check_pending(result.call_id)?;
-                self.jobs.check_started(&result.effects)
+                self.jobs.check_started(&result.effects)?;
+                self.peers.check_watch(&result.effects)
             }
             Body::ApprovalRequested(requested) => {
                 self.check_pending(requested.call_id)?;
@@ -263,6 +234,7 @@ impl Ledger {
             },
             Body::JobReported(reported) => self.jobs.check_reported(reported),
             Body::ChildReported(reported) => self.jobs.check_child(reported, &event.by),
+            Body::PeerIdle(idle) => self.check_idle(idle, &event.by),
             _ => Ok(()),
         }
     }
@@ -360,6 +332,7 @@ impl Ledger {
     fn record(&mut self, event: &Event) {
         self.next = event.seq.next();
         self.jobs.record(event);
+        self.peers.record(event);
         match &event.body {
             Body::TurnStarted(_) => {
                 let turn = TurnId::new(event.seq);
