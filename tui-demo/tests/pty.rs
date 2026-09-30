@@ -112,3 +112,27 @@ fn a_manually_chosen_language_writes_the_folded_line_in_it() {
     tui.wait_for("思考了");
     assert!(!tui.shows("Thought for"), "{}", tui.lines().join("\n"));
 }
+
+#[test]
+fn rename_sets_removes_and_refuses_a_too_long_title() {
+    // 2026-10-01 项目主人定先做 `/rename`（蓝图「改名」）。
+    let home = Home::new(Script::new([Play::Says("好。")]));
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("在吗");
+    tui.wait_for("▣  ");
+    tui.say("/rename   回文函数  ");
+    tui.wait_for("已改名：回文函数");
+    tui.pump(Duration::from_millis(500));
+    tui.say(&format!("/rename {}", "长".repeat(201)));
+    tui.wait_for("标题最多 200 个字");
+    tui.pump(Duration::from_millis(500));
+    tui.say("/rename");
+    tui.wait_for("已去掉标题");
+    // `/new` 以后、说第一句以前还没开会话。
+    tui.pump(Duration::from_millis(500));
+    tui.say("/new");
+    tui.pump(Duration::from_millis(500));
+    tui.say("/rename 早");
+    tui.wait_for("还没开会话，说一句再改名");
+}

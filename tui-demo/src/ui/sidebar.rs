@@ -165,7 +165,9 @@ pub fn info_lines(
     let mut out = vec![Line::styled(super::rows::clip(name, width), bold)];
     let mut id_row = None;
     if let Some(session) = &t.session {
-        let short: String = session.chars().take(8).collect();
+        // 短编号：最后 8 个字符（核心 C-1 定的，头显示的、她看到的都是这个）。
+        let skip = session.chars().count().saturating_sub(8);
+        let short: String = session.chars().skip(skip).collect();
         id_row = Some(out.len());
         out.push(item(text.side_id.replace("{id}", &short), theme::dim()));
     }

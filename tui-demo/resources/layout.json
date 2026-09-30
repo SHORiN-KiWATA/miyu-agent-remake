@@ -25,6 +25,7 @@
   ],
   "user_bar": "┃ ",
   "recap_mark": "※ ",
+  "title_max": 200,
   "done_icon": "✻ ",
   "done_gap": {
     "workspace": " "

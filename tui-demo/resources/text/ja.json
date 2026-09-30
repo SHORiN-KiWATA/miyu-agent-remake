@@ -139,6 +139,7 @@
     ]
   },
   "refusal_hints": {
+    "nothing_to_rename": "まだセッションがありません。何か話してから名前を変えてください",
     "nothing_to_recap": "まだ振り返る内容がありません",
     "recap_failed": "振り返りを作れませんでした。もう一度試してください",
     "nothing_to_compact": "コンテキストが少なすぎます",
@@ -150,6 +151,11 @@
   "recap": {
     "label": "振り返り：{text}",
     "working": "振り返り中…"
+  },
+  "rename": {
+    "done": "名前を変更しました：{title}",
+    "removed": "タイトルを外しました",
+    "too_long": "タイトルは {max} 文字まで"
   },
   "refusals": {
     "nothing_to_unrevert": "復元できる取り消しがありません",

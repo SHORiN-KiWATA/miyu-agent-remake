@@ -139,6 +139,7 @@
     ]
   },
   "refusal_hints": {
+    "nothing_to_rename": "No session yet; say something first, then rename",
     "nothing_to_recap": "Nothing to recap yet",
     "recap_failed": "The recap could not be written, try again",
     "nothing_to_compact": "Not enough context",
@@ -150,6 +151,11 @@
   "recap": {
     "label": "Recap: {text}",
     "working": "Recapping…"
+  },
+  "rename": {
+    "done": "Renamed: {title}",
+    "removed": "Title removed",
+    "too_long": "Titles are at most {max} characters"
   },
   "refusals": {
     "nothing_to_unrevert": "Nothing to restore",

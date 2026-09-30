@@ -143,7 +143,8 @@ fn the_sidebar_is_laid_out_in_sections() {
         text,
         [
             "未命名会话",
-            "  #019a5c3e",
+            // 短编号是最后 8 个字符（核心 C-1）：打头的是时间，挨着开的会话一样。
+            "  #7b3c1d4e",
             "",
             "工作目录",
             "  ~/Documents/github/",

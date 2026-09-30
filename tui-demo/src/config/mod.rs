@@ -52,6 +52,18 @@ pub struct RecapTexts {
     pub working: String,
 }
 
+/// 改名的字（蓝图「改名」）。
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RenameTexts {
+    /// 改成了，`{title}` 是新标题。
+    pub done: String,
+    /// 去掉了标题。
+    pub removed: String,
+    /// 太长不发，`{max}` 是上限。
+    pub too_long: String,
+}
+
 /// 后台命令、子代理、待办的字（蓝图「后台命令、子代理和侧边栏」）。
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -251,6 +263,8 @@ pub struct Texts {
     pub refusal_hints: HashMap<String, String>,
     /// 回顾（`/recap`，蓝图「回顾」）。
     pub recap: RecapTexts,
+    /// 改名的提示。
+    pub rename: RenameTexts,
     /// 输入历史列表上的字（蓝图「输入历史列表」）。
     pub history: HistoryTexts,
     /// 斜杠命令列表上的字（蓝图「斜杠命令列表」）。

@@ -244,6 +244,7 @@ impl App {
             | Run::Redo
             | Run::Edit
             | Run::Recap
+            | Run::Rename
                 if !self.reachable() =>
             {
                 self.input.editor.set_draft(Draft::plain(&line));
@@ -255,6 +256,7 @@ impl App {
             | Run::Redo
             | Run::Edit
             | Run::Recap
+            | Run::Rename
                 if self.not_opened() =>
             {
                 self.nothing_yet(spec.run);
@@ -267,6 +269,7 @@ impl App {
                 let note = self.config.text.recap.working.clone();
                 self.hint(note, false);
             }
+            Run::Rename => self.rename(words),
             Run::Copy => self.copy_reply(),
             Run::New => self.new_session(),
             Run::Revert => self.core.send(Command::Revert),

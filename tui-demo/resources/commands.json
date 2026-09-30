@@ -71,6 +71,16 @@
       "run": "recap"
     },
     {
+      "name": "rename",
+      "summary": {
+        "zh": "给会话改名，只打 /rename 是去掉标题",
+        "en": "Rename the session; /rename alone removes the title",
+        "ja": "セッション名を変える。/rename だけならタイトルを外す"
+      },
+      "run": "rename",
+      "args": true
+    },
+    {
       "name": "theme",
       "summary": {
         "zh": "换一套颜色：tokyonight-night、terminal 轮着换",

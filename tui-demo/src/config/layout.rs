@@ -103,6 +103,8 @@ pub struct Layout {
     pub user_bar: String,
     /// 回顾前面的记号，连同它后面的空格（`tui.md`「回顾」第 2 条）。
     pub recap_mark: String,
+    /// 会话标题最多几个字，照核心的上限（`tui.md`「改名」第 2 条）。
+    pub title_max: usize,
     /// 撤销那一行前面的符号，连同它后面的空格。
     pub undo_icon: String,
     /// 一轮做完的收尾行前面的符号，连同它后面的空格。

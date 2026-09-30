@@ -69,11 +69,29 @@ impl App {
             Run::Clear => "nothing_to_clear",
             Run::Redo | Run::Edit => "not_redoable",
             Run::Recap => "nothing_to_recap",
+            Run::Rename => "nothing_to_rename",
             _ => "nothing_to_compact",
         };
         self.core(Update::Refused {
             reason: Some(reason.to_string()),
             message: String::new(),
         });
+    }
+
+    /// `/rename`：去掉前后空白交给核心；空的是去掉标题，太长的当场提示不发（蓝图「改名」第 1、2 条）。
+    pub(super) fn rename(&mut self, words: Option<&str>) {
+        let title = words.map(str::trim).filter(|w| !w.is_empty());
+        let max = self.config.layout.title_max;
+        if title.is_some_and(|t| t.chars().count() > max) {
+            let note = self
+                .config
+                .text
+                .rename
+                .too_long
+                .replace("{max}", &max.to_string());
+            self.hint(note, false);
+            return;
+        }
+        self.core.send(Command::Rename(title.map(str::to_string)));
     }
 }

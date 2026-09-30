@@ -241,7 +241,8 @@ impl Transcript {
             }
             Update::Reconnected => self.link = Link::Ready,
             // 另外订阅着的会话推来的：界面照会话分给那个会话的正文（`app/sessions.rs`）。
-            Update::Elsewhere { .. } | Update::Output { .. } => {}
+            // 改名成了只弹提示（界面那头办了），标题照推送换。
+            Update::Elsewhere { .. } | Update::Output { .. } | Update::Renamed(_) => {}
             Update::Failed(reason) => {
                 self.link = Link::Down(texts.core_failed.replace("{reason}", &reason));
             }
@@ -312,7 +313,8 @@ impl Transcript {
                 );
                 self.entries.retain(|e| !back(e));
             }
-            Push::Title(title) => self.title = Some(title),
+            // 去掉标题推来的是空的：读成没有标题。
+            Push::Title(title) => self.title = (!title.is_empty()).then_some(title),
             Push::Policy { level, read_only } => {
                 self.level = if read_only { Level::ReadOnly } else { level };
             }

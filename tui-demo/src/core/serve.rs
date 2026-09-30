@@ -50,6 +50,8 @@ enum Awaiting {
     Output(String, String),
     /// 要回顾：交回的是上一句的，界面照回应画（写成了的照推送画）。
     Recap,
+    /// 改名：成了弹一句（`None` 是去掉标题）。
+    Rename(Option<String>),
 }
 
 /// 在一条连接上收发，直到界面关了或者连接断了。
@@ -194,6 +196,7 @@ async fn send(
         Command::Send { .. } => Some(Awaiting::Send),
         Command::Redo { .. } => Some(Awaiting::Redo),
         Command::Recap => Some(Awaiting::Recap),
+        Command::Rename(ref title) => Some(Awaiting::Rename(title.clone())),
         _ => None,
     };
     let files = match &command {
@@ -292,6 +295,7 @@ async fn take(
             return !(result["cached"].as_bool() == Some(true) && !text.is_empty())
                 || notify(Update::Recap(text.to_string()));
         }
+        Some(Awaiting::Rename(title)) => return notify(Update::Renamed(title)),
         Some(Awaiting::Output(session, job)) => {
             let output = Some(JobOutput::read(&message["result"]));
             return notify(Update::Output {

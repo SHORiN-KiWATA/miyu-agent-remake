@@ -1648,6 +1648,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-config"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "miyu-drivers"
 version = "0.0.0"
 dependencies = [
@@ -1662,6 +1670,7 @@ version = "0.0.0"
 dependencies = [
  "base64 0.22.1",
  "jiff",
+ "miyu-config",
  "miyu-drivers",
  "miyu-fs",
  "miyu-ipc",
@@ -1779,6 +1788,7 @@ dependencies = [
 name = "miyu-store"
 version = "0.0.0"
 dependencies = [
+ "miyu-config",
  "miyu-kernel",
  "miyu-policy",
  "serde",

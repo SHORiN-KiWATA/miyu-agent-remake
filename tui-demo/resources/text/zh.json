@@ -139,6 +139,7 @@
     ]
   },
   "refusal_hints": {
+    "nothing_to_rename": "还没开会话，说一句再改名",
     "nothing_to_recap": "还没有可回顾的内容",
     "recap_failed": "回顾没写成，再要一次就是",
     "nothing_to_compact": "上下文过少",
@@ -150,6 +151,11 @@
   "recap": {
     "label": "回顾：{text}",
     "working": "正在回顾…"
+  },
+  "rename": {
+    "done": "已改名：{title}",
+    "removed": "已去掉标题",
+    "too_long": "标题最多 {max} 个字"
   },
   "refusals": {
     "nothing_to_unrevert": "没有能恢复的撤销",

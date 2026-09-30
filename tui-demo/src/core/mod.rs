@@ -82,6 +82,8 @@ pub enum Command {
     Clear,
     /// 要一段回顾（`session.recap`，`/recap`）。
     Recap,
+    /// 改名（`session.set_meta`，`/rename`）：`None` 是去掉标题。
+    Rename(Option<String>),
     /// 重做最后一轮（`session.redo`，`/redo`、`/edit`）：`text` 换开这一轮的那句字，`files` 换附件（空的是不要附件），
     /// 都是 `None` 的原样重来。
     Redo {
@@ -118,6 +120,8 @@ pub enum Update {
     Limits(Limits),
     /// 会话里的事。
     Push(Push),
+    /// 改名成了（`None` 是去掉了标题）：弹一句提示，标题照推送换（蓝图「改名」第 3 条）。
+    Renamed(Option<String>),
     /// 回顾交回的是上一句（`cached`：上次回顾以后没有新内容，核心不推 `session.recapped`），照它画（蓝图「回顾」第 3 条）。
     Recap(String),
     /// 撤销（`restore` 为假）或恢复成了：核心算好的给人看的几样（`protocol/undo.md`）。

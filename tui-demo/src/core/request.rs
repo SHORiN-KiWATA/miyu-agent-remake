@@ -38,6 +38,10 @@ pub(super) fn request(
         }
         Command::Clear => ("session.clear", json!({"session": session})),
         Command::Recap => ("session.recap", json!({"session": session})),
+        Command::Rename(title) => (
+            "session.set_meta",
+            json!({"session": session, "title": title}),
+        ),
         Command::Stop(job) => ("job.stop", json!({"session": session, "job": job})),
         // 附件（换了的）在外面传好了再接上（`mod.rs` 的 `serve`）。
         Command::Redo { text, .. } => {
@@ -82,6 +86,18 @@ mod tests {
         };
         let expected = json!({"session": "s", "text": "改过的"});
         assert_eq!(request(edited, "s", "~"), Some(("session.redo", expected)));
+    }
+
+    #[test]
+    fn a_rename_sets_the_title_and_a_bare_one_removes_it() {
+        assert_eq!(
+            request(Command::Rename(Some("回文".into())), "s", "~"),
+            Some(("session.set_meta", json!({"session": "s", "title": "回文"})))
+        );
+        assert_eq!(
+            request(Command::Rename(None), "s", "~"),
+            Some(("session.set_meta", json!({"session": "s", "title": null})))
+        );
     }
 
     #[test]

@@ -47,6 +47,15 @@ impl App {
             self.hint(hint.clone(), false);
             return;
         }
+        if let Update::Renamed(title) = &update {
+            let texts = &self.config.text.rename;
+            let note = title.as_ref().map_or_else(
+                || texts.removed.clone(),
+                |title| texts.done.replace("{title}", title),
+            );
+            self.hint(note, false);
+            return;
+        }
         let undone = matches!(update, Update::Undone { restore: false, .. });
         if matches!(update, Update::Undone { restore: true, .. }) {
             self.input.take_back();

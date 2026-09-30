@@ -1,4 +1,5 @@
 //! 回顾（蓝图 `tui.md`「回顾」）：推来的、交回上一句的都画成一段；回顾请求的用量只算进累计。
+//! 同是核心的辅助请求起的：自动起的标题，去掉了读成没有。
 
 use super::super::{Kind, Transcript};
 use super::apply;
@@ -61,4 +62,14 @@ fn a_recap_goes_away_with_the_turn_it_covers_and_comes_back_with_it() {
     assert!(!recap(&t), "恢复了：再露出来");
     apply(&mut t, vec![Push::Reverted(vec![3])]);
     assert!(!recap(&t), "撤的是它后面的：不动");
+}
+
+#[test]
+fn a_removed_title_reads_as_untitled() {
+    // 2026-10-01 核心 3-8 三补：去掉标题推的是 `"title":""`，读成没有标题（侧边栏写「未命名」），不是空名字。
+    let mut t = Transcript::default();
+    apply(&mut t, vec![Push::Title("回文函数".into())]);
+    assert_eq!(t.title.as_deref(), Some("回文函数"));
+    apply(&mut t, vec![Push::Title(String::new())]);
+    assert_eq!(t.title, None);
 }
