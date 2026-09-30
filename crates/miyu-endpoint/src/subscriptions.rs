@@ -7,6 +7,9 @@
 //! 会话停了），转发任务不退，接着替这个会话转回应，直到连接不要它了：回应一条都不丢，也不用猜它停在
 //! 哪一步。取消订阅、换一个新的订阅时，旧的转发任务也不掐：只关掉交回应给它的那一头，它把已经交给它的
 //! 回应放完再退（施工 4-9 再补三上）。
+//!
+//! 带 `after` 订阅的（施工 3-8 六补），转发任务先把补发的那一截一条条放进写队列，再转推送、回应：订阅的回应也交给它，
+//! 排在补的后面。换掉原来那一个时，先等它把交给它的都放完、交回它的订阅（[`Subscriptions::take`]），补的才不和它的交错。
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -15,6 +18,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
+use miyu_kernel::event::Event;
 use miyu_kernel::id::SessionId;
 use miyu_session::{Ended, Pushed, Subscription};
 
@@ -29,7 +33,8 @@ pub(crate) struct Subscriptions {
 struct Forwarder {
     replies: mpsc::UnboundedSender<String>,
     pushing: Arc<AtomicBool>,
-    task: JoinHandle<()>,
+    /// 放完交回订阅：换一个新的时，旧的拿回来再放下，这个头一直算看着（施工 3-8 六补）。
+    task: JoinHandle<Subscription>,
 }
 
 impl Subscriptions {
@@ -40,11 +45,13 @@ impl Subscriptions {
             .is_some_and(|forwarder| forwarder.pushing.load(Ordering::Acquire))
     }
 
-    /// 订阅会话 `session`：起一个转发任务，推送写进 `out`。原来有一个的，换掉：旧的放完已经交给它的回应再退。
+    /// 订阅会话 `session`：起一个转发任务，先把补发的 `backlog` 照先后写进 `out`（不补的是空的），再写推送。原来有一个的，
+    /// 换掉：旧的放完已经交给它的回应再退。
     pub(crate) fn add(
         &mut self,
         session: SessionId,
         subscription: Subscription,
+        backlog: Vec<Event>,
         out: mpsc::Sender<String>,
     ) {
         let (replies, waiting) = mpsc::unbounded_channel();
@@ -52,6 +59,7 @@ impl Subscriptions {
         let task = tokio::spawn(forward(
             session.clone(),
             subscription,
+            backlog,
             waiting,
             out,
             Arc::clone(&pushing),
@@ -69,6 +77,14 @@ impl Subscriptions {
     /// 原来当场掐掉，还没写出去的回应就丢了）。
     pub(crate) fn remove(&mut self, session: &SessionId) {
         drop(self.live.remove(session));
+    }
+
+    /// 拿掉会话 `session` 的订阅（施工 3-8 六补）：不再交回应给它，等它把已经交给它的推送、回应都放进写队列，交回它的订阅；
+    /// 没有的、转发任务没了的（不会：它只在连接断了时被掐掉），交回 `None`。交回的订阅还算这个头看着，放下它才不算。
+    pub(crate) async fn take(&mut self, session: &SessionId) -> Option<Subscription> {
+        let forwarder = self.live.remove(session)?;
+        drop(forwarder.replies);
+        forwarder.task.await.ok()
     }
 
     /// 写一条回应：`session` 订阅着的，交给它的转发任务，排在已经到了的推送后面；没订阅的直接放进写
@@ -99,21 +115,40 @@ impl Drop for Subscriptions {
     }
 }
 
-/// 转发一个订阅。推送停了（掉了队、会话停了），接着转这个会话的回应，直到连接不要它了。
+/// 转发一个订阅：先补发 `backlog`，再转推送。推送停了（掉了队、会话停了），接着转这个会话的回应，直到连接不要它了；
+/// 交回订阅。
 async fn forward(
     session: SessionId,
     mut subscription: Subscription,
+    backlog: Vec<Event>,
     mut replies: mpsc::UnboundedReceiver<String>,
     out: mpsc::Sender<String>,
     pushing: Arc<AtomicBool>,
-) {
-    relay(&session, &mut subscription, &mut replies, &out).await;
+) -> Subscription {
+    if replay(&session, backlog, &out).await {
+        relay(&session, &mut subscription, &mut replies, &out).await;
+    }
     pushing.store(false, Ordering::Release);
     while let Some(reply) = replies.recv().await {
         if out.send(reply).await.is_err() {
-            return;
+            break;
         }
     }
+    subscription
+}
+
+/// 补发（施工 3-8 六补）：照先后一条条写成 `event` 通知放进写队列，和推过来的一样。写队列关了（连接断了），交回 `false`。
+async fn replay(session: &SessionId, backlog: Vec<Event>, out: &mpsc::Sender<String>) -> bool {
+    for event in backlog {
+        if out
+            .send(notification(session, &event.to_line()))
+            .await
+            .is_err()
+        {
+            return false;
+        }
+    }
+    true
 }
 
 /// 转发的主循环：交回来的时候，这个订阅不再推了（连接不要它了的，也交回来）。

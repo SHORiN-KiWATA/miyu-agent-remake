@@ -1,13 +1,15 @@
 //! 人的那条收件箱里的一封怎么办（`docs/blueprint/session/actor.md` 第 3 条第 4 点）：命令照 actor 的时钟记下到的时刻送进
-//! 内核，订阅当场办；拿着订阅的头从没有到有、从有到没有，交内核 `Watched`（施工 7-9）。施工 7-9 从 `actor.rs` 挪出来。
+//! 内核，订阅当场办（连同补发补到哪一条，施工 3-8 六补）；拿着订阅的头从没有到有、从有到没有，交内核 `Watched`
+//! （施工 7-9）。施工 7-9 从 `actor.rs` 挪出来。
 //! 头读后台命令的输出（施工 7-4 补）不进内核：另起一个任务读，当场办完。
 
 use tokio::sync::oneshot;
 
+use miyu_kernel::id::Seq;
 use miyu_kernel::session::{Input, Reason, Received};
 
 use super::{Actor, answer};
-use crate::handle::{Halt, Message};
+use crate::handle::{Halt, Message, Taken};
 
 /// 收件箱里的一封怎么办。
 pub(super) enum Mail {
@@ -42,8 +44,14 @@ impl Actor {
                     command,
                 }))
             }
+            // 补发补到哪一条和订阅在这同一步里拿（施工 3-8 六补）：这一步之前落了盘的都推过了，之后的都还没推。
             Message::Subscribe(reply) => {
-                answer(reply, self.pushes.subscribe());
+                let taken = Taken {
+                    pushes: self.pushes.subscribe(),
+                    upto: self.session.landed().map_or(0, Seq::get),
+                    log: self.tools.log(),
+                };
+                answer(reply, taken);
                 self.watch(true)
             }
             Message::Unsubscribed => self.watch(false),

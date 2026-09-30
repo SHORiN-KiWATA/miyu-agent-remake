@@ -12,8 +12,9 @@ use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{CommandId, JobId, SessionId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, ContextLimits, Outcome, Reason};
-use miyu_tool::{JobError, Output};
+use miyu_tool::{JobError, Log, Output};
 
+use crate::backlog::Backlog;
 use crate::jobs::Unreadable;
 
 /// 一个会话：它的 actor 的收件箱。可以复制，几个头一起拿着。
@@ -39,7 +40,7 @@ pub(crate) enum Message {
         reply: oneshot::Sender<Outcome>,
     },
     /// 要订阅：从这一刻起的推送都交给它。一个订阅算一个在看着的头（施工 7-9）。
-    Subscribe(oneshot::Sender<broadcast::Receiver<Arc<Pushed>>>),
+    Subscribe(oneshot::Sender<Taken>),
     /// 放下了一个订阅（施工 7-9）：订阅被丢掉时由它自己送来，连同要订阅、没等到回答就不等了的。
     Unsubscribed,
     /// 有计划地停下：它的事件都落了盘，actor 退出以前交回一声。
@@ -59,6 +60,15 @@ pub(crate) enum Message {
         job: JobId,
         reply: oneshot::Sender<Result<Output, Unreadable>>,
     },
+}
+
+/// 要订阅时 actor 在同一步里交回的（施工 3-8 六补）：从这一刻起的推送，这一刻落了盘的最后一条（一条都没有是 0），日志的
+/// 只读入口。补发的那一截照后两样读（[`Backlog`]）。
+#[derive(Debug)]
+pub(crate) struct Taken {
+    pub(crate) pushes: broadcast::Receiver<Arc<Pushed>>,
+    pub(crate) upto: u64,
+    pub(crate) log: Log,
 }
 
 /// 停掉派出去的任务（施工 7-4，`docs/blueprint/session/actor.md`「停掉任务」）。
@@ -149,15 +159,33 @@ impl Handle {
     ///
     /// 会话停了。
     pub async fn subscribe(&self) -> Result<Subscription, Stopped> {
+        self.take().await.map(|(subscription, ..)| subscription)
+    }
+
+    /// 订阅，连同补发之前的事件（施工 3-8 六补，协议的 `subscribe` 带 `after`）：交回的订阅从这一刻起推，[`Backlog`] 是日志里
+    /// 序号大于 `after`、这一刻落了盘的那一截，两样在 actor 的同一步里拿，接得上、不重不漏。读那一截由拿着的一方去读，不占
+    /// actor。别的同 [`Handle::subscribe`]。
+    ///
+    /// # Errors
+    ///
+    /// 会话停了。
+    pub async fn subscribe_after(&self, after: u64) -> Result<(Subscription, Backlog), Stopped> {
+        let (subscription, upto, log) = self.take().await?;
+        Ok((subscription, Backlog::new(log, after, upto)))
+    }
+
+    /// 向 actor 要一个订阅，连同它在同一步里交回的：落了盘的最后一条、日志的只读入口。
+    async fn take(&self) -> Result<(Subscription, u64, Log), Stopped> {
         let (reply, answer) = oneshot::channel();
         self.send(Message::Subscribe(reply))?;
         // 送进去了才算数：等回答的时候不等了（这个 future 被丢掉），它照样放下、告诉 actor，一来一去对得上。
         let watching = Watching(self.inbox.downgrade());
-        let pushes = answer.await.map_err(|_| Stopped)?;
-        Ok(Subscription {
+        let Taken { pushes, upto, log } = answer.await.map_err(|_| Stopped)?;
+        let subscription = Subscription {
             _watching: Some(watching),
             ..Subscription::new(pushes)
-        })
+        };
+        Ok((subscription, upto, log))
     }
 
     /// 有计划地停下：送进「要重启了」，等它产生的事件落了盘，actor 退出（`02-内核.md` 第六节
