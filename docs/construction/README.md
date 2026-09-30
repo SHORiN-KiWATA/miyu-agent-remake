@@ -318,8 +318,8 @@ flowchart LR
 | 步 | 名字 | 做什么 |
 |---|---|---|
 | C-1 | 跨会话的事件和编号 | 会话的短编号（`kernel/ids.md`）；事件 `peer.idle`、效果 `peer.watch` 的类型、读写、样本；`by` 是会话的三种关系写进蓝图；账本的规矩（在等哪几个会话、`peer.idle` 只认在等的）。照 7-1 的做法，这一步只有类型和账本。施工单见 `C-1-跨会话的事件和编号.md` |
-| C-2 | 收别的会话发来的话 | 内核认出别的会话，照「别处来的」收；防刷屏前三条，策略数据 `peers.burst`、`window`、`unread`；渲染 `<session-message>`、样本、请求形状探针；`history` 的「谁」；`session.redo` 不能重做它开的那一轮。合了告诉两个头 |
-| C-3 | 列会话 | 会话表多三格，`session.list` 带上；`SessionsPort`；`sessions` 工具和它的字；只给本机主会话；工具面预算、登记。合了告诉两个头 |
+| C-2 | 收别的会话发来的话 | 内核认出别的会话，照「别处来的」收；防刷屏前三条，策略数据 `peers.burst`、`window`、`unread`；渲染 `<session-message>`、样本、请求形状探针；`history` 的「谁」；`session.redo` 不能重做它开的那一轮。合了告诉两个头。施工单见 `C-2-收别的会话发来的话.md` |
+| C-3 | 列会话 | 会话表多三格，`session.list` 带上；`SessionsPort`；`sessions` 工具和它的字；只给本机主会话；工具面预算、登记。合了告诉两个头。施工单见 `C-3-列会话.md` |
 | C-4 | 读别的会话 | `history` 多 `session`：认编号、只读地开别的会话的日志、子会话和群拒 |
 | C-5 | 发给别的会话 | 留言的工具改名 `send_message`（老会话照认 `message_agent`）；`to` 认会话编号；长度上限（父子之间一起）；每种拒绝的回执、没人看着的一次性会话只存下；子会话拒；说明改一句、量、登记；真核心两个会话来回说 |
 | C-6 | 空了告诉我 | `notify_when_idle`：被等的那边记名单、空了发通知，这边记 `peer.idle`、叫醒；12 小时作废；载入、恢复撤销以后再订；找不到记 `gone`；策略数据 `watch_hours`、`status_chars`。合了告诉两个头 |
