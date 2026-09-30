@@ -1,0 +1,21 @@
+{
+  "said": {
+    "tool-results/unknown": "そのツールはありません",
+    "tool-results/not-an-object": "引数が JSON オブジェクトではありません",
+    "tool-results/cancelled-before": "中断しました：実行していません",
+    "tool-results/cancelled-running": "中断しました：途中まで実行しました",
+    "tool-results/skipped": "スキップしました",
+    "tool-results/read-only": "読み取り専用のため、書き込んでいません",
+    "tool-results/denied": "拒否しました",
+    "tool-results/denied-with-reason": "拒否しました：{reason}",
+    "tool-results/unattended": "確認が必要ですが、ここには確認できる人がいません",
+    "tool-results/question-interrupted": "中断しました：回答していません",
+    "tool-results/question-voided": "新しいメッセージが送られたため、この質問は無効になりました",
+    "tool-results/question-unattended": "ここには回答できる人がいません",
+    "tool-results/restarted": "Miyu が再起動したため、完了していません",
+    "tool-results/unavailable": "今は使えません",
+    "tool-results/crashed": "内部エラーが起きました。一部は実行されたかもしれません",
+    "permissions/forbidden": "Miyu 自身のデータなので、誰も触れられません",
+    "permissions/unresolvable": "どこを指しているか判断できません：{reason}"
+  }
+}
