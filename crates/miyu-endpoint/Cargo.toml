@@ -53,6 +53,8 @@ miyu-log = { path = "../miyu-log" }
 miyu-policy = { path = "../miyu-policy" }
 # 测试里请求模型照剧本回（施工 3-8 上）。
 miyu-session = { path = "../miyu-session", features = ["testkit"] }
+# 测试里弄坏会话列表的索引（施工 3-8 七补）：和 miyu-store 用的是同一个。
+rusqlite = { version = "0.40", features = ["bundled"] }
 # 测试里的等待有时限。
 tokio = { version = "1", features = ["io-util", "macros", "rt", "sync", "time"] }
 

@@ -58,7 +58,7 @@
    3. `offset` 不小于一共几个：接 `past-end.txt`，说法 `sessions/past-end`（字段 `total`）。
    4. 别的：从第 `offset` 个起最多 `limit` 个，一个一行，有标题的 `listed.txt`、没有的 `listed-untitled.txt`；`state` 是 `busy` 或者 `idle`；时刻照这个会话的时区写到分钟（`Call.offset`，和 `history` 一样）。后面还有的接 `more.txt`（这一页是第几到第几个，从 1 数，一共几个，下一次的 `offset`）。说法 `sessions/listed`（字段 `count`：这一页列了几个）。
 8. 短编号撞了放长（`cross-session.md`「对外的样子」会话的短编号）：照这一张列表（她自己加上全部别的会话，不只是这一页）比，后 8 位和别的撞了的写后 12 位（整个最后一段），后 12 位还撞的写整个编号。每一个各看各的：不撞的照写 8 位。
-9. 现在每列一次都把每个会话的日志整份读一遍，和 `session.list` 一样；慢了随会话列表的索引一起换（「还没有的」）。
+9. 照会话列表的索引读，和 `session.list` 一样（施工 3-8 七补，`store/index.md`）。
 
 ### 样子
 
@@ -124,7 +124,6 @@ You are session 22334455.
 
 ### 还没有的
 
-- 会话列表的索引：现在每列一次都整份读每个会话的日志（`protocol.md`「还没有的」）。
 - 列表里分出「在等人回答」：现在算忙。
 - 说明里点名 `send_message`、`history`：C-5 改名时补。
 - 多用户：只列同一个人的，随多用户那一步。现在只有管理员。

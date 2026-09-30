@@ -159,6 +159,12 @@ impl DataRoot {
         self.account_dir(account).join("blobs")
     }
 
+    /// 一个账号的派生数据：`home/<账号>/index/`（`07-存储.md` 第六节）。会话列表的索引放在这里（施工 3-8 七补，
+    /// [`crate::index`]）。
+    pub fn index(&self, account: &AccountId) -> PathBuf {
+        self.account_dir(account).join("index")
+    }
+
     /// 状态区：派生的全局索引、用量总表、运行日志。
     pub fn state(&self) -> PathBuf {
         self.path.join("state")

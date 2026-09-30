@@ -138,6 +138,7 @@ impl Sessions {
             lineage: None,
             sessions: Some(spawn::port(core)),
             jobs: &core.jobs,
+            index: core.index_for(&core.admin),
         })
         .await;
         let handle = match created {
@@ -218,6 +219,7 @@ impl Sessions {
             persona: &child.persona,
             venue: child.venue,
             sandbox_cache: core.sandbox_cache_of(&child.owner),
+            index: core.index_for(&child.owner),
             owner: child.owner,
             permission: child.permission,
             attended: child.attended,

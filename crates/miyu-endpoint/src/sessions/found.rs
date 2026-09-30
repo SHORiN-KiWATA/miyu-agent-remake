@@ -74,6 +74,7 @@ impl Open {
             sandbox_cache: core.sandbox_cache_of(&core.admin),
             sessions: Some(spawn::port(core)),
             jobs: &core.jobs,
+            index: core.index_for(&core.admin),
         })
         .await;
         let handle = match loaded {

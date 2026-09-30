@@ -19,6 +19,7 @@ use miyu_session::{
     Subscription, create, load, new_id,
 };
 use miyu_store::env::{Env, Platform};
+use miyu_store::index::{FILE, SessionIndex};
 use miyu_store::log::read_events;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
@@ -63,6 +64,8 @@ pub struct Home {
     pub home: PathBuf,
     /// 执行器的任务表（施工 7-3）：这个场地里的会话共用一张，和核心里一样。
     pub jobs: Arc<Jobs>,
+    /// alice 的会话列表的索引（施工 3-8 七补）：这个场地里造的、载入的会话都往里写，和核心里一样。
+    pub index: Arc<SessionIndex>,
 }
 
 /// 造会话时可以换的几样（施工 4-3 下）。
@@ -156,11 +159,13 @@ impl Home {
         root.prepare().expect("临时目录里建得了骨架");
         let home = scratch.0.join("home");
         std::fs::create_dir_all(&home).expect("建得了假的家");
+        let (index, _) = SessionIndex::open(&root.index(&alice_account()).join(FILE));
         Home {
             scratch,
             root,
             home,
             jobs: Arc::new(Jobs::new()),
+            index: Arc::new(index),
             resources: ResourceRoot::at(
                 Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"),
             ),
@@ -221,6 +226,7 @@ impl Home {
             lineage: lines.lineage,
             sessions: lines.sessions,
             jobs: &self.jobs,
+            index: Some(Arc::clone(&self.index)),
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -277,6 +283,7 @@ impl Home {
             sandbox_cache: None,
             sessions,
             jobs: &self.jobs,
+            index: Some(Arc::clone(&self.index)),
         });
         within("载入", loaded).await.expect("载入得了会话")
     }

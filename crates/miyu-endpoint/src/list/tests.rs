@@ -1,4 +1,10 @@
 //! 照整份日志算的几样（施工 C-3）：工作目录照最后一条带 `cwd` 的，不带的不盖；最近一次动静是最后一条的时刻；标题、置顶照旧。
+//! 读索引的和整份读的一字不差（施工 3-8 七补，`indexed.rs`）。
+
+mod indexed;
+mod speed;
+
+use miyu_kernel::event::{Body, Event};
 
 use super::*;
 
@@ -6,14 +12,13 @@ fn event(line: &str) -> Event {
     Event::from_line(line).expect("合写法")
 }
 
-const CREATED: &str = r#"{"seq":1,"at":"2026-09-25T07:00:00.000Z","kind":"session.created","by":{"kind":"person","account":"alice"},"cause":"c1","body":{"owner":"alice","venue":"local","policy":"sha256:97f5f58cebf9e368ddcc668976ce5da07ceb80c7be52ac6d4edcf2ac8a639894","permission":{"level":"workspace","read_only":false},"cwd":"~/a"}}"#;
+pub(super) const CREATED: &str = r#"{"seq":1,"at":"2026-09-25T07:00:00.000Z","kind":"session.created","by":{"kind":"person","account":"alice"},"cause":"c1","body":{"owner":"alice","venue":"local","policy":"sha256:97f5f58cebf9e368ddcc668976ce5da07ceb80c7be52ac6d4edcf2ac8a639894","permission":{"level":"workspace","read_only":false},"cwd":"~/a"}}"#;
 
-fn read(lines: &[&str]) -> Read {
+fn read(lines: &[&str]) -> Row {
     let created = event(CREATED);
-    let Body::SessionCreated(body) = &created.body else {
-        panic!("第一条是 session.created");
-    };
-    let mut read = Read::new(body, created.at);
+    assert!(matches!(created.body, Body::SessionCreated(_)));
+    let mut read =
+        Row::new(SessionId::parse(A).expect("合写法"), &created).expect("第一条是 session.created");
     for line in lines {
         read.see(&event(line));
     }
@@ -35,18 +40,21 @@ fn the_working_directory_is_the_last_one_written_down() {
 
 #[test]
 fn last_active_is_the_time_of_the_last_event_of_any_kind() {
-    assert_eq!(read(&[]).last.to_string(), "2026-09-25T07:00:00.000Z");
+    assert_eq!(
+        read(&[]).last_active.to_string(),
+        "2026-09-25T07:00:00.000Z"
+    );
     let renamed = r#"{"seq":2,"at":"2026-09-25T09:30:00.000Z","kind":"session.meta_changed","by":{"kind":"person","account":"alice"},"cause":"c2","body":{"title":"发版"}}"#;
     let got = read(&[CREATED, renamed]);
-    assert_eq!(got.last.to_string(), "2026-09-25T09:30:00.000Z");
+    assert_eq!(got.last_active.to_string(), "2026-09-25T09:30:00.000Z");
     assert_eq!(got.title, "发版");
 }
 
 /// 一个临时的数据根，里面照 `logs` 写好几个会话的第一段日志：编号、一行行事件。
-struct Site(std::path::PathBuf, DataRoot);
+pub(super) struct Site(pub(super) std::path::PathBuf, pub(super) DataRoot);
 
 impl Site {
-    fn new(logs: &[(&str, &[&str])]) -> Site {
+    pub(super) fn new(logs: &[(&str, &[&str])]) -> Site {
         use std::sync::atomic::{AtomicU64, Ordering};
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
@@ -83,21 +91,30 @@ impl Drop for Site {
     }
 }
 
-fn alice() -> AccountId {
+pub(super) fn alice() -> AccountId {
     AccountId::parse("alice").expect("合写法")
 }
 
 /// 很早以前的日志：`session.created` 不带 `cwd`，也没开过带 `cwd` 的回合。
-const OLD: &str = r#"{"seq":1,"at":"2026-09-25T07:00:00.000Z","kind":"session.created","by":{"kind":"person","account":"alice"},"cause":"c1","body":{"owner":"alice","venue":"local","policy":"sha256:97f5f58cebf9e368ddcc668976ce5da07ceb80c7be52ac6d4edcf2ac8a639894","permission":{"level":"workspace","read_only":false}}}"#;
+pub(super) const OLD: &str = r#"{"seq":1,"at":"2026-09-25T07:00:00.000Z","kind":"session.created","by":{"kind":"person","account":"alice"},"cause":"c1","body":{"owner":"alice","venue":"local","policy":"sha256:97f5f58cebf9e368ddcc668976ce5da07ceb80c7be52ac6d4edcf2ac8a639894","permission":{"level":"workspace","read_only":false}}}"#;
 
-const A: &str = "0192f3a0-1111-7abc-8def-001122334455";
-const B: &str = "0192f3a0-2222-7abc-8def-5566778899aa";
+pub(super) const A: &str = "0192f3a0-1111-7abc-8def-001122334455";
+pub(super) const B: &str = "0192f3a0-2222-7abc-8def-5566778899aa";
 
 #[test]
 fn a_log_with_no_working_directory_says_tilde_and_busy_comes_from_the_table() {
     let site = Site::new(&[(A, &[OLD]), (B, &[CREATED])]);
     let busy = BTreeSet::from([SessionId::parse(B).expect("合写法")]);
-    let listed = scan(&site.1, &alice(), &busy, |_| true, None, &Stop::default()).expect("读得了");
+    let listed = scan(
+        &site.1,
+        &alice(),
+        None,
+        &busy,
+        |_| true,
+        None,
+        &Stop::default(),
+    )
+    .expect("读得了");
     let got: Vec<(&str, &str, bool)> = listed
         .iter()
         .map(|one| (one.id.as_str(), one.cwd.as_str(), one.busy))
@@ -114,6 +131,15 @@ fn a_raised_flag_stops_before_the_next_session() {
     let site = Site::new(&[(A, &[OLD]), (B, &[CREATED])]);
     let stop = Stop::default();
     stop.raise();
-    let listed = scan(&site.1, &alice(), &BTreeSet::new(), |_| true, None, &stop).expect("读得了");
+    let listed = scan(
+        &site.1,
+        &alice(),
+        None,
+        &BTreeSet::new(),
+        |_| true,
+        None,
+        &stop,
+    )
+    .expect("读得了");
     assert!(listed.is_empty(), "一个都不读");
 }

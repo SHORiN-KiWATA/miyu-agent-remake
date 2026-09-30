@@ -299,10 +299,23 @@ async fn edit_leaves_the_file_alone_when_nothing_is_saved() {
         assert_eq!(asked.code, code, "{}", asked.err);
         assert!(asked.err.ends_with(ends), "{}", asked.err);
         assert!(!personal(&home).exists(), "文件没动");
-        assert!(
-            !personal(&home).parent().expect("有上一级").exists(),
-            "为副本新建的目录也删掉"
-        );
+        // 核心起来时会在账号目录下建会话列表的索引（施工 3-8 七补），那一份不算编辑留下的。
+        let account = personal(&home).parent().expect("有上一级").to_path_buf();
+        let left: Vec<String> = std::fs::read_dir(&account)
+            .map(|entries| {
+                entries
+                    .map(|entry| {
+                        entry
+                            .expect("读得了")
+                            .file_name()
+                            .to_string_lossy()
+                            .into_owned()
+                    })
+                    .filter(|name| name != "index")
+                    .collect()
+            })
+            .unwrap_or_default();
+        assert!(left.is_empty(), "为副本新建的东西也删掉：{left:?}");
     }
     let mut elsewhere = Fake::default();
     let asked = run(&home, &cwd, edit(false), &mut elsewhere).await;

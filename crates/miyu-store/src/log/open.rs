@@ -4,13 +4,13 @@
 
 use std::fmt;
 use std::fs::{self, OpenOptions};
-use std::io::{self, BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
 use miyu_kernel::event::Event;
 use miyu_kernel::id::Seq;
 
-use super::SessionLog;
+use super::{Mark, SessionLog};
 
 /// 打开不了会话日志。
 #[derive(Debug)]
@@ -59,14 +59,16 @@ impl SessionLog {
     ///
     /// 没有这个会话；日志坏了；读写出错。
     pub fn open(dir: &Path, limit: u64) -> Result<(SessionLog, Vec<Event>), OpenError> {
-        let (events, next, last) = read_all(dir, HalfLine::Cut)?;
+        let (events, end) = read_all(dir, HalfLine::Cut)?;
+        let last = dir.join(super::segment_name_of(end.segment));
         let size = fs::metadata(&last)?.len();
         let file = OpenOptions::new().append(true).open(&last)?;
         let log = SessionLog {
             dir: dir.to_path_buf(),
             file,
+            segment: end.segment,
             size,
-            next,
+            next: end.next,
             limit,
         };
         Ok((log, events))
@@ -81,7 +83,7 @@ impl SessionLog {
 ///
 /// 没有这个会话（目录没有，或者一段都还没有）；日志坏了；读写出错。
 pub fn read_events(dir: &Path) -> Result<Vec<Event>, OpenError> {
-    read_all(dir, HalfLine::Skip).map(|(events, _, _)| events)
+    read_all(dir, HalfLine::Skip).map(|(events, _)| events)
 }
 
 /// 同 [`read_events`]，只是读一段交一段给 `each`，它交回 `false` 就不读下去（施工 6-4：`history` 翻长会话，叫停了
@@ -91,7 +93,24 @@ pub fn read_events(dir: &Path) -> Result<Vec<Event>, OpenError> {
 ///
 /// 同 [`read_events`]。
 pub fn read_segments(dir: &Path, each: impl FnMut(Vec<Event>) -> bool) -> Result<(), OpenError> {
-    walk(dir, HalfLine::Skip, each).map(|_| ())
+    walk(dir, HalfLine::Skip, None, each).map(|_| ())
+}
+
+/// 同 [`read_segments`]，只是从 `from` 读起（施工 3-8 七补：列会话照索引记的位置，只读多出来的那一截），交回读到了哪里：
+/// 最后一段、照到的整行末尾、下一条该是几号。`from` 是空的从头读。
+///
+/// `from` 和日志对不上的交回空的，一条都不交给 `each`：记的那一段没有了、比记的短了、记的位置前面一个字节不是 `\n`（不在
+/// 一行的开头）。对得上的照旧自检，只是从 `from` 读起的那一段，报坏了时的行号从 `from` 数起。
+///
+/// # Errors
+///
+/// 同 [`read_events`]。
+pub fn read_marked(
+    dir: &Path,
+    from: Option<&Mark>,
+    each: impl FnMut(Vec<Event>) -> bool,
+) -> Result<Option<Mark>, OpenError> {
+    walk(dir, HalfLine::Skip, from, each)
 }
 
 /// 最后一段末尾没写完的半行怎么办。
@@ -103,40 +122,61 @@ enum HalfLine {
     Skip,
 }
 
-/// 照段的先后一行行读、自检：交回事件、下一条的序号、最后一段。
-fn read_all(dir: &Path, half: HalfLine) -> Result<(Vec<Event>, Seq, PathBuf), OpenError> {
+/// 照段的先后一行行读、自检：交回事件、读到了哪里。
+fn read_all(dir: &Path, half: HalfLine) -> Result<(Vec<Event>, Mark), OpenError> {
     let mut events = Vec::new();
-    let (next, last) = walk(dir, half, |read| {
+    let end = walk(dir, half, None, |read| {
         events.extend(read);
         true
-    })?;
-    Ok((events, next, last))
+    })?
+    .ok_or_else(|| OpenError::Missing(dir.to_path_buf()))?;
+    Ok((events, end))
 }
 
-/// 照段的先后一段段读、自检，每读完一段交给 `each`，它交回 `false` 就停。交回下一条的序号（停下的，是停在哪一段
-/// 后面的那一条）、最后一段。
+/// 照段的先后一段段读、自检，每读完一段交给 `each`，它交回 `false` 就停。`from` 是空的从第一段开头读，不是空的从它记的
+/// 那一段、那个字节读起（[`read_marked`]）。交回读到了哪里（停下的，是停在哪一段后面）；`from` 和日志对不上的交回空的。
 fn walk(
     dir: &Path,
     half: HalfLine,
+    from: Option<&Mark>,
     mut each: impl FnMut(Vec<Event>) -> bool,
-) -> Result<(Seq, PathBuf), OpenError> {
+) -> Result<Option<Mark>, OpenError> {
     let segments = segments(dir)?;
-    let Some((_, last)) = segments.last() else {
+    if segments.is_empty() {
         return Err(OpenError::Missing(dir.to_path_buf()));
+    }
+    let (start, mut offset, mut next) = match from {
+        None => (0, 0, Seq::FIRST),
+        Some(mark) => match segments
+            .iter()
+            .position(|(first, _)| *first == mark.segment)
+        {
+            Some(k) => (k, mark.bytes, mark.next),
+            None => return Ok(None),
+        },
     };
-    let mut next = Seq::FIRST;
-    for (k, (first, path)) in segments.iter().enumerate() {
+    let mut end = Mark {
+        segment: segments[start].0,
+        bytes: offset,
+        next,
+    };
+    for (k, (first, path)) in segments.iter().enumerate().skip(start) {
         let is_last = k + 1 == segments.len();
-        let read = read_segment(path, is_last, &mut next, half)?;
+        let Some((read, bytes)) = read_segment(path, offset, is_last, &mut next, half)? else {
+            return Ok(None);
+        };
+        // 从一段中间读起的，读到的第一条不是这一段的第一条，这一段也不是空的：名字不在这里查。
+        let whole = offset == 0;
+        offset = 0;
         match read.first() {
-            Some(event) if event.seq.get() != *first => {
+            Some(event) if whole && event.seq.get() != *first => {
                 return Err(broken(
                     path,
                     1,
                     format!("the segment is named {first} but starts with {}", event.seq),
                 ));
             }
-            None if is_last && *first != next.get() => {
+            None if whole && is_last && *first != next.get() => {
                 return Err(broken(
                     path,
                     1,
@@ -144,24 +184,40 @@ fn walk(
                 ));
             }
             _ => {
+                end = Mark {
+                    segment: *first,
+                    bytes,
+                    next,
+                };
                 if !each(read) {
                     break;
                 }
             }
         }
     }
-    Ok((next, last.clone()))
+    Ok(Some(end))
 }
 
-/// 读一段：每一行读成事件，序号要接着 `next`。最后一段末尾没写完的半行照 `half` 截掉或者跳过；别的
-/// 段末尾有半行，报错。
+/// 读一段，从第 `from` 个字节读起：每一行读成事件，序号要接着 `next`。最后一段末尾没写完的半行照 `half` 截掉或者跳过；
+/// 别的段末尾有半行，报错。交回读出来的事件、照到的整行末尾；`from` 前面一个字节不是 `\n` 的（这一段比 `from` 短的也是），
+/// 交回空的（对不上）。
 fn read_segment(
     path: &Path,
+    from: u64,
     is_last: bool,
     next: &mut Seq,
     half: HalfLine,
-) -> Result<Vec<Event>, OpenError> {
-    let bytes = fs::read(path)?;
+) -> Result<Option<(Vec<Event>, u64)>, OpenError> {
+    let mut file = fs::File::open(path)?;
+    // 从一行中间读起的不算数：多读前面那一个字节，看它是不是 `\n`。这一段比记的短了的，那个字节读不到，也算对不上。
+    let skip = u64::from(from > 0);
+    file.seek(SeekFrom::Start(from - skip))?;
+    let mut read = Vec::new();
+    file.read_to_end(&mut read)?;
+    if skip == 1 && read.first() != Some(&b'\n') {
+        return Ok(None);
+    }
+    let bytes = &read[usize::from(skip == 1)..];
     let complete = bytes
         .iter()
         .rposition(|&byte| byte == b'\n')
@@ -170,6 +226,7 @@ fn read_segment(
         .split_inclusive(|&byte| byte == b'\n')
         .map(|line| &line[..line.len() - 1])
         .collect();
+    let end = from + complete as u64;
     if complete < bytes.len() {
         if !is_last {
             return Err(broken(
@@ -179,7 +236,7 @@ fn read_segment(
             ));
         }
         if half == HalfLine::Cut {
-            truncate(path, complete as u64)?;
+            truncate(path, end)?;
         }
     }
     let mut events = Vec::with_capacity(lines.len());
@@ -199,7 +256,7 @@ fn read_segment(
         *next = next.next();
         events.push(event);
     }
-    Ok(events)
+    Ok(Some((events, end)))
 }
 
 /// 截到 `len` 字节，再同步。
