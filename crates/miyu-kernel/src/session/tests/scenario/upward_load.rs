@@ -159,6 +159,7 @@ fn the_report_waits_until_the_whole_batch_is_on_disk() {
     s.say("做这件事");
     // 崩在调用没结果的时候：载入补「已取消」和结束，一批里两条。
     let (mut session, actions) = Session::load(
+        SessionId::parse(crate::testkit::CHILD_SESSION).unwrap(),
         s.log().to_vec(),
         at(59),
         policy(),

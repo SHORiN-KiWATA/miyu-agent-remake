@@ -19,6 +19,7 @@ mod redo;
 mod reports;
 mod reports_undo;
 mod retrying;
+mod session_fact;
 mod shorten;
 mod spans;
 mod stopping;

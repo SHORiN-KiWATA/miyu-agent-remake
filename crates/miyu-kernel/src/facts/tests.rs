@@ -1,5 +1,5 @@
-//! 事实的测试：模板造的时候就查；两块的写法；该不该注入：第一次、一样、变了、隔着边界
-//! 变回去、别的来源和别的类不算、压缩以后、撤销以后。日志都先交给账本查过（[`Log`]）。
+//! 事实的测试：模板造的时候就查；三块的写法；一个边界上查哪几块、先后；以前的快照没有会话编号的模板；该不该注入：
+//! 第一次、一样、变了、隔着边界变回去、别的来源和别的类不算、压缩以后、撤销以后。日志都先交给账本查过（[`Log`]）。
 
 use super::*;
 use crate::event::Event;
@@ -17,8 +17,16 @@ fn templates() -> FactTemplates {
         r#"<e t="{time}" z="{timezone}" d="{cwd}"/>"#,
         r#"<p l="{level}"/>"#,
         "<cut/>",
+        Some(r#"<s i="{id}"/>"#),
     )
     .unwrap()
+}
+
+/// 会话编号：一个真会话的写法。
+const SESSION: &str = "01a0f233-cfec-7023-8ed5-2a037a1d5ec8";
+
+fn session() -> SessionId {
+    SessionId::parse(SESSION).unwrap()
 }
 
 /// 边界上的此刻。
@@ -134,25 +142,91 @@ impl Log {
 
 #[test]
 fn a_template_asking_for_a_field_it_does_not_have_is_refused() {
-    let env =
-        FactTemplates::new(r#"<e w="{weather}"/>"#, r#"<p l="{level}"/>"#, "<cut/>").unwrap_err();
+    let env = FactTemplates::new(
+        r#"<e w="{weather}"/>"#,
+        r#"<p l="{level}"/>"#,
+        "<cut/>",
+        None,
+    )
+    .unwrap_err();
     assert!(env.why.contains("weather"), "{env}");
     let permission =
-        FactTemplates::new(r#"<e t="{time}"/>"#, r#"<p t="{time}"/>"#, "<cut/>").unwrap_err();
+        FactTemplates::new(r#"<e t="{time}"/>"#, r#"<p t="{time}"/>"#, "<cut/>", None).unwrap_err();
     assert!(permission.why.contains("time"), "{permission}");
     // 被打断的那一句没有字段。
     let cut = FactTemplates::new(
         r#"<e t="{time}"/>"#,
         r#"<p l="{level}"/>"#,
         r#"<cut n="{count}"/>"#,
+        None,
     )
     .unwrap_err();
     assert!(cut.why.contains("count"), "{cut}");
+    // 会话编号那一块只有 `id`（施工 1-13 再补）。
+    let session = FactTemplates::new(
+        r#"<e t="{time}"/>"#,
+        r#"<p l="{level}"/>"#,
+        "<cut/>",
+        Some(r#"<s t="{time}"/>"#),
+    )
+    .unwrap_err();
+    assert!(session.why.contains("time"), "{session}");
 }
 
 #[test]
 fn a_broken_template_is_refused() {
-    assert!(FactTemplates::new(r#"<e t="{time"/>"#, r#"<p l="{level}"/>"#, "<cut/>").is_err());
+    assert!(
+        FactTemplates::new(r#"<e t="{time"/>"#, r#"<p l="{level}"/>"#, "<cut/>", None).is_err()
+    );
+    assert!(
+        FactTemplates::new(
+            r#"<e t="{time}"/>"#,
+            r#"<p l="{level}"/>"#,
+            "<cut/>",
+            Some(r#"<s i="{id"/>"#),
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn the_session_block_has_the_session_id() {
+    let block = templates().session(&session()).unwrap();
+    assert_eq!(block.kind.as_str(), "session");
+    assert_eq!(block.text, format!(r#"<s i="{SESSION}"/>"#));
+}
+
+#[test]
+fn a_boundary_checks_the_env_the_permission_and_the_session_in_that_order() {
+    let facts = templates().boundary(
+        now(),
+        &environment("~/src/miyu"),
+        &permission(Level::Workspace, false),
+        &session(),
+    );
+    let kinds: Vec<&str> = facts.iter().map(|fact| fact.kind.as_str()).collect();
+    assert_eq!(kinds, ["env", "permission", "session"]);
+    assert_eq!(facts[2].text, format!(r#"<s i="{SESSION}"/>"#));
+}
+
+#[test]
+fn older_templates_without_the_session_one_have_no_session_block() {
+    let older = FactTemplates::new(
+        r#"<e t="{time}" z="{timezone}" d="{cwd}"/>"#,
+        r#"<p l="{level}"/>"#,
+        "<cut/>",
+        None,
+    )
+    .unwrap();
+    assert_eq!(older.session(&session()), None);
+    let facts = older.boundary(
+        now(),
+        &environment("~/src/miyu"),
+        &permission(Level::Workspace, false),
+        &session(),
+    );
+    let kinds: Vec<&str> = facts.iter().map(|fact| fact.kind.as_str()).collect();
+    assert_eq!(kinds, ["env", "permission"]);
 }
 
 #[test]

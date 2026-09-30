@@ -102,7 +102,7 @@ impl Watch {
         let environment = environment(&self.cwd.clone());
         // 内核照日志里的 `cause` 重建接受过的编号：接受了却什么都没记的，载入以后就忘了。
         self.accepted = log.iter().filter_map(|event| event.cause.clone()).collect();
-        let (session, actions) = Session::load(log, at(55), policy, environment)
+        let (session, actions) = Session::load(session_id(), log, at(55), policy, environment)
             .unwrap_or_else(|e| panic!("种子 {seed}：落了盘的日志载入不了：{e}"));
         self.asking = None;
         // 载入以后当没人看着（施工 7-2）。

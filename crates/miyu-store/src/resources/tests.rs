@@ -109,6 +109,11 @@ fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
         "You are a helpful software engineer.\n"
     );
     assert!(sources.core.facts.reply_cut.starts_with("<reply-cut>"));
+    // 会话编号的模板（施工 1-13 再补）。
+    assert_eq!(
+        sources.core.facts.session.as_deref(),
+        Some(include_str!("../../../../resources/core/facts/session.txt"))
+    );
     assert!(
         sources
             .core

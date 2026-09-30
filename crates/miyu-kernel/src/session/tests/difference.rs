@@ -72,6 +72,7 @@ fn a_rewritten_system_is_the_first_difference() {
     let mut policy = policy();
     policy.assembler = Box::new(Drifting);
     let (mut session, _) = Session::create(
+        session_id(),
         id(0),
         alice(),
         at(0),
