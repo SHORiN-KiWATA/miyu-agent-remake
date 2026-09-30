@@ -67,7 +67,7 @@ fn a_config_change_is_written_like_the_sample() {
         "home/admin/journal.jsonl",
         Timestamp::parse("2026-10-01T08:00:00.000Z").unwrap(),
         admin(),
-        &CommandId::parse("config-9f2c4e1a7b3d5f60-1").unwrap(),
+        Some(&CommandId::parse("config-9f2c4e1a7b3d5f60-1").unwrap()),
         "config.changed",
         &body,
     );
@@ -84,13 +84,14 @@ fn a_trust_answer_is_written_like_the_sample() {
         path: "~/src/app",
         version: "sha256:…",
         trusted: true,
+        via: None,
     };
     record(
         &scratch.file(),
         "home/admin/journal.jsonl",
         Timestamp::parse("2026-10-01T08:02:00.000Z").unwrap(),
         admin(),
-        &CommandId::parse("config-9f2c4e1a7b3d5f60-2").unwrap(),
+        Some(&CommandId::parse("config-9f2c4e1a7b3d5f60-2").unwrap()),
         "trust.changed",
         &body,
     );
@@ -119,5 +120,55 @@ fn what_was_not_there_before_or_after_is_left_out() {
     assert_eq!(
         serde_json::to_string(&removed).unwrap(),
         r#"{"key":"ui.language","old":"zh"}"#
+    );
+}
+
+/// 手改被看到的（施工 8-4）：`by` 是内核，没有 `cause`，`via` 是 `file`；信任的记录多一格 `via`。
+#[test]
+fn a_hand_edit_is_written_by_the_kernel_without_a_cause() {
+    let scratch = Scratch::new("hand");
+    let body = ConfigChanged {
+        layer: "system",
+        file: "system/config.toml",
+        via: "file",
+        changes: vec![KeyChange {
+            key: "log.level",
+            old: None,
+            new: Some(serde_json::json!("debug")),
+        }],
+    };
+    let at = Timestamp::parse("2026-10-01T08:00:00.000Z").unwrap();
+    record(
+        &scratch.file(),
+        "system/journal.jsonl",
+        at,
+        By::Kernel,
+        None,
+        "config.changed",
+        &body,
+    );
+    let trust = TrustChanged {
+        path: "~/src/app",
+        version: "sha256:…",
+        trusted: false,
+        via: Some("file"),
+    };
+    record(
+        &scratch.file(),
+        "system/journal.jsonl",
+        at,
+        By::Kernel,
+        None,
+        "trust.changed",
+        &trust,
+    );
+    assert_eq!(
+        std::fs::read_to_string(scratch.file()).unwrap(),
+        concat!(
+            r#"{"seq":1,"at":"2026-10-01T08:00:00.000Z","kind":"config.changed","by":{"kind":"kernel"},"body":{"layer":"system","file":"system/config.toml","via":"file","changes":[{"key":"log.level","new":"debug"}]}}"#,
+            "\n",
+            r#"{"seq":2,"at":"2026-10-01T08:00:00.000Z","kind":"trust.changed","by":{"kind":"kernel"},"body":{"path":"~/src/app","version":"sha256:…","trusted":false,"via":"file"}}"#,
+            "\n",
+        )
     );
 }

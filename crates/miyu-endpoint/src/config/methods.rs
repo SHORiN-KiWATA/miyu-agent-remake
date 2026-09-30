@@ -12,6 +12,7 @@ use miyu_config::problem::{Code, Problem, Told, Using, nearest, tell};
 use miyu_config::{Item, Kind, Layer, Words};
 use miyu_store::human::{FALLBACK, Human};
 
+use super::file::File;
 use super::{Config, Project, TARGET, wire};
 use crate::Core;
 use crate::hello::Peer;
@@ -197,27 +198,13 @@ pub(crate) fn get(core: &Core, peer: Peer, params: GetParams) -> Result<Value, R
     let mut problems = Vec::new();
     for file in [&config.system, &config.personal] {
         for problem in file.problems() {
-            problems.push(said(
-                config,
-                &layers,
-                problem,
-                Some(&file.shown),
-                true,
-                &words,
-            )?);
+            problems.push(said(config, &layers, problem, Some(file), &words)?);
         }
     }
     if let Some(project) = &project {
         let merged = resolved.problems.iter();
         for problem in project.file.problems().chain(merged) {
-            problems.push(said(
-                config,
-                &layers,
-                problem,
-                Some(&project.file.shown),
-                true,
-                &words,
-            )?);
+            problems.push(said(config, &layers, problem, Some(&project.file), &words)?);
         }
     }
     Ok(json!({
@@ -259,7 +246,7 @@ pub(crate) fn check(core: &Core, peer: Peer, params: CheckParams) -> Result<Valu
         Ok(parsed) => parsed,
         Err(problem) => {
             let layers = config.layers(None);
-            let said = said(config, &layers, &problem, None, false, &words)?;
+            let said = said(config, &layers, &problem, None, &words)?;
             return Ok(json!({"problems": [said]}));
         }
     };
@@ -278,19 +265,19 @@ pub(crate) fn check(core: &Core, peer: Peer, params: CheckParams) -> Result<Valu
     }
     let mut problems = Vec::new();
     for problem in found {
-        problems.push(said(config, &layers, problem, None, false, &words)?);
+        problems.push(said(config, &layers, problem, None, &words)?);
     }
     Ok(json!({ "problems": problems }))
 }
 
 /// 一条问题写成协议上的样子，话照 `words`。现在照什么用着：一项的问题照这一项在它那一层下面几层合出来的；整份的问题
-/// 在 `in_force`（手里用着的文件）时是「这份文件先不用」，查一段字时不说。
+/// 是手里用着的文件 `file` 的，照上一次读好的用（`last_good`，施工 8-4）或者先不用（`nothing`）；查一段字（没有 `file`）
+/// 时不说。
 pub(super) fn said(
     config: &Config,
     layers: &Layers,
     problem: &Problem,
-    file: Option<&str>,
-    in_force: bool,
+    file: Option<&File>,
     words: &Human,
 ) -> Result<Value, Refusal> {
     let item = problem
@@ -298,7 +285,10 @@ pub(super) fn said(
         .as_deref()
         .and_then(|key| config.items().iter().find(|item| item.key == key));
     let using = match (problem.code, item) {
-        (code, _) if code.whole_file() => in_force.then_some(Using::Nothing),
+        (code, _) if code.whole_file() => file.map(|file| match file.last_good {
+            true => Using::LastGood,
+            false => Using::Nothing,
+        }),
         (
             Code::WrongType | Code::NotAnOption | Code::WrongLayer | Code::NotTightening,
             Some(item),
@@ -309,7 +299,8 @@ pub(super) fn said(
         _ => None,
     };
     let told = told(problem, config.items(), using.as_ref(), words)?;
-    Ok(wire::problem(problem, file, &told, using.as_ref()))
+    let shown = file.map(|file| file.shown.as_str());
+    Ok(wire::problem(problem, shown, &told, using.as_ref()))
 }
 
 /// 说成话；要用的字缺了是装坏了：内部出错，记一条 `WARN`。

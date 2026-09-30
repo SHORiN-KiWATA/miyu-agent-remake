@@ -118,7 +118,14 @@ impl ModelPort for Brain {
         SCRIPT.get_or_init(|| Script::new([])).model()
     }
 
-    fn call(&self, seen: Seq, request: Request, reports: Reports, cancel: Cancel) {
+    fn call(
+        &self,
+        seen: Seq,
+        request: Request,
+        config: &miyu_session::TurnConfig,
+        reports: Reports,
+        cancel: Cancel,
+    ) {
         // 起标题的请求（施工 3-8 五补）不带哪一份的原话：不回，一直在路上，不碍这里测的。
         if reports.purpose() == Some(&Purpose::Title) {
             return;
@@ -128,7 +135,7 @@ impl ModelPort for Brain {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .push(request.clone());
-        Script::new([play]).call(seen, request, reports, cancel);
+        Script::new([play]).call(seen, request, config, reports, cancel);
     }
 }
 

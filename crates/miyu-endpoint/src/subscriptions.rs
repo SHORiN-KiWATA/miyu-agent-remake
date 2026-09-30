@@ -10,6 +10,10 @@
 //!
 //! 带 `after` 订阅的（施工 3-8 六补），转发任务先把补发的那一截一条条放进写队列，再转推送、回应：订阅的回应也交给它，
 //! 排在补的后面。换掉原来那一个时，先等它把交给它的都放完、交回它的订阅（[`Subscriptions::take`]），补的才不和它的交错。
+//!
+//! 配置的推送另有一个订阅（施工 8-4，`subscriptions/config.rs`）：一个连接至多一个，`config.set` 的回应经它写出去。
+
+mod config;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -22,10 +26,23 @@ use miyu_kernel::event::Event;
 use miyu_kernel::id::SessionId;
 use miyu_session::{Ended, Pushed, Subscription};
 
-/// 一个连接上的订阅：一个会话一个。
+use crate::Core;
+use config::ConfigForwarder;
+
+/// 一个连接上的订阅：一个会话一个，配置的至多一个（施工 8-4）。
 #[derive(Debug, Default)]
 pub(crate) struct Subscriptions {
     live: BTreeMap<SessionId, Forwarder>,
+    config: Option<ConfigForwarder>,
+}
+
+/// 一条回应经哪个订阅写出去。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Target {
+    /// 给这个会话的命令：经它的订阅，排在这条命令产生的推送后面。
+    Session(SessionId),
+    /// `config.set`：经配置的订阅，排在这一次的推送后面（施工 8-4）。
+    Config,
 }
 
 /// 一个订阅的转发任务，交回应给它的那一头，和这个订阅还在不在推。
@@ -87,18 +104,53 @@ impl Subscriptions {
         forwarder.task.await.ok()
     }
 
-    /// 写一条回应：`session` 订阅着的，交给它的转发任务，排在已经到了的推送后面；没订阅的直接放进写
+    /// 订阅配置的推送（施工 8-4）：还在推的，还是那一个；没有的、掉了队的，起一个新的。`system` 是 `ui.language` 是 `auto`
+    /// 时用的语言。
+    pub(crate) fn add_config(
+        &mut self,
+        core: &Arc<Core>,
+        system: &'static str,
+        out: &mpsc::Sender<String>,
+    ) {
+        if self.config.as_ref().is_some_and(ConfigForwarder::pushing) {
+            return;
+        }
+        let pushes = core.hub.subscribe();
+        self.config = Some(ConfigForwarder::start(
+            Arc::clone(core),
+            pushes,
+            system,
+            out.clone(),
+        ));
+    }
+
+    /// 取消订阅配置的推送：已经交给转发任务的回应照样放完，它才退。
+    pub(crate) fn remove_config(&mut self) {
+        self.config = None;
+    }
+
+    /// 写一条回应：`target` 订阅着的，交给它的转发任务，排在已经到了的推送后面；没订阅的直接放进写
     /// 队列。写队列关了（连接断了），交回 `false`。
     pub(crate) async fn reply(
         &mut self,
-        session: Option<&SessionId>,
+        target: Option<&Target>,
         line: String,
         out: &mpsc::Sender<String>,
     ) -> bool {
-        let line = match session.and_then(|session| self.live.get(session)) {
-            Some(forwarder) => match forwarder.replies.send(line) {
-                Ok(()) => return true,
-                Err(mpsc::error::SendError(line)) => line,
+        let line = match target {
+            Some(Target::Session(session)) => match self.live.get(session) {
+                Some(forwarder) => match forwarder.replies.send(line) {
+                    Ok(()) => return true,
+                    Err(mpsc::error::SendError(line)) => line,
+                },
+                None => line,
+            },
+            Some(Target::Config) => match &self.config {
+                Some(forwarder) => match forwarder.reply(line) {
+                    Ok(()) => return true,
+                    Err(line) => line,
+                },
+                None => line,
             },
             None => line,
         };
@@ -111,6 +163,9 @@ impl Drop for Subscriptions {
     fn drop(&mut self) {
         for forwarder in self.live.values() {
             forwarder.task.abort();
+        }
+        if let Some(config) = &self.config {
+            config.abort();
         }
     }
 }

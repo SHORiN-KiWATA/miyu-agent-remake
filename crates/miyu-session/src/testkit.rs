@@ -14,6 +14,7 @@ use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
 use miyu_kernel::session::Limits;
 
+use crate::config::TurnConfig;
 use crate::port::{Cancel, ForSession, ModelPort, Models, Reports};
 
 /// 剧本里的一次回复。
@@ -65,6 +66,8 @@ pub struct Script {
     model: Model,
     plays: Arc<Mutex<VecDeque<Play>>>,
     requests: Arc<Mutex<Vec<(Seq, Request)>>>,
+    /// 每一次主请求交来的这一轮的配置，和 `requests` 一一对上（施工 8-4）。
+    configs: Arc<Mutex<Vec<TurnConfig>>>,
     cancelled: Arc<Mutex<Vec<Seq>>>,
     /// 交给内核的窗口；没有的不主动压（施工 6-3 上）。
     window: Option<u64>,
@@ -88,6 +91,7 @@ impl Script {
             },
             plays: Arc::new(Mutex::new(plays.into_iter().collect())),
             requests: Arc::new(Mutex::new(Vec::new())),
+            configs: Arc::new(Mutex::new(Vec::new())),
             cancelled: Arc::new(Mutex::new(Vec::new())),
             window: None,
             titles: Arc::new(Mutex::new(VecDeque::new())),
@@ -122,6 +126,11 @@ impl Script {
             .clone()
     }
 
+    /// 每一次主请求交来的这一轮的配置，照先后，和 [`Script::requests`] 一一对上（施工 8-4）。
+    pub fn configs(&self) -> Vec<TurnConfig> {
+        lock(&self.configs).clone()
+    }
+
     /// 被叫停的请求，照先后。
     pub fn cancelled(&self) -> Vec<Seq> {
         self.cancelled
@@ -151,7 +160,14 @@ impl ModelPort for Script {
         }
     }
 
-    fn call(&self, seen: Seq, request: Request, reports: Reports, cancel: Cancel) {
+    fn call(
+        &self,
+        seen: Seq,
+        request: Request,
+        config: &TurnConfig,
+        reports: Reports,
+        cancel: Cancel,
+    ) {
         let hash = request.hash();
         let play = if reports.purpose() == Some(&Purpose::Title) {
             lock(&self.titled).push((seen, request));
@@ -163,6 +179,7 @@ impl ModelPort for Script {
             let asked = {
                 let mut requests = lock(&self.requests);
                 requests.push((seen, request));
+                lock(&self.configs).push(Arc::clone(config));
                 requests.len()
             };
             lock(&self.plays)

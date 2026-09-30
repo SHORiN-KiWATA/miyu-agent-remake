@@ -14,7 +14,8 @@
 //! - [`human`]：资源目录里给人看的字，照说法换成一句话（施工 4-5 上）；
 //! - [`jobs`]：会话目录下后台命令的输出（施工 7-3）；
 //! - [`trash`]：回收处，删掉的会话挪进来、满了时限再真删（施工 3-8 三补）；
-//! - [`index`]：会话列表的索引，SQLite，派生的，随时可以删掉照日志重建（施工 3-8 七补）。
+//! - [`index`]：会话列表的索引，SQLite，派生的，随时可以删掉照日志重建（施工 3-8 七补）；
+//! - [`watch`]：监视配置文件所在的目录，按文件名认，合并连着来的变动（施工 8-4）。
 
 pub mod blob;
 pub mod config_file;
@@ -29,6 +30,7 @@ pub mod log;
 pub mod resources;
 pub mod root;
 pub mod trash;
+pub mod watch;
 
 #[cfg(test)]
 mod test_support;

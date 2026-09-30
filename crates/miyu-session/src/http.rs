@@ -23,6 +23,7 @@ use miyu_kernel::session::Limits;
 use miyu_store::blob::Blobs;
 
 use crate::blocking::blocking;
+use crate::config::TurnConfig;
 use crate::port::{Cancel, ForSession, ModelPort, Models, Reports};
 
 /// 空闲超时的初值：多久没收到新的字节就算断了（`05-内核接口.md` 第七节，以后按思考强度放大）。
@@ -102,7 +103,8 @@ impl ModelPort for HttpModel {
         }
     }
 
-    fn call(&self, _: Seq, request: Request, reports: Reports, cancel: Cancel) {
+    // 这一轮的配置还用不上：端点、模型照环境变量定的（8-6 起路由照它挑）。
+    fn call(&self, _: Seq, request: Request, _: &TurnConfig, reports: Reports, cancel: Cancel) {
         let route = Arc::clone(&self.0);
         tokio::spawn(
             route

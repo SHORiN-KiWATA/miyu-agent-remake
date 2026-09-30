@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use miyu_config::merge::Trust;
 
-use crate::config::trust::{Answer, Record, read, recorded, records, trust_of};
+use crate::config::trust::{Answer, Record, changed, read, recorded, records, trust_of};
 
 fn record(path: &str, version: &str, trusted: bool) -> Record {
     Record {
@@ -197,4 +197,28 @@ fn a_record_written_without_the_verbatim_prefix_matches_the_real_location() {
         trust_of(&with, std::path::Path::new(r"C:\src\app"), "sha256:a", None),
         Trust::Trusted
     );
+}
+
+/// 手改了记录（施工 8-4）：只报回答变了的、新加的仓库，照最后一条算；删掉的、没变的、前面被盖掉的不报。
+#[test]
+fn a_hand_edit_reports_only_the_answers_that_changed() {
+    let old = [
+        record("~/src/app", "sha256:a", true),
+        record("~/src/lib", "sha256:b", false),
+        record("~/src/gone", "sha256:c", true),
+    ];
+    let new = [
+        record("~/src/lib", "sha256:b", true),
+        record("~/src/app", "sha256:x", false),
+        record("~/src/app", "sha256:a", true),
+        record("~/src/new", "sha256:d", false),
+    ];
+    assert_eq!(
+        changed(&old, &new),
+        [
+            record("~/src/lib", "sha256:b", true),
+            record("~/src/new", "sha256:d", false),
+        ]
+    );
+    assert!(changed(&old, &old).is_empty());
 }

@@ -83,7 +83,14 @@ impl ModelPort for Router {
         self.0[0].script.model()
     }
 
-    fn call(&self, seen: Seq, request: Request, reports: Reports, cancel: Cancel) {
+    fn call(
+        &self,
+        seen: Seq,
+        request: Request,
+        config: &miyu_session::TurnConfig,
+        reports: Reports,
+        cancel: Cancel,
+    ) {
         // 起标题的请求（施工 3-8 五补）不带哪一份的原话：不回，一直在路上，不碍这里测的。
         if reports.purpose() == Some(&Purpose::Title) {
             return;
@@ -91,13 +98,14 @@ impl ModelPort for Router {
         let route = self.route(&request);
         let script = route.script.clone();
         match route.gate.clone() {
-            None => script.call(seen, request, reports, cancel),
+            None => script.call(seen, request, config, reports, cancel),
             Some(gate) => {
+                let config = std::sync::Arc::clone(config);
                 tokio::spawn(async move {
                     // 闸不会关：拿不到就是测试结束了，这一次也不用回。
                     if let Ok(permit) = gate.acquire().await {
                         permit.forget();
-                        script.call(seen, request, reports, cancel);
+                        script.call(seen, request, &config, reports, cancel);
                     }
                 });
             }

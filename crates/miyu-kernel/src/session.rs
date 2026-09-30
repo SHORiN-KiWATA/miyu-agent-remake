@@ -187,6 +187,12 @@ impl Session {
             && self.reading.is_none()
     }
 
+    /// 会话现在在哪个目录里干活：头最近一次报来的，回合开始时这一轮照它（施工 8-4）。纯查询：会话 actor 在回合开始时照它
+    /// 读一次项目配置（`docs/blueprint/config.md`「怎么走」第八条第 3 条）。
+    pub fn cwd(&self) -> &str {
+        &self.environment.cwd
+    }
+
     /// 落了盘的最后一条（施工 3-8 六补）：`Stored` 送进来那一刻就推送了，所以也是推过的最后一条；还没落过盘的没有，载入的
     /// 是日志里最后一条。纯查询：会话 actor 订阅时照它定补发补到哪一条（`docs/blueprint/session/actor.md` 第 6 条）。
     pub fn landed(&self) -> Option<Seq> {

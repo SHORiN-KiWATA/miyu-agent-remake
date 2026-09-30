@@ -9,12 +9,18 @@
 //!   `config.trust` 在 `config/trusting.rs`（施工 8-3），写成 JSON 的几样在 `config/wire.rs`，留痕在 `config/journal.rs`。
 //!
 //! 只有核心写配置文件（G4），核心里只有这一个配置服务：它住在一把锁里，改、查排着队一件件办。改之前先把文件重读一遍，
-//! 手改过的照新的字改（G5 第 4 条）；写成了换上新的最终值，新的连接、新的会话照它。监视、当场推给头随 8-4。
+//! 手改过的照新的字改（G5 第 4 条）；写成了换上新的最终值，新的连接、新的会话照它。
+//!
+//! 施工 8-4：监视几份文件，手改了当场重读（`config/observe.rs`）；每换上一份新的，交给会话、核心，系统配置、个人设置变了
+//! 推 `config.changed`（`config/hub.rs`、`config/push.rs`）。
 
 mod file;
+pub(crate) mod hub;
 mod journal;
 pub(crate) mod methods;
+mod observe;
 mod project;
+pub(crate) mod push;
 pub(crate) mod set;
 mod trust;
 pub(crate) mod trusting;
@@ -263,13 +269,6 @@ impl Config {
             Layer::System => &self.system,
             _ => &self.personal,
         }
-    }
-
-    /// 能改的一层现在磁盘上的样子：重读一遍换上，最终值跟着重算（第五条第 2 条第 1 款：手改过的先重读，再在新的字上改）。
-    pub(crate) fn reread(&mut self, layer: Layer) {
-        let old = self.file(layer);
-        let fresh = File::read(&self.items, layer, old.path.clone(), old.shown.clone());
-        self.replace(fresh);
     }
 
     /// 换上一份新的文件（写成了、重读了），最终值跟着重算。

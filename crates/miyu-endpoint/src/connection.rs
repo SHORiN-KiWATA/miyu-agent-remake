@@ -15,10 +15,10 @@ use tokio::sync::mpsc;
 use miyu_kernel::id::SessionId;
 use miyu_session::Handle;
 
-use crate::hello::{Peer, hello};
+use crate::hello::{Shaken, hello};
 use crate::methods;
 use crate::refusal::{Locale, Refusal};
-use crate::subscriptions::Subscriptions;
+use crate::subscriptions::{Subscriptions, Target};
 use crate::wire::{self, Incoming, Read, Request};
 use crate::{Connected, Core};
 
@@ -54,13 +54,12 @@ async fn write_all<W: AsyncWrite + Unpin>(mut write: W, mut lines: mpsc::Receive
 /// 读的一头：一条条办请求，回应放进写队列（订阅了的会话，经它的转发任务）。
 async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sender<String>) {
     let mut reader = BufReader::new(read);
-    let mut peer: Option<Peer> = None;
+    let mut shaken: Option<Shaken> = None;
     let mut subscriptions = Subscriptions::default();
     // 握手的期限（施工 4-9 再补三上）：连上以后这么久还没握手成的，断开。
     let deadline = tokio::time::Instant::now() + core.hello_wait;
     loop {
-        let locale = peer.map_or(Locale::En, |peer| peer.locale);
-        let read = match peer {
+        let read = match shaken {
             Some(_) => wire::read_line(&mut reader).await,
             None => match tokio::time::timeout_at(deadline, wire::read_line(&mut reader)).await {
                 Ok(read) => read,
@@ -73,6 +72,7 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
         let line = match read {
             Ok(Read::Line(line)) => line,
             Ok(Read::TooLong) => {
+                let locale = shaken.map_or(Locale::En, |shaken| shaken.now(&core).locale);
                 // 超长的读不完，行界也找不回来了：回一句读不懂，断开。
                 tracing::warn!(target: "miyu::endpoint", "line too long, closed");
                 send(&out, wire::error(Value::Null, Refusal::PARSE, locale)).await;
@@ -80,6 +80,9 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
             }
             Ok(Read::Closed) | Err(_) => break,
         };
+        // 每说一句都照这时的 `ui.language` 重算这个连接的语言（施工 8-4）。
+        let peer = shaken.map(|shaken| shaken.now(&core));
+        let locale = peer.map_or(Locale::En, |peer| peer.locale);
         let request = match wire::parse(&line) {
             Incoming::Request(request) => request,
             Incoming::Notification => continue,
@@ -94,8 +97,8 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
         let id = || Value::String(request.id.as_str().to_string());
         let (answer, target, close) = match (request.method.as_str(), peer) {
             ("hello", _) => match hello(&core, request.params.clone()) {
-                Ok((shaken, result)) => {
-                    peer = Some(shaken);
+                Ok((shook, result)) => {
+                    shaken = Some(shook);
                     (wire::result(&request.id, result), None, false)
                 }
                 // 被拒的，话照这一次报的语言说（施工 4-9 再补三上）：第一次握手也不是一律英文。
@@ -105,17 +108,29 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
                 }
             },
             (_, None) => (wire::error(id(), Refusal::HELLO_FIRST, locale), None, false),
-            ("subscribe", Some(_)) => {
-                let (result, target) =
-                    match subscribe(&core, &mut subscriptions, &request, &out).await {
-                        Ok((result, target)) => (Ok(result), target),
-                        Err(refusal) => (Err(refusal), None),
-                    };
-                (answer(&request, result, locale), target, false)
+            ("subscribe", Some(peer)) => {
+                let (result, target) = match stream_of(&request) {
+                    Ok(Stream::Config) => {
+                        let system = shaken.map_or("en", Shaken::system);
+                        subscriptions.add_config(&core, system, &out);
+                        (Ok(json!({})), None)
+                    }
+                    Ok(Stream::Events(session)) => {
+                        match subscribe(&core, &mut subscriptions, &request, session, &out).await {
+                            Ok((result, target)) => (Ok(result), target.map(Target::Session)),
+                            Err(refusal) => (Err(refusal), None),
+                        }
+                    }
+                    Err(refusal) => (Err(refusal), None),
+                };
+                (answer(&request, result, peer.locale), target, false)
             }
             ("unsubscribe", Some(_)) => {
-                let result = stream_of(&request).map(|session| {
-                    subscriptions.remove(&session);
+                let result = stream_of(&request).map(|stream| {
+                    match stream {
+                        Stream::Events(session) => subscriptions.remove(&session),
+                        Stream::Config => subscriptions.remove_config(),
+                    }
                     json!({})
                 });
                 (answer(&request, result, locale), None, false)
@@ -129,7 +144,7 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
             break;
         }
     }
-    if peer.is_some() {
+    if shaken.is_some() {
         tracing::info!(target: "miyu::endpoint", "disconnected");
     }
 }
@@ -145,8 +160,17 @@ fn asked_locale(params: &Value) -> Option<Locale> {
 /// `subscribe`、`unsubscribe` 的参数。
 #[derive(Debug, Deserialize)]
 struct StreamParams {
-    session: String,
+    #[serde(default)]
+    session: Option<String>,
     stream: String,
+}
+
+/// 订阅哪一个流。
+enum Stream {
+    /// 一个会话的事件流。
+    Events(SessionId),
+    /// 配置的推送（施工 8-4）。
+    Config,
 }
 
 /// 订阅会话的事件流：没在跑的照样先载入；已经订阅着的，还是那一个。回应带会话的限额（施工 6-3 补）：订阅着的也从会话表
@@ -156,9 +180,9 @@ async fn subscribe(
     core: &Arc<Core>,
     subscriptions: &mut Subscriptions,
     request: &Request,
+    session: SessionId,
     out: &mpsc::Sender<String>,
 ) -> Result<(Value, Option<SessionId>), Refusal> {
-    let session = stream_of(request)?;
     let after = after_of(request)?;
     let handle = core.sessions.get(core, &session, None, None).await?.handle;
     let limits = handle.limits();
@@ -210,23 +234,30 @@ fn after_of(request: &Request) -> Result<Option<u64>, Refusal> {
     }
 }
 
-/// 订阅的参数：会话编号，流现在只有 `events`。
-fn stream_of(request: &Request) -> Result<SessionId, Refusal> {
+/// 订阅的参数：`events` 带会话编号；`config` 不带会话、不带 `after`，带了是参数不对（施工 8-4）。
+fn stream_of(request: &Request) -> Result<Stream, Refusal> {
     let params: StreamParams =
         serde_json::from_value(request.params.clone()).map_err(|_| Refusal::BAD_PARAMS)?;
-    if params.stream != "events" {
-        return Err(Refusal::BAD_PARAMS);
+    match (params.stream.as_str(), params.session) {
+        ("events", Some(session)) => SessionId::parse(&session)
+            .map(Stream::Events)
+            .map_err(|_| Refusal::BAD_PARAMS),
+        ("config", None) if request.params.get("after").is_none() => Ok(Stream::Config),
+        _ => Err(Refusal::BAD_PARAMS),
     }
-    SessionId::parse(&params.session).map_err(|_| Refusal::BAD_PARAMS)
 }
 
-/// 命令是给哪个会话的：它的回应经这个会话的订阅写出去。
-fn target(request: &Request) -> Option<SessionId> {
+/// 命令的回应经哪个订阅写出去：给会话的经这个会话的订阅，`config.set` 经配置的订阅（施工 8-4）。
+fn target(request: &Request) -> Option<Target> {
+    if request.method == "config.set" {
+        return Some(Target::Config);
+    }
     request
         .params
         .get("session")
         .and_then(Value::as_str)
         .and_then(|session| SessionId::parse(session).ok())
+        .map(Target::Session)
 }
 
 /// 回应写成一行：接受的 `result`，拒绝的 `error`。

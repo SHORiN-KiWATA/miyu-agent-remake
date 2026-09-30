@@ -389,9 +389,16 @@ async fn a_hand_edit_is_read_again_before_the_change() {
         ),
         "在新的字上改，BOM、换行照原文件"
     );
+    // 手改的先当手改记一条（`via: file`，施工 8-4），这一次改的只记它自己的那一项。
     let logged = journal(&home, "home/alice/journal.jsonl");
+    assert_eq!(logged.len(), 2, "{logged:?}");
+    assert_eq!(logged[0]["body"]["via"], "file");
     assert_eq!(
         logged[0]["body"]["changes"],
+        json!([{"key": "ui.language", "old": "en", "new": "ja"}])
+    );
+    assert_eq!(
+        logged[1]["body"]["changes"],
         json!([{"key": "permission.start_read_only", "new": true}]),
         "手改的那一项不算这一次改的"
     );

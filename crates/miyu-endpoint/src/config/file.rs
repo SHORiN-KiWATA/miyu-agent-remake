@@ -1,7 +1,7 @@
 //! 一层配置的一份文件（`docs/blueprint/config.md`「怎么走」第二条第 2 到 4 条）：在哪、版本、读好的项、整份的问题。
 //!
-//! 读不进来的（读不了、太大、不是 UTF-8、TOML 写法不对）记一条整份的问题，这一层照空的算：起来时就读不好的没有「上一次
-//! 读好的」可用（上一次读好的随 8-4 的重读）。写错的项在解析时已经丢掉，别的照用（G8）。
+//! 读不进来的（读不了、太大、不是 UTF-8、TOML 写法不对）记一条整份的问题：起来时就读不好的照空的算；重读时读不好的照上一次
+//! 读好的用（[`File::keeping`]，施工 8-4）。写错的项在解析时已经丢掉，别的照用（G8）。
 
 use std::path::{Path, PathBuf};
 
@@ -29,6 +29,8 @@ pub(crate) struct File {
     pub(crate) parsed: Parsed,
     /// 整份的问题。
     pub(crate) broken: Option<Problem>,
+    /// 读不进来、`parsed` 是上一次读好的那一份（施工 8-4）：问题的「现在照什么用着」说 `last_good`，不说 `nothing`。
+    pub(crate) last_good: bool,
 }
 
 impl File {
@@ -61,7 +63,26 @@ impl File {
             bom: false,
             parsed: Parsed::default(),
             broken: None,
+            last_good: false,
         }
+    }
+
+    /// 重读的这一份读不进来的，照上一次读好的 `old` 用（第二条第 4 条）：项照 `old` 的，问题、版本、字照这一次的。读得进来
+    /// 的原样交回。`old` 自己也是起来时就读不好的（照空的），还是空的。
+    pub(crate) fn keeping(mut self, old: &File) -> File {
+        if self.broken.is_some() {
+            self.parsed = Parsed {
+                problems: Vec::new(),
+                ..old.parsed.clone()
+            };
+            self.last_good = old.broken.is_none() || old.last_good;
+        }
+        self
+    }
+
+    /// 和 `other` 比，读到的是不是同一份：版本一样、整份的问题一样（读不了的没有版本，照问题比）。
+    pub(crate) fn same_as(&self, other: &File) -> bool {
+        self.version == other.version && self.broken == other.broken
     }
 
     /// 在空的一份 `file` 上记下读好的字，解析。
