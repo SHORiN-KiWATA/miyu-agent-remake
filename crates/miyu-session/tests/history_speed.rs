@@ -78,6 +78,7 @@ async fn how_long_fifty_thousand_events_take() {
             log: Some(Log::new(Dir(dir.clone()))),
             offset: UtcOffset::UTC,
             agents: None,
+            messages: None,
             jobs: None,
         };
         let started = Instant::now();

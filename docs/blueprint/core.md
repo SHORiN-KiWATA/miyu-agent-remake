@@ -2,7 +2,7 @@
 
 ### 是什么
 
-一个数据根只跑一个的核心进程：由头拉起（`ipc.md`），平时不用人敲。起来时建骨架、拿单实例锁、装运行日志、建管理员的家目录、找资源目录、在本机的套接字上等连接、从环境变量拿模型、登记工具，然后往标准输出写一行 `ready`；之后一个个接连接，照协议说话（`protocol.md`）。没有连接、没有在跑的回合、也没有在跑的后台命令，空闲够久了自己退出；收到停的信号，先让在跑的会话有计划地停下（后台命令先记 `restarted`、再整组杀）再退出。
+一个数据根只跑一个的核心进程：由头拉起（`ipc.md`），平时不用人敲。起来时建骨架、拿单实例锁、装运行日志、建管理员的家目录、找资源目录、在本机的套接字上等连接、从环境变量拿模型、登记工具，然后往标准输出写一行 `ready`，在后台清一次回收处；之后一个个接连接，照协议说话（`protocol.md`）。没有连接、没有在跑的回合、也没有在跑的后台命令，空闲够久了自己退出；收到停的信号，先让在跑的会话有计划地停下（后台命令先记 `restarted`、再整组杀）再退出。
 
 ### 在哪
 
@@ -13,6 +13,7 @@
 | `crates/miyu-core/src/models.rs` | 从环境变量拿模型 |
 | `crates/miyu-core/src/serve.rs` | 接连接，空闲退出，停的信号 |
 | `crates/miyu-core/src/sandbox.rs` | 起来时找沙盒的助手、探一次，记日志（施工 5-1）；探到了手段的，交回助手（施工 5-4 上） |
+| `crates/miyu-core/src/trash.rs` | 起来时清一次回收处；删了的会话留多久 `KEEP`（施工 3-8 三补） |
 | `crates/miyu-ipc` | 单实例锁、套接字、本机令牌、那一行的写法（`ipc.md`） |
 | `crates/miyu-endpoint` | 协议端点：核心的家底 `Core`（里面有执行器的任务表，施工 7-3）、接连接、空不空闲（`protocol.md`） |
 | `crates/miyu-basesystem`、`crates/miyu-tool` | 基础系统的七件工具、工具目录（`tools/interface.md`） |
@@ -50,6 +51,7 @@
 |---|---|
 | `.miyu-root`、`system/`、`home/`、`state/`、`run/` | 骨架（`store.md`） |
 | `home/admin/`、`home/admin/workspace/` | 管理员的家目录和工作区 |
+| `home/admin/trash/sessions/` | 回收处：删掉的会话，留 7 天（`store.md` 第 12 条，施工 3-8 三补）。起来时清掉满了 7 天的 |
 | `state/logs/core.log` | 运行日志，满 10 MiB 换一份，留 `core.log.1` 到 `core.log.5`（`log.md`） |
 | `run/core.lock`、`run/token`、`run/socket` | 单实例锁、本机令牌、套接字的位置（`ipc.md`） |
 | `run/core.sock` | 套接字本身，放在 `run/` 的时候（`ipc.md`「套接字放哪」） |
@@ -73,7 +75,8 @@
 11. 工具目录：登记基础系统，十件：`agent`（施工 7-5）、`edit`、`glob`、`grep`、`history`、`jobs`（施工 7-4）、`read`、`shell`、`trash`、`write`；工具的字从资源目录读，登记完就冻结（`tools/interface.md`）。
 12. 核心的家底：数据根、资源目录、模型、工具目录、系统的家目录、管理员 `admin`、本机令牌，会话表是空的，执行器的任务表是空的（施工 7-3，`protocol.md`）。会话表造会话、载入时交给会话一份造子会话的端口（施工 7-5，`protocol.md`「会话表」第 7 条）。
 13. 往标准输出写一行 `ready`。
-14. 一个个接连接，直到停下（下面「停下」）。
+14. 清一次回收处（施工 3-8 三补，`store.md` 第 12 条第 2 款）：管理员的回收处里删了满 7 天（`KEEP`，2026-09-30 项目主人定）的会话连目录删掉。写了 `ready` 以后在阻塞线程里清，不耽误头连上来、第 15 步照常；核心退出之前等它清完。钟是这时系统的钟，读不出的当 1970 年（什么都不满时限，一个都不删）。删了的记一条 `INFO trash purged removed=<几个>`，一个都没删的不记；读不出删的时刻、删不掉的，一个一条 `WARN trash entry kept session=… error=…`；回收处读不了的记 `WARN trash not read error=…`。都不影响起不起得来。
+15. 一个个接连接，直到停下（下面「停下」）。
 
 第 2 到 11 步哪一步出了错（第 3 步拿不到锁的除外；第 10 步探沙盒只记日志，不会出错）：写 `error <原因>`，退出码 1；运行日志已经装上了的（第 5 步起），再记一条 `WARN not started stage=<哪一步>`：第 5 到第 9 步依次是 `home`、`resources`、`runtime`、`socket`、`models`，第 11 步是 `tools`。原因是给人看的中文，只交给头，不进运行日志（施工 4-9 再补四上：原来 `reason=<原因>` 整句写进去）。第 8 步以后出的错，走的时候照样删掉套接字文件、放开锁（`ipc.md`）。
 
@@ -143,6 +146,9 @@
 | `WARN` | `sandbox cache unavailable reason=…`（施工 5-4 下） |
 | `WARN` | `not started stage=…` |
 | `WARN` | `ready line not written error=…` |
+| `INFO` | `trash purged removed=…`（施工 3-8 三补） |
+| `WARN` | `trash entry kept session=… error=…`、`trash not read error=…` |
+| `ERROR` | `trash purge panicked error=…` |
 | `WARN` | `SIGTERM not watched error=…`、`Ctrl+C not watched error=…` |
 | `INFO` | `stopped reason=idle`、`stopped reason=signal` |
 
@@ -152,7 +158,7 @@
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu/tests/core.rs` | 头拉起真的 `miyu core`，等它说好了再连；管理员叫 `admin`，建好了它的家目录；再连不再拉起；两个头同时只拉起一个；起不来的说原因（找不到资源目录），日志里只写 `stage=resources`；已经在跑的写 `running` 就走、不写日志；什么都没写就退了的；空闲了自己走，日志里一条 `starting`、一条 `stopped reason=idle`；`starting` 那一行的数据根在家目录下的写成 `~`、有和 UTC 差多少；工作目录是数据根；起来时探一次沙盒的助手：旁边有助手的记 `sandbox` 那一行、平台是这台机器的、有手段那一格，没有的记找不到（施工 5-1）；握手报的沙盒和记下的对得上（施工 5-4 下） |
+| `crates/miyu/tests/core.rs` | 头拉起真的 `miyu core`，等它说好了再连；管理员叫 `admin`，建好了它的家目录；再连不再拉起；两个头同时只拉起一个；起不来的说原因（找不到资源目录），日志里只写 `stage=resources`；已经在跑的写 `running` 就走、不写日志；什么都没写就退了的；空闲了自己走，日志里一条 `starting`、一条 `stopped reason=idle`；`starting` 那一行的数据根在家目录下的写成 `~`、有和 UTC 差多少；工作目录是数据根；起来时清一次回收处：删了满 7 天的删、没满的留，记一条 `trash purged removed=1`（施工 3-8 三补）；起来时探一次沙盒的助手：旁边有助手的记 `sandbox` 那一行、平台是这台机器的、有手段那一格，没有的记找不到（施工 5-1）；握手报的沙盒和记下的对得上（施工 5-4 下） |
 | `crates/miyu-core/tests/serve.rs` | 空闲退出、放开锁和套接字；有头连着不退；空闲的钟从最后一个头走时算起；在跑的回合不退；有在跑的后台命令不退、结束了记下再退（施工 7-3）；收到停的信号先停下会话、跑到一半的记成重启了，后台命令先记 `restarted`、落了盘再杀（施工 7-3）；没有 key（没设、全是空白）每次请求都说没有模型、分类是认证失败、没发出去 |
 | `crates/miyu-core/src/serve/tests.rs` | 多久看一次：四分之一，最多 30 秒，最少 100 毫秒；装不上的 Ctrl+C 当它不会来（造不出真的装不上，测的是等它的那一小段） |
 | `crates/miyu-core/tests/tools.rs` | 工具目录里是基础系统的七件；资源目录坏了，说是哪一份 |
@@ -166,6 +172,7 @@
 - `06-多用户与身份.md` U13：管理员固定叫 `admin`。
 - `15-模型与供应商.md` 第七节：配置做出来之前，只认 `DEEPSEEK_API_KEY`。
 - `28-运行日志.md`：写到 `state/logs/`，`MIYU_LOG`。
+- `04-核心协议.md` 第九节 `session.delete`：删了的进回收处、留 7 天（2026-09-30 项目主人定，施工 3-8 三补）。
 
 ### 还没有的
 
@@ -174,7 +181,7 @@
 - 常驻：开了通讯平台桥、定时任务、远程访问、桌面语音时不退出，登记成登录时启动的服务（`12-进程形态与分发.md` 第二节，`miyu service install`）。
 - 空闲时限放进配置（第二节）。
 - 子进程随核心退出，按进程树管理（第一节、R5）：有计划地退出时后台命令整组杀掉（施工 7-3）；核心崩了的，后台命令自成一组，不跟着死：输出的管道没人读了，再写输出时出错（Unix 上收到 `SIGPIPE`，默认就停了），不写输出的一直跑到自己退出。再载入时内核照样补 `aborted`。
-- 恢复会话、回收 blob 这类重活放到说好了之后（第二节「拉起时的握手」）。
+- 恢复会话、回收 blob 这类重活放到说好了之后（第二节「拉起时的握手」）。清回收处（施工 3-8 三补）已经照这样放在 `ready` 之后。
 - 「核心先 bind 好套接字、能接受连接了就往管道里写」（第二节「拉起时的握手」）：现在绑好以后还要造模型端口、登记工具（读资源目录的字）才写 `ready`，比设计说的晚。
 - 头发现核心比自己旧，请求它空闲时重启（`04-核心协议.md` 第八节）。
 - 模型从配置、供应商、池来（`15-模型与供应商.md`）；首次运行时的引导（`12-进程形态与分发.md` 第七节）。

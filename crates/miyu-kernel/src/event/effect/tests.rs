@@ -1,6 +1,6 @@
 //! 效果的测试（施工 4-6 上）：三种认识的读写一字不差；一行都没显示的不写 `lines`，新建的 `before` 写成
 //! `null`；不认识的种类整块原样留着；缺了 `kind`、认识的种类缺了字段，报错。`job.started`（施工 7-1）：两种任务
-//! 读写一字不差，不认识的 `what` 原样留着，后台命令不写 `session`。
+//! 读写一字不差，不认识的 `what` 原样留着，后台命令不写 `session`。`job.messaged`（施工 7-7）读写一字不差。
 
 use super::*;
 
@@ -130,6 +130,17 @@ fn an_unknown_kind_is_kept_as_it_is() {
     assert!(matches!(effect, Effect::Unknown(_)), "{effect:?}");
 }
 
+/// 给子代理留了言（施工 7-7）：只带编号，读写一字不差。
+#[test]
+fn a_message_to_a_subagent_round_trips() {
+    assert_eq!(
+        round_trip(r#"{"kind":"job.messaged","job":"j2"}"#),
+        Effect::JobMessaged(JobMessaged {
+            job: JobId::new(2).unwrap()
+        })
+    );
+}
+
 #[test]
 fn broken_effects_are_errors() {
     for json in [
@@ -144,6 +155,8 @@ fn broken_effects_are_errors() {
         r#"{"kind":"job.started","job":"j1","title":"t"}"#,
         r#"{"kind":"job.started","job":"j1","what":"command"}"#,
         r#"{"kind":"job.started","job":"j1","what":"agent","title":"t","session":"s-1"}"#,
+        r#"{"kind":"job.messaged"}"#,
+        r#"{"kind":"job.messaged","job":"j0"}"#,
     ] {
         assert!(serde_json::from_str::<Effect>(json).is_err(), "{json}");
     }

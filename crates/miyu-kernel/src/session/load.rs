@@ -12,6 +12,7 @@ use std::fmt;
 use super::Session;
 use super::action::Action;
 use super::jobs::{self, Arrived};
+use super::meta::Meta;
 use super::policy::Policy;
 use super::recent::Recent;
 use super::report::Duty;
@@ -19,7 +20,7 @@ use super::turn::Stage;
 use crate::event::{Body, EndReason, Event, Permission, PolicyChanged, ToolStatus};
 use crate::facts::Environment;
 use crate::history::History;
-use crate::id::{CommandId, Seq};
+use crate::id::{CommandId, JobId, Seq};
 use crate::ledger::{Ledger, LedgerError};
 use crate::origin::By;
 use crate::time::Timestamp;
@@ -69,8 +70,10 @@ struct Replay {
     oneshot: bool,
     /// 这时有回合开着：回报到的时候闲不闲（施工 7-2）。
     open: bool,
-    /// 记在一边的回报：最后一次开回合以后、闲着时到的、会叫醒她的（施工 7-2，`jobs.rs`）。
+    /// 记在一边的回报、子代理的留言：最后一次开回合以后、闲着时到的、会叫醒她的（施工 7-2，`jobs.rs`；施工 7-7）。
     deferred: Vec<Arrived>,
+    /// 现在的标题、置顶（施工 3-8 三补）：撤掉的回合里改的也算，改名不是对话的一部分。
+    meta: Meta,
 }
 
 /// 结束了的一个回合。
@@ -120,7 +123,7 @@ impl Session {
             let queued = ledger.queued();
             ledger.append(event).map_err(LoadError::Broken)?;
             duty.note(event);
-            replay.note(event, queued);
+            replay.note(event, queued, jobs::waking(&ledger, event));
         }
         if duty.due(&ledger) {
             duty.take(&policy.reports);
@@ -164,6 +167,7 @@ impl Session {
             deferred: std::mem::take(&mut replay.deferred),
             restarting: false,
             duty,
+            meta: std::mem::take(&mut replay.meta),
         };
         let mut actions: Vec<Action> = session.recall().into_iter().collect();
         // 最后报的那一份再交一次（施工 7-6）：送到一半崩了的不漏，父会话照命令编号认出重的，不重。
@@ -235,12 +239,12 @@ impl Replay {
         })
     }
 
-    /// 读进来一条：记下它带来的变化。`queued` 是这一条之前还排着队的消息。
-    fn note(&mut self, event: &Event, queued: Vec<Seq>) {
+    /// 读进来一条：记下它带来的变化。`queued` 是这一条之前还排着队的消息；`waking` 是它会叫醒她时说的那个任务（会叫醒她
+    /// 的回报、子代理的留言）。
+    fn note(&mut self, event: &Event, queued: Vec<Seq>, waking: Option<JobId>) {
         self.last = Some(event.seq);
         if !self.open
-            && jobs::wakes(&event.body)
-            && let Some(job) = jobs::job_of(&event.body)
+            && let Some(job) = waking
         {
             self.deferred.push(Arrived {
                 seq: event.seq,
@@ -286,6 +290,7 @@ impl Replay {
             }
             // 撤销过的不接着干：人已经动过它了。
             Body::TurnReverted(_) => self.ended = None,
+            Body::MetaChanged(changed) => self.meta.note(changed),
             _ => {}
         }
         if let Some(id) = &event.cause {

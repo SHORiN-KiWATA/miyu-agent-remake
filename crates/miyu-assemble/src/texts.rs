@@ -98,7 +98,7 @@ impl TurnEndedTexts {
 }
 
 /// 两种回报的写法（施工 7-2，`docs/blueprint/kernel/request.md`「回报」）：一块带标签的事实，开头一行是标签，中间一行
-/// 一句，最后是收尾的标签。每一份以一个换行结尾。
+/// 一句，最后是收尾的标签。每一份以一个换行结尾。子代理发来的留言也照这样包一层标签（施工 7-7）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JobTexts {
     /// 后台命令结束的标签（`command-open.txt`）：字段 `job`、`title`、`reason`。
@@ -123,4 +123,8 @@ pub struct JobTexts {
     pub subagent_silent: String,
     /// 收尾（`subagent-close.txt`）。
     pub subagent_close: String,
+    /// 子代理发来的留言的标签（`subagent-message-open.txt`，施工 7-7）：字段 `job`、`title`。以前造的快照里没有，是空的。
+    pub subagent_message_open: Template,
+    /// 留言的收尾（`subagent-message-close.txt`，施工 7-7）。以前造的快照里没有，是空的。
+    pub subagent_message_close: String,
 }

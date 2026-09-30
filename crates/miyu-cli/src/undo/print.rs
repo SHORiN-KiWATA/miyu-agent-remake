@@ -2,6 +2,8 @@
 //! redo（下）.md`）：第一行说撤的是哪一轮，撤掉了压缩的说一句上下文回到了压缩前（施工 6-9），撤掉了清空的说一句回到了
 //! 清空以前（施工 6-8 补），每个文件一行，没动的同一行
 //! 写原因，之后又被改过的下面印差异，执行过命令的说一句撤不回，撤销的最后说怎么恢复。只管写成什么样，不管往哪写。
+//!
+//! `miyu redo` 也照这几行印撤掉了哪一轮（施工 4-7 再补，`docs/blueprint/cli/redo.md`）：第一行接「，重新做」，不说怎么恢复。
 
 use serde_json::Value;
 
@@ -21,19 +23,47 @@ const INDENT: &str = "    ";
 
 /// 核心交回的 `result` 写成的几行。
 pub(super) fn lines(result: &Value, plan: &UndoPlan) -> Vec<Line> {
-    let language = &plan.language;
-    let said = result["said"]
+    let header = plan
+        .language
+        .undo_header(plan.direction, said(result).as_deref(), turns(result));
+    let mut lines = vec![Line::gray(header)];
+    lines.extend(body(result, plan));
+    if plan.direction == Direction::Undo {
+        lines.push(Line::gray(plan.language.restore_hint()));
+    }
+    lines
+}
+
+/// 重做的回应写成的几行（施工 4-7 再补）：第一行照撤销那一行接「，重新做」，接着照撤销印，不说怎么恢复：重做以后恢复不了。
+/// `plan` 照撤销的写（[`Direction::Undo`]）：差异的头一行对照的是她改完的。
+pub(crate) fn redo_lines(result: &Value, plan: &UndoPlan) -> Vec<Line> {
+    let mut lines = vec![Line::gray(
+        plan.language.redo_header(said(result).as_deref()),
+    )];
+    lines.extend(body(result, plan));
+    lines
+}
+
+/// 那一轮人说的话：控制字符换掉，太长的截掉。
+fn said(result: &Value) -> Option<String> {
+    result["said"]
         .as_str()
-        .map(|said| cut(&clean(said), SAID_CHARS));
-    let turns = result["turns"]
+        .map(|said| cut(&clean(said), SAID_CHARS))
+}
+
+/// 撤了几轮，回应里没有的当 1。
+fn turns(result: &Value) -> usize {
+    result["turns"]
         .as_u64()
         .and_then(|turns| usize::try_from(turns).ok())
-        .unwrap_or(1);
-    let mut lines = vec![Line::gray(language.undo_header(
-        plan.direction,
-        said.as_deref(),
-        turns,
-    ))];
+        .unwrap_or(1)
+}
+
+/// 第一行和最后一行中间的：撤掉了压缩、清空的那两句，每个文件和差异，执行过命令的那一句。
+fn body(result: &Value, plan: &UndoPlan) -> Vec<Line> {
+    let language = &plan.language;
+    let turns = turns(result);
+    let mut lines = Vec::new();
     // 撤掉了几次压缩、几次清空，核心撤销时才交，是 0 的不交：几次都说同一句，两样都有的先压缩后清空；恢复不说（施工 6-9、
     // 6-8 补）。
     let undone = |field: &str| result[field].as_u64().is_some_and(|count| count > 0);
@@ -52,9 +82,6 @@ pub(super) fn lines(result: &Value, plan: &UndoPlan) -> Vec<Line> {
     // 执行过几条命令，核心撤销时才交（恢复时不说）。
     if let Some(commands) = result["commands"].as_u64().filter(|commands| *commands > 0) {
         lines.push(Line::gray(language.commands_note(commands, turns)));
-    }
-    if plan.direction == Direction::Undo {
-        lines.push(Line::gray(language.restore_hint()));
     }
     lines
 }

@@ -1,4 +1,4 @@
-//! `miyu undo`、`miyu restore` 给人看的字（施工 4-7 下，样子是项目主人 2026-09-28 定的）。
+//! `miyu undo`、`miyu restore` 给人看的字（施工 4-7 下，样子是项目主人 2026-09-28 定的）；`miyu redo` 的第一行（施工 4-7 再补）。
 
 use super::Language;
 use crate::undo::Direction;
@@ -42,6 +42,19 @@ impl Language {
             (Language::English, Direction::Restore, None, _) => {
                 "· Restored the undone turn".to_string()
             }
+        }
+    }
+
+    /// `miyu redo` 的第一行（施工 4-7 再补，`docs/blueprint/cli/redo.md`）：照撤销一轮的那一行，接「，重新做」。`said` 是撤掉的
+    /// 那一轮原来那一句，没有的写「最后一轮」。
+    pub(crate) fn redo_header(&self, said: Option<&str>) -> String {
+        match (self, said) {
+            (Language::Chinese, Some(said)) => format!("· 撤销「{said}」这一轮，重新做"),
+            (Language::Chinese, None) => "· 撤销最后一轮，重新做".to_string(),
+            (Language::English, Some(said)) => {
+                format!("· Undid the turn \u{201c}{said}\u{201d}, redoing it")
+            }
+            (Language::English, None) => "· Undid the last turn, redoing it".to_string(),
         }
     }
 

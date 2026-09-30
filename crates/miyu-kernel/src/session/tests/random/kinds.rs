@@ -32,6 +32,8 @@ kinds! {
     TakeBack,
     /// 切权限级别。
     SetPermission,
+    /// 改标题、置顶（施工 3-8 三补）。
+    SetMeta,
     /// 回答确认。
     Decide,
     /// 回答一组题。
@@ -40,6 +42,8 @@ kinds! {
     Revert,
     /// 恢复。
     Unrevert,
+    /// 重做（施工 4-7 再补）。
+    Redo,
     /// 手动压缩（施工 6-8）。
     Compact,
     /// 清空上下文（施工 6-8 补）。
@@ -98,6 +102,7 @@ impl InputKind {
                     queued: Queued::Return,
                 } => InputKind::TakeBack,
                 Command::SetPermission { .. } => InputKind::SetPermission,
+                Command::SetMeta { .. } => InputKind::SetMeta,
                 Command::Answer {
                     answer: Answer::Approval { .. },
                     ..
@@ -108,6 +113,7 @@ impl InputKind {
                 } => InputKind::Reply,
                 Command::Revert { .. } => InputKind::Revert,
                 Command::Unrevert => InputKind::Unrevert,
+                Command::Redo { .. } => InputKind::Redo,
                 Command::Compact { .. } => InputKind::Compact,
                 Command::Clear => InputKind::Clear,
                 Command::Report(_) => InputKind::Report,

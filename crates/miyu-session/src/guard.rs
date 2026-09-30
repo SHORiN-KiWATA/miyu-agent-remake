@@ -112,6 +112,7 @@ impl Guard {
             log: None,
             offset: UtcOffset::UTC,
             agents: None,
+            messages: None,
             jobs: None,
         });
         if targets.is_empty() {

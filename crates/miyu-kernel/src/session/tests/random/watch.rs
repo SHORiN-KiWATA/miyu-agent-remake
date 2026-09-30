@@ -21,6 +21,7 @@ mod permission;
 mod question;
 mod queue;
 mod rebuild;
+mod redo;
 mod reports;
 mod restore;
 mod shorten;
@@ -85,6 +86,8 @@ pub(super) struct Watch {
     restarts: load::Restarts,
     /// 撤销：有效历史里还有哪几轮、能恢复的几次、请求里不该有的几条。
     pub(super) undo: undo::Undo,
+    /// 重做（施工 4-7 再补）：在等读回的、在等改回文件的那一次。
+    redoing: redo::Redoing,
     /// 改回文件：交出去了、结局还没回来的那几步（施工 4-7 上）。
     pub(super) restoring: restore::Restoring,
     /// 喂过的输入种类（`kinds.rs` 的清单）。
@@ -138,6 +141,7 @@ impl Watch {
             questions: question::Questions::new(),
             restarts: load::Restarts::default(),
             undo: undo::Undo::default(),
+            redoing: redo::Redoing::default(),
             restoring: restore::Restoring::default(),
             fed: BTreeSet::new(),
             retries: model::Retries::default(),
@@ -184,8 +188,13 @@ impl Watch {
         let judged = self.before_approval(&input).filter(|_| !refused);
         let replied = self.before_question(&input).filter(|_| !refused);
         let undone = self.before_undo(&input).filter(|_| !refused);
-        let reverting = undone.as_ref().and_then(undo::Expect::turns);
+        let redone = self.before_redo(&input).filter(|_| !refused);
+        let reverting = undone
+            .as_ref()
+            .and_then(undo::Expect::turns)
+            .or_else(|| redone.as_ref().and_then(redo::Expect::turns));
         let restore = self.before_restore(&input);
+        let recorded = matches!(restore, Some(restore::Expect::Recorded(_)));
         let compact = self.before_compact(&input).filter(|_| !refused);
         let clear = self.before_clear(&input).filter(|_| !refused);
         let report = self.before_report(&input).filter(|_| !refused);
@@ -236,7 +245,9 @@ impl Watch {
         self.after_approval(&actions, judged);
         self.after_question(&actions, replied);
         self.after_undo(&actions, undone);
+        self.after_redo(&actions, redone);
         self.after_restore(&actions, restore);
+        self.redo_restored(&actions, recorded);
         self.after_compact(&actions, compact);
         self.after_clear(&actions, clear);
         self.after_report(&actions, report);

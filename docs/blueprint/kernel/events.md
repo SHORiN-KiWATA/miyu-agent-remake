@@ -192,7 +192,6 @@ serde_json 在每一句后面加上 ` at line <几> column <几>`（没有测试
 ### 还没有的
 
 - `job.reported`、`child.reported`：内核收得下、渲染得出（施工 7-2），子会话交来 `child.reported`（施工 7-6），还没有真的执行器交来 `job.reported`（7-3）。原来的 `child.spawned` 不做了：派它的那次调用的效果 `job.started` 就是开始的记录（`03-事件模型.md` 第三节）。
-- `session.meta_changed`：读得懂，还没有改标题、置顶的命令。
 - `session.policy_changed` 只写过换权限；换策略快照（目录变了、配置改了，下一个回合开始时换）还没有（`05-内核接口.md` 第八节，`02-内核.md` K3）。
 - 模块自己的事件种类 `ext.*`：还没有模块定义（E6）。
 - `status` 的别的状态，例如等第一个字时的心跳（`03-事件模型.md` 第五节）。

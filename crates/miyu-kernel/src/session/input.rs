@@ -251,6 +251,14 @@ pub enum Command {
         /// 只读开关；不改就没有。
         read_only: Option<bool>,
     },
+    /// `session.set_meta`：改标题、置顶，改哪样写哪样（施工 3-8 三补，`meta.rs`）。
+    SetMeta {
+        /// 新的标题，照 `session.meta_changed` 的写法：空的是去掉标题；不改就没有。去掉前后空白、量长短是协议端点的事
+        /// （`docs/blueprint/protocol.md` 的 `session.set_meta`），内核照原样比、照原样记。
+        title: Option<String>,
+        /// 置顶还是取消置顶；不改就没有。
+        pinned: Option<bool>,
+    },
     /// `session.interrupt`：打断正在进行的回合。
     Interrupt {
         /// 排着队的消息怎么办（`02-内核.md` 第六节「排队的消息」）。
@@ -271,6 +279,15 @@ pub enum Command {
     },
     /// `session.unrevert`：恢复最近一次撤销，在下一轮开始、压缩之前。
     Unrevert,
+    /// `session.redo`：重做最后一轮（`docs/blueprint/kernel/history.md`「重做」，施工 4-7 再补）：撤掉它，把开它的那几句
+    /// 人的话再发一次，开新的一轮。最后一轮不是人的话开的、一轮都没有的，拒绝，`not_redoable`。
+    Redo {
+        /// 开这一轮的那一句里的字换成这几块（原来的文字块全换掉，空的是不要字）；`None` 是字照原来的。
+        text: Option<Vec<Block>>,
+        /// 开这一轮的那一句里的附件换成这几块（原来文字以外的块全换掉，空的是不要附件）；`None` 是附件照原来的。两样都是
+        /// `None` 的原样重发。
+        attachments: Option<Vec<Block>>,
+    },
     /// `session.compact`：手动压缩，空闲时才收，单开一轮只做压缩（`compaction.md` 第七条，施工 6-8）。
     Compact {
         /// 人附的要求，原样；`None` 是没附。只有空白的也当没附。

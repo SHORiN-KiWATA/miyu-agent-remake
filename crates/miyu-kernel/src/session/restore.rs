@@ -140,7 +140,10 @@ pub(super) fn undo(reverted: &[Event], history: &[Event]) -> Vec<Step> {
                     },
                 ),
                 // 派出去的任务不是改文件：撤销时停下它们随 7-8（`agents.md` 第七条）。
-                Effect::FileRead(_) | Effect::JobStarted(_) | Effect::Unknown(_) => return None,
+                Effect::FileRead(_)
+                | Effect::JobStarted(_)
+                | Effect::JobMessaged(_)
+                | Effect::Unknown(_) => return None,
             };
             Some(Step {
                 result,
@@ -181,7 +184,10 @@ pub(super) fn redo(unreverted: &[Event], history: &[Event]) -> Vec<Step> {
                     },
                 ),
                 // 派出去的任务不是改文件：撤销时停下它们随 7-8（`agents.md` 第七条）。
-                Effect::FileRead(_) | Effect::JobStarted(_) | Effect::Unknown(_) => return None,
+                Effect::FileRead(_)
+                | Effect::JobStarted(_)
+                | Effect::JobMessaged(_)
+                | Effect::Unknown(_) => return None,
             };
             Some(Step {
                 result,

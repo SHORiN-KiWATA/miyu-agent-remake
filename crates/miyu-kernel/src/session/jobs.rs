@@ -13,7 +13,7 @@ use super::input::Input;
 use super::{Session, rejected};
 use crate::event::{Body, ChildReason, ChildReported, Event, JobReason, JobReported};
 use crate::id::{CommandId, JobId, Seq};
-use crate::ledger::LedgerError;
+use crate::ledger::{Ledger, LedgerError};
 use crate::origin::By;
 use crate::time::Timestamp;
 
@@ -82,8 +82,21 @@ impl Session {
         cause: Option<CommandId>,
         body: Body,
     ) -> Result<Vec<Event>, LedgerError> {
-        let job = job_of(&body);
-        let wakes = wakes(&body);
+        let wake = job_of(&body).filter(|_| wakes(&body));
+        self.land(at, by, cause, body, wake)
+    }
+
+    /// 记下别处来的一条（回报，子代理的留言：施工 7-7），不带回合编号；`wake` 是它会叫醒她时说的那个任务。会叫醒她的、
+    /// 派它的那一轮还在的：正忙排进这一轮的回报队，闲着、这时开得了由它开一轮，开不了的记在一边。交回追加的事件：这一条，
+    /// 和由它开的那一轮的开头。过不了账本的什么都不记。
+    pub(super) fn land(
+        &mut self,
+        at: Timestamp,
+        by: By,
+        cause: Option<CommandId>,
+        body: Body,
+        wake: Option<JobId>,
+    ) -> Result<Vec<Event>, LedgerError> {
         let event = Event {
             seq: self.ledger.next_seq(),
             at,
@@ -93,7 +106,7 @@ impl Session {
             body,
         };
         self.commit(&event)?;
-        let (Some(job), true) = (job, wakes) else {
+        let Some(job) = wake else {
             return Ok(vec![event]);
         };
         let arrived = Arrived {
@@ -188,7 +201,7 @@ impl Session {
 
 /// 这条回报叫不叫醒她（`agents.md` 第三条第 3 条）：她自己用 `jobs` 停的（两种都带 `by_model`，子代理的施工 7-4 加）、撤销
 /// 停掉的、重启停掉的、崩了的，只记下；别的叫醒，被人停掉的子代理也叫醒，她不会白等。不认识的原因叫醒：她至少知道结束了。
-pub(super) fn wakes(body: &Body) -> bool {
+fn wakes(body: &Body) -> bool {
     match body {
         Body::JobReported(reported) => match reported.reason {
             JobReason::Exited | JobReason::Other(_) => true,
@@ -205,10 +218,19 @@ pub(super) fn wakes(body: &Body) -> bool {
 }
 
 /// 回报说的是哪个任务；别的事件没有。
-pub(super) fn job_of(body: &Body) -> Option<JobId> {
+fn job_of(body: &Body) -> Option<JobId> {
     match body {
         Body::JobReported(reported) => Some(reported.job),
         Body::ChildReported(reported) => Some(reported.job),
         _ => None,
+    }
+}
+
+/// 这一条到了会叫醒她：交回它说的那个任务（载入时算记在一边的用）。会叫醒她的回报，和这个会话派的子代理发来的留言
+/// （施工 7-7，`messages.rs`）；别的没有。`ledger` 是记过这一条的账本。
+pub(super) fn waking(ledger: &Ledger, event: &Event) -> Option<JobId> {
+    match &event.body {
+        Body::MessageUser(_) => super::messages::sent_by(ledger, &event.by),
+        body => job_of(body).filter(|_| wakes(body)),
     }
 }

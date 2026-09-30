@@ -1,8 +1,9 @@
 //! 效果（`docs/designs/10-自带软件.md` 第五节、`03-事件模型.md` 第三节，施工 4-6 上）：随 `tool.result` 记进
 //! 日志，给内核和头看，不发给模型。diff、撤销、改之前的核对、压缩后的工作集都照它们算。
 //!
-//! 认识的四种读成对应的类型；不认识的（第三方的工具报来的）整块原样留着，内核不解读。`job.started` 是派出去一个
-//! 任务的记录（施工 7-1，`agents.md`）：派它的那次调用本身就在历史里，不另记事件。
+//! 认识的五种读成对应的类型；不认识的（第三方的工具报来的）整块原样留着，内核不解读。`job.started` 是派出去一个
+//! 任务的记录（施工 7-1，`agents.md`）：派它的那次调用本身就在历史里，不另记事件。`job.messaged` 是给子代理留了言的
+//! 记录（施工 7-7）：它欠一份回报。
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -26,6 +27,9 @@ pub enum Effect {
     /// 派出去一个任务：后台命令，或者子代理（施工 7-1）。
     #[serde(rename = "job.started")]
     JobStarted(JobStarted),
+    /// 给自己派的一个子代理留了言（施工 7-7）：它欠一份回报。
+    #[serde(rename = "job.messaged")]
+    JobMessaged(JobMessaged),
     /// 不认识的种类：整块原样留着，写出去还是原样。
     #[serde(untagged)]
     Unknown(RawJson),
@@ -79,6 +83,15 @@ pub struct JobStarted {
     pub session: Option<SessionId>,
 }
 
+/// `job.messaged`：给自己派的子代理留了言（施工 7-7，`agents.md` 第六条）。子代理收到父会话的留言就欠一份回报，父会话
+/// 照它等：派了孙代理的子会话，给孙代理留了言、孙代理还没报的，先不向上回报（`agents.md` 第二条第 2 条）。账本查它对得上
+/// 这个会话派的一个子代理（`kernel/history.md`）。发给父会话的留言不报它：父会话不欠谁的。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct JobMessaged {
+    /// 留言给了哪个子代理：它的任务编号。
+    pub job: JobId,
+}
+
 text_enum!(
     /// 派出去的任务是什么。不认识的是新版本才有的，账本不查它带不带会话，两种回报都对不上它。
     JobKind {
@@ -100,6 +113,7 @@ impl<'de> Deserialize<'de> for Effect {
                     "file.changed" => raw::parse(json).map(Effect::FileChanged),
                     "file.trashed" => raw::parse(json).map(Effect::FileTrashed),
                     "job.started" => raw::parse(json).map(Effect::JobStarted),
+                    "job.messaged" => raw::parse(json).map(Effect::JobMessaged),
                     _ => return None,
                 })
             },

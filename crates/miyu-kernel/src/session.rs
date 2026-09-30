@@ -19,6 +19,8 @@ mod jobs;
 mod limits;
 mod load;
 mod manual;
+mod messages;
+mod meta;
 mod overflow;
 mod permission;
 mod policy;
@@ -26,6 +28,7 @@ mod question;
 mod queue;
 mod rebuild;
 mod recent;
+mod redo;
 mod report;
 mod restart;
 mod restore;
@@ -42,6 +45,7 @@ pub use action::{Action, Outcome, Reason};
 pub use input::{Answer, Command, Injection, Input, Limits, Queued, Received, Reread, Verdict};
 pub use limits::ContextLimits;
 pub use load::LoadError;
+pub use messages::Subagent;
 pub use policy::{Compaction, Notes, Pause, Policy, Rebuild, Reports, Shorten};
 pub use report::Upward;
 pub use restore::{Expect, Step, StepAction};
@@ -105,6 +109,8 @@ pub struct Session {
     restarting: bool,
     /// 子会话欠着父会话的回报（施工 7-6，`report.rs`）：每追加一条记一次。
     duty: report::Duty,
+    /// 现在的标题、置顶（施工 3-8 三补，`meta.rs`）：日志里的 `session.meta_changed` 一路算的。
+    meta: meta::Meta,
 }
 
 impl Session {
@@ -146,6 +152,7 @@ impl Session {
             deferred: Vec::new(),
             restarting: false,
             duty: report::Duty::default(),
+            meta: meta::Meta::default(),
         };
         let event = session.record(at, by, Some(id.clone()), Body::SessionCreated(created));
         session.accept(id, vec![event.seq]);
@@ -159,6 +166,23 @@ impl Session {
             && self.closing.is_empty()
             && self.restoring.is_none()
             && self.reading.is_none()
+    }
+
+    /// 删得了没有（施工 3-8 三补，`protocol.md` 的 `session.delete`）：不空闲的删不了，正在读回日志、改回文件的是
+    /// [`Reason::Restoring`]，别的（有回合在进行、结束了 `turn.ended` 还没落盘）是 [`Reason::TurnRunning`]。纯查询：会话
+    /// actor 照它答应删、停下，挪目录是会话表的事。
+    ///
+    /// # Errors
+    ///
+    /// 删不了，交回原因。
+    pub fn deletable(&self) -> Result<(), Reason> {
+        if self.restoring.is_some() || self.reading.is_some() {
+            return Err(Reason::Restoring);
+        }
+        match self.idle() {
+            true => Ok(()),
+            false => Err(Reason::TurnRunning),
+        }
     }
 
     /// 日志里用过的最大任务编号（施工 7-5）：撤掉的回合里派的也算，一个都没派过的是 0。纯查询：会话 actor 造会话、载入以后
@@ -288,6 +312,10 @@ impl Session {
                 if blocks.is_empty() {
                     return vec![rejected(id, Reason::EmptyMessage)];
                 }
+                // 子代理发来的留言照回报的规矩到（施工 7-7，`messages.rs`）。
+                if let Some(job) = self.subagent_sending(&by) {
+                    return self.subagent_says(id, by, at, blocks, job);
+                }
                 let body = Body::MessageUser(MessageUser { blocks });
                 let message = self.record(at, by.clone(), Some(id.clone()), body);
                 self.accept(id.clone(), vec![message.seq]);
@@ -310,6 +338,7 @@ impl Session {
                 actions
             }
             Command::Interrupt { queued } => self.interrupt(id, by, at, queued),
+            Command::SetMeta { title, pinned } => self.set_meta(id, by, at, title, pinned),
             Command::SetPermission { level, read_only } => {
                 self.set_permission(id, by, at, level, read_only)
             }
@@ -323,6 +352,7 @@ impl Session {
             } => self.answer_question(id, by, at, call_id, answers),
             Command::Revert { turn } => self.revert(id, by, at, turn),
             Command::Unrevert => self.unrevert(id, by, at),
+            Command::Redo { text, attachments } => self.redo(id, by, at, text, attachments),
             Command::Compact { instructions } => self.compact(id, at, instructions),
             Command::Clear => self.clear(id, at),
             Command::Report(reported) => self.report(id, by, at, reported),

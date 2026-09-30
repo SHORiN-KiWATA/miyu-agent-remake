@@ -11,7 +11,10 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 
 use miyu_cli::language::Language;
-use miyu_cli::{CompactPlan, Format, Plan, Screen, Target, UndoPlan, compact_on, talk, undo_on};
+use miyu_cli::{
+    CompactPlan, Format, Plan, RedoPlan, Screen, Target, UndoPlan, compact_on, redo_on, talk,
+    undo_on,
+};
 use miyu_endpoint::Core;
 use miyu_ipc::Dirs;
 use miyu_kernel::event::{Body, Event};
@@ -130,6 +133,31 @@ impl Home {
         let code = within(
             "压完",
             compact_on(connection, &token, plan, &mut screen, presses),
+        )
+        .await;
+        Asked {
+            code,
+            out: tape.text(|err| !err),
+            err: tape.text(|err| err),
+            screen: tape.text(|_| true),
+        }
+    }
+
+    /// 在真的套接字上连上核心，照 `plan` 重做一次（施工 4-7 再补），不按 Ctrl+C。
+    pub async fn redo(&self, plan: &RedoPlan) -> Asked {
+        let (_press, presses) = mpsc::channel(1);
+        let (connection, token) = miyu_ipc::connect(&self.root).await.expect("连得上");
+        let tape = Tape::default();
+        let (mut out, mut err) = (tape.pen(false), tape.pen(true));
+        let mut screen = Screen {
+            out: &mut out,
+            err: &mut err,
+            gray: false,
+            live: false,
+        };
+        let code = within(
+            "重做完",
+            redo_on(connection, &token, plan, &mut screen, presses),
         )
         .await;
         Asked {

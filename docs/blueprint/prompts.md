@@ -1227,6 +1227,61 @@ No output.
 ({job} is still running. It is using {tools} now.)
 ```
 
+#### `software/basesystem/message_agent/sent.txt`
+
+- 什么时候加进来：送到了
+- token：6（`{to}` 按 `j1` 算，2026-09-30 量）
+- 为什么加：每次调用都要有结果：发给了谁；对方的回应照留言、回报自己来（施工 7-7）
+- 指纹：`01bcaece`
+
+```text
+Message sent to {to}.
+```
+
+#### `software/basesystem/message_agent/no-parent.txt`
+
+- 什么时候加进来：主会话写了 `to: parent`
+- token：6（2026-09-30 量）
+- 为什么加：说清为什么拒：主会话没有父（`agents.md` 第六条第 1 条，施工 7-7）
+- 指纹：`1bd9fcb3`
+
+```text
+This session has no parent.
+```
+
+#### `software/basesystem/message_agent/not-yours.txt`
+
+- 什么时候加进来：`to` 不是她派的子代理：没派过、是后台命令、派它的那一轮撤掉了、写法都不对的
+- token：22（`{to}` 按 `j7` 算，2026-09-30 量）
+- 为什么加：说清为什么拒、能发给谁：只在相邻两层之间，兄弟、孙代理找不到（`agents.md` 第六条第 1 条，施工 7-7）
+- 指纹：`8adc0666`
+
+```text
+"{to}" is not a subagent you started. Message only your own subagents or your parent.
+```
+
+#### `software/basesystem/message_agent/stopped.txt`
+
+- 什么时候加进来：发给被停掉的子代理
+- token：12（`{to}` 按 `j1` 算，2026-09-30 量）
+- 为什么加：说清为什么拒：被停掉的不再收留言（施工 7-7）
+- 指纹：`54d2dded`
+
+```text
+Subagent {to} was stopped and takes no more messages.
+```
+
+#### `software/basesystem/message_agent/not-sent.txt`
+
+- 什么时候加进来：送不到：对方拒收、对方的会话停了、核心正在停、没装会话表
+- token：7（2026-09-30 量）
+- 为什么加：每次调用都要有结果；原因记进运行日志，不给她看（施工 7-7）
+- 指纹：`c97a85d0`
+
+```text
+The message could not be delivered.
+```
+
 #### `software/basesystem/common/not-read.txt`
 
 - 什么时候加进来：`write`、`edit` 要改的文件已经在了、她这个会话里没看过
@@ -1496,6 +1551,30 @@ The subagent ended without saying anything.
 You are a subagent, started by another session to do one task. That parent session wrote the task, not a person. Your final answer is your report and goes back to the parent on its own. When the task is done, give that answer and stop, without checking back or waiting.
 ```
 
+### 人这边：子代理发来的留言（一块带标签的事实）
+
+#### `core/jobs/subagent-message-open.txt`
+
+- 什么时候加进来：标签那一行，这个会话派的子代理发来留言（`message.user`，`by` 是它的子会话），派它的那一轮还在；闲着时是开这一轮的那条，正忙时排在那一步的工具结果后面，之后每次请求照原文带
+- token：15（字段按 `j1`、`查导出` 算，2026-09-30 照项目主人给的端点、`deepseek-v4.1-flash` 量）
+- 为什么加：注明是哪个子代理（编号、标题）说的：不注明她会当成人说的话（`agents.md` 第九条第 5 条，施工 7-7）。写法照回报的标签
+- 指纹：`a83f7c08`
+
+```text
+<subagent-message job="{job}" title="{title}">
+```
+
+#### `core/jobs/subagent-message-close.txt`
+
+- 什么时候加进来：收尾那一行，同 `subagent-message-open.txt`
+- token：6（2026-09-30 量）
+- 为什么加：标签的收尾（施工 7-7）
+- 指纹：`2ff03b04`
+
+```text
+</subagent-message>
+```
+
 ### 人这边
 
 #### `core/turn-ended/interrupted.txt`
@@ -1692,6 +1771,20 @@ You are a subagent, started by another session to do one task. That parent sessi
 {
   "description": "List your background commands and subagents, read a command's output, or stop one. Finished jobs report to you on their own, so there is no need to poll.",
   "parameters": {"type":"object","properties":{"action":{"type":"string","enum":["list","output","stop"]},"id":{"type":"string","description":"Job id, like j1."},"offset":{"type":"integer","description":"Line to start reading the output from."}},"required":["action"]}
+}
+```
+
+#### `software/basesystem/tools/message_agent.json`
+
+- 什么时候加进来：会话的工具面里有 `message_agent`：本机的会话，到了深度上限的也有（每次请求都带）
+- token：153（2026-09-30 照项目主人给的端点、`deepseek-v4.1-flash` 量，十一件一起时的边际份量）
+- 为什么加：`message_agent` 的说明和参数（施工 7-7）：说明照附录的草稿，一字不差，三句：发给自己派的子代理或者父（`to: parent`），对方下一步看到、闲着就开一轮，只发对方现在就得知道的（问题、改变安排的发现），最后的回报自己会送。最后一句防她一有进展就发、刷屏叫醒对方（`agents.md` 第六条第 5 条）。参数 `to`、`message` 各一句。第三句原来用分号接，合并时照「不用分号把几句串成一句」改成 since，重量多 1 个
+- 指纹：`346da410`
+
+```json
+{
+  "description": "Send a message to a subagent you started, or to your parent with `to: parent`. The other side reads it at its next step, or starts a new turn with it if idle. Send only what they need to know now, such as a question or a finding that changes their plan, since your final report goes up on its own.",
+  "parameters": {"type":"object","properties":{"to":{"type":"string","description":"The job id of your subagent, such as j1, or parent."},"message":{"type":"string","description":"The message to send."}},"required":["to","message"]}
 }
 ```
 

@@ -344,3 +344,102 @@ fn the_last_job_number_counts_every_job_ever_started() {
         .unwrap();
     assert_eq!(ledger.last_job_number(), 3, "撤掉的回合里派的也算");
 }
+
+/// 效果 `job.messaged`（施工 7-7）。
+fn messaged(job: &str) -> String {
+    format!(r#"{{"kind":"job.messaged","job":"{job}"}}"#)
+}
+
+/// 给子代理留了言（施工 7-7）：它欠一份回报，报了就不欠；留言只能给这个会话派的子代理，后台命令、不认识的种类、没派过的
+/// 都拦下。在会话 A 里跑的是 `j2`；派出去过的子代理照编号列出来，带着停没停。
+#[test]
+fn a_message_to_a_subagent_makes_it_owe_a_report() {
+    let waiting = |ledger: &Ledger| ledger.waiting_children().cloned().collect::<Vec<_>>();
+    let a = SessionId::parse(A).unwrap();
+    let mut ledger = jobs_after(9);
+    assert_eq!(waiting(&ledger), std::slice::from_ref(&a), "还没报过");
+    assert_eq!(ledger.subagent_in(&a), Some(JobId::new(2).unwrap()));
+    assert_eq!(ledger.subagent_in(&SessionId::parse(B).unwrap()), None);
+    let reported = event_by(
+        10,
+        None,
+        "child.reported",
+        &session(A),
+        &child_reported("j2", A, "done"),
+    );
+    ledger.append(&reported).unwrap();
+    assert!(waiting(&ledger).is_empty(), "报过了");
+    let call = new_turn(&mut ledger, 11);
+    for job in ["j1", "j3", "j9"] {
+        let bad = event(
+            14,
+            Some(12),
+            "tool.result",
+            &result_with(&call, &[messaged(job)]),
+        );
+        let error = ledger.append(&bad).unwrap_err();
+        assert!(
+            error
+                .why
+                .contains(&format!("job {job} was messaged but is not a subagent")),
+            "{error}"
+        );
+    }
+    let told = event(
+        14,
+        Some(12),
+        "tool.result",
+        &result_with(&call, &[messaged("j2")]),
+    );
+    ledger.append(&told).unwrap();
+    assert_eq!(
+        waiting(&ledger),
+        std::slice::from_ref(&a),
+        "留了言：又欠一份"
+    );
+    let again = event_by(
+        15,
+        None,
+        "child.reported",
+        &session(A),
+        &child_reported("j2", A, "stopped"),
+    );
+    ledger.append(&again).unwrap();
+    assert!(waiting(&ledger).is_empty(), "报了就不欠");
+    let listed: Vec<(JobId, SessionId, bool)> = ledger
+        .subagents()
+        .map(|(job, session, stopped)| (job, session.clone(), stopped))
+        .collect();
+    assert_eq!(listed, [(JobId::new(2).unwrap(), a, true)]);
+}
+
+/// 留言那次调用发出以后、结果记下以前到的回报（施工 7-7）：算回了这句留言，不再等它，不会一直等一份不再来的回报。
+#[test]
+fn a_report_that_arrives_while_the_message_is_on_its_way_answers_it() {
+    let mut ledger = jobs_after(9);
+    let first = event_by(
+        10,
+        None,
+        "child.reported",
+        &session(A),
+        &child_reported("j2", A, "done"),
+    );
+    ledger.append(&first).unwrap();
+    let call = new_turn(&mut ledger, 11);
+    let quick = event_by(
+        14,
+        None,
+        "child.reported",
+        &session(A),
+        &child_reported("j2", A, "done"),
+    );
+    ledger.append(&quick).unwrap();
+    let told = event(
+        15,
+        Some(12),
+        "tool.result",
+        &result_with(&call, &[messaged("j2")]),
+    );
+    ledger.append(&told).unwrap();
+    assert_eq!(ledger.waiting_children().count(), 0);
+}

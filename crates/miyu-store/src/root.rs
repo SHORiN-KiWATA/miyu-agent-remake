@@ -147,6 +147,12 @@ impl DataRoot {
             .join(session.as_str())
     }
 
+    /// 一个账号删掉的会话放在哪：回收处 `home/<账号>/trash/sessions/`，一个会话一个目录，名字是会话编号（施工 3-8 三补，
+    /// [`crate::trash`]）。
+    pub fn trashed_sessions(&self, account: &AccountId) -> PathBuf {
+        self.account_dir(account).join("trash").join("sessions")
+    }
+
     /// 一个账号的 blob：`home/<账号>/blobs/`（`07-存储.md` 第五节）。按账号分开存，不跨账号
     /// 去重（S5）。
     pub fn blobs(&self, account: &AccountId) -> PathBuf {

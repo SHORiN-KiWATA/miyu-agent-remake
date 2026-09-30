@@ -46,7 +46,8 @@
 | `tools/history.md` | 翻这个会话自己的日志：图纸，M6 施工（2026-09-29） |
 | `tools/agent.md` | 派子代理（施工 7-5） |
 | `tools/jobs.md` | 看、读、停派出去的任务（施工 7-4） |
-| `cli/ask.md`、`cli/undo.md`、`cli/compact.md`、`cli/main.md` | 每条命令一页（`cli/compact.md` 施工 6-8）；主程序 |
+| `tools/message_agent.md` | 父子之间留言（施工 7-7） |
+| `cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/main.md` | 每条命令一页（`cli/compact.md` 施工 6-8，`cli/redo.md` 施工 4-7 再补）；主程序 |
 | `sandbox.md` | 沙盒：规格、助手 `miyu-sandbox`、探测、找助手（施工 5-1 起） |
 | `sandbox/linux.md` | 沙盒在 Linux 上怎么收紧：只用 Landlock，整盘能读、只管写（施工 5-2 起，5-3 改成只管写） |
 | `sandbox/macos.md` | 沙盒在 macOS 上怎么收紧：Seatbelt 配置的底子、照规格生成的规则、换成真实的位置、装上、探测报 `seatbelt`（施工 5-7 起） |

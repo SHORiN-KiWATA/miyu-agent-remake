@@ -71,5 +71,7 @@ fn job_texts() -> JobTexts {
         subagent_truncated: job!("subagent-truncated.txt"),
         subagent_silent: job!("subagent-silent.txt"),
         subagent_close: job!("subagent-close.txt"),
+        subagent_message_open: template(job!("subagent-message-open.txt")),
+        subagent_message_close: job!("subagent-message-close.txt"),
     }
 }

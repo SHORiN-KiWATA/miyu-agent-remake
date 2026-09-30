@@ -71,6 +71,7 @@ fn shell_comes_from_the_resources_and_names_its_shell() {
         log: None,
         offset: miyu_kernel::time::UtcOffset::UTC,
         agents: None,
+        messages: None,
         jobs: None,
     });
     assert!(targets.is_empty(), "执行命令不报路径");
@@ -320,6 +321,7 @@ async fn the_output_is_pushed_to_the_heads_as_it_comes() {
         log: None,
         offset: miyu_kernel::time::UtcOffset::UTC,
         agents: None,
+        messages: None,
         jobs: None,
     };
     let done = tool("shell").run(call, progress).await;
@@ -421,6 +423,7 @@ async fn a_tilde_working_directory_means_home() {
         log: None,
         offset: miyu_kernel::time::UtcOffset::UTC,
         agents: None,
+        messages: None,
         jobs: None,
     };
     let done = tool("shell")

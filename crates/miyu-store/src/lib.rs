@@ -9,7 +9,8 @@
 //! - [`blob`]：大内容按内容哈希存，先写临时文件、同步、再改名，读的时候核对哈希；
 //! - [`resources`]：资源目录在哪，读出一个人格要用的原文，交给 `miyu-policy` 拼快照；
 //! - [`human`]：资源目录里给人看的字，照说法换成一句话（施工 4-5 上）；
-//! - [`jobs`]：会话目录下后台命令的输出（施工 7-3）。
+//! - [`jobs`]：会话目录下后台命令的输出（施工 7-3）；
+//! - [`trash`]：回收处，删掉的会话挪进来、满了时限再真删（施工 3-8 三补）。
 
 pub mod blob;
 mod durable;
@@ -19,6 +20,7 @@ pub mod jobs;
 pub mod log;
 pub mod resources;
 pub mod root;
+pub mod trash;
 
 #[cfg(test)]
 mod test_support;

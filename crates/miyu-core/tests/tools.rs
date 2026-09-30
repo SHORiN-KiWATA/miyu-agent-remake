@@ -1,4 +1,4 @@
-//! 核心起来时登记基础系统（施工 4-4 上）：工具目录里有读的三件（施工 4-4 下）、写的三件（施工 4-6）、`shell`（施工 4-8）、`history`（施工 6-4）、`agent`（施工 7-5）和 `jobs`（施工 7-4）；资源目录坏了，
+//! 核心起来时登记基础系统（施工 4-4 上）：工具目录里有读的三件（施工 4-4 下）、写的三件（施工 4-6）、`shell`（施工 4-8）、`history`（施工 6-4）、`agent`（施工 7-5）、`jobs`（施工 7-4）和 `message_agent`（施工 7-7）；资源目录坏了，
 //! 说是哪一份。
 
 use std::path::Path;
@@ -13,7 +13,17 @@ fn the_catalog_has_the_base_system() {
     assert_eq!(
         names,
         [
-            "agent", "edit", "glob", "grep", "history", "jobs", "read", "shell", "trash", "write"
+            "agent",
+            "edit",
+            "glob",
+            "grep",
+            "history",
+            "jobs",
+            "message_agent",
+            "read",
+            "shell",
+            "trash",
+            "write"
         ]
     );
 }

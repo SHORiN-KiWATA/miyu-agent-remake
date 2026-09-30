@@ -197,6 +197,8 @@ impl Refusal {
             ),
             // 2026-09-30 项目主人定（施工 6-8 补）：头把它当一条提示通知显示。
             "nothing_to_clear" => ("上下文为空", "The context is empty."),
+            // 2026-09-30 项目主人定（施工 4-7 再补）：两种情况一句话，头把它当一条提示通知显示。
+            "not_redoable" => ("无法重做", "Cannot redo."),
             _ => ("被拒绝了。", "Refused."),
         };
         match locale {

@@ -150,7 +150,7 @@ impl Watch {
     }
 
     /// 这几轮里的工具结果一共改过几次文件：读过的、派了任务的不算。撤销、恢复以后没交出改回文件的，这里该是 0。
-    pub(super) fn changes_in(&self, turns: &[TurnId]) -> usize {
+    pub(in super::super) fn changes_in(&self, turns: &[TurnId]) -> usize {
         self.events
             .iter()
             .filter(|event| event.turn.is_some_and(|turn| turns.contains(&turn)))

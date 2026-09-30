@@ -6,6 +6,9 @@
 //! 前后各空一行（施工 4-11，照 opencode）。
 //!
 //! 有几步因为要确认、这里没人能确认被拒的，数着：这一轮照常结束的，退出码 4，用量后面再印一行（施工 4-9）。
+//!
+//! `miyu redo` 也照这里跟着新的一轮（施工 4-7 再补）：回应到了先照 `miyu undo` 印撤掉了哪一轮（[`Follow::redoing`]）。核心写
+//! 回应里给人看的几样要读日志，回应到的时候新的一轮可能已经开口、甚至说完了：在那以前推过来的先攒着，印完那几行再接着收。
 
 mod compacting;
 
@@ -17,6 +20,7 @@ use super::steps::{self, Drawn, Steps};
 use super::usage::Sum;
 use super::{Format, Plan, Screen, exit};
 use crate::shown::{GRAY, Line, RESET, say, write};
+use crate::undo::{Direction, UndoPlan, redo_lines};
 
 /// 收了一条以后怎么办。
 #[derive(Debug, PartialEq, Eq)]
@@ -77,6 +81,8 @@ pub(crate) struct Follow<'p> {
     unattended: u64,
     /// 正在压缩（施工 6-3 下）：哪一次摘要请求，终端里那一行进度画了没有。
     compacting: compacting::Compacting,
+    /// 跟的是重做开的那一轮、回应还没到（施工 4-7 再补）：这时推过来的事件攒在这里，回应到了照撤销印那几行，再照先后收它们。
+    redo: Option<Vec<Value>>,
 }
 
 impl<'p> Follow<'p> {
@@ -103,7 +109,13 @@ impl<'p> Follow<'p> {
             failure: None,
             unattended: 0,
             compacting: compacting::Compacting::default(),
+            redo: None,
         }
+    }
+
+    /// 跟的是 `session.redo` 开的那一轮（施工 4-7 再补，`docs/blueprint/cli/redo.md`）：回应到了先印撤掉了哪一轮。
+    pub(crate) fn redoing(&mut self) {
+        self.redo = Some(Vec::new());
     }
 
     /// 握手的回应说沙盒用不了，原因是 `reason`（协议上的写法）：执行命令都要确认，这里确认不了，说一句（施工 5-4 下）。
@@ -126,6 +138,27 @@ impl<'p> Follow<'p> {
         }
     }
 
+    /// 重做的回应到了：会话在哪个目录里干活照回应的换上，不说目录太宽（重做不报敲命令时的目录）；照 `miyu undo` 印撤掉了
+    /// 哪一轮，第一行接「，重新做」，不说怎么恢复，都是旁白。这时撤销、重发、新的一轮的开头都推过来了，模型还没开口。
+    fn undone(&mut self, result: &Value, screen: &mut Screen<'_>) {
+        if let Some(cwd) = result["cwd"].as_str() {
+            self.cwd = cwd.to_string();
+        }
+        if self.plan.format != Format::Text {
+            return;
+        }
+        let plan = UndoPlan {
+            direction: Direction::Undo,
+            session: None,
+            language: self.plan.language,
+            home: self.plan.home.clone(),
+            color: screen.gray,
+        };
+        for line in redo_lines(result, &plan) {
+            self.aside(&line, screen);
+        }
+    }
+
     /// 收一条回应或推送。
     pub(crate) fn take(&mut self, message: &Value, screen: &mut Screen<'_>) -> Step {
         // 自己发的那条命令的回应：被拒绝的（没有这个会话、会话停了……）说清楚就走；接受了的，说会话实际在
@@ -135,6 +168,16 @@ impl<'p> Follow<'p> {
                 let reason = error["message"].as_str().unwrap_or_default();
                 say(screen.err, &self.plan.language.refused(reason));
                 return Step::Done(exit::ERROR);
+            }
+            if let Some(held) = self.redo.take() {
+                self.undone(&message["result"], screen);
+                for message in &held {
+                    let step = self.take(message, screen);
+                    if step != Step::Going {
+                        return step;
+                    }
+                }
+                return Step::Going;
             }
             if let Some(used) = message["result"]["cwd"].as_str() {
                 self.moved(used, screen);
@@ -148,6 +191,11 @@ impl<'p> Follow<'p> {
             Some("resync") => return Step::Resubscribe,
             Some("event") => {}
             _ => return Step::Going,
+        }
+        // 重做的回应还没到：先攒着，撤掉了哪一轮那几行印在最前面。
+        if let Some(held) = self.redo.as_mut() {
+            held.push(message.clone());
+            return Step::Going;
         }
         let event = &message["params"]["event"];
         let kind = event["kind"].as_str().unwrap_or_default();

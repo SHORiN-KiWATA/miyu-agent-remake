@@ -13,12 +13,12 @@ use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Input, LoadError as Broken, Session};
-use miyu_policy::{BuildError, Snapshot, SnapshotError, ToolEntry, compose};
+use miyu_policy::{BuildError, Snapshot, SnapshotError, compose};
 use miyu_store::blob::{BlobError, Blobs};
 use miyu_store::log::{OpenError, SEGMENT_LIMIT, SessionLog, abandon};
 use miyu_store::resources::{ResourceRoot, SourceError};
 use miyu_store::root::DataRoot;
-use miyu_tool::{AGENT, Catalog, Log, Seen};
+use miyu_tool::{Catalog, Log, Seen};
 
 use crate::TARGET;
 use crate::actor::{self, Actor, JobKit};
@@ -175,7 +175,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     } = setup;
     let span = actor::span(&id);
     let (resources, name) = (resources.clone(), persona.to_string());
-    let face = face(tools, Agents::allowed(&venue, lineage.as_ref()));
+    let face = Agents::face(tools, &venue, lineage.as_ref());
     let child = lineage.is_some();
     let count = face.len();
     let dir = root.session_dir(&owner, &id);
@@ -217,6 +217,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             owner: owner.clone(),
             venue: venue.clone(),
             depth: Agents::depth_of(lineage.as_ref()),
+            parent: lineage.as_ref().map(|lineage| lineage.parent.clone()),
             attended,
             reports: policy.reports.clone(),
         })
@@ -307,21 +308,6 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     }
 }
 
-/// 目录里每件工具的规格，换成快照里的写法。不能派子代理的会话（`spawns` 是假的）不给 `agent`（施工 7-5）：工具面造会话时
-/// 定，一个会话里不变，给了也只会被拒（`agents.md` 第一条第 6 条）。
-fn face(tools: &Catalog, spawns: bool) -> Vec<ToolEntry> {
-    tools
-        .specs()
-        .filter(|spec| spawns || spec.name != AGENT)
-        .map(|spec| ToolEntry {
-            name: spec.name.clone(),
-            description: spec.description.clone(),
-            parameters: spec.parameters.clone(),
-            access: spec.access.clone(),
-        })
-        .collect()
-}
-
 /// 从磁盘载入一个会话：打开日志（自检、截尾），照第 1 条的策略哈希取快照、造策略，交给内核载入。
 /// 内核吐出来的动作照样回：有计划的重启打断了的一轮，接着干。
 ///
@@ -393,6 +379,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             owner: owner.clone(),
             venue: created.venue,
             depth: created.depth.unwrap_or(0),
+            parent: created.parent.clone(),
             attended,
             reports: policy.reports.clone(),
         })

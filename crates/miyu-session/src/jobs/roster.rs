@@ -6,8 +6,8 @@
 
 use std::collections::BTreeMap;
 
-use miyu_kernel::event::{Body, Effect, Event, JobKind};
-use miyu_kernel::id::{ContentHash, JobId, SessionId};
+use miyu_kernel::event::{Body, ChildReason, Effect, Event, JobKind};
+use miyu_kernel::id::{ContentHash, JobId, Seq, SessionId};
 use miyu_kernel::time::Timestamp;
 use miyu_tool::Listed;
 
@@ -29,7 +29,8 @@ pub(crate) struct Record {
     pub(crate) session: Option<SessionId>,
     /// 派它的那条工具结果记下的时刻。
     pub(crate) started: Timestamp,
-    /// 最后那条回报；还在跑的没有。子代理报了 `done` 也算结束：它那一轮完了（父子留言叫醒它随 7-7）。
+    /// 最后那条回报；还在跑的没有。子代理报了 `done` 也算结束：它那一轮完了；之后又给它留了言的，又在跑了（施工 3-8 三补，
+    /// 照 7-7 的 `job.messaged`）。
     pub(crate) end: Option<End>,
 }
 
@@ -44,6 +45,8 @@ pub(crate) struct End {
     pub(crate) duration_ms: Option<u64>,
     /// 后台命令整份输出的 blob；没存下来的没有。
     pub(crate) output: Option<ContentHash>,
+    /// 那条回报的序号：留言的调用发出以后才到的回报算回了那句留言（施工 3-8 三补，和账本一个算法）。
+    pub(crate) seq: Seq,
 }
 
 impl Roster {
@@ -60,16 +63,34 @@ impl Roster {
     pub(crate) fn note(&mut self, event: &Event) {
         match &event.body {
             Body::ToolResult(result) => {
+                let issued = result.call_id.message();
                 for effect in &result.effects {
-                    if let Effect::JobStarted(started) = effect {
-                        let record = Record {
-                            what: started.what.clone(),
-                            title: started.title.clone(),
-                            session: started.session.clone(),
-                            started: event.at,
-                            end: None,
-                        };
-                        self.0.insert(started.job, record);
+                    match effect {
+                        Effect::JobStarted(started) => {
+                            let record = Record {
+                                what: started.what.clone(),
+                                title: started.title.clone(),
+                                session: started.session.clone(),
+                                started: event.at,
+                                end: None,
+                            };
+                            self.0.insert(started.job, record);
+                        }
+                        // 给报过的子代理留了言（施工 7-7 的 `job.messaged`）：它欠一份回报，又在跑了，停得了、列成在跑（施工 3-8
+                        // 三补：删它、停它时不漏了这一份）。留言的调用发出以后才到的回报算回了这句留言，被停掉、撤掉的不会再起来，
+                        // 都和账本一样（`kernel/history.md`）。
+                        Effect::JobMessaged(messaged) => {
+                            if let Some(record) = self.0.get_mut(&messaged.job)
+                                && record.end.as_ref().is_some_and(|end| {
+                                    end.seq < issued
+                                        && end.reason != ChildReason::Stopped.as_str()
+                                        && end.reason != ChildReason::Undone.as_str()
+                                })
+                            {
+                                record.end = None;
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -80,6 +101,7 @@ impl Roster {
                     reason: reported.reason.as_str().to_string(),
                     duration_ms: reported.duration_ms,
                     output: reported.output.clone(),
+                    seq: event.seq,
                 },
             ),
             Body::ChildReported(reported) => self.end(
@@ -89,6 +111,7 @@ impl Roster {
                     reason: reported.reason.as_str().to_string(),
                     duration_ms: None,
                     output: None,
+                    seq: event.seq,
                 },
             ),
             _ => {}

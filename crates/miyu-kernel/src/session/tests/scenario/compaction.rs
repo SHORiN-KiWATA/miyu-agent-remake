@@ -26,7 +26,7 @@ const COMPACTION: Compaction = Compaction {
 };
 
 /// 一个会压缩的替身；`step_limit` 是一个回合最多请求几次。
-fn compacting(step_limit: Option<u32>) -> Stage {
+pub(super) fn compacting(step_limit: Option<u32>) -> Stage {
     let make = move || {
         let mut policy = policy();
         policy.step_limit = step_limit;
@@ -37,7 +37,7 @@ fn compacting(step_limit: Option<u32>) -> Stage {
 }
 
 /// 交限额，压缩线正好是 `line`。
-fn line(stage: &mut Stage, line: u64) {
+pub(super) fn line(stage: &mut Stage, line: u64) {
     stage.limits(Some(line + 20), None);
 }
 

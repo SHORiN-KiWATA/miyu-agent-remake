@@ -36,8 +36,9 @@ pub(crate) fn store(blobs: &Blobs, effects: Vec<miyu_tool::Effect>) -> Vec<Effec
                 path: text(&path),
                 trash,
             }),
-            // 派出去的任务照原样（施工 7-5）：没有要存的内容。
+            // 派出去的任务、给子代理留的言照原样（施工 7-5、7-7）：没有要存的内容。
             miyu_tool::Effect::JobStarted(started) => Effect::JobStarted(started),
+            miyu_tool::Effect::JobMessaged(messaged) => Effect::JobMessaged(messaged),
         })
         .collect()
 }
@@ -55,8 +56,8 @@ pub(crate) fn saw(seen: &mut Seen, effects: &[Effect]) {
             Effect::FileTrashed(trashed) => {
                 seen.remove(Path::new(&trashed.path));
             }
-            // 派出去的任务不是看过的文件（施工 7-1）。
-            Effect::JobStarted(_) | Effect::Unknown(_) => {}
+            // 派出去的任务、留的言不是看过的文件（施工 7-1、7-7）。
+            Effect::JobStarted(_) | Effect::JobMessaged(_) | Effect::Unknown(_) => {}
         }
     }
 }

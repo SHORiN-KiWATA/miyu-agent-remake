@@ -51,6 +51,11 @@
       "name": "Jobs",
       "subject": "action",
       "icon": "≡"
+    },
+    "message_agent": {
+      "name": "Message",
+      "subject": "to",
+      "icon": "↗"
     }
   },
   "said": {
@@ -125,6 +130,11 @@
     "jobs/output": "Read the output of {job}",
     "jobs/stopped": "Stopped {job}",
     "jobs/unknown": "No job {id}",
-    "jobs/ended": "{job} has already ended"
+    "jobs/ended": "{job} has already ended",
+    "message_agent/sent": "Sent to {to}",
+    "message_agent/no-parent": "No parent session",
+    "message_agent/not-yours": "{to} is not its subagent",
+    "message_agent/stopped": "{to} was stopped",
+    "message_agent/not-sent": "Not delivered"
   }
 }

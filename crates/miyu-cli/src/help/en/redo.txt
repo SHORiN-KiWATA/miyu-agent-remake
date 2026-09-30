@@ -1,0 +1,8 @@
+Usage: miyu redo [options] [words]
+
+Undo the last turn and send what you said again, so she does it over.
+Any words are sent instead of what you said.
+
+Options:
+  -s, --session <id>  Which session; default is the one the last miyu ask opened
+  -h, --help          Print help

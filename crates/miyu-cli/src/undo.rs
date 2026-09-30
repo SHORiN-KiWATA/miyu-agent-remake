@@ -6,6 +6,8 @@
 
 mod print;
 
+pub(crate) use print::redo_lines;
+
 use std::io::{self, IsTerminal, Write};
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};

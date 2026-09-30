@@ -4,6 +4,7 @@ Commands:
   ask <words>           Say something and print her answer
   undo, rewind          Undo the last turn and restore the files she changed
   restore               Bring back what the latest undo took
+  redo [words]          Redo the last turn, or redo it with new words
   compact [words]       Compact the context into a summary
   sandbox setup|remove  Set up or remove the sandbox user (Windows, needs admin)
 
@@ -14,10 +15,11 @@ ask options:
       --add-dir <dir>     Let her read and write this directory too; repeatable
       --file <file>       Attach a file: image, PDF, text…; repeatable
 
-undo, restore, compact options:
+undo, restore, redo, compact options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened
 
-Each miyu ask opens a new session; -c, undo, restore, compact use the last one.
+Each miyu ask opens a new session; -c, undo, restore, redo and compact use
+the last one.
 
 Examples:
   miyu ask "what is this project"

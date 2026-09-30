@@ -35,7 +35,12 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
     }
     for event in history.ordered() {
         match &event.body {
-            Body::MessageUser(message) => transcript.add(event.seq, None, known(&message.blocks)),
+            // 子代理发来的留言注明是哪个子代理（施工 7-7，`jobs.rs`）；别人发的原样。
+            Body::MessageUser(message) => {
+                let blocks = known(&message.blocks);
+                let blocks = jobs::message(history, &event.by, blocks, texts.jobs.as_ref());
+                transcript.add(event.seq, None, blocks);
+            }
             Body::ContextInjected(fact) => {
                 let before = transcript.trigger_of(event.turn);
                 transcript.add(event.seq, before, vec![text_block(fact.text.clone())]);

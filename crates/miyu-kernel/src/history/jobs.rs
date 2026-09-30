@@ -7,7 +7,7 @@
 use std::collections::BTreeMap;
 
 use crate::event::{Body, Effect, Event, JobKind};
-use crate::id::{JobId, TurnId};
+use crate::id::{JobId, SessionId, TurnId};
 
 /// 派出去过的任务，照编号。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -20,6 +20,8 @@ pub struct Dispatched {
     pub what: JobKind,
     /// 调用时给的标题（`job.started` 的 `title`）。
     pub title: String,
+    /// 子代理的会话（`job.started` 的 `session`）；后台命令没有。子代理发来的留言照它认出是哪一个（施工 7-7）。
+    pub session: Option<SessionId>,
     /// 派它的那一轮撤掉了：还能恢复的、恢复不了的都算。恢复了就不算。
     pub undone: bool,
     /// 派它的那一轮：撤销、恢复照它改 `undone`。
@@ -36,6 +38,7 @@ impl Jobs {
                         let dispatched = Dispatched {
                             what: started.what.clone(),
                             title: started.title.clone(),
+                            session: started.session.clone(),
                             undone: false,
                             turn: event.turn,
                         };
@@ -52,6 +55,14 @@ impl Jobs {
     /// 编号是 `job` 的那一个；没派过的没有。
     pub(super) fn get(&self, job: JobId) -> Option<&Dispatched> {
         self.0.get(&job)
+    }
+
+    /// 在会话 `session` 里跑的子代理：编号和它（施工 7-7）。不是这个会话派的子代理的没有。
+    pub(super) fn in_session(&self, session: &SessionId) -> Option<(JobId, &Dispatched)> {
+        self.0
+            .iter()
+            .find(|(_, job)| job.session.as_ref() == Some(session))
+            .map(|(id, job)| (*id, job))
     }
 
     /// 在这几轮里派的，标成撤掉了没有。

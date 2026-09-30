@@ -1,7 +1,8 @@
 //! 握手以后的方法（`docs/designs/04-核心协议.md` 第九节「先做的几样怎么写」）：造会话、说话、打断，
-//! 列出会话（施工 3-9 下），撤销、恢复（施工 4-7 上；回应带上给人看的几样，施工 4-7 下），手动压缩（施工 6-8），切权限级别
-//! （施工 3-8 再补），清空上下文（施工 6-8 补），停掉一个任务（施工 7-4），传附件（施工 3-9 三补）。命令交给会话，等它的回应：接受的
-//! 回 `events`（切权限级别、停掉任务的回 `{}`），拒绝的回原因码。造会话、说话的回应再带上会话实际在哪个目录里干活（施工 4-5 下）。
+//! 列出会话（施工 3-9 下），撤销、恢复（施工 4-7 上；回应带上给人看的几样，施工 4-7 下），重做（施工 4-7 再补），手动压缩
+//! （施工 6-8），切权限级别（施工 3-8 再补），清空上下文（施工 6-8 补），停掉一个任务（施工 7-4），传附件（施工 3-9 三补），改标题、
+//! 置顶，删除会话（施工 3-8 三补）。命令交给会话，等它的回应：接受的回 `events`（切权限级别、停掉任务、改标题的回 `{}`），拒绝的
+//! 回原因码；删除由会话表办。造会话、说话的回应再带上会话实际在哪个目录里干活（施工 4-5 下）。
 
 use std::sync::Arc;
 
@@ -18,6 +19,7 @@ use crate::Core;
 use crate::attach::{self, Attachment};
 use crate::hello::Peer;
 use crate::list;
+use crate::meta::MetaParams;
 use crate::refusal::Refusal;
 use crate::sessions::{Opening, admin};
 use crate::undo;
@@ -90,6 +92,17 @@ struct UnrevertParams {
     session: String,
 }
 
+/// `session.redo` 的参数（施工 4-7 再补）：开这一轮的那一句换成的话、换成的附件，写法照 `session.send`；不写、写 `null` 的
+/// 照原来那一句的。
+#[derive(Debug, Deserialize)]
+struct RedoParams {
+    session: String,
+    #[serde(default)]
+    text: Option<String>,
+    #[serde(default)]
+    attachments: Option<Vec<Attachment>>,
+}
+
 /// `session.clear` 的参数（施工 6-8 补）。
 #[derive(Debug, Deserialize)]
 struct ClearParams {
@@ -112,6 +125,12 @@ struct PermissionParams {
     level: Option<LevelParam>,
     #[serde(default)]
     read_only: Option<bool>,
+}
+
+/// `session.delete` 的参数（施工 3-8 三补）。
+#[derive(Debug, Deserialize)]
+struct DeleteParams {
+    session: String,
 }
 
 /// 协议上能切到的常用的那一级。只认这两种，别的是参数不对：内核的 `unknown_level` 从协议上碰不到，和 `queued`、`stream`
@@ -171,10 +190,7 @@ pub(crate) async fn call(
         }
         "session.send" => {
             let params: SendParams = params(request)?;
-            let mut blocks = match params.text.is_empty() {
-                true => Vec::new(),
-                false => vec![Block::Text(Text { text: params.text })],
-            };
+            let mut blocks = said(params.text);
             let session = session(&params.session)?;
             // 附件先查，再找会话：不对的，会话里什么都不送，`cwd`、`dirs` 也不送（施工 3-9 三补）。
             let attachments = params.attachments.unwrap_or_default();
@@ -224,6 +240,22 @@ pub(crate) async fn call(
             let session = session(&params.session)?;
             let found = core.sessions.get(core, &session, None, None).await?;
             let command = Command::Unrevert;
+            let events = command_to(core, request, &session, &found.handle, command).await?;
+            Ok(undo::reply(core, &session, &found.cwd, events).await)
+        }
+        "session.redo" => {
+            let params: RedoParams = params(request)?;
+            let session = session(&params.session)?;
+            // 附件照 `session.send` 先查，再找会话。
+            let attachments = match params.attachments {
+                Some(attachments) => Some(attach::blocks(core, attachments).await?),
+                None => None,
+            };
+            let found = core.sessions.get(core, &session, None, None).await?;
+            let command = Command::Redo {
+                text: params.text.map(said),
+                attachments,
+            };
             let events = command_to(core, request, &session, &found.handle, command).await?;
             Ok(undo::reply(core, &session, &found.cwd, events).await)
         }
@@ -281,6 +313,22 @@ pub(crate) async fn call(
             }
         }
         "blob.put" => attach::put(core, params(request)?).await,
+        "session.set_meta" => {
+            let params: MetaParams = params(request)?;
+            let command = params.command()?;
+            let session = session(&params.session)?;
+            let found = core.sessions.get(core, &session, None, None).await?;
+            command_to(core, request, &session, &found.handle, command).await?;
+            Ok(json!({}))
+        }
+        "session.delete" => {
+            let params: DeleteParams = params(request)?;
+            let session = session(&params.session)?;
+            core.sessions
+                .delete(core, &session, request.id.clone())
+                .await?;
+            Ok(json!({}))
+        }
         _ => Err(Refusal::UNKNOWN_METHOD),
     }
 }
@@ -304,6 +352,14 @@ async fn command_to(
             core.sessions.forget(session).await;
             Err(Refusal::STOPPED)
         }
+    }
+}
+
+/// 人说的一句话写成内容块：照原样成一块文字，空的一块都没有（`session.send`、`session.redo` 的 `text`）。
+fn said(text: String) -> Vec<Block> {
+    match text.is_empty() {
+        true => Vec::new(),
+        false => vec![Block::Text(Text { text })],
     }
 }
 

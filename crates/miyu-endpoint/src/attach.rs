@@ -51,7 +51,7 @@ pub(crate) struct PutParams {
     media_type: Option<String>,
 }
 
-/// `session.send` 的一个附件：`blob.put` 的回应，只看这三格。
+/// `session.send`、`session.redo` 的一个附件：`blob.put` 的回应，只看这三格。
 #[derive(Debug, Deserialize)]
 pub(crate) struct Attachment {
     blob: String,
@@ -90,7 +90,7 @@ pub(crate) async fn put(core: &Core, params: PutParams) -> Result<Value, Refusal
     blocking(move || put_blocking(&place, source, given)).await
 }
 
-/// `session.send` 的附件变成内容块，照先后。
+/// `session.send`、`session.redo`（施工 4-7 再补）的附件变成内容块，照先后。
 pub(crate) async fn blocks(
     core: &Core,
     attachments: Vec<Attachment>,

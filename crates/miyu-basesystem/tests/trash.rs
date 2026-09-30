@@ -51,6 +51,7 @@ fn trash_comes_from_the_resources_and_names_what_it_writes() {
             log: None,
             offset: miyu_kernel::time::UtcOffset::UTC,
             agents: None,
+            messages: None,
             jobs: None,
         });
         assert_eq!(targets.len(), 1, "{args}");
@@ -287,6 +288,7 @@ mod linux {
             log: None,
             offset: miyu_kernel::time::UtcOffset::UTC,
             agents: None,
+            messages: None,
             jobs: None,
         };
         let done = tool("trash").run(call, Progress::new(|_| {})).await;

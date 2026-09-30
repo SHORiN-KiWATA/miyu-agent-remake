@@ -10,6 +10,7 @@
 //! - [`Catalog`]：工具目录，登记时查重名、名字和参数格式的写法；
 //! - [`Log`]：这个会话日志的只读入口（施工 6-4），`history` 用；
 //! - [`AgentPort`]：派子代理的端口（施工 7-5），`agent` 用；
+//! - [`MessagePort`]：父子之间留言的端口（施工 7-7），`message_agent` 用；
 //! - [`JobPort`]：任务端口（施工 7-3），`shell` 把起好的后台命令交给它，`jobs` 经它查、停（施工 7-4）；
 //! - [`picture`]：什么算一张图（施工 4-13 定，3-9 三补挪来）：`read` 读到的、人附上的，都照它认。
 
@@ -17,6 +18,7 @@ mod agents;
 mod catalog;
 mod jobs;
 mod log;
+mod messages;
 pub mod picture;
 mod run;
 mod stop;
@@ -27,6 +29,7 @@ pub use agents::{AGENT, AgentPort, NotSpawned, Spawned, Spawning};
 pub use catalog::{Catalog, CatalogError, Problem};
 pub use jobs::{Asking, Background, Exit, JobError, JobPort, Listed, Output, Process};
 pub use log::{Log, ReadLog};
+pub use messages::{MESSAGE_AGENT, MessagePort, NotSent, Recipient, Sending};
 pub use run::{Call, Done, Effect, Picture, Progress, Running, Seen, Target};
 pub use stop::Stop;
 

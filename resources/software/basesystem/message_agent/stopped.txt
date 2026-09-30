@@ -1,0 +1,1 @@
+Subagent {to} was stopped and takes no more messages.

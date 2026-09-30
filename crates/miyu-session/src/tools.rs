@@ -20,8 +20,8 @@ use tracing::Instrument;
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Effect, Permission, Restored};
-use miyu_kernel::id::{CallId, ContentHash};
-use miyu_kernel::session::{Input, Reread, Step};
+use miyu_kernel::id::{CallId, ContentHash, JobId};
+use miyu_kernel::session::{Input, Reread, Step, Subagent};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_policy::RunTexts;
 use miyu_store::blob::Blobs;
@@ -33,6 +33,7 @@ use crate::blocking::blocking;
 use crate::effects;
 use crate::job_ids::JobIds;
 use crate::lines::millis;
+use crate::messages;
 use crate::pictures;
 use crate::port::Back;
 use crate::sandbox::{Sandbox, SandboxCache};
@@ -132,6 +133,8 @@ pub(crate) struct Dispatch {
     pub(crate) permission: Permission,
     /// 这次调用的任务端口（施工 7-3）：`shell` 把后台命令交给它。
     pub(crate) jobs: Arc<dyn JobPort>,
+    /// 这个会话这一刻派出去的子代理（施工 7-7）：`message_agent` 照它认 `to`。
+    pub(crate) subagents: BTreeMap<JobId, Subagent>,
 }
 
 impl Tools {
@@ -203,6 +206,7 @@ impl Tools {
             dirs,
             permission,
             jobs,
+            subagents,
         } = dispatch;
         let stop = Stop::default();
         // 派子代理的端口照这一轮的目录、这一刻的权限抄（施工 7-5）：沙盒下面照样要用它们。
@@ -210,6 +214,11 @@ impl Tools {
             let ids = Arc::clone(&self.job_ids);
             agents.for_call(ids, cwd.clone(), dirs.clone(), permission.clone())
         });
+        // 留言的端口照这一刻派出去的子代理抄（施工 7-7）。
+        let messages = self
+            .agents
+            .as_ref()
+            .map(|agents| messages::for_call(agents, call_id, subagents));
         let call = Call {
             args,
             cwd,
@@ -221,6 +230,7 @@ impl Tools {
             log: Some(self.log.clone()),
             offset: self.offset,
             agents,
+            messages,
             jobs: Some(jobs),
         };
         let call_text = call_id.to_string();

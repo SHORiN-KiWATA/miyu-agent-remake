@@ -26,6 +26,7 @@ mod job_ids;
 mod jobs;
 mod kinds;
 mod lines;
+mod messages;
 mod open;
 mod pictures;
 mod port;
@@ -39,6 +40,7 @@ mod store;
 pub mod testkit;
 mod tools;
 
+pub use agents::job_in;
 pub use clock::new_id;
 pub use handle::{Ended, Handle, Pushed, Stopped, Subscription};
 pub use http::{HttpModels, IDLE};

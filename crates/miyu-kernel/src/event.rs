@@ -26,7 +26,7 @@ mod turn;
 pub use context::{
     CompactTrigger, CompactionPaused, ContextCompacted, ContextInjected, PauseReason, RestoredFile,
 };
-pub use effect::{Effect, FileChanged, FileRead, FileTrashed, JobKind, JobStarted};
+pub use effect::{Effect, FileChanged, FileRead, FileTrashed, JobKind, JobMessaged, JobStarted};
 pub use job::{ChildReason, ChildReported, JobReason, JobReported};
 pub use message::{MessageAssistant, MessageUser, MessageWithdrawn};
 pub use model::{
