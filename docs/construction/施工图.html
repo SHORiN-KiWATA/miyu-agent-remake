@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>129</b><span>/ 136 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话</span></li>
+    <li><b>130</b><span>/ 136 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话</span></li>
     <li><b>7-7</b><span>下一步：7-7 父子之间留言、7-1 补编号带父会话的编号，另有附件、改名删除、重做在做（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">69e264b</b><span>最近一步（4-7 再补 重做上一轮）的提交</span></li>
+    <li><b class="mono">fbb0764</b><span>最近一步（3-9 四补 图片附件带名字）的提交</span></li>
   </ul>
 </header>
 
@@ -386,14 +386,14 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-8b"><span class="n">3-8</span>协议端点（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8c"><span class="n">3-8</span>协议端点（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8d"><span class="n">3-8</span>Windows 命名管道（补）<span class="st">✓</span></a></li>
-        <li><a class="step done" href="#s3-8c"><span class="n">3-8</span>协议收切权限级别（再补）<span class="st">✓</span></a></li>
-        <li><a class="step done" href="#s3-8d"><span class="n">3-8</span>改名和删除会话（三补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s3-8e"><span class="n">3-8</span>协议收切权限级别（再补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s3-8f"><span class="n">3-8</span>改名和删除会话（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9a"><span class="n">3-9</span>主程序和拉起核心（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9b"><span class="n">3-9</span>miyu ask（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9c"><span class="n">3-9</span>会话编号照先后（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9d"><span class="n">3-9</span>开发用的地址和模型（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9e"><span class="n">3-9</span>附件（三补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-9</span>图片附件带名字（四补）</span></li>
+        <li><a class="step done" href="#s3-9f"><span class="n">3-9</span>图片附件带名字（四补）<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -413,7 +413,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-7a"><span class="n">4-7</span>撤销时恢复文件（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-7b"><span class="n">4-7</span>undo、redo 命令（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-7c"><span class="n">4-7</span>命令改名（补）<span class="st">✓</span></a></li>
-        <li><a class="step done" href="#s4-7c"><span class="n">4-7</span>重做上一轮（再补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s4-7d"><span class="n">4-7</span>重做上一轮（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-8"><span class="n">4-8</span>执行命令<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9"><span class="n">4-9</span>没人能确认时说清楚<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9b"><span class="n">4-9</span>补完蓝图（补）<span class="st">✓</span></a></li>
@@ -4561,8 +4561,8 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
-<section class="sheet" id="s3-8c" aria-labelledby="h-s38c">
-  <div class="sheet-head"><h2 id="h-s38c"><span class="no">3-8</span>协议收切权限级别（再补）</h2><span class="pill done">已完成</span></div>
+<section class="sheet" id="s3-8e" aria-labelledby="h-s38e">
+  <div class="sheet-head"><h2 id="h-s38e"><span class="no">3-8</span>协议收切权限级别（再补）</h2><span class="pill done">已完成</span></div>
   <p class="purpose">头能经协议切权限级别：<code>session.set_permission_level</code>。内核早有这个命令，核心开了口子，终端界面、网页把 Tab、Shift+Tab、底栏做成真的（项目主人要）。</p>
   <figure class="frame">
     <div class="drawing">
@@ -4616,8 +4616,8 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
-<section class="sheet" id="s3-8d" aria-labelledby="h-s38d">
-  <div class="sheet-head"><h2 id="h-s38d"><span class="no">3-8</span>改名和删除会话（三补）</h2><span class="pill done">已完成</span></div>
+<section class="sheet" id="s3-8f" aria-labelledby="h-s38f">
+  <div class="sheet-head"><h2 id="h-s38f"><span class="no">3-8</span>改名和删除会话（三补）</h2><span class="pill done">已完成</span></div>
   <p class="purpose">头能给会话改名、置顶，能删除会话。删了的挪进回收处，留 7 天再真删（项目主人定现在就做）。</p>
   <figure class="frame">
     <div class="drawing">
@@ -4859,6 +4859,56 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/3-9-附件（三补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s3-9f" aria-labelledby="h-s39f">
+  <div class="sheet-head"><h2 id="h-s39f"><span class="no">3-9</span>图片附件带名字（四补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">一句话附了几张图，她分得清哪张是哪个文件。网页演示接真核心撞见的：附了一张图、一个 PDF、一个文本文件，问哪个是图片，她答不出，因为发给她的图没有名字。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">blob.put → 图片块 → 驱动</span><span class="dir-note">kernel/blocks · drivers/openai-chat</span></div>
+            <ol class="pipe" aria-label="名字怎么走">
+              <li>图片块多一格 <code>name</code>：人附的带 <code>blob.put</code> 回应里的名字，<code>read</code> 读出来的不带</li>
+              <li>能看图的：<code>&lt;image name="晚霞.png"&gt;</code>、图、<code>&lt;/image&gt;</code>，标签和挨着的字拼成一段</li>
+              <li>看不了图的：占位那一句写上名字；不带名字的、以前的快照照旧</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">三句新字</span><span class="rl">8、3、17 token，登记在 26 第十节</span></div>
+          <div class="tile new"><span class="nm">占位另成一份</span><span class="rl">不带名字的那一句不动</span></div>
+          <div class="tile"><span class="nm">以后再说</span><span class="rl">history 里的图片占位带名字</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-9 四补</dd></div>
+        <div><dt>名称</dt><dd>图片附件带名字</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">fbb0764</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>25 个手写的变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型：附一张图、一个 PDF、一个文本文件，问哪个是图片只答文件名，她答「晚霞.png」</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/3-9-图片附件带名字（四补）.md</code>。</li>
       </ul>
     </div>
   </div>
@@ -5914,8 +5964,8 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
-<section class="sheet" id="s4-7c" aria-labelledby="h-s47c">
-  <div class="sheet-head"><h2 id="h-s47c"><span class="no">4-7</span>重做上一轮（再补）</h2><span class="pill done">已完成</span></div>
+<section class="sheet" id="s4-7d" aria-labelledby="h-s47d">
+  <div class="sheet-head"><h2 id="h-s47d"><span class="no">4-7</span>重做上一轮（再补）</h2><span class="pill done">已完成</span></div>
   <p class="purpose">撤掉最后一轮，把开这一轮的话原样再发一次，让她重新做；也能换成改过的话再发（网页编辑上一句）。协议 <code>session.redo</code>、命令行 <code>miyu redo</code>（项目主人定只重做最后一轮）。</p>
   <figure class="frame">
     <div class="drawing">
