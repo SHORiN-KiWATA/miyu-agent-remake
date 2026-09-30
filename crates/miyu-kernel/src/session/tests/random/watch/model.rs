@@ -1,5 +1,7 @@
 //! 看守查模型调用的收场和重试（`docs/designs/02-内核.md` 第六节「回复怎么收」第 4 条，施工 3-5 下）：
 //!
+//! - 请求模型：挂接点跑完了、事件都落了盘、上一步的调用都有了结果，请求照全部历史，一个回合不超过上限（施工 3-8 四补从
+//!   `watch.rs` 挪来）；
 //! - 一条 `model.called`：交给过执行器、只记一次；说完了的前面是它的回复；
 //! - 块的起止：写了回复的才有，和回复的块一块一项，止不早于起（施工 2-3 补）；
 //! - 出错的：要么紧跟着出错的回合结束，要么再来。再来的，前面是半截回复的（带 `interrupted`，一个
@@ -24,10 +26,72 @@ pub(super) struct Retries {
 }
 
 impl Watch {
+    /// 请求模型：挂接点跑完了、事件都落了盘、上一步的调用都有了结果；请求照全部历史；
+    /// 一个回合的请求不超过上限。摘要请求照压缩的规矩查（`watch/compaction.rs`），不算步数。
+    pub(super) fn called(&mut self, seen: Seq, request: &Request) {
+        let seed = self.seed;
+        let turn = self.open_turn();
+        assert!(
+            self.done.contains(&turn),
+            "种子 {seed}：挂接点还没跑完就请求"
+        );
+        assert!(
+            self.events
+                .iter()
+                .all(|event| self.pushed.contains(&event.seq)),
+            "种子 {seed}：还有事件没落盘就请求"
+        );
+        assert!(
+            self.calls_in(turn)
+                .all(|call| self.resulted.contains(&call)),
+            "种子 {seed}：上一步还有调用没结果就请求"
+        );
+        self.request_from_log(seen, request);
+        match Watch::is_summary(request) {
+            true => self.undo_summary(),
+            false => self.undo_request(seen),
+        }
+        self.manual_request(request);
+        self.issued.insert(seen);
+        self.sent.remove(&seen);
+        self.asking = Some(seen);
+        self.next_block = 0;
+        self.open_block = None;
+        if Watch::is_summary(request) {
+            self.retry_summary();
+            self.summary_called(seen, request);
+            return;
+        }
+        self.main_request_sent();
+        assert_eq!(seen.get(), self.last(), "种子 {seed}：seen 是最后一条");
+        // 请求照的是全部历史，撤回的、撤掉的，撤回、撤销、恢复那几条本身，和压缩替代掉的除外。
+        assert_eq!(
+            listed_request(request),
+            listing(&self.effective_events()),
+            "种子 {seed}：请求照全部历史，撤回的、撤掉的、压缩掉的除外"
+        );
+        let retry = self.retry_request();
+        let count = self.requests.entry(turn).or_default();
+        if !retry {
+            *count += 1;
+        }
+        assert!(
+            *count <= STEP_LIMIT,
+            "种子 {seed}：回合 {turn} 请求超过了上限"
+        );
+        if *count > 1 {
+            self.seen_paths.insert("一步接一步");
+        }
+    }
+
     /// 一条 `model.called`：交给过执行器、只记一次；说完了的前面是它的回复；出错的，要么紧跟着出错
     /// 的回合结束，要么再来。
     pub(super) fn model_called(&mut self, called: &ModelCalled, events: &[Event], k: usize) {
         let seed = self.seed;
+        // 回顾的请求另查（施工 3-8 四补，`watch/recap.rs`）：它不是这一轮的请求。
+        if called.aside() {
+            return self.recap_called(called, events, k);
+        }
         // 暂停着明知放不下、没发出去的那一条：没交给过执行器（施工 6-6 上，`watch/breaker.rs`）。
         if self.refused(called, events.get(k + 1).map(|event| &event.body)) {
             return;

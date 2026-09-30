@@ -50,6 +50,12 @@ kinds! {
     Clear,
     /// 子会话交来的回报（施工 7-2）。
     Report,
+    /// 要一句回顾（施工 3-8 四补）。
+    Recap,
+    /// 回顾的请求发出去了、一段增量、说完了（施工 3-8 四补）。
+    RecapSent,
+    RecapDelta,
+    RecapEnded,
     /// 后台命令结束了（施工 7-2）。
     JobEnded,
     /// 有没有头订阅着（施工 7-2）。
@@ -117,6 +123,7 @@ impl InputKind {
                 Command::Compact { .. } => InputKind::Compact,
                 Command::Clear => InputKind::Clear,
                 Command::Report(_) => InputKind::Report,
+                Command::Recap => InputKind::Recap,
             },
             Input::Stored { .. } => InputKind::Stored,
             Input::Environment(_) => InputKind::Environment,
@@ -137,6 +144,9 @@ impl InputKind {
             Input::Woke { .. } => InputKind::Woke,
             Input::JobEnded { .. } => InputKind::JobEnded,
             Input::Watched { .. } => InputKind::Watched,
+            Input::RecapSent { .. } => InputKind::RecapSent,
+            Input::RecapDelta { .. } => InputKind::RecapDelta,
+            Input::RecapEnded { .. } => InputKind::RecapEnded,
         }
     }
 }

@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::id::{AccountId, ContentHash, SessionId, VenueId};
+use crate::id::{AccountId, ContentHash, Seq, SessionId, VenueId};
 use crate::text_enum::text_enum;
 
 /// `session.created`：会话创建。
@@ -53,6 +53,17 @@ pub struct MetaChanged {
     /// 置顶还是取消置顶。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pinned: Option<bool>,
+}
+
+/// `session.recapped`：一句回顾（施工 3-8 四补，`docs/blueprint/kernel/session.md`「回顾」）。头要的，推给所有订阅着的头，
+/// 不进她的上下文；不带回合编号。`by` 是内核，`cause` 是要它的那个命令。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SessionRecapped {
+    /// 那一句：她写的，去掉了前后空白，不是空的。
+    pub text: String,
+    /// 照到第几条：喂进回顾请求的最新那一条消息的序号，在这一条之前（账本查）。下一次要回顾时照到的还是它，交回这一句、
+    /// 不再请求。
+    pub upto: Seq,
 }
 
 /// 权限：常用的那一级，加上叠在上面的只读开关（`11-权限与沙盒.md` 第二节）。两格都写。

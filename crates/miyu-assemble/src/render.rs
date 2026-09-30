@@ -58,6 +58,8 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
             // 不算（施工 6-2 上）：那是被替代掉的那段的请求和摘要请求，压完的第一次主请求前缀本来就从头来，回合开头压的，
             // 压完再注入的事实照样和触发的那句放在一起。
             Body::ModelCalled(_) if before_checkpoint(history, event.seq) => {}
+            // 回顾这类辅助请求不是这一轮请求过（施工 3-8 四补）：它不带回合编号，可以落在回合开始的那几块中间。
+            Body::ModelCalled(called) if called.aside() => {}
             Body::ModelCalled(_) => transcript.settle(),
             Body::TurnEnded(ended) => {
                 transcript.settle();
@@ -102,6 +104,7 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
             Body::SessionCreated(_)
             | Body::PolicyChanged(_)
             | Body::MetaChanged(_)
+            | Body::SessionRecapped(_)
             | Body::TurnReverted(_)
             | Body::TurnUnreverted(_)
             | Body::FilesRestored(_)
@@ -296,7 +299,7 @@ impl Group {
 
 /// 这一次是不是接着写（`05-内核接口.md` 第七节「接着写被打断的回复」，施工 3-5 再补）：有效历史的
 /// 最后，是一条带 `interrupted` 的回复，后面只有一条内核记的 `reply_cut` 事实，中间只隔着
-/// `model.called`。这时渲染出来的最后一条 user 消息里只有被打断的那一句，前面那条 assistant 是
+/// `model.called`、`session.recapped`（施工 3-8 四补：回顾不进上下文，中途要了也照样接着写）。这时渲染出来的最后一条 user 消息里只有被打断的那一句，前面那条 assistant 是
 /// 半截。那一句之后又来了别的（人的消息、切了级别以后的事实），不算：最后那条 user 里不只有那一句，
 /// 去不掉。
 pub(crate) fn continues(history: &History) -> bool {
@@ -304,7 +307,7 @@ pub(crate) fn continues(history: &History) -> bool {
         .ordered()
         .into_iter()
         .rev()
-        .filter(|event| !matches!(event.body, Body::ModelCalled(_)));
+        .filter(|event| !matches!(event.body, Body::ModelCalled(_) | Body::SessionRecapped(_)));
     let noticed = tail.next().is_some_and(|event| {
         event.by == By::Kernel
             && matches!(&event.body, Body::ContextInjected(fact) if fact.kind.as_str() == "reply_cut")

@@ -27,21 +27,7 @@ impl Watch {
     /// 的下一条起留着一切地收、再落到检查点上，施工 6-9），用同一个组装器组装，要和会话发出去的一字不差：载入的那条路
     /// 和活着的那条路走得一样。摘要请求照同一份历史截到 `seen`。
     pub(super) fn request_from_log(&self, seen: Seq, request: &Request) {
-        let log: Vec<Event> = std::iter::once(self.created())
-            .chain(self.events.iter().cloned())
-            .collect();
-        let mut ledger = Ledger::default();
-        for event in &log {
-            ledger
-                .append(event)
-                .unwrap_or_else(|e| panic!("种子 {}：日志过不了账本：{e}", self.seed));
-        }
-        let from = ledger.compacted().map_or(Seq::FIRST, Seq::next);
-        let mut history = History::whole();
-        for event in log.into_iter().filter(|event| event.seq >= from) {
-            history.append(event);
-        }
-        history.settle();
+        let history = self.history_from_log();
         let rebuilt = match Watch::is_summary(request) {
             true => {
                 let instructions = self
@@ -62,6 +48,26 @@ impl Watch {
             "种子 {}：会话发出去的请求，和照日志重建的不一样",
             self.seed
         );
+    }
+
+    /// 照看守记下的日志照载入的办法重建的有效历史（施工 3-8 四补从 [`Watch::request_from_log`] 拿出来，回顾也照它查）。
+    pub(super) fn history_from_log(&self) -> History {
+        let log: Vec<Event> = std::iter::once(self.created())
+            .chain(self.events.iter().cloned())
+            .collect();
+        let mut ledger = Ledger::default();
+        for event in &log {
+            ledger
+                .append(event)
+                .unwrap_or_else(|e| panic!("种子 {}：日志过不了账本：{e}", self.seed));
+        }
+        let from = ledger.compacted().map_or(Seq::FIRST, Seq::next);
+        let mut history = History::whole();
+        for event in log.into_iter().filter(|event| event.seq >= from) {
+            history.append(event);
+        }
+        history.settle();
+        history
     }
 
     /// 4：开回合时没有别的回合开着。

@@ -24,9 +24,11 @@ pub struct ModelCalled {
     pub request: Option<ContentHash>,
     /// 统一的请求里有几条消息。
     pub messages: u64,
-    /// 和这个会话上一次请求比，第一处不同在哪。只是接着加的、前面没有请求可比的，没有。
+    /// 和这个会话上一次请求比，第一处不同在哪。只是接着加的、前面没有请求可比的，没有。装在盒子里（施工 3-8 四补）：多半
+    /// 没有，放在事件里平白占地方；`purpose` 加进来以后，`model.called` 比别的种类大出两百字节，clippy 的
+    /// `large_enum_variant` 拦下了。
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub first_difference: Option<FirstDifference>,
+    pub first_difference: Option<Box<FirstDifference>>,
     /// 用量。供应商没报的，没有。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage: Option<Usage>,
@@ -50,7 +52,26 @@ pub struct ModelCalled {
     /// 第十条第 3 条）。以前的日志没有这一格。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub compaction: Option<CompactTrigger>,
+    /// 辅助请求的用途（施工 3-8 四补，`26-提示词.md` J6）：现在只有回顾 `recap`；主请求、摘要请求没有。以前的日志没有这一格。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub purpose: Option<Purpose>,
 }
+
+impl ModelCalled {
+    /// 是一次辅助请求（施工 3-8 四补）：带着用途的，不认识的用途也算。它和主对话无关：她没在这次请求里听到什么、它报的用量
+    /// 也不是主对话的大小，所以用量的锚、排队的消息听到没有、压缩的边界、渲染时回合开始的那几块，都不看它。
+    pub fn aside(&self) -> bool {
+        self.purpose.is_some()
+    }
+}
+
+text_enum!(
+    /// 辅助请求的用途（施工 3-8 四补）。
+    Purpose {
+        /// 回顾：`session.recap` 要的一句（`docs/blueprint/kernel/session.md`「回顾」）。
+        Recap = "recap",
+    }
+);
 
 /// 第一处不同在哪：工具面、system，或者第几条消息。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

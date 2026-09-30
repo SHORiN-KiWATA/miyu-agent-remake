@@ -59,12 +59,27 @@ pub trait ModelPort: Send + Sync {
 #[derive(Debug)]
 pub struct Reports {
     seen: Seq,
+    /// 是回顾的请求（施工 3-8 四补）：回报另走一路，不和主请求的 `seen` 撞。
+    recap: bool,
     back: mpsc::UnboundedSender<Back>,
 }
 
 impl Reports {
     pub(crate) fn new(seen: Seq, back: mpsc::UnboundedSender<Back>) -> Reports {
-        Reports { seen, back }
+        Reports {
+            seen,
+            recap: false,
+            back,
+        }
+    }
+
+    /// 回顾的请求的回报（施工 3-8 四补）：名字是它照到的那一条 `upto`。
+    pub(crate) fn recap(upto: Seq, back: mpsc::UnboundedSender<Back>) -> Reports {
+        Reports {
+            seen: upto,
+            recap: true,
+            back,
+        }
     }
 
     /// 发出去了：发给了哪个模型，请求字节的哈希。
@@ -99,10 +114,17 @@ impl Reports {
         reason = "会话停了就送不进去：回报没人要了，丢掉"
     )]
     fn send(&self, report: Report) {
-        let _ = self.back.send(Back::Report {
-            seen: self.seen,
-            report,
-        });
+        let back = match self.recap {
+            true => Back::Recap {
+                upto: self.seen,
+                report,
+            },
+            false => Back::Report {
+                seen: self.seen,
+                report,
+            },
+        };
+        let _ = self.back.send(back);
     }
 }
 
@@ -147,6 +169,8 @@ pub(crate) enum Report {
 pub(crate) enum Back {
     /// 请求 `seen` 的一样回报。
     Report { seen: Seq, report: Report },
+    /// 回顾 `upto` 的请求的一样回报（施工 3-8 四补）。
+    Recap { upto: Seq, report: Report },
     /// 为请求 `seen` 等的时刻到了。
     Woke { seen: Seq },
     /// 跑工具的任务送回来的（施工 4-2）。

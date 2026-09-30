@@ -40,6 +40,28 @@ pub struct Texts {
     pub jobs: Option<JobTexts>,
     /// 别的 harness 发来的话的标签（`core/harness/`，施工 7-10）。以前造的快照里没有，是没有：那种话照人的话原样渲染。
     pub harness: Option<HarnessTexts>,
+    /// 回顾的请求要用的（`core/recap/`，施工 3-8 四补）。以前造的快照里没有，是没有：那些会话不做回顾。
+    pub recap: Option<Recap>,
+}
+
+/// 回顾的请求要用的（施工 3-8 四补，`docs/blueprint/kernel/request.md`「回顾的请求」）：指令、两种标签、两句记号，照 codex 的
+/// `recap_prompt.rs`、`recap_history.rs`；和两个数，是策略数据。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Recap {
+    /// 指令（`instruction.txt`）：一段，最后一行是 `Conversation:`，后面紧跟对话记录。
+    pub instruction: String,
+    /// 人这边那一段的标签（`user.txt`：`User: `）。
+    pub user: String,
+    /// 她的回答那一段的标签（`assistant.txt`：`Assistant: `）。
+    pub assistant: String,
+    /// 整轮去掉了最老的几轮，写在最前的那一行（`omitted.txt`，带两个换行）。
+    pub omitted: String,
+    /// 一段截了中间，夹在头尾之间的那一句（`excerpted.txt`，前后各一个换行）。
+    pub excerpted: String,
+    /// 最多喂几轮她答过的（出厂 8）。
+    pub turns: usize,
+    /// 整份（连指令）最多约多少 token，照本地估算的字节/4 折成字节（出厂 8192）。
+    pub tokens: u64,
 }
 
 impl Texts {

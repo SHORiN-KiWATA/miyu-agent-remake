@@ -159,7 +159,7 @@ pub(super) async fn stop_agent(
         .command(parent.clone(), id, from_child, report)
         .await
     {
-        Ok(Outcome::Accepted { .. }) => {
+        Ok(Outcome::Accepted { .. } | Outcome::Recapped { .. }) => {
             tracing::info!(target: TARGET, job = job_text.as_str(), child = child.as_str(), "subagent stopped");
             Ok(())
         }

@@ -31,11 +31,11 @@ pub use job::{ChildReason, ChildReported, JobReason, JobReported};
 pub use message::{MessageAssistant, MessageUser, MessageWithdrawn};
 pub use model::{
     BlockSpan, CallError, CallResult, ErrorClass, FirstDifference, MessageRole, ModelCalled, Part,
-    Usage,
+    Purpose, Usage,
 };
 pub use question::{Choice, Question, QuestionAnswered, QuestionAsked, Response, fits};
 pub use restore::{FilesRestored, RestoreAction, RestoreOutcome, Restored};
-pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated};
+pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated, SessionRecapped};
 pub use tool::{ApprovalDecided, ApprovalRequested, Decision, Said, ToolResult, ToolStatus};
 pub use transient::{
     CompactionDone, CompactionProgress, ModelDelta, Piece, Retry, Status, ToolProgress, Transient,
@@ -120,6 +120,8 @@ bodies! {
     PolicyChanged = "session.policy_changed",
     /// 改了标题、置顶。
     MetaChanged = "session.meta_changed",
+    /// 一句回顾（施工 3-8 四补）。
+    SessionRecapped = "session.recapped",
     /// 回合开始。
     TurnStarted = "turn.started",
     /// 回合结束。

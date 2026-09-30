@@ -12,7 +12,7 @@ mod texts;
 
 pub use anchor::anchored;
 pub use archive::{files, matches_the_archive};
-pub use texts::{SUMMARIZE, VENUE};
+pub use texts::{SUMMARIZE, VENUE, recap};
 use texts::{driver_texts, texts};
 
 use std::collections::BTreeMap;

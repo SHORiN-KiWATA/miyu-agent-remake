@@ -155,6 +155,13 @@ pub(crate) fn core() -> CoreTexts {
             message_close: include_str!("../../../resources/core/harness/message-close.txt")
                 .to_string(),
         }),
+        recap: Some(crate::RecapTexts {
+            instruction: include_str!("../../../resources/core/recap/instruction.txt").to_string(),
+            user: include_str!("../../../resources/core/recap/user.txt").to_string(),
+            assistant: include_str!("../../../resources/core/recap/assistant.txt").to_string(),
+            omitted: include_str!("../../../resources/core/recap/omitted.txt").to_string(),
+            excerpted: include_str!("../../../resources/core/recap/excerpted.txt").to_string(),
+        }),
     }
 }
 

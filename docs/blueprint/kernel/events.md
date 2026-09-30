@@ -2,7 +2,7 @@
 
 ### 是什么
 
-事件是已经发生的一件事，追加进会话的日志，一条一行 JSON，以后不改、不删；撤销、压缩也是追加一条新的。内核认识 22 种，每一种有自己的 `body`；不认识的原样留着。另有四种瞬时事件，只推给连着的头，不进日志。
+事件是已经发生的一件事，追加进会话的日志，一条一行 JSON，以后不改、不删；撤销、压缩也是追加一条新的。内核认识 23 种，每一种有自己的 `body`；不认识的原样留着。另有四种瞬时事件，只推给连着的头，不进日志。
 
 这一页写外壳、一行怎么读写、有哪些种类、瞬时事件、格式出错。每一种 `body` 的每一格见 `kernel/events-bodies.md`。
 
@@ -44,6 +44,7 @@
 | `session.created` | 会话创建 | 造会话的人 | 不带：它是第 1 条 | `session.created.jsonl` |
 | `session.policy_changed` | 换了策略快照，或者换了权限 | 切权限的人 | 回合进行中切的带上 | `session.policy_changed.jsonl` |
 | `session.meta_changed` | 改了标题、置顶 | — | — | `session.meta_changed.jsonl` |
+| `session.recapped` | 一句回顾（施工 3-8 四补，`kernel/session.md`「回顾」）：推给头，不进上下文 | 内核 | 不带：它不属于哪一轮，撤哪一轮都不会跟着拿走（和回报一样） | `session.recapped.jsonl` |
 | `turn.started` | 回合开始 | 内核 | 它自己的序号 | `turn.started.jsonl` |
 | `turn.ended` | 回合结束 | 内核；被打断的，是打断的人 | 必带 | `turn.ended.jsonl` |
 | `turn.reverted` | 撤销了几个回合 | 撤销的人 | 不带：有回合在进行时撤不了 | `turn.reverted.jsonl` |
@@ -60,7 +61,7 @@
 | `context.injected` | 注入进上下文的一块事实 | 内核；回合开始的挂接点交回来的，是交它的模块（现在的执行器一块都不交） | 回合进行中注入的带上 | `context.injected.jsonl` |
 | `context.compacted` | 压缩的检查点 | 内核 | 带上：压缩发生在哪一轮 | `context.compacted.jsonl` |
 | `context.compaction_paused` | 暂停了自动压缩（施工 6-6 上） | 内核 | 必带 | `context.compaction_paused.jsonl` |
-| `model.called` | 一次模型请求的记录 | 内核 | 回合进行中的带上 | `model.called.jsonl` |
+| `model.called` | 一次模型请求的记录 | 内核 | 回合进行中的带上；回顾的请求不带（施工 3-8 四补） | `model.called.jsonl` |
 | `job.reported` | 后台命令结束了（施工 7-1） | 内核，`by` 照原因记（施工 7-2，`kernel/session.md`「回报」第 2 条） | 内核记的不带（2026-09-30 定），账本不另查 | `job.reported.jsonl` |
 | `child.reported` | 子会话的回报（施工 7-1） | 内核，`by` 是那个子会话，账本查（施工 7-2） | 内核记的不带（2026-09-30 定），账本不另查 | `child.reported.jsonl` |
 

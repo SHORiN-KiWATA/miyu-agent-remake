@@ -22,6 +22,7 @@ mod permission;
 mod question;
 mod queue;
 mod random;
+mod recap;
 mod redo;
 mod reply;
 mod restart;

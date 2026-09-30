@@ -81,6 +81,45 @@ impl Assembler for Listing {
         request
     }
 
+    /// 回顾（施工 3-8 四补）：有效历史里人的消息、回复的清单，最后一条写着「recap」；照到的是清单里最后那一条。一条回复
+    /// 都没有的，没有。
+    fn recap(&self, history: &History) -> Option<(Request, Seq)> {
+        let said: Vec<Event> = history
+            .events()
+            .iter()
+            .filter(|event| matches!(event.body, Body::MessageUser(_) | Body::MessageAssistant(_)))
+            .cloned()
+            .collect();
+        if !said
+            .iter()
+            .any(|event| matches!(event.body, Body::MessageAssistant(_)))
+        {
+            return None;
+        }
+        let upto = said.last()?.seq;
+        let mut messages: Vec<Message> = said
+            .iter()
+            .map(|event| Message::User {
+                blocks: vec![Block::Text(Text {
+                    text: format!("{} {}", event.seq, event.body.kind()),
+                })],
+            })
+            .collect();
+        messages.push(Message::User {
+            blocks: vec![Block::Text(Text {
+                text: "recap".to_string(),
+            })],
+        });
+        let request = Request {
+            tools: Vec::new(),
+            system: String::new(),
+            messages,
+            stable: 0,
+            continuation: false,
+        };
+        Some((request, upto))
+    }
+
     /// 正文块连起来，去掉前后空白；空的取不到。
     fn summary(&self, reply: &[Block]) -> Option<String> {
         let text: String = reply

@@ -27,6 +27,9 @@ pub(crate) fn input(input: &Input) -> &'static str {
         Input::ToolGuarded { .. } => "tool_guarded",
         Input::JobEnded { .. } => "job_ended",
         Input::Watched { .. } => "watched",
+        Input::RecapSent { .. } => "recap_sent",
+        Input::RecapDelta { .. } => "recap_delta",
+        Input::RecapEnded { .. } => "recap_ended",
     }
 }
 
@@ -53,12 +56,16 @@ pub(crate) fn action(action: &Action) -> &'static str {
         Action::Recall { .. } => "recall",
         Action::Report(_) => "report",
         Action::StopJobs { .. } => "stop_jobs",
+        Action::Recap { .. } => "recap",
     }
 }
 
 /// 一条输入、一个动作多不多：增量、执行中的输出一次回复有成百上千条，记在 `TRACE`，发行版里没有。
 pub(crate) fn chatty_input(input: &Input) -> bool {
-    matches!(input, Input::ModelDelta { .. } | Input::ToolProgress { .. })
+    matches!(
+        input,
+        Input::ModelDelta { .. } | Input::RecapDelta { .. } | Input::ToolProgress { .. }
+    )
 }
 
 /// 同 [`chatty_input`]，看动作：推送增量、执行中的输出。

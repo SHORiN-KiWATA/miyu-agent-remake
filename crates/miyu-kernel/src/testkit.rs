@@ -14,6 +14,7 @@ mod disk;
 mod jobs;
 mod limits;
 mod opening;
+mod recap;
 mod respond;
 mod script;
 mod stage;

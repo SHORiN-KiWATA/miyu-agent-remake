@@ -186,7 +186,8 @@ impl Watch {
             .rev()
             .filter(|event| event.seq < started)
             .find_map(|event| match &event.body {
-                Body::ModelCalled(called) => Some(called.seen),
+                // 回顾这类辅助请求不算（施工 3-8 四补）。
+                Body::ModelCalled(called) if !called.aside() => Some(called.seen),
                 _ => None,
             });
         let answered = effective.iter().rev().find_map(|event| match &event.body {

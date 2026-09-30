@@ -2,13 +2,13 @@
 
 ### 是什么
 
-内核认识的 22 种事件，每一种的 `body`：每一格叫什么、是什么写法、有没有、没有时怎么写。外壳、一行怎么读写、瞬时事件见 `kernel/events.md`。
+内核认识的 23 种事件，每一种的 `body`：每一格叫什么、是什么写法、有没有、没有时怎么写。外壳、一行怎么读写、瞬时事件见 `kernel/events.md`。
 
 ### 在哪
 
 | 代码 | 管什么 |
 |---|---|
-| `crates/miyu-kernel/src/event/session.rs` | `session.created`、`session.policy_changed`、`session.meta_changed`；权限 `Permission`、级别 `Level` |
+| `crates/miyu-kernel/src/event/session.rs` | `session.created`、`session.policy_changed`、`session.meta_changed`、`session.recapped`（施工 3-8 四补）；权限 `Permission`、级别 `Level` |
 | `crates/miyu-kernel/src/event/turn.rs` | `turn.started`、`turn.ended`（`EndReason`）、`turn.reverted`、`turn.unreverted` |
 | `crates/miyu-kernel/src/event/restore.rs` | `files.restored`（`Restored`、`RestoreAction`、`RestoreOutcome`） |
 | `crates/miyu-kernel/src/event/message.rs` | `message.user`、`message.assistant`、`message.withdrawn` |
@@ -16,7 +16,7 @@
 | `crates/miyu-kernel/src/event/effect.rs` | 效果 `Effect`：`file.read`、`file.changed`、`file.trashed`、`job.started`（`JobStarted`、`JobKind`，施工 7-1）、`job.messaged`（`JobMessaged`，施工 7-7） |
 | `crates/miyu-kernel/src/event/question.rs` | `question.asked`、`question.answered`；回答对不对得上 `fits` |
 | `crates/miyu-kernel/src/event/context.rs` | `context.injected`、`context.compacted`、`context.compaction_paused`（`PauseReason`） |
-| `crates/miyu-kernel/src/event/model.rs` | `model.called`（`FirstDifference`、`Usage`、`BlockSpan`、`CallResult`、`CallError`、`ErrorClass`） |
+| `crates/miyu-kernel/src/event/model.rs` | `model.called`（`FirstDifference`、`Usage`、`BlockSpan`、`CallResult`、`CallError`、`ErrorClass`，辅助请求的用途 `Purpose`、是不是辅助请求 `aside()`，施工 3-8 四补） |
 | `crates/miyu-kernel/src/event/job.rs` | `job.reported`（`JobReason`）、`child.reported`（`ChildReason`）（施工 7-1） |
 
 每一种的样本在 `docs/designs/samples/events/<种类>.jsonl`。
@@ -76,6 +76,16 @@
 
 - 标题的写法由协议端点管（`protocol.md` 的 `session.set_meta`）：头写的去掉前后空白再量，空的、超过 200 个字的不收；头写 `null` 去掉标题，这里记成空的 `""`，事件里从不写 `null`（上面「可以没有」的格写成 `null` 当没有）。读的时候不查长短：以后放宽了，老的照样读得进来（施工 3-8 三补）。
 - 现在的标题、置顶是日志里的这些一条条盖上去的结果：没写的格照旧；撤掉的回合里的也算（`kernel/session.md`「改标题、置顶」）。
+
+**`session.recapped`**：一句回顾（施工 3-8 四补，`kernel/session.md`「回顾」）。头要的（`protocol.md` 的 `session.recap`），推给所有订阅着的头；不进她的上下文（渲染时不出，`kernel/request.md`「组装」），`history` 也不列。`by` 是内核，`cause` 是要它的那个命令（在路上又来的几个并进去，照第一个），不带 `turn`。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `text` | 字符串 | 必有 | 那一句：她写的，去掉了前后空白，不是空的 |
+| `upto` | 序号 | 必有 | 照到第几条：喂进回顾请求的最新那一条消息，在这一条之前，账本查（`kernel/history.md`） |
+
+- 有效历史里最近一条的 `upto` 和下一次要照到的一样，下一次 `session.recap` 直接交回它的 `text`，不再请求。
+- 它前面紧跟着那一次回顾请求的 `model.called`（`purpose` 是 `recap`），同一批追加。
 
 **`turn.started`**：
 
@@ -309,6 +319,10 @@
 | `result` | 取值 | 必有 | `ok` 说完了；`error` 出错；`interrupted` 被人打断 |
 | `error` | 出错 | 可以没有 | 出错的分类、原话，有的话还有 HTTP 状态码；只在出错时有 |
 | `compaction` | `auto`、`manual`、`overflow` | 可以没有 | 这是哪一种压缩的摘要请求；主请求没有。以前的日志没有这一格（施工 6-6 上） |
+| `purpose` | `recap` | 可以没有 | 辅助请求的用途（施工 3-8 四补，`26-提示词.md` J6）：现在只有回顾。主请求、摘要请求没有；以前的日志没有这一格。不认识的原样留着，也算辅助请求 |
+
+- 带 `purpose` 的是辅助请求（`ModelCalled::aside()`）：它和主对话无关，她没在这次请求里听到什么，它报的用量也不是主对话的大小。所以用量的锚（`compaction.md` 第一条）、排着的话她听到没有（`kernel/history.md`）、压缩的边界（`compaction.md` 第三条第 2 条）、渲染时回合开始的那几块（`kernel/request.md`「组装」）都不看它。它不带 `turn`、没有回复，`seen` 是它照到的那一条，`first_difference`、`blocks` 没有。
+- `first_difference` 在代码里装在盒子里（施工 3-8 四补）：它多半没有；`purpose` 加进来以后 `model.called` 比别的种类大出两百字节，clippy 的 `large_enum_variant` 拦下了。JSON 的写法不变。
 
 第一处不同：
 
@@ -335,7 +349,7 @@
 | `content_policy` | 被内容策略拦截 | 驱动 |
 | `other` | 其他：驱动分不进上面五种的 | 驱动 |
 | `bad_stream` | 增量对不上，或者执行器的回报先后不对：驱动或执行器的错；流里有一段不是 JSON 的，驱动也分成它 | 内核；驱动 |
-| `empty_reply` | 回复里一个块都没有 | 内核 |
+| `empty_reply` | 回复里一个块都没有；回顾的回复里没有正文（施工 3-8 四补） | 内核 |
 | `bad_summary` | 摘要请求的回复里取不出摘要：空的，或者调了工具（施工 6-2 上） | 内核 |
 | `compaction_paused` | 自动压缩暂停着，这一次请求明知放不下，没发（施工 6-6 上） | 内核 |
 
@@ -399,7 +413,7 @@
 
 | 测试 | 守哪几种 |
 |---|---|
-| `crates/miyu-kernel/src/event/session/tests.rs` | 会话的三种：图纸上的写法、一次性的写与不写、每一级读成自己那一种、不认识的级别原样留着、权限两格都要写、坏的说是哪一种；子会话的 `parent`、`depth` 读写一字不差，主会话不写这两格（施工 7-1） |
+| `crates/miyu-kernel/src/event/session/tests.rs` | 会话的四种：图纸上的写法、一次性的写与不写、每一级读成自己那一种、不认识的级别原样留着、权限两格都要写、坏的说是哪一种；子会话的 `parent`、`depth` 读写一字不差，主会话不写这两格（施工 7-1）；`session.recapped` 两格都要写（施工 3-8 四补） |
 | `crates/miyu-kernel/src/event/turn/tests.rs` | 回合的四种：图纸上的写法、没有 `trigger` 的不写这一格（施工 6-8）、每种结束原因、不认识的原样留着、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/restore/tests.rs` | `files.restored` 的每一格读写一字不差；新的 `action`、`outcome` 原样留着 |
 | `crates/miyu-kernel/src/event/message/tests.rs` | `message.assistant` 图纸上的写法、`seen` 必有、`interrupted` 只在是真时写；`message.withdrawn` 的写法和序号从 1 起 |
@@ -408,7 +422,7 @@
 | `crates/miyu-kernel/src/event/job/tests.rs` | 两种回报（施工 7-1）：图纸上的写法读写一字不差、每种 `reason` 读成自己那一种、不认识的原样留着、不写是假的几格是假时不写、没有的格不写、负的退出码、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/question/tests.rs` | 提问的两种：图纸上的写法、没写的格子不写、第 4 条对不对得上题目、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/context/tests.rs` | 上下文的几种：图纸上的写法、手动压缩带着要求（施工 6-8）、清空的空摘要照样写出 `summary`（施工 6-8 补）、坏的说是哪一种 |
-| `crates/miyu-kernel/src/event/model/tests.rs` | `model.called` 图纸上的写法；没发出去就失败的只有知道的几格；每种出错的分类；出错带着 HTTP 状态码、没有这一格的旧日志照读（施工 3-5 三补）；块的起止读写一字不差、没有这一格的旧日志照读（施工 2-3 补）；第一处不同的写法 |
+| `crates/miyu-kernel/src/event/model/tests.rs` | `model.called` 图纸上的写法；没发出去就失败的只有知道的几格；每种出错的分类；出错带着 HTTP 状态码、没有这一格的旧日志照读（施工 3-5 三补）；块的起止读写一字不差、没有这一格的旧日志照读（施工 2-3 补）；第一处不同的写法；`purpose` 读写一字不差、不认识的原样留着、带了的才是辅助请求（施工 3-8 四补） |
 | `crates/miyu-kernel/tests/samples.rs` | 每一种的样本读写一字不差 |
 | `crates/miyu-kernel/tests/resources.rs` 的 `the_sample_denial_is_the_sentence_with_the_reason` | 样本里 71 号被人拒绝的结果，就是资源里带理由的那一句 |
 
@@ -420,6 +434,7 @@
 - `26-提示词.md` 第三节：给人看的字和给模型看的字分两份（`human`）。
 - `11-权限与沙盒.md` 第二节：三个级别和只读开关，四个选项；A13：拒绝以后她接着干。
 - `agents.md`「对外的样子」：效果 `job.started`、`job.reported`、`child.reported`、子会话的 `parent`、`depth`（施工 7-1）；`03-事件模型.md` 第三节：派子代理不另记 `child.spawned`。
+- `04-核心协议.md` 第九节 `session.recap`：那一句另记一条事件推给所有头，不进她的上下文；请求记进 `model.called`（2026-10-01 项目主人定）。`26-提示词.md` J6：辅助请求各自声明用途（`purpose`，施工 3-8 四补）。
 
 ### 还没有的
 

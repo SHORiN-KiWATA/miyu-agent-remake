@@ -1,6 +1,6 @@
 //! 握手以后的方法（`docs/designs/04-核心协议.md` 第九节「先做的几样怎么写」）：造会话、说话、打断，
 //! 列出会话（施工 3-9 下），撤销、恢复（施工 4-7 上；回应带上给人看的几样，施工 4-7 下），重做（施工 4-7 再补），手动压缩
-//! （施工 6-8），切权限级别（施工 3-8 再补），清空上下文（施工 6-8 补），停掉一个任务（施工 7-4），读后台命令的输出（施工 7-4 补），
+//! （施工 6-8），切权限级别（施工 3-8 再补），清空上下文（施工 6-8 补），回顾（施工 3-8 四补，回应是那一句），停掉一个任务（施工 7-4），读后台命令的输出（施工 7-4 补），
 //! 传附件（施工 3-9 三补），改标题、置顶，删除会话（施工 3-8 三补）。别的 harness 带着名字说话（`session.send` 的 `from`，
 //! 施工 7-10）。命令交给会话，等它的回应：接受的回 `events`（切权限级别、停掉任务、改标题的回 `{}`），拒绝的回原因码；删除
 //! 由会话表办。造会话、说话的回应再带上会话实际在哪个目录里干活（施工 4-5 下）。
@@ -113,6 +113,12 @@ struct RedoParams {
 /// `session.clear` 的参数（施工 6-8 补）。
 #[derive(Debug, Deserialize)]
 struct ClearParams {
+    session: String,
+}
+
+/// `session.recap` 的参数（施工 3-8 四补）。
+#[derive(Debug, Deserialize)]
+struct RecapParams {
     session: String,
 }
 
@@ -306,6 +312,18 @@ pub(crate) async fn call(
             let events = command_to(core, request, &session, &found.handle, Command::Clear).await?;
             Ok(json!({ "events": events }))
         }
+        "session.recap" => {
+            let params: RecapParams = params(request)?;
+            let session = session(&params.session)?;
+            let found = core.sessions.get(core, &session, None, None).await?;
+            let by = admin(core);
+            match outcome(core, request, &session, &found.handle, by, Command::Recap).await? {
+                Outcome::Recapped { text, upto, cached } => {
+                    Ok(json!({"text": text, "upto": upto.get(), "cached": cached}))
+                }
+                _ => Err(Refusal::INTERNAL),
+            }
+        }
         "job.stop" => {
             let params: JobStopParams = params(request)?;
             let session = session(&params.session)?;
@@ -365,9 +383,25 @@ async fn command_by(
     by: By,
     command: Command,
 ) -> Result<Vec<u64>, Refusal> {
+    match outcome(core, request, session, handle, by, command).await? {
+        Outcome::Accepted { events } => Ok(events.iter().map(|seq| seq.get()).collect()),
+        // 只有回顾回它（施工 3-8 四补），回顾不走这里。
+        _ => Err(Refusal::INTERNAL),
+    }
+}
+
+/// 把命令交给会话，记成 `by` 发的，交回它的结局：拒绝的是内核的原因码；会话停了的从表里拿掉。
+async fn outcome(
+    core: &Core,
+    request: &Request,
+    session: &SessionId,
+    handle: &Handle,
+    by: By,
+    command: Command,
+) -> Result<Outcome, Refusal> {
     match handle.command(request.id.clone(), by, command).await {
-        Ok(Outcome::Accepted { events }) => Ok(events.iter().map(|seq| seq.get()).collect()),
         Ok(Outcome::Rejected { reason }) => Err(Refusal::kernel(reason)),
+        Ok(outcome) => Ok(outcome),
         Err(_) => {
             core.sessions.forget(session).await;
             Err(Refusal::STOPPED)

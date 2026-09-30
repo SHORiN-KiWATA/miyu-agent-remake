@@ -6,6 +6,7 @@
 
 use crate::pause::PAUSE;
 use crate::rebuild::REBUILD;
+use crate::recap::RECAP;
 use crate::shorten::SHORTEN;
 use crate::snapshot::{CompactionNumbers, CoreTexts, Snapshot, TAIL};
 
@@ -54,6 +55,7 @@ pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
         resumes: RESUMES,
         compaction: Some(COMPACTION),
         jobs: Some(crate::jobs::JOB_NUMBERS),
+        recap: Some(RECAP),
     }
 }
 

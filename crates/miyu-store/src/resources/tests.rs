@@ -166,6 +166,22 @@ fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
         harness.message_close,
         include_str!("../../../../resources/core/harness/message-close.txt")
     );
+    // 回顾的五份（施工 3-8 四补）：每一格是它自己那份文件。
+    let recap = sources.core.recap.expect("出厂的有回顾的字");
+    macro_rules! recap {
+        ($name:literal) => {
+            include_str!(concat!("../../../../resources/core/recap/", $name))
+        };
+    }
+    for (got, file) in [
+        (recap.instruction, recap!("instruction.txt")),
+        (recap.user, recap!("user.txt")),
+        (recap.assistant, recap!("assistant.txt")),
+        (recap.omitted, recap!("omitted.txt")),
+        (recap.excerpted, recap!("excerpted.txt")),
+    ] {
+        assert_eq!(got, file);
+    }
     // 文本文件照字放进消息的三句（施工 3-9 三补）：每一格是它自己那份文件。
     let drivers = sources.core.drivers;
     let text = drivers.text_file.expect("出厂的有文本文件的三句");

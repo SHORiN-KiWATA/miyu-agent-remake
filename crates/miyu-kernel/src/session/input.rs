@@ -175,6 +175,39 @@ pub enum Input {
         /// 那一条的 `body`。
         reported: JobReported,
     },
+    /// 回顾的请求发出去了（施工 3-8 四补，`recap.rs`）：和主请求的 [`Input::RequestSent`] 一样，名字是它照到的那一条
+    /// `upto`。不是在路上的那一次的，不理。
+    RecapSent {
+        /// 到的时刻，取自执行器的时钟。用时从这一刻算起。
+        at: Timestamp,
+        /// 哪一次回顾。
+        upto: Seq,
+        /// 发给了哪个端点的哪个模型。
+        model: Model,
+        /// 驱动编码以后的请求字节的哈希。
+        request: ContentHash,
+    },
+    /// 回顾的请求的一段增量（施工 3-8 四补）。不推给头：回顾只交回说完了的那一句。
+    RecapDelta {
+        /// 到的时刻，取自执行器的时钟。
+        at: Timestamp,
+        /// 哪一次回顾。
+        upto: Seq,
+        /// 这一段增量。
+        delta: Delta,
+    },
+    /// 回顾的请求说完了（施工 3-8 四补）：正常说完的附上用量，出错的附上分类和原话。回顾出错不再来，要等多久、超了多少都
+    /// 用不上。没发出去就失败了的，不报「发出去了」，直接报这一条。
+    RecapEnded {
+        /// 到的时刻，取自执行器的时钟。
+        at: Timestamp,
+        /// 哪一次回顾。
+        upto: Seq,
+        /// 用量。供应商没报的，没有。
+        usage: Option<Usage>,
+        /// 出错的分类和原话；正常说完的，没有。
+        error: Option<CallError>,
+    },
     /// 有没有头订阅着这个会话（施工 7-2）：会话 actor 在订阅、退订时交。只在内存里，不进日志；造会话、载入以后当没人
     /// 看着。没人看着的一次性会话，回报只记下、不开轮（`agents.md` 第三条第 3 条）。
     Watched {
@@ -296,6 +329,9 @@ pub enum Command {
     /// `session.clear`：清空上下文，空闲时才收，单开一轮压成一个空的检查点，不请求模型（`compaction.md` 第十四条，
     /// 施工 6-8 补）。
     Clear,
+    /// `session.recap`：要一句回顾（施工 3-8 四补，`docs/blueprint/kernel/session.md`「回顾」）。有回合在进行时照收，照这一刻
+    /// 落了盘的有效历史；不开回合、不进她的上下文。
+    Recap,
     /// 子会话交来的回报（施工 7-2，`agents.md` 第二条第 5 条）：子会话的执行器经端口交，发命令的一方就是子会话。记一条
     /// `child.reported`，不带回合编号。对不上一个还会报的子代理的，拒绝，`unknown_job`。
     Report(ChildReported),

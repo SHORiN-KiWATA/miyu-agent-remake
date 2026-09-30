@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>142</b><span>/ 154 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 3-8 四补回顾、2-7 补切了权限告诉她、8-1、C-1</span></li>
-    <li><b class="mono">ea87ba6b</b><span>最近一步（7-5 再补 派子代理的工具改名 subagent）的提交</span></li>
+    <li><b>143</b><span>/ 154 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 2-7 补切了权限告诉她、3-8 五补自动起标题；8-1、C-1 等合并</span></li>
+    <li><b class="mono">0dae7cf5</b><span>最近一步（3-8 四补 回顾 session.recap）的提交</span></li>
   </ul>
 </header>
 
@@ -390,7 +390,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-8d"><span class="n">3-8</span>Windows 命名管道（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8e"><span class="n">3-8</span>协议收切权限级别（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8f"><span class="n">3-8</span>改名和删除会话（三补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-8</span>回顾 session.recap（四补）</span></li>
+        <li><a class="step done" href="#s3-8g"><span class="n">3-8</span>回顾 session.recap（四补）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">3-8</span>自动起标题（五补）</span></li>
         <li><a class="step done" href="#s3-9a"><span class="n">3-9</span>主程序和拉起核心（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9b"><span class="n">3-9</span>miyu ask（下）<span class="st">✓</span></a></li>
@@ -4705,6 +4705,57 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/3-8-改名和删除会话（三补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s3-8g" aria-labelledby="h-s38g">
+  <div class="sheet-head"><h2 id="h-s38g"><span class="no">3-8</span>回顾 session.recap（四补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头能向核心要一句回顾：这个会话在做什么、做完了什么、卡在哪。照 codex 的做法单独发一次有上限的辅助请求，只喂最近几轮的对话正文，不接主对话的前缀；什么时候要、怎么显示是头的事。命令行有了 <code>miyu recap</code>。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">回顾 session.recap（四补）</span><span class="dir-note">3-8 四补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>协议 <code>session.recap</code>：回应 text、upto、cached；推送 <code>model.called</code>（purpose 是 recap）和 <code>session.recapped</code>，都不带回合编号</li>
+              <li>上次回顾以后没有新内容：交回上一句，不请求；两个原因码 <code>nothing_to_recap</code>、<code>recap_failed</code></li>
+              <li>回顾不进她的上下文；有回合在进行时照落了盘的内容回顾</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">单独一次小请求</span><span class="rl">照 codex：最近几轮你看得到的对话，截到上限，一条 user，没有 system 和工具面</span></div>
+          <div class="tile new"><span class="nm">model.called 多 purpose</span><span class="rl">辅助请求记在哪用，自动起标题也用它</span></div>
+          <div class="tile"><span class="nm">头的事</span><span class="rl">/recap 命令或离开几分钟自动要，由头定</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-8 四补</dd></div>
+        <div><dt>名称</dt><dd>回顾 session.recap（四补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">0dae7cf5</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>44 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型：两轮对话以后回顾说得对，输入 355 token（不接前缀）；再要一次交回同一句、不再请求</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/3-8-回顾 session.recap（四补）.md</code>；蓝图 <code>protocol.md</code>「session.recap」、<code>kernel/request.md</code>「回顾的请求」。</li>
       </ul>
     </div>
   </div>
