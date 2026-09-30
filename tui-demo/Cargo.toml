@@ -54,6 +54,15 @@ ratex-render = { version = "0.1.14", features = ["embed-fonts"] }
 [target.'cfg(unix)'.dependencies]
 rustix = { version = "1", features = ["stdio", "process"] }
 
+# 伪终端里的端到端测试（`tests/pty.rs`，蓝图「守着它的」）：测试进程里起一个照剧本回话的核心（和端点的测试同一套），
+# 在伪终端里起真的界面连上去，读屏幕、发按键。只在测试里用。
+[dev-dependencies]
+miyu-endpoint = { path = "../crates/miyu-endpoint" }
+miyu-session = { path = "../crates/miyu-session", features = ["testkit"] }
+miyu-tool = { path = "../crates/miyu-tool" }
+portable-pty = "0.9"
+vt100 = "0.16"
+
 # 和仓库工作区的 lints 一样（根目录 Cargo.toml），演示程序也照这套规矩。
 [lints.rust]
 unsafe_code = "forbid"

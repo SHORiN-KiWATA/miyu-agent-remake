@@ -14,6 +14,7 @@ mod failure;
 mod foreign;
 mod jobs;
 mod queue;
+mod recap;
 mod redo;
 mod steps;
 mod turn;
@@ -169,6 +170,7 @@ impl Transcript {
             text,
             segment: None,
             turn: None,
+            covers: None,
             hidden: false,
             queued: false,
             seq: None,
@@ -258,6 +260,7 @@ impl Transcript {
                 self.note(Kind::Error, text);
             }
             Update::Push(push) => self.apply(push, texts),
+            Update::Recap(text) => self.recap(&text, texts),
             // 撤销：记一行说明，全文照这一次撤掉的第一轮里你说的话，没有的照核心给的第一行。
             Update::Undone {
                 restore: false,
@@ -386,6 +389,9 @@ impl Transcript {
                     self.cleared(texts);
                 }
             }
+            // 回顾这类辅助请求：只算进累计用量（蓝图「回顾」第 5 条）。
+            Push::AuxUsage(usage) => self.total.aux += usage.input() + usage.output,
+            Push::Recapped(text) => self.recap(&text, texts),
             Push::Speed { output, ms } => {
                 self.speed = Some(output as f64 * 1000.0 / ms as f64);
             }
@@ -425,7 +431,11 @@ impl Transcript {
     pub(super) fn hide(&mut self, turns: &[u64], hidden: bool) {
         // 别处来的话撤销不带走它（「别处来的话」第 3 条）。
         for entry in self.entries.iter_mut().filter(|e| e.from.is_none()) {
-            if entry.turn.is_some_and(|t| turns.contains(&t)) {
+            if entry
+                .turn
+                .or(entry.covers)
+                .is_some_and(|t| turns.contains(&t))
+            {
                 entry.hidden = hidden;
             }
         }
@@ -449,6 +459,7 @@ impl Transcript {
             text,
             segment: None,
             turn,
+            covers: None,
             hidden: false,
             queued,
             seq: None,

@@ -37,6 +37,7 @@ pub(super) fn request(
             ("session.set_permission_level", params)
         }
         Command::Clear => ("session.clear", json!({"session": session})),
+        Command::Recap => ("session.recap", json!({"session": session})),
         Command::Stop(job) => ("job.stop", json!({"session": session, "job": job})),
         // 附件（换了的）在外面传好了再接上（`mod.rs` 的 `serve`）。
         Command::Redo { text, .. } => {
@@ -81,5 +82,13 @@ mod tests {
         };
         let expected = json!({"session": "s", "text": "改过的"});
         assert_eq!(request(edited, "s", "~"), Some(("session.redo", expected)));
+    }
+
+    #[test]
+    fn a_recap_asks_for_this_session() {
+        assert_eq!(
+            request(Command::Recap, "s", "~"),
+            Some(("session.recap", json!({"session": "s"})))
+        );
     }
 }

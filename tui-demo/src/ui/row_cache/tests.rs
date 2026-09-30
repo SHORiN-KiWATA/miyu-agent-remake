@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::json;
 
-use super::{RowCache, build};
+use super::{Plan, RowCache, build};
 use crate::core::ToolStatus;
 use crate::transcript::{Chip, JobMark, Kind, Segment, Step, StepKind, ToolState, Transcript};
 use crate::ui::rows::Target;
@@ -67,7 +67,7 @@ fn cached_rows_match_a_fresh_build() {
     let cache = RefCell::new(RowCache::default());
     let fresh = fresh_rows(&t.entries, &ctx);
     for _ in 0..2 {
-        let cached = build(&t.entries, &ctx, &cache);
+        let cached = build(&t.entries, &ctx, &cache, Plan::all());
         assert_eq!(cached.len(), fresh.len());
         assert_eq!(
             lines(cached.iter().map(|r| r.line.to_string())),
@@ -90,24 +90,24 @@ fn only_changed_entries_are_rebuilt() {
     let mut t = sample();
     let mut ctx = f.ctx();
     let cache = RefCell::new(RowCache::default());
-    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache, Plan::all());
     assert_eq!(cache.borrow().rebuilt, 4, "头一帧全排");
-    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache, Plan::all());
     assert_eq!(cache.borrow().rebuilt, 0, "什么都没变：一条都不排");
     t.entries[3].open = true;
-    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache, Plan::all());
     assert_eq!(cache.borrow().rebuilt, 1, "点开了一条：只排它");
     ctx.hover = Some(Target::Segment(1));
-    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache, Plan::all());
     assert_eq!(cache.borrow().rebuilt, 1, "悬停在一条上：只排它");
     ctx.hover = Some(Target::Entry(3));
-    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache, Plan::all());
     assert_eq!(cache.borrow().rebuilt, 2, "悬停挪了：离开的和进来的");
     t.entries[2].text.push_str("\n\n又一段。");
-    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache, Plan::all());
     assert_eq!(cache.borrow().rebuilt, 1, "回答长了：只排它");
     ctx.width = 40;
-    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache, Plan::all());
     assert_eq!(cache.borrow().rebuilt, 4, "宽度变了：全排");
 }
 
@@ -128,8 +128,8 @@ fn a_live_segment_is_rebuilt_every_frame() {
     t.entries[1].segment.as_mut().unwrap().finished = false;
     let ctx = f.ctx();
     let cache = RefCell::new(RowCache::default());
-    build(&t.entries, &ctx, &cache);
-    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache, Plan::all());
+    build(&t.entries, &ctx, &cache, Plan::all());
     assert_eq!(cache.borrow().rebuilt, 1, "转圈、走表的那一段每帧重排");
 }
 
@@ -147,12 +147,12 @@ fn a_running_compaction_line_is_rebuilt_every_frame() {
     ));
     let ctx = f.ctx();
     let cache = RefCell::new(RowCache::default());
-    build(&t.entries, &ctx, &cache);
-    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache, Plan::all());
+    build(&t.entries, &ctx, &cache, Plan::all());
     assert_eq!(cache.borrow().rebuilt, 1, "只重排在压的那一行");
     t.entries.last_mut().unwrap().progress = None;
-    build(&t.entries, &ctx, &cache);
-    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache, Plan::all());
+    build(&t.entries, &ctx, &cache, Plan::all());
     assert_eq!(cache.borrow().rebuilt, 0, "压好了就照常记着");
 }
 
@@ -162,10 +162,10 @@ fn entries_are_known_by_id_not_position() {
     let mut t = sample();
     let ctx = f.ctx();
     let cache = RefCell::new(RowCache::default());
-    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache, Plan::all());
     // 排队退回的消息会从中间抽走：后面的条目挪了位置，点中的东西要跟着对。
     t.entries.remove(0);
-    let cached = build(&t.entries, &ctx, &cache);
+    let cached = build(&t.entries, &ctx, &cache, Plan::all());
     let fresh = fresh_rows(&t.entries, &ctx);
     let targets: Vec<Option<Target>> = cached.iter().map(|r| r.target).collect();
     assert_eq!(targets, fresh.iter().map(|r| r.target).collect::<Vec<_>>());
@@ -179,10 +179,10 @@ fn a_finished_figure_rebuilds_only_entries_with_figures() {
     let t = sample();
     let ctx = f.ctx();
     let cache = RefCell::new(RowCache::default());
-    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache, Plan::all());
     // 图做好了、被扔掉了：只有带图的条目占几行会变；这四条都没有图，一条都不排（2026-10-01 性能体检：原来全排）。
     ctx.figures.borrow_mut().forget();
-    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache, Plan::all());
     assert_eq!(cache.borrow().rebuilt, 0);
 }
 
@@ -194,7 +194,7 @@ fn switching_the_level_rebuilds_only_what_you_said_without_a_level() {
     let t = sample();
     let mut ctx = f.ctx();
     let cache = RefCell::new(RowCache::default());
-    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache, Plan::all());
     let unlevelled = t
         .entries
         .iter()
@@ -205,7 +205,7 @@ fn switching_the_level_rebuilds_only_what_you_said_without_a_level() {
     } else {
         crate::core::Level::ReadOnly
     };
-    build(&t.entries, &ctx, &cache);
+    build(&t.entries, &ctx, &cache, Plan::all());
     assert_eq!(cache.borrow().rebuilt, unlevelled);
     assert!(unlevelled < 4);
 }
@@ -393,13 +393,13 @@ fn a_details_title_opens_and_closes_its_reply() {
     );
     let cache = RefCell::new(RowCache::default());
     let plain = |t: &Transcript, ctx: &crate::ui::rows::Ctx| -> Vec<String> {
-        build(&t.entries, ctx, &cache)
+        build(&t.entries, ctx, &cache, Plan::all())
             .iter()
             .map(|r| r.plain.clone())
             .collect()
     };
     let target = Target::Details(0, 0);
-    let shut = build(&t.entries, &f.ctx(), &cache);
+    let shut = build(&t.entries, &f.ctx(), &cache, Plan::all());
     let title = shut.iter().find(|r| r.target == Some(target)).unwrap();
     assert_eq!(title.plain, "点我展开", "标题那一行能点，记号不复制");
     assert!(!plain(&t, &f.ctx()).iter().any(|l| l.contains("里面的字")));
@@ -409,7 +409,7 @@ fn a_details_title_opens_and_closes_its_reply() {
     // 悬停：标题变亮。
     let mut ctx = f.ctx();
     ctx.hover = Some(target);
-    let lit = build(&t.entries, &ctx, &cache);
+    let lit = build(&t.entries, &ctx, &cache, Plan::all());
     let row = lit.iter().find(|r| r.target == Some(target)).unwrap();
     assert!(
         row.line
@@ -418,4 +418,66 @@ fn a_details_title_opens_and_closes_its_reply() {
             .any(|s| s.style.fg == crate::theme::hover().fg),
         "悬停变亮"
     );
+}
+
+#[test]
+fn a_full_relayout_is_spread_over_frames_starting_near_the_viewport() {
+    // 2026-10-01 性能体检：改宽度、换语言以后整份重排，300 条消息那一帧要 29–37 毫秒。一帧只排预算这么多，先排视口附近的，
+    // 没轮到的先用旧行，几帧排完；排完和一口气排的一模一样。
+    let _theme = crate::theme::hold();
+    let f = Fixture::new();
+    let mut t = Transcript::default();
+    for _ in 0..5 {
+        for e in sample().entries {
+            t.entries.push(e);
+        }
+    }
+    for (i, e) in t.entries.iter_mut().enumerate() {
+        e.id = i as u64;
+    }
+    let mut ctx = f.ctx();
+    let cache = RefCell::new(RowCache::default());
+    build(&t.entries, &ctx, &cache, Plan::all());
+    ctx.width = 40;
+    let tight = Plan {
+        budget: Some(Duration::ZERO),
+        anchor: None,
+    };
+    build(&t.entries, &ctx, &cache, tight);
+    assert_eq!(cache.borrow().rebuilt, 1, "预算用完了：这一帧只排一条");
+    assert_eq!(cache.borrow().stale, t.entries.len() - 1, "别的先用旧行");
+    let mut frames = 1;
+    while cache.borrow().stale > 0 {
+        build(&t.entries, &ctx, &cache, tight);
+        frames += 1;
+        assert!(frames <= t.entries.len(), "每帧至少排一条");
+    }
+    let spread = build(&t.entries, &ctx, &cache, tight);
+    let fresh = fresh_rows(&t.entries, &ctx);
+    assert_eq!(
+        lines(spread.iter().map(|r| r.line.to_string())),
+        lines(fresh.iter().map(|r| r.line.to_string()))
+    );
+    // 翻上去看着第 3 条：先排它。
+    ctx.width = 60;
+    let near = Plan {
+        budget: Some(Duration::ZERO),
+        anchor: Some(3),
+    };
+    let rows = build(&t.entries, &ctx, &cache, near);
+    assert_eq!(rows.entry_at(rows.start_of(3).unwrap()), Some(3));
+    assert!(cache.borrow().fresh(3), "视口那一条先排");
+}
+
+#[test]
+fn switching_from_auto_to_the_same_language_by_hand_rebuilds_everything() {
+    // 2026-10-01 伪终端测具查出来的：自动（系统中文）换成手动选中文，语言代码没变，收起那一行却要从英文换成中文。
+    let _theme = crate::theme::hold();
+    let mut f = Fixture::new();
+    let t = sample();
+    let cache = RefCell::new(RowCache::default());
+    build(&t.entries, &f.ctx(), &cache, Plan::all());
+    f.config.auto = !f.config.auto;
+    build(&t.entries, &f.ctx(), &cache, Plan::all());
+    assert_eq!(cache.borrow().rebuilt, 4);
 }

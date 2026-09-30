@@ -95,8 +95,8 @@ impl App {
         };
         self.config.language = next;
         self.config.auto = auto;
-        // 排好的行里有旧语言的字（时间线的标题、收起那一行、工具的显示名）：重排。
-        *self.row_cache.borrow_mut() = Default::default();
+        // 排好的行里有旧语言的字（时间线的标题、收起那一行、工具的显示名）：语言算进排版的条件，下一帧照预算重排，
+        // 不扔掉记着的行（没轮到的先用旧行，蓝图「正文」第 8 条）。
         self.hint(hint, false);
     }
 }

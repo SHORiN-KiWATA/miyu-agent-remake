@@ -16,6 +16,7 @@ mod foreign;
 mod level;
 mod link;
 mod queue;
+mod recap;
 mod redo;
 mod waiting;
 

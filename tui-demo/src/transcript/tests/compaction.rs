@@ -332,6 +332,7 @@ fn a_manual_compaction_puts_its_time_and_usage_on_the_result_line() {
                 cache_read: 58_000,
                 cache_write: 0,
                 output: 0,
+                aux: 0,
             }),
             Push::Compaction(done),
             Push::TurnEnded(EndReason::Completed),

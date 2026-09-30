@@ -70,16 +70,26 @@ fn another_icon_set_redraws_the_steps_already_laid_out() {
     seg.finished = true;
     t.entries[0].segment = Some(seg);
     let cache = RefCell::new(RowCache::default());
-    let before: Vec<String> = build(&t.entries, &f.ctx(), &cache)
-        .iter()
-        .map(|r| r.line.to_string())
-        .collect();
+    let before: Vec<String> = build(
+        &t.entries,
+        &f.ctx(),
+        &cache,
+        crate::ui::row_cache::Plan::all(),
+    )
+    .iter()
+    .map(|r| r.line.to_string())
+    .collect();
     assert!(before.iter().any(|l| l.contains(&f.config.icons.think)));
     f.config.icons = f.config.icon_sets[1].clone();
-    let after: Vec<String> = build(&t.entries, &f.ctx(), &cache)
-        .iter()
-        .map(|r| r.line.to_string())
-        .collect();
+    let after: Vec<String> = build(
+        &t.entries,
+        &f.ctx(),
+        &cache,
+        crate::ui::row_cache::Plan::all(),
+    )
+    .iter()
+    .map(|r| r.line.to_string())
+    .collect();
     assert_eq!(cache.borrow().rebuilt, 1, "换了一套：排好的也重排");
     assert!(
         after.iter().any(|l| l.contains("✳ 已思考")),

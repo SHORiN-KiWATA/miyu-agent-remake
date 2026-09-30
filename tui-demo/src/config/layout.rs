@@ -73,6 +73,8 @@ pub struct Layout {
     pub markdown_cache: usize,
     /// 记帧时（`MIYU_TUI_FRAME_LOG`）整帧超过这么多毫秒的，写上各块各花了多久（蓝图「环境变量」）。
     pub slow_frame_ms: u64,
+    /// 整份重排时一帧最多花多少毫秒，没排完的下几帧接着排（蓝图「正文」第 8 条）。
+    pub relayout_budget_ms: u64,
     /// 连不上核心时隔多久再试，`[最短, 最长]` 毫秒，每次翻倍（蓝图「连核心」第 7 条）。
     pub reconnect_ms: [u64; 2],
     /// 运行状态行词后面的三个点：一直在，和词一起被流光扫（`tui.md`「运行状态行和排队的消息」第 2 条）。
@@ -99,6 +101,8 @@ pub struct Layout {
     pub history_preview_rows: usize,
     /// 正文里用户说的话前面那根竖线，连同它后面的空格。
     pub user_bar: String,
+    /// 回顾前面的记号，连同它后面的空格（`tui.md`「回顾」第 2 条）。
+    pub recap_mark: String,
     /// 撤销那一行前面的符号，连同它后面的空格。
     pub undo_icon: String,
     /// 一轮做完的收尾行前面的符号，连同它后面的空格。

@@ -124,7 +124,7 @@ fn ruler_body() {
         let md_done = anon_kb();
         let cache = std::cell::RefCell::new(crate::ui::row_cache::RowCache::default());
         let cold = Instant::now();
-        crate::ui::row_cache::build(&t.entries, &ctx, &cache);
+        crate::ui::row_cache::build(&t.entries, &ctx, &cache, crate::ui::row_cache::Plan::all());
         let cold = cold.elapsed();
         let cache_done = anon_kb();
         if let (Some(b), Some(x), Some(m), Some(c)) = (before, text_done, md_done, cache_done) {
@@ -137,7 +137,12 @@ fn ruler_body() {
         }
         let warm = Instant::now();
         for _ in 0..10 {
-            std::hint::black_box(crate::ui::row_cache::build(&t.entries, &ctx, &cache));
+            std::hint::black_box(crate::ui::row_cache::build(
+                &t.entries,
+                &ctx,
+                &cache,
+                crate::ui::row_cache::Plan::all(),
+            ));
         }
         let grew = anon_kb().zip(before).map(|(a, b)| a.saturating_sub(b));
         println!(
@@ -296,7 +301,8 @@ fn ruler_memory() {
     let text_kb = anon_kb();
     let ctx = f.ctx();
     let cache = std::cell::RefCell::new(crate::ui::row_cache::RowCache::default());
-    let rows = crate::ui::row_cache::build(&t.entries, &ctx, &cache);
+    let rows =
+        crate::ui::row_cache::build(&t.entries, &ctx, &cache, crate::ui::row_cache::Plan::all());
     let built_kb = anon_kb();
     let md = ctx.md.borrow().len();
     let row: usize = rows
@@ -422,6 +428,72 @@ fn ruler_finished_thought_in_a_live_segment() {
         println!(
             "思考 {chars} 字写完了、这一段还在进行：一帧 {:.2}ms，留下 {n} 行",
             start.elapsed().as_secs_f64() * 1000.0
+        );
+    }
+}
+
+/// 长会话改宽度（或换语言、主题）以后整份重排分几帧：每帧多久、几帧排完（蓝图「正文」第 8 条）。`RULER_TURNS` 定几轮。
+#[test]
+#[ignore]
+fn ruler_spread_relayout() {
+    use crate::transcript::{Kind, Transcript};
+    use crate::ui::row_cache::{Plan, RowCache, build};
+    let turns = std::env::var("RULER_TURNS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(150usize);
+    let f = Fixture::new();
+    let t0 = Instant::now();
+    let think = "我们需要想清楚这个问题的每一步。\n".repeat(120);
+    let reply = "## 结论\n\n- 第一点：**要紧的**先说\n- 第二点：`code` 放这里\n\n一段普通的回答文字，稍微长一点，好折几行。\n".repeat(20);
+    let mut t = Transcript::default();
+    for _ in 0..turns {
+        t.note(Kind::User, "帮我看看这个目录".into());
+        t.note(Kind::Steps, String::new());
+        let mut seg = segment(
+            vec![
+                step(
+                    StepKind::Thought {
+                        text: think.clone(),
+                    },
+                    t0,
+                    0,
+                    3,
+                ),
+                command(t0, 3, ToolStatus::Ok),
+            ],
+            None,
+        );
+        seg.finished = true;
+        t.entries.last_mut().unwrap().segment = Some(seg);
+        t.note(Kind::Reply, reply.clone());
+    }
+    let mut ctx = f.ctx();
+    let cache = std::cell::RefCell::new(RowCache::default());
+    build(&t.entries, &ctx, &cache, Plan::all());
+    for (label, budget) in [
+        ("不限", None),
+        ("每帧 8ms", Some(std::time::Duration::from_millis(8))),
+    ] {
+        ctx.width = if ctx.width == 60 { 50 } else { 60 };
+        let plan = Plan {
+            budget,
+            anchor: None,
+        };
+        let mut times = Vec::new();
+        loop {
+            let start = Instant::now();
+            build(&t.entries, &ctx, &cache, plan);
+            times.push(start.elapsed().as_secs_f64() * 1000.0);
+            if cache.borrow().stale == 0 {
+                break;
+            }
+        }
+        let max = times.iter().cloned().fold(0.0, f64::max);
+        println!(
+            "{turns} 轮改宽度（{label}）：{} 帧排完，最慢一帧 {max:.2}ms，头一帧 {:.2}ms",
+            times.len(),
+            times[0]
         );
     }
 }

@@ -237,12 +237,24 @@ impl App {
         self.input.remember(Draft::plain(&line));
         self.view.follow();
         match spec.run {
-            Run::Revert | Run::Unrevert | Run::Compact | Run::Clear | Run::Redo | Run::Edit
+            Run::Revert
+            | Run::Unrevert
+            | Run::Compact
+            | Run::Clear
+            | Run::Redo
+            | Run::Edit
+            | Run::Recap
                 if !self.reachable() =>
             {
                 self.input.editor.set_draft(Draft::plain(&line));
             }
-            Run::Revert | Run::Unrevert | Run::Compact | Run::Clear | Run::Redo | Run::Edit
+            Run::Revert
+            | Run::Unrevert
+            | Run::Compact
+            | Run::Clear
+            | Run::Redo
+            | Run::Edit
+            | Run::Recap
                 if self.not_opened() =>
             {
                 self.nothing_yet(spec.run);
@@ -250,6 +262,11 @@ impl App {
             Run::Redo => self.redo(),
             Run::Edit => self.edit_last(),
             Run::Clear => self.core.send(Command::Clear),
+            Run::Recap => {
+                self.core.send(Command::Recap);
+                let note = self.config.text.recap.working.clone();
+                self.hint(note, false);
+            }
             Run::Copy => self.copy_reply(),
             Run::New => self.new_session(),
             Run::Revert => self.core.send(Command::Revert),

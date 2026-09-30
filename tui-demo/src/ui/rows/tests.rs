@@ -147,11 +147,45 @@ fn a_compacted_line_has_a_green_dot_that_is_not_copied() {
 }
 
 #[test]
+fn a_recap_leads_with_a_dim_reference_mark_and_folds_under_its_words() {
+    // 2026-10-01 项目主人：回顾不要行首的粗竖线，换成暗色的 `※`。
+    use crate::transcript::{Kind, Transcript};
+    use crate::ui::test_support::Fixture;
+    let f = Fixture::new();
+    let mut ctx = f.ctx();
+    ctx.width = 20;
+    let mut t = Transcript::default();
+    t.note(Kind::Recap, "回顾：在做一件很长很长很长很长的事。".into());
+    let rows = super::entry_rows(0, &t.entries[0], &ctx);
+    assert!(rows.len() > 1, "窄了要折行");
+    let mark = rows[0]
+        .line
+        .spans
+        .iter()
+        .find(|s| s.content == "※ ")
+        .unwrap();
+    assert_eq!(mark.style, theme::dim(), "记号暗");
+    assert!(
+        rows.iter().all(|r| !r.line.to_string().contains('┃')),
+        "没有竖线"
+    );
+    assert!(
+        rows[1].line.to_string().contains("  "),
+        "折下来的行和字对齐"
+    );
+    assert!(
+        !rows[0].plain.contains('※'),
+        "复制时不带记号：{}",
+        rows[0].plain
+    );
+}
+
+#[test]
 fn a_new_theme_redraws_cached_replies() {
     let _theme = theme::hold();
-    let before = cache_key("**粗**", &[]);
+    let before = cache_key("**粗**", &[], "zh");
     // 设回同一套：颜色不变（不扰别的测试），但换过一次，排好的样子就作废。
     let palette = theme::builtin().unwrap().remove(0).1;
     theme::set(palette);
-    assert_ne!(cache_key("**粗**", &[]), before);
+    assert_ne!(cache_key("**粗**", &[], "zh"), before);
 }

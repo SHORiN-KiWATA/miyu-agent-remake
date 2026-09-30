@@ -42,6 +42,16 @@ pub use open::OpenTexts;
 pub use panels::{HistoryTexts, MenuTexts};
 pub use timeline::{Summary, Timeline, ToolKind};
 
+/// 回顾的字（蓝图「回顾」）。
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RecapTexts {
+    /// 正文里那一段，`{text}` 是核心给的那一句。
+    pub label: String,
+    /// 发出去时弹的提示。
+    pub working: String,
+}
+
 /// 后台命令、子代理、待办的字（蓝图「后台命令、子代理和侧边栏」）。
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -239,6 +249,8 @@ pub struct Texts {
     pub refusals: HashMap<String, String>,
     /// 这几种拒绝不写进正文，只弹提示框（`nothing_to_compact` 的「上下文过少」，蓝图「正文」第 9 条）。
     pub refusal_hints: HashMap<String, String>,
+    /// 回顾（`/recap`，蓝图「回顾」）。
+    pub recap: RecapTexts,
     /// 输入历史列表上的字（蓝图「输入历史列表」）。
     pub history: HistoryTexts,
     /// 斜杠命令列表上的字（蓝图「斜杠命令列表」）。

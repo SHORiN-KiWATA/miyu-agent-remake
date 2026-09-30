@@ -54,6 +54,7 @@ fn the_done_line_counts_this_turn_and_its_cache_hits() {
             cache_read,
             cache_write: 0,
             output,
+            aux: 0,
         })
     };
     let turn = |n, calls: Vec<Push>| {

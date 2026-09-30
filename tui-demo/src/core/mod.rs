@@ -80,6 +80,8 @@ pub enum Command {
     Level(Level),
     /// 清空上下文（`session.clear`，`/clear`）。
     Clear,
+    /// 要一段回顾（`session.recap`，`/recap`）。
+    Recap,
     /// 重做最后一轮（`session.redo`，`/redo`、`/edit`）：`text` 换开这一轮的那句字，`files` 换附件（空的是不要附件），
     /// 都是 `None` 的原样重来。
     Redo {
@@ -116,6 +118,8 @@ pub enum Update {
     Limits(Limits),
     /// 会话里的事。
     Push(Push),
+    /// 回顾交回的是上一句（`cached`：上次回顾以后没有新内容，核心不推 `session.recapped`），照它画（蓝图「回顾」第 3 条）。
+    Recap(String),
     /// 撤销（`restore` 为假）或恢复成了：核心算好的给人看的几样（`protocol/undo.md`）。
     Undone {
         /// 是恢复。

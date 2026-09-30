@@ -62,6 +62,15 @@
       "args": true
     },
     {
+      "name": "recap",
+      "summary": {
+        "zh": "回顾一下：在做什么、做完了什么、还剩什么",
+        "en": "Recap what is being done, what is done and what is left",
+        "ja": "振り返り：今やっていること、終わったこと、残っていること"
+      },
+      "run": "recap"
+    },
+    {
       "name": "theme",
       "summary": {
         "zh": "换一套颜色：tokyonight-night、terminal 轮着换",

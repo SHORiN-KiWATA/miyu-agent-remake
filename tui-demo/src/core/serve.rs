@@ -48,6 +48,8 @@ enum Awaiting {
     Watch(String),
     /// 读一条后台命令的输出：哪个会话、任务编号。
     Output(String, String),
+    /// 要回顾：交回的是上一句的，界面照回应画（写成了的照推送画）。
+    Recap,
 }
 
 /// 在一条连接上收发，直到界面关了或者连接断了。
@@ -191,6 +193,7 @@ async fn send(
         Command::Unrevert => Some(Awaiting::Unrevert),
         Command::Send { .. } => Some(Awaiting::Send),
         Command::Redo { .. } => Some(Awaiting::Redo),
+        Command::Recap => Some(Awaiting::Recap),
         _ => None,
     };
     let files = match &command {
@@ -282,6 +285,13 @@ async fn take(
         }
         // 说的话、重做成了：落盘、开轮都照推送来，回应不用管。
         Some(Awaiting::Send | Awaiting::Redo) => return true,
+        // 回顾：写成了的已经照推送（`session.recapped`）画过；交回上一句的核心不推，照回应画（蓝图「回顾」第 3 条）。
+        Some(Awaiting::Recap) => {
+            let result = &message["result"];
+            let text = result["text"].as_str().unwrap_or_default();
+            return !(result["cached"].as_bool() == Some(true) && !text.is_empty())
+                || notify(Update::Recap(text.to_string()));
+        }
         Some(Awaiting::Output(session, job)) => {
             let output = Some(JobOutput::read(&message["result"]));
             return notify(Update::Output {

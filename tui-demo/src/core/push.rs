@@ -55,6 +55,9 @@ pub struct Usage {
     pub cache_write: u64,
     /// 输出。
     pub output: u64,
+    /// 辅助请求（回顾这类）用的 token，输入输出合在一起：累计里算它，缓存命中率、输入输出的拆分不算（蓝图「回顾」第 5 条）。
+    /// 核心推来的一次请求里总是 0，只在界面这一头累加。
+    pub aux: u64,
 }
 
 impl Usage {
@@ -165,6 +168,10 @@ pub enum Push {
     },
     /// 一次请求的用量（`model.called` 的 `usage`，供应商没报的没有这一条）。
     Usage(Usage),
+    /// 辅助请求（回顾这类，`model.called` 带 `purpose`）的用量：算进累计，不算上下文、缓存、速度（蓝图「回顾」第 5 条）。
+    AuxUsage(Usage),
+    /// 写成了一段回顾（`session.recapped`）。
+    Recapped(String),
     /// 一次真发出去的请求（`model.called` 带 `request`；没编码就失败的没有这一条）：侧边栏数缓存断裂用。
     Sent {
         /// 看到第几条为止（`seen`）。
@@ -230,6 +237,12 @@ pub fn read(event: &Value, mine: &dyn Fn(&str) -> bool) -> Vec<Push> {
             if let Some(level) = Level::parse(&text(&body["permission"]["level"])) {
                 let read_only = body["permission"]["read_only"] == true;
                 out.push(Push::Policy { level, read_only });
+            }
+        }
+        // 写成了一段回顾：不进她的上下文，画在正文末尾（蓝图「回顾」）。
+        "session.recapped" => {
+            if let Some(text) = body["text"].as_str().filter(|t| !t.trim().is_empty()) {
+                out.push(Push::Recapped(text.trim().to_string()));
             }
         }
         "session.meta_changed" => {
@@ -300,15 +313,20 @@ pub fn read(event: &Value, mine: &dyn Fn(&str) -> bool) -> Vec<Push> {
         }
         "model.called" => {
             let usage = &body["usage"];
-            if usage.is_object() {
-                let n = |k: &str| usage[k].as_u64().unwrap_or_default();
-                out.push(Push::Usage(Usage {
-                    uncached: n("uncached"),
-                    cache_read: n("cache_read"),
-                    cache_write: n("cache_write"),
-                    output: n("output"),
-                }));
+            let n = |k: &str| usage[k].as_u64().unwrap_or_default();
+            let spent = usage.is_object().then(|| Usage {
+                uncached: n("uncached"),
+                cache_read: n("cache_read"),
+                cache_write: n("cache_write"),
+                output: n("output"),
+                aux: 0,
+            });
+            // 辅助请求（回顾）：只算用量，不动上下文、缓存、速度，出错也不算这一轮的错。
+            if body["purpose"].as_str().is_some_and(|p| !p.is_empty()) {
+                out.extend(spent.map(Push::AuxUsage));
+                return out;
             }
+            out.extend(spent.map(Push::Usage));
             let summary = !body["compaction"].is_null();
             if !body["request"].is_null() {
                 out.push(Push::Sent {

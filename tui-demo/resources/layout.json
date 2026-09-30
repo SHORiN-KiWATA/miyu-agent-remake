@@ -18,11 +18,13 @@
   "key_burst_ms": 2,
   "markdown_cache": 8,
   "slow_frame_ms": 8,
+  "relayout_budget_ms": 8,
   "reconnect_ms": [
     500,
     5000
   ],
   "user_bar": "┃ ",
+  "recap_mark": "※ ",
   "done_icon": "✻ ",
   "done_gap": {
     "workspace": " "

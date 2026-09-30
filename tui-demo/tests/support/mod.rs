@@ -1,0 +1,274 @@
+//! 伪终端里的端到端测试共用的（蓝图 `tui.md`「守着它的」）：临时的数据根、照剧本回话的核心（和 `miyu-endpoint` 的测试
+//! 同一套：`Core::new` 加剧本，开在数据根的套接字上）、伪终端里起的真界面、读屏幕、回终端的查询。
+//!
+//! 不走网络、不花钱，同一个剧本每次一样。界面照 `MIYU_HOME` 找到数据根里记着的套接字、令牌，自己连上去。
+
+#![allow(dead_code, reason = "几个测试各用其中一部分")]
+
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc::{Receiver, RecvTimeoutError, channel};
+use std::sync::{Arc, Mutex, PoisonError};
+use std::time::{Duration, Instant};
+
+use miyu_endpoint::{Core, run};
+use miyu_ipc::{Dirs, open};
+use miyu_kernel::id::AccountId;
+use miyu_session::testkit::Script;
+use miyu_store::env::{Env, Platform};
+use miyu_store::resources::ResourceRoot;
+use miyu_store::root::DataRoot;
+use miyu_tool::Catalog;
+use portable_pty::{Child, CommandBuilder, MasterPty, PtySize, native_pty_system};
+
+/// 窗口多大。
+pub const COLS: u16 = 100;
+/// 窗口多高。
+pub const ROWS: u16 = 40;
+/// 等一样东西出现最多等多久。
+pub const WAIT: Duration = Duration::from_secs(15);
+
+/// 仓库里出厂的资源目录（工具的显示名、核心给人看的字）。
+fn resources() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../resources")
+}
+
+/// 一个用完就删的临时数据根和工作目录，上面跑着一份照剧本回话的核心。
+pub struct Home {
+    dir: PathBuf,
+    /// 界面的工作目录：在数据根外面。
+    pub work: PathBuf,
+    /// 核心跑在这个线程的运行时里；丢掉 `Home` 时整个进程的测试线程都还在，核心跟着测试进程走。
+    _core: std::thread::JoinHandle<()>,
+}
+
+impl Home {
+    /// 起一份核心：管理员 alice，请求模型照 `script` 回，没有工具。
+    pub fn new(script: Script) -> Home {
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        let n = NEXT.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("miyu-tui-{}-{n}", std::process::id()));
+        let work = std::env::temp_dir().join(format!("miyu-tui-work-{}-{n}", std::process::id()));
+        std::fs::create_dir_all(&work).expect("建得了工作目录");
+        let work = std::fs::canonicalize(&work).expect("在");
+        let env = Env {
+            platform: Platform::current(),
+            miyu_home: Some(dir.clone().into_os_string()),
+            home: None,
+            xdg_cache_home: None,
+            local_app_data: None,
+            miyu_resources: None,
+            exe: None,
+        };
+        let root = DataRoot::locate(&env).expect("MIYU_HOME 是绝对路径");
+        root.prepare().expect("临时目录里建得了骨架");
+        let (ready, started) = channel();
+        let core = std::thread::spawn(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("起得来运行时");
+            runtime.block_on(async move {
+                let dirs = Dirs {
+                    runtime_dir: None,
+                    ..Dirs::current()
+                };
+                let opened = open(&root, &dirs).expect("起得来");
+                let admin = AccountId::parse("alice").expect("账号合写法");
+                let core = Arc::new(Core::new(
+                    root,
+                    ResourceRoot::at(resources()),
+                    Arc::new(script),
+                    Catalog::default(),
+                    None,
+                    admin,
+                    opened.token,
+                ));
+                ready.send(()).expect("测试还在等");
+                run(opened.listener, core).await;
+            });
+        });
+        started.recv_timeout(WAIT).expect("核心起来了");
+        Home {
+            dir,
+            work,
+            _core: core,
+        }
+    }
+
+    /// 在伪终端里起界面，连这份核心；`lang` 是系统语言（`LANG`）。
+    pub fn tui(&self, lang: &str) -> Tui {
+        Tui::spawn(&self.dir, &self.work, lang)
+    }
+}
+
+impl Drop for Home {
+    fn drop(&mut self) {
+        drop(std::fs::remove_dir_all(&self.work));
+        drop(std::fs::remove_dir_all(&self.dir));
+    }
+}
+
+/// 伪终端里跑着的界面。
+pub struct Tui {
+    screen: vt100::Parser,
+    bytes: Receiver<Vec<u8>>,
+    writer: Arc<Mutex<Box<dyn Write + Send>>>,
+    child: Box<dyn Child + Send + Sync>,
+    _master: Box<dyn MasterPty + Send>,
+}
+
+impl Tui {
+    fn spawn(home: &Path, work: &Path, lang: &str) -> Tui {
+        let pty = native_pty_system()
+            .openpty(PtySize {
+                rows: ROWS,
+                cols: COLS,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .expect("开得了伪终端");
+        let mut command = CommandBuilder::new(env!("CARGO_BIN_EXE_miyu-tui-demo"));
+        command.cwd(work);
+        for name in [
+            "MIYU_CORE_BIN",
+            "MIYU_TUI_FRAME_LOG",
+            "TMUX",
+            "KITTY_WINDOW_ID",
+            "LC_ALL",
+            "LC_MESSAGES",
+        ] {
+            command.env_remove(name);
+        }
+        for (name, _) in std::env::vars().filter(|(k, _)| k.starts_with("HERDR_")) {
+            command.env_remove(name);
+        }
+        command.env("MIYU_HOME", home);
+        command.env("MIYU_RESOURCES", resources());
+        command.env("XDG_CACHE_HOME", home.join("cache"));
+        command.env("TERM", "xterm-256color");
+        command.env("COLORTERM", "truecolor");
+        command.env("LANG", lang);
+        let child = pty.slave.spawn_command(command).expect("起得来界面");
+        drop(pty.slave);
+        let mut reader = pty.master.try_clone_reader().expect("读得了");
+        let writer = Arc::new(Mutex::new(pty.master.take_writer().expect("写得了")));
+        let (send, bytes) = channel();
+        std::thread::spawn(move || {
+            let mut buf = [0u8; 65536];
+            while let Ok(n) = reader.read(&mut buf) {
+                if n == 0 || send.send(buf[..n].to_vec()).is_err() {
+                    break;
+                }
+            }
+        });
+        Tui {
+            screen: vt100::Parser::new(ROWS, COLS, 0),
+            bytes,
+            writer,
+            child,
+            _master: pty.master,
+        }
+    }
+
+    /// 写给界面（按键、粘贴）。
+    pub fn send(&mut self, bytes: &[u8]) {
+        let mut writer = self.writer.lock().unwrap_or_else(PoisonError::into_inner);
+        writer.write_all(bytes).expect("写得进去");
+        writer.flush().expect("写得进去");
+    }
+
+    /// 按一个键，停一下让界面画完：单独的 Esc 后面紧跟着字，终端会读成 Alt 加那个字，真人按键之间总会停一下。
+    pub fn key(&mut self, bytes: &[u8]) {
+        self.send(bytes);
+        self.pump(Duration::from_millis(250));
+    }
+
+    /// 打一串字（不回车）。
+    pub fn type_text(&mut self, text: &str) {
+        self.send(text.as_bytes());
+        self.pump(Duration::from_millis(150));
+    }
+
+    /// 打一句、回车。
+    pub fn say(&mut self, text: &str) {
+        self.type_text(text);
+        self.send(b"\r");
+    }
+
+    /// 收界面写出来的，最多 `wait`：喂给屏幕，顺手回终端的查询（像真终端那样答：认得键盘协议、没有图的协议）。
+    pub fn pump(&mut self, wait: Duration) {
+        let end = Instant::now() + wait;
+        loop {
+            let left = end.saturating_duration_since(Instant::now());
+            match self.bytes.recv_timeout(left) {
+                Ok(data) => self.feed(&data),
+                Err(RecvTimeoutError::Timeout | RecvTimeoutError::Disconnected) => return,
+            }
+        }
+    }
+
+    fn feed(&mut self, data: &[u8]) {
+        let has = |needle: &[u8]| data.windows(needle.len()).any(|w| w == needle);
+        if has(b"_Gi=31") {
+            self.send(b"\x1b[?62c\x1b[6;20;10t\x1b[0n");
+            return;
+        }
+        if has(b"\x1b[?u") {
+            self.send(b"\x1b[?0u");
+        }
+        if has(b"\x1b[c") {
+            self.send(b"\x1b[?62c");
+        }
+        if has(b"\x1b[6n") {
+            self.send(b"\x1b[1;1R");
+        }
+        self.screen.process(data);
+    }
+
+    /// 屏幕上的字，一行一行。
+    pub fn lines(&self) -> Vec<String> {
+        self.screen
+            .screen()
+            .rows(0, COLS)
+            .map(|l| l.trim_end().to_string())
+            .collect()
+    }
+
+    /// 屏幕上有没有这串字。
+    pub fn shows(&self, text: &str) -> bool {
+        self.lines().iter().any(|l| l.contains(text))
+    }
+
+    /// 等到屏幕上出现这串字，最多 [`WAIT`]；等不到的把屏幕打出来再报错。
+    pub fn wait_for(&mut self, text: &str) {
+        let end = Instant::now() + WAIT;
+        while !self.shows(text) {
+            assert!(
+                Instant::now() < end,
+                "等不到「{text}」，屏幕是：\n{}",
+                self.lines().join("\n")
+            );
+            self.pump(Duration::from_millis(50));
+        }
+    }
+
+    /// 输入框里那一行的字（提示符后面的）。
+    pub fn input(&self) -> String {
+        self.lines()
+            .iter()
+            .rev()
+            .find(|l| l.contains('❯') && l.contains('│'))
+            .and_then(|l| l.split_once('❯'))
+            .map(|(_, rest)| rest.trim_end_matches('│').trim().to_string())
+            .unwrap_or_default()
+    }
+}
+
+impl Drop for Tui {
+    fn drop(&mut self) {
+        drop(self.child.kill());
+        drop(self.child.wait());
+    }
+}

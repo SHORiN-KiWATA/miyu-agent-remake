@@ -205,10 +205,11 @@ pub fn info_lines(
     }
     // 用量连同子代理用的（`App::usage_total`，2026-09-30 项目主人）。
     let input = total.input();
-    if input + total.output > 0 {
+    if input + total.output + total.aux > 0 {
         out.push(Line::raw(""));
         out.push(Line::styled(text.side_usage.clone(), bold));
-        let sum = meter::short(input + total.output);
+        // 共多少连同回顾这类辅助请求；输入输出、命中率只照主对话（蓝图「回顾」第 5 条）。
+        let sum = meter::short(input + total.output + total.aux);
         out.push(item(
             text.side_total.replace("{tokens}", &sum),
             theme::dim(),

@@ -155,6 +155,7 @@ fn a_call_reports_its_usage() {
         cache_read: 30,
         cache_write: 0,
         output: 5,
+        aux: 0,
     };
     assert_eq!(read_mine(&event), vec![Push::Usage(usage), Push::CallOk]);
     assert_eq!(usage.input(), 40);
@@ -340,4 +341,33 @@ fn a_subagent_effect_is_read_as_an_agent_like_the_old_name() {
         };
         assert!(start.agent, "{what}");
     }
+}
+
+#[test]
+fn a_recap_call_only_counts_as_usage_and_the_recap_is_read() {
+    // 2026-10-01 回顾（session.recap）：带 purpose 的模型调用只算用量，不算上下文、缓存、速度，出错也不算这一轮的错。
+    let call = json!({"seq": 30, "kind": "model.called", "by": {"kind": "model"},
+        "body": {"purpose": "recap", "request": {}, "seen": 29, "result": "error",
+            "usage": {"uncached": 300, "cache_read": 0, "cache_write": 0, "output": 55},
+            "duration_ms": 900, "first_token_ms": 400}});
+    let got = read_mine(&call);
+    assert!(
+        got.iter()
+            .any(|p| matches!(p, Push::AuxUsage(u) if u.uncached == 300 && u.output == 55)),
+        "{got:?}"
+    );
+    assert!(
+        !got.iter().any(|p| matches!(
+            p,
+            Push::Usage(_)
+                | Push::Sent { .. }
+                | Push::Speed { .. }
+                | Push::CallFailed(_)
+                | Push::CallOk
+        )),
+        "不算上下文、缓存、速度，出错也不算这一轮的错：{got:?}"
+    );
+    let recapped = json!({"seq": 31, "kind": "session.recapped", "by": {"kind": "kernel"},
+        "body": {"text": "  在做回顾。  ", "upto": 28}});
+    assert_eq!(read_mine(&recapped), [Push::Recapped("在做回顾。".into())]);
 }

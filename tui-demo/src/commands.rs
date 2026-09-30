@@ -53,6 +53,8 @@ pub enum Run {
     Edit,
     /// 现在就压缩上下文（`session.compact`），后面的字是给摘要的要求。
     Compact,
+    /// 要一段回顾（`session.recap`，蓝图「回顾」）。
+    Recap,
     /// 开新会话：清界面回首页，第一句话时再开（蓝图「斜杠命令」`/new`）。
     New,
     /// 清空上下文，会话不变（`session.clear`，蓝图「正文」第 9 条）。

@@ -33,8 +33,18 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
         frame: usize::try_from(app.started.elapsed().as_millis() / u128::from(spinner_ms))
             .unwrap_or(0),
     };
+    // 整份重排时一帧只排预算这么多，视口附近先排（蓝图「正文」第 8 条）：翻上去看着的照上一帧视口顶上那一条。
+    let plan = row_cache::Plan {
+        budget: Some(std::time::Duration::from_millis(
+            app.config.layout.relayout_budget_ms,
+        )),
+        anchor: app
+            .view
+            .top
+            .and_then(|_| app.view.rows.entry_at(app.view.first)),
+    };
     let mut rows = crate::frame_log::section("rows", || {
-        row_cache::build(&app.transcript.entries, &ctx, &app.row_cache)
+        row_cache::build(&app.transcript.entries, &ctx, &app.row_cache, plan)
     });
     // 等她的第一个字：正文末尾先转着（`tui.md`「时间线」第 19 条）。
     if app.transcript.waiting() {

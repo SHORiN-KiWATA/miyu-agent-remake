@@ -181,11 +181,11 @@ fn right(t: &Transcript, total: &Usage, config: &Config) -> Vec<Part> {
 /// 累计：`Σ3.5k(C82%)`；还是 0 的是 `None`。`total` 连同子代理用的（`App::usage_total`）。
 pub fn total_text(total: &Usage, config: &Config) -> Option<String> {
     let input = total.input();
-    (input + total.output > 0).then(|| {
+    (input + total.output + total.aux > 0).then(|| {
         config
             .text
             .total
-            .replace("{tokens}", &meter::short(input + total.output))
+            .replace("{tokens}", &meter::short(input + total.output + total.aux))
             .replace("{percent}", &meter::hit_rate(total.cache_read, input))
     })
 }

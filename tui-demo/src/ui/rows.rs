@@ -243,9 +243,9 @@ pub fn clip(text: &str, width: u16) -> String {
 }
 
 /// 缓存认的键：字、点过的 `<details>`、换过几次主题的哈希（颜色烤在排好的行里，换了主题要重排）。
-fn cache_key(text: &str, details: &[usize]) -> u64 {
+fn cache_key(text: &str, details: &[usize], language: &str) -> u64 {
     let mut hasher = DefaultHasher::new();
-    (text, details).hash(&mut hasher);
+    (text, details, language).hash(&mut hasher);
     theme::generation().hash(&mut hasher);
     hasher.finish()
 }
@@ -255,7 +255,7 @@ pub use super::md_cache::MdCache;
 /// 她的回答：按 Markdown 排（蓝图 `tui.md`「她的回答：Markdown」），查缓存。
 fn reply_rows(index: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
     let text = entry.text.trim_matches('\n');
-    let hash = cache_key(text, &entry.details);
+    let hash = cache_key(text, &entry.details, ctx.config.language.code());
     let lines = ctx.md.borrow_mut().lines(index, hash, ctx.width, || {
         let kit = markdown::Kit {
             languages: &ctx.config.languages,
@@ -307,13 +307,17 @@ fn text_rows(entry: &Entry, ctx: &Ctx) -> Vec<Row> {
             Span::styled(layout.user_bar.clone(), theme::dim()),
             theme::dim(),
         ),
+        Kind::Recap => (ctx.blank_slot(), theme::dim()),
         Kind::Error | Kind::Cut => (ctx.blank_slot(), theme::error()),
         Kind::User | Kind::Reply | Kind::Steps | Kind::Undo | Kind::Job => {
             (ctx.blank_slot(), Style::new())
         }
     };
-    // 前面带绿色记号的（压好了的 `● `）：记号是引子，折下来的行和字对齐（「正文」第 9 条）。
-    let mark = entry.mark.as_deref().unwrap_or_default();
+    // 前面带绿色记号的（压好了的 `● `）：记号是引子，折下来的行和字对齐（「正文」第 9 条）。回顾的 `※` 一样，暗色（「回顾」第 2 条）。
+    let (mark, mark_style) = match entry.kind {
+        Kind::Recap => (layout.recap_mark.as_str(), theme::dim()),
+        _ => (entry.mark.as_deref().unwrap_or_default(), theme::good()),
+    };
     let mark_width = u16::try_from(mark.width()).unwrap_or(0);
     let width = ctx.width.saturating_sub(mark_width).max(1);
     let pieces = match entry.kind {
@@ -330,7 +334,7 @@ fn text_rows(entry: &Entry, ctx: &Ctx) -> Vec<Row> {
         .map(|(i, (piece, joined))| {
             let lead = match (mark.is_empty(), i) {
                 (true, _) => Vec::new(),
-                (false, 0) => vec![Span::styled(mark.to_string(), theme::good())],
+                (false, 0) => vec![Span::styled(mark.to_string(), mark_style)],
                 (false, _) => vec![Span::raw(" ".repeat(usize::from(mark_width)))],
             };
             let mut row = ctx.led_row(slot.clone(), lead, vec![Span::styled(piece, style)]);

@@ -68,6 +68,7 @@ impl App {
             Run::Unrevert => "nothing_to_unrevert",
             Run::Clear => "nothing_to_clear",
             Run::Redo | Run::Edit => "not_redoable",
+            Run::Recap => "nothing_to_recap",
             _ => "nothing_to_compact",
         };
         self.core(Update::Refused {

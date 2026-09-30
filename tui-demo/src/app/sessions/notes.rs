@@ -141,6 +141,7 @@ pub(super) fn tree_usage(own: Usage, board: &Board, parked: &super::Lot) -> Usag
                 total.cache_read += usage.cache_read;
                 total.cache_write += usage.cache_write;
                 total.output += usage.output;
+                total.aux += usage.aux;
                 boards.push(&p.board);
             }
         }
@@ -295,6 +296,7 @@ mod tests {
             cache_read: 100,
             cache_write: 0,
             output,
+            aux: 0,
         };
         let start = |job: &str, session: &str| JobStart {
             call_id: String::new(),

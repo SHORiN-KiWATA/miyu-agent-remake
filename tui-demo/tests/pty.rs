@@ -1,0 +1,114 @@
+//! 伪终端里的端到端测试（蓝图 `tui.md`「守着它的」）：真界面连一份照剧本回话的核心，读屏幕、发按键。
+//! 这几样原来只在临时目录里的 pyte 测具上接真模型测过，搬进仓库以后 `cargo test` 就跑得到。
+
+mod support;
+
+use std::time::Duration;
+
+use miyu_session::testkit::{Play, Script};
+use support::Home;
+
+const UP: &[u8] = b"\x1b[A";
+const DOWN: &[u8] = b"\x1b[B";
+const ESC: &[u8] = b"\x1b";
+
+#[test]
+fn a_scripted_reply_is_drawn_with_its_done_line() {
+    let home = Home::new(Script::new([Play::Says("你好，我在。")]));
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("在吗");
+    tui.wait_for("你好，我在。");
+    tui.wait_for("▣  ");
+    assert!(tui.shows("┃ 在吗"), "{}", tui.lines().join("\n"));
+}
+
+#[test]
+fn recap_says_there_is_nothing_yet_then_draws_a_block() {
+    // 2026-10-01 回顾（`/recap`）：还没开会话时只提示；她答过以后要一段，画成暗色的「回顾：」。
+    let home = Home::new(Script::new([
+        Play::Says("你好。"),
+        Play::Says("在打招呼，没有别的事。"),
+    ]));
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("/recap");
+    tui.wait_for("还没有可回顾的内容");
+    tui.say("在吗");
+    tui.wait_for("▣  ");
+    tui.say("/recap");
+    tui.wait_for("※ 回顾：在打招呼，没有别的事。");
+}
+
+#[test]
+fn an_undone_turn_takes_its_recap_along_and_restore_brings_it_back() {
+    // 2026-10-01 项目主人报：撤销以后旧的回顾还在，讲的是撤掉了的内容。
+    let home = Home::new(Script::new([
+        Play::Says("第一轮的回答。"),
+        Play::Says("第二轮的回答。"),
+        Play::Says("讲到第二轮。"),
+    ]));
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("一");
+    tui.wait_for("第一轮的回答。");
+    tui.pump(Duration::from_millis(300));
+    tui.say("二");
+    tui.wait_for("第二轮的回答。");
+    tui.pump(Duration::from_millis(300));
+    tui.say("/recap");
+    tui.wait_for("回顾：讲到第二轮。");
+    tui.say("/undo");
+    tui.wait_for("已撤销");
+    tui.pump(Duration::from_millis(1000));
+    assert!(!tui.shows("回顾："), "{}", tui.lines().join("\n"));
+    // 撤销把那句整段选中放回输入框（「输入框」）：直接打命令就换掉它。
+    tui.say("/restore");
+    tui.wait_for("第二轮的回答。");
+    tui.wait_for("回顾：讲到第二轮。");
+}
+
+#[test]
+fn up_and_down_walk_the_history_past_recorded_commands() {
+    // 2026-10-01 项目主人报：往上翻得动、往下翻不回来。翻到记着的命令时命令列表弹出来，把 ↑ ↓ 拿去选命令了。
+    let home = Home::new(Script::new([]));
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("/help");
+    tui.pump(Duration::from_millis(400));
+    tui.key(ESC);
+    tui.say("/copy");
+    tui.pump(Duration::from_millis(400));
+    let mut walk = Vec::new();
+    for key in [UP, UP, DOWN, DOWN] {
+        tui.key(key);
+        walk.push(tui.input());
+    }
+    assert_eq!(walk[0], "/copy");
+    assert_eq!(walk[1], "/help");
+    assert_eq!(walk[2], "/copy");
+    assert!(
+        !walk[3].starts_with('/'),
+        "翻回没发的那句（空的，写着提示）：{walk:?}"
+    );
+}
+
+#[test]
+fn a_manually_chosen_language_writes_the_folded_line_in_it() {
+    // 2026-10-01 项目主人定：界面语言自动时收起那一行英文，手动选了哪种照哪种。
+    let home = Home::new(Script::new([Play::Thinks {
+        thinking: "想一想怎么回。",
+        text: "好。",
+    }]));
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("在吗");
+    tui.wait_for("▣  ");
+    tui.wait_for("Thought for");
+    tui.say("/language");
+    tui.wait_for("自动（跟随系统：中文）");
+    tui.key(DOWN);
+    tui.key(b"\r");
+    tui.wait_for("思考了");
+    assert!(!tui.shows("Thought for"), "{}", tui.lines().join("\n"));
+}

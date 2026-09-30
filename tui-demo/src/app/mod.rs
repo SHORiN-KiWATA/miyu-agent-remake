@@ -419,6 +419,8 @@ impl App {
             .chain(self.mascot_deadline(Instant::now()))
             .chain(self.jobs_deadline())
             .chain(self.drawer_deadline())
+            // 整份重排没排完的：下一帧接着排（蓝图「正文」第 8 条）。
+            .chain((self.row_cache.borrow().stale > 0).then(Instant::now))
             .min()
     }
 
