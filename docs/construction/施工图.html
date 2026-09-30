@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>148</b><span>/ 155 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；8-2、C-2 等合并，C-3 在做</span></li>
-    <li><b class="mono">0766acbd</b><span>最近一步（3-8 六补 订阅时补发）的提交</span></li>
+    <li><b>150</b><span>/ 155 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；C-3 等合并；下一步 8-3、C-4</span></li>
+    <li><b class="mono">b563e3c8</b><span>最近一步（8-2 读配置）的提交</span></li>
   </ul>
 </header>
 
@@ -507,7 +507,7 @@ a.step:hover{border-color:var(--primary)}
       <div class="ms-head"><span class="ms-id">M8</span><span class="ms-name">配置与模型</span><span class="ms-goal">不靠开发用的环境变量，自己接上供应商、选模型、换模型（2026-10-01 拆好，批准；图纸 config.md、models.md 定稿）</span></div>
       <ol class="chips">
         <li><a class="step done" href="#s8-1"><span class="n">8-1</span>配置清单<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">8-2</span>读配置</span></li>
+        <li><a class="step done" href="#s8-2"><span class="n">8-2</span>读配置<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">8-3</span>写配置</span></li>
         <li><span class="step"><span class="n">8-4</span>监视与生效</span></li>
         <li><span class="step"><span class="n">8-5</span>密钥</span></li>
@@ -529,7 +529,7 @@ a.step:hover{border-color:var(--primary)}
       <div class="ms-head"><span class="ms-id">C</span><span class="ms-name">跨会话</span><span class="ms-goal">她能列出、读、给别的会话发话，等它空下来；和 M8、M9 并行（2026-10-01 图纸 cross-session.md 定稿，项目主人批准）</span></div>
       <ol class="chips">
         <li><a class="step done" href="#sC-1"><span class="n">C-1</span>跨会话的事件和编号<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">C-2</span>收别的会话发来的话</span></li>
+        <li><a class="step done" href="#sC-2"><span class="n">C-2</span>收别的会话发来的话<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">C-3</span>列会话</span></li>
         <li><span class="step"><span class="n">C-4</span>读别的会话</span></li>
         <li><span class="step"><span class="n">C-5</span>发给别的会话</span></li>
@@ -10526,6 +10526,57 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s8-2" aria-labelledby="h-s82">
+  <div class="sheet-head"><h2 id="h-s82"><span class="no">8-2</span>读配置</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">核心起来时读默认值、系统配置、个人设置、项目配置四层，合出最终值，每个值说得出来自哪一层、哪个文件、第几行。项目配置信任过才算、只认收紧的；写错的那一项丢掉、别的照用，拼错的键给最近的键名。头能经协议查清单、查最终值、校验一段字；命令行有 <code>miyu config get</code>、<code>explain</code>、<code>check</code>、<code>path</code>。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">读配置</span><span class="dir-note">8-2</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>miyu-config</code> 的解析、合并、报错；读 TOML 用 <code>toml_edit</code>（只开 parse），系统语言兜底 <code>sys-locale</code></li>
+              <li><code>hello</code> 回应多 <code>language</code>、<code>config_errors</code>；查询 <code>config.schema</code>、<code>config.get</code>、<code>config.check</code></li>
+              <li>清单加 <code>permission.start_read_only</code>：开着的新会话一开局就是只读</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">握手以后照 language 说</span><span class="rl">命令行每个子命令都换，不只 miyu config（主会话定）</span></div>
+          <div class="tile new"><span class="nm">没信任那一行</span><span class="rl">miyu ask 起头只说配置有错，没信任随 8-3 的 miyu config trust</span></div>
+          <div class="tile"><span class="nm">还不写、不监视</span><span class="rl">写盘 8-3，当场生效 8-4</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-2</dd></div>
+        <div><dt>名称</dt><dd>读配置</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">b563e3c8</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>38 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真核心带三层配置起来，get、explain 印出的来源对</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-2-读配置.md</code>；蓝图 <code>config.md</code>、<code>cli/config.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sC-1" aria-labelledby="h-sC1">
   <div class="sheet-head"><h2 id="h-sC1"><span class="no">C-1</span>跨会话的事件和编号</h2><span class="pill done">已完成</span></div>
   <p class="purpose">跨会话这条线的第一步，和 M8 并行：会话的短编号，事件 <code>peer.idle</code>、效果 <code>peer.watch</code> 的类型、读写、样本，账本认得在等哪几个会话。这一步不收话、不列、不读、不发、不订，她和头都还看不到变化。</p>
@@ -10576,6 +10627,58 @@ a.step:hover{border-color:var(--primary)}
     </div>
   </div>
 </section>
+
+<section class="sheet" id="sC-2" aria-labelledby="h-sC2">
+  <div class="sheet-head"><h2 id="h-sC2"><span class="no">C-2</span>收别的会话发来的话</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">内核认得出别的会话（既不是父会话，也不是自己派的子代理）发来的话，照「别处来的」规矩收：闲着开一轮、正忙下一步看到、打断不撤回、不作废在等人的题、撤销不带走、它开的那一轮重做不了。防刷屏前三款在收话这边查。给她看的是 <code>&lt;session-message from="短编号"&gt;</code> 一块。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">收别的会话发来的话</span><span class="dir-note">C-2</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>防刷屏：一字不差的先拒，再限速（10 分钟 5 句），再查没听到的上限（50 句）</li>
+              <li>渲染照 <code>tag.rs</code>；<code>history</code> 的「谁」写 <code>session &lt;短编号&gt;</code></li>
+              <li>策略快照多 <code>peers</code>；以前造的快照照出厂的数防刷屏</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">「听到」只算主对话</span><span class="rl">回顾、摘要请求看到的不算听到</span></div>
+          <div class="tile new"><span class="nm">标签 15 token</span><span class="rl">开头 10、收尾 5；history 的「谁」6</span></div>
+          <div class="tile"><span class="nm">还发不出来</span><span class="rl">发话随 C-5，真模型实测随 C-5、C-7</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">C-2</dd></div>
+        <div><dt>名称</dt><dd>收别的会话发来的话</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">32721fb1</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>31 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>请求形状探针：和换成人说的同一份剧本比，只多标签那两段</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/C-2-收别的会话发来的话.md</code>；蓝图 <code>cross-session.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 
 
 
