@@ -101,7 +101,14 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
     let pushed = areas.menu.height > 0 || app.drawers.open();
     let needed = pushed.then(|| i32::from(top) - 1 - i32::from(areas.mascot.height));
     let now = Instant::now();
-    let Some(y) = app.perch.place(areas.mascot.y, needed, now, &look.perch) else {
+    let placed = app.perch.place(areas.mascot.y, needed, now, &look.perch);
+    // 被顶上去张一下嘴、走下来一路张着（第 9 条）。
+    if app.perch.take_hop() {
+        app.mouth.hop(now, &look.mouth);
+    }
+    let walking = app.perch.walking(now, &look.perch);
+    app.mouth.hold(walking.then_some(look.mouth.walk));
+    let Some(y) = placed else {
         return;
     };
     let areas = Areas {

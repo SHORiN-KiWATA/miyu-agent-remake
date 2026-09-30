@@ -3,7 +3,7 @@
 //! 序号，它就被听到了，前面那段时间线收起，它进正文，接着的步另起一段。没被听到、这一轮就结束了的，由下一轮的
 //! `turn.started` 带进来（`turn.rs`）。
 
-use super::{Entry, Slot, Transcript};
+use super::{Chip, Entry, Kind, Slot, StepKind, Transcript};
 
 impl Transcript {
     /// 正文里最后一条不是排着队的：在进行的那一段、在写的回答照它找。排着的话没进正文，不算。
@@ -43,6 +43,12 @@ impl Transcript {
                 self.entries[j].turn = Some(turn);
             }
         }
+        // 一句一句记着：Ctrl+C 打断、她还没开口的，照这个放回输入框（`takeback`）。
+        self.opened_by = moved
+            .iter()
+            .rev()
+            .map(|e| (e.text.clone(), e.pasted.clone()))
+            .collect();
         let mut moved = moved.into_iter().rev();
         if let Some(mut first) = moved.next() {
             for next in moved {
@@ -54,6 +60,29 @@ impl Transcript {
             first.queued = false;
             self.entries.push(first);
         }
+    }
+
+    /// 这一轮是排着的话开的、她还没开口（没说字、没做步，只在想也算没开口）：交回开它的那几句（字和粘贴块）。
+    /// Ctrl+C 打断以后撤掉这一轮，那几句放回输入框（蓝图 `tui.md`「按键」`Ctrl+C`，2026-09-30 项目主人定只退回排着的）。
+    pub fn takeback(&self) -> Option<Vec<(String, Vec<Chip>)>> {
+        self.running?;
+        let turn = self.turn?;
+        if self.opened_by.is_empty() {
+            return None;
+        }
+        let answered = self
+            .entries
+            .iter()
+            .filter(|e| e.turn == Some(turn))
+            .any(|e| {
+                (e.kind == Kind::Reply && !e.text.trim().is_empty())
+                    || e.segment.as_ref().is_some_and(|s| {
+                        s.steps
+                            .iter()
+                            .any(|st| matches!(st.kind, StepKind::Tool { .. }))
+                    })
+            });
+        (!answered).then(|| self.opened_by.clone())
     }
 
     /// 第 `at` 条从正文里拿走了：记着的下标（在接的块、还没配上编号的调用、调用编号到那一步、正在压缩那一行）

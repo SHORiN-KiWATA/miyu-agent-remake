@@ -1,9 +1,8 @@
 //! 收核心那边的消息（蓝图 `tui.md`「连核心」「正文」）：交给正文之前，界面这一头先办的几件——没发出去的撤回来、
 //! 只弹提示的拒绝、撤销恢复时输入框里的那句、视口跟不跟、系统通知、被退回的排队消息放回输入框。
 
-use super::{App, paste};
+use super::App;
 use crate::core::{Block, Push, Update};
-use crate::input::Draft;
 use crate::transcript::Kind;
 
 impl App {
@@ -28,6 +27,8 @@ impl App {
         {
             return;
         }
+        // Ctrl+C 打断、要退回排着的：这一轮结束了撤掉它，撤掉了放回输入框（`takeback.rs`）。
+        self.takeback_on(&update);
         // 没发出去：先撤掉先画上的那句、字放回输入框，接着照一般的拒绝办（`redo.rs`）。
         let update = match update {
             Update::Unsent { reason, message } => {
@@ -82,21 +83,9 @@ impl App {
         if release && self.transcript.folds() > folds {
             self.view.settle();
         }
-        // 被退回的排队消息连同粘贴块放回输入框，一条之间空一行，接在已有的字前面（`tui.md`「输入框」第 8、11 条）。
+        // 被退回的排队消息连同粘贴块放回输入框（`takeback.rs`）。
         let returned = self.transcript.take_returned();
-        if !returned.is_empty() {
-            let mut draft = Draft::default();
-            // 输入历史里找得到的照发出去时的样子：附件跟着回来（「输入框」第 8 条）。
-            for (text, chips) in returned {
-                let sent = self.input.sent_by_text(&text);
-                let back = sent.unwrap_or_else(|| Draft::from_pasted(&text, &paste::pasted(chips)));
-                draft.append(back, "\n\n");
-            }
-            if !self.input.editor.is_empty() {
-                draft.append(self.input.draft(), "\n\n");
-            }
-            self.input.editor.set_draft(draft);
-        }
+        self.put_returned(returned);
         if undone {
             let said = self
                 .transcript

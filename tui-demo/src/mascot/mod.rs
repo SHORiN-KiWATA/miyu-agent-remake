@@ -4,6 +4,7 @@
 mod attention;
 mod idle;
 mod model;
+mod mouth;
 mod perch;
 mod render;
 
@@ -12,10 +13,11 @@ use std::time::{Duration, Instant};
 pub use attention::Attention;
 pub use idle::Idle;
 pub use model::{Gaze as GazeLook, Look, Part};
+pub use mouth::Mouth;
 pub use perch::Perch;
 pub use render::render;
 
-/// 这一帧的样子：朝哪、闭没闭眼、耳朵往外多歪多少（弧度）。
+/// 这一帧的样子：朝哪、闭没闭眼、耳朵往外多歪多少（弧度）、嘴张多大。
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Pose {
     /// 左右，度，往右为正。
@@ -26,6 +28,8 @@ pub struct Pose {
     pub blink: bool,
     /// 耳朵往外多歪多少。
     pub ear: f64,
+    /// 嘴张多大：0 合着、1 张到最大（第 9 条）。
+    pub mouth: f64,
 }
 
 impl Pose {

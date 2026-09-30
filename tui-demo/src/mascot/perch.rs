@@ -14,6 +14,8 @@ pub struct Perch {
     hidden: bool,
     /// 列表关了：关的时刻，和从第几行开始走。
     walk: Option<(Instant, i32)>,
+    /// 刚被顶上去了一下，还没让嘴张（`take_hop`）。
+    hopped: bool,
 }
 
 impl Perch {
@@ -33,6 +35,10 @@ impl Perch {
                 return None;
             }
             let at = self.y.unwrap_or(natural).min(needed);
+            // 往上挪了：像跳了一下，嘴张一下（「空会话的首页」第 9 条）。
+            if at < self.y.unwrap_or(natural) {
+                self.hopped = true;
+            }
             if at < 0 {
                 self.hidden = true;
                 self.y = None;
@@ -64,6 +70,17 @@ impl Perch {
         }
         self.y = Some(at);
         u16::try_from(at).ok()
+    }
+
+    /// 刚被顶上去过：交回一次，之后是 `false`。
+    pub fn take_hop(&mut self) -> bool {
+        std::mem::take(&mut self.hopped)
+    }
+
+    /// 正一行一行走下来（停着的那一会儿过完了）：嘴一路张着。
+    pub fn walking(&self, now: Instant, look: &Look) -> bool {
+        self.walk
+            .is_some_and(|(closed, _)| now >= closed + Duration::from_millis(look.settle_ms))
     }
 
     /// 下一次该画的时刻：停着的那一会儿过完、下一行。

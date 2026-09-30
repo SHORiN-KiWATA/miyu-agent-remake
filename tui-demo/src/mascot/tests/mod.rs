@@ -1,4 +1,4 @@
-//! 吉祥物（蓝图 `tui.md`「空会话的首页」第 5–7 条）：画出来的大小、正面对称、五官跟着转、转头的角度和缓动。
+//! 吉祥物（蓝图 `tui.md`「空会话的首页」第 5–10 条）：画出来的大小、正面对称、五官跟着转、嘴和肚子上的圈、转头的角度和缓动。
 
 use std::time::{Duration, Instant};
 
@@ -67,18 +67,6 @@ fn the_eyes_follow_the_turn() {
     assert!(left.0 < front.0 - 1.0, "往左看，眼睛往左挪");
     let down = eyes(&render(&look, &Pose::facing(0.0, 15.0)));
     assert!(down.1 > front.1 + 0.5, "往下看，眼睛往下挪");
-}
-
-#[test]
-fn the_mouth_is_a_hole_in_the_face() {
-    let look = look();
-    let grid = render(&look, &Pose::facing(0.0, 0.0));
-    let m = &look.face.mouth;
-    let row = (look.center_row - m.center[1] * look.radius / look.cell_aspect) as usize;
-    let col = usize::from(look.cols / 2);
-    assert!(grid[row][col].is_none(), "嘴的中间是空的");
-    let above = (look.center_row - 0.7 * look.radius / look.cell_aspect) as usize;
-    assert!(grid[above][col].is_some(), "脸上别处有字");
 }
 
 #[test]
@@ -157,9 +145,27 @@ fn mascot_preview() {
         |_| look(),
         |path| serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap(),
     );
-    for (yaw, pitch) in [(0.0, 0.0), (-30.0, 10.0), (30.0, 15.0), (0.0, -15.0)] {
-        println!("=== yaw {yaw} pitch {pitch}");
-        let grid = render(&look, &Pose::facing(yaw, pitch));
+    let front = Pose::facing(0.0, 0.0);
+    let poses = [
+        ("正面", front),
+        (
+            "嘴张开",
+            Pose {
+                // 看张到一半的样子：`MIYU_MASCOT_MOUTH=0.6`。
+                mouth: std::env::var("MIYU_MASCOT_MOUTH")
+                    .ok()
+                    .and_then(|m| m.parse().ok())
+                    .unwrap_or(1.0),
+                ..front
+            },
+        ),
+        ("左下", Pose::facing(-30.0, 10.0)),
+        ("右下", Pose::facing(30.0, 15.0)),
+        ("往上", Pose::facing(0.0, -15.0)),
+    ];
+    for (name, pose) in poses {
+        println!("=== {name}");
+        let grid = render(&look, &pose);
         for row in &grid {
             let marks: String = row.iter().map(|c| c.map_or(' ', |c| c.mark)).collect();
             println!("{}", marks.trim_end());
@@ -411,3 +417,5 @@ fn a_perched_mascot_waits_then_walks_down_row_by_row() {
         Some(5)
     );
 }
+
+mod face;

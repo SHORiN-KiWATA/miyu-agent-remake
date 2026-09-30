@@ -60,6 +60,11 @@ impl Idle {
         self.twitch = None;
     }
 
+    /// 最后有人动的时刻（嘴照它看要不要打哈欠）；还没画过是 `None`。
+    pub fn quiet_since(&self) -> Option<Instant> {
+        self.active
+    }
+
     /// 没人动了。
     pub fn idling(&self, now: Instant, look: &Look) -> bool {
         self.active

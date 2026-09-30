@@ -22,6 +22,7 @@ impl Transcript {
     pub(super) fn start(&mut self, turn: u64, trigger: Option<u64>) {
         self.running = Some(Instant::now());
         self.spoke = false;
+        self.opened_by.clear();
         self.failure = None;
         self.turn = Some(turn);
         self.turn_usage = Usage::default();

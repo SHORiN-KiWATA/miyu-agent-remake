@@ -1,6 +1,6 @@
 //! 逐格打光线画吉祥物（蓝图 `tui.md`「空会话的首页」第 5 条）：一格打 2×2 根平行的光线，从看的人那边
 //! 垂直打进去，停在最近的面上，照那里多亮从 `ramp` 挑字。打中头的正面时看落没落在脸上：眼睛写 `eye_mark`、
-//! 锯齿线写 `line_mark`、嘴是洞。四根里有两根以上落在同一样上才算它。
+//! 锯齿线（嘴）和肚子上那一圈写 `line_mark`、张开的嘴里是洞。四根里有两根以上落在同一样上才算它。
 
 use super::Pose;
 use super::model::{Face, Look, Part};
@@ -40,7 +40,7 @@ pub fn render(look: &Look, pose: &Pose) -> Vec<Vec<Option<Cell>>> {
                             continue;
                         };
                         let lum = look.ambient + (1.0 - look.ambient) * dot(normal, light).max(0.0);
-                        match (part, face(&look.face, point, pose.blink)) {
+                        match (part, face(&look.face, point, pose)) {
                             (Part::Head, Some(mark)) => tally.face[mark as usize] += 1,
                             _ => tally.lit(part, lum),
                         }
@@ -57,6 +57,7 @@ pub fn render(look: &Look, pose: &Pose) -> Vec<Vec<Option<Cell>>> {
 enum Mark {
     Eye = 0,
     Line = 1,
+    /// 张开的嘴里。
     Hole = 2,
 }
 
@@ -67,7 +68,7 @@ struct Tally {
     parts: [u8; 3],
     /// 亮度加起来。
     lum: f64,
-    /// 眼睛、锯齿线、嘴各几根。
+    /// 眼睛、线、嘴里各几根。
     face: [u8; 3],
 }
 
@@ -82,7 +83,7 @@ impl Tally {
         self.lum += lum;
     }
 
-    /// 定这一格：眼睛、洞、锯齿线够两根的照它；别的照亮度挑字，边上打中得少的自然淡一些。
+    /// 定这一格：眼睛、洞、线够两根的照它；别的照亮度挑字，边上打中得少的自然淡一些。
     fn cell(&self, look: &Look, ramp: &[char]) -> Option<Cell> {
         let [eye, line, hole] = self.face;
         if eye >= 2 {
@@ -181,13 +182,14 @@ fn shoot(pieces: &[Placed], head: &M3, x: f64, y: f64) -> Option<(Part, V3, V3)>
     best.map(|(t, part, normal)| (part, normal, mul_t(head, [x, y, 10.0 - t])))
 }
 
-/// 头上这一点落没落在脸上：只看正面，位置用头朝前时的 x、y。闭着眼时没有眼睛。
-fn face(face: &Face, p: V3, blink: bool) -> Option<Mark> {
+/// 头上这一点落没落在脸上：只看正面，位置用头朝前时的 x、y。闭着眼时没有眼睛。锯齿线是嘴：张开（`pose.mouth`）时上下
+/// 两排各往外挪一半，中间是嘴里；肚子上是一圈线，圈里照身子画（蓝图「空会话的首页」第 5、9 条）。
+fn face(face: &Face, p: V3, pose: &Pose) -> Option<Mark> {
     if p[2] <= 0.0 {
         return None;
     }
     let q = [p[0], p[1]];
-    if !blink
+    if !pose.blink
         && face
             .eyes
             .iter()
@@ -195,21 +197,42 @@ fn face(face: &Face, p: V3, blink: bool) -> Option<Mark> {
     {
         return Some(Mark::Eye);
     }
-    let m = &face.mouth;
+    let half = pose.mouth.clamp(0.0, 1.0) * face.mouth_gap / 2.0;
+    let line = &face.line;
+    let (first, last) = (line.first()?[0], line.last()?[0]);
+    if half > face.line_width
+        && q[0] > first
+        && q[0] < last
+        && zigzag(line, q[0]).is_some_and(|y| (q[1] - y).abs() < half)
+    {
+        return Some(Mark::Hole);
+    }
+    let shifts: &[f64] = if half > 0.0 { &[half, -half] } else { &[0.0] };
+    let on_line = line.windows(2).any(|w| {
+        shifts.iter().any(|dy| {
+            let (a, b) = ([w[0][0], w[0][1] + dy], [w[1][0], w[1][1] + dy]);
+            segment(q, a, b) < face.line_width
+        })
+    });
+    if on_line {
+        return Some(Mark::Line);
+    }
+    let m = &face.belly;
     let dx = (q[0] - m.center[0]).abs() - (m.half[0] - m.round);
     let dy = (q[1] - m.center[1]).abs() - (m.half[1] - m.round);
     let outside = dx.max(0.0).hypot(dy.max(0.0)) + dx.max(dy).min(0.0);
-    if outside <= m.round {
-        return Some(Mark::Hole);
-    }
-    if face
-        .line
-        .windows(2)
-        .any(|w| segment(q, w[0], w[1]) < face.line_width)
-    {
+    if outside <= m.round && outside >= m.round - m.ring {
         return Some(Mark::Line);
     }
     None
+}
+
+/// 锯齿线在 `x` 那里多高（照几个点连起来的折线）；在两头外面是 `None`。
+fn zigzag(line: &[[f64; 2]], x: f64) -> Option<f64> {
+    line.windows(2).find_map(|w| {
+        let ([x0, y0], [x1, y1]) = (w[0], w[1]);
+        (x >= x0 && x <= x1 && x1 > x0).then(|| y0 + (y1 - y0) * (x - x0) / (x1 - x0))
+    })
 }
 
 /// 点到线段的距离。

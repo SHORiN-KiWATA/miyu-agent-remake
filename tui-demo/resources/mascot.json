@@ -19,7 +19,26 @@
     "line": [[-0.98, -0.08], [-0.78, 0.25], [-0.54, -0.16], [0.0, 0.25], [0.54, -0.16], [0.78, 0.25], [0.98, -0.08]],
     "line_width": 0.065,
     "line_mark": ".",
-    "mouth": { "center": [0.0, -0.43], "half": [0.27, 0.18], "round": 0.1 }
+    "mouth_gap": 0.24,
+    "belly": {
+      "center": [0.0, -0.52],
+      "half": [0.4, 0.3],
+      "round": 0.28,
+      "ring": 0.13
+    }
+  },
+  "mouth": {
+    "rest": 0.0,
+    "half_life_ms": 35,
+    "frame_ms": 16,
+    "yawn": 1.0,
+    "yawn_ms": 1500,
+    "yawn_half_life_ms": 220,
+    "yawn_idle": 6,
+    "yawn_every_ms": [25000, 60000],
+    "hop": 0.7,
+    "hop_ms": 200,
+    "walk": 0.7
   },
   "idle": {
     "after_ms": 3000,

@@ -108,6 +108,8 @@ pub struct Transcript {
     turn: Option<u64>,
     /// 被退回的排队消息：字和里面的粘贴块，等输入框拿走（`take_returned`）。
     returned: Vec<(String, Vec<Chip>)>,
+    /// 这一轮是排着的话开的：那几句照排着时的样子，一句一条（`queue.rs` 的 `takeback`）。
+    opened_by: Vec<(String, Vec<Chip>)>,
     /// 最近一次 `turn.reverted` 撤掉的几轮：撤销的回应来了，照它找你说的那句全文。
     reverted: Vec<u64>,
     /// 下一条正文的编号。
@@ -144,6 +146,7 @@ impl Default for Transcript {
             reverted: Vec::new(),
             next_id: 0,
             returned: Vec::new(),
+            opened_by: Vec::new(),
         }
     }
 }

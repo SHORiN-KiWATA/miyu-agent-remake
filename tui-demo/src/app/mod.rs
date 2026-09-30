@@ -5,6 +5,7 @@ mod jobs;
 
 pub use jobs::Panel;
 mod keys;
+mod mascot;
 mod mention;
 mod mouse;
 mod notify;
@@ -13,6 +14,7 @@ mod paste;
 mod redo;
 mod session;
 mod sessions;
+mod takeback;
 mod updates;
 
 use std::cell::RefCell;
@@ -25,7 +27,7 @@ use ratatui::layout::Position;
 use crate::body_view::BodyView;
 use crate::commands::{self, Spec};
 use crate::config::Config;
-use crate::core::{Command, Core};
+use crate::core::Core;
 use crate::drawer::Drawers;
 use crate::figures::Figures;
 use crate::focus::Focus;
@@ -136,6 +138,10 @@ pub struct App {
     pub agents_hover: Option<usize>,
     /// 首页吉祥物被列表顶上去以后待在哪。
     pub perch: Perch,
+    /// Ctrl+C 打断时要退回排着的话，走到哪一步了（`takeback.rs`）。
+    takeback: Option<takeback::Takeback>,
+    /// 吉祥物的嘴（`tui.md`「空会话的首页」第 9 条）。
+    pub mouth: crate::mascot::Mouth,
     /// 鼠标最后在哪一格；还没动过是 `None`。
     pub pointer: Option<Position>,
     /// 框下面那一行的临时提示。
@@ -255,6 +261,12 @@ impl App {
             focus: Focus::Input,
             agents_hover: None,
             perch: Perch::default(),
+            takeback: None,
+            mouth: crate::mascot::Mouth::new(
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_or(1, |d| d.as_nanos() as u64 >> 5),
+            ),
             attention: crate::mascot::Attention::default(),
             idle: Idle::new(
                 std::time::SystemTime::now()
@@ -362,9 +374,7 @@ impl App {
             Action::Copy(text) => self.copy(&text),
             Action::Quit => self.quit = true,
             // Ctrl+C 分级：输入框空着时，在回答就打断（排着队的退回输入框），不在回答才提示用 Ctrl+D 退出。
-            Action::ExitHint if self.transcript.running.is_some() => {
-                self.core.send(Command::Interrupt { send: false });
-            }
+            Action::ExitHint if self.transcript.running.is_some() => self.interrupt(),
             Action::ExitHint => self.hint(self.config.text.exit_hint.clone(), false),
             Action::Cleared => self.hint(self.config.text.input_cleared.clone(), false),
             Action::Open(path) => self.open_link(&path),
@@ -391,33 +401,11 @@ impl App {
         let moving = self.transcript.busy() || self.transcript.running.is_some();
         let spin =
             moving.then(|| Instant::now() + Duration::from_millis(self.config.timeline.spinner_ms));
-        // 首页的吉祥物在转头：照它的节拍画，转到了就停（`tui.md`「空会话的首页」第 7 条）。
-        let now = Instant::now();
-        let turning = (self.mascot_shown() && self.gaze.moving())
-            .then(|| now + Duration::from_millis(self.config.mascot.gaze.frame_ms));
-        // 待机小动作：眨眼、晃、抖耳朵的下一刻（第 8 条）。
-        let idling = self
-            .mascot_shown()
-            .then(|| self.idle.wake(now, &self.config.mascot.idle))
-            .flatten();
-        // 框里有字、鼠标停够了：到点画一帧，转回来看输入光标（第 6 条）。
-        let settle = Duration::from_millis(self.config.mascot.gaze.pointer_settle_ms);
-        let settling = (self.mascot_shown() && !self.input.editor.is_empty())
-            .then(|| self.attention.settles_at(settle))
-            .flatten()
-            .filter(|at| *at > now);
-        let walking = self
-            .home()
-            .then(|| self.perch.wake(now, &self.config.mascot.perch))
-            .flatten();
         notice
             .into_iter()
             .chain(clock)
             .chain(spin)
-            .chain(turning)
-            .chain(idling)
-            .chain(settling)
-            .chain(walking)
+            .chain(self.mascot_deadline(Instant::now()))
             .chain(self.jobs_deadline())
             .chain(self.drawer_deadline())
             .min()

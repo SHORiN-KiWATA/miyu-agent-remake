@@ -178,3 +178,52 @@ fn what_she_said_before_hearing_it_stays_above_it() {
         "结果落在调它的那一步"
     );
 }
+
+#[test]
+fn a_turn_opened_by_queued_messages_can_hand_them_back_until_she_answers() {
+    // 2026-09-30 项目主人：排着的话一转眼成了新一轮，Ctrl+C 打断时没回到输入框；定只退回排着的。
+    use crate::core::EndReason;
+    let mut t = Transcript::default();
+    t.user("你好".into(), Vec::new());
+    apply(
+        &mut t,
+        vec![Push::UserMessage(1), Push::TurnStarted(2, Some(1))],
+    );
+    assert!(t.takeback().is_none(), "你直接发的那句开的一轮：不退");
+    // 她在回答时又发了两句，排着；这一轮答完，核心接着拿排着的开下一轮。
+    t.user("第一条排队".into(), Vec::new());
+    t.user("第二条排队".into(), Vec::new());
+    apply(&mut t, vec![Push::UserMessage(3), Push::UserMessage(4)]);
+    apply(
+        &mut t,
+        vec![
+            Push::TurnEnded(EndReason::Completed),
+            Push::TurnStarted(5, Some(4)),
+        ],
+    );
+    let back: Vec<String> = t
+        .takeback()
+        .unwrap()
+        .into_iter()
+        .map(|(text, _)| text)
+        .collect();
+    assert_eq!(back, ["第一条排队", "第二条排队"], "一句一句交回");
+    // 只在想：还算没开口。
+    apply(&mut t, thought(4, "想一下"));
+    assert!(t.takeback().is_some(), "只在想还算没开口");
+    // 开口说了：不退。
+    apply(
+        &mut t,
+        vec![
+            Push::BlockStart {
+                index: 1,
+                block: Block::Text,
+            },
+            Push::Delta {
+                index: 1,
+                text: "你好".into(),
+            },
+        ],
+    );
+    assert!(t.takeback().is_none(), "她开口了");
+}

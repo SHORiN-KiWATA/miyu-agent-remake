@@ -41,16 +41,18 @@ fn whole() -> f64 {
     1.0
 }
 
-/// 嘴：圆角矩形的洞。
+/// 肚子上的圈（纹路，2026-09-30 项目主人定）：圆角矩形的一圈线，圈里是身子，不挖空。
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct Mouth {
+pub struct Belly {
     /// 中心的 x、y。
     pub center: [f64; 2],
-    /// 半宽、半高。
+    /// 半宽、半高（到线的外沿）。
     pub half: [f64; 2],
     /// 圆角的半径。
     pub round: f64,
+    /// 线多宽。
+    pub ring: f64,
 }
 
 /// 脸：画在头的正面，位置用头朝前时的 x、y。
@@ -67,10 +69,40 @@ pub struct Face {
     pub line: Vec<[f64; 2]>,
     /// 锯齿线的半宽。
     pub line_width: f64,
-    /// 锯齿线写哪个字。
+    /// 锯齿线写哪个字（肚子上那一圈也是）。
     pub line_mark: char,
-    /// 嘴。
-    pub mouth: Mouth,
+    /// 锯齿线是嘴：张到最大时上下两排分开多少。
+    pub mouth_gap: f64,
+    /// 肚子上的圈。
+    pub belly: Belly,
+}
+
+/// 嘴怎么动（蓝图「空会话的首页」第 9 条）：张多大都是 0 合着、1 张到最大，照半衰期缓着变。
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MouthLook {
+    /// 平常张多大。
+    pub rest: f64,
+    /// 缓动：每过这么多毫秒走剩下的一半。
+    pub half_life_ms: u64,
+    /// 张着、变着的时候隔多少毫秒画一帧。
+    pub frame_ms: u64,
+    /// 打哈欠：张多大。
+    pub yawn: f64,
+    /// 打哈欠多久（闭着眼）。
+    pub yawn_ms: u64,
+    /// 打哈欠张得慢：缓动的半衰期。
+    pub yawn_half_life_ms: u64,
+    /// 没人动多久才打：`idle.after_ms` 的几倍。
+    pub yawn_idle: u64,
+    /// 隔多久看一次要不要打。
+    pub yawn_every_ms: [u64; 2],
+    /// 被列表顶上去：张多大。
+    pub hop: f64,
+    /// 同上，多久。
+    pub hop_ms: u64,
+    /// 一行一行走下来时张多大。
+    pub walk: f64,
 }
 
 /// 转头的数值。
@@ -159,6 +191,8 @@ pub struct Look {
     pub shapes: Vec<Shape>,
     /// 脸。
     pub face: Face,
+    /// 嘴怎么动。
+    pub mouth: MouthLook,
     /// 待机小动作。
     pub idle: Idle,
     /// 被列表顶上去以后怎么走回来。
