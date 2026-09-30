@@ -1,6 +1,7 @@
 //! 折行：把一段文字按显示宽度切成屏幕上的一行一行，以及屏幕坐标和字节下标的互换。
 //!
-//! 按字素簇折，不按单词：中文没有空格，按词折反而会在长英文词前留一大块空。
+//! 输入框按字素簇折（[`wrap`]），编辑时光标好算；正文照蓝图的折行规则折（[`wrap_words`]、[`pieces`]：英文照空格断、
+//! 避头尾，`linebreak.rs`）。
 
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
@@ -43,9 +44,28 @@ pub fn wrap(text: &str, width: u16) -> Vec<VisualLine> {
     lines
 }
 
-/// 按 `width` 列折好的一行行字，带着「这一行是不是上一行折下来的」：复制时折下来的接回去，不加换行。
+/// 正文里照蓝图的折行规则折（英文照空格断、避头尾，`linebreak.rs`）：每一行的字节范围，和 [`wrap`] 一样的写法。
+pub fn wrap_words(text: &str, width: u16) -> Vec<VisualLine> {
+    let mut lines = Vec::new();
+    let mut offset = 0;
+    for paragraph in text.split('\n') {
+        let cells: Vec<(usize, &str)> = paragraph.grapheme_indices(true).collect();
+        let marks: Vec<&str> = cells.iter().map(|(_, g)| *g).collect();
+        let at = |i: usize| cells.get(i).map_or(paragraph.len(), |(b, _)| *b);
+        for range in crate::linebreak::lines(&marks, usize::from(width.max(1))) {
+            lines.push(VisualLine {
+                start: offset + at(range.start),
+                end: offset + at(range.end),
+            });
+        }
+        offset += paragraph.len() + 1;
+    }
+    lines
+}
+
+/// 正文里按 `width` 列折好的一行行字，带着「这一行是不是上一行折下来的」：复制时折下来的接回去，不加换行。
 pub fn pieces(text: &str, width: u16) -> Vec<(String, bool)> {
-    let lines = wrap(text, width);
+    let lines = wrap_words(text, width);
     let mut prev_end = None;
     lines
         .into_iter()

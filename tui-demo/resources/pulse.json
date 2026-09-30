@@ -11,32 +11,58 @@
   "tiers": [
     {
       "after": 0,
-      "words": [
-        "深度求索",
-        "思考中",
-        "斟酌中",
-        "琢磨中",
-        "推敲中",
-        "容我想想",
-        "稍等片刻"
-      ]
+      "words": {
+        "zh": [
+          "深度求索",
+          "思考中",
+          "斟酌中",
+          "琢磨中",
+          "推敲中",
+          "容我想想",
+          "稍等片刻"
+        ],
+        "en": [
+          "Deep-seeking",
+          "Thinking",
+          "Pondering",
+          "Mulling",
+          "Weighing",
+          "Hmm, let me see",
+          "One moment"
+        ]
+      }
     },
     {
       "after": 30,
-      "words": [
-        "抽丝剥茧",
-        "穿针引线",
-        "仔细推敲",
-        "细细琢磨"
-      ]
+      "words": {
+        "zh": [
+          "抽丝剥茧",
+          "穿针引线",
+          "仔细推敲",
+          "细细琢磨"
+        ],
+        "en": [
+          "Untangling",
+          "Threading it through",
+          "Turning it over",
+          "Chewing on it"
+        ]
+      }
     },
     {
       "after": 90,
-      "words": [
-        "深思熟虑",
-        "反复推敲",
-        "还在琢磨"
-      ]
+      "words": {
+        "zh": [
+          "深思熟虑",
+          "反复推敲",
+          "还在琢磨"
+        ],
+        "en": [
+          "Deliberating",
+          "Going over it again",
+          "Still mulling"
+        ]
+      }
     }
   ]
 }

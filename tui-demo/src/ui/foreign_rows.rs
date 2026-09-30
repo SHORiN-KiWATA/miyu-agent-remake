@@ -4,7 +4,7 @@
 use ratatui::text::Span;
 
 use super::rows::{Ctx, Row, Target, clip};
-use crate::input::wrap;
+use crate::input::wrap_words;
 use crate::theme;
 use crate::transcript::Entry;
 
@@ -26,7 +26,7 @@ pub fn rows(i: usize, entry: &Entry, from: &str, ctx: &Ctx) -> Vec<Row> {
         // 来处和全文之间空一行（2026-09-30 项目主人）。
         out.push(ctx.row(bar.clone(), Vec::new()));
         let mut prev_end = None;
-        for line in wrap(said, ctx.width.max(1)) {
+        for line in wrap_words(said, ctx.width.max(1)) {
             let text = said[line.start..line.end]
                 .trim_end_matches('\n')
                 .to_string();

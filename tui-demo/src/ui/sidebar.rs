@@ -191,7 +191,8 @@ pub fn info_lines(
                     .replace("{percent}", &meter::percent_tenths(t.context, window));
                 out.push(item(value, theme::dim()));
                 let marks = &config.layout.bar;
-                out.push(bar(t.context, window, marks.width.min(room), marks));
+                let line = t.limits.compaction_line;
+                out.push(bar(t.context, window, line, marks.width.min(room), marks));
             }
             None => out.push(item(used, theme::dim())),
         }
@@ -227,10 +228,12 @@ pub fn info_lines(
     (out, id_row)
 }
 
-/// 进度条：缩进两格，占了的强调色、没占的暗，铺满 `room` 格；用过就至少亮一格。
+/// 上下文那根进度条：用了的强调色、没用的暗；压缩线落在的那一格换成警示色（黄），字不变（2026-09-30 项目主人定）。
+/// `line` 是核心给的压缩线，没给的不标。
 pub(super) fn bar(
     used: u64,
     window: u64,
+    line: Option<u64>,
     room: usize,
     marks: &crate::config::Bar,
 ) -> Line<'static> {
@@ -241,11 +244,24 @@ pub(super) fn bar(
         (((used as f64 / window as f64) * room as f64).round() as usize).max(1)
     }
     .min(room);
-    Line::from(vec![
-        Span::raw("  "),
-        Span::styled(marks.full.repeat(full), theme::accent()),
-        Span::styled(marks.empty.repeat(room - full), theme::dim()),
-    ])
+    let mark = line
+        .filter(|_| window > 0 && room > 0)
+        .map(|l| (((l as f64 / window as f64) * room as f64).floor() as usize).min(room - 1));
+    let mut spans = vec![Span::raw("  ")];
+    for i in 0..room {
+        let (glyph, style) = if i < full {
+            (&marks.full, theme::accent())
+        } else {
+            (&marks.empty, theme::dim())
+        };
+        let style = if mark == Some(i) {
+            theme::warn()
+        } else {
+            style
+        };
+        spans.push(Span::styled(glyph.clone(), style));
+    }
+    Line::from(spans)
 }
 
 /// 路径折行：一行尽量多放，断在这一行最后一个 `/` 后面；一行里没有 `/`（一级目录本身就放不下）的按字折。

@@ -11,6 +11,7 @@ mod kit;
 mod layout;
 mod links;
 mod math;
+mod stack;
 mod table;
 
 use pulldown_cmark::{Alignment, CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
@@ -71,6 +72,7 @@ pub fn render(text: &str, width: u16, kit: &Kit, flipped: &[usize]) -> Vec<MdLin
         code: None,
         table: None,
         fresh_item: false,
+        centered: Vec::new(),
     };
     for (event, range) in Parser::new_ext(text, options).into_offset_iter() {
         if r.skips(&event, range.start) || r.svg(text, &event, range.start) {
@@ -134,6 +136,8 @@ struct Renderer<'a> {
     code_closed: bool,
     table: Option<TableState>,
     /// 列表这一项的第一段：前面不空行。
+    /// 开着的外壳（`<p>`、`<div>`、`<center>`……）各自居不居中：有一层居中，排出来的行就居中（蓝图「她的回答：Markdown」第 12 条）。
+    centered: Vec<bool>,
     fresh_item: bool,
 }
 
@@ -428,8 +432,16 @@ impl Renderer<'_> {
     }
 
     fn emit(&mut self, pieces: Vec<Piece>, copy: bool) {
-        for (i, folded) in fold(&pieces, self.room()).into_iter().enumerate() {
-            let lead = self.lead(i == 0);
+        let room = self.room();
+        let centered = self.centered.iter().any(|c| *c);
+        for (i, folded) in fold(&pieces, room).into_iter().enumerate() {
+            let mut lead = self.lead(i == 0);
+            // 居中：左边补空格，放在引子里（复制时不带，链接的列不用挪）。
+            if centered {
+                let used = folded.spans.iter().map(Span::width).sum::<usize>();
+                let pad = usize::from(room).saturating_sub(used) / 2;
+                lead.push(Span::raw(" ".repeat(pad)));
+            }
             self.out.push(MdLine {
                 lead,
                 folded,

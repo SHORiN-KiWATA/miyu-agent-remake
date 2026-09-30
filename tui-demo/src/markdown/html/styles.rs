@@ -77,7 +77,14 @@ impl Renderer<'_> {
             (Kind::Block, _) => {
                 self.ensure_title();
                 self.flush();
-                if !closing {
+                // 居不居中照这一层记：`<center>`，或者写了 `align="center"` 的（2026-09-30 项目主人要做）。
+                if closing {
+                    self.centered.pop();
+                } else {
+                    let align = attrs
+                        .iter()
+                        .any(|(k, v)| k == "align" && v.eq_ignore_ascii_case("center"));
+                    self.centered.push(name == "center" || align);
                     self.gap();
                 }
             }

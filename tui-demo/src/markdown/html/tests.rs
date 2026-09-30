@@ -194,8 +194,8 @@ fn common_inline_tags_read_like_markdown() {
 #[test]
 fn wrappers_are_dropped_hr_is_a_rule_and_open_tags_stop_at_the_block() {
     assert_eq!(
-        lines("<div align=\"center\">\n居中的字\n</div>\n\n后面", &[]),
-        ["居中的字", "", "后面"]
+        lines("<div>\n不居中的字\n</div>\n\n后面", &[]),
+        ["不居中的字", "", "后面"]
     );
     assert_eq!(
         lines("前面<span style=\"color:red\">红</span>后面", &[]),
@@ -259,4 +259,21 @@ fn html_ruler() {
         let per = took.as_secs_f64() * 1e9 / chars as f64;
         println!("{name}：{chars} 字，{took:?}/次，每字 {per:.0}ns");
     }
+}
+
+#[test]
+fn center_and_align_center_are_centered_in_the_room() {
+    // 2026-09-30 项目主人要做：`<center>`、写了 `align="center"` 的外壳，里面的每一行在正文宽度里居中（左边补空格，
+    // 复制时不带）。
+    let pad =
+        |text: &str| " ".repeat((80 - unicode_width::UnicodeWidthStr::width(text)) / 2) + text;
+    assert_eq!(lines("<center>居中</center>", &[]), [pad("居中")]);
+    assert_eq!(
+        lines("<div align=\"center\">\n居中的字\n</div>\n\n后面", &[]),
+        [pad("居中的字"), String::new(), "后面".into()]
+    );
+    assert_eq!(lines("<p align='CENTER'>标题</p>", &[]), [pad("标题")]);
+    // 居中补的空格在引子里：复制时不带。
+    let drawn = draw("<center>居中</center>", 80, &[]);
+    assert_eq!(super::super::inline::plain(&drawn[0].folded), "居中");
 }

@@ -4,7 +4,9 @@ mod drawer;
 mod jobs;
 
 pub use jobs::Panel;
+mod help;
 mod keys;
+mod language;
 mod mascot;
 mod mention;
 mod mouse;
@@ -138,6 +140,8 @@ pub struct App {
     pub agents_hover: Option<usize>,
     /// 首页吉祥物被列表顶上去以后待在哪。
     pub perch: Perch,
+    /// 界面语言（蓝图「界面语言」）：启动时照系统语言，`/language` 换。
+    pub language: crate::language::Language,
     /// Ctrl+C 打断时要退回排着的话，走到哪一步了（`takeback.rs`）。
     takeback: Option<takeback::Takeback>,
     /// 吉祥物的嘴（`tui.md`「空会话的首页」第 9 条）。
@@ -262,6 +266,7 @@ impl App {
             agents_hover: None,
             perch: Perch::default(),
             takeback: None,
+            language: crate::language::Language::default(),
             mouth: crate::mascot::Mouth::new(
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)

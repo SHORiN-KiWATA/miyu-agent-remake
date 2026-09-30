@@ -10,6 +10,13 @@ use super::Areas;
 use crate::app::App;
 use crate::config::Layout;
 
+/// 首页输入框里放字的宽度：框收窄到 `home_max_width`（「空会话的首页」第 2 条）。待办照它排，和框里的字一样宽。
+pub fn text_width(area_width: u16, layout: &Layout) -> u16 {
+    let width = super::box_width(area_width, layout).min(layout.home_max_width);
+    let m = super::margins::margins(layout, area_width);
+    width.saturating_sub(2 + m.pad_left + m.pad_right).max(1)
+}
+
 /// 首页各块的位置。`mascot` 是吉祥物占几列几行，`menu_rows` 是列表要露出几行（贴在输入框上面，盖住上面的东西，
 /// 输入框不挪）。
 pub fn areas(
@@ -25,7 +32,7 @@ pub fn areas(
     let width = super::box_width(area.width, layout).min(layout.home_max_width);
     let x = area.x + (area.width - width) / 2;
     let m = super::margins::margins(layout, area.width);
-    let text_width = width.saturating_sub(2 + m.pad_left + m.pad_right).max(1);
+    let text_width = text_width(area.width, layout);
     let rows = rows(text_width);
     // 输入框（上下两条边和字）和框下面那一行一直在；待办、吉祥物各连下面的空行。
     let todo_h = if todo_rows > 0 { todo_rows + 1 } else { 0 };
@@ -221,6 +228,19 @@ mod tests {
         assert_eq!(a.agents.x + 2, a.footer.x, "圆圈和框下面那一行的字左对齐");
         // 吉祥物 15 · 空 · 输入框 3 · 框下面 1 · 空 · 工作目录 · 子代理 4：共 26 行。
         assert_eq!(a.mascot.y, (40 - 26) / 2);
+    }
+
+    #[test]
+    fn the_home_todo_is_laid_out_as_wide_as_the_home_box() {
+        // 首页的输入框收窄了，待办原来照正文的宽度排，长的一项被框的宽度裁掉、没有「…」（2026-09-30 查到）。
+        let layout = Config::builtin().unwrap().layout;
+        let area = Rect::new(0, 0, 140, 40);
+        let a = areas(area, &|w| input().rows(w), &layout, (36, 15), 0, 0, 6);
+        assert_eq!(a.todo.width, super::text_width(area.width, &layout));
+        assert!(
+            super::text_width(area.width, &layout) < super::super::text_width(area.width, &layout),
+            "宽窗口下首页比正文窄"
+        );
     }
 
     #[test]

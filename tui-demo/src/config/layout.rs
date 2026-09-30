@@ -77,8 +77,6 @@ pub struct Layout {
     pub theme: String,
     /// 用哪套图标（`resources/icons/` 里的名字，蓝图「图标」）；没有这一套的用出厂的第一套。
     pub icons: String,
-    /// 工具的显示名、结果那一句用哪种语言（仓库 `resources/software/basesystem/human/<它>.json`）。
-    pub tool_language: String,
     /// `Shift+Tab` 轮换权限级别的顺序。
     pub level_cycle: Vec<Level>,
     /// 框外左下角权限级别前面的图标，一档一个，连同它后面的空格：只读是暂停符号。

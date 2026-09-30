@@ -13,6 +13,7 @@ mod drawer;
 mod figure_rows;
 mod footer;
 mod foreign_rows;
+pub mod help;
 mod history;
 mod home;
 mod input_box;
@@ -237,10 +238,16 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     let agent_rows = agents::height(app.listed_agents().len(), app.config.layout.agent_rows);
     // 没有侧边栏（窄屏、首页）时，待办常驻在输入框上面（第 4 条）；有侧边栏时在侧边栏里。
     let todo_lines = if sidebar.width == 0 {
+        // 首页的框收窄了：照首页框里的字宽排，不然长的一项被裁掉、没有「…」。
+        let width = if home {
+            home::text_width(main.width, &app.config.layout)
+        } else {
+            text_width(main.width, &app.config.layout)
+        };
         sidebar::todo_lines(
             &app.board,
             &app.config,
-            text_width(main.width, &app.config.layout),
+            width,
             app.config.layout.todo_rows,
             app.todo_full,
         )
@@ -320,15 +327,22 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     } else {
         Default::default()
     };
-    // 后台面板排成的行（第 3 条）。
-    let (panel_chrome, panel_lines, panel_rows) = background::lines(
-        app.panel,
-        &app.board,
-        &app.config,
-        width,
-        now,
-        usize::from(inner),
-    );
+    // 后台面板排成的行（第 3 条）；帮助框（`/help`）一样放在这个位置，点它哪一行都不算点中。
+    let (panel_chrome, panel_lines, panel_rows) = match app.panel {
+        Some(crate::app::Panel::Help { scroll }) => {
+            let (chrome, lines) = help::lines(&app.config, width, scroll, usize::from(inner));
+            let map = vec![None; lines.len()];
+            (chrome, lines, map)
+        }
+        _ => background::lines(
+            app.panel,
+            &app.board,
+            &app.config,
+            width,
+            now,
+            usize::from(inner),
+        ),
+    };
     let menu_shown = menu::rows(app.config.layout.menu_rows, inner);
     // 框里的几条，放得下框的加上上下两条边（`tui.md`「斜杠命令列表」第 3 条）。
     let items = if app.panel.is_some() {

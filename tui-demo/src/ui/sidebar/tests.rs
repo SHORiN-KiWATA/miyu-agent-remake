@@ -262,14 +262,39 @@ fn a_long_directory_breaks_after_a_slash_and_never_leaves_one_alone() {
 #[test]
 fn a_little_context_still_lights_one_cell() {
     let marks = crate::config::Config::builtin().unwrap().layout.bar;
-    let bar = super::bar(1500, 1_000_000, 34, &marks).to_string();
+    let bar = super::bar(1500, 1_000_000, None, 34, &marks).to_string();
     assert_eq!(
         bar.chars().filter(|c| *c == '▰').count(),
         1,
         "用过就至少亮一格"
     );
-    let empty = super::bar(0, 1_000_000, 34, &marks).to_string();
+    let empty = super::bar(0, 1_000_000, None, 34, &marks).to_string();
     assert_eq!(empty.chars().filter(|c| *c == '▰').count(), 0);
+}
+
+#[test]
+fn the_cell_at_the_compaction_line_is_yellow() {
+    // 2026-09-30 项目主人定：进度条上压缩线落在的那一格换成警示色，字不变。
+    let marks = crate::config::Config::builtin().unwrap().layout.bar;
+    let bar = super::bar(100_000, 1_000_000, Some(800_000), 20, &marks);
+    let cells: Vec<(String, ratatui::style::Style)> = bar
+        .spans
+        .iter()
+        .flat_map(|s| s.content.chars().map(move |c| (c.to_string(), s.style)))
+        .filter(|(c, _)| c != " ")
+        .collect();
+    assert_eq!(cells.len(), 20);
+    let warn: Vec<usize> = (0..20)
+        .filter(|&i| cells[i].1 == crate::theme::warn())
+        .collect();
+    assert_eq!(warn, [16], "80% 落在第 17 格");
+    assert_eq!(cells[16].0, "▱", "字不变：还没用到的照旧是空格子");
+    assert_eq!(cells[1].0, "▰");
+    let none = super::bar(100_000, 1_000_000, None, 20, &marks);
+    assert!(
+        none.spans.iter().all(|s| s.style != crate::theme::warn()),
+        "核心没给压缩线：不标"
+    );
 }
 
 #[test]

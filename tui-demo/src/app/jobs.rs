@@ -24,6 +24,11 @@ pub enum Panel {
         /// 结束了的多于一条时收起来的，展开了。
         all: bool,
     },
+    /// 帮助（`/help`）：往下滚了几行。
+    Help {
+        /// 往下滚了几行。
+        scroll: usize,
+    },
 }
 
 impl App {
@@ -159,11 +164,14 @@ impl App {
 
     /// 面板开着时的按键。
     fn panel_key(&mut self, panel: Panel, key: KeyEvent) {
-        let Panel::Background {
-            selected,
-            open,
-            all,
-        } = panel;
+        let (selected, open, all) = match panel {
+            Panel::Background {
+                selected,
+                open,
+                all,
+            } => (selected, open, all),
+            Panel::Help { scroll } => return self.help_key(scroll, key),
+        };
         let items = self.board.panel_items(all);
         let at = |selected| {
             Some(Panel::Background {
@@ -212,6 +220,9 @@ impl App {
 
     /// 鼠标先归框下面那一行的按钮、面板、子代理状态行；归了它们返回 `true`。
     pub(super) fn jobs_mouse(&mut self, mouse: MouseEvent, at: Position) -> bool {
+        if self.help_mouse(mouse, at) {
+            return true;
+        }
         let press = matches!(mouse.kind, MouseEventKind::Down(_));
         let areas = self.areas;
         if self.sidebar_mouse(mouse, at) {

@@ -72,72 +72,40 @@ impl Folded {
     }
 }
 
-/// 把片段按 `width` 列折成行。
+/// 把片段按 `width` 列折成行：换行是硬换行，一段里照 `linebreak.rs` 的规则折（英文照空格断、避头尾）。
 pub fn fold(pieces: &[Piece], width: u16) -> Vec<Folded> {
-    let width = usize::from(width.max(1));
-    // 一个一个字素簇排：（字、它属于哪个片段）。
-    let mut out = vec![Folded::default()];
-    let mut used = 0;
-    // 这一行最后一个能断的地方：空格之后第几个字素簇、那时候用了几列。
-    let mut cells: Vec<(String, usize)> = Vec::new();
-    let mut last_space: Option<usize> = None;
+    let mut out = Vec::new();
+    // 一段里的字素簇：（字、它属于哪个片段）。
+    let mut para: Vec<(&str, usize)> = Vec::new();
     for (index, piece) in pieces.iter().enumerate() {
         for g in piece.text.graphemes(true) {
             if g == "\n" {
-                flush(&mut out, &mut cells, pieces);
-                out.push(Folded::default());
-                used = 0;
-                last_space = None;
+                lay(&mut out, &para, pieces, width);
+                para.clear();
                 continue;
             }
-            let w = g.width();
-            let blank = g.trim().is_empty();
-            // 满了的那一格是空白：留在这一行末尾（超出的会被裁掉、看不见，复制时还在），下一行不从空白起。
-            if used + w > width && blank && !cells.is_empty() {
-                cells.push((g.to_string(), index));
-                flush(&mut out, &mut cells, pieces);
-                out.push(Folded {
-                    joined: true,
-                    ..Folded::default()
-                });
-                used = 0;
-                last_space = None;
-                continue;
-            }
-            if used + w > width && !cells.is_empty() {
-                // 在词中间满了：退回到这一行最后一个空格之后断，那一截挪到下一行。
-                let wide = g.chars().any(|c| c.len_utf8() > 2);
-                let cut = last_space.filter(|_| !wide);
-                let carry = match cut {
-                    Some(at) if at < cells.len() => cells.split_off(at),
-                    _ => Vec::new(),
-                };
-                flush(&mut out, &mut cells, pieces);
-                out.push(Folded {
-                    joined: true,
-                    ..Folded::default()
-                });
-                used = carry.iter().map(|(t, _)| t.width()).sum();
-                cells = carry;
-                last_space = None;
-            }
-            cells.push((g.to_string(), index));
-            used += w;
-            if blank {
-                last_space = Some(cells.len());
-            }
+            para.push((g, index));
         }
     }
-    flush(&mut out, &mut cells, pieces);
+    lay(&mut out, &para, pieces, width);
     out
 }
 
-fn flush(out: &mut [Folded], cells: &mut Vec<(String, usize)>, pieces: &[Piece]) {
-    let Some(line) = out.last_mut() else {
-        return;
-    };
-    for (text, index) in cells.drain(..) {
-        line.push(&text, &pieces[index]);
+/// 一段折好放进 `out`：第一行接着上一段的硬换行，后面的是折下来的。
+fn lay(out: &mut Vec<Folded>, para: &[(&str, usize)], pieces: &[Piece], width: u16) {
+    let cells: Vec<&str> = para.iter().map(|(g, _)| *g).collect();
+    for (k, range) in crate::linebreak::lines(&cells, usize::from(width.max(1)))
+        .into_iter()
+        .enumerate()
+    {
+        let mut line = Folded {
+            joined: k > 0,
+            ..Folded::default()
+        };
+        for &(g, index) in &para[range] {
+            line.push(g, &pieces[index]);
+        }
+        out.push(line);
     }
 }
 
@@ -173,6 +141,13 @@ mod tests {
             lines("你好世界", 5),
             vec![("你好".into(), false), ("世界".into(), true)]
         );
+    }
+
+    #[test]
+    fn a_full_stop_never_starts_a_line() {
+        // 2026-09-30 项目主人：回答里 `。` 落在行首（蓝图「她的回答：Markdown」第 2 条）。
+        let got = lines("会先睡十五秒再读文件。", 20);
+        assert!(got.iter().all(|(l, _)| !l.starts_with('。')), "{got:?}");
     }
 
     #[test]

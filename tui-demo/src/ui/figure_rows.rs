@@ -152,11 +152,11 @@ mod tests {
             screen_rows: 40,
         };
         let math = figure(&config, "$$\\frac{a+1}{b}$$");
-        // 终端显示不了图：写一行 Unicode。
+        // 终端显示不了图：写成 Unicode，分式上下摞。
         let plain_terminal = RefCell::new(Figures::start(None, &config.figures, None, |_| true));
         assert_eq!(
             plain(&rows(Vec::new(), &math, &ctx(&plain_terminal))),
-            ["(a+1)/b"]
+            [" a+1", "─────", "  b"]
         );
         // 能显示图：先是一行占位，后台做好了是几行图，不复制。
         let mut picker = Picker::halfblocks();

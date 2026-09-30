@@ -407,3 +407,18 @@ fn ctrl_a_moves_the_cursor_to_the_start_of_the_box() {
     assert_eq!(i.editor.cursor(), 0);
     assert_eq!(i.editor.selection(), None, "选区也取消");
 }
+
+#[test]
+fn transcript_pieces_keep_english_words_whole() {
+    // 2026-09-30 项目主人：你说的话里 `p` / `rompt` 从中间劈开。正文照蓝图的折行规则折，输入框照旧按字素簇折。
+    let got: Vec<String> = pieces("派子代理，prompt 写：先", 14)
+        .into_iter()
+        .map(|(l, _)| l)
+        .collect();
+    assert_eq!(got, ["派子代理，", "prompt 写：先"]);
+    let editor: Vec<(usize, usize)> = wrap("派子代理，prompt", 14)
+        .iter()
+        .map(|l| (l.start, l.end))
+        .collect();
+    assert_eq!(editor.len(), 2, "输入框照字素簇折，不动");
+}

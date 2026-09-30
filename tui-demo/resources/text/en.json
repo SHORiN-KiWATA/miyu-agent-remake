@@ -1,0 +1,377 @@
+{
+  "tips": [
+    "Tab switches the permission level",
+    "Ctrl+R browses your input history",
+    "/ opens the command list",
+    "Shift+Enter starts a new line",
+    "↑ brings back what you last sent",
+    "Ctrl+S stashes this text, press again to get it back",
+    "Esc twice clears the input",
+    "Drag to select text, Ctrl+C to copy",
+    "PgUp and PgDn scroll the conversation",
+    "Ctrl+Z suspends, fg brings it back",
+    "/undo undoes the last turn, /restore brings it back",
+    "With background commands running, ↓ on an empty input opens the panel"
+  ],
+  "untitled": "Untitled session",
+  "side_id": "#{id}",
+  "side_cwd": "Working directory",
+  "side_context": "Context",
+  "side_context_value": "{used} / {window} · {percent}%",
+  "side_usage": "Usage",
+  "side_total": "{tokens} tokens in total",
+  "side_split": "In {input} · Out {output}",
+  "side_hit": "Cache hits {percent}%",
+  "side_compactions": "Compactions: {n}",
+  "side_breaks": "Cache breaks: {n}",
+  "copied": "Copied {count} character(s)",
+  "copy_failed": "Couldn't copy: {reason}",
+  "nothing_to_copy": "No reply to copy yet",
+  "connecting": "Connecting to the core…",
+  "no_core_bin": "The core isn't running: set MIYU_CORE_BIN to the remake's miyu when starting",
+  "core_failed": "Can't connect to the core: {reason}",
+  "reconnecting": "Lost the core, reconnecting…",
+  "turn_cut": "Core disconnected",
+  "missing_core": "Core program not found: {path}",
+  "not_connected": "Core not connected",
+  "crash_saved": "Stack trace saved to {path}",
+  "notify": {
+    "title": "Miyu",
+    "replied": "Done",
+    "failed": "Something went wrong",
+    "approving": "Waiting for your approval",
+    "asking": "Waiting for your answer"
+  },
+  "refused": "The core refused: {reason}",
+  "interrupted": "Interrupted",
+  "failed": "Error: {reason}",
+  "reason_with": "{head}: {message}",
+  "status_hints": {
+    "402": "Out of credit",
+    "404": "Not found: check the endpoint address and the model name",
+    "429": "Rate limited or out of credit, try again later"
+  },
+  "retry": "Retry {attempt}/{limit}: {message}",
+  "total": "Σ{tokens}(C{percent}%)",
+  "done": "{time} · {endpoint}/{model} · {elapsed}",
+  "speed": "{rate} tok/s",
+  "context": "{used}/{window}({percent}%)",
+  "undone": "Undone · /restore to bring it back",
+  "undo_compactions": "Undid a compaction: the context is back to before it",
+  "undo_clears": "Undid a clear: the context is back to before it",
+  "restored": "Restored {count} file(s)",
+  "untouched": "Left {count} file(s) alone: changed again since, or gone",
+  "commands": "Changes by {count} command(s) can't be undone",
+  "unknown_command": "No such command",
+  "fake_command": "/{name} is a placeholder in this demo and does nothing yet",
+  "thinking": "Thinking",
+  "thought": "Thought",
+  "prepare": "Preparing {name}",
+  "omitted": "{count} line(s) omitted",
+  "summary": {
+    "ran": [
+      "Ran 1 command",
+      "Ran {count} commands"
+    ],
+    "used": [
+      "Used 1 tool",
+      "Used {count} tools"
+    ],
+    "made": [
+      "Made 1 edit",
+      "Made {count} edits"
+    ],
+    "edits": [
+      "1 edit",
+      "{count} edits"
+    ],
+    "tools": [
+      "1 tool",
+      "{count} tools"
+    ],
+    "thoughts": [
+      "1 thought",
+      "{count} thoughts"
+    ],
+    "errors": [
+      "1 err",
+      "{count} err"
+    ],
+    "thought_for": "Thought for {elapsed}"
+  },
+  "levels": {
+    "workspace": "Workspace",
+    "full": "Full access",
+    "read_only": "Read-only"
+  },
+  "home_placeholder": "Tab switches the permission level",
+  "exit_hint": "Press Ctrl+D to exit",
+  "input_cleared": "Cleared · ↑ to bring it back",
+  "editing": " Editing your last message · Esc to cancel ",
+  "open": {
+    "refused": "Won't open this kind of address: {url}",
+    "missing": "File not found: {path}",
+    "failed": "Can't open it: {reason}"
+  },
+  "esc_hint": "Press Esc again to interrupt",
+  "stashed": "> stashed",
+  "esc_clear_hint": "Press Esc again to clear",
+  "no_clear_running": "Can't clear the screen while she's replying",
+  "theme_changed": "Theme: {name}",
+  "icons_changed": "Icons: {name}",
+  "figure_pending": "⋯ drawing",
+  "figure_zoom": "Click to enlarge",
+  "markdown": {
+    "image": "[image: ",
+    "details": "Details",
+    "details_marks": [
+      "▶ ",
+      "▼ "
+    ],
+    "bullets": [
+      "▪",
+      "•",
+      "◦"
+    ]
+  },
+  "refusal_hints": {
+    "nothing_to_compact": "Not enough context",
+    "nothing_to_clear": "The context is empty",
+    "not_redoable": "Can't redo",
+    "empty_message": "Nothing left after the edit",
+    "unknown_job": "That task has already ended"
+  },
+  "refusals": {
+    "nothing_to_unrevert": "Nothing to restore",
+    "nothing_to_revert": "Nothing to undo",
+    "turn_running": "Still replying: interrupt first, or wait for it to finish",
+    "unknown_turn": "Can't find the turn to undo",
+    "restoring": "The last undo or restore is still in progress, one moment"
+  },
+  "done_usage": " · {tokens}(C{percent}%)",
+  "menu": {
+    "title": "Commands",
+    "count": " {count}"
+  },
+  "compaction": {
+    "progress": "Compacting the context",
+    "written": " {written}",
+    "percent": " {percent}%",
+    "done": "Context compacted: {before} → {after} tokens",
+    "done_mark": "● ",
+    "cleared": "Context cleared",
+    "failed": "· Compaction failed: {reason}",
+    "called_a_tool": "The summary request called a tool",
+    "isolating": "· The summary request called a tool, compacting again without tools",
+    "paused_failures": "· Auto-compaction failed {n} times in a row and is paused: compact manually, switch models, or start a new session",
+    "paused_too_large": "· Entry {entry} is too large and fills the context right after compaction; auto-compaction is paused",
+    "paused": "· Auto-compaction is paused: compact manually, switch models, or start a new session"
+  },
+  "error_classes": {
+    "retryable": "Temporary error",
+    "rate_limited": "Rate limited",
+    "context_too_long": "Context too long",
+    "auth": "Authentication failed",
+    "content_policy": "Blocked by the content policy",
+    "bad_stream": "Malformed reply stream",
+    "empty_reply": "Empty reply",
+    "bad_summary": "Couldn't get a summary",
+    "compaction_paused": "Auto-compaction is paused",
+    "other": "Model error"
+  },
+  "mention": {
+    "title": "@ {query}",
+    "count": " · {count}",
+    "layer": " · this folder only",
+    "indexing": " · finding files…",
+    "partial": " · partial list, type / to browse folders",
+    "empty": "No matches",
+    "hints": "↑/↓ select · Tab open folder · Enter insert · Esc close"
+  },
+  "history": {
+    "title": "History",
+    "count": "  {count}",
+    "query": " · search: ",
+    "empty": "No matches",
+    "lines": " · +{count} line(s)",
+    "more": "⋮ {count} more line(s)",
+    "hints": "↑/↓ select · Tab full text · Enter fill in · Esc close",
+    "now": "just now",
+    "minutes": "{n} min ago",
+    "hours": "{n} h ago",
+    "none": "Nothing sent yet"
+  },
+  "help": {
+    "title": "Help",
+    "hint": "↑/↓ scroll · Esc close",
+    "commands": "Commands",
+    "keys_title": "Keys",
+    "keys": [
+      [
+        "Enter",
+        "Send; runs the selected item when a list is open"
+      ],
+      [
+        "Shift+Enter, Ctrl+J",
+        "New line (Alt+Enter works too)"
+      ],
+      [
+        "↑ ↓",
+        "Browse input history from the first or last line"
+      ],
+      [
+        "Ctrl+R",
+        "Input history list"
+      ],
+      [
+        "@",
+        "Complete a file path"
+      ],
+      [
+        "Tab, Shift+Tab",
+        "Switch the permission level"
+      ],
+      [
+        "Ctrl+A",
+        "Go to the start of the input"
+      ],
+      [
+        "Ctrl+← Ctrl+→",
+        "Jump by word"
+      ],
+      [
+        "Ctrl+W, Alt+Backspace",
+        "Delete the previous word"
+      ],
+      [
+        "Ctrl+C",
+        "Copy the selection; clear the input (↑ to bring it back); interrupt while she's replying"
+      ],
+      [
+        "Esc Esc",
+        "Interrupt while she's replying, queued messages go right after; otherwise clear the input"
+      ],
+      [
+        "Ctrl+S",
+        "Stash the input, press again to get it back"
+      ],
+      [
+        "Ctrl+V",
+        "Paste; an image on the clipboard becomes an attachment"
+      ],
+      [
+        "↓ (empty input)",
+        "Move to the background button and the subagent rows"
+      ],
+      [
+        "PgUp PgDn",
+        "Scroll the conversation"
+      ],
+      [
+        "Ctrl+L",
+        "Clear the screen"
+      ],
+      [
+        "Ctrl+Z",
+        "Suspend, fg to come back"
+      ],
+      [
+        "Ctrl+D",
+        "Exit when the input is empty"
+      ]
+    ]
+  },
+  "jobs": {
+    "button": "Background: {count}",
+    "title": "Background",
+    "active": "{count} running",
+    "hint": "↑/↓ select · Enter expand · x stop · Esc close",
+    "running": "(running {elapsed})",
+    "done": "(done {elapsed})",
+    "failed": "(failed · exit code {code})",
+    "stopped": "(stopped)",
+    "main": "Main session",
+    "more": "{count} more",
+    "todo": "To-do {done}/{total}",
+    "done_note": "Background command done · {title} · {elapsed}",
+    "failed_note": "Background command failed · {title} · exit code {code}",
+    "stopped_note": "Background command stopped · {title}{why}",
+    "agent_note": "Background task done · {title} · {elapsed}",
+    "ok_mark": "● ",
+    "fail_mark": "✗ ",
+    "todo_folded": "{count} done",
+    "todo_more": "… {count} more",
+    "killed": "(failed · signal {signal})",
+    "undone": "(stopped by undo)",
+    "restarted": "(stopped when the core restarted)",
+    "no_output": "No output",
+    "more_ended": "{count} collapsed",
+    "less_ended": "Collapse finished ones",
+    "killed_note": "Background command failed · {title} · signal {signal}",
+    "agent_stopped_note": "Background task stopped · {title}{why}",
+    "why_undone": " · stopped by undo",
+    "why_restarted": " · stopped when the core restarted",
+    "doing_thinking": "Thinking",
+    "doing_replying": "Replying",
+    "from_person": "Message from you elsewhere",
+    "from_main": "Message from the main session",
+    "from_agent": "Message from subagent {job}",
+    "from_harness": "Message from {name}",
+    "received": "{from} · {text}",
+    "child_tag": " Subagent · {title} ",
+    "finished": "Done"
+  },
+  "drawer": {
+    "asking": "{who} is asking",
+    "answered_tab": " ✓",
+    "review_tab": "Review",
+    "pointer": "› ",
+    "unchecked": "[ ] ",
+    "checked": "[✓] ",
+    "other": "Type another answer",
+    "custom": "Custom: {text}",
+    "notes_label": "Notes",
+    "decisions": [
+      "Allow once",
+      "Allow for this session",
+      "Allow for this workspace",
+      "Don't allow"
+    ],
+    "reason_hint": "Add a reason (optional)",
+    "access": {
+      "write": "Wants to write {count} file(s)",
+      "read": "Wants to read {count} file(s)",
+      "exec": "Wants to run {tool}"
+    },
+    "access_other": "Wants to use {tool}",
+    "outside": "outside the workspace",
+    "unanswered": "Unanswered",
+    "keys": "↑/↓ select · Enter submit · n notes · Esc ×2 cancel",
+    "keys_multi": "↑/↓ select · Space check · Enter submit · n notes · Esc ×2 cancel",
+    "keys_approve": "↑/↓ select · Enter confirm · Esc ×2 cancel",
+    "keys_review": "Enter submit · Esc ×2 cancel",
+    "keys_edit": "Enter save · Esc stop editing",
+    "keys_tabs": " · ←/→ switch question",
+    "answered_title": "Answered",
+    "answered_line": "{label}: {answer}",
+    "notes_suffix": " (notes: {notes})",
+    "denied_with": "Not allowed · {reason}",
+    "cancelled": "Cancelled",
+    "cancel_hint": "Press Esc again to cancel"
+  },
+  "clipboard_unreadable": "Can't read the clipboard: use your terminal's own paste (Ctrl+Shift+V in kitty)",
+  "clipboard_empty": "The clipboard is empty",
+  "paste_label": "[pasted {lines} line(s)]",
+  "attach": {
+    "labels": {
+      "image": "[image {n}]",
+      "pdf": "[PDF {n}]",
+      "audio": "[audio {n}]",
+      "video": "[video {n}]"
+    },
+    "file": "[{name}]",
+    "folder": "[{name}/]"
+  },
+  "stopped_jobs": "Stopped {count} task(s)",
+  "language_switched": "Interface language: English"
+}

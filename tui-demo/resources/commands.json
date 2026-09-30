@@ -5,22 +5,34 @@
       "aliases": [
         "rewind"
       ],
-      "summary": "撤销上一轮，她改过的文件改回去",
+      "summary": {
+        "zh": "撤销上一轮，她改过的文件改回去",
+        "en": "Undo the last turn and revert the files she changed"
+      },
       "run": "revert"
     },
     {
       "name": "restore",
-      "summary": "恢复刚才撤销的那一轮",
+      "summary": {
+        "zh": "恢复刚才撤销的那一轮",
+        "en": "Bring back the turn you just undid"
+      },
       "run": "unrevert"
     },
     {
       "name": "redo",
-      "summary": "这一轮原样重来一遍",
+      "summary": {
+        "zh": "这一轮原样重来一遍",
+        "en": "Run this turn again as it was"
+      },
       "run": "redo"
     },
     {
       "name": "edit",
-      "summary": "编辑上一句，改完回车重来",
+      "summary": {
+        "zh": "编辑上一句，改完回车重来",
+        "en": "Edit your last message and send it again"
+      },
       "run": "edit"
     },
     {
@@ -28,88 +40,147 @@
       "aliases": [
         "reset"
       ],
-      "summary": "清空上下文，会话不变",
+      "summary": {
+        "zh": "清空上下文，会话不变",
+        "en": "Clear the context, keep the session"
+      },
       "run": "clear"
     },
     {
       "name": "compact",
-      "summary": "现在就压缩上下文，后面可以写给摘要的要求",
+      "summary": {
+        "zh": "现在就压缩上下文，后面可以写给摘要的要求",
+        "en": "Compact the context now; anything after it guides the summary"
+      },
       "run": "compact",
       "args": true
     },
     {
       "name": "theme",
-      "summary": "换一套颜色：tokyonight-night、terminal 轮着换",
+      "summary": {
+        "zh": "换一套颜色：tokyonight-night、terminal 轮着换",
+        "en": "Switch colors: tokyonight-night, terminal in turn"
+      },
       "run": "theme"
     },
     {
       "name": "icons",
-      "summary": "换一套图标：nerd、plain 轮着换",
+      "summary": {
+        "zh": "换一套图标：nerd、plain 轮着换",
+        "en": "Switch icons: nerd, plain in turn"
+      },
       "run": "icons"
     },
     {
       "name": "new",
-      "summary": "开一个新会话",
+      "summary": {
+        "zh": "开一个新会话",
+        "en": "Start a new session"
+      },
       "run": "new"
     },
     {
       "name": "sessions",
-      "summary": "列出会话，切过去",
+      "summary": {
+        "zh": "列出会话，切过去",
+        "en": "List sessions and switch to one"
+      },
       "run": "fake"
     },
     {
       "name": "model",
-      "summary": "换这个会话的模型",
+      "summary": {
+        "zh": "换这个会话的模型",
+        "en": "Change this session's model"
+      },
       "run": "fake"
     },
     {
       "name": "readonly",
-      "summary": "开关只读，和 Shift+Tab 一样",
+      "summary": {
+        "zh": "开关只读，和 Shift+Tab 一样",
+        "en": "Toggle read-only, same as Shift+Tab"
+      },
       "run": "fake"
     },
     {
       "name": "level",
-      "summary": "改常用的权限级别：工作区或完全放开",
+      "summary": {
+        "zh": "改常用的权限级别：工作区或完全放开",
+        "en": "Change the usual permission level: workspace or full access"
+      },
       "run": "fake"
     },
     {
       "name": "tools",
-      "summary": "工具设置：哪些常驻、哪些按需加载",
+      "summary": {
+        "zh": "工具设置：哪些常驻、哪些按需加载",
+        "en": "Tool settings: which are always loaded, which on demand"
+      },
       "run": "fake"
     },
     {
       "name": "settings",
-      "summary": "打开设置",
+      "summary": {
+        "zh": "打开设置",
+        "en": "Open settings"
+      },
       "run": "fake"
     },
     {
       "name": "copy",
-      "summary": "复制她上一轮的回答",
+      "summary": {
+        "zh": "复制她上一轮的回答",
+        "en": "Copy her last reply"
+      },
       "run": "copy"
     },
     {
       "name": "help",
-      "summary": "看看按键和命令",
-      "run": "fake"
+      "summary": {
+        "zh": "看看按键和命令",
+        "en": "See keys and commands"
+      },
+      "run": "help"
+    },
+    {
+      "name": "language",
+      "summary": {
+        "zh": "切换界面语言：中文、English",
+        "en": "Switch the interface language: 中文, English"
+      },
+      "run": "language"
     },
     {
       "name": "exit",
-      "summary": "退出",
+      "summary": {
+        "zh": "退出",
+        "en": "Exit"
+      },
       "run": "quit"
     },
     {
       "name": "demo-todo",
-      "summary": "演示：推一份假的待办",
+      "summary": {
+        "zh": "演示：推一份假的待办",
+        "en": "Demo: push a fake to-do list"
+      },
       "run": "demo_todo"
     },
     {
       "name": "demo-ask",
-      "summary": "演示：她问一个假的问题，看提问的抽屉",
+      "summary": {
+        "zh": "演示：她问一个假的问题，看提问的抽屉",
+        "en": "Demo: she asks a fake question, to see the question drawer"
+      },
       "run": "demo_ask"
     },
     {
       "name": "demo-approve",
-      "summary": "演示：要一次假的权限确认，看确认的抽屉",
+      "summary": {
+        "zh": "演示：要一次假的权限确认，看确认的抽屉",
+        "en": "Demo: a fake permission request, to see the approval drawer"
+      },
       "run": "demo_approve"
     }
   ]

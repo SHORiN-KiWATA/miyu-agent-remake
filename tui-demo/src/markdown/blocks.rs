@@ -68,10 +68,20 @@ impl Renderer<'_> {
         }
     }
 
-    /// 块级公式：先把前面收着的字排出去，自己占一块，画不成图时写一行 Unicode。
+    /// 块级公式：先把前面收着的字排出去，自己占一块，画不成图时写成 Unicode：有分式的上下摞（`stack.rs`），
+    /// 摞出来比正文宽的照一行写（折开就对不齐了）。
     pub(super) fn display_math(&mut self, tex: &str) {
         self.flush();
-        let text = math::unicode(tex, self.math);
+        let lines = super::stack::stacked(tex, self.math);
+        let room = usize::from(self.room());
+        let fits = lines
+            .iter()
+            .all(|l| unicode_width::UnicodeWidthStr::width(l.as_str()) <= room);
+        let text = if lines.len() > 1 && fits {
+            lines.join("\n")
+        } else {
+            math::unicode(tex, self.math)
+        };
         let fallback = self.aside(|r| r.emit(vec![Piece::new(text, theme::md_math())], true));
         self.figure(
             FigureKind::Math,

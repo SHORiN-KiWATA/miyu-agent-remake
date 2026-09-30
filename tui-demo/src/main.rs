@@ -17,6 +17,8 @@ mod focus;
 mod history;
 mod input;
 mod jobs;
+mod language;
+mod linebreak;
 mod local;
 mod markdown;
 mod mascot;
@@ -47,8 +49,6 @@ use ratatui::crossterm::event::{
 use ratatui::crossterm::{cursor, execute, terminal};
 
 use miyu_store::env::Env;
-use miyu_store::human::Human;
-use miyu_store::resources::ResourceRoot;
 
 use app::App;
 use config::Config;
@@ -56,7 +56,9 @@ use core::Update;
 
 fn main() -> io::Result<()> {
     // 配置先读：读不懂就别进全屏，错误照原样打在终端里。
-    let config = Config::builtin().map_err(io::Error::other)?;
+    // 界面语言照系统语言（蓝图「界面语言」）。
+    let language = language::Language::detect(|name| std::env::var(name).ok());
+    let config = Config::load(language).map_err(io::Error::other)?;
     let mut terminal = ratatui::init();
     let keyboard = match enter() {
         Ok(keyboard) => keyboard,
@@ -82,7 +84,7 @@ fn main() -> io::Result<()> {
     }));
     // 问终端能不能显示图：进了全屏、还没开始读按键的时候问（蓝图「图片、公式和 mermaid 图」第 1 条）。
     let graphics = figures::terminal::probe();
-    let result = run(&mut terminal, config, graphics, keyboard);
+    let result = run(&mut terminal, (config, language), graphics, keyboard);
     leave(keyboard)?;
     ratatui::restore();
     result
@@ -139,7 +141,7 @@ enum Incoming {
 /// 终端的事件在一个线程里读，核心在另一个线程里连，都送进同一个通道，主循环只等这一个口子。
 fn run(
     terminal: &mut ratatui::DefaultTerminal,
-    config: Config,
+    (config, language): (Config, language::Language),
     graphics: Option<figures::Graphics>,
     keyboard: bool,
 ) -> io::Result<()> {
@@ -159,8 +161,9 @@ fn run(
     });
     // 读按键的线程：让出终端给编辑器时停下（`reader.rs`）。
     let reader = reader::Reader::spawn(move |event| sender.send(Incoming::Terminal(event)).is_ok());
-    let human = human(&config.layout.tool_language);
+    let human = language.human();
     let mut app = App::new(config, core, human, figures);
+    app.language = language;
     let mut pointer = pointer::Pointer::default();
     // 终端显示得了几种颜色，启动时看一次（蓝图「主题」第 5 条）。
     let depth = theme::Depth::detect(|name| std::env::var(name).ok());
@@ -291,13 +294,4 @@ fn frame(
     }
     out.flush()?;
     drawn.map(|_| ())
-}
-
-/// 工具给人看的显示名：照 `MIYU_RESOURCES`（开发时）找资源目录，读 `language` 那一份（`layout.json` 的 `tool_language`）。
-/// 读不出来的当没有，显示工具名本身。
-fn human(language: &str) -> Human {
-    ResourceRoot::locate(&Env::current())
-        .ok()
-        .and_then(|root| Human::load(&root, language).ok())
-        .unwrap_or_default()
 }

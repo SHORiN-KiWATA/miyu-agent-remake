@@ -24,7 +24,7 @@ pub use attach::{AttachKind, AttachRule, Attachment};
 use dropped::Dropped;
 pub use editor::Editor;
 pub use pasted::{Draft, PasteRule, Sent};
-pub use wrap::{VisualLine, locate, offset_at, pieces, tail_pieces, wrap};
+pub use wrap::{VisualLine, locate, offset_at, pieces, tail_pieces, wrap, wrap_words};
 
 /// 输入框处理完一个事件后，要外面做的事。
 #[derive(Debug, PartialEq, Eq)]

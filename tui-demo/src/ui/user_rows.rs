@@ -8,7 +8,7 @@ use ratatui::text::Span;
 use unicode_width::UnicodeWidthStr;
 
 use super::rows::{Ctx, Row, Target};
-use crate::input::wrap;
+use crate::input::wrap_words;
 use crate::theme;
 use crate::transcript::{Chip, Entry};
 
@@ -38,7 +38,7 @@ pub fn rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
         out.push(head);
     }
     let mut prev_end = None;
-    for line in wrap(&text, ctx.width.max(1)) {
+    for line in wrap_words(&text, ctx.width.max(1)) {
         let styled: Vec<(usize, usize, Style)> =
             pieces.iter().map(|p| (p.from, p.to, p.style)).collect();
         let mut row = ctx.row(bar.clone(), spans(&text, line.start, line.end, &styled));

@@ -253,10 +253,13 @@ fn display_math_and_mermaid_are_figures_that_carry_their_fallback() {
         (figures[0].kind, figures[0].source.as_str()),
         (FigureKind::Math, "\\frac{a+1}{b}")
     );
-    assert_eq!(
-        super::inline::plain(&figures[0].fallback[0].folded),
-        "(a+1)/b"
-    );
+    // 画不成图时写成 Unicode，分式上下摞（2026-09-30 项目主人要做）。
+    let fallback: Vec<String> = figures[0]
+        .fallback
+        .iter()
+        .map(|l| super::inline::plain(&l.folded).trim_end().to_string())
+        .collect();
+    assert_eq!(fallback, [" a+1", "─────", "  b"]);
     assert_eq!(figures[1].kind, FigureKind::Mermaid);
     assert_eq!(figures[1].source, "graph TD\nA-->B\n");
     // mermaid 画不成图时照普通代码块写：框线、两行源码、框线。
