@@ -12,7 +12,7 @@
 
 状态：图纸，定稿（2026-10-01 起草，主会话审过，项目主人同一天批准）。定了的六条和防刷屏在 `docs/designs/29-跨会话.md` 第一、二节，这一页把第三节留下的技术细节定下来（末尾「起草时定的」）。每一节标着由哪一步做，步子见末尾「施工步子」（C-1 到 C-7，正式编号）。做完一步，这一页照做好的样子改写那几节，相关的几页跟着改（末尾「要跟着改的别的页」）。
 
-做好了的：C-1 会话的短编号（`kernel/ids.md`）；事件 `peer.idle`、效果 `peer.watch` 的类型、读写、样本（`kernel/events.md`、`kernel/events-bodies.md`）；`by` 是会话的三种关系（`kernel/ids.md`「谁」）；账本在等哪几个会话、`peer.idle` 只认在等的（`kernel/history.md`「在等的通知」）。C-2 收别的会话发来的话：内核认出别的会话、照「别处来的」收，防刷屏前三款（`kernel/session.md`「别的会话发来的话」，账本见 `kernel/history.md`「最近收下的别的会话的话」），策略数据 `peers.burst`、`window`、`unread`（`policy.md`），渲染 `<session-message from="短编号">`（`kernel/request.md`「别的会话发来的话」），`history` 的「谁」写 `session <短编号>`（`tools/history.md`），它开的那一轮重做不了。还没有哪里发得出别的会话的话（C-5），还没有哪里报 `peer.watch`、写 `peer.idle`（C-6）。
+做好了的：C-1 会话的短编号（`kernel/ids.md`）；事件 `peer.idle`、效果 `peer.watch` 的类型、读写、样本（`kernel/events.md`、`kernel/events-bodies.md`）；`by` 是会话的三种关系（`kernel/ids.md`「谁」）；账本在等哪几个会话、`peer.idle` 只认在等的（`kernel/history.md`「在等的通知」）。C-2 收别的会话发来的话：内核认出别的会话、照「别处来的」收，防刷屏前三款（`kernel/session.md`「别的会话发来的话」，账本见 `kernel/history.md`「最近收下的别的会话的话」），策略数据 `peers.burst`、`window`、`unread`（`policy.md`），渲染 `<session-message from="短编号">`（`kernel/request.md`「别的会话发来的话」），`history` 的「谁」写 `session <短编号>`（`tools/history.md`），它开的那一轮重做不了。还没有哪里发得出别的会话的话（C-5），还没有哪里报 `peer.watch`、写 `peer.idle`（C-6）。 C-3 列会话：`session.list` 每一项多 `cwd`、`busy`、`last_active`（`protocol.md`），新的一件工具 `sessions`，只给本机的主会话（`tools/sessions.md`、`session/tools.md`「1d. 列会话」「工具面」）；认会话编号的 `find_session` 做好了，C-4、C-5 接着用。
 
 ### 在哪
 
@@ -29,9 +29,10 @@
 | `crates/miyu-policy/src/peers.rs` | 策略数据 `peers.*` 的出厂值（C-2、C-6） |
 | `crates/miyu-assemble/src/peers.rs` | 两种渲染：别的会话发来的话、空了的通知（C-2、C-6），标签那一块照 `tag.rs`。人这边的一条照谁发的包哪种外壳在 `render.rs` 的 `said`，主请求和回顾的请求共用（C-2） |
 | `crates/miyu-endpoint/src/list.rs` | 列会话多算三样：工作目录、忙不忙、最近一次动静，`session.list` 和 `sessions` 共用（C-3） |
-| `crates/miyu-endpoint/src/spawn.rs` | 会话表那一头的 `SessionPort` 多几样：列主会话、认短编号、只读地开别的会话的日志（C-3、C-4），发话时交回对方有没有人看着（C-5），订、发通知（C-6） |
+| `crates/miyu-endpoint/src/spawn.rs` | 会话表那一头的 `SessionPort` 多几样：列主会话（C-3，`sessions`，含调的那个会话自己）、只读地开别的会话的日志（C-4），发话时交回对方有没有人看着（C-5），订、发通知（C-6） |
 | `crates/miyu-session/src/spawn.rs` | `SessionPort` 多的那几样定义在这一层，会话表在上一层实现 |
-| `crates/miyu-tool/src/sessions.rs` | 交给 `sessions`、`history` 的端口 `SessionsPort`：列、认、开日志（C-3、C-4） |
+| `crates/miyu-tool/src/sessions.rs` | 交给 `sessions`、`history` 的端口 `SessionsPort`：列（C-3）、开日志（C-4）。认会话编号的 `find_session`：整个编号或者至少 8 位的后缀，在一批编号里对（C-3 做好，C-4、C-5 照它认：列出这个会话能看到的主会话加它自己，再对） |
+| `crates/miyu-session/src/sessions.rs` | 执行器：本机的主会话每一次调用造列会话的端口，拿掉她自己（C-3） |
 | `crates/miyu-tool/src/messages.rs` | `Recipient` 多 `Session`，`NotSent` 多几种（C-5）。只订不发时认出会话、交回整个编号（C-6） |
 | `crates/miyu-session/src/messages.rs` | 执行器：认会话编号、送、订（C-5、C-6） |
 | `crates/miyu-session/src/peers.rs` | 执行器：每送完一批，照内核新多出来的在等的去订、计时，到点交作废（C-6） |
@@ -117,16 +118,16 @@
 
 **工具**：
 
-- 新的一件 `sessions`（C-3），一页 `tools/sessions.md`（施工时建）。
+- 新的一件 `sessions`（C-3 做好了），一页 `tools/sessions.md`。
 - `history` 多一格 `session`（C-4，`tools/history.md`）。
 - 留言的工具 `message_agent` 改名 `send_message`（照 Claude Code 的 `SendMessage`，2026-10-01 项目主人定）。C-5 改名，和说明第一句、`to` 一起改，只冷一次缓存。以前造的会话快照里冻着 `message_agent`（前缀不能变），它们发来的 `message_agent` 调用照样执行、认成同一件，给人看的字两个键都在，照施工 7-5 再补给 `agent` 改名 `subagent` 的做法。结果里的几句从 `message_agent/` 挪到 `send_message/`，字节不变，登记簿换路径。`tools/message_agent.md` 改成 `tools/send_message.md`。
 - `send_message` 的 `to` 多认会话编号（C-5），`message` 改成可以不写，多一格 `notify_when_idle`（C-6）。
 - 派子代理的工具 `agent` 另开小单改名 `subagent`（施工 7-5 再补，2026-10-01 项目主人定），这一页照新名字写。
-- 说明的原文见「样子」，每份待量 token，量了进登记簿（`26-提示词.md` 第十节），受工具面的预算管（`10-自带软件.md` 第九节）。估的份量（待量）：`sessions` 约 100，`send_message` 多约 45，`history` 多约 18。主会话的工具面一共多约 165，子会话多约 63（没有 `sessions`）。
+- 说明的原文见「样子」，每份待量 token，量了进登记簿（`26-提示词.md` 第十节），受工具面的预算管（`10-自带软件.md` 第九节）。`sessions` 量了是 95（C-3，2026-10-01，十二件一起时的边际份量，整个 tools 数组 1968 → 2063）。估的份量（待量）：`send_message` 多约 45（C-5 给 `sessions` 的说明补点名那半句另算），`history` 多约 18。子会话多约 63（没有 `sessions`）。
 
 **协议**（`protocol.md`）：
 
-- `session.list` 的每一项多三格（C-3）：`cwd` 会话的工作目录（头报来的写法），`busy` 这时有回合在进行（是的才写 `true`，和 `pinned` 一样），`last_active` 日志最后一条事件的时刻。和 `sessions` 是同一个函数算的。排序不改，还是照编号倒着排。
+- `session.list` 的每一项多三格（C-3 做好了，`protocol.md`「`session.list`」第 4、5 条）：`cwd` 会话的工作目录（头报来的写法），`busy` 这时有回合在进行（是的才写 `true`，和 `pinned` 一样），`last_active` 日志最后一条事件的时刻。和 `sessions` 是同一个函数算的。排序不改，还是照编号倒着排。
 
 ```json
 {"busy":true,"cwd":"~/src/miyu","last_active":"2026-10-01T06:03:12.345Z","oneshot":false,"parent":null,"session":"0192f3a0-2222-7abc-8def-5566778899aa","title":"修 CI"}
@@ -138,21 +139,22 @@
 
 ### 怎么走
 
-**一、列会话**（`sessions`，C-3）
+**一、列会话**（`sessions`，C-3 做好了，工具照 `tools/sessions.md`）
 
-1. 只有本机的主会话工具面里有它（第九条）。
-2. 执行器经会话表要一份会话：属主和这个会话一样、`session.created` 不带 `parent`（主会话）、没删的，不含它自己。每个会话交编号、标题、工作目录、忙不忙、最近一次动静。和 `session.list` 同一个函数算（`protocol.md`「`session.list`」第 2、3 条：读第一条，再整份读一遍盖上标题），多算三样：
-   - 工作目录：日志里最后一条带 `cwd` 的 `turn.started` 的，没有就照 `session.created` 的。和「会话表」第 5 条同一个认法。
-   - 最近一次动静：日志最后一条事件的 `at`。日志坏了的，照坏的那一段以前的。
-   - 忙：它在会话表里，这时有回合在进行（回合结束了 `turn.ended` 还没落盘、正在改回文件也算）。和 `Core::idle` 看的是同一样。没载入的都是闲。在等人确认、等人回答的也算忙。
+1. 只有本机的主会话工具面里有它（第九条）。每一次调用的列会话端口也只给本机的主会话（`Agents::lists_sessions`，和工具面同一个判断）。
+2. 执行器经会话表要一份会话：属主和这个会话一样、`session.created` 不带 `parent`（主会话）、没删的，会话表交回的含它自己，执行器拿掉它自己。每个会话交编号、标题、工作目录、忙不忙、最近一次动静。和 `session.list` 同一个函数算（`crates/miyu-endpoint/src/list.rs` 的 `scan`，`protocol.md`「`session.list`」第 2 到 5 条：读第一条，再整份读一遍盖上标题），多算三样：
+   - 工作目录：日志里最后一条带 `cwd` 的 `turn.started` 的，没有就照 `session.created` 的，都没有（很早以前的日志）写 `~`。和「会话表」第 5 条同一个认法，同一个函数。
+   - 最近一次动静：日志最后一条事件的 `at`。日志坏了的，照坏的那一段以前的；只有一段、它坏了的，是 `session.created` 的时刻。
+   - 忙：它在会话表里，这时有回合在进行（回合结束了 `turn.ended` 还没落盘、正在改回文件也算）。和 `Core::idle` 看的是同一样（`Sessions::busy_ids`，先拿着表的锁记下，再去读日志）。没载入的都是闲。在等人确认、等人回答的也算忙。
 3. 照最近一次动静排，新的在前。一样的照编号倒着排。从第 `offset` 个起（从 0 数，不写是 0），最多 `limit` 个（不写是 20）。
 4. 第一行是她自己：`you.txt`，写她的短编号。接着一个会话一行：有标题的 `listed.txt`，没有的 `listed-untitled.txt`。`state` 是 `busy` 或者 `idle`。时刻照这个会话的时区写到分钟，和 `history` 一样。
-5. 后面还有的，末尾接 `more.txt`。一个别的会话都没有的，第一行后面接 `none.txt`。`offset` 过了结尾的，第一行后面接 `past-end.txt`。
-6. 短编号撞了的照「对外的样子」放长。
-7. `limit` 不是正整数、`offset` 是负数、类型不对：参数不对，端口不问。别的参数不认，也不报错。
-8. 没有端口的（测试里的假调用）：只交 `none.txt`，不写第一行。
-9. 访问类别 `read`，不报路径，不报效果。叫停：读下一个会话的日志之前看一眼。
-10. 现在每列一次都把每个会话的日志整份读一遍，和 `session.list` 一样。慢了随会话列表的索引一起换（「还没有的」）。
+5. 后面还有的，末尾接 `more.txt`。一个别的会话都没有的，第一行后面接 `none.txt`（`offset` 写了多少都一样）。`offset` 过了结尾的，第一行后面接 `past-end.txt`。
+6. 短编号撞了的照「对外的样子」放长：照这一张列表（她自己加上全部别的会话，不只是这一页）比，每一个各看各的。
+7. `limit` 不是正整数、`offset` 是负数、类型不对：参数不对，端口不问。别的参数不认，也不报错。`null` 当没写。
+8. 没有端口的（测试里的假调用、核心没装会话表的）：只交 `none.txt`，不写第一行。
+9. 列不出来（放会话的目录读不了、核心正在停）：`failed.txt`，出错，执行器记一行 `WARN sessions not listed`。不当成「没有别的会话」答（2026-10-01 主会话定）。
+10. 访问类别 `read`，不报路径，不报效果。叫停：会话表那一头读下一个会话的日志之前看一眼，举起来了交回已经读到的，工具交回「停下了」。
+11. 现在每列一次都把每个会话的日志整份读一遍，和 `session.list` 一样。慢了随会话列表的索引一起换（「还没有的」）。
 
 **二、读别的会话**（`history` 的 `session`，C-4）
 
@@ -252,16 +254,16 @@
 
 给模型看的新字都是草稿，每份**待量 token**，量了照 `26-提示词.md` 第十节登记。文风照 `26-提示词.md` 第三节：英文短句，不用分号串，参数一句。
 
-**`sessions` 的说明和参数**（C-3），草稿，施工时写进 `resources/software/basesystem/tools/sessions.json`（待量 token）：
+**`sessions` 的说明和参数**（C-3 做好了，`resources/software/basesystem/tools/sessions.json`，95 个 token，登记了）：
 
 ```json
 {
-  "description": "List your other sessions, most recently active first. Each row gives the id to use with send_message and history, the title, working directory, whether it is busy and when it was last active.",
+  "description": "List your other sessions, most recently active first. Each row gives the session id, the title, working directory, whether it is busy and when it was last active.",
   "parameters": {"type":"object","properties":{"limit":{"type":"integer","description":"Default 20."},"offset":{"type":"integer","description":"How many sessions to skip."}}}
 }
 ```
 
-说明里点名的 `send_message`、`history` 在有 `sessions` 的会话里都在（`26-提示词.md` J4）。
+- 草稿第二句是「Each row gives the id to use with send_message and history, …」。C-3 合进来时还没有 `send_message`（C-5 改名），`history` 也还没有 `session`（C-4），点了名就是一件不存在的工具（`26-提示词.md` J4）。C-3 先写不点名的，C-5 改名时补成草稿那一句、重新量，和那一次冷启动放在一起（2026-10-01 主会话定，「起草时定的」第 40 条）。补了以后，说明里点名的 `send_message`、`history` 在有 `sessions` 的会话里都在。
 
 **`send_message` 改成这样**（C-5 改名、改说明第一句和 `to`，C-6 加 `notify_when_idle`、`message` 改成可以不写），待量 token：
 
@@ -326,7 +328,7 @@ No notice came within 12 hours, so the request was dropped.
 </session-idle>
 ```
 
-给她的字，每一份以一个换行结尾，全部待量 token，施工时登记：
+给她的字，每一份以一个换行结尾，施工时量 token、登记（C-3 的七份量过、登记了：`you` 8、`listed` 34、`listed-untitled` 31、`more` 18、`none` 6、`past-end` 16、`failed` 12）：
 
 | 什么时候 | 文件 | 原文 | 步 |
 |---|---|---|---|
@@ -336,6 +338,7 @@ No notice came within 12 hours, so the request was dropped.
 | 列会话，后面还有 | `sessions/more.txt` | `(Showing {from}-{to} of {total}. Use offset={next} to see more.)` | C-3 |
 | 列会话，没有别的 | `sessions/none.txt` | `You have no other sessions.` | C-3 |
 | 列会话，`offset` 过了结尾 | `sessions/past-end.txt` | `(You have {total} other sessions. Offset {offset} is past the end.)` | C-3 |
+| 列会话，列不出来 | `sessions/failed.txt` | `Could not list the sessions: {error}` | C-3 |
 | 读别的会话，「谁」那一格 | `history/session.txt` | `session {id}` | C-2 |
 | 读别的会话，找不到 | `history/no-session.txt` | `No session has the id "{session}".` | C-4 |
 | 读别的会话，对得上不止一个 | `history/ambiguous.txt` | `"{session}" matches more than one session. Use the full id.` | C-4 |
@@ -371,6 +374,7 @@ No notice came within 12 hours, so the request was dropped.
 | 工具 | 什么时候 | 给她的字 | 说法 |
 |---|---|---|---|
 | `sessions` | 参数不对 | `common/bad-args.txt` | `common/bad-args` |
+| `sessions` | 列不出来（放会话的目录读不了、核心正在停） | `sessions/failed.txt` | `sessions/failed`，字段 `error` |
 | `history` | 找不到 | `history/no-session.txt` | `history/no-session`，字段 `session` |
 | `history` | 对得上不止一个 | `history/ambiguous.txt` | `history/ambiguous`，字段 `session` |
 | `history` | 这个会话不能读别的会话 | `history/not-here.txt` | `history/not-here` |
@@ -395,6 +399,7 @@ No notice came within 12 hours, so the request was dropped.
 
 | 级别 | 行 | 什么时候 |
 |---|---|---|
+| `WARN` | `sessions not listed error=…` | 列会话，会话表列不出来（C-3） |
 | `INFO` | `message sent to=<短编号>` | 发给别的会话，送到了（C-5，和父子之间同一行） |
 | `WARN` | `message not delivered to=<短编号> error=…` | 送不到（C-5） |
 | `INFO` | `idle notice sent to=<短编号>` | 被等的这边发了通知（C-6） |
@@ -412,6 +417,7 @@ No notice came within 12 hours, so the request was dropped.
 | `sessions/listed`（`count`） | 列出 {count} 个会话 | Listed {count} sessions | C-3 |
 | `sessions/none` | 没有别的会话 | No other sessions | C-3 |
 | `sessions/past-end`（`total`） | 一共 {total} 个别的会话，已经列完了 | All {total} other sessions are listed | C-3 |
+| `sessions/failed`（`error`） | 没列出来：{error} | Could not list sessions: {error} | C-3 |
 | `history/no-session`（`session`） | 没有会话 {session} | No session {session} | C-4 |
 | `history/ambiguous`（`session`） | {session} 对得上不止一个会话 | {session} matches more than one session | C-4 |
 | `history/not-here` | 这里不能读别的会话 | Cannot read other sessions here | C-4 |
@@ -458,9 +464,11 @@ No notice came within 12 hours, so the request was dropped.
 | `crates/miyu-kernel/src/session/tests/random/` | 随机输入里别的会话的话、通知和回报、撤销交错：`random/peering.rs` 送、`random/watch/peers.rs` 查（C-2） | C-2、C-6 |
 | `crates/miyu-assemble/src/peers/tests.rs`、`tests/probe_peers.rs` | 两种标签和样本一字不差。排在哪。旧快照照人的话原样、通知不出。子会话里父会话的话原样。请求形状（`docs/designs/samples/probe/peers/`）和同一份剧本换成人说的比，只多标签那几段 | C-2、C-6 |
 | `crates/miyu-basesystem/src/history/tests/peers.rs` | 「谁」写 `session <短编号>`，筛 `user` 时在里面 | C-2 |
-| `crates/miyu-endpoint/src/list/tests.rs`、`tests/list.rs` | 三格新字段：工作目录的认法、最近动静、忙不忙。`session.list` 带着它们。日志坏了的照样列 | C-3 |
-| `crates/miyu-basesystem/tests/sessions.rs` | 输出一字不差、第一行是自己、未命名的、分页、过了结尾、没有别的、撞了放长、参数不对、没有端口。每种说法两种语言都换得出字 | C-3 |
-| `crates/miyu-session/tests/sessions.rs` | 只列同一个属主的主会话、不列自己、不列子会话、不列删了的。工具面：本机主会话有 `sessions`，子会话、群没有 | C-3 |
+| `crates/miyu-endpoint/src/list/tests.rs`、`tests/list.rs`、`tests/meta.rs` | 三格新字段：工作目录的认法（一条都没记的写 `~`）、最近动静、忙照会话表交来的，叫停的旗。`session.list` 带着它们，闲着的不写 `busy`。日志坏了的照样列，工作目录、最近动静照第一条 | C-3 |
+| `crates/miyu-endpoint/tests/sessions.rs` | 真核心：工作目录跟着头报的换、忙着的写 `busy`（主会话、子会话）、最近动静是日志最后一条；她列出来的只有同一个属主的别的主会话，不列自己、不列子会话、不列删了的，和 `session.list` 对得上 | C-3 |
+| `crates/miyu-basesystem/tests/sessions.rs` | 输出一字不差、第一行是自己、新的在前、一样的照编号、未命名的、字段转义、时区、分页、过了结尾、没有别的、撞了放长、参数不对不问端口、没有端口、列不出来、叫停。每种说法中文、英文、日文都换得出字 | C-3 |
+| `crates/miyu-tool/src/sessions/tests.rs` | 认会话编号：整个编号、8 位和 12 位的后缀对上，别的写法对不上，撞了是不止一个 | C-3 |
+| `crates/miyu-session/tests/sessions.rs` | 执行器照这个会话的属主要、拿掉她自己，没有会话表的照没有别的，载入的主会话照样列。工具面：本机主会话有 `sessions`，子会话、群没有，别的一件不少；子会话调它照没有的工具拒 | C-3 |
 | `crates/miyu-basesystem/src/history/tests/other.rs`、`crates/miyu-session/tests/history_other.rs` | 读别的会话：只读、不载入、在跑的也读、时区照自己的。找不到、撞了、子会话和群拒 | C-4 |
 | `crates/miyu-basesystem/tests/send_message.rs` | `to` 的认法和先后。长度上限（父子之间也管）。每种拒绝、`held`、`duplicate` 的说法。子会话写会话编号拒。说明里那几句在 | C-5 |
 | `crates/miyu-session/tests/messages_peer.rs` | 执行器：命令编号、`by`、没载入的先载入、没人看着的一次性会话交回 `held`、三种拒绝对上三句、运行日志不带话的字 | C-5 |
@@ -504,13 +512,13 @@ No notice came within 12 hours, so the request was dropped.
 | C-2 | 收别的会话发来的话 | 内核认出别的会话，照「别处来的」收。防刷屏前三条，策略数据 `peers.burst`、`window`、`unread`。渲染 `<session-message>`、样本、请求形状探针。`history` 的「谁」。`session.redo` 不能重做它开的那一轮。合了告诉两个头 | C-1 以后 |
 | C-3 | 列会话 | 会话表列会话多三格，`session.list` 带上。`SessionsPort`。`sessions` 工具和它的字。只给本机主会话。工具面预算、登记。合了告诉两个头 | C-1 以后，能和 C-2 同时做 |
 | C-4 | 读别的会话 | `history` 多 `session`：认编号、只读地开别的会话的日志、子会话和群拒 | C-3 以后（认编号用 C-3 那一份） |
-| C-5 | 发给别的会话 | 留言的工具改名 `send_message`（老会话照认 `message_agent`）。`to` 认会话编号，`message` 还是必填（C-6 才改成可以不写）。长度上限（父子之间一起）。每种拒绝的回执、没人看着的一次性会话只存下。子会话拒。说明改一句、量、登记。真核心两个会话来回说 | C-2、C-3 以后 |
+| C-5 | 发给别的会话 | 留言的工具改名 `send_message`（老会话照认 `message_agent`）。`to` 认会话编号（照 C-3 的 `find_session`），`message` 还是必填（C-6 才改成可以不写）。长度上限（父子之间一起）。每种拒绝的回执、没人看着的一次性会话只存下。子会话拒。说明改一句、量、登记。`sessions` 的说明第二句补上点名「to use with send_message and history」，和改名同一次冷启动，重新量（「起草时定的」第 40 条）。真核心两个会话来回说 | C-2、C-3 以后 |
 | C-6 | 空了告诉我 | `notify_when_idle`。被等的那边 actor 记名单、空了发通知。这边记 `peer.idle`、叫醒。12 小时作废。载入、恢复撤销以后再订。找不到记 `gone`。策略数据 `watch_hours`、`status_chars`。渲染、样本。合了告诉两个头 | C-5 以后 |
 | C-7 | 跨会话验收 | 真模型（开发端点、`deepseek-v4.1-flash`），两个主会话 A、B，各起一个标题：在 A 里让她列出会话、认出 B。读 B 说过的一件事。给 B 发一句要它回答的话，B 被叫醒、用 `send_message` 回话，A 被叫醒。A 订「空了告诉我」，B 做一件长一点的活（跑测试），做完 A 被叫醒、通知里带着那一行。子代理里用会话编号被拒。顺带看：两边互相发个没完会停下。她不把 B 的话当成人的许可。两轮请求的缓存命中不掉。防刷屏的数合不合适 | 最后 |
 
 ### 起草时定的
 
-技术细节照推荐定了，主会话审过一轮（2026-10-01）。第 4 条和第 24 到 27 条原来是给项目主人的题，主会话照推荐定了，项目主人批准图纸时都认了（2026-10-01，下一节）。第 28 条起是施工时照推荐定的技术细节，标着是哪一步。
+技术细节照推荐定了，主会话审过一轮（2026-10-01）。第 4 条和第 24 到 27 条原来是给项目主人的题，主会话照推荐定了，项目主人批准图纸时都认了（2026-10-01，下一节）。第 28 条起是施工时照推荐定的技术细节，标着是哪一步（第 32、33 条是 C-3 施工时问了主会话定的）。
 
 | # | 定了什么 | 为什么 | 别的选法 |
 |---|---|---|---|
@@ -554,6 +562,15 @@ No notice came within 12 hours, so the request was dropped.
 | 37 | 场景测试分两份：收话的 `scenario/peers.rs`，防刷屏的 `scenario/flood.rs`（施工 C-2） | 一个文件最多 500 行 | 一份 |
 | 38 | 随机测试里别的会话的话只在四分之一的种子里送（种子除以 4 余 3，避开多调写文件的种子），数调小成 3 句、20 秒、5 句，时刻在一分钟里随便取（施工 C-2） | 每个种子都送，三百例里「又打断就不等了」这样难得的路走不到了；数调小，三款和窗口过了又收在三百例里都走得到 | 每个种子都送 |
 | 39 | 快照里防刷屏的数 `peers` 排在最后，标签 `core.peers` 排在 `harness` 后面；以前造的快照两样都没有，读成没有、不写（施工 C-2） | 字段的先后就是字节的先后；照 `jobs`、`recap` 的放法，旧快照的字节不变 | — |
+| 40 | `sessions` 的说明 C-3 先写不点名的第二句，C-5 改名时补上「to use with send_message and history」（施工 C-3，2026-10-01 主会话定） | C-3 时还没有 `send_message`、`history` 的 `session`，点名就违反 J4。C-5 本来就冷一次工具面，多改这一句不多花缓存，只多量一次 | 照草稿原样写，C-3 到 C-5 之间点名一件不存在的工具 |
+| 41 | 列不出来（放会话的目录读不了、核心正在停）交 `sessions/failed.txt`，算出错（施工 C-3，2026-10-01 主会话定） | 每次调用都要有结果；照「没有别的会话」答是骗她。照 `history/no-log.txt` 的写法 | 当成没有别的会话 |
+| 42 | 认会话编号做成 `miyu-tool` 里的纯函数 `find_session`：会话表的端口只列（含调的那个会话自己），认 = 列出这个会话能看到的主会话，再对（施工 C-3） | 一个认法，C-4 的 `history`、C-5 的 `send_message` 都照它；不另开一个端口方法，会话表那一头只有一样事 | `SessionPort` 另加一个「认」 |
+| 43 | 撞了放长照整张列表比（她自己加全部别的会话），不只是这一页（施工 C-3） | 翻页时同一个会话的写法不变；她自己的编号也算进去，第一行和下面的对得上 | 只照这一页比 |
+| 44 | 工作目录日志里一条都没记的写 `~`；只有一段、它坏了的，最近一次动静是 `session.created` 的时刻（施工 C-3） | 和会话表载入时同一个认法（`protocol.md`「会话表」第 5 条），`cwd` 总有一格；第一条读得出来才列进去，它的时刻总是有的 | 不写 `cwd`。坏了的不列 |
+| 45 | 忙不忙：先拿着会话表的锁记下这时忙着的，放开锁再去读日志（施工 C-3） | 读日志慢，不能一直拿着表的锁挡住别的连接；忙不忙本来就是那一刻的 | 读完日志再看 |
+| 46 | 列会话的端口也只给本机的主会话，和工具面同一个判断（`Agents::lists_sessions`，施工 C-3） | 工具面不给，端口也不给：老会话、子会话照旧名字调也拿不到别的会话 | 端口谁都给，只靠工具面挡 |
+| 47 | 排序、分页在工具里，端口交回的不排先后（施工 C-3） | 排法是这件工具的事；`session.list` 照编号排，两边共用读的那一段 | 端口排好 |
+| 48 | 一个别的会话都没有时，写了 `offset` 也说 `none.txt`，不说过了结尾（施工 C-3） | 「没有别的会话」对她更有用，也不用她再改 `offset` | 照过了结尾说 |
 
 ### 定的（2026-10-01）
 
@@ -571,8 +588,8 @@ No notice came within 12 hours, so the request was dropped.
 
 - `tools/message_agent.md` 改名 `tools/send_message.md`：是什么、对外的样子（名字、老会话照认旧名字、说明、`to` 多一种、`message` 不再必填、`notify_when_idle`）、怎么走、样子（新的几句）、出错、给人看的字、守着它的、还没有的（删掉跨会话那条）。别的页里引用 `message_agent` 的照新名字改（`agents.md`、`session/tools.md`、`kernel/…`、`26-提示词.md`、`10-自带软件.md`）。C-5、C-6。
 - `tools/history.md`：参数 `session`、怎么走第 2 条（读哪份日志）、「谁」多 `session <短编号>`、出错、给人看的字、守着它的。C-2、C-4（C-2 的「谁」改好了）。
-- `tools/sessions.md`：新页。C-3。
-- `tools/interface.md`：`Call` 多 `sessions` 端口，`MessagePort` 的 `Recipient`、`NotSent` 多几种，只订不发时认出会话。C-3 到 C-6。
+- `tools/sessions.md`：新页。C-3（建好了）。
+- `tools/interface.md`：`Call` 多 `sessions` 端口（C-3 改好了），`MessagePort` 的 `Recipient`、`NotSent` 多几种，只订不发时认出会话。C-3 到 C-6。
 - `kernel/ids.md`：短编号，`by` 的 `session` 那一行写三种关系。C-1（改好了）。
 - `kernel/events.md`：种类表加 `peer.idle`。C-1（改好了）。
 - `kernel/events-bodies.md`：`message.user` 的说明多别的会话，`peer.idle`，效果 `peer.watch`。C-1（改好了）。
@@ -580,15 +597,15 @@ No notice came within 12 hours, so the request was dropped.
 - `kernel/history.md`：账本在等的通知、`peer.idle` 只认在等的（C-1 改好了）、最近收下的别的会话的话。「拿走什么」「重做」多两种别处来的。C-1、C-2、C-6（C-2 的「最近收下的别的会话的话」「父会话」改好了）。
 - `kernel/request.md`：渲染表 `message.user` 多一种、`peer.idle` 一行（C-1 先写了「现在不渲染」）。新两段。`Texts` 多 `peers`。样子的表。C-2、C-6（C-2 的「别的会话发来的话」改好了）。
 - `session/actor.md`：被等的名单、每批以后看空没空、先交通知再报空闲。C-6。
-- `session/tools.md`：工具面（`sessions` 只给本机主会话），「父子之间留言」扩成认会话编号，订、计时、再订。C-3、C-5、C-6。
-- `protocol.md`：`session.list` 三格，`session.redo` 第 3 条，守着它的。C-2、C-3、C-6（C-2 的 `session.redo` 第 3 条改好了）。
+- `session/tools.md`：工具面（`sessions` 只给本机主会话，C-3 改好了，「1d. 列会话」），「父子之间留言」扩成认会话编号，订、计时、再订。C-3、C-5、C-6。
+- `protocol.md`：`session.list` 三格（C-3 改好了），`session.redo` 第 3 条，守着它的。C-2、C-3、C-6（C-2 的 `session.redo` 第 3 条改好了）。
 - `policy.md`：快照多 `peers`，`Texts` 多 `peers`，旧快照照出厂值。C-2、C-6（C-2 的改好了）。
 - `agents.md`：第六条和「还没有的」指到这一页。C-5。
 - `compaction.md` 第三条第 2 条：还没听到的别的会话的话、通知也留在检查点后面。C-2、C-6（C-2 的改好了：它本来就是 `message.user`）。
 - `cli/ask.md`「等子代理」：写明不等「空了告诉我」的通知（「定的」第 4 条）。C-6。
 - `prompts.md`：门禁生成，跟着新字。
-- `docs/designs/26-提示词.md` 第十节登记簿（新字各一行、量法那几段），附录（`sessions` 一行，`send_message`、`history` 改）。C-2 到 C-6。
-- `docs/designs/10-自带软件.md` 第三节（13 件变 14 件）、第五节（效果 `peer.watch`）、第九节（预算）、第十一节决定。C-3、C-6。
+- `docs/designs/26-提示词.md` 第十节登记簿（新字各一行、量法那几段），附录（`sessions` 一行，C-3 加好了；`send_message`、`history` 改）。C-2 到 C-6。
+- `docs/designs/10-自带软件.md` 第三节（13 件变 14 件）、第五节（效果 `peer.watch`）、第九节（预算）、第十一节决定。C-3（第三节、第九节、B3 改好了）、C-6。
 - `docs/designs/03-事件模型.md` 第三节（`peer.idle`，C-1 改好了）、`08-上下文投影.md` 第四节（两种新的块）。C-1、C-2、C-6（C-2 的 `03` 第三节「谁」、`08` 第四节 `message.user` 那一行改好了）。
 - `docs/designs/29-跨会话.md` 第三节：改成指到这一页，第四节写做到哪了。批准以后。
 - `docs/construction/README.md` 第三节、`施工图.html`：这条线的步子。批准以后。

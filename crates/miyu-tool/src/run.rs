@@ -14,10 +14,10 @@ use miyu_kernel::id::{ContentHash, MediaType};
 use miyu_kernel::time::UtcOffset;
 use miyu_sandbox::Sandboxed;
 
-use crate::{AgentPort, JobPort, Log, MessagePort, Stop};
+use crate::{AgentPort, JobPort, Log, MessagePort, SessionsPort, Stop};
 
 /// 一次调用交给工具的：修正过的参数、这一轮的工作目录、系统的家目录、Miyu 的数据根、她看过的文件、要不要关进
-/// 沙盒、这个会话日志的只读入口、会话的时区、派子代理的端口、留言的端口和任务端口。别的（身份）用到时再加。
+/// 沙盒、这个会话日志的只读入口、会话的时区、派子代理的端口、留言的端口、任务端口和列会话的端口。别的（身份）用到时再加。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Call {
     /// 修正过的参数：一个 JSON 对象的原文。
@@ -49,6 +49,9 @@ pub struct Call {
     /// 任务端口（施工 7-3）：起好的后台命令交给它，拿回编号。只有 `shell` 用；没有的（会话外面的调用，例如测试）不能放到
     /// 后台。
     pub jobs: Option<Arc<dyn JobPort>>,
+    /// 列会话的端口（施工 C-3）：执行器照这一次调用抄好这个会话的编号、属主，只有本机的主会话有，只有 `sessions` 用。
+    /// 没有的（测试里的假调用、子会话、场所会话、核心没装会话表的）是空的，`sessions` 照没有别的会话答。
+    pub sessions: Option<Arc<dyn SessionsPort>>,
 }
 
 /// 她看过的文件（`10-自带软件.md` 第五节「她看过的」，施工 4-6 上）：换成真实位置以后的路径，和她最后一次看到的

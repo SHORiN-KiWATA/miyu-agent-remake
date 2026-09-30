@@ -99,6 +99,14 @@ impl SessionPort for Table {
             })
         })
     }
+
+    fn sessions(
+        &self,
+        _owner: miyu_kernel::id::AccountId,
+        _stop: miyu_tool::Stop,
+    ) -> Pending<'_, Result<Vec<miyu_tool::MainSession>, String>> {
+        Box::pin(async { Ok(Vec::new()) })
+    }
 }
 
 /// 真的 `jobs`、`subagent`，和一件假工具 `start`：把 `held` 交给任务端口。

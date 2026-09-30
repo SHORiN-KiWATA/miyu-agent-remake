@@ -130,7 +130,7 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
         |message| matches!(message, Message::Tool { blocks, .. } if text(blocks) == "1\thello\n"),
     );
     assert!(heard);
-    // tools 数组里是基础系统的十一件，照名字排，照资源里的说明。
+    // tools 数组里是基础系统的十二件（本机的主会话有 `sessions`，施工 C-3），照名字排，照资源里的说明。
     let names: Vec<&str> = requests[0]
         .1
         .tools
@@ -147,6 +147,7 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
             "jobs",
             "message_agent",
             "read",
+            "sessions",
             "shell",
             "subagent",
             "trash",

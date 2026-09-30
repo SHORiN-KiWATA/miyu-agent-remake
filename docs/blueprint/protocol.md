@@ -23,8 +23,8 @@
 | `crates/miyu-endpoint/src/sessions/orphans.rs` | 载入时收掉派到一半的空子会话（施工 7-8，「会话表」第 8 条） |
 | `crates/miyu-endpoint/src/sessions/delete.rs` | 会话表删会话：认出它派的子会话、停下、挪进回收处（施工 3-8 三补）；删子会话照人停掉它、父会话记回报，都在表的锁里（施工 7-8） |
 | `crates/miyu-endpoint/src/from.rs` | `session.send` 的 `from`：去掉控制字符、截到 128 字节，记成 `harness`（施工 7-10） |
-| `crates/miyu-endpoint/src/spawn.rs` | 会话表交给会话的端口：造子会话、给会话发命令（施工 7-5，`session/tools.md`「派子代理」）；停下子会话、照日志看它（施工 7-4） |
-| `crates/miyu-endpoint/src/list.rs` | `session.list`：标题、置顶照日志算（施工 3-8 三补） |
+| `crates/miyu-endpoint/src/spawn.rs` | 会话表交给会话的端口：造子会话、给会话发命令（施工 7-5，`session/tools.md`「派子代理」）；停下子会话、照日志看它（施工 7-4）；列主会话（施工 C-3） |
+| `crates/miyu-endpoint/src/list.rs` | `session.list`：标题、置顶照日志算（施工 3-8 三补）；工作目录、最近一次动静、忙不忙（施工 C-3）。她用 `sessions` 列会话也是这一个 `scan`（`tools/sessions.md`） |
 | `crates/miyu-endpoint/src/subscriptions.rs` | 订阅：每个订阅一个转发任务，先写补发的（施工 3-8 六补），再推 `event`、`resync`；换掉一个订阅时等它写完 |
 | `crates/miyu-endpoint/src/undo.rs` | 撤销、恢复、重做的回应里给人看的几样（`protocol/undo.md`） |
 | `crates/miyu-endpoint/src/attach.rs` | 附件（施工 3-9 三补）：`blob.put` 读、存；`session.send`、`session.redo` 的附件变成内容块 |
@@ -159,13 +159,20 @@
 | `oneshot` | 布尔，不写是 `false` | `true` 只要一次性的 |
 | `limit` | 非负整数，可以不写 | 最多几个；不写是全部，`0` 是一个都不要 |
 
-回应：`{"sessions":[{"oneshot":<布尔>,"parent":<编号或 null>,"pinned":true,"session":"<编号>","title":"<标题>"}, …]}`。`parent` 是子会话的父会话，主会话写 `null`（施工 7-5，`agents.md`）。`title`、`pinned` 照日志里的 `session.meta_changed` 算（施工 3-8 三补）：有标题的才写 `title`，置顶的才写 `pinned`（写 `true`），没有的不写。
+回应：`{"sessions":[{"busy":true,"cwd":"<工作目录>","last_active":"<时刻>","oneshot":<布尔>,"parent":<编号或 null>,"pinned":true,"session":"<编号>","title":"<标题>"}, …]}`。`parent` 是子会话的父会话，主会话写 `null`（施工 7-5，`agents.md`）。`title`、`pinned` 照日志里的 `session.meta_changed` 算（施工 3-8 三补）：有标题的才写 `title`，置顶的才写 `pinned`（写 `true`），没有的不写。`cwd`、`last_active` 总有，`busy` 忙的才写（写 `true`）（施工 C-3，`cross-session.md`）：
+
+```json
+{"busy":true,"cwd":"~/src/miyu","last_active":"2026-10-01T06:03:12.345Z","oneshot":false,"parent":null,"session":"0192f3a0-2222-7abc-8def-5566778899aa","title":"修 CI"}
+```
 
 1. 只列管理员的会话，从新到旧：照编号倒着排，编号照造的先后。子会话也列，和主会话排在一起。删了的（挪进了回收处）不列。
 2. 读每个会话日志的第一条，只读不写。跳过：目录名不合会话编号写法的、没有日志的（第一行还没写完的也算没有）、第一条读不出来的（记一条运行日志）、第一条不是 `session.created` 的。
 3. 列进去的，再只读地把整份日志读一遍（`store.md` 第 7 条的 `read_segments`），`session.meta_changed` 一条条盖上去：写了 `title` 的换成它（空的是去掉），写了 `pinned` 的换成它；撤掉的回合里改的也算，改名不是对话的一部分。后面读不下去的（日志坏了）：记一条运行日志，照坏的那一段以前的算（一段查过了才交出来，只有一段的就当没有），照样列。现在每列一次都整份读，有了会话列表的索引再换（「还没有的」）。
-4. `limit` 数的是列进去的。
-5. 读不了放会话的目录：`internal_error`。
+4. 同一遍里再算两样（施工 C-3）：`cwd` 是日志里最后一条带 `cwd` 的 `turn.started` 的，没有就照 `session.created` 的，都没有（很早以前的日志）写 `~`，和「会话表」第 5 条同一个认法（同一个函数）；头报来的写法，不换成真实的位置。`last_active` 是日志最后一条事件的 `at`，哪种事件都算；读不下去的照坏的那一段以前的，只有一段、它坏了的是 `session.created` 的时刻。
+5. `busy`（施工 C-3）：列之前拿着会话表的锁看一眼，在表里、这时有回合在进行的（和「空闲和停下」看的是同一样：内核说不空闲，结束了 `turn.ended` 还没落盘、在等人确认、等人回答、改回文件的都算）写 `true`。没载入的都是闲。
+6. 她用 `sessions` 列会话（`tools/sessions.md`）是这同一个函数，只要主会话、不含她自己，排法不同：两边的字对得上。
+7. `limit` 数的是列进去的。
+8. 读不了放会话的目录：`internal_error`。
 
 **`session.send`**
 
@@ -624,8 +631,9 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/replay_race.rs`（施工 3-8 六补） | 掉了队的头带上最后看到的序号重新订阅，看到的和补的合起来就是日志；真核心：另一个头一句接一句地说、会话一直在追加，中途几个头先后从头订阅，每个头补的和推的合起来都和日志一字不差 |
 | `crates/miyu-endpoint/tests/restart.rs` | 核心重启以后：不带 `cwd` 载入的会话照最后一轮的工作目录、没开过回合的照造会话时的；重发的造会话交回原来那一个 |
 | `crates/miyu-endpoint/tests/edges.rs` | 不握手的到时断开、握手了的不受管；数组的 `params` 参数不对；握手被拒照它报的语言说；人格目录不存在是 `unknown_persona`、目录在而读不了是 `internal_error` |
-| `crates/miyu-endpoint/tests/list.rs` | 从新到旧、只要一次性的、`limit`、参数不对、空的 |
-| `crates/miyu-endpoint/tests/meta.rs` | 改标题、置顶（施工 3-8 三补）：改名去掉空白、只写改了的那一格、推送在回应前面、`by`、`cause`；置顶、取消、两样一起；`null` 去掉标题记成空的；和现在一样的六种什么都不记；200 个字收、201 个字和空白的不收；两格都不写（含 `pinned` 写 `null`、会话没有的）、类型不对、会话编号不对是参数不对，没有的会话找不到；回合进行中改的带上回合；`session.list` 带标题、置顶，取消了、去掉了的不写，核心重启以后照样，载入以后照日志接着比；日志坏了的照样列出来 |
+| `crates/miyu-endpoint/tests/list.rs` | 从新到旧、只要一次性的、`limit`、参数不对、空的；每一项带 `cwd`、合写法的 `last_active`，闲着的不写 `busy`（施工 C-3） |
+| `crates/miyu-endpoint/tests/sessions.rs`、`src/list/tests.rs`（施工 C-3） | 工作目录跟着头报的换、忙着的写 `busy`（子会话也算）、最近一次动静是日志最后一条；工作目录照最后一条带 `cwd` 的、不带的不盖、一条都没记的写 `~`，哪种事件都算动静，叫停的旗举了一个都不读；她用 `sessions` 列的和它是同一份（`tools/sessions.md`） |
+| `crates/miyu-endpoint/tests/meta.rs` | 改标题、置顶（施工 3-8 三补）：改名去掉空白、只写改了的那一格、推送在回应前面、`by`、`cause`；置顶、取消、两样一起；`null` 去掉标题记成空的；和现在一样的六种什么都不记；200 个字收、201 个字和空白的不收；两格都不写（含 `pinned` 写 `null`、会话没有的）、类型不对、会话编号不对是参数不对，没有的会话找不到；回合进行中改的带上回合；`session.list` 带标题、置顶，取消了、去掉了的不写，核心重启以后照样，载入以后照日志接着比；日志坏了的照样列出来，工作目录、最近一次动静照第一条（施工 C-3） |
 | `crates/miyu-endpoint/tests/delete.rs` | 删除会话（施工 3-8 三补）：空闲的整个目录挪进回收处、日志不变、`deleted_at` 是删的时刻，列不出来，再发命令、订阅、改名、打断、再删都是没有这个会话，重发造它的那一条另造一个；回合进行中的拒绝、什么都没动，打断以后删得掉；核心重启以后没在跑的不载入就删（被重启打断的那一轮不接着干）；参数不对、没有的会话 |
 | `crates/miyu-endpoint/src/sessions/delete/tests.rs`（施工 7-8） | 删子会话在表的锁里停它、父会话记回报：父会话一记下它停了就去叫醒它，拿到表的锁时它已经删掉了，删得掉（挪进锁以前，这时它又开了一轮，删的时候说有回合在进行） |
 | `crates/miyu-endpoint/tests/orphans.rs`（施工 7-8） | 真核心：父会话派出去一个子代理，没来得及记下 `job.started` 就崩了（日志截在派它的那条回复后面），再载入父会话时子会话挪进回收处；一次派两个、只记下一个的只收那一个；记下了的照留 |

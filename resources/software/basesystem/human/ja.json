@@ -61,6 +61,10 @@
       "name": "メッセージ",
       "subject": "to",
       "icon": "↗"
+    },
+    "sessions": {
+      "name": "セッション一覧",
+      "icon": "≡"
     }
   },
   "said": {
@@ -140,6 +144,10 @@
     "message_agent/no-parent": "親セッションがありません",
     "message_agent/not-yours": "{to} はこのセッションが起動したサブエージェントではありません",
     "message_agent/stopped": "{to} はすでに停止しています",
-    "message_agent/not-sent": "送れませんでした"
+    "message_agent/not-sent": "送れませんでした",
+    "sessions/listed": "{count} 件のセッション",
+    "sessions/none": "ほかのセッションはありません",
+    "sessions/past-end": "ほかのセッション {total} 件はすべて表示済みです",
+    "sessions/failed": "一覧を取得できませんでした：{error}"
   }
 }

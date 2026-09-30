@@ -61,6 +61,10 @@
       "name": "Message",
       "subject": "to",
       "icon": "↗"
+    },
+    "sessions": {
+      "name": "Sessions",
+      "icon": "≡"
     }
   },
   "said": {
@@ -140,6 +144,10 @@
     "message_agent/no-parent": "No parent session",
     "message_agent/not-yours": "{to} is not its subagent",
     "message_agent/stopped": "{to} was stopped",
-    "message_agent/not-sent": "Not delivered"
+    "message_agent/not-sent": "Not delivered",
+    "sessions/listed": "Listed {count} sessions",
+    "sessions/none": "No other sessions",
+    "sessions/past-end": "All {total} other sessions are listed",
+    "sessions/failed": "Could not list sessions: {error}"
   }
 }

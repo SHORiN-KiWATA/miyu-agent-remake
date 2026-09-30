@@ -66,6 +66,14 @@ impl SessionPort for Table {
         Box::pin(async { Ok(miyu_session::Peek::default()) })
     }
 
+    fn sessions(
+        &self,
+        _owner: miyu_kernel::id::AccountId,
+        _stop: miyu_tool::Stop,
+    ) -> Pending<'_, Result<Vec<miyu_tool::MainSession>, String>> {
+        Box::pin(async { Ok(Vec::new()) })
+    }
+
     fn open(&self, session: SessionId) -> Pending<'_, Result<(), String>> {
         self.opened
             .lock()

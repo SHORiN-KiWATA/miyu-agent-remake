@@ -4,7 +4,7 @@
 //! 表拿 tokio 的锁护着，载入期间一直拿着：两个连接同时说给同一个没在跑的会话，只载入一次、只起一个
 //! actor（一个会话只能有一个写者，`07-存储.md` 第三节）。
 
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -255,6 +255,16 @@ impl Sessions {
     pub(crate) async fn busy(&self) -> bool {
         let open = self.open.lock().await;
         open.running.values().any(|running| running.handle.busy())
+    }
+
+    /// 这时忙着的会话（施工 C-3）：在表里、有回合在进行，和 [`Sessions::busy`] 看的是同一样。列会话时照它写忙不忙。
+    pub(crate) async fn busy_ids(&self) -> BTreeSet<SessionId> {
+        let open = self.open.lock().await;
+        open.running
+            .iter()
+            .filter(|(_, running)| running.handle.busy())
+            .map(|(id, _)| id.clone())
+            .collect()
     }
 
     /// 有计划地停下全部在跑的会话：跑到一半的回合记成「重启了」，下次载入接着干（施工 3-9 上）。

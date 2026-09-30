@@ -68,6 +68,14 @@ impl SessionPort for Table {
     fn peek(&self, _session: SessionId) -> Pending<'_, Result<miyu_session::Peek, String>> {
         Box::pin(async { Ok(miyu_session::Peek::default()) })
     }
+
+    fn sessions(
+        &self,
+        _owner: miyu_kernel::id::AccountId,
+        _stop: miyu_tool::Stop,
+    ) -> Pending<'_, Result<Vec<miyu_tool::MainSession>, String>> {
+        Box::pin(async { Ok(Vec::new()) })
+    }
 }
 
 #[tokio::test]

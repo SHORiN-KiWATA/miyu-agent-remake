@@ -80,6 +80,7 @@ async fn how_long_fifty_thousand_events_take() {
             agents: None,
             messages: None,
             jobs: None,
+            sessions: None,
         };
         let started = Instant::now();
         let done = history.run(call, Progress::new(|_| {})).await;

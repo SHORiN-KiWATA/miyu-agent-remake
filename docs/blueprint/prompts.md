@@ -1361,6 +1361,83 @@ Subagent {to} was stopped and takes no more messages.
 The message could not be delivered.
 ```
 
+#### `software/basesystem/sessions/you.txt`
+
+- 什么时候加进来：`sessions` 的第一行
+- token：8（`{id}` 按 `22334455` 算，2026-10-01 量）
+- 为什么加：她要知道自己是哪一个，才认得出列表里别的会话；也是她给别的会话报自己时写的编号（施工 C-3，`cross-session.md` 第一条第 4 款）
+- 指纹：`66401bf1`
+
+```text
+You are session {id}.
+```
+
+#### `software/basesystem/sessions/listed.txt`
+
+- 什么时候加进来：`sessions`：一个有标题的会话一行
+- token：34（字段按 `9f03b21c`、`修 CI`、`~/src/miyu`、`busy`、`2026-10-01 14:03` 算，2026-10-01 量）
+- 为什么加：短编号是她读、发给它时写的；标题、工作目录让她认得出是哪一个；忙不忙、最近一次动静让她知道现在找它合不合适（设计 29 第一节第 1 条，施工 C-3）
+- 指纹：`d140f13c`
+
+```text
+{id} "{title}" in {cwd}: {state}, last active {time}
+```
+
+#### `software/basesystem/sessions/listed-untitled.txt`
+
+- 什么时候加进来：`sessions`：一个没标题的会话一行
+- token：31（字段按 `0c5d77aa`、`~/notes`、`idle`、`2026-09-30 22:41` 算，2026-10-01 量）
+- 为什么加：同上，没标题的写 `(untitled)`，不带第一句话的开头（`cross-session.md`「定的」第 1 条，施工 C-3）
+- 指纹：`90ef4f0a`
+
+```text
+{id} (untitled) in {cwd}: {state}, last active {time}
+```
+
+#### `software/basesystem/sessions/more.txt`
+
+- 什么时候加进来：`sessions`：这一页后面还有
+- token：18（字段按 `1`、`20`、`25`、`20` 算，2026-10-01 量）
+- 为什么加：调用之后才用得上的知识写进输出：往下从哪接（施工 C-3）
+- 指纹：`2a3cf943`
+
+```text
+(Showing {from}-{to} of {total}. Use offset={next} to see more.)
+```
+
+#### `software/basesystem/sessions/none.txt`
+
+- 什么时候加进来：`sessions`：一个别的会话都没有，没有端口的也是它
+- token：6（2026-10-01 量）
+- 为什么加：照「没找到」的规矩说一句（施工 C-3）
+- 指纹：`d10d0851`
+
+```text
+You have no other sessions.
+```
+
+#### `software/basesystem/sessions/past-end.txt`
+
+- 什么时候加进来：`sessions`：`offset` 过了结尾
+- token：16（字段按 `5`、`5` 算，2026-10-01 量）
+- 为什么加：告诉她一共几个，好改 `offset`，照 `jobs/past-end.txt`（施工 C-3）
+- 指纹：`4a11103e`
+
+```text
+(You have {total} other sessions. Offset {offset} is past the end.)
+```
+
+#### `software/basesystem/sessions/failed.txt`
+
+- 什么时候加进来：`sessions`：列不出来（放会话的目录读不了、核心正在停）
+- token：12（`{error}` 按 `the core is shutting down` 算，2026-10-01 量）
+- 为什么加：每次调用都要有结果，不能当成「没有别的会话」答：那是骗她。照 `history/no-log.txt` 的写法（施工 C-3，2026-10-01 主会话定）
+- 指纹：`a18431db`
+
+```text
+Could not list the sessions: {error}
+```
+
 #### `software/basesystem/common/not-read.txt`
 
 - 什么时候加进来：`write`、`edit` 要改的文件已经在了、她这个会话里没看过
@@ -2011,6 +2088,20 @@ Conversation:
 {
   "description": "List your background commands and subagents, read a command's output, or stop one. Finished jobs report to you on their own, so there is no need to poll.",
   "parameters": {"type":"object","properties":{"action":{"type":"string","enum":["list","output","stop"]},"id":{"type":"string","description":"Job id, like j1."},"offset":{"type":"integer","description":"Line to start reading the output from."}},"required":["action"]}
+}
+```
+
+#### `software/basesystem/tools/sessions.json`
+
+- 什么时候加进来：会话的工具面里有 `sessions`：本机的主会话（每次请求都带）
+- token：95（2026-10-01 主会话照开发端点、`deepseek-v4.1-flash` 量，十二件一起时的边际份量）
+- 为什么加：`sessions` 的说明和参数（施工 C-3，`cross-session.md` 第一条）：两句，列出你别的会话、最近有动静的在前，每一行有编号、标题、工作目录、忙不忙、最近一次动静。草稿第二句点名 `send_message`、`history`，C-3 时还没有这两样（`send_message` C-5 才改名，`history` 的 `session` C-4 才加），照 J4 先不点名，C-5 改名时补上、和那一次冷启动放在一起（2026-10-01 主会话定）。参数 `limit`、`offset` 各一句，照 `history`、`grep` 的写法。列会话是新的一件事，藏进 `jobs`、`history` 的参数里她想不起来（`cross-session.md`「起草时定的」第 1 条）
+- 指纹：`7467799a`
+
+```json
+{
+  "description": "List your other sessions, most recently active first. Each row gives the session id, the title, working directory, whether it is busy and when it was last active.",
+  "parameters": {"type":"object","properties":{"limit":{"type":"integer","description":"Default 20."},"offset":{"type":"integer","description":"How many sessions to skip."}}}
 }
 ```
 
