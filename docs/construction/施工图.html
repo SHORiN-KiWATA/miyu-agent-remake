@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>151</b><span>/ 156 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 3-8 七补会话列表的索引、8-3 写配置；之后 C-4</span></li>
-    <li><b class="mono">27e913e4</b><span>最近一步（C-3 列会话）的提交</span></li>
+    <li><b>153</b><span>/ 156 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；下一步 8-4 监视与生效、C-4 读别的会话</span></li>
+    <li><b class="mono">abce08a2</b><span>最近一步（3-8 七补 会话列表的索引）的提交</span></li>
   </ul>
 </header>
 
@@ -393,7 +393,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-8g"><span class="n">3-8</span>回顾 session.recap（四补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8h"><span class="n">3-8</span>自动起标题（五补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8i"><span class="n">3-8</span>订阅时补发之前的事件（六补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-8</span>会话列表的索引（七补）</span></li>
+        <li><a class="step done" href="#s3-8j"><span class="n">3-8</span>会话列表的索引（七补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9a"><span class="n">3-9</span>主程序和拉起核心（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9b"><span class="n">3-9</span>miyu ask（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9c"><span class="n">3-9</span>会话编号照先后（补）<span class="st">✓</span></a></li>
@@ -509,7 +509,7 @@ a.step:hover{border-color:var(--primary)}
       <ol class="chips">
         <li><a class="step done" href="#s8-1"><span class="n">8-1</span>配置清单<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-2"><span class="n">8-2</span>读配置<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">8-3</span>写配置</span></li>
+        <li><a class="step done" href="#s8-3"><span class="n">8-3</span>写配置<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">8-4</span>监视与生效</span></li>
         <li><span class="step"><span class="n">8-5</span>密钥</span></li>
         <li><span class="step"><span class="n">8-6</span>供应商</span></li>
@@ -4910,6 +4910,57 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/3-8-订阅时补发之前的事件（六补）.md</code>；蓝图 <code>protocol.md</code>「补发」、<code>session/actor.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s3-8j" aria-labelledby="h-s38j">
+  <div class="sheet-head"><h2 id="h-s38j"><span class="no">3-8 七补</span>会话列表的索引（七补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">原来每列一次会话，都把每个会话的日志整份读一遍（项目主人的测试家目录 234 个会话列一次约 1 秒）。照 07 的 S3 用 SQLite 做派生索引，会话写日志时顺手更新那一行，列会话直接读索引；坏了、对不上的照日志补或者重建。协议形状不变。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">会话列表的索引（七补）</span><span class="dir-note">3-8 七补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>home/&lt;账号&gt;/index/sessions.db</code>（rusqlite bundled），一个会话一行，另记照到日志的哪里</li>
+              <li>会话每落一批在写盘线程里更新；失败只记 WARN，下一次列会话时补</li>
+              <li>日志长了只读多出来的那截；短了、段对不上的整份重读</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">快 50 倍</span><span class="rl">250 个会话 13 MB：release 54→约 1 毫秒，debug 620→约 3 毫秒</span></div>
+          <div class="tile new"><span class="nm">没有索引记 INFO</span><span class="rl">新装第一次起来就是这样，不算出问题</span></div>
+          <div class="tile"><span class="nm">忙不忙不进索引</span><span class="rl">照旧从会话表的内存拿</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-8 七补</dd></div>
+        <div><dt>名称</dt><dd>会话列表的索引（七补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">abce08a2</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、量尺 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>18 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>三种算法（不给索引、照日志填、照索引读）列出来一字不差</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/3-8-会话列表的索引（七补）.md</code>；蓝图 <code>store/index.md</code>。</li>
       </ul>
     </div>
   </div>
@@ -10573,6 +10624,57 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/8-2-读配置.md</code>；蓝图 <code>config.md</code>、<code>cli/config.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-3" aria-labelledby="h-s83">
+  <div class="sheet-head"><h2 id="h-s83"><span class="no">8-3</span>写配置</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头和命令行能改配置，改的都是同一份文件，由核心经手：只改那一项、注释和排版都留着，先写临时文件再替换、顺着链接写，写前查手改、带版本号防两个头同时改；改动记进系统日志、账号日志。项目配置的信任有了 <code>config.trust</code>。登记了终端界面要的 <code>tui.startup</code>。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">写配置</span><span class="dir-note">8-3</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>config.set</code>：一层里改几项（全收或全不收）或整份换；四个原因码</li>
+              <li><code>journal.jsonl</code>：<code>config.changed</code>、<code>trust.changed</code></li>
+              <li><code>miyu config set</code>、<code>unset</code>、<code>edit</code>、<code>trust</code>；<code>miyu ask</code> 起头提醒没信任的项目配置</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">tui.startup</span><span class="rl">新会话或最近的会话，个人、系统两层，下次打开界面时生效（项目主人要）</span></div>
+          <div class="tile new"><span class="nm">生效时机多一种</span><span class="rl">head_start：头自己读</span></div>
+          <div class="tile"><span class="nm">推送随 8-4</span><span class="rl">已经连着的头怎么刷新，8-4 做</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-3</dd></div>
+        <div><dt>名称</dt><dd>写配置</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">20aa71ce</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>20 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>改一项前后字节比：只动那一项，注释、排版、换行照原文件</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-3-写配置.md</code>；蓝图 <code>config.md</code>、<code>cli/config.md</code>。</li>
       </ul>
     </div>
   </div>
