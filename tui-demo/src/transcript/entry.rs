@@ -2,7 +2,7 @@
 
 use crate::core::{Level, Report};
 
-use super::{Progress, Segment};
+use super::{Chip, Progress, Segment};
 
 /// 正文里一条的种类，决定怎么画。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,8 +76,8 @@ pub struct Entry {
     pub level: Option<Level>,
     /// 后台任务结束的通知：记号和全文。别的条是 `None`。
     pub job: Option<JobNote>,
-    /// 你说的话里的粘贴块：输入框里写的样子和原文，点开看全文（蓝图「正文」第 2 条）。别的条是空的。
-    pub pasted: Vec<(String, String)>,
+    /// 你说的话里的块：粘贴块点开看全文，附件不展开（蓝图「正文」第 2 条、「输入框」第 12 条）。别的条是空的。
+    pub pasted: Vec<Chip>,
     /// 她的回答里点过的 `<details>`（第几个，从 0 数）：和它写的 `open` 反过来（蓝图「她的回答：Markdown」第 15 条）。
     pub details: Vec<usize>,
     /// 正在压缩的那一行的进度（蓝图「正文」第 9 条）。压好了、失败了是 `None`。

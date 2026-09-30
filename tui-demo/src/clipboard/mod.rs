@@ -5,9 +5,13 @@
 
 use std::io::{self, Write};
 
+mod image;
 mod read;
+mod staging;
 
+pub use image::read_image;
 pub use read::read;
+pub use staging::Staging;
 
 /// 把 `text` 放进系统剪贴板。
 ///

@@ -7,7 +7,7 @@ use super::input;
 use crate::input::{Action, InputBox, PasteRule};
 
 /// 粘贴收成一块的门槛和写法（照出厂配置的样子）：超过 10 行或 800 字。
-fn folding() -> InputBox {
+pub(super) fn folding() -> InputBox {
     let mut i = input(40);
     i.set_paste_rule(PasteRule {
         lines: 10,
@@ -24,7 +24,7 @@ fn lines_of(n: usize) -> String {
         .join("\n")
 }
 
-fn submit(i: &mut InputBox) -> crate::input::Draft {
+pub(super) fn submit(i: &mut InputBox) -> crate::input::Draft {
     match i.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)) {
         Action::Submit(draft) => draft,
         other => panic!("没发出去：{other:?}"),
@@ -113,11 +113,16 @@ fn same_looking_blocks_keep_their_own_text() {
     assert_eq!(i.editor.text(), "[已粘贴 12 行] 和 [已粘贴 12 行]");
     let draft = submit(&mut i);
     assert_eq!(draft.expand(), format!("{a} 和 {b}"));
+    let blocks: Vec<(&str, &str)> = draft
+        .blocks
+        .iter()
+        .map(|b| (&draft.text[b.start..b.end], b.text.as_str()))
+        .collect();
     assert_eq!(
-        draft.pasted(),
-        vec![
-            ("[已粘贴 12 行]".to_string(), a.clone()),
-            ("[已粘贴 12 行]".to_string(), b.clone())
+        blocks,
+        [
+            ("[已粘贴 12 行]", a.as_str()),
+            ("[已粘贴 12 行]", b.as_str())
         ]
     );
 }

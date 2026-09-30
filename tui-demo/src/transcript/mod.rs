@@ -6,6 +6,7 @@
 mod beat;
 mod blocks;
 mod cache;
+mod chips;
 mod climb;
 mod compaction;
 mod entry;
@@ -25,6 +26,7 @@ use crate::config::Texts;
 use crate::core::{CallError, EndReason, Level, Limits, Push, ToolStatus, Update, Usage};
 
 pub use cache::CacheWatch;
+pub use chips::Chip;
 pub use climb::Progress;
 pub use entry::{Entry, JobMark, JobNote, Kind};
 pub use steps::{Segment, Step, StepKind, Tally, ToolState};
@@ -102,7 +104,7 @@ pub struct Transcript {
     /// 在跑的这一轮的编号：这期间收到的都记在它名下。
     turn: Option<u64>,
     /// 被退回的排队消息：字和里面的粘贴块，等输入框拿走（`take_returned`）。
-    returned: Vec<(String, Vec<(String, String)>)>,
+    returned: Vec<(String, Vec<Chip>)>,
     /// 最近一次 `turn.reverted` 撤掉的几轮：撤销的回应来了，照它找你说的那句全文。
     reverted: Vec<u64>,
     /// 下一条正文的编号。
@@ -145,7 +147,7 @@ impl Default for Transcript {
 
 impl Transcript {
     /// 你说了一句。
-    pub fn user(&mut self, text: String, pasted: Vec<(String, String)>) {
+    pub fn user(&mut self, text: String, pasted: Vec<Chip>) {
         self.push(Kind::User, text);
         if let Some(entry) = self.entries.last_mut() {
             entry.pasted = pasted;
@@ -199,6 +201,24 @@ impl Transcript {
                 .iter()
                 .filter_map(|e| e.segment.as_ref())
                 .any(|s| s.steps.iter().any(Step::busy))
+    }
+
+    /// `/copy` 复制的：她上一轮的回答，Markdown 原文；一轮里被工具隔成几段的连起来、中间空一行，撤掉的不算
+    /// （蓝图「斜杠命令」`/copy`）。还没有回答的是 `None`。
+    pub fn last_reply(&self) -> Option<String> {
+        let shown = |e: &&Entry| e.kind == Kind::Reply && !e.hidden && !e.text.trim().is_empty();
+        let last = self.entries.iter().rev().find(shown)?;
+        let parts: Vec<&str> = match last.turn {
+            Some(turn) => self
+                .entries
+                .iter()
+                .filter(shown)
+                .filter(|e| e.turn == Some(turn))
+                .map(|e| e.text.trim())
+                .collect(),
+            None => vec![last.text.trim()],
+        };
+        Some(parts.join("\n\n"))
     }
 
     /// 在跑的（刚结束的）这一轮是不是手动压缩、清空：核心单开的一轮，不是回答（「系统通知」第 1 条）。
@@ -404,7 +424,7 @@ impl Transcript {
     }
 
     /// 拿走被退回的排队消息的字，照先后。
-    pub fn take_returned(&mut self) -> Vec<(String, Vec<(String, String)>)> {
+    pub fn take_returned(&mut self) -> Vec<(String, Vec<Chip>)> {
         std::mem::take(&mut self.returned)
     }
 

@@ -7,6 +7,7 @@ pub use jobs::Panel;
 mod keys;
 mod mouse;
 mod notify;
+mod paste;
 mod session;
 
 use std::cell::RefCell;
@@ -17,7 +18,6 @@ use ratatui::crossterm::event::{Event, KeyCode, KeyEventKind};
 use ratatui::layout::Position;
 
 use crate::body_view::BodyView;
-use crate::clipboard;
 use crate::commands::{self, Spec};
 use crate::config::Config;
 use crate::core::{Block, Command, Core, Push, Update};
@@ -65,6 +65,8 @@ pub struct App {
     pub notifier: Notifier,
     /// 输入框。
     pub input: InputBox,
+    /// `Ctrl+V` 贴的截图暂存在哪（「输入框」第 12 条）；找不到缓存目录的是 `None`，贴不了图。
+    staging: Option<crate::clipboard::Staging>,
     /// 会话：正文、在不在跑、用量。
     pub transcript: Transcript,
     /// 连着核心的一头。
@@ -164,10 +166,13 @@ impl App {
             chars: layout.paste_fold_chars,
             label: config.text.paste_label.clone(),
         });
-        // 提示音写到机器缓存目录（「系统通知」第 5 条）；找不到的不响。
-        let sounds = miyu_store::root::cache_root(&miyu_store::env::Env::current())
-            .ok()
-            .map(|root| root.join("tui").join("sounds"));
+        input.set_attach_rule(paste::attach_rule(&config));
+        // 提示音、暂存的截图放机器缓存目录（「系统通知」第 5 条、「输入框」第 12 条）；找不到的不响、贴不了图。
+        let cache = miyu_store::root::cache_root(&miyu_store::env::Env::current()).ok();
+        let sounds = cache.as_ref().map(|root| root.join("tui").join("sounds"));
+        let staging = cache
+            .as_ref()
+            .map(|root| crate::clipboard::Staging::new(&root.join("tui").join("pasted")));
         let mut notifier = Notifier::new(
             config.notify.clone(),
             config.text.notify.clone(),
@@ -180,6 +185,7 @@ impl App {
             config,
             notifier,
             input,
+            staging,
             transcript: Transcript::default(),
             core,
             menu: Menu::default(),
@@ -293,29 +299,6 @@ impl App {
         }
     }
 
-    /// 粘贴进来的字（终端送来的、`Ctrl+V` 读剪贴板的）：历史列表开着的进「历史：」，抽屉开着的进抽屉里写的字，
-    /// 别的进输入框（大段的收成一块，`tui.md`「输入框」第 11 条）。
-    fn paste(&mut self, text: &str) {
-        if self.history.open {
-            self.history.type_text(&text.replace(['\r', '\n'], " "));
-        } else if self.drawers.open() {
-            self.drawer_paste(text);
-        } else {
-            self.input.paste(text);
-        }
-    }
-
-    /// `Ctrl+V`：读系统剪贴板里的字，照粘贴处理；读不到、是空的，提示一句（`tui.md`「按键」）。
-    fn paste_clipboard(&mut self) {
-        match clipboard::read() {
-            Ok(text) if text.is_empty() => {
-                self.hint(self.config.text.clipboard_empty.clone(), false);
-            }
-            Ok(text) => self.paste(&text),
-            Err(_) => self.hint(self.config.text.clipboard_unreadable.clone(), false),
-        }
-    }
-
     /// 在输入框左上方写一条提示，新的顶掉旧的。
     fn hint(&mut self, text: String, good: bool) {
         self.notice = Some(Notice {
@@ -373,8 +356,8 @@ impl App {
         let returned = self.transcript.take_returned();
         if !returned.is_empty() {
             let mut draft = Draft::default();
-            for (text, pasted) in returned {
-                draft.append(Draft::from_pasted(&text, &pasted), "\n\n");
+            for (text, chips) in returned {
+                draft.append(Draft::from_pasted(&text, &paste::pasted(chips)), "\n\n");
             }
             if !self.input.editor.is_empty() {
                 draft.append(self.input.draft(), "\n\n");
@@ -445,6 +428,7 @@ impl App {
     /// 到点了：收掉过期的提示。
     pub fn tick(&mut self) {
         self.advance_jobs();
+        self.renumber_attachments();
         // 压缩那一行的进度条追一下（`tui.md`「正文」第 9 条）。
         let layout = &self.config.layout;
         self.transcript.climb(
@@ -480,19 +464,5 @@ impl App {
         self.menu
             .sync(text, typed, matches.len())
             .then_some(matches)
-    }
-
-    fn copy(&mut self, text: &str) {
-        let words = &self.config.text;
-        let (message, good) = match clipboard::copy(text) {
-            Ok(()) => (
-                words
-                    .copied
-                    .replace("{count}", &text.chars().count().to_string()),
-                true,
-            ),
-            Err(e) => (words.copy_failed.replace("{reason}", &e.to_string()), false),
-        };
-        self.hint(message, good);
     }
 }

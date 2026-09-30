@@ -3,6 +3,8 @@
 //! 块在输入框的字里就是它上面写的那几个字（`[已粘贴 14 行]`）。块在哪、原文是什么按位置记着，编辑时跟着挪，
 //! 不靠认字：两块写出来一样也各是各的原文，自己打出一样的字不算一块。
 
+use super::attach::Attachment;
+
 /// 什么时候收成一块、块上写什么（`layout.json`、`text/zh.json`）。
 #[derive(Debug, Clone)]
 pub struct PasteRule {
@@ -40,7 +42,8 @@ fn line_count(text: &str) -> usize {
     text.trim_end_matches('\n').split('\n').count()
 }
 
-/// 字里的一块：占 `[start, end)` 这几个字节（写的是块上的字），原文是 `text`。
+/// 字里的一块：占 `[start, end)` 这几个字节（写的是块上的字），原文是 `text`。附件的 `text` 就是块上的字：发出去时
+/// 字里照留 `[图片 1]`（蓝图「输入框」第 12 条）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
     /// 从第几个字节起。
@@ -49,6 +52,8 @@ pub struct Block {
     pub end: usize,
     /// 粘贴的原文。
     pub text: String,
+    /// 附件：本机的哪个文件、哪一种。粘贴块是 `None`。
+    pub attachment: Option<Attachment>,
 }
 
 /// 发过的一句：连同粘贴块，和发出去的时刻（输入历史列表写「几分钟前」，蓝图「输入历史列表」第 1 条）。
@@ -89,6 +94,7 @@ impl Draft {
                     start,
                     end: start + label.len(),
                     text: full.clone(),
+                    attachment: None,
                 });
                 from = start + label.len();
             }
@@ -121,11 +127,11 @@ impl Draft {
         out
     }
 
-    /// 用到的块：样子和原文，照先后（正文里点开看全文用）。
-    pub fn pasted(&self) -> Vec<(String, String)> {
+    /// 附件：照先后，每一个的文件（发出去时先 `blob.put`，蓝图「输入框」第 12 条）。
+    pub fn attachments(&self) -> Vec<std::path::PathBuf> {
         self.blocks
             .iter()
-            .map(|b| (self.text[b.start..b.end].to_string(), b.text.clone()))
+            .filter_map(|b| b.attachment.as_ref().map(|a| a.file.clone()))
             .collect()
     }
 
@@ -139,7 +145,7 @@ impl Draft {
         self.blocks.extend(other.blocks.into_iter().map(|b| Block {
             start: b.start + shift,
             end: b.end + shift,
-            text: b.text,
+            ..b
         }));
     }
 }

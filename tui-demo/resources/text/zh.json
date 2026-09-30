@@ -26,6 +26,7 @@
   "side_breaks": "缓存断裂 {n} 次",
   "copied": "已复制 {count} 个字",
   "copy_failed": "复制失败：{reason}",
+  "nothing_to_copy": "还没有能复制的回答",
   "connecting": "正在连核心…",
   "no_core_bin": "核心没在跑：启动时设 MIYU_CORE_BIN 指向重制版的 miyu",
   "core_failed": "连不上核心：{reason}",
@@ -225,5 +226,11 @@
   },
   "clipboard_unreadable": "读不到剪贴板：用终端自己的粘贴（kitty 是 Ctrl+Shift+V）",
   "clipboard_empty": "剪贴板是空的",
-  "paste_label": "[已粘贴 {lines} 行]"
+  "paste_label": "[已粘贴 {lines} 行]",
+  "attachment_labels": {
+    "image": "[图片 {n}]",
+    "pdf": "[PDF {n}]",
+    "audio": "[音频 {n}]",
+    "video": "[视频 {n}]"
+  }
 }

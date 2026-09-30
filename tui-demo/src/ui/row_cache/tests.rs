@@ -8,9 +8,18 @@ use serde_json::json;
 
 use super::{RowCache, build};
 use crate::core::ToolStatus;
-use crate::transcript::{JobMark, Kind, Segment, Step, StepKind, ToolState, Transcript};
+use crate::transcript::{Chip, JobMark, Kind, Segment, Step, StepKind, ToolState, Transcript};
 use crate::ui::rows::Target;
 use crate::ui::test_support::{Fixture, fresh_rows};
+
+/// 你说的话里的一块：块上的字、原文、附件的种类。
+fn chip(label: &str, full: &str, kind: Option<&str>) -> Chip {
+    Chip {
+        label: label.into(),
+        full: full.into(),
+        kind: kind.map(str::to_string),
+    }
+}
 
 fn finished_segment(t0: Instant) -> Segment {
     let mut thought = Step::new(StepKind::Thought {
@@ -184,7 +193,7 @@ fn a_pasted_block_in_what_you_said_is_replaced_by_its_full_text() {
     let full = "报错第一行\n报错第二行".to_string();
     t.user(
         "看看：[已粘贴 2 行]".into(),
-        vec![("[已粘贴 2 行]".into(), full)],
+        vec![chip("[已粘贴 2 行]", &full, None)],
     );
     let ctx = f.ctx();
     let rows = fresh_rows(&t.entries, &ctx);
@@ -217,13 +226,55 @@ fn a_pasted_block_in_what_you_said_is_replaced_by_its_full_text() {
 }
 
 #[test]
+fn attachments_stay_blocks_when_opened_and_alone_they_are_not_clickable() {
+    // 2026-09-30 项目主人：点了发出去的图，底色没了、图也没展开。附件怎么都是块；只有附件的一句点了没反应。
+    let f = Fixture::new();
+    let mut t = Transcript::default();
+    t.user(
+        "看[图片 3]和[已粘贴 2 行]".into(),
+        vec![
+            chip("[图片 3]", "[图片 3]", Some("image")),
+            chip("[已粘贴 2 行]", "第一行\n第二行", None),
+        ],
+    );
+    t.user(
+        "[图片 4]".into(),
+        vec![chip("[图片 4]", "[图片 4]", Some("image"))],
+    );
+    let ctx = f.ctx();
+    t.entries[0].open = true;
+    let rows = fresh_rows(&t.entries, &ctx);
+    let span = |label: &str| {
+        rows.iter()
+            .flat_map(|r| r.line.spans.iter())
+            .find(|s| s.content == label)
+            .map(|s| s.style)
+    };
+    assert_eq!(
+        span("[图片 3]"),
+        Some(crate::theme::chip()),
+        "点开了图还是块"
+    );
+    assert!(
+        rows.iter().any(|r| r.plain.contains("第二行")),
+        "粘贴块照样展开"
+    );
+    assert_eq!(span("[图片 4]"), Some(crate::theme::chip()));
+    assert!(
+        !rows.iter().any(|r| r.target == Some(Target::Entry(1))),
+        "只有图的那句不能点"
+    );
+    assert!(rows.iter().any(|r| r.target == Some(Target::Entry(0))));
+}
+
+#[test]
 fn hovering_what_you_said_lifts_the_blocks() {
     // 悬停：块的底色亮一档；展开着的，粘进来的那几段铺上块的底色（`tui.md`「正文」第 2 条）。
     let f = Fixture::new();
     let mut t = Transcript::default();
     t.user(
         "看看：[已粘贴 2 行]".into(),
-        vec![("[已粘贴 2 行]".into(), "报错第一行\n报错第二行".into())],
+        vec![chip("[已粘贴 2 行]", "报错第一行\n报错第二行", None)],
     );
     let mut ctx = f.ctx();
     ctx.hover = Some(Target::Entry(0));
@@ -259,8 +310,8 @@ fn same_looking_blocks_in_what_you_said_open_to_their_own_text() {
     t.user(
         "[已粘贴 1 行]和[已粘贴 1 行]".into(),
         vec![
-            ("[已粘贴 1 行]".into(), "甲".into()),
-            ("[已粘贴 1 行]".into(), "乙".into()),
+            chip("[已粘贴 1 行]", "甲", None),
+            chip("[已粘贴 1 行]", "乙", None),
         ],
     );
     t.entries[0].open = true;

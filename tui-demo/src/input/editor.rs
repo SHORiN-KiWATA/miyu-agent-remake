@@ -3,8 +3,11 @@
 //! 光标和选区都是字节下标，永远落在字素簇的边界上：左右移动、删除都按用户看到的
 //! 「一个字」走，不会把 emoji 或带组合符号的字切成两半。
 
+use std::collections::HashMap;
+
 use unicode_segmentation::UnicodeSegmentation;
 
+use super::attach::Attachment;
 use super::pasted::{Block, Draft};
 
 /// 输入框的文字和光标。换行、滚动这些跟屏幕有关的事不在这里，见 `wrap.rs`。
@@ -66,6 +69,54 @@ impl Editor {
 
     /// 在光标处放一块粘贴：输入框里写 `label`，原文记着，发出去时换回来（蓝图「输入框」第 11 条）。
     pub fn insert_block(&mut self, label: String, text: String) {
+        self.put_block(label, text, None);
+    }
+
+    /// 在光标处放一个附件：输入框里写 `label`，记着文件，发出去时先传给核心（蓝图「输入框」第 12 条）。编号随后由
+    /// [`Self::renumber`] 照先后定。
+    pub fn insert_attachment(&mut self, label: String, attachment: Attachment) {
+        self.put_block(label.clone(), label, Some(attachment));
+    }
+
+    /// 附件的块照先后重新编号：`label(种类, 这一种在输入框里的第几个)` 是块上该写的字。字变了长短的，后面的块、
+    /// 光标、选区的起点跟着挪（蓝图「输入框」第 12 条）。
+    pub fn renumber(&mut self, label: impl Fn(&str, usize) -> String) {
+        let mut seen: HashMap<String, usize> = HashMap::new();
+        for i in 0..self.blocks.len() {
+            let Some(kind) = self.blocks[i].attachment.as_ref().map(|a| a.kind.clone()) else {
+                continue;
+            };
+            let n = seen.entry(kind.clone()).or_default();
+            *n += 1;
+            let new = label(&kind, *n);
+            let (start, end) = (self.blocks[i].start, self.blocks[i].end);
+            if self.text[start..end] == new {
+                continue;
+            }
+            self.text.replace_range(start..end, &new);
+            let new_end = start + new.len();
+            // 块后面的照长短差挪；块中间的（不该有）挪到块尾。
+            let shift = |x: usize| {
+                if x >= end {
+                    x - end + new_end
+                } else if x > start {
+                    new_end
+                } else {
+                    x
+                }
+            };
+            self.blocks[i].end = new_end;
+            self.blocks[i].text = new;
+            for b in &mut self.blocks[i + 1..] {
+                b.start = shift(b.start);
+                b.end = shift(b.end);
+            }
+            self.cursor = shift(self.cursor);
+            self.anchor = self.anchor.map(shift);
+        }
+    }
+
+    fn put_block(&mut self, label: String, text: String, attachment: Option<Attachment>) {
         self.delete_selection();
         let start = self.cursor;
         self.put(&label);
@@ -76,6 +127,7 @@ impl Editor {
                 start,
                 end: start + label.len(),
                 text,
+                attachment,
             },
         );
     }

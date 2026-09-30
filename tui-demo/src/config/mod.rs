@@ -15,6 +15,7 @@ use crate::mascot::Look;
 use crate::pulse::Words;
 use crate::theme::Palette;
 
+mod attach;
 mod figures;
 mod icons;
 mod motion;
@@ -23,6 +24,7 @@ mod notify;
 mod panels;
 mod timeline;
 
+pub use attach::AttachLook;
 pub use figures::{FigureLook, Room};
 pub use icons::Icons;
 pub use motion::CompactionMotion;
@@ -254,6 +256,8 @@ pub struct Texts {
     pub drawer: crate::drawer::Texts,
     /// 输入框里粘贴块上写的，`{lines}` 行数。
     pub paste_label: String,
+    /// 附件的块上写的，照种类的名字（`attachments.json`）找：`{n}` 这一种的第几个（蓝图「输入框」第 12 条）。
+    pub attachment_labels: HashMap<String, String>,
     /// `Ctrl+V` 读不到剪贴板时的提示。
     pub clipboard_unreadable: String,
     /// `Ctrl+V` 读到空剪贴板时的提示。
@@ -270,6 +274,8 @@ pub struct Texts {
     pub copied: String,
     /// 复制失败，`{reason}` 是原因。
     pub copy_failed: String,
+    /// `/copy` 还没有能复制的回答（蓝图「斜杠命令」`/copy`）。
+    pub nothing_to_copy: String,
     /// 还在连核心。
     pub connecting: String,
     /// 核心没在跑，也没说怎么拉起来。
@@ -383,6 +389,8 @@ pub struct Config {
     pub figures: FigureLook,
     /// 系统通知怎么弹、怎么响（`resources/notify.json`）。
     pub notify: NotifyLook,
+    /// 附件认哪几种（`resources/attachments.json`）。
+    pub attachments: AttachLook,
     /// 运行状态行的词库。
     pub pulse: Words,
     /// 首页的吉祥物。
@@ -422,6 +430,10 @@ impl Config {
             math: parse("math.json", include_str!("../../resources/math.json"))?,
             figures: parse("figures.json", include_str!("../../resources/figures.json"))?,
             notify: parse("notify.json", include_str!("../../resources/notify.json"))?,
+            attachments: parse(
+                "attachments.json",
+                include_str!("../../resources/attachments.json"),
+            )?,
             pulse: parse("pulse.json", include_str!("../../resources/pulse.json"))?,
             mascot: parse("mascot.json", include_str!("../../resources/mascot.json"))?,
             fake: parse("fake.json", include_str!("../../resources/fake.json"))?,

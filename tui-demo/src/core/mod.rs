@@ -13,6 +13,7 @@ mod limits;
 mod push;
 mod rpc;
 mod undo;
+mod upload;
 
 use std::collections::HashMap;
 use std::thread;
@@ -32,8 +33,13 @@ pub use undo::Report;
 /// 界面要核心做的事。
 #[derive(Debug)]
 pub enum Command {
-    /// 说一句话。
-    Send(String),
+    /// 说一句话，带着附件（本机的文件，发之前先 `blob.put`；蓝图「输入框」第 12 条）。
+    Send {
+        /// 说的字。
+        text: String,
+        /// 附件：照先后。
+        files: Vec<std::path::PathBuf>,
+    },
     /// 打断在进行的这一轮。`send` 为真时排着队的消息接着发（两下 Esc），为假时退回来（Ctrl+C）。
     Interrupt {
         /// 排着队的消息接着发。
@@ -208,7 +214,7 @@ async fn serve(
                         *pending = Some(level);
                         continue;
                     }
-                    Command::Send(_) if session.is_none() => {
+                    Command::Send { .. } if session.is_none() => {
                         match fresh(rpc).await {
                             Ok((id, limits)) => {
                                 if !notify(Update::Ready(id.clone())) || !notify(Update::Limits(limits)) {
@@ -242,7 +248,26 @@ async fn serve(
                     Command::Unrevert => Some(true),
                     _ => None,
                 };
-                let Some((method, params)) = request(command, session, &cwd) else { continue };
+                // 带附件的：先把每个文件交给核心，传不上的整句不发（「输入框」第 12 条）。
+                let mut attachments = Vec::new();
+                if let Command::Send { files, .. } = &command
+                    && !files.is_empty()
+                {
+                    match upload::attach(rpc, files).await {
+                        Ok(got) => attachments = got,
+                        Err(Update::Disconnected) => return Served::Lost,
+                        Err(update) => {
+                            if !notify(update) {
+                                return Served::Quit;
+                            }
+                            continue;
+                        }
+                    }
+                }
+                let Some((method, mut params)) = request(command, session, &cwd) else { continue };
+                if !attachments.is_empty() {
+                    params["attachments"] = json!(attachments);
+                }
                 match rpc.send(method, params).await {
                     Ok(id) => {
                         if let Some(restore) = restore {
@@ -277,7 +302,7 @@ fn request(
     cwd: &str,
 ) -> Option<(&'static str, serde_json::Value)> {
     Some(match command {
-        Command::Send(text) => (
+        Command::Send { text, .. } => (
             "session.send",
             json!({"session": session, "text": text, "cwd": cwd}),
         ),

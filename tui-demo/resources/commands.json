@@ -71,8 +71,8 @@
     },
     {
       "name": "copy",
-      "summary": "复制她的上一段回答",
-      "run": "fake"
+      "summary": "复制她上一轮的回答",
+      "run": "copy"
     },
     {
       "name": "help",

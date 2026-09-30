@@ -8,7 +8,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 /// 一个剪贴板命令最多等多久。
-const WAIT: Duration = Duration::from_secs(1);
+pub(super) const WAIT: Duration = Duration::from_secs(1);
 
 /// 读不到：这台机器上没有能用的剪贴板命令，或者都失败了、卡住了。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,9 +66,14 @@ pub(super) fn read_with(list: &[(&str, &[&str])], wait: Duration) -> Result<Stri
         .ok_or(Unreadable)
 }
 
+/// 跑一个命令，读它的输出当字（照 UTF-8，认不出的字换成替代符）。
+fn run(cmd: &str, args: &[&str], wait: Duration) -> Option<String> {
+    run_bytes(cmd, args, wait).map(|out| String::from_utf8_lossy(&out).into_owned())
+}
+
 /// 跑一个命令，读它的输出；没装、失败、到点还没完的交回 `None`（到点的杀掉）。输出边跑边在另一个线程里读：
 /// 剪贴板里东西多时（超过管道的缓冲），命令要等人读走才写得完、才会退出。
-fn run(cmd: &str, args: &[&str], wait: Duration) -> Option<String> {
+pub(super) fn run_bytes(cmd: &str, args: &[&str], wait: Duration) -> Option<Vec<u8>> {
     let mut child = Command::new(cmd)
         .args(args)
         .stdin(Stdio::null())
@@ -97,7 +102,7 @@ fn run(cmd: &str, args: &[&str], wait: Duration) -> Option<String> {
     let out = reader.join().ok()?.ok()?;
     status
         .filter(std::process::ExitStatus::success)
-        .map(|_| String::from_utf8_lossy(&out).into_owned())
+        .map(|_| out)
 }
 
 #[cfg(test)]

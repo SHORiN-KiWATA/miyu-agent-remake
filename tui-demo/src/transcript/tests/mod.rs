@@ -6,7 +6,9 @@ use crate::core::{Block, CallError, Push, Update};
 
 mod beat;
 mod cache;
+mod chips;
 mod compaction;
+mod copy;
 mod done;
 mod failure;
 mod folds;

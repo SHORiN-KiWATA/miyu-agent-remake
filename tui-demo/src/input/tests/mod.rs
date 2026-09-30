@@ -7,12 +7,32 @@ use ratatui::crossterm::event::{
 };
 use ratatui::layout::Rect;
 
-use super::{Action, Editor, InputBox, VisualLine, locate, offset_at, pieces, tail_pieces, wrap};
+use super::{
+    Action, AttachKind, AttachRule, Editor, InputBox, VisualLine, locate, offset_at, pieces,
+    tail_pieces, wrap,
+};
 
 fn typed(text: &str) -> Editor {
     let mut e = Editor::default();
     e.insert(text);
     e
+}
+
+/// 测试用的附件规矩：图片认 png、jpg，PDF、音频、视频各认一种。
+pub(super) fn attach_rule() -> AttachRule {
+    let kind = |name: &str, exts: &[&str], label: &str| AttachKind {
+        name: name.into(),
+        extensions: exts.iter().map(|e| (*e).to_string()).collect(),
+        label: label.into(),
+    };
+    AttachRule {
+        kinds: vec![
+            kind("image", &["png", "jpg"], "[图片 {n}]"),
+            kind("pdf", &["pdf"], "[PDF {n}]"),
+            kind("audio", &["mp3"], "[音频 {n}]"),
+            kind("video", &["mp4"], "[视频 {n}]"),
+        ],
+    }
 }
 
 fn input(width: u16) -> InputBox {
@@ -339,6 +359,7 @@ fn tail_pieces_match_the_end_of_a_full_wrap() {
     }
 }
 
+mod attach;
 mod paste;
 
 /// 选中的字（没选中是 `None`）。

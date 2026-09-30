@@ -2,6 +2,8 @@
 //!
 //! 画在哪、多大由 `ui` 定；这里只记着上一次画的位置，好把鼠标坐标换回文字下标。
 
+mod attach;
+mod dropped;
 mod editor;
 mod pasted;
 mod wrap;
@@ -9,6 +11,7 @@ mod wrap;
 #[cfg(test)]
 mod tests;
 
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use ratatui::crossterm::event::{
@@ -16,6 +19,8 @@ use ratatui::crossterm::event::{
 };
 use ratatui::layout::{Position, Rect};
 
+pub use attach::{AttachKind, AttachRule, Attachment};
+use dropped::Dropped;
 pub use editor::Editor;
 pub use pasted::{Draft, PasteRule, Sent};
 pub use wrap::{VisualLine, locate, offset_at, pieces, tail_pieces, wrap};
@@ -68,6 +73,10 @@ pub struct InputBox {
     put_back: Option<String>,
     /// 大段粘贴什么时候收成一块、块上写什么（`pasted.rs`）。
     paste_rule: PasteRule,
+    /// 附件认哪几种、块上写什么（`attach.rs`）。
+    attach_rule: AttachRule,
+    /// 正文里每一种附件已经有几个：输入框里的接着编号（蓝图「输入框」第 12 条）。
+    attach_base: HashMap<String, usize>,
 }
 
 impl InputBox {
@@ -89,12 +98,27 @@ impl InputBox {
             follow: false,
             put_back: None,
             paste_rule: PasteRule::never(),
+            attach_rule: AttachRule::default(),
+            attach_base: HashMap::new(),
         }
     }
 
     /// 照配置设大段粘贴收成一块的门槛和写法（蓝图「输入框」第 11 条）。
     pub fn set_paste_rule(&mut self, rule: PasteRule) {
         self.paste_rule = rule;
+    }
+
+    /// 照配置设附件认哪几种、块上写什么（蓝图「输入框」第 12 条）。
+    pub fn set_attach_rule(&mut self, rule: AttachRule) {
+        self.attach_rule = rule;
+    }
+
+    /// 正文里每一种附件已经有几个：输入框里的附件照先后接着编号（每一帧画之前调，蓝图「输入框」第 12 条）。
+    pub fn renumber(&mut self, base: HashMap<String, usize>) {
+        self.attach_base = base;
+        let (rule, base) = (&self.attach_rule, &self.attach_base);
+        self.editor
+            .renumber(|kind, n| rule.label(kind, base.get(kind).copied().unwrap_or(0) + n));
     }
 
     /// 现在输入框里的字，连同粘贴块。
@@ -191,10 +215,23 @@ impl InputBox {
         Action::None
     }
 
-    /// 处理一次粘贴。
+    /// 处理一次粘贴。拖进终端的一批文件里认得出种类的收成附件，别的照路径写（蓝图「输入框」第 12 条）。
     pub fn paste(&mut self, text: &str) {
         self.goal_col = None;
         self.follow = true;
+        let home = std::env::var("HOME").ok();
+        if let Some(items) = dropped::dropped(text, home.as_deref(), &self.attach_rule) {
+            for (i, item) in items.into_iter().enumerate() {
+                if i > 0 {
+                    self.editor.insert(" ");
+                }
+                match item {
+                    Dropped::File(file, kind) => self.attach(file, &kind),
+                    Dropped::Path(path) => self.editor.insert(&dropped::quoted(&path)),
+                }
+            }
+            return;
+        }
         let clean = editor::clean(text);
         if self.paste_rule.folds(&clean) {
             let label = self.paste_rule.label(&clean);
@@ -202,6 +239,18 @@ impl InputBox {
         } else {
             self.editor.insert(&clean);
         }
+    }
+
+    /// 放一个附件（拖进来的、剪贴板里的）：输入框里出一块，编号照先后接着正文里这一种已有的（「输入框」第 12 条）。
+    pub fn attach(&mut self, file: std::path::PathBuf, kind: &str) {
+        self.goal_col = None;
+        self.follow = true;
+        let label = self.attach_rule.label(kind, 0);
+        let kind = kind.to_string();
+        self.editor
+            .insert_attachment(label, Attachment { file, kind });
+        let base = std::mem::take(&mut self.attach_base);
+        self.renumber(base);
     }
 
     /// 处理一个鼠标事件。`inside` 是这个事件落在输入框的边框之内。

@@ -193,12 +193,14 @@ impl App {
             return;
         }
         self.view.follow();
-        // 输入框里的粘贴块发出去换回原文；输入历史和正文里照输入框的样子（`tui.md`「输入框」第 11 条）。
+        // 输入框里的粘贴块发出去换回原文；输入历史和正文里照输入框的样子（`tui.md`「输入框」第 11 条）。附件（图）的
+        // 块照留 `[图片 1]`，文件跟着发（第 12 条）。
         let full = draft.expand();
-        let pasted = draft.pasted();
+        let chips = super::paste::chips(&draft);
+        let files = draft.attachments();
         self.input.remember(draft);
-        self.transcript.user(text, pasted);
-        self.core.send(Command::Send(full));
+        self.transcript.user(text, chips);
+        self.core.send(Command::Send { text: full, files });
     }
 
     /// 执行一条命令；`words` 是名字后面的字（能带参数的命令才有，蓝图「斜杠命令列表」第 5 条）。
@@ -218,6 +220,7 @@ impl App {
                 self.nothing_yet(spec.run);
             }
             Run::Clear => self.core.send(Command::Clear),
+            Run::Copy => self.copy_reply(),
             Run::New => self.new_session(),
             Run::Revert => self.core.send(Command::Revert),
             Run::Unrevert => self.core.send(Command::Unrevert),
@@ -231,6 +234,17 @@ impl App {
             }
             Run::DemoShell | Run::DemoAgent | Run::DemoTodo => self.demo(spec.run),
             Run::DemoAsk | Run::DemoApprove => self.demo_drawer(spec.run),
+        }
+    }
+
+    /// `/copy`：复制她上一轮的回答，照拖选以后 Ctrl+C 那一套；还没有回答的弹一句（蓝图「斜杠命令」`/copy`）。
+    fn copy_reply(&mut self) {
+        match self.transcript.last_reply() {
+            Some(text) => self.copy(&text),
+            None => {
+                let note = self.config.text.nothing_to_copy.clone();
+                self.hint(note, false);
+            }
         }
     }
 
