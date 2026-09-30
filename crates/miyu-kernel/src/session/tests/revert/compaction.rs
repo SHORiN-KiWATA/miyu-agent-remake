@@ -324,7 +324,14 @@ fn a_compaction_without_its_turn_does_not_load() {
     let compaction = at_seq(&s, 15).clone();
     assert!(matches!(compaction.body, Body::ContextCompacted(_)));
     log[14].turn = None;
-    let error = Session::load(log, at(55), policy(), environment("~/src/miyu")).unwrap_err();
+    let error = Session::load(
+        session_id(),
+        log,
+        at(55),
+        policy(),
+        environment("~/src/miyu"),
+    )
+    .unwrap_err();
     assert!(
         error
             .to_string()

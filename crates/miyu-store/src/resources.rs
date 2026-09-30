@@ -192,6 +192,7 @@ impl ResourceRoot {
                 env: fact("env.txt")?,
                 permission: fact("permission.txt")?,
                 reply_cut: fact("reply-cut.txt")?,
+                session: Some(fact("session.txt")?),
             },
             tool_results: ToolResultTexts {
                 unknown: result("unknown.txt")?,

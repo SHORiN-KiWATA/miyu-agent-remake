@@ -14,7 +14,7 @@ pub struct Policy {
     /// 组装请求的做法，一个会话一种（`05-内核接口.md` 第五节「组装请求」）。会话是一个 actor，
     /// 会被挪到别的线程上跑（02 第七节），所以要 `Send`。
     pub assembler: Box<dyn Assembler + Send>,
-    /// 两类事实的模板：环境和权限（`08-上下文投影.md` 第五节「环境和状态的事实怎么写」）。
+    /// 事实的模板：环境、权限、会话编号，和回复被截断的那一句（`08-上下文投影.md` 第五节「环境和状态的事实怎么写」）。
     pub facts: FactTemplates,
     /// 工具面上每件工具的访问类别和参数格式，照名字查。不在这里的名字是模型编的。
     pub tools: BTreeMap<String, ToolRule>,

@@ -39,7 +39,7 @@ fn loaded(log: Vec<Event>, compaction: Option<Compaction>, window: Option<u64>) 
     let mut policy = policy();
     policy.compaction = compaction;
     let (mut session, actions) =
-        Session::load(log, at(55), policy, environment("~/src/miyu")).unwrap();
+        Session::load(session_id(), log, at(55), policy, environment("~/src/miyu")).unwrap();
     assert!(actions.is_empty(), "走完了的会话载入不补什么");
     if let Some(window) = window {
         session.handle(Input::Limits(Limits {

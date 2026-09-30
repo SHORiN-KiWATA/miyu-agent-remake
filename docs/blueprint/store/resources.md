@@ -42,7 +42,7 @@
 │   ├── checkpoint-open.txt、checkpoint-close.txt、checkpoint-end.txt
 │   ├── permission-rule.txt              没有程序读：还没进请求
 │   ├── turn-ended/<原因>.txt             5 份
-│   ├── facts/env.txt、permission.txt、reply-cut.txt
+│   ├── facts/env.txt、permission.txt、reply-cut.txt、session.txt
 │   ├── tool-results/<哪一句>.txt         15 份
 │   ├── permissions/forbidden.txt、unresolvable.txt
 │   ├── drivers/<哪一句>.txt              5 份
@@ -91,7 +91,7 @@
 |---|---|
 | `core/checkpoint-open.txt`、`core/checkpoint-close.txt`、`core/checkpoint-end.txt` | 检查点包装的开头、摘要的收尾、包装的结尾 |
 | `core/turn-ended/interrupted.txt`、`error.txt`、`step_limit.txt`、`aborted.txt`、`restarted.txt` | 回合没走完的几句 |
-| `core/facts/env.txt`、`permission.txt`、`reply-cut.txt` | 事实的模板 |
+| `core/facts/env.txt`、`permission.txt`、`reply-cut.txt`、`session.txt` | 事实的模板（`session.txt` 施工 1-13 再补） |
 | `core/tool-results/unknown.txt`、`not-an-object.txt`、`cancelled-before.txt`、`cancelled-running.txt`、`skipped.txt`、`read-only.txt`、`denied.txt`、`denied-with-reason.txt`、`unattended.txt`、`question-interrupted.txt`、`question-voided.txt`、`question-unattended.txt`、`restarted.txt`、`unavailable.txt`、`crashed.txt` | 替工具写的结果 |
 | `core/permissions/forbidden.txt`、`unresolvable.txt` | 权限策略拒绝时的话（`session/guard.md`） |
 | `core/drivers/image-omitted.txt`、`file-omitted.txt`、`no-output.txt`、`tool-attachments.txt`、`tool-attachments-only.txt`、`file-open.txt`、`file-cut.txt`、`file-close.txt`、`image-open.txt`、`image-close.txt`、`image-omitted-named.txt` | 驱动的占位，文本文件照字放进消息的三句（施工 3-9 三补），带名字的图片的三句（施工 3-9 四补，`drivers/openai-chat.md` 第 9 条） |
@@ -164,7 +164,7 @@
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-store/src/resources/tests.rs` | `MIYU_RESOURCES` 优先、开头的 `~` 照家目录接、要是绝对路径、要是目录；程序旁边的 `resources/`、上一级的 `share/miyu/`；都没有时写明找过哪两处、不知道程序在哪；读出软件工程师的人设和随核心附带的字；人设文件缺了写明是哪一份；不合写法的编号拒绝；子会话的场所说明是它自己那份文件，没有的写明是哪一份（施工 7-5） |
+| `crates/miyu-store/src/resources/tests.rs` | `MIYU_RESOURCES` 优先、开头的 `~` 照家目录接、要是绝对路径、要是目录；程序旁边的 `resources/`、上一级的 `share/miyu/`；都没有时写明找过哪两处、不知道程序在哪；读出软件工程师的人设和随核心附带的字（会话编号的模板是它那份文件，施工 1-13 再补）；人设文件缺了写明是哪一份；不合写法的编号拒绝；子会话的场所说明是它自己那份文件，没有的写明是哪一份（施工 7-5） |
 | `crates/miyu-store/tests/human.rs` | 内核给模型的每一句（`core/tool-results/`、`core/permissions/`）两种语言都有给人看的一句，要的字段不多于给模型的；照语言换成字，没有的语言照英文，没有这一句、少了字段的换不出；工具的显示名、后面跟的参数、符号、下面那一块，`block` 写别的读不懂；控制字符换掉、引号反斜杠照原样；什么都没有不算错，只有英文的照英文，读不懂的写明是哪一份、哪一句 |
 | `crates/miyu-store/tests/snapshot.rs` | 从源码树的资源目录拼出软件工程师的快照 |
 

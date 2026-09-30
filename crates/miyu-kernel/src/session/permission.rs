@@ -59,7 +59,7 @@ impl Session {
         vec![Action::Append(events)]
     }
 
-    /// 要请求了：这一轮里切过级别的，放宽的这时生效，环境和权限查一遍，和有效历史里最近
+    /// 要请求了：这一轮里切过级别的，放宽的这时生效，环境、权限、会话编号查一遍，和有效历史里最近
     /// 一块不一样的记成事实（`08-上下文投影.md` C10）。来回切了一圈的，比出来一样，不注入。
     /// 工作目录写这一轮的：派工具带的是它。
     pub(super) fn refresh_facts(&mut self, at: Timestamp) -> Vec<Event> {
@@ -81,10 +81,10 @@ impl Session {
             dirs: turn.dirs.clone(),
         };
         self.effective = self.permission.clone();
-        let facts = vec![
-            self.policy.facts.env(at, &environment),
-            self.policy.facts.permission(&self.permission),
-        ];
+        let facts = self
+            .policy
+            .facts
+            .boundary(at, &environment, &self.permission, &self.id);
         changed(&self.history, &By::Kernel, facts)
             .into_iter()
             .map(|fact| self.record(at, By::Kernel, cause.clone(), Body::ContextInjected(fact)))

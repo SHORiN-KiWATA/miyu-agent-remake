@@ -12,6 +12,12 @@ use crate::time::Timestamp;
 
 use super::stage::command_id;
 
+/// 替身造的会话的编号：人开的、一次性的都是它（施工 1-13 再补：事实 `session` 写它）。
+pub const SESSION: &str = "01a0f233-cfec-7023-8ed5-2a037a1d5ec8";
+
+/// 替身造的子会话自己的编号，和父会话的不一样：子会话的事实 `session` 写它（施工 1-13 再补）。
+pub const CHILD_SESSION: &str = "01a0f234-0a1b-7c2d-8e3f-4a5b6c7d8e9f";
+
 /// 造会话时的样子：alice 的会话，在本机，工作区的权限，只读关着。
 const CREATED: &str = r#"{"owner":"alice","venue":"local","policy":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","permission":{"level":"workspace","read_only":false}}"#;
 
@@ -79,6 +85,7 @@ impl Stage {
             .unwrap_or_else(|e| panic!("alice 的写法坏了：{e}"));
         let mut created: SessionCreated =
             serde_json::from_str(CREATED).unwrap_or_else(|e| panic!("造会话的写法坏了：{e}"));
+        let mut id = SESSION;
         match opening {
             Opening::Main => {}
             Opening::Oneshot => created.oneshot = true,
@@ -86,9 +93,12 @@ impl Stage {
                 created.parent = Some(parent.clone());
                 created.depth = Some(1);
                 by = By::Session(crate::origin::Session { id: parent });
+                id = CHILD_SESSION;
             }
         }
+        let id = SessionId::parse(id).unwrap_or_else(|e| panic!("替身的会话编号写法坏了：{e}"));
         let (session, actions) = Session::create(
+            id.clone(),
             command_id(0),
             by.clone(),
             now,
@@ -98,6 +108,7 @@ impl Stage {
         );
         let mut stage = Stage {
             session,
+            id,
             policy: Box::new(policy),
             environment,
             log: Vec::new(),

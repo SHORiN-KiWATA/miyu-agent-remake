@@ -7,7 +7,7 @@ use super::script::{Line, Play};
 use crate::block::{Block, Text};
 use crate::event::{Body, Decision, Event, Level, ModelCalled, Response, Transient};
 use crate::facts::Environment;
-use crate::id::{CallId, CommandId, HarnessName, Seq, TurnId};
+use crate::id::{CallId, CommandId, HarnessName, Seq, SessionId, TurnId};
 use crate::origin::{By, Harness};
 use crate::request::Request;
 use crate::session::{
@@ -22,6 +22,8 @@ use crate::time::Timestamp;
 /// 放行，回合开始的挂接点不注入。剧本用完了还要请求模型、调工具，当场 panic：那是剧本写错了。
 pub struct Stage {
     pub(super) session: Session,
+    /// 会话的编号（[`super::SESSION`]、子会话是 [`super::CHILD_SESSION`]）：重启、崩了再载入时照它载入。
+    pub(super) id: SessionId,
     /// 造策略的办法：重启、崩了再载入时各造一份（策略里有组装器，不能复制）。
     pub(super) policy: Box<dyn Fn() -> Policy>,
     pub(super) environment: Environment,
@@ -406,6 +408,7 @@ impl Stage {
         self.held_wake = None;
         let at = self.tick();
         let (session, actions) = Session::load(
+            self.id.clone(),
             self.log.clone(),
             at,
             (self.policy)(),

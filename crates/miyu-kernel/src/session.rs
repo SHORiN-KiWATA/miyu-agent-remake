@@ -66,6 +66,8 @@ use turn::Turn;
 /// 一个会话的状态机。
 #[derive(Debug)]
 pub struct Session {
+    /// 这个会话的编号：执行器造会话、载入时交进来，日志所在的目录就叫它。事实 `session` 写它（施工 1-13 再补）。
+    id: SessionId,
     /// 日志的账本：给新事件编序号，追加之前照规矩查一遍。
     ledger: Ledger,
     /// 有效历史，组装请求用。事件追加时就交给它。
@@ -117,12 +119,13 @@ impl Session {
     /// 造一个会话：追加第 1 条事件 `session.created`，它的 `cause` 是造会话的那个命令
     /// （`04-核心协议.md` 的 `session.create`）。这一条落了盘，再回应这个命令。
     ///
-    /// 冻结在会话上的策略和会话所在的环境，由执行器一起交进来；开始时的权限取自 `created`。
+    /// 会话的编号 `session`、冻结在会话上的策略和会话所在的环境，由执行器一起交进来；开始时的权限取自 `created`。
     ///
     /// # Panics
     ///
     /// 实际不会 panic：第 1 条是 `session.created`，账本收它。
     pub fn create(
+        session: SessionId,
         id: CommandId,
         by: By,
         at: Timestamp,
@@ -131,6 +134,7 @@ impl Session {
         environment: Environment,
     ) -> (Session, Vec<Action>) {
         let mut session = Session {
+            id: session,
             ledger: Ledger::default(),
             history: History::default(),
             unstored: Vec::new(),

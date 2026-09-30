@@ -20,7 +20,7 @@ use super::turn::Stage;
 use crate::event::{Body, EndReason, Event, Permission, PolicyChanged, ToolStatus};
 use crate::facts::Environment;
 use crate::history::History;
-use crate::id::{CommandId, Seq};
+use crate::id::{CommandId, Seq, SessionId};
 use crate::ledger::{Ledger, LedgerError};
 use crate::origin::By;
 use crate::time::Timestamp;
@@ -91,7 +91,7 @@ struct Ended {
 }
 
 impl Session {
-    /// 从日志载入一个会话：日志一条条交给账本查过（坏日志在这里就拦下），重建有效历史、现在的
+    /// 从日志载入会话 `session`：日志一条条交给账本查过（坏日志在这里就拦下），重建有效历史、现在的
     /// 权限、最近接受的命令编号。读进来的都已经落了盘。有效历史从还算数的最近一次压缩替代到的下一条起，留着一切地
     /// 收、再落到检查点上（施工 6-9）；那个检查点重读过文件的，交回的动作里第一个是 `Recall`。
     ///
@@ -107,6 +107,7 @@ impl Session {
     ///
     /// 日志是空的，或者有一条过不了账本，返回 [`LoadError`]。
     pub fn load(
+        session: SessionId,
         events: Vec<Event>,
         at: Timestamp,
         policy: Policy,
@@ -146,6 +147,7 @@ impl Session {
             recent.insert(id, seqs);
         }
         let mut session = Session {
+            id: session,
             ledger,
             history,
             unstored: Vec::new(),
