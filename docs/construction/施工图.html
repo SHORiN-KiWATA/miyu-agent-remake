@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>150</b><span>/ 155 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；C-3 等合并；下一步 8-3、C-4</span></li>
-    <li><b class="mono">b563e3c8</b><span>最近一步（8-2 读配置）的提交</span></li>
+    <li><b>151</b><span>/ 156 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 3-8 七补会话列表的索引、8-3 写配置；之后 C-4</span></li>
+    <li><b class="mono">27e913e4</b><span>最近一步（C-3 列会话）的提交</span></li>
   </ul>
 </header>
 
@@ -393,6 +393,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-8g"><span class="n">3-8</span>回顾 session.recap（四补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8h"><span class="n">3-8</span>自动起标题（五补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8i"><span class="n">3-8</span>订阅时补发之前的事件（六补）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">3-8</span>会话列表的索引（七补）</span></li>
         <li><a class="step done" href="#s3-9a"><span class="n">3-9</span>主程序和拉起核心（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9b"><span class="n">3-9</span>miyu ask（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9c"><span class="n">3-9</span>会话编号照先后（补）<span class="st">✓</span></a></li>
@@ -530,7 +531,7 @@ a.step:hover{border-color:var(--primary)}
       <ol class="chips">
         <li><a class="step done" href="#sC-1"><span class="n">C-1</span>跨会话的事件和编号<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sC-2"><span class="n">C-2</span>收别的会话发来的话<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">C-3</span>列会话</span></li>
+        <li><a class="step done" href="#sC-3"><span class="n">C-3</span>列会话<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">C-4</span>读别的会话</span></li>
         <li><span class="step"><span class="n">C-5</span>发给别的会话</span></li>
         <li><span class="step"><span class="n">C-6</span>空了告诉我</span></li>
@@ -10678,6 +10679,58 @@ a.step:hover{border-color:var(--primary)}
     </div>
   </div>
 </section>
+
+<section class="sheet" id="sC-3" aria-labelledby="h-sC3">
+  <div class="sheet-head"><h2 id="h-sC3"><span class="no">C-3</span>列会话</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她能列出你别的主会话：短编号、标题、工作目录、忙不忙、最近一次动静，照最近活动排、能翻页。新的一件工具 <code>sessions</code>，只给本机的主会话。头的 <code>session.list</code> 每一项也多这三格，和工具是同一个函数算的。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">列会话</span><span class="dir-note">C-3</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>session.list</code> 多 <code>cwd</code>、<code>last_active</code>、<code>busy</code>；排序不变，头自己照 last_active 排</li>
+              <li>工具 <code>sessions</code>（边际 95 token）：第一行是她自己，没标题的写 (untitled)，短编号撞了放长</li>
+              <li>认会话编号的纯函数 <code>find_session</code>，C-4、C-5 接着用</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">先不点名</span><span class="rl">说明里不提 send_message、history，C-5 改名时补上（J4）</span></div>
+          <div class="tile new"><span class="nm">列不出来说出错</span><span class="rl">不装成没有别的会话</span></div>
+          <div class="tile"><span class="nm">还是整份扫日志</span><span class="rl">会话多了慢，随 3-8 七补的索引解决</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">C-3</dd></div>
+        <div><dt>名称</dt><dd>列会话</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">27e913e4</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>40 个手写变异，38 个逮住，另 2 个是等价的；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型：开两个起了名的会话，第三个里问还有哪些会话，她调 sessions 列出两个，说清看不到内容</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/C-3-列会话.md</code>；蓝图 <code>tools/sessions.md</code>、<code>cross-session.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 
 
 

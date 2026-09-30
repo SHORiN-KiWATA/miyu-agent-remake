@@ -39,7 +39,12 @@ fn the_registered_list_is_well_formed() {
     let keys: Vec<&str> = items.iter().map(|item| item.key).collect();
     assert_eq!(
         keys,
-        ["ui.language", "permission.start_read_only", "log.level"],
+        [
+            "ui.language",
+            "tui.startup",
+            "permission.start_read_only",
+            "log.level"
+        ],
         "照登记的先后"
     );
 }

@@ -1,0 +1,1 @@
+{"seq":1,"at":"2026-10-01T08:02:00.000Z","kind":"trust.changed","by":{"kind":"person","account":"admin"},"cause":"config-9f2c4e1a7b3d5f60-2","body":{"path":"~/src/app","version":"sha256:…","trusted":true}}

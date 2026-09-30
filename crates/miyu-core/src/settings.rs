@@ -22,13 +22,28 @@ use miyu_store::root::DataRoot;
 /// 运行日志的目标（`config.md`「出错」）。
 const TARGET: &str = "miyu::config";
 
-/// 登记的模块，照这个先后，一个模块里照声明的先后。加一个模块只加一行。设置页的页照第一次出现的先后排：通用、权限、
-/// 高级（施工 8-2）。
-const MODULES: [&[Item]; 3] = [
+/// 登记的模块，照这个先后，一个模块里照声明的先后。加一个模块只加一行。设置页的页照第一次出现的先后排：通用、界面、
+/// 权限、高级（施工 8-2、8-3）。
+const MODULES: [&[Item]; 4] = [
     UiSettings::ITEMS,
+    TuiSettings::ITEMS,
     PermissionSettings::ITEMS,
     LogSettings::ITEMS,
 ];
+
+miyu_config::settings! {
+    /// 终端界面的配置（施工 8-3，2026-10-01 项目主人要）。终端界面还没进工作区（M9），它的几项先在这里替它声明、登记：
+    /// 头自己经 `config.get` 读，核心不管它。终端界面并进来以后挪到它自己的 crate 里。
+    pub struct TuiSettings in "tui" {
+        /// 终端界面启动时开哪个会话：`new` 开一个新的，`recent` 接着最近的那一个。
+        startup: String = "new" {
+            kind: option ["new", "recent"],
+            layers: [System, Personal],
+            applies: head_start,
+            ui: { page: "interface", group: "tui", control: select },
+        },
+    }
+}
 
 /// 生成的三份放在状态区的这个目录里：`state/config/`。
 const DIR: &str = "config";

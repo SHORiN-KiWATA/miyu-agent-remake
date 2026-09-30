@@ -10,9 +10,8 @@
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::durable::{create_dir, create_temp, discard, sync_dir};
+use crate::durable::{create_dir, create_temp, discard, sync_dir, temp_name};
 
 /// 把 `path` 写成 `content`：一样的不写，交回 `false`；写了交回 `true`。没有的目录建上。
 ///
@@ -46,16 +45,6 @@ fn store(mut file: File, content: &[u8], temp: &Path, path: &Path, dir: &Path) -
     drop(file);
     fs::rename(temp, path)?;
     sync_dir(dir)
-}
-
-/// 临时文件的名字：点开头（大多数系统上不显示），带上原来的名字、进程号和一个计数。
-fn temp_name(name: &str) -> String {
-    static NEXT: AtomicU64 = AtomicU64::new(0);
-    format!(
-        ".{name}.{}-{}.tmp",
-        std::process::id(),
-        NEXT.fetch_add(1, Ordering::Relaxed)
-    )
 }
 
 #[cfg(test)]

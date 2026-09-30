@@ -3,6 +3,7 @@
 
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
 
+pub mod configuring;
 pub mod router;
 
 use std::path::{Path, PathBuf};

@@ -104,7 +104,7 @@ pub(crate) fn hello(core: &Core, params: Value) -> Result<(Peer, Value), (Refusa
         "sandbox": sandbox(&core.sandbox),
         "language": language,
     });
-    let errors = core.config.errors();
+    let errors = core.config().errors();
     if errors > 0 {
         result["config_errors"] = json!(errors);
     }
@@ -114,7 +114,7 @@ pub(crate) fn hello(core: &Core, params: Value) -> Result<(Peer, Value), (Refusa
 /// 这个连接给人看的字用哪种语言（`config.md` 第二条第 8 条）：`ui.language` 的最终值（不算项目配置）定了的就是它，
 /// `auto` 的照头报的系统语言 `locale`。
 fn language(core: &Core, locale: Option<&str>) -> &'static str {
-    let ui = UiSettings::from(&core.config.resolved().values());
+    let ui = UiSettings::from(&core.config().resolved().values());
     match ui.language_for(locale) {
         "zh" => "zh",
         "ja" => "ja",

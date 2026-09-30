@@ -50,7 +50,7 @@ enum Command {
     Rename(miyu_cli::Rename),
     /// 装好、撤掉沙盒用户（Windows，要管理员权限）。
     Sandbox(miyu_cli::Sandbox),
-    /// 看配置：最终值、每一层写的、有没有写错、文件在哪（施工 8-2）。
+    /// 看配置、改配置、信任项目配置（施工 8-2、8-3）。
     Config(miyu_cli::Config),
     /// 核心进程：由头拉起，平时不用人敲。
     #[command(hide = true)]
@@ -87,11 +87,13 @@ fn main() -> ExitCode {
         })
         .mut_subcommand("config", |config| {
             let help = page(language, Page::Config);
-            ["get", "check", "explain", "path"]
-                .into_iter()
-                .fold(config.override_help(help), |config, name| {
-                    config.mut_subcommand(name, |sub| sub.override_help(help))
-                })
+            [
+                "get", "check", "explain", "path", "set", "unset", "edit", "trust",
+            ]
+            .into_iter()
+            .fold(config.override_help(help), |config, name| {
+                config.mut_subcommand(name, |sub| sub.override_help(help))
+            })
         })
         .mut_subcommand("sandbox", |sandbox| {
             let help = page(language, Page::Sandbox);

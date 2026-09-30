@@ -1,5 +1,5 @@
 //! 协议上的 `config.schema`、`config.get`、`config.check`（`docs/blueprint/config.md`「协议」，施工 8-2）：都是查询，
-//! 不改什么。给人看的字（名字、说明、报错的话）照这个连接的语言（握手时定的）。
+//! 不改什么。说成话、挑出几项的几个小函数 `config.set`、`config.trust` 也用（施工 8-3）。给人看的字（名字、说明、报错的话）照这个连接的语言（握手时定的）。
 //!
 //! 写了清单里没有的键：`unknown_config_key`，`data.problems` 里每个不认识的一条，带离得最近的键名。
 
@@ -70,7 +70,7 @@ impl LayerParam {
 /// `config.schema`：配置清单，名字和说明照这个连接的语言。
 pub(crate) fn schema(core: &Core, peer: Peer, params: SchemaParams) -> Result<Value, Refusal> {
     let words = words(core, peer.language)?;
-    let config = &core.config;
+    let config = &*core.config();
     let items = selected(config, params.keys.as_deref(), &words)?;
     let fallback = || Human::load(&core.resources, FALLBACK).ok();
     let english = if items.iter().all(|item| words.item(item.key).is_some()) {
@@ -156,7 +156,7 @@ fn config_name(words: &Human, english: Option<&Human>, what: &str, id: &str) -> 
 /// `config.get`：最终值，每个值附上来源；每一份文件的位置、版本；这几份文件现在的全部问题。
 pub(crate) fn get(core: &Core, peer: Peer, params: GetParams) -> Result<Value, Refusal> {
     let words = words(core, peer.language)?;
-    let config = &core.config;
+    let config = &*core.config();
     let items = selected(config, params.keys.as_deref(), &words)?;
     let project = params.cwd.as_deref().and_then(|cwd| config.project(cwd));
     let layers = config.layers(project.as_ref());
@@ -253,7 +253,7 @@ fn files(config: &Config, project: Option<&Project>) -> Value {
 /// `config.check`：把 `text` 当成一层的文件查，不生效。项目配置照「收紧」和另外几层合出来的比，不看信没信任。
 pub(crate) fn check(core: &Core, peer: Peer, params: CheckParams) -> Result<Value, Refusal> {
     let words = words(core, peer.language)?;
-    let config = &core.config;
+    let config = &*core.config();
     let layer = params.layer.layer();
     let parsed = match parse(config.items(), layer, &params.text) {
         Ok(parsed) => parsed,
@@ -285,7 +285,7 @@ pub(crate) fn check(core: &Core, peer: Peer, params: CheckParams) -> Result<Valu
 
 /// 一条问题写成协议上的样子，话照 `words`。现在照什么用着：一项的问题照这一项在它那一层下面几层合出来的；整份的问题
 /// 在 `in_force`（手里用着的文件）时是「这份文件先不用」，查一段字时不说。
-fn said(
+pub(super) fn said(
     config: &Config,
     layers: &Layers,
     problem: &Problem,
@@ -313,7 +313,7 @@ fn said(
 }
 
 /// 说成话；要用的字缺了是装坏了：内部出错，记一条 `WARN`。
-fn told(
+pub(super) fn told(
     problem: &Problem,
     items: &[Item],
     using: Option<&Using>,
@@ -326,7 +326,7 @@ fn told(
 }
 
 /// 这个连接的语言的字。读不懂是装坏了：内部出错。
-fn words(core: &Core, language: &str) -> Result<Human, Refusal> {
+pub(super) fn words(core: &Core, language: &str) -> Result<Human, Refusal> {
     Human::load(&core.resources, language).map_err(|error| {
         tracing::warn!(target: TARGET, error = %error, "resource unreadable");
         Refusal::INTERNAL
@@ -334,7 +334,7 @@ fn words(core: &Core, language: &str) -> Result<Human, Refusal> {
 }
 
 /// 请求里的 `keys` 挑出的几项，照清单的先后；不写的是全部。有不认识的：`unknown_config_key`。
-fn selected<'a>(
+pub(super) fn selected<'a>(
     config: &'a Config,
     keys: Option<&[String]>,
     words: &Human,

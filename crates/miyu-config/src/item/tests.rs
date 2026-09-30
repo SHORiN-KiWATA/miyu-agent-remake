@@ -41,6 +41,25 @@ crate::settings! {
     }
 }
 
+crate::settings! {
+    /// 测试用的头自己读的一项（施工 8-3）：头下次启动时生效。
+    pub struct Heads in "head" {
+        /// 启动时开哪个。
+        startup: String = "new" {
+            kind: option ["new", "recent"],
+            layers: [System, Personal],
+            applies: head_start,
+            ui: { page: "interface", group: "tui", control: select },
+        },
+    }
+}
+
+#[test]
+fn an_item_can_apply_when_the_head_starts_next() {
+    assert_eq!(Heads::ITEMS[0].applies, Applies::HeadStart);
+    assert_eq!(Heads::from(&Values::default()).startup, "new");
+}
+
 #[test]
 fn a_switch_is_declared_with_how_a_project_tightens_it() {
     assert_eq!(
@@ -183,6 +202,7 @@ fn layers_and_timings_are_written_as_on_the_wire() {
     assert_eq!(Layer::Project.as_str(), "project");
     assert_eq!(Applies::Now.as_str(), "now");
     assert_eq!(Applies::NewSession.as_str(), "new_session");
+    assert_eq!(Applies::HeadStart.as_str(), "head_start");
     assert_eq!(Control::Select.as_str(), "select");
     assert_eq!(Control::Toggle.as_str(), "toggle");
     assert_eq!(Tighten::TrueOnly.as_str(), "true_only");
