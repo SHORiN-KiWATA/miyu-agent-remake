@@ -1,23 +1,15 @@
-//! 压缩里的任务（施工 7-8，`docs/blueprint/compaction.md` 第三条第 2 条、第八条，`agents.md` 第十条）：检查点里代码写的
-//! 几段多一段，照编号列还在跑的任务（编号、种类、标题），结束了的、派它的那一轮撤掉了的不列，没有的不写；还没听到的
-//! 回报算这一轮要回应的，不压进摘要。那一段照出厂的两份模板写，和样本 `docs/designs/samples/reports/checkpoint-jobs.txt`
-//! 一字不差。
+//! 压缩里的任务（施工 7-8，`docs/blueprint/compaction.md` 第三条第 2 条、第八条，`agents.md` 第十条）：还没听到的回报算
+//! 这一轮要回应的，不压进摘要；撤到压缩以前也停派出去的。检查点里代码写的几段不列还在跑的任务：7-8 加过那一段，
+//! 2026-10-01 实测摘要记得住，照「非必要不加」去掉了（施工 7-8 补）。
 
 use super::reports::CHILD;
 use super::*;
-use crate::event::{ChildReason, ContextCompacted, JobReason};
+use crate::event::{ContextCompacted, JobReason};
 use crate::id::JobId;
-use crate::session::{Compaction, Notes, RunningNotes};
+use crate::session::{Compaction, Notes};
 use crate::template::Template;
 
-/// 出厂的那两份模板：头一行、一个任务一行。
-const HEAD: &str = include_str!("../../../../../../resources/core/compaction/notes-jobs.txt");
-const ITEM: &str = include_str!("../../../../../../resources/core/compaction/notes-job.txt");
-/// 样本：还在跑的一个子代理、一个后台命令。
-const SAMPLE: &str =
-    include_str!("../../../../../../docs/designs/samples/reports/checkpoint-jobs.txt");
-
-/// 会压缩的替身：输出预留、余量各 10，尾巴 0，不重读；检查点里代码写的几段用测试的模板，还在跑的那一段用出厂的。
+/// 会压缩的替身：输出预留、余量各 10，尾巴 0，不重读；检查点里代码写的几段用测试的模板。
 fn compacting() -> Stage {
     let make = || {
         let mut policy = policy();
@@ -41,10 +33,6 @@ fn compacting() -> Stage {
             retrieve: template("<retrieve {upto}/>\n"),
             too_large: template("<too-large {files}/>\n"),
             uncovered: None,
-            running: Some(RunningNotes {
-                head: template(HEAD),
-                item: template(ITEM),
-            }),
         });
         policy
     };
@@ -84,39 +72,16 @@ fn compacted(s: &Stage) -> &ContextCompacted {
         .expect("压了")
 }
 
+/// 一个子代理、一个后台命令都还在跑：代码写的几段只有取回指路，不列它们（施工 7-8 补）。
 #[test]
-fn the_checkpoint_lists_the_jobs_still_running_as_the_sample() {
+fn the_checkpoint_does_not_list_the_jobs_still_running() {
     let mut s = dispatched();
     next_turn(&mut s);
     let compacted = compacted(&s);
     assert_eq!(
         compacted.notes,
-        format!("<retrieve {}/>\n{SAMPLE}", compacted.upto),
-        "取回指路后面接还在跑的那一段"
-    );
-}
-
-#[test]
-fn ended_and_undone_jobs_are_not_listed_and_none_writes_nothing() {
-    let mut s = dispatched();
-    s.model([Line::says("看到了。").reports(5_000)]);
-    s.child_reports(1, CHILD, ChildReason::Done, "做完了。");
-    next_turn(&mut s);
-    assert!(
-        compacted(&s).notes.ends_with("- j2 command \"跑测试\"\n"),
-        "报过 done 的子代理不列：{:?}",
-        compacted(&s).notes
-    );
-
-    let mut s = dispatched();
-    s.revert(TurnId::new(seq(3)));
-    s.model([Line::says("好。").reports(5_000)]);
-    s.say("换个话题");
-    next_turn(&mut s);
-    let notes = &compacted(&s).notes;
-    assert!(
-        !notes.contains("Jobs still running"),
-        "派它们的那一轮撤掉了：她看不到，不列，也就没有这一段：{notes:?}"
+        format!("<retrieve {}/>\n", compacted.upto),
+        "只有取回指路"
     );
 }
 
