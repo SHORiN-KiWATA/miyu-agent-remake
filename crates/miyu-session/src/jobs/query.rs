@@ -11,7 +11,7 @@ use miyu_kernel::id::{JobId, SessionId};
 use miyu_store::jobs::output_path;
 use miyu_tool::{JobError, Output};
 
-use super::stop::{Who, stop_agent};
+use super::stop::{Who, Why, stop_agent, stopped_report};
 use super::{Ended, SessionJobs, Shared};
 use crate::TARGET;
 use crate::blocking::blocking;
@@ -54,7 +54,7 @@ impl Shared {
                 Ok(())
             }
             Target::Agent(child) => match &self.agents {
-                Some(agents) => stop_agent(agents, job, child, who.by_model).await,
+                Some(agents) => stop_agent(agents, job, child, who.why).await,
                 None => Err(JobError::Unknown),
             },
         }
@@ -141,18 +141,34 @@ impl SessionJobs {
         blocking(move || shared.stop_command(job, &who)).await
     }
 
+    /// 子代理 `job`（子会话 `child`）已经停下了（人删了它，施工 7-8）：作为它交来的那一份回报（命令编号、`by`、命令），由
+    /// actor 当场交进内核。没有会话表的端口的，没有。
+    pub(crate) async fn stopped_report(
+        &self,
+        job: JobId,
+        child: &SessionId,
+        why: Why,
+    ) -> Option<(
+        miyu_kernel::id::CommandId,
+        miyu_kernel::origin::By,
+        miyu_kernel::session::Command,
+    )> {
+        let agents = self.shared.agents.clone()?;
+        Some(stopped_report(&agents, job, child, why).await)
+    }
+
     /// 停掉子代理 `job`（子会话 `child`）的 future：拿着自己要的，actor 另起一个任务跑它，不在收件箱里等。没有会话表的
     /// 端口的，交回 [`JobError::Unknown`]。
     pub(crate) fn stop_agent(
         &self,
         job: JobId,
         child: SessionId,
-        by_model: bool,
+        why: Why,
     ) -> impl Future<Output = Result<(), JobError>> + Send + 'static {
         let agents = self.shared.agents.clone();
         async move {
             match agents {
-                Some(agents) => stop_agent(&agents, job, child, by_model).await,
+                Some(agents) => stop_agent(&agents, job, child, why).await,
                 None => Err(JobError::Unknown),
             }
         }

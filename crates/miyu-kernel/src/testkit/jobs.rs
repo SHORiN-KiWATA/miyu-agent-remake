@@ -156,6 +156,11 @@ impl Stage {
         &self.upward
     }
 
+    /// 撤销交出来的停任务（[`crate::session::Action::StopJobs`]），照先后（施工 7-8）。
+    pub fn stopping(&self) -> &[crate::session::Action] {
+        &self.stopping
+    }
+
     /// 人（alice）说一句：子会话的替身平常说话的是父会话，人切进来说的用这个（施工 7-6）。返回这个命令的编号。
     ///
     /// # Panics

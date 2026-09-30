@@ -6,7 +6,8 @@
 //! `\n`；一段一段交出去，不截。
 //!
 //! 整组杀照前台（`process.rs`）：Unix 杀进程组，Windows `taskkill /T` 杀整棵树；已经结束了的不再按编号杀。命令自己
-//! 退出以后，Unix 上组里还在跑的也杀掉，和前台一样。
+//! 退出以后，Unix 上组里还在跑的也杀掉，和前台一样。核心崩了，命令跟着没，也和前台一样（施工 7-8）：Unix 上组里有看门的，
+//! Windows 上核心在作业对象里。
 
 use std::io::{self, Read};
 use std::process::{Child, Command, ExitStatus};
@@ -26,7 +27,12 @@ const TARGET: &str = "miyu::shell";
 ///
 /// 同前台：管道建不起来，或者程序起不来。
 pub(super) fn start(command: Command) -> io::Result<Background> {
-    let (child, group, pipe) = process::spawn(command)?;
+    let process::Spawned {
+        child,
+        group,
+        pipe,
+        watch,
+    } = process::spawn(command)?;
     Ok(Background {
         output: Box::new(Output {
             pipe,
@@ -38,6 +44,7 @@ pub(super) fn start(command: Command) -> io::Result<Background> {
             group,
             child: Mutex::new(Some(child)),
             exited: Mutex::new(false),
+            _watch: watch,
         }),
     })
 }
@@ -84,6 +91,8 @@ struct Running {
     /// 等到了、句柄就要放下：之后不再按编号杀。Windows 上句柄开着编号就不会被别的进程拿去，所以先记下它、再放下
     /// 句柄；杀的那一头拿着这把锁杀，杀完之前句柄放不下。
     exited: Mutex<bool>,
+    /// 组里看门的（施工 7-8）：核心崩了它杀整组；丢掉这条命令时收掉它。
+    _watch: process::Watch,
 }
 
 impl Process for Running {

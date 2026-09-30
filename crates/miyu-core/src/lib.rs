@@ -85,6 +85,11 @@ pub fn main(options: Options) -> ExitCode {
         tz = %miyu_log::utc_offset(),
         "starting"
     );
+    // 核心没了，它起的子进程跟着结束（施工 7-8，`core.md`「起来的先后」第 4 条）：Windows 上核心进作业对象，别的平台什么都
+    // 不做（Unix 上每条命令的组里有看门的）。进不去照样起来。
+    if let Err(error) = miyu_sandbox::lifeline::bind_children() {
+        tracing::warn!(target: TARGET, error = %error, "children not bound");
+    }
     if let Err(error) = root.prepare_home(&admin()) {
         return failed("home", error.to_string());
     }

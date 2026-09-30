@@ -65,6 +65,14 @@ impl Jobs {
             .map(|(id, job)| (id.clone(), job))
     }
 
+    /// 在这几轮里派的，照编号（施工 7-8：撤销停掉它们）。
+    pub(super) fn in_turns<'a>(&'a self, turns: &'a [TurnId]) -> impl Iterator<Item = JobId> + 'a {
+        self.0
+            .iter()
+            .filter(|(_, job)| job.turn.is_some_and(|turn| turns.contains(&turn)))
+            .map(|(id, _)| id.clone())
+    }
+
     /// 在这几轮里派的，标成撤掉了没有。
     fn mark(&mut self, turns: &[TurnId], undone: bool) {
         for job in self.0.values_mut() {

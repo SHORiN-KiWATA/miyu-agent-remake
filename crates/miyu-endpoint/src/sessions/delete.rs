@@ -1,43 +1,45 @@
 //! 删会话（施工 3-8 三补，`docs/blueprint/protocol.md` 的 `session.delete`，`agents.md` 第七条第 5、6 条）。
 //!
-//! 删的是一个子会话、它的父会话还在的，先照人停掉它（`job.stop` 那条路，施工 7-4）：打断它这一轮、停掉它派的，父会话记一条
-//! `child.reported`（`stopped`，不带 `by_model`，叫醒父会话）。这一步经会话表的端口来回，在拿表的锁之前做。然后会话表拿着
-//! 锁办完一整件，这期间谁都载入不了、造不了子会话：
+//! 会话表拿着锁办完一整件，这期间谁都载入不了、造不了子会话、给它发不了命令（施工 7-8：停子会话、给父会话送回报原来在拿
+//! 锁之前经端口来回，中间人能再叫醒它）：
 //!
 //! 1. 先从磁盘上认出它派出去的子会话，一层层往下（`session.created` 的 `parent`）；
-//! 2. 它自己在跑的，交给它的 actor 问删不删得了：有回合在进行、正在改回文件的拒绝，什么都不动；没在跑的不载入：载入会
-//!    收尾崩了的回合、接着干被重启打断的回合、叫起子会话，删之前都不该做；
-//! 3. 在跑的子会话一层层停下，不管它们忙不忙；它们和它自己的后台命令整组杀掉、不记回报；
-//! 4. 目录挪进回收处，从最深的子会话起，它自己最后：半路崩了，它还在原处、列得出来，再删一次接着挪完。
+//! 2. 它是一个子会话、父会话还在的（找父会话照表的规矩，没在跑的载入），删它等于人先停掉它再删（2026-09-30 主会话定）：
+//!    在跑的不问忙不忙就停下；
+//! 3. 别的，它自己在跑的，交给它的 actor 问删不删得了：有回合在进行、正在改回文件的拒绝，什么都不动；没在跑的不载入：载入
+//!    会收尾崩了的回合、接着干被重启打断的回合、叫起子会话，删之前都不该做；
+//! 4. 在跑的子会话一层层停下，不管它们忙不忙；它们和它自己的后台命令整组杀掉、不记回报；
+//! 5. 第 2 条那种，父会话照人停它记一条 `child.reported`（`stopped`，不带 `by_model`，叫醒父会话，`Handle::stopped_child`）：
+//!    回报在父会话的 actor 里当场记，不经会话表；
+//! 6. 目录挪进回收处，从最深的子会话起，它自己最后：半路崩了，它还在原处、列得出来，再删一次接着挪完。
 
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
 
 use miyu_kernel::event::Body;
-use miyu_kernel::id::{AccountId, CommandId, SessionId};
-use miyu_session::job_in;
+use miyu_kernel::id::{AccountId, JobId, SessionId};
+use miyu_session::{Handle, job_in};
 use miyu_store::log::{OpenError, first_event};
 use miyu_store::root::DataRoot;
 use miyu_store::trash;
 
-use super::{Sessions, admin, now};
+use super::{Open, Sessions, now};
 use crate::Core;
 use crate::refusal::Refusal;
 
 impl Sessions {
-    /// 删会话 `id`：子会话先照人停掉它，再照上面四步。`request` 是删它的那条命令的编号。回应 `{}` 之前目录都挪好了。
-    pub(crate) async fn delete(
-        &self,
-        core: &Arc<Core>,
-        id: &SessionId,
-        request: CommandId,
-    ) -> Result<(), Refusal> {
-        self.stop_as_job(core, id, request).await;
+    /// 删会话 `id`，照上面六步。回应 `{}` 之前目录都挪好了。
+    pub(crate) async fn delete(&self, core: &Arc<Core>, id: &SessionId) -> Result<(), Refusal> {
         let mut open = self.open.lock().await;
         let running = open.running.get(id).map(|running| running.handle.clone());
         let family = family(core, id, running.is_none()).await?;
+        let parent = open.parent_of(core, id).await;
         if let Some(handle) = running {
-            match handle.delete().await {
+            let stopped = match parent {
+                Some(_) => handle.discard().await.map(Ok),
+                None => handle.delete().await,
+            };
+            match stopped {
                 Ok(Ok(())) => {}
                 Ok(Err(reason)) => return Err(Refusal::kernel(reason)),
                 // 自己停了的（写不进去、出了 bug）：它的后台命令随它停的时候杀掉了，照样挪。
@@ -53,6 +55,9 @@ impl Sessions {
             {
                 tracing::debug!(target: "miyu::endpoint", session = child.as_str(), "already stopped");
             }
+        }
+        if let Some((parent, job)) = parent {
+            open.stopped_child(&parent, job).await;
         }
         // 重发的造会话不再交回删了的会话。
         open.created
@@ -79,35 +84,36 @@ impl Sessions {
     }
 }
 
-impl Sessions {
-    /// 会话 `id` 是一个子会话、父会话还在的：照人停掉它（`job.stop` 那条路），父会话收到 `stopped` 的回报、被叫醒
-    /// （2026-09-30 主会话定：删一个子会话等于人先停掉它再删，父会话不会白等）。不是子会话的、造它的命令编号读不出任务编号
-    /// 的、父会话已经不在（删了）或者载入不了的，什么都不做：删照样往下走。它已经报过、已经被停过的，父会话说没有这个任务，
-    /// 也不要紧。
-    async fn stop_as_job(&self, core: &Arc<Core>, id: &SessionId, request: CommandId) {
+impl Open {
+    /// 会话 `id` 是一个子会话、父会话还在的（施工 3-8 三补，施工 7-8 挪进表的锁里）：交回父会话和这个子代理的任务编号。父会话
+    /// 照表的规矩找，没在跑的载入。不是子会话的、造它的命令编号读不出任务编号的、父会话已经不在（删了）或者载入不了的，没有：
+    /// 删照常往下走。
+    async fn parent_of(&mut self, core: &Arc<Core>, id: &SessionId) -> Option<(Handle, JobId)> {
         let dir = core.root.session_dir(&core.admin, id);
         let Ok(Ok(first)) = tokio::task::spawn_blocking(move || first_event(&dir)).await else {
-            return;
+            return None;
         };
         let (Body::SessionCreated(created), Some(cause)) = (first.body, first.cause) else {
-            return;
+            return None;
         };
-        let Some(parent) = created.parent else {
-            return;
-        };
-        let Some(job) = job_in(&parent, &cause) else {
-            return;
-        };
-        let Ok(found) = self.get(core, &parent, None, None).await else {
-            return;
-        };
-        match found.handle.stop_job(job, admin(core), request).await {
+        let parent = created.parent?;
+        let job = job_in(&parent, &cause)?;
+        let found = self.found(core, &parent, None, None).await.ok()?;
+        Some((found.handle, job))
+    }
+
+    /// 父会话 `parent` 照人停掉它的子代理 `job` 记一条回报（`Handle::stopped_child`）：子会话已经停下了。它已经报过、被停过
+    /// 的，父会话说已经结束了，不要紧：父会话早知道了。父会话停了的，从表里拿掉。
+    async fn stopped_child(&mut self, parent: &Handle, job: JobId) {
+        let job_text = job.to_string();
+        match parent.stopped_child(job).await {
             Ok(Ok(())) => {
-                tracing::debug!(target: "miyu::endpoint", session = id.as_str(), "stopped before deletion");
+                tracing::debug!(target: "miyu::endpoint", session = parent.id().as_str(), job = job_text.as_str(), "stopped before deletion");
             }
-            // 已经报过、被停过：父会话早知道了。
             Ok(Err(_)) => {}
-            Err(_) => self.forget(&parent).await,
+            Err(_) => {
+                self.running.remove(parent.id());
+            }
         }
     }
 }
@@ -126,7 +132,7 @@ async fn family(core: &Core, id: &SessionId, check: bool) -> Result<Vec<SessionI
 }
 
 /// 同 [`family`]，在阻塞线程里。第一条读不出来的会话认不出父会话，不算谁的子会话。
-fn descendants(
+pub(super) fn descendants(
     root: &DataRoot,
     account: &AccountId,
     id: &SessionId,
@@ -158,3 +164,6 @@ fn descendants(
     }
     Ok(found)
 }
+
+#[cfg(test)]
+mod tests;

@@ -15,7 +15,7 @@ use miyu_store::jobs::{create_output, output_path};
 use miyu_tool::{Asking, Background, Exit, JobError, JobPort, Listed, Output as Read, Process};
 
 use super::output::Output;
-use super::stop::Who;
+use super::stop::{Who, Why};
 use super::{Ended, Entry, Key, Shared};
 use crate::TARGET;
 use crate::clock::Clock;
@@ -113,7 +113,7 @@ impl JobPort for Port {
         let who = Who {
             by: self.by.clone(),
             cause: self.cause.clone(),
-            by_model: true,
+            why: Why::Stopped { by_model: true },
         };
         Box::pin(self.shared.stop(job, who))
     }

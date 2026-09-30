@@ -2,7 +2,7 @@
 //! 重读的文件那一块的头尾，和重读几个、多大的数。以前造的快照里没有，读成没有：那些会话不写那几段、不重读。
 
 use miyu_assemble::RestoredWrap;
-use miyu_kernel::session::{Notes, Rebuild};
+use miyu_kernel::session::{Notes, Rebuild, RunningNotes};
 use miyu_kernel::template::Template;
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +23,13 @@ pub struct RebuildTexts {
     pub restored_open: String,
     /// 重读的文件那一块的尾（`restored-close.txt`）。
     pub restored_close: String,
+    /// 还在跑的任务那一段的头一行（`notes-jobs.txt`，施工 7-8）。以前造的快照里没有，读成空的：不写这一段；空的不写，
+    /// 旧快照的字节不变。
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub notes_jobs: String,
+    /// 还在跑的一个任务一行（`notes-job.txt`，施工 7-8）：`job`、`what`、`title`。同上。
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub notes_job: String,
 }
 
 /// 压后重建的数（`compaction.md`「对外的样子」的策略数据）。
@@ -75,6 +82,13 @@ impl RebuildTexts {
             retrieve: template(&self.notes_retrieve, &["upto"])?,
             too_large: template(&self.notes_too_large, &["files"])?,
             uncovered: None,
+            running: match self.notes_jobs.is_empty() || self.notes_job.is_empty() {
+                true => None,
+                false => Some(RunningNotes {
+                    head: template(&self.notes_jobs, &[])?,
+                    item: template(&self.notes_job, &["job", "what", "title"])?,
+                }),
+            },
         })
     }
 

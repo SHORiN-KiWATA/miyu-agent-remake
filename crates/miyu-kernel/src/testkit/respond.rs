@@ -87,6 +87,11 @@ impl Stage {
                 self.upward.push(upward);
                 Vec::new()
             }
+            // 停掉撤掉的那几轮派出去的（施工 7-8）：替身记下来，不送回；停好了的回报由测试交。
+            stop @ Action::StopJobs { .. } => {
+                self.stopping.push(stop);
+                Vec::new()
+            }
             // 改回文件（施工 4-7 上）：替身不碰文件，每一步都当改回了。
             Action::Restore { steps } => vec![Input::Restored {
                 at: self.tick(),

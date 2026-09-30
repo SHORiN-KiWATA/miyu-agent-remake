@@ -39,6 +39,7 @@ fn shortening(shorten: Option<Shorten>) -> Stage {
             retrieve: template("<retrieve {upto}/>"),
             too_large: template(""),
             uncovered: Some(template("<uncovered {from}-{to}/>")),
+            running: None,
         });
         policy
     };

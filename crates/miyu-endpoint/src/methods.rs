@@ -324,9 +324,7 @@ pub(crate) async fn call(
         "session.delete" => {
             let params: DeleteParams = params(request)?;
             let session = session(&params.session)?;
-            core.sessions
-                .delete(core, &session, request.id.clone())
-                .await?;
+            core.sessions.delete(core, &session).await?;
             Ok(json!({}))
         }
         _ => Err(Refusal::UNKNOWN_METHOD),

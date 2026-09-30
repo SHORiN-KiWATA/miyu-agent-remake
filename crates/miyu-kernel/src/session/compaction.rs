@@ -219,8 +219,9 @@ impl Session {
     /// 替代到哪（`compaction.md` 第三条第 2 条）：尾巴一组一组地留，不超过 `budget`（[`tail_upto`]）；这一轮要回应的话
     /// 里最早的那条当边界，至多替代到它前面那一条；一组不拆，切出来的是投影的开头一段（[`settle`]）。前面没有能压的，不压。
     ///
-    /// 这一轮要回应的话：以前的回合里的请求没看到过、这一轮的回复也没看到过的人的消息；这一轮还没有回复的，加上触发
-    /// 它的那一条（请求出错、没回复的，她没真看到）。`keep_last` 是被动压缩（施工 6-7）：最后一组比预算大也留。
+    /// 这一轮要回应的话：以前的回合里的请求没看到过、这一轮的回复也没看到过的人的消息和回报（施工 7-8：还没听到的回报
+    /// 不压进摘要）；这一轮还没有回复的，加上触发它的那一条（请求出错、没回复的，她没真看到）。`keep_last` 是被动压缩
+    /// （施工 6-7）：最后一组比预算大也留。
     pub(super) fn compaction_upto(
         &self,
         budget: u64,
@@ -245,7 +246,8 @@ impl Session {
     }
 
     /// 替代到哪，照 `started` 那一轮算（[`Session::compaction_upto`]）：边界是以前的回合里的请求（`started` 以前的
-    /// `model.called`）、回复都没看到过的人的消息里最早的那条，和 `trigger`（这一轮还没有回复的，触发它的那一条）；
+    /// `model.called`）、回复都没看到过的人的消息、回报（施工 7-8）里最早的那条，和 `trigger`（这一轮还没有回复的，触发
+    /// 它的那一条）；
     /// 没有边界的，至多到落了盘的最后一条。手动压缩照还没开的那一轮算，没有 `trigger`（施工 6-8，`manual.rs`）。
     pub(super) fn upto_before(
         &self,
@@ -270,11 +272,14 @@ impl Session {
             _ => None,
         });
         let floor = asked_before.max(answered);
+        // 还没听到的回报也算（施工 7-8，`compaction.md` 第三条第 2 条）：压进摘要，她就只看得到摘要转述的一句。
         let unanswered = events
             .iter()
             .find(|event| {
-                matches!(event.body, Body::MessageUser(_))
-                    && floor.is_none_or(|floor| event.seq > floor)
+                matches!(
+                    event.body,
+                    Body::MessageUser(_) | Body::ChildReported(_) | Body::JobReported(_)
+                ) && floor.is_none_or(|floor| event.seq > floor)
             })
             .map(|event| event.seq);
         let upto = match unanswered.into_iter().chain(trigger).min() {

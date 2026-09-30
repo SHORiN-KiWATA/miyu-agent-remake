@@ -23,7 +23,7 @@
 | `crates/miyu-session/src/blocking.rs` | 在阻塞线程里做完磁盘上的事 |
 | `crates/miyu-session/src/tools.rs`、`effects.rs`、`restore.rs` | 执行工具、效果、改回文件（`session/tools.md`） |
 | `crates/miyu-session/src/jobs.rs`、`job_ids.rs` | 执行器的任务表、任务编号（`session/tools.md` 第 5 条，施工 7-3）；列出、读、停（第 6 条，施工 7-4） |
-| `crates/miyu-session/src/actor/halt.rs` | 停掉任务：人停一个、父会话停下时全停（施工 7-4） |
+| `crates/miyu-session/src/actor/halt.rs` | 停掉任务：人停一个、父会话停下时全停（施工 7-4）；撤销停掉那几轮派出去的、人删了的子代理当场记回报（施工 7-8） |
 | `crates/miyu-session/src/reread.rs` | 压完重读文件、照 blob 取回原文（`compaction.md` 第九条） |
 | `crates/miyu-session/src/guard.rs` | 权限策略（`session/guard.md`） |
 | `crates/miyu-session/src/spawn.rs`、`agents.rs`、`job_ids.rs` | 造子会话的端口、派子代理、领任务编号（施工 7-5，`session/tools.md`「派子代理」） |
@@ -111,7 +111,7 @@
    | 放下了订阅（施工 7-9） | `Subscription` 被丢掉时自己送来（要订阅、送进来了、没等到回答就不等了的也送）。拿着订阅的头从有变成没有，送 `Watched { watched: false }` 进内核；别的不进内核。造会话、载入时是 0 个，和内核一样当没人看着（`kernel/session.md`「回报」第 6 条） |
    | 环境变了 | 送进内核：不当场注入，到下一个边界再查（`kernel/session.md`） |
    | 停下 | 第 9 条 |
-   | 停掉任务（施工 7-4） | 后台命令当场在阻塞线程里杀、存，回报当场交进内核、落了盘再回；子代理另起一个任务经会话表去停，回报送回来落了盘再回：不在收件箱里等，回报才送得进来（`crates/miyu-session/src/actor/halt.rs`，`session/tools.md` 第 6 条） |
+   | 停掉任务（施工 7-4） | 后台命令当场在阻塞线程里杀、存，回报当场交进内核、落了盘再回；子代理另起一个任务经会话表去停，回报送回来落了盘再回：不在收件箱里等，回报才送得进来（`crates/miyu-session/src/actor/halt.rs`，`session/tools.md` 第 6 条）。人删了的子代理（施工 7-8）：它已经停了，回报当场作为子会话交来的命令交进内核、落了盘再回（`session/tools.md` 第 6 条第 10 款） |
    | 删之前停下 | 第 9 条 |
 
 5. 执行器的一封，照 actor 的时钟记下到的时刻：
@@ -150,6 +150,7 @@
 | 取回原文（`Recall`，施工 6-9） | 在阻塞线程里照 blob 一个一个读这个会话的 blob，读不出来的、不是 UTF-8 的跳过。这期间不收收件箱 | 读出来的原文，照 blob 找（`kernel/history.md`「重读的原文」） |
 | 把回答交给工具 | 现在没有工具会问：记一行 `ERROR` | |
 | 向上回报（`Report`，施工 7-6） | 交给交回报的那一头，不等（「向上回报」）；没有那一头的（测试里自己造的子会话）交不出去 | |
+| 停掉撤掉的那几轮派出去的（`StopJobs`，施工 7-8） | 后台命令当场在阻塞线程里整组杀掉、存好输出，回报经执行器的回报通道交回；子代理另起一个任务经会话表停，不等（`session/tools.md` 第 6 条第 9 款） | |
 
 **向上回报**（施工 7-6，`report.rs`，`agents.md` 第二条第 5 条）
 

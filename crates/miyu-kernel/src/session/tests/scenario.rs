@@ -4,6 +4,7 @@
 
 mod asking;
 mod breaker;
+mod checkpoint_jobs;
 mod clear;
 mod commands;
 mod compaction;
@@ -21,6 +22,7 @@ mod shorten;
 mod spans;
 mod stopping;
 mod tail;
+mod undo_jobs;
 mod upward;
 mod upward_load;
 

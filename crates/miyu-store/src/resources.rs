@@ -242,6 +242,8 @@ impl ResourceRoot {
                     notes_too_large: core(&["compaction", "notes-too-large.txt"])?,
                     restored_open: core(&["compaction", "restored-open.txt"])?,
                     restored_close: core(&["compaction", "restored-close.txt"])?,
+                    notes_jobs: core(&["compaction", "notes-jobs.txt"])?,
+                    notes_job: core(&["compaction", "notes-job.txt"])?,
                 }),
                 summarize_system: Some(core(&["compaction", "summarize-system.txt"])?),
                 shorten: Some(ShortenTexts {

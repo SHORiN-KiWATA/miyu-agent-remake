@@ -146,6 +146,11 @@ impl Ledger {
         self.jobs.running_commands()
     }
 
+    /// 还在跑的任务，照编号（施工 7-8）：还没报过结束的后台命令，欠着一份回报、没被停掉的子代理。撤掉的回合里派的也在。
+    pub fn running_jobs(&self) -> Vec<JobId> {
+        self.jobs.running()
+    }
+
     /// 派出去、一次都还没回报过的子代理的子会话，照任务编号（施工 7-6）。
     pub fn waiting_children(&self) -> impl Iterator<Item = &SessionId> {
         self.jobs.waiting()

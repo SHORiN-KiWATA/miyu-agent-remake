@@ -12,7 +12,7 @@ use super::action::{Action, Reason};
 use super::input::Input;
 use super::{Session, rejected};
 use crate::event::{Body, ChildReason, ChildReported, Event, JobReason, JobReported};
-use crate::id::{CommandId, JobId, Seq};
+use crate::id::{CommandId, JobId, Seq, TurnId};
 use crate::ledger::{Ledger, LedgerError};
 use crate::origin::By;
 use crate::time::Timestamp;
@@ -26,6 +26,28 @@ pub(super) struct Arrived {
 }
 
 impl Session {
+    /// 撤销这几轮时要停的（施工 7-8，`agents.md` 第七条第 1 条）：在这几轮里派出去、还在跑的任务，照编号（账本的
+    /// `running_jobs`）。`by`、`cause` 是撤销的人和命令。一个都没有的不出。
+    pub(super) fn stop_undone(
+        &self,
+        turns: &[TurnId],
+        by: &By,
+        cause: &CommandId,
+    ) -> Option<Action> {
+        let running = self.ledger.running_jobs();
+        let jobs: Vec<JobId> = self
+            .history
+            .dispatched_in(turns)
+            .into_iter()
+            .filter(|job| running.contains(job))
+            .collect();
+        (!jobs.is_empty()).then(|| Action::StopJobs {
+            jobs,
+            by: by.clone(),
+            cause: cause.clone(),
+        })
+    }
+
     /// 子会话交来的回报：记一条 `child.reported`，`by` 是发命令的子会话，`cause` 是这个命令；落了盘回应，附上它的序号。
     /// 对不上一个还会报的子代理的（账本的几条），拒绝，`unknown_job`，什么都不记。这个子代理最近一次回报就是这个命令
     /// 交来的，是重交的：照上一次回应，什么都不记（施工 7-6）。

@@ -4,6 +4,8 @@
 //! - Unix 上命令自成一个进程组，用 `rustix` 的安全接口 `kill(-pgid, SIGKILL)` 杀整组。命令退出以后，组里还在跑的
 //!   （`&` 放到后台的）也杀掉：命令做完了，它起的东西不留。后台命令（施工 7-3）照同一套起、同一套杀，见
 //!   `background.rs`。
+//! - 核心崩了，命令跟着没（施工 7-8，`miyu_sandbox::lifeline`）：Unix 上组里先起一个看门的，读到核心的生命线断了就杀整组，
+//!   组号是看门的那一个；起不来的照旧自成一组，记一行 `WARN`。Windows 上核心自己在作业对象里，这里什么都不用做。
 //! - Windows 上用系统自带的 `taskkill /T /F` 杀整棵进程树，只在命令还在跑的时候杀：进程编号回收得快，退出以后再
 //!   按编号杀可能杀错。
 //! - 命令退出以后，管道最多再读 [`DRAIN`]：还有东西拿着管道的（Windows 上它放出去的孙进程），不等它。
@@ -50,31 +52,69 @@ pub(super) struct Finished {
     pub(super) output: Capture,
 }
 
-/// 起好的一条命令：它的进程、整组杀的时候认它的那个编号、读输出的线程。
+/// 起好的一条命令：它的进程、整组杀的时候认它的那个编号、读输出的线程、看门的。
 pub(super) struct Started {
     child: Child,
     group: Group,
     output: Arc<Mutex<Capture>>,
     read: mpsc::Receiver<()>,
+    /// 等完了、整组杀过了才丢掉：丢掉时收掉它（施工 7-8）。
+    _watch: Watch,
 }
 
-/// 起命令：标准输入接空的，标准输出、标准错误接到同一根管道上，自成一组。交回它的进程、整组杀的时候认它的那个编号、
-/// 管道读的一头。前台、后台（施工 7-3）都这样起。
+/// 组里看门的（施工 7-8，`miyu_sandbox::lifeline`）：Unix 上一个组一个，丢掉时收掉；别的平台没有（Windows 上核心自己在
+/// 作业对象里），是空的。
+pub(super) struct Watch {
+    /// 看门的：起不来的没有。
+    #[cfg(unix)]
+    watcher: Option<miyu_sandbox::lifeline::Watcher>,
+}
+
+/// 起好的一条命令的几样：进程、整组杀时认的编号、管道读的一头、看门的。
+pub(super) struct Spawned {
+    pub(super) child: Child,
+    pub(super) group: Group,
+    pub(super) pipe: io::PipeReader,
+    pub(super) watch: Watch,
+}
+
+/// 起命令：标准输入接空的，标准输出、标准错误接到同一根管道上，自成一组（Unix 上组里有看门的，施工 7-8）。交回它的
+/// 进程、整组杀的时候认它的那个编号、管道读的一头、看门的。前台、后台（施工 7-3）都这样起。
 ///
 /// # Errors
 ///
 /// 管道建不起来，或者程序起不来（找不到、工作目录不在）。
-pub(super) fn spawn(mut command: Command) -> io::Result<(Child, Group, io::PipeReader)> {
+pub(super) fn spawn(mut command: Command) -> io::Result<Spawned> {
     let (pipe, writer) = io::pipe()?;
     command
         .stdin(Stdio::null())
         .stdout(writer.try_clone()?)
         .stderr(writer);
-    alone(&mut command);
+    let watch = alone(&mut command);
     // 父进程手里的写端在 `command` 里，这个函数一返回就跟着它关掉：留着的话，命令都退出了读的一头也读不到结尾。
     let child = command.spawn()?;
-    let group = Group(child.id());
-    Ok((child, group, pipe))
+    let group = Group(group_of(&watch, &child));
+    Ok(Spawned {
+        child,
+        group,
+        pipe,
+        watch,
+    })
+}
+
+/// 整组杀时认的编号：Unix 上有看门的是它的组，没有的是命令自己的组；Windows 上是命令的进程号（杀整棵树）。
+#[cfg(unix)]
+fn group_of(watch: &Watch, child: &Child) -> u32 {
+    watch
+        .watcher
+        .as_ref()
+        .map_or_else(|| child.id(), miyu_sandbox::lifeline::Watcher::group)
+}
+
+/// 同上：别的平台是命令的进程号。
+#[cfg(not(unix))]
+fn group_of(_watch: &Watch, child: &Child) -> u32 {
+    child.id()
 }
 
 /// 起前台的命令：读到的一段段解成字交给 `progress`。
@@ -86,7 +126,12 @@ pub(super) fn start(
     command: Command,
     progress: impl Fn(String) + Send + 'static,
 ) -> io::Result<Started> {
-    let (child, group, pipe) = spawn(command)?;
+    let Spawned {
+        child,
+        group,
+        pipe,
+        watch,
+    } = spawn(command)?;
     let output = Arc::new(Mutex::new(Capture::default()));
     let (done, read) = mpsc::channel();
     let theirs = Arc::clone(&output);
@@ -106,6 +151,7 @@ pub(super) fn start(
         group,
         output,
         read,
+        _watch: watch,
     })
 }
 
@@ -137,6 +183,7 @@ impl Started {
             group,
             output,
             read,
+            _watch,
         } = self;
         let (exited, waited) = mpsc::channel();
         thread::spawn(move || {
@@ -262,20 +309,43 @@ fn kill(id: u32) {
 #[cfg(not(any(unix, windows)))]
 fn kill(_id: u32) {}
 
-/// 让命令自成一组，整组杀得掉；Windows 上不弹控制台窗口。
-fn alone(command: &mut Command) {
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt;
-        command.process_group(0);
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(CREATE_NO_WINDOW);
-    }
-    #[cfg(not(any(unix, windows)))]
-    let _ = command;
+/// 让命令自成一组，整组杀得掉：Unix 上先起看门的，命令进它的组（施工 7-8），起不来的照旧自成一组。Windows 上不弹控制台
+/// 窗口。
+#[cfg(unix)]
+fn alone(command: &mut Command) -> Watch {
+    use std::os::unix::process::CommandExt;
+    let watcher = match miyu_sandbox::lifeline::watcher() {
+        Ok(watcher) => match i32::try_from(watcher.group()) {
+            Ok(group) => {
+                command.process_group(group);
+                Some(watcher)
+            }
+            Err(_) => {
+                command.process_group(0);
+                None
+            }
+        },
+        Err(error) => {
+            tracing::warn!(target: TARGET, error = %error, "command lifeline not started");
+            command.process_group(0);
+            None
+        }
+    };
+    Watch { watcher }
+}
+
+/// 同上：Windows 上不弹控制台窗口。
+#[cfg(windows)]
+fn alone(command: &mut Command) -> Watch {
+    use std::os::windows::process::CommandExt;
+    command.creation_flags(CREATE_NO_WINDOW);
+    Watch {}
+}
+
+/// 同上：别的系统什么都不做。
+#[cfg(not(any(unix, windows)))]
+fn alone(_command: &mut Command) -> Watch {
+    Watch {}
 }
 
 /// 掐掉时整组杀掉：丢掉它就杀；跑完了先 [`Guard::disarm`]。掐掉就是丢掉这次调用的 future（施工 4-2）；执行命令

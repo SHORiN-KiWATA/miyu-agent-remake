@@ -1,6 +1,6 @@
 //! 撤销、恢复的回应里给人看的几样（`docs/designs/04-核心协议.md` 第九节，施工 4-7 下；重做的撤销那一半也照它写，施工 4-7
-//! 再补）：撤的是哪一轮（那一轮人说的
-//! 那句话）、撤掉的几轮执行过几条命令、撤掉了几次压缩（施工 6-9）、几次清空（施工 6-8 补）、每个文件怎样、之后又被改过的差异。「该显示什么」写在核心里（`01-架构.md`
+//! 再补）：撤的是哪一轮（那一轮人说的那句话）、撤掉的几轮执行过几条命令、撤掉了几次压缩（施工 6-9）、几次清空（施工 6-8
+//! 补）、停掉了哪几个任务（施工 7-8，`jobs.rs`）、每个文件怎样、之后又被改过的差异。「该显示什么」写在核心里（`01-架构.md`
 //! D1），头照着印；做视图投影（M8）时这几样挪进视图，字段只加不改。
 //!
 //! 照会话的日志读：撤销（恢复）和改回文件的结局都落了盘才回应，这时读得到。碰磁盘，在阻塞线程里调。
@@ -23,6 +23,8 @@ use miyu_store::blob::Blobs;
 use miyu_store::log::read_events;
 
 use crate::Core;
+
+mod jobs;
 
 /// 一个文件的差异最多交几行。
 const DIFF_LINES: usize = 20;
@@ -100,6 +102,9 @@ pub(crate) struct Report {
     /// 撤掉了几次清空（施工 6-8 补）：撤销时才有，是 0 的不写。头照它说一句上下文回到了清空以前。
     #[serde(skip_serializing_if = "Option::is_none")]
     clears: Option<usize>,
+    /// 停掉的任务（施工 7-8）：撤掉的几轮派出去、撤销那一刻还在跑的，照编号。撤销时才有，没有的不写。
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    jobs: Vec<jobs::Stopped>,
     /// 改回的每一步，照先后。
     files: Vec<File>,
 }
@@ -131,13 +136,12 @@ pub(crate) fn report(sources: &Sources, events: &[u64]) -> Report {
         }
     };
     let find = |seq: u64| log.iter().find(|event| event.seq.get() == seq);
-    let (turns, undo) = match events
-        .first()
-        .and_then(|seq| find(*seq))
-        .map(|event| &event.body)
-    {
-        Some(Body::TurnReverted(reverted)) => (reverted.turns.clone(), true),
-        Some(Body::TurnUnreverted(unreverted)) => (unreverted.turns.clone(), false),
+    let Some(first) = events.first().and_then(|seq| find(*seq)) else {
+        return Report::default();
+    };
+    let (turns, undo) = match &first.body {
+        Body::TurnReverted(reverted) => (reverted.turns.clone(), true),
+        Body::TurnUnreverted(unreverted) => (unreverted.turns.clone(), false),
         _ => return Report::default(),
     };
     let restored = events
@@ -159,6 +163,10 @@ pub(crate) fn report(sources: &Sources, events: &[u64]) -> Report {
         clears: undo
             .then(|| compactions(&log, &turns, true))
             .filter(|count| *count > 0),
+        jobs: match undo {
+            true => jobs::stopped(&log, first.seq, &turns),
+            false => Vec::new(),
+        },
         files: restored
             .iter()
             .map(|file| entry(file, &log, &blobs, undo))

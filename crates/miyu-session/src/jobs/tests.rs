@@ -256,7 +256,7 @@ fn who() -> Who {
     Who {
         by: By::Tool(Tool { call_id: call() }),
         cause: cause(),
-        by_model: true,
+        why: Why::Stopped { by_model: true },
     }
 }
 

@@ -22,7 +22,7 @@
 | `crates/miyu-session/src/jobs/roster.rs` | 这个会话派出去的任务，照日志记着：`jobs` 列出、读、停时查（施工 7-4） |
 | `crates/miyu-session/src/jobs/query.rs`、`stop.rs` | 任务端口的列出、读、停；停后台命令、停子代理（施工 7-4） |
 | `crates/miyu-session/src/jobs/peek.rs` | 照子会话的日志算它在做什么（施工 7-4） |
-| `crates/miyu-session/src/actor/halt.rs` | 人停一个、父会话停下时全停（施工 7-4） |
+| `crates/miyu-session/src/actor/halt.rs` | 人停一个、父会话停下时全停（施工 7-4）；撤销停掉那几轮派出去的（`undo_jobs`）、人删了的子代理当场记回报（`Halt::Deleted`）（施工 7-8） |
 | `crates/miyu-session/src/job_ids.rs` | 任务编号的分配器 `JobIds`：一个会话 actor 一份，照日志往后数（施工 7-3、7-5 共用），子会话的带上它在父会话里的编号（施工 7-1 补） |
 | `crates/miyu-store` 的 `jobs` | 输出文件放在哪：会话目录下的 `jobs/<编号>.out`（`store.md`） |
 | `crates/miyu-session/src/blocking.rs` | 在阻塞线程里做完 |
@@ -221,7 +221,9 @@ The tool "{name}" stopped because of an internal error. It may have been partly 
    - 她停的：后台命令的回报经收件箱交给 actor（和自己退出的一样）；子代理的回报经会话表送回来。都在跑工具的任务里做，不占 actor。
    - 人停的：actor 收到 `stop_job`，后台命令当场在阻塞线程里杀、存，回报当场交进内核，落了盘才回；子代理另起一个任务停，回报经会话表送进来、落了盘，那个任务才回。回应排在回报落盘之后。
 8. **全停**（`stop_jobs`）：名册里还在跑的，后台命令一个个当场停、交进内核；子代理各起一个任务照第 6 条停（带 `by_model`）；都停好了才回。已经自己结束了的、已经有人停了的不要紧。
-9. 端口没交进来的（测试里自己造的会话）：停不了子代理，交回没有这个任务。
+9. **撤销停的**（动作 `StopJobs { jobs, by, cause }`，施工 7-8，`agents.md` 第七条第 1 条）：照名册一个个看，还在跑的停：后台命令当场在阻塞线程里照第 5 条杀、存，原因是 `undone`（不带 `by_model`），`by`、`cause` 是撤销的人和命令，回报经收件箱交回（排在这一批后面：撤销的回应不等它落盘，可回应之前命令已经杀了）；子代理照第 6 条停，回报是 `undone`，命令编号 `<这个会话>/<编号>/undone`，另起一个任务跑，不等。已经结束了的、名册里没有的，什么都不做。第 7 条的表里多一行：撤销停的，`by_model` 否，不叫醒她（`undone` 只记下）。
+10. **人删了的子代理**（`Handle::stopped_child`，施工 7-8，`agents.md` 第七条第 6 条）：会话表拿着表的锁已经停下了子会话，这里只记回报：名册说它还在跑的（子代理、没报过或者报过又被留了言），照第 6 条的样子写好 `child.reported`（`stopped`，不带 `by_model`，正文照端口的 `peek` 看它的日志、照同一份截法截），当场作为子会话交来的命令交进内核，落了盘才回。不经会话表：表的锁在删的那一头手里。名册里没有的、已经结束了的、没有会话表的端口的，交回没有这个任务、已经结束了。
+11. 端口没交进来的（测试里自己造的会话）：停不了子代理，交回没有这个任务。
 
 ### 守着它的
 
@@ -245,6 +247,7 @@ The tool "{name}" stopped because of an internal error. It may have been partly 
 | `crates/miyu-session/tests/jobs.rs`（施工 7-3） | 真的 `shell` 放到后台：这一轮结束了命令还在跑，结束了记 `job.reported`（退出码、`by`、`cause`、不带回合编号、输出的 blob、字数、`jobs/j1.out`），闲着的她被它叫醒；撤掉、重新载入以后编号接着往后数；孙会话的后台命令三段、输出在 `jobs/j2.1.1.out`，旧日志里子会话的 `j1` 照认、`jobs` 照它列出来、接着领 `j2.2`（施工 7-1 补）；有计划地停下先记 `restarted`、落了盘再杀；没记就停了的再载入补 `aborted`、不开轮；Unix 上有收紧手段的，后台命令照样关在沙盒里 |
 | `crates/miyu-session/tests/messages.rs`、`messages_log.rs`（施工 7-7） | 留言：送到 `j1` 的子会话、`by` 是这个会话、命令编号照这次调用、原话一块字、`job.messaged` 记进日志；到了深度上限的发给父；主会话写 `parent`、没派过的、派它的那一轮撤掉了的、被停掉的、对方拒收、没有会话表各一句；本机的主会话、子会话工具面里有 `message_agent`，群里没有；送到、送不到各一行运行日志，留言的字不进日志 |
 | `crates/miyu-session/tests/jobs_stop.rs`、`jobs_stop/agents.rs`（施工 7-4） | 真的 `jobs` 在会话里：读到这时的输出、说还在跑，停掉（`by` 是那次调用、`cause` 是那一轮的、`by_model`、用时和到这时的输出、整组杀了），列出来是停掉的，不叫醒她；人停的叫醒她、回应之前推过了、`by` 是人、`cause` 是那条命令，再停、没有的交回已经结束了、没有；自己先退出了的停不了、不记第二条；子代理最近的回答和在跑的工具，停掉它（经会话表停、命令编号、回报记成它交来的、正文、`by_model`、不叫醒）；人停子代理叫醒她、停过的不再停；全停连后台命令和子代理、都带 `by_model`、不叫醒；太长的回答照向上回报的截法截（施工 7-4） |
+| `crates/miyu-session/tests/jobs_stop/undo.rs`（施工 7-8） | 撤销停掉那一轮派出去的：后台命令回应之前就整组杀了、记 `undone`、`by` 是撤销的人、`cause` 是撤销的命令、到这时的输出；子代理经会话表停、回报记成它交来的 `undone`；都不叫醒；停了以后自己退出不再报；恢复不重起；自己退出了的不再杀 |
 | `crates/miyu-session/src/jobs/roster/tests.rs`、`peek/tests.rs` | 名册照事件样本记、用时三种算法、最近结束的 5 个；报过以后又被留了言的记回在跑，留言发出以后到的回报算回了、被停掉的不记回（施工 3-8 三补）；子代理最近的回答、这一轮完没完、在跑的工具（施工 7-4） |
 | `crates/miyu-session/tests/restore/linux.rs` | 新建的、改过的、删掉的撤销后都回到原样，恢复后又回到她改完的样子；恢复时位置变了，再撤销照新位置；被人动过的、回收站里没了的、收不了的都不动；恢复时上级目录没了的建上；移回来读不了的照样算移回来了、恢复时照样移进回收站 |
 
@@ -260,6 +263,5 @@ The tool "{name}" stopped because of an internal error. It may have been partly 
 - 工具执行中问人、把回答交给工具（`02-内核.md` 第四节、第六节「提问怎么走」）。
 - 交给工具的调用编号、会话、身份、沙盒范围、截止时间（`05-内核接口.md` 第六节）；工具的默认超时 `timeout`。
 - 工具执行后的链：改写结果、追加事件（`05-内核接口.md` 第五节）。
-- 这一回合派出去的子代理和后台命令撤销时一起停下（`10-自带软件.md` 第五节、第七节，7-8）。
 - 一直开着的服务的输出一直写、不截（`jobs` 读的时候截）：真撞见写得太多再加上限。
 - 改回文件有冲突时，把冲突和 diff 交给人处理（`10-自带软件.md` 第七节）：现在只记下结局。
