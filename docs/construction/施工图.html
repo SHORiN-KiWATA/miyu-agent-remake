@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>131</b><span>/ 136 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话</span></li>
+    <li><b>132</b><span>/ 136 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出</span></li>
     <li><b>7-7</b><span>下一步：7-7 父子之间留言、7-1 补编号带父会话的编号，另有附件、改名删除、重做在做（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">b0dccac</b><span>最近一步（7-1 补 编号带上父会话的编号）的提交</span></li>
+    <li><b class="mono">fc1b933</b><span>最近一步（7-9 miyu ask 等子代理）的提交</span></li>
   </ul>
 </header>
 
@@ -487,7 +487,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s7-6"><span class="n">7-6</span>子会话回报<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-7"><span class="n">7-7</span>父子之间留言<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-8</span>撤销和压缩里的任务</span></li>
-        <li><span class="step"><span class="n">7-9</span>miyu ask 等子代理</span></li>
+        <li><a class="step done" href="#s7-9"><span class="n">7-9</span>miyu ask 等子代理<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-10</span>别的 harness 发消息</span></li>
         <li><span class="step"><span class="n">7-11</span>M7 验收</span></li>
       </ol>
@@ -9665,6 +9665,58 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>agents.md</code> 第六条、<code>tools/message_agent.md</code>。</li>
         <li><code>docs/construction/7-7-父子之间留言.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s7-9" aria-labelledby="h-s79">
+  <div class="sheet-head"><h2 id="h-s79"><span class="no">7-9</span>miyu ask 等子代理</h2><span class="pill done">已完成</span></div>
+  <p class="purpose"><code>miyu ask</code> 派了子代理的，等子代理都回报完、被回报叫醒的几轮也结束，才退出，这期间每一轮都印出来。会话 actor 告诉内核有没有头看着：跟着的时候回报叫醒她，退出以后只记下。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu ask 的标准错误</span><span class="dir-note">cli/ask.md「等子代理」</span></div>
+            <ol class="pipe" aria-label="印的样子">
+              <li>第一轮照旧印；还有子代理没报，印灰字 <code>· 等 2 个子代理回报…（按 Ctrl+C 不等了）</code>，终端里原地刷新</li>
+              <li>回报到了，那一行原地换成 <code>· j1「Count lines in a.txt」报回来了</code>，接着印叫醒的那一轮</li>
+              <li>全部了结，最后一行用量是这期间每一轮加起来的；<code>--format json</code> 的 <code>turns</code> 列出每一轮</li>
+              <li><code>--timeout</code> 到点、等的时候按 Ctrl+C：不等了，退出码 3，子代理还在后台跑</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不加协议</span><span class="rl">头照 <code>job.started</code>、<code>child.reported</code>、<code>job.messaged</code> 自己数</span></div>
+          <div class="tile new"><span class="nm">Watched</span><span class="rl">订阅从无到有、从有到无时会话 actor 告诉内核</span></div>
+          <div class="tile"><span class="nm">不等的</span><span class="rl">后台命令；这次以前派的子代理；<code>miyu redo</code></span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-9</dd></div>
+        <div><dt>名称</dt><dd>miyu ask 等子代理</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">fc1b933</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>35 个手写的变异全逮住；三台机器的 CI 和长跑全绿；样本 <code>ask-agents-text.txt</code> 由真核心逐字节比</span></li>
+        <li><span class="ok">✓</span><span>真模型：并行派两个子代理（数行数、找最长的词），一直等到两份回报和叫醒的两轮都印完；最后一行用量是主会话三轮加起来的（命中缓存 9,984、输出 793，照日志核对）</span></li>
+        <li><span class="ok">✓</span><span>伪终端里：等待那一行从「等 2 个」刷成「等 1 个」，回报到了原地换成「报回来了」，收尾后屏幕干净</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/7-9-miyu ask 等子代理.md</code>。</li>
       </ul>
     </div>
   </div>
