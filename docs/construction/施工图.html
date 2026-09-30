@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>140</b><span>/ 142 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>141</b><span>/ 142 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
     <li><b>7-7</b><span>下一步：7-7 父子之间留言、7-1 补编号带父会话的编号，另有附件、改名删除、重做在做（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">04c3266</b><span>最近一步（7-4 补 协议读后台命令的输出）的提交</span></li>
+    <li><b class="mono">29fa1380</b><span>最近一步（4-5 补 日文的给人看的字）的提交</span></li>
   </ul>
 </header>
 
@@ -312,7 +312,7 @@ a.step:hover{border-color:var(--primary)}
 
 <section class="sched" aria-labelledby="h-sched">
   <h2 id="h-sched">工程表</h2>
-  <p class="sub">M0 到 M7 拆到了每一步；M8 到了跟前再拆。</p>
+  <p class="sub">M0 到 M8 拆到了每一步（M8 待项目主人批准）；M9 到了跟前再拆。</p>
   <ol class="ms">
     <li>
       <div class="ms-head"><span class="ms-id">M0</span><span class="ms-name">准备</span><span class="ms-goal">仓库有了规矩和门禁</span></div>
@@ -339,7 +339,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s1-12"><span class="n">1-12</span>组装请求<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-13"><span class="n">1-13</span>事实注入<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-13b"><span class="n">1-13</span>只到小时的时间写成一段（补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">1-13</span>会话编号告诉她（再补）</span></li>
+        <li><a class="step done" href="#s1-13c"><span class="n">1-13</span>会话编号告诉她（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s1-14"><span class="n">1-14</span>请求形状探针<span class="st">✓</span></a></li>
       </ol>
     </li>
@@ -408,7 +408,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-4b"><span class="n">4-4</span>找文件、搜内容（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-5a"><span class="n">4-5</span>给人看的说法（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-5b"><span class="n">4-5</span>miyu ask 印出每一步（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-5</span>日文的给人看的字（补）</span></li>
+        <li><a class="step done" href="#s4-5c"><span class="n">4-5</span>日文的给人看的字（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-6a"><span class="n">4-6</span>效果和写入（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-6b"><span class="n">4-6</span>编辑（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-6c"><span class="n">4-6</span>删除（下）<span class="st">✓</span></a></li>
@@ -499,8 +499,29 @@ a.step:hover{border-color:var(--primary)}
       </ol>
     </li>
     <li>
-      <div class="ms-head"><span class="ms-id">M8</span><span class="ms-name">有界面</span></div>
-      <p class="later">到了跟前再拆。第一件事是先画界面的版式图纸。</p>
+      <div class="ms-head"><span class="ms-id">M8</span><span class="ms-name">配置与模型</span><span class="ms-goal">不靠开发用的环境变量，自己接上供应商、选模型、换模型（2026-10-01 拆，待批准）</span></div>
+      <ol class="chips">
+        <li><span class="step"><span class="n">8-1</span>配置清单</span></li>
+        <li><span class="step"><span class="n">8-2</span>读配置</span></li>
+        <li><span class="step"><span class="n">8-3</span>写配置</span></li>
+        <li><span class="step"><span class="n">8-4</span>监视与生效</span></li>
+        <li><span class="step"><span class="n">8-5</span>密钥</span></li>
+        <li><span class="step"><span class="n">8-6</span>供应商</span></li>
+        <li><span class="step"><span class="n">8-7</span>模型资料</span></li>
+        <li><span class="step"><span class="n">8-8</span>用途、挡位、池</span></li>
+        <li><span class="step"><span class="n">8-9</span>出错换端点</span></li>
+        <li><span class="step"><span class="n">8-10</span>会话里换模型</span></li>
+        <li><span class="step"><span class="n">8-11</span>第一次接入</span></li>
+        <li><span class="step"><span class="n">8-12</span>Anthropic 消息接口</span></li>
+        <li><span class="step"><span class="n">8-13</span>OpenAI Responses 接口</span></li>
+        <li><span class="step"><span class="n">8-14</span>opencode Zen</span></li>
+        <li><span class="step"><span class="n">8-15</span>用量与金额</span></li>
+        <li><span class="step"><span class="n">8-16</span>M8 验收</span></li>
+      </ol>
+    </li>
+    <li>
+      <div class="ms-head"><span class="ms-id">M9</span><span class="ms-name">有界面</span></div>
+      <p class="later">到了跟前再拆。终端界面以演示为蓝本并进主仓库，「显示什么」改由核心的视图投影给。</p>
     </li>
   </ol>
   <ul class="legend" aria-label="图例">
@@ -5557,6 +5578,55 @@ a.step:hover{border-color:var(--primary)}
     </div>
   </div>
 </section>
+<section class="sheet" id="s4-5c" aria-labelledby="h-s45c">
+  <div class="sheet-head"><h2 id="h-s45c"><span class="no">4-5</span>日文的给人看的字（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">终端界面加了日文界面，工具名和每一步结果的那一句原来退回英文；核心、basesystem 各补一份日文。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">日文的给人看的字（补）</span><span class="dir-note">4-5 补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>core/human/ja.json</code> 17 句、<code>basesystem/human/ja.json</code> 77 句加 11 件工具</li>
+              <li>键、占位符、工具的样子照中英文两份，用词照终端界面的日文</li>
+              <li>新测试直接查三种语言的文件一一对上（找不到的语言会退回英文）</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">程序不改</span><span class="rl">界面按语言代码要，有日文这份就用它</span></div>
+          <div class="tile"><span class="nm">不进请求</span><span class="rl">给人看的字，不登记 token</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-5 补</dd></div>
+        <div><dt>名称</dt><dd>日文的给人看的字（补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">29fa1380</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、终端界面实测 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>4 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>终端界面切日文接真模型：読み取り、ファイル検索、内容検索、コマンド実行都通顺</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/4-5-日文的给人看的字（补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
 
 <section class="sheet" id="s4-6a" aria-labelledby="h-s46a">
   <div class="sheet-head"><h2 id="h-s46a"><span class="no">4-6</span>效果和写入（上）</h2><span class="pill done">已完成</span></div>
@@ -7694,6 +7764,52 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>设计 <code>08-上下文投影.md</code> 第五节「时间」。</li>
         <li>蓝图 <code>kernel/ids.md</code>「当地钟点」、<code>kernel/request.md</code>；<code>docs/construction/1-13-只到小时的时间写成一段（补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s1-13c" aria-labelledby="h-s113c">
+  <div class="sheet-head"><h2 id="h-s113c"><span class="no">1-13</span>会话编号告诉她（再补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">事实注入多一类，照施工单做完。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">会话编号告诉她（再补）</span><span class="dir-note">1-13 再补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>模板 <code>core/facts/session.txt</code>，30 token，照现有事实的规矩注入</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile"><span class="nm">详见施工单</span><span class="rl">做法、测试、变异都记在那里</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">1-13 再补</dd></div>
+        <div><dt>名称</dt><dd>会话编号告诉她（再补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">554fa76e</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>14 个手写变异逮住 13 个，剩下那个没有效果；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型问一次，答得一字不差</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/1-13-会话编号告诉她（再补）.md</code>。</li>
       </ul>
     </div>
   </div>
