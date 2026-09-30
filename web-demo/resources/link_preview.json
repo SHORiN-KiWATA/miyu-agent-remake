@@ -1,0 +1,34 @@
+{
+  "note": "链接卡片（web.link_preview、/link-image）：桥去抓别人家页面时的规矩，全照旧版 miyu-hosts 的 web/link_preview。remember 是抓过的记多久（秒）、记几条（满了整个清空）：抓到了的、做不出卡片的（不是网页、没有标题、地址不合规）、网络抖了的各一个时长。page、image 是抓页面、抓图的预算：多少秒、最多多少字节、Accept 头；页面读到 </head> 或 <body 就停，max_bytes 是兜底。image.keep、image.keep_bytes 是桥在内存里最多记几张图、一共多少字节（旧版落盘，桥不落盘；满了先挤掉最早的）；image.browser_cache_seconds 是 /link-image 让浏览器缓存多久（编号是内容的哈希，不会变）。redirects 是最多跟几跳（每跳重新过地址闸）。clip 是标题、简介、站名最多几个字，超出的截断加省略号。clients 是按「主机 + 钉住的地址 + 预算」复用的连接留多少秒、最多几个。",
+  "remember": {
+    "found_seconds": 21600,
+    "no_preview_seconds": 900,
+    "transient_seconds": 45,
+    "entries": 512
+  },
+  "page": {
+    "timeout_seconds": 12,
+    "max_bytes": 2097152,
+    "accept": "text/html,application/xhtml+xml"
+  },
+  "image": {
+    "timeout_seconds": 8,
+    "max_bytes": 3145728,
+    "accept": "image/avif,image/webp,image/png,image/*,*/*;q=0.8",
+    "keep": 256,
+    "keep_bytes": 67108864,
+    "browser_cache_seconds": 604800
+  },
+  "redirects": 5,
+  "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+  "accept_language": "zh-CN,zh;q=0.9,en;q=0.8",
+  "clip": {
+    "title": 120,
+    "description": 300,
+    "site": 60
+  },
+  "clients": {
+    "seconds": 120,
+    "keep": 32
+  }
+}

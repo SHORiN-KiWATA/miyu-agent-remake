@@ -1,0 +1,5 @@
+{
+  "note": "人格：名字、头像。核心还没有 persona.get（04-核心协议.md 第九节），先用这一份。头像是旧版网页的 miyu-logo.png。",
+  "name": "Miyu",
+  "avatar": "resources/assets/miyu-avatar.png"
+}

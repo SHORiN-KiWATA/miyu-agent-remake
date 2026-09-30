@@ -1,0 +1,296 @@
+/* 两栏和左栏（蓝图 web.md「整页」「左栏」，照旧版 styles.css:311-988、7874-7928）。 */
+
+/* 左栏收起、展开有动画（2026-09-30 项目主人定）：两列一直在，收起时左边那列缩到 0，左栏跟着往左滑出去、淡掉；
+   左栏自己的宽不变，里面的字不跟着挤。展开先快后慢，收起先慢后快（同一天项目主人定）。
+   动画照目标那一头的写法走：展开的曲线写在平常的样子上，收起的写在 .is-sidebar-collapsed 上。
+   一直是三列，第三列是预览工作区，关着是 0：列数不变，开关预览工作区时那一列也能长出来、收回去（蓝图「动效」） */
+.app-shell {
+  display: grid;
+  grid-template-columns: 252px minmax(0, 1fr) 0px;
+  width: 100%;
+  height: calc(100dvh / var(--ui-scale));
+  overflow: hidden;
+  zoom: var(--ui-scale);
+  transition: grid-template-columns 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.app-shell.is-sidebar-collapsed {
+  grid-template-columns: 0px minmax(0, 1fr) 0px;
+  transition: grid-template-columns 0.26s cubic-bezier(0.55, 0, 0.85, 0.35);
+}
+.app-shell .sidebar { transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.2s ease, box-shadow 0.28s ease; }
+.app-shell.is-sidebar-collapsed .sidebar {
+  transform: translateX(-100%); opacity: 0; pointer-events: none;
+  transition: transform 0.26s cubic-bezier(0.55, 0, 0.85, 0.35), opacity 0.26s cubic-bezier(0.55, 0, 0.85, 0.35), box-shadow 0.26s ease;
+}
+/* 收起着、指针靠到最左边那一条：左栏临时浮出来，盖在对话区上面、不挤它，右边一道浮起来的影；离开了滑回去 */
+.app-shell.is-sidebar-collapsed.is-sidebar-peek .sidebar {
+  transform: none; opacity: 1; pointer-events: auto; box-shadow: var(--peek-shadow);
+  transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.2s ease, box-shadow 0.28s ease;
+}
+.sidebar-peek-zone { display: none; }
+.app-shell.is-sidebar-collapsed .sidebar-peek-zone {
+  position: absolute; top: 0; bottom: 0; left: 0; z-index: 14; display: block; width: var(--peek-zone);
+}
+
+.sidebar {
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; width: 252px; min-height: 0;
+  background: var(--sidebar-bg); box-shadow: inset -1px 0 0 var(--line); z-index: 20;
+}
+
+/* 头上一块：头像、名字和状态、新会话、收起 */
+.brand-row { display: flex; min-height: 66px; align-items: center; padding: 13px 14px 11px; gap: 8px; }
+.brand-identity { display: flex; flex: 1; min-width: 0; align-items: center; gap: 10px; }
+.brand-avatar { width: 38px; height: 38px; flex: 0 0 38px; border: 2px solid var(--gold); border-radius: 50%; object-fit: cover; }
+.brand-identity > div { display: grid; min-width: 0; gap: 2px; }
+.brand-identity strong { font-family: var(--serif); font-size: 17px; font-weight: 600; letter-spacing: 0.04em; }
+.brand-identity > div > span { display: flex; min-width: 0; align-items: center; color: var(--text-soft); font-size: 11px; gap: 6px; }
+/* 新会话：和「收起」一个样子，透明、悬停铺一层淡底（2026-09-30 项目主人：原来 accent_soft 底的一块比 Claude 的丑） */
+.new-chat-button {
+  display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; padding: 0; border: 0;
+  border-radius: var(--radius); background: transparent; color: var(--text-soft); cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.new-chat-button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); color: var(--text); }
+.new-chat-button .icon { width: 16px; height: 16px; }
+.sidebar-collapse-button { width: 30px; height: 30px; }
+.sidebar-collapse-button .icon, .sidebar-expand-button .icon { width: 16px; height: 16px; }
+.sidebar-close { display: none; }
+
+/* 会话表：头上一行「会话」，样子照旧版的组头（styles.css:1023） */
+.session-list { min-height: 0; padding: 4px 8px 18px; overflow: auto; }
+.session-group-header {
+  display: flex; align-items: center; margin: 12px 4px 3px; padding-left: 7px; gap: 6px;
+  color: var(--text-faint); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; user-select: none;
+}
+.session-group-header .icon { width: 12px; height: 12px; }
+.session-items { --item-gap: 3px; display: grid; gap: var(--item-gap); }
+/* 一项：悬停铺一层很淡的深色（和选中的同一个方向）。选中的底是会话表里单独的一块（.session-pill），换会话时滑过去（蓝图「左栏」的
+   「选中的」、「动效」）：比左栏底色深一档、不画描边，靠一层软影浮起来；这一项自己不铺底 */
+.session-track { position: relative; }
+.session-pill {
+  position: absolute; top: 0; left: 0; border-radius: var(--radius); background: var(--sidebar-active); box-shadow: var(--sidebar-active-shadow);
+  pointer-events: none; opacity: 0; transition: opacity var(--motion-out) var(--ease-in);
+}
+.session-pill.is-on { opacity: 1; transition: opacity var(--motion-in) var(--ease-out); }
+.session-pill.is-moving {
+  transition: transform var(--motion-slide) var(--ease-out), height var(--motion-slide) var(--ease-out), width var(--motion-slide) var(--ease-out),
+    opacity var(--motion-in) var(--ease-out);
+}
+.session-item { position: relative; border-radius: var(--radius); transition: background-color 160ms ease; }
+.session-item:hover, .session-item:focus-within, .session-item.is-menu-open { background: color-mix(in srgb, var(--text) 3.5%, transparent); }
+.session-item.active, .session-item.active:hover, .session-item.active:focus-within { background: none; }
+.session-item-main {
+  display: grid; grid-template-columns: 11px minmax(0, 1fr); align-items: center; gap: 7px; width: 100%; min-height: 30px;
+  padding: 2px 7px 2px 11px; border: 0; border-radius: var(--radius); background: none; color: var(--text); text-align: left; cursor: pointer;
+}
+.session-lead { display: grid; width: 11px; height: 14px; place-items: center; }
+.session-run-spinner { color: var(--gold); font-family: var(--mono); font-size: 17px; line-height: 1; }
+.session-unread-dot {
+  display: block; width: 11px; height: 11px; border-radius: 50%; color: var(--accent);
+  background: radial-gradient(circle, currentColor 0 3.5px, transparent 3.5px); animation: status-pulse 2.4s ease-in-out infinite;
+}
+.session-copy { display: flex; min-width: 0; align-items: center; gap: 4px; }
+.session-copy strong { display: block; min-width: 0; flex: 1; font-size: 12.5px; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 顶层收着的：标题前面写下面挂了几个子代理 */
+.session-count { flex: none; color: var(--text-soft); font-size: 11px; font-variant-numeric: tabular-nums; }
+/* 露出三个点的时候，标题的右端淡出去（遮罩，不盖一层色块：底色是半透明的，盖色块会看出一块） */
+.session-item:hover .session-copy, .session-item:focus-within .session-copy, .session-item.is-menu-open .session-copy {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent calc(100% - 22px));
+  mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent calc(100% - 22px));
+}
+.session-item.active .session-copy strong { font-weight: 500; }
+
+/* 悬停时右边的三个点（照 Claude Code 的侧栏）：标题淡出去让位；按钮自己悬停、菜单开着时再深一层 */
+.session-trailing {
+  position: absolute; top: 0; right: 0; bottom: 0; display: flex; align-items: center; padding: 0 5px;
+  opacity: 0; pointer-events: none; transition: opacity 120ms ease;
+}
+.session-item:hover .session-trailing, .session-item:focus-within .session-trailing, .session-item.is-menu-open .session-trailing {
+  opacity: 1; pointer-events: auto;
+}
+.session-menu-button {
+  display: grid; width: 22px; height: 22px; padding: 0; place-items: center; border: 0; border-radius: 6px;
+  background: transparent; color: var(--text-soft); cursor: pointer; transition: background-color 120ms ease, color 120ms ease;
+}
+.session-menu-button .icon { width: 14px; height: 14px; stroke-width: 2.25; }
+.session-menu-button:hover, .session-menu-button[aria-expanded="true"] { background: color-mix(in srgb, var(--text) 9%, transparent); color: var(--text); }
+
+/* 会话的菜单（照旧版 styles.css:785-825）：贴着按钮下面右对齐，放不下往上开 */
+/* 浮起来的菜单：半透明的底加毛玻璃，一圈细边，浮起来的影 */
+.session-menu {
+  position: absolute; top: calc(100% - 2px); right: 4px; z-index: 30; display: grid; min-width: 140px; padding: 4px; gap: 1px;
+  border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--float-shadow);
+  background: color-mix(in srgb, var(--surface-1) 88%, transparent); backdrop-filter: blur(16px) saturate(1.2);
+  animation: drop-in var(--motion-in) var(--ease-out) both;
+}
+.session-menu.is-leaving { animation: lift-out var(--motion-out) var(--ease-in) both; }
+.session-menu.open-up { top: auto; bottom: calc(100% - 4px); }
+.session-menu button {
+  padding: 7px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--text);
+  font-size: 12.5px; text-align: left; cursor: pointer;
+}
+.session-menu button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.session-menu button.is-danger { color: var(--danger); }
+.session-menu button.is-danger:hover { background: color-mix(in srgb, var(--danger) 15%, transparent); }
+
+/* 触屏没有悬停：三个点一直露着 */
+@media (hover: none) {
+  .session-trailing { opacity: 1; pointer-events: auto; }
+}
+
+/* 底下一行：换主题，靠右 */
+.sidebar-footer { padding: 11px 12px max(12px, env(safe-area-inset-bottom)); }
+.sidebar-actions { display: flex; align-items: center; justify-content: flex-end; margin-top: 11px; gap: 2px; }
+
+/* 对话区左上角：收起以后的展开按钮，窄屏上的菜单按钮 */
+.stage-float { position: absolute; top: 10px; left: 12px; z-index: 15; display: flex; gap: 4px; }
+.sidebar-expand-button, .mobile-menu-button { display: none; }
+.app-shell.is-sidebar-collapsed .sidebar-expand-button { display: inline-grid; }
+.page-scrim { display: none; }
+
+@media (max-width: 1078px) {
+  .app-shell { grid-template-columns: 224px minmax(0, 1fr) 0px; }
+  .sidebar { width: 224px; }
+}
+
+
+/* 窄屏：不放大；左栏是从左边滑出来的一层，后面一层遮罩 */
+@media (max-width: 836px) {
+  :root { --ui-scale: 1; }
+  .app-shell, .app-shell.is-sidebar-collapsed { display: block; }
+  /* 窄屏的左栏只照抽屉开没开：宽屏收起时的透明、不接鼠标在这里不算（2026-09-30 项目主人指出：宽屏收起过，窄屏点了只变暗、
+     左栏是透明的） */
+  .sidebar, .app-shell.is-sidebar-collapsed .sidebar {
+    display: grid; position: fixed; top: 0; bottom: 0; left: 0; width: min(86vw, 320px);
+    padding-top: env(safe-area-inset-top); box-shadow: var(--float-shadow); opacity: 1; pointer-events: auto;
+    transform: translateX(-102%); transition: transform 180ms ease;
+  }
+  .app-shell.is-drawer-open .sidebar, .app-shell.is-drawer-open.is-sidebar-collapsed .sidebar { transform: translateX(0); }
+  /* 用鼠标的：指针停在左上角的菜单按钮、最左边那一条上，左栏临时浮出来（不压暗对话区），离开了滑回去 */
+  .sidebar-peek-zone, .app-shell.is-sidebar-collapsed .sidebar-peek-zone {
+    position: fixed; top: 0; bottom: 0; left: 0; z-index: 14; display: block; width: var(--peek-zone);
+  }
+  .app-shell.is-sidebar-peek .sidebar, .app-shell.is-sidebar-collapsed.is-sidebar-peek .sidebar { transform: translateX(0); box-shadow: var(--peek-shadow); }
+  .page-scrim { position: fixed; inset: 0; z-index: 18; border: 0; background: var(--scrim); }
+  .app-shell.is-drawer-open .page-scrim { display: block; }
+  .sidebar-close { display: inline-grid; width: 36px; height: 36px; }
+  .sidebar-collapse-button, .app-shell.is-sidebar-collapsed .sidebar-expand-button { display: none; }
+  .mobile-menu-button { display: inline-grid; width: 36px; height: 36px; }
+  .stage-float { top: max(8px, env(safe-area-inset-top)); left: 8px; }
+}
+
+/* 临时浮出来时，左栏上的收起按钮是真展开：图标朝右翻过来 */
+.app-shell.is-sidebar-peek .sidebar-collapse-button .icon { transform: scaleX(-1); }
+
+/* 改名：标题换成一个输入框，和标题同一个字号、位置，淡入（蓝图「左栏」的「重命名」） */
+.session-item.is-renaming .session-item-main { cursor: text; }
+/* 改名的输入框：不画边框、不要聚焦的蓝框，靠输入框那一层阴影浮起来，聚焦时加深（蓝图「左栏」的「重命名」） */
+.session-rename {
+  min-width: 0; width: 100%; height: 24px; padding: 0 6px; margin-left: -6px; border: 0; border-radius: 7px;
+  outline: 0; background: var(--surface-1); box-shadow: var(--composer-shadow); color: var(--text); font: inherit; font-size: 12.5px;
+  transition: box-shadow 0.18s ease;
+  animation: fade-in var(--motion-in) var(--ease-out) both;
+}
+.session-rename:focus, .session-rename:focus-visible { outline: 0; box-shadow: var(--composer-focus-shadow); }
+/* 删之前问一句：菜单换成一句话和两个按钮 */
+.session-menu.is-confirm { min-width: 190px; padding: 10px; gap: 8px; }
+.session-confirm-text { margin: 0; color: var(--text); font-size: 12.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.session-confirm-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.session-confirm-actions button { padding: 5px 10px; }
+/* 删掉的那一项：往左淡出，收掉以后下面的往上补 */
+/* 删掉的一项：一点就走——往左淡出（前 45%），高度从 20% 起收成 0，下面的跟着往上滑（--h 是它原来多高，由 sidebar.js 记下；
+   蓝图「动效」）。走完直接拿掉 */
+.session-item.is-leaving { overflow: hidden; pointer-events: none; animation: item-out var(--motion-collapse) ease-in-out both; }
+@keyframes item-out {
+  0% { height: var(--h); opacity: 1; transform: none; }
+  20% { height: var(--h); }
+  45% { opacity: 0; transform: translateX(-16px); }
+  100% { height: 0; margin-bottom: calc(-1 * var(--item-gap)); opacity: 0; transform: translateX(-16px); }
+}
+
+/* 子代理的会话（蓝图「左栏」的「子代理的会话」）：挂在派它的会话下面，一层缩进 14px；文件树那样的线画出从属：父会话记号那一格
+   正下方一根竖线，每个子代理一小段横线接到它的记号（最后一个是 └，别的是 ├），上面几层没完的竖线穿过去。线是 line_strong */
+.session-item, .session-done-row { --indent: calc(var(--depth, 0) * 14px); --tree-line: var(--line-strong); position: relative; }
+.session-item .session-item-main { padding-left: calc(11px + var(--indent)); }
+.tree-lines { position: absolute; inset: 0; pointer-events: none; }
+.tree-guide, .tree-elbow {
+  position: absolute; top: calc(-1 * var(--item-gap)); bottom: calc(-1 * var(--item-gap));
+  left: calc(16px + (var(--level) - 1) * 14px); width: 8px;
+}
+.tree-guide { width: 1px; background: var(--tree-line); }
+.tree-elbow::before { position: absolute; top: 0; bottom: 0; left: 0; width: 1px; background: var(--tree-line); content: ""; }
+.tree-elbow.is-last::before { bottom: 50%; }
+.tree-elbow::after { position: absolute; top: 50%; left: 0; width: 7px; height: 1px; background: var(--tree-line); content: ""; }
+/* 展开着的父会话：从它的记号下面接一段竖线到这一行底下，和下面子代理的线接上 */
+.session-item.has-kids.is-open::after {
+  position: absolute; top: calc(50% + 8px); bottom: calc(-1 * var(--item-gap)); left: calc(16px + var(--indent)); width: 1px;
+  background: var(--tree-line); content: ""; pointer-events: none;
+}
+.session-bot .icon { width: 12px; height: 12px; color: var(--text-faint); }
+.session-paused .icon { width: 12px; height: 12px; color: var(--t-warn); }
+.session-run-spinner.is-kids { color: var(--text-soft); }
+.session-item.is-child .session-copy strong { color: var(--text-soft); font-size: 12px; }
+.session-item.is-child.active .session-copy strong { color: var(--text); }
+/* 展开、收起整棵的箭头：盖在记号那一格上（2026-09-30 项目主人：原来在最左边，位置怪）。没有别的记号时一直露着；在跑、没看过的
+   平常照旧，指针移上去才换成箭头 */
+.session-fold {
+  position: absolute; z-index: 1; top: 50%; left: calc(8px + var(--indent)); display: grid; width: 17px; height: 20px; padding: 0;
+  place-items: center; border: 0; border-radius: 5px; background: none; color: var(--text-soft); cursor: pointer; transform: translateY(-50%);
+  opacity: 0; transition: opacity 0.15s ease, color 0.15s ease;
+}
+.session-fold:hover { color: var(--text); }
+.session-fold .icon { width: 11px; height: 11px; transition: transform 160ms ease; }
+.session-fold.is-open .icon { transform: rotate(90deg); }
+.session-item.has-kids.is-quiet .session-fold, .session-item.has-kids:hover .session-fold, .session-fold:focus-visible { opacity: 1; }
+.session-item.has-kids:not(.is-child) .session-item-main > .session-lead { transition: opacity 0.15s ease; }
+.session-item.has-kids:not(.is-quiet):not(.is-child):hover .session-item-main > .session-lead { opacity: 0; }
+/* 子代理下面还有的：标题前面 (N)，指针移上去这个数换成箭头（2026-09-30 项目主人定）；开着的箭头朝下 */
+.session-kids {
+  display: inline-grid; flex: none; min-width: 20px; height: 18px; padding: 0 3px; place-items: center; border-radius: 5px;
+  color: var(--text-soft); font-size: 11px; font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.session-kids > * { grid-area: 1 / 1; transition: opacity 0.15s ease; }
+.session-kids-arrow { opacity: 0; }
+/* 下面的都没在跑（不写个数）：箭头一直露着 */
+.session-kids.is-bare { min-width: 14px; }
+.session-kids.is-bare .session-kids-arrow { opacity: 1; }
+.session-kids-arrow .icon { width: 11px; height: 11px; transition: transform 160ms ease; }
+.session-kids.is-open .session-kids-arrow .icon { transform: rotate(90deg); }
+.session-item:hover .session-kids-count, .session-kids:focus-visible .session-kids-count { opacity: 0; }
+.session-item:hover .session-kids-arrow, .session-kids:focus-visible .session-kids-arrow { opacity: 1; }
+.session-kids:hover { background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text); }
+/* 孙代理（第二层往下）的记号：空心的圆，正在看的实心 */
+.session-node i { display: block; width: 7px; height: 7px; border: 1.5px solid var(--text-faint); border-radius: 50%; }
+.session-node i.is-on { border-color: var(--text-soft); background: var(--text-soft); }
+/* 「已完成 N 个」：接在树上，字从记号那一格起；前面一个小勾，后面一个箭头（开着朝下） */
+.session-done {
+  display: flex; align-items: center; gap: 7px; width: 100%; padding: 3px 7px 3px calc(11px + var(--indent)); border: 0;
+  border-radius: var(--radius); background: none; color: var(--text-faint); font: inherit; font-size: 11.5px; text-align: left; cursor: pointer;
+}
+.session-done:hover { background: color-mix(in srgb, var(--text) 5%, transparent); color: var(--text-soft); }
+.session-done-mark { display: grid; width: 11px; place-items: center; }
+.session-done-mark .icon { width: 11px; height: 11px; color: var(--t-good); }
+.session-done-arrow { color: var(--text-soft); }
+.session-done-arrow .icon { width: 10px; height: 10px; transition: transform 160ms ease; }
+.session-done.is-open .session-done-arrow .icon { transform: rotate(90deg); }
+/* 顶层露满了：下面一行「查看全部」（照 Claude 网页端的 View all） */
+.session-all {
+  width: 100%; margin-top: 2px; padding: 6px 11px; border: 0; border-radius: var(--radius); background: none;
+  color: var(--text-faint); font: inherit; font-size: 12px; text-align: left; cursor: pointer;
+}
+.session-all:hover { background: color-mix(in srgb, var(--text) 5%, transparent); color: var(--text-soft); }
+
+/* 「会话」那一行右边：平常 ↗（全部会话）和多选两个按钮（悬停左栏才露）；多选时换成全选、删除、退出（一直露着，位置不动） */
+.session-group-tools { display: flex; align-items: center; gap: 1px; margin-left: auto; }
+.session-group-button { width: 22px; height: 22px; }
+.session-group-button .icon { width: 13px; height: 13px; }
+.session-group-button.is-select { opacity: 0; transition: opacity 0.15s ease; }
+.sidebar:hover .session-group-button.is-select, .session-group-button.is-select:focus-visible { opacity: 1; }
+.session-group-button.is-danger { color: var(--danger); }
+.session-group-button.is-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+.session-group-button:disabled { opacity: 0.35; cursor: default; }
+.sidebar.is-selecting .session-group-header > span:first-of-type { color: var(--text); }
+/* 多选：记号那一格是勾选框，勾上的铺一层 accent 的淡底 */
+.session-check .icon { width: 15px; height: 15px; color: var(--text-faint); }
+.session-item.is-selected { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.session-item.is-selected .session-check .icon { color: var(--accent); }

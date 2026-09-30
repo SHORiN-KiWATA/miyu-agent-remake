@@ -1,0 +1,101 @@
+/* 输入框这一块（蓝图 web.md「输入框」「输入框下面那一行」「提示」）：圆角 20px 照 Claude 网页端；
+   框里上面写字、右下角发送；框下面一行照 TUI 的「框下面那一行」。和正文同一列、同宽。 */
+
+.composer-dock { width: min(100%, 980px); margin: 0 auto; padding: 0 30px 10px; }
+
+/* 框：不画边，只靠一层软阴影浮起来；聚焦时只把阴影加深，不换边线、不加光晕（2026-09-30 项目主人定）。
+   边框留着 1px 透明的：框里的字、提示、命令列表照它对齐 */
+.composer {
+  --composer-radius: 20px;
+  position: relative; border: 1px solid transparent; border-radius: var(--composer-radius);
+  background: var(--surface-1); box-shadow: var(--composer-shadow); transition: box-shadow 0.22s ease, margin-top 0.2s ease;
+}
+.composer:focus-within { box-shadow: var(--composer-focus-shadow); }
+.composer-input {
+  display: block; width: 100%; padding: 14px 18px 0; border: 0; outline: 0; resize: none;
+  background: transparent; color: var(--text); font: 15px/1.6 var(--sans);
+}
+.composer-input::placeholder { color: var(--text-faint); }
+.composer-bar { display: flex; justify-content: flex-end; align-items: center; padding: 2px 10px 10px; }
+/* 下面一排左边：软件包挂的按钮（附件，挂载位 composer.bar）；右边预览工作区的开关、发送 */
+.composer-tools { display: flex; align-items: center; gap: 2px; margin-right: auto; }
+.composer-send {
+  display: grid; width: 32px; height: 32px; padding: 0; place-items: center; border: 0; border-radius: 10px;
+  background: var(--accent); color: var(--on-primary); cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+/* accent 蓝（2026-09-30 项目主人定：试过墨色、头发的金色，回到蓝）；悬停深一档 */
+.composer-send:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 88%, var(--text)); }
+/* 在回答、框里空着：打断，缎带红两成的底、缎带红的方块 */
+.composer-send.is-stop { background: color-mix(in srgb, var(--ribbon) 20%, var(--surface-1)); color: var(--ribbon); }
+.composer-send.is-stop:hover { background: color-mix(in srgb, var(--ribbon) 30%, var(--surface-1)); }
+.stop-mark { width: 10px; height: 10px; border-radius: 2.5px; background: currentColor; }
+.composer-send:active:not(:disabled) { transform: scale(0.94); }
+.composer-send .icon { width: 17px; height: 17px; stroke-width: 2.1; }
+.composer-send:disabled { background: var(--surface-2); color: var(--text-faint); cursor: default; }
+
+/* 提示：浮在框上面 6px（加框的 1px 边）、和框里的字左对齐的小框，细边框；好消息绿框（tui.md「提示」）。
+   字左对齐：框里的字离内边 18px，提示自己 1px 边加 11px 内边距，所以离内边 6px */
+.composer-notice {
+  position: absolute; bottom: calc(100% + 7px); left: 6px; padding: 5px 11px;
+  border: 1px solid var(--line); border-radius: 10px; color: var(--text);
+  background: color-mix(in srgb, var(--surface-1) 86%, transparent); backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: var(--card-shadow); font-size: 12.5px; white-space: nowrap; animation: rise-in var(--motion-in) var(--ease-out) both;
+}
+.composer-notice.is-leaving { animation: fade-out var(--motion-out) var(--ease-in) both; }
+.composer-notice.good { border-color: color-mix(in srgb, var(--t-good) 55%, var(--line)); }
+
+/* 框下面那一行：左右和框里的字对齐；等宽 13px，和收尾那一行一样（照 TUI 的终端字）；左边级别（级别的颜色、
+   加粗，点一下换下一级）· 模型（加粗）端点，右边用量，都暗 */
+.composer-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 26px; margin-top: 4px; padding: 0 18px;
+  color: var(--t-dim); font: 13px var(--mono); white-space: nowrap;
+}
+.footer-left { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.footer-left b { color: var(--text); font-weight: 700; }
+.footer-level { padding: 0; border: 0; background: none; font: inherit; font-weight: 700; cursor: pointer; }
+.footer-level:hover { text-decoration: underline; text-underline-offset: 3px; }
+.level-workspace { color: var(--t-workspace); }
+.level-full { color: var(--t-full); }
+.level-read_only { color: var(--t-read-only); }
+.footer-right { flex: none; }
+/* 中间：软件包挂的（后台任务的按钮，挂载位 composer.footer）；空着不占地方 */
+.footer-middle { display: flex; flex: none; align-items: center; }
+.footer-middle:empty { display: none; }
+
+@media (max-width: 836px) {
+  .composer-dock { padding: 0 10px 8px; }
+}
+
+/* 换级别（蓝图「输入框下面那一行」）：级别那一格原地换，不上下移：旧的先淡出、糊开一点（前 45%），新的接着淡入、由糊变清
+   （从 35% 起），两个字几乎不叠在一起（2026-09-30 项目主人：原来往上淡出不好看）；颜色跟着过渡；框外面闪一圈新级别颜色的淡光 */
+.footer-level { --level-swap: 0.24s; transition: color var(--level-swap) ease; }
+/* 新字在流里、定那一格多宽；退场的旧字浮起来不占宽度（宽度由 composer.js 从旧的缓到新的，不等旧字走完才一下跳过去） */
+.level-roll { position: relative; display: inline-grid; overflow: hidden; vertical-align: bottom; }
+.level-roll > span { grid-area: 1 / 1; white-space: pre; }
+.level-roll > .is-leaving { position: absolute; top: 0; left: 0; }
+.level-roll > .is-entering { animation: level-in var(--level-swap) var(--ease-out) both; }
+.level-roll > .is-leaving { animation: level-out var(--level-swap) var(--ease-out) both; }
+@keyframes level-in { 0%, 35% { opacity: 0; filter: blur(2px); } 100% { opacity: 1; filter: none; } }
+@keyframes level-out { 0% { opacity: 1; filter: none; } 45%, 100% { opacity: 0; filter: blur(2px); } }
+.composer::after { position: absolute; border-radius: inherit; content: ""; pointer-events: none; inset: -1px; }
+.composer.is-level-flash::after { animation: level-flash 0.7s ease-out; }
+/* 只是一层软的光晕，不画线（2026-09-30 项目主人：原来有一圈 1px 的线，像描边） */
+@keyframes level-flash {
+  from { box-shadow: 0 0 14px 2px color-mix(in srgb, var(--flash) 30%, transparent); }
+  to { box-shadow: 0 0 22px 6px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .level-roll > span, .composer.is-level-flash::after { animation: none; }
+  .level-roll > .is-leaving { display: none; }
+}
+
+/* 子代理的会话里：输入框正上方靠左「← 回到「父会话」」（蓝图 web.md「子代理的会话顶上那条路径」）；进来从下面升上来，回主会话收回 */
+.back-row { display: flex; margin: 0 0 6px 2px; animation: rise-in var(--motion-in) var(--ease-out) both; }
+.back-row.is-leaving { animation: sink-out var(--motion-out) var(--ease-in) both; }
+.back-button {
+  display: inline-flex; max-width: min(60%, 360px); align-items: center; gap: 6px; padding: 4px 10px 4px 8px; border: 0; border-radius: 8px;
+  background: none; color: var(--text-soft); font: inherit; font-size: 12.5px; cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease;
+}
+.back-button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); color: var(--text); }
+.back-button .icon { width: 14px; height: 14px; flex: none; }
+.back-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

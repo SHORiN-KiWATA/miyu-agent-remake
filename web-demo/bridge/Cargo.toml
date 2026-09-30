@@ -1,0 +1,46 @@
+[package]
+name = "miyu-web-bridge"
+version = "0.0.1"
+edition = "2024"
+publish = false
+license = "GPL-3.0-or-later"
+description = "网页演示的桥：给页面文件，把浏览器的 WebSocket 转到核心的本机套接字上。顶替核心里还没有的网页模块（设计 21 X5、04 P5）。"
+
+[dependencies]
+# 连核心：和 miyu ask、TUI 演示同一套（找数据根、拉起核心、本机令牌、会话日志）。
+miyu-ipc = { path = "../../crates/miyu-ipc" }
+miyu-store = { path = "../../crates/miyu-store" }
+miyu-kernel = { path = "../../crates/miyu-kernel" }
+# 协议是 JSON-RPC：握手要往里塞本机令牌，`events.read` 要自己回。
+serde_json = "1"
+# 异步：一个浏览器标签页一条核心连接，互不等。
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "fs", "time"] }
+# 浏览器那头说 WebSocket（04 P2：浏览器、远程用 WebSocket，每帧一条消息）。MIT。
+tokio-tungstenite = "0.29"
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+# 访问口令：32 个随机字节，取系统的随机数（和本机令牌同一个库）。
+getrandom = { version = "0.4", features = ["std"] }
+# mermaid 图画成 SVG：和终端界面同一个库、同一个版本（设计 13 第九节定的，旧版用的也是它），两个头画出来才一样。MIT。
+mermaid-rs-renderer = { version = "=0.3.1", default-features = false }
+# 链接卡片（`web.link_preview`）去抓别人家的页面：和仓库的 `miyu-http` 同一个库、同一套 TLS（rustls，证书认系统的和
+# webpki 自带的两份，不依赖 OpenSSL）。重定向自己跟、每一跳钉住解析好的地址，都要它的 `ClientBuilder`。MIT 或 Apache-2.0。
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots", "rustls-tls-webpki-roots"] }
+# 链接卡片的图按内容的 SHA-256 编号：同一张图（好些页面共用的 favicon）只记一份，编号也不带来源。和 miyu-ipc、
+# miyu-kernel 同一个版本，树里本来就有。MIT 或 Apache-2.0。
+sha2 = { version = "0.11", default-features = false }
+
+# 和仓库工作区的 lints 一样（根目录 Cargo.toml），演示程序也照这套规矩。
+[lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+let_underscore_must_use = "deny"
+unused_result_ok = "deny"
+unwrap_used = "deny"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+
+# 演示程序不进仓库的 workspace，自己单独编，门禁不查它。
+[workspace]

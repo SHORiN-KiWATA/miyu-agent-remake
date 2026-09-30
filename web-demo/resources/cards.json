@@ -1,0 +1,30 @@
+{
+  "note": "回答里单独一行的地址画成卡片（蓝图 web.md「音视频、图片卡片」）：照扩展名认是视频、音频还是图片。 seek_seconds 是音频播放器的进度条按左右键跳几秒（旧版）。",
+  "video": [
+    "mp4",
+    "m4v",
+    "webm",
+    "mov",
+    "mkv",
+    "ogv"
+  ],
+  "audio": [
+    "mp3",
+    "flac",
+    "wav",
+    "m4a",
+    "ogg",
+    "opus"
+  ],
+  "image": [
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "webp",
+    "bmp",
+    "avif",
+    "svg"
+  ],
+  "seek_seconds": 5
+}

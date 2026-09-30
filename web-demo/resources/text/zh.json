@@ -1,0 +1,290 @@
+{
+  "status": {
+    "online": "在线",
+    "connecting": "连接中",
+    "offline": "离线"
+  },
+  "sidebar": {
+    "new_session": "新会话",
+    "collapse": "收起侧栏",
+    "expand": "展开侧栏",
+    "menu": "会话操作",
+    "theme_to_light": "换成浅色",
+    "theme_to_dark": "换成深色",
+    "untitled": "新会话",
+    "sessions": "会话",
+    "copy_id": "复制会话编号",
+    "rename": "重命名",
+    "delete": "删除",
+    "not_yet": "{name}：核心还没有这个命令",
+    "select": "多选",
+    "select_all": "全选",
+    "selected": "已选 {count} 个",
+    "bulk_failed": "{count} 个没删：{reason}",
+    "select_exit": "退出多选",
+    "fold": "收起子代理",
+    "unfold": "展开子代理",
+    "done_kids": "已完成 {count} 个",
+    "kids": "({count})",
+    "view_all": "查看全部",
+    "all_sessions": "查看全部会话",
+    "paused": "已打断，等你说话"
+  },
+  "crumbs": {
+    "label": "子代理的会话在哪",
+    "back": "返回",
+    "back_to": "回到「{title}」"
+  },
+  "placeholder": "给 {name} 发消息",
+  "send": "发送",
+  "esc_clear_hint": "再按一次 Esc 清空",
+  "done": "{time} · {endpoint}/{model} · {elapsed}",
+  "done_usage": " · {tokens}(C{percent}%)",
+  "interrupted": "已中断",
+  "failed": "出错了：{message}",
+  "error_classes": {
+    "retryable": "暂时出错",
+    "rate_limited": "被限速了",
+    "context_too_long": "上下文太长",
+    "auth": "认证失败",
+    "content_policy": "被内容策略拦下了",
+    "bad_stream": "回复的流不对",
+    "empty_reply": "回复是空的",
+    "bad_summary": "取不出摘要",
+    "compaction_paused": "自动压缩暂停着",
+    "other": "模型出错"
+  },
+  "levels": {
+    "workspace": "工作区",
+    "full": "开放权限",
+    "read_only": "只读"
+  },
+  "speed": "{rate} tok/s",
+  "context": "{used}/{window}({percent}%)",
+  "total": "Σ{tokens}(C{percent}%)",
+  "refused": "被拒绝了：{message}",
+  "payload_busy": "附件还在传，传完再发",
+  "no_bridge": "连不上桥：打开桥打出来的那个带 #k= 的链接",
+  "level_tip": "点一下换权限级别：工作区 → 开放权限 → 只读",
+  "copied": "已复制 {count} 个字",
+  "copy_failed": "复制失败：{reason}",
+  "timeline": {
+    "thinking": "正在思考",
+    "thought": "已思考",
+    "prepare": {
+      "command": "准备执行",
+      "edit": "准备编辑",
+      "tool": "准备工具"
+    },
+    "args": "参数",
+    "result": "结果",
+    "prompt": "提示词",
+    "agent_subject": "· {job} · {title}",
+    "agent_pending": "· {title}",
+    "created": "新建",
+    "changed": "修改",
+    "summary": {
+      "ran": [
+        "Ran 1 command",
+        "Ran {count} commands"
+      ],
+      "used": [
+        "Used 1 tool",
+        "Used {count} tools"
+      ],
+      "made": [
+        "Made 1 edit",
+        "Made {count} edits"
+      ],
+      "edits": [
+        "1 edit",
+        "{count} edits"
+      ],
+      "tools": [
+        "1 tool",
+        "{count} tools"
+      ],
+      "thoughts": [
+        "1 thought",
+        "{count} thoughts"
+      ],
+      "errors": [
+        "1 err",
+        "{count} err"
+      ],
+      "thought_for": "Thought for {elapsed}",
+      "spawned": [
+        "Spawned 1 agent",
+        "Spawned {count} agents"
+      ],
+      "messaged": [
+        "Messaged 1 agent",
+        "Messaged {count} agents"
+      ],
+      "agents": [
+        "1 agent",
+        "{count} agents"
+      ],
+      "messages": [
+        "1 message",
+        "{count} messages"
+      ]
+    }
+  },
+  "markdown": {
+    "code": "代码",
+    "copy_code": "复制代码"
+  },
+  "media": {
+    "image_failed": "图片载入失败",
+    "fullscreen": "铺满整页",
+    "progress": "播放进度",
+    "volume": "音量",
+    "download": "下载",
+    "play": "播放",
+    "pause": "暂停",
+    "mute": "静音",
+    "unmute": "取消静音",
+    "audio_failed": "放不了"
+  },
+  "artifacts": {
+    "toggle": "预览工作区",
+    "preview": "预览",
+    "source": "源码",
+    "copy": "复制",
+    "download": "下载",
+    "maximize": "最大化",
+    "restore": "还原",
+    "close": "关闭",
+    "list": "产物列表",
+    "loading": "载入中…",
+    "failed": "文件载入失败",
+    "resize": "拖动改宽度",
+    "types": {
+      "markdown": "MD",
+      "html": "HTML",
+      "image": "图片",
+      "video": "视频",
+      "code": "代码",
+      "text": "文字"
+    }
+  },
+  "commands": {
+    "header": "命令 · {count} 条",
+    "unknown": "命令不存在",
+    "fake": "/{name} 是演示用的假命令，还不做事",
+    "not_open": "这个会话还没有开",
+    "undone": "已撤销",
+    "theme_changed": "主题：{name}",
+    "nothing_to_copy": "还没有能复制的回答",
+    "undone_jobs": "已撤销 · 停掉了 {count} 个任务"
+  },
+  "refusals": {
+    "nothing_to_revert": "没有能撤销的",
+    "nothing_to_unrevert": "没有能恢复的撤销",
+    "nothing_to_compact": "上下文过少",
+    "turn_running": "回答进行中：先打断，或者等它做完",
+    "unknown_turn": "找不到要撤的那一轮",
+    "restoring": "上一次撤销、恢复还没做完，稍等",
+    "not_redoable": "无法重做",
+    "not_running": "没在回答",
+    "empty_message": "改完一个字都不剩了",
+    "unknown_attachment": "附件找不到了，重新传一次",
+    "attachment_too_big": "附件太大了（最多 20 MiB，图片最多 5 MiB、每边 8000 像素）",
+    "attachment_unreadable": "附件读不了",
+    "attachment_in_data_root": "不能从 Miyu 的数据目录里拿附件",
+    "session_not_found": "这个会话已经不在了",
+    "nothing_to_clear": "上下文为空"
+  },
+  "said": {
+    "copy": "复制",
+    "edit": "编辑",
+    "redo": "重做",
+    "cancel": "取消",
+    "send": "发送",
+    "download": "下载 {name}",
+    "from": "来自「{title}」"
+  },
+  "esc_interrupt_hint": "再按一次 Esc 打断",
+  "interrupt": "打断",
+  "slot_failed": "这一块出错了（{owner}：{reason}）",
+  "pkg": {
+    "title": "软件包",
+    "note": "停用、启用当场生效，记在这个浏览器里",
+    "base": "基础系统",
+    "enable": "启用",
+    "disable": "停用",
+    "close": "关闭",
+    "states": {
+      "active": "就绪",
+      "pending": "等着",
+      "failed": "故障",
+      "disabled": "停了",
+      "idle": "还没起",
+      "disposed": "撤回了"
+    },
+    "missing": "缺 {names}"
+  },
+  "status_hints": {
+    "429": "被限速了，或者额度不够，过一会儿再试",
+    "402": "额度用完了",
+    "404": "找不到，检查端点地址和模型名"
+  },
+  "notes": {
+    "command": {
+      "name": "后台命令",
+      "done": "后台命令完成 · {title}",
+      "failed": "后台命令失败 · {title} · 退出码 {code}",
+      "signal": "后台命令失败 · {title} · 信号 {signal}",
+      "stopped": "后台命令已停止 · {title}",
+      "undone": "后台命令随撤销停止 · {title}",
+      "restarted": "后台命令因重启停止 · {title}",
+      "aborted": "后台命令中断：核心退出过 · {title}"
+    },
+    "agent": {
+      "name": "子代理",
+      "done": "子代理交回报告 · {title}",
+      "stopped": "子代理已停止 · {title}",
+      "undone": "子代理随撤销停止 · {title}",
+      "restarted": "子代理因重启停止 · {title}",
+      "aborted": "子代理中断：核心退出过 · {title}"
+    },
+    "unknown": "{what} · {title} · {reason}",
+    "compacted": "上下文已压缩",
+    "cleared": "上下文已清空",
+    "instructions": " · 要求：{text}",
+    "agent_speaker": "子代理 · {title}",
+    "harness_speaker": "{name} · 别的 agent",
+    "agent_plain": "子代理",
+    "external": "外部",
+    "tail": "只显示最后 {count} 行",
+    "no_output": "没有存下输出",
+    "truncated": "（中间截过）",
+    "loading": "正在取…",
+    "load_failed": "取不到：{reason}",
+    "command_label": "命令",
+    "output_label": "输出",
+    "parent_speaker": "派它的会话",
+    "other_session": "另一个会话"
+  },
+  "ago": {
+    "now": "刚才",
+    "minutes": "{n} 分钟前",
+    "hours": "{n} 小时前",
+    "days": "{n} 天前",
+    "date": "{m} 月 {d} 日",
+    "full": "{y} 年 {m} 月 {d} 日"
+  },
+  "interrupted_jobs": " · 后台还有 {count} 个在跑，打断不停它们",
+  "sessions_page": {
+    "title": "全部会话",
+    "search": "搜索会话",
+    "select": "多选",
+    "new": "新会话",
+    "untitled": "没有标题",
+    "empty": "还没有会话",
+    "no_match": "没有找到",
+    "jobs": "{count} 个后台任务",
+    "agents": "{count} 个子代理"
+  }
+}

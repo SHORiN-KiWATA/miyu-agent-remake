@@ -1,0 +1,32 @@
+/* 运行状态行（软件包 pulse；蓝图 web.md「运行状态行」「排队的消息」） */
+/* ── 运行状态行和排着的话：框上面占一块，和框之间空一行、和正文隔 6px，左边和框里的字对齐；只在回答时有 ── */
+.dock-pulse {
+  /* 流光的底色：accent 压暗（layout.json 的 shimmer.dim）；亮光：accent 往白里偏（shimmer.lift） */
+  --pulse-base: color-mix(in srgb, var(--accent) var(--pulse-dim), black);
+  --pulse-peak: color-mix(in srgb, white var(--pulse-lift), var(--accent));
+  font-size: 14px; line-height: var(--pulse-row); pointer-events: none;
+}
+/* 间距在里面这一层：收起来连间距一起收掉（外面两层是共用的 .unfold，出来、收起的过渡） */
+.pulse-body { padding: var(--pulse-clear) 19px var(--pulse-gap); }
+.pulse-row { display: flex; align-items: baseline; height: var(--pulse-row); overflow: hidden; white-space: nowrap; }
+/* 排着的话：`↳ ` 加这句话，一条一行，放不下截掉加 … */
+.pulse-queued { display: flex; height: var(--pulse-row); color: var(--text-soft); font-size: 13px; white-space: nowrap; }
+.pulse-arrow { flex: none; color: var(--text-faint); white-space: pre; }
+.pulse-queued-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* 词和点一格：底下垫一个看不见的最宽的词加满的点，后面的用时不左右跳 */
+.pulse-lead { display: inline-grid; flex: none; }
+.pulse-lead > * { grid-area: 1 / 1; }
+.pulse-sizer { visibility: hidden; font-weight: 600; }
+/* 一道亮光从左往右扫：渐变比字宽 2.5 倍，亮带两头都扫出字外（照 TUI 多走两个带宽） */
+.pulse-shine {
+  justify-self: start; color: var(--pulse-base); font-weight: 600;
+  background: linear-gradient(90deg, var(--pulse-base) 40%, var(--pulse-peak) 50%, var(--pulse-base) 60%) 100% 0 / 250% 100% no-repeat;
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  animation: pulse-sweep var(--pulse-sweep) linear infinite;
+}
+/* 没写满的点：占着格子不画，扫的长度不跟着点的个数跳 */
+.pulse-ghost { visibility: hidden; }
+.pulse-clock { flex: none; margin-left: 0.4em; color: var(--pulse-base); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.pulse-retry { min-width: 0; overflow: hidden; color: var(--t-warn); text-overflow: ellipsis; white-space: pre; }
+
+@keyframes pulse-sweep { from { background-position: 100% 0; } to { background-position: 0 0; } }

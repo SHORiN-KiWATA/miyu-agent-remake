@@ -1,0 +1,239 @@
+/* 时间线（蓝图 web.md「时间线」，照旧版 styles.css:10650-11353、2861-2967，连颜色）：左边 16px 一列是节点，右边空 4px
+   起写字，预览、细节缩进 24px；1px 的竖线穿过节点那一列，在图标处断开。收起那一行照 TUI。
+   旧版的 --app-bg 就是这里的 --surface；两种次要的颜色照旧版的算法从主题现混。 */
+
+.tl-segment {
+  --tl-col: 16px;
+  --tl-gap: 4px;
+  --tl-indent: 24px;
+  --tl-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --tl-soft: color-mix(in srgb, var(--text) 62%, var(--surface));
+  --tl-think: color-mix(in srgb, var(--text) 74%, var(--surface));
+  --tl-rail: color-mix(in srgb, var(--line-strong) 75%, var(--line));
+  /* 悬停时亮一档（照 TUI 的 hover：比暗色亮、比原色暗），不铺底色：整块铺底色太重，还压着竖线（2026-09-30 改） */
+  --tl-hi: color-mix(in srgb, var(--text) 84%, var(--surface));
+  /* 思考的字悬停亮一档：在想时滚着的那几行、点开的全文，整块能点（2026-09-30 项目主人定） */
+  --tl-think-hi: color-mix(in srgb, var(--text) 90%, var(--surface));
+  position: relative; margin: 2px 0; color: var(--tl-soft); font: 600 11.5px/1.5 var(--sans);
+}
+
+/* 收起那一行（照 TUI）：英文、没有节点；只有那一截字能点，悬停字亮一档，末尾的箭头悬停才露（照 Claude 网页端） */
+.tl-summary {
+  display: flex; width: 100%; min-height: 30px; align-items: center; margin: 0; padding: 2px 0; border: 0;
+  background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; pointer-events: none;
+}
+.tl-summary > * { pointer-events: auto; }
+.tl-summary-text {
+  font-variant-numeric: tabular-nums; white-space: pre; transition: color 0.15s ease; animation: tl-fadein 0.45s var(--tl-ease) both;
+}
+.tl-summary:hover .tl-summary-text, .tl-summary:hover > .tl-chevron { color: var(--tl-hi); }
+.tl-summary > .tl-chevron { margin-left: 6px; color: inherit; }
+.tl-segment.is-open > .tl-summary > .tl-chevron { transform: rotate(90deg); }
+.tl-summary.is-failed { color: var(--danger); }
+.tl-added { color: var(--diff-add); }
+.tl-removed { color: var(--diff-del); }
+
+/* 一段展开、收起：高度从 0 长出来、收回去，多长照 timeline.json 的 fold_ms（--tl-fold，0.38 秒） */
+.tl-wrap { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows var(--tl-fold) var(--tl-ease), opacity var(--tl-fold) ease; }
+.tl-segment.is-open > .tl-wrap { grid-template-rows: 1fr; opacity: 1; }
+.tl-clip { min-height: 0; overflow: hidden; }
+
+/* 竖线：每一步自己画上下两截，节点上下各空 2px（行高 30px，节点在 7–23px） */
+.tl-step { position: relative; }
+.tl-step::before, .tl-step::after {
+  position: absolute; left: calc(var(--tl-col) / 2 - 0.5px); width: 1px; background: var(--tl-rail); content: ""; pointer-events: none;
+}
+.tl-step::before { top: 0; height: 5px; }
+.tl-step::after { top: 25px; bottom: 0; }
+.tl-step:first-child::before, .tl-step:last-child::after { display: none; }
+/* 最后一步下面有命令、在想的窗口、点开了的，线一直到它底下（2026-09-30 项目主人指出：原来最后一步点开，旁边没有线） */
+.tl-step:last-child:has(> .tl-window:not([hidden]), > .tl-command:not([hidden]))::after, .tl-step:last-child.is-open::after { display: block; }
+.tl-step.is-new { animation: tl-fadein 0.45s var(--tl-ease) both; }
+
+/* 一步那一行 */
+.tl-row {
+  position: relative; z-index: 1; display: flex; width: 100%; min-height: 30px; align-items: center; gap: var(--tl-gap);
+  padding: 4px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.tl-node { display: grid; flex: 0 0 var(--tl-col); width: var(--tl-col); height: var(--tl-col); place-items: center; color: var(--tl-soft); transition: color 0.15s ease; }
+.tl-node .icon { width: 13px; height: 13px; }
+.tl-name { flex: 0 0 auto; color: var(--text); white-space: nowrap; }
+.tl-time { flex: none; color: var(--tl-soft); font: 400 10.5px var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* 思考：标题 1px 4px 的小块；在想时流光、图标呼吸；收着时后面接最后一小段，放不下左边淡出 */
+.tl-step.is-thought .tl-name { max-width: 24em; padding: 1px 4px; overflow: hidden; border-radius: 5px; text-overflow: ellipsis; }
+.tl-step.is-thought.is-live .tl-name {
+  background: linear-gradient(90deg, var(--text) 30%, var(--accent) 50%, var(--text) 70%); background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+  animation: tl-shimmer 1.6s linear infinite;
+}
+.tl-step.is-thought.is-live .tl-node .icon { animation: tl-breathe 1.6s ease-in-out infinite; }
+.tl-peek {
+  display: none; flex: 0 1 auto; min-width: 0; margin-left: 6px; overflow: hidden;
+  color: var(--tl-think); font-size: 12px; font-weight: 400; line-height: 1.5;
+}
+.tl-peek > span { flex: none; white-space: nowrap; }
+.tl-step.is-thought:not(.is-open) .tl-peek { display: flex; }
+.tl-step.is-thought.is-rolling .tl-peek { display: none; }
+.tl-peek.is-overflow { justify-content: flex-end; -webkit-mask-image: linear-gradient(to right, transparent, #000 32px); mask-image: linear-gradient(to right, transparent, #000 32px); }
+/* 箭头悬停才露：收着朝右，开着朝下（2026-09-30 项目主人定，照 Claude 网页端） */
+.tl-chevron { display: grid; flex: none; place-items: center; color: var(--tl-soft); opacity: 0; transition: transform 160ms ease, opacity 0.15s ease; }
+.tl-chevron .icon { width: 11px; height: 11px; }
+.tl-summary:hover > .tl-chevron, .tl-step:hover > .tl-row .tl-chevron { opacity: 0.8; }
+.tl-step.is-open .tl-chevron { transform: rotate(90deg); }
+.tl-window {
+  cursor: pointer; display: flex; flex-direction: column; justify-content: flex-end; max-height: calc(var(--tl-rows) * 1.75em);
+  margin: 2px 8px 2px 0; padding-left: var(--tl-indent); overflow: hidden;
+  color: var(--tl-think); font-size: 12px; font-weight: 400; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.tl-thought-body {
+  margin: 0 8px 6px var(--tl-indent); color: var(--tl-think); font-size: 12px; font-weight: 400; line-height: 1.75;
+  white-space: pre-wrap; overflow-wrap: anywhere; cursor: pointer; transition: color 0.15s ease;
+}
+.tl-window { transition: color 0.15s ease; }
+.tl-window:hover, .tl-thought-body:hover { color: var(--tl-think-hi); }
+
+/* 一段里只有这一步、人点开了那一段（tui.md「时间线」第 15 条）：不画那一行，只留图标，和内容第一行对齐 */
+.tl-step.is-bare > .tl-row {
+  position: absolute; top: 0; left: 0; width: var(--tl-col); min-height: 0; height: 21px; padding: 0; pointer-events: none;
+}
+.tl-step.is-bare > .tl-row > :not(.tl-node), .tl-step.is-bare > .tl-window { display: none; }
+.tl-step.is-bare::before { display: none; }
+/* 只有一步、点开了：线从图标下面接着画到内容底下（和别的点开的一步一样） */
+.tl-step.is-bare::after { top: 19px; }
+.tl-step.is-bare:not(.is-open)::after { display: none; }
+/* 它的内容跟着这一段一起出来，不自己再放一遍展开的动画（两层各放一遍和别的不一样，同一天项目主人指出） */
+.tl-step.is-bare > .tl-fold { transition: none; }
+.tl-step.is-bare { min-height: 21px; }
+.tl-step.is-tool.is-bare > .tl-row { height: 19px; }
+.tl-step.is-tool.is-bare > .tl-command[hidden] ~ .tl-fold { margin-top: 0; }
+
+/* 工具：名字、用时、对象、结果那一句；在跑的末尾转圈 */
+.tl-head { display: flex; flex: 0 1 auto; min-width: 0; align-items: baseline; gap: 5px; padding: 1px 4px; border-radius: 5px; }
+.tl-subject { flex: 0 1 auto; min-width: 0; overflow: hidden; color: var(--tl-soft); font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+.tl-subject.is-mono { font: 400 11px var(--mono); }
+.tl-said { flex: none; color: var(--tl-soft); font-size: 11px; font-weight: 400; white-space: nowrap; }
+.tl-step.is-tool .tl-time { color: var(--text-faint); }
+.tl-step.is-preparing .tl-time { color: inherit; font: inherit; }
+.tl-status { display: grid; flex: none; margin-left: 4px; place-items: center; color: var(--tl-soft); font: 400 10.5px var(--mono); }
+.tl-status .icon, .tl-node .icon.is-spin { width: 12px; height: 12px; animation: tl-spin 900ms linear infinite; }
+.tl-node .icon.is-spin { width: 13px; height: 13px; }
+.tl-step.is-failed .tl-node, .tl-step.is-failed .tl-name, .tl-step.is-failed .tl-subject,
+.tl-step.is-failed .tl-said, .tl-step.is-failed .tl-status { color: var(--danger); }
+
+/* 执行命令：命令本身写在那一行下面，等宽，最多几行，放不下的「⋮」；悬停和那一行一起亮 */
+.tl-command {
+  max-height: calc(var(--tl-cmd-rows) * 1.7em); margin: 0 0 4px var(--tl-indent); overflow: hidden;
+  color: var(--tl-soft); font: 400 11px/1.7 var(--mono); tab-size: 2; cursor: pointer; transition: color 0.15s ease;
+}
+.tl-cline { white-space: pre-wrap; overflow-wrap: anywhere; }
+.tl-more { color: var(--text-faint); letter-spacing: 0.1em; }
+/* 悬停在一步上（那一行、下面的命令、在想的窗口都算）：整步的字亮一档，图标跟着；出错的照旧红 */
+.tl-step:not(.is-failed):hover .tl-node, .tl-step:not(.is-failed):hover .tl-subject, .tl-step:not(.is-failed):hover .tl-said,
+.tl-step:not(.is-failed):hover .tl-time, .tl-step:not(.is-failed):hover .tl-command, .tl-step:hover .tl-chevron { color: var(--tl-hi); }
+/* 思考的字悬停不变色（2026-09-30 项目主人定） */
+.tl-subject, .tl-said, .tl-time { transition: color 0.15s ease; }
+
+/* 点开的：思考的全文、工具的细节，高度从 0 长出来、收回去（2026-09-30 改：原来收起是一下子没的）；一步是 0.32 秒，照
+   timeline.json 的 step_ms（--tl-step，和一段的 0.38 秒两个数）。
+   执行命令点开时命令那几行留着，细节接在下面，只有这一块在长 */
+.tl-fold {
+  display: grid; grid-template-rows: 0fr; opacity: 0;
+  transition: grid-template-rows var(--tl-step) var(--tl-ease), margin var(--tl-step) var(--tl-ease), opacity var(--tl-step) ease;
+}
+.tl-step.is-open > .tl-fold { grid-template-rows: 1fr; opacity: 1; }
+.tl-step.is-tool.is-open > .tl-fold { margin: 2px 0 8px; }
+.tl-fold-inner { min-height: 0; overflow: hidden; }
+.tl-body {
+  display: grid; grid-template-columns: minmax(0, 1fr); margin-left: var(--tl-indent); padding: 9px 10px;
+  border-radius: var(--radius); background: color-mix(in srgb, var(--text) 5%, transparent); font-weight: 400;
+}
+.tl-body:empty { display: none; }
+.tl-body > * + * { margin-top: 9px; padding-top: 9px; border-top: 1px solid color-mix(in srgb, var(--text) 12%, transparent); }
+.tl-label { margin-bottom: 3px; color: var(--text-faint); font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+.tl-body pre {
+  max-height: 300px; margin: 0; overflow-x: hidden; overflow-y: auto; color: var(--text);
+  font: 11.5px/1.65 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+/* 差异（旧版 diff.js、styles.css:2861-2967）：一张卡片，头一行做了什么、路径、加减；一行一行，加的绿底、删的红底 */
+.diff-file { overflow: hidden; border-radius: var(--radius); background: var(--surface-1); box-shadow: var(--bubble-shadow); font: 400 11px var(--mono); }
+.diff-file-head { display: flex; align-items: baseline; gap: 8px; padding: 8px 12px 7px; }
+/* 「修改」「新建」是中文：等宽字体里中文占两格、看着字距拉开，用正文字体 */
+.diff-op { flex: none; color: var(--text-soft); font-family: var(--sans); font-weight: 600; }
+.diff-op.is-add { color: var(--diff-add); }
+.diff-path { flex: 1; min-width: 0; overflow: hidden; color: var(--text); text-overflow: ellipsis; white-space: nowrap; }
+.diff-stat { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; }
+.diff-stat-add { color: var(--diff-add); }
+.diff-stat-del { color: var(--diff-del); }
+.diff-lines { max-height: 320px; padding-bottom: 4px; overflow-y: auto; line-height: 1.6; }
+.diff-hunk { padding: 3px 12px; color: var(--text-faint); }
+.diff-line { display: flex; white-space: pre-wrap; }
+.diff-gutter { flex: none; width: 1.9em; opacity: 0.65; text-align: center; }
+.diff-text { flex: 1; min-width: 0; padding-right: 12px; overflow-wrap: anywhere; }
+.diff-line.is-keep .diff-text { color: var(--text-soft); }
+.diff-line.is-added { background: color-mix(in srgb, var(--diff-add) 13%, transparent); }
+.diff-line.is-removed { background: color-mix(in srgb, var(--diff-del) 12%, transparent); }
+.diff-line.is-added .diff-gutter { color: var(--diff-add); opacity: 1; }
+.diff-line.is-removed .diff-gutter { color: var(--diff-del); opacity: 1; }
+
+/* 读回来的历史不淡入 */
+.tl-segment.is-static .tl-summary-text, .tl-segment.is-static .tl-step { animation: none; }
+
+@keyframes tl-fadein { from { opacity: 0; transform: translateY(4px); } }
+@keyframes tl-shimmer { to { background-position: -200% 0; } }
+@keyframes tl-breathe { 50% { opacity: 0.35; } }
+@keyframes tl-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 836px) {
+  .tl-subject { max-width: 40vw; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tl-segment *, .tl-segment *::before, .tl-segment *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+}
+
+/* 三个球（旧版 styles.css:4825-4875 原样）：三颗点摆成三角，顺时针转一圈 → 聚合到中心 → 展开成三角 → 逆时针
+   转一圈 → 聚合 → 展开，6 秒一圈，100% 与 0% 同姿态。三色是发金、缎带、瞳蓝。 */
+.miyu-run {
+  --mrun: 6s;
+  display: inline-block;
+  width: 34px;
+  height: 20px;
+  position: relative;
+  align-self: center;
+}
+.miyu-run .mr-spin {
+  position: absolute;
+  inset: 0;
+  animation: mr-spin var(--mrun) ease-in-out infinite;
+}
+.miyu-run i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px;
+  border-radius: 50%;
+}
+.miyu-run .mr1 { background: var(--gold); animation: mr1 var(--mrun) ease-in-out infinite; }
+.miyu-run .mr2 { background: var(--ribbon); animation: mr2 var(--mrun) ease-in-out infinite; }
+.miyu-run .mr3 { background: var(--accent); animation: mr3 var(--mrun) ease-in-out infinite; }
+/* 0-25% 顺时针一圈（三角展开着），25-50% 停在 360°（聚合、展开时不转），50-75% 逆时针转回 0°，75-100% 停着 */
+@keyframes mr-spin { 0%{transform:rotate(0)} 25%{transform:rotate(360deg)} 50%{transform:rotate(360deg)} 75%{transform:rotate(0)} 100%{transform:rotate(0)} }
+/* 三角 TL(-8,5) TOP(0,-7) TR(8,5)；聚合到中心缩到 .72 */
+@keyframes mr1 {
+  0%,25%{transform:translate(-8px,5px)} 37%{transform:translate(0,0) scale(.72)} 50%,75%{transform:translate(-8px,5px)}
+  87%{transform:translate(0,0) scale(.72)} 100%{transform:translate(-8px,5px)} }
+@keyframes mr2 {
+  0%,25%{transform:translate(0,-7px)} 37%{transform:translate(0,0) scale(.72)} 50%,75%{transform:translate(0,-7px)}
+  87%{transform:translate(0,0) scale(.72)} 100%{transform:translate(0,-7px)} }
+@keyframes mr3 {
+  0%,25%{transform:translate(8px,5px)} 37%{transform:translate(0,0) scale(.72)} 50%,75%{transform:translate(8px,5px)}
+  87%{transform:translate(0,0) scale(.72)} 100%{transform:translate(8px,5px)} }
+@media (prefers-reduced-motion: reduce) {
+  .miyu-run .mr-spin, .miyu-run i { animation-duration: 0s; }
+}
+/* 她说话的头下面那一份：上下留一点白，别贴着头像那一行；等比缩到 0.55，左边不动（旧版用户觉得偏大；2026-09-30 项目主人：0.7 还大） */
+.miyu-run.typing-run { margin: 3px 0 5px 2px; transform: scale(0.55); transform-origin: left center; }

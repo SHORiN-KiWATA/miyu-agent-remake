@@ -1,0 +1,215 @@
+/* 对话区（蓝图 web.md「对话区」，照旧版 styles.css:1402-2442、11355-11366）：你的话靠右的气泡；
+   她的话头上头像和名字、不加气泡，内容缩进 40px；收尾那一行照 TUI，等宽、暗。 */
+
+.stage { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; background: var(--surface); }
+/* 空会话（新会话、还没有一句话）：输入框在对话区正中，发出第一句话滑到底下（app.js 放动画；蓝图「对话区」的「空会话」） */
+.stage.is-empty { justify-content: center; }
+.stage.is-empty .chat-scroll { flex: 0 0 0; }
+/* 正文滚到输入框上沿时淡出去，不是一刀切断（2026-09-30 改） */
+.chat-scroll {
+  /* 滚到哪由 follow.js 管：关掉浏览器自己的滚动锚定，不然上面的内容一变高矮它自己挪 scrollTop，被当成人滚的 */
+  flex: 1; min-height: 0; overflow-y: auto; overflow-anchor: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+}
+.timeline { width: min(100%, 980px); margin: 0 auto; padding: 24px 30px 42px; }
+
+/* 你说的话：下面 27px 的空算在它里面，悬停到按钮上不断 */
+.user-message { position: relative; display: grid; justify-items: end; padding-bottom: 27px; }
+/* 别人说的（别的账号、子代理、别的 harness、平台上的人）：气泡上面一行小字写是谁（蓝图 web.md「不是你说的话」） */
+.user-speaker { margin-bottom: 4px; color: var(--text-faint); font-size: 12px; }
+/* 子代理的会话里「来自「父会话」」：能点，回到那个会话 */
+.user-speaker.is-link {
+  display: inline-flex; max-width: min(62%, 420px); align-items: center; gap: 3px; padding: 0; border: 0; background: none;
+  font: inherit; font-size: 12px; cursor: pointer;
+}
+/* 父会话的标题长的截掉（整句在悬停提示里） */
+.user-speaker-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-speaker.is-link:hover { color: var(--text-soft); }
+.user-speaker.is-link .icon { width: 11px; height: 11px; }
+
+/* 不挂在她头下的一行：回报、压缩、清空（蓝图 web.md「后台命令、子代理的回报」「压缩、清空」）。和收尾那一行一样对齐、
+   一样大：缩进到她的内容那一列，等宽 13px，字暗、记号有颜色；能点开的悬停亮一档，点开下面铺底色 */
+.note { margin-bottom: 30px; padding-left: 40px; color: var(--t-dim); font: 13px/1.6 var(--mono); }
+.note-line { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.note-text { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.note-line.tone-good .note-mark { color: var(--t-good); }
+/* 停掉的（人停的、她停的、随撤销、因重启、中断）：同一个实心圆点，text_soft（2026-09-30 项目主人定） */
+.note-line.tone-stopped .note-mark { color: var(--text-soft); }
+.note-line.tone-error .note-mark { color: var(--t-error); }
+.note.is-expandable .note-line { cursor: pointer; transition: color 0.15s ease; }
+.note.is-expandable .note-line:hover { color: color-mix(in srgb, var(--text) 84%, var(--surface)); }
+.note-detail { margin-top: 8px; margin-left: 0; font-family: var(--sans); }
+/* 点开、收起：和时间线点开一步同一个壳（高度从 0 长出来、收回去，淡入淡出，timeline.css 的 .tl-fold） */
+.note .tl-fold { --tl-ease: cubic-bezier(0.22, 0.61, 0.36, 1); }
+.note.is-open > .tl-fold { grid-template-rows: 1fr; opacity: 1; }
+.note-detail pre { max-height: 360px; margin: 0; overflow: auto; font: 12px/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.note-detail-head { margin-bottom: 6px; color: var(--text-faint); font-size: 12px; }
+/* 子代理交回的报告：照她的回答画，字小一档 */
+.note-report { color: var(--text); font-size: 14px; line-height: 1.7; }
+
+/* 你的话带的附件：气泡上面靠右一排，放不下折行，和气泡隔 6px（蓝图 web.md「附件」第 6 条） */
+.user-attachments { display: flex; max-width: min(62%, 640px); flex-wrap: wrap; justify-content: flex-end; margin-bottom: 6px; gap: 8px; }
+.user-attachments .conversation-media { margin: 0; }
+.user-attachments .conversation-media, .user-attachments .conversation-media-visual, .user-attachments .conversation-media img { max-width: min(100%, var(--user-media)); }
+.user-attachments .conversation-media img { max-height: var(--user-media); }
+.user-attachments .conversation-media-visual { border-radius: 10px; }
+.user-attachments .conversation-media-visual.has-aspect { width: min(var(--user-media), 100%); max-height: var(--user-media); }
+.user-file {
+  position: relative; display: flex; width: 112px; height: 104px; flex: none; flex-direction: column; gap: 4px; padding: 10px 11px; overflow: hidden;
+  border-radius: 12px; background: color-mix(in srgb, var(--surface-2) 50%, var(--surface-1)); box-shadow: var(--card-shadow); color: var(--text); text-align: left;
+  text-decoration: none; transition: background-color 0.15s ease;
+}
+.user-file:hover { background: var(--surface-2); }
+.user-file-name {
+  display: -webkit-box; overflow: hidden; font-size: 13px; font-weight: 600; line-height: 17px; overflow-wrap: anywhere;
+  -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+}
+.user-file-sub { overflow: hidden; color: var(--text-faint); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+.user-file-ext {
+  position: absolute; bottom: 8px; left: 8px; max-width: calc(100% - 16px); padding: 1px 6px; overflow: hidden; border-radius: 5px;
+  background: var(--surface-3); color: var(--text-soft); font-size: 11px; font-weight: 600; letter-spacing: 0.02em; line-height: 16px;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.user-file:hover .user-file-ext { background: var(--surface-3); }
+/* 你的话里的视频：第一帧，中间一个播放记号；点了原地换成带控制条的播放器 */
+.user-video {
+  position: relative; display: grid; max-width: min(100%, var(--user-media)); max-height: var(--user-media); overflow: hidden;
+  place-items: center; border-radius: 10px; background: var(--surface-2); cursor: pointer;
+}
+.user-video video { display: block; max-width: 100%; max-height: var(--user-media); object-fit: contain; }
+.user-video-play {
+  position: absolute; display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%;
+  background: rgb(0 0 0 / 55%); color: #fff; transition: transform 0.15s ease;
+}
+.user-video:hover .user-video-play { transform: scale(1.08); }
+.user-video-play .icon { width: 15px; height: 15px; margin-left: 2px; fill: currentColor; }
+.user-video-player { max-width: min(100%, 480px); max-height: 56vh; border-radius: 10px; background: #000; }
+/* 你的气泡：一层淡淡的底，不加阴影；右下角收小一点像个尾巴（旧版的形状，圆角放软） */
+.user-bubble {
+  max-width: min(62%, 640px); padding: 10px 16px; border-radius: 16px 16px 5px 16px;
+  background: color-mix(in srgb, var(--text) 5.5%, var(--surface)); color: var(--text);
+  font-size: 15px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+/* 她的一轮 */
+.assistant-message { position: relative; max-width: 92%; margin-bottom: 30px; padding-left: 40px; }
+.assistant-label { display: flex; align-items: center; margin-bottom: 5px; gap: 8px; }
+.assistant-label img {
+  position: absolute; top: 0; left: 0; width: 30px; height: 30px; border-radius: 50%; object-fit: cover;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--gold) 75%, transparent);
+}
+.assistant-label strong { color: var(--text-soft); font-size: 11.5px; font-weight: 600; letter-spacing: 0.01em; }
+.assistant-content { color: var(--text); font-size: 15px; line-height: 1.75; }
+.assistant-content > * + * { margin-top: 10px; }
+
+/* 收尾那一行（tui.md「正文」第 4 条）：和上面的回答之间空一行（正文的一行高），等宽 13px、暗；出错的红 */
+.assistant-content > .turn-end { margin-top: calc(15px * 1.75); }
+/* 她正在回答时来的回报：夹在她这一块里，上下两段时间线中间；已经在她的内容那一列里，不再缩进，上下留和时间线一样的空 */
+.assistant-content > .note { margin-bottom: 0; padding-left: 0; }
+.turn-end { display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; color: var(--t-dim); font: 13px/1.6 var(--mono); }
+.turn-end-text { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.turn-end.tone-error { color: var(--t-error); }
+/* 打断的那一轮后面那一句「后台还有 N 个在跑」：点了打开后台任务（蓝图「后台任务」第 6 条） */
+.turn-end-jobs { padding: 0; border: 0; background: none; color: var(--text-soft); font: inherit; cursor: pointer; }
+.turn-end-jobs:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+
+/* 你的话、她一轮末尾的按钮（said.js，照 Claude 网页端，2026-09-30 项目主人定）：28×28、圆角 8，图标 14px 暗，
+   悬停亮、铺一层淡底。编辑、重做只有最新的一轮有，在回答时没有 */
+.msg-actions { display: flex; gap: 2px; }
+.msg-action {
+  display: grid; width: 28px; height: 28px; place-items: center; padding: 0; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text-faint); cursor: pointer; transition: background-color 0.12s ease, color 0.12s ease;
+}
+.msg-action:hover { background: color-mix(in srgb, var(--text) 6%, transparent); color: var(--text); }
+.msg-action .icon { width: 14px; height: 14px; }
+.user-message:not(.is-latest) .is-edit, .assistant-message:not(.is-latest) .is-redo,
+.chat-scroll.is-running .is-edit, .chat-scroll.is-running .is-redo { display: none; }
+/* 你的话：浮在气泡右下角下面的空里，悬停才露 */
+.user-actions { position: absolute; right: 0; bottom: 0; opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }
+.user-actions .msg-action { height: 26px; }
+.user-message:hover .user-actions, .user-actions:focus-within { opacity: 1; pointer-events: auto; }
+.user-message.is-editing .user-actions { display: none; }
+/* 她的一轮：收尾那一行后面；最新的一轮一直露着，更早的悬停在这一轮上才露；不撑高那一行 */
+.turn-actions { margin: -4px 0; opacity: 0; transition: opacity 0.15s ease; }
+.assistant-message.is-latest .turn-actions, .assistant-message:hover .turn-actions, .turn-actions:focus-within { opacity: 1; }
+
+/* 编辑你的话：气泡换成一个输入框，下面右对齐「取消」「发送」 */
+.user-edit {
+  width: min(100%, 720px); padding: 10px 12px 8px 16px; border-radius: 16px; transform-origin: right bottom;
+  background: var(--surface-1); box-shadow: var(--composer-focus-shadow); animation: pop-in var(--motion-in) var(--ease-out) both;
+}
+.user-edit.is-leaving { animation: fade-out var(--motion-out) var(--ease-in) both; }
+.edit-input {
+  display: block; width: 100%; max-height: 40vh; padding: 0; overflow-y: auto; border: 0; outline: 0; resize: none;
+  background: transparent; color: var(--text); font: 15px/1.7 var(--sans);
+}
+.edit-bar { display: flex; justify-content: flex-end; margin-top: 6px; gap: 6px; }
+.edit-cancel, .edit-send { height: 30px; padding: 0 13px; border: 0; border-radius: 9px; font: 500 13px var(--sans); cursor: pointer; }
+.edit-cancel { background: transparent; color: var(--text-soft); }
+.edit-cancel:hover { background: color-mix(in srgb, var(--text) 6%, transparent); color: var(--text); }
+.edit-send { background: var(--accent); color: var(--on-primary); }
+.edit-send:hover { background: color-mix(in srgb, var(--accent) 88%, var(--text)); }
+
+@media (max-width: 836px) {
+  .note { padding-left: 38px; }
+  .timeline { padding: 22px 13px 32px; }
+  .user-bubble, .user-attachments { max-width: 86%; }
+  .assistant-message { max-width: 100%; padding-left: 38px; }
+  .assistant-label img { width: 28px; height: 28px; }
+}
+
+
+/* 对话区右边的挂载位（软件包 rail 这类挂进来）：不占地方，挂进来的自己定位在对话区那一栏上 */
+.stage-right { display: contents; }
+.slot-failed { color: var(--danger); font-size: 12px; }
+
+/* 软件包的浮层（/pkg）：居中的一张卡，半透明加毛玻璃，和菜单一个样子；一行一个包，右边开关 */
+.pkg-layer { position: fixed; z-index: 80; display: grid; place-items: center; inset: 0; animation: fade-in var(--motion-in) var(--ease-out) both; }
+.pkg-layer.is-leaving { animation: fade-out var(--motion-out) var(--ease-in) both; }
+.pkg-layer.is-leaving .pkg-panel { animation: pop-out var(--motion-out) var(--ease-in) both; }
+.pkg-scrim { position: absolute; border: 0; background: var(--scrim); inset: 0; }
+.pkg-panel {
+  position: relative; width: min(560px, calc(100vw - 32px)); max-height: 70vh; padding: 14px 10px 10px; overflow-y: auto;
+  border: 1px solid var(--line); border-radius: 16px; background: color-mix(in srgb, var(--surface-1) 94%, transparent);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: var(--float-shadow); animation: pop-in var(--motion-in) var(--ease-out) both;
+}
+.pkg-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 8px 10px; color: var(--text); }
+.pkg-head span { color: var(--text-faint); font-size: 12px; }
+.pkg-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 9px 8px; border-radius: 10px; }
+.pkg-row:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
+.pkg-name { display: flex; min-width: 0; align-items: baseline; gap: 8px; color: var(--text); font-size: 14px; }
+.pkg-name code { color: var(--text-faint); font: 12px var(--mono); }
+.pkg-state { display: flex; min-width: 0; align-items: center; gap: 6px; font-size: 12px; }
+.pkg-chip { padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--text-soft); }
+.pkg-row.is-active .pkg-chip { background: color-mix(in srgb, var(--online) 16%, transparent); color: var(--online); }
+.pkg-row.is-failed .pkg-chip { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.pkg-why { max-width: 180px; overflow: hidden; color: var(--text-faint); text-overflow: ellipsis; white-space: nowrap; }
+.pkg-base { color: var(--text-faint); font-size: 12px; }
+.pkg-switch { position: relative; width: 34px; height: 20px; padding: 0; border: 0; border-radius: 999px; background: var(--surface-3); cursor: pointer; transition: background-color 0.15s ease; }
+.pkg-switch i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface-1); box-shadow: var(--bubble-shadow); transition: transform 0.15s ease; }
+.pkg-switch.is-on { background: var(--accent); }
+.pkg-switch.is-on i { transform: translateX(14px); }
+
+/* 子代理的会话顶上那条路径（蓝图 web.md「对话区」的「子代理的会话顶上那条路径」）：高 40px，占着地方（正文从它下面起），下面一根
+   line 细线；路径，前面几段 text_soft、悬停 text、能点，最后一段 text。左栏收起、窄屏时让开左上角的按钮。回派它的那一层的按钮在
+   输入框正上方（composer.css 的 .back-row） */
+.chat-crumbs {
+  display: flex; flex: none; align-items: center; gap: 6px; height: 40px; padding: 0 16px; border-bottom: 1px solid var(--line);
+  background: var(--surface); animation: drop-in var(--motion-in) var(--ease-out) both;
+}
+.chat-crumbs.is-leaving { animation: lift-out var(--motion-out) var(--ease-in) both; }
+.app-shell.is-sidebar-collapsed .chat-crumbs { padding-left: 52px; }
+.crumb-path { display: flex; min-width: 0; align-items: center; gap: 2px; font-size: 13px; }
+.crumb {
+  min-width: 0; max-width: 220px; padding: 3px 6px; overflow: hidden; border: 0; border-radius: 6px; background: none;
+  color: var(--text-soft); font: inherit; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
+}
+.crumb:hover { background: color-mix(in srgb, var(--text) 5%, transparent); color: var(--text); }
+.crumb.is-here { flex: 1 1 auto; padding: 3px 6px; color: var(--text); cursor: default; }
+.crumb-sep { display: grid; flex: none; place-items: center; color: var(--text-faint); }
+.crumb-sep .icon { width: 12px; height: 12px; }
+.crumb-gap { flex: none; padding: 0 4px; color: var(--text-faint); }
+@media (max-width: 836px) {
+  .chat-crumbs, .app-shell.is-sidebar-collapsed .chat-crumbs { padding-left: 52px; }
+}

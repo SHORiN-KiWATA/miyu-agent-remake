@@ -1,0 +1,35 @@
+/* 右边的跳转条（软件包 rail；蓝图 web.md「右边的跳转条」，照 ChatGPT 网页端）：一句一条短横线，正在看的亮、长一点；指针进这一列，
+   左边弹出一个浮层列出每一句，样子和菜单一样 */
+.prompt-rail {
+  position: absolute; top: 50%; right: 6px; z-index: 12; display: flex; align-items: center;
+  transform: translateY(-50%);
+}
+.rail-lines { display: flex; width: 28px; max-height: 60vh; flex-direction: column; align-items: flex-end; padding: 6px 4px; overflow: hidden; gap: 6px; }
+.rail-line {
+  width: 14px; height: 2px; flex: none; padding: 0; border: 0; border-radius: 1px;
+  background: var(--text-faint); opacity: 0.55; cursor: pointer; transition: width 0.15s ease, opacity 0.15s ease, background-color 0.15s ease;
+}
+/* 线只有 2px 高：点的地方往上下各多 3px，那 3px 不上色（只改 background-color，别用简写把 clip 冲掉） */
+.rail-line { box-sizing: content-box; border-block: 3px solid transparent; background-clip: padding-box; margin-block: -3px; }
+.rail-line.is-current { width: 20px; background-color: var(--accent); opacity: 1; }
+.rail-line:hover { opacity: 1; }
+.rail-pop {
+  position: absolute; top: 50%; right: 34px; width: max-content; max-width: 320px; max-height: 60vh; padding: 6px; overflow-y: auto;
+  border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--surface-1) 90%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2); backdrop-filter: blur(16px) saturate(1.2); box-shadow: var(--float-shadow);
+  transform: translateY(-50%) scale(0.96); transform-origin: right center; opacity: 0; pointer-events: none;
+  transition: opacity 0.12s ease-in, transform 0.12s ease-in;
+}
+/* 出来：从那一列那边淡入、放大到原样；收起：淡出、缩一点 */
+.rail-pop.is-open {
+  transform: translateY(-50%); opacity: 1; pointer-events: auto;
+  transition: opacity 0.16s ease-out, transform 0.16s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.rail-list { display: flex; flex-direction: column; gap: 2px; }
+.rail-item {
+  display: block; max-width: 100%; padding: 7px 10px; overflow: hidden; border: 0; border-radius: 9px; background: transparent;
+  color: var(--text-soft); font: 13px/1.45 var(--sans); text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
+}
+.rail-item:hover { background: color-mix(in srgb, var(--text) 5%, transparent); color: var(--text); }
+.rail-item.is-current { background: var(--surface-2); color: var(--text); }
+@media (max-width: 836px) { .prompt-rail { display: none; } }

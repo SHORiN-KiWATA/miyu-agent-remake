@@ -1,0 +1,123 @@
+/* 她的回答的 Markdown（蓝图 web.md「她的回答：Markdown」第 5、6、9 条，照旧版 styles.css:2486-2859、11370-11395、8491-8494，
+   数照旧版原样）。类名照 src/markdown/build.js 造的。颜色从主题来：--link、--code-bg、--code-ink、--tok-*（resources/themes/）。
+   旧版的 --app-bg 就是这里的 --surface，--font-mono 是 --mono，--fs-micro 是 11px，--fs-chat 是 15px。
+   先是 .markdown-body 自己的样子；她的回答直接铺在页面底色上，代码块、表格、行内代码在 .assistant-content 里另换一层底（旧版同样两层）。 */
+
+.markdown-body { min-width: 0; overflow-wrap: anywhere; }
+.markdown-body > :first-child { margin-top: 0; }
+.markdown-body > :last-child { margin-bottom: 0; }
+.markdown-body p { margin: 0 0 10px; }
+
+/* 标题：# 是 h2，往下顺延 */
+.markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 {
+  margin: 18px 0 8px; color: var(--text); font-weight: 700; line-height: 1.35; letter-spacing: 0;
+}
+.markdown-body h2 { font-size: 17px; }
+.markdown-body h3 { margin: 14px 0 6px; font-size: 15.5px; }
+.markdown-body h4, .markdown-body h5, .markdown-body h6 { margin: 12px 0 5px; font-size: 15px; }
+
+/* 列表：不嵌套；任务列表的勾选框不能点 */
+.markdown-body ul, .markdown-body ol { display: grid; margin: 0 0 10px; padding-left: 20px; gap: 3px; }
+.markdown-body li::marker { color: var(--text-soft); }
+.markdown-body .task-list { padding-left: 2px; }
+.markdown-body .task-list-item {
+  display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: start; column-gap: 8px; list-style: none;
+}
+.markdown-body .task-list-item input { width: 15px; height: 15px; margin: 3px 0 0; accent-color: var(--accent); opacity: 1; }
+
+.markdown-body blockquote {
+  margin: 0 0 10px; padding: 7px 13px; border-left: 3px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0;
+  background: color-mix(in srgb, var(--accent-soft) 35%, transparent); color: var(--text-soft); font-size: 14px;
+}
+.markdown-body hr { height: 1px; margin: 14px 0; border: 0; background: var(--line); }
+.markdown-body del { color: var(--text-faint); }
+
+/* 表格：去外框和竖线，只留淡横线，太宽的自己横着滚 */
+.markdown-body .markdown-table-scroll {
+  max-width: 100%; margin: 0 0 10px; overflow-x: auto; border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface-2) 45%, transparent); scrollbar-color: var(--line-strong) transparent;
+}
+.markdown-body table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.markdown-body th, .markdown-body td {
+  max-width: 360px; padding: 7px 14px; border: 0; text-align: left; vertical-align: top; overflow-wrap: anywhere;
+}
+.markdown-body th {
+  border-bottom: 1px solid var(--line); color: var(--text-soft); font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+}
+.markdown-body td { border-bottom: 1px solid color-mix(in srgb, var(--line) 45%, transparent); }
+.markdown-body tbody tr:last-child td { border-bottom: 0; }
+.markdown-body .align-center { text-align: center; }
+.markdown-body .align-right { text-align: right; }
+
+.markdown-body code:not(pre code) {
+  padding: 1px 6px; border: 0; border-radius: var(--radius); background: var(--surface-2);
+  font-family: var(--code-font); font-size: 0.86em; overflow-wrap: anywhere;
+}
+
+/* 链接：定值的蓝，不跟主题（旧版 09-09 定：「蓝色带下划线 = 能点」有肌肉记忆） */
+.markdown-body a {
+  color: var(--link); font-weight: 600; text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--link) 35%, transparent); text-underline-offset: 3px; overflow-wrap: anywhere;
+}
+.markdown-body a:hover { text-decoration-color: var(--link); }
+/* 「标题（地址）」整行一个链接：地址那半截退半档，标题还是主角 */
+.markdown-body .link-url { font-weight: 400; opacity: 0.72; }
+/* 本机路径：点一下是复制，指针先说清楚 */
+.markdown-body a.path-link { cursor: copy; }
+
+/* 代码块：一块面板，不靠描边，靠底色（旧版 09-09 定） */
+.code-block { margin: 2px 0 12px; overflow: hidden; border: 0; border-radius: var(--radius); background: var(--code-bg); color: var(--code-ink); }
+.code-toolbar {
+  display: flex; min-height: 30px; align-items: center; justify-content: space-between; padding: 3px 6px 0 14px;
+  color: color-mix(in srgb, var(--code-ink) 50%, transparent);
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+}
+.code-copy-button {
+  display: grid; width: 25px; height: 23px; place-items: center; padding: 0; border: 0; border-radius: var(--radius);
+  background: transparent; color: color-mix(in srgb, var(--code-ink) 60%, transparent); cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.code-copy-button:hover { background: color-mix(in srgb, var(--code-ink) 12%, transparent); color: var(--code-ink); }
+.code-copy-button .icon { width: 13px; height: 13px; }
+.code-block pre {
+  max-height: 420px; margin: 0; padding: 4px 16px 13px; overflow: auto; color: var(--code-ink);
+  font-family: var(--code-font); font-size: 12.5px; line-height: 1.7; tab-size: 2;
+}
+.code-block code { white-space: pre; }
+
+/* 代码的颜色：九种（c 注释、p 标点、o 运算符、k 关键字、s 字符串、n 数、f 函数、t 类型标签、y 属性变量），
+   外加差异的增删行、markdown 的粗斜（src/markdown/highlight.js） */
+.tok-c { color: var(--tok-c); font-style: italic; }
+.tok-p { color: var(--tok-p); }
+.tok-o { color: var(--tok-o); }
+.tok-k { color: var(--tok-k); }
+.tok-s { color: var(--tok-s); }
+.tok-n { color: var(--tok-n); }
+.tok-f { color: var(--tok-f); }
+.tok-t { color: var(--tok-t); }
+.tok-y { color: var(--tok-y); }
+.tok-b { font-weight: 650; }
+.tok-i { font-style: italic; }
+/* 差异的增删行：颜色之外垫一层极淡的底；删除用红（tok-y），不用关键字的紫 */
+.tok-ins { background: color-mix(in srgb, var(--tok-s) 15%, transparent); color: var(--tok-s); }
+.tok-del { background: color-mix(in srgb, var(--tok-y) 15%, transparent); color: var(--tok-y); }
+
+/* 公式（KaTeX）：独占几行的横着滚，颜色跟着字 */
+.markdown-body .math-block { overflow-x: auto; overflow-y: hidden; padding: 6px 2px; margin: 10px 0; }
+.markdown-body .math-block .katex-display { margin: 0; }
+.markdown-body .math-inline .katex { font-size: 1.05em; }
+.markdown-table-scroll .math-inline .katex { font-size: 1em; }
+
+/* 她的回答直接铺在页面底色上（旧版 styles.css:11355-11395）：代码块和表格是一张 surface_1 的卡片，不画描边，一点点影
+   （card_shadow；2026-09-30 项目主人定：卡片的描边不好看），行内代码的底是正文色兑底色的中性灰 */
+.assistant-content .code-block { --code-bg: var(--surface-1); box-shadow: var(--card-shadow); }
+.assistant-content .markdown-body code:not(pre code) {
+  border-radius: 8px; background: color-mix(in srgb, var(--text) 9%, var(--surface));
+}
+.assistant-content .markdown-table-scroll { border-radius: var(--radius); background: var(--surface-1); box-shadow: var(--card-shadow); }
+.assistant-content .markdown-body table { background: none; }
+.assistant-content .markdown-body th {
+  border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--text) 5%, var(--surface-1));
+}
+.assistant-content .markdown-body td { border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.assistant-content .markdown-body tr:last-child td { border-bottom: 0; }

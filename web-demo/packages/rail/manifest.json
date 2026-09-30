@@ -1,0 +1,61 @@
+{
+  "id": "rail",
+  "version": "0.1.0",
+  "name": {
+    "zh-CN": "右边的跳转条"
+  },
+  "kind": "optional",
+  "description": {
+    "zh-CN": "你说的一句话一条短横线，正在看的那条亮；指针靠近列出每一句，点哪句滚到哪句（照 ChatGPT 网页端）。"
+  },
+  "inject": [
+    "slots",
+    "chat"
+  ],
+  "settings": {
+    "min_prompts": {
+      "type": "number",
+      "default": 2,
+      "min": 1,
+      "integer": true,
+      "name": {
+        "zh-CN": "你说的话到几句才画"
+      }
+    },
+    "current_at": {
+      "type": "number",
+      "default": 0.33,
+      "min": 0,
+      "max": 1,
+      "name": {
+        "zh-CN": "正在看的那一句：顶边在视口上面几分之几以内"
+      }
+    },
+    "jump_margin": {
+      "type": "number",
+      "default": 24,
+      "min": 0,
+      "name": {
+        "zh-CN": "跳过去那一句离视口顶多远（px）"
+      }
+    },
+    "gutter": {
+      "type": "number",
+      "default": 40,
+      "min": 0,
+      "name": {
+        "zh-CN": "右边空白少于这么宽（px）就不画"
+      }
+    },
+    "close_ms": {
+      "type": "duration",
+      "default": 200,
+      "name": {
+        "zh-CN": "指针离开后过多久收起浮层"
+      }
+    }
+  },
+  "styles": [
+    "style.css"
+  ]
+}

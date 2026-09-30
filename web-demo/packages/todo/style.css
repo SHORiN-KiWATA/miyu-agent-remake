@@ -1,0 +1,15 @@
+/* 待办（软件包 todo；蓝图 web.md「待办」） */
+/* ── 待办：头一行「待办 2/5」，下面一项一行；和框里的字左对齐，点一下展开全部、再点收起 ── */
+.dock-todo { color: var(--text-soft); font-size: 13px; line-height: 20px; cursor: pointer; user-select: none; }
+/* 间距在里面这一层：收起来连间距一起收掉（外面两层是共用的 .unfold，出来、收掉的过渡） */
+.todo-body { padding: 0 19px 8px; }
+.todo-head { margin-bottom: 1px; color: var(--text-faint); font-size: 12px; }
+.todo-row { display: grid; grid-template-columns: 1.5em minmax(0, 1fr); }
+.todo-mark { font-family: var(--mono); }
+.todo-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dock-todo.is-full .todo-text { overflow: visible; overflow-wrap: anywhere; white-space: normal; }
+.todo-row.is-active .todo-mark { color: var(--accent); }
+.todo-row.is-active .todo-text { color: var(--text); font-weight: 500; }
+.todo-row.is-done, .todo-row.is-folded, .todo-row.is-more { color: var(--text-faint); }
+.todo-row.is-done .todo-text { text-decoration: line-through; }
+.todo-row.is-more .todo-text { grid-column: 1 / -1; }

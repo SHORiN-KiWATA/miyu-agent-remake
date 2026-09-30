@@ -1,0 +1,770 @@
+{
+  "id": "theme-morning",
+  "version": "0.1.0",
+  "name": {
+    "zh-CN": "晨光"
+  },
+  "kind": "optional",
+  "description": {
+    "zh-CN": "一套颜色：晨光（浅色）。每个颜色都是设置项，能单改。"
+  },
+  "note": "浅色。从角色取色（眼睛 #3368c0、发色 #e8c48e、缎带 #853b49、衬衫 #faf2e9），照 MD3 生成（material-color-utilities 0.4，TONAL_SPOT，对比度 0）；强调色取 tone 40。page 一段是旧版网页的名字，括号里是 MD3 的角色：surface（surface）、sidebar_bg（surface_container）、surface_1（surface_container_lowest：浮起来的比底亮，照旧版浅色）、surface_2（surface_container_high）、surface_3（surface_container_highest）、text（on_surface）、text_soft（on_surface_variant）、line（outline_variant）、line_strong（outline）、accent（primary）、accent_soft（primary_container）、gold（secondary）、ribbon（tertiary）。tui 一段照 TUI 演示的语义色，在晨光的底上重新取（对比度够）。link、code_bg、code_ink、tok_* 是 Markdown 的，照旧版浅色（styles.css:163-225）：链接是定值，不跟主题；代码底是页面自己的底 surface，代码字是 text 和底八五开；tok_* 是 One Light 的九种颜色（注释压暗了一档）。她的回答里代码块的底另换成 surface_1（styles/markdown.css，照旧版）。",
+  "palette": {
+    "id": "morning",
+    "scheme": "light"
+  },
+  "inject": [
+    "slots"
+  ],
+  "settings": {
+    "surface": {
+      "type": "color",
+      "default": "#faf9f7",
+      "name": {
+        "zh-CN": "surface"
+      },
+      "applies": "live"
+    },
+    "sidebar_bg": {
+      "type": "color",
+      "default": "#f8f7f4",
+      "name": {
+        "zh-CN": "sidebar_bg"
+      },
+      "applies": "live"
+    },
+    "surface_1": {
+      "type": "color",
+      "default": "#ffffff",
+      "name": {
+        "zh-CN": "surface_1"
+      },
+      "applies": "live"
+    },
+    "surface_2": {
+      "type": "color",
+      "default": "#efece7",
+      "name": {
+        "zh-CN": "surface_2"
+      },
+      "applies": "live"
+    },
+    "surface_3": {
+      "type": "color",
+      "default": "#e6e2db",
+      "name": {
+        "zh-CN": "surface_3"
+      },
+      "applies": "live"
+    },
+    "text": {
+      "type": "color",
+      "default": "#1d1c1a",
+      "name": {
+        "zh-CN": "text"
+      },
+      "applies": "live"
+    },
+    "text_soft": {
+      "type": "color",
+      "default": "#625d56",
+      "name": {
+        "zh-CN": "text_soft"
+      },
+      "applies": "live"
+    },
+    "line": {
+      "type": "color",
+      "default": "#e7e3dc",
+      "name": {
+        "zh-CN": "line"
+      },
+      "applies": "live"
+    },
+    "line_strong": {
+      "type": "color",
+      "default": "#d5cfc5",
+      "name": {
+        "zh-CN": "line_strong"
+      },
+      "applies": "live"
+    },
+    "accent": {
+      "type": "color",
+      "default": "#3a63c9",
+      "name": {
+        "zh-CN": "accent"
+      },
+      "applies": "live"
+    },
+    "accent_soft": {
+      "type": "color",
+      "default": "#e8eefb",
+      "name": {
+        "zh-CN": "accent_soft"
+      },
+      "applies": "live"
+    },
+    "on_primary": {
+      "type": "color",
+      "default": "#ffffff",
+      "name": {
+        "zh-CN": "on_primary"
+      },
+      "applies": "live"
+    },
+    "on_primary_container": {
+      "type": "color",
+      "default": "#1f3a82",
+      "name": {
+        "zh-CN": "on_primary_container"
+      },
+      "applies": "live"
+    },
+    "gold": {
+      "type": "color",
+      "default": "#b8892f",
+      "name": {
+        "zh-CN": "gold"
+      },
+      "applies": "live"
+    },
+    "ribbon": {
+      "type": "color",
+      "default": "#b14a5c",
+      "name": {
+        "zh-CN": "ribbon"
+      },
+      "applies": "live"
+    },
+    "online": {
+      "type": "color",
+      "default": "#2e8b57",
+      "name": {
+        "zh-CN": "online"
+      },
+      "applies": "live"
+    },
+    "danger": {
+      "type": "color",
+      "default": "#c2413b",
+      "name": {
+        "zh-CN": "danger"
+      },
+      "applies": "live"
+    },
+    "bubble_shadow": {
+      "type": "text",
+      "default": "0 1px 2px rgba(40, 32, 20, 0.05)",
+      "name": {
+        "zh-CN": "bubble_shadow"
+      },
+      "applies": "live"
+    },
+    "card_shadow": {
+      "type": "text",
+      "default": "0 1px 2px rgba(40, 32, 20, 0.04), 0 8px 24px -12px rgba(40, 32, 20, 0.16)",
+      "name": {
+        "zh-CN": "card_shadow"
+      },
+      "applies": "live"
+    },
+    "float_shadow": {
+      "type": "text",
+      "default": "0 18px 40px -12px rgba(40, 32, 20, 0.22), 0 3px 10px -3px rgba(40, 32, 20, 0.1)",
+      "name": {
+        "zh-CN": "float_shadow"
+      },
+      "applies": "live"
+    },
+    "peek_shadow": {
+      "type": "text",
+      "default": "14px 0 40px -16px rgba(40, 32, 20, 0.28), 1px 0 0 rgba(40, 32, 20, 0.05)",
+      "name": {
+        "zh-CN": "peek_shadow"
+      },
+      "applies": "live"
+    },
+    "sidebar_active": {
+      "type": "color",
+      "default": "#ebe8e2",
+      "name": {
+        "zh-CN": "sidebar_active"
+      },
+      "applies": "live"
+    },
+    "sidebar_active_shadow": {
+      "type": "text",
+      "default": "0 1px 2px rgba(40, 32, 20, 0.08), 0 3px 10px -5px rgba(40, 32, 20, 0.14)",
+      "name": {
+        "zh-CN": "sidebar_active_shadow"
+      },
+      "applies": "live"
+    },
+    "composer_shadow": {
+      "type": "text",
+      "default": "0 0 0 1px rgba(40, 32, 20, 0.035), 0 1px 3px rgba(40, 32, 20, 0.06), 0 8px 26px -10px rgba(40, 32, 20, 0.16)",
+      "name": {
+        "zh-CN": "composer_shadow"
+      },
+      "applies": "live"
+    },
+    "composer_focus_shadow": {
+      "type": "text",
+      "default": "0 0 0 1px rgba(40, 32, 20, 0.05), 0 2px 6px rgba(40, 32, 20, 0.07), 0 16px 40px -12px rgba(40, 32, 20, 0.26)",
+      "name": {
+        "zh-CN": "composer_focus_shadow"
+      },
+      "applies": "live"
+    },
+    "scrim": {
+      "type": "color",
+      "default": "rgba(28, 24, 18, 0.32)",
+      "name": {
+        "zh-CN": "scrim"
+      },
+      "applies": "live"
+    },
+    "diff_add": {
+      "type": "color",
+      "default": "#1a7f37",
+      "name": {
+        "zh-CN": "diff_add"
+      },
+      "applies": "live"
+    },
+    "diff_del": {
+      "type": "color",
+      "default": "#cf222e",
+      "name": {
+        "zh-CN": "diff_del"
+      },
+      "applies": "live"
+    },
+    "link": {
+      "type": "color",
+      "default": "#3a63c9",
+      "name": {
+        "zh-CN": "link"
+      },
+      "applies": "live"
+    },
+    "code_bg": {
+      "type": "text",
+      "default": "var(--surface)",
+      "name": {
+        "zh-CN": "code_bg"
+      },
+      "applies": "live"
+    },
+    "code_ink": {
+      "type": "color",
+      "default": "color-mix(in srgb, var(--text) 85%, var(--surface))",
+      "name": {
+        "zh-CN": "code_ink"
+      },
+      "applies": "live"
+    },
+    "tok_c": {
+      "type": "color",
+      "default": "#81828a",
+      "name": {
+        "zh-CN": "tok_c"
+      },
+      "applies": "live"
+    },
+    "tok_p": {
+      "type": "color",
+      "default": "#383a42",
+      "name": {
+        "zh-CN": "tok_p"
+      },
+      "applies": "live"
+    },
+    "tok_o": {
+      "type": "color",
+      "default": "#017eb4",
+      "name": {
+        "zh-CN": "tok_o"
+      },
+      "applies": "live"
+    },
+    "tok_k": {
+      "type": "color",
+      "default": "#a626a4",
+      "name": {
+        "zh-CN": "tok_k"
+      },
+      "applies": "live"
+    },
+    "tok_s": {
+      "type": "color",
+      "default": "#3f8141",
+      "name": {
+        "zh-CN": "tok_s"
+      },
+      "applies": "live"
+    },
+    "tok_n": {
+      "type": "color",
+      "default": "#986801",
+      "name": {
+        "zh-CN": "tok_n"
+      },
+      "applies": "live"
+    },
+    "tok_f": {
+      "type": "color",
+      "default": "#3a6fe0",
+      "name": {
+        "zh-CN": "tok_f"
+      },
+      "applies": "live"
+    },
+    "tok_t": {
+      "type": "color",
+      "default": "#a07001",
+      "name": {
+        "zh-CN": "tok_t"
+      },
+      "applies": "live"
+    },
+    "tok_y": {
+      "type": "color",
+      "default": "#d3453b",
+      "name": {
+        "zh-CN": "tok_y"
+      },
+      "applies": "live"
+    },
+    "artifact_shadow": {
+      "type": "text",
+      "default": "0 1px 2px rgba(40, 32, 20, 0.04), 0 12px 32px -14px rgba(40, 32, 20, 0.18)",
+      "name": {
+        "zh-CN": "artifact_shadow"
+      },
+      "applies": "live"
+    },
+    "t_dim": {
+      "type": "color",
+      "default": "#8a857c",
+      "name": {
+        "zh-CN": "终端色 dim"
+      },
+      "applies": "live"
+    },
+    "t_accent": {
+      "type": "color",
+      "default": "#3a63c9",
+      "name": {
+        "zh-CN": "终端色 accent"
+      },
+      "applies": "live"
+    },
+    "t_workspace": {
+      "type": "color",
+      "default": "#3a63c9",
+      "name": {
+        "zh-CN": "终端色 workspace"
+      },
+      "applies": "live"
+    },
+    "t_full": {
+      "type": "color",
+      "default": "#b14a5c",
+      "name": {
+        "zh-CN": "终端色 full"
+      },
+      "applies": "live"
+    },
+    "t_read_only": {
+      "type": "color",
+      "default": "#a0741f",
+      "name": {
+        "zh-CN": "终端色 read_only"
+      },
+      "applies": "live"
+    },
+    "t_thought": {
+      "type": "color",
+      "default": "#2d6f7b",
+      "name": {
+        "zh-CN": "终端色 thought"
+      },
+      "applies": "live"
+    },
+    "t_thought_hover": {
+      "type": "color",
+      "default": "#1d5560",
+      "name": {
+        "zh-CN": "终端色 thought_hover"
+      },
+      "applies": "live"
+    },
+    "t_shade": {
+      "type": "color",
+      "default": "#f2efea",
+      "name": {
+        "zh-CN": "终端色 shade"
+      },
+      "applies": "live"
+    },
+    "t_added": {
+      "type": "color",
+      "default": "#2e8b57",
+      "name": {
+        "zh-CN": "终端色 added"
+      },
+      "applies": "live"
+    },
+    "t_removed": {
+      "type": "color",
+      "default": "#c2413b",
+      "name": {
+        "zh-CN": "终端色 removed"
+      },
+      "applies": "live"
+    },
+    "t_diff_added_fg": {
+      "type": "color",
+      "default": "#006d39",
+      "name": {
+        "zh-CN": "终端色 diff_added_fg"
+      },
+      "applies": "live"
+    },
+    "t_diff_added_bg": {
+      "type": "color",
+      "default": "#ddf8de",
+      "name": {
+        "zh-CN": "终端色 diff_added_bg"
+      },
+      "applies": "live"
+    },
+    "t_diff_removed_fg": {
+      "type": "color",
+      "default": "#ba1a1a",
+      "name": {
+        "zh-CN": "终端色 diff_removed_fg"
+      },
+      "applies": "live"
+    },
+    "t_diff_removed_bg": {
+      "type": "color",
+      "default": "#ffe6e1",
+      "name": {
+        "zh-CN": "终端色 diff_removed_bg"
+      },
+      "applies": "live"
+    },
+    "t_error": {
+      "type": "color",
+      "default": "#c2413b",
+      "name": {
+        "zh-CN": "终端色 error"
+      },
+      "applies": "live"
+    },
+    "t_warn": {
+      "type": "color",
+      "default": "#a0741f",
+      "name": {
+        "zh-CN": "终端色 warn"
+      },
+      "applies": "live"
+    },
+    "t_good": {
+      "type": "color",
+      "default": "#2e8b57",
+      "name": {
+        "zh-CN": "终端色 good"
+      },
+      "applies": "live"
+    },
+    "t_md_heading": {
+      "type": "color",
+      "default": "#934654",
+      "name": {
+        "zh-CN": "终端色 md_heading"
+      },
+      "applies": "live"
+    },
+    "t_md_bold": {
+      "type": "color",
+      "default": "#1f1b14",
+      "name": {
+        "zh-CN": "终端色 md_bold"
+      },
+      "applies": "live"
+    },
+    "t_md_italic": {
+      "type": "color",
+      "default": "#4e4635",
+      "name": {
+        "zh-CN": "终端色 md_italic"
+      },
+      "applies": "live"
+    },
+    "t_md_code": {
+      "type": "color",
+      "default": "#8e4e00",
+      "name": {
+        "zh-CN": "终端色 md_code"
+      },
+      "applies": "live"
+    },
+    "t_md_link": {
+      "type": "color",
+      "default": "#235cb3",
+      "name": {
+        "zh-CN": "终端色 md_link"
+      },
+      "applies": "live"
+    },
+    "t_md_url": {
+      "type": "color",
+      "default": "#235cb3",
+      "name": {
+        "zh-CN": "终端色 md_url"
+      },
+      "applies": "live"
+    },
+    "t_md_image": {
+      "type": "color",
+      "default": "#762f3d",
+      "name": {
+        "zh-CN": "终端色 md_image"
+      },
+      "applies": "live"
+    },
+    "t_md_quote": {
+      "type": "color",
+      "default": "#746f68",
+      "name": {
+        "zh-CN": "终端色 md_quote"
+      },
+      "applies": "live"
+    },
+    "t_md_mark": {
+      "type": "color",
+      "default": "#7c5815",
+      "name": {
+        "zh-CN": "终端色 md_mark"
+      },
+      "applies": "live"
+    },
+    "t_md_table_head": {
+      "type": "color",
+      "default": "#235cb3",
+      "name": {
+        "zh-CN": "终端色 md_table_head"
+      },
+      "applies": "live"
+    },
+    "t_md_math": {
+      "type": "color",
+      "default": "#1f1b14",
+      "name": {
+        "zh-CN": "终端色 md_math"
+      },
+      "applies": "live"
+    },
+    "t_diagram_text": {
+      "type": "color",
+      "default": "#4e4635",
+      "name": {
+        "zh-CN": "终端色 diagram_text"
+      },
+      "applies": "live"
+    },
+    "t_diagram_line": {
+      "type": "color",
+      "default": "#807663",
+      "name": {
+        "zh-CN": "终端色 diagram_line"
+      },
+      "applies": "live"
+    },
+    "t_diagram_backdrop": {
+      "type": "color",
+      "default": "#fff8f2",
+      "name": {
+        "zh-CN": "终端色 diagram_backdrop"
+      },
+      "applies": "live"
+    },
+    "t_hover": {
+      "type": "color",
+      "default": "#3d3a35",
+      "name": {
+        "zh-CN": "终端色 hover"
+      },
+      "applies": "live"
+    },
+    "t_code_keyword": {
+      "type": "color",
+      "default": "#934654",
+      "name": {
+        "zh-CN": "终端色 code_keyword"
+      },
+      "applies": "live"
+    },
+    "t_code_function": {
+      "type": "color",
+      "default": "#235cb3",
+      "name": {
+        "zh-CN": "终端色 code_function"
+      },
+      "applies": "live"
+    },
+    "t_code_string": {
+      "type": "color",
+      "default": "#006d39",
+      "name": {
+        "zh-CN": "终端色 code_string"
+      },
+      "applies": "live"
+    },
+    "t_code_number": {
+      "type": "color",
+      "default": "#8e4e00",
+      "name": {
+        "zh-CN": "终端色 code_number"
+      },
+      "applies": "live"
+    },
+    "t_code_comment": {
+      "type": "color",
+      "default": "#807663",
+      "name": {
+        "zh-CN": "终端色 code_comment"
+      },
+      "applies": "live"
+    },
+    "t_code_type": {
+      "type": "color",
+      "default": "#006781",
+      "name": {
+        "zh-CN": "终端色 code_type"
+      },
+      "applies": "live"
+    },
+    "t_code_constant": {
+      "type": "color",
+      "default": "#8e4e00",
+      "name": {
+        "zh-CN": "终端色 code_constant"
+      },
+      "applies": "live"
+    },
+    "t_code_property": {
+      "type": "color",
+      "default": "#00696b",
+      "name": {
+        "zh-CN": "终端色 code_property"
+      },
+      "applies": "live"
+    },
+    "t_code_operator": {
+      "type": "color",
+      "default": "#4e4635",
+      "name": {
+        "zh-CN": "终端色 code_operator"
+      },
+      "applies": "live"
+    },
+    "t_code_macro": {
+      "type": "color",
+      "default": "#004494",
+      "name": {
+        "zh-CN": "终端色 code_macro"
+      },
+      "applies": "live"
+    },
+    "t_code_parameter": {
+      "type": "color",
+      "default": "#7c5815",
+      "name": {
+        "zh-CN": "终端色 code_parameter"
+      },
+      "applies": "live"
+    },
+    "t_mascot_head": {
+      "type": "color",
+      "default": "#fbf6ef",
+      "name": {
+        "zh-CN": "吉祥物 头"
+      },
+      "applies": "live"
+    },
+    "t_mascot_ear": {
+      "type": "color",
+      "default": "#aab2d6",
+      "name": {
+        "zh-CN": "吉祥物 耳朵"
+      },
+      "applies": "live"
+    },
+    "t_mascot_eye": {
+      "type": "color",
+      "default": "#3a63c9",
+      "name": {
+        "zh-CN": "吉祥物 眼睛"
+      },
+      "applies": "live"
+    },
+    "t_mascot_fin": {
+      "type": "color",
+      "default": "#f49aa8",
+      "name": {
+        "zh-CN": "吉祥物 鳍"
+      },
+      "applies": "live"
+    },
+    "t_mascot_head_shade": {
+      "type": "color",
+      "default": "#c9c3d9",
+      "name": {
+        "zh-CN": "吉祥物 头的影子"
+      },
+      "applies": "live"
+    },
+    "t_mascot_ear_shade": {
+      "type": "color",
+      "default": "#737ba3",
+      "name": {
+        "zh-CN": "吉祥物 耳朵的影子"
+      },
+      "applies": "live"
+    },
+    "t_mascot_fin_shade": {
+      "type": "color",
+      "default": "#c86478",
+      "name": {
+        "zh-CN": "吉祥物 鳍的影子"
+      },
+      "applies": "live"
+    },
+    "t_mascot_outline": {
+      "type": "color",
+      "default": "#4a4260",
+      "name": {
+        "zh-CN": "吉祥物 轮廓"
+      },
+      "applies": "live"
+    },
+    "t_mascot_lamp": {
+      "type": "color",
+      "default": "#5aa9ff",
+      "name": {
+        "zh-CN": "吉祥物 肚子上的灯"
+      },
+      "applies": "live"
+    }
+  },
+  "text": {
+    "zh-CN": {
+      "name": "晨光"
+    }
+  }
+}

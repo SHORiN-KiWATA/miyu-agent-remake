@@ -1,0 +1,66 @@
+{
+  "id": "attachments",
+  "version": "0.1.0",
+  "name": {
+    "zh-CN": "附件"
+  },
+  "kind": "optional",
+  "description": {
+    "zh-CN": "输入框里放图片和文件：回形针、拖进来、粘贴；先交给桥，再 blob.put，跟着话一起发。"
+  },
+  "inject": [
+    "slots",
+    "core",
+    "host",
+    "composer"
+  ],
+  "settings": {
+    "max_files": {
+      "type": "number",
+      "default": 10,
+      "min": 1,
+      "integer": true,
+      "name": {
+        "zh-CN": "一次最多放几个"
+      }
+    },
+    "max_mib": {
+      "type": "number",
+      "default": 20,
+      "min": 1,
+      "max": 20,
+      "name": {
+        "zh-CN": "一个最大多少 MiB（核心最多收 20）"
+      }
+    },
+    "count_lines_max": {
+      "type": "number",
+      "default": 1048576,
+      "min": 0,
+      "integer": true,
+      "name": {
+        "zh-CN": "文字文件多大以内数有几行（字节）"
+      }
+    }
+  },
+  "styles": [
+    "style.css"
+  ],
+  "text": {
+    "zh-CN": {
+      "attach": "添加附件",
+      "remove": "拿掉",
+      "uploading": "在传",
+      "too_big": "{name} 太大：一个最多 {mib} MiB",
+      "too_many": "一次最多 {max} 个",
+      "failed": "{name} 没传上：{reason}",
+      "reasons": {
+        "attachment_too_big": "太大了（最多 20 MiB，图片最多 5 MiB、每边 8000 像素）",
+        "attachment_unreadable": "读不了",
+        "attachment_in_data_root": "Miyu 的数据目录里的文件不能当附件"
+      },
+      "drop_here": "把文件拖到这里",
+      "lines": "{count} 行"
+    }
+  }
+}

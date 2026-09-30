@@ -1,0 +1,59 @@
+/* 全部会话（蓝图 web.md「全部会话」，照 Claude 网页端的 Chats 页）：占对话区那一块，左栏照旧在；进出淡入淡出 */
+.sessions-page {
+  position: absolute; z-index: 12; inset: 0; overflow-y: auto; background: var(--surface);
+  animation: fade-in var(--motion-in) var(--ease-out) both;
+}
+.sessions-page.is-leaving { animation: fade-out var(--motion-out) var(--ease-in) both; }
+.sessions-inner { width: min(100% - 60px, 960px); margin: 0 auto; padding: 44px 0 60px; }
+.sessions-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 28px; }
+.sessions-title { margin: 0; color: var(--text); font: 600 26px/1.2 var(--serif); letter-spacing: 0.01em; }
+.sessions-tools { display: flex; align-items: center; gap: 8px; }
+.sessions-search-box {
+  display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border-radius: 10px; background: var(--surface-1);
+  box-shadow: var(--composer-shadow); color: var(--text-faint);
+}
+.sessions-search-box:focus-within { box-shadow: var(--composer-focus-shadow); }
+.sessions-search-box .icon { width: 15px; height: 15px; }
+.sessions-search { width: 180px; border: 0; outline: 0; background: none; color: var(--text); font: inherit; font-size: 13px; }
+.sessions-button {
+  display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border: 0; border-radius: 10px;
+  background: var(--surface-1); box-shadow: var(--composer-shadow); color: var(--text); font: inherit; font-size: 13px; cursor: pointer;
+  transition: box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.sessions-button:hover { box-shadow: var(--composer-focus-shadow); }
+/* 新会话：深色实底（照 Claude 的 New） */
+.sessions-button.is-primary { background: var(--text); box-shadow: none; color: var(--surface); }
+.sessions-button.is-primary:hover { background: color-mix(in srgb, var(--text) 86%, var(--surface)); }
+.sessions-button .icon { width: 15px; height: 15px; }
+.sessions-count { margin-right: 4px; color: var(--text); font-size: 13px; }
+.sessions-icon.is-danger { color: var(--danger); }
+.sessions-icon.is-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 15%, transparent); }
+.sessions-icon:disabled { opacity: 0.35; cursor: default; }
+/* 一行：标题、什么时候开的，行与行之间一根细线；悬停铺一层淡底 */
+.sessions-list { display: grid; grid-template-columns: minmax(0, 1fr); }
+.sessions-row {
+  display: flex; min-width: 0; align-items: center; gap: 10px; min-height: 52px; padding: 0 10px; border: 0; border-bottom: 1px solid var(--line);
+  border-radius: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.sessions-row:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
+.sessions-row.is-selected { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.sessions-row.is-leaving { overflow: hidden; pointer-events: none; animation: item-out var(--motion-collapse) ease-in-out both; }
+.sessions-name { min-width: 0; flex: 1; overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.sessions-name.is-untitled { color: var(--text-faint); }
+.sessions-when { flex: none; color: var(--text-faint); font-size: 12.5px; }
+/* 派过子代理的：机器人加「N 个子代理」，text_faint */
+.sessions-agents { display: inline-flex; flex: none; align-items: center; gap: 5px; color: var(--text-faint); font-size: 12.5px; }
+.sessions-agents .icon { width: 13px; height: 13px; }
+/* 有后台任务在跑的：时刻左边一个呼吸的点加「N 个后台任务」，accent（和框下面那一行一样） */
+.sessions-jobs { display: inline-flex; flex: none; align-items: center; gap: 6px; color: var(--accent); font-size: 12.5px; }
+.sessions-jobs-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: sessions-breathe 1.8s ease-in-out infinite; }
+@keyframes sessions-breathe { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .sessions-jobs-dot { animation: none; } }
+.sessions-check .icon { width: 15px; height: 15px; color: var(--text-faint); }
+.sessions-row.is-selected .sessions-check .icon { color: var(--accent); }
+.sessions-empty { padding: 40px 0; color: var(--text-faint); font-size: 13px; text-align: center; }
+@media (max-width: 836px) {
+  .sessions-inner { width: calc(100% - 26px); padding-top: 56px; }
+  .sessions-search { width: 120px; }
+}

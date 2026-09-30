@@ -1,0 +1,103 @@
+/* 后台任务（软件包 jobs；蓝图 web.md「后台任务」） */
+
+/* 框下面那一行中间的按钮：accent，点慢慢呼吸；悬停加下划线 */
+.jobs-pill {
+  display: inline-flex; align-items: center; gap: 7px; padding: 0; border: 0; background: none; color: var(--accent);
+  font: inherit; cursor: pointer;
+}
+.jobs-pill:hover .jobs-pill-text { text-decoration: underline; text-underline-offset: 3px; }
+.jobs-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: jobs-breathe 1.8s ease-in-out infinite; }
+@keyframes jobs-breathe { 50% { opacity: 0.35; } }
+
+/* 浮层：和命令列表同一个位置、同一个样子；进场升上来，退场沉下去 */
+.jobs-panel {
+  position: absolute; z-index: 3; right: -1px; bottom: calc(100% + 1px + var(--list-gap, 6px)); left: -1px;
+  padding: 6px; border: 1px solid var(--line); border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-1) 90%, transparent); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  box-shadow: var(--float-shadow); animation: rise-in var(--motion-in) var(--ease-out) both;
+}
+.jobs-panel.is-leaving { animation: sink-out var(--motion-out) var(--ease-in) both; }
+/* 头一行：「后台任务」、几个在跑几个结束了；右边「全部停掉」（在跑的不止一个时才有） */
+.jobs-head { display: flex; align-items: baseline; gap: 8px; padding: 5px 10px 8px; line-height: 18px; }
+.jobs-head-title { color: var(--text); font-size: 13px; font-weight: 600; }
+.jobs-head-count { min-width: 0; flex: 1; overflow: hidden; color: var(--text-faint); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.jobs-stop-all {
+  flex: none; padding: 2px 8px; border: 0; border-radius: 7px; background: transparent; color: var(--text-soft); font: inherit; font-size: 12px; cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.jobs-stop-all:hover { background: color-mix(in srgb, var(--ribbon) 14%, transparent); color: var(--ribbon); }
+.jobs-list { display: grid; max-height: 360px; overflow-y: auto; }
+/* 一行：图标 16px，一行字，右边状态、停止；高 32px；嵌套的一层缩进 20px */
+.jobs-row {
+  --indent: calc(var(--depth, 0) * 20px); --tree-line: var(--line-strong);
+  position: relative; display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 2px 8px 2px calc(10px + var(--indent));
+  border-radius: 9px; color: var(--text);
+}
+.jobs-row:hover, .jobs-row.is-previewing { background: var(--surface-2); }
+.jobs-row { cursor: pointer; }
+/* 左边：照种类的图标（子代理机器人、后台命令终端） */
+.jobs-mark { display: grid; width: 16px; height: 16px; flex: none; place-items: center; color: var(--text-soft); }
+.jobs-mark .icon { width: 15px; height: 15px; }
+/* 右边：状态的记号接一段字。在跑的转圈（accent），停在半路的暂停（warn），完成的勾（good），失败的叉（danger），停了的小方块 */
+.jobs-state { display: flex; flex: none; align-items: center; gap: 5px; color: var(--text-faint); font: 12px var(--mono); font-variant-numeric: tabular-nums; }
+.jobs-state-mark { display: grid; width: 12px; height: 12px; place-items: center; }
+.jobs-state-mark .icon { width: 12px; height: 12px; }
+.jobs-row.is-running .jobs-state-mark { color: var(--accent); }
+.jobs-row.is-running .jobs-state-mark .icon { animation: jobs-spin 1s linear infinite; }
+@keyframes jobs-spin { to { transform: rotate(360deg); } }
+.jobs-row.is-paused .jobs-state { color: var(--t-warn); }
+.jobs-row.is-done .jobs-state-mark { color: var(--t-good); }
+.jobs-row.is-failed .jobs-state { color: var(--danger); }
+.jobs-square { width: 7px; height: 7px; border-radius: 2px; background: var(--text-faint); }
+/* 中间一行字：标题（放不下截掉）后面接编号（等宽、淡），派过子代理的再接「派了 N 个」 */
+.jobs-text { display: flex; min-width: 0; flex: 1; align-items: baseline; gap: 7px; }
+.jobs-id { flex: none; color: var(--text-faint); font: 11.5px var(--mono); }
+.jobs-title { min-width: 0; overflow: hidden; font-size: 13px; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; }
+.jobs-spawned { flex: none; color: var(--text-faint); font-size: 11.5px; }
+.jobs-row.is-running .jobs-state { color: var(--text-soft); }
+/* 文件树的线（和左栏一样，line_strong）：父子代理记号正下方一根竖线，每个子代理一小段横线接到它的记号，最后一个是 └ */
+.jobs-lines { position: absolute; inset: 0; pointer-events: none; }
+.jobs-guide, .jobs-elbow { position: absolute; top: 0; bottom: 0; left: calc(18px + (var(--level) - 1) * 20px); width: 9px; }
+.jobs-guide { width: 1px; background: var(--tree-line); }
+.jobs-elbow::before { position: absolute; top: 0; bottom: 0; left: 0; width: 1px; background: var(--tree-line); content: ""; }
+.jobs-elbow.is-last::before { bottom: 50%; }
+.jobs-elbow::after { position: absolute; top: 50%; left: 0; width: 8px; height: 1px; background: var(--tree-line); content: ""; }
+.jobs-row.has-kids::after {
+  position: absolute; top: calc(50% + 10px); bottom: 0; left: calc(18px + var(--indent)); width: 1px; background: var(--tree-line); content: "";
+}
+/* 「已结束 N 个」：一行，末尾一个箭头，开着朝下 */
+.jobs-done {
+  /* 往下滚时钉在列表顶上，随时点得到收起（底色不透明，下面滚过去的不透出来） */
+  position: sticky; z-index: 2; top: 0;
+  display: flex; align-items: center; gap: 6px; min-height: 32px; margin-top: 2px; padding: 0 10px; border: 0; border-radius: 9px; background: var(--surface-1);
+  color: var(--text-faint); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer;
+}
+.jobs-done:hover { background: var(--surface-2); color: var(--text-soft); }
+.jobs-done .icon { width: 11px; height: 11px; transition: transform 160ms ease; }
+.jobs-done.is-open .icon { transform: rotate(90deg); }
+.jobs-empty { padding: 10px 10px 12px; color: var(--text-faint); font-size: 12.5px; }
+/* 展开、收起（「已结束」、后台命令的预览）：和时间线点开一步同一个动效，高度从 0 长出来、收回去，淡入淡出（--jobs-fold 照 fold_ms） */
+.jobs-fold {
+  display: grid; grid-template-rows: 0fr; opacity: 0;
+  transition: grid-template-rows var(--jobs-fold, 380ms) cubic-bezier(0.22, 0.61, 0.36, 1), opacity var(--jobs-fold, 380ms) ease;
+}
+.jobs-fold.is-open { grid-template-rows: 1fr; opacity: 1; }
+.jobs-fold-inner { display: grid; min-height: 0; overflow: hidden; }
+/* 后台命令的预览：缩进到标题那一列；「命令」「输出」两段，等宽，输出最高 220px、在里面滚 */
+.jobs-preview { display: grid; gap: 8px; margin: 2px 8px 6px calc(36px + var(--depth, 0) * 20px); padding: 9px 10px; border-radius: 9px; background: color-mix(in srgb, var(--text) 5%, transparent); }
+.jobs-preview-label { margin-bottom: 3px; color: var(--text-faint); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; }
+.jobs-preview-note { margin-bottom: 3px; color: var(--text-faint); font-size: 11.5px; }
+.jobs-command, .jobs-output { margin: 0; color: var(--text-soft); font: 12px/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.jobs-output { max-height: 220px; overflow-y: auto; overscroll-behavior: contain; }
+.jobs-stop {
+  display: grid; width: 26px; height: 26px; flex: none; padding: 0; place-items: center; border: 0; border-radius: 7px;
+  background: transparent; color: var(--text-soft); cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease;
+}
+.jobs-stop .stop-mark { width: 9px; height: 9px; border-radius: 2px; background: currentColor; }
+.jobs-stop:hover:not(:disabled) { background: color-mix(in srgb, var(--ribbon) 16%, transparent); color: var(--ribbon); }
+.jobs-stop:disabled { opacity: 0.4; cursor: default; }
+
+@media (prefers-reduced-motion: reduce) {
+  .jobs-dot, .jobs-row.is-running .jobs-state-mark .icon { animation: none; }
+  .jobs-fold { transition: none; }
+}

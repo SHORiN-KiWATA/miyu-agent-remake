@@ -1,0 +1,21 @@
+/* 吉祥物（软件包 mascot；蓝图 web.md「吉祥物」）：整页最前面一层，不接鼠标，只有画布接（拖、点）。位置、压扁、歪都是 behavior.js
+   一帧一帧写的 transform，不要过渡。手里的东西盖在身子前面，底边离脚 --prop-dy，拿出来从下面弹出来，收起来缩回去。窄屏不出来 */
+.mascot-layer { position: fixed; z-index: 40; inset: 0; overflow: hidden; pointer-events: none; }
+.mascot { position: absolute; top: 0; left: 0; line-height: 0; will-change: transform; }
+.mascot-body { position: relative; }
+.mascot-canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; cursor: grab; pointer-events: auto; touch-action: none; }
+.mascot.is-dragging .mascot-canvas { cursor: grabbing; }
+.mascot-prop {
+  position: absolute; right: -12px; bottom: calc(var(--foot-gap, 0px) + var(--prop-dy, 0px)); left: -12px; display: flex; justify-content: center;
+  pointer-events: none; transform-origin: 50% 100%; animation: mascot-prop-in 220ms cubic-bezier(0.34, 1.5, 0.64, 1) both;
+}
+.mascot-prop.is-leaving { animation: mascot-prop-out var(--motion-out) var(--ease-in) both; }
+.mascot-prop-canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+@keyframes mascot-prop-in { from { opacity: 0; transform: translateY(6px) scale(0.6); } }
+@keyframes mascot-prop-out { to { opacity: 0; transform: translateY(4px) scale(0.7); } }
+@media (max-width: 836px) {
+  .mascot-layer { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mascot-prop, .mascot-prop.is-leaving { animation: none; }
+}

@@ -1,0 +1,116 @@
+// @ts-check
+//! 正文里不是你说的、不挂在她头下的几样（蓝图 `web.md`「不是你说的话」「后台命令、子代理的回报」「压缩、清空」）：
+//! 谁说的、后台命令和子代理的回报那一行、压缩和清空那一行，和收尾那一行出错时那一句。纯函数，字在 `text/zh.json` 的 `notes`，
+//! 记号在 `layout.json` 的 `note_marks`。
+
+import { res, t } from '../util/res.js';
+import { seconds } from './format.js';
+
+/**
+ * @typedef {{what: string, title: string, session: string|null, command: string|null}} Job 派出去的一个任务（`tool.result` 的效果
+ *   `job.started`；命令照派它的那次 `shell` 调用的 `command`）
+ * @typedef {{kind: string, account: string|null, name: string}} Speaker 一句话是谁说的
+ * @typedef {{kind: 'output', command: string|null, hash: string|null, chars: number|null}|{kind: 'text', text: string, truncated: boolean}} Detail
+ *   点开一行看什么：后台命令的命令和整份输出（blob），子代理交回的正文（Markdown）
+ */
+
+/** 内核自己查出来的几种错：不是供应商的原话，写分类的人话（`tui.md`「正文」第 4 条）。 */
+const KERNEL_CLASSES = ['bad_stream', 'empty_reply', 'bad_summary', 'compaction_paused'];
+
+/**
+ * 一条 `tool.result` 里派出去的任务，记进 `jobs`（任务编号 → 种类、标题、子会话、命令）。
+ * @param {any} e
+ * @param {Map<string, Job>} jobs
+ * @param {Map<string, string>} args 调用编号 → 那次调用的参数（原样的 JSON）
+ */
+export function noteJobs(e, jobs, args) {
+  for (const fx of e.body.effects ?? []) {
+    if (fx.kind !== 'job.started') continue;
+    let command = null;
+    try { command = JSON.parse(args.get(e.body.call_id) ?? '{}').command ?? null; } catch { /* 参数读不懂的不写命令 */ }
+    jobs.set(fx.job, { what: fx.what, title: fx.title, session: fx.session ?? null, command: typeof command === 'string' ? command : null });
+  }
+}
+
+/**
+ * 一句话是谁说的：人照账号；子代理照派它的那次的标题；别的 harness 照它报的名字、注明是别的 agent；平台上的人写「外部」。
+ * @param {any} by 事件的 `by`
+ * @param {Map<string, Job>} jobs
+ * @param {string|null} [parent] 这个会话是子会话的：派它的那个会话（`session.created` 的 `parent`）
+ * @returns {Speaker}
+ */
+export function speakerOf(by, jobs, parent = null) {
+  const n = res.text.notes;
+  if (by?.kind === 'person') return { kind: 'person', account: by.account ?? null, name: by.account ?? '' };
+  if (by?.kind === 'session') {
+    const job = [...jobs.values()].find((j) => j.session === by.id);
+    if (job) return { kind: 'agent', account: null, name: t('notes.agent_speaker', { title: job.title }) };
+    return { kind: by.id === parent ? 'parent' : 'session', account: null, name: by.id === parent ? n.parent_speaker : n.other_session, id: by.id };
+  }
+  if (by?.kind === 'harness') return { kind: 'harness', account: null, name: t('notes.harness_speaker', { name: by.name ?? '' }) };
+  if (by?.kind === 'external') return { kind: 'external', account: null, name: n.external };
+  return { kind: by?.kind ?? 'unknown', account: null, name: by?.kind ?? '' };
+}
+
+/**
+ * 回报那一行（`job.reported`、`child.reported`）：不属于哪一轮。
+ * @param {any} e
+ * @param {Map<string, Job>} jobs
+ */
+export function reportNote(e, jobs) {
+  const b = e.body;
+  const job = jobs.get(b.job);
+  const what = e.kind === 'child.reported' ? 'agent' : 'command';
+  const title = job?.title ?? b.job;
+  const texts = res.text.notes[what];
+  const marks = res.layout.note_marks;
+  let tone = 'dim';
+  let text;
+  if (what === 'command' && b.reason === 'exited') {
+    const ok = b.signal == null && b.exit_code === 0;
+    tone = ok ? 'good' : 'error';
+    text = ok ? t(`notes.${what}.done`, { title }) + (b.duration_ms != null ? ` · ${seconds(b.duration_ms)}` : '')
+      : b.signal != null ? t(`notes.${what}.signal`, { title, signal: b.signal }) : t(`notes.${what}.failed`, { title, code: b.exit_code });
+  } else if (what === 'agent' && b.reason === 'done') {
+    tone = 'good';
+    text = t(`notes.${what}.done`, { title });
+  } else if (texts[b.reason]) {
+    // 停掉的（人停的、她停的、随撤销、因重启、中断）：同一个实心圆点，不写是谁停的（2026-09-30 项目主人定）
+    tone = 'stopped';
+    text = t(`notes.${what}.${b.reason}`, { title });
+  } else {
+    text = t('notes.unknown', { what: texts.name, title, reason: b.reason });
+  }
+  /** @type {Detail} */
+  const detail = what === 'agent'
+    ? { kind: 'text', text: b.text ?? '', truncated: !!b.truncated }
+    : { kind: 'output', command: job?.command ?? null, hash: b.output ?? null, chars: b.chars ?? null };
+  return { type: 'note', key: `n${e.seq}`, seq: e.seq, turn: null, tone, mark: marks[tone] ?? '', text, detail };
+}
+
+/** 压缩、清空那一行（`context.compacted`）：清空的绿点「上下文已清空」，别的「上下文已压缩」，附了要求的接上。 */
+export function compactedNote(e) {
+  const b = e.body;
+  const clear = b.trigger === 'clear';
+  const ask = !clear && b.instructions ? t('notes.instructions', { text: b.instructions.replace(/\s+/g, ' ').trim() }) : '';
+  return {
+    type: 'note', key: `n${e.seq}`, seq: e.seq, turn: e.turn ?? null, tone: 'good', mark: res.layout.note_marks.good,
+    text: t(clear ? 'notes.cleared' : 'notes.compacted') + ask, compaction: clear ? 'clear' : (b.trigger ?? 'auto'), detail: null,
+  };
+}
+
+/**
+ * 出错那一句（收尾那一行的「出错了：…」）：供应商的原话照写；429、402、404 前面加一句人话（以前的日志没有状态码，限速的当 429）；
+ * 内核自己查出来的写分类的人话，有原话的接后面；什么都没有的写分类。
+ * @param {{class?: string, message?: string, status?: number}} f `model.called` 的 `error`
+ */
+export function failureText(f) {
+  const classes = res.text.error_classes;
+  const message = (f.message ?? '').trim();
+  const cls = f.class ?? 'other';
+  if (KERNEL_CLASSES.includes(cls)) return message ? `${classes[cls] ?? cls}：${message}` : classes[cls] ?? cls;
+  const status = f.status ?? (cls === 'rate_limited' ? 429 : null);
+  const hint = status != null ? res.text.status_hints[String(status)] : null;
+  if (hint) return message ? `${hint}：${message}` : hint;
+  return message || classes[cls] || cls;
+}

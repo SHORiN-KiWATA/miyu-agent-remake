@@ -1,0 +1,528 @@
+{
+  "id": "mascot",
+  "version": "0.1.0",
+  "name": {
+    "zh-CN": "吉祥物"
+  },
+  "kind": "optional",
+  "description": {
+    "zh-CN": "页面上一个像素小吉祥物（和 TUI 首页同一个模型）：受重力，站在输入框上、能在整页底下走；能拖、会摔；她回答时敲电脑，没人动时玩游戏机；眨眼、看鼠标和光标、抖耳朵。"
+  },
+  "inject": [
+    "slots",
+    "composer",
+    "chat",
+    "sessions"
+  ],
+  "settings": {
+    "model": {
+      "type": "json",
+      "default": {
+        "shapes": [
+          {
+            "part": "head",
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "radii": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "tilt": 0.0
+          },
+          {
+            "part": "ear",
+            "center": [
+              -0.33,
+              1.12,
+              0.0
+            ],
+            "radii": [
+              0.11,
+              0.28,
+              0.07
+            ],
+            "tilt": 0.45,
+            "mirror": true
+          },
+          {
+            "part": "fin",
+            "center": [
+              -0.62,
+              -1.08,
+              0.1
+            ],
+            "radii": [
+              0.42,
+              0.16,
+              0.1
+            ],
+            "tilt": 0.5,
+            "mirror": true,
+            "follow": 0.35
+          }
+        ],
+        "face": {
+          "eyes": [
+            [
+              [
+                -0.3,
+                0.2
+              ],
+              [
+                -0.3,
+                0.58
+              ]
+            ],
+            [
+              [
+                0.3,
+                0.2
+              ],
+              [
+                0.3,
+                0.58
+              ]
+            ]
+          ],
+          "eye_width": 0.09,
+          "line": [
+            [
+              -0.98,
+              -0.08
+            ],
+            [
+              -0.78,
+              0.25
+            ],
+            [
+              -0.54,
+              -0.16
+            ],
+            [
+              0.0,
+              0.25
+            ],
+            [
+              0.54,
+              -0.16
+            ],
+            [
+              0.78,
+              0.25
+            ],
+            [
+              0.98,
+              -0.08
+            ]
+          ],
+          "line_width": 0.055,
+          "mouth_gap": 0.26,
+          "belly": {
+            "center": [
+              0.0,
+              -0.46
+            ],
+            "half": [
+              0.21,
+              0.2
+            ],
+            "round": 0.2,
+            "ring": 0.075
+          }
+        },
+        "light": [
+          -0.25,
+          0.3,
+          0.92
+        ],
+        "ambient": 0.7,
+        "levels": 4,
+        "stride_lift": 0.18,
+        "crouch_drop": 0.3,
+        "crouch_squish": 0.2,
+        "stride_swing": 0.4
+      },
+      "name": {
+        "zh-CN": "模型：形状、脸、灯光（照 TUI 的 mascot.json；脸上的线按像素调粗了一点）"
+      }
+    },
+    "cols": {
+      "type": "number",
+      "default": 24,
+      "name": {
+        "zh-CN": "画成几格宽"
+      },
+      "min": 8,
+      "integer": true
+    },
+    "rows": {
+      "type": "number",
+      "default": 24,
+      "name": {
+        "zh-CN": "画成几格高"
+      },
+      "min": 8,
+      "integer": true
+    },
+    "radius": {
+      "type": "number",
+      "default": 8,
+      "name": {
+        "zh-CN": "头的半径占几格"
+      },
+      "min": 2
+    },
+    "center_row": {
+      "type": "number",
+      "default": 13.6,
+      "name": {
+        "zh-CN": "头的中心在第几行"
+      }
+    },
+    "pixel": {
+      "type": "number",
+      "default": 2,
+      "name": {
+        "zh-CN": "一格几个像素"
+      },
+      "min": 1,
+      "integer": true
+    },
+    "home": {
+      "type": "json",
+      "default": {
+        "right": 64,
+        "edge": 22
+      },
+      "name": {
+        "zh-CN": "平常站在哪：离输入框右边多远；输入框两头圆角那一段不算台子，各让多少"
+      }
+    },
+    "gravity": {
+      "type": "number",
+      "default": 2600,
+      "name": {
+        "zh-CN": "重力（像素每平方秒）"
+      },
+      "min": 100
+    },
+    "land": {
+      "type": "json",
+      "default": {
+        "squash": 0.9,
+        "per_speed": 1500,
+        "period_ms": 260,
+        "decay_ms": 150,
+        "stretch_max": 0.3,
+        "stretch_per_speed": 2600,
+        "bounce_min": 650,
+        "bounce": 0.22,
+        "dizzy_min": 900,
+        "dizzy_ms": 450
+      },
+      "name": {
+        "zh-CN": "落地：最多蹲多深、落多快蹲到最深、一蹲一抻的周期和衰减、在空中最多抻多长、落多快抻到最长、落多快会弹起来、弹多高、落多快会晕一下（闭眼）、晕多久"
+      }
+    },
+    "carry": {
+      "type": "json",
+      "default": {
+        "half_life_ms": 45,
+        "snap_px": 40
+      },
+      "name": {
+        "zh-CN": "被台子带着走：跟上去多快；台子往下挪多少以内跟着挪（再多就掉下去）"
+      }
+    },
+    "drag": {
+      "type": "json",
+      "default": {
+        "threshold_px": 4,
+        "tilt_per_speed": 0.02,
+        "max_tilt": 22.0,
+        "tilt_half_life_ms": 70,
+        "max_throw": 1400
+      },
+      "name": {
+        "zh-CN": "拖：挪多远算拖、身子甩多少、最多甩多少度、甩的缓动、松手最快扔多快"
+      }
+    },
+    "activity": {
+      "type": "json",
+      "default": {
+        "game_after_ms": 45000,
+        "game_ms": [
+          15000,
+          30000
+        ],
+        "frame_ms": 160,
+        "type_bob_px": 1
+      },
+      "name": {
+        "zh-CN": "动作：没人动多久掏游戏机、玩多久、道具一帧多久、打字时身子颠多少"
+      }
+    },
+    "props": {
+      "type": "json",
+      "default": {
+        "legend": {
+          "o": "outline",
+          "L": "ear_shade",
+          "B": "ear",
+          "G": "lamp",
+          "g": "ear",
+          "r": "fin",
+          "b": "ear",
+          "S": "outline",
+          "P": "head",
+          "E": "fin",
+          "W": "head",
+          "w": "fin_shade",
+          "Y": "head",
+          "y": "ear_shade"
+        },
+        "laptop": {
+          "dy": 0,
+          "frames": [
+            [
+              ".oooooooooooooo.",
+              ".oLLLLLLLLLLLLo.",
+              ".oLLLLLLLLLLLLo.",
+              ".oLLLLLGGLLLLLo.",
+              ".oLLLLGGGGLLLLo.",
+              ".oLLLLLGGLLLLLo.",
+              ".oLLLLLLLLLLLLo.",
+              "oooooooooooooooo",
+              "oBBBBBBBBBBBBBBo",
+              ".oooooooooooooo."
+            ],
+            [
+              ".oooooooooooooo.",
+              ".oLLLLLLLLLLLLo.",
+              ".oLLLLLLLLLLLLo.",
+              ".oLLLLLggLLLLLo.",
+              ".oLLLLggggLLLLo.",
+              ".oLLLLLggLLLLLo.",
+              ".oLLLLLLLLLLLLo.",
+              "oooooooooooooooo",
+              "oBBBBBBBBBBBBBBo",
+              ".oooooooooooooo."
+            ]
+          ]
+        },
+        "console": {
+          "dy": 8,
+          "frames": [
+            [
+              ".rrooooooooooobb.",
+              "rrroSSSSSSSSSobbb",
+              "rWroSSSSSSSSSobyb",
+              "rrroSSSSSSSSSobbb",
+              "rWroSSSSSSSSSobyb",
+              "rrroSSPSSSSSEobbb",
+              ".rrooooooooooobb."
+            ],
+            [
+              ".rrooooooooooobb.",
+              "rrroSSSSSSSSSobbb",
+              "rwroSSSSSSSSSobYb",
+              "rrroSSSSSSSSSobbb",
+              "rwroSSPSSSSSSobYb",
+              "rrroSSSSSSESSobbb",
+              ".rrooooooooooobb."
+            ],
+            [
+              ".rrooooooooooobb.",
+              "rrroSSSSSSSSSobbb",
+              "rWroSSSSSSSSSobyb",
+              "rrroSSPSSSSSSobbb",
+              "rWroSSSSSSSSSobyb",
+              "rrroSSSSESSSSobbb",
+              ".rrooooooooooobb."
+            ],
+            [
+              ".rrooooooooooobb.",
+              "rrroSSSSSSSSSobbb",
+              "rwroSSSSSSSSSobYb",
+              "rrroSSSSSSSSSobbb",
+              "rwroSSPSSSSSSobYb",
+              "rrroSSESSSSSSobbb",
+              ".rrooooooooooobb."
+            ],
+            [
+              ".rrooooooooooobb.",
+              "rrroSSSSSSSSSobbb",
+              "rWroSSSSSSSSSobyb",
+              "rrroSSSSSSSSSobbb",
+              "rWroSSSSSSSSSobyb",
+              "rrroESPSSSSSSobbb",
+              ".rrooooooooooobb."
+            ],
+            [
+              ".rrooooooooooobb.",
+              "rrroSSSSSSSSSobbb",
+              "rwroSSSSSSSSSobYb",
+              "rrroSSSSSSSSSobbb",
+              "rwroSSSSSSSSSobYb",
+              "rrroSSPSSSSSSobbb",
+              ".rrooooooooooobb."
+            ]
+          ]
+        }
+      },
+      "name": {
+        "zh-CN": "手里的东西的像素图：图例（字 → 吉祥物的哪个颜色）、电脑、游戏机（离脚多高、几帧）"
+      }
+    },
+    "line_shade": {
+      "type": "number",
+      "default": 0.5,
+      "name": {
+        "zh-CN": "锯齿线：头的影子往轮廓色靠多少"
+      },
+      "min": 0,
+      "max": 1
+    },
+    "gaze": {
+      "type": "json",
+      "default": {
+        "max_yaw": 40.0,
+        "max_pitch": 20.0,
+        "distance": 260.0,
+        "half_life_ms": 40,
+        "frame_ms": 16,
+        "pointer_hold_ms": 1500,
+        "prop_pitch": 18.0
+      },
+      "name": {
+        "zh-CN": "看：最多转多少、目标离多远算、缓动多快；鼠标停了多久改看光标；看手里的东西低头多少"
+      }
+    },
+    "idle": {
+      "type": "json",
+      "default": {
+        "after_ms": 3000,
+        "frame_ms": 33,
+        "blink_every_ms": [
+          2000,
+          7000
+        ],
+        "blink_ms": [
+          100,
+          200
+        ],
+        "double_blink": 0.25,
+        "double_gap_ms": 120,
+        "glance_hold_ms": [
+          800,
+          3500
+        ],
+        "glance_yaw": 10.0,
+        "glance_pitch": 4.0,
+        "glance_home": 0.3,
+        "glance_half_life_ms": 120,
+        "twitch_every_ms": [
+          5000,
+          12000
+        ],
+        "twitch_ms": 350,
+        "twitch_tilt": [
+          0.3,
+          0.6
+        ]
+      },
+      "name": {
+        "zh-CN": "待机小动作（照 TUI 的 mascot.json）"
+      }
+    },
+    "walk": {
+      "type": "json",
+      "default": {
+        "every_ms": [
+          12000,
+          30000
+        ],
+        "speed": 55,
+        "step_ms": 200,
+        "hop_px": 3,
+        "turn_deg": 60.0,
+        "turn_half_life_ms": 70,
+        "lean_deg": 6.0,
+        "step_crouch": 0.14,
+        "off_edge": 0.3,
+        "floor_stay_ms": [
+          8000,
+          20000
+        ],
+        "home_extra_px": 26,
+        "waddle_deg": 5.0,
+        "leave_jump_px": 150
+      },
+      "name": {
+        "zh-CN": "走动：隔多久走一回、走多快、迈一步多久、一步颠多高、正面时身子左右摇多少度、侧过身转多少度、转身缓多快、侧身时往前倾多少度、每一步蹲多深、走下台子边的机会、在地上待多久回去、跳回去多跳多高；地上让开输入框那一段时，离能站的那一边超过多远就不走了、就地跳回输入框"
+      }
+    },
+    "jump": {
+      "type": "json",
+      "default": {
+        "height_px": 12,
+        "busy_pitch": -14.0,
+        "windup_ms": 110,
+        "windup_depth": 0.6,
+        "charge_ms": 700,
+        "charge_depth": 1.0,
+        "charge_px": 70,
+        "charge_min": 0.15,
+        "hold_crouch": -0.2,
+        "crouch_half_life_ms": 25
+      },
+      "name": {
+        "zh-CN": "跳：原地跳多高；她在回答、手里没东西时头往上看多少；起跳前蹲多久、蹲多深；按住多久蓄满、蓄满蹲多深、蓄满多跳多高、蓄了多少算蓄过（直接起跳）；被拎着抻多长；蹲、抻缓多快"
+      }
+    },
+    "mouth": {
+      "type": "json",
+      "default": {
+        "rest": 0.0,
+        "half_life_ms": 35,
+        "yawn": 1.0,
+        "yawn_ms": 1500,
+        "yawn_half_life_ms": 220,
+        "yawn_idle": 6,
+        "yawn_every_ms": [
+          25000,
+          60000
+        ]
+      },
+      "name": {
+        "zh-CN": "嘴（锯齿线，0 合着、1 张到最大）：平常张多大、缓多快；打哈欠张多大、多久、缓多快、没人动多久（待机时长的几倍）才打、隔多久看一次"
+      }
+    },
+    "lamp": {
+      "type": "json",
+      "default": {
+        "busy_on_ms": 350,
+        "busy_off_ms": 350,
+        "jobs_every_ms": 1800,
+        "jobs_on_ms": 260,
+        "flash_ms": 110,
+        "flashes": 2
+      },
+      "name": {
+        "zh-CN": "肚子上的灯：在回答时亮多久、灭多久；有后台任务时隔多久亮一下、亮多久；一轮结束快闪一下多久、闪几下"
+      }
+    }
+  },
+  "styles": [
+    "style.css"
+  ],
+  "text": {
+    "zh-CN": {
+      "label": "吉祥物"
+    }
+  }
+}

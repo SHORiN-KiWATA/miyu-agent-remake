@@ -1,0 +1,15 @@
+{
+  "note": "桥给本机文件、blob 时的媒体类型（蓝图 web.md「读本机文件」）：types 照扩展名；不在里面的当 UTF-8 文字给（md、代码、html 这些，页面拿去当字显示，不在页面的来源里跑）。blob_types 是 blob 地址里 type 能写的几种。",
+  "types": {
+    "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif", "webp": "image/webp",
+    "bmp": "image/bmp", "avif": "image/avif", "ico": "image/x-icon", "svg": "image/svg+xml",
+    "mp4": "video/mp4", "m4v": "video/mp4", "webm": "video/webm", "mov": "video/quicktime", "mkv": "video/x-matroska", "ogv": "video/ogg",
+    "mp3": "audio/mpeg", "flac": "audio/flac", "wav": "audio/wav", "m4a": "audio/mp4", "ogg": "audio/ogg", "opus": "audio/ogg",
+    "pdf": "application/pdf"
+  },
+  "text": "text/plain; charset=utf-8",
+  "blob_types": [
+    "image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp", "image/avif",
+    "video/mp4", "video/webm", "audio/mpeg", "audio/flac", "audio/wav", "audio/mp4", "audio/ogg", "application/pdf"
+  ]
+}

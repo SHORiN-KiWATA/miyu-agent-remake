@@ -1,0 +1,9 @@
+{
+  "note": "mermaid 图（蓝图 web.md「mermaid 图」）：桥画 SVG 时用的字体和颜色。底和框都透明，融进她的正文；字、线、连线标签的垫底照页面的 CSS 变量，换主题不用重画。源码最长多少字节、桥记着几张画好的。",
+  "font_family": "Inter, \"Noto Sans SC\", \"Noto Sans CJK SC\", \"Microsoft YaHei\", system-ui, sans-serif",
+  "text": "var(--text)",
+  "line": "var(--text-soft)",
+  "label_background": "var(--surface)",
+  "max_source": 65536,
+  "keep": 64
+}

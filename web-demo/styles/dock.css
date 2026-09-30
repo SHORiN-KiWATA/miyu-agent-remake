@@ -1,0 +1,50 @@
+/* 输入框上面的一叠（蓝图 web.md「命令列表」「待办」「运行状态行」「提示」）：从上往下是待办、运行状态行、框。
+   待办、运行状态行（连排着的话）在流里、占着地方（照 TUI 窄屏的样子，正文往上让，不从它们后面透过去：2026-09-30
+   项目主人定，原来运行状态行浮在正文上面，字叠在一起）；命令列表浮在框上面，不推正文。在回答时（.is-running）提示浮到
+   运行状态行和排着的话上面（--pulse-lines 行，app.js 给）；命令列表开着时盖住这几样。
+   左边都和框里的字对齐：框的 1px 边加字的 18px 内边距。颜色只用主题的变量。 */
+
+.composer-dock {
+  /* 运行状态行一行的高、它和框之间的空：空一行，和这一行一样高（2026-09-30 项目主人定，原来 6px） */
+  --pulse-row: 20px;
+  --pulse-gap: var(--pulse-row);
+  /* 运行状态行上面和正文淡出的地方再隔开一点，不贴着 */
+  --pulse-clear: 6px;
+  /* 命令列表离框多远（蓝图「命令列表」：浮在框上面 6px） */
+  --list-gap: 6px;
+}
+
+/* 提示在回答时浮到运行状态行上面：用独立的 translate，不碰提示自己的定位和 transform */
+.composer-dock.is-running .composer-notice { translate: 0 calc(-1 * (var(--pulse-row) * var(--pulse-lines, 1) + var(--pulse-gap))); }
+
+/* ── 命令列表：浮在框上面，和框一样宽；半透明的 surface-1 加毛玻璃，一圈细线，浮起来的阴影 ── */
+.dock-commands {
+  position: absolute; z-index: 3; right: -1px; bottom: calc(100% + 1px + var(--list-gap)); left: -1px;
+  padding: 6px; border: 1px solid var(--line); border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-1) 90%, transparent);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  box-shadow: var(--float-shadow);
+  animation: rise-in var(--motion-in) var(--ease-out) both;
+}
+.dock-commands.is-leaving { animation: sink-out var(--motion-out) var(--ease-in) both; }
+.commands-head { padding: 4px 10px 6px; color: var(--text-faint); font-size: 12px; line-height: 16px; }
+/* 最多露 --rows 条（layout.json 的 command_rows），多的在里面滚；名字一列照最长的对齐 */
+.commands-list {
+  --row-h: 32px;
+  position: relative; display: grid; grid-template-columns: max-content minmax(0, 1fr);
+  max-height: calc(var(--rows) * var(--row-h)); overflow-y: auto; overscroll-behavior: contain;
+}
+.command-row {
+  display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; column-gap: 18px;
+  height: var(--row-h); padding: 0 10px; border-radius: 9px; cursor: pointer;
+}
+.command-row.is-selected { background: var(--surface-2); }
+.command-name { color: var(--text); font: 13px var(--mono); white-space: nowrap; }
+.command-row.is-selected .command-name { color: var(--accent); }
+.command-alias { color: var(--text-faint); }
+.command-summary { overflow: hidden; color: var(--text-soft); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-shine, .dock-commands { animation: none; }
+}

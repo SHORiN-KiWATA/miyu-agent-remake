@@ -1,0 +1,42 @@
+{
+  "id": "mermaid",
+  "version": "0.1.0",
+  "name": {
+    "zh-CN": "mermaid 图"
+  },
+  "kind": "optional",
+  "description": {
+    "zh-CN": "她回答里收齐了的 mermaid 代码块画成图（桥画 SVG），能切源码、复制、点开看大图；停用了照代码块写。"
+  },
+  "inject": [
+    "slots",
+    "core",
+    "host",
+    "markdown",
+    "lightbox~"
+  ],
+  "settings": {
+    "max_height": {
+      "type": "number",
+      "default": 520,
+      "min": 120,
+      "integer": true,
+      "name": {
+        "zh-CN": "图最高多少（px，不超过视口的六成）"
+      }
+    }
+  },
+  "styles": [
+    "style.css"
+  ],
+  "text": {
+    "zh-CN": {
+      "label": "图表",
+      "zoom": "点开看原图",
+      "source": "源码",
+      "diagram": "图表",
+      "drawing": "正在画图…",
+      "copy": "复制源码"
+    }
+  }
+}

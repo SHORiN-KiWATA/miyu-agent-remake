@@ -1,0 +1,18 @@
+{
+  "note": "发行版（蓝图 web/architecture.md「发行版」）：这一版网页带哪些软件包、默认开不开、给每个包的配置，一行一个；职能默认选哪个提供者写在 seams 里。个人那一层（这个浏览器）按 id 改其中的行。",
+  "packages": [
+    { "id": "theme-morning" },
+    { "id": "theme-tokyonight" },
+    { "id": "theme" },
+    { "id": "app" },
+    { "id": "rail" },
+    { "id": "mermaid" },
+    { "id": "lightbox" },
+    { "id": "todo" },
+    { "id": "pulse" },
+    { "id": "attachments" },
+    { "id": "jobs" },
+    { "id": "mascot" }
+  ],
+  "seams": {}
+}

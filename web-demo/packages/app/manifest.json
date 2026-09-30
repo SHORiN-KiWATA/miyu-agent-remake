@@ -1,0 +1,28 @@
+{
+  "id": "app",
+  "version": "0.1.0",
+  "name": {
+    "zh-CN": "整页（拆成软件包之前的样子）"
+  },
+  "kind": "base",
+  "inject": [
+    "core",
+    "sessions",
+    "host",
+    "page",
+    "slots",
+    "storage",
+    "packages",
+    "lightbox~",
+    "theme~"
+  ],
+  "settings": {},
+  "provides": {
+    "services": [
+      "chat",
+      "markdown",
+      "commands",
+      "composer"
+    ]
+  }
+}

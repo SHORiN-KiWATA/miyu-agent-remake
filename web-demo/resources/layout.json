@@ -1,0 +1,58 @@
+{
+  "note": "界面上的数和记号（蓝图 web.md「样子」）。权限级别的图标、收尾行的空格照 TUI 演示的 layout.json。",
+  "level_icons": {
+    "workspace": "▣ ",
+    "full": "⏵⏵ ",
+    "read_only": "⏸ "
+  },
+  "done_gap": {
+    "workspace": " "
+  },
+  "done_icon": "✻ ",
+  "session_spinner": [
+    "⠋",
+    "⠙",
+    "⠹",
+    "⠸",
+    "⠼",
+    "⠴",
+    "⠦",
+    "⠧",
+    "⠇",
+    "⠏"
+  ],
+  "session_spinner_ms": 90,
+  "listed_sessions": 30,
+  "title_chars": 40,
+  "composer_max_rows": 8,
+  "esc_window_ms": 1500,
+  "notice_ms": 2000,
+  "narrow_below": 836,
+  "follow_within": 48,
+  "scroll_intent_ms": 1000,
+  "release_ms": 320,
+  "center_move_ms": 280,
+  "pin_margin": 16,
+  "sidebar_peek": {
+    "zone": 56,
+    "open_ms": 120,
+    "close_ms": 260
+  },
+  "footer_gap": 16,
+  "level_cycle": [
+    "workspace",
+    "full",
+    "read_only"
+  ],
+  "command_rows": 6,
+  "user_media": 160,
+  "note_marks": {
+    "good": "●",
+    "error": "✗",
+    "stopped": "●"
+  },
+  "report_tail_lines": 200,
+  "sidebar_rows": 20,
+  "reconnect_ms": [1000, 2000, 5000, 10000],
+  "crumbs_keep": 4
+}

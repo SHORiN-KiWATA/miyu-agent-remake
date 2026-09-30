@@ -1,0 +1,123 @@
+{
+  "id": "pulse",
+  "version": "0.1.0",
+  "name": {
+    "zh-CN": "运行状态行"
+  },
+  "kind": "optional",
+  "description": {
+    "zh-CN": "回答时输入框上面一行：流光的词、点、用时、重试，下面列着排着的话（照 TUI 的运行状态行）。停用了回答时那一行没有，排着的话照样发。"
+  },
+  "inject": [
+    "slots"
+  ],
+  "settings": {
+    "sweep_seconds": {
+      "type": "number",
+      "default": 3,
+      "min": 0.2,
+      "name": {
+        "zh-CN": "流光扫一趟几秒"
+      }
+    },
+    "dim": {
+      "type": "number",
+      "default": 0.85,
+      "min": 0,
+      "max": 1,
+      "name": {
+        "zh-CN": "没扫到的字压到多暗（强调色的几成）"
+      }
+    },
+    "lift": {
+      "type": "number",
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "name": {
+        "zh-CN": "亮光往白里偏几成"
+      }
+    },
+    "dot_mark": {
+      "type": "text",
+      "default": ".",
+      "name": {
+        "zh-CN": "点的记号"
+      }
+    },
+    "dot_count": {
+      "type": "number",
+      "default": 3,
+      "min": 1,
+      "max": 6,
+      "integer": true,
+      "name": {
+        "zh-CN": "最多几个点"
+      }
+    },
+    "tick_ms": {
+      "type": "duration",
+      "default": 100,
+      "name": {
+        "zh-CN": "多久重画一次"
+      }
+    },
+    "words": {
+      "type": "json",
+      "default": {
+        "dwell_ms": [
+          12000,
+          20000
+        ],
+        "quiet_ms": 2000,
+        "idle_ms": [
+          30000,
+          45000
+        ],
+        "tiers": [
+          {
+            "after": 0,
+            "words": [
+              "深度求索",
+              "思考中",
+              "斟酌中",
+              "琢磨中",
+              "推敲中",
+              "容我想想",
+              "稍等片刻"
+            ]
+          },
+          {
+            "after": 30,
+            "words": [
+              "抽丝剥茧",
+              "穿针引线",
+              "仔细推敲",
+              "细细琢磨"
+            ]
+          },
+          {
+            "after": 90,
+            "words": [
+              "深思熟虑",
+              "反复推敲",
+              "还在琢磨"
+            ]
+          }
+        ]
+      },
+      "name": {
+        "zh-CN": "词库（分档、停多久、安静多久换）"
+      },
+      "advanced": true
+    }
+  },
+  "styles": [
+    "style.css"
+  ],
+  "text": {
+    "zh-CN": {
+      "retry": " · 重试 {attempt}/{limit}：{message}"
+    }
+  }
+}
