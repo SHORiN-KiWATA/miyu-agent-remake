@@ -138,6 +138,15 @@ pub enum Push {
     /// 这次请求看到了第几条为止（`model.delta` 的 `seen`，一块开头时报一次）：排着队的话序号够着它，就是这次
     /// 请求带上了（`kernel/session.md`「排队的消息」第 1 条）。
     Heard(u64),
+    /// 补发来的事件是什么时候的（`at`）：后面几条照它算用时、写时刻；`None` 是补完了，回到照现在的钟（蓝图「会话列表」第 6 条）。
+    Clock(Option<jiff::Timestamp>),
+    /// 补发来的你说的话（人发的 `message.user`）：带着序号和字，照你说的画（「会话列表」第 6 条）。
+    Said {
+        /// 落盘的序号。
+        seq: u64,
+        /// 说的字。
+        text: String,
+    },
     BlockStart {
         /// 这一块在这一次请求里的序号。
         index: u64,
@@ -372,7 +381,7 @@ pub fn read(event: &Value, mine: &dyn Fn(&str) -> bool) -> Vec<Push> {
 }
 
 /// 事件正文里的 `blocks`，没有的当空的。
-fn blocks(body: &Value) -> impl Iterator<Item = &Value> {
+pub(super) fn blocks(body: &Value) -> impl Iterator<Item = &Value> {
     body["blocks"].as_array().into_iter().flatten()
 }
 

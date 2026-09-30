@@ -18,6 +18,11 @@ impl App {
             self.took_output(&session, &job, output);
             return;
         }
+        // 会话列表：交给开着的框（`switch.rs`）。
+        if let Update::Sessions(all) = update {
+            self.sessions_listed(all);
+            return;
+        }
         // 照会话分：别的会话的交给停放着的那一份；任务的几种、别处来的话照任务表、正文先办（`sessions.rs`）。
         let Some(update) = self.route(update) else {
             return;
@@ -37,6 +42,10 @@ impl App {
             }
             update => update,
         };
+        // 切过去补发不成（会话删了、日志坏了）：照样换上来，下面弹原因（「会话列表」第 5 条）。
+        if matches!(update, Update::Refused { .. }) {
+            self.opened();
+        }
         // 这几种拒绝只弹提示框，不写进正文（`tui.md`「正文」第 9 条）。
         if let Update::Refused {
             reason: Some(reason),

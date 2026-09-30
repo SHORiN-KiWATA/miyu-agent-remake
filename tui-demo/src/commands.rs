@@ -57,6 +57,8 @@ pub enum Run {
     Recap,
     /// 改名、去掉标题（`session.set_meta`，蓝图「改名」）。
     Rename,
+    /// 会话列表，切过去（蓝图「会话列表 `/sessions`」）。
+    Sessions,
     /// 开新会话：清界面回首页，第一句话时再开（蓝图「斜杠命令」`/new`）。
     New,
     /// 清空上下文，会话不变（`session.clear`，蓝图「正文」第 9 条）。

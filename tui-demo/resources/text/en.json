@@ -139,6 +139,7 @@
     ]
   },
   "refusal_hints": {
+    "session_not_found": "That session no longer exists",
     "nothing_to_rename": "No session yet; say something first, then rename",
     "nothing_to_recap": "Nothing to recap yet",
     "recap_failed": "The recap could not be written, try again",
@@ -398,5 +399,27 @@
     "current": "current",
     "auto": "Auto (system: {name})",
     "auto_switched": "Interface language: Auto (system: {name})"
+  },
+  "sessions": {
+    "title": "Sessions",
+    "count": "  {count}",
+    "query": " · Search: ",
+    "hint": "↑/↓ select · Enter switch · Space tick · Ctrl+P pin · Ctrl+D delete · Esc close",
+    "loading": "Reading sessions…",
+    "empty": "No matching sessions",
+    "current": "current",
+    "busy": "busy",
+    "now": "just now",
+    "minutes": "{n} min ago",
+    "hours": "{n} h ago",
+    "days": "{n} d ago",
+    "delete_again": "Press Ctrl+D again to delete \"{title}\"",
+    "deleted": "Deleted \"{title}\"",
+    "delete_current": "Can't delete the session in use; switch away first",
+    "pinned": "Pinned",
+    "unpinned": "Unpinned",
+    "ticked": " · {count} ticked",
+    "delete_many": "Press Ctrl+D again to delete {count} sessions",
+    "deleted_many": "Deleted {count} sessions"
   }
 }

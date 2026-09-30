@@ -42,7 +42,8 @@ pub(super) async fn connect() -> Result<Rpc, Update> {
     let hello = json!({
         "protocol": [1, 1],
         "head": {"kind": "tui", "version": env!("CARGO_PKG_VERSION")},
-        "locale": "zh-CN",
+        // 系统的语言（核心 8-2：`ui.language` 是 `auto` 时核心照它说话），照 `miyu_store::env::locale`，和命令行认的一样。
+        "locale": miyu_store::env::locale().unwrap_or_default(),
         "caps": {"input": false},
         "token": token,
     });

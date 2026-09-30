@@ -16,6 +16,7 @@ mod paste;
 mod redo;
 mod session;
 mod sessions;
+mod switch;
 mod takeback;
 mod updates;
 
@@ -90,6 +91,10 @@ pub struct App {
     home: Option<String>,
     /// `/new` 以后还有任务在跑、照样订阅着的旧会话：任务都报完了退订。
     left: Vec<String>,
+    /// 切过去、还在补发的会话，和原来那个要不要接着订阅：补完了再换上来（`switch.rs`）。
+    opening: Option<(String, bool)>,
+    /// 上次交回的会话列表：再开框先照它画（`switch.rs`）。
+    sessions_seen: Option<Vec<crate::core::SessionInfo>>,
     /// 最近发出去的一句：没发出去时撤回来（`redo.rs`）。
     unsent: Option<Unsent>,
     /// `Ctrl+V` 贴的截图暂存在哪（「输入框」第 12 条）；找不到缓存目录的是 `None`，贴不了图。
@@ -124,6 +129,8 @@ pub struct App {
     feed: Feed,
     /// 开着的面板（后台）。
     pub panel: Option<Panel>,
+    /// `/sessions` 开着时的会话列表（`switch.rs`）。
+    pub session_list: Option<crate::session_list::SessionList>,
     /// 确认和提问的抽屉：现在这一个和排着的（蓝图「确认和提问的抽屉」）。
     pub drawers: Drawers,
     /// 抽屉每一行是第几项（点哪一行点中哪一项）；上一帧排出来的。
@@ -237,6 +244,8 @@ impl App {
             parked: Default::default(),
             home: None,
             left: Vec::new(),
+            opening: None,
+            sessions_seen: None,
             transcript: Transcript::default(),
             core,
             menu: Menu::default(),
@@ -262,6 +271,7 @@ impl App {
             board: Board::default(),
             feed: Feed::default(),
             panel: None,
+            session_list: None,
             drawers: Drawers::default(),
             drawer_rows: Vec::new(),
             caret: crate::caret::Caret::default(),

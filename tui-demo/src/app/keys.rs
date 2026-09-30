@@ -270,6 +270,7 @@ impl App {
                 self.hint(note, false);
             }
             Run::Rename => self.rename(words),
+            Run::Sessions => self.open_sessions(),
             Run::Copy => self.copy_reply(),
             Run::New => self.new_session(),
             Run::Revert => self.core.send(Command::Revert),

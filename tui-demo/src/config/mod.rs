@@ -299,6 +299,8 @@ pub struct Texts {
     pub language_switched: String,
     /// `/language` 开的框里的字。
     pub languages: crate::ui::languages::Texts,
+    /// `/sessions` 开的框里的字（蓝图「会话列表」）。
+    pub sessions: crate::ui::session_list::Texts,
     /// 没有这个斜杠命令，`{name}`。
     pub unknown_command: String,
     /// 演示用的假命令，`{name}`。

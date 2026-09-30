@@ -114,7 +114,7 @@
         "en": "List sessions and switch to one",
         "ja": "セッション一覧を表示して切り替える"
       },
-      "run": "fake"
+      "run": "sessions"
     },
     {
       "name": "model",

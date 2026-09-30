@@ -21,6 +21,8 @@ pub struct Icons {
     pub think: String,
     /// 出错时顶替图标的叉。
     pub error: String,
+    /// 会话列表里置顶的记号，连同它后面的空格（蓝图「会话列表」第 1 条）。
+    pub pin: String,
     /// 暂存着东西时的提示符，连同它后面的空格。
     pub stash: String,
 }

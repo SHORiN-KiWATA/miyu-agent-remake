@@ -8,6 +8,7 @@ mod blocks;
 mod cache;
 mod chips;
 mod climb;
+mod clock;
 mod compaction;
 mod entry;
 mod failure;
@@ -69,6 +70,8 @@ pub struct Transcript {
     calls: HashMap<String, (usize, usize)>,
     /// 这一轮从什么时候开始跑；没在跑是 `None`。
     pub running: Option<Instant>,
+    /// 正文的钟：补发来的照事件的时刻（`clock.rs`）。
+    clock: clock::Clock,
     /// 最近一次说话的模型：端点和模型名。
     pub model: Option<(String, String)>,
     /// 连核心的状态。
@@ -125,6 +128,7 @@ impl Default for Transcript {
             unnamed: Vec::new(),
             calls: HashMap::new(),
             running: None,
+            clock: clock::Clock::default(),
             model: None,
             link: Link::Connecting,
             session: None,
@@ -242,7 +246,10 @@ impl Transcript {
             Update::Reconnected => self.link = Link::Ready,
             // 另外订阅着的会话推来的：界面照会话分给那个会话的正文（`app/sessions.rs`）。
             // 改名成了只弹提示（界面那头办了），标题照推送换。
-            Update::Elsewhere { .. } | Update::Output { .. } | Update::Renamed(_) => {}
+            Update::Elsewhere { .. }
+            | Update::Output { .. }
+            | Update::Renamed(_)
+            | Update::Sessions(_) => {}
             Update::Failed(reason) => {
                 self.link = Link::Down(texts.core_failed.replace("{reason}", &reason));
             }
@@ -326,6 +333,8 @@ impl Transcript {
             Push::Unreverted(turns) => self.hide(&turns, false),
             Push::Model { endpoint, model } => self.model = Some((model, endpoint)),
             Push::Heard(seen) => self.heard(seen),
+            Push::Clock(at) => self.clock.set(at),
+            Push::Said { seq, text } => self.said(seq, text),
             Push::BlockStart { index, block } => {
                 self.spoke = true;
                 self.retry = None;
@@ -351,8 +360,9 @@ impl Transcript {
                 ..
             } => {
                 let at = self.calls.get(&call_id).copied();
+                let now = self.clock.now();
                 if let Some(step) = at.and_then(|at| self.step_mut(at)) {
-                    step.stop();
+                    step.stop_at(now);
                     if let StepKind::Tool {
                         state,
                         output,

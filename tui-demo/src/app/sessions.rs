@@ -62,6 +62,7 @@ impl App {
     fn park_update(&mut self, session: &str, update: Update) {
         match update {
             Update::Push(push) => {
+                let replayed = matches!(push, Push::Clock(None));
                 if !self.special(session, &push)
                     && let Some(parked) = self.parked.get_mut(session)
                 {
@@ -70,6 +71,12 @@ impl App {
                         .update(Update::Push(push), &self.config.text);
                 }
                 self.refresh_agent(session);
+                // 切走时还忙着的：这一轮做完了、空下来就退订（「会话列表」第 4 条）。
+                self.prune();
+                // 切过去的补完了：换上来（第 5 条）。
+                if replayed && self.opening(session) {
+                    self.opened();
+                }
             }
             update => {
                 if let Some(parked) = self.parked.get_mut(session) {
@@ -221,11 +228,15 @@ impl App {
     }
 
     /// `/new` 以后停放着的旧会话，任务都报完了：退订它和它的子代理，不再停放。
-    fn prune(&mut self) {
+    pub(super) fn prune(&mut self) {
         let done: Vec<String> = self
             .left
             .iter()
-            .filter(|s| self.parked.get(*s).is_none_or(|p| !p.board.busy()))
+            .filter(|s| {
+                self.parked
+                    .get(*s)
+                    .is_none_or(|p| !p.board.busy() && p.transcript.running.is_none())
+            })
             .cloned()
             .collect();
         for session in done {

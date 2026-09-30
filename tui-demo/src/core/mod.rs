@@ -12,9 +12,12 @@ mod kinds;
 mod limits;
 mod output;
 mod push;
+mod replay;
 mod request;
 mod rpc;
 mod serve;
+mod sessions;
+mod switch;
 mod undo;
 mod upload;
 
@@ -23,13 +26,14 @@ use std::thread;
 use tokio::sync::mpsc;
 
 use backoff::Backoff;
-use connect::{connect, create, subscribe};
+use connect::{connect, subscribe};
 
 pub use kinds::{EndReason, Level, ToolStatus};
 pub use limits::Limits;
 pub use output::JobOutput;
 pub use push::{Block, CallError, Compaction, JobEnd, JobReason, JobStart, Push, Sender, Usage};
 use rpc::Rpc;
+pub use sessions::SessionInfo;
 pub use undo::Report;
 
 /// 界面要核心做的事。
@@ -59,6 +63,25 @@ pub enum Command {
         /// 旧会话照样订阅着。
         keep: bool,
     },
+    /// 切到别的会话（`/sessions`，蓝图「会话列表」第 4、5 条）：它成了主会话；原来的 `keep` 为真时照样订阅着（还忙着），
+    /// 不然退订。没订阅着的带 `after: 0` 订阅，以前的事件补发过来。
+    Open {
+        /// 切到哪个会话。
+        session: String,
+        /// 原来那个照样订阅着。
+        keep: bool,
+    },
+    /// 列出会话（`session.list`），交回 [`Update::Sessions`]。
+    ListSessions,
+    /// 置顶、取消置顶一个会话（`session.set_meta` 的 `pinned`），不管对着哪个会话。
+    Pin {
+        /// 哪个会话。
+        session: String,
+        /// 置顶。
+        pinned: bool,
+    },
+    /// 删掉一个会话（`session.delete`），不管对着哪个会话。
+    Delete(String),
     /// 另外订阅一个会话：子代理的会话（「后台命令、子代理和侧边栏」、「切进子会话」）。它推来的包成 [`Update::Elsewhere`]。
     Watch(String),
     /// 退订另外订阅着的一个会话。
@@ -120,6 +143,8 @@ pub enum Update {
     Limits(Limits),
     /// 会话里的事。
     Push(Push),
+    /// 会话列表（[`Command::ListSessions`] 的回应）：只有主会话，照核心交回的先后。
+    Sessions(Vec<SessionInfo>),
     /// 改名成了（`None` 是去掉了标题）：弹一句提示，标题照推送换（蓝图「改名」第 3 条）。
     Renamed(Option<String>),
     /// 回顾交回的是上一句（`cached`：上次回顾以后没有新内容，核心不推 `session.recapped`），照它画（蓝图「回顾」第 3 条）。
@@ -202,11 +227,16 @@ async fn run(
 ) {
     // 主会话、另外订阅着的、命令对着哪个：断了重连也记着（`serve.rs`）。
     let mut link = serve::Link::default();
+    // 启动时进最近的那个会话只在头一次连上时（「会话列表」第 8 条）；之后重连、`/new` 照旧。
+    let mut recent = switch::start_recent();
     loop {
         // 连不上一直试；这期间界面发的命令在通道里排着，连上再发（第 1、7 条）。
         let mut rpc = loop {
-            match open(link.main.as_deref()).await {
+            match open(link.main.as_deref(), recent).await {
                 Ok((rpc, opened, limits)) => {
+                    // 进了已有的会话：订阅留给收发时带 `after` 做，以前的补发过来。
+                    link.replay_main = limits.is_none() && opened.is_some();
+                    recent = false;
                     // 新开的会话（刚启动；按过 `/new` 还没说话就断了的）告诉界面编号，订阅原来的只说又连上了。
                     let said = match (&link.main, &opened) {
                         (None, Some(id)) => notify(Update::Ready(id.clone())),
@@ -235,15 +265,28 @@ async fn run(
     }
 }
 
-/// 连上；有会话的订阅它，还没有的（刚启动）开一个再订阅。交回连接、会话和限额。
-async fn open(session: Option<&str>) -> Result<(Rpc, Option<String>, Option<Limits>), Update> {
+/// 连上；有会话的订阅它。还没有的（刚启动、`/new` 以后）不开，和 `/new` 一样等第一句话时才开（蓝图「连核心」第 4 条：
+/// 没说话就退出的不留空会话）。`recent`：进最近的那个已有会话，不在这里订阅（限额交回 `None`），收发时带 `after`
+/// 订阅；一个都没有的照样等第一句话。交回连接、会话和限额。
+async fn open(
+    session: Option<&str>,
+    recent: bool,
+) -> Result<(Rpc, Option<String>, Option<Limits>), Update> {
     let mut rpc = connect().await?;
-    let session = match session {
-        Some(id) => id.to_string(),
-        None => create(&mut rpc).await?,
+    if session.is_none() && recent {
+        let list = rpc
+            .call("session.list", serde_json::json!({}))
+            .await
+            .map_err(connect::refused)?;
+        if let Some(id) = switch::recent(&list) {
+            return Ok((rpc, Some(id), None));
+        }
+    }
+    let Some(session) = session else {
+        return Ok((rpc, None, None));
     };
-    let limits = subscribe(&mut rpc, &session).await?;
-    Ok((rpc, Some(session), Some(limits)))
+    let limits = subscribe(&mut rpc, session).await?;
+    Ok((rpc, Some(session.to_string()), Some(limits)))
 }
 
 #[cfg(test)]

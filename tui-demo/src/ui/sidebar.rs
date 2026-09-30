@@ -166,8 +166,7 @@ pub fn info_lines(
     let mut id_row = None;
     if let Some(session) = &t.session {
         // 短编号：最后 8 个字符（核心 C-1 定的，头显示的、她看到的都是这个）。
-        let skip = session.chars().count().saturating_sub(8);
-        let short: String = session.chars().skip(skip).collect();
+        let short = crate::session_list::short(session);
         id_row = Some(out.len());
         out.push(item(text.side_id.replace("{id}", &short), theme::dim()));
     }

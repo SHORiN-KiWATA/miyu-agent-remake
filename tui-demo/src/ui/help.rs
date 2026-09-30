@@ -131,8 +131,12 @@ mod tests {
             "别名写在一起"
         );
         assert!(
-            !text.iter().any(|l| l.contains("/sessions")),
+            !text.iter().any(|l| l.contains("/settings")),
             "还不做事的假命令不列"
+        );
+        assert!(
+            text.iter().any(|l| l.contains("/sessions")),
+            "做了的列上（2026-10-01 /sessions 接上了）"
         );
         let keys = text.iter().position(|l| l == "按键").unwrap();
         assert!(

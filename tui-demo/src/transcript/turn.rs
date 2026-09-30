@@ -20,7 +20,7 @@ impl Transcript {
 
     /// 一轮开始了（`turn.started`）：开表、清这一轮的用量，把开这一轮的排队消息挪进正文。
     pub(super) fn start(&mut self, turn: u64, trigger: Option<u64>) {
-        self.running = Some(Instant::now());
+        self.running = Some(self.clock.now());
         self.spoke = false;
         self.opened_by.clear();
         self.failure = None;
@@ -86,7 +86,7 @@ impl Transcript {
                     .model
                     .as_ref()
                     .map_or(("", ""), |(m, e)| (m.as_str(), e.as_str()));
-                let time = jiff::Zoned::now().strftime("%H:%M").to_string();
+                let time = self.clock.wall().strftime("%H:%M").to_string();
                 let text = texts
                     .done
                     .replace("{endpoint}", endpoint)
@@ -122,10 +122,13 @@ impl Transcript {
 
     /// 一轮到头了：停表、收起时间线、停掉还在转的步。交回用了多久、记着的出错。
     fn wind_up(&mut self) -> (std::time::Duration, Option<crate::core::CallError>) {
+        let now = self.clock.now();
         let took = self
             .running
             .take()
-            .map_or(std::time::Duration::ZERO, |start| start.elapsed());
+            .map_or(std::time::Duration::ZERO, |start| {
+                now.saturating_duration_since(start)
+            });
         self.retry = None;
         self.drop_compacting();
         self.blocks.clear();
@@ -137,10 +140,11 @@ impl Transcript {
 
     /// 这一轮结束了还没有结果的步骤（被打断的）：停表、不再转圈。
     pub(super) fn settle_leftovers(&mut self) {
+        let now = self.clock.now();
         let segments = self.entries.iter_mut().filter_map(|e| e.segment.as_mut());
         for step in segments.flat_map(|s| s.steps.iter_mut()) {
             if step.busy() {
-                step.stop();
+                step.stop_at(now);
                 if let StepKind::Tool { state, .. } = &mut step.kind {
                     *state = ToolState::Done(ToolStatus::Cancelled);
                 }

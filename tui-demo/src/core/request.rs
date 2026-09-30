@@ -55,6 +55,10 @@ pub(super) fn request(
         | Command::Watch(_)
         | Command::Unwatch(_)
         | Command::View(_)
+        | Command::Open { .. }
+        | Command::ListSessions
+        | Command::Pin { .. }
+        | Command::Delete(_)
         | Command::Output { .. } => {
             return None;
         }

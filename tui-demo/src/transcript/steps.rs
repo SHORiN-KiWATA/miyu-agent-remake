@@ -51,11 +51,11 @@ impl Segment {
     }
 
     /// 这一段结束了：还在准备、在跑的步骤，照原样留着（它们的结果还会来）；在想的停表。
-    pub fn finish(&mut self) {
+    pub fn finish_at(&mut self, now: Instant) {
         self.finished = true;
         for step in &mut self.steps {
             if let StepKind::Thought { .. } = step.kind {
-                step.stop();
+                step.stop_at(now);
             }
         }
     }
@@ -139,9 +139,18 @@ impl Step {
         }
     }
 
-    /// 停表。停过的不再动。
-    pub fn stop(&mut self) {
-        self.took.get_or_insert_with(|| self.started.elapsed());
+    /// 新的一步，从 `at` 算起（补发来的照事件的时刻，`clock.rs`）。
+    pub fn starting(kind: StepKind, at: Instant) -> Self {
+        Self {
+            started: at,
+            ..Self::new(kind)
+        }
+    }
+
+    /// 在 `now` 停表。停过的不再动。
+    pub fn stop_at(&mut self, now: Instant) {
+        self.took
+            .get_or_insert_with(|| now.saturating_duration_since(self.started));
     }
 
     /// 还在进行：要转圈。

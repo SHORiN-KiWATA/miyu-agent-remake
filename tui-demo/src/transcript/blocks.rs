@@ -28,12 +28,13 @@ impl Transcript {
             },
         };
         let is_tool = matches!(kind, StepKind::Tool { .. });
+        let now = self.clock.now();
         let entry = self.open_segment();
         let steps = &mut self.entries[entry]
             .segment
             .get_or_insert_with(Segment::new)
             .steps;
-        steps.push(Step::new(kind));
+        steps.push(Step::starting(kind, now));
         let at = (entry, steps.len() - 1);
         if is_tool {
             self.unnamed.push(at);
@@ -82,11 +83,12 @@ impl Transcript {
 
     /// 一块收全了：思考停表；调工具的参数读出来，等结果。收过的再收一次不变，有了结果的不退回去。
     pub(super) fn close(&mut self, at: (usize, usize)) {
+        let now = self.clock.now();
         let Some(step) = self.step_mut(at) else {
             return;
         };
         match &mut step.kind {
-            StepKind::Thought { .. } => step.stop(),
+            StepKind::Thought { .. } => step.stop_at(now),
             StepKind::Tool {
                 args,
                 parsed,
@@ -119,9 +121,10 @@ impl Transcript {
 
     /// 收起在进行的那一段（说话就收起）。
     pub(super) fn finish_segment(&mut self) {
+        let now = self.clock.now();
         let last = self.tail().and_then(|i| self.entries.get_mut(i));
         if let Some(segment) = last.and_then(|e| e.segment.as_mut()) {
-            segment.finish();
+            segment.finish_at(now);
         }
     }
 

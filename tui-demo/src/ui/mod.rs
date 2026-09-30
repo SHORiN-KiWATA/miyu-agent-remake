@@ -23,6 +23,7 @@ mod margins;
 mod mascot_view;
 mod md_cache;
 mod panel;
+pub mod session_list;
 mod sidebar;
 
 pub use history::{index_at as history_index_at, lines as history_lines};
@@ -337,6 +338,16 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             let map = vec![None; lines.len()];
             (chrome, lines, map)
         }
+        Some(crate::app::Panel::Sessions) => match &app.session_list {
+            Some(list) => session_list::lines(
+                list,
+                app.main_session().as_deref(),
+                &app.config,
+                width,
+                usize::from(inner),
+            ),
+            None => Default::default(),
+        },
         Some(crate::app::Panel::Language { selected }) => languages::lines(
             &app.config,
             &app.system_language,

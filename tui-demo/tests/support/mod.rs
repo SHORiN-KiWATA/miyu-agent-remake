@@ -99,7 +99,12 @@ impl Home {
 
     /// 在伪终端里起界面，连这份核心；`lang` 是系统语言（`LANG`）。
     pub fn tui(&self, lang: &str) -> Tui {
-        Tui::spawn(&self.dir, &self.work, lang)
+        Tui::spawn(&self.dir, &self.work, lang, &[])
+    }
+
+    /// 同 [`Home::tui`]，另外带几个环境变量（`MIYU_TUI_START` 这类）。
+    pub fn tui_with(&self, lang: &str, env: &[(&str, &str)]) -> Tui {
+        Tui::spawn(&self.dir, &self.work, lang, env)
     }
 }
 
@@ -113,6 +118,8 @@ impl Drop for Home {
 /// 伪终端里跑着的界面。
 pub struct Tui {
     screen: vt100::Parser,
+    /// 录着的界面写出来的原样字节（[`Tui::record`]）。
+    recording: Option<Vec<u8>>,
     bytes: Receiver<Vec<u8>>,
     writer: Arc<Mutex<Box<dyn Write + Send>>>,
     child: Box<dyn Child + Send + Sync>,
@@ -120,7 +127,7 @@ pub struct Tui {
 }
 
 impl Tui {
-    fn spawn(home: &Path, work: &Path, lang: &str) -> Tui {
+    fn spawn(home: &Path, work: &Path, lang: &str, env: &[(&str, &str)]) -> Tui {
         let pty = native_pty_system()
             .openpty(PtySize {
                 rows: ROWS,
@@ -138,6 +145,7 @@ impl Tui {
             "KITTY_WINDOW_ID",
             "LC_ALL",
             "LC_MESSAGES",
+            "MIYU_TUI_START",
         ] {
             command.env_remove(name);
         }
@@ -150,6 +158,9 @@ impl Tui {
         command.env("TERM", "xterm-256color");
         command.env("COLORTERM", "truecolor");
         command.env("LANG", lang);
+        for (name, value) in env {
+            command.env(name, value);
+        }
         let child = pty.slave.spawn_command(command).expect("起得来界面");
         drop(pty.slave);
         let mut reader = pty.master.try_clone_reader().expect("读得了");
@@ -165,6 +176,7 @@ impl Tui {
         });
         Tui {
             screen: vt100::Parser::new(ROWS, COLS, 0),
+            recording: None,
             bytes,
             writer,
             child,
@@ -224,7 +236,20 @@ impl Tui {
         if has(b"\x1b[6n") {
             self.send(b"\x1b[1;1R");
         }
+        if let Some(recording) = &mut self.recording {
+            recording.extend_from_slice(data);
+        }
         self.screen.process(data);
+    }
+
+    /// 从现在起录下界面写出来的每一个字节：看中间有没有闪过哪一帧（读屏只看得到最后那一帧）。
+    pub fn record(&mut self) {
+        self.recording = Some(Vec::new());
+    }
+
+    /// 录下的字节，停止录。
+    pub fn recorded(&mut self) -> Vec<u8> {
+        self.recording.take().unwrap_or_default()
     }
 
     /// 屏幕上的字，一行一行。

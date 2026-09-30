@@ -9,13 +9,16 @@ use tokio::sync::mpsc;
 
 use super::connect::{create, cwd, subscribe};
 use super::limits::Limits;
+use super::replay::Replay;
 use super::request::request;
-use super::rpc::{self, Rpc};
-use super::{Command, JobOutput, Level, Report, Served, Update, push, upload};
+use super::rpc::Rpc;
+use super::sessions;
+use super::switch;
+use super::{Command, JobOutput, Level, Report, Served, Update, upload};
 
 /// 跨重连都记着的：主会话、会话还没开时切的权限级别、另外订阅着的会话、命令对着哪个会话。
 #[derive(Debug, Default)]
-pub(super) struct Link {
+pub struct Link {
     /// 主会话：界面开的那个。`/new` 以后、说第一句话以前没有。
     pub main: Option<String>,
     /// 会话还没开时切的权限级别：开会话时补发（「权限级别」第 2 条）。
@@ -24,6 +27,12 @@ pub(super) struct Link {
     pub watched: BTreeSet<String>,
     /// 切进了哪个子会话：命令对着它；没切是 `None`，对着主会话（「切进子会话」第 3 条）。
     pub viewing: Option<String>,
+    /// 每个会话读到的最后一个序号：同一个序号只办一次，掉了队照它补（「会话列表」第 6、7 条）。
+    pub seen: HashMap<String, u64>,
+    /// 正在补发的会话：补发来的照 [`Replay`] 读，回应到了算补完。
+    pub replays: HashMap<String, Replay>,
+    /// 连上以后要带 `after` 订阅主会话（启动时进最近的那个，「会话列表」第 8 条）。
+    pub replay_main: bool,
 }
 
 impl Link {
@@ -52,6 +61,10 @@ enum Awaiting {
     Recap,
     /// 改名：成了弹一句（`None` 是去掉标题）。
     Rename(Option<String>),
+    /// 带 `after` 订阅：回应到了算补完（「会话列表」第 5 条）。
+    Replay(String),
+    /// 列出会话：回应交给界面。
+    List,
 }
 
 /// 在一条连接上收发，直到界面关了或者连接断了。
@@ -63,6 +76,15 @@ pub(super) async fn serve(
 ) -> Served {
     let cwd = cwd();
     let mut awaiting: HashMap<String, Awaiting> = HashMap::new();
+    // 启动时进最近的那个会话：连上以后带 `after` 订阅，以前的补发过来（「会话列表」第 8 条）。
+    if std::mem::take(&mut link.replay_main)
+        && let Some(main) = link.main.clone()
+    {
+        match switch::replay(rpc, link, &main).await {
+            Ok(id) => awaiting.insert(id, Awaiting::Replay(main)),
+            Err(_) => return Served::Lost,
+        };
+    }
     // 重连以后，另外订阅着的照旧订阅上（「连核心」第 7 条）。
     for session in link.watched.clone() {
         match watch(rpc, &session).await {
@@ -81,8 +103,11 @@ pub(super) async fn serve(
                         if let Some(old) = link.main.take() {
                             if keep {
                                 link.watched.insert(old);
-                            } else if unsubscribe(rpc, &old).await.is_err() {
-                                return Served::Lost;
+                            } else {
+                                link.seen.remove(&old);
+                                if unsubscribe(rpc, &old).await.is_err() {
+                                    return Served::Lost;
+                                }
                             }
                         }
                         continue;
@@ -98,6 +123,7 @@ pub(super) async fn serve(
                         continue;
                     }
                     Command::Unwatch(session) => {
+                        link.seen.remove(&session);
                         let gone = link.watched.remove(&session) && Some(&session) != link.main.as_ref();
                         if gone && unsubscribe(rpc, &session).await.is_err() {
                             return Served::Lost;
@@ -106,6 +132,48 @@ pub(super) async fn serve(
                     }
                     Command::View(session) => {
                         link.viewing = session;
+                        continue;
+                    }
+                    // 切会话：原来的还忙着的照样订阅着，不然退订；没订阅着的补发以前的（「会话列表」第 4、5 条）。
+                    Command::Open { session, keep } => {
+                        if let Some(old) = link.main.clone().filter(|old| *old != session) {
+                            if keep {
+                                link.watched.insert(old);
+                            } else {
+                                link.seen.remove(&old);
+                                if unsubscribe(rpc, &old).await.is_err() {
+                                    return Served::Lost;
+                                }
+                            }
+                        }
+                        link.viewing = None;
+                        link.main = Some(session.clone());
+                        if !link.watched.remove(&session) {
+                            match switch::replay(rpc, link, &session).await {
+                                Ok(id) => awaiting.insert(id, Awaiting::Replay(session)),
+                                Err(_) => return Served::Lost,
+                            };
+                        }
+                        continue;
+                    }
+                    Command::ListSessions => {
+                        match rpc.send("session.list", json!({})).await {
+                            Ok(id) => awaiting.insert(id, Awaiting::List),
+                            Err(_) => return Served::Lost,
+                        };
+                        continue;
+                    }
+                    Command::Pin { session, pinned } => {
+                        let params = json!({"session": session, "pinned": pinned});
+                        if rpc.send("session.set_meta", params).await.is_err() {
+                            return Served::Lost;
+                        }
+                        continue;
+                    }
+                    Command::Delete(session) => {
+                        if rpc.send("session.delete", json!({"session": session})).await.is_err() {
+                            return Served::Lost;
+                        }
                         continue;
                     }
                     // 读输出对着派它的那个会话，不管现在对着哪个（`protocol.md` 的 `job.output`）。
@@ -258,7 +326,7 @@ async fn unsubscribe(rpc: &mut Rpc, session: &str) -> io::Result<String> {
 /// 处理一条读进来的：推送、回应。交回界面还在不在。
 async fn take(
     rpc: &mut Rpc,
-    link: &Link,
+    link: &mut Link,
     message: &Value,
     awaiting: &mut HashMap<String, Awaiting>,
     notify: &impl Fn(Update) -> bool,
@@ -271,6 +339,11 @@ async fn take(
             Some(Awaiting::Send | Awaiting::Redo) => notify(Update::Unsent { reason, message }),
             // 订阅不上（那个会话已经删了）：不用说。
             Some(Awaiting::Watch(_)) => true,
+            // 切过去订阅不上（会话删了、日志坏了）：不再当它在补发，照一般的拒绝说。
+            Some(Awaiting::Replay(session)) => {
+                link.replays.remove(&session);
+                notify(Update::Refused { reason, message })
+            }
             // 读不了输出（任务没了、是子代理）：不用说，界面不再等它。
             Some(Awaiting::Output(session, job)) => notify(Update::Output {
                 session,
@@ -304,6 +377,19 @@ async fn take(
                 output,
             });
         }
+        Some(Awaiting::List) => {
+            return notify(Update::Sessions(sessions::read(&message["result"])));
+        }
+        // 补完了：还记着的读出来、钟回到现在，再交限额（「会话列表」第 5 条）。
+        Some(Awaiting::Replay(session)) => {
+            let wrap = |update: Update| Update::Elsewhere {
+                session: session.clone(),
+                update: Box::new(update),
+            };
+            let pushes = switch::finish(link, &session);
+            return pushes.into_iter().all(|p| notify(wrap(Update::Push(p))))
+                && Limits::of(message).is_none_or(|limits| notify(wrap(Update::Limits(limits))));
+        }
         Some(Awaiting::Watch(session)) => {
             return Limits::of(message).is_none_or(|limits| {
                 let update = Box::new(Update::Limits(limits));
@@ -324,27 +410,21 @@ async fn take(
     if !main && !link.watched.contains(session) {
         return true;
     }
-    let wrap = |update: Update| {
-        if main {
-            update
-        } else {
-            let session = session.to_string();
-            Update::Elsewhere {
-                session,
-                update: Box::new(update),
-            }
-        }
+    // 一律带上是哪个会话的，界面照它分（`app/sessions.rs` 的 `route`）：切会话的那一下，原来那个会话在路上的推送
+    // 不会画进新的正文（「会话列表」第 4 条）。
+    let wrap = |update: Update| Update::Elsewhere {
+        session: session.to_string(),
+        update: Box::new(update),
     };
     match message["method"].as_str() {
-        Some("event") => push::read(&message["params"]["event"], &rpc::owns)
+        Some("event") => switch::event(link, session, &message["params"]["event"])
             .into_iter()
             .all(|p| notify(wrap(Update::Push(p)))),
-        // 掉了队：重新订阅，掉了的不补（`protocol.md`「慢和掉队」）。发不出去是连接断了，下一条读不到，照断开重连。
+        // 掉了队：带上读到的最后一个序号重新订阅，掉了的补回来（「会话列表」第 7 条）。发不出去是连接断了，下一条读不到，
+        // 照断开重连。
         Some("resync") => {
-            if let Ok(id) = watch(rpc, session).await
-                && !main
-            {
-                awaiting.insert(id, Awaiting::Watch(session.to_string()));
+            if let Ok(id) = switch::replay(rpc, link, session).await {
+                awaiting.insert(id, Awaiting::Replay(session.to_string()));
             }
             true
         }

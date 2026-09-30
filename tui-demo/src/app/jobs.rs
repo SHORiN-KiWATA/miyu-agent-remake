@@ -34,6 +34,8 @@ pub enum Panel {
         /// 选中语言表里的第几种。
         selected: usize,
     },
+    /// 会话列表（`/sessions`）：列表的状态在 [`App::session_list`](super::App) 上。
+    Sessions,
 }
 
 impl App {
@@ -177,6 +179,7 @@ impl App {
             } => (selected, open, all),
             Panel::Help { scroll } => return self.help_key(scroll, key),
             Panel::Language { selected } => return self.language_key(selected, key),
+            Panel::Sessions => return self.sessions_key(key),
         };
         let items = self.board.panel_items(all);
         let at = |selected| {
@@ -226,7 +229,10 @@ impl App {
 
     /// 鼠标先归框下面那一行的按钮、面板、子代理状态行；归了它们返回 `true`。
     pub(super) fn jobs_mouse(&mut self, mouse: MouseEvent, at: Position) -> bool {
-        if self.help_mouse(mouse, at) || self.language_mouse(mouse, at) {
+        if self.help_mouse(mouse, at)
+            || self.language_mouse(mouse, at)
+            || self.sessions_mouse(mouse, at)
+        {
             return true;
         }
         let press = matches!(mouse.kind, MouseEventKind::Down(_));

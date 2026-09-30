@@ -21,8 +21,13 @@ impl App {
     /// 任务都报完了再退订（「后台命令、子代理和侧边栏」）；没有的马上退订，连它的子代理一起。
     pub(super) fn new_session(&mut self) {
         self.leave_child();
-        let keep = self.board.busy();
+        let keep = self.busy_here();
         self.core.send(Command::New { keep });
+        self.park_current(keep);
+    }
+
+    /// 正在看的会话换下来：还忙着的（`keep`）停放着，等它空下来再退订；不然连它的子代理一起不要了。换上一份空的正文。
+    pub(super) fn park_current(&mut self, keep: bool) {
         let old = self.transcript.split_off();
         let board = std::mem::take(&mut self.board);
         match old.session.clone() {

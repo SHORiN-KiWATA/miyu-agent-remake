@@ -139,6 +139,7 @@
     ]
   },
   "refusal_hints": {
+    "session_not_found": "这个会话已经不在了",
     "nothing_to_rename": "还没开会话，说一句再改名",
     "nothing_to_recap": "还没有可回顾的内容",
     "recap_failed": "回顾没写成，再要一次就是",
@@ -398,5 +399,27 @@
     "current": "当前",
     "auto": "自动（跟随系统：{name}）",
     "auto_switched": "界面语言：自动（跟随系统：{name}）"
+  },
+  "sessions": {
+    "title": "会话",
+    "count": "  {count} 个",
+    "query": " · 搜索：",
+    "hint": "↑/↓ 选 · Enter 切过去 · 空格 勾选 · Ctrl+P 置顶 · Ctrl+D 删除 · Esc 关闭",
+    "loading": "正在读会话…",
+    "empty": "没有对得上的会话",
+    "current": "当前",
+    "busy": "在忙",
+    "now": "刚才",
+    "minutes": "{n} 分钟前",
+    "hours": "{n} 小时前",
+    "days": "{n} 天前",
+    "delete_again": "再按一次 Ctrl+D 删除「{title}」",
+    "deleted": "已删除「{title}」",
+    "delete_current": "正在用的会话不能删，先切走",
+    "pinned": "已置顶",
+    "unpinned": "已取消置顶",
+    "ticked": " · 已勾 {count}",
+    "delete_many": "再按一次 Ctrl+D 删除 {count} 个会话",
+    "deleted_many": "已删除 {count} 个会话"
   }
 }

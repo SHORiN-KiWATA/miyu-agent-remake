@@ -139,6 +139,7 @@
     ]
   },
   "refusal_hints": {
+    "session_not_found": "そのセッションはもうありません",
     "nothing_to_rename": "まだセッションがありません。何か話してから名前を変えてください",
     "nothing_to_recap": "まだ振り返る内容がありません",
     "recap_failed": "振り返りを作れませんでした。もう一度試してください",
@@ -398,5 +399,27 @@
     "current": "現在",
     "auto": "自動（システムに合わせる：{name}）",
     "auto_switched": "表示言語：自動（システムに合わせる：{name}）"
+  },
+  "sessions": {
+    "title": "セッション",
+    "count": "  {count} 件",
+    "query": " · 検索：",
+    "hint": "↑/↓ 選択 · Enter 切り替え · Space チェック · Ctrl+P ピン留め · Ctrl+D 削除 · Esc 閉じる",
+    "loading": "セッションを読み込み中…",
+    "empty": "一致するセッションがありません",
+    "current": "使用中",
+    "busy": "実行中",
+    "now": "たった今",
+    "minutes": "{n} 分前",
+    "hours": "{n} 時間前",
+    "days": "{n} 日前",
+    "delete_again": "もう一度 Ctrl+D で「{title}」を削除",
+    "deleted": "「{title}」を削除しました",
+    "delete_current": "使用中のセッションは削除できません。先に切り替えてください",
+    "pinned": "ピン留めしました",
+    "unpinned": "ピン留めを外しました",
+    "ticked": " · {count} 件選択",
+    "delete_many": "もう一度 Ctrl+D で {count} 件のセッションを削除",
+    "deleted_many": "{count} 件のセッションを削除しました"
   }
 }
