@@ -38,6 +38,7 @@
   "placeholder": "给 {name} 发消息",
   "send": "发送",
   "esc_clear_hint": "再按一次 Esc 清空",
+  "cleared": "已清空 · ↑ 找回",
   "done": "{time} · {endpoint}/{model} · {elapsed}",
   "done_usage": " · {tokens}(C{percent}%)",
   "interrupted": "已中断",
@@ -68,6 +69,8 @@
   "level_tip": "点一下换权限级别：工作区 → 开放权限 → 只读",
   "copied": "已复制 {count} 个字",
   "copy_failed": "复制失败：{reason}",
+  "reason_with": "{head}：{message}",
+  "list_sep": "、",
   "timeline": {
     "thinking": "正在思考",
     "thought": "已思考",
@@ -79,55 +82,61 @@
     "args": "参数",
     "result": "结果",
     "prompt": "提示词",
+    "to": "发给",
+    "message": "消息",
+    "parent": "父会话",
+    "message_subject": "· {to}",
+    "message_to": "{job} · {title}",
+    "peek_sep": "·",
     "agent_subject": "· {job} · {title}",
     "agent_pending": "· {title}",
     "created": "新建",
     "changed": "修改",
     "summary": {
       "ran": [
-        "Ran 1 command",
-        "Ran {count} commands"
+        "执行了 1 条命令",
+        "执行了 {count} 条命令"
       ],
       "used": [
-        "Used 1 tool",
-        "Used {count} tools"
+        "用了 1 个工具",
+        "用了 {count} 个工具"
       ],
       "made": [
-        "Made 1 edit",
-        "Made {count} edits"
+        "编辑了 1 处",
+        "编辑了 {count} 处"
       ],
       "edits": [
-        "1 edit",
-        "{count} edits"
+        "1 处编辑",
+        "{count} 处编辑"
       ],
       "tools": [
-        "1 tool",
-        "{count} tools"
+        "1 个工具",
+        "{count} 个工具"
       ],
       "thoughts": [
-        "1 thought",
-        "{count} thoughts"
+        "1 次思考",
+        "{count} 次思考"
       ],
       "errors": [
-        "1 err",
-        "{count} err"
+        "1 个出错",
+        "{count} 个出错"
       ],
-      "thought_for": "Thought for {elapsed}",
+      "thought_for": "思考了 {elapsed}",
       "spawned": [
-        "Spawned 1 agent",
-        "Spawned {count} agents"
+        "派了 1 个子代理",
+        "派了 {count} 个子代理"
       ],
       "messaged": [
-        "Messaged 1 agent",
-        "Messaged {count} agents"
+        "给 1 个子代理留言",
+        "给 {count} 个子代理留言"
       ],
       "agents": [
-        "1 agent",
-        "{count} agents"
+        "1 个子代理",
+        "{count} 个子代理"
       ],
       "messages": [
-        "1 message",
-        "{count} messages"
+        "1 条留言",
+        "{count} 条留言"
       ]
     }
   },
@@ -167,7 +176,8 @@
       "video": "视频",
       "code": "代码",
       "text": "文字"
-    }
+    },
+    "failed_with": "文件载入失败：{reason}"
   },
   "commands": {
     "header": "命令 · {count} 条",
@@ -177,7 +187,27 @@
     "undone": "已撤销",
     "theme_changed": "主题：{name}",
     "nothing_to_copy": "还没有能复制的回答",
-    "undone_jobs": "已撤销 · 停掉了 {count} 个任务"
+    "undone_jobs": "已撤销 · 停掉了 {count} 个任务",
+    "language_changed": "界面语言：{name}",
+    "language_unknown": "没有这种语言：能写 {choices}"
+  },
+  "language": {
+    "title": "界面语言",
+    "hint": "↑↓ 选择 · Enter 切换 · Esc 关闭",
+    "auto": "跟着浏览器（{name}）",
+    "current": "当前"
+  },
+  "history": {
+    "title": "历史",
+    "count": "{count} 条",
+    "search": "搜索",
+    "hint": "↑↓ 选择 · Tab 看全文 · Enter 填进输入框 · Esc 关闭",
+    "empty": "历史发送为空",
+    "no_match": "没有对得上的",
+    "lines": " · +{count} 行",
+    "more": "⋮ 还有 {count} 行",
+    "attachments": " · {count} 个附件",
+    "attachments_only": "{count} 个附件"
   },
   "refusals": {
     "nothing_to_revert": "没有能撤销的",

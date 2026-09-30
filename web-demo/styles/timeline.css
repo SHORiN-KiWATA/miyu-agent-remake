@@ -76,6 +76,14 @@
 .tl-step.is-thought:not(.is-open) .tl-peek { display: flex; }
 .tl-step.is-thought.is-rolling .tl-peek { display: none; }
 .tl-peek.is-overflow { justify-content: flex-end; -webkit-mask-image: linear-gradient(to right, transparent, #000 32px); mask-image: linear-gradient(to right, transparent, #000 32px); }
+/* 留言：收着时后面接留言开头的预览，和思考那一小段一个样子；露开头，放不下末尾截掉加 …；点开了收掉（2026-10-01 项目主人定） */
+.tl-step.is-message:not(.is-open) .tl-peek { display: flex; }
+.tl-step.is-message .tl-peek { margin-left: 0; }
+.tl-step.is-message .tl-peek > span { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* 编号和预览中间的 ·：和对象里的那个一个颜色，后面空一格（2026-10-01 项目主人定） */
+.tl-step.is-message .tl-peek > .tl-peek-sep { flex: none; margin-right: 0.3em; color: var(--tl-soft); }
+/* 放不下时只挤预览：发给谁（· j2）不被挤掉 */
+.tl-step.is-message .tl-head, .tl-step.is-message .tl-subject { flex-shrink: 0; }
 /* 箭头悬停才露：收着朝右，开着朝下（2026-09-30 项目主人定，照 Claude 网页端） */
 .tl-chevron { display: grid; flex: none; place-items: center; color: var(--tl-soft); opacity: 0; transition: transform 160ms ease, opacity 0.15s ease; }
 .tl-chevron .icon { width: 11px; height: 11px; }

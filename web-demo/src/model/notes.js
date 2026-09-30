@@ -108,9 +108,9 @@ export function failureText(f) {
   const classes = res.text.error_classes;
   const message = (f.message ?? '').trim();
   const cls = f.class ?? 'other';
-  if (KERNEL_CLASSES.includes(cls)) return message ? `${classes[cls] ?? cls}：${message}` : classes[cls] ?? cls;
+  if (KERNEL_CLASSES.includes(cls)) return message ? t('reason_with', { head: classes[cls] ?? cls, message }) : classes[cls] ?? cls;
   const status = f.status ?? (cls === 'rate_limited' ? 429 : null);
   const hint = status != null ? res.text.status_hints[String(status)] : null;
-  if (hint) return message ? `${hint}：${message}` : hint;
+  if (hint) return message ? t('reason_with', { head: hint, message }) : hint;
   return message || classes[cls] || cls;
 }

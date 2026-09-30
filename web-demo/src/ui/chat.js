@@ -89,6 +89,20 @@ export class Chat {
     return () => this.promptWatchers.delete(fn);
   }
 
+  /** 有能重做、编辑的那一句（开最新那一轮的、你说的）。 */
+  hasLatest() {
+    return !!this.list.querySelector('.user-message.is-latest');
+  }
+
+  /** `/edit`：滚到开最新那一轮的那一句（停在视口正中，不再跟着最新的），打开编辑（和点它下面的「编辑」一样）。 */
+  editLatest() {
+    const node = /** @type {HTMLElement|undefined} */ ([...this.list.querySelectorAll('.user-message.is-latest')].at(-1));
+    if (!node) return;
+    this.scroll.leave();
+    node.scrollIntoView({ block: 'center' });
+    /** @type {HTMLElement|null} */ (node.querySelector('.is-edit'))?.click();
+  }
+
   /** 重做开始：记住能重做的那一句（开最新那一轮的）在屏幕上的位置（`follow.js` 的 `keep`）。 */
   keepLatest() {
     const node = [...this.list.querySelectorAll('.user-message.is-latest')].at(-1);

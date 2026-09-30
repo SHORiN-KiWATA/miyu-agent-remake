@@ -27,6 +27,8 @@ import { SessionsPage } from './sessions-page.js';
 import { Crumbs, BackButton } from './crumbs.js';
 import { pathOf } from '../model/tree.js';
 
+/** 输入历史记在这台设备上的名字（蓝图「输入历史」第 1 条；内核的 `storage` 会带上账号） */
+const HISTORY = 'input_history';
 /** 左栏收没收，记在这台设备上的名字（内核的 `storage` 会带上账号） */
 const COLLAPSED = 'sidebar_collapsed';
 
@@ -123,6 +125,12 @@ export class App {
       interrupt: () => this.interrupt(),
       cycleLevel: () => this.cycleLevel(),
       command: (spec, words) => runCommand(this, spec, words),
+      // 输入历史：记在这台设备上、按账号分开（内核的 `storage`）；读到坏的丢掉
+      history: {
+        load: () => [].concat(ctx.storage.get(HISTORY, [])).filter((x) => typeof x?.text === 'string' && typeof x?.at === 'number'),
+        save: (items) => ctx.storage.set(HISTORY, items),
+      },
+      session: () => this.current,
     }, () => this.commands.list(), () => ctx.slots.list('composer.payload'));
     // 框里：下面一排左边的按钮、写字的地方上面一排（附件这类软件包画）；跟着话一起发的不画，发的时候交出来
     const failedSlot = (owner, reason) => h('div.slot-failed', t('slot_failed', { owner, reason }));

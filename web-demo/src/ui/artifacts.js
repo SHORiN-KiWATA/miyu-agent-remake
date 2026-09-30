@@ -197,7 +197,7 @@ export class Artifacts {
       })
       .catch((err) => {
         if (token !== this.token) return;
-        replace(this.view, h('div.artifact-failure', icon('circle-alert'), `${t('artifacts.failed')}：${err.message}`));
+        replace(this.view, h('div.artifact-failure', icon('circle-alert'), t('artifacts.failed_with', { reason: err.message })));
       });
   }
 

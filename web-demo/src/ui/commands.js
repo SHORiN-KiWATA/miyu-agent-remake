@@ -68,7 +68,7 @@ export class CommandList {
     this.pointer = '';
     this.head = h('div.commands-head');
     this.list = h('div.commands-list', { role: 'listbox', style: `--rows: ${res.layout.command_rows}` });
-    this.el = h('div.dock-commands', { hidden: true }, this.head, this.list);
+    this.el = h('div.dock-commands.dock-float', { hidden: true }, this.head, this.list);
   }
 
   get open() { return this.matches.length > 0; }
@@ -194,6 +194,36 @@ const RUNS = {
     const next = await app.ctx.theme?.next();
     if (next) app.composer.say(t('commands.theme_changed', { name: next.name }));
   },
+  // 界面语言（蓝图「界面语言」第 3 条）：不带参数的开一个浮层选；写了 auto 或表里的一种直接换，写别的提示能写哪些
+  language: (app, spec, words) => {
+    const lang = app.ctx.language;
+    const want = (words ?? '').trim();
+    if (!want) {
+      const { items, current } = lang.options();
+      app.composer.picker.show({
+        title: t('language.title'),
+        hint: t('language.hint'),
+        note: t('language.current'),
+        items: items.map((x) => ({ label: x.auto ? t('language.auto', { name: x.name }) : x.name })),
+        current,
+        // 选的就是现在写的那一样：只关掉
+        choose: (i) => { if (i !== current) setLanguage(app, items[i].value); },
+      });
+      return;
+    }
+    if (!lang.choices.includes(want)) {
+      app.composer.say(t('commands.language_unknown', { choices: lang.choices.join(t('list_sep')) }));
+      return;
+    }
+    setLanguage(app, want);
+  },
+  // 重做、编辑最新一轮（蓝图「斜杠命令」，照 TUI）：在回答时、最新一轮不是你开的都不做，提示一句，不找核心
+  redo: (app) => {
+    if (latestTurn(app)) redo(app, null);
+  },
+  edit: (app) => {
+    if (latestTurn(app)) app.chat.editLatest();
+  },
   // 全部会话那一页（蓝图「全部会话」）
   sessions: (app) => app.sessionsPage.open(),
   new: (app) => {
@@ -204,6 +234,20 @@ const RUNS = {
   packages: (app) => openPackages(app.ctx.packages, (text) => app.composer.say(text)),
   fake: (app, spec) => app.composer.say(t('commands.fake', { name: spec.name })),
 };
+
+/** `/redo`、`/edit` 能不能做：在回答时提示「回答进行中」，最新一轮不是你开的（或一轮都没有）提示「无法重做」。 */
+function latestTurn(app) {
+  if (app.composer.running) app.composer.say(res.text.refusals.turn_running);
+  else if (!app.chat.hasLatest()) app.composer.say(res.text.refusals.not_redoable);
+  else return true;
+  return false;
+}
+
+/** 改界面语言：界面的字、收起那一行的写法变了内核重新载入页面；都没变的提示一句。 */
+function setLanguage(app, value) {
+  const done = app.ctx.language.set(value);
+  if (!done.reload) app.composer.say(t('commands.language_changed', { name: done.language.name }));
+}
 
 /** 撤销、恢复、压缩要一个开了的会话；还没开的新会话提示一句，交回 `null`。 */
 function opened(app) {

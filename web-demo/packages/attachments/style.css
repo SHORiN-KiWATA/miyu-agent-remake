@@ -7,8 +7,15 @@
 
 /* 框里那一排（蓝图 web.md「附件」第 3 条，照 Claude 网页端）：一张张一样大的卡（112×104），只排一行，放不下的往右排出去、
    横着滚（一根细的滚动条）；两头有东西没露全的那一边虚化（遮罩渐隐 32px）。空着不占地方 */
-.attach-tray { --fade: 32px; margin: 0 12px; }
-.attach-tray.has-items { padding-top: 12px; }
+/* 出来、收起（蓝图 web.md「动效」）：高度从 0 长出来（先快后慢）、收回 0（两头慢中间快），和卡片自己的进出一起走 */
+.attach-tray {
+  --fade: 32px; display: grid; grid-template-rows: 0fr; margin: 0 12px;
+  transition: grid-template-rows var(--motion-collapse) ease-in-out;
+}
+.attach-tray.has-items { grid-template-rows: 1fr; transition-timing-function: var(--ease-out); }
+.attach-clip { min-height: 0; overflow: hidden; }
+.attach-pad { padding-top: 12px; }
+@media (prefers-reduced-motion: reduce) { .attach-tray { transition: none; } }
 .attach-strip {
   display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; overscroll-behavior-x: contain;
   scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--text) 18%, transparent) transparent;

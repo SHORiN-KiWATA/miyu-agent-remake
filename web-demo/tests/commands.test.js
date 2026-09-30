@@ -11,13 +11,13 @@ const res = loadRes();
 const list = res.commands.commands;
 const names = (specs) => specs.map((s) => s.name);
 
-test('出厂的清单照蓝图：去掉 /icons、/exit，加 /pkg、/clear（/demo-todo 由软件包 todo 登记）；只有 /compact 带参数；真的几条各有各的做法', () => {
-  assert.deepEqual(names(list), ['undo', 'restore', 'compact', 'clear', 'theme', 'new', 'sessions', 'model', 'readonly', 'level',
+test('出厂的清单照蓝图：去掉 /icons、/exit，加 /pkg、/clear、/language、/redo、/edit（/demo-todo 由软件包 todo 登记）；/compact、/language 带参数；真的几条各有各的做法', () => {
+  assert.deepEqual(names(list), ['undo', 'restore', 'redo', 'edit', 'compact', 'clear', 'theme', 'new', 'sessions', 'language', 'model', 'readonly', 'level',
     'tools', 'settings', 'copy', 'help', 'pkg']);
-  assert.deepEqual(list.filter((s) => s.args).map((s) => s.name), ['compact']);
+  assert.deepEqual(list.filter((s) => s.args).map((s) => s.name), ['compact', 'language']);
   const runs = Object.fromEntries(list.filter((s) => s.run !== 'fake').map((s) => [s.name, s.run]));
-  assert.deepEqual(runs, { undo: 'revert', restore: 'unrevert', compact: 'compact', clear: 'clear', theme: 'theme', new: 'new', sessions: 'sessions', copy: 'copy',
-    pkg: 'packages' });
+  assert.deepEqual(runs, { undo: 'revert', restore: 'unrevert', redo: 'redo', edit: 'edit', compact: 'compact', clear: 'clear', theme: 'theme', new: 'new', sessions: 'sessions', copy: 'copy',
+    pkg: 'packages', language: 'language' });
   assert.deepEqual(names(list.filter((s) => s.run === 'fake')), ['model', 'readonly', 'level', 'tools', 'settings', 'help']);
 });
 
@@ -63,19 +63,19 @@ test('回车时这一行是什么：命令带着参数；没有这个命令的�
 });
 
 test('边打边筛：名字（或别名）开头的排前面，含着的排后面，各照清单的先后；不分大小写', () => {
-  assert.deepEqual(names(filter(list, 're')), ['undo', 'restore', 'clear', 'readonly'], 'rewind、reset（别名）、restore、readonly 开头');
-  assert.deepEqual(names(filter(list, 'e')), ['undo', 'restore', 'clear', 'theme', 'new', 'sessions', 'model', 'readonly', 'level',
-    'settings', 'help'], '没有 e 开头的：都是含着的，照清单的先后');
+  assert.deepEqual(names(filter(list, 're')), ['undo', 'restore', 'redo', 'clear', 'readonly'], 'rewind、reset（别名）、restore、redo、readonly 开头');
+  assert.deepEqual(names(filter(list, 'e')), ['edit', 'undo', 'restore', 'redo', 'clear', 'theme', 'new', 'sessions', 'language', 'model', 'readonly', 'level',
+    'settings', 'help'], 'e 开头的只有 /edit，排前面；别的都是含着的，照清单的先后');
   assert.deepEqual(names(filter(list, 'rew')), ['undo'], '筛的时候别名也算，列表里写正名');
-  assert.deepEqual(names(filter(list, 'T')), ['theme', 'tools', 'restore', 'compact', 'clear', 'settings']);
+  assert.deepEqual(names(filter(list, 'T')), ['theme', 'tools', 'restore', 'edit', 'compact', 'clear', 'settings']);
   assert.equal(filter(list, '').length, list.length, '刚打一个 /：全部');
   assert.deepEqual(filter(list, 'zzz'), []);
 });
 
-test('名字或别名正好对上的那一条；/redo 不再认', () => {
+test('名字或别名正好对上的那一条；/redo 是重做（原来恢复撤销的旧名字，现在照 TUI 是 session.redo）', () => {
   assert.equal(find(list, 'restore')?.run, 'unrevert');
   assert.equal(find(list, 'rewind')?.run, 'revert');
-  assert.equal(find(list, 'redo'), null);
+  assert.equal(find(list, 'redo')?.run, 'redo');
   assert.equal(find(list, ''), null);
 });
 

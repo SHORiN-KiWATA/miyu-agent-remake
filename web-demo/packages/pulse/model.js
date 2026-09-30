@@ -95,6 +95,17 @@ export function columns(text) {
   return n;
 }
 
+/**
+ * 照界面语言挑词：每一档的词按语言写（`{zh: […], ja: […]}`，照 TUI 的 `pulse.json`），挑这一种的；个人改成只写一串的原样用
+ * （蓝图 `web.md`「界面语言」）。
+ * @param {any} words 设置项 `words`
+ * @param {(value: any) => any} pick 按语言挑一块（`ctx.local`）
+ * @returns {Words}
+ */
+export function localWords(words, pick) {
+  return { ...words, tiers: words.tiers.map((t) => ({ ...t, words: pick(t.words) })) };
+}
+
 /** 词库里最宽的词：用时照它留位置，换了长短不一的词不左右跳（`tui.md` 第 2 条）。 */
 export function widest(words) {
   let best = '';

@@ -4,7 +4,8 @@
 
 import { h } from './dom.js';
 import { leave } from '../lib/motion.js';
-import { t } from '../util/res.js';
+import { t, res } from '../util/res.js';
+import { local } from '../lib/text.js';
 
 /**
  * 打开浮层。`Esc`、点外面、点「关闭」关上。
@@ -46,8 +47,8 @@ export async function openPackages(packages, say) {
 
 /** 一行：名字、编号、状态（等着的写缺什么，故障的写为什么），可选的有开关。 */
 function row(p, toggle) {
-  const name = p.manifest?.name?.['zh-CN'] ?? p.id;
-  const why = p.state === 'pending' && p.missing.length ? t('pkg.missing', { names: p.missing.join('、') }) : p.state === 'failed' ? p.reason : '';
+  const name = local(p.manifest?.name ?? p.id, res.language);
+  const why = p.state === 'pending' && p.missing.length ? t('pkg.missing', { names: p.missing.join(t('list_sep')) }) : p.state === 'failed' ? p.reason : '';
   const base = p.manifest?.kind === 'base';
   const on = p.state !== 'disabled';
   return h(`div.pkg-row.is-${p.state}`,

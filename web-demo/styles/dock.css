@@ -17,8 +17,8 @@
 /* 提示在回答时浮到运行状态行上面：用独立的 translate，不碰提示自己的定位和 transform */
 .composer-dock.is-running .composer-notice { translate: 0 calc(-1 * (var(--pulse-row) * var(--pulse-lines, 1) + var(--pulse-gap))); }
 
-/* ── 命令列表：浮在框上面，和框一样宽；半透明的 surface-1 加毛玻璃，一圈细线，浮起来的阴影 ── */
-.dock-commands {
+/* ── 命令列表、选语言的浮层、输入历史列表：浮在框上面，和框一样宽；半透明的 surface-1 加毛玻璃，一圈细线，浮起来的阴影 ── */
+.dock-commands, .dock-picker, .dock-history {
   position: absolute; z-index: 3; right: -1px; bottom: calc(100% + 1px + var(--list-gap)); left: -1px;
   padding: 6px; border: 1px solid var(--line); border-radius: 14px;
   background: color-mix(in srgb, var(--surface-1) 90%, transparent);
@@ -26,7 +26,7 @@
   box-shadow: var(--float-shadow);
   animation: rise-in var(--motion-in) var(--ease-out) both;
 }
-.dock-commands.is-leaving { animation: sink-out var(--motion-out) var(--ease-in) both; }
+.dock-commands.is-leaving, .dock-picker.is-leaving, .dock-history.is-leaving { animation: sink-out var(--motion-out) var(--ease-in) both; }
 .commands-head { padding: 4px 10px 6px; color: var(--text-faint); font-size: 12px; line-height: 16px; }
 /* 最多露 --rows 条（layout.json 的 command_rows），多的在里面滚；名字一列照最长的对齐 */
 .commands-list {
@@ -44,7 +44,41 @@
 .command-alias { color: var(--text-faint); }
 .command-summary { overflow: hidden; color: var(--text-soft); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 
+/* ── 选一样的浮层（/language，蓝图 web.md「界面语言」第 3 条）：头一行标题、右边暗色写按键；一行一样，选中的铺底、字变 accent，
+   现在的那一行右边暗色写「当前」 ── */
+.picker-head { display: flex; align-items: baseline; gap: 8px; padding: 5px 10px 8px; line-height: 18px; }
+.picker-title { color: var(--text); font-size: 13px; font-weight: 600; }
+.picker-hint { min-width: 0; flex: 1; overflow: hidden; color: var(--text-faint); font-size: 12px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.picker-row { display: flex; align-items: center; gap: 12px; height: 32px; padding: 0 10px; border-radius: 9px; cursor: pointer; }
+.picker-row.is-selected { background: var(--surface-2); }
+.picker-label { min-width: 0; flex: 1; overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.picker-row.is-selected .picker-label { color: var(--accent); }
+.picker-note { flex: none; color: var(--text-faint); font-size: 12px; }
+
+/* ── 输入历史列表（Ctrl+R，蓝图 web.md「输入历史」第 4 条）：头一行「历史 · N 条」和搜索框；最新的贴着底，最多露 --rows 行，多的在
+   里面滚；一条一行，右边暗色写多久以前；命令的名字、对得上的字 accent（对得上的加下划线）；最下面一行暗色写按键 ── */
+.history-head { display: flex; align-items: baseline; gap: 8px; padding: 5px 10px 8px; line-height: 18px; }
+.history-title { color: var(--text); font-size: 13px; font-weight: 600; }
+.history-count { flex: none; color: var(--text-faint); font-size: 12px; }
+.history-search {
+  min-width: 0; flex: 1; max-width: 240px; margin-left: auto; padding: 3px 8px; border: 0; border-radius: 7px; outline: 0;
+  background: var(--surface-2); color: var(--text); font: inherit; font-size: 12.5px; line-height: 18px;
+}
+.history-search::placeholder { color: var(--text-faint); }
+.history-list { --row-h: 32px; max-height: calc(var(--rows) * var(--row-h)); overflow-y: auto; overscroll-behavior: contain; }
+.history-row { display: flex; align-items: flex-start; gap: 12px; min-height: var(--row-h); padding: 7px 10px; border-radius: 9px; cursor: pointer; }
+.history-row.is-selected { background: var(--surface-2); }
+.history-body { min-width: 0; flex: 1; overflow: hidden; color: var(--text); font-size: 13px; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; }
+.history-row.is-open .history-body { overflow-wrap: anywhere; white-space: pre-wrap; }
+.history-row.is-selected .history-text { color: var(--accent); }
+.history-text .is-cmd { color: var(--accent); }
+.history-text .is-mark { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.history-lines, .history-rest { color: var(--text-faint); }
+.history-row.is-open .history-rest { display: block; }
+.history-ago { flex: none; color: var(--text-faint); font-size: 12px; line-height: 18px; white-space: nowrap; }
+.history-empty { padding: 7px 10px; color: var(--text-faint); font-size: 13px; }
+.history-hint { padding: 6px 10px 2px; color: var(--text-faint); font-size: 12px; line-height: 16px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .pulse-shine, .dock-commands { animation: none; }
+  .pulse-shine, .dock-commands, .dock-picker, .dock-history { animation: none; }
 }

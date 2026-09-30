@@ -4,11 +4,12 @@
 //! 提示浮在它上面：写一个页面变量 `--pulse-lines`（它占几行）。停用了回答时那一行没有，排着的话照样发。
 
 import { PulseLine } from './line.js';
-import { beatOf } from './model.js';
+import { beatOf, localWords } from './model.js';
 
 /** @param {any} ctx */
 export function apply(ctx) {
-  const line = new PulseLine(ctx.config, (path, fields) => ctx.text(path, fields));
+  // 词库照界面语言挑（每一档每种语言各一组）
+  const line = new PulseLine({ ...ctx.config, words: localWords(ctx.config.words, ctx.local) }, (path, fields) => ctx.text(path, fields));
   const root = document.documentElement;
   ctx.effect(() => () => {
     line.set(null);

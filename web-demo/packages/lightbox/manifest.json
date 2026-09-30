@@ -2,11 +2,12 @@
   "id": "lightbox",
   "version": "0.1.0",
   "name": {
-    "zh-CN": "灯箱"
+    "zh": "灯箱",
+    "ja": "ライトボックス"
   },
   "kind": "optional",
   "description": {
-    "zh-CN": "对话里的图片、mermaid 图点开放大看；停用了点图在新标签页开。"
+    "zh": "对话里的图片、mermaid 图点开放大看；停用了点图在新标签页开。"
   },
   "inject": [],
   "provides": {
@@ -19,12 +20,19 @@
     "style.css"
   ],
   "text": {
-    "zh-CN": {
+    "zh": {
       "label": "图片预览",
       "close": "关闭预览",
       "workspace": "在预览工作区打开",
       "external": "在新标签页打开",
       "download": "下载"
+    },
+    "ja": {
+      "label": "画像プレビュー",
+      "close": "プレビューを閉じる",
+      "workspace": "プレビューワークスペースで開く",
+      "external": "新しいタブで開く",
+      "download": "ダウンロード"
     }
   }
 }

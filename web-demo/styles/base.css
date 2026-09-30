@@ -14,16 +14,18 @@
   --ease-in: cubic-bezier(0.55, 0, 0.85, 0.35);
   /* 只用本机的字体，不往外取（旧版一样）。西文先 Inter，没有的用 Adwaita Sans（GNOME 照 Inter 改的）、Noto Sans；中文落到
      思源黑体（Noto Sans CJK SC）。Inter 没装的机器上，原来西文直接用了思源黑体里的西文，又宽又软（2026-09-30 改） */
-  --sans: Inter, "Adwaita Sans", "Noto Sans", "Miyu CJK Sans", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  /* 中日韩的字先用哪一个（下面的 @font-face）：日文界面换成日文的那一个（蓝图 web.md「界面语言」） */
+  --cjk: "Miyu CJK Sans";
+  --sans: Inter, "Adwaita Sans", "Noto Sans", var(--cjk), "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   --serif: "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", "SimSun", Georgia, serif;
   /* 等宽：先项目主人终端里的 JetBrains Maple Mono，再常见的；它没有 ▣ ⏵ ⏸ 这几个记号，照终端的退法退到 DejaVu Sans Mono、
      Adwaita Mono，最后才是符号字体。中文不用等宽字体里的（一个字占两格，「只读」写出来像「只 读」）：排在最前面的
      「Miyu CJK Sans」只管中日韩的字，落到黑体 */
-  --mono: "Miyu CJK Sans", "JetBrains Maple Mono", "Maple Mono NF CN", "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas,
+  --mono: var(--cjk), "JetBrains Maple Mono", "Maple Mono NF CN", "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas,
     "Noto Sans Mono CJK SC", "DejaVu Sans Mono", "Adwaita Mono", "Noto Sans Symbols 2", monospace;
   /* 回答里的代码（Markdown 的行内代码、代码块、预览工作区的源码）：照旧版，中文用黑体（下面的「Miyu 代码中文」），
      不像带中文的等宽字体那样一个字占两格、看着字距拉开；别的字照旧版的等宽字体 */
-  --code-font: "Miyu CJK Sans", "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --code-font: var(--cjk), "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --radius: 8px;
   --radius-sm: 3px;
   /* 桌面整页放大 1.1（旧版 --ui-scale），窄屏不放大 */
@@ -38,6 +40,18 @@
   src: local("Noto Sans CJK SC Regular"), local("NotoSansCJKsc-Regular"), local("Noto Sans SC Regular"), local("NotoSansSC-Regular"),
     local("Source Han Sans SC Regular"), local("SourceHanSansSC-Regular"), local("Microsoft YaHei"), local("PingFang SC Regular");
   unicode-range: U+2E80-2FDF, U+3000-303F, U+3040-30FF, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FE30-FE4F, U+FF00-FFEF;
+}
+/* 日文界面（<html lang="ja-JP">，蓝图 web.md「界面语言」）：中日韩的字先用日文的黑体、宋体，汉字照日文的字形 */
+@font-face {
+  font-family: "Miyu CJK Sans JP";
+  src: local("Noto Sans CJK JP Regular"), local("NotoSansCJKjp-Regular"), local("Noto Sans JP Regular"), local("NotoSansJP-Regular"),
+    local("Source Han Sans JP Regular"), local("SourceHanSansJP-Regular"), local("Hiragino Sans W3"), local("HiraginoSans-W3"),
+    local("Yu Gothic UI"), local("Meiryo");
+  unicode-range: U+2E80-2FDF, U+3000-303F, U+3040-30FF, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FE30-FE4F, U+FF00-FFEF;
+}
+:root:lang(ja) {
+  --cjk: "Miyu CJK Sans JP";
+  --serif: "Source Han Serif JP", "Noto Serif CJK JP", "Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif;
 }
 
 * { box-sizing: border-box; }

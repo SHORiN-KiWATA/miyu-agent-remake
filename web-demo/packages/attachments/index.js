@@ -6,7 +6,8 @@
 //!   选文件、拖放、缩略图都经宿主（服务 `host` 的 `files`，蓝图 `web/architecture.md`「宿主」）：浏览器给内容，桌面端给路径。
 //! - 传：宿主把它变成核心读得到的路径（浏览器交给桥存进临时目录，桌面端本来就有路径），再 `blob.put`；桥存的那一份存好了
 //!   `web.upload_done` 让桥删掉。
-//! - 框里那一排挂进 `composer.head`（`tray.js`）；发的时候经 `composer.payload` 交出去，核心拒了放回来（`model.js` 的 `Tray`）。
+//! - 框里那一排挂进 `composer.head`（`tray.js`）；发的时候经 `composer.payload` 交出去，核心拒了放回来（`model.js` 的 `Tray`）；
+//!   记进输入历史的是核心存好的那一份，翻出来的照它回到框里（蓝图「输入历史」）。
 //!
 //! 停用了按钮、那一排、拖放都没了，框里没发的附件丢掉。
 
@@ -62,6 +63,10 @@ export function apply(ctx) {
     busy: () => tray.busy(),
     take: () => tray.take(),
     putBack: (given) => tray.putBack(given),
+    // 输入历史（蓝图「输入历史」第 1、2 条）：交出去的记成核心存好的那一份；翻出来的换上、走回没发的那句拿掉；改了字留下
+    keep: (given) => tray.keep(given),
+    recall: (saved) => tray.recall(saved?.kept ?? null, saved?.session ?? null),
+    settle: () => tray.settle(),
   });
 
   // 粘贴：粘的是文件（截图）的收下，是字的照旧

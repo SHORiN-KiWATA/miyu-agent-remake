@@ -1,0 +1,52 @@
+{
+  "note": "英文那一套（蓝图 web.md「界面语言」第 4 条）：现在只有时间线收起那一行，界面语言跟着浏览器（auto）时用它；以后加英文界面时补全。",
+  "timeline": {
+    "summary": {
+      "ran": [
+        "Ran 1 command",
+        "Ran {count} commands"
+      ],
+      "used": [
+        "Used 1 tool",
+        "Used {count} tools"
+      ],
+      "made": [
+        "Made 1 edit",
+        "Made {count} edits"
+      ],
+      "edits": [
+        "1 edit",
+        "{count} edits"
+      ],
+      "tools": [
+        "1 tool",
+        "{count} tools"
+      ],
+      "thoughts": [
+        "1 thought",
+        "{count} thoughts"
+      ],
+      "errors": [
+        "1 err",
+        "{count} err"
+      ],
+      "thought_for": "Thought for {elapsed}",
+      "spawned": [
+        "Spawned 1 agent",
+        "Spawned {count} agents"
+      ],
+      "messaged": [
+        "Messaged 1 agent",
+        "Messaged {count} agents"
+      ],
+      "agents": [
+        "1 agent",
+        "{count} agents"
+      ],
+      "messages": [
+        "1 message",
+        "{count} messages"
+      ]
+    }
+  }
+}

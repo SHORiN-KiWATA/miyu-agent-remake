@@ -114,3 +114,32 @@ test('文字文件有几行：最后一行没有换行也算一行；空的是 0
   assert.equal(lineCount('a\nb\n'), 2);
   assert.equal(lineCount(''), 0);
 });
+
+test('输入历史：交出去的记成核心存好的那一份（编号、名字、媒体类型、大小），浏览器里的文件不记', () => {
+  const tray = new Tray();
+  const a = tray.add({ name: 'a.png', size: 3, type: 'image/png', file: new Blob(['abc']) });
+  tray.ready(a.id, { blob: 'sha256:aa', name: 'a.png', media_type: 'image/png' });
+  const taken = /** @type {any} */ (tray.take());
+  assert.deepEqual(tray.keep(taken), [{ blob: 'sha256:aa', name: 'a.png', media_type: 'image/png', size: 3 }]);
+  assert.equal(tray.keep(/** @type {any} */ ({ attachments: [] })), null, '不是这里交出去的不认');
+});
+
+test('输入历史翻出来的：换掉上一次跟着翻出来的，自己放的不动；传好了的直接能发；文件带着核心存好的那一份（缩略图照它取）；留下以后不再换', () => {
+  const tray = new Tray();
+  const own = tray.add({ name: 'mine.txt', size: 1, type: 'text/plain' });
+  tray.ready(own.id, { blob: 'sha256:00', name: 'mine.txt', media_type: 'text/plain' });
+  const kept = [{ blob: 'sha256:aa', name: 'a.png', media_type: 'image/png', size: 3 }];
+  tray.recall(kept, 's1');
+  assert.deepEqual(tray.items.map((it) => it.name), ['mine.txt', 'a.png']);
+  assert.equal(tray.busy(), false);
+  assert.deepEqual(tray.items[1].file, { name: 'a.png', size: 3, type: 'image/png', stored: { session: 's1', hash: 'sha256:aa' } });
+  tray.recall([{ blob: 'sha256:bb', name: 'b.pdf', media_type: 'application/pdf', size: 9 }], 's2');
+  assert.deepEqual(tray.items.map((it) => it.name), ['mine.txt', 'b.pdf'], '换掉上一次跟着翻出来的');
+  tray.recall(null, null);
+  assert.deepEqual(tray.items.map((it) => it.name), ['mine.txt'], '走回没发的那句：拿掉');
+  tray.recall(kept, 's1');
+  tray.settle();
+  tray.recall(null, null);
+  assert.deepEqual(tray.items.map((it) => it.name), ['mine.txt', 'a.png'], '留下的不再拿掉');
+  assert.deepEqual(/** @type {any} */ (tray.take()).attachments.map((x) => x.blob), ['sha256:00', 'sha256:aa']);
+});

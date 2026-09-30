@@ -54,7 +54,7 @@ export class JobsPanel {
     this.stopAll = h('button.jobs-stop-all', { type: 'button', hidden: true, onclick: () => this.stopEverything() }, t('stop_all'));
     this.head = h('div.jobs-head', h('strong.jobs-head-title', t('title')), this.headCount, this.stopAll);
     this.list = h('div.jobs-list');
-    this.el = h('div.jobs-panel', { hidden: true, role: 'dialog', 'aria-label': t('open'), style: `--jobs-fold: ${config.fold_ms}ms` }, this.head, this.list);
+    this.el = h('div.jobs-panel.dock-float', { hidden: true, role: 'dialog', 'aria-label': t('open'), style: `--jobs-fold: ${config.fold_ms}ms` }, this.head, this.list);
     this.onKey = (/** @type {KeyboardEvent} */ e) => {
       if (e.key !== 'Escape') return;
       e.stopPropagation();

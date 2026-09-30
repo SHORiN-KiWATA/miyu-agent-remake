@@ -1,22 +1,47 @@
 {
-  "note": "斜杠命令（蓝图 web.md「斜杠命令」）：照 TUI 演示的 commands.json，去掉网页用不上的 /icons、/exit 和别的演示命令，留 /demo-todo。run 是做什么：revert、unrevert、compact、theme、new、copy、demo_todo 是真的，fake 只说一句。aliases 是别名，args 是名字后面能接参数。",
+  "note": "斜杠命令（蓝图 web.md「斜杠命令」）：照 TUI 演示的 commands.json，去掉网页用不上的 /icons、/exit 和别的演示命令，留 /demo-todo。run 是做什么：revert、unrevert、redo、edit、compact、theme、new、copy、demo_todo 是真的，fake 只说一句。aliases 是别名，args 是名字后面能接参数。summary 每种语言各写一句（蓝图 web.md「界面语言」，照 TUI 那一份）。",
   "commands": [
     {
       "name": "undo",
       "aliases": [
         "rewind"
       ],
-      "summary": "撤销上一轮，她改过的文件改回去",
+      "summary": {
+        "zh": "撤销上一轮，她改过的文件改回去",
+        "ja": "直前のやり取りを取り消し、変更されたファイルを元に戻す"
+      },
       "run": "revert"
     },
     {
       "name": "restore",
-      "summary": "恢复刚才撤销的那一轮",
+      "summary": {
+        "zh": "恢复刚才撤销的那一轮",
+        "ja": "直前に取り消したやり取りを復元する"
+      },
       "run": "unrevert"
     },
     {
+      "name": "redo",
+      "summary": {
+        "zh": "这一轮原样重来一遍",
+        "ja": "このやり取りをそのままやり直す"
+      },
+      "run": "redo"
+    },
+    {
+      "name": "edit",
+      "summary": {
+        "zh": "编辑上一句，改完回车重来",
+        "ja": "直前のメッセージを編集して再送信する"
+      },
+      "run": "edit"
+    },
+    {
       "name": "compact",
-      "summary": "现在就压缩上下文，后面可以写给摘要的要求",
+      "summary": {
+        "zh": "现在就压缩上下文，后面可以写给摘要的要求",
+        "ja": "今すぐコンテキストを圧縮する。続けて要約への指示を書ける"
+      },
       "run": "compact",
       "args": true
     },
@@ -25,62 +50,107 @@
       "aliases": [
         "reset"
       ],
-      "summary": "清空上下文，会话不变",
+      "summary": {
+        "zh": "清空上下文，会话不变",
+        "ja": "コンテキストをクリアする（セッションは維持）"
+      },
       "run": "clear"
     },
     {
       "name": "theme",
-      "summary": "换一套颜色：晨光、tokyonight 轮着换",
+      "summary": {
+        "zh": "换一套颜色：晨光、tokyonight 轮着换",
+        "ja": "配色を切り替える：晨光、tokyonight を順に切り替え"
+      },
       "run": "theme"
     },
     {
       "name": "new",
-      "summary": "开一个新会话",
+      "summary": {
+        "zh": "开一个新会话",
+        "ja": "新しいセッションを開始する"
+      },
       "run": "new"
     },
     {
       "name": "sessions",
-      "summary": "全部会话：搜索、多选、删除",
+      "summary": {
+        "zh": "全部会话：搜索、多选、删除",
+        "ja": "すべてのセッション：検索・複数選択・削除"
+      },
       "run": "sessions"
     },
     {
+      "name": "language",
+      "summary": {
+        "zh": "换界面语言：开一个浮层选，也可以直接写 zh、ja、auto",
+        "ja": "表示言語を切り替える：一覧から選ぶ。zh・ja・auto を直接指定することもできる"
+      },
+      "run": "language",
+      "args": true
+    },
+    {
       "name": "model",
-      "summary": "换这个会话的模型",
+      "summary": {
+        "zh": "换这个会话的模型",
+        "ja": "このセッションのモデルを変更する"
+      },
       "run": "fake"
     },
     {
       "name": "readonly",
-      "summary": "开关只读",
+      "summary": {
+        "zh": "开关只读",
+        "ja": "読み取り専用を切り替える"
+      },
       "run": "fake"
     },
     {
       "name": "level",
-      "summary": "改常用的权限级别：工作区或完全放开",
+      "summary": {
+        "zh": "改常用的权限级别：工作区或完全放开",
+        "ja": "普段使う権限レベルを変更する：ワークスペースまたはフルアクセス"
+      },
       "run": "fake"
     },
     {
       "name": "tools",
-      "summary": "工具设置：哪些常驻、哪些按需加载",
+      "summary": {
+        "zh": "工具设置：哪些常驻、哪些按需加载",
+        "ja": "ツール設定：常に読み込むものとオンデマンドで読み込むもの"
+      },
       "run": "fake"
     },
     {
       "name": "settings",
-      "summary": "打开设置",
+      "summary": {
+        "zh": "打开设置",
+        "ja": "設定を開く"
+      },
       "run": "fake"
     },
     {
       "name": "copy",
-      "summary": "复制她的上一段回答",
+      "summary": {
+        "zh": "复制她的上一段回答",
+        "ja": "直前の返信をコピーする"
+      },
       "run": "copy"
     },
     {
       "name": "help",
-      "summary": "看看按键和命令",
+      "summary": {
+        "zh": "看看按键和命令",
+        "ja": "キー操作とコマンドを見る"
+      },
       "run": "fake"
     },
     {
       "name": "pkg",
-      "summary": "软件包：看状态、停用、启用",
+      "summary": {
+        "zh": "软件包：看状态、停用、启用",
+        "ja": "パッケージ：状態の確認・無効化・有効化"
+      },
       "run": "packages"
     }
   ]

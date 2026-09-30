@@ -2,11 +2,12 @@
   "id": "todo",
   "version": "0.1.0",
   "name": {
-    "zh-CN": "待办"
+    "zh": "待办",
+    "ja": "ToDo"
   },
   "kind": "optional",
   "description": {
-    "zh-CN": "输入框上面常驻一块待办（照 TUI 窄屏）；核心还没有待办，/demo-todo 推一份演示的。"
+    "zh": "输入框上面常驻一块待办（照 TUI 窄屏）；核心还没有待办，/demo-todo 推一份演示的。"
   },
   "inject": [
     "slots",
@@ -20,7 +21,7 @@
       "min": 1,
       "integer": true,
       "name": {
-        "zh-CN": "默认露几行"
+        "zh": "默认露几行"
       }
     },
     "marks": {
@@ -32,14 +33,14 @@
         "done": "☑"
       },
       "name": {
-        "zh-CN": "没做、在做、做完的记号"
+        "zh": "没做、在做、做完的记号"
       }
     },
     "hold_ms": {
       "type": "duration",
       "default": 1500,
       "name": {
-        "zh-CN": "全做完了停多久再收掉"
+        "zh": "全做完了停多久再收掉"
       }
     },
     "demo_items": {
@@ -57,14 +58,14 @@
         "提交"
       ],
       "name": {
-        "zh-CN": "演示的待办"
+        "zh": "演示的待办"
       }
     },
     "every_ms": {
       "type": "duration",
       "default": 3000,
       "name": {
-        "zh-CN": "演示几毫秒推进一项"
+        "zh": "演示几毫秒推进一项"
       }
     }
   },
@@ -72,12 +73,19 @@
     "style.css"
   ],
   "text": {
-    "zh-CN": {
+    "zh": {
       "title": "待办 {done}/{total}",
       "folded": "做完 {count} 项",
       "more": "… 还有 {count} 项",
       "toggle": "点一下展开、收起",
       "command": "演示：推一份假的待办"
+    },
+    "ja": {
+      "title": "ToDo {done}/{total}",
+      "folded": "{count} 件完了",
+      "more": "… 他 {count} 件",
+      "toggle": "クリックで展開・折りたたみ",
+      "command": "デモ：仮の ToDo を表示する"
     }
   }
 }

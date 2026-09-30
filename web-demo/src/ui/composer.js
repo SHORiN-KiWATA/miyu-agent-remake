@@ -5,6 +5,8 @@
 //! 按键照 `tui.md`「按键」：`Enter` 发，`Shift+Enter` 换行，输入法在选字时不算；两下 `Esc` 清空（1.5 秒内）。
 //! 框里是斜杠命令的，回车执行它，不发给她（`model/commands.js` 的 `read`）；命令列表开着时 `↑` `↓` `Tab` `Enter` `Esc`
 //! 先归列表（`ui/commands.js`）。焦点不在哪个输入框里时按 `/`，只把焦点放回这里，不打进这个 `/`。
+//! `↑` `↓` 翻输入历史、`Ctrl+R` 开输入历史列表（蓝图「输入历史」：怎么翻是 `model/history.js` 的 `Recall`，列表在
+//! `ui/history.js`）；发出去的话、执行的命令记进去，两下 `Esc` 清掉的那句单独留一份，空着按 `↑` 先拿回它。
 //!
 //! 框（`box`）上面浮着的几样挂在框上：提示、命令列表、运行状态行（`ui/pulse.js`，整页挂）；待办在框上面的流里
 //! （`ui/todo.js`，整页挂）。在回答时整块带 `is-running`：提示浮到运行状态行上面，待办下面给它空出地方（`styles/dock.css`）。
@@ -19,17 +21,24 @@ import { res, t } from '../util/res.js';
 import { fit } from '../model/footer.js';
 import { read } from '../model/commands.js';
 import { CommandList } from './commands.js';
+import { Picker } from './picker.js';
+import { HistoryList } from './history.js';
+import { Recall } from '../model/history.js';
 import { show, hide, span } from '../lib/motion.js';
 
 /**
- * @typedef {{has: () => boolean, busy: () => boolean, take: () => Record<string, any>|null, putBack: (given: any) => void}} Payload
- *   跟着话一起发的一样（挂载位 `composer.payload` 的一件，蓝图 `web/architecture.md`）
+ * @typedef {{id: string, has: () => boolean, busy: () => boolean, take: () => Record<string, any>|null, putBack: (given: any) => void,
+ *   keep?: (given: any) => any, recall?: (saved: {session: string, kept: any}|null) => void, settle?: () => void}} Payload
+ *   跟着话一起发的一样（挂载位 `composer.payload` 的一件，蓝图 `web/architecture.md`）；`keep`、`recall`、`settle` 是输入历史用的：
+ *   交出去的记成能存下来的样子、翻出来的换上（`null` 拿掉）、改了字留下（蓝图「输入历史」第 1、2 条）
  */
 
 export class Composer {
   /**
    * @param {{send: (text: string, extra: Record<string, any>) => Promise<boolean>, interrupt: () => void, cycleLevel: () => void,
-   *   command: (spec: import('../model/commands.js').Spec, words: string|null) => void}} on `send` 交回核心收没收
+   *   command: (spec: import('../model/commands.js').Spec, words: string|null) => void,
+   *   history: {load: () => import('../model/history.js').Item[], save: (items: import('../model/history.js').Item[]) => void},
+   *   session: () => string|null} on `send` 交回核心收没收；`history` 读、存输入历史（这台设备上、按账号分开）；`session` 正在看的会话
    * @param {() => import('../model/commands.js').Spec[]} specs 现在的全部斜杠命令（出厂的加软件包登记的）
    * @param {() => Payload[]} payload 现在跟着话一起发的几样（挂载位 `composer.payload`）
    */
@@ -59,11 +68,17 @@ export class Composer {
     this.right = h('span.footer-right');
     this.middle = h('span.footer-middle');
     this.footer = h('div.composer-footer', this.left, this.middle, this.right);
-    this.menu = new CommandList({ run: (spec) => this.run(spec, null), fill: (text) => this.fill(text) }, specs);
+    // 从命令列表里点的、选中回车的：记成 `/名字`
+    this.menu = new CommandList({ run: (spec) => { this.remember(`/${spec.name}`); this.run(spec, null); }, fill: (text) => this.fill(text) }, specs);
+    /** 翻输入历史（蓝图「输入历史」） */
+    this.recall = new Recall(on.history.load());
+    this.historyList = new HistoryList({ choose: (item) => this.chosen(item), closed: () => this.input.focus() });
+    /** 选一样的浮层（`/language`）：和命令列表同一个位置 */
+    this.picker = new Picker();
     this.head = h('div.composer-head');
     this.tools = h('span.composer-tools');
     this.float = h('div.composer-float');
-    this.box = h('div.composer', this.notice, this.head, this.input, this.bar = h('div.composer-bar', this.tools, this.sendButton), this.menu.el, this.float);
+    this.box = h('div.composer', this.notice, this.head, this.input, this.bar = h('div.composer-bar', this.tools, this.sendButton), this.menu.el, this.picker.el, this.historyList.el, this.float);
     this.el = h('div.composer-dock', this.box, this.footer);
     this.parts = /** @type {{key: string, text: string}[]} */ ([]);
     /** 撤销时放回框里的那句：恢复时还没动过的收回去（`tui.md`「输入框」第 7 条）。 */
@@ -96,15 +111,29 @@ export class Composer {
     replace(this.sendButton, stop ? h('span.stop-mark') : icon('arrow-up'));
   }
 
-  /** 字变了：命令列表照它开关；跟着字长高，最多 `composer_max_rows` 行，再多在框里滚。 */
+  /** 字变了：命令列表照它开关；跟着字长高，最多 `composer_max_rows` 行，再多在框里滚。翻出来的字改了：不在翻了，跟着回来的附件留下。 */
   changed() {
+    if (this.recall.shown != null && this.input.value !== this.recall.shown) {
+      this.recall.reset();
+      for (const p of this.payload()) p.settle?.();
+    }
     this.menu.update(this.input.value);
     const el = this.input;
     // 还没挂进页面时量不出高度（是 0），挂上以后由页面再调一次
     if (!el.isConnected) return;
     const line = parseFloat(getComputedStyle(el).lineHeight) || 24;
+    const max = line * res.layout.composer_max_rows;
+    // 变高变矮缓过去（蓝图「动效」，CSS 的 height 过渡）：量新高度要先放开成 auto，量完放回原来的高度、让浏览器记住起点，再定
+    // 新的高度；字多过最多那几行的才在框里滚，平时不出滚动条（变高的那一下不闪一根）
+    const from = el.offsetHeight;
     el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, line * res.layout.composer_max_rows)}px`;
+    const to = Math.min(el.scrollHeight, max);
+    el.style.overflowY = el.scrollHeight > max ? 'auto' : 'hidden';
+    if (from && from !== to) {
+      el.style.height = `${from}px`;
+      void el.offsetHeight;
+    }
+    el.style.height = `${to}px`;
     this.syncButton();
   }
 
@@ -116,6 +145,7 @@ export class Composer {
     const text = this.input.value;
     const line = read(this.specs(), text);
     if (line.kind === 'command') {
+      this.remember(text);
       this.run(line.spec, line.words);
       return;
     }
@@ -136,6 +166,10 @@ export class Composer {
     const taken = parts.map((p) => ({ p, given: p.take() })).filter((x) => x.given);
     this.set('');
     const ok = await this.on.send(text, Object.assign({}, ...taken.map((x) => x.given)));
+    // 记进输入历史：发成了的连带过去的附件（核心存好的那一份、发在哪个会话；新会话发了才有编号）
+    const kept = ok ? taken.map((x) => [x.p.id, x.p.keep?.(x.given)]).filter(([, v]) => v) : [];
+    const session = this.on.session();
+    this.remember(text, kept.length && session ? { session, parts: Object.fromEntries(kept) } : null);
     if (ok) return;
     // 拒了：字放回去（框里又写了的不覆盖），附件放回去
     if (this.input.value === '') this.set(text);
@@ -191,6 +225,22 @@ export class Composer {
   key(ev) {
     if (ev.isComposing || ev.keyCode === 229) return;
     if (this.menu.key(ev)) return;
+    // ↑ ↓：翻输入历史；不接的归浏览器挪光标
+    if ((ev.key === 'ArrowUp' || ev.key === 'ArrowDown') && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      const up = ev.key === 'ArrowUp';
+      const text = up ? this.recall.older(this.input.value, this.caret()) : this.recall.newer(this.input.value, this.caret());
+      if (text == null) return;
+      ev.preventDefault();
+      this.put(text);
+      this.bring(this.recall.item());
+      return;
+    }
+    // Ctrl+R：输入历史列表（只在这个框里接，别处照浏览器的刷新）
+    if (ev.key.toLowerCase() === 'r' && ev.ctrlKey && !ev.shiftKey && !ev.altKey && !ev.metaKey) {
+      ev.preventDefault();
+      this.openHistory();
+      return;
+    }
     if (ev.key === 'Enter' && !ev.shiftKey) {
       ev.preventDefault();
       this.submit();
@@ -209,11 +259,66 @@ export class Composer {
     if (now - this.esc < res.layout.esc_window_ms) {
       this.esc = 0;
       if (this.running) this.on.interrupt();
-      else this.set('');
+      else {
+        // 清掉的那句单独留一份：空着按 ↑ 先拿回它
+        this.recall.clear(this.input.value);
+        this.set('');
+        this.say(t('cleared'));
+      }
       return;
     }
     this.esc = now;
     this.say(t(this.running ? 'esc_interrupt_hint' : 'esc_clear_hint'));
+  }
+
+  /** 光标在哪：在最前面（没选着字）、前面没有换行、后面没有换行（`Recall` 照它定翻不翻）。 */
+  caret() {
+    const { value, selectionStart: a, selectionEnd: b } = this.input;
+    const none = a === b;
+    return { start: none && a === 0, first: none && !value.slice(0, a).includes('\n'), last: none && !value.slice(b).includes('\n') };
+  }
+
+  /** 翻出来的放进框里，光标在末尾；是命令的不弹命令列表（字改了照常弹）。 */
+  put(text) {
+    this.menu.menu.dismiss(text);
+    this.set(text);
+  }
+
+  /**
+   * 翻到的那一条带的附件回到框里（换掉上一次跟着翻出来的）；`null`（没发的那句、拿回的清掉的那句）只拿掉跟着翻出来的。
+   * @param {import('../model/history.js').Item|null} item
+   */
+  bring(item) {
+    for (const p of this.payload()) p.recall?.(item?.session && item.parts?.[p.id] ? { session: item.session, kept: item.parts[p.id] } : null);
+  }
+
+  /** 发出去了一句（话或命令）：记进输入历史（带过去的附件一起），存下来。 */
+  remember(text, extra = null) {
+    this.recall.record(text, Date.now(), res.layout.history_max, extra);
+    this.on.history.save(this.recall.items);
+  }
+
+  /** `Ctrl+R`：开输入历史列表（和命令列表、选语言的浮层不同时开）；还没发过话的只提示一句。 */
+  openHistory() {
+    if (!this.recall.items.length) {
+      this.say(t('history.empty'));
+      return;
+    }
+    this.picker.close();
+    this.menu.menu.dismiss(this.input.value);
+    this.menu.update(this.input.value);
+    this.historyList.show(this.recall.items);
+  }
+
+  /** 列表里选定了一条：放进框里，带的附件回到框里、留下；框里原来有字的记进输入历史，不丢。 */
+  chosen(item) {
+    const had = this.input.value;
+    if (had.trim() && had !== item.text) this.remember(had);
+    this.recall.reset();
+    this.put(item.text);
+    this.bring(item);
+    for (const p of this.payload()) p.settle?.();
+    this.input.focus();
   }
 
   /** 提示：浮在输入框上面的小框，停一会儿；新的顶掉旧的。`good` 的框是绿的（`tui.md`「提示」）。 */

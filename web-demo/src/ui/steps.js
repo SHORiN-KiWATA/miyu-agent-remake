@@ -6,8 +6,8 @@
 //! 点开、收起记在这一步里，人点过的照人点的；没点过的照 `timeline.json` 的 `expand`。
 
 import { h, icon, replace } from './dom.js';
-import { res } from '../util/res.js';
-import { row, peek, thinkingTail, commandLines, details, kindOf } from '../model/words.js';
+import { res, t } from '../util/res.js';
+import { row, peek, messagePeek, thinkingTail, commandLines, details, kindOf } from '../model/words.js';
 
 export class StepView {
   /**
@@ -58,11 +58,15 @@ export class StepView {
       this.subject = h('span.tl-subject');
       this.said = h('span.tl-said');
       this.status = h('span.tl-status');
+      // 留言：收着时那一行后面接留言开头的预览（2026-10-01 项目主人定）
+      const message = kindOf(step.name) === 'message';
+      // 编号和预览中间一个 `·`（2026-10-01 项目主人定）
+      this.peek = message ? h('span.tl-peek', h('span.tl-peek-sep', t('timeline.peek_sep')), h('span')) : null;
       this.row = h('button.tl-row', { type: 'button', onclick: toggle },
-        this.node, h('span.tl-head', this.name, this.time, this.subject, this.said), this.status);
+        this.node, h('span.tl-head', this.name, this.time, this.subject, this.said), this.peek, this.status);
       this.command = h('div.tl-command', { onclick: toggle });
       this.body = h('div.tl-body');
-      this.el = h(`div.tl-step.is-tool${fresh ? '.is-new' : ''}`, this.row, this.command, h('div.tl-fold', h('div.tl-fold-inner', this.body)));
+      this.el = h(`div.tl-step.is-tool${message ? '.is-message' : ''}${fresh ? '.is-new' : ''}`, this.row, this.command, h('div.tl-fold', h('div.tl-fold-inner', this.body)));
     }
     this.spinning = false;
   }
@@ -124,6 +128,11 @@ export class StepView {
     this.subject.hidden = !r.subject;
     this.said.textContent = r.said ?? '';
     this.said.hidden = !r.said;
+    if (this.peek) {
+      const text = messagePeek(step);
+      setText(/** @type {HTMLElement} */ (this.peek.lastChild), text);
+      this.peek.hidden = !text;
+    }
     // 在跑的转一个圈；排着队的一个暗的点；做完的什么都不写
     const status = spinning && step.state === 'running' ? 'spin' : step.state === 'running' ? 'queued' : '';
     if (this.status.dataset.state !== status) {
@@ -192,4 +201,9 @@ export function guard(fn) {
     e.stopPropagation();
     fn();
   };
+}
+
+/** 字变了才写（流式的参数一个字一个字来，别每一下都动 DOM）。 */
+function setText(el, text) {
+  if (el.textContent !== text) el.textContent = text;
 }

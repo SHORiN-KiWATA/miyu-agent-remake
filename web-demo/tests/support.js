@@ -6,7 +6,7 @@
 
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { res } from '../src/util/res.js';
+import { res, settle } from '../src/util/res.js';
 
 process.env.TZ = 'UTC';
 
@@ -16,15 +16,16 @@ const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 export function loadRes() {
   const json = (p) => JSON.parse(readFileSync(here(`../resources/${p}`), 'utf8'));
   Object.assign(res, {
-    text: json('text/zh.json'),
     layout: json('layout.json'),
     timeline: json('timeline.json'),
     markdown: json('markdown.json'),
     artifacts: json('artifacts.json'),
     cards: json('cards.json'),
-    commands: json('commands.json'),
+    languages: json('languages.json'),
     human: human(),
   });
+  // 界面的字、命令的说明照中文装，收起那一行是英文（和出厂的 auto、浏览器是中文时一样）
+  settle(json('text/zh.json'), null, { ...res.languages.languages[0], fallback: 'zh', summary: 'en' }, json('commands.json').commands, json('text/en.json'));
   return res;
 }
 

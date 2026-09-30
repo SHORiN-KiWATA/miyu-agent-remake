@@ -10,7 +10,10 @@ import { res, t } from '../util/res.js';
 import { clock, tilde, toolDuration } from './format.js';
 import { fromArgs } from './diff.js';
 
-/** 一件工具算哪一类：`command`、`edit`；没登记的是 `null`（`timeline.json` 的 `kinds`，收起那一行照它数）。 */
+/** 留言发给父会话时 `to` 写的（`tools/message_agent.md`） */
+const PARENT = 'parent';
+
+/** 一件工具算哪一类：`command`、`edit`、`agent`、`message`；没登记的是 `null`（`timeline.json` 的 `kinds`，收起那一行照它数）。 */
 export const kindOf = (name) => res.timeline.kinds[name] ?? null;
 
 /** 出错了：图标换成 `circle-alert`、整行变红。只认 `error`；被拒、跳过这些不算坏。 */
@@ -61,6 +64,13 @@ export function row(step, home) {
     const subject = step.job ? t('timeline.agent_subject', { job: step.job, title }) : t('timeline.agent_pending', { title });
     return { ...base, icon, name, subject, failed: bad };
   }
+  if (kind === 'message') {
+    // 留言：「留言 · j2」（发给父会话的写「父会话」），送到了不写结果那一句（和对象重了），没送到的照写；收着时后面接留言
+    // 开头的预览（`messagePeek`），点开是发给谁、完整的消息（2026-10-01 项目主人定）
+    const to = arg(step, 'to');
+    const subject = to ? t('timeline.message_subject', { to: to === PARENT ? t('timeline.parent') : to }) : null;
+    return { ...base, icon, name, subject, said: step.status === 'ok' ? null : say(step.said), failed: bad };
+  }
   const subject = face?.subject ? arg(step, face.subject) : null;
   return { ...base, icon, name, subject: subject ? tilde(subject, home) : null, mono: true, said: say(step.said), failed: bad };
 }
@@ -77,6 +87,17 @@ export function peek(step) {
   let tail = text.slice(from);
   if (/\w/.test(text[from - 1]) && /^\w/.test(tail)) tail = tail.replace(/^\w+\s*/, '');
   return `…${tail}`;
+}
+
+/**
+ * 留言收着时接在那一行后面的预览：留言开头 `peek_chars` 个字，空白压成一个空格，截了的末尾写 `…`（思考露尾巴，留言露开头）。
+ * 不是留言的是空的。
+ */
+export function messagePeek(step) {
+  if (step.kind !== 'tool' || kindOf(step.name) !== 'message') return '';
+  const text = (arg(step, 'message') ?? '').replace(/\s+/g, ' ').trim();
+  const room = res.timeline.peek_chars;
+  return text.length <= room ? text : `${text.slice(0, room - 1)}…`;
 }
 
 /** 在想、收着的时候那一行下面滚着显示的：最后 `thinking_rows` 行，首尾的空行不算。 */
@@ -119,6 +140,17 @@ export function details(step) {
   if (kindOf(step.name) === 'agent') {
     const prompt = arg(step, 'prompt');
     return [...(prompt ? [{ kind: /** @type {const} */ ('text'), label: t('timeline.prompt'), text: prompt }] : []), ...(step.status === 'ok' ? [] : result)];
+  }
+  // 留言：发给谁（编号加子代理的标题，父会话写「父会话」）、完整的消息；没送到的接着结果
+  if (kindOf(step.name) === 'message') {
+    const to = arg(step, 'to');
+    const who = to === PARENT ? t('timeline.parent') : to && step.toTitle ? t('timeline.message_to', { job: to, title: step.toTitle }) : to;
+    const message = arg(step, 'message');
+    return [
+      ...(who ? [{ kind: /** @type {const} */ ('text'), label: t('timeline.to'), text: who }] : []),
+      ...(message ? [{ kind: /** @type {const} */ ('text'), label: t('timeline.message'), text: message }] : []),
+      ...(step.status === 'ok' ? [] : result),
+    ];
   }
   const lines = commandLines(step);
   const shown = lines && !lines.more ? ['command', 'description'] : lines ? ['description'] : [];

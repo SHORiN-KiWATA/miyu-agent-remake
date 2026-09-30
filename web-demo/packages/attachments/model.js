@@ -4,9 +4,12 @@
 
 
 /**
- * @typedef {{name: string, size: number, type: string, file?: Blob, path?: string}} FileLike 宿主给的一个文件（`host/browser.js` 的 `FileRef`；测试里是假的）
+ * @typedef {{name: string, size: number, type: string, file?: Blob, path?: string, stored?: {session: string, hash: string}}} FileLike
+ *   宿主给的一个文件（`host/browser.js` 的 `FileRef`；测试里是假的）；输入历史翻出来的是核心存好的那一份（`stored`：发在哪个会话、编号）
  * @typedef {{blob: string, name: string, media_type: string, kind?: string, width?: number, height?: number}} Put `blob.put` 的回应
- * @typedef {{id: number, file: FileLike, name: string, size: number, state: 'uploading'|'ready', put: Put|null}} Item 框里的一块
+ * @typedef {{id: number, file: FileLike, name: string, size: number, state: 'uploading'|'ready', put: Put|null, recalled?: boolean}} Item
+ *   框里的一块；`recalled` 是跟着输入历史翻出来、还没留下的（换一条时换掉）
+ * @typedef {{blob: string, name: string, media_type: string, size: number}} Kept 记进输入历史的一块：核心存好的那一份
  * @typedef {{attachments: {blob: string, name: string, media_type: string}[]}} Taken 发的时候交出去的，合进 `session.send` 的参数
  */
 
@@ -152,6 +155,41 @@ export class Tray {
     this.items = [];
     this.changed();
     return taken;
+  }
+
+  /**
+   * 交出去的记进输入历史的样子（蓝图 `web.md`「输入历史」第 1 条）：只留核心存好的那一份、名字、媒体类型、大小，浏览器里的
+   * 文件存不下。不是这里交出去的交 `null`。
+   * @param {Taken} taken
+   * @returns {Kept[]|null}
+   */
+  keep(taken) {
+    const items = this.given.get(taken);
+    if (!items) return null;
+    return items.map((it) => {
+      const put = /** @type {Put} */ (it.put);
+      return { blob: put.blob, name: put.name, media_type: put.media_type, size: it.size };
+    });
+  }
+
+  /**
+   * 输入历史翻出来的（第 2 条）：换掉上一次跟着翻出来、还没留下的几块，自己放进来的不动；`null` 是只拿掉。翻出来的是传好了的
+   * （核心存好的那一份，再发不用重新传），文件带着它（缩略图照它取）。
+   * @param {Kept[]|null} kept
+   * @param {string|null} session 发在哪个会话（取那一份照它）
+   */
+  recall(kept, session) {
+    this.items = this.items.filter((it) => !it.recalled);
+    for (const k of kept ?? []) {
+      const file = { name: k.name, size: k.size, type: k.media_type, stored: { session: /** @type {string} */ (session), hash: k.blob } };
+      this.items.push({ id: ++this.seq, file, name: k.name, size: k.size, state: 'ready', put: { blob: k.blob, name: k.name, media_type: k.media_type }, recalled: true });
+    }
+    this.changed();
+  }
+
+  /** 翻出来的字改了、从列表里选定了：跟着回来的几块留下，当成自己放的。 */
+  settle() {
+    for (const it of this.items) delete it.recalled;
   }
 
   /**

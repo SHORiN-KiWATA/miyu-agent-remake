@@ -5,7 +5,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadRes, ms } from './support.js';
-import { row, peek, thinkingTail, commandLines, details, summary } from '../src/model/words.js';
+import { readFileSync } from 'node:fs';
+import { res } from '../src/util/res.js';
+import { row, peek, messagePeek, thinkingTail, commandLines, details, summary } from '../src/model/words.js';
 
 loadRes();
 
@@ -173,4 +175,56 @@ test('派子代理那一步：写「派子代理 · 编号 · 标题」（编号
   assert.deepEqual(details(spawned), [{ kind: 'text', label: '提示词', text: '你是子代理。\n先读 docs/，再改两处不一致。' }]);
   const running = tool('agent', args, { state: 'running' });
   assert.equal(row(running, HOME).subject, '· Fix 2 mismatches', '还没派出去（没有编号）的只写标题');
+});
+
+test('留言那一步：写「留言 · j2」，送到了不接结果那一句；收着时后面是留言开头的预览，点开是发给谁、完整的消息（2026-10-01）', () => {
+  const text = '先别改 a.rs，\n  我这边刚发现它被别处引用了。';
+  const sent = tool('message_agent', { to: 'j2', message: text }, { toTitle: 'Fix 2 mismatches', said: { key: 'software/basesystem/message_agent/sent', fields: { to: 'j2' } }, output: 'Message sent to j2.' });
+  const r = row(sent, HOME);
+  assert.equal(r.name, '留言');
+  assert.equal(r.subject, '· j2');
+  assert.equal(r.mono, false);
+  assert.equal(r.said, null, '送到了那一句和对象重了，不写');
+  assert.equal(messagePeek(sent), '先别改 a.rs， 我这边刚发现它被别处引用了。', '空白压成一个空格');
+  assert.deepEqual(details(sent), [
+    { kind: 'text', label: '发给', text: 'j2 · Fix 2 mismatches' },
+    { kind: 'text', label: '消息', text },
+  ]);
+  // 找不到标题的只写编号；发给父会话的写「父会话」
+  assert.equal(details(tool('message_agent', { to: 'j3', message: 'x' }))[0].text, 'j3');
+  const up = tool('message_agent', { to: 'parent', message: '做完一半了' });
+  assert.equal(row(up, HOME).subject, '· 父会话');
+  assert.equal(details(up)[0].text, '父会话');
+  // 没送到的照写结果那一句，点开接着结果
+  const stopped = tool('message_agent', { to: 'j2', message: 'x' }, { status: 'error', said: { key: 'software/basesystem/message_agent/stopped', fields: { to: 'j2' } }, output: 'Subagent j2 was stopped and takes no more messages.' });
+  assert.equal(row(stopped, HOME).said, 'j2 已经停了');
+  assert.equal(details(stopped).at(-1)?.label, '结果');
+});
+
+test('留言的预览：长的截开头 peek_chars 个字、末尾写 …；别的步没有', () => {
+  const long = 'a'.repeat(400);
+  const p = messagePeek(tool('message_agent', { to: 'j2', message: long }));
+  assert.equal(p.length, 160);
+  assert.ok(p.endsWith('…'));
+  assert.equal(messagePeek(tool('read', { file_path: 'x' })), '');
+  assert.equal(messagePeek(thought('想')), '');
+});
+
+test('收起那一行：手动定了语言的照那种语言写（中文、日文），跟着浏览器的是英文（2026-10-01 项目主人定）', () => {
+  const english = res.text.timeline.summary;
+  const own = (code) => JSON.parse(readFileSync(new URL(`../resources/text/${code}.json`, import.meta.url), 'utf8')).timeline.summary;
+  const steps = [tool('shell', { command: 'a' }), tool('shell', { command: 'b' }), tool('edit', {}), thought('x', ms(0), ms(2))];
+  const agent = tool('agent', { description: '查文档', prompt: 'x' });
+  try {
+    res.text.timeline.summary = own('zh');
+    assert.equal(line(steps), '执行了 2 条命令 · 1 处编辑 · 1 次思考 · 2s');
+    assert.equal(line([agent, tool('message_agent', { to: 'j2', message: 'x' })]), '派了 1 个子代理 · 1 条留言 · 1s');
+    assert.equal(line([thought('x', ms(0), ms(26))]), '思考了 26s');
+    res.text.timeline.summary = own('ja');
+    assert.equal(line(steps), 'コマンドを 2 件実行 · 編集 1 件 · 思考 1 回 · 2s');
+    assert.equal(line([agent]), 'サブエージェントを 1 件派遣 · 1s');
+    assert.equal(line([thought('x', ms(0), ms(26))]), '思考時間 26s');
+  } finally {
+    res.text.timeline.summary = english;
+  }
 });

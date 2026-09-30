@@ -2,11 +2,12 @@
   "id": "attachments",
   "version": "0.1.0",
   "name": {
-    "zh-CN": "附件"
+    "zh": "附件",
+    "ja": "添付ファイル"
   },
   "kind": "optional",
   "description": {
-    "zh-CN": "输入框里放图片和文件：回形针、拖进来、粘贴；先交给桥，再 blob.put，跟着话一起发。"
+    "zh": "输入框里放图片和文件：回形针、拖进来、粘贴；先交给桥，再 blob.put，跟着话一起发。"
   },
   "inject": [
     "slots",
@@ -21,7 +22,7 @@
       "min": 1,
       "integer": true,
       "name": {
-        "zh-CN": "一次最多放几个"
+        "zh": "一次最多放几个"
       }
     },
     "max_mib": {
@@ -30,7 +31,7 @@
       "min": 1,
       "max": 20,
       "name": {
-        "zh-CN": "一个最大多少 MiB（核心最多收 20）"
+        "zh": "一个最大多少 MiB（核心最多收 20）"
       }
     },
     "count_lines_max": {
@@ -39,7 +40,7 @@
       "min": 0,
       "integer": true,
       "name": {
-        "zh-CN": "文字文件多大以内数有几行（字节）"
+        "zh": "文字文件多大以内数有几行（字节）"
       }
     }
   },
@@ -47,7 +48,7 @@
     "style.css"
   ],
   "text": {
-    "zh-CN": {
+    "zh": {
       "attach": "添加附件",
       "remove": "拿掉",
       "uploading": "在传",
@@ -60,6 +61,21 @@
         "attachment_in_data_root": "Miyu 的数据目录里的文件不能当附件"
       },
       "drop_here": "把文件拖到这里",
+      "lines": "{count} 行"
+    },
+    "ja": {
+      "attach": "ファイルを添付",
+      "remove": "外す",
+      "uploading": "アップロード中",
+      "too_big": "{name} が大きすぎます：1 つ最大 {mib} MiB まで",
+      "too_many": "一度に最大 {max} 個まで",
+      "failed": "{name} をアップロードできませんでした：{reason}",
+      "reasons": {
+        "attachment_too_big": "大きすぎます（最大 20 MiB、画像は最大 5 MiB・各辺 8000 ピクセルまで）",
+        "attachment_unreadable": "読み込めません",
+        "attachment_in_data_root": "Miyu のデータディレクトリにあるファイルは添付できません"
+      },
+      "drop_here": "ここにファイルをドロップ",
       "lines": "{count} 行"
     }
   }

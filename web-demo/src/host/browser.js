@@ -10,7 +10,8 @@
 //! - 链接照网页的写法（`target=_blank`、`download`），浏览器自己会办，`intercept` 什么都不做。
 
 /**
- * @typedef {{name: string, size: number, type: string, file?: Blob, path?: string}} FileRef
+ * @typedef {{name: string, size: number, type: string, file?: Blob, path?: string, stored?: {session: string, hash: string}}} FileRef
+ *   `stored`：核心存好的那一份（输入历史翻出来的附件），缩略图、内容照桥的 `/blob` 取
  *   一个要当附件的文件：浏览器给的只有内容（`file`），桌面端给的有路径（`path`）
  * @typedef {{readyState: number, send: (text: string) => void, onopen: any, onmessage: any, onclose: any, onerror: any}} Channel
  *   连核心的一条线，样子照 WebSocket：`readyState` 是 1 时通着，一帧一条 JSON-RPC 消息
@@ -127,8 +128,10 @@ function watchDrop(target, on) {
  * 框里的缩略图：图片、视频交回一个临时地址和怎么松开它；别的是 `null`。
  * @param {FileRef} ref
  */
-function preview(ref) {
-  if (!/^(image|video)\//.test(ref.type) || !(ref.file instanceof Blob)) return null;
+function preview(key, ref) {
+  if (!/^(image|video)\//.test(ref.type)) return null;
+  if (ref.stored) return { url: urls(key).blob(ref.stored.session, ref.stored.hash, ref.type), release: () => {} };
+  if (!(ref.file instanceof Blob)) return null;
   const url = URL.createObjectURL(ref.file);
   return { url, release: () => URL.revokeObjectURL(url) };
 }
@@ -138,9 +141,15 @@ function preview(ref) {
  * @param {FileRef} ref
  * @param {number} max
  */
-async function text(ref, max) {
-  if (!(ref.file instanceof Blob) || ref.size > max) return null;
-  try { return await ref.file.text(); } catch { return null; }
+async function text(key, ref, max) {
+  if (ref.size > max) return null;
+  try {
+    if (ref.stored) {
+      const got = await fetch(urls(key).blob(ref.stored.session, ref.stored.hash, 'text/plain'));
+      return got.ok ? await got.text() : null;
+    }
+    return ref.file instanceof Blob ? await ref.file.text() : null;
+  } catch { return null; }
 }
 
 /**
@@ -172,7 +181,14 @@ export function browserHost() {
     /** 开一条到核心的线（经桥）。 */
     channel: () => /** @type {Channel} */ (/** @type {unknown} */ (new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?k=${key}`))),
     urls: urls(key),
-    files: { pick, watchDrop, preview, refs, text, stage: (/** @type {FileRef} */ ref) => stage(key, ref) },
+    files: {
+      pick,
+      watchDrop,
+      preview: (/** @type {FileRef} */ ref) => preview(key, ref),
+      refs,
+      text: (/** @type {FileRef} */ ref, /** @type {number} */ max) => text(key, ref, max),
+      stage: (/** @type {FileRef} */ ref) => stage(key, ref),
+    },
     /** 外面的链接：新标签页。 */
     open: (/** @type {string} */ url) => { window.open(url, '_blank', 'noopener'); },
     /** 接住页面里的链接：浏览器自己会办，什么都不做；交回怎么不接。 */

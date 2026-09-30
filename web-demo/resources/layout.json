@@ -1,5 +1,5 @@
 {
-  "note": "界面上的数和记号（蓝图 web.md「样子」）。权限级别的图标、收尾行的空格照 TUI 演示的 layout.json。",
+  "note": "界面上的数和记号（蓝图 web.md「样子」）。权限级别的图标、收尾行的空格照 TUI 演示的 layout.json。 history_max 是输入历史最多记几条，history_rows 是输入历史列表最多露几行，history_preview_rows 是列表里一条展开成全文最多几行（蓝图 web.md「输入历史」）。",
   "level_icons": {
     "workspace": "▣ ",
     "full": "⏵⏵ ",
@@ -45,6 +45,9 @@
     "read_only"
   ],
   "command_rows": 6,
+  "history_max": 100,
+  "history_rows": 8,
+  "history_preview_rows": 12,
   "user_media": 160,
   "note_marks": {
     "good": "●",
@@ -53,6 +56,11 @@
   },
   "report_tail_lines": 200,
   "sidebar_rows": 20,
-  "reconnect_ms": [1000, 2000, 5000, 10000],
+  "reconnect_ms": [
+    1000,
+    2000,
+    5000,
+    10000
+  ],
   "crumbs_keep": 4
 }

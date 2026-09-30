@@ -6,11 +6,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { Pulse, widest, columns, dotCount, beatOf } from '../../packages/pulse/model.js';
+import { Pulse, widest, columns, dotCount, beatOf, localWords } from '../../packages/pulse/model.js';
+import { local } from '../../src/lib/text.js';
 
 /** 这个包的设置项的出厂值 */
 const config = Object.fromEntries(Object.entries(JSON.parse(readFileSync(new URL('../../packages/pulse/manifest.json', import.meta.url), 'utf8')).settings).map(([k, s]) => [k, s.default]));
 
+
+/** 出厂的词库照中文、日文挑出来的 */
+const zh = localWords(config.words, (v) => local(v, { code: 'zh', fallback: 'zh' }));
+const ja = localWords(config.words, (v) => local(v, { code: 'ja', fallback: 'zh' }));
 
 /** 范围的两头一样：测试里停多久是定的。 */
 const WORDS = {
@@ -94,7 +99,7 @@ test('最宽的词：中文一个字两格', () => {
   assert.equal(columns('深度求索'), 8);
   assert.equal(columns('ab'), 2);
   assert.equal(widest(WORDS), '久一');
-  assert.equal(columns(widest(config.words)), 8);
+  assert.equal(columns(widest(zh)), 8);
 });
 
 test('算一件事的只有这几样（照 TUI）：开了新的一步、想完、工具出了结果、开始写回答；接着写字不算', () => {
@@ -114,5 +119,12 @@ test('词库照 TUI 的原样：三档，停 12–20 秒，安静 2 秒，没事
   assert.equal(config.words.quiet_ms, 2000);
   assert.deepEqual(config.words.idle_ms, [30000, 45000]);
   assert.deepEqual(config.words.tiers.map((t) => t.after), [0, 30, 90]);
-  assert.equal(config.words.tiers[0].words[0], '深度求索');
+  assert.equal(zh.tiers[0].words[0], '深度求索');
+});
+
+test('词库每一档按语言写：日文照 TUI 的原样；个人改成只写一串的照旧能用（蓝图「界面语言」）', () => {
+  assert.equal(ja.tiers[0].words[0], '深く探索中');
+  assert.deepEqual(ja.tiers.map((t) => t.after), [0, 30, 90]);
+  const old = { ...WORDS, tiers: [{ after: 0, words: ['一串'] }] };
+  assert.deepEqual(localWords(old, (v) => local(v, { code: 'ja', fallback: 'zh' })).tiers[0].words, ['一串']);
 });

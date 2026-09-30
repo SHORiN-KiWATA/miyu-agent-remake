@@ -1,0 +1,320 @@
+{
+  "status": {
+    "online": "オンライン",
+    "connecting": "接続中",
+    "offline": "オフライン"
+  },
+  "sidebar": {
+    "new_session": "新しいセッション",
+    "collapse": "サイドバーを閉じる",
+    "expand": "サイドバーを開く",
+    "menu": "セッションの操作",
+    "theme_to_light": "ライトに切り替え",
+    "theme_to_dark": "ダークに切り替え",
+    "untitled": "新しいセッション",
+    "sessions": "セッション",
+    "copy_id": "セッション ID をコピー",
+    "rename": "名前を変更",
+    "delete": "削除",
+    "not_yet": "{name}：コアにまだこのコマンドがありません",
+    "select": "複数選択",
+    "select_all": "すべて選択",
+    "selected": "{count} 件選択中",
+    "bulk_failed": "{count} 件を削除できませんでした：{reason}",
+    "select_exit": "複数選択を終了",
+    "fold": "サブエージェントを折りたたむ",
+    "unfold": "サブエージェントを展開",
+    "done_kids": "完了 {count} 件",
+    "kids": "({count})",
+    "view_all": "すべて表示",
+    "all_sessions": "すべてのセッションを表示",
+    "paused": "中断済み・入力待ち"
+  },
+  "crumbs": {
+    "label": "サブエージェントのセッションの位置",
+    "back": "戻る",
+    "back_to": "「{title}」に戻る"
+  },
+  "placeholder": "{name} にメッセージを送信",
+  "send": "送信",
+  "esc_clear_hint": "もう一度 Esc でクリア",
+  "cleared": "クリアしました · ↑ で復元",
+  "done": "{time} · {endpoint}/{model} · {elapsed}",
+  "done_usage": " · {tokens}(C{percent}%)",
+  "interrupted": "中断しました",
+  "failed": "エラー：{message}",
+  "error_classes": {
+    "retryable": "一時的なエラー",
+    "rate_limited": "レート制限",
+    "context_too_long": "コンテキストが長すぎます",
+    "auth": "認証エラー",
+    "content_policy": "コンテンツポリシーによりブロックされました",
+    "bad_stream": "応答ストリームの形式が不正です",
+    "empty_reply": "空の応答",
+    "bad_summary": "要約を取得できませんでした",
+    "compaction_paused": "自動圧縮は一時停止中です",
+    "other": "モデルエラー"
+  },
+  "levels": {
+    "workspace": "ワークスペース",
+    "full": "フルアクセス",
+    "read_only": "読み取り専用"
+  },
+  "speed": "{rate} tok/s",
+  "context": "{used}/{window}({percent}%)",
+  "total": "Σ{tokens}(C{percent}%)",
+  "refused": "拒否されました：{message}",
+  "payload_busy": "添付ファイルをアップロード中です。終わってから送信してください",
+  "no_bridge": "ブリッジに接続できません：ブリッジが表示した #k= 付きのリンクを開いてください",
+  "level_tip": "クリックで権限レベルを切り替え：ワークスペース → フルアクセス → 読み取り専用",
+  "copied": "{count} 文字をコピーしました",
+  "copy_failed": "コピーに失敗：{reason}",
+  "reason_with": "{head}：{message}",
+  "list_sep": "、",
+  "timeline": {
+    "thinking": "考え中",
+    "thought": "思考済み",
+    "prepare": {
+      "command": "実行を準備中",
+      "edit": "編集を準備中",
+      "tool": "ツールを準備中"
+    },
+    "args": "引数",
+    "result": "結果",
+    "prompt": "プロンプト",
+    "to": "宛先",
+    "message": "メッセージ",
+    "parent": "親セッション",
+    "message_subject": "· {to}",
+    "message_to": "{job} · {title}",
+    "peek_sep": "·",
+    "agent_subject": "· {job} · {title}",
+    "agent_pending": "· {title}",
+    "created": "新規作成",
+    "changed": "変更",
+    "summary": {
+      "ran": [
+        "コマンドを 1 件実行",
+        "コマンドを {count} 件実行"
+      ],
+      "used": [
+        "ツールを 1 件使用",
+        "ツールを {count} 件使用"
+      ],
+      "made": [
+        "1 件編集",
+        "{count} 件編集"
+      ],
+      "edits": [
+        "編集 1 件",
+        "編集 {count} 件"
+      ],
+      "tools": [
+        "ツール 1 件",
+        "ツール {count} 件"
+      ],
+      "thoughts": [
+        "思考 1 回",
+        "思考 {count} 回"
+      ],
+      "errors": [
+        "エラー 1 件",
+        "エラー {count} 件"
+      ],
+      "thought_for": "思考時間 {elapsed}",
+      "spawned": [
+        "サブエージェントを 1 件派遣",
+        "サブエージェントを {count} 件派遣"
+      ],
+      "messaged": [
+        "サブエージェント 1 件にメッセージ",
+        "サブエージェント {count} 件にメッセージ"
+      ],
+      "agents": [
+        "サブエージェント 1 件",
+        "サブエージェント {count} 件"
+      ],
+      "messages": [
+        "メッセージ 1 件",
+        "メッセージ {count} 件"
+      ]
+    }
+  },
+  "markdown": {
+    "code": "コード",
+    "copy_code": "コードをコピー"
+  },
+  "media": {
+    "image_failed": "画像を読み込めませんでした",
+    "fullscreen": "全画面表示",
+    "progress": "再生位置",
+    "volume": "音量",
+    "download": "ダウンロード",
+    "play": "再生",
+    "pause": "一時停止",
+    "mute": "ミュート",
+    "unmute": "ミュート解除",
+    "audio_failed": "再生できません"
+  },
+  "artifacts": {
+    "toggle": "プレビューワークスペース",
+    "preview": "プレビュー",
+    "source": "ソース",
+    "copy": "コピー",
+    "download": "ダウンロード",
+    "maximize": "最大化",
+    "restore": "元のサイズに戻す",
+    "close": "閉じる",
+    "list": "成果物一覧",
+    "loading": "読み込み中…",
+    "failed": "ファイルを読み込めませんでした",
+    "resize": "ドラッグで幅を変更",
+    "types": {
+      "markdown": "MD",
+      "html": "HTML",
+      "image": "画像",
+      "video": "動画",
+      "code": "コード",
+      "text": "テキスト"
+    },
+    "failed_with": "ファイルを読み込めませんでした：{reason}"
+  },
+  "commands": {
+    "header": "コマンド · {count} 件",
+    "unknown": "そのコマンドはありません",
+    "fake": "/{name} はデモ用の仮コマンドで、まだ何もしません",
+    "not_open": "このセッションはまだ始まっていません",
+    "undone": "取り消しました",
+    "theme_changed": "テーマ：{name}",
+    "nothing_to_copy": "コピーできる返信がまだありません",
+    "undone_jobs": "取り消しました · {count} 件のタスクを停止しました",
+    "language_changed": "表示言語：{name}",
+    "language_unknown": "その言語はありません：{choices} を指定できます"
+  },
+  "language": {
+    "title": "表示言語",
+    "hint": "↑↓ 選択 · Enter 切り替え · Esc 閉じる",
+    "auto": "ブラウザーに合わせる（{name}）",
+    "current": "現在"
+  },
+  "history": {
+    "title": "履歴",
+    "count": "{count} 件",
+    "search": "検索",
+    "hint": "↑↓ 選択 · Tab 全文表示 · Enter 入力欄に反映 · Esc 閉じる",
+    "empty": "送信履歴がありません",
+    "no_match": "該当なし",
+    "lines": " · +{count} 行",
+    "more": "⋮ さらに {count} 行",
+    "attachments": " · 添付 {count} 件",
+    "attachments_only": "添付 {count} 件"
+  },
+  "refusals": {
+    "nothing_to_revert": "取り消せるものがありません",
+    "nothing_to_unrevert": "復元できる取り消しがありません",
+    "nothing_to_compact": "コンテキストが少なすぎます",
+    "turn_running": "返信中です：先に中断するか、終わるまでお待ちください",
+    "unknown_turn": "取り消す対象のやり取りが見つかりません",
+    "restoring": "前回の取り消し・復元がまだ終わっていません、少々お待ちください",
+    "not_redoable": "やり直せません",
+    "not_running": "返信中ではありません",
+    "empty_message": "編集後に何も残りませんでした",
+    "unknown_attachment": "添付ファイルが見つかりません。もう一度アップロードしてください",
+    "attachment_too_big": "添付ファイルが大きすぎます（最大 20 MiB、画像は最大 5 MiB・各辺 8000 ピクセルまで）",
+    "attachment_unreadable": "添付ファイルを読み込めません",
+    "attachment_in_data_root": "Miyu のデータディレクトリにあるファイルは添付できません",
+    "session_not_found": "このセッションはもう存在しません",
+    "nothing_to_clear": "コンテキストは空です"
+  },
+  "said": {
+    "copy": "コピー",
+    "edit": "編集",
+    "redo": "やり直す",
+    "cancel": "キャンセル",
+    "send": "送信",
+    "download": "{name} をダウンロード",
+    "from": "「{title}」から"
+  },
+  "esc_interrupt_hint": "もう一度 Esc で中断",
+  "interrupt": "中断",
+  "slot_failed": "この部分でエラーが発生しました（{owner}：{reason}）",
+  "pkg": {
+    "title": "パッケージ",
+    "note": "無効化・有効化はその場で反映され、このブラウザーに保存されます",
+    "base": "基本システム",
+    "enable": "有効にする",
+    "disable": "無効にする",
+    "close": "閉じる",
+    "states": {
+      "active": "準備完了",
+      "pending": "待機中",
+      "failed": "故障",
+      "disabled": "停止中",
+      "idle": "未起動",
+      "disposed": "撤回済み"
+    },
+    "missing": "{names} が不足"
+  },
+  "status_hints": {
+    "429": "レート制限か利用枠不足です。しばらくして再試行してください",
+    "402": "利用枠を使い切りました",
+    "404": "見つかりません。エンドポイントのアドレスとモデル名を確認してください"
+  },
+  "notes": {
+    "command": {
+      "name": "バックグラウンドコマンド",
+      "done": "バックグラウンドコマンド完了 · {title}",
+      "failed": "バックグラウンドコマンド失敗 · {title} · 終了コード {code}",
+      "signal": "バックグラウンドコマンド失敗 · {title} · シグナル {signal}",
+      "stopped": "バックグラウンドコマンド停止 · {title}",
+      "undone": "バックグラウンドコマンドは取り消しで停止 · {title}",
+      "restarted": "バックグラウンドコマンドはコア再起動で停止 · {title}",
+      "aborted": "バックグラウンドコマンド中断：コアが終了しました · {title}"
+    },
+    "agent": {
+      "name": "サブエージェント",
+      "done": "サブエージェントが報告を提出 · {title}",
+      "stopped": "サブエージェント停止 · {title}",
+      "undone": "サブエージェントは取り消しで停止 · {title}",
+      "restarted": "サブエージェントはコア再起動で停止 · {title}",
+      "aborted": "サブエージェント中断：コアが終了しました · {title}"
+    },
+    "unknown": "{what} · {title} · {reason}",
+    "compacted": "コンテキストを圧縮しました",
+    "cleared": "コンテキストをクリアしました",
+    "instructions": " · 指示：{text}",
+    "agent_speaker": "サブエージェント · {title}",
+    "harness_speaker": "{name} · 別のエージェント",
+    "agent_plain": "サブエージェント",
+    "external": "外部",
+    "tail": "最後の {count} 行のみ表示",
+    "no_output": "出力は保存されていません",
+    "truncated": "（途中を省略）",
+    "loading": "取得中…",
+    "load_failed": "取得できません：{reason}",
+    "command_label": "コマンド",
+    "output_label": "出力",
+    "parent_speaker": "派遣元のセッション",
+    "other_session": "別のセッション"
+  },
+  "ago": {
+    "now": "たった今",
+    "minutes": "{n} 分前",
+    "hours": "{n} 時間前",
+    "days": "{n} 日前",
+    "date": "{m} 月 {d} 日",
+    "full": "{y} 年 {m} 月 {d} 日"
+  },
+  "interrupted_jobs": " · バックグラウンドで {count} 件実行中です。中断しても停止しません",
+  "sessions_page": {
+    "title": "すべてのセッション",
+    "search": "セッションを検索",
+    "select": "複数選択",
+    "new": "新しいセッション",
+    "untitled": "無題",
+    "empty": "セッションはまだありません",
+    "no_match": "見つかりません",
+    "jobs": "バックグラウンドタスク {count} 件",
+    "agents": "サブエージェント {count} 件"
+  }
+}

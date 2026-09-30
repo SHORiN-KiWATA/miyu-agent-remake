@@ -10,12 +10,15 @@
 //! 段是正文的一条（`type: 'steps'`），编号照回合和这一轮的第几段；一步的编号照请求和这次请求里第几块这一种
 //! （`k请求-种类-第几块`）：在收的块落了盘，段和步都照旧是它，点开的、淡入过的不重来。
 
+import { res } from '../util/res.js';
+
 /**
  * @typedef {{key: string, kind: 'thought', text: string, state: 'thinking'|'done', start: number|null, end: number|null}} Thought
  * @typedef {{key: string, kind: 'tool', name: string, args: string, parsed: any, state: 'preparing'|'running'|'done',
  *   status: string|null, output: string, said: {key: string, fields: Record<string, string>}|null, callId: string|null,
- *   start: number|null, end: number|null, duration: number|null, job?: string|null}} Tool
- *   `duration` 是 `tool.result` 的 `duration_ms`（执行命令写在名字后面）；`job` 是结果里派出去的任务的编号（派子代理那一行写它）
+ *   start: number|null, end: number|null, duration: number|null, job?: string|null, toTitle?: string|null}} Tool
+ *   `duration` 是 `tool.result` 的 `duration_ms`（执行命令写在名字后面）；`job` 是结果里派出去的任务的编号（派子代理那一行写它）；
+ *   `toTitle` 是留言发给的那个子代理的标题（派它的那一步的 `description`，点开写在「发给」里；找不到的是 `null`）
  * @typedef {Thought|Tool} Step
  * @typedef {{type: 'steps', key: string, turn: number, finished: boolean, steps: Step[]}} Segment
  * @typedef {{kind: string, name?: string, text: string, done: boolean, start: number|null, end: number|null,
@@ -36,6 +39,8 @@ export class Timeline {
     this.count = new Map();
     /** @type {Map<string, Thought>} 落了盘的思考：`请求:回复里的第几块` → 那一步，`model.called` 的 `blocks` 照它对上 */
     this.placed = new Map();
+    /** @type {Map<string, string|null>} 这个会话派出去的任务：编号 → 标题（派它的那一步的 `description`），留言照它认发给谁 */
+    this.jobs = new Map();
   }
 
   /** 在进行的那一段：最后一条是这一轮没收起的一段就是它，不是就另起一段。 */
@@ -118,8 +123,11 @@ export class Timeline {
     step.status = b.status;
     step.output = (b.blocks ?? []).filter((x) => x.type === 'text').map((x) => x.text).join('\n');
     step.said = b.human ?? null;
-    // 派出去的任务的编号（派子代理那一行写它）
+    // 派出去的任务的编号（派子代理那一行写它），记下它的标题；留言对上发给的那一个（`to` 是任务编号，前面几轮派的也认得）
     step.job = (b.effects ?? []).find((fx) => fx.kind === 'job.started')?.job ?? null;
+    if (step.job) this.jobs.set(step.job, typeof step.parsed?.description === 'string' ? step.parsed.description : null);
+    const to = step.parsed?.to;
+    if (res.timeline.kinds[step.name] === 'message' && typeof to === 'string') step.toTitle = this.jobs.get(to) ?? null;
     step.duration = b.duration_ms ?? null;
     step.end = Date.parse(e.at);
   }

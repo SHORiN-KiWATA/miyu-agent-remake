@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Registry, Fiber } from '../../src/kernel/context.js';
+import { Registry, Fiber, useLanguage } from '../../src/kernel/context.js';
 
 /** 一个包：清单加 `apply`。 */
 const pkg = (id, inject, apply) => ({ manifest: { id, inject, settings: {} }, apply });
@@ -134,7 +134,7 @@ test('配置和字：包拿到自己的设置项最终值和自己的字', () =>
   const reg = new Registry();
   let got = null;
   const f = new Fiber(reg, {
-    manifest: { id: 'p', inject: [], settings: {}, text: { 'zh-CN': { hi: '你好 {name}' } } },
+    manifest: { id: 'p', inject: [], settings: {}, text: { zh: { hi: '你好 {name}' } } },
     apply: (ctx) => { got = [ctx.config.rows, ctx.text('hi', { name: 'Miyu' })]; },
   }, { rows: 5 });
   f.start();
@@ -155,4 +155,20 @@ test('带 ~ 的服务：用的时候再找（总是现在的那个），来了�
   lb.dispose();
   assert.equal(ctxSeen.lightbox, undefined);
   assert.equal(starts, 1, '一直没重来');
+});
+
+test('字照界面语言取：这一种没有的那一句退回表里的那一种；ctx.local 挑按语言写的一块', () => {
+  useLanguage({ code: 'ja', fallback: 'zh' });
+  try {
+    const reg = new Registry();
+    let got = null;
+    const f = new Fiber(reg, {
+      manifest: { id: 'p', inject: [], settings: {}, text: { zh: { hi: '你好', bye: '再见' }, ja: { hi: 'こんにちは' } } },
+      apply: (ctx) => { got = [ctx.text('hi'), ctx.text('bye'), ctx.local({ zh: ['想'], ja: ['考え'] }), ctx.local(['原样'])]; },
+    }, {});
+    f.start();
+    assert.deepEqual(got, ['こんにちは', '再见', ['考え'], ['原样']]);
+  } finally {
+    useLanguage({ code: 'zh', fallback: 'zh' });
+  }
 });

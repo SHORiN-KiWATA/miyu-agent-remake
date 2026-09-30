@@ -7,10 +7,18 @@
 //!   给大的包用（整页不该因为灯箱装上、停了就整个重来）。没写的服务碰了报错，算这个包故障（能力检查）。
 //! - 故障只算它自己：`apply` 抛错，做到一半的撤回，别的包照常。
 
-import { lookup } from '../lib/text.js';
+import { lookup, local } from '../lib/text.js';
 
-/** 界面语言：包的字照它取（以后跟着配置走）。 */
-const LANGUAGE = 'zh-CN';
+/** 界面语言：包的字照它取，缺的退回（蓝图 `web.md`「界面语言」）；内核起来时定下来（`useLanguage`）。 */
+let language = /** @type {import('../lib/text.js').Lang} */ ({ code: 'zh', fallback: 'zh' });
+
+/**
+ * 定界面语言：包的 `ctx.text`、`ctx.local` 照它取。内核起来时、加载软件包之前调一次。
+ * @param {import('../lib/text.js').Lang} lang
+ */
+export function useLanguage(lang) {
+  language = { code: lang.code, fallback: lang.fallback };
+}
 
 /** 服务表和事件：整个页面一份。 */
 export class Registry {
@@ -216,7 +224,13 @@ export class Fiber {
       }),
       on: (event, fn) => own.effect(() => reg.on(event, fn)),
       emit: (event, ...args) => reg.emit(event, ...args),
-      text: (path, fields) => lookup(fiber.manifest.text?.[LANGUAGE] ?? {}, path, fields),
+      text: (path, fields) => {
+        const table = fiber.manifest.text ?? {};
+        const got = lookup(table[language.code] ?? {}, path, fields);
+        return got === path ? lookup(table[language.fallback] ?? {}, path, fields) : got;
+      },
+      // 按语言写的一块数据（运行状态行的词库这类）挑这一种
+      local: (value) => local(value, language),
     };
     const ctx = new Proxy(own, {
       get(target, key) {

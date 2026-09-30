@@ -26,7 +26,8 @@ export class TrayView {
     this.files = files;
     this.config = config;
     this.strip = h('div.attach-strip');
-    this.el = h('div.attach-tray', this.strip);
+    // 那一排出来、收起：高度从 0 长出来、收回去（外面一层放高度，里面一层裁掉，间距在最里面，收着的连间距一起收掉）
+    this.el = h('div.attach-tray', h('div.attach-clip', h('div.attach-pad', this.strip)));
     /** 画着的几张：附件的编号 → 节点、缩略图 */
     /** @type {Map<number, {el: HTMLElement, shown: {url: string, release: () => void}|null, state: string}>} */
     this.chips = new Map();
@@ -114,7 +115,16 @@ export class TrayView {
         el = plain;
       }, { once: true });
     } else if (shown) {
-      el = h('div.attach-chip.is-media', { title: it.name }, h('img', { src: shown.url, alt: it.name, decoding: 'async' }), badge(), busy, x);
+      const img = h('img', { src: shown.url, alt: it.name, decoding: 'async' });
+      el = h('div.attach-chip.is-media', { title: it.name }, img, badge(), busy, x);
+      // 取不出图的（输入历史翻出来的、发它的会话已经删了）照文件画
+      img.addEventListener('error', () => {
+        const plain = card();
+        el.replaceWith(plain);
+        const chip = this.chips.get(it.id);
+        if (chip) chip.el = plain;
+        el = plain;
+      }, { once: true });
     } else {
       el = card();
     }
