@@ -3,14 +3,20 @@
 //! 一段，也从这里读（施工 6-9）。
 //!
 //! 交给 `history` 的日志只读入口也在这里（施工 6-4）：照会话的目录一段一段读。
+//!
+//! 平时写的是 [`Indexed`]：会话日志，每落一批顺手更新会话列表的索引里这个会话的那一行（施工 3-8 七补）。
 
 use std::io;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use miyu_kernel::event::Event;
-use miyu_kernel::id::Seq;
+use miyu_kernel::id::{Seq, SessionId};
+use miyu_store::index::SessionIndex;
 use miyu_store::log::{SessionLog, read_events, read_segments};
 use miyu_tool::ReadLog;
+
+use crate::TARGET;
 
 /// 一次写一批，返回时这一批都落了盘。在阻塞线程里用，所以要能挪到别的线程上。
 pub(crate) trait Store: Send + 'static {
@@ -41,6 +47,51 @@ impl Store for SessionLog {
         })
         .map_err(|error| error.to_string())?;
         Ok(kept)
+    }
+}
+
+/// 会话日志，和会话列表的索引里这个会话的那一行（施工 3-8 七补，`session/actor.md` 第 5 条第 7 点）。
+pub(crate) struct Indexed {
+    log: SessionLog,
+    /// 索引和会话编号：没有的不更新。
+    row: Option<(Arc<SessionIndex>, SessionId)>,
+}
+
+impl Indexed {
+    /// 日志 `log` 落了盘的每一批，照会话 `id` 更新 `index` 里的那一行。
+    pub(crate) fn new(
+        log: SessionLog,
+        index: Option<Arc<SessionIndex>>,
+        id: &SessionId,
+    ) -> Indexed {
+        Indexed {
+            log,
+            row: index.map(|index| (index, id.clone())),
+        }
+    }
+}
+
+impl Store for Indexed {
+    /// 先落盘，再更新索引。更新失败只记一行 `session index not updated`，照样算写成了：索引是派生的，那一行停在上一次
+    /// 照到的地方，下次列会话照日志补上。
+    fn append(&mut self, events: &[Event]) -> io::Result<()> {
+        let before = self.log.mark();
+        self.log.append(events)?;
+        if let Some((index, id)) = &self.row
+            && !events.is_empty()
+            && let Err(error) = index.advance(id, &before, events, &self.log.mark())
+        {
+            tracing::warn!(target: TARGET, error = %error, "session index not updated");
+        }
+        Ok(())
+    }
+
+    fn events(&self) -> Result<Vec<Event>, String> {
+        self.log.events()
+    }
+
+    fn events_from(&self, from: Seq) -> Result<Vec<Event>, String> {
+        self.log.events_from(from)
     }
 }
 

@@ -9,11 +9,11 @@
 
 use std::sync::{Arc, Weak};
 
-use miyu_kernel::event::SessionCreated;
 use miyu_kernel::id::{AccountId, CommandId, SessionId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Outcome, Queued};
 use miyu_session::{Child, Peek, Pending, SessionPort, peek};
+use miyu_store::index::Row;
 use miyu_store::log::read_events;
 use miyu_tool::{MainSession, Stop};
 
@@ -131,12 +131,14 @@ impl SessionPort for Table {
             let core = self.core()?;
             let busy = core.sessions.busy_ids().await;
             let root = core.root.clone();
-            let main = |created: &SessionCreated| created.parent.is_none();
-            let listed =
-                tokio::task::spawn_blocking(move || scan(&root, &owner, &busy, main, None, &stop))
-                    .await
-                    .map_err(|error| error.to_string())?
-                    .map_err(|error| format!("sessions not listed: {error}"))?;
+            let index = core.index_for(&owner);
+            let main = |row: &Row| row.parent.is_none();
+            let listed = tokio::task::spawn_blocking(move || {
+                scan(&root, &owner, index.as_deref(), &busy, main, None, &stop)
+            })
+            .await
+            .map_err(|error| error.to_string())?
+            .map_err(|error| format!("sessions not listed: {error}"))?;
             Ok(listed
                 .into_iter()
                 .map(|listed| MainSession {

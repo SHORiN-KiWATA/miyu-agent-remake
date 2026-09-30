@@ -65,5 +65,8 @@ async fn a_child_is_not_created_for_a_parent_gone_from_the_table() {
         root.sessions(&admin).expect("读得了").is_empty(),
         "什么都没造"
     );
-    std::fs::remove_dir_all(&dir).expect("删得掉");
+    // 删不掉就留在临时目录里，不影响测试：Windows 上核心开着会话列表的索引（施工 3-8 七补），它的文件删不掉。
+    if let Err(error) = std::fs::remove_dir_all(&dir) {
+        eprintln!("临时目录留着：{error}");
+    }
 }

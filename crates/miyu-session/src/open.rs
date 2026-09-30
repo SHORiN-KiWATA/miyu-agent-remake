@@ -1,8 +1,6 @@
 //! 造会话、载入（`docs/designs/07-存储.md` 第四、七节，施工 3-6 上的策略快照）：备好磁盘上的，交给
 //! 内核造会话、或者从日志重建，再起 actor。磁盘上的事都在阻塞线程里做。
 
-use std::fmt;
-use std::io;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -12,11 +10,12 @@ use miyu_kernel::event::{Body, Event, Permission, SessionCreated};
 use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::By;
-use miyu_kernel::session::{Input, LoadError as Broken, Session};
-use miyu_policy::{BuildError, Snapshot, SnapshotError, compose};
-use miyu_store::blob::{BlobError, Blobs};
-use miyu_store::log::{OpenError, SEGMENT_LIMIT, SessionLog, abandon};
-use miyu_store::resources::{ResourceRoot, SourceError};
+use miyu_kernel::session::{Input, Session};
+use miyu_policy::{Snapshot, compose};
+use miyu_store::blob::Blobs;
+use miyu_store::index::SessionIndex;
+use miyu_store::log::{SEGMENT_LIMIT, SessionLog, abandon};
+use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_tool::{Catalog, Log, Seen};
 
@@ -34,8 +33,12 @@ use crate::port::{ForSession, Models};
 use crate::report::{Reporter, Upstream, wake_children};
 use crate::sandbox::SandboxCache;
 use crate::spawn::{Lineage, SessionPort};
-use crate::store::LogDir;
+use crate::store::{Indexed, LogDir};
 use crate::tools::ToolKit;
+
+mod error;
+
+pub use error::{CreateError, LoadError};
 
 /// 造一个会话要的。
 pub struct Create<'a> {
@@ -83,6 +86,8 @@ pub struct Create<'a> {
     pub sessions: Option<Arc<dyn SessionPort>>,
     /// 执行器的任务表，核心里一张（施工 7-3）：后台命令交给它。
     pub jobs: &'a Arc<Jobs>,
+    /// 属主的会话列表的索引（施工 3-8 七补）：日志每落一批，顺手更新这个会话的那一行。没有的（测试里自己造的）不更新。
+    pub index: Option<Arc<SessionIndex>>,
 }
 
 /// 载入一个会话要的。
@@ -111,36 +116,8 @@ pub struct Load<'a> {
     pub sessions: Option<Arc<dyn SessionPort>>,
     /// 执行器的任务表，核心里一张（施工 7-3）：后台命令交给它，任务编号照日志往后数。
     pub jobs: &'a Arc<Jobs>,
-}
-
-/// 造不成。
-#[derive(Debug)]
-pub enum CreateError {
-    /// 人格读不出来：编号不合写法，或者哪一份文件读不了。
-    Persona(SourceError),
-    /// 随核心附带的字造不出策略：安装坏了。
-    Policy(BuildError),
-    /// 存不下快照、建不了会话目录和日志。
-    Disk(io::Error),
-    /// 造会话那一条没落盘，会话就停了。
-    Stopped,
-}
-
-/// 载入不了。
-#[derive(Debug)]
-pub enum LoadError {
-    /// 日志打不开：没有这个会话，或者日志坏了。
-    Log(OpenError),
-    /// 日志里没有造会话那一条。
-    NotCreated,
-    /// 策略快照取不出来。
-    Blob(BlobError),
-    /// 策略快照读不懂。
-    Snapshot(SnapshotError),
-    /// 快照造不出策略。
-    Policy(BuildError),
-    /// 内核载入不了：日志过不了账本。
-    Kernel(Broken),
+    /// 同 [`Create::index`]。
+    pub index: Option<Arc<SessionIndex>>,
 }
 
 /// 造一个会话：先把策略快照存成 blob（先落 blob，再写引用它的事件），再建会话目录和日志，交给内核
@@ -172,6 +149,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         lineage,
         sessions,
         jobs,
+        index,
     } = setup;
     let span = actor::span(&id);
     let (resources, name) = (resources.clone(), persona.to_string());
@@ -266,7 +244,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     );
     let mut actor = Actor::new(
         session,
-        Box::new(log),
+        Box::new(Indexed::new(log, index, &id)),
         model,
         ToolKit {
             catalog: tools.clone(),
@@ -334,6 +312,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         sandbox_cache,
         sessions,
         jobs,
+        index,
     } = setup;
     let span = actor::span(&id);
     let dir = root.session_dir(&owner, &id);
@@ -433,7 +412,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     );
     let mut actor = Actor::new(
         session,
-        Box::new(log),
+        Box::new(Indexed::new(log, index, &id)),
         model,
         ToolKit {
             catalog: tools.clone(),
@@ -467,34 +446,6 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     actor::spawn(actor, first, span);
     Ok(Handle::new(id, inbox, busy, limits))
 }
-
-impl fmt::Display for CreateError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CreateError::Persona(error) => write!(f, "persona not readable: {error}"),
-            CreateError::Policy(error) => write!(f, "policy not built: {error}"),
-            CreateError::Disk(error) => write!(f, "session not created on disk: {error}"),
-            CreateError::Stopped => write!(f, "session.created not stored; the session stopped"),
-        }
-    }
-}
-
-impl std::error::Error for CreateError {}
-
-impl fmt::Display for LoadError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            LoadError::Log(error) => write!(f, "session log not opened: {error}"),
-            LoadError::NotCreated => write!(f, "the session log has no session.created"),
-            LoadError::Blob(error) => write!(f, "policy snapshot not fetched: {error}"),
-            LoadError::Snapshot(error) => write!(f, "policy snapshot not understood: {error}"),
-            LoadError::Policy(error) => write!(f, "policy not built from the snapshot: {error}"),
-            LoadError::Kernel(error) => write!(f, "not loaded: {error}"),
-        }
-    }
-}
-
-impl std::error::Error for LoadError {}
 
 #[cfg(test)]
 mod tests;

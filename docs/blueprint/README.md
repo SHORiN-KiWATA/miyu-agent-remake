@@ -32,6 +32,7 @@
 | `policy.md` | 策略快照 |
 | `store.md` | 数据根、会话日志、blob |
 | `store/resources.md` | 资源目录、给人看的字 |
+| `store/index.md` | 会话列表的索引 |
 | `log.md` | 运行日志 |
 | `session/actor.md` | 会话 actor：收件箱、落盘、推送、请求模型 |
 | `session/tools.md` | 执行工具、效果、她看过的、改回文件 |

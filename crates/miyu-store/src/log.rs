@@ -6,7 +6,7 @@
 
 mod open;
 
-pub use open::{OpenError, first_event, read_events, read_segments};
+pub use open::{OpenError, first_event, read_events, read_marked, read_segments};
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
@@ -20,6 +20,18 @@ use crate::durable::{create_dir, sync_dir};
 /// 一段的上限，初值，实测再定（07 第三节）：写一批之前这一段已经到了它，就开下一段。
 pub const SEGMENT_LIMIT: u64 = 64 * 1024 * 1024;
 
+/// 日志里的一个位置（施工 3-8 七补）：哪一段、这一段照到第几个字节、下一条该是几号。会话列表的索引记着每一行照到日志
+/// 的哪里（[`crate::index`]），列会话时只读它后面多出来的那一截（[`read_marked`]）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Mark {
+    /// 哪一段：这一段第一条的序号，也就是段的名字。
+    pub segment: u64,
+    /// 这一段照到第几个字节：一整行的末尾，不含后面没写完的半行。
+    pub bytes: u64,
+    /// 下一条该是几号。
+    pub next: Seq,
+}
+
 /// 一个会话的日志，开着的，只往后追加。
 #[derive(Debug)]
 pub struct SessionLog {
@@ -27,6 +39,8 @@ pub struct SessionLog {
     dir: PathBuf,
     /// 正在写的那一段。
     file: File,
+    /// 正在写的那一段叫什么：它第一条的序号（施工 3-8 七补，[`SessionLog::mark`] 要）。
+    segment: u64,
     /// 这一段已经写了多少字节。
     size: u64,
     /// 下一条该是几号。
@@ -47,6 +61,7 @@ impl SessionLog {
         Ok(SessionLog {
             dir: dir.to_path_buf(),
             file,
+            segment: Seq::FIRST.get(),
             size: 0,
             next: Seq::FIRST,
             limit,
@@ -61,6 +76,15 @@ impl SessionLog {
     /// 下一条该是几号。
     pub fn next_seq(&self) -> Seq {
         self.next
+    }
+
+    /// 写到哪了（施工 3-8 七补）：正在写的那一段、它的长度、下一条该是几号。会话列表的索引照它记一行照到哪里。
+    pub fn mark(&self) -> Mark {
+        Mark {
+            segment: self.segment,
+            bytes: self.size,
+            next: self.next,
+        }
     }
 
     /// 追加一批：拼成一块，一次写入，再同步（`sync_data`：数据和读得出数据要的文件长度）。返回时
@@ -91,6 +115,7 @@ impl SessionLog {
         }
         if self.size > 0 && self.size >= self.limit {
             self.file = new_segment(&self.dir, first.seq)?;
+            self.segment = first.seq.get();
             self.size = 0;
         }
         self.file.write_all(&bytes)?;
@@ -125,7 +150,12 @@ pub fn abandon(dir: &Path) -> io::Result<bool> {
 
 /// 段文件的名字：这一段第一条的序号，补零到 12 位（07 第三节「段怎么存」）。
 fn segment_name(first: Seq) -> String {
-    format!("{:012}.jsonl", first.get())
+    segment_name_of(first.get())
+}
+
+/// 同 [`segment_name`]，照序号的数字。
+fn segment_name_of(first: u64) -> String {
+    format!("{first:012}.jsonl")
 }
 
 /// 建一段新的，只许新建；建好了同步所在目录，新文件本身才算落盘。

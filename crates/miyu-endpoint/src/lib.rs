@@ -43,6 +43,7 @@ use std::time::Duration;
 use miyu_kernel::id::AccountId;
 use miyu_sandbox::{Availability, Unusable};
 use miyu_session::{Jobs, Models, SandboxCache};
+use miyu_store::index::SessionIndex;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_tool::Catalog;
@@ -74,6 +75,8 @@ pub struct Core {
     token: String,
     /// 会话表。
     sessions: Sessions,
+    /// 管理员的会话列表的索引（施工 3-8 七补）：起来时开一次，一直开着；会话落盘时更新、删会话时删行、列会话时读。
+    index: Arc<SessionIndex>,
     /// 执行器的任务表（施工 7-3）：所有会话的后台命令，核心里一张。
     jobs: Arc<Jobs>,
     /// 连着几个连接：`serve` 开始时加一，走的时候减一（施工 3-9 上）。
@@ -89,7 +92,7 @@ pub struct Core {
 const HELLO_WAIT: Duration = Duration::from_secs(10);
 
 impl Core {
-    /// 一份家底：会话表是空的，会话用到时再载入。
+    /// 一份家底：会话表是空的，会话用到时再载入；打开管理员的会话列表的索引（施工 3-8 七补），坏了的删掉重建。
     pub fn new(
         root: DataRoot,
         resources: ResourceRoot,
@@ -105,7 +108,9 @@ impl Core {
         ]
         .concat();
         let config = Config::defaults(&root, &admin, items);
+        let index = Arc::new(list::open_index(&root, &admin));
         Core {
+            index,
             config: std::sync::Mutex::new(config),
             root,
             resources,
@@ -168,6 +173,11 @@ impl Core {
                 dir: root.join(owner.as_str()),
                 cargo_home: cargo_home.clone(),
             })
+    }
+
+    /// 账号 `owner` 的会话列表的索引，交给造的、载入的会话（施工 3-8 七补）：现在只开了管理员的，别的账号的没有。
+    pub(crate) fn index_for(&self, owner: &AccountId) -> Option<Arc<SessionIndex>> {
+        (*owner == self.admin).then(|| Arc::clone(&self.index))
     }
 
     /// 连着几个连接。

@@ -155,5 +155,8 @@ async fn no_one_wakes_the_child_between_its_stopped_report_and_its_deletion() {
         !root.session_dir(&admin_account, &child).exists(),
         "子会话挪进了回收处"
     );
-    std::fs::remove_dir_all(&dir).expect("删得掉");
+    // 删不掉就留在临时目录里，不影响测试：Windows 上核心开着会话列表的索引（施工 3-8 七补），它的文件删不掉。
+    if let Err(error) = std::fs::remove_dir_all(&dir) {
+        eprintln!("临时目录留着：{error}");
+    }
 }
