@@ -1,5 +1,5 @@
 //! 画吉祥物（蓝图 `tui.md`「空会话的首页」第 5–8 条）：首页中间、宽屏的侧边栏都用它。顺手定它往哪看：
-//! 输入框里有字看输入光标，没字看鼠标指针，没人动时一阵一阵地摇头。
+//! 鼠标在动看鼠标指针，停着、框里有字看输入光标，没人动时一阵一阵地摇头。
 
 use std::time::{Duration, Instant};
 
@@ -22,8 +22,10 @@ pub fn draw(frame: &mut Frame, rect: Rect, app: &mut App, far: bool) {
         f64::from(areas_mascot.x) + f64::from(look.cols) / 2.0,
         f64::from(areas_mascot.y) + look.center_row,
     );
-    let target = if app.input.editor.is_empty() {
-        app.pointer
+    // 鼠标在动就看鼠标；停着、框里有字看输入光标（第 6 条）。
+    let settle = Duration::from_millis(look.gaze.pointer_settle_ms);
+    let target = if app.input.editor.is_empty() || app.attention.on_pointer(now, settle) {
+        app.pointer.or_else(|| app.input.cursor_position())
     } else {
         app.input.cursor_position()
     };

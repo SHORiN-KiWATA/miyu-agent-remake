@@ -83,8 +83,8 @@ impl App {
         if self.drawer_key(key) {
             return Action::None;
         }
-        // Tab、Shift+Tab（终端报成 BackTab）轮换权限级别；命令列表开着时 Tab 归列表（`tui.md`「按键」）。
-        let menu_open = self.menu_matches().is_some();
+        // Tab、Shift+Tab（终端报成 BackTab）轮换权限级别；命令列表、`@` 文件列表开着时 Tab 归列表（`tui.md`「按键」）。
+        let menu_open = self.menu_matches().is_some() || self.mention_found().is_some();
         // 整屏看输出、后台面板、后台按钮先拿按键（`tui.md`「后台命令、子代理和侧边栏」）。
         if self.jobs_key(key, menu_open) {
             return Action::None;
@@ -147,6 +147,12 @@ impl App {
         if ctrl && key.code == KeyCode::Char('z') {
             self.suspend = cfg!(unix);
             return Action::None;
+        }
+        // `@` 文件列表开着：选、进目录、收成块、关（「`@` 文件列表」第 5 条）；别的键照常打字。
+        if let Some(found) = self.mention_found()
+            && let Some(action) = self.mention_key(key, &found)
+        {
+            return action;
         }
         let Some(matches) = self.menu_matches() else {
             return self.input.key(key);

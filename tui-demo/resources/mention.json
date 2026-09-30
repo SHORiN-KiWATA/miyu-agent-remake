@@ -1,0 +1,7 @@
+{
+  "cap": 20000,
+  "depth": 8,
+  "skip": ["node_modules", "target"],
+  "shown": 50,
+  "refresh_secs": 10
+}

@@ -5,6 +5,7 @@ mod jobs;
 
 pub use jobs::Panel;
 mod keys;
+mod mention;
 mod mouse;
 mod notify;
 mod paste;
@@ -16,7 +17,7 @@ use std::cell::RefCell;
 use std::time::{Duration, Instant};
 
 use miyu_store::human::Human;
-use ratatui::crossterm::event::{Event, KeyCode, KeyEventKind};
+use ratatui::crossterm::event::{Event, KeyCode, KeyEventKind, MouseEventKind};
 use ratatui::layout::Position;
 
 use crate::body_view::BodyView;
@@ -87,6 +88,8 @@ pub struct App {
     core: Core,
     /// 斜杠命令列表。
     pub menu: Menu,
+    /// `@` 文件列表。
+    pub mention: crate::mention::Mention,
     /// 输入历史列表（`Ctrl+R`）。
     pub history: History,
     /// 运行状态行正在写的词。
@@ -95,6 +98,8 @@ pub struct App {
     pub gaze: Gaze,
     /// 首页吉祥物的待机小动作。
     pub idle: Idle,
+    /// 首页吉祥物看鼠标还是看输入光标：最近一次动鼠标、按键的时刻。
+    pub attention: crate::mascot::Attention,
     /// 工作目录，家目录写成 `~`：侧边栏照它写。
     pub cwd: String,
     /// 输入框空着时写哪条提示。
@@ -197,6 +202,7 @@ impl App {
             |name| std::env::var(name).ok(),
             sounds,
         );
+        let mention = crate::mention::Mention::new(config.mention.clone());
         // 界面一开就报空闲：herdr 侧栏上马上看得到（「系统通知」第 6 条）。
         notifier.state(crate::notify::State::Idle);
         Self {
@@ -208,6 +214,7 @@ impl App {
             transcript: Transcript::default(),
             core,
             menu: Menu::default(),
+            mention,
             history: History::default(),
             // 挑词的随机数照启动的时刻起头，每次启动不一样。
             pulse: Pulse::new(
@@ -237,6 +244,7 @@ impl App {
             focus: Focus::Input,
             agents_hover: None,
             perch: Perch::default(),
+            attention: crate::mascot::Attention::default(),
             idle: Idle::new(
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -280,7 +288,17 @@ impl App {
         if matches!(event, Event::Key(_) | Event::Mouse(_) | Event::Paste(_)) {
             self.idle.poke(Instant::now());
         }
-        let menu_open = self.menu_matches().is_some();
+        // 看鼠标还是看输入光标：记下最近一次动鼠标、按键的时刻（第 6 条）。
+        match &event {
+            Event::Key(_) | Event::Paste(_) => self.attention.typed(Instant::now()),
+            Event::Mouse(m)
+                if matches!(m.kind, MouseEventKind::Moved | MouseEventKind::Drag(_)) =>
+            {
+                self.attention.pointed(Instant::now());
+            }
+            _ => {}
+        }
+        let menu_open = self.menu_matches().is_some() || self.mention_found().is_some();
         let action = match event {
             // Windows 上松开键也报一次，只认按下和按住。
             Event::Key(key) if key.kind == KeyEventKind::Release => Action::None,
@@ -361,6 +379,12 @@ impl App {
             .mascot_shown()
             .then(|| self.idle.wake(now, &self.config.mascot.idle))
             .flatten();
+        // 框里有字、鼠标停够了：到点画一帧，转回来看输入光标（第 6 条）。
+        let settle = Duration::from_millis(self.config.mascot.gaze.pointer_settle_ms);
+        let settling = (self.mascot_shown() && !self.input.editor.is_empty())
+            .then(|| self.attention.settles_at(settle))
+            .flatten()
+            .filter(|at| *at > now);
         let walking = self
             .home()
             .then(|| self.perch.wake(now, &self.config.mascot.perch))
@@ -371,6 +395,7 @@ impl App {
             .chain(spin)
             .chain(turning)
             .chain(idling)
+            .chain(settling)
             .chain(walking)
             .chain(self.jobs_deadline())
             .chain(self.drawer_deadline())

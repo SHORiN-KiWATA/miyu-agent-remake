@@ -1,6 +1,7 @@
 //! 首页的吉祥物（蓝图 `tui.md`「空会话的首页」第 5–7 条）：模型的数值在 `model.rs`，逐格打光线在 `render.rs`，
 //! 转头在这里：照目标定角度，缓动过去。角度都是度，左右 `yaw` 往右为正，上下 `pitch` 往下为正。
 
+mod attention;
 mod idle;
 mod model;
 mod perch;
@@ -8,6 +9,7 @@ mod render;
 
 use std::time::{Duration, Instant};
 
+pub use attention::Attention;
 pub use idle::Idle;
 pub use model::{Gaze as GazeLook, Look, Part};
 pub use perch::Perch;

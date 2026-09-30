@@ -202,3 +202,28 @@ fn clicking_an_attachment_in_the_box_opens_it_and_leaves_the_cursor() {
     assert_eq!(i.editor.cursor(), 0);
     std::fs::remove_dir_all(&dir).unwrap_or_default();
 }
+
+#[test]
+fn a_picked_mention_becomes_a_block_with_a_space_after() {
+    // 2026-09-30 项目主人定：@ 列表里选中的和拖进来的一样收成块（「`@` 文件列表」第 5 条）。
+    let (dir, f) = files("mention", &["a.png", "notes.txt"]);
+    let mut i = attaching();
+    i.editor.insert("看 @no");
+    i.take_mention("看 ".len(), f[1].clone());
+    assert_eq!(i.editor.text(), "看 [notes.txt] ");
+    assert_eq!(
+        i.draft().expand(),
+        format!("看 {} ", f[1].display()),
+        "发出去是路径"
+    );
+    i.editor.insert("@a.");
+    let start = i.editor.text().len() - "@a.".len();
+    i.take_mention(start, f[0].clone());
+    assert_eq!(i.editor.text(), "看 [notes.txt] [图片 1] ", "图片是附件块");
+    // Tab 进目录：那个词换成目录，接着列。
+    let mut i = attaching();
+    i.editor.insert("@sr");
+    i.retype_mention(0, "@src/");
+    assert_eq!(i.editor.text(), "@src/");
+    std::fs::remove_dir_all(&dir).unwrap_or_default();
+}

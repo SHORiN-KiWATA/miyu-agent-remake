@@ -16,7 +16,6 @@ use super::panel::{self, Chrome};
 use crate::config::{Config, HistoryTexts};
 use crate::history::History;
 use crate::input::{Sent, pieces};
-use crate::menu::window;
 use crate::theme;
 
 /// 排好的一行：是对得上的第几条（「没有对得上的」是 `None`；展开的一条连「还有几行」都算它），和画出来的样子。
@@ -50,7 +49,7 @@ pub fn lines(
         out.push((None, panel::item(false, empty, None, width)));
     }
     let rows = config.layout.history_rows.max(1);
-    let top = window(history.selected, matches.len(), rows);
+    let top = crate::menu::top(history.selected, history.pinned, matches.len(), rows);
     let end = (top + rows).min(matches.len());
     for i in (top..end).rev() {
         let picked = i == history.selected;

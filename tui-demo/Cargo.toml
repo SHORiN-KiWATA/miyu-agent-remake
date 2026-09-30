@@ -29,6 +29,8 @@ ratatui = "0.30"
 unicode-segmentation = "1"
 # 显示宽度：中文占两列。
 unicode-width = "0.2"
+# `@` 文件列表的清单（蓝图 tui.md「`@` 文件列表」第 2 条）：认 .gitignore、跳过隐藏目录，和核心的 glob、grep 同一个。
+ignore = "0.4"
 # 系统通知：kitty 的 OSC 99 里标题、正文要 base64（蓝图 tui.md「系统通知」第 4 条）；ratatui-image 已经拉进来的同一个。
 base64 = "0.22"
 # 正文里的图（蓝图 tui.md「图片、公式和 mermaid 图」）：问终端认哪种图片协议、一格多少像素，

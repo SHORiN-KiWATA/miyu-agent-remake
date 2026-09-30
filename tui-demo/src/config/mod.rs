@@ -18,6 +18,8 @@ use crate::theme::Palette;
 mod attach;
 mod figures;
 mod icons;
+mod layout;
+mod mention;
 mod motion;
 mod notes;
 mod notify;
@@ -28,130 +30,14 @@ mod timeline;
 pub use attach::{AttachLook, AttachTexts};
 pub use figures::{FigureLook, Room};
 pub use icons::Icons;
+pub use layout::{Bar, Dots, Layout, Shimmer, TodoMarks};
+pub use mention::{MentionLook, MentionTexts};
 pub use motion::CompactionMotion;
 pub use notes::CompactionTexts;
 pub use notify::{NotifyLook, NotifyTexts};
 pub use open::OpenTexts;
 pub use panels::{HistoryTexts, MenuTexts};
 pub use timeline::{Summary, Timeline, ToolKind};
-
-/// 布局的数值。
-#[derive(Debug, Clone, Deserialize)]
-pub struct Layout {
-    /// 输入框和正文占窗口宽度的百分之几，跟着窗口一起变宽。
-    pub width_percent: u16,
-    /// 终端窄到这个宽度以下，输入框不留边、占满整行。
-    pub narrow_below: u16,
-    /// 空会话的首页上，输入框（连边框）最宽几列（`tui.md`「空会话的首页」第 2 条）。
-    pub home_max_width: u16,
-    /// 窗口至少这么宽才有侧边栏（`tui.md`「后台命令、子代理和侧边栏」第 6 条）。
-    pub sidebar_from: u16,
-    /// 侧边栏多宽（不算和主列之间那根竖线）。
-    pub sidebar_width: u16,
-    /// 首页画不画吉祥物（蓝图「后台命令、子代理和侧边栏」第 7 条）。
-    pub mascot_home: bool,
-    /// 侧边栏上下文那一段的进度条：占了的、没占的。压缩那一行的进度条也照它。
-    pub bar: Bar,
-    /// 压缩那一行的进度条怎么动（蓝图「正文」第 9 条）。
-    pub compaction: CompactionMotion,
-    /// 侧边栏画不画吉祥物。
-    pub mascot_sidebar: bool,
-    /// 子代理状态行最多几行（不算主会话）。
-    pub agent_rows: usize,
-    /// 后台面板里点开一条命令，展开最后几行输出。
-    pub job_preview_rows: usize,
-    /// 待办每一项前面的记号。
-    pub todo_marks: TodoMarks,
-    /// 待办默认最多露几行项目（不算标题）；侧边栏照它剩下的高度。
-    pub todo_rows: usize,
-    /// 输入框和屏幕左右边之间至少留几列。
-    pub side_gap: u16,
-    /// 正文上面空几行，不贴着屏幕顶。
-    pub top_gap: u16,
-    /// 文字和框的左边之间留几列。
-    pub pad_left: u16,
-    /// 文字和框的右边之间留几列。至少要一列，给行尾的光标。
-    pub pad_right: u16,
-    /// 窗口少于这么多列换紧凑版面：框贴着两边，框里只留提示符和光标的地方（蓝图「输入框」第 10 条）。
-    pub compact_below: u16,
-    /// 紧凑版面框里左边几列（提示符的宽度）。
-    pub compact_pad_left: u16,
-    /// 紧凑版面框里右边几列（光标的一列）。
-    pub compact_pad_right: u16,
-    /// 一次粘贴超过这么多行，输入框里收成一块（蓝图「输入框」第 11 条）。
-    pub paste_fold_lines: usize,
-    /// 一次粘贴超过这么多字，收成一块。
-    pub paste_fold_chars: usize,
-    /// 输入框最多长到几行，再多就在框里滚。
-    pub max_rows: u16,
-    /// 两次点击隔多久以内算双击，毫秒。
-    pub double_click_ms: u64,
-    /// 按了第一下 `Esc`，多久以内再按一下才打断（抽屉开着时是取消），毫秒。
-    pub esc_window_ms: u64,
-    /// 抽屉带文字画时可以高过半屏，但屏幕顶上至少留这么多行（蓝图「确认和提问的抽屉」第 2 条）。
-    pub drawer_keep_rows: u16,
-    /// 输入框左上方的提示停多久，毫秒。
-    pub notice_ms: u64,
-    /// 最多每多少毫秒画一帧：这中间来的推送、按键攒着，到点一起画（蓝图「每一帧」）。
-    pub frame_ms: u64,
-    /// 连不上核心时隔多久再试，`[最短, 最长]` 毫秒，每次翻倍（蓝图「连核心」第 7 条）。
-    pub reconnect_ms: [u64; 2],
-    /// 运行状态行词后面的三个点：一直在，和词一起被流光扫（`tui.md`「运行状态行和排队的消息」第 2 条）。
-    pub dots: Dots,
-    /// 运行状态行的流光。
-    pub shimmer: Shimmer,
-    /// 用哪套主题（`resources/themes/` 里的名字）。
-    pub theme: String,
-    /// 用哪套图标（`resources/icons/` 里的名字，蓝图「图标」）；没有这一套的用出厂的第一套。
-    pub icons: String,
-    /// 工具的显示名、结果那一句用哪种语言（仓库 `resources/software/basesystem/human/<它>.json`）。
-    pub tool_language: String,
-    /// `Shift+Tab` 轮换权限级别的顺序。
-    pub level_cycle: Vec<Level>,
-    /// 框外左下角权限级别前面的图标，一档一个，连同它后面的空格：只读是暂停符号。
-    pub level_icons: HashMap<Level, String>,
-    /// 输入框第一行文字前面的提示符，连同它后面的空格；颜色跟着模式。它住在 `pad_left` 那几列里。
-    pub prompt: String,
-    /// 排队的消息前面的记号，连同它后面的空格。
-    pub queued_mark: String,
-    /// 斜杠命令列表最多露出几行。取单数，选中的那一行才停得在正中间。
-    pub menu_rows: usize,
-    /// 输入历史列表最多露几条（`tui.md`「输入历史列表」）。
-    pub history_rows: usize,
-    /// 输入历史列表里 Tab 展开的那一条最多几行（`tui.md`「输入历史列表」第 7 条）。
-    pub history_preview_rows: usize,
-    /// 正文里用户说的话前面那根竖线，连同它后面的空格。
-    pub user_bar: String,
-    /// 撤销那一行前面的符号，连同它后面的空格。
-    pub undo_icon: String,
-    /// 一轮做完的收尾行前面的符号，连同它后面的空格。
-    pub done_icon: String,
-    /// 收尾行里图标后面多空的，按级别写；没写的级别不多空（现在只有工作区的 `▣` 多空一格，`tui.md`「正文」第 4 条）。
-    pub done_gap: HashMap<Level, String>,
-}
-
-/// 运行状态行的流光明暗：主题的 `accent` 打底，一道亮光从左往右扫过。颜色不变，只变明暗。
-#[derive(Debug, Clone, Deserialize)]
-pub struct Shimmer {
-    /// 亮光从头扫到尾要几秒。
-    pub sweep_seconds: f64,
-    /// 亮光宽几个字。
-    pub band: f64,
-    /// 没扫到的字亮度乘几。
-    pub dim: f64,
-    /// 扫到正中的字往白里偏多少，0 到 1。
-    pub lift: f64,
-}
-
-/// 运行状态行词后面的点（`layout.json` 的 `dots`）。
-#[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Dots {
-    /// 点是哪个字。
-    pub mark: String,
-    /// 几个点。
-    pub count: usize,
-}
 
 /// 后台命令、子代理、待办的字（蓝图「后台命令、子代理和侧边栏」）。
 #[derive(Debug, Clone, Deserialize)]
@@ -199,30 +85,6 @@ pub struct JobTexts {
     pub todo_more: String,
 }
 
-/// 进度条的两种格（`layout.json` 的 `bar`）。
-#[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Bar {
-    /// 几格。
-    pub width: usize,
-    /// 占了的。
-    pub full: String,
-    /// 没占的。
-    pub empty: String,
-}
-
-/// 待办每一项前面的记号（`layout.json` 的 `todo_marks`）。
-#[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct TodoMarks {
-    /// 没做。
-    pub pending: String,
-    /// 在做。
-    pub active: String,
-    /// 做完。
-    pub done: String,
-}
-
 /// 界面上给人看的字。`{count}` 这样的占位由代码填。
 #[derive(Debug, Clone, Deserialize)]
 pub struct Texts {
@@ -260,6 +122,8 @@ pub struct Texts {
     pub paste_label: String,
     /// 附件、文件块上写的（蓝图「输入框」第 12 条）。
     pub attach: AttachTexts,
+    /// `@` 文件列表上写的。
+    pub mention: MentionTexts,
     /// `Ctrl+V` 读不到剪贴板时的提示。
     pub clipboard_unreadable: String,
     /// `Ctrl+V` 读到空剪贴板时的提示。
@@ -399,6 +263,8 @@ pub struct Config {
     pub notify: NotifyLook,
     /// 附件认哪几种（`resources/attachments.json`）。
     pub attachments: AttachLook,
+    /// `@` 文件列表的数值（`resources/mention.json`）。
+    pub mention: MentionLook,
     /// 运行状态行的词库。
     pub pulse: Words,
     /// 首页的吉祥物。
@@ -438,6 +304,7 @@ impl Config {
             math: parse("math.json", include_str!("../../resources/math.json"))?,
             figures: parse("figures.json", include_str!("../../resources/figures.json"))?,
             notify: parse("notify.json", include_str!("../../resources/notify.json"))?,
+            mention: parse("mention.json", include_str!("../../resources/mention.json"))?,
             attachments: parse(
                 "attachments.json",
                 include_str!("../../resources/attachments.json"),

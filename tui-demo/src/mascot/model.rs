@@ -87,6 +87,8 @@ pub struct Gaze {
     pub half_life_ms: u64,
     /// 转着的时候隔多少毫秒画一帧。
     pub frame_ms: u64,
+    /// 框里有字时，鼠标停了这么多毫秒回来看输入光标（`tui.md`「空会话的首页」第 6 条）。
+    pub pointer_settle_ms: u64,
 }
 
 /// 待机小动作的数值（`tui.md`「空会话的首页」第 8 条）。`[最小, 最大]` 的每次在里面随机。

@@ -16,6 +16,8 @@ pub struct History {
     pub query: String,
     /// 选中的是对得上的第几条，0 是最新的。
     pub selected: usize,
+    /// 鼠标钉住的露出来的那一段（`menu::pin`）；按键选、打字放开。
+    pub pinned: Option<usize>,
     /// `Tab` 展开着的几条，照发出去的时刻认：展开是那一条自己的，光标移走照旧展开着，移到别的条上也不跟着展开
     /// （蓝图「输入历史列表」第 7 条）。
     pub expanded: Vec<Instant>,
@@ -65,11 +67,13 @@ impl History {
 
     /// 往更早的走（`↑`、再按 `Ctrl+R`），到头就停。`count` 是对得上的条数。
     pub fn older(&mut self, count: usize) {
+        self.pinned = None;
         self.selected = (self.selected + 1).min(count.saturating_sub(1));
     }
 
     /// 往更新的走（`↓`），到头就停。
     pub fn newer(&mut self) {
+        self.pinned = None;
         self.selected = self.selected.saturating_sub(1);
     }
 
@@ -77,12 +81,14 @@ impl History {
     pub fn type_text(&mut self, text: &str) {
         self.query.push_str(text);
         self.selected = 0;
+        self.pinned = None;
     }
 
     /// 删掉搜索的最后一个字，选中回到最新的一条。
     pub fn backspace(&mut self) {
         self.query.pop();
         self.selected = 0;
+        self.pinned = None;
     }
 }
 

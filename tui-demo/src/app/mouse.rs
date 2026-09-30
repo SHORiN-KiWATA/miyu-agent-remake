@@ -60,10 +60,15 @@ impl App {
         }
         match owner {
             Some(Grab::Menu) if self.history.open => self.history_mouse(mouse),
-            Some(Grab::Menu) => match self.menu_matches() {
-                Some(matches) => self.menu_mouse(mouse, &matches),
-                None => Action::None,
-            },
+            Some(Grab::Menu) => {
+                if let Some(found) = self.mention_found() {
+                    self.mention_mouse(mouse, &found)
+                } else if let Some(matches) = self.menu_matches() {
+                    self.menu_mouse(mouse, &matches)
+                } else {
+                    Action::None
+                }
+            }
             Some(Grab::Input) => self.input.mouse(mouse, under == Some(Grab::Input)),
             Some(Grab::Body) => {
                 match self.view.mouse(mouse) {
@@ -154,46 +159,65 @@ impl App {
         let now = std::time::Instant::now();
         // 和画出来的同一份：放进列表那块的高度（「窗口小的时候」第 1 条）。
         let max = usize::from(self.areas.menu_text.height);
+        // 悬停钉住、滚轮滚（最新的贴底：滚轮往上是更早的），照钉住以后画出来的行认指针下是哪一条。
+        let Some(by) = list_step(mouse.kind, true) else {
+            return Action::None;
+        };
+        let shown = self.config.layout.history_rows.max(1);
+        let history = &mut self.history;
+        crate::menu::pin(
+            history.selected,
+            &mut history.pinned,
+            found.len(),
+            shown,
+            by,
+        );
         let (_, rows) =
             crate::ui::history_lines(&self.history, &found, width, &self.config, now, max);
         let at = crate::ui::history_index_at(self.areas.menu_text, &rows, mouse.row);
         if let Some(index) = at {
-            match mouse.kind {
-                MouseEventKind::Moved => self.history.selected = index,
-                MouseEventKind::Down(MouseButton::Left) => {
-                    self.history.selected = index;
-                    self.pick_history();
-                }
-                _ => {}
+            self.history.selected = index;
+            if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
+                self.pick_history();
             }
         }
         Action::None
     }
 
-    /// 列表上的鼠标：悬停就选中，点一下就执行。
+    /// 列表上的鼠标（「斜杠命令列表」第 3 条）：悬停高亮指针下那一条、列表不动，滚轮滚，点一下就执行。
     pub(super) fn menu_mouse(&mut self, mouse: MouseEvent, matches: &[Spec]) -> Action {
         use ratatui::crossterm::event::{MouseButton, MouseEventKind};
         // 露了几条照画出来的：框里放字的那一块有几行（「窗口小的时候」第 1 条）。
         let rows = crate::ui::menu_rows(self.config.layout.menu_rows, self.areas.menu_text.height);
-        let at = crate::ui::menu_index_at(
-            self.areas.menu_text,
-            matches.len(),
-            self.menu.selected,
-            rows,
-            mouse.row,
-        );
+        let count = matches.len();
+        let Some(by) = list_step(mouse.kind, false) else {
+            return Action::None;
+        };
+        crate::menu::pin(self.menu.selected, &mut self.menu.pinned, count, rows, by);
+        let top = crate::menu::top(self.menu.selected, self.menu.pinned, count, rows);
+        let at = crate::ui::menu_index_at(self.areas.menu_text, count, top, rows, mouse.row);
         let Some((index, spec)) = at.and_then(|i| Some((i, matches.get(i)?))) else {
             return Action::None;
         };
-        match mouse.kind {
-            MouseEventKind::Moved => self.menu.selected = index,
-            MouseEventKind::Down(MouseButton::Left) => {
-                let spec = spec.clone();
-                self.input.editor.take();
-                self.run(&spec, None);
-            }
-            _ => {}
+        self.menu.selected = index;
+        if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
+            let spec = spec.clone();
+            self.input.editor.take();
+            self.run(&spec, None);
         }
         Action::None
+    }
+}
+
+/// 列表上的鼠标这一下要把露的那一段挪几条：悬停、按下左键钉住不挪（0），滚轮一格一条；别的不管。`upward`：列表
+/// 从下往上排（输入历史列表，最新的贴底），滚轮往上是往后翻。
+pub(super) fn list_step(kind: MouseEventKind, upward: bool) -> Option<isize> {
+    use ratatui::crossterm::event::MouseButton;
+    let sign = if upward { -1 } else { 1 };
+    match kind {
+        MouseEventKind::Moved | MouseEventKind::Down(MouseButton::Left) => Some(0),
+        MouseEventKind::ScrollDown => Some(sign),
+        MouseEventKind::ScrollUp => Some(-sign),
+        _ => None,
     }
 }

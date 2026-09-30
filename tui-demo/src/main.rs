@@ -20,6 +20,7 @@ mod jobs;
 mod local;
 mod markdown;
 mod mascot;
+mod mention;
 mod menu;
 mod meter;
 mod notify;

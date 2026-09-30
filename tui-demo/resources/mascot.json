@@ -38,5 +38,5 @@
     "twitch_tilt": [0.3, 0.6]
   },
   "perch": { "settle_ms": 600, "row_ms": 60 },
-  "gaze": { "max_yaw": 40.0, "max_pitch": 20.0, "distance": 30.0, "half_life_ms": 40, "frame_ms": 16 }
+  "gaze": { "max_yaw": 40.0, "max_pitch": 20.0, "distance": 30.0, "half_life_ms": 40, "frame_ms": 16, "pointer_settle_ms": 1500 }
 }

@@ -10,13 +10,13 @@ use unicode_width::UnicodeWidthStr;
 use super::panel::{self, Chrome};
 use crate::commands::Spec;
 use crate::config::MenuTexts;
-use crate::menu::window;
 use crate::theme;
 
 /// 列表的框（上边框写标题、条数）和露出来的那一段，最多 `rows` 条。名字对齐成一列，样子见 [`looks`]。
 pub fn lines(
     matches: &[Spec],
     selected: usize,
+    pinned: Option<usize>,
     rows: usize,
     width: u16,
     words: &MenuTexts,
@@ -24,7 +24,7 @@ pub fn lines(
     let count = words.count.replace("{count}", &matches.len().to_string());
     let chrome = Chrome::new(&words.title, vec![Span::styled(count, theme::dim())]);
     let mut out = Vec::new();
-    let top = window(selected, matches.len(), rows);
+    let top = crate::menu::top(selected, pinned, matches.len(), rows);
     let column = matches.iter().map(|s| label(s).width()).max().unwrap_or(0) + 3;
     for (i, spec) in matches.iter().enumerate().skip(top).take(rows) {
         let picked = i == selected;
@@ -62,10 +62,10 @@ pub fn draw(frame: &mut Frame, outer: Rect, text: Rect, chrome: Chrome, lines: V
     panel::draw(frame, outer, text, chrome, lines);
 }
 
-/// 屏幕上第 `y` 行点中的是第几条；`text` 是框里放字的那一块，框的边、空着的地方是 `None`。
-pub fn index_at(text: Rect, count: usize, selected: usize, rows: usize, y: u16) -> Option<usize> {
+/// 屏幕上第 `y` 行点中的是第几条；`top` 是露出来的第一条，`text` 是框里放字的那一块，框的边、空着的地方是 `None`。
+pub fn index_at(text: Rect, count: usize, top: usize, rows: usize, y: u16) -> Option<usize> {
     let row = usize::from(y.checked_sub(text.y)?);
-    let index = window(selected, count, rows) + row;
+    let index = top + row;
     (row < rows && index < count).then_some(index)
 }
 
@@ -92,7 +92,15 @@ mod tests {
         matches: &[crate::commands::Spec],
         config: &Config,
     ) -> Vec<ratatui::text::Line<'static>> {
-        lines(matches, usize::MAX, matches.len(), 80, &config.text.menu).1
+        lines(
+            matches,
+            usize::MAX,
+            None,
+            matches.len(),
+            80,
+            &config.text.menu,
+        )
+        .1
     }
 
     #[test]
@@ -112,7 +120,7 @@ mod tests {
         let config = Config::builtin().unwrap();
         let matches: Vec<_> = config.commands.filter("").into_iter().cloned().collect();
         let rows = config.layout.menu_rows;
-        let (chrome, lines) = lines(&matches, 1, rows, 60, &config.text.menu);
+        let (chrome, lines) = lines(&matches, 1, None, rows, 60, &config.text.menu);
         let title: String = chrome.title.iter().map(|s| s.content.as_ref()).collect();
         assert_eq!(title, format!("命令 {} 条", matches.len()));
         assert!(chrome.hint.is_none(), "没有按键提示");
@@ -143,10 +151,15 @@ mod tests {
         // 框里放字的那一块从第 11 行起：点框的上边不算。
         let text_area = Rect::new(2, 11, 56, 5);
         assert_eq!(
-            index_at(text_area, matches.len(), 1, rows, 10),
+            index_at(text_area, matches.len(), 0, rows, 10),
             None,
             "点框的边不算"
         );
-        assert_eq!(index_at(text_area, matches.len(), 1, rows, 12), Some(1));
+        assert_eq!(index_at(text_area, matches.len(), 0, rows, 12), Some(1));
+        assert_eq!(
+            index_at(text_area, matches.len(), 3, rows, 12),
+            Some(4),
+            "露出来的第一条是第 3 条"
+        );
     }
 }

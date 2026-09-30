@@ -7,6 +7,7 @@ mod dropped;
 mod editor;
 mod mouse;
 mod pasted;
+mod place;
 mod recall;
 mod wrap;
 
@@ -246,11 +247,7 @@ impl InputBox {
                     self.editor.insert(" ");
                 }
                 match item {
-                    Dropped::File(file, kind) => self.attach(file, &kind),
-                    Dropped::Path(path) => {
-                        let label = self.attach_rule.file_label(&path);
-                        self.editor.insert_file(label, dropped::quoted(&path), path);
-                    }
+                    Dropped::File(path, _) | Dropped::Path(path) => self.put_file(path),
                 }
             }
             return;

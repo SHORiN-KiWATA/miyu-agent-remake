@@ -163,6 +163,15 @@
     "compaction_paused": "自动压缩暂停着",
     "other": "模型出错"
   },
+  "mention": {
+    "title": "@ {query}",
+    "count": " · {count} 个",
+    "layer": " · 只读这一层",
+    "indexing": " · 找文件中…",
+    "partial": " · 只列了一部分，打 / 按目录找",
+    "empty": "没有对得上的",
+    "hints": "↑/↓ 选 · Tab 进目录 · Enter 收成块 · Esc 关闭"
+  },
   "history": {
     "title": "历史",
     "count": "  {count} 条",

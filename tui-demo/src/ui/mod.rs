@@ -23,6 +23,7 @@ mod sidebar;
 
 pub use history::{index_at as history_index_at, lines as history_lines};
 pub use menu::{index_at as menu_index_at, rows as menu_rows};
+mod mention;
 mod menu;
 pub mod row_cache;
 pub mod rows;
@@ -216,7 +217,9 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     // 输入历史列表开着时不看斜杠命令：两个不同时开，占同一个地方（`tui.md`「输入历史列表」）。
     // 后台面板也占那个地方，开着时两个列表都不开。
     let drawer_open = app.drawers.open();
-    let matches = if app.history.open || app.panel.is_some() || drawer_open {
+    // `@` 文件列表也占这个地方，开着时不开斜杠命令列表（「`@` 文件列表」第 1 条）。
+    let mentions = app.mention_found();
+    let matches = if app.history.open || app.panel.is_some() || drawer_open || mentions.is_some() {
         None
     } else {
         app.menu_matches()
@@ -331,6 +334,8 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         panel_lines.len()
     } else if app.history.open {
         history_rows.len()
+    } else if let Some(found) = &mentions {
+        found.items.len().clamp(1, menu_shown)
     } else {
         matches.as_ref().map_or(0, |m| m.len().min(menu_shown))
     };
@@ -352,9 +357,22 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         let (chrome, lines) = menu::lines(
             matches,
             app.menu.selected,
+            app.menu.pinned,
             rows,
             areas.menu_text.width,
             &app.config.text.menu,
+        );
+        menu::draw(frame, areas.menu, areas.menu_text, chrome, lines);
+    }
+    if let Some(found) = &mentions {
+        let rows = menu::rows(app.config.layout.menu_rows, areas.menu_text.height);
+        let (chrome, lines) = mention::lines(
+            found,
+            app.mention.selected,
+            app.mention.pinned,
+            rows,
+            areas.menu_text.width,
+            &app.config.text.mention,
         );
         menu::draw(frame, areas.menu, areas.menu_text, chrome, lines);
     }
