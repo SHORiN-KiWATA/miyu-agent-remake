@@ -10,6 +10,7 @@
 |---|---|
 | `crates/miyu-log/src/lib.rs` | 装上（`install`）、订阅者怎么筛、一份多大、留几份 |
 | `crates/miyu-log/src/level.rs` | `MIYU_LOG` 的值怎么读 |
+| `crates/miyu-log/src/settings.rs` | 配置项 `log.level`（施工 8-1，`config.md`「M8 的配置项」）：只声明，进配置清单；选项和 `MIYU_LOG` 的写法一样 |
 | `crates/miyu-log/src/line.rs` | 一行怎么写：几列、转义、加不加引号、时刻、和 UTC 差多少 |
 | `crates/miyu-log/src/home.rs` | 家目录写成 `~` |
 | `crates/miyu-log/src/layer.rs` | 把一条事件写成一行；会话编号跟着 span 走 |
@@ -229,6 +230,6 @@
 ### 还没有的
 
 - Windows 上系统报错的原话照系统的语言：标准库取的，管不着。
-- 配置项 `log.level`，配置里写错了用 `INFO` 并记一条 `WARN`（`28-运行日志.md` 第三节、LG2，`14-配置.md`）。
+- 照配置项 `log.level` 定级别：8-1 声明了（`settings.rs`），读它随 8-2、运行中换随 8-4；配置里写错了照下面几层或默认值，`MIYU_LOG` 设了的照它（`28-运行日志.md` 第三节、LG2，`config.md`）。
 - 每个软件一份 `state/logs/<软件>.log`，核心记它们的起停和退出码（`28-运行日志.md` 第一节、LG4）。
 - `miyu logs`：最后 100 行、`-f`、`--level`、`--session`（`28-运行日志.md` 第五节，`22-命令行.md` 第五节）。

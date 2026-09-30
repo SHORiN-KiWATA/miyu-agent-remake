@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "ui": {
+      "properties": {
+        "language": {
+          "default": "auto",
+          "description": "The language terminals, the web page and the command line use for you. auto follows the terminal or browser. Allowed: auto, zh, en or ja. Only in the system config or personal settings. Takes effect at once.",
+          "enum": [
+            "auto",
+            "zh",
+            "en",
+            "ja"
+          ],
+          "title": "Interface language",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "type": "object"
+}

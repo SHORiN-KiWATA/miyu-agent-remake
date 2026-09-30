@@ -1,9 +1,11 @@
 //! 给人看的字（施工 4-5 上）：内核给模型的每一句都有给人看的一句对着，要的字段不多于给模型的那一句；工具的
-//! 显示名；找不到的语言照英文；换进去的字段去掉控制字符；读不懂的说是哪一份，没有的不算错。
+//! 显示名；找不到的语言照英文；换进去的字段去掉控制字符；读不懂的说是哪一份，没有的不算错。配置那一格照
+//! 配置清单要的样子交出去（施工 8-1）。
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use miyu_config::Words;
 use miyu_kernel::event::Said;
 use miyu_kernel::template::Template;
 use miyu_store::human::{Block, Human, clean};
@@ -199,4 +201,41 @@ fn a_broken_file_is_named_and_a_missing_one_is_fine() {
     );
     let error = Human::load(&ResourceRoot::at(&scratch.0), "zh").expect_err("不认识的块");
     assert!(error.why.contains("diff"), "{error}");
+}
+
+#[test]
+fn config_words_go_to_the_settings_list_with_the_core_prefix() {
+    let zh = load("zh");
+    let level = Words::item(&zh, "log.level").expect("有 log.level");
+    assert_eq!(level.name, "运行日志的级别");
+    assert_eq!(
+        level.options.get("debug").map(String::as_str),
+        Some("更细，排查用")
+    );
+    assert!(Words::item(&zh, "log.nope").is_none());
+    assert_eq!(
+        Words::sentence(&zh, "config/applies/now", &[]).as_deref(),
+        Some("当场生效")
+    );
+    assert_eq!(
+        Words::sentence(
+            &load("en"),
+            "config/or-values",
+            &[("rest", "a"), ("last", "b")]
+        )
+        .as_deref(),
+        Some("a or b")
+    );
+    assert_eq!(Words::sentence(&zh, "config/nope", &[]), None);
+    assert_eq!(
+        Words::sentence(&zh, "config/or", &[("rest", "a")]),
+        None,
+        "少了字段"
+    );
+    // 配置那一格写错了：说是哪一份。
+    let scratch = Scratch::new();
+    scratch.file("core/human/zh.json", r#"{"config":{"item":{}}}"#);
+    let error = Human::load(&ResourceRoot::at(&scratch.0), "zh").expect_err("不认识的格");
+    assert!(error.file.ends_with("core/human/zh.json"), "{error}");
+    assert!(error.why.contains("item"), "{error}");
 }

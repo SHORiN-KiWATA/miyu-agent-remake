@@ -1,4 +1,38 @@
 {
+  "config": {
+    "items": {
+      "log.level": {
+        "name": "実行ログのレベル",
+        "description": "実行ログにどこまで記録するかです。問題を調べるときは debug にします。環境変数 MIYU_LOG があれば、その起動ではそちらが優先されます。",
+        "options": {
+          "error": "エラーのみ",
+          "warn": "エラーと警告",
+          "info": "経過も記録",
+          "debug": "詳細（調査用）",
+          "trace": "すべて",
+          "off": "記録しない"
+        }
+      },
+      "ui.language": {
+        "name": "表示言語",
+        "description": "端末、ウェブ、コマンドラインで表示する言語です。auto は端末やブラウザの言語に合わせます。",
+        "options": {
+          "auto": "システムに合わせる",
+          "zh": "中文",
+          "en": "English",
+          "ja": "日本語"
+        }
+      }
+    },
+    "pages": {
+      "general": "一般",
+      "advanced": "詳細"
+    },
+    "groups": {
+      "display": "表示",
+      "log": "実行ログ"
+    }
+  },
   "said": {
     "tool-results/unknown": "そのツールはありません",
     "tool-results/not-an-object": "引数が JSON オブジェクトではありません",
@@ -16,6 +50,17 @@
     "tool-results/unavailable": "今は使えません",
     "tool-results/crashed": "内部エラーが起きました。一部は実行されたかもしれません",
     "permissions/forbidden": "Miyu 自身のデータなので、誰も触れられません",
-    "permissions/unresolvable": "どこを指しているか判断できません：{reason}"
+    "permissions/unresolvable": "どこを指しているか判断できません：{reason}",
+    "config/reference-header": "Miyu のすべての設定項目と既定値です。このファイルは生成されたもので、編集しても効果はありません。",
+    "config/reference-where": "システム設定は system/config.toml に、個人設定は home/<アカウント>/settings.toml に書きます。",
+    "config/reference-item": "{name}：{description}",
+    "config/facts": "書ける値：{values}。{layers}にだけ書けます。{applies}。",
+    "config/schema-description": "{description}{facts}",
+    "config/layer/system": "システム設定",
+    "config/layer/personal": "個人設定",
+    "config/applies/now": "すぐに反映されます",
+    "config/or": "{rest}または{last}",
+    "config/or-values": "{rest} または {last}",
+    "config/list": "{rest}、{next}"
   }
 }

@@ -1,0 +1,12 @@
+# Miyu 的全部配置项和默认值。这份是生成的，改它没有用。
+# 系统配置写在 system/config.toml，个人设置写在 home/<账号>/settings.toml。
+
+[log]
+# 运行日志的级别：运行日志记到哪一级。排查问题时调成 debug。设了环境变量 MIYU_LOG 的，那一次启动照它。
+# 能写：error、warn、info、debug、trace 或 off。只能写在系统配置里。当场生效。
+level = "info"
+
+[ui]
+# 界面语言：终端、网页、命令行给你看的字用哪种话。auto 跟着终端或浏览器的语言。
+# 能写：auto、zh、en 或 ja。只能写在系统配置或个人设置里。当场生效。
+language = "auto"

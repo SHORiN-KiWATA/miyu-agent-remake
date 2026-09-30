@@ -15,13 +15,10 @@ use std::time::SystemTime;
 
 use miyu_kernel::id::ContentHash;
 
-use crate::durable::{create_dir, sync_dir};
+use crate::durable::{create_dir, create_temp, discard, sync_dir};
 
 /// 放临时文件的目录。和前两位的目录（两位十六进制）撞不上。
 const TMP: &str = "tmp";
-
-/// 临时文件的名字最多换几次：撞上的都是崩溃留下的，换几次总能换开。
-const TEMP_TRIES: u32 = 64;
 
 /// 一个账号的 blob。
 #[derive(Debug, Clone)]
@@ -142,25 +139,6 @@ fn settle(temp: &Path, path: &Path) -> io::Result<()> {
     }
 }
 
-/// 新建一个临时文件，只许新建。撞上崩溃留下的同名文件，换下一个名字。
-fn create_temp(dir: &Path, mut name: impl FnMut() -> String) -> io::Result<(PathBuf, File)> {
-    for _ in 0..TEMP_TRIES {
-        let path = dir.join(name());
-        match OpenOptions::new().write(true).create_new(true).open(&path) {
-            Ok(file) => return Ok((path, file)),
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
-            Err(error) => return Err(error),
-        }
-    }
-    Err(io::Error::new(
-        io::ErrorKind::AlreadyExists,
-        format!(
-            "{TEMP_TRIES} temporary file names in a row are taken in {}",
-            dir.display()
-        ),
-    ))
-}
-
 /// 临时文件的名字：进程号加一个计数。
 fn temp_name() -> String {
     static NEXT: AtomicU64 = AtomicU64::new(0);
@@ -177,15 +155,6 @@ fn freshen(path: &Path) -> io::Result<()> {
         .write(true)
         .open(path)?
         .set_modified(SystemTime::now())
-}
-
-/// 删掉用不上的临时文件。
-#[expect(
-    clippy::let_underscore_must_use,
-    reason = "删不掉就留在 tmp/ 里，回收的时候再清，不耽误这一次"
-)]
-fn discard(temp: &Path) {
-    let _ = fs::remove_file(temp);
 }
 
 #[cfg(test)]

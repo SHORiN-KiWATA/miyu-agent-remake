@@ -14,6 +14,8 @@ jiff = "0.2"
 miyu-ipc = { path = "../miyu-ipc" }
 # 编号、命令、拒绝的原因。
 miyu-kernel = { path = "../miyu-kernel" }
+# 配置项 `ui.language` 照配置清单声明（施工 8-1）。
+miyu-config = { path = "../miyu-config" }
 # 会话 actor：造会话、载入、发命令（施工 3-7）。
 miyu-session = { path = "../miyu-session" }
 # 这台机器上的沙盒能不能用：握手时报给头，能用的把助手交给会话（施工 5-4 下）。
