@@ -44,6 +44,7 @@ fn glob_comes_from_the_resources() {
             agents: None,
             messages: None,
             jobs: None,
+            sessions: None,
         })
     };
     assert_eq!(target(r#"{"pattern":"*.rs"}"#)[0].path, ".");

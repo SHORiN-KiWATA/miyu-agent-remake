@@ -73,6 +73,7 @@ fn grep_comes_from_the_resources() {
         agents: None,
         messages: None,
         jobs: None,
+        sessions: None,
     });
     assert_eq!(targets[0].path, "src");
     assert!(!targets[0].write);

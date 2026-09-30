@@ -53,6 +53,7 @@ fn trash_comes_from_the_resources_and_names_what_it_writes() {
             agents: None,
             messages: None,
             jobs: None,
+            sessions: None,
         });
         assert_eq!(targets.len(), 1, "{args}");
         assert_eq!(targets[0].path, "old.txt");
@@ -290,6 +291,7 @@ mod linux {
             agents: None,
             messages: None,
             jobs: None,
+            sessions: None,
         };
         let done = tool("trash").run(call, Progress::new(|_| {})).await;
         assert_eq!(done.human, Some(said("trash/protected")), "{}", text(&done));

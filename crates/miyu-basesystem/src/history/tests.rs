@@ -101,6 +101,7 @@ fn call(args: Value, log: Option<Log>, minutes: i32) -> Call {
         agents: None,
         messages: None,
         jobs: None,
+        sessions: None,
     }
 }
 

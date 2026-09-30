@@ -35,6 +35,7 @@ mod report;
 mod reread;
 mod restore;
 mod sandbox;
+mod sessions;
 mod spawn;
 mod store;
 #[cfg(feature = "testkit")]

@@ -15,8 +15,8 @@ use miyu_sandbox::Sandboxed;
 use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
 use miyu_tool::{
-    AgentPort, Background, Call, Done, JobPort, Log, MessagePort, Progress, ReadLog, Seen, Stop,
-    Tool,
+    AgentPort, Background, Call, Done, JobPort, Log, MessagePort, Progress, ReadLog, Seen,
+    SessionsPort, Stop, Tool,
 };
 
 /// 源码树里的资源目录。
@@ -193,6 +193,24 @@ impl Site {
         tool(name).run(call, Progress::new(|_| {})).await
     }
 
+    /// 在 `work/` 里调一次工具，列会话的端口是 `sessions`、会话的时区是 `offset`、叫停的旗是 `stop`（施工 C-3：`sessions`
+    /// 经它列）。
+    pub async fn done_with_sessions(
+        &self,
+        name: &str,
+        args: serde_json::Value,
+        sessions: Option<Arc<dyn SessionsPort>>,
+        offset: miyu_kernel::time::UtcOffset,
+        stop: Stop,
+    ) -> Done {
+        let call = Call {
+            sessions,
+            offset,
+            ..self.call_for("work", args, Seen::new(), stop)
+        };
+        tool(name).run(call, Progress::new(|_| {})).await
+    }
+
     /// 在场地里的 `cwd` 这个工作目录里的一次调用，不关进沙盒。
     fn call_for(&self, cwd: &str, args: serde_json::Value, seen: Seen, stop: Stop) -> Call {
         Call {
@@ -208,6 +226,7 @@ impl Site {
             agents: None,
             messages: None,
             jobs: None,
+            sessions: None,
         }
     }
 }

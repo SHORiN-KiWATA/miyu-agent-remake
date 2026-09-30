@@ -37,6 +37,7 @@ use crate::messages;
 use crate::pictures;
 use crate::port::Back;
 use crate::sandbox::{Sandbox, SandboxCache};
+use crate::sessions;
 
 /// 执行工具要的：工具目录、替工具写的两句、系统的家目录（施工 4-4 上，交给每次调用）。
 pub(crate) struct ToolKit {
@@ -224,6 +225,8 @@ impl Tools {
             .agents
             .as_ref()
             .map(|agents| messages::for_call(agents, call_id, subagents));
+        // 列会话的端口只给本机的主会话（施工 C-3）。
+        let sessions = self.agents.as_ref().and_then(sessions::for_call);
         let call = Call {
             args,
             cwd,
@@ -237,6 +240,7 @@ impl Tools {
             agents,
             messages,
             jobs: Some(jobs),
+            sessions,
         };
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name).cloned() else {
