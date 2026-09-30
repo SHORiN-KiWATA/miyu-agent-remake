@@ -48,12 +48,12 @@
 │   ├── drivers/<哪一句>.txt              5 份
 │   ├── compaction/<哪一份>.txt           摘要指令、代码写的几段、重读的文件的头尾、截短重试的两份、隔离式那一句 system，12 份
 │   ├── jobs/<哪一份>.txt                 两种回报的写法，11 份（施工 7-2）；回报截在中间的那一行（施工 7-6）；留言的标签，2 份（施工 7-7）；人停的那一句（施工 7-2 补）
-│   └── human/zh.json、en.json            给人看的字
+│   └── human/zh.json、en.json、ja.json   给人看的字
 ├── personas/<人格>/prompts/persona.md    人设；出厂的只有 engineer
 └── software/<软件包>/                    出厂的只有 basesystem
     ├── tools/<工具>.json                 给模型看的说明和参数格式
     ├── <工具>/<名字>.txt、common/<名字>.txt  工具输出里给她看的几句
-    └── human/zh.json、en.json            给人看的字
+    └── human/zh.json、en.json、ja.json   给人看的字
 ```
 
 | 哪几份 | 谁读 | 什么时候 |
@@ -166,6 +166,7 @@
 |---|---|
 | `crates/miyu-store/src/resources/tests.rs` | `MIYU_RESOURCES` 优先、开头的 `~` 照家目录接、要是绝对路径、要是目录；程序旁边的 `resources/`、上一级的 `share/miyu/`；都没有时写明找过哪两处、不知道程序在哪；读出软件工程师的人设和随核心附带的字（会话编号的模板是它那份文件，施工 1-13 再补）；人设文件缺了写明是哪一份；不合写法的编号拒绝；子会话的场所说明是它自己那份文件，没有的写明是哪一份（施工 7-5） |
 | `crates/miyu-store/tests/human.rs` | 内核给模型的每一句（`core/tool-results/`、`core/permissions/`）两种语言都有给人看的一句，要的字段不多于给模型的；照语言换成字，没有的语言照英文，没有这一句、少了字段的换不出；工具的显示名、后面跟的参数、符号、下面那一块，`block` 写别的读不懂；控制字符换掉、引号反斜杠照原样；什么都没有不算错，只有英文的照英文，读不懂的写明是哪一份、哪一句 |
+| `crates/miyu-store/tests/human_languages.rs`（施工 4-5 补） | 内核和每个软件包都有中文、英文、日文三份，说法的键、每一句要的字段、工具的样子（显示名以外）都和英文那一份一样，每件工具都有显示名；日文照语言换得出（找不到的语言会退回英文，所以直接查文件） |
 | `crates/miyu-store/tests/snapshot.rs` | 从源码树的资源目录拼出软件工程师的快照 |
 
 ### 出处
