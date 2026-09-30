@@ -57,6 +57,7 @@ pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
         jobs: Some(crate::jobs::JOB_NUMBERS),
         recap: Some(RECAP),
         title: Some(crate::title::TITLE),
+        peers: Some(crate::peers::PEERS),
     }
 }
 

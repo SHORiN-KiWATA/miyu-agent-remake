@@ -7,7 +7,7 @@
 //! 新写的事件和从磁盘载入的事件都从这里过，规矩只有一套。
 //!
 //! 撤销、恢复的几条在 `ledger/undo.rs`，派出去的任务和子会话的几条在 `ledger/jobs.rs`（施工 7-1），在等别的会话的通知在
-//! `ledger/peers.rs`（施工 C-1）。
+//! `ledger/peers.rs`（施工 C-1），最近收下的别的会话的话也在那里（施工 C-2）。
 
 use std::collections::BTreeSet;
 use std::fmt;
@@ -15,6 +15,7 @@ use std::fmt;
 use crate::block::Block;
 use crate::event::{Body, CompactTrigger, ContextCompacted, Event};
 use crate::id::{CallId, Seq, TurnId};
+use crate::origin::By;
 
 mod jobs;
 mod peers;
@@ -22,6 +23,7 @@ mod undo;
 
 use jobs::Jobs;
 use peers::Peers;
+pub(crate) use peers::digest;
 use undo::Undone;
 
 /// 一个会话的日志的账本。
@@ -332,7 +334,13 @@ impl Ledger {
     fn record(&mut self, event: &Event) {
         self.next = event.seq.next();
         self.jobs.record(event);
-        self.peers.record(event);
+        let peer = match (&event.body, &event.by) {
+            (Body::MessageUser(_), By::Session(session)) if self.is_peer(&session.id) => {
+                Some(session.id.clone())
+            }
+            _ => None,
+        };
+        self.peers.record(event, peer);
         match &event.body {
             Body::TurnStarted(_) => {
                 let turn = TurnId::new(event.seq);

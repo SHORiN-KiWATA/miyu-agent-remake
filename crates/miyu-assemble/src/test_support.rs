@@ -9,7 +9,9 @@ use miyu_kernel::request::Message;
 
 use miyu_kernel::template::Template;
 
-use crate::texts::{HarnessTexts, JobTexts, Recap, RestoredWrap, Texts, Title, TurnEndedTexts};
+use crate::texts::{
+    HarnessTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title, TurnEndedTexts,
+};
 
 pub(crate) const KERNEL: &str = r#"{"kind":"kernel"}"#;
 const ALICE: &str = r#"{"kind":"person","account":"alice"}"#;
@@ -42,6 +44,10 @@ pub(crate) fn texts() -> Texts {
         harness: Some(HarnessTexts {
             open: Template::parse("<agent {name}>\n").expect("模板合写法"),
             close: "</agent>\n".to_string(),
+        }),
+        peers: Some(PeerTexts {
+            open: Template::parse("<peer {id}>\n").expect("模板合写法"),
+            close: "</peer>\n".to_string(),
         }),
         recap: Some(recap_texts()),
         title: Some(title_texts()),
@@ -125,6 +131,19 @@ impl Log {
             turn: None,
         };
         log.push(KERNEL, "session.created", CREATED);
+        log
+    }
+
+    /// 会话 `parent` 派出来的一个子会话，刚创建（施工 C-2：父会话的话不是别的会话的）。
+    pub(crate) fn child(parent: &str) -> Log {
+        let mut log = Log {
+            ledger: Ledger::default(),
+            history: History::default(),
+            turn: None,
+        };
+        let open = CREATED.strip_suffix('}').unwrap_or(CREATED);
+        let created = format!(r#"{open},"parent":"{parent}","depth":1}}"#);
+        log.push(KERNEL, "session.created", &created);
         log
     }
 

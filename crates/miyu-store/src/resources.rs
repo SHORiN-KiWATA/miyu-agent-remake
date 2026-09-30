@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 
 use miyu_policy::{
     CompactionTexts, CoreLines, CoreTexts, DriverPlaceholders, FactTexts, HarnessTexts,
-    ImageNameTexts, JobTexts, PermissionTexts, PersonaTexts, RebuildTexts, RecapTexts,
+    ImageNameTexts, JobTexts, PeerTexts, PermissionTexts, PersonaTexts, RebuildTexts, RecapTexts,
     ShortenTexts, Sources, TextFileTexts, TitleTexts, ToolResultTexts, TurnEndedTexts,
 };
 
@@ -284,6 +284,10 @@ impl ResourceRoot {
             harness: Some(HarnessTexts {
                 message_open: core(&["harness", "message-open.txt"])?,
                 message_close: core(&["harness", "message-close.txt"])?,
+            }),
+            peers: Some(PeerTexts {
+                message_open: core(&["peers", "message-open.txt"])?,
+                message_close: core(&["peers", "message-close.txt"])?,
             }),
             recap: Some(RecapTexts {
                 instruction: core(&["recap", "instruction.txt"])?,

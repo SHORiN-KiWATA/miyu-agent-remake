@@ -6,7 +6,7 @@
 //! 1. 稳定区：工具面（照名字排好）、system、示范对话；
 //! 2. 检查点：最近一次压缩的摘要，套上包装；
 //! 3. 历史：照有效历史排好的先后，每种事件渲染成对应的消息或内容块，任务的两种回报是带标签的事实（`jobs.rs`），别的
-//!    harness 发来的话包一层带名字的标签（`harness.rs`）；
+//!    harness 发来的话包一层带名字的标签（`harness.rs`），别的会话发来的话包一层带短编号的标签（`peers.rs`）；
 //! 4. 人这一边挨着的块合成一条 user 消息：检查点最前，事实其次，人的消息最后。
 //!
 //! 压缩的摘要请求也在这里组装：截到第 N 条照平常组装，最后接摘要指令（`summary.rs`）。回顾的请求也是（`recap.rs`，施工 3-8
@@ -17,6 +17,7 @@
 
 mod harness;
 mod jobs;
+mod peers;
 mod recap;
 mod render;
 mod summary;
@@ -27,7 +28,9 @@ mod title;
 #[cfg(test)]
 mod test_support;
 
-pub use texts::{HarnessTexts, JobTexts, Recap, RestoredWrap, Texts, Title, TurnEndedTexts};
+pub use texts::{
+    HarnessTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title, TurnEndedTexts,
+};
 
 use miyu_kernel::assemble::Assembler;
 use miyu_kernel::block::Block;

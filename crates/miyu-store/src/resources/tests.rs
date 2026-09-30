@@ -173,6 +173,16 @@ fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
         harness.message_close,
         include_str!("../../../../resources/core/harness/message-close.txt")
     );
+    // 别的会话发来的话的标签（施工 C-2）：每一格是它自己那份文件。
+    let peers = sources.core.peers.expect("出厂的有别的会话发来的话的标签");
+    assert_eq!(
+        peers.message_open,
+        include_str!("../../../../resources/core/peers/message-open.txt")
+    );
+    assert_eq!(
+        peers.message_close,
+        include_str!("../../../../resources/core/peers/message-close.txt")
+    );
     // 回顾的五份（施工 3-8 四补）：每一格是它自己那份文件。
     let recap = sources.core.recap.expect("出厂的有回顾的字");
     macro_rules! recap {

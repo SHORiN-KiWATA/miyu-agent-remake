@@ -90,6 +90,7 @@ impl History {
                     image: text("image", &[])?,
                     file: text("file", &["name"])?,
                     agent: text("agent", &["name"])?,
+                    session: text("session", &["id"])?,
                     permission: text("permission", &["level"])?,
                 },
                 footers: Footers {
@@ -191,7 +192,7 @@ fn look(texts: &Texts, call: &Call, wanted: &Wanted, stop: &Stop) -> Done {
     if stop.stopped() {
         return Done::stopped();
     }
-    let mut entries = entry::entries(kept.events(), &texts.placeholders, NAME);
+    let mut entries = entry::entries(&kept, &texts.placeholders, NAME);
     entries.extend(switches);
     entries.sort_by_key(|entry| entry.seq);
     entries.retain(|entry| picked(entry, wanted));

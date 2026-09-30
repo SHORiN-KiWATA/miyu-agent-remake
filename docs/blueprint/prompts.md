@@ -1152,6 +1152,17 @@ Could not read the log: {error}
 agent "{name}"
 ```
 
+#### `software/basesystem/history/session.txt`
+
+- 什么时候加进来：别的会话发来的那一条，「谁」那一格代替 `user`
+- token：6（字段按 `22334455` 算，比它代替的 `user`（2）多 4；2026-10-01 主会话量）
+- 为什么加：注明来处：`history` 读出来的这种话，她分得清是哪个会话说的，和请求里那块标签是同一个编号（`tools/history.md`，施工 C-2）
+- 指纹：`6bc0039f`
+
+```text
+session {id}
+```
+
 #### `software/basesystem/history/permission.txt`
 
 - 什么时候加进来：人切权限级别的那一条（带 `permission` 的 `session.policy_changed`）的原文，「谁」写 `user`；撤掉的回合里切的也列
@@ -1702,6 +1713,30 @@ You are a subagent, started by another session to do one task. That parent sessi
 
 ```text
 </agent-message>
+```
+
+### 人这边：别的会话发来的话（一块带标签的事实）
+
+#### `core/peers/message-open.txt`
+
+- 什么时候加进来：标签那一行，别的会话（既不是父会话、也不是派的子代理）发来的话（`message.user`，`by` 是那个会话）；闲着时是开这一轮的那条，正忙时排在那一步的工具结果后面，之后每次请求照原文带
+- token：10（字段按短编号 `22334455` 算，2026-10-01 主会话照开发端点、`deepseek-v4.1-flash` 量）
+- 为什么加：注明是哪个会话说的：图纸定稿时定加（`cross-session.md` 第八条，2026-10-01 项目主人批准），7-10 实测过不加标签她会当成人说的话。写法照别的 harness 发来的话；另用标签名，别的 harness 报的名字仿不了一个会话。只带短编号、不带标题，前缀稳（施工 C-2）
+- 指纹：`f3bbd00d`
+
+```text
+<session-message from="{id}">
+```
+
+#### `core/peers/message-close.txt`
+
+- 什么时候加进来：收尾那一行，同 `message-open.txt`
+- token：5（2026-10-01 量）
+- 为什么加：标签的收尾（施工 C-2）
+- 指纹：`ea0c67b6`
+
+```text
+</session-message>
 ```
 
 ### 回顾那一次请求，不进主对话

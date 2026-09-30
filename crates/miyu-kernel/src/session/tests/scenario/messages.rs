@@ -313,7 +313,7 @@ fn the_middle_layer_answers_its_subagent_and_reports_the_whole_task_after() {
 }
 
 #[test]
-fn a_message_from_a_session_she_did_not_start_is_words_to_her() {
+fn a_message_from_a_session_she_did_not_start_is_from_another_session() {
     let mut s = dispatched(stage());
     s.model([Line::says("好").held(), Line::says("嗯。")]);
     s.say("hi");
@@ -321,9 +321,8 @@ fn a_message_from_a_session_she_did_not_start_is_words_to_her() {
     s.release_model();
     let message = event(&s, 15);
     assert_eq!(
-        message.turn,
-        Some(TurnId::new(seq(14))),
-        "不是她派的：照发一条消息，排进这一轮"
+        message.turn, None,
+        "不是她派的：别的会话发来的话（施工 C-2），照别处来的收，不带回合编号"
     );
     assert!(
         matches!(&message.body, Body::MessageUser(user) if user.blocks

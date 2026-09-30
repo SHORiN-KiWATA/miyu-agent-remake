@@ -6,6 +6,7 @@
 
 mod find;
 mod harness;
+mod peers;
 mod permission;
 mod read;
 

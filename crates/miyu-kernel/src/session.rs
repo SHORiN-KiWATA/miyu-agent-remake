@@ -23,6 +23,7 @@ mod manual;
 mod messages;
 mod meta;
 mod overflow;
+mod peers;
 mod permission;
 mod policy;
 mod question;
@@ -50,7 +51,7 @@ pub use input::{Answer, Command, Injection, Input, Limits, Queued, Received, Rer
 pub use limits::ContextLimits;
 pub use load::LoadError;
 pub use messages::Subagent;
-pub use policy::{Compaction, Notes, Pause, Policy, Rebuild, Reports, Shorten, Titles};
+pub use policy::{Compaction, Notes, Pause, Peers, Policy, Rebuild, Reports, Shorten, Titles};
 pub use report::Upward;
 pub use restore::{Expect, Step, StepAction};
 

@@ -10,6 +10,7 @@ use super::*;
 pub(super) fn random_policy(attended: bool, isolate: bool) -> Policy {
     let mut limited = policy();
     limited.step_limit = Some(STEP_LIMIT);
+    limited.peers = super::peering::LIMITS;
     limited.attended = attended;
     limited.compaction = Some(Compaction {
         reserve_cap: 10,
