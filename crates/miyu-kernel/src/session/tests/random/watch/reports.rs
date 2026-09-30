@@ -196,6 +196,7 @@ impl Watch {
             Body::TurnStarted(_) => self.reports.deferred.clear(),
             Body::ModelCalled(called)
                 if called.compaction.is_none()
+                    && !called.aside()
                     && called
                         .error
                         .as_ref()

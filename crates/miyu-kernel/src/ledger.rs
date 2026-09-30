@@ -248,6 +248,10 @@ impl Ledger {
                 "seen {} should come before this event",
                 called.seen
             )),
+            Body::SessionRecapped(recapped) if recapped.upto >= seq => Err(format!(
+                "upto {} should come before this event",
+                recapped.upto
+            )),
             Body::MessageWithdrawn(withdrawn) => self.check_withdrawal(&withdrawn.messages),
             Body::TurnReverted(reverted) => self.check_revert(&reverted.turns),
             Body::TurnUnreverted(unreverted) => self.check_unrevert(&unreverted.turns),
@@ -372,7 +376,10 @@ impl Ledger {
                     self.queued.remove(message);
                 }
             }
-            Body::ModelCalled(called) => self.queued.retain(|queued| *queued > called.seen),
+            // 回顾这类辅助请求不算她听到了排着的话（施工 3-8 四补）：它不是主对话的请求。
+            Body::ModelCalled(called) if !called.aside() => {
+                self.queued.retain(|queued| *queued > called.seen);
+            }
             Body::MessageAssistant(message) => {
                 self.last_reply = Some(event.seq);
                 self.queued.retain(|queued| *queued > message.seen);

@@ -54,7 +54,7 @@ impl MessagePort for Messenger {
                 urgent: false,
             };
             let why = match agents.port.command(session, self.id(), by, send).await {
-                Ok(Outcome::Accepted { .. }) => {
+                Ok(Outcome::Accepted { .. } | Outcome::Recapped { .. }) => {
                     tracing::info!(target: TARGET, to = label.as_str(), "message sent");
                     return Ok(());
                 }

@@ -15,6 +15,7 @@ mod manual;
 mod messages;
 mod overflow;
 mod rebuild;
+mod recap;
 mod redo;
 mod reports;
 mod reports_undo;

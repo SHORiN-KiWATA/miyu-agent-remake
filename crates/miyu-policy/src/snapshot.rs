@@ -20,6 +20,7 @@ use crate::harness::HarnessTexts;
 use crate::jobs::{JobNumbers, JobTexts, REPORT_CHARS};
 use crate::pause::PauseNumbers;
 use crate::rebuild::{RebuildNumbers, RebuildTexts};
+use crate::recap::{RecapNumbers, RecapTexts};
 use crate::shorten::{ShortenNumbers, ShortenTexts};
 use crate::tools::{self, ToolEntry};
 
@@ -48,6 +49,9 @@ pub struct Snapshot {
     /// 任务用的数（施工 7-6）。以前造的快照里没有，读成没有：照出厂的数截回报。没有的不写，旧快照的字节不变。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub jobs: Option<JobNumbers>,
+    /// 回顾用的数（施工 3-8 四补）。以前造的快照里没有，读成没有：不做回顾。没有的不写，旧快照的字节不变。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recap: Option<RecapNumbers>,
 }
 
 /// 压缩用的数（`compaction.md`「对外的样子」的策略数据）。
@@ -117,6 +121,9 @@ pub struct CoreTexts {
     /// 不写。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub harness: Option<HarnessTexts>,
+    /// 回顾的字（`recap/`，施工 3-8 四补）。以前造的快照里没有，读成没有：不做回顾；没有的不写。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recap: Option<RecapTexts>,
 }
 
 /// 压缩的几句（施工 6-2 上）。
@@ -348,6 +355,7 @@ impl Snapshot {
                 .as_ref()
                 .map(HarnessTexts::rendered)
                 .transpose()?,
+            recap: self.recap(),
         };
         let (face, rules) = tools::split(&self.tools)?;
         let stable = Stable {

@@ -141,6 +141,15 @@ pub enum Action {
     /// 向上回报（施工 7-6，`report.rs`）：子会话交给父会话的一份。执行器补上任务编号、子会话，经端口交给父会话（命令
     /// `Report`，发命令的是这个子会话），不送回；父会话落了盘就算送到，父会话没了的丢掉。
     Report(Upward),
+    /// 发回顾的请求（施工 3-8 四补，`recap.rs`）：单独的一次辅助请求，交给这个会话的模型，和主请求不相干。发出去了、每一段
+    /// 增量、说完了，都带着 `upto` 回报（[`super::Input::RecapSent`]、`RecapDelta`、`RecapEnded`）。不叫停：会话停了，执行器
+    /// 放下它就停了。
+    Recap {
+        /// 照到第几条，也是这一次回顾的名字。
+        upto: Seq,
+        /// 统一的请求：一条 user，没有 system、工具面。
+        request: Request,
+    },
     /// 执行一次工具调用。执行中的输出、执行完了，都带着调用编号回报
     /// （`02-内核.md` 第六节「工具怎么调、下一步怎么走」）。
     RunTool {
@@ -169,6 +178,15 @@ pub enum Outcome {
     Accepted {
         /// 它产生的事件的序号，照先后。
         events: Vec<Seq>,
+    },
+    /// 回顾好了（施工 3-8 四补，`recap.rs`）：那一句、照到第几条、是不是交回的上一句。那条 `session.recapped` 落了盘才回。
+    Recapped {
+        /// 那一句。
+        text: String,
+        /// 照到第几条。
+        upto: Seq,
+        /// 是交回的上一句：上一次回顾以后没有新内容，没有请求。
+        cached: bool,
     },
     /// 拒绝了，什么都没产生。
     Rejected {
@@ -221,6 +239,12 @@ pub enum Reason {
     /// 重做不了（施工 4-7 再补，`docs/blueprint/kernel/history.md`「重做」）：最后一轮不是人说的话开的（回报叫醒的、
     /// 手动压缩、清空、重启以后接着干的），或者一轮都没有。一个原因码管两种（2026-09-30 项目主人定）。
     NotRedoable,
+    /// 没有能回顾的（施工 3-8 四补，`recap.rs`）：有效历史里她一个带正文的回复都没有；以前造的快照没有回顾的字的也是它，只在
+    /// 开发时的旧会话里有，不另开原因码（照 `NothingToCompact` 的先例）。
+    NothingToRecap,
+    /// 回顾没写成（施工 3-8 四补）：请求出了错，或者回复里没有正文。原因记在那一次的 `model.called` 里；不再来，头要再要一次
+    /// 就是。
+    RecapFailed,
 }
 
 impl Reason {
@@ -244,6 +268,8 @@ impl Reason {
             Reason::NothingToClear => "nothing_to_clear",
             Reason::UnknownJob => "unknown_job",
             Reason::NotRedoable => "not_redoable",
+            Reason::NothingToRecap => "nothing_to_recap",
+            Reason::RecapFailed => "recap_failed",
         }
     }
 }

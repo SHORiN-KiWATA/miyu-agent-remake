@@ -101,6 +101,7 @@
 | `core/jobs/stopped-by-user.txt` | 人停的那一句，两种回报共用（施工 7-2 补，`kernel/request.md`「回报」第 3 条） |
 | `core/jobs/subagent-message-open.txt`、`subagent-message-close.txt` | 子代理发来的留言的标签，开头的字段 `job`、`title`（施工 7-7，`kernel/request.md`「子代理的留言」） |
 | `core/harness/message-open.txt`、`message-close.txt` | 别的 harness 发来的话的标签，开头的字段 `name`（施工 7-10，`kernel/request.md`「别的 harness 发来的话」） |
+| `core/recap/instruction.txt`、`user.txt`、`assistant.txt`、`omitted.txt`、`excerpted.txt` | 回顾的请求的指令、两种标签、两句记号（施工 3-8 四补，`kernel/request.md`「回顾的请求」） |
 | `personas/<人格>/prompts/persona.md` | 人设 |
 
 **3. 读给人看的字**（`Human::load`）

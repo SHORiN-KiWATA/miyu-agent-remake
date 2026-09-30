@@ -27,8 +27,10 @@ mod policy;
 mod question;
 mod queue;
 mod rebuild;
+mod recap;
 mod recent;
 mod redo;
+mod replies;
 mod report;
 mod restart;
 mod restore;
@@ -76,8 +78,9 @@ pub struct Session {
     unstored: Vec<Event>,
     /// 落了盘的最后一条；还没有落过盘就是没有。
     stored: Option<Seq>,
-    /// 等事件落了盘才回应的命令：编号，和它产生的事件的序号。照收到的先后。
-    waiting: Vec<(CommandId, Vec<Seq>)>,
+    /// 等事件落了盘才回应的命令：编号、要等的事件的序号、回应的结局（施工 3-8 四补：回顾回的不是「接受了」）。照收到的
+    /// 先后。
+    waiting: Vec<(CommandId, Vec<Seq>, Outcome)>,
     /// 最近接受的命令编号。
     recent: Recent,
     /// 冻结在会话上的策略。
@@ -113,6 +116,8 @@ pub struct Session {
     duty: report::Duty,
     /// 现在的标题、置顶（施工 3-8 三补，`meta.rs`）：日志里的 `session.meta_changed` 一路算的。
     meta: meta::Meta,
+    /// 在路上的那一次回顾（施工 3-8 四补，`recap.rs`）：只在内存里，载入以后没有。
+    recapping: Option<recap::Recapping>,
 }
 
 impl Session {
@@ -157,6 +162,7 @@ impl Session {
             restarting: false,
             duty: report::Duty::default(),
             meta: meta::Meta::default(),
+            recapping: None,
         };
         let event = session.record(at, by, Some(id.clone()), Body::SessionCreated(created));
         session.accept(id, vec![event.seq]);
@@ -288,6 +294,19 @@ impl Session {
                 cause,
                 reported,
             } => self.job_ended(at, by, cause, reported),
+            Input::RecapSent {
+                at,
+                upto,
+                model,
+                request,
+            } => self.recap_sent(at, upto, model, request),
+            Input::RecapDelta { at, upto, delta } => self.recap_delta(at, upto, delta),
+            Input::RecapEnded {
+                at,
+                upto,
+                usage,
+                error,
+            } => self.recap_ended(at, upto, usage, error),
             Input::Watched { watched } => {
                 self.watched = watched;
                 Vec::new()
@@ -295,7 +314,8 @@ impl Session {
         }
     }
 
-    /// 收到一个命令。接受过的编号照上一次回应；新的照命令判。
+    /// 收到一个命令。接受过的编号照上一次回应；新的照命令判。回顾不记编号（施工 3-8 四补）：再来一次就是再要一次，没有新内容
+    /// 的照样交回上一句。
     fn receive(&mut self, received: Received) -> Vec<Action> {
         let Received {
             id,
@@ -303,7 +323,9 @@ impl Session {
             at,
             command,
         } = received;
-        if let Some(events) = self.recent.get(&id) {
+        if !matches!(command, Command::Recap)
+            && let Some(events) = self.recent.get(&id)
+        {
             let events = events.to_vec();
             return self.reply_when_stored(id, events);
         }
@@ -359,6 +381,7 @@ impl Session {
             Command::Redo { text, attachments } => self.redo(id, by, at, text, attachments),
             Command::Compact { instructions } => self.compact(id, at, instructions),
             Command::Clear => self.clear(id, at),
+            Command::Recap => self.recap(id),
             Command::Report(reported) => self.report(id, by, at, reported),
         }
     }
@@ -394,31 +417,6 @@ impl Session {
         Ok(())
     }
 
-    /// 接受一个命令：记下编号和它产生的事件，等落了盘再回应。
-    fn accept(&mut self, id: CommandId, events: Vec<Seq>) {
-        self.recent.insert(id.clone(), events.clone());
-        self.waiting.push((id, events));
-    }
-
-    /// 接受过的命令又来了：它的事件都落了盘，当场回应；还没有，排队等落盘。
-    fn reply_when_stored(&mut self, id: CommandId, events: Vec<Seq>) -> Vec<Action> {
-        if self.is_stored(&events) {
-            vec![accepted(id, events)]
-        } else {
-            self.waiting.push((id, events));
-            Vec::new()
-        }
-    }
-
-    /// 这几条事件都落了盘没有。
-    fn is_stored(&self, events: &[Seq]) -> bool {
-        match (events.last(), self.stored) {
-            (None, _) => true,
-            (Some(last), Some(stored)) => *last <= stored,
-            (Some(_), None) => false,
-        }
-    }
-
     /// 到第 `upto` 条为止落了盘：先推送这些事件，再回应事件全落了盘的命令（`04-核心协议.md`
     /// 第六节第 2 条：先见结果，后见回应），再跑结束了的回合的挂接点，然后回合往下走。`upto` 超出追加过的，多出来的
     /// 不算；不比上一次往后的，什么都不做。`at` 是落完盘的时刻。
@@ -430,11 +428,11 @@ impl Session {
         let pushed: Vec<Event> = self.unstored.drain(..split).collect();
         self.stored = pushed.last().map(|event| event.seq);
         let mut actions = vec![Action::Push(pushed)];
-        for (id, events) in std::mem::take(&mut self.waiting) {
+        for (id, events, outcome) in std::mem::take(&mut self.waiting) {
             if self.is_stored(&events) {
-                actions.push(accepted(id, events));
+                actions.push(Action::Reply { id, outcome });
             } else {
-                self.waiting.push((id, events));
+                self.waiting.push((id, events, outcome));
             }
         }
         actions.extend(self.closed());

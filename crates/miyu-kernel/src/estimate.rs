@@ -16,7 +16,8 @@ use crate::request::{Message, Request, json};
 
 /// 本地估算：几个 UTF-8 字节算一个 token（照 codex 的 `APPROX_BYTES_PER_TOKEN`，2026-09-29 项目主人定）。
 /// 中文一个字三个字节，算成 0.75 个 token，偏多；英文偏少一点，只估锚之后那一截，落在余量里。
-const BYTES_PER_TOKEN: u64 = 4;
+/// 回顾的请求照它把 token 的上限折成字节（施工 3-8 四补）。
+pub const BYTES_PER_TOKEN: u64 = 4;
 
 /// 一张图在请求里算多少 token：各家的算法不一样，是驱动的事，经模型的限额交进来（施工 6-3 上，DeepSeek 的在
 /// `miyu-drivers`）。
@@ -90,7 +91,7 @@ pub struct Anchor {
 }
 
 /// 从有效历史里挑锚：最近一次压缩那一条之后的 `model.called` 中最近的一条，说完了（`ok`）、带着用量、
-/// 知道发给了谁。
+/// 知道发给了谁，不是辅助请求（施工 3-8 四补：回顾那一次不算）。
 ///
 /// 压缩那一条之前的不算：摘要请求自己那条、尾巴里压缩以前的请求，报的都是压缩前的大小。撤掉的回合里的
 /// 已经不在有效历史里了。一条都没有的，没有锚。
@@ -105,7 +106,8 @@ pub fn anchor(history: &History) -> Option<Anchor> {
             let Body::ModelCalled(called) = &event.body else {
                 return None;
             };
-            if called.result != CallResult::Ok {
+            // 回顾这类辅助请求报的是它自己那一次的大小，不是主对话的（施工 3-8 四补）。
+            if called.result != CallResult::Ok || called.aside() {
                 return None;
             }
             let usage = called.usage.as_ref()?;

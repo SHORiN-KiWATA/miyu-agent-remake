@@ -38,6 +38,8 @@ impl Stage {
                 injected: self.injections.pop_front().unwrap_or_default(),
             }],
             Action::CallModel { seen, request, .. } => self.call(seen, request),
+            // 回顾（施工 3-8 四补）：照回顾的剧本回，`recap.rs`。
+            Action::Recap { upto, request } => self.recap_call(upto, request),
             Action::Wake { at, seen } if self.hold_wakes => {
                 self.held_wake = Some((at, seen));
                 Vec::new()
@@ -261,7 +263,7 @@ pub fn model() -> Model {
 }
 
 /// 一次回复的增量：正文一块，每个调用一块，每块一次送完（开始、全文、收全）。
-fn deltas(line: &Line) -> Vec<Delta> {
+pub(super) fn deltas(line: &Line) -> Vec<Delta> {
     // 说了一半断了的，一块都不收全。
     let ends = line.error.is_none();
     let mut deltas = Vec::new();

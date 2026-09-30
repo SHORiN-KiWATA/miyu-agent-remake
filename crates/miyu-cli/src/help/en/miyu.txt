@@ -6,6 +6,7 @@ Commands:
   restore               Bring back what the latest undo took
   redo [words]          Redo the last turn, or redo it with new words
   compact [words]       Compact the context into a summary
+  recap                 Recap the session: goal, progress, blockers
   sandbox setup|remove  Set up or remove the sandbox user (Windows, needs admin)
 
 ask options:
@@ -17,11 +18,11 @@ ask options:
       --timeout <time>    Stop waiting after this long: 30s, 10m, 1h
       --from <name>       For another harness: its name, e.g. claude-code
 
-undo, restore, redo, compact options:
+undo, restore, redo, compact, recap options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened
 
-Each miyu ask opens a new session; -c, undo, restore, redo and compact use
-the last one.
+Each miyu ask opens a new session; -c, undo, restore, redo, compact and
+recap use the last one.
 
 Examples:
   miyu ask "what is this project"

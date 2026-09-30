@@ -9,7 +9,7 @@ use miyu_kernel::request::Message;
 
 use miyu_kernel::template::Template;
 
-use crate::texts::{HarnessTexts, JobTexts, RestoredWrap, Texts, TurnEndedTexts};
+use crate::texts::{HarnessTexts, JobTexts, Recap, RestoredWrap, Texts, TurnEndedTexts};
 
 pub(crate) const KERNEL: &str = r#"{"kind":"kernel"}"#;
 const ALICE: &str = r#"{"kind":"person","account":"alice"}"#;
@@ -43,6 +43,20 @@ pub(crate) fn texts() -> Texts {
             open: Template::parse("<agent {name}>\n").expect("模板合写法"),
             close: "</agent>\n".to_string(),
         }),
+        recap: Some(recap_texts()),
+    }
+}
+
+/// 替身的回顾的字（施工 3-8 四补）：短，一眼认得出；数照出厂的。
+pub(crate) fn recap_texts() -> Recap {
+    Recap {
+        instruction: "<recap>\n".to_string(),
+        user: "U: ".to_string(),
+        assistant: "A: ".to_string(),
+        omitted: "[omitted]\n\n".to_string(),
+        excerpted: "\n[...]\n".to_string(),
+        turns: 8,
+        tokens: 8_192,
     }
 }
 

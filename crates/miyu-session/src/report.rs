@@ -140,7 +140,7 @@ impl Upstream {
             wait *= 2;
         };
         match handed {
-            Ok(Outcome::Accepted { .. }) => {
+            Ok(Outcome::Accepted { .. } | Outcome::Recapped { .. }) => {
                 tracing::info!(target: TARGET, job = job.as_str(), parent, "reported");
             }
             Ok(Outcome::Rejected { reason }) => {

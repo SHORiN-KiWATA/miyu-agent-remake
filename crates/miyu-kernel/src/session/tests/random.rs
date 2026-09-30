@@ -48,6 +48,7 @@ mod endings;
 mod kinds;
 mod naming;
 mod paths;
+mod recapping;
 mod replies;
 mod reporting;
 mod rereading;
@@ -78,6 +79,7 @@ use endings::some_ending;
 use kinds::InputKind;
 use naming::some_meta;
 use paths::{EXPECTED_PATHS, LONG_PATHS};
+use recapping::{finish_recap, some_recap};
 use replies::some_injections;
 use rereading::some_reread;
 use restoring::some_restored;
@@ -309,10 +311,13 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let mut compacts = Rng(seed ^ 0xC0_4AC7);
         let mut reports = Rng(seed ^ 0x2E90_2750);
         let mut clears = Rng(seed ^ 0xC1EA_2000);
+        // 四个种子里有一个要回顾（施工 3-8 四补）：别的种子照原来的走，原来走得到的路照样走得到。
+        let (mut recaps, recapping) = (Rng(seed ^ 0x2EC4_9A00), seed % 4 == 1);
         // 五个种子里有一个、一次性的会话不重做（施工 4-7 再补）：重做占掉闲着的时候，回报闲着时开一轮、没人看着只记下难得走到。
         let (mut redos, redoing) = (Rng(seed ^ 0x2ED0_2ED0), seed % 5 != 2 && !oneshot);
         for _ in 0..300 {
-            if watch.all_stored() && crashes.below(200) == 0 {
+            // 有回顾在路上的不崩：崩了它就丢了，等着的命令收不到回应（施工 3-8 四补）。
+            if watch.all_stored() && crashes.below(200) == 0 && watch.recaps_idle() {
                 let planned = crashes.below(2) == 0;
                 session = watch.reload(session, planned, random_policy(attended, isolate));
                 if let Some(input) = watch.recall_answer() {
@@ -350,6 +355,9 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
             if redoing && let Some(input) = some_redo(&mut redos, &watch, &mut next_id) {
                 watch.feed(&mut session, input);
             }
+            if recapping && let Some(input) = some_recap(&mut recaps, &watch, &mut next_id) {
+                watch.feed(&mut session, input);
+            }
             let input = some_input(&mut rng, &mut watch, &mut next_id);
             watch.feed(&mut session, input);
         }
@@ -359,6 +367,9 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         if let Some(steps) = watch.restoring.pending.clone() {
             let files = steps.iter().map(crate::testkit::restored).collect();
             watch.feed(&mut session, Input::Restored { at: at(58), files });
+        }
+        for input in finish_recap(&watch) {
+            watch.feed(&mut session, input);
         }
         // 改标题、置顶放在最后，为什么见 `random/naming.rs`（施工 3-8 三补）。
         watch.feed(&mut session, some_meta(seed, &mut next_id));

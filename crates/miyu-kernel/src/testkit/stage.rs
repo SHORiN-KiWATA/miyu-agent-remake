@@ -68,6 +68,11 @@ pub struct Stage {
     pub(super) upward: Vec<crate::session::Upward>,
     /// 撤销交出来的停任务，照先后（施工 7-8）：替身记下来，回报由测试照停好了的样子交。
     pub(super) stopping: Vec<crate::session::Action>,
+    /// 回顾的请求，照先后：照到第几条，和请求本身（施工 3-8 四补，`recap.rs`）。
+    pub(super) recaps: Vec<(Seq, Request)>,
+    /// 回顾的请求接下来几次怎么回；停住的那一次（它的 `upto` 和剩下的回复）。
+    pub(super) recap_lines: VecDeque<Line>,
+    pub(super) held_recap: Option<(Seq, Line)>,
 }
 
 impl Stage {

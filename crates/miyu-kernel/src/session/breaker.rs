@@ -94,6 +94,7 @@ impl Session {
             result: CallResult::Error,
             error: Some(error),
             compaction: None,
+            purpose: None,
         };
         let mut events =
             vec![self.record(at, By::Kernel, cause.clone(), Body::ModelCalled(called))];

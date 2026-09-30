@@ -222,6 +222,19 @@ fn the_anchor_is_the_latest_finished_call_with_usage() {
     );
 }
 
+/// 回顾这类辅助请求不是锚（施工 3-8 四补）：它报的是它自己那一次的大小。
+#[test]
+fn a_recap_is_not_an_anchor() {
+    let recap = r#"{"seen":3,"endpoint":"deepseek","model":"deepseek-flash","messages":1,"usage":{"uncached":50,"cache_read":0,"cache_write":0,"output":0},"result":"ok","purpose":"recap"}"#;
+    let history = history(vec![
+        event(1, None, ALICE, "message.user", r#"{"blocks":[]}"#),
+        event(2, Some(2), KERNEL, "turn.started", r#"{"trigger":1}"#),
+        called(3, 2, 1, Some(100), "ok"),
+        event(4, None, KERNEL, "model.called", recap),
+    ]);
+    assert_eq!(anchor(&history).map(|a| a.seq), Seq::new(3));
+}
+
 #[test]
 fn the_four_parts_of_the_usage_are_added_up() {
     let body = r#"{"seen":2,"endpoint":"deepseek","model":"deepseek-flash","messages":1,"usage":{"uncached":1,"cache_read":20,"cache_write":300,"output":4000},"result":"ok"}"#;
