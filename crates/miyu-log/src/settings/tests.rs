@@ -5,7 +5,9 @@ use crate::level;
 
 #[test]
 fn every_option_is_a_level_miyu_log_understands() {
-    let miyu_config::Kind::Option(options) = LogSettings::ITEMS[0].kind;
+    let miyu_config::Kind::Option(options) = LogSettings::ITEMS[0].kind else {
+        panic!("log.level 是选项");
+    };
     for option in options {
         assert_eq!(level(Some(*option)).unknown, None, "{option}");
     }

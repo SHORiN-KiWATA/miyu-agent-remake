@@ -115,3 +115,27 @@ fn missing_words_are_named() {
         Err(Missing("config/schema-description".to_string()))
     );
 }
+
+#[test]
+fn a_switch_is_a_boolean_without_an_enum() {
+    use crate::item::{Item, Kind};
+    use crate::value::Value;
+    let switch = Item {
+        kind: Kind::Bool,
+        default: Value::Bool(false),
+        ..item("permission.start_read_only", &[], "")
+    };
+    let items = [switch];
+    let schema = render(&items, Layer::Personal, &words(&items)).expect("字齐全");
+    let json: serde_json::Value = serde_json::from_str(&schema).expect("是 JSON");
+    let leaf = &json["properties"]["permission"]["properties"]["start_read_only"];
+    assert_eq!(leaf["type"], "boolean");
+    assert_eq!(leaf["default"], false);
+    assert!(leaf.get("enum").is_none());
+    assert!(
+        leaf["description"]
+            .as_str()
+            .is_some_and(|d| d.contains("能写：true 或 false。")),
+        "{leaf}"
+    );
+}

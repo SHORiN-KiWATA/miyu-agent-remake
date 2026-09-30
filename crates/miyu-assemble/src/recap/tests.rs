@@ -4,7 +4,7 @@
 
 use miyu_kernel::block::Block;
 use miyu_kernel::id::HarnessName;
-use miyu_kernel::origin::Harness;
+use miyu_kernel::origin::{By, Harness};
 use miyu_kernel::request::Message;
 
 use super::*;
@@ -107,6 +107,24 @@ fn where_the_words_came_from_shows() {
     assert_eq!(
         transcript_in(&log),
         "U: <agent claude-code>\n跑一下测试\n</agent>\n\nA: 好。"
+    );
+}
+
+/// 别的会话发来的话也带着主请求里的外壳（施工 C-2）。
+#[test]
+fn words_from_another_session_show_where_they_came_from() {
+    let mut log = Log::new();
+    let asked = log.detached(
+        r#"{"kind":"session","id":"0192f3a0-1111-7abc-8def-001122334455"}"#,
+        "message.user",
+        &format!(r#"{{"blocks":{}}}"#, words("迁移写完了")),
+    );
+    log.start(asked);
+    log.reply(&words("好。"));
+    log.end("completed");
+    assert_eq!(
+        transcript_in(&log),
+        "U: <peer 22334455>\n迁移写完了\n</peer>\n\nA: 好。"
     );
 }
 

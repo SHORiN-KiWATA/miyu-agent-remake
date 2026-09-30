@@ -16,10 +16,13 @@
 //!   测试照它在进程里走一遍（施工 3-8 五补）；
 //! - [`Sandbox`]：`miyu sandbox setup`、`remove` 的参数；[`sandbox()`]：Windows 上装好、撤掉沙盒用户，交回退出码
 //!   （施工 5-8）；
+//! - [`Config`]：`miyu config` 的参数；[`config()`]：看配置一次，交回退出码；[`config_on`]：在连上了的连接上办一次，
+//!   测试照它在进程里走一遍（施工 8-2）；
 //! - [`language`]：给人看的话跟着界面语言。
 
 mod ask;
 mod compact;
+mod config;
 pub mod help;
 pub mod language;
 mod link;
@@ -34,6 +37,7 @@ mod undo;
 
 pub use ask::{Ask, Format, Plan, Screen, Target, ask, exit, talk};
 pub use compact::{Compact, CompactPlan, compact, compact_on};
+pub use config::{Config, ConfigCommand, ConfigPlan, config, config_on};
 pub use misuse::misuse;
 pub use recap::{Recap, RecapPlan, recap, recap_on};
 pub use redo::{Redo, RedoPlan, redo, redo_on};

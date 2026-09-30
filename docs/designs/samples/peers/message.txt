@@ -1,0 +1,3 @@
+<session-message from="22334455">
+迁移写完了，按会话分区。你那边的导出可以接上了。
+</session-message>

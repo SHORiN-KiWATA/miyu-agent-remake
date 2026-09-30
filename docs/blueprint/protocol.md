@@ -2,15 +2,15 @@
 
 ### 是什么
 
-头和核心之间说的话：一个连接上一行一条 JSON-RPC 2.0。连上先握手，之后能造会话、列出会话、传附件、说话（可以带附件）、打断、撤销、恢复、重做、手动压缩、切权限级别、清空上下文、要一句回顾、停掉派出去的任务、读后台命令的输出、改标题、置顶、删除会话，订阅会话的事件流（能补发订阅以前的事件）。连接从哪来不管：本机的套接字、命名管道（`ipc.md`），测试里的内存管道。
+头和核心之间说的话：一个连接上一行一条 JSON-RPC 2.0。连上先握手，之后能造会话、列出会话、传附件、说话（可以带附件）、打断、撤销、恢复、重做、手动压缩、切权限级别、清空上下文、要一句回顾、停掉派出去的任务、读后台命令的输出、改标题、置顶、删除会话，订阅会话的事件流（能补发订阅以前的事件），查配置（施工 8-2）。连接从哪来不管：本机的套接字、命名管道（`ipc.md`），测试里的内存管道。
 
-撤销、恢复、重做的回应另写一页：`protocol/undo.md`。
+撤销、恢复、重做的回应另写一页：`protocol/undo.md`。查配置的三个方法写在 `config.md`「协议」，这一页只列进方法表、出错表。
 
 ### 在哪
 
 | 代码 | 管什么 |
 |---|---|
-| `crates/miyu-endpoint/src/lib.rs` | `Core`：核心的家底（数据根、资源目录、请求模型的端口、工具目录、系统的家目录、沙盒的助手（施工 5-4 上）、管理员、本机令牌、会话表）；数着几个连接；空不空闲；停下全部会话 |
+| `crates/miyu-endpoint/src/lib.rs` | `Core`：核心的家底（数据根、资源目录、请求模型的端口、工具目录、系统的家目录、沙盒的助手（施工 5-4 上）、管理员、本机令牌、会话表、配置（施工 8-2））；数着几个连接；空不空闲；停下全部会话 |
 | `crates/miyu-endpoint/src/listen.rs` | `run`：在监听器上一个个接连接 |
 | `crates/miyu-endpoint/src/connection.rs` | `serve`：一个连接，读写分开；握手以前拦住；`subscribe`（回应带会话的限额；带 `after` 的先补发，施工 3-8 六补）、`unsubscribe` |
 | `crates/miyu-endpoint/src/wire.rs` | 读一行、认成请求、回应写成一行 |
@@ -30,7 +30,8 @@
 | `crates/miyu-endpoint/src/attach.rs` | 附件（施工 3-9 三补）：`blob.put` 读、存；`session.send`、`session.redo` 的附件变成内容块 |
 | `crates/miyu-endpoint/src/attach/kind.rs` | 认一个附件是什么：图片、PDF、别的文件，媒体类型 |
 | `crates/miyu-endpoint/src/refusal.rs` | 拒绝：错误码、原因码、中英文的话 |
-| `crates/miyu-endpoint/src/settings.rs` | 端点的配置项：界面语言 `ui.language`，`auto` 照系统的语言算出 `zh`、`en`、`ja`（施工 8-1 声明；握手时用随 8-2，`config.md`） |
+| `crates/miyu-endpoint/src/settings.rs` | 端点的配置项：界面语言 `ui.language`，`auto` 照系统的语言算出 `zh`、`en`、`ja`（施工 8-1 声明，8-2 握手时用）；新会话开局只读 `permission.start_read_only`（施工 8-2） |
+| `crates/miyu-endpoint/src/config.rs`、`config/` | 配置服务：起来时读的几份配置、最终值，照目录找项目配置、认信不信任；`config.schema`、`config.get`、`config.check`（施工 8-2，`config.md`） |
 
 ### 对外的样子
 
@@ -75,13 +76,15 @@
 {"error":{"code":-32010,"data":{"reason":"session_not_found"},"message":"没有这个会话。"},"id":"c7","jsonrpc":"2.0"}
 ```
 
+有的拒绝在 `data` 里多几格，和 `reason` 排在一起（施工 8-2 起：`unknown_config_key` 多 `problems`）。
+
 #### 握手 `hello`
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | `protocol` | 两个非负整数 `[最低, 最高]` | 头支持的主版本范围，必写 |
 | `head` | `{"kind": 字符串, "version": 字符串}` | 头的种类和版本，必写，只记进运行日志 |
-| `locale` | 字符串，可以不写 | `zh` 开头的（区分大小写），给人看的话说中文；别的、没写的说英文 |
+| `locale` | 字符串，可以不写 | 头所在系统的语言（BCP 47 或者 `LANG` 的写法都行）。`ui.language` 是 `auto` 时照它定这个连接的语言：`zh` 开头的（区分大小写）是 `zh`，`ja` 开头的是 `ja`，别的、没写的是 `en`（施工 8-2） |
 | `caps` | 对象，不写是 `{}` | 现在只看 `input`（布尔，不写是 `false`）：这个头能不能让人输入。别的格不理 |
 | `token` | 字符串，可以不写 | 本机令牌（`ipc.md`）；不写的过不了第 3 条 |
 
@@ -92,6 +95,8 @@
 | `protocol` | 选定的主版本：`1`，核心只支持这一个 |
 | `core` | `{"version": <核心的版本号>}` |
 | `account` | 你是谁：管理员的账号，核心里固定是 `admin`（`core.md`） |
+| `language` | `zh`、`en`、`ja` 之一：这个连接给人看的字用哪种（施工 8-2，`config.md` 第二条第 8 条）。`ui.language` 的最终值（默认值、系统配置、个人设置）定了的就是它，`auto` 的照 `locale`。核心拒绝时的话只有中文、英文，`ja` 的照英文；配置的名字、说明、报错的话有日文 |
+| `config_errors` | 系统配置、个人设置里现在有几处错误（不算警告，施工 8-2）。没有的不写 |
 | `sandbox` | 这台机器上的沙盒能不能用（核心起来时探的，`sandbox.md`）：`{"usable": true}`，或者 `{"usable": false, "reason": <原因>}`。原因是 `helper_missing`（主程序旁边没有助手）、`helper_failed`（助手跑不起来、超时、说的读不懂）、`no_mechanism`（探成了，这台机器上却没有能用的手段）之一（施工 5-4 下） |
 
 1. 参数读不成（缺了必写的格、哪一格类型不对）：`bad_params`，连接不断。
@@ -99,7 +104,7 @@
 3. 令牌没带、不对：`bad_token`，回完断开。长短要一样，每个字节都比；比到哪一个不一样都用一样长的时间。
 4. 过了：这个连接就是管理员。它发的命令都记成管理员发的（`by` 是 `{"kind":"person","account":"admin"}`），命令引起的事件，`cause` 是请求的 `id`（`kernel/events.md`）。
 5. 握手以前：别的方法一律 `hello_first`，连接不断；读不懂的行照「请求」的表回；通知不理。
-6. 握手以前的拒绝说英文；`hello` 本身被拒的，话照这一次报的 `locale` 说（读得出来的话，施工 4-9 再补三上）。握手以后再发 `hello`：照样从第 1 条查起；过了，换成这一次报的语言和能力；这一次被拒的，话照这一次报的语言说，没断开的还是上一次握手的语言和能力。
+6. 握手以前的拒绝说英文；`hello` 本身被拒的，话照这一次报的 `locale` 说（读得出来的话，施工 4-9 再补三上）。过了的，话照回应的 `language` 说（施工 8-2）：`ui.language` 定成 `en` 的，报 `zh-CN` 的头也听英文。握手以后再发 `hello`：照样从第 1 条查起；过了，换成这一次算出的语言和能力；这一次被拒的，话照这一次报的语言说，没断开的还是上一次握手的语言和能力。
 7. 握手的时限：连上 10 秒还没握手成的，断开（施工 4-9 再补三上）。不然一个连上不说话的本机进程，能让核心一直不空闲退出。
 
 #### 方法
@@ -123,6 +128,9 @@
 | `blob.put` | 传一个附件，存成 blob（施工 3-9 三补） |
 | `session.set_meta` | 改标题、置顶（施工 3-8 三补） |
 | `session.delete` | 删除会话：挪进回收处，留 7 天（施工 3-8 三补） |
+| `config.schema` | 配置清单，名字和说明照这个连接的语言（施工 8-2，`config.md`「协议」） |
+| `config.get` | 最终值和来源，每一份文件在哪、版本，现在的全部问题；带 `cwd` 的算上那个目录的项目配置（施工 8-2） |
+| `config.check` | 把一段字当成一层的配置查，不生效（施工 8-2） |
 | `subscribe`、`unsubscribe` | 订阅、取消订阅会话的事件流 |
 
 带 `session` 的，它要合会话编号的写法：UUID 的标准写法，小写十六进制，8-4-4-4-12；不合的 `bad_params`。找会话照下面「会话表」。
@@ -136,10 +144,10 @@
 | `oneshot` | 布尔，不写是 `false` | 一次性的：`miyu ask` 开的写 `true`，记进 `session.created` |
 | `dirs` | 字符串的数组，可以不写 | 加进来的目录：和工作区一样能读能写（「加进来的目录」（施工 5-10 上））。不写是没有 |
 
-回应：`session` 新会话的编号；`events` 是 `[1]`，就是 `session.created` 那一条；`cwd` 是会话实际在哪个目录里干活（「工作目录太宽」）。
+回应：`session` 新会话的编号；`events` 是 `[1]`，就是 `session.created` 那一条；`cwd` 是会话实际在哪个目录里干活（「工作目录太宽」）；`untrusted_project`：这个目录找得到项目配置、又还没问过信不信任（`trust.toml` 里没有这个仓库，或者记的内容和现在的不一样），写它在哪，写法同配置来源的 `file`（家目录下的写成 `~/…`）。信任着的、选了不信任的、没有项目配置的不写（施工 8-2，`config.md` 第三条第 2 条）。
 
 1. 编号是 UUIDv7：前 48 位是造的这一刻（毫秒），同一个核心造的照先后排。
-2. 属主是管理员，场所是 `local`，权限从「工作区，不只读」开始；有没有人能确认，照这个连接握手时的 `caps.input`；环境是核心所在机器此刻的时区偏移（到分钟）和实际干活的目录。
+2. 属主是管理员，场所是 `local`，权限从「工作区」开始，只读照 `permission.start_read_only` 的最终值：照实际干活的目录算，带上信任着的项目配置（施工 8-2，`config.md` 第二条第 9 条），没写的是不只读；有没有人能确认，照这个连接握手时的 `caps.input`；环境是核心所在机器此刻的时区偏移（到分钟）和实际干活的目录。
 3. `session.created` 落了盘才回应。
 4. 同一个命令编号再发：记着最近 1024 个造会话的编号，是其中之一的，交回上一次造的那一个，不再造；`cwd` 照这一次报的算。核心重启以后，第一次造会话时，从最新的 1024 个会话的 `session.created` 里把编号补回来（它的 `cause` 就是造会话的命令编号，施工 4-9 再补三上），在阻塞线程里读。
 5. 人格的编号不合写法（小写英文字母开头，只有小写字母、数字、`-`、`_`，最长 64 字节）：`bad_params`。人格的目录 `personas/<编号>/` 不存在：`unknown_persona`。资源目录里别的读不了（人格目录里的文件、随核心附带的 `core/` 下的字，安装坏了）：`internal_error`（施工 4-9 再补三上）。别的造不成（策略造不出来、磁盘上建不成、`session.created` 没落盘）：`internal_error`，原因记进运行日志。
@@ -171,7 +179,7 @@
 | `attachments` | 数组，可以不写 | 附件（施工 3-9 三补）：`blob.put` 的回应，照先后。每一项要 `blob`、`name`、`media_type`，别的格不看 |
 | `from` | 字符串，可以不写 | 别的 harness 报的自己的名字（施工 7-10，`agents.md` 第十一条第 4 条）：写了的，这一句是它说的，不是本人 |
 
-回应：`events` 是 `[<这一句 message.user 的序号>]`；`cwd` 是收下这一句的 `cwd` 以后，会话实际在哪个目录里干活。
+回应：`events` 是 `[<这一句 message.user 的序号>]`；`cwd` 是收下这一句的 `cwd` 以后，会话实际在哪个目录里干活；`untrusted_project` 照 `session.create` 的写法，照这时实际干活的目录找（施工 8-2）。
 
 1. 没有回合在进行的，这一句开一轮；有的，排队，`urgent` 的插进下一步（`kernel/session.md`）。带 `from` 的照第 7 条。
 2. 开的那一轮，`turn.started` 的 `cause` 是这一条的 `id`：头照它认出自己的那一轮。
@@ -228,7 +236,7 @@
 
 1. 只重做最后一轮：撤掉它，把开它的那几句人的话（排着接过来的几句，和开这一轮的那一句）照先后再发一次，开新的一轮；附件照带。`text`、`attachments` 两样都不写的原样重发；写了的只换开这一轮的那一句：写了 `text` 的换字、写了 `attachments` 的换附件，没写的那一样照原来的，字在前、附件在后（2026-09-30 项目主人定：网页里编辑上一句也走这里；换附件主会话定）。
 2. 新的一轮，`turn.started` 的 `cause` 是这一条的 `id`：头照它认出自己的那一轮，和 `session.send` 一样。重发的几句 `by` 照原来的，`cause` 也是这一条的 `id`。
-3. 最后一轮不是人说的话开的（回报叫醒的、别的 harness 发来的话开的（施工 7-10）、手动压缩、清空、重启以后接着干的），或者一轮都没有：`not_redoable`，头把它那一句当一条提示通知显示。有回合在进行：`turn_running`。换过的那一句一块都不剩（原来只有字、`text` 是空的，原来只有附件、`attachments` 是空的）：`empty_message`。正在改回文件：`restoring`。附件照 `session.send` 第 5 条先查、再找会话：`bad_params`、`unknown_attachment`、`internal_error`、`attachment_too_big`，拒了的什么都不送。先找会话，找不到的回的是找不到。
+3. 最后一轮不是人说的话开的（回报叫醒的、别的 harness 发来的话开的（施工 7-10）、别的会话发来的话开的（施工 C-2）、手动压缩、清空、重启以后接着干的），或者一轮都没有：`not_redoable`，头把它那一句当一条提示通知显示。有回合在进行：`turn_running`。换过的那一句一块都不剩（原来只有字、`text` 是空的，原来只有附件、`attachments` 是空的）：`empty_message`。正在改回文件：`restoring`。附件照 `session.send` 第 5 条先查、再找会话：`bad_params`、`unknown_attachment`、`internal_error`、`attachment_too_big`，拒了的什么都不送。先找会话，找不到的回的是找不到。
 4. 重做以后恢复不了：新的一轮开了（`session.unrevert` 回 `nothing_to_unrevert`）。
 5. `text` 不是字符串（数字、数组……）、`attachments` 不是数组：`bad_params`；写 `null` 等于没写（「请求」最后一条）。不收 `cwd`、`dirs`：新的一轮照会话现在的环境，和 `session.revert` 一样（「会话表」第 5 条）。
 
@@ -524,6 +532,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `not_redoable` | -32010 | 重做时最后一轮不是人说的话开的，或者一轮都没有（施工 4-7 再补） |
 | `nothing_to_recap` | -32010 | 回顾时她一个带正文的回复都还没有；以前造的快照里没有回顾的字（施工 3-8 四补） |
 | `recap_failed` | -32010 | 回顾没写成：请求出了错，或者回复里没有正文（施工 3-8 四补） |
+| `unknown_config_key` | -32010 | `config.schema`、`config.get` 的 `keys` 里有清单里没有的键：`data.problems` 里每个不认识的一条，`code` 是 `unknown_key`、`level` 是 `error`，带最近的键名 `suggest`（施工 8-2） |
 | `restoring` | -32010 | 撤销、恢复还没做完（正在读回更早的日志、正在改回文件）时来的命令、删会话。兜底：会话做完才接下一个命令，照常碰不到 |
 
 - 从 `empty_message` 起，除了 `dir_too_wide`、附件的四个和 `not_a_command`，十三个是内核拒命令时给的原因码（`kernel/session.md`）。
@@ -599,6 +608,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `not_a_command` | 这是子代理，不是后台命令：去看它的会话。 | This is a subagent, not a background command; open its session instead. |
 | `not_redoable` | 无法重做 | Cannot redo. |
 | `nothing_to_recap` | 还没有可回顾的内容 | There is nothing to recap yet. |
+| `unknown_config_key` | 没有这一项配置。 | There is no such setting. |
 | `recap_failed` | 回顾没写成：请求模型出错了。 | The recap could not be written: the model request failed. |
 | 别的 | 被拒绝了。 | Refused. |
 
@@ -641,6 +651,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/src/attach/kind/tests.rs` | 认附件：量得出的图是图片、头写的不算，量不出的当文件；图片的上限和线上的；PDF 照开头认；别的文件照头写的，写成 PDF、图片的照内容认，文本、空的、二进制、不是 UTF-8 的 |
 | `crates/miyu-endpoint/tests/tools.rs` | 造会话、载入时用核心的工具目录；核心的沙盒造会话、载入时都交给会话，沙盒用不了的核心上执行命令没人能确认就拒（施工 5-4 上） |
 | `crates/miyu-endpoint/tests/socket.rs` | 真的套接字（Windows 上是命名管道）上握手、造会话、说话，第二个头也连得上 |
+| `crates/miyu-endpoint/tests/config.rs`、`config_trust.rs`（施工 8-2） | 握手的 `language`、`config_errors`；`config.schema`、`config.get`、`config.check`；`unknown_config_key` 带 `problems`；开局只读照配置、照信任着的项目配置；造会话、说话的回应带 `untrusted_project`（`config.md`「守着它的」） |
 
 ### 出处
 
@@ -659,9 +670,9 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 
 设计里有、还没做的：
 
-- 第九节表里的其余方法：`session.fork`、`session.configure`、`session.answer`（随 M8 的抽屉）、`command.run`、查询、账号、配置……（`04-核心协议.md` 第九节）。
+- 第九节表里的其余方法：`session.fork`、`session.configure`、`session.answer`（随 M9 的抽屉）、`command.run`、查询、账号……（`04-核心协议.md` 第九节）。配置改、写、信任的 `config.set`、`config.trust` 随 8-3，密钥的 `secret.*` 随 8-5（`config.md`）。
 - 附件分块上传、远程的头传大文件（`04-核心协议.md` 第十一节）；blob 的回收（`store.md`「还没有的」）。
-- 视图流、会话列表流，`view.*`、`sessions.changed`、`config.changed` 这些推送；核心决定「显示什么」（第五节、P3）。改名、置顶、删除现在只推给订阅着那个会话的头（删除是 `resync`），别的头要重新列。
+- 视图流、会话列表流，`view.*`、`sessions.changed` 这些推送；`config.changed` 和配置的订阅随 8-4；核心决定「显示什么」（第五节、P3）。改名、置顶、删除现在只推给订阅着那个会话的头（删除是 `resync`），别的头要重新列。
 - 会话列表的索引（`07-存储.md` 第六节）：现在 `session.list` 每列一次，列进去的会话日志都整份读一遍。
 - 找回删了的会话、自动起标题（照第一句话生成，要请求模型）：以后（施工 3-8 三补）。回收处里的文件留着，找回时挪回去。
 - 队列紧张时先合并同一条目的连续增量（第七节）。

@@ -1,11 +1,11 @@
 //! 运行日志（`docs/designs/28-运行日志.md`，施工 3-7 上）：核心和子进程在干什么，一行一条的英文，
 //! 像 dmesg；写进数据根的 `state/logs/`，满 10 MB 换一份；默认记到 `INFO`，`MIYU_LOG` 改这一次启动的
-//! 级别。不写对话的内容，不写密钥（LG3）：发日志的地方只给编号、长度、状态。
+//! 级别，没设的照配置项 `log.level`（施工 8-2：读完配置以后经 [`Guard::set_level`] 换）。不写对话的内容，不写密钥（LG3）：发日志的地方只给编号、长度、状态。
 //!
 //! 各 crate 照 `tracing` 这个门面发，目标一律写成 `miyu::<来源>`，例如 `miyu::http`；怎么写成一行、
 //! 写到哪，只有这里管：
 //!
-//! - [`install`]：程序入口装一次，交回 [`Guard`]；
+//! - [`install`]：程序入口装一次，交回 [`Guard`]；[`Guard::set_level`] 换级别（施工 8-2）；
 //! - [`level()`]：`MIYU_LOG` 的值怎么读；
 //! - [`RotatingFile`]：按大小轮换的文件；
 //! - [`LineLayer`]：把一条事件写成一行，交给 [`Sink`]。测试里拿 [`Memory`] 接住；
@@ -29,8 +29,10 @@ use std::path::Path;
 use std::sync::Arc;
 
 use tracing::subscriber::SetGlobalDefaultError;
+use tracing_subscriber::Registry;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::reload;
 
 /// 一份的上限：满了换下一份（`28-运行日志.md` 第一节）。
 pub const LIMIT: u64 = 10 * 1024 * 1024;
@@ -43,6 +45,27 @@ pub const KEEP: usize = 5;
 #[derive(Debug)]
 pub struct Guard {
     file: Arc<RotatingFile>,
+    level: Levels,
+}
+
+impl Guard {
+    /// 换成记到 `filter` 这一级（施工 8-2：读完配置，`MIYU_LOG` 没设的照 `log.level`）。
+    pub fn set_level(&self, filter: LevelFilter) {
+        self.level.set(filter);
+    }
+}
+
+/// 换级别的把手：一个订阅者一个。
+#[derive(Debug, Clone)]
+pub struct Levels(reload::Handle<Targets, Registry>);
+
+impl Levels {
+    /// 换成记到 `filter` 这一级。订阅者已经没了的，没什么可换。
+    pub fn set(&self, filter: LevelFilter) {
+        if let Err(error) = self.0.reload(targets(filter)) {
+            tracing::warn!(target: "miyu::log", error = %error, "level not changed");
+        }
+    }
 }
 
 impl Drop for Guard {
@@ -71,8 +94,9 @@ impl std::fmt::Display for InstallError {
 
 impl std::error::Error for InstallError {}
 
-/// 装上运行日志：写进 `dir` 下的 `<name>.log`（核心是 `core`），照 `MIYU_LOG` 的值 `value` 定级别。
-/// 值读不懂的，照 `INFO` 记，再记一条 `WARN` 写明读不懂的是什么。路径里的家目录 `home` 写成 `~`。
+/// 装上运行日志：写进 `dir` 下的 `<name>.log`（核心是 `core`），先记到 `filter` 这一级（核心照 `MIYU_LOG`，
+/// [`level()`]），以后经 [`Guard::set_level`] 换。`MIYU_LOG` 读不懂的那一条 `WARN` 由核心读完配置以后记（施工 8-2：
+/// 那时才知道退到哪一级）。路径里的家目录 `home` 写成 `~`。
 ///
 /// # Errors
 ///
@@ -80,17 +104,13 @@ impl std::error::Error for InstallError {}
 pub fn install(
     dir: &Path,
     name: &str,
-    value: Option<&str>,
+    filter: LevelFilter,
     home: Option<&Path>,
 ) -> Result<Guard, InstallError> {
     let file = Arc::new(RotatingFile::open(dir, name, LIMIT, KEEP).map_err(InstallError::Io)?);
-    let chosen = level(value);
-    tracing::subscriber::set_global_default(subscriber(file.clone(), chosen.filter, home))
-        .map_err(InstallError::Twice)?;
-    if let Some(unknown) = chosen.unknown {
-        tracing::warn!(target: "miyu::log", value = %unknown, "MIYU_LOG not understood, using info");
-    }
-    Ok(Guard { file })
+    let (subscriber, level) = reloadable(file.clone(), filter, line::now, home);
+    tracing::subscriber::set_global_default(subscriber).map_err(InstallError::Twice)?;
+    Ok(Guard { file, level })
 }
 
 /// 一个订阅者：自己的（`miyu::` 开头的目标）照 `filter` 记，别人家的（`hyper`、`reqwest` 这些）最多记
@@ -111,10 +131,26 @@ pub(crate) fn with_clock(
     clock: fn() -> String,
     home: Option<&Path>,
 ) -> impl tracing::Subscriber + Send + Sync {
-    let targets = Targets::new()
-        .with_target("miyu", filter)
-        .with_default(filter.min(LevelFilter::WARN));
-    tracing_subscriber::registry()
+    reloadable(sink, filter, clock, home).0
+}
+
+/// 一个订阅者，另交回换级别的把手（施工 8-2）：自己的照 `filter`，别人家的最多到 `WARN`，时刻照 `clock`，家目录 `home` 写成 `~`。
+pub fn reloadable(
+    sink: Arc<dyn Sink>,
+    filter: LevelFilter,
+    clock: fn() -> String,
+    home: Option<&Path>,
+) -> (impl tracing::Subscriber + Send + Sync, Levels) {
+    let (targets, handle) = reload::Layer::new(targets(filter));
+    let subscriber = tracing_subscriber::registry()
         .with(targets)
-        .with(LineLayer::with_clock(sink, clock).home(home))
+        .with(LineLayer::with_clock(sink, clock).home(home));
+    (subscriber, Levels(handle))
+}
+
+/// 自己的照 `filter`，别人家的最多到 `WARN`（[`subscriber`]）。
+fn targets(filter: LevelFilter) -> Targets {
+    Targets::new()
+        .with_target("miyu", filter)
+        .with_default(filter.min(LevelFilter::WARN))
 }

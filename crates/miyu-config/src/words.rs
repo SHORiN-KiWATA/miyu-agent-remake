@@ -77,7 +77,10 @@ pub fn check(items: &[Item], words: &ConfigWords) -> Vec<String> {
         if said.description.trim().is_empty() {
             problems.push(format!("{key}：说明是空的"));
         }
-        let Kind::Option(options) = item.kind;
+        let options = match item.kind {
+            Kind::Option(options) => options,
+            Kind::Bool => &[],
+        };
         for option in options {
             if said
                 .options
@@ -156,11 +159,18 @@ pub(crate) fn one_of(words: &dyn Words, parts: &[&str], or: &str) -> Result<Stri
     sentence(words, or, &[("rest", &listed), ("last", last)])
 }
 
+/// 能写的几个值，照写法：选项是列出的几个，开关是 `true`、`false`。
+pub(crate) fn allowed(kind: Kind) -> &'static [&'static str] {
+    match kind {
+        Kind::Option(options) => options,
+        Kind::Bool => &["true", "false"],
+    }
+}
+
 /// 一项说明后面那几句（`config/facts`）：能写什么、能放在哪几层、什么时候生效。参考文件里是每一项的第二行，
 /// JSON Schema 里接在说明后面。
 pub(crate) fn facts(words: &dyn Words, item: &Item) -> Result<String, Missing> {
-    let Kind::Option(options) = item.kind;
-    let values = one_of(words, options, "config/or-values")?;
+    let values = one_of(words, allowed(item.kind), "config/or-values")?;
     let mut layers = Vec::new();
     for layer in item.layers {
         layers.push(sentence(

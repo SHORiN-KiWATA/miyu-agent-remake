@@ -17,7 +17,7 @@ use miyu_kernel::origin::By;
 use miyu_kernel::request::Message;
 
 use crate::texts::Texts;
-use crate::{harness, jobs};
+use crate::{harness, jobs, peers};
 
 /// 渲染有效历史：检查点和历史，照先后排好的消息。稳定区不在这里。
 pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
@@ -35,14 +35,8 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
     }
     for event in history.ordered() {
         match &event.body {
-            // 子代理发来的留言注明是哪个子代理（施工 7-7，`jobs.rs`），别的 harness 发来的话注明是它、叫什么（施工 7-10，
-            // `harness.rs`）；别人发的原样。
             Body::MessageUser(message) => {
-                let blocks = known(&message.blocks);
-                let blocks = match &event.by {
-                    By::Harness(from) => harness::message(from, blocks, texts.harness.as_ref()),
-                    by => jobs::message(history, by, blocks, texts.jobs.as_ref()),
-                };
+                let blocks = said(history, &event.by, known(&message.blocks), texts);
                 transcript.add(event.seq, None, blocks);
             }
             Body::ContextInjected(fact) => {
@@ -121,6 +115,19 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
         }
     }
     transcript.finish()
+}
+
+/// 人这边的一条消息的块，照谁发的（主请求和回顾的请求共用）：子代理发来的留言注明是哪个子代理（施工 7-7，`jobs.rs`），
+/// 别的 harness 发来的话注明是它、叫什么（施工 7-10，`harness.rs`），别的会话发来的话注明是哪个会话（施工 C-2，`peers.rs`）；
+/// 别人（人、父会话）发的原样。
+pub(crate) fn said(history: &History, by: &By, blocks: Vec<Block>, texts: &Texts) -> Vec<Block> {
+    match by {
+        By::Harness(from) => harness::message(from, blocks, texts.harness.as_ref()),
+        By::Session(session) if history.is_peer(&session.id) => {
+            peers::message(&session.id, blocks, texts.peers.as_ref())
+        }
+        by => jobs::message(history, by, blocks, texts.jobs.as_ref()),
+    }
 }
 
 /// 第 `seq` 条排在检查点前面：被动压缩、回合开头压缩留下的尾巴里的，和摘要请求自己的 `model.called`。

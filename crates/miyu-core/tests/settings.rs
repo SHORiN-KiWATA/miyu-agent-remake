@@ -37,7 +37,11 @@ fn the_registered_list_is_well_formed() {
     let items = items();
     assert_eq!(miyu_config::list::check(&items), Vec::<String>::new());
     let keys: Vec<&str> = items.iter().map(|item| item.key).collect();
-    assert_eq!(keys, ["ui.language", "log.level"], "照登记的先后");
+    assert_eq!(
+        keys,
+        ["ui.language", "permission.start_read_only", "log.level"],
+        "照登记的先后"
+    );
 }
 
 #[test]

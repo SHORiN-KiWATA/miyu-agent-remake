@@ -14,7 +14,7 @@
 | `crates/miyu-core/src/serve.rs` | 接连接，空闲退出，停的信号 |
 | `crates/miyu-core/src/sandbox.rs` | 起来时找沙盒的助手、探一次，记日志（施工 5-1）；探到了手段的，交回助手（施工 5-4 上） |
 | `crates/miyu-core/src/trash.rs` | 起来时清一次回收处；删了的会话留多久 `KEEP`（施工 3-8 三补） |
-| `crates/miyu-core/src/settings.rs` | 配置清单：登记各模块的几项；起来时生成两份 JSON Schema 和参考文件（施工 8-1，`config.md`「怎么走」第一条） |
+| `crates/miyu-core/src/settings.rs` | 配置清单：登记各模块的几项；起来时读配置、照 `log.level` 换运行日志的级别（施工 8-2），生成两份 JSON Schema 和参考文件（施工 8-1，`config.md`「怎么走」第一、二条） |
 | `crates/miyu-sandbox/src/lifeline.rs`、`lifeline/` | 核心没了，它起的命令跟着没（施工 7-8，下面「子进程随核心退出」）：Unix 上每条命令的组里一个看门的，Windows 上核心进作业对象 |
 | `crates/miyu-ipc` | 单实例锁、套接字、本机令牌、那一行的写法（`ipc.md`） |
 | `crates/miyu-endpoint` | 协议端点：核心的家底 `Core`（里面有执行器的任务表，施工 7-3）、接连接、空不空闲（`protocol.md`） |
@@ -37,7 +37,7 @@
 |---|---|
 | `MIYU_HOME` | 数据根；不设是家目录的 `.miyu`（`store.md`） |
 | `MIYU_RESOURCES` | 资源目录，开发时指到源码树的 `resources/`（`store.md`） |
-| `MIYU_LOG` | 运行日志记到哪一级（`log.md`） |
+| `MIYU_LOG` | 运行日志记到哪一级，压过配置项 `log.level`（`log.md`、`config.md`） |
 | `DEEPSEEK_API_KEY` | 模型的 key，起来时读一次 |
 | `MIYU_DEV_BASE_URL`、`MIYU_DEV_MODEL` | 开发用：设了 key 的，替换地址、模型（下面「模型」第 1 条，施工 3-9 再补）。不进 `-h`，配置系统做好以后删掉 |
 | `MIYU_DEV_WINDOW` | 开发用：设了 key 的，当这个模型的上下文窗口，压过模型资料里的（施工 6-3 上）。同上，不进 `-h` |
@@ -67,7 +67,7 @@
 3. 拿单实例锁 `run/core.lock`，不等。拿不到：已经有一个核心在跑，写 `running`，退出码 0，运行日志一个字都不写。先拿锁、再装日志：两个核心不写同一份日志。
 4. 装运行日志 `state/logs/core.log`，级别照 `MIYU_LOG`，带上第 1 步的家目录（`log.md`）。记一条 `INFO starting version=<版本> pid=<进程号> root=<数据根> tz=<和 UTC 差多少>`，数据根里的家目录写成 `~`，例如 `root=~/.miyu tz=+09:00`。接着让它起的子进程随它结束（下面「子进程随核心退出」，施工 7-8）：Windows 上进作业对象，进不去记一条 `WARN children not bound error=…`，照样起来；别的平台这一步什么都不做。
 5. 管理员的家目录 `home/admin/` 和工作区 `home/admin/workspace/`，没有就建；Unix 上新建的权限 0700。管理员的账号固定叫 `admin`。
-6. 找资源目录（`store.md`）。找到以后照配置清单生成两份 JSON Schema 和参考文件，放在 `state/config/`（施工 8-1，`config.md`「怎么走」第一条第 6 到 8 条）：字照系统的语言挑，一样的不重写；写不成的、字缺了的，一份记一条 `WARN config schema not written`（目标 `miyu::config`），不影响起不起得来。
+6. 找资源目录（`store.md`）。找到以后读配置（施工 8-2，`config.md`「怎么走」第二条）：系统配置、管理员的个人设置、信任的记录，读不进来的照空的，有问题的每份记一条 `WARN config problems`；照 `log.level` 的最终值换运行日志的级别，记一条 `INFO log level`。再照配置清单生成两份 JSON Schema 和参考文件，放在 `state/config/`（施工 8-1，`config.md`「怎么走」第一条第 6 到 8 条）：字照 `ui.language` 的最终值，`auto` 的照系统的语言挑，一样的不重写；读好的配置交给协议端点（`Core::with_config`）；写不成的、字缺了的，一份记一条 `WARN config schema not written`（目标 `miyu::config`），不影响起不起得来。
 7. 起运行时：多线程，两个工作线程，接连接、会话、请求都在上面。
 8. 算出套接字放哪、换本机令牌、在套接字上等连接、记下实际的位置（`ipc.md`）。
 9. 从环境变量拿模型（下面「模型」）。
@@ -164,7 +164,7 @@
 | `WARN` | `SIGTERM not watched error=…`、`Ctrl+C not watched error=…` |
 | `INFO` | `stopped reason=idle`、`stopped reason=signal` |
 
-配置那一行的目标是 `miyu::config`：`WARN config schema not written file=state/config/<文件名> error=…`（第 6 步，施工 8-1）。
+配置那几行的目标是 `miyu::config`：`WARN config schema not written file=state/config/<文件名> error=…`（第 6 步，施工 8-1）；`WARN config problems file=… errors=… warnings=…`、`WARN trust not read file=… error=…`、`WARN MIYU_LOG not understood, using config value=…`、`INFO log level level=… from=…`（第 6 步，施工 8-2）。
 
 套接字的几行（`listening`、`stale socket removed`、`XDG_RUNTIME_DIR not usable`）见 `ipc.md`，连接、会话的见 `protocol.md`、`session/actor.md`。
 

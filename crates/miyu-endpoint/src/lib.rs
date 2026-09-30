@@ -8,9 +8,12 @@
 //! - [`serve`]：和一个连接说话，直到它关了；
 //! - [`run`]：在本机的监听器上一个个接连接，每个交给 [`serve`]；
 //! - [`Core::idle`]：没有连接、没有在跑的回合、也没有在跑的后台命令，核心据此空闲退出（施工 3-9 上、7-3）；
-//! - [`settings`]：端点的配置项，界面语言 `ui.language`（施工 8-1）。
+//! - [`settings`]：端点的配置项，界面语言 `ui.language`（施工 8-1）、新会话开局只读 `permission.start_read_only`
+//!   （施工 8-2）；
+//! - [`config`]：配置服务：起来时读的几份配置、最终值，`config.schema`、`config.get`、`config.check`（施工 8-2）。
 
 mod attach;
+pub mod config;
 mod connection;
 mod from;
 mod hello;
@@ -43,6 +46,7 @@ use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_tool::Catalog;
 
+use config::Config;
 use sessions::Sessions;
 
 /// 核心的家底：一个核心一份，各个连接一起用。
@@ -76,6 +80,8 @@ pub struct Core {
     /// 连上以后最多等多久握手（施工 4-9 再补三上）：等不来就断开，不然一个连上不说话的本机进程能让核心一直
     /// 不空闲退出。
     hello_wait: Duration,
+    /// 配置（施工 8-2）：起来时读的几份和最终值。
+    config: Config,
 }
 
 /// 连上以后最多等多久握手。
@@ -92,7 +98,14 @@ impl Core {
         admin: AccountId,
         token: String,
     ) -> Core {
+        let items = [
+            settings::UiSettings::ITEMS,
+            settings::PermissionSettings::ITEMS,
+        ]
+        .concat();
+        let config = Config::defaults(&root, &admin, items);
         Core {
+            config,
             root,
             resources,
             models,
@@ -113,6 +126,13 @@ impl Core {
     #[must_use]
     pub fn with_hello_wait(mut self, wait: Duration) -> Core {
         self.hello_wait = wait;
+        self
+    }
+
+    /// 同一份家底，配置照 `config`（施工 8-2）：核心起来时读好交进来。没设的全是默认值，只认端点自己的两项。
+    #[must_use]
+    pub fn with_config(mut self, config: Config) -> Core {
+        self.config = config;
         self
     }
 

@@ -21,6 +21,7 @@ use miyu_store::resources::SourceError;
 
 use crate::Core;
 use crate::refusal::Refusal;
+use crate::settings::PermissionSettings;
 use crate::spawn;
 
 mod delete;
@@ -60,11 +61,12 @@ struct Running {
     dirs: Vec<String>,
 }
 
-/// 造好的会话：编号，和它实际在哪个目录里干活（施工 4-5 下）。
+/// 造好的会话：编号，和它实际在哪个目录里干活（施工 4-5 下）；这个目录的项目配置还没问过信不信任的，它在哪（施工 8-2）。
 #[derive(Debug)]
 pub(crate) struct Created {
     pub(crate) id: SessionId,
     pub(crate) cwd: String,
+    pub(crate) untrusted: Option<String>,
 }
 
 /// 找到的会话：把手，和它这会儿实际在哪个目录里干活（施工 4-5 下）。
@@ -99,10 +101,18 @@ impl Sessions {
             }
         }
         let workspace = workspace(core, &cwd);
+        // 开局只读照这个会话实际干活的目录算，带上信任着的项目配置（`config.md` 第二条第 9 条）。
+        let (resolved, project) = core.config.with_project(&workspace);
+        let untrusted = project.and_then(|project| project.untrusted());
         if let Some((_, session)) = open.created.iter().find(|(id, _)| *id == command) {
             let id = session.clone();
-            return Ok(Created { id, cwd: workspace });
+            return Ok(Created {
+                id,
+                cwd: workspace,
+                untrusted,
+            });
         }
+        let read_only = PermissionSettings::from(&resolved.values()).start_read_only;
         let id = new_id(now());
         let created = create(Create {
             root: &core.root,
@@ -113,7 +123,7 @@ impl Sessions {
             owner: core.admin.clone(),
             permission: Permission {
                 level: Level::Workspace,
-                read_only: false,
+                read_only,
             },
             attended: who.attended,
             oneshot: who.oneshot,
@@ -166,7 +176,11 @@ impl Sessions {
         if open.created.len() > REMEMBERED {
             open.created.pop_front();
         }
-        Ok(Created { id, cwd: workspace })
+        Ok(Created {
+            id,
+            cwd: workspace,
+            untrusted,
+        })
     }
 
     /// 找会话 `id`：在跑的直接交回；没在跑的从磁盘载入。头报上来的工作目录 `cwd`、加进来的目录 `dirs`（施工 5-10

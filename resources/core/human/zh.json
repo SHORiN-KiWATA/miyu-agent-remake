@@ -22,15 +22,21 @@
           "en": "English",
           "ja": "日本語"
         }
+      },
+      "permission.start_read_only": {
+        "name": "新会话开局只读",
+        "description": "打开以后，新会话一开始就是只读。她只能查、写计划，要改文件时你再关掉只读。项目配置里只能把它打开。"
       }
     },
     "pages": {
       "general": "通用",
-      "advanced": "高级"
+      "advanced": "高级",
+      "permissions": "权限"
     },
     "groups": {
       "display": "显示",
-      "log": "运行日志"
+      "log": "运行日志",
+      "sessions": "会话"
     }
   },
   "said": {
@@ -61,6 +67,33 @@
     "config/applies/now": "当场生效",
     "config/or": "{rest}或{last}",
     "config/or-values": "{rest} 或 {last}",
-    "config/list": "{rest}、{next}"
+    "config/list": "{rest}、{next}",
+    "config/layer/project": "项目配置",
+    "config/layer/default": "默认值",
+    "config/layer/env": "环境变量",
+    "config/applies/new_session": "以后开的会话生效",
+    "config/unreadable": "读不了这份文件：{why}",
+    "config/too-big": "这份文件超过 1 MiB，不读",
+    "config/not-utf8": "这份文件不是 UTF-8",
+    "config/syntax": "TOML 写法不对：{why}",
+    "config/unknown-key": "没有 {key} 这一项。是不是想写 {suggest}？",
+    "config/unknown-key-plain": "没有 {key} 这一项",
+    "config/wrong-type": "{key} 要写 {expected}，写的是 {got}",
+    "config/not-an-option": "{key} 只能是 {options}，写的是 {got}",
+    "config/wrong-layer": "{key} 只能写在{layers}里，写在{layer}里不算",
+    "config/not-tightening": "项目配置只能让限制更严。{key} 现在是 {current}，这里写的 {got} 更宽，不算",
+    "config/untrusted-project": "这份项目配置还没信任，先不用",
+    "config/fix-example": "改成其中一个，例如 {example}",
+    "config/fix-write": "改成 {example}",
+    "config/fix-move": "挪到{layers}里去",
+    "config/kept": "这一行先不管，原样留着",
+    "config/using-value": "这一项先照 {value} 用着（{from}）",
+    "config/using-last-good": "这份文件先照上一次读进来的用着",
+    "config/using-nothing": "这份文件先不用",
+    "config/expected/bool": "true 或 false",
+    "config/expected/table": "一张表",
+    "config/sentence": "{text}。",
+    "config/then": "{rest}{next}",
+    "config/stops": "。？！"
   }
 }

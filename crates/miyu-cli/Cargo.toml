@@ -16,6 +16,8 @@ getrandom = { version = "0.4", features = ["std"] }
 miyu-ipc = { path = "../miyu-ipc" }
 # 工具结果里给人看的说法（施工 4-5 下）。
 miyu-kernel = { path = "../miyu-kernel" }
+# 值写成 TOML：`miyu config get`、`explain` 印的值（施工 8-2）。
+miyu-config = { path = "../miyu-config" }
 # 数据根、环境快照；给人看的字。
 miyu-store = { path = "../miyu-store" }
 # `miyu sandbox setup`、`remove`：Windows 上装好、撤掉沙盒用户（施工 5-8）。

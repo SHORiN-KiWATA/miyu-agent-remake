@@ -5,8 +5,8 @@
 //! 1. 找数据根，建骨架；
 //! 2. 拿单实例锁：已经有一个核心在跑的，说一声 `running` 就走；先拿锁再装日志，免得两个核心写同一份；
 //! 3. 装运行日志 `state/logs/core.log`，记一条「起来了」：版本、进程号、数据根、和 UTC 差多少；
-//! 4. 管理员 `admin` 的家目录，没有就建；资源目录；照配置清单生成两份 JSON Schema 和参考文件（[`settings`]，
-//!    施工 8-1）；模型（[`models`]）；
+//! 4. 管理员 `admin` 的家目录，没有就建；资源目录；读配置、照 `log.level` 换运行日志的级别，照配置清单生成两份 JSON
+//!    Schema 和参考文件（[`settings`]，施工 8-1、8-2）；模型（[`models`]）；
 //! 5. 换本机令牌、在套接字上等连接（施工 3-8 下）；找沙盒的助手、探一次，只记日志（施工 5-1）；
 //! 6. 往标准输出写一行 `ready`：拉起它的头等着这一行；接着在后台清一次回收处（施工 3-8 三补，`trash.rs`）。
 //!
@@ -73,9 +73,10 @@ pub fn main(options: Options) -> ExitCode {
         }
         Err(error) => return failed("lock", error.to_string()),
     };
-    let level = std::env::var("MIYU_LOG").ok();
+    // 装上时照 `MIYU_LOG`（没设、读不懂的是 INFO），读完配置再照 `log.level` 换（施工 8-2）。
+    let level = miyu_log::level(std::env::var("MIYU_LOG").ok().as_deref());
     let logs = root.state().join("logs");
-    let _log = match miyu_log::install(&logs, "core", level.as_deref(), env.home.as_deref()) {
+    let log = match miyu_log::install(&logs, "core", level.filter, env.home.as_deref()) {
         Ok(guard) => guard,
         Err(error) => return failed("log", error.to_string()),
     };
@@ -99,7 +100,14 @@ pub fn main(options: Options) -> ExitCode {
         Ok(resources) => resources,
         Err(error) => return failed("resources", error.to_string()),
     };
-    settings::generate(&root, &resources, miyu_store::env::locale().as_deref());
+    let config = settings::read(&root, &admin(), env.home.as_deref());
+    settings::log_level(&config, &level, &log);
+    settings::generate(
+        &root,
+        &resources,
+        miyu_store::env::locale().as_deref(),
+        &config.resolved().values(),
+    );
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .worker_threads(WORKERS)
         .enable_all()
@@ -108,7 +116,9 @@ pub fn main(options: Options) -> ExitCode {
         Ok(runtime) => runtime,
         Err(error) => return failed("runtime", error.to_string()),
     };
-    runtime.block_on(run(env, root, resources, lock, options))
+    let outcome = runtime.block_on(run(env, root, resources, lock, options, config));
+    drop(log);
+    outcome
 }
 
 /// 工具目录：核心起来时登记一次，登记完就冻结（`05-内核接口.md` 第八节）。施工 4-4 起登记基础系统，工具的字从
@@ -122,13 +132,15 @@ pub fn tools(resources: &ResourceRoot) -> Result<Catalog, String> {
     Catalog::new(base).map_err(|error| error.to_string())
 }
 
-/// 后半段，在运行时里：在套接字上等连接，说「好了」，接连接，直到停下。`env` 是起来时读的那一份环境快照。
+/// 后半段，在运行时里：在套接字上等连接，说「好了」，接连接，直到停下。`env` 是起来时读的那一份环境快照，`config` 是
+/// 起来时读的配置。
 async fn run(
     env: Env,
     root: DataRoot,
     resources: ResourceRoot,
     lock: Lock,
     options: Options,
+    config: miyu_endpoint::config::Config,
 ) -> ExitCode {
     let opened = match miyu_ipc::open_locked(&root, &Dirs::current(), lock) {
         Ok(opened) => opened,
@@ -168,7 +180,8 @@ async fn run(
         admin(),
         opened.token,
     )
-    .with_sandbox(sandbox);
+    .with_sandbox(sandbox)
+    .with_config(config);
     if let Some((cache, cargo_home)) = sandbox_cache {
         core = core.with_sandbox_cache(cache, cargo_home);
     }

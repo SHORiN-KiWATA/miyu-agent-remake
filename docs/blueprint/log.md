@@ -8,7 +8,7 @@
 
 | 代码 | 管什么 |
 |---|---|
-| `crates/miyu-log/src/lib.rs` | 装上（`install`）、订阅者怎么筛、一份多大、留几份 |
+| `crates/miyu-log/src/lib.rs` | 装上（`install`）、订阅者怎么筛、换级别的把手（`Guard::set_level`，施工 8-2）、一份多大、留几份 |
 | `crates/miyu-log/src/level.rs` | `MIYU_LOG` 的值怎么读 |
 | `crates/miyu-log/src/settings.rs` | 配置项 `log.level`（施工 8-1，`config.md`「M8 的配置项」）：只声明，进配置清单；选项和 `MIYU_LOG` 的写法一样 |
 | `crates/miyu-log/src/line.rs` | 一行怎么写：几列、转义、加不加引号、时刻、和 UTC 差多少 |
@@ -22,7 +22,8 @@
 
 | 名字 | 是什么 |
 |---|---|
-| `install(目录, 名字, MIYU_LOG 的值, 家目录)` | 装上：写进 `<目录>/<名字>.log`，交回 `Guard`；家目录读不出来的是空的，路径照原样写 |
+| `install(目录, 名字, 级别, 家目录)` | 装上：写进 `<目录>/<名字>.log`，先记到这一级（核心照 `MIYU_LOG` 读出来的），交回 `Guard`；家目录读不出来的是空的，路径照原样写（施工 8-2 起收级别，不收原值） |
+| `Guard::set_level(级别)` | 换级别：核心读完配置照 `log.level` 换一次（施工 8-2），运行中换随 8-4 |
 | `Guard` | 留着它，日志就一直写；丢掉时把文件 flush 一下 |
 | `LIMIT` | 一份的上限：10 MiB（10,485,760 字节） |
 | `KEEP` | 正在写的之外留几份：5 |
@@ -48,12 +49,12 @@
 
 1. 打开 `<目录>/<名字>.log` 接着往后写，目录没有就建；量出它已经多长。核心的是 `state/logs/` 下的 `core`。
 2. 记下家目录：写成一行时把它换成 `~`（第 5 条）。核心给的是它环境里的家目录（`store.md` 的环境快照）。
-3. 照 `MIYU_LOG` 的值定级别（第 3 条）。
+3. 照给的级别记（核心给的是照 `MIYU_LOG` 读出来的，第 3 条）。筛的那一层能换（`tracing-subscriber` 的 `reload`）：核心读完配置以后照 `log.level` 换（施工 8-2）。
 4. 装成这个进程全局的订阅者。一个进程只能装一次，第二次报错。
-5. 值读不懂的，记一条 `WARN`：`MIYU_LOG not understood, using info value=<原值>`。
+5. `MIYU_LOG` 读不懂的，装上时先照 `INFO`；核心读完配置以后记一条 `WARN`：`MIYU_LOG not understood, using config value=<原值>`（目标 `miyu::config`），照配置里的 `log.level`（施工 8-2，`config.md` 第二条第 5、7 条）。
 6. 每一行写完就直接交给系统，不攒着；也不同步到磁盘。
 
-**3. 级别**：`MIYU_LOG` 管这一次启动。
+**3. 级别**：`MIYU_LOG` 管这一次启动，压过配置项 `log.level`；没设、读不懂的照 `log.level` 的最终值（系统配置写的，没写的是 `info`，施工 8-2）。核心读完配置记一条 `INFO log level level=<级别> from=env|config|default`。
 
 | 值（不分大小写，前后的空白不算） | 记到 |
 |---|---|
@@ -125,8 +126,9 @@
 
 | 来源 | 级别 | 这件事 | 键 | 什么时候 |
 |---|---|---|---|---|
-| `log` | WARN | `MIYU_LOG not understood, using info` | `value` | 第 2 条 |
-| `core` | INFO | `starting` | `version`、`pid`、`root`（数据根）、`tz`（本机和 UTC 差多少，`+09:00` 这样） | 装上日志以后，第一件事就记它（`MIYU_LOG` 读不懂的，排在那一条 `WARN` 后面） |
+| `config` | WARN | `MIYU_LOG not understood, using config` | `value` | 第 2 条（施工 8-2 起由核心读完配置以后记） |
+| `config` | INFO | `log level` | `level`、`from` | 第 3 条（施工 8-2） |
+| `core` | INFO | `starting` | `version`、`pid`、`root`（数据根）、`tz`（本机和 UTC 差多少，`+09:00` 这样） | 装上日志以后，第一件事就记它（`MIYU_LOG` 读不懂的那一条 `WARN`，施工 8-2 起排在读完配置以后） |
 | `core` | WARN | `not started` | `stage`：`home`、`resources`、`runtime`、`socket`、`models`、`tools` | 起不来，原因交给头（`core.md`） |
 | `core` | WARN | `ready line not written` | `error` | 往标准输出写那一行写不了 |
 | `core` | INFO | `stopped` | `reason`：`idle` 或 `signal` | 空闲够久了，或者收到停的信号 |
@@ -212,7 +214,7 @@
 | `crates/miyu-log/src/home/tests.rs` | 家目录换成 `~`：本身、后面接着路径的；前缀相同的别的目录、前面还接着路径的不换；一段里有几处；末尾带分隔符的家目录；Windows 的 `\\?\`；空的、根不换 |
 | `crates/miyu-log/src/layer/tests.rs` | 一条事件一行；会话编号从 span 来，调到 `WARN` 也在；离得最近的 span 胜、后来记进去的也算；低于级别的、别人家低于 `WARN` 的不写；`off` 什么都不写，比 `WARN` 严的别人家也照它；正文和值里的家目录写成 `~` |
 | `crates/miyu-log/src/rotate/tests.rs` | 在两行之间换、只留几份、每一份都是整行；比上限长的一行整行写、空的不换；再起来接着写、量了原来多长；Unix 上新建的目录 0700、文件 0600，已经有的不改 |
-| `crates/miyu-log/tests/install.rs` | 装上写进 `<名字>.log`；读不懂的级别照 `INFO` 并记一条 `WARN`；一个进程只能装一次 |
+| `crates/miyu-log/tests/install.rs` | 装上写进 `<名字>.log`，照给的级别记；换了级别照新的（施工 8-2）；一个进程只能装一次 |
 | `crates/miyu-session/tests/log.rs` | 会话的每一行、`DEBUG` 的输入和动作、增量在 `TRACE`；日志里没有人说的、她说的、供应商出错的原话 |
 | `crates/miyu-session/tests/tool_log.rs` | 调工具的几行；参数、工具交回的字、工作目录都不在日志里 |
 | `crates/miyu-session/tests/blocking_log.rs` | 存效果的 blob 存不进去那一行在阻塞线程里发，带会话编号（Unix） |
@@ -231,6 +233,6 @@
 ### 还没有的
 
 - Windows 上系统报错的原话照系统的语言：标准库取的，管不着。
-- 照配置项 `log.level` 定级别：8-1 声明了（`settings.rs`），读它随 8-2、运行中换随 8-4；配置里写错了照下面几层或默认值，`MIYU_LOG` 设了的照它（`28-运行日志.md` 第三节、LG2，`config.md`）。
+- 运行中照配置项 `log.level` 换级别：8-1 声明了（`settings.rs`），8-2 起来时读、换一次，运行中改了当场换随 8-4（`28-运行日志.md` 第三节、LG2，`config.md`）。
 - 每个软件一份 `state/logs/<软件>.log`，核心记它们的起停和退出码（`28-运行日志.md` 第一节、LG4）。
 - `miyu logs`：最后 100 行、`-f`、`--level`、`--session`（`28-运行日志.md` 第五节，`22-命令行.md` 第五节）。

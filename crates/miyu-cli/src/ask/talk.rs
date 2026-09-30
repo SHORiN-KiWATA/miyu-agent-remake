@@ -27,9 +27,24 @@ pub async fn talk(
     let mut rpc = Rpc::new(connection, "ask");
     // 一律说没人能确认：`miyu ask` 里没有确认的界面（`22-命令行.md` O3，2026-09-28 项目主人改），要问人的当场
     // 拒绝、告诉她原因，不一直等着。
-    let unsandboxed = match link::hello(&mut rpc, token, &plan.language, false, screen.err).await {
-        Ok(hello) => link::unsandboxed(&hello),
+    let hello = match link::hello(&mut rpc, token, &plan.language, false, screen.err).await {
+        Ok(hello) => hello,
         Err(code) => return code,
+    };
+    let unsandboxed = link::unsandboxed(&hello);
+    let config_errors = link::config_errors(&hello);
+    // 握手以后照核心回的语言说（施工 8-2）：换了的，给人看的字也照新的那种读一份。
+    let spoken;
+    let plan = match link::spoken(&hello, plan.language) {
+        language if language == plan.language => plan,
+        language => {
+            spoken = Plan {
+                language,
+                human: super::human(&miyu_store::env::Env::current(), &language),
+                ..plan.clone()
+            };
+            &spoken
+        }
     };
     // 附件在造会话之前传：传不上的不发话，也不留下一个空的会话（施工 3-9 三补）。
     let attachments = match attach(&mut rpc, plan, screen).await {
@@ -66,6 +81,10 @@ pub async fn talk(
     };
     let mut follow = Follow::new(&session, &sent, plan);
     follow.waits();
+    // 握手的回应说配置里有错：最先说一句，在沙盒用不了那一句前面（施工 8-2）。
+    if config_errors > 0 {
+        follow.config_errors(config_errors, screen);
+    }
     // 握手的回应说沙盒用不了：执行命令都要确认，这里确认不了，最先说一句（施工 5-4 下）。
     if let Some(reason) = &unsandboxed {
         follow.unsandboxed(reason, screen);

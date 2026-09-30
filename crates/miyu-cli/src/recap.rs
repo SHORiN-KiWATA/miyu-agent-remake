@@ -106,10 +106,15 @@ pub async fn recap_on(
     err: &mut dyn Write,
 ) -> u8 {
     let mut rpc = Rpc::new(connection, "recap");
+    // 握手以后照核心回的语言说（施工 8-2）。
+    let plan = &match link::hello(&mut rpc, token, &plan.language, false, err).await {
+        Ok(hello) => RecapPlan {
+            language: link::spoken(&hello, plan.language),
+            ..plan.clone()
+        },
+        Err(code) => return code,
+    };
     let language = &plan.language;
-    if let Err(code) = link::hello(&mut rpc, token, language, false, err).await {
-        return code;
-    }
     let session = match &plan.session {
         Some(session) => session.clone(),
         None => match link::latest_oneshot(&mut rpc, language, err).await {
