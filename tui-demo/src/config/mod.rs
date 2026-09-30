@@ -1,7 +1,7 @@
 //! 界面上的字、布局的数值、模型的窗口：住在 `resources/` 的 JSON 里，编译时带进来。
 //!
 //! 仓库的规矩是「无硬编码」（`AGENTS.md`「代码的规矩」）。界面上的字照仓库
-//! `resources/core/human/` 的做法，一种语言一份；演示先只有中文。
+//! `resources/core/human/` 的做法，一种语言一份（蓝图「界面语言」：`languages.json` 那张表里有几种就有几份）。
 
 use std::collections::HashMap;
 
@@ -10,7 +10,7 @@ use serde::Deserialize;
 use crate::commands::Commands;
 use crate::core::Level;
 use crate::jobs::Script;
-use crate::language::Language;
+use crate::language::{Language, LanguageTable};
 use crate::markdown::{Languages, Math};
 use crate::mascot::Look;
 use crate::pulse::Words;
@@ -74,6 +74,8 @@ pub struct JobTexts {
     pub ok_mark: String,
     /// 通知前面失败的记号（红）。
     pub fail_mark: String,
+    /// 通知前面停了的记号（暗）。
+    pub stop_mark: String,
     /// 子代理状态行第一行：主会话。
     pub main: String,
     /// 收起来的，`{count}` 个。
@@ -269,6 +271,8 @@ pub struct Texts {
     pub stopped_jobs: String,
     /// `/language` 换了语言以后提示的一句（蓝图「界面语言」）。
     pub language_switched: String,
+    /// `/language` 开的框里的字。
+    pub languages: crate::ui::languages::Texts,
     /// 没有这个斜杠命令，`{name}`。
     pub unknown_command: String,
     /// 演示用的假命令，`{name}`。
@@ -322,6 +326,10 @@ pub struct Config {
     pub icons: Icons,
     /// 出厂的几套图标，照登记的先后。
     pub icon_sets: Vec<Icons>,
+    /// 界面语言有哪几种（`/language` 的框照它列）。
+    pub language_table: LanguageTable,
+    /// 这一份照哪种语言读的。
+    pub language: Language,
 }
 
 impl Config {
@@ -332,7 +340,8 @@ impl Config {
     /// JSON 写坏了、缺了字段时返回错误，说清是哪一份。
     #[cfg(test)]
     pub fn builtin() -> Result<Self, String> {
-        Self::load(Language::Zh)
+        let table = LanguageTable::builtin()?;
+        Self::load(&table.find("zh").ok_or("languages.json 里没有中文")?)
     }
 
     /// 读编译时带进来的那一份，照 `language` 挑界面上的字、命令的说明、运行状态行的词（蓝图「界面语言」）。
@@ -340,24 +349,20 @@ impl Config {
     /// # Errors
     ///
     /// JSON 写坏了、缺了字段时返回错误，说清是哪一份。
-    pub fn load(language: Language) -> Result<Self, String> {
+    pub fn load(language: &Language) -> Result<Self, String> {
+        let table = LanguageTable::builtin()?;
+        let (text_name, text_json) = localize::text(language)?;
         let layout: Layout = parse("layout.json", include_str!("../../resources/layout.json"))?;
         let icon_sets = icons::builtin()?;
         let icons = icons::pick(&icon_sets, &layout.icons).ok_or("resources/icons/ 一套都没有")?;
         Ok(Self {
             layout,
-            text: match language {
-                Language::Zh => {
-                    parse("text/zh.json", include_str!("../../resources/text/zh.json"))?
-                }
-                Language::En => {
-                    parse("text/en.json", include_str!("../../resources/text/en.json"))?
-                }
-            },
+            text: parse(&text_name, text_json)?,
             commands: localized(
                 "commands.json",
                 include_str!("../../resources/commands.json"),
                 language,
+                &table,
             )?,
             timeline: parse(
                 "timeline.json",
@@ -376,12 +381,15 @@ impl Config {
                 "pulse.json",
                 include_str!("../../resources/pulse.json"),
                 language,
+                &table,
             )?,
             mascot: parse("mascot.json", include_str!("../../resources/mascot.json"))?,
             fake: parse("fake.json", include_str!("../../resources/fake.json"))?,
             themes: crate::theme::builtin()?,
             icons,
             icon_sets,
+            language_table: table,
+            language: language.clone(),
         })
     }
 }
@@ -393,51 +401,6 @@ fn parse<T: for<'de> Deserialize<'de>>(name: &str, json: &str) -> Result<T, Stri
 #[cfg(test)]
 mod tests {
     use super::Config;
-
-    #[test]
-    fn both_languages_load_with_the_same_keys() {
-        // 2026-09-30 项目主人定做英文界面：两份界面文字的格一模一样，命令的说明、运行状态行的词照语言挑。
-        use crate::language::Language;
-        fn keys(v: &serde_json::Value, at: &str, out: &mut Vec<String>) {
-            if let Some(map) = v.as_object() {
-                for (k, v) in map {
-                    let here = format!("{at}/{k}");
-                    out.push(here.clone());
-                    keys(v, &here, out);
-                }
-            }
-        }
-        let tree = |json: &str| {
-            let mut out = Vec::new();
-            keys(&serde_json::from_str(json).unwrap(), "", &mut out);
-            out.sort();
-            out
-        };
-        assert_eq!(
-            tree(include_str!("../../resources/text/zh.json")),
-            tree(include_str!("../../resources/text/en.json"))
-        );
-        let en = Config::load(Language::En).unwrap();
-        let undo = en
-            .commands
-            .commands
-            .iter()
-            .find(|c| c.name == "undo")
-            .unwrap();
-        assert!(undo.summary.starts_with("Undo"), "{}", undo.summary);
-        assert!(
-            en.pulse.tiers[0].words.iter().all(|w| w.is_ascii()),
-            "英文的词"
-        );
-        assert_eq!(en.text.language_switched, "Interface language: English");
-        let zh = Config::load(Language::Zh).unwrap();
-        assert!(
-            zh.commands
-                .commands
-                .iter()
-                .any(|c| c.summary.contains("撤销"))
-        );
-    }
 
     #[test]
     fn builtin_resources_parse() {

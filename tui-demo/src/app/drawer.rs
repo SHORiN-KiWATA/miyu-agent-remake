@@ -122,7 +122,7 @@ impl App {
             Report::Line(mark, text) => {
                 let mark = match mark {
                     Mark::Bad => JobMark::Failed,
-                    Mark::Void => JobMark::Stopped,
+                    Mark::Void => JobMark::Void,
                 };
                 self.transcript.job(mark, text, String::new());
             }

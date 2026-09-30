@@ -24,7 +24,7 @@ pub(super) fn draw_box(frame: &mut Frame, areas: Areas, app: &mut App, home: boo
                 .border_style(theme::dim()),
             areas.frame,
         );
-        app.drawer_rows = drawer::draw(frame, areas.text, d, texts);
+        app.drawer_rows = drawer::draw(frame, areas.text, d, texts, &mut app.caret);
         return;
     }
     app.drawer_rows.clear();
@@ -35,9 +35,12 @@ pub(super) fn draw_box(frame: &mut Frame, areas: Areas, app: &mut App, home: boo
         level: app.transcript.level,
         placeholder: placeholder(&app.config, home, app.tips.at()),
         child,
-        typing,
     };
     draw_input(frame, areas, &mut app.input, &app.config, look);
+    // 焦点不在这里也停到插入点，只是不显示（蓝图「每一帧」）。
+    if let Some(pos) = app.input.cursor_position() {
+        app.caret.put(pos, typing);
+    }
 }
 
 /// 框里框外要照的几样。
@@ -48,8 +51,6 @@ struct Look<'a> {
     placeholder: &'a str,
     /// 切进了哪个子代理的会话：上边框右边写它（「切进子会话」第 2 条）。
     child: Option<String>,
-    /// 焦点在输入框、没开后台面板：放光标。
-    typing: bool,
 }
 
 fn draw_input(frame: &mut Frame, areas: Areas, input: &mut InputBox, config: &Config, look: Look) {
@@ -57,7 +58,6 @@ fn draw_input(frame: &mut Frame, areas: Areas, input: &mut InputBox, config: &Co
         level,
         placeholder,
         child,
-        typing,
     } = look;
     let mut border = Block::bordered()
         .border_type(BorderType::Rounded)
@@ -124,9 +124,6 @@ fn draw_input(frame: &mut Frame, areas: Areas, input: &mut InputBox, config: &Co
     if scroll == 0 && room >= width {
         let at = Rect::new(areas.text.x - width, areas.text.y, width, 1);
         frame.render_widget(Paragraph::new(Line::styled(prompt, prompt_style)), at);
-    }
-    if let Some(pos) = input.cursor_position().filter(|_| typing) {
-        frame.set_cursor_position(pos);
     }
 }
 

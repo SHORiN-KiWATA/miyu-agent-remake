@@ -128,6 +128,8 @@ pub struct App {
     pub drawers: Drawers,
     /// 抽屉每一行是第几项（点哪一行点中哪一项）；上一帧排出来的。
     pub drawer_rows: Vec<Option<usize>>,
+    /// 这一帧的光标停在哪、显不显示；画的时候填，画完 `main` 写出去（蓝图「每一帧」）。
+    pub caret: crate::caret::Caret,
     /// `/demo-ask`、`/demo-approve` 各出到第几个。
     demo_drawers: (usize, usize),
     /// 待办点开了，列出全部（`tui.md`「后台命令、子代理和侧边栏」第 4 条）。
@@ -140,8 +142,6 @@ pub struct App {
     pub agents_hover: Option<usize>,
     /// 首页吉祥物被列表顶上去以后待在哪。
     pub perch: Perch,
-    /// 界面语言（蓝图「界面语言」）：启动时照系统语言，`/language` 换。
-    pub language: crate::language::Language,
     /// Ctrl+C 打断时要退回排着的话，走到哪一步了（`takeback.rs`）。
     takeback: Option<takeback::Takeback>,
     /// 吉祥物的嘴（`tui.md`「空会话的首页」第 9 条）。
@@ -259,6 +259,7 @@ impl App {
             panel: None,
             drawers: Drawers::default(),
             drawer_rows: Vec::new(),
+            caret: crate::caret::Caret::default(),
             demo_drawers: (0, 0),
             todo_full: false,
             panel_rows: Vec::new(),
@@ -266,7 +267,6 @@ impl App {
             agents_hover: None,
             perch: Perch::default(),
             takeback: None,
-            language: crate::language::Language::default(),
             mouth: crate::mascot::Mouth::new(
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)

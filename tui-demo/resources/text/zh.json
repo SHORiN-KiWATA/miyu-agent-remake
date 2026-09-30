@@ -299,6 +299,7 @@
     "agent_note": "后台任务完成 · {title} · {elapsed}",
     "ok_mark": "● ",
     "fail_mark": "✗ ",
+    "stop_mark": "● ",
     "todo_folded": "做完 {count} 项",
     "todo_more": "… 还有 {count} 项",
     "killed": "（失败 · 信号 {signal}）",
@@ -373,5 +374,10 @@
     "folder": "[{name}/]"
   },
   "stopped_jobs": "停掉了 {count} 个任务",
-  "language_switched": "界面语言：中文"
+  "language_switched": "界面语言：中文",
+  "languages": {
+    "title": "界面语言",
+    "hint": "↑/↓ 选择 · Enter 切换 · Esc 关闭",
+    "current": "当前"
+  }
 }

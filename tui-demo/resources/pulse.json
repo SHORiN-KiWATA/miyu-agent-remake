@@ -29,6 +29,15 @@
           "Weighing",
           "Hmm, let me see",
           "One moment"
+        ],
+        "ja": [
+          "深く探索中",
+          "思考中",
+          "思案中",
+          "吟味中",
+          "推敲中",
+          "うーん、ちょっと待って",
+          "少々お待ちを"
         ]
       }
     },
@@ -46,6 +55,12 @@
           "Threading it through",
           "Turning it over",
           "Chewing on it"
+        ],
+        "ja": [
+          "紐解き中",
+          "つなぎ合わせ中",
+          "じっくり検討中",
+          "反芻中"
         ]
       }
     },
@@ -61,6 +76,11 @@
           "Deliberating",
           "Going over it again",
           "Still mulling"
+        ],
+        "ja": [
+          "熟考中",
+          "何度も見直し中",
+          "まだ思案中"
         ]
       }
     }

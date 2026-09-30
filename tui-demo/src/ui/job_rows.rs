@@ -28,7 +28,8 @@ pub fn rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
     let (mark, mark_style, text_style) = match job.mark {
         JobMark::Done => (words.ok_mark.as_str(), theme::good(), theme::dim()),
         JobMark::Failed => (words.fail_mark.as_str(), theme::error(), theme::dim()),
-        JobMark::Stopped => ("", theme::dim(), theme::dim()),
+        JobMark::Stopped => (words.stop_mark.as_str(), theme::dim(), theme::dim()),
+        JobMark::Void => ("", theme::dim(), theme::dim()),
     };
     let width = ctx
         .width
@@ -116,6 +117,31 @@ mod tests {
                 .spans
                 .iter()
                 .any(|s| s.content == "✗ " && s.style == theme::error())
+        );
+    }
+
+    #[test]
+    fn a_stopped_note_has_a_dim_dot() {
+        let f = Fixture::new();
+        let mut t = Transcript::default();
+        t.job(
+            JobMark::Stopped,
+            "后台命令已停止 · sleep 300".into(),
+            String::new(),
+        );
+        let stopped = rows(0, &t.entries[0], &f.ctx());
+        assert_eq!(
+            stopped[0].line.to_string().trim(),
+            "● 后台命令已停止 · sleep 300",
+            "2026-09-30 项目主人：停了的也加实心圆点，和别的几行对齐"
+        );
+        assert!(
+            stopped[0]
+                .line
+                .spans
+                .iter()
+                .any(|s| s.content == "● " && s.style == theme::dim()),
+            "圆点是暗的"
         );
     }
 

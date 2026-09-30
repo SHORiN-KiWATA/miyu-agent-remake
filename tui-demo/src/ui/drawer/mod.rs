@@ -9,12 +9,13 @@ mod preview;
 mod tests;
 
 use ratatui::Frame;
-use ratatui::layout::Rect;
+use ratatui::layout::{Position, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
 use super::rows::clip;
+use crate::caret::Caret;
 use crate::drawer::{Drawer, Texts};
 use crate::input::pieces;
 use crate::theme;
@@ -204,12 +205,21 @@ pub fn fit(v: View, height: usize, scroll: &mut usize) -> View {
 }
 
 /// 画在输入框的字的地方（`area`）；交回每一行是第几项，鼠标照它认。
-pub fn draw(frame: &mut Frame, area: Rect, d: &mut Drawer, texts: &Texts) -> Vec<Option<usize>> {
+pub fn draw(
+    frame: &mut Frame,
+    area: Rect,
+    d: &mut Drawer,
+    texts: &Texts,
+    caret: &mut Caret,
+) -> Vec<Option<usize>> {
     let v = view(d, texts, area.width);
     let v = fit(v, usize::from(area.height), &mut d.scroll);
     if let Some((row, col)) = v.cursor {
         let x = area.x + col.min(area.width.saturating_sub(1));
-        frame.set_cursor_position((x, area.y + u16::try_from(row).unwrap_or(0)));
+        caret.put(
+            Position::new(x, area.y + u16::try_from(row).unwrap_or(0)),
+            true,
+        );
     }
     frame.render_widget(Paragraph::new(v.lines), area);
     v.items

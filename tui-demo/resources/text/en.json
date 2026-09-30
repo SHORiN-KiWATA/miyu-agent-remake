@@ -299,6 +299,7 @@
     "agent_note": "Background task done · {title} · {elapsed}",
     "ok_mark": "● ",
     "fail_mark": "✗ ",
+    "stop_mark": "● ",
     "todo_folded": "{count} done",
     "todo_more": "… {count} more",
     "killed": "(failed · signal {signal})",
@@ -373,5 +374,10 @@
     "folder": "[{name}/]"
   },
   "stopped_jobs": "Stopped {count} task(s)",
-  "language_switched": "Interface language: English"
+  "language_switched": "Interface language: English",
+  "languages": {
+    "title": "Interface language",
+    "hint": "↑/↓ select · Enter switch · Esc close",
+    "current": "current"
+  }
 }

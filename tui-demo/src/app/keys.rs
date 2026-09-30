@@ -259,7 +259,7 @@ impl App {
             Run::Icons => self.next_icons(),
             Run::Quit => self.quit = true,
             Run::Help => self.open_help(),
-            Run::Language => self.switch_language(),
+            Run::Language => self.open_languages(),
             Run::Fake => {
                 let note = self.config.text.fake_command.replace("{name}", &spec.name);
                 self.transcript.note(Kind::Note, note);

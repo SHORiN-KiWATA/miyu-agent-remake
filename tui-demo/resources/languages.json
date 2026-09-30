@@ -1,0 +1,20 @@
+{
+  "fallback": "en",
+  "languages": [
+    {
+      "code": "zh",
+      "name": "中文",
+      "locales": ["zh"]
+    },
+    {
+      "code": "en",
+      "name": "English",
+      "locales": ["en"]
+    },
+    {
+      "code": "ja",
+      "name": "日本語",
+      "locales": ["ja"]
+    }
+  ]
+}

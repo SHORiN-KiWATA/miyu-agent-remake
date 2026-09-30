@@ -18,6 +18,7 @@ mod history;
 mod home;
 mod input_box;
 mod job_rows;
+pub mod languages;
 mod margins;
 mod mascot_view;
 mod panel;
@@ -208,6 +209,7 @@ fn text_width(area_width: u16, layout: &Layout) -> u16 {
 
 /// 画一帧。顺手把各块的位置记进 `app`，鼠标事件要用。
 pub fn draw(frame: &mut Frame, app: &mut App) {
+    app.caret.begin();
     // 不在首页、够宽时右边分出侧边栏，别的都画在主列里（`tui.md`「后台命令、子代理和侧边栏」第 7 条）。
     let home = app.home();
     let (main, sidebar) = if home {
@@ -333,6 +335,9 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             let (chrome, lines) = help::lines(&app.config, width, scroll, usize::from(inner));
             let map = vec![None; lines.len()];
             (chrome, lines, map)
+        }
+        Some(crate::app::Panel::Language { selected }) => {
+            languages::lines(&app.config, selected, width, usize::from(inner))
         }
         _ => background::lines(
             app.panel,
