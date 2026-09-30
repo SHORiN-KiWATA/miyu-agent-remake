@@ -195,6 +195,7 @@ async fn a_missing_blob_fails_without_sending() {
         }),
         Block::Image(Image {
             blob: missing.clone(),
+            name: None,
             media_type: MediaType::parse("image/png").expect("媒体类型合写法"),
             width: 1,
             height: 1,
@@ -292,6 +293,7 @@ async fn an_image_goes_out_as_its_bytes() {
     let mut pushes = watch(&handle).await;
     let blocks = vec![Block::Image(Image {
         blob,
+        name: None,
         media_type: MediaType::parse("image/png").expect("媒体类型合写法"),
         width: 1,
         height: 1,

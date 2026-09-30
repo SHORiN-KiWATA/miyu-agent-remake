@@ -277,6 +277,17 @@ A <permission> block gives the permission level from that point on. In read_only
 An image was attached here, but this model cannot view images.
 ```
 
+#### `core/drivers/image-omitted-named.txt`
+
+- 什么时候加进来：模型看不了图，历史里却有人附的图片（施工 3-9 四补）
+- token：17
+- 为什么加：同 `image-open.txt`：看不了图的，也要知道附的是哪个文件。没改 `image-omitted.txt`，另成一份，因为模板没有可以不填的字段；`read` 读出来的图、以前日志里的图没有名字，照旧用不带名字的那一句（2026-09-30 主会话同意）。照同样的值比不带名字的那一句（13）多 4 个
+- 指纹：`0bbd6fc1`
+
+```text
+An image was attached here ({name}), but this model cannot view images.
+```
+
 ### 文件的占位
 
 #### `core/drivers/file-omitted.txt`
@@ -1400,6 +1411,32 @@ Only the first {shown} of {total} bytes of this file are shown.
 
 ```text
 </file>
+```
+
+### 人附的图片的前面，人这边
+
+#### `core/drivers/image-open.txt`
+
+- 什么时候加进来：人附的图片，模型能看图（施工 3-9 四补）
+- token：8
+- 为什么加：一句话附了几张图，她要分得清哪张是哪个文件。网页演示接真核心实测（2026-09-30）：附了一张图、一个 PDF、一个文本文件，问哪个是图片、只答文件名，她答不出，因为发给她的图没有名字。写法照 `file-open.txt`（施工 3-9 四补）
+- 指纹：`d23c0409`
+
+```text
+<image name="{name}">
+```
+
+### 人附的图片的后面
+
+#### `core/drivers/image-close.txt`
+
+- 什么时候加进来：同 `image-open.txt`
+- token：3
+- 为什么加：同 `image-open.txt`
+- 指纹：`b8391aff`
+
+```text
+</image>
 ```
 
 ### 人这边：任务的回报（一块带标签的事实）

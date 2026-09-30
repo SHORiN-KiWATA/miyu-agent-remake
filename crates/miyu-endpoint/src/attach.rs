@@ -4,7 +4,7 @@
 //! - [`put`]：`blob.put`，本机的头传路径、核心自己读，远程的头传内容；认是什么（[`mod@kind`]），存成管理员的 blob，回应
 //!   给头看的几样。
 //! - [`blocks`]：`session.send` 的 `attachments` 变成内容块：blob 要在，照内容再认一遍，块里的宽高、媒体类型都是核心
-//!   自己量的。
+//!   自己量的；图片块、文件块都带着头交回来的名字（图片的施工 3-9 四补）。
 //!
 //! 读文件、读 blob、存 blob 都碰磁盘，在阻塞线程里做。
 
@@ -118,7 +118,7 @@ pub(crate) async fn blocks(
     .await
 }
 
-/// 一个附件造成一块：blob 要在，照内容再认一遍。
+/// 一个附件造成一块：blob 要在，照内容再认一遍；名字照头交回来的，图片也带（施工 3-9 四补）。
 fn block(
     blobs: &Blobs,
     blob: ContentHash,
@@ -141,6 +141,7 @@ fn block(
                 height,
             } => Block::Image(Image {
                 blob,
+                name: Some(name),
                 media_type,
                 width,
                 height,

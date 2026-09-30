@@ -9,7 +9,9 @@
 //! - [`Snapshot::policy`]、[`Snapshot::driver_texts`]：照快照造出内核的策略、驱动的占位。
 
 mod compose;
+mod drivers;
 mod guard;
+mod image_name;
 mod jobs;
 mod pause;
 mod rebuild;
@@ -22,14 +24,16 @@ mod tools;
 mod test_support;
 
 pub use compose::{PersonaTexts, Sources, compose};
+pub use drivers::DriverPlaceholders;
 pub use guard::GuardTexts;
+pub use image_name::ImageNameTexts;
 pub use jobs::{DEPTH as JOB_DEPTH, JobNumbers, JobTexts, REPORT_CHARS};
 pub use pause::{PAUSE, PauseNumbers};
 pub use rebuild::{REBUILD, RebuildNumbers, RebuildTexts};
 pub use shorten::{SHORTEN, ShortenNumbers, ShortenTexts};
 pub use snapshot::{
-    BuildError, CompactionNumbers, CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts,
-    PermissionTexts, Snapshot, SnapshotError, ToolResultTexts, TurnEndedTexts,
+    BuildError, CompactionNumbers, CompactionTexts, CoreTexts, FactTexts, PermissionTexts,
+    Snapshot, SnapshotError, ToolResultTexts, TurnEndedTexts,
 };
 pub use text_file::TextFileTexts;
 pub use tools::{RunTexts, ToolEntry};

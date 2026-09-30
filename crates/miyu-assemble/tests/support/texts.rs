@@ -1,6 +1,8 @@
-//! 出厂的英文：组装器要的固定字，资源目录里的真文件（施工 7-2 从 `mod.rs` 挪出来，加上回报的写法）。
+//! 出厂的英文：组装器要的固定字、驱动的占位，资源目录里的真文件（施工 7-2 从 `mod.rs` 挪出来，加上回报的写法；驱动的占位
+//! 3-9 四补挪来）。
 
 use miyu_assemble::{JobTexts, RestoredWrap, Texts, TurnEndedTexts};
+use miyu_drivers::{DriverTextSources, DriverTexts, ImageNameSources, TextFileSources};
 use miyu_kernel::template::Template;
 
 /// 出厂的摘要指令（3-9 三补合并时从 `mod.rs` 挪来）：摘要请求的最后一块（施工 6-2 上）；正文接最后那一句（施工 6-8 拆开）。
@@ -74,4 +76,30 @@ fn job_texts() -> JobTexts {
         subagent_message_open: template(job!("subagent-message-open.txt")),
         subagent_message_close: job!("subagent-message-close.txt"),
     }
+}
+
+/// 出厂的驱动占位，从资源目录读（3-9 四补时从 `mod.rs` 挪来）。
+pub(super) fn driver_texts() -> DriverTexts {
+    DriverTexts::new(DriverTextSources {
+        image_omitted: include_str!("../../../../resources/core/drivers/image-omitted.txt"),
+        file_omitted: include_str!("../../../../resources/core/drivers/file-omitted.txt"),
+        no_output: include_str!("../../../../resources/core/drivers/no-output.txt"),
+        tool_attachments: include_str!("../../../../resources/core/drivers/tool-attachments.txt"),
+        tool_attachments_only: include_str!(
+            "../../../../resources/core/drivers/tool-attachments-only.txt"
+        ),
+        text_file: Some(TextFileSources {
+            file_open: include_str!("../../../../resources/core/drivers/file-open.txt"),
+            file_cut: include_str!("../../../../resources/core/drivers/file-cut.txt"),
+            file_close: include_str!("../../../../resources/core/drivers/file-close.txt"),
+        }),
+        image_name: Some(ImageNameSources {
+            image_open: include_str!("../../../../resources/core/drivers/image-open.txt"),
+            image_close: include_str!("../../../../resources/core/drivers/image-close.txt"),
+            image_omitted_named: include_str!(
+                "../../../../resources/core/drivers/image-omitted-named.txt"
+            ),
+        }),
+    })
+    .expect("出厂的占位用得了")
 }

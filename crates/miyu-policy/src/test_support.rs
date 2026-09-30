@@ -2,9 +2,10 @@
 //! 拿进来，不是读文件）。
 
 use crate::compose::{PersonaTexts, Sources, compose};
+use crate::drivers::DriverPlaceholders;
 use crate::snapshot::{
-    CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts, PermissionTexts, Snapshot,
-    ToolResultTexts, TurnEndedTexts,
+    CompactionTexts, CoreTexts, FactTexts, PermissionTexts, Snapshot, ToolResultTexts,
+    TurnEndedTexts,
 };
 
 /// 出厂的随核心附带的字。
@@ -91,6 +92,16 @@ pub(crate) fn core() -> CoreTexts {
                 file_cut: include_str!("../../../resources/core/drivers/file-cut.txt").to_string(),
                 file_close: include_str!("../../../resources/core/drivers/file-close.txt")
                     .to_string(),
+            }),
+            image_name: Some(crate::ImageNameTexts {
+                image_open: include_str!("../../../resources/core/drivers/image-open.txt")
+                    .to_string(),
+                image_close: include_str!("../../../resources/core/drivers/image-close.txt")
+                    .to_string(),
+                image_omitted_named: include_str!(
+                    "../../../resources/core/drivers/image-omitted-named.txt"
+                )
+                .to_string(),
             }),
         },
         compaction: Some(CompactionTexts {
