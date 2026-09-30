@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>153</b><span>/ 156 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；下一步 8-4 监视与生效、C-4 读别的会话</span></li>
-    <li><b class="mono">abce08a2</b><span>最近一步（3-8 七补 会话列表的索引）的提交</span></li>
+    <li><b>154</b><span>/ 156 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 C-4 读别的会话、8-5 密钥</span></li>
+    <li><b class="mono">a1dc26fb</b><span>最近一步（8-4 监视与生效）的提交</span></li>
   </ul>
 </header>
 
@@ -510,7 +510,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s8-1"><span class="n">8-1</span>配置清单<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-2"><span class="n">8-2</span>读配置<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-3"><span class="n">8-3</span>写配置<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">8-4</span>监视与生效</span></li>
+        <li><a class="step done" href="#s8-4"><span class="n">8-4</span>监视与生效<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">8-5</span>密钥</span></li>
         <li><span class="step"><span class="n">8-6</span>供应商</span></li>
         <li><span class="step"><span class="n">8-7</span>模型资料</span></li>
@@ -10675,6 +10675,57 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/8-3-写配置.md</code>；蓝图 <code>config.md</code>、<code>cli/config.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-4" aria-labelledby="h-s84">
+  <div class="sheet-head"><h2 id="h-s84"><span class="no">8-4</span>监视与生效</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">手改文件、终端界面、网页三种改法都能当场看到（项目主人 10-01 要的）：核心监视几份配置文件，手改存盘就重读、推 <code>config.changed</code>、记日志；开着的设置页跟着刷新，不会拿旧值盖掉刚改的。回合开始取一份配置，中途改了下一轮生效；<code>log.level</code> 当场换，<code>ui.language</code> 变了连着的头下一句就换语言。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">监视与生效</span><span class="dir-note">8-4</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>监视用 <code>notify</code>：认得出「先写新文件再改名」的存法，200 毫秒合并，照真实路径比；起不来退回每 2 秒轮询</li>
+              <li>订阅 <code>stream: config</code>，推 <code>config.changed</code>（via：set、edit、file），掉队推 resync</li>
+              <li>改坏了照上一次读好的用，推问题；字节一样的不重推</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">发的连接先见推送</span><span class="rl">config.set 的回应经配置订阅走</span></div>
+          <div class="tile new"><span class="nm">回合开始的快照</span><span class="rl">带上会话目录的项目配置，这一轮都用它</span></div>
+          <div class="tile"><span class="nm">只动注释的</span><span class="rl">换上，不推不记</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-4</dd></div>
+        <div><dt>名称</dt><dd>监视与生效</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">a1dc26fb</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>18 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>测试逮到一个真毛病：跟随任务起来晚了会漏掉起来之前的改动，已改</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-4-监视与生效.md</code>；蓝图 <code>config.md</code> 第七、八条。</li>
       </ul>
     </div>
   </div>
