@@ -12,7 +12,7 @@
 
 状态：图纸，定稿（2026-10-01 起草，主会话审过，项目主人同一天批准）。定了的六条和防刷屏在 `docs/designs/29-跨会话.md` 第一、二节，这一页把第三节留下的技术细节定下来（末尾「起草时定的」）。每一节标着由哪一步做，步子见末尾「施工步子」（C-1 到 C-7，正式编号）。做完一步，这一页照做好的样子改写那几节，相关的几页跟着改（末尾「要跟着改的别的页」）。
 
-做好了的：C-1 会话的短编号（`kernel/ids.md`）；事件 `peer.idle`、效果 `peer.watch` 的类型、读写、样本（`kernel/events.md`、`kernel/events-bodies.md`）；`by` 是会话的三种关系（`kernel/ids.md`「谁」）；账本在等哪几个会话、`peer.idle` 只认在等的（`kernel/history.md`「在等的通知」）。C-2 收别的会话发来的话：内核认出别的会话、照「别处来的」收，防刷屏前三款（`kernel/session.md`「别的会话发来的话」，账本见 `kernel/history.md`「最近收下的别的会话的话」），策略数据 `peers.burst`、`window`、`unread`（`policy.md`），渲染 `<session-message from="短编号">`（`kernel/request.md`「别的会话发来的话」），`history` 的「谁」写 `session <短编号>`（`tools/history.md`），它开的那一轮重做不了。还没有哪里发得出别的会话的话（C-5），还没有哪里报 `peer.watch`、写 `peer.idle`（C-6）。 C-3 列会话：`session.list` 每一项多 `cwd`、`busy`、`last_active`（`protocol.md`），新的一件工具 `sessions`，只给本机的主会话（`tools/sessions.md`、`session/tools.md`「1d. 列会话」「工具面」）；认会话编号的 `find_session` 做好了，C-4、C-5 接着用。
+做好了的：C-1 会话的短编号（`kernel/ids.md`）；事件 `peer.idle`、效果 `peer.watch` 的类型、读写、样本（`kernel/events.md`、`kernel/events-bodies.md`）；`by` 是会话的三种关系（`kernel/ids.md`「谁」）；账本在等哪几个会话、`peer.idle` 只认在等的（`kernel/history.md`「在等的通知」）。C-2 收别的会话发来的话：内核认出别的会话、照「别处来的」收，防刷屏前三款（`kernel/session.md`「别的会话发来的话」，账本见 `kernel/history.md`「最近收下的别的会话的话」），策略数据 `peers.burst`、`window`、`unread`（`policy.md`），渲染 `<session-message from="短编号">`（`kernel/request.md`「别的会话发来的话」），`history` 的「谁」写 `session <短编号>`（`tools/history.md`），它开的那一轮重做不了。还没有哪里发得出别的会话的话（C-5），还没有哪里报 `peer.watch`、写 `peer.idle`（C-6）。 C-3 列会话：`session.list` 每一项多 `cwd`、`busy`、`last_active`（`protocol.md`），新的一件工具 `sessions`，只给本机的主会话（`tools/sessions.md`、`session/tools.md`「1d. 列会话」「工具面」）；认会话编号的 `find_session` 做好了，C-4、C-5 接着用。C-4 读别的会话：`history` 多一格 `session`（`tools/history.md`），和 `send_message` 同一个认法认出是哪一个会话，认成她自己的照没写；`SessionsPort` 多 `open`，交回一个 `Log`，只算出会话的真实目录，不读盘、不载入它，在跑的也读得到（`miyu-tool/src/sessions.rs`，实现在 `miyu-endpoint/src/spawn.rs`）；找不到、对得上不止一个、没有列会话的端口（子会话、场所会话）各拒一句，一条日志都不读；时刻照这个会话自己的时区，和读的是哪一份日志无关。工具面、说明的字节没变，只有参数格式多一格，待量 token。
 
 ### 在哪
 
@@ -571,6 +571,10 @@ No notice came within 12 hours, so the request was dropped.
 | 46 | 列会话的端口也只给本机的主会话，和工具面同一个判断（`Agents::lists_sessions`，施工 C-3） | 工具面不给，端口也不给：老会话、子会话照旧名字调也拿不到别的会话 | 端口谁都给，只靠工具面挡 |
 | 47 | 排序、分页在工具里，端口交回的不排先后（施工 C-3） | 排法是这件工具的事；`session.list` 照编号排，两边共用读的那一段 | 端口排好 |
 | 48 | 一个别的会话都没有时，写了 `offset` 也说 `none.txt`，不说过了结尾（施工 C-3） | 「没有别的会话」对她更有用，也不用她再改 `offset` | 照过了结尾说 |
+| 49 | `SessionsPort` 加一个方法 `open`，不新开端口；交回一个 `Log`，只包会话的目录，不读盘：读不读得到要等交回的 `Log` 真的读的时候才知道（施工 C-4） | 认、列、开日志是同一件事的三步，端口不用多开；`Log` 本来就是「一个只读入口」，和读自己的日志走同一条路，`history` 的 `look()` 不用分两套逻辑 | `SessionsPort` 另开 `read`，直接交回读好的内容（要在异步的那一半就把日志整个读完，撑不住叫停、大日志） |
+| 50 | 会话表这一头的 `read_log` 只算出会话的真实目录，不检查它是不是真的存在、是不是这个属主的（施工 C-4） | `history` 调它之前已经拿 `find_session` 认过：候选名单就是 `list()` 交回的（同一个属主、主会话）加她自己，认过的编号才会被拿来开日志。目录本身读不读得到，等 `ReadLog::read` 真的读的时候自然知道，照旧报「读不了日志」 | 会话表再核对一遍属主、是不是主会话（认的活重做一遍） |
+| 51 | 会话表实现 `read_log` 放在 `miyu-endpoint`，不把 `miyu-session` 自己那份 `LogDir`（`store.rs`）公开出来（施工 C-4） | `miyu-endpoint` 已经直接依赖 `miyu-store`（`peek` 早就这样用 `read_events`），照同一个先例自己写一个小的 `ReadLog` 实现比把下层的私有类型改成 `pub` 更小的改动面 | 把 `miyu-session::store::LogDir` 公开，`miyu-endpoint` 直接用它 |
+| 52 | 写了 `session` 的四种出错（找不到、对得上不止一个、这个会话不能读别的会话、列会话或者开日志失败）都不读这次调用自己的日志，也不去开任何别的日志（施工 C-4） | 「一条日志都不读」是设计定的（第二条第 1 款）：出错了就是出错了，不该有副作用，也不该让她以为读到的是自己的记录 | 找不到、拒绝的时候退回读自己的日志 |
 
 ### 定的（2026-10-01）
 
@@ -587,7 +591,7 @@ No notice came within 12 hours, so the request was dropped.
 这次不改，施工时照步改：
 
 - `tools/message_agent.md` 改名 `tools/send_message.md`：是什么、对外的样子（名字、老会话照认旧名字、说明、`to` 多一种、`message` 不再必填、`notify_when_idle`）、怎么走、样子（新的几句）、出错、给人看的字、守着它的、还没有的（删掉跨会话那条）。别的页里引用 `message_agent` 的照新名字改（`agents.md`、`session/tools.md`、`kernel/…`、`26-提示词.md`、`10-自带软件.md`）。C-5、C-6。
-- `tools/history.md`：参数 `session`、怎么走第 2 条（读哪份日志）、「谁」多 `session <短编号>`、出错、给人看的字、守着它的。C-2、C-4（C-2 的「谁」改好了）。
+- `tools/history.md`：参数 `session`、怎么走第 2 条（读哪份日志）、「谁」多 `session <短编号>`、出错、给人看的字、守着它的。C-2、C-4（都改好了）。
 - `tools/sessions.md`：新页。C-3（建好了）。
 - `tools/interface.md`：`Call` 多 `sessions` 端口（C-3 改好了），`MessagePort` 的 `Recipient`、`NotSent` 多几种，只订不发时认出会话。C-3 到 C-6。
 - `kernel/ids.md`：短编号，`by` 的 `session` 那一行写三种关系。C-1（改好了）。

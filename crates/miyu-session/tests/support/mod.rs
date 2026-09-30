@@ -20,10 +20,10 @@ use miyu_session::{
 };
 use miyu_store::env::{Env, Platform};
 use miyu_store::index::{FILE, SessionIndex};
-use miyu_store::log::read_events;
+use miyu_store::log::{read_events, read_segments};
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
-use miyu_tool::Catalog;
+use miyu_tool::{Catalog, Log, ReadLog};
 
 /// 一个用完就删的临时目录。
 pub struct Scratch(pub PathBuf);
@@ -298,6 +298,11 @@ impl Home {
         let dir = self.root.session_dir(&alice_account(), session);
         read_events(&dir).expect("日志读得出")
     }
+
+    /// 会话 `session` 日志的只读入口，照它磁盘上真实的目录（施工 C-4：`history` 读别的会话时会话表交出的）。
+    pub fn read_log(&self, session: &SessionId) -> Log {
+        Log::new(LogDir(self.root.session_dir(&alice_account(), session)))
+    }
 }
 
 /// 等 `what` 最多十秒：actor 出了毛病，测试几秒内就红，说清卡在哪，不一直等下去。
@@ -407,6 +412,16 @@ pub async fn until_logged(
 /// 事件的种类，照先后。
 pub fn kinds(events: &[Event]) -> Vec<&str> {
     events.iter().map(|event| event.body.kind()).collect()
+}
+
+/// 一个会话目录的只读入口（施工 C-4）：和生产里会话表那一头开别的会话日志的办法同一个读法
+/// （[`read_segments`]），测试里直接拿会话的真实目录造它，不载入那个会话。
+pub struct LogDir(pub PathBuf);
+
+impl ReadLog for LogDir {
+    fn read(&self, each: &mut dyn FnMut(Vec<Event>) -> bool) -> Result<(), String> {
+        read_segments(&self.0, each).map_err(|error| error.to_string())
+    }
 }
 
 /// 一直读推送，读到回合结束那一条为止，交回读到的每一份。

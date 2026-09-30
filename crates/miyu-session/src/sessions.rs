@@ -3,12 +3,15 @@
 //!
 //! 只有本机的主会话有这个端口（[`Agents::lists_sessions`]），和工具面上有没有 `sessions` 是同一个判断。
 //!
+//! 只读地开别的会话的日志（[`SessionsPort::open`]，施工 C-4）也经它：转给会话表的 [`SessionPort::read_log`]。
+//!
 //! [`SessionPort::sessions`]: crate::spawn::SessionPort::sessions
+//! [`SessionPort::read_log`]: crate::spawn::SessionPort::read_log
 
 use std::sync::Arc;
 
 use miyu_kernel::id::SessionId;
-use miyu_tool::{Listing, SessionsPort, Stop};
+use miyu_tool::{Listing, Opening, SessionsPort, Stop};
 
 use crate::TARGET;
 use crate::agents::Agents;
@@ -45,5 +48,9 @@ impl SessionsPort for Lister {
             listed.retain(|session| session.id != agents.session);
             Ok(listed)
         })
+    }
+
+    fn open<'a>(&'a self, session: &'a SessionId) -> Opening<'a> {
+        Box::pin(async move { self.agents.port.read_log(session.clone()).await })
     }
 }
