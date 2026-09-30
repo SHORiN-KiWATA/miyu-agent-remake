@@ -44,7 +44,7 @@
 | `tools/interface.md` | 工具接口、目录、一次调用带什么、效果 |
 | `tools/read.md`、`glob.md`、`grep.md`、`write.md`、`edit.md`、`trash.md`、`shell.md` | 每件工具一页 |
 | `tools/history.md` | 翻这个会话自己的日志：图纸，M6 施工（2026-09-29） |
-| `tools/agent.md` | 派子代理（施工 7-5） |
+| `tools/subagent.md` | 派子代理（施工 7-5；7-5 再补从 `agent` 改名） |
 | `tools/jobs.md` | 看、读、停派出去的任务（施工 7-4） |
 | `tools/message_agent.md` | 父子之间留言（施工 7-7） |
 | `cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/main.md` | 每条命令一页（`cli/compact.md` 施工 6-8，`cli/redo.md` 施工 4-7 再补）；主程序 |

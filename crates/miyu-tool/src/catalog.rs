@@ -1,5 +1,5 @@
 //! 工具目录（05 第八节，施工 4-1）：核心起来时登记一次，登记完就冻结。照名字排好，造会话时照这个
-//! 先后交出工具面。
+//! 先后交出工具面。改过名的工具照以前的名字也找得到（施工 7-5 再补，[`Tool::formerly`]）。
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -16,6 +16,8 @@ const NAME_LIMIT: usize = 64;
 #[derive(Clone, Default)]
 pub struct Catalog {
     tools: BTreeMap<String, Arc<dyn Tool>>,
+    /// 以前的名字到现在的名字（施工 7-5 再补）。
+    formerly: BTreeMap<String, String>,
 }
 
 /// 一件工具登记不上：是哪一件，哪一条没过。
@@ -30,7 +32,8 @@ pub struct CatalogError {
 /// 登记时查的几条（05 第六节）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Problem {
-    /// 已经有一件同名的：她调的是哪一件，说不清。
+    /// 已经有一件同名的：她调的是哪一件，说不清。以前的名字也算（施工 7-5 再补）：撞上别的工具现在的、以前的名字，
+    /// 同样说不清。
     Duplicate,
     /// 名字不合写法：只用英文字母、数字、`_`、`-`，1 到 64 个字符。不合的，每次请求都会被供应商拒收。
     Name,
@@ -39,11 +42,12 @@ pub enum Problem {
 }
 
 impl Catalog {
-    /// 登记这几件，照名字排好。有一件查不过，整个目录都登记不上，报交进来时排在前面的那一件。
+    /// 登记这几件，照名字排好。有一件查不过，整个目录都登记不上，报交进来时排在前面的那一件。以前的名字跟着它现在的名字
+    /// 登记，只查重名：撞上的报那个以前的名字。
     ///
     /// # Errors
     ///
-    /// 有两件同名的、名字不合写法的、参数格式不是对象的。
+    /// 有两件同名的（以前的名字也算）、名字不合写法的、参数格式不是对象的。
     pub fn new(tools: impl IntoIterator<Item = Arc<dyn Tool>>) -> Result<Catalog, CatalogError> {
         let mut catalog = Catalog::default();
         for tool in tools {
@@ -52,7 +56,7 @@ impl Catalog {
                 Some(Problem::Name)
             } else if !takes_an_object(spec) {
                 Some(Problem::Parameters)
-            } else if catalog.tools.contains_key(&spec.name) {
+            } else if catalog.taken(&spec.name) {
                 Some(Problem::Duplicate)
             } else {
                 None
@@ -63,9 +67,25 @@ impl Catalog {
                     problem,
                 });
             }
+            for former in tool.formerly() {
+                if catalog.taken(former) {
+                    return Err(CatalogError {
+                        tool: (*former).to_string(),
+                        problem: Problem::Duplicate,
+                    });
+                }
+                catalog
+                    .formerly
+                    .insert((*former).to_string(), spec.name.clone());
+            }
             catalog.tools.insert(spec.name.clone(), tool);
         }
         Ok(catalog)
+    }
+
+    /// `name` 已经有主了：是一件工具现在的名字，或者以前的名字。
+    fn taken(&self, name: &str) -> bool {
+        self.tools.contains_key(name) || self.formerly.contains_key(name)
     }
 
     /// 每件的规格，照名字的先后。
@@ -73,9 +93,10 @@ impl Catalog {
         self.tools.values().map(|tool| tool.spec())
     }
 
-    /// 叫 `name` 的那一件（施工 4-2）。
+    /// 叫 `name` 的那一件（施工 4-2）；以前叫 `name` 的也算（施工 7-5 再补）：改名以前造的会话，快照里冻着旧名字。
     pub fn get(&self, name: &str) -> Option<&Arc<dyn Tool>> {
-        self.tools.get(name)
+        let now = self.formerly.get(name).map_or(name, String::as_str);
+        self.tools.get(now)
     }
 }
 

@@ -109,12 +109,12 @@ async fn reports_come_up_one_layer_at_a_time() {
     let home = Home::new();
     let tools = Catalog::new(miyu_basesystem::tools(&default_resources()).unwrap()).unwrap();
     let main = Script::new([
-        Play::calls(&[("agent", &agent("查 A"))]),
+        Play::calls(&[("subagent", &agent("查 A"))]),
         Play::Says("派出去了。"),
         Play::Says("都查完了。"),
     ]);
     let child = Script::new([
-        Play::calls(&[("agent", &agent("查 B"))]),
+        Play::calls(&[("subagent", &agent("查 B"))]),
         Play::Says("等孙代理。"),
         Play::Says("A 查完了，B 也在里面。"),
     ]);
@@ -194,7 +194,7 @@ async fn a_parent_loaded_after_a_restart_wakes_its_child_to_finish_and_report() 
         (
             "派一个去查",
             Script::new([
-                Play::calls(&[("agent", &agent("查 A"))]),
+                Play::calls(&[("subagent", &agent("查 A"))]),
                 Play::Says("派出去了。"),
             ]),
         ),

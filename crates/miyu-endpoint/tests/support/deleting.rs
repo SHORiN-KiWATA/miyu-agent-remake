@@ -13,7 +13,8 @@ use miyu_kernel::request::{Message, Request};
 use miyu_session::testkit::Script;
 use miyu_session::{Cancel, ForSession, ModelPort, Models, Reports};
 use miyu_store::log::read_events;
-use miyu_tool::Catalog;
+use miyu_tool::testkit::Renamed;
+use miyu_tool::{Catalog, Tool};
 
 use super::{Client, Home, alice, default_resources};
 
@@ -149,4 +150,21 @@ pub fn reported_jobs(log: &[Event]) -> bool {
 /// 基础系统的工具：派子代理用。
 pub fn base_tools() -> Catalog {
     Catalog::new(miyu_basesystem::tools(&default_resources()).expect("出厂的工具")).expect("合写法")
+}
+
+/// 改名以前的核心的工具（施工 7-5 再补）：派子代理的那件叫 `agent`，说明、参数格式、访问类别和现在的一样，别的照出厂的。
+/// 拿它造的会话，快照里冻着 `agent`。
+pub fn tools_before_the_rename() -> Catalog {
+    let tools = miyu_basesystem::tools(&default_resources()).expect("出厂的工具");
+    assert!(
+        tools.iter().any(|tool| tool.spec().name == "subagent"),
+        "出厂的目录里有 subagent"
+    );
+    let tools = tools
+        .into_iter()
+        .map(|tool| match tool.spec().name.as_str() {
+            "subagent" => Renamed::new(tool, "agent") as Arc<dyn Tool>,
+            _ => tool,
+        });
+    Catalog::new(tools).expect("合写法")
 }

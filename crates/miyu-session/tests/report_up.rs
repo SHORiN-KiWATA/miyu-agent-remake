@@ -210,7 +210,10 @@ async fn a_loaded_parent_wakes_its_unreported_children() {
     let tools = Catalog::new(miyu_basesystem::tools(home.resources.path()).expect("读得出"))
         .expect("合写法");
     let args = serde_json::json!({"description": "查", "prompt": "去查"}).to_string();
-    let script = Script::new([Play::calls(&[("agent", &args)]), Play::Says("派出去了。")]);
+    let script = Script::new([
+        Play::calls(&[("subagent", &args)]),
+        Play::Says("派出去了。"),
+    ]);
     let lines = Lines {
         sessions: Some(Arc::clone(&table) as Arc<dyn SessionPort>),
         ..Lines::default()

@@ -1,25 +1,27 @@
-## `agent`
+## `subagent`
 
 ### 是什么
 
-派一个子代理去做一件事：执行器照父会话抄好属主、场所、工作目录、权限、能不能确认，造一个子会话，把交代作为父会话发来的话送进去，开它的第一轮；子会话造好、交代送到就返回编号和标题，不等它做完。它在后台跑，做完怎么回报见 `agents.md` 第二条（施工 7-6）。
+派一个子代理去做一件事：执行器照父会话抄好属主、场所、工作目录、权限、能不能确认，造一个子会话，把交代作为父会话发来的话送进去，开它的第一轮；子会话造好、交代送到就返回编号和标题，不等它做完。它在后台跑，做完怎么回报见 `agents.md` 第二条（施工 7-6）。以前叫 `agent`：以前造的会话照旧名字调，照样派得出去（「以前的名字」）。
 
 ### 在哪
 
 | 代码 | 管什么 |
 |---|---|
-| `crates/miyu-basesystem/src/agent.rs` | 参数、交给端口、结果和效果 |
-| `crates/miyu-tool/src/agents.rs` | 派子代理的端口 `AgentPort`（`tools/interface.md`） |
+| `crates/miyu-basesystem/src/subagent.rs` | 参数、交给端口、结果和效果；以前的名字（`formerly`） |
+| `crates/miyu-tool/src/agents.rs` | 派子代理的端口 `AgentPort`（`tools/interface.md`）；名字 `SUBAGENT`、以前的名字 `SUBAGENT_FORMERLY`，`is_subagent` 两个都认 |
+| `crates/miyu-tool/src/catalog.rs` | 工具目录照以前的名字也找得到这一件（`tools/interface.md`「登记」） |
 | `crates/miyu-session/src/agents.rs` | 执行器这一头：照父会话填好子会话，经会话表的端口造出来、送交代（`session/tools.md`「派子代理」） |
-| `resources/software/basesystem/tools/agent.json` | 说明和参数格式 |
-| `resources/software/basesystem/agent/*.txt` | 输出里给她看的两句 |
-| `resources/software/basesystem/human/{zh,en}.json` | 显示名、结果那一句 |
+| `resources/software/basesystem/tools/subagent.json` | 说明和参数格式 |
+| `resources/software/basesystem/agent/*.txt` | 输出里给她看的两句（目录照以前的名字，「以前的名字」） |
+| `resources/software/basesystem/human/{zh,en,ja}.json` | 显示名（`subagent`、`agent` 两个键）、结果那一句 |
+| `crates/miyu-endpoint/src/sessions/orphans.rs` | 认派到一半的空子会话：日志里两个名字的调用都算（`agents.md` 第一条第 8 条） |
 
 ### 对外的样子
 
 访问类别 `read`：派出去这一下什么都不改，子会话照父会话抄了权限，改不改由它自己的权限管。连着的只读调用一起派，所以一步里调几次，就同时派几个（`agents.md` 第一条第 4 条）；只读开着的时候也派得出去，子会话抄着只读。说明和参数的原文如下，说明照 `26-提示词.md` 附录的草稿，「它看不到这边的对话，交代要自己说得清」那一句留着。
 
-样本 `resources/software/basesystem/tools/agent.json`：
+样本 `resources/software/basesystem/tools/subagent.json`：
 
 ```json
 {
@@ -36,6 +38,14 @@
 - 别的参数不认，也不报错。挡位、人格、预设三个参数随配置和预设那一步（「还没有的」）。
 - 一条路径都不报：权限策略照访问类别判，读的放行（`session/guard.md`）。
 - 只有能派子代理的会话工具面里有它：在本机（场所 `local`）、还没到深度上限（`jobs.depth`，`agents.md`「对外的样子」）。场所会话、到了上限的会话造会话时就拿掉它，她调了照没有这件工具拒掉（`kernel/tools.md`）。
+
+**以前的名字**：`agent`（施工 7-5 再补改名，2026-10-01 项目主人定：在 Miyu 里「agent」可能指她自己、子代理、别的会话，叫 `subagent` 一看就知道是派子代理）。
+
+- 新造的会话工具面上只有 `subagent`，照名字排在 `shell` 和 `trash` 之间；说明、参数格式、访问类别和以前一字不差。她调 `agent` 照没有这件工具拒掉（`kernel/tools.md`）。
+- 以前造的会话，快照里冻着的工具面上是 `agent`（排在最前）：工具面是请求的前缀，照快照发，一个字节不变。她照旧调 `agent`，工具目录照以前的名字找到这一件（`Tool::formerly`、`Catalog::get`，`tools/interface.md`），照样派得出去，结果、效果和调 `subagent` 一样。
+- 日志里认派子代理的调用（派到一半的空子会话，`agents.md` 第一条第 8 条）两个名字都算。
+- 不改名的：效果 `job.started` 的种类照旧是 `agent`（`kernel/events-bodies.md`）；输出那两句的目录 `agent/`、给人看的说法 `agent/started`、`agent/not-started` 照旧：说法记在日志里，头照它找字，改了以前的日志就换不出字。
+- 给人看的显示名：`human/{zh,en,ja}.json` 的 `tools` 里 `subagent`、`agent` 两个键都在，一样的样子：以前造的会话里调的是 `agent`，头照调用的名字找。
 
 ### 怎么走
 
@@ -71,7 +81,7 @@ Started subagent j1: "查导出".
 
 ### 给人看的字
 
-显示名：派子代理（Subagent），后面跟 `description` 的值；符号 `↗`。
+显示名：派子代理（Subagent），后面跟 `description` 的值；符号 `↗`。`subagent`、`agent` 两个键一样（「以前的名字」）。
 
 | 说法 | 中文 | 英文 |
 |---|---|---|
@@ -83,8 +93,11 @@ Started subagent j1: "查导出".
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-basesystem/tests/agent.rs` | 只声明标题和交代、访问类别是读、说明里那一句在；交给端口的原样，交回的字和 `job.started`；没有端口、端口派不了的交回派不了、不报效果；少了参数的端口不问；两种说法两种语言都换得出字 |
-| `crates/miyu-session/tests/spawn.rs` | 执行器交给会话表的子会话抄对了每一样、交代记成父会话发的；一步里调两次派两个、各领各的编号；领了没派成的不回收、载入以后接着数；没有会话表的派不了；什么会话工具面里有 `agent`（`session/tools.md`） |
+| `crates/miyu-basesystem/tests/subagent.rs` | 只声明标题和交代、访问类别是读、说明里那一句在；交给端口的原样，交回的字和 `job.started`；没有端口、端口派不了的交回派不了、不报效果；少了参数的端口不问；两种说法两种语言都换得出字；`subagent`、`agent` 两个显示名三种语言里都在、一样 |
+| `crates/miyu-session/tests/spawn.rs` | 执行器交给会话表的子会话抄对了每一样、交代记成父会话发的；一步里调两次派两个、各领各的编号；领了没派成的不回收、载入以后接着数；没有会话表的派不了；什么会话工具面里有 `subagent`、新会话里没有 `agent`（`session/tools.md`） |
+| `crates/miyu-session/tests/spawn/renamed.rs` | 以前的名字：新会话调 `agent` 照没有的工具拒掉；拿改名以前的目录造的会话换现在的核心载入，工具面一个字节不变、调 `agent` 照样派得出去；两张工具面只差名字和它带来的先后 |
+| `crates/miyu-endpoint/tests/orphans.rs` | 改名以前造的父会话，派到一半的空子会话照样收掉 |
+| `crates/miyu-tool/src/catalog/tests.rs` | 目录照以前的名字找得到、以前的名字不进工具面、撞名的登记不上 |
 | `crates/miyu-endpoint/tests/spawn.rs` | 真核心走一遍：子会话的日志、快照、请求，`session.list` 的 `parent` |
 | `crates/miyu-basesystem/tests/budget.rs` | 工具面的预算 |
 | `xtask/src/ledger.rs` | 这些字的指纹和登记簿对得上 |
@@ -92,7 +105,7 @@ Started subagent j1: "查导出".
 ### 出处
 
 - `agents.md` 第一条（派子代理）、「对外的样子」（`jobs.depth`、效果 `job.started`）。
-- `10-自带软件.md` 第三节、第九节（工具面的预算）。
+- `10-自带软件.md` 第三节、第九节（工具面的预算）、第十节（名字不照 Claude Code 的 `Agent`）。
 - `26-提示词.md` 附录（说明的草稿）、第十节（登记簿）。
 
 ### 还没有的

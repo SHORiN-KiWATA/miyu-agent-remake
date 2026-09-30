@@ -42,6 +42,11 @@
       "subject": "query",
       "icon": "✱"
     },
+    "subagent": {
+      "name": "派子代理",
+      "subject": "description",
+      "icon": "↗"
+    },
     "agent": {
       "name": "派子代理",
       "subject": "description",
