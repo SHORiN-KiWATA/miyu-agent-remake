@@ -1,7 +1,7 @@
 //! 一个浏览器标签页：WebSocket 一帧一条消息，核心那头一行一条（`04-核心协议.md` P2）。
 //!
 //! 一个标签页一条核心连接，像另一个头（01 第五节：几个头同时连着同一个会话）。浏览器发来的照转，只动这几样：
-//! `hello` 里塞上本机令牌；`events.read` 由桥读日志回（`history.rs`）；`web.info` 回桥知道的几样（在哪个目录、家目录在哪）；
+//! `hello` 里塞上本机令牌（读历史用核心的订阅补发，桥不再顶 `events.read`）；`web.info` 回桥知道的几样（在哪个目录、家目录在哪）；
 //! `web.human` 回给人看的字（`human.rs`）；`web.mermaid` 回画好的 SVG（`mermaid.rs`）；`web.link_preview` 回链接卡片
 //! （`link_preview/`，抓得慢，另起任务回，不挡这条连接上别的消息）；`web.realpath` 回一个路径的真实位置（预览工作区照它比）；
 //! `web.upload_done` 删掉桥先收下的附件（`upload.rs`）。
@@ -22,7 +22,7 @@ use tokio_tungstenite::tungstenite::http::StatusCode;
 use miyu_store::env::Env;
 use miyu_store::root::DataRoot;
 
-use crate::{Site, history, human, upload};
+use crate::{Site, human, upload};
 
 /// 接一个 WebSocket：口令、Origin 对得上才接；连上核心以后两头照转，哪头断了都停。
 pub async fn run(stream: TcpStream, site: Arc<Site>) {
@@ -41,7 +41,7 @@ pub async fn run(stream: TcpStream, site: Arc<Site>) {
     };
     let Ok(ws) = accept_hdr_async(stream, check).await else { return };
     let (mut sink, mut source) = ws.split();
-    let (root, connected) = match connect().await {
+    let connected = match connect().await {
         Ok(ok) => ok,
         Err(reason) => {
             let note = json!({"jsonrpc": "2.0", "method": "bridge.error", "params": {"message": reason}});
@@ -67,7 +67,7 @@ pub async fn run(stream: TcpStream, site: Arc<Site>) {
             }
         }
     });
-    // 握手的回应里有「你是谁」：`events.read` 照这个账号找会话的目录
+    // 握手的回应里有「你是谁」：`/blob` 照这个账号找会话的目录（`media.rs`）
     let hello_id = Arc::new(Mutex::new(None::<Value>));
     let account = Arc::new(Mutex::new(None::<String>));
     let reading = {
@@ -106,14 +106,6 @@ pub async fn run(stream: TcpStream, site: Arc<Site>) {
             Err(reason) => json!({"jsonrpc": "2.0", "id": message["id"], "error": {"code": -32010, "message": reason, "data": {"reason": "bridge"}}}),
         };
         match message["method"].as_str() {
-            Some("events.read") => {
-                let who = account.lock().ok().and_then(|a| a.clone()).unwrap_or_default();
-                let p = &message["params"];
-                let got = history::read(&root, &who, p["session"].as_str().unwrap_or(""), p["after"].as_u64().unwrap_or(0))
-                    .map(|events| json!({"events": events}));
-                if out.send(reply(got).to_string()).is_err() { break }
-                continue;
-            }
             Some("web.info") => {
                 let home = std::env::home_dir().map(|h| h.display().to_string());
                 if out.send(reply(Ok(json!({"core": "real", "cwd": cwd(), "home": home}))).to_string()).is_err() { break }
@@ -197,7 +189,7 @@ type Connected = (miyu_ipc::Connection, String);
 const CORE_GONE: &str = "\u{0}core-gone";
 
 /// 找数据根、连核心：给了 `MIYU_CORE_BIN` 的，没在跑就拉起来；没给的只连（照 TUI 演示和 `miyu ask`）。
-async fn connect() -> Result<(DataRoot, Connected), String> {
+async fn connect() -> Result<Connected, String> {
     let env = Env::current();
     let root = DataRoot::locate(&env).map_err(|e| format!("找不到数据根：{e}"))?;
     root.prepare().map_err(|e| format!("建不了数据根：{e}"))?;
@@ -214,7 +206,7 @@ async fn connect() -> Result<(DataRoot, Connected), String> {
             e => format!("连不上核心：{e}"),
         })?,
     };
-    Ok((root, connected))
+    Ok(connected)
 }
 
 /// 桥是在哪个目录里起的：新会话在这里干活。报绝对路径，和 TUI 演示一样（核心收下 `~/…` 的写法，

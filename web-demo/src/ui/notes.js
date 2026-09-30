@@ -21,6 +21,8 @@ export function noteNode(it, where, markdown) {
   const line = h(`div.note-line.tone-${it.tone}`, it.mark ? h('span.note-mark', it.mark) : null, h('span.note-text', it.text));
   const node = h('div.note', line);
   if (!it.detail) return node;
+  // 右边的小箭头：悬停才露，点开以后一直露着、转成朝下（和时间线一个规矩）
+  line.append(h('span.tl-chevron', icon('chevron-right')));
   node.classList.add('is-expandable');
   line.setAttribute('role', 'button');
   line.setAttribute('tabindex', '0');
@@ -38,6 +40,12 @@ export function noteNode(it, where, markdown) {
     line.setAttribute('aria-expanded', String(open));
   };
   line.addEventListener('click', toggle);
+  // 点展开出来的那一块也收起：点的是链接、按钮、代码块，或者拖选了字的不算
+  inner.addEventListener('click', (e) => {
+    if (!node.classList.contains('is-open') || String(getSelection() ?? '')) return;
+    if (/** @type {Element} */ (e.target).closest('a, button, input, textarea, pre, .code-block')) return;
+    toggle();
+  });
   line.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     e.preventDefault();

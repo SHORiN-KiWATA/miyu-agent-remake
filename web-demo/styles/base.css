@@ -16,7 +16,9 @@
      思源黑体（Noto Sans CJK SC）。Inter 没装的机器上，原来西文直接用了思源黑体里的西文，又宽又软（2026-09-30 改） */
   /* 中日韩的字先用哪一个（下面的 @font-face）：日文界面换成日文的那一个（蓝图 web.md「界面语言」） */
   --cjk: "Miyu CJK Sans";
-  --sans: Inter, "Adwaita Sans", "Noto Sans", var(--cjk), "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  /* 中文里的弯引号、省略号、破折号先用中文的样子（下面的「Miyu CJK Punct」只包这几个字；蓝图 web.md「字」） */
+  --punct: "Miyu CJK Punct";
+  --sans: var(--punct), Inter, "Adwaita Sans", "Noto Sans", var(--cjk), "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   --serif: "Source Han Serif SC", "Noto Serif CJK SC", "Noto Serif SC", "Songti SC", "SimSun", Georgia, serif;
   /* 等宽：先项目主人终端里的 JetBrains Maple Mono，再常见的；它没有 ▣ ⏵ ⏸ 这几个记号，照终端的退法退到 DejaVu Sans Mono、
      Adwaita Mono，最后才是符号字体。中文不用等宽字体里的（一个字占两格，「只读」写出来像「只 读」）：排在最前面的
@@ -49,8 +51,24 @@
     local("Yu Gothic UI"), local("Meiryo");
   unicode-range: U+2E80-2FDF, U+3000-303F, U+3040-30FF, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FE30-FE4F, U+FF00-FFEF;
 }
+/* 中文里的弯引号 “ ” ‘ ’、省略号 …、破折号 —：Inter 也有这几个字，西文的样子窄、小、贴着基线，放在中文里看着怪；
+   只包这几个字，指到黑体，排在字体表最前面（蓝图 web.md「字」，2026-10-01 项目主人指出）。间隔用的 · 不在里面 */
+@font-face {
+  font-family: "Miyu CJK Punct";
+  src: local("Noto Sans CJK SC Regular"), local("NotoSansCJKsc-Regular"), local("Noto Sans SC Regular"), local("NotoSansSC-Regular"),
+    local("Source Han Sans SC Regular"), local("SourceHanSansSC-Regular"), local("Microsoft YaHei"), local("PingFang SC Regular");
+  unicode-range: U+2014-2015, U+2018-2019, U+201C-201D, U+2026;
+}
+@font-face {
+  font-family: "Miyu CJK Punct JP";
+  src: local("Noto Sans CJK JP Regular"), local("NotoSansCJKjp-Regular"), local("Noto Sans JP Regular"), local("NotoSansJP-Regular"),
+    local("Source Han Sans JP Regular"), local("SourceHanSansJP-Regular"), local("Hiragino Sans W3"), local("HiraginoSans-W3"),
+    local("Yu Gothic UI"), local("Meiryo");
+  unicode-range: U+2014-2015, U+2018-2019, U+201C-201D, U+2026;
+}
 :root:lang(ja) {
   --cjk: "Miyu CJK Sans JP";
+  --punct: "Miyu CJK Punct JP";
   --serif: "Source Han Serif JP", "Noto Serif CJK JP", "Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif;
 }
 

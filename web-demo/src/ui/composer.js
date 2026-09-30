@@ -31,6 +31,7 @@ import { wordAt, plan, pathText, dirWord, splice, failure } from '../model/menti
 import { blockLabel, expand, used, erase, pieces } from '../model/blocks.js';
 import { Recall } from '../model/history.js';
 import { show, hide, span } from '../lib/motion.js';
+import { isNewline, insertNewline } from '../lib/newline.js';
 
 /**
  * @typedef {{id: string, has: () => boolean, busy: () => boolean, take: () => Record<string, any>|null, putBack: (given: any) => void,
@@ -103,7 +104,9 @@ export class Composer {
     this.float = h('div.composer-float');
     /** 占着整个框的（挂载位 `composer.takeover`：确认和提问的抽屉）；有东西占着时框里原来的让出来（`takeover`） */
     this.takeoverEl = h('div.composer-takeover');
-    this.box = h('div.composer', this.notice, this.takeoverEl, this.head, h('div.composer-field', this.backdrop, this.input), this.bar = h('div.composer-bar', this.tools, this.sendButton), this.menu.el, this.picker.el, this.historyList.el, this.mention.el, this.float);
+    /** 跳到底部（蓝图「输入框」）：浮在框右上角，正文离底部远了才露；点了做什么由整页接（`onJump`） */
+    this.jumpButton = h('button.composer-jump', { type: 'button', hidden: true, title: t('jump_bottom'), 'aria-label': t('jump_bottom'), onclick: () => this.onJump?.() }, icon('arrow-down'));
+    this.box = h('div.composer', this.notice, this.jumpButton, this.takeoverEl, this.head, h('div.composer-field', this.backdrop, this.input), this.bar = h('div.composer-bar', this.tools, this.sendButton), this.menu.el, this.picker.el, this.historyList.el, this.mention.el, this.float);
     this.el = h('div.composer-dock', this.box, this.footer);
     this.parts = /** @type {{key: string, text: string}[]} */ ([]);
     /** 撤销时放回框里的那句：恢复时还没动过的收回去（`tui.md`「输入框」第 7 条）。 */
@@ -118,6 +121,13 @@ export class Composer {
   }
 
   focus() { this.input.focus(); }
+
+  /** 跳到底部的按钮露不露（出来、收起照「动效」）。 @param {boolean} on */
+  showJump(on) {
+    if (on === !this.jumpButton.hidden && !this.jumpButton.classList.contains('is-leaving')) return;
+    if (on) show(this.jumpButton);
+    else hide(this.jumpButton);
+  }
 
   /**
    * 挂载位 `composer.takeover` 占不占着框（蓝图「确认和提问」第 2 条）：占着时框里原来的（附件那一排、写字的地方、下面一排）
@@ -298,6 +308,12 @@ export class Composer {
 
   key(ev) {
     if (ev.isComposing || ev.keyCode === 229) return;
+    // Ctrl+J 换行（照 TUI；Shift+Enter 由框自己换）
+    if (ev.ctrlKey && isNewline(ev)) {
+      ev.preventDefault();
+      insertNewline(this.input);
+      return;
+    }
     if (this.mention.key(ev)) return;
     if (this.menu.key(ev)) return;
     // ↑ ↓：翻输入历史；不接的归浏览器挪光标
@@ -574,6 +590,10 @@ export class Composer {
     // 中间有按钮的（后台任务），它和两边各隔一个 `footer_gap`，右边先让
     const middle = this.middle.offsetWidth;
     const room = this.footer.clientWidth - this.left.scrollWidth - res.layout.footer_gap - (middle ? middle + res.layout.footer_gap : 0);
+    // 字和地方都没变：不再写一遍、量一遍（每画一次都量，一写一量逼着整页重排，收长思考时很费，蓝图「性能」）
+    const sig = `${room}|${this.parts.map((p) => p.text).join('\n')}`;
+    if (sig === this.rightSig) return;
+    this.rightSig = sig;
     const measure = (parts) => {
       this.right.textContent = parts.map((p) => p.text).join(' · ');
       return this.right.offsetWidth;

@@ -90,6 +90,8 @@
 .tl-chevron .icon { width: 11px; height: 11px; }
 .tl-summary:hover > .tl-chevron, .tl-step:hover > .tl-row .tl-chevron { opacity: 0.8; }
 .tl-step.is-open .tl-chevron { transform: rotate(90deg); }
+/* 点开以后箭头一直露着（不悬停也看得出开着、能收；2026-10-01 项目主人） */
+.tl-step.is-open > .tl-row .tl-chevron, .tl-segment.is-open > .tl-summary > .tl-chevron { opacity: 0.8; }
 .tl-window {
   cursor: pointer; display: flex; flex-direction: column; justify-content: flex-end; max-height: calc(var(--tl-rows) * 1.75em);
   margin: 2px 8px 2px 0; padding-left: var(--tl-indent); overflow: hidden;
@@ -99,6 +101,8 @@
   margin: 0 8px 6px var(--tl-indent); color: var(--tl-think); font-size: 12px; font-weight: 400; line-height: 1.75;
   white-space: pre-wrap; overflow-wrap: anywhere; cursor: pointer; transition: color 0.15s ease;
 }
+/* 点开的思考全文一行一块（只往最后一行接字，前面的不重排）：空行也占一行高 */
+.tl-think-line { min-height: 1.75em; }
 .tl-window { transition: color 0.15s ease; }
 .tl-window:hover, .tl-thought-body:hover { color: var(--tl-think-hi); }
 

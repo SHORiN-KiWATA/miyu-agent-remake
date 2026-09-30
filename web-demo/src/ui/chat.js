@@ -13,6 +13,7 @@ import { richHooks } from './rich.js';
 import { Follow } from './follow.js';
 import { userNode, endNode } from './said.js';
 import { noteNode } from './notes.js';
+import { CompactingRow } from './compacting.js';
 import { group } from '../model/group.js';
 
 export class Chat {
@@ -36,7 +37,11 @@ export class Chat {
     this.list = h('div.timeline');
     /** 正文末尾、最后一轮下面（挂载位 `chat.tail`：确认和提问了结以后留的）：一直是正文那一列的最后一个，画的时候不动它 */
     this.tail = h('div.chat-tail');
-    this.list.append(this.tail);
+    /** 压缩的进度那一行（`compacting.js`）：正文末尾、`chat.tail` 前面，一直是同一个节点 */
+    this.compacting = new CompactingRow((session) => on.compacted?.(session));
+    /** 钉在某一块后面的节点（确认和提问了结以后留的，`anchor`）：块的编号 → 节点，照钉的先后；`''` 是还没有块时钉在最前面 */
+    this.anchored = /** @type {Map<string, HTMLElement[]>} */ (new Map());
+    this.list.append(this.compacting.el, this.tail);
     /** 内容变短时垫在底下的空白（见开头）。 */
     this.spacer = h('div.chat-spacer');
     this.el = h('div.chat-scroll', this.list, this.spacer);
@@ -65,16 +70,60 @@ export class Chat {
     this.markdown = { say: this.say, hooks: richHooks(this.where, this.say, this.ext) };
   }
 
+  /** 压缩的进度：照这个会话在压的样子画（蓝图「压缩的进度」）。 @param {any} state @param {string|null} session */
+  setCompacting(state, session) {
+    this.compacting.update(state, session);
+  }
+
+  /** 离底部多远（CSS 像素）：跳到底部的按钮照它露不露。 */
+  distanceToBottom() {
+    return this.el.scrollHeight - this.el.scrollTop - this.el.clientHeight - this.spacer.offsetHeight;
+  }
+
   /** 正文末尾（`chat.tail`）来了新的：回到跟着最新的，露出它（确认和提问刚了结，蓝图「确认和提问」第 6 条）。 */
   reveal() {
     this.scroll.toLatest();
     this.scroll.anchor();
   }
 
+  /**
+   * 钉一个节点在这时正文里最后一块的后面（确认和提问了结以后留的，蓝图「确认和提问」第 6 条）：之后的块接在它下面，不再一直在最下面。
+   * 交回钉在哪（换了会话回来时照它 `place`）。
+   * @param {HTMLElement} node
+   */
+  anchor(node) {
+    const blocks = [...this.list.children].filter((el) => el instanceof HTMLElement && el.dataset.block);
+    const key = /** @type {HTMLElement|undefined} */ (blocks.at(-1))?.dataset.block ?? '';
+    this.place(key, node);
+    return key;
+  }
+
+  /** 照 `anchor` 交回的位置钉：那一块画出来了就当场挪过去，没画的等画的时候。 @param {string} key @param {HTMLElement} node */
+  place(key, node) {
+    const list = this.anchored.get(key) ?? [];
+    if (!list.includes(node)) list.push(node);
+    this.anchored.set(key, list);
+    const rec = key ? this.blocks.get(key) : null;
+    if (key && !rec) return;
+    this.placeAnchored(key, rec ? rec.node : null);
+  }
+
+  /** 钉在这一块后面的，接在 `after` 后面（`null` 是最前面），交回最后一个。 */
+  placeAnchored(key, after) {
+    let prev = after;
+    for (const node of this.anchored.get(key) ?? []) {
+      const want = prev ? prev.nextSibling : this.list.firstChild;
+      if (want !== node) this.list.insertBefore(node, want);
+      prev = node;
+    }
+    return prev;
+  }
+
   /** 换了会话：从头排，跟着最新的；点过的展开收起跟着节点一起扔掉（编号照回合，别的会话也有）。 */
   reset() {
     this.blocks.clear();
-    this.list.replaceChildren(this.tail);
+    this.anchored.clear();
+    this.list.replaceChildren(this.compacting.el, this.tail);
     this.scroll.toLatest(true);
     this.settled = false;
   }
@@ -84,7 +133,7 @@ export class Chat {
     if (!this.last) return;
     const top = this.el.scrollTop;
     this.blocks.clear();
-    this.list.replaceChildren(this.tail);
+    this.list.replaceChildren(this.compacting.el, this.tail);
     this.markdown = { say: this.say, hooks: richHooks(this.where, this.say, this.ext) };
     this.settled = false;
     this.render(this.last);
@@ -129,7 +178,8 @@ export class Chat {
   render(items) {
     this.last = items;
     const keep = new Set();
-    let prev = null;
+    // 还没有块时钉的（`anchor` 的 `''`）排在最前面
+    let prev = this.placeAnchored('', null);
     const last = items.at(-1);
     // 最新的一轮：编辑、重做只有它有；不是你开的（子代理的会话里派它的会话发来的、别人说的）没有（核心只重做人开的那一轮）
     const opener = items.findLast((it) => it.type === 'user');
@@ -159,6 +209,7 @@ export class Chat {
       const want = prev ? prev.nextSibling : this.list.firstChild;
       if (want !== node) this.list.insertBefore(node, want);
       prev = node;
+      prev = this.placeAnchored(block.key, prev);
     }
     for (const [key, rec] of this.blocks) {
       if (keep.has(key)) continue;
@@ -192,6 +243,8 @@ export class Chat {
         ? userNode(block.item, this.on, { session: this.where.session, lightbox: this.ext.lightbox, mine: this.mine(block.item), titleOf: this.ext.titleOf })
         : block.kind === 'note' ? noteNode(block.item, this.where, this.markdown) : herNode(!!block.cont);
       rec?.node.replaceWith(node);
+      // 记下这是哪一块：钉在它后面的照它找（`anchor`）
+      node.dataset.block = block.key;
       rec = { node, content: node.querySelector('.assistant-content'), sig, items: new Map() };
       this.blocks.set(block.key, rec);
     }

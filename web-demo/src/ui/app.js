@@ -21,6 +21,7 @@ import { Artifacts } from './artifacts.js';
 import { runCommand, refusalText, redo, copyTurn, Commands } from './commands.js';
 import { project } from '../model/transcript.js';
 import { withRecaps } from '../model/notes.js';
+import { rank } from '../model/session.js';
 import { footer, levelLabel, nextLevel, levelParams } from '../model/footer.js';
 import { levelOf } from '../model/transcript.js';
 import { copy } from '../markdown/build.js';
@@ -75,6 +76,14 @@ export class App {
           this.composer.say(refusalText(err));
         }
       },
+      // 置顶、取消置顶（`session.set_meta` 的 `pinned`）：成了照推来的 session.meta_changed 画、重排
+      pin: async (id, on) => {
+        try {
+          await this.store.conn.request('session.set_meta', { session: id, pinned: on });
+        } catch (err) {
+          this.composer.say(refusalText(err));
+        }
+      },
       dropped: (id) => {
         // 它下面的子代理的会话跟着它一起没了（核心删父会话连子会话一起挪进回收处）
         const kids = this.descendants(id);
@@ -82,7 +91,7 @@ export class App {
         for (const kid of kids) this.store.drop(kid);
         this.store.drop(id);
         // 正在看的被删了：开会话表里下一个还在的（一起删的几个里还没收完的跳过）
-        if (this.current === id) this.open(this.store.order.find((x) => !this.store.sessions.get(x)?.gone) ?? null);
+        if (this.current === id) this.open(this.ranked().find((x) => !this.store.sessions.get(x)?.gone) ?? null);
       },
       // 查看全部：全部会话那一页
       viewAll: () => this.sessionsPage.open(),
@@ -120,6 +129,8 @@ export class App {
       // 打断那一轮后面那一句：打开后台任务的浮层（软件包 jobs 听这个事件）
       openJobs: () => this.ctx.emit('jobs.open'),
       openSession: (id) => this.open(id),
+      // 压缩的进度条走满了：进度那一行收掉，结果那一行露出来（蓝图「压缩的进度」第 5 条）
+      compacted: (session) => { if (session) this.store.finishCompaction(session); },
     }, this.ext);
     ctx.slots.watch('markdown.code', () => this.chat.redraw());
     /** 斜杠命令：出厂的一份加软件包登记的（服务 `commands`） */
@@ -186,6 +197,7 @@ export class App {
     this.sessionsPage = new SessionsPage({
       list: async () => (await this.store.conn.request('session.list', {})).sessions ?? [],
       titleOf: (id) => (this.store.sessions.has(id) ? this.store.summary(id).title : null),
+      active: (id) => (this.store.sessions.has(id) ? this.store.summary(id).active : null),
       running: (id) => (this.store.sessions.has(id) ? this.store.summary(id).running : false),
       jobs: (id) => runningDeep(id, (sid) => this.store.sessions.get(sid)?.events ?? null),
       agents: (id) => this.descendants(id).length,
@@ -212,6 +224,14 @@ export class App {
     this.artifacts = new Artifacts(conn, this.root, (text, good) => this.composer.say(text, good), () => this.schedule(), this.ext);
     this.root.append(this.artifacts.el);
     this.composer.sendButton.before(this.artifacts.toggle);
+    // 跳到底部（蓝图「输入框」）：正文离底部远了才露；点了回到最底下、接着跟着最新的
+    const syncJump = () => this.composer.showJump(this.chat.distanceToBottom() > res.layout.jump_after);
+    this.chat.el.addEventListener('scroll', syncJump, { passive: true });
+    this.composer.onJump = () => {
+      this.chat.reveal();
+      syncJump();
+    };
+    this.syncJump = syncJump;
     conn.onStatus((s) => this.sidebar.setStatus(s));
     store.on(() => this.schedule());
     addEventListener('resize', () => this.schedule());
@@ -227,7 +247,7 @@ export class App {
   mount(el) {
     el.replaceChildren(this.root);
     this.sidebar.setStatus('online');
-    this.open(this.store.order[0] ?? null);
+    this.open(this.ranked()[0] ?? null);
     this.composer.changed();
     this.composer.focus();
   }
@@ -239,6 +259,11 @@ export class App {
     if (list.some((r) => r.after === after && r.text === text)) return;
     this.recapsAgain.set(session, [...list, { after, text }]);
     this.schedule();
+  }
+
+  /** 左栏的先后（`model/session.js` 的 `rank`）：置顶的在最前，别的照最近活动。 */
+  ranked() {
+    return rank(this.store.order.map((id) => this.store.summary(id))).map((x) => x.session);
   }
 
   schedule() {
@@ -451,17 +476,22 @@ export class App {
   render() {
     const s = this.current ? this.store.sessions.get(this.current) : null;
     const events = s?.events ?? [];
-    this.sidebar.render(this.store.order.map((id) => this.store.summary(id)), this.current);
+    this.sidebar.render(rank(this.store.order.map((id) => this.store.summary(id))), this.current);
     this.sessionsPage?.refresh();
     const path = this.current ? pathOf(this.current, (id) => this.parentOf(id)).map((id) => ({ session: id, title: this.titleOf(id) })) : [];
     this.crumbs.draw(path);
     this.back?.draw(path.length > 1 ? path[path.length - 2] : null);
     // 回答里的本机地址、结果里的图照这个会话取（工作目录照 `session.created`）
     this.chat.setWhere(this.current, events.find((e) => e.kind === 'session.created')?.body.cwd ?? null);
-    const view = project(withRecaps(events, this.recapsAgain.get(this.current ?? '') ?? []), s?.live ?? null, s?.marks);
+    const view = project(withRecaps(events, this.recapsAgain.get(this.current ?? '') ?? []), s?.live ?? null, s?.marks, s?.compactStats);
+    // 压好了、进度条还没走满：落了盘的那一行先不画（蓝图「压缩的进度」第 5 条）
+    const hold = s?.compacting?.note;
+    if (hold != null) view.items = view.items.filter((it) => it.seq !== hold);
+    this.chat.setCompacting(s?.compacting ?? null, this.current);
     // 先照空不空摆好输入框（居中时对话区没有高度），再画对话：不然第一句话照 0 高算停在哪，被顶到视口上面
     this.centerIfEmpty(view.items.length === 0);
     this.chat.render(view.items);
+    this.syncJump?.();
     this.composer.setRunning(!!view.running);
     this.chat.setRunning(!!view.running);
     // 对话区画了一次：照它画的软件包（运行状态行这类）听这个事件

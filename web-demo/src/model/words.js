@@ -83,7 +83,10 @@ export function row(step, home) {
  * 打头写 `…`；截在一个英文词中间的，那半个词不要，不然开头是 `hat to be` 这样的半截。
  */
 export function peek(step) {
-  const text = step.kind === 'thought' ? step.text.replace(/\s+/g, ' ').trim() : '';
+  // 只看末尾那一截（够写满还富余）：想得长的，不必每来一段字就把全文扫一遍（蓝图「性能」）
+  const room0 = res.timeline.peek_chars;
+  const raw = step.kind === 'thought' ? step.text : '';
+  const text = (raw.length > room0 * 4 ? raw.slice(-room0 * 4) : raw).replace(/\s+/g, ' ').trim();
   const room = res.timeline.peek_chars;
   if (text.length <= room) return text;
   const from = text.length - room + 1;
@@ -124,7 +127,10 @@ export function messagePeek(step) {
 /** 在想、收着的时候那一行下面滚着显示的：最后 `thinking_rows` 行，首尾的空行不算。 */
 export function thinkingTail(step) {
   const text = step.kind === 'thought' ? step.text.trim() : '';
-  return text.split('\n').slice(-res.timeline.thinking_rows).join('\n');
+  // 从末尾往回数几个换行：不把全文切开（想得长的，每来一段字都切一遍很费）
+  let at = text.length;
+  for (let n = 0; n < res.timeline.thinking_rows && at > 0; n++) at = text.lastIndexOf('\n', at - 1);
+  return at > 0 ? text.slice(at + 1) : text;
 }
 
 /**

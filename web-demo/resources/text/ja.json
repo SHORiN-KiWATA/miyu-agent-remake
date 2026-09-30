@@ -28,7 +28,10 @@
     "kids": "({count})",
     "view_all": "すべて表示",
     "all_sessions": "すべてのセッションを表示",
-    "paused": "中断済み・入力待ち"
+    "paused": "中断済み・入力待ち",
+    "pin": "ピン留め",
+    "unpin": "ピン留めを外す",
+    "pinned": "ピン留め"
   },
   "crumbs": {
     "label": "サブエージェントのセッションの位置",
@@ -319,7 +322,11 @@
     "output_label": "出力",
     "parent_speaker": "派遣元のセッション",
     "other_session": "別のセッション",
-    "recap": "振り返り"
+    "recap": "振り返り",
+    "compact_failed": "圧縮に失敗しました：{reason}",
+    "compacted_stats": "コンテキストを圧縮しました：{before} → {after} トークン",
+    "compacting": "コンテキストを圧縮しています",
+    "compacting_count": "{count} 字"
   },
   "ago": {
     "now": "たった今",
@@ -340,5 +347,11 @@
     "no_match": "見つかりません",
     "jobs": "バックグラウンドタスク {count} 件",
     "agents": "サブエージェント {count} 件"
-  }
+  },
+  "turn_end": {
+    "restarted": "再起動しました",
+    "aborted": "前回このターンの途中でコアが落ちました",
+    "step_limit": "リクエスト回数の上限に達しました"
+  },
+  "jump_bottom": "一番下へ"
 }

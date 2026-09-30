@@ -17,7 +17,7 @@ import { res, t } from '../util/res.js';
 import { short, hitRate, seconds, hhmm } from './format.js';
 import { text, attachments } from './session.js';
 import { Timeline } from './timeline.js';
-import { noteJobs, speakerOf, reportNote, compactedNote, failureText, recapNote } from './notes.js';
+import { noteJobs, speakerOf, reportNote, compactedNote, failureText, recapNote, compactFailedNote } from './notes.js';
 import { tasksOf, running as runningJobs } from '../lib/jobs.js';
 
 /** 权限：只读开着是只读，关着照常用的那一级（`kernel/events-bodies.md`「权限」）。 */
@@ -28,8 +28,9 @@ export const levelOf = (p) => (p?.read_only ? 'read_only' : p?.level ?? 'workspa
  * @param {{turn: number, seen: number, blocks: import('./timeline.js').Block[]}|null} [live]
  *   在收的那一次回复：瞬时的 `model.delta` 攒起来的（`core/store.js`）
  * @param {Map<string, {start: number, end: number|null}>} [marks] 看着流出来时记下的每一块的时刻（`core/store.js`）
+ * @param {Map<number, {before: number, after: number}>} [stats] 看着压好的那几次压缩的前后用量，照落了盘的那一条的序号（`core/store.js`）
  */
-export function project(events, live = null, marks = new Map()) {
+export function project(events, live = null, marks = new Map(), stats = new Map()) {
   /** @type {any[]} */
   const items = [];
   const turns = new Map();
@@ -125,7 +126,7 @@ export function project(events, live = null, marks = new Map()) {
         items.push(reportNote(e, jobs));
         break;
       case 'context.compacted': {
-        const note = compactedNote(e);
+        const note = compactedNote(e, stats.get(e.seq) ?? null);
         items.push(note);
         if (turns.has(e.turn)) turns.get(e.turn).note = note;
         break;
@@ -133,6 +134,11 @@ export function project(events, live = null, marks = new Map()) {
       case 'model.called':
         // 回顾这类辅助请求（带 `purpose`）不属于哪一轮，也不对上时间线的思考
         if (b.purpose) break;
+        // 压缩没压成：红色实心圆点一行；手动压缩那一轮不另起「出错了」的收尾行（蓝图「压缩的进度」第 6 条）
+        if (b.compaction && b.result === 'error') {
+          items.push(compactFailedNote(e));
+          if (turns.has(e.turn)) turns.get(e.turn).compactFailed = true;
+        }
         turns.get(e.turn)?.calls.push(b);
         timeline.called(e);
         break;
@@ -145,6 +151,7 @@ export function project(events, live = null, marks = new Map()) {
         if (!turn) break;
         turn.ended = true;
         timeline.end(e.turn, Date.parse(e.at));
+        if (turn.manual && turn.compactFailed) break;
         // 压好了、清空了的那一轮：不另起收尾行；手动压缩的用时和用量接在那一行后面
         if (turn.manual && turn.note && b.reason === 'completed') {
           if (turn.note.compaction !== 'clear') turn.note.text += ` · ${seconds(Date.parse(e.at) - Date.parse(turn.start))}${usageText(turn.calls)}`;
@@ -213,7 +220,11 @@ function doneItem(e, turn) {
     const failure = [...turn.calls].reverse().find((c) => c.error)?.error ?? { class: 'other', message: '' };
     return { ...base, tone: 'error', text: t('failed', { message: failureText(failure) }) };
   }
-  if (reason !== 'completed') return { ...base, text: reason };
+  // 别的原因（重启、崩了、到了次数上限）：和被打断一样，图标加界面语言的字；不认识的照原样（蓝图「收尾那一行的数」）
+  if (reason !== 'completed') {
+    const said = res.text.turn_end?.[reason];
+    return { ...base, text: said ? icon(turn.level) + said : reason };
+  }
   const by = turn.by ?? [...turn.calls].reverse().find((c) => c.model) ?? {};
   const elapsed = seconds(Date.parse(e.at) - Date.parse(turn.start));
   const head = t('done', { time: hhmm(e.at), endpoint: by.endpoint ?? '', model: by.model ?? '', elapsed });

@@ -8,7 +8,7 @@
 //!   （设计 21 X6 的一次性登录链接，演示里简化成这一次启动有效）；
 //! - 核对 Origin，别的网站连不进来（04 第二节「各平台的坑」）；
 //! - 握手时替页面出示本机令牌：浏览器读不到本机令牌，也不该读到（11 第五节）；
-//! - 核心还没有 `events.read`，桥读会话日志顶替它（只读，照 `miyu-store` 的 `read_events`）。
+//! - 读历史用核心的订阅补发（`subscribe` 的 `after`）；桥只在给 blob 时只读地读一下会话日志，确认它在这个会话里（`history.rs`）。
 //! - 页面读不到本机的资源目录：给人看的字由桥照 `MIYU_RESOURCES` 读好，经 `web.human` 给（`human.rs`）；
 //! - mermaid 图由桥画成 SVG，经 `web.mermaid` 给（`mermaid.rs`），核心的网页模块做出来以后搬过去；
 //! - 本机文件、blob 经 `/file`、`/blob` 给（`media.rs`），带口令，数据根不给。

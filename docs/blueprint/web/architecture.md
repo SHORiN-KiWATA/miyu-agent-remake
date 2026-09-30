@@ -42,7 +42,7 @@ flowchart TB
 | 页面从哪来 | 桥（以后是核心的网页模块，设计 21 X5）经 HTTP 给 | 打进应用里，Tauri 照目录直接给（`frontendDist`）；不用构建，ES 模块、动态加载软件包照旧 |
 | 连核心 | 页面开一条 WebSocket 到桥，桥转到核心的本机套接字、握手时出示本机令牌 | 外壳（Rust）连核心的本机套接字、出示本机令牌，页面经 Tauri 的进程间通道收发，一行一条 |
 | 证明是你 | 链接 `#k=` 的访问口令（设计 21 X6） | 不要：通道只在这个进程里 |
-| 头这边顶替的查询（`web.*`、`events.read`） | 桥 | 外壳，和桥同一份 Rust 代码（下面「宿主怎么搬」第 3 步）；核心有了 `link.preview`、`view.detail` 这些以后两边都不用顶 |
+| 头这边顶替的查询（`web.*`；`events.read` 2026-10-01 起不顶了，用核心的订阅补发） | 桥 | 外壳，和桥同一份 Rust 代码（下面「宿主怎么搬」第 3 步）；核心有了 `link.preview`、`view.detail` 这些以后两边都不用顶 |
 
 **宿主交出的**（服务 `host`，一个平台一份实现；左边一列是页面用的名字）：
 
@@ -75,7 +75,7 @@ flowchart TB
 
 1. 蓝图（这一节）。
 2. （做完了，2026-09-30）建 `src/host/browser.js`，把上表浏览器那一列收进去：连核心的线和口令、地址、上传、选文件、拖放、缩略图、外链、剪贴板。内核照它起服务 `host`（原来的服务 `bridge` 并进来：起桥的目录、家目录）；附件、灯箱、mermaid、复制改走它。加测试：`src/host/` 以外不碰平台的 API。
-3. 桥拆成两半：和传输无关的（`web.*`、`events.read`、本机文件和 blob 的规矩、收附件、链接卡片）做成一个库，HTTP、WebSocket 那一层是它的一个外壳；桌面端的外壳用同一个库。
+3. 桥拆成两半：和传输无关的（`web.*`、本机文件和 blob 的规矩、收附件、链接卡片）做成一个库，HTTP、WebSocket 那一层是它的一个外壳；桌面端的外壳用同一个库。
 4. 真做桌面端时：加 `src/host/tauri.js` 和 `desktop/`（Tauri 的外壳：连核心、自定义协议、对话框、拖放；标题栏是一个软件包）。页面、内核、软件包不动。
 
 ### 多用户、多终端
@@ -200,10 +200,10 @@ flowchart TB
 | `pulse` | 可选 | `slots` | — | — | `composer.above`（order 20） | `sweep_seconds`、`dim`、`lift`、`dot_mark`、`dot_count`、`tick_ms`、`words`（json） |
 | `attachments` | 可选 | `slots`、`core`、`host`、`composer` | — | — | `composer.bar`、`composer.head`、`composer.payload`；拖文件进来的那一层盖在整页上（挂在 `body` 上，和灯箱一样） | `max_files`、`max_mib`、`count_lines_max` |
 | `jobs` | 可选 | `slots`、`core`、`sessions`、`chat`、`composer` | — | — | `composer.footer`、`composer.float` | `tick_ms` |
-| `asking` | 可选 | `slots`、`commands`、`chat`、`composer` | — | — | `composer.takeover`、`chat.tail` | `max_vh`、`preview_min_width`、`esc_window_ms`；登记 `/demo-ask`、`/demo-approve` |
+| `asking` | 可选 | `slots`、`commands`、`chat`、`composer` | — | — | `composer.takeover`；结果照服务 `chat` 的 `anchor` 钉在答的那一刻 | `max_vh`、`preview_min_width`、`esc_window_ms`；登记 `/demo-ask`、`/demo-approve` |
 | `mascot` | 可选 | `slots`、`composer`、`chat`、`sessions` | — | — | —（整页最前面一层，挂在 `body` 上，和灯箱一样；台子照输入框、命令列表、后台任务浮层量） | 模型的数（形状、脸、灯光）、`pixel`、`cols`、`rows`、平常站在哪、重力、落地、被带着走、拖、待机、走动、跳、动作、手里的东西的像素图（模型照 TUI 的 `mascot.json`） |
 
-服务 `chat`：`current()` 正在看的会话、`scroller` 对话区滚的那一层、`list` 正文那一列、`onPrompts(fn)` 你说的话（先给现在的一份，以后每画一次给一份）、`open(id)` 看另一个会话（子代理的会话第一次看时才读）、`running()` 正在看的会话在不在回答、`home()` 家目录、`interrupt()` 打断正在看的会话（照两下 `Esc`）、`reveal()` 正文末尾（`chat.tail`）来了新的，回到跟着最新的、露出它。服务 `markdown`：`codeBlock`、`copy`。服务 `lightbox`：`open({url, name, workspace, vector})`。服务 `theme`：`current()`、`dark()`、`next()`。服务 `commands`：`register(规格, 做法)`（跟着登记的包撤回）、`list()`。事件：`view.changed`（对话区画了一次：`{session, running, events, live, retry, queued}`）、`session.opened`（看哪个会话，`null` 是还没开的新会话）、`session.created`（`{from, to}`：新会话第一句话发出去、会话开了）、`theme.changed`。挂载位 `markdown.code` 的一件：`render({text, say})` 交回一个节点；挂的变了，回答整个重画，滚到哪留着。服务 `composer`：`say(字, 好消息)` 提示一句、`changed()` 跟着发的东西变了（发送按钮重看一遍）、`input` 写字的那个框、`focus()`、`takeover(开不开)` 挂载位 `composer.takeover` 占不占着框（框的高度缓过去，收回时焦点回到写字的地方）。挂载位 `composer.payload` 的一件不画：`has()` 有没有要跟着发的、`busy()` 还在准备（这时不能发）、`take()` 交出来并清掉（`{attachments: […]}` 这样的一块，合进 `session.send` 的参数）、`putBack(交出去的)` 核心拒了，放回来。
+服务 `chat`：`current()` 正在看的会话、`scroller` 对话区滚的那一层、`list` 正文那一列、`onPrompts(fn)` 你说的话（先给现在的一份，以后每画一次给一份）、`open(id)` 看另一个会话（子代理的会话第一次看时才读）、`running()` 正在看的会话在不在回答、`home()` 家目录、`interrupt()` 打断正在看的会话（照两下 `Esc`）、`reveal()` 正文末尾（`chat.tail`）来了新的，回到跟着最新的、露出它、`anchor(node)` 把一个节点钉在这时正文里最后一块的后面（交回钉在哪，之后的接在它下面）、`place(where, node)` 照交回的位置再钉一次（换了会话回来）。服务 `markdown`：`codeBlock`、`copy`。服务 `lightbox`：`open({url, name, workspace, vector})`。服务 `theme`：`current()`、`dark()`、`next()`。服务 `commands`：`register(规格, 做法)`（跟着登记的包撤回）、`list()`。事件：`view.changed`（对话区画了一次：`{session, running, events, live, retry, queued}`）、`session.opened`（看哪个会话，`null` 是还没开的新会话）、`session.created`（`{from, to}`：新会话第一句话发出去、会话开了）、`theme.changed`。挂载位 `markdown.code` 的一件：`render({text, say})` 交回一个节点；挂的变了，回答整个重画，滚到哪留着。服务 `composer`：`say(字, 好消息)` 提示一句、`changed()` 跟着发的东西变了（发送按钮重看一遍）、`input` 写字的那个框、`focus()`、`takeover(开不开)` 挂载位 `composer.takeover` 占不占着框（框的高度缓过去，收回时焦点回到写字的地方）。挂载位 `composer.payload` 的一件不画：`has()` 有没有要跟着发的、`busy()` 还在准备（这时不能发）、`take()` 交出来并清掉（`{attachments: […]}` 这样的一块，合进 `session.send` 的参数）、`putBack(交出去的)` 核心拒了，放回来。
 
 还在 `app` 里的：人格、媒体卡片、链接卡片、公式、代码高亮、预览工作区、斜杠命令、消息的按钮、左栏的临时浮出，和基础系统本身（页面骨架、对话区、输入框、左栏、时间线、Markdown）。你的话里的附件由基础系统画（停用了 `attachments`，读回来的附件照样看得到）。
 

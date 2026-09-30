@@ -28,7 +28,10 @@
     "kids": "({count})",
     "view_all": "查看全部",
     "all_sessions": "查看全部会话",
-    "paused": "已打断，等你说话"
+    "paused": "已打断，等你说话",
+    "pin": "置顶",
+    "unpin": "取消置顶",
+    "pinned": "置顶"
   },
   "crumbs": {
     "label": "子代理的会话在哪",
@@ -319,7 +322,11 @@
     "output_label": "输出",
     "parent_speaker": "派它的会话",
     "other_session": "另一个会话",
-    "recap": "回顾"
+    "recap": "回顾",
+    "compact_failed": "压缩失败：{reason}",
+    "compacted_stats": "上下文已压缩：{before} → {after} token",
+    "compacting": "正在压缩上下文",
+    "compacting_count": "{count} 字"
   },
   "ago": {
     "now": "刚才",
@@ -340,5 +347,11 @@
     "no_match": "没有找到",
     "jobs": "{count} 个后台任务",
     "agents": "{count} 个子代理"
-  }
+  },
+  "turn_end": {
+    "restarted": "已重启",
+    "aborted": "核心上次在这一轮崩了，没做完",
+    "step_limit": "请求次数到了上限，停了"
+  },
+  "jump_bottom": "回到最底下"
 }

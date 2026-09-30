@@ -27,7 +27,7 @@ import { treeRows, capTops } from '../model/tree.js';
 /**
  * @typedef {{session: string, title: string|null, running: boolean, unread: boolean}} Item
  * @typedef {{newSession: () => void, open: (id: string) => void, collapse: () => void, close: () => void,
- *   rename: (id: string, title: string) => Promise<void>, removeMany: (ids: string[]) => Promise<string[]>, dropped: (id: string) => void,
+ *   rename: (id: string, title: string) => Promise<void>, pin: (id: string, on: boolean) => Promise<void>, removeMany: (ids: string[]) => Promise<string[]>, dropped: (id: string) => void,
  *   kids: (id: string) => {session: string, title: string|null, running: boolean, paused?: boolean}[], viewAll: () => void,
  *   shown: (ids: string[]) => void,
  *   theme: () => void, dark: () => boolean, copyId: (id: string) => void, notYet: (name: string) => void}} Handlers
@@ -58,6 +58,9 @@ export class Sidebar {
     this.themeButton = h('button.icon-button', { type: 'button', onclick: on.theme });
     this.groupTitle = h('span', t('sidebar.sessions'));
     this.groupTools = h('span.session-group-tools');
+    /** 「会话」那一行、「置顶」那一栏的头：画在会话表里（和会话的行一起排，挪动时一起滑，蓝图「左栏」组头） */
+    this.groupHeader = h('div.session-group-header', { dataset: { key: 'group:sessions' } }, icon('message-circle'), this.groupTitle, this.groupTools);
+    this.pinnedHeader = h('div.session-group-header.is-pinned', { dataset: { key: 'group:pinned' } }, icon('pin'), h('span', t('sidebar.pinned')));
     const p = res.persona;
     this.el = h('aside.sidebar',
       h('header.brand-row',
@@ -67,9 +70,7 @@ export class Sidebar {
         h('button.new-chat-button', { type: 'button', title: t('sidebar.new_session'), onclick: on.newSession }, icon('square-pen')),
         h('button.icon-button.sidebar-collapse-button', { type: 'button', title: t('sidebar.collapse'), onclick: on.collapse }, icon('panel-left-close')),
         h('button.icon-button.sidebar-close', { type: 'button', title: t('sidebar.collapse'), onclick: on.close }, icon('x'))),
-      h('nav.session-list',
-        h('div.session-group-header', icon('message-circle'), this.groupTitle, this.groupTools),
-        h('div.session-track', this.pill, this.items)),
+      h('nav.session-list', h('div.session-track', this.pill, this.items)),
       h('footer.sidebar-footer', h('div.sidebar-actions', this.themeButton)));
     this.timer = 0;
     /** 开着菜单的那个会话；没开是 `null`。 */
@@ -130,21 +131,31 @@ export class Sidebar {
   render(items, current) {
     this.last = [items, current];
     const kept = items.filter((it) => !this.removing.has(it.session));
-    // 顶层最多露几个，正在看的不在里面的排在最后照样露（多选时全列，才勾得到）
-    const cap = this.selecting ? { shown: kept, more: false } : capTops(kept, current, res.layout.sidebar_rows);
-    const tops = cap.shown;
+    // 置顶的单开一栏、全部露出（多选时不分栏）；别的顶层最多露几个，正在看的不在里面的排在最后照样露（多选时全列，才勾得到）
+    const pinned = this.selecting ? [] : kept.filter((it) => it.pinned);
+    const rest = this.selecting ? kept : kept.filter((it) => !it.pinned);
+    const cap = this.selecting ? { shown: rest, more: false } : capTops(rest, pinned.some((it) => it.session === current) ? null : current, res.layout.sidebar_rows);
+    const tops = [...pinned, ...cap.shown];
     if (this.menuFor && !tops.some((it) => it.session === this.menuFor)) this.menuFor = null;
     // 别处删掉了的不再勾着
     for (const id of [...this.selected]) if (!tops.some((it) => it.session === id)) this.selected.delete(id);
     // 多选时只列顶层的；平常照树排
+    const tree = (list) => treeRows(list, (id) => this.on.kids(id), { current, open: this.openTree, done: this.doneOpen });
+    const pinnedRows = pinned.length ? tree(pinned) : [];
     const rows = this.selecting
       ? tops.map((it) => ({ kind: /** @type {const} */ ('session'), session: it.session, depth: 0, item: it, hasKids: false, open: false }))
-      : treeRows(tops, (id) => this.on.kids(id), { current, open: this.openTree, done: this.doneOpen });
+      : [...pinnedRows, ...tree(cap.shown)];
     const sig = JSON.stringify([rows, current, this.menuFor, this.renaming, this.selecting, [...this.selected], cap.more]);
     if (sig !== this.drawn) {
       this.drawn = sig;
       const all = cap.more ? h('button.session-all', { type: 'button', onclick: () => this.on.viewAll() }, t('sidebar.view_all')) : null;
-      replace(this.items, [...rows.map((row) => (row.kind === 'session' ? this.item(row, row.session === current) : this.doneRow(row))), all]);
+      const draw = (row) => (row.kind === 'session' ? this.item(row, row.session === current) : this.doneRow(row));
+      const was = this.positions();
+      const hadPinned = this.pinnedHeader.isConnected;
+      replace(this.items, [
+        pinned.length ? this.pinnedHeader : null, ...pinnedRows.map(draw),
+        this.groupHeader, ...rows.slice(pinnedRows.length).map(draw), all]);
+      this.slide(was, pinned.length > 0 && !hadPinned);
       this.placeMenu();
       this.drawGroup();
       this.placePill();
@@ -152,6 +163,39 @@ export class Sidebar {
       this.on.shown(rows.flatMap((r) => (r.kind === 'session' && r.depth > 0 ? [r.session] : [])));
     }
     this.spin();
+  }
+
+  /** 表里每一行（会话、两栏的头）现在在哪：换先后以前记下，画完照它滑。 */
+  positions() {
+    const out = new Map();
+    for (const el of this.items.children) {
+      const key = el instanceof HTMLElement ? el.dataset.session ?? el.dataset.key : null;
+      if (key) out.set(key, /** @type {HTMLElement} */ (el).offsetTop);
+    }
+    return out;
+  }
+
+  /**
+   * 换了先后（置顶、取消置顶，照最近活动重排）：原来就在的行从原来的位置滑到新位置，别的行跟着让开、收拢；「置顶」那一栏刚出来的
+   * 栏头淡入、从上面落下来（蓝图「左栏」组头）。减少动画的不滑。
+   * @param {Map<string, number>} was
+   * @param {boolean} pinnedAppeared
+   */
+  slide(was, pinnedAppeared) {
+    if (!was.size || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const ms = res.layout.sidebar_move_ms;
+    const easing = 'cubic-bezier(0.2, 0, 0, 1)';
+    for (const el of this.items.children) {
+      if (!(el instanceof HTMLElement)) continue;
+      const key = el.dataset.session ?? el.dataset.key;
+      const from = key ? was.get(key) : undefined;
+      if (from != null && from !== el.offsetTop) {
+        el.animate([{ transform: `translateY(${from - el.offsetTop}px)` }, { transform: 'none' }], { duration: ms, easing });
+      } else if (from == null && key && key !== 'group:pinned') {
+        el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms, easing });
+      }
+    }
+    if (pinnedAppeared) this.pinnedHeader.animate([{ opacity: 0, transform: 'translateY(-3px)' }, { opacity: 1, transform: 'none' }], { duration: ms, easing });
   }
 
   /**
@@ -221,6 +265,8 @@ export class Sidebar {
           onclick: () => this.toggleMenu(open ? null : id),
         }, icon('ellipsis-vertical'))),
       open ? menu([
+        // 置顶只有顶层会话有（蓝图「左栏」菜单）
+        ...(row.depth ? [] : [[t(it.pinned ? 'sidebar.unpin' : 'sidebar.pin'), false, () => this.on.pin(id, !it.pinned)]]),
         [t('sidebar.copy_id'), false, () => this.on.copyId(id)],
         [t('sidebar.rename'), false, () => this.startRename(id)],
         [t('sidebar.delete'), true, () => this.removeAll([id])],

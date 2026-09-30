@@ -30,9 +30,45 @@
 
 /* 不挂在她头下的一行：回报、压缩、清空（蓝图 web.md「后台命令、子代理的回报」「压缩、清空」）。和收尾那一行一样对齐、
    一样大：缩进到她的内容那一列，等宽 13px，字暗、记号有颜色；能点开的悬停亮一档，点开下面铺底色 */
-.note { margin-bottom: 30px; padding-left: 40px; color: var(--t-dim); font: 13px/1.6 var(--mono); }
+/* 提示行（回报、压缩、清空）：和时间线收起那一行一个样子（正文字体 600、11.5px、text 的六成二），记号照旧有颜色（蓝图 web.md「后台命令、子代理的回报」） */
+.note { margin-bottom: 30px; padding-left: 40px; color: color-mix(in srgb, var(--text) 62%, var(--surface)); font: 600 11.5px/1.5 var(--sans); }
+/* 压缩的进度（蓝图 web.md「压缩的进度」，方案 A）：和回报那一行一样缩进；流光照运行状态行，下面一根细条，过了一会儿呼吸 */
+.compacting {
+  --cp-base: color-mix(in srgb, var(--accent) 85%, black);
+  --cp-peak: color-mix(in srgb, white 55%, var(--accent));
+  margin-bottom: 30px; padding-left: 40px; animation: fade-in var(--motion-in) var(--ease-out);
+}
+.compacting.is-leaving { animation: fade-out var(--motion-out) ease-in both; }
+.compacting.is-breathing .compacting-line, .compacting.is-breathing .compacting-bar { animation: compacting-breathe 2s ease-in-out infinite; }
+.compacting-line { display: flex; align-items: baseline; width: min(100%, 360px); font-size: 11.5px; line-height: 1.5; }
+.compacting-label {
+  color: var(--cp-base); font-weight: 600;
+  background: linear-gradient(90deg, var(--cp-base) 40%, var(--cp-peak) 50%, var(--cp-base) 60%) 100% 0 / 250% 100% no-repeat;
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  animation: compacting-sweep 3s linear infinite;
+}
+.compacting-dots { display: inline-block; width: 1.4em; color: var(--cp-base); font-weight: 600; }
+.compacting-count { margin-left: auto; color: var(--text-faint); font: 11px var(--mono); font-variant-numeric: tabular-nums; }
+.compacting-bar { display: flex; align-items: center; gap: 10px; margin-top: 7px; }
+.compacting-track { position: relative; width: 240px; max-width: 70%; height: 4px; overflow: hidden; border-radius: 999px; background: var(--line); }
+.compacting-fill { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: inherit; background: var(--accent); transition: width .22s cubic-bezier(.2, 0, 0, 1); }
+.compacting-fill::after {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 10px; border-radius: inherit; background: var(--cp-peak); content: ""; opacity: 0;
+  animation: compacting-edge 1.1s ease-in-out infinite;
+}
+.compacting-pct { min-width: 3.2em; color: var(--text-faint); font: 11px var(--mono); font-variant-numeric: tabular-nums; }
+@keyframes compacting-sweep { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@keyframes compacting-breathe { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+@keyframes compacting-edge { 0%, 100% { opacity: 0; } 50% { opacity: .5; } }
+@media (prefers-reduced-motion: reduce) {
+  .compacting-label { animation: none; background: none; -webkit-text-fill-color: currentColor; }
+  .compacting.is-breathing .compacting-line, .compacting.is-breathing .compacting-bar, .compacting-fill::after { animation: none; }
+}
+/* 压缩失败那一行：红色实心圆点，字也红（蓝图「压缩的进度」第 6 条） */
+.note-line.tone-failed .note-mark, .note-line.tone-failed .note-text { color: var(--t-error); }
+
 /* 回顾（蓝图 web.md「回顾」第 2 条）：一张卡片，和提问答了留下的一个样子（照附件卡、链接卡片） */
-.note.is-recap { font-family: var(--sans); }
+.note.is-recap { font-family: var(--sans); font-weight: 400; }
 .note-recap {
   width: fit-content; max-width: min(100%, 640px); padding: 12px 16px; border-radius: 12px; background: var(--surface-1); box-shadow: var(--card-shadow);
 }
@@ -50,7 +86,12 @@
 .note-line.tone-error .note-mark { color: var(--t-error); }
 .note.is-expandable .note-line { cursor: pointer; transition: color 0.15s ease; }
 .note.is-expandable .note-line:hover { color: color-mix(in srgb, var(--text) 84%, var(--surface)); }
-.note-detail { margin-top: 8px; margin-left: 0; font-family: var(--sans); }
+/* 提示行的小箭头：悬停才露，点开以后一直露着、转成朝下（和时间线一个规矩，timeline.css 的 .tl-chevron） */
+.note-line > .tl-chevron { align-self: center; margin-left: -2px; }
+.note.is-expandable .note-line:hover > .tl-chevron, .note.is-open > .note-line > .tl-chevron { opacity: 0.8; }
+.note.is-open > .note-line > .tl-chevron { transform: rotate(90deg); }
+.note.is-open .note-detail { cursor: pointer; }
+.note-detail { margin-top: 8px; margin-left: 0; font-family: var(--sans); font-weight: 400; }
 /* 点开、收起：和时间线点开一步同一个壳（高度从 0 长出来、收回去，淡入淡出，timeline.css 的 .tl-fold） */
 .note .tl-fold { --tl-ease: cubic-bezier(0.22, 0.61, 0.36, 1); }
 .note.is-open > .tl-fold { grid-template-rows: 1fr; opacity: 1; }

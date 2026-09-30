@@ -5,6 +5,7 @@
 
 import { h, replace } from '../../src/lib/dom.js';
 import { press, saveEdit, cancel, hasReview, onOther, answerOf, approvalHead } from './model.js';
+import { isNewline, insertNewline } from '../../src/lib/newline.js';
 
 /** 键 → `model.js` 的按键名 */
 const KEYS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', Tab: 'tab', ' ': 'space', Enter: 'enter', n: 'n', N: 'n' };
@@ -71,9 +72,15 @@ export class Drawer {
 
   /** @param {KeyboardEvent} e */
   key(e) {
-    if (!this.d || e.isComposing || e.keyCode === 229 || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (!this.d || e.isComposing || e.keyCode === 229) return;
     const inBox = /** @type {HTMLElement} */ (e.target).tagName === 'TEXTAREA';
     if (inBox) {
+      // Ctrl+J 换行（照 TUI，和输入框一样；Shift+Enter 由框自己换）
+      if (e.ctrlKey && isNewline(e)) {
+        e.preventDefault();
+        insertNewline(/** @type {HTMLTextAreaElement} */ (e.target));
+        return;
+      }
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         this.save(/** @type {HTMLTextAreaElement} */ (e.target).value);
@@ -85,6 +92,7 @@ export class Drawer {
       }
       return;
     }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === 'Escape') {
       e.preventDefault();
       if (Date.now() - this.escAt < this.config.esc_window_ms) return this.cancel();

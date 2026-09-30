@@ -88,8 +88,9 @@
 .asking-cancel:hover { color: var(--text); }
 
 /* 了结以后正文末尾留的：卡片（照附件卡、链接卡片），不能点、没有悬停，新来的淡入；取消的照别的提示行暗色一行 */
-.asking-reports { display: grid; gap: 10px; }
-.asking-reports:empty { display: none; }
+/* 钉在正文里（`chat.anchor`）：和提示行一样缩进，下面空一行 */
+.timeline > .asking-report { margin: 0 0 30px 40px; }
+@media (max-width: 836px) { .timeline > .asking-report { margin-left: 38px; } }
 .asking-report.is-fresh { animation: rise-in var(--motion-in) var(--ease-out); }
 .asking-card {
   width: fit-content; min-width: min(260px, 100%); max-width: min(100%, 520px); padding: 12px 16px; border-radius: 12px;

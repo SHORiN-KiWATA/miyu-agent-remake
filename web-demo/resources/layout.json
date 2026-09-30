@@ -27,6 +27,9 @@
   "composer_max_rows": 8,
   "esc_window_ms": 1500,
   "notice_ms": 2000,
+  "jump_after": 240,
+  "compaction": { "cells": 24, "cap": 0.95, "pause_ms": [300, 1500], "finish_ms": 400, "hold_ms": 200, "breathe_after_ms": 3000, "dot_ms": 1000 },
+  "sidebar_move_ms": 240,
   "result_image_max": 160,
   "narrow_below": 836,
   "follow_within": 48,
@@ -56,7 +59,8 @@
   "note_marks": {
     "good": "●",
     "error": "✗",
-    "stopped": "●"
+    "stopped": "●",
+    "failed": "●"
   },
   "report_tail_lines": 200,
   "sidebar_rows": 20,

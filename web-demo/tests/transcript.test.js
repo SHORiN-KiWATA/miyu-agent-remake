@@ -179,3 +179,11 @@ test('图片块带了名字的（核心 3-9 四补）照带着，灯箱的说明
   const [it] = project([ev(1, 0, 'message.user', undefined, { blocks: [img] }, { kind: 'person' })]).items;
   assert.equal(it.attachments[0].name, '晚霞.png');
 });
+
+test('收尾那一行的别的原因：前面权限级别的图标，后面界面语言的字；不认识的照原样（2026-10-01）', () => {
+  const ended = (reason) => project([...queuedLog(), ev(7, 5, 'turn.ended', 3, { reason })]).items.find((it) => it.type === 'done')?.text;
+  assert.equal(ended('restarted'), '▣  已重启');
+  assert.equal(ended('aborted'), '▣  核心上次在这一轮崩了，没做完');
+  assert.equal(ended('step_limit'), '▣  请求次数到了上限，停了');
+  assert.equal(ended('mystery'), 'mystery');
+});

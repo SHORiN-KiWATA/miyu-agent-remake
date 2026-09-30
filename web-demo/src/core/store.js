@@ -13,13 +13,15 @@ import { summarize } from '../model/session.js';
 /** @typedef {{turn: number, seen: number, blocks: Block[]}} Live */
 /** @typedef {{turn: number, attempt: number, limit: number, message: string}} Retry 出了错、等着重试（瞬时的 `status`） */
 /**
+ * @typedef {{seen: number, since: number, written: number, expected: number|null, done: {before: number, after: number}|null, note: number|null}} Compacting
+ *   在压缩（瞬时的 `compaction.progress`）：压好了记下前后的用量（`compaction.done`），落了盘的那一条的序号（走满以前先不画）
  * @typedef {{id: string, events: any[], live: Live|null, marks: Map<string, {start: number, end: number|null}>,
- *   limits: any, unread: boolean, retry: Retry|null}} Session
+ *   limits: any, unread: boolean, replaying?: boolean, retry: Retry|null, compacting: Compacting|null, compactStats: Map<number, {before: number, after: number}>}} Session
  */
 
 /** 一个刚知道、还没读的会话。 */
 export function emptySession(id) {
-  return /** @type {Session} */ ({ id, events: [], live: null, marks: new Map(), limits: {}, unread: false, retry: null });
+  return /** @type {Session} */ ({ id, events: [], live: null, marks: new Map(), limits: {}, unread: false, retry: null, compacting: null, compactStats: new Map() });
 }
 
 export class Store {
@@ -65,17 +67,26 @@ export class Store {
   }
 
   /**
-   * 订阅一个会话、读它的日志：先订阅再读，中间落盘的两边都可能有，按序号去重。`listed` 为假的（子代理的会话）不进会话表的顶层。
+   * 订阅一个会话、读它的历史：订阅带 `after: 0`，核心先把整份日志照原样补推过来（普通的 `event` 推送，都在回应前面）、再接着推新的
+   * （施工 3-8 六补）；推来的照序号接上、去重（`persisted`）。补历史的那一段不记「没看过」。`listed` 为假的（子代理的会话）不进
+   * 会话表的顶层。
    */
   async load(id, listed = true) {
     const s = emptySession(id);
     this.sessions.set(id, s);
     if (listed && !this.order.includes(id)) this.order.push(id);
-    const { limits } = await this.conn.request('subscribe', { session: id, stream: 'events' });
-    s.limits = limits ?? {};
-    const { events } = await this.conn.request('events.read', { session: id });
-    const known = new Set(s.events.map((e) => e.seq));
-    s.events = [...events.filter((e) => !known.has(e.seq)), ...s.events].sort((a, b) => a.seq - b.seq);
+    await this.subscribe(s, 0);
+  }
+
+  /** 订阅（带 `after`）：补推的是历史，不记「没看过」；回应里的限额记下。 */
+  async subscribe(s, after) {
+    s.replaying = true;
+    try {
+      const { limits } = await this.conn.request('subscribe', { session: s.id, stream: 'events', after });
+      s.limits = limits ?? s.limits ?? {};
+    } finally {
+      s.replaying = false;
+    }
   }
 
   /**
@@ -128,6 +139,14 @@ export class Store {
     this.changed();
   }
 
+  /** 压好了、进度条走满了：进度那一行收掉，落了盘的那一行露出来。 @param {string} id */
+  finishCompaction(id) {
+    const s = this.sessions.get(id);
+    if (!s?.compacting) return;
+    s.compacting = null;
+    this.changed();
+  }
+
   /** 看这个会话：没看过的记号去掉。 */
   view(id) {
     this.viewing = id;
@@ -167,12 +186,10 @@ export class Store {
     this.changed();
   }
 
-  /** 掉了队：重新订阅，再把漏掉的取回来（`04-核心协议.md` 第七节）。 */
+  /** 掉了队、断线重连：带上最后看到的序号重新订阅，核心补上漏掉的（`04-核心协议.md` 第七节，施工 3-8 六补）。 */
   async catchUp(s) {
-    await this.conn.request('subscribe', { session: s.id, stream: 'events' });
-    const after = s.events.at(-1)?.seq ?? 0;
-    const { events } = await this.conn.request('events.read', { session: s.id, after });
-    for (const e of events) this.persisted(s, e);
+    // 带上最后看到的序号重新订阅，核心补上漏掉的（施工 3-8 六补）
+    await this.subscribe(s, s.events.at(-1)?.seq ?? 0);
     this.changed();
   }
 
@@ -184,11 +201,19 @@ export class Store {
       closeAll(s.live, Date.parse(e.at));
       s.live = null;
     }
+    // 压缩（蓝图 `web.md`「压缩的进度」）：压好了、落了盘的那一条记上前后的用量，走满以前先不画；没压成的、这一轮先结束了的
+    // 进度那一行收掉
+    if (e.kind === 'context.compacted' && s.compacting?.done) {
+      s.compactStats.set(e.seq, s.compacting.done);
+      s.compacting.note = e.seq;
+    }
+    if (e.kind === 'model.called' && e.body.compaction && e.body.result === 'error') s.compacting = null;
+    if (e.kind === 'turn.ended' && s.compacting && !s.compacting.done) s.compacting = null;
     if (e.kind === 'turn.ended') {
       if (s.live) closeAll(s.live, Date.parse(e.at));
       s.live = null;
       s.retry = null;
-      if (s.id !== this.viewing) s.unread = true;
+      if (s.id !== this.viewing && !s.replaying) s.unread = true;
     }
   }
 
@@ -201,6 +226,20 @@ export class Store {
    * 来了、这一轮结束了就去掉（蓝图 `web.md`「运行状态行」、`kernel/events.md` 瞬时事件第 17 条）。
    */
   transient(s, e) {
+    // 压缩的进度：写了多少、估计多少；压好了记下前后的用量，等界面走满了再收（`finishCompaction`）
+    if (e.kind === 'compaction.progress') {
+      const b = e.body;
+      if (!s.compacting || s.compacting.seen !== b.seen || s.compacting.done) {
+        s.compacting = { seen: b.seen, since: Date.parse(e.at), written: 0, expected: b.expected ?? null, done: null, note: null };
+      }
+      s.compacting.written = b.written ?? s.compacting.written;
+      if (b.expected) s.compacting.expected = b.expected;
+      return;
+    }
+    if (e.kind === 'compaction.done') {
+      if (s.compacting) s.compacting.done = { before: e.body.before, after: e.body.after };
+      return;
+    }
     if (e.kind === 'status' && e.body?.retry && typeof e.body.retry === 'object') {
       const r = e.body.retry;
       s.retry = { turn: e.turn, attempt: r.attempt, limit: r.limit, message: r.message ?? '' };

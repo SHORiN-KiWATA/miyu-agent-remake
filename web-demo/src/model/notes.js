@@ -4,7 +4,7 @@
 //! 记号在 `layout.json` 的 `note_marks`。
 
 import { res, t } from '../util/res.js';
-import { seconds } from './format.js';
+import { seconds, short } from './format.js';
 
 /**
  * @typedef {{what: string, title: string, session: string|null, command: string|null}} Job 派出去的一个任务（`tool.result` 的效果
@@ -89,13 +89,15 @@ export function reportNote(e, jobs) {
 }
 
 /** 压缩、清空那一行（`context.compacted`）：清空的绿点「上下文已清空」，别的「上下文已压缩」，附了要求的接上。 */
-export function compactedNote(e) {
+export function compactedNote(e, stats = null) {
   const b = e.body;
   const clear = b.trigger === 'clear';
   const ask = !clear && b.instructions ? t('notes.instructions', { text: b.instructions.replace(/\s+/g, ' ').trim() }) : '';
+  // 看着压好的那一次带前后的用量（瞬时的 `compaction.done`，蓝图「压缩的进度」第 5 条）
+  const head = clear ? t('notes.cleared') : stats ? t('notes.compacted_stats', { before: short(stats.before), after: short(stats.after) }) : t('notes.compacted');
   return {
     type: 'note', key: `n${e.seq}`, seq: e.seq, turn: e.turn ?? null, tone: 'good', mark: res.layout.note_marks.good,
-    text: t(clear ? 'notes.cleared' : 'notes.compacted') + ask, compaction: clear ? 'clear' : (b.trigger ?? 'auto'),
+    text: head + ask, compaction: clear ? 'clear' : (b.trigger ?? 'auto'),
     // 点开看摘要（照回报点开的 Markdown 那一种）；清空、摘要空的不能点
     detail: !clear && b.summary?.trim() ? { kind: 'text', text: b.summary, truncated: false } : null,
   };
@@ -109,6 +111,17 @@ export function compactedNote(e) {
  */
 export function recapNote(e, local = false) {
   return { type: 'note', key: `${local ? 'r' : 'n'}${e.seq}`, seq: e.seq, turn: null, tone: 'dim', mark: null, text: '', recap: e.body.text, detail: null };
+}
+
+/**
+ * 压缩没压成（落了盘的 `model.called` 带 `compaction`、出错，蓝图「压缩的进度」第 6 条）：红色实心圆点一行，原因照收尾行「出错了」的写法。
+ * @param {{seq: number, turn?: number, body: {error?: any}}} e
+ */
+export function compactFailedNote(e) {
+  return {
+    type: 'note', key: `n${e.seq}`, seq: e.seq, turn: e.turn ?? null, tone: 'failed', mark: res.layout.note_marks.failed,
+    text: t('notes.compact_failed', { reason: failureText(e.body.error ?? {}) }), detail: null,
+  };
 }
 
 /**

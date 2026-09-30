@@ -22,9 +22,10 @@
 /* 文件块（蓝图 web.md「`@` 选文件」第 5 条）：框底下垫一层同样排版的字，字透明，只给块铺一层浅底；框里的字是框自己画的，在上面 */
 .composer-field { position: relative; }
 .composer-field > .composer-input { position: relative; z-index: 1; }
-/* 两层排字的设置写成一模一样，不让浏览器对输入框、普通文字各用各的默认（字距、连字、字偶间距、渲染方式） */
+/* 两层排字的设置写成一模一样，不让浏览器对输入框、普通文字各用各的默认（字距、连字、字偶间距、渲染方式）；字距调整用 auto：
+   强开（normal）的话 Firefox 照 Noto Sans CJK 的字距表把中文标点压成半宽（2026-10-01 项目主人指出输入框的标点怪） */
 .composer-field > .composer-input, .composer-backdrop {
-  letter-spacing: normal; word-spacing: normal; font-kerning: normal; font-variant-ligatures: normal; font-feature-settings: normal;
+  letter-spacing: normal; word-spacing: normal; font-kerning: auto; font-variant-ligatures: normal; font-feature-settings: normal;
   text-rendering: auto; tab-size: 8; text-indent: 0; box-sizing: border-box;
 }
 .composer-backdrop {
@@ -124,3 +125,13 @@
    浮在框上面的提示、列表都画在框外） */
 .composer.is-morphing { display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
 .composer.is-morphing > * { flex: none; }
+
+/* 跳到底部（蓝图 web.md「输入框」）：框右上角、框上沿上面 10px 浮一个圆按钮；进来从下面升上来，走的时候沉下去 */
+.composer-jump {
+  position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 3; display: grid; width: 32px; height: 32px; padding: 0; place-items: center;
+  border: 1px solid var(--line); border-radius: 50%; background: var(--surface-1); box-shadow: var(--card-shadow); color: var(--text-soft);
+  cursor: pointer; transition: color 0.15s ease; animation: rise-in var(--motion-in) var(--ease-out);
+}
+.composer-jump:hover { color: var(--text); }
+.composer-jump .icon { width: 16px; height: 16px; }
+.composer-jump.is-leaving { animation: sink-out var(--motion-out) var(--ease-in) both; }

@@ -1,23 +1,27 @@
 // @ts-check
-//! 了结以后正文末尾留下的（蓝图 `web.md`「确认和提问」第 6 条）：挂进挂载位 `chat.tail`，跟着正在看的会话换；
-//! 留什么由 `model.js` 的 `report` 算，这里只画。演示的数据只在这一页里。
+//! 了结以后留下的（蓝图 `web.md`「确认和提问」第 6 条）：钉在答的那一刻正文里最后一块的后面（服务 `chat` 的 `anchor`），之后的
+//! 接在它下面，不再一直掉在最下面；换了会话回来照原来的位置再钉（`place`）。留什么由 `model.js` 的 `report` 算，这里只画。
+//! 演示的数据只在这一页里。
 
-import { h, icon, replace } from '../../src/lib/dom.js';
+import { h, icon } from '../../src/lib/dom.js';
 
 export class Reports {
-  /** @param {(key: string, fields?: Record<string, any>) => string} text */
-  constructor(text) {
+  /**
+   * @param {(key: string, fields?: Record<string, any>) => string} text
+   * @param {{anchor: (node: HTMLElement) => string, place: (where: string, node: HTMLElement) => void}} chat
+   */
+  constructor(text, chat) {
     this.text = text;
-    /** 会话 → 留下的几条（还没开的新会话记在 `''` 下） @type {Map<string, any[]>} */
+    this.chat = chat;
+    /** 会话 → 留下的几条和钉在哪（还没开的新会话记在 `''` 下） @type {Map<string, {report: any, where: string}[]>} */
     this.by = new Map();
     this.session = /** @type {string|null} */ (null);
-    this.el = h('div.asking-reports');
   }
 
-  /** 看这个会话的。 @param {string|null} session */
+  /** 看这个会话的：照原来的位置再钉（换会话时正文从头画过，钉的都清掉了）。 @param {string|null} session */
   show(session) {
     this.session = session;
-    replace(this.el, (this.by.get(session ?? '') ?? []).map((r) => this.node(r, false)));
+    for (const r of this.by.get(session ?? '') ?? []) this.chat.place(r.where, this.node(r.report, false));
   }
 
   /** 新会话开了：留下的跟过去。 @param {string|null} from @param {string} to */
@@ -28,13 +32,14 @@ export class Reports {
     this.by.set(to, [...(this.by.get(to) ?? []), ...got]);
   }
 
-  /** 记一条；是正在看的会话的，接在后面、淡入，交回 `true`（要滚到露出它）。 @param {string|null} session @param {any} report */
+  /** 记一条；是正在看的会话的，钉在这时正文的末尾、淡入，交回 `true`（要滚到露出它）。 @param {string|null} session @param {any} report */
   add(session, report) {
     const key = session ?? '';
-    this.by.set(key, [...(this.by.get(key) ?? []), report]);
-    if (key !== (this.session ?? '')) return false;
-    this.el.append(this.node(report, true));
-    return true;
+    const shown = key === (this.session ?? '');
+    const node = this.node(report, true);
+    const where = shown ? this.chat.anchor(node) : '';
+    this.by.set(key, [...(this.by.get(key) ?? []), { report, where }]);
+    return shown;
   }
 
   /** 卡片（蓝图「确认和提问」第 6 条）：提问一道一块；不允许一行；取消的照别的提示行，暗色一行。 @param {any} r @param {boolean} fresh */

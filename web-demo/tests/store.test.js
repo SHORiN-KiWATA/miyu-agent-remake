@@ -59,3 +59,58 @@ test('一轮结束：在收的扔掉，还开着的停在结束那一刻', () =>
   assert.equal(s.live, null);
   assert.deepEqual(s.marks.get('3:reasoning:0'), { start: ms(1), end: ms(6) });
 });
+
+test('压缩的进度（瞬时的 compaction.progress、compaction.done）：记下写了多少、估计多少；压好了记前后的用量，接着落盘的那一条 context.compacted 记上它', () => {
+  const store = fresh();
+  const s = store.sessions.get('S');
+  const transient = (at, kind, body) => { const { seq, ...e } = ev(0, at, kind, 9, body, { kind: 'kernel' }); return e; };
+  push(store, transient(1, 'compaction.progress', { seen: 8, written: 0, expected: 20000 }));
+  assert.deepEqual([s.compacting.written, s.compacting.expected, s.compacting.done], [0, 20000, null]);
+  push(store, transient(2, 'compaction.progress', { seen: 8, written: 3120, expected: 20000 }));
+  assert.equal(s.compacting.written, 3120);
+  push(store, transient(3, 'compaction.done', { seen: 8, trigger: 'auto', before: 812345, after: 31020 }));
+  assert.deepEqual(s.compacting.done, { before: 812345, after: 31020 });
+  push(store, ev(20, 3, 'context.compacted', 9, { upto: 8, summary: '摘要', trigger: 'auto' }));
+  assert.equal(s.compacting.note, 20, '走满以前这一条先不画');
+  assert.deepEqual(s.compactStats.get(20), { before: 812345, after: 31020 });
+  store.finishCompaction('S');
+  assert.equal(s.compacting, null);
+});
+
+test('压缩没压成（落了盘的 model.called 带 compaction、出错）、这一轮先结束了：进度那一行收掉', () => {
+  const store = fresh();
+  const s = store.sessions.get('S');
+  const { seq, ...progress } = ev(0, 1, 'compaction.progress', 9, { seen: 8, written: 10, expected: 20000 }, { kind: 'kernel' });
+  push(store, progress);
+  push(store, ev(20, 2, 'model.called', 9, { seen: 8, result: 'error', compaction: true, error: { class: 'other', message: 'boom' } }));
+  assert.equal(s.compacting, null);
+  push(store, progress);
+  push(store, ev(21, 3, 'turn.ended', 9, { reason: 'aborted' }));
+  assert.equal(s.compacting, null);
+});
+
+test('读一个会话、掉了队补上：订阅带 after（0 从头，掉队的带最后看到的序号），核心补推的事件照序号接上、去重；不再找桥读日志（2026-10-01）', async () => {
+  const calls = [];
+  /** @type {any} */
+  let store;
+  const conn = {
+    onPush() {},
+    request: async (method, params) => {
+      calls.push([method, params.after]);
+      if (method !== 'subscribe') return {};
+      // 核心先补推，再回应
+      const from = params.after + 1;
+      for (let seq = from; seq <= 3; seq++) store.push('event', { session: 'S', event: seq === 3 ? ev(3, 3, 'turn.ended', 2, { reason: 'completed' }) : ev(seq, seq, 'message.user', undefined, { blocks: [] }) });
+      return { limits: { window: 1000 }, upto: 3 };
+    },
+  };
+  store = new Store(/** @type {any} */ (conn));
+  await store.load('S');
+  const s = store.sessions.get('S');
+  assert.deepEqual(s.events.map((e) => e.seq), [1, 2, 3]);
+  assert.deepEqual(s.limits, { window: 1000 });
+  assert.equal(s.unread, false, '补的是历史：一轮结束不记成没看过');
+  await store.catchUp(s);
+  assert.deepEqual(s.events.map((e) => e.seq), [1, 2, 3], '补回来的重复的去掉');
+  assert.deepEqual(calls, [['subscribe', 0], ['subscribe', 3]]);
+});

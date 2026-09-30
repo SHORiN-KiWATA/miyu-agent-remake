@@ -122,9 +122,18 @@ test('手动压缩那一轮：不另起收尾行，用时和用量接在那一�
     ev(10, 61, 'model.called', 9, { seen: 8, messages: 4, result: 'error', compaction: true, error: { class: 'other', message: 'boom', status: 500 } }),
     ev(11, 61, 'turn.ended', 9, { reason: 'error' }),
   ];
-  const done = project(failed).items.at(-1);
-  assert.equal(done.type, 'done');
-  assert.equal(done.text, '出错了：boom');
+  const items = project(failed).items;
+  assert.deepEqual(notes(items).slice(-1), ['failed|●|压缩失败：boom'], '没压成：红色实心圆点一行');
+  assert.equal(items.filter((it) => it.type === 'done' && it.turn === 9).length, 0, '手动压缩那一轮不另起「出错了」');
+});
+
+test('自动压缩中途没压成：她那一轮中间也画「压缩失败」；压好了的带前后用量（看着压好的那一次）', () => {
+  const log = [...jobsLog(),
+    ev(9, 60, 'model.called', 3, { seen: 8, messages: 4, result: 'error', compaction: true, error: { class: 'other', message: 'boom', status: 500 } }),
+    ev(10, 70, 'context.compacted', 3, { upto: 8, summary: '摘要', trigger: 'auto' }),
+  ];
+  const items = project(log, null, new Map(), new Map([[10, { before: 812345, after: 31020 }]])).items;
+  assert.deepEqual(notes(items).slice(-2), ['failed|●|压缩失败：boom', 'good|●|上下文已压缩：812.3k → 31k token']);
 });
 
 test('出错那一句：402、404 加人话；内核自己查出来的写分类，有原话的接后面；没原话的写分类', () => {

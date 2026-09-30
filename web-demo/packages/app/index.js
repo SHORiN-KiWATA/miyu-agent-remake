@@ -33,6 +33,9 @@ export function apply(ctx) {
     interrupt: () => app.interrupt(),
     /** 正文末尾（挂载位 `chat.tail`）来了新的：回到跟着最新的、露出它 */
     reveal: () => app.chat.reveal(),
+    /** 钉一个节点在这时正文里最后一块的后面，交回钉在哪；照交回的位置再钉（换了会话回来） */
+    anchor: (node) => app.chat.anchor(node),
+    place: (where, node) => app.chat.place(where, node),
   });
   // 输入框：提示、跟着发的东西变了、写字的那个框（附件这类包经它粘贴、提示）
   ctx.provide('composer', {

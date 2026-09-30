@@ -70,7 +70,13 @@ export class StepView {
       this.row = h('button.tl-row', { type: 'button', onclick: toggle },
         this.node, h('span.tl-head', this.name, this.time, this.subject, this.said, this.diff), this.peek, this.status);
       this.command = h('div.tl-command', { onclick: toggle });
-      this.body = h('div.tl-body');
+      // 点开的细节：点这一块也收起（点的是链接、按钮、图，或者拖选了字的不算；蓝图「压缩、清空」里的开关规矩）
+      this.body = h('div.tl-body', {
+        onclick: (/** @type {MouseEvent} */ e) => {
+          if (/** @type {Element} */ (e.target).closest('a, button, input, textarea, .conversation-media')) return;
+          toggle(e);
+        },
+      });
       this.el = h(`div.tl-step.is-tool${message ? '.is-message' : ''}${fresh ? '.is-new' : ''}`, this.row, this.command, h('div.tl-fold', h('div.tl-fold-inner', this.body)));
     }
     this.spinning = false;
@@ -122,8 +128,29 @@ export class StepView {
     this.window.hidden = !rolling;
     this.el.classList.toggle('is-rolling', rolling);
     if (rolling) this.window.textContent = thinkingTail(step);
-    // 收起时字留着，收的动画里还看得到；点开时照最新的字换
-    if (open) this.body.textContent = step.text.trim();
+    // 收起时字留着，收的动画里还看得到；点开时照最新的字接上
+    if (open) this.thinkText(step.text.trim());
+  }
+
+  /**
+   * 点开的思考全文：一行一块，来了新字只往最后一行里接、有换行往后添新行，前面的行不动（蓝图「性能」：原来每来一段字把
+   * 全文整块换掉，浏览器每一帧从头排，想得越长越卡）。字不是接着原来的（撤销、重来）才整个重画。
+   * @param {string} text
+   */
+  thinkText(text) {
+    if (!this.lines || !text.startsWith(this.linesText)) {
+      this.lines = h('div.tl-think-lines');
+      this.linesText = '';
+      replace(this.body, this.lines);
+    }
+    const added = text.slice(this.linesText.length);
+    if (!added) return;
+    this.linesText = text;
+    const parts = added.split('\n');
+    const tail = /** @type {HTMLElement|null} */ (this.lines.lastElementChild);
+    if (tail) tail.firstChild ? /** @type {Text} */ (tail.firstChild).appendData(parts[0]) : tail.append(parts[0]);
+    else this.lines.append(h('div.tl-think-line', parts[0]));
+    for (const part of parts.slice(1)) this.lines.append(h('div.tl-think-line', part));
   }
 
   /** 工具：状态、命令本身、点开的细节。 */

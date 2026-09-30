@@ -9,10 +9,11 @@ import { show, hide, leave } from '../lib/motion.js';
 import { t } from '../util/res.js';
 import { toggle, range } from '../model/select.js';
 import { ago, uuidTime } from '../model/ago.js';
+import { rank } from '../model/session.js';
 
 /**
  * @typedef {{list: () => Promise<{session: string, title?: string, parent?: string|null, oneshot?: boolean}[]>,
- *   titleOf: (id: string) => string|null, running: (id: string) => boolean, jobs: (id: string) => number, agents: (id: string) => number,
+ *   titleOf: (id: string) => string|null, active: (id: string) => number|null, running: (id: string) => boolean, jobs: (id: string) => number, agents: (id: string) => number,
  *   open: (id: string) => void, newSession: () => void,
  *   removeMany: (ids: string[]) => Promise<string[]>, dropped: (id: string) => void}} PageActions
  */
@@ -66,7 +67,11 @@ export class SessionsPage {
     this.draw();
     try {
       const all = await this.on.list();
-      this.rows = all.filter((s) => !s.oneshot && !s.parent).map((s) => ({ session: s.session, title: s.title ?? this.on.titleOf(s.session) }));
+      // 先后照左栏（`rank`）：置顶的在最前，别的照最近活动；读过日志的照日志算，没读过的先照开的时刻（C-3 以后照 `last_active`）
+      this.rows = rank(all.filter((s) => !s.oneshot && !s.parent).map((s) => ({
+        session: s.session, title: s.title ?? this.on.titleOf(s.session), pinned: !!s.pinned,
+        active: s.last_active ? Date.parse(s.last_active) : this.on.active(s.session),
+      })));
     } catch {
       this.rows = [];
     }
@@ -131,7 +136,8 @@ export class SessionsPage {
     const rows = this.visible();
     const order = rows.map((r) => r.session);
     replace(this.list, rows.length ? rows.map((r) => {
-      const at = uuidTime(r.session);
+      // 写排序用的那个时刻（最近活动，不知道的照开的时刻）：从上往下一路变早
+      const at = r.active ?? uuidTime(r.session);
       const on = this.selected.has(r.session);
       const click = (/** @type {MouseEvent} */ e) => {
         if (this.selecting) {
