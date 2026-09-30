@@ -11,6 +11,7 @@ use std::io;
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, ReadHalf, WriteHalf};
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 
 use miyu_ipc::Connection;
 
@@ -26,6 +27,9 @@ pub(crate) struct Rpc {
     prefix: String,
     /// 下一条请求的序号。
     next: u64,
+    /// 读的任务：它拿着连接读的那一半，放下 `Rpc` 时掐掉它，连接当场关上（施工 7-9）。不掐的话它一直等核心说下一句，
+    /// 连接不关，核心当这个头还订阅着：在同一个进程里跑完一次 `miyu ask` 的测试，回报会叫醒已经没人看的会话。
+    reading: JoinHandle<()>,
 }
 
 impl Rpc {
@@ -34,13 +38,14 @@ impl Rpc {
     pub(crate) fn new(connection: Connection, head: &str) -> Rpc {
         let (reader, writer) = tokio::io::split(connection);
         let (sender, incoming) = mpsc::unbounded_channel();
-        tokio::spawn(read_all(BufReader::new(reader), sender));
+        let reading = tokio::spawn(read_all(BufReader::new(reader), sender));
         Rpc {
             writer,
             incoming,
             held: VecDeque::new(),
             prefix: format!("{head}-{}", prefix()),
             next: 0,
+            reading,
         }
     }
 
@@ -81,6 +86,13 @@ impl Rpc {
             Some(message) => Some(message),
             None => self.incoming.recv().await,
         }
+    }
+}
+
+/// 放下了：读的任务跟着停，连接两半都放下，关上。
+impl Drop for Rpc {
+    fn drop(&mut self) {
+        self.reading.abort();
     }
 }
 

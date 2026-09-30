@@ -318,6 +318,7 @@ impl Watch {
             } => self.guard(call_id, &name, &cwd, &permission),
             Action::RunTool { call_id, .. } => self.run(call_id),
             Action::Restore { steps } => self.restore_asked(steps),
+            Action::StopJobs { jobs, by, cause } => self.stop_checked(&jobs, &by, &cause),
             // 读回日志照撤销的规矩查（`watch/undo.rs`）；取回原文在这一条输入送完以后交回。
             Action::ReadBack { .. } => {}
             Action::Recall { blobs } => self.compactions.rebuild.recalling = Some(blobs),

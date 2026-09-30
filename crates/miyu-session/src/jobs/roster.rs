@@ -74,7 +74,7 @@ impl Roster {
                                 started: event.at,
                                 end: None,
                             };
-                            self.0.insert(started.job, record);
+                            self.0.insert(started.job.clone(), record);
                         }
                         // 给报过的子代理留了言（施工 7-7 的 `job.messaged`）：它欠一份回报，又在跑了，停得了、列成在跑（施工 3-8
                         // 三补：删它、停它时不漏了这一份）。留言的调用发出以后才到的回报算回了这句留言，被停掉、撤掉的不会再起来，
@@ -95,7 +95,7 @@ impl Roster {
                 }
             }
             Body::JobReported(reported) => self.end(
-                reported.job,
+                &reported.job,
                 End {
                     at: event.at,
                     reason: reported.reason.as_str().to_string(),
@@ -105,7 +105,7 @@ impl Roster {
                 },
             ),
             Body::ChildReported(reported) => self.end(
-                reported.job,
+                &reported.job,
                 End {
                     at: event.at,
                     reason: reported.reason.as_str().to_string(),
@@ -119,8 +119,8 @@ impl Roster {
     }
 
     /// 编号是 `job` 的那一个；没派过的没有。
-    pub(crate) fn get(&self, job: JobId) -> Option<&Record> {
-        self.0.get(&job)
+    pub(crate) fn get(&self, job: &JobId) -> Option<&Record> {
+        self.0.get(job)
     }
 
     /// 还在跑的，照编号：停下全部时用。
@@ -128,7 +128,7 @@ impl Roster {
         self.0
             .iter()
             .filter(|(_, record)| record.end.is_none())
-            .map(|(job, record)| (*job, record.clone()))
+            .map(|(job, record)| (job.clone(), record.clone()))
             .collect()
     }
 
@@ -140,18 +140,18 @@ impl Roster {
             .iter()
             .filter(|(_, record)| record.end.is_some())
             .collect();
-        ended.sort_by_key(|(job, record)| (record.end.as_ref().map(|end| end.at), **job));
-        let recent: Vec<JobId> = ended
+        ended.sort_by_key(|(job, record)| (record.end.as_ref().map(|end| end.at), *job));
+        let recent: Vec<&JobId> = ended
             .iter()
             .rev()
             .take(RECENT)
-            .map(|(job, _)| **job)
+            .map(|(job, _)| *job)
             .collect();
         self.0
             .iter()
             .filter(|(job, record)| record.end.is_none() || recent.contains(job))
             .map(|(job, record)| Listed {
-                job: *job,
+                job: job.clone(),
                 what: record.what.clone(),
                 title: record.title.clone(),
                 ended: record.end.as_ref().map(|end| end.reason.clone()),
@@ -160,8 +160,8 @@ impl Roster {
             .collect()
     }
 
-    fn end(&mut self, job: JobId, end: End) {
-        if let Some(record) = self.0.get_mut(&job) {
+    fn end(&mut self, job: &JobId, end: End) {
+        if let Some(record) = self.0.get_mut(job) {
             record.end = Some(end);
         }
     }

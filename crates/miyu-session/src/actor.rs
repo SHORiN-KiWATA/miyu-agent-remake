@@ -13,7 +13,7 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::Instrument;
 
 use miyu_kernel::id::{CommandId, Seq, SessionId};
-use miyu_kernel::session::{Action, Input, Outcome, Reason, Received, Session};
+use miyu_kernel::session::{Action, Input, Outcome, Session};
 use miyu_kernel::time::Timestamp;
 
 use crate::TARGET;
@@ -30,9 +30,12 @@ use crate::store::Store;
 use crate::tools::{Dispatch, ToolKit, Tools};
 
 mod halt;
+mod mail;
 mod model;
 mod stop;
 mod store;
+
+use mail::Mail;
 
 /// 推送的队列：一个会话最多攒这么多份还没被读走的。读得慢的订阅者被挤掉，掉了队
 /// （`04-核心协议.md` 第七节）。
@@ -66,6 +69,9 @@ pub(crate) struct Actor {
     busy: Arc<AtomicBool>,
     /// 向上回报交给谁（施工 7-6，`report.rs`）：子会话、有会话表的端口才有。
     reporter: Option<Reporter>,
+    /// 拿着订阅的头有几个（施工 7-9）：从没有到有、从有到没有时交内核 `Watched`。造会话、载入时是 0，和内核一样当没人
+    /// 看着。
+    watchers: usize,
 }
 
 /// 会话停了：写不进去。
@@ -97,20 +103,6 @@ pub(crate) fn spawn(actor: Actor, first: Vec<Action>, span: tracing::Span) {
         }
         .instrument(span),
     );
-}
-
-/// 收件箱里的一封怎么办。
-enum Mail {
-    /// 送进内核。
-    Input(Input),
-    /// 当场办完了。
-    Done,
-    /// 有计划地停下，停好了回这一头。
-    Stop(oneshot::Sender<()>),
-    /// 停掉派出去的任务（施工 7-4）：要等杀掉、存好，在 `halt.rs` 里办。
-    Halt(crate::handle::Halt),
-    /// 删会话之前停下（施工 3-8 三补，`stop.rs`）。
-    Delete(bool, oneshot::Sender<Result<(), Reason>>),
 }
 
 impl Actor {
@@ -150,6 +142,7 @@ impl Actor {
             guard: Arc::new(guard),
             busy,
             reporter: None,
+            watchers: 0,
         }
     }
 
@@ -200,38 +193,6 @@ impl Actor {
             };
             if self.drain(VecDeque::from([input])).await.is_err() {
                 return;
-            }
-        }
-    }
-
-    /// 收件箱里的一封：命令照 actor 的时钟记下到的时刻，订阅当场办。
-    fn mail(&mut self, message: Message) -> Mail {
-        match message {
-            Message::Command {
-                id,
-                by,
-                command,
-                reply,
-            } => {
-                self.wait_for(id.clone(), reply);
-                let at = self.clock.now();
-                Mail::Input(Input::Command(Received {
-                    id,
-                    by,
-                    at,
-                    command,
-                }))
-            }
-            Message::Subscribe(reply) => {
-                answer(reply, self.pushes.subscribe());
-                Mail::Done
-            }
-            Message::Stop(reply) => Mail::Stop(reply),
-            Message::Halt(halt) => Mail::Halt(halt),
-            Message::Delete { force, reply } => Mail::Delete(force, reply),
-            Message::Environment(environment) => {
-                self.tools.locate(environment.offset);
-                Mail::Input(Input::Environment(environment))
             }
         }
     }
@@ -383,6 +344,11 @@ impl Actor {
             Action::Recall { blobs } => Some(Input::Recalled {
                 texts: self.tools.recall(blobs).await,
             }),
+            // 停掉撤掉的那几轮派出去的（施工 7-8，`halt.rs`）：不送回，回报照停好了的样子另外交来。
+            Action::StopJobs { jobs, by, cause } => {
+                self.undo_jobs(jobs, by, cause).await;
+                None
+            }
             // 向上回报（施工 7-6）：交给交回报的那一头，不等。没有的（测试里自己造的子会话）交不出去，运行日志里的
             // `action` 那一行记着。
             Action::Report(upward) => {

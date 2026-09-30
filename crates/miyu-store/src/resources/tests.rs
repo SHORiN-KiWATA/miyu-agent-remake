@@ -135,6 +135,7 @@ fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
         (&jobs.subagent_silent, job!("subagent-silent.txt")),
         (&jobs.subagent_close, job!("subagent-close.txt")),
         (&jobs.subagent_omitted, job!("subagent-omitted.txt")),
+        (&jobs.stopped_by_user, job!("stopped-by-user.txt")),
         (
             &jobs.subagent_message_open,
             job!("subagent-message-open.txt"),
@@ -147,12 +148,22 @@ fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
     for (got, file) in read {
         assert_eq!(got, file);
     }
-    // 文本文件照字放进消息的三句（施工 3-9 三补）：每一格是它自己那份文件。
-    let text = sources
+    // 别的 harness 发来的话的标签（施工 7-10）：每一格是它自己那份文件。
+    let harness = sources
         .core
-        .drivers
-        .text_file
-        .expect("出厂的有文本文件的三句");
+        .harness
+        .expect("出厂的有别的 harness 发来的话的标签");
+    assert_eq!(
+        harness.message_open,
+        include_str!("../../../../resources/core/harness/message-open.txt")
+    );
+    assert_eq!(
+        harness.message_close,
+        include_str!("../../../../resources/core/harness/message-close.txt")
+    );
+    // 文本文件照字放进消息的三句（施工 3-9 三补）：每一格是它自己那份文件。
+    let drivers = sources.core.drivers;
+    let text = drivers.text_file.expect("出厂的有文本文件的三句");
     macro_rules! driver {
         ($name:literal) => {
             include_str!(concat!("../../../../resources/core/drivers/", $name))
@@ -161,6 +172,14 @@ fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
     assert_eq!(text.file_open, driver!("file-open.txt"));
     assert_eq!(text.file_cut, driver!("file-cut.txt"));
     assert_eq!(text.file_close, driver!("file-close.txt"));
+    // 带名字的图片的三句（施工 3-9 四补）：同上。
+    let image = drivers.image_name.expect("出厂的有带名字的图片的三句");
+    assert_eq!(image.image_open, driver!("image-open.txt"));
+    assert_eq!(image.image_close, driver!("image-close.txt"));
+    assert_eq!(
+        image.image_omitted_named,
+        driver!("image-omitted-named.txt")
+    );
 }
 
 #[test]

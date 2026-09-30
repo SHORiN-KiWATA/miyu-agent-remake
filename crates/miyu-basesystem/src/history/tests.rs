@@ -5,6 +5,7 @@
 //! 第 76 轮撤了又恢复。还算数的是 54、55、64、67、71、72、75、77、81、82。
 
 mod find;
+mod harness;
 mod read;
 
 use std::path::{Path, PathBuf};

@@ -7,12 +7,9 @@
 //! 存档在 `docs/designs/samples/probe/<会话>/`（`terminal`、`reports`、`subagent`、`cleared`）：`log.jsonl` 是真内核记下的日志，`requests/`
 //! 下一次请求一个文件，写的是规范字节，末尾一个换行；`openai-chat/` 下是同一次请求编码成 OpenAI
 //! 兼容接口的字节（施工 3-4 上）。字节变了必须是有意的：设上 `MIYU_PROBE_WRITE=1` 跑一遍，重写
-//! 存档，提交说明里写为什么变。
+//! 存档，提交说明里写为什么变。怎么存、怎么比在 `support/archive.rs`；有别的 harness 来话的会话在 `probe_harness.rs`。
 
 mod support;
-
-use std::fs;
-use std::path::PathBuf;
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{ChildReason, ErrorClass, JobReason};
@@ -20,7 +17,10 @@ use miyu_kernel::origin::{By, Tool};
 use miyu_kernel::request::Message;
 use miyu_kernel::session::Queued;
 use miyu_kernel::testkit::{Line, Play, Stage};
-use support::{PARENT, VENUE, anchored, check, child_stage, lines, sent, stage, summarizes, wire};
+use support::{
+    PARENT, VENUE, anchored, check, child_stage, files, matches_the_archive, sent, stage,
+    summarizes,
+};
 
 /// 终端会话的剧本，十一个回合，1-12、1-13 画过的走法都走一遍，最后两段是自动压缩（施工 6-2 上）。照真内核会怎么走写（施工 2-9 下）：
 /// 回合中途的那句话在工具还在跑时说；两轮之间换只读，改成请求还在路上时先切、再打断。
@@ -230,25 +230,6 @@ fn cleared() -> Stage {
     s
 }
 
-/// 存档所在的目录：这个 crate 的目录往上两级是仓库根。
-fn archive(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../docs/designs/samples/probe")
-        .join(name)
-}
-
-/// 这段会话要存档的几个文件：相对存档目录的路径，和内容。
-fn files(stage: &Stage) -> Vec<(String, String)> {
-    let mut files = vec![("log.jsonl".to_string(), lines(stage).join("\n") + "\n")];
-    for (index, (_, request)) in stage.requests().iter().enumerate() {
-        let bytes = String::from_utf8(request.canonical_bytes()).expect("规范的字节是 UTF-8");
-        files.push((format!("requests/{:02}.json", index + 1), bytes + "\n"));
-        let body = String::from_utf8(wire(request).body).expect("请求字节是 UTF-8");
-        files.push((format!("openai-chat/{:02}.json", index + 1), body + "\n"));
-    }
-    files
-}
-
 #[test]
 fn the_terminal_session_matches_the_archive() {
     matches_the_archive("terminal", &terminal());
@@ -294,42 +275,6 @@ fn the_subagent_session_differs_only_by_its_venue_note() {
         assert_eq!(
             child.system,
             format!("{}\n\n{}", main.system, VENUE.trim_end())
-        );
-    }
-}
-
-/// 这段会话和存档 `name` 逐字节比；设了 `MIYU_PROBE_WRITE` 的重写存档。
-fn matches_the_archive(name: &str, stage: &Stage) {
-    let files = files(stage);
-    let dir = archive(name);
-    if std::env::var_os("MIYU_PROBE_WRITE").is_some() {
-        if dir.exists() {
-            fs::remove_dir_all(&dir).expect("删得掉旧的存档");
-        }
-        fs::create_dir_all(dir.join("requests")).expect("建得了存档目录");
-        fs::create_dir_all(dir.join("openai-chat")).expect("建得了存档目录");
-        for (name, content) in &files {
-            fs::write(dir.join(name), content).expect("写得了存档");
-        }
-        return;
-    }
-    for (name, content) in &files {
-        let path = dir.join(name);
-        let archived =
-            fs::read_to_string(&path).unwrap_or_else(|e| panic!("读不了 {}：{e}", path.display()));
-        assert!(
-            archived == *content,
-            "{name} 和存档不一样。要是有意改的，设上 MIYU_PROBE_WRITE=1 跑一遍重写存档，提交说明里写为什么变"
-        );
-    }
-    for folder in ["requests", "openai-chat"] {
-        let archived = fs::read_dir(dir.join(folder))
-            .expect("读得了存档的请求目录")
-            .count();
-        assert_eq!(
-            archived,
-            (files.len() - 1) / 2,
-            "存档 {folder}/ 里的请求数和这一次的不一样"
         );
     }
 }

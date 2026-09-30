@@ -15,6 +15,8 @@ pub(crate) fn store(blobs: &Blobs, pictures: Vec<Picture>) -> Option<Vec<Block>>
         match blobs.put(&picture.bytes) {
             Ok(blob) => blocks.push(Block::Image(Image {
                 blob,
+                // 工具读出来的图不带名字：那一次调用本来写着路径（施工 3-9 四补，`kernel/blocks.md` 第 14 条）。
+                name: None,
                 media_type: picture.media_type,
                 width: picture.width,
                 height: picture.height,

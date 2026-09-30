@@ -71,6 +71,7 @@ async fn attachments_follow_the_text_as_measured_by_the_core() {
         }),
         Block::Image(Image {
             blob: ContentHash::of(&picture),
+            name: Some(FileName::parse("shot.png").unwrap()),
             media_type: MediaType::parse("image/png").unwrap(),
             width: 800,
             height: 600,

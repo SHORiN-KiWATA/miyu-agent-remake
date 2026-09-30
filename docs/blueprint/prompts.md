@@ -277,6 +277,17 @@ A <permission> block gives the permission level from that point on. In read_only
 An image was attached here, but this model cannot view images.
 ```
 
+#### `core/drivers/image-omitted-named.txt`
+
+- 什么时候加进来：模型看不了图，历史里却有人附的图片（施工 3-9 四补）
+- token：17
+- 为什么加：同 `image-open.txt`：看不了图的，也要知道附的是哪个文件。没改 `image-omitted.txt`，另成一份，因为模板没有可以不填的字段；`read` 读出来的图、以前日志里的图没有名字，照旧用不带名字的那一句（2026-09-30 主会话同意）。照同样的值比不带名字的那一句（13）多 4 个
+- 指纹：`0bbd6fc1`
+
+```text
+An image was attached here ({name}), but this model cannot view images.
+```
+
 ### 文件的占位
 
 #### `core/drivers/file-omitted.txt`
@@ -1095,6 +1106,17 @@ Could not read the log: {error}
 [file {name}]
 ```
 
+#### `software/basesystem/history/agent.txt`
+
+- 什么时候加进来：别的 harness 发来的那一条，「谁」那一格代替 `user`
+- token：6（字段按 `claude-code` 算，去掉行尾换行量也是 6，比它代替的 `user` 多 5；2026-09-30 量）
+- 为什么加：注明来处：`history` 读出来的这种话，她分得清是别的代理说的、叫什么，和请求里那块标签是同一个名字（`tools/history.md`，施工 7-10）
+- 指纹：`483a7934`
+
+```text
+agent "{name}"
+```
+
 #### `software/basesystem/agent/started.txt`
 
 - 什么时候加进来：派出去了
@@ -1402,6 +1424,32 @@ Only the first {shown} of {total} bytes of this file are shown.
 </file>
 ```
 
+### 人附的图片的前面，人这边
+
+#### `core/drivers/image-open.txt`
+
+- 什么时候加进来：人附的图片，模型能看图（施工 3-9 四补）
+- token：8
+- 为什么加：一句话附了几张图，她要分得清哪张是哪个文件。网页演示接真核心实测（2026-09-30）：附了一张图、一个 PDF、一个文本文件，问哪个是图片、只答文件名，她答不出，因为发给她的图没有名字。写法照 `file-open.txt`（施工 3-9 四补）
+- 指纹：`d23c0409`
+
+```text
+<image name="{name}">
+```
+
+### 人附的图片的后面
+
+#### `core/drivers/image-close.txt`
+
+- 什么时候加进来：同 `image-open.txt`
+- token：3
+- 为什么加：同 `image-open.txt`
+- 指纹：`b8391aff`
+
+```text
+</image>
+```
+
 ### 人这边：任务的回报（一块带标签的事实）
 
 #### `core/jobs/command-open.txt`
@@ -1525,6 +1573,17 @@ The subagent ended without saying anything.
 </subagent-report>
 ```
 
+#### `core/jobs/stopped-by-user.txt`
+
+- 什么时候加进来：标签那一行后面，人停的回报（`reason` 是 `stopped`、不带 `by_model`：人用 `job.stop` 停的、删掉子会话的），后台命令和子代理共用；她自己用 `jobs` 停的、以前造的快照没有这一份的不写
+- token：5（2026-09-30 主会话照同一个端点、`deepseek-v4.1-flash` 量，接在一句话后面、带行尾换行）
+- 为什么加：她被人停的回报叫醒，要知道是人停的。网页演示接真核心实测（2026-09-30）：在后台任务浮层里点停止（`job.stop`），她被叫醒以后当成任务自己停了，没说是用户停的；回报里只有 `reason="stopped"`，人停的和她自己停的写出来一样（施工 7-2 补）。她自己停的不写：那种不叫醒她，停它的那次 `jobs` 调用本来就在上下文里
+- 指纹：`3bb1e99d`
+
+```text
+The user stopped this.
+```
+
 ### 人这边：任务的回报（一块带标签的事实），正文中间
 
 #### `core/jobs/subagent-omitted.txt`
@@ -1573,6 +1632,30 @@ You are a subagent, started by another session to do one task. That parent sessi
 
 ```text
 </subagent-message>
+```
+
+### 人这边：别的 harness 发来的话（一块带标签的事实）
+
+#### `core/harness/message-open.txt`
+
+- 什么时候加进来：标签那一行，`session.send` 带 `from` 发来的话（`message.user`，`by` 是 `harness`）；闲着时是开这一轮的那条，正忙时排在那一步的工具结果后面，之后每次请求照原文带
+- token：10（字段按 `claude-code` 算，2026-09-30 照项目主人给的端点、`deepseek-v4.1-flash` 量）
+- 为什么加：注明是别的代理说的、叫什么：不注明她会当成人说的话（`agents.md` 第九条第 4 条，施工 7-10）。写法照子代理留言的标签；名字是对方自己报的，照模板的规矩转义
+- 指纹：`e676ee1f`
+
+```text
+<agent-message from="{name}">
+```
+
+#### `core/harness/message-close.txt`
+
+- 什么时候加进来：收尾那一行，同 `message-open.txt`
+- token：5（2026-09-30 量）
+- 为什么加：标签的收尾（施工 7-10）
+- 指纹：`8df1db64`
+
+```text
+</agent-message>
 ```
 
 ### 人这边

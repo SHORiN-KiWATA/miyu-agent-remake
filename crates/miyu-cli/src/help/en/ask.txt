@@ -1,6 +1,7 @@
 Usage: miyu ask [options] <words>
 
 Say something and print her answer, in a new session unless -c or -s.
+If she starts subagents, it waits for their reports and her answers.
 
 Options:
   -c, --continue          Go on in the session the last miyu ask opened
@@ -8,4 +9,6 @@ Options:
       --format text|json  text for people (default), json for scripts
       --add-dir <dir>     Let her read and write this directory too; repeatable
       --file <file>       Attach a file: image, PDF, text…; repeatable
+      --timeout <time>    Stop waiting after this long: 30s, 10m, 1h
+      --from <name>       For another harness: its name, e.g. claude-code
   -h, --help              Print help

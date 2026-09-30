@@ -67,6 +67,19 @@ pub fn misuse(error: &clap::Error, language: Language) -> String {
                 false => format!("--add-dir needs an existing directory: {value}"),
             }
         }
+        // `--timeout` 后面不是一个时长（施工 7-9）。
+        ErrorKind::ValueValidation if option(&arg) == "--timeout" => {
+            let value = clean(&first(error, ContextKind::InvalidValue));
+            match chinese {
+                true => format!("--timeout 后面要写一个时长，例如 30s、10m、1h：{value}"),
+                false => format!("--timeout needs a duration such as 30s, 10m or 1h: {value}"),
+            }
+        }
+        // `--from` 后面是空的、只有空白（施工 7-10）。
+        ErrorKind::ValueValidation if option(&arg) == "--from" => match chinese {
+            true => "--from 后面要写别的 harness 的名字".to_string(),
+            false => "--from needs the name of the other harness".to_string(),
+        },
         ErrorKind::InvalidValue if !all(error, ContextKind::ValidValue).is_empty() => {
             let valid = all(error, ContextKind::ValidValue);
             match chinese {

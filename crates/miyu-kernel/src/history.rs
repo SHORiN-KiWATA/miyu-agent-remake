@@ -10,7 +10,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::event::{Body, Event};
-use crate::id::{ContentHash, JobId, Seq, SessionId};
+use crate::id::{ContentHash, JobId, Seq, SessionId, TurnId};
 
 mod jobs;
 mod undo;
@@ -60,8 +60,13 @@ impl History {
 
     /// 派出去过的编号是 `job` 的任务（施工 7-2）：标题、种类、派它的那一轮撤掉了没有。压缩换掉了派它的那一条也在；没派过
     /// 的没有。
-    pub fn dispatched(&self, job: JobId) -> Option<&Dispatched> {
+    pub fn dispatched(&self, job: &JobId) -> Option<&Dispatched> {
         self.jobs.get(job)
+    }
+
+    /// 在这几轮里派出去过的任务，照编号（施工 7-8）：撤销这几轮时停掉还在跑的。
+    pub fn dispatched_in(&self, turns: &[TurnId]) -> Vec<JobId> {
+        self.jobs.in_turns(turns).collect()
     }
 
     /// 在会话 `session` 里跑的子代理：编号和派它时记下的（施工 7-7）。子代理发来的留言照发消息的会话认出是哪一个，标签里

@@ -52,6 +52,7 @@ pub(crate) fn action(action: &Action) -> &'static str {
         Action::ReadBack { .. } => "read_back",
         Action::Recall { .. } => "recall",
         Action::Report(_) => "report",
+        Action::StopJobs { .. } => "stop_jobs",
     }
 }
 

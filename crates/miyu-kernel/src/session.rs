@@ -185,8 +185,8 @@ impl Session {
         }
     }
 
-    /// 日志里用过的最大任务编号（施工 7-5）：撤掉的回合里派的也算，一个都没派过的是 0。纯查询：会话 actor 造会话、载入以后
-    /// 照它建领号的，新派的任务从下一个数起（`session/tools.md`「任务编号」）。
+    /// 日志里用过的任务编号最后一段最大的数（施工 7-5；照最后一段数，施工 7-1 补）：撤掉的回合里派的也算，一个都没派过的
+    /// 是 0。纯查询：会话 actor 造会话、载入以后照它建领号的，新派的任务从下一个数起（`session/tools.md`「任务编号」）。
     pub fn last_job_number(&self) -> u64 {
         self.ledger.last_job_number()
     }
@@ -312,9 +312,9 @@ impl Session {
                 if blocks.is_empty() {
                     return vec![rejected(id, Reason::EmptyMessage)];
                 }
-                // 子代理发来的留言照回报的规矩到（施工 7-7，`messages.rs`）。
-                if let Some(job) = self.subagent_sending(&by) {
-                    return self.subagent_says(id, by, at, blocks, job);
+                // 别处来的（子代理的留言，施工 7-7；别的 harness 发来的话，施工 7-10）照回报的规矩到（`messages.rs`）。
+                if let Some(waker) = self.elsewhere(&by) {
+                    return self.elsewhere_says(id, by, at, blocks, waker);
                 }
                 let body = Body::MessageUser(MessageUser { blocks });
                 let message = self.record(at, by.clone(), Some(id.clone()), body);

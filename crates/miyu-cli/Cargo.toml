@@ -22,8 +22,8 @@ miyu-store = { path = "../miyu-store" }
 miyu-sandbox = { path = "../miyu-sandbox" }
 # 协议是 JSON-RPC 2.0，一行一条（04-核心协议.md P1）。
 serde_json = "1.0"
-# 连接是异步的；Ctrl+C。
-tokio = { version = "1", features = ["io-util", "macros", "rt", "signal", "sync"] }
+# 连接是异步的；Ctrl+C；`--timeout` 的钟（施工 7-9）。
+tokio = { version = "1", features = ["io-util", "macros", "rt", "signal", "sync", "time"] }
 
 [target.'cfg(windows)'.dependencies]
 # `miyu sandbox setup` 替谁装：当前用户的 SID（施工 5-8）。

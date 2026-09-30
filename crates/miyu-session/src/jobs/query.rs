@@ -11,7 +11,7 @@ use miyu_kernel::id::{JobId, SessionId};
 use miyu_store::jobs::output_path;
 use miyu_tool::{JobError, Output};
 
-use super::stop::{Who, stop_agent};
+use super::stop::{Who, Why, stop_agent, stopped_report};
 use super::{Ended, SessionJobs, Shared};
 use crate::TARGET;
 use crate::blocking::blocking;
@@ -29,7 +29,7 @@ pub(crate) enum Target {
 impl Shared {
     /// 能停的 `job` 是什么：这个会话没派过的（不认识的种类也算）是 [`JobError::Unknown`]，已经有回报的是
     /// [`JobError::Ended`]。子代理报了 `done` 也算结束了：它那一轮完了（父子留言叫醒它随 7-7）。
-    pub(super) fn target(&self, job: JobId) -> Result<Target, JobError> {
+    pub(super) fn target(&self, job: &JobId) -> Result<Target, JobError> {
         let roster = self.roster();
         let record = roster.get(job).ok_or(JobError::Unknown)?;
         if record.end.is_some() {
@@ -44,7 +44,7 @@ impl Shared {
 
     /// 停一个：后台命令在阻塞线程里杀、存，报给 actor；子代理经会话表停。她用 `jobs` 停的走这里。
     pub(super) async fn stop(self: &Arc<Shared>, job: JobId, who: Who) -> Result<(), JobError> {
-        match self.target(job)? {
+        match self.target(&job)? {
             Target::Command => {
                 let shared = Arc::clone(self);
                 let ended = blocking(move || shared.stop_command(job, &who))
@@ -54,7 +54,7 @@ impl Shared {
                 Ok(())
             }
             Target::Agent(child) => match &self.agents {
-                Some(agents) => stop_agent(agents, job, child, who.by_model).await,
+                Some(agents) => stop_agent(agents, job, child, who.why).await,
                 None => Err(JobError::Unknown),
             },
         }
@@ -65,7 +65,7 @@ impl Shared {
     pub(super) async fn output(&self, job: JobId) -> Result<Output, JobError> {
         let (what, session, stored, running) = {
             let roster = self.roster();
-            let record = roster.get(job).ok_or(JobError::Unknown)?;
+            let record = roster.get(&job).ok_or(JobError::Unknown)?;
             (
                 record.what.clone(),
                 record.session.clone(),
@@ -77,7 +77,7 @@ impl Shared {
             (JobKind::Command, _) => {
                 let path = match stored {
                     Some(hash) => self.blobs.path(&hash),
-                    None => output_path(&self.dir, job),
+                    None => output_path(&self.dir, &job),
                 };
                 let text = blocking(move || File::open(path).ok()).await;
                 Ok(Output {
@@ -108,7 +108,7 @@ impl Shared {
 
     /// 停好的后台命令交给 actor 记下。actor 已经停了的送不进去：没人会落它的盘了，从表里拿掉。
     fn back(&self, ended: Ended) {
-        let key = ended.key;
+        let key = ended.key.clone();
         if self.backs.send(Back::Job(ended)).is_err() {
             self.table.lock().remove(&key);
         }
@@ -117,7 +117,7 @@ impl Shared {
 
 impl SessionJobs {
     /// 能停的 `job` 是什么（人用 `job.stop` 停的）。
-    pub(crate) fn target(&self, job: JobId) -> Result<Target, JobError> {
+    pub(crate) fn target(&self, job: &JobId) -> Result<Target, JobError> {
         self.shared.target(job)
     }
 
@@ -141,18 +141,34 @@ impl SessionJobs {
         blocking(move || shared.stop_command(job, &who)).await
     }
 
+    /// 子代理 `job`（子会话 `child`）已经停下了（人删了它，施工 7-8）：作为它交来的那一份回报（命令编号、`by`、命令），由
+    /// actor 当场交进内核。没有会话表的端口的，没有。
+    pub(crate) async fn stopped_report(
+        &self,
+        job: JobId,
+        child: &SessionId,
+        why: Why,
+    ) -> Option<(
+        miyu_kernel::id::CommandId,
+        miyu_kernel::origin::By,
+        miyu_kernel::session::Command,
+    )> {
+        let agents = self.shared.agents.clone()?;
+        Some(stopped_report(&agents, job, child, why).await)
+    }
+
     /// 停掉子代理 `job`（子会话 `child`）的 future：拿着自己要的，actor 另起一个任务跑它，不在收件箱里等。没有会话表的
     /// 端口的，交回 [`JobError::Unknown`]。
     pub(crate) fn stop_agent(
         &self,
         job: JobId,
         child: SessionId,
-        by_model: bool,
+        why: Why,
     ) -> impl Future<Output = Result<(), JobError>> + Send + 'static {
         let agents = self.shared.agents.clone();
         async move {
             match agents {
-                Some(agents) => stop_agent(&agents, job, child, by_model).await,
+                Some(agents) => stop_agent(&agents, job, child, why).await,
                 None => Err(JobError::Unknown),
             }
         }

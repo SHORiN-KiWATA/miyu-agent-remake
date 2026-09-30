@@ -2,9 +2,10 @@
 //! 拿进来，不是读文件）。
 
 use crate::compose::{PersonaTexts, Sources, compose};
+use crate::drivers::DriverPlaceholders;
 use crate::snapshot::{
-    CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts, PermissionTexts, Snapshot,
-    ToolResultTexts, TurnEndedTexts,
+    CompactionTexts, CoreTexts, FactTexts, PermissionTexts, Snapshot, ToolResultTexts,
+    TurnEndedTexts,
 };
 
 /// 出厂的随核心附带的字。
@@ -92,6 +93,16 @@ pub(crate) fn core() -> CoreTexts {
                 file_close: include_str!("../../../resources/core/drivers/file-close.txt")
                     .to_string(),
             }),
+            image_name: Some(crate::ImageNameTexts {
+                image_open: include_str!("../../../resources/core/drivers/image-open.txt")
+                    .to_string(),
+                image_close: include_str!("../../../resources/core/drivers/image-close.txt")
+                    .to_string(),
+                image_omitted_named: include_str!(
+                    "../../../resources/core/drivers/image-omitted-named.txt"
+                )
+                .to_string(),
+            }),
         },
         compaction: Some(CompactionTexts {
             summarize_task: include_str!("../../../resources/core/compaction/summarize-task.txt")
@@ -137,6 +148,12 @@ pub(crate) fn core() -> CoreTexts {
             }),
         }),
         jobs: Some(jobs()),
+        harness: Some(crate::HarnessTexts {
+            message_open: include_str!("../../../resources/core/harness/message-open.txt")
+                .to_string(),
+            message_close: include_str!("../../../resources/core/harness/message-close.txt")
+                .to_string(),
+        }),
     }
 }
 
@@ -159,6 +176,8 @@ fn jobs() -> crate::JobTexts {
             .to_string(),
         subagent_close: include_str!("../../../resources/core/jobs/subagent-close.txt").to_string(),
         subagent_omitted: include_str!("../../../resources/core/jobs/subagent-omitted.txt")
+            .to_string(),
+        stopped_by_user: include_str!("../../../resources/core/jobs/stopped-by-user.txt")
             .to_string(),
         subagent_message_open: include_str!(
             "../../../resources/core/jobs/subagent-message-open.txt"

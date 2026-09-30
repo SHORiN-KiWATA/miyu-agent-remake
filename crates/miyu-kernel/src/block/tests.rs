@@ -13,6 +13,7 @@ fn every_block_from_the_drawing_round_trips() {
         r#"{"type":"reasoning","text":"先看目录","private":{"driver":"anthropic","data":{"signature":"sig"}}}"#.to_string(),
         r#"{"type":"reasoning","text":"没有私有数据"}"#.to_string(),
         format!(r#"{{"type":"image","blob":"{HASH}","media_type":"image/png","width":800,"height":600}}"#),
+        format!(r#"{{"type":"image","blob":"{HASH}","name":"晚霞.png","media_type":"image/png","width":800,"height":600}}"#),
         format!(r#"{{"type":"file","blob":"{HASH}","name":"报告.pdf","media_type":"application/pdf"}}"#),
         r#"{"type":"tool_call","call_id":"call_44_1","name":"read","args":"{\"path\":\"src\"}"}"#.to_string(),
     ] {
@@ -40,6 +41,30 @@ fn tool_call_keeps_name_and_args_as_the_model_wrote_them() {
     );
 }
 
+/// 图片块的名字（施工 3-9 四补）：人附的带着，`read` 读出来的、以前的日志里的没有，读回来是没有，写出去也没有这一格。
+#[test]
+fn an_image_carries_its_name_only_when_it_has_one() {
+    let named = format!(
+        r#"{{"type":"image","blob":"{HASH}","name":"晚霞.png","media_type":"image/png","width":800,"height":600}}"#
+    );
+    let Block::Image(image) = serde_json::from_str(&named).unwrap() else {
+        panic!("是图片块");
+    };
+    assert_eq!(image.name.as_ref().map(FileName::as_str), Some("晚霞.png"));
+    let old = format!(
+        r#"{{"type":"image","blob":"{HASH}","media_type":"image/png","width":800,"height":600}}"#
+    );
+    let Block::Image(image) = serde_json::from_str(&old).unwrap() else {
+        panic!("是图片块");
+    };
+    assert_eq!(image.name, None);
+    assert!(
+        !serde_json::to_string(&Block::Image(image))
+            .unwrap()
+            .contains("name")
+    );
+}
+
 #[test]
 fn unknown_block_is_kept_byte_for_byte() {
     let json = format!(r#"{{"type":"audio", "blob":"{HASH}","seconds":3.20}}"#);
@@ -55,6 +80,12 @@ fn broken_blocks_are_errors() {
         "width",
     );
     rejected::<Block>(r#"{"text":"没有 type"}"#, "missing field `type`");
+    rejected::<Block>(
+        &format!(
+            r#"{{"type":"image","blob":"{HASH}","name":"shots/a.png","media_type":"image/png","width":1,"height":1}}"#
+        ),
+        "bad file name",
+    );
     rejected::<Block>(
         r#"{"type":"file","blob":"sha256:12","name":"a.txt","media_type":"text/plain"}"#,
         "bad content hash",

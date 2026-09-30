@@ -12,9 +12,9 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use miyu_policy::{
-    CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts, JobTexts, PermissionTexts,
-    PersonaTexts, RebuildTexts, ShortenTexts, Sources, TextFileTexts, ToolResultTexts,
-    TurnEndedTexts,
+    CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts, HarnessTexts, ImageNameTexts,
+    JobTexts, PermissionTexts, PersonaTexts, RebuildTexts, ShortenTexts, Sources, TextFileTexts,
+    ToolResultTexts, TurnEndedTexts,
 };
 
 use crate::env::Env;
@@ -225,6 +225,11 @@ impl ResourceRoot {
                     file_cut: driver("file-cut.txt")?,
                     file_close: driver("file-close.txt")?,
                 }),
+                image_name: Some(ImageNameTexts {
+                    image_open: driver("image-open.txt")?,
+                    image_close: driver("image-close.txt")?,
+                    image_omitted_named: driver("image-omitted-named.txt")?,
+                }),
             },
             compaction: Some(CompactionTexts {
                 summarize_task: core(&["compaction", "summarize-task.txt"])?,
@@ -257,8 +262,13 @@ impl ResourceRoot {
                 subagent_silent: job("subagent-silent.txt")?,
                 subagent_close: job("subagent-close.txt")?,
                 subagent_omitted: job("subagent-omitted.txt")?,
+                stopped_by_user: job("stopped-by-user.txt")?,
                 subagent_message_open: job("subagent-message-open.txt")?,
                 subagent_message_close: job("subagent-message-close.txt")?,
+            }),
+            harness: Some(HarnessTexts {
+                message_open: core(&["harness", "message-open.txt"])?,
+                message_close: core(&["harness", "message-close.txt"])?,
             }),
         })
     }

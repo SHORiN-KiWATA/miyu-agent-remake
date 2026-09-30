@@ -4,25 +4,28 @@
 //! 那一套。替身发过的每一次请求，连同发它时的情形（[`Sent`]），交给 [`check`] 查五条性质。
 //! 1-14 那时还没有回合状态机，这里是一个照图纸推日志的假内核；2-9（下）换成了真会话。
 
-#![allow(dead_code, reason = "两个测试各用其中一部分")]
+#![allow(dead_code, unused_imports, reason = "几个测试各用其中一部分")]
 
 mod anchor;
+mod archive;
 mod texts;
 
 pub use anchor::anchored;
-use texts::texts;
+pub use archive::{files, matches_the_archive};
 pub use texts::{SUMMARIZE, VENUE};
+use texts::{driver_texts, texts};
 
 use std::collections::BTreeMap;
 
 use miyu_assemble::{DefaultAssembler, Stable};
 use miyu_drivers::openai_chat::{self, Compat, Encoded};
-use miyu_drivers::{Call, DriverTextSources, DriverTexts, Inputs, TextFileSources};
+use miyu_drivers::{Call, Inputs};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::estimate::Flat;
 use miyu_kernel::event::{Body, Event};
 use miyu_kernel::facts::{Environment, FactTemplates};
 use miyu_kernel::id::{CallId, ModelName, Seq};
+use miyu_kernel::origin::By;
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::request::{Message, Request, ToolSpec};
 use miyu_kernel::session::{Compaction, Policy};
@@ -171,6 +174,8 @@ pub fn sent(stage: &Stage) -> Vec<Sent> {
             .filter(|_| !summary)
             .filter(|(turn, _)| before_main.is_none_or(|before| before < *turn))
             .and_then(|(_, trigger)| log.iter().find(|event| Some(event.seq) == trigger))
+            // 别的 harness 发来的话渲染时包了一层标签（施工 7-10）：最后一块照它自己的探针查（`probe_harness.rs`）。
+            .filter(|event| !matches!(event.by, By::Harness(_)))
             .and_then(|event| match &event.body {
                 Body::MessageUser(message) => message.blocks.last().cloned(),
                 _ => None,
@@ -352,25 +357,6 @@ fn wire_extends(now: &Encoded, before: &Encoded) -> Result<(), String> {
         return Err("消息后面的工具面、参数变了".to_string());
     }
     Ok(())
-}
-
-/// 出厂的驱动占位，从资源目录读。
-fn driver_texts() -> DriverTexts {
-    DriverTexts::new(DriverTextSources {
-        image_omitted: include_str!("../../../../resources/core/drivers/image-omitted.txt"),
-        file_omitted: include_str!("../../../../resources/core/drivers/file-omitted.txt"),
-        no_output: include_str!("../../../../resources/core/drivers/no-output.txt"),
-        tool_attachments: include_str!("../../../../resources/core/drivers/tool-attachments.txt"),
-        tool_attachments_only: include_str!(
-            "../../../../resources/core/drivers/tool-attachments-only.txt"
-        ),
-        text_file: Some(TextFileSources {
-            file_open: include_str!("../../../../resources/core/drivers/file-open.txt"),
-            file_cut: include_str!("../../../../resources/core/drivers/file-cut.txt"),
-            file_close: include_str!("../../../../resources/core/drivers/file-close.txt"),
-        }),
-    })
-    .expect("出厂的占位用得了")
 }
 
 /// 工具调用和结果成对：每条回复里的调用，按先后各有一条结果紧跟在回复后面；没有落单的结果。

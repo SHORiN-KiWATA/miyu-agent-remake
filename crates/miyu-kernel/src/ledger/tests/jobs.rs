@@ -1,10 +1,11 @@
 //! 任务的几条规矩（施工 7-1，`kernel/history.md`「账本查的规矩」）：每一条一个被拦下的例子、一个放行的例子。
 //!
 //! 底子是一段会话：第 3 轮一次调了三个工具，第一个派了后台命令 `j1`，第二个派了子代理 `j2`（会话 A），第三个派了
-//! 一个不认识的种类 `j3`；然后回合结束，闲着。两种回报的几条在 `jobs/reports.rs`。
+//! 一个不认识的种类 `j3`；然后回合结束，闲着。两种回报的几条在 `jobs/reports.rs`，用过的最大编号在 `jobs/numbers.rs`。
 
 use super::*;
 
+mod numbers;
 mod reports;
 
 /// 子代理 `j2` 的会话。
@@ -329,20 +330,6 @@ fn a_child_session_has_both_parent_and_depth() {
             why,
         );
     }
-}
-
-/// 用过的最大编号（施工 7-5）：执行器照它往下领号。一个都没派过的是 0；不认识的种类也占着号；撤掉那一轮，号照样算用过。
-#[test]
-fn the_last_job_number_counts_every_job_ever_started() {
-    assert_eq!(Ledger::default().last_job_number(), 0);
-    assert_eq!(jobs_after(4).last_job_number(), 0, "还没派");
-    assert_eq!(jobs_after(5).last_job_number(), 1);
-    assert_eq!(jobs_after(9).last_job_number(), 3, "不认识的种类也算");
-    let mut ledger = jobs_after(9);
-    ledger
-        .append(&event(10, None, "turn.reverted", r#"{"turns":[3]}"#))
-        .unwrap();
-    assert_eq!(ledger.last_job_number(), 3, "撤掉的回合里派的也算");
 }
 
 /// 效果 `job.messaged`（施工 7-7）。

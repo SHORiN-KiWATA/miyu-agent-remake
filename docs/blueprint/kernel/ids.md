@@ -10,7 +10,7 @@
 |---|---|
 | `crates/miyu-kernel/src/id.rs` | 十五种用字符串写的编号和名字；序号 `Seq`、回合编号 `TurnId`；内容哈希怎么算（`ContentHash::of`、`Hasher`） |
 | `crates/miyu-kernel/src/id/call.rs` | 调用编号 `CallId` |
-| `crates/miyu-kernel/src/id/job.rs` | 任务编号 `JobId`（施工 7-1） |
+| `crates/miyu-kernel/src/id/job.rs` | 任务编号 `JobId`（施工 7-1；带上父会话的编号，施工 7-1 补） |
 | `crates/miyu-kernel/src/time.rs` | 时刻 `Timestamp`；时区 `UtcOffset`；给模型看的当地钟点 `local_hour` |
 | `crates/miyu-kernel/src/origin.rs` | `by`：八种，加上不认识的 |
 | `crates/miyu-kernel/src/format_error.rs` | 写法不对时报的 `FormatError`（它的样子见 `kernel/events.md`「出错」） |
@@ -25,7 +25,7 @@
 | 序号 | 账本 `Ledger::next_seq`，追加一条给一个（`kernel/history.md`） |
 | 调用编号 | 流式累积器，照回复的序号一个个分（`kernel/request.md`） |
 | 命令编号 | 发命令的一方：协议里每个请求的 `id` 就是命令编号，例如 `miyu ask` 的 `ask-<16 位十六进制>-<序号>`（`protocol.md`、`cli/ask.md`） |
-| 任务编号 | 还没有哪里造：派任务的那几步（7-3、7-5，`agents.md`） |
+| 任务编号 | 执行器的 `JobIds`：一个会话一份，照日志里用过的往下数，子会话带上自己在父会话里的编号（`session/tools.md`「派子代理」第 1 条） |
 
 内核不读时钟：纯逻辑门禁拦 `SystemTime`、`Instant`。
 
@@ -68,10 +68,10 @@
 - JSON 里是字符串。排序先照序号，再照第几个。
 - 带着序号，一个会话里不会重复；供应商自己的编号放在驱动私有数据里（`kernel/blocks.md`）。
 
-**任务编号** `JobId`（施工 7-1，`agents.md`）：`j` 加一个从 1 起的整数，例如 `j1`、`j12`。一个会话里后台命令和子代理共用一串，子会话自己派的另从 `j1` 数；编号不回收，撤掉的回合里用过的也不再用（账本查，`kernel/history.md`）。
+**任务编号** `JobId`（施工 7-1，`agents.md`）：`j` 加一段或几段从 1 起的整数，段之间用 `.` 连，例如 `j1`、`j12`、`j2.1`、`j2.1.1`（施工 7-1 补）。一个会话里后台命令和子代理共用一串，数的是最后一段；前面的几段是这个会话在父会话里的编号，主会话没有：主会话派的是 `j2`，`j2` 派的是 `j2.1`，`j2.1` 放到后台的命令是 `j2.1.1`，一棵树上不重名（`agents.md`「对外的样子」）。编号不回收，撤掉的回合里用过的也不再用（账本查，`kernel/history.md`）。
 
-- `JobId::new(n)` 给 0 得到空的；`get()` 是那个数。最大到 `u64` 的上限。
-- JSON 里是字符串。排序照那个数：`j2` 在 `j10` 前面。
+- `JobId::new(n)` 是只有一段的 `j<n>`，给 0 得到空的；`under(n)` 在这个编号后面接一段：`j2` 的 `under(1)` 是 `j2.1`，给 0 得到空的；`last()` 是最后一段的数。每一段最大到 `u64` 的上限，段数不限（深度上限管着，`agents.md`「上限」的 `jobs.depth`）。
+- JSON 里是字符串。排序一段一段照数比，前面的段都一样的，段少的在前：`j2` 在 `j10` 前面，`j2` 在 `j2.1` 前面，`j2.9` 在 `j10` 前面。
 - 短，她写得对；头要找子会话，看 `job.started` 里的会话编号。
 
 **时刻** `Timestamp`：UTC，到毫秒。
@@ -111,7 +111,7 @@
 
 几格的写法照上面的类型：`account` 是 `AccountId`，`venue` 是 `VenueId`，`id` 依次是 `ExternalId`、`ModuleId`、`SessionId`，`endpoint` 是 `ProviderId`，`model` 是 `ModelName`，`call_id` 是 `CallId`，`name` 是 `HarnessName`。
 
-`harness` 的 `name` 是对方自己报的，不可信，照 `external` 的做法只管写法：短名字的规则，1 到 128 字节、没有控制字符，读的时候不合的报错。收的那一边（协议的 `from`，7-11）先去掉控制字符、截到 128 字节以内（不切断一个字），截完是空的不收；给模型看之前照不可信的文本处理（渲染随 7-10）。
+`harness` 的 `name` 是对方自己报的，不可信，照 `external` 的做法只管写法：短名字的规则，1 到 128 字节、没有控制字符，读的时候不合的报错。收的那一边（协议的 `from`，施工 7-10，`protocol.md` 的 `session.send` 第 6 条）先去掉控制字符、截到 128 字节以内（不切断一个字），截完是空的不收；给模型看之前照模板的规矩转义（`kernel/request.md`「别的 harness 发来的话」）。
 
 ### 怎么走
 
@@ -204,7 +204,7 @@
 **任务编号**（`JobId::parse`，JSON 里读的时候也走它，施工 7-1）：只认内核自己写出去的样子，报错里叫它 `job id`。
 
 25. 不以 `j` 开头（`J1` 也不行）：「must start with j」。
-26. 后面要是十进制的正整数，全是数字，不带正负号，不以 `0` 开头，不超出 `u64`：不合的「needs a decimal number from 1 after j」。`j`、`j0`、`j01`、`j+1`、`j1x`、`j18446744073709551616` 都是这一句。
+26. 后面照 `.` 切成段，每一段要是十进制的正整数，全是数字，不带正负号，不以 `0` 开头，不超出 `u64`：有一段不合的「needs decimal numbers from 1 after j, joined by dots」。`j`、`j0`、`j01`、`j+1`、`j1x`、`j18446744073709551616`、`j1.0`、`j1.`、`j.1`、`j1..2`、`j1.01`、`j1.x` 都是这一句（施工 7-1 补）。
 
 ### 出错
 
@@ -220,7 +220,7 @@ bad session id: must be 36 characters (got "x")
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-kernel/src/id/tests.rs` | 图纸上的例子读写一字不差（`samples_from_the_drawing_round_trip`、`names_from_the_drawing_round_trip`）；会话编号（`session_id_must_be_lowercase_uuid_text`）；短名字（`command_id_is_short_printable_text`、`short_names_are_opaque_but_bounded`）；路径里的名字（`account_is_like_a_linux_login_name`、`module_driver_and_fact_names_follow_the_account_rule`）；内容哈希的写法和算法（`content_hash_is_sha256_in_lowercase_hex`、`content_hash_of_known_contents`、`hashing_piece_by_piece_is_the_same_as_all_at_once`）；媒体类型、文件名、事件种类各自的规则；序号和回合编号（`seq_starts_at_one`、`turn_id_reads_like_a_seq`）；调用编号第 9 到 12 条（`call_id_accepts_only_what_the_kernel_writes`）；任务编号第 25、26 条和排序（`job_id_accepts_only_what_the_kernel_writes`、`job_ids_sort_by_number`，施工 7-1）；报错的样子和 80 个字符（`error_says_what_why_and_what_was_read`、`long_text_in_errors_is_cut`） |
+| `crates/miyu-kernel/src/id/tests.rs` | 图纸上的例子读写一字不差（`samples_from_the_drawing_round_trip`、`names_from_the_drawing_round_trip`）；会话编号（`session_id_must_be_lowercase_uuid_text`）；短名字（`command_id_is_short_printable_text`、`short_names_are_opaque_but_bounded`）；路径里的名字（`account_is_like_a_linux_login_name`、`module_driver_and_fact_names_follow_the_account_rule`）；内容哈希的写法和算法（`content_hash_is_sha256_in_lowercase_hex`、`content_hash_of_known_contents`、`hashing_piece_by_piece_is_the_same_as_all_at_once`）；媒体类型、文件名、事件种类各自的规则；序号和回合编号（`seq_starts_at_one`、`turn_id_reads_like_a_seq`）；调用编号第 9 到 12 条（`call_id_accepts_only_what_the_kernel_writes`）；任务编号第 25、26 条和排序（`job_id_accepts_only_what_the_kernel_writes`、`job_ids_sort_by_number`，施工 7-1；几段的、`under`、`last`，施工 7-1 补）；报错的样子和 80 个字符（`error_says_what_why_and_what_was_read`、`long_text_in_errors_is_cut`） |
 | `crates/miyu-kernel/src/time/tests.rs` | 图纸上的例子；几个标准时刻和两头的界（`well_known_moments`、`years_outside_0000_to_9999_are_refused`）；闰年；1600 年到 2400 年一天一天数过去和换算对得上；第 13 到 17 条每种坏写法；时区的写法和范围；第 18 条当地钟点（`the_local_hour_is_the_wall_clock_to_the_hour`；23 点到 24 点 `the_last_hour_of_a_day_ends_at_24`，施工 1-13 补）；七天的写法 |
 | `crates/miyu-kernel/src/origin/tests.rs` | 八种读写一字不差、各读成自己那一种；不认识的一字不差；认识的种类多出来的格不管；第 19 条的几种坏写法；`harness` 的名字照短名字的规则（施工 7-1） |
 | `xtask/src/purity.rs`（门禁「纯逻辑」） | 内核的 `src/` 里没有 `SystemTime`、`Instant`：不读时钟 |
@@ -233,11 +233,11 @@ bad session id: must be 36 characters (got "x")
 - `06-多用户与身份.md` 第二节（账号、外部身份）、第五节（权限按这一步是谁要求的判）。
 - `07-存储.md` 第五节：blob 的文件名是去掉 `sha256:` 的 64 位。
 - `08-上下文投影.md` 第五节「环境和状态的事实怎么写」：时间到小时、时区写成 `UTC+09:00`。
-- `agents.md`「对外的样子」：任务编号 `j1`、`j2`，`by` 多一种 `harness`（施工 7-1）。
+- `agents.md`「对外的样子」：任务编号 `j1`、`j2`，`by` 多一种 `harness`（施工 7-1）；子会话派的带上它在父会话里的编号（施工 7-1 补）。
 
 ### 还没有的
 
 - 到分钟的当地时间：通讯平台、桌面语音这类场所用（`08-上下文投影.md` 第五节「环境和状态的事实怎么写」的「还没有的」）。
-- `external`、`session`、`harness` 三种 `by` 读得懂，还没有哪里造：通讯平台（`18-通讯平台.md`）、子会话（M7）、`miyu ask --from`（7-11）做到时才有。
+- `external` 这种 `by` 读得懂，还没有哪里造：通讯平台（`18-通讯平台.md`）做到时才有。`session` 由子会话造（施工 7-5 起），`harness` 由 `session.send` 的 `from` 造（施工 7-10）。
 - 按 `by` 判权限：现在只有本机的管理员，执行前的链不看 `by`（`06-多用户与身份.md` 第五节）。
 - 远程连接、成员账号、扩展身份（`06-多用户与身份.md` 第二节）。

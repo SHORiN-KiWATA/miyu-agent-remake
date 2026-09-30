@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>129</b><span>/ 136 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话</span></li>
+    <li><b>136</b><span>/ 139 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的</span></li>
     <li><b>7-7</b><span>下一步：7-7 父子之间留言、7-1 补编号带父会话的编号，另有附件、改名删除、重做在做（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">69e264b</b><span>最近一步（4-7 再补 重做上一轮）的提交</span></li>
+    <li><b class="mono">7ea3978</b><span>最近一步（7-8 补 检查点里不列任务）的提交</span></li>
   </ul>
 </header>
 
@@ -386,14 +386,14 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-8b"><span class="n">3-8</span>协议端点（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8c"><span class="n">3-8</span>协议端点（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8d"><span class="n">3-8</span>Windows 命名管道（补）<span class="st">✓</span></a></li>
-        <li><a class="step done" href="#s3-8c"><span class="n">3-8</span>协议收切权限级别（再补）<span class="st">✓</span></a></li>
-        <li><a class="step done" href="#s3-8d"><span class="n">3-8</span>改名和删除会话（三补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s3-8e"><span class="n">3-8</span>协议收切权限级别（再补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s3-8f"><span class="n">3-8</span>改名和删除会话（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9a"><span class="n">3-9</span>主程序和拉起核心（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9b"><span class="n">3-9</span>miyu ask（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9c"><span class="n">3-9</span>会话编号照先后（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9d"><span class="n">3-9</span>开发用的地址和模型（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9e"><span class="n">3-9</span>附件（三补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-9</span>图片附件带名字（四补）</span></li>
+        <li><a class="step done" href="#s3-9f"><span class="n">3-9</span>图片附件带名字（四补）<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -413,7 +413,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-7a"><span class="n">4-7</span>撤销时恢复文件（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-7b"><span class="n">4-7</span>undo、redo 命令（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-7c"><span class="n">4-7</span>命令改名（补）<span class="st">✓</span></a></li>
-        <li><a class="step done" href="#s4-7c"><span class="n">4-7</span>重做上一轮（再补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s4-7d"><span class="n">4-7</span>重做上一轮（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-8"><span class="n">4-8</span>执行命令<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9"><span class="n">4-9</span>没人能确认时说清楚<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9b"><span class="n">4-9</span>补完蓝图（补）<span class="st">✓</span></a></li>
@@ -479,16 +479,19 @@ a.step:hover{border-color:var(--primary)}
       <div class="ms-head"><span class="ms-id">M7</span><span class="ms-name">分身</span><span class="ms-goal">子代理、后台命令，做完回报叫醒她；父子之间能来回说话</span></div>
       <ol class="chips">
         <li><a class="step done" href="#s7-1"><span class="n">7-1</span>任务的事件<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">7-1</span>编号带上父会话的编号（补）</span></li>
+        <li><a class="step done" href="#s7-1b"><span class="n">7-1</span>编号带上父会话的编号（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-2"><span class="n">7-2</span>回报到了<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s7-2c"><span class="n">7-2</span>人停的回报写明是人停的（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-3"><span class="n">7-3</span>后台命令<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-4"><span class="n">7-4</span>jobs 和 job.stop<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-5"><span class="n">7-5</span>派子代理<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-6"><span class="n">7-6</span>子会话回报<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-7"><span class="n">7-7</span>父子之间留言<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">7-8</span>撤销和压缩里的任务</span></li>
-        <li><span class="step"><span class="n">7-9</span>miyu ask 等子代理</span></li>
-        <li><span class="step"><span class="n">7-10</span>别的 harness 发消息</span></li>
+        <li><a class="step done" href="#s7-8"><span class="n">7-8</span>撤销和压缩里的任务<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s7-8b"><span class="n">7-8</span>检查点里不列任务（补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s7-9"><span class="n">7-9</span>miyu ask 等子代理<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">7-9</span>留了言的子代理也等（补）</span></li>
+        <li><a class="step done" href="#s7-10"><span class="n">7-10</span>别的 harness 发消息<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-11</span>M7 验收</span></li>
       </ol>
     </li>
@@ -4561,8 +4564,8 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
-<section class="sheet" id="s3-8c" aria-labelledby="h-s38c">
-  <div class="sheet-head"><h2 id="h-s38c"><span class="no">3-8</span>协议收切权限级别（再补）</h2><span class="pill done">已完成</span></div>
+<section class="sheet" id="s3-8e" aria-labelledby="h-s38e">
+  <div class="sheet-head"><h2 id="h-s38e"><span class="no">3-8</span>协议收切权限级别（再补）</h2><span class="pill done">已完成</span></div>
   <p class="purpose">头能经协议切权限级别：<code>session.set_permission_level</code>。内核早有这个命令，核心开了口子，终端界面、网页把 Tab、Shift+Tab、底栏做成真的（项目主人要）。</p>
   <figure class="frame">
     <div class="drawing">
@@ -4616,8 +4619,8 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
-<section class="sheet" id="s3-8d" aria-labelledby="h-s38d">
-  <div class="sheet-head"><h2 id="h-s38d"><span class="no">3-8</span>改名和删除会话（三补）</h2><span class="pill done">已完成</span></div>
+<section class="sheet" id="s3-8f" aria-labelledby="h-s38f">
+  <div class="sheet-head"><h2 id="h-s38f"><span class="no">3-8</span>改名和删除会话（三补）</h2><span class="pill done">已完成</span></div>
   <p class="purpose">头能给会话改名、置顶，能删除会话。删了的挪进回收处，留 7 天再真删（项目主人定现在就做）。</p>
   <figure class="frame">
     <div class="drawing">
@@ -4859,6 +4862,56 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/3-9-附件（三补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s3-9f" aria-labelledby="h-s39f">
+  <div class="sheet-head"><h2 id="h-s39f"><span class="no">3-9</span>图片附件带名字（四补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">一句话附了几张图，她分得清哪张是哪个文件。网页演示接真核心撞见的：附了一张图、一个 PDF、一个文本文件，问哪个是图片，她答不出，因为发给她的图没有名字。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">blob.put → 图片块 → 驱动</span><span class="dir-note">kernel/blocks · drivers/openai-chat</span></div>
+            <ol class="pipe" aria-label="名字怎么走">
+              <li>图片块多一格 <code>name</code>：人附的带 <code>blob.put</code> 回应里的名字，<code>read</code> 读出来的不带</li>
+              <li>能看图的：<code>&lt;image name="晚霞.png"&gt;</code>、图、<code>&lt;/image&gt;</code>，标签和挨着的字拼成一段</li>
+              <li>看不了图的：占位那一句写上名字；不带名字的、以前的快照照旧</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">三句新字</span><span class="rl">8、3、17 token，登记在 26 第十节</span></div>
+          <div class="tile new"><span class="nm">占位另成一份</span><span class="rl">不带名字的那一句不动</span></div>
+          <div class="tile"><span class="nm">以后再说</span><span class="rl">history 里的图片占位带名字</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-9 四补</dd></div>
+        <div><dt>名称</dt><dd>图片附件带名字</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">fbb0764</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>25 个手写的变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型：附一张图、一个 PDF、一个文本文件，问哪个是图片只答文件名，她答「晚霞.png」</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/3-9-图片附件带名字（四补）.md</code>。</li>
       </ul>
     </div>
   </div>
@@ -5914,8 +5967,8 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
-<section class="sheet" id="s4-7c" aria-labelledby="h-s47c">
-  <div class="sheet-head"><h2 id="h-s47c"><span class="no">4-7</span>重做上一轮（再补）</h2><span class="pill done">已完成</span></div>
+<section class="sheet" id="s4-7d" aria-labelledby="h-s47d">
+  <div class="sheet-head"><h2 id="h-s47d"><span class="no">4-7</span>重做上一轮（再补）</h2><span class="pill done">已完成</span></div>
   <p class="purpose">撤掉最后一轮，把开这一轮的话原样再发一次，让她重新做；也能换成改过的话再发（网页编辑上一句）。协议 <code>session.redo</code>、命令行 <code>miyu redo</code>（项目主人定只重做最后一轮）。</p>
   <figure class="frame">
     <div class="drawing">
@@ -9216,6 +9269,57 @@ a.step:hover{border-color:var(--primary)}
     </div>
   </div>
 </section>
+<section class="sheet" id="s7-1b" aria-labelledby="h-s71b">
+  <div class="sheet-head"><h2 id="h-s71b"><span class="no">7-1</span>编号带上父会话的编号（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">子会话派的任务，编号前面带上它自己在父会话里的编号，一棵树上不重名。7-6 实测撞见的：孙代理也叫 <code>j1</code>，和主会话派的同名，回报、留言里分不清。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">j2 → j2.1 → j2.1.1</span><span class="dir-note">kernel/ids · session/tools</span></div>
+            <ol class="pipe" aria-label="编号怎么数">
+              <li>主会话派的 <code>j2</code>，<code>j2</code> 派的孙代理 <code>j2.1</code>，孙代理放到后台的命令 <code>j2.1.1</code></li>
+              <li>前缀照 <code>session.created</code> 的 <code>cause</code> 读回来；主会话没有前缀</li>
+              <li>接着领号看每个编号的最后一段取最大；旧日志里子会话的 <code>j1</code> 照认</li>
+              <li><code>jobs</code>、<code>message_agent</code> 的 <code>to</code>、<code>job.stop</code> 都认新写法</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">一段一段比</span><span class="rl"><code>j2</code> 在 <code>j2.1</code> 前面，<code>j2.9</code> 在 <code>j10</code> 前面</span></div>
+          <div class="tile new"><span class="nm">读写一样严</span><span class="rl"><code>j0</code>、<code>j1.0</code>、<code>j1.</code>、<code>j1..2</code>、<code>J1</code> 都拒</span></div>
+          <div class="tile"><span class="nm">给模型的字不变</span><span class="rl">参数说明里的「like j1」照样对</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-1 补</dd></div>
+        <div><dt>名称</dt><dd>编号带上父会话的编号</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">b0dccac</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>13 个手写的变异全逮住；三台机器的 CI 和长跑全绿（随机日志里新旧写法混着跑）</span></li>
+        <li><span class="ok">✓</span><span>真核心走两层：孙代理是 <code>j1.1</code>，删孙会话时子会话收到的回报也是 <code>j1.1</code></span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/7-1-编号带上父会话的编号（补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
 
 <section class="sheet" id="s7-2" aria-labelledby="h-s72">
   <div class="sheet-head"><h2 id="h-s72"><span class="no">7-2</span>回报到了</h2><span class="pill done">已完成</span></div>
@@ -9278,6 +9382,55 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>kernel/session.md</code>、<code>kernel/request.md</code>、<code>kernel/history.md</code>、<code>agents.md</code>。</li>
         <li><code>docs/construction/7-2-回报到了.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s7-2c" aria-labelledby="h-s72c">
+  <div class="sheet-head"><h2 id="h-s72c"><span class="no">7-2</span>人停的回报写明是人停的（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">人停掉一个后台命令或子代理，她被回报叫醒时知道是人停的。网页演示接真核心撞见的：在后台任务浮层里点停止，她当成任务自己停了。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">core/jobs/stopped-by-user.txt</span><span class="dir-note">kernel/request.md「回报」</span></div>
+            <ol class="pipe" aria-label="写成什么样">
+              <li><code>reason</code> 是 <code>stopped</code>、不带 <code>by_model</code> 的（<code>job.stop</code>、删子会话）：标签那一行后面先写「The user stopped this.」</li>
+              <li>后台命令和子代理共用这一句，再接原来的几行</li>
+              <li>她自己用 <code>jobs</code> 停的不写：那种不叫醒她，停它的调用本来就在上下文里</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">一句新字</span><span class="rl">5 token；整块样本 49、42</span></div>
+          <div class="tile"><span class="nm">旧快照</span><span class="rl">没有这一句的照原样，字节不变</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-2 补</dd></div>
+        <div><dt>名称</dt><dd>人停的回报写明是人停的</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">7bfead5</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>13 个手写的变异全逮住；三台机器的 CI 和长跑全绿；原来的两份样本一个字节不变</span></li>
+        <li><span class="ok">✓</span><span>真模型（网页演示复测，main 18d9902）：后台任务浮层里点停止，她被叫醒以后说「j1（sleep 120）已被你中止，运行约 4 秒，无输出」</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/7-2-人停的回报写明是人停的（补）.md</code>。</li>
       </ul>
     </div>
   </div>
@@ -9564,6 +9717,209 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>agents.md</code> 第六条、<code>tools/message_agent.md</code>。</li>
         <li><code>docs/construction/7-7-父子之间留言.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s7-8" aria-labelledby="h-s78">
+  <div class="sheet-head"><h2 id="h-s78"><span class="no">7-8</span>撤销和压缩里的任务</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">分身这一路攒下的收尾：撤销一轮时它派出去的任务一起停；压缩的检查点写上还在跑的任务，没听到的回报不压进摘要；核心崩了后台命令跟着死；派到一半的空子会话收掉；删子会话的小竞态挪进锁里。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">撤销 · 压缩 · 进程树</span><span class="dir-note">agents.md 第七、十条 · core.md</span></div>
+            <ol class="pipe" aria-label="五件事">
+              <li>撤掉的那几轮派出去、还在跑的后台命令和子代理一起停，记 <code>undone</code>、不叫醒她；撤销回应多 <code>jobs</code>，<code>miyu undo</code> 说「停掉了 N 个任务」；恢复撤销不重起</li>
+              <li>没听到的回报留在尾巴里，不压进摘要（检查点里列还在跑的任务那一段，7-8 补去掉了）</li>
+              <li>Linux、macOS：每条命令的进程组里有个看门的 <code>sh</code>，盯着只在核心手里的生命线管道，断了就杀整组；Windows：核心进 <code>KILL_ON_JOB_CLOSE</code> 的作业对象</li>
+              <li>父会话载入时，认不得的空子会话连同它派的停下、挪进回收处；删子会话、送回报挪进会话表的锁里</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile"><span class="nm">两句新字</span><span class="rl">头一行 7、一行 8 token；实测不必要，7-8 补去掉</span></div>
+          <div class="tile new"><span class="nm">没看到的回报不另列</span><span class="rl">尾巴里本来就有，不写两次</span></div>
+          <div class="tile"><span class="nm">没选的</span><span class="rl"><code>PR_SET_PDEATHSIG</code> 盯线程、只管直接子进程；kqueue 只有 macOS</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-8</dd></div>
+        <div><dt>名称</dt><dd>撤销和压缩里的任务</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">7d4cee1</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>29 个手写的变异全逮住；三台机器的 CI 和长跑全绿；真核心硬杀以后后台命令也停了（三台都跑）</span></li>
+        <li><span class="ok">✓</span><span>真模型：后台 <code>sleep 900</code> 加一个在睡的子代理，<code>miyu undo</code> 说「停掉了 2 个任务」，两个进程都没了，日志记 <code>undone</code>、没开新的一轮</span></li>
+        <li><span class="ok">✓</span><span>真模型：读大文件压了一次，检查点里列着 j1、j2；停掉核心时后台的 <code>sleep</code> 跟着没了</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/7-8-撤销和压缩里的任务.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s7-8b" aria-labelledby="h-s78b">
+  <div class="sheet-head"><h2 id="h-s78b"><span class="no">7-8</span>检查点里不列任务（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">去掉 7-8 在压缩检查点里加的「还在跑的任务」那一段。照「给模型的字非必要不加」：两组实测里，没有这一段的一边，她写的摘要连压三次都记着任务的编号、标题和「还在跑」（2026-10-01 项目主人定去掉）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">只删不加</span><span class="dir-note">agents.md 第十条 · compaction.md 第八条</span></div>
+            <ol class="pipe" aria-label="去掉了什么">
+              <li>模板 <code>notes-jobs.txt</code>、<code>notes-job.txt</code>，样本 <code>checkpoint-jobs.txt</code>，登记簿两行</li>
+              <li>内核两个文件退回到和 7-8 之前一个字节不差</li>
+              <li>7-8 以后造的快照多那两格，照「不认识的格不理」读得进来、不用；写进日志的 <code>notes</code> 照原样回放</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">实测（2026-10-01）</p>
+          <div class="tile"><span class="nm">压一次</span><span class="rl">两边都答对 j1、j2 和标题</span></div>
+          <div class="tile"><span class="nm">连压三次</span><span class="rl">没有这一段的一边，三份摘要都记着「j1，等部署，还在跑」</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-8 补</dd></div>
+        <div><dt>名称</dt><dd>检查点里不列任务</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">7ea3978</dd></div>
+        <div><dt>验收</dt><dd>变异、CI 全绿 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>8 个手写的变异全逮住；三台机器的 CI 和长跑一次全绿；请求形状探针、别的样本一个字节不变</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/7-8-检查点里不列任务（补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s7-9" aria-labelledby="h-s79">
+  <div class="sheet-head"><h2 id="h-s79"><span class="no">7-9</span>miyu ask 等子代理</h2><span class="pill done">已完成</span></div>
+  <p class="purpose"><code>miyu ask</code> 派了子代理的，等子代理都回报完、被回报叫醒的几轮也结束，才退出，这期间每一轮都印出来。会话 actor 告诉内核有没有头看着：跟着的时候回报叫醒她，退出以后只记下。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu ask 的标准错误</span><span class="dir-note">cli/ask.md「等子代理」</span></div>
+            <ol class="pipe" aria-label="印的样子">
+              <li>第一轮照旧印；还有子代理没报，印灰字 <code>· 等 2 个子代理回报…（按 Ctrl+C 不等了）</code>，终端里原地刷新</li>
+              <li>回报到了，那一行原地换成 <code>· j1「Count lines in a.txt」报回来了</code>，接着印叫醒的那一轮</li>
+              <li>全部了结，最后一行用量是这期间每一轮加起来的；<code>--format json</code> 的 <code>turns</code> 列出每一轮</li>
+              <li><code>--timeout</code> 到点、等的时候按 Ctrl+C：不等了，退出码 3，子代理还在后台跑</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不加协议</span><span class="rl">头照 <code>job.started</code>、<code>child.reported</code>、<code>job.messaged</code> 自己数</span></div>
+          <div class="tile new"><span class="nm">Watched</span><span class="rl">订阅从无到有、从有到无时会话 actor 告诉内核</span></div>
+          <div class="tile"><span class="nm">不等的</span><span class="rl">后台命令；这次以前派的子代理；<code>miyu redo</code></span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-9</dd></div>
+        <div><dt>名称</dt><dd>miyu ask 等子代理</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-09-30</dd></div>
+        <div><dt>提交</dt><dd class="mono">fc1b933</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>35 个手写的变异全逮住；三台机器的 CI 和长跑全绿；样本 <code>ask-agents-text.txt</code> 由真核心逐字节比</span></li>
+        <li><span class="ok">✓</span><span>真模型：并行派两个子代理（数行数、找最长的词），一直等到两份回报和叫醒的两轮都印完；最后一行用量是主会话三轮加起来的（命中缓存 9,984、输出 793，照日志核对）</span></li>
+        <li><span class="ok">✓</span><span>伪终端里：等待那一行从「等 2 个」刷成「等 1 个」，回报到了原地换成「报回来了」，收尾后屏幕干净</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/7-9-miyu ask 等子代理.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s7-10" aria-labelledby="h-s710">
+  <div class="sheet-head"><h2 id="h-s710"><span class="no">7-10</span>别的 harness 发消息</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">Claude Code、opencode、脚本这类别的 harness，用 <code>miyu ask -s &lt;会话&gt; --from &lt;名字&gt; &lt;话&gt;</code> 往 Miyu 的会话里说一句；她分得清是人说的还是别的代理说的。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">session.send 的 from</span><span class="dir-note">agents.md 第十一条 · kernel/request.md</span></div>
+            <ol class="pipe" aria-label="怎么走">
+              <li><code>from</code> 去控制字符、截 128 字节，记成 <code>by: harness</code>；空的、不是字符串的拒 <code>bad_params</code></li>
+              <li>发给她的包一层 <code>&lt;agent-message from="…"&gt;</code>，名字转义；<code>history</code> 的「谁」写 <code>agent "…"</code></li>
+              <li>照子代理留言的规矩：不作废在等人的题，打断不撤回，撤销不带走，它开的那一轮重做不了</li>
+              <li><code>miyu ask</code> 往正忙的会话里发，跟住听到它的那一轮；<code>--from</code> 不带 <code>cwd</code>，按 Ctrl+C、到时间只是不等了，不打断</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">三句新字</span><span class="rl">标签开头 10、收尾 5，<code>history</code> 的 6</span></div>
+          <div class="tile new"><span class="nm">顺手修的</span><span class="rl"><code>miyu ask -s</code> 往正忙的会话里发会一直等</span></div>
+          <div class="tile"><span class="nm">不做的</span><span class="rl">MCP 服务、<code>miyu stdio</code>；名字不核对</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-10</dd></div>
+        <div><dt>名称</dt><dd>别的 harness 发消息</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">53c044f</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>36 个手写的变异全逮住；三台机器的 CI 和长跑全绿；请求形状探针多一张脸，和人说的比只多标签那两段</span></li>
+        <li><span class="ok">✓</span><span>真模型：她跑长命令时 <code>--from claude-code</code> 插一句，她说「不是你……自报的名字是 claude-code」；没有标签的一边她当成人说的，分不清——证明非加不可</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/7-10-别的 harness 发消息.md</code>。</li>
       </ul>
     </div>
   </div>

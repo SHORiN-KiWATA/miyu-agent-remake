@@ -126,7 +126,7 @@ fn the_switches_are_carried_as_given() {
 fn each_driver_placeholder_is_its_own() {
     let texts = engineer().driver_texts().unwrap();
     let drivers = core().drivers;
-    assert_eq!(texts.image_omitted(), drivers.image_omitted);
+    assert_eq!(texts.image_omitted(None), drivers.image_omitted);
     assert_eq!(texts.no_output(), drivers.no_output);
     assert_eq!(texts.tool_attachments(), drivers.tool_attachments);
     assert_eq!(texts.tool_attachments_only(), drivers.tool_attachments_only);
@@ -150,6 +150,35 @@ fn each_driver_placeholder_is_its_own() {
         )
     );
     assert!(wrapped.ends_with(&text.file_close));
+    // 带名字的图片的三句（施工 3-9 四补）：出厂的快照带着，开头、收尾、占位各是各的。
+    let image = drivers.image_name.expect("出厂的带着");
+    assert_eq!(
+        texts.image_tags(Some("a.png")),
+        Some((
+            image.image_open.replace("{name}", "a.png"),
+            image.image_close
+        ))
+    );
+    assert_eq!(
+        texts.image_omitted(Some("a.png")),
+        image.image_omitted_named.replace("{name}", "a.png")
+    );
+}
+
+/// 带名字的图片的三句（施工 3-9 四补）：以前造的快照里没有，读回来一字不差，带名字的图片照不带名字的写。
+#[test]
+fn older_snapshots_lack_the_image_name_texts() {
+    let mut old = engineer();
+    old.core.drivers.image_name = None;
+    let bytes = String::from_utf8(old.to_bytes()).unwrap();
+    assert!(!bytes.contains("image_name"), "没有的不写：{bytes}");
+    assert_eq!(Snapshot::from_bytes(bytes.as_bytes()), Ok(old.clone()));
+    let texts = old.driver_texts().unwrap();
+    assert_eq!(texts.image_tags(Some("a.png")), None);
+    assert_eq!(
+        texts.image_omitted(Some("a.png")),
+        texts.image_omitted(None)
+    );
 }
 
 /// 压缩（施工 6-2 上）：出厂的快照带着压缩的数和摘要指令，造出的策略会主动压；以前造的快照没有这两格，读回来照旧，
@@ -232,6 +261,23 @@ fn rebuild_texts_and_numbers_go_in_and_older_snapshots_lack_them() {
     let only_numbers = text[..start].to_string() + &text[end..];
     let read = Snapshot::from_bytes(only_numbers.as_bytes()).unwrap();
     assert!(read.policy().unwrap().compaction.unwrap().rebuild.is_none());
+}
+
+/// 检查点里还在跑的任务那一段 7-8 加过、2026-10-01 实测后去掉（施工 7-8 补）：出厂的快照不再带那两份模板。7-8 以后造的
+/// 快照带着，照样读得回来：那两格不认识、不理（`policy.md`「字节和哈希」第 4 条），读成和出厂的一样，造出来的策略也就
+/// 不写那一段。
+#[test]
+fn snapshots_made_since_7_8_still_read_and_their_running_notes_go_unused() {
+    let snapshot = engineer();
+    let text = String::from_utf8(snapshot.to_bytes()).unwrap();
+    assert!(!text.contains("notes_job"), "出厂的快照不带那两份模板");
+    let close = r#""restored_close":"\n</file>\n""#;
+    let fields = r#","notes_jobs":"Jobs still running at this checkpoint:\n","notes_job":"- {job} {what} \"{title}\"\n""#;
+    let made = text.replacen(close, &format!("{close}{fields}"), 1);
+    assert_ne!(made, text, "照 7-8 的样子插进去了");
+    let read = Snapshot::from_bytes(made.as_bytes()).unwrap();
+    assert_eq!(read, snapshot, "那两格不理，读成和出厂的一样");
+    assert!(read.policy().unwrap().notes.is_some());
 }
 
 /// 包装的结尾交给了组装器（施工 6-5）：出厂快照组装出来的检查点最后是规则那一句。

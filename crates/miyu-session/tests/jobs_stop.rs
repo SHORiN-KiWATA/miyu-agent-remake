@@ -23,6 +23,10 @@ use support::*;
 #[path = "jobs_stop/agents.rs"]
 mod agents;
 
+/// 撤销停掉那一轮派出去的（施工 7-8）。
+#[path = "jobs_stop/undo.rs"]
+mod undo;
+
 /// 子会话的编号。
 const CHILD: &str = "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91";
 

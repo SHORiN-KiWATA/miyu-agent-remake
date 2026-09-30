@@ -29,6 +29,8 @@ fn plan(format: Format, language: Language) -> Plan {
         language,
         human: Human::load(&resources, language.code()).expect("出厂的字读得出来"),
         home: Some(under(&["home"])),
+        timeout: None,
+        from: None,
     }
 }
 
@@ -356,6 +358,8 @@ fn a_refused_message_says_why_and_a_lagging_one_resubscribes() {
 mod asides;
 mod blocks;
 mod compaction;
+mod joining;
 mod redo;
 mod sample;
 mod unattended;
+mod waiting;

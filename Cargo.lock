@@ -1005,6 +1005,7 @@ dependencies = [
  "clap",
  "miyu-cli",
  "miyu-core",
+ "miyu-http",
  "miyu-ipc",
  "miyu-kernel",
  "miyu-store",

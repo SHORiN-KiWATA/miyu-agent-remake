@@ -5,7 +5,7 @@
 use std::fmt;
 
 use miyu_assemble::{DefaultAssembler, Stable, Texts};
-use miyu_drivers::{DriverTextSources, DriverTexts};
+use miyu_drivers::DriverTexts;
 use miyu_kernel::estimate::Flat;
 use miyu_kernel::event::{Permission, SessionCreated};
 use miyu_kernel::facts::FactTemplates;
@@ -15,11 +15,12 @@ use miyu_kernel::template::TemplateError;
 use miyu_kernel::tool::{ToolTextSources, ToolTexts};
 use serde::{Deserialize, Serialize};
 
+use crate::drivers::DriverPlaceholders;
+use crate::harness::HarnessTexts;
 use crate::jobs::{JobNumbers, JobTexts, REPORT_CHARS};
 use crate::pause::PauseNumbers;
 use crate::rebuild::{RebuildNumbers, RebuildTexts};
 use crate::shorten::{ShortenNumbers, ShortenTexts};
-use crate::text_file::TextFileTexts;
 use crate::tools::{self, ToolEntry};
 
 /// 一份策略快照。字段的先后就是字节里的先后：改了先后，快照的字节就变了。
@@ -112,6 +113,10 @@ pub struct CoreTexts {
     /// 两种回报的写法（`jobs/`，施工 7-2）。以前造的快照里没有，读成没有：那些会话派不出任务；没有的不写。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub jobs: Option<JobTexts>,
+    /// 别的 harness 发来的话的标签（`harness/`，施工 7-10）。以前造的快照里没有，读成没有：那种话照人的话原样渲染；没有的
+    /// 不写。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub harness: Option<HarnessTexts>,
 }
 
 /// 压缩的几句（施工 6-2 上）。
@@ -209,25 +214,6 @@ pub struct ToolResultTexts {
     /// 工具执行时崩了（`crashed.txt`，施工 4-2）：执行器写。读不到的同上。
     #[serde(default)]
     pub crashed: String,
-}
-
-/// 驱动的几句占位。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DriverPlaceholders {
-    /// 图片发不了（`image-omitted.txt`）。
-    pub image_omitted: String,
-    /// 文件读不了（`file-omitted.txt`）。
-    pub file_omitted: String,
-    /// 工具一个字都没回（`no-output.txt`）。
-    pub no_output: String,
-    /// 工具结果里的附件挪到了后面（`tool-attachments.txt`）。
-    pub tool_attachments: String,
-    /// 工具结果只有附件，挪到了后面（`tool-attachments-only.txt`）。
-    pub tool_attachments_only: String,
-    /// 文本文件照字放进消息的三句（施工 3-9 三补）。以前造的快照里没有，读成没有：文本文件照别的文件写占位；没有的
-    /// 不写。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub text_file: Option<TextFileTexts>,
 }
 
 /// 快照的字节读不回来：不是这个版本写的，或者坏了。还没发布，格式改了不背兼容。
@@ -353,6 +339,11 @@ impl Snapshot {
                 .map(|compaction| compaction.summarize_end.clone())
                 .unwrap_or_default(),
             jobs: core.jobs.as_ref().map(JobTexts::rendered).transpose()?,
+            harness: core
+                .harness
+                .as_ref()
+                .map(HarnessTexts::rendered)
+                .transpose()?,
         };
         let (face, rules) = tools::split(&self.tools)?;
         let stable = Stable {
@@ -449,25 +440,19 @@ impl Snapshot {
         })
     }
 
-    /// 驱动的占位：图片、文件发不了，工具一个字都没回，附件挪到了后面，文本文件照字放进消息。
+    /// 驱动的占位：图片、文件发不了，工具一个字都没回，附件挪到了后面，文本文件照字放进消息，带名字的图片。
     ///
     /// # Errors
     ///
     /// 占位的模板坏了。
     pub fn driver_texts(&self) -> Result<DriverTexts, BuildError> {
-        let drivers = &self.core.drivers;
-        DriverTexts::new(DriverTextSources {
-            image_omitted: &drivers.image_omitted,
-            file_omitted: &drivers.file_omitted,
-            no_output: &drivers.no_output,
-            tool_attachments: &drivers.tool_attachments,
-            tool_attachments_only: &drivers.tool_attachments_only,
-            text_file: drivers.text_file.as_ref().map(TextFileTexts::sources),
-        })
-        .map_err(|error| BuildError::Texts {
-            which: "driver placeholders",
-            error,
-        })
+        self.core
+            .drivers
+            .texts()
+            .map_err(|error| BuildError::Texts {
+                which: "driver placeholders",
+                error,
+            })
     }
 
     /// 内核替工具写的几句。

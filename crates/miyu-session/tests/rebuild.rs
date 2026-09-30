@@ -1,18 +1,23 @@
 //! 真的压后重建（施工 6-5）：第一轮她读了一个小文件、一个大文件，读完就过线，这一轮里接着压（摘要请求回的是剧本的第
 //! 二句）。执行器照内核交的重读从磁盘读，小的存成 blob、原样放进检查点，大的只进清单；第二轮的请求里看得到小文件的原文。
-//! 停了再载入，内核要回检查点里重读过的原文（施工 6-9），接着的请求里照样有。
+//! 停了再载入，内核要回检查点里重读过的原文（施工 6-9），接着的请求里照样有。检查点里代码写的几段不列还在跑的任务（施工
+//! 7-8 补）。
 
 mod support;
 
 use std::path::Path;
+use std::sync::Arc;
 
 use miyu_kernel::block::Block;
 use miyu_kernel::event::{Body, ContextCompacted, Level, Permission};
 use miyu_kernel::id::ContentHash;
 use miyu_kernel::request::{Message, Request};
+use miyu_kernel::session::Command;
+use miyu_kernel::tool::Access;
 use miyu_session::testkit::{Play, Script};
 use miyu_store::blob::Blobs;
-use miyu_tool::Catalog;
+use miyu_tool::testkit::{Act, Fake, Held};
+use miyu_tool::{Catalog, Tool};
 
 use support::*;
 
@@ -138,4 +143,43 @@ async fn a_small_file_read_before_the_cut_comes_back_and_survives_a_reload() {
         "{}",
         words(reloaded)
     );
+}
+
+/// 检查点里不列还在跑的任务（施工 7-8 补，`compaction.md` 第八条第 4 条）：第一轮说一大段、放一个后台命令，再手动压缩，
+/// 命令还在跑。照出厂的资源，代码写的几段只有取回指路：她派过什么、还在跑什么，交给摘要记。
+#[tokio::test]
+async fn a_command_still_running_is_not_listed_in_the_checkpoint() {
+    let home = Home::new();
+    let held = Held::new(&[]);
+    let start = Fake::new("start", Access::Read, Act::Background(Arc::clone(&held)));
+    let tools = Catalog::new([start as Arc<dyn Tool>]).expect("合写法");
+    // 窗口大到不会自动压。出厂的尾巴是 16000 token：第一句说七万个字，一组就超了尾巴，压得掉它。
+    let script = Script::new([
+        Play::calls(&[("start", "{}")]),
+        Play::Says("放出去了。"),
+        Play::Says("<summary>她放了一个后台命令，还在跑。</summary>"),
+    ])
+    .window(1_000_000);
+    let handle = home.create_with(&script, &tools).await;
+    let mut pushes = watch(&handle).await;
+    ask(&handle, "cmd-1", say(&"x".repeat(70_000)))
+        .await
+        .expect("会话在跑");
+    until_turn_ends(&mut pushes).await;
+    let compact = Command::Compact { instructions: None };
+    ask(&handle, "cmd-2", compact).await.expect("会话在跑");
+    until_turn_ends(&mut pushes).await;
+    assert!(home.jobs.running(), "压的时候命令还在跑");
+    let compacted: ContextCompacted = home
+        .log(handle.id())
+        .into_iter()
+        .find_map(|event| match event.body {
+            Body::ContextCompacted(compacted) => Some(compacted),
+            _ => None,
+        })
+        .expect("压了");
+    let retrieve = include_str!("../../../resources/core/compaction/notes-retrieve.txt")
+        .replace("{upto}", &compacted.upto.to_string());
+    assert_eq!(compacted.notes, retrieve, "代码写的几段只有取回指路");
+    stop(&handle).await;
 }

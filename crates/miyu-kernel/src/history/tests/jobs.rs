@@ -52,13 +52,13 @@ fn the_title_and_kind_are_kept_even_after_the_start_is_compacted() {
         !history.events().iter().any(|event| event.seq.get() == 5),
         "派它的那一条压缩掉了"
     );
-    let command = history.dispatched(job(1)).expect("压缩不丢");
+    let command = history.dispatched(&job(1)).expect("压缩不丢");
     assert_eq!(
         (&command.what, command.title.as_str(), command.undone),
         (&JobKind::Command, "跑测试", false)
     );
-    assert_eq!(history.dispatched(job(2)).unwrap().what, JobKind::Agent);
-    assert!(history.dispatched(job(3)).is_none());
+    assert_eq!(history.dispatched(&job(2)).unwrap().what, JobKind::Agent);
+    assert!(history.dispatched(&job(3)).is_none());
 }
 
 #[test]
@@ -71,10 +71,10 @@ fn undoing_the_turn_marks_its_jobs_and_redoing_clears_the_mark() {
         ledger.append(&event).unwrap();
         history.append(event);
     }
-    assert!(history.dispatched(job(1)).unwrap().undone);
+    assert!(history.dispatched(&job(1)).unwrap().undone);
     let back = event(9, None, ALICE, "turn.unreverted", r#"{"turns":[3]}"#);
     history.append(back);
-    assert!(!history.dispatched(job(1)).unwrap().undone);
+    assert!(!history.dispatched(&job(1)).unwrap().undone);
 }
 
 #[test]
@@ -85,7 +85,7 @@ fn an_undo_that_can_no_longer_be_restored_keeps_the_mark() {
     events.extend(turn(10, 9));
     let history = feed(events);
     assert!(
-        history.dispatched(job(2)).unwrap().undone,
+        history.dispatched(&job(2)).unwrap().undone,
         "下一轮开了也还是撤掉了"
     );
 }
@@ -97,18 +97,18 @@ fn noting_keeps_only_the_jobs_and_a_new_history_can_take_them_over() {
         noted.note(&event);
     }
     assert!(noted.events().is_empty(), "只记任务，不留事件");
-    assert_eq!(noted.dispatched(job(1)).unwrap().title, "跑测试");
+    assert_eq!(noted.dispatched(&job(1)).unwrap().title, "跑测试");
     let mut rebuilt = History::whole();
     rebuilt.jobs_from(&noted);
-    assert_eq!(rebuilt.dispatched(job(2)).unwrap().title, "查 CI");
+    assert_eq!(rebuilt.dispatched(&job(2)).unwrap().title, "查 CI");
     assert_eq!(
-        rebuilt.until(Seq::FIRST).dispatched(job(1)),
-        noted.dispatched(job(1)),
+        rebuilt.until(Seq::FIRST).dispatched(&job(1)),
+        noted.dispatched(&job(1)),
         "截出来的前一段带着"
     );
     assert_eq!(
-        rebuilt.after(Seq::FIRST).dispatched(job(2)),
-        noted.dispatched(job(2)),
+        rebuilt.after(Seq::FIRST).dispatched(&job(2)),
+        noted.dispatched(&job(2)),
         "截出来的后一段带着"
     );
 }

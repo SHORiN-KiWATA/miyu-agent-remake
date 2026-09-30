@@ -9,7 +9,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use miyu_drivers::openai_chat::Compat;
-use miyu_drivers::{Call, DriverTextSources, DriverTexts, Inputs, TextFileSources};
+use miyu_drivers::{
+    Call, DriverTextSources, DriverTexts, ImageNameSources, Inputs, TextFileSources,
+};
 use miyu_kernel::block::{Block, File, Image, Private, Reasoning, Text, ToolCall};
 use miyu_kernel::id::{CallId, ContentHash, DriverFamily, FileName, MediaType, ModelName};
 use miyu_kernel::raw::RawJson;
@@ -29,6 +31,13 @@ pub fn texts() -> DriverTexts {
             file_open: include_str!("../../../../resources/core/drivers/file-open.txt"),
             file_cut: include_str!("../../../../resources/core/drivers/file-cut.txt"),
             file_close: include_str!("../../../../resources/core/drivers/file-close.txt"),
+        }),
+        image_name: Some(ImageNameSources {
+            image_open: include_str!("../../../../resources/core/drivers/image-open.txt"),
+            image_close: include_str!("../../../../resources/core/drivers/image-close.txt"),
+            image_omitted_named: include_str!(
+                "../../../../resources/core/drivers/image-omitted-named.txt"
+            ),
         }),
     })
     .expect("出厂的占位用得了")
@@ -83,9 +92,20 @@ pub fn tool_call(call_id: &str, name: &str, args: &str, provider: Option<&str>) 
     })
 }
 
+/// 不带名字的图：`read` 读出来的、以前的日志里的。
 pub fn image(content: &[u8], media_type: &str) -> Block {
+    picture(content, None, media_type)
+}
+
+/// 带名字的图：人附的（施工 3-9 四补）。
+pub fn named_image(content: &[u8], name: &str, media_type: &str) -> Block {
+    picture(content, Some(name), media_type)
+}
+
+fn picture(content: &[u8], name: Option<&str>, media_type: &str) -> Block {
     Block::Image(Image {
         blob: ContentHash::of(content),
+        name: name.map(|name| FileName::parse(name).expect("文件名合写法")),
         media_type: MediaType::parse(media_type).expect("媒体类型合写法"),
         width: 800,
         height: 600,

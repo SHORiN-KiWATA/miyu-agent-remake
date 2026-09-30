@@ -112,12 +112,12 @@ impl Tool for Jobs {
                 return texts.unknown(&id);
             };
             if let Action::Output = args.action {
-                return match port.output(job).await {
+                return match port.output(job.clone()).await {
                     Ok(output) => texts.output(call, job, output, args.offset).await,
                     Err(_) => texts.unknown(&id),
                 };
             }
-            texts.stop(port.stop(job).await, job, &id)
+            texts.stop(port.stop(job.clone()).await, job, &id)
         })
     }
 }

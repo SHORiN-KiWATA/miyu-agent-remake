@@ -122,6 +122,7 @@ impl Stage {
             summaries: None,
             disk: super::disk::Disk::default(),
             upward: Vec::new(),
+            stopping: Vec::new(),
         };
         stage.settle(actions);
         stage

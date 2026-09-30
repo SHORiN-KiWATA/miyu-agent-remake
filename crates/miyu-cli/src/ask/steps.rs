@@ -100,11 +100,13 @@ impl Steps {
                 .and_then(|subject| called.args.get(subject))
                 .and_then(Value::as_str)
                 .unwrap_or_default();
+            // 放到后台的（施工 7-9）：结果里的字是给她看的英文回执，不印；标题后面照说法写「放到后台了：j1」。
+            let output = by_tool && !background(body);
             return Some(blocks::command(
                 icon,
                 command,
                 body,
-                by_tool,
+                output,
                 &outcome,
                 &plan.language,
             ));
@@ -180,6 +182,15 @@ impl Outcome {
     }
 }
 
+/// 一次结果（`tool.result` 的 `body`）把一条命令放到了后台（施工 7-9）：效果里有 `job.started`。
+fn background(body: &Value) -> bool {
+    body["effects"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .any(|effect| effect["kind"] == "job.started")
+}
+
 /// 一次结果（`tool.result` 的 `body`）是不是因为要确认、这里没人能确认被拒的：状态是 `denied`，说法是内核的那一句。
 /// 别的拒绝不算：只读时要写的、碰到数据根的，都不是要确认（施工 4-9）。
 pub(crate) fn unattended(body: &Value) -> bool {
@@ -223,11 +234,19 @@ fn value_of(args: &Value, subject: &str, cwd: &str, home: Option<&Path>) -> Opti
         let path = cut_front(&clean(&shown(first, cwd, home)), SUBJECT_CHARS);
         return Some(if more { format!("{path}…") } else { path });
     }
+    Some(one_line(value))
+}
+
+/// 模型写的一段字写成一行给人看（施工 7-9 从 [`value_of`] 拆出来，子代理报回来了那一行的编号、标题也用）：只取第一行，有
+/// 第二行的加 `…`；控制字符换掉；超过 80 个字的留前面 80 个，后面加 `…`。
+pub(crate) fn one_line(value: &str) -> String {
+    let mut lines = value.lines();
+    let first = lines.next().unwrap_or_default();
     let mut text = cut(&clean(first), SUBJECT_CHARS);
-    if more && !text.ends_with('…') {
+    if lines.next().is_some() && !text.ends_with('…') {
         text.push('…');
     }
-    Some(text)
+    text
 }
 
 #[cfg(test)]

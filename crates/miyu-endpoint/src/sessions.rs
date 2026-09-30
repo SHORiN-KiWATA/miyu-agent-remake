@@ -15,8 +15,8 @@ use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{CommandId, SessionId, VenueId};
 use miyu_kernel::origin::{By, Person, Session};
 use miyu_kernel::time::{Timestamp, UtcOffset};
-use miyu_session::{Child, Create, CreateError, Handle, Load, LoadError, create, load, new_id};
-use miyu_store::log::{OpenError, first_event, read_events};
+use miyu_session::{Child, Create, CreateError, Handle, create, new_id};
+use miyu_store::log::first_event;
 use miyu_store::resources::SourceError;
 
 use crate::Core;
@@ -24,6 +24,8 @@ use crate::refusal::Refusal;
 use crate::spawn;
 
 mod delete;
+mod found;
+mod orphans;
 #[cfg(test)]
 mod tests;
 
@@ -180,79 +182,7 @@ impl Sessions {
             check_dirs(core, dirs)?;
         }
         let mut open = self.open.lock().await;
-        if let Some(running) = open.running.get_mut(id) {
-            let moved = cwd.is_some_and(|cwd| cwd != running.cwd);
-            let added = dirs.is_some_and(|dirs| dirs != running.dirs.as_slice());
-            if moved || added {
-                let workspace = match cwd {
-                    Some(cwd) if moved => workspace(core, cwd),
-                    _ => running.workspace.clone(),
-                };
-                let dirs = dirs.map_or_else(|| running.dirs.clone(), <[String]>::to_vec);
-                if running
-                    .handle
-                    .environment(environment(workspace.clone(), dirs.clone()))
-                    .is_err()
-                {
-                    open.running.remove(id);
-                    return Err(Refusal::STOPPED);
-                }
-                if let Some(cwd) = cwd {
-                    running.cwd = cwd.to_string();
-                }
-                running.workspace = workspace;
-                running.dirs = dirs;
-            }
-            return Ok(Found {
-                handle: running.handle.clone(),
-                cwd: running.workspace.clone(),
-            });
-        }
-        // 没有报来的（打断、撤销、恢复、订阅载入的）：照日志里最后一次记下的工作目录，都没有才退回 `~`（施工 4-9
-        // 再补三上）。
-        let (last_cwd, last_dirs) = remembered(core, id).await;
-        let cwd = match cwd {
-            Some(cwd) => cwd.to_string(),
-            None => last_cwd.unwrap_or_else(|| "~".to_string()),
-        };
-        // 加进来的目录没报来的，照最后一轮的（施工 5-10 上）。
-        let dirs = dirs.map_or(last_dirs, <[String]>::to_vec);
-        let workspace = workspace(core, &cwd);
-        let loaded = load(Load {
-            root: &core.root,
-            owner: core.admin.clone(),
-            id: id.clone(),
-            environment: environment(workspace.clone(), dirs.clone()),
-            models: &*core.models,
-            tools: &core.tools,
-            home: core.home.as_deref(),
-            sandbox: core.sandbox.helper(),
-            sandbox_cache: core.sandbox_cache_of(&core.admin),
-            sessions: Some(spawn::port(core)),
-            jobs: &core.jobs,
-        })
-        .await;
-        let handle = match loaded {
-            Ok(handle) => handle,
-            Err(LoadError::Log(OpenError::Missing(_))) => return Err(Refusal::NOT_FOUND),
-            Err(error) => {
-                tracing::warn!(target: "miyu::endpoint", session = id.as_str(), error = %error, "load failed");
-                return Err(Refusal::BROKEN);
-            }
-        };
-        open.running.insert(
-            id.clone(),
-            Running {
-                handle: handle.clone(),
-                cwd,
-                workspace: workspace.clone(),
-                dirs,
-            },
-        );
-        Ok(Found {
-            handle,
-            cwd: workspace,
-        })
+        open.found(core, id, cwd, dirs).await
     }
 
     /// 造一个子会话（施工 7-5，`agents.md` 第一条）：照执行器填好的 `child`，由父会话造（`by` 是它）。放进表里，和头造的
@@ -362,34 +292,6 @@ async fn recall(core: &Core) -> Vec<(CommandId, SessionId)> {
             .collect();
         found.reverse();
         found
-    })
-    .await
-    .unwrap_or_default()
-}
-
-/// 会话日志里最后一次记下的工作目录（施工 4-9 再补三上）：最后一条带 `cwd` 的 `turn.started`，没有就照
-/// `session.created` 的；之前的日志没有这两格，是空的。加进来的目录照最后一条 `turn.started` 的，没有就是没有（施工
-/// 5-10 上）。在阻塞线程里读。
-async fn remembered(core: &Core, id: &SessionId) -> (Option<String>, Vec<String>) {
-    let dir = core.root.session_dir(&core.admin, id);
-    tokio::task::spawn_blocking(move || {
-        let Ok(events) = read_events(&dir) else {
-            return (None, Vec::new());
-        };
-        let cwd = events.iter().rev().find_map(|event| match &event.body {
-            Body::TurnStarted(started) => started.cwd.clone(),
-            Body::SessionCreated(created) => created.cwd.clone(),
-            _ => None,
-        });
-        let dirs = events
-            .iter()
-            .rev()
-            .find_map(|event| match &event.body {
-                Body::TurnStarted(started) => Some(started.dirs.clone()),
-                _ => None,
-            })
-            .unwrap_or_default();
-        (cwd, dirs)
     })
     .await
     .unwrap_or_default()

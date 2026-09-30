@@ -14,7 +14,7 @@ use miyu_kernel::id::JobId;
 pub const MESSAGE_AGENT: &str = "message_agent";
 
 /// 留言发给谁：只在树上相邻的两层之间（2026-09-29 项目主人定）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Recipient {
     /// 这个会话的父会话。
     Parent,

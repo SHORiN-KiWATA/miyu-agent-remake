@@ -9,7 +9,7 @@ use miyu_kernel::request::Message;
 
 use miyu_kernel::template::Template;
 
-use crate::texts::{JobTexts, RestoredWrap, Texts, TurnEndedTexts};
+use crate::texts::{HarnessTexts, JobTexts, RestoredWrap, Texts, TurnEndedTexts};
 
 pub(crate) const KERNEL: &str = r#"{"kind":"kernel"}"#;
 const ALICE: &str = r#"{"kind":"person","account":"alice"}"#;
@@ -39,6 +39,10 @@ pub(crate) fn texts() -> Texts {
         summarize_instructions: "<instructions>".to_string(),
         summarize_end: "<end/>".to_string(),
         jobs: Some(job_texts()),
+        harness: Some(HarnessTexts {
+            open: Template::parse("<agent {name}>\n").expect("模板合写法"),
+            close: "</agent>\n".to_string(),
+        }),
     }
 }
 
@@ -57,6 +61,7 @@ fn job_texts() -> JobTexts {
         subagent_truncated: "truncated\n".to_string(),
         subagent_silent: "silent\n".to_string(),
         subagent_close: "</subagent>\n".to_string(),
+        stopped_by_user: "by user\n".to_string(),
         subagent_message_open: template("<message {job} {title}>\n"),
         subagent_message_close: "</message>\n".to_string(),
     }

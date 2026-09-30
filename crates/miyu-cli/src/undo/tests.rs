@@ -394,3 +394,44 @@ fn an_undone_clear_is_said_after_an_undone_compaction() {
         "{english}"
     );
 }
+
+/// 停掉了那几轮派出去的任务（施工 7-8）：说一句停掉了几个，在撤掉了压缩、清空的那两句下面、文件上面；没有的、空的、恢复
+/// 的不说；英文一个写单数。样子和 `docs/designs/samples/cli/undo-jobs-text.txt` 逐字节一样，蓝图里的那一块门禁和同一份比。
+#[test]
+fn stopped_jobs_are_said_in_one_line() {
+    let result = |jobs: Option<Value>| {
+        let proj = |parts: &[&str]| {
+            let mut all = vec!["home", "me", "proj"];
+            all.extend(parts);
+            under(&all)
+        };
+        let mut result = json!({"cwd": proj(&[]), "turns": 1, "said": "后台跑测试，再派一个去查 CI",
+               "commands": 1, "files": [
+            {"path": proj(&["src", "a.rs"]), "action": "write", "outcome": "restored"},
+        ]});
+        if let Some(jobs) = jobs {
+            result["jobs"] = jobs;
+        }
+        result
+    };
+    let one = json!([{"job": "j1", "what": "command", "title": "跑测试"}]);
+    let two = json!([
+        {"job": "j1", "what": "command", "title": "跑测试"},
+        {"job": "j2", "what": "agent", "title": "查 CI"},
+    ]);
+    let sample = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../docs/designs/samples/cli/undo-jobs-text.txt");
+    let drawn = std::fs::read_to_string(&sample).expect("有样本");
+    let chinese = plan(Direction::Undo, Language::Chinese);
+    let printed_two =
+        printed(&result(Some(two.clone())), &chinese).replace(MAIN_SEPARATOR_STR, "/");
+    assert_eq!(printed_two, drawn);
+    for quiet in [None, Some(json!([]))] {
+        assert!(!printed(&result(quiet), &chinese).contains("任务"));
+    }
+    let restore = plan(Direction::Restore, Language::Chinese);
+    assert!(!printed(&result(Some(two.clone())), &restore).contains("任务"));
+    let english = plan(Direction::Undo, Language::English);
+    assert!(printed(&result(Some(one)), &english).contains("\n· Stopped 1 job\n· Restored "));
+    assert!(printed(&result(Some(two)), &english).contains("\n· Stopped 2 jobs\n"));
+}

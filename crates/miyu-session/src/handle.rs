@@ -36,8 +36,10 @@ pub(crate) enum Message {
         command: Command,
         reply: oneshot::Sender<Outcome>,
     },
-    /// 要订阅：从这一刻起的推送都交给它。
+    /// 要订阅：从这一刻起的推送都交给它。一个订阅算一个在看着的头（施工 7-9）。
     Subscribe(oneshot::Sender<broadcast::Receiver<Arc<Pushed>>>),
+    /// 放下了一个订阅（施工 7-9）：订阅被丢掉时由它自己送来，连同要订阅、没等到回答就不等了的。
+    Unsubscribed,
     /// 有计划地停下：它的事件都落了盘，actor 退出以前交回一声。
     Stop(oneshot::Sender<()>),
     /// 删会话之前停下（施工 3-8 三补）：`force` 是假的，内核说删不了就交回原因、照常跑；删得了、或者 `force`，后台命令
@@ -69,6 +71,12 @@ pub(crate) enum Halt {
         by: By,
         cause: CommandId,
         reply: oneshot::Sender<()>,
+    },
+    /// 人删了这个会话派的子代理 `job`，删的那一头已经把它停下了（施工 7-8）：照人停它记一条回报，当场交进内核，落了盘才回；
+    /// 不是还在跑的子代理的回 [`JobError`]。
+    Deleted {
+        job: JobId,
+        reply: oneshot::Sender<Result<(), JobError>>,
     },
 }
 
@@ -127,13 +135,22 @@ impl Handle {
     /// 订阅：从这一刻起，落了盘的事件和瞬时事件照先后交过来。在发命令之前订阅的，这个命令产生的
     /// 事件一定先于它的回应到（`04-核心协议.md` 第六节第 2 条）。
     ///
+    /// 拿着订阅就算一个头在看着这个会话：没人看着的一次性会话，回报只记下、不叫醒她（`agents.md` 第三条第 3 条，施工
+    /// 7-9）。订阅放下了（丢掉它、连接断了），自己告诉 actor。
+    ///
     /// # Errors
     ///
     /// 会话停了。
     pub async fn subscribe(&self) -> Result<Subscription, Stopped> {
         let (reply, answer) = oneshot::channel();
         self.send(Message::Subscribe(reply))?;
-        answer.await.map(Subscription::new).map_err(|_| Stopped)
+        // 送进去了才算数：等回答的时候不等了（这个 future 被丢掉），它照样放下、告诉 actor，一来一去对得上。
+        let watching = Watching(self.inbox.downgrade());
+        let pushes = answer.await.map_err(|_| Stopped)?;
+        Ok(Subscription {
+            _watching: Some(watching),
+            ..Subscription::new(pushes)
+        })
     }
 
     /// 有计划地停下：送进「要重启了」，等它产生的事件落了盘，actor 退出（`02-内核.md` 第六节
@@ -220,6 +237,19 @@ impl Handle {
         answer.await.map_err(|_| Stopped)
     }
 
+    /// 人删了这个会话派的子代理 `job`，删的那一头（会话表，拿着表的锁）已经把它停下了（施工 7-8，`agents.md` 第七条第 6 条：
+    /// 删一个子会话本身等于人先停掉它再删）：照人用 `job.stop` 停它的样子记一条 `child.reported`（`stopped`，`by` 是子会话，
+    /// 不带 `by_model`，叫醒她），正文照它的日志看。回报当场交进这个会话，不经会话表：表的锁在删的那一头手里。落了盘才回。
+    ///
+    /// # Errors
+    ///
+    /// 会话停了。里面那一层：这个会话没派过这个子代理、它已经结束了（报过、被停过），或者没有会话表的端口。
+    pub async fn stopped_child(&self, job: JobId) -> Result<Result<(), JobError>, Stopped> {
+        let (reply, answer) = oneshot::channel();
+        self.send(Message::Halt(Halt::Deleted { job, reply }))?;
+        answer.await.map_err(|_| Stopped)
+    }
+
     fn send(&self, message: Message) -> Result<(), Stopped> {
         self.inbox.send(message).map_err(|_| Stopped)
     }
@@ -252,6 +282,25 @@ pub struct Subscription {
     pushes: broadcast::Receiver<Arc<Pushed>>,
     /// 掉过队了：这个订阅作废，头重新订阅。
     lagged: bool,
+    /// 放下时告诉 actor 少了一个看着的头（施工 7-9）；测试里直接造的没有。只为了它放下的那一刻拿着，不读。
+    _watching: Option<Watching>,
+}
+
+/// 一个看着会话的头：跟着订阅走，放下时往 actor 的收件箱送一声（施工 7-9）。拿的是弱的一头：不因为还有订阅，就不让
+/// 拿着 `Handle` 的都放下以后 actor 退出（`docs/blueprint/session/actor.md` 第 9 条）。
+#[derive(Debug)]
+struct Watching(mpsc::WeakUnboundedSender<Message>);
+
+impl Drop for Watching {
+    #[expect(
+        clippy::let_underscore_must_use,
+        reason = "actor 已经退出了：没人要知道少了一个头，丢掉"
+    )]
+    fn drop(&mut self) {
+        if let Some(inbox) = self.0.upgrade() {
+            let _ = inbox.send(Message::Unsubscribed);
+        }
+    }
 }
 
 /// 订阅断了。
@@ -268,6 +317,7 @@ impl Subscription {
         Subscription {
             pushes,
             lagged: false,
+            _watching: None,
         }
     }
 

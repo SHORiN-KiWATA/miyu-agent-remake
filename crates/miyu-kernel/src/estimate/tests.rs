@@ -158,6 +158,7 @@ fn every_kind_of_block_is_counted() {
             text("abcd"),
             Block::Image(Image {
                 blob: ContentHash::of(b"png"),
+                name: None,
                 media_type: MediaType::parse("image/png").unwrap(),
                 width: 1000,
                 height: 500,

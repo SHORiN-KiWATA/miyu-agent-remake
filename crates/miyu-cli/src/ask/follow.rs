@@ -9,8 +9,17 @@
 //!
 //! `miyu redo` 也照这里跟着新的一轮（施工 4-7 再补）：回应到了先照 `miyu undo` 印撤掉了哪一轮（[`Follow::redoing`]）。核心写
 //! 回应里给人看的几样要读日志，回应到的时候新的一轮可能已经开口、甚至说完了：在那以前推过来的先攒着，印完那几行再接着收。
+//!
+//! 她正忙时这一句不另开一轮，跟的是听到它的那一轮（施工 7-10，`joining.rs`）。
+//!
+//! `miyu ask` 还等子代理（施工 7-9，[`Follow::waits`]）：这一轮结束了，派出去的子代理还有没报的，接着跟被回报叫醒的几轮，
+//! 都了结了才收尾（`waiting.rs`、`agents.rs`）；收尾的几行在 `ending.rs`。
 
+mod agents;
 mod compacting;
+mod ending;
+mod joining;
+mod waiting;
 
 use std::collections::BTreeMap;
 
@@ -22,12 +31,17 @@ use super::{Format, Plan, Screen, exit};
 use crate::shown::{GRAY, Line, RESET, say, write};
 use crate::undo::{Direction, UndoPlan, redo_lines};
 
+pub(crate) use ending::Leaving;
+
+/// 回到行首、擦掉这一行：终端里原地刷新用（压缩的进度、等子代理的那一行）。
+const REDRAW: &str = "\r\x1b[2K";
+
 /// 收了一条以后怎么办。
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Step {
     /// 接着收。
     Going,
-    /// 这一轮结束了：退出码。
+    /// 都结束了：退出码。
     Done(u8),
     /// 掉队了：重新订阅。
     Resubscribe,
@@ -83,6 +97,22 @@ pub(crate) struct Follow<'p> {
     compacting: compacting::Compacting,
     /// 跟的是重做开的那一轮、回应还没到（施工 4-7 再补）：这时推过来的事件攒在这里，回应到了照撤销印那几行，再照先后收它们。
     redo: Option<Vec<Value>>,
+    /// 等子代理（施工 7-9）：第一轮结束了还有没报的，接着跟被回报叫醒的几轮。只有 `miyu ask` 等。
+    waits: bool,
+    /// 第一轮结束过了：之后等着的时候开的每一轮都跟。
+    ended_first: bool,
+    /// 最近结束的那一轮为什么结束：收尾照它说（施工 7-9）。
+    reason: String,
+    /// 结束了的每一轮，照先后：`--format json` 的 `turns`（施工 7-9）。
+    turns: Vec<Value>,
+    /// 跟过的每一轮每次请求的用量加起来：最后那一行（施工 7-9）。`usage` 只是这一轮的。
+    total: Sum,
+    /// 派出去的子代理，还有几个没报（施工 7-9）。
+    agents: agents::Agents,
+    /// 等子代理的那一行画着没有（施工 7-9）。
+    waiting: waiting::Waiting,
+    /// 她正忙时跟住听到这一句的那一轮（施工 7-10）。
+    joining: joining::Joining,
 }
 
 impl<'p> Follow<'p> {
@@ -110,7 +140,20 @@ impl<'p> Follow<'p> {
             unattended: 0,
             compacting: compacting::Compacting::default(),
             redo: None,
+            waits: false,
+            ended_first: false,
+            reason: String::new(),
+            turns: Vec::new(),
+            total: Sum::default(),
+            agents: agents::Agents::default(),
+            waiting: waiting::Waiting::default(),
+            joining: joining::Joining::default(),
         }
+    }
+
+    /// 等子代理（施工 7-9，`docs/blueprint/cli/ask.md`「等子代理」）：`miyu ask` 才等，`miyu redo`、`miyu compact` 跟完一轮就走。
+    pub(crate) fn waits(&mut self) {
+        self.waits = true;
     }
 
     /// 跟的是 `session.redo` 开的那一轮（施工 4-7 再补，`docs/blueprint/cli/redo.md`）：回应到了先印撤掉了哪一轮。
@@ -199,10 +242,17 @@ impl<'p> Follow<'p> {
         }
         let event = &message["params"]["event"];
         let kind = event["kind"].as_str().unwrap_or_default();
-        if kind == "turn.started" && event["cause"] == json!(self.sent) {
-            self.turn = event["turn"].as_u64();
-            return Step::Going;
+        match kind {
+            "turn.started" => {
+                self.started(event, screen);
+                return Step::Going;
+            }
+            // 回报不带回合编号（施工 7-9）：哪一轮里到的都认。
+            "child.reported" => return self.child_reported(event, screen),
+            _ => {}
         }
+        // 她正忙时接上听到这一句的那一轮（施工 7-10，`joining.rs`）。
+        self.join(event, screen);
         if self.turn.is_none() || event["turn"].as_u64() != self.turn {
             return Step::Going;
         }
@@ -213,14 +263,19 @@ impl<'p> Follow<'p> {
                 self.reply(body);
                 self.steps.reply(body);
             }
-            "tool.result" => self.result(event, screen),
-            "model.called" => self.called(body, screen),
+            "tool.result" => {
+                self.agents.result(body);
+                self.result(event, screen);
+            }
+            "model.called" => {
+                self.agents.called(body);
+                self.joining.called(body);
+                self.called(body, screen);
+            }
             "compaction.progress" => self.compaction_progress(body, screen),
             "compaction.done" => self.compaction_done(body, screen),
             "context.compaction_paused" => self.compaction_paused(body, screen),
-            "turn.ended" => {
-                return Step::Done(self.end(body["reason"].as_str().unwrap_or_default(), screen));
-            }
+            "turn.ended" => return self.ended(body["reason"].as_str().unwrap_or_default(), screen),
             _ => {}
         }
         Step::Going
@@ -406,6 +461,7 @@ impl<'p> Follow<'p> {
     fn called(&mut self, body: &Value, screen: &mut Screen<'_>) {
         self.compaction_called(body, screen);
         self.usage.add(&body["usage"]);
+        self.total.add(&body["usage"]);
         self.failure = match body["result"].as_str() {
             Some("error") => Some(Failure {
                 class: body["error"]["class"]
@@ -420,65 +476,6 @@ impl<'p> Follow<'p> {
             }),
             _ => None,
         };
-    }
-
-    /// 这一轮结束了：补上回答末尾的换行，印用量，有几步因为要确认没做的说一句，说为什么结束，交回退出码。
-    /// 照常结束、又有几步没做的是 4；被打断、出错、没有模型的照旧，它们比 4 要紧。
-    fn end(&mut self, reason: &str, screen: &mut Screen<'_>) -> u8 {
-        let language = &self.plan.language;
-        let (code, note) = match (reason, &self.failure) {
-            ("completed", _) if self.unattended > 0 => (exit::UNATTENDED, None),
-            ("completed", _) => (exit::OK, None),
-            ("interrupted", _) => (exit::INTERRUPTED, Some(language.interrupted())),
-            ("error", Some(failure)) if failure.class == "auth" && !failure.sent => {
-                (exit::NO_MODEL, Some(language.no_model()))
-            }
-            ("error", Some(failure)) => (
-                exit::ERROR,
-                Some(language.failed(&failure.class, &failure.message)),
-            ),
-            ("error", None) => (exit::ERROR, Some(language.failed("other", ""))),
-            (other, _) => (exit::ERROR, Some(language.unfinished(other))),
-        };
-        match self.plan.format {
-            Format::Text => {
-                // 只想了、没回答（例如被打断了）：思考那一行收个尾。
-                self.part(screen, "");
-                if self.answered && !self.answer_ends_line {
-                    write(screen.out, "\n");
-                }
-                // 最后是一块、一段思考，后面还有要印的：欠着的空行写上。
-                self.thought();
-                if self.usage.seen || self.unattended > 0 || note.is_some() {
-                    self.settle(screen);
-                }
-                if self.usage.seen {
-                    let line = language.usage(&self.usage);
-                    match screen.gray {
-                        true => write(screen.err, &format!("{GRAY}{line}{RESET}\n")),
-                        false => write(screen.err, &format!("{line}\n")),
-                    }
-                }
-                if self.unattended > 0 {
-                    let line = steps::unattended_line(self.plan, self.unattended);
-                    write(screen.err, &line.paint(screen.gray));
-                }
-            }
-            Format::Json => {
-                let mut result = json!({
-                    "session": self.session,
-                    "turns": [{"text": self.answer, "usage": self.usage.json()}],
-                });
-                if let Some(failure) = &self.failure {
-                    result["error"] = json!({"class": failure.class, "message": failure.message});
-                }
-                write(screen.out, &format!("{result}\n"));
-            }
-        }
-        if let Some(note) = note {
-            say(screen.err, &note);
-        }
-        code
     }
 }
 

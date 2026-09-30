@@ -47,7 +47,7 @@ pub(super) fn found(
             "#{} {} {}: {}\n",
             entry.seq,
             entry.at.local_minute(offset),
-            entry.who.name(),
+            entry.said_by(),
             snippet(&hit.text, hit.at, hit.len)
         );
         let size = line.chars().count();
@@ -87,7 +87,7 @@ pub(super) fn read(entries: &[Entry], limit: usize, offset: UtcOffset, footers: 
             "#{} {} {}\n",
             entry.seq,
             entry.at.local_minute(offset),
-            entry.who.name()
+            entry.said_by()
         );
         let gap = if shown == 0 { "" } else { "\n" };
         let size = gap.len() + head.chars().count() + entry.text.chars().count() + 1;

@@ -8,13 +8,10 @@
 
 use serde_json::Value;
 
-use super::{Follow, Format, Screen};
+use super::{Follow, Format, REDRAW, Screen};
 use crate::ask::usage::thousands;
 use crate::language::Language;
 use crate::shown::{Ink, Line, write};
-
-/// 回到行首、擦掉这一行：终端里原地刷新用。
-const REDRAW: &str = "\r\x1b[2K";
 
 /// 内核在摘要请求调了工具、接着改走隔离式时，原话末尾写的（`docs/blueprint/compaction.md` 第三条第 7 条）。
 const ISOLATING: &str = "trying again without tools";

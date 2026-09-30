@@ -31,7 +31,8 @@ testkit = []
 landlock = "0.4"
 
 [target.'cfg(windows)'.dependencies]
-# Windows 上装沙盒要调的系统接口（施工 5-8）：建、藏、删用户，查是不是管理员，自提升，DPAPI，建只给本人的文件。
+# Windows 上装沙盒要调的系统接口（施工 5-8）：建、藏、删用户，查是不是管理员，自提升，DPAPI，建只给本人的文件；核心进
+# 作业对象，核心没了它起的子进程跟着结束（施工 7-8，`lifeline/windows.rs`）。
 # MIT OR Apache-2.0。
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
@@ -40,6 +41,7 @@ windows-sys = { version = "0.61", features = [
     "Win32_Security_Authorization",
     "Win32_Security_Cryptography",
     "Win32_Storage_FileSystem",
+    "Win32_System_JobObjects",
     "Win32_System_Registry",
     "Win32_System_Threading",
     "Win32_UI_Shell",

@@ -1,5 +1,6 @@
 //! 两种回报的写法装进快照（施工 7-2，`docs/blueprint/kernel/request.md`「回报」）：`resources/core/jobs/` 下的十一份原文，
-//! 子代理的留言的标签（施工 7-7）。以前造的快照里没有，读成没有：那些会话派不出任务，也就没有回报。
+//! 人停的那一句（施工 7-2 补），子代理的留言的标签（施工 7-7）。以前造的快照里没有，读成没有：那些会话派不出任务，也就
+//! 没有回报。
 
 use std::collections::BTreeMap;
 
@@ -59,6 +60,10 @@ pub struct JobTexts {
     /// 空的；空的不写，旧快照的字节不变。
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub subagent_omitted: String,
+    /// 人停的那一句（施工 7-2 补，`kernel/request.md`「回报」第 3、4 条）：两种回报共用。以前造的快照里没有，读成空的：
+    /// 人停的回报照原来的写；空的不写，旧快照的字节不变。
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub stopped_by_user: String,
     /// 子代理发给父会话的留言的标签：`job`、`title`（施工 7-7）。以前造的快照里没有，读成空的：留言照原样放，不加标签；
     /// 空的不写，旧快照的字节不变。
     #[serde(default, skip_serializing_if = "String::is_empty")]
@@ -88,6 +93,7 @@ impl JobTexts {
             subagent_truncated: self.subagent_truncated.clone(),
             subagent_silent: self.subagent_silent.clone(),
             subagent_close: self.subagent_close.clone(),
+            stopped_by_user: self.stopped_by_user.clone(),
             subagent_message_open: template(&self.subagent_message_open, &["job", "title"])?,
             subagent_message_close: self.subagent_message_close.clone(),
         })
@@ -105,3 +111,6 @@ pub(crate) fn template(source: &str, fields: &[&str]) -> Result<Template, BuildE
     template.render(&trial).map_err(bad)?;
     Ok(template)
 }
+
+#[cfg(test)]
+mod tests;

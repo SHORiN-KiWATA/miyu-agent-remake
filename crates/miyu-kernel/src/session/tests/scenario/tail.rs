@@ -215,6 +215,7 @@ fn the_tail_counts_images_with_the_driver_price() {
     let image = || {
         vec![Block::Image(crate::block::Image {
             blob: crate::id::ContentHash::of(b"png"),
+            name: None,
             media_type: crate::id::MediaType::parse("image/png").unwrap(),
             width: 1000,
             height: 500,

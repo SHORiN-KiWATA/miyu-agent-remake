@@ -14,6 +14,7 @@
 | `crates/miyu-core/src/serve.rs` | 接连接，空闲退出，停的信号 |
 | `crates/miyu-core/src/sandbox.rs` | 起来时找沙盒的助手、探一次，记日志（施工 5-1）；探到了手段的，交回助手（施工 5-4 上） |
 | `crates/miyu-core/src/trash.rs` | 起来时清一次回收处；删了的会话留多久 `KEEP`（施工 3-8 三补） |
+| `crates/miyu-sandbox/src/lifeline.rs`、`lifeline/` | 核心没了，它起的命令跟着没（施工 7-8，下面「子进程随核心退出」）：Unix 上每条命令的组里一个看门的，Windows 上核心进作业对象 |
 | `crates/miyu-ipc` | 单实例锁、套接字、本机令牌、那一行的写法（`ipc.md`） |
 | `crates/miyu-endpoint` | 协议端点：核心的家底 `Core`（里面有执行器的任务表，施工 7-3）、接连接、空不空闲（`protocol.md`） |
 | `crates/miyu-basesystem`、`crates/miyu-tool` | 基础系统的七件工具、工具目录（`tools/interface.md`） |
@@ -63,7 +64,7 @@
 1. 读一次环境的快照（`MIYU_HOME`、`MIYU_RESOURCES`、家目录、程序的真实位置这些），数据根、资源目录、沙盒的助手照它找；`MIYU_LOG`、放套接字的目录、`DEEPSEEK_API_KEY` 到用的那一步才读。
 2. 找数据根，建骨架（`store.md`）。
 3. 拿单实例锁 `run/core.lock`，不等。拿不到：已经有一个核心在跑，写 `running`，退出码 0，运行日志一个字都不写。先拿锁、再装日志：两个核心不写同一份日志。
-4. 装运行日志 `state/logs/core.log`，级别照 `MIYU_LOG`，带上第 1 步的家目录（`log.md`）。记一条 `INFO starting version=<版本> pid=<进程号> root=<数据根> tz=<和 UTC 差多少>`，数据根里的家目录写成 `~`，例如 `root=~/.miyu tz=+09:00`。
+4. 装运行日志 `state/logs/core.log`，级别照 `MIYU_LOG`，带上第 1 步的家目录（`log.md`）。记一条 `INFO starting version=<版本> pid=<进程号> root=<数据根> tz=<和 UTC 差多少>`，数据根里的家目录写成 `~`，例如 `root=~/.miyu tz=+09:00`。接着让它起的子进程随它结束（下面「子进程随核心退出」，施工 7-8）：Windows 上进作业对象，进不去记一条 `WARN children not bound error=…`，照样起来；别的平台这一步什么都不做。
 5. 管理员的家目录 `home/admin/` 和工作区 `home/admin/workspace/`，没有就建；Unix 上新建的权限 0700。管理员的账号固定叫 `admin`。
 6. 找资源目录（`store.md`）。
 7. 起运行时：多线程，两个工作线程，接连接、会话、请求都在上面。
@@ -117,6 +118,15 @@
 2. 没设、空的、全是空白：照样起来，记一条 `WARN DEEPSEEK_API_KEY not set, no model`。每次请求都当场说完、没发出去：出错，分类 `auth`（认证失败），原话 `no model: set DEEPSEEK_API_KEY`；`model.called` 里没有端点和模型（没发出去）。分类是认证失败，内核不重试（`kernel/session.md`）。运行日志里 `request` 那一行写 `endpoint=none model=none`。
 3. key 只在起来时读一次：换了 key，要等这个核心退出、下一次拉起。
 
+**子进程随核心退出**（施工 7-8，`12-进程形态与分发.md` R5，`agents.md` 第八条）
+
+有计划地停下时核心自己先记 `restarted`、再整组杀掉后台命令（下面「停下」第 4 条）。这一条管的是核心崩了、被 `SIGKILL`、被任务管理器结束的时候：没人来杀，命令得自己知道核心没了。三个平台各用自己最稳的现成做法（`crates/miyu-sandbox/src/lifeline.rs`）：
+
+1. Unix（Linux、macOS 一样）：核心手里一根「生命线」管道，写端带 `O_CLOEXEC`、只在核心手里，核心怎么没的，内核都会关掉它。`shell` 起每条命令（前台、后台，经不经沙盒的助手都一样）之前，先起一个看门的 `/bin/sh`（环境变量清空、工作目录是 `/`、标准输入是生命线的读端、标准输出和错误接空的），自成一组；命令起在它的组里，整组杀照这个组号。看门的只做一件事：`while read -r _; do :; done; kill -s KILL 0`：读到结尾（核心没了）就杀掉自己所在的整个组，命令和它起的孙进程都在里面。看门的只认自己的组，它在组里组号就不会被别人占，不会杀错。命令自己退出、被停、超时时，整组杀会连它一起杀掉；丢掉这条命令时收掉它，不留僵尸进程。看门的起不来的（`/bin/sh` 没有、生命线建不起来），记一行 `WARN command lifeline not started error=…`（目标 `miyu::shell`），照旧自成一组：核心崩了它不跟着死，载入时照样补 `aborted`。
+2. Windows：核心起来时把自己放进一个带 `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` 的作业对象（起来的先后第 4 步），句柄拿到进程结束。之后起的子进程、子进程再起的，都自动在里面；核心没了，系统关掉句柄，里面的全部结束。有计划地退出时后台命令已经杀了，剩下的（`taskkill`、跑到一半的前台命令）也跟着结束。
+3. 没选的：Linux 的 `PR_SET_PDEATHSIG` 盯的是起子进程的那个线程，运行时线程池里的线程一退，命令就被误杀，而且只管直接的子进程，组里别的照样活；子进程收割者（`PR_SET_CHILD_SUBREAPER`）只管收养孤儿，核心没了它也没了；macOS 的 kqueue 盯父进程要另起一个进程盯着，和生命线一样，却只有一个平台能用；Windows 上一条命令一个作业对象要在起好以后才放进去，中间起的孙进程漏掉。
+4. 再载入时内核照样给没有结束记录的后台命令补 `aborted`（`kernel/session.md`「载入和崩溃」第 9 条）：进程是真的没了。
+
 **停下**
 
 1. 每隔一会儿看一次空不空闲：空闲时限的四分之一，最少 100 毫秒，最多 30 秒；600 秒的是每 30 秒。起来时马上看第一次。
@@ -141,6 +151,7 @@
 |---|---|
 | `INFO` | `starting version=… pid=… root=… tz=…` |
 | `WARN` | `DEEPSEEK_API_KEY not set, no model` |
+| `WARN` | `children not bound error=…`（Windows：进不了作业对象，施工 7-8） |
 | `INFO` | `sandbox helper=… platform=… mechanisms=…`（施工 5-1） |
 | `WARN` | `sandbox unavailable reason=…`（施工 5-1） |
 | `WARN` | `sandbox cache unavailable reason=…`（施工 5-4 下） |
@@ -159,6 +170,8 @@
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu/tests/core.rs` | 头拉起真的 `miyu core`，等它说好了再连；管理员叫 `admin`，建好了它的家目录；再连不再拉起；两个头同时只拉起一个；起不来的说原因（找不到资源目录），日志里只写 `stage=resources`；已经在跑的写 `running` 就走、不写日志；什么都没写就退了的；空闲了自己走，日志里一条 `starting`、一条 `stopped reason=idle`；`starting` 那一行的数据根在家目录下的写成 `~`、有和 UTC 差多少；工作目录是数据根；起来时清一次回收处：删了满 7 天的删、没满的留，记一条 `trash purged removed=1`（施工 3-8 三补）；起来时探一次沙盒的助手：旁边有助手的记 `sandbox` 那一行、平台是这台机器的、有手段那一格，没有的记找不到（施工 5-1）；握手报的沙盒和记下的对得上（施工 5-4 下） |
+| `crates/miyu/tests/crash.rs`（施工 7-8） | 真的 `miyu core`，模型是本机回环上的假服务器：放一个心跳到后台（Unix 上是命令起的孙进程），硬杀核心（Unix `SIGKILL`，Windows 结束进程、不连子进程），心跳几秒内停下；三个平台都跑 |
+| `crates/miyu-sandbox/src/lifeline/tests.rs`（施工 7-8，Unix） | 生命线还在，组里的照常跑；写端一关，看门的把整个组杀掉，孙进程也在里面 |
 | `crates/miyu-core/tests/serve.rs` | 空闲退出、放开锁和套接字；有头连着不退；空闲的钟从最后一个头走时算起；在跑的回合不退；有在跑的后台命令不退、结束了记下再退（施工 7-3）；收到停的信号先停下会话、跑到一半的记成重启了，后台命令先记 `restarted`、落了盘再杀（施工 7-3）；没有 key（没设、全是空白）每次请求都说没有模型、分类是认证失败、没发出去 |
 | `crates/miyu-core/src/serve/tests.rs` | 多久看一次：四分之一，最多 30 秒，最少 100 毫秒；装不上的 Ctrl+C 当它不会来（造不出真的装不上，测的是等它的那一小段） |
 | `crates/miyu-core/tests/tools.rs` | 工具目录里是基础系统的七件；资源目录坏了，说是哪一份 |
@@ -180,7 +193,6 @@
 
 - 常驻：开了通讯平台桥、定时任务、远程访问、桌面语音时不退出，登记成登录时启动的服务（`12-进程形态与分发.md` 第二节，`miyu service install`）。
 - 空闲时限放进配置（第二节）。
-- 子进程随核心退出，按进程树管理（第一节、R5）：有计划地退出时后台命令整组杀掉（施工 7-3）；核心崩了的，后台命令自成一组，不跟着死：输出的管道没人读了，再写输出时出错（Unix 上收到 `SIGPIPE`，默认就停了），不写输出的一直跑到自己退出。再载入时内核照样补 `aborted`。
 - 恢复会话、回收 blob 这类重活放到说好了之后（第二节「拉起时的握手」）。清回收处（施工 3-8 三补）已经照这样放在 `ready` 之后。
 - 「核心先 bind 好套接字、能接受连接了就往管道里写」（第二节「拉起时的握手」）：现在绑好以后还要造模型端口、登记工具（读资源目录的字）才写 `ready`，比设计说的晚。
 - 头发现核心比自己旧，请求它空闲时重启（`04-核心协议.md` 第八节）。

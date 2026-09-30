@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use serde_json::json;
 
-use miyu_kernel::event::{Body, ChildReason, Event};
+use miyu_kernel::event::{Body, ChildReason, Effect, Event};
 use miyu_kernel::id::SessionId;
 use miyu_kernel::origin::{By, Session};
 use miyu_kernel::tool::Access;
@@ -64,6 +64,29 @@ async fn children_stop_layer_by_layer_and_go_with_their_parent() {
     })
     .await;
     let grandchild = started_child(&home.log(child.as_str())).expect("派出去了孙代理");
+    let mut ids = started_ids(&home.log(child.as_str()));
+    ids.sort();
+    // 主会话一步里派子代理、放后台命令，谁先领 j1 也不一定：子代理的编号照主会话日志里记它的那一条读（施工 7-8 在 CI 上撞见）。
+    let own = home
+        .log(&parent)
+        .iter()
+        .filter_map(|event| match &event.body {
+            Body::ToolResult(result) => Some(&result.effects),
+            _ => None,
+        })
+        .flatten()
+        .find_map(|effect| match effect {
+            Effect::JobStarted(started) if started.session.as_ref() == Some(&child) => {
+                Some(started.job.to_string())
+            }
+            _ => None,
+        })
+        .expect("主会话记着派它的那一条");
+    assert_eq!(
+        ids,
+        [format!("{own}.1"), format!("{own}.2")],
+        "子代理派的孙代理、后台命令带着它自己的编号，一起派的谁先领不一定（施工 7-1 补）"
+    );
     until("孙代理停在请求上", || {
         !router.0[2].1.requests().is_empty()
     })
@@ -238,4 +261,56 @@ async fn deleting_a_messaged_child_settles_what_its_parent_waits_for() {
     assert_eq!(reasons, [ChildReason::Done, ChildReason::Stopped]);
     home.until_turns(&parent, 3).await;
     assert!(!in_place(&home, child.as_str()));
+}
+
+/// 删一个孙会话（施工 7-1 补）：子会话派的编号带着它自己的 `j1`，孙代理是 `j1.1`；照人停掉孙会话，子会话记的 `stopped` 回报
+/// 也是 `j1.1`，照造孙会话的命令编号读回来的。
+#[tokio::test]
+async fn deleting_a_grandchild_reports_it_under_its_prefixed_job() {
+    let home = Home::new();
+    let router = Router(Arc::new(vec![
+        (
+            "派一个去查",
+            Script::new([
+                Play::calls(&[("agent", &agent("查 A"))]),
+                Play::Says("派出去了。"),
+            ]),
+        ),
+        (
+            "查 A",
+            Script::new([Play::calls(&[("agent", &agent("查 B"))]), Play::Holds]),
+        ),
+        ("查 B", Script::new([Play::Holds])),
+    ]));
+    let core = home.core_with_models(Arc::new(router.clone()), base_tools());
+    let mut client = Client::connect(core);
+    client.hello().await;
+    let work = home.work.to_string_lossy().into_owned();
+    let parent = client.create("c1", &work).await;
+    client.say("c2", &parent, "派一个去查").await;
+    home.until_turns(&parent, 1).await;
+    let child = started_child(&home.log(&parent)).expect("派出去了子代理");
+    until("子代理派出孙代理", || {
+        started_jobs(&home.log(child.as_str())) == 1
+    })
+    .await;
+    let grandchild = started_child(&home.log(child.as_str())).expect("派出去了孙代理");
+    until("孙代理停在请求上", || {
+        !router.0[2].1.requests().is_empty()
+    })
+    .await;
+
+    let (_, reply) = delete(&mut client, "d1", grandchild.as_str()).await;
+    assert_eq!(reply["result"], json!({}), "{reply}");
+    let reported: Vec<(String, ChildReason)> = home
+        .log(child.as_str())
+        .into_iter()
+        .filter_map(|event| match event.body {
+            Body::ChildReported(reported) => Some((reported.job.to_string(), reported.reason)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(reported, [("j1.1".to_string(), ChildReason::Stopped)]);
+    assert!(!in_place(&home, grandchild.as_str()), "孙会话挪走了");
+    assert!(in_place(&home, child.as_str()), "子会话还在");
 }

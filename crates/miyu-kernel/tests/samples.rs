@@ -11,6 +11,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use miyu_kernel::event::{Body, ChildReported, Effect, Event, JobKind, JobStarted};
+use miyu_kernel::id::JobId;
 use miyu_kernel::origin::By;
 
 /// 样本所在的目录：这个 crate 的目录往上两级是仓库根。
@@ -126,10 +127,10 @@ fn the_child_in_the_samples_is_the_one_the_parent_started() {
             _ => Vec::new(),
         })
         .collect();
-    let started_as = |job, what: JobKind| {
+    let started_as = |job: &JobId, what: JobKind| {
         started
             .iter()
-            .find(|(_, started)| started.job == job && started.what == what)
+            .find(|(_, started)| started.job == *job && started.what == what)
             .copied()
             .unwrap_or_else(|| panic!("样本里没有派 {job} 的 {}", what.as_str()))
     };
@@ -142,7 +143,7 @@ fn the_child_in_the_samples_is_the_one_the_parent_started() {
         .collect();
     assert!(!reports.is_empty(), "样本里要有子代理的回报");
     for (event, reported) in reports {
-        let (_, started) = started_as(reported.job, JobKind::Agent);
+        let (_, started) = started_as(&reported.job, JobKind::Agent);
         assert_eq!(started.session.as_ref(), Some(&reported.session));
         assert!(
             matches!(&event.by, By::Session(by) if by.id == reported.session),
@@ -171,7 +172,7 @@ fn the_child_in_the_samples_is_the_one_the_parent_started() {
     assert!(child.at <= spawned.at, "子会话造好了，派它的那次调用才返回");
     for event in &events {
         if let Body::JobReported(reported) = &event.body {
-            started_as(reported.job, JobKind::Command);
+            started_as(&reported.job, JobKind::Command);
         }
     }
 }

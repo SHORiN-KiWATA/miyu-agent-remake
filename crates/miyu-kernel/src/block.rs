@@ -48,6 +48,11 @@ pub struct Reasoning {
 pub struct Image {
     /// 图片本身存成的 blob。
     pub blob: ContentHash,
+    /// 文件名，例如 `晚霞.png`，只是名字，不带路径（施工 3-9 四补，`docs/blueprint/kernel/blocks.md` 第 14 条）。人附的
+    /// 图片带着，她分得清一句话里的几张图哪张是哪个文件；`read` 读出来的不带，那一次调用本来写着路径。以前的日志里没有
+    /// 这一格，读成没有；没有的不写，旧日志读进来再写出去一字不差。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<FileName>,
     /// 例如 `image/png`。
     pub media_type: MediaType,
     /// 宽，像素。
