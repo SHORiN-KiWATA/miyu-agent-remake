@@ -119,13 +119,7 @@ impl App {
         };
         match drawer.report(outcome, &self.config.text.drawer) {
             Report::Block(lines) => self.transcript.note(Kind::Answered, lines.join("\n")),
-            Report::Line(mark, text) => {
-                let mark = match mark {
-                    Mark::Bad => JobMark::Failed,
-                    Mark::Void => JobMark::Void,
-                };
-                self.transcript.job(mark, text, String::new());
-            }
+            Report::Line(mark, text) => self.transcript.job(job_mark(mark), text, String::new()),
             Report::Nothing => {}
         }
         if *outcome == Outcome::Cancelled && self.transcript.running.is_some() {
@@ -137,5 +131,27 @@ impl App {
         } else {
             self.settle_state();
         }
+    }
+}
+
+/// 了结那一行的记号：不允许是红 `✗`，取消和后台命令停了一样是暗 `●`（第 6 条）。
+fn job_mark(mark: Mark) -> JobMark {
+    match mark {
+        Mark::Bad => JobMark::Failed,
+        Mark::Void => JobMark::Stopped,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::job_mark;
+    use crate::drawer::Mark;
+    use crate::transcript::JobMark;
+
+    #[test]
+    fn a_cancelled_drawer_leaves_a_dim_dot_like_a_stopped_job() {
+        // 2026-10-01 项目主人：「已取消」加点。
+        assert_eq!(job_mark(Mark::Void), JobMark::Stopped);
+        assert_eq!(job_mark(Mark::Bad), JobMark::Failed);
     }
 }

@@ -357,7 +357,8 @@
     "answered_line": "{label}：{answer}",
     "notes_suffix": "（补充：{notes}）",
     "denied_with": "不允许 · {reason}",
-    "cancelled": "已取消",
+    "cancelled_question": "提问已取消",
+    "cancelled_approval": "批准已取消",
     "cancel_hint": "再按一次 Esc 取消"
   },
   "clipboard_unreadable": "读不到剪贴板：用终端自己的粘贴（kitty 是 Ctrl+Shift+V）",

@@ -9,7 +9,7 @@ use crate::local::home_short;
 pub enum Mark {
     /// 不允许：红 `✗`。
     Bad,
-    /// 取消了：没有记号，整行暗。
+    /// 取消了：暗 `●`，整行暗。
     Void,
 }
 
@@ -47,7 +47,14 @@ impl Drawer {
                 }));
                 Report::Block(lines)
             }
-            Outcome::Cancelled => Report::Line(Mark::Void, texts.cancelled.clone()),
+            // 写清取消的是哪一种：提问、确认（第 6 条）。
+            Outcome::Cancelled => {
+                let text = match self.ask {
+                    Ask::Approval(_) => &texts.cancelled_approval,
+                    _ => &texts.cancelled_question,
+                };
+                Report::Line(Mark::Void, text.clone())
+            }
             Outcome::Decided(d) if d.decision != Decision::Deny => Report::Nothing,
             Outcome::Decided(d) => {
                 let text = d.reason.as_ref().map_or_else(

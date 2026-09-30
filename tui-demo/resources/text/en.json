@@ -357,7 +357,8 @@
     "answered_line": "{label}: {answer}",
     "notes_suffix": " (notes: {notes})",
     "denied_with": "Not allowed · {reason}",
-    "cancelled": "Cancelled",
+    "cancelled_question": "Question cancelled",
+    "cancelled_approval": "Approval cancelled",
     "cancel_hint": "Press Esc again to cancel"
   },
   "clipboard_unreadable": "Can't read the clipboard: use your terminal's own paste (Ctrl+Shift+V in kitty)",

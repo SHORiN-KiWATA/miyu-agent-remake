@@ -29,7 +29,6 @@ pub fn rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
         JobMark::Done => (words.ok_mark.as_str(), theme::good(), theme::dim()),
         JobMark::Failed => (words.fail_mark.as_str(), theme::error(), theme::dim()),
         JobMark::Stopped => (words.stop_mark.as_str(), theme::dim(), theme::dim()),
-        JobMark::Void => ("", theme::dim(), theme::dim()),
     };
     let width = ctx
         .width

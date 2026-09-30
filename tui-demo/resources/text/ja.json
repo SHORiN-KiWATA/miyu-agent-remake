@@ -357,7 +357,8 @@
     "answered_line": "{label}：{answer}",
     "notes_suffix": "（補足：{notes}）",
     "denied_with": "許可しません · {reason}",
-    "cancelled": "キャンセルしました",
+    "cancelled_question": "質問をキャンセルしました",
+    "cancelled_approval": "承認をキャンセルしました",
     "cancel_hint": "もう一度 Esc でキャンセル"
   },
   "clipboard_unreadable": "クリップボードを読み取れません：ターミナル自体の貼り付けを使ってください（kitty では Ctrl+Shift+V）",

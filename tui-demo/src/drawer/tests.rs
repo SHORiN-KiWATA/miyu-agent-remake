@@ -284,12 +284,13 @@ fn what_is_left_behind() {
         a.report(&deny, &texts),
         Report::Line(Mark::Bad, "不允许 · 不要".into())
     );
+    // 2026-10-01 项目主人：取消的写清是哪一种。
     assert_eq!(
         a.report(&Outcome::Cancelled, &texts),
-        Report::Line(Mark::Void, "已取消".into())
+        Report::Line(Mark::Void, "批准已取消".into())
     );
     assert_eq!(
         d.report(&Outcome::Cancelled, &texts),
-        Report::Line(Mark::Void, "已取消".into())
+        Report::Line(Mark::Void, "提问已取消".into())
     );
 }
