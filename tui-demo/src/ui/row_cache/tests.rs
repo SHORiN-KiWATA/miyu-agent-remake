@@ -12,12 +12,13 @@ use crate::transcript::{Chip, JobMark, Kind, Segment, Step, StepKind, ToolState,
 use crate::ui::rows::Target;
 use crate::ui::test_support::{Fixture, fresh_rows};
 
-/// 你说的话里的一块：块上的字、原文、附件的种类。
+/// 你说的话里的一块：块上的字、原文、附件的种类（附件的文件另给）。
 fn chip(label: &str, full: &str, kind: Option<&str>) -> Chip {
     Chip {
         label: label.into(),
         full: full.into(),
         kind: kind.map(str::to_string),
+        file: None,
     }
 }
 
@@ -226,20 +227,25 @@ fn a_pasted_block_in_what_you_said_is_replaced_by_its_full_text() {
 }
 
 #[test]
-fn attachments_stay_blocks_when_opened_and_alone_they_are_not_clickable() {
-    // 2026-09-30 项目主人：点了发出去的图，底色没了、图也没展开。附件怎么都是块；只有附件的一句点了没反应。
+fn attachments_stay_blocks_and_open_their_file_like_a_link() {
+    // 2026-09-30 项目主人：点了发出去的图，底色没了、图也没展开；想点开看图，定了用系统的程序打开。
+    // 附件怎么都是块，块是指向那个文件的链接；只有附件的一句，整条不能点开。
     let f = Fixture::new();
     let mut t = Transcript::default();
+    let attached = |label: &str, file: &str| Chip {
+        file: Some(file.into()),
+        ..chip(label, label, Some("image"))
+    };
     t.user(
         "看[图片 3]和[已粘贴 2 行]".into(),
         vec![
-            chip("[图片 3]", "[图片 3]", Some("image")),
+            attached("[图片 3]", "/tmp/看图/a.png"),
             chip("[已粘贴 2 行]", "第一行\n第二行", None),
         ],
     );
     t.user(
         "[图片 4]".into(),
-        vec![chip("[图片 4]", "[图片 4]", Some("image"))],
+        vec![attached("[图片 4]", "/tmp/看图/b.png")],
     );
     let ctx = f.ctx();
     t.entries[0].open = true;
@@ -259,10 +265,19 @@ fn attachments_stay_blocks_when_opened_and_alone_they_are_not_clickable() {
         rows.iter().any(|r| r.plain.contains("第二行")),
         "粘贴块照样展开"
     );
-    assert_eq!(span("[图片 4]"), Some(crate::theme::chip()));
+    let links: Vec<&(u16, u16, String)> = rows.iter().flat_map(|r| r.links.iter()).collect();
+    // 「看」占两列，块从第 2 列起、占 8 列。
+    assert!(
+        links.contains(&&(2, 10, "/tmp/看图/a.png".to_string())),
+        "{links:?}"
+    );
+    assert!(
+        links.contains(&&(0, 8, "/tmp/看图/b.png".to_string())),
+        "{links:?}"
+    );
     assert!(
         !rows.iter().any(|r| r.target == Some(Target::Entry(1))),
-        "只有图的那句不能点"
+        "只有图的那句整条不能点开"
     );
     assert!(rows.iter().any(|r| r.target == Some(Target::Entry(0))));
 }

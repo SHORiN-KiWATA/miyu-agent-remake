@@ -55,6 +55,9 @@ impl App {
         if owner != Some(Grab::Body) {
             self.view.hover = None;
         }
+        if owner != Some(Grab::Input) {
+            self.input.unhover();
+        }
         match owner {
             Some(Grab::Menu) if self.history.open => self.history_mouse(mouse),
             Some(Grab::Menu) => match self.menu_matches() {
@@ -66,16 +69,25 @@ impl App {
                 match self.view.mouse(mouse) {
                     BodyAction::None => {}
                     BodyAction::Toggle(target) => self.toggle(target),
-                    BodyAction::Open(url) => {
-                        if let Err(e) = crate::open::open(&url) {
-                            self.hint(e.to_string(), false);
-                        }
-                    }
+                    BodyAction::Open(url) => self.open_link(&url),
                 }
                 Action::None
             }
             None => Action::None,
         }
+    }
+
+    /// 点了链接、你发出去的附件块：用系统的程序打开；开不了的提示一句（「她的回答：Markdown」第 10 条）。
+    pub(super) fn open_link(&mut self, url: &str) {
+        use crate::open::OpenError;
+        let words = &self.config.text.open;
+        let note = match crate::open::open(url) {
+            Ok(()) => return,
+            Err(OpenError::Scheme) => words.refused.replace("{url}", url),
+            Err(OpenError::Missing) => words.missing.replace("{path}", url),
+            Err(OpenError::Spawn(e)) => words.failed.replace("{reason}", &e.to_string()),
+        };
+        self.hint(note, false);
     }
 
     /// 点开、收起时间线的一段或一步。

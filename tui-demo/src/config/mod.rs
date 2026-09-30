@@ -21,6 +21,7 @@ mod icons;
 mod motion;
 mod notes;
 mod notify;
+mod open;
 mod panels;
 mod timeline;
 
@@ -30,6 +31,7 @@ pub use icons::Icons;
 pub use motion::CompactionMotion;
 pub use notes::CompactionTexts;
 pub use notify::{NotifyLook, NotifyTexts};
+pub use open::OpenTexts;
 pub use panels::{HistoryTexts, MenuTexts};
 pub use timeline::{Summary, Timeline, ToolKind};
 
@@ -310,6 +312,10 @@ pub struct Texts {
     pub context: String,
     /// 空着按 `Ctrl+C` 的提示。
     pub exit_hint: String,
+    /// `Ctrl+C` 清空了输入框的提示：清掉的按 `↑` 找回。
+    pub input_cleared: String,
+    /// 开不了链接、文件时的提示。
+    pub open: OpenTexts,
     /// 在回答时按第一下 `Esc` 的提示。
     pub esc_hint: String,
     /// 没在回答、输入框有字时按第一下 `Esc` 的提示。

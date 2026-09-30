@@ -36,6 +36,7 @@ pub(super) fn chips(draft: &Draft) -> Vec<Chip> {
             label: draft.text[b.start..b.end].to_string(),
             full: b.text.clone(),
             kind: b.attachment.as_ref().map(|a| a.kind.clone()),
+            file: b.attachment.as_ref().map(|a| a.file.clone()),
         })
         .collect()
 }

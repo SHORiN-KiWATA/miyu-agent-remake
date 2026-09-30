@@ -1,7 +1,8 @@
 //! 你说的话里的块（蓝图 `tui.md`「正文」第 2 条、「输入框」第 11、12 条）：粘贴块点开看全文；附件（图片、PDF、音频、
-//! 视频）只写块上的字、点了不展开，编号整个会话一直往下排。
+//! 视频）只写块上的字、不展开，点块用系统的程序打开那个文件，编号整个会话一直往下排。
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use super::{Kind, Transcript};
 
@@ -14,10 +15,12 @@ pub struct Chip {
     pub full: String,
     /// 附件是哪一种（`image`、`pdf`、`audio`、`video`）；粘贴块是 `None`。
     pub kind: Option<String>,
+    /// 附件是本机的哪个文件：点块用系统的程序打开它（「输入框」第 12 条）。粘贴块是 `None`。
+    pub file: Option<PathBuf>,
 }
 
 impl Chip {
-    /// 是附件：点了不展开。
+    /// 是附件：不展开，点块打开文件。
     pub fn attachment(&self) -> bool {
         self.kind.is_some()
     }

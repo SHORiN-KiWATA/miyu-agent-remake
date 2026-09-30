@@ -63,7 +63,10 @@ fn draw_input(
             .iter()
             .skip(scroll)
             .take(usize::from(areas.text.height))
-            .map(|l| styled_line(editor.text(), *l, editor.selection(), &blocks))
+            .map(|l| {
+                let hover = input.hovered_attachment();
+                styled_line(editor.text(), *l, editor.selection(), &blocks, hover)
+            })
             .collect()
     };
     frame.render_widget(Paragraph::new(body), areas.text);
@@ -115,12 +118,13 @@ pub(super) fn placeholder(config: &Config, home: bool, tip: usize) -> &str {
     config.text.tips.get(tip).map_or("", String::as_str)
 }
 
-/// 一行字，选中的那一段反色。
+/// 一行字，选中的那一段反色；鼠标悬停着的附件块（`hover`）加下划线（「输入框」第 12 条）。
 fn styled_line<'a>(
     text: &'a str,
     line: VisualLine,
     selection: Option<(usize, usize)>,
     blocks: &[(usize, usize)],
+    hover: Option<(usize, usize)>,
 ) -> Line<'a> {
     use ratatui::text::Span;
     // 这一行里样子变的地方：选区、粘贴块的两头。
@@ -137,8 +141,13 @@ fn styled_line<'a>(
         .map(|w| {
             let style = if inside(selection.as_ref(), w[0]) {
                 theme::selected()
-            } else if blocks.iter().any(|b| inside(Some(b), w[0])) {
-                theme::chip()
+            } else if let Some(b) = blocks.iter().find(|b| inside(Some(b), w[0])) {
+                let chip = theme::chip();
+                if hover == Some(*b) {
+                    chip.add_modifier(ratatui::style::Modifier::UNDERLINED)
+                } else {
+                    chip
+                }
             } else {
                 ratatui::style::Style::new()
             };
@@ -163,7 +172,7 @@ mod tests {
             end: text.len(),
         };
         let block = ("看".len(), text.len() - "吗".len());
-        let got = styled_line(text, line, None, &[block]);
+        let got = styled_line(text, line, None, &[block], None);
         let label = got
             .spans
             .iter()
@@ -173,7 +182,7 @@ mod tests {
         assert!(theme::chip().bg.is_some());
         let all: String = got.spans.iter().map(|s| s.content.as_ref()).collect();
         assert_eq!(all, text);
-        let chosen = styled_line(text, line, Some((0, text.len())), &[block]);
+        let chosen = styled_line(text, line, Some((0, text.len())), &[block], None);
         assert!(
             chosen
                 .spans

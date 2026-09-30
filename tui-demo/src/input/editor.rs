@@ -132,6 +132,14 @@ impl Editor {
         );
     }
 
+    /// 附件块：字节范围和文件（点它打开，`mouse.rs`）。
+    pub fn attachments(&self) -> impl Iterator<Item = (usize, usize, &std::path::Path)> {
+        self.blocks.iter().filter_map(|b| {
+            let a = b.attachment.as_ref()?;
+            Some((b.start, b.end, a.file.as_path()))
+        })
+    }
+
     /// 输入框的字里每一块占的字节范围：画的时候上色用。
     pub fn blocks(&self) -> Vec<(usize, usize)> {
         self.blocks.iter().map(|b| (b.start, b.end)).collect()

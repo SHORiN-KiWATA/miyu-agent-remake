@@ -199,6 +199,7 @@ impl App {
         let chips = super::paste::chips(&draft);
         let files = draft.attachments();
         self.input.remember(draft);
+        self.input.forget_cleared();
         self.transcript.user(text, chips);
         self.core.send(Command::Send { text: full, files });
     }

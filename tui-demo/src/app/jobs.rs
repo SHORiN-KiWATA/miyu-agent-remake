@@ -290,12 +290,13 @@ impl App {
         }
     }
 
-    /// 鼠标该不该是手：悬停在链接、框下面那一行的按钮、子代理那几行上。
+    /// 鼠标该不该是手：悬停在链接、输入框里的附件块、框下面那一行的按钮、子代理那几行上。
     pub fn pointing(&self) -> bool {
         let over = |r: ratatui::layout::Rect| self.pointer.is_some_and(|p| r.contains(p));
         // 正文里能点的（收起那一行、一步、撤销那一行、能点开的通知）也算（`tui.md`「鼠标」）。
         self.view.hover_link.is_some()
             || self.view.hover.is_some()
+            || self.input.hovered_attachment().is_some()
             || over(self.areas.button)
             || over(self.areas.session_id)
             || over(self.areas.todo)

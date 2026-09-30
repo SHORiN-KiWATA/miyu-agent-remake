@@ -141,3 +141,44 @@ fn a_kitty_drop_of_a_mixed_batch_splits_by_line_and_keeps_other_files_as_paths()
     assert_eq!(i.draft().attachments(), [f[1].clone(), f[2].clone()]);
     std::fs::remove_dir_all(&dir).unwrap_or_default();
 }
+
+#[test]
+fn clicking_an_attachment_in_the_box_opens_it_and_leaves_the_cursor() {
+    // 2026-09-30 项目主人：输入框里还没发出去的块也能点开。点一下打开文件，光标不动；从块上拖是拖选。
+    use ratatui::crossterm::event::{MouseButton, MouseEventKind};
+
+    use super::mouse;
+    use crate::input::Action;
+
+    let (dir, f) = files("click", &["a.png"]);
+    let mut i = attaching();
+    i.editor.insert("看");
+    i.paste(&f[0].display().to_string());
+    i.editor.insert("吧");
+    let end = i.editor.cursor();
+    // 框在第 10 列、第 5 行起；「看」占两列，块占第 2 到 10 列。
+    let at = |i: &mut InputBox, kind, col: u16| i.mouse(mouse(kind, 10 + col, 5), true);
+    let down = MouseEventKind::Down(MouseButton::Left);
+    let up = MouseEventKind::Up(MouseButton::Left);
+    at(&mut i, MouseEventKind::Moved, 5);
+    assert_eq!(i.hovered_attachment(), Some((3, 13)), "悬停在块上");
+    at(&mut i, MouseEventKind::Moved, 11);
+    assert_eq!(i.hovered_attachment(), None);
+    assert_eq!(at(&mut i, down, 9), Action::None);
+    assert_eq!(at(&mut i, up, 9), Action::Open(f[0].display().to_string()));
+    assert_eq!(i.editor.cursor(), end, "光标不动");
+    assert_eq!(i.editor.selection(), None);
+    // 从块上按下去拖：拖选，不打开。
+    at(&mut i, down, 4);
+    i.mouse(
+        mouse(MouseEventKind::Drag(MouseButton::Left), 10 + 11, 5),
+        true,
+    );
+    assert_eq!(at(&mut i, up, 11), Action::None);
+    assert!(i.editor.selection().is_some(), "选中了");
+    // 点块旁边的字：照旧放光标。
+    at(&mut i, down, 0);
+    at(&mut i, up, 0);
+    assert_eq!(i.editor.cursor(), 0);
+    std::fs::remove_dir_all(&dir).unwrap_or_default();
+}

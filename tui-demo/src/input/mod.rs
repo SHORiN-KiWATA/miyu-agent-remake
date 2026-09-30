@@ -5,6 +5,7 @@
 mod attach;
 mod dropped;
 mod editor;
+mod mouse;
 mod pasted;
 mod wrap;
 
@@ -14,9 +15,7 @@ mod tests;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use ratatui::crossterm::event::{
-    KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
-};
+use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::layout::{Position, Rect};
 
 pub use attach::{AttachKind, AttachRule, Attachment};
@@ -38,6 +37,10 @@ pub enum Action {
     Quit,
     /// 空着按了 `Ctrl+C`：不退出，提示用 `Ctrl+D` 退出。
     ExitHint,
+    /// `Ctrl+C` 清空了输入框：清掉的留着一份，提示按 `↑` 找回。
+    Cleared,
+    /// 点了输入框里的附件块：用系统的程序打开这个文件（「输入框」第 12 条）。
+    Open(String),
 }
 
 /// 输入框的全部状态。
@@ -73,6 +76,12 @@ pub struct InputBox {
     put_back: Option<String>,
     /// 大段粘贴什么时候收成一块、块上写什么（`pasted.rs`）。
     paste_rule: PasteRule,
+    /// `Ctrl+C` 刚清掉的那一句，只留最近一份：空着按 `↑` 先拿回它；发出去一句话、再清一次就换掉。
+    cleared: Option<Draft>,
+    /// 在附件块上按下去、还没拖：松开时打开这个文件，光标不动（`mouse.rs`）。
+    pressed: Option<(std::path::PathBuf, usize)>,
+    /// 鼠标悬停在哪个附件块上（字节范围）：画的时候加下划线，指针变手。
+    hover: Option<(usize, usize)>,
     /// 附件认哪几种、块上写什么（`attach.rs`）。
     attach_rule: AttachRule,
     /// 正文里每一种附件已经有几个：输入框里的接着编号（蓝图「输入框」第 12 条）。
@@ -98,6 +107,9 @@ impl InputBox {
             follow: false,
             put_back: None,
             paste_rule: PasteRule::never(),
+            cleared: None,
+            pressed: None,
+            hover: None,
             attach_rule: AttachRule::default(),
             attach_base: HashMap::new(),
         }
@@ -176,6 +188,8 @@ impl InputBox {
         let shift = key.modifiers.contains(KeyModifiers::SHIFT);
         let alt = key.modifiers.contains(KeyModifiers::ALT);
         self.follow = true;
+        // 字变了，悬停着的块的位置可能不对了：等鼠标再动一下重新认。
+        self.hover = None;
         if !matches!(key.code, KeyCode::Up | KeyCode::Down) {
             self.goal_col = None;
         }
@@ -253,50 +267,6 @@ impl InputBox {
         self.renumber(base);
     }
 
-    /// 处理一个鼠标事件。`inside` 是这个事件落在输入框的边框之内。
-    pub fn mouse(&mut self, event: MouseEvent, inside: bool) -> Action {
-        match event.kind {
-            MouseEventKind::Down(MouseButton::Left) if inside => {
-                let pos = self.offset_under(event.column, event.row);
-                let double = self
-                    .last_click
-                    .is_some_and(|(t, p)| p == pos && t.elapsed() < self.double_click);
-                if double {
-                    let (start, end) = self.editor.word_at(pos);
-                    self.editor.select(start, end);
-                    self.last_click = None;
-                    return Action::None;
-                }
-                self.editor.select(pos, pos);
-                self.dragging = true;
-                self.last_click = Some((Instant::now(), pos));
-            }
-            MouseEventKind::Drag(MouseButton::Left) if self.dragging => {
-                // 拖出框的上下边，文字跟着滚。
-                if event.row < self.area.y {
-                    self.scroll = self.scroll.saturating_sub(1);
-                } else if event.row >= self.area.bottom() {
-                    self.scroll += 1;
-                }
-                self.follow = true;
-                let pos = self.offset_under(event.column, event.row);
-                self.editor.move_to(pos, true);
-            }
-            // 松开只留着选区，不复制：按 Ctrl+C 才复制（`tui.md`「鼠标」）。
-            MouseEventKind::Up(MouseButton::Left) if self.dragging => self.dragging = false,
-            MouseEventKind::ScrollUp if inside => {
-                self.follow = false;
-                self.scroll = self.scroll.saturating_sub(1);
-            }
-            MouseEventKind::ScrollDown if inside => {
-                self.follow = false;
-                self.scroll += 1;
-            }
-            _ => {}
-        }
-        Action::None
-    }
-
     /// Ctrl+C：有选区复制；没有选区但有字，清空；空着不退出，要外面提示用 Ctrl+D 退出。
     fn ctrl_c(&mut self) -> Action {
         // 复制的是原文：选中的粘贴块换回来（`tui.md`「输入框」第 11 条）。
@@ -306,8 +276,10 @@ impl InputBox {
         if self.editor.is_empty() {
             return Action::ExitHint;
         }
-        self.editor.take();
-        Action::None
+        // 清掉的连同块、附件留最近一份，不进输入历史；空着按 `↑` 先拿回它（「按键」`Ctrl+C`）。正在翻历史的照旧，
+        // 翻之前没发的那句还在，翻过最新一条回到它。
+        self.cleared = Some(self.editor.take_draft());
+        Action::Cleared
     }
 
     /// 有没有暂存着的字：有就在输入框第一行最右边写一个标记。
@@ -341,6 +313,16 @@ impl InputBox {
 
     /// 翻输入历史：`delta` 小于 0 往旧的翻。翻过最新一条，回到开始翻之前没发的那句。
     fn browse(&mut self, delta: isize) {
+        // 空着、没在翻：`Ctrl+C` 刚清掉的那一句排在输入历史前面，先拿回它（「按键」`Ctrl+C`）。
+        if delta < 0
+            && self.browsing.is_none()
+            && self.editor.is_empty()
+            && let Some(draft) = self.cleared.take()
+        {
+            self.goal_col = None;
+            self.editor.set_draft(draft);
+            return;
+        }
         let newest = self.history.len();
         let at = self.browsing.unwrap_or(newest);
         let Some(next) = at.checked_add_signed(delta).filter(|&n| n <= newest) else {
@@ -366,7 +348,12 @@ impl InputBox {
         if !self.editor.is_empty() {
             return;
         }
-        self.editor.set(said);
+        // 核心给的是发出去的全文：输入历史里找得到这句的，照发出去时的样子放回来，长文、附件还是块（第 7 条）。
+        let sent = self.history.iter().rev().find(|s| s.draft.expand() == said);
+        match sent.map(|s| s.draft.clone()) {
+            Some(draft) => self.editor.set_draft(draft),
+            None => self.editor.set(said),
+        }
         self.editor.select_all();
         self.put_back = Some(said.to_string());
     }
@@ -376,7 +363,7 @@ impl InputBox {
         if self
             .put_back
             .take()
-            .is_some_and(|said| self.editor.text() == said)
+            .is_some_and(|said| self.editor.draft().expand() == said)
         {
             self.editor.take();
         }
@@ -420,23 +407,16 @@ impl InputBox {
         }
     }
 
+    /// 发出去一句话了：`Ctrl+C` 清掉的那一份不要了，`↑` 照旧先翻到刚发的（「按键」`Ctrl+C`）。
+    pub fn forget_cleared(&mut self) {
+        self.cleared = None;
+    }
+
     fn line_edge(&mut self, end: bool, extend: bool) {
         let lines = self.lines(self.area.width);
         let (row, _) = locate(self.editor.text(), &lines, self.editor.cursor());
         let line = lines[row];
         self.editor
             .move_to(if end { line.end } else { line.start }, extend);
-    }
-
-    /// 屏幕坐标下的文字下标；在文字区外面的，贴到最近的边上。
-    fn offset_under(&self, column: u16, row: u16) -> usize {
-        let lines = self.lines(self.area.width);
-        let a = self.area;
-        let r = usize::from(row.clamp(a.y, a.bottom().saturating_sub(1)) - a.y) + self.scroll;
-        if row < a.y {
-            return offset_at(self.editor.text(), &lines, self.scroll, 0);
-        }
-        let c = usize::from(column.saturating_sub(a.x));
-        offset_at(self.editor.text(), &lines, r, c)
     }
 }

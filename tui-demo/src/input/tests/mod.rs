@@ -160,7 +160,7 @@ fn ctrl_c_copies_then_clears_then_only_hints() {
     let ctrl_c = |i: &mut InputBox| press(i, KeyCode::Char('c'), KeyModifiers::CONTROL);
     assert_eq!(ctrl_c(&mut i), Action::Copy("abc".into()));
     press(&mut i, KeyCode::Esc, KeyModifiers::NONE);
-    assert_eq!(ctrl_c(&mut i), Action::None);
+    assert_eq!(ctrl_c(&mut i), Action::Cleared);
     assert!(i.editor.is_empty());
     assert_eq!(
         ctrl_c(&mut i),
@@ -361,6 +361,7 @@ fn tail_pieces_match_the_end_of_a_full_wrap() {
 
 mod attach;
 mod paste;
+mod recover;
 
 /// 选中的字（没选中是 `None`）。
 fn selected(i: &InputBox) -> Option<&str> {

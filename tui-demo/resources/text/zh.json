@@ -106,6 +106,12 @@
   },
   "home_placeholder": "Tab 切换权限级别",
   "exit_hint": "按 Ctrl+D 退出",
+  "input_cleared": "已清空 · ↑ 找回",
+  "open": {
+    "refused": "不开这种地址：{url}",
+    "missing": "找不到这个文件：{path}",
+    "failed": "打不开：{reason}"
+  },
   "esc_hint": "再按一次 Esc 打断",
   "stashed": "> 暂存",
   "esc_clear_hint": "再按一次 Esc 清空",

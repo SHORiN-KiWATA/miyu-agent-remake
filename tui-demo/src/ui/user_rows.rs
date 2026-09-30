@@ -1,9 +1,10 @@
 //! 你说的话（蓝图 `tui.md`「正文」第 2 条）：行首竖线，上下各多一行只有竖线的空行，竖线的颜色是发出去那一刻的权限级别。
 //! 里面有粘贴块的，块照输入框里的样子写（品红字、暗紫底），整条能点：点开原地把每一块换成全文，再点换回块；
-//! 悬停时块亮一档，展开着的粘的那几段铺上块的底色。附件（`[图片 1]`）也照块写，点了不展开。
+//! 悬停时块亮一档，展开着的粘的那几段铺上块的底色。附件（`[图片 1]`）也照块写，不展开，点块用系统的程序打开那个文件。
 
 use ratatui::style::Style;
 use ratatui::text::Span;
+use unicode_width::UnicodeWidthStr;
 
 use super::rows::{Ctx, Row, Target};
 use crate::input::wrap;
@@ -24,7 +25,10 @@ pub fn rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
     let mut out = vec![ctx.row(bar.clone(), Vec::new())];
     let mut prev_end = None;
     for line in wrap(&text, ctx.width.max(1)) {
-        let mut row = ctx.row(bar.clone(), spans(&text, line.start, line.end, &pieces));
+        let styled: Vec<(usize, usize, Style)> =
+            pieces.iter().map(|p| (p.from, p.to, p.style)).collect();
+        let mut row = ctx.row(bar.clone(), spans(&text, line.start, line.end, &styled));
+        row.links = links(&text, line.start, line.end, &pieces);
         row.joined = prev_end == Some(line.start);
         prev_end = Some(line.end);
         out.push(row);
@@ -38,14 +42,17 @@ pub fn rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
     out
 }
 
-/// 排成的字，和每一块的字节范围、样子。收着的块写块上的字，悬停时亮一档；点开了粘贴块原地换成全文，悬停时粘的
-/// 那几段铺上块的底色；附件怎么都是块（「输入框」第 12 条：点了不展开、底色不掉）。
-fn shaped(
-    text: &str,
-    chips: &[Chip],
-    open: bool,
-    hovered: bool,
-) -> (String, Vec<(usize, usize, Style)>) {
+/// 排好的字里的一块：字节范围、样子；附件另带它的文件，点块打开。
+struct Piece {
+    from: usize,
+    to: usize,
+    style: Style,
+    file: Option<String>,
+}
+
+/// 排成的字，和每一块。收着的块写块上的字，悬停时亮一档；点开了粘贴块原地换成全文，悬停时粘的那几段铺上块的
+/// 底色；附件怎么都是块，是指向它的文件的链接（「输入框」第 12 条：不展开、底色不掉，点块用系统的程序打开）。
+fn shaped(text: &str, chips: &[Chip], open: bool, hovered: bool) -> (String, Vec<Piece>) {
     let chip = if hovered {
         theme::chip_hover()
     } else {
@@ -57,19 +64,46 @@ fn shaped(
     for ((start, end), c) in block_ranges(text, chips).into_iter().zip(chips) {
         out.push_str(&text[at..start]);
         let from = out.len();
+        let file = c.file.as_ref().map(|f| f.display().to_string());
         if open && !c.attachment() {
             out.push_str(c.full.trim_matches('\n'));
             if hovered {
-                pieces.push((from, out.len(), theme::chip_ground()));
+                let style = theme::chip_ground();
+                pieces.push(Piece {
+                    from,
+                    to: out.len(),
+                    style,
+                    file,
+                });
             }
         } else {
             out.push_str(&text[start..end]);
-            pieces.push((from, out.len(), chip));
+            let style = chip;
+            pieces.push(Piece {
+                from,
+                to: out.len(),
+                style,
+                file,
+            });
         }
         at = end;
     }
     out.push_str(&text[at..]);
     (out, pieces)
+}
+
+/// `[start, end)` 这一行里附件块占的列（从内容开头算）和文件：点它、悬停它照链接办（「她的回答：Markdown」第 10 条）。
+fn links(text: &str, start: usize, end: usize, pieces: &[Piece]) -> Vec<(u16, u16, String)> {
+    let cols = |a: usize, b: usize| u16::try_from(text[a..b].width()).unwrap_or(u16::MAX);
+    pieces
+        .iter()
+        .filter_map(|p| {
+            let (s, e) = (p.from.max(start), p.to.min(end));
+            let file = p.file.clone().filter(|_| s < e)?;
+            let from = cols(start, s);
+            Some((from, from + cols(s, e), file))
+        })
+        .collect()
 }
 
 /// 字里每一块占的字节范围：照先后一块一块往后找它的样子（两块写出来一样也各对各）。

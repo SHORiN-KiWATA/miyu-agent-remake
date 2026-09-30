@@ -296,6 +296,8 @@ impl App {
                 self.core.send(Command::Interrupt { send: false });
             }
             Action::ExitHint => self.hint(self.config.text.exit_hint.clone(), false),
+            Action::Cleared => self.hint(self.config.text.input_cleared.clone(), false),
+            Action::Open(path) => self.open_link(&path),
         }
     }
 
