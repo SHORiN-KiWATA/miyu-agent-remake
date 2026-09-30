@@ -30,10 +30,13 @@ export class Chat {
     this.home = home;
     this.say = (/** @type {string} */ text, /** @type {boolean|undefined} */ good) => notice.say(text, good);
     /** 看着的这个会话在哪（`ui/rich.js`）：取本机文件的地址要；换了会话由 `setWhere` 换。 */
-    this.where = /** @type {import('./rich.js').Where} */ ({ session: null, home, cwd: null });
+    this.where = /** @type {import('./rich.js').Where} */ ({ session: null, home, cwd: null, lightbox: () => ext?.lightbox?.() });
     /** 画回答时带着的（`markdown/render.js`）：提示；扩展点（图、卡片）照一条回答的范围取。 */
     this.markdown = { say: this.say, hooks: richHooks(this.where, this.say, ext) };
     this.list = h('div.timeline');
+    /** 正文末尾、最后一轮下面（挂载位 `chat.tail`：确认和提问了结以后留的）：一直是正文那一列的最后一个，画的时候不动它 */
+    this.tail = h('div.chat-tail');
+    this.list.append(this.tail);
     /** 内容变短时垫在底下的空白（见开头）。 */
     this.spacer = h('div.chat-spacer');
     this.el = h('div.chat-scroll', this.list, this.spacer);
@@ -58,14 +61,20 @@ export class Chat {
    */
   setWhere(session, cwd) {
     if (this.where.session === session && this.where.cwd === cwd) return;
-    this.where = { session, home: this.home, cwd };
+    this.where = { session, home: this.home, cwd, lightbox: () => this.ext?.lightbox?.() };
     this.markdown = { say: this.say, hooks: richHooks(this.where, this.say, this.ext) };
+  }
+
+  /** 正文末尾（`chat.tail`）来了新的：回到跟着最新的，露出它（确认和提问刚了结，蓝图「确认和提问」第 6 条）。 */
+  reveal() {
+    this.scroll.toLatest();
+    this.scroll.anchor();
   }
 
   /** 换了会话：从头排，跟着最新的；点过的展开收起跟着节点一起扔掉（编号照回合，别的会话也有）。 */
   reset() {
     this.blocks.clear();
-    this.list.replaceChildren();
+    this.list.replaceChildren(this.tail);
     this.scroll.toLatest(true);
     this.settled = false;
   }
@@ -75,7 +84,7 @@ export class Chat {
     if (!this.last) return;
     const top = this.el.scrollTop;
     this.blocks.clear();
-    this.list.replaceChildren();
+    this.list.replaceChildren(this.tail);
     this.markdown = { say: this.say, hooks: richHooks(this.where, this.say, this.ext) };
     this.settled = false;
     this.render(this.last);

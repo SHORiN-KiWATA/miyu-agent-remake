@@ -61,6 +61,7 @@ export class Composer {
     this.noticeTimer = 0;
     this.input = /** @type {HTMLTextAreaElement} */ (h('textarea.composer-input', {
       rows: 1,
+      spellcheck: 'false',
       placeholder: t('placeholder', { name: res.persona.name }),
       onkeydown: (ev) => this.key(ev),
       oninput: () => this.changed(),
@@ -100,7 +101,9 @@ export class Composer {
     this.head = h('div.composer-head');
     this.tools = h('span.composer-tools');
     this.float = h('div.composer-float');
-    this.box = h('div.composer', this.notice, this.head, h('div.composer-field', this.backdrop, this.input), this.bar = h('div.composer-bar', this.tools, this.sendButton), this.menu.el, this.picker.el, this.historyList.el, this.mention.el, this.float);
+    /** 占着整个框的（挂载位 `composer.takeover`：确认和提问的抽屉）；有东西占着时框里原来的让出来（`takeover`） */
+    this.takeoverEl = h('div.composer-takeover');
+    this.box = h('div.composer', this.notice, this.takeoverEl, this.head, h('div.composer-field', this.backdrop, this.input), this.bar = h('div.composer-bar', this.tools, this.sendButton), this.menu.el, this.picker.el, this.historyList.el, this.mention.el, this.float);
     this.el = h('div.composer-dock', this.box, this.footer);
     this.parts = /** @type {{key: string, text: string}[]} */ ([]);
     /** 撤销时放回框里的那句：恢复时还没动过的收回去（`tui.md`「输入框」第 7 条）。 */
@@ -115,6 +118,34 @@ export class Composer {
   }
 
   focus() { this.input.focus(); }
+
+  /**
+   * 挂载位 `composer.takeover` 占不占着框（蓝图「确认和提问」第 2 条）：占着时框里原来的（附件那一排、写字的地方、下面一排）
+   * 让出来，字和附件留着；框的高度缓过去（`--takeover-ms`）；收回时焦点回到写字的地方。
+   * @param {boolean} open
+   */
+  takeover(open) {
+    if (this.taken === open) return;
+    this.taken = open;
+    const box = this.box;
+    // 写字的地方正在变高变矮（从命令打开的：框里的字刚清掉，正往回缩）：从变之前的高度长过去，不先缩一下再长
+    const style = getComputedStyle(this.input);
+    const moving = this.settledBox && performance.now() - this.settledBox.at < span(style.transitionDuration, style.transitionDelay);
+    const from = open && moving ? this.settledBox.height : box.offsetHeight;
+    box.classList.toggle('is-taken', open);
+    const to = box.offsetHeight;
+    const ms = parseFloat(getComputedStyle(box).getPropertyValue('--takeover-ms')) || 0;
+    if (from && to && from !== to && ms && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      // 缓的时候里面的东西贴着框的下沿（`is-morphing`）：上沿往上长把抽屉从上面露出来，收的时候上沿往下收
+      box.classList.add('is-morphing');
+      box.animate([{ height: `${from}px` }, { height: `${to}px` }], { duration: ms, easing: 'cubic-bezier(0.2, 0, 0, 1)' })
+        .finished.catch(() => {}).finally(() => box.classList.remove('is-morphing'));
+    }
+    if (!open) {
+      this.changed();
+      this.input.focus();
+    }
+  }
 
   /** 在回答时：框里有字照样发（先排着，蓝图「排队的消息」），空着的发送按钮变成打断；命令照常能执行。 */
   setRunning(running) {
@@ -150,6 +181,8 @@ export class Composer {
     // 变高变矮缓过去（蓝图「动效」，CSS 的 height 过渡）：量新高度要先放开成 auto，量完放回原来的高度、让浏览器记住起点，再定
     // 新的高度；字多过最多那几行的才在框里滚，平时不出滚动条（变高的那一下不闪一根）
     const from = el.offsetHeight;
+    // 记下变之前框有多高：紧接着被抽屉占了的，从这个高度长过去，不先缩一下（`takeover`）
+    this.settledBox = { height: this.box.offsetHeight, at: performance.now() };
     el.style.height = 'auto';
     const to = Math.min(el.scrollHeight, max);
     el.style.overflowY = el.scrollHeight > max ? 'auto' : 'hidden';
@@ -255,7 +288,7 @@ export class Composer {
    * 焦点不在哪个输入框里时按 `/`：只把焦点放回输入框、光标在末尾，不打进这个 `/`（蓝图「按键」，2026-09-30 项目主人定）。
    */
   slash(ev) {
-    if (ev.key !== '/' || ev.ctrlKey || ev.metaKey || ev.altKey || ev.isComposing || ev.defaultPrevented) return;
+    if (ev.key !== '/' || ev.ctrlKey || ev.metaKey || ev.altKey || ev.isComposing || ev.defaultPrevented || this.taken) return;
     const at = /** @type {HTMLElement|null} */ (ev.target);
     if (at && (at.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(at.tagName))) return;
     ev.preventDefault();

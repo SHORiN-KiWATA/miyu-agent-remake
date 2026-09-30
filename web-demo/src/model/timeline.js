@@ -122,6 +122,8 @@ export class Timeline {
     step.state = 'done';
     step.status = b.status;
     step.output = (b.blocks ?? []).filter((x) => x.type === 'text').map((x) => x.text).join('\n');
+    // 结果里的图（`read` 读图）：点开那一步时画，照核心收下的那一份 blob 取（蓝图「图片」第 2 条）
+    step.images = (b.blocks ?? []).filter((x) => x.type === 'image' && x.blob).map((x) => ({ blob: x.blob, media_type: x.media_type, width: x.width, height: x.height }));
     step.said = b.human ?? null;
     // 派出去的任务的编号（派子代理那一行写它），记下它的标题；留言对上发给的那一个（`to` 是任务编号，前面几轮派的也认得）
     step.job = (b.effects ?? []).find((fx) => fx.kind === 'job.started')?.job ?? null;

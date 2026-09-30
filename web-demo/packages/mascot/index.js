@@ -33,7 +33,8 @@ export function apply(ctx) {
     const edge = c.home.edge;
     const r = box.getBoundingClientRect();
     /** @type {import('./world.js').Platform[]} */
-    const list = r.width ? [{ id: 'composer', x1: r.left + edge, x2: r.right - edge, y: r.top }] : [];
+    // 输入框是实心的（`bottom`）：框往上长越过了往下掉的脚，把它顶上去，不从框里穿过去
+    const list = r.width ? [{ id: 'composer', x1: r.left + edge, x2: r.right - edge, y: r.top, bottom: r.bottom }] : [];
     // 浮在框上面的浮层都带 `dock-float`（命令列表、后台任务、选语言……）
     for (const f of box.querySelectorAll('.dock-float')) {
       if (!(f instanceof HTMLElement) || f.hidden || f.classList.contains('is-leaving')) continue;

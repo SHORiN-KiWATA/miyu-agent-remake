@@ -175,6 +175,20 @@ const store = /** @type {Store} */ ({
   removeItem: (k) => localStorage.removeItem(k),
 });
 
+/**
+ * 问桥口令还对不对：`/key?k=口令` 回 `204` 是对、`403` 是用不了了；问不到的是桥没在跑。
+ * @param {string} key
+ * @returns {Promise<'ok'|'bad'|'down'>}
+ */
+async function checkKey(key) {
+  try {
+    const got = await fetch(`/key?${new URLSearchParams({ k: key })}`, { cache: 'no-store' });
+    return got.status === 204 ? 'ok' : got.status === 403 ? 'bad' : 'down';
+  } catch {
+    return 'down';
+  }
+}
+
 /** 起浏览器这个宿主；链接里、这个标签页里都没有桥的口令的交 `null`（页面说连不上桥）。 */
 export function browserHost() {
   const key = bridgeKey();
@@ -184,6 +198,8 @@ export function browserHost() {
     /** 开一条到核心的线（经桥）。 */
     channel: () => /** @type {Channel} */ (/** @type {unknown} */ (new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?k=${key}`))),
     urls: urls(key),
+    /** 问桥口令还对不对（蓝图 `web.md`「连核心」第 9 条）：`ok`、`bad`（用不了了，桥重启过）、`down`（问不到，桥没在跑） */
+    check: () => checkKey(key),
     files: {
       pick,
       watchDrop,

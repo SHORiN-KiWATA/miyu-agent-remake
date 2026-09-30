@@ -5,8 +5,8 @@
 //! 顶得到）。纯函数：位置、速度都是屏幕上的像素。
 
 /**
- * @typedef {{x1: number, x2: number, y: number, id?: string, carry?: boolean}} Platform 一个台子：从哪到哪、多高（y 往下是正）；
- *   是哪个（跟着它挪）、升起来会不会把站在下面台子上的顶上去
+ * @typedef {{x1: number, x2: number, y: number, id?: string, carry?: boolean, bottom?: number}} Platform 一个台子：从哪到哪、多高（y 往下是正）；
+ *   是哪个（跟着它挪）、升起来会不会把站在下面台子上的顶上去；`bottom` 是实心的（输入框）下沿：往下掉时脚落进上沿和它之间的，顶到上沿
  * @typedef {{x: number, y: number, vx: number, vy: number, ground: Platform|null}} Body 吉祥物的脚底中点、速度、站在哪
  */
 

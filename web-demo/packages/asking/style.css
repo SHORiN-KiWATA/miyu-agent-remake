@@ -1,0 +1,114 @@
+/* 确认和提问（蓝图 web.md「确认和提问」）：抽屉占着输入框，了结以后正文末尾留一行 */
+
+.asking {
+  display: flex; flex-direction: column; max-height: calc(var(--asking-max-vh) * 1vh);
+  padding: 14px 18px 10px; outline: none; animation: fade-in var(--motion-in) var(--ease-out);
+}
+.asking-who { margin-bottom: 8px; color: var(--text-faint); font-size: 12px; }
+
+/* 两道题及以上：一排标签，最后一个是「确认」 */
+.asking-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.asking-tab {
+  padding: 3px 10px; border: 0; border-radius: 999px; background: var(--surface-2); color: var(--text-soft);
+  font: inherit; font-size: 12px; cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease;
+}
+.asking-tab.is-current { background: var(--accent); color: var(--on-primary); }
+
+/* 中间自己滚：问题、选项；上面的标签、下面的按键提示钉着 */
+.asking-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.asking-question { margin-bottom: 10px; color: var(--text); font-size: 15px; font-weight: 600; line-height: 1.5; }
+.asking-paths { display: grid; gap: 2px; margin: -4px 0 10px; }
+.asking-path { display: flex; align-items: center; gap: 8px; color: var(--text-soft); font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
+.asking-outside {
+  flex: none; padding: 0 6px; border-radius: 4px; background: color-mix(in srgb, var(--t-warn) 14%, transparent);
+  color: var(--t-warn); font-family: var(--sans); font-size: 11px; line-height: 18px;
+}
+
+/* 选项：一项一块，选中的淡底 */
+.asking-main { display: grid; gap: 12px; }
+.asking.is-wide .asking-main.has-preview { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+.asking-options { display: grid; gap: 2px; }
+.asking-option {
+  display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 10px; cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+.asking-option.is-selected { background: var(--accent-soft); }
+.asking-num, .asking-check {
+  flex: none; display: grid; place-items: center; width: 20px; height: 20px; margin-top: 1px; border-radius: 6px;
+  background: var(--surface-2); color: var(--text-faint); font-family: var(--mono); font-size: 12px;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.asking-option.is-selected .asking-num { background: var(--accent); color: var(--on-primary); }
+.asking-check { border: 1.5px solid var(--line-strong); background: transparent; }
+.asking-check.is-on { border-color: var(--accent); background: var(--accent); color: var(--on-primary); }
+.asking-text { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.asking-text strong { color: var(--text); font-size: 14px; font-weight: 500; line-height: 1.45; overflow-wrap: anywhere; }
+.asking-desc { color: var(--text-soft); font-size: 12.5px; line-height: 1.45; }
+.asking-option.is-other strong { color: var(--text-soft); }
+
+/* 编辑的框：跟着字长高 */
+.asking-edit {
+  width: 100%; margin-top: 2px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; resize: none; overflow: hidden;
+  background: var(--surface); color: var(--text); font: inherit; font-size: 14px; line-height: 1.5; outline: none;
+}
+.asking-edit:focus { border-color: var(--accent); }
+
+/* 选项的文字画：右边（窄了在下面），高度照最高的那张，换选项不跳 */
+.asking-previews { display: grid; }
+.asking-preview {
+  grid-area: 1 / 1; visibility: hidden; margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--surface-2);
+  color: var(--text-soft); font-size: 12.5px; line-height: 1.35; overflow-x: auto;
+  /* 文字画照终端的格子画（中文占两格）：中文和西文正好二比一的等宽字在前，排得齐；都没装的退回 --mono */
+  font-family: "JetBrains Maple Mono", "Maple Mono NF CN", "Sarasa Mono SC", var(--mono);
+}
+.asking-preview.is-shown { visibility: visible; }
+
+/* 补充 */
+.asking-notes { display: flex; align-items: baseline; gap: 10px; margin: 8px 10px 0; color: var(--text); font-size: 13px; }
+.asking-notes-label { flex: none; color: var(--text-faint); }
+.asking-notes-add {
+  margin: 6px 0 0 10px; padding: 2px 0; border: 0; background: none; color: var(--text-faint); font: inherit; font-size: 12px; cursor: pointer;
+}
+.asking-notes-add:hover { color: var(--text-soft); }
+
+/* 「确认」页 */
+.asking-review { display: grid; gap: 6px; margin-bottom: 12px; font-size: 14px; }
+.asking-review-row strong { font-weight: 600; }
+.asking-review-row span { color: var(--text-soft); }
+.asking-review-row .is-missing, .asking-report .is-missing { color: var(--danger); }
+.asking-submit {
+  padding: 6px 16px; border: 0; border-radius: 10px; background: var(--accent); color: var(--on-primary); font: inherit; font-size: 13px; cursor: pointer;
+}
+
+/* 最下面一行：按键提示、取消 */
+.asking-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
+.asking-keys { color: var(--text-faint); font-size: 12px; transition: color 0.15s ease; }
+.asking-keys.is-armed { color: var(--t-warn); }
+.asking-cancel { flex: none; padding: 2px 4px; border: 0; background: none; color: var(--text-soft); font: inherit; font-size: 12px; cursor: pointer; }
+.asking-cancel:hover { color: var(--text); }
+
+/* 了结以后正文末尾留的：卡片（照附件卡、链接卡片），不能点、没有悬停，新来的淡入；取消的照别的提示行暗色一行 */
+.asking-reports { display: grid; gap: 10px; }
+.asking-reports:empty { display: none; }
+.asking-report.is-fresh { animation: rise-in var(--motion-in) var(--ease-out); }
+.asking-card {
+  width: fit-content; min-width: min(260px, 100%); max-width: min(100%, 520px); padding: 12px 16px; border-radius: 12px;
+  background: var(--surface-1); box-shadow: var(--card-shadow);
+}
+.asking-card-head { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; color: var(--text-faint); font-size: 12px; }
+.asking-card-head .icon, .asking-card-line .icon { width: 14px; height: 14px; flex: none; }
+.asking-card-rows { display: grid; gap: 10px; }
+.asking-card-label { color: var(--text-faint); font-size: 12px; line-height: 1.5; }
+.asking-card-answer { color: var(--text); font-size: 14px; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
+.asking-card-answer.is-missing { color: var(--danger); font-weight: 400; }
+.asking-card-notes { margin-top: 2px; color: var(--text-soft); font-size: 12.5px; line-height: 1.5; }
+.asking-card-line { display: flex; align-items: center; gap: 6px; font-size: 14px; line-height: 1.5; }
+.asking-card-line .icon { color: var(--danger); }
+.asking-card-denied { color: var(--danger); font-weight: 500; }
+.asking-card-reason { color: var(--text); overflow-wrap: anywhere; }
+.asking-report.is-cancelled { display: flex; align-items: center; gap: 8px; color: var(--text-faint); font-size: 13px; }
+.asking-dot { font-size: 9px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .asking, .asking-report.is-fresh { animation: none; }
+}

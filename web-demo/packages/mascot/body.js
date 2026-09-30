@@ -190,6 +190,15 @@ export class Body {
         b = { ...b, y: up.y, ground: up };
       }
     }
+    // 往下掉（或者停在半空）的时候，实心的台子（输入框）从下面长上来、越过了脚（打开抽屉时框往上长）：顶到它上面，不从框里
+    // 穿过去掉到地上；往上跳着的不算（斜着跳上输入框，从旁边进来时脚还在上沿下面）
+    if (!b.ground && b.vy >= 0) {
+      const inside = platforms.find((p) => p.bottom != null && b.x >= p.x1 && b.x <= p.x2 && b.y > p.y && b.y <= p.bottom);
+      if (inside) {
+        this.offset += b.y - inside.y;
+        b = { ...b, y: inside.y, vx: 0, vy: 0, ground: inside };
+      }
+    }
     // 蹲够了：起跳（蹲着的时候脚下的台子没了，就不跳了）
     if (this.windup && (!b.ground || now - this.windup.at >= c.jump.windup_ms)) {
       if (b.ground) b = { ...b, vy: this.windup.vy, vx: this.windup.vx ?? 0, ground: null };
@@ -260,8 +269,11 @@ export class Body {
    */
   leave(b, now) {
     const out = this.outside(b.x);
-    if (out === b.x) return;
-    if (Math.abs(out - b.x) > this.config.walk.leave_jump_px && this.room.home() && !this.room.reduced()) {
+    const zone = this.room.avoid?.();
+    // 两边都站不下（窗口窄，那一段占满了）：不在地上压着字等，就地跳回输入框
+    const stuck = out === b.x && zone && b.x > zone.x1 && b.x < zone.x2;
+    if (out === b.x && !stuck) return;
+    if ((stuck || Math.abs(out - b.x) > this.config.walk.leave_jump_px) && this.room.home() && !this.room.reduced()) {
       this.homing = true;
       this.arrive(b, now);
       return;

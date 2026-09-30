@@ -162,3 +162,16 @@ test('留言认出发给的是哪个子代理：照派它的那一步的标题�
   const steps = items.filter((it) => it.type === 'steps').flatMap((it) => it.steps).filter((s) => s.name === 'message_agent');
   assert.deepEqual(steps.map((s) => s.toTitle ?? null), ['查文档', null]);
 });
+
+test('工具结果里的图记在那一步上：blob、类型、宽高（点开时画，蓝图「图片」第 2 条）', () => {
+  const blob = `sha256:${'b'.repeat(64)}`;
+  const log = [
+    ev(1, 0, 'session.created', undefined, { permission: { level: 'workspace', read_only: false } }),
+    ev(2, 0, 'message.user', undefined, { blocks: [{ type: 'text', text: '看图' }] }),
+    ev(3, 0, 'turn.started', 3, { trigger: 2 }),
+    ev(4, 1, 'message.assistant', 3, { seen: 3, blocks: [{ type: 'tool_call', call_id: 'c1', name: 'read', args: '{"file_path":"/tmp/a.png"}' }] }),
+    ev(5, 2, 'tool.result', 3, { call_id: 'c1', status: 'ok', blocks: [{ type: 'image', blob, media_type: 'image/png', width: 960, height: 540 }] }),
+  ];
+  const step = project(log).items.find((it) => it.type === 'steps').steps[0];
+  assert.deepEqual(step.images, [{ blob, media_type: 'image/png', width: 960, height: 540 }]);
+});

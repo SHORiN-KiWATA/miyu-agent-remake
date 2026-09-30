@@ -2,7 +2,7 @@
 //! 图片、视频、音频卡片（蓝图 `web.md`「图片」「音视频、图片卡片」）：照旧版 `app.js:4867-4891`（视频）、`6455-6535`（图片）、
 //! `shared.js:97-290`（音频播放器）。地址由调用的一方给（本机的经桥的 `/file`、`/blob`，网上的照原样）。
 //!
-//! - 图片：最宽最高 250px，按图的宽高先占好地方；点开是灯箱；读不出来的写一句。
+//! - 图片：最宽最高 250px，按图的宽高先占好地方；点开是灯箱；读不出来的写一句，本机的再写按哪个路径找的。
 //! - 视频：原生控制条，右上角一个全页播放的按钮（悬停才露），下面一行说明。
 //! - 音频：旧版的自制播放器：封面块、名字、时长；播放、进度条（点、拖、左右键 5 秒）、静音、音量、下载。
 
@@ -12,12 +12,13 @@ import { openExternal } from '../core/host.js';
 
 /**
  * 一张图（`.conversation-media`）。知道宽高的先按比例占好地方，图来了不跳。
- * @param {{url: string, name?: string, width?: number, height?: number, workspace?: () => void, lightbox?: () => any}} what
- *   `lightbox` 交回现在的灯箱（软件包 lightbox 的服务；没装是 `undefined`）
+ * @param {{url: string, name?: string, width?: number, height?: number, workspace?: () => void, lightbox?: () => any, tried?: string}} what
+ *   `lightbox` 交回现在的灯箱（软件包 lightbox 的服务；没装是 `undefined`）；`tried` 本机的图按哪个路径找（读不出来时写出来）
  */
 export function imageCard(what) {
   const img = /** @type {HTMLImageElement} */ (h('img', { src: what.url, alt: what.name ?? '', loading: 'lazy', decoding: 'async' }));
-  const fallback = h('div.conversation-media-fallback', { hidden: true }, icon('circle-alert'), h('span', t('media.image_failed')));
+  const fallback = h('div.conversation-media-fallback', { hidden: true }, icon('circle-alert'), h('span', t('media.image_failed')),
+    what.tried ? h('span.conversation-media-tried', what.tried) : null);
   const ratio = what.width && what.height && what.width / what.height;
   const visual = h(`div.conversation-media-visual${ratio && ratio > 0.05 && ratio < 20 ? '.has-aspect' : ''}`,
     { role: 'button', tabindex: '0', title: what.name ?? '', style: ratio ? `aspect-ratio: ${what.width} / ${what.height}` : null }, img, fallback);

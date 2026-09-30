@@ -2,7 +2,8 @@
 //! 连核心：宿主给的一条线上的 JSON-RPC 2.0，一帧一条消息（`04-核心协议.md` 第二节、P2）。线是什么由宿主定（蓝图
 //! `web/architecture.md`「宿主」）：浏览器是经桥的 WebSocket，桌面端是外壳的进程间通道；样子都照 WebSocket，这一层两边同一份。
 //! 连上过又断了的（核心重启，桥把线关了），照 `retry` 隔一会儿自己再连，连上了告诉 `onReopen` 的（重新握手、补上漏掉的由外面做，
-//! 蓝图 `web.md`「连核心」第 1 条）；一开始就连不上的不在这里重连（页面起不来，写一句）。
+//! 蓝图 `web.md`「连核心」第 1 条）；一开始就连不上的不在这里重连（页面起不来，写一句）。重连没连上时问一句口令还对不对
+//! （`check`），用不了了（桥重启过换了口令）不再白试，告诉 `onLost` 的（第 9 条）。
 
 /** 核心拒绝的一个请求：`reason` 是稳定的原因码（蓝图 `protocol.md`「出错」），`message` 是核心按头的语言写的话。 */
 export class Refusal extends Error {
@@ -21,10 +22,16 @@ export class Connection {
   /**
    * @param {() => import('../host/browser.js').Channel} open 开一条线（宿主给的）
    * @param {number[]} [retry] 断了以后第几次重连前等多久（毫秒），试完了照最后一个一直试；空的是不重连
+   * @param {() => Promise<string>} [check] 问口令还对不对（宿主给的，桥的 `/key`）：`bad` 是用不了了
    */
-  constructor(open, retry = []) {
+  constructor(open, retry = [], check = async () => 'ok') {
     this.open = open;
     this.retry = retry;
+    this.check = check;
+    /** 口令用不了了：不再重连 */
+    this.gaveUp = false;
+    /** @type {Set<() => void>} */
+    this.losts = new Set();
     /** 断了以后试了几次；连上过没有（连上过又断的才重连）；排着的下一次 */
     this.tries = 0;
     this.everOpen = false;
@@ -115,14 +122,24 @@ export class Connection {
 
   /** 断了：连上过的，照 `retry` 隔一会儿再连（已经排着的不再排）。 */
   later() {
-    if (!this.everOpen || !this.retry.length || this.retryTimer) return;
+    if (!this.everOpen || !this.retry.length || this.retryTimer || this.gaveUp) return;
     const ms = this.retry[Math.min(this.tries, this.retry.length - 1)];
     this.tries += 1;
     this.retryTimer = setTimeout(() => {
       this.retryTimer = null;
-      this.connect().catch(() => {});
+      // 没连上：问一句口令还对不对，用不了了（桥重启过）不再白试，告诉外面
+      this.connect().catch(async () => {
+        if ((await this.check().catch(() => 'down')) !== 'bad') return;
+        this.gaveUp = true;
+        clearTimeout(this.retryTimer);
+        this.retryTimer = null;
+        for (const fn of this.losts) fn();
+      });
     }, ms);
   }
+
+  /** 口令用不了了（桥重启过），不再重连。 */
+  onLost(fn) { this.losts.add(fn); }
 
   /** 断了又连上了（重新握手、重新订阅、补上漏掉的由它做）。 */
   onReopen(fn) { this.reopens.add(fn); }

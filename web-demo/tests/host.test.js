@@ -150,3 +150,28 @@ test('断了自己重连：隔一会儿再开一条线，连上了告诉外面�
   assert.equal(reopened, 1, '连上了告诉外面一次');
   assert.deepEqual(states, ['connecting', 'online', 'offline', 'connecting', 'offline', 'connecting', 'online']);
 });
+
+test('重连时口令用不了了（桥重启过）：不再白试，告诉外面一声（对话区顶上挂提示）；口令还对的照常接着试', async () => {
+  const lines = /** @type {any[]} */ ([]);
+  let key = 'ok';
+  const conn = new Connection(() => { const ch = fakeChannel(); lines.push(ch); return ch; }, [0, 0], async () => key);
+  let lost = 0;
+  conn.onLost(() => { lost += 1; });
+  const up = conn.connect();
+  lines[0].readyState = 1;
+  lines[0].onopen();
+  await up;
+  lines[0].readyState = 3;
+  lines[0].onclose();
+  await new Promise((r) => setTimeout(r, 5));
+  lines[1].onerror();
+  lines[1].onclose();
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal(lines.length, 3, '口令还对：接着试');
+  key = 'bad';
+  lines[2].onerror();
+  lines[2].onclose();
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(lost, 1, '口令用不了了：说一声');
+  assert.equal(lines.length, 3, '不再试');
+});

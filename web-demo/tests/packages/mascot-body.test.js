@@ -141,3 +141,33 @@ test('落在那一段正中间、离两边都远：不走过去（一路压着�
   assert.ok(top, '跳回了输入框');
   assert.ok(Math.abs(top.x - 500) < 5, `就地跳上去：${top?.x}`);
 });
+
+test('窗口窄、两边都站不下（那一段占满了）：不在地上压着字等，就地跳回输入框（2026-10-01）', () => {
+  const zone = { x1: 10, x2: 990 };
+  const body = new Body(config, { ...room, avoid: () => zone });
+  let now = performance.now();
+  body.move(16, now);
+  body.at = { x: 950, y: 700, vx: 0, vy: 0, ground: null };
+  let top = null;
+  for (let i = 0; i < 400; i++) {
+    body.move(16, (now += 16));
+    if (body.at.ground?.id === 'composer') { top = body.at; break; }
+  }
+  assert.ok(top, '跳回了输入框');
+});
+
+test('往下掉的时候框从下面长上来越过了脚（打开抽屉）：顶到框上面，不从框里穿过去掉到地上（2026-10-01）', () => {
+  const solid = { ...ledge, bottom: 700 };
+  const body = new Body(config, { ...room, platforms: () => [solid, floor] });
+  let now = performance.now();
+  body.move(16, now);
+  // 在框上面往下掉，框上沿已经升过了脚：脚落在框里面
+  body.at = { x: 500, y: 620, vx: 0, vy: 0.3, ground: null };
+  body.move(16, (now += 16));
+  assert.equal(body.at.ground?.id, 'composer', '顶到了框上面');
+  assert.equal(body.at.y, 600);
+  // 往上跳着的（斜着跳上去）不算：照常飞
+  body.at = { x: 500, y: 650, vx: 0, vy: -1, ground: null };
+  body.move(16, (now += 16));
+  assert.equal(body.at.ground, null, '往上跳的不被顶');
+});

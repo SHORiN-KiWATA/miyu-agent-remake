@@ -1,9 +1,9 @@
 // @ts-check
-//! 不挂在她头下的一行（蓝图 `web.md`「后台命令、子代理的回报」「压缩、清空」）：记号有颜色、字暗，和收尾那一行一样对齐、
+//! 不挂在她头下的一行（蓝图 `web.md`「后台命令、子代理的回报」「压缩、清空」「回顾」）：记号有颜色、字暗，和收尾那一行一样对齐、
 //! 一样大。回报那一行能点开：照时间线点开一步的样子，下面铺底色、分段——后台命令是命令和整份输出（blob 经宿主的地址取，
 //! 太长的只画最后几行），子代理是交回的正文（Markdown）。点开、收起时钉住被点的那一行（`follow.js`，和时间线同一个事件）。
 
-import { h } from './dom.js';
+import { h, icon } from './dom.js';
 import { res, t } from '../util/res.js';
 import { blobUrl } from '../core/host.js';
 import { renderMarkdown } from '../markdown/render.js';
@@ -14,6 +14,10 @@ import { renderMarkdown } from '../markdown/render.js';
  * @param {{say: (text: string, good?: boolean) => void, hooks: (scope: any) => any}} markdown 画子代理的报告（对话区的那一套）
  */
 export function noteNode(it, where, markdown) {
+  // 回顾：一张卡片，头一行图标和「回顾」，下面是回顾的字（蓝图「回顾」第 2 条）
+  if (it.recap != null) {
+    return h('div.note.is-recap', h('div.note-recap', h('div.note-recap-head', icon('file-text'), h('span', t('notes.recap'))), h('div.note-recap-text', it.recap)));
+  }
   const line = h(`div.note-line.tone-${it.tone}`, it.mark ? h('span.note-mark', it.mark) : null, h('span.note-text', it.text));
   const node = h('div.note', line);
   if (!it.detail) return node;

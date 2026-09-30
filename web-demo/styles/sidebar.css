@@ -63,6 +63,12 @@
   color: var(--text-faint); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; user-select: none;
 }
 .session-group-header .icon { width: 12px; height: 12px; }
+/* 多选时这一行钉在列表顶上（蓝图 web.md「左栏」批量删除）：列表顶上那 4px 内边距挪进这一行，钉住的位置就是它原来的位置
+   （一滚动不先挪一下，2026-10-01 项目主人指出）；上面的空用内边距垫，滚过去的项不从缝里露出来 */
+.sidebar.is-selecting .session-list { padding-top: 0; }
+.sidebar.is-selecting .session-group-header {
+  position: sticky; top: 0; z-index: 2; margin-top: 0; padding-top: 17px; padding-bottom: 3px; margin-bottom: 0; background: var(--sidebar-bg);
+}
 .session-items { --item-gap: 3px; display: grid; gap: var(--item-gap); }
 /* 一项：悬停铺一层很淡的深色（和选中的同一个方向）。选中的底是会话表里单独的一块（.session-pill），换会话时滑过去（蓝图「左栏」的
    「选中的」、「动效」）：比左栏底色深一档、不画描边，靠一层软影浮起来；这一项自己不铺底 */

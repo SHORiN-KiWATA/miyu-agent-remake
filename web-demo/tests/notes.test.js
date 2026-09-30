@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadRes, ev } from './support.js';
 import { project } from '../src/model/transcript.js';
-import { failureText } from '../src/model/notes.js';
+import { failureText, withRecaps } from '../src/model/notes.js';
 import { group } from '../src/model/group.js';
 import { footer } from '../src/model/footer.js';
 
@@ -232,4 +232,59 @@ test('不带回合编号的话，她正在回答时来的也照排着的算：�
   assert.deepEqual(texts(project(log.slice(0, 6)).items), ['你:等子代理的消息', '她:等第 5 条。'], '这一轮还在进行、没听到：排着，不进正文');
   assert.deepEqual(texts(project(log.slice(0, 7)).items), ['你:等子代理的消息', '她:等第 5 条。', '你:第 5 条'], '这一轮结束了还排着：接在她的回答下面（不画在上面）');
   assert.deepEqual(texts(project(log).items), ['你:等子代理的消息', '她:等第 5 条。', '你:第 5 条', '她:收到第 5 条。'], '下一轮的开头');
+});
+
+test('回顾（session.recapped）：在它来的位置画一块，第一行「回顾：」；不带回合，不算进哪一轮；回顾的请求算进累计、不改上下文和速度、命中率', () => {
+  const base = [...jobsLog(), ev(9, 3, 'model.called', 3, { seen: 3, messages: 2, result: 'ok', usage, duration_ms: 2000, first_token_ms: 500, model: 'm', endpoint: 'e' })];
+  const log = [...base,
+    ev(10, 60, 'model.called', undefined, { seen: 8, messages: 3, result: 'ok', purpose: 'recap', usage: { uncached: 355, cache_read: 0, cache_write: 0, output: 40 }, duration_ms: 900, first_token_ms: 100, model: 'm', endpoint: 'e' }),
+    ev(11, 60, 'session.recapped', undefined, { text: '在跑测试、查文档，测试还没回报。', upto: 8 }),
+  ];
+  const items = project(log).items;
+  const recap = items.at(-1);
+  assert.deepEqual([recap.type, recap.recap, recap.turn], ['note', '在跑测试、查文档，测试还没回报。', null]);
+  const before = footer(base, { window: 1_000_000 }).right;
+  const after = footer(log, { window: 1_000_000 }).right;
+  assert.equal(after.find((p) => p.key === 'context')?.text, before.find((p) => p.key === 'context')?.text, '上下文不变');
+  assert.equal(after.find((p) => p.key === 'speed')?.text, before.find((p) => p.key === 'speed')?.text, '速度不变');
+  const pct = (parts) => /\(C(\d+)%\)/.exec(parts.find((p) => p.key === 'total')?.text ?? '')?.[1];
+  assert.equal(pct(after), pct(before), '命中率只算主对话');
+  assert.notEqual(after.find((p) => p.key === 'total')?.text, before.find((p) => p.key === 'total')?.text, '累计算进去');
+});
+
+test('回应里 cached 为真的回顾：照回应在那时的末尾再画一次（插在那一刻最后一条后面），同一处同一句只画一次', () => {
+  const log = jobsLog();
+  const last = log.at(-1).seq;
+  const again = [{ after: last, text: '还是那一句' }, { after: 2, text: '早一点的' }];
+  const merged = withRecaps([...log, ev(last + 1, 90, 'message.user', undefined, { blocks: [{ type: 'text', text: '后来的话' }] }, me)], again);
+  const at = (text) => merged.findIndex((e) => e.body?.text === text);
+  assert.equal(at('还是那一句'), log.length + 1, '前面还插了一条早一点的');
+  assert.equal(merged[at('早一点的') - 1].seq, 2);
+  const recaps = project(merged).items.filter((it) => it.recap != null);
+  assert.deepEqual(recaps.map((it) => it.key), ['r2', `r${last}`]);
+});
+
+test('压缩那一行能点开看摘要（Markdown，照回报点开的那一种）；摘要空的、清空那一行不能点', () => {
+  const log = [...jobsLog(),
+    ev(9, 50, 'context.compacted', undefined, { upto: 8, summary: '## 摘要\n- 在跑测试', trigger: 'auto' }),
+    ev(10, 60, 'context.compacted', undefined, { upto: 9, summary: '', trigger: 'auto' }),
+    ev(11, 70, 'context.compacted', undefined, { upto: 10, summary: '', trigger: 'clear' }),
+  ];
+  const got = project(log).items.filter((it) => it.compaction).map((it) => it.detail);
+  assert.deepEqual(got, [{ kind: 'text', text: '## 摘要\n- 在跑测试', truncated: false }, null, null]);
+});
+
+test('回顾跟着它讲到的那一轮走：那一轮撤销了回顾藏起来，恢复了再露出来；撤的是它后面的轮，回顾不动（2026-10-01）', () => {
+  const log = [...jobsLog(),
+    ev(9, 60, 'session.recapped', undefined, { text: '讲第 3 轮', upto: 8 }),
+    ev(10, 70, 'message.user', undefined, { blocks: [{ type: 'text', text: '再来一轮' }] }, me),
+    ev(11, 70, 'turn.started', 11, { trigger: 10 }),
+    ev(12, 71, 'turn.ended', 11, { reason: 'completed' }),
+  ];
+  const recaps = (events) => project(events).items.filter((it) => it.recap != null).map((it) => it.recap);
+  assert.deepEqual(recaps(log), ['讲第 3 轮']);
+  assert.deepEqual(recaps([...log, ev(13, 80, 'turn.reverted', undefined, { turns: [11] })]), ['讲第 3 轮'], '撤的是后面那一轮：不动');
+  const undone = [...log, ev(13, 80, 'turn.reverted', undefined, { turns: [11, 3] })];
+  assert.deepEqual(recaps(undone), [], '讲到的那一轮撤了：藏起来');
+  assert.deepEqual(recaps([...undone, ev(14, 90, 'turn.unreverted', undefined, { turns: [11, 3] })]), ['讲第 3 轮'], '恢复了：露出来');
 });

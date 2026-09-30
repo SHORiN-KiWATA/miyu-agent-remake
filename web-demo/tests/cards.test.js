@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadRes } from './support.js';
 import { localPath } from '../src/model/paths.js';
-import { mediaLine } from '../src/model/cards.js';
+import { mediaLine, embedKind } from '../src/model/cards.js';
 
 loadRes();
 
@@ -37,4 +37,13 @@ test('不是单独一行的、不认得扩展名的、句子里的，都不是�
   assert.equal(mediaLine('[说明](/tmp/a.mp4) 后面还有字'), null);
   assert.equal(mediaLine('```'), null);
   assert.equal(mediaLine(''), null);
+});
+
+test('![说明](地址) 照扩展名：图片、视频、音频各画各的；没有扩展名的照图；别的扩展名（网页、文档）不是图，交 null 照链接写（2026-10-01）', () => {
+  assert.equal(embedKind('out/chart.PNG'), 'image');
+  assert.equal(embedKind('https://x.com/pic?id=3'), 'image');
+  assert.equal(embedKind('~/a/demo.webm'), 'video');
+  assert.equal(embedKind('song.mp3#t=1'), 'audio');
+  assert.equal(embedKind('pelican-bicycle-anim.html'), null);
+  assert.equal(embedKind('/tmp/notes.md'), null);
 });

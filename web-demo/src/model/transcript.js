@@ -17,7 +17,7 @@ import { res, t } from '../util/res.js';
 import { short, hitRate, seconds, hhmm } from './format.js';
 import { text, attachments } from './session.js';
 import { Timeline } from './timeline.js';
-import { noteJobs, speakerOf, reportNote, compactedNote, failureText } from './notes.js';
+import { noteJobs, speakerOf, reportNote, compactedNote, failureText, recapNote } from './notes.js';
 import { tasksOf, running as runningJobs } from '../lib/jobs.js';
 
 /** 权限：只读开着是只读，关着照常用的那一级（`kernel/events-bodies.md`「权限」）。 */
@@ -54,6 +54,8 @@ export function project(events, live = null, marks = new Map()) {
     items.push(...heard);
   };
   let level = 'workspace';
+  /** 开过的轮，照先后：回顾记它讲到哪一轮 */
+  const started = [];
   for (const e of events) {
     const b = e.body;
     switch (e.kind) {
@@ -79,6 +81,7 @@ export function project(events, live = null, marks = new Map()) {
         break;
       }
       case 'turn.started': {
+        started.push(e.turn);
         // 排着接着开的：到 `trigger` 为止排着的进正文，是这一轮的开头
         const carried = b.trigger != null ? queue.filter((q) => q.seq <= b.trigger) : [];
         for (const q of carried) queue.splice(queue.indexOf(q), 1);
@@ -128,8 +131,14 @@ export function project(events, live = null, marks = new Map()) {
         break;
       }
       case 'model.called':
+        // 回顾这类辅助请求（带 `purpose`）不属于哪一轮，也不对上时间线的思考
+        if (b.purpose) break;
         turns.get(e.turn)?.calls.push(b);
         timeline.called(e);
+        break;
+      case 'session.recapped':
+        // 记下它讲到的那一轮（那时最后一轮没撤销的）：那一轮撤了回顾跟着藏（蓝图「回顾」第 6 条）
+        items.push({ ...recapNote(e, !!e.local), covers: started.findLast((n) => !reverted.has(n)) ?? null });
         break;
       case 'turn.ended': {
         const turn = turns.get(e.turn);
@@ -180,7 +189,7 @@ export function project(events, live = null, marks = new Map()) {
   // 一轮开始、她还一块都没来：三个球（蓝图 `web.md`「她出第一个字之前」）；人要的压缩、清空单开的那一轮（没有 `trigger`）不画她的头、也不画这三个球（蓝图「压缩、清空」；照 TUI 的 `waiting()`，那一轮自己在跑）
   if (open && !spoke.has(open[0]) && !open[1].manual) items.push({ type: 'waiting', key: `w${open[0]}`, turn: open[0] });
   return {
-    items: items.filter((it) => !reverted.has(it.turn)),
+    items: items.filter((it) => !reverted.has(it.turn) && !(it.covers != null && reverted.has(it.covers))),
     /** 排着的话：画在运行状态行下面 */
     queued: queue.filter((q) => !reverted.has(q.turn)),
     running: open ? { turn: open[0], start: Date.parse(open[1].start), level: open[1].level } : null,

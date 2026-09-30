@@ -19,11 +19,31 @@ export function mediaLine(line) {
   const labelled = LABELLED.exec(text);
   const target = labelled ? labelled[2] : BARE.test(text) ? text : null;
   if (!target) return null;
-  const ext = /\.([a-z0-9]+)(?:[?#].*)?$/i.exec(target)?.[1]?.toLowerCase();
-  const kind = /** @type {const} */ (['video', 'audio', 'image']).find((k) => ext && res.cards[k].includes(ext));
+  const ext = extOf(target);
+  const kind = ext ? KINDS.find((k) => res.cards[k].includes(ext)) : null;
   if (!kind) return null;
   const name = decodeSafe(target.split(/[?#]/)[0].split('/').pop() ?? target);
   return { kind, target, label: labelled?.[1]?.trim() || name };
+}
+
+/**
+ * `![说明](地址)` 画成什么（蓝图「图片」第 1 条）：照扩展名是图片、视频、音频的各画各的；没有扩展名的照图（写的就是图）；
+ * 有扩展名、又不是这几种的（网页、文档）是 `null`：不当图，照链接写。
+ * @param {string} target
+ * @returns {'video'|'audio'|'image'|null}
+ */
+export function embedKind(target) {
+  const ext = extOf(target);
+  if (!ext) return 'image';
+  return KINDS.find((k) => res.cards[k].includes(ext)) ?? null;
+}
+
+const KINDS = /** @type {const} */ (['video', 'audio', 'image']);
+
+/** 地址的扩展名（小写，不带 `?`、`#` 后面的）；最后一截没有 `.` 的是 `null`。 @param {string} target */
+function extOf(target) {
+  const last = target.split(/[?#]/)[0].split('/').pop() ?? '';
+  return /\.([a-z0-9]+)$/i.exec(last)?.[1]?.toLowerCase() ?? null;
 }
 
 /** `%xx` 换回字；写坏了的照原样。 */

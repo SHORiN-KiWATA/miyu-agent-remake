@@ -66,6 +66,17 @@
   "refused": "被拒绝了：{message}",
   "payload_busy": "附件还在传，传完再发",
   "no_bridge": "连不上桥：打开桥打出来的那个带 #k= 的链接",
+  "boot": {
+    "connecting": "正在连接桥…",
+    "title": "连不上桥",
+    "bad_why": "这个链接的口令用不了了：桥每次重启都换一个口令。",
+    "none_why": "地址里没带口令。",
+    "key_how": "回到起桥的终端，打开它新打出来的那个带 #k= 的链接。",
+    "down_why": "桥没在跑。",
+    "down_how": "在 web-demo/bridge 里起桥（cargo run -- 端口），再打开它打出来的链接。",
+    "core_how": "看起桥的终端里的报错。",
+    "lost": "桥重启过，口令换了：打开桥新打出来的链接。"
+  },
   "level_tip": "点一下换权限级别：工作区 → 开放权限 → 只读",
   "copied": "已复制 {count} 个字",
   "copy_failed": "复制失败：{reason}",
@@ -189,7 +200,8 @@
     "nothing_to_copy": "还没有能复制的回答",
     "undone_jobs": "已撤销 · 停掉了 {count} 个任务",
     "language_changed": "界面语言：{name}",
-    "language_unknown": "没有这种语言：能写 {choices}"
+    "language_unknown": "没有这种语言：能写 {choices}",
+    "recap_working": "正在回顾…"
   },
   "language": {
     "title": "界面语言",
@@ -233,7 +245,9 @@
     "attachment_unreadable": "附件读不了",
     "attachment_in_data_root": "不能从 Miyu 的数据目录里拿附件",
     "session_not_found": "这个会话已经不在了",
-    "nothing_to_clear": "上下文为空"
+    "nothing_to_clear": "上下文为空",
+    "nothing_to_recap": "还没有可回顾的内容",
+    "recap_failed": "回顾没写成，再要一次就是"
   },
   "said": {
     "copy": "复制",
@@ -304,7 +318,8 @@
     "command_label": "命令",
     "output_label": "输出",
     "parent_speaker": "派它的会话",
-    "other_session": "另一个会话"
+    "other_session": "另一个会话",
+    "recap": "回顾"
   },
   "ago": {
     "now": "刚才",

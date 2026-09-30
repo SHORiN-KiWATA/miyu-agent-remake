@@ -190,6 +190,19 @@ const RUNS = {
     }
     await app.store.conn.request('session.clear', { session: app.current });
   },
+  // 回顾（蓝图「回顾」）：提示「正在回顾…」；推来的 `session.recapped` 照日志画，`cached` 的照回应在正文末尾再画一次；
+  // 还没开的新会话没什么可回顾，不去开会话
+  recap: async (app) => {
+    const session = app.current;
+    if (!session) {
+      app.composer.say(res.text.refusals.nothing_to_recap);
+      return;
+    }
+    app.composer.say(t('commands.recap_working'));
+    const got = await app.store.conn.request('session.recap', { session });
+    if (got?.cached) app.recapAgain(session, got.text);
+    if (app.current === session) requestAnimationFrame(() => app.chat.reveal());
+  },
   theme: async (app) => {
     const next = await app.ctx.theme?.next();
     if (next) app.composer.say(t('commands.theme_changed', { name: next.name }));

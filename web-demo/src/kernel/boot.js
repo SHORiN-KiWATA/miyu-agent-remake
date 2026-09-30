@@ -49,15 +49,21 @@ export async function boot(root) {
   let language = pick(settingOf(res.languages, distro.kernel ?? {}, {}), browser, res.languages);
   await useTexts(resources, language);
   document.documentElement.lang = language.tag;
+  // 连着桥的时候页面正中写一句，不留一片白（蓝图 `web.md`「连核心」第 9 条）
+  root.replaceChildren(Object.assign(document.createElement('div'), { className: 'boot-wait', textContent: t('boot.connecting') }));
   const host = browserHost();
-  if (!host) throw new Error(t('no_bridge'));
+  if (!host) throw new Offline('none');
   // 旧代码（src/ui）经它拿地址、开外链、写剪贴板
   useHost(host);
   // 断了自己重连（蓝图 `web.md`「连核心」第 1 条）：连上以后重新握手、补上漏掉的，见下面 `onReopen`
-  const conn = new Connection(host.channel, res.layout.reconnect_ms);
-  await conn.connect().catch((err) => {
-    throw new Error(err.message === 'bridge' ? t('no_bridge') : err.message);
+  const conn = new Connection(host.channel, res.layout.reconnect_ms, host.check);
+  // 连不上：问桥口令还对不对，照它写为什么（口令用不了、桥没在跑、桥连不上核心）
+  await conn.connect().catch(async (err) => {
+    if (err.message !== 'bridge') throw new Offline('core', err.message);
+    const key = await host.check();
+    throw new Offline(key === 'ok' ? 'core' : key, key === 'ok' ? t('no_bridge') : '');
   });
+  root.replaceChildren();
   // 还没有确认的抽屉：握手时说没人能当场确认，要确认的那一步核心当场拒绝（照 TUI 演示）
   const greeting = { protocol: [1, 1], head: { kind: 'web', version: '0.0.0' }, locale: language.tag, caps: { input: false } };
   const hello = await conn.request('hello', greeting);
@@ -202,6 +208,16 @@ export async function boot(root) {
 
   await sync();
   if (!root.childElementCount) showStatus(root, loader.status());
+}
+
+/** 连不上桥（蓝图 `web.md`「连核心」第 9 条）：为什么是哪一种，入口照它画一张卡。 */
+export class Offline extends Error {
+  /** @param {'bad'|'none'|'down'|'core'} kind @param {string} [detail] 桥的原话 */
+  constructor(kind, detail = '') {
+    super(detail || kind);
+    this.kind = kind;
+    this.detail = detail;
+  }
 }
 
 /** 一个包都没画出东西：列出每个包在哪一步，不白屏。 */

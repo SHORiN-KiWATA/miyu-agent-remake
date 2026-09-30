@@ -1,0 +1,134 @@
+{
+  "id": "asking",
+  "version": "0.1.0",
+  "name": {
+    "zh": "确认和提问",
+    "ja": "確認と質問"
+  },
+  "kind": "optional",
+  "description": {
+    "zh": "她要你批准、要问你问题时，输入框变成一个抽屉让你选（照 TUI）；核心还推不来，/demo-ask、/demo-approve 出一个演示的。"
+  },
+  "inject": [
+    "slots",
+    "commands",
+    "chat",
+    "composer"
+  ],
+  "settings": {
+    "max_vh": {
+      "type": "number",
+      "default": 60,
+      "min": 20,
+      "max": 90,
+      "name": {
+        "zh": "抽屉最高占窗口的百分之几"
+      }
+    },
+    "preview_min_width": {
+      "type": "number",
+      "default": 560,
+      "min": 0,
+      "integer": true,
+      "name": {
+        "zh": "抽屉多宽时文字画放在选项右边（像素）"
+      }
+    },
+    "esc_window_ms": {
+      "type": "duration",
+      "default": 1500,
+      "name": {
+        "zh": "两下 Esc 之间最多隔多久（和输入框的一样）"
+      }
+    }
+  },
+  "styles": [
+    "style.css"
+  ],
+  "text": {
+    "zh": {
+      "command_ask": "演示：她问你一组题",
+      "command_approve": "演示：她要你批准一次写入、运行",
+      "asking": "{who} 在问",
+      "review_tab": "确认",
+      "other": "输入其他答案",
+      "custom": "自定义：{text}",
+      "notes_label": "补充",
+      "notes_add": "补充一句",
+      "decision": {
+        "once": "允许这一次",
+        "session": "这个会话都允许",
+        "workspace": "这个工作区都允许",
+        "deny": "不允许"
+      },
+      "reason_hint": "写上理由（可以不写）",
+      "edit_hint": "打字，Enter 保存",
+      "access": {
+        "write": "要写 {count} 个文件",
+        "read": "要读 {count} 个文件",
+        "exec": "要运行 {tool}"
+      },
+      "access_other": "要用 {tool}",
+      "outside": "工作区外",
+      "unanswered": "未回答",
+      "keys": "↑↓ 选择 · Enter 提交 · N 补充 · Esc ×2 取消",
+      "keys_multi": "↑↓ 选择 · Space 勾选 · Enter 提交 · N 补充 · Esc ×2 取消",
+      "keys_approve": "↑↓ 选择 · Enter 确定 · Esc ×2 取消",
+      "keys_review": "Enter 提交 · Esc ×2 取消",
+      "keys_edit": "Enter 保存 · Esc 退出编辑",
+      "keys_tabs": " · ←→ 换题",
+      "cancel_hint": "再按一次 Esc 取消",
+      "cancel": "取消",
+      "submit": "提交",
+      "answered_title": "已回答",
+      "denied": "不允许",
+      "cancelled_question": "提问已取消",
+      "cancelled_approval": "批准已取消",
+      "answered_who": " · {who}",
+      "notes_line": "补充：{notes}",
+      "denied_reason": " · {reason}"
+    },
+    "ja": {
+      "command_ask": "デモ：質問をいくつか聞かれる",
+      "command_approve": "デモ：書き込み・実行の許可を求められる",
+      "asking": "{who} が質問しています",
+      "review_tab": "確認",
+      "other": "ほかの答えを入力",
+      "custom": "自由回答：{text}",
+      "notes_label": "補足",
+      "notes_add": "補足を書く",
+      "decision": {
+        "once": "今回だけ許可",
+        "session": "このセッションでは許可",
+        "workspace": "このワークスペースでは許可",
+        "deny": "許可しない"
+      },
+      "reason_hint": "理由を書く（なくてもよい）",
+      "edit_hint": "入力して Enter で保存",
+      "access": {
+        "write": "{count} 個のファイルに書き込みます",
+        "read": "{count} 個のファイルを読みます",
+        "exec": "{tool} を実行します"
+      },
+      "access_other": "{tool} を使います",
+      "outside": "ワークスペース外",
+      "unanswered": "未回答",
+      "keys": "↑↓ 選択 · Enter 送信 · N 補足 · Esc ×2 取り消し",
+      "keys_multi": "↑↓ 選択 · Space チェック · Enter 送信 · N 補足 · Esc ×2 取り消し",
+      "keys_approve": "↑↓ 選択 · Enter 決定 · Esc ×2 取り消し",
+      "keys_review": "Enter 送信 · Esc ×2 取り消し",
+      "keys_edit": "Enter 保存 · Esc 編集をやめる",
+      "keys_tabs": " · ←→ 問題を切り替え",
+      "cancel_hint": "もう一度 Esc で取り消し",
+      "cancel": "取り消し",
+      "submit": "送信",
+      "answered_title": "回答済み",
+      "denied": "許可しない",
+      "cancelled_question": "質問を取り消しました",
+      "cancelled_approval": "許可の確認を取り消しました",
+      "answered_who": " · {who}",
+      "notes_line": "補足：{notes}",
+      "denied_reason": " · {reason}"
+    }
+  }
+}

@@ -39,7 +39,7 @@ export function userNode(it, on, media) {
 
   // 编辑：气泡换成一个输入框，原话填好、全选；Enter 发、Shift+Enter 换行、Esc 取消
   const startEdit = () => {
-    const box = /** @type {HTMLTextAreaElement} */ (h('textarea.edit-input', { rows: 1 }));
+    const box = /** @type {HTMLTextAreaElement} */ (h('textarea.edit-input', { rows: 1, spellcheck: 'false' }));
     box.value = it.text;
     const grow = () => {
       box.style.height = 'auto';

@@ -11,6 +11,7 @@
 //! 框里的附件是软件包（`attachments`），挂进 `composer.bar`、`composer.head`、`composer.payload`（蓝图「附件」）。
 
 import { h, icon } from './dom.js';
+import { show } from '../lib/motion.js';
 import { mountList } from '../lib/mount.js';
 import { res, t } from '../util/res.js';
 import { Sidebar } from './sidebar.js';
@@ -19,6 +20,7 @@ import { Composer } from './composer.js';
 import { Artifacts } from './artifacts.js';
 import { runCommand, refusalText, redo, copyTurn, Commands } from './commands.js';
 import { project } from '../model/transcript.js';
+import { withRecaps } from '../model/notes.js';
 import { footer, levelLabel, nextLevel, levelParams } from '../model/footer.js';
 import { levelOf } from '../model/transcript.js';
 import { copy } from '../markdown/build.js';
@@ -144,10 +146,12 @@ export class App {
     ctx.slots.declare('composer.payload', 'list');
     ctx.slots.declare('composer.footer', 'list');
     ctx.slots.declare('composer.float', 'list');
+    ctx.slots.declare('composer.takeover', 'list');
     ctx.effect(() => mountList(this.composer.tools, ctx.slots, 'composer.bar', failedSlot));
     ctx.effect(() => mountList(this.composer.head, ctx.slots, 'composer.head', failedSlot));
     ctx.effect(() => mountList(this.composer.middle, ctx.slots, 'composer.footer', failedSlot));
     ctx.effect(() => mountList(this.composer.float, ctx.slots, 'composer.float', failedSlot));
+    ctx.effect(() => mountList(this.composer.takeoverEl, ctx.slots, 'composer.takeover', failedSlot));
     ctx.effect(() => ctx.slots.watch('composer.payload', () => this.composer.syncButton()));
     // 框上面的一叠：挂进 `composer.above` 的（待办这类软件包）在流里、占着地方，下面是运行状态行，再下面是框
     this.dockAbove = h('div.dock-above');
@@ -171,10 +175,13 @@ export class App {
         h('div.stage-float',
           h('button.icon-button.sidebar-expand-button', { type: 'button', title: t('sidebar.expand'), onclick: () => this.collapse(false) }, icon('panel-left-open')),
           h('button.icon-button.mobile-menu-button', { type: 'button', title: t('sidebar.expand'), onclick: () => this.drawer(true) }, icon('panel-left'))),
+        this.lostBar = h('div.bridge-lost', { hidden: true, role: 'alert' }, t('boot.lost')),
         this.crumbs.el,
         this.chat.el,
         this.stageRight = h('div.stage-right'),
         this.composer.el));
+    // 开着的页面，桥重启过换了口令：不再白试重连，对话区顶上挂一条提示（蓝图「连核心」第 9 条）
+    this.store.conn.onLost(() => show(this.lostBar));
     // 全部会话：占对话区那一块（左栏「查看全部」、`/sessions`）
     this.sessionsPage = new SessionsPage({
       list: async () => (await this.store.conn.request('session.list', {})).sessions ?? [],
@@ -190,6 +197,9 @@ export class App {
     this.root.querySelector('.stage')?.append(this.sessionsPage.el);
     // 对话区右边的挂载位：跳转条这类挂进来（软件包 rail）
     ctx.slots.declare('stage.right', 'list');
+    // 正文末尾、最后一轮下面（确认和提问了结以后留的这类）
+    ctx.slots.declare('chat.tail', 'list');
+    ctx.effect(() => mountList(this.chat.tail, ctx.slots, 'chat.tail', failedSlot));
     ctx.effect(() => mountList(this.stageRight, ctx.slots, 'stage.right', failedSlot));
     this.root.classList.toggle('is-sidebar-collapsed', !!ctx.storage.get(COLLAPSED, false));
     const expand = /** @type {HTMLElement} */ (this.root.querySelector('.sidebar-expand-button'));
@@ -207,6 +217,8 @@ export class App {
     addEventListener('resize', () => this.schedule());
     ctx.on('theme.changed', () => this.sidebar.drawThemeButton());
     this.frame = 0;
+    /** 会话 → 照回应再画一次的回顾（`/recap` 回应里 `cached` 为真的，蓝图「回顾」第 3 条；只在这一页里） */
+    this.recapsAgain = /** @type {Map<string, {after: number, text: string}[]>} */ (new Map());
     /** 会话 → 它下面的子代理（照事件条数记着，`kids`） */
     this.kidCache = new Map();
   }
@@ -218,6 +230,15 @@ export class App {
     this.open(this.store.order[0] ?? null);
     this.composer.changed();
     this.composer.focus();
+  }
+
+  /** 回顾没有新内容（`cached`）：照回应在这一刻的末尾再画一次；同一处同一句不重复。 @param {string} session @param {string} text */
+  recapAgain(session, text) {
+    const after = this.store.sessions.get(session)?.events.at(-1)?.seq ?? 0;
+    const list = this.recapsAgain.get(session) ?? [];
+    if (list.some((r) => r.after === after && r.text === text)) return;
+    this.recapsAgain.set(session, [...list, { after, text }]);
+    this.schedule();
   }
 
   schedule() {
@@ -437,7 +458,7 @@ export class App {
     this.back?.draw(path.length > 1 ? path[path.length - 2] : null);
     // 回答里的本机地址、结果里的图照这个会话取（工作目录照 `session.created`）
     this.chat.setWhere(this.current, events.find((e) => e.kind === 'session.created')?.body.cwd ?? null);
-    const view = project(events, s?.live ?? null, s?.marks);
+    const view = project(withRecaps(events, this.recapsAgain.get(this.current ?? '') ?? []), s?.live ?? null, s?.marks);
     // 先照空不空摆好输入框（居中时对话区没有高度），再画对话：不然第一句话照 0 高算停在哪，被顶到视口上面
     this.centerIfEmpty(view.items.length === 0);
     this.chat.render(view.items);

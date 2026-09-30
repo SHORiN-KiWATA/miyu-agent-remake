@@ -8,6 +8,8 @@
 import { h, icon, replace } from './dom.js';
 import { res, t } from '../util/res.js';
 import { row, peek, messagePeek, thinkingTail, commandLines, details, kindOf } from '../model/words.js';
+import { imageCard } from './media.js';
+import { blobUrl } from '../core/host.js';
 
 export class StepView {
   /**
@@ -160,7 +162,19 @@ export class StepView {
     const body = JSON.stringify([step.output, step.status, step.args, step.said]);
     if (body === this.drawnBody) return;
     this.drawnBody = body;
-    replace(this.body, details(step).map((s) => (s.kind === 'diff' ? diffCard(s) : h('div.tl-detail', h('div.tl-label', s.label), h('pre', s.text)))));
+    replace(this.body, details(step).map((s) => (s.kind === 'diff' ? diffCard(s)
+      : s.kind === 'images' ? this.imagesNode(s)
+        : h('div.tl-detail', h('div.tl-label', s.label), h('pre', s.text)))));
+  }
+
+  /** 结果里的图：小一点（`result_image_max`），照核心收下的 blob 取，点开是灯箱（蓝图「图片」第 2 条）。 */
+  imagesNode(s) {
+    const name = String(this.step.parsed?.file_path ?? '').split('/').pop() || undefined;
+    const session = this.where.session;
+    return h('div.tl-detail', s.label ? h('div.tl-label', s.label) : null,
+      h('div.tl-images', { style: `--media-max: ${res.layout.result_image_max}px` }, s.images.map((img) => (session
+        ? imageCard({ url: blobUrl(session, img.blob, img.media_type), name, width: img.width, height: img.height, lightbox: this.where.lightbox })
+        : null))));
   }
 
   /** 节点里的图标：变了才换（在想的原子图标在呼吸，别打断）。 */

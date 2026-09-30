@@ -102,6 +102,15 @@ test('点开的细节：参数一行一个「键: 值」，再是结果；没有
   assert.deepEqual(details(tool('read', {}, { output: '' })), []);
 });
 
+test('读图的结果：点开时「结果」下面是那几张图（照 blob 取，蓝图「图片」第 2 条）；没有字的也有「结果」', () => {
+  const images = [{ blob: `sha256:${'a'.repeat(64)}`, media_type: 'image/png', width: 800, height: 600 }];
+  const d = details(tool('read', { file_path: '/tmp/a.png' }, { output: '', images }));
+  assert.deepEqual(d, [
+    { kind: 'text', label: '参数', text: 'file_path: /tmp/a.png' },
+    { kind: 'images', label: '结果', images },
+  ]);
+});
+
 test('点开执行命令：命令那几行留着，参数里不再写 command、description；命令被截了的才把全文写进参数', () => {
   const short = details(tool('shell', { command: 'ls', description: '列目录', timeout: 30 }, { output: 'a\n' }));
   assert.deepEqual(short, [

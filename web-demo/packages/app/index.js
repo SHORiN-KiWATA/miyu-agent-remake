@@ -26,6 +26,13 @@ export function apply(ctx) {
     onPrompts: (fn) => app.chat.onPrompts(fn),
     /** 看另一个会话（子代理的会话也行，第一次看时才读） */
     open: (id) => app.open(id),
+    /** 正在看的会话在不在回答；打断它（照两下 `Esc`） */
+    running: () => !!app.composer.running,
+    /** 家目录（`web.info`）：路径写成 `~` 用 */
+    home: () => app.home,
+    interrupt: () => app.interrupt(),
+    /** 正文末尾（挂载位 `chat.tail`）来了新的：回到跟着最新的、露出它 */
+    reveal: () => app.chat.reveal(),
   });
   // 输入框：提示、跟着发的东西变了、写字的那个框（附件这类包经它粘贴、提示）
   ctx.provide('composer', {
@@ -35,6 +42,8 @@ export function apply(ctx) {
     /** 整个框：附件照它收拖进来的文件 */
     box: app.composer.box,
     focus: () => app.composer.focus(),
+    /** 挂载位 `composer.takeover` 占不占着框（确认和提问的抽屉） */
+    takeover: (open) => app.composer.takeover(open),
   });
   ctx.effect(() => () => ctx.page.root.replaceChildren());
 }

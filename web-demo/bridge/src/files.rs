@@ -44,6 +44,11 @@ pub async fn serve(mut stream: TcpStream, site: &Site) -> io::Result<()> {
     if path == "/link-image" {
         return link_preview::serve(&mut stream, site, query).await;
     }
+    if path == "/key" {
+        // 页面连不上时问一句口令对不对（蓝图 `web.md`「连核心」第 9 条）：只回对不对，别的不说
+        let ok = media::params(query).get("k") == Some(&site.key);
+        return reply(&mut stream, if ok { "204 No Content" } else { "403 Forbidden" }, "text/plain; charset=utf-8", b"").await;
+    }
     let path = decode(if path == "/" { "/index.html" } else { path });
     let Some(file) = resolve(dir, &path) else {
         return reply(&mut stream, "404 Not Found", "text/plain; charset=utf-8", b"not found").await;

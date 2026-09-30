@@ -66,6 +66,17 @@
   "refused": "拒否されました：{message}",
   "payload_busy": "添付ファイルをアップロード中です。終わってから送信してください",
   "no_bridge": "ブリッジに接続できません：ブリッジが表示した #k= 付きのリンクを開いてください",
+  "boot": {
+    "connecting": "ブリッジに接続中…",
+    "title": "ブリッジに接続できません",
+    "bad_why": "このリンクのアクセスキーはもう使えません：ブリッジは再起動のたびにキーを変えます。",
+    "none_why": "アドレスにアクセスキーが含まれていません。",
+    "key_how": "ブリッジを起動したターミナルに戻り、新しく表示された #k= 付きのリンクを開いてください。",
+    "down_why": "ブリッジが起動していません。",
+    "down_how": "web-demo/bridge でブリッジを起動し（cargo run -- ポート）、表示されたリンクを開いてください。",
+    "core_how": "ブリッジを起動したターミナルのエラーを確認してください。",
+    "lost": "ブリッジが再起動してアクセスキーが変わりました：新しいリンクを開いてください。"
+  },
   "level_tip": "クリックで権限レベルを切り替え：ワークスペース → フルアクセス → 読み取り専用",
   "copied": "{count} 文字をコピーしました",
   "copy_failed": "コピーに失敗：{reason}",
@@ -189,7 +200,8 @@
     "nothing_to_copy": "コピーできる返信がまだありません",
     "undone_jobs": "取り消しました · {count} 件のタスクを停止しました",
     "language_changed": "表示言語：{name}",
-    "language_unknown": "その言語はありません：{choices} を指定できます"
+    "language_unknown": "その言語はありません：{choices} を指定できます",
+    "recap_working": "振り返っています…"
   },
   "language": {
     "title": "表示言語",
@@ -233,7 +245,9 @@
     "attachment_unreadable": "添付ファイルを読み込めません",
     "attachment_in_data_root": "Miyu のデータディレクトリにあるファイルは添付できません",
     "session_not_found": "このセッションはもう存在しません",
-    "nothing_to_clear": "コンテキストは空です"
+    "nothing_to_clear": "コンテキストは空です",
+    "nothing_to_recap": "まだ振り返る内容がありません",
+    "recap_failed": "振り返りを書けませんでした。もう一度どうぞ"
   },
   "said": {
     "copy": "コピー",
@@ -304,7 +318,8 @@
     "command_label": "コマンド",
     "output_label": "出力",
     "parent_speaker": "派遣元のセッション",
-    "other_session": "別のセッション"
+    "other_session": "別のセッション",
+    "recap": "振り返り"
   },
   "ago": {
     "now": "たった今",

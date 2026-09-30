@@ -8,14 +8,14 @@
   --coral-soft: color-mix(in srgb, var(--ribbon) 25%, var(--surface-1));
 }
 
-/* 图片：最宽最高 250px，按宽高先占地方；悬停罩一层黑，点开灯箱 */
-.conversation-media { display: grid; width: fit-content; max-width: min(100%, 250px); margin: 3px 0 18px; gap: 7px; }
+/* 图片：最宽最高 250px（--media-max：时间线里点开的结果图小一点），按宽高先占地方；悬停罩一层黑，点开灯箱 */
+.conversation-media { display: grid; width: fit-content; max-width: min(100%, var(--media-max, 250px)); margin: 3px 0 18px; gap: 7px; }
 .conversation-media-visual {
-  position: relative; display: grid; width: fit-content; max-width: min(100%, 250px); min-height: 0; place-items: center;
+  position: relative; display: grid; width: fit-content; max-width: min(100%, var(--media-max, 250px)); min-height: 0; place-items: center;
   overflow: hidden; border-radius: var(--radius); background: var(--surface-soft); cursor: zoom-in;
 }
-.conversation-media-visual.has-aspect { width: min(250px, 100%); max-height: 250px; }
-.conversation-media img { display: block; width: auto; max-width: min(100%, 250px); height: auto; max-height: 250px; object-fit: contain; }
+.conversation-media-visual.has-aspect { width: min(var(--media-max, 250px), 100%); max-height: var(--media-max, 250px); }
+.conversation-media img { display: block; width: auto; max-width: min(100%, var(--media-max, 250px)); height: auto; max-height: var(--media-max, 250px); object-fit: contain; }
 .conversation-media-visual::after {
   position: absolute; border-radius: inherit; background: rgb(0 0 0 / 18%); content: ""; inset: 0; opacity: 0;
   pointer-events: none; transition: opacity 120ms ease;
@@ -28,6 +28,8 @@
   color: var(--text-faint); font-size: 12px; text-align: center;
 }
 .conversation-media-fallback .icon { width: 22px; height: 22px; color: var(--accent); }
+/* 本机的图按哪个路径找的：小字等宽，长的折行 */
+.conversation-media-tried { font-family: var(--mono); font-size: 11px; line-height: 1.45; word-break: break-all; user-select: text; }
 
 /* 视频：原生控制条，右上角全页播放 */
 .video-card { display: flex; flex-direction: column; align-items: center; margin: 10px 0 4px; }

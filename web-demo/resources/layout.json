@@ -27,6 +27,7 @@
   "composer_max_rows": 8,
   "esc_window_ms": 1500,
   "notice_ms": 2000,
+  "result_image_max": 160,
   "narrow_below": 836,
   "follow_within": 48,
   "follow_keep": 0.4,

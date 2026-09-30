@@ -18,7 +18,7 @@ export function footer(events, limits) {
   let endpoint = null;
   let speed = null;
   let context = 0;
-  const total = { input: 0, output: 0, hit: 0 };
+  const total = { input: 0, output: 0, hit: 0, mainInput: 0 };
   for (const e of events) {
     const b = e.body;
     if ((e.kind === 'session.created' || e.kind === 'session.policy_changed') && b.permission) level = levelOf(b.permission);
@@ -29,6 +29,9 @@ export function footer(events, limits) {
     if (!b.usage) continue;
     total.input += input(b.usage);
     total.output += b.usage.output;
+    // 回顾这类辅助请求（带 `purpose`）算进累计，不改上下文、命中率、速度（蓝图「回顾」第 5 条）：单独发、不命中缓存
+    if (b.purpose) continue;
+    total.mainInput += input(b.usage);
     total.hit += b.usage.cache_read;
     // 上下文照主请求算：压缩的摘要请求看的是另一份东西
     if (!b.compaction) context = input(b.usage) + b.usage.output;
@@ -46,7 +49,7 @@ export function footer(events, limits) {
     right.push({ key: 'context', text });
   }
   if (total.input + total.output > 0) {
-    right.push({ key: 'total', text: t('total', { tokens: short(total.input + total.output), percent: hitRate(total.hit, total.input) }) });
+    right.push({ key: 'total', text: t('total', { tokens: short(total.input + total.output), percent: hitRate(total.hit, total.mainInput) }) });
   }
   return { left: { level, label: levelLabel(level), model, endpoint }, right };
 }

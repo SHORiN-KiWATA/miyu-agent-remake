@@ -30,10 +30,13 @@ export class SessionsPage {
     this.live = '';
     this.anchor = /** @type {string|null} */ (null);
     this.search = /** @type {HTMLInputElement} */ (h('input.sessions-search', { type: 'search', placeholder: t('sessions_page.search'), 'aria-label': t('sessions_page.search') }));
-    this.search.addEventListener('input', () => {
+    // 边打边筛：输入法在选字时不筛，选定了（`compositionend`）再筛
+    const filter = () => {
       this.query = this.search.value.trim().toLowerCase();
       this.draw();
-    });
+    };
+    this.search.addEventListener('input', (e) => { if (!/** @type {InputEvent} */ (e).isComposing) filter(); });
+    this.search.addEventListener('compositionend', filter);
     this.tools = h('div.sessions-tools');
     this.title = h('h1.sessions-title', t('sessions_page.title'));
     this.list = h('div.sessions-list');
@@ -55,6 +58,8 @@ export class SessionsPage {
     this.select(false);
     this.search.value = '';
     this.query = '';
+    // 打开时那一排重画一次（界面语言换过的照新的）
+    this.toolsMode = null;
     show(this.el);
     document.addEventListener('keydown', this.onKey);
     this.rows = [];
@@ -84,6 +89,10 @@ export class SessionsPage {
 
   /** 右上那一排：平常搜索、多选、新会话；多选时「已选 N 个」和全选、删除、退出（位置不动）。 */
   drawTools() {
+    // 平常那一排画一次就留着：每打一个字重建会把搜索框拿下来再放回去，输入法选字就断了（中文只进得去一个字）
+    const mode = this.selecting ? 'select' : 'normal';
+    if (mode === 'normal' && this.toolsMode === 'normal') return;
+    this.toolsMode = mode;
     const icon_ = (name, label, run, cls = '', disabled = false) =>
       h(`button.icon-button.sessions-icon${cls}`, { type: 'button', title: label, 'aria-label': label, disabled, onclick: run }, icon(name));
     const shown = this.visible().map((r) => r.session);

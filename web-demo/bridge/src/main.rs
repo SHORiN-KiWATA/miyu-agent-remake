@@ -12,6 +12,7 @@
 //! - 页面读不到本机的资源目录：给人看的字由桥照 `MIYU_RESOURCES` 读好，经 `web.human` 给（`human.rs`）；
 //! - mermaid 图由桥画成 SVG，经 `web.mermaid` 给（`mermaid.rs`），核心的网页模块做出来以后搬过去；
 //! - 本机文件、blob 经 `/file`、`/blob` 给（`media.rs`），带口令，数据根不给。
+//! - 页面连不上时经 `/key?k=口令` 问口令对不对（`204`、`403`，别的不说），好写清楚是桥重启过换了口令还是别的。
 //! - 附件由桥先收下（`upload.rs`）：页面拿不到文件在本机的路径，`POST /upload` 存进临时目录，交回路径给 `blob.put`；
 //!   `web.upload_done` 删掉。
 //! - 链接卡片由桥去抓（`link_preview/`）：元数据经 `web.link_preview` 给，图经 `/link-image` 给，带口令；每一跳过地址闸、

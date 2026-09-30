@@ -11,13 +11,15 @@
 
 import { imageCard, videoCard, audioCard } from './media.js';
 import { scanLinks } from './linkcards.js';
-import { mediaLine } from '../model/cards.js';
+import { mediaLine, embedKind } from '../model/cards.js';
+import { pathLink } from '../markdown/build.js';
+import { h } from './dom.js';
 import { localPath } from '../model/paths.js';
 import { fileUrl } from '../core/host.js';
 
 /**
- * 看着的这个会话在哪：会话编号（新会话还没开的是 `null`）、家目录、工作目录。
- * @typedef {{session: string|null, home: string|null, cwd: string|null}} Where
+ * 看着的这个会话在哪：会话编号（新会话还没开的是 `null`）、家目录、工作目录；时间线里的结果图点开找的灯箱。
+ * @typedef {{session: string|null, home: string|null, cwd: string|null, lightbox?: () => any}} Where
  */
 
 /**
@@ -61,6 +63,12 @@ function hooksFor(scope, where, say, made, ext) {
     if (path) return where.session ? fileUrl(where.session, path, download) : null;
     return /^https?:\/\//i.test(target) ? target : null;
   };
+  /** 不当图的地址照链接写：本机的点一下复制路径，网上的新标签页打开；别的（取不了的）照原文。 */
+  const asLink = (target, name) => {
+    const path = localPath(target, where);
+    if (path) return pathLink(path, '', name, say);
+    return /^https?:\/\//i.test(target) ? h('a', { href: target, rel: 'noopener noreferrer', target: '_blank' }, name) : null;
+  };
   return {
     // 收齐了的才交给挂进 `markdown.code` 的包（照语言）；没收齐的、没人接的照代码块写。记的时候带上是哪一次挂的，包重装了重画
     code: (lang, text, closed) => {
@@ -79,16 +87,30 @@ function hooksFor(scope, where, say, made, ext) {
       return reuse(`line:${line.trim()}`, () => {
         if (m.kind === 'video') return videoCard({ url: src, name: m.label });
         if (m.kind === 'audio') return audioCard({ url: src, name: m.label, download: url(m.target, true) ?? undefined });
-        return imageCard({ url: src, name: m.label, lightbox: ext?.lightbox });
+        return imageCard({ url: src, name: m.label, lightbox: ext?.lightbox, tried: localPath(m.target, where) ?? undefined });
       });
     },
+    // 照扩展名：图片、视频、音频画成卡片；不是图的（网页、文档）照链接写（蓝图「图片」第 1 条）
     image: (src, alt) => {
+      const name = alt || decodeSafe(src.split(/[?#]/)[0].split('/').pop() || src);
+      const kind = embedKind(src);
+      if (!kind) return asLink(src, name);
       const got = url(src);
-      return got ? reuse(`image:${src}\n${alt}`, () => imageCard({ url: got, name: alt || src.split('/').pop() || src, lightbox: ext?.lightbox })) : null;
+      if (!got) return null;
+      return reuse(`image:${src}\n${alt}`, () => {
+        if (kind === 'video') return videoCard({ url: got, name });
+        if (kind === 'audio') return audioCard({ url: got, name, download: url(src, true) ?? undefined });
+        return imageCard({ url: got, name, lightbox: ext?.lightbox, tried: localPath(src, where) ?? undefined });
+      });
     },
     after: (container) => {
       counts = new Map();
       scanLinks(container);
     },
   };
+}
+
+/** `%xx` 换回字；写坏了的照原样。 */
+function decodeSafe(s) {
+  try { return decodeURIComponent(s); } catch { return s; }
 }

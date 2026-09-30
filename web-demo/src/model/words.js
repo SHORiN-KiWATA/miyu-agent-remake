@@ -150,7 +150,11 @@ export function commandLines(step) {
 export function details(step) {
   if (step.kind !== 'tool') return [];
   const output = step.output.trimEnd();
-  const result = output ? [{ kind: /** @type {const} */ ('text'), label: t('timeline.result'), text: output }] : [];
+  const result = [
+    ...(output ? [{ kind: /** @type {const} */ ('text'), label: t('timeline.result'), text: output }] : []),
+    // 结果里的图：接在「结果」下面；没有字的只有图，也写「结果」（蓝图「图片」第 2 条）
+    ...(step.images?.length ? [{ kind: /** @type {const} */ ('images'), label: output ? '' : t('timeline.result'), images: step.images }] : []),
+  ];
   const diff = kindOf(step.name) === 'edit' ? fromArgs(step.parsed) : null;
   if (diff) {
     const created = !!step.said?.key?.endsWith('/created');

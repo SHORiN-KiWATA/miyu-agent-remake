@@ -115,3 +115,12 @@
 .back-button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); color: var(--text); }
 .back-button .icon { width: 14px; height: 14px; flex: none; }
 .back-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 挂载位 composer.takeover 占着框时（确认和提问的抽屉，蓝图 web.md「确认和提问」第 2 条）框里原来的让出来（提示照旧浮着）；框的高度由 composer.js 缓过去 */
+.composer { --takeover-ms: 220; }
+.composer-takeover:empty, .composer:not(.is-taken) > .composer-takeover { display: none; }
+.composer.is-taken > :not(.composer-takeover):not(.composer-notice) { display: none; }
+/* 框的高度正在缓：里面的东西贴着下沿，上沿长上去、收下来（像拉开、推回抽屉）；只在缓的这一会儿裁掉框外的（平时不裁：
+   浮在框上面的提示、列表都画在框外） */
+.composer.is-morphing { display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
+.composer.is-morphing > * { flex: none; }

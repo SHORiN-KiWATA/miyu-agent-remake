@@ -172,6 +172,9 @@
 .tl-body:empty { display: none; }
 .tl-body > * + * { margin-top: 9px; padding-top: 9px; border-top: 1px solid color-mix(in srgb, var(--text) 12%, transparent); }
 .tl-label { margin-bottom: 3px; color: var(--text-faint); font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+/* 结果里的图（读图）：小一点，几张排一行放不下折行（蓝图 web.md「图片」第 2 条） */
+.tl-images { display: flex; flex-wrap: wrap; gap: 8px; }
+.tl-images .conversation-media { margin: 2px 0 0; }
 .tl-body pre {
   max-height: 300px; margin: 0; overflow-x: hidden; overflow-y: auto; color: var(--text);
   font: 11.5px/1.65 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere;

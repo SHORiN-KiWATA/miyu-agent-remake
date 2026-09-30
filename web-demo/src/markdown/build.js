@@ -115,10 +115,20 @@ function inlineNode(n, ctx) {
  */
 function link(href, classes, content, ctx) {
   if (!/^file:/i.test(href)) return h(`a${classes}`, { href, rel: 'noopener noreferrer', target: '_blank' }, content);
-  const path = filePath(href);
+  return pathLink(filePath(href), classes, content, ctx.say);
+}
+
+/**
+ * 本机路径的链接：点一下复制路径、悬停看全路径（第 4 条）。不当图的 `![说明](地址)` 也用它（`ui/rich.js`）。
+ * @param {string} path 绝对路径
+ * @param {string} classes
+ * @param {any} content
+ * @param {((text: string, good?: boolean) => void)|undefined} say
+ */
+export function pathLink(path, classes, content, say) {
   return h(`a${classes}.path-link`, {
-    href, rel: 'noopener noreferrer', title: path,
-    onclick: (/** @type {Event} */ e) => { e.preventDefault(); copy(path, ctx.say); },
+    href: `file://${encodeURI(path)}`, rel: 'noopener noreferrer', title: path,
+    onclick: (/** @type {Event} */ e) => { e.preventDefault(); copy(path, say); },
   }, content);
 }
 

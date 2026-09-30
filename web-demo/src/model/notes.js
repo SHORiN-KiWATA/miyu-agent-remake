@@ -95,8 +95,44 @@ export function compactedNote(e) {
   const ask = !clear && b.instructions ? t('notes.instructions', { text: b.instructions.replace(/\s+/g, ' ').trim() }) : '';
   return {
     type: 'note', key: `n${e.seq}`, seq: e.seq, turn: e.turn ?? null, tone: 'good', mark: res.layout.note_marks.good,
-    text: t(clear ? 'notes.cleared' : 'notes.compacted') + ask, compaction: clear ? 'clear' : (b.trigger ?? 'auto'), detail: null,
+    text: t(clear ? 'notes.cleared' : 'notes.compacted') + ask, compaction: clear ? 'clear' : (b.trigger ?? 'auto'),
+    // 点开看摘要（照回报点开的 Markdown 那一种）；清空、摘要空的不能点
+    detail: !clear && b.summary?.trim() ? { kind: 'text', text: b.summary, truncated: false } : null,
   };
+}
+
+/**
+ * 回顾那一块（`session.recapped`，蓝图 `web.md`「回顾」第 2 条）：不挂在她的头下面，不属于哪一轮；字照原样，第一行「回顾：」由画的一方写。
+ * `local` 是回应里 `cached` 为真、照回应再画一次的（第 3 条），编号另起不和日志里的撞。
+ * @param {{seq: number, body: {text: string}}} e
+ * @param {boolean} [local]
+ */
+export function recapNote(e, local = false) {
+  return { type: 'note', key: `${local ? 'r' : 'n'}${e.seq}`, seq: e.seq, turn: null, tone: 'dim', mark: null, text: '', recap: e.body.text, detail: null };
+}
+
+/**
+ * 回应里 `cached` 为真、照回应再画一次的回顾（蓝图「回顾」第 3 条）：插进事件里，排在要的那一刻最后一条后面，当成不在日志里的
+ * `session.recapped`（`local`）。
+ * @param {any[]} events
+ * @param {{after: number, text: string}[]} again
+ */
+export function withRecaps(events, again) {
+  if (!again.length) return events;
+  const out = [];
+  const pending = [...again];
+  const flush = (seq) => {
+    for (const r of pending.filter((x) => x.after <= seq)) {
+      out.push({ kind: 'session.recapped', seq: r.after, local: true, body: { text: r.text } });
+      pending.splice(pending.indexOf(r), 1);
+    }
+  };
+  for (const e of events) {
+    out.push(e);
+    flush(e.seq);
+  }
+  flush(Infinity);
+  return out;
 }
 
 /**
