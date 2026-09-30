@@ -127,6 +127,25 @@ impl Jobs {
             .collect()
     }
 
+    /// 还在跑的任务，照编号（施工 7-8）：还没报过结束的后台命令，和欠着一份回报、没被停掉的子代理（一次都没报过的，报过以后
+    /// 又被留了言的）。撤销停哪几个、检查点里列哪几个，都照它（`agents.md` 第七条、第十条）。
+    pub(super) fn running(&self) -> Vec<JobId> {
+        self.0
+            .iter()
+            .filter(|(_, job)| match job {
+                Job::Command { ended } => !ended,
+                Job::Agent {
+                    stopped,
+                    last,
+                    messaged,
+                    ..
+                } => !stopped && (last.is_none() || *messaged),
+                Job::Other => false,
+            })
+            .map(|(id, _)| id.clone())
+            .collect()
+    }
+
     /// 欠着一份回报的子代理的子会话，照编号：派出去一次都还没回报过的（施工 7-6），和最近一次回报以后又给它留过言的（施工
     /// 7-7）。派了孙代理的子会话等它们都报完再向上报；载入以后执行器把它们叫起来，崩了的补报（`agents.md` 第八条）。被停掉的
     /// 报过了，不在里面。

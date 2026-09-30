@@ -72,6 +72,12 @@ pub(crate) enum Halt {
         cause: CommandId,
         reply: oneshot::Sender<()>,
     },
+    /// 人删了这个会话派的子代理 `job`，删的那一头已经把它停下了（施工 7-8）：照人停它记一条回报，当场交进内核，落了盘才回；
+    /// 不是还在跑的子代理的回 [`JobError`]。
+    Deleted {
+        job: JobId,
+        reply: oneshot::Sender<Result<(), JobError>>,
+    },
 }
 
 impl Handle {
@@ -228,6 +234,19 @@ impl Handle {
     pub async fn stop_jobs(&self, by: By, cause: CommandId) -> Result<(), Stopped> {
         let (reply, answer) = oneshot::channel();
         self.send(Message::Halt(Halt::All { by, cause, reply }))?;
+        answer.await.map_err(|_| Stopped)
+    }
+
+    /// 人删了这个会话派的子代理 `job`，删的那一头（会话表，拿着表的锁）已经把它停下了（施工 7-8，`agents.md` 第七条第 6 条：
+    /// 删一个子会话本身等于人先停掉它再删）：照人用 `job.stop` 停它的样子记一条 `child.reported`（`stopped`，`by` 是子会话，
+    /// 不带 `by_model`，叫醒她），正文照它的日志看。回报当场交进这个会话，不经会话表：表的锁在删的那一头手里。落了盘才回。
+    ///
+    /// # Errors
+    ///
+    /// 会话停了。里面那一层：这个会话没派过这个子代理、它已经结束了（报过、被停过），或者没有会话表的端口。
+    pub async fn stopped_child(&self, job: JobId) -> Result<Result<(), JobError>, Stopped> {
+        let (reply, answer) = oneshot::channel();
+        self.send(Message::Halt(Halt::Deleted { job, reply }))?;
         answer.await.map_err(|_| Stopped)
     }
 

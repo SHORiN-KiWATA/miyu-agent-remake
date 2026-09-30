@@ -64,6 +64,8 @@ pub struct Stage {
     pub(super) disk: super::disk::Disk,
     /// 交出来的向上回报，照先后（施工 7-6）。
     pub(super) upward: Vec<crate::session::Upward>,
+    /// 撤销交出来的停任务，照先后（施工 7-8）：替身记下来，回报由测试照停好了的样子交。
+    pub(super) stopping: Vec<crate::session::Action>,
 }
 
 impl Stage {

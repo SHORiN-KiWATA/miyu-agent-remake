@@ -1,5 +1,5 @@
 //! 压后重建（`docs/blueprint/compaction.md` 第八、九条，施工 6-5）：检查点里代码写的几段（读过、改过的文件清单，
-//! 取回指路，太大没重读的），和最近读过、改过的几个文件的原文。
+//! 取回指路，还在跑的任务（施工 7-8），太大没重读的），和最近读过、改过的几个文件的原文。
 //!
 //! 内核不碰磁盘：发摘要请求之前交出要重读的候选（[`Session::reread_paths`]），执行器读完、存成 blob 送回来，记在
 //! 那次摘要请求上；取到摘要以后照先后挑（[`Session::rebuild`]）。
@@ -95,7 +95,7 @@ impl Session {
             .iter()
             .map(|path| self.shown(path))
             .collect();
-        let head = files_and_retrieve(notes, &listed, upto);
+        let head = files_and_retrieve(notes, &listed, upto) + &self.running_notes(notes);
         // 摘要请求截短过的：摘要没看到的那一段，从检查点后面第一条到截到的那一条（施工 6-6 中）。写在最后，估算照算。
         let uncovered = cut
             .zip(notes.uncovered.as_ref())
@@ -156,6 +156,36 @@ impl Session {
         }
         rebuilt.notes.push_str(&uncovered);
         rebuilt
+    }
+
+    /// 还在跑的任务那一段（施工 7-8，`compaction.md` 第八条，`agents.md` 第十条）：账本里还在跑的（`running_jobs`），派它的
+    /// 那一轮没撤掉的，照编号一个一行：编号、种类、标题。一个都没有的、快照里没有这一段的，不写。
+    fn running_notes(&self, notes: &Notes) -> String {
+        let Some(running) = &notes.running else {
+            return String::new();
+        };
+        let lines: String = self
+            .ledger
+            .running_jobs()
+            .into_iter()
+            .filter_map(|job| {
+                let dispatched = self.history.dispatched(&job).filter(|job| !job.undone)?;
+                let fields = [
+                    ("job", job.to_string()),
+                    ("what", dispatched.what.as_str().to_string()),
+                    ("title", dispatched.title.clone()),
+                ];
+                let fields: Vec<(&str, &str)> = fields
+                    .iter()
+                    .map(|(name, value)| (*name, value.as_str()))
+                    .collect();
+                Some(say(&running.item, &fields))
+            })
+            .collect();
+        match lines.is_empty() {
+            true => lines,
+            false => say(&running.head, &[]) + &lines,
+        }
     }
 
     /// 压完的整份请求还能放多少重读的原文：压缩线的一半，减去不带重读的文件时压完的整份请求的估算。没交限额的，没有。

@@ -194,10 +194,14 @@ impl Watch {
             _ => None,
         });
         let floor = asked_before.max(answered);
+        // 还没听到的回报也算这一轮要回应的（施工 7-8）。
         let unanswered = effective
             .iter()
             .find(|event| {
-                matches!(event.body, Body::MessageUser(_)) && floor.is_none_or(|f| event.seq > f)
+                matches!(
+                    event.body,
+                    Body::MessageUser(_) | Body::JobReported(_) | Body::ChildReported(_)
+                ) && floor.is_none_or(|f| event.seq > f)
             })
             .map(|event| event.seq);
         let mut upto = match unanswered.into_iter().chain(trigger).min() {

@@ -43,6 +43,7 @@ fn rebuilding_up_to(tail: u64, total: u64) -> Stage {
             retrieve: template("<retrieve {upto}/>\n"),
             too_large: template("<too-large {files}/>\n"),
             uncovered: None,
+            running: None,
         });
         policy
     };

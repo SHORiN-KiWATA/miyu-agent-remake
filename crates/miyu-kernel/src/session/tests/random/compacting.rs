@@ -44,6 +44,10 @@ pub(super) fn random_policy(attended: bool, isolate: bool) -> Policy {
         retrieve: template("<retrieve {upto}/>"),
         too_large: template("<too-large {files}/>"),
         uncovered: Some(template("<uncovered {from}-{to}/>")),
+        running: Some(crate::session::RunningNotes {
+            head: template("<running/>"),
+            item: template("<job {job} {what}/>"),
+        }),
     });
     limited
 }

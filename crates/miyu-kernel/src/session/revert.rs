@@ -8,6 +8,9 @@
 //! 撤销能撤掉压缩（`docs/blueprint/kernel/history.md`「撤掉压缩」，施工 6-9）：撤的几轮里有还算数的压缩的，更早的
 //! 那一段不在内存里，先叫执行器读回日志，读回来照它重建有效历史再记。恢复不读磁盘：撤掉的连同压缩都放在一边。
 //!
+//! 撤掉的那几轮派出去、还在跑的任务一起停下（施工 7-8，`agents.md` 第七条第 1 条）：记下撤销的同时出
+//! [`Action::StopJobs`]，排在改回文件前面；回报记 `undone`、不叫醒她，撤销不等它们。
+//!
 //! 重做的撤销那一半也走这里（施工 4-7 再补，`redo.rs`）：读回、改回的时候带着 [`Redo`]，撤销（改回文件的结局）记下以后
 //! 同一批重发、开新的一轮。
 
@@ -107,10 +110,13 @@ impl Session {
         turns: Vec<TurnId>,
         redo: Option<Redo>,
     ) -> Vec<Action> {
+        let stop = self.stop_undone(&turns, &by, &id);
         let body = Body::TurnReverted(TurnReverted { turns });
         let event = self.record(at, by.clone(), Some(id.clone()), body);
         let steps = restore::undo(self.history.last_undone(), self.history.events());
-        self.settle_files(id, by, at, event, steps, redo)
+        let mut actions = self.settle_files(id, by, at, event, steps, redo);
+        stop_first(&mut actions, stop);
+        actions
     }
 
     /// 读回的日志来了（施工 6-9）：对得上正在读回的那一次（`from` 一样，事件从第 `from` 条起一条接一条，连到追加过的
@@ -162,6 +168,7 @@ impl Session {
         }
         history.jobs_from(&self.history);
         self.history = history;
+        let stop = self.stop_undone(&turns, &by, &id);
         let body = Body::TurnReverted(TurnReverted { turns });
         let event = self.record(at, by.clone(), Some(id.clone()), body);
         self.history.settle();
@@ -171,6 +178,7 @@ impl Session {
         if let Some(recall) = recall {
             actions.insert(1, recall);
         }
+        stop_first(&mut actions, stop);
         for input in later {
             actions.extend(self.handle(input));
         }
@@ -274,6 +282,18 @@ impl Session {
         self.accept(id, accepted);
         vec![Action::Append(events)]
     }
+}
+
+/// 停任务（施工 7-8）排在改回文件前面：停下的命令不会再动文件。没有改回的，排在最后。
+fn stop_first(actions: &mut Vec<Action>, stop: Option<Action>) {
+    let Some(stop) = stop else {
+        return;
+    };
+    let at = actions
+        .iter()
+        .position(|action| matches!(action, Action::Restore { .. }))
+        .unwrap_or(actions.len());
+    actions.insert(at, stop);
 }
 
 /// 重发的那一批里人的话（`message.user`）的序号，照先后：重做的回应附上它们，新的一轮的开头不附（施工 4-7 再补）。

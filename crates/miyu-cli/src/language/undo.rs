@@ -167,6 +167,15 @@ impl Language {
         }
     }
 
+    /// 撤销停掉了那几轮派出去的任务的那一句（施工 7-8，`agents.md` 第七条第 1 条）：`count` 是停掉了几个。
+    pub(crate) fn jobs_stopped(&self, count: usize) -> String {
+        match (self, count) {
+            (Language::Chinese, count) => format!("· 停掉了 {count} 个任务"),
+            (Language::English, 1) => "· Stopped 1 job".to_string(),
+            (Language::English, count) => format!("· Stopped {count} jobs"),
+        }
+    }
+
     /// 撤销的最后一行。
     pub(crate) fn restore_hint(&self) -> &'static str {
         match self {

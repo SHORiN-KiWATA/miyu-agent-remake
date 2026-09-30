@@ -243,7 +243,7 @@ fn rebuild_texts_and_numbers_go_in_and_older_snapshots_lack_them() {
     assert_eq!((rebuild.min_window, rebuild.candidates), (32_000, 10));
     let text = String::from_utf8(snapshot.to_bytes()).unwrap();
     let start = text.find(r#","rebuild":{"notes_files""#).unwrap();
-    let close = r#""restored_close":"\n</file>\n"}"#;
+    let close = r#""notes_job":"- {job} {what} \"{title}\"\n"}"#;
     let end = start + text[start..].find(close).unwrap() + close.len();
     let older = text[..start].to_string() + &text[end..];
     let older = older.replace(r#","rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10},"pause":{"failures":3,"turns":3,"refills":3}"#, "");
@@ -261,6 +261,22 @@ fn rebuild_texts_and_numbers_go_in_and_older_snapshots_lack_them() {
     let only_numbers = text[..start].to_string() + &text[end..];
     let read = Snapshot::from_bytes(only_numbers.as_bytes()).unwrap();
     assert!(read.policy().unwrap().compaction.unwrap().rebuild.is_none());
+}
+
+/// 检查点里还在跑的任务那一段（施工 7-8）：出厂的快照带着两份模板，内核拿到那一段；7-8 以前造的快照里没有，读成没有、
+/// 不写那一段，读进来再写出去一字不差。
+#[test]
+fn running_notes_go_in_and_snapshots_from_before_lack_them() {
+    let snapshot = engineer();
+    assert!(snapshot.policy().unwrap().notes.unwrap().running.is_some());
+    let text = String::from_utf8(snapshot.to_bytes()).unwrap();
+    let fields = r#","notes_jobs":"Jobs still running at this checkpoint:\n","notes_job":"- {job} {what} \"{title}\"\n""#;
+    assert!(text.contains(fields), "两份模板照原文进快照");
+    let older = text.replace(fields, "");
+    let read = Snapshot::from_bytes(older.as_bytes()).unwrap();
+    let notes = read.policy().unwrap().notes.unwrap();
+    assert!(notes.running.is_none());
+    assert_eq!(read.to_bytes(), older.as_bytes(), "读进来再写出去一字不差");
 }
 
 /// 包装的结尾交给了组装器（施工 6-5）：出厂快照组装出来的检查点最后是规则那一句。

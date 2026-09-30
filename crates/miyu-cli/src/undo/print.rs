@@ -1,6 +1,6 @@
 //! 照核心交回的几样写成一行行给人看的（样子是项目主人 2026-09-28 定的，`docs/construction/4-7-miyu undo、miyu
 //! redo（下）.md`）：第一行说撤的是哪一轮，撤掉了压缩的说一句上下文回到了压缩前（施工 6-9），撤掉了清空的说一句回到了
-//! 清空以前（施工 6-8 补），每个文件一行，没动的同一行
+//! 清空以前（施工 6-8 补），停掉了那几轮派出去的任务的说一句停掉了几个（施工 7-8），每个文件一行，没动的同一行
 //! 写原因，之后又被改过的下面印差异，执行过命令的说一句撤不回，撤销的最后说怎么恢复。只管写成什么样，不管往哪写。
 //!
 //! `miyu redo` 也照这几行印撤掉了哪一轮（施工 4-7 再补，`docs/blueprint/cli/redo.md`）：第一行接「，重新做」，不说怎么恢复。
@@ -59,7 +59,7 @@ fn turns(result: &Value) -> usize {
         .unwrap_or(1)
 }
 
-/// 第一行和最后一行中间的：撤掉了压缩、清空的那两句，每个文件和差异，执行过命令的那一句。
+/// 第一行和最后一行中间的：撤掉了压缩、清空的那两句，停掉了几个任务的那一句，每个文件和差异，执行过命令的那一句。
 fn body(result: &Value, plan: &UndoPlan) -> Vec<Line> {
     let language = &plan.language;
     let turns = turns(result);
@@ -73,6 +73,11 @@ fn body(result: &Value, plan: &UndoPlan) -> Vec<Line> {
         }
         if undone("clears") {
             lines.push(Line::gray(language.clear_undone()));
+        }
+        // 停掉了几个任务，核心撤销时才交，没有的不交（施工 7-8）：只说几个，是哪几个在回应里。
+        let stopped = result["jobs"].as_array().map_or(0, Vec::len);
+        if stopped > 0 {
+            lines.push(Line::gray(language.jobs_stopped(stopped)));
         }
     }
     let cwd = result["cwd"].as_str().unwrap_or_default();

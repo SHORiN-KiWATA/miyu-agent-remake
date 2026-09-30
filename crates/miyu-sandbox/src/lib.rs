@@ -7,6 +7,7 @@
 //! - [`locate()`]：找助手，在主程序旁边；
 //! - [`probe()`]：跑一次助手的 `probe`，读它说这台机器能收紧到什么程度（[`Probe`]、[`Platform`]）；
 //! - [`Availability`]：这台机器上的沙盒能不能用、为什么（[`Unusable`]，施工 5-4 下）；
+//! - [`lifeline`]：核心没了，它起的命令跟着没（施工 7-8）：Unix 上每个组一个看门的，Windows 上核心进作业对象；
 //! - [`install`]：装沙盒要管理员权限的那一次，Windows 上建、撤专用的沙盒用户（施工 5-8，`docs/blueprint/sandbox/windows.md`）；
 //! - `testkit`：测试用的，cargo 编出来的助手在哪（施工 5-4 上）。
 //!
@@ -16,6 +17,7 @@
 
 mod availability;
 pub mod install;
+pub mod lifeline;
 mod locate;
 mod probe;
 mod spec;

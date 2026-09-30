@@ -46,7 +46,7 @@ pub use input::{Answer, Command, Injection, Input, Limits, Queued, Received, Rer
 pub use limits::ContextLimits;
 pub use load::LoadError;
 pub use messages::Subagent;
-pub use policy::{Compaction, Notes, Pause, Policy, Rebuild, Reports, Shorten};
+pub use policy::{Compaction, Notes, Pause, Policy, Rebuild, Reports, RunningNotes, Shorten};
 pub use report::Upward;
 pub use restore::{Expect, Step, StepAction};
 

@@ -328,7 +328,17 @@ async fn a_subagent_of_an_undone_turn_is_not_hers() {
             .starts_with("\"j1\" is not a subagent you started."),
         "派它的那一轮撤掉了：她看不到它"
     );
-    assert_eq!(table.sent().len(), 1);
+    // 送过交代；撤销停它的回报经会话表送回父会话（施工 7-8）；留言一句都没送。
+    let sent: Vec<String> = table
+        .sent()
+        .iter()
+        .map(|(_, id, _, _)| id.as_str().to_string())
+        .collect();
+    assert!(
+        sent.iter().all(|id| !id.contains("/message/")),
+        "留言没送：{sent:?}"
+    );
+    assert!(sent.iter().any(|id| id.ends_with("/j1/undone")), "{sent:?}");
 }
 
 #[tokio::test]

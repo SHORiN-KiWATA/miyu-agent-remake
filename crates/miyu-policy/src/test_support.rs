@@ -134,6 +134,10 @@ pub(crate) fn core() -> CoreTexts {
                     "../../../resources/core/compaction/restored-close.txt"
                 )
                 .to_string(),
+                notes_jobs: include_str!("../../../resources/core/compaction/notes-jobs.txt")
+                    .to_string(),
+                notes_job: include_str!("../../../resources/core/compaction/notes-job.txt")
+                    .to_string(),
             }),
             summarize_system: Some(
                 include_str!("../../../resources/core/compaction/summarize-system.txt").to_string(),

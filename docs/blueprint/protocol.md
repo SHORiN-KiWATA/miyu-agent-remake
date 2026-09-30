@@ -17,8 +17,10 @@
 | `crates/miyu-endpoint/src/hello.rs` | 握手 |
 | `crates/miyu-endpoint/src/methods.rs` | 握手以后的方法 |
 | `crates/miyu-endpoint/src/meta.rs` | `session.set_meta` 的参数：标题去掉前后空白、量长短，`null` 是去掉标题（施工 3-8 三补） |
-| `crates/miyu-endpoint/src/sessions.rs` | 会话表：造会话、找会话、载入；工作目录太宽的退回工作区；造子会话（施工 7-5） |
-| `crates/miyu-endpoint/src/sessions/delete.rs` | 会话表删会话：删子会话先照人停掉它，认出它派的子会话、停下、挪进回收处（施工 3-8 三补） |
+| `crates/miyu-endpoint/src/sessions.rs` | 会话表：造会话、找会话；工作目录太宽的退回工作区；造子会话（施工 7-5） |
+| `crates/miyu-endpoint/src/sessions/found.rs` | 找会话、载入（施工 7-8 从 `sessions.rs` 挪出来：表的锁在调的一方手里） |
+| `crates/miyu-endpoint/src/sessions/orphans.rs` | 载入时收掉派到一半的空子会话（施工 7-8，「会话表」第 8 条） |
+| `crates/miyu-endpoint/src/sessions/delete.rs` | 会话表删会话：认出它派的子会话、停下、挪进回收处（施工 3-8 三补）；删子会话照人停掉它、父会话记回报，都在表的锁里（施工 7-8） |
 | `crates/miyu-endpoint/src/spawn.rs` | 会话表交给会话的端口：造子会话、给会话发命令（施工 7-5，`session/tools.md`「派子代理」）；停下子会话、照日志看它（施工 7-4） |
 | `crates/miyu-endpoint/src/list.rs` | `session.list`：标题、置顶照日志算（施工 3-8 三补） |
 | `crates/miyu-endpoint/src/subscriptions.rs` | 订阅：每个订阅一个转发任务，推 `event`、`resync` |
@@ -300,10 +302,10 @@
 
 回应：`{}`，目录都挪好了才回。
 
-1. 删的是一个子会话、它的父会话还在的，先照人停掉它（`job.stop` 那条路，2026-09-30 主会话定：删一个子会话等于人先停掉它再删，父会话不会白等）：打断它这一轮、停掉它派的，父会话记一条 `child.reported`（`stopped`，`by` 是子会话，不带 `by_model`），叫醒父会话。任务编号照子会话 `session.created` 的 `cause`（`<父会话>/<编号>`）读回。这一步经会话表来回（父会话没在跑的照「会话表」载入），在拿表的锁之前做完。它已经报过、被停过的（父会话说没有这个任务）不再送；父会话已经不在的（删了、连带删的）、载入不了的，不送，照样往下删。正忙的子会话因此也删得了：先被停下了。
-2. 会话表拿着锁办完剩下的一整件：这期间别的连接载入不了会话，会话里也造不了子会话。
-3. 先认出它派出去的子会话：放会话的目录里每个会话 `session.created` 的 `parent`，一层层往下（子、孙……）。第一条读不出来的会话认不出父会话，不算。读不了放会话的目录：`internal_error`，什么都没动。
-4. 它在跑的：交给它的 actor，内核说删不删得了（`kernel/session.md` 的 `deletable()`）。有回合在进行（结束了 `turn.ended` 还没落盘的也算）：`turn_running`；正在读回日志、改回文件：`restoring`。被拒的什么都没动，会话照常：头先打断，或者等它做完。删得了的，actor 把它在跑的后台命令整组杀掉、不记回报，关上日志，退出（`session/actor.md` 第 9 条）。它自己已经停了的（写不进去、出了 bug），照样往下删。
+1. 会话表拿着锁办完一整件：这期间别的连接载入不了会话、给会话发不了命令，会话里也造不了子会话。
+2. 先认出它派出去的子会话：放会话的目录里每个会话 `session.created` 的 `parent`，一层层往下（子、孙……）。第一条读不出来的会话认不出父会话，不算。读不了放会话的目录：`internal_error`，什么都没动。
+3. 删的是一个子会话、它的父会话还在的，等于人先停掉它再删（2026-09-30 主会话定：父会话不会白等）。任务编号照子会话 `session.created` 的 `cause`（`<父会话>/<编号>`）读回；父会话照「会话表」找，没在跑的载入。它在跑的，不问忙不忙就停下（`Handle::discard`，它派的、它的后台命令照第 6 条）：正忙的子会话因此也删得了。第 6 条停完子会话以后，父会话照人停它的样子记一条 `child.reported`（`stopped`，`by` 是子会话，不带 `by_model`，正文照它的日志看它这一轮最后说的，截法同 `job.stop`），叫醒父会话：回报在父会话的 actor 里当场记下，不经会话表（`Handle::stopped_child`）。父会话照名册认它：已经报过、被停过的不再记；父会话已经不在的（删了、连带删的）、载入不了的，不送，照样往下删。施工 7-8 把这一步挪进锁里：原来经会话表的端口来回、在拿锁之前，父会话记下它停了以后、这一头拿到锁之前，有人给它发一句，它就又开了一轮，删的时候说有回合在进行，父会话却以为它停了。
+4. 别的，它在跑的：交给它的 actor，内核说删不删得了（`kernel/session.md` 的 `deletable()`）。有回合在进行（结束了 `turn.ended` 还没落盘的也算）：`turn_running`；正在读回日志、改回文件：`restoring`。被拒的什么都没动，会话照常：头先打断，或者等它做完。删得了的，actor 把它在跑的后台命令整组杀掉、不记回报，关上日志，退出（`session/actor.md` 第 9 条）。它自己已经停了的（写不进去、出了 bug），照样往下删。
 5. 它没在跑的：不载入。载入会收尾崩了的那一轮、接着干被重启打断的那一轮、叫起子会话，删之前都不该做。磁盘上没有它的日志（第一行还没写完的也算）：`session_not_found`。
 6. 在跑的子会话一层层往下停：不问忙不忙，路上的请求叫停、在跑的工具掐掉、后台命令整组杀掉，都不记（`Handle::discard`）；连带删的子会话不向它们的父会话送回报：父会话也在删。
 7. 目录挪进回收处 `home/<账号>/trash/sessions/<会话编号>/`，一个会话一个，先写 `deleted_at`（`store.md` 第 12 条）。从最深的子会话挪起，它自己最后：半路崩了、挪不了的，它还在原处、列得出来，再删一次接着挪完。挪不了：记一条运行日志，`internal_error`。
@@ -389,6 +391,7 @@
 5. 载入时没有报来的 `cwd`（`session.interrupt`、`session.revert`、`session.unrevert`、`session.redo`、`session.compact`、`session.set_permission_level`、`session.clear`、`session.set_meta`、`subscribe` 载入的）：照日志里最后一条带 `cwd` 的 `turn.started`（加进来的目录照最后一条 `turn.started` 的 `dirs`，没有就是没有（施工 5-10 上）），没有就照 `session.created` 的，都没有（之前的日志）才当报来的是 `~`，退回管理员的工作区（施工 4-9 再补三上）。核心重启以后撤销，路径照会话真正的目录写短。
 6. 会话一直留在表里，直到核心退出、停下全部会话、删了它（`session.delete`），或者用到时发现它停了。
 7. 造会话、载入时，交给会话一份造子会话的端口（施工 7-5，`session/tools.md`「派子代理」）：会话里派出去的子会话由会话表造，放进表里，和头造的一样照编号找得到、只起一个；子会话也算进「有没有会话忙着」，停下全部会话时一起停。父会话已经不在表里的（删了、停了）不再造，派不了（施工 3-8 三补：不留下没有父会话的子会话）。
+8. 载入一个会话以后、放进表之前，收掉它派到一半的空子会话（施工 7-8，`agents.md` 第一条第 8 条）：它的日志里有没派成的 `agent` 调用（结果里没有 `job.started`，或者还没有结果）才去认，认的是放会话的目录里 `session.created` 的 `parent` 是它、它的日志里又没有这个子会话的 `job.started` 的，连同它们派的；在跑的停下（`Handle::discard`），目录挪进回收处，最深的在前，照 `session.delete` 第 7 条。一个记一行 `INFO orphan subagent removed`；挪不走的记一行 `WARN`，不耽误载入。这时表拿着锁，它不在表里，也就派不出新的，认不错。
 
 **工作目录太宽**
 
@@ -471,7 +474,10 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `ERROR` | `delete panicked error=…` | 删会话崩了 |
 | `WARN` | `workspace not prepared kind=…` | 退回的工作区建不成 |
 | `DEBUG` | `already stopped session=…` | 停下全部会话、删会话时，这一个已经停了 |
-| `DEBUG` | `stopped before deletion session=…` | 删一个子会话之前照人停掉了它，父会话记了回报（施工 3-8 三补） |
+| `DEBUG` | `stopped before deletion session=… job=…` | 删一个子会话时照人停掉了它，父会话（`session`）记了回报（施工 3-8 三补；施工 7-8 起在表的锁里） |
+| `INFO` | `orphan subagent removed session=… parent=…` | 载入父会话时收掉了一个派到一半的空子会话（施工 7-8，「会话表」第 8 条） |
+| `WARN` | `orphan subagent not removed session=… error=…` | 这一个挪不进回收处 |
+| `ERROR` | `orphan sweep panicked error=…` | 认、挪空子会话时崩了 |
 | `WARN` | `attachment not stored error=…` | `blob.put` 存不下来（施工 3-9 三补） |
 | `WARN` | `attachment not read blob=… error=…` | `session.send` 的附件读不出来：坏了、读不了 |
 | `ERROR` | `attachment panicked error=…` | 读、存附件时崩了 |
@@ -527,6 +533,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/list.rs` | 从新到旧、只要一次性的、`limit`、参数不对、空的 |
 | `crates/miyu-endpoint/tests/meta.rs` | 改标题、置顶（施工 3-8 三补）：改名去掉空白、只写改了的那一格、推送在回应前面、`by`、`cause`；置顶、取消、两样一起；`null` 去掉标题记成空的；和现在一样的六种什么都不记；200 个字收、201 个字和空白的不收；两格都不写（含 `pinned` 写 `null`、会话没有的）、类型不对、会话编号不对是参数不对，没有的会话找不到；回合进行中改的带上回合；`session.list` 带标题、置顶，取消了、去掉了的不写，核心重启以后照样，载入以后照日志接着比；日志坏了的照样列出来 |
 | `crates/miyu-endpoint/tests/delete.rs` | 删除会话（施工 3-8 三补）：空闲的整个目录挪进回收处、日志不变、`deleted_at` 是删的时刻，列不出来，再发命令、订阅、改名、打断、再删都是没有这个会话，重发造它的那一条另造一个；回合进行中的拒绝、什么都没动，打断以后删得掉；核心重启以后没在跑的不载入就删（被重启打断的那一轮不接着干）；参数不对、没有的会话 |
+| `crates/miyu-endpoint/src/sessions/delete/tests.rs`（施工 7-8） | 删子会话在表的锁里停它、父会话记回报：父会话一记下它停了就去叫醒它，拿到表的锁时它已经删掉了，删得掉（挪进锁以前，这时它又开了一轮，删的时候说有回合在进行） |
+| `crates/miyu-endpoint/tests/orphans.rs`（施工 7-8） | 真核心：父会话派出去一个子代理，没来得及记下 `job.started` 就崩了（日志截在派它的那条回复后面），再载入父会话时子会话挪进回收处；一次派两个、只记下一个的只收那一个；记下了的照留 |
 | `crates/miyu-endpoint/tests/delete_children.rs` | 删会话连子会话（施工 3-8 三补）：主会话派的子代理、子代理派的孙代理一起停下、各自挪进回收处，两条后台命令各杀一次、谁都不记回报；删一个正忙的子会话，主会话记一条 `stopped` 的回报（`by` 是子会话、不带 `by_model`）、被叫醒，子会话挪走、主会话还在；报过 `done` 又被留了言、主会话又在等它的，删它也记一条 `stopped`、叫醒主会话（施工 7-7）；主会话已经进了回收处的，删子会话照样删、不送；子代理派的编号带着它自己的 `j1`（`j1.1`、`j1.2`），删孙会话时子会话记的 `stopped` 回报是 `j1.1`（施工 7-1 补） |
 | `crates/miyu-endpoint/tests/spawn.rs` | 会话里派子代理，会话表造出子会话、交代送进去、替身模型在子会话里答话；`session.list` 里子会话写着父会话、主会话写 `null`（施工 7-5） |
 | `crates/miyu-endpoint/tests/revert.rs` | 协议上撤销、恢复；三种拒绝的中文；`turn` 写 0 |

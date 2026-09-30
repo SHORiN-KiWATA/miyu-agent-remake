@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use serde_json::json;
 
-use miyu_kernel::event::{Body, ChildReason, Event};
+use miyu_kernel::event::{Body, ChildReason, Effect, Event};
 use miyu_kernel::id::SessionId;
 use miyu_kernel::origin::{By, Session};
 use miyu_kernel::tool::Access;
@@ -66,10 +66,26 @@ async fn children_stop_layer_by_layer_and_go_with_their_parent() {
     let grandchild = started_child(&home.log(child.as_str())).expect("派出去了孙代理");
     let mut ids = started_ids(&home.log(child.as_str()));
     ids.sort();
+    // 主会话一步里派子代理、放后台命令，谁先领 j1 也不一定：子代理的编号照主会话日志里记它的那一条读（施工 7-8 在 CI 上撞见）。
+    let own = home
+        .log(&parent)
+        .iter()
+        .filter_map(|event| match &event.body {
+            Body::ToolResult(result) => Some(&result.effects),
+            _ => None,
+        })
+        .flatten()
+        .find_map(|effect| match effect {
+            Effect::JobStarted(started) if started.session.as_ref() == Some(&child) => {
+                Some(started.job.to_string())
+            }
+            _ => None,
+        })
+        .expect("主会话记着派它的那一条");
     assert_eq!(
         ids,
-        ["j1.1", "j1.2"],
-        "子代理派的孙代理、后台命令带着它自己的 j1，一起派的谁先领不一定（施工 7-1 补）"
+        [format!("{own}.1"), format!("{own}.2")],
+        "子代理派的孙代理、后台命令带着它自己的编号，一起派的谁先领不一定（施工 7-1 补）"
     );
     until("孙代理停在请求上", || {
         !router.0[2].1.requests().is_empty()

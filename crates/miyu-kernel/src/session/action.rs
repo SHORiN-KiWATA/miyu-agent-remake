@@ -3,7 +3,8 @@
 //! 会话自己不做 I/O：要追加的事件、要回应的命令、要推送的事件，都写成动作交给执行器。
 
 use crate::event::{Event, Permission, Response, Transient};
-use crate::id::{CallId, CommandId, ContentHash, Seq, TurnId};
+use crate::id::{CallId, CommandId, ContentHash, JobId, Seq, TurnId};
+use crate::origin::By;
 use crate::request::{Difference, Request};
 use crate::time::Timestamp;
 
@@ -102,6 +103,18 @@ pub enum Action {
     Restore {
         /// 改回的几步，照先后。
         steps: Vec<Step>,
+    },
+    /// 停掉撤掉的那几轮派出去、还在跑的任务（施工 7-8，`agents.md` 第七条第 1 条）：后台命令整组杀掉，子代理连它派的一起
+    /// 停，回报都记 `undone`、不叫醒她。后台命令的回报交回 [`super::Input::JobEnded`]（`by`、`cause` 照这里的），子代理的
+    /// 由子会话交来（命令 `Report`）。不送回、不等：撤销照常回应。排在撤销那一条的 `Append` 后面、改回文件前面：停下的
+    /// 命令不会再动文件。
+    StopJobs {
+        /// 停哪几个，照编号。
+        jobs: Vec<JobId>,
+        /// 撤销的人：后台命令那几条 `job.reported` 的 `by`。
+        by: By,
+        /// 撤销的命令：那几条的 `cause`。
+        cause: CommandId,
     },
     /// 压完要重读的文件（`compaction.md` 第九条，施工 6-5）：排在摘要请求的「请求模型」前面，执行器读完、存成
     /// blob，送回 [`super::Input::Reread`]，再做下一个动作。
