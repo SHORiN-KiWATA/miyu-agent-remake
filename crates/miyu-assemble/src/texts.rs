@@ -123,6 +123,9 @@ pub struct JobTexts {
     pub subagent_silent: String,
     /// 收尾（`subagent-close.txt`）。
     pub subagent_close: String,
+    /// 人停的（`stopped-by-user.txt`，施工 7-2 补）：`stopped`、不带 `by_model` 的回报，标签那一行后面先写这一句，两种
+    /// 回报共用。以前造的快照里没有，是空的。
+    pub stopped_by_user: String,
     /// 子代理发来的留言的标签（`subagent-message-open.txt`，施工 7-7）：字段 `job`、`title`。以前造的快照里没有，是空的。
     pub subagent_message_open: Template,
     /// 留言的收尾（`subagent-message-close.txt`，施工 7-7）。以前造的快照里没有，是空的。

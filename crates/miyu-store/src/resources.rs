@@ -264,6 +264,7 @@ impl ResourceRoot {
                 subagent_silent: job("subagent-silent.txt")?,
                 subagent_close: job("subagent-close.txt")?,
                 subagent_omitted: job("subagent-omitted.txt")?,
+                stopped_by_user: job("stopped-by-user.txt")?,
                 subagent_message_open: job("subagent-message-open.txt")?,
                 subagent_message_close: job("subagent-message-close.txt")?,
             }),

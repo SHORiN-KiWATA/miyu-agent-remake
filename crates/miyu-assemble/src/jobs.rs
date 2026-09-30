@@ -6,11 +6,15 @@
 //!
 //! 后台命令结束只写结束了、退出码或者信号、用时、输出有多少字和怎么看，不带输出本身；子代理的回报带正文，原样放、不
 //! 转义：和检查点里的摘要一样，是模型写的多行正文。
+//!
+//! 人停的（`stopped`、不带 `by_model`：`job.stop`、删子会话），两种都在标签那一行后面先写一句是人停的（施工 7-2
+//! 补）：人停的叫醒她，不写她会当成任务自己停了。她自己用 `jobs` 停的不写：不叫醒她，停它的那次调用就在上下文里。以前
+//! 造的快照里没有这一句，是空的，照原来的写。
 
 use std::collections::BTreeMap;
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::{ChildReported, JobReported};
+use miyu_kernel::event::{ChildReason, ChildReported, JobReason, JobReported};
 use miyu_kernel::history::{Dispatched, History};
 use miyu_kernel::id::JobId;
 use miyu_kernel::origin::By;
@@ -18,7 +22,7 @@ use miyu_kernel::template::Template;
 
 use crate::texts::JobTexts;
 
-/// 后台命令结束的那一块；派它的那一轮撤掉了、没派过的，没有。
+/// 后台命令结束的那一块：人停的先写一句，再是退出码或者信号、用时、输出；派它的那一轮撤掉了、没派过的，没有。
 pub(crate) fn command(
     history: &History,
     reported: &JobReported,
@@ -31,6 +35,9 @@ pub(crate) fn command(
         dispatched,
         reported.reason.as_str(),
     );
+    if reported.reason == JobReason::Stopped && !reported.by_model {
+        block.push_str(&texts.stopped_by_user);
+    }
     // 输出没存下来的，字数也不写：她读不到。
     let chars = reported.chars.filter(|_| reported.output.is_some());
     let lines = [
@@ -60,8 +67,8 @@ pub(crate) fn command(
     Some(block)
 }
 
-/// 子代理的回报那一块：人插过话的、截过的各注明一句，接着是正文；一个字都没说的，写它没说话就结束了。派它的那一轮撤掉
-/// 了、没派过的，没有。
+/// 子代理的回报那一块：人停的、人插过话的、截过的各注明一句，接着是正文；一个字都没说的，写它没说话就结束了。派它的
+/// 那一轮撤掉了、没派过的，没有。
 pub(crate) fn subagent(
     history: &History,
     reported: &ChildReported,
@@ -74,6 +81,9 @@ pub(crate) fn subagent(
         dispatched,
         reported.reason.as_str(),
     );
+    if reported.reason == ChildReason::Stopped && !reported.by_model {
+        block.push_str(&texts.stopped_by_user);
+    }
     if reported.person {
         block.push_str(&texts.subagent_person);
     }

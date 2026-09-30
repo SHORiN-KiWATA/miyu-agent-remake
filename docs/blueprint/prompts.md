@@ -1584,6 +1584,17 @@ The subagent ended without saying anything.
 </subagent-report>
 ```
 
+#### `core/jobs/stopped-by-user.txt`
+
+- 什么时候加进来：标签那一行后面，人停的回报（`reason` 是 `stopped`、不带 `by_model`：人用 `job.stop` 停的、删掉子会话的），后台命令和子代理共用；她自己用 `jobs` 停的、以前造的快照没有这一份的不写
+- token：5（2026-09-30 主会话照同一个端点、`deepseek-v4.1-flash` 量，接在一句话后面、带行尾换行）
+- 为什么加：她被人停的回报叫醒，要知道是人停的。网页演示接真核心实测（2026-09-30）：在后台任务浮层里点停止（`job.stop`），她被叫醒以后当成任务自己停了，没说是用户停的；回报里只有 `reason="stopped"`，人停的和她自己停的写出来一样（施工 7-2 补）。她自己停的不写：那种不叫醒她，停它的那次 `jobs` 调用本来就在上下文里
+- 指纹：`3bb1e99d`
+
+```text
+The user stopped this.
+```
+
 ### 人这边：任务的回报（一块带标签的事实），正文中间
 
 #### `core/jobs/subagent-omitted.txt`

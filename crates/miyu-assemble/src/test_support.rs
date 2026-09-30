@@ -57,6 +57,7 @@ fn job_texts() -> JobTexts {
         subagent_truncated: "truncated\n".to_string(),
         subagent_silent: "silent\n".to_string(),
         subagent_close: "</subagent>\n".to_string(),
+        stopped_by_user: "by user\n".to_string(),
         subagent_message_open: template("<message {job} {title}>\n"),
         subagent_message_close: "</message>\n".to_string(),
     }
