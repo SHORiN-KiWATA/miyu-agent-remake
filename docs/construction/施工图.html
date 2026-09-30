@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>143</b><span>/ 154 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 2-7 补切了权限告诉她、3-8 五补自动起标题；8-1、C-1 等合并</span></li>
-    <li><b class="mono">0dae7cf5</b><span>最近一步（3-8 四补 回顾 session.recap）的提交</span></li>
+    <li><b>144</b><span>/ 154 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；M8 下一步 8-2；在做 2-7 补、3-8 五补、C-1 等合并</span></li>
+    <li><b class="mono">d375ece0</b><span>最近一步（8-1 配置清单）的提交</span></li>
   </ul>
 </header>
 
@@ -505,7 +505,7 @@ a.step:hover{border-color:var(--primary)}
     <li>
       <div class="ms-head"><span class="ms-id">M8</span><span class="ms-name">配置与模型</span><span class="ms-goal">不靠开发用的环境变量，自己接上供应商、选模型、换模型（2026-10-01 拆好，批准；图纸 config.md、models.md 定稿）</span></div>
       <ol class="chips">
-        <li><span class="step"><span class="n">8-1</span>配置清单</span></li>
+        <li><a class="step done" href="#s8-1"><span class="n">8-1</span>配置清单<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">8-2</span>读配置</span></li>
         <li><span class="step"><span class="n">8-3</span>写配置</span></li>
         <li><span class="step"><span class="n">8-4</span>监视与生效</span></li>
@@ -10321,6 +10321,58 @@ a.step:hover{border-color:var(--primary)}
     </div>
   </div>
 </section>
+
+<section class="sheet" id="s8-1" aria-labelledby="h-s81">
+  <div class="sheet-head"><h2 id="h-s81"><span class="no">8-1</span>配置清单</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">M8 配置那一条线的第一步：每个配置项只在 Rust 里声明一次（键、类型、默认值、范围、能放哪几层、什么时候生效、界面提示），名字和说明放资源文件，中、英、日三份。核心起来时照清单生成两份 JSON Schema 和一份只读的参考文件。这一步还不读、不写配置文件。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">配置清单</span><span class="dir-note">8-1</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>新 crate <code>miyu-config</code>（第 2 层，纯逻辑）：<code>Item</code>、<code>settings!</code> 宏、值、查清单、查资源的字、生成 Schema 和参考文件</li>
+              <li>清单两项：<code>ui.language</code>、<code>log.level</code>；类型只有选项</li>
+              <li>核心照系统语言写 <code>state/config/</code> 下三份，一样的不重写，写不成记 WARN 照样起来</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">声明一次</span><span class="rl">没写默认值、选项只有一个的编译不过</span></div>
+          <div class="tile new"><span class="nm">门禁守着清单</span><span class="rl">键不重复、不互为前缀、三种语言的名字和说明齐全、默认值过校验</span></div>
+          <div class="tile"><span class="nm">不进请求</span><span class="rl">没有给模型看的字，探针零变化</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-1</dd></div>
+        <div><dt>名称</dt><dd>配置清单</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">d375ece0</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>36 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真核心照 LANG 写三份，和样本逐字节一样（中文、英文）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-1-配置清单.md</code>；蓝图 <code>config.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
