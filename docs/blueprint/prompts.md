@@ -253,6 +253,17 @@ A <permission> block gives the permission level from that point on. In read_only
 <permission level="{level}"/>
 ```
 
+#### `core/facts/session.txt`
+
+- 什么时候加进来：会话的第一轮；压缩以后、撤掉了带着它的那一轮以后的下一个边界
+- token：30（2026-10-01 主会话在开发端点的 `deepseek-v4.1-flash` 上量，完整编号，带行尾换行）
+- 为什么加：这个会话自己的编号（施工 1-13 再补）。项目主人问她自己的会话编号，她答不出
+- 指纹：`c288f232`
+
+```text
+<session id="{id}"/>
+```
+
 #### `core/facts/reply-cut.txt`
 
 - 什么时候加进来：回复说到一半断了、带着半截再请求的那一次；会接着写的供应商不发

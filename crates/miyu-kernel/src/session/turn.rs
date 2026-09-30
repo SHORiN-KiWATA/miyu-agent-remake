@@ -131,7 +131,7 @@ impl Session {
         }
     }
 
-    /// 由第 `trigger` 条开一个回合：追加 `turn.started`（带着会话现在的工作目录），和变了的环境、权限两块事实
+    /// 由第 `trigger` 条开一个回合：追加 `turn.started`（带着会话现在的工作目录），和变了的环境、权限、会话编号几块事实
     /// （`08-上下文投影.md` C10）；空闲时放宽的，这时生效。`cause` 是触发它的那条事件的
     /// `cause`。返回追加的事件。
     pub(super) fn open_turn(
@@ -153,10 +153,10 @@ impl Session {
         self.effective = self.permission.clone();
         // 记在一边的回报这一轮就听到了（施工 7-2）：不再由它们另开一轮。
         self.deferred.clear();
-        let facts = vec![
-            self.policy.facts.env(at, &self.environment),
-            self.policy.facts.permission(&self.permission),
-        ];
+        let facts = self
+            .policy
+            .facts
+            .boundary(at, &self.environment, &self.permission, &self.id);
         let mut events = vec![started];
         for fact in changed(&self.history, &By::Kernel, facts) {
             events.push(self.record(at, By::Kernel, cause.clone(), Body::ContextInjected(fact)));

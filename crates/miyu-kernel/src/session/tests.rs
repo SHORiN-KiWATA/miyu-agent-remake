@@ -185,6 +185,7 @@ fn policy() -> Policy {
             r#"<e t="{time}" z="{timezone}" d="{cwd}"/>"#,
             r#"<p l="{level}"/>"#,
             "<reply-cut/>",
+            None,
         )
         .unwrap(),
         tools: BTreeMap::from([
@@ -248,6 +249,11 @@ fn environment(cwd: &str) -> Environment {
     }
 }
 
+/// 会话的编号：替身造的那一个（施工 1-13 再补）。
+fn session_id() -> SessionId {
+    SessionId::parse(crate::testkit::SESSION).unwrap()
+}
+
 /// 一个造好、第 1 条已经落了盘的会话，在 `~/src/miyu`。造会话的命令编号是 0。
 fn session() -> Session {
     session_with(policy())
@@ -257,6 +263,7 @@ fn session() -> Session {
 fn session_with(policy: Policy) -> Session {
     let created: SessionCreated = serde_json::from_str(CREATED).unwrap();
     let (mut session, _) = Session::create(
+        session_id(),
         id(0),
         alice(),
         at(0),
@@ -300,6 +307,7 @@ fn replies(actions: &[Action]) -> Vec<&Action> {
 fn creating_a_session_appends_session_created_and_replies_once_stored() {
     let created: SessionCreated = serde_json::from_str(CREATED).unwrap();
     let (mut session, actions) = Session::create(
+        session_id(),
         id(0),
         alice(),
         at(0),

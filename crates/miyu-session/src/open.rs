@@ -230,6 +230,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         ..snapshot.session_created(owner, venue.clone(), permission)
     };
     let (mut session, first) = Session::create(
+        id.clone(),
         command.clone(),
         by,
         clock.now(),
@@ -398,8 +399,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     // 她看过的文件（施工 4-6 上）、派出去的任务（施工 7-4）从日志里重建：内核收走日志之前。
     let seen = effects::seen_in(&events);
     let roster = Roster::from_events(&events);
-    let (mut session, first) =
-        Session::load(events, clock.now(), policy, environment).map_err(LoadError::Kernel)?;
+    let (mut session, first) = Session::load(id.clone(), events, clock.now(), policy, environment)
+        .map_err(LoadError::Kernel)?;
     // 重启以后接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）；给头看的限额同上（施工 6-3 补）。检查点重读过的
     // 文件，内核在载入吐出来的动作里第一个要回原文（施工 6-9），actor 起来先做它。
     session.handle(Input::Limits(model.limits()));

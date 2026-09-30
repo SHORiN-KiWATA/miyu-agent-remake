@@ -27,6 +27,7 @@ pub(crate) fn core() -> CoreTexts {
             env: include_str!("../../../resources/core/facts/env.txt").to_string(),
             permission: include_str!("../../../resources/core/facts/permission.txt").to_string(),
             reply_cut: include_str!("../../../resources/core/facts/reply-cut.txt").to_string(),
+            session: Some(include_str!("../../../resources/core/facts/session.txt").to_string()),
         },
         tool_results: ToolResultTexts {
             unknown: include_str!("../../../resources/core/tool-results/unknown.txt").to_string(),

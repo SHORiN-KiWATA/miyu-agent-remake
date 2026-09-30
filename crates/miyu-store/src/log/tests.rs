@@ -1,16 +1,9 @@
 //! 会话日志的测试：写几批、关掉再打开；换段；崩了留下的半行；坏了的几种；空的最后一段；没有这个
-//! 会话；只读地一段一段读；真会话来回一趟。都在临时目录里。
+//! 会话；只读地一段一段读；真会话来回一趟（`real.rs`）。都在临时目录里。
 
-use std::{collections::BTreeMap, fs};
+mod real;
 
-use miyu_kernel::assemble::Assembler;
-use miyu_kernel::facts::{Environment, FactTemplates};
-use miyu_kernel::history::History;
-use miyu_kernel::request::Request;
-use miyu_kernel::session::{Policy, Session};
-use miyu_kernel::testkit::{Line, Play, Stage};
-use miyu_kernel::time::{Timestamp, UtcOffset};
-use miyu_kernel::tool::{Access, ToolRule, ToolTextSources, ToolTexts};
+use std::fs;
 
 use super::*;
 use crate::test_support::Scratch;
@@ -384,117 +377,4 @@ fn appending_out_of_order_is_refused() {
         "the next event in the log should be 1, got 2"
     );
     assert_eq!(log.next_seq(), Seq::FIRST, "什么都没写");
-}
-
-/// 替身用的组装：日志这一层不看请求，给一份空的。
-struct Nothing;
-
-impl Assembler for Nothing {
-    fn assemble(&self, _history: &History) -> Request {
-        Request {
-            tools: Vec::new(),
-            system: String::new(),
-            messages: Vec::new(),
-            stable: 0,
-            continuation: false,
-        }
-    }
-
-    fn summarize(&self, history: &History, _: Seq, _: Option<Seq>, _: Option<&str>) -> Request {
-        self.assemble(history)
-    }
-    fn summarize_isolated(
-        &self,
-        history: &History,
-        _upto: Seq,
-        _cut: Option<Seq>,
-        _instructions: Option<&str>,
-    ) -> Request {
-        self.assemble(history)
-    }
-
-    fn summary(&self, _reply: &[miyu_kernel::block::Block]) -> Option<String> {
-        None
-    }
-}
-
-/// 替身用的策略：一件读的工具，句子短，一眼认得出。
-fn policy() -> Policy {
-    Policy {
-        assembler: Box::new(Nothing),
-        facts: FactTemplates::new(
-            r#"<e t="{time}" d="{cwd}"/>"#,
-            r#"<p l="{level}"/>"#,
-            "<reply-cut/>",
-        )
-        .unwrap(),
-        tools: BTreeMap::from([(
-            "read".to_string(),
-            ToolRule {
-                access: Access::Read,
-                parameters: serde_json::from_str(r#"{"type":"object"}"#).unwrap(),
-            },
-        )]),
-        step_limit: None,
-        tool_texts: ToolTexts::new(ToolTextSources {
-            unknown: "no tool {name}",
-            not_an_object: "bad args {name}",
-            cancelled_before: "cancelled before",
-            cancelled_running: "cancelled running",
-            skipped: "skipped",
-            read_only: "read only",
-            denied: "denied",
-            denied_with_reason: "denied: {reason}",
-            unattended: "unattended",
-            question_interrupted: "question interrupted",
-            question_voided: "question voided",
-            question_unattended: "question unattended",
-            restarted: "restarted",
-        })
-        .unwrap(),
-        attended: true,
-        resumes: 3,
-        compaction: None,
-        notes: None,
-        reports: miyu_kernel::session::Reports {
-            chars: 30_000,
-            omitted: miyu_kernel::template::Template::parse("").expect("空的模板读得进来"),
-        },
-    }
-}
-
-fn environment() -> Environment {
-    Environment {
-        offset: UtcOffset::from_minutes(540).unwrap(),
-        cwd: "~/src/miyu".to_string(),
-        dirs: Vec::new(),
-    }
-}
-
-#[test]
-fn a_real_session_goes_to_disk_and_loads_back() {
-    // 替身跑一段真会话：调一次工具，说完。
-    let start = Timestamp::parse("2026-09-25T07:00:00.000Z").unwrap();
-    let mut stage = Stage::new(policy, environment(), start);
-    stage.model([
-        Line::calls("我看看。", &[("read", r#"{"path":"a"}"#)]),
-        Line::says("好了。"),
-    ]);
-    stage.tools([Play::done("A")]);
-    stage.say("看看 a");
-    // 照三条一批写进日志，关掉再打开。
-    let scratch = Scratch::new();
-    let dir = dir(&scratch);
-    let mut log = SessionLog::create(&dir, 300).unwrap();
-    for batch in stage.log().chunks(3) {
-        log.append(batch).unwrap();
-    }
-    drop(log);
-    let (_, events) = SessionLog::open(&dir, 300).unwrap();
-    assert_eq!(events, stage.log());
-    assert!(segment_names(&dir).len() > 1, "上限调小了，要换过段");
-    // 读回来的交给内核载入：过得了账本。
-    let at = Timestamp::parse("2026-09-25T08:00:00.000Z").unwrap();
-    let (_, actions) = Session::load(events, at, policy(), environment()).unwrap();
-    assert!(actions.is_empty(), "走完了的会话，载入时什么都不补");
 }

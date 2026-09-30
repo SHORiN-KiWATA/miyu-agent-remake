@@ -11,7 +11,7 @@ use std::path::Path;
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Event, Level, Permission};
 use miyu_kernel::facts::Environment;
-use miyu_kernel::id::{AccountId, ModelName, ProviderId, VenueId};
+use miyu_kernel::id::{AccountId, ModelName, ProviderId, SessionId, VenueId};
 use miyu_kernel::origin::{By, Model, Person};
 use miyu_kernel::request::Request;
 use miyu_kernel::session::Command;
@@ -116,6 +116,7 @@ async fn a_write_that_fails_stops_the_session() {
         dirs: Vec::new(),
     };
     let (session, first) = Session::create(
+        SessionId::parse("01a0f233-cfec-7023-8ed5-2a037a1d5ec8").expect("会话编号合写法"),
         id("cmd-0"),
         alice(),
         clock.now(),

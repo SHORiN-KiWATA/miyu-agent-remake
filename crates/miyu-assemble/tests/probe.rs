@@ -1,8 +1,8 @@
 //! 请求形状探针（`docs/designs/08-上下文投影.md` 第七节「测试门禁」，`26-提示词.md` 第七节）：
 //! 一段终端会话，由真内核照剧本跑出来（执行器替身，施工 2-9 下），每一次请求和存档逐字节比对，
 //! 再查五条性质。另一段是有回报的会话（施工 7-2）：派出去的任务回报到了，闲着时开一轮、正忙时排在工具结果后面。还有一段
-//! 是子代理的会话（施工 7-5）：父会话的交代开了第一轮，system 多一段场所说明。清空过的会话（施工 6-8 补）：清空以后的
-//! 第一次请求只剩工具面、system、两块事实和那一句。
+//! 是子代理的会话（施工 7-5）：父会话的交代开了第一轮，system 多一段场所说明，会话编号那一块写的是它自己的编号（施工 1-13
+//! 再补）。清空过的会话（施工 6-8 补）：清空以后的第一次请求只剩工具面、system、三块事实和那一句。
 //!
 //! 存档在 `docs/designs/samples/probe/<会话>/`（`terminal`、`reports`、`subagent`、`cleared`）：`log.jsonl` 是真内核记下的日志，`requests/`
 //! 下一次请求一个文件，写的是规范字节，末尾一个换行；`openai-chat/` 下是同一次请求编码成 OpenAI
@@ -16,7 +16,7 @@ use miyu_kernel::event::{ChildReason, ErrorClass, JobReason};
 use miyu_kernel::origin::{By, Tool};
 use miyu_kernel::request::Message;
 use miyu_kernel::session::Queued;
-use miyu_kernel::testkit::{Line, Play, Stage};
+use miyu_kernel::testkit::{CHILD_SESSION, Line, Play, SESSION, Stage};
 use support::{
     PARENT, VENUE, anchored, check, child_stage, files, matches_the_archive, sent, stage,
     summarizes,
@@ -27,7 +27,7 @@ use support::{
 fn terminal() -> Stage {
     let mut s = stage();
 
-    // 1. 第一轮：环境、权限两块事实；调一次工具，结果回来，再回一句。
+    // 1. 第一轮：环境、权限、会话编号三块事实；调一次工具，结果回来，再回一句。
     s.model([
         Line::calls("我先看一下目录。", &[("read", r#"{"path":"src"}"#)]),
         Line::says("src 下有 lib.rs 和 main.rs。"),
@@ -110,14 +110,14 @@ fn terminal() -> Stage {
     s.model([Line::says("一个文件，一个目录。")]);
     s.say("换个问法：tests 下有几个文件？");
 
-    // 8. 压缩以后，两块事实重新注入。
+    // 8. 压缩以后，三块事实重新注入。
     s.compact("The user explored src and tests in read-only mode. Nothing is in progress.");
     s.model([Line::says("好的。")]);
     s.say("接着来");
 
     // 9. 交了限额（窗口 33400，压缩线 400，尾巴的预算 100）；这一轮问得长（约 200 个 token），报的用量是 40000。
     // 10. 下一轮一开头就过线：先压，最近几组留作尾巴（施工 6-2 下）：第 9 轮的回复和这一轮的那句，长的那一问压进
-    //     摘要；压完两块事实重新注入，和触发的那句放在一起。
+    //     摘要；压完三块事实重新注入，和触发的那句放在一起。
     summarizes(&mut s);
     s.limits(Some(33_400), None);
     s.model([Line::says("README 里写了怎么装。").reports(40_000)]);
@@ -251,7 +251,7 @@ fn the_subagent_session_matches_the_archive() {
 }
 
 /// 子代理这张脸（施工 7-5）：五条性质照查；交代是父会话发的、开了第一轮；和同一份剧本的主会话比，每一次请求只多 system
-/// 里的场所说明那一段。
+/// 里的场所说明那一段，会话编号那一块写的是它自己的编号（施工 1-13 再补），换成主会话的就一字不差。
 #[test]
 fn the_subagent_session_differs_only_by_its_venue_note() {
     let child = subagent(child_stage);
@@ -271,12 +271,38 @@ fn the_subagent_session_differs_only_by_its_venue_note() {
     assert_eq!(child.requests().len(), 2);
     for ((_, child), (_, main)) in child.requests().iter().zip(main.requests()) {
         assert_eq!(child.tools, main.tools);
-        assert_eq!(child.messages, main.messages);
+        assert_eq!(as_main(&child.messages), main.messages);
         assert_eq!(
             child.system,
             format!("{}\n\n{}", main.system, VENUE.trim_end())
         );
     }
+}
+
+/// 子会话的消息，会话编号那一块换成主会话的编号（施工 1-13 再补）。换之前得有这一块，换了才算数。
+fn as_main(messages: &[Message]) -> Vec<Message> {
+    let own = format!("<session id=\"{CHILD_SESSION}\"/>\n");
+    let main = format!("<session id=\"{SESSION}\"/>\n");
+    let mut swapped = 0;
+    let messages = messages
+        .iter()
+        .cloned()
+        .map(|mut message| {
+            if let Message::User { blocks } = &mut message {
+                for block in blocks {
+                    if let Block::Text(text) = block
+                        && text.text == own
+                    {
+                        text.text.clone_from(&main);
+                        swapped += 1;
+                    }
+                }
+            }
+            message
+        })
+        .collect();
+    assert_eq!(swapped, 1, "子会话的第一轮带着它自己的编号");
+    messages
 }
 
 #[test]
@@ -333,7 +359,7 @@ fn the_same_script_gives_the_same_bytes() {
     assert_eq!(files(&cleared()), files(&cleared()));
 }
 
-/// 清空过的会话（施工 6-8 补）：五条性质照查，清空以后的那一次算改写过；它只剩工具面、system 和一条 user：两块事实、那
+/// 清空过的会话（施工 6-8 补）：五条性质照查，清空以后的那一次算改写过；它只剩工具面、system 和一条 user：三块事实、那
 /// 一句，检查点一个字都没有。
 #[test]
 fn the_cleared_session_keeps_the_properties() {
@@ -356,10 +382,11 @@ fn the_cleared_session_keeps_the_properties() {
             other => panic!("都是字：{other:?}"),
         })
         .collect();
-    assert_eq!(texts.len(), 3, "{texts:?}");
+    assert_eq!(texts.len(), 4, "{texts:?}");
     assert!(texts[0].starts_with("<env "), "{texts:?}");
     assert!(texts[1].starts_with("<permission "), "{texts:?}");
-    assert_eq!(texts[2], "刚才我让你看了哪个目录？");
+    assert_eq!(texts[2], format!("<session id=\"{SESSION}\"/>\n"));
+    assert_eq!(texts[3], "刚才我让你看了哪个目录？");
 }
 
 /// 有回报的会话（施工 7-2）：五条性质照查；回报开的那一轮第一次请求的最后一块是那条回报，回合中途到的排在工具结果后面，
