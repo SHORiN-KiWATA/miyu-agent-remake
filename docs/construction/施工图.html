@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>134</b><span>/ 138 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死</span></li>
+    <li><b>135</b><span>/ 138 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身开工，日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的</span></li>
     <li><b>7-7</b><span>下一步：7-7 父子之间留言、7-1 补编号带父会话的编号，另有附件、改名删除、重做在做（Windows 上跑命令那一步暂停）</span></li>
-    <li><b class="mono">7bfead5</b><span>最近一步（7-2 补 人停的回报写明是人停的）的提交</span></li>
+    <li><b class="mono">53c044f</b><span>最近一步（7-10 别的 harness 发消息）的提交</span></li>
   </ul>
 </header>
 
@@ -490,7 +490,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s7-8"><span class="n">7-8</span>撤销和压缩里的任务<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-8</span>检查点里不列任务（补）</span></li>
         <li><a class="step done" href="#s7-9"><span class="n">7-9</span>miyu ask 等子代理<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">7-10</span>别的 harness 发消息</span></li>
+        <li><a class="step done" href="#s7-10"><span class="n">7-10</span>别的 harness 发消息<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">7-11</span>M7 验收</span></li>
       </ol>
     </li>
@@ -9820,6 +9820,57 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/7-9-miyu ask 等子代理.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section class="sheet" id="s7-10" aria-labelledby="h-s710">
+  <div class="sheet-head"><h2 id="h-s710"><span class="no">7-10</span>别的 harness 发消息</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">Claude Code、opencode、脚本这类别的 harness，用 <code>miyu ask -s &lt;会话&gt; --from &lt;名字&gt; &lt;话&gt;</code> 往 Miyu 的会话里说一句；她分得清是人说的还是别的代理说的。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">session.send 的 from</span><span class="dir-note">agents.md 第十一条 · kernel/request.md</span></div>
+            <ol class="pipe" aria-label="怎么走">
+              <li><code>from</code> 去控制字符、截 128 字节，记成 <code>by: harness</code>；空的、不是字符串的拒 <code>bad_params</code></li>
+              <li>发给她的包一层 <code>&lt;agent-message from="…"&gt;</code>，名字转义；<code>history</code> 的「谁」写 <code>agent "…"</code></li>
+              <li>照子代理留言的规矩：不作废在等人的题，打断不撤回，撤销不带走，它开的那一轮重做不了</li>
+              <li><code>miyu ask</code> 往正忙的会话里发，跟住听到它的那一轮；<code>--from</code> 不带 <code>cwd</code>，按 Ctrl+C、到时间只是不等了，不打断</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">三句新字</span><span class="rl">标签开头 10、收尾 5，<code>history</code> 的 6</span></div>
+          <div class="tile new"><span class="nm">顺手修的</span><span class="rl"><code>miyu ask -s</code> 往正忙的会话里发会一直等</span></div>
+          <div class="tile"><span class="nm">不做的</span><span class="rl">MCP 服务、<code>miyu stdio</code>；名字不核对</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-10</dd></div>
+        <div><dt>名称</dt><dd>别的 harness 发消息</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">53c044f</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>36 个手写的变异全逮住；三台机器的 CI 和长跑全绿；请求形状探针多一张脸，和人说的比只多标签那两段</span></li>
+        <li><span class="ok">✓</span><span>真模型：她跑长命令时 <code>--from claude-code</code> 插一句，她说「不是你……自报的名字是 claude-code」；没有标签的一边她当成人说的，分不清——证明非加不可</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/7-10-别的 harness 发消息.md</code>。</li>
       </ul>
     </div>
   </div>
