@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>147</b><span>/ 155 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 8-2 读配置、3-8 六补订阅补发、C-2、C-3</span></li>
-    <li><b class="mono">1767378b</b><span>最近一步（3-8 五补 自动起标题）的提交</span></li>
+    <li><b>148</b><span>/ 155 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；8-2、C-2 等合并，C-3 在做</span></li>
+    <li><b class="mono">0766acbd</b><span>最近一步（3-8 六补 订阅时补发）的提交</span></li>
   </ul>
 </header>
 
@@ -392,7 +392,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s3-8f"><span class="n">3-8</span>改名和删除会话（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8g"><span class="n">3-8</span>回顾 session.recap（四补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-8h"><span class="n">3-8</span>自动起标题（五补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">3-8</span>订阅时补发之前的事件（六补）</span></li>
+        <li><a class="step done" href="#s3-8i"><span class="n">3-8</span>订阅时补发之前的事件（六补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9a"><span class="n">3-9</span>主程序和拉起核心（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9b"><span class="n">3-9</span>miyu ask（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s3-9c"><span class="n">3-9</span>会话编号照先后（补）<span class="st">✓</span></a></li>
@@ -4859,6 +4859,56 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/3-8-自动起标题（五补）.md</code>；蓝图 <code>kernel/session.md</code>、<code>kernel/request.md</code>、<code>cli/rename.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s3-8i" aria-labelledby="h-s38i">
+  <div class="sheet-head"><h2 id="h-s38i"><span class="no">3-8</span>订阅时补发之前的事件（六补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头不许读核心的存储，原来订阅只推订阅以后的，切进一个已有的会话画不出以前的对话，掉了队也补不回来。现在 <code>subscribe</code> 带上最后看到的序号 <code>after</code>，核心先补发之后落了盘的事件，再接着推新的，不丢不重（04 第六节第 9 条早就定了这么做，项目主人 10-01 定排进来）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">订阅时补发之前的事件（六补）</span><span class="dir-note">3-8 六补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>subscribe</code> 多 <code>after</code>，回应多 <code>upto</code>；补的在回应前面，之后从 upto+1 接着推</li>
+              <li>补到哪一条和订阅在会话 actor 同一步里拿（内核 <code>landed()</code>），日志在连接的阻塞线程里读，不卡会话</li>
+              <li>瞬时事件不补；掉了队带 after 重新订阅补得回来；停了的会话先载入再补</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">补原始事件</span><span class="rl">撤销、压缩照原样补，头照有效历史自己画；视图投影随 M9</span></div>
+          <div class="tile new"><span class="nm">换订阅</span><span class="rl">已订阅着再带 after：换成新订阅，旧的先写完；序号可能重复，头照序号认</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">3-8 六补</dd></div>
+        <div><dt>名称</dt><dd>订阅时补发之前的事件（六补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">0766acbd</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>13 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真核心：另一个头连说 30 轮时，三个头中途从头订阅，补的加推的都和日志一字不差</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/3-8-订阅时补发之前的事件（六补）.md</code>；蓝图 <code>protocol.md</code>「补发」、<code>session/actor.md</code>。</li>
       </ul>
     </div>
   </div>
