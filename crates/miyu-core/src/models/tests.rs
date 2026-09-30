@@ -181,6 +181,7 @@ fn the_port_carries_the_limits_and_the_deepseek_image_price() {
             file_cut: include_str!("../../../../resources/core/drivers/file-cut.txt"),
             file_close: include_str!("../../../../resources/core/drivers/file-close.txt"),
         }),
+        image_name: None,
     })
     .unwrap();
     let port = |env: &ModelEnv| {

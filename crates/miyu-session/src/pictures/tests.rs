@@ -55,6 +55,7 @@ fn pictures_become_image_blocks_in_order() {
     let expected = |bytes: &[u8], media_type: &str, width, height| {
         Block::Image(Image {
             blob: ContentHash::of(bytes),
+            name: None,
             media_type: MediaType::parse(media_type).unwrap(),
             width,
             height,

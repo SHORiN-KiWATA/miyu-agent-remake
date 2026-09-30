@@ -24,6 +24,7 @@ fn text(words: &str) -> Block {
 fn image() -> Block {
     Block::Image(Image {
         blob: ContentHash::of(b"png"),
+        name: None,
         media_type: MediaType::parse("image/png").unwrap(),
         width: 1000,
         height: 500,
@@ -143,6 +144,7 @@ fn new_words_replace_only_the_opener_and_the_attachments_stay() {
 fn photo() -> Block {
     Block::Image(Image {
         blob: ContentHash::of(b"jpg"),
+        name: None,
         media_type: MediaType::parse("image/jpeg").unwrap(),
         width: 640,
         height: 480,

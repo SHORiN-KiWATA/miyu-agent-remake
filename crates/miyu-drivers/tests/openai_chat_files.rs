@@ -176,6 +176,7 @@ fn an_older_snapshot_writes_placeholders_for_text_files_too() {
             "../../../resources/core/drivers/tool-attachments-only.txt"
         ),
         text_file: None,
+        image_name: None,
     })
     .expect("用得了");
     let body = encoded(&attached(), Inputs::default(), &old).expect("blob 都在");

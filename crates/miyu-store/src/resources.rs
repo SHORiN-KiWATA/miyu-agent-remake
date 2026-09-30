@@ -12,9 +12,9 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use miyu_policy::{
-    CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts, JobTexts, PermissionTexts,
-    PersonaTexts, RebuildTexts, ShortenTexts, Sources, TextFileTexts, ToolResultTexts,
-    TurnEndedTexts,
+    CompactionTexts, CoreTexts, DriverPlaceholders, FactTexts, ImageNameTexts, JobTexts,
+    PermissionTexts, PersonaTexts, RebuildTexts, ShortenTexts, Sources, TextFileTexts,
+    ToolResultTexts, TurnEndedTexts,
 };
 
 use crate::env::Env;
@@ -224,6 +224,11 @@ impl ResourceRoot {
                     file_open: driver("file-open.txt")?,
                     file_cut: driver("file-cut.txt")?,
                     file_close: driver("file-close.txt")?,
+                }),
+                image_name: Some(ImageNameTexts {
+                    image_open: driver("image-open.txt")?,
+                    image_close: driver("image-close.txt")?,
+                    image_omitted_named: driver("image-omitted-named.txt")?,
                 }),
             },
             compaction: Some(CompactionTexts {

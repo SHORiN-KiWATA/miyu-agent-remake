@@ -185,6 +185,7 @@ async fn a_picture_from_a_tool_becomes_an_image_block_with_its_blob_stored() {
         }),
         Block::Image(Image {
             blob: hash.clone(),
+            name: None,
             media_type: MediaType::parse("image/png").unwrap(),
             width: 2,
             height: 1,

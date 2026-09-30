@@ -8,6 +8,8 @@
 //!   结果里写的一句，都没有字段；
 //! - 文本文件照字放进消息（施工 3-9 三补）：开头带文件名 `name`，截过的写明给了 `shown`、一共 `total` 个字节，
 //!   收尾没有字段。以前造的快照里没有这三句，文本文件照别的文件写占位。
+//! - 带名字的图片（施工 3-9 四补）：能看图的前后各一段标签，开头带文件名 `name`、收尾没有字段；不能看图的占位写上
+//!   `name`。以前造的快照里没有这三句，带名字的图片照不带名字的写。
 //!
 //! 字段照模板的规矩转义（`08-上下文投影.md` 第五节「模板与转义怎么写」）。由执行器从资源目录读好
 //! 交进来，造会话时读一次，冻结在会话上。
@@ -33,6 +35,8 @@ pub struct DriverTexts {
     tool_attachments_only: Template,
     /// 文本文件的三句；以前造的快照里没有。
     text_file: Option<TextFile>,
+    /// 带名字的图片的三句；以前造的快照里没有。
+    image_name: Option<ImageName>,
 }
 
 /// 文本文件的三句（施工 3-9 三补）。
@@ -44,6 +48,17 @@ struct TextFile {
     cut: Template,
     /// 收尾。
     close: Template,
+}
+
+/// 带名字的图片的三句（施工 3-9 四补）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ImageName {
+    /// 图片前面，带文件名。
+    open: Template,
+    /// 图片后面。
+    close: Template,
+    /// 不能看图时的占位，带文件名。
+    omitted: Template,
 }
 
 /// 那几句的原文，照资源目录里的文件名。
@@ -61,6 +76,8 @@ pub struct DriverTextSources<'a> {
     pub tool_attachments_only: &'a str,
     /// 文本文件的三句（施工 3-9 三补）；以前造的快照里没有的是 `None`。
     pub text_file: Option<TextFileSources<'a>>,
+    /// 带名字的图片的三句（施工 3-9 四补）；以前造的快照里没有的是 `None`。
+    pub image_name: Option<ImageNameSources<'a>>,
 }
 
 /// 文本文件的三句的原文（施工 3-9 三补）。
@@ -72,6 +89,17 @@ pub struct TextFileSources<'a> {
     pub file_cut: &'a str,
     /// `file-close.txt`。
     pub file_close: &'a str,
+}
+
+/// 带名字的图片的三句的原文（施工 3-9 四补）。
+#[derive(Debug, Clone, Copy)]
+pub struct ImageNameSources<'a> {
+    /// `image-open.txt`。
+    pub image_open: &'a str,
+    /// `image-close.txt`。
+    pub image_close: &'a str,
+    /// `image-omitted-named.txt`。
+    pub image_omitted_named: &'a str,
 }
 
 impl DriverTexts {
@@ -91,6 +119,16 @@ impl DriverTexts {
                 })
             })
             .transpose()?;
+        let image_name = sources
+            .image_name
+            .map(|image| -> Result<ImageName, TemplateError> {
+                Ok(ImageName {
+                    open: Template::parse(image.image_open)?,
+                    close: Template::parse(image.image_close)?,
+                    omitted: Template::parse(image.image_omitted_named)?,
+                })
+            })
+            .transpose()?;
         let texts = DriverTexts {
             image_omitted: Template::parse(sources.image_omitted)?,
             file_omitted: Template::parse(sources.file_omitted)?,
@@ -98,6 +136,7 @@ impl DriverTexts {
             tool_attachments: Template::parse(sources.tool_attachments)?,
             tool_attachments_only: Template::parse(sources.tool_attachments_only)?,
             text_file,
+            image_name,
         };
         texts.file_omitted.render(&file("", "", ""))?;
         let mut plain = vec![
@@ -107,9 +146,14 @@ impl DriverTexts {
             &texts.tool_attachments_only,
         ];
         if let Some(text) = &texts.text_file {
-            text.open.render(&BTreeMap::from([("name", "")]))?;
+            text.open.render(&named(""))?;
             text.cut.render(&cut("", ""))?;
             plain.push(&text.close);
+        }
+        if let Some(image) = &texts.image_name {
+            image.open.render(&named(""))?;
+            image.omitted.render(&named(""))?;
+            plain.push(&image.close);
         }
         for plain in plain {
             plain.render(&BTreeMap::new())?;
@@ -117,9 +161,23 @@ impl DriverTexts {
         Ok(texts)
     }
 
-    /// 模型不能看图，图片换成的这一句。
-    pub fn image_omitted(&self) -> String {
-        render(&self.image_omitted, &BTreeMap::new())
+    /// 模型不能看图，图片换成的这一句。带名字 `name` 的、快照里有带名字的那一句的（施工 3-9 四补），写上名字；别的
+    /// 是不带名字的那一句。
+    pub fn image_omitted(&self, name: Option<&str>) -> String {
+        match (name, &self.image_name) {
+            (Some(name), Some(image)) => render(&image.omitted, &named(name)),
+            _ => render(&self.image_omitted, &BTreeMap::new()),
+        }
+    }
+
+    /// 能看图时，带名字 `name` 的图片前后的两段：开头、收尾（施工 3-9 四补）。不带名字的、快照里没有这几句的，交回
+    /// 空的：图片前后什么都不加。
+    pub fn image_tags(&self, name: Option<&str>) -> Option<(String, String)> {
+        let (name, image) = (name?, self.image_name.as_ref()?);
+        Some((
+            render(&image.open, &named(name)),
+            render(&image.close, &BTreeMap::new()),
+        ))
     }
 
     /// 模型不能读这个文件，换成的这一句：`size` 是它有几个字节。
@@ -134,7 +192,7 @@ impl DriverTexts {
     /// 这三句的，交回空的：照别的文件写占位。
     pub fn text_file(&self, name: &str, text: &str) -> Option<String> {
         let wrap = self.text_file.as_ref()?;
-        let mut out = render(&wrap.open, &BTreeMap::from([("name", name)]));
+        let mut out = render(&wrap.open, &named(name));
         let shown = text_file::shown(text);
         if shown.len() < text.len() {
             let (given, total) = (shown.len().to_string(), text.len().to_string());
@@ -171,6 +229,11 @@ fn render(template: &Template, fields: &BTreeMap<&str, &str>) -> String {
 
 fn file<'a>(name: &'a str, media_type: &'a str, size: &'a str) -> BTreeMap<&'a str, &'a str> {
     BTreeMap::from([("name", name), ("media_type", media_type), ("size", size)])
+}
+
+/// 只有文件名的字段。
+fn named(name: &str) -> BTreeMap<&str, &str> {
+    BTreeMap::from([("name", name)])
 }
 
 fn cut<'a>(shown: &'a str, total: &'a str) -> BTreeMap<&'a str, &'a str> {

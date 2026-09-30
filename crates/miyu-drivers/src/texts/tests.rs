@@ -10,6 +10,13 @@ const TEXT_FILE: TextFileSources<'static> = TextFileSources {
     file_close: "</f>\n",
 };
 
+/// 带名字的图片的三句（施工 3-9 四补），测试自己写的。
+const IMAGE_NAME: ImageNameSources<'static> = ImageNameSources {
+    image_open: "<i {name}>\n",
+    image_close: "</i>\n",
+    image_omitted_named: "no image {name}\n",
+};
+
 fn sources<'a>(file_omitted: &'a str) -> DriverTextSources<'a> {
     DriverTextSources {
         image_omitted: "no image\n",
@@ -18,6 +25,7 @@ fn sources<'a>(file_omitted: &'a str) -> DriverTextSources<'a> {
         tool_attachments: "attachments:\n",
         tool_attachments_only: "see below\n",
         text_file: Some(TEXT_FILE),
+        image_name: Some(IMAGE_NAME),
     }
 }
 
@@ -34,7 +42,7 @@ fn the_file_name_is_filled_in_and_escaped() {
             .file_omitted("<x>", "application/pdf", 1)
             .contains('<')
     );
-    assert_eq!(texts.image_omitted(), "no image\n");
+    assert_eq!(texts.image_omitted(None), "no image\n");
     assert_eq!(texts.no_output(), "nothing\n");
     assert_eq!(texts.tool_attachments(), "attachments:\n");
     assert_eq!(texts.tool_attachments_only(), "see below\n");
@@ -97,6 +105,38 @@ fn without_the_three_texts_a_text_file_is_not_wrapped() {
 }
 
 #[test]
+fn a_named_image_gets_tags_and_a_placeholder_with_its_name() {
+    let texts = DriverTexts::new(sources("file {name}\n")).unwrap();
+    assert_eq!(
+        texts.image_tags(Some("晚霞.png")),
+        Some(("<i 晚霞.png>\n".to_string(), "</i>\n".to_string()))
+    );
+    assert_eq!(texts.image_omitted(Some("晚霞.png")), "no image 晚霞.png\n");
+    // 不带名字的照旧：前后什么都不加，占位是不带名字的那一句。
+    assert_eq!(texts.image_tags(None), None);
+    assert_eq!(texts.image_omitted(None), "no image\n");
+    // 名字是人给的文件名，照规矩转义，伪造不了标签。
+    let (open, _) = texts.image_tags(Some("\"><x.png")).unwrap();
+    assert_eq!(open, "<i \\u0022\\u003e\\u003cx.png>\n");
+    assert_eq!(
+        texts.image_omitted(Some("<x>.png")),
+        "no image \\u003cx\\u003e.png\n"
+    );
+}
+
+#[test]
+fn without_the_image_texts_a_named_image_is_written_as_before() {
+    // 以前造的快照里没有那三句：带名字的图片照不带名字的写。
+    let texts = DriverTexts::new(DriverTextSources {
+        image_name: None,
+        ..sources("file {name}\n")
+    })
+    .unwrap();
+    assert_eq!(texts.image_tags(Some("a.png")), None);
+    assert_eq!(texts.image_omitted(Some("a.png")), "no image\n");
+}
+
+#[test]
 fn a_field_that_does_not_belong_is_refused() {
     assert!(DriverTexts::new(sources("file {path}\n")).is_err());
     assert!(DriverTexts::new(sources("file {name\n")).is_err());
@@ -116,6 +156,26 @@ fn a_field_that_does_not_belong_is_refused() {
     ] {
         let sources = DriverTextSources {
             text_file: Some(broken),
+            ..sources("file {name}\n")
+        };
+        assert!(DriverTexts::new(sources).is_err(), "{broken:?}");
+    }
+    for broken in [
+        ImageNameSources {
+            image_open: "<i {path}>\n",
+            ..IMAGE_NAME
+        },
+        ImageNameSources {
+            image_close: "</i {name}>\n",
+            ..IMAGE_NAME
+        },
+        ImageNameSources {
+            image_omitted_named: "no image {size}\n",
+            ..IMAGE_NAME
+        },
+    ] {
+        let sources = DriverTextSources {
+            image_name: Some(broken),
             ..sources("file {name}\n")
         };
         assert!(DriverTexts::new(sources).is_err(), "{broken:?}");

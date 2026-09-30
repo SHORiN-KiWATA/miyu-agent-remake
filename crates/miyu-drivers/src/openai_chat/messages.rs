@@ -6,12 +6,13 @@
 //! - tool：文字照 user 的拼法；图片、PDF 挪到这一串 tool 消息后面的一条 user 消息里。
 //! - 文件发不了 PDF 的：内容是文本的照字放进消息，带着文件名（施工 3-9 三补，[`crate::text_file`]）；别的写一句占位，
 //!   带文件名、媒体类型、大小。
+//! - 带名字的图片（人附的，施工 3-9 四补）：能看图的前后各一段标签，标签是文字，照文字拼；不能看图的占位写上名字。
 //! - 接着写的：最后那条 user（只有被打断的那一句）不发，半截那条 assistant 加上接着写的字段。
 
 use std::collections::BTreeMap;
 use std::mem;
 
-use miyu_kernel::block::{Block, File, ToolCall};
+use miyu_kernel::block::{Block, File, Image, ToolCall};
 use miyu_kernel::id::{CallId, ContentHash, MediaType};
 use miyu_kernel::request::{Message, Request};
 use serde::Deserialize;
@@ -102,9 +103,11 @@ impl Writer<'_> {
             match block {
                 Block::Text(text) => pieces.text(&text.text),
                 Block::Image(image) if self.call.inputs.images => {
-                    pieces.part(image_part(self.data_url(&image.media_type, &image.blob)?));
+                    for part in self.image(image)? {
+                        pieces.add(part);
+                    }
                 }
-                Block::Image(_) => pieces.text(&self.texts.image_omitted()),
+                Block::Image(image) => pieces.text(&self.texts.image_omitted(name(image))),
                 Block::File(file) if self.call.inputs.pdf && is_pdf(file) => {
                     pieces.part(self.file_part(file)?);
                 }
@@ -169,9 +172,9 @@ impl Writer<'_> {
             match block {
                 Block::Text(text) => join(&mut content, &text.text),
                 Block::Image(image) if self.call.inputs.images => {
-                    attachments.push(image_part(self.data_url(&image.media_type, &image.blob)?));
+                    attachments.extend(self.image(image)?);
                 }
-                Block::Image(_) => join(&mut content, &self.texts.image_omitted()),
+                Block::Image(image) => join(&mut content, &self.texts.image_omitted(name(image))),
                 Block::File(file) if self.call.inputs.pdf && is_pdf(file) => {
                     attachments.push(self.file_part(file)?);
                 }
@@ -193,18 +196,33 @@ impl Writer<'_> {
         })
     }
 
-    /// 挪出来的图片、文件放成一条 user 消息：先一句说明，再按先后放。没有就什么都不放。
+    /// 挪出来的图片、文件放成一条 user 消息：先一句说明，再按先后放；带名字的图片前后的标签照 user 的拼法和挨着的
+    /// 文字拼成一段。没有就什么都不放。
     fn flush(&self, moved: &mut Vec<Part>, out: &mut Vec<Wire>) {
         if moved.is_empty() {
             return;
         }
-        let mut parts = vec![Part::Text {
-            text: self.texts.tool_attachments(),
-        }];
-        parts.append(moved);
+        let mut pieces = Pieces::default();
+        pieces.text(&self.texts.tool_attachments());
+        for part in moved.drain(..) {
+            pieces.add(part);
+        }
         out.push(Wire::User {
-            content: Content::Parts(parts),
+            content: pieces.content(),
         });
+    }
+
+    /// 能看图时的一张图：data URL；带名字的前后各一段标签（施工 3-9 四补）。
+    fn image(&self, image: &Image) -> Result<Vec<Part>, EncodeError> {
+        let picture = image_part(self.data_url(&image.media_type, &image.blob)?);
+        Ok(match self.texts.image_tags(name(image)) {
+            Some((open, close)) => vec![
+                Part::Text { text: open },
+                picture,
+                Part::Text { text: close },
+            ],
+            None => vec![picture],
+        })
     }
 
     /// 线上的调用编号：供应商自己的，没有就用内核分的。
@@ -270,6 +288,14 @@ impl Pieces {
         self.parts.push(part);
     }
 
+    /// 接上一段：文字照文字拼，图片、文件收成一段。
+    fn add(&mut self, part: Part) {
+        match part {
+            Part::Text { text } => self.text(&text),
+            part => self.part(part),
+        }
+    }
+
     fn end_text(&mut self) {
         if !self.text.is_empty() {
             self.parts.push(Part::Text {
@@ -297,6 +323,11 @@ fn join(into: &mut String, next: &str) {
         into.push('\n');
     }
     into.push_str(next);
+}
+
+/// 图片块的名字：人附的有，`read` 读出来的没有。
+fn name(image: &Image) -> Option<&str> {
+    image.name.as_ref().map(|name| name.as_str())
 }
 
 fn image_part(url: String) -> Part {

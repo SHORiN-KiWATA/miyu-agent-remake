@@ -10,14 +10,14 @@ mod anchor;
 mod texts;
 
 pub use anchor::anchored;
-use texts::texts;
 pub use texts::{SUMMARIZE, VENUE};
+use texts::{driver_texts, texts};
 
 use std::collections::BTreeMap;
 
 use miyu_assemble::{DefaultAssembler, Stable};
 use miyu_drivers::openai_chat::{self, Compat, Encoded};
-use miyu_drivers::{Call, DriverTextSources, DriverTexts, Inputs, TextFileSources};
+use miyu_drivers::{Call, Inputs};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::estimate::Flat;
 use miyu_kernel::event::{Body, Event};
@@ -352,25 +352,6 @@ fn wire_extends(now: &Encoded, before: &Encoded) -> Result<(), String> {
         return Err("消息后面的工具面、参数变了".to_string());
     }
     Ok(())
-}
-
-/// 出厂的驱动占位，从资源目录读。
-fn driver_texts() -> DriverTexts {
-    DriverTexts::new(DriverTextSources {
-        image_omitted: include_str!("../../../../resources/core/drivers/image-omitted.txt"),
-        file_omitted: include_str!("../../../../resources/core/drivers/file-omitted.txt"),
-        no_output: include_str!("../../../../resources/core/drivers/no-output.txt"),
-        tool_attachments: include_str!("../../../../resources/core/drivers/tool-attachments.txt"),
-        tool_attachments_only: include_str!(
-            "../../../../resources/core/drivers/tool-attachments-only.txt"
-        ),
-        text_file: Some(TextFileSources {
-            file_open: include_str!("../../../../resources/core/drivers/file-open.txt"),
-            file_cut: include_str!("../../../../resources/core/drivers/file-cut.txt"),
-            file_close: include_str!("../../../../resources/core/drivers/file-close.txt"),
-        }),
-    })
-    .expect("出厂的占位用得了")
 }
 
 /// 工具调用和结果成对：每条回复里的调用，按先后各有一条结果紧跟在回复后面；没有落单的结果。
