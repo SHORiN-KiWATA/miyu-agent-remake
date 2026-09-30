@@ -8,9 +8,11 @@ mod keys;
 mod mention;
 mod mouse;
 mod notify;
+mod output;
 mod paste;
 mod redo;
 mod session;
+mod sessions;
 mod updates;
 
 use std::cell::RefCell;
@@ -78,6 +80,12 @@ pub struct App {
     pub notifier: Notifier,
     /// 输入框。
     pub input: InputBox,
+    /// 停放着的会话：切进子会话时的主会话、子代理的会话、`/new` 以后还有任务在跑的旧会话（`sessions.rs`）。
+    parked: sessions::Lot,
+    /// 切进了子会话：主会话的编号（它停放着）；看着主会话是 `None`。
+    home: Option<String>,
+    /// `/new` 以后还有任务在跑、照样订阅着的旧会话：任务都报完了退订。
+    left: Vec<String>,
     /// 最近发出去的一句：没发出去时撤回来（`redo.rs`）。
     unsent: Option<Unsent>,
     /// `Ctrl+V` 贴的截图暂存在哪（「输入框」第 12 条）；找不到缓存目录的是 `None`，贴不了图。
@@ -211,6 +219,9 @@ impl App {
             input,
             staging,
             unsent: None,
+            parked: Default::default(),
+            home: None,
+            left: Vec::new(),
             transcript: Transcript::default(),
             core,
             menu: Menu::default(),
@@ -302,6 +313,16 @@ impl App {
         let action = match event {
             // Windows 上松开键也报一次，只认按下和按住。
             Event::Key(key) if key.kind == KeyEventKind::Release => Action::None,
+            // 在子会话里看：输入框空着时 Esc 回主会话（「切进子会话」第 4 条）；打断它按 Ctrl+C。
+            Event::Key(key)
+                if key.code == KeyCode::Esc
+                    && self.home.is_some()
+                    && self.esc_for_input(menu_open)
+                    && self.input.editor.is_empty() =>
+            {
+                self.leave_child();
+                Action::None
+            }
             // 编辑上一句时一下就取消（「输入框」第 13 条），不照下面有字时两下清空的规矩。
             Event::Key(key)
                 if key.code == KeyCode::Esc

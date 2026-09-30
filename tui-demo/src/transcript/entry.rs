@@ -47,6 +47,8 @@ pub struct JobNote {
     pub mark: JobMark,
     /// 点开看的全文。
     pub detail: String,
+    /// 哪条任务的（任务编号）；演示的、不是任务的是 `None`。
+    pub source: Option<String>,
 }
 
 /// 正文里的一条。
@@ -76,6 +78,8 @@ pub struct Entry {
     pub level: Option<Level>,
     /// 后台任务结束的通知：记号和全文。别的条是 `None`。
     pub job: Option<JobNote>,
+    /// 别处来的话的来处（蓝图「别处来的话」第 2 条）：`从 B 收到消息` 这样一句；你在这个界面说的话是 `None`。
+    pub from: Option<String>,
     /// 你说的话里的块：粘贴块点开看全文，附件不展开（蓝图「正文」第 2 条、「输入框」第 12 条）。别的条是空的。
     pub pasted: Vec<Chip>,
     /// 她的回答里点过的 `<details>`（第几个，从 0 数）：和它写的 `open` 反过来（蓝图「她的回答：Markdown」第 15 条）。

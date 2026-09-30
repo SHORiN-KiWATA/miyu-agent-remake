@@ -9,6 +9,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::app::App;
 use crate::config::Config;
+use crate::core::Usage;
 use crate::focus::{Button, Focus};
 use crate::meter;
 use crate::theme;
@@ -37,7 +38,8 @@ pub fn draw(frame: &mut Frame, area: Rect, app: &App) -> Rect {
     let button_w = button.as_ref().map_or(0, |b| b.width() + GAP);
     let room = usize::from(area.width).saturating_sub(left.width() + GAP + button_w);
     frame.render_widget(Paragraph::new(left.clone()), area);
-    let right = Line::from(fit(right(&app.transcript, &app.config), room));
+    let total = app.usage_total();
+    let right = Line::from(fit(right(&app.transcript, &total, &app.config), room));
     let right_w = right.width();
     frame.render_widget(Paragraph::new(right.right_aligned()), area);
     let none = Rect::new(area.x, area.y, 0, 0);
@@ -150,7 +152,7 @@ fn left(app: &App) -> Vec<Span<'_>> {
 
 /// 右边的格子，照显示的先后；`keep` 越大越晚丢：先丢速度，再丢累计，上下文留到最后。还是 0 的格子不写
 /// （`tui.md`「框下面那一行」）。
-fn right(t: &Transcript, config: &Config) -> Vec<Part> {
+fn right(t: &Transcript, total: &Usage, config: &Config) -> Vec<Part> {
     let text = &config.text;
     let mut parts = Vec::new();
     if let Some(speed) = t.speed {
@@ -167,7 +169,7 @@ fn right(t: &Transcript, config: &Config) -> Vec<Part> {
             spans: vec![Span::styled(context, theme::dim())],
         });
     }
-    if let Some(total) = total_text(t, config) {
+    if let Some(total) = total_text(total, config) {
         parts.push(Part {
             keep: 1,
             spans: vec![Span::styled(total, theme::dim())],
@@ -176,15 +178,15 @@ fn right(t: &Transcript, config: &Config) -> Vec<Part> {
     parts
 }
 
-/// 累计：`Σ3.5k(C82%)`；还是 0 的是 `None`。侧边栏也照它写。
-pub fn total_text(t: &Transcript, config: &Config) -> Option<String> {
-    let input = t.total.input();
-    (input + t.total.output > 0).then(|| {
+/// 累计：`Σ3.5k(C82%)`；还是 0 的是 `None`。`total` 连同子代理用的（`App::usage_total`）。
+pub fn total_text(total: &Usage, config: &Config) -> Option<String> {
+    let input = total.input();
+    (input + total.output > 0).then(|| {
         config
             .text
             .total
-            .replace("{tokens}", &meter::short(input + t.total.output))
-            .replace("{percent}", &meter::hit_rate(t.total.cache_read, input))
+            .replace("{tokens}", &meter::short(input + total.output))
+            .replace("{percent}", &meter::hit_rate(total.cache_read, input))
     })
 }
 
@@ -247,9 +249,12 @@ mod tests {
     fn nothing_on_the_right_while_everything_is_zero() {
         let config = Config::builtin().unwrap();
         let mut t = Transcript::default();
-        assert!(right(&t, &config).is_empty(), "还没用过：右边整段空着");
+        assert!(
+            right(&t, &t.total, &config).is_empty(),
+            "还没用过：右边整段空着"
+        );
         t.context = 1800;
-        let cells = right(&t, &config);
+        let cells = right(&t, &t.total, &config);
         assert_eq!(cells.len(), 1, "只有上下文有数");
     }
 

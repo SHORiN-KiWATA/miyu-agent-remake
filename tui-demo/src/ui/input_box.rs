@@ -1,4 +1,4 @@
-//! 输入框这一格：圆角框里画输入的字、提示符、暂存标记，编辑上一句时上边框写一句；抽屉开着时框里画抽屉（蓝图 `tui.md`「输入框」、
+//! 输入框这一格：圆角框里画输入的字、提示符、暂存标记，编辑上一句时上边框写一句，切进子会话时上边框右边写它是谁；抽屉开着时框里画抽屉（蓝图 `tui.md`「输入框」、
 //! 「确认和提问的抽屉」第 2 条）。
 
 use ratatui::Frame;
@@ -28,30 +28,48 @@ pub(super) fn draw_box(frame: &mut Frame, areas: Areas, app: &mut App, home: boo
         return;
     }
     app.drawer_rows.clear();
-    draw_input(
-        frame,
-        areas,
-        &mut app.input,
-        &app.config,
-        app.transcript.level,
-        placeholder(&app.config, home, app.tips.at()),
-    );
+    let child = app.viewing_title();
+    // 焦点移到框下面（按钮、子代理状态行）、后台面板开着时，框里不放光标：打的字不进这里（2026-09-30 项目主人）。
+    let typing = app.focus() == crate::focus::Focus::Input && app.panel.is_none();
+    let look = Look {
+        level: app.transcript.level,
+        placeholder: placeholder(&app.config, home, app.tips.at()),
+        child,
+        typing,
+    };
+    draw_input(frame, areas, &mut app.input, &app.config, look);
 }
 
-fn draw_input(
-    frame: &mut Frame,
-    areas: Areas,
-    input: &mut InputBox,
-    config: &Config,
+/// 框里框外要照的几样。
+struct Look<'a> {
+    /// 权限级别：提示符的颜色。
     level: Level,
-    placeholder: &str,
-) {
+    /// 空着时写的提示。
+    placeholder: &'a str,
+    /// 切进了哪个子代理的会话：上边框右边写它（「切进子会话」第 2 条）。
+    child: Option<String>,
+    /// 焦点在输入框、没开后台面板：放光标。
+    typing: bool,
+}
+
+fn draw_input(frame: &mut Frame, areas: Areas, input: &mut InputBox, config: &Config, look: Look) {
+    let Look {
+        level,
+        placeholder,
+        child,
+        typing,
+    } = look;
     let mut border = Block::bordered()
         .border_type(BorderType::Rounded)
         .border_style(theme::dim());
     // 编辑上一句：上边框写一句，框线的颜色（「输入框」第 13 条）。
     if input.editing() {
         border = border.title(Line::styled(config.text.editing.as_str(), theme::dim()));
+    }
+    // 切进了子会话：上边框右边写它是谁（「切进子会话」第 2 条，2026-09-30 项目主人照 Claude Code 定）。
+    if let Some(title) = child {
+        let tag = config.text.jobs.child_tag.replace("{title}", &title);
+        border = border.title_top(Line::styled(tag, theme::dim()).right_aligned());
     }
     frame.render_widget(border, areas.frame);
     let scroll = input.place(areas.text);
@@ -107,7 +125,7 @@ fn draw_input(
         let at = Rect::new(areas.text.x - width, areas.text.y, width, 1);
         frame.render_widget(Paragraph::new(Line::styled(prompt, prompt_style)), at);
     }
-    if let Some(pos) = input.cursor_position() {
+    if let Some(pos) = input.cursor_position().filter(|_| typing) {
         frame.set_cursor_position(pos);
     }
 }

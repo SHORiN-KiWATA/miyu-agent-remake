@@ -8,6 +8,10 @@ use miyu_kernel::event::Said;
 
 use super::kinds::{EndReason, Level, ToolStatus};
 
+mod jobs;
+
+pub use jobs::{JobEnd, JobReason, JobStart, Said as Foreign, Sender};
+
 /// 一次请求出的错（`model.called` 的 `error`）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CallError {
@@ -104,8 +108,16 @@ pub enum Push {
     Title(String),
     /// 一轮开始了，带着回合编号（那一条 `turn.started` 的序号）和开这一轮的那条消息的序号（`trigger`）。
     TurnStarted(u64, Option<u64>),
-    /// 你说的一句落了盘（`message.user`，人发的），带着它的序号。
+    /// 你说的一句落了盘（`message.user`，这个界面发的），带着它的序号。
     UserMessage(u64),
+    /// 不是这个界面发的一句落了盘：别的 harness、子代理的留言、主会话的交代、同一个人在别处说的（蓝图「别处来的话」）。
+    Foreign(Foreign),
+    /// 派出去一个后台任务（工具结果 `effects` 里的 `job.started`）。
+    JobStarted(JobStart),
+    /// 给报过的子代理留了言，它又在跑了（`job.messaged`），带着任务编号。
+    JobMessaged(String),
+    /// 一个后台任务结束了：后台命令（`job.reported`）、子代理（`child.reported`）。
+    JobEnded(JobEnd),
     /// 这几条排着队的消息被退回了（`message.withdrawn`），照序号。
     Withdrawn(Vec<u64>),
     /// 这几轮被撤掉了（`turn.reverted`）。
@@ -193,8 +205,8 @@ pub enum Push {
     TurnEnded(EndReason),
 }
 
-/// 读一条事件。界面不关心的交回空的。
-pub fn read(event: &Value) -> Vec<Push> {
+/// 读一条事件。界面不关心的交回空的。`mine`：这个请求编号是不是这个界面发的（`message.user` 照它分你说的和别处来的）。
+pub fn read(event: &Value, mine: &dyn Fn(&str) -> bool) -> Vec<Push> {
     let body = &event["body"];
     let text = |v: &Value| v.as_str().unwrap_or_default().to_string();
     let mut out = Vec::new();
@@ -210,11 +222,8 @@ pub fn read(event: &Value) -> Vec<Push> {
             event["turn"].as_u64().unwrap_or_default(),
             body["trigger"].as_u64(),
         )),
-        "message.user" if by["kind"] == "person" => {
-            if let Some(seq) = event["seq"].as_u64() {
-                out.push(Push::UserMessage(seq));
-            }
-        }
+        "message.user" => out.extend(jobs::said(event, mine)),
+        "job.reported" | "child.reported" => out.push(jobs::reported(body)),
         "message.withdrawn" => out.push(Push::Withdrawn(turns(&body["messages"]))),
         // 认不出的级别（新版本才有的）不画，照旧显示上一次的。
         "session.policy_changed" => {
@@ -277,15 +286,18 @@ pub fn read(event: &Value) -> Vec<Push> {
                 .collect();
             out.push(Push::Calls(calls));
         }
-        "tool.result" => out.push(Push::ToolResult {
-            call_id: text(&body["call_id"]),
-            status: ToolStatus::parse(&text(&body["status"])),
-            text: blocks(body)
-                .filter_map(|b| b["text"].as_str())
-                .collect::<Vec<_>>()
-                .join("\n"),
-            said: serde_json::from_value(body["human"].clone()).ok(),
-        }),
+        "tool.result" => {
+            jobs::effects(body, &mut out);
+            out.push(Push::ToolResult {
+                call_id: text(&body["call_id"]),
+                status: ToolStatus::parse(&text(&body["status"])),
+                text: blocks(body)
+                    .filter_map(|b| b["text"].as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+                said: serde_json::from_value(body["human"].clone()).ok(),
+            });
+        }
         "model.called" => {
             let usage = &body["usage"];
             if usage.is_object() {

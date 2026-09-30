@@ -2,7 +2,9 @@
   "commands": [
     {
       "name": "undo",
-      "aliases": ["rewind"],
+      "aliases": [
+        "rewind"
+      ],
       "summary": "撤销上一轮，她改过的文件改回去",
       "run": "revert"
     },
@@ -23,7 +25,9 @@
     },
     {
       "name": "clear",
-      "aliases": ["reset"],
+      "aliases": [
+        "reset"
+      ],
       "summary": "清空上下文，会话不变",
       "run": "clear"
     },
@@ -68,7 +72,6 @@
       "summary": "改常用的权限级别：工作区或完全放开",
       "run": "fake"
     },
-
     {
       "name": "tools",
       "summary": "工具设置：哪些常驻、哪些按需加载",
@@ -93,16 +96,6 @@
       "name": "exit",
       "summary": "退出",
       "run": "quit"
-    },
-    {
-      "name": "demo-bg",
-      "summary": "演示：起一条假的后台命令",
-      "run": "demo_shell"
-    },
-    {
-      "name": "demo-agent",
-      "summary": "演示：派一个假的子代理",
-      "run": "demo_agent"
     },
     {
       "name": "demo-todo",

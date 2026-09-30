@@ -8,85 +8,53 @@ use ratatui::layout::Position;
 
 use super::App;
 use crate::commands::Run;
+use crate::core::Command;
 use crate::focus::{Button, Focus, Stops};
-use crate::jobs::{JobKind, JobState};
-use crate::meter;
-use crate::transcript::JobMark;
+use crate::jobs::PanelItem;
 
 /// 开着的面板：和命令列表同一个位置（第 3 条）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Panel {
-    /// 后台面板：选中第几条、点开了哪一条（编号）。
+    /// 后台面板：选中第几行、点开了哪一条（编号）、结束了的收起来的展开了没有。
     Background {
-        /// 选中第几条。
+        /// 选中第几行（[`Board::panel_items`] 的第几个）。
         selected: usize,
         /// 点开的那一条的编号。
         open: Option<u64>,
+        /// 结束了的多于一条时收起来的，展开了。
+        all: bool,
     },
 }
 
 impl App {
-    /// 演示命令：起一条假的后台命令、派一个假的子代理、推一份假的待办。
+    /// 演示命令：推一份假的待办（后台命令、子代理已经接核心）。
     pub(super) fn demo(&mut self, run: Run) {
-        let now = Instant::now();
-        let (script, board) = (&self.config.fake, &mut self.board);
-        match run {
-            Run::DemoShell => self.feed.start_shell(script, board, now),
-            Run::DemoAgent => self.feed.start_agent(script, board, now),
-            Run::DemoTodo => self.feed.start_todo(script, board, now),
-            _ => {}
+        if run == Run::DemoTodo {
+            let now = Instant::now();
+            self.feed
+                .start_todo(&self.config.fake, &mut self.board, now);
         }
     }
 
-    /// 到点的推一步；结束了的出通知。
+    /// 到点的推一步（假的待办）。
     pub(super) fn advance_jobs(&mut self) {
-        let now = Instant::now();
-        let finished = self.feed.advance(&self.config.fake, &mut self.board, now);
-        for id in finished {
-            self.announce(id, now);
-        }
+        self.feed
+            .advance(&self.config.fake, &mut self.board, Instant::now());
+        self.poll_output();
     }
 
-    /// 下一次该推、该重画的时刻：假数据源的下一步；有在跑的，每秒重画一次（用时在走）。
+    /// 下一次该推、该重画的时刻：假待办的下一步；有在跑的后台任务，每秒重画一次（用时在走）。
     pub(super) fn jobs_deadline(&self) -> Option<Instant> {
-        let running = self.board.jobs.iter().any(|j| j.running());
+        let running = self.board.busy() || self.tree().busy();
         let tick = running.then(|| Instant::now() + Duration::from_secs(1));
         self.feed.next_at().into_iter().chain(tick).min()
     }
 
-    /// 停掉一条在跑的后台任务，出一条通知。
+    /// 停掉一条在跑的后台任务：交给核心（`job.stop`），结束的回报来了再出通知。
     fn stop_job(&mut self, id: u64) {
-        let now = Instant::now();
-        if self.board.stop(id, now) {
-            self.announce(id, now);
+        if let Some(job) = super::sessions::job_of(&self.board, id).filter(|j| j.running()) {
+            self.core.send(Command::Stop(job.job.clone()));
         }
-    }
-
-    /// 一条后台任务结束了：正文末尾一行，记号有颜色、字是原色；子代理的报告能点开看（第 5 条）。
-    fn announce(&mut self, id: u64, now: Instant) {
-        let Some(job) = self.board.jobs.iter().find(|j| j.id == id) else {
-            return;
-        };
-        let words = &self.config.text.jobs;
-        let elapsed = meter::clock(job.elapsed(now).as_secs());
-        let (mark, text) = match (job.kind, job.state) {
-            (JobKind::Agent, _) => (JobMark::Done, words.agent_note.clone()),
-            (_, JobState::Failed(code)) => (
-                JobMark::Failed,
-                words.failed_note.replace("{code}", &code.to_string()),
-            ),
-            (_, JobState::Stopped) => (JobMark::Stopped, words.stopped_note.clone()),
-            _ => (JobMark::Done, words.done_note.clone()),
-        };
-        let text = text
-            .replace("{title}", &job.title)
-            .replace("{elapsed}", &elapsed);
-        // 点开看的全文：子代理是报告，命令是它的输出（第 5 条）。
-        let detail = match job.kind {
-            JobKind::Agent => job.report.clone(),
-            JobKind::Shell => job.output.join("\n"),
-        };
-        self.transcript.job(mark, text, detail);
     }
 
     /// 框下面那一行现在有哪些按钮（从左到右）：有在跑的命令时的后台按钮。
@@ -97,9 +65,17 @@ impl App {
             .collect()
     }
 
-    /// 子代理状态行里的子代理有几行。
+    /// 子代理状态行里焦点能停的几行：主会话那一行加上列着的子代理（`sessions.rs` 的 `listed_agents`）；
+    /// 没有列着的子代理，这一块不在，一行都没有。
     fn agent_stops(&self) -> usize {
-        self.board.agents().len().min(self.config.layout.agent_rows)
+        match self
+            .listed_agents()
+            .len()
+            .min(self.config.layout.agent_rows)
+        {
+            0 => 0,
+            n => n + 1,
+        }
     }
 
     /// 焦点现在在哪：按钮、行没了就退回（第 2 条）。
@@ -118,6 +94,7 @@ impl App {
             Button::Background => Panel::Background {
                 selected: 0,
                 open: None,
+                all: false,
             },
         });
     }
@@ -149,9 +126,26 @@ impl App {
                 self.open(b);
                 focus
             }
-            (Focus::Agent(_), KeyCode::Enter) => {
-                let text = self.config.text.jobs.switch_todo.clone();
-                self.hint(text, false);
+            // 第 0 行回主会话，别的切进那个子代理的会话（「切进子会话」第 1、4 条）；焦点留在这一行
+            // （2026-09-30 项目主人：原来切完回输入框）。
+            (Focus::Agent(0), KeyCode::Enter) => {
+                self.leave_child();
+                focus
+            }
+            (Focus::Agent(i), KeyCode::Enter) => {
+                self.enter_agent(i - 1);
+                focus
+            }
+            // 选中的子代理按 x：停掉它（主会话那一行、报完了的不管）。
+            (Focus::Agent(i), KeyCode::Char('x')) if i > 0 => {
+                let listed = self.listed_agents();
+                let job = listed
+                    .get(i - 1)
+                    .filter(|j| j.running())
+                    .map(|j| j.job.clone());
+                if let Some(job) = job {
+                    self.core.send(Command::Stop(job));
+                }
                 focus
             }
             // 别的键：焦点回输入框，字照打进去。
@@ -165,16 +159,26 @@ impl App {
 
     /// 面板开着时的按键。
     fn panel_key(&mut self, panel: Panel, key: KeyEvent) {
-        let Panel::Background { selected, open } = panel;
-        let count = self.board.shells().len();
-        let at = |selected| Some(Panel::Background { selected, open });
+        let Panel::Background {
+            selected,
+            open,
+            all,
+        } = panel;
+        let items = self.board.panel_items(all);
+        let at = |selected| {
+            Some(Panel::Background {
+                selected,
+                open,
+                all,
+            })
+        };
         match key.code {
             KeyCode::Up => self.panel = at(selected.saturating_sub(1)),
-            KeyCode::Down => self.panel = at((selected + 1).min(count.saturating_sub(1))),
-            KeyCode::Enter => self.toggle_job(selected),
+            KeyCode::Down => self.panel = at((selected + 1).min(items.len().saturating_sub(1))),
+            KeyCode::Enter => self.pick_item(selected),
             KeyCode::Char('x') => {
-                if let Some(id) = self.board.shells().get(selected).map(|j| j.id) {
-                    self.stop_job(id);
+                if let Some(PanelItem::Job(id)) = items.get(selected) {
+                    self.stop_job(*id);
                 }
             }
             KeyCode::Esc => self.panel = None,
@@ -182,16 +186,28 @@ impl App {
         }
     }
 
-    /// 后台面板里点开、收起第几条（一次只开一条）。
-    fn toggle_job(&mut self, index: usize) {
-        let id = self.board.shells().get(index).map(|j| j.id);
-        if let Some(Panel::Background { open, .. }) = self.panel {
-            let open = if open == id { None } else { id };
-            self.panel = Some(Panel::Background {
-                selected: index,
-                open,
-            });
-        }
+    /// 后台面板里选了第几行：一条命令点开、收起（一次只开一条，点开时马上读一次输出）；收起来的那一行展开，展开以后
+    /// 最后那一行收起，选中的跟着它走。
+    fn pick_item(&mut self, index: usize) {
+        let Some(Panel::Background { open, all, .. }) = self.panel else {
+            return;
+        };
+        let item = self.board.panel_items(all).get(index).copied();
+        let (open, all) = match item {
+            Some(PanelItem::Job(id)) => ((open != Some(id)).then_some(id), all),
+            Some(PanelItem::More(_) | PanelItem::Less) => (open, !all),
+            None => return,
+        };
+        let selected = match item {
+            Some(PanelItem::Job(_)) => index,
+            _ => self.board.panel_items(all).len().saturating_sub(1),
+        };
+        self.panel = Some(Panel::Background {
+            selected,
+            open,
+            all,
+        });
+        self.poll_output();
     }
 
     /// 鼠标先归框下面那一行的按钮、面板、子代理状态行；归了它们返回 `true`。
@@ -228,15 +244,15 @@ impl App {
             }
         }
         if let Some(row) = self.agents_hover {
-            // 第 0 行是空行，第 1 行是主会话，子代理从第 2 行起。
-            if press && row >= 2 {
-                self.focus = Focus::Agent(row - 2);
-                let text = self.config.text.jobs.switch_todo.clone();
-                self.hint(text, false);
+            // 第 0 行是空行，第 1 行是主会话，子代理从第 2 行起：点了切过去（「切进子会话」第 1、4 条）。
+            if press && row == 1 {
+                self.leave_child();
+            } else if press && row >= 2 {
+                self.enter_agent(row - 2);
             }
             return true;
         }
-        if let Some(Panel::Background { open, .. }) = self.panel
+        if let Some(Panel::Background { open, all, .. }) = self.panel
             && areas.menu.contains(at)
         {
             // 点在框的边上不算点中哪一条（「斜杠命令列表」第 3 条）。
@@ -246,9 +262,10 @@ impl App {
                 self.panel = Some(Panel::Background {
                     selected: index,
                     open,
+                    all,
                 });
                 if press {
-                    self.toggle_job(index);
+                    self.pick_item(index);
                 }
             }
             return true;

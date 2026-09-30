@@ -37,6 +37,7 @@ pub(super) fn request(
             ("session.set_permission_level", params)
         }
         Command::Clear => ("session.clear", json!({"session": session})),
+        Command::Stop(job) => ("job.stop", json!({"session": session, "job": job})),
         // 附件（换了的）在外面传好了再接上（`mod.rs` 的 `serve`）。
         Command::Redo { text, .. } => {
             let mut params = json!({"session": session});
@@ -45,7 +46,13 @@ pub(super) fn request(
             }
             ("session.redo", params)
         }
-        Command::New => return None,
+        Command::New { .. }
+        | Command::Watch(_)
+        | Command::Unwatch(_)
+        | Command::View(_)
+        | Command::Output { .. } => {
+            return None;
+        }
     })
 }
 

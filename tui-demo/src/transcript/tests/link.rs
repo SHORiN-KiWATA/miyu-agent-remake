@@ -79,7 +79,7 @@ fn a_new_session_clears_the_page_but_keeps_the_link_and_the_model() {
     t.level = crate::core::Level::Full;
     t.model = Some(("flash".into(), "dev".into()));
     let last_id = t.entries.last().unwrap().id;
-    t.fresh();
+    t.split_off();
     assert!(t.entries.is_empty() && t.session.is_none());
     assert_eq!(t.level, crate::core::Level::Workspace, "新会话从工作区开始");
     assert_eq!(

@@ -17,12 +17,30 @@ impl App {
         true
     }
 
-    /// `/new`：清界面回首页；核心那边退订旧会话，第一句话时再开。旧会话在跑的那一轮照跑完。
+    /// `/new`：清界面回首页，第一句话时再开。旧会话在跑的那一轮照跑完；它还有后台任务在跑的，照样订阅着、停放起来，
+    /// 任务都报完了再退订（「后台命令、子代理和侧边栏」）；没有的马上退订，连它的子代理一起。
     pub(super) fn new_session(&mut self) {
-        self.core.send(Command::New);
-        self.transcript.fresh();
+        self.leave_child();
+        let keep = self.board.busy();
+        self.core.send(Command::New { keep });
+        let old = self.transcript.split_off();
+        let board = std::mem::take(&mut self.board);
+        match old.session.clone() {
+            Some(session) if keep => {
+                self.left.push(session.clone());
+                let view = std::mem::take(&mut self.view);
+                let parked = super::sessions::Parked {
+                    transcript: old,
+                    board,
+                    view,
+                };
+                self.parked.insert(session, parked);
+            }
+            _ => self.drop_children(&board),
+        }
         self.view = Default::default();
         self.panel = None;
+        *self.row_cache.borrow_mut() = Default::default();
     }
 
     /// Tab、Shift+Tab：切到下一档，告诉核心，等 `session.policy_changed` 来了再画（「权限级别」第 2 条）。会话还没开的

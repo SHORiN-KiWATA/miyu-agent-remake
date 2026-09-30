@@ -12,6 +12,7 @@ mod done_row;
 mod drawer;
 mod figure_rows;
 mod footer;
+mod foreign_rows;
 mod history;
 mod home;
 mod input_box;
@@ -233,7 +234,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         .map(|e| e.text.split_whitespace().collect::<Vec<_>>().join(" "))
         .collect();
     let count = u16::try_from(queued.len()).unwrap_or(u16::MAX);
-    let agent_rows = agents::height(&app.board, app.config.layout.agent_rows);
+    let agent_rows = agents::height(app.listed_agents().len(), app.config.layout.agent_rows);
     // 没有侧边栏（窄屏、首页）时，待办常驻在输入框上面（第 4 条）；有侧边栏时在侧边栏里。
     let todo_lines = if sidebar.width == 0 {
         sidebar::todo_lines(

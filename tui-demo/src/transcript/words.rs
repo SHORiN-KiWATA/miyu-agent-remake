@@ -3,12 +3,13 @@
 use crate::config::Texts;
 use crate::core::{Report, Usage};
 
-/// 撤销点开以后的那一行：`改回 2 个文件 · 1 条命令的改动撤不回`。是 0 的那几格不写，都是 0 的是 `None`。
+/// 撤销点开以后的那一行：`改回 2 个文件 · 1 条命令的改动撤不回 · 停掉了 1 个任务`。是 0 的那几格不写，都是 0 的是 `None`。
 pub fn undo_counts(report: &Report, texts: &Texts) -> Option<String> {
     let counts = [
         (report.restored, &texts.restored),
         (report.untouched, &texts.untouched),
         (report.commands, &texts.commands),
+        (report.jobs, &texts.stopped_jobs),
     ];
     let parts: Vec<String> = counts
         .into_iter()

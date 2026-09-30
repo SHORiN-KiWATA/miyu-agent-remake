@@ -10,6 +10,7 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::app::App;
 use crate::config::{Config, Layout, TodoMarks};
+use crate::core::Usage;
 use crate::jobs::{Board, Todo, TodoState};
 use crate::side_select::TextRow;
 use crate::transcript::Transcript;
@@ -150,6 +151,7 @@ fn wrap_text(text: &str, width: usize) -> Vec<String> {
 /// 一并交回短编号在第几行（点它复制完整编号）。
 pub fn info_lines(
     t: &Transcript,
+    total: &Usage,
     config: &Config,
     width: u16,
     cwd: &str,
@@ -200,21 +202,22 @@ pub fn info_lines(
             out.push(item(compactions, theme::dim()));
         }
     }
-    let input = t.total.input();
-    if input + t.total.output > 0 {
+    // 用量连同子代理用的（`App::usage_total`，2026-09-30 项目主人）。
+    let input = total.input();
+    if input + total.output > 0 {
         out.push(Line::raw(""));
         out.push(Line::styled(text.side_usage.clone(), bold));
-        let total = meter::short(input + t.total.output);
+        let sum = meter::short(input + total.output);
         out.push(item(
-            text.side_total.replace("{tokens}", &total),
+            text.side_total.replace("{tokens}", &sum),
             theme::dim(),
         ));
         let split = text
             .side_split
             .replace("{input}", &meter::short(input))
-            .replace("{output}", &meter::short(t.total.output));
+            .replace("{output}", &meter::short(total.output));
         out.push(item(split, theme::dim()));
-        let hit = meter::hit_rate(t.total.cache_read, input);
+        let hit = meter::hit_rate(total.cache_read, input);
         out.push(item(text.side_hit.replace("{percent}", &hit), theme::dim()));
         if t.cache.breaks > 0 {
             let breaks = text.side_breaks.replace("{n}", &t.cache.breaks.to_string());
@@ -316,7 +319,8 @@ pub fn draw(frame: &mut Frame, area: Rect, app: &mut App) {
         super::mascot_view::draw(frame, mascot, app, true);
         top = mascot.bottom() + 1;
     }
-    let (info, id_row) = info_lines(&app.transcript, &app.config, inner, &app.cwd);
+    let total = app.usage_total();
+    let (info, id_row) = info_lines(&app.transcript, &total, &app.config, inner, &app.cwd);
     let tall = u16::try_from(info.len()).unwrap_or(u16::MAX);
     let at = Rect::new(area.x + 1, top, inner, tall).intersection(area);
     // 写了字的行记下来，给侧边栏的选字用（第 7 条）。

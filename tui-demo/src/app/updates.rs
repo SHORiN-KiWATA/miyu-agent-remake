@@ -9,6 +9,25 @@ use crate::transcript::Kind;
 impl App {
     /// 收一条核心那边的消息。撤销成了、排队的消息被退回了，字放回输入框（`tui.md`「输入框」第 7、8 条）。
     pub fn core(&mut self, update: Update) {
+        // 命令的输出：记进任务表，不经正文（`output.rs`）。
+        if let Update::Output {
+            session,
+            job,
+            output,
+        } = update
+        {
+            self.took_output(&session, &job, output);
+            return;
+        }
+        // 照会话分：别的会话的交给停放着的那一份；任务的几种、别处来的话照任务表、正文先办（`sessions.rs`）。
+        let Some(update) = self.route(update) else {
+            return;
+        };
+        if let Update::Push(push) = &update
+            && self.visible_push(push)
+        {
+            return;
+        }
         // 没发出去：先撤掉先画上的那句、字放回输入框，接着照一般的拒绝办（`redo.rs`）。
         let update = match update {
             Update::Unsent { reason, message } => {
@@ -55,6 +74,10 @@ impl App {
         }
         let folds = self.transcript.folds();
         self.transcript.update(update, &self.config.text);
+        // 在子会话里看：它那一行正在做什么、用了多少跟着更新。
+        if let Some(child) = self.viewing().map(str::to_string) {
+            self.refresh_agent(&child);
+        }
         // 一段刚收起（她开口、一轮结束）：放开一次视口，收起留下的空白由上面的行补满（`tui.md`「正文」第 1 条）。
         if release && self.transcript.folds() > folds {
             self.view.settle();

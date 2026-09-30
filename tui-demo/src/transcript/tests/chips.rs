@@ -63,6 +63,6 @@ fn attachments_are_counted_per_kind_and_undone_ones_give_their_numbers_back() {
         counts(&[("image", 2), ("pdf", 1)]),
         "恢复了又算"
     );
-    t.fresh();
+    t.split_off();
     assert!(t.attachment_counts().is_empty(), "/new 从头数");
 }

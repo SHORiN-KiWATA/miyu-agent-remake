@@ -2,7 +2,8 @@
   "kinds": {
     "shell": "command",
     "edit": "edit",
-    "write": "edit"
+    "write": "edit",
+    "agent": "agent"
   },
   "spinner": [
     "⠋",

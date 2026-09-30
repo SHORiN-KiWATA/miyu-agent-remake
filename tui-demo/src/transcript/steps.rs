@@ -122,7 +122,7 @@ impl Step {
                 StepKind::Tool { name, .. } => match timeline.kinds.get(name) {
                     Some(ToolKind::Command) => expand.command,
                     Some(ToolKind::Edit) => expand.edit,
-                    None => false,
+                    Some(ToolKind::Agent) | None => false,
                 },
             }
         })

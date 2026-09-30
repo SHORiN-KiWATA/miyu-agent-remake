@@ -10,25 +10,25 @@ mod backoff;
 mod connect;
 mod kinds;
 mod limits;
+mod output;
 mod push;
 mod request;
 mod rpc;
+mod serve;
 mod undo;
 mod upload;
 
-use std::collections::HashMap;
 use std::thread;
 
-use serde_json::json;
 use tokio::sync::mpsc;
 
 use backoff::Backoff;
-use connect::{connect, create, cwd, subscribe};
-use request::request;
+use connect::{connect, create, subscribe};
 
 pub use kinds::{EndReason, Level, ToolStatus};
 pub use limits::Limits;
-pub use push::{Block, CallError, Compaction, Push, Usage};
+pub use output::JobOutput;
+pub use push::{Block, CallError, Compaction, JobEnd, JobReason, JobStart, Push, Sender, Usage};
 use rpc::Rpc;
 pub use undo::Report;
 
@@ -53,8 +53,29 @@ pub enum Command {
     Unrevert,
     /// 现在就压缩上下文（`session.compact`，施工 6-8），带着给摘要的要求。
     Compact(Option<String>),
-    /// 开新会话（`/new`）：退订现在这个，等第一句话再开（蓝图「斜杠命令」`/new`）。
-    New,
+    /// 开新会话（`/new`）：等第一句话再开（蓝图「斜杠命令」`/new`）。`keep`：旧的还有后台任务在跑，照样订阅着，等界面
+    /// 说它的任务都报完了再退订（「后台命令、子代理和侧边栏」）；不然马上退订。
+    New {
+        /// 旧会话照样订阅着。
+        keep: bool,
+    },
+    /// 另外订阅一个会话：子代理的会话（「后台命令、子代理和侧边栏」、「切进子会话」）。它推来的包成 [`Update::Elsewhere`]。
+    Watch(String),
+    /// 退订另外订阅着的一个会话。
+    Unwatch(String),
+    /// 命令对着哪个会话：切进了的子会话；`None` 是主会话（「切进子会话」第 3 条）。
+    View(Option<String>),
+    /// 停掉一个后台任务（`job.stop`，带任务编号）。
+    Stop(String),
+    /// 读一条后台命令到这时为止的输出（`job.output`）：哪个会话派的、任务编号、要最后几行。
+    Output {
+        /// 哪个会话派的。
+        session: String,
+        /// 任务编号。
+        job: String,
+        /// 要最后几行。
+        tail: usize,
+    },
     /// 切权限级别（`session.set_permission_level`）：切到这一级。会话还没开的记着，开了再发。
     Level(Level),
     /// 清空上下文（`session.clear`，`/clear`）。
@@ -102,6 +123,13 @@ pub enum Update {
         /// 回应里给人看的几样。
         report: Report,
     },
+    /// 另外订阅着的会话推来的（推送、限额），带着是哪个会话。
+    Elsewhere {
+        /// 哪个会话。
+        session: String,
+        /// 推来的。
+        update: Box<Update>,
+    },
     /// 说的话、重做没发出去（核心拒了、附件传不上）：和 [`Update::Refused`] 一样的两样；先画进正文的那句要撤掉，
     /// 字放回输入框（「输入框」第 12、13 条）。
     Unsent {
@@ -110,19 +138,15 @@ pub enum Update {
         /// 核心的原话。
         message: String,
     },
-}
-
-/// 等着回应、回应要另外办的请求（`serve` 记着请求的编号）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Awaiting {
-    /// 撤销：回应里给人看的几样交给界面。
-    Revert,
-    /// 恢复：同上。
-    Unrevert,
-    /// 说一句话：成了不用管，拒了要撤掉先画上的那句。
-    Send,
-    /// 重做：同上。
-    Redo,
+    /// 一条后台命令的输出（[`Command::Output`] 的回应）；读不了的（任务没了、是子代理）是 `None`。
+    Output {
+        /// 哪个会话派的。
+        session: String,
+        /// 任务编号。
+        job: String,
+        /// 读到的。
+        output: Option<JobOutput>,
+    },
 }
 
 /// 连着核心的这一头，界面拿着它发命令。
@@ -168,23 +192,22 @@ async fn run(
     mut wait: Backoff,
     notify: &impl Fn(Update) -> bool,
 ) {
-    let mut session = None;
-    // 会话还没开时切的权限级别：开会话时补发（「权限级别」第 2 条）。
-    let mut pending = None;
+    // 主会话、另外订阅着的、命令对着哪个：断了重连也记着（`serve.rs`）。
+    let mut link = serve::Link::default();
     loop {
         // 连不上一直试；这期间界面发的命令在通道里排着，连上再发（第 1、7 条）。
         let mut rpc = loop {
-            match open(session.as_deref()).await {
+            match open(link.main.as_deref()).await {
                 Ok((rpc, opened, limits)) => {
                     // 新开的会话（刚启动；按过 `/new` 还没说话就断了的）告诉界面编号，订阅原来的只说又连上了。
-                    let said = match (&session, &opened) {
+                    let said = match (&link.main, &opened) {
                         (None, Some(id)) => notify(Update::Ready(id.clone())),
                         _ => notify(Update::Reconnected),
                     };
                     if !said || limits.is_some_and(|l| !notify(Update::Limits(l))) {
                         return;
                     }
-                    session = opened;
+                    link.main = opened;
                     break rpc;
                 }
                 Err(update) => {
@@ -196,7 +219,7 @@ async fn run(
             }
         };
         wait.reset();
-        match serve(&mut rpc, &mut session, &mut pending, &mut commands, notify).await {
+        match serve::serve(&mut rpc, &mut link, &mut commands, notify).await {
             Served::Quit => return,
             Served::Lost if !notify(Update::Disconnected) => return,
             Served::Lost => {}
@@ -215,184 +238,12 @@ async fn open(session: Option<&str>) -> Result<(Rpc, Option<String>, Option<Limi
     Ok((rpc, Some(session), Some(limits)))
 }
 
-/// 在一条连接上收发，直到界面关了或者连接断了。
-async fn serve(
-    rpc: &mut Rpc,
-    session: &mut Option<String>,
-    pending: &mut Option<Level>,
-    commands: &mut mpsc::UnboundedReceiver<Command>,
-    notify: &impl Fn(Update) -> bool,
-) -> Served {
-    let cwd = cwd();
-    // 等着回应、回应要另外办的请求：编号到是哪一种。
-    let mut awaiting: HashMap<String, Awaiting> = HashMap::new();
-    loop {
-        tokio::select! {
-            command = commands.recv() => {
-                let Some(command) = command else { return Served::Quit };
-                match command {
-                    // 懒着开（施工会话 09-30 建议）：只退订旧的，等第一句话再开，连按几下不留空会话。
-                    Command::New => {
-                        if let Some(old) = session.take() {
-                            let params = json!({"session": old, "stream": "events"});
-                            if rpc.send("unsubscribe", params).await.is_err() {
-                                return Served::Lost;
-                            }
-                        }
-                        continue;
-                    }
-                    Command::Level(level) if session.is_none() => {
-                        *pending = Some(level);
-                        continue;
-                    }
-                    Command::Send { .. } if session.is_none() => {
-                        match fresh(rpc).await {
-                            Ok((id, limits)) => {
-                                if !notify(Update::Ready(id.clone())) || !notify(Update::Limits(limits)) {
-                                    return Served::Quit;
-                                }
-                                // 会话还没开时切过权限级别：先补发，再说话。
-                                if let Some(level) = pending.take() {
-                                    let mut params = level.permission();
-                                    params["session"] = json!(id);
-                                    if rpc.send("session.set_permission_level", params).await.is_err() {
-                                        return Served::Lost;
-                                    }
-                                }
-                                *session = Some(id);
-                            }
-                            Err(Update::Disconnected) => return Served::Lost,
-                            Err(update) => {
-                                if !notify(update) {
-                                    return Served::Quit;
-                                }
-                                continue;
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-                // 还没开会话时别的命令没有对象：界面那头当场说了（`app/keys.rs`）。
-                let Some(session) = session.as_deref() else { continue };
-                let kind = match command {
-                    Command::Revert => Some(Awaiting::Revert),
-                    Command::Unrevert => Some(Awaiting::Unrevert),
-                    Command::Send { .. } => Some(Awaiting::Send),
-                    Command::Redo { .. } => Some(Awaiting::Redo),
-                    _ => None,
-                };
-                // 带附件的：先把每个文件交给核心，传不上的整句不发（「输入框」第 12 条）。重做换了附件的也一样，
-                // 换成没有附件的带一个空的（「输入框」第 13 条）。
-                let files = match &command {
-                    Command::Send { files, .. } if !files.is_empty() => Some(files.clone()),
-                    Command::Redo { files, .. } => files.clone(),
-                    _ => None,
-                };
-                let mut attachments = None;
-                if let Some(files) = files {
-                    match upload::attach(rpc, &files).await {
-                        Ok(got) => attachments = Some(got),
-                        Err(Update::Disconnected) => return Served::Lost,
-                        // 传不上：这一句没发出去（「输入框」第 12 条）。
-                        Err(Update::Refused { reason, message }) => {
-                            if !notify(Update::Unsent { reason, message }) {
-                                return Served::Quit;
-                            }
-                            continue;
-                        }
-                        Err(update) => {
-                            if !notify(update) {
-                                return Served::Quit;
-                            }
-                            continue;
-                        }
-                    }
-                }
-                let Some((method, mut params)) = request(command, session, &cwd) else { continue };
-                if let Some(attachments) = attachments {
-                    params["attachments"] = json!(attachments);
-                }
-                match rpc.send(method, params).await {
-                    Ok(id) => {
-                        if let Some(kind) = kind {
-                            awaiting.insert(id, kind);
-                        }
-                    }
-                    Err(_) => return Served::Lost,
-                }
-            }
-            message = rpc.next() => {
-                let Some(message) = message else { return Served::Lost };
-                let session = session.as_deref().unwrap_or_default();
-                if !take(rpc, session, &message, &mut awaiting, notify).await {
-                    return Served::Quit;
-                }
-            }
-        }
-    }
-}
-
-/// `/new` 以后的第一句话：开会话、订阅。
-async fn fresh(rpc: &mut Rpc) -> Result<(String, Limits), Update> {
-    let id = create(rpc).await?;
-    let limits = subscribe(rpc, &id).await?;
-    Ok((id, limits))
-}
-
-/// 处理一条读进来的：推送、回应。交回界面还在不在。
-async fn take(
-    rpc: &mut Rpc,
-    session: &str,
-    message: &serde_json::Value,
-    awaiting: &mut HashMap<String, Awaiting>,
-    notify: &impl Fn(Update) -> bool,
-) -> bool {
-    let kind = message["id"].as_str().and_then(|id| awaiting.remove(id));
-    if let Some(error) = message.get("error") {
-        let reason = error["data"]["reason"].as_str().map(str::to_string);
-        let message = error["message"].as_str().unwrap_or_default().to_string();
-        return notify(match kind {
-            Some(Awaiting::Send | Awaiting::Redo) => Update::Unsent { reason, message },
-            _ => Update::Refused { reason, message },
-        });
-    }
-    match kind {
-        Some(Awaiting::Revert | Awaiting::Unrevert) => {
-            let restore = kind == Some(Awaiting::Unrevert);
-            let report = Report::read(&message["result"]);
-            return notify(Update::Undone { restore, report });
-        }
-        // 说的话、重做成了：落盘、开轮都照推送来，回应不用管。
-        Some(Awaiting::Send | Awaiting::Redo) => return true,
-        None => {}
-    }
-    // 掉队后重新订阅的回应：限额照样带着，照它更新（核心重启以后载入的也是这样）。
-    if let Some(limits) = Limits::of(message) {
-        return notify(Update::Limits(limits));
-    }
-    // 只收现在这个会话的：`/new` 以后，旧会话退订之前推来的不要（蓝图「斜杠命令」`/new`）。
-    if message["params"]["session"].as_str() != Some(session) {
-        return true;
-    }
-    match message["method"].as_str() {
-        Some("event") => push::read(&message["params"]["event"])
-            .into_iter()
-            .all(|p| notify(Update::Push(p))),
-        // 掉了队：重新订阅，掉了的不补（`protocol.md`「慢和掉队」）。发不出去是连接断了，下一条读不到，照断开重连。
-        Some("resync") => {
-            let params = json!({"session": session, "stream": "events"});
-            let _resubscribed = rpc.send("subscribe", params).await;
-            true
-        }
-        _ => true,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use serde_json::json;
 
-    use super::{Command, Level, request};
+    use super::request::request;
+    use super::{Command, Level};
 
     #[test]
     fn switching_the_level_writes_only_what_changes() {
@@ -419,6 +270,6 @@ mod tests {
             (method, params),
             ("session.clear", json!({"session": "s1"}))
         );
-        assert!(request(Command::New, "s1", ".").is_none());
+        assert!(request(Command::New { keep: false }, "s1", ".").is_none());
     }
 }

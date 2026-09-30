@@ -12,6 +12,7 @@ mod copy;
 mod done;
 mod failure;
 mod folds;
+mod foreign;
 mod level;
 mod link;
 mod queue;

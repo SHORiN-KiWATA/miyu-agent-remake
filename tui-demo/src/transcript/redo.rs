@@ -9,7 +9,8 @@ impl Transcript {
     pub fn last_said(&self) -> Option<&Entry> {
         let shown = || self.entries.iter().filter(|e| !e.hidden);
         let last = shown().filter_map(|e| e.turn).max()?;
-        shown().find(|e| e.kind == Kind::User && e.turn == Some(last))
+        // 别处来的话开的那一轮不算（「别处来的话」第 3 条）。
+        shown().find(|e| e.kind == Kind::User && e.turn == Some(last) && e.from.is_none())
     }
 
     /// 重做发出去时先在界面上藏掉最后一轮：重发的那句落在它原来的位置，不先在底下闪一下（核心推来的 `turn.reverted`
@@ -27,10 +28,9 @@ impl Transcript {
 
     /// 没发出去：撤掉最后一条还没落盘（没有序号、没归到哪一轮）的你说的话。
     pub fn drop_unsent(&mut self) {
-        let unsent = self
-            .entries
-            .iter()
-            .rposition(|e| e.kind == Kind::User && e.seq.is_none() && e.turn.is_none());
+        let unsent = self.entries.iter().rposition(|e| {
+            e.kind == Kind::User && e.seq.is_none() && e.turn.is_none() && e.from.is_none()
+        });
         if let Some(at) = unsent {
             self.entries.remove(at);
             self.removed(at);

@@ -70,6 +70,16 @@ pub fn title(step: &Step, style: Style, width: u16, ctx: &Ctx) -> Vec<Span<'stat
                         .and_then(|k| step.arg(k)),
                 };
                 let mut label = shown.to_string();
+                // 派子代理：名字后面先写任务编号（`派子代理 · j10 · 描述`）。
+                let job = said
+                    .as_ref()
+                    .filter(|_| kind == Some(ToolKind::Agent))
+                    .and_then(|s| s.fields.iter().find(|(f, _)| f.as_str() == "job"))
+                    .map(|(_, v)| v.clone());
+                if let Some(job) = job {
+                    label.push_str(" · ");
+                    label.push_str(&job);
+                }
                 if let Some(subject) = subject {
                     label.push_str(" · ");
                     label.push_str(&crate::local::home_short(subject));
@@ -212,6 +222,10 @@ pub fn body(step: &Step, style: Style, width: u16, ctx: &Ctx) -> Vec<Piece> {
                         joined: false,
                     })
                     .collect();
+            }
+            // 派子代理：点开是交代的活，结果那一句已经在标题里了。
+            if kind(step, ctx) == Some(ToolKind::Agent) {
+                return each(step.arg("prompt").unwrap_or_default().trim(), style).collect();
             }
             let mut out = Vec::new();
             if kind(step, ctx) == Some(ToolKind::Command) {

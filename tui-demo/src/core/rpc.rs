@@ -30,14 +30,11 @@ impl Rpc {
         let (reader, writer) = tokio::io::split(connection);
         let (sender, incoming) = mpsc::unbounded_channel();
         tokio::spawn(read_all(BufReader::new(reader), sender));
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_or(0, |d| d.as_nanos());
         Self {
             writer,
             incoming,
             held: VecDeque::new(),
-            prefix: format!("tui-{:x}{nanos:x}", std::process::id()),
+            prefix: prefix().to_string(),
             next: 0,
         }
     }
@@ -115,5 +112,39 @@ async fn read_all(
         {
             return;
         }
+    }
+}
+
+/// 这个界面发的请求编号的开头：整个进程只定一次，重连以后也一样，核心推来的 `cause` 照它认是不是自己发的（蓝图
+/// 「别处来的话」第 1 条）。进程号加启动时刻，两个界面不会撞上。
+pub fn prefix() -> &'static str {
+    static PREFIX: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    PREFIX.get_or_init(|| {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos());
+        format!("tui-{:x}{nanos:x}", std::process::id())
+    })
+}
+
+/// 这个编号是这个界面发的请求。
+pub fn owns(id: &str) -> bool {
+    id.strip_prefix(prefix())
+        .is_some_and(|rest| rest.starts_with('-'))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{owns, prefix};
+
+    #[test]
+    fn our_request_ids_are_known_by_their_prefix() {
+        // 核心推来的 `cause` 照它认是不是这个界面发的（蓝图「别处来的话」第 1 条），重连以后也一样。
+        assert!(owns(&format!("{}-12", prefix())));
+        assert!(!owns("web-12"));
+        assert!(
+            !owns(&format!("{}9-1", prefix())),
+            "开头一样、后面多了字的不算"
+        );
     }
 }

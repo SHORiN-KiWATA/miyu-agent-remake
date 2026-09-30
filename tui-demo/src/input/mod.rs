@@ -213,7 +213,8 @@ impl InputBox {
             // Ctrl+Shift+C 在认得 kitty 键盘协议的终端里报成大写的 C。
             KeyCode::Char('c' | 'C') if ctrl => return self.ctrl_c(),
             KeyCode::Char('d') if ctrl && self.editor.is_empty() => return Action::Quit,
-            KeyCode::Char('a') if ctrl => self.editor.select_all(),
+            // 回到输入框开头（2026-09-30 项目主人改：原来是全选）。
+            KeyCode::Char('a') if ctrl => self.editor.move_to(0, false),
             KeyCode::Char('s') if ctrl => self.swap_stash(),
             KeyCode::Char('w') if ctrl => self.editor.delete_word(),
             KeyCode::Backspace if ctrl || alt => self.editor.delete_word(),

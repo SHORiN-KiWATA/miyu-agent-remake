@@ -19,6 +19,8 @@ pub struct Report {
     pub compactions: u64,
     /// 撤掉的几轮里有几次清空（施工 6-8 补）：撤掉了清空，上下文回到了清空以前。是 0 的核心不写。
     pub clears: u64,
+    /// 撤销时停掉了几个后台任务（回应的 `jobs`，施工 7-8）：撤掉的几轮派出去、那一刻还在跑的。
+    pub jobs: u64,
 }
 
 impl Report {
@@ -37,6 +39,7 @@ impl Report {
             untouched: files.len() as u64 - restored,
             compactions: result["compactions"].as_u64().unwrap_or_default(),
             clears: result["clears"].as_u64().unwrap_or_default(),
+            jobs: result["jobs"].as_array().map_or(0, |j| j.len() as u64),
         }
     }
 }
@@ -52,7 +55,8 @@ mod tests {
         let result = json!({"commands": 2, "cwd": "/home/me/proj", "events": [14, 15],
             "files": [{"action": "write", "outcome": "restored", "path": "/a"},
                       {"action": "write", "outcome": "changed", "path": "/b", "diff": ["@@ -3 +3 @@"]}],
-            "said": "把 README 改成中文", "turns": 1, "compactions": 1, "clears": 1});
+            "said": "把 README 改成中文", "turns": 1, "compactions": 1, "clears": 1,
+            "jobs": [{"job": "j1", "what": "command", "title": "跑测试"}]});
         assert_eq!(
             Report::read(&result),
             Report {
@@ -62,7 +66,8 @@ mod tests {
                 restored: 1,
                 untouched: 1,
                 compactions: 1,
-                clears: 1
+                clears: 1,
+                jobs: 1
             }
         );
     }

@@ -1,5 +1,5 @@
 //! 正文里后台任务结束的那一行（蓝图 `tui.md`「后台命令、子代理和侧边栏」第 5 条）：记号有颜色、字是原色；
-//! 有全文（子代理的报告）的能点开，铺底色写全文，照撤销那一行的点开。
+//! 有全文（子代理的报告、命令和它的输出）的能点开：整块铺底色，那一行连同全文，照时间线点开一步。
 
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Span;
@@ -59,7 +59,8 @@ pub fn rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
             out.push(row);
         }
         out.push(blank());
-        for row in out.iter_mut().skip(1) {
+        // 点开是整块换成铺底色的，连那一行一起（照时间线点开一步；2026-09-30 项目主人：原来那一行没底色，看着怪）。
+        for row in &mut out {
             row.shade = true;
             row.target = Some(target);
         }
@@ -138,8 +139,8 @@ mod tests {
             .collect();
         assert_eq!(text[1..], ["", "    查完了。", "", "    结论在这。", ""]);
         assert!(
-            open[1..].iter().all(|r| r.shade),
-            "铺底色，全文和那一行的字对齐"
+            open.iter().all(|r| r.shade),
+            "整块铺底色，连那一行一起；全文和那一行的字对齐"
         );
     }
 

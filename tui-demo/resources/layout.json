@@ -15,7 +15,10 @@
   "double_click_ms": 400,
   "notice_ms": 2000,
   "frame_ms": 33,
-  "reconnect_ms": [500, 5000],
+  "reconnect_ms": [
+    500,
+    5000
+  ],
   "user_bar": "┃ ",
   "done_icon": "✻ ",
   "done_gap": {
@@ -55,18 +58,29 @@
   "sidebar_from": 120,
   "sidebar_width": 38,
   "agent_rows": 5,
+  "output": {
+    "panel_rows": 12,
+    "note_lines": 2000,
+    "poll_ms": 1000,
+    "tab": 4
+  },
   "todo_marks": {
     "pending": "☐ ",
     "active": "■ ",
     "done": "☑ "
   },
-  "job_preview_rows": 12,
   "todo_rows": 5,
   "mascot_home": true,
   "mascot_sidebar": true,
   "compaction": {
-    "pause_ms": [300, 1500],
-    "step_cells": [1, 3],
+    "pause_ms": [
+      300,
+      1500
+    ],
+    "step_cells": [
+      1,
+      3
+    ],
     "cap_percent": 95,
     "blink_hz": 1.2,
     "blink_low": 0.45,

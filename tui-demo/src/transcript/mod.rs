@@ -11,6 +11,8 @@ mod climb;
 mod compaction;
 mod entry;
 mod failure;
+mod foreign;
+mod jobs;
 mod queue;
 mod redo;
 mod steps;
@@ -172,18 +174,11 @@ impl Transcript {
             level: None,
             job: None,
             pasted: Vec::new(),
+            from: None,
             details: Vec::new(),
             progress: None,
             mark: None,
         });
-    }
-
-    /// 正文末尾一条后台任务结束的通知（蓝图「后台命令、子代理和侧边栏」第 5 条）。
-    pub fn job(&mut self, mark: JobMark, text: String, detail: String) {
-        self.note(Kind::Job, text);
-        if let Some(entry) = self.entries.last_mut() {
-            entry.job = Some(JobNote { mark, detail });
-        }
     }
 
     /// `order` 里的下一档，到头回到第一档；现在的不在里面的，是第一档。只算不改：切到哪一档由核心推来的
@@ -227,16 +222,6 @@ impl Transcript {
         self.manual
     }
 
-    /// 开新会话（`/new`）：正文、用量、撤销记录清掉，权限级别回到工作区；连接、模型、窗口照旧。条目编号接着往上数：
-    /// 按条缓存排好的行认编号，不能重用。
-    pub fn fresh(&mut self) {
-        let old = std::mem::take(self);
-        self.link = old.link;
-        self.model = old.model;
-        self.limits = old.limits;
-        self.next_id = old.next_id;
-    }
-
     /// 收一条核心那边的消息。
     pub fn update(&mut self, update: Update, texts: &Texts) {
         match update {
@@ -250,6 +235,8 @@ impl Transcript {
                 self.link = Link::Down(texts.missing_core.replace("{path}", &path));
             }
             Update::Reconnected => self.link = Link::Ready,
+            // 另外订阅着的会话推来的：界面照会话分给那个会话的正文（`app/sessions.rs`）。
+            Update::Elsewhere { .. } | Update::Output { .. } => {}
             Update::Failed(reason) => {
                 self.link = Link::Down(texts.core_failed.replace("{reason}", &reason));
             }
@@ -304,7 +291,7 @@ impl Transcript {
                 let first = self
                     .entries
                     .iter_mut()
-                    .find(|e| e.kind == Kind::User && e.seq.is_none());
+                    .find(|e| e.kind == Kind::User && e.seq.is_none() && e.from.is_none());
                 if let Some(entry) = first {
                     entry.seq = Some(seq);
                 }
@@ -371,6 +358,8 @@ impl Transcript {
                     }
                 }
             }
+            // 别处来的话、后台任务：界面照会话、任务表先办了（`app/sessions.rs`），正文不直接收。
+            Push::Foreign(_) | Push::JobStarted(_) | Push::JobMessaged(_) | Push::JobEnded(_) => {}
             Push::Usage(usage) => {
                 self.total.uncached += usage.uncached;
                 self.total.cache_read += usage.cache_read;
@@ -431,7 +420,8 @@ impl Transcript {
     }
 
     pub(super) fn hide(&mut self, turns: &[u64], hidden: bool) {
-        for entry in &mut self.entries {
+        // 别处来的话撤销不带走它（「别处来的话」第 3 条）。
+        for entry in self.entries.iter_mut().filter(|e| e.from.is_none()) {
             if entry.turn.is_some_and(|t| turns.contains(&t)) {
                 entry.hidden = hidden;
             }
@@ -464,6 +454,7 @@ impl Transcript {
             level,
             job: None,
             pasted: Vec::new(),
+            from: None,
             details: Vec::new(),
             progress: None,
             mark: None,

@@ -262,7 +262,7 @@ impl App {
                 let note = self.config.text.fake_command.replace("{name}", &spec.name);
                 self.transcript.note(Kind::Note, note);
             }
-            Run::DemoShell | Run::DemoAgent | Run::DemoTodo => self.demo(spec.run),
+            Run::DemoTodo => self.demo(spec.run),
             Run::DemoAsk | Run::DemoApprove => self.demo_drawer(spec.run),
         }
     }

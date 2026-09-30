@@ -121,12 +121,25 @@
   "icons_changed": "图标：{name}",
   "figure_pending": "⋯ 正在画图",
   "figure_zoom": "点开看大图",
-  "markdown": { "image": "[图片: ", "details": "详细信息", "details_marks": ["▶ ", "▼ "], "bullets": ["▪", "•", "◦"] },
+  "markdown": {
+    "image": "[图片: ",
+    "details": "详细信息",
+    "details_marks": [
+      "▶ ",
+      "▼ "
+    ],
+    "bullets": [
+      "▪",
+      "•",
+      "◦"
+    ]
+  },
   "refusal_hints": {
     "nothing_to_compact": "上下文过少",
     "nothing_to_clear": "上下文为空",
     "not_redoable": "无法重做",
-    "empty_message": "改完一个字都不剩了"
+    "empty_message": "改完一个字都不剩了",
+    "unknown_job": "这个任务已经结束了"
   },
   "refusals": {
     "nothing_to_unrevert": "没有能恢复的撤销",
@@ -136,11 +149,14 @@
     "restoring": "上一次撤销、恢复还没做完，稍等"
   },
   "done_usage": " · {tokens}(C{percent}%)",
-  "menu": { "title": "命令", "count": " {count} 条" },
+  "menu": {
+    "title": "命令",
+    "count": " {count} 条"
+  },
   "compaction": {
     "progress": "正在压缩上下文",
     "written": " {written}",
-    "percent": "\u00a0{percent}%",
+    "percent": " {percent}%",
     "done": "上下文已压缩：{before} → {after} token",
     "done_mark": "● ",
     "cleared": "上下文已清空",
@@ -196,16 +212,34 @@
     "stopped": "（已停止）",
     "main": "主会话",
     "more": "还有 {count} 个",
-    "switch_todo": "切进子会话还没做",
     "todo": "待办 {done}/{total}",
     "done_note": "后台命令完成 · {title} · {elapsed}",
     "failed_note": "后台命令失败 · {title} · 退出码 {code}",
-    "stopped_note": "后台命令已停止 · {title}",
+    "stopped_note": "后台命令已停止 · {title}{why}",
     "agent_note": "后台任务完成 · {title} · {elapsed}",
     "ok_mark": "● ",
     "fail_mark": "✗ ",
     "todo_folded": "做完 {count} 项",
-    "todo_more": "… 还有 {count} 项"
+    "todo_more": "… 还有 {count} 项",
+    "killed": "（失败 · 信号 {signal}）",
+    "undone": "（撤销时停了）",
+    "restarted": "（核心重启时停了）",
+    "no_output": "没有输出",
+    "more_ended": "已收起 {count} 个",
+    "less_ended": "收起已结束的",
+    "killed_note": "后台命令失败 · {title} · 信号 {signal}",
+    "agent_stopped_note": "后台任务已停止 · {title}{why}",
+    "why_undone": " · 撤销时停了",
+    "why_restarted": " · 核心重启时停了",
+    "doing_thinking": "思考中",
+    "doing_replying": "回答中",
+    "from_person": "从别处收到你的消息",
+    "from_main": "从主会话收到消息",
+    "from_agent": "从子代理 {job} 收到消息",
+    "from_harness": "从 {name} 收到消息",
+    "received": "{from} · {text}",
+    "child_tag": " 子代理 · {title} ",
+    "finished": "完成"
   },
   "drawer": {
     "asking": "{who} 在问",
@@ -257,5 +291,6 @@
     },
     "file": "[{name}]",
     "folder": "[{name}/]"
-  }
+  },
+  "stopped_jobs": "停掉了 {count} 个任务"
 }

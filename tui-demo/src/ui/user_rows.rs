@@ -1,6 +1,7 @@
 //! 你说的话（蓝图 `tui.md`「正文」第 2 条）：行首竖线，上下各多一行只有竖线的空行，竖线的颜色是发出去那一刻的权限级别。
 //! 里面有粘贴块的，块照输入框里的样子写（品红字、暗紫底），整条能点：点开原地把每一块换成全文，再点换回块；
 //! 悬停时块亮一档，展开着的粘的那几段铺上块的底色。附件（`[图片 1]`）也照块写，不展开，点块用系统的程序打开那个文件。
+//! 别处来的话（蓝图「别处来的话」）竖线暗色，第一行暗色写来处。
 
 use ratatui::style::Style;
 use ratatui::text::Span;
@@ -13,16 +14,29 @@ use crate::transcript::{Chip, Entry};
 
 /// 排成的行。`i` 是它在正文里是第几条。
 pub fn rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
-    let bar = Span::styled(
-        ctx.config.layout.user_bar.clone(),
-        theme::user_bar(entry.level.unwrap_or(ctx.level)),
-    );
+    // 别处来的话：一行暗色的来处和预览，点开换成全文（「别处来的话」）。
+    if let Some(from) = &entry.from {
+        return super::foreign_rows::rows(i, entry, from, ctx);
+    }
+    // 别处来的话：竖线暗色（「别处来的话」第 1 条）；你说的照发出去那一刻的权限级别上色。
+    let bar_style = if entry.from.is_some() {
+        theme::dim()
+    } else {
+        theme::user_bar(entry.level.unwrap_or(ctx.level))
+    };
+    let bar = Span::styled(ctx.config.layout.user_bar.clone(), bar_style);
     let said = entry.text.trim_matches('\n');
     // 有粘贴块的才能点开；只有附件、文件块的，点块以外的地方没反应（「输入框」第 12 条）。
     let clickable = entry.pasted.iter().any(Chip::expandable);
     let hovered = clickable && ctx.hover == Some(Target::Entry(i));
     let (text, pieces) = shaped(said, &entry.pasted, entry.open, hovered);
     let mut out = vec![ctx.row(bar.clone(), Vec::new())];
+    // 来处写在竖线里第一行，暗色；复制时不带。
+    if let Some(from) = &entry.from {
+        let mut head = ctx.row(bar.clone(), vec![Span::styled(from.clone(), theme::dim())]);
+        head.copy = false;
+        out.push(head);
+    }
     let mut prev_end = None;
     for line in wrap(&text, ctx.width.max(1)) {
         let styled: Vec<(usize, usize, Style)> =

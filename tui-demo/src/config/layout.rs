@@ -31,8 +31,8 @@ pub struct Layout {
     pub mascot_sidebar: bool,
     /// 子代理状态行最多几行（不算主会话）。
     pub agent_rows: usize,
-    /// 后台面板里点开一条命令，展开最后几行输出。
-    pub job_preview_rows: usize,
+    /// 后台命令的输出（`job.output`）：面板里露几行、结束了读几行、隔多久读一次、制表符换成几个空格。
+    pub output: OutputLook,
     /// 待办每一项前面的记号。
     pub todo_marks: TodoMarks,
     /// 待办默认最多露几行项目（不算标题）；侧边栏照它剩下的高度。
@@ -148,4 +148,18 @@ pub struct TodoMarks {
     pub active: String,
     /// 做完。
     pub done: String,
+}
+
+/// 后台命令的输出怎么读、露几行（蓝图「后台命令、子代理和侧边栏」第 3、5 条）。
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OutputLook {
+    /// 面板里点开一条露最后几行。
+    pub panel_rows: usize,
+    /// 结束了读最后几行，正文里那一行点开看（核心最多给 2000）。
+    pub note_lines: usize,
+    /// 在跑的隔几毫秒读一次。
+    pub poll_ms: u64,
+    /// 制表符换成几个空格。
+    pub tab: usize,
 }

@@ -159,7 +159,7 @@ fn enter_submits_and_shift_enter_breaks_the_line() {
 fn ctrl_c_copies_then_clears_then_only_hints() {
     let mut i = input(20);
     i.paste("abc");
-    press(&mut i, KeyCode::Char('a'), KeyModifiers::CONTROL);
+    i.editor.select_all();
     let ctrl_c = |i: &mut InputBox| press(i, KeyCode::Char('c'), KeyModifiers::CONTROL);
     assert_eq!(ctrl_c(&mut i), Action::Copy("abc".into()));
     press(&mut i, KeyCode::Esc, KeyModifiers::NONE);
@@ -395,4 +395,15 @@ fn a_click_then_backspacing_to_empty_leaves_no_phantom_selection() {
     press(&mut i, KeyCode::Delete, KeyModifiers::NONE);
     i.paste("粘贴");
     assert_eq!(i.editor.text(), "粘贴");
+}
+
+#[test]
+fn ctrl_a_moves_the_cursor_to_the_start_of_the_box() {
+    // 2026-09-30 项目主人改：`Ctrl+A` 是回到输入框开头（照终端的习惯），不是全选；多行的也回到第一行开头。
+    let mut i = input(20);
+    i.paste("第一行\n第二行");
+    press(&mut i, KeyCode::Left, KeyModifiers::SHIFT);
+    press(&mut i, KeyCode::Char('a'), KeyModifiers::CONTROL);
+    assert_eq!(i.editor.cursor(), 0);
+    assert_eq!(i.editor.selection(), None, "选区也取消");
 }

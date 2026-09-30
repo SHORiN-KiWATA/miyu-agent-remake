@@ -75,8 +75,44 @@ pub struct JobTexts {
     pub main: String,
     /// 收起来的，`{count}` 个。
     pub more: String,
-    /// 点子代理那一行：还不能切进去。
-    pub switch_todo: String,
+    /// 命令被信号杀掉的状态：`{signal}`。
+    pub killed: String,
+    /// 撤销时停掉的状态。
+    pub undone: String,
+    /// 核心重启时停掉的状态。
+    pub restarted: String,
+    /// 展开一条命令、点开结束的那一行：它一个字都没输出。
+    pub no_output: String,
+    /// 后台面板里结束了的多于一个时收起来的那一行：`{count}` 收了几条。
+    pub more_ended: String,
+    /// 展开以后最后那一行：收起。
+    pub less_ended: String,
+    /// 命令被信号杀掉的通知：`{title}` `{signal}`。
+    pub killed_note: String,
+    /// 子代理被停掉的通知：`{title}`，后面接 `{why}`。
+    pub agent_stopped_note: String,
+    /// 通知后面接的为什么停：撤销时停的。
+    pub why_undone: String,
+    /// 通知后面接的为什么停：核心重启时停的。
+    pub why_restarted: String,
+    /// 子代理在想。
+    pub doing_thinking: String,
+    /// 子代理在说。
+    pub doing_replying: String,
+    /// 别处来的话那一行写的来处（蓝图「别处来的话」第 2 条）：同一个人在别处（网页、命令行）说的。
+    pub from_person: String,
+    /// 来处：主会话（在子会话里看，交代的活、留言）。
+    pub from_main: String,
+    /// 来处：这个会话派的子代理，`{job}` 任务编号。
+    pub from_agent: String,
+    /// 来处：别的 harness，`{name}` 它报的名字（洗过）。
+    pub from_harness: String,
+    /// 收着时那一行：`{from}` 来处，`{text}` 话的预览。
+    pub received: String,
+    /// 切进子会话时输入框上边框右边写的：`{title}` 子代理的名字。
+    pub child_tag: String,
+    /// 子代理报完了、还在看它时，状态行里写的「完成」（用时写在右边，不重复）。
+    pub finished: String,
     /// 待办的进度，`{done}` `{total}`。
     pub todo: String,
     /// 待办长了：做完的收成一行，`{count}` 项。
@@ -224,6 +260,8 @@ pub struct Texts {
     pub untouched: String,
     /// 几条命令的改动撤不回，`{count}`。
     pub commands: String,
+    /// 撤销点开以后：停掉了几个后台任务，`{count}`（施工 7-8）。
+    pub stopped_jobs: String,
     /// 没有这个斜杠命令，`{name}`。
     pub unknown_command: String,
     /// 演示用的假命令，`{name}`。

@@ -12,7 +12,7 @@ use crate::ui::rows::{Ctx, MdCache};
 /// 排版要的东西：照出厂的配置，没有工具显示名（显示名就是工具名本身）。
 pub struct Fixture {
     pub config: Config,
-    human: Human,
+    pub human: Human,
     md: RefCell<MdCache>,
     figures: RefCell<Figures>,
 }
