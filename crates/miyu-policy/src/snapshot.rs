@@ -176,6 +176,10 @@ pub struct FactTexts {
     pub permission: String,
     /// 回复没说完就断了（`reply-cut.txt`）。
     pub reply_cut: String,
+    /// 会话编号（`session.txt`，施工 1-13 再补）。以前造的快照里没有，读成没有：那些会话不注入这一块；没有的不写，
+    /// 旧快照的字节不变。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session: Option<String>,
 }
 
 /// 内核替工具写给模型的几句，名字照 `resources/core/tool-results/` 里的文件。
@@ -355,6 +359,7 @@ impl Snapshot {
             &core.facts.env,
             &core.facts.permission,
             &core.facts.reply_cut,
+            core.facts.session.as_deref(),
         )
         .map_err(|error| BuildError::Texts {
             which: "fact templates",

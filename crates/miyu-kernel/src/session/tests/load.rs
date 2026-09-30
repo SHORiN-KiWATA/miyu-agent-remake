@@ -21,6 +21,7 @@ impl Logged {
     pub(super) fn new() -> Logged {
         let created: SessionCreated = serde_json::from_str(CREATED).unwrap();
         let (mut session, actions) = Session::create(
+            session_id(),
             id(0),
             alice(),
             at(0),
@@ -98,7 +99,14 @@ impl Logged {
 
 /// 在 07:00:55 载入这份日志。
 pub(super) fn load(log: Vec<Event>) -> (Session, Vec<Action>) {
-    Session::load(log, at(55), policy(), environment("~/src/miyu")).unwrap()
+    Session::load(
+        session_id(),
+        log,
+        at(55),
+        policy(),
+        environment("~/src/miyu"),
+    )
+    .unwrap()
 }
 
 pub(super) fn ended_with(event: &Event) -> &EndReason {
@@ -131,7 +139,7 @@ fn a_finished_session_loads_and_goes_on_the_same() {
 #[test]
 fn a_broken_log_is_refused() {
     assert_eq!(
-        Session::load(Vec::new(), at(55), policy(), environment("~")).unwrap_err(),
+        Session::load(session_id(), Vec::new(), at(55), policy(), environment("~")).unwrap_err(),
         LoadError::Empty
     );
     let mut logged = Logged::new();
@@ -139,7 +147,7 @@ fn a_broken_log_is_refused() {
     let mut gap = logged.upto(5);
     gap.remove(2);
     let Err(LoadError::Broken(LedgerError { seq: broken, why })) =
-        Session::load(gap, at(55), policy(), environment("~"))
+        Session::load(session_id(), gap, at(55), policy(), environment("~"))
     else {
         panic!("跳了号的日志应该拒绝");
     };

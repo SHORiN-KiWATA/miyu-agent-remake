@@ -11,6 +11,7 @@ pub(super) fn opened(policy: Policy, oneshot: bool) -> Session {
     let mut created: SessionCreated = serde_json::from_str(CREATED).unwrap();
     created.oneshot = oneshot;
     let (mut session, _) = Session::create(
+        session_id(),
         id(0),
         alice(),
         at(0),
