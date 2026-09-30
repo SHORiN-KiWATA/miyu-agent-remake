@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>141</b><span>/ 154 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 3-8 四补回顾、7-5 再补改名 subagent、2-7 补切了权限告诉她</span></li>
-    <li><b class="mono">29fa1380</b><span>最近一步（4-5 补 日文的给人看的字）的提交</span></li>
+    <li><b>142</b><span>/ 154 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 3-8 四补回顾、2-7 补切了权限告诉她、8-1、C-1</span></li>
+    <li><b class="mono">ea87ba6b</b><span>最近一步（7-5 再补 派子代理的工具改名 subagent）的提交</span></li>
   </ul>
 </header>
 
@@ -491,7 +491,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s7-4"><span class="n">7-4</span>jobs 和 job.stop<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-4b"><span class="n">7-4</span>协议读后台命令的输出（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-5"><span class="n">7-5</span>派子代理<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">7-5</span>派子代理的工具改名 subagent（再补）</span></li>
+        <li><a class="step done" href="#s7-5c"><span class="n">7-5</span>派子代理的工具改名 subagent（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-6"><span class="n">7-6</span>子会话回报<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-7"><span class="n">7-7</span>父子之间留言<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s7-8"><span class="n">7-8</span>撤销和压缩里的任务<span class="st">✓</span></a></li>
@@ -9793,6 +9793,57 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>agents.md</code> 第一条、<code>tools/agent.md</code>。</li>
         <li><code>docs/construction/7-5-派子代理.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s7-5c" aria-labelledby="h-s75c">
+  <div class="sheet-head"><h2 id="h-s75c"><span class="no">7-5</span>派子代理的工具改名 subagent（再补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">派子代理的工具从 <code>agent</code> 改名 <code>subagent</code>（项目主人定）：说明、参数一字不改，新会话的工具面里只有新名字；以前造的会话快照里冻着 <code>agent</code>，工具面一个字节不变，调 <code>agent</code> 照样派得出去。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">派子代理的工具改名 subagent（再补）</span><span class="dir-note">7-5 再补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>tools/agent.json</code> 改名 <code>subagent.json</code>，指纹照旧 <code>67a06362</code>；工具面照名字排，挪到 shell 和 trash 之间</li>
+              <li>工具接口加 <code>formerly()</code>：目录记下以前的名字，旧会话用旧名字也找得到，新会话的工具面里不出现</li>
+              <li>给人看的字三种语言 <code>agent</code>、<code>subagent</code> 两个键一样的显示名</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">日志里的名字不改</span><span class="rl">说法编号 agent/started、job.started 的种类 agent 照旧，改了以前的日志就对不上</span></div>
+          <div class="tile new"><span class="nm">工具面多 1 token</span><span class="rl">tools 数组 1967 → 1968，这一件 140 → 141，预算不改</span></div>
+          <div class="tile"><span class="nm">留言的工具</span><span class="rl">message_agent 随跨会话 C-5 改名 send_message</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">7-5 再补</dd></div>
+        <div><dt>名称</dt><dd>派子代理的工具改名 subagent（再补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">ea87ba6b</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新测试退回改之前全红；12 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型：新会话派子代理数文件，调的是 subagent，报回 5 个，miyu ask 等到回报才退出</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/7-5-派子代理的工具改名 subagent（再补）.md</code>；蓝图 <code>tools/subagent.md</code>。</li>
       </ul>
     </div>
   </div>
