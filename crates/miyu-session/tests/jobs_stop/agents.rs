@@ -13,7 +13,7 @@ async fn she_stops_a_subagent_it_reports_stopped_and_she_is_not_woken() {
         serde_json::json!({"description": "查导出", "prompt": "Read src/lib.rs."}).to_string();
     let (output, stop) = (jobs("output", Some("j1")), jobs("stop", Some("j1")));
     let script = Script::new([
-        Play::calls(&[("agent", agent.as_str())]),
+        Play::calls(&[("subagent", agent.as_str())]),
         Play::Says("派出去了。"),
         Play::calls(&[("jobs", output.as_str())]),
         Play::calls(&[("jobs", stop.as_str())]),
@@ -76,7 +76,7 @@ async fn a_person_stopping_a_subagent_wakes_her() {
     let held = Held::new(&[]);
     let agent = serde_json::json!({"description": "查导出", "prompt": "Read."}).to_string();
     let script = Script::new([
-        Play::calls(&[("agent", agent.as_str())]),
+        Play::calls(&[("subagent", agent.as_str())]),
         Play::Says("派出去了。"),
         Play::Says("它被停了。"),
     ]);
@@ -116,7 +116,7 @@ async fn stopping_a_session_stops_what_it_started_without_waking_it() {
     let held = Held::new(&["x\n"]);
     let agent = serde_json::json!({"description": "查导出", "prompt": "Read."}).to_string();
     let script = Script::new([
-        Play::calls(&[("start", "{}"), ("agent", agent.as_str())]),
+        Play::calls(&[("start", "{}"), ("subagent", agent.as_str())]),
         Play::Says("派出去了。"),
     ]);
     let table = Arc::new(Table::default());
@@ -156,7 +156,7 @@ async fn a_long_answer_is_cut_like_an_upward_report() {
     let agent = serde_json::json!({"description": "查导出", "prompt": "Read."}).to_string();
     let stop = jobs("stop", Some("j1"));
     let script = Script::new([
-        Play::calls(&[("agent", agent.as_str())]),
+        Play::calls(&[("subagent", agent.as_str())]),
         Play::Says("派出去了。"),
         Play::calls(&[("jobs", stop.as_str())]),
         Play::Says("停了。"),

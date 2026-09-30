@@ -74,7 +74,7 @@ async fn the_log_says_where_it_went_and_why_not() {
     let call = |name: &str, args: serde_json::Value| Play::calls(&[(name, &args.to_string())]);
     let script = Script::new([
         call(
-            "agent",
+            "subagent",
             serde_json::json!({"description": "甲", "prompt": "Do it."}),
         ),
         call(

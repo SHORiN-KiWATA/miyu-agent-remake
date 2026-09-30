@@ -12,7 +12,7 @@ async fn dispatched(home: &Home, held: &Arc<Held>, table: &Arc<Table>) -> Handle
     let agent = serde_json::json!({"description": "查 CI", "prompt": "Find why CI is red."});
     let agent = agent.to_string();
     let script = Script::new([
-        Play::calls(&[("start", "{}"), ("agent", agent.as_str())]),
+        Play::calls(&[("start", "{}"), ("subagent", agent.as_str())]),
         Play::Says("放出去了。"),
     ]);
     let handle = session(home, &script, held, table).await;

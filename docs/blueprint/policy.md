@@ -92,7 +92,7 @@
 
 **造会话**（`crates/miyu-session/src/open.rs` 的 `create`，在阻塞线程里做）
 
-1. 照人格读原文；拼快照，带上核心工具目录里每一件的规格（名字、说明、参数格式、访问类别）。人格是 `session.create` 写的，不写是 `engineer`；`attended` 是握手时头报的能不能输入（`protocol.md`）。不能派子代理的会话（不在本机、到了深度上限）不带 `agent`；子会话带上场所说明（施工 7-5，`session/tools.md`「工具面」）。
+1. 照人格读原文；拼快照，带上核心工具目录里每一件的规格（名字、说明、参数格式、访问类别）。人格是 `session.create` 写的，不写是 `engineer`；`attended` 是握手时头报的能不能输入（`protocol.md`）。不能派子代理的会话（不在本机、到了深度上限）不带 `subagent`；子会话带上场所说明（施工 7-5，`session/tools.md`「工具面」）。
 2. 先造一遍策略、驱动的占位、执行器的两句、权限策略的三句：哪一样造不出来，会话造不成，什么都不存。
 3. 快照存成属主家目录里的 blob。先落 blob，再写引用它的事件。
 4. 建会话目录和日志，内核记第 1 条 `session.created`：`owner`、`venue`、`policy`（快照的哈希）、`permission`，一次性的再带 `"oneshot":true`。

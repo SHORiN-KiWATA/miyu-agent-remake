@@ -1,5 +1,6 @@
 //! 测试用的假工具（施工 4-2）：规格照给的，执行照剧本。只在 `testkit` 开关打开时编进去：工具目录自己的
 //! 测试、会话和协议端点的测试都用它，在各自的 dev-dependencies 里打开（照会话的剧本端口，施工 3-8 上）。
+//! 另有换了名字的一件 [`Renamed`]：造改名以前的核心的目录（施工 7-5 再补）。
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -14,8 +15,10 @@ use tokio::sync::Barrier;
 use crate::{Call, Done, Effect, Picture, Progress, Running, Spec, Stop, Target, Tool};
 
 mod held;
+mod renamed;
 
 pub use held::Held;
+pub use renamed::Renamed;
 
 /// 假工具跑起来做什么。
 #[derive(Debug, Clone)]

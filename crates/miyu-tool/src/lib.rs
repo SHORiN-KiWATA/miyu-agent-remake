@@ -9,7 +9,7 @@
 //!   [`Done`] 出，施工 4-2）；
 //! - [`Catalog`]：工具目录，登记时查重名、名字和参数格式的写法；
 //! - [`Log`]：这个会话日志的只读入口（施工 6-4），`history` 用；
-//! - [`AgentPort`]：派子代理的端口（施工 7-5），`agent` 用；
+//! - [`AgentPort`]：派子代理的端口（施工 7-5），`subagent` 用；
 //! - [`MessagePort`]：父子之间留言的端口（施工 7-7），`message_agent` 用；
 //! - [`JobPort`]：任务端口（施工 7-3），`shell` 把起好的后台命令交给它，`jobs` 经它查、停（施工 7-4）；
 //! - [`picture`]：什么算一张图（施工 4-13 定，3-9 三补挪来）：`read` 读到的、人附上的，都照它认。
@@ -25,7 +25,9 @@ mod stop;
 #[cfg(feature = "testkit")]
 pub mod testkit;
 
-pub use agents::{AGENT, AgentPort, NotSpawned, Spawned, Spawning};
+pub use agents::{
+    AgentPort, NotSpawned, SUBAGENT, SUBAGENT_FORMERLY, Spawned, Spawning, is_subagent,
+};
 pub use catalog::{Catalog, CatalogError, Problem};
 pub use jobs::{Asking, Background, Exit, JobError, JobPort, Listed, Output, Process};
 pub use log::{Log, ReadLog};
@@ -64,4 +66,11 @@ pub trait Tool: Send + Sync {
     /// 执行一次调用：执行器在它自己的任务里跑交回的 future，执行中的输出交给 `progress`。叫停有两种：
     /// 「叫它停」举 [`Call::stop`] 的旗，等它交回来（施工 4-9 再补一）；「掐掉」丢掉这个 future（施工 4-2）。
     fn run(&self, call: Call, progress: Progress) -> Running<'_>;
+
+    /// 它以前的名字（施工 7-5 再补）：改过名的工具，改名以前造的会话快照里冻着旧名字（工具面是前缀，不能变），她照旧名字调，
+    /// 工具目录照旧名字也找得到这一件（[`Catalog::get`]）。旧名字不进 [`Catalog::specs`]：新造的会话工具面上只有现在的名字。
+    /// 默认没有。
+    fn formerly(&self) -> &'static [&'static str] {
+        &[]
+    }
 }

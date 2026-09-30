@@ -100,7 +100,7 @@ fn basesystem(home: &Home) -> Catalog {
 /// 调一次 `agent`。
 fn agent(title: &str) -> Play {
     let args = serde_json::json!({"description": title, "prompt": "Do it."});
-    Play::calls(&[("agent", &args.to_string())])
+    Play::calls(&[("subagent", &args.to_string())])
 }
 
 /// 调一次 `message_agent`。
@@ -238,11 +238,11 @@ async fn a_subagent_at_the_depth_limit_messages_its_parent() {
         "作为子会话发来的话"
     );
     assert_eq!(command, say("Which file?"));
-    // 到了深度上限：没有 `agent`，`message_agent` 留着。
+    // 到了深度上限：没有 `subagent`，`message_agent` 留着。
     let requests = script.requests();
     let tools = names(&requests[0].1);
     assert!(
-        tools.contains(&"message_agent") && !tools.contains(&"agent"),
+        tools.contains(&"message_agent") && !tools.contains(&"subagent"),
         "{tools:?}"
     );
 }

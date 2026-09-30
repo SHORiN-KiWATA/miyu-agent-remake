@@ -53,7 +53,7 @@ async fn no_one_wakes_the_child_between_its_stopped_report_and_its_deletion() {
     let agent = serde_json::json!({"description": "查", "prompt": "Read it."}).to_string();
     // 父会话派出去以后，父会话、子会话的请求都停住；子会话被叫醒再开的那一轮也停住。
     let script = Script::new([
-        Play::calls(&[("agent", &agent)]),
+        Play::calls(&[("subagent", &agent)]),
         Play::Holds,
         Play::Holds,
         Play::Holds,

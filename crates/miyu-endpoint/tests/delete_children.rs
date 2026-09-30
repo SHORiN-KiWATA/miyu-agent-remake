@@ -39,14 +39,14 @@ async fn children_stop_layer_by_layer_and_go_with_their_parent() {
         (
             "派一个去查",
             Script::new([
-                Play::calls(&[("agent", &agent("查 A")), ("start", "{}")]),
+                Play::calls(&[("subagent", &agent("查 A")), ("start", "{}")]),
                 Play::Says("派出去了。"),
             ]),
         ),
         (
             "查 A",
             Script::new([
-                Play::calls(&[("agent", &agent("查 B")), ("begin", "{}")]),
+                Play::calls(&[("subagent", &agent("查 B")), ("begin", "{}")]),
                 Play::Holds,
             ]),
         ),
@@ -128,7 +128,7 @@ fn parent_and_child_scripts() -> Router {
         (
             "派一个去查",
             Script::new([
-                Play::calls(&[("agent", &agent("查 A"))]),
+                Play::calls(&[("subagent", &agent("查 A"))]),
                 Play::Says("派出去了。"),
                 Play::Says("知道它停了。"),
             ]),
@@ -226,7 +226,7 @@ async fn deleting_a_messaged_child_settles_what_its_parent_waits_for() {
         (
             "派一个去查",
             Script::new([
-                Play::calls(&[("agent", &agent("查 A"))]),
+                Play::calls(&[("subagent", &agent("查 A"))]),
                 Play::Says("派出去了。"),
                 Play::calls(&[("message_agent", &message)]),
                 Play::Says("留了言。"),
@@ -272,13 +272,13 @@ async fn deleting_a_grandchild_reports_it_under_its_prefixed_job() {
         (
             "派一个去查",
             Script::new([
-                Play::calls(&[("agent", &agent("查 A"))]),
+                Play::calls(&[("subagent", &agent("查 A"))]),
                 Play::Says("派出去了。"),
             ]),
         ),
         (
             "查 A",
-            Script::new([Play::calls(&[("agent", &agent("查 B"))]), Play::Holds]),
+            Script::new([Play::calls(&[("subagent", &agent("查 B"))]), Play::Holds]),
         ),
         ("查 B", Script::new([Play::Holds])),
     ]));

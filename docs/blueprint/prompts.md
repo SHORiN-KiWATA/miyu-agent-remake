@@ -1840,11 +1840,11 @@ You are a subagent, started by another session to do one task. That parent sessi
 }
 ```
 
-#### `software/basesystem/tools/agent.json`
+#### `software/basesystem/tools/subagent.json`
 
-- 什么时候加进来：会话的工具面里有 `agent`：本机、没到深度上限的会话（每次请求都带）
-- token：140（2026-09-30 照项目主人给的端点、`deepseek-v4.1-flash` 量，九件一起时的边际份量）
-- 为什么加：`agent` 的说明和参数（施工 7-5）：说明照附录的草稿，两句：在后台派一个子会话做一件事、回报自己送来，它看不到这边的对话、交代要自己说得清（背景、已知的、目标、要报什么）。参数只声明 `description`、`prompt`（`agents.md`「还没有的」：挡位、人格、预设随配置和预设），各一句，名字照 Claude Code。量法同上，九件一起时的边际份量
+- 什么时候加进来：会话的工具面里有 `subagent`：本机、没到深度上限的会话（每次请求都带）
+- token：141（2026-10-01 照项目主人给的端点、`deepseek-v4.1-flash` 量，十一件一起时的边际份量）
+- 为什么加：派子代理的说明和参数（施工 7-5）：说明照附录的草稿，两句：在后台派一个子会话做一件事、回报自己送来，它看不到这边的对话、交代要自己说得清（背景、已知的、目标、要报什么）。参数只声明 `description`、`prompt`（`agents.md`「还没有的」：挡位、人格、预设随配置和预设），各一句，名字照 Claude Code。量法同上，九件一起时的边际份量 140。施工 7-5 再补从 `agent` 改名 `subagent`（2026-10-01 项目主人定：在 Miyu 里「agent」可能指她自己、子代理、别的会话），文件跟着改名，说明、参数一字不改；十一件一起时 140 → 141
 - 指纹：`67a06362`
 
 ```json

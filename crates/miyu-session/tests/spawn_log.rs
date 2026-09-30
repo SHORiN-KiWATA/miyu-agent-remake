@@ -83,7 +83,7 @@ async fn the_log_says_what_was_started_and_why_not() {
     let call = |n: u32| {
         let args =
             serde_json::json!({"description": format!("紫色的标题{n}"), "prompt": "紫色的交代"});
-        Play::calls(&[("agent", &args.to_string())])
+        Play::calls(&[("subagent", &args.to_string())])
     };
     let script = Script::new([call(1), call(2), call(3), Play::Says("好。")]);
     let lines = Lines {
@@ -101,7 +101,10 @@ async fn the_log_says_what_was_started_and_why_not() {
     let lines = memory.lines();
     let spawned: Vec<String> = lines
         .iter()
-        .filter(|line| line.contains(session.as_str()) && line.contains("subagent"))
+        // 只要以 `subagent` 开头的那几行：`running` 那一行的工具名也是 `subagent`（施工 7-5 再补）。
+        .filter(|line| {
+            line.contains(session.as_str()) && line.split_whitespace().nth(5) == Some("subagent")
+        })
         .map(|line| {
             // 去掉日子、时刻、会话编号：每次不一样。
             let words: Vec<&str> = line.split_whitespace().collect();

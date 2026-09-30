@@ -1,5 +1,6 @@
-//! `agent`（`docs/blueprint/tools/agent.md`，施工 7-5）：只声明标题和交代；经端口派出去，交回编号和标题、报 `job.started`；
-//! 没有端口、端口派不了的照「派不了」出错；参数不对的照共用的那一句。给人看的说法两种语言都换得出字。
+//! `subagent`（`docs/blueprint/tools/subagent.md`，施工 7-5，7-5 再补改名）：只声明标题和交代；经端口派出去，交回编号和标题、
+//! 报 `job.started`；没有端口、端口派不了的照「派不了」出错；参数不对的照共用的那一句。给人看的说法两种语言都换得出字；
+//! 显示名新旧两个名字都有、三种语言里一样。
 
 mod support;
 
@@ -13,7 +14,10 @@ use miyu_kernel::id::{JobId, SessionId};
 use miyu_kernel::tool::Access;
 use miyu_tool::{AgentPort, Done, Effect, NotSpawned, Spawned, Spawning};
 
-use support::{Site, check, human, readable, said, tool};
+use miyu_store::human::Human;
+use miyu_store::resources::ResourceRoot;
+
+use support::{Site, check, human, readable, resources, said, tool};
 
 /// 子会话的编号。
 const CHILD: &str = "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91";
@@ -66,9 +70,9 @@ fn text(done: &Done) -> &str {
 
 #[test]
 fn it_declares_only_a_title_and_the_task() {
-    let agent = tool("agent");
-    let spec = agent.spec();
-    assert_eq!(spec.name, "agent");
+    let subagent = tool("subagent");
+    let spec = subagent.spec();
+    assert_eq!(spec.name, "subagent");
     // 派出去这一下什么都不改：一步里调几次，读的连着一起派；只读的时候也派得出去，子会话抄着只读。
     assert_eq!(spec.access, Access::Read);
     let parameters: serde_json::Value = serde_json::from_str(spec.parameters.get()).unwrap();
@@ -94,7 +98,7 @@ async fn it_hands_the_task_to_the_port_and_reports_the_job() {
     let prompt = "Read src/lib.rs and tell me what it exports.\nOnly the public items.";
     let done = site
         .done_with_agents(
-            "agent",
+            "subagent",
             json!({"description": "查导出", "prompt": prompt}),
             Some(port.clone()),
         )
@@ -123,7 +127,9 @@ async fn without_a_port_or_when_the_port_fails_it_is_not_started() {
     let args = json!({"description": "查导出", "prompt": "Read src/lib.rs."});
     let failing = Port::new(None);
     for agents in [None, Some(failing.clone() as Arc<dyn AgentPort>)] {
-        let done = site.done_with_agents("agent", args.clone(), agents).await;
+        let done = site
+            .done_with_agents("subagent", args.clone(), agents)
+            .await;
         assert!(done.error);
         assert_eq!(text(&done), "The subagent could not be started.\n");
         assert!(done.effects.is_empty(), "没派出去，没有 job.started");
@@ -137,7 +143,7 @@ async fn without_the_task_nothing_is_asked() {
     let port = Port::new(Some(CHILD));
     for args in [json!({"description": "查导出"}), json!({"prompt": "Read."})] {
         let done = site
-            .done_with_agents("agent", args, Some(port.clone()))
+            .done_with_agents("subagent", args, Some(port.clone()))
             .await;
         assert!(done.error);
         assert!(text(&done).starts_with("The arguments are not right: "));
@@ -151,7 +157,7 @@ async fn every_outcome_says_something_people_can_read() {
     let mut checked = Vec::new();
     let args = json!({"description": "查导出", "prompt": "Read src/lib.rs."});
     let done = site
-        .done_with_agents("agent", args.clone(), Some(Port::new(Some(CHILD))))
+        .done_with_agents("subagent", args.clone(), Some(Port::new(Some(CHILD))))
         .await;
     check(
         &mut checked,
@@ -160,7 +166,19 @@ async fn every_outcome_says_something_people_can_read() {
             .with("job", "j1")
             .with("title", "查导出"),
     );
-    let done = site.done_with_agents("agent", args, None).await;
+    let done = site.done_with_agents("subagent", args, None).await;
     check(&mut checked, human(done), said("agent/not-started"));
-    readable(&checked, &["agent"]);
+    readable(&checked, &["subagent", "agent"]);
+}
+
+/// 给人看的显示名：新名字 `subagent`、以前的名字 `agent` 两个键都在，三种语言里各是同一个样子（施工 7-5 再补）：以前造的
+/// 会话里调的是 `agent`，头照它找显示名。
+#[test]
+fn both_names_show_the_same_to_people() {
+    let root = ResourceRoot::at(resources());
+    for language in ["zh", "en", "ja"] {
+        let words = Human::load(&root, language).expect("给人看的字读得出来");
+        let now = words.tool("subagent").expect("有 subagent 的显示名");
+        assert_eq!(words.tool("agent"), Some(now), "{language}");
+    }
 }
