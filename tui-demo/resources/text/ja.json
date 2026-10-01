@@ -149,7 +149,12 @@
     "nothing_to_clear": "コンテキストは空です",
     "not_redoable": "やり直せません",
     "empty_message": "編集後に何も残りませんでした",
-    "unknown_job": "そのタスクはすでに終了しています"
+    "unknown_job": "そのタスクはすでに終了しています",
+    "nothing_to_unrevert": "復元できる取り消しがありません",
+    "nothing_to_revert": "取り消せるものがありません",
+    "turn_running": "返信中です：先に中断するか、終わるまでお待ちください",
+    "unknown_turn": "取り消す対象のやり取りが見つかりません",
+    "restoring": "前回の取り消し・復元がまだ終わっていません、少々お待ちください"
   },
   "models": {
     "failover": "↻ モデルを切り替えました：{from} → {to}",
@@ -166,13 +171,6 @@
     "done": "名前を変更しました：{title}",
     "removed": "タイトルを外しました",
     "too_long": "タイトルは {max} 文字まで"
-  },
-  "refusals": {
-    "nothing_to_unrevert": "復元できる取り消しがありません",
-    "nothing_to_revert": "取り消せるものがありません",
-    "turn_running": "返信中です：先に中断するか、終わるまでお待ちください",
-    "unknown_turn": "取り消す対象のやり取りが見つかりません",
-    "restoring": "前回の取り消し・復元がまだ終わっていません、少々お待ちください"
   },
   "done_usage": " · {tokens}(C{percent}%)",
   "menu": {

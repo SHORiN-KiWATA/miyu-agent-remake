@@ -91,7 +91,7 @@ impl App {
         let texts = &self.config.text;
         if self.transcript.running.is_some() {
             let note = texts
-                .refusals
+                .refusal_hints
                 .get("turn_running")
                 .cloned()
                 .unwrap_or_default();

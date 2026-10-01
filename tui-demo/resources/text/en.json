@@ -149,7 +149,12 @@
     "nothing_to_clear": "The context is empty",
     "not_redoable": "Can't redo",
     "empty_message": "Nothing left after the edit",
-    "unknown_job": "That task has already ended"
+    "unknown_job": "That task has already ended",
+    "nothing_to_unrevert": "Nothing to restore",
+    "nothing_to_revert": "Nothing to undo",
+    "turn_running": "Still replying: interrupt first, or wait for it to finish",
+    "unknown_turn": "Can't find the turn to undo",
+    "restoring": "The last undo or restore is still in progress, one moment"
   },
   "models": {
     "failover": "↻ Switched model: {from} → {to}",
@@ -166,13 +171,6 @@
     "done": "Renamed: {title}",
     "removed": "Title removed",
     "too_long": "Titles are at most {max} characters"
-  },
-  "refusals": {
-    "nothing_to_unrevert": "Nothing to restore",
-    "nothing_to_revert": "Nothing to undo",
-    "turn_running": "Still replying: interrupt first, or wait for it to finish",
-    "unknown_turn": "Can't find the turn to undo",
-    "restoring": "The last undo or restore is still in progress, one moment"
   },
   "done_usage": " · {tokens}(C{percent}%)",
   "menu": {

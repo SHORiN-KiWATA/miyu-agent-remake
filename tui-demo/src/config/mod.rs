@@ -153,9 +153,8 @@ pub struct Texts {
     pub stashed: String,
     /// 收尾行后面的本轮用量，`{tokens}` 输入加输出，`{percent}` 命中率。
     pub done_usage: String,
-    /// 请求被拒时，认得的原因码（`data.reason`）写的短话。
-    pub refusals: HashMap<String, String>,
-    /// 这几种拒绝不写进正文，只弹提示框（`nothing_to_compact` 的「上下文过少」，蓝图「正文」第 9 条）。
+    /// 请求被拒时，认得的原因码（`data.reason`）写的短话：只弹提示框，不写进正文（蓝图「正文」第 6、9 条；
+    /// 2026-10-01 项目主人：命令没生效、什么都没变的，弹通知就行）。认不得的才照核心的原话写进正文。
     pub refusal_hints: HashMap<String, String>,
     /// 回顾（`/recap`，蓝图「回顾」）。
     pub recap: RecapTexts,
@@ -371,7 +370,6 @@ mod tests {
                 .map(String::as_str),
             Some("上下文过少")
         );
-        assert!(!text.refusals.contains_key("nothing_to_compact"));
     }
 
     #[test]

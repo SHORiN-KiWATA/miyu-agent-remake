@@ -149,7 +149,12 @@
     "nothing_to_clear": "上下文为空",
     "not_redoable": "无法重做",
     "empty_message": "改完一个字都不剩了",
-    "unknown_job": "这个任务已经结束了"
+    "unknown_job": "这个任务已经结束了",
+    "nothing_to_unrevert": "没有能恢复的撤销",
+    "nothing_to_revert": "没有能撤销的",
+    "turn_running": "回答进行中：先打断，或者等它做完",
+    "unknown_turn": "找不到要撤的那一轮",
+    "restoring": "上一次撤销、恢复还没做完，稍等"
   },
   "models": {
     "failover": "↻ 换了模型：{from} → {to}",
@@ -166,13 +171,6 @@
     "done": "已改名：{title}",
     "removed": "已去掉标题",
     "too_long": "标题最多 {max} 个字"
-  },
-  "refusals": {
-    "nothing_to_unrevert": "没有能恢复的撤销",
-    "nothing_to_revert": "没有能撤销的",
-    "turn_running": "回答进行中：先打断，或者等它做完",
-    "unknown_turn": "找不到要撤的那一轮",
-    "restoring": "上一次撤销、恢复还没做完，稍等"
   },
   "done_usage": " · {tokens}(C{percent}%)",
   "menu": {

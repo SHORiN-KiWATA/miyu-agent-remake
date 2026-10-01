@@ -479,22 +479,14 @@ fn a_turn_started_by_the_last_queued_one_brings_all_of_them_in_order() {
 }
 
 #[test]
-fn a_known_refusal_is_one_short_line() {
+fn an_unknown_refusal_is_written_in_the_core_words() {
+    // 认得的原因码界面只弹提示框、到不了正文（2026-10-01 项目主人，`tests/pty.rs` 守着）；认不得的照核心的原话写。
     let config = Config::builtin().unwrap();
     let mut t = Transcript::default();
-    let refusal = |reason: Option<&str>, message: &str| Update::Refused {
-        reason: reason.map(str::to_string),
-        message: message.to_string(),
+    let refusal = Update::Refused {
+        reason: Some("something_new".to_string()),
+        message: "新的原因。".to_string(),
     };
-    t.update(
-        refusal(
-            Some("nothing_to_unrevert"),
-            "没有能恢复的撤销：没撤过，或者撤了以后又开过一轮、压缩过。",
-        ),
-        &config.text,
-    );
-    assert_eq!(t.entries.last().unwrap().text, "没有能恢复的撤销");
-    // 认不得的原因码照核心的原话写。
-    t.update(refusal(Some("something_new"), "新的原因。"), &config.text);
+    t.update(refusal, &config.text);
     assert!(t.entries.last().unwrap().text.ends_with("新的原因。"));
 }

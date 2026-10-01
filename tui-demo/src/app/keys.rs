@@ -8,7 +8,6 @@ use super::App;
 use crate::commands::{Line, Run, Spec};
 use crate::core::Command;
 use crate::input::{Action, Draft};
-use crate::transcript::Kind;
 
 impl App {
     /// 按了要按两下的 `Esc`：在回答时打断（排着队的接着发），没在回答时清空输入框。
@@ -283,8 +282,9 @@ impl App {
             Run::Help => self.open_help(),
             Run::Language => self.open_languages(),
             Run::Fake => {
+                // 只弹提示框，不写进正文（2026-10-01 项目主人）。
                 let note = self.config.text.fake_command.replace("{name}", &spec.name);
-                self.transcript.note(Kind::Note, note);
+                self.hint(note, false);
             }
             Run::DemoTodo => self.demo(spec.run),
             Run::DemoAsk | Run::DemoApprove => self.demo_drawer(spec.run),

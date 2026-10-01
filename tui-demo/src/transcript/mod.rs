@@ -238,14 +238,10 @@ impl Transcript {
                 self.cut_off(texts);
                 self.link = Link::Reconnecting;
             }
-            // 认得的原因码写一句短话，认不得的照核心的原话（`tui.md`「正文」第 6 条）。没发出去的，先画上的那句
-            // 界面已经撤掉了（`app/redo.rs`）。
-            Update::Refused { reason, message } | Update::Unsent { reason, message } => {
-                let short = reason.as_deref().and_then(|r| texts.refusals.get(r));
-                let text = short
-                    .cloned()
-                    .unwrap_or_else(|| texts.refused.replace("{reason}", &message));
-                self.note(Kind::Error, text);
+            // 认得的原因码界面只弹提示框，到不了这里；认不得的照核心的原话写进正文（`tui.md`「正文」第 6 条）。
+            // 没发出去的，先画上的那句界面已经撤掉了（`app/redo.rs`）。
+            Update::Refused { message, .. } | Update::Unsent { message, .. } => {
+                self.note(Kind::Error, texts.refused.replace("{reason}", &message));
             }
             Update::Push(push) => self.apply(push, texts),
             Update::Recap(text) => self.recap(&text, texts),

@@ -216,3 +216,31 @@ fn ctrl_j_and_k_move_in_an_open_list() {
     tui.key(b"\r");
     tui.wait_for("ワークスペース");
 }
+
+#[test]
+fn commands_that_change_nothing_only_flash_a_notice() {
+    // 2026-10-01 项目主人：没有能撤销的时候不该在正文里打一行，弹通知就行；没有能恢复的、回答进行中、
+    // 还没做的命令同一天一起改。通知 `notice_ms`（2 秒）后消失，正文里的行不会，所以等它消失。
+    let home = Home::new(Script::new([Play::Says("好。")]));
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("在吗");
+    tui.wait_for("▣  ");
+    tui.say("/undo");
+    tui.wait_for("已撤销");
+    tui.pump(Duration::from_millis(500));
+    for (command, words) in [("/undo", "没有能撤销的"), ("/readonly", "是演示用的假命令")]
+    {
+        tui.say(command);
+        tui.wait_for(words);
+        tui.pump(Duration::from_millis(2600));
+        assert!(!tui.shows(words), "{command}：{}", tui.lines().join("\n"));
+    }
+    tui.say("/restore");
+    tui.wait_for("好。");
+    tui.pump(Duration::from_millis(500));
+    tui.say("/restore");
+    tui.wait_for("没有能恢复的撤销");
+    tui.pump(Duration::from_millis(2600));
+    assert!(!tui.shows("没有能恢复的撤销"), "{}", tui.lines().join("\n"));
+}
