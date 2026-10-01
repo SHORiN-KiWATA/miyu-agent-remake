@@ -112,7 +112,9 @@ async fn a_pool_is_recorded_and_no_pool_or_a_tier_takes_the_parent_model() {
         [some("a/main"), some("@fast"), some("a/main")],
         "没写的、写 tier 的抄父会话的（它照造的时候的 chat），写了池的记 @池"
     );
-    let done = results(&log);
+    // 几个调用并行跑，结果在日志里的先后不定：照调用的第几个排好再看。
+    let mut done = results(&log);
+    done.sort_by_key(|result| (result.call_id.message().get(), result.call_id.index()));
     for (at, pool) in [(3, "slow"), (4, "lite")] {
         assert_eq!(done[at].status, ToolStatus::Error, "{pool}");
         assert_eq!(
@@ -210,7 +212,8 @@ async fn the_face_is_built_when_the_session_starts_and_kept() {
         .load_full(&id, &script, &basesystem(&home), &environment().cwd, port)
         .await;
     let log = one_turn(&home, &loaded, 3).await;
-    let done = results(&log);
+    let mut done = results(&log);
+    done.sort_by_key(|result| (result.call_id.message().get(), result.call_id.index()));
     assert_eq!(text(done[2]), "Started subagent j1: \"丙\".\n");
     assert_eq!(
         text(done[3]),
