@@ -227,3 +227,61 @@ fn a_turn_opened_by_queued_messages_can_hand_them_back_until_she_answers() {
     );
     assert!(t.takeback().is_none(), "她开口了");
 }
+
+#[test]
+fn a_queued_message_that_opens_the_turn_after_a_core_restart_comes_in_there() {
+    // 2026-10-02 项目主人报：回答进行中发「你在干嘛」，她回了；之后再发一句，「你在干嘛」又出现在新那句下面。
+    // 日志：排着的第 5 条没被请求带上，核心重启，这一轮记成 restarted，接着开的一轮由第 5 条开。
+    let texts = crate::config::Config::builtin().unwrap().text;
+    let mut t = started();
+    t.user("你在干嘛？".into(), Vec::new());
+    apply(&mut t, vec![Push::UserMessage(5)]);
+    apply(&mut t, thought(4, "第二步"));
+    t.update(crate::core::Update::Disconnected, &texts);
+    apply(
+        &mut t,
+        vec![
+            Push::TurnEnded(crate::core::EndReason::Other("restarted".into())),
+            Push::TurnStarted(9, Some(5)),
+        ],
+    );
+    let users: Vec<String> = shown(&t)
+        .into_iter()
+        .filter(|(k, _, _)| *k == Kind::User)
+        .map(|(_, text, _)| text)
+        .collect();
+    assert_eq!(users, ["先跑一下", "你在干嘛？"], "开新一轮时进正文");
+}
+
+#[test]
+fn a_queued_message_left_over_when_the_core_drops_comes_in_before_the_next_one() {
+    // 2026-10-02 沙盒里复现：核心被杀，排着的那句没被带上，核心载入时记成 aborted、不另开一轮；它已经在日志里，
+    // 下一次请求会带上。原来它一直排着、看不见，下一句开轮时被挪到那一句后面。
+    let texts = crate::config::Config::builtin().unwrap().text;
+    let mut t = started();
+    t.user("你在干嘛？".into(), Vec::new());
+    apply(&mut t, vec![Push::UserMessage(9)]);
+    t.update(crate::core::Update::Disconnected, &texts);
+    let users = |t: &Transcript| -> Vec<String> {
+        shown(t)
+            .into_iter()
+            .filter(|(k, _, _)| *k == Kind::User)
+            .map(|(_, text, _)| text)
+            .collect()
+    };
+    assert_eq!(
+        users(&t),
+        ["先跑一下", "你在干嘛？"],
+        "断开时进正文，不悬着"
+    );
+    t.user("算了，不发了。".into(), Vec::new());
+    apply(
+        &mut t,
+        vec![
+            Push::TurnEnded(crate::core::EndReason::Other("aborted".into())),
+            Push::UserMessage(12),
+            Push::TurnStarted(13, Some(12)),
+        ],
+    );
+    assert_eq!(users(&t), ["先跑一下", "你在干嘛？", "算了，不发了。"]);
+}

@@ -68,10 +68,11 @@ fn background(
     let mut map = Vec::new();
     for (i, item) in board.panel_items(all).into_iter().enumerate() {
         let picked = i == selected;
-        let style = if picked {
-            Style::new().add_modifier(Modifier::BOLD)
-        } else {
-            theme::dim()
+        // 没选中的命令照正常色（2026-10-02 项目主人：原来压暗）；「还有 N 条结束了的」那种说明行照旧暗。
+        let style = match (picked, item) {
+            (true, _) => Style::new().add_modifier(Modifier::BOLD),
+            (false, PanelItem::Job(_)) => Style::new(),
+            (false, _) => theme::dim(),
         };
         let job = match item {
             PanelItem::Job(id) => board.jobs.iter().find(|j| j.id == id),
@@ -250,6 +251,13 @@ mod tests {
         assert_eq!(lines[0].style, theme::picked_bar());
         assert_eq!(lines[0].width(), 70);
         assert_ne!(lines[1].style, theme::picked_bar(), "没选中的不铺");
+        // 2026-10-02 项目主人：没选中的命令用正常色，不压暗。
+        let command = lines[1]
+            .spans
+            .iter()
+            .find(|s| s.content.contains("cargo test"))
+            .unwrap();
+        assert_eq!(command.style, ratatui::style::Style::new(), "命令照正常色");
         assert_eq!(map, [Some(0), Some(1)], "点哪一行点中哪一条");
     }
 

@@ -118,6 +118,19 @@ impl Transcript {
         self.wind_up();
         self.push(Kind::Cut, texts.turn_cut.clone());
         self.turn = None;
+        // 还排着、没被请求带上的话：已经在核心的日志里，下一次请求会带上，接在断开那一行后面进正文，不再悬着
+        // （2026-10-02 项目主人报：它看不见、等下一句开轮时被挪到那一句后面）。
+        let leftover: Vec<usize> = (0..self.entries.len())
+            .filter(|&j| self.entries[j].queued)
+            .collect();
+        let mut moved = Vec::with_capacity(leftover.len());
+        for &j in leftover.iter().rev() {
+            let mut entry = self.entries.remove(j);
+            self.removed(j);
+            entry.queued = false;
+            moved.push(entry);
+        }
+        self.entries.extend(moved.into_iter().rev());
     }
 
     /// 一轮到头了：停表、收起时间线、停掉还在转的步。交回用了多久、记着的出错。

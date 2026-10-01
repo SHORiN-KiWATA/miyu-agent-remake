@@ -19,9 +19,6 @@ pub struct Rpc {
     incoming: mpsc::UnboundedReceiver<Value>,
     /// 等回应时来的推送。
     held: VecDeque<Value>,
-    /// 编号前缀：同一个会话里，两次启动发的命令不撞号（核心按编号去重，`02-内核.md` 不变量 9）。
-    prefix: String,
-    next: u64,
 }
 
 impl Rpc {
@@ -34,8 +31,6 @@ impl Rpc {
             writer,
             incoming,
             held: VecDeque::new(),
-            prefix: prefix().to_string(),
-            next: 0,
         }
     }
 
@@ -45,8 +40,7 @@ impl Rpc {
     ///
     /// 写不出去。
     pub async fn send(&mut self, method: &str, params: Value) -> io::Result<String> {
-        self.next += 1;
-        let id = format!("{}-{}", self.prefix, self.next);
+        let id = next_id();
         let request = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
         self.writer
             .write_all(format!("{request}\n").as_bytes())
@@ -127,6 +121,15 @@ pub fn prefix() -> &'static str {
     })
 }
 
+/// 下一条请求的编号：前缀加整个进程一串往下数的序号，重连以后接着数。核心按编号去重（`02-内核.md` 不变量 9），
+/// 两次启动靠前缀分开，同一次启动里的两条连接靠序号分开（2026-10-02：原来每条连接从 1 数起，核心重启以后的撤销、
+/// 恢复撞上以前的编号，拿回旧命令的回应，什么都没做）。
+pub fn next_id() -> String {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    format!("{}-{n}", prefix())
+}
+
 /// 这个编号是这个界面发的请求。
 pub fn owns(id: &str) -> bool {
     id.strip_prefix(prefix())
@@ -136,6 +139,19 @@ pub fn owns(id: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{owns, prefix};
+
+    #[test]
+    fn request_ids_keep_counting_across_reconnects() {
+        // 2026-10-02 项目主人报：核心重启以后 /undo 写了「已撤销」却没撤、/restore 也没恢复。原来每条连接从 1 数起，
+        // 重连以后的编号和同一个会话里以前的命令撞上，核心按编号去重，交回了那条旧命令的回应，什么都没做。
+        let first: Vec<String> = (0..3).map(|_| super::next_id()).collect();
+        let after_reconnect: Vec<String> = (0..3).map(|_| super::next_id()).collect();
+        assert!(
+            first.iter().all(|id| !after_reconnect.contains(id)),
+            "{first:?} {after_reconnect:?}"
+        );
+        assert!(first.iter().chain(&after_reconnect).all(|id| owns(id)));
+    }
 
     #[test]
     fn our_request_ids_are_known_by_their_prefix() {
