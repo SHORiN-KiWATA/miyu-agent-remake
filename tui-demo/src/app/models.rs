@@ -97,7 +97,7 @@ impl App {
         self.model_list = None;
     }
 
-    /// 换成选中的那个：冷却中的、没有 key 的不换，提示为什么；别的交给核心，关框，提示下一轮起用它。
+    /// 换成选中的那个：冷却中的、没有 key 的不换，提示为什么；别的交给核心，关框。
     fn choose_model(&mut self, choice: &Choice) {
         let texts = self.config.text.model_panel.clone();
         match choice.state {
@@ -117,15 +117,8 @@ impl App {
                 if self.transcript.model_ref() == Some(choice.reference.as_str()) {
                     return;
                 }
+                // 不弹提示：底栏当场就写成选的那个（2026-10-01 项目主人：改模型、思考强度不要通知）。
                 self.core.send(Command::Configure(choice.reference.clone()));
-                let note = self
-                    .config
-                    .text
-                    .models
-                    .switched
-                    .replace("{name}", &choice.name);
-                // 一般的提示框，不用绿色（2026-10-01 项目主人）。
-                self.hint(note, false);
             }
         }
     }

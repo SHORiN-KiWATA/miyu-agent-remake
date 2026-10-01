@@ -136,6 +136,4 @@ pub struct ModelTexts {
     pub cooling_until: String,
     /// 钉着的模型没了、退回默认，`{from}` → `{to}`（引用）。
     pub replaced: String,
-    /// `/model` 换成了，`{name}`。
-    pub switched: String,
 }

@@ -160,8 +160,7 @@
     "failover": "↻ Switched model: {from} → {to}",
     "cooling": "All cooling down",
     "cooling_until": "All cooling down, back in {n} min",
-    "replaced": "↻ The pinned model is gone, back to the default: {from} → {to}",
-    "switched": "Using {name} from the next turn"
+    "replaced": "↻ The pinned model is gone, back to the default: {from} → {to}"
   },
   "recap": {
     "label": "Recap: {text}",

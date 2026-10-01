@@ -244,3 +244,22 @@ fn commands_that_change_nothing_only_flash_a_notice() {
     tui.pump(Duration::from_millis(2600));
     assert!(!tui.shows("没有能恢复的撤销"), "{}", tui.lines().join("\n"));
 }
+
+#[test]
+fn choosing_a_model_shows_no_notice() {
+    // 2026-10-01 项目主人：改模型、思考强度不需要通知。底栏当场写成选的那个。
+    let settings = "[models]\nchat = \"dev/alpha\"\n\n[providers.dev]\ndriver = \"openai-chat\"\nbase_url = \"http://dev.invalid/v1\"\n\n[providers.dev.models.alpha]\nwindow = 128000\n\n[providers.dev.models.beta]\nwindow = 64000\n";
+    let home = Home::with_settings(Script::new([Play::Says("好。")]), settings);
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("在吗");
+    tui.wait_for("▣  ");
+    tui.say("/model");
+    tui.wait_for("dev/beta");
+    tui.type_text("beta");
+    tui.pump(Duration::from_millis(300));
+    tui.key(b"\r");
+    tui.wait_for("beta dev");
+    tui.pump(Duration::from_millis(300));
+    assert!(!tui.shows("下一轮"), "{}", tui.lines().join("\n"));
+}

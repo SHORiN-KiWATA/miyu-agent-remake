@@ -160,8 +160,7 @@
     "failover": "↻ モデルを切り替えました：{from} → {to}",
     "cooling": "すべてクールダウン中",
     "cooling_until": "すべてクールダウン中、{n} 分後に復帰",
-    "replaced": "↻ 固定していたモデルがなくなったので既定に戻しました：{from} → {to}",
-    "switched": "次のターンから {name} を使います"
+    "replaced": "↻ 固定していたモデルがなくなったので既定に戻しました：{from} → {to}"
   },
   "recap": {
     "label": "振り返り：{text}",

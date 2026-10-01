@@ -160,8 +160,7 @@
     "failover": "↻ 换了模型：{from} → {to}",
     "cooling": "都在冷却",
     "cooling_until": "都在冷却，{n} 分钟后恢复",
-    "replaced": "↻ 原来的模型没了，换回默认：{from} → {to}",
-    "switched": "下一轮起用 {name}"
+    "replaced": "↻ 原来的模型没了，换回默认：{from} → {to}"
   },
   "recap": {
     "label": "回顾：{text}",
