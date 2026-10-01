@@ -1,6 +1,7 @@
-//! `subagent`（`docs/blueprint/tools/subagent.md`，施工 7-5，7-5 再补改名）：只声明标题和交代；经端口派出去，交回编号和标题、
-//! 报 `job.started`；没有端口、端口派不了的照「派不了」出错；参数不对的照共用的那一句。给人看的说法两种语言都换得出字；
-//! 显示名新旧两个名字都有、三种语言里一样。
+//! `subagent`（`docs/blueprint/tools/subagent.md`，施工 7-5，7-5 再补改名）：声明标题、交代和挡位（施工 8-8）；经端口派出去，
+//! 交回编号和标题、报 `job.started`；没有端口、端口派不了的照「派不了」出错；参数不对的照共用的那一句。挡位只认四个，交给
+//! 端口，不写的交没有，写错的照参数不对、端口一次都不问。给人看的说法两种语言都换得出字；显示名新旧两个名字都有、三种语言
+//! 里一样。
 
 mod support;
 
@@ -22,10 +23,12 @@ use support::{Site, check, human, readable, resources, said, tool};
 /// 子会话的编号。
 const CHILD: &str = "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91";
 
-/// 假的端口：记下交给它的每一次标题和交代；`session` 有的派得出去，编号照第几次派从 `j1` 数起，没有的一律派不了。
+/// 假的端口：记下交给它的每一次标题和交代、挡位（施工 8-8）；`session` 有的派得出去，编号照第几次派从 `j1` 数起，没有的
+/// 一律派不了。
 struct Port {
     session: Option<SessionId>,
     asked: Mutex<Vec<(String, String)>>,
+    tiers: Mutex<Vec<Option<String>>>,
 }
 
 impl Port {
@@ -33,6 +36,7 @@ impl Port {
         Arc::new(Port {
             session: session.map(|session| SessionId::parse(session).expect("会话编号合写法")),
             asked: Mutex::new(Vec::new()),
+            tiers: Mutex::new(Vec::new()),
         })
     }
 
@@ -42,12 +46,28 @@ impl Port {
             .unwrap_or_else(PoisonError::into_inner)
             .clone()
     }
+
+    fn tiers(&self) -> Vec<Option<String>> {
+        self.tiers
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
 }
 
 impl AgentPort for Port {
-    fn spawn<'a>(&'a self, description: &'a str, prompt: &'a str) -> Spawning<'a> {
+    fn spawn<'a>(
+        &'a self,
+        description: &'a str,
+        prompt: &'a str,
+        tier: Option<&'a str>,
+    ) -> Spawning<'a> {
         let mut asked = self.asked.lock().unwrap_or_else(PoisonError::into_inner);
         asked.push((description.to_string(), prompt.to_string()));
+        self.tiers
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(tier.map(str::to_string));
         let job = JobId::new(asked.len() as u64).expect("从 1 数起");
         let answer = match &self.session {
             Some(session) => Ok(Spawned {
@@ -69,7 +89,7 @@ fn text(done: &Done) -> &str {
 }
 
 #[test]
-fn it_declares_only_a_title_and_the_task() {
+fn it_declares_a_title_the_task_and_a_tier() {
     let subagent = tool("subagent");
     let spec = subagent.spec();
     assert_eq!(spec.name, "subagent");
@@ -81,8 +101,13 @@ fn it_declares_only_a_title_and_the_task() {
         .unwrap()
         .keys()
         .collect();
-    assert_eq!(names, ["description", "prompt"]);
+    assert_eq!(names, ["description", "prompt", "tier"]);
     assert_eq!(parameters["required"], json!(["description", "prompt"]));
+    assert_eq!(
+        parameters["properties"]["tier"]["enum"],
+        json!(miyu_models::reference::TIERS),
+        "挡位的说明和代码里认的是同四个"
+    );
     assert!(
         spec.description
             .contains("It sees nothing of this conversation"),
@@ -135,6 +160,63 @@ async fn without_a_port_or_when_the_port_fails_it_is_not_started() {
         assert!(done.effects.is_empty(), "没派出去，没有 job.started");
     }
     assert_eq!(failing.asked().len(), 1, "端口照样问过一次");
+}
+
+/// 挡位（施工 8-8）：四个都交给端口，不写、写 `null` 的交没有；写错的（别的词、大小写不对、不是字）照参数不对，端口一次都
+/// 不问。
+#[tokio::test]
+async fn the_tier_is_one_of_four_and_goes_to_the_port() {
+    let site = Site::new();
+    let port = Port::new(Some(CHILD));
+    let task =
+        |tier: serde_json::Value| json!({"description": "查导出", "prompt": "Read.", "tier": tier});
+    for tier in ["lite", "cheap", "standard", "flagship"] {
+        let done = site
+            .done_with_agents("subagent", task(json!(tier)), Some(port.clone()))
+            .await;
+        assert!(!done.error, "{tier}");
+    }
+    for args in [
+        json!({"description": "查导出", "prompt": "Read."}),
+        task(serde_json::Value::Null),
+    ] {
+        let done = site
+            .done_with_agents("subagent", args, Some(port.clone()))
+            .await;
+        assert!(!done.error);
+    }
+    let some = |tier: &str| Some(tier.to_string());
+    assert_eq!(
+        port.tiers(),
+        [
+            some("lite"),
+            some("cheap"),
+            some("standard"),
+            some("flagship"),
+            None,
+            None
+        ]
+    );
+    for bad in [json!("huge"), json!("Lite"), json!(""), json!(1)] {
+        let done = site
+            .done_with_agents("subagent", task(bad.clone()), Some(port.clone()))
+            .await;
+        assert!(done.error, "{bad}");
+        assert!(
+            text(&done).starts_with("The arguments are not right: "),
+            "{}",
+            text(&done)
+        );
+    }
+    assert_eq!(port.tiers().len(), 6, "写错的端口不问");
+    let done = site
+        .done_with_agents("subagent", task(json!("huge")), Some(port.clone()))
+        .await;
+    assert!(
+        text(&done).contains("lite") && text(&done).contains("flagship"),
+        "原话列出能写的几个：{}",
+        text(&done)
+    );
 }
 
 #[tokio::test]

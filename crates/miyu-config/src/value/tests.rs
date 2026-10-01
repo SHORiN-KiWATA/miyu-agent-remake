@@ -56,3 +56,19 @@ fn a_reference_in_a_plain_string_field_reads_as_empty_not_as_toml() {
         ""
     );
 }
+
+/// 有默认值的网址（施工 8-8，`models.catalog.url`）：写死的、引用的各读各的，没有的照默认值。
+#[test]
+fn an_address_with_a_default_reads_a_literal_or_a_reference() {
+    use crate::secret::Reference;
+    use crate::{Address, Setting};
+    assert_eq!(
+        Address::read(Some(&text("https://a.invalid"))),
+        Address::Literal("https://a.invalid".to_string())
+    );
+    assert_eq!(
+        Address::read(Some(&Value::Secret(Reference::Env("CAT_URL".to_string())))),
+        Address::Env("CAT_URL".to_string())
+    );
+    assert_eq!(Address::read(None), Address::Literal(String::new()));
+}

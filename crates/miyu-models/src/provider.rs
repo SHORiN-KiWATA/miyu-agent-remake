@@ -8,7 +8,8 @@
 //! 3. key：照写的先后。取不到值的不当候选（由执行器取，这里只排先后，[`crate::keys`]）。
 //! 4. 本机的服务：手写的 `local`，没写的照地址在不在本机（第二条第 12 条，8-7）。手写的地址是环境变量的引用时查不出来，
 //!    照不在本机算，想算本机的自己写 `local = true`（施工 8-6b）。
-//! 5. 没有模型：`models.chat` 没配、引用解析不出，交 [`NoModel`]，原话照「出错」那张表。
+//! 5. 没有模型：`models.chat` 没配、引用解析不出，交 [`NoModel`]，原话照「出错」那张表。引用指到一个模型还是一个池、
+//!    挡位换成什么，在 [`crate::reference::resolve`]（施工 8-8）。
 //!
 //! 地址可能是写死的，也可能是一个环境变量的引用（施工 8-6b，[`miyu_config::Address`]）：这里只带着引用走，不解出地址
 //! 本身——对目录、本机的服务这两处用得到字面地址的，查不到的就当没有；真要连供应商的那一刻才经 [`resolve_base_url`]
@@ -23,7 +24,6 @@ use miyu_drivers::openai_chat::Compat;
 use crate::knowledge::Knowledge;
 use crate::matching::{Recognized, recognize};
 use crate::profile::ImageTokens;
-use crate::reference::{Place, Reference};
 use crate::settings::{ProviderSettings, UseSettings};
 
 /// 认得的驱动。8-6 只有 OpenAI 兼容的对话接口；另两种随 8-12、8-13。
@@ -77,14 +77,18 @@ pub fn chat(values: &Values) -> Option<String> {
     UseSettings::from(values).chat
 }
 
+/// 配置里有哪几家供应商：照编号排。引用的模型 `p/m`、池的成员照它认 `p` 在不在（施工 8-8）。
+pub fn configured(values: &Values) -> Vec<String> {
+    miyu_config::key::names(values.keys(), "providers.<id>", &[])
+}
+
 /// 编号 `id` 这一家这一轮的样子，照手头的资料 `knowledge`（档案、目录）推。
 ///
 /// # Errors
 ///
 /// 配置里没有这一家；推不出驱动、地址；驱动还没有。
 pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<Provider, NoModel> {
-    let configured = miyu_config::key::names(values.keys(), "providers.<id>", &[]);
-    if !configured.iter().any(|name| name == id) {
+    if !configured(values).iter().any(|name| name == id) {
         return Err(NoModel(format!("no provider {id:?}")));
     }
     let settings = ProviderSettings::at(values, &[id]);
@@ -198,34 +202,6 @@ fn on_this_machine(base_url: &str) -> bool {
     ["127.0.0.1", "localhost", "::1"]
         .iter()
         .any(|local| host.eq_ignore_ascii_case(local))
-}
-
-/// 引用 `text` 这一轮发给谁。挡位 8-6 都没配，退回 `models.chat`（再退一次还是挡位的，算解析不出）。
-///
-/// # Errors
-///
-/// 读不成；引用的池（随 8-8）、供应商没有；那一家用不了。
-pub fn target(values: &Values, knowledge: &Knowledge<'_>, text: &str) -> Result<Target, NoModel> {
-    let reference =
-        Reference::parse_at(text, Place::Session).map_err(|bad| NoModel(bad.to_string()))?;
-    let reference = match reference {
-        Reference::Tier(_) => {
-            let chat = chat(values).ok_or_else(|| NoModel(NOT_CONFIGURED.to_string()))?;
-            Reference::parse_at(&chat, Place::Use).map_err(|bad| NoModel(bad.to_string()))?
-        }
-        other => other,
-    };
-    match reference {
-        Reference::Model {
-            provider: id,
-            model,
-        } => Ok(Target {
-            provider: provider(values, knowledge, &id)?,
-            model,
-        }),
-        Reference::Pool(pool) => Err(NoModel(format!("no pool {pool:?}"))),
-        Reference::Tier(tier) => Err(NoModel(format!("a tier cannot be used here: {tier:?}"))),
-    }
 }
 
 #[cfg(test)]

@@ -93,7 +93,7 @@
 | `JobMessaged` | 内核的 `JobMessaged` 本身：留了言的子代理的编号（施工 7-7，`send_message` 报） | `job.messaged`，照原样 |
 | `PeerWatch` | 内核的 `PeerWatch` 本身：订的会话的整个编号（施工 C-6，`send_message` 的 `notify_when_idle` 报） | `peer.watch`，照原样 |
 
-**派子代理的端口** `AgentPort`（`Send + Sync`，施工 7-5）：`spawn(description, prompt)` 交回一个 future，子会话造好、交代送进去就给 `Spawned`（任务编号 `job`、子会话 `session`），派不了给 `NotSpawned`（原因执行器记进运行日志，不给她看）。两个端口比的是不是同一个（`Call` 照格子比较时用）。`SUBAGENT` 是派子代理的那件工具的名字：造会话时照它把 `subagent` 从不能派的会话的工具面上拿掉（`session/tools.md`）。`SUBAGENT_FORMERLY` 是它以前的名字 `agent`，`is_subagent` 两个名字都认（施工 7-5 再补，从日志里认派子代理的调用用）。
+**派子代理的端口** `AgentPort`（`Send + Sync`，施工 7-5）：`spawn(description, prompt, tier)` 交回一个 future（`tier` 是她选的挡位，工具查过是四个之一，没写的是空的，执行器照它定子会话的模型，施工 8-8），子会话造好、交代送进去就给 `Spawned`（任务编号 `job`、子会话 `session`），派不了给 `NotSpawned`（原因执行器记进运行日志，不给她看）。两个端口比的是不是同一个（`Call` 照格子比较时用）。`SUBAGENT` 是派子代理的那件工具的名字：造会话时照它把 `subagent` 从不能派的会话的工具面上拿掉（`session/tools.md`）。`SUBAGENT_FORMERLY` 是它以前的名字 `agent`，`is_subagent` 两个名字都认（施工 7-5 再补，从日志里认派子代理的调用用）。
 
 **留言的端口** `MessagePort`（`Send + Sync`，施工 7-7）：`send(to, message)` 交回一个 future，对方落了盘就给 `Ok`，没送出去给 `NotSent`：`NoParent` 没有父（主会话）、`NotYours` 不是这个会话派的子代理、`Stopped` 被停掉了、`Undelivered` 送不到（原因执行器记进运行日志）。`to` 是 `Recipient`：`Parent` 父会话，`Child(任务编号)` 自己派的子代理。两个端口比的是不是同一个。`MESSAGE_AGENT` 是那件工具的名字：造会话时照它把 `send_message` 从场所会话的工具面上拿掉（`session/tools.md`「工具面」）。
 

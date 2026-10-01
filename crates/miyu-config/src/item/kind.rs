@@ -29,8 +29,11 @@ pub enum Kind {
     /// 名字：小写字母开头，只有小写字母、数字、`-`、`_`，最长 64 个字符（施工 8-6：目录里供应商的编号）。写成字。
     Name,
     /// 引用：一个模型 `<供应商>/<模型>` 或者一个池 `@<池>`（`models.md`「三种写法」，施工 8-6：`models.chat`）。写成字。
-    /// 这里只查写法；指的东西在不在由用它的一方查（「施工时定的」8-6）。
+    /// 这里只查写法；指的供应商、池在不在，读进来以后跨项查（[`crate::dangling`]，施工 8-8）。
     Reference,
+    /// 模型：只能是 `<供应商>/<模型>`，不能是池、挡位（`models.md`「哪里能写哪几种」池的成员那一行，施工 8-8：池的成员是
+    /// 它的列表）。写成字。
+    Model,
     /// 列表：每一个照元素的类型（施工 8-6：供应商的几个 key 是密钥的列表）。元素不能再是列表。
     List(&'static Kind),
     /// 小数：在 `min` 到 `max` 之间，两头都算；`nan`、`inf` 不收，整数也收（施工 8-7：倍率、价格）。范围写成整数就够用。
@@ -83,6 +86,7 @@ impl Kind {
             (Kind::Url, Value::Secret(Reference::Env(_))) => Ok(()),
             (Kind::Name, Value::Text(text)) => ok_or_format(crate::secret::valid_name(text)),
             (Kind::Reference, Value::Text(text)) => ok_or_format(reference(text)),
+            (Kind::Model, Value::Text(text)) => ok_or_format(model(text)),
             (Kind::List(inner), Value::List(values)) if !matches!(inner, Kind::List(_)) => {
                 values.iter().try_for_each(|value| inner.check(value))
             }
@@ -107,8 +111,8 @@ impl Kind {
         }
     }
 
-    /// 协议上的写法（`config.schema` 的 `type`）：`option`、`bool`、`secret`、`int`、`url`、`name`、`reference`、`list`、
-    /// `float`、`text`、`duration`。
+    /// 协议上的写法（`config.schema` 的 `type`）：`option`、`bool`、`secret`、`int`、`url`、`name`、`reference`、`model`、
+    /// `list`、`float`、`text`、`duration`。
     pub fn as_str(&self) -> &'static str {
         match self {
             Kind::Option(_) => "option",
@@ -118,6 +122,7 @@ impl Kind {
             Kind::Url => "url",
             Kind::Name => "name",
             Kind::Reference => "reference",
+            Kind::Model => "model",
             Kind::List(_) => "list",
             Kind::Float { .. } => "float",
             Kind::Text { .. } => "text",
@@ -186,12 +191,33 @@ pub fn duration(text: &str) -> Option<std::time::Duration> {
 /// 引用的写法（`models.md`「三种写法」里配置能写的两种）：`@` 加池的名字；或者在第一个 `/` 处切开，前面是供应商的编号，
 /// 后面是模型名，两边都不是空的。挡位（`lite` 这类）配置里的几项都不能写。
 fn reference(text: &str) -> bool {
+    pointed(text).is_some()
+}
+
+/// 模型的写法：在第一个 `/` 处切开，前面是供应商的编号，后面是模型名，两边都不是空的（施工 8-8）。
+fn model(text: &str) -> bool {
+    matches!(pointed(text), Some(Pointed::Provider(_)))
+}
+
+/// 一个引用指的是什么：模型指的是那一家供应商，`@` 开头的是那个池（施工 8-8，[`crate::dangling`] 照它查在不在）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Pointed<'a> {
+    /// 模型 `<供应商>/<模型>` 的那一家。
+    Provider(&'a str),
+    /// `@<池>` 的那个池。
+    Pool(&'a str),
+}
+
+/// 照引用的写法读出指的是什么；写法不对的是空的。
+pub(crate) fn pointed(text: &str) -> Option<Pointed<'_>> {
     if let Some(pool) = text.strip_prefix('@') {
-        return key::valid(ID, pool);
+        return key::valid(ID, pool).then_some(Pointed::Pool(pool));
     }
     match text.split_once('/') {
-        Some((provider, model)) => key::valid(ID, provider) && key::valid(MODEL, model),
-        None => false,
+        Some((provider, model)) if key::valid(ID, provider) && key::valid(MODEL, model) => {
+            Some(Pointed::Provider(provider))
+        }
+        _ => None,
     }
 }
 

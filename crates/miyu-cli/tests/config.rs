@@ -13,7 +13,8 @@ use miyu_cli::language::Language;
 use miyu_cli::{ConfigCommand, ConfigPlan};
 use miyu_session::testkit::Script;
 use support::configuring::{Edit, Fake, at_terminal};
-use support::{Asked, Home, Outside};
+use support::outside::Outside;
+use support::{Asked, Home};
 
 fn home() -> Home {
     Home::new(Arc::new(Script::new([])))

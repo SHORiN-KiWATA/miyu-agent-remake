@@ -114,7 +114,10 @@ async fn the_list_has_providers_models_facts_and_states() {
     let reply = list(&home, &[("DEEPSEEK_API_KEY", "sk-1")], data(), json!({})).await;
     let result = &reply["result"];
     assert!(result.is_object(), "{reply}");
-    assert_eq!(result["uses"], json!({"chat": "deepseek/deepseek-flash"}));
+    assert_eq!(
+        result["uses"],
+        json!({"chat": "deepseek/deepseek-flash", "vision": null})
+    );
     assert_eq!(
         result["catalog"],
         json!({"source": "snapshot", "fetched": "2026-10-01T03:25:54.000Z"})

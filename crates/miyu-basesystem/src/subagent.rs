@@ -3,15 +3,18 @@
 //! 返回，不等它做完。回报由子会话自己送来（7-6）。
 //!
 //! 施工 7-5 再补从 `agent` 改名：以前的名字照样认（[`Tool::formerly`]），输出那两句的目录和说法的编号照旧叫 `agent`
-//! （[`SAYINGS`]）。挡位、人格、预设三个参数随配置和预设那一步（`agents.md`「还没有的」）。
+//! （[`SAYINGS`]）。施工 8-8 加挡位 `tier`（`models.md`「工具」）：只认四个挡位，写错的照参数不对、端口一次都不问；交给端口，
+//! 执行器照这时的配置解析成子会话用的模型，不写的用父会话这时用的。人格、预设两个参数随配置和预设那一步（`agents.md`
+//! 「还没有的」）。
 
 use std::path::Path;
 
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
 use miyu_kernel::event::{JobKind, JobStarted};
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
+use miyu_models::reference::TIERS;
 use miyu_tool::{Call, Done, Effect, Progress, Running, SUBAGENT, SUBAGENT_FORMERLY, Spec, Tool};
 
 use crate::common::{Common, said};
@@ -41,6 +44,20 @@ struct Texts {
 struct Args {
     description: String,
     prompt: String,
+    /// 挡位（施工 8-8）：不写、写 `null` 的是没有。
+    #[serde(default, deserialize_with = "tier")]
+    tier: Option<String>,
+}
+
+/// 读挡位：只认四个挡位（[`TIERS`]），别的照参数不对，原话列出能写的几个。
+fn tier<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<String>, D::Error> {
+    let written = Option::<String>::deserialize(deserializer)?;
+    match written {
+        Some(text) if !TIERS.contains(&text.as_str()) => {
+            Err(serde::de::Error::unknown_variant(&text, &TIERS))
+        }
+        written => Ok(written),
+    }
 }
 
 impl Subagent {
@@ -81,7 +98,8 @@ impl Tool for Subagent {
             let Some(port) = call.agents else {
                 return not_started();
             };
-            let Ok(spawned) = port.spawn(&args.description, &args.prompt).await else {
+            let tier = args.tier.as_deref();
+            let Ok(spawned) = port.spawn(&args.description, &args.prompt, tier).await else {
                 return not_started();
             };
             let job = spawned.job.to_string();

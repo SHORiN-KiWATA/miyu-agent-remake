@@ -27,6 +27,8 @@
 | `ResourceRoot::profiles()` | 供应商的档案的原文（`models/profiles.toml`，施工 8-6），怎么读由核心定（`core.md`「模型」，`models.md`） |
 | `Human::load(资源目录, 语言)` | 读这种语言的给人看的字 |
 | `Human::tool(工具名)` | 这件工具给人看的样子 `Face`；没有的是空的 |
+| `Human::tools()` | 每件工具给人看的样子，照工具名排好（`human.get`，施工 W-1） |
+| `Human::said_entries()` | 每一句说法的原文，照编号排好，一个字不换：编号已经带着它在资源目录里的位置（`human.get`，施工 W-1：换字段是头的事，核心不代换） |
 | `Human::say(说法)` | 照说法换成的一句话；换不出来的是空的 |
 | `Human::fields(编号)` | 这一句要哪些字段，照出现的先后，重复的算一次；没有这一句的是空的 |
 | `clean(字)` | 控制字符换成 `�`，别的照原样 |

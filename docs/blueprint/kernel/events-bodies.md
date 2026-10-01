@@ -47,8 +47,9 @@
 | `cwd` | 字符串 | 可以没有 | 开会话时实际干活的目录，人看到的那种写法（施工 4-9 再补三上）。之前的日志没有 |
 | `parent` | 会话编号 | 可以没有 | 父会话：派它的那个会话（`agents.md`，施工 7-1）。主会话没有 |
 | `depth` | 整数（`u32`） | 可以没有 | 第几层：父会话的加一。主会话是第 0 层，不写。和 `parent` 同有同无、至少是 1，由账本查（`kernel/history.md`） |
+| `model` | 字符串 | 可以没有 | 会话用哪个模型（施工 8-8，`models.md`「事件」）：造会话时解析好的引用，模型 `<供应商>/<模型>` 或池 `@<池>`，挡位已经换成它那时的值。协议造的照 `session.create` 的 `model`，没写的照那时的 `models.chat`；子会话照 `subagent` 的 `tier`，没写的照父会话那时的。那时连 `models.chat` 都没配的不写。内核只记不解读 |
 
-子会话不写 `oneshot`：`--continue`、`miyu undo` 找「最近一次 `miyu ask` 开的」不会找到它（`agents.md`）。以前的日志没有 `parent`、`depth` 两格，原样一个字节不变。
+子会话不写 `oneshot`：`--continue`、`miyu undo` 找「最近一次 `miyu ask` 开的」不会找到它（`agents.md`）。以前的日志没有 `parent`、`depth`、`model` 几格，原样一个字节不变；没有 `model` 的，路由照载入那一刻的 `models.chat`（`models.md`「怎么走」第一条第 7 条）。样本两条都带 `model`（施工 8-8）。
 
 **权限**（`session.created`、`session.policy_changed` 里的 `permission`）：
 

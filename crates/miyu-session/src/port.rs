@@ -42,6 +42,12 @@ pub struct ForSession {
     pub texts: DriverTexts,
     /// 属主的 blob：编码要用的图、文件在这里。
     pub blobs: Blobs,
+    /// 会话记着的引用（施工 8-8）：`session.created` 的 `model`，模型或 `@池`。以前的日志没有这一格的、造的时候连
+    /// `models.chat` 都没配的是空的：照造端口这一刻的 `models.chat`。
+    pub reference: Option<String>,
+    /// 最近一条发出去了的 `model.called` 发给了谁（施工 8-8，「起草时定的」第 2 条）：引用是钉住的池的，照它认钉着的成员。
+    /// 新造的会话、一次都没发出去过的没有。
+    pub sent: Option<Model>,
 }
 
 /// 请求模型的端口。
@@ -49,6 +55,12 @@ pub trait ModelPort: Send + Sync {
     /// 发给哪个端点的哪个模型：记进运行日志的 `request` 那一行。路由的是这个会话钉着的、上一次解析出来的那一个（施工 8-6：
     /// 回合开始时照新的配置可能换，真发给谁记在 `model.called` 里）。
     fn model(&self) -> Model;
+
+    /// 会话这时生效的引用（施工 8-8）：模型或 `@池`。派子代理不写挡位时，子会话记下它（`models.md` 第三条第 4 条）。路由的是
+    /// 钉着的那一个；不知道的（测试的端口）没有。
+    fn reference(&self) -> Option<String> {
+        None
+    }
 
     /// 这个模型的限额：窗口、最大输出、一张图怎么算（施工 6-3 上）。会话 actor 造会话、载入以后交给内核。不知道的
     /// 都是没有：不主动压。

@@ -16,6 +16,7 @@
 //! your sessions by its id」、`sessions` 第二句点名它和 `history`：字节 6966 → 7048，边际份量 153 → 165、95 → 101，十二件
 //! 合计 1897 个 token，还在预算里，预算不改（`26-提示词.md` 第十节）。施工 C-6 给 `send_message` 加 `notify_when_idle`、`message`
 //! 改成可以不写：字节 7048 → 7200，边际份量 165 → 204，十二件合计 1936 个 token，还在预算里，预算不改。
+//! 施工 8-8 给 `subagent` 加 `tier`：字节 7200 → 7360，边际份量 141 → 189，十二件合计 1984 个 token，还在预算里，预算不改。
 
 use std::path::Path;
 

@@ -113,10 +113,12 @@ pub fn tell(
             )?);
         }
         Code::UntrustedProject => parts.push(sentence(words, "config/untrusted-project", &[])?),
-        Code::UnknownSecret | Code::EnvNotSet => {
+        Code::UnknownSecret | Code::EnvNotSet | Code::NoProvider | Code::NoPool => {
             let said = match problem.code {
                 Code::UnknownSecret => "config/unknown-secret",
-                _ => "config/env-not-set",
+                Code::EnvNotSet => "config/env-not-set",
+                Code::NoProvider => "config/no-provider",
+                _ => "config/no-pool",
             };
             let name = problem.name.as_deref().unwrap_or_default();
             parts.push(sentence(words, said, &[("key", key), ("name", name)])?);

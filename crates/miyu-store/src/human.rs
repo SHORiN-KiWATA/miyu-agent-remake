@@ -14,12 +14,15 @@
 //! 只把控制字符换成 `�`（[`clean`]）：路径、参数是她给的，里面要是混着终端的控制序列，原样印出来会把终端弄乱。
 //!
 //! 哪一份没有这种语言，照英文那一份；英文也没有的，那一处就没有给人看的字，头照工具名、状态写最泛的。
+//!
+//! `human.get`（施工 W-1）把这份读好的字整个交给头：工具的样子（[`Human::tools`]）、说法的模板原文、一个字不换
+//! （[`Human::said_entries`]）。模板只留解好的 [`Template`] 不够，所以每一句说法这里多存一份原文（内部的 `Phrase`）。
 
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use miyu_config::{ConfigWords, ItemWords, Words};
 use miyu_kernel::event::Said;
@@ -34,29 +37,38 @@ pub const FALLBACK: &str = "en";
 #[derive(Debug, Clone, Default)]
 pub struct Human {
     tools: BTreeMap<String, Face>,
-    said: BTreeMap<String, Template>,
+    said: BTreeMap<String, Phrase>,
     config: ConfigWords,
 }
 
+/// 一句说法：原文和解好的模板。`human.get` 要交出原文，一个字不换（施工 W-1）。
+#[derive(Debug, Clone)]
+struct Phrase {
+    /// 原文：`human/<语言>.json` 里 `said` 那一格写的那一句。
+    source: String,
+    /// 解好的模板：换字段用（[`Human::say`]）。
+    template: Template,
+}
+
 /// 一件工具给人看的样子。
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Face {
     /// 显示名，例如「读取」。
     pub name: String,
     /// 显示名后面跟哪一个参数的值，例如 `file_path`。没有的只写显示名。
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subject: Option<String>,
     /// 写在最前面的符号，例如 `→`（施工 4-11）。没有的由头定。
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
     /// 标题下面还印一块什么（施工 4-11）。没有的只印标题。
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub block: Option<Block>,
 }
 
 /// 标题下面的那一块。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Block {
     /// 执行命令：标题写成 `$ 命令`，不写显示名；下面印工具自己写的结果。
@@ -141,7 +153,8 @@ impl Human {
         for (key, source) in parsed.said {
             let template =
                 Template::parse(&source).map_err(|error| bad(format!("{key}: {error}")))?;
-            self.said.insert(format!("{prefix}/{key}"), template);
+            self.said
+                .insert(format!("{prefix}/{key}"), Phrase { source, template });
         }
         self.tools.extend(parsed.tools);
         self.config.items.extend(parsed.config.items);
@@ -155,15 +168,27 @@ impl Human {
         self.tools.get(name)
     }
 
+    /// 每件工具给人看的样子，照工具名排好（`human.get`，施工 W-1）。
+    pub fn tools(&self) -> &BTreeMap<String, Face> {
+        &self.tools
+    }
+
+    /// 每一句说法的原文，照编号排好，一个字不换（`human.get`，施工 W-1：换字段是头的事）。
+    pub fn said_entries(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.said
+            .iter()
+            .map(|(key, phrase)| (key.as_str(), phrase.source.as_str()))
+    }
+
     /// 照说法换成一句话，字段先过一遍 [`clean`]。没有这一句、或者少了字段的，是空的。
     pub fn say(&self, said: &Said) -> Option<String> {
-        let template = self.said.get(&said.key)?;
+        let phrase = self.said.get(&said.key)?;
         let fields: BTreeMap<&str, &str> = said
             .fields
             .iter()
             .map(|(field, value)| (field.as_str(), value.as_str()))
             .collect();
-        template.fill(&fields, clean).ok()
+        phrase.template.fill(&fields, clean).ok()
     }
 
     /// 设置页编号 `id` 那一页的名字；没有的是空的（施工 8-2，`config.schema`）。
@@ -178,7 +203,7 @@ impl Human {
 
     /// 说法 `key` 这一句要哪些字段；没有这一句的是空的。
     pub fn fields(&self, key: &str) -> Option<Vec<&str>> {
-        self.said.get(key).map(Template::fields)
+        self.said.get(key).map(|phrase| phrase.template.fields())
     }
 }
 

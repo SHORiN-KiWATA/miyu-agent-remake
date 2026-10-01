@@ -15,7 +15,8 @@ impl Scratch {
     pub fn new() -> Scratch {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("miyu-fs-{}-{n}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("miyu-fs-{}-{}-{n}", std::process::id(), stamp()));
         fs::create_dir_all(&dir).expect("临时目录里建得了");
         Scratch(dir)
     }
@@ -100,4 +101,12 @@ impl Site {
     pub fn boundary(&self) -> Boundary {
         Boundary::new(&self.places())
     }
+}
+
+/// 纳秒时刻的末 9 位：临时目录名里加上它，Windows 很快复用进程号，光靠进程号和序号会撞上前一个测试进程留下的目录。
+/// 只取 9 位：有的测试在这下面建套接字，macOS 上套接字的路径最长 104 字节。
+fn stamp() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_nanos() % 1_000_000_000)
 }

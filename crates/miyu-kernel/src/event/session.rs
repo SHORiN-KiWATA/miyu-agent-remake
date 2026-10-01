@@ -30,6 +30,12 @@ pub struct SessionCreated {
     /// 第几层：父会话的加一，主会话是第 0 层、不写。和 `parent` 同有同无、至少是 1，由账本查（`kernel/history.md`）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub depth: Option<u32>,
+    /// 会话用哪个模型（施工 8-8，`models.md`「事件」）：造会话时解析好的引用，模型 `<供应商>/<模型>` 或池 `@<池>`，挡位已经
+    /// 换成了它那时的值。协议造的照 `session.create` 的 `model`，没写的照那时的 `models.chat`；子会话的照 `subagent` 的
+    /// `tier`，没写的照父会话那时的。那时连 `models.chat` 都没配的不写；以前的日志没有这一格，照没有读。内核只记不解读，
+    /// 引用怎么认在 `miyu-models`。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
 }
 
 /// `session.policy_changed`：换了策略快照，或者换了权限，也可以一起换。

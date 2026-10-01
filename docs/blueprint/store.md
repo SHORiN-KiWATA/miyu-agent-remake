@@ -101,7 +101,7 @@
 
 - 这一页的代码新建的目录，Unix 上权限都是 0700；已经有的不改。Windows 上照系统默认的，靠用户目录本身的访问控制。
 - 这一页的代码新建的文件（标记、段、blob、临时文件、配置文件、日志）照系统默认的权限建，靠上面 0700 的目录挡住别人。替换已经有的配置文件时带上它原来的权限位（施工 8-3）。
-- `state/logs/` 由运行日志建（`log.md`），`state/config/` 由核心生成配置的 Schema 和参考文件时建（`config.md`），`state/models/` 由路由记下用出来的窗口（`learned.json`）、拉到供应商的列表（`providers/<编号>.json`）时建（施工 8-7，`models.md`「文件」：派生数据，坏了当没有），`run/` 下的几样见 `ipc.md`。
+- `state/logs/` 由运行日志建（`log.md`），`state/config/` 由核心生成配置的 Schema 和参考文件时建（`config.md`），`state/models/` 由路由记下用出来的窗口（`learned.json`）、拉到供应商的列表（`providers/<编号>.json`）、池的指针往前走（`pools.json`，施工 8-8）时建（施工 8-7，`models.md`「文件」：派生数据，坏了当没有），`run/` 下的几样见 `ipc.md`。
 
 ### 怎么走
 

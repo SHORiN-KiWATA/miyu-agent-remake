@@ -1,5 +1,6 @@
 //! 读目录、后台更新（施工 8-7，`docs/blueprint/models.md`「怎么走」第二条第 1 到 3 条）：快照和缓存挑新的、坏的退回另一份、
-//! 都坏照样起来；后台拉、304、失败一小时后再试、关掉 `update` 不拉。用假服务器，不连外网。
+//! 都坏照样起来；后台拉、304、失败一小时后再试、关掉 `update` 不拉。用假服务器，不连外网。地址写成环境变量的引用的照核心
+//! 的环境取（施工 8-8）。
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -9,8 +10,10 @@ use std::time::{Duration, SystemTime};
 use serde_json::json;
 use tokio::sync::watch;
 
+use miyu_config::secret::Reference;
+use miyu_config::{Address, Value, Values};
 use miyu_core::models::catalog::{FILE, META, Meta, Places, load};
-use miyu_core::models::refresh::{RETRY, Refreshed, Refresher, next_try};
+use miyu_core::models::refresh::{RETRY, Refreshed, Refresher, Schedule, next_try};
 use miyu_http::testkit::{Piece, Reply, Server};
 use miyu_http::{Proxy, fetcher};
 use miyu_models::catalog::CatalogSource;
@@ -26,7 +29,11 @@ impl Dir {
     fn new() -> Dir {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("miyu-catalog-{}-{n}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!(
+            "miyu-catalog-{}-{}-{n}",
+            std::process::id(),
+            stamp()
+        ));
         std::fs::create_dir_all(&dir).expect("建得了");
         Dir(dir)
     }
@@ -243,9 +250,9 @@ async fn the_loop_fetches_when_due_and_not_when_update_is_off() {
     let data = data();
     let server = Server::start(vec![ok(&catalog("looped"), "\"v1\"")]).await;
     let url = format!("{}/api.json", server.base_url);
-    let settings = |update: bool| CatalogSettings {
+    let settings = |update: bool| Schedule {
         update,
-        url: url.clone(),
+        url: Some(url.clone()),
         every: Duration::from_secs(86_400),
     };
     // 关着：不拉。
@@ -273,6 +280,58 @@ async fn the_loop_fetches_when_due_and_not_when_update_is_off() {
         .expect("没有 panic");
 }
 
+/// 地址写成环境变量的引用（施工 8-8，8-6b 留下的：以前读成空的、一直拉不到）：照核心的环境取，后台照它拉；没设、设成空的
+/// 没有地址，到点了照失败算。
+#[tokio::test]
+async fn an_address_from_the_environment_is_fetched_from_where_it_points() {
+    let mut values = Values::default();
+    values.set(
+        "models.catalog.url",
+        Value::Secret(Reference::Env("CAT_URL".to_string())),
+    );
+    let settings = CatalogSettings::from(&values);
+    assert_eq!(settings.url, Address::Env("CAT_URL".to_string()));
+    let server = Server::start(vec![ok(&catalog("from-env"), "\"v1\"")]).await;
+    let url = format!("{}/api.json", server.base_url);
+    let env = |name: &str| (name == "CAT_URL").then(|| url.clone());
+    let schedule = Schedule::of(settings.clone(), &env);
+    assert_eq!(schedule.url.as_deref(), Some(url.as_str()));
+    assert_eq!(Schedule::of(settings.clone(), &|_| None).url, None, "没设");
+    assert_eq!(
+        Schedule::of(settings, &|_| Some(String::new())).url,
+        None,
+        "设成空的"
+    );
+    let dir = Dir::new();
+    let data = data();
+    let (sender, receiver) = watch::channel(schedule);
+    let running = tokio::spawn(refresher(&dir, &data).run(receiver));
+    let waited = tokio::time::timeout(Duration::from_secs(10), async {
+        while data.catalog().is_none() {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await;
+    assert!(waited.is_ok(), "照环境变量里的地址拉到了");
+    assert_eq!(server.received().len(), 1);
+    drop(sender);
+    running.await.expect("没有 panic");
+    // 没有地址的：到点了什么都拉不到，照失败算，接着等配置变。
+    let schedule = Schedule {
+        update: true,
+        url: None,
+        every: Duration::from_secs(86_400),
+    };
+    let (sender, receiver) = watch::channel(schedule);
+    let (other, nothing) = (Dir::new(), self::data());
+    let running = tokio::spawn(refresher(&other, &nothing).run(receiver));
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(nothing.catalog().is_none());
+    assert!(!running.is_finished(), "没有地址不停下");
+    drop(sender);
+    running.await.expect("没有 panic");
+}
+
 /// 量尺（施工 8-7，「起草时定的」第 13 条，预算 150 毫秒）：读安装包带的快照要多久，读五次各印一行。
 /// `cargo test --release -p miyu-core --test catalog -- --ignored --nocapture`。只断言读得出来，不断言耗时。
 #[test]
@@ -292,4 +351,11 @@ fn measure_reading_the_bundled_snapshot() {
             loaded.catalog.model_count()
         );
     }
+}
+
+/// 纳秒时刻：临时目录名里加上它，Windows 很快复用进程号，光靠进程号和序号会撞上前一个测试进程留下的目录。
+fn stamp() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_nanos())
 }
