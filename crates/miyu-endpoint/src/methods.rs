@@ -10,7 +10,8 @@
 //! 配置解析好再造，解析不出的回 `unknown_model`、什么都不造（施工 8-8，`models::record`）。换模型 `session.configure`：先查
 //! 参数、再找会话、再照这时的配置解析，交给内核，回 `{}`（施工 8-10）。给人看的字 `human.get` 在 `human.rs`（施工 W-1）。
 //! 列文件、找文件、换真实位置 `fs.list`、`fs.find`、`fs.realpath` 在 `files.rs`（施工 W-2、W-3）。第一次接入的
-//! `provider.detect`、`provider.catalog`、`provider.test` 在 `providers.rs`（施工 8-11）。
+//! `provider.detect`、`provider.catalog`、`provider.test` 在 `providers.rs`（施工 8-11）。分块上传
+//! `blob.open`、`blob.write`、`blob.close` 在 `uploads.rs`（施工 W-5），要这个连接的上传表 `uploads`。
 
 use std::sync::Arc;
 
@@ -40,6 +41,7 @@ use crate::refusal::Refusal;
 use crate::secrets;
 use crate::sessions::{Opening, admin};
 use crate::undo;
+use crate::uploads::{self, Uploads};
 use crate::wire::Request;
 
 /// 没写人格时用的：出厂的软件工程师（施工 3-6 上）。
@@ -190,6 +192,7 @@ pub(crate) async fn call(
     core: &Arc<Core>,
     peer: Peer,
     request: &Request,
+    uploads: &mut Uploads,
 ) -> Result<Value, Refusal> {
     match request.method.as_str() {
         "session.create" => {
@@ -389,6 +392,9 @@ pub(crate) async fn call(
         "provider.catalog" => providers::catalog(core, params(request)?).await,
         "provider.test" => providers::test(core, params(request)?).await,
         "blob.put" => attach::put(core, params(request)?).await,
+        "blob.open" => uploads::open(core, uploads, params(request)?).await,
+        "blob.write" => uploads::write(core, uploads, params(request)?).await,
+        "blob.close" => uploads::close(core, uploads, params(request)?).await,
         "session.configure" => {
             let params: models::ConfigureParams = params(request)?;
             let (text, asked) = params.asked()?;

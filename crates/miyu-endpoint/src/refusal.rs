@@ -114,7 +114,8 @@ impl Refusal {
         reason: "attachment_unreadable",
         data: None,
     };
-    /// 附件太大（施工 3-9 三补）：超过 20 MiB；图片超过 5 MiB，或者哪一边超过 8000 像素。
+    /// 附件太大（施工 3-9 三补）：超过 20 MiB；图片超过 5 MiB，或者哪一边超过 8000 像素。分块上传
+    /// `blob.open`、`blob.close` 共用这一种（施工 W-5）。
     pub(crate) const ATTACHMENT_TOO_BIG: Refusal = Refusal {
         code: REFUSED,
         reason: "attachment_too_big",
@@ -147,6 +148,27 @@ impl Refusal {
     };
     // `mermaid_too_long`、`mermaid_failed`（施工 W-4）：查询方法（`queries.rs`）只拿得到
     // `queries::QueryError`，这两种拒绝经 `From<QueryError>` 现造，不在这里登记成常量。
+
+    /// 这个连接上同时开着 4 个分块上传了（施工 W-5，`blob.open`）。
+    pub(crate) const TOO_MANY_UPLOADS: Refusal = Refusal {
+        code: REFUSED,
+        reason: "too_many_uploads",
+        data: None,
+    };
+    /// 没有这个上传：编号不对、作废了、不是这个连接开的（施工 W-5，`blob.write`、`blob.close`）。
+    pub(crate) const UPLOAD_UNKNOWN: Refusal = Refusal {
+        code: REFUSED,
+        reason: "upload_unknown",
+        data: None,
+    };
+    /// `blob.write` 的 `offset` 和已经收到的字节数对不上（施工 W-5）：`data.received` 是实际收到的几个。
+    pub(crate) fn upload_offset(received: u64) -> Refusal {
+        Refusal::with("upload_offset", "received", serde_json::json!(received))
+    }
+    /// `blob.close` 时还没收齐（施工 W-5）：`data.received` 是实际收到的几个。
+    pub(crate) fn upload_incomplete(received: u64) -> Refusal {
+        Refusal::with("upload_incomplete", "received", serde_json::json!(received))
+    }
 
     /// `config.trust` 时这个目录找不到项目配置（施工 8-3）。
     pub(crate) const NO_PROJECT_CONFIG: Refusal = Refusal {
@@ -299,6 +321,20 @@ impl Refusal {
             // 施工 W-4（`mermaid.md`「给人看的字」）。
             "mermaid_too_long" => ("这张图的源码太长了。", "The diagram source is too long."),
             "mermaid_failed" => ("这张图画不出来。", "The diagram could not be drawn."),
+            // 施工 W-5（`web-module.md`「给人看的字」）。
+            "too_many_uploads" => (
+                "同时传的文件太多了，等前面的传完。",
+                "Too many uploads at once; wait for the others to finish.",
+            ),
+            "upload_unknown" => (
+                "没有这个上传，可能等太久作废了，重新传一次。",
+                "No such upload; it may have expired. Upload the file again.",
+            ),
+            "upload_offset" => (
+                "上传接不上，从核心说的地方接着传。",
+                "The upload is out of step; continue from where the core says.",
+            ),
+            "upload_incomplete" => ("文件还没传完。", "The file is not fully uploaded yet."),
             "not_running" => (
                 "没有正在进行的回合，打断不了。",
                 "No turn is running, so there is nothing to interrupt.",

@@ -28,8 +28,9 @@
 | `crates/miyu-endpoint/src/subscriptions.rs` | 订阅：每个订阅一个转发任务，先写补发的（施工 3-8 六补），再推 `event`、`resync`；换掉一个订阅时等它写完 |
 | `crates/miyu-endpoint/src/subscriptions/config.rs` | 配置的订阅（施工 8-4，`config.md`「协议」）：推 `config.changed`、掉队推 `resync`，`config.set` 的回应排在推送后面 |
 | `crates/miyu-endpoint/src/undo.rs` | 撤销、恢复、重做的回应里给人看的几样（`protocol/undo.md`） |
-| `crates/miyu-endpoint/src/attach.rs` | 附件（施工 3-9 三补）：`blob.put` 读、存；`session.send`、`session.redo` 的附件变成内容块 |
+| `crates/miyu-endpoint/src/attach.rs` | 附件（施工 3-9 三补）：`blob.put` 读、存；`session.send`、`session.redo` 的附件变成内容块；认是什么、文件名和媒体类型怎么查、存好了怎么拼回应，和分块上传共用（施工 W-5） |
 | `crates/miyu-endpoint/src/attach/kind.rs` | 认一个附件是什么：图片、PDF、别的文件，媒体类型 |
+| `crates/miyu-endpoint/src/uploads.rs` | `blob.open`、`blob.write`、`blob.close`：跟着连接走的上传表，60 秒不写、连接断了都作废（施工 W-5） |
 | `crates/miyu-endpoint/src/refusal.rs` | 拒绝：错误码、原因码、中英文的话 |
 | `crates/miyu-endpoint/src/settings.rs` | 端点的配置项：界面语言 `ui.language`，`auto` 照系统的语言算出 `zh`、`en`、`ja`（施工 8-1 声明，8-2 握手时用）；新会话开局只读 `permission.start_read_only`（施工 8-2） |
 | `crates/miyu-endpoint/src/config.rs`、`config/` | 配置服务：起来时读的几份配置、最终值，照目录找项目配置、认信不信任；`config.schema`、`config.get`、`config.check`（施工 8-2，`config.md`）；`config.set`、`config.trust`，住在核心家底的一把锁里（施工 8-3）；监视配置文件、推 `config.changed`（施工 8-4）；密钥文件也住在这里（施工 8-5） |
@@ -132,6 +133,7 @@
 | `job.stop` | 停掉一个后台命令或者子代理（施工 7-4） |
 | `job.output` | 读一条后台命令到这时为止的输出（施工 7-4 补） |
 | `blob.put` | 传一个附件，存成 blob（施工 3-9 三补） |
+| `blob.open`、`blob.write`、`blob.close` | 分块传一个附件，最后存成 blob，回应和 `blob.put` 一样；跟着连接走，60 秒不写、连接断了都作废（施工 W-5） |
 | `fs.list` | 列一层目录：数据根只有账号自己的工作区能列（施工 W-2） |
 | `fs.find` | 在一个目录里模糊找文件：数据根只有账号自己的工作区能找（施工 W-2） |
 | `fs.realpath` | 一个路径换成真实的位置：不查边界，落在数据根里的照样换（施工 W-3） |
@@ -238,13 +240,29 @@
 
 1. `path`、`data` 正好写一个；两个都写、都不写（写 `null` 算没写）：`bad_params`。`path` 是相对的（没有工作目录可接，头自己接成绝对的）、`~别人/…`：`bad_params`。`data` 不是 base64、传 `data` 没写 `name`、`name` 不合文件名的写法、`media_type` 不合媒体类型的写法：`bad_params`。
 2. 读 `path`，在阻塞线程里：照 `fs.md` 换成真实的位置（链接照指向的地方算），照边界表（管理员的工作区、数据根、这台机器的临时目录和系统目录，`fs.md` 第一节）落在谁都不能碰的那一片（数据根里、管理员的工作区以外）：`attachment_in_data_root`。别的地方都能读，和她读文件一样（`session/guard.md`：读哪儿都不问）。换不成真实的位置、打不开（没有、不是普通文件、没有权限）：`attachment_unreadable`。照 `fs.md` 第四节打开，路上一层链接都不跟。
-3. 一个最多 20 MiB（20,971,520 字节），多的 `attachment_too_big`；读到上限多一个字节就停，不整份读进来。`data` 放在一行 JSON 里，一行最长 1 MiB（「一行一条」），所以最多七百多 KiB，大的传 `path`；分块上传以后再说（`04-核心协议.md` 第十一节）。
+3. 一个最多 20 MiB（20,971,520 字节），多的 `attachment_too_big`；读到上限多一个字节就停，不整份读进来。`data` 放在一行 JSON 里，一行最长 1 MiB（「一行一条」），所以最多七百多 KiB，大的传 `path`；更大的（或者远程的头想一块一块传）用 `blob.open`、`blob.write`、`blob.close`（施工 W-5，下面）。
 4. 认是什么，照内容，不看扩展名：
    1. 开头是四种图之一（PNG、JPEG、GIF、WebP）、量得出宽高的：图片，媒体类型照认出的，`media_type` 写了也不算。超过 5 MiB、哪一边超过 8000 像素：`attachment_too_big`，正好在线上的收。认法和上限和 `read` 读图片是同一份代码（`crates/miyu-tool/src/picture.rs`，`tools/read.md`「读图片」）：图跟着对话每次都发，被供应商拒掉的图会让这个会话以后的请求都失败。
    2. 别的都是文件。开头是 `%PDF-` 的，媒体类型是 `application/pdf`，`media_type` 写了也不算。
    3. 别的：`media_type` 写了的照写的，只是写成 `application/pdf`、`image/…` 的不算（驱动照它们把内容当 PDF、当图发，内容不是，供应商会拒）；没写、不算的，整份是 UTF-8、没有 NUL 字节的是 `text/plain`（和驱动认文本文件是同一条，`drivers/openai-chat.md` 第 9 条），别的 `application/octet-stream`。扩展名不认：头知道得更准的（例如浏览器给的类型）自己写 `media_type`（施工 3-9 三补定：扩展名的表是一份写死的名单，驱动给模型看的只有文件名和内容，用不上它）。
 5. 存成管理员的 blob（`store.md` 第九条），落了盘才回应；同一份内容再传，还是那一个 blob。存不下来：`internal_error`，记一条运行日志。
 6. 不碰会话，没有命令编号的去重：内容一样，存几次都是同一个。传了没发的留在 blob 里，随存储的回收那一步清。
+
+**`blob.open`、`blob.write`、`blob.close`**（施工 W-5，`web-module.md`「六、分块上传」）：分块传一个附件，最后存成 blob，回应和 `blob.put` 一样。
+
+| 方法 | 参数 | 回应 |
+|---|---|---|
+| `blob.open` | `name`（必写，照 `blob.put` 第 1 条）、`media_type`（可以不写，照 `blob.put` 第 1 条）、`size`（必写，非负整数：一共几个字节） | `{"upload": <上传编号>}` |
+| `blob.write` | `upload`、`offset`（非负整数，从 0 数）、`data`（base64，一块最多 512 KiB） | `{"received": <一共收到几个字节>}` |
+| `blob.close` | `upload` | 照 `blob.put` 的回应：`blob`、`name`、`media_type`、`kind`，图片另有 `width`、`height` |
+
+1. `blob.open`：`name`、`media_type` 照 `blob.put` 第 1 条的写法查；`size` 超过 20 MiB（20,971,520 字节）当场 `attachment_too_big`。这个连接同时开着 4 个的：`too_many_uploads`。成了交回上传编号（16 位小写十六进制），在这个账号的 `blobs/tmp/` 里建暂存文件 `upload-<编号>`。
+2. `blob.write`：`offset` 要正好等于已经收到的字节数，不对回 `upload_offset`，`data.received` 写已经收到几个，头从那里接着传。`data` 不是 base64、解出来超过 512 KiB、加上它超过 `size`：`bad_params`。写进暂存文件，边写边算 SHA-256。
+3. `blob.close`：收到的不够 `size`：`upload_incomplete`（`data.received`）。够了：照 `blob.put` 第 4 条认是什么、查图片的上限，照第 5 条存：暂存文件改名进位置，同一份内容已经有了的，删掉暂存的，还是那一个 blob。
+4. 上传跟着连接走：编号只认开它的那个连接，别的连接拿来用回 `upload_unknown`。连接断了，它开的上传全部作废、删掉暂存文件。60 秒没有 `blob.write` 的，也作废。`close` 以后编号作废。
+5. 同一个连接上的请求本来就一条条办（「一个连接」第 1 条），一个上传不会同时写两块。一个附件拆成 40 块左右，一块一个来回。
+6. 核心起来时清掉 `blobs/tmp/` 里的 `upload-*`：崩了、被杀留下的。
+7. 不碰会话，不进会话的日志，和 `blob.put` 第 6 条一样。附件的大小上限和 `blob.put` 同一个数，一处定义（`crates/miyu-endpoint/src/attach.rs` 的 `LIMIT`）。
 
 **`fs.list`**（施工 W-2，`web-module.md`「三、列文件、找文件」）
 
@@ -634,8 +652,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `parse_error` | -32700 | 不是 JSON；一行太长（之后断开） |
 | `invalid_request` | -32600 | 是 JSON，不是请求（「请求」的表） |
 | `unknown_method` | -32601 | 握手以后，没有这个方法 |
-| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`、`config`，`config` 带了 `session`、`after`（施工 8-4）；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；`session.send` 的 `from` 不是字符串、去掉控制字符以后是空的（施工 7-10）；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字；`job.stop`、`job.output` 的任务编号不合写法（施工 7-4），`job.output` 的 `tail` 不是 1 到 2000 的整数（施工 7-4 补）；`human.get` 的 `language` 不合写法（施工 W-1）；`fs.realpath` 的 `path` 是相对的、没给 `cwd`（施工 W-3）；`mermaid.render` 的源码是空的（去掉前后空白以后，施工 W-4） |
-| `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了；附件存不下来、读不出来；删会话时读不了放会话的目录、挪不进回收处、崩了；读后台命令的输出时崩了（施工 7-4 补）；给人看的字读不懂（施工 W-1）；画图的库初始化不了：`style.json` 读不懂，或者这台机器上一种字体都读不到（施工 W-4） |
+| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`、`config`，`config` 带了 `session`、`after`（施工 8-4）；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；`session.send` 的 `from` 不是字符串、去掉控制字符以后是空的（施工 7-10）；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字；`job.stop`、`job.output` 的任务编号不合写法（施工 7-4），`job.output` 的 `tail` 不是 1 到 2000 的整数（施工 7-4 补）；`human.get` 的 `language` 不合写法（施工 W-1）；`fs.realpath` 的 `path` 是相对的、没给 `cwd`（施工 W-3）；`mermaid.render` 的源码是空的（去掉前后空白以后，施工 W-4）；`blob.write` 的 `data` 不是 base64、解出来超过 512 KiB、加上它超过 `size`（施工 W-5） |
+| `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了；附件存不下来、读不出来；删会话时读不了放会话的目录、挪不进回收处、崩了；读后台命令的输出时崩了（施工 7-4 补）；给人看的字读不懂（施工 W-1）；画图的库初始化不了：`style.json` 读不懂，或者这台机器上一种字体都读不到（施工 W-4）；分块上传的暂存文件建不了、写不进（施工 W-5） |
 | `hello_first` | -32010 | 握手以前发了别的方法 |
 | `protocol_mismatch` | -32010 | 头支持的主版本里没有 1（之后断开） |
 | `bad_token` | -32010 | 本机令牌没带、不对（之后断开） |
@@ -646,13 +664,17 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `empty_message` | -32010 | `session.send` 的 `text` 是空的、又没有附件；`session.redo` 换过的那一句一块都不剩 |
 | `dir_too_wide` | -32010 | 加进来的目录太宽（「加进来的目录」（施工 5-10 上）） |
 | `attachment_unreadable` | -32010 | `blob.put` 读不了 `path`：换不成真实的位置、没有、不是普通文件、没有权限（施工 3-9 三补） |
-| `attachment_too_big` | -32010 | 附件超过 20 MiB；图片超过 5 MiB，或者哪一边超过 8000 像素（施工 3-9 三补） |
+| `attachment_too_big` | -32010 | 附件超过 20 MiB；图片超过 5 MiB，或者哪一边超过 8000 像素（施工 3-9 三补）；`blob.open` 的 `size` 超过 20 MiB（施工 W-5） |
 | `attachment_in_data_root` | -32010 | `blob.put` 的 `path` 在数据根里、管理员的工作区以外（施工 3-9 三补） |
 | `unknown_attachment` | -32010 | `session.send`、`session.redo` 附的 blob 这个核心里没有（施工 3-9 三补） |
 | `path_unreadable` | -32010 | `fs.list`、`fs.find` 换不成真实的位置、不在、该是目录的不是目录、没有权限（施工 W-2）；`fs.realpath` 换不成真实的位置——一层都不在、路上的链接指向不存在的地方、没有家目录（施工 W-3） |
 | `path_forbidden` | -32010 | `fs.list`、`fs.find` 的目录落在数据根里、又不在这个账号的工作区里（施工 W-2） |
 | `mermaid_too_long` | -32010 | `mermaid.render` 的源码超过 64 KiB（施工 W-4） |
 | `mermaid_failed` | -32010 | `mermaid.render` 画不出；`data.detail` 是画图的库的原话（施工 W-4） |
+| `too_many_uploads` | -32010 | 这个连接同时开着 4 个分块上传（施工 W-5） |
+| `upload_unknown` | -32010 | 没有这个上传：编号不对、作废了、不是这个连接开的（施工 W-5） |
+| `upload_offset` | -32010 | `blob.write` 的 `offset` 和已经收到的对不上；`data.received` 是实际收到的几个（施工 W-5） |
+| `upload_incomplete` | -32010 | `blob.close` 时没收齐；`data.received` 是实际收到的几个（施工 W-5） |
 | `not_running` | -32010 | 打断时没有回合在进行 |
 | `turn_running` | -32010 | 撤销、重做、手动压缩、清空、删会话时有回合在进行 |
 | `unknown_turn` | -32010 | 要撤的那一轮不在有效历史里：没有，或者已经撤掉了 |
@@ -721,6 +743,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `ERROR` | `human panicked error=…` | 读给人看的字时崩了（施工 W-1，照别的 `spawn_blocking` 同一个写法） |
 | `WARN` | `files index failed dir=… error=…` | `fs.find` 建清单时读不了一层目录，跳过它接着建（施工 W-2） |
 | `ERROR` | `files panicked error=…` | `fs.list`、`fs.find` 在阻塞线程里崩了（施工 W-2） |
+| `WARN` | `upload not stored error=…` | 分块上传暂存、改名进位置没成（施工 W-5） |
+| `ERROR` | `upload panicked error=…`、`upload cleanup panicked` | 分块上传在阻塞线程里崩了；连接断了、作废时删暂存那一步崩了（施工 W-5） |
 
 `mermaid.render` 的日志目标是 `miyu::mermaid`，不是 `miyu::endpoint`：`WARN not ready error=…`，画图的库初始化不了。见 `mermaid.md`「出错」。
 
@@ -754,6 +778,10 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `path_forbidden` | 这是 Miyu 自己的数据，不给看。 | This is Miyu's own data and is not shown. |
 | `mermaid_too_long` | 这张图的源码太长了。 | The diagram source is too long. |
 | `mermaid_failed` | 这张图画不出来。 | The diagram could not be drawn. |
+| `too_many_uploads` | 同时传的文件太多了，等前面的传完。 | Too many uploads at once; wait for the others to finish. |
+| `upload_unknown` | 没有这个上传，可能等太久作废了，重新传一次。 | No such upload; it may have expired. Upload the file again. |
+| `upload_offset` | 上传接不上，从核心说的地方接着传。 | The upload is out of step; continue from where the core says. |
+| `upload_incomplete` | 文件还没传完。 | The file is not fully uploaded yet. |
 | `not_running` | 没有正在进行的回合，打断不了。 | No turn is running, so there is nothing to interrupt. |
 | `turn_running` | 有回合在进行：先打断，或者等它做完。 | A turn is running; interrupt it or wait for it to finish. |
 | `unknown_turn` | 没有这一轮，或者它已经撤掉了。 | There is no such turn, or it has already been undone. |
@@ -816,6 +844,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/dirs.rs` | 加进来的目录（施工 5-10 上）：造会话、说话时报的记进这一轮，不写的照旧、写空的就没有；太宽的五种整条命令都不收、什么都没写；核心重启以后照最后一轮的 |
 | `crates/miyu-endpoint/tests/idle.rs` | 连着连接、跑着回合不空闲；停下全部会话，跑到一半的记成重启了 |
 | `crates/miyu-endpoint/tests/attach.rs` | `blob.put`（施工 3-9 三补）：传路径、传内容；照内容认图片（扩展名不算）、PDF、文本、别的文件，量宽高，回应的格照字母排、存成管理员的 blob；写了的媒体类型什么时候算、改名、写 `null` 等于没写；太大（20 MiB、图片的宽高和 5 MiB，正好在线上的收）；数据根里的不给、管理员的工作区给、指到数据根里的链接不给；读不了（没有、目录、没有家目录时的 `~`）；参数不对的十二种、一个都没存；四种拒绝的中英文 |
+| `crates/miyu-endpoint/tests/uploads.rs`、`crates/miyu-core/tests/packages.rs`（施工 W-5） | `blob.open`、`blob.write`、`blob.close`：分块传完和 `blob.put` 同一个回应、同一个 blob；接不上回 `upload_offset`（`data.received` 对）；没收齐 `close` 回 `upload_incomplete`，还能接着写完；别的连接拿编号用不了；连接断了、60 秒不写都作废并删暂存；`size` 超过 20 MiB 当场 `attachment_too_big`；同时开到第 5 个 `too_many_uploads`，关掉一个腾出位置；`data` 不是 base64、一块超过 512 KiB、加起来超过 `size` 都是 `bad_params`；图片照 `blob.put` 的规矩认、查上限。`packages.rs` 另测 `packages::clear_uploads`：崩了留下的 `upload-*` 清掉、真的 blob 不碰、账号还没存过东西时不出错 |
 | `crates/miyu-endpoint/tests/attach_send.rs` | `session.send` 带附件（施工 3-9 三补）：照先后接在文字后面，宽高、种类照核心量的，图片块带着 `blob.put` 的名字（施工 3-9 四补），她收到的请求里就是这几块；只有附件也是一句话，`null` 是没有；blob 不在的拒绝、什么都没写、换的工作目录也没送进会话；附件的格不对的七种 |
 | `crates/miyu-endpoint/tests/files.rs` | `fs.list`、`fs.find`（施工 W-2）：真核心上数据根不列不找、账号的工作区照样列；开头对、大小写不论、点开头的打了点才列、目录在前、50 条截断、`marks`；模糊找有 `marks`、子目录的 `path` 用 `/`；清单没建完先给一部分、`building`；`fresh` 隔一段时间才重建、不是 `true` 不重建；最多记 4 份、多了丢最久没用的；换不成真实的位置、不是目录的 `path_unreadable`；没写 `cwd` 的 `bad_params` |
 | `crates/miyu-endpoint/tests/hello.rs`（施工 W-3） | 握手的 `host`：三格总有、`platform` 是这台机器的、`workspace` 换成真实的位置（链接也换成指的地方）、没有系统的家目录 `home` 是 `null`、没人建过工作区就回原样的路径（不替连上来的头造目录）。`fs.realpath`：`~` 照家目录接、`cwd` 可以不写也可以本身是 `~`；相对的没给 `cwd` 的 `bad_params`；往上找最近在的一层、后面几段原样接上；路中间的链接换成指的地方；落在数据根里的照样换，不查边界；一层都不在（没有家目录）`path_unreadable` |
@@ -841,6 +870,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 - `04-核心协议.md` 第九节 `blob.put`、`22-命令行.md` 第三节 `--file`、`03-事件模型.md` 第四节（量不出尺寸的不当图片）、E4：附件（施工 3-9 三补）。
 - `04-核心协议.md` 第九节 `session.set_meta`、`session.delete`，`03-事件模型.md` 第三节 `session.meta_changed`：改标题、置顶、删除会话；删了的进回收处、留 7 天（2026-09-30 项目主人定）。
 - `04-核心协议.md` 第九节 `mermaid.render`：mermaid 源码画成 SVG，细节见 `mermaid.md`（施工 W-4）。
+- `04-核心协议.md` 第十节「后续再定」（分块上传）：`blob.open`、`blob.write`、`blob.close`，细节见 `web-module.md`「六、分块上传」（施工 W-5）。
 - `02-内核.md` 第四节（拒绝附原因码）、不变量 9（同一个编号只生效一次）。
 - `06-多用户与身份.md` 第二节、U13：本机连上来的是管理员 `admin`。
 - `07-存储.md` 第七节：会话按需载入。
@@ -851,7 +881,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 设计里有、还没做的：
 
 - 第九节表里的其余方法：`session.fork`、`session.answer`（随 M9 的抽屉）、`command.run`、查询、账号……（`04-核心协议.md` 第九节）。
-- 附件分块上传、远程的头传大文件（`04-核心协议.md` 第十一节）；blob 的回收（`store.md`「还没有的」）。
+- 分块传完的附件（`blob.open`、`blob.write`、`blob.close`）读回来是分块的（`blob.get`），本机文件分块读（`fs.read`）：W-6（`web-module.md`「七、分块读」）。blob 的一般回收（删会话以后没人引用的、`blob.put` 自己崩溃留下的那种临时文件）：`store.md`「还没有的」。
 - 视图流、会话列表流，`view.*`、`sessions.changed` 这些推送；核心决定「显示什么」（第五节、P3）。改名、置顶、删除现在只推给订阅着那个会话的头（删除是 `resync`），别的头要重新列。
 - 找回删了的会话、自动起标题（照第一句话生成，要请求模型）：以后（施工 3-8 三补）。回收处里的文件留着，找回时挪回去。
 - 队列紧张时先合并同一条目的连续增量（第七节）。

@@ -1,5 +1,5 @@
 //! blob 的测试：存了再取；放在哪；同一份存两遍；崩溃留下的临时文件；撞名；改名时目标已经有了；
-//! 读出来不对；两个账号各存各的。
+//! 读出来不对；两个账号各存各的；分块上传的暂存、改名进位置、扔掉、核心起来时清（施工 W-5）。
 
 use std::time::Duration;
 
@@ -194,4 +194,88 @@ fn each_account_keeps_its_own() {
     assert_ne!(alices.path(&hash), bobs.path(&hash));
     assert!(alices.path(&hash).is_file());
     assert!(bobs.path(&hash).is_file());
+}
+
+#[test]
+fn a_chunked_upload_writes_two_blocks_and_settles_like_put() {
+    let scratch = Scratch::new();
+    let blobs = blobs_in(&scratch);
+    let content = b"the first half|the second half".to_vec();
+    let path = blobs.create_upload("abc123").unwrap();
+    assert_eq!(path, blobs.upload_path("abc123"));
+    blobs.write_upload_chunk(&path, 0, &content[..14]).unwrap();
+    blobs.write_upload_chunk(&path, 14, &content[14..]).unwrap();
+    let hash = ContentHash::of(&content);
+    blobs.finish_upload(&path, &hash).unwrap();
+    assert!(!path.exists(), "暂存文件改名走了");
+    assert_eq!(blobs.get(&hash).unwrap(), content);
+    // tmp/ 里什么都没留下。
+    let tmp = scratch.path().join("blobs").join("tmp");
+    assert_eq!(fs::read_dir(tmp).unwrap().count(), 0);
+}
+
+#[test]
+fn finishing_onto_content_already_there_discards_the_temp_file() {
+    let scratch = Scratch::new();
+    let blobs = blobs_in(&scratch);
+    let hash = blobs.put(b"already here").unwrap();
+    let path = blobs.create_upload("dup0").unwrap();
+    blobs.write_upload_chunk(&path, 0, b"already here").unwrap();
+    blobs.finish_upload(&path, &hash).unwrap();
+    assert!(!path.exists());
+    assert_eq!(blobs.get(&hash).unwrap(), b"already here");
+    // 还是只有一个文件，没有存出第二份。
+    assert_eq!(
+        fs::read_dir(blobs.path(&hash).parent().unwrap())
+            .unwrap()
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn creating_the_same_upload_id_twice_fails() {
+    let scratch = Scratch::new();
+    let blobs = blobs_in(&scratch);
+    blobs.create_upload("one").unwrap();
+    let error = blobs.create_upload("one").unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::AlreadyExists);
+}
+
+#[test]
+fn discarding_an_upload_removes_its_temp_file() {
+    let scratch = Scratch::new();
+    let blobs = blobs_in(&scratch);
+    let path = blobs.create_upload("gone").unwrap();
+    assert!(path.is_file());
+    blobs.discard_upload(&path);
+    assert!(!path.exists());
+    // 删不掉也不报错（这里是已经不在了）：不耽误调用方。
+    blobs.discard_upload(&path);
+}
+
+#[test]
+fn clear_uploads_removes_only_the_upload_prefixed_leftovers() {
+    let scratch = Scratch::new();
+    let blobs = blobs_in(&scratch);
+    // 两个分块上传崩了留下的暂存。
+    blobs.create_upload("left1").unwrap();
+    blobs.create_upload("left2").unwrap();
+    // `blob.put` 自己崩了留下的那种（数字加连字符），clear_uploads 不该碰它。
+    let tmp = scratch.path().join("blobs").join("tmp");
+    fs::write(tmp.join("4242-0"), b"half a put").unwrap();
+    let removed = blobs.clear_uploads().unwrap();
+    assert_eq!(removed, 2);
+    let left: Vec<_> = fs::read_dir(&tmp)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+        .collect();
+    assert_eq!(left, vec!["4242-0".to_string()], "{left:?}");
+}
+
+#[test]
+fn clear_uploads_is_fine_when_tmp_was_never_created() {
+    let scratch = Scratch::new();
+    let blobs = blobs_in(&scratch);
+    assert_eq!(blobs.clear_uploads().unwrap(), 0);
 }

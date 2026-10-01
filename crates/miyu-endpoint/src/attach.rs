@@ -7,8 +7,12 @@
 //!   自己量的；图片块、文件块都带着头交回来的名字（图片的施工 3-9 四补）。
 //!
 //! 读文件、读 blob、存 blob 都碰磁盘，在阻塞线程里做。
+//!
+//! 认是什么（[`mod@kind`]）、文件名和媒体类型怎么查（[`file_name`]、[`media_type`]）、存好了怎么拼回应
+//! （[`reply`]）、一个最多几个字节（[`LIMIT`]）：这几样和分块上传（`uploads.rs`，施工 W-5）共用一份，不重写
+//! 一遍（`web-module.md`「在哪」）。
 
-mod kind;
+pub(crate) mod kind;
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -28,7 +32,8 @@ use crate::Core;
 use crate::refusal::Refusal;
 use kind::{Kind, kind};
 
-/// 一个附件最多几个字节：20 MiB（`04-核心协议.md` 第十一节；分块上传以后再说）。
+/// 一个附件最多几个字节：20 MiB（`04-核心协议.md` 第十一节）。`blob.open` 的 `size` 也照这个数（施工 W-5，
+/// `uploads.rs`）。
 pub(crate) const LIMIT: u64 = 20 * 1024 * 1024;
 
 /// 运行日志的来源。
@@ -178,7 +183,13 @@ fn put_blocking(place: &Place, source: Source, given: Option<MediaType>) -> Resu
             tracing::warn!(target: TARGET, error = %error, "attachment not stored");
             Refusal::INTERNAL
         })?;
-    Ok(match found {
+    Ok(reply(&blob, &name, found))
+}
+
+/// 存好了，拼回应：`blob`、`name`、`media_type`、`kind`，图片另带 `width`、`height`（第 5 条）。分块上传
+/// `blob.close` 共用这一份（施工 W-5）。
+pub(crate) fn reply(blob: &ContentHash, name: &FileName, found: Kind) -> Value {
+    match found {
         Kind::Image {
             media_type,
             width,
@@ -191,7 +202,7 @@ fn put_blocking(place: &Place, source: Source, given: Option<MediaType>) -> Resu
             "blob": blob.as_str(), "name": name.as_str(), "media_type": media_type.as_str(),
             "kind": "file",
         }),
-    })
+    }
 }
 
 /// 读本机的一个文件，交回内容和它真实的位置：换成真实的位置，数据根里（管理员的工作区以外）的不给，路上一层链接都
@@ -224,11 +235,13 @@ fn last_segment(path: &str, real: &Path) -> Result<FileName, Refusal> {
     file_name(&segment.to_string_lossy())
 }
 
-fn file_name(text: &str) -> Result<FileName, Refusal> {
+/// 文件名合不合写法（`kernel/ids.md`）。分块上传 `blob.open` 共用这一份（施工 W-5）。
+pub(crate) fn file_name(text: &str) -> Result<FileName, Refusal> {
     FileName::parse(text).map_err(|_| Refusal::BAD_PARAMS)
 }
 
-fn media_type(text: &str) -> Result<MediaType, Refusal> {
+/// 媒体类型合不合写法（`kernel/ids.md`）。分块上传 `blob.open` 共用这一份（施工 W-5）。
+pub(crate) fn media_type(text: &str) -> Result<MediaType, Refusal> {
     MediaType::parse(text).map_err(|_| Refusal::BAD_PARAMS)
 }
 

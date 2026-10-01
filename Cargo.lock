@@ -1290,6 +1290,7 @@ name = "miyu-endpoint"
 version = "0.0.0"
 dependencies = [
  "base64 0.22.1",
+ "getrandom 0.4.3",
  "jiff",
  "miyu-basesystem",
  "miyu-config",
