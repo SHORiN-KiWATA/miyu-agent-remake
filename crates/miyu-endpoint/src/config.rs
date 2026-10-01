@@ -13,18 +13,22 @@
 //!
 //! 施工 8-4：监视几份文件，手改了当场重读（`config/observe.rs`）；每换上一份新的，交给会话、核心，系统配置、个人设置变了
 //! 推 `config.changed`（`config/hub.rs`、`config/push.rs`）。
+//!
+//! 施工 8-5：密钥文件也在这里（`crate::secrets`）：起来时读、手改了重读，引用的密钥、环境变量取不到的报警告
+//! （`Config::missing`），密钥文件的错误算进 `config_errors`。
 
-mod file;
+mod environment;
+pub(crate) mod file;
 pub(crate) mod hub;
-mod journal;
+pub(crate) mod journal;
 pub(crate) mod methods;
-mod observe;
+pub(crate) mod observe;
 mod project;
 pub(crate) mod push;
 pub(crate) mod set;
 mod trust;
 pub(crate) mod trusting;
-mod wire;
+pub(crate) mod wire;
 
 #[cfg(test)]
 mod tests;
@@ -37,16 +41,22 @@ use miyu_config::{Item, Layer};
 use miyu_kernel::id::AccountId;
 use miyu_store::root::DataRoot;
 
+pub use environment::Environment;
 use file::File;
 
+use crate::secrets::SecretsFile;
+
 /// 运行日志的目标（`config.md`「出错」）。
-const TARGET: &str = "miyu::config";
+pub(crate) const TARGET: &str = "miyu::config";
 
 /// 系统配置在数据根里的位置。
 const SYSTEM: [&str; 2] = ["system", "config.toml"];
 
 /// 个人设置的文件名：在账号的家目录里。
 const PERSONAL: &str = "settings.toml";
+
+/// 密钥文件在数据根里的位置（施工 8-5）。
+const SECRETS: [&str; 2] = ["system", miyu_store::secrets::FILE];
 
 /// 核心新建系统配置、个人设置时第一行指向的 Schema，相对这份文件（第五条第 2 条第 6 款）。
 const SYSTEM_SCHEMA: &str = "../state/config/config.schema.json";
@@ -63,14 +73,18 @@ pub struct Config {
     data_root: PathBuf,
     /// 起来时的环境变量：只有带 `env` 的项的，名字到值。
     env: BTreeMap<&'static str, String>,
+    /// 核心的环境：`{ env = … }` 照它取（施工 8-5）。
+    environment: Environment,
     /// 系统配置。
     system: File,
     /// 管理员的个人设置。
     personal: File,
     /// 信任的记录。
     trust: Vec<trust::Record>,
+    /// 密钥文件（施工 8-5）。
+    pub(crate) secrets: SecretsFile,
     /// 几份核心自己写的文件在哪（施工 8-3）。
-    places: Places,
+    pub(crate) places: Places,
     /// 不算项目配置的最终值。
     resolved: Resolved,
 }
@@ -90,15 +104,22 @@ fn layers(root: &DataRoot, account: &AccountId) -> [(Layer, PathBuf, String); 2]
     ]
 }
 
+/// 密钥文件在哪：`system/secrets.toml`。
+fn secrets_path(root: &DataRoot) -> PathBuf {
+    SECRETS
+        .iter()
+        .fold(root.path().to_path_buf(), |p, s| p.join(s))
+}
+
 /// 核心自己写的几份文件在哪：信任的记录、系统日志、账号日志（施工 8-3）。
 #[derive(Debug, Clone)]
-struct Places {
+pub(crate) struct Places {
     /// 账号：日志里记是谁改的。
-    account: AccountId,
+    pub(crate) account: AccountId,
     /// `home/<账号>/trust.toml`。
     trust: PathBuf,
     /// 系统日志 `system/journal.jsonl`。
-    system_journal: PathBuf,
+    pub(crate) system_journal: PathBuf,
     /// 账号日志 `home/<账号>/journal.jsonl`。
     account_journal: PathBuf,
 }
@@ -139,19 +160,19 @@ impl Project {
 }
 
 impl Config {
-    /// 起来时读：数据根 `root` 里的系统配置、账号 `account` 的个人设置和信任的记录，照清单 `items` 认，带 `env` 的项照
-    /// `env` 读环境变量（只读这一次）。`home` 是系统的家目录。
+    /// 起来时读：数据根 `root` 里的系统配置、账号 `account` 的个人设置、信任的记录和密钥文件（施工 8-5），照清单 `items`
+    /// 认，带 `env` 的项照 `environment` 读环境变量（只读这一次），`{ env = … }` 也照它。`home` 是系统的家目录。
     pub fn load(
         root: &DataRoot,
         account: &AccountId,
         home: Option<&Path>,
         items: Vec<Item>,
-        env: &dyn Fn(&str) -> Option<String>,
+        environment: Environment,
     ) -> Config {
         let env: BTreeMap<&'static str, String> = items
             .iter()
             .filter_map(|item| item.env)
-            .filter_map(|name| env(name).map(|value| (name, value)))
+            .filter_map(|name| environment.get(name).map(|value| (name, value)))
             .collect();
         let [system, personal] = layers(root, account)
             .map(|(layer, path, shown)| File::read(&items, layer, path, shown));
@@ -171,7 +192,13 @@ impl Config {
                 tracing::warn!(target: TARGET, file = %file.shown, errors, warnings, "config problems");
             }
         }
-        Config::assemble(root, account, home, items, env, [system, personal], trust)
+        let secrets = SecretsFile::read(&secrets_path(root), &SECRETS.join("/"));
+        crate::secrets::told(&secrets);
+        let mut config =
+            Config::assemble(root, account, home, items, env, [system, personal], trust);
+        config.environment = environment;
+        config.secrets = secrets;
+        config
     }
 
     /// 什么都没读：全是默认值（核心不给配置的时候，例如协议端点的测试）。
@@ -208,6 +235,8 @@ impl Config {
             system,
             personal,
             trust,
+            environment: Environment::of(&[]),
+            secrets: SecretsFile::nothing(&secrets_path(root), &SECRETS.join("/")),
             places: Places::of(root, account),
             resolved: Resolved::default(),
         };
@@ -225,9 +254,24 @@ impl Config {
         &self.resolved
     }
 
-    /// 系统配置、个人设置里现在有几处错误（不算警告）：握手的 `config_errors`。
+    /// 系统配置、个人设置、密钥文件（施工 8-5）里现在有几处错误（不算警告）：握手的 `config_errors`。
     pub fn errors(&self) -> usize {
-        self.system.counts().0 + self.personal.counts().0
+        self.system.counts().0 + self.personal.counts().0 + self.secrets.errors()
+    }
+
+    /// 一份配置文件里引用的密钥、环境变量取不到的（施工 8-5）：`unknown_secret`、`env_not_set`，都是警告。
+    pub(crate) fn missing(
+        &self,
+        parsed: &miyu_config::parse::Parsed,
+        layer: Layer,
+    ) -> Vec<miyu_config::problem::Problem> {
+        miyu_config::secret::missing(
+            &self.items,
+            parsed,
+            layer,
+            &|name| self.secrets.has(name),
+            &|name| self.environment.has(name),
+        )
     }
 
     /// 带上目录 `dir`（头报的写法，`~` 照家目录换）的项目配置合出来的最终值；项目配置没有、没信任的，和
@@ -289,7 +333,7 @@ impl Config {
     }
 
     /// 要合的几层。
-    fn layers<'a>(&'a self, project: Option<&'a Project>) -> Layers<'a> {
+    pub(crate) fn layers<'a>(&'a self, project: Option<&'a Project>) -> Layers<'a> {
         Layers {
             system: Some(&self.system.parsed),
             personal: Some(&self.personal.parsed),

@@ -18,6 +18,7 @@ use std::ops::Range;
 use toml_edit::{Document, InlineTable, Item as Node, Table, Value as TomlValue};
 
 use crate::item::Kind;
+use crate::secret::Reference;
 use crate::value::Value;
 
 /// 改一项还是删一项。
@@ -58,7 +59,8 @@ pub fn apply(text: &str, change: Change<'_>) -> Result<String, Blocked> {
     let blocked = || Blocked(key.to_string());
     let document = Document::parse(text).map_err(|_| blocked())?;
     let path: Vec<&str> = key.split('.').collect();
-    let Some((last, group)) = path.split_last().filter(|(_, group)| !group.is_empty()) else {
+    // 没有组的键（只有一段）放在最上面那张表里：密钥文件平铺，一行一个（施工 8-5）。
+    let Some((last, group)) = path.split_last() else {
         return Err(blocked());
     };
     let section = section(&document, group).ok_or_else(blocked)?;
@@ -74,7 +76,7 @@ pub fn apply(text: &str, change: Change<'_>) -> Result<String, Blocked> {
 }
 
 /// 人敲的字照这一项的类型读（第五条第 3 条）：开关只认 `true`、`false`；选项照原样，两头带着双引号、是一个 TOML 字符串的
-/// 去掉引号再用（照 TOML 转义读）。读不成的是空的（`wrong_type`）；读成了、不在选项里的由调用的一方查。
+/// 去掉引号再用（照 TOML 转义读）；密钥照 TOML 的行内表读（`{ secret = "deepseek" }`，施工 8-5）。读不成的是空的（`wrong_type`）；读成了、不在选项里的由调用的一方查。
 pub fn input(kind: Kind, text: &str) -> Option<Value> {
     match kind {
         Kind::Bool => match text {
@@ -83,16 +85,19 @@ pub fn input(kind: Kind, text: &str) -> Option<Value> {
             _ => None,
         },
         Kind::Option(_) => Some(Value::Text(Cow::Owned(unquoted(text)))),
+        Kind::Secret => Reference::from_input(text).map(Value::Secret),
     }
 }
 
-/// 协议上 JSON 的值照这一项的类型读：选项要字，开关要布尔。别的是空的（`wrong_type`）。
+/// 协议上 JSON 的值照这一项的类型读：选项要字，开关要布尔，密钥要 `{"secret": …}` 或 `{"env": …}`。别的是空的
+/// （`wrong_type`）。
 pub fn from_json(kind: Kind, value: &serde_json::Value) -> Option<Value> {
     match (kind, value) {
         (Kind::Option(_), serde_json::Value::String(text)) => {
             Some(Value::Text(Cow::Owned(text.clone())))
         }
         (Kind::Bool, serde_json::Value::Bool(on)) => Some(Value::Bool(*on)),
+        (Kind::Secret, value) => Reference::from_json(value).map(Value::Secret),
         _ => None,
     }
 }
@@ -175,6 +180,9 @@ fn set(
     }
     let nl = newline(text);
     match section {
+        Section::Header(table) if group.is_empty() => {
+            Some(top_line(text, table, &format!("{last} = {written}"), nl))
+        }
         Section::Header(table) => {
             let after = last_value_end(table).or_else(|| table.span().map(|span| span.end))?;
             Some(insert_line(text, after, &format!("{last} = {written}"), nl))
@@ -213,7 +221,8 @@ fn unset(text: &str, section: &Section<'_>, group: &[&str], last: &str) -> Optio
             let start = key.span()?.start;
             Some(splice(text, around_comma(text, start..span.end), ""))
         }
-        Section::Header(_) => {
+        // 最上面那张表没有表头可删（施工 8-5：密钥文件平铺）。
+        Section::Header(_) if !group.is_empty() => {
             let removed = splice(
                 text,
                 line_start(text, span.start)..line_end(text, span.end),
@@ -318,6 +327,27 @@ fn around_comma(text: &str, range: Range<usize>) -> Range<usize> {
     match before.strip_suffix(',') {
         Some(kept) => kept.len()..range.end,
         None => range,
+    }
+}
+
+/// 最上面那张表里加一行 `line`（施工 8-5）：接在它最后一个值那一行后面；还没有值的，放在第一张表的表头前面（放在表头
+/// 后面就进了那张表），一张表都没有的接在末尾。
+fn top_line(text: &str, root: &Table, line: &str, nl: &str) -> String {
+    if let Some(after) = last_value_end(root) {
+        return insert_line(text, after, line, nl);
+    }
+    match headers(root).into_iter().min() {
+        Some(first) => {
+            let at = line_start(text, first);
+            splice(text, at..at, &format!("{line}{nl}"))
+        }
+        None => {
+            let lead = match text.is_empty() || text.ends_with('\n') {
+                true => "",
+                false => nl,
+            };
+            format!("{text}{lead}{line}{nl}")
+        }
     }
 }
 

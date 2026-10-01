@@ -15,7 +15,7 @@
 | `crates/miyu-cli/src/config/set.rs` | `set`、`unset`：`config.set`，照回应说一行（施工 8-3） |
 | `crates/miyu-cli/src/config/edit.rs` | `edit`：副本、开编辑器、查、问、存（施工 8-3） |
 | `crates/miyu-cli/src/config/trust.rs` | `trust`：列出会改哪几项、问、`config.trust`（施工 8-3） |
-| `crates/miyu-cli/src/config/console.rs` | 人那一头：`Console`（是不是终端、读一行、开编辑器），真的一份 `Terminal`，编辑器照 `VISUAL`、`EDITOR` 挑、经 `sh -c` 或 `cmd /c` 跑（施工 8-3） |
+| `crates/miyu-cli/src/config/console.rs` | 人那一头：`Console`（是不是终端、读一行、开编辑器；施工 8-5 给 `miyu login` 加了标准输入是不是终端、关掉回显读一行、整份读管道），真的一份 `Terminal`，编辑器照 `VISUAL`、`EDITOR` 挑、经 `sh -c` 或 `cmd /c` 跑（施工 8-3） |
 | `crates/miyu-cli/src/config/check.rs` | `check`：读哪几份、一份份 `config.check`、印、合计、退出码 |
 | `crates/miyu-cli/src/config/render.rs` | 印的样子：值照 TOML 写、报错一行、`explain` 的几行照显示的宽度对齐 |
 | `crates/miyu-cli/src/config/paths.rs` | 核心报的文件换成真的位置、家目录下的写成 `~/…`；还没有项目配置时它该在哪 |
@@ -47,6 +47,7 @@
 5. **`explain`**：`config.get`（`keys` 是这一个、带 `cwd`、`all`），再 `config.schema`。第一行名字、键、说明、什么时候生效；下面每一层一行，从上往下（`config.md`「样子」）。值照 TOML 写；文件换成真的位置、家目录下的写成 `~/…`，后面接 `:行`；几列照显示的宽度对齐（中文算两列），后面还有东西的格补齐，最后一格不补。生效的那一行原色、末尾 `← 生效`；环境变量压着的写 `环境变量 MIYU_LOG`、`← 生效，只管这一次启动`；别的灰；写了、不算的末尾红字 `← 不算：<原因>`。`--format json`：那一项原样，多 `name`、`description`。
 6. **`check`**：照 `config.md` 第十条第 7 条。
    - 不写文件：`config.get` 带 `cwd` 拿到几份文件在哪，系统配置、个人设置、当前目录的项目配置一份份读磁盘上现在的字（`miyu-store` 的 `config_file`），交 `config.check`（`layer` 照它是哪一层）。还没有的那一份跳过。写了 `--system`、`--project` 的只查那一份。
+   - 密钥文件（施工 8-5）：不读它的字（字就是密钥，不经协议交出去），照同一个 `config.get` 回的问题里 `file` 是 `files.secrets.file` 的那几条印，排在最后；`--project` 的不印。
    - 写了文件：照 `--system`、`--project` 当那一层查，都不写的当个人设置。文件没有、读不了的报一条读不了。
    - 命令行自己读不了的（读不了、太大、不是 UTF-8）：照核心的说法报一条（`language/config.rs`），不交给核心。
    - 标准输出上一条一行：`<文件>:<行>:<列> <级别>：<那一句>`，整份的问题没有行列；文件写成 `~/…`；级别「错误」红、「警告」黄。最后一行合计，没有问题的印「没有问题」。`--format json`：`{"problems":[…]}`，每一条多一格 `file`（和一行开头的写法一样）。
@@ -135,6 +136,7 @@ Options:
 | `crates/miyu-cli/src/config/tests.rs` | `get` 的值、报错一行（上色）、合计、`explain` 的几行和图纸一样（两种语言）、环境变量和不算的那一行、文件在哪、还没有项目配置时该在哪 |
 | `crates/miyu-cli/src/help/tests.rs` | 这一页列的选项和八个子命令真有的合在一起一一对得上，最宽 80 列 |
 | `crates/miyu-cli/tests/config.rs`（施工 8-3） | 在进程里起核心、人那一头照剧本回：`set`、`unset`、`edit`、`trust` 每一条路印的字、退出码、文件（`config.md`「守着它的」） |
+| `crates/miyu/tests/login.rs`（施工 8-5） | 真核心：`check` 印出密钥文件写错的那一行，不带值；`--project` 不印它 |
 | `crates/miyu/tests/config.rs` | 真核心带三层配置起来：`get`、`explain`、`check`、`path` 印的对，照 `ui.language` 说话，退出码；帮助页；参数不对 2；没有 key、核心没在跑 5 |
 
 ### 出处

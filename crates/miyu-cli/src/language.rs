@@ -8,6 +8,7 @@ mod agents;
 mod config;
 mod config_write;
 mod harness;
+mod login;
 mod sandbox;
 mod undo;
 

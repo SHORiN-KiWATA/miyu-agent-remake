@@ -149,8 +149,27 @@ fn every_code_is_said_in_every_language() {
         Problem::item(Code::UnknownKey, Layer::Personal, "zzz.zzz", at(1, 1), "1"),
         None,
     ));
+    // 施工 8-5：引用取不到的两种，密钥文件里写错的两种。
+    for code in [Code::UnknownSecret, Code::EnvNotSet] {
+        let mut problem = Problem::item(code, Layer::System, "providers.demo", at(1, 1), "{}");
+        problem.name = Some("deepseek".to_string());
+        all.push((problem, None));
+    }
+    for code in [Code::SecretName, Code::SecretValue] {
+        all.push((
+            Problem {
+                key: Some("DeepSeek".to_string()),
+                ..Problem::file(code, Layer::System, None)
+            },
+            None,
+        ));
+    }
     for language in ["zh", "en", "ja"] {
         let words = words(language);
+        assert!(
+            miyu_config::Words::sentence(&words, "config/secrets-header", &[]).is_some(),
+            "{language} 密钥文件开头的注释"
+        );
         for (problem, using) in &all {
             let told = tell(problem, &items(), using.as_ref(), &words)
                 .unwrap_or_else(|missing| panic!("{language} {:?}：{missing}", problem.code));

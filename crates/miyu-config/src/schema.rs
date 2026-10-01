@@ -73,6 +73,18 @@ fn property(item: &Item, words: &dyn Words) -> Result<Json, Missing> {
         Kind::Bool => {
             property.insert("type".to_string(), json!("boolean"));
         }
+        Kind::Secret => {
+            // 引用写成一张只有一格的表：`secret` 或 `env`，值是字（施工 8-5）。
+            let one = |key: &str| {
+                json!({
+                    "additionalProperties": false,
+                    "properties": {key: {"type": "string"}},
+                    "required": [key],
+                    "type": "object",
+                })
+            };
+            property.insert("oneOf".to_string(), json!([one("secret"), one("env")]));
+        }
     }
     Ok(Json::Object(property))
 }

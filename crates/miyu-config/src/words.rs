@@ -79,7 +79,7 @@ pub fn check(items: &[Item], words: &ConfigWords) -> Vec<String> {
         }
         let options = match item.kind {
             Kind::Option(options) => options,
-            Kind::Bool => &[],
+            Kind::Bool | Kind::Secret => &[],
         };
         for option in options {
             if said
@@ -159,11 +159,12 @@ pub(crate) fn one_of(words: &dyn Words, parts: &[&str], or: &str) -> Result<Stri
     sentence(words, or, &[("rest", &listed), ("last", last)])
 }
 
-/// 能写的几个值，照写法：选项是列出的几个，开关是 `true`、`false`。
+/// 能写的几个值，照写法：选项是列出的几个，开关是 `true`、`false`，密钥是两种引用（施工 8-5）。
 pub(crate) fn allowed(kind: Kind) -> &'static [&'static str] {
     match kind {
         Kind::Option(options) => options,
         Kind::Bool => &["true", "false"],
+        Kind::Secret => &[r#"{ secret = "…" }"#, r#"{ env = "…" }"#],
     }
 }
 

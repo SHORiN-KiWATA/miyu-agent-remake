@@ -9,6 +9,8 @@ Commands:
   recap                 Recap the session: goal, progress, blockers
   rename <title>        Give the session a title
   config <command>      See and change settings, trust a project config
+  login [name]          Save a provider's key; --list shows which are set
+  logout [name]         Delete a provider's key
   sandbox setup|remove  Set up or remove the sandbox user (Windows, needs admin)
 
 ask options:

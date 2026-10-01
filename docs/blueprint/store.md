@@ -11,9 +11,10 @@
 | `crates/miyu-store/src/env.rs` | 环境快照：找数据根、资源目录要看的几样，从进程里读一次；系统的语言 `locale`（施工 8-1，都没设的看系统设置 `system_locale`，施工 8-2） |
 | `crates/miyu-store/src/config_file.rs` | 读配置文件（施工 8-2，`config.md`「怎么走」第二条第 2 条）：没有的是空的，1 MiB 的上限，去掉开头的 BOM（记下有没有），不是 UTF-8 的报错，版本是整份字节的 SHA-256。写（施工 8-3，第五条第 4 到 7 条）：顺着链接写本体、临时文件在本体旁边、带上原来的权限位、替换前再读一次（和调用的一方读的版本不一样的放弃）、Windows 上改名失败歇 20 毫秒再试、最多 5 次 |
 | `crates/miyu-store/src/watch.rs` | 监视几份文件（施工 8-4，`config.md`「怎么走」第七条）：看它们所在的目录（链接的另看本体所在的目录），照真实的位置和文件名认，只读的动静不理，一份 200 毫秒里没有新的变动了才交出去；系统的监视起不来的退回每 2 秒轮询，交回原因 |
+| `crates/miyu-store/src/secrets.rs` | 密钥文件 `system/secrets.toml`（施工 8-5，`config.md` 第九条）：照配置文件的规矩读，另看组、别人读不读得到；照配置文件的规矩写，Unix 上一律 0600，临时文件建的时候就是 |
 | `crates/miyu-store/src/journal.rs` | 系统日志、账号日志 `journal.jsonl`（施工 8-3，`config.md`「系统日志、账号日志」）：每追加一条都重新打开、截掉最后那半行、读最后一行接着数 `seq`，外壳照事件的写法，追加、同步 |
 | `crates/miyu-store/src/root.rs` | 数据根在哪、建骨架、认标记；账号的目录；缓存目录在哪 |
-| `crates/miyu-store/src/durable.rs` | 建目录、同步目录；新建临时文件（只许新建，撞名换下一个）、删用不上的临时文件（施工 8-1 从 `blob.rs` 挪来，两处共用） |
+| `crates/miyu-store/src/durable.rs` | 建目录、同步目录；新建临时文件（只许新建，撞名换下一个；施工 8-5 起能建成 Unix 上 0600 的，`create_temp_with`）、删用不上的临时文件（施工 8-1 从 `blob.rs` 挪来，两处共用） |
 | `crates/miyu-store/src/generated.rs` | 核心生成的派生文件：一样的不写，不一样的先写临时文件再替换（施工 8-1，`config.md`「怎么走」第一条第 7 条） |
 | `crates/miyu-store/src/log.rs` | 会话日志：新建、追加、换段 |
 | `crates/miyu-store/src/log/open.rs` | 打开时自检、截半行；只读地读；从记下的位置读起（施工 3-8 七补）；只读第一条 |
@@ -75,7 +76,8 @@
 ├── .miyu-root                          标记，一行字
 ├── system/
 │   ├── config.toml                     系统配置（config.md，施工 8-2 读，8-3 写）
-│   └── journal.jsonl                   系统日志：系统配置的改动（config.md，施工 8-3）
+│   ├── secrets.toml                    密钥，Unix 上 0600，只经核心写（config.md，施工 8-5）
+│   └── journal.jsonl                   系统日志：系统配置、密钥的改动（config.md，施工 8-3、8-5）
 ├── home/
 │   └── <账号>/                         核心起来时给 admin 建；退回工作区时缺了再补建
 │       ├── settings.toml               个人设置（config.md，施工 8-2 读，8-3 写）
@@ -266,6 +268,6 @@
 - blob 的回收：删会话以后没人引用的删掉（回收处里的会话清掉以后），`tmp/` 里崩溃留下的清掉，都照宽限期（`07-存储.md` 第五节）。
 - 找回删了的会话；清别的账号的回收处（现在只有管理员）；留多久放进配置（施工 3-8 三补）。
 - 派生数据：全文搜索、用量汇总的 SQLite（`07-存储.md` 第六节）。会话列表的索引做了（`store/index.md`，施工 3-8 七补）。
-- 数据根里别的文件：密钥、人格、预设、放行规则（`07-存储.md` 第二节、第九节）。
+- 数据根里别的文件：人格、预设、放行规则（`07-存储.md` 第二节、第九节）。成员自己的密钥 `home/<账号>/secrets.toml` 随多用户。
 - `miyu doctor` 查数据根的权限（`22-命令行.md` 第六节）。
 - 用缓存目录的东西，例如语音的模型文件（`07-存储.md` 第二节）。

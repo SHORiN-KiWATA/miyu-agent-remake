@@ -44,7 +44,11 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
     let home = Home::outside_temp();
     std::fs::write(home.scratch.0.join("work/a.txt"), "hello\n").expect("写得进");
     std::fs::write(home.scratch.0.join("other/b.txt"), "far\n").expect("写得进");
-    std::fs::write(home.root.path().join("marker"), "secret\n").expect("写得进");
+    std::fs::write(
+        home.root.path().join("marker"),
+        "marker-content-never-read\n",
+    )
+    .expect("写得进");
     let outside = home
         .scratch
         .0
@@ -112,7 +116,8 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
         data.human,
         Some(Said::new("core/permissions/forbidden").with("path", marker.as_str()))
     );
-    assert!(!text(&data.blocks).contains("secret"));
+    // 比内容，不比「secret」：工作树的路径里可能就有这个词（施工 8-5 的 `.worktrees/8-5-secrets` 撞上过）。
+    assert!(!text(&data.blocks).contains("marker-content-never-read"));
     // 读到的报 `file.read`（施工 4-6 上）：真实的位置、读了哪几行、整份的哈希。没读的没有效果。
     let real = std::fs::canonicalize(home.scratch.0.join("work/a.txt")).expect("在");
     assert_eq!(

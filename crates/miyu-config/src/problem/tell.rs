@@ -74,7 +74,7 @@ pub fn tell(
                 let (said, fix) = value_problem(item, got, words)?;
                 expected = Some(said.0);
                 parts.push(said.1);
-                parts.push(fix);
+                parts.extend(Some(fix).filter(|fix| !fix.is_empty()));
             }
             None => {
                 let table = sentence(words, "config/expected/table", &[])?;
@@ -113,6 +113,18 @@ pub fn tell(
             )?);
         }
         Code::UntrustedProject => parts.push(sentence(words, "config/untrusted-project", &[])?),
+        Code::UnknownSecret | Code::EnvNotSet => {
+            let said = match problem.code {
+                Code::UnknownSecret => "config/unknown-secret",
+                _ => "config/env-not-set",
+            };
+            let name = problem.name.as_deref().unwrap_or_default();
+            parts.push(sentence(words, said, &[("key", key), ("name", name)])?);
+        }
+        Code::SecretName => parts.push(sentence(words, "config/bad-secret-name", &[("key", key)])?),
+        Code::SecretValue => {
+            parts.push(sentence(words, "config/bad-secret-value", &[("key", key)])?);
+        }
     }
     if let Some(using) = using.filter(|_| says_using) {
         parts.push(using_said(using, words)?);
@@ -154,6 +166,16 @@ fn value_problem(
             let example = format!("{key} = {}", other.toml());
             let fix = sentence(words, "config/fix-write", &[("example", &example)])?;
             Ok(((expected, said), fix))
+        }
+        Kind::Secret => {
+            let expected = one_of(words, words::allowed(item.kind), "config/or-values")?;
+            let said = sentence(
+                words,
+                "config/wrong-type",
+                &[("key", key), ("expected", &expected), ("got", got)],
+            )?;
+            // 能写的两种已经在期望里了，不另说改法。
+            Ok(((expected, said), String::new()))
         }
     }
 }

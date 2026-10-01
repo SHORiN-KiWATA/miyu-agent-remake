@@ -37,6 +37,8 @@ pub enum Kind {
     Option(&'static [&'static str]),
     /// 开关：`true`、`false`（施工 8-2）。
     Bool,
+    /// 密钥：`{ secret = "<名字>" }` 或 `{ env = "<变量>" }`，只写引用、不写密钥本身（施工 8-5，第九条第 5 条）。
+    Secret,
 }
 
 impl Kind {
@@ -44,21 +46,23 @@ impl Kind {
     pub fn accepts(&self, value: &Value) -> bool {
         match (self, value) {
             (Kind::Option(options), Value::Text(text)) => options.contains(&text.as_ref()),
-            (Kind::Bool, Value::Bool(_)) => true,
+            (Kind::Bool, Value::Bool(_)) | (Kind::Secret, Value::Secret(_)) => true,
             _ => false,
         }
     }
 
-    /// 协议上的写法（`config.schema` 的 `type`）：`option`、`bool`。
+    /// 协议上的写法（`config.schema` 的 `type`）：`option`、`bool`、`secret`。
     pub fn as_str(&self) -> &'static str {
         match self {
             Kind::Option(_) => "option",
             Kind::Bool => "bool",
+            Kind::Secret => "secret",
         }
     }
 
     /// 环境变量里写的值（`config.md` 第二条第 5 条）：去掉前后空白；选项不分大小写，交回清单里的写法（`MIYU_LOG`
-    /// 原来就不分，`log.md` 第 3 条）；开关只认 `true`、`false`，不分大小写。读不懂的是空的。
+    /// 原来就不分，`log.md` 第 3 条）；开关只认 `true`、`false`，不分大小写。读不懂的是空的。密钥不由环境变量压过：
+    /// 要用环境变量里的 key，配置里写 `{ env = … }`。
     pub fn from_env(&self, text: &str) -> Option<Value> {
         let text = text.trim();
         match self {
@@ -71,6 +75,7 @@ impl Kind {
                 "false" => Some(Value::Bool(false)),
                 _ => None,
             },
+            Kind::Secret => None,
         }
     }
 }

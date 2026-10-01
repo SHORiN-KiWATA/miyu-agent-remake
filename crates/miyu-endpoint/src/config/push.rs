@@ -84,7 +84,8 @@ impl Changed {
         let file = config.file(self.layer);
         let layers = config.layers(None);
         let mut problems = Vec::new();
-        for problem in file.problems() {
+        let missing = config.missing(&file.parsed, self.layer);
+        for problem in file.problems().chain(&missing) {
             problems.push(said(config, &layers, problem, Some(file), words)?);
         }
         let line = Line {

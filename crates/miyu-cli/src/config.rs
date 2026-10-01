@@ -21,6 +21,7 @@ mod tests;
 mod trust;
 
 pub use console::{Console, Terminal};
+pub(crate) use render::columns;
 
 use std::io::{self, IsTerminal, Write};
 use std::path::PathBuf;

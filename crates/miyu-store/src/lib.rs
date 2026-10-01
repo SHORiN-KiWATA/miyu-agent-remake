@@ -10,6 +10,7 @@
 //! - [`generated`]：核心生成的派生文件，一样的不写，不一样的先写临时文件再替换（施工 8-1）；
 //! - [`config_file`]：读、写配置文件，写的时候顺着链接、先写临时文件再替换、替换前再读一次（施工 8-2、8-3）；
 //! - [`journal`]：系统日志、账号日志，配置的改动、项目配置的信任一行一条（施工 8-3）；
+//! - [`secrets`]：密钥文件，照配置文件的规矩读写，Unix 上 0600，别人读得到的说出来（施工 8-5）；
 //! - [`resources`]：资源目录在哪，读出一个人格要用的原文，交给 `miyu-policy` 拼快照；
 //! - [`human`]：资源目录里给人看的字，照说法换成一句话（施工 4-5 上）；
 //! - [`jobs`]：会话目录下后台命令的输出（施工 7-3）；
@@ -29,6 +30,7 @@ pub mod journal;
 pub mod log;
 pub mod resources;
 pub mod root;
+pub mod secrets;
 pub mod trash;
 pub mod watch;
 

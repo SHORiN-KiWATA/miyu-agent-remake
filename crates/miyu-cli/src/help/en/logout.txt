@@ -1,0 +1,6 @@
+Usage: miyu logout [name]
+
+Delete a provider's key. Without a name, pick one of those that are set.
+
+Options:
+  -h, --help  Print help

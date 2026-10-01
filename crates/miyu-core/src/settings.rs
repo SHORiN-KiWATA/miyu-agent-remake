@@ -11,7 +11,7 @@ use std::path::Path;
 
 use miyu_config::merge::Origin;
 use miyu_config::{Item, Layer, Missing, Values, Words, reference, schema};
-use miyu_endpoint::config::Config;
+use miyu_endpoint::config::{Config, Environment};
 use miyu_endpoint::settings::{PermissionSettings, UiSettings};
 use miyu_kernel::id::AccountId;
 use miyu_log::settings::LogSettings;
@@ -75,10 +75,10 @@ pub fn render(items: &[Item], words: &dyn Words) -> [Result<String, Missing>; 3]
     ]
 }
 
-/// 核心起来时读配置（第二条第 1 条）：系统配置、管理员 `admin` 的个人设置、信任的记录，照登记的全部清单认，带 `env`
-/// 的项照进程这时的环境变量。`home` 是系统的家目录。读不进来不影响起不起得来：有问题的每份记一条 `WARN`。
+/// 核心起来时读配置（第二条第 1 条）：系统配置、管理员 `admin` 的个人设置、信任的记录、密钥文件（施工 8-5），照登记的
+/// 全部清单认，带 `env` 的项、`{ env = … }` 照进程的环境变量。`home` 是系统的家目录。读不进来不影响起不起得来：有问题的每份记一条 `WARN`。
 pub fn read(root: &DataRoot, admin: &AccountId, home: Option<&Path>) -> Config {
-    Config::load(root, admin, home, items(), &|name| std::env::var(name).ok())
+    Config::load(root, admin, home, items(), Environment::process())
 }
 
 /// 读完配置，照 `log.level` 的最终值换运行日志的级别（第二条第 7 条，`log.md`）：`MIYU_LOG` 设了、读得懂的照它（装日志时

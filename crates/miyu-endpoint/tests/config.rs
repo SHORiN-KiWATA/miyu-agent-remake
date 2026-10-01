@@ -166,6 +166,7 @@ async fn get_says_every_value_and_where_it_came_from() {
         reply["result"]["files"],
         json!({
             "personal": {"file": "home/alice/settings.toml", "version": version(b"\n\n[ui]\nlanguage = \"zh\"\n")},
+            "secrets": {"file": "system/secrets.toml"},
             "system": {"file": "system/config.toml", "version": version(system.as_bytes())},
         })
     );
