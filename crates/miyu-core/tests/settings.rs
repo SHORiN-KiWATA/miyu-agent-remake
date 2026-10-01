@@ -45,12 +45,10 @@ fn the_registered_list_is_well_formed() {
             "permission.start_read_only",
             "models.chat",
             "models.vision",
-            "models.tiers.lite",
-            "models.tiers.cheap",
-            "models.tiers.standard",
-            "models.tiers.flagship",
             "pools.<id>.models",
             "pools.<id>.strategy",
+            "pools.<id>.subagent",
+            "pools.<id>.description",
             "providers.<id>.driver",
             "providers.<id>.base_url",
             "providers.<id>.keys",
@@ -122,4 +120,36 @@ fn japanese_has_every_sentence_the_files_need() {
         let text = text.expect("日文的字齐全");
         assert!(text.contains("表示言語"), "{text}");
     }
+}
+
+/// 施工 8-8 补：四个挡位从清单里拿掉了，写了的照不认识的键警告（原样留在文件里，`config.md` 第四条）；池的两项读得进，说明
+/// 不是一行英文的 `bad_format`。
+#[test]
+fn tiers_are_unknown_now_and_pools_take_the_two_new_items() {
+    use miyu_config::Layer;
+    use miyu_config::problem::Code;
+    let parse =
+        |source: &str| miyu_config::parse::parse(&items(), Layer::System, source).expect("写法对");
+    let parsed = parse(
+        "[models.tiers]\nlite = \"a/m\"\ncheap = \"@p\"\n\n[pools.p]\nmodels = []\nsubagent = true\ndescription = \"Quick lookups.\"\n",
+    );
+    let problems: Vec<(Code, Option<&str>)> = parsed
+        .problems
+        .iter()
+        .map(|problem| (problem.code, problem.key.as_deref()))
+        .collect();
+    assert_eq!(
+        problems,
+        [
+            (Code::UnknownKey, Some("models.tiers.lite")),
+            (Code::UnknownKey, Some("models.tiers.cheap")),
+        ]
+    );
+    assert_eq!(
+        parsed.entries["pools.p.subagent"].value,
+        miyu_config::Value::Bool(true)
+    );
+    let parsed = parse("[pools.p]\nmodels = []\ndescription = \"快速查东西的池\"\n");
+    let codes: Vec<Code> = parsed.problems.iter().map(|problem| problem.code).collect();
+    assert_eq!(codes, [Code::BadFormat], "说明要写英文");
 }

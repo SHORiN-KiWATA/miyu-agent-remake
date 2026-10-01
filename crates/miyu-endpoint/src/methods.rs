@@ -57,7 +57,7 @@ struct CreateParams {
     /// 加进来的目录（施工 5-10 上）：和工作区一样能读能写。
     #[serde(default)]
     dirs: Vec<String>,
-    /// 用哪个模型（施工 8-8）：模型、`@池` 或者挡位；不写、写 `null` 的照这时的 `models.chat`。
+    /// 用哪个模型（施工 8-8）：模型或 `@池`；不写、写 `null` 的照这时的 `models.chat`。
     #[serde(default)]
     model: Option<String>,
 }

@@ -3,18 +3,18 @@
 //! 返回，不等它做完。回报由子会话自己送来（7-6）。
 //!
 //! 施工 7-5 再补从 `agent` 改名：以前的名字照样认（[`Tool::formerly`]），输出那两句的目录和说法的编号照旧叫 `agent`
-//! （[`SAYINGS`]）。施工 8-8 加挡位 `tier`（`models.md`「工具」）：只认四个挡位，写错的照参数不对、端口一次都不问；交给端口，
-//! 执行器照这时的配置解析成子会话用的模型，不写的用父会话这时用的。人格、预设两个参数随配置和预设那一步（`agents.md`
-//! 「还没有的」）。
+//! （[`SAYINGS`]）。施工 8-8 加过挡位 `tier`，施工 8-8 补换成池 `pool`（`models.md`「工具」）：只认这个会话列着的池（端口的
+//! `pools()`，会话开局时拼进工具面、照快照读回），写错的照参数不对、端口不派，原话照 `serde` 的 `unknown variant`；交给
+//! 端口，子会话记 `@<池>`，不写的用父会话这时用的。以前的会话写 `tier` 不报错、不理它（[`Args`] 不认别的参数）。人格、预设
+//! 两个参数随配置和预设那一步（`agents.md`「还没有的」）。
 
 use std::path::Path;
 
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 
 use miyu_kernel::event::{JobKind, JobStarted};
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
-use miyu_models::reference::TIERS;
 use miyu_tool::{Call, Done, Effect, Progress, Running, SUBAGENT, SUBAGENT_FORMERLY, Spec, Tool};
 
 use crate::common::{Common, said};
@@ -39,25 +39,27 @@ struct Texts {
     not_started: Template,
 }
 
-/// 她给的参数。别的参数不认，也不报错。
+/// 她给的参数。别的参数不认，也不报错：以前的会话快照里冻着的 `tier`（施工 8-8）照不写办。
 #[derive(Deserialize)]
 struct Args {
     description: String,
     prompt: String,
-    /// 挡位（施工 8-8）：不写、写 `null` 的是没有。
-    #[serde(default, deserialize_with = "tier")]
-    tier: Option<String>,
+    /// 池（施工 8-8 补）：不写、写 `null` 的是没有。能不能写，照端口列着的查（[`unknown`]）。
+    #[serde(default)]
+    pool: Option<String>,
 }
 
-/// 读挡位：只认四个挡位（[`TIERS`]），别的照参数不对，原话列出能写的几个。
-fn tier<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<String>, D::Error> {
-    let written = Option::<String>::deserialize(deserializer)?;
-    match written {
-        Some(text) if !TIERS.contains(&text.as_str()) => {
-            Err(serde::de::Error::unknown_variant(&text, &TIERS))
-        }
-        written => Ok(written),
-    }
+/// 写了列表里没有的池：原话照 `serde` 的 `unknown_variant`，列出能写的几个（`models.md`「施工时定的」8-8 补）。名单是会话
+/// 里才知道的，`serde` 那一个只收编译时定的名单，所以照它的写法拼。
+fn unknown(pool: &str, pools: &[String]) -> String {
+    let quoted: Vec<String> = pools.iter().map(|pool| format!("`{pool}`")).collect();
+    let expected = match quoted.as_slice() {
+        [] => return format!("unknown variant `{pool}`, there are no variants"),
+        [one] => one.clone(),
+        [one, two] => format!("{one} or {two}"),
+        all => format!("one of {}", all.join(", ")),
+    };
+    format!("unknown variant `{pool}`, expected {expected}")
 }
 
 impl Subagent {
@@ -98,8 +100,13 @@ impl Tool for Subagent {
             let Some(port) = call.agents else {
                 return not_started();
             };
-            let tier = args.tier.as_deref();
-            let Ok(spawned) = port.spawn(&args.description, &args.prompt, tier).await else {
+            let pool = args.pool.as_deref();
+            if let Some(pool) =
+                pool.filter(|pool| !port.pools().iter().any(|listed| listed == pool))
+            {
+                return texts.common.bad_args(&unknown(pool, port.pools()));
+            }
+            let Ok(spawned) = port.spawn(&args.description, &args.prompt, pool).await else {
                 return not_started();
             };
             let job = spawned.job.to_string();

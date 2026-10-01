@@ -111,31 +111,6 @@
           },
           "type": "object"
         },
-        "tiers": {
-          "properties": {
-            "cheap": {
-              "description": "The cheap tier. Left out, it is the chat model. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.",
-              "title": "Cheap tier",
-              "type": "string"
-            },
-            "flagship": {
-              "description": "The strongest tier. Left out, it is the chat model. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.",
-              "title": "Flagship tier",
-              "type": "string"
-            },
-            "lite": {
-              "description": "The lightest, fastest tier, which she can pick for a subagent. Left out, it is the chat model. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.",
-              "title": "Lite tier",
-              "type": "string"
-            },
-            "standard": {
-              "description": "The standard tier. Left out, it is the chat model. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.",
-              "title": "Standard tier",
-              "type": "string"
-            }
-          },
-          "type": "object"
-        },
         "vision": {
           "description": "Looks at images for the chat model when it cannot. Written like the chat model. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.",
           "title": "Vision model",
@@ -158,6 +133,13 @@
     "pools": {
       "additionalProperties": {
         "properties": {
+          "description": {
+            "description": "One line she sees after the pool name when she starts a subagent. Write it in English. Allowed: one line of English, at most 60 characters. Only in the system config or personal settings. Applies to sessions opened from now on.",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Description for the model",
+            "type": "string"
+          },
           "models": {
             "description": "A group of models, each written as provider/model. Allowed: a list of <provider>/<model>. Only in the system config or personal settings. Takes effect next turn.",
             "items": {
@@ -174,6 +156,12 @@
             ],
             "title": "Pool strategy",
             "type": "string"
+          },
+          "subagent": {
+            "default": false,
+            "description": "When on, she can pick this pool for a subagent in new sessions. It is listed only once it has members. Allowed: true or false. Only in the system config or personal settings. Applies to sessions opened from now on.",
+            "title": "Subagents can pick it",
+            "type": "boolean"
           }
         },
         "type": "object"

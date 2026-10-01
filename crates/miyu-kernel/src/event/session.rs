@@ -30,9 +30,9 @@ pub struct SessionCreated {
     /// 第几层：父会话的加一，主会话是第 0 层、不写。和 `parent` 同有同无、至少是 1，由账本查（`kernel/history.md`）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub depth: Option<u32>,
-    /// 会话用哪个模型（施工 8-8，`models.md`「事件」）：造会话时解析好的引用，模型 `<供应商>/<模型>` 或池 `@<池>`，挡位已经
-    /// 换成了它那时的值。协议造的照 `session.create` 的 `model`，没写的照那时的 `models.chat`；子会话的照 `subagent` 的
-    /// `tier`，没写的照父会话那时的。那时连 `models.chat` 都没配的不写；以前的日志没有这一格，照没有读。内核只记不解读，
+    /// 会话用哪个模型（施工 8-8，`models.md`「事件」）：造会话时解析好的引用，模型 `<供应商>/<模型>` 或池 `@<池>`（施工 8-8
+    /// 造的可能是挡位换成的那时的值）。协议造的照 `session.create` 的 `model`，没写的照那时的 `models.chat`；子会话的照
+    /// `subagent` 的 `pool`（施工 8-8 补；8-8 是 `tier`），没写的照父会话那时的。那时连 `models.chat` 都没配的不写；以前的日志没有这一格，照没有读。内核只记不解读，
     /// 引用怎么认在 `miyu-models`。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
@@ -48,8 +48,8 @@ pub struct PolicyChanged {
     /// 新的权限：收紧当场生效，放宽下一步生效（`11-权限与沙盒.md` 第二节）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub permission: Option<Permission>,
-    /// 换成的模型引用（施工 8-10，`models.md`「事件」）：模型 `<供应商>/<模型>` 或池 `@<池>`，挡位在协议那一头已经换成了它
-    /// 的值。人换的 `by` 是人；钉着的没了、内核退回默认的 `by` 是内核，带着 `replaced`。下一个回合开始时生效，撤掉的回合里
+    /// 换成的模型引用（施工 8-10，`models.md`「事件」）：模型 `<供应商>/<模型>` 或池 `@<池>`（施工 8-8 补以前，挡位在协议
+    /// 那一头已经换成了它的值）。人换的 `by` 是人；钉着的没了、内核退回默认的 `by` 是内核，带着 `replaced`。下一个回合开始时生效，撤掉的回合里
     /// 的也算。以前的日志没有这一格。内核只记不解读。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,

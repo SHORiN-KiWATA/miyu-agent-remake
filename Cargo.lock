@@ -1136,7 +1136,6 @@ dependencies = [
  "miyu-fs",
  "miyu-kernel",
  "miyu-log",
- "miyu-models",
  "miyu-sandbox",
  "miyu-store",
  "miyu-tool",

@@ -55,29 +55,16 @@ base = "10s"
 # Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
 max = "5m"
 
-[models.tiers]
-# Cheap tier: The cheap tier. Left out, it is the chat model.
-# Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.
-# cheap =
-
-# Flagship tier: The strongest tier. Left out, it is the chat model.
-# Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.
-# flagship =
-
-# Lite tier: The lightest, fastest tier, which she can pick for a subagent. Left out, it is the chat model.
-# Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.
-# lite =
-
-# Standard tier: The standard tier. Left out, it is the chat model.
-# Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.
-# standard =
-
 [permission]
 # Start new sessions read-only: When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on.
 # Allowed: true or false. Only in the system config, personal settings or a project config. Applies to sessions opened from now on.
 start_read_only = false
 
 [pools."<id>"]
+# Description for the model: One line she sees after the pool name when she starts a subagent. Write it in English.
+# Allowed: one line of English, at most 60 characters. Only in the system config or personal settings. Applies to sessions opened from now on.
+# description =
+
 # Pool members: A group of models, each written as provider/model.
 # Allowed: a list of <provider>/<model>. Only in the system config or personal settings. Takes effect next turn.
 # models =
@@ -85,6 +72,10 @@ start_read_only = false
 # Pool strategy: Keep a session on one member, or take the next member for every request. Left out, a pool whose members are all billed per request rotates and the others pin.
 # Allowed: pin or rotate. Only in the system config or personal settings. Takes effect next turn.
 # strategy =
+
+# Subagents can pick it: When on, she can pick this pool for a subagent in new sessions. It is listed only once it has members.
+# Allowed: true or false. Only in the system config or personal settings. Applies to sessions opened from now on.
+subagent = false
 
 [providers."<id>"]
 # Address: The address of this provider's API; the driver adds the path. Known providers can leave it out.

@@ -2,7 +2,8 @@
 //! 服务器），假终端照剧本回，在真的套接字上走一遍。三个平台一样跑：人那一头是照剧本回的 `Console`（`cli/login.md` 的先例）。
 //!
 //! 环境变量里的 key 只引用不复制；搜目录、贴的 key 先试、通了存成密钥；试不通回到上一步；本机的服务不要 key；已经配好的
-//! 只写 `models.chat`；核心看不到的变量说清是哪个；屏幕上从头到尾没有 key；`miyu ask` 没模型时先走一遍。
+//! 只写 `models.chat`；核心看不到的变量说清是哪个；屏幕上从头到尾没有 key；`miyu ask` 没模型时先走一遍。配置里一个池都没有的，
+//! 一起写三个预设的池（施工 8-8 补）。
 
 mod support;
 
@@ -295,4 +296,31 @@ async fn ask_without_a_model_goes_through_setup_first_at_a_terminal() {
     assert_eq!(ready, Ok(()), "有了就不问：{}", asked.screen);
     assert_eq!(asked.screen, "");
     assert_eq!(untouched.lines, 0);
+}
+
+/// 三个预设的池（施工 8-8 补，`cli/setup.md` 第 10 条）：配置里一个池都没有的，和 `models.chat` 一起写进系统配置，成员是空的、
+/// 开关开着、不带说明；已经有池的（连同只写了开关的）不写。屏幕上照旧只说 `models.chat`。
+#[tokio::test]
+async fn three_preset_pools_go_in_only_when_there_are_no_pools() {
+    let presets = "[pools.lite]\nmodels = []\nsubagent = true\n\n\
+                   [pools.standard]\nmodels = []\nsubagent = true\n\n\
+                   [pools.flagship]\nmodels = []\nsubagent = true\n";
+    for (config, wanted) in [("", true), ("[pools.mine]\nsubagent = true\n", false)] {
+        let server = Server::start(vec![listing(&["deepseek-flash"]), answer()]).await;
+        let home = Home::onboarding(config, &[("DEEPSEEK_API_KEY", FAKE)], deepseek_at(&server));
+        let mut typist = Typist::at_terminal(&["1", ""], &[]);
+        let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;
+        assert_eq!(asked.code, 0, "{}", asked.screen);
+        assert!(
+            asked
+                .screen
+                .ends_with("写好了：models.chat = deepseek/deepseek-flash\n"),
+            "{}",
+            asked.screen
+        );
+        let written = home.system_config();
+        assert_eq!(written.contains(presets), wanted, "{config:?}：{written}");
+        assert!(written.starts_with(config), "原来的一个字没动：{written}");
+        assert!(!written.contains("description"), "不带说明：{written}");
+    }
 }

@@ -99,11 +99,11 @@ async fn an_unknown_session_is_refused_in_the_heads_language() {
     assert!(err.contains("会话"), "中文的拒绝：{err}");
 }
 
-/// `--model`（施工 8-10）：新开的会话照它造；接着的先换成它（挡位照这时的配置换成它的值），以后都用它；换不成的照核心的
-/// 原话说，退出码 1，不发话。
+/// `--model`（施工 8-10）：新开的会话照它造；接着的先换成它（`@池` 照写的记），以后都用它；换不成的（连同以前的挡位名，
+/// 施工 8-8 补）照核心的原话说，退出码 1，不发话。
 #[tokio::test]
 async fn model_makes_a_new_session_with_it_and_switches_a_continued_one() {
-    const CONFIG: &str = "[providers.a]\nkeys = []\n\n[providers.b]\nkeys = []\n\n[models]\nchat = \"a/m\"\n\n[models.tiers]\nlite = \"b/small\"\n";
+    const CONFIG: &str = "[providers.a]\nkeys = []\n\n[providers.b]\nkeys = []\n\n[models]\nchat = \"a/m\"\n\n[pools.small]\nmodels = [\"b/small\"]\n";
     let script = Script::new([Play::Says("一。"), Play::Says("二。")]);
     let home = Home::configured(Arc::new(script), CONFIG);
     let first = Plan {
@@ -124,7 +124,7 @@ async fn model_makes_a_new_session_with_it_and_switches_a_continued_one() {
         model: Some(model.to_string()),
         ..plan(text)
     };
-    let Asked { code, err, .. } = home.ask(&switch("lite", "第二句")).await;
+    let Asked { code, err, .. } = home.ask(&switch("@small", "第二句")).await;
     assert_eq!(code, 0, "{err}");
     let kinds = |home: &Home| -> Vec<String> {
         home.log(&session)
@@ -136,11 +136,13 @@ async fn model_makes_a_new_session_with_it_and_switches_a_continued_one() {
             })
             .collect()
     };
-    assert_eq!(kinds(&home), ["说", "b/small", "说"], "先换，再说");
-    let Asked { code, err, .. } = home.ask(&switch("c/x", "第三句")).await;
-    assert_eq!(code, 1);
-    assert!(!err.is_empty(), "照核心的原话说");
-    assert_eq!(kinds(&home), ["说", "b/small", "说"], "换不成的不发话");
+    assert_eq!(kinds(&home), ["说", "@small", "说"], "先换，再说");
+    for model in ["c/x", "lite"] {
+        let Asked { code, err, .. } = home.ask(&switch(model, "第三句")).await;
+        assert_eq!(code, 1, "{model}");
+        assert!(!err.is_empty(), "照核心的原话说");
+    }
+    assert_eq!(kinds(&home), ["说", "@small", "说"], "换不成的不发话");
 }
 
 #[tokio::test]

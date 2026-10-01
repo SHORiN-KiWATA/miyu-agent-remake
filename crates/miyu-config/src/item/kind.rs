@@ -28,11 +28,11 @@ pub enum Kind {
     Url,
     /// 名字：小写字母开头，只有小写字母、数字、`-`、`_`，最长 64 个字符（施工 8-6：目录里供应商的编号）。写成字。
     Name,
-    /// 引用：一个模型 `<供应商>/<模型>` 或者一个池 `@<池>`（`models.md`「三种写法」，施工 8-6：`models.chat`）。写成字。
+    /// 引用：一个模型 `<供应商>/<模型>` 或者一个池 `@<池>`（`models.md`「两种写法」，施工 8-6：`models.chat`）。写成字。
     /// 这里只查写法；指的供应商、池在不在，读进来以后跨项查（[`crate::dangling`]，施工 8-8）。
     Reference,
-    /// 模型：只能是 `<供应商>/<模型>`，不能是池、挡位（`models.md`「哪里能写哪几种」池的成员那一行，施工 8-8：池的成员是
-    /// 它的列表）。写成字。
+    /// 模型：只能是 `<供应商>/<模型>`，不能是池（`models.md`「哪里能写哪几种」池的成员那一行，施工 8-8：池的成员是它的列表）。
+    /// 写成字。
     Model,
     /// 列表：每一个照元素的类型（施工 8-6：供应商的几个 key 是密钥的列表）。元素不能再是列表。
     List(&'static Kind),
@@ -45,6 +45,11 @@ pub enum Kind {
     },
     /// 文字：最多 `max` 个字符，不是空的，没有控制字符（施工 8-7：币种、思考强度）。写成字。
     Text {
+        /// 最多几个字符。
+        max: usize,
+    },
+    /// 给模型看的字：一行英文，最多 `max` 个字符，不是空的，没有控制字符，CJK 的字不到一半（施工 8-8 补：池的说明）。写成字。
+    English {
         /// 最多几个字符。
         max: usize,
     },
@@ -65,7 +70,7 @@ impl Kind {
     }
 
     /// 这个值合不合这种类型，不合的说是哪一种不合：写成了别的类型 `wrong_type`，选项不在列出的几个里
-    /// `not_an_option`，数不在范围里 `out_of_range`，网址、名字、引用写法不对 `bad_format`。
+    /// `not_an_option`，数不在范围里 `out_of_range`，网址、名字、引用、文字、给模型看的字写法不对 `bad_format`。
     ///
     /// # Errors
     ///
@@ -102,6 +107,9 @@ impl Kind {
                     && text.chars().count() <= *max
                     && !text.chars().any(char::is_control),
             ),
+            (Kind::English { max }, Value::Text(text)) => {
+                ok_or_format(english::english(text, *max))
+            }
             (Kind::Duration { min, max }, Value::Text(text)) => match duration(text) {
                 Some(length) if (*min..=*max).contains(&length.as_secs()) => Ok(()),
                 Some(_) => Err(Code::OutOfRange),
@@ -112,7 +120,7 @@ impl Kind {
     }
 
     /// 协议上的写法（`config.schema` 的 `type`）：`option`、`bool`、`secret`、`int`、`url`、`name`、`reference`、`model`、
-    /// `list`、`float`、`text`、`duration`。
+    /// `list`、`float`、`text`、`english`、`duration`。
     pub fn as_str(&self) -> &'static str {
         match self {
             Kind::Option(_) => "option",
@@ -126,6 +134,7 @@ impl Kind {
             Kind::List(_) => "list",
             Kind::Float { .. } => "float",
             Kind::Text { .. } => "text",
+            Kind::English { .. } => "english",
             Kind::Duration { .. } => "duration",
         }
     }
@@ -188,8 +197,8 @@ pub fn duration(text: &str) -> Option<std::time::Duration> {
     (seconds > 0).then(|| std::time::Duration::from_secs(seconds))
 }
 
-/// 引用的写法（`models.md`「三种写法」里配置能写的两种）：`@` 加池的名字；或者在第一个 `/` 处切开，前面是供应商的编号，
-/// 后面是模型名，两边都不是空的。挡位（`lite` 这类）配置里的几项都不能写。
+/// 引用的写法（`models.md`「两种写法」）：`@` 加池的名字；或者在第一个 `/` 处切开，前面是供应商的编号，后面是模型名，两边
+/// 都不是空的。
 fn reference(text: &str) -> bool {
     pointed(text).is_some()
 }
@@ -220,6 +229,8 @@ pub(crate) fn pointed(text: &str) -> Option<Pointed<'_>> {
         _ => None,
     }
 }
+
+mod english;
 
 #[cfg(test)]
 mod tests;

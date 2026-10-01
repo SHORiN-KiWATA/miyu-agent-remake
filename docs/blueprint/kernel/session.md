@@ -93,7 +93,7 @@
 | `Interrupt { queued }` | `session.interrupt` | `Queued::Send` 排着的接着发，`Queued::Return` 退回 | 「打断」 |
 | `SetPermission { level, read_only }` | `session.set_permission_level` | 常用的那一级、只读开关，不改的是 `None` | 「切权限级别」 |
 | `SetMeta { title, pinned }` | `session.set_meta` | 新的标题（空的是去掉标题）、置顶，不改的是 `None`（施工 3-8 三补） | 「改标题、置顶」 |
-| `Configure { model }` | `session.configure` | 换成的引用：模型或 `@池`，挡位在协议那一头已经解析好（施工 8-10） | 「换模型」 |
+| `Configure { model }` | `session.configure` | 换成的引用：模型或 `@池`，协议那一头已经查过（施工 8-10） | 「换模型」 |
 | `Answer { call_id, answer }` | `session.answer` | `Answer::Approval { decision, reason }` 或 `Answer::Questions(回答)` | `asking.md` |
 | `Revert { turn }`、`Unrevert` | `session.revert`、`session.unrevert` | 从哪一轮起，`None` 是最后一轮 | `history.md` |
 | `Redo { text, attachments }` | `session.redo` | 开这一轮的那一句里的字、附件各换成的块，`None` 是照原来的，两样都没有的原样重发（施工 4-7 再补） | `history.md`「重做」 |
