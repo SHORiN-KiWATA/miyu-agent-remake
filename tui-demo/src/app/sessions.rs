@@ -13,7 +13,7 @@ use crate::jobs::{Board, Job, JobKind};
 use crate::transcript::Transcript;
 
 mod notes;
-use notes::{announce, doing, tokens, untrusted};
+use notes::{Relation, announce, doing, tokens, untrusted};
 
 /// 停放着的一个会话。
 #[derive(Debug, Default)]
@@ -155,17 +155,27 @@ impl App {
         );
     }
 
-    /// 别处来的话写的来处（「别处来的话」第 2 条）。
+    /// 别处来的话写的来处（「别处来的话」第 2 条）：自己派的子代理、派这个子代理的会话，别的都是别的主会话发来的
+    /// （核心 C-5），照最近一次会话列表写标题，没见过的先只写短编号、顺手要一次列表。
     fn label(&self, session: &str, from: &Sender, words: &JobTexts) -> String {
         match from {
             Sender::Person | Sender::Other => words.from_person.clone(),
             Sender::Harness(name) => words.from_harness.replace("{name}", &untrusted(name)),
-            Sender::Session(id) => match self.agent_job(id) {
-                Some(job) => words.from_agent.replace("{job}", &job),
-                // 在子会话里看，主会话发来的交代、留言。
-                None if Some(id.as_str()) != Some(session) => words.from_main.clone(),
-                None => words.from_person.clone(),
-            },
+            Sender::Session(id) => {
+                let receiver_is_child = self.agent_job(session).is_some();
+                match notes::relation(self.agent_job(id), receiver_is_child) {
+                    Relation::Agent(job) => words.from_agent.replace("{job}", &job),
+                    Relation::Parent => words.from_main.clone(),
+                    Relation::Other => {
+                        let seen = self.sessions_seen.iter().flatten();
+                        let known = seen.clone().find(|s| s.session == *id);
+                        if known.is_none() {
+                            self.core.send(Command::ListSessions);
+                        }
+                        notes::from_session(id, known.and_then(|s| s.title.as_deref()), words)
+                    }
+                }
+            }
         }
     }
 

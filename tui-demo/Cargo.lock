@@ -1838,6 +1838,7 @@ dependencies = [
  "miyu-ipc",
  "miyu-kernel",
  "miyu-log",
+ "miyu-models",
  "miyu-sandbox",
  "miyu-session",
  "miyu-store",
@@ -1845,6 +1846,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "toml_edit",
  "tracing",
 ]
 
@@ -1868,6 +1870,7 @@ dependencies = [
  "miyu-fs",
  "miyu-ipc",
  "miyu-kernel",
+ "miyu-models",
  "miyu-sandbox",
  "miyu-session",
  "miyu-store",
@@ -1938,6 +1941,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-models"
+version = "0.0.0"
+dependencies = [
+ "miyu-config",
+ "miyu-drivers",
+ "miyu-kernel",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+]
+
+[[package]]
 name = "miyu-pipe"
 version = "0.0.0"
 dependencies = [
@@ -1979,6 +1994,7 @@ dependencies = [
  "miyu-fs",
  "miyu-http",
  "miyu-kernel",
+ "miyu-models",
  "miyu-policy",
  "miyu-sandbox",
  "miyu-store",

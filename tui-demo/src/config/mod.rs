@@ -130,6 +130,10 @@ pub struct JobTexts {
     pub from_person: String,
     /// 来处：主会话（在子会话里看，交代的活、留言）。
     pub from_main: String,
+    /// 来处：别的主会话（核心 C-5），`{id}` 短编号、`{title}` 标题。
+    pub from_session: String,
+    /// 同上，没有标题的。
+    pub from_session_untitled: String,
     /// 来处：这个会话派的子代理，`{job}` 任务编号。
     pub from_agent: String,
     /// 来处：别的 harness，`{name}` 它报的名字（洗过）。
@@ -475,13 +479,16 @@ mod tests {
     }
 
     #[test]
-    fn the_renamed_subagent_tool_is_drawn_like_agent() {
-        // 2026-10-01 核心把派子代理的工具从 agent 改名 subagent，旧会话里冻着旧名：分类、图标都一样。
+    fn only_the_new_tool_names_are_known() {
+        // 2026-10-01 核心改名 agent → subagent、message_agent → send_message，同一天项目主人定不认旧名、不留兼容。
         let config = Config::builtin().unwrap();
         let kinds = &config.timeline.kinds;
-        assert!(kinds.get("agent").is_some());
-        assert_eq!(kinds.get("subagent"), kinds.get("agent"));
-        assert_eq!(config.icons.tool("subagent"), config.icons.tool("agent"));
+        assert!(kinds.get("subagent").is_some() && kinds.get("send_message").is_some());
+        assert!(kinds.get("agent").is_none() && kinds.get("message_agent").is_none());
+        assert_eq!(
+            config.icons.tool("agent"),
+            config.icons.tool("没登记的工具")
+        );
         assert_ne!(
             config.icons.tool("subagent"),
             config.icons.tool("没登记的工具")

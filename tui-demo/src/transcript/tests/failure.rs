@@ -52,12 +52,19 @@ fn rate_limits_get_a_plain_word_in_front() {
 }
 
 #[test]
-fn the_kernels_own_errors_keep_their_class_and_empty_words_fall_back_to_it() {
+fn the_kernels_own_errors_say_only_their_class_in_plain_words() {
+    // 2026-10-01 项目主人：已经有中文的报错了，后面不要再接英文。内核自己查出来的原话是给运行日志的诊断，不接。
     assert_eq!(failed("empty_reply", "").1, "出错了：回复是空的");
     assert_eq!(
         failed("bad_stream", "delta for unknown block 3").1,
-        "出错了：回复的流不对：delta for unknown block 3"
+        "出错了：回复的流不对"
     );
+    // 核心 8-6：没配好模型（`no_model`）。不写怎么配（2026-10-01 项目主人去掉的）。
+    assert_eq!(
+        failed("no_model", "no model configured: set models.chat").1,
+        "出错了：没有可用的模型"
+    );
+    // 供应商的照旧：原话是空的写分类。
     assert_eq!(
         failed("auth", "  ").1,
         "出错了：认证失败",

@@ -11,6 +11,7 @@ use crate::config::Config;
 use crate::core::SessionInfo;
 use crate::session_list::{SessionList, short};
 use crate::theme;
+use unicode_width::UnicodeWidthStr;
 
 /// 框里的字。
 #[derive(Debug, Clone, Deserialize)]
@@ -62,6 +63,7 @@ pub struct Texts {
 pub fn lines(
     list: &SessionList,
     current: Option<&str>,
+    here: &str,
     config: &Config,
     width: u16,
     max: usize,
@@ -109,34 +111,38 @@ pub fn lines(
     let shown = config.layout.session_rows.max(1);
     let top = crate::menu::top(list.selected, list.pinned, found.len(), shown);
     let ticking = !list.ticked.is_empty();
+    // 标题一列多宽：对得上的里最长的那个（连置顶的记号），最宽 `session_title_width`（第 1 条）。
+    let column = found
+        .iter()
+        .map(|info| head_width(info, config))
+        .max()
+        .unwrap_or(0)
+        .min(config.layout.session_title_width);
     let rows: Vec<Row> = found
         .iter()
         .enumerate()
         .skip(top)
         .take(shown)
         .map(|(i, info)| {
-            let here = current == Some(info.session.as_str());
-            let right = if here {
-                Some(texts.current.clone())
-            } else if info.busy {
-                Some(texts.busy.clone())
-            } else {
-                info.last_active.map(|at| ago(at, now, texts))
-            };
-            let right = right.map(|r| Span::styled(r, theme::faint()));
-            let mut content = content(info, config);
+            let mut content = Vec::new();
             if ticking {
                 let mark = &config.layout.tick_mark;
                 let mark = if list.ticked.contains(&info.session) {
                     mark.clone()
                 } else {
-                    " ".repeat(mark.chars().count())
+                    " ".repeat(mark.width())
                 };
-                content.insert(0, Span::styled(mark, theme::picked()));
+                content.push(Span::styled(mark, theme::picked()));
             }
+            content.extend(head(info, config, column));
+            content.push(Span::styled(
+                format!("  #{}", short(&info.session)),
+                theme::faint(),
+            ));
+            let right = Span::styled(right(info, current, here, now, config), theme::faint());
             (
                 Some(i),
-                panel::item(i == list.selected, content, right, width),
+                panel::item(i == list.selected, content, Some(right), width),
             )
         })
         .collect();
@@ -145,25 +151,63 @@ pub fn lines(
     (chrome, lines, map)
 }
 
-/// 一行的字：置顶记号、标题、短编号、工作目录。
-fn content(info: &SessionInfo, config: &Config) -> Vec<Span<'static>> {
+/// 标题那一列有多宽：置顶的记号加标题（没起名的写「未命名会话」）。
+fn head_width(info: &SessionInfo, config: &Config) -> usize {
+    let pin = if info.pinned {
+        config.icons.pin.width()
+    } else {
+        0
+    };
+    pin + title(info, config).width()
+}
+
+/// 标题（没起名的写「未命名会话」，和起了名的一个颜色：2026-10-01 项目主人）。
+fn title<'a>(info: &'a SessionInfo, config: &'a Config) -> &'a str {
+    info.title.as_deref().unwrap_or(&config.text.untitled)
+}
+
+/// 标题那一列：置顶的记号、标题，截到 `column` 列、补空格对齐。
+fn head(info: &SessionInfo, config: &Config, column: usize) -> Vec<Span<'static>> {
     let mut spans = Vec::new();
+    let mut room = column;
     if info.pinned {
         spans.push(Span::styled(config.icons.pin.clone(), theme::accent()));
+        room = room.saturating_sub(config.icons.pin.width());
     }
-    spans.push(match &info.title {
-        Some(title) => Span::raw(title.clone()),
-        None => Span::styled(config.text.untitled.clone(), theme::dim()),
-    });
-    spans.push(Span::styled(
-        format!("  #{}", short(&info.session)),
-        theme::dim(),
-    ));
-    if let Some(cwd) = &info.cwd {
-        let cwd = short_path(cwd, config.layout.session_cwd_width);
-        spans.push(Span::styled(format!("  {cwd}"), theme::faint()));
-    }
+    let text = super::rows::clip(title(info, config), u16::try_from(room).unwrap_or(u16::MAX));
+    let pad = room.saturating_sub(text.width());
+    spans.push(Span::raw(format!("{text}{}", " ".repeat(pad))));
     spans
+}
+
+/// 右边那一格：工作目录（和界面现在所在的目录 `here` 不一样时才写），再写「当前」「在忙」或者多久以前。
+fn right(
+    info: &SessionInfo,
+    current: Option<&str>,
+    here: &str,
+    now: jiff::Timestamp,
+    config: &Config,
+) -> String {
+    let texts = &config.text.sessions;
+    let when = if current == Some(info.session.as_str()) {
+        texts.current.clone()
+    } else if info.busy {
+        texts.busy.clone()
+    } else {
+        info.last_active
+            .map(|at| ago(at, now, texts))
+            .unwrap_or_default()
+    };
+    let elsewhere = info
+        .cwd
+        .as_deref()
+        .filter(|cwd| crate::local::home_short(cwd) != here)
+        .map(|cwd| short_path(cwd, config.layout.session_cwd_width));
+    match elsewhere {
+        Some(cwd) if when.is_empty() => cwd,
+        Some(cwd) => format!("{cwd}  {when}"),
+        None => when,
+    }
 }
 
 /// 工作目录写短：家目录写成 `~`，长过 `width` 列的只写最后两层、前面 `…/`（第 1 条）。
@@ -198,7 +242,60 @@ fn ago(at: jiff::Timestamp, now: jiff::Timestamp, texts: &Texts) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::short_path;
+    use unicode_width::UnicodeWidthStr;
+
+    use super::{lines, short_path};
+    use crate::config::Config;
+    use crate::core::SessionInfo;
+    use crate::session_list::SessionList;
+
+    fn info(session: &str, title: Option<&str>, cwd: &str) -> SessionInfo {
+        SessionInfo {
+            session: session.into(),
+            title: title.map(str::to_string),
+            pinned: false,
+            cwd: Some(cwd.into()),
+            busy: false,
+            last_active: None,
+        }
+    }
+
+    #[test]
+    fn rows_line_up_in_columns_and_only_a_different_directory_is_written() {
+        // 2026-10-01 项目主人：原来编号、目录跟在标题后面各行位置不一样，看着乱；目录一样的不写；未命名的不用别的颜色。
+        let config = Config::builtin().unwrap();
+        let mut list = SessionList::default();
+        list.replace(vec![
+            info("0000-aaaaaaaa", Some("Miyu 各仓库代码量统计"), "~/src/miyu"),
+            info("0000-bbbbbbbb", None, "~/src/miyu"),
+            info("0000-cccccccc", Some("短"), "~/src/app"),
+        ]);
+        let (_, rows, _) = lines(&list, Some("0000-aaaaaaaa"), "~/src/miyu", &config, 90, 20);
+        let text: Vec<String> = rows.iter().map(ToString::to_string).collect();
+        let column = |l: &str| l.find(" #").map(|at| l[..at].width());
+        let at: Vec<_> = text.iter().map(|l| column(l)).collect();
+        assert!(
+            at.iter().all(|c| c.is_some() && *c == at[0]),
+            "编号一列对齐：{text:#?}"
+        );
+        assert!(text[2].contains("~/src/app"), "目录不一样的写：{text:#?}");
+        assert!(
+            !text[0].contains("~/src/miyu") && !text[1].contains("~/src/miyu"),
+            "一样的不写"
+        );
+        let style_of = |row: usize, word: &str| {
+            rows[row]
+                .spans
+                .iter()
+                .find(|s| s.content.contains(word))
+                .map(|s| s.style.fg)
+        };
+        assert_eq!(
+            style_of(1, "未命名会话"),
+            style_of(2, "短"),
+            "未命名的和起了名的一个颜色"
+        );
+    }
 
     #[test]
     fn a_long_directory_keeps_its_last_two_levels() {

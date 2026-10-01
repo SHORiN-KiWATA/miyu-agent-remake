@@ -96,7 +96,8 @@ pub(super) fn effects(body: &Value, out: &mut Vec<Push>) {
                 call_id: call_id.to_string(),
                 job: text(&effect["job"]),
                 // 派子代理的工具 2026-10-01 从 `agent` 改名 `subagent`，旧会话里冻着旧名：两个都认。
-                agent: matches!(effect["what"].as_str(), Some("agent" | "subagent")),
+                // 只认新名字（2026-10-01 项目主人：旧名 `agent` 不留兼容）。
+                agent: effect["what"] == "subagent",
                 title: text(&effect["title"]),
                 session: effect["session"].as_str().map(str::to_string),
             })),

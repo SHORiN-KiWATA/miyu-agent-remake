@@ -5,8 +5,9 @@
 use crate::config::Texts;
 use crate::core::CallError;
 
-/// 内核自己查出来的分类：原话不是供应商的，写分类的人话（`03-事件模型.md`「出错」）。
-const KERNEL_CLASSES: [&str; 4] = [
+/// 内核自己查出来的分类：原话不是供应商的，只写分类的人话（`03-事件模型.md`「出错」）。
+const KERNEL_CLASSES: [&str; 5] = [
+    "no_model",
     "bad_stream",
     "empty_reply",
     "bad_summary",
@@ -20,8 +21,9 @@ const RATE_LIMITED: (&str, u16) = ("rate_limited", 429);
 pub(super) fn reason(error: &CallError, texts: &Texts) -> String {
     let said = error.message.trim();
     let class = error.class.as_str();
+    // 内核自己查出来的：原话是给运行日志的英文诊断，只写人话（2026-10-01 项目主人：有中文了后面不要再接英文）。
     if KERNEL_CLASSES.contains(&class) {
-        return with(&class_name(class, texts), said, texts);
+        return class_name(class, texts);
     }
     let status = error
         .status

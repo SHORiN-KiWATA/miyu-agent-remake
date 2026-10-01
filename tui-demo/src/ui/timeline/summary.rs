@@ -30,7 +30,8 @@ pub fn line(segment: &Segment, ctx: &Ctx, base: Style) -> Vec<Span<'static>> {
     };
     // 用时：四舍五入到整秒，不到一秒的写 1s，照运行状态行的读秒写。
     let took = meter::clock(((tally.span.as_millis() + 500) / 1000).max(1) as u64);
-    if tally.commands + tally.tools + tally.edits + tally.agents + tally.messages == 0 {
+    let messages = tally.messages + tally.session_messages;
+    if tally.commands + tally.tools + tally.edits + tally.agents + messages == 0 {
         let secs = format!("{}s", tally.thinking.as_secs().max(1));
         return vec![Span::styled(
             words.thought_for.replace("{elapsed}", &secs),
@@ -58,6 +59,8 @@ pub fn line(segment: &Segment, ctx: &Ctx, base: Style) -> Vec<Span<'static>> {
         Lead::Agents
     } else if tally.messages > 0 {
         Lead::Messages
+    } else if tally.session_messages > 0 {
+        Lead::SessionMessages
     } else if tally.tools > 0 {
         Lead::Tools
     } else {
@@ -67,6 +70,10 @@ pub fn line(segment: &Segment, ctx: &Ctx, base: Style) -> Vec<Span<'static>> {
         Lead::Commands => (count(tally.commands, &words.ran), false),
         Lead::Agents => (count(tally.agents, &words.spawned), false),
         Lead::Messages => (count(tally.messages, &words.messaged), false),
+        Lead::SessionMessages => (
+            count(tally.session_messages, &words.messaged_sessions),
+            false,
+        ),
         Lead::Tools => (count(tally.tools, &words.used), false),
         Lead::Edits => (count(tally.edits, &words.made), true),
     });
@@ -78,6 +85,13 @@ pub fn line(segment: &Segment, ctx: &Ctx, base: Style) -> Vec<Span<'static>> {
     }
     if lead != Lead::Messages && tally.messages > 0 {
         parts.push((count(tally.messages, &words.messages), false));
+    }
+    // 给别的会话的留言：不打头也写 Messaged（2026-10-01 项目主人认的样子）。
+    if lead != Lead::SessionMessages && tally.session_messages > 0 {
+        parts.push((
+            count(tally.session_messages, &words.messaged_sessions),
+            false,
+        ));
     }
     if lead != Lead::Tools && tally.tools > 0 {
         parts.push((count(tally.tools, &words.tools), false));
@@ -179,6 +193,7 @@ enum Lead {
     Commands,
     Agents,
     Messages,
+    SessionMessages,
     Tools,
     Edits,
 }

@@ -198,8 +198,10 @@ pub struct Tally {
     pub tools: usize,
     /// 派子代理。
     pub agents: usize,
-    /// 给子代理留言。
+    /// 给子代理（和父会话）留言。
     pub messages: usize,
+    /// 给别的会话留言（`to` 是会话编号，核心 C-5）。
+    pub session_messages: usize,
     /// 思考。
     pub thoughts: usize,
     /// 出错。
@@ -231,6 +233,13 @@ impl Tally {
                     Some(ToolKind::Edit) if step.failed() => tally.tools += 1,
                     Some(ToolKind::Edit) => tally.edits += 1,
                     Some(ToolKind::Agent) => tally.agents += 1,
+                    Some(ToolKind::Message)
+                        if step
+                            .arg("to")
+                            .is_some_and(crate::session_list::looks_like_session) =>
+                    {
+                        tally.session_messages += 1;
+                    }
                     Some(ToolKind::Message) => tally.messages += 1,
                     None => tally.tools += 1,
                 },
@@ -242,8 +251,9 @@ impl Tally {
             tally.span = end.saturating_duration_since(first);
         }
         // 思考不算做事：先想一下再跑一条命令，照样写这条命令的短标题（项目主人选的 A）。
-        let alone =
-            tally.commands == 1 && tally.edits + tally.tools + tally.agents + tally.messages == 0;
+        let alone = tally.commands == 1
+            && tally.edits + tally.tools + tally.agents + tally.messages + tally.session_messages
+                == 0;
         if alone {
             tally.only_command = segment
                 .steps

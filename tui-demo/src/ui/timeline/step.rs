@@ -82,7 +82,13 @@ pub fn title(step: &Step, style: Style, width: u16, ctx: &Ctx) -> Vec<Span<'stat
                 }
                 if let Some(subject) = subject {
                     label.push_str(" · ");
-                    label.push_str(&crate::local::home_short(subject));
+                    // 发给别的会话的（C-5，`to` 是会话编号）：写「会话 短编号」，不写整个编号。
+                    if crate::session_list::looks_like_session(subject) {
+                        let id = crate::session_list::short(subject);
+                        label.push_str(&text.on_session.replace("{id}", &id));
+                    } else {
+                        label.push_str(&crate::local::home_short(subject));
+                    }
                 }
                 // 对着别的会话的（核心 C-4 起 `history` 能翻别的会话）：再跟一格「会话 短编号」（第 8 条）。
                 if let Some(session) = step.arg(&ctx.config.timeline.session_arg) {

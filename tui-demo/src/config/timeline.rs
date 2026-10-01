@@ -26,6 +26,8 @@ pub struct Summary {
     pub spawned: [String; 2],
     /// 给子代理留过言：打头的那一格。
     pub messaged: [String; 2],
+    /// 给别的会话留过言：打头、不打头都写这一格（核心 C-5）。
+    pub messaged_sessions: [String; 2],
     /// 派子代理（不打头时）。
     pub agents: [String; 2],
     /// 留言（不打头时）。

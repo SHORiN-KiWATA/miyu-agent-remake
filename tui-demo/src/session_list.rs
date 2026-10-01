@@ -147,6 +147,11 @@ impl SessionList {
     }
 }
 
+/// 写得像会话编号：至少 8 个字符，只有十六进制数字和 `-`（整个编号、短编号都认；`j10`、`parent` 不算）。
+pub fn looks_like_session(text: &str) -> bool {
+    text.len() >= 8 && text.chars().all(|c| c.is_ascii_hexdigit() || c == '-')
+}
+
 /// 短编号：整个编号的最后 8 个字符（核心 C-1 定的，侧边栏、列表、她看到的都是这个）。
 pub fn short(session: &str) -> String {
     let skip = session.chars().count().saturating_sub(8);

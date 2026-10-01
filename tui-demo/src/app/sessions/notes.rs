@@ -98,6 +98,39 @@ pub(super) fn tokens(transcript: &Transcript) -> u64 {
     total.input() + total.output
 }
 
+/// 会话发来的话是谁发的（「别处来的话」第 2 条）。
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum Relation {
+    /// 自己派的子代理（孙代理也是），带任务编号。
+    Agent(String),
+    /// 收话的是子代理：发话的是派它的那个会话。
+    Parent,
+    /// 别的主会话（核心 C-5）。
+    Other,
+}
+
+/// 照发话的会话是不是谁派的子代理（`sender_job`）、收话的是不是子代理（`receiver_is_child`）定关系。只看这两个会话，
+/// 不看界面正在显示哪个（切会话补发时收话的那个还停放着，2026-10-01 实测过照显示的判会把别的会话认成主会话）。
+pub(super) fn relation(sender_job: Option<String>, receiver_is_child: bool) -> Relation {
+    match sender_job {
+        Some(job) => Relation::Agent(job),
+        None if receiver_is_child => Relation::Parent,
+        None => Relation::Other,
+    }
+}
+
+/// 别的主会话发来的话的来处（「别处来的话」第 2 条，核心 C-5）：短编号，有标题的再写标题（标题照不可信的字清理）。
+pub(super) fn from_session(id: &str, title: Option<&str>, words: &JobTexts) -> String {
+    let short = crate::session_list::short(id);
+    match title {
+        Some(title) => words
+            .from_session
+            .replace("{id}", &short)
+            .replace("{title}", &untrusted(title)),
+        None => words.from_session_untitled.replace("{id}", &short),
+    }
+}
+
 /// 别的 harness 报的名字不可信（「别处来的话」第 2 条）：去掉控制字符、换行换成空格，最多 64 列，放不下的截掉、末尾写 `…`。
 pub(super) fn untrusted(name: &str) -> String {
     const MOST: usize = 64;
@@ -324,6 +357,41 @@ mod tests {
             super::tree_usage(used(1, 1), &Board::default(), &lot).uncached,
             1,
             "没派过的只算自己"
+        );
+    }
+
+    #[test]
+    fn a_message_from_another_session_names_it_by_short_id_and_title() {
+        // 2026-10-01 项目主人定照终端这一种写法（「别处来的话」第 2 条）。
+        let words = crate::config::Config::builtin().unwrap().text.jobs;
+        let id = "0192f3a0-1111-7abc-8def-001122334455";
+        assert_eq!(
+            super::from_session(id, Some("修 CI"), &words),
+            "从会话 22334455「修 CI」收到消息"
+        );
+        assert_eq!(
+            super::from_session(id, None, &words),
+            "从会话 22334455 收到消息"
+        );
+    }
+
+    #[test]
+    fn who_sent_it_depends_only_on_the_two_sessions() {
+        use super::{Relation, relation};
+        assert_eq!(
+            relation(Some("j10".into()), false),
+            Relation::Agent("j10".into())
+        );
+        assert_eq!(
+            relation(None, true),
+            Relation::Parent,
+            "子代理收到的：派它的会话发的"
+        );
+        // 2026-10-01 实测：切到会话 A 时 A 还在补发、界面上显示的是发话的 B，原来把 B 认成了主会话。
+        assert_eq!(
+            relation(None, false),
+            Relation::Other,
+            "主会话收到的不会是主会话发的"
         );
     }
 }

@@ -342,6 +342,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             Some(list) => session_list::lines(
                 list,
                 app.main_session().as_deref(),
+                &app.cwd,
                 &app.config,
                 width,
                 usize::from(inner),

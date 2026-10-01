@@ -156,10 +156,8 @@ fn the_error_line_names_its_class() {
             Push::TurnEnded(EndReason::Error),
         ],
     );
-    assert_eq!(
-        shown(&t).last().unwrap().1,
-        "出错了：自动压缩暂停着：the request does not fit"
-    );
+    // 内核自己查出来的只写人话，不接英文原话（2026-10-01 项目主人）。
+    assert_eq!(shown(&t).last().unwrap().1, "出错了：自动压缩暂停着");
 }
 
 #[test]

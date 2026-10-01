@@ -266,7 +266,7 @@ fn job_effects_reports_and_foreign_messages_are_read() {
     use super::{JobEnd, JobReason, JobStart, Sender};
     let result = json!({"seq": 9, "kind": "tool.result", "by": {"kind": "tool", "call_id": "call_1"},
         "body": {"call_id": "call_1", "status": "ok", "blocks": [{"type": "text", "text": "j2"}],
-            "effects": [{"kind": "job.started", "job": "j2", "what": "agent", "title": "查文档",
+            "effects": [{"kind": "job.started", "job": "j2", "what": "subagent", "title": "查文档",
                 "session": "s-child"}, {"kind": "job.messaged", "job": "j1"}]}});
     let got = read_mine(&result);
     assert_eq!(
@@ -330,16 +330,16 @@ fn job_effects_reports_and_foreign_messages_are_read() {
 }
 
 #[test]
-fn a_subagent_effect_is_read_as_an_agent_like_the_old_name() {
-    // 2026-10-01 核心把派子代理的工具从 agent 改名 subagent，旧会话里冻着旧名：两个都认成子代理。
-    for what in ["agent", "subagent"] {
+fn only_a_subagent_effect_is_read_as_an_agent() {
+    // 2026-10-01 核心把派子代理的工具从 agent 改名 subagent，同一天项目主人定不认旧名、不留兼容。
+    for (what, agent) in [("subagent", true), ("agent", false)] {
         let result = json!({"seq": 9, "kind": "tool.result", "by": {"kind": "tool", "call_id": "c"},
             "body": {"call_id": "c", "status": "ok", "blocks": [],
                 "effects": [{"kind": "job.started", "job": "j3", "what": what, "title": "t"}]}});
         let Push::JobStarted(start) = &read_mine(&result)[0] else {
             panic!("派出去的任务")
         };
-        assert!(start.agent, "{what}");
+        assert_eq!(start.agent, agent, "{what}");
     }
 }
 
