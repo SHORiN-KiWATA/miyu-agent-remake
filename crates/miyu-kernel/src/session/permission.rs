@@ -34,8 +34,8 @@ impl Session {
             return vec![accepted(id, Vec::new())];
         }
         let body = Body::PolicyChanged(PolicyChanged {
-            policy: None,
             permission: Some(new.clone()),
+            ..PolicyChanged::default()
         });
         let event = self.record(at, by, Some(id.clone()), body);
         self.accept(id, vec![event.seq]);

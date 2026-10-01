@@ -10,6 +10,7 @@ mod approval;
 mod breaker;
 mod clear;
 mod compaction;
+mod configure;
 mod invariants;
 mod jobs;
 mod load;
@@ -109,6 +110,8 @@ pub(super) struct Watch {
     peers: peers::Peers,
     /// 回顾（施工 3-8 四补）：在路上的那一次、等着的回应。
     pub(super) recaps: recap::Recaps,
+    /// 换模型（施工 8-10）：会话的引用、最近一次换模型写在第几条。
+    models: configure::Models,
 }
 
 impl Watch {
@@ -158,6 +161,7 @@ impl Watch {
             reports: reports::Reports::default(),
             peers: peers::Peers::default(),
             recaps: recap::Recaps::default(),
+            models: configure::Models::default(),
         }
     }
 
@@ -209,6 +213,7 @@ impl Watch {
         let peer = self.before_peer(&input).filter(|_| !refused);
         let notice = self.before_notice(session, &input).filter(|_| !refused);
         let recap = self.before_recap(&input, refused);
+        let configure = self.before_configure(&input, refused);
         let stop = self.before_stop(&input);
         let fresh_interrupt = match &input {
             Input::Command(command) if !refused => match command.command {
@@ -271,6 +276,7 @@ impl Watch {
         self.after_peer(&actions, peer);
         self.after_notice(session, &actions, notice);
         self.after_recap(&actions, recap);
+        self.after_configure(&actions, configure);
         self.restore_matches(&actions, reverting);
         for action in actions {
             self.check(action);
@@ -305,7 +311,10 @@ impl Watch {
                 *self.replied.entry(id.clone()).or_default() += 1;
                 self.replied_at_most_received(&id);
             }
-            Action::RunTurnStartHooks { turn } => self.start_hooks(turn),
+            Action::RunTurnStartHooks { turn, model } => {
+                self.start_hooks(turn);
+                self.hooks_model(model.as_deref());
+            }
             Action::CallModel { seen, request, .. } => self.called(seen, &request),
             Action::Aside { upto, request, .. } => self.recap_issued(upto, &request),
             Action::Wake { seen, .. } => self.wake_asked(seen),
@@ -447,6 +456,7 @@ impl Watch {
             self.undo_check(&events, k);
             self.report_check(&events, k);
             self.permission_check(&events, k);
+            self.model_appended(event);
             self.approval_check(&events, k);
             self.question_check(&events, k);
             self.events.push(event.clone());

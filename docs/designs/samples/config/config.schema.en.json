@@ -312,7 +312,7 @@
                   "type": "array"
                 },
                 "max_output": {
-                  "description": "How many tokens this model can write at most in one reply. Allowed: a whole number from 1 to 100000000. Only in the system config or personal settings. Applies to sessions opened from now on.",
+                  "description": "How many tokens this model can write at most in one reply. Allowed: a whole number from 1 to 100000000. Only in the system config or personal settings. Takes effect next turn.",
                   "maximum": 100000000,
                   "minimum": 1,
                   "title": "Max output",
@@ -381,7 +381,7 @@
                   "type": "boolean"
                 },
                 "window": {
-                  "description": "The context window of this model, in tokens. Allowed: a whole number from 1 to 100000000. Only in the system config or personal settings. Applies to sessions opened from now on.",
+                  "description": "The context window of this model, in tokens. Allowed: a whole number from 1 to 100000000. Only in the system config or personal settings. Takes effect next turn.",
                   "maximum": 100000000,
                   "minimum": 1,
                   "title": "Context window",

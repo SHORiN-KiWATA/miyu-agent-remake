@@ -7,8 +7,8 @@
 //! 再带上它在哪（`untrusted_project`，施工 8-2）。查配置的三个方法在 `config/methods.rs`（施工 8-2），改配置的 `config.set`、
 //! 信任项目配置的 `config.trust` 在 `config/set.rs`、`config/trusting.rs`（施工 8-3）。密钥的 `secret.set`、`secret.delete`、
 //! `secret.list` 在 `secrets.rs`（施工 8-5）。`model.list` 在 `models.rs`（施工 8-7）。`session.create` 带 `model` 的照这时的
-//! 配置解析好再造，解析不出的回 `unknown_model`、什么都不造（施工 8-8，`models::record`）。给人看的字 `human.get` 在
-//! `human.rs`（施工 W-1）。
+//! 配置解析好再造，解析不出的回 `unknown_model`、什么都不造（施工 8-8，`models::record`）。换模型 `session.configure`：先查
+//! 参数、再找会话、再照这时的配置解析，交给内核，回 `{}`（施工 8-10）。给人看的字 `human.get` 在 `human.rs`（施工 W-1）。
 
 use std::sync::Arc;
 
@@ -382,6 +382,16 @@ pub(crate) async fn call(
         "secret.list" => Ok(secrets::list(core)),
         "model.list" => models::list(core, params(request)?).await,
         "blob.put" => attach::put(core, params(request)?).await,
+        "session.configure" => {
+            let params: models::ConfigureParams = params(request)?;
+            let text = params.model()?;
+            let session = session(&params.session)?;
+            let found = core.sessions.get(core, &session, None, None).await?;
+            let model = models::record(core, text)?;
+            let command = Command::Configure { model };
+            command_to(core, request, &session, &found.handle, command).await?;
+            Ok(json!({}))
+        }
         "session.set_meta" => {
             let params: MetaParams = params(request)?;
             let command = params.command()?;

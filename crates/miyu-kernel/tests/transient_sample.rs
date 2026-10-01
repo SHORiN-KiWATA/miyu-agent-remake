@@ -6,7 +6,7 @@
 //! - 45 号回复里那次 `read` 执行中的一段输出（`tool.progress`）；
 //! - 44 号请求出了限速的错，等 1 秒再来的状态（`status`，施工 3-5 下）；117 号请求的限速带着 HTTP 状态码
 //!   （施工 3-5 三补）；另一个会话里池的一个成员限速、换到下一个当场再来的状态（带 `failover`），和换过去成了以后推的
-//!   `model.changed`（施工 8-9）；
+//!   `model.changed`（施工 8-9）；人换了模型、下一轮开始时池没了退回默认，推的 `model.changed`（`why` 是 `turn`，施工 8-10）；
 //! - 54 号压缩写摘要时的两段进度（`compaction.progress`，施工 6-2 上），和压好了的那一条（`compaction.done`，
 //!   施工 6-3 下）。
 //!
@@ -208,9 +208,27 @@ fn the_status_sample_is_written_exactly() {
     );
 }
 
-/// 上面第三行那一次换过去的成员成了：钉着的换成它，限额照它的，推一条 `model.changed`（施工 8-9）。会话 actor 造，内核不推。
+/// 上面第三行那一次换过去的成员成了：钉着的换成它，限额照它的，推一条 `model.changed`（施工 8-9）。第二条是样本会话 143 号
+/// 回合开始时池 `free` 没了、退回 `models.chat` 的那一次（施工 8-10，和 144 号 `session.policy_changed` 对得上）。会话 actor
+/// 造，内核不推。
 #[test]
 fn the_model_changed_sample_is_written_exactly() {
+    let turned = Transient {
+        at: Timestamp::parse("2026-09-25T21:00:00.000Z").expect("样本的时刻合写法"),
+        turn: Some(TurnId::new(Seq::new(143).expect("合法的序号"))),
+        by: By::Kernel,
+        cause: Some(CommandId::parse("cmd-2e30").expect("命令编号合写法")),
+        body: TransientBody::ModelChanged(Box::new(ModelChanged {
+            reference: Some("deepseek/deepseek-v4".to_string()),
+            endpoint: Some(ProviderId::parse("deepseek").expect("合编号的写法")),
+            model: Some(ModelName::parse("deepseek-v4").expect("合模型名的写法")),
+            limits: ContextLimits {
+                window: Some(1_000_000),
+                compaction_line: Some(967_000),
+            },
+            why: ChangeWhy::Turn,
+        })),
+    };
     let changed = Transient {
         at: Timestamp::parse("2026-09-25T08:20:44.900Z").expect("样本的时刻合写法"),
         turn: Some(TurnId::new(Seq::new(131).expect("合法的序号"))),
@@ -227,7 +245,10 @@ fn the_model_changed_sample_is_written_exactly() {
             why: ChangeWhy::Failover,
         })),
     };
-    assert_eq!(lines("transient/model.changed.jsonl"), [changed.to_line()]);
+    assert_eq!(
+        lines("transient/model.changed.jsonl"),
+        [changed.to_line(), turned.to_line()]
+    );
 }
 
 #[test]

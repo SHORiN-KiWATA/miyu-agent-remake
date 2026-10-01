@@ -237,23 +237,30 @@ async fn attach(rpc: &mut Rpc, plan: &Plan, screen: &mut Screen<'_>) -> Result<V
 }
 
 /// 接哪个会话：新开一个一次性的；上一次 `miyu ask` 开的；指定的。交回会话的编号；新开的，再交回造会话的回应：核心说的它
-/// 实际在哪个目录里干活、这里的项目配置没信任（施工 8-3），别的是 `null`。
+/// 实际在哪个目录里干活、这里的项目配置没信任（施工 8-3），别的是 `null`。写了 `--model` 的（施工 8-10）：新开的照它造，
+/// 接着的先换成它（`session.configure`，永久换）；换不成的照核心的原话说，不发话。
 async fn session(
     rpc: &mut Rpc,
     plan: &Plan,
     screen: &mut Screen<'_>,
 ) -> Result<(String, Value), u8> {
-    match &plan.target {
+    let session = match &plan.target {
         Target::New => {
-            let params = json!({"cwd": plan.cwd, "dirs": plan.dirs, "oneshot": true});
+            let mut params = json!({"cwd": plan.cwd, "dirs": plan.dirs, "oneshot": true});
+            if let Some(model) = &plan.model {
+                params["model"] = json!(model);
+            }
             let result =
                 link::request(rpc, "session.create", params, &plan.language, screen.err).await?;
             let session = result["session"].as_str().unwrap_or_default().to_string();
-            Ok((session, result))
+            return Ok((session, result));
         }
-        Target::Continue => link::latest_oneshot(rpc, &plan.language, screen.err)
-            .await
-            .map(|session| (session, Value::Null)),
-        Target::Session(session) => Ok((session.clone(), Value::Null)),
+        Target::Continue => link::latest_oneshot(rpc, &plan.language, screen.err).await?,
+        Target::Session(session) => session.clone(),
+    };
+    if let Some(model) = &plan.model {
+        let params = json!({"session": session, "model": model});
+        link::request(rpc, "session.configure", params, &plan.language, screen.err).await?;
     }
+    Ok((session, Value::Null))
 }

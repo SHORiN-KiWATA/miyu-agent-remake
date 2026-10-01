@@ -256,6 +256,30 @@ fn a_successful_compaction_starts_the_count_again() {
     assert_eq!(pauses(&stage).len(), 1);
 }
 
+/// 换了模型（施工 8-10，`compaction.md` 第十条第 6 条）：暂停解除，到线照常压；换过去以后再失败，从 0 数。照日志算：载入以后
+/// 一样，撤掉换模型那一轮的也不回来。
+#[test]
+fn a_new_model_lifts_the_pause_and_failures_count_from_zero() {
+    let mut stage = breaking(Some(PAUSE));
+    one_turn_then_line(&mut stage);
+    for words in ["a", "b", "c"] {
+        failed_compaction(&mut stage, words);
+    }
+    assert_eq!(pauses(&stage).len(), 1);
+    stage.configure("b/n");
+    stage.crash();
+    failed_compaction(&mut stage, "d");
+    assert_eq!(summaries(&stage), 4, "换了模型，暂停解除：到线又压");
+    failed_compaction(&mut stage, "e");
+    assert_eq!(pauses(&stage).len(), 1, "换过去以后才两次");
+    failed_compaction(&mut stage, "f");
+    assert_eq!(pauses(&stage).len(), 2, "第三次又暂停");
+    // 换成一样的不记，也就不解除。
+    stage.configure("b/n");
+    failed_compaction(&mut stage, "g");
+    assert_eq!(summaries(&stage), 6, "暂停着不压");
+}
+
 #[test]
 fn only_failed_automatic_compactions_that_end_the_turn_count() {
     let mut stage = breaking(Some(PAUSE));

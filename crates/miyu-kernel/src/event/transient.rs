@@ -68,8 +68,11 @@ pub struct ModelChanged {
 }
 
 text_enum!(
-    /// `model.changed` 为什么推（施工 8-9；回合开始时重新解析的 `turn` 随 8-10）。
+    /// `model.changed` 为什么推（施工 8-9；回合开始时重新解析的 `turn`，施工 8-10）。
     ChangeWhy {
+        /// 回合开始时照这一轮的配置重新解析，头看得到的变了：换了模型、钉着的没了、配置改了（`models.md`「怎么走」第六条
+        /// 第 3 条，施工 8-10）。
+        Turn = "turn",
         /// 出错换到了池里别的模型：成了才钉过去（`models.md`「怎么走」第四条第 5 条、第五条第 7 条）。
         Failover = "failover",
     }

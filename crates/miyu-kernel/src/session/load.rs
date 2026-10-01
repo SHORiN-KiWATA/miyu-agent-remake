@@ -11,6 +11,7 @@ use std::fmt;
 
 use super::Session;
 use super::action::Action;
+use super::configure::Reference;
 use super::jobs::{self, Arrived, Waker};
 use super::meta::Meta;
 use super::policy::Policy;
@@ -93,7 +94,7 @@ struct Ended {
 
 impl Session {
     /// 从日志载入会话 `session`：日志一条条交给账本查过（坏日志在这里就拦下），重建有效历史、现在的
-    /// 权限、最近接受的命令编号。读进来的都已经落了盘。有效历史从还算数的最近一次压缩替代到的下一条起，留着一切地
+    /// 权限、会话的引用（施工 8-10，撤掉的回合里换的也算）、最近接受的命令编号。读进来的都已经落了盘。有效历史从还算数的最近一次压缩替代到的下一条起，留着一切地
     /// 收、再落到检查点上（施工 6-9）；那个检查点重读过文件的，交回的动作里第一个是 `Recall`。
     ///
     /// 日志停在一个没结束的回合里，就是崩了：还没有结果的调用各补一条「已取消：Miyu 重启了，没跑完」，
@@ -118,6 +119,7 @@ impl Session {
         let mut replay = Replay::default();
         let mut duty = Duty::default();
         let mut naming = Naming::default();
+        let mut reference = Reference::default();
         for event in &events {
             // 向上回报照活着时的算（施工 7-6）：活着时落了盘就报，接着开的一轮和结束在同一批里，那时不该报。
             if !matches!(event.body, Body::TurnStarted(_)) && duty.due(&ledger) {
@@ -127,6 +129,7 @@ impl Session {
             ledger.append(event).map_err(LoadError::Broken)?;
             duty.note(event);
             naming.note(event);
+            reference.note(event);
             replay.note(event, queued, jobs::waking(&ledger, event));
         }
         if duty.due(&ledger) {
@@ -176,6 +179,7 @@ impl Session {
             recapping: None,
             naming,
             titling: None,
+            reference,
         };
         let mut actions: Vec<Action> = session.recall().into_iter().collect();
         // 最后报的那一份再交一次（施工 7-6）：送到一半崩了的不漏，父会话照命令编号认出重的，不重。

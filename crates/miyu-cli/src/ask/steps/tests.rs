@@ -34,6 +34,7 @@ fn plan(language: Language) -> Plan {
         home: Some(under(&["home"])),
         timeout: None,
         from: None,
+        model: None,
     }
 }
 

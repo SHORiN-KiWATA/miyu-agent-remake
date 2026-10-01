@@ -77,6 +77,8 @@ pub struct Stage {
     pub(super) titles: Vec<(Seq, Request)>,
     pub(super) title_lines: VecDeque<Line>,
     pub(super) held_title: Option<(Seq, Line)>,
+    /// 路由：回合开始时交来的引用、解析不出的（施工 8-10，`routing.rs`）。
+    pub(super) routing: super::routing::Routing,
 }
 
 impl Stage {

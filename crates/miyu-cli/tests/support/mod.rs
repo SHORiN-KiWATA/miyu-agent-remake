@@ -5,6 +5,7 @@
 
 pub mod configuring;
 pub mod logging_in;
+pub mod modeled;
 pub mod outside;
 pub mod router;
 
@@ -454,6 +455,7 @@ pub fn plan(text: &str) -> Plan {
         home: None,
         timeout: None,
         from: None,
+        model: None,
     }
 }
 

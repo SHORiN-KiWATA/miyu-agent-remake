@@ -184,6 +184,7 @@ fn printing(language: Language) -> Plan {
         home: None,
         timeout: None,
         from: None,
+        model: None,
     }
 }
 

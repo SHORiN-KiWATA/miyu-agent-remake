@@ -89,6 +89,9 @@ pub struct Ask {
     /// 截短由核心做。
     #[arg(long, value_name = "NAME", value_parser = harness_name)]
     pub from: Option<String>,
+    /// 用哪个模型（施工 8-10）：模型、`@池` 或者挡位，原样交给核心解析。新开的会话照它造，接着的会话先换成它，以后都用它。
+    #[arg(long, value_name = "MODEL")]
+    pub model: Option<String>,
 }
 
 /// `--from` 的值（施工 7-10）：空的、只有空白的读不成，照「参数写错时」说（`cli/main.md`）；别的照原样。
@@ -188,6 +191,8 @@ pub struct Plan {
     pub timeout: Option<Duration>,
     /// 别的 harness 报的名字（施工 7-10）：有的，`session.send` 带上 `from`，不带 `cwd`，`dirs` 只在写了 `--add-dir` 时带。
     pub from: Option<String>,
+    /// 用哪个模型（施工 8-10，`--model`）：新开的会话 `session.create` 带上它，接着的会话先 `session.configure`；没写的没有。
+    pub model: Option<String>,
 }
 
 /// 写到哪里：回答写 `out`，思考、用量、出错写 `err`；`gray` 的思考、用量是灰色。
@@ -273,6 +278,7 @@ fn plan(args: Ask, env: &Env, language: Language) -> Plan {
         home: env.home.clone(),
         timeout: args.timeout,
         from: args.from,
+        model: args.model,
     }
 }
 

@@ -9,6 +9,7 @@
 mod approval;
 mod clear;
 mod compact;
+mod configure;
 mod difference;
 mod dirs;
 mod executor;
@@ -145,6 +146,7 @@ fn hooks_done(turn: TurnId, injected: Vec<Injection>) -> Input {
         at: at(30),
         turn,
         injected,
+        replaced: None,
     }
 }
 
@@ -153,7 +155,7 @@ fn hooks(actions: &[Action]) -> Vec<TurnId> {
     actions
         .iter()
         .filter_map(|action| match action {
-            Action::RunTurnStartHooks { turn } => Some(*turn),
+            Action::RunTurnStartHooks { turn, .. } => Some(*turn),
             _ => None,
         })
         .collect()

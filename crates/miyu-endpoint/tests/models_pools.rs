@@ -1,7 +1,8 @@
 //! 用途、挡位、池在协议上的样子（施工 8-8，`docs/blueprint/models.md`「协议」）：`model.list` 多 `pools`、`tiers`，`uses` 多
 //! `vision`，用途挡位池里点名的模型也列；`session.create` 的 `model` 照这时的配置解析好记进 `session.created`，解析不出的
 //! `unknown_model`、什么都不造；派子代理时子会话照挡位、父会话记下的；引用的供应商、池没配的，配置的问题里报
-//! `bad_reference`、算进 `config_errors`。
+//! `bad_reference`、算进 `config_errors`。换模型（施工 8-10）：`session.configure` 照这时的配置解析好交给内核，一样的不记，
+//! 解析不出、参数不对的什么都不记；`subscribe` 回应的 `model` 照会话接下来请求的写。
 
 mod support;
 
@@ -19,7 +20,7 @@ use miyu_models::settings::{
     UseSettings,
 };
 use miyu_session::testkit::{Play, Script};
-use miyu_session::{ModelData, Observed};
+use miyu_session::{ModelData, Models, Observed, Routes};
 use miyu_store::resources::ResourceRoot;
 use miyu_tool::Catalog as ToolCatalog;
 
@@ -35,6 +36,43 @@ const CONFIG: &str = "[providers.a]\ndriver = \"openai-chat\"\nbase_url = \"http
 
 /// 一份核心：清单带上模型这一块，配置照磁盘上现在的几份读，没有目录。请求模型照 `script`，工具照 `tools`。
 fn core_with(home: &Home, script: Script, tools: ToolCatalog) -> Arc<Core> {
+    built(home, Arc::new(script), tools, no_catalog())
+}
+
+/// 同 [`core_with`]，用不着模型、没有工具。
+fn core(home: &Home) -> Arc<Core> {
+    core_with(home, Script::new([]), ToolCatalog::default())
+}
+
+/// 同 [`core`]，请求模型的端口是真的路由（施工 8-10）：`subscribe` 的 `model` 照路由解析出的写。不发请求。
+fn routed(home: &Home) -> Arc<Core> {
+    let data = no_catalog();
+    let routes = Routes {
+        client: miyu_http::client(miyu_http::Proxy::Off).expect("造得出客户端"),
+        data: Arc::clone(&data),
+        idle: std::time::Duration::from_secs(5),
+    };
+    built(home, Arc::new(routes), ToolCatalog::default(), data)
+}
+
+/// 没有目录、读完了的模型资料。
+fn no_catalog() -> Arc<ModelData> {
+    let data = ModelData::new(
+        Profiles::parse(&json!({})).expect("档案写法对"),
+        Vendors::default(),
+        None,
+    );
+    data.loaded(None, Observed::default());
+    Arc::new(data)
+}
+
+/// 一份核心：清单带上模型这一块，配置照磁盘上现在的几份读，请求模型的端口由 `models` 造，模型资料是 `data`。
+fn built(
+    home: &Home,
+    models: Arc<dyn Models>,
+    tools: ToolCatalog,
+    data: Arc<ModelData>,
+) -> Arc<Core> {
     let items = [
         miyu_endpoint::settings::UiSettings::ITEMS,
         UseSettings::ITEMS,
@@ -47,27 +85,16 @@ fn core_with(home: &Home, script: Script, tools: ToolCatalog) -> Arc<Core> {
     ]
     .concat();
     let config = Config::load(&home.root, &alice(), None, items, Environment::of(&[]));
-    let data = ModelData::new(
-        Profiles::parse(&json!({})).expect("档案写法对"),
-        Vendors::default(),
-        None,
-    );
-    data.loaded(None, Observed::default());
     let core = Core::new(
         home.root.clone(),
         ResourceRoot::at(default_resources()),
-        Arc::new(script),
+        models,
         tools,
         None,
         alice(),
         TOKEN.to_string(),
     );
-    Arc::new(core.with_config(config).with_model_data(Arc::new(data)))
-}
-
-/// 同 [`core_with`]，用不着模型、没有工具。
-fn core(home: &Home) -> Arc<Core> {
-    core_with(home, Script::new([]), ToolCatalog::default())
+    Arc::new(core.with_config(config).with_model_data(data))
 }
 
 /// 连上、握手。
@@ -303,4 +330,126 @@ async fn a_child_session_records_the_tier_or_its_parent_model() {
             ("轻量".to_string(), Some("@free".to_string())),
         ]
     );
+}
+
+/// 换成 `model`（施工 8-10）：交回回应之前读到的推送，和回应。
+async fn configuring(
+    client: &mut Client,
+    id: &str,
+    session: &str,
+    model: Value,
+) -> (Vec<Value>, Value) {
+    let params = json!({"session": session, "model": model});
+    let request =
+        json!({"jsonrpc": "2.0", "id": id, "method": "session.configure", "params": params});
+    client.line(&request.to_string()).await;
+    client.until_reply(id).await
+}
+
+/// 同 [`configuring`]，只要回应。
+async fn configure(client: &mut Client, id: &str, session: &str, model: Value) -> Value {
+    configuring(client, id, session, model).await.1
+}
+
+/// 日志里换模型的那几条换成的，照先后。
+fn switched(home: &Home, session: &str) -> Vec<String> {
+    home.log(session)
+        .into_iter()
+        .filter_map(|event| match event.body {
+            Body::PolicyChanged(changed) => {
+                assert!(
+                    matches!(event.by, miyu_kernel::origin::By::Person(_)),
+                    "人换的"
+                );
+                changed.model
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn session_configure_records_the_resolved_model_once() {
+    let home = Home::new();
+    home.write("system/config.toml", CONFIG);
+    let (mut client, _) = connect(&home).await;
+    let session = client.create("c1", "/tmp").await;
+    client.subscribe("c2", &session).await;
+    let (pushed, reply) = configuring(&mut client, "c3", &session, json!("lite")).await;
+    assert_eq!(reply["result"], json!({}), "{reply}");
+    let event = events(&pushed)
+        .into_iter()
+        .find(|event| event["kind"] == "session.policy_changed")
+        .expect("先推那一条，再回应");
+    assert_eq!(
+        event["body"],
+        json!({"model": "@free"}),
+        "挡位照这时的配置换成它的值"
+    );
+    // 一样的：回 `{}`，什么都不记。
+    let reply = configure(&mut client, "c4", &session, json!("@free")).await;
+    assert_eq!(reply["result"], json!({}), "{reply}");
+    let reply = configure(&mut client, "c5", &session, json!("b/anything")).await;
+    assert_eq!(reply["result"], json!({}), "{reply}");
+    assert_eq!(switched(&home, &session), ["@free", "b/anything"]);
+}
+
+#[tokio::test]
+async fn session_configure_refuses_what_it_cannot_take() {
+    let home = Home::new();
+    home.write("system/config.toml", CONFIG);
+    let (mut client, _) = connect(&home).await;
+    let session = client.create("c1", "/tmp").await;
+    for (n, params) in [
+        json!({"session": session}),
+        json!({"session": session, "model": 3}),
+        json!({"session": session, "model": ""}),
+        json!({"session": session, "model": null}),
+        json!({"session": "nope", "model": "c/m"}),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let reply = client
+            .call(&format!("bad-{n}"), "session.configure", params.clone())
+            .await;
+        assert_eq!(reason(&reply), Some("bad_params"), "{params}：{reply}");
+    }
+    // 先找会话，再解析。
+    let missing = "0192f3a0-1111-7abc-8def-001122334455";
+    let reply = configure(&mut client, "gone", missing, json!("c/m")).await;
+    assert_eq!(reason(&reply), Some("session_not_found"), "{reply}");
+    for (n, model) in ["c/m", "@nope", "@empty", "nope"].into_iter().enumerate() {
+        let reply = configure(&mut client, &format!("no-{n}"), &session, json!(model)).await;
+        assert_eq!(reason(&reply), Some("unknown_model"), "{model}：{reply}");
+    }
+    assert!(switched(&home, &session).is_empty(), "什么都不记");
+}
+
+#[tokio::test]
+async fn subscribe_says_which_model_the_session_asks_next() {
+    let home = Home::new();
+    home.write("system/config.toml", CONFIG);
+    let mut client = Client::connect(routed(&home));
+    client.hello().await;
+    for (n, model, wanted) in [
+        (
+            1,
+            "a/m",
+            json!({"ref": "a/m", "endpoint": "a", "model": "m"}),
+        ),
+        (2, "@fast", json!({"ref": "@fast"})),
+    ] {
+        let reply = create(&mut client, &format!("c{n}"), json!(model)).await;
+        let session = reply["result"]["session"].as_str().expect("造出了会话");
+        let reply = client.subscribe(&format!("s{n}"), session).await;
+        assert_eq!(reply["result"]["model"], wanted, "{reply}");
+    }
+    // 一个模型都没有的：不写这一格。
+    let bare = Home::new();
+    let mut client = Client::connect(routed(&bare));
+    client.hello().await;
+    let session = client.create("c3", "/tmp").await;
+    let reply = client.subscribe("s3", &session).await;
+    assert_eq!(reply["result"], json!({"limits": {}}), "{reply}");
 }

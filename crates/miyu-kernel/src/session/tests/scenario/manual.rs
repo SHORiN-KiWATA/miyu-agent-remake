@@ -390,3 +390,20 @@ fn undoing_the_compaction_turn_brings_the_context_back() {
         "压缩前的前缀回来了：\n{before}\n{after}"
     );
 }
+
+/// 换了模型以后手动压缩、清空（施工 8-10，`models.md`「怎么走」第六条第 3 条第 6 款）：那一轮不跑挂接点，也就不重新解析，
+/// 摘要请求照旧发给上一轮的端点；下一个平常的回合才交新的引用。
+#[test]
+fn compacting_and_clearing_after_a_model_change_do_not_resolve_again() {
+    let mut stage = manual(None);
+    after_one_turn(&mut stage);
+    stage.configure("b/n");
+    stage.model([Line::says("S1")]);
+    stage.request_compaction(None);
+    assert_eq!(compactions(&stage).len(), 1, "压成了");
+    stage.request_clear();
+    assert_eq!(stage.asked_models(), [None], "压缩、清空那一轮没交引用");
+    stage.model([Line::says("好。")]);
+    stage.say("再来");
+    assert_eq!(stage.asked_models(), [None, Some("b/n".to_string())]);
+}

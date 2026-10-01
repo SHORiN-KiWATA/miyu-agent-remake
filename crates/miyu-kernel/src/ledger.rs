@@ -237,6 +237,12 @@ impl Ledger {
             Body::JobReported(reported) => self.jobs.check_reported(reported),
             Body::ChildReported(reported) => self.jobs.check_child(reported, &event.by),
             Body::PeerIdle(idle) => self.check_idle(idle, &event.by),
+            // 退回默认写的是原来那个，只和换成的那个一起出现（施工 8-10）。
+            Body::PolicyChanged(changed)
+                if changed.replaced.is_some() && changed.model.is_none() =>
+            {
+                Err("replaced comes only with model".to_string())
+            }
             _ => Ok(()),
         }
     }

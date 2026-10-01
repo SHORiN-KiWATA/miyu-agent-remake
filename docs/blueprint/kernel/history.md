@@ -112,6 +112,7 @@
 | `summary` 是空的，`trigger` 得是 `clear`：别的压缩取不到摘要算失败，写不成检查点（施工 6-8 补，`compaction.md` 第十四条） | the summary is empty; only a clear has an empty summary |
 | `model.called` 的 `seen` 在它之前 | seen <n> should come before this event |
 | `session.recapped` 的 `upto` 在它之前（施工 3-8 四补） | upto <n> should come before this event |
+| `session.policy_changed` 的 `replaced` 只和 `model` 一起出现（施工 8-10，`models.md`「事件」） | replaced comes only with model |
 | `message.withdrawn` 的列表不是空的 | the list of withdrawn messages is empty |
 | 撤回的每一条都是这一轮里排着队的消息，不重复 | event <n> is not a queued message of the running turn: not a message, already seen by a request, not in this turn, or already withdrawn |
 | `turn.reverted` 时没有回合在进行 | turn <编号> is still running; nothing can be undone |
@@ -337,7 +338,7 @@
 |---|---|
 | `crates/miyu-kernel/src/ledger/tests.rs` | 一整个会话追加得进；序号；只有第 1 条是会话创建；回合开始；`turn` 是正在进行的；调用编号；结果要有在等的调用；回合结束时调用都有结果；压缩只前进，撤掉的压缩不算；不带 `turn` 的压缩不收；回复、`model.called` 的 `seen`；只能撤回排着的；请求和决定、题和回答跟着调用 |
 | `crates/miyu-kernel/src/ledger/tests/manual.rs` | 没有 `trigger` 的回合开始也收，别的回合的规矩照查（施工 6-8）；摘要是空的只许清空，没写原因、别的几种、不认识的都拦下（施工 6-8 补） |
-| `crates/miyu-kernel/src/ledger/tests/model.rs`（施工 3-8 四补从 `tests.rs` 分出来） | `model.called` 的 `seen`；回顾的两条不带回合编号，有回合在进行时也收；`session.recapped` 照到的在它之前；回顾的 `model.called` 照到了排着的那句，那句照样撤得回，主请求的照到了就撤不回 |
+| `crates/miyu-kernel/src/ledger/tests/model.rs`（施工 3-8 四补从 `tests.rs` 分出来） | `model.called` 的 `seen`；回顾的两条不带回合编号，有回合在进行时也收；`session.recapped` 照到的在它之前；回顾的 `model.called` 照到了排着的那句，那句照样撤得回，主请求的照到了就撤不回；`replaced` 只和 `model` 一起出现，空闲时、回合里都收（施工 8-10） |
 | `crates/miyu-kernel/src/ledger/tests/jobs.rs`、`jobs/reports.rs`、`jobs/numbers.rs` | 施工 7-1 的每一条各一个被拦下的例子、一个放行的例子：编号不重复（同一条里、后来的、撤掉的回合里的；照整个编号比、用过的最大编号照最后一段数，`jobs/numbers.rs` 的 `prefixed_job_ids_count_by_their_last_part`，施工 7-1 补）；`agent` 带会话、`command` 不带、不认识的种类不管；后台命令只报一次结束、回报对不上的；子代理的回报对得上会话和 `by`、报好几次、停了的不再报、`aborted` 以后还能报；两种回报带 `turn` 的要是正在进行的那一轮；子会话的 `depth`、`parent` |
 | `crates/miyu-kernel/src/ledger/tests/jobs.rs` 的 `a_message_to_a_subagent_makes_it_owe_a_report`、`a_report_that_arrives_while_the_message_is_on_its_way_answers_it`（施工 7-7） | `job.messaged` 只能给这个会话派的子代理（后台命令、不认识的种类、没派过的拦下）；留了言欠一份回报、报了不欠；调用发出以后到的回报算回了；`subagent_in`、`subagents` |
 | `crates/miyu-kernel/src/ledger/tests/peers.rs`（施工 C-1） | 订的是自己的拒、同一条结果里有一个是自己的整条不收、不知道自己是谁的账本不查（`a_session_cannot_watch_itself`）；`peer.idle` 只认在等的：没订过的、订了别的、等到过的都拒，订它的那一轮还在进行时到的照收（`a_notice_is_taken_only_while_watching`）；`by` 对得上原因、不认识的原因不查、哪一种都算等到了头（`a_notice_is_by_the_session_or_by_the_kernel`）；撤掉订它的那一轮不算在等、恢复了照原来的时刻又算、恢复不了了一直不算（`undoing_the_watching_turn_stops_the_watch`）；又订从新的时刻算、撤掉又订的回到前一次、等到过以后再订的撤掉就不在等（`watching_again_counts_from_the_new_moment`） |

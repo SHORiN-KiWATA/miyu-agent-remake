@@ -216,3 +216,38 @@ fn the_notices_in_the_samples_answer_the_watches() {
     }
     assert_eq!(reasons, [IdleReason::Idle, IdleReason::Expired]);
 }
+
+/// 换模型的几条（施工 8-10）：人换的不带 `replaced`、`by` 是人；内核退回默认的带 `replaced`，原来的正是前面最近换成的那个，
+/// 带着回合；引用照先后一条条盖上去，从 `session.created` 的 `model` 起。
+#[test]
+fn the_model_changes_in_the_samples_follow_one_another() {
+    let mut events: Vec<Event> = events()
+        .into_iter()
+        .filter(|event| !in_the_child_log(event))
+        .collect();
+    events.sort_by_key(|event| event.seq);
+    let mut current = None;
+    let mut seen = (0, 0);
+    for event in &events {
+        match &event.body {
+            Body::SessionCreated(created) => current.clone_from(&created.model),
+            Body::PolicyChanged(changed) if changed.model.is_some() => {
+                match &changed.replaced {
+                    Some(replaced) => {
+                        assert_eq!(event.by, By::Kernel, "退回默认的是内核写的");
+                        assert!(event.turn.is_some(), "退回默认的带着回合");
+                        assert_eq!(Some(replaced), current.as_ref(), "原来的就是前面换成的");
+                        seen.1 += 1;
+                    }
+                    None => {
+                        assert!(matches!(event.by, By::Person(_)), "人换的");
+                        seen.0 += 1;
+                    }
+                }
+                current.clone_from(&changed.model);
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(seen, (1, 1), "人换的、退回的各一条");
+}
