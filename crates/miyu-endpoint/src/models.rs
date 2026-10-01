@@ -179,8 +179,8 @@ pub(crate) fn record(core: &Core, text: &str) -> Result<String, Refusal> {
 }
 
 /// 抄一份这一刻的配置：每个用得到的引用（key，和地址是环境变量的引用时，施工 8-6b）都先取好值，拉列表、`model.list`
-/// 用的是同一份，不会各自再问一次核心的环境。
-fn snapshot(core: &Core) -> Snapshot {
+/// 用的是同一份，不会各自再问一次核心的环境。`provider.detect`、`provider.test` 也用（施工 8-11）。
+pub(crate) fn snapshot(core: &Core) -> Snapshot {
     let config = core.config();
     let resolved = config.resolved().clone();
     let values = resolved.values();

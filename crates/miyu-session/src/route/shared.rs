@@ -10,6 +10,8 @@
 //!   `state/models/pools.json`（[`ModelData::save_pointers`]，在阻塞线程里，拿着指针的锁写：几次写不会把新的盖成旧的）。
 //! - 冷却表（施工 8-9，`models.md` 第五条第 2 条）：一个核心一份，只在内存里，另一把锁；`[models.cooldown]` 的规矩也在
 //!   这里，核心照配置的变化当场换（[`ModelData::set_cooldown_rules`]）。路由出错时记、挑端点时查，`model.list` 照它说状态。
+//! - 两个 GET 的客户端：拉列表的（照环境变量的代理，`provider.test` 也用它，施工 8-11），探本机的服务的（不走代理：代理
+//!   不会自动绕过回环，施工 8-11，[`ModelData::local`]）。
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -46,6 +48,8 @@ pub struct ModelData {
     dir: Option<PathBuf>,
     /// 拉供应商的列表用的客户端（`miyu_http::fetcher`）；没有的不拉。
     fetcher: Option<Client>,
+    /// 探本机的服务用的客户端（不走代理，施工 8-11）；没有的不探。
+    local: Option<Client>,
 }
 
 /// 用出来的、供应商的列表、池的指针：核心起来时从 `state/models/` 读回来的。
@@ -71,6 +75,7 @@ impl ModelData {
             cooldowns: Mutex::new((Cooldowns::default(), Rules::default())),
             dir,
             fetcher: None,
+            local: None,
         }
     }
 
@@ -84,6 +89,18 @@ impl ModelData {
     /// 拉供应商的列表用的客户端；没有的不拉。
     pub fn fetcher(&self) -> Option<&Client> {
         self.fetcher.as_ref()
+    }
+
+    /// 同一份，探本机的服务用 `client`（施工 8-11）：要不走代理的那种（`miyu_http::fetcher(Proxy::Off)`）。
+    #[must_use]
+    pub fn with_local(mut self, client: Client) -> ModelData {
+        self.local = Some(client);
+        self
+    }
+
+    /// 探本机的服务用的客户端；没有的不探（`provider.detect` 的 `local` 是空的）。
+    pub fn local(&self) -> Option<&Client> {
+        self.local.as_ref()
     }
 
     /// 目录读完了（读没读成都算）：连同读好的用出来的、供应商的列表一起换上，等着的都放行。

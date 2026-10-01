@@ -21,16 +21,22 @@
 //! - 资料（施工 8-7）：窗口、最大输出、能收什么照核心一份的模型资料查（[`ModelData`]，`miyu_models::facts`）；目录在写了
 //!   `ready` 以后才读完，造端口之前先等它（[`Models::ready`]）。报上下文超长、说了上限、比手头的窗口小的，记下用出来的
 //!   窗口（第二条第 9 条）：新造的、载入的会话用上，开着的会话下一个回合开始时用上（施工 8-10）。
+//! - 第一次接入（施工 8-11）：探本机的服务（`route/local.rs`）、试一家供应商（`route/probe.rs`），协议的 `provider.detect`、
+//!   `provider.test` 调它们；和拉列表一样在这一层，不属于哪个会话。
 
 mod choice;
 mod ended;
 mod lists;
+mod local;
 mod pool;
+mod probe;
 mod send;
 pub(crate) mod shared;
 mod turn;
 
 pub use lists::{STALE, refresh_list};
+pub use local::{LOCAL_WAIT, Running, find_local};
+pub use probe::{Probe, Probed, Stage, probe};
 pub use shared::{ModelData, Observed, read_observed};
 
 use std::collections::BTreeMap;

@@ -150,10 +150,7 @@ async fn without_a_model_it_is_exit_code_5() {
     let Asked { code, out, err, .. } = home.ask(&plan("在吗")).await;
     assert_eq!(code, 5, "{err}");
     assert_eq!(out, "");
-    assert_eq!(
-        err,
-        "没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。\n"
-    );
+    assert_eq!(err, "没有可用的模型：还没配。运行 miyu setup。\n");
 }
 
 #[tokio::test]

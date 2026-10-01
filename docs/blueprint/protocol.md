@@ -35,6 +35,7 @@
 | `crates/miyu-endpoint/src/config.rs`、`config/` | 配置服务：起来时读的几份配置、最终值，照目录找项目配置、认信不信任；`config.schema`、`config.get`、`config.check`（施工 8-2，`config.md`）；`config.set`、`config.trust`，住在核心家底的一把锁里（施工 8-3）；监视配置文件、推 `config.changed`（施工 8-4）；密钥文件也住在这里（施工 8-5） |
 | `crates/miyu-endpoint/src/secrets.rs`、`secrets/` | `secret.set`、`secret.delete`、`secret.list`：只能写、删、列名字，从不交出值；手改密钥文件被看到的、留痕（施工 8-5，`config.md` 第九条） |
 | `crates/miyu-endpoint/src/models.rs`、`models/` | `model.list`：配好的供应商、模型、每一格资料的值和来源（施工 8-7，`models.md`「协议」），池、挡位、用途（施工 8-8），模型和 key 的冷却（施工 8-9）；`session.create`、`session.configure` 的 `model` 怎么解析（`record`，施工 8-8、8-10）；`session.configure` 的参数、`subscribe` 回应的 `model`（施工 8-10） |
+| `crates/miyu-endpoint/src/providers.rs`、`providers/trial.rs` | 第一次接入的 `provider.detect`、`provider.catalog`、`provider.test`（施工 8-11，`models.md`「协议」、「怎么走」第七条）；探本机、试一次在会话那一层（`miyu_session::find_local`、`probe`） |
 
 ### 对外的样子
 
@@ -143,6 +144,9 @@
 | `secret.delete` | 删掉一个密钥（`name`），回应 `{}`（施工 8-5） |
 | `secret.list` | 密钥的名字、设没设、谁在用（`used_by`），从不交出值（施工 8-5） |
 | `model.list` | 配好的供应商和模型，每一格资料的值和来源、状态，在用的目录（施工 8-7）；池、四个挡位、两种用途（施工 8-8：`pools`、`tiers`、`uses` 多 `vision`）；模型、key 的状态多 `cooling`，带 `until`、`class`（施工 8-9）。参数 `provider`（只看这一家）、`refresh`（先拉一遍供应商的模型列表）都可以不写；形状照 `models.md`「协议」`model.list` |
+| `provider.detect` | 找现成的：核心的环境里设了的 key（不交值）、本机跑着的模型服务、找了哪些环境变量（施工 8-11）；形状照 `models.md`「协议」 |
+| `provider.catalog` | 搜目录和档案里的供应商：`query`、`limit` 都可以不写；每一家能不能用、在不在本机（施工 8-11） |
+| `provider.test` | 试一家：配好了的（`provider`）或者还没写进配置的（`candidate`），列模型、真发一句、收到第一段正文就停，交回成没成、哪一步、出错；会花一点额度（施工 8-11） |
 | `human.get` | 给人看的字：工具的样子、说法的模板原文，照这个连接的语言；不带 `config`（施工 W-1） |
 | `subscribe`、`unsubscribe` | 订阅、取消订阅会话的事件流 |
 
@@ -636,7 +640,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `config_file_broken` | -32010 | `config.set` 改几项时文件读不进来，或者这一项放不进去：`data.problems` 是这份文件现在的问题（施工 8-3）；`secret.set`、`secret.delete` 时密钥文件读不进来、名字写成了一张表（施工 8-5） |
 | `no_project_config` | -32010 | `config.trust` 时这个目录找不到项目配置（施工 8-3） |
 | `unknown_secret` | -32010 | `secret.delete` 删的密钥没有（施工 8-5） |
-| `unknown_provider` | -32010 | `model.list` 的 `provider` 不是配好了的（施工 8-7） |
+| `unknown_provider` | -32010 | `model.list`、`provider.test` 的 `provider` 不是配好了的（施工 8-7、8-11） |
 | `unknown_model` | -32010 | `session.create` 的 `model` 解析不出：没有这家供应商、没有这个池、池是空的、挡位没配又没有 `models.chat`（施工 8-8） |
 | `restoring` | -32010 | 撤销、恢复还没做完（正在读回更早的日志、正在改回文件）时来的命令、删会话。兜底：会话做完才接下一个命令，照常碰不到 |
 
@@ -783,6 +787,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/config.rs`、`config_trust.rs`（施工 8-2） | 握手的 `language`、`config_errors`；`config.schema`、`config.get`、`config.check`；`unknown_config_key` 带 `problems`；开局只读照配置、照信任着的项目配置；造会话、说话的回应带 `untrusted_project`（`config.md`「守着它的」）。`config.trust` 的回答、拒绝、日志（施工 8-3） |
 | `crates/miyu-endpoint/tests/models.rs`（施工 8-7） | `model.list` 的形状、来源、状态；`provider` 只看一家、`unknown_provider`、参数不对；`refresh` 拉完再答、不写的在后台拉；冷却（施工 8-9）：模型照能用的 key 里最好的那个，都在冷却的带最早恢复的 `until`、`class`，认证失败停了整个 key 的那个 key 也是 `cooling`，取不到值的 key 不算（`models.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/models_pools.rs`（施工 8-8） | `model.list` 的 `pools`、`tiers`、`uses`；`session.create` 的 `model` 记下解析出的、`unknown_model` 什么都不造、不是字符串的 `bad_params`；`session.configure` 照这时的配置解析好记一条、先推再回应、一样的不记，参数不对的几种 `bad_params`、先找会话、解析不出的 `unknown_model`、都什么都不记；`subscribe` 的 `model` 照真路由解析出的写，轮换的池只有 `ref`，一个都没有的不写（施工 8-10，`models.md`「守着它的」） |
+| `crates/miyu-endpoint/tests/providers.rs`、`providers_test.rs`、`providers_log.rs`（施工 8-11） | `provider.detect`、`provider.catalog`、`provider.test` 的形状、参数不对、`unknown_provider`，`{value}` 的 key 不进回应和运行日志（`models.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/secrets.rs`、`secrets_log.rs`（施工 8-5） | `secret.*` 的回应、拒绝、日志；值不进回应、拒绝、系统日志、运行日志（`config.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/config_set.rs`（施工 8-3） | `config.set` 的回应、每一种拒绝、`expect`、版本、手改重读、全收或者全不收、写不成什么都没变、日志（`config.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/config_watch.rs`、`config_watch_log.rs`（施工 8-4） | 订阅配置、取消、参数不对；手改推 `config.changed`；`config.set` 先见推送后见回应；掉队推 `resync`；改了语言下一句照新的（`config.md`「守着它的」） |

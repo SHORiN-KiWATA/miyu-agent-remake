@@ -316,6 +316,16 @@ impl ResourceRoot {
         self.path.join("models").join("models-dev.json")
     }
 
+    /// `provider.test` 发的那一句（`core/models/probe.txt`，施工 8-11，`models.md`「怎么走」第七条第 4 条）：原文，去掉行尾
+    /// 空白由用的一方做。每试一次读一次。
+    ///
+    /// # Errors
+    ///
+    /// 读不出来：写明是哪个文件。
+    pub fn probe(&self) -> Result<String, SourceError> {
+        self.read(&["core", "models", "probe.txt"])
+    }
+
     /// 认原厂的表的原文（`models/vendors.toml`，施工 8-7）。怎么读由核心定。
     ///
     /// # Errors

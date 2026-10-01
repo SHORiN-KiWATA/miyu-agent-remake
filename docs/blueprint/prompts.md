@@ -2105,6 +2105,19 @@ Write a title of 3 to 7 words for this conversation, in the language of the conv
 Conversation:
 ```
 
+### 试一次供应商那一次请求，不进主对话
+
+#### `core/models/probe.txt`
+
+- 什么时候加进来：`provider.test` 每试一次（`miyu setup`、头的引导）：唯一的一条 user，没有 system、没有工具面，发的时候去掉行尾的换行
+- token：4
+- 为什么加：第一次接入要真发一句试通 key 和地址，收到第一段正文就停（`models.md` 第七条第 4 条，施工 8-11）。一句英文短句，叫它只回 OK：回复越短越省额度；不属于哪个会话，不进主对话、不记用量。草稿照图纸（`models.md`「样子」）
+- 指纹：`5a1997c5`
+
+```text
+Reply with OK.
+```
+
 ### 人这边
 
 #### `core/turn-ended/interrupted.txt`

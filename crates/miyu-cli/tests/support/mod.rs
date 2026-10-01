@@ -6,6 +6,7 @@
 pub mod configuring;
 pub mod logging_in;
 pub mod modeled;
+pub mod onboarding;
 pub mod outside;
 pub mod router;
 

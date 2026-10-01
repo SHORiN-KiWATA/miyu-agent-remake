@@ -1,0 +1,14 @@
+Usage: miyu setup [options]
+
+Connect the first model: look for keys in environment variables and model
+services on this machine, or find a provider in the catalog and paste its
+key; try it, pick the model for chat, and write it to the system config.
+
+Options:
+      --provider <id>   Skip picking: use this provider from the catalog
+      --env <var>       Skip pasting: take the key from this variable
+      --model <model>   Skip picking: use this model
+  -h, --help            Print help
+
+Outside a terminal, give --provider and pipe the key in:
+  echo "$KEY" | miyu setup --provider deepseek

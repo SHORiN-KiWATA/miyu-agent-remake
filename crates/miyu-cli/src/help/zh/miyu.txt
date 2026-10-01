@@ -11,6 +11,7 @@
   config <命令>         看配置、改配置、信任项目配置
   login [名字]          存一个供应商的 key；--list 列出哪几家设了
   logout [名字]         删掉一个供应商的 key
+  setup                 接上第一个模型：找现成的 key，试通了写进配置
   sandbox setup|remove  装好、撤掉沙盒用户（Windows，要管理员权限）
 
 ask 的选项：

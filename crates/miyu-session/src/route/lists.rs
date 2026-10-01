@@ -2,7 +2,8 @@
 //! 家的第一个取得到值的 key，整个 30 秒；读出来的存 `state/models/providers/<编号>.json`。拉不到的记一行
 //! `WARN provider list failed`，照旧用上一份。
 //!
-//! 谁来拉：`model.list` 带 `refresh` 的拉完再答，发现某家没有、旧过 24 小时的在后台拉（协议端点）；`provider.test` 随 8-11。
+//! 谁来拉：`model.list` 带 `refresh` 的拉完再答，发现某家没有、旧过 24 小时的在后台拉（协议端点）。GET 一家、读出模型的那一段
+//! （[`list_models`]）`provider.test` 列模型、`provider.detect` 探本机也用（施工 8-11，`route/probe.rs`、`route/local.rs`）。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -10,7 +11,7 @@ use std::time::Duration;
 use miyu_config::Values;
 use miyu_config::secret::{Reference, Secret};
 use miyu_drivers::{Driver, DriverTextSources, DriverTexts, OpenAiChat};
-use miyu_http::{Get, Got, get};
+use miyu_http::{Client, Failed, Get, Got, get_full};
 use miyu_models::observed::{ListedModel, ProviderList};
 use miyu_models::provider::{self, NoModel};
 
@@ -20,7 +21,7 @@ use crate::clock::wall_now;
 use crate::route::shared::ModelData;
 
 /// 整个最多多久。
-const TIMEOUT: Duration = Duration::from_secs(30);
+pub(crate) const TIMEOUT: Duration = Duration::from_secs(30);
 
 /// 响应体最多多少字节：几千个模型的列表也就几 MB。
 const LIMIT: usize = 16 * 1024 * 1024;
@@ -83,20 +84,43 @@ async fn fetch(
     };
     // 地址也可能是环境变量的引用（施工 8-6b），照同一个 `secret` 取。
     let base_url = provider::resolve_base_url(&provider, secret).map_err(|NoModel(why)| why)?;
+    list_models(client, &driver, &base_url, &headers, TIMEOUT)
+        .await
+        .map_err(|failed| failed.message)
+}
+
+/// GET 地址 `base_url` 后面接驱动的 `models_path()`，带 `headers`（认证头），整个最多 `timeout`，读成模型列表。
+///
+/// # Errors
+///
+/// 拿不到（原样的 [`Failed`]）；回的读不出：只有原话的一份。
+pub(crate) async fn list_models(
+    client: &Client,
+    driver: &dyn Driver,
+    base_url: &str,
+    headers: &[(String, String)],
+    timeout: Duration,
+) -> Result<Vec<ListedModel>, Failed> {
+    let said = |message: String| Failed {
+        message,
+        status: None,
+        headers: Vec::new(),
+        body: Vec::new(),
+    };
     let url = format!("{}{}", base_url.trim_end_matches('/'), driver.models_path());
-    let got = get(Get {
+    let got = get_full(Get {
         client,
         url: &url,
-        headers: &headers,
+        headers,
         etag: None,
-        timeout: TIMEOUT,
+        timeout,
         limit: LIMIT,
     })
     .await?;
     let Got::Body { bytes, .. } = got else {
-        return Err("not modified without asking".to_string());
+        return Err(said("not modified without asking".to_string()));
     };
-    let listed = driver.parse_models(&bytes)?;
+    let listed = driver.parse_models(&bytes).map_err(said)?;
     Ok(listed
         .into_iter()
         .map(|listed| ListedModel {
@@ -106,8 +130,8 @@ async fn fetch(
         .collect())
 }
 
-/// 列模型、写认证头用不着占位的字（只有编码用它）：几句都是空的。
-fn listing_texts() -> Result<DriverTexts, String> {
+/// 列模型、写认证头用不着占位的字（只有编码用它）：几句都是空的。`provider.test` 发的那一句也用不着（没有图、文件）。
+pub(crate) fn listing_texts() -> Result<DriverTexts, String> {
     DriverTexts::new(DriverTextSources {
         image_omitted: "",
         file_omitted: "",

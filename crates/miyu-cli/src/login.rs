@@ -12,7 +12,7 @@
 //!
 //! 退出码：0 成了；1 核心拒绝了、没收到 key、没选、要删的没设过、连不上核心；2 参数不对。
 
-mod pick;
+pub(crate) mod pick;
 
 use std::io::{self, IsTerminal, Write};
 use std::process::{Command, ExitCode};

@@ -149,6 +149,8 @@
 | `session` | INFO | `failover` | `from`、`to` 或 `key`、`class` | 出错换端点：从 `<供应商>/<模型>` 换到别的模型写 `to`，只换 key、模型没变的写换到第几个 `key`（`models.md` 第五条第 8 条，施工 8-9）。别的候选都在冷却、只剩等的不记。带会话编号 |
 | `session` | INFO | `model fallback` | `from`、`to` | 回合开始重新解析，钉着的引用解析不出，退回这一轮的 `models.chat`：原来的、退回的（`models.md` 第六条第 4 条，施工 8-10）。带会话编号 |
 | `endpoint` | DEBUG | `unknown model` | `why` | `session.create`、`session.configure` 的 `model` 解析不出，回 `unknown_model`（施工 8-8、8-10） |
+| `session` | INFO | `provider tested` | `provider`、`model`（没有模型可试的是空的）、`ok` | `provider.test` 试了一次（`models.md` 第七条第 4 条第 7 款，施工 8-11）：不属于哪个会话，不带会话编号；候选的 `provider` 是它推的编号。key、地址不进这一行 |
+| `endpoint` | WARN | `probe text unreadable` | `error` | `provider.test` 读不了 `core/models/probe.txt`，回 `internal_error`（施工 8-11） |
 | `core` | INFO | `sandbox` | `helper`（助手的路径）、`platform`、`mechanisms`（逗号连起来，空的写 `none`） | 起来时探沙盒的助手，探成了（`sandbox.md`，施工 5-1） |
 | `core` | WARN | `sandbox unavailable` | `reason` | 起来时探沙盒的助手：没找到、跑不了、到时、说的读不懂 |
 | `session` | | | | 会话的每一行带会话编号，见 `session/actor.md` 的「运行日志」 |

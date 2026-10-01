@@ -50,6 +50,7 @@
 2. **连核心**：
    1. 连；核心没在跑就拉起来（施工 8-6 起 key 来自配置，一律拉起；以前没设 `DEEPSEEK_API_KEY` 的不拉起）。
    2. 连不上：原因写在标准错误上，退出码 1。
+   3. **先看有没有模型**（施工 8-11，`models.md` 第七条第 6 条）：没写 `--model` 的，在这条连接上握手、问 `config.get` 的 `models.chat`（`crates/miyu-cli/src/setup.rs` 的 `model_ready_on`）。有值的往下走。没有的：标准输入、标准错误都是终端的，说「还没有模型，先接上一个。」，接着走一遍 `miyu setup`（`cli/setup.md`，参数都不写），写好了往下走，没走完的照它的退出码退出；不是终端的，说没有模型那一句（下面「给人看的字」），退出码 5，不造会话。往下走的另连一次核心，从第 3 条握手起照常（这一条连接只管看模型、走 setup）。写了 `--model` 的不看：造会话、换模型时核心照它解析。
 3. **握手** `hello`：`protocol` 是 `[1, 1]`；`head` 是 `{"kind": "cli", "version": <版本>}`；`locale` 是 `zh-CN` 或 `en`；`caps.input` 是 `false`；带上本机令牌。
    - `caps.input` 是 `false`：`miyu ask` 里没有确认的界面，要确认的那一步，核心当场拒绝。
    - 回应里的 `sandbox` 说用不了：执行命令都要确认，这里确认不了。第一步之前、目录太宽那一句之前说一句，照原因和这台机器的系统写（下面「给人看的字」），一次（施工 5-4 下）。
@@ -203,7 +204,7 @@ todo.md
 |---|---|---|
 | `completed` | 不印 | 0；有几步因为要确认没做的，4 |
 | `interrupted` | 打断了 | 3 |
-| `error`，没发出去、分类是 `no_model`（施工 8-6；以前认的是没发出去的认证失败） | 没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。 | 5 |
+| `error`，没发出去、分类是 `no_model`（施工 8-6；以前认的是没发出去的认证失败） | 没有可用的模型：还没配。运行 miyu setup。 | 5 |
 | `error`，没发出去、分类是 `cooling`（施工 8-9：候选全在冷却，`models.md`「怎么走」第五条第 6 条） | 出错了：候选都在冷却：<原话> | 5 |
 | `error`，别的 | 出错了：<分类>：<原话>；原话去掉前后空白是空的，只写分类；最后一次请求没出错、一次都没请求的，是「出错了：模型出错」 | 1 |
 | 别的原因 | 这一轮没走完：<原因> | 1 |
@@ -327,7 +328,8 @@ C 也查完了。
 | 最后那一句，一步 | `· 1 步没做：要你确认，miyu ask 里确认不了` | `· 1 step not done: it needs your approval, which cannot be given in miyu ask` |
 | 最后那一句，几步 | `· 2 步没做：要你确认，miyu ask 里确认不了` | `· 2 steps not done: they need your approval, which cannot be given in miyu ask` |
 | 一步没做成的词 | 出错、没做、打断了、跳过了 | failed、not done、interrupted、skipped |
-| 没有模型（施工 8-6，主会话定：`miyu setup` 随 8-11，那时换成指向它的那一句） | 没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。 | No model is available: none is set up. Add a provider and models.chat with miyu config edit --system. |
+| 没有模型（施工 8-6；施工 8-11 换成指向 `miyu setup` 的这一句） | 没有可用的模型：还没配。运行 miyu setup。 | No model is available: none is set up. Run miyu setup. |
+| 没有模型、在终端里，先走 setup（施工 8-11） | 还没有模型，先接上一个。 | No model is set up yet. Let's connect one first. |
 | 没有一次性会话 | 还没有 miyu ask 开过的会话 | No session opened by miyu ask yet |
 | 附件传不上（施工 3-9 三补） | 附不上 <文件>：<核心说的原因> | Cannot attach <file>: <reason> |
 | 打断了 | 打断了 | Interrupted |
@@ -429,7 +431,8 @@ Options:
 | `crates/miyu-cli/tests/ask.rs` | 真的核心：开一次性会话、`--continue`、没有会话可接、被拒绝、没有模型、Ctrl+C 一次和两次；加进来的目录跟着每一次 `miyu ask`：`--continue` 不写的那一轮就没有，太宽的造会话时就被拒、不留空会话（施工 5-10 上）；`--model` 新开的照它造、接着的先换（挡位换成它的值）再说、换不成的退出码 1 不发话（施工 8-10） |
 | `crates/miyu-cli/tests/steps.rs` | 真的核心、真的工具走一遍：每一步、执行命令和编辑那两块、目录太宽、给脚本的只看退出码。要确认的一步是写到工作区外面（施工 5-4 上起读哪儿都不问）；执行命令经 cargo 编出来的助手在沙盒里跑 |
 | `crates/miyu-cli/src/shown/tests.rs` | 原色的段不带控制序列，上过色的行尾回到原色 |
-| `crates/miyu/tests/ask.rs` | 真跑主程序：没有 key、核心没在跑的不拉起，退出码 5；核心在跑的照样连；参数不对退出码 2；`-h` 印帮助页，跟着界面语言 |
+| `crates/miyu/tests/ask.rs` | 真跑主程序：没配模型的退出码 5、不造会话（施工 8-11）；核心在跑的照样连；参数不对退出码 2；`-h` 印帮助页，跟着界面语言 |
+| `crates/miyu-cli/tests/setup.rs`（施工 8-11） | 说话之前先看有没有模型：不是终端的退出码 5、不造会话，终端里先走一遍 `miyu setup`、写好了往下走，有了的一句不问（`cli/setup.md`「守着它的」） |
 
 ### 出处
 
