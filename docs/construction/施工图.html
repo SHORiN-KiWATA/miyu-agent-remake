@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>167</b><span>/ 185 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 W-3 路径、8-11 第一次接入；跨会话只剩 C-7 验收</span></li>
-    <li><b class="mono">10fb9008</b><span>最近一步（W-2 列文件、找文件）的提交</span></li>
+    <li><b>168</b><span>/ 185 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 W-3 路径，接着 4-5 再补（英文单数）、8-11 补（本机服务不走代理）；跨会话只剩 C-7 验收</span></li>
+    <li><b class="mono">307fb7bf</b><span>最近一步（8-11 第一次接入）的提交</span></li>
   </ul>
 </header>
 
@@ -519,7 +519,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s8-8"><span class="n">8-8</span>用途、挡位、池<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-9"><span class="n">8-9</span>出错换端点<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-10"><span class="n">8-10</span>会话里换模型<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">8-11</span>第一次接入</span></li>
+        <li><a class="step done" href="#s8-11"><span class="n">8-11</span>第一次接入<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">8-12</span>Anthropic 消息接口</span></li>
         <li><span class="step"><span class="n">8-13</span>OpenAI Responses 接口</span></li>
         <li><span class="step"><span class="n">8-14</span>opencode Zen</span></li>
@@ -11147,6 +11147,57 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/8-10-会话里换模型.md</code>；蓝图 <code>models.md</code> 第六条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-11" aria-labelledby="h-s811">
+  <div class="sheet-head"><h2 id="h-s811"><span class="no">8-11</span>第一次接入</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">没配过模型的人能接上第一个模型：核心给引导要用的三个方法 <code>provider.detect</code>、<code>provider.catalog</code>、<code>provider.test</code>；主程序里一个最基本的 <code>miyu setup</code> 一行行问、敲数字；<code>miyu ask</code> 没模型时在终端里先走一遍。全屏的引导在各个头里做（M9）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">第一次接入</span><span class="dir-note">8-11</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>provider.detect</code>：环境变量里哪几家有 key（不交值）、本机哪些模型服务（只探本机、300 毫秒、并行）</li>
+              <li><code>provider.test</code>：真发一句 <code>Reply with OK.</code>（4 个 token），收到第一段就停；推荐能调工具、窗口够大、发布最晚的</li>
+              <li><code>miyu setup</code>：环境变量里的 key 只引用不复制，贴的 key 试通了才存成密钥，经核心写配置</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">先试再存</span><span class="rl">贴的 key 先照这一次的值试，通了才存</span></div>
+          <div class="tile new"><span class="nm">没模型不造会话</span><span class="rl">miyu ask 照 config.get 判有没有模型</span></div>
+          <div class="tile"><span class="nm">本机服务走了代理</span><span class="rl">NO_PROXY 没写回环的连不上，另开 8-11 补</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-11</dd></div>
+        <div><dt>名称</dt><dd>第一次接入</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">307fb7bf</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>18 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真的伪终端、真模型：本机假装成 Ollama 的转发器，空的数据根 <code>miyu setup</code> 选它、试通、选模型、写好配置，<code>miyu ask</code> 照常说话；没配模型直接 <code>miyu ask</code> 先走 setup 再发</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-11-第一次接入.md</code>；蓝图 <code>models.md</code> 第七条。</li>
       </ul>
     </div>
   </div>
