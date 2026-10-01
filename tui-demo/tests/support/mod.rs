@@ -12,6 +12,7 @@ use std::sync::mpsc::{Receiver, RecvTimeoutError, channel};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
+use miyu_endpoint::config::Config;
 use miyu_endpoint::{Core, run};
 use miyu_ipc::{Dirs, open};
 use miyu_kernel::id::AccountId;
@@ -46,6 +47,11 @@ pub struct Home {
 impl Home {
     /// 起一份核心：管理员 alice，请求模型照 `script` 回，没有工具。
     pub fn new(script: Script) -> Home {
+        Home::with_settings(script, "")
+    }
+
+    /// 同 [`Home::new`]，核心起来以前先写好 alice 的个人设置（`home/alice/settings.toml`，TOML）；空的不写。
+    pub fn with_settings(script: Script, settings: &str) -> Home {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
         let dir = std::env::temp_dir().join(format!("miyu-tui-{}-{n}", std::process::id()));
@@ -63,6 +69,11 @@ impl Home {
         };
         let root = DataRoot::locate(&env).expect("MIYU_HOME 是绝对路径");
         root.prepare().expect("临时目录里建得了骨架");
+        if !settings.is_empty() {
+            let file = dir.join("home/alice/settings.toml");
+            std::fs::create_dir_all(file.parent().expect("有上一层")).expect("建得了");
+            std::fs::write(&file, settings).expect("写得进去");
+        }
         let (ready, started) = channel();
         let core = std::thread::spawn(move || {
             let runtime = tokio::runtime::Builder::new_current_thread()
@@ -76,15 +87,26 @@ impl Home {
                 };
                 let opened = open(&root, &dirs).expect("起得来");
                 let admin = AccountId::parse("alice").expect("账号合写法");
-                let core = Arc::new(Core::new(
-                    root,
-                    ResourceRoot::at(resources()),
-                    Arc::new(script),
-                    Catalog::default(),
+                // 配置照核心起来时那样读：登记的全部配置项（`miyu_core::settings`），环境变量一个都不认。
+                let config = Config::load(
+                    &root,
+                    &admin,
                     None,
-                    admin,
-                    opened.token,
-                ));
+                    miyu_core::settings::items(),
+                    miyu_endpoint::config::Environment::of(&[]),
+                );
+                let core = Arc::new(
+                    Core::new(
+                        root,
+                        ResourceRoot::at(resources()),
+                        Arc::new(script),
+                        Catalog::default(),
+                        None,
+                        admin,
+                        opened.token,
+                    )
+                    .with_config(config),
+                );
                 ready.send(()).expect("测试还在等");
                 run(opened.listener, core).await;
             });
@@ -97,12 +119,17 @@ impl Home {
         }
     }
 
+    /// alice 的个人设置现在写着什么（没有的是空的）。
+    pub fn settings(&self) -> String {
+        std::fs::read_to_string(self.dir.join("home/alice/settings.toml")).unwrap_or_default()
+    }
+
     /// 在伪终端里起界面，连这份核心；`lang` 是系统语言（`LANG`）。
     pub fn tui(&self, lang: &str) -> Tui {
         Tui::spawn(&self.dir, &self.work, lang, &[])
     }
 
-    /// 同 [`Home::tui`]，另外带几个环境变量（`MIYU_TUI_START` 这类）。
+    /// 同 [`Home::tui`]，另外带几个环境变量。
     pub fn tui_with(&self, lang: &str, env: &[(&str, &str)]) -> Tui {
         Tui::spawn(&self.dir, &self.work, lang, env)
     }
@@ -145,7 +172,6 @@ impl Tui {
             "KITTY_WINDOW_ID",
             "LC_ALL",
             "LC_MESSAGES",
-            "MIYU_TUI_START",
         ] {
             command.env_remove(name);
         }

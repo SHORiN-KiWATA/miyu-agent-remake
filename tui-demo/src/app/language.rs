@@ -1,12 +1,14 @@
 //! `/language`：开一个框选界面语言（蓝图 `tui.md`「界面语言」）。第一行是自动（跟随系统），下面一种一行是手动选。
 //! `↑` `↓` 选，`Enter` 换成选中的那一档，`Esc` 关；鼠标悬停选中、点一下等于 `Enter`。换了以后界面上的字、命令的说明、运行状态行的词、工具的显示名照新语言；已经画在正文里的不改，
-//! 新画的照新语言。只管这一次启动。
+//! 新画的照新语言。选的写进个人设置的 `ui.language`；启动时、别的头改了照配置换（2026-10-01 项目主人定 A）。
 
 use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseEvent, MouseEventKind};
 use ratatui::layout::Position;
 
 use super::{App, Panel};
 use crate::config::Config;
+use crate::core::Command;
+use crate::language::Language;
 
 impl App {
     /// 打开框，选中现在用的那一档：自动是第 0 行，手动的第几种是第几加一行。
@@ -76,6 +78,29 @@ impl App {
         if next == self.config.language && auto == self.config.auto {
             return;
         }
+        // 写进个人设置的 `ui.language`：这个人所有的头都照它（2026-10-01 项目主人定 A）。当场换，不等回应。
+        let code = if auto { "auto" } else { next.code() };
+        self.core.send(Command::SetLanguage(code.to_string()));
+        self.use_language(next, auto, true);
+    }
+
+    /// 配置里的界面语言（连上时读的、别处改了推来的）：`auto` 跟系统，表里认得的换成那种，认不得的当 `auto`。
+    /// 不写回去、不弹提示（启动时、别的头改的都悄悄换）。
+    pub(super) fn language_from_config(&mut self, code: &str) {
+        let table = &self.config.language_table;
+        let (next, auto) = match table.find(code) {
+            Some(language) if code != "auto" => (language, false),
+            _ => (self.system_language.clone(), true),
+        };
+        if next == self.config.language && auto == self.config.auto {
+            return;
+        }
+        self.use_language(next, auto, false);
+    }
+
+    /// 换成 `next`（`auto`：是自动那一档）：界面上的字、命令的说明、运行状态行的词、工具的显示名照它；`announce`
+    /// 时提示一句换成了哪种。
+    fn use_language(&mut self, next: Language, auto: bool, announce: bool) {
         let Ok(fresh) = Config::load(&next, auto) else {
             return;
         };
@@ -97,6 +122,8 @@ impl App {
         self.config.auto = auto;
         // 排好的行里有旧语言的字（时间线的标题、收起那一行、工具的显示名）：语言算进排版的条件，下一帧照预算重排，
         // 不扔掉记着的行（没轮到的先用旧行，蓝图「正文」第 8 条）。
-        self.hint(hint, false);
+        if announce {
+            self.hint(hint, false);
+        }
     }
 }

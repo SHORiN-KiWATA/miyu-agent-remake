@@ -18,6 +18,11 @@ impl App {
             self.took_output(&session, &job, output);
             return;
         }
+        // 配置里的界面语言：照它换（`language.rs`）。
+        if let Update::UiLanguage(code) = update {
+            self.language_from_config(&code);
+            return;
+        }
         // 会话列表：交给开着的框（`switch.rs`）。
         if let Update::Sessions(all) = update {
             self.sessions_listed(all);

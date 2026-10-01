@@ -67,6 +67,7 @@
   "thinking": "Thinking",
   "thought": "Thought",
   "prepare": "Preparing {name}",
+  "on_session": "session {id}",
   "omitted": "{count} line(s) omitted",
   "summary": {
     "ran": [

@@ -11,7 +11,8 @@
     "agent": "",
     "subagent": "",
     "jobs": "\uf0ae",
-    "message_agent": "\uf0e5"
+    "message_agent": "\uf0e5",
+    "sessions": "\uf03a"
   },
   "tool": "",
   "think": "󰝨",

@@ -7,6 +7,7 @@
 //! 给它 `core` 这个参数，它会把这个词当成一句话发给旧版的后台。
 
 mod backoff;
+mod config;
 mod connect;
 mod kinds;
 mod limits;
@@ -82,6 +83,8 @@ pub enum Command {
     },
     /// 删掉一个会话（`session.delete`），不管对着哪个会话。
     Delete(String),
+    /// 界面语言写进个人设置（`ui.language`，`auto` 或者语言代码；蓝图「界面语言」）。
+    SetLanguage(String),
     /// 另外订阅一个会话：子代理的会话（「后台命令、子代理和侧边栏」、「切进子会话」）。它推来的包成 [`Update::Elsewhere`]。
     Watch(String),
     /// 退订另外订阅着的一个会话。
@@ -143,6 +146,8 @@ pub enum Update {
     Limits(Limits),
     /// 会话里的事。
     Push(Push),
+    /// 配置里界面语言的最终值（`ui.language`：`auto` 或者语言代码）：连上时读一次，别处改了再读（「界面语言」）。
+    UiLanguage(String),
     /// 会话列表（[`Command::ListSessions`] 的回应）：只有主会话，照核心交回的先后。
     Sessions(Vec<SessionInfo>),
     /// 改名成了（`None` 是去掉了标题）：弹一句提示，标题照推送换（蓝图「改名」第 3 条）。
@@ -227,16 +232,16 @@ async fn run(
 ) {
     // 主会话、另外订阅着的、命令对着哪个：断了重连也记着（`serve.rs`）。
     let mut link = serve::Link::default();
-    // 启动时进最近的那个会话只在头一次连上时（「会话列表」第 8 条）；之后重连、`/new` 照旧。
-    let mut recent = switch::start_recent();
+    // 启动时进最近的那个会话只在头一次连上时看（「会话列表」第 8 条）；之后重连、`/new` 照旧。
+    let mut first = true;
     loop {
         // 连不上一直试；这期间界面发的命令在通道里排着，连上再发（第 1、7 条）。
         let mut rpc = loop {
-            match open(link.main.as_deref(), recent).await {
+            match open(link.main.as_deref(), first).await {
                 Ok((rpc, opened, limits)) => {
                     // 进了已有的会话：订阅留给收发时带 `after` 做，以前的补发过来。
                     link.replay_main = limits.is_none() && opened.is_some();
-                    recent = false;
+                    first = false;
                     // 新开的会话（刚启动；按过 `/new` 还没说话就断了的）告诉界面编号，订阅原来的只说又连上了。
                     let said = match (&link.main, &opened) {
                         (None, Some(id)) => notify(Update::Ready(id.clone())),
@@ -266,14 +271,14 @@ async fn run(
 }
 
 /// 连上；有会话的订阅它。还没有的（刚启动、`/new` 以后）不开，和 `/new` 一样等第一句话时才开（蓝图「连核心」第 4 条：
-/// 没说话就退出的不留空会话）。`recent`：进最近的那个已有会话，不在这里订阅（限额交回 `None`），收发时带 `after`
-/// 订阅；一个都没有的照样等第一句话。交回连接、会话和限额。
+/// 没说话就退出的不留空会话）。`first`：头一次连上，配置 `tui.startup` 是 `recent` 的进最近的那个已有会话，不在这里
+/// 订阅（限额交回 `None`），收发时带 `after` 订阅；一个都没有的照样等第一句话。交回连接、会话和限额。
 async fn open(
     session: Option<&str>,
-    recent: bool,
+    first: bool,
 ) -> Result<(Rpc, Option<String>, Option<Limits>), Update> {
     let mut rpc = connect().await?;
-    if session.is_none() && recent {
+    if session.is_none() && first && switch::wants_recent(&mut rpc).await {
         let list = rpc
             .call("session.list", serde_json::json!({}))
             .await

@@ -99,6 +99,8 @@ pub struct Layout {
     pub history_rows: usize,
     /// 会话列表最多露几条（`tui.md`「会话列表」第 1 条）。
     pub session_rows: usize,
+    /// 会话列表里工作目录最多几列，长了只写最后两层（「会话列表」第 1 条）。
+    pub session_cwd_width: usize,
     /// 会话列表里勾上的记号，连同它后面的空格（「会话列表」第 2 条）。
     pub tick_mark: String,
     /// 输入历史列表里 Tab 展开的那一条最多几行（`tui.md`「输入历史列表」第 7 条）。

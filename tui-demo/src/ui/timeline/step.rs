@@ -84,6 +84,12 @@ pub fn title(step: &Step, style: Style, width: u16, ctx: &Ctx) -> Vec<Span<'stat
                     label.push_str(" · ");
                     label.push_str(&crate::local::home_short(subject));
                 }
+                // 对着别的会话的（核心 C-4 起 `history` 能翻别的会话）：再跟一格「会话 短编号」（第 8 条）。
+                if let Some(session) = step.arg(&ctx.config.timeline.session_arg) {
+                    let id = crate::session_list::short(session);
+                    label.push_str(" · ");
+                    label.push_str(&text.on_session.replace("{id}", &id));
+                }
                 // 别的工具后面跟结果那一句（「读取 · src · 12 项」）；命令有预览，编辑有加减的行数，不写。
                 if matches!(kind, None | Some(ToolKind::Message))
                     && let Some(said) = said

@@ -311,6 +311,8 @@ pub struct Texts {
     pub thought: String,
     /// 她还在写参数时那一行，`{name}` 是工具的显示名。
     pub prepare: String,
+    /// 一步对着别的会话（参数里带着会话编号），`{id}` 是短编号。
+    pub on_session: String,
     /// 预览放不下时最后一行，`{count}` 是省略了几行。
     pub omitted: String,
     /// 时间线收起那一行的字：界面语言是自动时换成语言表 `auto_summary` 那一种（英文），手动选了哪种照哪种（蓝图「时间线」第 17 条）。

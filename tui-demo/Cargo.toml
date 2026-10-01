@@ -57,6 +57,7 @@ rustix = { version = "1", features = ["stdio", "process"] }
 # 伪终端里的端到端测试（`tests/pty.rs`，蓝图「守着它的」）：测试进程里起一个照剧本回话的核心（和端点的测试同一套），
 # 在伪终端里起真的界面连上去，读屏幕、发按键。只在测试里用。
 [dev-dependencies]
+miyu-core = { path = "../crates/miyu-core" }
 miyu-endpoint = { path = "../crates/miyu-endpoint" }
 miyu-session = { path = "../crates/miyu-session", features = ["testkit"] }
 miyu-tool = { path = "../crates/miyu-tool" }

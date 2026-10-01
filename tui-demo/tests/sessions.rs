@@ -41,17 +41,21 @@ fn rows(tui: &Tui) -> Vec<String> {
 
 #[test]
 fn starting_in_the_most_recent_session_draws_what_was_said_before() {
-    // 2026-10-01 项目主人要的：启动时进最近的那个会话（第 8 条），以前的对话照补发来的画出来。
-    let home = Home::new(Script::new([Play::Thinks {
-        thinking: "想一想。",
-        text: "以前的回答。",
-    }]));
+    // 2026-10-01 项目主人要的：启动时进最近的那个会话（第 8 条），以前的对话照补发来的画出来。配置项 `tui.startup`
+    // （核心 8-3），照个人设置读。
+    let home = Home::with_settings(
+        Script::new([Play::Thinks {
+            thinking: "想一想。",
+            text: "以前的回答。",
+        }]),
+        "[tui]\nstartup = \"recent\"\n",
+    );
     let mut first = home.tui("zh_CN.UTF-8");
     first.wait_for("工作区");
     first.say("以前说的话");
     first.wait_for("▣  ");
     drop(first);
-    let mut again = home.tui_with("zh_CN.UTF-8", &[("MIYU_TUI_START", "recent")]);
+    let mut again = home.tui("zh_CN.UTF-8");
     again.wait_for("以前的回答。");
     assert!(again.shows("┃ 以前说的话"), "{}", again.lines().join("\n"));
     again.wait_for("▣  ");

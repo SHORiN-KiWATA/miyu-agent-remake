@@ -34,6 +34,7 @@
   "menu_rows": 5,
   "history_rows": 8,
   "session_rows": 10,
+  "session_cwd_width": 24,
   "tick_mark": "✓ ",
   "history_preview_rows": 12,
   "level_icons": {

@@ -249,7 +249,8 @@ impl Transcript {
             Update::Elsewhere { .. }
             | Update::Output { .. }
             | Update::Renamed(_)
-            | Update::Sessions(_) => {}
+            | Update::Sessions(_)
+            | Update::UiLanguage(_) => {}
             Update::Failed(reason) => {
                 self.link = Link::Down(texts.core_failed.replace("{reason}", &reason));
             }

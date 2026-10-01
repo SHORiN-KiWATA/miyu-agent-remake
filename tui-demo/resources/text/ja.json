@@ -67,6 +67,7 @@
   "thinking": "考え中",
   "thought": "思考済み",
   "prepare": "{name}を準備中",
+  "on_session": "セッション {id}",
   "omitted": "{count} 行を省略しました",
   "summary": {
     "ran": [

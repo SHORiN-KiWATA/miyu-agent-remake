@@ -20,6 +20,7 @@
     "⠏"
   ],
   "spinner_ms": 80,
+  "session_arg": "session",
   "preview_rows": 10,
   "thought_rows": 15,
   "limit_live": true,

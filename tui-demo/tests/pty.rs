@@ -136,3 +136,48 @@ fn rename_sets_removes_and_refuses_a_too_long_title() {
     tui.say("/rename 早");
     tui.wait_for("还没开会话，说一句再改名");
 }
+
+#[test]
+fn the_language_in_personal_settings_wins_over_the_system_one() {
+    // 2026-10-01 项目主人定 A：界面语言写进个人设置的 `ui.language`，手动选了就是这个人所有的头都用这种。
+    let home = Home::with_settings(Script::new([]), "[ui]\nlanguage = \"en\"\n");
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("Workspace");
+}
+
+#[test]
+fn choosing_a_language_writes_it_into_personal_settings() {
+    let home = Home::new(Script::new([]));
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("/language");
+    tui.wait_for("自动（跟随系统：中文）");
+    // 第 0 行自动，下面照语言表：中文、English、日本語。
+    for _ in 0..3 {
+        tui.key(DOWN);
+    }
+    tui.key(b"\r");
+    tui.wait_for("ワークスペース");
+    let end = std::time::Instant::now() + support::WAIT;
+    while !home.settings().contains("language = \"ja\"") {
+        assert!(
+            std::time::Instant::now() < end,
+            "没写进个人设置：{:?}",
+            home.settings()
+        );
+        tui.pump(Duration::from_millis(100));
+    }
+    // 换回自动：写 `auto`。
+    tui.say("/language");
+    tui.pump(Duration::from_millis(400));
+    for _ in 0..3 {
+        tui.key(b"\x1b[A");
+    }
+    tui.key(b"\r");
+    tui.wait_for("工作区");
+    let end = std::time::Instant::now() + support::WAIT;
+    while !home.settings().contains("language = \"auto\"") {
+        assert!(std::time::Instant::now() < end, "{:?}", home.settings());
+        tui.pump(Duration::from_millis(100));
+    }
+}

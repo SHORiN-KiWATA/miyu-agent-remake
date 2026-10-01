@@ -160,9 +160,28 @@ fn content(info: &SessionInfo, config: &Config) -> Vec<Span<'static>> {
         theme::dim(),
     ));
     if let Some(cwd) = &info.cwd {
+        let cwd = short_path(cwd, config.layout.session_cwd_width);
         spans.push(Span::styled(format!("  {cwd}"), theme::faint()));
     }
     spans
+}
+
+/// 工作目录写短：家目录写成 `~`，长过 `width` 列的只写最后两层、前面 `…/`（第 1 条）。
+fn short_path(cwd: &str, width: usize) -> String {
+    use unicode_width::UnicodeWidthStr;
+    let home = std::env::var("HOME").unwrap_or_default();
+    let cwd = match cwd.strip_prefix(home.as_str()) {
+        Some(rest) if !home.is_empty() && (rest.is_empty() || rest.starts_with('/')) => {
+            format!("~{rest}")
+        }
+        _ => cwd.to_string(),
+    };
+    if cwd.width() <= width {
+        return cwd;
+    }
+    let parts: Vec<&str> = cwd.trim_end_matches('/').rsplit('/').take(2).collect();
+    let tail: Vec<&str> = parts.into_iter().rev().collect();
+    format!("…/{}", tail.join("/"))
 }
 
 /// 多久以前有过动静。
@@ -174,5 +193,28 @@ fn ago(at: jiff::Timestamp, now: jiff::Timestamp, texts: &Texts) -> String {
         60..3600 => n(60, &texts.minutes),
         3600..86400 => n(3600, &texts.hours),
         _ => n(86400, &texts.days),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::short_path;
+
+    #[test]
+    fn a_long_directory_keeps_its_last_two_levels() {
+        assert_eq!(short_path("~/src/miyu", 24), "~/src/miyu");
+        assert_eq!(
+            short_path("/tmp/claude-1000/-home-shorin/scratchpad/work", 24),
+            "…/scratchpad/work"
+        );
+        let home = std::env::var("HOME").unwrap_or_default();
+        if !home.is_empty() {
+            assert_eq!(short_path(&format!("{home}/src"), 24), "~/src");
+            assert_eq!(
+                short_path(&format!("{home}x/src"), 99),
+                format!("{home}x/src"),
+                "只认整层"
+            );
+        }
     }
 }

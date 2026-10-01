@@ -488,4 +488,5 @@ mod agent;
 mod icons;
 mod live;
 mod narrow;
+mod session_arg;
 mod waiting;

@@ -59,6 +59,7 @@ pub(super) fn request(
         | Command::ListSessions
         | Command::Pin { .. }
         | Command::Delete(_)
+        | Command::SetLanguage(_)
         | Command::Output { .. } => {
             return None;
         }

@@ -7,6 +7,7 @@ use std::io;
 use serde_json::{Value, json};
 use tokio::sync::mpsc;
 
+use super::config;
 use super::connect::{create, cwd, subscribe};
 use super::limits::Limits;
 use super::replay::Replay;
@@ -65,6 +66,8 @@ enum Awaiting {
     Replay(String),
     /// 列出会话：回应交给界面。
     List,
+    /// 读界面语言：回应交给界面。
+    UiLanguage,
 }
 
 /// 在一条连接上收发，直到界面关了或者连接断了。
@@ -76,6 +79,11 @@ pub(super) async fn serve(
 ) -> Served {
     let cwd = cwd();
     let mut awaiting: HashMap<String, Awaiting> = HashMap::new();
+    // 订阅配置流、读一次界面语言（「界面语言」）。
+    match config::follow(rpc).await {
+        Ok(id) => awaiting.insert(id, Awaiting::UiLanguage),
+        Err(_) => return Served::Lost,
+    };
     // 启动时进最近的那个会话：连上以后带 `after` 订阅，以前的补发过来（「会话列表」第 8 条）。
     if std::mem::take(&mut link.replay_main)
         && let Some(main) = link.main.clone()
@@ -166,6 +174,12 @@ pub(super) async fn serve(
                     Command::Pin { session, pinned } => {
                         let params = json!({"session": session, "pinned": pinned});
                         if rpc.send("session.set_meta", params).await.is_err() {
+                            return Served::Lost;
+                        }
+                        continue;
+                    }
+                    Command::SetLanguage(code) => {
+                        if rpc.send("config.set", config::set_language(&code)).await.is_err() {
                             return Served::Lost;
                         }
                         continue;
@@ -337,8 +351,8 @@ async fn take(
         let message = error["message"].as_str().unwrap_or_default().to_string();
         return match kind {
             Some(Awaiting::Send | Awaiting::Redo) => notify(Update::Unsent { reason, message }),
-            // 订阅不上（那个会话已经删了）：不用说。
-            Some(Awaiting::Watch(_)) => true,
+            // 订阅不上（那个会话已经删了）：不用说。读不了配置（核心旧）：照系统语言，不用说。
+            Some(Awaiting::Watch(_) | Awaiting::UiLanguage) => true,
             // 切过去订阅不上（会话删了、日志坏了）：不再当它在补发，照一般的拒绝说。
             Some(Awaiting::Replay(session)) => {
                 link.replays.remove(&session);
@@ -377,6 +391,9 @@ async fn take(
                 output,
             });
         }
+        Some(Awaiting::UiLanguage) => {
+            return notify(Update::UiLanguage(config::language(&message["result"])));
+        }
         Some(Awaiting::List) => {
             return notify(Update::Sessions(sessions::read(&message["result"])));
         }
@@ -401,6 +418,24 @@ async fn take(
     // 掉队后重新订阅主会话的回应：限额照样带着，照它更新（核心重启以后载入的也是这样）。
     if let Some(limits) = Limits::of(message) {
         return notify(Update::Limits(limits));
+    }
+    // 配置流：动了界面语言的再读一次最终值；掉了队重新订阅、再读一次（「界面语言」）。
+    let params = &message["params"];
+    let reread = match message["method"].as_str() {
+        Some("config.changed") => config::touches_language(params),
+        Some("resync") => params["stream"] == "config",
+        _ => false,
+    };
+    if reread {
+        let sent = if message["method"] == "resync" {
+            config::follow(rpc).await
+        } else {
+            config::read_language(rpc).await
+        };
+        if let Ok(id) = sent {
+            awaiting.insert(id, Awaiting::UiLanguage);
+        }
+        return true;
     }
     let Some(session) = message["params"]["session"].as_str() else {
         return true;
