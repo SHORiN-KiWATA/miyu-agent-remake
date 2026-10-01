@@ -134,7 +134,7 @@ pub(crate) struct Dispatch {
     pub(crate) permission: Permission,
     /// 这次调用的任务端口（施工 7-3）：`shell` 把后台命令交给它。
     pub(crate) jobs: Arc<dyn JobPort>,
-    /// 这个会话这一刻派出去的子代理（施工 7-7）：`message_agent` 照它认 `to`。
+    /// 这个会话这一刻派出去的子代理（施工 7-7）：`send_message` 照它认 `to`。
     pub(crate) subagents: BTreeMap<JobId, Subagent>,
 }
 

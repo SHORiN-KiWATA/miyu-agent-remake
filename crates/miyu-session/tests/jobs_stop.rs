@@ -82,6 +82,11 @@ impl SessionPort for Table {
         Box::pin(async { Err("no logs here".to_string()) })
     }
 
+    /// 这份假的会话表没有一次性会话（施工 C-5）：用不到的时候一律照送到了算。
+    fn held(&self, _session: SessionId) -> Pending<'_, bool> {
+        Box::pin(async { false })
+    }
+
     fn stop(&self, session: SessionId, id: CommandId, by: By) -> Pending<'_, Result<(), String>> {
         self.stopped
             .lock()

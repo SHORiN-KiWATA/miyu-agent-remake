@@ -26,12 +26,12 @@
 
 ```json
 {
-  "description": "List your other sessions, most recently active first. Each row gives the session id, the title, working directory, whether it is busy and when it was last active.",
+  "description": "List your other sessions, most recently active first. Each row gives the id to use with send_message and history, the title, working directory, whether it is busy and when it was last active.",
   "parameters": {"type":"object","properties":{"limit":{"type":"integer","description":"Default 20."},"offset":{"type":"integer","description":"How many sessions to skip."}}}
 }
 ```
 
-- 说明第二句不点名 `send_message`、`history`：C-3 合进来时还没有 `send_message`（C-5 改名），`history` 也还没有 `session`（C-4），点了名就是一件不存在的工具（`26-提示词.md` J4）。C-5 改名时补成「Each row gives the id to use with send_message and history, …」，和那一次冷启动放在一起（2026-10-01 主会话定）。
+- 说明第二句 C-3 合进来时写的是不点名的「Each row gives the session id, …」：那时还没有 `send_message`（C-5 改名），`history` 也还没有 `session`（C-4），点了名就是一件不存在的工具（`26-提示词.md` J4）。C-5 改名时补成上面这句，点名 `send_message`、`history`，和那一次冷启动放在一起（2026-10-01 主会话定）。
 
 | 参数 | 必填 | 怎么认 |
 |---|---|---|

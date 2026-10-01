@@ -71,6 +71,11 @@ impl SessionPort for Table {
         let dir = self.root.session_dir(&alice_account(), &session);
         Box::pin(async move { Ok(Log::new(LogDir(dir))) })
     }
+
+    /// 这几个测试不发话（施工 C-5）：用不到。
+    fn held(&self, _session: SessionId) -> Pending<'_, bool> {
+        Box::pin(async { false })
+    }
 }
 
 fn main(id: &SessionId) -> MainSession {

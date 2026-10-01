@@ -6,6 +6,7 @@
 //!
 //! 停子代理、看它在做什么也经它（施工 7-4）：停下子会话、照它的日志算它这会儿的样子。她列会话也经它（施工 C-3）：和
 //! `session.list` 同一个函数算（`crate::list`）。她读别的会话的日志也经它（施工 C-4）：只算出目录，不载入那个会话。
+//! 她发给别的会话时，对方是不是没人看着的一次性会话也经它看（施工 C-5）。
 
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
@@ -161,6 +162,20 @@ impl SessionPort for Table {
             let core = self.core()?;
             let dir = core.root.session_dir(&core.admin, &session);
             Ok(Log::new(Dir(dir)))
+        })
+    }
+
+    /// 会话 `session` 这时是不是没人看着的一次性会话（施工 C-5）：`send_message` 刚经 [`Table::command`] 把它载入过，
+    /// 这里照会话表里的 `Handle` 看（`cross-session.md` 第三条第 4 款）；核心正在停、这个会话不在表里的，当不是。
+    fn held(&self, session: SessionId) -> Pending<'_, bool> {
+        Box::pin(async move {
+            let Ok(core) = self.core() else {
+                return false;
+            };
+            match core.sessions.get(&core, &session, None, None).await {
+                Ok(found) => found.handle.oneshot() && !found.handle.watched(),
+                Err(_) => false,
+            }
         })
     }
 }

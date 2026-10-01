@@ -277,6 +277,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         actor.report_to(Reporter::start(upstream, span.clone()));
     }
     let busy = actor.busy();
+    let watched = actor.watched();
     let (reply, answer) = oneshot::channel();
     actor.wait_for(command, reply);
     span.in_scope(|| {
@@ -284,7 +285,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     });
     actor::spawn(actor, first, span);
     match answer.await {
-        Ok(_) => Ok(Handle::new(id, inbox, busy, limits)),
+        Ok(_) => Ok(Handle::new(id, inbox, busy, oneshot, watched, limits)),
         Err(_) => {
             // 造会话那一条没落盘：只剩空的第一段的会话目录删掉；快照的 blob 留着，按内容存，别的会话可能也在用
             // （施工 4-9 再补四下：原来都留在磁盘上）。
@@ -445,6 +446,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         config,
     );
     let busy = actor.busy();
+    let watched = actor.watched();
     if let Some(upstream) = upstream {
         actor.report_to(Reporter::start(upstream, span.clone()));
     }
@@ -455,7 +457,14 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         wake_children(port, waiting, &span);
     }
     actor::spawn(actor, first, span);
-    Ok(Handle::new(id, inbox, busy, limits))
+    Ok(Handle::new(
+        id,
+        inbox,
+        busy,
+        created.oneshot,
+        watched,
+        limits,
+    ))
 }
 
 #[cfg(test)]

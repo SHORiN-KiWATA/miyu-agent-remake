@@ -10,7 +10,7 @@
 //! - [`Catalog`]：工具目录，登记时查重名、名字和参数格式的写法；
 //! - [`Log`]：这个会话日志的只读入口（施工 6-4），`history` 用；
 //! - [`AgentPort`]：派子代理的端口（施工 7-5），`subagent` 用；
-//! - [`MessagePort`]：父子之间留言的端口（施工 7-7），`message_agent` 用；
+//! - [`MessagePort`]：发话的端口（施工 7-7、C-5），`send_message` 用；
 //! - [`JobPort`]：任务端口（施工 7-3），`shell` 把起好的后台命令交给它，`jobs` 经它查、停（施工 7-4）；
 //! - [`SessionsPort`]：列会话、只读地开别的会话的日志（施工 C-3、C-4），`sessions`、`history` 用；[`find_session`]
 //!   认她写的会话编号；
@@ -34,7 +34,9 @@ pub use agents::{
 pub use catalog::{Catalog, CatalogError, Problem};
 pub use jobs::{Asking, Background, Exit, JobError, JobPort, Listed, Output, Process};
 pub use log::{Log, ReadLog};
-pub use messages::{MESSAGE_AGENT, MessagePort, NotSent, Recipient, Sending};
+pub use messages::{
+    Delivered, MessagePort, NotSent, Recipient, SEND_MESSAGE, SEND_MESSAGE_FORMERLY, Sending,
+};
 pub use run::{Call, Done, Effect, Picture, Progress, Running, Seen, Target};
 pub use sessions::{Found, Listing, MainSession, Opening, SESSIONS, SessionsPort, find_session};
 pub use stop::Stop;

@@ -79,6 +79,9 @@ pub(crate) struct Actor {
     /// 拿着订阅的头有几个（施工 7-9）：从没有到有、从有到没有时交内核 `Watched`。造会话、载入时是 0，和内核一样当没人
     /// 看着。
     watchers: usize,
+    /// 这时有没有至少一个头订阅着，和 `Handle` 共用（施工 C-5，照 `busy` 的做法）：`watchers` 从 0 到有、从有到 0 时写一次。
+    /// `send_message` 发给这个会话的时候，别的会话照它和这个会话是不是一次性的，决定说 `sent` 还是 `held`。
+    watched: Arc<AtomicBool>,
 }
 
 /// 会话停了：写不进去。
@@ -154,6 +157,7 @@ impl Actor {
             reporter: None,
             config,
             watchers: 0,
+            watched: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -165,6 +169,11 @@ impl Actor {
     /// 有没有在跑的回合：交给 `Handle` 的那一份。
     pub(crate) fn busy(&self) -> Arc<AtomicBool> {
         Arc::clone(&self.busy)
+    }
+
+    /// 这时有没有至少一个头订阅着：交给 `Handle` 的那一份（施工 C-5）。
+    pub(crate) fn watched(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.watched)
     }
 
     /// 命令 `id` 在等回应：造会话的那一个，在 actor 跑起来之前就在等。

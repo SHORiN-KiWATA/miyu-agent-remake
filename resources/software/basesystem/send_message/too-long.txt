@@ -1,0 +1,1 @@
+The message has {chars} characters, over the limit of {limit}. Send a shorter one.

@@ -37,6 +37,11 @@ impl SessionPort for Table {
         Box::pin(async { Err("no logs here".to_string()) })
     }
 
+    /// 这份假的会话表没有一次性会话（施工 C-5）：用不到的时候一律照送到了算。
+    fn held(&self, _session: SessionId) -> Pending<'_, bool> {
+        Box::pin(async { false })
+    }
+
     fn command(
         &self,
         session: SessionId,
@@ -91,15 +96,15 @@ async fn the_log_says_where_it_went_and_why_not() {
             serde_json::json!({"description": "甲", "prompt": "Do it."}),
         ),
         call(
-            "message_agent",
+            "send_message",
             serde_json::json!({"to": "j1", "message": "紫色的留言"}),
         ),
         call(
-            "message_agent",
+            "send_message",
             serde_json::json!({"to": "parent", "message": "紫色的留言"}),
         ),
         call(
-            "message_agent",
+            "send_message",
             serde_json::json!({"to": "j9", "message": "紫色的留言"}),
         ),
         Play::Says("好。"),
