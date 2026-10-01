@@ -225,13 +225,7 @@ impl Session {
                 let turn = turn.id;
                 // 执行器先照这一轮的配置重新解析会话的引用（施工 8-10）。
                 let model = self.reference().map(str::to_string);
-                // 连同会话给每个模型记的思考强度（施工 8-18）。
-                let efforts = self.efforts().clone();
-                vec![Action::RunTurnStartHooks {
-                    turn,
-                    model,
-                    efforts,
-                }]
+                vec![Action::RunTurnStartHooks { turn, model }]
             }
             Stage::Ready if self.unstored.is_empty() => self.ask(at),
             _ => Vec::new(),

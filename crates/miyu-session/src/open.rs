@@ -119,7 +119,6 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         blobs,
         reference: reference.clone(),
         sent: None,
-        efforts: std::collections::BTreeMap::new(),
     });
     let mut clock = Clock::default();
     let upstream = Upstream::of(
@@ -330,7 +329,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let sent = last_sent(&events);
     let (mut session, first) = Session::load(id.clone(), events, clock.now(), policy, environment)
         .map_err(LoadError::Kernel)?;
-    // 路由照内核从日志算的引用造（施工 8-10）：换过模型的是换过以后的；思考强度同样照日志拼的（施工 8-18）。
+    // 路由照内核从日志算的引用造（施工 8-10）：换过模型的是换过以后的。
     let model = models.port(ForSession {
         id: id.clone(),
         config: Arc::clone(config.current()),
@@ -338,7 +337,6 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         blobs,
         reference: session.reference().map(str::to_string),
         sent,
-        efforts: session.efforts().clone(),
     });
     // 重启以后接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）；给头看的限额同上（施工 6-3 补）。检查点重读过的
     // 文件，内核在载入吐出来的动作里第一个要回原文（施工 6-9），actor 起来先做它。

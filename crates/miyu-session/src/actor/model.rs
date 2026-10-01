@@ -2,9 +2,8 @@
 //! 收场（`28-运行日志.md` 第三节）。辅助请求（施工 3-8 四补的回顾、五补的起标题）也在这里：同一个端口，回报另走一路。
 //! 说完了跟着端口的限额（施工 8-9，[`Actor::follow_limits`]）：变了交给内核，模型变了推 `model.changed`。回合开始时叫端口照
 //! 这一轮的配置重新解析会话的引用（施工 8-10，[`Actor::turn_start`]）：限额变了交给内核，头看得到的变了推 `model.changed`。
-//! 思考强度（施工 8-18）随回合开始交给端口，给头看的那一档也算头看得到的一格。
+//! 思考强度（施工 8-18）给头看的那一档也算头看得到的一格。
 
-use std::collections::BTreeMap;
 use std::time::Instant;
 
 use tokio::sync::oneshot;
@@ -111,19 +110,11 @@ impl Actor {
     /// 回合开始（`turn.started` 已经落了盘）：冻结这一轮的配置，带上会话这时的目录的项目配置（施工 8-4）；叫端口照它重新
     /// 解析内核交来的引用 `reference`（施工 8-10，`models.md`「怎么走」第六条第 3 条）。限额变了交给内核；头看得到的（引用、
     /// 接下来发给谁、思考强度、窗口、压缩线）变了推一条 `model.changed`，`why` 是 `turn`（「施工时定的」8-10）。交回挂接点跑完了，带着
-    /// 退回了默认的那一次：现在没有模块挂回合开始。会话给每个模型记的思考强度 `efforts` 一起交给端口（施工 8-18），给头看的
-    /// 那一档变了也推 `model.changed`。
-    pub(super) async fn turn_start(
-        &mut self,
-        turn: TurnId,
-        reference: Option<String>,
-        efforts: BTreeMap<String, String>,
-    ) -> Input {
+    /// 退回了默认的那一次：现在没有模块挂回合开始。给头看的那一档（照新的配置算）变了也推 `model.changed`。
+    pub(super) async fn turn_start(&mut self, turn: TurnId, reference: Option<String>) -> Input {
         self.config.turn(self.session.cwd().to_string()).await;
         let before = self.shown_now();
-        let replaced = self
-            .model
-            .turn(self.config.current(), reference.as_deref(), &efforts);
+        let replaced = self.model.turn(self.config.current(), reference.as_deref());
         self.hand(self.model.limits());
         if self.shown_now() != before {
             self.announce(ChangeWhy::Turn);

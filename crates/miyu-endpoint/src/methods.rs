@@ -262,15 +262,11 @@ pub(crate) async fn call(
         "blob.close" => uploads::close(core, uploads, params(request)?).await,
         "session.configure" => {
             let params: models::ConfigureParams = params(request)?;
-            let (text, asked) = params.asked()?;
+            let text = params.model()?;
             let session = session(&params.session)?;
             let found = core.sessions.get(core, &session, None, None).await?;
-            let model = text.map(|text| models::record(core, text)).transpose()?;
-            let effort = match asked {
-                Some(asked) => Some(models::effort(core, asked).await?),
-                None => None,
-            };
-            let command = Command::Configure { model, effort };
+            let model = models::record(core, text)?;
+            let command = Command::Configure { model };
             command_to(core, request, &session, &found.handle, command).await?;
             Ok(json!({}))
         }

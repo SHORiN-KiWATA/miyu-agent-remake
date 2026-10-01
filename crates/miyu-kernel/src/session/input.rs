@@ -8,8 +8,8 @@ use crate::accumulate::Delta;
 use crate::block::Block;
 use crate::estimate::ImagePrice;
 use crate::event::{
-    CallError, ChildReported, ContextInjected, Decision, Effect, Effort, Event, IdleReason,
-    JobReported, Level, Purpose, Question, Response, Restored, Said, Usage,
+    CallError, ChildReported, ContextInjected, Decision, Effect, Event, IdleReason, JobReported,
+    Level, Purpose, Question, Response, Restored, Said, Usage,
 };
 use crate::facts::Environment;
 use crate::id::{CallId, CommandId, ContentHash, ModuleId, Seq, SessionId, TurnId};
@@ -307,13 +307,10 @@ pub enum Command {
         /// 只读开关；不改就没有。
         read_only: Option<bool>,
     },
-    /// `session.configure`：换模型（施工 8-10）、换会话给一个模型记的思考强度（施工 8-18），`configure.rs`。下一个回合开始时
-    /// 生效；和现在的一样的那一样不记，两样都一样的接受、什么都不记。
+    /// `session.configure`：换模型（施工 8-10），`configure.rs`。下一个回合开始时生效；和现在的一样的不记。
     Configure {
-        /// 换成的引用：模型或 `@池`，协议那一头已经查过；不换的没有。内核只存字，不解读。
-        model: Option<String>,
-        /// 换成的思考强度：哪个模型、哪一档（`None` 是清掉），协议那一头已经查过；不换的没有（施工 8-18）。
-        effort: Option<Effort>,
+        /// 换成的引用：模型或 `@池`，协议那一头已经查过。内核只存字，不解读。
+        model: String,
     },
     /// `session.set_meta`：改标题、置顶，改哪样写哪样（施工 3-8 三补，`meta.rs`）。
     SetMeta {

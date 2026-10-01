@@ -9,10 +9,8 @@
 //! - 钉住的池：钉着的成员还在池里的照旧，不在了、刚换过来的取指针指的（`route/pool.rs`）；会话换过去的 key 照旧
 //!   （`route/choice.rs` 照名字认，不在了的照会话编号钉着的）。
 //! - 限额照解析出的重算：配置里改了窗口、用出来的窗口，这一轮就用上。
-//! - 会话给每个模型记的思考强度换成内核交的，这一轮的配置记下（施工 8-18）：每次请求、给头看的那一档照它们算
-//!   （`route/effort.rs`）。
+//! - 这一轮的配置记下（施工 8-18）：每次请求、给头看的那一档照它配置的默认算（`route/effort.rs`）。
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use miyu_kernel::id::{ModelName, ProviderId};
@@ -27,14 +25,8 @@ use crate::TARGET;
 use crate::config::TurnConfig;
 
 impl Route {
-    /// 回合开始：照这一轮的配置 `config` 重新解析，`recorded` 是内核记着的引用，`efforts` 是内核记着的每个模型的思考强度
-    /// （见模块的说明）。交回退回了默认的那一次。
-    pub(super) fn begin(
-        &self,
-        config: &TurnConfig,
-        recorded: Option<&str>,
-        efforts: &BTreeMap<String, String>,
-    ) -> Option<Replaced> {
+    /// 回合开始：照这一轮的配置 `config` 重新解析，`recorded` 是内核记着的引用（见模块的说明）。交回退回了默认的那一次。
+    pub(super) fn begin(&self, config: &TurnConfig, recorded: Option<&str>) -> Option<Replaced> {
         let values = config.resolved.values();
         let data = &self.shared.data;
         let resolve = |text: &str| {
@@ -42,7 +34,6 @@ impl Route {
                 .ok()
         };
         let mut pinned = self.lock();
-        pinned.efforts.clone_from(efforts);
         pinned.config = Arc::clone(config);
         if let Some(recorded) = recorded
             && pinned.reference.as_deref() != Some(recorded)

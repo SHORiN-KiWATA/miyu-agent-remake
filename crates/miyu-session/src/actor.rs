@@ -305,13 +305,8 @@ impl Actor {
                 self.push(Pushed::Transient(transient));
                 None
             }
-            // 回合开始（`turn.started` 已经落了盘）：冻结这一轮的配置，重新解析会话的引用，换上思考强度（施工 8-4、8-10、8-18，
-            // `model.rs`）。
-            Action::RunTurnStartHooks {
-                turn,
-                model,
-                efforts,
-            } => Some(self.turn_start(turn, model, efforts).await),
+            // 回合开始（`turn.started` 已经落了盘）：冻结这一轮的配置，重新解析会话的引用（施工 8-4、8-10，`model.rs`）。
+            Action::RunTurnStartHooks { turn, model } => Some(self.turn_start(turn, model).await),
             Action::CallModel {
                 seen,
                 request,

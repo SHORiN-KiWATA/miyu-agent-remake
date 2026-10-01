@@ -5,8 +5,8 @@
 //! - 挑（[`Routes::pick`]）：照解析出的模型或 `@池` 排候选（`route/choice.rs`、`route/pool.rs`，第四条那张表），取排在最前、
 //!   没在冷却的（`choice::pick`）。交回挑中的这一次（[`Picked`]，`route/ended.rs`）：发给谁、别的候选是谁，说完了照它记
 //!   冷却、说换没换端点。
-//! - 备好（[`Routes::ready`]）：照真发的那个模型查资料、挑思考强度（会话没记的照配置的默认，`route/effort.rs`）、挑客户端
-//!   （地址落在本机的不走代理），造驱动和这一次的调用（[`Ready`]）。
+//! - 备好（[`Routes::ready`]）：照真发的那个模型查资料、取配置的默认思考强度、挑客户端（地址落在本机的不走代理），造驱动
+//!   和这一次的调用（[`Ready`]）。
 //! - 发：`route/exchange.rs`。
 //!
 //! 底子不认会话，只认「谁在挑」（[`Seat`]）：会话交它自己的，一次性的种子是用途，别的都没有。
@@ -94,13 +94,12 @@ impl Routes {
         Ok((picked, pins))
     }
 
-    /// 挑定了 `choice`：照真发的那个模型查资料，思考强度照会话记的一格 `cell`（没有的照配置的默认），驱动的占位是
-    /// `texts`，输出上限 `max_output`（没有的照供应商的默认）。
+    /// 挑定了 `choice`：照真发的那个模型查资料，思考强度照配置的默认，驱动的占位是 `texts`，输出上限 `max_output`
+    /// （没有的照供应商的默认）。
     pub(super) fn ready(
         &self,
         config: &TurnConfig,
         choice: &Choice,
-        cell: Option<&str>,
         texts: DriverTexts,
         max_output: Option<u32>,
     ) -> Result<Ready, NoModel> {
@@ -110,8 +109,8 @@ impl Routes {
             .data
             .with(|knowledge| facts(&config.resolved, knowledge, &target.provider, &target.model));
         let endpoint = choice.endpoint.clone();
-        // 思考强度照真发的这个模型挑（施工 8-18）：会话记的不在档位里的记一行。
-        let effort = effort::chosen(cell, &facts, target, true).map(|used| used.level);
+        // 思考强度照这个模型配置的默认（施工 8-18；8-18（补）起不认会话那一层，已经照档位查过）。
+        let effort = facts.effort.value.clone();
         // 地址落在本机的不走代理（施工 8-11 补）：和探本机的服务、拉列表一样。
         let client = match is_loopback_url(&endpoint.base_url) {
             true => self.direct.clone(),

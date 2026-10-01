@@ -1,9 +1,10 @@
 //! 协议上的 `model.list`（`docs/blueprint/models.md`「协议」，施工 8-7）：配好的供应商，每家的 key、对上了目录里的哪一家、
-//! 模型，每个模型每一格资料的值和来源、状态；在用的目录。池、用途的 `vision`（施工 8-8）：池写的成员和怎么分，派子代理能不能
-//! 选、给模型看的说明（施工 8-8 补），两种用途各配的引用，没配的是 `null`。8-8 的 `tiers` 8-8 补去掉了。模型、key 的冷却
-//! （施工 8-9）照核心一份的冷却表，照这一刻说。`session.create` 的 `model` 怎么解析也在这里（[`record`]，施工 8-8）。
-//! `session.configure` 的参数（`models/configure.rs`，施工 8-10；思考强度 `effort` 施工 8-18）、`subscribe` 回应的 `model`
-//! （[`next`]，施工 8-10；8-18 多 `effort`）也在这里。`model.call` 经一次性入口叫一次模型（`models/call.rs`，施工 8-20）。
+//! 模型，每个模型每一格资料的值和来源、状态（思考强度的那一格多 `key`，施工 8-18（补））；在用的目录。池、用途的 `vision`
+//! （施工 8-8）：池写的成员和怎么分，派子代理能不能选、给模型看的说明（施工 8-8 补），两种用途各配的引用，没配的是
+//! `null`。8-8 的 `tiers` 8-8 补去掉了。模型、key 的冷却（施工 8-9）照核心一份的冷却表，照这一刻说。`session.create` 的
+//! `model` 怎么解析也在这里（[`record`]，施工 8-8）。`session.configure` 的参数（[`ConfigureParams`]，施工 8-10）、
+//! `subscribe` 回应的 `model`（[`next`]，施工 8-10；8-18 多 `effort`，从哪来是配置的哪一层，8-18（补））也在这里。
+//! `model.call` 经一次性入口叫一次模型（`models/call.rs`，施工 8-20）。
 //!
 //! 1. 先等目录读完（核心写了 `ready` 以后才读）。
 //! 2. `provider` 写了、不是配好了的：`unknown_provider`。
@@ -12,11 +13,9 @@
 //! 4. 照不算项目配置的最终值答。key 的值从不交出去，只说有没有值。
 
 mod call;
-mod configure;
 mod entry;
 
 pub(crate) use call::call;
-pub(crate) use configure::{ConfigureParams, effort};
 
 use std::sync::Arc;
 
@@ -40,6 +39,38 @@ struct ListParams {
     provider: Option<String>,
     #[serde(default)]
     refresh: Option<bool>,
+}
+
+/// `session.configure` 的参数：`session`、`model` 都必写，`model` 是空字当参数不对（「施工时定的」8-10）。思考强度改在
+/// 配置里，这里不再收 `effort`：写了（不是 `null`）的也是参数不对（施工 8-18（补），「怎么走」第十一条）——这是协议里
+/// 「同一个主版本只加、都忽略不认识的字段」的一处例外：这个字段以前收过，照样收但当场拒，免得旧头以为还能这样换、静悄悄
+/// 没生效。
+#[derive(Debug, Deserialize)]
+pub(crate) struct ConfigureParams {
+    /// 哪个会话。
+    pub(crate) session: String,
+    /// 换成的引用，还没解析。
+    model: String,
+    /// 以前收的思考强度；只用来判断写没写，内容不读。
+    #[serde(default)]
+    effort: Option<Value>,
+}
+
+impl ConfigureParams {
+    /// 换成的引用，原样：空字、写了 `effort` 的是参数不对。
+    ///
+    /// # Errors
+    ///
+    /// 空字、写了 `effort`：`bad_params`。
+    pub(crate) fn model(&self) -> Result<&str, Refusal> {
+        if self.effort.is_some() {
+            return Err(Refusal::BAD_PARAMS);
+        }
+        match self.model.is_empty() {
+            true => Err(Refusal::BAD_PARAMS),
+            false => Ok(&self.model),
+        }
+    }
 }
 
 /// 答 `model.list` 要的那一刻的配置：最终值、各层的文件、引用到的 key 有没有值（拿着配置服务的锁抄一份，抄完就放开）。

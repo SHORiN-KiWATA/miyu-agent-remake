@@ -1,10 +1,11 @@
-//! 思考强度（施工 8-18）：档位名规整、开关照档案、一次请求用哪一档、空闲超时放大几倍、配置里写的不在档位里的。
+//! 思考强度（施工 8-18；8-18（补）去掉会话那一层）：档位名规整、开关照档案、给头看的那一档从配置的哪一层来、空闲超时
+//! 放大几倍、配置里写的不在档位里的。
 
 use miyu_config::parse::parse;
 use serde_json::json;
 
 use super::*;
-use crate::facts::facts;
+use crate::facts::{Fact, Source, facts};
 use crate::provider::provider;
 use crate::settings::ModelSettings;
 use crate::test_support::{Held, items, resolved};
@@ -67,50 +68,46 @@ fn the_toggle_counts_only_where_the_profile_can_say_it() {
 }
 
 #[test]
-fn a_request_takes_the_session_cell_then_the_config_then_nothing() {
-    let known = names(&["off", "low", "high"]);
-    let used = |level: &str, from: EffortSource| {
-        Some(EffortInUse {
-            level: level.to_string(),
-            from,
-        })
+fn in_use_reports_which_config_layer_set_it() {
+    let fact = |value: Option<&str>, source: Source| Fact {
+        value: value.map(str::to_string),
+        source,
     };
     assert_eq!(
-        pick(Some("low"), Some("high"), &known),
-        Picked {
-            used: used("low", EffortSource::Session),
-            stale: None
-        }
+        in_use(&fact(
+            Some("high"),
+            Source::Config {
+                layer: Layer::System,
+                line: 3
+            }
+        )),
+        Some(EffortInUse {
+            level: "high".to_string(),
+            from: EffortSource::System,
+        }),
     );
     assert_eq!(
-        pick(None, Some("high"), &known),
-        Picked {
-            used: used("high", EffortSource::Config),
-            stale: None
-        }
+        in_use(&fact(
+            Some("low"),
+            Source::Config {
+                layer: Layer::Personal,
+                line: 1
+            }
+        )),
+        Some(EffortInUse {
+            level: "low".to_string(),
+            from: EffortSource::Personal,
+        }),
     );
     assert_eq!(
-        pick(None, None, &known),
-        Picked {
-            used: None,
-            stale: None
-        }
+        in_use(&fact(None, Source::Default)),
+        None,
+        "没写就不带，不管来源"
     );
     assert_eq!(
-        pick(Some("max"), Some("off"), &known),
-        Picked {
-            used: used("off", EffortSource::Config),
-            stale: Some("max".to_string())
-        },
-        "会话记的不在了：照配置的，说一声"
-    );
-    assert_eq!(
-        pick(Some("max"), None, &known),
-        Picked {
-            used: None,
-            stale: Some("max".to_string())
-        },
-        "再没有就不带"
+        in_use(&fact(Some("high"), Source::Local)),
+        None,
+        "没写在配置文件里的不带（不会真出现：effort 不借目录、不是本机免费价）"
     );
 }
 
@@ -182,34 +179,6 @@ fn a_written_level_the_model_does_not_have_is_reported_where_it_is_written() {
         unknown(&parsed, Layer::System, &levels_of(&source)).is_empty(),
         "none 读成 off，照样在档位里"
     );
-}
-
-#[test]
-fn a_model_named_by_a_head_must_be_a_configured_model() {
-    let source = "[providers.deepseek]\nkeys = []\n\n[providers.broken.models.x]\nwindow = 1000\n";
-    let resolved = resolved(source);
-    let held = held();
-    let knowledge = held.knowledge();
-    assert_eq!(
-        levels_for(&resolved, &knowledge, "deepseek/deepseek-flash"),
-        Ok((
-            "deepseek/deepseek-flash".to_string(),
-            names(&["off", "low", "high", "max"])
-        ))
-    );
-    assert_eq!(
-        levels_for(&resolved, &knowledge, "deepseek/nope").map(|(_, levels)| levels),
-        Ok(Vec::new()),
-        "模型名不查：目录里没有的一档都没有"
-    );
-    assert_eq!(
-        levels_for(&resolved, &knowledge, "broken/x").map(|(_, levels)| levels),
-        Ok(Vec::new()),
-        "那一家用不了：一档都没有"
-    );
-    for wrong in ["@free", "nope/x", "deepseek", "lite"] {
-        assert!(levels_for(&resolved, &knowledge, wrong).is_err(), "{wrong}");
-    }
 }
 
 #[test]

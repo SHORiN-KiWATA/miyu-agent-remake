@@ -78,7 +78,6 @@ fn a_redo_is_one_batch_and_replies_when_it_is_stored() {
         actions.contains(&Action::RunTurnStartHooks {
             turn: TurnId::new(seq(11)),
             model: None,
-            efforts: std::collections::BTreeMap::new(),
         }),
         "新的一轮照常往下走"
     );

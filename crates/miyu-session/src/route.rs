@@ -28,8 +28,8 @@
 //!   窗口（第二条第 9 条）：新造的、载入的会话用上，开着的会话下一个回合开始时用上（施工 8-10）。
 //! - 第一次接入（施工 8-11）：探本机的服务（`route/local.rs`）、试一家供应商（`route/probe.rs`），协议的 `provider.detect`、
 //!   `provider.test` 调它们；和拉列表一样在这一层，不属于哪个会话。
-//! - 思考强度（施工 8-18，`route/effort.rs`）：会话给每个模型记的一格造端口、回合开始时收下；每次请求挑好端点以后照真发的
-//!   那个模型挑一档交给驱动，空闲超时跟着放大；给头看的那一档照限额里的模型算。
+//! - 思考强度（施工 8-18；8-18（补）去掉了会话那一层，`route/effort.rs`）：照真发的那个模型配置的默认交给驱动，空闲超时
+//!   跟着放大；给头看的那一档（配置的哪一层）照限额里的模型算。
 
 mod base;
 mod choice;
@@ -131,7 +131,6 @@ impl Models for Routes {
                 limits,
                 moved: BTreeMap::new(),
                 sticky: None,
-                efforts: session.efforts,
                 config: session.config,
             })),
         })
@@ -182,9 +181,7 @@ struct Pinned {
     moved: BTreeMap<String, String>,
     /// 上一次主请求收到过增量、然后出错的那一个（施工 8-9，第四条第 3 条）：下一次主请求不挑，还发给它。说完了就放开。
     sticky: Option<Candidate>,
-    /// 会话给每个模型记的思考强度（施工 8-18）：`<供应商>/<模型>` 到那一档。造端口时照内核从日志拼的，回合开始换成内核交的。
-    efforts: BTreeMap<String, String>,
-    /// 最近一次定下的配置：造端口时的、回合开始冻结的（施工 8-18）。给头看的那一档照它查档位、配置的默认。
+    /// 最近一次定下的配置：造端口时的、回合开始冻结的（施工 8-18）。给头看的那一档照它查配置的默认。
     config: TurnConfig,
 }
 
@@ -201,13 +198,8 @@ impl ModelPort for Route {
         self.lock().limits.clone()
     }
 
-    fn turn(
-        &self,
-        config: &TurnConfig,
-        reference: Option<&str>,
-        efforts: &BTreeMap<String, String>,
-    ) -> Option<Replaced> {
-        self.begin(config, reference, efforts)
+    fn turn(&self, config: &TurnConfig, reference: Option<&str>) -> Option<Replaced> {
+        self.begin(config, reference)
     }
 
     fn effort(&self) -> Option<EffortInUse> {
@@ -276,15 +268,8 @@ impl Route {
         };
         let (picked, pins) = routes.pick(config, &values, &resolved, &seat)?;
         pinned.last = model_of(&picked.choice.target);
-        let cell = effort::cell(&pinned, &picked.choice.target);
         drop(pinned);
-        let ready = routes.ready(
-            config,
-            &picked.choice,
-            cell.as_deref(),
-            self.texts.clone(),
-            None,
-        )?;
+        let ready = routes.ready(config, &picked.choice, self.texts.clone(), None)?;
         Ok(send::Chosen {
             ready,
             blobs: self.blobs.clone(),

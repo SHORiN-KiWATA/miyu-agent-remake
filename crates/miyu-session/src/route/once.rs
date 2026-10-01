@@ -206,8 +206,7 @@ impl OneShot {
             };
             let (picked, _) = routes.pick(config, &values, &resolved, &seat)?;
             held.clone_from(&picked.choice.member);
-            let ready =
-                routes.ready(config, &picked.choice, None, texts.clone(), ask.max_tokens)?;
+            let ready = routes.ready(config, &picked.choice, texts.clone(), ask.max_tokens)?;
             if images && !ready.call.inputs.images {
                 return Err(Unanswered::Failed(no_images(&picked.choice)));
             }
