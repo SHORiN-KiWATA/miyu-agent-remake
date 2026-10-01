@@ -181,6 +181,15 @@ pub enum Push {
     AuxUsage(Usage),
     /// 写成了一段回顾（`session.recapped`）。
     Recapped(String),
+    /// 订了「空了告诉我」的会话空下来了、等作废了、没了（`peer.idle`，核心 C-6）。
+    PeerIdle {
+        /// 被等的会话的整个编号。
+        session: String,
+        /// `idle`、`expired`、`gone`，认不得的原样。
+        reason: String,
+        /// 那个会话最后一轮回复的第一行；可以没有。
+        status: Option<String>,
+    },
     /// 一次真发出去的请求（`model.called` 带 `request`；没编码就失败的没有这一条）：侧边栏数缓存断裂用。
     Sent {
         /// 看到第几条为止（`seen`）。
@@ -259,6 +268,11 @@ pub fn read(event: &Value, mine: &dyn Fn(&str) -> bool) -> Vec<Push> {
                 out.push(Push::Title(title.to_string()));
             }
         }
+        "peer.idle" => out.push(Push::PeerIdle {
+            session: text(&body["session"]),
+            reason: text(&body["reason"]),
+            status: body["status"].as_str().map(str::to_string),
+        }),
         "turn.reverted" => out.push(Push::Reverted(turns(&body["turns"]))),
         "turn.unreverted" => out.push(Push::Unreverted(turns(&body["turns"]))),
         "context.compacted" => out.push(Push::Compacted {

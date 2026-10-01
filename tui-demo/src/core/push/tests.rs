@@ -371,3 +371,29 @@ fn a_recap_call_only_counts_as_usage_and_the_recap_is_read() {
         "body": {"text": "  在做回顾。  ", "upto": 28}});
     assert_eq!(read_mine(&recapped), [Push::Recapped("在做回顾。".into())]);
 }
+
+#[test]
+fn a_peer_going_idle_is_read_with_its_reason_and_last_line() {
+    // 核心 C-6「空了告诉我」：`peer.idle`，`status` 可以没有。
+    let idle = json!({"seq": 30, "kind": "peer.idle", "by": {"kind": "session", "id": "w"},
+        "cause": "w/idle/m/1", "body": {"session": "0192f3a0-1111-7abc-8def-001122334455",
+        "reason": "idle", "status": "算完了，结果是 55"}});
+    assert_eq!(
+        read_mine(&idle),
+        vec![Push::PeerIdle {
+            session: "0192f3a0-1111-7abc-8def-001122334455".into(),
+            reason: "idle".into(),
+            status: Some("算完了，结果是 55".into()),
+        }]
+    );
+    let gone = json!({"seq": 31, "kind": "peer.idle", "by": {"kind": "kernel"},
+        "body": {"session": "s", "reason": "gone"}});
+    assert_eq!(
+        read_mine(&gone),
+        vec![Push::PeerIdle {
+            session: "s".into(),
+            reason: "gone".into(),
+            status: None
+        }]
+    );
+}

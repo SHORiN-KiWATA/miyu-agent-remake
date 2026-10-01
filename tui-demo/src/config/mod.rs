@@ -134,6 +134,18 @@ pub struct JobTexts {
     pub from_session: String,
     /// 同上，没有标题的。
     pub from_session_untitled: String,
+    /// 「空了告诉我」那一行里的会话：`{id}` 短编号、`{title}` 标题（核心 C-6）。
+    pub peer_who: String,
+    /// 同上，没有标题的。
+    pub peer_who_untitled: String,
+    /// 那个会话干完活空下来了，写成它回复了，`{who}`。
+    pub peer_idle: String,
+    /// 等了 12 小时作废了，`{who}`。
+    pub peer_expired: String,
+    /// 那个会话没了，`{who}`。
+    pub peer_gone: String,
+    /// 认不得的原因，`{who}`、`{reason}`。
+    pub peer_other: String,
     /// 来处：这个会话派的子代理，`{job}` 任务编号。
     pub from_agent: String,
     /// 来处：别的 harness，`{name}` 它报的名字（洗过）。

@@ -111,6 +111,18 @@ impl App {
                 }
                 self.prune();
             }
+            Push::PeerIdle {
+                session: peer,
+                reason,
+                status,
+            } => {
+                let known = self.session_title(peer);
+                let (mark, text) =
+                    notes::peer_note(peer, known.as_deref(), reason, status.as_deref(), &words);
+                if let Some((transcript, _)) = self.slot(session) {
+                    transcript.job(mark, text, status.clone().unwrap_or_default());
+                }
+            }
             Push::Foreign(said) => {
                 let from = self.label(session, &said.from, &words);
                 if let Some((transcript, _)) = self.slot(session) {
@@ -155,6 +167,19 @@ impl App {
         );
     }
 
+    /// 最近一次会话列表里这个会话的标题；没见过的顺手要一次列表（「别处来的话」第 2 条）。
+    fn session_title(&self, id: &str) -> Option<String> {
+        let known = self
+            .sessions_seen
+            .iter()
+            .flatten()
+            .find(|s| s.session == id);
+        if known.is_none() {
+            self.core.send(Command::ListSessions);
+        }
+        known.and_then(|s| s.title.clone())
+    }
+
     /// 别处来的话写的来处（「别处来的话」第 2 条）：自己派的子代理、派这个子代理的会话，别的都是别的主会话发来的
     /// （核心 C-5），照最近一次会话列表写标题，没见过的先只写短编号、顺手要一次列表。
     fn label(&self, session: &str, from: &Sender, words: &JobTexts) -> String {
@@ -167,12 +192,7 @@ impl App {
                     Relation::Agent(job) => words.from_agent.replace("{job}", &job),
                     Relation::Parent => words.from_main.clone(),
                     Relation::Other => {
-                        let seen = self.sessions_seen.iter().flatten();
-                        let known = seen.clone().find(|s| s.session == *id);
-                        if known.is_none() {
-                            self.core.send(Command::ListSessions);
-                        }
-                        notes::from_session(id, known.and_then(|s| s.title.as_deref()), words)
+                        notes::from_session(id, self.session_title(id).as_deref(), words)
                     }
                 }
             }

@@ -378,7 +378,11 @@ impl Transcript {
                 }
             }
             // 别处来的话、后台任务：界面照会话、任务表先办了（`app/sessions.rs`），正文不直接收。
-            Push::Foreign(_) | Push::JobStarted(_) | Push::JobMessaged(_) | Push::JobEnded(_) => {}
+            Push::Foreign(_)
+            | Push::JobStarted(_)
+            | Push::JobMessaged(_)
+            | Push::JobEnded(_)
+            | Push::PeerIdle { .. } => {}
             Push::Usage(usage) => {
                 self.total.uncached += usage.uncached;
                 self.total.cache_read += usage.cache_read;

@@ -119,6 +119,43 @@ pub(super) fn relation(sender_job: Option<String>, receiver_is_child: bool) -> R
     }
 }
 
+/// 「空了告诉我」那一行（核心 C-6，「别处来的话」第 5 条）：空下来了绿点，等作废了、那个会话没了暗点，认不得的原样写。
+pub(super) fn peer_note(
+    id: &str,
+    title: Option<&str>,
+    reason: &str,
+    status: Option<&str>,
+    words: &JobTexts,
+) -> (JobMark, String) {
+    let short = crate::session_list::short(id);
+    let who = match title {
+        Some(title) => words
+            .peer_who
+            .replace("{id}", &short)
+            .replace("{title}", &untrusted(title)),
+        None => words.peer_who_untitled.replace("{id}", &short),
+    };
+    match reason {
+        "idle" => {
+            let mut text = words.peer_idle.replace("{who}", &who);
+            if let Some(status) = status.filter(|s| !s.trim().is_empty()) {
+                text.push_str(" · ");
+                text.push_str(&untrusted(status));
+            }
+            (JobMark::Done, text)
+        }
+        "expired" => (JobMark::Stopped, words.peer_expired.replace("{who}", &who)),
+        "gone" => (JobMark::Stopped, words.peer_gone.replace("{who}", &who)),
+        other => (
+            JobMark::Stopped,
+            words
+                .peer_other
+                .replace("{who}", &who)
+                .replace("{reason}", &untrusted(other)),
+        ),
+    }
+}
+
 /// 别的主会话发来的话的来处（「别处来的话」第 2 条，核心 C-5）：短编号，有标题的再写标题（标题照不可信的字清理）。
 pub(super) fn from_session(id: &str, title: Option<&str>, words: &JobTexts) -> String {
     let short = crate::session_list::short(id);
@@ -393,5 +430,26 @@ mod tests {
             Relation::Other,
             "主会话收到的不会是主会话发的"
         );
+    }
+
+    #[test]
+    fn a_peer_going_idle_reads_like_a_job_ending_that_replied() {
+        // 核心 C-6：2026-10-01 项目主人定照后台任务结束那一行画，绿点暗点；「空下来了」说法怪，说成「回复」。
+        use crate::transcript::JobMark;
+        let words = crate::config::Config::builtin().unwrap().text.jobs;
+        let id = "0192f3a0-1111-7abc-8def-001122334455";
+        let (mark, text) = super::peer_note(id, Some("工人"), "idle", Some("55"), &words);
+        assert!(matches!(mark, JobMark::Done));
+        assert_eq!(text, "会话 22334455「工人」回复 · 55");
+        let (_, text) = super::peer_note(id, None, "idle", Some("55"), &words);
+        assert_eq!(text, "会话 22334455 回复 · 55");
+        let (mark, text) = super::peer_note(id, None, "expired", None, &words);
+        assert!(matches!(mark, JobMark::Stopped));
+        assert_eq!(text, "会话 22334455 等了 12 小时没空下来，不等了");
+        let (_, text) = super::peer_note(id, Some("工人"), "gone", None, &words);
+        assert_eq!(text, "会话 22334455「工人」已经不在了，不等了");
+        let (mark, text) = super::peer_note(id, None, "paused", None, &words);
+        assert!(matches!(mark, JobMark::Stopped));
+        assert_eq!(text, "会话 22334455 · paused", "认不得的原样写");
     }
 }
