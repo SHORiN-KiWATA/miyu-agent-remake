@@ -7,7 +7,8 @@
 //! 再带上它在哪（`untrusted_project`，施工 8-2）。查配置的三个方法在 `config/methods.rs`（施工 8-2），改配置的 `config.set`、
 //! 信任项目配置的 `config.trust` 在 `config/set.rs`、`config/trusting.rs`（施工 8-3）。密钥的 `secret.set`、`secret.delete`、
 //! `secret.list` 在 `secrets.rs`（施工 8-5）。`model.list` 在 `models.rs`（施工 8-7）。`session.create` 带 `model` 的照这时的
-//! 配置解析好再造，解析不出的回 `unknown_model`、什么都不造（施工 8-8，`models::record`）。
+//! 配置解析好再造，解析不出的回 `unknown_model`、什么都不造（施工 8-8，`models::record`）。给人看的字 `human.get` 在
+//! `human.rs`（施工 W-1）。
 
 use std::sync::Arc;
 
@@ -26,6 +27,7 @@ use crate::attach::{self, Attachment};
 use crate::config;
 use crate::from;
 use crate::hello::Peer;
+use crate::human;
 use crate::job_output;
 use crate::list;
 use crate::meta::MetaParams;
@@ -369,6 +371,7 @@ pub(crate) async fn call(
             }
         }
         "job.output" => job_output::read(core, params(request)?).await,
+        "human.get" => human::get(core, peer, params(request)?).await,
         "config.schema" => config::methods::schema(core, peer, params(request)?),
         "config.get" => config::methods::get(core, peer, params(request)?),
         "config.check" => config::methods::check(core, peer, params(request)?),
