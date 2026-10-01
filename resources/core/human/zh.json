@@ -130,6 +130,10 @@
         "name": "思考强度",
         "description": "这个模型的思考强度有哪几级。"
       },
+      "providers.<id>.models.<model>.effort": {
+        "name": "默认的思考强度",
+        "description": "这个模型默认的思考强度，写它的一档，例如 high；能关思考的写 off。不写的照供应商的默认。"
+      },
       "providers.<id>.models.<model>.price_multiplier": {
         "name": "倍率",
         "description": "这个模型的价格照它乘，盖过供应商上写的。"
@@ -249,6 +253,7 @@
     "config/env-not-set": "{key} 引用的环境变量 {name} 核心起来时没有设",
     "config/no-provider": "{key} 指的供应商 {name} 没有配",
     "config/no-pool": "{key} 指的池 {name} 没有配",
+    "config/unknown-effort": "{key} 写的 {name} 不是这个模型现在有的一档：请求照没写发",
     "config/bad-secret-name": "{key} 不能当密钥的名字：小写字母开头，只有小写字母、数字、-、_，最长 64 个字符",
     "config/bad-secret-value": "{key} 的值要写成带引号的字，不能是空的",
     "config/trust-header": "Miyu 记着的项目配置的信任：哪个仓库、哪一份内容、信不信任。",

@@ -2,7 +2,8 @@
 //! 模型，每个模型每一格资料的值和来源、状态；在用的目录。池、用途的 `vision`（施工 8-8）：池写的成员和怎么分，派子代理能不能
 //! 选、给模型看的说明（施工 8-8 补），两种用途各配的引用，没配的是 `null`。8-8 的 `tiers` 8-8 补去掉了。模型、key 的冷却
 //! （施工 8-9）照核心一份的冷却表，照这一刻说。`session.create` 的 `model` 怎么解析也在这里（[`record`]，施工 8-8）。
-//! `session.configure` 的参数（[`ConfigureParams`]）、`subscribe` 回应的 `model`（[`next`]）也在这里（施工 8-10）。
+//! `session.configure` 的参数（`models/configure.rs`，施工 8-10；思考强度 `effort` 施工 8-18）、`subscribe` 回应的 `model`
+//! （[`next`]，施工 8-10；8-18 多 `effort`）也在这里。
 //!
 //! 1. 先等目录读完（核心写了 `ready` 以后才读）。
 //! 2. `provider` 写了、不是配好了的：`unknown_provider`。
@@ -10,7 +11,10 @@
 //!    没有列表、旧过 24 小时的几家在后台拉，这一次先照手头的答。
 //! 4. 照不算项目配置的最终值答。key 的值从不交出去，只说有没有值。
 
+mod configure;
 mod entry;
+
+pub(crate) use configure::{ConfigureParams, effort};
 
 use std::sync::Arc;
 
@@ -125,32 +129,9 @@ fn pools_json(values: &Values) -> Vec<Value> {
         .collect()
 }
 
-/// `session.configure` 的参数（施工 8-10，`docs/blueprint/models.md`「协议」）：哪个会话、换成的模型或 `@池`，两格都必写，
-/// 不是字的读不成（`bad_params`）。
-#[derive(Debug, Deserialize)]
-pub(crate) struct ConfigureParams {
-    /// 哪个会话。
-    pub(crate) session: String,
-    /// 换成的引用，还没解析。
-    model: String,
-}
-
-impl ConfigureParams {
-    /// 换成的引用，原样：空字是参数不对（「施工时定的」8-10）。
-    ///
-    /// # Errors
-    ///
-    /// 空字：`bad_params`。
-    pub(crate) fn model(&self) -> Result<&str, Refusal> {
-        match self.model.is_empty() {
-            true => Err(Refusal::BAD_PARAMS),
-            false => Ok(&self.model),
-        }
-    }
-}
-
 /// `subscribe` 回应的 `model`（施工 8-10）：`{"ref":…,"endpoint":…,"model":…}`，会话接下来请求的；轮换的池没有 `endpoint`、
-/// `model`，一个模型都没有的没有这一格。
+/// `model`，一个模型都没有的没有这一格。施工 8-18 多 `effort`：`{"level":…,"from":…}`，接下来那个模型真用的思考强度，什么
+/// 都不带的没有。
 pub(crate) fn next(next: &Next) -> Option<Value> {
     if next.is_empty() {
         return None;
@@ -162,6 +143,12 @@ pub(crate) fn next(next: &Next) -> Option<Value> {
     if let Some(model) = &next.model {
         written.insert("endpoint".to_string(), json!(model.endpoint.as_str()));
         written.insert("model".to_string(), json!(model.model.as_str()));
+    }
+    if let Some(effort) = &next.effort {
+        written.insert(
+            "effort".to_string(),
+            json!({"level": effort.level, "from": effort.from.as_str()}),
+        );
     }
     Some(Value::Object(written))
 }

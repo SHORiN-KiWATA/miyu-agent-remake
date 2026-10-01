@@ -24,8 +24,11 @@
 //!   窗口（第二条第 9 条）：新造的、载入的会话用上，开着的会话下一个回合开始时用上（施工 8-10）。
 //! - 第一次接入（施工 8-11）：探本机的服务（`route/local.rs`）、试一家供应商（`route/probe.rs`），协议的 `provider.detect`、
 //!   `provider.test` 调它们；和拉列表一样在这一层，不属于哪个会话。
+//! - 思考强度（施工 8-18，`route/effort.rs`）：会话给每个模型记的一格造端口、回合开始时收下；每次请求挑好端点以后照真发的
+//!   那个模型挑一档交给驱动，空闲超时跟着放大；给头看的那一档照限额里的模型算。
 
 mod choice;
+mod effort;
 mod ended;
 mod lists;
 mod local;
@@ -50,7 +53,7 @@ use miyu_drivers::DriverTexts;
 use miyu_drivers::{Call, DeepSeekImages, OpenAiChat};
 use miyu_http::{Client, is_loopback_url};
 use miyu_kernel::estimate::ImagePrice;
-use miyu_kernel::event::{CallError, ErrorClass};
+use miyu_kernel::event::{CallError, EffortInUse, ErrorClass};
 use miyu_kernel::id::{ModelName, ProviderId, Seq, SessionId};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
@@ -69,7 +72,8 @@ use crate::config::TurnConfig;
 use crate::port::{Cancel, ForSession, ModelPort, Models, Reports};
 use choice::Unsent;
 
-/// 空闲超时的初值：多久没收到新的字节就算断了（`05-内核接口.md` 第七节，以后按思考强度放大）。
+/// 空闲超时的初值：多久没收到新的字节就算断了（`05-内核接口.md` 第七节）。每次请求照它的思考强度放大（施工 8-18，
+/// `miyu_models::effort::idle_factor`）。
 pub const IDLE: Duration = Duration::from_secs(180);
 
 /// 还没有模型、轮换的池的限额里写的端点和模型（施工 8-9 起会话 actor 也认它：限额里的模型是它的，不推 `model.changed`）。
@@ -122,6 +126,8 @@ impl Models for Routes {
                 limits,
                 moved: BTreeMap::new(),
                 sticky: None,
+                efforts: session.efforts,
+                config: session.config,
             })),
         })
     }
@@ -167,6 +173,10 @@ struct Pinned {
     moved: BTreeMap<String, String>,
     /// 上一次主请求收到过增量、然后出错的那一个（施工 8-9，第四条第 3 条）：下一次主请求不挑，还发给它。说完了就放开。
     sticky: Option<Candidate>,
+    /// 会话给每个模型记的思考强度（施工 8-18）：`<供应商>/<模型>` 到那一档。造端口时照内核从日志拼的，回合开始换成内核交的。
+    efforts: BTreeMap<String, String>,
+    /// 最近一次定下的配置：造端口时的、回合开始冻结的（施工 8-18）。给头看的那一档照它查档位、配置的默认。
+    config: TurnConfig,
 }
 
 impl ModelPort for Route {
@@ -182,8 +192,17 @@ impl ModelPort for Route {
         self.lock().limits.clone()
     }
 
-    fn turn(&self, config: &TurnConfig, reference: Option<&str>) -> Option<Replaced> {
-        self.begin(config, reference)
+    fn turn(
+        &self,
+        config: &TurnConfig,
+        reference: Option<&str>,
+        efforts: &BTreeMap<String, String>,
+    ) -> Option<Replaced> {
+        self.begin(config, reference, efforts)
+    }
+
+    fn effort(&self) -> Option<EffortInUse> {
+        self.shown_effort()
     }
 
     fn call(
@@ -251,12 +270,15 @@ impl Route {
         let at = choice::pick(&choices, sticky, data, wall_now())?;
         let picked = choices.remove(at);
         pinned.last = model_of(&picked.target);
+        let cell = effort::cell(&pinned, &picked.target);
         drop(pinned);
         let target = picked.target.clone();
         let model = ModelName::parse(&target.model).map_err(|error| NoModel(error.to_string()))?;
         let (facts, _): (Facts, _) = data
             .with(|knowledge| facts(&config.resolved, knowledge, &target.provider, &target.model));
         let endpoint = picked.endpoint.clone();
+        // 思考强度照真发的这个模型挑（施工 8-18）：会话记的不在档位里的记一行。
+        let effort = effort::chosen(cell.as_deref(), &facts, &target, true).map(|used| used.level);
         // 地址落在本机的不走代理（施工 8-11 补）：和探本机的服务、拉列表一样。
         let client = match is_loopback_url(&endpoint.base_url) {
             true => self.shared.direct.clone(),
@@ -267,13 +289,14 @@ impl Route {
             model: model_of(&target),
             endpoint,
             driver: OpenAiChat::new(target.provider.compat.clone(), self.texts.clone()),
+            idle: effort::idle(self.shared.idle, effort.as_deref()),
             call: Call {
                 model,
                 max_output: None,
                 inputs: facts.driver_inputs(),
+                effort,
             },
             blobs: self.blobs.clone(),
-            idle: self.shared.idle,
             learn: send::Learn {
                 data: Arc::clone(data),
                 provider: target.provider.id.clone(),

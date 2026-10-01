@@ -143,7 +143,9 @@ impl Core {
             settings::PermissionSettings::ITEMS,
         ]
         .concat();
-        let config = Config::defaults(&root, &admin, items);
+        let mut config = Config::defaults(&root, &admin, items);
+        let model_data = empty_model_data();
+        config.set_models(Arc::clone(&model_data));
         let index = Arc::new(list::open_index(&root, &admin));
         Core {
             index,
@@ -162,7 +164,7 @@ impl Core {
             jobs: Arc::new(Jobs::new()),
             connections: AtomicUsize::new(0),
             hello_wait: HELLO_WAIT,
-            model_data: empty_model_data(),
+            model_data,
             files: files::Cache::default(),
             files_fresh: Duration::from_secs(miyu_fs::FRESH_SECS),
             queries: Queries::default(),
@@ -170,8 +172,15 @@ impl Core {
     }
 
     /// 同一份家底，模型资料照 `data`（施工 8-7）：核心起来时把路由手里的那一份交进来。没设的是空的：没有档案、没有目录。
+    /// 配置服务也拿着它：查模型默认的思考强度在不在档位里（施工 8-18）。
     #[must_use]
     pub fn with_model_data(mut self, data: Arc<ModelData>) -> Core {
+        let config = self
+            .config
+            .get_mut()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        config.set_models(Arc::clone(&data));
+        self.hub = Hub::new(config);
         self.model_data = data;
         self
     }
@@ -201,7 +210,8 @@ impl Core {
 
     /// 同一份家底，配置照 `config`（施工 8-2）：核心起来时读好交进来。没设的全是默认值，只认端点自己的两项。
     #[must_use]
-    pub fn with_config(mut self, config: Config) -> Core {
+    pub fn with_config(mut self, mut config: Config) -> Core {
+        config.set_models(Arc::clone(&self.model_data));
         self.hub = Hub::new(&config);
         self.config = std::sync::Mutex::new(config);
         self

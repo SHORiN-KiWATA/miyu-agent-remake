@@ -1,4 +1,5 @@
 {"seq":52,"at":"2026-09-25T07:05:00.000Z","kind":"session.policy_changed","by":{"kind":"person","account":"alice"},"cause":"cmd-9e30","body":{"permission":{"level":"workspace","read_only":true}}}
 {"seq":63,"at":"2026-09-25T07:32:00.000Z","kind":"session.policy_changed","by":{"kind":"person","account":"alice"},"cause":"cmd-f906","body":{"permission":{"level":"workspace","read_only":false}}}
 {"seq":139,"at":"2026-09-25T20:30:00.000Z","kind":"session.policy_changed","by":{"kind":"person","account":"alice"},"cause":"cmd-0c1e","body":{"model":"@free"}}
+{"seq":140,"at":"2026-09-25T20:35:00.000Z","kind":"session.policy_changed","by":{"kind":"person","account":"alice"},"cause":"cmd-5b17","body":{"effort":{"model":"deepseek/deepseek-v4","level":"high"}}}
 {"seq":144,"at":"2026-09-25T21:00:00.000Z","kind":"session.policy_changed","turn":143,"by":{"kind":"kernel"},"cause":"cmd-2e30","body":{"model":"deepseek/deepseek-v4","replaced":"@free"}}

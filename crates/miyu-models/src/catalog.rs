@@ -69,12 +69,22 @@ pub struct CatalogModel {
     pub max_output: Option<u64>,
     /// 价格，美元。
     pub price: Option<Price>,
-    /// 思考强度：`effort` 的几级；只有开关的是 `on`。
-    pub reasoning: Option<Vec<String>>,
+    /// 思考强度：`effort` 的几档（规整过）、有没有开关（施工 8-18）。都没有的没有。
+    pub reasoning: Option<Reasoning>,
     /// `deprecated`、`beta` 这类。
     pub status: Option<String>,
     /// 发布日期，原样（`2026-09-10`）：照字比新旧（施工 8-11，第一次接入推荐模型用）。
     pub release_date: Option<String>,
+}
+
+/// 目录里一个模型的思考强度（施工 8-18，`models.md`「模型的资料」）：开关算不算、能不能关，合资料时照这一家的档案定
+/// （[`crate::effort::offered`]）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Reasoning {
+    /// `effort` 的几档：`none`、`disabled` 读成 `off`，重复的只留第一个（[`crate::effort::levels`]）。没有的是空的。
+    pub levels: Vec<String>,
+    /// 有 `toggle`：能开关思考。
+    pub toggle: bool,
 }
 
 /// 在用的目录：读好的，和它是哪一份、什么时候拉的（`model.list` 的 `catalog`，来源的 `fetched`）。
@@ -311,20 +321,18 @@ impl From<RawModel> for CatalogModel {
     }
 }
 
-/// 思考强度：有 `effort` 的照它的几级；只有开关的写 `on`；都没有的没有。
-fn reasoning(options: Vec<ReasoningOption>) -> Option<Vec<String>> {
-    let effort = options
+/// 思考强度：第一个不空的 `effort` 的几档（规整过），有没有 `toggle`；两样都没有的（只有 `budget_tokens` 的也是）没有
+/// （施工 8-18）。
+fn reasoning(options: Vec<ReasoningOption>) -> Option<Reasoning> {
+    let levels = options
         .iter()
         .filter(|option| option.kind == "effort")
         .map(|option| option.values.iter().flatten().cloned().collect::<Vec<_>>())
-        .find(|values| !values.is_empty());
-    match effort {
-        Some(effort) => Some(effort),
-        None => options
-            .iter()
-            .any(|option| option.kind == "toggle")
-            .then(|| vec!["on".to_string()]),
-    }
+        .find(|values| !values.is_empty())
+        .map(|values| crate::effort::levels(&values))
+        .unwrap_or_default();
+    let toggle = options.iter().any(|option| option.kind == "toggle");
+    (toggle || !levels.is_empty()).then_some(Reasoning { levels, toggle })
 }
 
 #[cfg(test)]

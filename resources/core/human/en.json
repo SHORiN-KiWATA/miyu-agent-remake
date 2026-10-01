@@ -130,6 +130,10 @@
         "name": "Reasoning levels",
         "description": "Which reasoning levels this model offers."
       },
+      "providers.<id>.models.<model>.effort": {
+        "name": "Default reasoning effort",
+        "description": "The reasoning effort this model uses by default: one of its levels, for example high, or off where thinking can be turned off. Left out, the provider decides."
+      },
       "providers.<id>.models.<model>.price_multiplier": {
         "name": "Price multiplier",
         "description": "Prices of this model are multiplied by it, over the one on the provider."
@@ -249,6 +253,7 @@
     "config/env-not-set": "{key} refers to {name}, which was not set when the core started",
     "config/no-provider": "{key} points at the provider {name}, which is not configured",
     "config/no-pool": "{key} points at the pool {name}, which is not configured",
+    "config/unknown-effort": "{key} is {name}, which is not one of this model's levels now. Requests go out as if it were not set",
     "config/bad-secret-name": "{key} is not a valid secret name: start with a lowercase letter and use only lowercase letters, digits, - and _, up to 64 characters",
     "config/bad-secret-value": "The value of {key} must be quoted text, not empty",
     "config/trust-header": "Which project configs Miyu trusts: the repository, the exact content, and the answer.",

@@ -1,7 +1,8 @@
-//! 给头看的会话的模型（施工 8-10，`docs/blueprint/models.md`「协议」的 `subscribe`、「瞬时事件」的 `model.changed`）：限额，
+//! 给头看的会话的模型（施工 8-10；思考强度施工 8-18，`docs/blueprint/models.md`「协议」的 `subscribe`、「瞬时事件」的 `model.changed`）：限额，
 //! 和会话接下来请求的模型。actor 造会话、载入时，交了新的限额、回合开始重新解析完写一次，和 `Handle` 共用：`subscribe` 照它
 //! 答，`model.changed` 照它推，两边说的是同一份。
 
+use miyu_kernel::event::EffortInUse;
 use miyu_kernel::origin::Model;
 use miyu_kernel::session::ContextLimits;
 
@@ -24,15 +25,20 @@ pub struct Next {
     pub reference: Option<String>,
     /// 接下来发给哪一家的哪个模型。轮换的池（每次都换）、解析不出的没有。
     pub model: Option<Model>,
+    /// 接下来那个模型真用的思考强度和从哪来（施工 8-18）：`subscribe` 回应、`model.changed` 的 `effort`。轮换的池、什么都
+    /// 不带的没有。
+    pub effort: Option<EffortInUse>,
 }
 
 impl Next {
-    /// 照端口这一刻的：钉着的引用，限额里的模型（是 `none` 的没有）。
+    /// 照端口这一刻的：钉着的引用，限额里的模型（是 `none` 的没有），那个模型真用的思考强度（施工 8-18）。
     pub(crate) fn of(port: &dyn ModelPort) -> Next {
         let model = port.limits().model;
+        let model = (model.endpoint.as_str() != NONE).then_some(model);
         Next {
             reference: port.reference(),
-            model: (model.endpoint.as_str() != NONE).then_some(model),
+            effort: model.as_ref().and(port.effort()),
+            model,
         }
     }
 

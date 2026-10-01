@@ -174,6 +174,12 @@ impl Refusal {
         reason: "unknown_model",
         data: None,
     };
+    /// `session.configure` 的 `effort.level` 不在那个模型这时的档位里（施工 8-18）。
+    pub(crate) const UNKNOWN_EFFORT: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_effort",
+        data: None,
+    };
     /// 请求里写了清单里没有的配置项（施工 8-2，`config.schema`、`config.get`、`config.set`）：`data.problems` 里每个不认识的
     /// 一条。
     pub(crate) fn unknown_config_key(problems: Vec<serde_json::Value>) -> Refusal {
@@ -356,6 +362,11 @@ impl Refusal {
             "unknown_model" => (
                 "配置里没有这个模型或者池。",
                 "There is no such model or pool in the configuration.",
+            ),
+            // 施工 8-18（`models.md`「给人看的字」）。
+            "unknown_effort" => (
+                "这个模型没有这一档思考强度。",
+                "This model has no such reasoning effort level.",
             ),
             "recap_failed" => (
                 "回顾没写成：请求模型出错了。",

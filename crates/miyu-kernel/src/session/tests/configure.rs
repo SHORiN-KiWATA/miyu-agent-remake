@@ -16,7 +16,8 @@ fn configure(n: u64, model: &str) -> Input {
         by: alice(),
         at: at(n % 60),
         command: Command::Configure {
-            model: model.to_string(),
+            model: Some(model.to_string()),
+            effort: None,
         },
     })
 }
