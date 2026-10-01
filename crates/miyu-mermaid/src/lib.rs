@@ -97,11 +97,11 @@ impl Mermaid {
     ///
     /// 不会：画图的库自己崩了，这里接住当「画不出」，不会往上冒。
     pub fn render(&self, source: &str) -> Result<Rendered, RenderError> {
-        let style = self.style()?;
         let source = source.trim();
         if source.is_empty() {
             return Err(RenderError::Empty);
         }
+        let style = self.style()?;
         if source.len() > style.max_source {
             return Err(RenderError::TooLong {
                 max: style.max_source,
@@ -112,6 +112,10 @@ impl Mermaid {
         let mut cache = self.cache.lock().unwrap_or_else(PoisonError::into_inner);
         if let Some((_, rendered)) = cache.iter().find(|(h, _)| *h == hash) {
             return Ok(rendered.clone());
+        }
+        // 探字体要扫一遍系统的字体库，Windows 上能到几秒：空的、太长的、缓存里有的都不用等它，真要画才探。
+        if !fonts::available() {
+            return Err(RenderError::NotReady);
         }
         let rendered = draw(source, style)?;
         if cache.len() >= style.keep {
@@ -126,12 +130,7 @@ impl Mermaid {
     fn style(&self) -> Result<&Style, RenderError> {
         self.ready
             .get_or_init(|| {
-                let loaded = style::load(&self.resources)
-                    .map_err(|error| error.to_string())
-                    .and_then(|style| match fonts::available() {
-                        true => Ok(style),
-                        false => Err("no font could be found on this system".to_string()),
-                    });
+                let loaded = style::load(&self.resources).map_err(|error| error.to_string());
                 match loaded {
                     Ok(style) => Ok(style),
                     Err(error) => {

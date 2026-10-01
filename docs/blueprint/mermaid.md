@@ -41,8 +41,7 @@ mermaid 源码画成 SVG 由核心做一次：同一张图，终端和网页看�
 1. 画 mermaid 在核心里：代码只有一份，同一张图终端和网页看只画一次，画图的内存只在核心里。做成可选的软件包
    `mermaid`：crate `miyu-mermaid`，经 `miyu-core` 的 cargo 开关 `mermaid` 编进来，发行版默认打开。没编进来
    的核心里没有这块代码，`mermaid.render` 回 `unknown_method`，头照代码块显示源码。
-2. 第一次调才初始化：读 `resources/software/mermaid/style.json`、读系统的字体库（画图的库要量字的宽）。之后
-   一直留着，直到核心退出。
+2. 第一次调才初始化：读 `resources/software/mermaid/style.json`，之后一直留着，直到核心退出。系统的字体库（画图的库要量字的宽）在真要画的时候才探，整个进程只探一次：源码是空的、太长的、缓存里已经有的不用等它（2026-10-02 主会话定：CI 的 Windows 机器上扫字体能到几秒，几个测试一起扫过了十秒）。探不到字体记一条 `WARN mermaid not ready`，回 `internal_error`。
 3. 源码去掉前后空白。空的：`bad_params`。超过 64 KiB：`mermaid_too_long`。
 4. 缓存：照源码的 SHA-256，最多 64 张，满了丢最久没用的。设计说「源码加尺寸」：SVG 不分尺寸，缓存只照源码；
    尺寸只在终端栅格化时用，那一步在头里。

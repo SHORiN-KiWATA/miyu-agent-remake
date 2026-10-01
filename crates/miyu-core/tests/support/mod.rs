@@ -183,7 +183,8 @@ impl Head {
             .write_all(format!("{request}\n").as_bytes())
             .await
             .expect("写得进");
-        within("回应", async {
+        // 等得久一点：第一次画 mermaid 要扫系统的字体库，CI 的 Windows 机器上几个测试一起扫会过十秒。
+        tokio::time::timeout(Duration::from_secs(60), async {
             loop {
                 let mut line = String::new();
                 let read = self.reader.read_line(&mut line).await.expect("读得了");
@@ -195,6 +196,7 @@ impl Head {
             }
         })
         .await
+        .unwrap_or_else(|_| panic!("一分钟内没等到回应"))
     }
 
     /// 造一个会话，交回它的编号。
