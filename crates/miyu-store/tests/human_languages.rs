@@ -40,9 +40,10 @@ fn read(place: &Path, language: &str) -> Value {
         .unwrap_or_else(|error| panic!("{} 不是 JSON：{error}", file.display()))
 }
 
-/// 每一句要的字段。
+/// 每一句要的字段：没写 `X/one` 的，照 `Human::load` 的规矩拿 `X` 补上（施工 4-5 再补「一个的时候说单数」），
+/// 所以这里跟产出来的 [`Human`] 一样，不单独比对英文多出来的 `/one`。
 fn said(value: &Value) -> BTreeMap<String, BTreeSet<String>> {
-    value
+    let mut said: BTreeMap<String, BTreeSet<String>> = value
         .get("said")
         .and_then(Value::as_object)
         .map(|said| {
@@ -55,7 +56,17 @@ fn said(value: &Value) -> BTreeMap<String, BTreeSet<String>> {
                 })
                 .collect()
         })
-        .unwrap_or_default()
+        .unwrap_or_default();
+    let missing: Vec<(String, BTreeSet<String>)> = said
+        .iter()
+        .filter(|(key, _)| !key.ends_with("/one"))
+        .filter_map(|(key, fields)| {
+            let one = format!("{key}/one");
+            (!said.contains_key(&one)).then(|| (one, fields.clone()))
+        })
+        .collect();
+    said.extend(missing);
+    said
 }
 
 /// 每件工具除了显示名以外的样子（跟哪个参数、符号、下面那一块）。
@@ -145,6 +156,49 @@ fn every_language_has_the_same_sentences_and_tools_as_english() {
                 config(&words),
                 config(&english),
                 "{} 的 {language}：配置的项、选项、页、组和英文的不一样",
+                place.display()
+            );
+        }
+    }
+}
+
+/// `source` 里有没有 `{count}`、`{total}` 后面（隔着空白也算）紧跟着一个英文单词：是的话这一句管着一个数、后面
+/// 跟着可数名词，要有 `/one` 那一句对着（施工 4-5 再补「一个的时候说单数」门禁）。
+fn needs_singular(source: &str) -> bool {
+    ["{count}", "{total}"].iter().any(|field| {
+        let mut rest = source;
+        while let Some(at) = rest.find(field) {
+            rest = &rest[at + field.len()..];
+            if rest
+                .trim_start_matches(' ')
+                .starts_with(|c: char| c.is_ascii_alphabetic())
+            {
+                return true;
+            }
+        }
+        false
+    })
+}
+
+#[test]
+fn english_has_a_singular_wherever_count_or_total_is_followed_by_a_word() {
+    for place in places() {
+        let english = read(&place, "en");
+        let Some(said) = english.get("said").and_then(Value::as_object) else {
+            continue;
+        };
+        for (key, source) in said {
+            if key.ends_with("/one") {
+                continue;
+            }
+            let source = source.as_str().expect("是字符串");
+            if !needs_singular(source) {
+                continue;
+            }
+            let one = format!("{key}/one");
+            assert!(
+                said.contains_key(&one),
+                "{} 的英文 {key} 管着一个数、后面跟着词（{source:?}），缺 {one}",
                 place.display()
             );
         }

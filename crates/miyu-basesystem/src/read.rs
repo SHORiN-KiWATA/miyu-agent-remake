@@ -18,7 +18,7 @@ use miyu_tool::picture;
 use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Target, Tool};
 
 use crate::blocking::blocking;
-use crate::common::{Common, Shown, said};
+use crate::common::{Common, Shown, said, said_n};
 use crate::load::{self, LoadError, say};
 
 /// 一次最多读几行，目录一次最多列几项。
@@ -178,11 +178,7 @@ fn read(texts: &Texts, call: &Call, args: &Args) -> Done {
                     ("offset", &offset.to_string()),
                 ],
             ))
-            .said(
-                said("read/past-end")
-                    .with("total", total.to_string())
-                    .with("offset", offset.to_string()),
-            ),
+            .said(said_n("read/past-end", "total", total).with("offset", offset.to_string())),
             None,
         ),
         lines::Page::Lines {
@@ -219,11 +215,11 @@ fn read(texts: &Texts, call: &Call, args: &Args) -> Done {
     }
 }
 
-/// 读了第 `from` 到第 `to`（一共 `total`）行或者项，给人看的说法：读全了的是 `<key>`，只读了一段的是
-/// `<key>-part`。
+/// 读了第 `from` 到第 `to`（一共 `total`）行或者项，给人看的说法：读全了的是 `<key>`（只有一行、一项的是
+/// `<key>/one`），只读了一段的是 `<key>-part`。
 pub(crate) fn part(key: &str, from: u64, to: u64, total: u64) -> miyu_kernel::event::Said {
     if from == 1 && to == total {
-        said(key).with("count", total.to_string())
+        said_n(key, "count", total)
     } else {
         said(&format!("{key}-part"))
             .with("from", from.to_string())

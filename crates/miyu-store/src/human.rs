@@ -17,6 +17,11 @@
 //!
 //! `human.get`（施工 W-1）把这份读好的字整个交给头：工具的样子（[`Human::tools`]）、说法的模板原文、一个字不换
 //! （[`Human::said_entries`]）。模板只留解好的 [`Template`] 不够，所以每一句说法这里多存一份原文（内部的 `Phrase`）。
+//!
+//! 说法管着的数是 1 时，编号多接一段 `/one`（施工 4-5 再补「一个的时候说单数」）：发说法的那一处自己挑，是 1 就
+//! 发 `X/one`，别的数照旧发 `X`。英文的 `said` 要是这一句需要单数（`{count}`、`{total}` 后面紧跟着名词），就自己
+//! 写上 `X/one` 那一句；中文、日文不挑单复数，不用写，[`Human::load`] 读完一种语言以后，凡是有 `X` 没有 `X/one`
+//! 的，拿 `X` 的内容照抄一份补上。
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -133,7 +138,23 @@ impl Human {
                 language,
             )?;
         }
+        human.fill_singular();
         Ok(human)
+    }
+
+    /// 凡是有 `X` 没有 `X/one` 的，拿 `X` 补上 `X/one`（施工 4-5 再补「一个的时候说单数」）：英文那份自己写了
+    /// 需要的那些 `X/one`，照它；中文、日文没写，退到这里，补出来的字跟 `X` 一个字不差（这两种语言不挑单复数）。
+    fn fill_singular(&mut self) {
+        let missing: Vec<(String, Phrase)> = self
+            .said
+            .iter()
+            .filter(|(key, _)| !key.ends_with("/one"))
+            .filter_map(|(key, phrase)| {
+                let one = format!("{key}/one");
+                (!self.said.contains_key(&one)).then(|| (one, phrase.clone()))
+            })
+            .collect();
+        self.said.extend(missing);
     }
 
     /// 读 `dir` 下 `human/` 里 `language` 那一份，没有就读英文那一份；说法的编号前面加上 `prefix`。

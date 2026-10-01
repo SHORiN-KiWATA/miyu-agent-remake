@@ -103,6 +103,6 @@ async fn after_a_compaction_she_finds_what_was_said_before_it() {
     );
     assert_eq!(
         result.human,
-        Some(Said::new("software/basesystem/history/found").with("count", "1"))
+        Some(Said::new("software/basesystem/history/found/one").with("count", "1"))
     );
 }

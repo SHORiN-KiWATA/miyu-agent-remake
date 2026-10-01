@@ -1,212 +1,18 @@
-//! 三件读的工具、写的三件（施工 4-6）、`shell`（施工 4-8）交回的给人看的说法（施工 4-5 上）：每一种结果都有，编号、字段对；工具会说的每一种，中文、英文
-//! 两份字里都有，换得出字。
+//! 写的三件（施工 4-6）、`shell`（施工 4-8）交回的给人看的说法（施工 4-5 上）：每一种结果都有，编号、字段对；工具会说的每一种，中文、英文
+//! 两份字里都有，换得出字。数管着的是 1 的编号多接 `/one`，别的数照旧（施工 4-5 再补「一个的时候说单数」）；
+//! `read`、`glob`、`grep` 那一组拆进 `human/read_glob_grep.rs`，理由同下面那个 `mod`。
 
 mod support;
 
-use miyu_kernel::event::Said;
 use miyu_kernel::id::ContentHash;
 use miyu_tool::Seen;
 
 use support::{Site, check, human, readable, said};
 
-#[tokio::test]
-async fn every_outcome_says_something_people_can_read() {
-    let site = Site::new();
-    site.file("work/a.txt", b"one\ntwo\n");
-    site.file("work/empty.txt", b"");
-    site.file("work/app.bin", b"\x7fELF\0\0");
-    site.file("work/notes.txt", b"n");
-    site.file("work/dir/x.rs", b"fn x() {}\n");
-    site.file("work/dir/y.rs", b"fn y() {}\n");
-    for n in 0..101 {
-        site.file(&format!("work/many/{n:03}.md"), b"");
-    }
-    site.aged("work/dir/y.rs", 100);
-    let mut checked: Vec<Said> = Vec::new();
-
-    // read
-    let run = |args: serde_json::Value| site.done("read", args);
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"file_path": "a.txt"})).await),
-        said("read/lines").with("count", "2"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"file_path": "a.txt", "offset": 2})).await),
-        said("read/lines-part")
-            .with("from", "2")
-            .with("to", "2")
-            .with("total", "2"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"file_path": "dir"})).await),
-        said("read/entries").with("count", "2"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"file_path": "dir", "limit": 1})).await),
-        said("read/entries-part")
-            .with("from", "1")
-            .with("to", "1")
-            .with("total", "2"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"file_path": "empty.txt"})).await),
-        said("read/empty"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"file_path": "a.txt", "offset": 9})).await),
-        said("read/past-end").with("total", "2").with("offset", "9"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"file_path": "dir", "offset": 9})).await),
-        said("read/past-end-entries")
-            .with("total", "2")
-            .with("offset", "9"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"file_path": "app.bin"})).await),
-        said("read/binary").with("path", "app.bin"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"file_path": "nope.zzz"})).await),
-        said("common/missing").with("path", "nope.zzz"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"file_path": "note.txt"})).await),
-        said("common/missing-similar")
-            .with("path", "note.txt")
-            .with("similar", "notes.txt"),
-    );
-    let bad = human(run(serde_json::json!({"offset": 1})).await);
-    assert_eq!(bad.key, "software/basesystem/common/bad-args");
-    assert!(bad.fields["error"].contains("file_path"), "{bad:?}");
-    checked.push(bad);
-    #[cfg(unix)]
-    {
-        let fifo = site.0.join("work/pipe");
-        assert!(
-            std::process::Command::new("mkfifo")
-                .arg(&fifo)
-                .status()
-                .expect("有 mkfifo")
-                .success()
-        );
-        check(
-            &mut checked,
-            human(run(serde_json::json!({"file_path": "pipe"})).await),
-            said("read/not-a-file").with("path", "pipe"),
-        );
-    }
-
-    // glob
-    let run = |args: serde_json::Value| site.done("glob", args);
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"pattern": "*.rs"})).await),
-        said("glob/files").with("count", "2"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"pattern": "*.md"})).await),
-        said("glob/files-more")
-            .with("shown", "100")
-            .with("total", "101"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"pattern": "*.py"})).await),
-        said("common/no-files"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"pattern": "*.rs", "path": "a.txt"})).await),
-        said("glob/not-a-directory").with("path", "a.txt"),
-    );
-    let bad = human(run(serde_json::json!({"pattern": "[ab"})).await);
-    assert_eq!(bad.key, "software/basesystem/common/bad-glob");
-    assert_eq!(bad.fields["glob"], "[ab");
-    checked.push(bad);
-
-    // grep
-    let run = |args: serde_json::Value| site.done("grep", args);
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"pattern": "fn"})).await),
-        said("grep/files").with("count", "2"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"pattern": "fn", "head_limit": 1})).await),
-        said("grep/files-part")
-            .with("from", "1")
-            .with("to", "1")
-            .with("total", "2"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"pattern": "fn", "output_mode": "count"})).await),
-        said("grep/counts").with("count", "2"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"pattern": "fn", "output_mode": "count", "offset": 1})).await),
-        said("grep/counts-part")
-            .with("from", "2")
-            .with("to", "2")
-            .with("total", "2"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"pattern": "fn", "output_mode": "content"})).await),
-        said("grep/matches").with("count", "2"),
-    );
-    check(
-        &mut checked,
-        human(
-            run(serde_json::json!({"pattern": "fn", "output_mode": "content", "offset": 1})).await,
-        ),
-        said("grep/matches-part").with("from", "2").with("to", "2"),
-    );
-    check(
-        &mut checked,
-        human(
-            run(serde_json::json!({"pattern": "fn", "output_mode": "content", "head_limit": 1}))
-                .await,
-        ),
-        said("grep/matches-more").with("from", "1").with("to", "1"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"pattern": "zebra"})).await),
-        said("grep/none"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"pattern": "zebra", "output_mode": "content"})).await),
-        said("grep/none"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"pattern": "fn", "offset": 9})).await),
-        said("grep/past-end").with("total", "2").with("offset", "9"),
-    );
-    check(
-        &mut checked,
-        human(run(serde_json::json!({"pattern": "(fn"})).await),
-        said("grep/bad-pattern").with("error", "unclosed group"),
-    );
-
-    readable(&checked, &["read", "glob", "grep"]);
-}
+/// `read`、`glob`、`grep` 交回的说法：这个文件超过了行数上限，拆进这里（照 `spawn/renamed.rs` 的先例，
+/// `#[path]` 一样要写：这个文件是 crate 根，`mod` 默认只找同目录的平级文件）。
+#[path = "human/read_glob_grep.rs"]
+mod read_glob_grep;
 
 #[tokio::test]
 async fn every_write_outcome_says_something_people_can_read() {
@@ -258,7 +64,7 @@ async fn every_write_outcome_says_something_people_can_read() {
             )
             .await,
         ),
-        said("write/updated").with("count", "1"),
+        said("write/updated/one").with("count", "1"),
     );
     check(
         &mut checked,
@@ -357,10 +163,35 @@ async fn every_edit_outcome_says_something_people_can_read() {
         ),
         said("edit/not-text"),
     );
+    // 改了不止一处：照旧，编号不接 `/one`。独立的一份文件，不碰上面那份 `a.txt`：它的 `seen` 是造场地时记的
+    // 原文，这里真的改了盘上的文件，用同一份会撞「她看过的」不是现在这份。
+    site.file("work/counted.txt", b"beta\nbeta\n");
+    let counted = Seen::from([(
+        site.real("work/counted.txt"),
+        ContentHash::of(b"beta\nbeta\n"),
+    )]);
+    check(
+        &mut checked,
+        human(
+            site.done_seen(
+                "work",
+                "edit",
+                serde_json::json!({
+                    "file_path": "counted.txt",
+                    "old_string": "beta",
+                    "new_string": "gamma",
+                    "replace_all": true,
+                }),
+                counted,
+            )
+            .await,
+        ),
+        said("edit/edited").with("count", "2"),
+    );
     check(
         &mut checked,
         human(run(edit("alpha", "a")).await),
-        said("edit/edited").with("count", "1"),
+        said("edit/edited/one").with("count", "1"),
     );
     readable(&checked, &["edit"]);
 }
@@ -397,7 +228,19 @@ async fn every_shell_outcome_says_something_people_can_read() {
     check(
         &mut checked,
         human(run(command(if windows { "Write-Output a" } else { "echo a" })).await),
-        said("shell/done").with("count", "1"),
+        said("shell/done/one").with("count", "1"),
+    );
+    check(
+        &mut checked,
+        human(
+            run(command(if windows {
+                "Write-Output a; Write-Output b"
+            } else {
+                "printf 'a\\nb\\n'"
+            }))
+            .await,
+        ),
+        said("shell/done").with("count", "2"),
     );
     check(
         &mut checked,
