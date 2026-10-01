@@ -44,6 +44,11 @@ pub struct Turn {
 }
 
 impl Turn {
+    /// 冻结一份：最终值 `resolved`，key 照 `source` 取（施工 8-20：一次性调用照这一刻不算项目配置的最终值，端点交进来）。
+    pub fn new(resolved: Resolved, source: Arc<dyn ConfigSource>) -> Turn {
+        Turn { resolved, source }
+    }
+
     /// 照引用取一个密钥：这一轮开始时的那一份。
     pub fn secret(&self, reference: &Reference) -> Option<Secret> {
         self.source.secret(reference)

@@ -241,6 +241,36 @@ impl Refusal {
         Refusal::with("config_conflict", "version", serde_json::json!(version))
     }
 
+    /// `model.call` 没有能用的模型（施工 8-20）：`data.message` 是原话。
+    pub(crate) fn no_model(message: String) -> Refusal {
+        Refusal::with("no_model", "message", serde_json::Value::String(message))
+    }
+
+    /// `model.call` 的候选全在冷却，没发（施工 8-20）：`data.message` 是原话，`data.wait_ms` 是最早恢复的还要多久。
+    pub(crate) fn cooling(message: String, wait_ms: u64) -> Refusal {
+        let mut refusal = Refusal::with("cooling", "message", serde_json::Value::String(message));
+        if let Some(data) = &mut refusal.data {
+            data.insert("wait_ms".to_string(), serde_json::json!(wait_ms));
+        }
+        refusal
+    }
+
+    /// `model.call` 发了、出错了（施工 8-20）：`data` 是 `class`、`status`（有状态码的才写）、`message`，和
+    /// `model.called` 的 `error` 一样。
+    pub(crate) fn model_failed(error: &miyu_kernel::event::CallError) -> Refusal {
+        let mut data = serde_json::Map::new();
+        data.insert("class".to_string(), serde_json::json!(error.class.as_str()));
+        if let Some(status) = error.status {
+            data.insert("status".to_string(), serde_json::json!(status));
+        }
+        data.insert("message".to_string(), serde_json::json!(error.message));
+        Refusal {
+            code: REFUSED,
+            reason: "model_failed",
+            data: Some(data),
+        }
+    }
+
     /// Miyu 的拒绝，`data` 里除了 `reason` 多一格 `field`。
     fn with(reason: &'static str, field: &str, value: serde_json::Value) -> Refusal {
         let mut data = serde_json::Map::new();
@@ -408,6 +438,13 @@ impl Refusal {
                 "回顾没写成：请求模型出错了。",
                 "The recap could not be written: the model request failed.",
             ),
+            // 施工 8-20（`models.md`「给人看的字」）。
+            "no_model" => ("没有可用的模型。", "No model is available."),
+            "cooling" => (
+                "模型都在冷却，稍后再试。",
+                "All models are cooling down; try again later.",
+            ),
+            "model_failed" => ("请求模型出错了。", "The model request failed."),
             _ => ("被拒绝了。", "Refused."),
         };
         match locale {

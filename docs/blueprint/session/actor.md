@@ -20,9 +20,10 @@
 | `crates/miyu-session/src/actor/store.rs` | 写盘；撤掉压缩时读回日志（施工 6-9） |
 | `crates/miyu-session/src/handle.rs` | `Handle`：发命令、订阅、停下；推送和订阅；订阅放下时告诉 actor（施工 7-9） |
 | `crates/miyu-session/src/backlog.rs` | 订阅时要补发的那一截：补到哪一条、在阻塞线程里读出来（施工 3-8 六补） |
-| `crates/miyu-session/src/config.rs` | 会话从哪取配置（`ConfigSource`、`Configs`、`fixed`），回合开始时冻结的一份（`TurnConfig`）；造会话、载入时先取一份（施工 8-4） |
-| `crates/miyu-session/src/port.rs` | 请求模型的端口：`Models`、`ModelPort`、`Reports`（辅助请求的回报另走一路，`Reports::aside`，施工 3-8 四补；五补起回顾、起标题共用，`purpose()` 交回用途）、`Cancel` |
-| `crates/miyu-session/src/route.rs`、`route/send.rs`、`route/pool.rs`、`route/choice.rs`、`route/ended.rs` | 端口的真实现：每个会话的路由，照配置挑供应商、钉 key，经驱动和 HTTP 执行器请求（施工 8-6 取代 `http.rs`）；池里挑成员、池的限额（`route/pool.rs`，施工 8-8）；排候选、挑没在冷却的（`route/choice.rs`），说完了记冷却、换端点、成了才钉（`route/ended.rs`，施工 8-9） |
+| `crates/miyu-session/src/config.rs` | 会话从哪取配置（`ConfigSource`、`Configs`、`fixed`），回合开始时冻结的一份（`TurnConfig`）；造会话、载入时先取一份（施工 8-4）；一次性调用照端点交的一份冻结（`Turn::new`，施工 8-20） |
+| `crates/miyu-session/src/port.rs` | 请求模型的端口：`Models`、`ModelPort`、`Reports`（辅助请求的回报另走一路，`Reports::aside`，施工 3-8 四补；五补起回顾、起标题共用，`purpose()` 交回用途）、`Cancel`；`Models::one_shot()` 交回模型调用口的一次性入口（施工 8-20，测试照剧本回的端口没有） |
+| `crates/miyu-session/src/route.rs`、`route/send.rs`、`route/pool.rs`、`route/choice.rs`、`route/ended.rs` | 端口的真实现：每个会话的路由，照配置挑供应商、钉 key，经驱动和 HTTP 执行器请求（施工 8-6 取代 `http.rs`）；池里挑成员、池的限额（`route/pool.rs`，施工 8-8）；排候选、挑没在冷却的（`route/choice.rs`），说完了记冷却、换端点、成了才钉（`route/ended.rs`，施工 8-9）。施工 8-20 起它是模型调用口的会话入口（`models.md`「怎么走」第十二条）：挑、发、记冷却调底子（`route/base.rs`、`route/choice.rs`、`route/pool.rs`、`route/exchange.rs`、`route/ended.rs` 的 `Attempt`），会话自己的（退回 `models.chat`、钉 key、钉成员、说到一半断了、限额）在 `route.rs`、`route/send.rs` 的 `Tried` |
+| `crates/miyu-session/src/route/once.rs`、`once/reply.rs` | 模型调用口的一次性入口 `OneShot`（施工 8-20）：不属于哪个会话，和会话的路由共用底子；协议的 `model.call` 调它 |
 | `crates/miyu-session/src/clock.rs` | 会话的时钟、新的会话编号 |
 | `crates/miyu-session/src/store.rs` | 写盘的端口：平时是会话日志，每落一批顺手更新会话列表的索引（`Indexed`，施工 3-8 七补），测试里换成写不进去的；也从这里读回日志（施工 6-9） |
 | `crates/miyu-session/src/kinds.rs`、`lines.rs` | 运行日志里的输入、动作种类名，和几种写法 |
@@ -49,6 +50,7 @@
 | `Models`、`ForSession`、`ModelPort`、`Reports`、`Cancel` | 请求模型的端口。`ForSession` 带会话编号、造会话或载入时取的那一份配置（施工 8-6）、驱动的占位、属主的 blob，会话记着的引用、最近一次发给了谁（施工 8-8），会话给每个模型记的思考强度（`efforts`，施工 8-18）；`ModelPort::model()` 交回的是一份（路由的会变，施工 8-6），`reference()` 交回会话这时生效的引用（施工 8-8，测试的端口交造它的会话记着的），`effort()` 交回接下来那个模型真用的思考强度（施工 8-18，测试的端口没有） |
 | `SessionPort`、`Child`、`Lineage`、`Pending` | 造子会话、给别的会话发命令的端口（施工 7-5）：会话表实现，造会话、载入时交进来。`create(子会话)`、`command(会话, 编号, 谁, 命令)`，`open(会话)` 叫起一个会话：没在跑的照会话表的规矩载入（施工 7-6） |
 | `Routes`、`IDLE` | 端口的真实现：每个会话的路由，照配置挑供应商、钉 key（施工 8-6，第 8 条）；空闲超时 180 秒，每次请求照它的思考强度放大（施工 8-18） |
+| `OneShot`、`Ask`、`Answer`、`Unanswered` | 模型调用口的一次性入口（施工 8-20，`models.md`「怎么走」第十二条）：`Models::one_shot()` 拿到，`call(配置, 属主的 blob, Ask)` 发一次、交回整段回答或四种出错 |
 | `Jobs` | 执行器的任务表，核心里一张：`Jobs::new()`，`running()` 有没有在跑的后台命令（结束了、记录还没落盘的也算，施工 7-3） |
 | `Unreadable` | 头读不了这个任务的输出：`Unknown` 没有这个任务，`Agent` 是子代理（施工 7-4 补） |
 
@@ -224,6 +226,8 @@
 
 **8. 经路由请求**（`Routes`，`route.rs`、`route/send.rs`，施工 8-6 取代了照环境变量接一个端点的 `HttpModels`，`models.md`「怎么走」第一条、第四条、第五条）
 
+路由是模型调用口的会话入口（施工 8-20，`models.md`「怎么走」第十二条）：下面第 3、4 款的排候选、挑没在冷却的，第 5 款的取 blob、编码、发、记冷却、说换没换端点，都调底子（`route/base.rs`、`route/choice.rs`、`route/pool.rs`、`route/exchange.rs`、`route/ended.rs` 的 `Attempt`），和一次性入口共用冷却表、池的指针。解析引用、退回 `models.chat`、照会话编号钉 key、出错换过去的 key 以后在前、钉住的池成了才换成员、说到一半断了还发给它、交限额、会话给每个模型记的思考强度，只在这里（`route.rs`、`route/send.rs` 的 `Tried`）。拆出底子以后请求的字节一个不变。
+
 1. 一个核心一份：HTTP 客户端（连接跨请求复用）、供应商的档案、模型资料、空闲超时（`core.md`「模型」）。给每个会话造一个路由，驱动的占位用这个会话快照里的。
 2. 造路由时（造会话、载入）记下这个会话用的引用：`ForSession.reference`（施工 8-8：造的是解析好的 `session.created.model`，载入的照内核从日志算的，施工 8-10；没有的照那一刻的 `models.chat`），照它定限额：窗口（手写的压过模型资料）、最大输出、一张图怎么算（照档案）；钉住的池这时就钉上一个成员（载入的照 `ForSession.sent`：最近一条发出去了的 `model.called`），轮换的池取成员里小的（`models.md`「怎么走」第三条第 6、7 条，`route/pool.rs`）。解析不出的限额都没有，`request` 那一行写 `endpoint=none model=none`。钉住的池出错换了成员、成了以后，限额跟着换成它的（施工 8-9，第 7 条第 8 款）；回合开始照这一轮的配置重新解析（施工 8-10，`route/turn.rs`）：内核交了引用的换成它，没交的照路由记在内存里的；解析不出的退回这一轮的 `models.chat`、记一行 `INFO model fallback`，内核交了引用的交回 `replaced`；钉住的池钉着的成员还在的照旧；限额照解析出的重算。端口的 `reference()` 交出钉着的引用，派子代理不写池时照它抄（施工 8-8；8-8 补以前是挡位）。思考强度（施工 8-18，`route/effort.rs`）：造路由时照 `ForSession.efforts`、回合开始照内核交的记下每个模型的一格；每次请求挑好端点以后照真发的那个模型挑一档（会话的、配置的、都没有），交给驱动（`Call.effort`），空闲超时照它放大；会话记的不在档位里的记一行 `WARN effort not available`；`effort()` 照限额里的模型算给头看的那一档。
 3. 每一次请求照这一轮冻结的配置（`TurnConfig`，`config.md` 第八条第 3 条）重新解析：钉着的引用解析得出就用它（是池的照钉住、轮换挑成员，这时用不了的跳到下一个，施工 8-8）；解析不出的（没配、那一家没了、用不了）退回这一轮的 `models.chat`，退得回去的以后就钉在它上面（只在内存里）；都不行的当场报说完了，分类 `no_model`，原话照 `models.md`「出错」，没发出去，不报发出去了，记一行 `WARN no model why=…`。`request` 那一行写这个会话上一次解析出来的那一个。
@@ -356,6 +360,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | `crates/miyu-session/tests/failover_log.rs`（施工 8-9） | `endpoint cooling`、`failover` 两行带会话编号，key 只写第几个，值不在日志里 |
 | `crates/miyu-session/tests/route_effort.rs`、`effort_log.rs`（施工 8-18） | 一次请求照会话的、配置的、都没有三种各发；改了强度下一轮推 `model.changed`、`Handle` 的跟着换、一样的不推；换模型以后用新模型自己的；轮换的池里每个成员用自己的、不带给头看的；会话记的不在档位里了照配置的、日志不改、记一行 `WARN`；载入照日志拼的；空闲超时照那一档放大 |
 | `crates/miyu-session/tests/route_turn.rs`（施工 8-10） | 回合开始重新解析：换了模型的下一轮发给新的、推一条 `model.changed`（`why` 是 `turn`）、`Handle` 的限额和模型跟着换、没再变的不推；钉着的那一家没了退回这一轮的 `models.chat`、内核在那一轮里记下、以后钉在它上面；`models.chat` 也没有的不记、当场 `no_model`；只改了窗口的下一轮用上、也推；换成轮换的池推的没有端点、限额取小的；载入照换过的引用造路由 |
+| `crates/miyu-session/tests/once.rs`、`once_pools.rs`、`once_shared.rs`（施工 8-20） | 一次性入口：模型、`@池`、不写照 `models.chat`；消息照先后发、不带工具、`max_tokens`；带图、模型不收图的不发；四种出错；配置的默认强度；key 照用途钉；429 当场换、最多换 5 次；钉住的池照指针取成员、出错换下一个，轮换的池一次走一个；冷却和会话的路由共用，两个方向（`models.md`「守着它的」）。会话的路由那几份测试拆出底子以后一个不改照旧全过 |
 | `crates/miyu-session/tests/fallback_log.rs`（施工 8-10） | `model fallback` 一行带会话编号，写原来的和退回的 |
 | `crates/miyu-session/tests/route_pools.rs`（施工 8-8） | 池：钉住的一个会话一直发给一个成员、新会话照指针分开、认不出的成员跳过；载入照日志认回钉着的、指针写进 `pools.json` 重启读回；轮换的一次一个；这时用不了的跳过、钉到下一个；池没了退回 `chat`；限额照钉着的、轮换的取小的；`session.created` 记下会话的引用（`models.md`「守着它的」） |
 | `crates/miyu-session/tests/log.rs` | 会话造、请求、出错、重试、收场、停下、载入、没人拿着、端口 panic 的几行；手动压缩的 `compacted` 写 `trigger=manual`（施工 6-8）；撤销以后 `changed=message:0:user`；`DEBUG` 的输入和动作、增量在 `TRACE`；没有对话的字 |

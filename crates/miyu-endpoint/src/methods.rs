@@ -255,6 +255,7 @@ pub(crate) async fn call(
         "provider.detect" => providers::detect(core).await,
         "provider.catalog" => providers::catalog(core, params(request)?).await,
         "provider.test" => providers::test(core, params(request)?).await,
+        "model.call" => models::call(core, params(request)?).await,
         "blob.put" => attach::put(core, params(request)?).await,
         "blob.open" => uploads::open(core, uploads, params(request)?).await,
         "blob.write" => uploads::write(core, uploads, params(request)?).await,

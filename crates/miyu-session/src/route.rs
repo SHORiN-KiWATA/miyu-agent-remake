@@ -1,6 +1,10 @@
 //! 每个会话的路由（`docs/blueprint/models.md`「怎么走」第一条、第三条、第四条、第五条，`session/actor.md` 第 8 条，施工
 //! 8-6 起）：请求模型的端口的真实现，取代原来照环境变量接一个端点的 `HttpModels`。
 //!
+//! 施工 8-20 起它是模型调用口的会话入口（「怎么走」第十二条）：排候选、挑没在冷却的、备好、发、记冷却都调底子
+//! （`route/base.rs`、`route/choice.rs`、`route/pool.rs`、`route/exchange.rs`、`route/ended.rs`），和一次性入口
+//! （`route/once.rs` 的 [`OneShot`]）共用冷却表、池的指针。下面这几样只有会话入口有。
+//!
 //! - 造端口时（造会话、载入）记下这个会话用的引用：造的是 `session.created` 的 `model`（施工 8-8，模型或 `@池`），载入的是
 //!   内核从日志算的（施工 8-10，换过的算换过以后的），都没有的照那一刻的 `models.chat`。限额（窗口、最大输出、一张图怎么
 //!   算）照它定，交给内核；钉住的池钉着的成员换了，限额跟着换（施工 8-9，会话 actor 比了交给内核）。
@@ -27,11 +31,14 @@
 //! - 思考强度（施工 8-18，`route/effort.rs`）：会话给每个模型记的一格造端口、回合开始时收下；每次请求挑好端点以后照真发的
 //!   那个模型挑一档交给驱动，空闲超时跟着放大；给头看的那一档照限额里的模型算。
 
+mod base;
 mod choice;
 mod effort;
 mod ended;
+mod exchange;
 mod lists;
 mod local;
+mod once;
 mod pool;
 mod probe;
 mod send;
@@ -40,6 +47,7 @@ mod turn;
 
 pub use lists::{STALE, refresh_list};
 pub use local::{LOCAL_WAIT, Running, find_local};
+pub use once::{Answer, Ask, OneShot, Unanswered};
 pub use probe::{Probe, Probed, Stage, probe};
 pub use shared::{ModelData, Observed, read_observed};
 
@@ -49,9 +57,8 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
-use miyu_drivers::DriverTexts;
-use miyu_drivers::{Call, DeepSeekImages, OpenAiChat};
-use miyu_http::{Client, is_loopback_url};
+use miyu_drivers::{DeepSeekImages, DriverTexts};
+use miyu_http::Client;
 use miyu_kernel::estimate::ImagePrice;
 use miyu_kernel::event::{CallError, EffortInUse, ErrorClass};
 use miyu_kernel::id::{ModelName, ProviderId, Seq, SessionId};
@@ -59,17 +66,17 @@ use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
 use miyu_kernel::session::{Limits, Replaced};
 use miyu_models::cooldown::Candidate;
-use miyu_models::facts::{Facts, facts};
-use miyu_models::pools::{Member, Strategy};
+use miyu_models::facts::facts;
+use miyu_models::pools::Member;
 use miyu_models::profile::ImageTokens;
 use miyu_models::provider::{self, NOT_CONFIGURED, NoModel, Target};
-use miyu_models::reference::{Resolved, resolve};
+use miyu_models::reference::Resolved;
 use miyu_store::blob::Blobs;
 
 use crate::TARGET;
-use crate::clock::wall_now;
 use crate::config::TurnConfig;
 use crate::port::{Cancel, ForSession, ModelPort, Models, Reports};
+use base::Seat;
 use choice::Unsent;
 
 /// 空闲超时的初值：多久没收到新的字节就算断了（`05-内核接口.md` 第七节）。每次请求照它的思考强度放大（施工 8-18，
@@ -104,11 +111,9 @@ impl Models for Routes {
             .reference
             .clone()
             .or_else(|| provider::chat(&values));
-        let resolved = reference.as_deref().and_then(|text| {
-            self.data
-                .with(|knowledge| resolve(&values, knowledge, text))
-                .ok()
-        });
+        let resolved = reference
+            .as_deref()
+            .and_then(|text| self.resolve(&values, text).ok());
         let (member, limits) = match resolved {
             Some(Resolved::Model(target)) => (None, self.limits(config, &target)),
             Some(Resolved::Pool(pool)) => self.pool_start(config, &pool, session.sent.as_ref()),
@@ -130,6 +135,10 @@ impl Models for Routes {
                 config: session.config,
             })),
         })
+    }
+
+    fn one_shot(&self) -> Option<OneShot> {
+        Some(OneShot::new(self.clone()))
     }
 }
 
@@ -238,12 +247,12 @@ impl Route {
     }
 
     /// 这一次请求发给谁、带哪个 key，照这一轮的配置 `config`。钉着的引用解析不出（供应商、池删了，池空了）的退回这一轮
-    /// 的 `models.chat`，以后钉在它上面；照第四条排候选、挑一个（`route/choice.rs`、`route/pool.rs`）。`main`：主请求才认
-    /// 「说到一半断了还发给它」。
+    /// 的 `models.chat`，以后钉在它上面；排候选、挑一个、备好都调底子（`route/base.rs`）。`main`：主请求才认「说到一半
+    /// 断了还发给它」。
     fn choose(&self, config: &TurnConfig, main: bool) -> Result<send::Chosen, Unsent> {
         let values = config.resolved.values();
-        let data = &self.shared.data;
-        let resolve = |text: &str| data.with(|knowledge| resolve(&values, knowledge, text));
+        let routes = &self.shared;
+        let resolve = |text: &str| routes.resolve(&values, text);
         let mut pinned = self.lock();
         let resolved = match pinned.reference.as_deref().map(resolve) {
             Some(Ok(resolved)) => resolved,
@@ -259,58 +268,32 @@ impl Route {
                 resolved
             }
         };
-        let (mut choices, pins) = match resolved {
-            Resolved::Model(target) => (self.choices(config, &target, None, &pinned.moved)?, false),
-            Resolved::Pool(pool) => (
-                self.members(config, &values, &pool, &pinned)?,
-                pool.strategy == Strategy::Pin,
-            ),
+        let seat = Seat {
+            seed: self.session.as_str(),
+            moved: &pinned.moved,
+            held: pinned.member.as_ref(),
+            sticky: pinned.sticky.as_ref().filter(|_| main),
         };
-        let sticky = pinned.sticky.as_ref().filter(|_| main);
-        let at = choice::pick(&choices, sticky, data, wall_now())?;
-        let picked = choices.remove(at);
-        pinned.last = model_of(&picked.target);
-        let cell = effort::cell(&pinned, &picked.target);
+        let (picked, pins) = routes.pick(config, &values, &resolved, &seat)?;
+        pinned.last = model_of(&picked.choice.target);
+        let cell = effort::cell(&pinned, &picked.choice.target);
         drop(pinned);
-        let target = picked.target.clone();
-        let model = ModelName::parse(&target.model).map_err(|error| NoModel(error.to_string()))?;
-        let (facts, _): (Facts, _) = data
-            .with(|knowledge| facts(&config.resolved, knowledge, &target.provider, &target.model));
-        let endpoint = picked.endpoint.clone();
-        // 思考强度照真发的这个模型挑（施工 8-18）：会话记的不在档位里的记一行。
-        let effort = effort::chosen(cell.as_deref(), &facts, &target, true).map(|used| used.level);
-        // 地址落在本机的不走代理（施工 8-11 补）：和探本机的服务、拉列表一样。
-        let client = match is_loopback_url(&endpoint.base_url) {
-            true => self.shared.direct.clone(),
-            false => self.shared.client.clone(),
-        };
+        let ready = routes.ready(
+            config,
+            &picked.choice,
+            cell.as_deref(),
+            self.texts.clone(),
+            None,
+        )?;
         Ok(send::Chosen {
-            client,
-            model: model_of(&target),
-            endpoint,
-            driver: OpenAiChat::new(target.provider.compat.clone(), self.texts.clone()),
-            idle: effort::idle(self.shared.idle, effort.as_deref()),
-            call: Call {
-                model,
-                max_output: None,
-                inputs: facts.driver_inputs(),
-                effort,
-            },
+            ready,
             blobs: self.blobs.clone(),
-            learn: send::Learn {
-                data: Arc::clone(data),
-                provider: target.provider.id.clone(),
-                model: target.model.clone(),
-                window: facts.window.value,
-            },
-            tried: ended::Tried {
+            tried: send::Tried {
+                picked,
                 pinned: Arc::clone(&self.pinned),
-                routes: self.shared.clone(),
                 config: Arc::clone(config),
                 main,
                 pins,
-                picked,
-                others: choices.into_iter().map(choice::Choice::who).collect(),
             },
         })
     }

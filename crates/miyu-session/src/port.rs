@@ -19,6 +19,7 @@ use miyu_kernel::session::{Limits, Replaced};
 use miyu_store::blob::Blobs;
 
 use crate::config::TurnConfig;
+use crate::route::OneShot;
 
 /// 给一个会话造请求模型的端口（施工 3-7 下）。造会话、载入时，拿到了这个会话的策略快照再造：驱动的
 /// 占位冻结在快照里，核心升级改了字，老会话照样逐字节重现当时的请求（施工 3-6 上）。
@@ -30,6 +31,12 @@ pub trait Models: Send + Sync {
 
     /// 造这个会话的端口。
     fn port(&self, session: ForSession) -> Arc<dyn ModelPort>;
+
+    /// 模型调用口的一次性入口（施工 8-20，`docs/blueprint/models.md`「怎么走」第十二条）：发一次、拿整段回答，和会话的
+    /// 端口共用一份底子（冷却表、池的指针）。路由交它自己；照剧本回的（测试的端口）没有。
+    fn one_shot(&self) -> Option<OneShot> {
+        None
+    }
 }
 
 /// 造端口时交进来的，这个会话自己的。

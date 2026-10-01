@@ -5,6 +5,8 @@
 //!   给头看的几样。
 //! - [`blocks`]：`session.send` 的 `attachments` 变成内容块：blob 要在，照内容再认一遍，块里的宽高、媒体类型都是核心
 //!   自己量的；图片块、文件块都带着头交回来的名字（图片的施工 3-9 四补）。
+//! - [`images`]：`model.call` 的图照哈希变成图片块（施工 8-20）：blob 要在这个账号里，照内容认，不是图的参数不对；不带
+//!   名字。
 //!
 //! 读文件、读 blob、存 blob 都碰磁盘，在阻塞线程里做。
 //!
@@ -123,6 +125,50 @@ pub(crate) async fn blocks(
     .await
 }
 
+/// `model.call` 的图（施工 8-20）：每个哈希一块图片，照先后。blob 这个账号没有的 `unknown_attachment`，不是图的
+/// `bad_params`，太大的 `attachment_too_big`。
+pub(crate) async fn images(core: &Core, hashes: Vec<ContentHash>) -> Result<Vec<Block>, Refusal> {
+    if hashes.is_empty() {
+        return Ok(Vec::new());
+    }
+    let place = place(core);
+    blocking(move || {
+        let blobs = Blobs::new(place.root.blobs(&place.admin));
+        hashes
+            .into_iter()
+            .map(|blob| {
+                let bytes = read_blob(&blobs, &blob)?;
+                match kind(&bytes, None).map_err(|_| Refusal::ATTACHMENT_TOO_BIG)? {
+                    Kind::Image {
+                        media_type,
+                        width,
+                        height,
+                    } => Ok(Block::Image(Image {
+                        blob,
+                        name: None,
+                        media_type,
+                        width,
+                        height,
+                    })),
+                    Kind::File { .. } => Err(Refusal::BAD_PARAMS),
+                }
+            })
+            .collect()
+    })
+    .await
+}
+
+/// 取一个 blob：没有的 `unknown_attachment`，读不了的记一行、`internal_error`。
+fn read_blob(blobs: &Blobs, blob: &ContentHash) -> Result<Vec<u8>, Refusal> {
+    blobs.get(blob).map_err(|error| match error {
+        BlobError::Missing(_) => Refusal::UNKNOWN_ATTACHMENT,
+        error => {
+            tracing::warn!(target: TARGET, blob = blob.as_str(), error = %error, "attachment not read");
+            Refusal::INTERNAL
+        }
+    })
+}
+
 /// 一个附件造成一块：blob 要在，照内容再认一遍；名字照头交回来的，图片也带（施工 3-9 四补）。
 fn block(
     blobs: &Blobs,
@@ -130,14 +176,7 @@ fn block(
     name: FileName,
     given: MediaType,
 ) -> Result<Block, Refusal> {
-    let bytes = match blobs.get(&blob) {
-        Ok(bytes) => bytes,
-        Err(BlobError::Missing(_)) => return Err(Refusal::UNKNOWN_ATTACHMENT),
-        Err(error) => {
-            tracing::warn!(target: TARGET, blob = blob.as_str(), error = %error, "attachment not read");
-            return Err(Refusal::INTERNAL);
-        }
-    };
+    let bytes = read_blob(blobs, &blob)?;
     Ok(
         match kind(&bytes, Some(given)).map_err(|_| Refusal::ATTACHMENT_TOO_BIG)? {
             Kind::Image {

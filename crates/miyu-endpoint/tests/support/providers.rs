@@ -1,12 +1,15 @@
 //! 第一次接入的测试共用的（施工 8-11）：带真目录裁出来的一份、能探本机、能拉列表的模型资料，清单里带上模型这一块的核心。
+//! `model.call` 的测试（施工 8-20）另用请求模型的是真路由的核心（[`routed`]）、说一句话的流（[`said`]）。
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use serde_json::{Value, json};
 
 use miyu_endpoint::Core;
 use miyu_endpoint::config::{Config, Environment};
-use miyu_http::{Proxy, fetcher};
+use miyu_http::testkit::{Piece, Reply};
+use miyu_http::{Proxy, client, fetcher};
 use miyu_models::catalog::{Catalog, CatalogSource, Loaded};
 use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
@@ -14,7 +17,7 @@ use miyu_models::settings::{
     CatalogSettings, ModelSettings, PriceSettings, ProviderSettings, UseSettings,
 };
 use miyu_session::testkit::Script;
-use miyu_session::{ModelData, Observed};
+use miyu_session::{ModelData, Models, Observed, Routes};
 use miyu_store::resources::ResourceRoot;
 use miyu_tool::Catalog as ToolCatalog;
 
@@ -60,6 +63,53 @@ pub fn data(profiles: Profiles) -> Arc<ModelData> {
 
 /// 一份核心：清单里带上模型这一块，配置照磁盘上现在的几份读，`env` 是核心的环境，模型资料是 `data`。
 pub fn core(home: &Home, env: &[(&str, &str)], data: Arc<ModelData>) -> Arc<Core> {
+    assembled(home, env, data, Arc::new(Script::new([])))
+}
+
+/// 同 [`core`]，请求模型的是真的路由，模型资料是同一份 `data`（施工 8-20：`model.call` 经它的一次性入口）。
+pub fn routed(home: &Home, env: &[(&str, &str)], data: Arc<ModelData>) -> Arc<Core> {
+    let routes = Routes {
+        client: client(Proxy::Off).expect("造得出客户端"),
+        direct: client(Proxy::Off).expect("造得出客户端"),
+        data: Arc::clone(&data),
+        idle: Duration::from_secs(60),
+    };
+    assembled(home, env, data, Arc::new(routes))
+}
+
+/// 说 `text` 的一份流：一段正文、说完、用量（输入 12，输出 3）。
+pub fn said(text: &str) -> Reply {
+    let chunk = |choices: Value, usage: Value| {
+        let event = json!({"id": "c1", "object": "chat.completion.chunk", "model": "x",
+            "choices": choices, "usage": usage});
+        format!("data: {event}\n\n")
+    };
+    let body = [
+        chunk(
+            json!([{"index": 0, "delta": {"role": "assistant", "content": text}, "finish_reason": null}]),
+            Value::Null,
+        ),
+        chunk(
+            json!([{"index": 0, "delta": {}, "finish_reason": "stop"}]),
+            Value::Null,
+        ),
+        chunk(
+            json!([]),
+            json!({"prompt_tokens": 12, "completion_tokens": 3, "total_tokens": 15}),
+        ),
+        "data: [DONE]\n\n".to_string(),
+    ]
+    .concat();
+    Reply::stream(vec![Piece::Bytes(body.into_bytes())])
+}
+
+/// 一份核心，请求模型照 `models`。
+fn assembled(
+    home: &Home,
+    env: &[(&str, &str)],
+    data: Arc<ModelData>,
+    models: Arc<dyn Models>,
+) -> Arc<Core> {
     let items = [
         miyu_endpoint::settings::UiSettings::ITEMS,
         UseSettings::ITEMS,
@@ -73,7 +123,7 @@ pub fn core(home: &Home, env: &[(&str, &str)], data: Arc<ModelData>) -> Arc<Core
     let core = Core::new(
         home.root.clone(),
         ResourceRoot::at(default_resources()),
-        Arc::new(Script::new([])),
+        models,
         ToolCatalog::default(),
         None,
         alice(),

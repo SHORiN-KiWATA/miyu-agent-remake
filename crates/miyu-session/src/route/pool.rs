@@ -1,4 +1,5 @@
-//! 池里挑哪一个成员（`docs/blueprint/models.md`「怎么走」第三条第 6、7 条、第四条那张表，施工 8-8）。
+//! 池里挑哪一个成员（`docs/blueprint/models.md`「怎么走」第三条第 6、7 条、第四条那张表，施工 8-8；排候选施工 8-20 起是
+//! 底子的一块，两个入口共用：「钉着的」是挑的一方交的，一次性调用没有，取指针指的）。
 //!
 //! - 钉住：造端口时钉上一个成员：载入的、最近一条发出去了的 `model.called` 是这个池的成员的，就是它；不是的、新造的，取
 //!   指针指的那个，指针加一。以后每次请求先发给它。
@@ -20,8 +21,9 @@ use miyu_models::facts::facts;
 use miyu_models::pools::{Member, Pool, Strategy};
 use miyu_models::provider::{self, NoModel, Target};
 
+use super::base::Seat;
 use super::choice::Choice;
-use super::{Pinned, Route, Routes, images, none, nothing};
+use super::{Routes, images, none, nothing};
 use crate::TARGET;
 use crate::config::TurnConfig;
 use crate::route::shared::ModelData;
@@ -72,25 +74,22 @@ impl Routes {
         limits.model = none();
         limits
     }
-}
 
-impl Route {
-    /// 池这一次的候选：从钉着的（钉住）、指针指的（轮换，或者还没钉上的）成员起，照写的先后绕一圈，每个用得了的成员的
-    /// key 排下来。一个都用不了的交第一个的原话。
+    /// 池这一次的候选：从钉着的（钉住，`seat` 交的）、指针指的（轮换，或者还没钉上的）成员起，照写的先后绕一圈，每个
+    /// 用得了的成员的 key 排下来。一个都用不了的交第一个的原话。
     pub(super) fn members(
         &self,
         config: &TurnConfig,
         values: &Values,
         pool: &Pool,
-        pinned: &Pinned,
+        seat: &Seat<'_>,
     ) -> Result<Vec<Choice>, NoModel> {
-        let data = &self.shared.data;
+        let data = &self.data;
         for text in &pool.skipped {
             tracing::warn!(target: TARGET, pool = pool.name.as_str(), member = text.as_str(), "pool member skipped");
         }
-        let held = pinned
-            .member
-            .as_ref()
+        let held = seat
+            .held
             .filter(|_| pool.strategy == Strategy::Pin)
             .and_then(|member| pool.find(&member.provider, &member.model));
         let first = held.unwrap_or_else(|| take(data, pool));
@@ -99,7 +98,7 @@ impl Route {
         for at in pool.order(first) {
             let member = &pool.members[at];
             let tried = target(data, values, member)
-                .and_then(|target| self.choices(config, &target, Some(member), &pinned.moved));
+                .and_then(|target| self.choices(config, &target, Some(member), seat));
             match tried {
                 Ok(more) => choices.extend(more),
                 Err(error) => {

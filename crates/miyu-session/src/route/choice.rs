@@ -1,13 +1,12 @@
-//! 一次请求挑哪个端点（`docs/blueprint/models.md`「怎么走」第四条，施工 8-9）：排候选、挑一个。
+//! 一次请求挑哪个端点（`docs/blueprint/models.md`「怎么走」第四条，施工 8-9；施工 8-20 起是底子的一块，两个入口共用）：
+//! 排候选、挑一个。
 //!
-//! - 一个候选是一家、一个 key、一个模型（[`Choice`]）。一家的 key：出错换过去、成了的那一个在前，没有的照会话编号钉着的
-//!   在前，别的照写的先后（`miyu_models::keys::order`）；取不到值的不当候选，一个都取不到的这一家是 `no_model`
+//! - 一个候选是一家、一个 key、一个模型（[`Choice`]）。一家的 key：出错换过去、成了的那一个在前，没有的照种子（会话编号，
+//!   一次性调用的用途，施工 8-20）钉着的在前，别的照写的先后（`miyu_models::keys::order`）；取不到值的不当候选，一个都取不到的这一家是 `no_model`
 //!   （`provider "<编号>" has no usable key`）。没写 key 的（本机的服务）只有一个候选，不带认证头。
 //! - 挑（[`pick`]）：上一次主请求说到一半断了的，还发给它，不管它冷不冷；不然取排在最前、没在冷却的（整个 key 在冷却、这个
 //!   key 的这个模型在冷却都算）；都在冷却的，只有一个候选的照样发它，不止一个的不发，交 `cooling`：原话写每个候选为什么、
 //!   到什么时候，要等的是最早恢复的那一个还要多久（第五条第 6 条）。
-
-use std::collections::BTreeMap;
 
 use miyu_http::Endpoint;
 use miyu_kernel::time::Timestamp;
@@ -16,7 +15,8 @@ use miyu_models::keys;
 use miyu_models::pools::Member;
 use miyu_models::provider::{self, NoModel, Target};
 
-use super::Route;
+use super::Routes;
+use super::base::Seat;
 use super::shared::ModelData;
 use crate::config::TurnConfig;
 
@@ -67,15 +67,15 @@ impl From<NoModel> for Unsent {
     }
 }
 
-impl Route {
+impl Routes {
     /// 发给 `target` 的候选：这一家的地址，每个取得到值的 key 一个，照先后排（见模块的说明）。`member` 是池里的哪一个成员，
-    /// `moved` 是出错换过去、成了的 key。
+    /// `seat` 是谁在挑：照它的种子钉 key，它换过去、成了的 key 在前。
     pub(super) fn choices(
         &self,
         config: &TurnConfig,
         target: &Target,
         member: Option<&Member>,
-        moved: &BTreeMap<String, String>,
+        seat: &Seat<'_>,
     ) -> Result<Vec<Choice>, NoModel> {
         let provider = &target.provider;
         let base_url = provider::resolve_base_url(provider, &|reference| config.secret(reference))?;
@@ -90,10 +90,11 @@ impl Route {
             return Ok(vec![choice(None, None, Endpoint::keyless(&base_url))]);
         }
         let names: Vec<String> = provider.keys.iter().map(keys::name).collect();
-        let moved = moved
+        let moved = seat
+            .moved
             .get(&provider.id)
             .and_then(|name| names.iter().position(|each| each == name));
-        let choices: Vec<Choice> = keys::order(self.session.as_str(), names.len(), moved)
+        let choices: Vec<Choice> = keys::order(seat.seed, names.len(), moved)
             .into_iter()
             .filter_map(|at| {
                 let key = config.secret(&provider.keys[at])?;

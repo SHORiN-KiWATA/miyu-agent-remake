@@ -3,7 +3,7 @@
 //! 选、给模型看的说明（施工 8-8 补），两种用途各配的引用，没配的是 `null`。8-8 的 `tiers` 8-8 补去掉了。模型、key 的冷却
 //! （施工 8-9）照核心一份的冷却表，照这一刻说。`session.create` 的 `model` 怎么解析也在这里（[`record`]，施工 8-8）。
 //! `session.configure` 的参数（`models/configure.rs`，施工 8-10；思考强度 `effort` 施工 8-18）、`subscribe` 回应的 `model`
-//! （[`next`]，施工 8-10；8-18 多 `effort`）也在这里。
+//! （[`next`]，施工 8-10；8-18 多 `effort`）也在这里。`model.call` 经一次性入口叫一次模型（`models/call.rs`，施工 8-20）。
 //!
 //! 1. 先等目录读完（核心写了 `ready` 以后才读）。
 //! 2. `provider` 写了、不是配好了的：`unknown_provider`。
@@ -11,9 +11,11 @@
 //!    没有列表、旧过 24 小时的几家在后台拉，这一次先照手头的答。
 //! 4. 照不算项目配置的最终值答。key 的值从不交出去，只说有没有值。
 
+mod call;
 mod configure;
 mod entry;
 
+pub(crate) use call::call;
 pub(crate) use configure::{ConfigureParams, effort};
 
 use std::sync::Arc;
