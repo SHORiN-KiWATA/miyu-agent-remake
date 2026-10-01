@@ -242,7 +242,7 @@ fn a_missing_hand_pick_borrows_nothing() {
     let deepseek = crate::provider::Provider {
         id: "deepseek".to_string(),
         driver: crate::provider::Driver::OpenAiChat,
-        base_url: "https://api.deepseek.com".to_string(),
+        base_url: miyu_config::Address::Literal("https://api.deepseek.com".to_string()),
         compat: miyu_drivers::openai_chat::Compat::default(),
         keys: Vec::new(),
         images: None,

@@ -171,8 +171,9 @@ pub(crate) fn allowed(kind: Kind) -> &'static [&'static str] {
     }
 }
 
-/// 能写什么，说成给人看的话：数得完的几种照 [`allowed`] 连成「a、b 或 c」；整数说范围，网址、名字、引用各一句，列表说
-/// 「元素的列表」（施工 8-6，`config/expected/…`）；小数、时长说范围，文字说最多几个字（施工 8-7）。
+/// 能写什么，说成给人看的话：数得完的几种照 [`allowed`] 连成「a、b 或 c」；整数说范围，名字、引用各一句，列表说
+/// 「元素的列表」（施工 8-6，`config/expected/…`）；小数、时长说范围，文字说最多几个字（施工 8-7）；网址说地址的写法，
+/// 再接上「或者 `{ env = "…" }`」（施工 8-6b，照密钥两种写法连起来的样子）。
 pub(crate) fn expected(words: &dyn Words, kind: Kind) -> Result<String, Missing> {
     match kind {
         Kind::Option(_) | Kind::Bool | Kind::Secret => {
@@ -194,7 +195,14 @@ pub(crate) fn expected(words: &dyn Words, kind: Kind) -> Result<String, Missing>
             "config/expected/duration",
             &[("min", &seconds(min)), ("max", &seconds(max))],
         ),
-        Kind::Url => sentence(words, "config/expected/url", &[]),
+        Kind::Url => {
+            let address = sentence(words, "config/expected/url", &[])?;
+            one_of(
+                words,
+                &[address.as_str(), r#"{ env = "…" }"#],
+                "config/or-values",
+            )
+        }
         Kind::Name => sentence(words, "config/expected/name", &[]),
         Kind::Reference => sentence(words, "config/expected/reference", &[]),
         Kind::List(inner) => {

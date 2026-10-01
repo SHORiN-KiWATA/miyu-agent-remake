@@ -6,7 +6,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 
 驱动的内部（Anthropic 消息接口、OpenAI Responses 接口怎么编码、解码）不在这一页：开工前另画 `drivers/anthropic.md`、`drivers/openai-responses.md`。这一页只写它们要守的约定（「对外的样子」最后一节）。配置怎么读、怎么分层、怎么校验、密钥怎么存，归 `config.md`。这一页只写模型这一块有哪些键、每个键是什么意思。
 
-状态：图纸，定稿（2026-10-01 起草，起草时要拍板的几题同一天定了，见「定的（2026-10-01）」；主会话审过，项目主人同一天批准），M8 的 8-6 到 8-11、8-14 的一部分、8-15 照它施工（施工方案第三节 M8 那张表）。每一节标着由哪一步做。做完一步，这一页照做好的样子改写那几节，「要跟着改的别的页」里列的几页跟着改。8-6 做完了（2026-10-01）：标 8-6 的几节照做好的样子写，施工时定的记在「施工时定的」。8-7 做完了（2026-10-01，施工完，待主会话审）：标 8-7 的几节照做好的样子写，施工时定的记在「施工时定的」8-7 那张表。
+状态：图纸，定稿（2026-10-01 起草，起草时要拍板的几题同一天定了，见「定的（2026-10-01）」；主会话审过，项目主人同一天批准），M8 的 8-6 到 8-11、8-14 的一部分、8-15 照它施工（施工方案第三节 M8 那张表）。每一节标着由哪一步做。做完一步，这一页照做好的样子改写那几节，「要跟着改的别的页」里列的几页跟着改。8-6 做完了（2026-10-01）：标 8-6 的几节照做好的样子写，施工时定的记在「施工时定的」。8-7 做完了（2026-10-01，施工完，待主会话审）：标 8-7 的几节照做好的样子写，施工时定的记在「施工时定的」8-7 那张表。8-6b 做完了（2026-10-01）：`base_url` 一行、`model.list` 的 `providers`、第十条、「样子」里的例子照做好的样子写，施工时定的记在「施工时定的」8-6b 那张表。
 
 ### 在哪
 
@@ -64,7 +64,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | 键 | 取值 | 不写是 | 是什么 |
 |---|---|---|---|
 | `driver` | `openai-chat`、`anthropic`、`openai-responses` | 照档案、目录推（第一条第 2 条） | 怎么说话。推不出来的必写 |
-| `base_url` | 网址 | 照档案、目录推 | 地址，路径由驱动接在后面。推不出来的必写 |
+| `base_url` | 网址，或者 `{ env = "…" }`（施工 8-6b，照密钥一样的读法，没有 `{ secret = … }`：地址不进密钥文件） | 照档案、目录推 | 地址，路径由驱动接在后面。推不出来的必写。是引用的，真要连供应商的那一刻才照核心的环境解出来（`config.md` 第九条第 5 条），没设、设成空的这一家没有地址（`no_model`）；`config.get`、`model.list` 都照写的样子交，不交解出来的地址 |
 | `keys` | 列表，每一项 `{ secret = "…" }` 或 `{ env = "…" }` | 空 | 几个 key。空的不带认证头：本机的服务 |
 | `headers` | 表：头的名字 → 字符串，或 `{ secret }`、`{ env }` | 空 | 另配的头。字符串里能写 `{session_digest}`、`{call_digest}`、`{version}`（第八条第 1 条）。和档案里的同名时盖掉档案的 |
 | `catalog` | models.dev 里一家供应商的编号 | 不写 | 手写指定：这家对应目录里的哪一家（第二条第 4 条第 2 层）。例如只转 DeepSeek 的中转写 `deepseek` |
@@ -260,7 +260,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 
 | 格 | 是什么 |
 |---|---|
-| `providers` | 配好的供应商，照编号排。每一家：`id`、`driver`、`base_url`、`keys`（每个 key 的 `ref`：`secret:<名字>` 或 `env:<变量>`，`set` 有没有值，`state`）、`catalog`（对上了目录里的哪一家，`how` 是怎么对上的：`config` 手写、`id` 编号一样、`similar_id` 去掉分隔以后一样、`url` 地址一样，没对上的不写）、`models`。这一家用不了的（推不出驱动、地址，驱动还没有）：`driver`、`base_url` 照手写的，没写的是 `null`，多一格 `problem`（`no_model` 的那一句原话），`models` 是空的（8-7） |
+| `providers` | 配好的供应商，照编号排。每一家：`id`、`driver`、`base_url`（照配置写的样子交：写死的是地址本身，是 `{ env = … }` 的交 `{"env": "…"}`，不解出地址，施工 8-6b）、`keys`（每个 key 的 `ref`：`secret:<名字>` 或 `env:<变量>`，`set` 有没有值，`state`）、`catalog`（对上了目录里的哪一家，`how` 是怎么对上的：`config` 手写、`id` 编号一样、`similar_id` 去掉分隔以后一样、`url` 地址一样，没对上的不写）、`models`。这一家用不了的（推不出驱动、地址，驱动还没有）：`driver`、`base_url` 照手写的，没写的是 `null`，多一格 `problem`（`no_model` 的那一句原话），`models` 是空的（8-7） |
 | `models` 里的每一个 | `model` 模型名、`ref` 写成引用的样子、`listed` 从哪几处列出来的（`config`、`provider`、`catalog`，照这个先后）、`facts` 每一格的 `value` 和来源（上面「模型的资料」，九格都在：`window`、`max_output`、`inputs`、`tools`、`reasoning`、`price`、`multiplier`、`name`、`status`）、`state`。手写指定的目录条目不存在的，多一格 `catalog_missing`：写的那个条目（8-7） |
 | `pools` | 每个池：`name`、`strategy`、`models`（8-8） |
 | `tiers` | 四个挡位各配的引用，没配的是 `null`（8-8） |
@@ -395,7 +395,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 **一、供应商**（8-6）
 
 1. 核心起来时读档案（`profiles.toml`，TOML 读成 JSON 交给 `miyu-models`），交给路由的共享那一份（8-6 是 `Routes`，`route/shared.rs` 随 8-8）。`[providers.*]` 不另读成表：一个会话在回合开始时拿一份冻结下来的配置（`14-配置.md` G7，第六条第 3 条），每次请求照它现合（`miyu_models::provider`）。
-2. **驱动、地址从哪来**。先看手写的。没写的看档案（`profiles.toml` 的 `[providers.<目录里的编号>]`：写了 `catalog` 的照它，没写的照这一家的编号）。档案也没有的，看它对上的目录里那一家（第二条第 4 条第 2 层）的 `api` 和 `npm`，`npm` 照档案的 `[npm]` 表换成驱动（8-7）。都没有的，这一家用不了：请求它的当场 `no_model`，原话 `provider "<编号>" needs driver and base_url: it matches nothing in the catalog`，别的照常。8-6 还没有目录，对档案只认编号一样的（档案里 DeepSeek 那一段带着驱动和地址，`deepseek` 只写 key 就能用）。写了还没有的驱动（`anthropic`、`openai-responses`）：`driver "<它>" of provider "<编号>" is not available yet`，随 8-12、8-13。
+2. **驱动、地址从哪来**。先看手写的。没写的看档案（`profiles.toml` 的 `[providers.<目录里的编号>]`：写了 `catalog` 的照它，没写的照这一家的编号）。档案也没有的，看它对上的目录里那一家（第二条第 4 条第 2 层）的 `api` 和 `npm`，`npm` 照档案的 `[npm]` 表换成驱动（8-7）。都没有的，这一家用不了：请求它的当场 `no_model`，原话 `provider "<编号>" needs driver and base_url: it matches nothing in the catalog`，别的照常。8-6 还没有目录，对档案只认编号一样的（档案里 DeepSeek 那一段带着驱动和地址，`deepseek` 只写 key 就能用）。写了还没有的驱动（`anthropic`、`openai-responses`）：`driver "<它>" of provider "<编号>" is not available yet`，随 8-12、8-13。手写的地址可能是一个环境变量的引用（`{ env = … }`，施工 8-6b）：对目录、认不认本机的服务这两处要字面地址的，是引用时当没有这一格（不强行解出来）；真要连供应商时才照第 5 条一样的办法解出来（`miyu_models::provider::resolve_base_url`），解不出来（没设、设成空的）这一家没有地址，`provider "<编号>" has no usable base_url`。
 3. **开关**：档案的，档案没有的用驱动的默认。DeepSeek 的那一套（思考每条都带、`/beta` 接着写）从代码里的 `Compat::deepseek()` 挪进了档案的 `[providers.deepseek]`（8-6），出厂只给实测过的开（`05-内核接口.md` 第七节）。手写的 `compat` 一格格盖在档案上面，随用到它的那一步。档案另带两格（8-6 加）：能收哪些输入（`inputs`，DeepSeek 收图不收 PDF）、一张图怎么算（`image_tokens = "deepseek"`），8-7 有了目录、手写的资料以后照资料。
 4. **另配的头**：档案的，手写的同名盖掉。值里的 `{…}` 照第八条第 1 条换（8-14）。
 5. **key**：照写的先后。`{ secret }` 取密钥（人用 `miyu login` 存），`{ env }` 取核心的环境变量（怎么取是 `config.md` 的事），都照这一轮冻结的配置取（`TurnConfig::secret`）。取不到值的 key 不当候选。一个都取不到的，请求当场 `no_model`（`provider "<编号>" has no usable key`），8-7 起 `model.list` 里这家的模型状态是 `no_key`。没写 key 的不带认证头（本机的服务）。
@@ -616,20 +616,20 @@ opencode Zen 的免费模型只放行 opencode 自己的客户端：流式、工
 **十、开发怎么测**（8-6）
 
 1. CI 里的测试照旧不连真模型：假服务器（`miyu-http` 的 `testkit`）、执行器替身。真核心的测试在数据根里写一份 `system/config.toml`（`crates/miyu/tests/crash.rs`、`dev_home.rs`），会话的测试照配置的字造一份不变的配置（`crates/miyu-session/tests/support/routing.rs`），供应商的地址指到假服务器。
-2. 真模型自测：`cargo xtask dev-home <目录>` 照三个环境变量造一个数据根：`MIYU_DEV_BASE_URL`（地址）、`MIYU_DEV_MODEL`（模型名）、`MIYU_DEV_WINDOW`（可以不设）。它建好骨架、写 `system/config.toml`：一家 `dev`（`openai-chat`，`catalog = "deepseek"`，key `{ env = "DEEPSEEK_API_KEY" }`），`models.chat = "dev/<模型>"`，设了窗口的写进这个模型的 `window`。
-   - 这三个名字只在 xtask 里，程序里没有了。地址、key 都不进仓库（和现在一样只在命令里）。
-   - 之后照平常 `MIYU_HOME=<目录> miyu ask …`。
+2. 真模型自测：`cargo xtask dev-home <目录>` 照三个环境变量造一个数据根：`MIYU_DEV_BASE_URL`（地址）、`MIYU_DEV_MODEL`（模型名）、`MIYU_DEV_WINDOW`（可以不设）。它建好骨架、写 `system/config.toml`：一家 `dev`（`openai-chat`，`catalog = "deepseek"`，地址照 `{ env = "MIYU_DEV_BASE_URL" }` 取、key 照 `{ env = "DEEPSEEK_API_KEY" }` 取，8-6b 起地址也不写进文件），`models.chat = "dev/<模型>"`，设了窗口的写进这个模型的 `window`。
+   - 这三个名字只在 xtask 里，程序里没有了。地址、key 都不进仓库、也不进造出来的配置文件（和 key 一样只在命令里，8-6b 起地址也是这样：和本机端点地址一样，只放在拉起核心的命令的环境变量里）。
+   - 之后照平常 `MIYU_DEV_BASE_URL=… MIYU_HOME=<目录> miyu ask …`：地址每次拉起核心都要照这个环境变量取，不是只在 `dev-home` 这一次。
    - 数据根要先有骨架再写配置：不然核心认不出它是 Miyu 的数据根（`store.md`「认得出自己的数据根才动它」）。骨架照核心的写法建（`miyu-store` 的 `DataRoot::prepare`）：目录里有别的东西、认不出是 Miyu 的数据根的不动。
    - 已经有 `system/config.toml` 的不盖，说一句、退出码 1：人改过的配置不替人扔掉。要换地址、模型，换一个目录，或者用 `miyu config` 改。
-   - 写的配置第一行是 `#:schema`，第二行注释说是它造的、key 照 `DEEPSEEK_API_KEY` 取；模型名照 TOML 的字符串写（`[providers.dev.models."<模型>"]`）。目录写相对的照当前目录接上。没设地址、模型，地址不是 `http://`、`https://` 开头，模型名超过 128 字节或有控制字符，窗口不是 1 到 100000000 的整数：说哪个变量不对，退出码 1；没写目录的印用法，退出码 2。
+   - 写的配置第一行是 `#:schema`，第二行注释说是它造的、地址照 `MIYU_DEV_BASE_URL` 取、key 照 `DEEPSEEK_API_KEY` 取；模型名照 TOML 的字符串写（`[providers.dev.models."<模型>"]`）。目录写相对的照当前目录接上。没设地址、模型，地址不是 `http://`、`https://` 开头（这一步只在内存里查，不写进文件），模型名超过 128 字节或有控制字符，窗口不是 1 到 100000000 的整数：说哪个变量不对，退出码 1；没写目录的印用法，退出码 2。
    - 用法（地址、key 照你自己的）：
 
      ```sh
      MIYU_DEV_BASE_URL=https://relay.example.invalid/v1 MIYU_DEV_MODEL=deepseek-v4.1-flash MIYU_DEV_WINDOW=128000 cargo xtask dev-home ~/miyu-dev
-     DEEPSEEK_API_KEY=… MIYU_HOME=~/miyu-dev miyu ask "在吗"
+     MIYU_DEV_BASE_URL=https://relay.example.invalid/v1 DEEPSEEK_API_KEY=… MIYU_HOME=~/miyu-dev miyu ask "在吗"
      ```
 
-     核心在拉起它的终端里取 `DEEPSEEK_API_KEY`：已经在跑的核心看不到后来设的，先让它退出（空闲十分钟自己走）。也可以 `MIYU_HOME=~/miyu-dev miyu login dev` 存一个密钥、把配置里的 `{ env = "DEEPSEEK_API_KEY" }` 改成 `{ secret = "dev" }`。
+     核心在拉起它的终端里取 `MIYU_DEV_BASE_URL`、`DEEPSEEK_API_KEY`：已经在跑的核心看不到后来设的，先让它退出（空闲十分钟自己走）。也可以 `MIYU_HOME=~/miyu-dev miyu login dev` 存一个密钥、把配置里的 `{ env = "DEEPSEEK_API_KEY" }` 改成 `{ secret = "dev" }`（地址没有这条路：`{ secret = … }` 对网址不是合法的写法，地址一直要靠环境变量）。
 3. 合进 main 以后告诉终端界面、网页两个演示：开发端点改成这样接，协议多了哪几个方法（改了协议要告诉两个头）。
 
 ### 样子
@@ -994,6 +994,14 @@ mimo = ["xiaomi"]
 | `model.list` 照不算项目配置的最终值答，手写来源的 `file` 是那一层文件的写法（`system/config.toml`） | 项目配置里不能写模型这一块 | 照某个目录带项目配置：`model.list` 没有目录参数 |
 | 列模型用的驱动带空的占位字（只有编码用它） | 列模型、认证头用不着占位；不为它改驱动的造法 | 驱动另开一个不带字的造法 |
 | 快照带 models.dev 的 MIT 许可证原文 `models-dev.LICENSE`（`licenses.md`） | MIT 要求随副本带上版权和许可声明 | 不带：许可证不全 |
+
+8-6b 施工时照推荐定的技术细节（2026-10-01，项目主人定要做、施工员照推荐定写法；配置那一半在 `config.md`「施工时定的」8-6b）：
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| `Provider.base_url` 的类型是 `Address`（`Literal`、`Env` 两种），不是解好的字；对目录、本机的服务这两处字面地址才用得上的查法，是引用时当没有这一格；真要连供应商时（`route.rs`、`route/lists.rs`）才经 `resolve_base_url` 照和 key 一样的 `secret` 闭包解出来 | `provider()` 本来就是纯逻辑、不碰 IO（第一条），解出地址要环境访问；`model.list`、`config.get` 走的是同一份 `Provider`，解好了就没法在那两处隐瞒 | 造 `Provider` 的时候就把地址解出来：纯逻辑函数要带 IO 闭包，`model.list` 也无从只显示引用 |
+| `xtask dev-home` 写 `base_url = { env = "MIYU_DEV_BASE_URL" }`，不写地址本身；地址在 `Vars::read` 里只读进内存校验写法（必须 `http://`、`https://` 开头），从不落盘 | 本机端点地址和 key 一样，只想放在拉起核心的命令的环境变量里（项目主人定）；上游校验能让人更早发现拼错的地址 | 不校验，直接写引用：地址写岔了要等连不上才发现 |
+| `route/lists.rs` 拉供应商的模型列表也经 `resolve_base_url`，和 `route.rs` 发请求共用同一个办法 | 两处都是「真要连供应商的那一刻」，没有理由走两套解法 | 列表那边另写一份：两份要对着改 |
 
 ### 要跟着改的别的页
 

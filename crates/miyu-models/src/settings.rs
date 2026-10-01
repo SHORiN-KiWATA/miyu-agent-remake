@@ -5,11 +5,14 @@
 //! （`models.md`「模型的资料」）：供应商的倍率、本机；模型手写的资料（对目录里的哪一个、最大输出、能收什么、能不能调工具、
 //! 思考强度、价格、倍率）；目录怎么更新 `[models.catalog]`。别的格（另配的头、缓存类别、开关、占位工具、模型的驱动、挡位、
 //! 池）随用到它的那一步加（「施工时定的」8-6、8-7）。项目配置一项都不能写。
+//!
+//! `base_url` 8-6b 起也能写 `{ env = … }`：地址不进任何回应、日志、文件，照核心起来时的环境取（[`crate::provider`] 的
+//! `resolve_base_url`）。
 
 use std::time::Duration;
 
-use miyu_config::Number;
 use miyu_config::secret::Reference;
+use miyu_config::{Address, Number};
 
 miyu_config::settings! {
     /// 一家供应商（`models.md`「怎么走」第一条）：编号是键里 `<id>` 那一段，「路径里的名字」的写法。
@@ -21,8 +24,9 @@ miyu_config::settings! {
             applies: next_turn,
             ui: { page: "models", group: "providers", control: select },
         },
-        /// 地址，路径由驱动接在后面。不写照档案推。
-        base_url: Option<String> = none {
+        /// 地址，路径由驱动接在后面。不写照档案推。可以是写死的，也可以是一个环境变量的引用（`{ env = … }`，施工
+        /// 8-6b）：本机端点地址和 key 一样，只想放在拉起核心的环境变量里，不进任何文件。
+        base_url: Option<Address> = none {
             kind: url,
             layers: [System, Personal],
             applies: next_turn,

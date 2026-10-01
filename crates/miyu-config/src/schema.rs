@@ -98,15 +98,10 @@ fn shape(kind: Kind) -> Map<String, Json> {
         }
         Kind::Secret => {
             // 引用写成一张只有一格的表：`secret` 或 `env`，值是字（施工 8-5）。
-            let one = |key: &str| {
-                json!({
-                    "additionalProperties": false,
-                    "properties": {key: {"type": "string"}},
-                    "required": [key],
-                    "type": "object",
-                })
-            };
-            property.insert("oneOf".to_string(), json!([one("secret"), one("env")]));
+            property.insert(
+                "oneOf".to_string(),
+                json!([reference_shape("secret"), reference_shape("env")]),
+            );
         }
         Kind::Int { min, max } => {
             property.insert("type".to_string(), json!("integer"));
@@ -114,8 +109,11 @@ fn shape(kind: Kind) -> Map<String, Json> {
             property.insert("maximum".to_string(), json!(max));
         }
         Kind::Url => {
-            property.insert("type".to_string(), json!("string"));
-            property.insert("format".to_string(), json!("uri"));
+            // 写死的地址，或者一个环境变量的引用（施工 8-6b，没有 `{ secret = … }`：地址不进密钥文件）。
+            property.insert(
+                "oneOf".to_string(),
+                json!([{"type": "string", "format": "uri"}, reference_shape("env")]),
+            );
         }
         Kind::Name | Kind::Reference => {
             property.insert("type".to_string(), json!("string"));
@@ -141,6 +139,16 @@ fn shape(kind: Kind) -> Map<String, Json> {
         }
     }
     property
+}
+
+/// 引用写成一张只有一格的表：`key` 是 `secret` 或 `env`，值是字（施工 8-5、8-6b）。
+fn reference_shape(key: &str) -> Json {
+    json!({
+        "additionalProperties": false,
+        "properties": {key: {"type": "string"}},
+        "required": [key],
+        "type": "object",
+    })
 }
 
 #[cfg(test)]

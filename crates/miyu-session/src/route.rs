@@ -7,6 +7,8 @@
 //!   `models.chat`，退得回去的以后就钉在它上面；都不行的当场说完，分类 `no_model`，不发（第一条第 7 条）。
 //! - key：这一家写了几个，会话钉在照会话编号算出的那一个上（`miyu_models::keys`），取不到值的跳过，照写的先后取下一个；
 //!   一个都取不到的也是 `no_model`。出错换 key、换端点随 8-9。没写 key 的不带认证头（本机的服务）。
+//! - 地址：写死的直接用，是环境变量的引用的照 `config.secret` 取（施工 8-6b，`miyu_models::provider::resolve_base_url`），
+//!   和取 key 同一个办法；取不到也是 `no_model`，地址不会流进请求之外的任何地方。
 //! - 发：照驱动编码、经 HTTP 执行器发、流式读回来（[`send`]），和原来一样。
 //! - 资料（施工 8-7）：窗口、最大输出、能收什么照核心一份的模型资料查（[`ModelData`]，`miyu_models::facts`）；目录在写了
 //!   `ready` 以后才读完，造端口之前先等它（[`Models::ready`]）。报上下文超长、说了上限、比手头的窗口小的，记下用出来的
@@ -205,16 +207,18 @@ impl Route {
         })
     }
 
-    /// 发到哪：这一家的地址，带会话钉着的那一个 key（取不到值的照写的先后取下一个）。没写 key 的不带。
+    /// 发到哪：这一家的地址（写死的直接用，是环境变量的引用照 `config.secret` 取，施工 8-6b），带会话钉着的那一个 key
+    /// （取不到值的照写的先后取下一个）。没写 key 的不带。
     fn endpoint(&self, config: &TurnConfig, target: &Target) -> Result<Endpoint, NoModel> {
         let provider = &target.provider;
+        let base_url = provider::resolve_base_url(provider, &|reference| config.secret(reference))?;
         if provider.keys.is_empty() {
-            return Ok(Endpoint::keyless(&provider.base_url));
+            return Ok(Endpoint::keyless(&base_url));
         }
         keys::order(self.session.as_str(), provider.keys.len())
             .into_iter()
             .find_map(|at| config.secret(&provider.keys[at]))
-            .map(|key| Endpoint::new(&provider.base_url, key.expose()))
+            .map(|key| Endpoint::new(&base_url, key.expose()))
             .ok_or_else(|| NoModel(format!("provider {:?} has no usable key", provider.id)))
     }
 }

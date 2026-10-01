@@ -39,10 +39,26 @@
             },
             "url": {
               "default": "https://models.dev/api.json",
-              "description": "从哪拉模型目录。能写：http:// 或 https:// 开头的网址。只能写在系统配置或个人设置里。当场生效。",
-              "format": "uri",
-              "title": "目录的地址",
-              "type": "string"
+              "description": "从哪拉模型目录。能写：http:// 或 https:// 开头的网址 或 { env = \"…\" }。只能写在系统配置或个人设置里。当场生效。",
+              "oneOf": [
+                {
+                  "format": "uri",
+                  "type": "string"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "env": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "env"
+                  ],
+                  "type": "object"
+                }
+              ],
+              "title": "目录的地址"
             }
           },
           "type": "object"
@@ -70,10 +86,26 @@
       "additionalProperties": {
         "properties": {
           "base_url": {
-            "description": "这家的接口地址，路径由驱动接在后面。认得出的供应商可以不写。能写：http:// 或 https:// 开头的网址。只能写在系统配置或个人设置里。下一轮生效。",
-            "format": "uri",
-            "title": "地址",
-            "type": "string"
+            "description": "这家的接口地址，路径由驱动接在后面。认得出的供应商可以不写。能写：http:// 或 https:// 开头的网址 或 { env = \"…\" }。只能写在系统配置或个人设置里。下一轮生效。",
+            "oneOf": [
+              {
+                "format": "uri",
+                "type": "string"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "env": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "env"
+                ],
+                "type": "object"
+              }
+            ],
+            "title": "地址"
           },
           "catalog": {
             "description": "这家对应资料里的哪一家，例如只转 DeepSeek 的中转写 deepseek。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。下一轮生效。",

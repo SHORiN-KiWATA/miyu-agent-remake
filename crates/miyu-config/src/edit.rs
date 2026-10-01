@@ -77,10 +77,11 @@ pub fn apply(text: &str, change: Change<'_>) -> Result<String, Blocked> {
     }
 }
 
-/// 人敲的字照这一项的类型读（第五条第 3 条）：开关只认 `true`、`false`；选项、网址、名字、引用照原样，两头带着双引号、
+/// 人敲的字照这一项的类型读（第五条第 3 条）：开关只认 `true`、`false`；选项、名字、引用照原样，两头带着双引号、
 /// 是一个 TOML 字符串的去掉引号再用（照 TOML 转义读）；密钥照 TOML 的行内表读（`{ secret = "deepseek" }`，施工 8-5）；
-/// 整数照 TOML 的整数读，列表照 TOML 的数组读（施工 8-6）；文字、时长同选项，小数照 TOML 的小数、整数读（施工 8-7）。
-/// 读不成的是空的（`wrong_type`）；读成了、不合这种类型的（不在选项里、不在范围里、写法不对）由调用的一方查。
+/// 整数照 TOML 的整数读，列表照 TOML 的数组读（施工 8-6）；文字、时长同选项，小数照 TOML 的小数、整数读（施工 8-7）；
+/// 网址先试引用（同密钥的读法），不是引用形状的照字读（施工 8-6b）。读不成的是空的（`wrong_type`）；读成了、不合这种
+/// 类型的（不在选项里、不在范围里、写法不对、网址是 `{ secret = … }`）由调用的一方查。
 pub fn input(kind: Kind, text: &str) -> Option<Value> {
     match kind {
         Kind::Bool => match text {
@@ -89,11 +90,13 @@ pub fn input(kind: Kind, text: &str) -> Option<Value> {
             _ => None,
         },
         Kind::Option(_)
-        | Kind::Url
         | Kind::Name
         | Kind::Reference
         | Kind::Text { .. }
         | Kind::Duration { .. } => Some(Value::Text(Cow::Owned(unquoted(text)))),
+        Kind::Url => Reference::from_input(text)
+            .map(Value::Secret)
+            .or_else(|| Some(Value::Text(Cow::Owned(unquoted(text))))),
         Kind::Secret => Reference::from_input(text).map(Value::Secret),
         Kind::Int { .. } | Kind::Float { .. } | Kind::List(_) => {
             let document = Document::parse(format!("v = {text}")).ok()?;
@@ -103,25 +106,25 @@ pub fn input(kind: Kind, text: &str) -> Option<Value> {
     }
 }
 
-/// 协议上 JSON 的值照这一项的类型读：选项、网址、名字、引用要字，开关要布尔，密钥要 `{"secret": …}` 或 `{"env": …}`，
-/// 整数要整数，列表要数组、每一个照元素的类型（施工 8-6）；文字、时长要字，小数要数（施工 8-7）。别的是空的
-/// （`wrong_type`）。
+/// 协议上 JSON 的值照这一项的类型读：选项、名字、引用要字，开关要布尔，密钥要 `{"secret": …}` 或 `{"env": …}`，
+/// 整数要整数，列表要数组、每一个照元素的类型（施工 8-6）；文字、时长要字，小数要数（施工 8-7）；网址要字（写死的）或者
+/// `{"env": …}`（引用，施工 8-6b，`{"secret": …}` 读得出来但 `Kind::check` 会挡）。别的是空的（`wrong_type`）。
 pub fn from_json(kind: Kind, value: &serde_json::Value) -> Option<Value> {
     match (kind, value) {
         (
             Kind::Option(_)
-            | Kind::Url
             | Kind::Name
             | Kind::Reference
             | Kind::Text { .. }
             | Kind::Duration { .. },
             serde_json::Value::String(text),
         ) => Some(Value::Text(Cow::Owned(text.clone()))),
+        (Kind::Url, serde_json::Value::String(text)) => Some(Value::Text(Cow::Owned(text.clone()))),
         (Kind::Float { .. }, serde_json::Value::Number(number)) => number
             .as_f64()
             .map(|number| Value::Float(Number::new(number))),
         (Kind::Bool, serde_json::Value::Bool(on)) => Some(Value::Bool(*on)),
-        (Kind::Secret, value) => Reference::from_json(value).map(Value::Secret),
+        (Kind::Secret | Kind::Url, value) => Reference::from_json(value).map(Value::Secret),
         (Kind::Int { .. }, serde_json::Value::Number(number)) => number.as_i64().map(Value::Int),
         (Kind::List(inner), serde_json::Value::Array(values)) => values
             .iter()

@@ -1,5 +1,6 @@
 //! `model.list`（施工 8-7，`docs/blueprint/models.md`「协议」）：形状、每一格的来源、状态；供应商的列表拉完再答、在后台拉；
-//! `provider` 只看一家、不是配好了的 `unknown_provider`。目录是真目录裁出来的一份，供应商是本机的假服务器。
+//! `provider` 只看一家、不是配好了的 `unknown_provider`。目录是真目录裁出来的一份，供应商是本机的假服务器。地址是环境变量
+//! 的引用时（施工 8-6b）：`model.list`、`config.get` 都照写的样子交引用，不交解出来的地址。
 
 mod support;
 
@@ -297,4 +298,72 @@ async fn the_provider_list_is_fetched_now_or_in_the_background() {
     .await;
     assert!(waited.is_ok(), "在后台拉了");
     assert_eq!(server.received().len(), 2);
+}
+
+/// 地址是环境变量的引用（施工 8-6b）：`model.list`、`config.get` 都照写的样子交引用，整份回应里搜不到解出来的地址；
+/// 环境变量没设的报 `env_not_set` 警告。
+#[tokio::test]
+async fn an_env_based_address_never_leaves_model_list_or_config_get() {
+    let home = Home::new();
+    home.write(
+        "system/config.toml",
+        "[providers.relay]\ndriver = \"openai-chat\"\nbase_url = { env = \"RELAY_URL\" }\nkeys = []\n\n[models]\nchat = \"relay/m\"\n",
+    );
+    let secret_address = "https://secret-relay.example.invalid/v1";
+    let with_env = core(&home, &[("RELAY_URL", secret_address)], data());
+    let mut client = Client::connect(with_env);
+    client.hello().await;
+    let get = client.call("get-1", "config.get", json!({})).await;
+    assert!(!get.to_string().contains(secret_address), "{get}");
+    assert_eq!(
+        get["result"]["items"]["providers.relay.base_url"]["value"],
+        json!({"env": "RELAY_URL"})
+    );
+    assert_eq!(get["result"]["problems"], json!([]), "设了就不报警告");
+    let list = client.call("list-1", "model.list", json!({})).await;
+    assert!(!list.to_string().contains(secret_address), "{list}");
+    let relay = list["result"]["providers"]
+        .as_array()
+        .and_then(|providers| providers.iter().find(|p| p["id"] == "relay"))
+        .unwrap_or_else(|| panic!("没有 relay：{list}"));
+    assert_eq!(relay["base_url"], json!({"env": "RELAY_URL"}));
+
+    // 没设：config.get 报 env_not_set 警告，base_url 还是引用，不是 null。
+    let without_env = core(&home, &[], data());
+    let mut client = Client::connect(without_env);
+    client.hello().await;
+    let get = client.call("get-1", "config.get", json!({})).await;
+    assert_eq!(
+        get["result"]["items"]["providers.relay.base_url"]["value"],
+        json!({"env": "RELAY_URL"})
+    );
+    assert_eq!(get["result"]["problems"][0]["code"], "env_not_set", "{get}");
+}
+
+/// 地址是环境变量的引用时拉供应商的模型列表（施工 8-6b，`route/lists.rs`）：`refresh` 照样连得上假服务器，地址不进回应。
+#[tokio::test]
+async fn fetching_the_provider_list_resolves_an_env_based_address() {
+    let page = r#"{"data":[{"id":"only-here"}]}"#;
+    let server = Server::start(vec![Reply::stream(vec![Piece::Bytes(
+        page.as_bytes().to_vec(),
+    )])])
+    .await;
+    let home = Home::new();
+    home.write(
+        "system/config.toml",
+        "[providers.relay]\ndriver = \"openai-chat\"\nbase_url = { env = \"RELAY_URL\" }\nkeys = []\n\n[models]\nchat = \"relay/m\"\n",
+    );
+    let reply = list(
+        &home,
+        &[("RELAY_URL", &server.base_url)],
+        data(),
+        json!({"provider": "relay", "refresh": true}),
+    )
+    .await;
+    let received = server.received();
+    assert_eq!(received.len(), 1, "照环境变量取的地址连上了假服务器");
+    assert_eq!(received[0].path, "/v1/models");
+    let relay = &reply["result"]["providers"][0];
+    assert_eq!(relay["base_url"], json!({"env": "RELAY_URL"}));
+    assert!(!reply.to_string().contains(&server.base_url), "{reply}");
 }

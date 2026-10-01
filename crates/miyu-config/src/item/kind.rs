@@ -4,6 +4,7 @@ use std::borrow::Cow;
 
 use crate::key::{self, ID, MODEL};
 use crate::problem::Code;
+use crate::secret::Reference;
 use crate::value::Value;
 
 /// 一项的类型。
@@ -22,7 +23,8 @@ pub enum Kind {
         /// 最大。
         max: i64,
     },
-    /// 网址：`http://`、`https://` 开头，后面有主机名，没有空白、控制字符（施工 8-6：供应商的地址）。写成字。
+    /// 网址：`http://`、`https://` 开头，后面有主机名，没有空白、控制字符（施工 8-6：供应商的地址）。写成字；也能写
+    /// `{ env = "<变量>" }`，照核心起来时的环境取（施工 8-6b，没有 `{ secret = … }`：地址不进密钥文件）。
     Url,
     /// 名字：小写字母开头，只有小写字母、数字、`-`、`_`，最长 64 个字符（施工 8-6：目录里供应商的编号）。写成字。
     Name,
@@ -77,6 +79,8 @@ impl Kind {
                 false => Err(Code::OutOfRange),
             },
             (Kind::Url, Value::Text(text)) => ok_or_format(url(text)),
+            // 网址也能是环境变量的引用（施工 8-6b）；`{ secret = … }` 不是合法的写法，落到最后的 `wrong_type`。
+            (Kind::Url, Value::Secret(Reference::Env(_))) => Ok(()),
             (Kind::Name, Value::Text(text)) => ok_or_format(crate::secret::valid_name(text)),
             (Kind::Reference, Value::Text(text)) => ok_or_format(reference(text)),
             (Kind::List(inner), Value::List(values)) if !matches!(inner, Kind::List(_)) => {

@@ -99,7 +99,8 @@ pub(crate) async fn list(core: &Core, params: Value) -> Result<Value, Refusal> {
     }))
 }
 
-/// 抄一份这一刻的配置。
+/// 抄一份这一刻的配置：每个用得到的引用（key，和地址是环境变量的引用时，施工 8-6b）都先取好值，拉列表、`model.list`
+/// 用的是同一份，不会各自再问一次核心的环境。
 fn snapshot(core: &Core) -> Snapshot {
     let config = core.config();
     let resolved = config.resolved().clone();
@@ -110,7 +111,14 @@ fn snapshot(core: &Core) -> Snapshot {
         .collect();
     let secrets = miyu_config::key::names(values.keys(), "providers.<id>", &[])
         .iter()
-        .flat_map(|id| ProviderSettings::at(&values, &[id]).keys)
+        .flat_map(|id| {
+            let settings = ProviderSettings::at(&values, &[id]);
+            let base_url = match settings.base_url {
+                Some(miyu_config::Address::Env(name)) => Some(Reference::Env(name)),
+                _ => None,
+            };
+            settings.keys.into_iter().chain(base_url)
+        })
         .map(|reference| {
             let secret = config.secret(&reference);
             (reference, secret)

@@ -2,7 +2,8 @@
 //! [`Values`]。
 //!
 //! 现在有字（选项、网址、名字、引用、文字、时长写成字）、开关（施工 8-2）、密钥的引用（施工 8-5）、整数和列表（施工 8-6）、
-//! 小数（施工 8-7）：别的写法随用到它的那一步加。设置类型的字段怎么从值变过来：[`Setting`]。
+//! 小数（施工 8-7）：别的写法随用到它的那一步加。设置类型的字段怎么从值变过来：[`Setting`]。网址可能是写死的，也可能是
+//! 一个环境变量的引用：[`Address`]（施工 8-6b）。
 
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -83,11 +84,15 @@ impl Value {
     }
 }
 
-/// 选项的设置类型是字：照原样拿出来。最终值都校验过，开关、引用变不成字，不会走到那一支（写成 TOML 的样子）。
+/// 选项的设置类型是字：照原样拿出来。最终值都校验过，开关变不成字，不会走到那一支（写成 TOML 的样子）。网址类型的
+/// 字段用 `String`、不用 [`Address`] 的（`models.catalog.url`：公开的资源地址，没有引用的必要），写成了 `{ env = … }`
+/// 的（`Kind::Url` 的 `check` 收下它：网址类型整体认引用，施工 8-6b）读成空字，不写死的 TOML 字节，防着字段被悄悄
+/// 填进一句读不出地址的乱码。
 impl From<&Value> for String {
     fn from(value: &Value) -> String {
         match value {
             Value::Text(text) => text.to_string(),
+            Value::Secret(_) => String::new(),
             other => other.toml(),
         }
     }
@@ -121,11 +126,36 @@ impl Setting for bool {
     }
 }
 
-/// 没有默认值的字（网址、名字、引用、没有默认值的选项）：没有的是空的（施工 8-6）。
+/// 没有默认值的字（名字、引用、没有默认值的选项）：没有的是空的（施工 8-6）。网址用 [`Address`]，不用它：网址可能是
+/// 一个引用，这里读不出环境变量（施工 8-6b）。
 impl Setting for Option<String> {
     fn read(value: Option<&Value>) -> Option<String> {
         match value {
             Some(Value::Text(text)) => Some(text.to_string()),
+            _ => None,
+        }
+    }
+}
+
+/// 一项网址类型的值（施工 8-6b，`config.md`「类型」网址那一行）：写死的地址，或者一个环境变量的引用。只有
+/// `{ env = … }`，没有 `{ secret = … }`：地址不进密钥文件，和它一样只留在拉起核心的环境变量里（第九条第 5 条，
+/// `config/environment.rs`）。[`Reference::Env`] 只存变量的名字，取出来的地址只在真要连供应商的那一刻读（`models.md`
+/// 「怎么走」第一条），不会在这里被解出来：`config.get`、`model.list` 照写的样子交，不交地址。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Address {
+    /// 写死的地址。
+    Literal(String),
+    /// 环境变量的名字。
+    Env(String),
+}
+
+/// 没有默认值的网址（施工 8-6b）：写死的照字读；`{ env = … }` 照引用读，`{ secret = … }` 读不出来（[`crate::item::Kind`]
+/// 的 `check` 挡在前面，正常不会走到这里）；没写的是空的。
+impl Setting for Option<Address> {
+    fn read(value: Option<&Value>) -> Option<Address> {
+        match value {
+            Some(Value::Text(text)) => Some(Address::Literal(text.to_string())),
+            Some(Value::Secret(Reference::Env(name))) => Some(Address::Env(name.clone())),
             _ => None,
         }
     }

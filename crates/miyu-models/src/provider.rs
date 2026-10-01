@@ -6,13 +6,18 @@
 //!    `[npm]` 表换成驱动（8-7）。都没有的，这一家用不了，别的照常。
 //! 2. 开关：档案的，没有的用驱动的默认（手写的 `compat` 随用到它的那一步）。
 //! 3. key：照写的先后。取不到值的不当候选（由执行器取，这里只排先后，[`crate::keys`]）。
-//! 4. 本机的服务：手写的 `local`，没写的照地址在不在本机（第二条第 12 条，8-7）。
+//! 4. 本机的服务：手写的 `local`，没写的照地址在不在本机（第二条第 12 条，8-7）。手写的地址是环境变量的引用时查不出来，
+//!    照不在本机算，想算本机的自己写 `local = true`（施工 8-6b）。
 //! 5. 没有模型：`models.chat` 没配、引用解析不出，交 [`NoModel`]，原话照「出错」那张表。
+//!
+//! 地址可能是写死的，也可能是一个环境变量的引用（施工 8-6b，[`miyu_config::Address`]）：这里只带着引用走，不解出地址
+//! 本身——对目录、本机的服务这两处用得到字面地址的，查不到的就当没有；真要连供应商的那一刻才经 [`resolve_base_url`]
+//! 解出来（`route.rs`、`route/lists.rs`），地址因此不会被这一层的任何输出（`model.list`、`config.get`）带出去。
 //!
 //! 模型的资料照 [`crate::facts`]。
 
-use miyu_config::Values;
-use miyu_config::secret::Reference as KeyRef;
+use miyu_config::secret::{Reference as KeyRef, Secret};
+use miyu_config::{Address, Values};
 use miyu_drivers::openai_chat::Compat;
 
 use crate::knowledge::Knowledge;
@@ -35,8 +40,8 @@ pub struct Provider {
     pub id: String,
     /// 驱动。
     pub driver: Driver,
-    /// 地址。
-    pub base_url: String,
+    /// 地址：写死的，或者一个环境变量的引用（施工 8-6b）。真要连供应商时经 [`resolve_base_url`] 解出来。
+    pub base_url: Address,
     /// `openai-chat` 的开关。
     pub compat: Compat,
     /// 几个 key，照写的先后。空的不带认证头。
@@ -90,12 +95,17 @@ pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<
         .get(&catalog)
         .cloned()
         .unwrap_or_default();
-    let written_url = settings.base_url.clone().or(profile.base_url.clone());
+    let written_url = settings
+        .base_url
+        .clone()
+        .or_else(|| profile.base_url.clone().map(Address::Literal));
+    // 对目录只认得出字面地址：是环境变量的引用时查不出来，当没有这一格（第四条第 2 条第 2 层）。
+    let written_text = written_url.as_ref().and_then(literal);
     let recognized = knowledge.catalog.and_then(|loaded| {
         recognize(
             &loaded.catalog,
             id,
-            written_url.as_deref(),
+            written_text,
             settings.catalog.as_deref(),
         )
     });
@@ -109,7 +119,11 @@ pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<
         .and_then(|npm| knowledge.profiles.npm.get(npm).cloned());
     let (Some(driver), Some(base_url)) = (
         settings.driver.or(profile.driver.clone()).or(from_npm),
-        written_url.or_else(|| listed.and_then(|listed| listed.api.clone())),
+        written_url.or_else(|| {
+            listed
+                .and_then(|listed| listed.api.clone())
+                .map(Address::Literal)
+        }),
     ) else {
         return Err(NoModel(format!(
             "provider {id:?} needs driver and base_url: it matches nothing in the catalog"
@@ -123,7 +137,10 @@ pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<
             )));
         }
     };
-    let local = settings.local.unwrap_or_else(|| on_this_machine(&base_url));
+    // 本机的服务：是环境变量的引用时查不出来，照不在本机算（第四条，施工 8-6b）。
+    let local = settings
+        .local
+        .unwrap_or_else(|| literal(&base_url).is_some_and(on_this_machine));
     Ok(Provider {
         id: id.to_string(),
         driver,
@@ -139,6 +156,33 @@ pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<
         recognized,
         local,
     })
+}
+
+/// 字面地址：写死的就是它，环境变量的引用查不出来（施工 8-6b）。
+fn literal(address: &Address) -> Option<&str> {
+    match address {
+        Address::Literal(text) => Some(text.as_str()),
+        Address::Env(_) => None,
+    }
+}
+
+/// 照 `secret` 取这一家的地址（施工 8-6b）：写死的直接用；是环境变量的引用的照取，`secret` 和取 key 的办法一样（`Reference`
+/// 不分密钥、网址）。没设、设成空的：这一家没有地址，`NoModel`，原话照「有 key 取不到」的样子（`route.rs`、
+/// `route/lists.rs` 真要连供应商时调）。地址不会经这个函数之外的任何路径流出去。
+///
+/// # Errors
+///
+/// 环境变量没设、设成空的（[`NoModel`]）。
+pub fn resolve_base_url(
+    provider: &Provider,
+    secret: &dyn Fn(&KeyRef) -> Option<Secret>,
+) -> Result<String, NoModel> {
+    match &provider.base_url {
+        Address::Literal(text) => Ok(text.clone()),
+        Address::Env(name) => secret(&KeyRef::Env(name.clone()))
+            .map(|secret| secret.expose().to_string())
+            .ok_or_else(|| NoModel(format!("provider {:?} has no usable base_url", provider.id))),
+    }
 }
 
 /// 地址在本机：主机名是 `127.0.0.1`、`localhost`、`::1`（写成 `[::1]`），不分大小写。

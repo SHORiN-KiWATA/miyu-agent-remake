@@ -21,7 +21,7 @@ every = "24h"
 update = true
 
 # 目录的地址：从哪拉模型目录。
-# 能写：http:// 或 https:// 开头的网址。只能写在系统配置或个人设置里。当场生效。
+# 能写：http:// 或 https:// 开头的网址 或 { env = "…" }。只能写在系统配置或个人设置里。当场生效。
 url = "https://models.dev/api.json"
 
 [permission]
@@ -31,7 +31,7 @@ start_read_only = false
 
 [providers."<id>"]
 # 地址：这家的接口地址，路径由驱动接在后面。认得出的供应商可以不写。
-# 能写：http:// 或 https:// 开头的网址。只能写在系统配置或个人设置里。下一轮生效。
+# 能写：http:// 或 https:// 开头的网址 或 { env = "…" }。只能写在系统配置或个人设置里。下一轮生效。
 # base_url =
 
 # 对应的供应商：这家对应资料里的哪一家，例如只转 DeepSeek 的中转写 deepseek。

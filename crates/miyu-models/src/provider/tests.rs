@@ -33,7 +33,10 @@ fn a_known_provider_needs_only_its_keys() {
     let held = held(false);
     let deepseek = provider(&values, &held.knowledge(), "deepseek").expect("档案推得出");
     assert_eq!(deepseek.driver, Driver::OpenAiChat);
-    assert_eq!(deepseek.base_url, "https://api.deepseek.com");
+    assert_eq!(
+        deepseek.base_url,
+        Address::Literal("https://api.deepseek.com".to_string())
+    );
     assert_eq!(deepseek.keys, [KeyRef::Env("DEEPSEEK_API_KEY".to_string())]);
     assert_eq!(deepseek.images, Some(ImageTokens::DeepSeek));
     assert_ne!(deepseek.compat, Compat::default(), "开关照档案");
@@ -49,7 +52,11 @@ fn hand_written_values_win_and_the_profile_is_found_by_catalog() {
     );
     let held = held(false);
     let dev = provider(&values, &held.knowledge(), "dev").expect("手写的");
-    assert_eq!(dev.base_url, "https://relay.invalid/v1", "手写的压过档案");
+    assert_eq!(
+        dev.base_url,
+        Address::Literal("https://relay.invalid/v1".to_string()),
+        "手写的压过档案"
+    );
     assert_eq!(
         Some(dev.compat),
         held.profiles.providers["deepseek"]
@@ -102,7 +109,10 @@ fn the_catalog_fills_in_what_the_profile_lacks() {
     let held = held(true);
     let go = provider(&values, &held.knowledge(), "opencodego").expect("目录推得出");
     assert_eq!(go.driver, Driver::OpenAiChat);
-    assert_eq!(go.base_url, "https://opencode.ai/zen/go/v1");
+    assert_eq!(
+        go.base_url,
+        Address::Literal("https://opencode.ai/zen/go/v1".to_string())
+    );
     assert_eq!(
         go.recognized,
         Some(Recognized {
@@ -174,4 +184,63 @@ fn a_reference_resolves_to_a_provider_and_a_model() {
         Err(NoModel(NOT_CONFIGURED.to_string()))
     );
     assert_eq!(NOT_CONFIGURED, "no model configured: set models.chat");
+}
+
+/// 地址是环境变量的引用（施工 8-6b）：对目录认不出（手写的地址查不到字面），本机的服务也查不出来——想算本机的要自己写
+/// `local = true`。
+#[test]
+fn an_address_from_the_environment_skips_recognition_and_local_detection() {
+    let values = values(
+        "[providers.dev]\ndriver = \"openai-chat\"\nbase_url = { env = \"RELAY_URL\" }\n\n[providers.loop]\ndriver = \"openai-chat\"\nbase_url = { env = \"LOOP_URL\" }\nlocal = true\n",
+    );
+    let held = held(true);
+    let dev = provider(&values, &held.knowledge(), "dev").expect("配了");
+    assert_eq!(dev.base_url, Address::Env("RELAY_URL".to_string()));
+    assert_eq!(dev.recognized, None, "字面地址查不到，对不上目录");
+    assert!(!dev.local, "查不出来，照不在本机算");
+    let looped = provider(&values, &held.knowledge(), "loop").expect("配了");
+    assert_eq!(looped.base_url, Address::Env("LOOP_URL".to_string()));
+    assert!(looped.local, "手写的 local 照样管用");
+}
+
+/// 照引用取地址（施工 8-6b）：写死的直接用；是环境变量的照 `secret` 取，取不到（没设、设成空的）是 `NoModel`，地址不会
+/// 出现在错误原话里。
+#[test]
+fn resolving_the_address_follows_the_reference_or_fails_cleanly() {
+    let literal = Provider {
+        id: "a".to_string(),
+        driver: Driver::OpenAiChat,
+        base_url: Address::Literal("https://a.invalid".to_string()),
+        compat: Compat::default(),
+        keys: Vec::new(),
+        images: None,
+        catalog: "a".to_string(),
+        recognized: None,
+        local: false,
+    };
+    assert_eq!(
+        resolve_base_url(&literal, &|_| None),
+        Ok("https://a.invalid".to_string())
+    );
+    let env = Provider {
+        base_url: Address::Env("RELAY_URL".to_string()),
+        ..literal.clone()
+    };
+    let set = |reference: &KeyRef| match reference {
+        KeyRef::Env(name) if name == "RELAY_URL" => {
+            Some(miyu_config::secret::Secret::new("https://relay.invalid").expect("合写法"))
+        }
+        _ => None,
+    };
+    assert_eq!(
+        resolve_base_url(&env, &set),
+        Ok("https://relay.invalid".to_string())
+    );
+    let unset = resolve_base_url(&env, &|_| None);
+    assert_eq!(
+        unset,
+        Err(NoModel(
+            r#"provider "a" has no usable base_url"#.to_string()
+        ))
+    );
 }

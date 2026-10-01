@@ -81,11 +81,9 @@ async fn fetch(
             .ok_or_else(|| format!("provider {id:?} has no usable key"))?;
         driver.auth(key.expose())
     };
-    let url = format!(
-        "{}{}",
-        provider.base_url.trim_end_matches('/'),
-        driver.models_path()
-    );
+    // 地址也可能是环境变量的引用（施工 8-6b），照同一个 `secret` 取。
+    let base_url = provider::resolve_base_url(&provider, secret).map_err(|NoModel(why)| why)?;
+    let url = format!("{}{}", base_url.trim_end_matches('/'), driver.models_path());
     let got = get(Get {
         client,
         url: &url,

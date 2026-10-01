@@ -39,10 +39,26 @@
             },
             "url": {
               "default": "https://models.dev/api.json",
-              "description": "Where to fetch the model catalog from. Allowed: an address starting with http:// or https://. Only in the system config or personal settings. Takes effect at once.",
-              "format": "uri",
-              "title": "Catalog address",
-              "type": "string"
+              "description": "Where to fetch the model catalog from. Allowed: an address starting with http:// or https:// or { env = \"…\" }. Only in the system config or personal settings. Takes effect at once.",
+              "oneOf": [
+                {
+                  "format": "uri",
+                  "type": "string"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "env": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "env"
+                  ],
+                  "type": "object"
+                }
+              ],
+              "title": "Catalog address"
             }
           },
           "type": "object"
@@ -70,10 +86,26 @@
       "additionalProperties": {
         "properties": {
           "base_url": {
-            "description": "The address of this provider's API; the driver adds the path. Known providers can leave it out. Allowed: an address starting with http:// or https://. Only in the system config or personal settings. Takes effect next turn.",
-            "format": "uri",
-            "title": "Address",
-            "type": "string"
+            "description": "The address of this provider's API; the driver adds the path. Known providers can leave it out. Allowed: an address starting with http:// or https:// or { env = \"…\" }. Only in the system config or personal settings. Takes effect next turn.",
+            "oneOf": [
+              {
+                "format": "uri",
+                "type": "string"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "env": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "env"
+                ],
+                "type": "object"
+              }
+            ],
+            "title": "Address"
           },
           "catalog": {
             "description": "Which provider in the model data this one is, for example deepseek for a relay that only forwards DeepSeek. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Takes effect next turn.",

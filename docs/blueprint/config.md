@@ -8,7 +8,7 @@
 
 这一页写配置的通用机制和密钥：清单、分层、项目配置和它的信任、校验和报错、写盘、留痕、监视和生效、密钥、协议上的 `config.*`、`secret.*`，命令行的 `miyu config`、`miyu login`、`miyu logout`。模型、供应商那一块有哪些键、各是什么意思，归 `models.md`，这一页只给它们留好位置。
 
-状态：图纸，定稿（2026-10-01 起草，主会话审过，项目主人同一天批准）。M8 的 8-1 到 8-5 照它施工（施工方案第三节 M8 那张表），每一节标着由哪一步做。做完一步，这一页照做好的样子改写那几节，页末「要跟着改的别的页」列的几页跟着改。8-1 到 8-5 都做完了（2026-10-01）：标着 8-1 到 8-5 的几节照做好的样子写，施工时定的记在「施工时定的」。8-6（`models.md`）用上了模型这一块的几项，类型、生效时机、控件、人起的名字那一段跟着加了，也记在那里；8-7 加了模型资料、目录更新的十六项，类型多小数、文字、时长，`MIYU_CATALOG_UPDATE`，也记在那里。命令行 `miyu config` 的样子和走法另有一页 `cli/config.md`，`miyu login`、`miyu logout` 另有一页 `cli/login.md`。
+状态：图纸，定稿（2026-10-01 起草，主会话审过，项目主人同一天批准）。M8 的 8-1 到 8-5 照它施工（施工方案第三节 M8 那张表），每一节标着由哪一步做。做完一步，这一页照做好的样子改写那几节，页末「要跟着改的别的页」列的几页跟着改。8-1 到 8-5 都做完了（2026-10-01）：标着 8-1 到 8-5 的几节照做好的样子写，施工时定的记在「施工时定的」。8-6（`models.md`）用上了模型这一块的几项，类型、生效时机、控件、人起的名字那一段跟着加了，也记在那里；8-7 加了模型资料、目录更新的十六项，类型多小数、文字、时长，`MIYU_CATALOG_UPDATE`，也记在那里。8-6b（2026-10-01）：网址类型多认 `{ env = … }`，类型表那一行、第九条一带、施工时定的跟着改，也记在那里。命令行 `miyu config` 的样子和走法另有一页 `cli/config.md`，`miyu login`、`miyu logout` 另有一页 `cli/login.md`。
 
 ### 在哪
 
@@ -153,7 +153,7 @@ trusted = true
 | 文字 `text` | `"…"` | 必写最多几个字符，宏里写 `text [3]`；空的、超了的、有控制字符的 `bad_format` | 8-7（币种、对目录里的哪一个；`texts [32]` 是文字的列表：思考强度） |
 | 时长 `duration` | `"30s"`、`"10m"`、`"1h"` | 写法照 `miyu ask --timeout`（`cli/ask.md`）：正整数后面跟 `s`、`m`、`h`，不写是秒；读不成的 `bad_format`。必写最短、最长（秒），宏里写 `duration [3600, 2592000]`，不在范围里的 `out_of_range`。设置类型的字段是 `Duration` | 8-7（目录多久拉一次） |
 | 路径 `path` | `"~/notes"` | 绝对路径，或者 `~`、`~/` 开头 | 同上 |
-| 网址 `url` | `"https://…"` | `http://`、`https://` 开头（不分大小写），后面有主机名，没有空白、控制字符；不对的 `bad_format` | 8-6（供应商的 `base_url`） |
+| 网址 `url` | `"https://…"`，或者 `{ env = "DEEPSEEK_API_URL" }`（施工 8-6b，照「密钥」这一行的读法、查法：行内表、有表头的表都认，没有 `{ secret = … }`：地址不进密钥文件） | `http://`、`https://` 开头（不分大小写），后面有主机名，没有空白、控制字符；不对的 `bad_format`；`{ env = … }` 取不到的（没设、设成空的）照第九条报 `env_not_set`，指的东西在不在由用它的一方当场说（8-6b 由会话的路由当场说 `no_model`） | 8-6（供应商的 `base_url`），8-6b 加引用 |
 | 名字 `name` | `"deepseek"` | 小写字母开头，只有小写字母、数字、`-`、`_`，最长 64 个字符；不对的 `bad_format` | 8-6（供应商的 `catalog`） |
 | 引用 `reference` | `"deepseek/deepseek-v4"` | 模型 `<供应商>/<模型>` 或池 `@<池>`（`models.md`「三种写法」里配置能写的两种），写法不对的 `bad_format`。指的东西在不在，8-6 由用它的一方查（会话的路由当场说 `no_model`），跨项的 `bad_reference` 随 8-8 | 8-6（`models.chat`） |
 | 密钥 `secret` | `{ secret = "deepseek" }`、`{ env = "DEEPSEEK_API_KEY" }`，行内表、有表头的表都认 | 正好一格；`secret` 的照名字的写法，`env` 的不是空的、没有 `=`；写错的 `wrong_type`。不由环境变量压过（第九条） | 8-5（类型加了，清单里用它的项随 8-6） |
@@ -728,7 +728,7 @@ miyu_config::settings! {
 4. 写：`secret.set`、`secret.delete` 拿着配置服务的锁，先照第 3 条重读（那一瞬间之前的手改，先当手改记），读不进来的回 `config_file_broken`。照第五条写盘，只改那一行（`miyu_config::edit::apply`，它 8-5 起认只有一段、放在最上面那张表里的键：新的一行接在最后一个值后面，还没有值的放在第一张表的表头前面），注释、别的行一个字节不动；替换前有人手改，从重读重来，最多三次，还不行的 `internal_error`。落了盘记 `secret.changed`、`INFO secret changed`，换上，再回应。
 5. 配置里引用密钥（类型 `secret`）：
    - `{ secret = "<名字>" }`：照名字到密钥文件里取。M8 只有系统的密钥文件。
-   - `{ env = "<变量>" }`：照核心的环境取（`config/environment.rs`）。核心是拉起它的那个头的环境（`ipc.md`），起来以后不改自己的环境，所以就是起来时的；之后在别的终端里设的，核心看不到，要等它重启。
+   - `{ env = "<变量>" }`：照核心的环境取（`config/environment.rs`）。核心是拉起它的那个头的环境（`ipc.md`），起来以后不改自己的环境，所以就是起来时的；之后在别的终端里设的，核心看不到，要等它重启。这条路不是密钥专用：网址类型（`providers.<id>.base_url`）8-6b 起也走它，取地址、取密钥是同一份 `Environment`、同一个办法（`models.md`「怎么走」第一条第 2、5 条）。
    - 引用的密钥没设：`unknown_secret`，警告：可以先写配置，后设密钥。环境变量没设、设成了空的：`env_not_set`，警告。两种都随着查：设了密钥，下一次 `config.get` 就不报了。`config.check` 查一段字时也照核心手里的密钥、环境报。
 6. 取出来的密钥是一个单独的类型 `Secret`：`Debug` 只印 `Secret(…)`，没有 `Display`，不能序列化。它不进日志、事件、blob、策略快照、协议的回应、运行日志、报错的话（`07-存储.md` 第九节）。手里那一份密钥文件（`SecretsFile`）、读文件交回的样子（`miyu-store` 的 `Stored`）、核心的环境（`Environment`）的 `Debug` 都不印字。`secret.set` 的参数不进运行日志（端点的 `DEBUG request` 那一行本来只记方法名），参数的类型也不带 `Debug`。
 7. 密钥变了，下一个回合开始时生效，和供应商的配置一样（第八条第 3 条，`models.md`）：密钥文件住在配置服务里，换上就交给会话。
@@ -950,7 +950,7 @@ every = "24h"
 update = true
 
 # 目录的地址：从哪拉模型目录。
-# 能写：http:// 或 https:// 开头的网址。只能写在系统配置或个人设置里。当场生效。
+# 能写：http:// 或 https:// 开头的网址 或 { env = "…" }。只能写在系统配置或个人设置里。当场生效。
 url = "https://models.dev/api.json"
 
 [permission]
@@ -960,7 +960,7 @@ start_read_only = false
 
 [providers."<id>"]
 # 地址：这家的接口地址，路径由驱动接在后面。认得出的供应商可以不写。
-# 能写：http:// 或 https:// 开头的网址。只能写在系统配置或个人设置里。下一轮生效。
+# 能写：http:// 或 https:// 开头的网址 或 { env = "…" }。只能写在系统配置或个人设置里。下一轮生效。
 # base_url =
 
 # 对应的供应商：这家对应资料里的哪一家，例如只转 DeepSeek 的中转写 deepseek。
@@ -1069,10 +1069,26 @@ language = "auto"
             },
             "url": {
               "default": "https://models.dev/api.json",
-              "description": "从哪拉模型目录。能写：http:// 或 https:// 开头的网址。只能写在系统配置或个人设置里。当场生效。",
-              "format": "uri",
-              "title": "目录的地址",
-              "type": "string"
+              "description": "从哪拉模型目录。能写：http:// 或 https:// 开头的网址 或 { env = \"…\" }。只能写在系统配置或个人设置里。当场生效。",
+              "oneOf": [
+                {
+                  "format": "uri",
+                  "type": "string"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "env": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "env"
+                  ],
+                  "type": "object"
+                }
+              ],
+              "title": "目录的地址"
             }
           },
           "type": "object"
@@ -1100,10 +1116,26 @@ language = "auto"
       "additionalProperties": {
         "properties": {
           "base_url": {
-            "description": "这家的接口地址，路径由驱动接在后面。认得出的供应商可以不写。能写：http:// 或 https:// 开头的网址。只能写在系统配置或个人设置里。下一轮生效。",
-            "format": "uri",
-            "title": "地址",
-            "type": "string"
+            "description": "这家的接口地址，路径由驱动接在后面。认得出的供应商可以不写。能写：http:// 或 https:// 开头的网址 或 { env = \"…\" }。只能写在系统配置或个人设置里。下一轮生效。",
+            "oneOf": [
+              {
+                "format": "uri",
+                "type": "string"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "env": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "env"
+                ],
+                "type": "object"
+              }
+            ],
+            "title": "地址"
           },
           "catalog": {
             "description": "这家对应资料里的哪一家，例如只转 DeepSeek 的中转写 deepseek。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。下一轮生效。",
@@ -1932,6 +1964,16 @@ Options:
 | 时长在值里存原来的字（`"24h"`），设置类型的字段是 `Duration` | 写回、`config.get` 照人写的样子；`Duration` 由读的一方用 | 存秒数：写回去成了 `86400` |
 | 时长的 Schema 只查写法（`^[0-9]+[smh]?$`），范围由核心查 | JSON Schema 算不了带单位的范围 | 不写 `pattern`：编辑器里看不出该怎么写 |
 | `MIYU_CATALOG_UPDATE` 压过 `models.catalog.update`（主会话定） | 测试拉起的真核心不去连 models.dev；离线的机器不改配置也能关 | 测试的数据根里先写配置：写了自己配置的测试要改成追加 |
+
+8-6b 施工时照推荐定的（2026-10-01，项目主人定要做、施工员照推荐定写法，写进了正文；模型那一半在 `models.md`「施工时定的」8-6b）：
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| 网址认引用照 `Kind` 整体认，不按字段单独开关：网址类型的字段不管用的是 `Address` 还是 `String`、`Option<String>`，都能写 `{ env = … }`（`Kind::check` 一处挡）；没有引用能力的字段（`models.catalog.url`，公开资源地址）读进 `String`、`Option<String>` 时把 `Value::Secret` 当空字，不读成那一句 TOML 字节 | 清单里的类型本来就是「哪一步第一次用到它，哪一步加」，不是按字段开关；真要用引用的字段自己换成 `Address`（`providers.<id>.base_url`），别的字段写了引用也不会读出乱码 | 开一个新类型只给 `base_url`：和「网址」重复一份查法、说法，字段多了要分两套 |
+| 只认 `{ env = … }`，不认 `{ secret = … }`：解析时先试引用（和密钥同一个读法，`crate::secret::read_node`），是 `Secret` 变体的落到 `wrong_type` | 本机端点地址和 key 一样只想留在环境变量里，不进任何文件；允许写进 `secrets.toml` 就违背了这一条 | 两种都认：地址能被存进密钥文件，复述了「不进任何文件」这句话 |
+| 新类型 [`Address`]（`Literal`、`Env` 两种）专给有引用能力的网址字段用，`Option<Address>` 的 `Setting`；解出地址（`resolve_base_url`）只在真要连供应商的那一刻（`route.rs`、`route/lists.rs`），带着 `config.secret` 一样的取值办法 | 「可能是引用」和「已经是地址」是两种状态，分开才不会在 `model.list`、`config.get` 的半路上被解出来 | 存成 `Option<String>`、遇到引用就提前解出来存进去：config 层就碰了环境，`model.list` 的 `base_url` 也无从分辨写的是不是引用 |
+| 对目录、判断本机服务这两处字面地址才用得上的查法，引用解不出字面地址时当没有这一格（`literal()`），不强行解出来再查 | 目录识别、本机判断都是「锦上添花」，查不出来退回默认值（不认得这家、照不在本机算）没有坏处；强行解出来就要在这一层引入环境访问 | 这两处也接 `secret` 闭包去解：污染了纯逻辑层（这两处原来都不碰 IO） |
+| `words::expected`、Schema 的 `shape` 对 `Kind::Url` 都接上「或 `{ env = "…" }`」（照密钥两种写法连起来的样子，`one_of`） | 参考文件、Schema 是用户发现「网址还能这样写」的唯一地方，不接上就没人知道 | 只改 `check`，不改说明：功能有了，没人用得上 |
 
 ### 要跟着改的别的页
 

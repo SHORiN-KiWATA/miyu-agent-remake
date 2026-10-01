@@ -21,7 +21,7 @@ every = "24h"
 update = true
 
 # Catalog address: Where to fetch the model catalog from.
-# Allowed: an address starting with http:// or https://. Only in the system config or personal settings. Takes effect at once.
+# Allowed: an address starting with http:// or https:// or { env = "…" }. Only in the system config or personal settings. Takes effect at once.
 url = "https://models.dev/api.json"
 
 [permission]
@@ -31,7 +31,7 @@ start_read_only = false
 
 [providers."<id>"]
 # Address: The address of this provider's API; the driver adds the path. Known providers can leave it out.
-# Allowed: an address starting with http:// or https://. Only in the system config or personal settings. Takes effect next turn.
+# Allowed: an address starting with http:// or https:// or { env = "…" }. Only in the system config or personal settings. Takes effect next turn.
 # base_url =
 
 # Catalog provider: Which provider in the model data this one is, for example deepseek for a relay that only forwards DeepSeek.

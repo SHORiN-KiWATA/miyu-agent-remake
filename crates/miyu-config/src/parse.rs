@@ -172,6 +172,11 @@ impl Reader<'_> {
         let raw = self.slice(node.span()).unwrap_or_default().to_string();
         let value = match item.kind {
             Kind::Secret => crate::secret::read_node(node).map(Value::Secret),
+            // 网址：先试引用（`{ env = … }`，施工 8-6b；`{ secret = … }` 也读得出字节，交给 `Kind::check` 去挡），不是
+            // 引用形状的再照字读。
+            Kind::Url => crate::secret::read_node(node)
+                .map(Value::Secret)
+                .or_else(|| node.as_value().and_then(|value| read(item.kind, value))),
             kind => node.as_value().and_then(|value| read(kind, value)),
         };
         let counts = item.layers.contains(&self.layer);

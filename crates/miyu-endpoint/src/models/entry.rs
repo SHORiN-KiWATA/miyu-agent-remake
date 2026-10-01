@@ -5,11 +5,14 @@
 //!   `listed` 照 `config`、`provider`、`catalog` 的先后写从哪几处列出来的。
 //! - 模型的 `state`：写了 key、一个都没有值的是 `no_key`，别的是 `ok`（冷却随 8-9）。key 的 `state` 现在都是 `ok`。
 //! - 这一家用不了（推不出驱动、地址，驱动还没有）：驱动、地址照手写的写，没写的是 `null`，带上 `problem` 那一句，没有模型。
+//! - `base_url` 照配置写的样子交（`address_json`，施工 8-6b）：写死的是地址本身，是环境变量的引用的交 `{"env": "…"}`，
+//!   地址本身不解出来，不会进这份回应。
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{Value, json};
 
+use miyu_config::Address;
 use miyu_config::secret::Reference;
 use miyu_models::facts::facts;
 use miyu_models::matching::Found;
@@ -41,7 +44,7 @@ pub(crate) fn provider(data: &ModelData, snapshot: &Snapshot, id: &str) -> Value
             Err(NoModel(problem)) => json!({
                 "id": id,
                 "driver": settings.driver,
-                "base_url": settings.base_url,
+                "base_url": settings.base_url.as_ref().map(address_json),
                 "keys": keys,
                 "problem": problem,
                 "models": [],
@@ -96,7 +99,7 @@ pub(crate) fn provider(data: &ModelData, snapshot: &Snapshot, id: &str) -> Value
                 let mut entry = json!({
                     "id": id,
                     "driver": driver,
-                    "base_url": found.base_url,
+                    "base_url": address_json(&found.base_url),
                     "keys": keys,
                     "models": models,
                 });
@@ -115,6 +118,14 @@ fn key_ref(reference: &Reference) -> String {
     match reference {
         Reference::Secret(name) => format!("secret:{name}"),
         Reference::Env(name) => format!("env:{name}"),
+    }
+}
+
+/// 地址照配置写的样子交：写死的就是地址本身，引用就交引用（`{"env": "…"}`），不交解出来的地址（施工 8-6b）。
+fn address_json(address: &Address) -> Value {
+    match address {
+        Address::Literal(text) => json!(text),
+        Address::Env(name) => Reference::Env(name.clone()).json(),
     }
 }
 
