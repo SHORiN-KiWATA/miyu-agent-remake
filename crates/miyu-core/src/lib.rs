@@ -8,7 +8,8 @@
 //! 4. 管理员 `admin` 的家目录，没有就建；资源目录；读配置、照 `log.level` 换运行日志的级别，照配置清单生成两份 JSON
 //!    Schema 和参考文件（[`settings`]，施工 8-1、8-2）；供应商的档案、认原厂的表，造会话的路由（[`models`]，施工 8-6、8-7）；开始监视配置文件，配置换了当场换级别、重写
 //!    生成的文件（施工 8-4）；
-//! 5. 换本机令牌、在套接字上等连接（施工 3-8 下）；找沙盒的助手、探一次，只记日志（施工 5-1）；
+//! 5. 换本机令牌、在套接字上等连接（施工 3-8 下）；找沙盒的助手、探一次，只记日志（施工 5-1）；照编进来的可选
+//!    软件包往查询表里登记（[`packages`]，cargo 开关 `mermaid`，施工 W-4），交给 `Core`；
 //! 6. 往标准输出写一行 `ready`：拉起它的头等着这一行；接着在后台读 models.dev 的目录、用出来的、供应商的列表，读完再
 //!    答要它的，之后在后台更新目录（施工 8-7）；在后台清一次回收处（施工 3-8 三补，`trash.rs`）。
 //!
@@ -16,6 +17,7 @@
 //! 会话有计划地停下再退出。起不来的，把原因写成那一行（`error …`）交给头。
 
 pub mod models;
+pub mod packages;
 mod sandbox;
 mod serve;
 pub mod settings;
@@ -178,6 +180,7 @@ async fn run(
     };
     let trashed = root.clone();
     let (generated, words) = (root.clone(), resources.clone());
+    let queries = packages::register(&resources);
     let mut core = Core::new(
         root,
         resources,
@@ -189,7 +192,8 @@ async fn run(
     )
     .with_sandbox(sandbox)
     .with_config(config)
-    .with_model_data(Arc::clone(&model_data));
+    .with_model_data(Arc::clone(&model_data))
+    .with_queries(queries);
     if let Some((cache, cargo_home)) = sandbox_cache {
         core = core.with_sandbox_cache(cache, cargo_home);
     }

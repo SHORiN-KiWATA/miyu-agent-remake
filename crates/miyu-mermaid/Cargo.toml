@@ -1,0 +1,26 @@
+[package]
+name = "miyu-mermaid"
+description = "可选软件包 mermaid：mermaid 源码画成 SVG，三种记号色、懒初始化、缓存（施工 W-4，mermaid.md）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# 画 SVG：设计 13 第九节定的库（旧版、tui-demo、web-demo 用的也是它）。只要出 SVG 的那一半，不要它自带的命令行
+# 和 PNG 输出（关掉默认功能）。MIT。
+mermaid-rs-renderer = { version = "0.3", default-features = false }
+# 独立探一次系统的字体库找不找得到字：画图的库自己找不到字体时只是退化成估算宽度、不会报错，核心要的是「读不到
+# 字体」这个信号，所以不能只靠它。和 mermaid-rs-renderer 带进来的是同一个版本。MIT。
+fontdb = "0.23"
+# style.json 的样子。
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# 缓存的键：源码的 SHA-256，和仓库别处算内容哈希同一个版本。
+sha2 = { version = "0.11", default-features = false }
+# 运行日志：`WARN mermaid not ready`（施工 W-4，`log.md`）。
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+
+[lints]
+workspace = true

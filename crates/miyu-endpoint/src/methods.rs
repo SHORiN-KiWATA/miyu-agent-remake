@@ -416,7 +416,13 @@ pub(crate) async fn call(
             core.sessions.delete(core, &session).await?;
             Ok(json!({}))
         }
-        _ => Err(Refusal::UNKNOWN_METHOD),
+        other => match core.queries.get(other) {
+            // 可选软件包登记的查询（施工 W-4，`queries.rs`）：没登记的方法，这张表之外当没有这个方法。
+            Some(handler) => handler(Arc::clone(core), request.params.clone())
+                .await
+                .map_err(Refusal::from),
+            None => Err(Refusal::UNKNOWN_METHOD),
+        },
     }
 }
 
