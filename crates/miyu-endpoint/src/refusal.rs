@@ -132,6 +132,18 @@ impl Refusal {
         reason: "unknown_attachment",
         data: None,
     };
+    /// `fs.list`、`fs.find` 读不了这个路径（施工 W-2）：换不成真实的位置、不在、该是目录的不是目录、没有权限。
+    pub(crate) const PATH_UNREADABLE: Refusal = Refusal {
+        code: REFUSED,
+        reason: "path_unreadable",
+        data: None,
+    };
+    /// `fs.list`、`fs.find` 的目录落在数据根里、又不在这个账号的工作区里（施工 W-2）。
+    pub(crate) const PATH_FORBIDDEN: Refusal = Refusal {
+        code: REFUSED,
+        reason: "path_forbidden",
+        data: None,
+    };
 
     /// `config.trust` 时这个目录找不到项目配置（施工 8-3）。
     pub(crate) const NO_PROJECT_CONFIG: Refusal = Refusal {
@@ -267,6 +279,12 @@ impl Refusal {
             "unknown_attachment" => (
                 "附件不在核心里：先用 blob.put 传上来。",
                 "The attachment is not in the core; upload it with blob.put first.",
+            ),
+            // 施工 W-2（`web-module.md`「给人看的字」）。
+            "path_unreadable" => ("读不了这个路径。", "This path cannot be read."),
+            "path_forbidden" => (
+                "这是 Miyu 自己的数据，不给看。",
+                "This is Miyu's own data and is not shown.",
             ),
             "not_running" => (
                 "没有正在进行的回合，打断不了。",
