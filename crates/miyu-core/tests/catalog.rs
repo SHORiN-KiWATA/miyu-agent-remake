@@ -29,7 +29,11 @@ impl Dir {
     fn new() -> Dir {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("miyu-catalog-{}-{n}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!(
+            "miyu-catalog-{}-{}-{n}",
+            std::process::id(),
+            stamp()
+        ));
         std::fs::create_dir_all(&dir).expect("建得了");
         Dir(dir)
     }
@@ -347,4 +351,11 @@ fn measure_reading_the_bundled_snapshot() {
             loaded.catalog.model_count()
         );
     }
+}
+
+/// 纳秒时刻：临时目录名里加上它，Windows 很快复用进程号，光靠进程号和序号会撞上前一个测试进程留下的目录。
+fn stamp() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_nanos())
 }

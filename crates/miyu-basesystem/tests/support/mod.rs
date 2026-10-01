@@ -40,7 +40,8 @@ impl Site {
     pub fn new() -> Site {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("miyu-base-{}-{n}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("miyu-base-{}-{}-{n}", std::process::id(), stamp()));
         for sub in ["home", "work", "data"] {
             std::fs::create_dir_all(dir.join(sub)).expect("建得了目录");
         }
@@ -355,4 +356,11 @@ impl JobPort for Taken {
     fn stop(&self, _job: JobId) -> miyu_tool::Asking<'_, Result<(), miyu_tool::JobError>> {
         Box::pin(async { Err(miyu_tool::JobError::Unknown) })
     }
+}
+
+/// 纳秒时刻：临时目录名里加上它，Windows 很快复用进程号，光靠进程号和序号会撞上前一个测试进程留下的目录。
+fn stamp() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_nanos())
 }

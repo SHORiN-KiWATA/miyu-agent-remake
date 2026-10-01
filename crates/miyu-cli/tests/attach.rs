@@ -9,7 +9,8 @@ use miyu_cli::Plan;
 use miyu_kernel::block::Block;
 use miyu_kernel::event::Body;
 use miyu_session::testkit::{Play, Script};
-use support::{Asked, Home, Outside, plan};
+use support::outside::Outside;
+use support::{Asked, Home, plan};
 
 /// 一张 2 × 3 的 PNG 的开头：签名和 IHDR，量宽高只看它。
 fn png() -> Vec<u8> {

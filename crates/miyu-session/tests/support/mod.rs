@@ -44,7 +44,11 @@ impl Scratch {
     fn under(dir: &Path) -> Scratch {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        Scratch(dir.join(format!("miyu-session-{}-{n}", std::process::id())))
+        Scratch(dir.join(format!(
+            "miyu-session-{}-{}-{n}",
+            std::process::id(),
+            stamp()
+        )))
     }
 }
 
@@ -444,4 +448,11 @@ pub async fn until_turn_ends(subscription: &mut Subscription) -> Vec<Arc<Pushed>
             return pushed;
         }
     }
+}
+
+/// 纳秒时刻：临时目录名里加上它，Windows 很快复用进程号，光靠进程号和序号会撞上前一个测试进程留下的目录。
+fn stamp() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_nanos())
 }
