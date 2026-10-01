@@ -1,0 +1,54 @@
+// @ts-check
+//! 换模型的菜单（蓝图 `web.md`「换模型的菜单」，照 Claude 网页端的模型菜单）：照 `model.list` 排出模型和模型池两页；一行两行字
+//! （名字、小字供应商或池的分法和成员）；现在用着的打勾；用不了的写原因、不能选。框下面那一截怎么拆。
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { loadRes } from './support.js';
+import { menuOf, footerOf } from '../src/model/model-menu.js';
+
+loadRes();
+
+const model = (provider, name, more = {}) => ({ model: name, ref: `${provider}/${name}`, facts: {}, state: 'ok', ...more });
+const LIST = {
+  providers: [
+    { id: 'dev', models: [model('dev', 'cline-pass/deepseek-v4.1-flash'), model('dev', 'deepseek-v4-pro')] },
+    { id: 'bigmodel', models: [model('bigmodel', 'glm-5.3-flash', { state: 'cooling', until: '2026-10-01T14:41:00.000Z', class: 'rate_limited' })] },
+    { id: 'anthropic', models: [model('anthropic', 'claude-sonnet-5', { state: 'no_key' })] },
+  ],
+  pools: [
+    { name: 'duo', strategy: 'pin', models: ['bigmodel/glm-5.3-flash', 'dev/cline-pass/deepseek-v4.1-flash'] },
+    { name: 'spread', strategy: 'rotate', models: ['dev/deepseek-v4-pro'] },
+  ],
+  tiers: { lite: null, cheap: 'dev/cline-pass/deepseek-v4.1-flash', standard: null, flagship: null },
+  uses: { chat: 'dev/cline-pass/deepseek-v4.1-flash', vision: null },
+};
+
+test('模型那一页：一个模型一行，上面模型名、下面供应商，别的不写；现在用着的打勾；用不了的不能选、写原因', () => {
+  const { models } = menuOf(LIST, 'dev/deepseek-v4-pro');
+  assert.deepEqual(models.map((r) => [r.ref, r.title, r.desc, r.current, r.usable, r.why]), [
+    ['dev/cline-pass/deepseek-v4.1-flash', 'cline-pass/deepseek-v4.1-flash', 'dev', false, true, ''],
+    ['dev/deepseek-v4-pro', 'deepseek-v4-pro', 'dev', true, true, ''],
+    ['bigmodel/glm-5.3-flash', 'glm-5.3-flash', 'bigmodel', false, false, '冷却到 14:41'],
+    ['anthropic/claude-sonnet-5', 'claude-sonnet-5', 'anthropic', false, false, '没设 key'],
+  ]);
+});
+
+test('模型池那一页：@名字，下面写分法和它的模型（照先后，只写模型名）；没配池的是空的', () => {
+  const { pools } = menuOf(LIST, '@duo');
+  assert.deepEqual(pools.map((r) => [r.ref, r.title, r.desc, r.current, r.usable]), [
+    ['@duo', '@duo', '出错换下一个 · glm-5.3-flash、cline-pass/deepseek-v4.1-flash', true, true],
+    ['@spread', '@spread', '轮流用 · deepseek-v4-pro', false, true],
+  ]);
+  assert.deepEqual(menuOf({ ...LIST, pools: [] }, null).pools, []);
+});
+
+test('还没有列表（问着、问不到）：两页都是空的', () => {
+  assert.deepEqual(menuOf(null, null), { models: [], pools: [] });
+});
+
+test('框下面那一截：引用照第一个 / 拆成模型名和供应商（模型名里可以带 /）；池照原样写、不写供应商', () => {
+  assert.deepEqual(footerOf('dev/cline-pass/deepseek-v4.1-flash'), { model: 'cline-pass/deepseek-v4.1-flash', endpoint: 'dev' });
+  assert.deepEqual(footerOf('@duo'), { model: '@duo', endpoint: null });
+  assert.deepEqual(footerOf('cheap'), { model: 'cheap', endpoint: null });
+});

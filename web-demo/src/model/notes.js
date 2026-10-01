@@ -16,7 +16,7 @@ import { shortSession } from './words.js';
  */
 
 /** 内核自己查出来的几种错：不是供应商的原话，写分类的人话（`tui.md`「正文」第 4 条）。 */
-const KERNEL_CLASSES = ['bad_stream', 'empty_reply', 'bad_summary', 'compaction_paused', 'no_model'];
+const KERNEL_CLASSES = ['bad_stream', 'empty_reply', 'bad_summary', 'compaction_paused', 'no_model', 'cooling'];
 
 /**
  * 一条 `tool.result` 里派出去的任务，记进 `jobs`（任务编号 → 种类、标题、子会话、命令）。
@@ -155,19 +155,18 @@ export function compactFailedNote(e) {
 }
 
 /**
- * 回应里 `cached` 为真、照回应再画一次的回顾（蓝图「回顾」第 3 条）：插进事件里，排在要的那一刻最后一条后面，当成不在日志里的
- * `session.recapped`（`local`）。
+ * 不在日志里的几条插进事件里：每条排在 `after` 号（那一刻最后一条落了盘的）后面，`after` 比日志里都大的排在最后。
  * @param {any[]} events
- * @param {{after: number, text: string}[]} again
+ * @param {{after: number, event: any}[]} extras
  */
-export function withRecaps(events, again) {
-  if (!again.length) return events;
+function interleave(events, extras) {
+  if (!extras.length) return events;
   const out = [];
-  const pending = [...again];
+  const pending = [...extras];
   const flush = (seq) => {
-    for (const r of pending.filter((x) => x.after <= seq)) {
-      out.push({ kind: 'session.recapped', seq: r.after, local: true, body: { text: r.text } });
-      pending.splice(pending.indexOf(r), 1);
+    for (const x of pending.filter((p) => p.after <= seq)) {
+      out.push(x.event);
+      pending.splice(pending.indexOf(x), 1);
     }
   };
   for (const e of events) {
@@ -176,6 +175,47 @@ export function withRecaps(events, again) {
   }
   flush(Infinity);
   return out;
+}
+
+/**
+ * 回应里 `cached` 为真、照回应再画一次的回顾（蓝图「回顾」第 3 条）：插进事件里，排在要的那一刻最后一条后面，当成不在日志里的
+ * `session.recapped`（`local`）。
+ * @param {any[]} events
+ * @param {{after: number, text: string}[]} again
+ */
+export function withRecaps(events, again) {
+  return interleave(events, again.map((r) => ({ after: r.after, event: { kind: 'session.recapped', seq: r.after, local: true, body: { text: r.text } } })));
+}
+
+/**
+ * 看着的时候出错换了模型（瞬时的 `model.changed`，核心施工 8-9；`core/store.js` 记下的）：插进事件里，排在收到时最后一条落了盘的
+ * 后面。不落盘，刷新以后没有。
+ * @param {any[]} events
+ * @param {{after: number, at: string, body: any}[]} changes
+ */
+export function withChanges(events, changes) {
+  return interleave(events, changes.map((c, i) => ({ after: c.after, event: { kind: 'model.changed', seq: c.after, local: i, at: c.at, body: c.body } })));
+}
+
+/**
+ * 钉着的模型没了、核心退回默认的那一行（`session.policy_changed` 带 `model`、`replaced`，核心施工 8-10）：「X 没了，换回 Y」。
+ * 暗点，不属于哪一轮。
+ * @param {any} e
+ */
+export function modelNote(e) {
+  const b = e.body;
+  const text = t('notes.model_replaced', { from: b.replaced, to: b.model });
+  return { type: 'note', key: `n${e.seq}`, seq: e.seq, turn: null, tone: 'stopped', mark: res.layout.note_marks.stopped ?? '', text };
+}
+
+/**
+ * 换了模型那一行（蓝图「后台命令、子代理的回报」那张表）：「换到 端点/模型：原来的出错了」，暗点；不属于哪一轮。
+ * @param {any} e `withChanges` 插进来的
+ */
+export function changeNote(e) {
+  const b = e.body;
+  const to = [b.endpoint, b.model].filter(Boolean).join('/') || b.ref || '';
+  return { type: 'note', key: `m${e.seq}-${e.local}`, seq: e.seq, turn: null, tone: 'stopped', mark: res.layout.note_marks.stopped ?? '', text: t('notes.changed', { to }) };
 }
 
 /**

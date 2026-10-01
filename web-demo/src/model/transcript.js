@@ -17,7 +17,7 @@ import { res, t } from '../util/res.js';
 import { short, hitRate, seconds, hhmm } from './format.js';
 import { text, attachments } from './session.js';
 import { Timeline } from './timeline.js';
-import { noteJobs, speakerOf, reportNote, peerNote, compactedNote, failureText, recapNote, compactFailedNote } from './notes.js';
+import { noteJobs, speakerOf, reportNote, peerNote, changeNote, modelNote, compactedNote, failureText, recapNote, compactFailedNote } from './notes.js';
 import { tasksOf, running as runningJobs } from '../lib/jobs.js';
 
 /** 权限：只读开着是只读，关着照常用的那一级（`kernel/events-bodies.md`「权限」）。 */
@@ -64,6 +64,12 @@ export function project(events, live = null, marks = new Map(), stats = new Map(
       case 'session.policy_changed':
         if (e.kind === 'session.created') parent = b.parent ?? null;
         if (b.permission) level = levelOf(b.permission);
+        // 钉着的模型没了、核心退回默认的（核心施工 8-10）：一行「X 没了，换回 Y」。人换的不画：换模型、换思考强度都不出提示，
+        // 只改框下面那一截（2026-10-01 项目主人定）
+        if (e.kind === 'session.policy_changed' && b.model && b.replaced) {
+          timeline.speak(Date.parse(e.at));
+          items.push(modelNote(e));
+        }
         break;
       case 'message.user': {
         const item = { type: 'user', key: `u${e.seq}`, seq: e.seq, turn: e.turn ?? null, text: text(e), attachments: attachments(e), speaker: speakerOf(e.by, jobs, parent), opens: false };
@@ -124,6 +130,12 @@ export function project(events, live = null, marks = new Map(), stats = new Map(
         // 她正在回答时来的：在进行的那段时间线收起，她接着的步另起一段排在这一行下面
         timeline.speak(Date.parse(e.at));
         items.push(reportNote(e, jobs));
+        break;
+      case 'model.changed':
+        // 出错换了模型（瞬时的，看着的时候才有，`withChanges` 插进来的）：和回报一样不属于哪一轮
+        if (e.body?.why !== 'failover') break;
+        timeline.speak(Date.parse(e.at));
+        items.push(changeNote(e));
         break;
       case 'peer.idle':
         // 别的会话空下来了、等不到了（C-6）：和回报一样不属于哪一轮

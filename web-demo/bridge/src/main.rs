@@ -9,7 +9,7 @@
 //! - 核对 Origin，别的网站连不进来（04 第二节「各平台的坑」）；
 //! - 握手时替页面出示本机令牌：浏览器读不到本机令牌，也不该读到（11 第五节）；
 //! - 读历史用核心的订阅补发（`subscribe` 的 `after`）；桥只在给 blob 时只读地读一下会话日志，确认它在这个会话里（`history.rs`）。
-//! - 页面读不到本机的资源目录：给人看的字由桥照 `MIYU_RESOURCES` 读好，经 `web.human` 给（`human.rs`）；
+//! - 给人看的字不经桥：页面握手以后直接问核心的 `human.get`（核心施工 W-1）；
 //! - mermaid 图由桥画成 SVG，经 `web.mermaid` 给（`mermaid.rs`），核心的网页模块做出来以后搬过去；
 //! - 本机文件、blob 经 `/file`、`/blob` 给（`media.rs`），带口令，数据根不给。
 //! - 页面连不上时经 `/key?k=口令` 问口令对不对（`204`、`403`，别的不说），好写清楚是桥重启过换了口令还是别的。
@@ -17,7 +17,7 @@
 //!   `web.upload_done` 删掉。
 //! - 链接卡片由桥去抓（`link_preview/`）：元数据经 `web.link_preview` 给，图经 `/link-image` 给，带口令；每一跳过地址闸、
 //!   钉住解析好的地址。核心有了 `link.preview` 查询以后搬过去。
-//! - `@` 选文件由桥列目录、在工作目录里找（`mention.rs`，`web.files`），数据根不给；核心以后经协议给。
+//! - `@` 选文件不经桥：页面直接问核心的 `fs.list`、`fs.find`（核心施工 W-2）。
 //!
 //! 用法：`cargo run -- [端口]`，默认 8765；页面文件是这个 crate 上一层的 `web-demo/`。
 //! 核心没在跑、给了 `MIYU_CORE_BIN` 的，拉起来（`<它> core`）；别的环境变量（`MIYU_HOME`、数据根的配置里
@@ -25,11 +25,9 @@
 
 mod files;
 mod history;
-mod human;
 mod link;
 mod link_preview;
 mod media;
-mod mention;
 mod mermaid;
 mod upload;
 
@@ -52,8 +50,6 @@ pub struct Site {
     pub types: media::Types,
     /// 链接卡片（`web.link_preview`、`/link-image`）：抓取的规矩、抓过的、抓回来的图。
     pub link_preview: link_preview::LinkPreview,
-    /// `@` 选文件（`web.files`）：列一层目录、在工作目录里模糊找。
-    pub mention: mention::Mention,
     /// 用页面的是哪个账号：握手的回应里有，`/blob` 照它找会话日志和 blob。
     pub account: Mutex<Option<String>>,
 }
@@ -87,13 +83,9 @@ async fn main() {
         Ok(l) => l,
         Err(e) => return eprintln!("{e}"),
     };
-    let mention = match mention::Mention::load(&dir) {
-        Ok(m) => m,
-        Err(e) => return eprintln!("{e}"),
-    };
     // 上一次没删掉的附件（页面没来得及说的）
     upload::sweep();
-    let site = Arc::new(Site { dir, key, port, mermaid, types, link_preview, mention, account: Mutex::new(None) });
+    let site = Arc::new(Site { dir, key, port, mermaid, types, link_preview, account: Mutex::new(None) });
     println!("网页演示（真核心）：http://127.0.0.1:{port}/#k={}", site.key);
     println!("这个链接这一次启动有效；只在本机能打开。Ctrl+C 停。");
     loop {

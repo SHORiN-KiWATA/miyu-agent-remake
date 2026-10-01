@@ -16,12 +16,13 @@ import { summarize } from '../model/session.js';
  * @typedef {{seen: number, since: number, written: number, expected: number|null, done: {before: number, after: number}|null, note: number|null}} Compacting
  *   在压缩（瞬时的 `compaction.progress`）：压好了记下前后的用量（`compaction.done`），落了盘的那一条的序号（走满以前先不画）
  * @typedef {{id: string, events: any[], live: Live|null, marks: Map<string, {start: number, end: number|null}>,
- *   limits: any, unread: boolean, replaying?: boolean, retry: Retry|null, compacting: Compacting|null, compactStats: Map<number, {before: number, after: number}>}} Session
+ *   limits: any, unread: boolean, replaying?: boolean, retry: Retry|null, compacting: Compacting|null, compactStats: Map<number, {before: number, after: number}>,
+ *   changes: {after: number, at: string, body: any}[], model: {ref?: string, endpoint?: string, model?: string}|null}} Session
  */
 
 /** 一个刚知道、还没读的会话。 */
 export function emptySession(id) {
-  return /** @type {Session} */ ({ id, events: [], live: null, marks: new Map(), limits: {}, unread: false, retry: null, compacting: null, compactStats: new Map() });
+  return /** @type {Session} */ ({ id, events: [], live: null, marks: new Map(), limits: {}, unread: false, retry: null, compacting: null, compactStats: new Map(), changes: [], model: null });
 }
 
 export class Store {
@@ -85,21 +86,24 @@ export class Store {
   async subscribe(s, after) {
     s.replaying = true;
     try {
-      const { limits } = await this.conn.request('subscribe', { session: s.id, stream: 'events', after });
+      const { limits, model } = await this.conn.request('subscribe', { session: s.id, stream: 'events', after });
       s.limits = limits ?? s.limits ?? {};
+      // 会话接下来请求的模型（核心施工 8-10）：框下面那一行照它写
+      s.model = model ?? null;
     } finally {
       s.replaying = false;
     }
   }
 
   /**
-   * 开一个会话，排在最前面（蓝图 `web.md`「连核心」第 5 条：第一句话发出去时才开）。
+   * 开一个会话，排在最前面（蓝图 `web.md`「连核心」第 5 条：第一句话发出去时才开）。`model` 是还没开时在换模型的菜单里选的引用。
    *
    * # Errors
    * 核心拒绝时抛出来。
    */
-  async create(cwd) {
-    const { session } = await this.conn.request('session.create', { cwd });
+  async create(cwd, model = null) {
+    // 还没开的新会话里选过模型的，开的时候带上（核心施工 8-8）
+    const { session } = await this.conn.request('session.create', model ? { cwd, model } : { cwd });
     this.order = [session, ...this.order.filter((x) => x !== session)];
     await this.load(session);
     this.changed();
@@ -252,7 +256,15 @@ export class Store {
     }
     if (e.kind === 'status' && e.body?.retry && typeof e.body.retry === 'object') {
       const r = e.body.retry;
-      s.retry = { turn: e.turn, attempt: r.attempt, limit: r.limit, message: r.message ?? '' };
+      s.retry = { turn: e.turn, attempt: r.attempt, limit: r.limit, message: r.message ?? '', failover: r.failover === true };
+      return;
+    }
+    // 出错换了模型（核心施工 8-9）：限额跟着换（框下面那一行的窗口）；换模型的记下来，时间线上出一行（`withChanges`）
+    if (e.kind === 'model.changed') {
+      if (e.body?.limits) s.limits = { ...s.limits, ...e.body.limits };
+      // 接下来请求的模型：轮换的池只有 `ref`（8-10）
+      s.model = { ref: e.body?.ref, ...(e.body?.endpoint ? { endpoint: e.body.endpoint } : {}), ...(e.body?.model ? { model: e.body.model } : {}) };
+      if (e.body?.why === 'failover') s.changes.push({ after: s.events.at(-1)?.seq ?? 0, at: e.at, body: e.body });
       return;
     }
     if (e.kind !== 'model.delta') return;

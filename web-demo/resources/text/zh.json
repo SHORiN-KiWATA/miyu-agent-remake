@@ -57,7 +57,8 @@
     "bad_summary": "取不出摘要",
     "compaction_paused": "自动压缩暂停着",
     "no_model": "没配好模型",
-    "other": "模型出错"
+    "other": "模型出错",
+    "cooling": "候选全在冷却"
   },
   "levels": {
     "workspace": "工作区",
@@ -232,12 +233,15 @@
   },
   "mention": {
     "title": "@{word} · {count} 个",
-    "layer": "只读这一层",
     "partial": "只列了一部分，打 / 按目录找",
     "partial_layer": "只列了前 {shown} 个，接着打名字",
     "no_match": "没有对得上的",
     "hint": "↑↓ 选择 · Tab 进目录 · Enter 选定 · Esc 关闭",
-    "no_api": "桥太旧，列不了文件：重新编译、重启桥"
+    "no_api": "核心太旧，列不了文件：换新的核心",
+    "reasons": {
+      "path_unreadable": "这个目录读不了",
+      "path_forbidden": "Miyu 自己的数据不列"
+    }
   },
   "refusals": {
     "nothing_to_revert": "没有能撤销的",
@@ -256,7 +260,8 @@
     "session_not_found": "这个会话已经不在了",
     "nothing_to_clear": "上下文为空",
     "nothing_to_recap": "还没有可回顾的内容",
-    "recap_failed": "回顾没写成，再要一次就是"
+    "recap_failed": "回顾没写成，再要一次就是",
+    "unknown_model": "配置里没有这个模型、池或者挡位"
   },
   "said": {
     "copy": "复制",
@@ -340,7 +345,9 @@
       "expired": "会话 {id} 一直没空下来，不等了",
       "gone": "会话 {id} 不在了，不等了",
       "unknown": "会话 {id} · {reason}"
-    }
+    },
+    "changed": "换到 {to}：原来的出错了",
+    "model_replaced": "{from} 没了，换回 {to}"
   },
   "ago": {
     "now": "刚才",
@@ -373,5 +380,17 @@
     "hint": "Ctrl+S 取回",
     "stashed": "已暂存 · Ctrl+S 取回",
     "empty": "没有暂存的"
+  },
+  "model_menu": {
+    "tip": "换模型",
+    "models": "模型",
+    "pools": "模型池",
+    "pin": "出错换下一个",
+    "rotate": "轮流用",
+    "cooling": "冷却到 {time}",
+    "no_key": "没设 key",
+    "failed": "拿不到模型列表：{message}",
+    "loading": "正在读模型列表…",
+    "empty": "没有配模型"
   }
 }

@@ -12,8 +12,10 @@ const input = (u) => u.uncached + u.cache_read + u.cache_write;
  * @param {any[]} events 这个会话的持久事件
  * @param {{window?: number}} limits `subscribe` 回应里的限额（蓝图 `protocol.md`）
  * @param {Map<number, {before: number, after: number}>} [stats] 看着压好的那几次压缩的前后用量，照落了盘的那一条的序号（`core/store.js`）
+ * @param {{endpoint?: string, model?: string, ref?: string}|null} [next] 会话接下来请求的模型（`subscribe` 回应、`model.changed`，
+ *   核心施工 8-10）：有 `model` 的照它写；轮换的池只有 `ref`、没有的照最近一次 `model.called`
  */
-export function footer(events, limits, stats = new Map()) {
+export function footer(events, limits, stats = new Map(), next = null) {
   let level = 'workspace';
   let model = null;
   let endpoint = null;
@@ -54,6 +56,7 @@ export function footer(events, limits, stats = new Map()) {
   if (total.input + total.output > 0) {
     right.push({ key: 'total', text: t('total', { tokens: short(total.input + total.output), percent: hitRate(total.hit, total.mainInput) }) });
   }
+  if (next?.model) ({ model, endpoint = null } = next);
   return { left: { level, label: levelLabel(level), model, endpoint }, right };
 }
 

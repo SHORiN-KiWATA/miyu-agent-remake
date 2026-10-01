@@ -249,6 +249,12 @@ test('留言发给别的会话（核心施工 C-5）：写「会话 短编号」
     assert.equal(row(held, HOME).said, '给 8c3b4d5a 存下了');
     assert.equal(details(held).at(-1)?.label, '结果');
   });
+  // 只订「空了告诉我」、不带话的（C-6）：那一句照写
+  const watching = 'software/basesystem/send_message/watching';
+  withSaid({ [watching]: '{to} 空了会告诉你' }, () => {
+    const watch = tool('send_message', { to: '8c3b4d5a', notify_when_idle: true }, { said: { key: watching, fields: { to: '8c3b4d5a' } }, output: 'Watching.' });
+    assert.equal(row(watch, HOME).said, '8c3b4d5a 空了会告诉你');
+  });
 });
 
 test('留言的预览：长的截开头 peek_chars 个字、末尾写 …；别的步没有', () => {

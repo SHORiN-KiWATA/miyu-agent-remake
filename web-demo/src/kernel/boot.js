@@ -21,6 +21,7 @@ import { loadResources, useTexts, res, t } from '../util/res.js';
 import { pick, settingOf, options, languageSpec, fromConfig } from './language.js';
 import { Connection } from '../core/connection.js';
 import { Store } from '../core/store.js';
+import { loadHuman } from '../core/human.js';
 import { useHost } from '../core/host.js';
 import { browserHost } from '../host/browser.js';
 import { accountStorage } from './storage.js';
@@ -97,8 +98,8 @@ export async function boot(root) {
   useLanguage(language);
   // 新会话在哪个目录里干活：桥报的起桥的目录（绝对路径）
   const info = await conn.request('web.info', {});
-  // 给人看的字（工具的显示名、结果那一句）：桥照资源目录读好的；拿不到的照工具名写
-  res.human = await conn.request('web.human', { language: language.code }).catch((err) => {
+  // 给人看的字（工具的显示名、结果那一句）：问核心的 `human.get`；拿不到的照工具名写
+  res.human = await loadHuman(conn, language.code).catch((err) => {
     console.error(`拿不到给人看的字：${err.message}`);
     return { tools: {}, said: {} };
   });

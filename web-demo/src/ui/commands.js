@@ -230,6 +230,12 @@ const RUNS = {
     }
     setLanguage(app, want);
   },
+  // 换模型（蓝图「换模型的菜单」第 6 条）：不带参数的开菜单；写了的原样交给核心认（`供应商/模型`、`@池`、挡位名）
+  model: (app, spec, words) => {
+    const want = (words ?? '').trim();
+    if (want) return app.setModel(want);
+    app.composer.openModelMenu();
+  },
   // 重做、编辑最新一轮（蓝图「斜杠命令」，照 TUI）：在回答时、最新一轮不是你开的都不做，提示一句，不找核心
   redo: (app) => {
     if (latestTurn(app)) redo(app, null);

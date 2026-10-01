@@ -2,7 +2,7 @@
 //!
 //! 一个标签页一条核心连接，像另一个头（01 第五节：几个头同时连着同一个会话）。浏览器发来的照转，只动这几样：
 //! `hello` 里塞上本机令牌（读历史用核心的订阅补发，桥不再顶 `events.read`）；`web.info` 回桥知道的几样（在哪个目录、家目录在哪）；
-//! `web.human` 回给人看的字（`human.rs`）；`web.mermaid` 回画好的 SVG（`mermaid.rs`）；`web.link_preview` 回链接卡片
+//! `web.mermaid` 回画好的 SVG（`mermaid.rs`）；`web.link_preview` 回链接卡片
 //! （`link_preview/`，抓得慢，另起任务回，不挡这条连接上别的消息）；`web.realpath` 回一个路径的真实位置（预览工作区照它比）；
 //! `web.upload_done` 删掉桥先收下的附件（`upload.rs`）。
 
@@ -22,7 +22,7 @@ use tokio_tungstenite::tungstenite::http::StatusCode;
 use miyu_store::env::Env;
 use miyu_store::root::DataRoot;
 
-use crate::{Site, human, upload};
+use crate::{Site, upload};
 
 /// 接一个 WebSocket：口令、Origin 对得上才接；连上核心以后两头照转，哪头断了都停。
 pub async fn run(stream: TcpStream, site: Arc<Site>) {
@@ -144,26 +144,9 @@ pub async fn run(stream: TcpStream, site: Arc<Site>) {
                 if out.send(reply(Ok(json!({"path": real}))).to_string()).is_err() { break }
                 continue;
             }
-            Some("web.files") => {
-                // `@` 选文件（`mention.rs`）：列一层、模糊找；建清单要走一遍目录，另起一个线程，数据根不给
-                let (params, site) = (message["params"].clone(), site.clone());
-                let got = tokio::task::spawn_blocking(move || {
-                    let root = DataRoot::locate(&Env::current()).map_err(|e| format!("找不到数据根：{e}"))?;
-                    site.mention.request(&params, root.path(), &|p| site.types.of(p))
-                })
-                .await
-                .unwrap_or_else(|e| Err(format!("找文件的线程出错了：{e}")));
-                if out.send(reply(got).to_string()).is_err() { break }
-                continue;
-            }
             Some("web.upload_done") => {
                 // 核心存好了附件（`blob.put`），桥先收下的那一份删掉（`upload.rs`）
                 let got = upload::done(message["params"]["path"].as_str().unwrap_or(""));
-                if out.send(reply(got).to_string()).is_err() { break }
-                continue;
-            }
-            Some("web.human") => {
-                let got = human::load(message["params"]["language"].as_str().unwrap_or("zh"));
                 if out.send(reply(got).to_string()).is_err() { break }
                 continue;
             }

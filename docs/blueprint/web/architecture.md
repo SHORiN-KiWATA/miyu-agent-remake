@@ -132,7 +132,7 @@ flowchart TB
 | `ctx.effect(fn)` | 做一件事，`fn` 交回怎么撤回；别的调用都是它包的 | 调它交回的撤回（只调一次，调两次也只撤一次） |
 | `ctx.<服务>` | 用清单里 `inject` 写了的服务；没写的碰了就报错（照 Cordis 的能力检查） | — |
 | `ctx.provide(名字, 实现)` | 提供一个服务 | 拿掉；用它的包跟着等下一个 |
-| `ctx.on(事件, fn)`、`ctx.emit(事件, …)` | 听、发事件：`session.opened`、`view.changed`、`turn.started`、`turn.ended`、`message.sent`、`config.changed` | 不再听 |
+| `ctx.on(事件, fn)`、`ctx.emit(事件, …)`、`ctx.publish(事件, …)` | 听、发事件：`session.opened`、`view.changed`、`turn.started`、`turn.ended`、`message.sent`、`config.changed`。`publish` 发状态事件（「现在是什么样」，`view.changed` 用它）：内核记着最后一份，后来才听的当场先拿到它（刷新时包比页面晚起来，不然运行状态行要等下一件事才出来，2026-10-01 项目主人指出）；`emit` 发的是「发生了一件事」，不补 | 不再听 |
 | `ctx.slots.declare(名字, 种类)`、`ctx.slots.register(名字, {id, order, key, render})`、`ctx.slots.mount(名字, {…})`、`ctx.slots.watch(名字, fn)`、`ctx.slots.list/single/pick` | 声明挂载位、往自己声明的里挂（`register`，没声明报错）、往别的包声明的里挂（`mount`：还没声明就等着，撤回了跟着没，再声明又挂上，不看加载的先后）、看着一个挂载位变、照表读（见「挂载位」） | 挂的拿下来；声明的连同里面挂的一起收掉；不再看 |
 | `ctx.seam(名字)` | 职能：`provide({id, available, …})`、`use()`（见「职能」） | 拿掉这个提供者 |
 | `ctx.commands.register(规格, 做法)` | 斜杠命令 | 命令列表里没了 |
@@ -218,7 +218,7 @@ flowchart TB
 | `web-demo/src/model/history.js` | 输入历史：记什么、`↑` `↓` 怎么翻、两下 `Esc` 清掉的那句、列表怎么搜、一条切成几段（`web.md`「输入历史」） |
 | `web-demo/src/ui/history.js` | 输入历史列表（`Ctrl+R`） |
 | `web-demo/src/model/mention.js` | `@` 选文件：光标前面的 `@` 词、两种找法、写进话里的路径、`Tab` 进目录（`web.md`「`@` 选文件」） |
-| `web-demo/src/ui/mention.js` | `@` 选文件的列表；列、找由桥的 `web.files` 做（`bridge/src/mention.rs`） |
+| `web-demo/src/ui/mention.js` | `@` 选文件的列表；列、找问核心（`src/core/files.js`：`fs.list`、`fs.find`，核心施工 W-2） |
 | `web-demo/src/ui/picker.js` | 选一样的浮层（`/language`）：浮在输入框上面，`↑` `↓` 选、`Enter` 选定、`Esc` 关，悬停选中、点一下选定 |
 | `web-demo/src/kernel/slots.js` | 挂载位：声明、挂、三种的排法、兜底、各自兜错 |
 | `web-demo/src/kernel/seams.js` | 职能：提供者、怎么选 |

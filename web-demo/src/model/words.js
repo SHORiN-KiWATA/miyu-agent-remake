@@ -3,7 +3,7 @@
 //! 和在想时的窗口、命令写在下面的几行、点开的细节。收起那一行照 TUI（`tui.md`「时间线」第 17 条，TUI 演示的
 //! `ui/timeline/summary.rs`）。纯函数，界面照它画。
 //!
-//! 给人看的字（显示名、对象是哪个参数、结果那一句）照 `res.human`（桥的 `web.human`，和 TUI、`miyu ask` 同一份）；
+//! 给人看的字（显示名、对象是哪个参数、结果那一句）照 `res.human`（核心的 `human.get`，和 TUI、`miyu ask` 同一份）；
 //! 图标是 `resources/lucide.json` 里的名字，照 `timeline.json` 的 `icons`。
 
 import { res, t } from '../util/res.js';
@@ -36,9 +36,9 @@ function recipient(to, title) {
   return title ? t('timeline.message_to', { job: to, title }) : to;
 }
 
-/** 留言送到了（`sent`）：那一句和对象重了，不写；存下了（`held`）、没送到的照写。 */
+/** 留言送到了（`sent`）：那一句和对象重了，不写；存下了（`held`）、只订了「空了告诉我」（`watching`）、没送到的照写。 */
 function delivered(step) {
-  return step.status === 'ok' && !step.said?.key?.endsWith('/held');
+  return step.status === 'ok' && (!step.said || step.said.key.endsWith('/sent'));
 }
 
 /** 一件工具算哪一类：`command`、`edit`、`agent`、`message`；没登记的是 `null`（`timeline.json` 的 `kinds`，收起那一行照它数）。 */

@@ -20,13 +20,15 @@ import { Composer } from './composer.js';
 import { Artifacts } from './artifacts.js';
 import { runCommand, refusalText, redo, copyTurn, Commands } from './commands.js';
 import { project } from '../model/transcript.js';
-import { withRecaps } from '../model/notes.js';
+import { withRecaps, withChanges } from '../model/notes.js';
 import { rank } from '../model/session.js';
 import { footer, levelLabel, nextLevel, levelParams } from '../model/footer.js';
 import { levelOf } from '../model/transcript.js';
 import { copy } from '../markdown/build.js';
 import { childrenOf, runningDeep } from '../lib/jobs.js';
 import { SessionsPage } from './sessions-page.js';
+import { listFiles } from '../core/files.js';
+import { footerOf } from '../model/model-menu.js';
 import { Crumbs, BackButton } from './crumbs.js';
 import { pathOf } from '../model/tree.js';
 
@@ -55,6 +57,12 @@ export class App {
     this.current = /** @type {string|null} */ (null);
     /** 还没开的新会话上点过的权限级别；`null` 是没点过（核心开出来是什么就是什么）。 */
     this.pendingLevel = /** @type {string|null} */ (null);
+    /** 还没开的新会话里选的模型（换模型的菜单、`/model`）：开会话时带上 */
+    this.pendingModel = /** @type {string|null} */ (null);
+    /** 会话 → 选过、还没生效的模型（下一轮才换）和那时开过几轮：开了新的一轮就照核心推的 */
+    this.picked = /** @type {Map<string, {ref: string, turns: number}>} */ (new Map());
+    /** 上一次问到的 `model.list`：新会话框下面写默认的那一个；换模型的菜单每次打开再问一次 */
+    this.models = /** @type {any} */ (null);
     /** 换级别的命令发出去了还没回应：这时候再点不算。 */
     this.switching = false;
     this.sidebar = new Sidebar({
@@ -146,8 +154,14 @@ export class App {
         save: (items) => ctx.storage.set(HISTORY, items),
       },
       session: () => this.current,
-      // `@` 选文件（蓝图「`@` 选文件」）：桥列、找（`web.files`），照这个会话的工作目录
-      files: (params) => this.store.conn.request('web.files', { ...params, cwd: this.workdir() }),
+      // 换模型的菜单（蓝图「换模型的菜单」）：每次打开问一次 `model.list`；选了下一轮生效
+      models: {
+        load: () => this.loadModels(),
+        current: () => this.modelRef(),
+        choose: (row) => this.setModel(row.ref),
+      },
+      // `@` 选文件（蓝图「`@` 选文件」）：问核心列、找（`fs.list`、`fs.find`，核心施工 W-2），照这个会话的工作目录
+      files: (plan, fresh, onUpdate, stale) => listFiles(this.store.conn, this.workdir(), plan, fresh, onUpdate, stale),
       where: () => ({ cwd: this.workdir(), home: this.home }),
     }, () => this.commands.list(), () => ctx.slots.list('composer.payload'));
     // 框里：下面一排左边的按钮、写字的地方上面一排（附件这类软件包画）；跟着话一起发的不画，发的时候交出来
@@ -242,6 +256,8 @@ export class App {
     this.recapsAgain = /** @type {Map<string, {after: number, text: string}[]>} */ (new Map());
     /** 会话 → 它下面的子代理（照事件条数记着，`kids`） */
     this.kidCache = new Map();
+    // 新会话框下面写默认的模型：起来时问一次（问不到的不写，菜单打开时再问）
+    this.loadModels().catch(() => {});
   }
 
   /** @param {HTMLElement} el */
@@ -277,6 +293,7 @@ export class App {
    */
   open(id, listed = false) {
     this.pendingLevel = null;
+    this.pendingModel = null;
     this.current = id;
     this.sessionsPage?.close();
     // 没读过的会话第一次打开时才读、订阅：子代理的不进会话表的顶层；全部会话那一页开的老会话进（`listed`）
@@ -302,7 +319,8 @@ export class App {
   async send(text, extra = {}) {
     try {
       if (!this.current) {
-        this.current = await this.store.create(this.cwd);
+        this.current = await this.store.create(this.cwd, this.pendingModel);
+        this.pendingModel = null;
         this.store.view(this.current);
         // 还是这一段对话：跟着新会话走的软件包（演示待办）跟过去
         this.ctx.emit('session.created', { from: null, to: this.current });
@@ -432,6 +450,53 @@ export class App {
     this.peekTimer = window.setTimeout(() => this.root.classList.toggle('is-sidebar-peek', inside), inside ? open : close);
   }
 
+  /** 问一次 `model.list`，记下来（新会话框下面照它写默认的那一个）。 */
+  async loadModels() {
+    this.models = await this.store.conn.request('model.list', {});
+    if (!this.current) this.render();
+    return this.models;
+  }
+
+  /**
+   * 现在的模型引用（菜单打勾、框下面写的）：新会话照选过的、没选过的照默认（`uses.chat`）；开着的会话照选过还没生效的，
+   * 开了新的一轮就照核心记着的（`subscribe` 回应、`model.changed`）。
+   */
+  modelRef() {
+    if (!this.current) return this.pendingModel ?? this.models?.uses?.chat ?? null;
+    const s = this.store.sessions.get(this.current);
+    const picked = this.picked.get(this.current);
+    const turns = (s?.events ?? []).filter((e) => e.kind === 'turn.started').length;
+    if (picked && turns > picked.turns) this.picked.delete(this.current);
+    return this.picked.get(this.current)?.ref ?? s?.model?.ref ?? null;
+  }
+
+  /**
+   * 换模型（蓝图「换模型的菜单」第 5 条）：开着的会话发 `session.configure`（核心施工 8-10），下一轮生效，框下面当场照选的写；
+   * 还没开的新会话先记着，开会话时带上。拒了的照原因码写一句，框下面放回去。
+   * @param {string} ref 模型、`@池`、挡位名
+   */
+  async setModel(ref) {
+    const session = this.current;
+    if (!session) {
+      this.pendingModel = ref;
+      this.render();
+      return;
+    }
+    const turns = (this.store.sessions.get(session)?.events ?? []).filter((e) => e.kind === 'turn.started').length;
+    // 拒了的放回原来的（上一次选过还没生效的照旧）
+    const before = this.picked.get(session);
+    this.picked.set(session, { ref, turns });
+    this.render();
+    try {
+      await this.store.conn.request('session.configure', { session, model: ref });
+    } catch (err) {
+      if (before) this.picked.set(session, before);
+      else this.picked.delete(session);
+      this.render();
+      this.composer.say(refusalText(err));
+    }
+  }
+
   /** 点权限级别：换到下一级。开着的会话发给核心，画等 `session.policy_changed`；还没开的新会话先记着（见开头）。 */
   async cycleLevel() {
     if (this.switching) return;
@@ -484,7 +549,7 @@ export class App {
     this.back?.draw(path.length > 1 ? path[path.length - 2] : null);
     // 回答里的本机地址、结果里的图照这个会话取（工作目录照 `session.created`）
     this.chat.setWhere(this.current, events.find((e) => e.kind === 'session.created')?.body.cwd ?? null);
-    const view = project(withRecaps(events, this.recapsAgain.get(this.current ?? '') ?? []), s?.live ?? null, s?.marks, s?.compactStats);
+    const view = project(withChanges(withRecaps(events, this.recapsAgain.get(this.current ?? '') ?? []), s?.changes ?? []), s?.live ?? null, s?.marks, s?.compactStats);
     // 压好了、进度条还没走满：落了盘的那一行先不画（蓝图「压缩的进度」第 5 条）
     const hold = s?.compacting?.note;
     if (hold != null) view.items = view.items.filter((it) => it.seq !== hold);
@@ -495,9 +560,13 @@ export class App {
     this.syncJump?.();
     this.composer.setRunning(!!view.running);
     this.chat.setRunning(!!view.running);
-    // 对话区画了一次：照它画的软件包（运行状态行这类）听这个事件
-    this.ctx.emit('view.changed', { session: s?.id ?? null, running: view.running, events, live: s?.live ?? null, retry: s?.retry ?? null, queued: view.queued });
-    const f = footer(events, s?.limits ?? {}, s?.compactStats);
+    // 对话区画了一次：照它画的软件包（运行状态行这类）听这个事件；是状态事件，晚起来的包先拿到最后一份
+    this.ctx.publish('view.changed', { session: s?.id ?? null, running: view.running, events, live: s?.live ?? null, retry: s?.retry ?? null, queued: view.queued });
+    const f = footer(events, s?.limits ?? {}, s?.compactStats, s?.model);
+    // 框下面的模型（蓝图「换模型的菜单」第 1 条）：新会话、选过还没生效的、用着池的照引用写；别的照核心报的模型、端点
+    const ref = this.modelRef();
+    const picked = this.current ? this.picked.get(this.current) : null;
+    if (ref && (!this.current || picked || ref.startsWith('@'))) f.left = { ...f.left, ...footerOf(ref) };
     const level = this.current ? null : this.pendingLevel;
     if (level) f.left = { ...f.left, level, label: levelLabel(level) };
     this.composer.drawFooter(f);

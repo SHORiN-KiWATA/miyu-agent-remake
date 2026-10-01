@@ -22,6 +22,7 @@ export function loadRes() {
     artifacts: json('artifacts.json'),
     cards: json('cards.json'),
     languages: json('languages.json'),
+    media: json('media.json'),
     human: human(),
   });
   // 界面的字、命令的说明照中文装，收起那一行是英文（和出厂的 auto、浏览器是中文时一样）

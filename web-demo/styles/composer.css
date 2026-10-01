@@ -68,6 +68,10 @@
   color: var(--t-dim); font: 13px var(--mono); white-space: nowrap;
 }
 .footer-left { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* 左边排成一行：级别、点、模型那一截；左右各留 6px 给模型那一截悬停时铺的底（不然它伸出去的那 6px 算溢出，Firefox 把整个按钮
+   换成 …，2026-10-01 项目主人撞见）；放不下时只截模型名的末尾 */
+.footer-left { display: flex; align-items: center; padding: 0 6px; margin: 0 -6px; text-overflow: clip; }
+.footer-left > .footer-level, .footer-left > .sep { flex: none; white-space: pre; }
 .footer-left b { color: var(--text); font-weight: 700; }
 .footer-level { padding: 0; border: 0; background: none; font: inherit; font-weight: 700; cursor: pointer; }
 .footer-level:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -142,3 +146,63 @@
   pointer-events: auto; animation: fade-in var(--motion-in) var(--ease-out);
 }
 .composer-field.has-stash > .composer-input, .composer-field.has-stash > .composer-backdrop { padding-right: 76px; }
+
+/* 换模型的菜单（蓝图 web.md「换模型的菜单」，照 Claude 网页端的模型菜单）：入口是框下面那一行的模型那一截：
+   <模型名> <小字供应商>，模型名照正常的字色、不加粗 */
+.composer-footer { position: relative; }
+.footer-model {
+  display: inline-flex; align-items: baseline; min-width: 0; max-width: 100%; overflow: hidden;
+  padding: 0 6px; margin: 0 -6px; border: 0; border-radius: 6px; background: none; color: var(--t-dim); font: inherit; cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.footer-model:hover, .footer-model.is-open { background: var(--surface-2); }
+.footer-model:focus { outline: none; }
+.footer-model:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+.footer-model-name { min-width: 0; overflow: hidden; color: var(--text); font-weight: 400; text-overflow: ellipsis; }
+.footer-model-prov { flex: none; margin-left: 0.4em; color: var(--t-dim); font-size: 11.5px; }
+/* 菜单：浮在那一截上面，和命令列表一样的底、细线、阴影；进出从那一截长出来、缩回去（原点在那一截的中点） */
+.model-menu {
+  /* 宽照列表最长的那个名字，最窄 --menu-min、最宽 --menu-w；打开时定下来，换页不变（model-menu.js） */
+  position: absolute; z-index: 4; bottom: calc(100% + 6px); width: max-content; min-width: var(--menu-min, 200px); max-width: var(--menu-w, 300px); padding: 6px;
+  border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--surface-1) 94%, transparent);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: var(--float-shadow);
+  color: var(--text); font: 13px/1.35 var(--sans); white-space: normal; text-align: left;
+  transform-origin: var(--origin, 24px) 100%;
+  animation: menu-grow 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.model-menu.is-leaving { animation: menu-shrink 0.12s var(--ease-in) both; }
+@keyframes menu-grow { from { opacity: 0; transform: translateY(6px) scale(0.96); } }
+@keyframes menu-shrink { to { opacity: 0; transform: translateY(4px) scale(0.98); } }
+/* 列表最多露 --rows 行（一行 42px），多的在里面滚；换页时高度缓过去、列表从一边滑进来 */
+.model-menu-pages { overflow: hidden; transition: height 0.2s var(--ease-out); }
+.model-menu-list { max-height: calc(var(--rows) * 42px); overflow-y: auto; overscroll-behavior: contain; }
+.model-menu-list.is-from-right { animation: menu-from-right 0.2s var(--ease-out) both; }
+.model-menu-list.is-from-left { animation: menu-from-left 0.2s var(--ease-out) both; }
+@keyframes menu-from-right { from { opacity: 0; transform: translateX(16px); } }
+@keyframes menu-from-left { from { opacity: 0; transform: translateX(-16px); } }
+.model-menu-row { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 4px 8px; border-radius: 8px; cursor: pointer; }
+.model-menu-row.is-selected { background: var(--surface-2); }
+.model-menu-row.is-off { cursor: default; opacity: 0.5; }
+.model-menu-row.is-off.is-selected { background: none; }
+.model-menu-text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.model-menu-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-menu-desc { overflow: hidden; color: var(--text-faint); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.model-menu-row > .icon { width: 15px; height: 15px; flex: none; color: var(--accent); opacity: 0; transition: opacity 0.15s ease; }
+.model-menu-row.is-current > .icon { opacity: 1; }
+.model-menu-note { padding: 8px; color: var(--text-faint); font-size: 12.5px; }
+/* 「模型 | 模型池」切换：两格，滑块跟着换 */
+.model-menu-switch { position: relative; display: grid; grid-template-columns: 1fr 1fr; margin: 6px 2px 0; padding: 3px; border-radius: 9px; background: var(--surface-2); }
+.model-menu-switch > button {
+  position: relative; z-index: 1; padding: 3px 0; border: 0; border-radius: 7px; background: none; color: var(--text-soft);
+  font: 12.5px var(--sans); cursor: pointer; transition: color 0.15s ease;
+}
+.model-menu-switch > button[aria-pressed="true"] { color: var(--text); font-weight: 500; }
+.model-menu-thumb {
+  position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 7px; background: var(--surface-1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); transition: transform 0.2s var(--ease-out);
+}
+.model-menu-switch.on-pools .model-menu-thumb { transform: translateX(100%); }
+@media (prefers-reduced-motion: reduce) {
+  .model-menu, .model-menu-list.is-from-right, .model-menu-list.is-from-left { animation: none; }
+  .model-menu-pages, .model-menu-thumb { transition: none; }
+}

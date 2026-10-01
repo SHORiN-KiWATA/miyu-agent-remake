@@ -27,6 +27,8 @@ export class Registry {
     this.services = new Map();
     /** @type {Map<string, Set<Function>>} */
     this.listeners = new Map();
+    /** 状态事件最后发的那一份（`publish`） */
+    this.latest = /** @type {Map<string, any[]>} */ (new Map());
     /** @type {Set<Fiber>} 活着的纤程：服务变了照它们要的通知 */
     this.fibers = new Set();
     /** @type {Fiber[]} 等着重新对一遍依赖的 */
@@ -65,12 +67,28 @@ export class Registry {
     }
   }
 
-  /** 听一个事件；交回怎么不听。 */
+  /**
+   * 听一个事件；交回怎么不听。状态事件（`publish` 发过的）当场先给最后那一份：包可能比发的那一方晚起来（刷新时运行状态行
+   * 要等下一件事才出来，2026-10-01 项目主人指出），状态不能漏。
+   */
   on(event, fn) {
     const set = this.listeners.get(event) ?? new Set();
     this.listeners.set(event, set);
     set.add(fn);
+    if (this.latest.has(event)) {
+      try {
+        fn(...(this.latest.get(event) ?? []));
+      } catch (err) {
+        console.error(`事件 ${event} 的一个处理出错了`, err);
+      }
+    }
     return () => set.delete(fn);
+  }
+
+  /** 发一个状态事件（`view.changed` 这种：现在是什么样）：照 `emit` 发，再记下这一份，后来听的先拿到它。 */
+  publish(event, ...args) {
+    this.latest.set(event, args);
+    this.emit(event, ...args);
   }
 
   /** 发一个事件：一个听的抛错不耽误别的，记在控制台。 */
@@ -224,6 +242,7 @@ export class Fiber {
       }),
       on: (event, fn) => own.effect(() => reg.on(event, fn)),
       emit: (event, ...args) => reg.emit(event, ...args),
+      publish: (event, ...args) => reg.publish(event, ...args),
       text: (path, fields) => {
         const table = fiber.manifest.text ?? {};
         const got = lookup(table[language.code] ?? {}, path, fields);

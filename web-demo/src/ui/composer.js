@@ -25,6 +25,7 @@ import { fit } from '../model/footer.js';
 import { read } from '../model/commands.js';
 import { CommandList } from './commands.js';
 import { Picker } from './picker.js';
+import { ModelMenu } from './model-menu.js';
 import { HistoryList } from './history.js';
 import { MentionList } from './mention.js';
 import { wordAt, plan, pathText, dirWord, splice, failure } from '../model/mention.js';
@@ -48,9 +49,9 @@ export class Composer {
    * @param {{send: (text: string, extra: Record<string, any>) => Promise<boolean>, interrupt: () => void, cycleLevel: () => void,
    *   command: (spec: import('../model/commands.js').Spec, words: string|null) => void,
    *   history: {load: () => import('../model/history.js').Item[], save: (items: import('../model/history.js').Item[]) => void},
-   *   session: () => string|null, files: (params: any) => Promise<any>, where: () => {cwd: string|null, home: string|null}} on
-   *   `send` 交回核心收没收；`history` 读、存输入历史（这台设备上、按账号分开）；`session` 正在看的会话；`files` 问桥列、找文件
-   *   （`web.files`）；`where` 这个会话的工作目录、家目录（`@` 选文件写路径照它）
+   *   session: () => string|null, models: import('./model-menu.js').On, files: (plan: any, fresh: boolean, onUpdate: (found: any) => void, stale: () => boolean) => Promise<any>, where: () => {cwd: string|null, home: string|null}} on
+   *   `send` 交回核心收没收；`history` 读、存输入历史（这台设备上、按账号分开）；`session` 正在看的会话；`models` 换模型的菜单问核心要列表、现在用的、选定了做什么；`files` 问核心列、找文件
+   *   （`core/files.js`，没建完的先交 `onUpdate`、`stale` 说不要了就停）；`where` 这个会话的工作目录、家目录（`@` 选文件写路径照它）
    * @param {() => import('../model/commands.js').Spec[]} specs 现在的全部斜杠命令（出厂的加软件包登记的）
    * @param {() => Payload[]} payload 现在跟着话一起发的几样（挂载位 `composer.payload`）
    */
@@ -77,11 +78,14 @@ export class Composer {
     this.drawnLevel = /** @type {string|null} */ (null);
     /** 级别那一格的宽度正在缓的那一段（快速连按时停掉上一次的） */
     this.levelWidth = /** @type {Animation|null} */ (null);
-    this.model = h('span.footer-model');
-    this.left = h('span.footer-left', this.levelButton, this.model);
+    /** 模型那一截是一个按钮：点了开换模型的菜单（蓝图「换模型的菜单」） */
+    this.modelSep = h('span.sep', { hidden: true }, ' · ');
+    this.model = h('button.footer-model', { type: 'button', hidden: true, title: t('model_menu.tip'), onclick: () => this.modelMenu.toggle(this.model) });
+    this.modelMenu = new ModelMenu(on.models);
+    this.left = h('span.footer-left', this.levelButton, this.modelSep, this.model);
     this.right = h('span.footer-right');
     this.middle = h('span.footer-middle');
-    this.footer = h('div.composer-footer', this.left, this.middle, this.right);
+    this.footer = h('div.composer-footer', this.left, this.middle, this.right, this.modelMenu.el);
     // 从命令列表里点的、选中回车的：记成 `/名字`
     this.menu = new CommandList({ run: (spec) => { this.remember(`/${spec.name}`); this.run(spec, null); }, fill: (text) => this.fill(text) }, specs);
     /** 翻输入历史（蓝图「输入历史」） */
@@ -480,10 +484,12 @@ export class Composer {
     const seq = ++this.mentionSeq;
     clearTimeout(this.mentionTimer);
     this.mentionTimer = window.setTimeout(async () => {
-      // 问不到的写清楚为什么（桥太旧、工作目录不在、数据目录不列……），不画成空列表
-      const found = await this.on.files({ ...plan(w.word), ...(fresh ? { fresh: true } : {}) })
-        .catch((err) => ({ items: [], partial: false, layer: false, error: failure(err) }));
-      if (seq === this.mentionSeq) this.mention.show({ word: w.word, ...found });
+      // 词变了（又打了字、关掉了）就不要了：清单没建完时接着问的也停
+      const stale = () => seq !== this.mentionSeq;
+      const show = (/** @type {any} */ found) => { if (!stale()) this.mention.show({ word: w.word, ...found }); };
+      // 问不到的写清楚为什么（核心太旧、目录读不了、数据目录不列……），不画成空列表
+      show(await this.on.files(plan(w.word), fresh, show, stale)
+        .catch((err) => ({ items: [], partial: false, layer: false, error: failure(err) })));
     }, res.layout.mention_delay_ms);
   }
 
@@ -557,13 +563,21 @@ export class Composer {
    * 框下面那一行：左边级别（级别的颜色，点一下换下一级）、模型（加粗）、端点；右边放得下的几格（`model/footer.js`）。
    * @param {ReturnType<typeof import('../model/footer.js').footer>} f
    */
+  /** `/model` 不带参数：开换模型的菜单（蓝图「换模型的菜单」第 1 条）。 */
+  openModelMenu() {
+    if (!this.model.hidden && !this.modelMenu.isOpen) this.modelMenu.open(this.model);
+  }
+
   drawFooter(f) {
     const { level, label, model, endpoint } = f.left;
     this.drawLevel(level, label);
     const sig = `${model}|${endpoint}`;
     if (this.model.dataset.sig !== sig) {
       this.model.dataset.sig = sig;
-      replace(this.model, model ? [h('span.sep', ' · '), h('b', model), h('span.dim', ` ${endpoint}`)] : null);
+      // <模型名> <小字供应商>：模型名照正常的字色、不加粗（蓝图「换模型的菜单」第 1 条）
+      replace(this.model, model ? [h('span.footer-model-name', model), endpoint ? h('span.footer-model-prov', endpoint) : null] : null);
+      this.model.hidden = !model;
+      this.modelSep.hidden = !model;
     }
     this.parts = f.right;
     this.drawRight();

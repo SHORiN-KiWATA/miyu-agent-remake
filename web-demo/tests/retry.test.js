@@ -25,9 +25,9 @@ const push = (store, event) => store.push('event', { session: 'S', event });
 test('status 带着 retry：记下第几次、一共几次、原话和哪一轮', () => {
   const store = fresh();
   push(store, SAMPLE);
-  assert.deepEqual(store.sessions.get('S')?.retry, { turn: 42, attempt: 1, limit: 5, message: 'connection reset by peer' });
+  assert.deepEqual(store.sessions.get('S')?.retry, { turn: 42, attempt: 1, limit: 5, message: 'connection reset by peer', failover: false });
   push(store, LIMITED);
-  assert.deepEqual(store.sessions.get('S')?.retry, { turn: 117, attempt: 1, limit: 5, message: 'HTTP 429: Rate limit reached' });
+  assert.deepEqual(store.sessions.get('S')?.retry, { turn: 117, attempt: 1, limit: 5, message: 'HTTP 429: Rate limit reached', failover: false });
 });
 
 test('下一段 model.delta 来了：重试过去了', () => {

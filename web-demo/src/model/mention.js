@@ -1,10 +1,10 @@
 // @ts-check
 //! `@` 选文件（蓝图 `web.md`「`@` 选文件」，照 `tui.md`「`@` 文件列表」）：光标前面的 `@` 词、两种找法、选定以后写进话里的
-//! 路径、`Tab` 进目录以后词怎么换、问不到时写什么。纯函数；列、找由桥做（`web.files`）。
+//! 路径、`Tab` 进目录以后词怎么换、问不到时写什么。纯函数；列、找问核心（`core/files.js`：`fs.list`、`fs.find`）。
 
-import { t } from '../util/res.js';
+import { res, t } from '../util/res.js';
 
-/** JSON-RPC 的「没有这个方法」：桥太旧，没有 `web.files`，转给了核心 */
+/** JSON-RPC 的「没有这个方法」：核心太旧，没有 `fs.list`、`fs.find`（核心施工 W-2 以前的） */
 const NO_METHOD = -32601;
 
 /**
@@ -68,9 +68,11 @@ export function splice(value, start, end, text) {
 }
 
 /**
- * 问不到的写什么（蓝图「`@` 选文件」第 6 条）：桥太旧（核心回「没有这个方法」）说重新编、重启桥；别的照原话。
+ * 问不到的写什么（蓝图「`@` 选文件」第 6 条）：核心太旧（「没有这个方法」）说换新的核心；读不了的目录、Miyu 自己的数据照原因码
+ * 写人话（`mention.reasons`）；别的照原话。
  * @param {any} err
  */
 export function failure(err) {
-  return err?.code === NO_METHOD ? t('mention.no_api') : err?.message ?? String(err);
+  if (err?.code === NO_METHOD) return t('mention.no_api');
+  return (err?.reason && res.text.mention?.reasons?.[err.reason]) || (err?.message ?? String(err));
 }

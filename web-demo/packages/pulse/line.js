@@ -13,7 +13,7 @@ import { clock } from '../../src/lib/format.js';
 import { Pulse, widest, dotCount } from './model.js';
 
 /**
- * @typedef {{id: string, start: number, beat: unknown, retry: {attempt: number, limit: number, message: string}|null, queued: string[]}} PulseState
+ * @typedef {{id: string, start: number, beat: unknown, retry: {attempt: number, limit: number, message: string, failover?: boolean}|null, queued: string[]}} PulseState
  *   在跑的那一轮（会话加回合、开始的时刻）、这一轮出过的事的记号（`beatOf`）、在等的重试、排着的话（蓝图「排队的消息」）
  */
 
@@ -81,7 +81,8 @@ export class PulseLine {
     setText(this.ghost, mark.repeat(count - n));
     setText(this.clock, clock(Math.max(0, now - s.start) / 1000));
     // 原话里的换行压成空格：只有一行，放不下的截掉
-    setText(this.retry, s.retry ? this.t('retry', { ...s.retry, message: s.retry.message.replace(/\s+/g, ' ').trim() }) : '');
+    // 换了端点当场再来的（`failover`，核心施工 8-9）写「换端点重试」
+    setText(this.retry, s.retry ? this.t(s.retry.failover ? 'retry_failover' : 'retry', { ...s.retry, message: s.retry.message.replace(/\s+/g, ' ').trim() }) : '');
     // 排着的话：`↳ ` 加这句话，换行压成空格，放不下截掉加 `…`
     const queued = JSON.stringify(s.queued);
     if (queued !== this.drawnQueue) {

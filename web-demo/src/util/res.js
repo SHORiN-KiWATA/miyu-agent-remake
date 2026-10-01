@@ -8,14 +8,14 @@ import { local, merge } from '../lib/text.js';
  * @typedef {{text: any, layout: any, persona: any, lucide: any, timeline: any, markdown: any, artifacts: any, cards: any,
  *   commands: {commands: import('../model/commands.js').Spec[]}, languages: import('../kernel/language.js').Table,
  *   language: import('../kernel/language.js').Language, human: {tools: Record<string, any>, said: Record<string, string>}}} Res
- *   `human` 是桥给的给人看的字（`web.human`）；`language` 是定下来的界面语言，`text`、`commands` 的说明照它装
+ *   `human` 是核心给的给人看的字（`human.get`，`core/human.js`）；`language` 是定下来的界面语言，`text`、`commands` 的说明照它装
  */
 
 /** 读进来的全部资源。页面起来时 `loadResources` 装满；测试里直接往里放。 */
 export const res = /** @type {Res} */ (/** @type {any} */ ({}));
 
 const FILES = { layout: 'layout.json', persona: 'persona.json', lucide: 'lucide.json', timeline: 'timeline.json', markdown: 'markdown.json',
-  artifacts: 'artifacts.json', cards: 'cards.json', commands: 'commands.json', languages: 'languages.json' };
+  artifacts: 'artifacts.json', cards: 'cards.json', commands: 'commands.json', languages: 'languages.json', media: 'media.json' };
 
 /** 命令清单的原样（说明每种语言各一句）：换了语言照它重新挑 */
 let commands = /** @type {any[]} */ ([]);

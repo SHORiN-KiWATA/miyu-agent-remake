@@ -34,7 +34,7 @@ export class MentionList {
     this.items = found.items;
     this.selected = Math.max(0, keep ? this.items.findIndex((x) => x.full === keep) : 0);
     this.title.textContent = t('mention.title', { word: found.word, count: found.items.length });
-    this.note.textContent = found.partial ? t(found.layer ? 'mention.partial_layer' : 'mention.partial', { shown: found.items.length }) : found.layer ? t('mention.layer') : '';
+    this.note.textContent = found.partial ? t(found.layer ? 'mention.partial_layer' : 'mention.partial', { shown: found.items.length }) : '';
     const empty = found.error ? h('div.mention-empty.is-error', found.error) : h('div.mention-empty', t('mention.no_match'));
     replace(this.list, this.items.length ? this.items.map((x, i) => this.row(x, i)) : [empty]);
     this.mark();

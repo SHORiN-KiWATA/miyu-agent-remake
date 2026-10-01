@@ -57,7 +57,8 @@
     "bad_summary": "要約を取得できませんでした",
     "compaction_paused": "自動圧縮は一時停止中です",
     "no_model": "モデルが設定されていません",
-    "other": "モデルエラー"
+    "other": "モデルエラー",
+    "cooling": "候補がすべてクールダウン中です"
   },
   "levels": {
     "workspace": "ワークスペース",
@@ -232,12 +233,15 @@
   },
   "mention": {
     "title": "@{word} · {count} 件",
-    "layer": "この階層のみ",
     "partial": "一部のみ表示、/ でフォルダを探せます",
     "partial_layer": "先頭 {shown} 件のみ、続けて名前を入力",
     "no_match": "該当なし",
     "hint": "↑↓ 選択 · Tab フォルダを開く · Enter 決定 · Esc 閉じる",
-    "no_api": "ブリッジが古いためファイルを一覧できません：再ビルドして再起動してください"
+    "no_api": "コアが古いためファイルを一覧できません：新しいコアに替えてください",
+    "reasons": {
+      "path_unreadable": "このフォルダは読めません",
+      "path_forbidden": "Miyu 自身のデータは一覧しません"
+    }
   },
   "refusals": {
     "nothing_to_revert": "取り消せるものがありません",
@@ -256,7 +260,8 @@
     "session_not_found": "このセッションはもう存在しません",
     "nothing_to_clear": "コンテキストは空です",
     "nothing_to_recap": "まだ振り返る内容がありません",
-    "recap_failed": "振り返りを書けませんでした。もう一度どうぞ"
+    "recap_failed": "振り返りを書けませんでした。もう一度どうぞ",
+    "unknown_model": "設定にそのモデル・プール・ティアがありません"
   },
   "said": {
     "copy": "コピー",
@@ -340,7 +345,9 @@
       "expired": "セッション {id} はずっと空かないため、待つのをやめました",
       "gone": "セッション {id} はもうないため、待つのをやめました",
       "unknown": "セッション {id} · {reason}"
-    }
+    },
+    "changed": "{to} に切り替えました：元のモデルでエラー",
+    "model_replaced": "{from} がなくなったため {to} に戻しました"
   },
   "ago": {
     "now": "たった今",
@@ -373,5 +380,17 @@
     "hint": "Ctrl+S で戻す",
     "stashed": "退避しました · Ctrl+S で戻す",
     "empty": "退避したものはありません"
+  },
+  "model_menu": {
+    "tip": "モデルを変更",
+    "models": "モデル",
+    "pools": "モデルプール",
+    "pin": "エラー時に次へ",
+    "rotate": "順番に使う",
+    "cooling": "{time} までクールダウン",
+    "no_key": "キー未設定",
+    "failed": "モデル一覧を取得できません：{message}",
+    "loading": "モデル一覧を読み込み中…",
+    "empty": "モデルが設定されていません"
   }
 }

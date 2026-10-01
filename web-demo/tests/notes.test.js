@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadRes, ev } from './support.js';
 import { project } from '../src/model/transcript.js';
-import { failureText, withRecaps } from '../src/model/notes.js';
+import { failureText, withRecaps, withChanges } from '../src/model/notes.js';
 import { group } from '../src/model/group.js';
 import { footer } from '../src/model/footer.js';
 
@@ -169,6 +169,7 @@ test('出错那一句：402、404 加人话；内核自己查出来的写分类�
   assert.equal(failureText({ class: 'empty_reply', message: '' }), '回复是空的');
   assert.equal(failureText({ class: 'auth', message: '' }), '认证失败');
   assert.equal(failureText({ class: 'no_model', message: 'models.chat is not set' }), '没配好模型：models.chat is not set', '没配好模型（8-6）是内核查出来的');
+  assert.equal(failureText({ class: 'cooling', message: 'all candidates cooling: dev/m key 1 rate_limited until 10:05' }), '候选全在冷却：all candidates cooling: dev/m key 1 rate_limited until 10:05', '候选全在冷却（8-9）没发出去，也是内核查出来的');
 });
 
 test('清空以后框下面那一行的上下文清零，下一次请求再照实际的写', () => {
@@ -179,6 +180,37 @@ test('清空以后框下面那一行的上下文清零，下一次请求再照�
   assert.equal(footer(log, {}).right.find((p) => p.key === 'context'), undefined);
   log.push(ev(11, 60, 'model.called', 12, { seen: 10, messages: 1, result: 'ok', usage: { ...usage, uncached: 10, cache_read: 0 }, model: 'm', endpoint: 'e' }));
   assert.equal(footer(log, {}).right.find((p) => p.key === 'context')?.text, '60');
+});
+
+test('出错换了模型（瞬时的 model.changed，8-9）：一行提示「换到 端点/模型：原来的出错了」，排在收到时最后一条落了盘的事件后面', () => {
+  const log = [...jobsLog()];
+  const changes = [{ after: 6, at: log[5].at, body: { ref: '@duo', endpoint: 'bigmodel', model: 'glm-5.3-flash', limits: { window: 200000 }, why: 'failover' } }];
+  const items = project(withChanges(log, changes)).items;
+  const note = items.find((it) => it.type === 'note');
+  assert.equal(`${note.tone}|${note.mark}|${note.text}`, 'stopped|●|换到 bigmodel/glm-5.3-flash：原来的出错了');
+  assert.equal(note.turn, null);
+  // 排在 6 号后面、7 号（她的回答）前面
+  const at = items.indexOf(note);
+  assert.ok(items.slice(at + 1).some((it) => it.type === 'her' || it.seq === 7 || it.turn === 3), '后面还有这一轮的东西');
+  assert.equal(withChanges(log, []), log, '没有的原样');
+});
+
+test('换了模型（session.policy_changed 带 model，8-10）：人换的不画（项目主人定：只改框下面）；钉着的没了「X 没了，换回 Y」；只切级别的不出行', () => {
+  const log = [...jobsLog(),
+    ev(9, 40, 'session.policy_changed', undefined, { model: '@duo' }, { kind: 'person', account: 'admin' }),
+    ev(10, 41, 'session.policy_changed', 11, { model: 'dev/m', replaced: '@duo' }),
+    ev(11, 42, 'session.policy_changed', undefined, { permission: { level: 'full', read_only: false } }, { kind: 'person', account: 'admin' }),
+  ];
+  assert.deepEqual(notes(project(log).items), ['stopped|●|@duo 没了，换回 dev/m']);
+});
+
+test('框下面那一行的模型照会话接下来请求的那一个（subscribe 回应、model.changed 的 model）；轮换的池只有 ref，照最近一次请求', () => {
+  const log = [...jobsLog(), ev(9, 7, 'model.called', 3, { seen: 6, messages: 3, result: 'ok', usage, model: 'm', endpoint: 'e' })];
+  assert.deepEqual([footer(log, {}).left.model, footer(log, {}).left.endpoint], ['m', 'e']);
+  const next = footer(log, {}, new Map(), { endpoint: 'bigmodel', model: 'glm-5.3-flash', ref: '@duo' });
+  assert.deepEqual([next.left.model, next.left.endpoint], ['glm-5.3-flash', 'bigmodel']);
+  const rotate = footer(log, {}, new Map(), { ref: '@spread' });
+  assert.deepEqual([rotate.left.model, rotate.left.endpoint], ['m', 'e']);
 });
 
 test('压好了框下面那一行的上下文换成压完的用量；读回来不知道压完多少的先不写，下一次请求再照实际的写（2026-10-01）', () => {

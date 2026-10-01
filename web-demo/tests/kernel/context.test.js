@@ -117,6 +117,18 @@ test('事件：听的包撤回了就不再听', () => {
   assert.deepEqual(heard, [1]);
 });
 
+test('状态事件（publish）：记着最后一份，后来才听的先拿到它（刷新时包比页面晚起来，运行状态行等下一件事才出来）；普通事件不补', () => {
+  const reg = new Registry();
+  reg.publish('view.changed', { running: true });
+  reg.emit('turn.ended', 1);
+  const got = [];
+  reg.on('view.changed', (v) => got.push(v));
+  reg.on('turn.ended', (n) => got.push(n));
+  assert.deepEqual(got, [{ running: true }], '状态补一份，turn.ended 不补');
+  reg.publish('view.changed', { running: false });
+  assert.deepEqual(got, [{ running: true }, { running: false }]);
+});
+
 test('服务可以按调它的包绑一份：经它登记的东西跟着这个包撤回', () => {
   const reg = new Registry();
   const table = new Set();

@@ -77,6 +77,33 @@ test('压缩的进度（瞬时的 compaction.progress、compaction.done）：记
   assert.equal(s.compacting, null);
 });
 
+test('出错换了模型（瞬时的 model.changed，8-9）：限额跟着换；记下这一条和收到时最后一条落了盘的序号；重试带 failover 的记上', () => {
+  const store = fresh();
+  const s = store.sessions.get('S');
+  s.limits = { window: 300000, compaction_line: 250000 };
+  push(store, ev(5, 1, 'turn.started', 5, { trigger: 4 }));
+  const transient = (at, kind, body) => { const { seq, ...e } = ev(0, at, kind, 5, body, { kind: 'kernel' }); return e; };
+  push(store, transient(2, 'status', { seen: 5, retry: { attempt: 1, limit: 5, wait_ms: 0, class: 'rate_limited', message: '429', failover: true } }));
+  assert.equal(s.retry?.failover, true);
+  push(store, transient(3, 'model.changed', { ref: '@duo', endpoint: 'bigmodel', model: 'glm-5.3-flash', limits: { window: 200000 }, why: 'failover' }));
+  assert.deepEqual(s.limits, { window: 200000, compaction_line: 250000 });
+  assert.equal(s.changes.length, 1);
+  assert.equal(s.changes[0].after, 5);
+  assert.equal(s.changes[0].body.model, 'glm-5.3-flash');
+});
+
+test('会话接下来请求的模型（8-10）：model.changed 带 endpoint、model 的换上；回合开始时变的（turn）不出时间线那一行', () => {
+  const store = fresh();
+  const s = store.sessions.get('S');
+  const transient = (at, kind, body) => { const { seq, ...e } = ev(0, at, kind, 5, body, { kind: 'kernel' }); return e; };
+  push(store, transient(1, 'model.changed', { ref: 'cheap', endpoint: 'dev', model: 'small', limits: { window: 64000 }, why: 'turn' }));
+  assert.deepEqual(s.model, { ref: 'cheap', endpoint: 'dev', model: 'small' });
+  assert.equal(s.limits.window, 64000);
+  assert.equal(s.changes.length, 0, 'turn 的不出那一行');
+  push(store, transient(2, 'model.changed', { ref: '@spread', why: 'turn' }));
+  assert.deepEqual(s.model, { ref: '@spread' }, '轮换的池只有 ref');
+});
+
 test('压好了的两条谁先到不一定：落了盘的 context.compacted 先到，跟着来的 compaction.done 照样记上前后的用量', () => {
   const store = fresh();
   const s = store.sessions.get('S');
