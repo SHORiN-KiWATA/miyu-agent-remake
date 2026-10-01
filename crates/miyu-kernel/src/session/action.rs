@@ -254,6 +254,9 @@ pub enum Reason {
     DuplicateMessage,
     /// 别的会话发来的话（施工 C-2，第五条第 3 款）：还没听到的别的会话的话已经够数了。
     InboxFull,
+    /// 空了的通知来了，这边不在等它（施工 C-6，`docs/blueprint/cross-session.md` 第六条第 7 款）：没订过、订它的那一轮撤掉了、
+    /// 已经收到过、作废了。只回给核心里别的会话，不经协议给头。
+    UnknownWatch,
 }
 
 impl Reason {
@@ -282,6 +285,7 @@ impl Reason {
             Reason::TooManyMessages => "too_many_messages",
             Reason::DuplicateMessage => "duplicate_message",
             Reason::InboxFull => "inbox_full",
+            Reason::UnknownWatch => "unknown_watch",
         }
     }
 }

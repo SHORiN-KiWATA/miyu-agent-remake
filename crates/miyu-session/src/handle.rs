@@ -12,6 +12,7 @@ use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{CommandId, JobId, SessionId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, ContextLimits, Outcome, Reason};
+use miyu_kernel::time::Timestamp;
 use miyu_tool::{JobError, Log, Output};
 
 use crate::backlog::Backlog;
@@ -64,6 +65,11 @@ pub(crate) enum Message {
     Output {
         job: JobId,
         reply: oneshot::Sender<Result<Output, Unreadable>>,
+    },
+    /// 会话 `watcher` 等这个会话空下来（施工 C-6）：记进名单，不进内核、不写盘；`since` 是那一边这次订的起算时刻。
+    Watch {
+        watcher: SessionId,
+        since: Timestamp,
     },
 }
 
@@ -315,6 +321,17 @@ impl Handle {
         let (reply, answer) = oneshot::channel();
         self.send(Message::Halt(Halt::Deleted { job, reply }))?;
         answer.await.map_err(|_| Stopped)
+    }
+
+    /// 会话 `watcher` 等这个会话空下来（施工 C-6，`cross-session.md` 第六条第 3 款，2026-10-01 改）：记进它 actor 的
+    /// 名单，同一个会话只记一个（后订的替掉先订的）；这时正忙着、或者 `since` 不晚于它上一次忙完的时刻才当场发通知，
+    /// 不然等它下一次忙完。`since` 是那一边这次订的起算时刻。交进收件箱就回，不等。
+    ///
+    /// # Errors
+    ///
+    /// 会话停了。
+    pub fn watch(&self, watcher: SessionId, since: Timestamp) -> Result<(), Stopped> {
+        self.send(Message::Watch { watcher, since })
     }
 
     fn send(&self, message: Message) -> Result<(), Stopped> {

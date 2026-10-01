@@ -1,0 +1,1 @@
+No notice came within {hours} hours, so the request was dropped.

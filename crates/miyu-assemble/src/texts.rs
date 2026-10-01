@@ -188,4 +188,23 @@ pub struct PeerTexts {
     pub open: Template,
     /// 收尾（`message-close.txt`）。
     pub close: String,
+    /// 空了的通知（`idle-*.txt`，施工 C-6）。C-2 时造的快照里没有，是没有：那种会话的工具面里订不了，也就收不到通知，
+    /// `peer.idle` 不出。
+    pub idle: Option<IdleTexts>,
+}
+
+/// 空了的通知那一块（施工 C-6，`docs/blueprint/kernel/request.md`「空了的通知」）：标签那一行，里面一句，收尾。每一份以
+/// 一个换行结尾。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IdleTexts {
+    /// 标签（`idle-open.txt`）：字段 `id` 是等的那个会话的短编号，`reason` 是原因。
+    pub open: Template,
+    /// 那一轮一个字都没说（`idle-silent.txt`）。
+    pub silent: String,
+    /// 作废了（`idle-expired.txt`）：造快照时照快照里的 `peers.watch_hours` 换好了 `hours`。
+    pub expired: String,
+    /// 那个会话不在了（`idle-gone.txt`）。
+    pub gone: String,
+    /// 收尾（`idle-close.txt`）。
+    pub close: String,
 }

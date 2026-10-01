@@ -36,7 +36,7 @@ pub use harness::HarnessTexts;
 pub use image_name::ImageNameTexts;
 pub use jobs::{DEPTH as JOB_DEPTH, JobNumbers, JobTexts, REPORT_CHARS};
 pub use pause::{PAUSE, PauseNumbers};
-pub use peers::{PEERS, PeerNumbers, PeerTexts};
+pub use peers::{PEERS, PeerIdleTexts, PeerNumbers, PeerTexts};
 pub use rebuild::{REBUILD, RebuildNumbers, RebuildTexts};
 pub use recap::{RECAP, RecapNumbers, RecapTexts};
 pub use shorten::{SHORTEN, ShortenNumbers, ShortenTexts};

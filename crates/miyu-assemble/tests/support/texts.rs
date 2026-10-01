@@ -2,7 +2,7 @@
 //! 3-9 四补挪来；别的 harness 发来的话的标签，施工 7-10）。
 
 use miyu_assemble::{
-    HarnessTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title, TurnEndedTexts,
+    HarnessTexts, IdleTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title, TurnEndedTexts,
 };
 use miyu_drivers::{DriverTextSources, DriverTexts, ImageNameSources, TextFileSources};
 use miyu_kernel::template::Template;
@@ -71,6 +71,7 @@ pub(super) fn texts() -> Texts {
             ))
             .expect("出厂的模板合写法"),
             close: include_str!("../../../../resources/core/peers/message-close.txt").to_string(),
+            idle: Some(idle_texts()),
         }),
         recap: Some(recap()),
         title: Some(title()),
@@ -153,4 +154,24 @@ pub(super) fn driver_texts() -> DriverTexts {
         }),
     })
     .expect("出厂的占位用得了")
+}
+
+/// 出厂的空了的通知（施工 C-6），资源目录里的真文件；作废那一句照出厂的 12 小时换好。
+pub fn idle_texts() -> IdleTexts {
+    let expired = Template::parse(include_str!(
+        "../../../../resources/core/peers/idle-expired.txt"
+    ))
+    .expect("出厂的模板合写法");
+    IdleTexts {
+        open: Template::parse(include_str!(
+            "../../../../resources/core/peers/idle-open.txt"
+        ))
+        .expect("出厂的模板合写法"),
+        silent: include_str!("../../../../resources/core/peers/idle-silent.txt").to_string(),
+        expired: expired
+            .render(&std::collections::BTreeMap::from([("hours", "12")]))
+            .expect("只要 hours"),
+        gone: include_str!("../../../../resources/core/peers/idle-gone.txt").to_string(),
+        close: include_str!("../../../../resources/core/peers/idle-close.txt").to_string(),
+    }
 }

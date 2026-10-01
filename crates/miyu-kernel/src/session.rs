@@ -339,6 +339,11 @@ impl Session {
                 self.watched = watched;
                 Vec::new()
             }
+            Input::WatchEnded {
+                at,
+                session,
+                reason,
+            } => self.watch_ended(at, session, reason),
         }
     }
 
@@ -411,6 +416,7 @@ impl Session {
             Command::Clear => self.clear(id, at),
             Command::Recap => self.recap(id),
             Command::Report(reported) => self.report(id, by, at, reported),
+            Command::PeerIdle { status } => self.peer_idle(id, by, at, status),
         }
     }
 

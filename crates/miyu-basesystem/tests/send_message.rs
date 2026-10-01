@@ -3,7 +3,7 @@
 //! 看着的一次性会话只说存下了；给子代理的报 `job.messaged`；别的都拒，每一种说清为什么：没有父、不是她派的（写法都不对的
 //! 端口不问）、被停掉了、送不到、没有端口、找不到会话、撞了、是她自己、这个会话不能发给别的会话、太长、限速、一模一样的
 //! （不算出错）、对方没看的太多；参数不对的照共用的那一句。以前的名字 `message_agent` 还认得出。给人看的说法两种语言都
-//! 换得出字。
+//! 换得出字。施工 C-6 多一格 `notify_when_idle`、`message` 可以不写（`send_message/watch.rs`）。
 
 mod support;
 
@@ -11,6 +11,10 @@ mod support;
 /// （照 `spawn/renamed.rs` 的先例，`#[path]` 一样要写：这个文件是 crate 根，`mod` 默认只找同目录的平级文件）。
 #[path = "send_message/by_session_id.rs"]
 mod by_session_id;
+
+/// 空了告诉我（施工 C-6）：拆进这里，理由同上。
+#[path = "send_message/watch.rs"]
+mod watch;
 
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -76,7 +80,7 @@ fn to(to: &str) -> serde_json::Value {
 }
 
 #[test]
-fn it_declares_only_the_recipient_and_the_message() {
+fn it_declares_the_recipient_the_message_and_the_watch() {
     let tool = tool("send_message");
     let spec = tool.spec();
     assert_eq!(spec.name, "send_message");
@@ -88,8 +92,16 @@ fn it_declares_only_the_recipient_and_the_message() {
         .unwrap()
         .keys()
         .collect();
-    assert_eq!(names, ["message", "to"]);
-    assert_eq!(parameters["required"], json!(["to", "message"]));
+    assert_eq!(names, ["message", "notify_when_idle", "to"]);
+    assert_eq!(
+        parameters["required"],
+        json!(["to"]),
+        "只订不发的可以不写 message（施工 C-6）"
+    );
+    assert_eq!(
+        parameters["properties"]["notify_when_idle"]["type"],
+        "boolean"
+    );
     assert!(
         spec.description
             .contains("Send only what they need to know now"),

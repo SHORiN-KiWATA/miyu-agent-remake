@@ -60,12 +60,14 @@ impl History {
             let Some(trigger) = started.trigger.and_then(|trigger| self.find(trigger)) else {
                 continue;
             };
-            // 不带回合编号的触发（回报、子代理的留言，施工 7-7；闲着时来的话）：上一轮是紧挨着这一轮开头结束的那一轮。
+            // 不带回合编号的触发（回报、子代理的留言，施工 7-7；闲着时来的话；空了的通知，施工 C-6）：上一轮是紧挨着
+            // 这一轮开头结束的那一轮。
             let previous = match &trigger.body {
                 Body::MessageUser(_) if trigger.turn.is_some() => trigger.turn,
-                Body::MessageUser(_) | Body::JobReported(_) | Body::ChildReported(_) => {
-                    self.ended_before(event.seq)
-                }
+                Body::MessageUser(_)
+                | Body::JobReported(_)
+                | Body::ChildReported(_)
+                | Body::PeerIdle(_) => self.ended_before(event.seq),
                 _ => continue,
             };
             if said_by_the_person(trigger) {

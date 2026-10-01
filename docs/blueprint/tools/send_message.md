@@ -6,6 +6,8 @@
 
 施工 C-5 从 `message_agent` 改名（照 Claude Code 的 `SendMessage`，2026-10-01 项目主人定）：以前的名字照样认得出（[`formerly`]）。
 
+施工 C-6 多一格 `notify_when_idle`（「空了告诉我」，`cross-session.md` 第六条）：`to` 是别的会话的，那次调用报效果 `peer.watch`，那个会话下次空下来时她收到一条通知。`message` 可以不写：只订不发，那边不开轮、不花 token。
+
 ### 在哪
 
 | 代码 | 管什么 |
@@ -15,7 +17,9 @@
 | `crates/miyu-session/src/messages.rs` | 执行器这一头：照内核交的这个会话派出去的子代理认编号，经会话表的端口送过去；送到了再问一句对方是不是没人看着的一次性会话（`SessionPort::held`）；拒绝的原因码译成 `NotSent`（`session/tools.md`「父子之间留言」） |
 | `crates/miyu-session/src/spawn.rs` | 会话表的端口多一个方法 `SessionPort::held`：对方这时是不是没人看着的一次性会话 |
 | `crates/miyu-session/src/handle.rs`、`actor.rs`、`actor/mail.rs` | `Handle` 多 `oneshot()`、`watched()`：和 `busy()` 一样由 actor 的订阅者数算出来、共用一面旗 |
-| `crates/miyu-endpoint/src/spawn.rs` | 会话表那一头 `held` 的实现：照会话表里的 `Handle` 看 |
+| `crates/miyu-endpoint/src/spawn.rs` | 会话表那一头 `held` 的实现：照会话表里的 `Handle` 看。`watch`（施工 C-6）：找到被等的会话（没载入的先载入），把「谁在等」交给它的 actor |
+| `crates/miyu-tool/src/run.rs` | 效果多一种 `PeerWatch`（施工 C-6），执行器照原样换成内核的 `peer.watch`（`miyu-session/src/effects.rs`） |
+| `crates/miyu-session/src/peers.rs`、`actor/watchers.rs` | 订、计时、再订（等的这一边），名单和发通知（被等的那一边），施工 C-6，`session/tools.md`「订、计时、再订」、`session/actor.md`「被等的名单」 |
 | `resources/software/basesystem/tools/send_message.json` | 说明和参数格式 |
 | `resources/software/basesystem/send_message/*.txt` | 输出里给她看的几句 |
 | `resources/software/basesystem/human/{zh,en,ja}.json` | 显示名、结果那一句，`message_agent`、`send_message` 两个键都在 |
@@ -29,39 +33,43 @@
 ```json
 {
   "description": "Send a message to a subagent you started, to your parent with `to: parent`, or to another of your sessions by its id. The other side reads it at its next step, or starts a new turn with it if idle. Send only what they need to know now, such as a question or a finding that changes their plan, since your final report goes up on its own.",
-  "parameters": {"type":"object","properties":{"to":{"type":"string","description":"The job id of your subagent, such as j1, parent, or a session id."},"message":{"type":"string","description":"The message to send."}},"required":["to","message"]}
+  "parameters": {"type":"object","properties":{"to":{"type":"string","description":"The job id of your subagent, such as j1, parent, or a session id."},"message":{"type":"string","description":"The message to send, which can be left out with notify_when_idle."},"notify_when_idle":{"type":"boolean","description":"Get one notice when that other session next finishes its work."}},"required":["to"]}
 }
 ```
 
 - 第一句比改名以前多了「or to another of your sessions by its id」，第二、三句一字不改。
+- 施工 C-6：`message` 的说明多半句「, which can be left out with notify_when_idle」，多一格 `notify_when_idle`，必填的只剩 `to`。说明本身一字没动。
 
 | 参数 | 必填 | 怎么认 |
 |---|---|---|
 | `to` | 是 | `parent` 发给父会话；任务编号（`j1`、`j2.1` 这样）发给那个子代理；别的当会话编号认（第三条第 1 款） |
-| `message` | 是 | 原样送过去，一块字，不加包装；超过 `peers.message_chars`（100000 个字）的拒，发出去之前查（`cross-session.md` 第五条第 4 款） |
+| `message` | 不写 `notify_when_idle: true` 的必填 | 原样送过去，一块字，不加包装；超过 `peers.message_chars`（100000 个字）的拒，发出去之前查（`cross-session.md` 第五条第 4 款） |
+| `notify_when_idle` | 否 | `true`：订 `to` 那个会话「空了告诉我」，只对别的会话（施工 C-6） |
 
-- 别的参数不认，也不报错。
+- 别的参数不认，也不报错。`null` 当没写。
 - 一条路径都不报：权限策略照访问类别判，读的放行。
 - 本机（场所 `local`）的会话工具面里都有它，到了深度上限、没有 `subagent` 的子会话也有；场所会话（群）里没有：它派不了子代理，也没有父，也不能发给别的会话，给了只会被拒（`agents.md` 第一条第 6 条，`session/tools.md`「工具面」）。
 
 ### 怎么走
 
-1. 读参数：读不成的（少了哪一个、不是字符串），交回参数不对的那一句，端口一次都不问。
+1. 读参数：读不成的（少了 `to`、类型不对），交回参数不对的那一句，端口一次都不问。`message` 不写、`notify_when_idle` 也不是 `true` 的，照样参数不对（那一句写 ``missing field `message` ``，施工 C-6）。
 2. 认 `to`，照这个先后（`cross-session.md` 第三条第 1 款）：
    1. `parent`：发给父会话。
    2. 合任务编号写法的（`j1`、`j2.1`）：发给自己派的子代理。
    3. 别的当会话编号认：这个会话不能发给别的会话的（子会话、场所会话，没有列会话的端口），交回「这里不能给别的会话发话」，不去找。有端口的，在这个会话看得到的主会话（加她自己）里找：一个都没有，交回「没有这个会话」；不止一个，交回「写长一点」；是她自己，交回「就是这个会话」。
-3. 长度：`message` 超过 `peers.message_chars` 的，发出去之前拒，不去送（父子之间的留言也照它）。
-4. 这一次调用没有发话的端口（`Call.messages` 是空的：测试里的假调用、没装会话表的核心）：交回送不到。
-5. 交给端口 `send(to, message)`（执行器这一头见 `session/tools.md`「父子之间留言」）：
+3. 订（施工 C-6）：写了 `notify_when_idle: true`、`to` 认成子代理或者 `parent` 的，整次拒（「只能等别的会话」），留言也不发。认成别的会话的，往下走，最后报效果。
+4. 长度：`message` 超过 `peers.message_chars` 的，发出去之前拒，不去送（父子之间的留言也照它）。没写 `message` 的（只订不发）跳过第 4 到 7 款，端口一次都不问。
+5. 这一次调用没有发话的端口（`Call.messages` 是空的：测试里的假调用、没装会话表的核心）：交回送不到。
+6. 交给端口 `send(to, message)`（执行器这一头见 `session/tools.md`「父子之间留言」）：
    - 发给父，这个会话是主会话：没有父。
    - 发给子代理，编号不在这个会话派出去的子代理里（没派过、派的是后台命令、派它的那一轮撤掉了）：不是她派的。兄弟、孙代理的编号都落在这一种：她只认得自己派的。
    - 是她派的、被停掉了（以 `stopped`、`undone` 报过）：被停掉了。做完了报过的不算停：它的会话还在，留言开它的下一轮，结束时照样回报。
    - 发给别的会话，对方因为防刷屏拒绝（限速、一模一样、对方没看的太多，只在发给别的会话时才会碰到，`cross-session.md` 第五条第 7 款）：照拒绝的原因各一句，一模一样的不算出错。
    - 会话表送不到（对方拒收、对方的会话停了、核心正在停）：送不到，原因执行器记进运行日志。
-6. 送到了，再看一眼对方这时是不是没人看着的一次性会话（会话表照它的 `Handle` 看）：是，交回「存下了」；不是，交回「送到了」。两种都不算出错。发给子代理的报一样效果 `job.messaged`（`job` 是它的编号，`kernel/events-bodies.md`）：它欠一份回报，这个会话照它等，它报了才把自己的活向上报（`agents.md` 第二条第 2 条）。发给父会话、别的会话的不报：对方不欠她什么，要回话由对方自己发。
-7. 不看叫停的旗：端口很快就返回。被掐掉的时候留言可能已经送到了：对方照样看到。
-8. 运行日志：送到了记 `INFO message sent`，`to` 写短编号（父子之间同一行）。送不到记 `WARN message not delivered`。话的字不进运行日志。
+7. 送到了，再看一眼对方这时是不是没人看着的一次性会话（会话表照它的 `Handle` 看）：是，交回「存下了」；不是，交回「送到了」。两种都不算出错。
+8. 订了的（施工 C-6）：发话送到了（「送到了」「存下了」「一模一样的」都算）或者没发话，报一样效果 `peer.watch`（`session` 是认出来的整个编号），结果接一句「空下来时会告诉你」。发话被拒、送不到、太长的，整次不订，照那一句出错。工具自己不去订：效果落了盘，执行器照内核算的在等的去订（`session/tools.md`「订、计时、再订」）。给人看的说法：带话的照发话的那一句，只订的是「空下来时告诉她」。发给子代理的报一样效果 `job.messaged`（`job` 是它的编号，`kernel/events-bodies.md`）：它欠一份回报，这个会话照它等，它报了才把自己的活向上报（`agents.md` 第二条第 2 条）。发给父会话、别的会话的不报：对方不欠她什么，要回话由对方自己发。
+9. 不看叫停的旗：端口很快就返回。被掐掉的时候留言可能已经送到了：对方照样看到。
+10. 运行日志：送到了记 `INFO message sent`，`to` 写短编号（父子之间同一行）。送不到记 `WARN message not delivered`。话的字不进运行日志。
 
 ### 样子
 
@@ -87,6 +95,8 @@ Message sent to j1.
 | 限速 | `send_message/too-many.txt` | `Too many messages to {to} just now. Put the rest into one message and send it later.` |
 | 一模一样的 | `send_message/duplicate.txt` | `{to} already has this exact message.` |
 | 对方没看的太多 | `send_message/inbox-full.txt` | `{to} has too many unread messages. Send again after it has read them.` |
+| 订了（施工 C-6） | `send_message/watching.txt` | `You will get a notice when {to} is next idle.` |
+| 订子代理、父会话（施工 C-6） | `send_message/watch-peers-only.txt` | `notify_when_idle works only for other sessions.` |
 
 - `{to}` 是她写的原样，照模板的规矩转义（`tools/read.md` 第 8 条）。
 - 对方那一头怎么看到：子代理看到的是父会话发来的一句话，原样，不加标签（它的场所说明已经说了交代来自父会话）；父会话看到的是一块带标签的事实，注明是哪个子代理（`kernel/request.md`「子代理的留言」）；别的会话看到的是一块带标签的事实，注明是哪个会话（`cross-session.md` 第八条，`<session-message from="短编号">`）。
@@ -106,6 +116,7 @@ Message sent to j1.
 | 这个会话不能发给别的会话 | `send_message/not-here.txt` | `send_message/not-here` |
 | 太长 | `send_message/too-long.txt` | `send_message/too-long`，字段 `chars`、`limit` |
 | 限速、对方没看的太多 | `send_message/too-many.txt`、`inbox-full.txt` | `send_message/too-many`、`inbox-full`，字段 `to` |
+| 订子代理、父会话（施工 C-6） | `send_message/watch-peers-only.txt` | `send_message/watch-peers-only` |
 
 ### 给人看的字
 
@@ -127,13 +138,16 @@ Message sent to j1.
 | `send_message/too-many`（`to`） | `刚给 {to} 发得太多了` | `Too many messages to {to} just now` |
 | `send_message/duplicate`（`to`） | `{to} 刚收到过一样的话` | `{to} already got the same message` |
 | `send_message/inbox-full`（`to`） | `{to} 没看的话太多了` | `{to} has too many unread messages` |
+| `send_message/watching`（`to`，施工 C-6） | `{to} 空下来时告诉她` | `Will tell her when {to} is idle` |
+| `send_message/watch-peers-only`（施工 C-6） | 只能等别的会话空下来 | Only other sessions can be watched |
 | `common/bad-args` | 见 `tools/read.md` | |
 
 ### 守着它的
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-basesystem/tests/send_message.rs` | 只声明 `to`、`message`、访问类别是读、说明里那两句在、以前的名字认得出来；发给谁照 `to` 认、话原样交出去，几段的编号照样认（施工 7-1 补），发给子代理的报 `job.messaged`、发给父的不报；每种拒绝各一句；`held`、一模一样的不算出错；超长的发出去之前拒、刚好到上限不算超；写法不对的端口不问；没有端口的送不到；少了参数的端口不问；每种说法两种语言都换得出字 |
+| `crates/miyu-basesystem/tests/send_message.rs` | 只声明 `to`、`message`、`notify_when_idle`（必填的只有 `to`）、访问类别是读、说明里那两句在、以前的名字认得出来；发给谁照 `to` 认、话原样交出去，几段的编号照样认（施工 7-1 补），发给子代理的报 `job.messaged`、发给父的不报；每种拒绝各一句；`held`、一模一样的不算出错；超长的发出去之前拒、刚好到上限不算超；写法不对的端口不问；没有端口的送不到；少了参数的端口不问；每种说法两种语言都换得出字 |
+| `crates/miyu-basesystem/tests/send_message/watch.rs` | `notify_when_idle`（施工 C-6）：只订不发、端口不问、效果是整个编号；带话的送到了才订，被拒、太长的整次不订；订子代理、父会话、自己的拒；两样都没有的参数不对；说法两种语言都有 |
 | `crates/miyu-basesystem/tests/send_message/by_session_id.rs` | `to` 当会话编号认：整个编号、短编号都找得到同一个会话；没有列会话的端口的不去找、直接拒；找不到、对得上不止一个、是她自己：各一句，不去送 |
 | `crates/miyu-session/tests/messages.rs` | 执行器：送到对的会话、`by` 是这个会话、命令编号照调用、原话一块字、效果记进日志；到了深度上限的发给父；主会话没有父、没派过的、派它的那一轮撤掉了的、被停掉的、对方拒收、没有会话表；什么会话工具面里有它 |
 | `crates/miyu-session/tests/messages_peer.rs` | 执行器发给别的会话：命令编号、`by` 照这个会话；没人看着的一次性会话交回 `held`；限速、一模一样、对方没看的太多三种拒绝译成对应的说法 |
@@ -152,4 +166,4 @@ Message sent to j1.
 
 ### 还没有的
 
-- 「空了告诉我」（`notify_when_idle`）、`message` 改成可以不写：施工 C-6。
+- 「空了告诉我」的通知不带那一轮是怎么结束的（出错、被打断），被等的会话删了不当场通知：见 `cross-session.md`「还没有的」。

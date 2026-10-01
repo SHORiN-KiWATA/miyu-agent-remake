@@ -50,6 +50,8 @@ kinds! {
     Clear,
     /// 子会话交来的回报（施工 7-2）。
     Report,
+    /// 等的会话交来的「空了」（施工 C-6）。
+    PeerIdle,
     /// 要一句回顾（施工 3-8 四补）。
     Recap,
     /// 辅助请求（回顾，施工 3-8 四补）发出去了、一段增量、说完了。
@@ -60,6 +62,8 @@ kinds! {
     JobEnded,
     /// 有没有头订阅着（施工 7-2）。
     Watched,
+    /// 等不到了：作废、不在了（施工 C-6）。
+    WatchEnded,
     /// 落盘了。
     Stored,
     /// 环境变了。
@@ -123,6 +127,7 @@ impl InputKind {
                 Command::Compact { .. } => InputKind::Compact,
                 Command::Clear => InputKind::Clear,
                 Command::Report(_) => InputKind::Report,
+                Command::PeerIdle { .. } => InputKind::PeerIdle,
                 Command::Recap => InputKind::Recap,
             },
             Input::Stored { .. } => InputKind::Stored,
@@ -144,6 +149,7 @@ impl InputKind {
             Input::Woke { .. } => InputKind::Woke,
             Input::JobEnded { .. } => InputKind::JobEnded,
             Input::Watched { .. } => InputKind::Watched,
+            Input::WatchEnded { .. } => InputKind::WatchEnded,
             Input::AsideSent { .. } => InputKind::AsideSent,
             Input::AsideDelta { .. } => InputKind::AsideDelta,
             Input::AsideEnded { .. } => InputKind::AsideEnded,

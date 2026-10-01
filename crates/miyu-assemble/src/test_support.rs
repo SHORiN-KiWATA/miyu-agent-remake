@@ -10,7 +10,7 @@ use miyu_kernel::request::Message;
 use miyu_kernel::template::Template;
 
 use crate::texts::{
-    HarnessTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title, TurnEndedTexts,
+    HarnessTexts, IdleTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title, TurnEndedTexts,
 };
 
 pub(crate) const KERNEL: &str = r#"{"kind":"kernel"}"#;
@@ -48,6 +48,13 @@ pub(crate) fn texts() -> Texts {
         peers: Some(PeerTexts {
             open: Template::parse("<peer {id}>\n").expect("模板合写法"),
             close: "</peer>\n".to_string(),
+            idle: Some(IdleTexts {
+                open: Template::parse("<idle {id} {reason}>\n").expect("模板合写法"),
+                silent: "<silent/>\n".to_string(),
+                expired: "<expired/>\n".to_string(),
+                gone: "<gone/>\n".to_string(),
+                close: "</idle>\n".to_string(),
+            }),
         }),
         recap: Some(recap_texts()),
         title: Some(title_texts()),

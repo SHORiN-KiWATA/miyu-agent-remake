@@ -1,7 +1,8 @@
 //! 人的那条收件箱里的一封怎么办（`docs/blueprint/session/actor.md` 第 3 条第 4 点）：命令照 actor 的时钟记下到的时刻送进
 //! 内核，订阅当场办（连同补发补到哪一条，施工 3-8 六补）；拿着订阅的头从没有到有、从有到没有，交内核 `Watched`
 //! （施工 7-9），和 `Handle` 共用的旗一起写（施工 C-5）。施工 7-9 从 `actor.rs` 挪出来。
-//! 头读后台命令的输出（施工 7-4 补）不进内核：另起一个任务读，当场办完。
+//! 头读后台命令的输出（施工 7-4 补）不进内核：另起一个任务读，当场办完。别的会话等这个会话空下来（施工 C-6）也不进内核：
+//! 记进名单，当场办完。
 
 use std::sync::atomic::Ordering;
 
@@ -68,6 +69,12 @@ impl Actor {
                 // 是什么当场照名册看；开文件另起一个任务，不在收件箱里等（施工 7-4 补）。
                 let reading = self.jobs.command_output(job);
                 tokio::spawn(async move { answer(reply, reading.await) });
+                Mail::Done
+            }
+            // 有会话在等这个会话空下来（施工 C-6，`watchers.rs`）：不进内核，记进名单，上不上膛照 `watchers.rs` 判
+            // （2026-10-01 改：空着的先不发，等下一次忙完）。
+            Message::Watch { watcher, since } => {
+                self.add_waiter(watcher, since);
                 Mail::Done
             }
         }

@@ -12,6 +12,7 @@
 | `crates/miyu-session/src/sandbox.rs` | 照这一刻实际生效的级别给一次调用写沙盒的规格（施工 5-4 上） |
 | `crates/miyu-session/src/agents.rs` | 派子代理：一个会话一份要照抄的，每一次调用一个端口（施工 7-5）；造会话时定的工具面（施工 7-7 从 `open.rs` 挪来） |
 | `crates/miyu-session/src/messages.rs` | 父子之间留言：每一次调用照内核交的派出去的子代理造一个端口（施工 7-7） |
+| `crates/miyu-session/src/peers.rs` | 「空了告诉我」等的这一边：照内核在等的去订、计时（施工 C-6，「1c2. 订、计时、再订」） |
 | `crates/miyu-session/src/sessions.rs` | 列会话：本机的主会话每一次调用造一个端口，经会话表要这个会话的属主的主会话（施工 C-3） |
 | `crates/miyu-session/src/job_ids.rs` | 领任务编号（施工 7-5） |
 | `crates/miyu-session/src/spawn.rs` | 造子会话、给别的会话发命令的端口 `SessionPort`，会话表交进来（施工 7-5） |
@@ -120,13 +121,22 @@ The tool "{name}" stopped because of an internal error. It may have been partly 
 4. 抄来的是派这次调用那一刻的：那以后才派的她还不知道编号；送出去之前刚被停掉的，送过去它照样收，父会话不再认它的回报（`agents.md` 第六条第 6 条）。
 5. `held` 怎么算（施工 C-5）：会话表这一头（`miyu-endpoint/src/spawn.rs`）拿到会话编号，经会话表查这个会话这时的 `Handle`（刚经 `command` 载入过，一定在表里）；`Handle::oneshot()` 是不是 `miyu ask` 开的一次性会话（造会话时定，不变）；`Handle::watched()` 这时有没有至少一个头订阅着，和 `busy()` 一样由 actor 的 `watchers` 数算出来、共用一面旗（`session/actor.md` 第 3 条）。两个都是才算 `held`；核心正在停、这个会话不在表里的，当不是。
 
+**1c2. 订、计时、再订**（`crates/miyu-session/src/peers.rs`，施工 C-6；`cross-session.md` 第六条第 3、8、9 款）
+
+1. 工具只报效果 `peer.watch`，执行器把它照原样换成内核的（`effects.rs`）。订是执行器的事：每送完一批（这一批追加的都落了盘了，`session/actor.md` 第 3 条第 7 点），照内核的 `watching()` 和这里订过的比。
+2. 新多出来的（没订过的、起算时刻变了的：又订了一次、撤掉又订回到前一次），经会话表的 `SessionPort::watch(被等的会话, 这个会话, 起算时刻)` 起一个任务去订，同时起一个计时：起算时刻加 `watch_hours()` 小时到点，交回「到点了」，内核照账本判（`kernel/session.md`「空了的通知」第 3 条）。已经到点的不订，计时当场到。
+3. 不在等了的（收到了通知、订它的那一轮撤掉了、作废了），撤掉它的计时；那边的名单不管，发来的通知内核拒。
+4. 订不上：会话表说那个会话不在了（找不到，`NotWatched::Gone`），交回「不在了」，内核记 `gone`；别的（它停了、核心正在停）记一行 `WARN watch not placed`，写短编号和原因，计时照走，到点作废。不重订：下次这边载入还会再订。
+5. 载入、恢复撤销以后，账本里在等的都算新多出来的，走的是同一条路；actor 停了，计时一起撤掉。
+6. 会话表那一头（`crates/miyu-endpoint/src/spawn.rs` 的 `watch`）：照会话表找被等的会话（没在跑的先载入），把「谁在等」交给它的 actor（`Handle::watch`，`session/actor.md`「被等的名单」）；找不到的是不在了，载入不了、它停了、核心正在停的交回原因，停了的从表里拿掉。
+
 **1d. 列会话**（`crates/miyu-session/src/sessions.rs`，施工 C-3；`cross-session.md` 第一条，`tools/sessions.md`）
 
 1. 每一次调用（第 1 条第 3 步），这个会话有 `Agents`（会话表交了端口）、又是本机的主会话（场所 `local`、没有父会话，`Agents::lists_sessions`，和工具面同一个判断）的，造一个列会话的端口交给工具；别的 `sessions` 是空的。
 2. 工具调它 `list(旗)`：经会话表的端口 `sessions(属主, 旗)` 要这个会话的属主的主会话（会话表交回的含这个会话自己），拿掉这个会话自己交回，不排先后。列不出来：记一行 `WARN` `sessions not listed`（`error`），把原因交回工具。
 3. `this()` 是这个会话的编号。
 
-**会话表那一头**（`crates/miyu-endpoint/src/spawn.rs`、`sessions.rs`）：造会话、载入时交给会话一份端口，拿着核心的弱引用（会话由会话表拿着，再强拿着核心就成了环）；核心没了的说 `the core is shutting down`。造子会话照交来的填：`by` 是父会话，`oneshot` 是假的，时区是核心所在机器这一刻的，模型、工具目录、家目录、沙盒照核心的，沙盒的缓存照属主；造好了放进会话表，工作目录记成交来的那一个（父会话这一轮实际干活的，已经定过宽不宽）。发命令照会话表找会话（没在跑的先载入），停了的从表里拿掉。停下子会话（施工 7-4）：照会话表找它（没在跑的先载入），先发打断（排着的退回；没有在跑的回合被拒不要紧），再 `stop_jobs`；停了的从表里拿掉，交回出错。看子会话（施工 7-4）：在阻塞线程里只读地读它的日志（属主是管理员），照 `peek.rs` 算，不载入它。列主会话（施工 C-3）：先拿着表的锁记下这时忙着的（`Sessions::busy_ids`），再在阻塞线程里照 `session.list` 的 `scan` 读属主的会话，只要 `session.created` 不带 `parent` 的（`protocol.md`「`session.list`」）；放会话的目录读不了交回 `sessions not listed: <原因>`。认一个会话这时是不是没人看着的一次性会话（施工 C-5，`SessionPort::held`）：对方刚经 `command` 载入过，再经会话表查一次它的 `Handle`，`oneshot() && !watched()`；核心正在停、这个会话不在表里的，当不是。
+**会话表那一头**（`crates/miyu-endpoint/src/spawn.rs`、`sessions.rs`）：造会话、载入时交给会话一份端口，拿着核心的弱引用（会话由会话表拿着，再强拿着核心就成了环）；核心没了的说 `the core is shutting down`。造子会话照交来的填：`by` 是父会话，`oneshot` 是假的，时区是核心所在机器这一刻的，模型、工具目录、家目录、沙盒照核心的，沙盒的缓存照属主；造好了放进会话表，工作目录记成交来的那一个（父会话这一轮实际干活的，已经定过宽不宽）。发命令照会话表找会话（没在跑的先载入），停了的从表里拿掉。停下子会话（施工 7-4）：照会话表找它（没在跑的先载入），先发打断（排着的退回；没有在跑的回合被拒不要紧），再 `stop_jobs`；停了的从表里拿掉，交回出错。看子会话（施工 7-4）：在阻塞线程里只读地读它的日志（属主是管理员），照 `peek.rs` 算，不载入它。列主会话（施工 C-3）：先拿着表的锁记下这时忙着的（`Sessions::busy_ids`），再在阻塞线程里照 `session.list` 的 `scan` 读属主的会话，只要 `session.created` 不带 `parent` 的（`protocol.md`「`session.list`」）；放会话的目录读不了交回 `sessions not listed: <原因>`。认一个会话这时是不是没人看着的一次性会话（施工 C-5，`SessionPort::held`）：对方刚经 `command` 载入过，再经会话表查一次它的 `Handle`，`oneshot() && !watched()`；核心正在停、这个会话不在表里的，当不是。订「空了告诉我」（施工 C-6，`SessionPort::watch`）：见「1c2. 订、计时、再订」第 6 条。
 
 **工具面**（`crates/miyu-session/src/agents.rs` 的 `Agents::face`，造会话时 `open.rs` 叫它）：造会话时，只有本机（场所 `local`）、还没到深度上限（`jobs.depth`，第几层小于它）的会话，工具面里有 `subagent`（以前叫 `agent`，施工 7-5 再补改名：以前造的会话照快照发 `agent`，`tools/subagent.md`「以前的名字」）；本机的会话都有 `send_message`，到了深度上限的也有，只能发给父（施工 7-7）；场所会话（群）两件都拿掉：派不了子代理，也没有父。只有本机的主会话有 `sessions`（施工 C-3，`cross-session.md` 第九条）：子会话的事经它的父会话，群里的人不可信。别的工具照给。子会话（带着父会话）的 system 在人设后面接上场所说明（`policy.md`「拼」）。
 

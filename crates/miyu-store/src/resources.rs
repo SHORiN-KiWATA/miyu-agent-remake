@@ -13,8 +13,9 @@ use std::path::{Path, PathBuf};
 
 use miyu_policy::{
     CompactionTexts, CoreLines, CoreTexts, DriverPlaceholders, FactTexts, HarnessTexts,
-    ImageNameTexts, JobTexts, PeerTexts, PermissionTexts, PersonaTexts, RebuildTexts, RecapTexts,
-    ShortenTexts, Sources, TextFileTexts, TitleTexts, ToolResultTexts, TurnEndedTexts,
+    ImageNameTexts, JobTexts, PeerIdleTexts, PeerTexts, PermissionTexts, PersonaTexts,
+    RebuildTexts, RecapTexts, ShortenTexts, Sources, TextFileTexts, TitleTexts, ToolResultTexts,
+    TurnEndedTexts,
 };
 
 use crate::env::Env;
@@ -288,6 +289,13 @@ impl ResourceRoot {
             peers: Some(PeerTexts {
                 message_open: core(&["peers", "message-open.txt"])?,
                 message_close: core(&["peers", "message-close.txt"])?,
+                idle: Some(PeerIdleTexts {
+                    idle_open: core(&["peers", "idle-open.txt"])?,
+                    idle_silent: core(&["peers", "idle-silent.txt"])?,
+                    idle_expired: core(&["peers", "idle-expired.txt"])?,
+                    idle_gone: core(&["peers", "idle-gone.txt"])?,
+                    idle_close: core(&["peers", "idle-close.txt"])?,
+                }),
             }),
             recap: Some(RecapTexts {
                 instruction: core(&["recap", "instruction.txt"])?,

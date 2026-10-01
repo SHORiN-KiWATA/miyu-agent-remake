@@ -8,11 +8,11 @@ use crate::accumulate::Delta;
 use crate::block::Block;
 use crate::estimate::ImagePrice;
 use crate::event::{
-    CallError, ChildReported, ContextInjected, Decision, Effect, Event, JobReported, Level,
-    Purpose, Question, Response, Restored, Said, Usage,
+    CallError, ChildReported, ContextInjected, Decision, Effect, Event, IdleReason, JobReported,
+    Level, Purpose, Question, Response, Restored, Said, Usage,
 };
 use crate::facts::Environment;
-use crate::id::{CallId, CommandId, ContentHash, ModuleId, Seq, TurnId};
+use crate::id::{CallId, CommandId, ContentHash, ModuleId, Seq, SessionId, TurnId};
 use crate::origin::{By, Model};
 use crate::raw::RawJson;
 use crate::time::Timestamp;
@@ -214,6 +214,17 @@ pub enum Input {
         /// 出错的分类和原话；正常说完的，没有。
         error: Option<CallError>,
     },
+    /// 订的「空了告诉我」等不到了（施工 C-6，`docs/blueprint/cross-session.md` 第六条第 8、9 款）：执行器交，到点了是
+    /// `expired`，订的时候那个会话不在了是 `gone`。内核照账本还在等、`expired` 的确实到了点的，记一条 `peer.idle`，`by` 是
+    /// 内核，只记下、不叫醒；别的不理。读回日志的时候到的先放着。
+    WatchEnded {
+        /// 到的时刻，取自执行器的时钟：`expired` 照它查到没到点。
+        at: Timestamp,
+        /// 等的是哪个会话。
+        session: SessionId,
+        /// `expired` 或者 `gone`。
+        reason: IdleReason,
+    },
     /// 有没有头订阅着这个会话（施工 7-2）：会话 actor 在订阅、退订时交。只在内存里，不进日志；造会话、载入以后当没人
     /// 看着。没人看着的一次性会话，回报只记下、不开轮（`agents.md` 第三条第 3 条）。
     Watched {
@@ -341,6 +352,12 @@ pub enum Command {
     /// 子会话交来的回报（施工 7-2，`agents.md` 第二条第 5 条）：子会话的执行器经端口交，发命令的一方就是子会话。记一条
     /// `child.reported`，不带回合编号。对不上一个还会报的子代理的，拒绝，`unknown_job`。
     Report(ChildReported),
+    /// 被等的会话交来的「空了」（施工 C-6，`docs/blueprint/cross-session.md` 第六条第 6、7 款）：发命令的一方就是它。这边
+    /// 在等它的，记一条 `peer.idle`（`idle`），不带回合编号，照回报的规矩叫不叫醒她；不在等的拒绝，`unknown_watch`。
+    PeerIdle {
+        /// 它最近结束的那一轮最后一条有字的回复的第一行，被等的那一边截好的；一个字都没说的没有。
+        status: Option<String>,
+    },
 }
 
 /// 一次回答：回答确认的，或者回答一组题的。

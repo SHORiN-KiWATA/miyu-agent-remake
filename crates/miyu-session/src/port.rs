@@ -209,4 +209,9 @@ pub(crate) enum Back {
     Tool(crate::tools::ToolBack),
     /// 一条后台命令结束了（施工 7-3）。
     Job(crate::jobs::Ended),
+    /// 等会话 `session` 等不到了（施工 C-6，`peers.rs`）：到点了是 `expired`，订的时候它不在了是 `gone`。
+    WatchEnded {
+        session: miyu_kernel::id::SessionId,
+        reason: miyu_kernel::event::IdleReason,
+    },
 }

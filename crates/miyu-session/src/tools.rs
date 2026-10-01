@@ -139,6 +139,11 @@ pub(crate) struct Dispatch {
 }
 
 impl Tools {
+    /// 派子代理、给别的会话发话用的端口和这个会话的几样（施工 C-6：「空了告诉我」两边都经它找会话表）：会话表交进来了才有。
+    pub(crate) fn agents(&self) -> Option<&Arc<Agents>> {
+        self.agents.as_ref()
+    }
+
     /// 照 `kit` 跑，回报送进 `backs`。
     pub(crate) fn new(kit: ToolKit, backs: mpsc::UnboundedSender<Back>) -> Tools {
         let sandbox = kit.sandbox.map(|helper| {

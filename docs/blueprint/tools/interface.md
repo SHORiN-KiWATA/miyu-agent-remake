@@ -91,6 +91,7 @@
 | `Trashed` | `path`：移走之前的位置；`trash`：回收站里的位置，各平台自己的写法 | `file.trashed` |
 | `JobStarted` | 内核的 `JobStarted` 本身：编号、种类、标题、子会话（施工 7-5；`shell` 的后台命令也报它，施工 7-3） | `job.started`，照原样 |
 | `JobMessaged` | 内核的 `JobMessaged` 本身：留了言的子代理的编号（施工 7-7，`send_message` 报） | `job.messaged`，照原样 |
+| `PeerWatch` | 内核的 `PeerWatch` 本身：订的会话的整个编号（施工 C-6，`send_message` 的 `notify_when_idle` 报） | `peer.watch`，照原样 |
 
 **派子代理的端口** `AgentPort`（`Send + Sync`，施工 7-5）：`spawn(description, prompt)` 交回一个 future，子会话造好、交代送进去就给 `Spawned`（任务编号 `job`、子会话 `session`），派不了给 `NotSpawned`（原因执行器记进运行日志，不给她看）。两个端口比的是不是同一个（`Call` 照格子比较时用）。`SUBAGENT` 是派子代理的那件工具的名字：造会话时照它把 `subagent` 从不能派的会话的工具面上拿掉（`session/tools.md`）。`SUBAGENT_FORMERLY` 是它以前的名字 `agent`，`is_subagent` 两个名字都认（施工 7-5 再补，从日志里认派子代理的调用用）。
 

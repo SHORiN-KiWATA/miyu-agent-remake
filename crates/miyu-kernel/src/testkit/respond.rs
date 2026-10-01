@@ -5,7 +5,7 @@ use super::Stage;
 use super::script::{Line, Play};
 use crate::accumulate::{Delta, Kind};
 use crate::block::{Block, Text};
-use crate::event::{Effect, FileRead, JobMessaged, Response, Usage};
+use crate::event::{Effect, FileRead, JobMessaged, PeerWatch, Response, Usage};
 use crate::id::{CallId, ContentHash, ModelName, ProviderId, Seq};
 use crate::origin::Model;
 use crate::request::{Message, Request};
@@ -217,6 +217,14 @@ impl Stage {
                 let mut done = self.done(call_id, false, &format!("Message sent to {job}."));
                 if let Input::ToolDone { effects, .. } = &mut done {
                     effects.push(Effect::JobMessaged(JobMessaged { job }));
+                }
+                vec![done]
+            }
+            Play::Watches(session) => {
+                let text = format!("You will get a notice when {session} is next idle.");
+                let mut done = self.done(call_id, false, &text);
+                if let Input::ToolDone { effects, .. } = &mut done {
+                    effects.push(Effect::PeerWatch(PeerWatch { session }));
                 }
                 vec![done]
             }
