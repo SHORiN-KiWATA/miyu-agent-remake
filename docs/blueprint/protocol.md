@@ -99,6 +99,7 @@
 | `protocol` | 选定的主版本：`1`，核心只支持这一个 |
 | `core` | `{"version": <核心的版本号>}` |
 | `account` | 你是谁：管理员的账号，核心里固定是 `admin`（`core.md`） |
+| `host` | `{"home": <系统的家目录>, "platform": "linux" 或 "macos" 或 "windows", "workspace": <这个账号的工作区>}`，总有（施工 W-3，`web-module.md`「四、路径」）：`home` 是核心起来时拿到的系统的家目录，照原样，读不出来的是 `null`；`platform` 是核心所在的平台；`workspace` 是这个账号的工作区，换成真实的位置（管理员的工作区核心起来时就建好了，`core.md`；握手不另外建） |
 | `language` | `zh`、`en`、`ja` 之一：这个连接给人看的字用哪种（施工 8-2，`config.md` 第二条第 8 条）。`ui.language` 的最终值（默认值、系统配置、个人设置）定了的就是它，`auto` 的照 `locale`。`ui.language` 改了，连接下一句就照新的说，不用再握手（施工 8-4）：回应里这一格只是握手那一刻的。核心拒绝时的话只有中文、英文，`ja` 的照英文；配置的名字、说明、报错的话有日文 |
 | `config_errors` | 系统配置、个人设置、密钥文件（施工 8-5）里现在有几处错误（不算警告，施工 8-2）。没有的不写 |
 | `sandbox` | 这台机器上的沙盒能不能用（核心起来时探的，`sandbox.md`）：`{"usable": true}`，或者 `{"usable": false, "reason": <原因>}`。原因是 `helper_missing`（主程序旁边没有助手）、`helper_failed`（助手跑不起来、超时、说的读不懂）、`no_mechanism`（探成了，这台机器上却没有能用的手段）之一（施工 5-4 下） |
@@ -132,6 +133,7 @@
 | `blob.put` | 传一个附件，存成 blob（施工 3-9 三补） |
 | `fs.list` | 列一层目录：数据根只有账号自己的工作区能列（施工 W-2） |
 | `fs.find` | 在一个目录里模糊找文件：数据根只有账号自己的工作区能找（施工 W-2） |
+| `fs.realpath` | 一个路径换成真实的位置：不查边界，落在数据根里的照样换（施工 W-3） |
 | `session.set_meta` | 改标题、置顶（施工 3-8 三补） |
 | `session.configure` | 换模型，下一个回合开始生效（施工 8-10，`models.md`「协议」） |
 | `session.delete` | 删除会话：挪进回收处，留 7 天（施工 3-8 三补） |
@@ -278,6 +280,19 @@
 4. 什么时候重建：这个目录还没有清单；`fresh` 是 `true`、清单建好 10 秒以上。核心最多记 4 个目录的清单，多了丢最久没用的。同一个目录同时来两次，第二次拿到第一次那一份。
 5. 怎么排：打的字照先后都在 `path` 里（大小写不论）才列。先试整个落在文件名里，落不下再从路径开头找；每个字对上 1 分，落在文件名里多 3 分，在一段的开头（路径的头一个字，或者前面是 `/`、`-`、`_`、`.`、空格）多 8 分，和上一个字连着多 5 分；文件名去掉扩展名正好是打的字多 100 分。分高的在前，一样的路径短的在前，再一样的照字排。最多 50 条，对得上的比截出来的还多也算 `partial`。`query` 是空的都对得上、0 分。
 6. 建清单时读不了一层目录的（没有权限这类），跳过它接着建，不算整份失败。
+
+**`fs.realpath`**（施工 W-3，`web-module.md`「四、路径」）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `path` | 字符串，必写 | 要换的路径：绝对的，或者 `~`、`~/…`；相对的要配 `cwd` |
+| `cwd` | 字符串，可以不写 | `path` 是相对的才要：接在它前面，写法同 `fs.list` 的 `cwd` |
+
+回应 `{"path": <真实的位置>}`。
+
+1. `~` 照家目录接；绝对的照原样；相对的接在 `cwd` 上，`cwd` 自己也可能是 `~`、相对的写法，照同一条路换。都不是的（相对、又没给 `cwd`）：`bad_params`。
+2. 从它自己往上找第一层在的，那一层换成真实的位置，后面几段原样接上：还没建出来的目录，建出来以后就是这个位置。一层都不在（Windows 上盘符都没有）：`path_unreadable`。
+3. 不查边界，只说位置、不读内容：落在数据根里的照样换。
 
 **`session.interrupt`**
 
@@ -605,7 +620,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `parse_error` | -32700 | 不是 JSON；一行太长（之后断开） |
 | `invalid_request` | -32600 | 是 JSON，不是请求（「请求」的表） |
 | `unknown_method` | -32601 | 握手以后，没有这个方法 |
-| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`、`config`，`config` 带了 `session`、`after`（施工 8-4）；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；`session.send` 的 `from` 不是字符串、去掉控制字符以后是空的（施工 7-10）；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字；`job.stop`、`job.output` 的任务编号不合写法（施工 7-4），`job.output` 的 `tail` 不是 1 到 2000 的整数（施工 7-4 补）；`human.get` 的 `language` 不合写法（施工 W-1） |
+| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`、`config`，`config` 带了 `session`、`after`（施工 8-4）；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；`session.send` 的 `from` 不是字符串、去掉控制字符以后是空的（施工 7-10）；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字；`job.stop`、`job.output` 的任务编号不合写法（施工 7-4），`job.output` 的 `tail` 不是 1 到 2000 的整数（施工 7-4 补）；`human.get` 的 `language` 不合写法（施工 W-1）；`fs.realpath` 的 `path` 是相对的、没给 `cwd`（施工 W-3） |
 | `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了；附件存不下来、读不出来；删会话时读不了放会话的目录、挪不进回收处、崩了；读后台命令的输出时崩了（施工 7-4 补）；给人看的字读不懂（施工 W-1） |
 | `hello_first` | -32010 | 握手以前发了别的方法 |
 | `protocol_mismatch` | -32010 | 头支持的主版本里没有 1（之后断开） |
@@ -620,7 +635,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `attachment_too_big` | -32010 | 附件超过 20 MiB；图片超过 5 MiB，或者哪一边超过 8000 像素（施工 3-9 三补） |
 | `attachment_in_data_root` | -32010 | `blob.put` 的 `path` 在数据根里、管理员的工作区以外（施工 3-9 三补） |
 | `unknown_attachment` | -32010 | `session.send`、`session.redo` 附的 blob 这个核心里没有（施工 3-9 三补） |
-| `path_unreadable` | -32010 | `fs.list`、`fs.find` 换不成真实的位置、不在、该是目录的不是目录、没有权限（施工 W-2） |
+| `path_unreadable` | -32010 | `fs.list`、`fs.find` 换不成真实的位置、不在、该是目录的不是目录、没有权限（施工 W-2）；`fs.realpath` 换不成真实的位置——一层都不在、路上的链接指向不存在的地方、没有家目录（施工 W-3） |
 | `path_forbidden` | -32010 | `fs.list`、`fs.find` 的目录落在数据根里、又不在这个账号的工作区里（施工 W-2） |
 | `not_running` | -32010 | 打断时没有回合在进行 |
 | `turn_running` | -32010 | 撤销、重做、手动压缩、清空、删会话时有回合在进行 |
@@ -780,6 +795,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/attach.rs` | `blob.put`（施工 3-9 三补）：传路径、传内容；照内容认图片（扩展名不算）、PDF、文本、别的文件，量宽高，回应的格照字母排、存成管理员的 blob；写了的媒体类型什么时候算、改名、写 `null` 等于没写；太大（20 MiB、图片的宽高和 5 MiB，正好在线上的收）；数据根里的不给、管理员的工作区给、指到数据根里的链接不给；读不了（没有、目录、没有家目录时的 `~`）；参数不对的十二种、一个都没存；四种拒绝的中英文 |
 | `crates/miyu-endpoint/tests/attach_send.rs` | `session.send` 带附件（施工 3-9 三补）：照先后接在文字后面，宽高、种类照核心量的，图片块带着 `blob.put` 的名字（施工 3-9 四补），她收到的请求里就是这几块；只有附件也是一句话，`null` 是没有；blob 不在的拒绝、什么都没写、换的工作目录也没送进会话；附件的格不对的七种 |
 | `crates/miyu-endpoint/tests/files.rs` | `fs.list`、`fs.find`（施工 W-2）：真核心上数据根不列不找、账号的工作区照样列；开头对、大小写不论、点开头的打了点才列、目录在前、50 条截断、`marks`；模糊找有 `marks`、子目录的 `path` 用 `/`；清单没建完先给一部分、`building`；`fresh` 隔一段时间才重建、不是 `true` 不重建；最多记 4 份、多了丢最久没用的；换不成真实的位置、不是目录的 `path_unreadable`；没写 `cwd` 的 `bad_params` |
+| `crates/miyu-endpoint/tests/hello.rs`（施工 W-3） | 握手的 `host`：三格总有、`platform` 是这台机器的、`workspace` 换成真实的位置（链接也换成指的地方）、没有系统的家目录 `home` 是 `null`、没人建过工作区就回原样的路径（不替连上来的头造目录）。`fs.realpath`：`~` 照家目录接、`cwd` 可以不写也可以本身是 `~`；相对的没给 `cwd` 的 `bad_params`；往上找最近在的一层、后面几段原样接上；路中间的链接换成指的地方；落在数据根里的照样换，不查边界；一层都不在（没有家目录）`path_unreadable` |
 | `crates/miyu-endpoint/tests/from.rs`、`src/from/tests.rs` | `session.send` 带 `from`（施工 7-10）：记成 `harness`、带着名字，不带的、`null` 照旧记成本人；闲着开一轮、`cause` 是这一条，正忙排进这一轮；附件照收；控制字符去掉、截到 128 字节不截断一个字；空的、只有控制字符的、不是字符串的参数不对，什么都没写；`session.create`、`session.redo` 写了不理 |
 | `crates/miyu-endpoint/src/attach/kind/tests.rs` | 认附件：量得出的图是图片、头写的不算，量不出的当文件；图片的上限和线上的；PDF 照开头认；别的文件照头写的，写成 PDF、图片的照内容认，文本、空的、二进制、不是 UTF-8 的 |
 | `crates/miyu-endpoint/tests/tools.rs` | 造会话、载入时用核心的工具目录；核心的沙盒造会话、载入时都交给会话，沙盒用不了的核心上执行命令没人能确认就拒（施工 5-4 上） |
