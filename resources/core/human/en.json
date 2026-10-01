@@ -63,6 +63,75 @@
       "providers.<id>.models.<model>.window": {
         "name": "Context window",
         "description": "The context window of this model, in tokens."
+      },
+      "providers.<id>.price_multiplier": {
+        "name": "Price multiplier",
+        "description": "Prices of this provider are multiplied by it. 1 if left out. A multiplier on the model wins."
+      },
+      "providers.<id>.local": {
+        "name": "Local service",
+        "description": "A model service on this machine, counted as free. Left out, it follows the address: on this machine means yes."
+      },
+      "providers.<id>.models.<model>.catalog": {
+        "name": "Catalog entry",
+        "description": "Which models.dev entry to use: <provider>/<model>. Left out, it is found by name."
+      },
+      "providers.<id>.models.<model>.max_output": {
+        "name": "Max output",
+        "description": "How many tokens this model can write at most in one reply."
+      },
+      "providers.<id>.models.<model>.inputs": {
+        "name": "Inputs",
+        "description": "What this model can read: text, images, PDF.",
+        "options": {
+          "text": "Text",
+          "image": "Images",
+          "pdf": "PDF"
+        }
+      },
+      "providers.<id>.models.<model>.tools": {
+        "name": "Tool calls",
+        "description": "Whether this model can call tools."
+      },
+      "providers.<id>.models.<model>.reasoning": {
+        "name": "Reasoning levels",
+        "description": "Which reasoning levels this model offers."
+      },
+      "providers.<id>.models.<model>.price_multiplier": {
+        "name": "Price multiplier",
+        "description": "Prices of this model are multiplied by it, over the one on the provider."
+      },
+      "providers.<id>.models.<model>.price.input": {
+        "name": "Input price",
+        "description": "Price per million input tokens. A written price is used whole."
+      },
+      "providers.<id>.models.<model>.price.output": {
+        "name": "Output price",
+        "description": "Price per million output tokens."
+      },
+      "providers.<id>.models.<model>.price.cache_read": {
+        "name": "Cache read price",
+        "description": "Price per million tokens read from the cache."
+      },
+      "providers.<id>.models.<model>.price.cache_write": {
+        "name": "Cache write price",
+        "description": "Price per million tokens written to the cache."
+      },
+      "providers.<id>.models.<model>.price.currency": {
+        "name": "Currency",
+        "description": "Currency of the price, three capital letters such as USD or CNY. USD if left out."
+      },
+      "models.catalog.update": {
+        "name": "Update the catalog",
+        "description": "Fetch a newer model catalog from models.dev in the background. Off uses only the bundled and already fetched ones."
+      },
+      "models.catalog.url": {
+        "name": "Catalog address",
+        "description": "Where to fetch the model catalog from."
+      },
+      "models.catalog.every": {
+        "name": "Update every",
+        "description": "Fetch again once the cached catalog is this old."
       }
     },
     "pages": {
@@ -78,7 +147,8 @@
       "log": "Runtime log",
       "sessions": "Sessions",
       "uses": "Uses",
-      "providers": "Providers"
+      "providers": "Providers",
+      "catalog": "Model catalog"
     }
   },
   "said": {
@@ -146,6 +216,9 @@
     "config/stops": ".?!",
     "config/applies/next_turn": "Takes effect next turn",
     "config/expected/int": "a whole number from {min} to {max}",
+    "config/expected/float": "a number from {min} to {max}",
+    "config/expected/text": "text of at most {max} characters",
+    "config/expected/duration": "a length of time from {min} to {max}, written like 30s, 10m or 1h",
     "config/expected/url": "an address starting with http:// or https://",
     "config/expected/name": "a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters",
     "config/expected/reference": "<provider>/<model> or @<pool>",

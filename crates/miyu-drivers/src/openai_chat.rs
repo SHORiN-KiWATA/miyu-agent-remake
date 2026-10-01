@@ -5,14 +5,17 @@
 //! 输入字节一定一样。供应商之间不一样的地方是 [`Compat`] 里的四个开关，跟着供应商定、会话里不变；
 //! 出厂的几套住在资源目录的供应商档案里（`resources/models/profiles.toml`，施工 8-6），只给实测过的供应商开。
 //!
-//! 响应是 SSE 流，[`Decoder`] 解成内核的四种增量，说完时交出用量和出错。
+//! 响应是 SSE 流，[`Decoder`] 解成内核的四种增量，说完时交出用量和出错。列模型（施工 8-7）：`GET /models`，
+//! [`parse_models`] 读出模型名和报了的窗口。
 
 mod decode;
 mod messages;
+mod models;
 mod usage;
 mod wire;
 
 pub use decode::Decoder;
+pub use models::{MODELS_PATH, parse_models};
 
 use std::collections::BTreeSet;
 

@@ -189,6 +189,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     })
     .await?;
     let kept = blobs.clone();
+    models.ready().await;
     let model = models.port(ForSession {
         id: id.clone(),
         config: Arc::clone(config.current()),
@@ -387,6 +388,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         })
     });
     let kept = blobs.clone();
+    models.ready().await;
     let model = models.port(ForSession {
         id: id.clone(),
         config: Arc::clone(config.current()),

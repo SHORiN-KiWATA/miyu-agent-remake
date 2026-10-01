@@ -40,6 +40,11 @@ impl Clock {
     }
 }
 
+/// 此刻的系统时间（施工 8-7：用出来的窗口、拉列表的时刻记它）。不在会话里，不管往回拨。
+pub(crate) fn wall_now() -> Timestamp {
+    Clock::default().now()
+}
+
 /// 系统时间，Unix 纪元以来的毫秒。系统时间在 1970 年以前的，当 0。
 fn system_millis() -> i64 {
     SystemTime::now()

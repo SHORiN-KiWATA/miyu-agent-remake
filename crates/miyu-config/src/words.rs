@@ -77,8 +77,9 @@ pub fn check(items: &[Item], words: &ConfigWords) -> Vec<String> {
         if said.description.trim().is_empty() {
             problems.push(format!("{key}：说明是空的"));
         }
+        // 选项的列表（施工 8-7）里的选项也要有名字。
         let options = match item.kind {
-            Kind::Option(options) => options,
+            Kind::Option(options) | Kind::List(&Kind::Option(options)) => options,
             _ => &[],
         };
         for option in options {
@@ -171,7 +172,7 @@ pub(crate) fn allowed(kind: Kind) -> &'static [&'static str] {
 }
 
 /// 能写什么，说成给人看的话：数得完的几种照 [`allowed`] 连成「a、b 或 c」；整数说范围，网址、名字、引用各一句，列表说
-/// 「元素的列表」（施工 8-6，`config/expected/…`）。
+/// 「元素的列表」（施工 8-6，`config/expected/…`）；小数、时长说范围，文字说最多几个字（施工 8-7）。
 pub(crate) fn expected(words: &dyn Words, kind: Kind) -> Result<String, Missing> {
     match kind {
         Kind::Option(_) | Kind::Bool | Kind::Secret => {
@@ -182,6 +183,17 @@ pub(crate) fn expected(words: &dyn Words, kind: Kind) -> Result<String, Missing>
             "config/expected/int",
             &[("min", &min.to_string()), ("max", &max.to_string())],
         ),
+        Kind::Float { min, max } => sentence(
+            words,
+            "config/expected/float",
+            &[("min", &min.to_string()), ("max", &max.to_string())],
+        ),
+        Kind::Text { max } => sentence(words, "config/expected/text", &[("max", &max.to_string())]),
+        Kind::Duration { min, max } => sentence(
+            words,
+            "config/expected/duration",
+            &[("min", &seconds(min)), ("max", &seconds(max))],
+        ),
         Kind::Url => sentence(words, "config/expected/url", &[]),
         Kind::Name => sentence(words, "config/expected/name", &[]),
         Kind::Reference => sentence(words, "config/expected/reference", &[]),
@@ -189,6 +201,15 @@ pub(crate) fn expected(words: &dyn Words, kind: Kind) -> Result<String, Missing>
             let item = expected(words, *inner)?;
             sentence(words, "config/expected/list", &[("item", &item)])
         }
+    }
+}
+
+/// 一段秒数写成时长的写法：整小时的写 `h`，整分钟的写 `m`，别的写 `s`（施工 8-7）。
+fn seconds(seconds: u64) -> String {
+    match seconds {
+        hours if hours % 3600 == 0 => format!("{}h", hours / 3600),
+        minutes if minutes % 60 == 0 => format!("{}m", minutes / 60),
+        seconds => format!("{seconds}s"),
     }
 }
 

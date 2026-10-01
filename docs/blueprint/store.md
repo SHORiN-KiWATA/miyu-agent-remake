@@ -61,7 +61,7 @@
 | `blobs(账号)` | `home/<账号>/blobs/` |
 | `index(账号)` | `home/<账号>/index/`：派生数据，会话列表的索引放在这里（施工 3-8 七补，`store/index.md`） |
 
-**缓存目录** `cache_root(env)`：只找不建。核心起来时算一次，沙盒的缓存放在它下面的 `sandbox/<账号>/`（施工 5-4 下，`core.md`）。
+**缓存目录** `cache_root(env)`：只找不建。核心起来时算一次，沙盒的缓存放在它下面的 `sandbox/<账号>/`（施工 5-4 下，`core.md`），后台拉的 models.dev 目录放在 `models/`：`models-dev.json`、`models-dev.meta.json`（带 `ETag`，施工 8-7，`models.md`「文件」）。
 
 **会话日志** `SessionLog`：`create(目录, 上限)`、`open(目录, 上限)`、`append(一批事件)`、`next_seq()`、`dir()`、`mark()`（写到哪了：正在写的那一段、它的长度、下一条该是几号，一起叫 `Mark`，施工 3-8 七补）；只读的 `read_events(目录)`、`read_segments(目录, 每一段)`、`read_marked(目录, 从哪里, 每一段)`（施工 3-8 七补）、`first_event(目录)`。一段的上限 `SEGMENT_LIMIT` 是 64 MiB（67,108,864 字节）。
 
@@ -101,7 +101,7 @@
 
 - 这一页的代码新建的目录，Unix 上权限都是 0700；已经有的不改。Windows 上照系统默认的，靠用户目录本身的访问控制。
 - 这一页的代码新建的文件（标记、段、blob、临时文件、配置文件、日志）照系统默认的权限建，靠上面 0700 的目录挡住别人。替换已经有的配置文件时带上它原来的权限位（施工 8-3）。
-- `state/logs/` 由运行日志建（`log.md`），`state/config/` 由核心生成配置的 Schema 和参考文件时建（`config.md`），`run/` 下的几样见 `ipc.md`。
+- `state/logs/` 由运行日志建（`log.md`），`state/config/` 由核心生成配置的 Schema 和参考文件时建（`config.md`），`state/models/` 由路由记下用出来的窗口（`learned.json`）、拉到供应商的列表（`providers/<编号>.json`）时建（施工 8-7，`models.md`「文件」：派生数据，坏了当没有），`run/` 下的几样见 `ipc.md`。
 
 ### 怎么走
 

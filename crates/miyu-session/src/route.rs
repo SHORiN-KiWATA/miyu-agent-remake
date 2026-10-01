@@ -8,9 +8,19 @@
 //! - key：这一家写了几个，会话钉在照会话编号算出的那一个上（`miyu_models::keys`），取不到值的跳过，照写的先后取下一个；
 //!   一个都取不到的也是 `no_model`。出错换 key、换端点随 8-9。没写 key 的不带认证头（本机的服务）。
 //! - 发：照驱动编码、经 HTTP 执行器发、流式读回来（[`send`]），和原来一样。
+//! - 资料（施工 8-7）：窗口、最大输出、能收什么照核心一份的模型资料查（[`ModelData`]，`miyu_models::facts`）；目录在写了
+//!   `ready` 以后才读完，造端口之前先等它（[`Models::ready`]）。报上下文超长、说了上限、比手头的窗口小的，记下用出来的
+//!   窗口（第二条第 9 条）：新造的、载入的会话用上，开着的会话限额会变随 8-10。
 
+mod lists;
 mod send;
+pub(crate) mod shared;
 
+pub use lists::{STALE, refresh_list};
+pub use shared::{ModelData, Observed, read_observed};
+
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
@@ -23,9 +33,10 @@ use miyu_kernel::id::{ModelName, ProviderId, Seq, SessionId};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
 use miyu_kernel::session::Limits;
-use miyu_models::profile::{ImageTokens, Profiles};
+use miyu_models::facts::{Facts, facts};
+use miyu_models::keys;
+use miyu_models::profile::ImageTokens;
 use miyu_models::provider::{self, NOT_CONFIGURED, NoModel, Target};
-use miyu_models::{ModelTable, keys};
 use miyu_store::blob::Blobs;
 
 use crate::TARGET;
@@ -35,36 +46,47 @@ use crate::port::{Cancel, ForSession, ModelPort, Models, Reports};
 /// 空闲超时的初值：多久没收到新的字节就算断了（`05-内核接口.md` 第七节，以后按思考强度放大）。
 pub const IDLE: Duration = Duration::from_secs(180);
 
-/// 核心一份的：HTTP 客户端、档案、模型资料、空闲超时。给每个会话造一个路由。
+/// 核心一份的：HTTP 客户端、模型资料（档案、目录、用出来的、供应商的列表）、空闲超时。给每个会话造一个路由。
 #[derive(Clone)]
 pub struct Routes {
     /// HTTP 客户端：一个核心一个，连接跨请求复用。
     pub client: Client,
-    /// 认得出的供应商的档案（资源目录的 `models/profiles.toml`）。
-    pub profiles: Arc<Profiles>,
-    /// 模型资料（资源目录的 `models/models-dev.json`）。
-    pub table: Arc<ModelTable>,
+    /// 模型资料（施工 8-7）。
+    pub data: Arc<ModelData>,
     /// 空闲超时，平时是 [`IDLE`]。
     pub idle: Duration,
 }
 
 impl Models for Routes {
+    fn ready(&self) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(self.data.wait())
+    }
+
     fn port(&self, session: ForSession) -> Arc<dyn ModelPort> {
         let values = session.config.resolved.values();
         let pinned = provider::chat(&values);
-        let first = pinned
-            .as_deref()
-            .and_then(|text| provider::target(&values, &self.profiles, text).ok());
+        let first = pinned.as_deref().and_then(|text| {
+            let target = self
+                .data
+                .with(|knowledge| provider::target(&values, knowledge, text))
+                .ok()?;
+            let (facts, _) = self.data.with(|knowledge| {
+                facts(
+                    &session.config.resolved,
+                    knowledge,
+                    &target.provider,
+                    &target.model,
+                )
+            });
+            Some((target, facts))
+        });
         let limits = match &first {
-            Some(target) => {
-                let facts = provider::facts(&values, &self.table, target);
-                Limits {
-                    model: model_of(target),
-                    window: facts.window,
-                    max_output: facts.max_output,
-                    images: images(target.provider.images),
-                }
-            }
+            Some((target, facts)) => Limits {
+                model: model_of(target),
+                window: facts.window.value,
+                max_output: facts.max_output.value,
+                images: images(target.provider.images),
+            },
             None => Limits {
                 model: none(),
                 window: None,
@@ -139,18 +161,16 @@ impl Route {
     /// 这一次请求发给谁、带哪个 key，照这一轮的配置 `config`。
     fn choose(&self, config: &TurnConfig) -> Result<send::Chosen, NoModel> {
         let values = config.resolved.values();
-        let profiles = &self.shared.profiles;
+        let data = &self.shared.data;
+        let resolve =
+            |text: &str| data.with(|knowledge| provider::target(&values, knowledge, text));
         let mut pinned = self.pinned.lock().unwrap_or_else(PoisonError::into_inner);
-        let target = match pinned
-            .0
-            .as_deref()
-            .map(|text| provider::target(&values, profiles, text))
-        {
+        let target = match pinned.0.as_deref().map(resolve) {
             Some(Ok(target)) => target,
             stale => {
                 let chat = provider::chat(&values);
                 let target = match (&chat, stale) {
-                    (Some(chat), _) => provider::target(&values, profiles, chat)?,
+                    (Some(chat), _) => resolve(chat)?,
                     (None, Some(Err(error))) => return Err(error),
                     (None, _) => return Err(NoModel(NOT_CONFIGURED.to_string())),
                 };
@@ -162,6 +182,8 @@ impl Route {
         drop(pinned);
         let endpoint = self.endpoint(config, &target)?;
         let model = ModelName::parse(&target.model).map_err(|error| NoModel(error.to_string()))?;
+        let (facts, _): (Facts, _) = data
+            .with(|knowledge| facts(&config.resolved, knowledge, &target.provider, &target.model));
         Ok(send::Chosen {
             client: self.shared.client.clone(),
             model: model_of(&target),
@@ -170,10 +192,16 @@ impl Route {
             call: Call {
                 model,
                 max_output: None,
-                inputs: target.provider.inputs,
+                inputs: facts.driver_inputs(),
             },
             blobs: self.blobs.clone(),
             idle: self.shared.idle,
+            learn: send::Learn {
+                data: Arc::clone(data),
+                provider: target.provider.id.clone(),
+                model: target.model.clone(),
+                window: facts.window.value,
+            },
         })
     }
 

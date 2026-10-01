@@ -45,6 +45,8 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 miyu-drivers = { path = "../miyu-drivers", features = ["testkit"] }
+# 测试里的假服务器：后台更新目录（施工 8-7），CI 不连外网。
+miyu-http = { path = "../miyu-http", features = ["testkit"] }
 # 测试里请求模型照剧本回。
 miyu-session = { path = "../miyu-session", features = ["testkit"] }
 # 测试里的假工具：把假的后台命令交给任务表（施工 7-3）。

@@ -1,4 +1,4 @@
-//! 档案的读法（施工 8-6）：几格的写法、一格格盖在驱动的默认上、不认识的格读不进来。
+//! 档案的读法（施工 8-6）：几格的写法、一格格盖在驱动的默认上、不认识的格读不进来；`[npm]` 的表（施工 8-7）。
 
 use serde_json::json;
 
@@ -9,7 +9,6 @@ fn the_deepseek_profile_reads_into_the_switches() {
     let profiles = Profiles::parse(&json!({"providers": {"deepseek": {
         "driver": "openai-chat",
         "base_url": "https://api.deepseek.com",
-        "inputs": ["text", "image"],
         "image_tokens": "deepseek",
         "compat": {
             "reasoning": {"replay": "reasoning_content", "always": true},
@@ -19,13 +18,6 @@ fn the_deepseek_profile_reads_into_the_switches() {
     .expect("读得进来");
     let deepseek = &profiles.providers["deepseek"];
     assert_eq!(deepseek.driver.as_deref(), Some("openai-chat"));
-    assert_eq!(
-        deepseek.inputs(),
-        Inputs {
-            images: true,
-            pdf: false
-        }
-    );
     assert_eq!(deepseek.image_tokens, Some(ImageTokens::DeepSeek));
     let compat = deepseek.compat.as_ref().expect("有开关").compat();
     assert_eq!(compat, Compat::deepseek(), "和测试用的那一套一样");
@@ -74,10 +66,11 @@ fn each_switch_lays_over_the_default() {
 fn a_profile_with_a_stray_field_is_not_read() {
     for bad in [
         json!({"providers": {"x": {"drivers": "openai-chat"}}}),
-        json!({"providers": {"x": {"inputs": ["video"]}}}),
+        json!({"providers": {"x": {"inputs": ["text"]}}}),
         json!({"providers": {"x": {"compat": {"reasoning": "keep"}}}}),
         json!({"providers": {"x": {"image_tokens": "other"}}}),
-        json!({"npm": {}}),
+        json!({"npm": {"@ai-sdk/openai-compatible": 1}}),
+        json!({"vendors": {}}),
     ] {
         let error = Profiles::parse(&bad).expect_err("读不进来");
         assert!(
@@ -85,5 +78,13 @@ fn a_profile_with_a_stray_field_is_not_read() {
             "{error}"
         );
     }
-    assert_eq!(Profile::default().inputs(), Inputs::default(), "不写只收字");
+}
+
+/// `[npm]`：AI SDK 包名 → 驱动（施工 8-7）。
+#[test]
+fn the_npm_table_names_drivers() {
+    let profiles = Profiles::parse(&json!({"npm": {"@ai-sdk/openai-compatible": "openai-chat"}}))
+        .expect("读得进来");
+    assert_eq!(profiles.npm["@ai-sdk/openai-compatible"], "openai-chat");
+    assert!(profiles.providers.is_empty());
 }

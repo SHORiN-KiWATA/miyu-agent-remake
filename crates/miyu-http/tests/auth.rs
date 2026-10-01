@@ -49,6 +49,14 @@ impl Driver for ApiKey {
             ("anthropic-version".to_string(), "2023-06-01".to_string()),
         ]
     }
+
+    fn models_path(&self) -> &'static str {
+        self.0.models_path()
+    }
+
+    fn parse_models(&self, bytes: &[u8]) -> Result<Vec<miyu_drivers::Listed>, String> {
+        self.0.parse_models(bytes)
+    }
 }
 
 /// 照 `driver` 发一次给假服务器，带 key `key`（没有的不带），交回服务器收到的那一个请求的头。

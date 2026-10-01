@@ -22,7 +22,8 @@
 | `ResourceRoot::path()` | 资源目录本身 |
 | `ResourceRoot::sources(人格)` | 读出这个人格要用的原文，交给 `miyu-policy` 拼策略快照（`policy.md`） |
 | `ResourceRoot::subagent_venue()` | 读出子会话的场所说明 `core/jobs/subagent-venue.txt`，造子会话时接在人设后面（施工 7-5）；读不了的写明是哪一份 |
-| `ResourceRoot::models()` | 模型资料的原文（`models/models-dev.json`，施工 6-3 上），怎么读由核心定（`core.md`「模型」） |
+| `ResourceRoot::catalog_snapshot()` | models.dev 目录的快照在哪（`models/models-dev.json`，旁边是 `models-dev.meta.json`，施工 8-7）：约 5 MB，核心写了 `ready` 以后在后台读，读不了的照样起来（`models.md`「怎么走」第二条） |
+| `ResourceRoot::vendors()` | 认原厂的表的原文（`models/vendors.toml`，施工 8-7），怎么读由核心定 |
 | `ResourceRoot::profiles()` | 供应商的档案的原文（`models/profiles.toml`，施工 8-6），怎么读由核心定（`core.md`「模型」，`models.md`） |
 | `Human::load(资源目录, 语言)` | 读这种语言的给人看的字 |
 | `Human::tool(工具名)` | 这件工具给人看的样子 `Face`；没有的是空的 |
@@ -66,8 +67,10 @@
 | `core/permission-rule.txt`、`core/local-paths-rule.txt` | `ResourceRoot::core_lines` | 造会话时，接在 system 最后（施工 2-7 补，`policy.md` 的 `with_core_lines`） |
 | `core/human/`、`software/<软件包>/human/` | `Human::load` | `miyu ask` 起来时读一次，印每一步用（`cli/ask.md`）；核心起来时照系统的语言读一次，生成配置的 Schema 和参考文件（施工 8-1，`config.md`） |
 | `software/basesystem/` 下别的 | `miyu-basesystem` | 核心起来时登记工具（`tools/*.md`） |
-| `models/models-dev.json` | `ResourceRoot::models` | 核心起来时读一次，查模型的窗口、最大输出（施工 6-3 上）。是数据，不发给模型，不进登记簿 |
-| `models/profiles.toml` | `ResourceRoot::profiles` | 核心起来时读一次，认得出的供应商的驱动、地址、开关、能收哪些输入、一张图怎么算（施工 8-6，`models.md`）。是数据，不发给模型，不进登记簿 |
+| `models/models-dev.json`、`models-dev.meta.json` | `ResourceRoot::catalog_snapshot` | 核心写了 `ready` 以后读一次，和缓存目录里后台拉的那一份挑新的（施工 8-7，`models.md`）。原样的 `api.json` 和它是什么时候拉的。是数据，不发给模型，不进登记簿 |
+| `models/models-dev.LICENSE` | 没人读 | models.dev 的 MIT 许可证原文，跟着快照一起发（`licenses.md`「资源里的第三方数据」） |
+| `models/profiles.toml` | `ResourceRoot::profiles` | 核心起来时读一次，`[npm]`（包名 → 驱动，施工 8-7）、认得出的供应商的驱动、地址、开关、一张图怎么算（施工 8-6，`models.md`）。是数据，不发给模型，不进登记簿 |
+| `models/vendors.toml` | `ResourceRoot::vendors` | 核心起来时读一次，认原厂（施工 8-7，`models.md`「怎么走」第二条第 6 条）。是数据，不发给模型，不进登记簿 |
 
 给模型看的每一份字的原文、token 数、什么时候进请求，见 `26-提示词.md` 第十节的登记簿。给人看的字不进请求，不登记。
 
@@ -154,7 +157,7 @@
 - `tools` 里每件工具只许有 `name`（必填）、`subject`、`icon`、`block`（都可以不写）；`block` 只能是 `command` 或者 `edits`。
 - 这一份在 `software/basesystem/human/zh.json` 里，`read/lines` 就是说法 `software/basesystem/read/lines`：字段 `count` 是 `37` 时，换成「37 行」。
 - 每件工具的显示名、结果那一句，见 `tools/*.md` 和 `cli/ask.md`。
-- `config` 里只许有 `items`、`pages`、`groups`；一项只许有 `name`、`description`（必填）、`options`（可以不写）。写了什么、和配置清单怎么对上，见 `config.md`「给人看的字」「怎么走」第一条第 5 条。内核那一份的 `said` 里还有生成文件要的几句、报错的话和接句子的三句 `config/…`（施工 8-1、8-2，`config.md`「给人看的字」），`trust.toml` 开头那一行注释 `config/trust-header`、生效时机 `config/applies/head_start`（施工 8-3）；8-6 加的类型、生效时机、报错要的 `config/applies/next_turn`、`config/expected/int`、`url`、`name`、`reference`、`list`、`id`、`model-name`、`config/bad-format`、`config/out-of-range`、`config/bad-segment`，`config` 那一格多了模型那一块的六项、页 `models`、组 `uses`、`providers`。
+- `config` 里只许有 `items`、`pages`、`groups`；一项只许有 `name`、`description`（必填）、`options`（可以不写）。写了什么、和配置清单怎么对上，见 `config.md`「给人看的字」「怎么走」第一条第 5 条。内核那一份的 `said` 里还有生成文件要的几句、报错的话和接句子的三句 `config/…`（施工 8-1、8-2，`config.md`「给人看的字」），`trust.toml` 开头那一行注释 `config/trust-header`、生效时机 `config/applies/head_start`（施工 8-3）；8-6 加的类型、生效时机、报错要的 `config/applies/next_turn`、`config/expected/int`、`url`、`name`、`reference`、`list`、`id`、`model-name`、`config/bad-format`、`config/out-of-range`、`config/bad-segment`，`config` 那一格多了模型那一块的六项、页 `models`、组 `uses`、`providers`；8-7 加的类型要的 `config/expected/float`、`text`、`duration`，`config` 那一格多了模型资料、目录更新的十六项、组 `catalog`。
 
 ### 出错
 
@@ -197,9 +200,10 @@
 - 人格目录里别的文件：`persona.toml`、示范对话、角色扮演提示，和预设（`16-人格与预设.md` 第三节）。
 - 网页、字体这类资源（`12-进程形态与分发.md` 第三节）。
 
-**模型资料怎么刷新**（施工 6-3 上）：从 models.dev 的 `api.json` 抽出驱动认得的供应商（现在只有 `deepseek`），每个模型只留 `limit.context`、`limit.output`，顶上写出处和日期：
+**目录的快照怎么刷新**（施工 8-7）：下载原样的 `api.json`，旁边的 `meta` 写出处和服务器回的时刻（UTC），许可证照 models.dev 仓库的 `LICENSE` 原文：
 
 ```sh
-curl -s https://models.dev/api.json | python3 -c 'import json,sys,datetime; d=json.load(sys.stdin)["deepseek"]["models"]; print(json.dumps({"source":"https://models.dev/api.json","fetched":str(datetime.date.today()),"providers":{"deepseek":{"models":{k:{"limit":{"context":v["limit"]["context"],"output":v["limit"]["output"]}} for k,v in sorted(d.items())}}}}, indent=2))' > resources/models/models-dev.json
+curl -sS -D /tmp/models-dev.headers -o resources/models/models-dev.json https://models.dev/api.json
+python3 -c 'import json,email.utils; d=[l for l in open("/tmp/models-dev.headers") if l.lower().startswith("date:")][0].split(":",1)[1].strip(); print(json.dumps({"source":"https://models.dev/api.json","fetched":email.utils.parsedate_to_datetime(d).strftime("%Y-%m-%dT%H:%M:%S.000Z")}))' > resources/models/models-dev.meta.json
 ```
 

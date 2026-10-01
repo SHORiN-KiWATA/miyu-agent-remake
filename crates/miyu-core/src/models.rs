@@ -1,46 +1,160 @@
-//! 模型（`docs/blueprint/models.md`、`core.md`「模型」，施工 8-6）：起来时读资源目录里的供应商档案
-//! （`models/profiles.toml`）和模型资料（`models/models-dev.json`），造每个会话的路由（`miyu_session::Routes`）。用哪家
-//! 供应商、哪个模型、哪个 key，全照配置（`[providers.*]`、`models.chat`），每一轮开始时冻结的那一份；核心不再读开发用的
-//! 环境变量。没配的，每次请求都当场说完：`no_model`。
+//! 模型（`docs/blueprint/models.md`、`core.md`「模型」，施工 8-6、8-7）：起来时读资源目录里的供应商档案
+//! （`models/profiles.toml`）、认原厂的表（`models/vendors.toml`），造每个会话的路由（`miyu_session::Routes`）和核心一份的
+//! 模型资料（`miyu_session::ModelData`）。写了 `ready` 以后在阻塞线程里读目录（[`catalog`]）、用出来的、供应商的列表，
+//! 读完放行等着它的；再在后台更新目录（[`refresh`]）。用哪家供应商、哪个模型、哪个 key，全照配置。
 //!
-//! 档案是 TOML，这里读成 JSON 交给 `miyu-models`（那一层只用白名单里的 `serde_json`）。
+//! 档案、认原厂的表是 TOML，这里读成 JSON 交给 `miyu-models`（那一层只用白名单里的 `serde_json`）。
 
+pub mod catalog;
+pub mod refresh;
+
+use std::path::PathBuf;
 use std::sync::Arc;
 
-use miyu_http::{Proxy, client};
-use miyu_models::ModelTable;
+use tokio::sync::watch;
+
+use miyu_http::{Proxy, client, fetcher};
+use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
-use miyu_session::{IDLE, Models, Routes};
+use miyu_models::settings::CatalogSettings;
+use miyu_session::{IDLE, ModelData, Models, Observed, Routes, read_observed};
 use miyu_store::resources::ResourceRoot;
 
 use crate::TARGET;
+use catalog::Places;
+use refresh::Refresher;
 
-/// 照资源目录造给会话请求模型的路由。
+/// 照资源目录造路由，模型资料还没读（目录、用出来的、供应商的列表随 [`start`]）。用出来的、列表写进 `state`
+/// （`state/models`，没有的不写）。
 ///
 /// # Errors
 ///
-/// 档案、模型资料读不出来、写法不对（安装坏了）；HTTP 客户端造不出来（系统的证书读不了之类）。交回原因。
-pub fn routes(resources: &ResourceRoot) -> Result<Arc<dyn Models>, String> {
-    let table = resources
-        .models()
-        .map_err(|error| error.to_string())
-        .and_then(|text| ModelTable::parse(&text))?;
+/// 档案、认原厂的表读不出来、写法不对（安装坏了）；HTTP 客户端造不出来（系统的证书读不了之类）。交回原因。
+pub fn prepare(resources: &ResourceRoot, state: Option<PathBuf>) -> Result<Routes, String> {
     let profiles = resources
         .profiles()
         .map_err(|error| error.to_string())
         .and_then(|text| profiles(&text))?;
+    let vendors = resources
+        .vendors()
+        .map_err(|error| error.to_string())
+        .and_then(|text| vendors(&text))?;
     tracing::info!(
         target: TARGET,
         profiles = profiles.providers.len(),
         "model profiles loaded"
     );
     let client = client(Proxy::FromEnvironment).map_err(|error| error.to_string())?;
-    Ok(Arc::new(Routes {
+    let lists = fetcher(Proxy::FromEnvironment).map_err(|error| error.to_string())?;
+    Ok(Routes {
         client,
-        profiles: Arc::new(profiles),
-        table: Arc::new(table),
+        data: Arc::new(ModelData::new(profiles, vendors, state).with_fetcher(lists)),
         idle: IDLE,
-    }))
+    })
+}
+
+/// 照资源目录造路由，当场读完快照（不看缓存、不后台更新、不写 `state`）：测试、进程内的头用。
+///
+/// # Errors
+///
+/// 同 [`prepare`]。
+pub fn routes(resources: &ResourceRoot) -> Result<Arc<dyn Models>, String> {
+    let routes = prepare(resources, None)?;
+    let places = Places {
+        snapshot: resources.path().join("models"),
+        cache: None,
+    };
+    routes
+        .data
+        .loaded(catalog::load(&places), Observed::default());
+    Ok(Arc::new(routes))
+}
+
+/// 写了 `ready` 以后：在阻塞线程里读目录（快照和缓存挑新的）、用出来的、供应商的列表，读完放行；再照 `settings` 在后台
+/// 更新目录。缓存目录 `cache`（`<缓存目录>/models`）算不出来的只读快照、不拉。
+pub fn start(
+    data: Arc<ModelData>,
+    snapshot: PathBuf,
+    cache: Option<PathBuf>,
+    state: Option<PathBuf>,
+    settings: watch::Receiver<CatalogSettings>,
+) {
+    let places = Places {
+        snapshot,
+        cache: cache.clone(),
+    };
+    tokio::spawn(async move {
+        let reading = Arc::clone(&data);
+        let read = tokio::task::spawn_blocking(move || {
+            let observed = state.as_deref().map(read_observed).unwrap_or_default();
+            reading.loaded(catalog::load(&places), observed);
+        })
+        .await;
+        if let Err(error) = read {
+            tracing::error!(target: TARGET, error = %error, "catalog read panicked");
+            data.loaded(None, Observed::default());
+        }
+        // 缓存目录算不出来的不拉：算的时候已经记过一行 `WARN catalog cache unavailable`（[`cache`]）。
+        let Some(cache) = cache else {
+            return;
+        };
+        // 和拉供应商的列表用同一个 GET 的客户端（[`prepare`] 造的）。
+        if let Some(client) = data.fetcher().cloned() {
+            Refresher {
+                data,
+                client,
+                cache,
+            }
+            .run(settings)
+            .await;
+        }
+    });
+}
+
+/// 缓存目录里放目录的地方：`<缓存目录>/models`（`store.md` 第 3 条，整台机器共用）。算不出来的记一行，交回空的。
+pub fn cache(env: &miyu_store::env::Env) -> Option<PathBuf> {
+    match miyu_store::root::cache_root(env) {
+        Ok(root) => Some(root.join("models")),
+        Err(error) => {
+            tracing::warn!(target: TARGET, reason = crate::sandbox::why(&error), "catalog cache unavailable");
+            None
+        }
+    }
+}
+
+/// 配置里 `[models.catalog]` 那几项：配置换了当场跟着换（当场生效）。
+pub fn catalog_settings(
+    mut config: watch::Receiver<Arc<miyu_endpoint::config::Config>>,
+) -> watch::Receiver<CatalogSettings> {
+    let of =
+        |config: &miyu_endpoint::config::Config| CatalogSettings::from(&config.resolved().values());
+    let (sender, receiver) = watch::channel(of(&config.borrow_and_update()));
+    tokio::spawn(async move {
+        while config.changed().await.is_ok() {
+            let now = of(&config.borrow_and_update());
+            sender.send_if_modified(|old| {
+                let changed = *old != now;
+                *old = now;
+                changed
+            });
+        }
+    });
+    receiver
+}
+
+/// 认原厂的表：TOML 的字先变成 JSON，再照 `miyu-models` 的样子读。
+///
+/// # Errors
+///
+/// TOML 写法不对、形状不对：原因写明是这张表。
+pub fn vendors(text: &str) -> Result<Vendors, String> {
+    let document = toml_edit::Document::parse(text).map_err(|error| {
+        format!(
+            "models/vendors.toml not readable: {}",
+            error.message().trim()
+        )
+    })?;
+    Vendors::parse(&table(document.as_table())?)
 }
 
 /// 读档案：TOML 的字先变成 JSON，再照 `miyu-models` 的样子读。

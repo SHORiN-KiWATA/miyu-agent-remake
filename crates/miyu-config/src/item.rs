@@ -10,7 +10,7 @@
 mod kind;
 mod settings;
 
-pub use kind::Kind;
+pub use kind::{Kind, duration};
 
 use crate::value::Value;
 

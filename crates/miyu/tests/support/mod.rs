@@ -50,6 +50,7 @@ impl Home {
         command
             .args(["core", "--idle-seconds", "1"])
             .env("MIYU_HOME", self.root.path())
+            .envs(offline(self.root.path()))
             .env("MIYU_RESOURCES", resources())
             .env_remove("XDG_RUNTIME_DIR")
             .env_remove("MIYU_LOG");
@@ -188,4 +189,16 @@ pub fn run_starting(dir: &Path, mut command: Command, input: &str) -> std::proce
         stdout: std::fs::read(&out).expect("读得到"),
         stderr: std::fs::read(&err).expect("读得到"),
     }
+}
+
+/// 拉起的核心不去 models.dev 拉目录（施工 8-7，主会话定）：`MIYU_CATALOG_UPDATE=false`；缓存目录指到数据根里的临时一格
+/// （Linux 的 `XDG_CACHE_HOME`、Windows 的 `LOCALAPPDATA`），哪个测试漏带了也只写进临时目录。macOS 的缓存目录照家目录，
+/// 不改家目录，只靠前一条。
+pub fn offline(root: impl AsRef<Path>) -> [(&'static str, PathBuf); 3] {
+    let cache = root.as_ref().join("state").join("test-cache");
+    [
+        ("MIYU_CATALOG_UPDATE", PathBuf::from("false")),
+        ("XDG_CACHE_HOME", cache.clone()),
+        ("LOCALAPPDATA", cache),
+    ]
 }

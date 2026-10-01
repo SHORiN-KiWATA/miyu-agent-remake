@@ -63,6 +63,75 @@
       "providers.<id>.models.<model>.window": {
         "name": "上下文窗口",
         "description": "这个模型的上下文窗口，单位 token。"
+      },
+      "providers.<id>.price_multiplier": {
+        "name": "倍率",
+        "description": "这家的价格照它乘，不写是 1。模型上写的盖过它。"
+      },
+      "providers.<id>.local": {
+        "name": "本机的服务",
+        "description": "本机跑的模型服务，价格当 0。不写的照地址：在本机的是。"
+      },
+      "providers.<id>.models.<model>.catalog": {
+        "name": "对应目录里的",
+        "description": "照 models.dev 目录里的哪一个：<供应商>/<模型>。不写的照名字找。"
+      },
+      "providers.<id>.models.<model>.max_output": {
+        "name": "最大输出",
+        "description": "这个模型一次最多输出多少 token。"
+      },
+      "providers.<id>.models.<model>.inputs": {
+        "name": "能收哪些输入",
+        "description": "这个模型能读的：文字、图片、PDF。",
+        "options": {
+          "text": "文字",
+          "image": "图片",
+          "pdf": "PDF"
+        }
+      },
+      "providers.<id>.models.<model>.tools": {
+        "name": "能调工具",
+        "description": "这个模型能不能调工具。"
+      },
+      "providers.<id>.models.<model>.reasoning": {
+        "name": "思考强度",
+        "description": "这个模型的思考强度有哪几级。"
+      },
+      "providers.<id>.models.<model>.price_multiplier": {
+        "name": "倍率",
+        "description": "这个模型的价格照它乘，盖过供应商上写的。"
+      },
+      "providers.<id>.models.<model>.price.input": {
+        "name": "输入价",
+        "description": "每一百万输入 token 的价。写了价格就整份用手写的。"
+      },
+      "providers.<id>.models.<model>.price.output": {
+        "name": "输出价",
+        "description": "每一百万输出 token 的价。"
+      },
+      "providers.<id>.models.<model>.price.cache_read": {
+        "name": "读缓存的价",
+        "description": "每一百万读缓存 token 的价。"
+      },
+      "providers.<id>.models.<model>.price.cache_write": {
+        "name": "写缓存的价",
+        "description": "每一百万写缓存 token 的价。"
+      },
+      "providers.<id>.models.<model>.price.currency": {
+        "name": "币种",
+        "description": "价格的币种，三个大写字母，例如 USD、CNY。不写是 USD。"
+      },
+      "models.catalog.update": {
+        "name": "后台更新目录",
+        "description": "在后台去 models.dev 拉新的模型目录。关掉只用安装包带的和已经拉过的。"
+      },
+      "models.catalog.url": {
+        "name": "目录的地址",
+        "description": "从哪拉模型目录。"
+      },
+      "models.catalog.every": {
+        "name": "多久更新一次",
+        "description": "缓存的目录旧过这么久才再拉。"
       }
     },
     "pages": {
@@ -78,7 +147,8 @@
       "log": "运行日志",
       "sessions": "会话",
       "uses": "用途",
-      "providers": "供应商"
+      "providers": "供应商",
+      "catalog": "模型目录"
     }
   },
   "said": {
@@ -146,6 +216,9 @@
     "config/stops": "。？！",
     "config/applies/next_turn": "下一轮生效",
     "config/expected/int": "{min} 到 {max} 之间的整数",
+    "config/expected/float": "{min} 到 {max} 之间的数",
+    "config/expected/text": "最多 {max} 个字的文字",
+    "config/expected/duration": "{min} 到 {max} 之间的时长，写成 30s、10m、1h 这样",
     "config/expected/url": "http:// 或 https:// 开头的网址",
     "config/expected/name": "小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符",
     "config/expected/reference": "<供应商>/<模型> 或 @<池>",

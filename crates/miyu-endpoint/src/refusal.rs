@@ -146,6 +146,12 @@ impl Refusal {
         reason: "unknown_secret",
         data: None,
     };
+    /// `model.list` 的 `provider` 不是配好了的（施工 8-7）。
+    pub(crate) const UNKNOWN_PROVIDER: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_provider",
+        data: None,
+    };
     /// 请求里写了清单里没有的配置项（施工 8-2，`config.schema`、`config.get`、`config.set`）：`data.problems` 里每个不认识的
     /// 一条。
     pub(crate) fn unknown_config_key(problems: Vec<serde_json::Value>) -> Refusal {
@@ -315,6 +321,7 @@ impl Refusal {
                 "There is no project config for this directory.",
             ),
             "unknown_secret" => ("没有这个密钥。", "There is no such secret."),
+            "unknown_provider" => ("没有这个供应商。", "There is no such provider."),
             "recap_failed" => (
                 "回顾没写成：请求模型出错了。",
                 "The recap could not be written: the model request failed.",

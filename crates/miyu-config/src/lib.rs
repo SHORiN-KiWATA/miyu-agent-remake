@@ -37,6 +37,6 @@ mod named_tests;
 #[cfg(test)]
 mod test_support;
 
-pub use item::{Applies, Control, Item, Kind, Layer, Tighten, Ui};
-pub use value::{Setting, Value, Values};
+pub use item::{Applies, Control, Item, Kind, Layer, Tighten, Ui, duration};
+pub use value::{Number, Setting, Value, Values};
 pub use words::{ConfigWords, ItemWords, Missing, Words};

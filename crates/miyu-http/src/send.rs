@@ -239,11 +239,12 @@ async fn exchange(
     Outcome::Ended {
         usage: ending.usage,
         // 流里报的错带着解码器留下的要等多久（施工 4-9 再补三下）。
-        // 超了多少只从 HTTP 的出错里解析：流里报超长的少见，报了照没有算。
+        // 超了多少、上限只从 HTTP 的出错里解析：流里报超长的少见，报了照没有算。
         error: error.map(|error| Classified {
             error,
             retry_after_ms: ending.retry_after_ms,
             excess: None,
+            limit: None,
         }),
     }
 }
@@ -284,6 +285,7 @@ fn misconfigured(why: &str) -> Outcome {
             },
             retry_after_ms: None,
             excess: None,
+            limit: None,
         }),
     }
 }
@@ -300,6 +302,7 @@ fn idle(idle: Duration) -> Outcome {
             },
             retry_after_ms: None,
             excess: None,
+            limit: None,
         }),
     }
 }

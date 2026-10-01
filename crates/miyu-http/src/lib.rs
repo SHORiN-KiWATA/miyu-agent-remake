@@ -7,16 +7,19 @@
 //! - [`Endpoint`]：发给谁：地址、key、供应商另配的头；打印出来 key 写成 `***`；
 //! - [`client()`]：一个核心一个 HTTP 客户端，连接跨请求复用；
 //! - [`send()`]：发一次请求，读到说完、出错或者被叫停；
+//! - [`get()`]：一次 GET，整个读完，有总时限、大小上限、`ETag`（施工 8-7：拉目录、拉模型列表），客户端用 [`fetcher()`]；
 //! - `testkit`（开关）：测试用的假服务器。
 
 mod client;
 mod endpoint;
+mod get;
 mod send;
 #[cfg(feature = "testkit")]
 pub mod testkit;
 
-pub use client::{Proxy, client};
+pub use client::{Proxy, client, fetcher};
 pub use endpoint::Endpoint;
+pub use get::{Get, Got, get};
 /// HTTP 客户端：[`client()`] 造的那一个，连接跨请求复用。上层照这个名字拿着它，不用直接依赖 reqwest。
 pub use reqwest::Client;
 pub use send::{Attempt, Outcome, Progress, send};

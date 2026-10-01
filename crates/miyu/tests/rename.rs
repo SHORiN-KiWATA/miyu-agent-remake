@@ -16,6 +16,7 @@ fn miyu(root: &Path, lang: &str, args: &[&str]) -> Output {
     Command::new(MIYU)
         .args(args)
         .env("MIYU_HOME", root)
+        .envs(support::offline(root))
         .env("MIYU_RESOURCES", support::resources())
         .env("LANG", lang)
         .env_remove("LC_ALL")

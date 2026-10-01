@@ -3,6 +3,31 @@
   "properties": {
     "models": {
       "properties": {
+        "catalog": {
+          "properties": {
+            "every": {
+              "default": "24h",
+              "description": "缓存的目录旧过这么久才再拉。能写：1h 到 720h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+              "pattern": "^[0-9]+[smh]?$",
+              "title": "多久更新一次",
+              "type": "string"
+            },
+            "update": {
+              "default": true,
+              "description": "在后台去 models.dev 拉新的模型目录。关掉只用安装包带的和已经拉过的。能写：true 或 false。只能写在系统配置或个人设置里。当场生效。",
+              "title": "后台更新目录",
+              "type": "boolean"
+            },
+            "url": {
+              "default": "https://models.dev/api.json",
+              "description": "从哪拉模型目录。能写：http:// 或 https:// 开头的网址。只能写在系统配置或个人设置里。当场生效。",
+              "format": "uri",
+              "title": "目录的地址",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
         "chat": {
           "description": "新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。以后开的会话生效。",
           "title": "主对话的模型",
@@ -80,9 +105,103 @@
             "title": "key",
             "type": "array"
           },
+          "local": {
+            "description": "本机跑的模型服务，价格当 0。不写的照地址：在本机的是。能写：true 或 false。只能写在系统配置或个人设置里。下一轮生效。",
+            "title": "本机的服务",
+            "type": "boolean"
+          },
           "models": {
             "additionalProperties": {
               "properties": {
+                "catalog": {
+                  "description": "照 models.dev 目录里的哪一个：<供应商>/<模型>。不写的照名字找。能写：最多 256 个字的文字。只能写在系统配置或个人设置里。下一轮生效。",
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "title": "对应目录里的",
+                  "type": "string"
+                },
+                "inputs": {
+                  "description": "这个模型能读的：文字、图片、PDF。能写：text、image 或 pdf 的列表。只能写在系统配置或个人设置里。下一轮生效。",
+                  "items": {
+                    "enum": [
+                      "text",
+                      "image",
+                      "pdf"
+                    ],
+                    "type": "string"
+                  },
+                  "title": "能收哪些输入",
+                  "type": "array"
+                },
+                "max_output": {
+                  "description": "这个模型一次最多输出多少 token。能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。以后开的会话生效。",
+                  "maximum": 100000000,
+                  "minimum": 1,
+                  "title": "最大输出",
+                  "type": "integer"
+                },
+                "price": {
+                  "properties": {
+                    "cache_read": {
+                      "description": "每一百万读缓存 token 的价。能写：0 到 1000000 之间的数。只能写在系统配置或个人设置里。下一轮生效。",
+                      "maximum": 1000000,
+                      "minimum": 0,
+                      "title": "读缓存的价",
+                      "type": "number"
+                    },
+                    "cache_write": {
+                      "description": "每一百万写缓存 token 的价。能写：0 到 1000000 之间的数。只能写在系统配置或个人设置里。下一轮生效。",
+                      "maximum": 1000000,
+                      "minimum": 0,
+                      "title": "写缓存的价",
+                      "type": "number"
+                    },
+                    "currency": {
+                      "description": "价格的币种，三个大写字母，例如 USD、CNY。不写是 USD。能写：最多 3 个字的文字。只能写在系统配置或个人设置里。下一轮生效。",
+                      "maxLength": 3,
+                      "minLength": 1,
+                      "title": "币种",
+                      "type": "string"
+                    },
+                    "input": {
+                      "description": "每一百万输入 token 的价。写了价格就整份用手写的。能写：0 到 1000000 之间的数。只能写在系统配置或个人设置里。下一轮生效。",
+                      "maximum": 1000000,
+                      "minimum": 0,
+                      "title": "输入价",
+                      "type": "number"
+                    },
+                    "output": {
+                      "description": "每一百万输出 token 的价。能写：0 到 1000000 之间的数。只能写在系统配置或个人设置里。下一轮生效。",
+                      "maximum": 1000000,
+                      "minimum": 0,
+                      "title": "输出价",
+                      "type": "number"
+                    }
+                  },
+                  "type": "object"
+                },
+                "price_multiplier": {
+                  "description": "这个模型的价格照它乘，盖过供应商上写的。能写：0 到 1000 之间的数。只能写在系统配置或个人设置里。下一轮生效。",
+                  "maximum": 1000,
+                  "minimum": 0,
+                  "title": "倍率",
+                  "type": "number"
+                },
+                "reasoning": {
+                  "description": "这个模型的思考强度有哪几级。能写：最多 32 个字的文字 的列表。只能写在系统配置或个人设置里。下一轮生效。",
+                  "items": {
+                    "maxLength": 32,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "title": "思考强度",
+                  "type": "array"
+                },
+                "tools": {
+                  "description": "这个模型能不能调工具。能写：true 或 false。只能写在系统配置或个人设置里。下一轮生效。",
+                  "title": "能调工具",
+                  "type": "boolean"
+                },
                 "window": {
                   "description": "这个模型的上下文窗口，单位 token。能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。以后开的会话生效。",
                   "maximum": 100000000,
@@ -94,6 +213,13 @@
               "type": "object"
             },
             "type": "object"
+          },
+          "price_multiplier": {
+            "description": "这家的价格照它乘，不写是 1。模型上写的盖过它。能写：0 到 1000 之间的数。只能写在系统配置或个人设置里。下一轮生效。",
+            "maximum": 1000,
+            "minimum": 0,
+            "title": "倍率",
+            "type": "number"
           }
         },
         "type": "object"

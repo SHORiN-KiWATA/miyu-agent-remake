@@ -24,7 +24,7 @@ async fn the_http_lines_carry_the_session() {
         .join("../../docs/designs/samples/drivers/openai-chat/streams/openai-text.sse");
     let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("读不了 {}：{e}", path.display()));
     let server = Server::start(vec![Reply::stream(vec![Piece::Bytes(bytes)])]).await;
-    let (models, configs) = support::routing::served(&server.base_url, serde_json::json!({}));
+    let (models, configs) = support::routing::served(&server.base_url, serde_json::json!({}), "");
     let mut home = Home::new();
     home.configs = configs;
     let handle = home.create(&models).await;

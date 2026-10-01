@@ -161,7 +161,8 @@ async fn a_real_core_on_a_dev_home_answers_through_the_config() {
     let output = tokio::task::spawn_blocking(move || {
         Command::new(MIYU)
             .args(["ask", "在吗"])
-            .env("MIYU_HOME", root)
+            .env("MIYU_HOME", &root)
+            .envs(support::offline(&root))
             .env("LANG", "C")
             .env_remove("LC_ALL")
             .env_remove("LC_MESSAGES")

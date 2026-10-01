@@ -120,6 +120,21 @@ fn shape(kind: Kind) -> Map<String, Json> {
         Kind::Name | Kind::Reference => {
             property.insert("type".to_string(), json!("string"));
         }
+        Kind::Float { min, max } => {
+            property.insert("type".to_string(), json!("number"));
+            property.insert("minimum".to_string(), json!(min));
+            property.insert("maximum".to_string(), json!(max));
+        }
+        Kind::Text { max } => {
+            property.insert("type".to_string(), json!("string"));
+            property.insert("minLength".to_string(), json!(1));
+            property.insert("maxLength".to_string(), json!(max));
+        }
+        Kind::Duration { .. } => {
+            // 范围要算，Schema 只查写法（施工 8-7）。
+            property.insert("type".to_string(), json!("string"));
+            property.insert("pattern".to_string(), json!("^[0-9]+[smh]?$"));
+        }
         Kind::List(inner) => {
             property.insert("type".to_string(), json!("array"));
             property.insert("items".to_string(), Json::Object(shape(*inner)));

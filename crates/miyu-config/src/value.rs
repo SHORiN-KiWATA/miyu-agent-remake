@@ -1,8 +1,8 @@
 //! 值（`docs/blueprint/config.md`「配置清单」）：一项的值 [`Value`]，写成 TOML、写成协议上的 JSON；一份最终值
 //! [`Values`]。
 //!
-//! 现在有字（选项、网址、名字、引用写成字）、开关（施工 8-2）、密钥的引用（施工 8-5）、整数和列表（施工 8-6）：别的写法随
-//! 用到它的那一步加。设置类型的字段怎么从值变过来：[`Setting`]。
+//! 现在有字（选项、网址、名字、引用、文字、时长写成字）、开关（施工 8-2）、密钥的引用（施工 8-5）、整数和列表（施工 8-6）、
+//! 小数（施工 8-7）：别的写法随用到它的那一步加。设置类型的字段怎么从值变过来：[`Setting`]。
 
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -23,7 +23,34 @@ pub enum Value {
     Int(i64),
     /// 列表（施工 8-6）：每一个照元素的类型。
     List(Vec<Value>),
+    /// 小数（施工 8-7）。
+    Float(Number),
 }
+
+/// 一个小数（施工 8-7）：照位比相等，所以值能比、能当键。`nan`、`inf` 读的时候就不收（[`crate::Kind::Float`]）。
+#[derive(Debug, Clone, Copy)]
+pub struct Number(f64);
+
+impl Number {
+    /// 包一个小数。
+    pub fn new(number: f64) -> Number {
+        Number(number)
+    }
+
+    /// 里面的小数。
+    pub fn get(self) -> f64 {
+        self.0
+    }
+}
+
+/// 照位比：`0.0` 和 `-0.0` 不一样，读进来的值里不会有 `nan`。
+impl PartialEq for Number {
+    fn eq(&self, other: &Number) -> bool {
+        self.0.to_bits() == other.0.to_bits()
+    }
+}
+
+impl Eq for Number {}
 
 impl Value {
     /// 写成 TOML：字写成双引号的字符串，照 TOML 转义（引号、反斜杠、控制字符）。
@@ -33,6 +60,7 @@ impl Value {
             Value::Bool(on) => on.to_string(),
             Value::Secret(reference) => reference.toml(),
             Value::Int(number) => number.to_string(),
+            Value::Float(number) => float_toml(number.get()),
             Value::List(values) => {
                 let values: Vec<String> = values.iter().map(Value::toml).collect();
                 format!("[{}]", values.join(", "))
@@ -47,6 +75,7 @@ impl Value {
             Value::Bool(on) => serde_json::Value::Bool(*on),
             Value::Secret(reference) => reference.json(),
             Value::Int(number) => serde_json::Value::from(*number),
+            Value::Float(number) => serde_json::Value::from(number.get()),
             Value::List(values) => {
                 serde_json::Value::Array(values.iter().map(Value::json).collect())
             }
@@ -109,6 +138,63 @@ impl Setting for Option<i64> {
             Some(Value::Int(number)) => Some(*number),
             _ => None,
         }
+    }
+}
+
+/// 没有默认值的小数（施工 8-7）。
+impl Setting for Option<Number> {
+    fn read(value: Option<&Value>) -> Option<Number> {
+        match value {
+            Some(Value::Float(number)) => Some(*number),
+            _ => None,
+        }
+    }
+}
+
+/// 没有默认值的开关（施工 8-7）：没写和写了 `false` 分得开。
+impl Setting for Option<bool> {
+    fn read(value: Option<&Value>) -> Option<bool> {
+        match value {
+            Some(Value::Bool(on)) => Some(*on),
+            _ => None,
+        }
+    }
+}
+
+/// 时长（施工 8-7）：照 [`crate::item::duration`] 读。最终值都校验过；读不成的（只有手写的值里有）是 0。
+impl Setting for std::time::Duration {
+    fn read(value: Option<&Value>) -> std::time::Duration {
+        match value {
+            Some(Value::Text(text)) => crate::item::duration(text).unwrap_or_default(),
+            _ => std::time::Duration::ZERO,
+        }
+    }
+}
+
+/// 没有默认值的字的列表（施工 8-7：选项、文字的列表）：没写的是空的，写了空列表的是空的列表；照写的先后，不是字的跳过。
+impl Setting for Option<Vec<String>> {
+    fn read(value: Option<&Value>) -> Option<Vec<String>> {
+        match value {
+            Some(Value::List(values)) => Some(
+                values
+                    .iter()
+                    .filter_map(|value| match value {
+                        Value::Text(text) => Some(text.to_string()),
+                        _ => None,
+                    })
+                    .collect(),
+            ),
+            _ => None,
+        }
+    }
+}
+
+/// 小数写成 TOML：整数也带上 `.0`，读回来还是小数（TOML 1.0「Float」）。
+fn float_toml(number: f64) -> String {
+    let text = number.to_string();
+    match text.contains(['.', 'e', 'E']) {
+        true => text,
+        false => format!("{text}.0"),
     }
 }
 

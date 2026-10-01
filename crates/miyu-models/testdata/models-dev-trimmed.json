@@ -1,0 +1,1078 @@
+{
+ "deepseek": {
+  "id": "deepseek",
+  "env": [
+   "DEEPSEEK_API_KEY"
+  ],
+  "npm": "@ai-sdk/openai-compatible",
+  "api": "https://api.deepseek.com",
+  "name": "DeepSeek",
+  "doc": "https://api-docs.deepseek.com/quick_start/pricing",
+  "models": {
+   "deepseek-v4-flash-vision-exp": {
+    "id": "deepseek-v4-flash-vision-exp",
+    "name": "DeepSeek V4 Flash Vision Exp",
+    "description": "DeepSeek V4.1 Flash model for reasoning and agentic coding",
+    "family": "deepseek-flash",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "toggle"
+     },
+     {
+      "type": "effort",
+      "values": [
+       "low",
+       "high",
+       "max"
+      ]
+     }
+    ],
+    "tool_call": true,
+    "interleaved": {
+     "field": "reasoning_content"
+    },
+    "structured_output": true,
+    "temperature": true,
+    "knowledge": "2025-05",
+    "release_date": "2026-09-10",
+    "last_updated": "2026-09-10",
+    "modalities": {
+     "input": [
+      "text",
+      "image"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": true,
+    "limit": {
+     "context": 1000000,
+     "output": 393216
+    },
+    "status": "deprecated",
+    "cost": {
+     "input": 0.15,
+     "output": 0.6,
+     "reasoning": 0.6,
+     "cache_read": 0.003
+    },
+    "canonical_model_id": "deepseek/deepseek-v4.1-flash"
+   },
+   "deepseek-flash": {
+    "id": "deepseek-flash",
+    "name": "DeepSeek V4.1 Flash",
+    "description": "DeepSeek V4.1 Flash model for reasoning and agentic coding",
+    "family": "deepseek-flash",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "toggle"
+     },
+     {
+      "type": "effort",
+      "values": [
+       "low",
+       "high",
+       "max"
+      ]
+     }
+    ],
+    "tool_call": true,
+    "interleaved": {
+     "field": "reasoning_content"
+    },
+    "structured_output": true,
+    "temperature": true,
+    "knowledge": "2025-05",
+    "release_date": "2026-09-10",
+    "last_updated": "2026-09-10",
+    "modalities": {
+     "input": [
+      "text",
+      "image"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": true,
+    "limit": {
+     "context": 1000000,
+     "output": 393216
+    },
+    "cost": {
+     "input": 0.15,
+     "output": 0.6,
+     "reasoning": 0.6,
+     "cache_read": 0.003
+    },
+    "canonical_model_id": "deepseek/deepseek-v4.1-flash"
+   },
+   "deepseek-v4-pro": {
+    "id": "deepseek-v4-pro",
+    "name": "DeepSeek V4 Pro",
+    "description": "DeepSeek V4 Pro snapshot with million-token context and support for thinking and non-thinking modes",
+    "family": "deepseek-thinking",
+    "attachment": false,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "toggle"
+     },
+     {
+      "type": "effort",
+      "values": [
+       "low",
+       "high",
+       "max"
+      ]
+     }
+    ],
+    "tool_call": true,
+    "interleaved": {
+     "field": "reasoning_content"
+    },
+    "structured_output": true,
+    "temperature": true,
+    "release_date": "2026-08-12",
+    "last_updated": "2026-08-22",
+    "modalities": {
+     "input": [
+      "text"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": true,
+    "limit": {
+     "context": 1000000,
+     "output": 393216
+    },
+    "cost": {
+     "input": 0.435,
+     "output": 0.87,
+     "reasoning": 0.87,
+     "cache_read": 0.003625
+    },
+    "canonical_model_id": "deepseek/deepseek-v4-pro-0813"
+   },
+   "deepseek-v4-flash": {
+    "id": "deepseek-v4-flash",
+    "name": "DeepSeek V4 Flash",
+    "description": "DeepSeek V4.1 Flash model for reasoning and agentic coding",
+    "family": "deepseek-flash",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "toggle"
+     },
+     {
+      "type": "effort",
+      "values": [
+       "low",
+       "high",
+       "max"
+      ]
+     }
+    ],
+    "tool_call": true,
+    "interleaved": {
+     "field": "reasoning_content"
+    },
+    "structured_output": true,
+    "temperature": true,
+    "knowledge": "2025-05",
+    "release_date": "2026-09-10",
+    "last_updated": "2026-09-10",
+    "modalities": {
+     "input": [
+      "text",
+      "image"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": true,
+    "limit": {
+     "context": 1000000,
+     "output": 393216
+    },
+    "status": "deprecated",
+    "cost": {
+     "input": 0.15,
+     "output": 0.6,
+     "reasoning": 0.6,
+     "cache_read": 0.003
+    },
+    "canonical_model_id": "deepseek/deepseek-v4.1-flash"
+   },
+   "deepseek-broken": {
+    "id": "deepseek-broken",
+    "name": "Broken",
+    "limit": {
+     "context": "big",
+     "output": 8
+    }
+   }
+  }
+ },
+ "opencode-go": {
+  "id": "opencode-go",
+  "env": [
+   "OPENCODE_API_KEY"
+  ],
+  "npm": "@ai-sdk/openai-compatible",
+  "api": "https://opencode.ai/zen/go/v1",
+  "name": "OpenCode Go",
+  "doc": "https://opencode.ai/docs/go",
+  "models": {
+   "deepseek-v4.1-flash": {
+    "id": "deepseek-v4.1-flash",
+    "name": "DeepSeek V4.1 Flash",
+    "description": "DeepSeek V4.1 Flash model for reasoning and agentic coding",
+    "family": "deepseek-flash",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "effort",
+      "values": [
+       "low",
+       "high",
+       "max"
+      ]
+     }
+    ],
+    "tool_call": true,
+    "interleaved": {
+     "field": "reasoning_content"
+    },
+    "structured_output": true,
+    "temperature": true,
+    "knowledge": "2025-05",
+    "release_date": "2026-09-10",
+    "last_updated": "2026-09-10",
+    "modalities": {
+     "input": [
+      "text",
+      "image"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": true,
+    "limit": {
+     "context": 1000000,
+     "output": 384000
+    },
+    "cost": {
+     "input": 0.15,
+     "output": 0.6,
+     "cache_read": 0.003
+    },
+    "canonical_model_id": "deepseek/deepseek-v4.1-flash"
+   }
+  }
+ },
+ "opencode": {
+  "id": "opencode",
+  "env": [
+   "OPENCODE_API_KEY"
+  ],
+  "npm": "@ai-sdk/openai-compatible",
+  "api": "https://opencode.ai/zen/v1",
+  "name": "OpenCode Zen",
+  "doc": "https://opencode.ai/docs/zen",
+  "models": {
+   "deepseek-v4.1-flash": {
+    "id": "deepseek-v4.1-flash",
+    "name": "DeepSeek V4.1 Flash",
+    "description": "DeepSeek V4.1 Flash model for reasoning and agentic coding",
+    "family": "deepseek-flash",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "effort",
+      "values": [
+       "low",
+       "high",
+       "max"
+      ]
+     }
+    ],
+    "tool_call": true,
+    "interleaved": {
+     "field": "reasoning_content"
+    },
+    "structured_output": true,
+    "temperature": true,
+    "knowledge": "2025-05",
+    "release_date": "2026-09-10",
+    "last_updated": "2026-09-10",
+    "modalities": {
+     "input": [
+      "text",
+      "image"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": true,
+    "limit": {
+     "context": 1000000,
+     "output": 384000
+    },
+    "cost": {
+     "input": 0.3,
+     "output": 1.2,
+     "cache_read": 0.006
+    },
+    "canonical_model_id": "deepseek/deepseek-v4.1-flash"
+   }
+  }
+ },
+ "above": {
+  "id": "above",
+  "env": [
+   "ABOVE_API_KEY"
+  ],
+  "npm": "@ai-sdk/openai-compatible",
+  "api": "https://api.above.dev/v1",
+  "name": "above.dev",
+  "doc": "https://above.dev/docs",
+  "models": {
+   "deepseek-v4.1-flash": {
+    "id": "deepseek-v4.1-flash",
+    "name": "DeepSeek V4.1 Flash",
+    "description": "DeepSeek V4.1 Flash model for reasoning and agentic coding",
+    "family": "deepseek-flash",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "toggle"
+     },
+     {
+      "type": "effort",
+      "values": [
+       "low",
+       "high",
+       "max"
+      ]
+     }
+    ],
+    "tool_call": true,
+    "interleaved": {
+     "field": "reasoning_content"
+    },
+    "structured_output": true,
+    "temperature": true,
+    "knowledge": "2025-05",
+    "release_date": "2026-09-10",
+    "last_updated": "2026-09-10",
+    "modalities": {
+     "input": [
+      "text",
+      "image"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": true,
+    "limit": {
+     "context": 1000000,
+     "output": 384000
+    },
+    "cost": {
+     "input": 0.165,
+     "output": 0.66,
+     "reasoning": 0.66,
+     "cache_read": 0.0033
+    },
+    "canonical_model_id": "deepseek/deepseek-v4.1-flash"
+   },
+   "deepseek-v4-flash": {
+    "id": "deepseek-v4-flash",
+    "name": "DeepSeek V4 Flash",
+    "description": "DeepSeek V4.1 Flash model for reasoning and agentic coding",
+    "family": "deepseek-flash",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "toggle"
+     },
+     {
+      "type": "effort",
+      "values": [
+       "low",
+       "high",
+       "max"
+      ]
+     }
+    ],
+    "tool_call": true,
+    "interleaved": {
+     "field": "reasoning_content"
+    },
+    "structured_output": true,
+    "temperature": true,
+    "knowledge": "2025-05",
+    "release_date": "2026-09-10",
+    "last_updated": "2026-09-10",
+    "modalities": {
+     "input": [
+      "text",
+      "image"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": true,
+    "limit": {
+     "context": 1000000,
+     "output": 384000
+    },
+    "status": "deprecated",
+    "cost": {
+     "input": 0.165,
+     "output": 0.66,
+     "reasoning": 0.66,
+     "cache_read": 0.0033
+    },
+    "canonical_model_id": "deepseek/deepseek-v4.1-flash"
+   }
+  }
+ },
+ "aihubmix": {
+  "id": "aihubmix",
+  "env": [
+   "AIHUBMIX_API_KEY"
+  ],
+  "npm": "@aihubmix/ai-sdk-provider",
+  "name": "AIHubMix",
+  "doc": "https://docs.aihubmix.com",
+  "models": {
+   "deepseek-v4.1-flash": {
+    "id": "deepseek-v4.1-flash",
+    "name": "DeepSeek V4.1 Flash",
+    "description": "DeepSeek V4.1 Flash model for reasoning and agentic coding",
+    "family": "deepseek-flash",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "toggle"
+     },
+     {
+      "type": "effort",
+      "values": [
+       "low",
+       "high",
+       "max"
+      ]
+     }
+    ],
+    "tool_call": true,
+    "interleaved": {
+     "field": "reasoning_content"
+    },
+    "structured_output": true,
+    "temperature": true,
+    "knowledge": "2025-05",
+    "release_date": "2026-09-10",
+    "last_updated": "2026-09-10",
+    "modalities": {
+     "input": [
+      "text",
+      "image"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": true,
+    "limit": {
+     "context": 1000000,
+     "output": 384000
+    },
+    "cost": {
+     "input": 0.155,
+     "output": 0.62,
+     "cache_read": 0.0031
+    },
+    "canonical_model_id": "deepseek/deepseek-v4.1-flash"
+   },
+   "claude-sonnet-4-5": {
+    "id": "claude-sonnet-4-5",
+    "name": "Claude Sonnet 4.5 (latest)",
+    "description": "Balanced Claude model for coding, analysis, agent workflows, and cost control",
+    "family": "claude-sonnet",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "toggle"
+     },
+     {
+      "type": "budget_tokens",
+      "min": 1024
+     }
+    ],
+    "tool_call": true,
+    "interleaved": true,
+    "temperature": true,
+    "knowledge": "2025-07-31",
+    "release_date": "2025-09-29",
+    "last_updated": "2025-09-29",
+    "modalities": {
+     "input": [
+      "text",
+      "image",
+      "pdf"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": false,
+    "limit": {
+     "context": 1000000,
+     "output": 64000
+    },
+    "cost": {
+     "input": 3.3,
+     "output": 16.5,
+     "cache_read": 0.33,
+     "cache_write": 4.125,
+     "tiers": [
+      {
+       "input": 6.6,
+       "output": 24.75,
+       "cache_read": 0.66,
+       "cache_write": 8.25,
+       "tier": {
+        "type": "context",
+        "size": 200000
+       }
+      }
+     ],
+     "context_over_200k": {
+      "input": 6.6,
+      "output": 24.75,
+      "cache_read": 0.66,
+      "cache_write": 8.25
+     }
+    },
+    "canonical_model_id": "anthropic/claude-sonnet-4-5"
+   },
+   "gpt-5": {
+    "id": "gpt-5",
+    "name": "GPT-5",
+    "description": "Original GPT-5 workhorse for reasoning, coding, writing, and tool workflows",
+    "family": "gpt",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "effort",
+      "values": [
+       "minimal",
+       "low",
+       "medium",
+       "high"
+      ]
+     }
+    ],
+    "tool_call": true,
+    "structured_output": true,
+    "temperature": false,
+    "knowledge": "2024-09-30",
+    "release_date": "2025-08-07",
+    "last_updated": "2025-08-07",
+    "modalities": {
+     "input": [
+      "text",
+      "image"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": false,
+    "limit": {
+     "context": 400000,
+     "input": 272000,
+     "output": 128000
+    },
+    "cost": {
+     "input": 1.25,
+     "output": 10,
+     "cache_read": 0.125
+    },
+    "canonical_model_id": "openai/gpt-5"
+   }
+  }
+ },
+ "anthropic": {
+  "id": "anthropic",
+  "env": [
+   "ANTHROPIC_API_KEY"
+  ],
+  "npm": "@ai-sdk/anthropic",
+  "name": "Anthropic",
+  "doc": "https://docs.anthropic.com/en/docs/about-claude/models",
+  "models": {
+   "claude-sonnet-4-5": {
+    "id": "claude-sonnet-4-5",
+    "name": "Claude Sonnet 4.5 (latest)",
+    "description": "Balanced Claude model for coding, analysis, agent workflows, and cost control",
+    "family": "claude-sonnet",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "budget_tokens",
+      "min": 1024
+     }
+    ],
+    "tool_call": true,
+    "structured_output": true,
+    "temperature": true,
+    "knowledge": "2025-07-31",
+    "release_date": "2025-09-29",
+    "last_updated": "2025-09-29",
+    "modalities": {
+     "input": [
+      "text",
+      "image",
+      "pdf"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": false,
+    "limit": {
+     "context": 1000000,
+     "output": 64000
+    },
+    "cost": {
+     "input": 3,
+     "output": 15,
+     "cache_read": 0.3,
+     "cache_write": 3.75
+    },
+    "canonical_model_id": "anthropic/claude-sonnet-4-5"
+   }
+  }
+ },
+ "openai": {
+  "id": "openai",
+  "env": [
+   "OPENAI_API_KEY"
+  ],
+  "npm": "@ai-sdk/openai",
+  "name": "OpenAI",
+  "doc": "https://platform.openai.com/docs/models",
+  "models": {
+   "gpt-5": {
+    "id": "gpt-5",
+    "name": "GPT-5",
+    "description": "Original GPT-5 workhorse for reasoning, coding, writing, and tool workflows",
+    "family": "gpt",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "effort",
+      "values": [
+       "minimal",
+       "low",
+       "medium",
+       "high"
+      ]
+     }
+    ],
+    "tool_call": true,
+    "structured_output": true,
+    "temperature": false,
+    "knowledge": "2024-09-30",
+    "release_date": "2025-08-07",
+    "last_updated": "2025-08-07",
+    "modalities": {
+     "input": [
+      "text",
+      "image"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": false,
+    "limit": {
+     "context": 400000,
+     "input": 272000,
+     "output": 128000
+    },
+    "experimental": {
+     "modes": {
+      "fast": {
+       "cost": {
+        "input": 2.5,
+        "output": 20,
+        "cache_read": 0.25
+       },
+       "provider": {
+        "body": {
+         "service_tier": "priority"
+        }
+       }
+      },
+      "flex": {
+       "cost": {
+        "input": 0.625,
+        "output": 5,
+        "cache_read": 0.0625
+       },
+       "provider": {
+        "body": {
+         "service_tier": "flex"
+        }
+       }
+      }
+     }
+    },
+    "cost": {
+     "input": 1.25,
+     "output": 10,
+     "cache_read": 0.125
+    },
+    "canonical_model_id": "openai/gpt-5"
+   },
+   "gpt-5-mini": {
+    "id": "gpt-5-mini",
+    "name": "GPT-5 Mini",
+    "description": "Small GPT-5 for responsive agents, coding help, and everyday automation",
+    "family": "gpt-mini",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "effort",
+      "values": [
+       "minimal",
+       "low",
+       "medium",
+       "high"
+      ]
+     }
+    ],
+    "tool_call": true,
+    "structured_output": true,
+    "temperature": false,
+    "knowledge": "2024-05-30",
+    "release_date": "2025-08-07",
+    "last_updated": "2025-08-07",
+    "modalities": {
+     "input": [
+      "text",
+      "image"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": false,
+    "limit": {
+     "context": 400000,
+     "input": 272000,
+     "output": 128000
+    },
+    "experimental": {
+     "modes": {
+      "fast": {
+       "cost": {
+        "input": 0.45,
+        "output": 3.6,
+        "cache_read": 0.045
+       },
+       "provider": {
+        "body": {
+         "service_tier": "priority"
+        }
+       }
+      },
+      "flex": {
+       "cost": {
+        "input": 0.125,
+        "output": 1,
+        "cache_read": 0.0125
+       },
+       "provider": {
+        "body": {
+         "service_tier": "flex"
+        }
+       }
+      }
+     }
+    },
+    "cost": {
+     "input": 0.25,
+     "output": 2,
+     "cache_read": 0.025
+    }
+   }
+  }
+ },
+ "302ai": {
+  "id": "302ai",
+  "env": [
+   "302AI_API_KEY"
+  ],
+  "npm": "@ai-sdk/openai-compatible",
+  "api": "https://api.302.ai/v1",
+  "name": "302.AI",
+  "doc": "https://doc.302.ai",
+  "models": {
+   "gpt-5": {
+    "id": "gpt-5",
+    "name": "gpt-5",
+    "description": "GPT model for general reasoning, writing, coding, and tool-assisted tasks",
+    "family": "gpt",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "effort",
+      "values": [
+       "minimal",
+       "low",
+       "medium",
+       "high"
+      ]
+     }
+    ],
+    "tool_call": true,
+    "structured_output": true,
+    "temperature": false,
+    "knowledge": "2024-09-30",
+    "release_date": "2025-08-08",
+    "last_updated": "2025-08-08",
+    "modalities": {
+     "input": [
+      "text",
+      "image"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": false,
+    "limit": {
+     "context": 400000,
+     "input": 272000,
+     "output": 128000
+    },
+    "cost": {
+     "input": 1.25,
+     "output": 10
+    }
+   },
+   "gpt-5-mini": {
+    "id": "gpt-5-mini",
+    "name": "gpt-5-mini",
+    "description": "Compact GPT model for low-latency assistance and high-volume workloads",
+    "family": "gpt-mini",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "effort",
+      "values": [
+       "minimal",
+       "low",
+       "medium",
+       "high"
+      ]
+     }
+    ],
+    "tool_call": true,
+    "structured_output": true,
+    "temperature": false,
+    "knowledge": "2024-05-30",
+    "release_date": "2025-08-08",
+    "last_updated": "2025-08-08",
+    "modalities": {
+     "input": [
+      "text",
+      "image"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": false,
+    "limit": {
+     "context": 400000,
+     "input": 272000,
+     "output": 128000
+    },
+    "cost": {
+     "input": 0.25,
+     "output": 2
+    }
+   },
+   "deepseek-flash": {
+    "id": "deepseek-flash",
+    "name": "DeepSeek V4.1 Flash",
+    "description": "DeepSeek V4.1 Flash model for reasoning and agentic coding",
+    "family": "deepseek-flash",
+    "attachment": true,
+    "reasoning": true,
+    "reasoning_options": [
+     {
+      "type": "toggle"
+     },
+     {
+      "type": "effort",
+      "values": [
+       "low",
+       "high",
+       "max"
+      ]
+     }
+    ],
+    "tool_call": true,
+    "interleaved": {
+     "field": "reasoning_content"
+    },
+    "structured_output": true,
+    "temperature": true,
+    "knowledge": "2025-05",
+    "release_date": "2026-09-10",
+    "last_updated": "2026-09-10",
+    "modalities": {
+     "input": [
+      "text",
+      "image"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": true,
+    "limit": {
+     "context": 1000000,
+     "output": 384000
+    },
+    "cost": {
+     "input": 0.15,
+     "output": 0.6,
+     "cache_read": 0.003
+    },
+    "canonical_model_id": "deepseek/deepseek-v4.1-flash"
+   }
+  }
+ },
+ "llmgateway": {
+  "id": "llmgateway",
+  "env": [
+   "LLMGATEWAY_API_KEY"
+  ],
+  "npm": "@ai-sdk/openai-compatible",
+  "api": "https://api.llmgateway.io/v1",
+  "name": "DevPass (LLM Gateway)",
+  "doc": "https://llmgateway.io/docs",
+  "models": {
+   "custom": {
+    "id": "custom",
+    "name": "Custom Model",
+    "description": "Automatic model router for matching prompts to suitable backends and budgets",
+    "family": "auto",
+    "attachment": true,
+    "reasoning": false,
+    "tool_call": true,
+    "structured_output": true,
+    "temperature": true,
+    "release_date": "2024-01-01",
+    "last_updated": "2024-01-01",
+    "modalities": {
+     "input": [
+      "text",
+      "image"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": false,
+    "limit": {
+     "context": 128000,
+     "output": 16384
+    },
+    "cost": {
+     "input": 0,
+     "output": 0
+    }
+   }
+  }
+ },
+ "deepinfra": {
+  "id": "deepinfra",
+  "env": [
+   "DEEPINFRA_API_KEY"
+  ],
+  "npm": "@ai-sdk/deepinfra",
+  "name": "Deep Infra",
+  "doc": "https://deepinfra.com/models",
+  "models": {
+   "tencent/Hy3": {
+    "id": "tencent/Hy3",
+    "name": "Hy3",
+    "description": "Tencent Hy reasoning model for coding, instruction following, and agent tasks",
+    "family": "Hy",
+    "attachment": false,
+    "reasoning": true,
+    "reasoning_options": [],
+    "tool_call": true,
+    "structured_output": true,
+    "temperature": true,
+    "release_date": "2026-07-06",
+    "last_updated": "2026-07-06",
+    "modalities": {
+     "input": [
+      "text"
+     ],
+     "output": [
+      "text"
+     ]
+    },
+    "open_weights": true,
+    "limit": {
+     "context": 262144,
+     "input": 192000,
+     "output": 128000
+    },
+    "cost": {
+     "input": 0.13,
+     "output": 0.53,
+     "cache_read": 0.033
+    },
+    "canonical_model_id": "tencent/hy3"
+   }
+  }
+ }
+}

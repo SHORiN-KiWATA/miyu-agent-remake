@@ -1,11 +1,17 @@
 # 认得出的供应商的档案（docs/blueprint/models.md「在哪」，施工 8-6）：配置里写了这一家（或者 catalog 指着它），没写的
 # 驱动、地址、开关照这里推。只给实测过的开（05-内核接口.md 第七节）。
 
+# 目录里的 AI SDK 包名 → 驱动（施工 8-7）：档案没有的一家，照它对上的目录里那一家的 npm 推驱动、照 api 推地址。还没有的
+# 两种驱动（anthropic、openai-responses）照写，用到时当场说还没有。
+[npm]
+"@ai-sdk/openai-compatible" = "openai-chat"
+"@ai-sdk/anthropic" = "anthropic"
+"@ai-sdk/openai" = "openai-responses"
+
 # DeepSeek 官方：每条 assistant 都带 reasoning_content，没有就发空串；接着写用 prefix: true，发到 /beta/chat/completions
-# （2026-09-27 实测）。收图（2026-08-21 起，只收 user 消息里的），一张图照官方计算器的算法算。
+# （2026-09-27 实测）。一张图照官方计算器的算法算；收不收图照模型资料（目录里 deepseek-flash 收图，施工 8-7 起）。
 [providers.deepseek]
 driver = "openai-chat"
 base_url = "https://api.deepseek.com"
-inputs = ["text", "image"]
 image_tokens = "deepseek"
 compat = { reasoning = { replay = "reasoning_content", always = true }, continuation = { field = "prefix", path = "/beta/chat/completions" } }

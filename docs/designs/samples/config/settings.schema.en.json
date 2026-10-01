@@ -3,6 +3,31 @@
   "properties": {
     "models": {
       "properties": {
+        "catalog": {
+          "properties": {
+            "every": {
+              "default": "24h",
+              "description": "Fetch again once the cached catalog is this old. Allowed: a length of time from 1h to 720h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+              "pattern": "^[0-9]+[smh]?$",
+              "title": "Update every",
+              "type": "string"
+            },
+            "update": {
+              "default": true,
+              "description": "Fetch a newer model catalog from models.dev in the background. Off uses only the bundled and already fetched ones. Allowed: true or false. Only in the system config or personal settings. Takes effect at once.",
+              "title": "Update the catalog",
+              "type": "boolean"
+            },
+            "url": {
+              "default": "https://models.dev/api.json",
+              "description": "Where to fetch the model catalog from. Allowed: an address starting with http:// or https://. Only in the system config or personal settings. Takes effect at once.",
+              "format": "uri",
+              "title": "Catalog address",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
         "chat": {
           "description": "The model new sessions use, written as provider/model, for example deepseek/deepseek-flash. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Applies to sessions opened from now on.",
           "title": "Chat model",
@@ -80,9 +105,103 @@
             "title": "Keys",
             "type": "array"
           },
+          "local": {
+            "description": "A model service on this machine, counted as free. Left out, it follows the address: on this machine means yes. Allowed: true or false. Only in the system config or personal settings. Takes effect next turn.",
+            "title": "Local service",
+            "type": "boolean"
+          },
           "models": {
             "additionalProperties": {
               "properties": {
+                "catalog": {
+                  "description": "Which models.dev entry to use: <provider>/<model>. Left out, it is found by name. Allowed: text of at most 256 characters. Only in the system config or personal settings. Takes effect next turn.",
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "title": "Catalog entry",
+                  "type": "string"
+                },
+                "inputs": {
+                  "description": "What this model can read: text, images, PDF. Allowed: a list of text, image or pdf. Only in the system config or personal settings. Takes effect next turn.",
+                  "items": {
+                    "enum": [
+                      "text",
+                      "image",
+                      "pdf"
+                    ],
+                    "type": "string"
+                  },
+                  "title": "Inputs",
+                  "type": "array"
+                },
+                "max_output": {
+                  "description": "How many tokens this model can write at most in one reply. Allowed: a whole number from 1 to 100000000. Only in the system config or personal settings. Applies to sessions opened from now on.",
+                  "maximum": 100000000,
+                  "minimum": 1,
+                  "title": "Max output",
+                  "type": "integer"
+                },
+                "price": {
+                  "properties": {
+                    "cache_read": {
+                      "description": "Price per million tokens read from the cache. Allowed: a number from 0 to 1000000. Only in the system config or personal settings. Takes effect next turn.",
+                      "maximum": 1000000,
+                      "minimum": 0,
+                      "title": "Cache read price",
+                      "type": "number"
+                    },
+                    "cache_write": {
+                      "description": "Price per million tokens written to the cache. Allowed: a number from 0 to 1000000. Only in the system config or personal settings. Takes effect next turn.",
+                      "maximum": 1000000,
+                      "minimum": 0,
+                      "title": "Cache write price",
+                      "type": "number"
+                    },
+                    "currency": {
+                      "description": "Currency of the price, three capital letters such as USD or CNY. USD if left out. Allowed: text of at most 3 characters. Only in the system config or personal settings. Takes effect next turn.",
+                      "maxLength": 3,
+                      "minLength": 1,
+                      "title": "Currency",
+                      "type": "string"
+                    },
+                    "input": {
+                      "description": "Price per million input tokens. A written price is used whole. Allowed: a number from 0 to 1000000. Only in the system config or personal settings. Takes effect next turn.",
+                      "maximum": 1000000,
+                      "minimum": 0,
+                      "title": "Input price",
+                      "type": "number"
+                    },
+                    "output": {
+                      "description": "Price per million output tokens. Allowed: a number from 0 to 1000000. Only in the system config or personal settings. Takes effect next turn.",
+                      "maximum": 1000000,
+                      "minimum": 0,
+                      "title": "Output price",
+                      "type": "number"
+                    }
+                  },
+                  "type": "object"
+                },
+                "price_multiplier": {
+                  "description": "Prices of this model are multiplied by it, over the one on the provider. Allowed: a number from 0 to 1000. Only in the system config or personal settings. Takes effect next turn.",
+                  "maximum": 1000,
+                  "minimum": 0,
+                  "title": "Price multiplier",
+                  "type": "number"
+                },
+                "reasoning": {
+                  "description": "Which reasoning levels this model offers. Allowed: a list of text of at most 32 characters. Only in the system config or personal settings. Takes effect next turn.",
+                  "items": {
+                    "maxLength": 32,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "title": "Reasoning levels",
+                  "type": "array"
+                },
+                "tools": {
+                  "description": "Whether this model can call tools. Allowed: true or false. Only in the system config or personal settings. Takes effect next turn.",
+                  "title": "Tool calls",
+                  "type": "boolean"
+                },
                 "window": {
                   "description": "The context window of this model, in tokens. Allowed: a whole number from 1 to 100000000. Only in the system config or personal settings. Applies to sessions opened from now on.",
                   "maximum": 100000000,
@@ -94,6 +213,13 @@
               "type": "object"
             },
             "type": "object"
+          },
+          "price_multiplier": {
+            "description": "Prices of this provider are multiplied by it. 1 if left out. A multiplier on the model wins. Allowed: a number from 0 to 1000. Only in the system config or personal settings. Takes effect next turn.",
+            "maximum": 1000,
+            "minimum": 0,
+            "title": "Price multiplier",
+            "type": "number"
           }
         },
         "type": "object"
