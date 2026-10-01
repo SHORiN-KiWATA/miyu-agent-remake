@@ -18,6 +18,30 @@ use support::{Home, MIYU, within};
 
 use dev_home::{BASE_URL, MODEL, Vars, WINDOW, make};
 
+/// 这棵目录下的每一份文件里都搜不到 `needle`（施工 8-6b：地址不进任何文件）。
+fn none_of_the_files_under(dir: &std::path::Path, needle: &str) {
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if let Ok(bytes) = std::fs::read(&path) {
+                assert!(
+                    !bytes
+                        .windows(needle.len().max(1))
+                        .any(|window| window == needle.as_bytes()),
+                    "{} 里搜到了 {needle:?}",
+                    path.display()
+                );
+            }
+        }
+    }
+}
+
 /// 照这几个变量读。
 fn read(pairs: &[(&str, &str)]) -> Result<Vars, String> {
     Vars::read(|name| {
@@ -89,12 +113,21 @@ fn the_config_reads_without_a_single_problem() {
         Some(r#""deepseek""#)
     );
     assert_eq!(
+        value("providers.dev.base_url").as_deref(),
+        Some(r#"{ env = "MIYU_DEV_BASE_URL" }"#),
+        "地址是引用，不是地址本身（施工 8-6b）"
+    );
+    assert_eq!(
         value("providers.dev.keys").as_deref(),
         Some(r#"[{ env = "DEEPSEEK_API_KEY" }]"#)
     );
     assert_eq!(
         value(r#"providers.dev.models."deepseek-v4.1-flash".window"#).as_deref(),
         Some("60000")
+    );
+    assert!(
+        !text.contains("relay.example.invalid"),
+        "地址不进配置文件：{text}"
     );
     let without = Vars {
         window: None,
@@ -147,7 +180,8 @@ async fn a_real_core_on_a_dev_home_answers_through_the_config() {
         "拉起",
         connect_or_start(&home.root, || {
             let mut core = home.core();
-            core.env("DEEPSEEK_API_KEY", "sk-dev-home-test")
+            core.env("MIYU_DEV_BASE_URL", &server.base_url)
+                .env("DEEPSEEK_API_KEY", "sk-dev-home-test")
                 .env("NO_PROXY", "127.0.0.1")
                 .env_remove("HTTP_PROXY")
                 .env_remove("HTTPS_PROXY")
@@ -161,7 +195,8 @@ async fn a_real_core_on_a_dev_home_answers_through_the_config() {
     let output = tokio::task::spawn_blocking(move || {
         Command::new(MIYU)
             .args(["ask", "在吗"])
-            .env("MIYU_HOME", root)
+            .env("MIYU_HOME", &root)
+            .envs(support::offline(&root))
             .env("LANG", "C")
             .env_remove("LC_ALL")
             .env_remove("LC_MESSAGES")
@@ -191,4 +226,6 @@ async fn a_real_core_on_a_dev_home_answers_through_the_config() {
     assert!(body.starts_with(r#"{"model":"deepseek-flash","#), "{body}");
     drop(held);
     home.until_stopped().await;
+    // 地址只在环境变量里，数据根的任何一份文件（配置、生成的 Schema、运行日志）里都搜不到（施工 8-6b）。
+    none_of_the_files_under(home.root.path(), &server.base_url);
 }

@@ -111,7 +111,12 @@ fn schema_item(item: &Item, said: Option<&miyu_config::ItemWords>) -> Value {
     let mut map = Map::new();
     map.insert("key".to_string(), json!(item.key));
     map.insert("type".to_string(), json!(item.kind.as_str()));
-    if let Kind::Option(options) = item.kind {
+    // 选项的列表（施工 8-7：模型能收哪些输入）也列出能选的几个。
+    let options = match item.kind {
+        Kind::Option(options) | Kind::List(&Kind::Option(options)) => Some(options),
+        _ => None,
+    };
+    if let Some(options) = options {
         let named: Vec<Value> = options
             .iter()
             .map(|option| {
@@ -127,8 +132,16 @@ fn schema_item(item: &Item, said: Option<&miyu_config::ItemWords>) -> Value {
         map.insert("default".to_string(), default.json());
     }
     match item.kind {
-        Kind::Int { min, max } => {
+        Kind::Int { min, max } | Kind::Float { min, max } => {
             map.insert("min".to_string(), json!(min));
+            map.insert("max".to_string(), json!(max));
+        }
+        // 时长的范围写成秒（施工 8-7）。
+        Kind::Duration { min, max } => {
+            map.insert("min".to_string(), json!(min));
+            map.insert("max".to_string(), json!(max));
+        }
+        Kind::Text { max } => {
             map.insert("max".to_string(), json!(max));
         }
         Kind::List(inner) => {

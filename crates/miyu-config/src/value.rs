@@ -1,8 +1,9 @@
 //! 值（`docs/blueprint/config.md`「配置清单」）：一项的值 [`Value`]，写成 TOML、写成协议上的 JSON；一份最终值
 //! [`Values`]。
 //!
-//! 现在有字（选项、网址、名字、引用写成字）、开关（施工 8-2）、密钥的引用（施工 8-5）、整数和列表（施工 8-6）：别的写法随
-//! 用到它的那一步加。设置类型的字段怎么从值变过来：[`Setting`]。
+//! 现在有字（选项、网址、名字、引用、文字、时长写成字）、开关（施工 8-2）、密钥的引用（施工 8-5）、整数和列表（施工 8-6）、
+//! 小数（施工 8-7）：别的写法随用到它的那一步加。设置类型的字段怎么从值变过来：[`Setting`]。网址可能是写死的，也可能是
+//! 一个环境变量的引用：[`Address`]（施工 8-6b）。
 
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -23,7 +24,34 @@ pub enum Value {
     Int(i64),
     /// 列表（施工 8-6）：每一个照元素的类型。
     List(Vec<Value>),
+    /// 小数（施工 8-7）。
+    Float(Number),
 }
+
+/// 一个小数（施工 8-7）：照位比相等，所以值能比、能当键。`nan`、`inf` 读的时候就不收（[`crate::Kind::Float`]）。
+#[derive(Debug, Clone, Copy)]
+pub struct Number(f64);
+
+impl Number {
+    /// 包一个小数。
+    pub fn new(number: f64) -> Number {
+        Number(number)
+    }
+
+    /// 里面的小数。
+    pub fn get(self) -> f64 {
+        self.0
+    }
+}
+
+/// 照位比：`0.0` 和 `-0.0` 不一样，读进来的值里不会有 `nan`。
+impl PartialEq for Number {
+    fn eq(&self, other: &Number) -> bool {
+        self.0.to_bits() == other.0.to_bits()
+    }
+}
+
+impl Eq for Number {}
 
 impl Value {
     /// 写成 TOML：字写成双引号的字符串，照 TOML 转义（引号、反斜杠、控制字符）。
@@ -33,6 +61,7 @@ impl Value {
             Value::Bool(on) => on.to_string(),
             Value::Secret(reference) => reference.toml(),
             Value::Int(number) => number.to_string(),
+            Value::Float(number) => float_toml(number.get()),
             Value::List(values) => {
                 let values: Vec<String> = values.iter().map(Value::toml).collect();
                 format!("[{}]", values.join(", "))
@@ -47,6 +76,7 @@ impl Value {
             Value::Bool(on) => serde_json::Value::Bool(*on),
             Value::Secret(reference) => reference.json(),
             Value::Int(number) => serde_json::Value::from(*number),
+            Value::Float(number) => serde_json::Value::from(number.get()),
             Value::List(values) => {
                 serde_json::Value::Array(values.iter().map(Value::json).collect())
             }
@@ -54,11 +84,15 @@ impl Value {
     }
 }
 
-/// 选项的设置类型是字：照原样拿出来。最终值都校验过，开关、引用变不成字，不会走到那一支（写成 TOML 的样子）。
+/// 选项的设置类型是字：照原样拿出来。最终值都校验过，开关变不成字，不会走到那一支（写成 TOML 的样子）。网址类型的
+/// 字段用 `String`、不用 [`Address`] 的（`models.catalog.url`：公开的资源地址，没有引用的必要），写成了 `{ env = … }`
+/// 的（`Kind::Url` 的 `check` 收下它：网址类型整体认引用，施工 8-6b）读成空字，不写死的 TOML 字节，防着字段被悄悄
+/// 填进一句读不出地址的乱码。
 impl From<&Value> for String {
     fn from(value: &Value) -> String {
         match value {
             Value::Text(text) => text.to_string(),
+            Value::Secret(_) => String::new(),
             other => other.toml(),
         }
     }
@@ -92,11 +126,36 @@ impl Setting for bool {
     }
 }
 
-/// 没有默认值的字（网址、名字、引用、没有默认值的选项）：没有的是空的（施工 8-6）。
+/// 没有默认值的字（名字、引用、没有默认值的选项）：没有的是空的（施工 8-6）。网址用 [`Address`]，不用它：网址可能是
+/// 一个引用，这里读不出环境变量（施工 8-6b）。
 impl Setting for Option<String> {
     fn read(value: Option<&Value>) -> Option<String> {
         match value {
             Some(Value::Text(text)) => Some(text.to_string()),
+            _ => None,
+        }
+    }
+}
+
+/// 一项网址类型的值（施工 8-6b，`config.md`「类型」网址那一行）：写死的地址，或者一个环境变量的引用。只有
+/// `{ env = … }`，没有 `{ secret = … }`：地址不进密钥文件，和它一样只留在拉起核心的环境变量里（第九条第 5 条，
+/// `config/environment.rs`）。[`Reference::Env`] 只存变量的名字，取出来的地址只在真要连供应商的那一刻读（`models.md`
+/// 「怎么走」第一条），不会在这里被解出来：`config.get`、`model.list` 照写的样子交，不交地址。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Address {
+    /// 写死的地址。
+    Literal(String),
+    /// 环境变量的名字。
+    Env(String),
+}
+
+/// 没有默认值的网址（施工 8-6b）：写死的照字读；`{ env = … }` 照引用读，`{ secret = … }` 读不出来（[`crate::item::Kind`]
+/// 的 `check` 挡在前面，正常不会走到这里）；没写的是空的。
+impl Setting for Option<Address> {
+    fn read(value: Option<&Value>) -> Option<Address> {
+        match value {
+            Some(Value::Text(text)) => Some(Address::Literal(text.to_string())),
+            Some(Value::Secret(Reference::Env(name))) => Some(Address::Env(name.clone())),
             _ => None,
         }
     }
@@ -109,6 +168,63 @@ impl Setting for Option<i64> {
             Some(Value::Int(number)) => Some(*number),
             _ => None,
         }
+    }
+}
+
+/// 没有默认值的小数（施工 8-7）。
+impl Setting for Option<Number> {
+    fn read(value: Option<&Value>) -> Option<Number> {
+        match value {
+            Some(Value::Float(number)) => Some(*number),
+            _ => None,
+        }
+    }
+}
+
+/// 没有默认值的开关（施工 8-7）：没写和写了 `false` 分得开。
+impl Setting for Option<bool> {
+    fn read(value: Option<&Value>) -> Option<bool> {
+        match value {
+            Some(Value::Bool(on)) => Some(*on),
+            _ => None,
+        }
+    }
+}
+
+/// 时长（施工 8-7）：照 [`crate::item::duration`] 读。最终值都校验过；读不成的（只有手写的值里有）是 0。
+impl Setting for std::time::Duration {
+    fn read(value: Option<&Value>) -> std::time::Duration {
+        match value {
+            Some(Value::Text(text)) => crate::item::duration(text).unwrap_or_default(),
+            _ => std::time::Duration::ZERO,
+        }
+    }
+}
+
+/// 没有默认值的字的列表（施工 8-7：选项、文字的列表）：没写的是空的，写了空列表的是空的列表；照写的先后，不是字的跳过。
+impl Setting for Option<Vec<String>> {
+    fn read(value: Option<&Value>) -> Option<Vec<String>> {
+        match value {
+            Some(Value::List(values)) => Some(
+                values
+                    .iter()
+                    .filter_map(|value| match value {
+                        Value::Text(text) => Some(text.to_string()),
+                        _ => None,
+                    })
+                    .collect(),
+            ),
+            _ => None,
+        }
+    }
+}
+
+/// 小数写成 TOML：整数也带上 `.0`，读回来还是小数（TOML 1.0「Float」）。
+fn float_toml(number: f64) -> String {
+    let text = number.to_string();
+    match text.contains(['.', 'e', 'E']) {
+        true => text,
+        false => format!("{text}.0"),
     }
 }
 

@@ -6,10 +6,11 @@
 //! 2. 拿单实例锁：已经有一个核心在跑的，说一声 `running` 就走；先拿锁再装日志，免得两个核心写同一份；
 //! 3. 装运行日志 `state/logs/core.log`，记一条「起来了」：版本、进程号、数据根、和 UTC 差多少；
 //! 4. 管理员 `admin` 的家目录，没有就建；资源目录；读配置、照 `log.level` 换运行日志的级别，照配置清单生成两份 JSON
-//!    Schema 和参考文件（[`settings`]，施工 8-1、8-2）；供应商的档案和模型资料，造会话的路由（[`models`]，施工 8-6）；开始监视配置文件，配置换了当场换级别、重写
+//!    Schema 和参考文件（[`settings`]，施工 8-1、8-2）；供应商的档案、认原厂的表，造会话的路由（[`models`]，施工 8-6、8-7）；开始监视配置文件，配置换了当场换级别、重写
 //!    生成的文件（施工 8-4）；
 //! 5. 换本机令牌、在套接字上等连接（施工 3-8 下）；找沙盒的助手、探一次，只记日志（施工 5-1）；
-//! 6. 往标准输出写一行 `ready`：拉起它的头等着这一行；接着在后台清一次回收处（施工 3-8 三补，`trash.rs`）。
+//! 6. 往标准输出写一行 `ready`：拉起它的头等着这一行；接着在后台读 models.dev 的目录、用出来的、供应商的列表，读完再
+//!    答要它的，之后在后台更新目录（施工 8-7）；在后台清一次回收处（施工 3-8 三补，`trash.rs`）。
 //!
 //! 之后 [`serve()`] 一个个接连接：没有连接、也没有在跑的回合，空闲够久了就退出；收到停的信号，先让在跑的
 //! 会话有计划地停下再退出。起不来的，把原因写成那一行（`error …`）交给头。
@@ -23,6 +24,7 @@ mod trash;
 pub use serve::{Stopped, serve};
 
 use std::io::{self, Write};
+use std::path::Path;
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::time::Duration;
@@ -158,10 +160,16 @@ async fn run(
         Ok(opened) => opened,
         Err(error) => return failed("socket", error.to_string()),
     };
-    let models = match models::routes(&resources) {
-        Ok(models) => models,
+    let routes = match models::prepare(&resources, Some(root.state().join("models"))) {
+        Ok(routes) => routes,
         Err(error) => return failed("models", error),
     };
+    let model_data = Arc::clone(&routes.data);
+    let catalog_places = (
+        resources.catalog_snapshot().parent().map(Path::to_path_buf),
+        models::cache(&env),
+        root.state().join("models"),
+    );
     let sandbox = sandbox::probe(env.exe.as_deref());
     let sandbox_cache = sandbox::cache(&env, std::env::var_os("CARGO_HOME"));
     let tools = match tools(&resources) {
@@ -173,14 +181,15 @@ async fn run(
     let mut core = Core::new(
         root,
         resources,
-        models,
+        Arc::new(routes),
         tools,
         env.home,
         admin(),
         opened.token,
     )
     .with_sandbox(sandbox)
-    .with_config(config);
+    .with_config(config)
+    .with_model_data(Arc::clone(&model_data));
     if let Some((cache, cargo_home)) = sandbox_cache {
         core = core.with_sandbox_cache(cache, cargo_home);
     }
@@ -195,6 +204,15 @@ async fn run(
     // 监视配置文件（第七条）：拿着它一直到停，丢掉就不看了。
     let _watching = core.watch_config();
     say(&Ready::Ready);
+    // 写了 `ready` 以后读目录、在后台更新（施工 8-7，「起草时定的」第 13 条）。
+    let (snapshot, cache, state) = catalog_places;
+    models::start(
+        model_data,
+        snapshot.unwrap_or_default(),
+        cache,
+        Some(state),
+        models::catalog_settings(core.config_now()),
+    );
     let purging = trash::purge(trashed, admin());
     serve(opened.listener, core, options.idle, serve::signal()).await;
     if let Err(error) = purging.await {

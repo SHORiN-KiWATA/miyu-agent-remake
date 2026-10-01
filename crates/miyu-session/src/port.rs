@@ -2,6 +2,8 @@
 //! 它，它的回报送回 actor 的收件箱。3-7（下）接上驱动和 HTTP 执行器，以后资源调度夹在中间；测试里
 //! 照剧本回。
 
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 use tokio::sync::{mpsc, oneshot};
@@ -20,6 +22,11 @@ use crate::config::TurnConfig;
 /// 给一个会话造请求模型的端口（施工 3-7 下）。造会话、载入时，拿到了这个会话的策略快照再造：驱动的
 /// 占位冻结在快照里，核心升级改了字，老会话照样逐字节重现当时的请求（施工 3-6 上）。
 pub trait Models: Send + Sync {
+    /// 等造端口要的都备好了（施工 8-7：目录在写了 `ready` 以后才读完）。造会话、载入时在造端口之前等它。默认马上好。
+    fn ready(&self) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(std::future::ready(()))
+    }
+
     /// 造这个会话的端口。
     fn port(&self, session: ForSession) -> Arc<dyn ModelPort>;
 }

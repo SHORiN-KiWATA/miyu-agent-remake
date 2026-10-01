@@ -1,6 +1,6 @@
 //! 超了多少的测试（施工 6-6 中）：几家报错的原话照小写以后找。
 
-use super::excess;
+use super::{excess, limit};
 
 #[test]
 fn each_known_wording_gives_how_many_tokens_over() {
@@ -30,5 +30,31 @@ fn each_known_wording_gives_how_many_tokens_over() {
         ("prompt is too long", None),
     ] {
         assert_eq!(excess(&said.to_lowercase()), over, "{said}");
+    }
+}
+
+/// 报了的上限（施工 8-7）：只要说得出 N 就交，后半段说不出、没超的也交；说不出 N 的、0 不交。
+#[test]
+fn the_stated_limit_is_read_on_its_own() {
+    for (said, stated) in [
+        (
+            "This model's maximum context length is 128000 tokens. However, your messages resulted in 130000 tokens.",
+            Some(128_000),
+        ),
+        (
+            "This model's maximum context length is 65536 tokens. However, you requested 60000 tokens.",
+            Some(65_536),
+        ),
+        ("maximum context length is 8,192 tokens", Some(8_192)),
+        (
+            "prompt is too long: 213,462 tokens > 200,000 maximum",
+            Some(200_000),
+        ),
+        ("prompt is too long: 213462 tokens", None),
+        ("maximum context length is exceeded", None),
+        ("maximum context length is 0 tokens", None),
+        ("Request too large for model", None),
+    ] {
+        assert_eq!(limit(&said.to_lowercase()), stated, "{said}");
     }
 }

@@ -58,6 +58,16 @@ GPL-3.0-or-later，见 `LICENSE`。
 - 施工 8-2 加了 `toml_edit`（MIT OR Apache-2.0，读配置的 TOML，纯逻辑层的白名单里）和它带进来的 `toml_parser`、`toml_datetime`、`winnow`（MIT 或 Apache-2.0；`indexmap` 这些原来就有）；`sys-locale`（MIT OR Apache-2.0，系统设置里的语言）。都在能用的名单里，门禁过了。
 - 施工 3-8 七补加了 `rusqlite`（MIT，会话列表的索引，`store/index.md`），开 `bundled`：`libsqlite3-sys`（MIT）自己带 SQLite 的源码编，SQLite 本身是公有领域；它带进来的 `hashlink`、`hashbrown`、`fallible-iterator`、`fallible-streaming-iterator`（MIT 或 Apache-2.0）、`foldhash`（Zlib），编的时候用的 `cc`、`pkg-config`、`vcpkg`（MIT 或 Apache-2.0）。都在能用的名单里，门禁过了。只在 wasm 上用的 `sqlite-wasm-rs`、`rsqlite-vfs` 不在发布的四个平台的依赖图里。
 
+### 资源里的第三方数据
+
+门禁只查 Rust 依赖。资源目录里随安装包发的第三方数据另记在这里，加一份之前先看许可证：
+
+| 文件 | 从哪来 | 许可证 | 怎么守 |
+|---|---|---|---|
+| `resources/models/models-dev.json` | models.dev 的 `api.json`（模型目录，施工 8-7） | MIT（models.dev 仓库的 `LICENSE`，2025 models.dev） | 原文放在旁边的 `models-dev.LICENSE`，跟着快照一起发。MIT 能和 GPL-3.0 合在一起发 |
+
+- 施工 8-7 定的（2026-10-01，施工员确认，主会话同意照图纸带快照）：快照约 5.3 MB，进仓库压缩以后约 0.5 MB，仓库的包原来约 13.5 MB，涨不到 4%。刷新一次快照是一次替换，照「怎么刷新」（`store/resources.md`）做。
+
 ### 出处
 
 - `12-进程形态与分发.md` R15：为什么是 GPL-3.0-or-later。

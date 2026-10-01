@@ -11,7 +11,8 @@
 /// - `<类型>::from(&最终值)`（[`From<&Values>`](crate::Values)）：同 `at(&最终值, &[])`。
 ///
 /// 每一项的格照这个先后写：默认值（必写，不写编译不过；没有默认值的写 `none`，密钥的列表空的写 `[]`）、`kind`
-/// （`option [..]` 选项至少两个、`bool`、`secret`、`secrets`、`int [最小, 最大]`、`url`、`name`、`reference`）、`layers`
+/// （`option [..]` 选项至少两个、`bool`、`secret`、`secrets`、`int [最小, 最大]`、`url`、`name`、`reference`，施工 8-7 加
+/// `float [最小, 最大]`、`text [最多]`、`texts [最多]`、`options [..]`、`duration [最短, 最长]`）、`layers`
 /// （至少一层）、`tighten`（能放进项目配置的必写，别的不写）、`env`（可以不写）、`applies`、`ui`（`common` 可以不写，
 /// 是 `false`）。
 ///
@@ -171,7 +172,8 @@ macro_rules! settings {
 }
 
 /// [`settings!`](crate::settings) 里 `kind` 那一格：选项至少两个，写成 `option ["a", "b"]`；整数写成 `int [最小, 最大]`；
-/// 别的写名字。选项只有一个的认不出来，编译不过。
+/// 小数 `float [最小, 最大]`、文字 `text [最多几个字]`、时长 `duration [最短秒数, 最长秒数]`，选项的列表 `options [..]`、
+/// 文字的列表 `texts [最多几个字]`（施工 8-7）；别的写名字。选项只有一个的认不出来，编译不过。
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __settings_kind {
@@ -202,6 +204,27 @@ macro_rules! __settings_kind {
     (reference) => {
         $crate::Kind::Reference
     };
+    (float [$min:literal, $max:literal]) => {
+        $crate::Kind::Float {
+            min: $min,
+            max: $max,
+        }
+    };
+    (text [$max:literal]) => {
+        $crate::Kind::Text { max: $max }
+    };
+    (texts [$max:literal]) => {
+        $crate::Kind::List(&$crate::Kind::Text { max: $max })
+    };
+    (options [$first:literal $(, $option:literal)+]) => {
+        $crate::Kind::List(&$crate::Kind::Option(&[$first $(, $option)+]))
+    };
+    (duration [$min:literal, $max:literal]) => {
+        $crate::Kind::Duration {
+            min: $min,
+            max: $max,
+        }
+    };
 }
 
 /// [`settings!`](crate::settings) 里的默认值：照 `kind` 变成值；`none` 是没有，`[]` 是空的列表。
@@ -219,6 +242,12 @@ macro_rules! __settings_default {
     };
     (bool, $default:literal) => {
         ::core::option::Option::Some($crate::Value::Bool($default))
+    };
+    (url, $default:literal) => {
+        ::core::option::Option::Some($crate::Value::Text(::std::borrow::Cow::Borrowed($default)))
+    };
+    (duration, $default:literal) => {
+        ::core::option::Option::Some($crate::Value::Text(::std::borrow::Cow::Borrowed($default)))
     };
 }
 

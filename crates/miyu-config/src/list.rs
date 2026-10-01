@@ -101,14 +101,24 @@ fn tighten_problem(item: &Item) -> Option<String> {
     }
 }
 
-/// 类型本身写得对不对：选项至少两个、不重复；整数的最小不比最大大；列表的元素不是列表。
+/// 类型本身写得对不对：选项至少两个、不重复；整数、小数的最小不比最大大，时长的最短大于 0、不比最长长，文字至少一个字
+/// （施工 8-7）；列表的元素不是列表。
 fn kind_problems(item: &Item) -> Vec<String> {
     match item.kind {
-        Kind::Int { min, max } if min > max => vec![format!("{}：最小比最大大", item.key)],
+        Kind::Int { min, max } | Kind::Float { min, max } if min > max => {
+            vec![format!("{}：最小比最大大", item.key)]
+        }
+        Kind::Duration { min, max } if min > max || min == 0 => {
+            vec![format!("{}：时长的最短要大于 0、不比最长长", item.key)]
+        }
+        Kind::Text { max: 0 } => vec![format!("{}：文字至少能写一个字", item.key)],
         Kind::List(Kind::List(_)) => vec![format!("{}：列表的元素不能是列表", item.key)],
         Kind::Bool
         | Kind::Secret
         | Kind::Int { .. }
+        | Kind::Float { .. }
+        | Kind::Text { .. }
+        | Kind::Duration { .. }
         | Kind::Url
         | Kind::Name
         | Kind::Reference

@@ -38,6 +38,8 @@
 | `MIYU_HOME` | 数据根；不设是家目录的 `.miyu`（`store.md`） |
 | `MIYU_RESOURCES` | 资源目录，开发时指到源码树的 `resources/`（`store.md`） |
 | `MIYU_LOG` | 运行日志记到哪一级，压过配置项 `log.level`（`log.md`、`config.md`） |
+| `MIYU_CATALOG_UPDATE` | 后台更新 models.dev 的目录不更新，`true`、`false`，压过配置项 `models.catalog.update`（施工 8-7，2026-10-01 主会话定：离线的机器、测试拉起的核心用它） |
+| `XDG_CACHE_HOME`（Linux）、家目录（macOS）、`LOCALAPPDATA`（Windows） | 缓存目录在哪（`store.md` 第 3 条）：沙盒的缓存、后台拉的目录 |
 | 配置里 `{ env = "…" }` 写的那几个 | 供应商的 key（`config.md` 第九条第 5 条）：核心照自己起来时的环境取，回合开始时取一次 |
 | `XDG_RUNTIME_DIR`（Linux）、`TMPDIR` | 套接字放哪（`ipc.md`） |
 | `HTTPS_PROXY`、`HTTP_PROXY`、`NO_PROXY` 这些 | 请求模型走不走代理（`http.md`） |
@@ -68,13 +70,13 @@
 6. 找资源目录（`store.md`）。找到以后读配置（施工 8-2，`config.md`「怎么走」第二条）：系统配置、管理员的个人设置、信任的记录、密钥文件（施工 8-5），读不进来的照空的，有问题的每份记一条 `WARN config problems`（密钥文件组、别人读得到的记一条 `WARN secrets readable by others`）；照 `log.level` 的最终值换运行日志的级别，记一条 `INFO log level`。再照配置清单生成两份 JSON Schema 和参考文件，放在 `state/config/`（施工 8-1，`config.md`「怎么走」第一条第 6 到 8 条）：字照 `ui.language` 的最终值，`auto` 的照系统的语言挑，一样的不重写；读好的配置交给协议端点（`Core::with_config`）；写不成的、字缺了的，一份记一条 `WARN config schema not written`（目标 `miyu::config`），不影响起不起得来。说「好了」之前开始监视配置文件（`Core::watch_config`，施工 8-4，`config.md` 第七条），起一个任务跟着配置换：`log.level` 变了换级别，`ui.language` 变了重写那三份（第八条）；监视起不来的记一条 `WARN config watch unavailable`，照样起来。
 7. 起运行时：多线程，两个工作线程，接连接、会话、请求都在上面。
 8. 算出套接字放哪、换本机令牌、在套接字上等连接、记下实际的位置（`ipc.md`）。
-9. 读供应商的档案和模型资料，造会话的路由（下面「模型」，施工 8-6）。
+9. 读供应商的档案、认原厂的表，造会话的路由和核心一份的模型资料（下面「模型」，施工 8-6、8-7）。目录这时还不读。
 10. 找沙盒的助手、探一次（`sandbox.md`「怎么走」第 1、2 条）：记一行 `INFO` `sandbox` 或者 `WARN` `sandbox unavailable`（施工 5-1）。探到的结果（能不能用、为什么，`Availability`）交给协议端点：握手时报给头（施工 5-4 下）；能用的，造会话、载入时把助手交给会话，权限策略照它判执行命令，执行器照它带沙盒（施工 5-4 上）；用不了的，会话里当沙盒用不了。
     - 再算出缓存目录（`store.md` 第 3 条），沙盒的缓存放在它下面的 `sandbox/<账号>/`，造会话、载入时照属主交给会话（`session/tools.md` 第 1a 条，施工 5-4 下）。算不出来的：记一行 `WARN sandbox cache unavailable`，`reason` 是 `no home directory` 或者 `no LOCALAPPDATA`（运行日志一律英文），沙盒里不设工具链的变量。你的 cargo 目录：核心的环境里 `CARGO_HOME` 设了、不是空的照它，不然 `~/.cargo`。
     - 这两样都不影响起不起得来。
 11. 工具目录：登记基础系统，十一件：`edit`、`glob`、`grep`、`history`、`jobs`（施工 7-4）、`send_message`（施工 7-7）、`read`、`shell`、`subagent`（施工 7-5；7-5 再补从 `agent` 改名，以前的名字照样找得到）、`trash`、`write`；工具的字从资源目录读，登记完就冻结（`tools/interface.md`）。
 12. 核心的家底：数据根、资源目录、模型、工具目录、系统的家目录、管理员 `admin`、本机令牌，会话表是空的，执行器的任务表是空的（施工 7-3，`protocol.md`）。不载入任何会话，只打开管理员的会话列表的索引 `home/admin/index/sessions.db`，一直开着：没有的新建，读不了、坏了、版本不对的删掉换一份空的，列会话时照日志补；都不影响起不起得来（施工 3-8 七补，`store/index.md`「怎么走」第 1 条）。会话表造会话、载入时交给会话一份造子会话的端口（施工 7-5，`protocol.md`「会话表」第 7 条）。
-13. 往标准输出写一行 `ready`。
+13. 往标准输出写一行 `ready`。接着在后台读 models.dev 的目录、用出来的、供应商的列表，读完放行等着它的（造会话、载入、`model.list`），之后在后台更新目录（下面「模型」第 5、6 条，施工 8-7）。
 14. 清一次回收处（施工 3-8 三补，`store.md` 第 12 条第 2 款）：管理员的回收处里删了满 7 天（`KEEP`，2026-09-30 项目主人定）的会话连目录删掉。写了 `ready` 以后在阻塞线程里清，不耽误头连上来、第 15 步照常；核心退出之前等它清完。钟是这时系统的钟，读不出的当 1970 年（什么都不满时限，一个都不删）。删了的记一条 `INFO trash purged removed=<几个>`，一个都没删的不记；读不出删的时刻、删不掉的，一个一条 `WARN trash entry kept session=… error=…`；回收处读不了的记 `WARN trash not read error=…`。都不影响起不起得来。
 15. 一个个接连接，直到停下（下面「停下」）。
 
@@ -95,10 +97,12 @@
 
 **模型**（施工 8-6，`models.md`「怎么走」第一条、第四条）
 
-1. 起来时读资源目录里的两份：供应商的档案 `models/profiles.toml`（TOML 读成 JSON，照 `miyu-models` 的样子读；认得出的供应商的驱动、地址、`openai-chat` 的开关、能收哪些输入、一张图怎么算）和模型资料 `models/models-dev.json`（窗口、最大输出，`store/resources.md`）。读完记一条 `INFO model profiles loaded profiles=<几家>`。哪一份读不出来、写法不对：起不来，原因写明是哪一份。HTTP 客户端造不出来（系统的证书读不了之类）：起不来。代理照环境变量（`http.md`）。
+1. 起来时读资源目录里的两份：供应商的档案 `models/profiles.toml`（TOML 读成 JSON，照 `miyu-models` 的样子读；`[npm]`、认得出的供应商的驱动、地址、`openai-chat` 的开关、一张图怎么算）和认原厂的表 `models/vendors.toml`（施工 8-7，同样读成 JSON）。读完记一条 `INFO model profiles loaded profiles=<几家>`。哪一份读不出来、写法不对：起不来，原因写明是哪一份。HTTP 客户端（请求模型的、GET 用的两个）造不出来（系统的证书读不了之类）：起不来。代理照环境变量（`http.md`）。
 2. 造会话的路由（`miyu_session::Routes`，`session/actor.md` 第 8 条）交给协议端点：用哪家供应商、哪个模型、哪个 key，全照配置（`[providers.<id>]`、`models.chat`），每个会话照回合开始时冻结的那一份挑（`config.md` 第八条第 3 条）。空闲超时 180 秒（`http.md`）。核心不再读开发用的 `MIYU_DEV_*` 和 `DEEPSEEK_API_KEY`：开发自测改成 `cargo xtask dev-home <目录>`（`models.md` 第十条）。
 3. 没配模型（`models.chat` 没配、配的解析不出、那一家用不了、key 一个都取不到）：照样起来；每次请求都当场说完、没发出去，分类 `no_model`，原话照 `models.md`「出错」（例如 `no model configured: set models.chat`），`model.called` 里没有端点和模型；内核不再来（`kernel/session.md`）。路由每次这样记一条 `WARN no model why=…`（目标 `miyu::session`）。
 4. key 照配置里的引用取：`{ secret }` 取密钥文件里的，`{ env }` 取核心起来时的环境；换了密钥，下一个回合开始时用上，不用重启（`config.md` 第九条第 7 条）。key 只在内存里，不进日志。
+5. 目录（施工 8-7，`models.md`「怎么走」第二条第 1、2 条）：写了 `ready` 以后在阻塞线程里读，安装包带的快照（`models/models-dev.json`）和缓存目录里的 `models/models-dev.json` 比旁边 `meta` 的 `fetched`，用新的；新的读不了用另一份；都读不了目录是空的，照样起来。同一次读 `state/models/` 下的用出来的、供应商的列表，坏了的当没有。读完记 `INFO catalog loaded source=… fetched=… providers=… models=… ms=…`。要它的（造会话、载入、`model.list`）在这之前等着。2026-10-01 在开发机上量的读快照（release）见施工单 8-7「验收结果」。
+6. 后台更新（`models.md`「怎么走」第二条第 3 条）：`models.catalog.update` 开着的（`MIYU_CATALOG_UPDATE` 压过），缓存的 `fetched` 旧过 `every` 的，GET `url`，带上次的 `ETag`；200 读得进、至少有一家的写进缓存目录、换上，304 只改 `meta`，别的一小时后再试。核心一直开着的每过 `every` 再查，配置改了当场照新的算。缓存目录算不出来的只读快照、不拉，记一行 `WARN catalog cache unavailable reason=…`。
 
 **子进程随核心退出**（施工 7-8，`12-进程形态与分发.md` R5，`agents.md` 第八条）
 
@@ -133,6 +137,11 @@
 |---|---|
 | `INFO` | `starting version=… pid=… root=… tz=…` |
 | `INFO` | `model profiles loaded profiles=…`（施工 8-6） |
+| `INFO` | `catalog loaded source=… fetched=… providers=… models=… ms=…`（施工 8-7） |
+| `WARN` | `catalog unreadable source=… error=…`、`catalog empty`（施工 8-7） |
+| `DEBUG` | `catalog entry skipped entry=…`：目录里坏了跳过的一个模型、一家供应商（施工 8-7） |
+| `INFO` | `catalog refreshed fetched=… providers=… models=…`、`catalog not modified`（施工 8-7） |
+| `WARN` | `catalog refresh failed error=…`、`catalog cache unavailable reason=…`（施工 8-7） |
 | `WARN` | `children not bound error=…`（Windows：进不了作业对象，施工 7-8） |
 | `INFO` | `sandbox helper=… platform=… mechanisms=…`（施工 5-1） |
 | `WARN` | `sandbox unavailable reason=…`（施工 5-1） |

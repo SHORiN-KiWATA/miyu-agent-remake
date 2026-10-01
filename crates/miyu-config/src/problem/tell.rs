@@ -149,7 +149,7 @@ pub fn tell(
 }
 
 /// 值写得不对的一项（真的键 `key`）：（期望什么，错在哪那一段）和改法。选项列出能写的几个，改法取默认值（没有默认值的
-/// 取第一个）；开关期望 `true` 或 `false`，改法取默认值的另一个（「怎么走」第四条第 5 条）；数不在范围里的说范围；别的
+/// 取第一个）；开关期望 `true` 或 `false`，改法取默认值的另一个（「怎么走」第四条第 5 条）；数、时长不在范围里的说范围；别的
 /// 类型期望照 [`words::expected`]，不另说改法（施工 8-6）。
 fn value_problem(
     item: &Item,
@@ -186,19 +186,18 @@ fn value_problem(
             let fix = sentence(words, "config/fix-write", &[("example", &example)])?;
             Ok(((expected, said), fix))
         }
-        Kind::Int { min, max } if code == Code::OutOfRange => {
-            let expected = words::expected(words, item.kind)?;
-            let said = sentence(
+        Kind::Int { min, max } | Kind::Float { min, max } if code == Code::OutOfRange => {
+            out_of_range(
                 words,
-                "config/out-of-range",
-                &[
-                    ("key", key),
-                    ("min", &min.to_string()),
-                    ("max", &max.to_string()),
-                    ("got", got),
-                ],
-            )?;
-            Ok(((expected, said), String::new()))
+                item.kind,
+                key,
+                (&min.to_string(), &max.to_string()),
+                got,
+            )
+        }
+        Kind::Duration { min, max } if code == Code::OutOfRange => {
+            let (min, max) = (format!("{min}s"), format!("{max}s"));
+            out_of_range(words, item.kind, key, (&min, &max), got)
         }
         kind => {
             let expected = words::expected(words, kind)?;
@@ -215,6 +214,23 @@ fn value_problem(
             Ok(((expected, said), String::new()))
         }
     }
+}
+
+/// 数、时长不在范围里（最小、最大照这种类型的写法给）：期望照 [`words::expected`]，不另说改法。
+fn out_of_range(
+    words: &dyn Words,
+    kind: Kind,
+    key: &str,
+    (min, max): (&str, &str),
+    got: &str,
+) -> Result<((String, String), String), Missing> {
+    let expected = words::expected(words, kind)?;
+    let said = sentence(
+        words,
+        "config/out-of-range",
+        &[("key", key), ("min", min), ("max", max), ("got", got)],
+    )?;
+    Ok(((expected, said), String::new()))
 }
 
 /// 几层的名字连成「系统配置或个人设置」。

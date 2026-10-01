@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>156</b><span>/ 172 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 8-6 供应商、C-5 发给别的会话</span></li>
-    <li><b class="mono">e36088df</b><span>最近一步（C-4 读别的会话）的提交</span></li>
+    <li><b>160</b><span>/ 174 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 C-6 空了告诉我、8-6 补地址放环境变量</span></li>
+    <li><b class="mono">a3aa1aa1</b><span>最近一步（8-7 模型资料）的提交</span></li>
   </ul>
 </header>
 
@@ -447,6 +447,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s5-3"><span class="n">5-3</span>只管写<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s5-4a"><span class="n">5-4</span>权限策略接上沙盒（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s5-4b"><span class="n">5-4</span>权限策略接上沙盒（下）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s5-4c"><span class="n">5-4</span>断开的挂载不卡住沙盒（补）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">5-5</span>代理（取消）</span></li>
         <li><span class="step"><span class="n">5-6</span>Linux：网络（取消）</span></li>
         <li><a class="step done" href="#s5-7"><span class="n">5-7</span>macOS<span class="st">✓</span></a></li>
@@ -512,8 +513,9 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s8-3"><span class="n">8-3</span>写配置<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-4"><span class="n">8-4</span>监视与生效<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-5"><span class="n">8-5</span>密钥<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">8-6</span>供应商</span></li>
-        <li><span class="step"><span class="n">8-7</span>模型资料</span></li>
+        <li><a class="step done" href="#s8-6"><span class="n">8-6</span>供应商<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">8-6</span>地址也能放在环境变量里（补）</span></li>
+        <li><a class="step done" href="#s8-7"><span class="n">8-7</span>模型资料<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">8-8</span>用途、挡位、池</span></li>
         <li><span class="step"><span class="n">8-9</span>出错换端点</span></li>
         <li><span class="step"><span class="n">8-10</span>会话里换模型</span></li>
@@ -533,7 +535,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sC-2"><span class="n">C-2</span>收别的会话发来的话<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sC-3"><span class="n">C-3</span>列会话<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sC-4"><span class="n">C-4</span>读别的会话<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">C-5</span>发给别的会话</span></li>
+        <li><a class="step done" href="#sC-5"><span class="n">C-5</span>发给别的会话<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">C-6</span>空了告诉我</span></li>
         <li><span class="step"><span class="n">C-7</span>跨会话验收</span></li>
       </ol>
@@ -7767,6 +7769,54 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s5-4c" aria-labelledby="h-s54c">
+  <div class="sheet-head"><h2 id="h-s54c"><span class="no">5-4 补</span>断开的挂载不卡住沙盒（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">项目主人机器上的 <code>~/.gvfs</code> 是断开的 FUSE 挂载，打开了 <code>fstat</code> 报 ENOTCONN。沙盒为了藏数据根，一级级给家目录下的每一项加「可读」的规则，加到它时整个规则集加不上，什么命令都跑不了。现在读的规则跳过查不了的路径：它本来就读不了，不放宽什么。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">断开的挂载不卡住沙盒（补）</span><span class="dir-note">5-4 补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>加「可读」规则前先对打开的描述符查一次元数据，查不了的跳过</li>
+              <li>根目录那一条和「可写」的规则照旧严格</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">环境撞出来的真毛病</span><span class="rl">断开的网络盘、gvfs 在普通用户机器上不少见</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-4 补</dd></div>
+        <div><dt>名称</dt><dd>断开的挂载不卡住沙盒（补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">0fb2c960</dd></div>
+        <div><dt>验收</dt><dd>本机实测、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>这台机器上那条沙盒测试改之前每次红、改之后绿；拿掉判断又红</span></li>
+        <li><span class="ok">✓</span><span>三台机器的 CI 和长跑全绿（和 8-6 同一次）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/5-4-断开的挂载不卡住沙盒（补）.md</code>；蓝图 <code>sandbox/linux.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="s5-7" aria-labelledby="h-s57">
   <div class="sheet-head"><h2 id="h-s57"><span class="no">5-7</span>macOS</h2><span class="pill done">已完成</span></div>
   <p class="purpose">macOS 上沙盒真的管住写：助手把规格写成一份 Seatbelt 配置，装到自己身上，再换成命令。整盘能读，只能写规格里的，数据根读写都不行；能替命令到别处读写的系统服务挡住；网络不管。分身施工，本机没有 Mac，规矩在 CI 的 macOS 26 上量出来。</p>
@@ -10782,6 +10832,108 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s8-6" aria-labelledby="h-s86">
+  <div class="sheet-head"><h2 id="h-s86"><span class="no">8-6</span>供应商</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">模型从配置里来，不再靠开发用的环境变量：<code>[providers.&lt;编号&gt;]</code> 写驱动、地址、几个 key（引用 8-5 的密钥或环境变量），档案认得出的供应商可以少写；一个会话钉在一个 key 上；模型照「供应商/模型」解析，切在第一个 <code>/</code>。开发自测改成 <code>cargo xtask dev-home</code> 造一个带配置的数据根。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">供应商</span><span class="dir-note">8-6</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>新 crate <code>miyu-models</code>（纯逻辑），<code>route.rs</code> 取代 <code>HttpModels</code></li>
+              <li>驱动接口加认证头 <code>auth(key)</code>；没配好模型当场报 <code>no_model</code>，不发请求</li>
+              <li>清单登记 <code>models.chat</code>、<code>providers.*</code>，键里支持人起的名字；设置页多「模型」一页</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">核心不读 MIYU_DEV_*</span><span class="rl">三个名字只留在 xtask dev-home 里</span></div>
+          <div class="tile new"><span class="nm">出错换 key 随 8-9</span><span class="rl">8-6 只钉 key、排候选</span></div>
+          <div class="tile"><span class="nm">两个演示改接法</span><span class="rl">合了已告诉终端界面、网页</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-6</dd></div>
+        <div><dt>名称</dt><dd>供应商</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">b42316ba</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>19 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型：只靠 dev-home 的配置，她调 read 答出文件内容，模型名带斜杠也切对</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-6-供应商.md</code>；蓝图 <code>models.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-7" aria-labelledby="h-s87">
+  <div class="sheet-head"><h2 id="h-s87"><span class="no">8-7</span>模型资料</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">每个配好的模型说得出它的资料（窗口、最大输出、能收什么、能不能调工具、思考、价格……），每一格说得出从哪来：安装包带的 models.dev 目录快照、缓存目录里后台更新的那份、四层对目录、手写的覆盖、用出来的窗口、驱动的保守默认。价格照倍率乘。协议有了 <code>model.list</code>。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">模型资料</span><span class="dir-note">8-7</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>快照 5.3 MB（225 家、8341 个模型，MIT）；写了 ready 以后后台读，release 约 30 毫秒</li>
+              <li>后台更新带 ETag、304、失败一小时后再试；<code>MIYU_CATALOG_UPDATE=false</code> 能关</li>
+              <li>四层对目录、规整、几家同名先认出的那家再原厂；本机的服务价格当 0</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">测试不连外网</span><span class="rl">缓存目录指到各自的临时目录</span></div>
+          <div class="tile new"><span class="nm">用出来的窗口</span><span class="rl">新造的、载入的会话才用上，开着的等 8-10</span></div>
+          <div class="tile"><span class="nm">地址还是明文</span><span class="rl">8-6 补改成能放在环境变量里</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-7</dd></div>
+        <div><dt>名称</dt><dd>模型资料</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">a3aa1aa1</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型冒烟 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>20 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型冒烟：核心读进快照，她照常读文件、回答</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-7-模型资料.md</code>；蓝图 <code>models.md</code> 第二条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sC-1" aria-labelledby="h-sC1">
   <div class="sheet-head"><h2 id="h-sC1"><span class="no">C-1</span>跨会话的事件和编号</h2><span class="pill done">已完成</span></div>
   <p class="purpose">跨会话这条线的第一步，和 M8 并行：会话的短编号，事件 <code>peer.idle</code>、效果 <code>peer.watch</code> 的类型、读写、样本，账本认得在等哪几个会话。这一步不收话、不列、不读、不发、不订，她和头都还看不到变化。</p>
@@ -10984,6 +11136,57 @@ a.step:hover{border-color:var(--primary)}
     </div>
   </div>
 </section>
+
+<section class="sheet" id="sC-5" aria-labelledby="h-sC5">
+  <div class="sheet-head"><h2 id="h-sC5"><span class="no">C-5</span>发给别的会话</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她能给你别的主会话发话：留言的工具 <code>message_agent</code> 改名 <code>send_message</code>（照 Claude Code，项目主人定，旧会话照认），<code>to</code> 多认会话编号；一句话最多 100000 个字；每种拒绝都有回执，发给没人看着的一次性会话只存下。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">发给别的会话</span><span class="dir-note">C-5</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>九句新回执（9 到 26 token）；<code>send_message</code> 153 → 165，<code>sessions</code> 95 → 101</li>
+              <li>旧日志里的 <code>message_agent/*</code> 说法键留着，旧会话照旧换得出字</li>
+              <li>夹具的临时目录名加纳秒，Windows 上进程号复用不再撞名</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">派 Sonnet</span><span class="rl">主会话量 token、补旧说法、真模型实测</span></div>
+          <div class="tile"><span class="nm">行为待看</span><span class="rl">拿到「存下了」回执还 sleep 等回话，C-6 有了「空了告诉我」、C-7 再看</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">C-5</dd></div>
+        <div><dt>名称</dt><dd>发给别的会话</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">738244e1</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>15 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型：发给没人看着的一次性会话，回执「存下了」，接着那个会话时它看得到</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/C-5-发给别的会话.md</code>；蓝图 <code>tools/send_message.md</code>、<code>cross-session.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 
 
 

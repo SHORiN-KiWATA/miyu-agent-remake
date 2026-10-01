@@ -12,7 +12,8 @@
 //!   （施工 8-2）；
 //! - [`config`]：配置服务：起来时读的几份配置、最终值，`config.schema`、`config.get`、`config.check`（施工 8-2）；
 //!   `config.set`、`config.trust`（施工 8-3）；监视配置文件、推 `config.changed`、把当前的一份交给会话和核心（施工 8-4）；
-//! - 密钥：`secret.set`、`secret.delete`、`secret.list`，只能写、删、列名字，从不交出值（施工 8-5，`secrets.rs`）。
+//! - 密钥：`secret.set`、`secret.delete`、`secret.list`，只能写、删、列名字，从不交出值（施工 8-5，`secrets.rs`）；
+//! - 模型：`model.list`，配好的供应商、模型、每一格资料的值和来源（施工 8-7，`models.rs`）。
 
 mod attach;
 pub mod config;
@@ -24,6 +25,7 @@ mod list;
 mod listen;
 mod meta;
 mod methods;
+mod models;
 mod refusal;
 mod secrets;
 mod sessions;
@@ -43,8 +45,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use miyu_kernel::id::AccountId;
+use miyu_models::matching::Vendors;
+use miyu_models::profile::Profiles;
 use miyu_sandbox::{Availability, Unusable};
-use miyu_session::{Jobs, Models, SandboxCache};
+use miyu_session::{Jobs, ModelData, Models, Observed, SandboxCache};
 use miyu_store::index::SessionIndex;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
@@ -91,6 +95,15 @@ pub struct Core {
     config: std::sync::Mutex<Config>,
     /// 配置换了交给谁（施工 8-4）：会话、核心取当前的一份，订阅着配置的连接收推送。
     hub: Hub,
+    /// 核心一份的模型资料（施工 8-7）：`model.list` 照它列。路由手里是同一份。
+    model_data: Arc<ModelData>,
+}
+
+/// 空的模型资料：没有档案、没有目录，读完了。
+fn empty_model_data() -> Arc<ModelData> {
+    let data = ModelData::new(Profiles::default(), Vendors::default(), None);
+    data.loaded(None, Observed::default());
+    Arc::new(data)
 }
 
 /// 连上以后最多等多久握手。
@@ -131,7 +144,15 @@ impl Core {
             jobs: Arc::new(Jobs::new()),
             connections: AtomicUsize::new(0),
             hello_wait: HELLO_WAIT,
+            model_data: empty_model_data(),
         }
+    }
+
+    /// 同一份家底，模型资料照 `data`（施工 8-7）：核心起来时把路由手里的那一份交进来。没设的是空的：没有档案、没有目录。
+    #[must_use]
+    pub fn with_model_data(mut self, data: Arc<ModelData>) -> Core {
+        self.model_data = data;
+        self
     }
 
     /// 同一份家底，连上以后最多等 `wait` 握手：测试里设短的，不用真等 10 秒。

@@ -25,6 +25,7 @@ fn miyu(root: &Path, cwd: &Path, lang: &str, args: &[&str]) -> Output {
         .args(args)
         .current_dir(cwd)
         .env("MIYU_HOME", root)
+        .envs(support::offline(root))
         .env("MIYU_RESOURCES", support::resources())
         .env("LANG", lang)
         .env_remove("LC_ALL")
@@ -106,7 +107,8 @@ async fn a_core_with_three_layers_says_where_each_value_came_from() {
     let all = run(&root, &cwd, "C", &["config", "get"]).await;
     assert_eq!(
         stdout(&all),
-        "log.level = \"debug\"\npermission.start_read_only = false\ntui.startup = \"new\"\nui.language = \"zh\"\n"
+        // 测试拉起的核心带着 `MIYU_CATALOG_UPDATE=false`（施工 8-7）：环境变量压过的那一项照它。
+        "log.level = \"debug\"\nmodels.catalog.every = \"24h\"\nmodels.catalog.update = false\nmodels.catalog.url = \"https://models.dev/api.json\"\npermission.start_read_only = false\ntui.startup = \"new\"\nui.language = \"zh\"\n"
     );
     let json = run(
         &root,
@@ -446,6 +448,7 @@ async fn without_a_running_core_one_is_started() {
         .args(["config", "get", "ui.language"])
         .current_dir(std::env::temp_dir())
         .env("MIYU_HOME", home.root.path())
+        .envs(support::offline(home.root.path()))
         .env("MIYU_RESOURCES", support::resources())
         .env("LANG", "zh_CN.UTF-8")
         .env_remove("LC_ALL")

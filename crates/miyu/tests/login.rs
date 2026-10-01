@@ -23,6 +23,7 @@ fn miyu(root: &Path, lang: &str, args: &[&str], input: &str) -> Output {
     let mut child = Command::new(MIYU)
         .args(args)
         .env("MIYU_HOME", root)
+        .envs(support::offline(root))
         .env("MIYU_RESOURCES", support::resources())
         .env("LANG", lang)
         .env_remove("LC_ALL")
@@ -207,6 +208,7 @@ async fn misuse_and_no_core_are_refused_before_reading_a_key() {
     command
         .args(["login", "deepseek"])
         .env("MIYU_HOME", &root)
+        .envs(support::offline(&root))
         .env("MIYU_RESOURCES", support::resources())
         .env("LANG", "C")
         .env_remove("LC_ALL")

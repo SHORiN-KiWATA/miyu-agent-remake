@@ -2,15 +2,14 @@
 //! 认得出的供应商可以少写，驱动、地址、开关照档案推。档案是资源目录里的 TOML，核心读成 JSON 再交进来（这一层不读 TOML
 //! 的资源文件，`models.md`「在哪」末尾）。
 //!
-//! 8-6 的档案只有用得上的几格：驱动、地址、`openai-chat` 的开关、能收哪些输入、一张图怎么算。`[npm]`、另配的头、占位工具、
-//! 找 key 的环境变量、本机服务随 8-7、8-11、8-14。能收哪些输入、一张图怎么算是 8-6 加的两格：模型资料到 8-7 才有，DeepSeek
-//! 收图、照官方的算法算图以前写在代码里，8-6 挪进档案（「施工时定的」8-6）。
+//! 档案只有用得上的几格：驱动、地址、`openai-chat` 的开关、一张图怎么算（8-6），`[npm]`：目录里的 AI SDK 包名 → 驱动
+//! （8-7，照目录推驱动）。另配的头、占位工具、找 key 的环境变量、本机服务随 8-11、8-14。8-6 加的「能收哪些输入」8-7 拿掉了：
+//! 照模型资料（目录、手写的，「施工时定的」8-7）。
 
 use std::collections::BTreeMap;
 
 use serde::Deserialize;
 
-use miyu_drivers::Inputs;
 use miyu_drivers::openai_chat::{
     Compat, Continuation, ContinuationField, OutputLimit, ReasoningField, ReasoningReplay,
 };
@@ -19,6 +18,9 @@ use miyu_drivers::openai_chat::{
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Profiles {
+    /// 目录里的 AI SDK 包名 → 驱动（`openai-chat` 这类，施工 8-7）：照目录推驱动时查（`models.md`「怎么走」第一条第 2 条）。
+    #[serde(default)]
+    pub npm: BTreeMap<String, String>,
     /// 认得出的供应商：编号（照目录里的编号）到它的档案。
     #[serde(default)]
     pub providers: BTreeMap<String, Profile>,
@@ -37,24 +39,9 @@ pub struct Profile {
     /// `openai-chat` 的开关。
     #[serde(default)]
     pub compat: Option<CompatSpec>,
-    /// 能收哪些输入：`text`、`image`、`pdf`。不写只收字（驱动的保守默认）。
-    #[serde(default)]
-    pub inputs: Vec<Input>,
     /// 一张图怎么算 token：现在只有 `deepseek`（官方计算器的算法）。不写照策略的固定数。
     #[serde(default)]
     pub image_tokens: Option<ImageTokens>,
-}
-
-/// 一种输入。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Input {
-    /// 字。
-    Text,
-    /// 图。
-    Image,
-    /// PDF。
-    Pdf,
 }
 
 /// 一张图怎么算 token 的算法。
@@ -168,16 +155,6 @@ impl Profiles {
     pub fn parse(json: &serde_json::Value) -> Result<Profiles, String> {
         Profiles::deserialize(json)
             .map_err(|error| format!("models/profiles.toml not readable: {error}"))
-    }
-}
-
-impl Profile {
-    /// 能收哪些输入，写成驱动认的样子。
-    pub fn inputs(&self) -> Inputs {
-        Inputs {
-            images: self.inputs.contains(&Input::Image),
-            pdf: self.inputs.contains(&Input::Pdf),
-        }
     }
 }
 

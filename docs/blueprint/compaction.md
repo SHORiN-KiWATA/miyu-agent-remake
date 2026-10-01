@@ -28,7 +28,7 @@
 | `crates/miyu-assemble/src/render.rs` | 检查点的渲染：包装、摘要、代码写的几段、重读的文件；清空的不出字 |
 | `crates/miyu-policy/` | 策略快照里压缩的数据和给模型看的字 |
 | `crates/miyu-session/src/reread.rs`、`store.rs`、`actor/store.rs` | 执行器这边：重读文件存成 blob，照 blob 读出原文；撤销撤掉压缩时从磁盘读回更早的日志（第十一条） |
-| `crates/miyu-core/src/models.rs` | 模型的资料：上下文窗口、最大输出 |
+| `crates/miyu-models/src/facts.rs` | 模型的资料：上下文窗口、最大输出（施工 8-7，`models.md`「模型的资料」） |
 | `crates/miyu-endpoint/src/methods.rs` | `session.compact`、`session.clear`（`protocol.md`） |
 | `crates/miyu-cli/` | `miyu ask` 印压缩那一行（6-3 下）；手动压缩的命令 `miyu compact`（`cli/compact.md`，6-8，命令名 2026-09-29 项目主人定）；`miyu undo` 撤掉压缩时说一句（6-9）、撤掉清空时说一句（6-8 补） |
 | `crates/miyu-endpoint/src/undo.rs` | 撤销的回应里撤掉了几次压缩（`protocol/undo.md`，6-9） |
@@ -52,7 +52,7 @@
 | `compaction.mode` | `summarize` | 群聊 `trim`（随通讯平台） |
 | `compaction.template` | `task` | `chat` 随压缩质量评测（第七条「样子」） |
 
-**模型的资料**：`window`（上下文窗口）、`max_output`（最大输出）、`image_tokens`（一张图怎么算），由模型的资料报（`15-模型与供应商.md`）。
+**模型的资料**：`window`（上下文窗口）、`max_output`（最大输出）、`image_tokens`（一张图怎么算），由模型的资料报：每一格从手写的、用出来的、供应商的列表、models.dev 的目录里查，见 `models.md`「模型的资料」（施工 8-7）。造会话、载入时交给内核，开着的会话限额会变随 8-10。
 
 - M6 只有一种来源：安装包带的 models.dev 快照，资源目录里的一份数据，不写进代码（`15-模型与供应商.md` M2，6-3 做）。先只有 `deepseek-flash`：窗口 1000000、最大输出 393216（models.dev，2026-09-29 查的，dsh 的默认值也是 1000000）。
 - 以后的来源（随配置和多供应商那一步），照 M2 的先后：配置里手写的；用出来的；供应商的 `/models`（多数不给窗口，OpenAI 标准的就没有；旧版认 `context_window`、`context_length`、`max_context_length`）；models.dev 的目录；驱动的保守默认。

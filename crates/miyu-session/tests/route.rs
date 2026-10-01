@@ -1,6 +1,7 @@
 //! 会话的路由（`docs/blueprint/models.md`「守着它的」`route.rs` 那一行 8-6 的一半，施工 8-6）：两台假服务器，key 照会话编号
 //! 挑、重启还是它；取不到的 key 跳过；一个都取不到、没配 `models.chat` 的当场 `no_model`，不发；没写 key 的不带认证头；
-//! 会话钉着造它时的模型，`models.chat` 改了只影响新会话；造的时候没配的，配好以后下一轮就用上；窗口照配置。
+//! 会话钉着造它时的模型，`models.chat` 改了只影响新会话；造的时候没配的，配好以后下一轮就用上；窗口照配置。地址是环境变量
+//! 的引用时（施工 8-6b）：设了照它连，没设当场 `no_model`，和取不到 key 一样。
 
 mod support;
 
@@ -147,6 +148,12 @@ async fn no_model_is_said_at_once_and_nothing_is_sent() {
             r#"provider "a" has no usable key"#,
         ),
         (
+            "[providers.a]\ndriver = \"openai-chat\"\nbase_url = { env = \"RELAY_URL\" }\n\n[models]\nchat = \"a/m\"\n"
+                .to_string(),
+            set(&[]),
+            r#"provider "a" has no usable base_url"#,
+        ),
+        (
             "[models]\nchat = \"b/m\"\n".to_string(),
             set(&[]),
             r#"no provider "b""#,
@@ -183,6 +190,28 @@ async fn a_provider_without_keys_sends_no_auth_header() {
     turn(&handle, "cmd-1").await;
     assert_eq!(server.received().len(), 1);
     assert_eq!(bearer(&server, 0), None);
+}
+
+/// 地址是环境变量的引用（施工 8-6b）：设了就照它连，和写死的地址一样发得出去。
+#[tokio::test]
+async fn an_address_from_the_environment_connects_like_a_literal_one() {
+    let server = Server::start(hellos(1)).await;
+    let mut home = Home::new();
+    let source = "[providers.a]\ndriver = \"openai-chat\"\nbase_url = { env = \"RELAY_URL\" }\nkeys = [{ env = \"K1\" }]\n\n[models]\nchat = \"a/m\"\n";
+    home.configs = configs(
+        source,
+        &[
+            (
+                Reference::Env("RELAY_URL".to_string()),
+                server.base_url.as_str(),
+            ),
+            (Reference::Env("K1".to_string()), "sk-1"),
+        ],
+    );
+    let handle = home.create(&routes_plain()).await;
+    turn(&handle, "cmd-1").await;
+    assert_eq!(server.received().len(), 1, "连上了假服务器");
+    assert_eq!(bearer(&server, 0), Some("Bearer sk-1".to_string()));
 }
 
 #[tokio::test]

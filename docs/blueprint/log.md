@@ -135,6 +135,15 @@
 | `core` | INFO | `stopped` | `reason`：`idle` 或 `signal` | 空闲够久了，或者收到停的信号 |
 | `core` | WARN | `SIGTERM not watched`、`Ctrl+C not watched` | `error` | 装不上信号的监听 |
 | `core` | INFO | `model profiles loaded` | `profiles`（档案里几家） | 起来时读完供应商的档案（施工 8-6，`core.md`「模型」） |
+| `core` | INFO | `catalog loaded` | `source`（`snapshot` 或 `cache`）、`fetched`、`providers`、`models`、`ms` | 写了 `ready` 以后读完 models.dev 的目录（施工 8-7，`models.md`「怎么走」第二条第 2 条） |
+| `core` | WARN | `catalog unreadable`、`catalog empty` | `source`、`error`；`catalog empty` 没有键 | 一份目录读不了；两份都读不了 |
+| `core` | DEBUG | `catalog entry skipped` | `entry`（`<供应商>/<模型>` 或 `<供应商>`） | 目录里坏了、跳过的一个 |
+| `core` | INFO | `catalog refreshed`、`catalog not modified` | `fetched`、`providers`、`models`；304 的没有键 | 后台拉到了新目录、服务器说没变（第二条第 3 条） |
+| `core` | WARN | `catalog refresh failed` | `error` | 拉不到、读不了、写不进缓存：一小时后再试 |
+| `core` | WARN | `catalog cache unavailable` | `reason` | 算不出缓存目录：只读快照、不拉 |
+| `session` | INFO | `learned window` | `provider`、`model`、`window` | 请求报上下文超长、说了上限、比手头的窗口小：记进 `state/models/learned.json`（第二条第 9 条）。带会话编号 |
+| `session` | WARN | `provider list failed` | `provider`、`error` | 拉供应商的模型列表失败，照旧用上一份（第二条第 10 条） |
+| `session` | WARN | `model data not written`、`model data unreadable` | `file`、`error`；`error` | `state/models/` 下的写不进、坏了当没有 |
 | `core` | INFO | `sandbox` | `helper`（助手的路径）、`platform`、`mechanisms`（逗号连起来，空的写 `none`） | 起来时探沙盒的助手，探成了（`sandbox.md`，施工 5-1） |
 | `core` | WARN | `sandbox unavailable` | `reason` | 起来时探沙盒的助手：没找到、跑不了、到时、说的读不懂 |
 | `session` | | | | 会话的每一行带会话编号，见 `session/actor.md` 的「运行日志」 |

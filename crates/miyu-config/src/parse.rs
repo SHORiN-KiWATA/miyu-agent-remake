@@ -19,7 +19,7 @@ use toml_edit::{Document, Item as Node, Key, Value as TomlValue};
 use crate::item::{Item, Kind, Layer};
 use crate::key::{self, Fit};
 use crate::problem::{At, Code, Problem, nearest};
-use crate::value::Value;
+use crate::value::{Number, Value};
 
 /// 开头的 UTF-8 BOM。
 const BOM: char = '\u{FEFF}';
@@ -172,6 +172,11 @@ impl Reader<'_> {
         let raw = self.slice(node.span()).unwrap_or_default().to_string();
         let value = match item.kind {
             Kind::Secret => crate::secret::read_node(node).map(Value::Secret),
+            // 网址：先试引用（`{ env = … }`，施工 8-6b；`{ secret = … }` 也读得出字节，交给 `Kind::check` 去挡），不是
+            // 引用形状的再照字读。
+            Kind::Url => crate::secret::read_node(node)
+                .map(Value::Secret)
+                .or_else(|| node.as_value().and_then(|value| read(item.kind, value))),
             kind => node.as_value().and_then(|value| read(kind, value)),
         };
         let counts = item.layers.contains(&self.layer);
@@ -238,12 +243,25 @@ impl Reader<'_> {
     }
 }
 
-/// 照类型读一个 TOML 的值：选项、网址、名字、引用要字，开关要布尔，整数要整数，密钥要只有一格的行内表，列表要数组、
+/// 照类型读一个 TOML 的值：选项、网址、名字、引用、文字、时长要字，开关要布尔，整数要整数，小数要小数或整数，密钥要只有一格的行内表，列表要数组、
 /// 每一个照元素的类型。别的写法读不成。有表头的密钥不是值，不走这里（[`crate::secret::read_node`]）。
 pub(crate) fn read(kind: Kind, value: &TomlValue) -> Option<Value> {
     match (kind, value) {
-        (Kind::Option(_) | Kind::Url | Kind::Name | Kind::Reference, TomlValue::String(text)) => {
-            Some(Value::Text(std::borrow::Cow::Owned(text.value().clone())))
+        (
+            Kind::Option(_)
+            | Kind::Url
+            | Kind::Name
+            | Kind::Reference
+            | Kind::Text { .. }
+            | Kind::Duration { .. },
+            TomlValue::String(text),
+        ) => Some(Value::Text(std::borrow::Cow::Owned(text.value().clone()))),
+        // 小数也收整数：`price_multiplier = 1` 是常见的写法（施工 8-7）。
+        (Kind::Float { .. }, TomlValue::Float(number)) => {
+            Some(Value::Float(Number::new(*number.value())))
+        }
+        (Kind::Float { .. }, TomlValue::Integer(number)) => {
+            Some(Value::Float(Number::new(*number.value() as f64)))
         }
         (Kind::Bool, TomlValue::Boolean(on)) => Some(Value::Bool(*on.value())),
         (Kind::Int { .. }, TomlValue::Integer(number)) => Some(Value::Int(*number.value())),

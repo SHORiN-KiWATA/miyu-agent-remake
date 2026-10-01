@@ -16,6 +16,7 @@ fn ask(home: &Home, lang: &str, args: &[&str]) -> Output {
         .arg("ask")
         .args(args)
         .env("MIYU_HOME", home.root.path())
+        .envs(support::offline(home.root.path()))
         .env("MIYU_RESOURCES", support::resources())
         .env("LANG", lang)
         .env_remove("LC_ALL")
@@ -36,7 +37,8 @@ async fn a_core_without_a_model_says_so() {
         move || {
             Command::new(MIYU)
                 .args(["ask", "在吗"])
-                .env("MIYU_HOME", home_root)
+                .env("MIYU_HOME", &home_root)
+                .envs(support::offline(&home_root))
                 .env("LANG", "zh_CN.UTF-8")
                 .env_remove("LC_ALL")
                 .env_remove("LC_MESSAGES")

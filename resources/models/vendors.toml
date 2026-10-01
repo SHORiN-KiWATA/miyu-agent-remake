@@ -1,0 +1,16 @@
+# 认原厂（docs/blueprint/models.md「怎么走」第二条第 6 条，施工 8-7）：几家目录里同名的模型，先取第 2 层认出的那一家，
+# 再取原厂。拿目录里那个条目的 family（没有的用模型名）规整以后的第一段，去掉末尾的数字（qwen3 是 qwen，o3 是 o），
+# 查这张表：原厂在目录里的几个编号，照先后，第一个列了它的就是。查不到的照编号的字节序取第一家，价格不借。
+claude = ["anthropic"]
+gpt = ["openai"]
+o = ["openai"]
+gemini = ["google"]
+gemma = ["google"]
+grok = ["xai"]
+qwen = ["alibaba", "alibaba-cn"]
+glm = ["zhipuai", "zai"]
+kimi = ["moonshotai", "moonshotai-cn"]
+deepseek = ["deepseek"]
+mistral = ["mistral"]
+minimax = ["minimax", "minimax-cn"]
+mimo = ["xiaomi"]

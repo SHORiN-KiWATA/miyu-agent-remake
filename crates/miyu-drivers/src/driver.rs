@@ -1,7 +1,8 @@
 //! 驱动的接口（`docs/designs/05-内核接口.md` 第七节「驱动的规格」）：执行器照着它调，不用知道是
 //! 哪一家。编码、解码、分类都是纯函数；真正发请求的是执行器。
 //!
-//! 认证头（[`Driver::auth`]）随施工 8-6；规格里的 `models`（模型资料）、`cache`（缓存类型）到模型资料的那几步再加；`transport`
+//! 认证头（[`Driver::auth`]）随施工 8-6；列模型（[`Driver::models_path`]、[`Driver::parse_models`]）随施工 8-7；`cache`
+//! （缓存类型）随用到它的那一步；`transport`
 //! 现在只有 HTTP，发到哪条路径跟着编码结果走（[`Encoded::path`]，施工 3-5 再补）。
 
 use std::collections::BTreeSet;
@@ -12,7 +13,7 @@ use miyu_kernel::request::Request;
 
 use crate::classify::{self, Classified, Failure};
 use crate::openai_chat::{self, Compat, Decoder};
-use crate::{BlobBytes, Call, DriverTexts, EncodeError, Encoded, Ending};
+use crate::{BlobBytes, Call, DriverTexts, EncodeError, Encoded, Ending, Listed};
 
 /// 一个驱动：一家接口的翻译器。一个会话造一个，开关和占位冻结在里面。执行器在异步任务里用它，
 /// 所以能跨线程。
@@ -44,6 +45,16 @@ pub trait Driver: Send + Sync {
     /// 带 key `key` 的请求要带的认证头，照先后（`models.md`「驱动要守的约定」第 2 条，施工 8-6）：HTTP 执行器照它写，
     /// 不自己写 `Bearer`。没有 key 的请求（本机的服务）不问它，什么都不带。
     fn auth(&self, key: &str) -> Vec<(String, String)>;
+
+    /// 列模型发到地址后面的哪一截（`models.md`「驱动要守的约定」第 3 条，施工 8-7）：执行器照它 GET，带认证头。
+    fn models_path(&self) -> &'static str;
+
+    /// 读列模型的回应：模型名和报了的窗口，分页照那一家的。
+    ///
+    /// # Errors
+    ///
+    /// 回应不是那一家的写法：原话说是哪一种。
+    fn parse_models(&self, bytes: &[u8]) -> Result<Vec<Listed>, String>;
 }
 
 /// 一次响应的解码器。读流跨过好几次等待，所以能跨线程。
@@ -104,6 +115,15 @@ impl Driver for OpenAiChat {
     /// `Authorization: Bearer <key>`。
     fn auth(&self, key: &str) -> Vec<(String, String)> {
         vec![("Authorization".to_string(), format!("Bearer {key}"))]
+    }
+
+    /// `/models`。
+    fn models_path(&self) -> &'static str {
+        openai_chat::MODELS_PATH
+    }
+
+    fn parse_models(&self, bytes: &[u8]) -> Result<Vec<Listed>, String> {
+        openai_chat::parse_models(bytes)
     }
 }
 

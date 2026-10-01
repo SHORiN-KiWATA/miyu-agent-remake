@@ -12,6 +12,7 @@ HTTP 执行器：照驱动编码好的字节发一次请求，流式地读回来
 | `crates/miyu-http/src/client.rs` | 客户端：TLS、`User-Agent`、连接超时、代理 |
 | `crates/miyu-http/src/endpoint.rs` | 端点：地址、key（可以没有，施工 8-6）、另配的头；打印时藏起 key、地址只写主机名；取主机名，日志也用它 |
 | `crates/miyu-http/src/send.rs` | 发一次：头、空闲超时、出错、叫停、运行日志 |
+| `crates/miyu-http/src/get.rs` | 一次 GET（施工 8-7）：拉 models.dev 的目录、拉供应商的模型列表 |
 | `crates/miyu-http/src/testkit.rs` | 测试用的假服务器，`testkit` 开关打开才编进去 |
 | `crates/miyu-session/src/http.rs` | 用它的：会话请求模型的端口，取 blob、编码、发；空闲超时的初值 |
 | `crates/miyu-core/src/models.rs` | 造客户端和端点 |
@@ -21,6 +22,9 @@ HTTP 执行器：照驱动编码好的字节发一次请求，流式地读回来
 | 名字 | 是什么 |
 |---|---|
 | `client(Proxy)` | 造一个客户端（`Client`，就是 reqwest 的）；造不出来交回 reqwest 的错 |
+| `fetcher(Proxy)` | 造一个 GET 用的客户端（施工 8-7）：同上，连接超时 10 秒 |
+| `Get` | 一次 GET 要的（施工 8-7）：`client`、`url`、`headers`（认证头这些，照先后）、`etag`（上次的 `ETag`，带上了发 `If-None-Match`）、`timeout`（整个最多多久）、`limit`（响应体最多多少字节） |
+| `get(Get) -> Result<Got, String>` | GET 一次，整个读完（施工 8-7）。`Got::Body { bytes, etag }`：2xx；`Got::NotModified`：304。出错交回英文的一句：`HTTP <状态>`、`body over <N> bytes`、`timed out after <秒> seconds`、头写不进（只报头的名字）、连不上（reqwest 的错去掉地址再接起来） |
 | `Proxy` | `FromEnvironment`：照环境变量走代理，平时用；`Off`：不走代理，测试连本机的假服务器用 |
 | `Endpoint::new(base_url, key)` | 发给谁：地址（例如 `https://api.deepseek.com`，路径由驱动接在后面）、key |
 | `Endpoint::keyless(base_url)` | 只有地址、没有 key 的（本机的服务，施工 8-6）：不带认证头 |
@@ -33,6 +37,7 @@ HTTP 执行器：照驱动编码好的字节发一次请求，流式地读回来
 | 常量 | 值 | 在哪 |
 |---|---|---|
 | 连接超时 `CONNECT_TIMEOUT` | 30 秒 | `client.rs` |
+| GET 的连接超时 `FETCH_CONNECT_TIMEOUT` | 10 秒（`models.md`「怎么走」第二条第 3、10 条） | `client.rs` |
 | 出错时读的响应体上限 `ERROR_BODY_LIMIT` | 64 KiB | `send.rs` |
 | 空闲超时的初值 `IDLE` | 180 秒 | `crates/miyu-session/src/http.rs` |
 
@@ -123,6 +128,7 @@ HTTP 执行器：照驱动编码好的字节发一次请求，流式地读回来
 |---|---|
 | `crates/miyu-http/tests/send.rs` | 先报 `Sent`、增量和直接解码一样；发出去的方法、路径（多一个斜杠不成两个）、四个头、另配的头、请求体一字不差；见到 `[DONE]` 就停；HTTP 出错交给分类、要等多久、HTTP 状态码（施工 3-5 三补）；停住了空闲超时、之前的增量照样交出；`finish_reason` 到了只差 `[DONE]` 时停住，算说完；另配的头换掉同名的；地址、头写坏了是 `other`；流里限速带着要等多久、没有 HTTP 状态码；叫停马上停、连接断开；没人听是 `retryable`，原话里没有地址，没有 HTTP 状态码；说到一半断开是 `retryable`；声明了长度没写够是「连接断了：」；打印端点只写主机名，不漏 key 和头的值 |
 | `crates/miyu-http/tests/auth.rs`（施工 8-6） | 认证头照驱动：`openai-chat` 带 `Bearer`，带 `x-api-key` 的驱动不带 `Authorization`；没有 key 的端点一个认证头都不带；打印端点不漏 key |
+| `crates/miyu-http/tests/get.rs`（施工 8-7） | 带头、带 `If-None-Match`、交回 `ETag`；304；不是 2xx 的、超过上限的、超时的各说一句；连不上的原话里没有地址和 key |
 | `crates/miyu-http/tests/log.rs` | 说完、限速、连不上、地址读不出主机名、叫停，各记哪两行；key、请求体和回复里的字、路径和参数、出错的原话一个字都不记 |
 | `crates/miyu-session/tests/http.rs` | 经驱动和 HTTP 请求一次；限速了等够再请求，日志里的出错带着 429；打断了断开连接；缺 blob 出错、不发；断了走接着写的路径；空闲超时；图片照字节发出去 |
 | `crates/miyu-session/tests/http_log.rs` | HTTP 的两行带上会话编号 |
@@ -140,4 +146,5 @@ HTTP 执行器：照驱动编码好的字节发一次请求，流式地读回来
 - 等第一个字的时候定时给头发心跳（同上；`03-事件模型.md` 第五节 `status` 那一格）。
 - 连接预热（`15-模型与供应商.md` 第五节）。
 - 子进程的传输：借用 agent CLI 的订阅（`05-内核接口.md` 第七节 `transport`）。
-- 另配的头的模板（`{session_digest}`、`{call_digest}`），一次 GET（拉目录、模型列表）：8-7、8-14（`models.md`）。出错换 key、换端点：8-9。
+- 另配的头的模板（`{session_digest}`、`{call_digest}`）：8-14（`models.md`）。出错换 key、换端点：8-9。
+- 一次 GET 不记运行日志：用它的一方（读目录、拉列表）照结果记。

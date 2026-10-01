@@ -6,7 +6,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 
 驱动的内部（Anthropic 消息接口、OpenAI Responses 接口怎么编码、解码）不在这一页：开工前另画 `drivers/anthropic.md`、`drivers/openai-responses.md`。这一页只写它们要守的约定（「对外的样子」最后一节）。配置怎么读、怎么分层、怎么校验、密钥怎么存，归 `config.md`。这一页只写模型这一块有哪些键、每个键是什么意思。
 
-状态：图纸，定稿（2026-10-01 起草，起草时要拍板的几题同一天定了，见「定的（2026-10-01）」；主会话审过，项目主人同一天批准），M8 的 8-6 到 8-11、8-14 的一部分、8-15 照它施工（施工方案第三节 M8 那张表）。每一节标着由哪一步做。做完一步，这一页照做好的样子改写那几节，「要跟着改的别的页」里列的几页跟着改。8-6 做完了（2026-10-01，施工完，待主会话实测）：标 8-6 的几节照做好的样子写，施工时定的记在「施工时定的」。
+状态：图纸，定稿（2026-10-01 起草，起草时要拍板的几题同一天定了，见「定的（2026-10-01）」；主会话审过，项目主人同一天批准），M8 的 8-6 到 8-11、8-14 的一部分、8-15 照它施工（施工方案第三节 M8 那张表）。每一节标着由哪一步做。做完一步，这一页照做好的样子改写那几节，「要跟着改的别的页」里列的几页跟着改。8-6 做完了（2026-10-01）：标 8-6 的几节照做好的样子写，施工时定的记在「施工时定的」。8-7 做完了（2026-10-01，施工完，待主会话审）：标 8-7 的几节照做好的样子写，施工时定的记在「施工时定的」8-7 那张表。8-6b 做完了（2026-10-01）：`base_url` 一行、`model.list` 的 `providers`、第十条、「样子」里的例子照做好的样子写，施工时定的记在「施工时定的」8-6b 那张表。
 
 ### 在哪
 
@@ -15,22 +15,24 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | 代码 | 管什么 | 哪一步 |
 |---|---|---|
 | `crates/miyu-models/`（新，第 2 层，纯逻辑） | 模型这一块的纯逻辑：目录的类型、四层对目录、资料合起来和来源、三种写法、池的挑法、冷却怎么算、金额怎么算。不碰文件和网络，时刻由调用的一方交进来 | 8-6 起 |
-| `crates/miyu-models/src/catalog.rs`、`catalog/` | models.dev 目录的类型，只读用得上的格 | 8-7 |
-| `crates/miyu-models/src/matching.rs`、`matching/` | 四层对目录、名字规整、认原厂 | 8-7 |
-| `crates/miyu-models/src/facts.rs` | 资料的每一格、来源、合起来 | 8-7 |
+| `crates/miyu-models/src/catalog.rs`、`catalog/price.rs` | models.dev 目录的类型，只读用得上的格，一个模型一个模型地读、坏的跳过；照名字、规整以后的名字建索引；在用的目录 `Loaded`（哪一份、什么时候拉的）；价格 `Price` | 8-7 |
+| `crates/miyu-models/src/matching.rs` | 四层对目录、名字规整、认供应商（`recognize`）、认原厂（`Vendors`） | 8-7 |
+| `crates/miyu-models/src/facts.rs`、`facts/source.rs` | 资料的每一格、来源、合起来，写成 `model.list` 的 `facts` | 8-7 |
+| `crates/miyu-models/src/observed.rs` | 用出来的（`learned.json`）、供应商的列表（`providers/<编号>.json`）的样子、读写、只记小的 | 8-7 |
+| `crates/miyu-models/src/knowledge.rs` | 查资料时手头的几份：档案、认原厂的表、目录、用出来的、列表（`Knowledge`） | 8-7 |
 | `crates/miyu-models/src/reference.rs` | 三种写法：读、哪里能写哪几种（8-6）；池、挡位解析到端点随 8-8 | 8-6、8-8 |
 | `crates/miyu-models/src/settings.rs` | 模型这一块的配置项：`UseSettings`（`models.chat`）、`ProviderSettings`（`providers.<id>` 的驱动、地址、key、`catalog`）、`ModelSettings`（`providers.<id>.models.<model>` 的窗口），核心登记进清单（`config.md`） | 8-6 起 |
 | `crates/miyu-models/src/profile.rs` | 档案的样子：驱动、地址、`compat`、能收哪些输入、一张图怎么算，核心读成 JSON 交进来 | 8-6 起 |
 | `crates/miyu-models/src/provider.rs` | 一家供应商这一轮的样子（手写的、档案的合起来），一个引用这一轮发给谁，窗口手写的压过模型资料，没有模型时的原话 | 8-6 起 |
 | `crates/miyu-models/src/keys.rs` | 一个会话钉在哪一个 key 上、候选的先后 | 8-6 |
-| `crates/miyu-models/src/table.rs` | 模型资料（窗口、最大输出），施工 8-6 从核心挪来，8-7 换成目录 | 8-6、8-7 |
 | `crates/miyu-models/src/pools.rs` | 钉住、轮换：照指针挑，指针怎么往前走 | 8-8 |
 | `crates/miyu-models/src/cooldown.rs` | 冷却：按分类、翻倍、封顶、成功清零 | 8-9 |
 | `crates/miyu-models/src/price.rs` | 金额：挑哪一档价格、乘倍率、缺一项不算 | 8-15 |
 | `crates/miyu-session/src/route.rs`、`route/` | 每个会话的路由：实现 `ModelPort`，挑候选、钉 key、出错换、记冷却、交限额。取代 `http.rs` 里的 `HttpModels`（8-6：`route.rs` 挑、`route/send.rs` 发） | 8-6、8-8、8-9 |
-| `crates/miyu-session/src/route/shared.rs` | 核心一份的：冷却表、池的指针、配置和目录的快照 | 8-8、8-9 |
-| `crates/miyu-core/src/models.rs`、`models/` | 起来时读档案（8-6：TOML 读成 JSON）、读目录、后台更新、用出来的、供应商的列表、池的指针落盘、找现成的、试一次 | 8-6 起 |
-| `crates/miyu-endpoint/src/models.rs`、`models/` | 协议：`model.list`、`session.configure`、`provider.detect`、`provider.catalog`、`provider.test`、`usage.query` | 8-7 到 8-11、8-15 |
+| `crates/miyu-session/src/route/shared.rs` | 核心一份的模型资料 `ModelData`：档案、认原厂的表、在用的目录（读完以前要它的等着）、用出来的、供应商的列表、拉列表的客户端；`state/models/` 的读写（8-7）。冷却表、池的指针随 8-8、8-9 | 8-7、8-8、8-9 |
+| `crates/miyu-session/src/route/lists.rs` | 拉一家供应商的模型列表：照驱动的 `models_path()` GET、`parse_models`，存 `state/models/providers/<编号>.json` | 8-7 |
+| `crates/miyu-core/src/models.rs`、`models/` | 起来时读档案、认原厂的表（TOML 读成 JSON），造路由；写了 `ready` 以后读目录、用出来的、供应商的列表（`models/catalog.rs`：快照和缓存挑新的），后台更新（`models/refresh.rs`）。池的指针落盘、找现成的、试一次随 8-8、8-11 | 8-6 起 |
+| `crates/miyu-endpoint/src/models.rs`、`models/entry.rs` | 协议：`model.list`（8-7，`entry.rs` 写一家）；`session.configure`、`provider.detect`、`provider.catalog`、`provider.test`、`usage.query` 随后 | 8-7 到 8-11、8-15 |
 | `crates/miyu-kernel/src/session/configure.rs` | 换模型的命令、回合开始交出生效的模型、记 `replaced` | 8-10 |
 | `crates/miyu-kernel/src/session/retry.rs`、`event/model.rs` | 分类多 `no_model`（8-6，不再来）；`failover`、`cooling`（8-9） | 8-6、8-9 |
 | `crates/miyu-kernel/src/event/` | `session.created`、`session.policy_changed`、`model.called` 多的几格 | 8-8、8-10、8-15 |
@@ -42,8 +44,8 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | `crates/miyu-cli/src/setup.rs`、`setup/` | `miyu setup` | 8-11 |
 | `crates/miyu-cli/src/ask.rs` | `miyu ask --model` | 8-10 |
 | `xtask/src/dev_home.rs` | `cargo xtask dev-home`：开发时照环境变量造一个带配置的数据根；测试在 `crates/miyu/tests/dev_home.rs`（原样编进去） | 8-6 |
-| `resources/models/models-dev.json`、`models-dev.meta.json` | 安装包带的完整目录快照，原样的 `api.json`，和它是什么时候拉的 | 8-7 |
-| `resources/models/profiles.toml` | 驱动怎么认（`npm` → 驱动），认得出的供应商的档案：开关、另配的头、占位工具、找 key 的环境变量、本机服务探哪里。8-6 只有 `[providers.deepseek]`：驱动、地址、开关、能收哪些输入、一张图怎么算 | 8-6 起 |
+| `resources/models/models-dev.json`、`models-dev.meta.json`、`models-dev.LICENSE` | 安装包带的完整目录快照，原样的 `api.json`，和它是什么时候拉的；models.dev 的 MIT 许可证原文（`licenses.md`） | 8-7 |
+| `resources/models/profiles.toml` | 驱动怎么认（`[npm]`：包名 → 驱动，8-7），认得出的供应商的档案：开关、另配的头、占位工具、找 key 的环境变量、本机服务探哪里。现在只有 `[npm]` 和 `[providers.deepseek]`：驱动、地址、开关、一张图怎么算（「能收哪些输入」8-7 拿掉，照模型资料） | 8-6 起 |
 | `resources/models/vendors.toml` | 认原厂：家族的第一段 → 原厂在目录里的编号 | 8-7 |
 | `resources/core/drivers/placeholder-tool.txt` | 占位工具的说明 | 8-14 |
 | `resources/core/models/probe.txt` | `provider.test` 发的那一句 | 8-11 |
@@ -57,12 +59,12 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 
 配置怎么读、分层、校验、`{ secret = … }` 和 `{ env = … }` 怎么解开，见 `config.md`。这里是每个键的意思。生效照 `14-配置.md` G7：会改请求的，下一个回合开始时生效（K3）。
 
-**`[providers.<编号>]`**：一家供应商（8-6）。8-6 登记进清单的是 `driver`、`base_url`、`keys`、`catalog` 四格（`config.md`「M8 的配置项」，清单里写成 `providers.<id>.*`），别的格随用到它的那一步（「施工时定的」8-6）。编号照「路径里的名字」的写法（`kernel/ids.md`：小写字母开头，只有小写字母、数字、`-`、`_`，最长 32 个字符），它要当 `state/` 下的文件名。
+**`[providers.<编号>]`**：一家供应商（8-6）。8-6 登记进清单的是 `driver`、`base_url`、`keys`、`catalog` 四格，8-7 加 `price_multiplier`、`local`（`config.md`「M8 的配置项」，清单里写成 `providers.<id>.*`），别的格随用到它的那一步（「施工时定的」8-6、8-7）。编号照「路径里的名字」的写法（`kernel/ids.md`：小写字母开头，只有小写字母、数字、`-`、`_`，最长 32 个字符），它要当 `state/` 下的文件名。
 
 | 键 | 取值 | 不写是 | 是什么 |
 |---|---|---|---|
 | `driver` | `openai-chat`、`anthropic`、`openai-responses` | 照档案、目录推（第一条第 2 条） | 怎么说话。推不出来的必写 |
-| `base_url` | 网址 | 照档案、目录推 | 地址，路径由驱动接在后面。推不出来的必写 |
+| `base_url` | 网址，或者 `{ env = "…" }`（施工 8-6b，照密钥一样的读法，没有 `{ secret = … }`：地址不进密钥文件） | 照档案、目录推 | 地址，路径由驱动接在后面。推不出来的必写。是引用的，真要连供应商的那一刻才照核心的环境解出来（`config.md` 第九条第 5 条），没设、设成空的这一家没有地址（`no_model`）；`config.get`、`model.list` 都照写的样子交，不交解出来的地址 |
 | `keys` | 列表，每一项 `{ secret = "…" }` 或 `{ env = "…" }` | 空 | 几个 key。空的不带认证头：本机的服务 |
 | `headers` | 表：头的名字 → 字符串，或 `{ secret }`、`{ env }` | 空 | 另配的头。字符串里能写 `{session_digest}`、`{call_digest}`、`{version}`（第八条第 1 条）。和档案里的同名时盖掉档案的 |
 | `catalog` | models.dev 里一家供应商的编号 | 不写 | 手写指定：这家对应目录里的哪一家（第二条第 4 条第 2 层）。例如只转 DeepSeek 的中转写 `deepseek` |
@@ -82,7 +84,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | `stream_usage` | `true`、`false` |
 | `continuation` | `"none"`，或者 `{ field = "prefix" 或 "partial", path = "…" }` |
 
-**`[providers.<编号>.models."<模型名>"]`**：手写的资料（8-7）。模型名照供应商那边的叫法，照「短名字」的写法（1 到 128 字节，没有控制字符）。每一格都可以不写。
+**`[providers.<编号>.models."<模型名>"]`**：手写的资料（8-7）。模型名照供应商那边的叫法，照「短名字」的写法（1 到 128 字节，没有控制字符）。每一格都可以不写。8-7 登记了除 `driver` 以外的几格（`driver` 随 8-12、8-14：现在只有一种驱动），类型、范围见 `config.md`「M8 的配置项」：`catalog` 是最多 256 个字符的文字，`reasoning` 的每一级最多 32 个字符，价格每一项 0 到 1000000，倍率 0 到 1000；`price` 写成行内表、有表头的表都行，清单里是 `price.input` 这样的五项。
 
 | 键 | 取值 | 是什么 |
 |---|---|---|
@@ -115,9 +117,9 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 
 | 键 | 默认 | 是什么 |
 |---|---|---|
-| `update` | `true` | 后台去 models.dev 拉新的。关掉只用安装包带的和缓存里已有的 |
+| `update` | `true` | 后台去 models.dev 拉新的。关掉只用安装包带的和缓存里已有的。环境变量 `MIYU_CATALOG_UPDATE`（`true`、`false`）压过它（8-7，2026-10-01 主会话定：离线的机器、测试拉起的核心） |
 | `url` | `https://models.dev/api.json` | 从哪拉 |
-| `every` | `24h` | 缓存旧过这么久才拉 |
+| `every` | `24h` | 缓存旧过这么久才拉。1 小时到 30 天 |
 
 **`[models.cooldown]`**：冷却（8-9），当场生效，下一次出错用新的。每一类一个表 `{ base, max }`：
 
@@ -170,7 +172,9 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 - 价格是一整格：从哪一层来，四项和币种就都照那一层的，不拿别处的一项补。
 - 本机的服务（`local` 是真的）价格只认手写的，不借目录，没写的是 0，来源是 `local`（2026-10-01 项目主人定）：按名字对上的目录价是云端的价，本机跑不花这个钱。
 - 第 3、4 层按名字对上的，借不借照 `15-模型与供应商.md` 第三节那张表：能收什么、能不能调工具、思考强度都借，窗口、最大输出借、标明来源，价格照第二条第 6 条挑。
-- 谁在用：窗口、最大输出交给内核当限额（压缩线）。能收什么交给驱动（`Call.inputs`）。`driver` 定这个模型走哪种驱动。价格、倍率算金额。别的只给 `model.list` 看。
+- 谁在用：窗口、最大输出交给内核当限额（压缩线），造会话、载入时定（会话中途变随 8-10）。能收什么交给驱动（`Call.inputs`），每次请求照这一轮查。`driver` 定这个模型走哪种驱动。价格、倍率算金额（8-15）。别的只给 `model.list` 看。
+- 8-7 做了的格：窗口、最大输出、能收什么、能不能调工具、思考强度、价格、倍率、显示名、状态（`miyu_models::facts`）。`cache`（随 8-8 定池、key 钉不钉时）、模型这一格的 `driver`（随 8-12、8-14）还没有：现在供应商的驱动照第一条第 2 条推，每个模型都走它。
+- 用出来的只交窗口；供应商的列表只交窗口（列表里报了的）。没对上目录、没手写的格是驱动的保守默认，来源 `default`，值是 `null`（能收什么是 `["text"]`、倍率是 1、显示名是模型名）。
 
 **来源**写成一个对象，头照它说一句（「给人看的字」）：
 
@@ -256,17 +260,20 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 
 | 格 | 是什么 |
 |---|---|
-| `providers` | 配好的供应商，照编号排。每一家：`id`、`driver`、`base_url`、`keys`（每个 key 的 `ref`：`secret:<名字>` 或 `env:<变量>`，`set` 有没有值，`state`）、`catalog`（对上了目录里的哪一家，`how` 是怎么对上的：`config` 手写、`id` 编号一样、`similar_id` 去掉分隔以后一样、`url` 地址一样，没对上的不写）、`models` |
-| `models` 里的每一个 | `model` 模型名、`ref` 写成引用的样子、`listed` 从哪几处列出来的（`config`、`provider`、`catalog`）、`facts` 每一格的 `value` 和来源（上面「模型的资料」）、`state` |
-| `pools` | 每个池：`name`、`strategy`、`models` |
-| `tiers` | 四个挡位各配的引用，没配的是 `null` |
-| `uses` | `chat`、`vision` 各配的引用，没配的是 `null` |
-| `catalog` | 在用的目录：`source`（`snapshot` 或 `cache`）、`fetched` |
+| `providers` | 配好的供应商，照编号排。每一家：`id`、`driver`、`base_url`（照配置写的样子交：写死的是地址本身，是 `{ env = … }` 的交 `{"env": "…"}`，不解出地址，施工 8-6b）、`keys`（每个 key 的 `ref`：`secret:<名字>` 或 `env:<变量>`，`set` 有没有值，`state`）、`catalog`（对上了目录里的哪一家，`how` 是怎么对上的：`config` 手写、`id` 编号一样、`similar_id` 去掉分隔以后一样、`url` 地址一样，没对上的不写）、`models`。这一家用不了的（推不出驱动、地址，驱动还没有）：`driver`、`base_url` 照手写的，没写的是 `null`，多一格 `problem`（`no_model` 的那一句原话），`models` 是空的（8-7） |
+| `models` 里的每一个 | `model` 模型名、`ref` 写成引用的样子、`listed` 从哪几处列出来的（`config`、`provider`、`catalog`，照这个先后）、`facts` 每一格的 `value` 和来源（上面「模型的资料」，九格都在：`window`、`max_output`、`inputs`、`tools`、`reasoning`、`price`、`multiplier`、`name`、`status`）、`state`。手写指定的目录条目不存在的，多一格 `catalog_missing`：写的那个条目（8-7） |
+| `pools` | 每个池：`name`、`strategy`、`models`（8-8） |
+| `tiers` | 四个挡位各配的引用，没配的是 `null`（8-8） |
+| `uses` | `chat`、`vision` 各配的引用，没配的是 `null`。8-7 只有 `chat`，`vision` 随 8-8 |
+| `catalog` | 在用的目录：`source`（`snapshot` 或 `cache`）、`fetched`；两份都读不了的是 `null` |
 
-- 列哪些模型：供应商的列表里的、目录里对上的那一家的、配置里手写了的、用途挡位池里点名的，合在一起去重，照模型名排。
-- 模型的 `state` 有三种。`ok` 能用。`cooling` 在冷却，带 `until` 最早什么时候能用、`class` 为什么。`no_key` 写了 key，一个都没有值。它看这个模型能用的 key 里最好的那个。
-- key 的 `state` 是 `ok`，或者 `cooling`（认证失败停了整个 key），带 `until`、`class`。
+- 先等目录读完（核心写了 `ready` 以后才读）。`provider` 写了、不是配好了的：`unknown_provider`；不是字符串的：`bad_params`。
+- 照不算项目配置的最终值答（项目配置里本来就不能写模型这一块）。
+- 列哪些模型：供应商的列表里的、目录里对上的那一家的、配置里手写了的、用途挡位池里点名的（8-7 是 `models.chat`），合在一起去重，照模型名排。
+- 模型的 `state` 有三种。`ok` 能用。`cooling` 在冷却，带 `until` 最早什么时候能用、`class` 为什么（8-9）。`no_key` 写了 key，一个都没有值。它看这个模型能用的 key 里最好的那个。
+- key 的 `state` 是 `ok`，或者 `cooling`（认证失败停了整个 key），带 `until`、`class`（8-9；8-7 都是 `ok`）。
 - key 的值从不交出去。
+- `refresh` 是真的：先一家一家拉，拉完再答，拉不到的照旧用上一份。不是的：没有列表、旧过 24 小时、这一家用得了的，在后台拉，这一次照手头的答。
 
 **`provider.detect`**（查询，8-11）：没有参数。
 
@@ -354,7 +361,8 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | 位置 | 是什么 | 丢了怎样 |
 |---|---|---|
 | `resources/models/models-dev.json` | 安装包带的目录：models.dev 的 `api.json`，原样的字节 | 起得来，目录是空的，WARN |
-| `resources/models/models-dev.meta.json` | `{"source":<网址>,"fetched":<时刻>}` | 当作最旧 |
+| `resources/models/models-dev.meta.json` | `{"source":<网址>,"fetched":<时刻>}`，时刻是 RFC 3339 的 UTC（`2026-10-01T03:25:54.000Z`），照字的先后比新旧 | 当作最旧 |
+| `resources/models/models-dev.LICENSE` | models.dev 的 MIT 许可证原文，跟着快照一起发（8-7） | 没人读 |
 | `resources/models/profiles.toml` | 驱动怎么认、认得出的供应商的档案 | 起不来：安装坏了 |
 | `resources/models/vendors.toml` | 认原厂 | 起不来：安装坏了 |
 | `<缓存目录>/models/models-dev.json`、`.meta.json` | 后台拉的目录，`meta` 另带 `etag`。整台机器共用（`store.md` 第 3 条） | 照快照，再拉 |
@@ -367,15 +375,15 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 
 #### 驱动要守的约定（给 8-12、8-13）
 
-两个新驱动的内部另画一页，这里是它们对外要做到的。openai-chat 在 8-6、8-7 先补上第 2、3 条。
+两个新驱动的内部另画一页，这里是它们对外要做到的。openai-chat 在 8-6、8-7 补上了第 2、3、7 条（`drivers/openai-chat.md`）。
 
 1. 同一个 `Driver` 接口：`family`、`blobs_needed`、`encode`、`decoder`、`classify`，编码、解码、分类是纯函数（`05-内核接口.md` 第七节）。
 2. **认证头**（8-6 加进接口）：`auth(key)` 交回要带的头。openai-chat、openai-responses 是 `Authorization: Bearer <key>`，Anthropic 是 `x-api-key`，再加它要的版本头。没有 key 的不带。HTTP 执行器照它写，不再自己写 Bearer（`http.md`）。
-3. **列模型**（8-7 加进接口）：`models_path()` 发到哪、`parse_models(字节)` 读出模型名和报了的窗口，分页照那一家的。
+3. **列模型**（8-7 加进接口）：`models_path()` 发到哪、`parse_models(字节)` 读出模型名和报了的窗口（`Listed { id, window }`），分页照那一家的。openai-chat：`/models`，窗口照 `context_window`、`context_length`、`max_context_length`，不分页。
 4. 编码：同一份统一的请求出同样的字节，每种写法一份样本，请求形状探针多一张脸（`08-上下文投影.md` 第七节）。缓存标记用「稳定区结束」「请求结束」两处（`08-上下文投影.md` 第六节），不用的驱动不理。
 5. 解码：统一的四种增量。用量归成四项，思考算在输出里。签名、加密的思考这类写进私有数据，同一家发回去原样带上（`03-事件模型.md` 第九节）。
 6. 别家留下的思考块（私有数据不是自己家的、或者没有）：照驱动页定的降级（丢掉或者写成文字），同样的历史编出同样的字节。
-7. 出错分进同样的六类，带要等多久、超了多少。报了上限的（例如 `maximum context length is <N>`），交出 `limit`，就是 N。第二条第 9 条「用出来的」要它，openai-chat 在 8-7 补。
+7. 出错分进同样的六类，带要等多久、超了多少。报了上限的（例如 `maximum context length is <N>`），交出 `limit`，就是 N。第二条第 9 条「用出来的」要它，openai-chat 在 8-7 补上了（`Classified.limit`：说得出 N 就交，后半段说不出也交）。
 8. 一张图算多少 token（`ImagePrice`）照那一家的公式。没有的照策略的固定数。
 9. 缓存类别的默认（上面「模型的资料」表）。
 10. 占位的几句照快照里的（`DriverTexts`），新的几句登记。
@@ -387,7 +395,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 **一、供应商**（8-6）
 
 1. 核心起来时读档案（`profiles.toml`，TOML 读成 JSON 交给 `miyu-models`），交给路由的共享那一份（8-6 是 `Routes`，`route/shared.rs` 随 8-8）。`[providers.*]` 不另读成表：一个会话在回合开始时拿一份冻结下来的配置（`14-配置.md` G7，第六条第 3 条），每次请求照它现合（`miyu_models::provider`）。
-2. **驱动、地址从哪来**。先看手写的。没写的看档案（`profiles.toml` 的 `[providers.<目录里的编号>]`：写了 `catalog` 的照它，没写的照这一家的编号）。档案也没有的，看它对上的目录里那一家（第二条第 4 条第 2 层）的 `api` 和 `npm`，`npm` 照档案的 `[npm]` 表换成驱动（8-7）。都没有的，这一家用不了：请求它的当场 `no_model`，原话 `provider "<编号>" needs driver and base_url: it matches nothing in the catalog`，别的照常。8-6 还没有目录，对档案只认编号一样的（档案里 DeepSeek 那一段带着驱动和地址，`deepseek` 只写 key 就能用）。写了还没有的驱动（`anthropic`、`openai-responses`）：`driver "<它>" of provider "<编号>" is not available yet`，随 8-12、8-13。
+2. **驱动、地址从哪来**。先看手写的。没写的看档案（`profiles.toml` 的 `[providers.<目录里的编号>]`：写了 `catalog` 的照它，没写的照这一家的编号）。档案也没有的，看它对上的目录里那一家（第二条第 4 条第 2 层）的 `api` 和 `npm`，`npm` 照档案的 `[npm]` 表换成驱动（8-7）。都没有的，这一家用不了：请求它的当场 `no_model`，原话 `provider "<编号>" needs driver and base_url: it matches nothing in the catalog`，别的照常。8-6 还没有目录，对档案只认编号一样的（档案里 DeepSeek 那一段带着驱动和地址，`deepseek` 只写 key 就能用）。写了还没有的驱动（`anthropic`、`openai-responses`）：`driver "<它>" of provider "<编号>" is not available yet`，随 8-12、8-13。手写的地址可能是一个环境变量的引用（`{ env = … }`，施工 8-6b）：对目录、认不认本机的服务这两处要字面地址的，是引用时当没有这一格（不强行解出来）；真要连供应商时才照第 5 条一样的办法解出来（`miyu_models::provider::resolve_base_url`），解不出来（没设、设成空的）这一家没有地址，`provider "<编号>" has no usable base_url`。
 3. **开关**：档案的，档案没有的用驱动的默认。DeepSeek 的那一套（思考每条都带、`/beta` 接着写）从代码里的 `Compat::deepseek()` 挪进了档案的 `[providers.deepseek]`（8-6），出厂只给实测过的开（`05-内核接口.md` 第七节）。手写的 `compat` 一格格盖在档案上面，随用到它的那一步。档案另带两格（8-6 加）：能收哪些输入（`inputs`，DeepSeek 收图不收 PDF）、一张图怎么算（`image_tokens = "deepseek"`），8-7 有了目录、手写的资料以后照资料。
 4. **另配的头**：档案的，手写的同名盖掉。值里的 `{…}` 照第八条第 1 条换（8-14）。
 5. **key**：照写的先后。`{ secret }` 取密钥（人用 `miyu login` 存），`{ env }` 取核心的环境变量（怎么取是 `config.md` 的事），都照这一轮冻结的配置取（`TurnConfig::secret`）。取不到值的 key 不当候选。一个都取不到的，请求当场 `no_model`（`provider "<编号>" has no usable key`），8-7 起 `model.list` 里这家的模型状态是 `no_key`。没写 key 的不带认证头（本机的服务）。
@@ -397,8 +405,8 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 
 **二、模型资料**（8-7）
 
-1. **目录从哪来**：安装包带一份完整的 `api.json`（2026-09-27 的约 4.9 MB，223 家、8174 个模型），缓存目录里有后台拉的一份。两份比 `meta` 的 `fetched`，用新的。新的读不了，用另一份。都读不了，目录是空的，记 `WARN catalog unreadable`，照样起来（现在读不出模型资料起不来，改掉：目录只是资料的一层）。
-2. **读**：写了 `ready` 以后在阻塞线程里读，只读用得上的格（下面），读完才答要它的（造会话、载入、`model.list`）。一个模型的格坏了，跳过它，记一行 `DEBUG`。整份不是 JSON 的，算读不了。读完记 `INFO catalog loaded source=<snapshot 或 cache> fetched=<…> providers=<…> models=<…> ms=<…>`，8-7 照这一行对 `23-性能预算.md` 的启动预算。
+1. **目录从哪来**：安装包带一份完整的 `api.json`（施工 8-7 下载的 2026-10-01 那一份：5.3 MB，225 家、8341 个模型），缓存目录里有后台拉的一份。两份比 `meta` 的 `fetched`，用新的。新的读不了，用另一份。都读不了，目录是空的，记 `WARN catalog unreadable`，照样起来（现在读不出模型资料起不来，改掉：目录只是资料的一层）。
+2. **读**：写了 `ready` 以后在阻塞线程里读，只读用得上的格（下面），读完才答要它的（造会话、载入、`model.list`）。一个模型的格坏了（类型不对、数是负的），跳过它，记一行 `DEBUG catalog entry skipped`；一家供应商自己的格坏了，整家跳过。整份不是 JSON 对象的，算读不了。一样新的两份先用快照。读完记 `INFO catalog loaded source=<snapshot 或 cache> fetched=<…> providers=<…> models=<…> ms=<…>`，8-7 照这一行对 `23-性能预算.md` 的启动预算。
    - 供应商：`id`、`name`、`env`、`npm`、`api`、`doc`、`models`。
    - 模型：`id`、`name`、`family`、`tool_call`、`modalities.input`、`limit.context`、`limit.input`、`limit.output`、`cost`（`input`、`output`、`cache_read`、`cache_write`、`reasoning`、`tiers`、`context_over_200k`）、`reasoning_options`、`provider.npm`、`status`。
 3. **后台更新**（`models.catalog.update` 开着的）：读完以后，缓存的 `fetched` 旧过 `every` 的，GET `url`，带上次的 `etag`（`If-None-Match`），连接 10 秒、整个 60 秒、最多 32 MiB。
@@ -439,8 +447,8 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | `newapi` 的 `x`，写了 `catalog = "deepseek/nope"` | 没对上，标出来 | 1 | 手写指定的不存在，不往下猜 |
 
 8. **合起来**：每一格照「模型的资料」那张表从上往下查。第 1、2 层对上的全借。第 3、4 层照 `15-模型与供应商.md` 第三节借，价格照第 6 条。
-9. **用出来的**：主请求、摘要请求报上下文超长，驱动交出了上限 N（「驱动要守的约定」第 7 条），N 比这个模型现在的窗口小（或者现在没有窗口）：记进 `state/models/learned.json`，记一行 `INFO learned window provider=… model=… window=…`，下一个回合开始时用。只学窗口。一直留着，手写的盖过它，删掉文件就重新学。这一次的超长照旧走被动压缩（`compaction.md` 第六条）。
-10. **供应商的列表**：`provider.test`、`model.list` 带 `refresh` 时拉。`model.list` 发现某家没有、或者旧过 24 小时的，在后台拉，这一次先照手头的答。照驱动的 `models_path()` GET，带这家的第一个能用的 key，连接 10 秒、整个 30 秒。拉到的存 `state/models/providers/<编号>.json`。拉不到的记一行 `WARN`，照旧用上一份。
+9. **用出来的**：主请求、摘要请求报上下文超长，驱动交出了上限 N（「驱动要守的约定」第 7 条），N 比这个模型发的时候手头的窗口小（或者手头没有窗口）：记进 `state/models/learned.json`（已经学到的比 N 小的不换），记一行 `INFO learned window provider=… model=… window=…`。新造的、载入的会话用上；开着的会话限额会变随 8-10（「施工时定的」8-7）。只学窗口。一直留着，手写的盖过它，删掉文件就重新学。这一次的超长照旧走被动压缩（`compaction.md` 第六条）。
+10. **供应商的列表**：`provider.test`、`model.list` 带 `refresh` 时拉。`model.list` 发现某家没有、或者旧过 24 小时的，在后台拉，这一次先照手头的答。照驱动的 `models_path()` GET，带这家的第一个能用的 key，连接 10 秒、整个 30 秒。拉到的存 `state/models/providers/<编号>.json`。拉不到的记一行 `WARN provider list failed`，照旧用上一份。拉列表的是核心一份的 GET 客户端（`miyu_http::fetcher`），列表里报了窗口的，窗口这一格照它（第三层）。
 11. **倍率**：模型的 `price_multiplier`，没有的用供应商的，都没有是 1（`15-模型与供应商.md` 第三节，2026-09-30 项目主人定）。倍率和币种无关，照乘。
 12. **本机的服务当免费**（2026-10-01 项目主人定）：`local` 是真的供应商（地址在本机，或者档案标了），价格只认手写的，没写是 0，来源 `local`。目录按名字对上的价格不借。`provider.detect` 认出的本机服务写进配置以后自然是 `local`。
 
@@ -608,20 +616,20 @@ opencode Zen 的免费模型只放行 opencode 自己的客户端：流式、工
 **十、开发怎么测**（8-6）
 
 1. CI 里的测试照旧不连真模型：假服务器（`miyu-http` 的 `testkit`）、执行器替身。真核心的测试在数据根里写一份 `system/config.toml`（`crates/miyu/tests/crash.rs`、`dev_home.rs`），会话的测试照配置的字造一份不变的配置（`crates/miyu-session/tests/support/routing.rs`），供应商的地址指到假服务器。
-2. 真模型自测：`cargo xtask dev-home <目录>` 照三个环境变量造一个数据根：`MIYU_DEV_BASE_URL`（地址）、`MIYU_DEV_MODEL`（模型名）、`MIYU_DEV_WINDOW`（可以不设）。它建好骨架、写 `system/config.toml`：一家 `dev`（`openai-chat`，`catalog = "deepseek"`，key `{ env = "DEEPSEEK_API_KEY" }`），`models.chat = "dev/<模型>"`，设了窗口的写进这个模型的 `window`。
-   - 这三个名字只在 xtask 里，程序里没有了。地址、key 都不进仓库（和现在一样只在命令里）。
-   - 之后照平常 `MIYU_HOME=<目录> miyu ask …`。
+2. 真模型自测：`cargo xtask dev-home <目录>` 照三个环境变量造一个数据根：`MIYU_DEV_BASE_URL`（地址）、`MIYU_DEV_MODEL`（模型名）、`MIYU_DEV_WINDOW`（可以不设）。它建好骨架、写 `system/config.toml`：一家 `dev`（`openai-chat`，`catalog = "deepseek"`，地址照 `{ env = "MIYU_DEV_BASE_URL" }` 取、key 照 `{ env = "DEEPSEEK_API_KEY" }` 取，8-6b 起地址也不写进文件），`models.chat = "dev/<模型>"`，设了窗口的写进这个模型的 `window`。
+   - 这三个名字只在 xtask 里，程序里没有了。地址、key 都不进仓库、也不进造出来的配置文件（和 key 一样只在命令里，8-6b 起地址也是这样：和本机端点地址一样，只放在拉起核心的命令的环境变量里）。
+   - 之后照平常 `MIYU_DEV_BASE_URL=… MIYU_HOME=<目录> miyu ask …`：地址每次拉起核心都要照这个环境变量取，不是只在 `dev-home` 这一次。
    - 数据根要先有骨架再写配置：不然核心认不出它是 Miyu 的数据根（`store.md`「认得出自己的数据根才动它」）。骨架照核心的写法建（`miyu-store` 的 `DataRoot::prepare`）：目录里有别的东西、认不出是 Miyu 的数据根的不动。
    - 已经有 `system/config.toml` 的不盖，说一句、退出码 1：人改过的配置不替人扔掉。要换地址、模型，换一个目录，或者用 `miyu config` 改。
-   - 写的配置第一行是 `#:schema`，第二行注释说是它造的、key 照 `DEEPSEEK_API_KEY` 取；模型名照 TOML 的字符串写（`[providers.dev.models."<模型>"]`）。目录写相对的照当前目录接上。没设地址、模型，地址不是 `http://`、`https://` 开头，模型名超过 128 字节或有控制字符，窗口不是 1 到 100000000 的整数：说哪个变量不对，退出码 1；没写目录的印用法，退出码 2。
+   - 写的配置第一行是 `#:schema`，第二行注释说是它造的、地址照 `MIYU_DEV_BASE_URL` 取、key 照 `DEEPSEEK_API_KEY` 取；模型名照 TOML 的字符串写（`[providers.dev.models."<模型>"]`）。目录写相对的照当前目录接上。没设地址、模型，地址不是 `http://`、`https://` 开头（这一步只在内存里查，不写进文件），模型名超过 128 字节或有控制字符，窗口不是 1 到 100000000 的整数：说哪个变量不对，退出码 1；没写目录的印用法，退出码 2。
    - 用法（地址、key 照你自己的）：
 
      ```sh
      MIYU_DEV_BASE_URL=https://relay.example.invalid/v1 MIYU_DEV_MODEL=deepseek-v4.1-flash MIYU_DEV_WINDOW=128000 cargo xtask dev-home ~/miyu-dev
-     DEEPSEEK_API_KEY=… MIYU_HOME=~/miyu-dev miyu ask "在吗"
+     MIYU_DEV_BASE_URL=https://relay.example.invalid/v1 DEEPSEEK_API_KEY=… MIYU_HOME=~/miyu-dev miyu ask "在吗"
      ```
 
-     核心在拉起它的终端里取 `DEEPSEEK_API_KEY`：已经在跑的核心看不到后来设的，先让它退出（空闲十分钟自己走）。也可以 `MIYU_HOME=~/miyu-dev miyu login dev` 存一个密钥、把配置里的 `{ env = "DEEPSEEK_API_KEY" }` 改成 `{ secret = "dev" }`。
+     核心在拉起它的终端里取 `MIYU_DEV_BASE_URL`、`DEEPSEEK_API_KEY`：已经在跑的核心看不到后来设的，先让它退出（空闲十分钟自己走）。也可以 `MIYU_HOME=~/miyu-dev miyu login dev` 存一个密钥、把配置里的 `{ env = "DEEPSEEK_API_KEY" }` 改成 `{ secret = "dev" }`（地址没有这条路：`{ secret = … }` 对网址不是合法的写法，地址一直要靠环境变量）。
 3. 合进 main 以后告诉终端界面、网页两个演示：开发端点改成这样接，协议多了哪几个方法（改了协议要告诉两个头）。
 
 ### 样子
@@ -670,10 +678,16 @@ strategy = "rotate"
 
 第四行的金额：1843 × 0.15 + 26 × 0.6 = 292.05，除以一百万是 0.00029205。`cache_read`、`cache_write` 是 0，没有缓存写价也照算。
 
-`model.list` 的一家（例子，截了一个模型）：
+`model.list` 的一家（例子，截了一个模型、几格资料；`crates/miyu-endpoint/tests/models.rs` 照这个样子查一字不差）：
 
 ```json
-{"id":"deepseek","driver":"openai-chat","base_url":"https://api.deepseek.com","keys":[{"ref":"secret:deepseek","set":true,"state":"ok"},{"ref":"secret:deepseek-2","set":true,"state":"ok"}],"catalog":{"provider":"deepseek","how":"id"},"models":[{"model":"deepseek-flash","ref":"deepseek/deepseek-flash","listed":["catalog","provider"],"facts":{"window":{"value":1000000,"from":"catalog","entry":"deepseek/deepseek-flash","layer":2,"fetched":"2026-09-27"},"price":{"value":{"input":0.15,"output":0.6,"cache_read":0.003},"from":"catalog","entry":"deepseek/deepseek-flash","layer":2,"fetched":"2026-09-27"},"multiplier":{"value":1,"from":"default"}},"state":"ok"}]}
+{"id":"deepseek","driver":"openai-chat","base_url":"https://api.deepseek.com","keys":[{"ref":"secret:deepseek","set":true,"state":"ok"},{"ref":"secret:deepseek-2","set":true,"state":"ok"}],"catalog":{"provider":"deepseek","how":"id"},"models":[{"model":"deepseek-flash","ref":"deepseek/deepseek-flash","listed":["config","provider","catalog"],"facts":{"window":{"value":1000000,"from":"catalog","entry":"deepseek/deepseek-flash","layer":2,"fetched":"2026-10-01T03:25:54.000Z"},"price":{"value":{"input":0.15,"output":0.6,"cache_read":0.003,"reasoning":0.6,"currency":"USD"},"from":"catalog","entry":"deepseek/deepseek-flash","layer":2,"fetched":"2026-10-01T03:25:54.000Z"},"multiplier":{"value":1.0,"from":"default"},"status":{"value":null,"from":"default"}},"state":"ok"}]}
+```
+
+推不出来的一家：
+
+```json
+{"id":"broken","driver":null,"base_url":null,"keys":[],"models":[],"problem":"provider \"broken\" needs driver and base_url: it matches nothing in the catalog"}
 ```
 
 档案（例子，`resources/models/profiles.toml` 的几段）：
@@ -687,7 +701,6 @@ strategy = "rotate"
 [providers.deepseek]
 driver = "openai-chat"
 base_url = "https://api.deepseek.com"
-inputs = ["text", "image"]
 image_tokens = "deepseek"
 compat = { reasoning = { replay = "reasoning_content", always = true }, continuation = { field = "prefix", path = "/beta/chat/completions" } }
 
@@ -707,7 +720,7 @@ driver = "openai-chat"
 base_url = "http://127.0.0.1:11434/v1"
 ```
 
-8-6 出厂的档案只有上面 `[providers.deepseek]` 那一段：驱动、地址写在档案里（8-7 有了目录以后可以照目录推、从档案里拿掉），`inputs`、`image_tokens` 是 8-6 加的两格（「施工时定的」8-6）。`[npm]`、`opencode`、`anthropic`、`openai`、`ollama` 那几段随 8-7、8-11、8-14。`opencode-go` 那一段和 `opencode` 一样。`ollama` 目录里没有（目录里的 `ollama-cloud` 是云端的），档案补上，只为「找现成的」。
+出厂的档案现在是上面 `[npm]` 和 `[providers.deepseek]` 两段（8-7）：DeepSeek 的驱动、地址留在档案里（目录推得出，留着是为了目录读不了时照样能用，「施工时定的」8-7），`image_tokens` 是 8-6 加的一格；8-6 加的 `inputs` 8-7 拿掉了，照模型资料。`opencode`、`anthropic`、`openai`、`ollama` 那几段随 8-11、8-14。`opencode-go` 那一段和 `opencode` 一样。`ollama` 目录里没有（目录里的 `ollama-cloud` 是云端的），档案补上，只为「找现成的」。
 
 `vendors.toml`（例子）：
 
@@ -815,18 +828,22 @@ mimo = ["xiaomi"]
 |---|---|---|
 | `crates/miyu-models/src/reference/tests.rs` | 三种写法的先后、切在第一个 `/`、哪里能写哪几种、报的原话、配置收的和 `models.chat` 那一处认的一样（8-6）；挡位退回 `chat`、池的认不出的成员跳过（8-8） | 8-6、8-8 |
 | `crates/miyu-models/src/provider/tests.rs`、`profile/tests.rs`、`keys/tests.rs` | 认得出的一家只写 key、手写的压过档案、档案照 `catalog` 找、没有档案的照驱动的默认、推不出来的和还没有的驱动说清楚、档案认得也要配了才算；引用发给谁、挡位退回 `chat`、池和不在的供应商、没配的原话；窗口手写的压过模型资料、模型名里有点的；档案的几格读法、一格格盖在默认上、多了不认识的格读不进来、DeepSeek 那一套和 `Compat::deepseek()` 一样；key 照会话编号的算式、同一个编号同一个、先后、分得开 | 8-6 |
-| `crates/miyu-models/src/catalog/tests.rs` | 真目录裁出来的一份读得进、坏的模型跳过、不认识的格不理、`limit.input` 比 `context` 小的取小的 | 8-7 |
+| `crates/miyu-models/src/catalog/tests.rs` | 真目录裁出来的一份（`crates/miyu-models/testdata/models-dev-trimmed.json`，另加了一个坏模型）读得进、坏的模型和坏的一家跳过、不认识的格不理、`limit.input` 比 `context` 小的取小的、思考强度、分档的价、两份索引、整份坏的读不了 | 8-7 |
 | `crates/miyu-models/src/matching/tests.rs` | 第二条第 7 条那张表的每一行，规整，单段通用名，几家同名先取第 2 层认出的那家、再原厂、再字节序且不借价格 | 8-7 |
-| `crates/miyu-models/src/facts/tests.rs` | 每一格各查各的，价格整份不拼，第 3、4 层借哪些，来源一字不差 | 8-7 |
+| `crates/miyu-models/src/facts/tests.rs` | 每一格各查各的，窗口照手写、用出来的、列表、目录的先后，价格整份不拼，第 3、4 层借哪些，本机的当免费，倍率谁盖谁，手写指定不存在的什么都不借，来源一字不差 | 8-7 |
+| `crates/miyu-models/src/observed/tests.rs`、`provider/tests.rs`（8-7 那几条） | 用出来的只记小的、读写一字不差，列表读写；照目录推驱动、地址，本机的认法 | 8-7 |
+| `crates/miyu-config/src/item/kind/tests.rs` | 小数、文字、时长三种类型：查、从 TOML 和协议读、Schema、说成什么话、宏的写法、类型本身写坏了的 | 8-7 |
+| `crates/miyu-drivers/src/openai_chat/models/tests.rs`、`classify/tests.rs`、`classify/excess/tests.rs`，`crates/miyu-http/tests/get.rs` | 列模型的读法；超长交出上限；一次 GET | 8-7 |
+| `crates/miyu-session/tests/route_facts.rs`、`route_learned.rs`、`http.rs` | 目录读完以前造会话等着、窗口照目录、读不了照样造、换上的新目录新会话用；用出来的窗口记下、写盘、记一行、新会话用上、大的不记、手写的盖过；能收什么照手写的资料 | 8-7 |
 | `crates/miyu-models/src/pools/tests.rs` | 钉住从日志读回、轮换指针、成员变了取余、默认的分法 | 8-8 |
 | `crates/miyu-models/src/cooldown/tests.rs` | 翻倍、封顶、供应商说的更长、成功清零、到期先试、认证失败停整个 key | 8-9 |
 | `crates/miyu-models/src/price/tests.rs` | 金额的算式、分档、缺项不算、思考价不同不算、倍率谁盖谁、用量是 0 的项不要价、币种照价格、本机的是 0 | 8-15 |
 | `crates/miyu-session/tests/route.rs` | 两台假服务器：key 照会话编号挑、重启还是它（8-6，连同：取不到的跳过、几种 `no_model` 不发、没写 key 不带认证头、开着的会话钉着造它时的模型、钉着的那一家没了退回这一轮的 `models.chat` 以后钉在它上面、造的时候没配的配好以后用上、窗口照配置），429 换 key、换池里的下一个、当场再来，说到一半断了还发给它，全在冷却交 `cooling`，只有一个候选照发，限额变了交内核、推 `model.changed` | 8-6、8-8、8-9 |
 | `crates/miyu-kernel/src/session/tests/scenario/models.rs` | `Configure`：一样的不记、回合进行中的下一轮生效、撤掉的回合里的也算，回合开始交引用，`replaced` 记在注入前面，`failover` 不管分类当场再来、数进 5 次，`cooling`、`no_model`，换模型解除压缩的暂停 | 8-6、8-9、8-10 |
 | `crates/miyu-kernel/src/event/*/tests.rs`、`crates/miyu-kernel/tests/samples.rs` | 新的几格读写一字不差，以前的日志照读，样本对得上 | 8-8、8-10、8-15 |
-| `crates/miyu-endpoint/tests/models.rs` | `model.list` 的形状、来源、状态，`session.configure`、`session.create` 的 `model`、`unknown_model`，`subscribe` 带 `model` | 8-7 到 8-10 |
+| `crates/miyu-endpoint/tests/models.rs` | `model.list` 的形状、来源、状态，用不了的一家、手写指定不存在的、只看一家、`unknown_provider`，`refresh` 拉完再答、不写的在后台拉（8-7）；`session.configure`、`session.create` 的 `model`、`unknown_model`，`subscribe` 带 `model` | 8-7 到 8-10 |
 | `crates/miyu-endpoint/tests/providers.rs` | `provider.detect` 照交进来的环境、只探本机，`provider.catalog` 搜、排，`provider.test` 对假服务器成了、列不出、认证失败，`{value}` 不进日志 | 8-11 |
-| `crates/miyu-core/tests/catalog.rs` | 快照和缓存挑新的、坏的退回另一份、都坏照样起来，后台拉、304、失败一小时后再试，关掉 `update` 不拉 | 8-7 |
+| `crates/miyu-core/tests/catalog.rs`、`crates/miyu-core/src/models/tests.rs` | 快照和缓存挑新的、坏的退回另一份、没有 `meta` 的当最旧、都坏照样起来，后台拉（写缓存、换上）、304、失败一小时后再试，关掉 `update` 不拉、打开当场拉；出厂的快照、`meta`、认原厂的表读得进、表里的原厂都在目录里 | 8-7 |
 | `crates/miyu-assemble/tests/probe_zen.rs`、`docs/designs/samples/probe/zen/` | 占位工具补在哪、字节，有这两件的会话一字不变 | 8-14 |
 | `crates/miyu-http/tests/auth.rs` | 认证头照驱动（`Bearer`、`x-api-key` 加版本头），没有 key 的不带，打印端点不漏 key（8-6，放在用假服务器的集成测试里） | 8-6 |
 | `crates/miyu-http/src/send/tests.rs` | 头的模板换对、重试时 `call_digest` 不变 | 8-14 |
@@ -950,6 +967,42 @@ mimo = ["xiaomi"]
 | `dev-home` 已经有配置的不盖；key 写成 `{ env = "DEEPSEEK_API_KEY" }` | 不替人扔掉改过的配置；图纸第十条 | 盖掉：手改的白改 |
 | 没有 key 也一律拉起核心（主会话定，照图纸）；没有模型那一句先指到 `miyu config edit --system`，8-11 换成 `miyu setup`（主会话定） | 头不知道配置里有没有模型 | 照旧看 `DEEPSEEK_API_KEY`：配置里配了也不拉起 |
 
+8-7 施工时照推荐定的技术细节（2026-10-01，施工员定，写进了正文；标着「主会话定」的是主会话同一天定的；配置那一半在 `config.md`「施工时定的」8-7）：
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| `MIYU_CATALOG_UPDATE=false` 压过 `models.catalog.update`；测试拉起的真核心都带它，缓存目录指到它自己的临时目录（Linux 的 `XDG_CACHE_HOME`、Windows 的 `LOCALAPPDATA`；macOS 照家目录，不改家目录，只靠前一条）（主会话定） | 测试拉起的核心不连 models.dev，也不写本机共用的缓存 | 测试的数据根里写配置：写了自己配置的测试要改成追加 |
+| 核心一份的模型资料 `ModelData` 放在会话那一层（`route/shared.rs`），用出来的、列表的读写也在那里；核心只读目录、后台更新 | 路由记下用出来的窗口、`model.list` 拉列表都在会话那一层以上；核心在最上面，往下交 | 读写都放核心、会话那一层经端口回调：多一个接口，只有一个实现 |
+| `Models` 多一个 `ready()`：造会话、载入先等它，路由的等目录读完；剧本的马上好 | 「起草时定的」第 13 条：写了 `ready` 以后读目录、要它的等它 | 写 `ready` 之前读完：头多等 |
+| 限额照旧造路由时定；用出来的窗口新造的、载入的会话用上，开着的会话随 8-10 | 8-6 定了限额会话里不变，会变、推 `model.changed` 随 8-9、8-10 | 8-7 就让开着的会话换限额：要先有推限额的事件 |
+| 资料的九格：窗口、最大输出、能收什么、能不能调工具、思考强度、价格、倍率、显示名、状态；`cache`、模型的 `driver` 不做 | 不为以后写代码：`cache` 8-8 定池、key 钉不钉时用；只有一种驱动 | 照图纸一次做全：两格没人读 |
+| 档案的 `inputs` 拿掉，能收什么照资料；DeepSeek 的驱动、地址留在档案里 | 图纸第一条第 3 条；目录读不了时 DeepSeek 照样能用 | 驱动、地址也拿掉：目录坏了 DeepSeek 用不了 |
+| 价格的值带着币种；目录的是 `USD`，带分档 `tiers`、`context_over_200k`、思考价；手写的只有四项和币种 | 金额随 8-15，这一步把价格这一格读对、说得出 | 只读四项：8-15 再改目录的读法 |
+| 价格的来源照写了的第一项（`input`、`output`、`cache_read`、`cache_write`、`currency` 的先后）那一行 | 写成行内表的都在一行；分开写的指到第一项 | 照最上面那一行：要多比一遍 |
+| 币种不另查写法：配置里是最多 3 个字符的文字，照写的用 | 头照它分开显示，写错了一眼看得出 | 加一种「币种」类型：多一种类型只为一项 |
+| 本机的服务：手写的 `local`，没写的照最终的地址（手写的、档案的、目录的）的主机名：`127.0.0.1`、`localhost`、`::1` | 第二条第 12 条 | 只看手写的：Ollama 要人写一行 |
+| 认供应商的地址照手写的、档案的地址比（目录推出来的地址不拿来认自己） | 认出来才知道目录推的地址，绕不回去 | — |
+| 认原厂：几家同名的照字节序一家家看它的 `family`（没有的用模型名），第一个列了原厂的就是 | 图纸第 6 条说的是「这个条目」，几家同名时 `family` 可能不一样 | 只看第一家的 `family`：别家写对了也认不出 |
+| 目录的索引：模型名、规整以后的名字各一张表，第 4 层照规整以后的名字在 `-` 处切前缀查表 | 一个模型查一次不用扫八千个；`model.list` 一家几百个模型照样快 | 每次扫全表 |
+| 坏的模型跳过，交回跳过的名字由核心记 `DEBUG catalog entry skipped`；一家供应商自己的格坏了整家跳过 | 纯逻辑一层不记日志 | 一家坏了整份读不了 |
+| 一样新的两份目录先用快照；没有 `meta` 的当最旧 | 快照是随安装包验过的 | 先用缓存 |
+| 304 只改缓存 `meta` 的时刻，不换在用的目录；缓存的目录本体还在才带 `ETag` | 内容没变；本体没了还说 304，手里什么都没有 | 304 也重读一遍缓存：白读 5 MB |
+| 拉目录、拉列表共用一个 GET 的客户端（连接 10 秒），整个 60 秒、32 MiB；列表整个 30 秒、16 MiB | 图纸第二条第 3、10 条；几千个模型的列表也就几 MB | 和请求模型共用客户端：连接超时 30 秒 |
+| `model.list` 不写 `refresh` 的，后台只拉这一家用得了的（推得出驱动、地址）、没有列表或者旧过 24 小时的；拉不到的每问一次记一行 | 用不了的拉了也是白拉 | 每家都拉 |
+| `model.list` 用不了的一家照样列，多一格 `problem`，`models` 是空的；手写指定的目录条目不存在的模型多一格 `catalog_missing` | 图纸要标出来，没写格名；头照它说清哪里不对 | 不列用不了的一家：配了却看不见 |
+| `model.list` 的 `uses` 8-7 只有 `chat`，`pools`、`tiers` 不写 | 不为以后写代码：`vision`、池、挡位随 8-8 | 写空的：头以为配置里没写 |
+| `model.list` 照不算项目配置的最终值答，手写来源的 `file` 是那一层文件的写法（`system/config.toml`） | 项目配置里不能写模型这一块 | 照某个目录带项目配置：`model.list` 没有目录参数 |
+| 列模型用的驱动带空的占位字（只有编码用它） | 列模型、认证头用不着占位；不为它改驱动的造法 | 驱动另开一个不带字的造法 |
+| 快照带 models.dev 的 MIT 许可证原文 `models-dev.LICENSE`（`licenses.md`） | MIT 要求随副本带上版权和许可声明 | 不带：许可证不全 |
+
+8-6b 施工时照推荐定的技术细节（2026-10-01，项目主人定要做、施工员照推荐定写法；配置那一半在 `config.md`「施工时定的」8-6b）：
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| `Provider.base_url` 的类型是 `Address`（`Literal`、`Env` 两种），不是解好的字；对目录、本机的服务这两处字面地址才用得上的查法，是引用时当没有这一格；真要连供应商时（`route.rs`、`route/lists.rs`）才经 `resolve_base_url` 照和 key 一样的 `secret` 闭包解出来 | `provider()` 本来就是纯逻辑、不碰 IO（第一条），解出地址要环境访问；`model.list`、`config.get` 走的是同一份 `Provider`，解好了就没法在那两处隐瞒 | 造 `Provider` 的时候就把地址解出来：纯逻辑函数要带 IO 闭包，`model.list` 也无从只显示引用 |
+| `xtask dev-home` 写 `base_url = { env = "MIYU_DEV_BASE_URL" }`，不写地址本身；地址在 `Vars::read` 里只读进内存校验写法（必须 `http://`、`https://` 开头），从不落盘 | 本机端点地址和 key 一样，只想放在拉起核心的命令的环境变量里（项目主人定）；上游校验能让人更早发现拼错的地址 | 不校验，直接写引用：地址写岔了要等连不上才发现 |
+| `route/lists.rs` 拉供应商的模型列表也经 `resolve_base_url`，和 `route.rs` 发请求共用同一个办法 | 两处都是「真要连供应商的那一刻」，没有理由走两套解法 | 列表那边另写一份：两份要对着改 |
+
 ### 要跟着改的别的页
 
 这一页不改它们，施工时各步照这里改：
@@ -957,23 +1010,23 @@ mimo = ["xiaomi"]
 | 页 | 改什么 | 哪一步 |
 |---|---|---|
 | `config.md`（另一个分身起草） | 清单里登记这一页的每个键，连同 `providers.*.local`、`usage.currency`（类型、默认、范围、生效时机、谁能改、项目配置不能写）。`miyu login` 存的 key 就是 `{ secret }` 取的那些。`{ secret }`、`{ env }` 怎么解开、核心的环境。`config.set` 写整张表（供应商、池）。每个值的文件、行（`model.list` 的来源要它）。回合开始冻结的快照交给路由。账号日志（`usage.purged` 要写它） | 8-1 到 8-5 |
-| `protocol.md` | `session.create` 的 `model`。`session.configure`、`model.list`、`provider.detect`、`provider.catalog`、`provider.test`、`usage.query`。`subscribe` 回应的 `model`、限额会变（第 5、7 条改）。`model.changed`。`status` 的 `failover`。两个原因码。「还没有的」删掉换模型那条 | 8-7 到 8-11、8-15 |
+| `protocol.md` | `session.create` 的 `model`。`session.configure`、`model.list`、`provider.detect`、`provider.catalog`、`provider.test`、`usage.query`。`subscribe` 回应的 `model`、限额会变（第 5、7 条改）。`model.changed`。`status` 的 `failover`。两个原因码。「还没有的」删掉换模型那条。8-7 改了：方法表加 `model.list`，原因码、给人看的字加 `unknown_provider`，「在哪」「守着它的」加 `models.rs` | 8-7 到 8-11、8-15 |
 | `kernel/events.md`、`kernel/events-bodies.md` | `session.created.model`、`session.policy_changed.model`、`replaced`（账本查只和 `model` 一起）、`model.called.cost`、分类 `cooling`、`no_model`。瞬时的 `model.changed`。样本 | 8-8、8-10、8-15 |
 | `kernel/session.md` | `Configure`。`RunTurnStartHooks` 带 `model`。`TurnStartHooksDone` 带 `replaced`。`ModelEnded` 带 `cost`、`failover`。「出错再来」认 `failover`、`cooling`。「载入」算引用。`Session::context_used()`。8-6 改了：「出错再来」写明 `no_model` 不再来，「守着它的」加 `scenario/models.rs` | 8-6、8-9、8-10、8-15 |
-| `compaction.md` | 「模型的资料」那段换成指到这一页。第十条第 6 条：换模型解除暂停。「还没有的」删掉那一条 | 8-7、8-10 |
-| `drivers/openai-chat.md` | 开关来自档案和配置，`Compat::deepseek()` 删掉。「现在接的是哪一家」重写。认证头、列模型两样接口。`Classified` 多 `limit`。「还没有的」删掉 Zen 那条。8-6 改了：开关来自档案，`Compat::deepseek()` 留在 `testkit` 后面；「现在接的是哪一家」重写；`auth` 加进接口 | 8-6、8-7、8-14 |
+| `compaction.md` | 「模型的资料」那段换成指到这一页。第十条第 6 条：换模型解除暂停。「还没有的」删掉那一条。8-7 改了：「在哪」「模型的资料」指到这一页 | 8-7、8-10 |
+| `drivers/openai-chat.md` | 开关来自档案和配置，`Compat::deepseek()` 删掉。「现在接的是哪一家」重写。认证头、列模型两样接口。`Classified` 多 `limit`。「还没有的」删掉 Zen 那条。8-6 改了：开关来自档案，`Compat::deepseek()` 留在 `testkit` 后面；「现在接的是哪一家」重写；`auth` 加进接口。8-7 改了：列模型两样接口、`models.rs`，`Classified` 多 `limit`（第 8 条），「现在接的是哪一家」能收什么照资料、驱动照目录的 `npm` | 8-6、8-7、8-14 |
 | `drivers/anthropic.md`、`drivers/openai-responses.md` | 新页，照「驱动要守的约定」 | 8-12、8-13 |
-| `http.md` | 认证头照驱动。另配的头的模板。一次 GET。「会话怎么用它」改成路由。8-6 改了：认证头照驱动、`Endpoint::keyless`、「会话怎么用它」指到路由、`tests/auth.rs` | 8-6、8-7、8-14 |
+| `http.md` | 认证头照驱动。另配的头的模板。一次 GET。「会话怎么用它」改成路由。8-6 改了：认证头照驱动、`Endpoint::keyless`、「会话怎么用它」指到路由、`tests/auth.rs`。8-7 改了：一次 GET（`get.rs`、`fetcher`、`tests/get.rs`） | 8-6、8-7、8-14 |
 | `session/actor.md` | 端口照引用造、回合开始重新解析、限额会变、推 `model.changed`。写用量汇总。第 8 条 `HttpModels` 换成路由。8-6 改了：第 8 条换成路由，`ForSession` 带编号和配置，`model()` 交回一份，测试表加 `route.rs` | 8-6、8-9、8-10、8-15 |
 | `session/tools.md` | 派子代理照 `tier` 解析模型、写进子会话 | 8-8 |
 | `tools/subagent.md`（改名以后的页） | `tier` 参数，「还没有的」删掉它 | 8-8 |
 | `tools/session_usage.md` | 新页 | 8-15 |
 | `tools/interface.md` | 查用量的端口。派子代理的端口带挡位 | 8-8、8-15 |
 | `policy.md` | 快照不变。工具面里 `subagent` 的参数、新的 `session_usage` 跟着新会话进快照 | 8-8、8-15 |
-| `core.md` | 「模型」一节重写。起来的先后加上读目录、后台更新。环境变量表删掉 `DEEPSEEK_API_KEY`、`MIYU_DEV_*`。第 14 步清回收处之前记 `usage.purged`。8-6 改了：「模型」一节重写，环境变量表删掉那几个，第 9 步读档案，运行日志加 `model profiles loaded` | 8-6、8-7、8-15 |
-| `store.md`、`store/resources.md` | 缓存目录里的 `models/`。`state/models/`、`state/usage.db`。资源目录的 `models/` 四份，刷新快照的办法换成下载原样的 `api.json` | 8-7、8-15 |
+| `core.md` | 「模型」一节重写。起来的先后加上读目录、后台更新。环境变量表删掉 `DEEPSEEK_API_KEY`、`MIYU_DEV_*`。第 14 步清回收处之前记 `usage.purged`。8-6 改了：「模型」一节重写，环境变量表删掉那几个，第 9 步读档案，运行日志加 `model profiles loaded`。8-7 改了：起来的先后第 9、13 步，「模型」第 1、5、6 条，环境变量表加 `MIYU_CATALOG_UPDATE`、缓存目录，运行日志加目录那几行 | 8-6、8-7、8-15 |
+| `store.md`、`store/resources.md` | 缓存目录里的 `models/`。`state/models/`、`state/usage.db`。资源目录的 `models/` 四份，刷新快照的办法换成下载原样的 `api.json`。8-7 改了：缓存目录的 `models/`、`state/models/`；资源目录 `models/` 的五份（快照、`meta`、许可证、档案、认原厂的表）、刷新快照的办法 | 8-7、8-15 |
 | `cli/ask.md`、`cli/main.md`、新页 `cli/setup.md` | `--model`。退出码 5 认 `no_model`、`cooling`。没模型时走 setup。子命令 `setup` | 8-10、8-11 |
-| `log.md` | 新的几行（「出错」那张表） | 8-7、8-9 |
+| `log.md` | 新的几行（「出错」那张表）。8-7 改了：目录、用出来的、列表、`state/models/` 那几行 | 8-7、8-9 |
 | `licenses.md` | 引入 SQLite 的依赖（例如 `rusqlite` 带 `bundled`，MIT，SQLite 是公有领域），门禁照查 | 8-15 |
 | `26-提示词.md` 第十节、`prompts.md` | 登记 `subagent.json` 的新参数、`session_usage.json` 和结果的几句、`placeholder-tool.txt`、`probe.txt`，各量 token | 8-8、8-11、8-14、8-15 |
 | `01-架构.md` 第九节 | 第 2 层登记 `miyu-models`（8-6 登记了） | 8-6 |
