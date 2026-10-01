@@ -47,7 +47,7 @@
 | `tools/history.md` | 翻这个会话自己的日志：图纸，M6 施工（2026-09-29） |
 | `tools/subagent.md` | 派子代理（施工 7-5；7-5 再补从 `agent` 改名） |
 | `tools/jobs.md` | 看、读、停派出去的任务（施工 7-4） |
-| `tools/message_agent.md` | 父子之间留言（施工 7-7） |
+| `tools/send_message.md` | 父子之间留言（施工 7-7） |
 | `tools/sessions.md` | 列你别的主会话（施工 C-3，跨会话） |
 | `cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`、`cli/config.md`、`cli/login.md`、`cli/main.md` | 每条命令一页（`cli/compact.md` 施工 6-8，`cli/redo.md` 施工 4-7 再补，`cli/recap.md` 施工 3-8 四补，`cli/rename.md` 施工 3-8 五补，`cli/config.md` 施工 8-2，`cli/login.md` 施工 8-5）；主程序 |
 | `sandbox.md` | 沙盒：规格、助手 `miyu-sandbox`、探测、找助手（施工 5-1 起） |

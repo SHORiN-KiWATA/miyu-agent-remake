@@ -41,7 +41,11 @@ impl Home {
     pub fn new() -> Home {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("miyu-endpoint-{}-{n}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!(
+            "miyu-endpoint-{}-{}-{n}",
+            std::process::id(),
+            stamp()
+        ));
         let env = Env {
             platform: Platform::current(),
             miyu_home: Some(dir.clone().into_os_string()),
@@ -53,8 +57,11 @@ impl Home {
         };
         let root = DataRoot::locate(&env).expect("MIYU_HOME 是绝对路径");
         root.prepare().expect("临时目录里建得了骨架");
-        let work =
-            std::env::temp_dir().join(format!("miyu-endpoint-work-{}-{n}", std::process::id()));
+        let work = std::env::temp_dir().join(format!(
+            "miyu-endpoint-work-{}-{}-{n}",
+            std::process::id(),
+            stamp()
+        ));
         std::fs::create_dir_all(&work).expect("建得了工作目录");
         let work = std::fs::canonicalize(&work).expect("在");
         Home { dir, root, work }
@@ -473,4 +480,11 @@ pub fn logged(home: &Home, session: &str) -> Vec<Value> {
         .iter()
         .map(|event| serde_json::from_str(&event.to_line()).expect("事件是 JSON"))
         .collect()
+}
+
+/// 起名用的纳秒数：Windows 上进程号复用得快，前一个测试进程留下的、核心开着文件删不掉的目录会撞名（2026-10-01 CI 撞见）。
+fn stamp() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_nanos())
 }

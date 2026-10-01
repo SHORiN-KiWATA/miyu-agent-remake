@@ -59,7 +59,7 @@
 | `log` | 这个会话日志的只读入口（`Log`，里面是一个 `ReadLog`）：一段一段交出事件，交给的函数说不读了就停。只有 `history` 用（施工 6-4，`tools/history.md`）；没有的是空的 |
 | `offset` | 会话的时区：照会话现在的环境。只有 `history` 用（施工 6-4）；测试里照 UTC |
 | `agents` | 派子代理的端口（`Arc<dyn AgentPort>`，施工 7-5）：执行器照这一次调用抄好父会话的那几样（`session/tools.md`「派子代理」）。只有 `subagent` 用；没有的（测试里的假调用、没装会话表的核心）是空的，`subagent` 照派不了出错 |
-| `messages` | 留言的端口（`Arc<dyn MessagePort>`，施工 7-7）：执行器照这一次调用抄好这个会话的父会话、它派出去的子代理（`session/tools.md`「父子之间留言」）。只有 `message_agent` 用；没有的（测试里的假调用、没装会话表的核心）是空的，`message_agent` 照送不到出错 |
+| `messages` | 留言的端口（`Arc<dyn MessagePort>`，施工 7-7）：执行器照这一次调用抄好这个会话的父会话、它派出去的子代理（`session/tools.md`「父子之间留言」）。只有 `send_message` 用；没有的（测试里的假调用、没装会话表的核心）是空的，`send_message` 照送不到出错 |
 | `jobs` | 任务端口（`Arc<dyn JobPort>`，施工 7-3）：执行器照这一次调用造一个，起它的命令自己退出了，`job.reported` 的 `by` 是这次调用、`cause` 是它所在那一轮的。`shell` 交后台命令，`jobs` 查、停（施工 7-4）；没有的（会话外面的调用，例如测试）是空的，不能放到后台，也查不到任务 |
 | `sessions` | 列会话的端口（`Arc<dyn SessionsPort>`，施工 C-3）：执行器照这一次调用抄好这个会话的编号、属主（`session/tools.md`「1d. 列会话」）。只有本机的主会话有，只有 `sessions` 用；没有的（测试里的假调用、子会话、场所会话、没装会话表的核心）是空的，`sessions` 照没有别的会话答 |
 
@@ -90,11 +90,11 @@
 | `Changed` | `path`；`before`：改前的内容本身，新建的是空的；`after`：改后的内容本身 | `file.changed`，内容换成 blob 的哈希 |
 | `Trashed` | `path`：移走之前的位置；`trash`：回收站里的位置，各平台自己的写法 | `file.trashed` |
 | `JobStarted` | 内核的 `JobStarted` 本身：编号、种类、标题、子会话（施工 7-5；`shell` 的后台命令也报它，施工 7-3） | `job.started`，照原样 |
-| `JobMessaged` | 内核的 `JobMessaged` 本身：留了言的子代理的编号（施工 7-7，`message_agent` 报） | `job.messaged`，照原样 |
+| `JobMessaged` | 内核的 `JobMessaged` 本身：留了言的子代理的编号（施工 7-7，`send_message` 报） | `job.messaged`，照原样 |
 
 **派子代理的端口** `AgentPort`（`Send + Sync`，施工 7-5）：`spawn(description, prompt)` 交回一个 future，子会话造好、交代送进去就给 `Spawned`（任务编号 `job`、子会话 `session`），派不了给 `NotSpawned`（原因执行器记进运行日志，不给她看）。两个端口比的是不是同一个（`Call` 照格子比较时用）。`SUBAGENT` 是派子代理的那件工具的名字：造会话时照它把 `subagent` 从不能派的会话的工具面上拿掉（`session/tools.md`）。`SUBAGENT_FORMERLY` 是它以前的名字 `agent`，`is_subagent` 两个名字都认（施工 7-5 再补，从日志里认派子代理的调用用）。
 
-**留言的端口** `MessagePort`（`Send + Sync`，施工 7-7）：`send(to, message)` 交回一个 future，对方落了盘就给 `Ok`，没送出去给 `NotSent`：`NoParent` 没有父（主会话）、`NotYours` 不是这个会话派的子代理、`Stopped` 被停掉了、`Undelivered` 送不到（原因执行器记进运行日志）。`to` 是 `Recipient`：`Parent` 父会话，`Child(任务编号)` 自己派的子代理。两个端口比的是不是同一个。`MESSAGE_AGENT` 是那件工具的名字：造会话时照它把 `message_agent` 从场所会话的工具面上拿掉（`session/tools.md`「工具面」）。
+**留言的端口** `MessagePort`（`Send + Sync`，施工 7-7）：`send(to, message)` 交回一个 future，对方落了盘就给 `Ok`，没送出去给 `NotSent`：`NoParent` 没有父（主会话）、`NotYours` 不是这个会话派的子代理、`Stopped` 被停掉了、`Undelivered` 送不到（原因执行器记进运行日志）。`to` 是 `Recipient`：`Parent` 父会话，`Child(任务编号)` 自己派的子代理。两个端口比的是不是同一个。`MESSAGE_AGENT` 是那件工具的名字：造会话时照它把 `send_message` 从场所会话的工具面上拿掉（`session/tools.md`「工具面」）。
 
 **列会话的端口** `SessionsPort`（`Send + Sync`，施工 C-3，`tools/sessions.md`）：`this()` 是这个会话自己的编号；`list(旗)` 交回一个 future，给同一个属主的主会话（`MainSession`：编号 `id`、标题 `title`（空的是没有）、工作目录 `cwd`、忙不忙 `busy`、最近一次动静 `last_active`），不含这个会话自己、不排先后，列不出来给英文的一句原因。读下一个会话之前看旗，举起来了交回已经读到的。两个端口比的是不是同一个。`SESSIONS` 是那件工具的名字：造会话时照它把 `sessions` 从子会话、场所会话的工具面上拿掉（`session/tools.md`「工具面」）。`find_session(写的, 一批编号)` 认她写的会话编号：整个编号相同，或者至少 8 位的小写十六进制、编号以它结尾；交回 `Found`：`One(编号)`、`None`、`Many`（`cross-session.md`「对外的样子」会话的短编号；C-4、C-5 照它认）。
 
@@ -150,7 +150,7 @@
    | `trash` | `file_path`，写，碰的是这一条本身 |
    | `shell` | 一条都不报 |
    | `subagent` | 一条都不报：访问类别是读，放行（`tools/subagent.md`） |
-   | `message_agent` | 一条都不报：访问类别是读，放行（`tools/message_agent.md`） |
+   | `send_message` | 一条都不报：访问类别是读，放行（`tools/send_message.md`） |
    | `sessions` | 一条都不报：访问类别是读，放行（`tools/sessions.md`） |
 
 #### 四、效果和她看过的

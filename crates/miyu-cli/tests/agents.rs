@@ -120,7 +120,7 @@ async fn a_subagent_messaged_after_it_reported_is_waited_for_again() {
         [
             agent("查 A"),
             Play::Says("派出去了。"),
-            Play::calls(&[("message_agent", &answer)]),
+            Play::calls(&[("send_message", &answer)]),
             Play::Says("答它了。"),
             Play::Says("A 加好了。"),
         ],
@@ -166,7 +166,7 @@ async fn a_subagent_from_before_is_waited_for_once_messaged_like_the_sample() {
             agent("查 A"),
             agent("查 B"),
             Play::Says("派出去了。"),
-            Play::calls(&[("message_agent", &answer)]),
+            Play::calls(&[("send_message", &answer)]),
             agent("查 C"),
             Play::Says("转给 A 了，C 也派出去了。"),
             Play::Says("A 改好了。"),

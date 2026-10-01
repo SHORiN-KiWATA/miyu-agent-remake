@@ -85,7 +85,7 @@ fn decide(request: &Request) -> Play {
             Some(result) if result.starts_with("Started") => Play::Says("等孙代理。"),
             Some(_) => Play::Says("告诉它了，等它做完。"),
             None if heard("<subagent-message") => calls(
-                "message_agent",
+                "send_message",
                 json!({"to": "j1.1", "message": "用 a.rs。"}),
             ),
             None => calls("subagent", json!({"description": "查 B", "prompt": "查 B"})),
@@ -98,7 +98,7 @@ fn decide(request: &Request) -> Play {
         return match last {
             Some(_) => Play::Says("等答复。"),
             None => calls(
-                "message_agent",
+                "send_message",
                 json!({"to": "parent", "message": "要改哪一个文件？"}),
             ),
         };

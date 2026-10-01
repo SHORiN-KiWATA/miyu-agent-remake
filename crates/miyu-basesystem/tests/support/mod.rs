@@ -163,7 +163,7 @@ impl Site {
         tool(name).run(call, Progress::new(|_| {})).await
     }
 
-    /// 在 `work/` 里调一次工具，留言的端口是 `messages`（施工 7-7：`message_agent` 经它送）。
+    /// 在 `work/` 里调一次工具，发话的端口是 `messages`（施工 7-7、C-5：`send_message` 经它送）。
     pub async fn done_with_messages(
         &self,
         name: &str,
@@ -207,6 +207,23 @@ impl Site {
             sessions,
             offset,
             ..self.call_for("work", args, Seen::new(), stop)
+        };
+        tool(name).run(call, Progress::new(|_| {})).await
+    }
+
+    /// 在 `work/` 里调一次工具，发话的端口是 `messages`、列会话的端口是 `sessions`（施工 C-5：`send_message` 的 `to`
+    /// 认会话编号要两个端口一起给）。
+    pub async fn done_with_messages_and_sessions(
+        &self,
+        name: &str,
+        args: serde_json::Value,
+        messages: Option<Arc<dyn MessagePort>>,
+        sessions: Option<Arc<dyn SessionsPort>>,
+    ) -> Done {
+        let call = Call {
+            messages,
+            sessions,
+            ..self.call_for("work", args, Seen::new(), Stop::default())
         };
         tool(name).run(call, Progress::new(|_| {})).await
     }

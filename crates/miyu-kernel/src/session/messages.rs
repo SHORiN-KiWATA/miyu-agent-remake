@@ -6,7 +6,7 @@
 //! 闲着、这时开得了由它开一轮，正忙排进这一轮的回报队、下一步看到，没人看着的一次性会话只记下；派它的那一轮撤掉了的不叫醒。
 //! 它不是人说的话：打断时不撤回，不作废在等人的调用，撤销时留着。
 //!
-//! 执行器派 `message_agent` 的调用之前，照 [`Session::subagents`] 抄一份这个会话派出去的子代理，工具照它认 `to`。
+//! 执行器派 `send_message` 的调用之前，照 [`Session::subagents`] 抄一份这个会话派出去的子代理，工具照它认 `to`。
 //!
 //! 别的 harness 发来的话（`by` 是 `harness`，施工 7-10，`kernel/session.md`「别的 harness 发来的话」）也是别处来的，走同一条
 //! 路：它不是哪个任务的，派它的那一轮撤掉了这回事没有，一律叫醒。别的会话发来的话（施工 C-2，`peers.rs`）先过防刷屏，
@@ -24,7 +24,7 @@ use crate::ledger::Ledger;
 use crate::origin::By;
 use crate::time::Timestamp;
 
-/// 这个会话派出去的一个子代理（施工 7-7）：`message_agent` 发给它之前照它认。
+/// 这个会话派出去的一个子代理（施工 7-7）：`send_message` 发给它之前照它认。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Subagent {
     /// 它的子会话：留言发到这里。
@@ -35,7 +35,7 @@ pub struct Subagent {
 
 impl Session {
     /// 这个会话派出去的子代理，照编号（施工 7-7）：派它的那一轮撤掉了的不在（她看不到派它的那次调用，也就不是她的）。
-    /// 做完了、崩了报过的照样在：它的会话还在，留言开它的下一轮。纯查询：执行器派每一次调用之前抄一份交给 `message_agent`。
+    /// 做完了、崩了报过的照样在：它的会话还在，留言开它的下一轮。纯查询：执行器派每一次调用之前抄一份交给 `send_message`。
     pub fn subagents(&self) -> BTreeMap<JobId, Subagent> {
         self.ledger
             .subagents()

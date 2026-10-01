@@ -65,6 +65,11 @@
     "sessions": {
       "name": "セッション一覧",
       "icon": "≡"
+    },
+    "send_message": {
+      "name": "メッセージ",
+      "subject": "to",
+      "icon": "↗"
     }
   },
   "said": {
@@ -148,6 +153,20 @@
     "message_agent/not-yours": "{to} はこのセッションが起動したサブエージェントではありません",
     "message_agent/stopped": "{to} はすでに停止しています",
     "message_agent/not-sent": "送れませんでした",
+    "send_message/sent": "送りました：{to}",
+    "send_message/held": "保存しました：{to} は誰も見ていないワンショットセッションです",
+    "send_message/no-parent": "親セッションがありません",
+    "send_message/not-yours": "{to} はこのセッションが起動したサブエージェントではありません",
+    "send_message/stopped": "{to} はすでに停止しています",
+    "send_message/not-sent": "送れませんでした",
+    "send_message/no-session": "セッション {to} はありません",
+    "send_message/ambiguous": "{to} に一致するセッションが複数あります",
+    "send_message/self": "{to} はこのセッションです",
+    "send_message/not-here": "ここでは他のセッションにメッセージを送れません",
+    "send_message/too-long": "長すぎます：{chars} 文字、上限は {limit}",
+    "send_message/too-many": "{to} への送信が直近で多すぎます",
+    "send_message/duplicate": "{to} は同じ内容をすでに受け取っています",
+    "send_message/inbox-full": "{to} の未読メッセージが多すぎます",
     "sessions/listed": "{count} 件のセッション",
     "sessions/none": "ほかのセッションはありません",
     "sessions/past-end": "ほかのセッション {total} 件はすべて表示済みです",

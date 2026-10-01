@@ -24,6 +24,11 @@ pub struct Handle {
     inbox: mpsc::UnboundedSender<Message>,
     /// 有没有在跑的回合：actor 每送完一批输入就写一次（施工 3-9 上）。
     busy: Arc<AtomicBool>,
+    /// 一次性的会话：`miyu ask` 开的（`session.created` 的 `oneshot`）。造好以后不变（施工 C-5，`send_message` 照它和
+    /// [`Handle::watched`] 决定说 `sent` 还是 `held`）。
+    oneshot: bool,
+    /// 拿着订阅的头有没有至少一个：actor 每多了、少了一个订阅就写一次（施工 7-9，施工 C-5 从 `busy` 的做法照抄）。
+    watched: Arc<AtomicBool>,
     /// 给头看的限额：造会话、载入时交完限额向内核要的（施工 6-3 补）。会话里不变：一个核心一个模型，策略冻结在会话上；
     /// 换模型那一步再改成会变的。
     limits: ContextLimits,
@@ -102,12 +107,16 @@ impl Handle {
         id: SessionId,
         inbox: mpsc::UnboundedSender<Message>,
         busy: Arc<AtomicBool>,
+        oneshot: bool,
+        watched: Arc<AtomicBool>,
         limits: ContextLimits,
     ) -> Handle {
         Handle {
             id,
             inbox,
             busy,
+            oneshot,
+            watched,
             limits,
         }
     }
@@ -115,6 +124,16 @@ impl Handle {
     /// 有没有在跑的回合：核心看它决定能不能空闲退出（施工 3-9 上）。会话停了的，不算在跑。
     pub fn busy(&self) -> bool {
         self.busy.load(Ordering::Acquire)
+    }
+
+    /// 一次性的会话：`miyu ask` 开的（施工 C-5，`cross-session.md` 第三条第 4 款）。
+    pub fn oneshot(&self) -> bool {
+        self.oneshot
+    }
+
+    /// 这时有没有至少一个头订阅着（施工 C-5）：造会话、载入以后是假的，和内核一样当没人看着。
+    pub fn watched(&self) -> bool {
+        self.watched.load(Ordering::Acquire)
     }
 
     /// 会话编号。

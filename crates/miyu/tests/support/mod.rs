@@ -27,7 +27,8 @@ impl Home {
     pub fn new() -> Home {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("miyu-main-{}-{n}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("miyu-main-{}-{}-{n}", std::process::id(), stamp()));
         let root = DataRoot::locate(&Env {
             platform: Platform::current(),
             miyu_home: Some(dir.clone().into_os_string()),
@@ -129,4 +130,11 @@ pub async fn hello(connection: Connection, token: &str) -> Value {
 /// 日志里有几行带着 `words`。
 pub fn count(log: &str, words: &str) -> usize {
     log.lines().filter(|line| line.contains(words)).count()
+}
+
+/// 起名用的纳秒数：Windows 上进程号复用得快，前一个测试进程留下的、核心开着文件删不掉的目录会撞名（2026-10-01 CI 撞见）。
+fn stamp() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_nanos())
 }

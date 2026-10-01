@@ -74,7 +74,7 @@
 10. 找沙盒的助手、探一次（`sandbox.md`「怎么走」第 1、2 条）：记一行 `INFO` `sandbox` 或者 `WARN` `sandbox unavailable`（施工 5-1）。探到的结果（能不能用、为什么，`Availability`）交给协议端点：握手时报给头（施工 5-4 下）；能用的，造会话、载入时把助手交给会话，权限策略照它判执行命令，执行器照它带沙盒（施工 5-4 上）；用不了的，会话里当沙盒用不了。
     - 再算出缓存目录（`store.md` 第 3 条），沙盒的缓存放在它下面的 `sandbox/<账号>/`，造会话、载入时照属主交给会话（`session/tools.md` 第 1a 条，施工 5-4 下）。算不出来的：记一行 `WARN sandbox cache unavailable`，`reason` 是 `no home directory` 或者 `no LOCALAPPDATA`（运行日志一律英文），沙盒里不设工具链的变量。你的 cargo 目录：核心的环境里 `CARGO_HOME` 设了、不是空的照它，不然 `~/.cargo`。
     - 这两样都不影响起不起得来。
-11. 工具目录：登记基础系统，十一件：`edit`、`glob`、`grep`、`history`、`jobs`（施工 7-4）、`message_agent`（施工 7-7）、`read`、`shell`、`subagent`（施工 7-5；7-5 再补从 `agent` 改名，以前的名字照样找得到）、`trash`、`write`；工具的字从资源目录读，登记完就冻结（`tools/interface.md`）。
+11. 工具目录：登记基础系统，十一件：`edit`、`glob`、`grep`、`history`、`jobs`（施工 7-4）、`send_message`（施工 7-7）、`read`、`shell`、`subagent`（施工 7-5；7-5 再补从 `agent` 改名，以前的名字照样找得到）、`trash`、`write`；工具的字从资源目录读，登记完就冻结（`tools/interface.md`）。
 12. 核心的家底：数据根、资源目录、模型、工具目录、系统的家目录、管理员 `admin`、本机令牌，会话表是空的，执行器的任务表是空的（施工 7-3，`protocol.md`）。不载入任何会话，只打开管理员的会话列表的索引 `home/admin/index/sessions.db`，一直开着：没有的新建，读不了、坏了、版本不对的删掉换一份空的，列会话时照日志补；都不影响起不起得来（施工 3-8 七补，`store/index.md`「怎么走」第 1 条）。会话表造会话、载入时交给会话一份造子会话的端口（施工 7-5，`protocol.md`「会话表」第 7 条）。
 13. 往标准输出写一行 `ready`。
 14. 清一次回收处（施工 3-8 三补，`store.md` 第 12 条第 2 款）：管理员的回收处里删了满 7 天（`KEEP`，2026-09-30 项目主人定）的会话连目录删掉。写了 `ready` 以后在阻塞线程里清，不耽误头连上来、第 15 步照常；核心退出之前等它清完。钟是这时系统的钟，读不出的当 1970 年（什么都不满时限，一个都不删）。删了的记一条 `INFO trash purged removed=<几个>`，一个都没删的不记；读不出删的时刻、删不掉的，一个一条 `WARN trash entry kept session=… error=…`；回收处读不了的记 `WARN trash not read error=…`。都不影响起不起得来。

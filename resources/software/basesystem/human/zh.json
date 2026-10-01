@@ -65,6 +65,11 @@
     "sessions": {
       "name": "列会话",
       "icon": "≡"
+    },
+    "send_message": {
+      "name": "留言",
+      "subject": "to",
+      "icon": "↗"
     }
   },
   "said": {
@@ -148,6 +153,20 @@
     "message_agent/not-yours": "{to} 不是它派的子代理",
     "message_agent/stopped": "{to} 已经停了",
     "message_agent/not-sent": "没送到",
+    "send_message/sent": "送到了：{to}",
+    "send_message/held": "存下了：{to} 是没人看着的一次性会话",
+    "send_message/no-parent": "没有父会话",
+    "send_message/not-yours": "{to} 不是它派的子代理",
+    "send_message/stopped": "{to} 已经停了",
+    "send_message/not-sent": "没送到",
+    "send_message/no-session": "没有会话 {to}",
+    "send_message/ambiguous": "{to} 对得上不止一个会话",
+    "send_message/self": "{to} 就是这个会话",
+    "send_message/not-here": "这里不能给别的会话发话",
+    "send_message/too-long": "太长了：{chars} 个字，最多 {limit}",
+    "send_message/too-many": "刚给 {to} 发得太多了",
+    "send_message/duplicate": "{to} 刚收到过一样的话",
+    "send_message/inbox-full": "{to} 没看的话太多了",
     "sessions/listed": "列出 {count} 个会话",
     "sessions/none": "没有别的会话",
     "sessions/past-end": "一共 {total} 个别的会话，已经列完了",

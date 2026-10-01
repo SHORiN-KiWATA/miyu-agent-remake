@@ -4,7 +4,8 @@
 //! （`crate::report`），父会话载入以后经它叫起还没回报的子会话（施工 7-6）。
 //!
 //! 测试里自己造的会话没有它：`agent` 照派不了出错。`jobs` 停子代理、读它在做什么也经它（施工 7-4）。`sessions` 列主会话也经它
-//! （施工 C-3，`crate::sessions`）。
+//! （施工 C-3，`crate::sessions`）。`send_message` 发给别的会话、认它是不是没人看着的一次性会话也经它（施工 C-5，
+//! `crate::messages`）。
 
 use std::future::Future;
 use std::pin::Pin;
@@ -56,6 +57,11 @@ pub trait SessionPort: Send + Sync {
     /// 交回原因；放会话目录本身不必读了才知道读不读得到，日志坏了、读不了的要等交回的 [`Log`] 读的时候才知道。`history`
     /// 只在认出 `session` 参数写的是这个属主看得到的另一个会话（不是它自己）时才调它。
     fn read_log(&self, session: SessionId) -> Pending<'_, Result<Log, String>>;
+
+    /// 会话 `session` 这时是不是没人看着的一次性会话（施工 C-5，`cross-session.md` 第三条第 4 款）：`send_message` 送到
+    /// 以后照它说 `sent.txt` 还是 `held.txt`。调它之前这个会话已经经 [`SessionPort::command`] 送过一次，这时在会话表里
+    /// 一定载入着；没在表里（会话表照它核对不出）的，当不是：读不出「没人看着」，照 `sent.txt` 说。
+    fn held(&self, session: SessionId) -> Pending<'_, bool>;
 }
 
 /// 端口交回的 future。

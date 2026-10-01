@@ -14,7 +14,7 @@ use miyu_kernel::origin::{By, Session};
 use miyu_kernel::session::{Command, Outcome};
 use miyu_policy::{JOB_DEPTH, ToolEntry};
 use miyu_tool::{
-    AgentPort, Catalog, MESSAGE_AGENT, NotSpawned, SESSIONS, SUBAGENT, Spawned, Spawning,
+    AgentPort, Catalog, NotSpawned, SEND_MESSAGE, SESSIONS, SUBAGENT, Spawned, Spawning,
 };
 
 use crate::TARGET;
@@ -60,10 +60,10 @@ impl Agents {
         venue.as_str() == LOCAL && parent.is_none()
     }
 
-    /// 造会话时定的工具面（施工 7-5、7-7、C-3）：目录里每件工具的规格换成快照里的写法。不能派子代理的会话不给 `subagent`；场所
-    /// 会话（群）不给 `message_agent`：它没有父，也派不了子代理。到了深度上限的子会话照样有 `message_agent`，只能发给父。
-    /// 只有本机的主会话有 `sessions`（[`Agents::lists_sessions`]）。工具面造会话时定，一个会话里不变，给了只会被拒的不给
-    /// （`agents.md` 第一条第 6 条）。
+    /// 造会话时定的工具面（施工 7-5、7-7、C-3、C-5）：目录里每件工具的规格换成快照里的写法。不能派子代理的会话不给
+    /// `subagent`；场所会话（群）不给 `send_message`：它没有父，也派不了子代理，给了只会被 `not-here.txt` 拒。到了
+    /// 深度上限的子会话照样有 `send_message`，能发给父、能发给别的会话，只是不能派子代理。只有本机的主会话有 `sessions`
+    /// （[`Agents::lists_sessions`]）。工具面造会话时定，一个会话里不变，给了只会被拒的不给（`agents.md` 第一条第 6 条）。
     pub(crate) fn face(
         tools: &Catalog,
         venue: &VenueId,
@@ -75,7 +75,7 @@ impl Agents {
         tools
             .specs()
             .filter(|spec| spawns || spec.name != SUBAGENT)
-            .filter(|spec| local || spec.name != MESSAGE_AGENT)
+            .filter(|spec| local || spec.name != SEND_MESSAGE)
             .filter(|spec| lists || spec.name != SESSIONS)
             .map(|spec| ToolEntry {
                 name: spec.name.clone(),
