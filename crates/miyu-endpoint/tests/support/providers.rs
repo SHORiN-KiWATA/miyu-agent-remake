@@ -14,7 +14,7 @@ use miyu_models::catalog::{Catalog, CatalogSource, Loaded};
 use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
 use miyu_models::settings::{
-    CatalogSettings, ModelSettings, PriceSettings, ProviderSettings, UseSettings,
+    CatalogSettings, ModelSettings, PoolSettings, PriceSettings, ProviderSettings, UseSettings,
 };
 use miyu_session::testkit::Script;
 use miyu_session::{ModelData, Models, Observed, Routes};
@@ -117,6 +117,7 @@ fn assembled(
         ModelSettings::ITEMS,
         PriceSettings::ITEMS,
         CatalogSettings::ITEMS,
+        PoolSettings::ITEMS,
     ]
     .concat();
     let config = Config::load(&home.root, &alice(), None, items, Environment::of(env));

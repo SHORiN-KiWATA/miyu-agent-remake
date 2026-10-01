@@ -259,3 +259,31 @@ fn base64(bytes: &[u8]) -> String {
     use base64::Engine;
     base64::engine::general_purpose::STANDARD.encode(bytes)
 }
+
+#[tokio::test]
+async fn a_pool_is_resolved_and_a_429_member_fails_over_to_the_next() {
+    let slow = Server::start(vec![Reply::error(
+        429,
+        &[("Retry-After", "20")],
+        r#"{"error":{"message":"slow down"}}"#,
+    )])
+    .await;
+    let ok = Server::start(vec![said("OK.")]).await;
+    let config = format!(
+        "[providers.a]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\n\n[providers.b]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\n\n[models]\nchat = \"b/m\"\n\n[pools.duo]\nmodels = [\"a/m\", \"b/m\"]\nstrategy = \"pin\"\n",
+        slow.base_url, ok.base_url
+    );
+    let home = Home::new();
+    let mut client = connected(&home, &config).await;
+    let mut params = asked("hi");
+    params["model"] = json!("@duo");
+    let reply = client.call("c1", "model.call", params).await;
+    assert_eq!(reply["result"]["text"], json!("OK."), "{reply}");
+    assert_eq!(
+        reply["result"]["provider"],
+        json!("b"),
+        "钉着的第一个回了 429，换到下一个"
+    );
+    assert_eq!(slow.received().len(), 1);
+    assert_eq!(ok.received().len(), 1);
+}
