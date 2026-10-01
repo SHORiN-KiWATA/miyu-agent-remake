@@ -4,9 +4,13 @@
 //! D1），头照着印；做视图投影（M8）时这几样挪进视图，字段只加不改。
 //!
 //! 照会话的日志读：撤销（恢复）和改回文件的结局都落了盘才回应，这时读得到。碰磁盘，在阻塞线程里调。
+//!
+//! 改回了的（`outcome` 是 `restored`、`action` 是 `write` 的）也带差异（施工 4-7 再补）：改回以前磁盘上该是什么样，
+//! 对改回以后的。两边都是账本里的 blob，不读现在的磁盘——`restored` 时磁盘上已经是改回以后的样子了。`trash`、
+//! `untrash` 只是挪位置，内容没变，不带。
 
 use std::collections::BTreeSet;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -14,7 +18,8 @@ use similar::TextDiff;
 
 use miyu_kernel::block::Block;
 use miyu_kernel::event::{
-    Body, CompactTrigger, Effect, Event, RestoreOutcome, Restored, ToolResult, ToolStatus,
+    Body, CompactTrigger, Effect, Event, FileChanged, RestoreAction, RestoreOutcome, Restored,
+    ToolResult, ToolStatus,
 };
 use miyu_kernel::id::{ContentHash, SessionId, TurnId};
 use miyu_kernel::origin::By;
@@ -117,12 +122,21 @@ struct File {
     outcome: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
-    /// 之后又被改过的：统一格式的差异，不带 `---`、`+++` 那两行，最多 [`DIFF_LINES`] 行。
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    /// 有差异的（之后又被改过的 `changed`，或者改回了内容的 `restored`）。
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    diff: Option<Diff>,
+}
+
+/// 一份差异：统一格式，上下文 3 行，最多 [`DIFF_LINES`] 行，不带 `---`、`+++` 那两行；外加新增、删掉了几行，照
+/// 整份差异数，不照截断以后的。
+#[derive(Debug, Serialize)]
+struct Diff {
     diff: Vec<String>,
     /// 差异里没交出来的行数。
     #[serde(skip_serializing_if = "is_zero")]
     more: usize,
+    added: usize,
+    removed: usize,
 }
 
 /// 照撤销（恢复）那一条和改回文件的结局那一条（`events` 里头两个序号）写成回应里的几样。日志读不出来的，
@@ -246,13 +260,19 @@ fn ran_at_all(result: &ToolResult) -> bool {
     }
 }
 
-/// 改回的一步写成回应里的一项：之后又被改过的，附上差异。
+/// 改回的一步写成回应里的一项：之后又被改过的（`changed`）附上她改完的对现在的差异；改回了内容的（`restored`、
+/// `action` 是 `write`）附上改回以前对改回以后的差异。`trash`、`untrash` 只是挪位置，内容没变，不附；`restored`
+/// 里本来就一样、没写的，两边内容相同，差异算出来是空的，`diff` 自然是 `None`，也不附。
 fn entry(file: &Restored, log: &[Event], blobs: &Blobs, undo: bool) -> File {
-    let (diff, more) = match file.outcome {
-        RestoreOutcome::Changed => expected(file, log, undo)
-            .map(|expected| diff(blobs, &expected, Path::new(&file.path)))
-            .unwrap_or_default(),
-        _ => (Vec::new(), 0),
+    let diff = if matches!(file.outcome, RestoreOutcome::Changed) {
+        expected(file, log, undo).and_then(|expected| changed_diff(blobs, &expected, &file.path))
+    } else if matches!(file.outcome, RestoreOutcome::Restored)
+        && matches!(file.action, RestoreAction::Write)
+    {
+        restored_sides(file, log, undo)
+            .and_then(|(before, after)| restored_diff(blobs, before.as_ref(), after.as_ref()))
+    } else {
+        None
     };
     File {
         path: plain(&file.path),
@@ -260,56 +280,108 @@ fn entry(file: &Restored, log: &[Event], blobs: &Blobs, undo: bool) -> File {
         outcome: file.outcome.as_str().to_string(),
         error: file.error.clone(),
         diff,
-        more,
     }
 }
 
-/// 这一步动手前原处该是什么样：撤销时是她改完的（`file.changed` 的改后），恢复时是撤销以后的（改前）。移回来
-/// 的那种（`file.trashed`）没有存下内容，没有。
-fn expected(file: &Restored, log: &[Event], undo: bool) -> Option<ContentHash> {
+/// 这一步照的那条 `tool.result` 的第几个效果：是 `file.changed` 的才有。
+fn file_changed<'a>(file: &Restored, log: &'a [Event]) -> Option<&'a FileChanged> {
     let result = log.iter().find(|event| event.seq == file.result)?;
     let Body::ToolResult(result) = &result.body else {
         return None;
     };
     match result.effects.get(usize::try_from(file.effect).ok()?)? {
-        Effect::FileChanged(changed) if undo => Some(changed.after.clone()),
-        Effect::FileChanged(changed) => changed.before.clone(),
+        Effect::FileChanged(changed) => Some(changed),
         _ => None,
     }
 }
 
-/// `expected`（blob）和现在的 `path` 之间的差异：统一格式，上下文 3 行，最多 [`DIFF_LINES`] 行，交回这几行和
-/// 没交出来的行数。不是文本的、任一边太大的、取不出来的，没有。
-fn diff(blobs: &Blobs, expected: &ContentHash, path: &Path) -> (Vec<String>, usize) {
+/// 这一步动手前原处该是什么样（`changed` 用）：撤销时是她改完的（`file.changed` 的改后），恢复时是撤销以后的
+/// （改前）。不是 `file.changed` 效果的（`file.trashed`）没有。
+fn expected(file: &Restored, log: &[Event], undo: bool) -> Option<ContentHash> {
+    let changed = file_changed(file, log)?;
+    if undo {
+        Some(changed.after.clone())
+    } else {
+        changed.before.clone()
+    }
+}
+
+/// `restored`、`action` 是 `write` 的这一步，改回以前、改回以后磁盘上该是什么样：撤销时前者是她改完的、后者是
+/// 改前的；恢复时反过来。没有内容（新建的文件改回以前、后来被挪开再写回的文件改回以后）的是 `None`，当空的算。
+/// 不是 `file.changed` 效果的，整个没有。
+fn restored_sides(
+    file: &Restored,
+    log: &[Event],
+    undo: bool,
+) -> Option<(Option<ContentHash>, Option<ContentHash>)> {
+    let changed = file_changed(file, log)?;
+    Some(if undo {
+        (Some(changed.after.clone()), changed.before.clone())
+    } else {
+        (changed.before.clone(), Some(changed.after.clone()))
+    })
+}
+
+/// `expected`（blob）和现在的 `path`（磁盘）之间的差异：之后又被改过的（`changed`）用。
+fn changed_diff(blobs: &Blobs, expected: &ContentHash, path: &str) -> Option<Diff> {
+    let then = blob_bytes(blobs, Some(expected))?;
     let now = match std::fs::metadata(path) {
         Ok(meta) if meta.len() <= DIFF_BYTES => std::fs::read(path).ok(),
         _ => None,
+    }?;
+    diff(&then, &now)
+}
+
+/// `before`、`after`（都是 blob，`None` 当空的算）之间的差异：改回了内容的（`restored`）用，两边都不读现在的
+/// 磁盘。
+fn restored_diff(
+    blobs: &Blobs,
+    before: Option<&ContentHash>,
+    after: Option<&ContentHash>,
+) -> Option<Diff> {
+    let then = blob_bytes(blobs, before)?;
+    let now = blob_bytes(blobs, after)?;
+    diff(&then, &now)
+}
+
+/// `hash` 的内容：没有 `hash`（`None`）的照空的算；超过 [`DIFF_BYTES`]、取不出来的没有。
+fn blob_bytes(blobs: &Blobs, hash: Option<&ContentHash>) -> Option<Vec<u8>> {
+    let bytes = match hash {
+        None => Vec::new(),
+        Some(hash) => blobs.get(hash).ok()?,
     };
-    let Some(now) = now else {
-        return (Vec::new(), 0);
+    (u64::try_from(bytes.len()).unwrap_or(u64::MAX) <= DIFF_BYTES).then_some(bytes)
+}
+
+/// `then` 和 `now` 之间的差异：统一格式，上下文 3 行，最多 [`DIFF_LINES`] 行，外加整份差异数的新增、删掉的行数。
+/// 不是文本的、两边一样（没有差异）的，没有。
+fn diff(then: &[u8], now: &[u8]) -> Option<Diff> {
+    let (Ok(then), Ok(now)) = (std::str::from_utf8(then), std::str::from_utf8(now)) else {
+        return None;
     };
-    let Ok(then) = blobs.get(expected) else {
-        return (Vec::new(), 0);
-    };
-    let (Ok(then), Ok(now)) = (std::str::from_utf8(&then), std::str::from_utf8(&now)) else {
-        return (Vec::new(), 0);
-    };
-    if u64::try_from(then.len()).unwrap_or(u64::MAX) > DIFF_BYTES {
-        return (Vec::new(), 0);
-    }
     let text = TextDiff::from_lines(then, now)
         .unified_diff()
         .context_radius(3)
         .missing_newline_hint(false)
         .to_string();
+    if text.is_empty() {
+        return None;
+    }
     let lines: Vec<&str> = text.lines().collect();
+    let added = lines.iter().filter(|line| line.starts_with('+')).count();
+    let removed = lines.iter().filter(|line| line.starts_with('-')).count();
     let more = lines.len().saturating_sub(DIFF_LINES);
-    let shown = lines
+    let diff = lines
         .into_iter()
         .take(DIFF_LINES)
         .map(str::to_string)
         .collect();
-    (shown, more)
+    Some(Diff {
+        diff,
+        more,
+        added,
+        removed,
+    })
 }
 
 /// 没有没交出来的行，不写 `more`。

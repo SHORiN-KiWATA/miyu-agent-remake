@@ -1,6 +1,7 @@
 //! 撤销、恢复的回应里给人看的几样（施工 4-7 下）：会话的工作目录、那一轮人说的话、执行过几条命令、每个文件怎样；
 //! 之后又被改过的附上差异（上下文 3 行、最多 20 行、结尾没换行不加提示），太大的、不是文本的不附；只算撤掉的那几轮；
-//! 恢复时对照的是撤销以后的样子。
+//! 恢复时对照的是撤销以后的样子。改回了内容的也附上差异，连同新增、删掉的行数（施工 4-7 再补，`crates/miyu-endpoint/
+//! src/undo/tests.rs` 另有新建的文件、`trash`、本来就一样几种的单元测试）。
 
 mod support;
 
@@ -86,13 +87,16 @@ async fn an_undo_says_which_turn_and_what_came_back() {
     let path = plain(&home.work.join("a.txt"));
     assert_eq!(
         result["files"],
-        json!([{"path": path, "action": "write", "outcome": "restored"}])
+        json!([{
+            "path": path, "action": "write", "outcome": "restored",
+            "diff": ["@@ -1 +1 @@", "-new", "+old"], "added": 1, "removed": 1,
+        }])
     );
     assert_eq!(
         std::fs::read_to_string(home.work.join("a.txt")).expect("在"),
         "old\n"
     );
-    // 恢复：说的是同一句，不说执行过几条命令。
+    // 恢复：说的是同一句，不说执行过几条命令；改回的是重新做的内容，差异反过来。
     let reply = client
         .call("c4", "session.unrevert", json!({"session": session}))
         .await;
@@ -100,7 +104,13 @@ async fn an_undo_says_which_turn_and_what_came_back() {
     assert_eq!(result["said"], json!("改一下"));
     assert!(result.get("commands").is_none(), "{result}");
     assert!(result.get("compactions").is_none(), "{result}");
-    assert_eq!(result["files"][0]["outcome"], json!("restored"));
+    assert_eq!(
+        result["files"],
+        json!([{
+            "path": path, "action": "write", "outcome": "restored",
+            "diff": ["@@ -1 +1 @@", "-old", "+new"], "added": 1, "removed": 1,
+        }])
+    );
 }
 
 /// 之后又被改过的：没动，附上她改完的和现在的差异；太长的只交 20 行，说还有几行。
@@ -116,7 +126,9 @@ async fn what_changed_since_comes_with_a_diff() {
     assert_eq!(file["outcome"], json!("changed"));
     assert_eq!(file["diff"], json!(["@@ -1 +1 @@", "-new", "+someone"]));
     assert!(file.get("more").is_none());
-    // 改了很多行的：只交 20 行。
+    assert_eq!(file["added"], json!(1), "{file}");
+    assert_eq!(file["removed"], json!(1), "{file}");
+    // 改了很多行的：只交 20 行，`more` 是截断以后的，`added`、`removed` 照整份差异数。
     let long: String = (0..30).map(|n| format!("line {n}\n")).collect();
     std::fs::write(home.work.join("a.txt"), &long).expect("写得进");
     client
@@ -132,6 +144,8 @@ async fn what_changed_since_comes_with_a_diff() {
         json!(12),
         "差异一共 32 行：一行 @@、一行删掉的、30 行加上的"
     );
+    assert_eq!(file["added"], json!(30), "{file}");
+    assert_eq!(file["removed"], json!(1), "{file}");
 }
 
 /// 写一次 `a.txt`，内容是 `content`。
