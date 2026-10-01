@@ -1,0 +1,3 @@
+<session-idle session="9f03b21c" reason="expired">
+No notice came within 12 hours, so the request was dropped.
+</session-idle>

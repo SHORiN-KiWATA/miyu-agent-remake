@@ -167,6 +167,8 @@
     "send_message/too-many": "Too many messages to {to} just now",
     "send_message/duplicate": "{to} already got the same message",
     "send_message/inbox-full": "{to} has too many unread messages",
+    "send_message/watching": "Will tell her when {to} is idle",
+    "send_message/watch-peers-only": "Only other sessions can be watched",
     "sessions/listed": "Listed {count} sessions",
     "sessions/none": "No other sessions",
     "sessions/past-end": "All {total} other sessions are listed",

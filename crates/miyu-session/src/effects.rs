@@ -36,9 +36,10 @@ pub(crate) fn store(blobs: &Blobs, effects: Vec<miyu_tool::Effect>) -> Vec<Effec
                 path: text(&path),
                 trash,
             }),
-            // 派出去的任务、给子代理留的言照原样（施工 7-5、7-7）：没有要存的内容。
+            // 派出去的任务、给子代理留的言、订的会话照原样（施工 7-5、7-7、C-6）：没有要存的内容。
             miyu_tool::Effect::JobStarted(started) => Effect::JobStarted(started),
             miyu_tool::Effect::JobMessaged(messaged) => Effect::JobMessaged(messaged),
+            miyu_tool::Effect::PeerWatch(watch) => Effect::PeerWatch(watch),
         })
         .collect()
 }

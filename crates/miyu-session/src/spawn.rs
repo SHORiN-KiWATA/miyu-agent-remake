@@ -5,7 +5,8 @@
 //!
 //! 测试里自己造的会话没有它：`agent` 照派不了出错。`jobs` 停子代理、读它在做什么也经它（施工 7-4）。`sessions` 列主会话也经它
 //! （施工 C-3，`crate::sessions`）。`send_message` 发给别的会话、认它是不是没人看着的一次性会话也经它（施工 C-5，
-//! `crate::messages`）。
+//! `crate::messages`）。订「空了告诉我」也经它（施工 C-6，`crate::peers`）：会话表把「谁在等」交给被等的那个会话的 actor，
+//! 被等的那一边空下来，照样经它把通知交给等的那个会话（命令 `PeerIdle`）。
 
 use std::future::Future;
 use std::pin::Pin;
@@ -14,6 +15,7 @@ use miyu_kernel::event::Permission;
 use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Outcome};
+use miyu_kernel::time::Timestamp;
 use miyu_tool::{Log, MainSession, Stop};
 
 use crate::jobs::Peek;
@@ -62,6 +64,30 @@ pub trait SessionPort: Send + Sync {
     /// 以后照它说 `sent.txt` 还是 `held.txt`。调它之前这个会话已经经 [`SessionPort::command`] 送过一次，这时在会话表里
     /// 一定载入着；没在表里（会话表照它核对不出）的，当不是：读不出「没人看着」，照 `sent.txt` 说。
     fn held(&self, session: SessionId) -> Pending<'_, bool>;
+
+    /// 会话 `watcher` 在等会话 `session` 空下来（施工 C-6，`cross-session.md` 第六条第 3 款）：交给 `session` 的 actor 记进
+    /// 名单，不经内核、不进它的日志；它没载入的先载入。`since` 是等的那一边这次订从哪一刻算起，通知的命令编号带着它：同一次
+    /// 订再交一遍，通知还是同一个编号，那边认得出是重的。交到了就回，不等它空下来。
+    ///
+    /// # Errors
+    ///
+    /// 那个会话不在了（删了、找不到）：[`NotWatched::Gone`]，等的那一边记 `gone`。别的（它停了、核心正在停）：
+    /// [`NotWatched::Failed`]，交回原因，等的那一边记一行运行日志。
+    fn watch(
+        &self,
+        session: SessionId,
+        watcher: SessionId,
+        since: Timestamp,
+    ) -> Pending<'_, Result<(), NotWatched>>;
+}
+
+/// 订「空了告诉我」没订上（施工 C-6）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NotWatched {
+    /// 那个会话不在了：删了、找不到。
+    Gone,
+    /// 别的原因：它停了、核心正在停。英文的一句，记进运行日志。
+    Failed(String),
 }
 
 /// 端口交回的 future。

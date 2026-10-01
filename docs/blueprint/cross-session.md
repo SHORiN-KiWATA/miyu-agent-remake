@@ -12,7 +12,7 @@
 
 状态：图纸，定稿（2026-10-01 起草，主会话审过，项目主人同一天批准）。定了的六条和防刷屏在 `docs/designs/29-跨会话.md` 第一、二节，这一页把第三节留下的技术细节定下来（末尾「起草时定的」）。每一节标着由哪一步做，步子见末尾「施工步子」（C-1 到 C-7，正式编号）。做完一步，这一页照做好的样子改写那几节，相关的几页跟着改（末尾「要跟着改的别的页」）。
 
-做好了的：C-1 会话的短编号（`kernel/ids.md`）；事件 `peer.idle`、效果 `peer.watch` 的类型、读写、样本（`kernel/events.md`、`kernel/events-bodies.md`）；`by` 是会话的三种关系（`kernel/ids.md`「谁」）；账本在等哪几个会话、`peer.idle` 只认在等的（`kernel/history.md`「在等的通知」）。C-2 收别的会话发来的话：内核认出别的会话、照「别处来的」收，防刷屏前三款（`kernel/session.md`「别的会话发来的话」，账本见 `kernel/history.md`「最近收下的别的会话的话」），策略数据 `peers.burst`、`window`、`unread`（`policy.md`），渲染 `<session-message from="短编号">`（`kernel/request.md`「别的会话发来的话」），`history` 的「谁」写 `session <短编号>`（`tools/history.md`），它开的那一轮重做不了。还没有哪里发得出别的会话的话（C-5），还没有哪里报 `peer.watch`、写 `peer.idle`（C-6）。 C-3 列会话：`session.list` 每一项多 `cwd`、`busy`、`last_active`（`protocol.md`），新的一件工具 `sessions`，只给本机的主会话（`tools/sessions.md`、`session/tools.md`「1d. 列会话」「工具面」）；认会话编号的 `find_session` 做好了，C-4、C-5 接着用。C-4 读别的会话：`history` 多一格 `session`（`tools/history.md`），和 `send_message` 同一个认法认出是哪一个会话，认成她自己的照没写；`SessionsPort` 多 `open`，交回一个 `Log`，只算出会话的真实目录，不读盘、不载入它，在跑的也读得到（`miyu-tool/src/sessions.rs`，实现在 `miyu-endpoint/src/spawn.rs`）；找不到、对得上不止一个、没有列会话的端口（子会话、场所会话）各拒一句，一条日志都不读；时刻照这个会话自己的时区，和读的是哪一份日志无关。工具面、说明的字节没变，只有参数格式多一格，待量 token。
+做好了的：C-1 会话的短编号（`kernel/ids.md`）；事件 `peer.idle`、效果 `peer.watch` 的类型、读写、样本（`kernel/events.md`、`kernel/events-bodies.md`）；`by` 是会话的三种关系（`kernel/ids.md`「谁」）；账本在等哪几个会话、`peer.idle` 只认在等的（`kernel/history.md`「在等的通知」）。C-2 收别的会话发来的话：内核认出别的会话、照「别处来的」收，防刷屏前三款（`kernel/session.md`「别的会话发来的话」，账本见 `kernel/history.md`「最近收下的别的会话的话」），策略数据 `peers.burst`、`window`、`unread`（`policy.md`），渲染 `<session-message from="短编号">`（`kernel/request.md`「别的会话发来的话」），`history` 的「谁」写 `session <短编号>`（`tools/history.md`），它开的那一轮重做不了。发话随 C-5，订和通知随 C-6（都做好了，见下）。C-3 列会话：`session.list` 每一项多 `cwd`、`busy`、`last_active`（`protocol.md`），新的一件工具 `sessions`，只给本机的主会话（`tools/sessions.md`、`session/tools.md`「1d. 列会话」「工具面」）；认会话编号的 `find_session` 做好了，C-4、C-5 接着用。C-4 读别的会话：`history` 多一格 `session`（`tools/history.md`），和 `send_message` 同一个认法认出是哪一个会话，认成她自己的照没写；`SessionsPort` 多 `open`，交回一个 `Log`，只算出会话的真实目录，不读盘、不载入它，在跑的也读得到（`miyu-tool/src/sessions.rs`，实现在 `miyu-endpoint/src/spawn.rs`）；找不到、对得上不止一个、没有列会话的端口（子会话、场所会话）各拒一句，一条日志都不读；时刻照这个会话自己的时区，和读的是哪一份日志无关。工具面、说明的字节没变，只有参数格式多一格，待量 token。C-6 空了告诉我：`send_message` 多 `notify_when_idle`、`message` 可以不写（`tools/send_message.md`），订的记录是那次调用的效果 `peer.watch`；等的这一边的执行器照内核的 `watching()` 去订、计时（`miyu-session/src/peers.rs`，`session/tools.md`「订、计时、再订」），被等的那一边的 actor 记名单、空了发命令 `PeerIdle`（`actor/watchers.rs`，`session/actor.md`「被等的名单」）；内核收通知、作废、不在了记 `peer.idle`，空下来了的照回报叫醒她，作废、不在了的只记下（`kernel/session.md`「空了的通知」）；渲染 `<session-idle session=… reason=…>`（`kernel/request.md`「空了的通知」）；策略数据 `peers.watch_hours`、`status_chars`（`policy.md`）。
 
 ### 在哪
 
@@ -33,10 +33,10 @@
 | `crates/miyu-session/src/spawn.rs` | `SessionPort` 多的那几样定义在这一层，会话表在上一层实现 |
 | `crates/miyu-tool/src/sessions.rs` | 交给 `sessions`、`history` 的端口 `SessionsPort`：列（C-3）、开日志（C-4）。认会话编号的 `find_session`：整个编号或者至少 8 位的后缀，在一批编号里对（C-3 做好，C-4、C-5 照它认：列出这个会话能看到的主会话加它自己，再对） |
 | `crates/miyu-session/src/sessions.rs` | 执行器：本机的主会话每一次调用造列会话的端口，拿掉她自己（C-3） |
-| `crates/miyu-tool/src/messages.rs` | `Recipient` 多 `Session`，`NotSent` 多几种（C-5）。只订不发时认出会话、交回整个编号（C-6） |
+| `crates/miyu-tool/src/messages.rs` | `Recipient` 多 `Session`，`NotSent` 多几种（C-5）。只订不发时不另认：`send_message` 本来就照 `find_session` 认出整个编号（C-5），效果里写它（C-6，不用改这一份）。效果多一种 `PeerWatch` 在 `miyu-tool/src/run.rs` |
 | `crates/miyu-session/src/messages.rs` | 执行器：认会话编号、送、订（C-5、C-6） |
 | `crates/miyu-session/src/peers.rs` | 执行器：每送完一批，照内核新多出来的在等的去订、计时，到点交作废（C-6） |
-| `crates/miyu-session/src/actor/watchers.rs` | 被等的那一边：谁在等，每送完一批看空没空，空了发通知（C-6） |
+| `crates/miyu-session/src/actor/watchers.rs` | 被等的那一边：谁在等，每送完一批看空没空，空了发通知（C-6）。执行器送回 actor 的那几样挪进了 `actor/back.rs`（`actor.rs` 到了行数上限），多一样到点、不在了 |
 | `crates/miyu-session/src/agents.rs` | 工具面：`sessions` 只给本机的主会话（C-3） |
 | `crates/miyu-basesystem/src/sessions.rs` | `sessions`：参数、一行一个、分页（C-3） |
 | `crates/miyu-basesystem/src/history.rs`、`history/entry.rs` | 「谁」多一种 `session <短编号>`（C-2），多一格 `session`（C-4） |
@@ -61,7 +61,7 @@
 | `peers.status_chars` | 200 | 通知里带的那一行最多几个字（第六条第 6 款） | 被等的那边的内核（C-6） |
 | `peers.message_chars` | 100000 | 一句话最多几个字（第五条第 4 款） | 发话那边的工具（C-5），出厂值在 `crates/miyu-basesystem/src/send_message.rs`，照 `jobs.output_chars` 的放法，不进快照 |
 
-- 前五个在快照里是 `peers`（C-2、C-6 各加自己用的）。以前造的快照里没有的，照出厂值读：防刷屏不能因为会话旧就不管。
+- 前五个在快照里是 `peers`（C-2、C-6 各加自己用的）。以前造的快照里没有的，照出厂值读：防刷屏不能因为会话旧就不管。C-2 时造的快照里有前三个、没有后两个，后两个照出厂值读、不写，读回写出一字不差（施工 C-6）。
 - 数是估的，待 C-7 实测（「起草时定的」第 11 条）。
 
 **会话的短编号**（C-1，写进 `kernel/ids.md`）：会话编号最后 8 个字符，就是最后一段的后 8 位十六进制。`0192f3a0-1111-7abc-8def-001122334455` 的短编号是 `22334455`。
@@ -88,7 +88,7 @@
 ```
 
 - `session`：被等的会话的整个编号。
-- 账本查：合会话编号的写法（读的时候就查了），不是这个会话自己（账本知道自己是哪个会话：内核造会话、载入时用 `Ledger::for_session`，`kernel/history.md`）。施工 C-1 做好了类型、读写和账本，还没有工具报它（C-6）。
+- 账本查：合会话编号的写法（读的时候就查了），不是这个会话自己（账本知道自己是哪个会话：内核造会话、载入时用 `Ledger::for_session`，`kernel/history.md`）。账本每次订记一项：在哪一轮、从这条结果的时刻算起、这条结果的 `cause`（作废、不在了的 `peer.idle` 照它记 `cause`，施工 C-6）。
 
 **事件** `peer.idle`（C-1、C-6）：等的那个会话空下来了，或者等不到了。记在等的那一边。
 
@@ -106,14 +106,14 @@
 - `by`：`idle` 的是那个会话，编号和 `session` 一样。`expired`、`gone` 的是内核。
 - `cause`：`idle` 的是交来通知的那个命令。`expired`、`gone` 的是订它的那一轮的 `cause`。
 - 不带回合编号：它是别处来的，撤哪一轮都不拿走（第七条第 2 款）。
-- 账本查：这时在等 `session` 的通知（订它的那一轮还没撤掉、那以后没收到过它的通知）。`by`：`idle` 的是那个会话，`expired`、`gone` 的是内核，不认识的原因不查（「起草时定的」第 29 条）。带不带回合编号不另立规矩，和两种回报一样。施工 C-1 做好了类型、读写、样本和账本，还没有哪里写它，也不渲染（C-6）。
+- 账本查：这时在等 `session` 的通知（订它的那一轮还没撤掉、那以后没收到过它的通知）。`by`：`idle` 的是那个会话，`expired`、`gone` 的是内核，不认识的原因不查（「起草时定的」第 29 条）。带不带回合编号不另立规矩，和两种回报一样。
 - 名字不叫 `session.*`：渲染表里 `session.*` 一律不进上下文（`kernel/request.md`「组装」第 3 条）。
 
 **内核多的输入和原因码**（C-2、C-6，写进 `kernel/session.md`）：
 
-- 命令 `PeerIdle { status }`：被等的会话交来的通知，`by` 是它（C-6）。
-- 输入 `WatchEnded { session, reason, at }`：执行器交的到点、不在了，`reason` 是 `expired` 或者 `gone`（C-6）。
-- 查询 `watching()`：在等哪几个会话、各从什么时刻算起（C-6）。`last_line()`：最近结束的那一轮最后回复的第一行，截到 `peers.status_chars`（C-6）。
+- 命令 `PeerIdle { status }`：被等的会话交来的通知，`by` 是它（C-6）。`by` 不是一个会话的照不在等拒。
+- 输入 `WatchEnded { at, session, reason }`：执行器交的到点、不在了，`reason` 是 `expired` 或者 `gone`（C-6）。别的原因不理。读回日志的时候到的先放着，照后台命令结束。
+- 查询 `watching()`：在等哪几个会话、各从什么时刻算起（C-6）。`watch_hours()`：订了多久作废（执行器照它计时）。`vacant()`：「空了」，被等的那一边照它发通知。`last_line()`：最近结束的那一轮最后回复的第一行，截到 `peers.status_chars`（C-6）。
 - 拒绝的原因码：`too_many_messages`、`duplicate_message`、`inbox_full`（C-2），`unknown_watch`（C-6）。这几种只会回给核心里别的会话，不经协议给头。
 
 **工具**：
@@ -121,9 +121,9 @@
 - 新的一件 `sessions`（C-3 做好了），一页 `tools/sessions.md`。
 - `history` 多一格 `session`（C-4，`tools/history.md`）。
 - 留言的工具 `message_agent` 改名 `send_message`（照 Claude Code 的 `SendMessage`，2026-10-01 项目主人定）。C-5 改名，和说明第一句、`to` 一起改，只冷一次缓存。以前造的会话快照里冻着 `message_agent`（前缀不能变），它们发来的 `message_agent` 调用照样执行、认成同一件，给人看的字两个键都在，照施工 7-5 再补给 `agent` 改名 `subagent` 的做法。结果里的几句从 `message_agent/` 挪到 `send_message/`，字节不变，登记簿换路径。`tools/message_agent.md` 改成 `tools/send_message.md`。
-- `send_message` 的 `to` 多认会话编号（C-5），`message` 改成可以不写，多一格 `notify_when_idle`（C-6）。
+- `send_message` 的 `to` 多认会话编号（C-5），`message` 改成可以不写，多一格 `notify_when_idle`（C-6，做好了）。
 - 派子代理的工具 `agent` 另开小单改名 `subagent`（施工 7-5 再补，2026-10-01 项目主人定），这一页照新名字写。
-- 说明的原文见「样子」，每份待量 token，量了进登记簿（`26-提示词.md` 第十节），受工具面的预算管（`10-自带软件.md` 第九节）。`sessions` 量了是 95（C-3，2026-10-01，十二件一起时的边际份量，整个 tools 数组 1968 → 2063）。估的份量（待量）：`send_message` 多约 45（C-5 给 `sessions` 的说明补点名那半句另算），`history` 多约 18。子会话多约 63（没有 `sessions`）。
+- 说明的原文见「样子」，量了进登记簿（`26-提示词.md` 第十节），受工具面的预算管（`10-自带软件.md` 第九节）。`sessions` 量了是 95（C-3，2026-10-01，十二件一起时的边际份量，整个 tools 数组 1968 → 2063）。估的份量（待量）：`send_message` 多约 45（C-5 给 `sessions` 的说明补点名那半句另算），`history` 多约 18。子会话多约 63（没有 `sessions`）。
 
 **协议**（`protocol.md`）：
 
@@ -133,7 +133,7 @@
 {"busy":true,"cwd":"~/src/miyu","last_active":"2026-10-01T06:03:12.345Z","oneshot":false,"parent":null,"session":"0192f3a0-2222-7abc-8def-5566778899aa","title":"修 CI"}
 ```
 
-- 推送不加方法：`by` 是别的会话的 `message.user`、事件 `peer.idle`、效果 `peer.watch` 照原样推。头照「给人看的字」显示。C-2、C-3、C-6 合了，照规矩把 sha 和形状告诉两个头（终端界面、网页）。
+- 推送不加方法：`by` 是别的会话的 `message.user`、事件 `peer.idle`、效果 `peer.watch` 照原样推。头照「给人看的字」显示。C-2、C-3、C-6 合了，照规矩把 sha 和形状告诉两个头（终端界面、网页）。C-6 以后 `peer.idle`、`peer.watch` 真的会出现。
 - `session.redo` 第 3 条多两种 `not_redoable`：最后一轮是别的会话发来的话开的、是空了的通知开的（C-2、C-6）。
 - 协议上不开「以哪个会话的身份发话」的口子。别的会话的话只从 `send_message` 来，在核心里经会话表送。
 
@@ -205,7 +205,7 @@
 6. 两个会话互相发个没完怎么停：每一句都要那边开一轮才有回话。第 6 句被拒，发话的这一轮拿到的是被拒的那一句，那边不会被叫醒，来回就断了。被拒的那一句写明把剩下的并成一句、过会儿再发。
 7. 只管别的会话发来的。父子之间的留言不受「5 句」管：子代理干活时问得多。它只受长度上限管（第 4 款）。别的 harness 发来的话不在这里管（「还没有的」）。
 
-**六、空了告诉我**（`notify_when_idle`，C-6）
+**六、空了告诉我**（`notify_when_idle`，C-6 做好了）
 
 1. **订**：`send_message` 写 `notify_when_idle: true`，`to` 是别的会话。
    - 带 `message` 的：先照第三条发话，送到了（`sent`、`held`、`duplicate` 都算）再订。发话被拒、送不到的，整次不订。
@@ -213,13 +213,13 @@
    - `to` 是子代理、`parent` 的：整次拒，`watch-peers-only.txt`，留言也不发（照 Claude Code）。
    - `message` 不写、`notify_when_idle` 也不是 `true` 的：参数不对。
 2. **这边记下**：端口认出那个会话（和发话同一个认法），那次调用报效果 `peer.watch`，结果接一句 `watching.txt`。工具自己不去订。效果落了盘，账本记着在等那个会话，从这条效果的时刻算起。已经在等它的又订一次，从新的时刻重新算。
-3. **那边记下**：这边每送完一批，执行器照内核的 `watching()` 看有没有新多出来的在等的，新多出来的经会话表交给那个会话的 actor 一个「订」，不经内核、不进它的日志。订的那次调用落了盘、载入以后、恢复撤销以后，走的都是这一条路。落了盘才订，通知就不会赶在这边记下在等以前到（施工 7-6 撞过的那种先后）。那个会话这时已经空了（第 4 款），当场发通知。不然记进它 actor 的名单，同一个会话只记一个。它没载入的，会话表先载入它：刚载入、没有要接着干的，就是空的，当场发。
-4. **「空了」**：内核说空闲（没有回合在进行、没有结束了 `turn.ended` 还没落盘的、没在读回日志、改回文件），而且它派的子代理都不欠它回报（`waiting_children()` 是空的）。和 `miyu ask` 等到的是同一个时刻（`agents.md` 第十一条第 1 条）：子代理报上来、被叫醒的那几轮也做完了才算。后台命令不算。
-5. **发**：被等的会话的 actor 每送完一批看一次。空了、名单不空的，给名单上的每一个发通知，清空名单。发通知不挡着 actor：一个一个起任务发。先把通知交出去，再写「没有在跑的回合」，免得核心在通知的路上空闲退出。
-6. **通知**：经会话表交给等的那个会话一个命令 `PeerIdle`，`by` 是被等的会话，命令编号 `<被等的会话>/idle/<等的会话>/<被等的会话这时日志最后一条的序号>`。带 `status`：它最近结束的那一轮最后一条有字的回复的第一行，去掉前后空白，超过 `peers.status_chars`（200）个字的截断、末尾接 `…`，由它的内核交（`last_line()`，和向上回报拿正文是同一个认法，`kernel/session.md`「向上回报」第 3 条）。一个字都没说的不带。
-7. **这边收**：账本说在等它的，记 `peer.idle`（`reason` 是 `idle`）。不在等的，拒绝 `unknown_watch`，什么都不记（订它的那一轮撤掉了、已经收到过、作废了）。被拒的那一边记一行运行日志，不再发。记下的照第四条第 3 款叫不叫醒她：闲着、开得了开一轮，正忙下一步看到，开不了的记在一边。
-8. **作废**：执行器照 `watching()`，每一个在起算以后 `peers.watch_hours`（12 小时）到点时，交内核 `WatchEnded`（`expired`，带这一刻）。计时和第 3 款的订同时起。内核照账本还在等、确实到了点的，记 `peer.idle`（`reason` 是 `expired`，`by` 是内核）。只记下，不叫醒：它不是做出来的结果，照 `undone`、`aborted` 的回报（`agents.md` 第三条第 3 条）。
-9. **重启**：被等的那边的名单只在内存里，核心一停就没了。等的这边载入以后，账本里在等的都算新多出来的，照第 3 款再订（同一个会话只记一个，不会重）、重新计时。已经到点的不订，当场交 `WatchEnded`（`expired`）。订的时候那个会话已经不在了（删了）：交 `WatchEnded`（`gone`），记 `peer.idle`（`reason` 是 `gone`，`by` 是内核），只记下。
+3. **那边记下**：这边每送完一批，执行器照内核的 `watching()` 看有没有新多出来的在等的（没订过的、起算时刻变了的：又订了一次、撤掉又订回到前一次），新多出来的经会话表交给那个会话的 actor 一个「订」（`SessionPort::watch`，带着这边的起算时刻），不经内核、不进它的日志。订的那次调用落了盘、载入以后、恢复撤销以后，走的都是这一条路。落了盘才订，通知就不会赶在这边记下在等以前到（施工 7-6 撞过的那种先后）：一批送完时这一批追加的都已经落了盘。不在等了的（收到了通知、订它的那一轮撤掉了、作废了），撤掉它的计时，那边的名单不管，发来的通知这边拒就是。记进它 actor 的名单，同一个会话只记一个（后订的替掉先订的）：那个会话这时正忙着，或者这次起算的时刻不晚于它上一次忙完的时刻的（带话又订、这边手快先忙完了一轮的情形），上膛，闲着就当场发；不然不上膛，留着等它下一次忙完（2026-10-01 项目主人定，「起草时定的」第 66 条：空着的先不发，免得带的是它上一轮的旧回答）。它没载入的，会话表先载入它：刚载入的没记着忙过、没有上一次忙完的时刻，照这一条一样判，不会因为「刚载入就是空的」另当场发。
+4. **「空了」**：内核说空闲（没有回合在进行、没有结束了 `turn.ended` 还没落盘的、没在读回日志、改回文件），而且它派的子代理都不欠它回报（`waiting_children()` 是空的），也没收到「要重启了」（被重启打断的那一轮再起来接着干，停的时候说空了是假的，施工 C-6，「起草时定的」第 65 条）。和 `miyu ask` 等到的是同一个时刻（`agents.md` 第十一条第 1 条）：子代理报上来、被叫醒的那几轮也做完了才算。后台命令不算。
+5. **发**：被等的会话的 actor 每送完一批看一次。忙着的，名单上每一项上膛（2026-10-01 改，见第 3 款：不管订进来时上没上膛，这个会话一忙起来，名单上的都该在它下一次空下来时收到）。空了、名单上有上膛的，给上膛的每一个发通知、清掉；没上膛的留着，等它下一次忙完。发通知不挡着 actor：一个一个起任务发。先把通知交出去，再写「没有在跑的回合」，免得核心在通知的路上空闲退出。那边正在撤销、恢复（回 `restoring`）的，退避着再交同一个命令（第一次等 100 毫秒，每次翻倍，最多等 30 秒，照向上回报）；别的拒绝、交不到的记一行运行日志就完了。没有会话表的端口的（测试里自己造的会话）发不出去，名单照样清空。
+6. **通知**：经会话表交给等的那个会话一个命令 `PeerIdle`，`by` 是被等的会话，命令编号 `<被等的会话>/idle/<等的会话>/<等的那一边这次订的起算时刻，Unix 毫秒>`（施工 C-6 定，「起草时定的」第 53 条）。带 `status`：它最近结束的那一轮最后一条有字的回复的第一行（整段先去掉前后空白，取第一行，再去掉这一行的前后空白），超过 `peers.status_chars`（200）个字的截到 200 个字、末尾接 `…`，正好 200 个字的不截，由它的内核交（`last_line()`，和向上回报拿正文是同一个认法，`kernel/session.md`「向上回报」第 3 条）。一个字都没说的不带。
+7. **这边收**：账本说在等它的，记 `peer.idle`（`reason` 是 `idle`）。不在等的，拒绝 `unknown_watch`，什么都不记（订它的那一轮撤掉了、已经收到过、作废了，`by` 不是一个会话）。同一个编号再交一次，照上一次回应（内核照编号只生效一次）。被拒的那一边记一行运行日志，不再发。记下的照第四条第 3 款叫不叫醒她：闲着、开得了开一轮，正忙下一步看到，开不了的记在一边。
+8. **作废**：执行器照 `watching()`，每一个在起算以后 `peers.watch_hours`（12 小时，`watch_hours()`）到点时，交内核 `WatchEnded`（`expired`，带这一刻）。计时和第 3 款的订同时起；订不上的（那边停了、核心正在停）照样计时。内核照账本还在等、确实到了点（起算时刻加上这么多小时，含正好那一刻）的，记 `peer.idle`（`reason` 是 `expired`，`by` 是内核，`cause` 是订它的那一轮的），不然不理：订了又订的，旧的计时到了不算。只记下，不叫醒：它不是做出来的结果，照 `undone`、`aborted` 的回报（`agents.md` 第三条第 3 条）。
+9. **重启**：被等的那边的名单、忙没忙过、上一次忙完的时刻都只在内存里，核心一停就没了。等的这边载入以后，账本里在等的都算新多出来的，照第 3 款再订（同一个会话只记一个，不会重；起算时刻照日志，通知的编号还是同一个）、重新计时。重启以后被等的那边这些状态都是空的，再订照第 3 款一样判（2026-10-01 改：不会因为核心刚起来、名单是空的就当场发，除非那个会话本来就正忙着，或者它重启以后已经忙完过一轮）。已经到点的不订，当场交 `WatchEnded`（`expired`）。订的时候那个会话已经不在了（会话表找不到：删了、从来没有，`NotWatched::Gone`）：交 `WatchEnded`（`gone`），记 `peer.idle`（`reason` 是 `gone`，`by` 是内核），只记下。别的订不上的记一行 `WARN watch not placed`。等的这边要载入了才再订：核心重启以后，它被人打开、被别的会话发话、被子代理回报叫起来，才接着等。
 10. 被等的会话被删了：它 actor 的名单跟着没了，不另发。等的这边到点作废，或者再订时发现它不在了（「还没有的」）。
 11. 核心空闲退出不受它影响：等的这边闲着，不算忙。被等的那边忙着，核心本来就不退。它空了，通知当场就发了。
 12. 只有本机的主会话能订，只能订本机的主会话（第九条）。
@@ -265,7 +265,7 @@
 
 - 草稿第二句是「Each row gives the id to use with send_message and history, …」。C-3 合进来时还没有 `send_message`（C-5 改名），`history` 也还没有 `session`（C-4），点了名就是一件不存在的工具（`26-提示词.md` J4）。C-3 先写不点名的，C-5 改名时补成草稿那一句、重新量，和那一次冷启动放在一起（2026-10-01 主会话定，「起草时定的」第 40 条）。补了以后，说明里点名的 `send_message`、`history` 在有 `sessions` 的会话里都在。
 
-**`send_message` 改成这样**（C-5 改名、改说明第一句和 `to`，C-6 加 `notify_when_idle`、`message` 改成可以不写），待量 token：
+**`send_message` 改成这样**（C-5 改名、改说明第一句和 `to`，C-6 加 `notify_when_idle`、`message` 改成可以不写），边际份量 204 个 token（C-6，2026-10-01 主会话量，比 C-5 的 165 多 39；整个 tools 数组 2108 → 2147）：
 
 ```json
 {
@@ -328,7 +328,7 @@ No notice came within 12 hours, so the request was dropped.
 </session-idle>
 ```
 
-给她的字，每一份以一个换行结尾，施工时量 token、登记（C-3 的七份量过、登记了：`you` 8、`listed` 34、`listed-untitled` 31、`more` 18、`none` 6、`past-end` 16、`failed` 12）：
+给她的字，每一份以一个换行结尾，施工时量 token、登记（C-3 的七份量过、登记了：`you` 8、`listed` 34、`listed-untitled` 31、`more` 18、`none` 6、`past-end` 16、`failed` 12；C-6 的七份：`watching` 17、`watch-peers-only` 12、`idle-open` 18、`idle-silent` 8、`idle-expired` 14、`idle-gone` 6、`idle-close` 5，整块样本 `idle.txt` 39、`idle-expired.txt` 37）：
 
 | 什么时候 | 文件 | 原文 | 步 |
 |---|---|---|---|
@@ -403,7 +403,7 @@ No notice came within 12 hours, so the request was dropped.
 | `INFO` | `message sent to=<短编号>` | 发给别的会话，送到了（C-5，和父子之间同一行） |
 | `WARN` | `message not delivered to=<短编号> error=…` | 送不到（C-5） |
 | `INFO` | `idle notice sent to=<短编号>` | 被等的这边发了通知（C-6） |
-| `WARN` | `idle notice refused to=<短编号> code=…` | 通知被拒、送不到（C-6） |
+| `WARN` | `idle notice refused to=<短编号> code=…` | 通知被拒（C-6）；送不到的（那边停了、核心正在停）写 `error=…`。正在撤销、恢复被拒的先退避着重交，最后还是被拒才记 |
 | `WARN` | `watch not placed session=<短编号> error=…` | 订的时候没订上：对方的会话停了、核心正在停（C-6）。不在了的记 `gone`，不记这一行 |
 
 ### 给人看的字
@@ -453,16 +453,16 @@ No notice came within 12 hours, so the request was dropped.
 |---|---|---|
 | `crates/miyu-kernel/src/id/tests.rs` 的 `a_short_session_id_is_its_last_eight_characters`、`crates/miyu-session/src/clock/tests.rs` 的 `ids_made_together_differ_in_their_short_form` | 短编号：取后 8 位，测试里写死的编号；真造的编号前 8 位一样、短编号各不一样（内核不造编号，放在造编号的那一层，「起草时定的」第 31 条） | C-1 |
 | `crates/miyu-kernel/src/event/peer/tests.rs`、`event/effect/tests.rs` 的 `a_watch_on_another_session_round_trips` | `peer.idle`、`peer.watch` 读写一字不差，不认识的原因原样留着，坏的说是哪一种 | C-1 |
-| `crates/miyu-kernel/src/ledger/tests/peers.rs` | `peer.watch` 的编号是自己的拒。`peer.idle` 只认在等的、`by` 对得上。撤掉订它的那一轮就不算在等，恢复了照原来的时刻又算。再订从新时刻算，撤掉再订的回到前一次（`kernel/history.md`「守着它的」） | C-1、C-6 |
+| `crates/miyu-kernel/src/ledger/tests/peers.rs` | `peer.watch` 的编号是自己的拒。`peer.idle` 只认在等的、`by` 对得上。撤掉订它的那一轮就不算在等，恢复了照原来的时刻又算。再订从新时刻算，撤掉再订的回到前一次（`kernel/history.md`「守着它的」）。C-6 多记的 `cause` 由 `scenario/watch.rs` 的作废那一条守着 | C-1、C-6 |
 | `crates/miyu-kernel/src/session/tests/peers.rs` | 造的、载入的会话，账本都知道自己是哪个会话：订自己的当场停下、载入拒绝 | C-1 |
 | `crates/miyu-kernel/tests/samples.rs` | 样本读写一字不差；样本里的通知对得上前面订的、`by` 对得上原因（`the_notices_in_the_samples_answer_the_watches`） | C-1 |
 | `crates/miyu-kernel/src/session/tests/scenario/peers.rs` | 别的会话发来的话：认三种关系。闲着开一轮、正忙下一步听到、最后一步里到的接着开、不带回合编号、打断不撤回不接着开、不作废在等人的题、没人看着只记下、能恢复撤销时记在一边、载入算回来、撤销不带走、重做不了、子会话里收到的不欠父会话回报 | C-2 |
 | `crates/miyu-kernel/src/session/tests/scenario/flood.rs` | 防刷屏：限速第 6 句拒、被拒的什么都不记、别的发话方照收、窗口过了又收、正好 600 秒那一刻、一字不差的拒且不占数、窗口过了一字不差的又收、没听到的第 51 句拒、听到以后又收、重启以后限速和没听到的数照日志算回来、子代理的留言不受「5 句」管 | C-2 |
 | `crates/miyu-kernel/src/ledger/tests/said.rs` | 账本：别的会话不是父会话、不是派的子代理；只记别的会话的话、照时刻数、哈希一字不差；还没听到的只由主对话的请求、回复清掉，回顾的请求不算 | C-2 |
-| `crates/miyu-policy/src/peers/tests.rs` | 快照带着三个数、两份标签；旧快照没有 `peers` 照出厂值，没有标签的照人的话原样；读回写出一字不差 | C-2 |
-| `crates/miyu-kernel/src/session/tests/scenario/watch.rs` | 空了的通知：在等的记下、叫醒。不在等的拒。作废只在到点以后、只记下不叫醒。`gone` 只记下。「空了」要子代理都报完。`last_line()` 的截法、没说话的 | C-6 |
-| `crates/miyu-kernel/src/session/tests/random/` | 随机输入里别的会话的话、通知和回报、撤销交错：`random/peering.rs` 送、`random/watch/peers.rs` 查（C-2） | C-2、C-6 |
-| `crates/miyu-assemble/src/peers/tests.rs`、`tests/probe_peers.rs` | 两种标签和样本一字不差。排在哪。旧快照照人的话原样、通知不出。子会话里父会话的话原样。请求形状（`docs/designs/samples/probe/peers/`）和同一份剧本换成人说的比，只多标签那几段 | C-2、C-6 |
+| `crates/miyu-policy/src/peers/tests.rs` | 快照带着五个数、标签和通知的七份字（通知的字和标签平铺在 `core.peers` 一层）；旧快照没有 `peers` 照出厂值，没有标签的照人的话原样；C-2 时的快照没有后两个数、通知的字，数照出厂的、通知不出；作废那一句照快照的小时数换；通知的字坏了照名字报；读回写出一字不差 | C-2、C-6 |
+| `crates/miyu-kernel/src/session/tests/scenario/watch.rs` | 空了的通知：在等的记下、不带回合编号、`cause` 是那个命令、闲着开一轮、正忙下一步听到；收到过的、没订过的、订的不是它的拒，什么都不记。撤掉订它的那一轮不等了、恢复了照原来的时刻又等。作废只在到点以后（含正好那一刻）、只记下不叫醒、`cause` 是订它的那一轮的；又订从新的时刻算，旧的计时到了不算。`gone` 只记下。执行器交的 `idle` 不理。「空了」要子代理都报完、后台命令不算。`last_line()` 的截法（正好 200 个字不截、超了接 `…`、最后一条有字的回复、没说话的）。它开的那一轮重做不了、撤销不带走。还能恢复撤销时记在一边，崩了载入以后恢复了接着开 | C-6 |
+| `crates/miyu-kernel/src/session/tests/random/` | 随机输入里别的会话的话、通知和回报、撤销交错：`random/peering.rs` 送、`random/watch/peers.rs` 查（C-2）。C-6：在跑的调用做完时订一个发话方，送「空了」、作废、不在了；看守照内核这时在等的判收还是拒、作废到没到点、记的 `by` 和原因，叫不叫醒照回报（`watch/reports.rs`），压缩、清空的看守把通知和回报一样算（`watch/compaction.rs`、`watch/clear.rs`）。不在等的被拒在三百例里查，收下、作废、不在了在长跑里查（「起草时定的」第 61 条） | C-2、C-6 |
+| `crates/miyu-assemble/src/peers/tests.rs`、`tests/probe_peers.rs` | 两种标签和样本一字不差（`idle.txt`、`idle-expired.txt`）。通知每种原因的样子（没说话的、不在了的、不认识的只有开头和收尾、末尾有换行的不补）。排在哪：开这一轮的挪到回合开始、事实在前，回合中途到的排在工具结果后面。旧快照照人的话原样、没有通知的字的通知不出。子会话里父会话的话原样。请求形状（`docs/designs/samples/probe/peers/`，C-6 加了订和通知开的一轮，第 5 到 7 次请求）和同一份剧本换成人说的比，只多标签那几段 | C-2、C-6 |
 | `crates/miyu-basesystem/src/history/tests/peers.rs` | 「谁」写 `session <短编号>`，筛 `user` 时在里面 | C-2 |
 | `crates/miyu-endpoint/src/list/tests.rs`、`tests/list.rs`、`tests/meta.rs` | 三格新字段：工作目录的认法（一条都没记的写 `~`）、最近动静、忙照会话表交来的，叫停的旗。`session.list` 带着它们，闲着的不写 `busy`。日志坏了的照样列，工作目录、最近动静照第一条 | C-3 |
 | `crates/miyu-endpoint/tests/sessions.rs` | 真核心：工作目录跟着头报的换、忙着的写 `busy`（主会话、子会话）、最近动静是日志最后一条；她列出来的只有同一个属主的别的主会话，不列自己、不列子会话、不列删了的，和 `session.list` 对得上 | C-3 |
@@ -471,10 +471,11 @@ No notice came within 12 hours, so the request was dropped.
 | `crates/miyu-session/tests/sessions.rs` | 执行器照这个会话的属主要、拿掉她自己，没有会话表的照没有别的，载入的主会话照样列。工具面：本机主会话有 `sessions`，子会话、群没有，别的一件不少；子会话调它照没有的工具拒 | C-3 |
 | `crates/miyu-basesystem/src/history/tests/other.rs`、`crates/miyu-session/tests/history_other.rs` | 读别的会话：只读、不载入、在跑的也读、时区照自己的。找不到、撞了、子会话和群拒 | C-4 |
 | `crates/miyu-basesystem/tests/send_message.rs` | `to` 的认法和先后。长度上限（父子之间也管）。每种拒绝、`held`、`duplicate` 的说法。子会话写会话编号拒。说明里那几句在 | C-5 |
+| `crates/miyu-basesystem/tests/send_message/watch.rs` | `notify_when_idle`：只订不发、端口一次不问、效果里是整个编号；带话的先发，送到了（`sent`、`held`、一模一样的）才订，被拒、太长的整次不订；订子代理、父会话整次拒、留言也不发；订自己拒；两样都没有的参数不对；不能找别的会话的照旧拒；说法两种语言都换得出字 | C-6 |
 | `crates/miyu-session/tests/messages_peer.rs` | 执行器：命令编号、`by`、没载入的先载入、没人看着的一次性会话交回 `held`、三种拒绝对上三句、运行日志不带话的字 | C-5 |
 | `crates/miyu-endpoint/tests/peers.rs` | 真核心两个主会话：A 列出、读 B、发话，B 被叫醒、回话，A 被叫醒。两边互相发到第 6 句断开 | C-5 |
-| `crates/miyu-session/tests/watch.rs` | 被等的这边：已经空着当场发、忙完才发、子代理没报完不发、同一个会话只记一个、先交通知再报空闲。等的这边：效果落了盘才订、到点交 `expired`、载入再订、恢复撤销再订、找不到交 `gone` | C-6 |
-| `crates/miyu-endpoint/tests/watch.rs` | 真核心：只订不开轮、那边做完这边被叫醒、带话的先送话再等、核心重启以后等的这边载入再订照样等到 | C-6 |
+| `crates/miyu-session/tests/watch.rs` | 被等的这边：订进来时已经空着不当场发，等它下一次忙完才发、带新那一轮的第一行（2026-10-01 改，编号还是订的起算时刻、不是新忙完的时刻）；订的起算时刻不晚于它上一次忙完的时刻的，照样当场发（带话又订的情形）；正忙时订了，忙完才发；同一个会话只记一个（后订的替掉先订的）；子代理没报完不发、报完被叫醒的那一轮做完了才发。等的这边：效果落了盘才订（订的时刻就是那条结果的时刻）、一直在等的不再订、找不到交 `gone` 不叫醒、载入再订（时刻不变）、日志往前挪过 12 小时的载入时不订当场作废、撤掉订它的那一轮不订、恢复撤销再订。「先交通知再报空闲」照 `actor.rs` 的 `drain` 写的先后，没有单独的测试（定时的先后测不稳） | C-6 |
+| `crates/miyu-endpoint/tests/watch.rs` | 真核心：只订不开轮、那边已经空着不当场到，等它自己又做完一轮才叫醒她，她看到的是那一块带标签的事实（2026-10-01 改）；带话的先送话再等，通知带着那句话叫醒的那一轮的第一行；B 正忙时订了、核心停了（被重启打断不算空，停的时候不发），换一份核心 A 一载入就再订，B 跟着载入接着做完，A 照样等到；B 删了以后 A 载入再订，会话表找不到它，记 `gone`、不叫醒 | C-6 |
 | `crates/miyu-basesystem/tests/budget.rs`、`xtask/src/ledger.rs` | 工具面的预算。新字的指纹和登记簿对得上 | C-3 到 C-6 |
 | 真模型实测 | 施工步子 C-7 | C-7 |
 
@@ -518,7 +519,7 @@ No notice came within 12 hours, so the request was dropped.
 
 ### 起草时定的
 
-技术细节照推荐定了，主会话审过一轮（2026-10-01）。第 4 条和第 24 到 27 条原来是给项目主人的题，主会话照推荐定了，项目主人批准图纸时都认了（2026-10-01，下一节）。第 28 条起是施工时照推荐定的技术细节，标着是哪一步（第 32、33 条是 C-3 施工时问了主会话定的）。
+技术细节照推荐定了，主会话审过一轮（2026-10-01）。第 4 条和第 24 到 27 条原来是给项目主人的题，主会话照推荐定了，项目主人批准图纸时都认了（2026-10-01，下一节）。第 28 条起是施工时照推荐定的技术细节，标着是哪一步（第 32、33 条是 C-3 施工时问了主会话定的）。第 53 到 65 条是 C-6 施工时定的（2026-10-01）。第 66 条是 C-6 合了以后、项目主人同一天看真模型实测改的。
 
 | # | 定了什么 | 为什么 | 别的选法 |
 |---|---|---|---|
@@ -575,6 +576,20 @@ No notice came within 12 hours, so the request was dropped.
 | 50 | 会话表这一头的 `read_log` 只算出会话的真实目录，不检查它是不是真的存在、是不是这个属主的（施工 C-4） | `history` 调它之前已经拿 `find_session` 认过：候选名单就是 `list()` 交回的（同一个属主、主会话）加她自己，认过的编号才会被拿来开日志。目录本身读不读得到，等 `ReadLog::read` 真的读的时候自然知道，照旧报「读不了日志」 | 会话表再核对一遍属主、是不是主会话（认的活重做一遍） |
 | 51 | 会话表实现 `read_log` 放在 `miyu-endpoint`，不把 `miyu-session` 自己那份 `LogDir`（`store.rs`）公开出来（施工 C-4） | `miyu-endpoint` 已经直接依赖 `miyu-store`（`peek` 早就这样用 `read_events`），照同一个先例自己写一个小的 `ReadLog` 实现比把下层的私有类型改成 `pub` 更小的改动面 | 把 `miyu-session::store::LogDir` 公开，`miyu-endpoint` 直接用它 |
 | 52 | 写了 `session` 的四种出错（找不到、对得上不止一个、这个会话不能读别的会话、列会话或者开日志失败）都不读这次调用自己的日志，也不去开任何别的日志（施工 C-4） | 「一条日志都不读」是设计定的（第二条第 1 款）：出错了就是出错了，不该有副作用，也不该让她以为读到的是自己的记录 | 找不到、拒绝的时候退回读自己的日志 |
+| 53 | 通知的命令编号是 `<被等的会话>/idle/<等的会话>/<等的那一边这次订的起算时刻，Unix 毫秒>`，不用被等的那边日志最后一条的序号（施工 C-6） | 同一次订再交一遍（载入、恢复撤销以后再订），编号一样，内核照编号只生效一次，不会记两条。照序号的话，那边一直闲着、日志没动，这边收到一次以后马上又订，第二次的通知和第一次同一个编号，被当成重的吞掉，这边一直等到作废 | 照图纸草稿的序号 |
+| 54 | 内核多两样查询：`vacant()`（「空了」）、`watch_hours()`（执行器计时）；`last_line()` 照向上回报记的那一轮最后说的话（`report.rs` 的 `Duty`）取（施工 C-6） | 「空了」的认法、作废的数都在内核和策略里，执行器只照着办；回报和通知拿正文是同一份账 | 执行器自己算；`watching()` 直接交到点的时刻 |
+| 55 | 账本每次订多记那条结果的 `cause`，作废、不在了的 `peer.idle` 照它记 `cause`（施工 C-6） | 图纸定了 `cause` 是订它的那一轮的；工具结果的 `cause` 就是那一轮的，账本不用另找回合开头 | 从有效历史找回合开头（压缩掉了就找不到） |
+| 56 | 带话又订的，结果两句接起来，给人看的说法照发话的那一句；只订不发的说 `send_message/watching`（施工 C-6，主会话认了） | 一次调用只带一个说法；发话的结果对人更要紧，订没订上看效果 `peer.watch` | 另造一个合起来的说法 |
+| 57 | `message` 不写、`notify_when_idle` 也不是 `true` 的，参数不对那一句写 ``missing field `message` ``（施工 C-6） | 和原来 `message` 必填时读参数报的一字不差，她看得懂 | 另写一句 |
+| 58 | 那边正在撤销、恢复（`restoring`）时，通知退避着再交（100 毫秒起翻倍，最多 30 秒），别的拒绝、交不到的记一行运行日志就完（施工 C-6） | `restoring` 只是一会儿；丢了这一次，这边要等到作废。照向上回报退避 `unknown_job` 的做法 | 一律不重交 |
+| 59 | 订不上的（那边停了、核心正在停）不重订，照样计时，到点作废（施工 C-6） | 下次这边载入还会再订；一直订不上的就是等不到，作废告诉她 | 退避着重订 |
+| 60 | 命令 `PeerIdle` 的 `by` 不是会话的，照不在等拒 `unknown_watch`（施工 C-6） | 只有会话能是被等的；别的原因码就是给它新开一种 | 另开原因码 |
+| 61 | 随机测试里订要一个在跑的调用做完：有别的会话的种子里，种子除以 16 余 15 的才由在跑的调用订、六回里一回送通知（八回里六回「空了」）；随机的策略订了就到点（`watch_hours` 0）、那一行最多 20 个字。不在等的被拒在三百例里查，收下、作废、不在了在两万例里查（施工 C-6） | 随机的会话难得有调用在跑，三百例里订得上的很少；让更多种子去订会把别的路挤掉（「打断时在等人回答」就丢过）。另用一串随机数、另一串命令编号，原来的输入不错开 | 每个种子都订（挤掉别的路） |
+| 62 | 快照里新的两个数是可以没有的两格，通知的五份字是一组、平铺在 `core.peers` 里、整组可以没有（施工 C-6） | C-2 时造的快照读回写出一字不差；文件名照「下划线换成 `-`」的规矩 | 新开一格 `core.idle` |
+| 63 | 压缩算还没听到的、清空算上下文空不空、撤销认「上一轮」，`peer.idle` 和回报一样算（施工 C-6） | 它也是不带回合编号、会叫醒她的一条，和回报同一种位置 | 只管 `message.user` 和回报 |
+| 64 | `actor.rs` 到了 500 行的上限，执行器送回 actor 的那一段挪进 `actor/back.rs`（施工 C-6） | 加两格、一处挂接就过线；那一段本来就自成一块 | 压缩注释 |
+| 65 | 「空了」不算收到了「要重启了」的会话（`vacant()` 看内核的 `restarting`，施工 C-6） | 有计划的重启打断的那一轮会以 `restarted` 结束，会话一下子空闲，可它再起来要接着干；照空闲发通知，等的那一边拿到的是半截的那一行（真核心测试撞见：通知带的是 `…`） | 照空闲发 |
+| 66 | 订进来时这个会话已经空着，不当场发，等它下一次忙完才发；除非订的起算时刻不晚于它上一次忙完的时刻（带话又订、这边手快先忙完了一轮的情形），照样当场发（2026-10-01 项目主人定） | 真模型实测撞见：她只订不发话，那个会话当时闲着，通知当场就来了，带的是它上一轮的旧回答；之后那个会话干完了新的活，她却收不到，和工具说明写的「下一次干完」对不上。名单上每一项多一个「上膛」的标记：这个会话忙起来时名单上的都上膛，省得订了白等到 12 小时作废 | 照原来的做法：订进来时空着就当场发 |
 
 ### 定的（2026-10-01）
 
@@ -590,26 +605,26 @@ No notice came within 12 hours, so the request was dropped.
 
 这次不改，施工时照步改：
 
-- `tools/message_agent.md` 改名 `tools/send_message.md`：是什么、对外的样子（名字、老会话照认旧名字、说明、`to` 多一种、`message` 不再必填、`notify_when_idle`）、怎么走、样子（新的几句）、出错、给人看的字、守着它的、还没有的（删掉跨会话那条）。别的页里引用 `message_agent` 的照新名字改（`agents.md`、`session/tools.md`、`kernel/…`、`26-提示词.md`、`10-自带软件.md`）。C-5、C-6。
+- `tools/message_agent.md` 改名 `tools/send_message.md`：是什么、对外的样子（名字、老会话照认旧名字、说明、`to` 多一种、`message` 不再必填、`notify_when_idle`）、怎么走、样子（新的几句）、出错、给人看的字、守着它的、还没有的（删掉跨会话那条）。别的页里引用 `message_agent` 的照新名字改（`agents.md`、`session/tools.md`、`kernel/…`、`26-提示词.md`、`10-自带软件.md`）。C-5、C-6（C-6 的改好了）。
 - `tools/history.md`：参数 `session`、怎么走第 2 条（读哪份日志）、「谁」多 `session <短编号>`、出错、给人看的字、守着它的。C-2、C-4（都改好了）。
 - `tools/sessions.md`：新页。C-3（建好了）。
-- `tools/interface.md`：`Call` 多 `sessions` 端口（C-3 改好了），`MessagePort` 的 `Recipient`、`NotSent` 多几种，只订不发时认出会话。C-3 到 C-6。
+- `tools/interface.md`：`Call` 多 `sessions` 端口（C-3 改好了），`MessagePort` 的 `Recipient`、`NotSent` 多几种，效果多 `PeerWatch`（C-6 改好了：只订不发时不另认，见「在哪」）。C-3 到 C-6。
 - `kernel/ids.md`：短编号，`by` 的 `session` 那一行写三种关系。C-1（改好了）。
 - `kernel/events.md`：种类表加 `peer.idle`。C-1（改好了）。
 - `kernel/events-bodies.md`：`message.user` 的说明多别的会话，`peer.idle`，效果 `peer.watch`。C-1（改好了）。
-- `kernel/session.md`：「发一条消息」第 2 条，新两节「别的会话发来的话」「空了的通知」，输入、命令、查询、原因码，守着它的。C-2、C-6（C-2 的「别的会话发来的话」、三个原因码改好了）。
-- `kernel/history.md`：账本在等的通知、`peer.idle` 只认在等的（C-1 改好了）、最近收下的别的会话的话。「拿走什么」「重做」多两种别处来的。C-1、C-2、C-6（C-2 的「最近收下的别的会话的话」「父会话」改好了）。
-- `kernel/request.md`：渲染表 `message.user` 多一种、`peer.idle` 一行（C-1 先写了「现在不渲染」）。新两段。`Texts` 多 `peers`。样子的表。C-2、C-6（C-2 的「别的会话发来的话」改好了）。
-- `session/actor.md`：被等的名单、每批以后看空没空、先交通知再报空闲。C-6。
-- `session/tools.md`：工具面（`sessions` 只给本机主会话，C-3 改好了，「1d. 列会话」），「父子之间留言」扩成认会话编号，订、计时、再订。C-3、C-5、C-6。
-- `protocol.md`：`session.list` 三格（C-3 改好了），`session.redo` 第 3 条，守着它的。C-2、C-3、C-6（C-2 的 `session.redo` 第 3 条改好了）。
-- `policy.md`：快照多 `peers`，`Texts` 多 `peers`，旧快照照出厂值。C-2、C-6（C-2 的改好了）。
+- `kernel/session.md`：「发一条消息」第 2 条，新两节「别的会话发来的话」「空了的通知」，输入、命令、查询、原因码，守着它的。C-2、C-6（都改好了）。
+- `kernel/history.md`：账本在等的通知、`peer.idle` 只认在等的（C-1 改好了）、最近收下的别的会话的话。「拿走什么」「重做」多两种别处来的。C-1、C-2、C-6（都改好了）。
+- `kernel/request.md`：渲染表 `message.user` 多一种、`peer.idle` 一行（C-1 先写了「现在不渲染」）。新两段。`Texts` 多 `peers`。样子的表。C-2、C-6（都改好了）。
+- `session/actor.md`：被等的名单、每批以后看空没空、先交通知再报空闲。C-6（改好了）。
+- `session/tools.md`：工具面（`sessions` 只给本机主会话，C-3 改好了，「1d. 列会话」），「父子之间留言」扩成认会话编号，订、计时、再订（C-6 改好了，「1c2」）。C-3、C-5、C-6。
+- `protocol.md`：`session.list` 三格（C-3 改好了），`session.redo` 第 3 条，守着它的。C-2、C-3、C-6（都改好了）。
+- `policy.md`：快照多 `peers`，`Texts` 多 `peers`，旧快照照出厂值。C-2、C-6（都改好了）。
 - `agents.md`：第六条和「还没有的」指到这一页。C-5。
-- `compaction.md` 第三条第 2 条：还没听到的别的会话的话、通知也留在检查点后面。C-2、C-6（C-2 的改好了：它本来就是 `message.user`）。
-- `cli/ask.md`「等子代理」：写明不等「空了告诉我」的通知（「定的」第 4 条）。C-6。
+- `compaction.md` 第三条第 2 条：还没听到的别的会话的话、通知也留在检查点后面。C-2、C-6（都改好了）。
+- `cli/ask.md`「等子代理」：写明不等「空了告诉我」的通知（「定的」第 4 条）。C-6（改好了）。
 - `prompts.md`：门禁生成，跟着新字。
-- `docs/designs/26-提示词.md` 第十节登记簿（新字各一行、量法那几段），附录（`sessions` 一行，C-3 加好了；`send_message`、`history` 改）。C-2 到 C-6。
-- `docs/designs/10-自带软件.md` 第三节（13 件变 14 件）、第五节（效果 `peer.watch`）、第九节（预算）、第十一节决定。C-3（第三节、第九节、B3 改好了）、C-6。
-- `docs/designs/03-事件模型.md` 第三节（`peer.idle`，C-1 改好了）、`08-上下文投影.md` 第四节（两种新的块）。C-1、C-2、C-6（C-2 的 `03` 第三节「谁」、`08` 第四节 `message.user` 那一行改好了）。
+- `docs/designs/26-提示词.md` 第十节登记簿（新字各一行、量法那几段），附录（`sessions` 一行，C-3 加好了；`send_message`、`history` 改）。C-2 到 C-6（C-6 的登记好了）。
+- `docs/designs/10-自带软件.md` 第三节（13 件变 14 件）、第五节（效果 `peer.watch`）、第九节（预算）、第十一节决定。C-3（第三节、第九节、B3 改好了）、C-6（第五节、第九节改好了）。
+- `docs/designs/03-事件模型.md` 第三节（`peer.idle`，C-1 改好了）、`08-上下文投影.md` 第四节（两种新的块）。C-1、C-2、C-6（都改好了）。
 - `docs/designs/29-跨会话.md` 第三节：改成指到这一页，第四节写做到哪了。批准以后。
 - `docs/construction/README.md` 第三节、`施工图.html`：这条线的步子。批准以后。

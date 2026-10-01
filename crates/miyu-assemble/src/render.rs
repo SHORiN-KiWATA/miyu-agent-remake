@@ -86,6 +86,11 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
                     .and_then(|jobs| jobs::subagent(history, reported, jobs));
                 transcript.add(event.seq, None, block.into_iter().map(text_block).collect());
             }
+            // 空了的通知（施工 C-6，`peers.rs`）：不带回合编号，照回报排。
+            Body::PeerIdle(notice) => {
+                let block = peers::idle(notice, texts.peers.as_ref());
+                transcript.add(event.seq, None, block.into_iter().map(text_block).collect());
+            }
             Body::ToolResult(result) => transcript.push(Message::Tool {
                 call_id: result.call_id,
                 // 被拒绝、已取消、已跳过、失败，对模型都是「没成」，为什么写在内容里。
@@ -94,7 +99,7 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
             }),
             // 不进上下文的：会话的事件、请人确认和人的决定、问人和人的回答（她看到的只有工具
             // 结果）、改回文件的结局（她不知道被撤过）、暂停了自动压缩（给人看的）、不认识的种类。压缩、撤销、恢复、撤回已经由
-            // 有效历史用掉了，这里碰不到。等的那个会话空了的通知现在也不出，渲染随施工 C-6（`cross-session.md` 第八条）。
+            // 有效历史用掉了，这里碰不到。
             // 一个个列出来，加一种事件时编译器会逼着决定它渲不渲染。
             Body::SessionCreated(_)
             | Body::PolicyChanged(_)
@@ -110,7 +115,6 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
             | Body::QuestionAnswered(_)
             | Body::ContextCompacted(_)
             | Body::CompactionPaused(_)
-            | Body::PeerIdle(_)
             | Body::Unknown { .. } => {}
         }
     }

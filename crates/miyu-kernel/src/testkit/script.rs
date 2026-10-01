@@ -149,6 +149,8 @@ pub enum Play {
     },
     /// 给子代理 `job` 留了言（施工 7-7）：报 `job.messaged`。
     Messages(JobId),
+    /// 订了会话的「空了告诉我」（施工 C-6）：报 `peer.watch`。
+    Watches(SessionId),
 }
 
 impl Play {
@@ -205,6 +207,17 @@ impl Play {
     /// `job` 是 0。
     pub fn messages(job: u64) -> Play {
         Play::Messages(JobId::new(job).unwrap_or_else(|| panic!("任务编号从 1 数起")))
+    }
+
+    /// 订了会话 `session` 的「空了告诉我」（施工 C-6）：结果是一句订了，报 `peer.watch`。
+    ///
+    /// # Panics
+    ///
+    /// `session` 不是会话编号的写法。
+    pub fn watches(session: &str) -> Play {
+        Play::Watches(
+            SessionId::parse(session).unwrap_or_else(|e| panic!("会话编号的写法坏了：{e}")),
+        )
     }
 
     /// 同样的回法，跑到一半停住。

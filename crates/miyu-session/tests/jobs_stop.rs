@@ -87,6 +87,20 @@ impl SessionPort for Table {
         Box::pin(async { false })
     }
 
+    /// 这个测试不订「空了告诉我」（施工 C-6）。
+    fn watch(
+        &self,
+        _session: SessionId,
+        _watcher: SessionId,
+        _since: miyu_kernel::time::Timestamp,
+    ) -> Pending<'_, Result<(), miyu_session::NotWatched>> {
+        Box::pin(async {
+            Err(miyu_session::NotWatched::Failed(
+                "no watches here".to_string(),
+            ))
+        })
+    }
+
     fn stop(&self, session: SessionId, id: CommandId, by: By) -> Pending<'_, Result<(), String>> {
         self.stopped
             .lock()

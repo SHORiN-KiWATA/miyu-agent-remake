@@ -11,13 +11,13 @@ use super::{OTHER, Port, Site, THIS, text, to};
 use crate::support::{check, human, readable, said};
 
 /// 假的列会话端口：她自己是 `THIS`，看得到的只有 `others`。
-struct Sessions {
+pub(super) struct Sessions {
     this: SessionId,
     others: Vec<MainSession>,
 }
 
 impl Sessions {
-    fn new(others: Vec<MainSession>) -> Arc<Sessions> {
+    pub(super) fn new(others: Vec<MainSession>) -> Arc<Sessions> {
         Arc::new(Sessions {
             this: id(THIS),
             others,
@@ -41,11 +41,11 @@ impl SessionsPort for Sessions {
     }
 }
 
-fn id(text: &str) -> SessionId {
+pub(super) fn id(text: &str) -> SessionId {
     SessionId::parse(text).expect("合写法")
 }
 
-fn other_session() -> MainSession {
+pub(super) fn other_session() -> MainSession {
     MainSession {
         id: id(OTHER),
         title: "修 CI".to_string(),

@@ -105,6 +105,8 @@ fn policy_with(system: String) -> Policy {
             burst: 5,
             window: 600,
             unread: 50,
+            watch_hours: 12,
+            status_chars: 200,
         },
     }
 }

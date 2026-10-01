@@ -1493,6 +1493,28 @@ Too many messages to {to} just now. Put the rest into one message and send it la
 {to} has too many unread messages. Send again after it has read them.
 ```
 
+#### `software/basesystem/send_message/watching.txt`
+
+- 什么时候加进来：订了别的会话「空了告诉我」：只订的就这一句，带话的接在发话那一句后面
+- token：17（`{to}` 按 `9f03b21c` 算，2026-10-01 主会话照开发端点、`deepseek-v4.1-flash` 量，带行尾换行；和 `sent.txt` 接起来 28）
+- 为什么加：每次调用都要有结果：说清订了、下次空下来会来一条通知，她不用 `sleep` 着等（施工 C-6，`cross-session.md` 第六条第 2 款；C-5 实测看到拿了回执还 `sleep`）
+- 指纹：`b3530e22`
+
+```text
+You will get a notice when {to} is next idle.
+```
+
+#### `software/basesystem/send_message/watch-peers-only.txt`
+
+- 什么时候加进来：`notify_when_idle` 写给了子代理、父会话：整次拒，留言也不发
+- token：12（2026-10-01 主会话量）
+- 为什么加：说清为什么拒：只能等别的会话空下来（施工 C-6，照 Claude Code；子代理做完本来就会报上来）
+- 指纹：`89372a9a`
+
+```text
+notify_when_idle works only for other sessions.
+```
+
 #### `software/basesystem/sessions/you.txt`
 
 - 什么时候加进来：`sessions` 的第一行
@@ -1948,6 +1970,65 @@ You are a subagent, started by another session to do one task. That parent sessi
 </session-message>
 ```
 
+### 人这边：空了的通知（一块带标签的事实）
+
+#### `core/peers/idle-open.txt`
+
+- 什么时候加进来：标签那一行，等的那个会话空下来了、作废了、不在了（`peer.idle`）；闲着时是开这一轮的那条，正忙时排在那一步的工具结果后面，之后每次请求照原文带
+- token：18（字段按短编号 `9f03b21c`、原因 `idle` 算，写 `expired` 一样，2026-10-01 主会话照开发端点、`deepseek-v4.1-flash` 量）
+- 为什么加：注明是哪个会话、为什么来（施工 C-6，`cross-session.md` 第八条第 4 款）：她订了「空了告诉我」，这一块就是那条通知
+- 指纹：`12253b47`
+
+```text
+<session-idle session="{id}" reason="{reason}">
+```
+
+#### `core/peers/idle-close.txt`
+
+- 什么时候加进来：收尾那一行，同 `idle-open.txt`
+- token：5（2026-10-01 主会话量）
+- 为什么加：标签的收尾（施工 C-6）
+- 指纹：`f9df124e`
+
+```text
+</session-idle>
+```
+
+### 人这边：空了的通知里那一句
+
+#### `core/peers/idle-silent.txt`
+
+- 什么时候加进来：等的那个会话空下来了，那一轮一个字都没说
+- token：8（2026-10-01 主会话量）
+- 为什么加：没有那一行时也要说清它做完了、没说话，不留一块空的（施工 C-6）
+- 指纹：`4fbe184b`
+
+```text
+It ended its turn without saying anything.
+```
+
+#### `core/peers/idle-expired.txt`
+
+- 什么时候加进来：订了 `peers.watch_hours` 小时没等到，作废了
+- token：14（`hours` 按 12 算，2026-10-01 主会话量）
+- 为什么加：说清不再等了、为什么（施工 C-6，`cross-session.md` 第六条第 8 款）
+- 指纹：`d77866f5`
+
+```text
+No notice came within {hours} hours, so the request was dropped.
+```
+
+#### `core/peers/idle-gone.txt`
+
+- 什么时候加进来：订的时候那个会话不在了
+- token：6（2026-10-01 主会话量）
+- 为什么加：说清等不到的原因（施工 C-6，第六条第 9 款）
+- 指纹：`0b720af1`
+
+```text
+The session no longer exists.
+```
+
 ### 回顾那一次请求，不进主对话
 
 #### `core/recap/instruction.txt`
@@ -2240,14 +2321,14 @@ Conversation:
 #### `software/basesystem/tools/send_message.json`
 
 - 什么时候加进来：会话的工具面里有 `send_message`：本机的会话，到了深度上限的也有（每次请求都带）；旧会话冻着 `message_agent` 这个名字
-- token：165（施工 C-5，2026-10-01 主会话照开发端点、`deepseek-v4.1-flash` 量，十二件一起时的边际份量；改名前的 `message_agent` 是 153，多 12。整个 tools 数组 2090 → 2108，多 18）
-- 为什么加：`send_message` 的说明和参数（施工 C-5，从 `message_agent` 改名）：说明第一句多了「or to another of your sessions by its id」，第二、三句一字不改（原来施工 7-7 的三句：发给自己派的子代理或者父、对方下一步看到闲着就开一轮、只发对方现在就得知道的）。参数 `to` 多认会话编号，`message` 还是必填（`notify_when_idle` 随 C-6）。文件从 `message_agent.json` 挪来，这次改名、改说明第一句、`to` 一起改，只冷一次缓存
-- 指纹：`f3e460bf`
+- token：165 → 204（施工 C-5 是 165；施工 C-6，2026-10-01 主会话照开发端点、`deepseek-v4.1-flash` 量，十二件一起时的边际份量，多 39。整个 tools 数组 2108 → 2147，多 39）
+- 为什么加：`send_message` 的说明和参数（施工 C-5，从 `message_agent` 改名）：说明第一句多了「or to another of your sessions by its id」，第二、三句一字不改（原来施工 7-7 的三句：发给自己派的子代理或者父、对方下一步看到闲着就开一轮、只发对方现在就得知道的）。参数 `to` 多认会话编号。文件从 `message_agent.json` 挪来，这次改名、改说明第一句、`to` 一起改，只冷一次缓存。施工 C-6 加 `notify_when_idle`（「空了告诉我」，`cross-session.md` 第六条，照 Claude Code 的 `SendMessage`，项目主人定）：一句，订那个会话下次空下来时的一条通知；`message` 的说明多半句「可以不写」，必填的只剩 `to`。说明本身一字没动：「只能订别的会话」写进被拒的那一句（调用之后才用得上）
+- 指纹：`ac9f57af`
 
 ```json
 {
   "description": "Send a message to a subagent you started, to your parent with `to: parent`, or to another of your sessions by its id. The other side reads it at its next step, or starts a new turn with it if idle. Send only what they need to know now, such as a question or a finding that changes their plan, since your final report goes up on its own.",
-  "parameters": {"type":"object","properties":{"to":{"type":"string","description":"The job id of your subagent, such as j1, parent, or a session id."},"message":{"type":"string","description":"The message to send."}},"required":["to","message"]}
+  "parameters": {"type":"object","properties":{"to":{"type":"string","description":"The job id of your subagent, such as j1, parent, or a session id."},"message":{"type":"string","description":"The message to send, which can be left out with notify_when_idle."},"notify_when_idle":{"type":"boolean","description":"Get one notice when that other session next finishes its work."}},"required":["to"]}
 }
 ```
 

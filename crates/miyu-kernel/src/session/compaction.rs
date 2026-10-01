@@ -273,13 +273,17 @@ impl Session {
             _ => None,
         });
         let floor = asked_before.max(answered);
-        // 还没听到的回报也算（施工 7-8，`compaction.md` 第三条第 2 条）：压进摘要，她就只看得到摘要转述的一句。
+        // 还没听到的回报也算（施工 7-8，`compaction.md` 第三条第 2 条）：压进摘要，她就只看得到摘要转述的一句。空了的通知
+        // 一样（施工 C-6）。
         let unanswered = events
             .iter()
             .find(|event| {
                 matches!(
                     event.body,
-                    Body::MessageUser(_) | Body::ChildReported(_) | Body::JobReported(_)
+                    Body::MessageUser(_)
+                        | Body::ChildReported(_)
+                        | Body::JobReported(_)
+                        | Body::PeerIdle(_)
                 ) && floor.is_none_or(|floor| event.seq > floor)
             })
             .map(|event| event.seq);

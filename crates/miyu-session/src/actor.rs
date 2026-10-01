@@ -26,16 +26,19 @@ use crate::handle::{Message, Pushed};
 use crate::jobs::SessionJobs;
 use crate::kinds;
 use crate::lines::note;
-use crate::port::{Back, ModelPort, Report};
+use crate::peers::Watches;
+use crate::port::{Back, ModelPort};
 use crate::report::Reporter;
 use crate::store::Store;
 use crate::tools::{Dispatch, ToolKit, Tools};
 
+mod back;
 mod halt;
 mod mail;
 mod model;
 mod stop;
 mod store;
+mod watchers;
 
 use mail::Mail;
 
@@ -82,6 +85,16 @@ pub(crate) struct Actor {
     /// 这时有没有至少一个头订阅着，和 `Handle` 共用（施工 C-5，照 `busy` 的做法）：`watchers` 从 0 到有、从有到 0 时写一次。
     /// `send_message` 发给这个会话的时候，别的会话照它和这个会话是不是一次性的，决定说 `sent` 还是 `held`。
     watched: Arc<AtomicBool>,
+    /// 「空了告诉我」等的这一边订过的（施工 C-6，`crate::peers`）。
+    watches: Watches,
+    /// 「空了告诉我」被等的这一边：上一批送完时这个会话还忙不忙（施工 C-6，2026-10-01 改，`watchers.rs`）。忙起来时
+    /// 名单上的都上膛；记着忙过、现在闲着的那一刻清掉，顺手记下 `finished_at`。
+    busy_seen: bool,
+    /// 「空了告诉我」被等的这一边：最近一次从忙变空的时刻（施工 C-6，2026-10-01 改，`watchers.rs`）。订的起算时刻
+    /// 不晚于它的，当场上膛：带话又订、这边手快先忙完了一轮的情形。
+    finished_at: Option<Timestamp>,
+    /// 「空了告诉我」被等的这一边：谁在等这个会话空下来（施工 C-6，`watchers.rs`）。
+    waiters: watchers::Waiters,
 }
 
 /// 会话停了：写不进去。
@@ -138,6 +151,7 @@ impl Actor {
         let jobs = SessionJobs::new(jobs, backs.clone());
         let (pushes, _) = broadcast::channel(PUSH_QUEUE);
         let busy = Arc::new(AtomicBool::new(!session.idle()));
+        let busy_seen = !session.vacant();
         Actor {
             session,
             store: Some(store),
@@ -158,6 +172,10 @@ impl Actor {
             config,
             watchers: 0,
             watched: Arc::new(AtomicBool::new(false)),
+            watches: Watches::default(),
+            busy_seen,
+            finished_at: None,
+            waiters: watchers::Waiters::new(),
         }
     }
 
@@ -240,6 +258,8 @@ impl Actor {
         }
         // 交进去的后台命令结束都落了盘，才从任务表里拿掉：核心看表空了才空闲退出（施工 7-3）。
         self.jobs.land();
+        // 「空了告诉我」（施工 C-6）：先订、先把通知交出去，再写没有在跑的回合。
+        self.after_batch();
         self.busy.store(!self.session.idle(), Ordering::Release);
         Ok(())
     }
@@ -431,46 +451,6 @@ impl Actor {
             tokio::time::sleep(wait).await;
             answer_back(&backs, Back::Woke { seen });
         });
-    }
-
-    /// 执行器送回来的，照 actor 的时钟记下到的时刻，写成内核的输入；已经不要了的工具回报，不理。
-    fn back(&mut self, back: Back) -> Option<Input> {
-        let at = self.clock.now();
-        Some(match back {
-            Back::Woke { seen } => Input::Woke { at, seen },
-            Back::Tool(back) => return self.tools.back(at, back),
-            Back::Job(ended) => self.jobs.arrived(at, ended),
-            Back::Aside {
-                purpose,
-                upto,
-                report,
-            } => self.aside_back(at, purpose, upto, report),
-            Back::Report { seen, report } => match report {
-                Report::Sent { model, request } => Input::RequestSent {
-                    at,
-                    seen,
-                    model,
-                    request,
-                },
-                Report::Delta(delta) => Input::ModelDelta { at, seen, delta },
-                Report::Ended {
-                    usage,
-                    error,
-                    wait_ms,
-                    excess,
-                } => {
-                    self.ended(seen, usage.as_ref(), error.as_ref());
-                    Input::ModelEnded {
-                        at,
-                        seen,
-                        usage,
-                        error,
-                        wait_ms,
-                        excess,
-                    }
-                }
-            },
-        })
     }
 }
 

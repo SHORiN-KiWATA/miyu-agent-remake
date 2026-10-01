@@ -57,7 +57,7 @@ impl Session {
     }
 
     /// 上下文本来就是空的（`compaction.md` 第十四条第 2 条）：有效历史里没有检查点，或者最近的检查点是清空的，而且它后面
-    /// 没有人的消息、回复、工具结果、回报。事实、回合的开头结尾不算：清了下一轮还是照样注入、照样有。
+    /// 没有人的消息、回复、工具结果、回报、空了的通知（施工 C-6）。事实、回合的开头结尾不算：清了下一轮还是照样注入、照样有。
     fn context_is_empty(&self) -> bool {
         let summarized = self.history.checkpoint().is_some_and(|checkpoint| {
             !matches!(&checkpoint.body, Body::ContextCompacted(compacted)
@@ -72,6 +72,7 @@ impl Session {
                         | Body::ToolResult(_)
                         | Body::JobReported(_)
                         | Body::ChildReported(_)
+                        | Body::PeerIdle(_)
                 )
             })
     }

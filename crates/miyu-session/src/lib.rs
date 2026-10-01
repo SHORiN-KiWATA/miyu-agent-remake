@@ -32,6 +32,7 @@ mod kinds;
 mod lines;
 mod messages;
 mod open;
+mod peers;
 mod pictures;
 mod port;
 mod report;
@@ -56,7 +57,7 @@ pub use open::{Create, CreateError, Load, LoadError, create, load};
 pub use port::{Cancel, ForSession, ModelPort, Models, Reports};
 pub use route::{IDLE, ModelData, Observed, Routes, STALE, read_observed, refresh_list};
 pub use sandbox::SandboxCache;
-pub use spawn::{Child, Lineage, Pending, SessionPort};
+pub use spawn::{Child, Lineage, NotWatched, Pending, SessionPort};
 
 /// 运行日志的来源：`session`（`28-运行日志.md` 第二节）。
 const TARGET: &str = "miyu::session";

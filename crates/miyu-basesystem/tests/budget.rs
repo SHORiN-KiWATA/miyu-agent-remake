@@ -14,7 +14,8 @@
 //! （边际份量 197 → 224）：十二件合计 1879 个 token、6966 字节，预算改成 2067 个 token，合 7700 字节。加工具、改说明超了，
 //! 重新量过再改这里和设计。施工 C-5 把 `message_agent` 改名 `send_message`，说明第一句多了「or to another of
 //! your sessions by its id」、`sessions` 第二句点名它和 `history`：字节 6966 → 7048，边际份量 153 → 165、95 → 101，十二件
-//! 合计 1897 个 token，还在预算里，预算不改（`26-提示词.md` 第十节）。
+//! 合计 1897 个 token，还在预算里，预算不改（`26-提示词.md` 第十节）。施工 C-6 给 `send_message` 加 `notify_when_idle`、`message`
+//! 改成可以不写：字节 7048 → 7200，边际份量 165 → 204，十二件合计 1936 个 token，还在预算里，预算不改。
 
 use std::path::Path;
 

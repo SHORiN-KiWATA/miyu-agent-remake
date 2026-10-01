@@ -9,7 +9,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::{JobMessaged, JobStarted, Said};
+use miyu_kernel::event::{JobMessaged, JobStarted, PeerWatch, Said};
 use miyu_kernel::id::{ContentHash, MediaType};
 use miyu_kernel::time::UtcOffset;
 use miyu_sandbox::Sandboxed;
@@ -145,6 +145,8 @@ pub enum Effect {
     JobStarted(JobStarted),
     /// 给自己派的子代理留了言（施工 7-7，`agents.md` 第六条）：照原样换成内核的 `job.messaged`。
     JobMessaged(JobMessaged),
+    /// 订了别的会话的「空了告诉我」（施工 C-6，`cross-session.md` 第六条第 2 款）：照原样换成内核的 `peer.watch`。
+    PeerWatch(PeerWatch),
 }
 
 impl Done {

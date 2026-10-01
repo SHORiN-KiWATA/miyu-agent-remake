@@ -27,7 +27,7 @@
 | `crates/miyu-kernel/src/session/queue.rs`、`interrupt.rs` | 排队的消息；打断 |
 | `crates/miyu-kernel/src/session/jobs.rs` | 回报到了：记下，开一轮、排着还是只记下（施工 7-2，`agents.md` 第三条）；子会话重交的认出来（施工 7-6） |
 | `crates/miyu-kernel/src/session/messages.rs` | 子代理的留言到了：认出是这个会话派的哪个子代理，照回报的规矩记下、开不开一轮；交给执行器的派出去的子代理（施工 7-7，`agents.md` 第六条）；别的 harness 发来的话照同一条路走（施工 7-10） |
-| `crates/miyu-kernel/src/session/peers.rs` | 别的会话发来的话过防刷屏：一字不差的、限速、没听到的上限（施工 C-2，`cross-session.md` 第五条），过了的照同一条路走 |
+| `crates/miyu-kernel/src/session/peers.rs` | 别的会话发来的话过防刷屏：一字不差的、限速、没听到的上限（施工 C-2，`cross-session.md` 第五条），过了的照同一条路走。空了的通知：收、作废、不在了，「空了」、通知那一行、在等哪几个（施工 C-6，`cross-session.md` 第六条） |
 | `crates/miyu-kernel/src/session/report.rs` | 向上回报：子会话欠不欠着父会话一份回报、什么时候报、报什么、正文怎么截（施工 7-6，`agents.md` 第二条、第八条） |
 | `crates/miyu-kernel/src/session/permission.rs` | 切权限级别、请求之前查事实 |
 | `crates/miyu-kernel/src/session/meta.rs` | 改标题、置顶；现在的标题、置顶（施工 3-8 三补） |
@@ -48,6 +48,8 @@
 | `last_job_number()` | 日志里用过的任务编号最后一段最大的数（施工 7-5；照最后一段数，施工 7-1 补）：撤掉的回合里派的、不认识的种类也算，一个都没派过的是 0。只读。执行器照它往下领号，派子代理、后台命令共用一串（`session/tools.md`「派子代理」、第 5 条，施工 7-3） |
 | `waiting_children()` | 欠着一份回报的子代理的子会话，照任务编号：派出去、一次都还没回报过的（施工 7-6），最近一次回报以后又留过言的（`job.messaged`，施工 7-7）。撤掉的回合里派的也在，被停掉的报过了、不在。只读。执行器载入以后照它叫起子会话（`session/actor.md` 第 2 条） |
 | `subagents()` | 这个会话派出去的子代理，照任务编号（施工 7-7）：子会话、被停掉了没有（以 `stopped`、`undone` 报过）。派它的那一轮撤掉了的不在：她看不到派它的调用，也就不是她的；做完了、崩了报过的照样在。只读。执行器派每一次调用之前抄一份交给 `send_message`（`session/tools.md`「父子之间留言」） |
+| `watching()`、`watch_hours()` | 在等哪几个会话的通知、各从哪一刻算起，照编号；订了多久作废（施工 C-6，账本的 `watching()`、策略的 `peers.watch_hours`）。只读。等的这一边的执行器每送完一批照它订、计时（`session/tools.md`「订、计时、再订」） |
+| `vacant()`、`last_line()` | 「空了」：`idle()`，而且派的子代理都不欠回报（`waiting_children()` 是空的），没收到「要重启了」；最近结束的那一轮最后一条有字的回复的第一行，截到 `peers.status_chars`，超了接 `…`，没说话的没有（施工 C-6，「空了的通知」第 5 条）。只读。被等的那一边的 actor 照它发通知（`session/actor.md`「被等的名单」） |
 | `idle()` | 空闲：没有回合在进行，没有结束了、`turn.ended` 还没落盘的回合，没在读回日志、改回文件。核心照它决定能不能空闲退出（后台命令另由执行器的任务表算，`core.md`） |
 | `landed()` | 落了盘的最后一条（施工 3-8 六补）：`Stored` 送进来那一刻就推送了，所以也是推过的最后一条；还没落过盘的没有，载入的是日志里最后一条。只读。会话 actor 订阅时照它定补发补到哪一条（`session/actor.md` 第 6 条） |
 | `deletable()` | 删得了没有（施工 3-8 三补）：空闲的删得了；正在读回日志、改回文件的是 `Restoring`；别的不空闲（有回合在进行、`turn.ended` 还没落盘）是 `TurnRunning`。只读。会话 actor 照它答应删、停下，挪目录是会话表的事（`protocol.md` 的 `session.delete`） |
@@ -75,6 +77,7 @@
 | `Recalled { texts }` | `Recall` 读出来的原文，照 blob 找（施工 6-5；6-9 起是 `Recall` 的回报） | 放进有效历史，什么都不出（`history.md`「重读的原文」） |
 | `Restarting { at }` | 要重启了 | 「有计划的重启」 |
 | `JobEnded { at, by, cause, reported }` | 后台命令结束了：`reported` 是 `job.reported` 的 `body`，`by`、`cause` 由执行器照原因填（施工 7-2） | 「回报」 |
+| `WatchEnded { at, session, reason }` | 等的会话等不到了：`expired` 到点了、`gone` 不在了（施工 C-6，执行器交） | 「空了的通知」第 3、4 条；读回日志的时候到的先放着 |
 | `Watched { watched }` | 有没有头订阅着这个会话（施工 7-2 加的输入）：会话 actor 在拿着订阅的头从没有到有、从有到没有时交（施工 7-9，`session/actor.md` 第 3 条） | 只在内存里，什么都不出，不进日志；造会话、载入以后当没人看着（「回报」第 6 条） |
 | `AsideSent { at, purpose, upto, model, request }`、`AsideDelta { at, purpose, upto, delta }`、`AsideEnded { at, purpose, upto, usage, error }` | 辅助请求的三种回报（施工 3-8 四补的回顾；五补起回顾、起标题共用，原来叫 `RecapSent` 这几个）：用途和它照到的那一条合起来是名字；和主请求的三种一样，只是说完了不带要等多久、超了多少。用途不认识的不理 | 「回顾」第 6、7 条，「起标题」第 5、6 条 |
 
@@ -93,6 +96,7 @@
 | `Clear` | `session.clear` | 没有（施工 6-8 补） | 「清空」 |
 | `Report(回报)` | 没有：子会话的执行器经端口交（施工 7-6，`session/actor.md`「向上回报」） | `child.reported` 的 `body`；发命令的一方是子会话（施工 7-2） | 「回报」 |
 | `Recap` | `session.recap` | 没有（施工 3-8 四补） | 「回顾」 |
+| `PeerIdle { status }` | 没有：被等的会话的执行器经端口交（施工 C-6，`session/actor.md`「被等的名单」） | 它最近结束的那一轮最后一条有字的回复的第一行，没说话的没有；发命令的一方是被等的会话 | 「空了的通知」 |
 
 **动作**（`Action`）：
 
@@ -146,6 +150,7 @@
 | `too_many_messages` | `TooManyMessages` | 别的会话发来的话：这个发话方在窗口里已经记下了够数的几句（「别的会话发来的话」第 2 条，施工 C-2）。只回给核心里别的会话，不经协议给头，下同 |
 | `duplicate_message` | `DuplicateMessage` | 别的会话发来的话：这个发话方在窗口里发过一字不差的一句（施工 C-2） |
 | `inbox_full` | `InboxFull` | 别的会话发来的话：还没听到的别的会话的话已经够数了（施工 C-2） |
+| `unknown_watch` | `UnknownWatch` | 空了的通知：这边不在等它（没订过、订它的那一轮撤掉了、已经收到过、作废了），或者发命令的不是一个会话（施工 C-6） |
 
 **策略**（`Policy`）：造会话、载入时由执行器照策略快照造好交进来，会话里不再变。
 
@@ -315,6 +320,15 @@
 4. 里面的斜杠命令不执行：它就是一块字。
 5. 载入：数照日志算回来（账本），重启以后不会清零；记在一边的照「回报」第 9 条算回来。
 6. 父子之间的留言不受第 2 条管：子代理干活时问得多。别的 harness 发来的话也不受（`cross-session.md`「还没有的」）。
+
+**空了的通知**（施工 C-6，`peers.rs`，`cross-session.md` 第六条）：她订了别的会话「空了告诉我」（工具结果的效果 `peer.watch`，账本记着在等哪几个，`history.md`「在等的通知」），那个会话空下来时交来命令 `PeerIdle`，等不到了执行器交 `WatchEnded`。
+
+1. 收：命令 `PeerIdle`，`by` 是一个会话，账本说这时在等它：记 `peer.idle`（`session` 是它，`reason` 是 `idle`，`status` 照交来的），`by` 是它，`cause` 是这个命令，不带回合编号；落了盘回应，只附这一条的序号。不在等的、`by` 不是会话的拒绝 `unknown_watch`，什么都不记。同一个编号再来照上一次回应。
+2. 叫醒：当它是一条会叫醒她的回报，照「别的 harness 发来的话」第 2 条：正忙排进这一轮的回报队，闲着、这时开得了由它开一轮（`trigger` 是它），开不了的记在一边，载入时照日志算回来。它不是人说的话：不作废在等人的题、打断不撤回、撤销不带走（`history.md`「拿走什么」第 3 条），它开的那一轮重做不了（`history.md`「重做」第 2 条）。
+3. 作废：输入 `WatchEnded`（`expired`），账本说还在等、`at` 不早于起算时刻加 `peers.watch_hours` 小时（含正好那一刻）的，记 `peer.idle`（`reason` 是 `expired`），`by` 是内核，`cause` 是订它的那一轮的（账本记着订的那条结果的 `cause`），不带回合编号，只记下、不叫醒。不在等的、还没到点的不理：又订过一次的，旧的计时到了不算。
+4. 不在了：输入 `WatchEnded`（`gone`），账本说还在等的，照第 3 条记（`reason` 是 `gone`），不看时刻。别的原因不理。读回日志的时候到的先放着，读回来再记（照后台命令结束）。
+5. 「空了」（`vacant()`）：`idle()`，而且派的子代理都不欠回报，也没收到「要重启了」（那一轮再起来接着干）；后台命令不算。通知那一行（`last_line()`）：「向上回报」第 3 条记的最近结束的那一轮最后说的话，整段去掉前后空白取第一行，再去掉这一行的前后空白，超过 `peers.status_chars` 个字的截到那么多个字、接 `…`；一个字都没说的没有。被等的那一边照这两样发通知，内核不知道谁在等它（名单在 actor 的内存里，`session/actor.md`「被等的名单」）。
+6. 压缩、清空、撤销认「上一轮」：`peer.idle` 和回报一样算（还没听到的留在检查点后面，`compaction.md` 第三条第 2 条；清空看上下文空不空时算一条；不带回合编号的触发，`history.md`「拿走什么」）。
 
 **向上回报**（施工 7-6，`report.rs`，`agents.md` 第二条、第八条）：子会话（`session.created` 带 `parent`）的一轮结束时报给父会话。主会话什么都不欠。
 
@@ -514,6 +528,7 @@
 | `crates/miyu-kernel/src/session/tests/scenario/models.rs`（施工 8-6） | 端口当场说完的 `no_model`：这一轮以出错结束，不再来，不推重试的状态，照这个名字写进日志（`failover`、`cooling` 随 8-9，`Configure` 随 8-10） |
 | `crates/miyu-kernel/src/session/tests/scenario/harness.rs`（施工 7-10） | 别的 harness 发来的话：闲着开一轮、`trigger` 和 `cause` 照它、回应只附它、不带回合编号；正忙下一次请求听到、结束时不再开；最后一步里到的接着开；打断两种都不撤回、不接着开；不作废在等人回答的题；没人看着的一次性会话只记下；能恢复撤销时记在一边、载入以后恢复了接着开；撤掉它开的那一轮它留着，它开的那一轮重做不了；子会话里收到的不欠父会话回报 |
 | `crates/miyu-kernel/src/session/tests/scenario/peers.rs`（施工 C-2） | 别的会话发来的话：三种关系（人的、父会话的话排进这一轮，子代理、别的会话的不带回合编号）；闲着开一轮、`trigger` 和 `cause` 照它、回应只附它；正忙下一次请求听到、结束时不再开；最后一步里到的接着开；打断两种都不撤回、不接着开；不作废在等人回答的题；没人看着的一次性会话只记下；能恢复撤销时记在一边、载入以后恢复了接着开；撤掉它开的那一轮它留着，它开的那一轮重做不了；子会话里收到的不欠父会话回报 |
+| `crates/miyu-kernel/src/session/tests/scenario/watch.rs`（施工 C-6） | 空了的通知：在等的记下、叫醒、`cause` 照命令；不在等的拒、什么都不记；撤掉订它的那一轮不等了、恢复了又等；作废到点才记（含正好那一刻）、只记下、`cause` 是订它的那一轮的；又订从新的时刻算；`gone` 只记下；执行器交的 `idle` 不理；`vacant()` 要子代理都报完、后台命令不算；`last_line()` 的截法；它开的那一轮重做不了、撤销不带走；能恢复撤销时记在一边、载入以后恢复了接着开 |
 | `crates/miyu-kernel/src/session/tests/scenario/flood.rs`（施工 C-2） | 防刷屏：第 6 句拒、被拒的什么都不记、别的发话方照收；正好 600 秒那一刻还算、过了 1 毫秒就收；一字不差的拒、不占数、别的发话方发同样的照收、窗口过了又收；没听到的第 51 句拒、听到以后又收；重启以后限速、一字不差、没听到的数照日志算回来；子代理的留言不受「5 句」管 |
 | `crates/miyu-kernel/src/session/tests/scenario/messages.rs`（施工 7-7） | 子代理的留言：闲着开一轮、`trigger` 和 `cause` 照它、回应只附它；正忙下一次请求听到、不带回合编号；最后一步里到的接着开；打断两种都不撤回、不接着开；不作废在等人回答的题；没人看着的一次性会话只记下、有头订阅着照常开；派它的那一轮撤掉了的不开轮；能恢复撤销时记在一边、载入以后恢复了接着开；由它接着开的一轮撤掉，人的话跟着撤、留言留着；载入以后下一轮听到；不是她派的会话发来的是别的会话发来的话（施工 C-2），不带回合编号；`subagents()` 的每一种；中间一层答完孙代理的留言不报、孙代理报完再报；孙代理在回报里问、它留言答了（`job.messaged`）也等孙代理再报 |
 | `crates/miyu-kernel/src/session/tests/scenario/upward.rs`、`scenario/upward_load.rs`、`session/report/tests.rs`（施工 7-6） | 向上回报：做完交代报那一轮最后说的、只报一次；主会话不报；人自己开的不报；人开的一轮里进了父会话的留言报、注明人；交代那一轮里人插过话注明；超长的截头尾、中间那一行；出错报半截、没说话的正文空、步数上限报最后说的；孙代理都报完、被叫醒的那一轮结束才报一次；孙代理崩了闲着当场报；它自己的子代理开的不报；崩在那一轮里载入报 `aborted`；报过的载入再交一次；重启接着干、做完再报，没接着干的报 `aborted`；打断的等下一轮；补的一批没全落盘不报；收到「要重启了」以后不交、再载入时交一次；父会话挤掉最近 1024 个编号以后照样认出重交的，换编号的是新的一份。截正文：到上限原样、头尾各一半、单数尾巴多一个、空的那一行只留换行 |

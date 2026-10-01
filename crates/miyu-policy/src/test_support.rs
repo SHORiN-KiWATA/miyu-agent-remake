@@ -163,6 +163,16 @@ pub(crate) fn core() -> CoreTexts {
                 .to_string(),
             message_close: include_str!("../../../resources/core/peers/message-close.txt")
                 .to_string(),
+            idle: Some(crate::PeerIdleTexts {
+                idle_open: include_str!("../../../resources/core/peers/idle-open.txt").to_string(),
+                idle_silent: include_str!("../../../resources/core/peers/idle-silent.txt")
+                    .to_string(),
+                idle_expired: include_str!("../../../resources/core/peers/idle-expired.txt")
+                    .to_string(),
+                idle_gone: include_str!("../../../resources/core/peers/idle-gone.txt").to_string(),
+                idle_close: include_str!("../../../resources/core/peers/idle-close.txt")
+                    .to_string(),
+            }),
         }),
         recap: Some(crate::RecapTexts {
             instruction: include_str!("../../../resources/core/recap/instruction.txt").to_string(),
@@ -226,4 +236,5 @@ pub(crate) fn engineer() -> Snapshot {
 }
 
 /// 出厂快照字节里防刷屏的数那一格，排在最后（施工 C-2）；任务、回顾、起标题的几格在 `snapshot/tests.rs`。
-pub(crate) const PEER_NUMBERS: &str = r#","peers":{"burst":5,"window":600,"unread":50}"#;
+pub(crate) const PEER_NUMBERS: &str =
+    r#","peers":{"burst":5,"window":600,"unread":50,"watch_hours":12,"status_chars":200}"#;

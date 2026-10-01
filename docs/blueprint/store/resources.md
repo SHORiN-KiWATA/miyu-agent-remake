@@ -110,6 +110,7 @@
 | `core/jobs/subagent-message-open.txt`、`subagent-message-close.txt` | 子代理发来的留言的标签，开头的字段 `job`、`title`（施工 7-7，`kernel/request.md`「子代理的留言」） |
 | `core/harness/message-open.txt`、`message-close.txt` | 别的 harness 发来的话的标签，开头的字段 `name`（施工 7-10，`kernel/request.md`「别的 harness 发来的话」） |
 | `core/peers/message-open.txt`、`message-close.txt` | 别的会话发来的话的标签，开头的字段 `id`（施工 C-2，`kernel/request.md`「别的会话发来的话」） |
+| `core/peers/idle-open.txt`、`idle-silent.txt`、`idle-expired.txt`、`idle-gone.txt`、`idle-close.txt` | 空了的通知：标签（字段 `id`、`reason`）、没说话的、作废了（字段 `hours`）、不在了、收尾（施工 C-6，`kernel/request.md`「空了的通知」） |
 | `core/recap/instruction.txt`、`user.txt`、`assistant.txt`、`omitted.txt`、`excerpted.txt` | 回顾的请求的指令、两种标签、两句记号（施工 3-8 四补，`kernel/request.md`「回顾的请求」） |
 | `core/title/instruction.txt` | 起标题的请求的指令（施工 3-8 五补，`kernel/request.md`「起标题的请求」） |
 | `personas/<人格>/prompts/persona.md` | 人设 |

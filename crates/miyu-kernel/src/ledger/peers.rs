@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::Ledger;
 use crate::block::Block;
 use crate::event::{Body, Effect, ErrorClass, Event, IdleReason, PeerIdle, PeerWatch};
-use crate::id::{ContentHash, Seq, SessionId, TurnId};
+use crate::id::{CommandId, ContentHash, Seq, SessionId, TurnId};
 use crate::origin::{By, Session};
 use crate::time::Timestamp;
 
@@ -41,11 +41,12 @@ struct Said {
     digest: ContentHash,
 }
 
-/// 订了一次：在哪一轮，从哪一刻算起。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 订了一次：在哪一轮，从哪一刻算起，那一轮的 `cause`（施工 C-6：作废、不在了的 `peer.idle` 照它记 `cause`）。
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Watch {
     turn: TurnId,
     since: Timestamp,
+    cause: Option<CommandId>,
 }
 
 impl Ledger {
@@ -64,13 +65,27 @@ impl Ledger {
     /// 在等哪几个会话的通知，各从哪一刻算起，照编号（施工 C-1）：订它的那一轮还没撤掉的里面，最近订的那一次。收到过
     /// 通知的，那以前订的不算。
     pub fn watching(&self) -> impl Iterator<Item = (&SessionId, Timestamp)> {
-        self.peers.watches.iter().filter_map(|(session, watches)| {
-            watches
-                .iter()
-                .rev()
-                .find(|watch| self.turns.binary_search(&watch.turn).is_ok())
+        self.peers.watches.keys().filter_map(|session| {
+            self.effective_watch(session)
                 .map(|watch| (session, watch.since))
         })
+    }
+
+    /// 在等会话 `session` 的通知的话，从哪一刻算起、订它的那一轮的 `cause`（施工 C-6）：作废、不在了的 `peer.idle` 照它查
+    /// 到没到点、记 `cause`。不在等的没有。
+    pub(crate) fn watch_of(&self, session: &SessionId) -> Option<(Timestamp, Option<&CommandId>)> {
+        self.effective_watch(session)
+            .map(|watch| (watch.since, watch.cause.as_ref()))
+    }
+
+    /// 会话 `session` 算数的那一次订：订它的那一轮还没撤掉的里面，最近订的那一次。
+    fn effective_watch(&self, session: &SessionId) -> Option<&Watch> {
+        self.peers
+            .watches
+            .get(session)?
+            .iter()
+            .rev()
+            .find(|watch| self.turns.binary_search(&watch.turn).is_ok())
     }
 
     /// `by` 是会话 `session` 的话是不是别的会话发来的（施工 C-2）：它不是这个会话的父会话，也不是这个会话派的子代理
@@ -176,6 +191,7 @@ impl Peers {
                             .push(Watch {
                                 turn,
                                 since: event.at,
+                                cause: event.cause.clone(),
                             });
                     }
                 }

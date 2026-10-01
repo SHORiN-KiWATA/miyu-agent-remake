@@ -8,13 +8,18 @@
 //! 看得到的主会话（加她自己）里找，找不到、对得上不止一个、是她自己、这个会话不能发给别的会话的，各一句拒绝，不去送。
 //! `message` 超过 `peers.message_chars`（出厂值不进快照，照 `jobs.output_chars` 的放法）的，发出去之前拒；父子之间的
 //! 留言也照它。
+//!
+//! 施工 C-6 多一格 `notify_when_idle`（`cross-session.md` 第六条第 1、2 款）：`to` 是别的会话的，那次调用报一样效果
+//! `peer.watch`，结果接一句「空下来时告诉你」。工具自己不去订：效果落了盘，执行器照内核算的在等的去订（`peers.rs`）。
+//! 带 `message` 的先发话，送到了（`sent`、`held`、一模一样的都算）再订，发话被拒、送不到的整次不订。`message` 可以不写：
+//! 只订不发，那边不开轮。`to` 是子代理、`parent` 的整次拒，留言也不发（照 Claude Code）。两样都没有的，参数不对。
 
 use std::path::Path;
 
 use serde::Deserialize;
 
-use miyu_kernel::event::JobMessaged;
-use miyu_kernel::id::JobId;
+use miyu_kernel::event::{JobMessaged, PeerWatch};
+use miyu_kernel::id::{JobId, SessionId};
 use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
 use miyu_tool::{
@@ -56,13 +61,20 @@ struct Texts {
     too_many: Template,
     duplicate: Template,
     inbox_full: Template,
+    watching: Template,
+    watch_peers_only: Template,
 }
 
-/// 她给的参数。别的参数不认，也不报错。
+/// 她给的参数。别的参数不认，也不报错。`null` 当没写。
 #[derive(Deserialize)]
 struct Args {
     to: String,
-    message: String,
+    /// 只订不发的可以不写（施工 C-6）。
+    #[serde(default)]
+    message: Option<String>,
+    /// 订「空了告诉我」（施工 C-6）。
+    #[serde(default)]
+    notify_when_idle: Option<bool>,
 }
 
 impl SendMessage {
@@ -88,6 +100,8 @@ impl SendMessage {
                 too_many: text("too-many", &["to"])?,
                 duplicate: text("duplicate", &["to"])?,
                 inbox_full: text("inbox-full", &["to"])?,
+                watching: text("watching", &["to"])?,
+                watch_peers_only: text("watch-peers-only", &[])?,
             },
         })
     }
@@ -110,31 +124,85 @@ impl Tool for SendMessage {
                 Ok(args) => args,
                 Err(error) => return texts.common.bad_args(&error),
             };
+            let watch = args.notify_when_idle == Some(true);
+            if args.message.is_none() && !watch {
+                return texts.common.bad_args(&"missing field `message`");
+            }
             let to = args.to.as_str();
             let recipient = match recipient(&texts, &call, to).await {
                 Ok(recipient) => recipient,
                 Err(done) => return *done,
             };
-            let chars = args.message.chars().count();
-            if chars > MESSAGE_CHARS {
-                return too_long(&texts, chars);
-            }
-            let Some(port) = call.messages else {
-                return refused(&texts, NotSent::Undelivered, to);
+            // 只能等别的会话空下来（`cross-session.md` 第六条第 1 款）：订子代理、父会话的整次拒，留言也不发。
+            let watched = match (&recipient, watch) {
+                (Recipient::Session(session), true) => Some(session.clone()),
+                (_, true) => return watch_peers_only(&texts),
+                (_, false) => None,
             };
-            let delivered = match port.send(recipient.clone(), &args.message).await {
-                Ok(delivered) => delivered,
-                Err(why) => return refused(&texts, why, to),
+            let sent = match &args.message {
+                Some(message) => match deliver(&texts, &call, recipient.clone(), to, message).await
+                {
+                    Ok(done) => Some(done),
+                    Err(refused) => return refused,
+                },
+                None => None,
             };
-            let done = delivered_ok(&texts, delivered, to);
-            // 给子代理的留言记一样效果：它欠一份回报，这个会话照它等（`agents.md` 第二条第 2 条）。别的会话、父会话不欠
-            // 她什么，不报。
-            match recipient {
-                Recipient::Child(job) => done.effect(Effect::JobMessaged(JobMessaged { job })),
-                Recipient::Parent | Recipient::Session(_) => done,
+            match (sent, watched) {
+                (sent, Some(session)) => watching(&texts, sent, to, session),
+                // 给子代理的留言记一样效果：它欠一份回报，这个会话照它等（`agents.md` 第二条第 2 条）。别的会话、父会话
+                // 不欠她什么，不报。
+                (Some(done), None) => match recipient {
+                    Recipient::Child(job) => done.effect(Effect::JobMessaged(JobMessaged { job })),
+                    Recipient::Parent | Recipient::Session(_) => done,
+                },
+                // 两样都没有的上面已经交回参数不对，这里照同一句，不 panic。
+                (None, None) => texts.common.bad_args(&"missing field `message`"),
             }
         })
     }
+}
+
+/// 发话：长度上限、交给端口。送到了的（`sent`、`held`、一模一样的）交回那一句；拒绝、送不到的交回出错的那一句。
+async fn deliver(
+    texts: &Texts,
+    call: &Call,
+    recipient: Recipient,
+    to: &str,
+    message: &str,
+) -> Result<Done, Done> {
+    let chars = message.chars().count();
+    if chars > MESSAGE_CHARS {
+        return Err(too_long(texts, chars));
+    }
+    let Some(port) = &call.messages else {
+        return Err(refused(texts, NotSent::Undelivered, to));
+    };
+    match port.send(recipient, message).await {
+        Ok(delivered) => Ok(delivered_ok(texts, delivered, to)),
+        Err(NotSent::Duplicate) => Ok(refused(texts, NotSent::Duplicate, to)),
+        Err(why) => Err(refused(texts, why, to)),
+    }
+}
+
+/// 订了（施工 C-6）：报效果 `peer.watch`，`session` 是认出来的整个编号；结果接一句 `watching.txt`。先发过话的接在那一句
+/// 后面，给人看的说法照发话的；只订不发的，给人看的说法是「空下来时告诉她」。
+fn watching(texts: &Texts, sent: Option<Done>, to: &str, session: SessionId) -> Done {
+    let line = say(&texts.watching, &[("to", to)]);
+    let done = match sent {
+        Some(mut done) => {
+            if let Some(miyu_kernel::block::Block::Text(text)) = done.blocks.first_mut() {
+                text.text.push_str(&line);
+            }
+            done
+        }
+        None => Done::ok(line).said(said("send_message/watching").with("to", to)),
+    };
+    done.effect(Effect::PeerWatch(PeerWatch { session }))
+}
+
+/// 订子代理、父会话的：整次拒（施工 C-6）。
+fn watch_peers_only(texts: &Texts) -> Done {
+    Done::error(say(&texts.watch_peers_only, &[])).said(said("send_message/watch-peers-only"))
 }
 
 /// 认 `to`（`cross-session.md` 第三条第 1 款）：`parent`、任务编号写法的，照旧；别的当会话编号认，和 `history` 的
