@@ -259,12 +259,12 @@ miyu_config::settings! {
 | `providers.<id>.base_url` | 网址 | 没有：照档案推 | 系统、个人 | 不能写 | `next_turn` | 8-6 |
 | `providers.<id>.keys` | 密钥的列表 | `[]`：不带认证头 | 系统、个人 | 不能写 | `next_turn` | 8-6 |
 | `providers.<id>.catalog` | 名字 | 没有：照编号 | 系统、个人 | 不能写 | `next_turn` | 8-6 |
-| `providers.<id>.models.<model>.window` | 整数 1 到 100000000 | 没有：照模型资料 | 系统、个人 | 不能写 | `new_session` | 8-6 |
+| `providers.<id>.models.<model>.window` | 整数 1 到 100000000 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn`（施工 8-10 起：开着的会话下一个回合开始时用上） | 8-6 |
 | `providers.<id>.price_multiplier`、`providers.<id>.models.<model>.price_multiplier` | 小数 0 到 1000 | 没有：1 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.local` | 开关 | 没有：照地址，在本机的是 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.cache` | 选项 `contract`、`best_effort`、`per_request` | 没有：照驱动 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
 | `providers.<id>.models.<model>.catalog` | 文字，最多 256 个字符 | 没有：照名字对目录 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
-| `providers.<id>.models.<model>.max_output` | 整数 1 到 100000000 | 没有：照模型资料 | 系统、个人 | 不能写 | `new_session` | 8-7 |
+| `providers.<id>.models.<model>.max_output` | 整数 1 到 100000000 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn`（施工 8-10 起：开着的会话下一个回合开始时用上） | 8-7 |
 | `providers.<id>.models.<model>.inputs` | 选项 `text`、`image`、`pdf` 的列表 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.tools` | 开关 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.reasoning` | 文字的列表，每个最多 32 个字符 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
@@ -1063,7 +1063,7 @@ keys = []
 # inputs =
 
 # 最大输出：这个模型一次最多输出多少 token。
-# 能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。以后开的会话生效。
+# 能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。下一轮生效。
 # max_output =
 
 # 倍率：这个模型的价格照它乘，盖过供应商上写的。
@@ -1079,7 +1079,7 @@ keys = []
 # tools =
 
 # 上下文窗口：这个模型的上下文窗口，单位 token。
-# 能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。以后开的会话生效。
+# 能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。下一轮生效。
 # window =
 
 [providers."<id>".models."<model>".price]
@@ -1412,7 +1412,7 @@ language = "auto"
                   "type": "array"
                 },
                 "max_output": {
-                  "description": "这个模型一次最多输出多少 token。能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。以后开的会话生效。",
+                  "description": "这个模型一次最多输出多少 token。能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。下一轮生效。",
                   "maximum": 100000000,
                   "minimum": 1,
                   "title": "最大输出",
@@ -1481,7 +1481,7 @@ language = "auto"
                   "type": "boolean"
                 },
                 "window": {
-                  "description": "这个模型的上下文窗口，单位 token。能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。以后开的会话生效。",
+                  "description": "这个模型的上下文窗口，单位 token。能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。下一轮生效。",
                   "maximum": 100000000,
                   "minimum": 1,
                   "title": "上下文窗口",
@@ -1957,7 +1957,7 @@ Options:
 ### 还没有的
 
 - 人格、预设两层，每一项跟着谁走：随人格那一段（`16-人格与预设.md` 第四节）。
-- 会话里临时改的那一层：随 8-10（`session.configure`，`models.md`）。
+- 会话里临时改的那一层：8-10 的 `session.configure` 只换模型，记在会话的日志里（`models.md`「怎么走」第六条），不是配置的一层；别的临时开关加进来时再定（`04-核心协议.md` 第九节）。
 - 锁：管理员锁住某些项，上层写了也不算，界面显示只读（`14-配置.md` 第三节）：随多用户。
 - 谁能改按管理能力细分，清单的那一格，拒绝的原因码：随多用户（`06-多用户与身份.md` 第四节）。
 - 成员自己的密钥 `home/<账号>/secrets.toml`、成员自己的供应商，个人设置里的引用先找自己的，`miyu login` 存到自己的家目录：随多用户（`15-模型与供应商.md` M6）。

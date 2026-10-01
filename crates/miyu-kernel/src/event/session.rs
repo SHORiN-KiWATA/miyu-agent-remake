@@ -38,9 +38,9 @@ pub struct SessionCreated {
     pub model: Option<String>,
 }
 
-/// `session.policy_changed`：换了策略快照，或者换了权限，也可以一起换。
-/// 谁换的看事件的 `by`：人改的是配置，内核换的是目录变了。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// `session.policy_changed`：换了策略快照，或者换了权限，或者换了模型，也可以一起换。
+/// 谁换的看事件的 `by`：人改的是配置，内核换的是目录变了、钉着的模型没了。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PolicyChanged {
     /// 新的策略快照，下一个回合开始时生效（`02-内核.md` K3）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -48,6 +48,14 @@ pub struct PolicyChanged {
     /// 新的权限：收紧当场生效，放宽下一步生效（`11-权限与沙盒.md` 第二节）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub permission: Option<Permission>,
+    /// 换成的模型引用（施工 8-10，`models.md`「事件」）：模型 `<供应商>/<模型>` 或池 `@<池>`，挡位在协议那一头已经换成了它
+    /// 的值。人换的 `by` 是人；钉着的没了、内核退回默认的 `by` 是内核，带着 `replaced`。下一个回合开始时生效，撤掉的回合里
+    /// 的也算。以前的日志没有这一格。内核只记不解读。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    /// 钉着的引用没了、内核退回默认时写（施工 8-10）：原来那个。只和 `model` 一起出现（账本查）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replaced: Option<String>,
 }
 
 /// `session.meta_changed`：改了哪项写哪项。

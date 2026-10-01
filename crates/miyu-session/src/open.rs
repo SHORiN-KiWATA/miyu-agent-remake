@@ -202,7 +202,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     }
     let busy = actor.busy();
     let watched = actor.watched();
-    let limits = actor.limits();
+    let shown = actor.shown();
     let (reply, answer) = oneshot::channel();
     actor.wait_for(command, reply);
     span.in_scope(|| {
@@ -210,7 +210,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     });
     actor::spawn(actor, first, span);
     match answer.await {
-        Ok(_) => Ok(Handle::new(id, inbox, busy, oneshot, watched, limits)),
+        Ok(_) => Ok(Handle::new(id, inbox, busy, oneshot, watched, shown)),
         Err(_) => {
             // 造会话那一条没落盘：只剩空的第一段的会话目录删掉；快照的 blob 留着，按内容存，别的会话可能也在用
             // （施工 4-9 再补四下：原来都留在磁盘上）。
@@ -308,24 +308,26 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     });
     let kept = blobs.clone();
     models.ready().await;
-    let model = models.port(ForSession {
-        id: id.clone(),
-        config: Arc::clone(config.current()),
-        texts,
-        blobs,
-        reference: created.model.clone(),
-        sent: last_sent(&events),
-    });
     // 系统时间比日志里最后一条还早（往回拨过），照最后一条的：时刻不往回走。
     let mut clock = events
         .last()
         .map_or_else(Clock::default, |event| Clock::since(event.at));
     let count = events.len();
-    // 她看过的文件（施工 4-6 上）、派出去的任务（施工 7-4）从日志里重建：内核收走日志之前。
+    // 她看过的文件（施工 4-6 上）、派出去的任务（施工 7-4）、最近发给了谁（施工 8-8）从日志里重建：内核收走日志之前。
     let seen = effects::seen_in(&events);
     let roster = Roster::from_events(&events);
+    let sent = last_sent(&events);
     let (mut session, first) = Session::load(id.clone(), events, clock.now(), policy, environment)
         .map_err(LoadError::Kernel)?;
+    // 路由照内核从日志算的引用造（施工 8-10）：换过模型的是换过以后的。
+    let model = models.port(ForSession {
+        id: id.clone(),
+        config: Arc::clone(config.current()),
+        texts,
+        blobs,
+        reference: session.reference().map(str::to_string),
+        sent,
+    });
     // 重启以后接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）；给头看的限额同上（施工 6-3 补）。检查点重读过的
     // 文件，内核在载入吐出来的动作里第一个要回原文（施工 6-9），actor 起来先做它。
     session.handle(Input::Limits(model.limits()));
@@ -379,7 +381,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     );
     let busy = actor.busy();
     let watched = actor.watched();
-    let limits = actor.limits();
+    let shown = actor.shown();
     if let Some(upstream) = upstream {
         actor.report_to(Reporter::start(upstream, span.clone()));
     }
@@ -396,7 +398,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         busy,
         created.oneshot,
         watched,
-        limits,
+        shown,
     ))
 }
 

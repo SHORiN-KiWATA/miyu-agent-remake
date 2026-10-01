@@ -4,6 +4,8 @@
 //! 全从有效历史里、最近一次压缩那一条以后写下的事件算，不另记状态：载入、重启以后和不重启一样；撤掉写着暂停的那一轮，
 //! 暂停跟着撤掉；有了新的检查点（手动压缩成功），以前的失败和暂停都写在它前面，不再算。只看序号，不看在不在检查点
 //! 后面：失败的那几轮她没真看到的话留在尾巴里（`compaction.md` 第三条第 2 条），那几轮的失败照样在压缩那一条前面。
+//! 换了模型的（施工 8-10），写在最近一次换模型前面的暂停、失败也不再算：引用照整份日志算（`configure.rs`），撤掉换模型那
+//! 一轮，暂停也不回来。
 
 use std::cmp::Reverse;
 
@@ -127,10 +129,13 @@ impl Session {
         })
     }
 
-    /// 暂停着：最近一次压缩以后写下了 `context.compaction_paused`，不认识的原因也算。
+    /// 暂停着：最近一次压缩以后、最近一次换模型以后写下了 `context.compaction_paused`，不认识的原因也算。换模型解除暂停
+    /// （施工 8-10，第十条第 6 条）：只看写下的先后。
     pub(super) fn paused(&self) -> bool {
-        self.since_compaction()
-            .any(|event| matches!(event.body, Body::CompactionPaused(_)))
+        self.since_compaction().any(|event| {
+            matches!(event.body, Body::CompactionPaused(_))
+                && self.reference.after_change(event.seq)
+        })
     }
 
     /// 有效历史里，最近一次压缩那一条以后写下的事件；没压缩过的，全部。
@@ -215,8 +220,10 @@ impl Session {
         for event in self.since_compaction() {
             match &event.body {
                 Body::ModelCalled(called) => last = Some(called),
+                // 换过模型的，换过去以后再失败的才数（施工 8-10）。
                 Body::TurnEnded(ended)
                     if ended.reason == EndReason::Error
+                        && self.reference.after_change(event.seq)
                         && last.is_some_and(|called| {
                             failed_automatically(called)
                                 || (passive.is_some()

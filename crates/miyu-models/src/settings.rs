@@ -75,13 +75,13 @@ miyu_config::settings! {
 
 miyu_config::settings! {
     /// 一个模型手写的资料（`models.md`「对外的样子」）：模型名是键里 `<model>` 那一段。每一格都压过用出来的、供应商的列表、
-    /// 目录（「模型的资料」那张表）。窗口、最大输出造会话、载入时交给内核，开着的会话不跟着变（限额会变随 8-10）。
+    /// 目录（「模型的资料」那张表）。窗口、最大输出造会话、载入时交给内核，开着的会话下一个回合开始时跟着换（施工 8-10）。
     pub struct ModelSettings in "providers.<id>.models.<model>" {
         /// 上下文窗口，单位 token。
         window: Option<i64> = none {
             kind: int [1, 100000000],
             layers: [System, Personal],
-            applies: new_session,
+            applies: next_turn,
             ui: { page: "models", group: "providers", control: number },
         },
         /// 手写指定照目录里的哪一个：`<目录里的供应商>/<目录里的模型>`（第二条第 4 条第 1 层，施工 8-7）。
@@ -95,7 +95,7 @@ miyu_config::settings! {
         max_output: Option<i64> = none {
             kind: int [1, 100000000],
             layers: [System, Personal],
-            applies: new_session,
+            applies: next_turn,
             ui: { page: "models", group: "providers", control: number },
         },
         /// 能收哪些输入（施工 8-7）。

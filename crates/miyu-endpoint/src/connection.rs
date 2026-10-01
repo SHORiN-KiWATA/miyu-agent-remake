@@ -173,8 +173,8 @@ enum Stream {
     Config,
 }
 
-/// 订阅会话的事件流：没在跑的照样先载入；已经订阅着的，还是那一个。回应带会话的限额（施工 6-3 补）：订阅着的也从会话表
-/// 拿，在跑的直接用，不多载入。写了 `after` 的，先补之前的事件（[`subscribe_after`]）。交回回应，和回应经哪个订阅写出去：
+/// 订阅会话的事件流：没在跑的照样先载入；已经订阅着的，还是那一个。回应带会话的限额（施工 6-3 补）、会话接下来请求的模型
+/// （施工 8-10，一个都没有的不写）：订阅着的也从会话表拿，在跑的直接用，不多载入。写了 `after` 的，先补之前的事件（[`subscribe_after`]）。交回回应，和回应经哪个订阅写出去：
 /// 补了的经新的订阅，排在补的后面；别的直接写。
 async fn subscribe(
     core: &Arc<Core>,
@@ -185,10 +185,14 @@ async fn subscribe(
 ) -> Result<(Value, Option<SessionId>), Refusal> {
     let after = after_of(request)?;
     let handle = core.sessions.get(core, &session, None, None).await?.handle;
-    let limits = handle.limits();
+    let mut reply = json!({"limits": handle.limits()});
+    if let Some(model) = crate::models::next(&handle.next()) {
+        reply["model"] = model;
+    }
     if let Some(after) = after {
         let upto = subscribe_after(core, subscriptions, &handle, &session, after, out).await?;
-        return Ok((json!({"limits": limits, "upto": upto}), Some(session)));
+        reply["upto"] = json!(upto);
+        return Ok((reply, Some(session)));
     }
     if !subscriptions.has(&session) {
         let Ok(subscription) = handle.subscribe().await else {
@@ -197,7 +201,7 @@ async fn subscribe(
         };
         subscriptions.add(session, subscription, Vec::new(), out.clone());
     }
-    Ok((json!({"limits": limits}), None))
+    Ok((reply, None))
 }
 
 /// 带 `after` 订阅（施工 3-8 六补）：总是换一个新的。原来有一个的，先等它把交给它的推送、回应都放完、拿回它的订阅，补的

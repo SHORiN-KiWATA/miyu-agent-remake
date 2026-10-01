@@ -87,6 +87,7 @@ ask 的选项：
       --file <文件>       附上一个文件，图片、PDF、文本都行，可以写好几次
       --timeout <时长>    最多等多久，到了就不等了：30s、10m、1h
       --from <名字>       别的 harness 用：写上它的名字，例如 claude-code
+      --model <模型>      用这个模型说；接着的会话以后都用它
 
 undo、restore、redo、compact、recap、rename 的选项：
   -s, --session <编号>  哪个会话；不写就是上一次 miyu ask 开的
@@ -130,6 +131,7 @@ ask options:
       --file <file>       Attach a file: image, PDF, text…; repeatable
       --timeout <time>    Stop waiting after this long: 30s, 10m, 1h
       --from <name>       For another harness: its name, e.g. claude-code
+      --model <model>     Use this model; a continued session keeps it
 
 undo, restore, redo, compact, recap, rename options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened

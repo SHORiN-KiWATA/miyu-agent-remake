@@ -12,7 +12,8 @@ impl Watch {
         let seed = self.seed;
         let event = &events[k];
         match &event.body {
-            Body::PolicyChanged(changed) => {
+            // 换模型的不带权限（施工 8-10，`watch/configure.rs`）。
+            Body::PolicyChanged(changed) if changed.model.is_none() => {
                 let new = changed
                     .permission
                     .clone()
@@ -68,9 +69,9 @@ impl Watch {
                     0,
                     "种子 {seed}：只读没生效，却拦下了 {call_id}"
                 );
-                let tightened = events[..k]
-                    .iter()
-                    .any(|event| matches!(event.body, Body::PolicyChanged(_)));
+                let tightened = events[..k].iter().any(|event| {
+                    matches!(&event.body, Body::PolicyChanged(changed) if changed.permission.is_some())
+                });
                 let replied = events[..k]
                     .iter()
                     .any(|event| matches!(event.body, Body::MessageAssistant(_)));

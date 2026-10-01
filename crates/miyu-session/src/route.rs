@@ -1,9 +1,11 @@
 //! 每个会话的路由（`docs/blueprint/models.md`「怎么走」第一条、第三条、第四条、第五条，`session/actor.md` 第 8 条，施工
 //! 8-6 起）：请求模型的端口的真实现，取代原来照环境变量接一个端点的 `HttpModels`。
 //!
-//! - 造端口时（造会话、载入）记下这个会话用的引用：`session.created` 的 `model`（施工 8-8，模型或 `@池`），以前的日志没有的
-//!   照那一刻的 `models.chat`。限额（窗口、最大输出、一张图怎么算）照它定，交给内核；钉住的池钉着的成员换了，限额跟着换
-//!   （施工 8-9，会话 actor 比了交给内核）。
+//! - 造端口时（造会话、载入）记下这个会话用的引用：造的是 `session.created` 的 `model`（施工 8-8，模型或 `@池`），载入的是
+//!   内核从日志算的（施工 8-10，换过的算换过以后的），都没有的照那一刻的 `models.chat`。限额（窗口、最大输出、一张图怎么
+//!   算）照它定，交给内核；钉住的池钉着的成员换了，限额跟着换（施工 8-9，会话 actor 比了交给内核）。
+//! - 回合开始时照这一轮的配置重新解析（施工 8-10，`route/turn.rs`）：换了模型、钉着的没了、配置改了，端点、限额都在这一刻
+//!   换，钉着的没了的退回 `models.chat`、交给内核记下。
 //! - 池（施工 8-8，`route/pool.rs`）：钉住的造端口时就钉上一个成员（载入的照最近一条发出去了的 `model.called` 认回来，认不
 //!   出的取指针指的），以后先发给它；轮换的每次请求从指针指的成员起。
 //! - 每一次请求照这一轮冻结的配置（[`crate::TurnConfig`]）重新解析：钉着的引用解析得出就用它；解析不出的退回这一轮的
@@ -18,7 +20,7 @@
 //! - 发：照驱动编码、经 HTTP 执行器发、流式读回来（[`send`]），和原来一样。
 //! - 资料（施工 8-7）：窗口、最大输出、能收什么照核心一份的模型资料查（[`ModelData`]，`miyu_models::facts`）；目录在写了
 //!   `ready` 以后才读完，造端口之前先等它（[`Models::ready`]）。报上下文超长、说了上限、比手头的窗口小的，记下用出来的
-//!   窗口（第二条第 9 条）：新造的、载入的会话用上，开着的会话限额会变随 8-10。
+//!   窗口（第二条第 9 条）：新造的、载入的会话用上，开着的会话下一个回合开始时用上（施工 8-10）。
 
 mod choice;
 mod ended;
@@ -26,6 +28,7 @@ mod lists;
 mod pool;
 mod send;
 pub(crate) mod shared;
+mod turn;
 
 pub use lists::{STALE, refresh_list};
 pub use shared::{ModelData, Observed, read_observed};
@@ -44,7 +47,7 @@ use miyu_kernel::event::{CallError, ErrorClass};
 use miyu_kernel::id::{ModelName, ProviderId, Seq, SessionId};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
-use miyu_kernel::session::Limits;
+use miyu_kernel::session::{Limits, Replaced};
 use miyu_models::cooldown::Candidate;
 use miyu_models::facts::{Facts, facts};
 use miyu_models::pools::{Member, Strategy};
@@ -168,6 +171,10 @@ impl ModelPort for Route {
 
     fn limits(&self) -> Limits {
         self.lock().limits.clone()
+    }
+
+    fn turn(&self, config: &TurnConfig, reference: Option<&str>) -> Option<Replaced> {
+        self.begin(config, reference)
     }
 
     fn call(

@@ -14,7 +14,7 @@ use miyu_kernel::event::{CallError, Purpose, Usage};
 use miyu_kernel::id::{ContentHash, Seq, SessionId};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
-use miyu_kernel::session::Limits;
+use miyu_kernel::session::{Limits, Replaced};
 use miyu_store::blob::Blobs;
 
 use crate::config::TurnConfig;
@@ -42,8 +42,9 @@ pub struct ForSession {
     pub texts: DriverTexts,
     /// 属主的 blob：编码要用的图、文件在这里。
     pub blobs: Blobs,
-    /// 会话记着的引用（施工 8-8）：`session.created` 的 `model`，模型或 `@池`。以前的日志没有这一格的、造的时候连
-    /// `models.chat` 都没配的是空的：照造端口这一刻的 `models.chat`。
+    /// 会话记着的引用（施工 8-8）：模型或 `@池`。造会话的是 `session.created` 的 `model`；载入的是内核从日志算的
+    /// （`Session::reference()`，施工 8-10：被后来带 `model` 的 `session.policy_changed` 盖掉）。以前的日志没有这一格的、
+    /// 造的时候连 `models.chat` 都没配的是空的：照造端口这一刻的 `models.chat`。
     pub reference: Option<String>,
     /// 最近一条发出去了的 `model.called` 发给了谁（施工 8-8，「起草时定的」第 2 条）：引用是钉住的池的，照它认钉着的成员。
     /// 新造的会话、一次都没发出去过的没有。
@@ -59,6 +60,13 @@ pub trait ModelPort: Send + Sync {
     /// 会话这时生效的引用（施工 8-8）：模型或 `@池`。派子代理不写挡位时，子会话记下它（`models.md` 第三条第 4 条）。路由的是
     /// 钉着的那一个；不知道的（测试的端口）没有。
     fn reference(&self) -> Option<String> {
+        None
+    }
+
+    /// 回合开始（施工 8-10，`models.md`「怎么走」第六条第 3 条）：照这一轮的配置 `config` 重新解析会话的引用 `reference`
+    /// （内核交的，以前的会话没有的照端口自己记着的）；端点、限额跟着换。钉着的没了、退回了这一轮的 `models.chat` 的，交回
+    /// 原来的和退回的，内核记下。不重新解析的（测试的端口）什么都不做。
+    fn turn(&self, _config: &TurnConfig, _reference: Option<&str>) -> Option<Replaced> {
         None
     }
 

@@ -1,1 +1,2 @@
 {"at":"2026-09-25T08:20:44.900Z","kind":"model.changed","turn":131,"by":{"kind":"kernel"},"cause":"cmd-a8c4","body":{"ref":"@duo","endpoint":"bigmodel","model":"glm-5.3-flash","limits":{"window":200000,"compaction_line":167000},"why":"failover"}}
+{"at":"2026-09-25T21:00:00.000Z","kind":"model.changed","turn":143,"by":{"kind":"kernel"},"cause":"cmd-2e30","body":{"ref":"deepseek/deepseek-v4","endpoint":"deepseek","model":"deepseek-v4","limits":{"window":1000000,"compaction_line":967000},"why":"turn"}}

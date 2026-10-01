@@ -1,7 +1,32 @@
 //! 模型调用的记录：看到的在它自己之前。回顾的两条（施工 3-8 四补）：不带回合编号，有回合在进行时也收；`session.recapped`
 //! 照到的在它之前；回顾的 `model.called` 不算她听到了排着的话，那几句照样撤得回。施工 3-8 四补从 `tests.rs` 分出来。
+//! 换模型（施工 8-10）：`replaced` 只和 `model` 一起出现。
 
 use super::*;
+
+/// 换模型的 `session.policy_changed`（施工 8-10）：`replaced` 只和 `model` 一起出现；只有 `model` 的、两格都有的收，不带回合
+/// 编号的、带着在跑的回合的都收。
+#[test]
+fn replaced_comes_only_with_a_model() {
+    let mut ledger = after(5);
+    refused(
+        &mut ledger,
+        &event(6, None, "session.policy_changed", r#"{"replaced":"a/m"}"#),
+        "replaced comes only with model",
+    );
+    ledger
+        .append(&event(
+            6,
+            None,
+            "session.policy_changed",
+            r#"{"model":"@free"}"#,
+        ))
+        .unwrap();
+    let body = r#"{"model":"a/m","replaced":"@free"}"#;
+    ledger
+        .append(&event(7, Some(3), "session.policy_changed", body))
+        .unwrap();
+}
 
 /// 模型调用的记录，看到的在它自己之前（03 第三节「模型调用怎么写」）。
 #[test]

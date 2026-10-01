@@ -11,4 +11,5 @@ Options:
       --file <file>       Attach a file: image, PDF, text…; repeatable
       --timeout <time>    Stop waiting after this long: 30s, 10m, 1h
       --from <name>       For another harness: its name, e.g. claude-code
+      --model <model>     Use this model; a continued session keeps it
   -h, --help              Print help

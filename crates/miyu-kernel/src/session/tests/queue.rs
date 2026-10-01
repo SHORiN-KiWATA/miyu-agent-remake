@@ -54,6 +54,7 @@ fn a_message_during_the_last_reply_opens_the_next_turn() {
         *action
             == Action::RunTurnStartHooks {
                 turn: TurnId::new(seq(10)),
+                model: None,
             }
     });
     assert!(

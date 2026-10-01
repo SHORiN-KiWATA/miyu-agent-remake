@@ -14,6 +14,7 @@ mod breaker;
 mod call;
 mod clear;
 mod compaction;
+mod configure;
 mod input;
 mod interrupt;
 mod jobs;
@@ -38,6 +39,7 @@ mod restart;
 mod restore;
 mod retry;
 mod revert;
+mod send;
 mod shorten;
 mod spans;
 mod step;
@@ -47,7 +49,9 @@ mod tools;
 mod turn;
 
 pub use action::{Action, Outcome, Reason};
-pub use input::{Answer, Command, Injection, Input, Limits, Queued, Received, Reread, Verdict};
+pub use input::{
+    Answer, Command, Injection, Input, Limits, Queued, Received, Replaced, Reread, Verdict,
+};
 pub use limits::ContextLimits;
 pub use load::LoadError;
 pub use messages::Subagent;
@@ -55,7 +59,7 @@ pub use policy::{Compaction, Notes, Pause, Peers, Policy, Rebuild, Reports, Shor
 pub use report::Upward;
 pub use restore::{Expect, Step, StepAction};
 
-use crate::event::{Body, Event, MessageUser, Permission, SessionCreated, ToolResult, ToolStatus};
+use crate::event::{Body, Event, Permission, SessionCreated, ToolResult, ToolStatus};
 use crate::facts::Environment;
 use crate::history::History;
 use crate::id::{CommandId, Seq, SessionId, TurnId};
@@ -125,6 +129,8 @@ pub struct Session {
     naming: title::Naming,
     /// 在路上的那一次起标题（施工 3-8 五补）：只在内存里，载入以后没有。
     titling: Option<aside::Aside>,
+    /// 会话的引用和最近一次换模型写在第几条（施工 8-10，`configure.rs`）：每追加一条记一次。
+    reference: configure::Reference,
 }
 
 impl Session {
@@ -172,6 +178,7 @@ impl Session {
             recapping: None,
             naming: title::Naming::default(),
             titling: None,
+            reference: configure::Reference::default(),
         };
         let event = session.record(at, by, Some(id.clone()), Body::SessionCreated(created));
         session.accept(id, vec![event.seq]);
@@ -238,9 +245,12 @@ impl Session {
                 self.history.recall(texts);
                 Vec::new()
             }
-            Input::TurnStartHooksDone { at, turn, injected } => {
-                self.turn_start_hooked(at, turn, injected)
-            }
+            Input::TurnStartHooksDone {
+                at,
+                turn,
+                injected,
+                replaced,
+            } => self.turn_start_hooked(at, turn, injected, replaced),
             Input::RequestSent {
                 at,
                 seen,
@@ -363,37 +373,10 @@ impl Session {
             return vec![rejected(id, Reason::Restoring)];
         }
         match command {
-            Command::Send { blocks, urgent } => {
-                if blocks.is_empty() {
-                    return vec![rejected(id, Reason::EmptyMessage)];
-                }
-                // 别处来的（子代理的留言，施工 7-7；别的 harness 发来的话，施工 7-10）照回报的规矩到（`messages.rs`）。
-                if let Some(waker) = self.elsewhere(&by) {
-                    return self.elsewhere_says(id, by, at, blocks, waker);
-                }
-                let body = Body::MessageUser(MessageUser { blocks });
-                let message = self.record(at, by.clone(), Some(id.clone()), body);
-                self.accept(id.clone(), vec![message.seq]);
-                let trigger = message.seq;
-                let mut events = vec![message];
-                let mut stops = Vec::new();
-                if self.turn.is_none() {
-                    events.extend(self.open_turn(at, trigger, Some(id)));
-                } else {
-                    self.enqueue(trigger, id.clone());
-                    let (voided, stopped) = self.void_waiting(at, &by, &id);
-                    events.extend(voided);
-                    stops = stopped;
-                    if urgent {
-                        events.extend(self.interject(at, by, id));
-                    }
-                }
-                let mut actions = vec![Action::Append(events)];
-                actions.extend(stops);
-                actions
-            }
+            Command::Send { blocks, urgent } => self.send(id, by, at, blocks, urgent),
             Command::Interrupt { queued } => self.interrupt(id, by, at, queued),
             Command::SetMeta { title, pinned } => self.set_meta(id, by, at, title, pinned),
+            Command::Configure { model } => self.configure(id, by, at, model),
             Command::SetPermission { level, read_only } => {
                 self.set_permission(id, by, at, level, read_only)
             }
@@ -443,6 +426,7 @@ impl Session {
         self.ledger.append(event)?;
         self.duty.note(event);
         self.naming.note(event);
+        self.reference.note(event);
         self.history.append(event.clone());
         self.unstored.push(event.clone());
         Ok(())
