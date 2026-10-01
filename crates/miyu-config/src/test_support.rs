@@ -37,7 +37,7 @@ pub(crate) fn item(
     Item {
         key,
         kind: Kind::Option(options),
-        default: Value::Text(Cow::Borrowed(default)),
+        default: Some(Value::Text(Cow::Borrowed(default))),
         layers: &[Layer::System, Layer::Personal],
         tighten: None,
         env: None,
@@ -63,7 +63,9 @@ pub(crate) fn system_only(item: Item) -> Item {
 pub(crate) fn secret_item(key: &'static str) -> Item {
     Item {
         kind: Kind::Secret,
-        default: Value::Secret(crate::secret::Reference::Env("EXAMPLE_KEY".to_string())),
+        default: Some(Value::Secret(crate::secret::Reference::Env(
+            "EXAMPLE_KEY".to_string(),
+        ))),
         ..item(key, &[], "")
     }
 }
@@ -132,6 +134,24 @@ pub(crate) fn words(items: &[Item]) -> Fake {
         ("config/expected/bool", "true 或 false"),
         ("config/expected/table", "一张表"),
         ("config/sentence", "{text}。"),
+        ("config/applies/new_session", "以后开的会话生效"),
+        ("config/applies/next_turn", "下一个回合开始时生效"),
+        ("config/expected/int", "{min} 到 {max} 之间的整数"),
+        ("config/expected/url", "http:// 或 https:// 开头的网址"),
+        ("config/expected/name", "名字"),
+        ("config/expected/reference", "<供应商>/<模型> 或 @<池>"),
+        ("config/expected/list", "{item} 的列表"),
+        ("config/expected/id", "小写字母开头的编号"),
+        ("config/expected/model-name", "1 到 128 个字节的模型名"),
+        ("config/bad-format", "{key} 要写 {expected}，写的是 {got}"),
+        (
+            "config/out-of-range",
+            "{key} 要在 {min} 到 {max} 之间，写的是 {got}",
+        ),
+        (
+            "config/bad-segment",
+            "{key} 里的 {name} 不能当名字：要写{expected}",
+        ),
         ("config/then", "{rest}{next}"),
         ("config/stops", "。？！"),
         ("config/unknown-secret", "{key} 引用的密钥 {name} 还没设"),
@@ -154,7 +174,7 @@ pub(crate) fn words(items: &[Item]) -> Fake {
             .map(|item| {
                 let options: &[&str] = match item.kind {
                     Kind::Option(options) => options,
-                    Kind::Bool | Kind::Secret => &[],
+                    _ => &[],
                 };
                 let name = format!("{} 的名字", item.key);
                 let description = format!("{} 的说明。", item.key);

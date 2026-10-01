@@ -14,6 +14,7 @@ mod harness;
 mod isolate;
 mod manual;
 mod messages;
+mod models;
 mod overflow;
 mod peers;
 mod permission_changed;

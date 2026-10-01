@@ -20,6 +20,16 @@
       },
       "type": "object"
     },
+    "models": {
+      "properties": {
+        "chat": {
+          "description": "The model new sessions use, written as provider/model, for example deepseek/deepseek-flash. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Applies to sessions opened from now on.",
+          "title": "Chat model",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "permission": {
       "properties": {
         "start_read_only": {
@@ -28,6 +38,84 @@
           "title": "Start new sessions read-only",
           "type": "boolean"
         }
+      },
+      "type": "object"
+    },
+    "providers": {
+      "additionalProperties": {
+        "properties": {
+          "base_url": {
+            "description": "The address of this provider's API; the driver adds the path. Known providers can leave it out. Allowed: an address starting with http:// or https://. Only in the system config or personal settings. Takes effect next turn.",
+            "format": "uri",
+            "title": "Address",
+            "type": "string"
+          },
+          "catalog": {
+            "description": "Which provider in the model data this one is, for example deepseek for a relay that only forwards DeepSeek. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Takes effect next turn.",
+            "title": "Catalog provider",
+            "type": "string"
+          },
+          "driver": {
+            "description": "How to talk to this provider. Known providers can leave it out. Allowed: openai-chat, anthropic or openai-responses. Only in the system config or personal settings. Takes effect next turn.",
+            "enum": [
+              "openai-chat",
+              "anthropic",
+              "openai-responses"
+            ],
+            "title": "Driver",
+            "type": "string"
+          },
+          "keys": {
+            "default": [],
+            "description": "Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Each session sticks to one of them. Empty means no auth header. Allowed: a list of { secret = \"…\" } or { env = \"…\" }. Only in the system config or personal settings. Takes effect next turn.",
+            "items": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "secret": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "secret"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "env": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "env"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "title": "Keys",
+            "type": "array"
+          },
+          "models": {
+            "additionalProperties": {
+              "properties": {
+                "window": {
+                  "description": "The context window of this model, in tokens. Allowed: a whole number from 1 to 100000000. Only in the system config or personal settings. Applies to sessions opened from now on.",
+                  "maximum": 100000000,
+                  "minimum": 1,
+                  "title": "Context window",
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
       },
       "type": "object"
     },

@@ -3,12 +3,12 @@
 //! 客户端（`22-命令行.md` O5）：连上核心，`config.get`、`config.schema`、`config.check`、`config.set`、`config.trust`，照回应
 //! 印。`edit`、`trust` 要问人、开编辑器，经 [`Console`]：测试换成照剧本回的。
 //!
-//! 连核心照 `miyu recap`：核心在跑的照样连；没在跑、又没设 `DEEPSEEK_API_KEY` 的不拉起，说没有可用的模型，退出码 5
-//! （8-6 以后 key 来自配置，改成一律拉起）。握手以后给人看的字照回应的 `language`（施工 8-2）。
+//! 连核心照 `miyu recap`：核心在跑的照样连，没在跑的拉起（施工 8-6 起 key 来自配置，一律拉起）。握手以后给人看的字照回应的
+//! `language`（施工 8-2）。
 //!
 //! 退出码：0 成了（`check` 没有错误、`edit` 没改、`unset` 本来就没写、`trust` 记下了或本来就信任着）；1 核心拒绝了、`check`
 //! 有错误、`edit` 放弃了或编辑器出错或冲突、`trust` 这里没有项目配置或冲突、连不上核心；2 参数不对（在主程序里；`edit`、
-//! `trust` 不在终端里又没写 `--yes`、`--no`；`set --project`）；5 同上。
+//! `trust` 不在终端里又没写 `--yes`、`--no`；`set --project`）。
 
 mod check;
 mod console;
@@ -30,7 +30,7 @@ use std::process::{Command, ExitCode};
 use clap::{Args, Subcommand};
 use serde_json::{Value, json};
 
-use miyu_ipc::{ConnectError, Connection, connect_or_start};
+use miyu_ipc::{Connection, connect_or_start};
 use miyu_store::env::Env;
 use miyu_store::root::DataRoot;
 
@@ -184,21 +184,9 @@ async fn run(args: Config, start: impl FnOnce() -> Command) -> u8 {
     if let Err(error) = root.prepare() {
         return failed(&error.to_string());
     }
-    // 照 `miyu recap`：8-6 以前核心只在起来时读 key，没设 key、核心又没在跑的不拉起。
-    let key = std::env::var("DEEPSEEK_API_KEY").is_ok_and(|key| !key.trim().is_empty());
-    let connected = match key {
-        true => connect_or_start(&root, start)
-            .await
-            .map_err(|error| error.to_string()),
-        false => match miyu_ipc::connect(&root).await {
-            Ok(connected) => Ok(connected),
-            Err(ConnectError::NotRunning) => {
-                say(&mut io::stderr(), &language.no_model());
-                return exit::NO_MODEL;
-            }
-            Err(error) => Err(error.to_string()),
-        },
-    };
+    let connected = connect_or_start(&root, start)
+        .await
+        .map_err(|error| error.to_string());
     let (connection, token) = match connected {
         Ok(connected) => connected,
         Err(reason) => return failed(&reason),

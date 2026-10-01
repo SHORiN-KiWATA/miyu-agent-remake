@@ -13,6 +13,7 @@ use tokio::sync::watch;
 
 use miyu_config::merge::{Layers, Resolved, merge};
 use miyu_config::parse::parse;
+use miyu_config::secret::{Reference, Secret};
 use miyu_config::{Item, Layer};
 use miyu_kernel::event::ErrorClass;
 use miyu_kernel::id::Seq;
@@ -39,7 +40,7 @@ fn resolved(level: &str) -> Resolved {
 
 /// 一份配置里 `log.level` 的最终值。
 fn level(config: &TurnConfig) -> String {
-    LogSettings::from(&config.values()).level
+    LogSettings::from(&config.resolved.values()).level
 }
 
 /// 假的来源：每次取都重新读 `file`（里面写着级别），记下照哪个目录取的。
@@ -54,6 +55,10 @@ impl ConfigSource for Source {
         self.asked.lock().expect("拿得到锁").push(dir.to_string());
         resolved(std::fs::read_to_string(&self.file).expect("读得到").trim())
     }
+
+    fn secret(&self, _: &Reference) -> Option<Secret> {
+        None
+    }
 }
 
 /// 不变的来源。
@@ -63,6 +68,10 @@ struct Fixed(&'static str);
 impl ConfigSource for Fixed {
     fn with_project(&self, _: &str) -> Resolved {
         resolved(self.0)
+    }
+
+    fn secret(&self, _: &Reference) -> Option<Secret> {
+        None
     }
 }
 
@@ -85,7 +94,7 @@ impl Models for Switching {
 }
 
 impl ModelPort for Switching {
-    fn model(&self) -> &Model {
+    fn model(&self) -> Model {
         self.script.model()
     }
 

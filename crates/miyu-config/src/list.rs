@@ -28,11 +28,13 @@ pub fn check(items: &[Item]) -> Vec<String> {
         }
         problems.extend(kind_problems(item));
         problems.extend(tighten_problem(item));
-        if !item.kind.accepts(&item.default) {
-            problems.push(format!(
-                "{key}：默认值 {} 过不了自己的校验",
-                item.default.toml()
-            ));
+        if let Some(default) = &item.default
+            && !item.kind.accepts(default)
+        {
+            problems.push(format!("{key}：默认值 {} 过不了自己的校验", default.toml()));
+        }
+        if item.is_pattern() && item.env.is_some() {
+            problems.push(format!("{key}：键里有人起的名字，不能由环境变量压过"));
         }
     }
     for item in items {
@@ -52,7 +54,8 @@ pub fn check(items: &[Item]) -> Vec<String> {
     problems
 }
 
-/// 键的写法（第一条第 2 条）：至少两段；每一段小写字母开头，只有小写字母、数字、`_`；第一段不是 `ext`。
+/// 键的写法（第一条第 2 条）：至少两段；每一段小写字母开头，只有小写字母、数字、`_`，或者是人起的名字的占位
+/// `<id>`、`<model>`（施工 8-6，不能是第一段、不能是最后一段）；第一段不是 `ext`。
 fn key_problem(key: &str) -> Option<&'static str> {
     let segments: Vec<&str> = key.split('.').collect();
     if segments.len() < 2 {
@@ -64,7 +67,18 @@ fn key_problem(key: &str) -> Option<&'static str> {
                 .chars()
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
     };
-    if !segments.iter().all(|segment| good(segment)) {
+    let last = segments.len() - 1;
+    if segments
+        .iter()
+        .enumerate()
+        .any(|(at, segment)| crate::key::is_placeholder(segment) && (at == 0 || at == last))
+    {
+        return Some("人起的名字那一段不能是第一段、最后一段");
+    }
+    if !segments
+        .iter()
+        .all(|segment| good(segment) || crate::key::is_placeholder(segment))
+    {
         return Some("每一段要小写字母开头，只有小写字母、数字、_");
     }
     if segments[0] == EXTENSIONS {
@@ -80,17 +94,25 @@ fn tighten_problem(item: &Item) -> Option<String> {
     match (project, item.tighten, item.kind) {
         (true, None, _) => Some(format!("{key}：能放进项目配置，要写怎么收紧")),
         (false, Some(_), _) => Some(format!("{key}：不能放进项目配置，不写收紧")),
-        (true, Some(Tighten::TrueOnly), Kind::Option(_) | Kind::Secret) => {
+        (true, Some(Tighten::TrueOnly), kind) if kind != Kind::Bool => {
             Some(format!("{key}：只能打开只给开关"))
         }
         _ => None,
     }
 }
 
-/// 类型本身写得对不对：选项至少两个、不重复。
+/// 类型本身写得对不对：选项至少两个、不重复；整数的最小不比最大大；列表的元素不是列表。
 fn kind_problems(item: &Item) -> Vec<String> {
     match item.kind {
-        Kind::Bool | Kind::Secret => Vec::new(),
+        Kind::Int { min, max } if min > max => vec![format!("{}：最小比最大大", item.key)],
+        Kind::List(Kind::List(_)) => vec![format!("{}：列表的元素不能是列表", item.key)],
+        Kind::Bool
+        | Kind::Secret
+        | Kind::Int { .. }
+        | Kind::Url
+        | Kind::Name
+        | Kind::Reference
+        | Kind::List(_) => Vec::new(),
         Kind::Option(options) => {
             let mut problems = Vec::new();
             if options.len() < 2 {

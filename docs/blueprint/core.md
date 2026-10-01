@@ -2,7 +2,7 @@
 
 ### 是什么
 
-一个数据根只跑一个的核心进程：由头拉起（`ipc.md`），平时不用人敲。起来时建骨架、拿单实例锁、装运行日志、建管理员的家目录、找资源目录、在本机的套接字上等连接、从环境变量拿模型、登记工具，然后往标准输出写一行 `ready`，在后台清一次回收处；之后一个个接连接，照协议说话（`protocol.md`）。没有连接、没有在跑的回合、也没有在跑的后台命令，空闲够久了自己退出；收到停的信号，先让在跑的会话有计划地停下（后台命令先记 `restarted`、再整组杀）再退出。
+一个数据根只跑一个的核心进程：由头拉起（`ipc.md`），平时不用人敲。起来时建骨架、拿单实例锁、装运行日志、建管理员的家目录、找资源目录、在本机的套接字上等连接、读供应商的档案造会话的路由（用哪家、哪个模型全照配置，施工 8-6）、登记工具，然后往标准输出写一行 `ready`，在后台清一次回收处；之后一个个接连接，照协议说话（`protocol.md`）。没有连接、没有在跑的回合、也没有在跑的后台命令，空闲够久了自己退出；收到停的信号，先让在跑的会话有计划地停下（后台命令先记 `restarted`、再整组杀）再退出。
 
 ### 在哪
 
@@ -10,7 +10,7 @@
 |---|---|
 | `crates/miyu/src/main.rs` | 子命令 `core`、`--idle-seconds` |
 | `crates/miyu-core/src/lib.rs` | `main`：起来的先后；管理员 `admin`；工具目录；写那一行 |
-| `crates/miyu-core/src/models.rs` | 从环境变量拿模型 |
+| `crates/miyu-core/src/models.rs`、`models/` | 读资源目录里的供应商档案（TOML 读成 JSON 交给 `miyu-models`）和模型资料，造会话的路由（施工 8-6，`models.md`） |
 | `crates/miyu-core/src/serve.rs` | 接连接，空闲退出，停的信号 |
 | `crates/miyu-core/src/sandbox.rs` | 起来时找沙盒的助手、探一次，记日志（施工 5-1）；探到了手段的，交回助手（施工 5-4 上） |
 | `crates/miyu-core/src/trash.rs` | 起来时清一次回收处；删了的会话留多久 `KEEP`（施工 3-8 三补） |
@@ -38,9 +38,7 @@
 | `MIYU_HOME` | 数据根；不设是家目录的 `.miyu`（`store.md`） |
 | `MIYU_RESOURCES` | 资源目录，开发时指到源码树的 `resources/`（`store.md`） |
 | `MIYU_LOG` | 运行日志记到哪一级，压过配置项 `log.level`（`log.md`、`config.md`） |
-| `DEEPSEEK_API_KEY` | 模型的 key，起来时读一次 |
-| `MIYU_DEV_BASE_URL`、`MIYU_DEV_MODEL` | 开发用：设了 key 的，替换地址、模型（下面「模型」第 1 条，施工 3-9 再补）。不进 `-h`，配置系统做好以后删掉 |
-| `MIYU_DEV_WINDOW` | 开发用：设了 key 的，当这个模型的上下文窗口，压过模型资料里的（施工 6-3 上）。同上，不进 `-h` |
+| 配置里 `{ env = "…" }` 写的那几个 | 供应商的 key（`config.md` 第九条第 5 条）：核心照自己起来时的环境取，回合开始时取一次 |
 | `XDG_RUNTIME_DIR`（Linux）、`TMPDIR` | 套接字放哪（`ipc.md`） |
 | `HTTPS_PROXY`、`HTTP_PROXY`、`NO_PROXY` 这些 | 请求模型走不走代理（`http.md`） |
 
@@ -62,7 +60,7 @@
 
 **起来的先后**
 
-1. 读一次环境的快照（`MIYU_HOME`、`MIYU_RESOURCES`、家目录、程序的真实位置这些），数据根、资源目录、沙盒的助手照它找；`MIYU_LOG`、放套接字的目录、`DEEPSEEK_API_KEY` 到用的那一步才读。
+1. 读一次环境的快照（`MIYU_HOME`、`MIYU_RESOURCES`、家目录、程序的真实位置这些），数据根、资源目录、沙盒的助手照它找；`MIYU_LOG`、放套接字的目录到用的那一步才读；配置里 `{ env }` 引用的变量到用的时候才查（施工 8-6 起核心不再读开发用的环境变量、`DEEPSEEK_API_KEY`）。
 2. 找数据根，建骨架（`store.md`）。
 3. 拿单实例锁 `run/core.lock`，不等。拿不到：已经有一个核心在跑，写 `running`，退出码 0，运行日志一个字都不写。先拿锁、再装日志：两个核心不写同一份日志。
 4. 装运行日志 `state/logs/core.log`，级别照 `MIYU_LOG`，带上第 1 步的家目录（`log.md`）。记一条 `INFO starting version=<版本> pid=<进程号> root=<数据根> tz=<和 UTC 差多少>`，数据根里的家目录写成 `~`，例如 `root=~/.miyu tz=+09:00`。接着让它起的子进程随它结束（下面「子进程随核心退出」，施工 7-8）：Windows 上进作业对象，进不去记一条 `WARN children not bound error=…`，照样起来；别的平台这一步什么都不做。
@@ -70,7 +68,7 @@
 6. 找资源目录（`store.md`）。找到以后读配置（施工 8-2，`config.md`「怎么走」第二条）：系统配置、管理员的个人设置、信任的记录、密钥文件（施工 8-5），读不进来的照空的，有问题的每份记一条 `WARN config problems`（密钥文件组、别人读得到的记一条 `WARN secrets readable by others`）；照 `log.level` 的最终值换运行日志的级别，记一条 `INFO log level`。再照配置清单生成两份 JSON Schema 和参考文件，放在 `state/config/`（施工 8-1，`config.md`「怎么走」第一条第 6 到 8 条）：字照 `ui.language` 的最终值，`auto` 的照系统的语言挑，一样的不重写；读好的配置交给协议端点（`Core::with_config`）；写不成的、字缺了的，一份记一条 `WARN config schema not written`（目标 `miyu::config`），不影响起不起得来。说「好了」之前开始监视配置文件（`Core::watch_config`，施工 8-4，`config.md` 第七条），起一个任务跟着配置换：`log.level` 变了换级别，`ui.language` 变了重写那三份（第八条）；监视起不来的记一条 `WARN config watch unavailable`，照样起来。
 7. 起运行时：多线程，两个工作线程，接连接、会话、请求都在上面。
 8. 算出套接字放哪、换本机令牌、在套接字上等连接、记下实际的位置（`ipc.md`）。
-9. 从环境变量拿模型（下面「模型」）。
+9. 读供应商的档案和模型资料，造会话的路由（下面「模型」，施工 8-6）。
 10. 找沙盒的助手、探一次（`sandbox.md`「怎么走」第 1、2 条）：记一行 `INFO` `sandbox` 或者 `WARN` `sandbox unavailable`（施工 5-1）。探到的结果（能不能用、为什么，`Availability`）交给协议端点：握手时报给头（施工 5-4 下）；能用的，造会话、载入时把助手交给会话，权限策略照它判执行命令，执行器照它带沙盒（施工 5-4 上）；用不了的，会话里当沙盒用不了。
     - 再算出缓存目录（`store.md` 第 3 条），沙盒的缓存放在它下面的 `sandbox/<账号>/`，造会话、载入时照属主交给会话（`session/tools.md` 第 1a 条，施工 5-4 下）。算不出来的：记一行 `WARN sandbox cache unavailable`，`reason` 是 `no home directory` 或者 `no LOCALAPPDATA`（运行日志一律英文），沙盒里不设工具链的变量。你的 cargo 目录：核心的环境里 `CARGO_HOME` 设了、不是空的照它，不然 `~/.cargo`。
     - 这两样都不影响起不起得来。
@@ -95,29 +93,12 @@
 - 每一种都带一个 `\n`，写完马上送出去。写不出去的，记一条 `WARN ready line not written error=…`（运行日志装上了的话）。
 - 原因是出错的原话：Miyu 自己写的多是中文，例如 `MIYU_HOME 要写绝对路径，写的是 …`、`找不到资源目录：… 都没有。开发时设 MIYU_RESOURCES 指到源码树的 resources/`（`store.md`、`ipc.md`）；工具的字读不出来的是 `<哪一份文件>: <为什么>`；工具登记时查不过的是英文，例如 `tool "read": another tool has the same name`（`tools/interface.md`）；系统和用到的库报的错（例如 HTTP 客户端造不出来的）照它们的写法。
 
-**模型**
+**模型**（施工 8-6，`models.md`「怎么走」第一条、第四条）
 
-1. `DEEPSEEK_API_KEY` 去掉前后空白不是空的：接 DeepSeek 官方。
-
-   | 项 | 值 |
-   |---|---|
-   | 地址 | `https://api.deepseek.com` |
-   | 端点的编号 | `deepseek`：记进 `model.called` 和运行日志 |
-   | 模型 | `deepseek-flash` |
-   | 写法 | DeepSeek 的兼容写法（`drivers/openai-chat.md`） |
-   | 输出的上限 | 不设 |
-   | 模型能收的输入 | 能看图，不能读 PDF（施工 4-13：DeepSeek 2026-08-21 起收图，只收 `user` 消息里的，工具结果里的图由驱动挪过去，`drivers/openai-chat.md` 第 7 条） |
-   | 空闲超时 | 180 秒：多久没收到新的字节就算断了（`http.md`） |
-   | 代理 | 照环境变量（`http.md`） |
-   | key | 去掉前后空白；只在内存里，不落盘、不写配置、不进日志 |
-
-   开发用的两个变量（施工 3-9 再补，2026-09-29 项目主人定）：`MIYU_DEV_BASE_URL` 去掉前后空白不是空的，替换地址，端点的编号改成 `dev`；`MIYU_DEV_MODEL` 去掉前后空白不是空的，替换模型名，不合模型名写法的起不来，原因写明是这个变量。别的照上表。设了哪个，`INFO` 记一条 `dev endpoint base_url=<地址> model=<模型>`。
-
-   **模型的限额**（施工 6-3 上）：照资源目录里的模型资料（`store/resources.md`）查窗口、最大输出。驱动用的是 DeepSeek 的写法，开发端点也照 `deepseek` 那一家查模型名；查不到的没有，不主动压。`MIYU_DEV_WINDOW` 去掉前后空白不是空的：是正整数的当窗口，压过查到的；不是的起不来，原因写明是这个变量。一张图怎么算跟着驱动的写法走：DeepSeek 的交官方计算器 v41 配置的算法（`miyu-drivers` 的 `DeepSeekImages`）。起来时 `INFO` 记一条 `model limits model=<模型> window=<窗口或 none> max_output=<最大输出或 none>`。会话 actor 造会话、载入以后，先把这些交给内核（`Input::Limits`，`session/actor.md`）。
-
-   模型资料读不出来、格式坏了：起不来，原因写明是 `models/models-dev.json`。HTTP 客户端造不出来（系统的证书读不了之类）：起不来。
-2. 没设、空的、全是空白：照样起来，记一条 `WARN DEEPSEEK_API_KEY not set, no model`。每次请求都当场说完、没发出去：出错，分类 `auth`（认证失败），原话 `no model: set DEEPSEEK_API_KEY`；`model.called` 里没有端点和模型（没发出去）。分类是认证失败，内核不重试（`kernel/session.md`）。运行日志里 `request` 那一行写 `endpoint=none model=none`。
-3. key 只在起来时读一次：换了 key，要等这个核心退出、下一次拉起。
+1. 起来时读资源目录里的两份：供应商的档案 `models/profiles.toml`（TOML 读成 JSON，照 `miyu-models` 的样子读；认得出的供应商的驱动、地址、`openai-chat` 的开关、能收哪些输入、一张图怎么算）和模型资料 `models/models-dev.json`（窗口、最大输出，`store/resources.md`）。读完记一条 `INFO model profiles loaded profiles=<几家>`。哪一份读不出来、写法不对：起不来，原因写明是哪一份。HTTP 客户端造不出来（系统的证书读不了之类）：起不来。代理照环境变量（`http.md`）。
+2. 造会话的路由（`miyu_session::Routes`，`session/actor.md` 第 8 条）交给协议端点：用哪家供应商、哪个模型、哪个 key，全照配置（`[providers.<id>]`、`models.chat`），每个会话照回合开始时冻结的那一份挑（`config.md` 第八条第 3 条）。空闲超时 180 秒（`http.md`）。核心不再读开发用的 `MIYU_DEV_*` 和 `DEEPSEEK_API_KEY`：开发自测改成 `cargo xtask dev-home <目录>`（`models.md` 第十条）。
+3. 没配模型（`models.chat` 没配、配的解析不出、那一家用不了、key 一个都取不到）：照样起来；每次请求都当场说完、没发出去，分类 `no_model`，原话照 `models.md`「出错」（例如 `no model configured: set models.chat`），`model.called` 里没有端点和模型；内核不再来（`kernel/session.md`）。路由每次这样记一条 `WARN no model why=…`（目标 `miyu::session`）。
+4. key 照配置里的引用取：`{ secret }` 取密钥文件里的，`{ env }` 取核心起来时的环境；换了密钥，下一个回合开始时用上，不用重启（`config.md` 第九条第 7 条）。key 只在内存里，不进日志。
 
 **子进程随核心退出**（施工 7-8，`12-进程形态与分发.md` R5，`agents.md` 第八条）
 
@@ -151,7 +132,7 @@
 | 级别 | 这件事 |
 |---|---|
 | `INFO` | `starting version=… pid=… root=… tz=…` |
-| `WARN` | `DEEPSEEK_API_KEY not set, no model` |
+| `INFO` | `model profiles loaded profiles=…`（施工 8-6） |
 | `WARN` | `children not bound error=…`（Windows：进不了作业对象，施工 7-8） |
 | `INFO` | `sandbox helper=… platform=… mechanisms=…`（施工 5-1） |
 | `WARN` | `sandbox unavailable reason=…`（施工 5-1） |
@@ -175,10 +156,10 @@
 | `crates/miyu/tests/core.rs` | 头拉起真的 `miyu core`，等它说好了再连；管理员叫 `admin`，建好了它的家目录；再连不再拉起；两个头同时只拉起一个；起不来的说原因（找不到资源目录），日志里只写 `stage=resources`；已经在跑的写 `running` 就走、不写日志；什么都没写就退了的；空闲了自己走，日志里一条 `starting`、一条 `stopped reason=idle`；`starting` 那一行的数据根在家目录下的写成 `~`、有和 UTC 差多少；工作目录是数据根；起来时清一次回收处：删了满 7 天的删、没满的留，记一条 `trash purged removed=1`（施工 3-8 三补）；起来时探一次沙盒的助手：旁边有助手的记 `sandbox` 那一行、平台是这台机器的、有手段那一格，没有的记找不到（施工 5-1）；握手报的沙盒和记下的对得上（施工 5-4 下） |
 | `crates/miyu/tests/crash.rs`（施工 7-8） | 真的 `miyu core`，模型是本机回环上的假服务器：放一个心跳到后台（Unix 上是命令起的孙进程），硬杀核心（Unix `SIGKILL`，Windows 结束进程、不连子进程），心跳几秒内停下；三个平台都跑 |
 | `crates/miyu-sandbox/src/lifeline/tests.rs`（施工 7-8，Unix） | 生命线还在，组里的照常跑；写端一关，看门的把整个组杀掉，孙进程也在里面 |
-| `crates/miyu-core/tests/serve.rs` | 空闲退出、放开锁和套接字；有头连着不退；空闲的钟从最后一个头走时算起；在跑的回合不退；有在跑的后台命令不退、结束了记下再退（施工 7-3）；收到停的信号先停下会话、跑到一半的记成重启了，后台命令先记 `restarted`、落了盘再杀（施工 7-3）；没有 key（没设、全是空白）每次请求都说没有模型、分类是认证失败、没发出去 |
+| `crates/miyu-core/tests/serve.rs` | 空闲退出、放开锁和套接字；有头连着不退；空闲的钟从最后一个头走时算起；在跑的回合不退；有在跑的后台命令不退、结束了记下再退（施工 7-3）；收到停的信号先停下会话、跑到一半的记成重启了，后台命令先记 `restarted`、落了盘再杀（施工 7-3）；没配模型的每次请求都说没有模型、分类 `no_model`、没发出去（施工 8-6） |
 | `crates/miyu-core/src/serve/tests.rs` | 多久看一次：四分之一，最多 30 秒，最少 100 毫秒；装不上的 Ctrl+C 当它不会来（造不出真的装不上，测的是等它的那一小段） |
 | `crates/miyu-core/tests/tools.rs` | 工具目录里是基础系统的七件；资源目录坏了，说是哪一份 |
-| `crates/miyu-core/src/models/tests.rs` | 请求 DeepSeek 时的模型名、不写输出上限、收图不收 PDF（施工 4-13） |
+| `crates/miyu-core/src/models/tests.rs` | 出厂的档案读得进来，DeepSeek 那一套开关和请求形状探针用的 `Compat::deepseek()` 一样、收图不收 PDF、图照官方的算法（施工 8-6，原来写在代码里，施工 4-13）；TOML 变成 JSON，写错的说是档案 |
 | `crates/miyu-core/src/sandbox/tests.rs` | 探沙盒的助手：旁边没有的、不知道主程序在哪的记找不到，跑不了的记原因（施工 5-1）；探到了手段的交回能用和助手，手段是空的、找不到、探不成的交回用不了和原因（施工 5-4 上、下）；沙盒的缓存在缓存目录下的 `sandbox`，cargo 目录照 `CARGO_HOME`、空的当没设、不然 `~/.cargo`，算不出缓存目录的记一行、交回空的（施工 5-4 下） |
 
 ### 出处
@@ -186,7 +167,7 @@
 - `12-进程形态与分发.md` 第二节：按需运行、空闲多久、停的信号；「拉起时的握手」（那一行、先拿锁再装日志、清旧套接字的是核心）。第三节：一个主程序，`miyu core` 是它的子命令。
 - `07-存储.md` 第二节（数据根、骨架、`run/`）、第十节（单实例与锁）。
 - `06-多用户与身份.md` U13：管理员固定叫 `admin`。
-- `15-模型与供应商.md` 第七节：配置做出来之前，只认 `DEEPSEEK_API_KEY`。
+- `15-模型与供应商.md` 第二节、`models.md`：模型从配置里来（施工 8-6 取代了配置做出来之前只认的 `DEEPSEEK_API_KEY`）。
 - `28-运行日志.md`：写到 `state/logs/`，`MIYU_LOG`。
 - `04-核心协议.md` 第九节 `session.delete`：删了的进回收处、留 7 天（2026-09-30 项目主人定，施工 3-8 三补）。
 
@@ -197,7 +178,7 @@
 - 常驻：开了通讯平台桥、定时任务、远程访问、桌面语音时不退出，登记成登录时启动的服务（`12-进程形态与分发.md` 第二节，`miyu service install`）。
 - 空闲时限放进配置（第二节）。
 - 恢复会话、回收 blob 这类重活放到说好了之后（第二节「拉起时的握手」）。清回收处（施工 3-8 三补）已经照这样放在 `ready` 之后。
-- 「核心先 bind 好套接字、能接受连接了就往管道里写」（第二节「拉起时的握手」）：现在绑好以后还要造模型端口、登记工具（读资源目录的字）才写 `ready`，比设计说的晚。
+- 「核心先 bind 好套接字、能接受连接了就往管道里写」（第二节「拉起时的握手」）：现在绑好以后还要读供应商的档案、登记工具（读资源目录的字）才写 `ready`，比设计说的晚。
 - 头发现核心比自己旧，请求它空闲时重启（`04-核心协议.md` 第八节）。
 - 模型从配置、供应商、池来（`15-模型与供应商.md`）；首次运行时的引导（`12-进程形态与分发.md` 第七节）。
 - `miyu status`、`miyu doctor`（`12-进程形态与分发.md` 第三节、R13）。

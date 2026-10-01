@@ -20,7 +20,7 @@ fn items() -> Vec<Item> {
         },
         Item {
             kind: Kind::Bool,
-            default: Value::Bool(false),
+            default: Some(Value::Bool(false)),
             layers: &[Layer::System, Layer::Personal, Layer::Project],
             tighten: Some(Tighten::TrueOnly),
             ..item("permission.start_read_only", &[], "")
@@ -81,7 +81,9 @@ fn nothing_written_is_every_default() {
     for item in items() {
         assert_eq!(
             resolved.get(item.key),
-            Some((&item.default, &Origin::Default))
+            item.default
+                .as_ref()
+                .map(|default| (default, &Origin::Default))
         );
     }
 }
@@ -142,12 +144,12 @@ fn a_broken_item_falls_back_to_the_layers_below_and_the_rest_stays() {
     );
     let item = &items()[0];
     assert_eq!(
-        below(item, &layers, Layer::Personal),
-        (text("en"), line(Layer::System, 1))
+        below(item, item.key, &layers, Layer::Personal),
+        Some((text("en"), line(Layer::System, 1)))
     );
     assert_eq!(
-        below(item, &layers, Layer::System),
-        (text("auto"), Origin::Default)
+        below(item, item.key, &layers, Layer::System),
+        Some((text("auto"), Origin::Default))
     );
 }
 
@@ -266,7 +268,7 @@ fn every_layer_is_listed_top_down() {
         project: Some((&project, Trust::Trusted)),
     };
     let resolved = merge(&items(), &layers, &no_env);
-    let listed = explain(&items()[0], &layers, &resolved);
+    let listed = explain(&items()[0], items()[0].key, &layers, &resolved);
     let row = |origin, value: &'static str, used, problem| Written {
         origin,
         value: text(value),
@@ -288,7 +290,7 @@ fn every_layer_is_listed_top_down() {
         project: Some((&project, Trust::Trusted)),
     };
     let resolved = merge(&items(), &layers, &no_env);
-    let listed = explain(&items()[2], &layers, &resolved);
+    let listed = explain(&items()[2], items()[2].key, &layers, &resolved);
     assert_eq!(
         listed
             .iter()
@@ -306,7 +308,7 @@ fn every_layer_is_listed_top_down() {
     };
     let resolved = merge(&items(), &layers, &no_env);
     assert_eq!(
-        explain(&items()[2], &layers, &resolved)[0].problem,
+        explain(&items()[2], items()[2].key, &layers, &resolved)[0].problem,
         Some(Code::UntrustedProject)
     );
 }
@@ -316,7 +318,7 @@ fn an_environment_variable_is_listed_on_top() {
     let env: BTreeMap<&str, String> = [("MIYU_LOG", "debug".to_string())].into();
     let lookup = |name: &str| env.get(name).cloned();
     let resolved = merge(&items(), &Layers::default(), &lookup);
-    let listed = explain(&items()[1], &Layers::default(), &resolved);
+    let listed = explain(&items()[1], items()[1].key, &Layers::default(), &resolved);
     assert_eq!(
         listed
             .iter()

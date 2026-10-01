@@ -6,10 +6,37 @@
 # Allowed: error, warn, info, debug, trace or off. Only in the system config. Takes effect at once.
 level = "info"
 
+[models]
+# Chat model: The model new sessions use, written as provider/model, for example deepseek/deepseek-flash.
+# Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Applies to sessions opened from now on.
+# chat =
+
 [permission]
 # Start new sessions read-only: When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on.
 # Allowed: true or false. Only in the system config, personal settings or a project config. Applies to sessions opened from now on.
 start_read_only = false
+
+[providers."<id>"]
+# Address: The address of this provider's API; the driver adds the path. Known providers can leave it out.
+# Allowed: an address starting with http:// or https://. Only in the system config or personal settings. Takes effect next turn.
+# base_url =
+
+# Catalog provider: Which provider in the model data this one is, for example deepseek for a relay that only forwards DeepSeek.
+# Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Takes effect next turn.
+# catalog =
+
+# Driver: How to talk to this provider. Known providers can leave it out.
+# Allowed: openai-chat, anthropic or openai-responses. Only in the system config or personal settings. Takes effect next turn.
+# driver =
+
+# Keys: Write { secret = "name" } (saved with miyu login) or { env = "VARIABLE" }. Each session sticks to one of them. Empty means no auth header.
+# Allowed: a list of { secret = "…" } or { env = "…" }. Only in the system config or personal settings. Takes effect next turn.
+keys = []
+
+[providers."<id>".models."<model>"]
+# Context window: The context window of this model, in tokens.
+# Allowed: a whole number from 1 to 100000000. Only in the system config or personal settings. Applies to sessions opened from now on.
+# window =
 
 [tui]
 # On start, open: Whether the terminal interface starts a new session or picks up the most recent one.

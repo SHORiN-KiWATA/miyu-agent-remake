@@ -34,19 +34,51 @@
       "permission.start_read_only": {
         "name": "新会话开局只读",
         "description": "打开以后，新会话一开始就是只读。她只能查、写计划，要改文件时你再关掉只读。项目配置里只能把它打开。"
+      },
+      "models.chat": {
+        "name": "主对话的模型",
+        "description": "新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash。"
+      },
+      "providers.<id>.driver": {
+        "name": "驱动",
+        "description": "怎么和这家说话。认得出的供应商可以不写。",
+        "options": {
+          "openai-chat": "OpenAI 兼容的对话接口",
+          "anthropic": "Anthropic 消息接口",
+          "openai-responses": "OpenAI Responses 接口"
+        }
+      },
+      "providers.<id>.base_url": {
+        "name": "地址",
+        "description": "这家的接口地址，路径由驱动接在后面。认得出的供应商可以不写。"
+      },
+      "providers.<id>.keys": {
+        "name": "key",
+        "description": "写 { secret = \"名字\" }（用 miyu login 存）或 { env = \"环境变量\" }，一个会话钉在其中一个上。空的不带认证头。"
+      },
+      "providers.<id>.catalog": {
+        "name": "对应的供应商",
+        "description": "这家对应资料里的哪一家，例如只转 DeepSeek 的中转写 deepseek。"
+      },
+      "providers.<id>.models.<model>.window": {
+        "name": "上下文窗口",
+        "description": "这个模型的上下文窗口，单位 token。"
       }
     },
     "pages": {
       "general": "通用",
       "interface": "界面",
       "advanced": "高级",
-      "permissions": "权限"
+      "permissions": "权限",
+      "models": "模型"
     },
     "groups": {
       "display": "显示",
       "tui": "终端界面",
       "log": "运行日志",
-      "sessions": "会话"
+      "sessions": "会话",
+      "uses": "用途",
+      "providers": "供应商"
     }
   },
   "said": {
@@ -111,6 +143,17 @@
     "config/expected/table": "一张表",
     "config/sentence": "{text}。",
     "config/then": "{rest}{next}",
-    "config/stops": "。？！"
+    "config/stops": "。？！",
+    "config/applies/next_turn": "下一轮生效",
+    "config/expected/int": "{min} 到 {max} 之间的整数",
+    "config/expected/url": "http:// 或 https:// 开头的网址",
+    "config/expected/name": "小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符",
+    "config/expected/reference": "<供应商>/<模型> 或 @<池>",
+    "config/expected/list": "{item} 的列表",
+    "config/expected/id": "小写字母开头，只有小写字母、数字、-、_，最长 32 个字符",
+    "config/expected/model-name": "1 到 128 个字节，没有控制字符",
+    "config/bad-format": "{key} 要写 {expected}，写的是 {got}",
+    "config/out-of-range": "{key} 要在 {min} 到 {max} 之间，写的是 {got}",
+    "config/bad-segment": "{key} 里的 {name} 不能当名字：{expected}"
   }
 }

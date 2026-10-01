@@ -11,7 +11,7 @@ use clap::Args;
 use serde_json::{Value, json};
 use tokio::sync::mpsc;
 
-use miyu_ipc::{ConnectError, Connection, connect_or_start};
+use miyu_ipc::{Connection, connect_or_start};
 use miyu_store::env::Env;
 use miyu_store::human::Human;
 use miyu_store::root::DataRoot;
@@ -78,21 +78,9 @@ async fn run(args: Compact, start: impl FnOnce() -> Command) -> u8 {
     if let Err(error) = root.prepare() {
         return failed(&error.to_string());
     }
-    // 照 `miyu ask`：压缩要请求模型。没设 key 的，核心在跑的照样连（它可能有），没在跑的不拉起。
-    let key = std::env::var("DEEPSEEK_API_KEY").is_ok_and(|key| !key.trim().is_empty());
-    let connected = match key {
-        true => connect_or_start(&root, start)
-            .await
-            .map_err(|error| error.to_string()),
-        false => match miyu_ipc::connect(&root).await {
-            Ok(connected) => Ok(connected),
-            Err(ConnectError::NotRunning) => {
-                say(&mut io::stderr(), &language.no_model());
-                return exit::NO_MODEL;
-            }
-            Err(error) => Err(error.to_string()),
-        },
-    };
+    let connected = connect_or_start(&root, start)
+        .await
+        .map_err(|error| error.to_string());
     let (connection, token) = match connected {
         Ok(connected) => connected,
         Err(reason) => return failed(&reason),

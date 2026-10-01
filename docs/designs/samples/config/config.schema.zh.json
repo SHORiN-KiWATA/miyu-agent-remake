@@ -20,6 +20,16 @@
       },
       "type": "object"
     },
+    "models": {
+      "properties": {
+        "chat": {
+          "description": "新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。以后开的会话生效。",
+          "title": "主对话的模型",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "permission": {
       "properties": {
         "start_read_only": {
@@ -28,6 +38,84 @@
           "title": "新会话开局只读",
           "type": "boolean"
         }
+      },
+      "type": "object"
+    },
+    "providers": {
+      "additionalProperties": {
+        "properties": {
+          "base_url": {
+            "description": "这家的接口地址，路径由驱动接在后面。认得出的供应商可以不写。能写：http:// 或 https:// 开头的网址。只能写在系统配置或个人设置里。下一轮生效。",
+            "format": "uri",
+            "title": "地址",
+            "type": "string"
+          },
+          "catalog": {
+            "description": "这家对应资料里的哪一家，例如只转 DeepSeek 的中转写 deepseek。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。下一轮生效。",
+            "title": "对应的供应商",
+            "type": "string"
+          },
+          "driver": {
+            "description": "怎么和这家说话。认得出的供应商可以不写。能写：openai-chat、anthropic 或 openai-responses。只能写在系统配置或个人设置里。下一轮生效。",
+            "enum": [
+              "openai-chat",
+              "anthropic",
+              "openai-responses"
+            ],
+            "title": "驱动",
+            "type": "string"
+          },
+          "keys": {
+            "default": [],
+            "description": "写 { secret = \"名字\" }（用 miyu login 存）或 { env = \"环境变量\" }，一个会话钉在其中一个上。空的不带认证头。能写：{ secret = \"…\" } 或 { env = \"…\" } 的列表。只能写在系统配置或个人设置里。下一轮生效。",
+            "items": {
+              "oneOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "secret": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "secret"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "env": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "env"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "title": "key",
+            "type": "array"
+          },
+          "models": {
+            "additionalProperties": {
+              "properties": {
+                "window": {
+                  "description": "这个模型的上下文窗口，单位 token。能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。以后开的会话生效。",
+                  "maximum": 100000000,
+                  "minimum": 1,
+                  "title": "上下文窗口",
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
       },
       "type": "object"
     },

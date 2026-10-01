@@ -234,8 +234,8 @@ pub fn unset_in(text: &str, name: &str) -> Result<String, Blocked> {
 }
 
 /// 一层配置里引用的密钥、环境变量取不取得到（第九条第 5 条）：引用的密钥没设的报 `unknown_secret`，环境变量没设的报
-/// `env_not_set`，都是警告。只看这一层算数的、类型是密钥的项。`secret` 说一个名字的密钥设没设，`env` 说一个环境变量
-/// 核心起来时设没设。
+/// `env_not_set`，都是警告。只看这一层算数的、类型是密钥或者密钥的列表（施工 8-6）的项，列表里每一个各查各的。`secret`
+/// 说一个名字的密钥设没设，`env` 说一个环境变量核心起来时设没设。
 pub fn missing(
     items: &[Item],
     parsed: &Parsed,
@@ -244,18 +244,49 @@ pub fn missing(
     env: &dyn Fn(&str) -> bool,
 ) -> Vec<Problem> {
     let mut found = Vec::new();
-    for item in items {
-        let Some(entry) = parsed.entries.get(item.key).filter(|entry| entry.counts) else {
+    for (key, entry) in parsed.entries.iter().filter(|(_, entry)| entry.counts) {
+        if !items.iter().any(|item| item.key == entry.item) {
             continue;
-        };
-        let (code, name) = match &entry.value {
-            Value::Secret(Reference::Secret(name)) if !secret(name) => (Code::UnknownSecret, name),
-            Value::Secret(Reference::Env(name)) if !env(name) => (Code::EnvNotSet, name),
+        }
+        let references: Vec<&Reference> = match &entry.value {
+            Value::Secret(reference) => vec![reference],
+            Value::List(values) => values
+                .iter()
+                .filter_map(|value| match value {
+                    Value::Secret(reference) => Some(reference),
+                    _ => None,
+                })
+                .collect(),
             _ => continue,
         };
-        let mut problem = Problem::item(code, layer, item.key, entry.at, &entry.raw);
-        problem.name = Some(name.clone());
-        found.push(problem);
+        for reference in references {
+            let (code, name) = match reference {
+                Reference::Secret(name) if !secret(name) => (Code::UnknownSecret, name),
+                Reference::Env(name) if !env(name) => (Code::EnvNotSet, name),
+                _ => continue,
+            };
+            let mut problem = Problem::item(code, layer, key, entry.at, &entry.raw);
+            problem.name = Some(name.clone());
+            found.push(problem);
+        }
+    }
+    found
+}
+
+/// 一份最终值里引用了哪些密钥（`secret.list` 的 `used_by`，施工 8-6 起列表里的也算）：密钥的名字和引用它的真的键。
+pub fn used(values: &crate::Values) -> Vec<(String, String)> {
+    let mut found = Vec::new();
+    for key in values.keys() {
+        let references: Vec<&Value> = match values.get(key) {
+            Some(Value::List(values)) => values.iter().collect(),
+            Some(value) => vec![value],
+            None => continue,
+        };
+        for value in references {
+            if let Value::Secret(Reference::Secret(name)) = value {
+                found.push((name.clone(), key.to_string()));
+            }
+        }
     }
     found
 }

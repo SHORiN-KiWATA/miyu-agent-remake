@@ -7,10 +7,10 @@
 //! - `miyu login --list [--format text|json]`：哪几个设了、谁在用，不给看 key。
 //! - `miyu logout [名字]`：删掉一个；不写名字的在终端里从设过的里面选。
 //!
-//! 名字不合写法、不写名字又不在终端里：连核心以前就说，退出码 2。连核心照 `miyu config`（8-6 以前没设 `DEEPSEEK_API_KEY`、
-//! 核心又没在跑的不拉起，退出码 5）。要问人的经 [`Console`]：测试换成照剧本回的。
+//! 名字不合写法、不写名字又不在终端里：连核心以前就说，退出码 2。连核心照 `miyu config`（没在跑的拉起）。要问人的经
+//! [`Console`]：测试换成照剧本回的。
 //!
-//! 退出码：0 成了；1 核心拒绝了、没收到 key、没选、要删的没设过、连不上核心；2 参数不对；5 同上。
+//! 退出码：0 成了；1 核心拒绝了、没收到 key、没选、要删的没设过、连不上核心；2 参数不对。
 
 mod pick;
 
@@ -21,7 +21,7 @@ use clap::Args;
 use serde_json::{Value, json};
 
 use miyu_config::secret::valid_name;
-use miyu_ipc::{ConnectError, Connection, connect_or_start};
+use miyu_ipc::{Connection, connect_or_start};
 use miyu_store::env::Env;
 use miyu_store::root::DataRoot;
 
@@ -127,21 +127,9 @@ async fn run(command: KeyCommand, start: impl FnOnce() -> Command) -> u8 {
     if let Err(error) = root.prepare() {
         return failed(&error.to_string());
     }
-    // 照 `miyu config`：8-6 以前核心只在起来时读 key，没设 key、核心又没在跑的不拉起。
-    let key = std::env::var("DEEPSEEK_API_KEY").is_ok_and(|key| !key.trim().is_empty());
-    let connected = match key {
-        true => connect_or_start(&root, start)
-            .await
-            .map_err(|error| error.to_string()),
-        false => match miyu_ipc::connect(&root).await {
-            Ok(connected) => Ok(connected),
-            Err(ConnectError::NotRunning) => {
-                say(&mut io::stderr(), &language.no_model());
-                return exit::NO_MODEL;
-            }
-            Err(error) => Err(error.to_string()),
-        },
-    };
+    let connected = connect_or_start(&root, start)
+        .await
+        .map_err(|error| error.to_string());
     let (connection, token) = match connected {
         Ok(connected) => connected,
         Err(reason) => return failed(&reason),

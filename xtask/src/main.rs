@@ -1,4 +1,4 @@
-//! 门禁程序。`cargo xtask check` 依次跑格式、clippy、文档、三道门禁、许可证和测试，最后打一张结果表。
+//! 门禁程序，和开发用的几样小工具（`cargo xtask dev-home`：造一个带配置的数据根，施工 8-6）。`cargo xtask check` 依次跑格式、clippy、文档、三道门禁、许可证和测试，最后打一张结果表。
 //!
 //! 三道门禁都照图纸查：`docs/designs/01-架构.md` 第九节「代码的分层」。「文档」那一项还查登记簿：
 //! 给模型看的字和 `docs/designs/26-提示词.md` 第十节一一对上（施工 3-5 再补）；「给模型看的字」那一页和资源、登记簿
@@ -6,6 +6,7 @@
 //! 「许可证」一项查发布的四个平台上用得到的第三方依赖，许可证都能和 GPL-3.0-or-later 合在一起发（施工 4-12）。
 //! 里面的 cargo 一个接一个跑，不并行。
 
+mod dev_home;
 mod drawing;
 mod files;
 mod layers;
@@ -25,6 +26,7 @@ use layers::Package;
 fn main() -> ExitCode {
     match std::env::args().nth(1).as_deref() {
         Some("check") => check(),
+        Some("dev-home") => dev_home::run(std::env::args().nth(2).as_deref()),
         Some("prompts") => match prompts::write(&root()) {
             Ok(()) => {
                 println!("写好了 {}", prompts::PATH);
@@ -36,7 +38,9 @@ fn main() -> ExitCode {
             }
         },
         _ => {
-            eprintln!("用法：cargo xtask check | cargo xtask prompts");
+            eprintln!(
+                "用法：cargo xtask check | cargo xtask prompts | cargo xtask dev-home <目录>"
+            );
             ExitCode::from(2)
         }
     }

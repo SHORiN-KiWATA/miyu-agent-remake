@@ -52,7 +52,6 @@ impl Home {
             .env("MIYU_HOME", self.root.path())
             .env("MIYU_RESOURCES", resources())
             .env_remove("XDG_RUNTIME_DIR")
-            .env_remove("DEEPSEEK_API_KEY")
             .env_remove("MIYU_LOG");
         command
     }
@@ -77,6 +76,29 @@ impl Home {
             }
         })
         .await;
+    }
+}
+
+impl Home {
+    /// 停掉头拉起的核心（施工 8-6 起没有 key 也拉起；它空闲十分钟才走）：照运行日志「起来了」那一行的进程号结束它，等它走。
+    pub async fn kill_core(&self) {
+        let log = self.core_log();
+        let pid = log
+            .rsplit("pid=")
+            .next()
+            .filter(|_| log.contains("pid="))
+            .and_then(|rest| rest.split(|c: char| !c.is_ascii_digit()).next())
+            .expect("运行日志里有进程号")
+            .to_string();
+        #[cfg(unix)]
+        let killed = Command::new("kill").arg(&pid).status();
+        #[cfg(windows)]
+        let killed = Command::new("taskkill").args(["/PID", &pid, "/F"]).status();
+        assert!(
+            killed.is_ok_and(|status| status.success()),
+            "结束得了 {pid}"
+        );
+        self.until_stopped().await;
     }
 }
 
@@ -137,4 +159,33 @@ fn stamp() -> u128 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |since| since.as_nanos())
+}
+
+/// 在 `dir` 里跑一个会拉起核心的头（施工 8-6 起没有 key 也拉起）：标准输出、标准错误接到这个数据根旁边的文件里，标准输入照 `input`
+/// 写完关上。不用管道：Windows 上拉起的核心继承了管道的句柄，等管道关上就要等核心退出（十分钟）。
+pub fn run_starting(dir: &Path, mut command: Command, input: &str) -> std::process::Output {
+    use std::io::Write;
+    use std::process::Stdio;
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let n = NEXT.fetch_add(1, Ordering::Relaxed);
+    let (out, err) = (
+        dir.join(format!("out-{n}.txt")),
+        dir.join(format!("err-{n}.txt")),
+    );
+    let mut child = command
+        .stdin(Stdio::piped())
+        .stdout(std::fs::File::create(&out).expect("建得了"))
+        .stderr(std::fs::File::create(&err).expect("建得了"))
+        .spawn()
+        .expect("跑得起来");
+    let mut stdin = child.stdin.take().expect("有标准输入");
+    // 不读标准输入就退出的，写不进去也不要紧。
+    let _written = stdin.write_all(input.as_bytes());
+    drop(stdin);
+    let status = child.wait().expect("等得到");
+    std::process::Output {
+        status,
+        stdout: std::fs::read(&out).expect("读得到"),
+        stderr: std::fs::read(&err).expect("读得到"),
+    }
 }

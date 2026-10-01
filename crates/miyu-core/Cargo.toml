@@ -1,6 +1,6 @@
 [package]
 name = "miyu-core"
-description = "核心进程：由头拉起，建骨架、装运行日志、从环境变量拿模型、在套接字上等连接，空闲够久了自己退出（施工 3-9 上）"
+description = "核心进程：由头拉起，建骨架、装运行日志、读配置和供应商的档案、在套接字上等连接，空闲够久了自己退出（施工 3-9 上）"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -22,6 +22,7 @@ miyu-kernel = { path = "../miyu-kernel" }
 miyu-config = { path = "../miyu-config" }
 # 运行日志：state/logs/core.log（施工 3-7 上）。
 miyu-log = { path = "../miyu-log" }
+miyu-models = { path = "../miyu-models" }
 # 请求模型的端口（施工 3-7）。
 miyu-session = { path = "../miyu-session" }
 # 起来时找沙盒的助手、探一次（施工 5-1）。
@@ -37,10 +38,13 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 # 核心的运行时：接连接、会话、请求都在上面；空闲的钟；停的信号。
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
+# 读供应商的档案（资源目录的 TOML，施工 8-6），和读配置用的是同一个。
+toml_edit = { version = "0.25", default-features = false, features = ["parse"] }
 # 运行日志的门面（施工 3-7 上）。
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 
 [dev-dependencies]
+miyu-drivers = { path = "../miyu-drivers", features = ["testkit"] }
 # 测试里请求模型照剧本回。
 miyu-session = { path = "../miyu-session", features = ["testkit"] }
 # 测试里的假工具：把假的后台命令交给任务表（施工 7-3）。

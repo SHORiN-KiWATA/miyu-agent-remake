@@ -19,7 +19,7 @@
 | `crates/miyu-session/src/backlog.rs` | 订阅时要补发的那一截：补到哪一条、在阻塞线程里读出来（施工 3-8 六补） |
 | `crates/miyu-session/src/config.rs` | 会话从哪取配置（`ConfigSource`、`Configs`、`fixed`），回合开始时冻结的一份（`TurnConfig`）；造会话、载入时先取一份（施工 8-4） |
 | `crates/miyu-session/src/port.rs` | 请求模型的端口：`Models`、`ModelPort`、`Reports`（辅助请求的回报另走一路，`Reports::aside`，施工 3-8 四补；五补起回顾、起标题共用，`purpose()` 交回用途）、`Cancel` |
-| `crates/miyu-session/src/http.rs` | 端口的真实现：经驱动和 HTTP 执行器请求 |
+| `crates/miyu-session/src/route.rs`、`route/send.rs` | 端口的真实现：每个会话的路由，照配置挑供应商、钉 key，经驱动和 HTTP 执行器请求（施工 8-6 取代 `http.rs`） |
 | `crates/miyu-session/src/clock.rs` | 会话的时钟、新的会话编号 |
 | `crates/miyu-session/src/store.rs` | 写盘的端口：平时是会话日志，每落一批顺手更新会话列表的索引（`Indexed`，施工 3-8 七补），测试里换成写不进去的；也从这里读回日志（施工 6-9） |
 | `crates/miyu-session/src/kinds.rs`、`lines.rs` | 运行日志里的输入、动作种类名，和几种写法 |
@@ -43,9 +43,9 @@
 | `Handle` | 一个会话的收件箱，可以复制，几个头一起拿着 |
 | `Pushed`、`Subscription`、`Ended`、`Stopped` | 推送、订阅、订阅断了、会话停了 |
 | `Backlog` | 订阅时要补发的那一截（施工 3-8 六补）：`upto()` 补到哪一条，`read()` 在阻塞线程里读出来（第 6 条） |
-| `Models`、`ForSession`、`ModelPort`、`Reports`、`Cancel` | 请求模型的端口 |
+| `Models`、`ForSession`、`ModelPort`、`Reports`、`Cancel` | 请求模型的端口。`ForSession` 带会话编号、造会话或载入时取的那一份配置（施工 8-6）、驱动的占位、属主的 blob；`ModelPort::model()` 交回的是一份（路由的会变，施工 8-6） |
 | `SessionPort`、`Child`、`Lineage`、`Pending` | 造子会话、给别的会话发命令的端口（施工 7-5）：会话表实现，造会话、载入时交进来。`create(子会话)`、`command(会话, 编号, 谁, 命令)`，`open(会话)` 叫起一个会话：没在跑的照会话表的规矩载入（施工 7-6） |
-| `HttpModels`、`IDLE` | 端口的真实现；空闲超时 180 秒 |
+| `Routes`、`IDLE` | 端口的真实现：每个会话的路由，照配置挑供应商、钉 key（施工 8-6，第 8 条）；空闲超时 180 秒 |
 | `Jobs` | 执行器的任务表，核心里一张：`Jobs::new()`，`running()` 有没有在跑的后台命令（结束了、记录还没落盘的也算，施工 7-3） |
 | `Unreadable` | 头读不了这个任务的输出：`Unknown` 没有这个任务，`Agent` 是子代理（施工 7-4 补） |
 
@@ -206,17 +206,18 @@
 6. 重试是内核定的：能再来的错，内核推一条等着重试的状态提示、交出「到点叫醒」（`kernel/session.md`）。actor 照状态提示记一行 `retrying`：`seen`、第几次 `attempt`、最多几次 `limit`、等多久 `wait_ms`、分类 `class`；出错的原话不写，里面可能回显请求里的字。到点送回「到点了」，内核再交一次「请求模型」。
 7. **辅助请求**（`Aside { purpose, upto, request }`：回顾，施工 3-8 四补，`kernel/session.md`「回顾」；起标题，施工 3-8 五补，「起标题」）：交给同一个端口，名字是用途和它照到的那一条。回报另走一路（`Reports::aside`，送回的是 `AsideSent`、`AsideDelta`、`AsideEnded`，带着用途），和主请求的 `seen` 撞了也分得开：回合进行中的主请求多半就照到那一条。一种用途一次只有一个，它的叫停那一头 actor 拿着不用（内核不叫停辅助请求），actor 退出时放下，请求跟着停。记的几行和主请求的一样，前面带用途：交给端口之前 `recap request`、`title request`（`seen` 是照到的那一条、端点、模型，没有 `changed`：它不和主请求比），说完了 `recap ended`、`recap failed`、`title ended`、`title failed`，格和第 3 条一样。起标题两次都没起成就不再试，第二行 `title failed` 就是那一行。
 
-**8. 经驱动和 HTTP 请求**（`HttpModels`）
+**8. 经路由请求**（`Routes`，`route.rs`、`route/send.rs`，施工 8-6 取代了照环境变量接一个端点的 `HttpModels`，`models.md`「怎么走」第一条、第四条）
 
-1. 一个核心一份：HTTP 客户端（连接跨请求复用）、端点的编号、地址、key 和另配的头、各家供应商不一样的几处、这一次调用要定的（模型名、输出的上限、模型能收哪些输入）、空闲超时。给每个会话造一个端口，驱动的占位用这个会话快照里的。
-2. 一次请求派一个任务，带着会话的 span：HTTP 的几行写在会话编号后面（`log.md`）。
-3. 任务里：
+1. 一个核心一份：HTTP 客户端（连接跨请求复用）、供应商的档案、模型资料、空闲超时（`core.md`「模型」）。给每个会话造一个路由，驱动的占位用这个会话快照里的。
+2. 造路由时（造会话、载入）照那一刻的配置记下这个会话用的引用 `models.chat`，照它定限额：窗口（手写的压过模型资料）、最大输出、一张图怎么算（照档案）。解析不出的限额都没有，`request` 那一行写 `endpoint=none model=none`。限额会变随 8-10。
+3. 每一次请求照这一轮冻结的配置（`TurnConfig`，`config.md` 第八条第 3 条）重新解析：钉着的引用解析得出就用它；解析不出的（没配、那一家没了、用不了）退回这一轮的 `models.chat`，退得回去的以后就钉在它上面（只在内存里）；都不行的当场报说完了，分类 `no_model`，原话照 `models.md`「出错」，没发出去，不报发出去了，记一行 `WARN no model why=…`。`request` 那一行写这个会话上一次解析出来的那一个。
+4. key：这一家写了几个，照会话编号钉一个（`miyu_models::keys`：会话编号的 SHA-256 前 8 个字节、大端、对个数取余），取不到值的照写的先后取下一个；一个都取不到也是 `no_model`（`provider "<编号>" has no usable key`）。没写 key 的不带认证头。key 照这一轮的配置取（`{ secret }` 密钥文件、`{ env }` 核心的环境），只在内存里。出错换 key、换端点随 8-9。
+5. 一次请求派一个任务，带着会话的 span：HTTP 的几行写在会话编号后面（`log.md`）。任务里：
    1. 照驱动列的清单，在阻塞线程里从属主的 blob 取编码要的图片、文件。取不出来的（没有、坏了、读不了）不放进去。
-   2. 编码（`drivers/openai-chat.md`）。缺了哪一个 blob：直接报说完了，分类 `other`，原话是 `编码要用的 blob <哈希> 取不出来`。没发出去，不报发出去了；重试也没用。
-   3. 经 HTTP 执行器发出去、流式读回来（`http.md`）：发出去了，报发出去了；每一段增量，报增量。
+   2. 编码（`drivers/openai-chat.md`，开关照档案）。缺了哪一个 blob：直接报说完了，分类 `other`，原话是 `编码要用的 blob <哈希> 取不出来`。没发出去，不报发出去了；重试也没用。
+   3. 经 HTTP 执行器发出去、流式读回来，认证头照驱动（`http.md`）：发出去了，报发出去了（这一家的编号、模型名）；每一段增量，报增量。
    4. 说完、出错：报说完了，带用量，出错的分类和原话，供应商说的要等多久。
    5. 被叫停：什么都不再报。
-4. 核心起来时没有 key 的，用的是另一个端口：每次都当场报认证失败（`core.md`）。
 
 **9. 停下**
 
@@ -244,6 +245,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | INFO | `created` | `persona`、`venue`、`tools`（几件） | 造好会话，起 actor 之前 |
 | INFO | `loaded` | `events`（几条） | 载入，起 actor 之前 |
 | INFO | `request` | `seen`、`endpoint`、`model`、`changed`（变了的才有） | 第 7 条 |
+| WARN | `no model` | `why`：`no_model` 的原话 | 路由挑不出端点，当场说完（第 8 条第 3 条，施工 8-6） |
 | INFO | `failed` | `seen`、`took_ms`、`class` | 请求出错收场 |
 | INFO | `ended` | `seen`、`took_ms`、`in`、`hit`、`write`、`out` | 请求说完 |
 | INFO | `cancelled` | `seen`、`took_ms` | 不要这次请求了 |
@@ -330,7 +332,8 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | `crates/miyu-session/tests/backlog.rs`（施工 3-8 六补） | 补发：补到订阅那一刻落了盘的最后一条，订阅以后、读之前又落了盘的不读进来，从订阅推过来、从下一条起；`after` 是 0、中间、最后一条、比最后一条大的，补的是序号大于它的 |
 | `crates/miyu-session/tests/watched.rs`（施工 7-9） | 有没有头看着：一次性会话有头订阅着，后台命令结束叫醒她；走了一个头还有一个照样叫醒；订阅都放下了只记下；造会话以后没人订阅过的当没人看着，后来有头订阅也不因为以前的开轮 |
 | `crates/miyu-session/src/clock/tests.rs` | 时钟不往回走、1970 年以前当 0、出了范围停在最后一刻；会话编号是那一刻的 UUIDv7；同一毫秒里连造一千个照先后 |
-| `crates/miyu-session/tests/http.rs` | 经假服务器回复；限速照服务器说的等；打断断开连接；缺 blob 出错、不发；回复断了接着说；卡住的回复照空闲超时；图片照字节发出去 |
+| `crates/miyu-session/tests/http.rs` | 经路由请求假服务器回复（施工 8-6 起配置指到它）；限速照服务器说的等；打断断开连接；缺 blob 出错、不发；回复断了接着说（开关照档案）；卡住的回复照空闲超时；图片照字节发出去 |
+| `crates/miyu-session/tests/route.rs`（施工 8-6） | key 照会话编号挑、重启（停了再载入、换一个路由）还是它；钉着的取不到照写的先后取下一个；没配 `models.chat`、key 一个都取不到、供应商没有、推不出驱动和地址的当场 `no_model`、不发；没写 key 的不带认证头；开着的会话钉着造它时的模型，`models.chat` 改了只影响新会话；钉着的那一家没了，退回这一轮的 `models.chat`、以后钉在它上面；造的时候没配的，配好以后下一轮用上；窗口照配置 |
 | `crates/miyu-session/tests/log.rs` | 会话造、请求、出错、重试、收场、停下、载入、没人拿着、端口 panic 的几行；手动压缩的 `compacted` 写 `trigger=manual`（施工 6-8）；撤销以后 `changed=message:0:user`；`DEBUG` 的输入和动作、增量在 `TRACE`；没有对话的字 |
 | `crates/miyu-session/tests/recap_log.rs`（施工 3-8 四补） | 回顾的请求记 `recap request`、`recap ended`、`recap failed`，`seen` 是照到的那一条，格和主请求的一样；没有对话的字 |
 | `crates/miyu-session/tests/title_log.rs`（施工 3-8 五补） | 起标题的请求记 `title request`、`title ended`、`title failed`，`seen` 是照到的那一条；两次都没起成，第三轮不再试；没有对话的字 |
@@ -343,6 +346,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 - `07-存储.md` 第四节：先落盘后推送（S4）、写不进去就停下；第七节：会话按需载入。
 - `04-核心协议.md` 第六节第 2 条（先见结果，后见回应）、第七节（慢了掉队、resync）。
 - `05-内核接口.md` 第七节：驱动的规格、HTTP 执行器、编码要的 blob 取不出来。
+- `models.md`「怎么走」第一条（供应商）、第四条（挑端点，8-6 那一半）。
 - `03-事件模型.md` 第二节：会话编号是 UUIDv7、时刻的写法；第五节：瞬时事件不落盘。
 - `28-运行日志.md` 第二节、第三节：会话的那几行、`request` 的 `changed`。
 

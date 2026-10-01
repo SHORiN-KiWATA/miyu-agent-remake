@@ -274,6 +274,23 @@ impl Config {
         )
     }
 
+    /// 照引用取一个密钥（施工 8-6，路由取 key）：`{ secret }` 照手里的密钥文件，`{ env }` 照核心的环境。没设的、设成空的、
+    /// 有控制字符、太长的是空的。
+    pub fn secret(
+        &self,
+        reference: &miyu_config::secret::Reference,
+    ) -> Option<miyu_config::secret::Secret> {
+        match reference {
+            miyu_config::secret::Reference::Secret(name) => {
+                self.secrets.stored.entries.get(name).cloned()
+            }
+            miyu_config::secret::Reference::Env(name) => self
+                .environment
+                .get(name)
+                .and_then(|value| miyu_config::secret::Secret::new(&value).ok()),
+        }
+    }
+
     /// 带上目录 `dir`（头报的写法，`~` 照家目录换）的项目配置合出来的最终值；项目配置没有、没信任的，和
     /// [`Config::resolved`] 一样。交回找到的项目配置。
     pub(crate) fn with_project(&self, dir: &str) -> (Resolved, Option<Project>) {

@@ -1,7 +1,7 @@
 //! 真核心带着配置起来（施工 8-2，`docs/blueprint/config.md`「守着它的」）：`log.level` 照系统配置换、运行日志记从哪来、
 //! 有问题的文件记一条；`miyu config get`、`explain` 印出的来源对，`check`、`path` 照样子印，握手以后照 `ui.language`
-//! 说话；`miyu ask` 起头说配置有错、项目配置没信任（施工 8-3）；帮助页跟着界面语言；参数不对退出码 2；没有 key、核心也没在跑
-//! 的不拉起。改、信任（施工 8-3）：`set`、`unset`、`trust` 经真核心写进文件，`edit` 不在终端里、`set --project` 连核心以前就拦下。
+//! 说话；`miyu ask` 起头说配置有错、项目配置没信任（施工 8-3）；帮助页跟着界面语言；参数不对退出码 2；核心没在跑
+//! 的拉起来（施工 8-6）。改、信任（施工 8-3）：`set`、`unset`、`trust` 经真核心写进文件，`edit` 不在终端里、`set --project` 连核心以前就拦下。
 
 mod support;
 
@@ -29,7 +29,6 @@ fn miyu(root: &Path, cwd: &Path, lang: &str, args: &[&str]) -> Output {
         .env("LANG", lang)
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")
-        .env_remove("DEEPSEEK_API_KEY")
         .env_remove("XDG_RUNTIME_DIR")
         .env_remove("NO_COLOR")
         .output()
@@ -438,18 +437,25 @@ async fn set_unset_and_trust_go_through_a_real_core() {
     drop(held);
 }
 
-#[test]
-fn without_a_key_or_a_running_core_nothing_is_started() {
+/// 核心没在跑的拉起来（施工 8-6：key 来自配置，一律拉起；原来没设 `DEEPSEEK_API_KEY` 的退出码 5）。
+#[tokio::test]
+async fn without_a_running_core_one_is_started() {
     let home = Home::new();
-    let output = miyu(
-        home.root.path(),
-        &std::env::temp_dir(),
-        "zh_CN.UTF-8",
-        &["config", "get"],
-    );
-    assert_eq!(output.status.code(), Some(5), "{output:?}");
-    assert_eq!(
-        stderr(&output),
-        "没有可用的模型：设环境变量 DEEPSEEK_API_KEY\n"
-    );
+    let mut command = Command::new(support::MIYU);
+    command
+        .args(["config", "get", "ui.language"])
+        .current_dir(std::env::temp_dir())
+        .env("MIYU_HOME", home.root.path())
+        .env("MIYU_RESOURCES", support::resources())
+        .env("LANG", "zh_CN.UTF-8")
+        .env_remove("LC_ALL")
+        .env_remove("LC_MESSAGES")
+        .env_remove("XDG_RUNTIME_DIR");
+    let dir = home.dir.clone();
+    let output = tokio::task::spawn_blocking(move || support::run_starting(&dir, command, ""))
+        .await
+        .expect("没 panic");
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_eq!(stdout(&output), "auto\n");
+    home.kill_core().await;
 }

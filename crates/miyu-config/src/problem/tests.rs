@@ -19,7 +19,7 @@ fn items() -> Vec<Item> {
         )),
         Item {
             kind: Kind::Bool,
-            default: Value::Bool(false),
+            default: Some(Value::Bool(false)),
             layers: &[Layer::System, Layer::Personal, Layer::Project],
             tighten: Some(Tighten::TrueOnly),
             ..item("permission.start_read_only", &[], "")

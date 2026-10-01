@@ -101,17 +101,15 @@ async fn an_unknown_session_is_refused_in_the_heads_language() {
 
 #[tokio::test]
 async fn without_a_model_it_is_exit_code_5() {
-    let home = Home::new(
-        miyu_core::models::from_env(
-            &miyu_core::models::ModelEnv::default(),
-            &miyu_core::models::ModelTable::default(),
-        )
-        .expect("造得出"),
-    );
+    // 核心照出厂的档案造路由，配置里什么都没写：每次请求都是 `no_model`（施工 8-6）。
+    let home = Home::new(miyu_core::models::routes(&support::resources()).expect("造得出"));
     let Asked { code, out, err, .. } = home.ask(&plan("在吗")).await;
     assert_eq!(code, 5, "{err}");
     assert_eq!(out, "");
-    assert_eq!(err, "没有可用的模型：设环境变量 DEEPSEEK_API_KEY\n");
+    assert_eq!(
+        err,
+        "没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。\n"
+    );
 }
 
 #[tokio::test]

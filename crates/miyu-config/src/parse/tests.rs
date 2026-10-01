@@ -16,7 +16,7 @@ fn items() -> Vec<Item> {
         system_only(item("log.level", &["info", "debug"], "info")),
         Item {
             kind: Kind::Bool,
-            default: Value::Bool(false),
+            default: Some(Value::Bool(false)),
             layers: &[Layer::System, Layer::Personal, Layer::Project],
             tighten: Some(Tighten::TrueOnly),
             ..item("permission.start_read_only", &[], "")
@@ -66,6 +66,7 @@ fn good_entries_remember_their_line() {
     assert_eq!(
         parsed.entries.get("ui.language"),
         Some(&Entry {
+            item: "ui.language",
             value: text("zh"),
             line: 4,
             at: at(4, 12),
@@ -273,10 +274,10 @@ fn columns_count_characters_not_bytes() {
             .map(|p| (p.key.as_deref(), p.at))
             .collect::<Vec<_>>(),
         [
-            (Some("ui.界"), Some(at(1, 8))),
+            (Some(r#"ui."界""#), Some(at(1, 8))),
             (Some("ui.x"), Some(at(1, 17)))
         ],
-        "中文算一列"
+        "中文算一列；键照 TOML 的写法记，裸着写不了的一段带引号（施工 8-6）"
     );
 }
 

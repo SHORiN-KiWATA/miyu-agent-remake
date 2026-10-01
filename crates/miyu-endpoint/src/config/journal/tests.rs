@@ -57,7 +57,7 @@ fn a_config_change_is_written_like_the_sample() {
         file: "home/admin/settings.toml",
         via: "set",
         changes: vec![KeyChange {
-            key: "ui.language",
+            key: "ui.language".to_string(),
             old: Some(serde_json::json!("en")),
             new: Some(serde_json::json!("zh")),
         }],
@@ -104,12 +104,12 @@ fn a_trust_answer_is_written_like_the_sample() {
 #[test]
 fn what_was_not_there_before_or_after_is_left_out() {
     let added = KeyChange {
-        key: "ui.language",
+        key: "ui.language".to_string(),
         old: None,
         new: Some(serde_json::json!("zh")),
     };
     let removed = KeyChange {
-        key: "ui.language",
+        key: "ui.language".to_string(),
         old: Some(serde_json::json!("zh")),
         new: None,
     };
@@ -132,7 +132,7 @@ fn a_hand_edit_is_written_by_the_kernel_without_a_cause() {
         file: "system/config.toml",
         via: "file",
         changes: vec![KeyChange {
-            key: "log.level",
+            key: "log.level".to_string(),
             old: None,
             new: Some(serde_json::json!("debug")),
         }],

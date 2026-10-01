@@ -38,7 +38,7 @@ pub(super) fn confine(spec: &Spec) -> Result<(), String> {
         AccessFs::ReadDir | AccessFs::Execute,
     )?;
     for path in plan(&spec.hidden)? {
-        created = add(created, &path, AccessFs::from_read(LATEST))?;
+        created = add_readable(created, &path)?;
     }
     let null = PathBuf::from("/dev/null");
     for path in spec.write.iter().chain([&null]) {
@@ -68,6 +68,27 @@ fn ruleset() -> Result<RulesetCreated, String> {
         .and_then(Ruleset::create)
         .map_err(unavailable)?
         .no_new_privs(true))
+}
+
+/// 给 `path` 加一条放行读的规则；和 [`add`] 一样，只多一样：打开了却查不了它是什么的（断开的 FUSE 挂载，例如
+/// 守护进程没了的 `~/.gvfs`，`fstat` 报「Transport endpoint is not connected」）跳过。它本来就读不了，跳过等于
+/// 在沙盒里也读不了，不放宽什么；不跳过的话，[`plan`] 一级级列到它，整个沙盒就起不来、什么命令都跑不了（施工
+/// 5-4 补，2026-10-01 项目主人的机器上撞见）。写的规则不这样：写要放行的路径坏了，照旧报错。
+fn add_readable(created: RulesetCreated, path: &Path) -> Result<RulesetCreated, String> {
+    match PathFd::new(path) {
+        Ok(fd) if !describable(&fd) => Ok(created),
+        _ => add(created, path, AccessFs::from_read(LATEST)),
+    }
+}
+
+/// 打开了的路径查得了是什么（文件还是目录）：库加规则时要用 `fstat` 查它，查不了的整个规则集都加不上。
+fn describable(fd: &PathFd) -> bool {
+    use std::os::fd::AsFd;
+    fd.as_fd()
+        .try_clone_to_owned()
+        .map(std::fs::File::from)
+        .and_then(|file| file.metadata())
+        .is_ok()
 }
 
 /// 给 `path` 加一条放行 `access` 的规则。不在的跳过；是文件的，只放行对文件有意义的那几样（库照最宽松的兼容级别

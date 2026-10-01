@@ -189,7 +189,12 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     })
     .await?;
     let kept = blobs.clone();
-    let model = models.port(ForSession { texts, blobs });
+    let model = models.port(ForSession {
+        id: id.clone(),
+        config: Arc::clone(config.current()),
+        texts,
+        blobs,
+    });
     let mut clock = Clock::default();
     let upstream = Upstream::of(
         sessions.as_ref(),
@@ -382,7 +387,12 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         })
     });
     let kept = blobs.clone();
-    let model = models.port(ForSession { texts, blobs });
+    let model = models.port(ForSession {
+        id: id.clone(),
+        config: Arc::clone(config.current()),
+        texts,
+        blobs,
+    });
     // 系统时间比日志里最后一条还早（往回拨过），照最后一条的：时刻不往回走。
     let mut clock = events
         .last()

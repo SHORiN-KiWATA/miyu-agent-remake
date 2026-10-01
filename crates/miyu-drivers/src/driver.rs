@@ -1,7 +1,7 @@
 //! 驱动的接口（`docs/designs/05-内核接口.md` 第七节「驱动的规格」）：执行器照着它调，不用知道是
 //! 哪一家。编码、解码、分类都是纯函数；真正发请求的是执行器。
 //!
-//! 规格里的 `models`（模型资料）、`cache`（缓存类型）到配置和模型资料的那几步再加；`transport`
+//! 认证头（[`Driver::auth`]）随施工 8-6；规格里的 `models`（模型资料）、`cache`（缓存类型）到模型资料的那几步再加；`transport`
 //! 现在只有 HTTP，发到哪条路径跟着编码结果走（[`Encoded::path`]，施工 3-5 再补）。
 
 use std::collections::BTreeSet;
@@ -40,6 +40,10 @@ pub trait Driver: Send + Sync {
 
     /// 出错分类。
     fn classify(&self, failure: &Failure<'_>) -> Classified;
+
+    /// 带 key `key` 的请求要带的认证头，照先后（`models.md`「驱动要守的约定」第 2 条，施工 8-6）：HTTP 执行器照它写，
+    /// 不自己写 `Bearer`。没有 key 的请求（本机的服务）不问它，什么都不带。
+    fn auth(&self, key: &str) -> Vec<(String, String)>;
 }
 
 /// 一次响应的解码器。读流跨过好几次等待，所以能跨线程。
@@ -95,6 +99,11 @@ impl Driver for OpenAiChat {
 
     fn classify(&self, failure: &Failure<'_>) -> Classified {
         classify::classify(failure)
+    }
+
+    /// `Authorization: Bearer <key>`。
+    fn auth(&self, key: &str) -> Vec<(String, String)> {
+        vec![("Authorization".to_string(), format!("Bearer {key}"))]
     }
 }
 

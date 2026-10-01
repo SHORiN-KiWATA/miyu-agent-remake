@@ -1,0 +1,11 @@
+# 认得出的供应商的档案（docs/blueprint/models.md「在哪」，施工 8-6）：配置里写了这一家（或者 catalog 指着它），没写的
+# 驱动、地址、开关照这里推。只给实测过的开（05-内核接口.md 第七节）。
+
+# DeepSeek 官方：每条 assistant 都带 reasoning_content，没有就发空串；接着写用 prefix: true，发到 /beta/chat/completions
+# （2026-09-27 实测）。收图（2026-08-21 起，只收 user 消息里的），一张图照官方计算器的算法算。
+[providers.deepseek]
+driver = "openai-chat"
+base_url = "https://api.deepseek.com"
+inputs = ["text", "image"]
+image_tokens = "deepseek"
+compat = { reasoning = { replay = "reasoning_content", always = true }, continuation = { field = "prefix", path = "/beta/chat/completions" } }

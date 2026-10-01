@@ -24,8 +24,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use miyu_config::secret::{self, Reference, Secret};
-use miyu_config::{Kind, Value as ConfigValue};
+use miyu_config::secret::{self, Secret};
 use miyu_kernel::id::CommandId;
 use miyu_kernel::origin::{By, Person};
 use miyu_store::config_file::{self, WriteError};
@@ -186,25 +185,20 @@ fn change(
 /// `secret.list`：名字、设没设、谁在用，照名字排。
 pub(crate) fn list(core: &Core) -> Value {
     let config = core.config();
-    let mut listed: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    let mut listed: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for name in config.secrets.stored.entries.keys() {
-        listed.entry(name).or_default();
+        listed.entry(name.clone()).or_default();
     }
-    let values = config.resolved();
-    for item in config
-        .items()
-        .iter()
-        .filter(|item| item.kind == Kind::Secret)
-    {
-        if let Some((ConfigValue::Secret(Reference::Secret(name)), _)) = values.get(item.key) {
-            listed.entry(name).or_default().push(item.key);
-        }
+    // 引用了它的真的键：密钥的列表（供应商的几个 key，施工 8-6）里的也算。
+    for (name, key) in miyu_config::secret::used(&config.resolved().values()) {
+        listed.entry(name).or_default().push(key);
     }
     let secrets: Vec<Value> = listed
         .into_iter()
         .map(|(name, mut used_by)| {
             used_by.sort_unstable();
-            json!({"name": name, "set": config.secrets.has(name), "used_by": used_by})
+            used_by.dedup();
+            json!({"name": name, "set": config.secrets.has(&name), "used_by": used_by})
         })
         .collect();
     json!({ "secrets": secrets })

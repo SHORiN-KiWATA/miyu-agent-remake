@@ -33,6 +33,7 @@
 | `encode(请求, Call, blob)` | 编码，交回 `Encoded` |
 | `decoder()` | 一次响应一个解码器 `Decode`：`feed(字节) -> 增量`、`done()`、`finished()`（`finish_reason` 到了没有，施工 4-9 再补三下）、`finish() -> Ending` |
 | `classify(Failure)` | 出错分类，交回 `Classified` |
+| `auth(key)` | 带 key 的请求要带的认证头（施工 8-6，`models.md`「驱动要守的约定」第 2 条）：`Authorization: Bearer <key>`。HTTP 执行器照它写，不自己写；没有 key 的请求不问它 |
 
 `OpenAiChat::new(Compat, DriverTexts)`：开关和占位造的时候交进来，会话里不变。
 
@@ -42,9 +43,9 @@
 
 **说完了** `Ending`：`deltas`（流完了才冲刷出来的那一条解出的增量；正常说完的，再加上收块的 `End`）、`usage`（用量，没报的没有）、`error`（出错的分类和原话，正常说完的没有）、`retry_after_ms`（流里报的错，供应商说要等多久；施工 4-9 再补三下）。
 
-**开关** `Compat`，跟着供应商定：
+**开关** `Compat`，跟着供应商定：来自供应商的档案（`resources/models/profiles.toml` 的 `compat`，施工 8-6，`models.md`「怎么走」第一条第 3 条），档案没有的用默认。`Continuation::Prefix` 的 `path` 是字（档案里写的），`Compat` 不再是 `Copy`。DeepSeek 那一套以前写在代码里（`Compat::deepseek()`），8-6 挪进档案；代码里那一份只在 `testkit` 开关打开时编进去，给请求形状探针和别的测试用，核心的测试守着它和档案一样。
 
-| 格 | 取值 | 默认 | DeepSeek（`Compat::deepseek()`） |
+| 格 | 取值 | 默认 | DeepSeek（档案的 `[providers.deepseek]`） |
 |---|---|---|---|
 | `output_limit` | `MaxTokens` 写 `max_tokens`；`MaxCompletionTokens` 写 `max_completion_tokens` | `MaxTokens` | 同默认 |
 | `reasoning` | `Drop` 不回传；`Replay { field, always }`：`field` 是 `ReasoningContent`（`reasoning_content`）或 `Reasoning`（`reasoning`），`always` 是没有思考时也写空串 | `Drop` | `Replay { ReasoningContent, always: true }` |
@@ -189,7 +190,7 @@
 
 ### 现在接的是哪一家
 
-核心起来时照 `DEEPSEEK_API_KEY` 接 DeepSeek 官方（`core.md`）：`Compat::deepseek()`，模型 `deepseek-flash`，不写输出上限，收图片、不收 PDF（施工 4-13）。别的开关组合只有测试在用。
+照配置（施工 8-6，`models.md`）：`[providers.<编号>]` 写了 `driver = "openai-chat"`，或者档案推得出是它的，都走这个驱动。开关、能收哪些输入照档案（写了 `catalog` 的照它指的那一家的档案）；档案里只有 DeepSeek 官方一家：上表那一套开关，收图片、不收 PDF（施工 4-13），一张图照官方计算器的算法。不写输出上限。档案里没有的供应商用默认的开关、只收字。
 
 ### 样子
 
@@ -289,7 +290,7 @@ A file was attached here (报告.pdf, application/pdf, 15 bytes), but this model
 ### 还没有的
 
 - 驱动规格里的 `models`（模型资料）、`cache`（缓存类型）、子进程的 `transport`（`05-内核接口.md` 第七节）。
-- 哪个供应商用哪一套开关、用户自己加的供应商：配置那一步（`05-内核接口.md` 第七节，`15-模型与供应商.md` 第二节）。
+- 配置里手写的 `compat` 一格格盖在档案上面（`models.md`「对外的样子」）：随用到它的那一步。
 - 别的驱动家族：OpenAI 的 Responses 接口、Anthropic 的消息接口、借用 agent CLI 的子进程（`15-模型与供应商.md` 第二节）。
 - 接 opencode Zen 要的：工具面缺 `read`、`shell` 时补同名的占位声明，带 `x-opencode-*` 头（`15-模型与供应商.md` 第二节）。
 - Kimi、通义的 `partial`、Mistral 的 `prefix`：写法有了，出厂没开，等实测（`05-内核接口.md` 第七节）。

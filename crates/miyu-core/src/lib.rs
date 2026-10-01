@@ -6,7 +6,7 @@
 //! 2. 拿单实例锁：已经有一个核心在跑的，说一声 `running` 就走；先拿锁再装日志，免得两个核心写同一份；
 //! 3. 装运行日志 `state/logs/core.log`，记一条「起来了」：版本、进程号、数据根、和 UTC 差多少；
 //! 4. 管理员 `admin` 的家目录，没有就建；资源目录；读配置、照 `log.level` 换运行日志的级别，照配置清单生成两份 JSON
-//!    Schema 和参考文件（[`settings`]，施工 8-1、8-2）；模型（[`models`]）；开始监视配置文件，配置换了当场换级别、重写
+//!    Schema 和参考文件（[`settings`]，施工 8-1、8-2）；供应商的档案和模型资料，造会话的路由（[`models`]，施工 8-6）；开始监视配置文件，配置换了当场换级别、重写
 //!    生成的文件（施工 8-4）；
 //! 5. 换本机令牌、在套接字上等连接（施工 3-8 下）；找沙盒的助手、探一次，只记日志（施工 5-1）；
 //! 6. 往标准输出写一行 `ready`：拉起它的头等着这一行；接着在后台清一次回收处（施工 3-8 三补，`trash.rs`）。
@@ -158,21 +158,7 @@ async fn run(
         Ok(opened) => opened,
         Err(error) => return failed("socket", error.to_string()),
     };
-    let table = match resources
-        .models()
-        .map_err(|error| error.to_string())
-        .and_then(|text| models::ModelTable::parse(&text))
-    {
-        Ok(table) => table,
-        Err(error) => return failed("models", error),
-    };
-    let env_models = models::ModelEnv {
-        key: std::env::var("DEEPSEEK_API_KEY").ok(),
-        base_url: std::env::var("MIYU_DEV_BASE_URL").ok(),
-        model: std::env::var("MIYU_DEV_MODEL").ok(),
-        window: std::env::var("MIYU_DEV_WINDOW").ok(),
-    };
-    let models = match models::from_env(&env_models, &table) {
+    let models = match models::routes(&resources) {
         Ok(models) => models,
         Err(error) => return failed("models", error),
     };

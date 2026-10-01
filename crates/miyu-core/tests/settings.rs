@@ -43,6 +43,12 @@ fn the_registered_list_is_well_formed() {
             "ui.language",
             "tui.startup",
             "permission.start_read_only",
+            "models.chat",
+            "providers.<id>.driver",
+            "providers.<id>.base_url",
+            "providers.<id>.keys",
+            "providers.<id>.catalog",
+            "providers.<id>.models.<model>.window",
             "log.level"
         ],
         "照登记的先后"

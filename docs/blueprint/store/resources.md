@@ -23,6 +23,7 @@
 | `ResourceRoot::sources(人格)` | 读出这个人格要用的原文，交给 `miyu-policy` 拼策略快照（`policy.md`） |
 | `ResourceRoot::subagent_venue()` | 读出子会话的场所说明 `core/jobs/subagent-venue.txt`，造子会话时接在人设后面（施工 7-5）；读不了的写明是哪一份 |
 | `ResourceRoot::models()` | 模型资料的原文（`models/models-dev.json`，施工 6-3 上），怎么读由核心定（`core.md`「模型」） |
+| `ResourceRoot::profiles()` | 供应商的档案的原文（`models/profiles.toml`，施工 8-6），怎么读由核心定（`core.md`「模型」，`models.md`） |
 | `Human::load(资源目录, 语言)` | 读这种语言的给人看的字 |
 | `Human::tool(工具名)` | 这件工具给人看的样子 `Face`；没有的是空的 |
 | `Human::say(说法)` | 照说法换成的一句话；换不出来的是空的 |
@@ -66,6 +67,7 @@
 | `core/human/`、`software/<软件包>/human/` | `Human::load` | `miyu ask` 起来时读一次，印每一步用（`cli/ask.md`）；核心起来时照系统的语言读一次，生成配置的 Schema 和参考文件（施工 8-1，`config.md`） |
 | `software/basesystem/` 下别的 | `miyu-basesystem` | 核心起来时登记工具（`tools/*.md`） |
 | `models/models-dev.json` | `ResourceRoot::models` | 核心起来时读一次，查模型的窗口、最大输出（施工 6-3 上）。是数据，不发给模型，不进登记簿 |
+| `models/profiles.toml` | `ResourceRoot::profiles` | 核心起来时读一次，认得出的供应商的驱动、地址、开关、能收哪些输入、一张图怎么算（施工 8-6，`models.md`）。是数据，不发给模型，不进登记簿 |
 
 给模型看的每一份字的原文、token 数、什么时候进请求，见 `26-提示词.md` 第十节的登记簿。给人看的字不进请求，不登记。
 
@@ -152,7 +154,7 @@
 - `tools` 里每件工具只许有 `name`（必填）、`subject`、`icon`、`block`（都可以不写）；`block` 只能是 `command` 或者 `edits`。
 - 这一份在 `software/basesystem/human/zh.json` 里，`read/lines` 就是说法 `software/basesystem/read/lines`：字段 `count` 是 `37` 时，换成「37 行」。
 - 每件工具的显示名、结果那一句，见 `tools/*.md` 和 `cli/ask.md`。
-- `config` 里只许有 `items`、`pages`、`groups`；一项只许有 `name`、`description`（必填）、`options`（可以不写）。写了什么、和配置清单怎么对上，见 `config.md`「给人看的字」「怎么走」第一条第 5 条。内核那一份的 `said` 里还有生成文件要的几句、报错的话和接句子的三句 `config/…`（施工 8-1、8-2，`config.md`「给人看的字」），`trust.toml` 开头那一行注释 `config/trust-header`、生效时机 `config/applies/head_start`（施工 8-3）。
+- `config` 里只许有 `items`、`pages`、`groups`；一项只许有 `name`、`description`（必填）、`options`（可以不写）。写了什么、和配置清单怎么对上，见 `config.md`「给人看的字」「怎么走」第一条第 5 条。内核那一份的 `said` 里还有生成文件要的几句、报错的话和接句子的三句 `config/…`（施工 8-1、8-2，`config.md`「给人看的字」），`trust.toml` 开头那一行注释 `config/trust-header`、生效时机 `config/applies/head_start`（施工 8-3）；8-6 加的类型、生效时机、报错要的 `config/applies/next_turn`、`config/expected/int`、`url`、`name`、`reference`、`list`、`id`、`model-name`、`config/bad-format`、`config/out-of-range`、`config/bad-segment`，`config` 那一格多了模型那一块的六项、页 `models`、组 `uses`、`providers`。
 
 ### 出错
 
