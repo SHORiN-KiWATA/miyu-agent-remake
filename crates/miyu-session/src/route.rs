@@ -30,6 +30,8 @@
 //!   `provider.test` 调它们；和拉列表一样在这一层，不属于哪个会话。
 //! - 思考强度（施工 8-18；8-18（补）去掉了会话那一层，`route/effort.rs`）：照真发的那个模型配置的默认交给驱动，空闲超时
 //!   跟着放大；给头看的那一档（配置的哪一层）照限额里的模型算。
+//! - 看不看得了图（施工 8-17）：限额的 `blind` 照模型资料的 `inputs`，池里有一个成员看不了就算看不了；替它看图经一次性入口
+//!   发给 `models.vision`（`route/sight.rs`）。
 
 mod base;
 mod choice;
@@ -43,6 +45,7 @@ mod pool;
 mod probe;
 mod send;
 pub(crate) mod shared;
+mod sight;
 mod turn;
 
 pub use lists::{STALE, refresh_list};
@@ -75,7 +78,7 @@ use miyu_store::blob::Blobs;
 
 use crate::TARGET;
 use crate::config::TurnConfig;
-use crate::port::{Cancel, ForSession, ModelPort, Models, Reports};
+use crate::port::{Cancel, ForSession, ModelPort, Models, Reports, Sight};
 use base::Seat;
 use choice::Unsent;
 
@@ -152,6 +155,7 @@ impl Routes {
             window: facts.window.value,
             max_output: facts.max_output.value,
             images: images(target.provider.images),
+            blind: !facts.driver_inputs().images,
         }
     }
 }
@@ -204,6 +208,17 @@ impl ModelPort for Route {
 
     fn effort(&self) -> Option<EffortInUse> {
         self.shown_effort()
+    }
+
+    /// 替看不了图的模型看图（施工 8-17，`route/sight.rs`）：经一次性入口发给这一轮的 `models.vision`。
+    fn describe(&self, request: Request, config: &TurnConfig, sight: Sight) {
+        sight::spawn(
+            self.shared.clone(),
+            self.blobs.clone(),
+            request,
+            config,
+            sight,
+        );
     }
 
     fn call(
@@ -316,6 +331,7 @@ fn nothing() -> Limits {
         window: None,
         max_output: None,
         images: None,
+        blind: false,
     }
 }
 

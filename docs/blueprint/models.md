@@ -117,7 +117,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | 键 | 取值 | 不写是 | 生效 | 是什么 |
 |---|---|---|---|---|
 | `chat` | 模型或者 `@池` | 没有：`no_model` | `new_session`（8-6） | 新会话默认用的，钉着的没了退回它 |
-| `vision` | 模型或者 `@池` | 没有 | `next_turn` | 替看不了图的模型看图（第三条第 5 条）。8-8 只读进来、`model.list` 列出来 |
+| `vision` | 模型或者 `@池` | 没有 | `next_turn` | 替看不了图的模型看图（第三条第 5 条）。8-8 只读进来、`model.list` 列出来；8-17 起照它替看不了图的模型看图（「怎么走」第十三条） |
 
 8-8 有过四个挡位 `models.tiers.lite`、`cheap`、`standard`、`flagship`，8-8 补去掉了（2026-10-01 项目主人定，「定的」第 11 条）：现在是不认识的键，照 `config.md` 第四条警告、原样留在文件里。
 
@@ -240,6 +240,14 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 
 - `no_model`：没有能用的模型，`models.chat` 没配、会话的引用解析不出也退不回去。不再来。
 - `cooling`：候选不止一个，全在冷却。能再来：等到最早恢复的那一个（第五条第 6 条）。`miyu ask` 碰到它退出码 5。
+
+**`image.described`**（8-17，新的一种，`kernel/events-bodies.md`）：一张图的转述，「怎么走」第十三条第 5 条记。`by` 是内核，不带回合编号，`cause` 是发它的那一轮的。
+
+| 格 | 写法 | 是什么 |
+|---|---|---|
+| `blob` | 内容的哈希 | 哪一张图 |
+| `endpoint`、`model` | 供应商编号、模型名 | 替它看的：一次性入口真发给的那一个 |
+| `text` | 字符串，不是空的 | 转述的原文，去掉了前后空白 |
 
 #### 瞬时事件
 
@@ -560,7 +568,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
    - 都是这一项的错，别的项照常。
 3. **用途**：`chat` 是新会话默认用的、钉着的没了退回的（第六条第 4 条）。`vision` 见第 5 条。`embedding`、`speech_in`、`speech_out` 不在 M8（「还没有的」）。
 4. **子代理用哪个**：`subagent` 写了 `pool` 的（只能是这个会话列着的，「工具」），子会话记 `@<池>`。没写的，用父会话这时生效的引用（「定的」第 6 条：路由钉着的那一个，`ModelPort::reference`）。交给会话表，记进子会话 `session.created` 的 `model`；什么都没有的不写，子会话照它造出来那时的 `models.chat`。执行器这一头在 `crates/miyu-session/src/agents.rs`（`Inherit`）。8-8 写的是挡位 `tier`，照父会话这一轮的配置解析，8-8 补去掉了。
-5. **`vision`**：M8 只有这一格配置，`model.list` 的 `uses` 里看得到。替看不了图的模型看图（`10-自带软件.md` 第三节末尾）要一种新事件、一个辅助请求、几句给模型看的字，还有「转述不够细」要真的看图模型实测，在 M8 里另开一步做（8-17，「定的」第 5 条）。这之前，看不了图的模型照旧收到占位那一句。
+5. **`vision`**：替看不了图的模型看图（`10-自带软件.md` 第三节末尾），8-17 做（「定的」第 5 条），走法见「怎么走」第十三条。`model.list` 的 `uses` 里看得到它。
 6. **池**（`miyu_models::pools`，路由这一头 `route/pool.rs`）：
    - **不写分法的**：认得出的成员那几家全写了按次计费（`cache = "per_request"`）的轮换，别的钉住。没有哪种驱动默认按次计费，没写 `cache` 的都不算。
    - **钉住**：造端口时（造会话、载入）钉上一个成员：载入的，最近一条发出去了的 `model.called`（不管是不是辅助请求）的 `endpoint`、`model` 是这个池的成员的，钉着它（不另记一格，日志里本来就有）；不是的、新造的，取指针指的那个成员，指针加一。以后每次请求先发给它。
@@ -778,6 +786,23 @@ opencode Zen 的免费模型只放行 opencode 自己的客户端：流式、工
 8. **`provider.test` 不走一次性入口**：它试的可能是还没写进配置的一家（一次性入口只认配置里的引用）；它要试这一家的第一个 key，不换别的 key、不看也不记冷却（换了就试不出这个 key 坏了，也不该因为试一次让会话避开它）；它收到第一段正文就停、量第一段的毫秒数，一次性入口交的是整段。
 9. 协议 `model.call` 只开一次性的那种（「协议」）。流式的 `model.call`：第一版只交整段。扩展的能力检查：随扩展那一段。
 
+**十三、替看不了图的模型看图**（8-17；设计 `10-自带软件.md` 第三节末尾、B11，`15-模型与供应商.md` 第四节；技术细节 2026-10-02 主会话定，施工时定的见「施工时定的」8-17）
+
+主对话的模型看不了图时，`models.vision`（模型或 `@池`）替它看：把图转成一段文字，发给它时图的位置换成这段转述。看得了图的照旧收原图。没配看图模型的、转述没成的，照旧是占位那一句。不做成工具（B11）：这是拼请求的策略，人附的图、`read` 读出来的图走同一条路。
+
+1. **看不看得了图**：端口交给内核的限额多一格 `blind`（`Limits.blind`）。一个模型：资料的 `inputs` 没有 `image` 就是看不了（`Facts::driver_inputs`，和驱动同一个认法）。池：成员里有一个看不了就算看不了，钉住的、轮换的都一样（钉住的池出错也会换到别的成员）；钉住的池出错换了成员、成了以后限额跟着换成那个成员的（这一轮剩下的请求照它），下一轮开始照整个池重算。没有模型的、测试的端口不算看不了。限额怎么交照旧（第三条第 7 条、第五条第 7 条、第六条第 3 条）：换了模型、换了配置跟着重交。
+2. **什么时候转述**：回合里到了「准备好」、要发请求（`turn.rs` 的 `ask`）。组装完以后、问熔断和压缩之前，限额说看不了图：请求里 user、tool 消息里的每一张图（照 blob，同一张只算一次），这个会话转述过的、正在转的、这一轮转述没成的跳过，剩下的每一张发一次转述（`Describe`）。这一次请求要的图还有在路上的，回合停在「看图」（`Stage::Looking`），等它们都回来再回「准备好」、重新组装。所以自动、手动压缩的摘要请求也照样先转述。主请求报了超长、先压的那一次（被动压缩）不查：那一次请求已经发过，图都转述过了。快照里没有转述的字的（以前造的会话，`Assembler::describe` 交回没有）不转述。
+3. **转述的请求**（组装器的 `describe`，`crates/miyu-assemble/src/vision.rs`）：工具面、system 是空的，一条 user。第一块是字：`vision/instruction.txt`；人这一轮最近说的那一句有的，接 `vision/question.txt` 和那一句的原话。第二块是这张图，去掉名字（转述只看画面）。
+   - 人这一轮最近说的那一句：这一轮开头的触发那一条起（没有触发的从 `turn.started` 起），有效历史里最后一条字不空的 `message.user`；它的字块连起来、去掉前后空白，原样，不转义、不截。谁发的都算（人、别的会话、别的 harness、子代理的留言）：都是她这一轮要回应的话。内核找（`said`），交给组装器。
+4. **怎么发**（执行器，`ModelPort::describe`）：经一次性入口（第十二条）发给这一轮冻结的配置里的 `models.vision`，用途 `vision`，`max_tokens` 不写；图从会话属主的 blob 取。一张图一次，几张同时发。`models.vision` 没配的不发，当场算没成（`no vision model configured: set models.vision`）。一次性入口交回的正文去掉前后空白，是空的也算没成（`the vision reply has no text`）。成了交回真发给的供应商、模型和转述（`Input::Described`）。一次性的不进会话的日志（第十二条第 7 条），用量只在运行日志 `model call purpose=vision` 那一行（带会话编号：在会话的 span 里发）。
+5. **记下**：成了的，内核记一条 `image.described`（「事件」）：`by` 是内核，不带回合编号，`cause` 是这一轮的。它落了盘，回合才回「准备好」、重新组装、发请求：转述先落盘、再进请求，以后每次请求逐字节一样。同一张图在一个会话里只转述一次：转述过的从日志里一条条算（活着时每追加一条记一次，载入时照日志再走一遍）；撤销、压缩都不删它（撤掉的回合里、压缩以前转述过的图，再出现照样用）。
+6. **进请求**：内核组装完，把请求里出现的每一张图在这个会话里的转述放进统一的请求的 `described`（blob → 转述原文，`kernel/request.md`），主请求、摘要请求都放。驱动编码时（`drivers/openai-chat.md` 第 9 条）：看得了图的照旧发原图，不看 `described`；看不了图的，这张图有转述、快照里有那三句标签的，写成 `drivers/image-description-open.txt`（带名字的图用 `image-description-open-named.txt`）、转述原文（不转义，末尾没有换行的补一个）、`image-description-close.txt`，照文字拼；没有转述的、快照里没有标签的照旧是占位那一句。没有图的请求 `described` 是空的，一个字节不变。
+7. **出错**：没配 `models.vision`、看图的模型出错（连同它也不收图、全在冷却）、回答是空的：不记事件，这张图这一轮用占位那一句，下一轮再试；主请求照发，不因为转述没成而失败。执行器记一行 `INFO image not described blob=… why=…`（一次性入口自己另有一行 `model call failed`，第十二条第 6 条）。
+8. **打断、重启**：「看图」这一步被打断的，照「准备好」那样直接结束这一轮（一次性入口叫不停）。之后才回来的照样收：成了的照样记（不带回合编号、`cause` 是发它的那一轮的），没成的不理。读回日志的时候到的先放着，读完再收。有计划的重启、崩了，在路上的跟着丢了，接着干的那一轮照第 2 条再转。
+9. **头**：日志里记的始终是原图，头照原图画。`image.described` 照常推送，头可以不显示（时间线上「视觉分析」的标签随前端设计）。没有瞬时提示，`status` 不推。
+10. **给模型看的字**：转述那一次请求里的两份（`core/vision/instruction.txt`、`question.txt`），主请求里图的位置的三份（`core/drivers/image-description-open.txt`、`image-description-open-named.txt`、`image-description-close.txt`）。都冻结在策略快照里（`core.vision`、`core.drivers.image_description`，`policy.md`），老会话照它造时的样子；登记在 `26-提示词.md` 第十节。
+11. **这一步不做**：给她留一个追问的口子（先实测转述够不够细，不够再开一步、找项目主人定）；视频、音频；头上显示转述。本地估算的用量照旧照图算，不照转述的字算（「还没有的」）。
+
 ### 样子
 
 配置（例子，地址用 `.invalid`）：
@@ -932,6 +957,7 @@ mimo = ["xiaomi"]
 | `INFO` | `provider tested provider=… model=… ok=…` | 试了一次 |
 | `INFO` | `model call purpose=… provider=… model=… input=… output=…` | 一次性入口成了一次（8-20，第十二条第 6 条；没报用量的没有 `input`、`output`） |
 | `INFO` | `model call failed purpose=… reason=…`（`model_failed` 另带 `class`） | 一次性入口没成（8-20）：`reason` 是 `unknown_model`、`no_model`、`cooling`、`model_failed` |
+| `INFO` | `image not described blob=… why=…` | 替看不了图的模型看图没成（8-17，第十三条第 7 条）：会话的 actor 记，带会话编号；这张图这一轮写占位 |
 | `WARN` | `usage not indexed session=… error=…` | 用量汇总写不进去 |
 
 `request` 那一行（`session/actor.md` 第 7 条）照旧写真发给的端点、模型。
@@ -1033,6 +1059,12 @@ mimo = ["xiaomi"]
 | `crates/miyu-endpoint/tests/models_effort.rs` | `session.configure` 写了 `effort` 回 `bad_params`、不写 `model` 回 `bad_params`（8-18（补），替掉了 8-18 的「记下、清掉、和模型一起换」那几条）；`subscribe` 的 `effort.from`；`model.list` 的 `facts.effort.key`（普通的、模型名带点的）；配置里写错的 `unknown_effort`、算进 `config_errors`、`config.check` 照新的字查 | 8-18；8-18（补） |
 | `crates/miyu-session/tests/route*.rs`、`http.rs`、`*_log.rs`（8-6 到 8-18 的） | 拆出底子以后一个不改照旧全过：会话入口的行为、请求的字节一个不变 | 8-20 |
 | `crates/miyu-session/tests/once.rs`、`once_pools.rs`、`once_shared.rs` | 一次性入口：模型、`@池`、不写照 `models.chat`；system 和几条消息照先后发、不带工具、`max_tokens` 照写的发；带图照字节发、模型不收图的不发；四种出错（`unknown_model`、`no_model`、`cooling`、`model_failed`）；配置的默认强度；key 照用途钉、取不到的跳过；429 当场换下一个 key、说到一半断了也换、只有一个候选的不再来、最多换 5 次、成了清掉冷却；钉住的池照指针取成员、出错换下一个成员，轮换的池指针一次走一个、跳过冷却的（`once_pools.rs`）；冷却两个入口共用：会话撞了 429 一次性的立刻避开，反过来也一样（`once_shared.rs`） | 8-20 |
+| `crates/miyu-kernel/src/session/tests/scenario/vision.rs`、`session/tests/random.rs` 的替它看图（8-17） | 内核这一头：什么时候转述、记事件、落了盘才请求、只转述一次、没成的这一轮不再试、带人这一轮的话、打断、切级别、老快照（`kernel/session.md`「守着它的」） | 8-17 |
+| `crates/miyu-kernel/src/event/image/tests.rs`、`tests/samples.rs`、`crates/miyu-kernel/src/request/tests.rs` 的转述那一条（8-17） | `image.described` 读写一字不差、样本对得上；`described` 空的不写进字节、不算进指纹 | 8-17 |
+| `crates/miyu-assemble/src/vision/tests.rs`、`tests/probe_vision.rs`、`tests/random_logs.rs`（8-17） | 转述的请求怎么拼；看不了图的那张脸和存档（`docs/designs/samples/probe/vision/`）；随机日志五个种子里一个看不了图（`kernel/request.md`「守着它的」） | 8-17 |
+| `crates/miyu-drivers/tests/openai_chat_described.rs`、`src/texts/tests.rs` 的标签那几条（8-17） | 驱动把图的位置换成带标签的转述、能看图的一字不差、老快照照旧占位（`drivers/openai-chat.md`「守着它的」） | 8-17 |
+| `crates/miyu-session/tests/route_vision.rs`、`vision_log.rs`（8-17） | 路由照资料认看不看得了图、经一次性入口问 `models.vision`、没配的照旧占位、运行日志（`session/actor.md`「守着它的」） | 8-17 |
+| `crates/miyu-policy/src/snapshot/tests/vision.rs`、`crates/miyu-store/src/resources/tests.rs`（8-17） | 快照带着两份字和三句标签、老快照没有的不转述；资源目录读得出五份 | 8-17 |
 | `crates/miyu-endpoint/tests/model_call.rs`、`model_call_log.rs` | `model.call` 的回应形状；参数校验（`purpose` 的写法、`messages` 的样子、`max_tokens`、`model` 是空字）、blob 不是这个账号的 `unknown_attachment`、不是图的 `bad_params`、`unknown_model`；出错的 `data`；不造会话、不进会话日志；测试的端口没有一次性入口的答 `no_model`；运行日志成了、没成各一行，不带 key（`model_call_log.rs`） | 8-20 |
 
 ### 出处
@@ -1053,7 +1085,7 @@ mimo = ["xiaomi"]
 - 借 agent CLI 的订阅（Claude Code、Codex、Antigravity、CodeBuddy）和订阅的额度：以后再说（施工方案第三节 M8 下第一条）。「找现成的」那时加上已登录的 CLI。
 - 成员自带的供应商、成员家目录的密钥（M6）：随多用户。
 - 用途 `embedding`、`speech_in`、`speech_out`：随记忆、语音。
-- 替看图：M8 里另开一步（「定的」第 5 条）。
+- 替看图（8-17）没做的：给她留一个追问的口子（先实测转述够不够细）；视频、音频；头上显示转述；本地估算的用量照转述的字算（现在照图算，看不了图的端点上估多了）；转述的用量进账本（随 8-15，一次性入口那一行）。
 - 币种之间换算：以后另说（「定的」第 3 条）。
 - 思考强度的菜单：头那边（M9）。Anthropic、Responses 怎么写思考强度：随 8-12、8-13（「驱动要守的约定」第 13 条）。思考预算（`budget_tokens`）：不读。
 - 存根能用不能用这一格（`08-上下文投影.md` C5）：随工具加载。
@@ -1338,6 +1370,24 @@ mimo = ["xiaomi"]
 | 运行日志：成了 `INFO model call purpose provider model input output`，没成 `INFO model call failed purpose reason`（`model_failed` 另带 `class`），目标 `miyu::session` | 照施工单记成了的那一行；没成的也记一行，平台那边调不通时运行日志里查得到 | 没成的不记：只剩挑端点时的几行，看不出是哪一次调用 |
 | `provider.test` 不改走一次性入口（第十二条第 8 条） | 试的可能是没写进配置的一家；要试第一个 key、不换不冷却；收到第一段正文就停 | 改走：试不出某个 key 坏了，试一次还让会话避开它 |
 
+8-17 施工时照推荐定的技术细节（2026-10-02 施工时定，写进了正文「怎么走」第十三条、「事件」）：
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| 事件叫 `image.described`，四格 `blob`、`endpoint`、`model`、`text`；`by` 是内核，不带回合编号，`cause` 是发它的那一轮的；账本不另查 | 转述挂在图上，不属于哪一轮：撤哪一轮都不该拿走 | 带回合编号：撤掉那一轮以后复用要另想办法 |
+| 看不看得了图放进限额（`Limits.blind`）；池里有一个成员看不了就算看不了 | 限额本来就是端口照模型资料交给内核的，换模型、换配置跟着重交；钉住的池出错会换成员 | 内核每次发请求前问端口：多一来一回；池照钉着的成员算：换过去的成员看不了图时只能写占位 |
+| 钉住的池出错换了成员、成了以后，限额跟着换成那个成员的，这一轮剩下的请求照它；下一轮开始照整个池重算 | 限额本来就照钉着的成员换（第五条第 7 条）；这一轮剩下的里看得了图的成员收原图，没有坏处 | 换了成员也留着池的那一格：路由多记一格，这一轮里看不出差别，也没有测试测得出 |
+| 转述放进统一的请求的 `described`，驱动照这一次端点的 `inputs` 挑原图还是转述 | 端点是发的那一刻才定的（池、换端点）；看得了图的照旧收原图，字节一个不变 | 内核组装时直接把图换成字：池里看得了图的成员也只收到转述 |
+| `described` 只在有转述时写进规范字节，不算进指纹 | 没有图的请求字节、哈希都不变；同一张图只转述一次、先于第一次带它的请求，只有转述没成、下一轮补上时，那条消息在看不了图的端点上会变，指纹看不出来，认了 | 算进每条消息的指纹：多一层，绝大多数时候白算 |
+| 转述的指令归组装器（`Assembler::describe`，字冻结在快照的 `core.vision`），标签归驱动的占位（`core.drivers.image_description`） | 照回顾、起标题：请求怎么拼归组装器；图的位置写什么归驱动，和占位放在一起。以前造的快照两样都没有：不转述，照旧写占位 | 执行器每次从资源读指令：老会话也转述，可它快照里没有标签，转了也用不上 |
+| 「人这一轮最近说的那一句」从这一轮的触发那一条起找，谁发的都算，原样、不截 | 施工单写的是这一轮；别的会话、harness、子代理的留言也是她这一轮要回应的话；很长的一句少见，一张图只转一次 | 找全会话最近的一句：回报开的一轮会带上很久以前的话；截到一个长度：要多一句截断的记号 |
+| 转述的请求里图去掉名字；主请求里带名字的图用另一份开头标签写上名字 | 转述只看画面；主请求里看不了图的也要知道附的是哪个文件（施工 3-9 四补的理由） | 照原样带名字：看图的模型会把文件名也写进描述 |
+| 执行器经端口发（`ModelPort::describe`）：路由用它自己那一份 `Routes` 造 `OneShot`，拿会话属主的 blob；测试的端口当场交没成 | 一次性入口要 blob 和配置，路由手里都有；测试的端口没有一次性入口 | actor 另拿一个 `OneShot`：造 actor 的地方多交一样 |
+| 一张图一个 `Describe`，几张同时发；回合只等这一次请求要的那几张 | 一张图一次请求（施工单）；同时发省时间 | 一张一张发：几张图等几倍的时间 |
+| 「看图」这一步打断了照「准备好」直接结束；之后回来的成了照记 | 一次性入口叫不停；转述没错，记下省下一轮的钱 | 回来了也扔：下一轮还要再花一次 |
+| 没成的记在这一轮上（`Turn.unseen`），这一轮里不再试 | 施工单：下一轮再试；一轮里每一步都试的话，没配看图模型的会话每一步记一行日志 | 会话里只试一次：配好看图模型以后也不再转 |
+| 没成的由 actor 记一行 `INFO image not described`；成了的不另记 | 施工单要记一行；成了的一次性入口那一行已经带着会话编号（在会话的 span 里发） | 成了也记一行：两行说一件事 |
+
 ### 要跟着改的别的页
 
 这一页不改它们，施工时各步照这里改：
@@ -1373,4 +1423,5 @@ mimo = ["xiaomi"]
 | 8-8 补跟着改的几页 | 挡位去掉、池多两项、`subagent` 的 `pool`：`config.md`（清单、类型「给模型看的字」、样本）、`protocol.md`、`tools/subagent.md`、`tools/interface.md`、`session/tools.md`、`session/actor.md`、`policy.md`、`agents.md`、`kernel/events-bodies.md`、`kernel/session.md`、`cli/ask.md`、`cli/setup.md`、`README.md`，设计 `15-模型与供应商.md`、`26-提示词.md` 第十节、`10-自带软件.md` 第九节，`prompts.md` 重新生成。8-8 补都改了 | 8-8 补 |
 | 8-20 跟着改的几页 | 模型调用口：`protocol.md`（方法表、`model.call` 一段、出错多三个原因码、`bad_params`、`unknown_model`、`unknown_attachment` 多 `model.call` 的、运行日志、给人看的字、「在哪」「守着它的」）、`session/actor.md`（「在哪」、端口的表、第 8 条路由调底子、测试表）、`log.md`（`model call` 两行，`endpoint cooling`、`failover` 一次性的不带会话编号）。8-20 都改了 | 8-20 |
 | 8-18（补）跟着改的几页 | 去掉思考强度的会话那一层：`protocol.md`（`session.configure` 改回只收 `model`、`subscribe`、`model.changed` 的 `effort.from`、`unknown_effort` 原因码去掉）、`kernel/events-bodies.md`（`session.policy_changed` 不再写 `effort`，旧日志照读）、`kernel/events.md`（`model.changed` 的 `effort.from`）、`kernel/session.md`（`Configure` 改回 `model: String`、`RunTurnStartHooks` 去掉 `efforts`）、`session/actor.md`（`ModelPort::turn` 去掉 `efforts` 参数）。8-18（补）都改了 | 8-18（补） |
+| 8-17 跟着改的几页 | 替看不了图的模型看图：`kernel/events.md`（种类表、24 种）、`kernel/events-bodies.md`（`image.described`）、样本 `image.described.jsonl`；`kernel/request.md`（`Request.described`、渲染表、「替它看的图」一段、`Assembler::describe`）；`kernel/session.md`（`Limits.blind`、`Describe`、`Described`、阶段 `Looking`、「替它看图」一节）；`drivers/openai-chat.md`（第 9 条、`DriverTexts`）；`session/actor.md`（端口的 `describe`、`Back::Described`）；`policy.md`、`store/resources.md`（快照的 `core.vision`、`core.drivers.image_description`，资源的五份）；`log.md`（`image not described`）；`26-提示词.md` 第十节登记五份、`prompts.md` 重新生成；请求形状探针多一张脸（`docs/designs/samples/probe/vision/`） | 8-17 |
 | 终端界面、网页两个演示 | 合进 main 以后各发一条：开发端点改成 `xtask dev-home`，协议多的方法和推送 | 8-6、8-10 |

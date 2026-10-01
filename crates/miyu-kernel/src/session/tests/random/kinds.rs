@@ -66,6 +66,8 @@ kinds! {
     Watched,
     /// 等不到了：作废、不在了（施工 C-6）。
     WatchEnded,
+    /// 替它看图回来了（施工 8-17）。
+    Described,
     /// 落盘了。
     Stored,
     /// 环境变了。
@@ -156,6 +158,7 @@ impl InputKind {
             Input::AsideSent { .. } => InputKind::AsideSent,
             Input::AsideDelta { .. } => InputKind::AsideDelta,
             Input::AsideEnded { .. } => InputKind::AsideEnded,
+            Input::Described { .. } => InputKind::Described,
         }
     }
 }

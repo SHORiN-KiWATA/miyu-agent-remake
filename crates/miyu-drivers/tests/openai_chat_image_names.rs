@@ -24,6 +24,7 @@ fn request(messages: Vec<Message>) -> Request {
         messages,
         stable: 0,
         continuation: false,
+        described: Default::default(),
     }
 }
 
@@ -170,6 +171,7 @@ fn an_older_snapshot_writes_named_images_as_if_they_had_no_names() {
             file_close: include_str!("../../../resources/core/drivers/file-close.txt"),
         }),
         image_name: None,
+        image_description: None,
     })
     .expect("用得了");
     let plain = without_names(&attached());

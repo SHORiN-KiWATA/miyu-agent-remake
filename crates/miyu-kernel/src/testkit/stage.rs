@@ -79,6 +79,8 @@ pub struct Stage {
     pub(super) held_title: Option<(Seq, Line)>,
     /// 路由：回合开始时交来的引用、解析不出的（施工 8-10，`routing.rs`）。
     pub(super) routing: super::routing::Routing,
+    /// 替它看图：剧本、交出来的转述请求、扣着的（施工 8-17，`sight.rs`）。
+    pub(super) sight: super::sight::Sight,
 }
 
 impl Stage {
@@ -394,7 +396,7 @@ impl Stage {
     }
 
     /// 一条条送，回每个动作，直到没有要送的。
-    fn drain(&mut self, mut inputs: VecDeque<Input>) {
+    pub(super) fn drain(&mut self, mut inputs: VecDeque<Input>) {
         while let Some(input) = inputs.pop_front() {
             let actions = self.session.handle(input);
             for action in actions {

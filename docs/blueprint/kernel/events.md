@@ -2,7 +2,7 @@
 
 ### 是什么
 
-事件是已经发生的一件事，追加进会话的日志，一条一行 JSON，以后不改、不删；撤销、压缩也是追加一条新的。内核认识 23 种，每一种有自己的 `body`；不认识的原样留着。另有六种瞬时事件，只推给连着的头，不进日志。
+事件是已经发生的一件事，追加进会话的日志，一条一行 JSON，以后不改、不删；撤销、压缩也是追加一条新的。内核认识 24 种，每一种有自己的 `body`；不认识的原样留着。另有六种瞬时事件，只推给连着的头，不进日志。
 
 这一页写外壳、一行怎么读写、有哪些种类、瞬时事件、格式出错。每一种 `body` 的每一格见 `kernel/events-bodies.md`。
 
@@ -11,7 +11,7 @@
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu-kernel/src/event.rs` | 外壳 `Event`；种类表 `Body`（宏 `bodies!`，加一种只加一行）；`Body::KINDS`、`Body::kind`；一行怎么读写 |
-| `crates/miyu-kernel/src/event/session.rs`、`turn.rs`、`restore.rs`、`message.rs`、`tool.rs`、`question.rs`、`context.rs`、`model.rs`、`effect.rs`、`job.rs`、`peer.rs` | 各种 `body`（`kernel/events-bodies.md`） |
+| `crates/miyu-kernel/src/event/session.rs`、`turn.rs`、`restore.rs`、`message.rs`、`tool.rs`、`question.rs`、`context.rs`、`model.rs`、`effect.rs`、`job.rs`、`peer.rs`、`image.rs`（施工 8-17） | 各种 `body`（`kernel/events-bodies.md`） |
 | `crates/miyu-kernel/src/event/transient.rs` | 瞬时事件：外壳 `Transient` 和六种 `body`（`model.changed` 施工 8-9 加，由会话 actor 造） |
 | `crates/miyu-kernel/src/format_error.rs` | 编号、名字、时刻写法不对时的报错 `FormatError` |
 | `docs/designs/samples/events/`、`docs/designs/samples/transient/` | 样本：每一种一份 |
@@ -65,6 +65,7 @@
 | `job.reported` | 后台命令结束了（施工 7-1） | 内核，`by` 照原因记（施工 7-2，`kernel/session.md`「回报」第 2 条） | 内核记的不带（2026-09-30 定），账本不另查 | `job.reported.jsonl` |
 | `child.reported` | 子会话的回报（施工 7-1） | 内核，`by` 是那个子会话，账本查（施工 7-2） | 内核记的不带（2026-09-30 定），账本不另查 | `child.reported.jsonl` |
 | `peer.idle` | 等的那个会话空下来了，或者等不到了（施工 C-1，`cross-session.md`） | `idle` 的是那个会话，`expired`、`gone` 的是内核，账本查 | 不带：别处来的，撤哪一轮都不拿走；账本不另查 | `peer.idle.jsonl` |
+| `image.described` | 一张图的转述：看不了图的模型由 `models.vision` 替它看过（施工 8-17，`models.md`「怎么走」第十三条）。不渲染，经统一的请求的 `described` 进请求 | 内核 | 不带：挂在图上，不属于哪一轮，撤哪一轮都不拿走；账本不另查 | `image.described.jsonl` |
 
 - 「—」是现在还没有哪里写这一种：读得懂、账本查得了、投影认得，就是不产生（下面「还没有的」）。
 - `turn` 那一列的「必带」「它自己的序号」「不带」，账本在追加时查：`turn.started` 的 `turn` 要是它自己的序号；带 `turn` 的要是正在进行的那个回合；「必带」的九种不带就不收；`turn.reverted`、`files.restored` 在有回合进行时不收（`kernel/history.md`）。
@@ -142,7 +143,7 @@
 
 一条事件的样子，就是日志里的那一行。样本：
 
-- `docs/designs/samples/events/<种类>.jsonl`：内核认识的每一种一份，文件名是种类名加 `.jsonl`。内容就是日志里的那几行，这一种在样本会话里出现几次就写几行，以一个换行结尾，没有空行。几份样本讲的是同一个会话：序号不重复，时刻跟着序号不往回走。只有一条例外：带 `parent` 的那一条 `session.created` 是它派的子代理的会话日志里的第 1 条（施工 7-1），把样本当一个会话用的测试都跳过它。样本会话在 126、134 号订了两个别的会话的「空了告诉我」（`tool.result` 的效果 `peer.watch`），130 号等到了第一个空下来，138 号第二个 12 小时没等到、作废（施工 C-1；排在回顾的 121、122 号后面）；给她看的那两句、给人看的说法照 `cross-session.md`「样子」写（施工 C-6 定了）。
+- `docs/designs/samples/events/<种类>.jsonl`：内核认识的每一种一份，文件名是种类名加 `.jsonl`。内容就是日志里的那几行，这一种在样本会话里出现几次就写几行，以一个换行结尾，没有空行。几份样本讲的是同一个会话：序号不重复，时刻跟着序号不往回走。只有一条例外：带 `parent` 的那一条 `session.created` 是它派的子代理的会话日志里的第 1 条（施工 7-1），把样本当一个会话用的测试都跳过它。样本会话在 126、134 号订了两个别的会话的「空了告诉我」（`tool.result` 的效果 `peer.watch`），130 号等到了第一个空下来，138 号第二个 12 小时没等到、作废（施工 C-1；排在回顾的 121、122 号后面）；给她看的那两句、给人看的说法照 `cross-session.md`「样子」写（施工 C-6 定了）。145 号是 143 号那一轮里替她看的一张截图的转述（`image.described`，施工 8-17）：那时会话退回的 `deepseek/deepseek-v4` 在这里当作看不了图，`models.vision` 是 `bigmodel/glm-5.3-flash`。
 - `docs/designs/samples/transient/model.delta.jsonl`、`tool.progress.jsonl`、`status.jsonl`、`compaction.progress.jsonl`、`compaction.done.jsonl`、`model.changed.jsonl`：样本会话里 44 号请求的回复一段段推给头的样子、那次 `read` 执行中的一段输出、44 号请求出了限速的错等 1 秒再试（第二条是 117 号请求的限速，带着 429，和 118 号 `model.called` 对得上；44 号那一条写在施工 3-5 下，还没有 `status` 那一格）、54 号压缩写摘要时的两段进度、一次压好了（81 万压到 3 万）。`status.jsonl` 第三条、`model.changed.jsonl` 第一条（施工 8-9）不是样本会话里的：另一个会话里池 `@duo` 的一个成员限速，换到下一个当场再来，换过去成了以后推的那一条。`model.changed.jsonl` 第二条是样本会话 143 号回合开始时池 `free` 没了、退回 `models.chat` 推的（`why` 是 `turn`，施工 8-10），和 144 号 `session.policy_changed` 对得上；它的 `effort` 是 `deepseek/deepseek-v4` 配置的默认思考强度 `high`，`from` 是 `system`（施工 8-18；8-18（补）起不再是会话记的一格）。瞬时事件内核不读，测试在代码里照着造，写出去和样本一字不差。
 
 ### 出错

@@ -4,7 +4,7 @@
 //! 这是一个独占的挂接点：一个会话只用一种组装，按策略选定。内核只定这个接口，默认的做法
 //! 在第 2 层的 `miyu-assemble` 里，换一种组装不用改内核。
 
-use crate::block::Block;
+use crate::block::{Block, Image};
 use crate::history::History;
 use crate::id::Seq;
 use crate::request::Request;
@@ -61,6 +61,15 @@ pub trait Assembler {
     /// 她一个带正文的回复都没有的是 `None`。默认的是 `None`：不做起标题的组装。
     fn title(&self, history: &History) -> Option<(Request, Seq)> {
         let _ = history;
+        None
+    }
+
+    /// 转述一张图的请求（施工 8-17，`docs/blueprint/kernel/request.md`「替它看的图」）：主对话的模型看不了图，内核把 `image`
+    /// 交给 `models.vision` 转成字之前组装。`said` 是人这一轮最近说的那一句，内核找好交进来，没有的是 `None`。同样是纯函数。
+    ///
+    /// 快照里没有转述的字的是 `None`：不转述，照旧写占位。默认的是 `None`。
+    fn describe(&self, image: &Image, said: Option<&str>) -> Option<Request> {
+        let _ = (image, said);
         None
     }
 }

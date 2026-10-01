@@ -26,6 +26,7 @@ impl Assembler for Nothing {
             messages: Vec::new(),
             stable: 0,
             continuation: false,
+            described: Default::default(),
         }
     }
 

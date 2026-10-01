@@ -1,10 +1,11 @@
 //! 执行器送回 actor 的（`docs/blueprint/session/actor.md` 第 3 条第 3 点）：请求的回报、到点了、工具和后台命令的结果、辅助请求的
-//! 回报、等不到的「空了告诉我」（施工 C-6），照 actor 的时钟记下到的时刻，写成内核的输入。施工 C-6 从 `actor.rs` 挪出来
+//! 回报、等不到的「空了告诉我」（施工 C-6）、替它看图的转述（施工 8-17），照 actor 的时钟记下到的时刻，写成内核的输入。施工 C-6 从 `actor.rs` 挪出来
 //! （那个文件到了行数上限）。
 
 use miyu_kernel::session::Input;
 
 use super::Actor;
+use crate::TARGET;
 use crate::port::{Back, Report};
 
 impl Actor {
@@ -26,6 +27,15 @@ impl Actor {
                 upto,
                 report,
             } => self.aside_back(at, purpose, upto, report),
+            // 替它看图回来了（施工 8-17）：没成的记一行，这张图这一轮写占位。
+            Back::Described { blob, seen } => {
+                let seen = seen
+                    .inspect_err(|why| {
+                        tracing::info!(target: TARGET, blob = %blob, why = why.as_str(), "image not described");
+                    })
+                    .ok();
+                Input::Described { at, blob, seen }
+            }
             Back::Report { seen, report } => match report {
                 Report::Sent { model, request } => Input::RequestSent {
                     at,

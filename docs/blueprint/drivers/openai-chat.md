@@ -18,7 +18,7 @@
 | `crates/miyu-drivers/src/openai_chat/models.rs` | 列模型：`GET /models` 的回应读出模型名和报了的窗口（施工 8-7） |
 | `crates/miyu-drivers/src/sse.rs` | SSE 分帧 |
 | `crates/miyu-drivers/src/classify.rs` | 出错分类、要等多久、原话 |
-| `crates/miyu-drivers/src/texts.rs` | 给模型看的几句：五句占位，文本文件的三句（施工 3-9 三补），带名字的图片的三句（施工 3-9 四补） |
+| `crates/miyu-drivers/src/texts.rs` | 给模型看的几句：五句占位，文本文件的三句（施工 3-9 三补），带名字的图片的三句（施工 3-9 四补），替它看的图的三句标签（施工 8-17） |
 | `crates/miyu-drivers/src/text_file.rs` | 什么算文本文件、最多给多少（施工 3-9 三补） |
 | `crates/miyu-drivers/src/base64.rs` | data URL 用的 base64 |
 | `resources/core/drivers/` | 那几句的原文 |
@@ -66,7 +66,7 @@
 2. **system**：第一条 `{"role":"system","content":…}`；空的不发。
 3. **user**：
    - 全是文字的，`content` 是一个字符串：相邻两块之间补一个换行，前一块已经以换行结尾的不补；空的一块什么都不接。
-   - 有能发的图片、文件的（第 9 条），`content` 是几段：`{"type":"text","text":…}`、`{"type":"image_url","image_url":{"url":…}}`、`{"type":"file","file":{"filename":…,"file_data":…}}`；连着的文字照上面拼成一段，带名字的图片前后的标签也算文字。发不了的图片、文件换成的字（占位、文本文件的内容）照文字拼。
+   - 有能发的图片、文件的（第 9 条），`content` 是几段：`{"type":"text","text":…}`、`{"type":"image_url","image_url":{"url":…}}`、`{"type":"file","file":{"filename":…,"file_data":…}}`；连着的文字照上面拼成一段，带名字的图片前后的标签也算文字。发不了的图片、文件换成的字（占位、替它看的图的转述、文本文件的内容）照文字拼。
    - 思考、工具调用、不认识的块不写。一个字都没有的，`content` 是空串。
 4. **assistant**：
    - 正文各块直接接上，不补换行，写进 `content`。没有正文、有工具调用的，`content` 写 `null`；两样都没有的，写空串。
@@ -84,6 +84,7 @@
 8. **工具面**：`[{"type":"function","function":{"name":…,"description":…,"parameters":…}}]`，照统一的请求的先后，参数格式原样。工具面是空的、历史里也没有工具调用的，不发 `tools`；历史里有调用的，发 `[]`（有的网关要）。
 9. **图片、文件**：
    - 图片：`Call.inputs.images` 是真的，写成 data URL；不是的，换成占位那一句，照文字接上。
+   - 替它看的图（施工 8-17，`models.md`「怎么走」第十三条）：`Call.inputs.images` 不是真的、统一的请求的 `described` 里有这张图（照 `blob`）的转述、快照里有那三句标签的，不写占位，写 `image-description-open.txt`（带名字的图用 `image-description-open-named.txt`，写上名字）、转述原文（不转义：模型写的多行正文，和检查点里的摘要一样；末尾没有换行的补一个）、`image-description-close.txt`，照文字接上。工具结果里的就地换，和占位一样。能看图的不看 `described`：请求字节和没有转述时一个不差。快照里没有那三句的（以前造的）照旧写占位。
    - 带名字的图片（人附的，`kernel/blocks.md` 第 14 条，施工 3-9 四补）：能看图的，前后各一段文字，`image-open.txt`（带名字）、图片、`image-close.txt`；不能看图的，占位写 `image-omitted-named.txt`（带名字）。不带名字的照旧：图片前后什么都不加，占位写 `image-omitted.txt`。快照里没有这三句的（以前造的），带名字的也照不带名字的写。
    - 为什么图片带名字（施工 3-9 四补，2026-09-30 网页演示接真核心实测撞见）：一句话附了一张图、一个 PDF、一个文本文件，问哪个是图片、只答文件名，她答不出，因为发给她的图没有名字。标签的写法照文本文件的 `<file name=…>`。
    - 文件，照这个先后，先对上的算：
@@ -276,6 +277,7 @@ A file was attached here (报告.pdf, application/pdf, 15 bytes), but this model
 | `crates/miyu-drivers/tests/openai_chat_media.rs` | 图片、PDF 写成 data URL；不能收的占位；工具结果里的附件挪到后面、或者就地占位；思考的三种回传；缺 blob 报错；要哪些 blob（文件每一个都要） |
 | `crates/miyu-drivers/tests/openai_chat_files.rs` | 文本文件（施工 3-9 三补）：照字放进消息、带文件名，空的，二进制的、不是 UTF-8 的、读不了的 PDF 写占位带大小（样本）；能读 PDF 的照旧发 `file`；超过 64 KiB 的截掉、写明给了多少；工具结果里的照字进 `content`；以前造的快照没有那三句的写占位；缺 blob 报错 |
 | `crates/miyu-drivers/tests/openai_chat_image_names.rs` | 带名字的图片（施工 3-9 四补）：能看图的前后各一段标签，和挨着的字拼成一段；不能看图的占位写名字（两份样本）；工具结果里带名字的连同标签一起挪、就地的占位写名字；以前造的快照没有那三句的，带名字的和不带名字的一字不差，不带名字的出厂这一份也照旧 |
+| `crates/miyu-drivers/tests/openai_chat_described.rs`（施工 8-17） | 替它看的图：不能看图的换成带名字的标签和转述（样本 `image-descriptions.json`），转述原样、尖括号引号不转义，没转述的照旧占位；能看图的有没有转述一个字节不差；工具结果里不带名字的就地换、末尾有换行的不再补；以前造的快照没有标签的照旧写占位 |
 | `crates/miyu-drivers/src/text_file/tests.rs` | 什么算文本：空的、UTF-8、BOM 算，NUL（在后面的也算）、Latin-1、PDF 不算；截到 64 KiB、截在字的边界上 |
 | `crates/miyu-drivers/tests/openai_chat_effort.rs` | 思考强度（施工 8-18）：没写的不加；档位发 `reasoning_effort`、接在最后；`off`、`on` 照开关；没有开关的 `off` 发 `none`、`on` 不加；前面的字节一个不动 |
 | `crates/miyu-drivers/tests/openai_chat_continuation.rs` | DeepSeek 接着写（样本、路径、半截带思考）；没有开关或者没有记号一字不变；`partial` 的写法 |

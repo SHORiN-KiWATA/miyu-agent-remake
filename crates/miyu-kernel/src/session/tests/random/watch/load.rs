@@ -108,6 +108,7 @@ impl Watch {
         // 载入以后当没人看着（施工 7-2）。
         self.reports.watched = false;
         self.forget_limits();
+        self.sight_reloaded();
         self.next_block = 0;
         self.open_block = None;
         let appended: Vec<Event> = actions

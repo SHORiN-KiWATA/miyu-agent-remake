@@ -13,6 +13,7 @@ use crate::time::Timestamp;
 
 mod context;
 mod effect;
+mod image;
 mod job;
 mod message;
 mod model;
@@ -30,6 +31,7 @@ pub use context::{
 pub use effect::{
     Effect, FileChanged, FileRead, FileTrashed, JobKind, JobMessaged, JobStarted, PeerWatch,
 };
+pub use image::ImageDescribed;
 pub use job::{ChildReason, ChildReported, JobReason, JobReported};
 pub use message::{MessageAssistant, MessageUser, MessageWithdrawn};
 pub use model::{
@@ -166,6 +168,8 @@ bodies! {
     ChildReported = "child.reported",
     /// 等的那个会话空下来了，或者等不到了（施工 C-1）。
     PeerIdle = "peer.idle",
+    /// 一张图的转述：看不了图的模型由 `models.vision` 替它看过（施工 8-17）。
+    ImageDescribed = "image.described",
 }
 
 impl Event {

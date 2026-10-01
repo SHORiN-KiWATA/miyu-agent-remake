@@ -192,6 +192,7 @@ impl OneShot {
             messages: ask.messages,
             stable: 0,
             continuation: false,
+            described: Default::default(),
         };
         let texts = listing_texts().map_err(|why| Unanswered::Failed(other(why)))?;
         let moved = BTreeMap::new();

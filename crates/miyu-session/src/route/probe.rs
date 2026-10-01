@@ -215,6 +215,7 @@ async fn ask(
         }],
         stable: 0,
         continuation: false,
+        described: Default::default(),
     };
     let call = Call {
         model: name,

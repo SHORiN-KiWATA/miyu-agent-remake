@@ -97,6 +97,7 @@ pub(super) fn some_limits(rng: &mut Rng) -> Option<Input> {
         window,
         max_output,
         images: None,
+        blind: false,
     }))
 }
 

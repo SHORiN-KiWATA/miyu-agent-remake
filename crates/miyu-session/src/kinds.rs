@@ -31,6 +31,7 @@ pub(crate) fn input(input: &Input) -> &'static str {
         Input::AsideSent { .. } => "aside_sent",
         Input::AsideDelta { .. } => "aside_delta",
         Input::AsideEnded { .. } => "aside_ended",
+        Input::Described { .. } => "described",
     }
 }
 
@@ -58,6 +59,7 @@ pub(crate) fn action(action: &Action) -> &'static str {
         Action::Report(_) => "report",
         Action::StopJobs { .. } => "stop_jobs",
         Action::Aside { .. } => "aside",
+        Action::Describe { .. } => "describe",
     }
 }
 

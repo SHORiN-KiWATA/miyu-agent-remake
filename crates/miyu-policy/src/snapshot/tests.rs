@@ -5,6 +5,7 @@ mod facts;
 mod jobs;
 mod recap;
 mod title;
+mod vision;
 
 use super::*;
 use crate::compose::{PersonaTexts, Sources, compose};

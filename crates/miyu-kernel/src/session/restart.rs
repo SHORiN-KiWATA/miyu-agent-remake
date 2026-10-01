@@ -62,6 +62,7 @@ impl Session {
             Stage::Opening { .. }
             | Stage::Hooking
             | Stage::Ready
+            | Stage::Looking { .. }
             | Stage::Waiting { .. }
             | Stage::Settling => Vec::new(),
         };

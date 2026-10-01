@@ -3,9 +3,9 @@
 use miyu_kernel::block::Block;
 use miyu_kernel::event::{Body, Event};
 use miyu_kernel::history::History;
-use miyu_kernel::id::Seq;
+use miyu_kernel::id::{ContentHash, Seq};
 use miyu_kernel::origin::By;
-use miyu_kernel::request::Request;
+use miyu_kernel::request::{Message, Request};
 use miyu_kernel::testkit::Stage;
 
 use super::is_summary;
@@ -14,7 +14,8 @@ use super::is_summary;
 pub struct Sent {
     /// 组装出来的请求。
     pub request: Request,
-    /// 上一次请求以后撤销、恢复或者压缩过：前缀可以改写。
+    /// 上一次请求以后撤销、恢复或者压缩过，或者上一次请求里的图这时才转述好（施工 8-17：转述没成、下一轮补上，那条消息在看不了
+    /// 图的端点上从占位换成转述）：前缀可以改写。
     pub rewritten: bool,
     /// 这是一个回合的第一次请求，由人的一句话触发：那句话的最后一块。
     pub trigger: Option<Block>,
@@ -38,11 +39,13 @@ pub fn sent(stage: &Stage) -> Vec<Sent> {
     for ((seen, request), mark) in stage.requests().iter().zip(stage.marks()) {
         let since =
             |event: &&Event| before.is_none_or(|before| event.seq > before) && event.seq <= *mark;
-        let rewritten = log.iter().filter(since).any(|event| {
-            matches!(
-                event.body,
-                Body::TurnReverted(_) | Body::TurnUnreverted(_) | Body::ContextCompacted(_)
-            )
+        let previous = sent.last().map(|sent: &Sent| &sent.request);
+        let rewritten = log.iter().filter(since).any(|event| match &event.body {
+            Body::TurnReverted(_) | Body::TurnUnreverted(_) | Body::ContextCompacted(_) => true,
+            Body::ImageDescribed(described) => {
+                previous.is_some_and(|request| shows(request, &described.blob))
+            }
+            _ => false,
         });
         let summary = is_summary(request);
         let trigger = log
@@ -79,4 +82,14 @@ pub fn sent(stage: &Stage) -> Vec<Sent> {
         }
     }
     sent
+}
+
+/// 请求里有这张图：user、tool 消息里的图片块（施工 8-17）。
+fn shows(request: &Request, blob: &ContentHash) -> bool {
+    request.messages.iter().any(|message| match message {
+        Message::User { blocks } | Message::Tool { blocks, .. } => blocks
+            .iter()
+            .any(|block| matches!(block, Block::Image(image) if image.blob == *blob)),
+        Message::Assistant { .. } => false,
+    })
 }

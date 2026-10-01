@@ -3,15 +3,19 @@
 //! 不差。还查剧本真走到了：五百份里，每种走法至少一次。CI 另有一项长跑，接着往后跑两万份。
 //!
 //! 随机数是自己写的 SplitMix64，种子固定，每次跑都是同样的五百份。红了会打印种子和那份日志。
+//!
+//! 五个种子里有一个看不了图（施工 8-17）：人说的话偶尔带一张图（三张里挑一张），转述另用一串随机数排好，四回里一回没成。
 
 mod support;
 
 use std::collections::BTreeSet;
 
+use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Body, CompactTrigger, ErrorClass, Event, ToolStatus};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::Queued;
 use miyu_kernel::testkit::{Line, Play, Stage};
+use support::sight::{blind, described, picture};
 use support::{anchored, check, lines, sent, stage, summarizes};
 
 /// SplitMix64：十来行的伪随机数，够造剧本用。
@@ -44,6 +48,8 @@ struct Writer {
     manual: Rng,
     spoken: u32,
     read_only: bool,
+    /// 看不了图的种子（施工 8-17）：人说的话偶尔带图，另用一串随机数，原来那串不跟着错开。
+    sight: Option<Rng>,
 }
 
 /// 一个回合里开的口子：替身跑到这里停住，人在这时插手。
@@ -57,10 +63,32 @@ enum Window {
 }
 
 impl Writer {
-    /// 人说一句新的。
+    /// 人说一句新的；看不了图的种子里三回里一回带一张图（施工 8-17）。
     fn say(&mut self, s: &mut Stage) {
         self.spoken += 1;
-        s.say(&format!("第 {} 句话", self.spoken));
+        let words = format!("第 {} 句话", self.spoken);
+        let mut picked = None;
+        if let Some(sight) = self.sight.as_mut()
+            && sight.chance(33)
+        {
+            picked = Some(sight.below(3));
+        }
+        match picked {
+            Some(k) => {
+                s.send(vec![Block::Text(Text { text: words }), picture(k)]);
+            }
+            None => {
+                s.say(&words);
+            }
+        }
+    }
+
+    /// 交限额：看不了图的种子里是看不了图的（施工 8-17）。
+    fn limits(&self, s: &mut Stage, window: Option<u64>) {
+        match self.sight {
+            Some(_) => s.limits_with(blind(window)),
+            None => s.limits(window, None),
+        }
     }
 
     /// 开关只读。
@@ -110,7 +138,7 @@ impl Writer {
                 1 => Some(1_000_000),
                 _ => Some(33_000 + 20 + self.rng.below(400)),
             };
-            s.limits(window, None);
+            self.limits(s, window);
         }
     }
 
@@ -262,9 +290,18 @@ fn random_session(seed: u64) -> Stage {
         manual: Rng(seed ^ 0xC0_4AC7),
         spoken: 0,
         read_only: false,
+        sight: (seed % 5 == 3).then_some(Rng(seed ^ 0x5167_0817)),
     };
     let mut s = stage();
     summarizes(&mut s);
+    if let Some(sight) = writer.sight.as_mut() {
+        // 转述事先排好，四回里一回没成；用不完的留着。
+        let answers: Vec<Option<String>> = (0..64)
+            .map(|k| sight.chance(75).then(|| format!("Picture, take {k}.")))
+            .collect();
+        s.vision(answers.iter().map(Option::as_deref));
+        writer.limits(&mut s, None);
+    }
     for _ in 0..3 + writer.rng.below(6) {
         writer.between(&mut s);
         writer.turn(&mut s);
@@ -320,6 +357,7 @@ fn paths(log: &[Event]) -> BTreeSet<&'static str> {
             {
                 Some("等重试时切了级别")
             }
+            Body::ImageDescribed(_) => Some("替它看图"),
             Body::ToolResult(result) if result.status == ToolStatus::Error => Some("工具出错"),
             Body::ToolResult(result)
                 if result.status == ToolStatus::Denied && event.by == By::Kernel =>
@@ -391,6 +429,15 @@ fn run(seeds: std::ops::Range<u64>) -> BTreeSet<&'static str> {
         {
             seen.insert("查了摘要请求的前缀");
         }
+        if sent
+            .iter()
+            .any(|sent| !sent.request.described.is_empty() && !sent.rewritten)
+        {
+            seen.insert("查了带转述的前缀");
+        }
+        if !session.describes().is_empty() && session.describes().len() > described(session.log()) {
+            seen.insert("转述没成写占位");
+        }
     }
     seen
 }
@@ -417,6 +464,9 @@ const EXPECTED_PATHS: &[&str] = &[
     "结果乱序回来",
     "查了回合第一次请求的最后一块",
     "查了前缀延伸",
+    "替它看图",
+    "查了带转述的前缀",
+    "转述没成写占位",
 ];
 
 #[test]

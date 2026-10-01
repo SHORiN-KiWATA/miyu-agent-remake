@@ -1,5 +1,5 @@
 //! 替身的组装（[`Listing`]）：有效历史一条事件一行，测的是会话什么时候、拿哪一段历史组装；和它配套的几样，把事件、
-//! 请求写成一行一条的样子。
+//! 请求写成一行一条的样子。人的消息带的图接在那一行后面（施工 8-17）：替它看图要看得到请求里的图。
 
 use super::*;
 
@@ -12,10 +12,20 @@ impl Assembler for Listing {
         let messages = history
             .events()
             .iter()
-            .map(|event| Message::User {
-                blocks: vec![Block::Text(Text {
+            .map(|event| {
+                let mut blocks = vec![Block::Text(Text {
                     text: format!("{} {}", event.seq, event.body.kind()),
-                })],
+                })];
+                if let Body::MessageUser(message) = &event.body {
+                    blocks.extend(
+                        message
+                            .blocks
+                            .iter()
+                            .filter(|block| matches!(block, Block::Image(_)))
+                            .cloned(),
+                    );
+                }
+                Message::User { blocks }
             })
             .collect();
         Request {
@@ -24,6 +34,7 @@ impl Assembler for Listing {
             messages,
             stable: 0,
             continuation: false,
+            described: Default::default(),
         }
     }
 
@@ -116,6 +127,7 @@ impl Assembler for Listing {
             messages,
             stable: 0,
             continuation: false,
+            described: Default::default(),
         };
         Some((request, upto))
     }
@@ -154,8 +166,24 @@ impl Assembler for Listing {
             messages,
             stable: 0,
             continuation: false,
+            described: Default::default(),
         };
         Some((request, events[answer].seq))
+    }
+
+    /// 转述一张图（施工 8-17）：一条 user，写着「describe」和人的话，接着这张图。
+    fn describe(&self, image: &crate::block::Image, said: Option<&str>) -> Option<Request> {
+        let text = format!("describe {}", said.unwrap_or_default());
+        Some(Request {
+            tools: Vec::new(),
+            system: String::new(),
+            messages: vec![Message::User {
+                blocks: vec![Block::Text(Text { text }), Block::Image(image.clone())],
+            }],
+            stable: 0,
+            continuation: false,
+            described: Default::default(),
+        })
     }
 
     /// 正文块连起来，去掉前后空白；空的取不到。
@@ -186,9 +214,13 @@ pub(super) fn listed_request(request: &Request) -> String {
         .messages
         .iter()
         .map(|message| match message {
-            Message::User { blocks } => match blocks.as_slice() {
-                [Block::Text(text)] => format!("{}\n", text.text),
-                other => panic!("替身的组装一条消息只有一块字：{other:?}"),
+            Message::User { blocks } => match blocks.split_first() {
+                Some((Block::Text(text), images))
+                    if images.iter().all(|block| matches!(block, Block::Image(_))) =>
+                {
+                    format!("{}\n", text.text)
+                }
+                _ => panic!("替身的组装一条消息是一块字，后面只跟着图：{blocks:?}"),
             },
             other => panic!("替身的组装只出 user 消息：{other:?}"),
         })

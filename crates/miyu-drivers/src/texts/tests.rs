@@ -17,6 +17,13 @@ const IMAGE_NAME: ImageNameSources<'static> = ImageNameSources {
     image_omitted_named: "no image {name}\n",
 };
 
+/// 替它看的图的三句（施工 8-17），测试自己写的。
+const IMAGE_DESCRIPTION: ImageDescriptionSources<'static> = ImageDescriptionSources {
+    image_description_open: "<d>\n",
+    image_description_open_named: "<d {name}>\n",
+    image_description_close: "</d>\n",
+};
+
 fn sources<'a>(file_omitted: &'a str) -> DriverTextSources<'a> {
     DriverTextSources {
         image_omitted: "no image\n",
@@ -26,6 +33,7 @@ fn sources<'a>(file_omitted: &'a str) -> DriverTextSources<'a> {
         tool_attachments_only: "see below\n",
         text_file: Some(TEXT_FILE),
         image_name: Some(IMAGE_NAME),
+        image_description: Some(IMAGE_DESCRIPTION),
     }
 }
 
@@ -176,6 +184,56 @@ fn a_field_that_does_not_belong_is_refused() {
     ] {
         let sources = DriverTextSources {
             image_name: Some(broken),
+            ..sources("file {name}\n")
+        };
+        assert!(DriverTexts::new(sources).is_err(), "{broken:?}");
+    }
+}
+
+/// 替它看的图（施工 8-17）：开头、转述原文（不转义，末尾补换行）、收尾；带名字的用带名字的开头，名字照规矩转义；以前的快照
+/// 没有这三句的交回空的。
+#[test]
+fn a_description_is_wrapped_as_it_is() {
+    let texts = DriverTexts::new(sources("file {name}\n")).unwrap();
+    assert_eq!(
+        texts.image_described(None, "A <b>red</b> \"sign\""),
+        Some("<d>\nA <b>red</b> \"sign\"\n</d>\n".to_string())
+    );
+    assert_eq!(
+        texts.image_described(Some("晚霞.png"), "Sunset.\n"),
+        Some("<d 晚霞.png>\nSunset.\n</d>\n".to_string()),
+        "末尾有换行的不再补"
+    );
+    assert_eq!(
+        texts.image_described(Some("<x>.png"), "x"),
+        Some("<d \\u003cx\\u003e.png>\nx\n</d>\n".to_string())
+    );
+    let old = DriverTexts::new(DriverTextSources {
+        image_description: None,
+        ..sources("file {name}\n")
+    })
+    .unwrap();
+    assert_eq!(old.image_described(Some("a.png"), "x"), None);
+}
+
+#[test]
+fn a_description_field_that_does_not_belong_is_refused() {
+    for broken in [
+        ImageDescriptionSources {
+            image_description_open: "<d {name}>\n",
+            ..IMAGE_DESCRIPTION
+        },
+        ImageDescriptionSources {
+            image_description_open_named: "<d {path}>\n",
+            ..IMAGE_DESCRIPTION
+        },
+        ImageDescriptionSources {
+            image_description_close: "</d {name}>\n",
+            ..IMAGE_DESCRIPTION
+        },
+    ] {
+        let sources = DriverTextSources {
+            image_description: Some(broken),
             ..sources("file {name}\n")
         };
         assert!(DriverTexts::new(sources).is_err(), "{broken:?}");

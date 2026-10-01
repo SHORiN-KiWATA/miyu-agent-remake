@@ -10,6 +10,8 @@
 //!   收尾没有字段。以前造的快照里没有这三句，文本文件照别的文件写占位。
 //! - 带名字的图片（施工 3-9 四补）：能看图的前后各一段标签，开头带文件名 `name`、收尾没有字段；不能看图的占位写上
 //!   `name`。以前造的快照里没有这三句，带名字的图片照不带名字的写。
+//! - 替它看的图（施工 8-17）：不能看图、这张图有转述的，转述前后各一段标签：开头不带字段，带名字的图另用一份开头、字段
+//!   是 `name`；收尾没有字段。转述原文不转义。以前造的快照里没有这三句，照旧写占位。
 //!
 //! 字段照模板的规矩转义（`08-上下文投影.md` 第五节「模板与转义怎么写」）。由执行器从资源目录读好
 //! 交进来，造会话时读一次，冻结在会话上。
@@ -37,6 +39,19 @@ pub struct DriverTexts {
     text_file: Option<TextFile>,
     /// 带名字的图片的三句；以前造的快照里没有。
     image_name: Option<ImageName>,
+    /// 替它看的图的三句（施工 8-17）；以前造的快照里没有。
+    image_description: Option<ImageDescription>,
+}
+
+/// 替它看的图的三句（施工 8-17）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ImageDescription {
+    /// 转述前面，不带名字的图。
+    open: Template,
+    /// 转述前面，带名字的图：字段是 `name`。
+    open_named: Template,
+    /// 转述后面。
+    close: Template,
 }
 
 /// 文本文件的三句（施工 3-9 三补）。
@@ -78,6 +93,19 @@ pub struct DriverTextSources<'a> {
     pub text_file: Option<TextFileSources<'a>>,
     /// 带名字的图片的三句（施工 3-9 四补）；以前造的快照里没有的是 `None`。
     pub image_name: Option<ImageNameSources<'a>>,
+    /// 替它看的图的三句（施工 8-17）；以前造的快照里没有的是 `None`。
+    pub image_description: Option<ImageDescriptionSources<'a>>,
+}
+
+/// 替它看的图的三句的原文（施工 8-17）。
+#[derive(Debug, Clone, Copy)]
+pub struct ImageDescriptionSources<'a> {
+    /// `image-description-open.txt`。
+    pub image_description_open: &'a str,
+    /// `image-description-open-named.txt`。
+    pub image_description_open_named: &'a str,
+    /// `image-description-close.txt`。
+    pub image_description_close: &'a str,
 }
 
 /// 文本文件的三句的原文（施工 3-9 三补）。
@@ -129,6 +157,16 @@ impl DriverTexts {
                 })
             })
             .transpose()?;
+        let image_description = sources
+            .image_description
+            .map(|wrap| -> Result<ImageDescription, TemplateError> {
+                Ok(ImageDescription {
+                    open: Template::parse(wrap.image_description_open)?,
+                    open_named: Template::parse(wrap.image_description_open_named)?,
+                    close: Template::parse(wrap.image_description_close)?,
+                })
+            })
+            .transpose()?;
         let texts = DriverTexts {
             image_omitted: Template::parse(sources.image_omitted)?,
             file_omitted: Template::parse(sources.file_omitted)?,
@@ -137,6 +175,7 @@ impl DriverTexts {
             tool_attachments_only: Template::parse(sources.tool_attachments_only)?,
             text_file,
             image_name,
+            image_description,
         };
         texts.file_omitted.render(&file("", "", ""))?;
         let mut plain = vec![
@@ -155,6 +194,11 @@ impl DriverTexts {
             image.omitted.render(&named(""))?;
             plain.push(&image.close);
         }
+        if let Some(wrap) = &texts.image_description {
+            wrap.open_named.render(&named(""))?;
+            plain.push(&wrap.open);
+            plain.push(&wrap.close);
+        }
         for plain in plain {
             plain.render(&BTreeMap::new())?;
         }
@@ -168,6 +212,22 @@ impl DriverTexts {
             (Some(name), Some(image)) => render(&image.omitted, &named(name)),
             _ => render(&self.image_omitted, &BTreeMap::new()),
         }
+    }
+
+    /// 模型不能看图、这张图有转述 `description` 的，图片换成的这一段（施工 8-17）：开头（带名字 `name` 的用带名字的那一份）、
+    /// 转述原文（不转义，末尾没有换行的补一个）、收尾。快照里没有这三句的，交回空的：照旧写占位。
+    pub fn image_described(&self, name: Option<&str>, description: &str) -> Option<String> {
+        let wrap = self.image_description.as_ref()?;
+        let mut out = match name {
+            Some(name) => render(&wrap.open_named, &named(name)),
+            None => render(&wrap.open, &BTreeMap::new()),
+        };
+        out.push_str(description);
+        if !description.ends_with('\n') {
+            out.push('\n');
+        }
+        out.push_str(&render(&wrap.close, &BTreeMap::new()));
+        Some(out)
     }
 
     /// 能看图时，带名字 `name` 的图片前后的两段：开头、收尾（施工 3-9 四补）。不带名字的、快照里没有这几句的，交回

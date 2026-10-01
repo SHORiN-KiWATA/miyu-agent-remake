@@ -34,6 +34,7 @@ pub(crate) fn request(history: &History, texts: &Texts) -> Option<(Request, Seq)
         }],
         stable: 0,
         continuation: false,
+        described: Default::default(),
     };
     Some((request, upto))
 }

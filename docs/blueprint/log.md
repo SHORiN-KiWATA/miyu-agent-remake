@@ -151,8 +151,9 @@
 | `endpoint` | DEBUG | `unknown model` | `why` | `session.create`、`session.configure`、`model.call` 的 `model` 解析不出，回 `unknown_model`（施工 8-8、8-10、8-20） |
 | `session` | INFO | `provider tested` | `provider`、`model`（没有模型可试的是空的）、`ok` | `provider.test` 试了一次（`models.md` 第七条第 4 条第 7 款，施工 8-11）：不属于哪个会话，不带会话编号；候选的 `provider` 是它推的编号。key、地址不进这一行 |
 | `endpoint` | WARN | `probe text unreadable` | `error` | `provider.test` 读不了 `core/models/probe.txt`，回 `internal_error`（施工 8-11） |
-| `session` | INFO | `model call` | `purpose`、`provider`、`model`、`input`、`output`（没报用量的没有后两个） | 一次性入口成了一次（`models.md` 第十二条第 6 条，施工 8-20）：`input` 是没命中、命中、写进缓存三项加起来。不属于哪个会话，不带会话编号 |
-| `session` | INFO | `model call failed` | `purpose`、`reason`、`class`（只有 `model_failed` 带） | 一次性入口没成（施工 8-20）：`reason` 是 `unknown_model`、`no_model`、`cooling`、`model_failed`。不带会话编号 |
+| `session` | INFO | `model call` | `purpose`、`provider`、`model`、`input`、`output`（没报用量的没有后两个） | 一次性入口成了一次（`models.md` 第十二条第 6 条，施工 8-20）：`input` 是没命中、命中、写进缓存三项加起来。不属于哪个会话，不带会话编号；替看不了图的模型看图那一次（`purpose` 是 `vision`）在会话的 span 里发，带会话编号（施工 8-17） |
+| `session` | INFO | `model call failed` | `purpose`、`reason`、`class`（只有 `model_failed` 带） | 一次性入口没成（施工 8-20）：`reason` 是 `unknown_model`、`no_model`、`cooling`、`model_failed`。不带会话编号；`vision` 的带（施工 8-17） |
+| `session` | INFO | `image not described` | `blob`、`why` | 替看不了图的模型看图没成（`models.md` 第十三条第 7 条，施工 8-17）：没配 `models.vision`、一次性入口没答成、回答是空的。会话的 actor 记，带会话编号；这张图这一轮写占位 |
 | `core` | INFO | `sandbox` | `helper`（助手的路径）、`platform`、`mechanisms`（逗号连起来，空的写 `none`） | 起来时探沙盒的助手，探成了（`sandbox.md`，施工 5-1） |
 | `core` | WARN | `sandbox unavailable` | `reason` | 起来时探沙盒的助手：没找到、跑不了、到时、说的读不懂 |
 | `session` | | | | 会话的每一行带会话编号，见 `session/actor.md` 的「运行日志」 |
@@ -240,6 +241,7 @@
 | `crates/miyu-session/tests/blocking_log.rs` | 存效果的 blob 存不进去那一行在阻塞线程里发，带会话编号（Unix） |
 | `crates/miyu-basesystem/tests/log.rs` | `shell` 的行来源是 `shell`；命令退出了输出还没关那一行在阻塞线程里发，带会话编号（Linux） |
 | `crates/miyu-session/tests/recap_log.rs` | 回顾的请求的几行前面带 `recap`（施工 3-8 四补）；不写对话的字 |
+| `crates/miyu-session/tests/vision_log.rs`（施工 8-17） | 替它看图没成的一行 `image not described`（会话编号、图、为什么）；成了的不另记，一次性入口那一行 `model call purpose=vision` 带会话编号 |
 | `crates/miyu-session/tests/title_log.rs` | 起标题的请求的几行前面带 `title`（施工 3-8 五补）：两次都没起成就只有两对 `title request`、`title failed`；起成了的 `title ended`；不写对话的字 |
 | `crates/miyu-session/tests/http_log.rs` | HTTP 的两行带会话编号；key 不在日志里 |
 | `crates/miyu-http/tests/log.rs` | HTTP 的几行；key、请求体、回复的字、地址的路径和参数、出错的原话都不在日志里 |

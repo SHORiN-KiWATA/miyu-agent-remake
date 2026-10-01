@@ -351,7 +351,7 @@ fn edited(original: &[Block], change: &Change) -> Vec<Block> {
     words.into_iter().chain(attached).collect()
 }
 
-/// 这一串动作追加的事件，照先后。
+/// 这一串动作追加的事件，照先后。读回日志时到的转述（施工 8-17）先放着、读完才记，排在这一批后面，不算重做的。
 fn appended_of(actions: &[Action]) -> Vec<&Event> {
     actions
         .iter()
@@ -360,5 +360,6 @@ fn appended_of(actions: &[Action]) -> Vec<&Event> {
             _ => None,
         })
         .flatten()
+        .filter(|event| !matches!(event.body, Body::ImageDescribed(_)))
         .collect()
 }

@@ -91,7 +91,16 @@ pub trait ModelPort: Send + Sync {
             window: None,
             max_output: None,
             images: None,
+            blind: false,
         }
+    }
+
+    /// 替看不了图的模型看图（施工 8-17，`docs/blueprint/models.md`「怎么走」第十三条第 4 条）：照这一轮的配置 `config` 把
+    /// `request` 经一次性入口发给 `models.vision`，说完了交给 `sight`。马上返回，在别的任务里发，带上当前的 span。没有一次性
+    /// 入口的（测试的端口）当场交没成。
+    fn describe(&self, request: Request, config: &TurnConfig, sight: Sight) {
+        let _ = (request, config);
+        sight.unseen("this model port cannot describe images".to_string());
     }
 
     /// 发一次请求。马上返回，在别的任务里发：actor 不等它。`config` 是这一轮的配置（回合开始时冻结的，施工 8-4）：这一轮
@@ -202,6 +211,40 @@ impl Reports {
     }
 }
 
+/// 一次转述的结果送回哪里（施工 8-17）：成了的交替它看的模型和转述，没成的交为什么。都送回 actor 的收件箱。
+#[derive(Debug)]
+pub struct Sight {
+    blob: ContentHash,
+    back: mpsc::UnboundedSender<Back>,
+}
+
+impl Sight {
+    pub(crate) fn new(blob: ContentHash, back: mpsc::UnboundedSender<Back>) -> Sight {
+        Sight { blob, back }
+    }
+
+    /// 转述成了：替它看的是 `model`，转述是 `text`（去掉了前后空白，不是空的）。
+    pub fn seen(self, model: Model, text: String) {
+        self.send(Ok((model, text)));
+    }
+
+    /// 转述没成：为什么，记进运行日志。
+    pub fn unseen(self, why: String) {
+        self.send(Err(why));
+    }
+
+    #[expect(
+        clippy::let_underscore_must_use,
+        reason = "会话停了就送不进去：转述没人要了，丢掉"
+    )]
+    fn send(self, seen: Result<(Model, String), String>) {
+        let _ = self.back.send(Back::Described {
+            blob: self.blob,
+            seen,
+        });
+    }
+}
+
 /// 叫停一次请求：会话不要这次请求了，或者会话停了（actor 放下了叫停的那一头）。会话停了就没人要
 /// 结果了，接着读只是白花 token。说完了以后放下的，请求已经不在读了，停不停都一样。
 #[derive(Debug)]
@@ -256,6 +299,11 @@ pub(crate) enum Back {
     Tool(crate::tools::ToolBack),
     /// 一条后台命令结束了（施工 7-3）。
     Job(crate::jobs::Ended),
+    /// 替它看图回来了（施工 8-17）：哪一张图，成了的替它看的模型和转述，没成的为什么。
+    Described {
+        blob: ContentHash,
+        seen: Result<(Model, String), String>,
+    },
     /// 等会话 `session` 等不到了（施工 C-6，`peers.rs`）：到点了是 `expired`，订的时候它不在了是 `gone`。
     WatchEnded {
         session: miyu_kernel::id::SessionId,

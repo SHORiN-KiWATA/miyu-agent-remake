@@ -2,7 +2,7 @@
 //! 收场（`28-运行日志.md` 第三节）。辅助请求（施工 3-8 四补的回顾、五补的起标题）也在这里：同一个端口，回报另走一路。
 //! 说完了跟着端口的限额（施工 8-9，[`Actor::follow_limits`]）：变了交给内核，模型变了推 `model.changed`。回合开始时叫端口照
 //! 这一轮的配置重新解析会话的引用（施工 8-10，[`Actor::turn_start`]）：限额变了交给内核，头看得到的变了推 `model.changed`。
-//! 思考强度（施工 8-18）给头看的那一档也算头看得到的一格。
+//! 思考强度（施工 8-18）给头看的那一档也算头看得到的一格。替看不了图的模型看图也在这里交给端口（施工 8-17）。
 
 use std::time::Instant;
 
@@ -11,7 +11,7 @@ use tokio::sync::oneshot;
 use miyu_kernel::event::{
     CallError, ChangeWhy, ModelChanged, Purpose, Transient, TransientBody, Usage,
 };
-use miyu_kernel::id::{Seq, TurnId};
+use miyu_kernel::id::{ContentHash, Seq, TurnId};
 use miyu_kernel::origin::By;
 use miyu_kernel::request::{Difference, Request};
 use miyu_kernel::session::{Input, Limits};
@@ -21,7 +21,7 @@ use super::{Actor, answer};
 use crate::TARGET;
 use crate::handle::Pushed;
 use crate::lines::{millis, where_};
-use crate::port::{Cancel, Report, Reports};
+use crate::port::{Cancel, Report, Reports, Sight};
 use crate::route::NONE;
 use crate::shown::{Next, Shown};
 
@@ -67,6 +67,14 @@ impl Actor {
         let config = self.config.current();
         self.model
             .call(upto, request, config, reports, Cancel::new(cancel));
+    }
+
+    /// 替看不了图的模型看图（施工 8-17）：交给端口照这一轮的配置发，结果送回 `Back::Described`（`back.rs`）。叫不停：会话停了，
+    /// 回来的没人收。
+    pub(super) fn describe(&mut self, blob: ContentHash, request: Request) {
+        let sight = Sight::new(blob, self.backs.clone());
+        let config = self.config.current();
+        self.model.describe(request, config, sight);
     }
 
     /// 不要请求 `seen` 了：叫端口停下。

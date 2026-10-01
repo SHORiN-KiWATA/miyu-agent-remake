@@ -107,6 +107,20 @@ pub(crate) fn core() -> CoreTexts {
                 )
                 .to_string(),
             }),
+            image_description: Some(crate::ImageDescriptionTexts {
+                image_description_open: include_str!(
+                    "../../../resources/core/drivers/image-description-open.txt"
+                )
+                .to_string(),
+                image_description_open_named: include_str!(
+                    "../../../resources/core/drivers/image-description-open-named.txt"
+                )
+                .to_string(),
+                image_description_close: include_str!(
+                    "../../../resources/core/drivers/image-description-close.txt"
+                )
+                .to_string(),
+            }),
         },
         compaction: Some(CompactionTexts {
             summarize_task: include_str!("../../../resources/core/compaction/summarize-task.txt")
@@ -183,6 +197,10 @@ pub(crate) fn core() -> CoreTexts {
         }),
         title: Some(crate::TitleTexts {
             instruction: include_str!("../../../resources/core/title/instruction.txt").to_string(),
+        }),
+        vision: Some(crate::VisionTexts {
+            instruction: include_str!("../../../resources/core/vision/instruction.txt").to_string(),
+            question: include_str!("../../../resources/core/vision/question.txt").to_string(),
         }),
     }
 }

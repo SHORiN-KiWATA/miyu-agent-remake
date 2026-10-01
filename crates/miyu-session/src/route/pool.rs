@@ -10,7 +10,8 @@
 //! - 认不出的成员（那一家没配）每次解析都记一行 `WARN pool member skipped`。
 //! - 指针往前走一次，在阻塞线程里写一次 `state/models/pools.json`（[`ModelData::save_pointers`]）。
 //! - 限额：钉住的照钉着的那个成员。轮换的取成员里窗口最小的、最大输出最小的（说得出的里面），一张图的算法只在成员都一样时
-//!   给，模型写 `none`：每次请求的模型都不一样，锚总是对不上，用量全靠本地估（第三条第 7 条，认了的）。
+//!   给，模型写 `none`：每次请求的模型都不一样，锚总是对不上，用量全靠本地估（第三条第 7 条，认了的）。看不看得了图两种池
+//!   一样：有一个认得出的成员看不了就算看不了（施工 8-17，第十三条第 1 条）。
 
 use std::sync::Arc;
 
@@ -43,15 +44,29 @@ impl Routes {
                     .and_then(|sent| pool.find(sent.endpoint.as_str(), sent.model.as_str()))
                     .unwrap_or_else(|| take(&self.data, pool));
                 let member = pool.members[at].clone();
-                let limits = target(&self.data, &values, &member)
+                let mut limits = target(&self.data, &values, &member)
                     .map_or_else(|_| nothing(), |target| self.limits(config, &target));
+                // 出错会换到别的成员：有一个看不了图就算看不了（施工 8-17）。
+                limits.blind = self.blind(config, &values, pool);
                 (Some(member), limits)
             }
             Strategy::Rotate => (None, self.rotating(config, &values, pool)),
         }
     }
 
-    /// 轮换的池的限额：说得出的窗口、最大输出里小的；一张图的算法成员都一样才给。
+    /// 池里有一个认得出的成员看不了图（施工 8-17）：资料的 `inputs` 没有 `image`。
+    fn blind(&self, config: &TurnConfig, values: &Values, pool: &Pool) -> bool {
+        pool.members.iter().any(|member| {
+            target(&self.data, values, member).is_ok_and(|target| {
+                let (facts, _) = self.data.with(|knowledge| {
+                    facts(&config.resolved, knowledge, &target.provider, &target.model)
+                });
+                !facts.driver_inputs().images
+            })
+        })
+    }
+
+    /// 轮换的池的限额：说得出的窗口、最大输出里小的；一张图的算法成员都一样才给；有一个成员看不了图就算看不了（施工 8-17）。
     fn rotating(&self, config: &TurnConfig, values: &Values, pool: &Pool) -> Limits {
         let mut limits = nothing();
         let mut tokens = Vec::new();
@@ -64,6 +79,7 @@ impl Routes {
             });
             limits.window = smaller(limits.window, facts.window.value);
             limits.max_output = smaller(limits.max_output, facts.max_output.value);
+            limits.blind |= !facts.driver_inputs().images;
             tokens.push(target.provider.images);
         }
         if let Some(first) = tokens.first()

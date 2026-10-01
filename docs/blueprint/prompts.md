@@ -1673,6 +1673,40 @@ These images and files were returned by the tool calls above.
 The tool returned only images or files. They are in the next message.
 ```
 
+#### `core/drivers/image-description-open-named.txt`
+
+- 什么时候加进来：同上，人附的、带名字的图（施工 8-17）
+- token：10
+- 为什么加：同 `image-description-open.txt`；带上文件名，看不了图的也知道附的是哪个文件（施工 3-9 四补的理由）。模板没有可以不填的字段，另成一份
+- 指纹：`5ee6d0c8`
+
+```text
+<image-description name="{name}">
+```
+
+#### `core/drivers/image-description-close.txt`
+
+- 什么时候加进来：同 `image-description-open.txt`
+- token：5
+- 为什么加：同 `image-description-open.txt`
+- 指纹：`42ba5301`
+
+```text
+</image-description>
+```
+
+#### `core/vision/question.txt`
+
+- 什么时候加进来：人这一轮说过字不空的话：接在指令后面，后面紧跟最近那一句的原话（施工 8-17）
+- token：13
+- 为什么加：`10-自带软件.md` 第三节末尾记的第一个办法：带上人最近说的那句，让转述照着人要找的东西写细一点（施工 8-17，主会话定）。一个空行和一行标明下面是人的话
+- 指纹：`98f28542`
+
+```text
+
+The user's latest message, so you know what matters most:
+```
+
 ### 人附的文本文件的开头，人这边
 
 #### `core/drivers/file-open.txt`
@@ -1736,6 +1770,19 @@ Only the first {shown} of {total} bytes of this file are shown.
 
 ```text
 </image>
+```
+
+### 主请求里图的位置，人这边或者工具结果里
+
+#### `core/drivers/image-description-open.txt`
+
+- 什么时候加进来：模型看不了图，这张图 `models.vision` 替它转述过（`image.described`）；不带名字的图（施工 8-17）
+- token：5
+- 为什么加：替看不了图的模型看图（`10-自带软件.md` 第三节末尾，B11，施工 8-17）：图的位置换成转述，前后一对标签，她知道这一段是图的转述、不是原图。只写是图的转述，没写「别的模型替你看的」（非必要不加）；主会话真模型对比时她把转述当成自己看过的原图、乱编细节，再加
+- 指纹：`2fb4a50d`
+
+```text
+<image-description>
 ```
 
 ### 人这边：任务的回报（一块带标签的事实）
@@ -2103,6 +2150,19 @@ Assistant:
 Write a title of 3 to 7 words for this conversation, in the language of the conversation. Reply with the title only, without quotes or a final period.
 
 Conversation:
+```
+
+### 转述一张图那一次请求，不进主对话
+
+#### `core/vision/instruction.txt`
+
+- 什么时候加进来：模型看不了图、请求里有还没转述过的图：一张图一次，经一次性入口发给 `models.vision`；一条 user 的第一块，后面是这张图（施工 8-17）
+- token：27
+- 为什么加：替看不了图的模型看图（`10-自带软件.md` 第三节末尾：画面里有什么，图上的字照原样抄下来；施工 8-17）。三句英文：写画面里有什么、给看不到它的人看；图上的字照原样抄；只回转述
+- 指纹：`342f98c2`
+
+```text
+Describe what this image shows for someone who cannot see it. Copy all text in it exactly as written. Reply with the description only.
 ```
 
 ### 试一次供应商那一次请求，不进主对话

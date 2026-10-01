@@ -334,6 +334,8 @@ impl Session {
             true => assembler.summarize_isolated(&self.history, upto, cut, asked),
             false => assembler.summarize(&self.history, upto, cut, asked),
         };
+        // 看不了图的，转述过的图照样换成字（施工 8-17，`sight.rs`）。
+        let request = self.with_descriptions(request);
         let fingerprint = request.fingerprint();
         let difference = self
             .last_request

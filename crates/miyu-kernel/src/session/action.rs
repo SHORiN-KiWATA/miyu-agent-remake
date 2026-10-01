@@ -46,6 +46,14 @@ pub enum Action {
         /// 执行器照它写运行日志：缓存没命中时，一看就知道是不是前缀变了（施工 3-9 下）。
         changed: Option<Difference>,
     },
+    /// 替看不了图的模型看图（施工 8-17，`docs/blueprint/models.md`「怎么走」第十三条第 4 条）：把这份请求经一次性入口发给这一轮
+    /// 的 `models.vision`，说完了送回 [`super::Input::Described`]。叫不停：之后到的照样收。
+    Describe {
+        /// 哪一张图：也是这一次的名字，回报照它对上。
+        blob: ContentHash,
+        /// 转述的请求：指令、人这一轮最近说的那一句、这张图（`Assembler::describe`）。
+        request: Request,
+    },
     /// 把一条瞬时事件推给头：不落盘，不等（`03-事件模型.md` 第五节）。
     PushTransient(Transient),
     /// 不要这次请求了：停下来，别再发它的增量。之后还来的回报，都当过时的不理。

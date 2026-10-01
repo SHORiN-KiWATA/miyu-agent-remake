@@ -175,7 +175,7 @@ impl Watch {
     }
 
     /// 送进去以后：照判出来的查。拒绝的只有一个回应；接受的只追加了一条，列的是判出来的那几轮；检查点换了、重读过
-    /// 文件的，紧跟着取回原文。
+    /// 文件的，紧跟着取回原文。读回日志时到的转述（施工 8-17）先放着、读完才记，排在这一批后面，不算撤销的。
     pub(super) fn after_undo(&mut self, actions: &[Action], expect: Option<Expect>) {
         let seed = self.seed;
         let appended: Vec<&Event> = actions
@@ -185,6 +185,7 @@ impl Watch {
                 _ => None,
             })
             .flatten()
+            .filter(|event| !matches!(event.body, Body::ImageDescribed(_)))
             .collect();
         let recalls: Vec<&Vec<ContentHash>> = actions
             .iter()
