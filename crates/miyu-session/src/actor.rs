@@ -18,6 +18,7 @@ use miyu_kernel::session::{Action, Input, Outcome, Session};
 use miyu_kernel::time::Timestamp;
 
 use crate::TARGET;
+use crate::agents::Inherit;
 use crate::blocking::blocking;
 use crate::clock::Clock;
 use crate::config::Turning;
@@ -361,6 +362,7 @@ impl Actor {
                         permission,
                         jobs,
                         subagents: self.session.subagents(),
+                        inherit: Inherit::of(&*self.model, self.config.current()),
                     },
                 )
             }

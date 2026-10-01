@@ -5,6 +5,7 @@
 //!   `INFO catalog refreshed`。304：只改 `meta` 的 `fetched`，记 `INFO catalog not modified`。
 //! - 别的、读不了的、写不进的：记 `WARN catalog refresh failed`，一小时后再试。
 //! - 核心一直开着的，每过 `every` 再查一次；配置改了（当场生效）照新的算。缓存目录算不出来的不拉。
+//! - `url` 可以是环境变量的引用（施工 8-8，[`Schedule`]）：照核心的环境取，没设、设成空的到点了照失败算，记一行 `WARN`。
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -12,6 +13,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tokio::sync::watch;
 
+use miyu_config::Address;
 use miyu_http::{Client, Get, Got, get};
 use miyu_kernel::time::Timestamp;
 use miyu_models::catalog::{Catalog, CatalogSource, Loaded};
@@ -41,6 +43,32 @@ pub struct Refresher {
     pub cache: PathBuf,
 }
 
+/// 后台更新照的：`[models.catalog]` 这一刻的最终值，地址照核心的环境取好了（施工 8-8）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Schedule {
+    /// 拉不拉。
+    pub update: bool,
+    /// 从哪拉：写死的照写的；是环境变量的引用的照核心的环境取，没设、设成空的是空的。
+    pub url: Option<String>,
+    /// 缓存旧过这么久才拉。
+    pub every: Duration,
+}
+
+impl Schedule {
+    /// 照 `[models.catalog]` 的最终值 `settings`，环境变量的引用照 `env` 取（核心的环境：`config.md` 第九条第 5 条）。
+    pub fn of(settings: CatalogSettings, env: &dyn Fn(&str) -> Option<String>) -> Schedule {
+        let url = match settings.url {
+            Address::Literal(text) => Some(text),
+            Address::Env(name) => env(&name),
+        };
+        Schedule {
+            update: settings.update,
+            url: url.filter(|url| !url.is_empty()),
+            every: settings.every,
+        }
+    }
+}
+
 /// 拉一次的结果。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Refreshed {
@@ -68,7 +96,7 @@ pub fn next_try(
 
 impl Refresher {
     /// 一直跑：照 `settings`（配置改了当场换）算什么时候拉，到了拉一次。`settings` 的发送方没了就停。
-    pub async fn run(self, mut settings: watch::Receiver<CatalogSettings>) {
+    pub async fn run(self, mut settings: watch::Receiver<Schedule>) {
         let mut failed = None;
         loop {
             let now = settings.borrow_and_update().clone();
@@ -90,7 +118,14 @@ impl Refresher {
                 },
             };
             if due {
-                failed = match self.once(&now.url).await {
+                let refreshed = match &now.url {
+                    Some(url) => self.once(url).await,
+                    None => {
+                        tracing::warn!(target: TARGET, error = "models.catalog.url has no address", "catalog refresh failed");
+                        Refreshed::Failed
+                    }
+                };
+                failed = match refreshed {
                     Refreshed::Failed => Some(SystemTime::now()),
                     Refreshed::Replaced | Refreshed::NotModified => None,
                 };

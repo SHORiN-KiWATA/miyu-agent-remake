@@ -28,7 +28,7 @@ use miyu_store::blob::Blobs;
 use miyu_tool::{Call, Catalog, Done, JobPort, Log, Progress, Seen, Stop};
 
 use crate::TARGET;
-use crate::agents::Agents;
+use crate::agents::{Agents, Inherit};
 use crate::blocking::blocking;
 use crate::effects;
 use crate::job_ids::JobIds;
@@ -136,6 +136,8 @@ pub(crate) struct Dispatch {
     pub(crate) jobs: Arc<dyn JobPort>,
     /// 这个会话这一刻派出去的子代理（施工 7-7）：`send_message` 照它认 `to`。
     pub(crate) subagents: BTreeMap<JobId, Subagent>,
+    /// 派子代理时子会话用哪个模型要的（施工 8-8）：会话这时的引用、这一轮的配置。
+    pub(crate) inherit: Inherit,
 }
 
 impl Tools {
@@ -218,12 +220,18 @@ impl Tools {
             permission,
             jobs,
             subagents,
+            inherit,
         } = dispatch;
         let stop = Stop::default();
         // 派子代理的端口照这一轮的目录、这一刻的权限抄（施工 7-5）：沙盒下面照样要用它们。
         let agents = self.agents.as_ref().map(|agents| {
             let ids = Arc::clone(&self.job_ids);
-            agents.for_call(ids, cwd.clone(), dirs.clone(), permission.clone())
+            agents.for_call(
+                ids,
+                (cwd.clone(), dirs.clone()),
+                permission.clone(),
+                inherit,
+            )
         });
         // 留言的端口照这一刻派出去的子代理抄（施工 7-7）。
         let messages = self

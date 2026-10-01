@@ -205,6 +205,7 @@ pub(crate) fn expected(words: &dyn Words, kind: Kind) -> Result<String, Missing>
         }
         Kind::Name => sentence(words, "config/expected/name", &[]),
         Kind::Reference => sentence(words, "config/expected/reference", &[]),
+        Kind::Model => sentence(words, "config/expected/model", &[]),
         Kind::List(inner) => {
             let item = expected(words, *inner)?;
             sentence(words, "config/expected/list", &[("item", &item)])

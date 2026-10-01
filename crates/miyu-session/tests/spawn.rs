@@ -26,6 +26,10 @@ mod renamed;
 #[path = "spawn/depth.rs"]
 mod depth;
 
+/// 子会话用哪个模型（施工 8-8）：挡位照父会话这一轮的配置解析，不写的抄父会话的引用。
+#[path = "spawn/tier.rs"]
+mod tier;
+
 /// 场所说明的原文。
 const VENUE: &str = include_str!("../../../resources/core/jobs/subagent-venue.txt");
 /// 核心的几行（施工 2-7 补）：权限那一句、本机文件的路径那一句，一行一句。
@@ -258,6 +262,7 @@ async fn the_child_copies_the_parent_and_gets_the_task_from_it() {
             attended: false,
             cwd: "/w".to_string(),
             dirs: vec!["/extra".to_string()],
+            model: None,
         }
     );
     // 交代原样、作为父会话发来的话送进子会话，开它的第一轮。

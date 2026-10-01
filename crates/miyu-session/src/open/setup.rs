@@ -1,0 +1,106 @@
+//! 造会话、载入要交进来的几样（施工 8-8 从 `open.rs` 挪来：那一页长过了行数的上限）。
+
+use std::path::Path;
+use std::sync::Arc;
+
+use miyu_kernel::event::Permission;
+use miyu_kernel::facts::Environment;
+use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
+use miyu_kernel::origin::By;
+use miyu_store::index::SessionIndex;
+use miyu_store::resources::ResourceRoot;
+use miyu_store::root::DataRoot;
+use miyu_tool::Catalog;
+
+use crate::config::Configs;
+use crate::jobs::Jobs;
+use crate::port::Models;
+use crate::sandbox::SandboxCache;
+use crate::spawn::{Lineage, SessionPort};
+
+/// 造一个会话要的。
+pub struct Create<'a> {
+    /// 数据根。
+    pub root: &'a DataRoot,
+    /// 资源目录：人格的原文从这里读。
+    pub resources: &'a ResourceRoot,
+    /// 会话编号，照 [`crate::new_id`] 造。
+    pub id: SessionId,
+    /// 照哪个人格造。
+    pub persona: &'a str,
+    /// 在哪个场所。
+    pub venue: VenueId,
+    /// 会话的属主：会话、blob 都在他的家目录里。
+    pub owner: AccountId,
+    /// 开始时的权限。
+    pub permission: Permission,
+    /// 有没有人能确认（`02-内核.md` 第六节「确认怎么走」第 2 条）。
+    pub attended: bool,
+    /// 一次性的：`miyu ask` 开的（`22-命令行.md` O2，施工 3-9 下）。
+    pub oneshot: bool,
+    /// 会话所在的环境：时区、工作目录。
+    pub environment: Environment,
+    /// 造会话的那个命令的编号：`session.created` 的 `cause`。
+    pub command: CommandId,
+    /// 谁发的造会话。
+    pub by: By,
+    /// 给会话造请求模型的端口：驱动的占位取自这个会话的策略快照。
+    pub models: &'a dyn Models,
+    /// 工具目录：照它存下这个会话的工具面（施工 4-1），以后一直照快照发。
+    pub tools: &'a Catalog,
+    /// 系统的家目录：权限策略照它换 `~`、找工具链目录（施工 4-3 下）。读不出来的是空的。
+    pub home: Option<&'a Path>,
+    /// 沙盒的助手：这台机器上的沙盒能用才有（核心起来时探的，施工 5-4 上）。权限策略照它判执行命令，执行器照它
+    /// 给每次调用写沙盒。
+    pub sandbox: Option<&'a Path>,
+    /// 沙盒的缓存：属主的那一份在哪、你的 cargo 目录在哪（施工 5-4 下）。核心算不出缓存目录的没有，沙盒里不设工具链的
+    /// 变量。
+    pub sandbox_cache: Option<SandboxCache>,
+    /// 父会话和第几层（施工 7-5）：子会话才有，写进 `session.created`；system 接上子会话的场所说明；到了深度上限的，
+    /// 工具面里不给 `agent`。
+    pub lineage: Option<Lineage>,
+    /// 造子会话、给别的会话发命令的端口（施工 7-5）：会话表交进来，派子代理经它。没有的（测试里自己造的），`agent` 照派
+    /// 不了出错。
+    pub sessions: Option<Arc<dyn SessionPort>>,
+    /// 执行器的任务表，核心里一张（施工 7-3）：后台命令交给它。
+    pub jobs: &'a Arc<Jobs>,
+    /// 属主的会话列表的索引（施工 3-8 七补）：日志每落一批，顺手更新这个会话的那一行。没有的（测试里自己造的）不更新。
+    pub index: Option<Arc<SessionIndex>>,
+    /// 从哪取配置（施工 8-4）：回合开始时照它冻结这一轮的配置。没有配置服务的（测试里）给 [`crate::fixed`] 的一份。
+    pub configs: Configs,
+    /// 会话用哪个模型（施工 8-8）：已经解析好的引用，模型或 `@池`（协议的 `session.create` 的 `model`、派子代理时照 `tier`
+    /// 或父会话的）。没有的照这时的 `models.chat`。记进 `session.created` 的 `model`。
+    pub model: Option<String>,
+}
+
+/// 载入一个会话要的。
+pub struct Load<'a> {
+    /// 数据根。
+    pub root: &'a DataRoot,
+    /// 会话的属主。
+    pub owner: AccountId,
+    /// 会话编号。
+    pub id: SessionId,
+    /// 会话所在的环境：时区、工作目录。
+    pub environment: Environment,
+    /// 给会话造请求模型的端口：驱动的占位取自这个会话的策略快照。
+    pub models: &'a dyn Models,
+    /// 工具目录：执行工具时照名字在这里找（施工 4-2）。工具面照快照，不照它。
+    pub tools: &'a Catalog,
+    /// 系统的家目录：权限策略照它换 `~`、找工具链目录（施工 4-3 下）。读不出来的是空的。
+    pub home: Option<&'a Path>,
+    /// 沙盒的助手：这台机器上的沙盒能用才有（核心起来时探的，施工 5-4 上）。权限策略照它判执行命令，执行器照它
+    /// 给每次调用写沙盒。
+    pub sandbox: Option<&'a Path>,
+    /// 沙盒的缓存：属主的那一份在哪、你的 cargo 目录在哪（施工 5-4 下）。核心算不出缓存目录的没有，沙盒里不设工具链的
+    /// 变量。
+    pub sandbox_cache: Option<SandboxCache>,
+    /// 造子会话、给别的会话发命令的端口（施工 7-5）：同 [`Create::sessions`]。
+    pub sessions: Option<Arc<dyn SessionPort>>,
+    /// 执行器的任务表，核心里一张（施工 7-3）：后台命令交给它，任务编号照日志往后数。
+    pub jobs: &'a Arc<Jobs>,
+    /// 同 [`Create::index`]。
+    pub index: Option<Arc<SessionIndex>>,
+    /// 同 [`Create::configs`]。
+    pub configs: Configs,
+}

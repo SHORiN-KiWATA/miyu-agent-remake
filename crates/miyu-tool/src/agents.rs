@@ -26,11 +26,17 @@ pub fn is_subagent(name: &str) -> bool {
     name == SUBAGENT || name == SUBAGENT_FORMERLY
 }
 
-/// 派子代理：交标题和整段交代，拿回任务编号和子会话的编号。
+/// 派子代理：交标题、整段交代和挡位，拿回任务编号和子会话的编号。
 pub trait AgentPort: Send + Sync {
-    /// 派一个子代理：`description` 是短标题，`prompt` 是整段交代，原样送进子会话。子会话造好、交代送进去（它的第一轮
-    /// 开了）才交回，不等它做完。
-    fn spawn<'a>(&'a self, description: &'a str, prompt: &'a str) -> Spawning<'a>;
+    /// 派一个子代理：`description` 是短标题，`prompt` 是整段交代，原样送进子会话。`tier` 是她选的挡位（施工 8-8，四个挡位
+    /// 之一，工具已经查过），执行器照这时的配置解析成子会话用的模型；没写的用父会话这时用的。子会话造好、交代送进去（它的
+    /// 第一轮开了）才交回，不等它做完。
+    fn spawn<'a>(
+        &'a self,
+        description: &'a str,
+        prompt: &'a str,
+        tier: Option<&'a str>,
+    ) -> Spawning<'a>;
 }
 
 /// 派出去一个子代理的 future。

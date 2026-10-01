@@ -140,6 +140,7 @@ pub(crate) fn words(items: &[Item]) -> Fake {
         ("config/expected/url", "http:// 或 https:// 开头的网址"),
         ("config/expected/name", "名字"),
         ("config/expected/reference", "<供应商>/<模型> 或 @<池>"),
+        ("config/expected/model", "<供应商>/<模型>"),
         ("config/expected/list", "{item} 的列表"),
         ("config/expected/id", "小写字母开头的编号"),
         ("config/expected/model-name", "1 到 128 个字节的模型名"),
@@ -167,6 +168,8 @@ pub(crate) fn words(items: &[Item]) -> Fake {
             "config/bad-secret-value",
             "{key} 的值要写成带引号的字，不能是空的",
         ),
+        ("config/no-provider", "{key} 指的供应商 {name} 没有配"),
+        ("config/no-pool", "{key} 指的池 {name} 没有配"),
     ];
     Fake {
         items: items

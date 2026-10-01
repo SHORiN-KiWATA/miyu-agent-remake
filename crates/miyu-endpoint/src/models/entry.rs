@@ -1,7 +1,8 @@
 //! `model.list` 里的一家（`docs/blueprint/models.md`「协议」`model.list` 那张表，施工 8-7）：驱动、地址、key、对上了目录里的
 //! 哪一家、模型。
 //!
-//! - 列哪些模型：供应商的列表里的、目录里对上的那一家的、配置里手写了的、`models.chat` 点名的，合在一起去重，照模型名排；
+//! - 列哪些模型：供应商的列表里的、目录里对上的那一家的、配置里手写了的、用途挡位池里点名的（施工 8-8），合在一起去重，
+//!   照模型名排；
 //!   `listed` 照 `config`、`provider`、`catalog` 的先后写从哪几处列出来的。
 //! - 模型的 `state`：写了 key、一个都没有值的是 `no_key`，别的是 `ok`（冷却随 8-9）。key 的 `state` 现在都是 `ok`。
 //! - 这一家用不了（推不出驱动、地址，驱动还没有）：驱动、地址照手写的写，没写的是 `null`，带上 `problem` 那一句，没有模型。
@@ -17,7 +18,7 @@ use miyu_config::secret::Reference;
 use miyu_models::facts::facts;
 use miyu_models::matching::Found;
 use miyu_models::provider::{self, Driver, NoModel};
-use miyu_models::reference::{Place, Reference as ModelRef};
+use miyu_models::reference::named;
 use miyu_models::settings::ProviderSettings;
 use miyu_session::ModelData;
 
@@ -129,14 +130,14 @@ fn address_json(address: &Address) -> Value {
     }
 }
 
-/// 配置里提到的这一家的模型：手写了资料的，`models.chat` 点名的。
+/// 配置里提到的这一家的模型：手写了资料的，用途、挡位、池里点名的（施工 8-8，`miyu_models::reference::named`）。
 fn written_models(values: &miyu_config::Values, id: &str) -> Vec<String> {
     let mut models = miyu_config::key::names(values.keys(), "providers.<id>.models.<model>", &[id]);
-    let chat = provider::chat(values).and_then(|chat| ModelRef::parse_at(&chat, Place::Use).ok());
-    if let Some(ModelRef::Model { provider, model }) = chat
-        && provider == id
-    {
-        models.push(model);
-    }
+    models.extend(
+        named(values)
+            .into_iter()
+            .filter(|(provider, _)| provider == id)
+            .map(|(_, model)| model),
+    );
     models
 }

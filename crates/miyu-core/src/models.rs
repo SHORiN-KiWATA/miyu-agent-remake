@@ -13,6 +13,7 @@ use std::sync::Arc;
 
 use tokio::sync::watch;
 
+use miyu_config::secret::Reference;
 use miyu_http::{Proxy, client, fetcher};
 use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
@@ -22,7 +23,7 @@ use miyu_store::resources::ResourceRoot;
 
 use crate::TARGET;
 use catalog::Places;
-use refresh::Refresher;
+use refresh::{Refresher, Schedule};
 
 /// 照资源目录造路由，模型资料还没读（目录、用出来的、供应商的列表随 [`start`]）。用出来的、列表写进 `state`
 /// （`state/models`，没有的不写）。
@@ -77,7 +78,7 @@ pub fn start(
     snapshot: PathBuf,
     cache: Option<PathBuf>,
     state: Option<PathBuf>,
-    settings: watch::Receiver<CatalogSettings>,
+    settings: watch::Receiver<Schedule>,
 ) {
     let places = Places {
         snapshot,
@@ -122,12 +123,17 @@ pub fn cache(env: &miyu_store::env::Env) -> Option<PathBuf> {
     }
 }
 
-/// 配置里 `[models.catalog]` 那几项：配置换了当场跟着换（当场生效）。
+/// 配置里 `[models.catalog]` 那几项：配置换了当场跟着换（当场生效）。地址是环境变量的引用的照核心的环境取（施工 8-8）。
 pub fn catalog_settings(
     mut config: watch::Receiver<Arc<miyu_endpoint::config::Config>>,
-) -> watch::Receiver<CatalogSettings> {
-    let of =
-        |config: &miyu_endpoint::config::Config| CatalogSettings::from(&config.resolved().values());
+) -> watch::Receiver<Schedule> {
+    let of = |config: &miyu_endpoint::config::Config| {
+        let settings = CatalogSettings::from(&config.resolved().values());
+        Schedule::of(settings, &|name| {
+            let secret = config.secret(&Reference::Env(name.to_string()))?;
+            Some(secret.expose().to_string())
+        })
+    };
     let (sender, receiver) = watch::channel(of(&config.borrow_and_update()));
     tokio::spawn(async move {
         while config.changed().await.is_ok() {

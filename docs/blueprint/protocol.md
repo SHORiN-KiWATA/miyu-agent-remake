@@ -34,7 +34,7 @@
 | `crates/miyu-endpoint/src/settings.rs` | 端点的配置项：界面语言 `ui.language`，`auto` 照系统的语言算出 `zh`、`en`、`ja`（施工 8-1 声明，8-2 握手时用）；新会话开局只读 `permission.start_read_only`（施工 8-2） |
 | `crates/miyu-endpoint/src/config.rs`、`config/` | 配置服务：起来时读的几份配置、最终值，照目录找项目配置、认信不信任；`config.schema`、`config.get`、`config.check`（施工 8-2，`config.md`）；`config.set`、`config.trust`，住在核心家底的一把锁里（施工 8-3）；监视配置文件、推 `config.changed`（施工 8-4）；密钥文件也住在这里（施工 8-5） |
 | `crates/miyu-endpoint/src/secrets.rs`、`secrets/` | `secret.set`、`secret.delete`、`secret.list`：只能写、删、列名字，从不交出值；手改密钥文件被看到的、留痕（施工 8-5，`config.md` 第九条） |
-| `crates/miyu-endpoint/src/models.rs`、`models/` | `model.list`：配好的供应商、模型、每一格资料的值和来源（施工 8-7，`models.md`「协议」） |
+| `crates/miyu-endpoint/src/models.rs`、`models/` | `model.list`：配好的供应商、模型、每一格资料的值和来源（施工 8-7，`models.md`「协议」），池、挡位、用途（施工 8-8）；`session.create` 的 `model` 怎么解析（`record`，施工 8-8） |
 
 ### 对外的样子
 
@@ -139,7 +139,7 @@
 | `secret.set` | 写入或者换掉一个密钥（`name`、`value`），落了盘、记了日志才回应 `{"replaced"}`（施工 8-5，`config.md`「协议」） |
 | `secret.delete` | 删掉一个密钥（`name`），回应 `{}`（施工 8-5） |
 | `secret.list` | 密钥的名字、设没设、谁在用（`used_by`），从不交出值（施工 8-5） |
-| `model.list` | 配好的供应商和模型，每一格资料的值和来源、状态，在用的目录（施工 8-7）。参数 `provider`（只看这一家）、`refresh`（先拉一遍供应商的模型列表）都可以不写；形状照 `models.md`「协议」`model.list` |
+| `model.list` | 配好的供应商和模型，每一格资料的值和来源、状态，在用的目录（施工 8-7）；池、四个挡位、两种用途（施工 8-8：`pools`、`tiers`、`uses` 多 `vision`）。参数 `provider`（只看这一家）、`refresh`（先拉一遍供应商的模型列表）都可以不写；形状照 `models.md`「协议」`model.list` |
 | `subscribe`、`unsubscribe` | 订阅、取消订阅会话的事件流 |
 
 带 `session` 的，它要合会话编号的写法：UUID 的标准写法，小写十六进制，8-4-4-4-12；不合的 `bad_params`。找会话照下面「会话表」。
@@ -152,6 +152,7 @@
 | `cwd` | 字符串，必写 | 头的工作目录，人看到的那种写法，例如 `~/src/miyu` |
 | `oneshot` | 布尔，不写是 `false` | 一次性的：`miyu ask` 开的写 `true`，记进 `session.created` |
 | `dirs` | 字符串的数组，可以不写 | 加进来的目录：和工作区一样能读能写（「加进来的目录」（施工 5-10 上））。不写是没有 |
+| `model` | 字符串，可以不写 | 用哪个模型：模型 `<供应商>/<模型>`、池 `@<池>` 或者挡位（施工 8-8，`models.md`「三种写法」）。照这时的配置解析好（挡位换成它的值），记进 `session.created` 的 `model`；不写、写 `null` 的照这时的 `models.chat`，那也没配的不写 |
 
 回应：`session` 新会话的编号；`events` 是 `[1]`，就是 `session.created` 那一条；`cwd` 是会话实际在哪个目录里干活（「工作目录太宽」）；`untrusted_project`：这个目录找得到项目配置、又还没问过信不信任（`trust.toml` 里没有这个仓库，或者记的内容和现在的不一样），写它在哪，写法同配置来源的 `file`（家目录下的写成 `~/…`）。信任着的、选了不信任的、没有项目配置的不写（施工 8-2，`config.md` 第三条第 2 条）。
 
@@ -159,7 +160,8 @@
 2. 属主是管理员，场所是 `local`，权限从「工作区」开始，只读照 `permission.start_read_only` 的最终值：照实际干活的目录算，带上信任着的项目配置（施工 8-2，`config.md` 第二条第 9 条），没写的是不只读；有没有人能确认，照这个连接握手时的 `caps.input`；环境是核心所在机器此刻的时区偏移（到分钟）和实际干活的目录。
 3. `session.created` 落了盘才回应。
 4. 同一个命令编号再发：记着最近 1024 个造会话的编号，是其中之一的，交回上一次造的那一个，不再造；`cwd` 照这一次报的算。核心重启以后，第一次造会话时，从最新的 1024 个会话的 `session.created` 里把编号补回来（它的 `cause` 就是造会话的命令编号，施工 4-9 再补三上），在阻塞线程里读。
-5. 人格的编号不合写法（小写英文字母开头，只有小写字母、数字、`-`、`_`，最长 64 字节）：`bad_params`。人格的目录 `personas/<编号>/` 不存在：`unknown_persona`。资源目录里别的读不了（人格目录里的文件、随核心附带的 `core/` 下的字，安装坏了）：`internal_error`（施工 4-9 再补三上）。别的造不成（策略造不出来、磁盘上建不成、`session.created` 没落盘）：`internal_error`，原因记进运行日志。
+5. `model` 不是字符串：`bad_params`。解析不出（没有这家供应商、没有这个池、池里一个成员都认不出、挡位没配又没有 `models.chat`）：`unknown_model`，什么都不造（施工 8-8，`models.md`「协议」）。先解析再找同一个命令编号造过的。
+6. 人格的编号不合写法（小写英文字母开头，只有小写字母、数字、`-`、`_`，最长 64 字节）：`bad_params`。人格的目录 `personas/<编号>/` 不存在：`unknown_persona`。资源目录里别的读不了（人格目录里的文件、随核心附带的 `core/` 下的字，安装坏了）：`internal_error`（施工 4-9 再补三上）。别的造不成（策略造不出来、磁盘上建不成、`session.created` 没落盘）：`internal_error`，原因记进运行日志。
 
 **`session.list`**
 
@@ -557,6 +559,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `no_project_config` | -32010 | `config.trust` 时这个目录找不到项目配置（施工 8-3） |
 | `unknown_secret` | -32010 | `secret.delete` 删的密钥没有（施工 8-5） |
 | `unknown_provider` | -32010 | `model.list` 的 `provider` 不是配好了的（施工 8-7） |
+| `unknown_model` | -32010 | `session.create` 的 `model` 解析不出：没有这家供应商、没有这个池、池是空的、挡位没配又没有 `models.chat`（施工 8-8） |
 | `restoring` | -32010 | 撤销、恢复还没做完（正在读回更早的日志、正在改回文件）时来的命令、删会话。兜底：会话做完才接下一个命令，照常碰不到 |
 
 - 从 `empty_message` 起，除了 `dir_too_wide`、附件的四个和 `not_a_command`，十三个是内核拒命令时给的原因码（`kernel/session.md`）。
@@ -646,6 +649,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `no_project_config` | 这个目录找不到项目配置。 | There is no project config for this directory. |
 | `unknown_secret` | 没有这个密钥。 | There is no such secret. |
 | `unknown_provider` | 没有这个供应商。 | There is no such provider. |
+| `unknown_model` | 配置里没有这个模型、池或者挡位。 | There is no such model, pool or tier in the configuration. |
 | `recap_failed` | 回顾没写成：请求模型出错了。 | The recap could not be written: the model request failed. |
 | 别的 | 被拒绝了。 | Refused. |
 
@@ -692,6 +696,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/socket.rs` | 真的套接字（Windows 上是命名管道）上握手、造会话、说话，第二个头也连得上 |
 | `crates/miyu-endpoint/tests/config.rs`、`config_trust.rs`（施工 8-2） | 握手的 `language`、`config_errors`；`config.schema`、`config.get`、`config.check`；`unknown_config_key` 带 `problems`；开局只读照配置、照信任着的项目配置；造会话、说话的回应带 `untrusted_project`（`config.md`「守着它的」）。`config.trust` 的回答、拒绝、日志（施工 8-3） |
 | `crates/miyu-endpoint/tests/models.rs`（施工 8-7） | `model.list` 的形状、来源、状态；`provider` 只看一家、`unknown_provider`、参数不对；`refresh` 拉完再答、不写的在后台拉（`models.md`「守着它的」） |
+| `crates/miyu-endpoint/tests/models_pools.rs`（施工 8-8） | `model.list` 的 `pools`、`tiers`、`uses`；`session.create` 的 `model` 记下解析出的、`unknown_model` 什么都不造、不是字符串的 `bad_params`（`models.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/secrets.rs`、`secrets_log.rs`（施工 8-5） | `secret.*` 的回应、拒绝、日志；值不进回应、拒绝、系统日志、运行日志（`config.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/config_set.rs`（施工 8-3） | `config.set` 的回应、每一种拒绝、`expect`、版本、手改重读、全收或者全不收、写不成什么都没变、日志（`config.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/config_watch.rs`、`config_watch_log.rs`（施工 8-4） | 订阅配置、取消、参数不对；手改推 `config.changed`；`config.set` 先见推送后见回应；掉队推 `resync`；改了语言下一句照新的（`config.md`「守着它的」） |

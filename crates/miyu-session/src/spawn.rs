@@ -123,4 +123,7 @@ pub struct Child {
     pub cwd: String,
     /// 加进来的目录：父会话这一轮的。
     pub dirs: Vec<String>,
+    /// 子会话用哪个模型（施工 8-8）：解析好的引用，模型或 `@池`，记进它的 `session.created`。她写了挡位的照父会话这一轮的
+    /// 配置解析，没写的是父会话这时生效的；都没有的是空的，子会话照它造出来那时的 `models.chat`。
+    pub model: Option<String>,
 }

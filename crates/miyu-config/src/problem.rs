@@ -17,7 +17,7 @@ const GOT_CHARS: usize = 80;
 /// 离得最近的键名最远差几个字（「怎么走」第四条第 2 条）。
 const NEAREST: usize = 3;
 
-/// 原因码（「报错」那张表里标 8-2、8-5、8-6 的几种）。
+/// 原因码（「报错」那张表里标 8-2、8-5、8-6、8-8 的几种）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Code {
     /// 文件读不了：没有权限、是个目录……（没有这个文件不算）。
@@ -55,6 +55,10 @@ pub enum Code {
     SecretName,
     /// 密钥文件里一行的值不是不空的字（施工 8-5）。协议上写 `wrong_type`；和配置文件的 `wrong_type` 分开，说的话不一样。
     SecretValue,
+    /// 引用的供应商没有配（施工 8-8，[`crate::dangling`]）：`name` 是那一家的编号。协议上写 `bad_reference`。
+    NoProvider,
+    /// 引用的池没有配（施工 8-8）：`name` 是池的名字。协议上写 `bad_reference`，说的话和供应商的不一样。
+    NoPool,
 }
 
 impl Code {
@@ -77,6 +81,7 @@ impl Code {
             Code::EnvNotSet => "env_not_set",
             Code::SecretName => "bad_format",
             Code::SecretValue => "wrong_type",
+            Code::NoProvider | Code::NoPool => "bad_reference",
         }
     }
 
@@ -158,7 +163,8 @@ pub struct Problem {
     pub suggest: Option<&'static str>,
     /// 下面几层合出来的值：`not_tightening` 说「现在是什么」。
     pub current: Option<Value>,
-    /// 引用的密钥、环境变量的名字：`unknown_secret`、`env_not_set` 说「引用的是哪一个」（施工 8-5）。
+    /// 引用的密钥、环境变量的名字：`unknown_secret`、`env_not_set` 说「引用的是哪一个」（施工 8-5）；引用的供应商、池的
+    /// 名字：`bad_reference` 说「指的是哪一个」（施工 8-8）。
     pub name: Option<String>,
 }
 

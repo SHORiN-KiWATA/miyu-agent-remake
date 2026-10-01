@@ -10,22 +10,12 @@ use std::sync::Arc;
 use tokio::sync::watch;
 
 use miyu_config::secret::Reference;
-use miyu_http::testkit::{Piece, Reply, Server};
-use miyu_kernel::event::{Body, ErrorClass, ModelCalled};
+use miyu_http::testkit::Server;
+use miyu_kernel::event::ErrorClass;
 use miyu_models::keys;
 use miyu_session::{ConfigSource, Handle};
-use support::routing::{configs, routes};
-use support::{Home, ask, say, stop, until_turn_ends, watch as subscribe};
-
-/// 说「你好！」的流，`n` 份。
-fn hellos(n: usize) -> Vec<Reply> {
-    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../docs/designs/samples/drivers/openai-chat/streams/openai-text.sse");
-    let bytes = std::fs::read(&path).expect("样本读得到");
-    (0..n)
-        .map(|_| Reply::stream(vec![Piece::Bytes(bytes.clone())]))
-        .collect()
-}
+use support::routing::{called, configs, hellos, routes, turn};
+use support::{Home, stop};
 
 /// 一家 `a` 在 `base_url`，几个 key 照 `{ env = "K<n>" }` 写，`models.chat` 是 `a/m`。
 fn provider(base_url: &str, keys: usize) -> String {
@@ -43,23 +33,6 @@ fn set(set: &[usize]) -> Vec<(Reference, &'static str)> {
     const VALUES: [&str; 4] = ["sk-1", "sk-2", "sk-3", "sk-4"];
     set.iter()
         .map(|n| (Reference::Env(format!("K{n}")), VALUES[n - 1]))
-        .collect()
-}
-
-/// 说一句、等这一轮说完。
-async fn turn(handle: &Handle, command: &str) {
-    let mut pushes = subscribe(handle).await;
-    ask(handle, command, say("hi")).await.expect("会话在跑");
-    until_turn_ends(&mut pushes).await;
-}
-
-fn called(home: &Home, handle: &Handle) -> Vec<ModelCalled> {
-    home.log(handle.id())
-        .into_iter()
-        .filter_map(|event| match event.body {
-            Body::ModelCalled(called) => Some(called),
-            _ => None,
-        })
         .collect()
 }
 

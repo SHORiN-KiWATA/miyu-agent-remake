@@ -11,6 +11,7 @@ mod kind;
 mod settings;
 
 pub use kind::{Kind, duration};
+pub(crate) use kind::{Pointed, pointed};
 
 use crate::value::Value;
 

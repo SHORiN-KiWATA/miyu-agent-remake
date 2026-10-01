@@ -122,6 +122,7 @@ fn kind_problems(item: &Item) -> Vec<String> {
         | Kind::Url
         | Kind::Name
         | Kind::Reference
+        | Kind::Model
         | Kind::List(_) => Vec::new(),
         Kind::Option(options) => {
             let mut problems = Vec::new();

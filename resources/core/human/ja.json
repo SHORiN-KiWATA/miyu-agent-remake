@@ -37,7 +37,39 @@
       },
       "models.chat": {
         "name": "会話のモデル",
-        "description": "新しいセッションが使うモデル。プロバイダー/モデル の形で書きます。例：deepseek/deepseek-flash。"
+        "description": "新しいセッションが使うモデル。プロバイダー/モデル の形で書きます。例：deepseek/deepseek-flash。@プール でもかまいません。"
+      },
+      "models.vision": {
+        "name": "画像を見るモデル",
+        "description": "会話のモデルが画像を見られないとき、代わりに見るモデル。書き方は会話のモデルと同じです。"
+      },
+      "models.tiers.lite": {
+        "name": "軽量の段",
+        "description": "いちばん軽くて速い段。サブエージェントを出すときに選べます。書かなければ会話のモデルです。"
+      },
+      "models.tiers.cheap": {
+        "name": "安価の段",
+        "description": "安い段。書かなければ会話のモデルです。"
+      },
+      "models.tiers.standard": {
+        "name": "標準の段",
+        "description": "標準の段。書かなければ会話のモデルです。"
+      },
+      "models.tiers.flagship": {
+        "name": "最上位の段",
+        "description": "いちばん強い段。書かなければ会話のモデルです。"
+      },
+      "pools.<id>.models": {
+        "name": "プールのメンバー",
+        "description": "いくつかのモデルをひとまとめにします。それぞれ プロバイダー/モデル の形で書きます。"
+      },
+      "pools.<id>.strategy": {
+        "name": "プールの分け方",
+        "description": "ひとつのセッションでずっと同じメンバーを使うか、リクエストごとに次のメンバーに替えるか。書かなければ、メンバーがすべてリクエストごとの課金なら順番に替え、ほかは固定します。",
+        "options": {
+          "pin": "固定",
+          "rotate": "順番に替える"
+        }
       },
       "providers.<id>.driver": {
         "name": "ドライバー",
@@ -71,6 +103,15 @@
       "providers.<id>.local": {
         "name": "ローカルのサービス",
         "description": "このマシンで動くモデルのサービスで、価格は 0 として数えます。書かなければアドレスで決まります。"
+      },
+      "providers.<id>.cache": {
+        "name": "キャッシュの種類",
+        "description": "このプロバイダーのキャッシュの課金のしかた。いまは分け方を書いていないプールの分け方を決めるだけです。書かなければドライバーの既定に従います。",
+        "options": {
+          "contract": "前置きで課金",
+          "best_effort": "できるだけ当てる",
+          "per_request": "リクエストごと"
+        }
       },
       "providers.<id>.models.<model>.catalog": {
         "name": "カタログの項目",
@@ -147,6 +188,8 @@
       "log": "実行ログ",
       "sessions": "セッション",
       "uses": "用途",
+      "tiers": "段",
+      "pools": "プール",
       "providers": "プロバイダー",
       "catalog": "モデルカタログ"
     }
@@ -188,6 +231,8 @@
     "config/secrets-header": "Miyu のシークレット：Miyu を通してだけ書き込み、置き換え、削除します。このファイルを他人に渡さないでください。",
     "config/unknown-secret": "{key} が参照しているシークレット {name} はまだ設定されていません",
     "config/env-not-set": "{key} が参照している環境変数 {name} はコア起動時に設定されていませんでした",
+    "config/no-provider": "{key} が指しているプロバイダー {name} は設定されていません",
+    "config/no-pool": "{key} が指しているプール {name} は設定されていません",
     "config/bad-secret-name": "{key} はシークレットの名前にできません：小文字で始め、小文字、数字、-、_ だけで、64 文字まで",
     "config/bad-secret-value": "{key} の値は引用符で囲んだ文字列にしてください。空にはできません",
     "config/trust-header": "Miyu が記録しているプロジェクト設定の信頼：どのリポジトリの、どの内容を、信頼するかどうか。",
@@ -222,6 +267,7 @@
     "config/expected/url": "http:// か https:// で始まるアドレス",
     "config/expected/name": "小文字で始め、小文字、数字、-、_ だけで、64 文字までの名前",
     "config/expected/reference": "<プロバイダー>/<モデル> または @<プール>",
+    "config/expected/model": "<プロバイダー>/<モデル>",
     "config/expected/list": "{item} のリスト",
     "config/expected/id": "小文字で始め、小文字、数字、-、_ だけで、32 文字まで",
     "config/expected/model-name": "1 から 128 バイトで、制御文字なし",

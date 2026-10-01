@@ -6,7 +6,8 @@
 //! 由会话表办。造会话、说话的回应再带上会话实际在哪个目录里干活（施工 4-5 下），这个目录的项目配置还没问过信不信任的，
 //! 再带上它在哪（`untrusted_project`，施工 8-2）。查配置的三个方法在 `config/methods.rs`（施工 8-2），改配置的 `config.set`、
 //! 信任项目配置的 `config.trust` 在 `config/set.rs`、`config/trusting.rs`（施工 8-3）。密钥的 `secret.set`、`secret.delete`、
-//! `secret.list` 在 `secrets.rs`（施工 8-5）。`model.list` 在 `models.rs`（施工 8-7）。
+//! `secret.list` 在 `secrets.rs`（施工 8-5）。`model.list` 在 `models.rs`（施工 8-7）。`session.create` 带 `model` 的照这时的
+//! 配置解析好再造，解析不出的回 `unknown_model`、什么都不造（施工 8-8，`models::record`）。
 
 use std::sync::Arc;
 
@@ -50,6 +51,9 @@ struct CreateParams {
     /// 加进来的目录（施工 5-10 上）：和工作区一样能读能写。
     #[serde(default)]
     dirs: Vec<String>,
+    /// 用哪个模型（施工 8-8）：模型、`@池` 或者挡位；不写、写 `null` 的照这时的 `models.chat`。
+    #[serde(default)]
+    model: Option<String>,
 }
 
 /// `session.list` 的参数（施工 3-9 下）。
@@ -185,9 +189,15 @@ pub(crate) async fn call(
         "session.create" => {
             let params: CreateParams = params(request)?;
             let persona = params.persona.as_deref().unwrap_or(PERSONA);
+            // 解析不出的什么都不造（施工 8-8）。
+            let model = params
+                .model
+                .map(|text| models::record(core, &text))
+                .transpose()?;
             let who = Opening {
                 attended: peer.input,
                 oneshot: params.oneshot,
+                model,
             };
             let created = core
                 .sessions

@@ -75,6 +75,8 @@ pub struct Script {
     /// [`Script::requests`] 里；没排的只记下、不回（一直在路上），不管标题的测试不用替它排。
     titles: Arc<Mutex<VecDeque<Play>>>,
     titled: Arc<Mutex<Vec<(Seq, Request)>>>,
+    /// 造这个端口的会话记着的引用（施工 8-8）：剧本照样回，只把它交出去，派子代理照它抄。
+    reference: Option<String>,
 }
 
 impl Script {
@@ -96,6 +98,7 @@ impl Script {
             window: None,
             titles: Arc::new(Mutex::new(VecDeque::new())),
             titled: Arc::new(Mutex::new(Vec::new())),
+            reference: None,
         }
     }
 
@@ -141,14 +144,21 @@ impl Script {
 }
 
 impl Models for Script {
-    fn port(&self, _: ForSession) -> Arc<dyn ModelPort> {
-        Arc::new(self.clone())
+    /// 和手里这一份共用剧本和记录，会话记着的引用（施工 8-8）照这个会话的。
+    fn port(&self, session: ForSession) -> Arc<dyn ModelPort> {
+        let mut port = self.clone();
+        port.reference = session.reference;
+        Arc::new(port)
     }
 }
 
 impl ModelPort for Script {
     fn model(&self) -> Model {
         self.model.clone()
+    }
+
+    fn reference(&self) -> Option<String> {
+        self.reference.clone()
     }
 
     fn limits(&self) -> Limits {

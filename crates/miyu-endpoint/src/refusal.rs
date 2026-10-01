@@ -152,6 +152,12 @@ impl Refusal {
         reason: "unknown_provider",
         data: None,
     };
+    /// `session.create` 的 `model` 解析不出（施工 8-8）：没有这家供应商、没有这个池、池是空的、挡位没配又没有 `models.chat`。
+    pub(crate) const UNKNOWN_MODEL: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_model",
+        data: None,
+    };
     /// 请求里写了清单里没有的配置项（施工 8-2，`config.schema`、`config.get`、`config.set`）：`data.problems` 里每个不认识的
     /// 一条。
     pub(crate) fn unknown_config_key(problems: Vec<serde_json::Value>) -> Refusal {
@@ -322,6 +328,10 @@ impl Refusal {
             ),
             "unknown_secret" => ("没有这个密钥。", "There is no such secret."),
             "unknown_provider" => ("没有这个供应商。", "There is no such provider."),
+            "unknown_model" => (
+                "配置里没有这个模型、池或者挡位。",
+                "There is no such model, pool or tier in the configuration.",
+            ),
             "recap_failed" => (
                 "回顾没写成：请求模型出错了。",
                 "The recap could not be written: the model request failed.",

@@ -6,7 +6,9 @@
 //!   都读不了也算读完：目录是空的。
 //! - 用出来的、供应商的列表是派生数据，在 `state/models/` 下：读的时候坏了当没有（核心起来时 [`read_observed`]），变了
 //!   就写（先写临时文件再改名，`miyu_store::generated`），写不成的记一行 `WARN`，内存里照样用。
-//! - 冷却表、池的指针随 8-8、8-9。
+//! - 池的指针（施工 8-8，`models.md` 第三条第 6 条）：一个池一个，往前走一次（[`ModelData::take`]）写一次
+//!   `state/models/pools.json`（[`ModelData::save_pointers`]，在阻塞线程里，拿着指针的锁写：几次写不会把新的盖成旧的）。
+//! - 冷却表随 8-9。
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -21,6 +23,7 @@ use miyu_models::Knowledge;
 use miyu_models::catalog::Loaded;
 use miyu_models::matching::Vendors;
 use miyu_models::observed::{Learned, ProviderList};
+use miyu_models::pools::Pointers;
 use miyu_models::profile::Profiles;
 
 use crate::TARGET;
@@ -33,19 +36,23 @@ pub struct ModelData {
     /// 在用的目录：外面一层是「读完了没有」，里面一层是「读没读成」。
     catalog: watch::Sender<Option<Option<Arc<Loaded>>>>,
     observed: Mutex<Observed>,
-    /// `state/models`：用出来的、供应商的列表写在这里。没有的不写（测试里）。
+    /// 池的指针（施工 8-8）：另一把锁，写盘时拿着它，不挡查资料。
+    pointers: Mutex<Pointers>,
+    /// `state/models`：用出来的、供应商的列表、池的指针写在这里。没有的不写（测试里）。
     dir: Option<PathBuf>,
     /// 拉供应商的列表用的客户端（`miyu_http::fetcher`）；没有的不拉。
     fetcher: Option<Client>,
 }
 
-/// 用出来的、供应商的列表。
+/// 用出来的、供应商的列表、池的指针：核心起来时从 `state/models/` 读回来的。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Observed {
     /// 用出来的。
     pub learned: Learned,
     /// 供应商的列表：配好的编号 → 列表。
     pub lists: BTreeMap<String, ProviderList>,
+    /// 池的指针（施工 8-8）。
+    pub pointers: Pointers,
 }
 
 impl ModelData {
@@ -56,6 +63,7 @@ impl ModelData {
             vendors,
             catalog: watch::channel(None).0,
             observed: Mutex::new(Observed::default()),
+            pointers: Mutex::new(Pointers::default()),
             dir,
             fetcher: None,
         }
@@ -74,7 +82,8 @@ impl ModelData {
     }
 
     /// 目录读完了（读没读成都算）：连同读好的用出来的、供应商的列表一起换上，等着的都放行。
-    pub fn loaded(&self, catalog: Option<Loaded>, observed: Observed) {
+    pub fn loaded(&self, catalog: Option<Loaded>, mut observed: Observed) {
+        *self.pointers() = std::mem::take(&mut observed.pointers);
         *self.lock() = observed;
         self.catalog.send_replace(Some(catalog.map(Arc::new)));
     }
@@ -140,8 +149,24 @@ impl ModelData {
         self.write(&format!("providers/{provider}.json"), &text);
     }
 
+    /// 池 `pool` 有 `count` 个成员：这一次取第几个，指针往前走一个（施工 8-8，[`Pointers::take`]）。只改内存：写盘由调的一方
+    /// 另在阻塞线程里叫 [`ModelData::save_pointers`]。
+    pub fn take(&self, pool: &str, count: usize) -> usize {
+        self.pointers().take(pool, count)
+    }
+
+    /// 把池的指针写进 `state/models/pools.json`（在阻塞线程里调）：拿着指针的锁写，写的总是这一刻最新的。
+    pub fn save_pointers(&self) {
+        let pointers = self.pointers();
+        self.write("pools.json", &pointers.to_json());
+    }
+
     fn lock(&self) -> MutexGuard<'_, Observed> {
         self.observed.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn pointers(&self) -> MutexGuard<'_, Pointers> {
+        self.pointers.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
     /// 写 `state/models/<name>`。写不成的记一行，内存里照样用：它是派生数据。
@@ -158,7 +183,8 @@ impl ModelData {
     }
 }
 
-/// 读 `state/models/` 下的用出来的、供应商的列表（在阻塞线程里调）：没有的、读不了的、坏的当没有，坏的记一行 `WARN`。
+/// 读 `state/models/` 下的用出来的、供应商的列表、池的指针（在阻塞线程里调）：没有的、读不了的、坏的当没有，坏的记一行
+/// `WARN`。
 pub fn read_observed(dir: &Path) -> Observed {
     let read = |path: &Path| std::fs::read_to_string(path).ok();
     let learned = read(&dir.join("learned.json"))
@@ -180,7 +206,14 @@ pub fn read_observed(dir: &Path) -> Observed {
             }
         }
     }
-    Observed { learned, lists }
+    let pointers = read(&dir.join("pools.json"))
+        .and_then(|text| warn_if_broken(Pointers::parse(&text)))
+        .unwrap_or_default();
+    Observed {
+        learned,
+        lists,
+        pointers,
+    }
 }
 
 /// 坏了的记一行，当没有。

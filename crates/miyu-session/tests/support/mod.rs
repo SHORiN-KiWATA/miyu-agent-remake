@@ -101,6 +101,8 @@ pub struct Lines {
     pub command: Option<CommandId>,
     /// 一次性的（`miyu ask` 开的那种）：没有头订阅着时回报只记下（施工 7-9）。默认不是。
     pub oneshot: bool,
+    /// 用哪个模型（施工 8-8）：解析好的引用；默认没有，照这时的 `models.chat`。
+    pub model: Option<String>,
 }
 
 impl Default for Lines {
@@ -112,6 +114,7 @@ impl Default for Lines {
             sessions: None,
             command: None,
             oneshot: false,
+            model: None,
         }
     }
 }
@@ -233,6 +236,7 @@ impl Home {
             jobs: &self.jobs,
             index: Some(Arc::clone(&self.index)),
             configs: self.configs.clone(),
+            model: lines.model,
         });
         within("造会话", created).await.expect("造得出会话")
     }
