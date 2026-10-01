@@ -1,6 +1,6 @@
 [package]
 name = "miyu-config"
-description = "配置清单：每一项只声明一次，从它生成 JSON Schema 和参考文件；读一份配置、分层合出最终值、说清哪里写错了（施工 8-1、8-2）；纯逻辑，不碰磁盘"
+description = "配置清单：每一项只声明一次，从它生成 JSON Schema 和参考文件；读一份配置、分层合出最终值、说清哪里写错了（施工 8-1、8-2）；改一项只动那一项（施工 8-3）；纯逻辑，不碰磁盘"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,7 +12,7 @@ publish.workspace = true
 serde = { version = "1.0", features = ["derive"] }
 # 生成 JSON Schema；值写成协议上的 JSON。
 serde_json = "1.0"
-# 读配置的 TOML，记下每一项在第几行（施工 8-2）；8-3 改一项时保留注释、排版也用它。
+# 读配置的 TOML，记下每一项在第几行（施工 8-2）；8-3 改一项时照它记的位置换字，只开 `parse` 就够。
 toml_edit = { version = "0.25", default-features = false, features = ["parse"] }
 
 [lints]

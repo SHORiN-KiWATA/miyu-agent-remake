@@ -10,7 +10,8 @@
 //! `miyu redo` 也照这里跟着新的一轮（施工 4-7 再补）：回应到了先照 `miyu undo` 印撤掉了哪一轮（[`Follow::redoing`]）。核心写
 //! 回应里给人看的几样要读日志，回应到的时候新的一轮可能已经开口、甚至说完了：在那以前推过来的先攒着，印完那几行再接着收。
 //!
-//! 她正忙时这一句不另开一轮，跟的是听到它的那一轮（施工 7-10，`joining.rs`）。
+//! 她正忙时这一句不另开一轮，跟的是听到它的那一轮（施工 7-10，`joining.rs`）。开头那几行旁白（配置有错、项目配置没信任、
+//! 沙盒用不了、目录太宽）在 `opening.rs`。
 //!
 //! `miyu ask` 还等子代理（施工 7-9，[`Follow::waits`]）：这一轮结束了，派出去的子代理还有没报的，接着跟被回报叫醒的几轮，
 //! 都了结了才收尾（`waiting.rs`、`agents.rs`）；收尾的几行在 `ending.rs`。
@@ -19,6 +20,7 @@ mod agents;
 mod compacting;
 mod ending;
 mod joining;
+mod opening;
 mod waiting;
 
 use std::collections::BTreeMap;
@@ -89,6 +91,8 @@ pub(crate) struct Follow<'p> {
     steps: Steps,
     /// 会话实际在哪个目录里干活：先当是头报的，核心的回应里说了就照它（施工 4-5 下）。
     cwd: String,
+    /// 说过这里的项目配置还没信任了（施工 8-3）：一次 `miyu ask` 只说一次。
+    untrusted: bool,
     usage: Sum,
     failure: Option<Failure>,
     /// 因为要确认、这里没人能确认被拒的有几步（施工 4-9）。
@@ -135,6 +139,7 @@ impl<'p> Follow<'p> {
             thinking: false,
             steps: Steps::default(),
             cwd: plan.cwd.clone(),
+            untrusted: false,
             usage: Sum::default(),
             failure: None,
             unattended: 0,
@@ -159,36 +164,6 @@ impl<'p> Follow<'p> {
     /// 跟的是 `session.redo` 开的那一轮（施工 4-7 再补，`docs/blueprint/cli/redo.md`）：回应到了先印撤掉了哪一轮。
     pub(crate) fn redoing(&mut self) {
         self.redo = Some(Vec::new());
-    }
-
-    /// 握手的回应说配置里有几处错误（施工 8-2）：说一句，`miyu config check` 看是哪里。
-    pub(crate) fn config_errors(&mut self, errors: u64, screen: &mut Screen<'_>) {
-        if self.plan.format == Format::Text {
-            self.aside(
-                &Line::gray(self.plan.language.config_errors(errors)),
-                screen,
-            );
-        }
-    }
-
-    /// 握手的回应说沙盒用不了，原因是 `reason`（协议上的写法）：执行命令都要确认，这里确认不了，说一句（施工 5-4 下）。
-    /// 只给人看的时候说。
-    pub(crate) fn unsandboxed(&mut self, reason: &str, screen: &mut Screen<'_>) {
-        if self.plan.format == Format::Text {
-            self.aside(&steps::unsandboxed(self.plan, reason), screen);
-        }
-    }
-
-    /// 核心说会话实际在 `used` 里干活：和头报的不一样，就是目录太宽、退回了账号的工作区，说一句。造会话、
-    /// 说话的回应都带着它，一样的不再说：一次 `miyu ask` 只说一次。
-    pub(crate) fn moved(&mut self, used: &str, screen: &mut Screen<'_>) {
-        if used == self.cwd {
-            return;
-        }
-        self.cwd = used.to_string();
-        if self.plan.format == Format::Text {
-            self.aside(&steps::moved(self.plan, used), screen);
-        }
     }
 
     /// 重做的回应到了：会话在哪个目录里干活照回应的换上，不说目录太宽（重做不报敲命令时的目录）；照 `miyu undo` 印撤掉了
@@ -232,9 +207,7 @@ impl<'p> Follow<'p> {
                 }
                 return Step::Going;
             }
-            if let Some(used) = message["result"]["cwd"].as_str() {
-                self.moved(used, screen);
-            }
+            self.opened(&message["result"], screen);
             return Step::Going;
         }
         if message["params"]["session"] != json!(self.session) {

@@ -7,6 +7,7 @@
 //! 的第一条都读一遍，平常的载入不该为它慢下来。改名以前造的会话，日志里的调用叫 `agent`，一样认（施工 7-5 再补）。
 
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use miyu_kernel::block::Block;
 use miyu_kernel::event::{Body, Effect};
@@ -19,6 +20,7 @@ use miyu_tool::is_subagent;
 use super::delete::descendants;
 use super::{Open, now};
 use crate::Core;
+use crate::list::forget;
 
 impl Open {
     /// 收掉会话 `parent` 派到一半的空子会话，表的锁在调的一方手里：在跑的停下（不问忙不忙，它们派的一起），目录挪进回收处，
@@ -47,10 +49,12 @@ impl Open {
             .retain(|(_, session)| !orphans.contains(session));
         let (root, account, at, parent) =
             (core.root.clone(), core.admin.clone(), now(), parent.clone());
+        let index = Arc::clone(&core.index);
         let moved = tokio::task::spawn_blocking(move || {
             for orphan in orphans {
                 match trash::discard(&root, &account, &orphan, at) {
                     Ok(()) => {
+                        forget(&index, &orphan);
                         tracing::info!(target: "miyu::endpoint", session = orphan.as_str(), parent = parent.as_str(), "orphan subagent removed");
                     }
                     Err(error) => {

@@ -1,9 +1,13 @@
 //! `history`（`docs/blueprint/tools/history.md`，施工 6-4）：翻这个会话自己的日志，按关键词找、按序号读，也能按
-//! 时间、谁说的筛。压缩换出去的旧内容都还在日志里，她用它取回。只读会话自己的日志，不碰文件，不报效果。
+//! 时间、谁说的筛。压缩换出去的旧内容都还在日志里，她用它取回。只读日志，不碰文件，不报效果。
 //!
 //! 日志经 [`Call::log`] 一段一段读，交给内核的 `History::whole()` 算出哪些还算数（撤掉的、撤回的不算），再挑出
 //! 算一条的（[`entry`]），筛过以后写成一页（[`page`]）。人切权限级别的那几条照读来的原样挑，撤掉的回合里的也算（施工
 //! 2-7 补）。M6 不建索引，每次从头读。
+//!
+//! 多一格 `session`（施工 C-4，`cross-session.md` 第二条）：写了的先经 [`Call::sessions`] 认出是哪一个会话——和
+//! `find_session` 同一个认法，认成她自己的照没写——再只读地开它的日志（[`miyu_tool::SessionsPort::open`]），读法和读自己的日志
+//! 是同一条路（[`look`]）：时刻仍照这个会话自己的时区。没有列会话的端口的（子会话、场所会话），写了 `session` 直接拒。
 
 mod entry;
 mod page;
@@ -16,8 +20,9 @@ use serde::Deserialize;
 use miyu_kernel::event::Said;
 use miyu_kernel::history::History as Kept;
 use miyu_kernel::template::Template;
+use miyu_kernel::time::UtcOffset;
 use miyu_kernel::tool::Access;
-use miyu_tool::{Call, Done, Progress, Running, Spec, Stop, Tool};
+use miyu_tool::{Call, Done, Found, Log, Progress, Running, Spec, Stop, Tool, find_session};
 
 use crate::blocking::blocking;
 use crate::common::{Common, given, integer, said};
@@ -44,6 +49,9 @@ struct Texts {
     none: Template,
     bad_time: Template,
     no_log: Template,
+    no_session: Template,
+    ambiguous: Template,
+    not_here: Template,
     placeholders: Placeholders,
     footers: Footers,
 }
@@ -61,6 +69,8 @@ struct Args {
     by: Option<String>,
     #[serde(default, deserialize_with = "integer")]
     limit: Option<i64>,
+    /// 写了的，读别的会话的日志，不是这次调用自己的（施工 C-4）。
+    session: Option<String>,
 }
 
 /// 读懂了的参数。
@@ -86,6 +96,9 @@ impl History {
                 none: text("none", &[])?,
                 bad_time: text("bad-time", &["value"])?,
                 no_log: text("no-log", &["error"])?,
+                no_session: text("no-session", &["session"])?,
+                ambiguous: text("ambiguous", &["session"])?,
+                not_here: text("not-here", &[])?,
                 placeholders: Placeholders {
                     image: text("image", &[])?,
                     file: text("file", &["name"])?,
@@ -115,15 +128,60 @@ impl Tool for History {
                 Ok(args) => args,
                 Err(error) => return texts.common.bad_args(&error),
             };
+            let session = given(args.session.clone());
             let wanted = match wanted(&texts, &call, args) {
                 Ok(wanted) => wanted,
                 Err(done) => return *done,
             };
+            let log = match resolve(&texts, &call, session.as_deref()).await {
+                Ok(log) => log,
+                Err(done) => return *done,
+            };
+            let offset = call.offset;
             blocking(call.stop.clone(), move |stop| {
-                look(&texts, &call, &wanted, stop)
+                look(&texts, &log, offset, &wanted, stop)
             })
             .await
         })
+    }
+}
+
+/// 认 `session`：没写的读这次调用自己的日志（[`Call::log`]）。写了的，和 `send_message` 同一个认法（`cross-session.md`
+/// 第三条第 1 款）：在这个会话看得到的主会话（含她自己）里对；认成她自己的，照没写；找不到、对得上不止一个：各一句
+/// 拒绝；没有列会话的端口的（子会话、场所会话）：这个会话不能读别的会话，不去找。这几种拒绝都不读一条日志。
+async fn resolve(texts: &Texts, call: &Call, session: Option<&str>) -> Result<Log, Box<Done>> {
+    let own = || {
+        call.log
+            .clone()
+            .ok_or_else(|| Box::new(no_log(texts, "this call has no log")))
+    };
+    let Some(written) = session else {
+        return own();
+    };
+    let Some(sessions) = &call.sessions else {
+        return Err(Box::new(
+            Done::error(say(&texts.not_here, &[])).said(said("history/not-here")),
+        ));
+    };
+    let others = sessions
+        .list(&call.stop)
+        .await
+        .map_err(|error| Box::new(no_log(texts, &error)))?;
+    let among = std::iter::once(sessions.this()).chain(others.iter().map(|other| &other.id));
+    match find_session(written, among) {
+        Found::None => Err(Box::new(
+            Done::error(say(&texts.no_session, &[("session", written)]))
+                .said(said("history/no-session").with("session", written)),
+        )),
+        Found::Many => Err(Box::new(
+            Done::error(say(&texts.ambiguous, &[("session", written)]))
+                .said(said("history/ambiguous").with("session", written)),
+        )),
+        Found::One(id) if &id == sessions.this() => own(),
+        Found::One(id) => sessions
+            .open(&id)
+            .await
+            .map_err(|error| Box::new(no_log(texts, &error))),
     }
 }
 
@@ -169,11 +227,9 @@ fn wanted(texts: &Texts, call: &Call, args: Args) -> Result<Wanted, Box<Done>> {
     })
 }
 
-/// 读日志、筛、找或者读。叫停了的，读下一段之前停下。
-fn look(texts: &Texts, call: &Call, wanted: &Wanted, stop: &Stop) -> Done {
-    let Some(log) = &call.log else {
-        return no_log(texts, "this call has no log");
-    };
+/// 读日志、筛、找或者读。叫停了的，读下一段之前停下。`log` 是 [`resolve`] 认出来的：没写 `session` 的是这次调用
+/// 自己的日志，写了的是那个会话的；`offset` 总是这个会话自己的时区，和读的是哪一份日志无关。
+fn look(texts: &Texts, log: &Log, offset: UtcOffset, wanted: &Wanted, stop: &Stop) -> Done {
     let mut kept = Kept::whole();
     let mut switches = Vec::new();
     let read = log.read(|events| {
@@ -197,7 +253,7 @@ fn look(texts: &Texts, call: &Call, wanted: &Wanted, stop: &Stop) -> Done {
     entries.sort_by_key(|entry| entry.seq);
     entries.retain(|entry| picked(entry, wanted));
     let (page, human) = if wanted.words.is_empty() {
-        let page = page::read(&entries, wanted.limit, call.offset, &texts.footers);
+        let page = page::read(&entries, wanted.limit, offset, &texts.footers);
         let human = said("history/read")
             .with("from", page.first.to_string())
             .with("to", page.last.to_string());
@@ -207,7 +263,7 @@ fn look(texts: &Texts, call: &Call, wanted: &Wanted, stop: &Stop) -> Done {
             .into_iter()
             .filter_map(|entry| page::hit(&entry.text, &wanted.words).map(|hit| (entry, hit)))
             .collect();
-        let page = page::found(&found, wanted.limit, call.offset, &texts.footers);
+        let page = page::found(&found, wanted.limit, offset, &texts.footers);
         let human = said("history/found").with("count", page.total.to_string());
         (page, human)
     };

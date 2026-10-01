@@ -32,6 +32,7 @@
 | `policy.md` | 策略快照 |
 | `store.md` | 数据根、会话日志、blob |
 | `store/resources.md` | 资源目录、给人看的字 |
+| `store/index.md` | 会话列表的索引 |
 | `log.md` | 运行日志 |
 | `session/actor.md` | 会话 actor：收件箱、落盘、推送、请求模型 |
 | `session/tools.md` | 执行工具、效果、她看过的、改回文件 |
@@ -47,7 +48,8 @@
 | `tools/subagent.md` | 派子代理（施工 7-5；7-5 再补从 `agent` 改名） |
 | `tools/jobs.md` | 看、读、停派出去的任务（施工 7-4） |
 | `tools/message_agent.md` | 父子之间留言（施工 7-7） |
-| `cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`、`cli/config.md`、`cli/main.md` | 每条命令一页（`cli/compact.md` 施工 6-8，`cli/redo.md` 施工 4-7 再补，`cli/recap.md` 施工 3-8 四补，`cli/rename.md` 施工 3-8 五补，`cli/config.md` 施工 8-2）；主程序 |
+| `tools/sessions.md` | 列你别的主会话（施工 C-3，跨会话） |
+| `cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`、`cli/config.md`、`cli/login.md`、`cli/main.md` | 每条命令一页（`cli/compact.md` 施工 6-8，`cli/redo.md` 施工 4-7 再补，`cli/recap.md` 施工 3-8 四补，`cli/rename.md` 施工 3-8 五补，`cli/config.md` 施工 8-2，`cli/login.md` 施工 8-5）；主程序 |
 | `sandbox.md` | 沙盒：规格、助手 `miyu-sandbox`、探测、找助手（施工 5-1 起） |
 | `sandbox/linux.md` | 沙盒在 Linux 上怎么收紧：只用 Landlock，整盘能读、只管写（施工 5-2 起，5-3 改成只管写） |
 | `sandbox/macos.md` | 沙盒在 macOS 上怎么收紧：Seatbelt 配置的底子、照规格生成的规则、换成真实的位置、装上、探测报 `seatbelt`（施工 5-7 起） |

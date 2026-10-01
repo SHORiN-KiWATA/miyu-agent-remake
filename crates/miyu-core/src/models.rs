@@ -178,7 +178,7 @@ impl ModelPort for NoModel {
         &self.0
     }
 
-    fn call(&self, _: Seq, _: Request, reports: Reports, _: Cancel) {
+    fn call(&self, _: Seq, _: Request, _: &miyu_session::TurnConfig, reports: Reports, _: Cancel) {
         reports.ended(
             None,
             Some(CallError {

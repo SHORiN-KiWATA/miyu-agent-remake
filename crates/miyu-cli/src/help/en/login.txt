@@ -1,0 +1,11 @@
+Usage: miyu login [name]
+       miyu login --list [--format text|json]
+
+Save a provider's key. Without a name, pick one the config uses. The key
+does not show as you paste it, and it can come from a pipe:
+echo "$KEY" | miyu login deepseek
+
+Options:
+      --list              List which providers have a key, never the key
+      --format text|json  Output of --list: json for scripts
+  -h, --help              Print help

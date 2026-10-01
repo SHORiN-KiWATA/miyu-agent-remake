@@ -1174,6 +1174,39 @@ session {id}
 Changed the permission level to {level}
 ```
 
+#### `software/basesystem/history/no-session.txt`
+
+- 什么时候加进来：`session` 写了个找不到的编号
+- token：10（`{session}` 按 `deadbeef` 算，2026-10-01 主会话照开发端点量）
+- 为什么加：每次调用都要有结果，带上她写的那个编号，让她看得出是拼错了还是那个会话真的没有（施工 C-4，`cross-session.md` 第二条）
+- 指纹：`1917c8de`
+
+```text
+No session has the id "{session}".
+```
+
+#### `software/basesystem/history/ambiguous.txt`
+
+- 什么时候加进来：`session` 写的后缀对得上不止一个会话
+- token：16（`{session}` 按 `22334455` 算，2026-10-01 主会话照开发端点量）
+- 为什么加：告诉她写长一点，和 `send_message`、`sessions` 撞了的处理是同一个认法（施工 C-4）
+- 指纹：`70000175`
+
+```text
+"{session}" matches more than one session. Use the full id.
+```
+
+#### `software/basesystem/history/not-here.txt`
+
+- 什么时候加进来：这个会话没有列会话的端口（子会话、场所会话），写了 `session` 也不去找
+- token：7（2026-10-01 主会话照开发端点量）
+- 为什么加：子会话的事经它的父会话，场所会话（群）里的人不可信，不能经她读人的会话（施工 C-4 第九条）
+- 指纹：`f27a80b5`
+
+```text
+This session cannot read other sessions.
+```
+
 #### `software/basesystem/agent/started.txt`
 
 - 什么时候加进来：派出去了
@@ -1359,6 +1392,83 @@ Subagent {to} was stopped and takes no more messages.
 
 ```text
 The message could not be delivered.
+```
+
+#### `software/basesystem/sessions/you.txt`
+
+- 什么时候加进来：`sessions` 的第一行
+- token：8（`{id}` 按 `22334455` 算，2026-10-01 量）
+- 为什么加：她要知道自己是哪一个，才认得出列表里别的会话；也是她给别的会话报自己时写的编号（施工 C-3，`cross-session.md` 第一条第 4 款）
+- 指纹：`66401bf1`
+
+```text
+You are session {id}.
+```
+
+#### `software/basesystem/sessions/listed.txt`
+
+- 什么时候加进来：`sessions`：一个有标题的会话一行
+- token：34（字段按 `9f03b21c`、`修 CI`、`~/src/miyu`、`busy`、`2026-10-01 14:03` 算，2026-10-01 量）
+- 为什么加：短编号是她读、发给它时写的；标题、工作目录让她认得出是哪一个；忙不忙、最近一次动静让她知道现在找它合不合适（设计 29 第一节第 1 条，施工 C-3）
+- 指纹：`d140f13c`
+
+```text
+{id} "{title}" in {cwd}: {state}, last active {time}
+```
+
+#### `software/basesystem/sessions/listed-untitled.txt`
+
+- 什么时候加进来：`sessions`：一个没标题的会话一行
+- token：31（字段按 `0c5d77aa`、`~/notes`、`idle`、`2026-09-30 22:41` 算，2026-10-01 量）
+- 为什么加：同上，没标题的写 `(untitled)`，不带第一句话的开头（`cross-session.md`「定的」第 1 条，施工 C-3）
+- 指纹：`90ef4f0a`
+
+```text
+{id} (untitled) in {cwd}: {state}, last active {time}
+```
+
+#### `software/basesystem/sessions/more.txt`
+
+- 什么时候加进来：`sessions`：这一页后面还有
+- token：18（字段按 `1`、`20`、`25`、`20` 算，2026-10-01 量）
+- 为什么加：调用之后才用得上的知识写进输出：往下从哪接（施工 C-3）
+- 指纹：`2a3cf943`
+
+```text
+(Showing {from}-{to} of {total}. Use offset={next} to see more.)
+```
+
+#### `software/basesystem/sessions/none.txt`
+
+- 什么时候加进来：`sessions`：一个别的会话都没有，没有端口的也是它
+- token：6（2026-10-01 量）
+- 为什么加：照「没找到」的规矩说一句（施工 C-3）
+- 指纹：`d10d0851`
+
+```text
+You have no other sessions.
+```
+
+#### `software/basesystem/sessions/past-end.txt`
+
+- 什么时候加进来：`sessions`：`offset` 过了结尾
+- token：16（字段按 `5`、`5` 算，2026-10-01 量）
+- 为什么加：告诉她一共几个，好改 `offset`，照 `jobs/past-end.txt`（施工 C-3）
+- 指纹：`4a11103e`
+
+```text
+(You have {total} other sessions. Offset {offset} is past the end.)
+```
+
+#### `software/basesystem/sessions/failed.txt`
+
+- 什么时候加进来：`sessions`：列不出来（放会话的目录读不了、核心正在停）
+- token：12（`{error}` 按 `the core is shutting down` 算，2026-10-01 量）
+- 为什么加：每次调用都要有结果，不能当成「没有别的会话」答：那是骗她。照 `history/no-log.txt` 的写法（施工 C-3，2026-10-01 主会话定）
+- 指纹：`a18431db`
+
+```text
+Could not list the sessions: {error}
 ```
 
 #### `software/basesystem/common/not-read.txt`
@@ -1919,14 +2029,14 @@ Conversation:
 #### `software/basesystem/tools/history.json`
 
 - 什么时候加进来：会话的工具面里有 `history`（每次请求都带）
-- token：197
-- 为什么加：`history` 的说明和参数（施工 6-4）：说明两句，是什么、压缩换出去的也找得回；参数照图纸，`limit` 只写默认值。量法同上，八件一起时的边际份量（2026-09-29 照项目主人给的端点、`deepseek-v4.1-flash` 量）
-- 指纹：`65964932`
+- token：224（2026-10-01 主会话照开发端点、`deepseek-v4.1-flash` 量，十二件一起时的边际份量；原来 197，多 27，就是 `session` 这一格）
+- 为什么加：`history` 的说明和参数（施工 6-4）：说明两句，是什么、压缩换出去的也找得回；参数照图纸，`limit` 只写默认值。量法同上，八件一起时的边际份量（2026-09-29 照项目主人给的端点、`deepseek-v4.1-flash` 量）。施工 C-4 加 `session`（`cross-session.md` 第二条）：写了就读别的会话的日志，不是这次调用自己的
+- 指纹：`a194ba84`
 
 ```json
 {
   "description": "Search or read back earlier parts of this conversation, including what compaction moved out of context. Entries are numbered in log order.",
-  "parameters": {"type":"object","properties":{"query":{"type":"string","description":"Words to look for. Without it, entries are listed in order."},"from":{"type":"integer","description":"First entry number."},"to":{"type":"integer","description":"Last entry number."},"since":{"type":"string","description":"Earliest time, like 2026-09-29 14:00."},"until":{"type":"string","description":"Latest time."},"by":{"type":"string","enum":["user","assistant","tool"]},"limit":{"type":"integer","description":"Default 20."}}}
+  "parameters": {"type":"object","properties":{"query":{"type":"string","description":"Words to look for. Without it, entries are listed in order."},"from":{"type":"integer","description":"First entry number."},"to":{"type":"integer","description":"Last entry number."},"since":{"type":"string","description":"Earliest time, like 2026-09-29 14:00."},"until":{"type":"string","description":"Latest time."},"by":{"type":"string","enum":["user","assistant","tool"]},"limit":{"type":"integer","description":"Default 20."},"session":{"type":"string","description":"Another session's id, to read that session instead of this one."}}}
 }
 ```
 
@@ -2011,6 +2121,20 @@ Conversation:
 {
   "description": "List your background commands and subagents, read a command's output, or stop one. Finished jobs report to you on their own, so there is no need to poll.",
   "parameters": {"type":"object","properties":{"action":{"type":"string","enum":["list","output","stop"]},"id":{"type":"string","description":"Job id, like j1."},"offset":{"type":"integer","description":"Line to start reading the output from."}},"required":["action"]}
+}
+```
+
+#### `software/basesystem/tools/sessions.json`
+
+- 什么时候加进来：会话的工具面里有 `sessions`：本机的主会话（每次请求都带）
+- token：95（2026-10-01 主会话照开发端点、`deepseek-v4.1-flash` 量，十二件一起时的边际份量）
+- 为什么加：`sessions` 的说明和参数（施工 C-3，`cross-session.md` 第一条）：两句，列出你别的会话、最近有动静的在前，每一行有编号、标题、工作目录、忙不忙、最近一次动静。草稿第二句点名 `send_message`、`history`，C-3 时还没有这两样（`send_message` C-5 才改名，`history` 的 `session` C-4 才加），照 J4 先不点名，C-5 改名时补上、和那一次冷启动放在一起（2026-10-01 主会话定）。参数 `limit`、`offset` 各一句，照 `history`、`grep` 的写法。列会话是新的一件事，藏进 `jobs`、`history` 的参数里她想不起来（`cross-session.md`「起草时定的」第 1 条）
+- 指纹：`7467799a`
+
+```json
+{
+  "description": "List your other sessions, most recently active first. Each row gives the session id, the title, working directory, whether it is busy and when it was last active.",
+  "parameters": {"type":"object","properties":{"limit":{"type":"integer","description":"Default 20."},"offset":{"type":"integer","description":"How many sessions to skip."}}}
 }
 ```
 

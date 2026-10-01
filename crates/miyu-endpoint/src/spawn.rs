@@ -4,17 +4,23 @@
 //!
 //! 端口拿着核心的弱引用：会话由核心的会话表拿着，端口再强拿着核心就成了环。核心没了（正在退出）的，派不了。
 //!
-//! 停子代理、看它在做什么也经它（施工 7-4）：停下子会话、照它的日志算它这会儿的样子。
+//! 停子代理、看它在做什么也经它（施工 7-4）：停下子会话、照它的日志算它这会儿的样子。她列会话也经它（施工 C-3）：和
+//! `session.list` 同一个函数算（`crate::list`）。她读别的会话的日志也经它（施工 C-4）：只算出目录，不载入那个会话。
 
+use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 
-use miyu_kernel::id::{CommandId, SessionId};
+use miyu_kernel::event::Event;
+use miyu_kernel::id::{AccountId, CommandId, SessionId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Outcome, Queued};
 use miyu_session::{Child, Peek, Pending, SessionPort, peek};
-use miyu_store::log::read_events;
+use miyu_store::index::Row;
+use miyu_store::log::{read_events, read_segments};
+use miyu_tool::{Log, MainSession, ReadLog, Stop};
 
 use crate::Core;
+use crate::list::scan;
 
 /// 交给会话的端口：造子会话、给会话发命令都照会话表的规矩。
 pub(crate) fn port(core: &Arc<Core>) -> Arc<dyn SessionPort> {
@@ -115,5 +121,57 @@ impl SessionPort for Table {
                 .map_err(|error| error.to_string())?;
             Ok(peek(&events))
         })
+    }
+
+    /// 属主是 `owner` 的主会话（施工 C-3）：会话表里这时忙着的先记下，再在阻塞线程里照 `session.list` 的办法读。
+    fn sessions(
+        &self,
+        owner: AccountId,
+        stop: Stop,
+    ) -> Pending<'_, Result<Vec<MainSession>, String>> {
+        Box::pin(async move {
+            let core = self.core()?;
+            let busy = core.sessions.busy_ids().await;
+            let root = core.root.clone();
+            let index = core.index_for(&owner);
+            let main = |row: &Row| row.parent.is_none();
+            let listed = tokio::task::spawn_blocking(move || {
+                scan(&root, &owner, index.as_deref(), &busy, main, None, &stop)
+            })
+            .await
+            .map_err(|error| error.to_string())?
+            .map_err(|error| format!("sessions not listed: {error}"))?;
+            Ok(listed
+                .into_iter()
+                .map(|listed| MainSession {
+                    id: listed.id,
+                    title: listed.title,
+                    cwd: listed.cwd,
+                    busy: listed.busy,
+                    last_active: listed.last_active,
+                })
+                .collect())
+        })
+    }
+
+    /// 只读地开会话 `session` 的日志（施工 C-4）：只算出它的目录，不读盘。核心正在停的才出错；日志坏了、读不了的要等
+    /// 交回的 [`Log`] 读的时候才知道。
+    fn read_log(&self, session: SessionId) -> Pending<'_, Result<Log, String>> {
+        Box::pin(async move {
+            let core = self.core()?;
+            let dir = core.root.session_dir(&core.admin, &session);
+            Ok(Log::new(Dir(dir)))
+        })
+    }
+}
+
+/// 一个会话目录的只读入口，给别的会话读用（施工 C-4）：和这个会话自己那份（`miyu-session` 里的 `LogDir`）是同一个
+/// 读法（[`read_segments`]），照会话表这一层直接依赖 `miyu-store` 的先例（[`read_events`] 已经这样用），不必把
+/// `miyu-session` 里那份公开出来。
+struct Dir(PathBuf);
+
+impl ReadLog for Dir {
+    fn read(&self, each: &mut dyn FnMut(Vec<Event>) -> bool) -> Result<(), String> {
+        read_segments(&self.0, each).map_err(|error| error.to_string())
     }
 }

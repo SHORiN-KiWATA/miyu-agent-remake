@@ -12,13 +12,15 @@
 //!   执行器请求（施工 3-7 下），测试里照剧本回；
 //! - [`new_id`]：新的会话编号；
 //! - [`SessionPort`]：造子会话、给别的会话发命令的端口（施工 7-5），会话表实现、造会话和载入时交进来。
-//! - [`Jobs`]：执行器的任务表，核心里一张：后台命令活过起它的那次调用（施工 7-3）。
+//! - [`Jobs`]：执行器的任务表，核心里一张：后台命令活过起它的那次调用（施工 7-3）；
+//! - [`Configs`]、[`ConfigSource`]：会话从哪取配置，回合开始时冻结一份（[`TurnConfig`]），这一轮的请求都照它（施工 8-4）。
 
 mod actor;
 mod agents;
 mod backlog;
 mod blocking;
 mod clock;
+mod config;
 mod effects;
 mod guard;
 mod handle;
@@ -35,6 +37,7 @@ mod report;
 mod reread;
 mod restore;
 mod sandbox;
+mod sessions;
 mod spawn;
 mod store;
 #[cfg(feature = "testkit")]
@@ -44,6 +47,7 @@ mod tools;
 pub use agents::job_in;
 pub use backlog::Backlog;
 pub use clock::new_id;
+pub use config::{ConfigSource, Configs, TurnConfig, fixed};
 pub use handle::{Ended, Handle, Pushed, Stopped, Subscription};
 pub use http::{HttpModels, IDLE};
 pub use jobs::{Jobs, Peek, Unreadable, peek};

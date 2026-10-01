@@ -133,13 +133,65 @@ impl Refusal {
         data: None,
     };
 
-    /// 请求里写了清单里没有的配置项（施工 8-2，`config.schema`、`config.get`）：`data.problems` 里每个不认识的一条。
+    /// `config.trust` 时这个目录找不到项目配置（施工 8-3）。
+    pub(crate) const NO_PROJECT_CONFIG: Refusal = Refusal {
+        code: REFUSED,
+        reason: "no_project_config",
+        data: None,
+    };
+
+    /// `secret.delete` 删的密钥没有（施工 8-5）。
+    pub(crate) const UNKNOWN_SECRET: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_secret",
+        data: None,
+    };
+    /// 请求里写了清单里没有的配置项（施工 8-2，`config.schema`、`config.get`、`config.set`）：`data.problems` 里每个不认识的
+    /// 一条。
     pub(crate) fn unknown_config_key(problems: Vec<serde_json::Value>) -> Refusal {
+        Refusal::with(
+            "unknown_config_key",
+            "problems",
+            serde_json::Value::Array(problems),
+        )
+    }
+
+    /// `config.set` 的值不对、不能写在这一层，整份换的字里有错误（施工 8-3）：`data.problems` 里是每一处。
+    pub(crate) fn config_invalid(problems: Vec<serde_json::Value>) -> Refusal {
+        Refusal::with(
+            "config_invalid",
+            "problems",
+            serde_json::Value::Array(problems),
+        )
+    }
+
+    /// 文件现在读不进来，没法只改几项（施工 8-3）：`data.problems` 里是那几处。
+    pub(crate) fn config_file_broken(problems: Vec<serde_json::Value>) -> Refusal {
+        Refusal::with(
+            "config_file_broken",
+            "problems",
+            serde_json::Value::Array(problems),
+        )
+    }
+
+    /// `config.set` 的 `expect` 对不上（施工 8-3）：`data.current` 是这一层里这一项现在的样子，`{"value": …}` 或 `{}`。
+    pub(crate) fn config_conflict_current(current: serde_json::Value) -> Refusal {
+        Refusal::with("config_conflict", "current", current)
+    }
+
+    /// 版本对不上（施工 8-3）：整份换的、信任的那一份人看过以后又变了，写的那一瞬间有人手改了。`data.version` 是现在的
+    /// 版本，文件没有的是 `null`。
+    pub(crate) fn config_conflict_version(version: Option<String>) -> Refusal {
+        Refusal::with("config_conflict", "version", serde_json::json!(version))
+    }
+
+    /// Miyu 的拒绝，`data` 里除了 `reason` 多一格 `field`。
+    fn with(reason: &'static str, field: &str, value: serde_json::Value) -> Refusal {
         let mut data = serde_json::Map::new();
-        data.insert("problems".to_string(), serde_json::Value::Array(problems));
+        data.insert(field.to_string(), value);
         Refusal {
             code: REFUSED,
-            reason: "unknown_config_key",
+            reason,
             data: Some(data),
         }
     }
@@ -245,6 +297,24 @@ impl Refusal {
             "nothing_to_recap" => ("还没有可回顾的内容", "There is nothing to recap yet."),
             // 施工 8-2（`config.md`「协议拒绝时的话」）。
             "unknown_config_key" => ("没有这一项配置。", "There is no such setting."),
+            // 施工 8-3（`config.md`「协议拒绝时的话」）。
+            "config_invalid" => (
+                "配置有几处不对，没有改。",
+                "Some settings are not right. Nothing was changed.",
+            ),
+            "config_conflict" => (
+                "这一项刚被别处改过，没有改：先看看现在的值。",
+                "This was just changed elsewhere. Nothing was changed. Look at the current value first.",
+            ),
+            "config_file_broken" => (
+                "配置文件现在读不进来，没法只改一项：先把它改好，比如用 miyu config edit。",
+                "The config file cannot be read right now, so a single setting cannot be changed. Fix the file first, e.g. with miyu config edit.",
+            ),
+            "no_project_config" => (
+                "这个目录找不到项目配置。",
+                "There is no project config for this directory.",
+            ),
+            "unknown_secret" => ("没有这个密钥。", "There is no such secret."),
             "recap_failed" => (
                 "回顾没写成：请求模型出错了。",
                 "The recap could not be written: the model request failed.",

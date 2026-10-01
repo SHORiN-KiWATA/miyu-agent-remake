@@ -6,7 +6,8 @@
 //! 2. 拿单实例锁：已经有一个核心在跑的，说一声 `running` 就走；先拿锁再装日志，免得两个核心写同一份；
 //! 3. 装运行日志 `state/logs/core.log`，记一条「起来了」：版本、进程号、数据根、和 UTC 差多少；
 //! 4. 管理员 `admin` 的家目录，没有就建；资源目录；读配置、照 `log.level` 换运行日志的级别，照配置清单生成两份 JSON
-//!    Schema 和参考文件（[`settings`]，施工 8-1、8-2）；模型（[`models`]）；
+//!    Schema 和参考文件（[`settings`]，施工 8-1、8-2）；模型（[`models`]）；开始监视配置文件，配置换了当场换级别、重写
+//!    生成的文件（施工 8-4）；
 //! 5. 换本机令牌、在套接字上等连接（施工 3-8 下）；找沙盒的助手、探一次，只记日志（施工 5-1）；
 //! 6. 往标准输出写一行 `ready`：拉起它的头等着这一行；接着在后台清一次回收处（施工 3-8 三补，`trash.rs`）。
 //!
@@ -102,12 +103,17 @@ pub fn main(options: Options) -> ExitCode {
     };
     let config = settings::read(&root, &admin(), env.home.as_deref());
     settings::log_level(&config, &level, &log);
+    let locale = miyu_store::env::locale();
     settings::generate(
         &root,
         &resources,
-        miyu_store::env::locale().as_deref(),
+        locale.as_deref(),
         &config.resolved().values(),
     );
+    let live = Live {
+        levels: log.levels(),
+        locale,
+    };
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .worker_threads(WORKERS)
         .enable_all()
@@ -116,7 +122,7 @@ pub fn main(options: Options) -> ExitCode {
         Ok(runtime) => runtime,
         Err(error) => return failed("runtime", error.to_string()),
     };
-    let outcome = runtime.block_on(run(env, root, resources, lock, options, config));
+    let outcome = runtime.block_on(run(env, root, resources, lock, options, (config, live)));
     drop(log);
     outcome
 }
@@ -132,15 +138,21 @@ pub fn tools(resources: &ResourceRoot) -> Result<Catalog, String> {
     Catalog::new(base).map_err(|error| error.to_string())
 }
 
+/// 运行中配置换了当场生效要的（施工 8-4）：换运行日志级别的把手，核心这边的系统语言。
+struct Live {
+    levels: miyu_log::Levels,
+    locale: Option<String>,
+}
+
 /// 后半段，在运行时里：在套接字上等连接，说「好了」，接连接，直到停下。`env` 是起来时读的那一份环境快照，`config` 是
-/// 起来时读的配置。
+/// 起来时读的配置和当场生效要的。开始监视配置文件、跟着配置换级别和重写生成的文件（施工 8-4）在说「好了」之前。
 async fn run(
     env: Env,
     root: DataRoot,
     resources: ResourceRoot,
     lock: Lock,
     options: Options,
-    config: miyu_endpoint::config::Config,
+    (config, live): (miyu_endpoint::config::Config, Live),
 ) -> ExitCode {
     let opened = match miyu_ipc::open_locked(&root, &Dirs::current(), lock) {
         Ok(opened) => opened,
@@ -171,6 +183,7 @@ async fn run(
         Err(error) => return failed("tools", error),
     };
     let trashed = root.clone();
+    let (generated, words) = (root.clone(), resources.clone());
     let mut core = Core::new(
         root,
         resources,
@@ -186,6 +199,15 @@ async fn run(
         core = core.with_sandbox_cache(cache, cargo_home);
     }
     let core = Arc::new(core);
+    tokio::spawn(settings::follow(
+        core.config_now(),
+        live.levels,
+        generated,
+        words,
+        live.locale,
+    ));
+    // 监视配置文件（第七条）：拿着它一直到停，丢掉就不看了。
+    let _watching = core.watch_config();
     say(&Ready::Ready);
     let purging = trash::purge(trashed, admin());
     serve(opened.listener, core, options.idle, serve::signal()).await;

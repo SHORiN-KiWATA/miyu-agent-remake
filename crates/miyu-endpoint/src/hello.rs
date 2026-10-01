@@ -4,6 +4,9 @@
 //!
 //! 回应带这个连接给人看的字用哪种语言 `language`，和配置里有几处错误 `config_errors`（施工 8-2，`config.md`
 //! 「协议」）：语言照 `ui.language` 的最终值，是 `auto` 的照头报的系统语言 `locale`。
+//!
+//! 施工 8-4 起 `ui.language` 能当场改：连接记着头报的系统语言（[`Shaken`]），每次说话都照这时的 `ui.language` 重算
+//! （[`Shaken::now`]），不用再握手（`config.md` 第二条第 8 条）。
 
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -11,6 +14,7 @@ use serde_json::{Value, json};
 use miyu_sandbox::Availability;
 
 use crate::Core;
+use crate::config::Config;
 use crate::refusal::{Locale, Refusal};
 use crate::settings::UiSettings;
 
@@ -50,7 +54,43 @@ struct Caps {
     input: bool,
 }
 
-/// 握手以后的这个连接。
+/// 握手时记下的：头报的系统语言照 `auto` 算出的那一种，能不能让人输入。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Shaken {
+    /// `ui.language` 是 `auto` 时用哪一种：头报的 `locale` 照 [`UiSettings::language_for`] 算的。
+    system: &'static str,
+    /// 能让人输入。
+    input: bool,
+}
+
+impl Shaken {
+    /// 这一刻的这个连接：语言照现在的 `ui.language` 重算。
+    pub(crate) fn now(self, core: &Core) -> Peer {
+        let language = language_of(&core.config(), self.system);
+        Peer {
+            locale: Locale::of(Some(language)),
+            language,
+            input: self.input,
+        }
+    }
+
+    /// `ui.language` 是 `auto` 时用哪一种。
+    pub(crate) fn system(self) -> &'static str {
+        self.system
+    }
+}
+
+/// 照配置 `config` 的 `ui.language`（不算项目配置），`auto` 的用 `system`：给人看的字用哪种语言。
+pub(crate) fn language_of(config: &Config, system: &'static str) -> &'static str {
+    let ui = UiSettings::from(&config.resolved().values());
+    match ui.language_for(Some(system)) {
+        "zh" => "zh",
+        "ja" => "ja",
+        _ => "en",
+    }
+}
+
+/// 这一刻的这个连接。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Peer {
     /// 核心拒绝时的话用哪种语言：只有中文、英文，`ja` 的照英文。
@@ -61,8 +101,8 @@ pub(crate) struct Peer {
     pub(crate) input: bool,
 }
 
-/// 握手：交回这个连接的样子和回应。拒绝的，交回拒绝和要不要断开。
-pub(crate) fn hello(core: &Core, params: Value) -> Result<(Peer, Value), (Refusal, bool)> {
+/// 握手：交回这个连接记下的和回应。拒绝的，交回拒绝和要不要断开。
+pub(crate) fn hello(core: &Core, params: Value) -> Result<(Shaken, Value), (Refusal, bool)> {
     let params: Params =
         serde_json::from_value(params).map_err(|_| (Refusal::BAD_PARAMS, false))?;
     let [low, high] = params.protocol;
@@ -91,12 +131,11 @@ pub(crate) fn hello(core: &Core, params: Value) -> Result<(Peer, Value), (Refusa
         protocol = PROTOCOL,
         "connected"
     );
-    let language = language(core, params.locale.as_deref());
-    let peer = Peer {
-        locale: Locale::of(Some(language)),
-        language,
+    let shaken = Shaken {
+        system: system(params.locale.as_deref()),
         input: params.caps.input,
     };
+    let language = shaken.now(core).language;
     let mut result = json!({
         "protocol": PROTOCOL,
         "core": {"version": env!("CARGO_PKG_VERSION")},
@@ -104,18 +143,20 @@ pub(crate) fn hello(core: &Core, params: Value) -> Result<(Peer, Value), (Refusa
         "sandbox": sandbox(&core.sandbox),
         "language": language,
     });
-    let errors = core.config.errors();
+    let errors = core.config().errors();
     if errors > 0 {
         result["config_errors"] = json!(errors);
     }
-    Ok((peer, result))
+    Ok((shaken, result))
 }
 
-/// 这个连接给人看的字用哪种语言（`config.md` 第二条第 8 条）：`ui.language` 的最终值（不算项目配置）定了的就是它，
-/// `auto` 的照头报的系统语言 `locale`。
-fn language(core: &Core, locale: Option<&str>) -> &'static str {
-    let ui = UiSettings::from(&core.config.resolved().values());
-    match ui.language_for(locale) {
+/// 头报的系统语言 `locale` 照 `auto` 算出的那一种（`config.md` 第二条第 8 条）：`zh` 开头的是 `zh`，`ja` 开头的是 `ja`，
+/// 别的、没报的是 `en`。
+fn system(locale: Option<&str>) -> &'static str {
+    let auto = UiSettings {
+        language: "auto".to_string(),
+    };
+    match auto.language_for(locale) {
         "zh" => "zh",
         "ja" => "ja",
         _ => "en",

@@ -184,7 +184,7 @@ fn padded(text: &str, width: usize) -> String {
 }
 
 /// 在终端里占几列：中日韩的字、全角的标点占两列，别的一列（和帮助页的规矩一样）。
-pub(super) fn columns(text: &str) -> usize {
+pub(crate) fn columns(text: &str) -> usize {
     text.chars()
         .map(|c| match c {
             '\u{1100}'..='\u{115F}'

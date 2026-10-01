@@ -2,14 +2,14 @@
 
 ### 是什么
 
-一个程序，像 busybox 那样按子命令分发：`ask`、`undo`（别名 `rewind`）、`restore`、`redo`、`compact`、`recap`、`rename`、`config`、`sandbox` 是命令行的头，`core` 是核心进程。不认识的子命令就报错，绝不当成对话发给核心。给人看的话跟着界面语言。
+一个程序，像 busybox 那样按子命令分发：`ask`、`undo`（别名 `rewind`）、`restore`、`redo`、`compact`、`recap`、`rename`、`config`、`login`、`logout`、`sandbox` 是命令行的头，`core` 是核心进程。不认识的子命令就报错，绝不当成对话发给核心。给人看的话跟着界面语言。
 
 ### 在哪
 
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu/src/main.rs` | 子命令；换上帮助页；参数不对时交给 `misuse`；拉起核心用的命令 |
-| `crates/miyu-cli/src/help.rs`、`help/{zh,en}/{miyu,ask,undo,restore,redo,compact,recap,rename,sandbox,config}.txt` | 帮助页：一种语言十页，编进程序（施工 4-11；`sandbox` 那一页施工 5-8，`compact` 那一页施工 6-8，`redo` 那一页施工 4-7 再补，`recap` 那一页施工 3-8 四补，`rename` 那一页施工 3-8 五补，`config` 那一页施工 8-2） |
+| `crates/miyu-cli/src/help.rs`、`help/{zh,en}/{miyu,ask,undo,restore,redo,compact,recap,rename,sandbox,config,login,logout}.txt` | 帮助页：一种语言十二页，编进程序（施工 4-11；`sandbox` 那一页施工 5-8，`compact` 那一页施工 6-8，`redo` 那一页施工 4-7 再补，`recap` 那一页施工 3-8 四补，`rename` 那一页施工 3-8 五补，`config` 那一页施工 8-2，`login`、`logout` 两页施工 8-5） |
 | `crates/miyu-cli/src/misuse.rs` | 参数写错时说的那一句，不认识的子命令也在这里（施工 4-11）；少了子命令、嵌着的子命令写错、成对的选项少了一个（施工 5-8） |
 | `crates/miyu-cli/src/lib.rs` | 命令行的头对外的几样：`Ask`、`ask`、`talk`、`Format`、`Plan`、`Screen`、`Target`、`exit`，`Undo`、`undo`、`undo_on`、`Direction`、`UndoPlan`，`Compact`、`compact`（施工 6-8），`Recap`、`recap`、`recap_on`、`RecapPlan`（施工 3-8 四补），`Rename`、`rename`、`rename_on`、`RenamePlan`（施工 3-8 五补），`Redo`、`redo`、`redo_on`、`RedoPlan`（施工 4-7 再补），`Sandbox`、`sandbox`，`help`、`misuse`、`language` |
 | `crates/miyu-cli/src/language.rs` | 界面语言；这一页和 `miyu ask` 给人看的字 |
@@ -28,7 +28,8 @@
 | `compact` | 把当前会话的上下文压缩成摘要，可以附上要求（施工 6-8，命令名 2026-09-29 项目主人定） | `cli/compact.md` |
 | `recap` | 一句话回顾当前会话：在做什么、做完了什么、卡在哪（施工 3-8 四补） | `cli/recap.md` |
 | `rename` | 给当前会话起名（施工 3-8 五补） | `cli/rename.md` |
-| `config` | `get`、`check`、`explain`、`path`：看配置（施工 8-2）；改、写、信任的几个随 8-3 | `cli/config.md` |
+| `config` | `get`、`check`、`explain`、`path`：看配置（施工 8-2）；`set`、`unset`、`edit`、`trust`：改配置、信任项目配置（施工 8-3） | `cli/config.md` |
+| `login`、`logout` | 存、列、删供应商的 key（施工 8-5） | `cli/login.md` |
 | `sandbox` | `setup`、`remove`：Windows 上装好、撤掉沙盒用户，要管理员权限；别的平台上说一句不用装 | `sandbox/windows.md` |
 | `core` | 核心进程：由头拉起，平时不用人敲；不写进帮助 | `core.md` |
 | `help` | clap 自带：印帮助，`miyu help <子命令>` 印那一条的 | |
@@ -47,18 +48,18 @@
 
 ### 怎么走
 
-1. 先照界面语言给主程序和 `ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename`、`config`（连同它的四个子命令）、`sandbox`（连同它的 `setup`、`remove`）换上帮助页（clap 的 `override_help`；`rewind` 是 `undo` 的别名，用同一页），再解析参数。
+1. 先照界面语言给主程序和 `ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename`、`config`（连同它的八个子命令）、`login`、`logout`、`sandbox`（连同它的 `setup`、`remove`）换上帮助页（clap 的 `override_help`；`rewind` 是 `undo` 的别名，用同一页），再解析参数。
 2. 解析参数，不对的：
    1. 不认识的子命令：标准错误上说「没有 <名字> 这个子命令。想和她对话，用 miyu ask "…"」，退出码 2。不连核心，不拉起，什么都不发。
    2. `-h`、`--help`、`help`、`help <子命令>`：把那一页原样印在标准输出上，退出码 0。`-V`、`--version`：印 `miyu <版本>`，退出码 0。
    3. 别的：标准错误上说一句（下面「参数写错时」），退出码 2。
 3. 没写子命令：标准错误上说「终端界面还没做好。想和她对话，用 miyu ask "…"」，退出码 2。
-4. `ask`、`undo`（`rewind`）、`restore`、`redo`、`compact`、`recap`、`rename`、`config`：交给命令行的头（`cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`、`cli/config.md`），连同拉起核心用的命令。
+4. `ask`、`undo`（`rewind`）、`restore`、`redo`、`compact`、`recap`、`rename`、`config`、`login`、`logout`：交给命令行的头（`cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`、`cli/config.md`、`cli/login.md`），连同拉起核心用的命令。
 5. 拉起核心用的命令：自己这个程序（`std::env::current_exe`，拿不到的用 `miyu`，照 `PATH` 找），加上 `core`。别的参数、环境变量不加；工作目录、标准输入输出、跟终端脱开，由拉起的那一边接（`ipc.md`）。
 6. `core`：跑核心进程，`--idle-seconds <秒>` 是空闲多少秒退出，不写是 600（`core.md`）。
 7. `sandbox setup`、`sandbox remove`：交给命令行的头（`sandbox/windows.md`）。
 
-**帮助页**：自己写的，一种语言十页（`miyu`、`ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename`、`sandbox`、`config`），编进程序，资源目录找不到也印得出；每页以一个换行结尾，最宽 80 列（中文字算两列）。`ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename` 的七页见 `cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`，`sandbox` 那一页见 `sandbox/windows.md`；`miyu sandbox setup -h`、`miyu sandbox remove -h` 印的也是它。`help` 子命令、`core` 不列；`miyu core --help` 照样印得出，是 clap 照代码注释生成的。
+**帮助页**：自己写的，一种语言十二页（`miyu`、`ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename`、`sandbox`、`config`、`login`、`logout`），编进程序，资源目录找不到也印得出；每页以一个换行结尾，最宽 80 列（中文字算两列）。`ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename` 的七页见 `cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`，`sandbox` 那一页见 `sandbox/windows.md`，`login`、`logout` 两页见 `cli/login.md`；`miyu sandbox setup -h`、`miyu sandbox remove -h` 印的也是它。`help` 子命令、`core` 不列；`miyu core --help` 照样印得出，是 clap 照代码注释生成的。
 
 样本 `crates/miyu-cli/src/help/zh/miyu.txt`（帮助页，中文）：
 
@@ -73,7 +74,9 @@
   compact [要求]        把上下文压缩成摘要，可以附上要求
   recap                 一句话回顾：在做什么、做完了什么、卡在哪
   rename <标题>         给会话起名
-  config <命令>         看配置：最终值、每一层写的、有没有写错、文件在哪
+  config <命令>         看配置、改配置、信任项目配置
+  login [名字]          存一个供应商的 key；--list 列出哪几家设了
+  logout [名字]         删掉一个供应商的 key
   sandbox setup|remove  装好、撤掉沙盒用户（Windows，要管理员权限）
 
 ask 的选项：
@@ -114,7 +117,9 @@ Commands:
   compact [words]       Compact the context into a summary
   recap                 Recap the session: goal, progress, blockers
   rename <title>        Give the session a title
-  config <command>      See settings: values, layers, mistakes, files
+  config <command>      See and change settings, trust a project config
+  login [name]          Save a provider's key; --list shows which are set
+  logout [name]         Delete a provider's key
   sandbox setup|remove  Set up or remove the sandbox user (Windows, needs admin)
 
 ask options:
@@ -208,6 +213,7 @@ Examples:
 | `crates/miyu/tests/recap.rs` | `miyu recap --help` 跟着界面语言；没有 key、核心没在跑的不拉起（施工 3-8 四补） |
 | `crates/miyu/tests/rename.rs` | `miyu rename --help` 跟着界面语言；没写标题是参数不对；没有 key、核心没在跑的不拉起（施工 3-8 五补） |
 | `crates/miyu/tests/config.rs` | `miyu config -h`、`miyu config get --help`、`miyu help config` 跟着界面语言；参数不对退出码 2；没有 key、核心没在跑的不拉起；握手以后照 `ui.language` 说，`miyu ask` 也是（施工 8-2，`cli/config.md`） |
+| `crates/miyu/tests/login.rs` | `miyu login -h`、`miyu logout --help` 跟着界面语言；名字写错、不写名字又不在终端里、`--format` 不带 `--list` 退出码 2；没有 key、核心没在跑的不拉起（施工 8-5，`cli/login.md`） |
 | `crates/miyu-cli/src/link/tests.rs` | 握手以后照回应的 `language`，`ja` 的照英文、没回的照旧；握手以前照系统的语言挑（施工 8-2） |
 | `crates/miyu/tests/core.rs` | 拉起的是真的 `miyu core`（`core.md`、`ipc.md`） |
 

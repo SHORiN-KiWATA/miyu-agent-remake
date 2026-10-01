@@ -59,6 +59,15 @@ pub(crate) fn system_only(item: Item) -> Item {
     }
 }
 
+/// 类型是密钥的一项（施工 8-5）：默认照环境变量 `EXAMPLE_KEY` 取，能放进系统配置、个人设置。
+pub(crate) fn secret_item(key: &'static str) -> Item {
+    Item {
+        kind: Kind::Secret,
+        default: Value::Secret(crate::secret::Reference::Env("EXAMPLE_KEY".to_string())),
+        ..item(key, &[], "")
+    }
+}
+
 /// 一项的字：名字、说明，选项的名字照选项本身大写。
 pub(crate) fn said(name: &str, description: &str, options: &[&str]) -> ItemWords {
     ItemWords {
@@ -125,6 +134,19 @@ pub(crate) fn words(items: &[Item]) -> Fake {
         ("config/sentence", "{text}。"),
         ("config/then", "{rest}{next}"),
         ("config/stops", "。？！"),
+        ("config/unknown-secret", "{key} 引用的密钥 {name} 还没设"),
+        (
+            "config/env-not-set",
+            "{key} 引用的环境变量 {name} 核心起来时没有设",
+        ),
+        (
+            "config/bad-secret-name",
+            "{key} 不能当密钥的名字：小写字母开头，只有小写字母、数字、-、_，最长 64 个字符",
+        ),
+        (
+            "config/bad-secret-value",
+            "{key} 的值要写成带引号的字，不能是空的",
+        ),
     ];
     Fake {
         items: items
@@ -132,7 +154,7 @@ pub(crate) fn words(items: &[Item]) -> Fake {
             .map(|item| {
                 let options: &[&str] = match item.kind {
                     Kind::Option(options) => options,
-                    Kind::Bool => &[],
+                    Kind::Bool | Kind::Secret => &[],
                 };
                 let name = format!("{} 的名字", item.key);
                 let description = format!("{} 的说明。", item.key);

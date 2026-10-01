@@ -23,6 +23,14 @@
           "ja": "日本語"
         }
       },
+      "tui.startup": {
+        "name": "启动时打开",
+        "description": "终端界面启动时开一个新会话，还是接着最近的那一个。",
+        "options": {
+          "new": "新会话",
+          "recent": "最近的会话"
+        }
+      },
       "permission.start_read_only": {
         "name": "新会话开局只读",
         "description": "打开以后，新会话一开始就是只读。她只能查、写计划，要改文件时你再关掉只读。项目配置里只能把它打开。"
@@ -30,11 +38,13 @@
     },
     "pages": {
       "general": "通用",
+      "interface": "界面",
       "advanced": "高级",
       "permissions": "权限"
     },
     "groups": {
       "display": "显示",
+      "tui": "终端界面",
       "log": "运行日志",
       "sessions": "会话"
     }
@@ -72,6 +82,13 @@
     "config/layer/default": "默认值",
     "config/layer/env": "环境变量",
     "config/applies/new_session": "以后开的会话生效",
+    "config/applies/head_start": "下次打开界面时生效",
+    "config/secrets-header": "Miyu 的密钥：只经 Miyu 写入、替换、删除。不要把这份文件贴给别人。",
+    "config/unknown-secret": "{key} 引用的密钥 {name} 还没设",
+    "config/env-not-set": "{key} 引用的环境变量 {name} 核心起来时没有设",
+    "config/bad-secret-name": "{key} 不能当密钥的名字：小写字母开头，只有小写字母、数字、-、_，最长 64 个字符",
+    "config/bad-secret-value": "{key} 的值要写成带引号的字，不能是空的",
+    "config/trust-header": "Miyu 记着的项目配置的信任：哪个仓库、哪一份内容、信不信任。",
     "config/unreadable": "读不了这份文件：{why}",
     "config/too-big": "这份文件超过 1 MiB，不读",
     "config/not-utf8": "这份文件不是 UTF-8",

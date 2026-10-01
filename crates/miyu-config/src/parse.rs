@@ -76,7 +76,7 @@ pub fn parse(items: &[Item], layer: Layer, text: &str) -> Result<Parsed, Box<Pro
 }
 
 /// `toml_edit` 的原话只取最后一行（为什么），不带它印出来的原文。
-fn why(message: &str) -> String {
+pub(crate) fn why(message: &str) -> String {
     message
         .trim_end()
         .lines()
@@ -141,7 +141,10 @@ impl Reader<'_> {
     fn item(&mut self, item: &Item, key_at: At, node: &Node) {
         let at = self.value_at(node, key_at);
         let raw = self.slice(node.span()).unwrap_or_default().to_string();
-        let value = node.as_value().and_then(|value| read(item.kind, value));
+        let value = match item.kind {
+            Kind::Secret => crate::secret::read_node(node).map(Value::Secret),
+            kind => node.as_value().and_then(|value| read(kind, value)),
+        };
         let counts = item.layers.contains(&self.layer);
         if !counts {
             self.parsed.problems.push(Problem::item(
@@ -164,14 +167,10 @@ impl Reader<'_> {
                 self.parsed.entries.insert(item.key, entry);
             }
             _ if !counts => {}
-            Some(_) => self.parsed.problems.push(Problem::item(
-                Code::NotAnOption,
-                self.layer,
-                item.key,
-                at,
-                &raw,
-            )),
-            None => self.parsed.problems.push(Problem::item(
+            Some(_) if matches!(item.kind, Kind::Option(_)) => self.parsed.problems.push(
+                Problem::item(Code::NotAnOption, self.layer, item.key, at, &raw),
+            ),
+            _ => self.parsed.problems.push(Problem::item(
                 Code::WrongType,
                 self.layer,
                 item.key,
@@ -224,7 +223,7 @@ impl Reader<'_> {
     }
 }
 
-/// 照类型读一个 TOML 的值：选项要字，开关要布尔。别的写法读不成。
+/// 照类型读一个 TOML 的值：选项要字，开关要布尔。别的写法读不成。密钥的引用是一张表，不走这里（[`crate::secret`]）。
 fn read(kind: Kind, value: &TomlValue) -> Option<Value> {
     match (kind, value) {
         (Kind::Option(_), TomlValue::String(text)) => {

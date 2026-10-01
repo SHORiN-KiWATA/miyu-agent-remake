@@ -2,23 +2,27 @@
 
 ### 是什么
 
-存储的执行器，做真的磁盘读写：找数据根、第一次用时建骨架；会话日志按段写、打开时自检；大内容存成 blob；删掉的会话挪进回收处，满了时限再真删。资源目录和给人看的字另见 `store/resources.md`。
+存储的执行器，做真的磁盘读写：找数据根、第一次用时建骨架；会话日志按段写、打开时自检；大内容存成 blob；删掉的会话挪进回收处，满了时限再真删。资源目录和给人看的字另见 `store/resources.md`，会话列表的索引另见 `store/index.md`（施工 3-8 七补）。
 
 ### 在哪
 
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu-store/src/env.rs` | 环境快照：找数据根、资源目录要看的几样，从进程里读一次；系统的语言 `locale`（施工 8-1，都没设的看系统设置 `system_locale`，施工 8-2） |
-| `crates/miyu-store/src/config_file.rs` | 读配置文件（施工 8-2，`config.md`「怎么走」第二条第 2 条）：没有的是空的，1 MiB 的上限，去掉开头的 BOM，不是 UTF-8 的报错，版本是整份字节的 SHA-256。写的那一半随 8-3 |
+| `crates/miyu-store/src/config_file.rs` | 读配置文件（施工 8-2，`config.md`「怎么走」第二条第 2 条）：没有的是空的，1 MiB 的上限，去掉开头的 BOM（记下有没有），不是 UTF-8 的报错，版本是整份字节的 SHA-256。写（施工 8-3，第五条第 4 到 7 条）：顺着链接写本体、临时文件在本体旁边、带上原来的权限位、替换前再读一次（和调用的一方读的版本不一样的放弃）、Windows 上改名失败歇 20 毫秒再试、最多 5 次 |
+| `crates/miyu-store/src/watch.rs` | 监视几份文件（施工 8-4，`config.md`「怎么走」第七条）：看它们所在的目录（链接的另看本体所在的目录），照真实的位置和文件名认，只读的动静不理，一份 200 毫秒里没有新的变动了才交出去；系统的监视起不来的退回每 2 秒轮询，交回原因 |
+| `crates/miyu-store/src/secrets.rs` | 密钥文件 `system/secrets.toml`（施工 8-5，`config.md` 第九条）：照配置文件的规矩读，另看组、别人读不读得到；照配置文件的规矩写，Unix 上一律 0600，临时文件建的时候就是 |
+| `crates/miyu-store/src/journal.rs` | 系统日志、账号日志 `journal.jsonl`（施工 8-3，`config.md`「系统日志、账号日志」）：每追加一条都重新打开、截掉最后那半行、读最后一行接着数 `seq`，外壳照事件的写法，追加、同步 |
 | `crates/miyu-store/src/root.rs` | 数据根在哪、建骨架、认标记；账号的目录；缓存目录在哪 |
-| `crates/miyu-store/src/durable.rs` | 建目录、同步目录；新建临时文件（只许新建，撞名换下一个）、删用不上的临时文件（施工 8-1 从 `blob.rs` 挪来，两处共用） |
+| `crates/miyu-store/src/durable.rs` | 建目录、同步目录；新建临时文件（只许新建，撞名换下一个；施工 8-5 起能建成 Unix 上 0600 的，`create_temp_with`）、删用不上的临时文件（施工 8-1 从 `blob.rs` 挪来，两处共用） |
 | `crates/miyu-store/src/generated.rs` | 核心生成的派生文件：一样的不写，不一样的先写临时文件再替换（施工 8-1，`config.md`「怎么走」第一条第 7 条） |
 | `crates/miyu-store/src/log.rs` | 会话日志：新建、追加、换段 |
-| `crates/miyu-store/src/log/open.rs` | 打开时自检、截半行；只读地读；只读第一条 |
+| `crates/miyu-store/src/log/open.rs` | 打开时自检、截半行；只读地读；从记下的位置读起（施工 3-8 七补）；只读第一条 |
 | `crates/miyu-store/src/blob.rs` | blob：存、取、核对哈希 |
 | `crates/miyu-store/src/jobs.rs` | 会话目录下后台命令的输出：`jobs/<编号>.out`（施工 7-3） |
 | `crates/miyu-store/src/trash.rs` | 回收处：删掉的会话挪进来、满了时限的真删（施工 3-8 三补） |
 | `crates/miyu-store/src/resources.rs`、`human.rs` | 资源目录、给人看的字（`store/resources.md`） |
+| `crates/miyu-store/src/index.rs`、`index/` | 会话列表的索引（`store/index.md`，施工 3-8 七补） |
 
 ### 对外的样子
 
@@ -55,10 +59,11 @@
 | `session_dir(账号, 会话)` | `home/<账号>/sessions/<会话编号>/` |
 | `trashed_sessions(账号)` | 回收处 `home/<账号>/trash/sessions/`（施工 3-8 三补） |
 | `blobs(账号)` | `home/<账号>/blobs/` |
+| `index(账号)` | `home/<账号>/index/`：派生数据，会话列表的索引放在这里（施工 3-8 七补，`store/index.md`） |
 
 **缓存目录** `cache_root(env)`：只找不建。核心起来时算一次，沙盒的缓存放在它下面的 `sandbox/<账号>/`（施工 5-4 下，`core.md`）。
 
-**会话日志** `SessionLog`：`create(目录, 上限)`、`open(目录, 上限)`、`append(一批事件)`、`next_seq()`、`dir()`；只读的 `read_events(目录)`、`read_segments(目录, 每一段)`、`first_event(目录)`。一段的上限 `SEGMENT_LIMIT` 是 64 MiB（67,108,864 字节）。
+**会话日志** `SessionLog`：`create(目录, 上限)`、`open(目录, 上限)`、`append(一批事件)`、`next_seq()`、`dir()`、`mark()`（写到哪了：正在写的那一段、它的长度、下一条该是几号，一起叫 `Mark`，施工 3-8 七补）；只读的 `read_events(目录)`、`read_segments(目录, 每一段)`、`read_marked(目录, 从哪里, 每一段)`（施工 3-8 七补）、`first_event(目录)`。一段的上限 `SEGMENT_LIMIT` 是 64 MiB（67,108,864 字节）。
 
 **blob** `Blobs::new(目录)`：`put(内容)` 交回内容哈希，`get(哈希)` 交回内容，`path(哈希)` 交回它放在哪。
 
@@ -70,10 +75,13 @@
 <数据根>/
 ├── .miyu-root                          标记，一行字
 ├── system/
-│   └── config.toml                     系统配置（config.md，施工 8-2 读）
+│   ├── config.toml                     系统配置（config.md，施工 8-2 读，8-3 写）
+│   ├── secrets.toml                    密钥，Unix 上 0600，只经核心写（config.md，施工 8-5）
+│   └── journal.jsonl                   系统日志：系统配置、密钥的改动（config.md，施工 8-3、8-5）
 ├── home/
 │   └── <账号>/                         核心起来时给 admin 建；退回工作区时缺了再补建
-│       ├── settings.toml               个人设置（config.md，施工 8-2 读）
+│       ├── settings.toml               个人设置（config.md，施工 8-2 读，8-3 写）
+│       ├── journal.jsonl               账号日志：个人设置的改动、项目配置的信任（config.md，施工 8-3）
 │       ├── trust.toml                  项目配置的信任（config.md，施工 8-2 读，8-3 写）
 │       ├── workspace/                  头报来的工作目录太宽时，退回这里（protocol.md）
 │       ├── sessions/<会话编号>/         会话日志，一段一个文件
@@ -81,6 +89,7 @@
 │       │   ├── …
 │       │   └── jobs/<编号>.out          后台命令的输出，例如 jobs/j1.out（施工 7-3）
 │       ├── trash/sessions/<会话编号>/   删掉的会话，整个会话目录挪过来，多一个 deleted_at（施工 3-8 三补）
+│       ├── index/sessions.db            会话列表的索引，派生的；另有 -wal、-shm（施工 3-8 七补，store/index.md）
 │       └── blobs/
 │           ├── tmp/<进程号>-<计数>      存的时候的临时文件
 │           └── <前两位>/<64 位十六进制>
@@ -91,7 +100,7 @@
 ```
 
 - 这一页的代码新建的目录，Unix 上权限都是 0700；已经有的不改。Windows 上照系统默认的，靠用户目录本身的访问控制。
-- 这一页的代码新建的文件（标记、段、blob、临时文件）照系统默认的权限建，靠上面 0700 的目录挡住别人。
+- 这一页的代码新建的文件（标记、段、blob、临时文件、配置文件、日志）照系统默认的权限建，靠上面 0700 的目录挡住别人。替换已经有的配置文件时带上它原来的权限位（施工 8-3）。
 - `state/logs/` 由运行日志建（`log.md`），`state/config/` 由核心生成配置的 Schema 和参考文件时建（`config.md`），`run/` 下的几样见 `ipc.md`。
 
 ### 怎么走
@@ -157,6 +166,7 @@
 
 - `read_events`：和打开时一样自检，只是最后一段末尾的半行跳过、不截，一个字节都不写：会话可能正在往里写。撤销、恢复以后会话重算她看过的（`session/actor.md`），撤销的回应读日志（`protocol.md`），用的都是它。
 - `read_segments`：同 `read_events`，只是读一段交一段给 `每一段`，它交回 `false` 就不读下去（施工 6-4：`history` 翻长会话，叫停了不用读完整份）；撤销撤掉压缩时，会话读回更早的一段也用它，只留要的那几条（施工 6-9，`session/actor.md`）。
+- `read_marked`（施工 3-8 七补，列会话照索引补时用，`store/index.md`）：同 `read_segments`，只是从 `从哪里` 读起，交回读到了哪里（最后一段、照到的整行末尾、下一条该是几号）。`从哪里` 是空的从头读。和日志对不上的交回空的，一条都不交：记的那一段没了、比记的短了、记的位置前面一个字节不是 `\n`。对得上的照旧自检，只是从中间读起的那一段，报坏了时的行号从记的位置数起，名字和第一条对不对不在那一段查。
 - `first_event`：只读第一段开头那一行，不截、不写，列会话时用。第一段是空的、第一行还没写完：当没有这个会话。第一行读不懂：报坏了（第 1 行）。第一行不是 UTF-8：读写出错。
 
 **8. 列会话**（`DataRoot::sessions`）：`home/<账号>/sessions/` 下名字合会话编号写法的（36 个字符的小写 UUID 写法），照编号的字倒着排：会话编号是 UUIDv7，倒着排就是从新到旧。不合写法的不算，是不是目录不看。目录还没有的，是空的。
@@ -234,7 +244,7 @@
 |---|---|
 | `crates/miyu-store/src/root/tests.rs` | 三个平台的默认位置；`XDG_CACHE_HOME` 只挪 Linux 的缓存；`MIYU_HOME` 挪数据根、不挪缓存；空的当没设，相对的 `MIYU_HOME` 拒绝，开头的 `~` 照家目录接、`~别人` 当相对的、没有家目录时报错，相对的 `XDG_CACHE_HOME` 当没设；找不到家目录、`LOCALAPPDATA`；骨架建两次不出错、挡路的文件报错；八个线程同时建都成；账号的家目录建一次、0700；列会话从新到旧；新建的 0700、已经有的不改；新的数据根写下标记；认不出的一个字节不动、报错写明目录和 `.miyu-root`；只有隐藏文件也不算空；进程的环境找得到 |
 | `crates/miyu-store/src/durable/tests.rs` | 一层层建、都是 0700、建两次不出错；挡路的文件报错 |
-| `crates/miyu-store/src/log/tests.rs`、`log/tests/real.rs` | 写了读得回，每行 `\n`、没有 `\r`；满了换段、一批不拆；截半行；中间一行坏了、序号接不上、段名对不上、不是最后一段有半行，都只报不修；空的最后一段接着写、名字不对报坏了；没有会话；第一段已有的不覆盖；只读第一条不动日志；只读地读跳过半行、一个字节不写；造到一半的会话没有第一条；序号接不上的一批不写；真会话写进去、读回来载入得了（`real.rs`，施工 1-13 再补挪出来） |
+| `crates/miyu-store/src/log/tests.rs`、`log/tests/real.rs`、`log/tests/marked.rs` | 写了读得回，每行 `\n`、没有 `\r`；满了换段、一批不拆；截半行；中间一行坏了、序号接不上、段名对不上、不是最后一段有半行，都只报不修；空的最后一段接着写、名字不对报坏了；没有会话；第一段已有的不覆盖；只读第一条不动日志；只读地读跳过半行、一个字节不写；造到一半的会话没有第一条；序号接不上的一批不写；真会话写进去、读回来载入得了（`real.rs`，施工 1-13 再补挪出来）；从记下的位置读起（`marked.rs`，施工 3-8 七补，`store/index.md`） |
 | `crates/miyu-store/src/blob/tests.rs` | 存了取得回、`tmp/` 是空的；放在前两位下、文件名没有冒号；同一份只存一个、刷修改时间；崩在改名前只留临时文件；撞名换名；改名时目标已经有了算成；读出来不对报错、不删；两个账号各存各的 |
 | `crates/miyu-store/src/trash/tests.rs`（施工 3-8 三补） | 挪进回收处的整个目录一个字节不变、多一个 `deleted_at`，原处没了，列会话只剩别的；Unix 上 `trash/`、`trash/sessions/` 是 0700；会话不在的报找不到、回收处都没建；清：满 7 天的、正好满的删，差一毫秒的、删的时刻比现在晚的留，`deleted_at` 写法不对、没有的留并报出来，名字不合写法的不看；没有回收处什么都不做。时钟用测试的 |
 | `crates/miyu-store/src/jobs.rs` 的测试（施工 7-3） | 输出放在会话目录的 `jobs/<编号>.out`，几段的编号照原样（`jobs/j2.1.3.out`，施工 7-1 补）；已经有的清空；Unix 上 `jobs/` 是 0700 |
@@ -254,10 +264,10 @@
 
 - 投影缓存：打开长会话先读它，自检只查它记下的位置之后那一截（`07-存储.md` 第四节、第六节）。
 - 隐私抹除：重写一段、原子替换（`07-存储.md` 第三节）。
-- 系统日志、账号日志 `journal.jsonl`；导出一个会话（`07-存储.md` 第三节）。
+- 导出一个会话（`07-存储.md` 第三节）。
 - blob 的回收：删会话以后没人引用的删掉（回收处里的会话清掉以后），`tmp/` 里崩溃留下的清掉，都照宽限期（`07-存储.md` 第五节）。
 - 找回删了的会话；清别的账号的回收处（现在只有管理员）；留多久放进配置（施工 3-8 三补）。
-- 派生数据：会话列表、全文搜索、用量汇总的 SQLite，`home/<账号>/index/`（`07-存储.md` 第六节）。
-- 数据根里别的文件：配置、密钥、人格、预设、放行规则（`07-存储.md` 第二节、第九节）。
+- 派生数据：全文搜索、用量汇总的 SQLite（`07-存储.md` 第六节）。会话列表的索引做了（`store/index.md`，施工 3-8 七补）。
+- 数据根里别的文件：人格、预设、放行规则（`07-存储.md` 第二节、第九节）。成员自己的密钥 `home/<账号>/secrets.toml` 随多用户。
 - `miyu doctor` 查数据根的权限（`22-命令行.md` 第六节）。
 - 用缓存目录的东西，例如语音的模型文件（`07-存储.md` 第二节）。

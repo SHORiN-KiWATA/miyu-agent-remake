@@ -1,5 +1,6 @@
 //! `miyu config` 给人看的字（施工 8-2，`docs/blueprint/cli/config.md`「给人看的字」，样子在 `config.md`「样子」）；
-//! `miyu ask` 起头说配置有错的那一行。报错的整句话由核心照连接的语言说，这里只有命令行自己的几个词。
+//! `miyu ask` 起头说配置有错、项目配置没信任的那两行。报错的整句话由核心照连接的语言说，这里只有命令行自己的几个词。
+//! 改、写、信任的几个子命令的字在 `config_write.rs`（施工 8-3）。
 
 use super::Language;
 
@@ -86,9 +87,25 @@ impl Language {
     fn applies(&self, applies: &str) -> &'static str {
         match (self, applies) {
             (Language::Chinese, "new_session") => "以后开的会话生效",
+            (Language::Chinese, "head_start") => "下次打开界面时生效",
             (Language::Chinese, _) => "当场生效",
             (Language::English, "new_session") => "Applies to sessions opened from now on",
+            (Language::English, "head_start") => "Takes effect the next time the interface opens",
             (Language::English, _) => "Takes effect at once",
+        }
+    }
+
+    /// 什么时候生效，接在句子中间（`set`、`edit` 印的那一行，施工 8-3）：英文小写开头。
+    pub(crate) fn applies_after(&self, applies: &str) -> String {
+        match self {
+            Language::Chinese => self.applies(applies).to_string(),
+            Language::English => {
+                let said = self.applies(applies);
+                let mut chars = said.chars();
+                chars.next().map_or_else(String::new, |first| {
+                    first.to_lowercase().chain(chars).collect()
+                })
+            }
         }
     }
 
@@ -139,6 +156,18 @@ impl Language {
         match self {
             Language::Chinese => "还没有这个文件",
             Language::English => "This file does not exist yet",
+        }
+    }
+
+    /// `miyu ask` 起头：这里的项目配置 `file` 还没信任，这次没用它（施工 8-3）。
+    pub(crate) fn untrusted_project(&self, file: &str) -> String {
+        match self {
+            Language::Chinese => format!(
+                "· 这里的项目配置 {file} 还没信任，这次没用它：miyu config trust 看一眼再定"
+            ),
+            Language::English => format!(
+                "· The project config at {file} is not trusted yet, so it was not used: run miyu config trust to review it"
+            ),
         }
     }
 

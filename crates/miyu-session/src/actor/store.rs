@@ -21,11 +21,15 @@ impl Actor {
         let reseen = effects::reverts(&events);
         // 派出去的任务、回报记进名册（施工 7-4）：写不进去的，会话照样停下，记了也不要紧。
         self.jobs.note(&events);
+        // 阻塞线程带着会话的 span：那边记的 `session index not updated` 也有会话编号（施工 3-8 七补）。
+        let span = tracing::Span::current();
         let written = tokio::task::spawn_blocking(move || {
-            let result = store.append(&events);
-            let seen = (reseen && result.is_ok())
-                .then(|| store.events().map(|all| effects::seen_in(&all)));
-            (store, result, seen)
+            span.in_scope(|| {
+                let result = store.append(&events);
+                let seen = (reseen && result.is_ok())
+                    .then(|| store.events().map(|all| effects::seen_in(&all)));
+                (store, result, seen)
+            })
         })
         .await;
         match written {

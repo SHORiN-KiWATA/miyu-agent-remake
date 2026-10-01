@@ -15,14 +15,15 @@ use miyu_kernel::origin::{By, Person};
 use miyu_kernel::session::{Command, Outcome};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_session::{
-    Create, Handle, Jobs, Lineage, Load, Models, Pushed, SandboxCache, SessionPort, Stopped,
-    Subscription, create, load, new_id,
+    Configs, Create, Handle, Jobs, Lineage, Load, Models, Pushed, SandboxCache, SessionPort,
+    Stopped, Subscription, create, load, new_id,
 };
 use miyu_store::env::{Env, Platform};
-use miyu_store::log::read_events;
+use miyu_store::index::{FILE, SessionIndex};
+use miyu_store::log::{read_events, read_segments};
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
-use miyu_tool::Catalog;
+use miyu_tool::{Catalog, Log, ReadLog};
 
 /// 一个用完就删的临时目录。
 pub struct Scratch(pub PathBuf);
@@ -63,6 +64,10 @@ pub struct Home {
     pub home: PathBuf,
     /// 执行器的任务表（施工 7-3）：这个场地里的会话共用一张，和核心里一样。
     pub jobs: Arc<Jobs>,
+    /// alice 的会话列表的索引（施工 3-8 七补）：这个场地里造的、载入的会话都往里写，和核心里一样。
+    pub index: Arc<SessionIndex>,
+    /// 造的、载入的会话从这里取配置（施工 8-4）：默认是全空的一份，测试换成自己的。
+    pub configs: Configs,
 }
 
 /// 造会话时可以换的几样（施工 4-3 下）。
@@ -156,11 +161,14 @@ impl Home {
         root.prepare().expect("临时目录里建得了骨架");
         let home = scratch.0.join("home");
         std::fs::create_dir_all(&home).expect("建得了假的家");
+        let (index, _) = SessionIndex::open(&root.index(&alice_account()).join(FILE));
         Home {
             scratch,
             root,
             home,
             jobs: Arc::new(Jobs::new()),
+            index: Arc::new(index),
+            configs: miyu_session::fixed(Default::default()),
             resources: ResourceRoot::at(
                 Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"),
             ),
@@ -221,6 +229,8 @@ impl Home {
             lineage: lines.lineage,
             sessions: lines.sessions,
             jobs: &self.jobs,
+            index: Some(Arc::clone(&self.index)),
+            configs: self.configs.clone(),
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -277,6 +287,8 @@ impl Home {
             sandbox_cache: None,
             sessions,
             jobs: &self.jobs,
+            index: Some(Arc::clone(&self.index)),
+            configs: self.configs.clone(),
         });
         within("载入", loaded).await.expect("载入得了会话")
     }
@@ -285,6 +297,11 @@ impl Home {
     pub fn log(&self, session: &SessionId) -> Vec<Event> {
         let dir = self.root.session_dir(&alice_account(), session);
         read_events(&dir).expect("日志读得出")
+    }
+
+    /// 会话 `session` 日志的只读入口，照它磁盘上真实的目录（施工 C-4：`history` 读别的会话时会话表交出的）。
+    pub fn read_log(&self, session: &SessionId) -> Log {
+        Log::new(LogDir(self.root.session_dir(&alice_account(), session)))
     }
 }
 
@@ -395,6 +412,16 @@ pub async fn until_logged(
 /// 事件的种类，照先后。
 pub fn kinds(events: &[Event]) -> Vec<&str> {
     events.iter().map(|event| event.body.kind()).collect()
+}
+
+/// 一个会话目录的只读入口（施工 C-4）：和生产里会话表那一头开别的会话日志的办法同一个读法
+/// （[`read_segments`]），测试里直接拿会话的真实目录造它，不载入那个会话。
+pub struct LogDir(pub PathBuf);
+
+impl ReadLog for LogDir {
+    fn read(&self, each: &mut dyn FnMut(Vec<Event>) -> bool) -> Result<(), String> {
+        read_segments(&self.0, each).map_err(|error| error.to_string())
+    }
 }
 
 /// 一直读推送，读到回合结束那一条为止，交回读到的每一份。

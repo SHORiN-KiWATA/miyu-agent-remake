@@ -9,6 +9,7 @@
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu-session/src/open.rs` | 造会话、载入：备好磁盘上的，交给内核，起 actor |
+| `crates/miyu-session/src/open/error.rs` | 造不成、载入不了的几种（施工 3-8 七补从 `open.rs` 挪出来） |
 | `crates/miyu-session/src/actor.rs` | actor 本身：收件箱、一批批送进内核、每个动作怎么回、停下 |
 | `crates/miyu-session/src/actor/mail.rs` | 人的那条收件箱里的一封怎么办；数着拿着订阅的头，交内核 `Watched`（施工 7-9 从 `actor.rs` 挪出来） |
 | `crates/miyu-session/src/actor/model.rs` | 请求模型：交给端口、叫停、说完了记一行；回顾的请求也在这里（施工 3-8 四补） |
@@ -16,10 +17,11 @@
 | `crates/miyu-session/src/actor/store.rs` | 写盘；撤掉压缩时读回日志（施工 6-9） |
 | `crates/miyu-session/src/handle.rs` | `Handle`：发命令、订阅、停下；推送和订阅；订阅放下时告诉 actor（施工 7-9） |
 | `crates/miyu-session/src/backlog.rs` | 订阅时要补发的那一截：补到哪一条、在阻塞线程里读出来（施工 3-8 六补） |
+| `crates/miyu-session/src/config.rs` | 会话从哪取配置（`ConfigSource`、`Configs`、`fixed`），回合开始时冻结的一份（`TurnConfig`）；造会话、载入时先取一份（施工 8-4） |
 | `crates/miyu-session/src/port.rs` | 请求模型的端口：`Models`、`ModelPort`、`Reports`（辅助请求的回报另走一路，`Reports::aside`，施工 3-8 四补；五补起回顾、起标题共用，`purpose()` 交回用途）、`Cancel` |
 | `crates/miyu-session/src/http.rs` | 端口的真实现：经驱动和 HTTP 执行器请求 |
 | `crates/miyu-session/src/clock.rs` | 会话的时钟、新的会话编号 |
-| `crates/miyu-session/src/store.rs` | 写盘的端口：平时是会话日志，测试里换成写不进去的；也从这里读回日志（施工 6-9） |
+| `crates/miyu-session/src/store.rs` | 写盘的端口：平时是会话日志，每落一批顺手更新会话列表的索引（`Indexed`，施工 3-8 七补），测试里换成写不进去的；也从这里读回日志（施工 6-9） |
 | `crates/miyu-session/src/kinds.rs`、`lines.rs` | 运行日志里的输入、动作种类名，和几种写法 |
 | `crates/miyu-session/src/blocking.rs` | 在阻塞线程里做完磁盘上的事 |
 | `crates/miyu-session/src/tools.rs`、`effects.rs`、`restore.rs` | 执行工具、效果、改回文件（`session/tools.md`） |
@@ -47,7 +49,7 @@
 | `Jobs` | 执行器的任务表，核心里一张：`Jobs::new()`，`running()` 有没有在跑的后台命令（结束了、记录还没落盘的也算，施工 7-3） |
 | `Unreadable` | 头读不了这个任务的输出：`Unknown` 没有这个任务，`Agent` 是子代理（施工 7-4 补） |
 
-`Create` 的格：数据根 `root`、资源目录 `resources`、会话编号 `id`、人格 `persona`、场所 `venue`、属主 `owner`、开始时的权限 `permission`、有没有人能确认 `attended`、一次性的 `oneshot`、环境 `environment`（时区、工作目录）、造会话的命令编号 `command`、谁发的 `by`、造端口的 `models`、工具目录 `tools`、系统的家目录 `home`（读不出来的是空的）、沙盒的助手 `sandbox`（这台机器上的沙盒能用才有，施工 5-4 上）、沙盒的缓存 `sandbox_cache`（`<缓存目录>/sandbox/<属主>`，核心算不出缓存目录的没有，施工 5-4 下）、父会话和第几层 `lineage`（子会话才有，施工 7-5）、造子会话的端口 `sessions`（会话表交进来的，测试里自己造的没有，施工 7-5）、任务表 `jobs`（核心里那一张，施工 7-3）。`Load` 的格：`root`、`owner`、`id`、`environment`、`models`、`tools`、`home`、`sandbox`、`sandbox_cache`、`sessions`、`jobs`。
+`Create` 的格：数据根 `root`、资源目录 `resources`、会话编号 `id`、人格 `persona`、场所 `venue`、属主 `owner`、开始时的权限 `permission`、有没有人能确认 `attended`、一次性的 `oneshot`、环境 `environment`（时区、工作目录）、造会话的命令编号 `command`、谁发的 `by`、造端口的 `models`、工具目录 `tools`、系统的家目录 `home`（读不出来的是空的）、沙盒的助手 `sandbox`（这台机器上的沙盒能用才有，施工 5-4 上）、沙盒的缓存 `sandbox_cache`（`<缓存目录>/sandbox/<属主>`，核心算不出缓存目录的没有，施工 5-4 下）、父会话和第几层 `lineage`（子会话才有，施工 7-5）、造子会话的端口 `sessions`（会话表交进来的，测试里自己造的没有，施工 7-5）、任务表 `jobs`（核心里那一张，施工 7-3）、属主的会话列表的索引 `index`（会话表交进来的，测试里自己造的可以没有，施工 3-8 七补，`store/index.md`）。`Load` 的格：`root`、`owner`、`id`、`environment`、`models`、`tools`、`home`、`sandbox`、`sandbox_cache`、`sessions`、`jobs`、`index`。
 
 | `Handle` 的方法 | 做什么 |
 |---|---|
@@ -142,8 +144,8 @@
 | 回应命令 | 交给等这个编号的最早那一头；它不等了，丢掉；没人在等的，不理 | |
 | 推送事件 | 推给订阅了的；没有订阅的，丢掉 | |
 | 推送瞬时事件 | 同上；是 `status`（现在只有等着重试这一种）的，先记一行 `retrying`；是 `compaction.done` 的，先记一行 `compacted`（施工 6-3 下；`trigger` 照它的 `trigger`，施工 6-8） | |
-| 跑回合开始的挂接点 | 现在没有模块挂它 | 挂接点跑完了，没有注入 |
-| 请求模型 | 交给端口（第 7 条） | |
+| 跑回合开始的挂接点 | 先冻结这一轮的配置：从配置的 `watch` 取当前的一份，照会话这时的目录带上项目配置（阻塞线程里，施工 8-4，`config.md` 第八条第 3 条）。现在没有模块挂它 | 挂接点跑完了，没有注入 |
+| 请求模型 | 交给端口（第 7 条），带上这一轮的配置（施工 8-4）：回顾、起标题、手动压缩这些不开回合的，照上一轮的 | |
 | 到点叫醒 | 起一个定时的任务，到那一刻送回「到点了」；那一刻已经过了的，马上送 | |
 | 不要这次请求了 | 叫端口停下（第 7 条） | |
 | 跑回合结束的挂接点 | 现在没有模块挂它，什么都不做 | |
@@ -175,6 +177,7 @@
 4. 这一批里有 `turn.reverted`、`turn.unreverted` 的：写完，在同一个阻塞线程里只读地读一遍整份日志，重算她看过的（`session/tools.md`）。读不了的记一行 `seen files not rebuilt`，照旧用原来的那一份。
 5. 写不进去（磁盘满了、没有权限这类）：记一行 `write failed, stopped`，`kind` 写出错的种类，会话停下（第 9 条）。没落盘的不算发生：没回应过，也没推送过，下次载入照磁盘上的来。不在原地重试：内存里的会话已经往前走了，和磁盘对不上。
 6. 写盘的线程 panic 了：记一行 `panicked, stopped`，会话停下。
+7. 会话列表的索引（施工 3-8 七补，`store/index.md`「怎么走」第 2 条）：这一批落了盘，在同一个阻塞线程里顺手更新这个会话在索引里的那一行：`session.created` 新起一行；别的，那一行照到的正好是这一批之前的，才照这一批盖上最近一次动静、工作目录、标题、置顶，照到这一批之后。更新失败只记一行 `session index not updated`，照样算落了盘，送「落盘了」：索引是派生的，那一行停在原处，下次列会话照日志补上。没有索引的（`Create::index` 是空的）不更新。写盘的阻塞线程带着会话的 span，这一行也有会话编号。
 
 **6. 推送和订阅**
 
@@ -267,6 +270,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | WARN | `subagent without a job id` | `parent` | 有父会话、造它的命令编号读不出任务编号：回报交不出去 |
 | WARN | `subagent not woken` | `child`、`error` | 父会话载入以后叫不起子会话 |
 | WARN | `seen files not rebuilt` | `error` | 第 5 条第 4 点 |
+| WARN | `session index not updated` | `error` | 落了盘，会话列表的索引更新失败（第 5 条第 7 点，施工 3-8 七补） |
 | WARN | `write failed, stopped` | `kind` | 写不进去 |
 | WARN | `read back failed, stopped` | `error` | 读回日志读不了（第 4 条，施工 6-9） |
 | WARN | `abandoned session not removed` | `error` | 造会话那一条没落盘，收拾会话目录时删不掉（第 1 条第 6 点，施工 4-9 再补四下） |
@@ -329,6 +333,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | `crates/miyu-session/tests/recap_log.rs`（施工 3-8 四补） | 回顾的请求记 `recap request`、`recap ended`、`recap failed`，`seen` 是照到的那一条，格和主请求的一样；没有对话的字 |
 | `crates/miyu-session/tests/title_log.rs`（施工 3-8 五补） | 起标题的请求记 `title request`、`title ended`、`title failed`，`seen` 是照到的那一条；两次都没起成，第三轮不再试；没有对话的字 |
 | `crates/miyu-session/tests/http_log.rs` | HTTP 的两行带会话编号，key 不在日志里 |
+| `crates/miyu-session/tests/index_log.rs`（施工 3-8 七补） | 每落一批，索引里那一行照到日志的末尾；表没了，更新失败只记一行带会话编号的 `session index not updated`，会话照常说完下一轮（`store/index.md`「守着它的」） |
 
 ### 出处
 

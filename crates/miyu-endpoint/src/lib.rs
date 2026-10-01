@@ -10,7 +10,9 @@
 //! - [`Core::idle`]：没有连接、没有在跑的回合、也没有在跑的后台命令，核心据此空闲退出（施工 3-9 上、7-3）；
 //! - [`settings`]：端点的配置项，界面语言 `ui.language`（施工 8-1）、新会话开局只读 `permission.start_read_only`
 //!   （施工 8-2）；
-//! - [`config`]：配置服务：起来时读的几份配置、最终值，`config.schema`、`config.get`、`config.check`（施工 8-2）。
+//! - [`config`]：配置服务：起来时读的几份配置、最终值，`config.schema`、`config.get`、`config.check`（施工 8-2）；
+//!   `config.set`、`config.trust`（施工 8-3）；监视配置文件、推 `config.changed`、把当前的一份交给会话和核心（施工 8-4）；
+//! - 密钥：`secret.set`、`secret.delete`、`secret.list`，只能写、删、列名字，从不交出值（施工 8-5，`secrets.rs`）。
 
 mod attach;
 pub mod config;
@@ -23,6 +25,7 @@ mod listen;
 mod meta;
 mod methods;
 mod refusal;
+mod secrets;
 mod sessions;
 pub mod settings;
 mod spawn;
@@ -42,11 +45,13 @@ use std::time::Duration;
 use miyu_kernel::id::AccountId;
 use miyu_sandbox::{Availability, Unusable};
 use miyu_session::{Jobs, Models, SandboxCache};
+use miyu_store::index::SessionIndex;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_tool::Catalog;
 
 use config::Config;
+use config::hub::Hub;
 use sessions::Sessions;
 
 /// 核心的家底：一个核心一份，各个连接一起用。
@@ -73,6 +78,8 @@ pub struct Core {
     token: String,
     /// 会话表。
     sessions: Sessions,
+    /// 管理员的会话列表的索引（施工 3-8 七补）：起来时开一次，一直开着；会话落盘时更新、删会话时删行、列会话时读。
+    index: Arc<SessionIndex>,
     /// 执行器的任务表（施工 7-3）：所有会话的后台命令，核心里一张。
     jobs: Arc<Jobs>,
     /// 连着几个连接：`serve` 开始时加一，走的时候减一（施工 3-9 上）。
@@ -80,15 +87,17 @@ pub struct Core {
     /// 连上以后最多等多久握手（施工 4-9 再补三上）：等不来就断开，不然一个连上不说话的本机进程能让核心一直
     /// 不空闲退出。
     hello_wait: Duration,
-    /// 配置（施工 8-2）：起来时读的几份和最终值。
-    config: Config,
+    /// 配置（施工 8-2）：起来时读的几份和最终值。施工 8-3 起能改，住在一把锁里（[`Core::config`]）。
+    config: std::sync::Mutex<Config>,
+    /// 配置换了交给谁（施工 8-4）：会话、核心取当前的一份，订阅着配置的连接收推送。
+    hub: Hub,
 }
 
 /// 连上以后最多等多久握手。
 const HELLO_WAIT: Duration = Duration::from_secs(10);
 
 impl Core {
-    /// 一份家底：会话表是空的，会话用到时再载入。
+    /// 一份家底：会话表是空的，会话用到时再载入；打开管理员的会话列表的索引（施工 3-8 七补），坏了的删掉重建。
     pub fn new(
         root: DataRoot,
         resources: ResourceRoot,
@@ -104,8 +113,11 @@ impl Core {
         ]
         .concat();
         let config = Config::defaults(&root, &admin, items);
+        let index = Arc::new(list::open_index(&root, &admin));
         Core {
-            config,
+            index,
+            hub: Hub::new(&config),
+            config: std::sync::Mutex::new(config),
             root,
             resources,
             models,
@@ -132,8 +144,23 @@ impl Core {
     /// 同一份家底，配置照 `config`（施工 8-2）：核心起来时读好交进来。没设的全是默认值，只认端点自己的两项。
     #[must_use]
     pub fn with_config(mut self, config: Config) -> Core {
-        self.config = config;
+        self.hub = Hub::new(&config);
+        self.config = std::sync::Mutex::new(config);
         self
+    }
+
+    /// 当前的配置（施工 8-4）：配置服务每换上一份新的（`config.set`、手改被看到的、`config.trust`），这里就是新的一份。核心
+    /// 照它当场换运行日志的级别、重写生成的文件。
+    pub fn config_now(&self) -> tokio::sync::watch::Receiver<Arc<Config>> {
+        self.hub.current()
+    }
+
+    /// 配置服务（施工 8-3）：改、查排着队一件件办（`config.md` 第五条第 1 条）。拿着它的时候不许 `.await`：别的连接的
+    /// 查询会一直等着。上一个拿着它的出了 bug、崩了的，照样拿：配置服务改到一半不会留下半截（先写好文件才换上）。
+    pub(crate) fn config(&self) -> std::sync::MutexGuard<'_, Config> {
+        self.config
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     /// 同一份家底，这台机器上的沙盒照 `sandbox`（施工 5-4 上、下）。用不了的，会话里工作区、只读两级执行命令都要问人；
@@ -159,6 +186,11 @@ impl Core {
                 dir: root.join(owner.as_str()),
                 cargo_home: cargo_home.clone(),
             })
+    }
+
+    /// 账号 `owner` 的会话列表的索引，交给造的、载入的会话（施工 3-8 七补）：现在只开了管理员的，别的账号的没有。
+    pub(crate) fn index_for(&self, owner: &AccountId) -> Option<Arc<SessionIndex>> {
+        (*owner == self.admin).then(|| Arc::clone(&self.index))
     }
 
     /// 连着几个连接。

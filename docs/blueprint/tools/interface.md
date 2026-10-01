@@ -2,7 +2,7 @@
 
 ### 是什么
 
-工具是内核之外的软件，照同一个接口来：每件工具报出自己的规格，核心起来时登记进工具目录，登记完就冻结。一次调用交给工具修正过的参数、这一轮的工作目录、家目录、数据根、她看过的文件；工具交回给模型看的内容块、出没出错、给人看的说法、效果。`shell` 的后台命令另经任务端口交给执行器（施工 7-3）。
+工具是内核之外的软件，照同一个接口来：每件工具报出自己的规格，核心起来时登记进工具目录，登记完就冻结。一次调用交给工具修正过的参数、这一轮的工作目录、家目录、数据根、她看过的文件；工具交回给模型看的内容块、出没出错、给人看的说法、效果。`shell` 的后台命令另经任务端口交给执行器（施工 7-3）；`sessions` 经列会话的端口列别的会话（施工 C-3）。
 
 ### 在哪
 
@@ -12,6 +12,7 @@
 | `crates/miyu-tool/src/run.rs` | 一次调用：`Call`、`Seen`、`Target`、`Done`、`Effect`、`Progress`、`Running` |
 | `crates/miyu-tool/src/agents.rs` | 派子代理的端口 `AgentPort`、`Spawned`、`NotSpawned`，那件工具的名字 `SUBAGENT`、以前的名字 `SUBAGENT_FORMERLY`、两个都认的 `is_subagent`（施工 7-5，7-5 再补） |
 | `crates/miyu-tool/src/messages.rs` | 留言的端口 `MessagePort`、发给谁 `Recipient`、没送出去 `NotSent`，那件工具的名字 `MESSAGE_AGENT`（施工 7-7） |
+| `crates/miyu-tool/src/sessions.rs` | 列会话的端口 `SessionsPort`、列出来的一个 `MainSession`，那件工具的名字 `SESSIONS`；认会话编号的 `find_session`、`Found`（施工 C-3） |
 | `crates/miyu-tool/src/catalog.rs` | 工具目录，登记时查的几条；改过名的照以前的名字也找得到（施工 7-5 再补） |
 | `crates/miyu-tool/src/jobs.rs` | 任务端口 `JobPort`、交出去的后台命令 `Background`、它的进程 `Process`、怎么结束的 `Exit`（施工 7-3）；列出来的 `Listed`、读到的 `Output`、读不了停不了的 `JobError`（施工 7-4） |
 | `crates/miyu-tool/src/testkit.rs` | 测试用的假工具（`testkit` 开关打开时才编）；`testkit/held.rs` 是假的后台命令 `Held`（施工 7-3）；`testkit/renamed.rs` 是换了名字的一件 `Renamed`，造改名以前的核心的目录（施工 7-5 再补） |
@@ -60,6 +61,7 @@
 | `agents` | 派子代理的端口（`Arc<dyn AgentPort>`，施工 7-5）：执行器照这一次调用抄好父会话的那几样（`session/tools.md`「派子代理」）。只有 `subagent` 用；没有的（测试里的假调用、没装会话表的核心）是空的，`subagent` 照派不了出错 |
 | `messages` | 留言的端口（`Arc<dyn MessagePort>`，施工 7-7）：执行器照这一次调用抄好这个会话的父会话、它派出去的子代理（`session/tools.md`「父子之间留言」）。只有 `message_agent` 用；没有的（测试里的假调用、没装会话表的核心）是空的，`message_agent` 照送不到出错 |
 | `jobs` | 任务端口（`Arc<dyn JobPort>`，施工 7-3）：执行器照这一次调用造一个，起它的命令自己退出了，`job.reported` 的 `by` 是这次调用、`cause` 是它所在那一轮的。`shell` 交后台命令，`jobs` 查、停（施工 7-4）；没有的（会话外面的调用，例如测试）是空的，不能放到后台，也查不到任务 |
+| `sessions` | 列会话的端口（`Arc<dyn SessionsPort>`，施工 C-3）：执行器照这一次调用抄好这个会话的编号、属主（`session/tools.md`「1d. 列会话」）。只有本机的主会话有，只有 `sessions` 用；没有的（测试里的假调用、子会话、场所会话、没装会话表的核心）是空的，`sessions` 照没有别的会话答 |
 
 - `Seen`：换成真实位置以后的路径 → 她最后一次看到的整份文件的内容哈希（`sha256:` 加 64 位小写十六进制）。
 - 任务端口（施工 7-3）：`start(Background)` 把起好的后台命令交给执行器的任务表，交回编号，当场返回；收不下的（输出的文件建不起来、会话已经停了），任务表整组杀掉它，交回出错。`Background` 两格：`output` 是一段段交出来的输出（已经照前台的规矩合法化，读完了就没有了），`process` 是 `Process`：`wait()` 等它结束、交回 `Exit`（退出码或者信号），`kill()` 整组杀、已经结束了的什么都不做。两个端口比的是不是同一个（`Call` 照格子比较时用）。
@@ -94,6 +96,8 @@
 
 **留言的端口** `MessagePort`（`Send + Sync`，施工 7-7）：`send(to, message)` 交回一个 future，对方落了盘就给 `Ok`，没送出去给 `NotSent`：`NoParent` 没有父（主会话）、`NotYours` 不是这个会话派的子代理、`Stopped` 被停掉了、`Undelivered` 送不到（原因执行器记进运行日志）。`to` 是 `Recipient`：`Parent` 父会话，`Child(任务编号)` 自己派的子代理。两个端口比的是不是同一个。`MESSAGE_AGENT` 是那件工具的名字：造会话时照它把 `message_agent` 从场所会话的工具面上拿掉（`session/tools.md`「工具面」）。
 
+**列会话的端口** `SessionsPort`（`Send + Sync`，施工 C-3，`tools/sessions.md`）：`this()` 是这个会话自己的编号；`list(旗)` 交回一个 future，给同一个属主的主会话（`MainSession`：编号 `id`、标题 `title`（空的是没有）、工作目录 `cwd`、忙不忙 `busy`、最近一次动静 `last_active`），不含这个会话自己、不排先后，列不出来给英文的一句原因。读下一个会话之前看旗，举起来了交回已经读到的。两个端口比的是不是同一个。`SESSIONS` 是那件工具的名字：造会话时照它把 `sessions` 从子会话、场所会话的工具面上拿掉（`session/tools.md`「工具面」）。`find_session(写的, 一批编号)` 认她写的会话编号：整个编号相同，或者至少 8 位的小写十六进制、编号以它结尾；交回 `Found`：`One(编号)`、`None`、`Many`（`cross-session.md`「对外的样子」会话的短编号；C-4、C-5 照它认）。
+
 **执行中的输出** `Progress`：`Progress::new(收的那一头)`，`push(一段字)`。
 
 **工具目录** `Catalog`：`Catalog::new(几件)` 登记，`specs()` 照名字的先后交出每件的规格，`get(名字)` 找那一件，照以前的名字也找得到（施工 7-5 再补）；`Catalog::default()` 是空的；`Debug` 写成名字的列表。登记不上是 `CatalogError`：哪一件（`tool`）、哪一条（`problem`）。
@@ -116,7 +120,7 @@
 1. 内核先查（`kernel/`）：工具面上没有这个名字的、参数不是 JSON 对象的，当场记出错的结果；只读时写文件的（访问类别是 `write` 和不认识的）当场拦下。别的照参数格式修正参数：被写成字符串的数组、对象、整数、数字、布尔还原回去，声明成字符串的一个字节不碰，什么都没写的当成 `{}`。
 2. 轮到的先过权限策略（`crates/miyu-session/src/guard.rs`）：目录里没有这件工具的放行（执行时报用不了）；照 `targets` 报的路径判；一条都不报的，照访问类别判。交给 `targets` 的 `Call` 里 `seen` 是空的：报路径只看参数。
 3. 派出去（`crates/miyu-session/src/tools.rs`）：
-   1. 造 `Call`：`args` 是修正过的参数；`cwd` 是回合开始时的工作目录；`home` 是核心起来时读的系统家目录；`data_root` 是数据根；`seen` 是这个会话她看过的文件，共享一份；`log` 照会话的目录造，`offset` 是会话现在的时区（施工 6-4）；`agents` 照这一轮的工作目录、加进来的目录、派出去那一刻的权限造（施工 7-5，会话表交进来了端口才有）；`messages` 照内核这一刻交的派出去的子代理造（施工 7-7，同上）。
+   1. 造 `Call`：`args` 是修正过的参数；`cwd` 是回合开始时的工作目录；`home` 是核心起来时读的系统家目录；`data_root` 是数据根；`seen` 是这个会话她看过的文件，共享一份；`log` 照会话的目录造，`offset` 是会话现在的时区（施工 6-4）；`agents` 照这一轮的工作目录、加进来的目录、派出去那一刻的权限造（施工 7-5，会话表交进来了端口才有）；`messages` 照内核这一刻交的派出去的子代理造（施工 7-7，同上）；`sessions` 本机的主会话才造（施工 C-3，同上）。
    2. 快照里有、核心的目录里没有这件（核心升级拿掉了，老会话照样调）：不派，当场交回出错的结果（下面「执行器替工具写的两句」），没有用时。
    3. 在自己的任务里跑 `run` 交回的 future，记下开始跑的那一刻。
    4. `push` 的每一段，这次调用还在跑的，送回会话，推给头（瞬时的 `tool.progress`），不落盘；叫停了的不理。
@@ -147,6 +151,7 @@
    | `shell` | 一条都不报 |
    | `subagent` | 一条都不报：访问类别是读，放行（`tools/subagent.md`） |
    | `message_agent` | 一条都不报：访问类别是读，放行（`tools/message_agent.md`） |
+   | `sessions` | 一条都不报：访问类别是读，放行（`tools/sessions.md`） |
 
 #### 四、效果和她看过的
 
@@ -176,7 +181,7 @@
 
 每一份以一个换行结尾；登记在 `26-提示词.md` 第十节。
 
-**工具面的预算**（`10-自带软件.md` 第九节，施工 4-10）：`resources/software/basesystem/tools/` 下的几份说明（说明和参数）加起来不超过 7200 字节，回车 `\r` 不算。预算是实测加一成：施工 7-7 以后十一件的边际份量合计 1756 个 token、6496 字节（2026-09-30 量），约 3.7 字节一个 token，加一成是 1931 个 token；施工 7-5 再补改名以后十一件合计 1757 个（2026-10-01 量），字节不变，还在预算里；仓库里没有分词器，所以照字节守。加工具、改说明超了，重新量过再改预算。
+**工具面的预算**（`10-自带软件.md` 第九节，施工 4-10）：`resources/software/basesystem/tools/` 下的几份说明（说明和参数）加起来不超过 7600 字节，回车 `\r` 不算。预算是实测加一成：施工 C-3 加了 `sessions` 以后十二件的边际份量合计 1852 个 token、6858 字节（2026-10-01 量，`sessions` 95），约 3.7 字节一个 token，加一成是 2037 个 token；仓库里没有分词器，所以照字节守。加工具、改说明超了，重新量过再改预算。
 
 ### 出错
 
@@ -220,6 +225,7 @@
 | `crates/miyu-session/tests/stop.rs` | 叫它停只举旗、停在改之前的记「已取消」、已经改完的照记、不停的又打断一次就掐掉 |
 | `crates/miyu-tool/src/stop.rs`、`crates/miyu-basesystem/tests/stop.rs` | 克隆出来的是同一面旗；三件写的工具旗举了什么都不改，旗前面的核对照旧先答 |
 | `crates/miyu-session/src/effects/tests.rs` | 改前改后换成 blob、存不下来的照样有哈希、她看过的读的和写的、从日志重建；派出去的任务照原样过去、不算看过的（施工 7-3） |
+| `crates/miyu-tool/src/sessions/tests.rs` | 认会话编号：整个编号、至少 8 位的后缀，别的写法对不上，撞了是不止一个（施工 C-3，`tools/sessions.md`） |
 | `crates/miyu-basesystem/tests/background.rs`、`crates/miyu-session/src/jobs/tests.rs` | 任务端口的两头：`shell` 交出去的输出、进程（`tools/shell.md`），任务表收下、收不下（`session/tools.md`）（施工 7-3） |
 | `crates/miyu-session/tests/write.rs` | 重新载入以后她读过的照样算、改完接着改不用重读、删了的不再算看过 |
 | `crates/miyu-session/tests/restore.rs` | 撤掉的回合里读过的不算、恢复以后又算 |

@@ -53,7 +53,10 @@ GPL-3.0-or-later，见 `LICENSE`。
 
 ### 依赖记录
 
+- 施工 8-5 加了 `rpassword` 7.5（Apache-2.0，`miyu login` 贴 key 时关掉回显读一行），它带进来的 `rtoolbox`（Apache-2.0）；`libc`、`windows-sys` 原来就有。都在能用的名单里，门禁过了。
+- 施工 8-4 加了 `notify` 8.2（CC0-1.0，监视配置文件，只开默认的 macOS FSEvents），它带进来的 `notify-types`（MIT OR Apache-2.0）、`inotify`、`inotify-sys`（ISC，Linux）、`fsevent-sys`（MIT，macOS）、`walkdir`、`same-file`（Unlicense OR MIT）、`mio`（MIT）、`bitflags`、`libc`、`log`、`windows-sys`（MIT 或 Apache-2.0，多数原来就有）。都在能用的名单里，门禁过了。
 - 施工 8-2 加了 `toml_edit`（MIT OR Apache-2.0，读配置的 TOML，纯逻辑层的白名单里）和它带进来的 `toml_parser`、`toml_datetime`、`winnow`（MIT 或 Apache-2.0；`indexmap` 这些原来就有）；`sys-locale`（MIT OR Apache-2.0，系统设置里的语言）。都在能用的名单里，门禁过了。
+- 施工 3-8 七补加了 `rusqlite`（MIT，会话列表的索引，`store/index.md`），开 `bundled`：`libsqlite3-sys`（MIT）自己带 SQLite 的源码编，SQLite 本身是公有领域；它带进来的 `hashlink`、`hashbrown`、`fallible-iterator`、`fallible-streaming-iterator`（MIT 或 Apache-2.0）、`foldhash`（Zlib），编的时候用的 `cc`、`pkg-config`、`vcpkg`（MIT 或 Apache-2.0）。都在能用的名单里，门禁过了。只在 wasm 上用的 `sqlite-wasm-rs`、`rsqlite-vfs` 不在发布的四个平台的依赖图里。
 
 ### 出处
 

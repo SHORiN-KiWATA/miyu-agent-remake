@@ -368,7 +368,7 @@ async fn the_list_shows_titles_and_pins_even_after_a_restart() {
 }
 
 /// 日志后面坏了的会话照样列出来，标题、置顶照坏的那一段以前的算（`protocol.md` 的 `session.list` 第 3 条）：只有一段的，
-/// 算不出来，当没有。
+/// 算不出来，当没有；工作目录、最近一次动静照第一条（施工 C-3）。
 #[tokio::test]
 async fn a_log_broken_later_is_listed_as_far_as_it_reads() {
     let home = Home::new();
@@ -384,6 +384,7 @@ async fn a_log_broken_later_is_listed_as_far_as_it_reads() {
             json!({"session": session, "title": "发版", "pinned": true}),
         )
         .await;
+    let created_at = home.log(&session)[0].at;
     let id = miyu_kernel::id::SessionId::parse(&session).expect("合写法");
     let segment = home
         .root
@@ -397,4 +398,7 @@ async fn a_log_broken_later_is_listed_as_far_as_it_reads() {
         item.get("title").is_none() && item.get("pinned").is_none(),
         "{item}"
     );
+    // 工作目录、最近一次动静照第一条算（施工 C-3）：只有一段、它坏了，后面的都不算。
+    assert_eq!(item["cwd"], json!(work), "{item}");
+    assert_eq!(item["last_active"], json!(created_at), "{item}");
 }

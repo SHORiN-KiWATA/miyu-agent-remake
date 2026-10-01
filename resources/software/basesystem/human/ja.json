@@ -61,6 +61,10 @@
       "name": "メッセージ",
       "subject": "to",
       "icon": "↗"
+    },
+    "sessions": {
+      "name": "セッション一覧",
+      "icon": "≡"
     }
   },
   "said": {
@@ -128,6 +132,9 @@
     "history/read": "{from}–{to} 件目を読みました",
     "history/none": "見つかりません",
     "history/no-log": "記録を読めません：{error}",
+    "history/no-session": "セッション {session} はありません",
+    "history/ambiguous": "{session} は複数のセッションに一致します",
+    "history/not-here": "ここでは他のセッションを読めません",
     "agent/started": "起動しました：{job}",
     "agent/not-started": "起動できません",
     "jobs/listed": "{count} 件のタスク",
@@ -140,6 +147,10 @@
     "message_agent/no-parent": "親セッションがありません",
     "message_agent/not-yours": "{to} はこのセッションが起動したサブエージェントではありません",
     "message_agent/stopped": "{to} はすでに停止しています",
-    "message_agent/not-sent": "送れませんでした"
+    "message_agent/not-sent": "送れませんでした",
+    "sessions/listed": "{count} 件のセッション",
+    "sessions/none": "ほかのセッションはありません",
+    "sessions/past-end": "ほかのセッション {total} 件はすべて表示済みです",
+    "sessions/failed": "一覧を取得できませんでした：{error}"
   }
 }

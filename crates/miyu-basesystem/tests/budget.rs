@@ -9,13 +9,15 @@
 //! `shell` 加 `run_in_background`（边际份量 152 → 183）：九件合计 1476 个 token、5494 字节，预算改成 1624 个 token，合 6100
 //! 字节。施工 7-4 加了 `jobs`（边际份量 127）：十件合计 1603 个 token、5941 字节，预算改成 1764 个 token，合 6600 字节。施工
 //! 7-7 加了 `message_agent`（边际份量 153，合并时说明去掉分号重量）：十一件合计 1756 个 token、6496 字节，预算改成 1932 个 token，合 7200 字节。施工 7-5 再补
-//! 把 `agent` 改名 `subagent`：字节不变，边际份量 140 → 141，十一件合计 1757 个 token，预算不改。加工具、改说明超了，重新量过
-//! 再改这里和设计。
+//! 把 `agent` 改名 `subagent`：字节不变，边际份量 140 → 141，十一件合计 1757 个 token，预算不改。施工 C-3 加了 `sessions`（边际
+//! 份量 95）：十二件合计 1852 个 token、6858 字节，预算改成 2037 个 token，合 7600 字节。施工 C-4 给 `history` 加了 `session`
+//! （边际份量 197 → 224）：十二件合计 1879 个 token、6966 字节，预算改成 2067 个 token，合 7700 字节。加工具、改说明超了，
+//! 重新量过再改这里和设计。
 
 use std::path::Path;
 
 /// 预算：字节，回车 `\r` 不算（Windows 上检出的可能多出回车）。
-const BUDGET: usize = 7200;
+const BUDGET: usize = 7700;
 
 #[test]
 fn the_tool_face_stays_within_its_budget() {
@@ -34,7 +36,7 @@ fn the_tool_face_stays_within_its_budget() {
             files += 1;
         }
     }
-    assert_eq!(files, 11, "基础系统现在是十一件");
+    assert_eq!(files, 12, "基础系统现在是十二件");
     assert!(
         total <= BUDGET,
         "工具面的几份说明一共 {total} 字节，超过预算 {BUDGET}：重新量 token，再改预算（10-自带软件.md 第九节）"

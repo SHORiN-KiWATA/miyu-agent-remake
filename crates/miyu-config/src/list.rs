@@ -80,7 +80,7 @@ fn tighten_problem(item: &Item) -> Option<String> {
     match (project, item.tighten, item.kind) {
         (true, None, _) => Some(format!("{key}：能放进项目配置，要写怎么收紧")),
         (false, Some(_), _) => Some(format!("{key}：不能放进项目配置，不写收紧")),
-        (true, Some(Tighten::TrueOnly), Kind::Option(_)) => {
+        (true, Some(Tighten::TrueOnly), Kind::Option(_) | Kind::Secret) => {
             Some(format!("{key}：只能打开只给开关"))
         }
         _ => None,
@@ -90,7 +90,7 @@ fn tighten_problem(item: &Item) -> Option<String> {
 /// 类型本身写得对不对：选项至少两个、不重复。
 fn kind_problems(item: &Item) -> Vec<String> {
     match item.kind {
-        Kind::Bool => Vec::new(),
+        Kind::Bool | Kind::Secret => Vec::new(),
         Kind::Option(options) => {
             let mut problems = Vec::new();
             if options.len() < 2 {

@@ -8,7 +8,9 @@
   compact [要求]        把上下文压缩成摘要，可以附上要求
   recap                 一句话回顾：在做什么、做完了什么、卡在哪
   rename <标题>         给会话起名
-  config <命令>         看配置：最终值、每一层写的、有没有写错、文件在哪
+  config <命令>         看配置、改配置、信任项目配置
+  login [名字]          存一个供应商的 key；--list 列出哪几家设了
+  logout [名字]         删掉一个供应商的 key
   sandbox setup|remove  装好、撤掉沙盒用户（Windows，要管理员权限）
 
 ask 的选项：

@@ -66,12 +66,25 @@ impl SessionPort for Table {
         Box::pin(async { Ok(miyu_session::Peek::default()) })
     }
 
+    fn sessions(
+        &self,
+        _owner: miyu_kernel::id::AccountId,
+        _stop: miyu_tool::Stop,
+    ) -> Pending<'_, Result<Vec<miyu_tool::MainSession>, String>> {
+        Box::pin(async { Ok(Vec::new()) })
+    }
+
     fn open(&self, session: SessionId) -> Pending<'_, Result<(), String>> {
         self.opened
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .push(session);
         Box::pin(async { Ok(()) })
+    }
+
+    /// 这份假的会话表用不到读别的会话的日志（施工 C-4）。
+    fn read_log(&self, _session: SessionId) -> Pending<'_, Result<miyu_tool::Log, String>> {
+        Box::pin(async { Err("no logs here".to_string()) })
     }
 
     fn command(

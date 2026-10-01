@@ -20,6 +20,7 @@ use miyu_kernel::time::Timestamp;
 use crate::TARGET;
 use crate::blocking::blocking;
 use crate::clock::Clock;
+use crate::config::Turning;
 use crate::guard::Guard;
 use crate::handle::{Message, Pushed};
 use crate::jobs::SessionJobs;
@@ -73,6 +74,8 @@ pub(crate) struct Actor {
     busy: Arc<AtomicBool>,
     /// 向上回报交给谁（施工 7-6，`report.rs`）：子会话、有会话表的端口才有。
     reporter: Option<Reporter>,
+    /// 配置（施工 8-4）：从哪取，和这一轮的那一份；回合开始时换，这一轮的请求都照它。
+    config: Turning,
     /// 拿着订阅的头有几个（施工 7-9）：从没有到有、从有到没有时交内核 `Watched`。造会话、载入时是 0，和内核一样当没人
     /// 看着。
     watchers: usize,
@@ -110,7 +113,8 @@ pub(crate) fn spawn(actor: Actor, first: Vec<Action>, span: tracing::Span) {
 }
 
 impl Actor {
-    /// 一个 actor：会话的状态机、写盘的地方、请求模型的端口、工具目录和替工具写的两句、任务表、权限策略、收件箱、时钟。
+    /// 一个 actor：会话的状态机、写盘的地方、请求模型的端口、工具目录和替工具写的两句、任务表、权限策略、收件箱、时钟、
+    /// 配置。
     #[expect(
         clippy::too_many_arguments,
         reason = "造 actor 的几样各不相干，拼成一个结构体也只是换个地方列"
@@ -124,6 +128,7 @@ impl Actor {
         guard: Guard,
         inbox: mpsc::UnboundedReceiver<Message>,
         clock: Clock,
+        config: Turning,
     ) -> Actor {
         let (backs, back) = mpsc::unbounded_channel();
         let tools = Tools::new(tools, backs.clone());
@@ -147,6 +152,7 @@ impl Actor {
             guard: Arc::new(guard),
             busy,
             reporter: None,
+            config,
             watchers: 0,
         }
     }
@@ -251,11 +257,15 @@ impl Actor {
                 self.push(Pushed::Transient(transient));
                 None
             }
-            Action::RunTurnStartHooks { turn } => Some(Input::TurnStartHooksDone {
-                at: self.clock.now(),
-                turn,
-                injected: Vec::new(),
-            }),
+            // 回合开始（`turn.started` 已经落了盘）：冻结这一轮的配置，带上会话这时的目录的项目配置（施工 8-4）。
+            Action::RunTurnStartHooks { turn } => {
+                self.config.turn(self.session.cwd().to_string()).await;
+                Some(Input::TurnStartHooksDone {
+                    at: self.clock.now(),
+                    turn,
+                    injected: Vec::new(),
+                })
+            }
             Action::CallModel {
                 seen,
                 request,

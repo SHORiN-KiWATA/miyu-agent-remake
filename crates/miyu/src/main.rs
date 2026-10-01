@@ -1,7 +1,7 @@
 //! 主程序 `miyu`（`docs/designs/12-进程形态与分发.md` 第三节，施工 3-9）：一个程序，像 busybox 那样按子命令
 //! 分发。`miyu ask` 是最薄的头（施工 3-9 下）；`miyu undo`（`miyu rewind`）、`miyu restore` 撤掉最后一轮、恢复（施工 4-7 下，改名施工 4-7 补）；
 //! `miyu redo` 重做最后一轮（施工 4-7 再补）；
-//! `miyu compact` 手动压缩（施工 6-8）；`miyu recap` 一句话回顾（施工 3-8 四补）；`miyu rename` 给会话起名（施工 3-8 五补）；`miyu config` 看配置（施工 8-2）；`miyu sandbox setup`、`remove` 在 Windows 上装好、撤掉沙盒用户（施工 5-8）；`miyu core` 是核心进程，由头拉起，
+//! `miyu compact` 手动压缩（施工 6-8）；`miyu recap` 一句话回顾（施工 3-8 四补）；`miyu rename` 给会话起名（施工 3-8 五补）；`miyu config` 看配置（施工 8-2）；`miyu login`、`miyu logout` 管 key（施工 8-5）；`miyu sandbox setup`、`remove` 在 Windows 上装好、撤掉沙盒用户（施工 5-8）；`miyu core` 是核心进程，由头拉起，
 //! 不写进帮助。
 //!
 //! 不认识的子命令就报错，退出码 2，绝不当成对话发给核心（R4，`22-命令行.md` 第二节）。帮助页、参数写错时说的
@@ -50,8 +50,12 @@ enum Command {
     Rename(miyu_cli::Rename),
     /// 装好、撤掉沙盒用户（Windows，要管理员权限）。
     Sandbox(miyu_cli::Sandbox),
-    /// 看配置：最终值、每一层写的、有没有写错、文件在哪（施工 8-2）。
+    /// 看配置、改配置、信任项目配置（施工 8-2、8-3）。
     Config(miyu_cli::Config),
+    /// 存一个供应商的 key，`--list` 列出哪几个设了（施工 8-5）。
+    Login(miyu_cli::Login),
+    /// 删掉一个供应商的 key（施工 8-5）。
+    Logout(miyu_cli::Logout),
     /// 核心进程：由头拉起，平时不用人敲。
     #[command(hide = true)]
     Core {
@@ -85,13 +89,21 @@ fn main() -> ExitCode {
         .mut_subcommand("rename", |rename| {
             rename.override_help(page(language, Page::Rename))
         })
+        .mut_subcommand("login", |login| {
+            login.override_help(page(language, Page::Login))
+        })
+        .mut_subcommand("logout", |logout| {
+            logout.override_help(page(language, Page::Logout))
+        })
         .mut_subcommand("config", |config| {
             let help = page(language, Page::Config);
-            ["get", "check", "explain", "path"]
-                .into_iter()
-                .fold(config.override_help(help), |config, name| {
-                    config.mut_subcommand(name, |sub| sub.override_help(help))
-                })
+            [
+                "get", "check", "explain", "path", "set", "unset", "edit", "trust",
+            ]
+            .into_iter()
+            .fold(config.override_help(help), |config, name| {
+                config.mut_subcommand(name, |sub| sub.override_help(help))
+            })
         })
         .mut_subcommand("sandbox", |sandbox| {
             let help = page(language, Page::Sandbox);
@@ -117,6 +129,8 @@ fn main() -> ExitCode {
         Some(Command::Rename(args)) => miyu_cli::rename(args, core),
         Some(Command::Sandbox(args)) => miyu_cli::sandbox(args),
         Some(Command::Config(args)) => miyu_cli::config(args, core),
+        Some(Command::Login(args)) => miyu_cli::login(args.into(), core),
+        Some(Command::Logout(args)) => miyu_cli::login(args.into(), core),
         Some(Command::Core { idle_seconds }) => miyu_core::main(miyu_core::Options {
             idle: idle_seconds.map_or(miyu_core::IDLE, Duration::from_secs),
         }),

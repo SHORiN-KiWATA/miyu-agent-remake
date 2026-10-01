@@ -27,6 +27,7 @@ fn places() -> Places {
         root: home().join(".miyu"),
         home: Some(home()),
         color: false,
+        gray: false,
     })
 }
 
@@ -230,5 +231,154 @@ fn a_missing_project_config_belongs_at_the_repository_root() {
         deep.join(".miyu").join("config.toml"),
         "没有仓库的是当前目录"
     );
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+// 施工 8-3：改、写、信任的几个子命令印的字，和图纸「给人看的字」「样子」一字不差（两种语言）；编辑器照 `VISUAL`、`EDITOR`
+// 挑，经 shell 跑、文件名里有空格也行。
+
+#[test]
+fn set_and_unset_lines_match_the_blueprint() {
+    let (zh, en) = (Language::Chinese, Language::English);
+    assert_eq!(
+        zh.saved("ui.language", "\"zh\"", "personal", "now"),
+        "· ui.language = \"zh\" 写进了个人设置，当场生效"
+    );
+    assert_eq!(
+        en.saved("ui.language", "\"zh\"", "personal", "now"),
+        "· ui.language = \"zh\" saved to personal settings, takes effect at once"
+    );
+    assert_eq!(
+        en.saved(
+            "permission.start_read_only",
+            "true",
+            "system",
+            "new_session"
+        ),
+        "· permission.start_read_only = true saved to the system config, applies to sessions opened from now on"
+    );
+    assert_eq!(
+        zh.saved("tui.startup", "\"recent\"", "personal", "head_start"),
+        "· tui.startup = \"recent\" 写进了个人设置，下次打开界面时生效"
+    );
+    assert_eq!(
+        zh.saved_below("ui.language", "\"en\"", "system", "personal", "\"zh\""),
+        "· ui.language = \"en\" 写进了系统配置，个人设置里写着 \"zh\"，用的还是 \"zh\""
+    );
+    assert_eq!(
+        en.saved_below("ui.language", "\"en\"", "system", "personal", "\"zh\""),
+        "· ui.language = \"en\" saved to the system config, but personal settings say \"zh\", so \"zh\" stays in use"
+    );
+    assert_eq!(
+        en.saved_below("log.level", "\"info\"", "system", "env", "\"debug\""),
+        "· log.level = \"info\" saved to the system config, but the environment says \"debug\", so \"debug\" stays in use"
+    );
+    assert_eq!(zh.already("\"zh\""), "· 本来就是 \"zh\"，没改");
+    assert_eq!(en.already("\"zh\""), "· Already \"zh\", nothing changed");
+    assert_eq!(
+        zh.removed("ui.language", "personal", "\"en\"", "system"),
+        "· 从个人设置里删掉了 ui.language，现在是 \"en\"（系统配置）"
+    );
+    assert_eq!(
+        en.removed("ui.language", "personal", "\"en\"", "system"),
+        "· Removed ui.language from personal settings. It is now \"en\" (system config)"
+    );
+    assert_eq!(
+        zh.not_there("ui.language", "personal"),
+        "· 个人设置里本来就没写 ui.language"
+    );
+    assert_eq!(
+        en.not_there("ui.language", "personal"),
+        "· Personal settings did not have ui.language"
+    );
+    assert_eq!(
+        en.not_there("log.level", "system"),
+        "· The system config did not have log.level"
+    );
+}
+
+#[test]
+fn edit_and_trust_words_match_the_blueprint() {
+    let (zh, en) = (Language::Chinese, Language::English);
+    assert_eq!(
+        zh.edit_errors(1),
+        "有 1 处错误，还没存。回车接着改，输入 q 放弃："
+    );
+    assert_eq!(
+        en.edit_errors(2),
+        "2 errors. Nothing saved yet. Press Enter to keep editing, or type q to give up: "
+    );
+    assert_eq!(zh.edit_saved(&["now"]), "· 存好了，当场生效");
+    assert_eq!(
+        en.edit_saved(&["now", "new_session"]),
+        "· Saved, takes effect at once, applies to sessions opened from now on"
+    );
+    assert_eq!(en.edit_saved(&[]), "· Saved");
+    assert_eq!(
+        en.edit_conflict("~/x"),
+        "The file changed while you were editing. Nothing saved. Your edit is in ~/x"
+    );
+    assert_eq!(
+        en.editor_failed(Some(3)),
+        "The editor did not exit cleanly (3). Nothing saved"
+    );
+    assert_eq!(zh.editor_failed(None), "编辑器没有正常退出（-），没存");
+    assert_eq!(
+        en.would_set("~/src/app/.miyu/config.toml"),
+        "~/src/app/.miyu/config.toml would set:"
+    );
+    assert_eq!(
+        en.trust_question(),
+        "A project config can only make limits stricter. Trust this one? [y/N] "
+    );
+    assert_eq!(
+        en.trust_answered(true),
+        "· Trusted. You will be asked again if it changes"
+    );
+    assert_eq!(
+        zh.untrusted_project("~/src/app/.miyu/config.toml"),
+        "· 这里的项目配置 ~/src/app/.miyu/config.toml 还没信任，这次没用它：miyu config trust 看一眼再定"
+    );
+    assert_eq!(
+        en.untrusted_project("~/src/app/.miyu/config.toml"),
+        "· The project config at ~/src/app/.miyu/config.toml is not trusted yet, so it was not used: run miyu config trust to review it"
+    );
+    assert_eq!(
+        zh.explain_header("启动时打开", "tui.startup", "说明。", "head_start"),
+        "启动时打开（tui.startup）：说明。下次打开界面时生效。"
+    );
+}
+
+#[test]
+fn the_editor_is_visual_then_editor_then_the_system_one() {
+    use super::console::editor;
+    assert_eq!(editor(Some("code --wait"), Some("nano")), "code --wait");
+    assert_eq!(editor(Some("  "), Some("nano")), "nano", "空的不算");
+    assert_eq!(editor(None, Some("nano")), "nano");
+    let fallback = match cfg!(windows) {
+        true => "notepad",
+        false => "vi",
+    };
+    assert_eq!(editor(None, None), fallback);
+    assert_eq!(editor(Some(""), Some("")), fallback);
+}
+
+#[test]
+fn the_editor_runs_through_the_shell_with_the_file_as_one_argument() {
+    use super::console::editor_command;
+    let dir = std::env::temp_dir().join(format!("miyu-cli-editor-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let source = dir.join("new text.toml");
+    std::fs::write(&source, "a = 1\n").unwrap();
+    let target = dir.join("my settings.toml");
+    std::fs::write(&target, "").unwrap();
+    // 一个「编辑器」：把准备好的字抄进交给它的文件。带参数的命令照 shell 的写法。
+    let editor = match cfg!(windows) {
+        true => format!("copy /y \"{}\"", source.display()),
+        false => format!("cp '{}'", source.display()),
+    };
+    let status = editor_command(&editor, &target).output().unwrap().status;
+    assert!(status.success(), "{status:?}");
+    assert_eq!(std::fs::read_to_string(&target).unwrap(), "a = 1\n");
     std::fs::remove_dir_all(&dir).unwrap();
 }

@@ -8,10 +8,15 @@
 //! - [`log`]：会话日志，按段存成 JSONL，一批一次写入、一次同步，打开时自检；
 //! - [`blob`]：大内容按内容哈希存，先写临时文件、同步、再改名，读的时候核对哈希；
 //! - [`generated`]：核心生成的派生文件，一样的不写，不一样的先写临时文件再替换（施工 8-1）；
+//! - [`config_file`]：读、写配置文件，写的时候顺着链接、先写临时文件再替换、替换前再读一次（施工 8-2、8-3）；
+//! - [`journal`]：系统日志、账号日志，配置的改动、项目配置的信任一行一条（施工 8-3）；
+//! - [`secrets`]：密钥文件，照配置文件的规矩读写，Unix 上 0600，别人读得到的说出来（施工 8-5）；
 //! - [`resources`]：资源目录在哪，读出一个人格要用的原文，交给 `miyu-policy` 拼快照；
 //! - [`human`]：资源目录里给人看的字，照说法换成一句话（施工 4-5 上）；
 //! - [`jobs`]：会话目录下后台命令的输出（施工 7-3）；
-//! - [`trash`]：回收处，删掉的会话挪进来、满了时限再真删（施工 3-8 三补）。
+//! - [`trash`]：回收处，删掉的会话挪进来、满了时限再真删（施工 3-8 三补）；
+//! - [`index`]：会话列表的索引，SQLite，派生的，随时可以删掉照日志重建（施工 3-8 七补）；
+//! - [`watch`]：监视配置文件所在的目录，按文件名认，合并连着来的变动（施工 8-4）。
 
 pub mod blob;
 pub mod config_file;
@@ -19,11 +24,15 @@ mod durable;
 pub mod env;
 pub mod generated;
 pub mod human;
+pub mod index;
 pub mod jobs;
+pub mod journal;
 pub mod log;
 pub mod resources;
 pub mod root;
+pub mod secrets;
 pub mod trash;
+pub mod watch;
 
 #[cfg(test)]
 mod test_support;

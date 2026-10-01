@@ -7,7 +7,7 @@ use clap::{Args, Command};
 
 use super::{Page, page};
 use crate::language::Language;
-use crate::{Ask, Compact, Config, Recap, Redo, Rename, Sandbox, Undo};
+use crate::{Ask, Compact, Config, Login, Logout, Recap, Redo, Rename, Sandbox, Undo};
 
 /// 一个选项：几种写法（`-c`、`--continue`），和后面写的值（没有的是空的）。
 type Listed = BTreeSet<(Vec<String>, String)>;
@@ -159,7 +159,7 @@ fn each_page_lists_exactly_the_options_there_are() {
             String::new(),
         ));
         assert_eq!(listed(page(language, Page::Miyu)), all, "{language:?} miyu");
-        // `config` 那一页（施工 8-2）：四个子命令的选项合在一起列，每个子命令印的都是它。
+        // `config` 那一页（施工 8-2、8-3）：八个子命令的选项合在一起列，每个子命令印的都是它。
         let config = Config::augment_args(Command::new("config"));
         let mut options = Listed::new();
         for command in config.get_subcommands() {
@@ -167,13 +167,26 @@ fn each_page_lists_exactly_the_options_there_are() {
         }
         assert_eq!(
             config.get_subcommands().count(),
-            4,
-            "get、check、explain、path"
+            8,
+            "get、check、explain、path、set、unset、edit、trust"
         );
         assert_eq!(
             listed(page(language, Page::Config)),
             options,
             "{language:?} config"
+        );
+        // `login`、`logout` 两页（施工 8-5）：名字是位置参数，不算选项。
+        let login = Login::augment_args(Command::new("login"));
+        assert_eq!(
+            listed(page(language, Page::Login)),
+            real(&login, id),
+            "{language:?} login"
+        );
+        let logout = Logout::augment_args(Command::new("logout"));
+        assert_eq!(
+            listed(page(language, Page::Logout)),
+            real(&logout, id),
+            "{language:?} logout"
         );
         // `sandbox` 那一页：`sandbox`、`sandbox setup`、`sandbox remove` 印的都是它。
         let sandbox = Sandbox::augment_args(Command::new("sandbox"));
@@ -207,6 +220,8 @@ fn each_page_is_its_own_file() {
             (Page::Rename, "rename"),
             (Page::Sandbox, "sandbox"),
             (Page::Config, "config"),
+            (Page::Login, "login"),
+            (Page::Logout, "logout"),
         ] {
             let file = dir.join(code).join(format!("{name}.txt"));
             let on_disk = std::fs::read_to_string(&file).expect("有这一页");
@@ -244,6 +259,8 @@ fn pages_fit_in_eighty_columns_and_end_with_one_newline() {
             Page::Recap,
             Page::Sandbox,
             Page::Config,
+            Page::Login,
+            Page::Logout,
         ] {
             let text = page(language, which);
             assert!(

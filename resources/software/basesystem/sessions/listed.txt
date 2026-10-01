@@ -1,0 +1,1 @@
+{id} "{title}" in {cwd}: {state}, last active {time}

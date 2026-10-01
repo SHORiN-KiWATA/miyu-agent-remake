@@ -12,6 +12,21 @@
       },
       "type": "object"
     },
+    "tui": {
+      "properties": {
+        "startup": {
+          "default": "new",
+          "description": "Whether the terminal interface starts a new session or picks up the most recent one. Allowed: new or recent. Only in the system config or personal settings. Takes effect the next time the interface opens.",
+          "enum": [
+            "new",
+            "recent"
+          ],
+          "title": "On start, open",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "ui": {
       "properties": {
         "language": {

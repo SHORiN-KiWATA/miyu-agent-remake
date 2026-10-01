@@ -107,23 +107,30 @@ impl Home {
         home: Option<PathBuf>,
         env: &[(&str, &str)],
     ) -> Arc<Core> {
+        self.core_with_items(script, home, env, &[])
+    }
+
+    /// 同 [`Home::core_configured`]，清单后面再加上 `extra` 这几项（施工 8-5：类型是密钥的项，出厂的清单里还没有）。
+    pub fn core_with_items(
+        &self,
+        script: &Script,
+        home: Option<PathBuf>,
+        env: &[(&str, &str)],
+        extra: &[miyu_config::Item],
+    ) -> Arc<Core> {
         let items = [
             miyu_endpoint::settings::UiSettings::ITEMS,
             miyu_endpoint::settings::PermissionSettings::ITEMS,
             miyu_log::settings::LogSettings::ITEMS,
+            extra,
         ]
         .concat();
-        let lookup = |name: &str| {
-            env.iter()
-                .find(|(key, _)| *key == name)
-                .map(|(_, value)| value.to_string())
-        };
         let config = miyu_endpoint::config::Config::load(
             &self.root,
             &alice(),
             home.as_deref(),
             items,
-            &lookup,
+            miyu_endpoint::config::Environment::of(env),
         );
         Arc::new(
             self.core_full(script, Catalog::default(), home, TOKEN)

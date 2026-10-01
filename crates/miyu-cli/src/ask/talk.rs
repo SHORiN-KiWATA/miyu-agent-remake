@@ -51,7 +51,7 @@ pub async fn talk(
         Ok(attachments) => attachments,
         Err(code) => return code,
     };
-    let (session, used) = match session(&mut rpc, plan, screen).await {
+    let (session, created) = match session(&mut rpc, plan, screen).await {
         Ok(found) => found,
         Err(code) => return code,
     };
@@ -85,12 +85,16 @@ pub async fn talk(
     if config_errors > 0 {
         follow.config_errors(config_errors, screen);
     }
+    // 造会话的回应说这里的项目配置还没信任：接着说一句（施工 8-3）。接着说的会话在说话的回应里说。
+    if let Some(file) = created["untrusted_project"].as_str() {
+        follow.untrusted(file, screen);
+    }
     // 握手的回应说沙盒用不了：执行命令都要确认，这里确认不了，最先说一句（施工 5-4 下）。
     if let Some(reason) = &unsandboxed {
         follow.unsandboxed(reason, screen);
     }
     // 造会话的回应里说了会话实际在哪个目录里干活：目录太宽的，第一步之前说一句（施工 4-5 下）。
-    if let Some(used) = &used {
+    if let Some(used) = created["cwd"].as_str() {
         follow.moved(used, screen);
     }
     let watching = Watching {
@@ -232,24 +236,24 @@ async fn attach(rpc: &mut Rpc, plan: &Plan, screen: &mut Screen<'_>) -> Result<V
     Ok(attached)
 }
 
-/// 接哪个会话：新开一个一次性的；上一次 `miyu ask` 开的；指定的。交回会话的编号；新开的，再交回核心说的它
-/// 实际在哪个目录里干活。
+/// 接哪个会话：新开一个一次性的；上一次 `miyu ask` 开的；指定的。交回会话的编号；新开的，再交回造会话的回应：核心说的它
+/// 实际在哪个目录里干活、这里的项目配置没信任（施工 8-3），别的是 `null`。
 async fn session(
     rpc: &mut Rpc,
     plan: &Plan,
     screen: &mut Screen<'_>,
-) -> Result<(String, Option<String>), u8> {
+) -> Result<(String, Value), u8> {
     match &plan.target {
         Target::New => {
             let params = json!({"cwd": plan.cwd, "dirs": plan.dirs, "oneshot": true});
             let result =
                 link::request(rpc, "session.create", params, &plan.language, screen.err).await?;
             let session = result["session"].as_str().unwrap_or_default().to_string();
-            Ok((session, result["cwd"].as_str().map(str::to_string)))
+            Ok((session, result))
         }
         Target::Continue => link::latest_oneshot(rpc, &plan.language, screen.err)
             .await
-            .map(|session| (session, None)),
-        Target::Session(session) => Ok((session.clone(), None)),
+            .map(|session| (session, Value::Null)),
+        Target::Session(session) => Ok((session.clone(), Value::Null)),
     }
 }

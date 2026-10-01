@@ -8,7 +8,7 @@
 
 这一页写配置的通用机制和密钥：清单、分层、项目配置和它的信任、校验和报错、写盘、留痕、监视和生效、密钥、协议上的 `config.*`、`secret.*`，命令行的 `miyu config`、`miyu login`、`miyu logout`。模型、供应商那一块有哪些键、各是什么意思，归 `models.md`，这一页只给它们留好位置。
 
-状态：图纸，定稿（2026-10-01 起草，主会话审过，项目主人同一天批准）。M8 的 8-1 到 8-5 照它施工（施工方案第三节 M8 那张表），每一节标着由哪一步做。做完一步，这一页照做好的样子改写那几节，页末「要跟着改的别的页」列的几页跟着改。8-1、8-2 做完了（2026-10-01）：标着 8-1、8-2 的几节照做好的样子写，施工时定的记在「施工时定的」。命令行 `miyu config` 的样子和走法另有一页 `cli/config.md`。
+状态：图纸，定稿（2026-10-01 起草，主会话审过，项目主人同一天批准）。M8 的 8-1 到 8-5 照它施工（施工方案第三节 M8 那张表），每一节标着由哪一步做。做完一步，这一页照做好的样子改写那几节，页末「要跟着改的别的页」列的几页跟着改。8-1 到 8-5 都做完了（2026-10-01）：标着 8-1 到 8-5 的几节照做好的样子写，施工时定的记在「施工时定的」。命令行 `miyu config` 的样子和走法另有一页 `cli/config.md`，`miyu login`、`miyu logout` 另有一页 `cli/login.md`。
 
 ### 在哪
 
@@ -25,30 +25,33 @@
 | `crates/miyu-config/src/parse.rs` | 读一份配置的字：解析 TOML，记下每一项在第几行，照清单查类型、层；写错的那一项报问题、不收，不认识的键报警告 | 8-2 |
 | `crates/miyu-config/src/merge.rs` | 分层合出最终值和来源（`Origin`）。项目配置只认信任过的、收紧的；环境变量最后盖上；一项在它那一层下面合出来的（`below`，报错的「现在照什么用着」）；每一层写的（`explain`） | 8-2 |
 | `crates/miyu-config/src/problem.rs`、`problem/tell.rs` | 报错：原因码、行列、收到的原文、离得最近的键名（`problem.rs`）；照一种语言说成话：期望、改法、现在照什么用着（`tell.rs`） | 8-2 |
-| `crates/miyu-config/src/edit.rs` | 改一项、删一项：只动那一项，别的字节一个不变 | 8-3 |
-| `crates/miyu-config/src/secret.rs` | `{ secret = … }`、`{ env = … }` 的写法，密钥的名字 | 8-5 |
-| `crates/miyu-store/src/config_file.rs` | 读配置文件：没有的是空的、上限、开头的 BOM、UTF-8、版本（8-2）。写：顺着链接、先写临时文件再替换、同步（8-3） | 8-2、8-3 |
+| `crates/miyu-config/src/edit.rs` | 改一项、删一项：照 `toml_edit` 记下的位置只换那一段字，别的字节一个不变；新文件第一行 `#:schema`；人敲的字、协议上 JSON 的值照类型读（`input`、`from_json`） | 8-3 |
+| `crates/miyu-config/src/secret.rs` | 密钥（8-5）：名字的写法（`valid_name`）；配置里的引用 `Reference`（`{ secret = … }`、`{ env = … }`，TOML、JSON、人敲的三种读法）；取出来的密钥 `Secret`（`Debug` 只印 `Secret(…)`）；密钥文件的字怎么读（`parse_file`）、怎么改一行（`set_in`、`unset_in`，经 `edit::apply`，它 8-5 起认只有一段的键）；引用取不到的报警告（`missing`） | 8-5 |
+| `crates/miyu-store/src/config_file.rs` | 读配置文件：没有的是空的、上限、开头的 BOM、UTF-8、版本（8-2），记下有没有 BOM（8-3）。写（`write`）：顺着链接、先写临时文件再替换、同步、替换前再读一次、Windows 上重试（8-3）。临时文件的名字和生成的文件共用 `durable.rs` 的 `temp_name` | 8-2、8-3 |
 | `crates/miyu-store/src/generated.rs` | 核心生成的派生文件：和磁盘上的逐字节比，一样的不写，不一样的先写临时文件再替换 | 8-1 |
 | `crates/miyu-store/src/human.rs` | 给人看的字多一格 `config`，读好的字照 `Words` 交给配置清单 | 8-1 |
-| `crates/miyu-store/src/journal.rs` | 系统日志、账号日志 `journal.jsonl`：打开、截半行、追加一条 | 8-3 |
-| `crates/miyu-store/src/watch.rs` | 监视几个目录，按文件名认，合并连着来的变动 | 8-4 |
-| `crates/miyu-store/src/secrets.rs` | 密钥文件：读、写，Unix 上 0600 | 8-5 |
-| `crates/miyu-endpoint/src/config.rs`、`config/` | 配置服务：手里的几份文件、当前的最终值（8-2）；改、重读、推送、推送的订阅（8-3、8-4）。`config/file.rs` 一份文件读好的样子，`config/project.rs` 往上找项目配置，`config/methods.rs` 三个查询，`config/wire.rs` 协议上的写法 | 8-2 起 |
+| `crates/miyu-store/src/journal.rs` | 系统日志、账号日志 `journal.jsonl`：每追加一条都重新打开、截半行、读最后一行接着数 `seq`、追加、同步 | 8-3 |
+| `crates/miyu-store/src/watch.rs` | 监视几份文件所在的目录（`notify`），照真实的位置和文件名认，只读的动静不理，一份 200 毫秒没有新的变动了才交出去；系统的监视起不来的退回轮询，交回原因 | 8-4 |
+| `crates/miyu-store/src/secrets.rs` | 密钥文件（8-5）：照配置文件的规矩读，另看组、别人读不读得到（`Stored::open`）；照配置文件的规矩写，Unix 上一律 0600，临时文件建的时候就是（`config_file::write_with` 的 `Mode::Private`、`durable::create_temp_with`） | 8-5 |
+| `crates/miyu-endpoint/src/config.rs`、`config/` | 配置服务：手里的几份文件、当前的最终值（8-2）；改、重读（8-3）；推送、推送的订阅（8-4）。它住在核心家底的一把锁里（`Core::config`）。`config/observe.rs` 监视看到手改、`config.set` 写之前的重读（8-4），`config/hub.rs` 换上新的一份交给会话、核心，推给订阅着的连接（8-4），`config/push.rs` 的 `config.changed`（8-4），`config/file.rs` 一份文件读好的样子（8-3 起连同字和 BOM），`config/project.rs` 往上找项目配置，`config/methods.rs` 三个查询，`config/set.rs` 的 `config.set`（8-3），`config/journal.rs` 留痕（8-3），`config/wire.rs` 协议上的写法 | 8-2 起 |
 | `crates/miyu-endpoint/src/settings.rs` | 端点自己的两项：`ui.language`（8-1 声明，`language_for` 照它和系统的语言算出用哪种语言）、`permission.start_read_only`（8-2） | 8-1、8-2 |
-| `crates/miyu-endpoint/src/config/trust.rs` | 项目配置的信任：读 `trust.toml`、照仓库和版本认信不信任（8-2），`config.trust`（8-3） | 8-2、8-3 |
-| `crates/miyu-endpoint/src/secrets.rs` | `secret.*` 方法，照名字、环境变量取出密钥 | 8-5 |
+| `crates/miyu-endpoint/src/config/trust.rs`、`config/trusting.rs` | 项目配置的信任：读 `trust.toml`、照仓库和版本认信不信任（8-2），在字上记一个回答（`recorded`，8-3）；`trusting.rs` 是 `config.trust`（8-3） | 8-2、8-3 |
+| `crates/miyu-endpoint/src/secrets.rs`、`secrets/file.rs` | `secret.set`、`secret.delete`、`secret.list`，手改密钥文件被看到的（`observe`），留痕 `secret.changed`（8-5）。`secrets/file.rs` 是手里的那一份密钥文件（`SecretsFile`，住在配置服务里：`Config::secrets`），`Debug` 不印字 | 8-5 |
+| `crates/miyu-endpoint/src/config/environment.rs` | 核心的环境 `Environment`（8-5）：带 `env` 的项、`{ env = … }` 都照它取；核心照进程的，测试照手写的几个；`Debug` 不印值 | 8-5 |
 | `crates/miyu-store/src/env.rs` 的 `locale` | 系统的语言：`ui.language` 是 `auto` 时照它（第二条第 8 条）。先看 `LC_ALL`、`LC_MESSAGES`、`LANG`，都没设的用 `sys-locale` 看系统设置（`system_locale`，8-2） | 8-1、8-2 |
-| `crates/miyu-log/src/settings.rs`、`lib.rs` | `log.level`（8-1）。换级别的把手 `Guard::set_level`：读完配置换一次（8-2），运行中换（8-4） | 8-1、8-2、8-4 |
-| `crates/miyu-core/src/settings.rs` | 登记各模块的清单（`items`）。起来时读配置（`read`，8-2）、照 `log.level` 换运行日志的级别（`log_level`，8-2）、写 Schema 和参考文件（`generate`，8-1）、读密钥、开始监视 | 8-1 起 |
-| `crates/miyu-session/src/actor/` | 回合开始时取一份配置的快照，这一轮都用它 | 8-4 |
-| `crates/miyu-cli/src/config.rs`、`config/` | `miyu config` 的子命令：`get`、`check`、`explain`、`path`（8-2，`config/check.rs`、`render.rs` 印的样子、`paths.rs` 文件在哪），`set`、`unset`、`edit`、`trust`（8-3）。给人看的字在 `language/config.rs` | 8-2、8-3 |
-| `crates/miyu-cli/src/login.rs`、`login/` | `miyu login`、`miyu logout`：选、贴 key 不回显、列出、删 | 8-5 |
+| `crates/miyu-log/src/settings.rs`、`lib.rs` | `log.level`（8-1）。换级别的把手 `Guard::set_level`：读完配置换一次（8-2）；`Guard::levels` 交出同一个把手，运行中换（8-4） | 8-1、8-2、8-4 |
+| `crates/miyu-core/src/settings.rs` | 登记各模块的清单（`items`）；替还没进工作区的终端界面声明 `tui.startup`（`TuiSettings`，8-3）。起来时读配置（`read`，8-2；连同密钥文件，环境照进程的 `Environment::process`，8-5）、照 `log.level` 换运行日志的级别（`log_level`，8-2）、写 Schema 和参考文件（`generate`，8-1）；运行中跟着配置换（`follow`，8-4）；开始监视由核心的 `lib.rs` 调端点的 `Core::watch_config`（8-4） | 8-1 起 |
+| `crates/miyu-session/src/config.rs`、`actor/` | 会话从哪取配置（`ConfigSource`、`Configs`），回合开始时取一份快照（`TurnConfig`），这一轮的每一次请求都交给端口（`ModelPort::call` 多一格） | 8-4 |
+| `crates/miyu-endpoint/src/subscriptions/config.rs` | 配置的订阅：一个连接至多一个转发任务，照连接这一刻的语言写 `config.changed`，掉队推 `resync`；`config.set` 的回应经它，排在推送后面 | 8-4 |
+| `crates/miyu-core/src/settings/follow.rs` | 运行中配置换了：`log.level` 当场换级别，`ui.language` 变了重写生成的三份 | 8-4 |
+| `crates/miyu-cli/src/config.rs`、`config/` | `miyu config` 的子命令：`get`、`check`、`explain`、`path`（8-2，`config/check.rs`、`render.rs` 印的样子、`paths.rs` 文件在哪），`set`、`unset`（`config/set.rs`）、`edit`（`config/edit.rs`）、`trust`（`config/trust.rs`），人那一头的接口 `Console`（`config/console.rs`：是不是终端、读一行、开编辑器，8-3）。给人看的字在 `language/config.rs`、`language/config_write.rs`（8-3） | 8-2、8-3 |
+| `crates/miyu-cli/src/login.rs`、`login/pick.rs` | `miyu login`、`miyu logout`：选、贴 key 不回显、列出、删（8-5，`cli/login.md`）。读 key 经 `config/console.rs` 的 `Console`（关掉回显读一行用 `rpassword`）；给人看的字在 `language/login.rs` | 8-5 |
 | `crates/miyu-cli/src/help/{zh,en}/config.txt`、`login.txt`、`logout.txt` | 帮助页：`config.txt`（8-2，`miyu config` 和四个子命令印的都是它）、`login.txt`、`logout.txt`（8-5）；主帮助页多一行 `config` | 8-2、8-5 |
 | `resources/core/human/{zh,en,ja}.json` | 多一格 `config`：每一项的名字、说明、选项名，页和组的名字。`said` 里多 `config/*`：报错的话、参考文件里的几句 | 8-1、8-2 |
 | `docs/designs/samples/config/` | 样本：两份 JSON Schema、参考文件、命令行印的几样 | 8-1 起 |
-| `docs/designs/samples/journal/` | 样本：`config.changed`、`secret.changed` | 8-3、8-5 |
+| `docs/designs/samples/journal/` | 样本：`config.changed.jsonl`、`trust.changed.jsonl`（8-3），`secret.changed.jsonl`（8-5） | 8-3、8-5 |
 
-分层照 `01-架构.md` 第九节。`miyu-config` 放第 2 层（8-1 登记）：解析、合并、校验、改字都是纯的，单元测试不用磁盘。用白名单里的 `serde`、`serde_json`（JSON Schema 用 `serde_json` 写，参考文件是自己拼的字），和 8-2 加进白名单的 `toml_edit`（0.25，只开 `parse`：读的时候记下每一格的位置；8-3 改一项时再开写的功能）。端点读 `trust.toml` 也用它。真的读写文件、监视在 `miyu-store`（第 3 层）。配置服务在 `miyu-endpoint`（第 4 层），会话 actor 在同一层，经一个 `tokio::sync::watch` 拿当前的最终值，不反过来引用端点。
+分层照 `01-架构.md` 第九节。`miyu-config` 放第 2 层（8-1 登记）：解析、合并、校验、改字都是纯的，单元测试不用磁盘。用白名单里的 `serde`、`serde_json`（JSON Schema 用 `serde_json` 写，参考文件是自己拼的字），和 8-2 加进白名单的 `toml_edit`（0.25，只开 `parse`：读的时候记下每一格的位置；8-3 改一项也只用它记的位置换字，不开写的功能）。端点读 `trust.toml` 也用它。真的读写文件、监视在 `miyu-store`（第 3 层）。配置服务在 `miyu-endpoint`（第 4 层），会话 actor 在同一层，经一个 `tokio::sync::watch` 拿当前的最终值，不反过来引用端点。
 
 每个模块在自己的 crate 里声明自己的几项（「一个模块一种职责」），`miyu-core/src/settings.rs` 把它们登记成一张表，加一个模块只加一行。
 
@@ -153,7 +156,7 @@ trusted = true
 | 网址 `url` | `"https://…"` | `http://`、`https://` 开头，解析得了 | 同上（`models.md`） |
 | 名字 `name` | `"deepseek"` | 小写字母开头，只有小写字母、数字、`-`、`_`，最长 64 个字符 | 同上 |
 | 引用 `reference` | `"deepseek/deepseek-v4"` | 指的东西要在，跨项查 | 同上（`models.md`） |
-| 密钥 `secret` | `{ secret = "deepseek" }`、`{ env = "DEEPSEEK_API_KEY" }` | 第九条 | 8-5 |
+| 密钥 `secret` | `{ secret = "deepseek" }`、`{ env = "DEEPSEEK_API_KEY" }`，行内表、有表头的表都认 | 正好一格；`secret` 的照名字的写法，`env` 的不是空的、没有 `=`；写错的 `wrong_type`。不由环境变量压过（第九条） | 8-5（类型加了，清单里用它的项随 8-6） |
 | 列表 `list` | `[…]` | 每一个照元素的类型查 | 第一项用到它的那一步 |
 | 表 `table` | `[a.b]`，或者 `{ … }` | 键照名字的写法，值照元素的类型查 | 同上 |
 
@@ -168,8 +171,9 @@ trusted = true
 | `new_session` | 以后开的会话。已经开着的会话不跟着变 | `permission.start_read_only`、`models.chat`（`models.md`） |
 | `next_turn` | 下一个回合开始时（第八条） | 供应商的地址、key（`models.md`） |
 | `restart` | 重启核心 | M8 没有 |
+| `head_start` | 头下次启动。头自己读、启动时读一次的项，核心不管它（8-3） | `tui.startup` |
 
-`new_session` 是这一页加的：G7 那张表只有三种，可「新会话默认用什么」这类项，改了以后已经开着的会话本来就不该跟着变，说成「下一个回合」会让人以为当前会话也换了（「要跟着改的别的页」`14-配置.md`）。
+`new_session`、`head_start` 是这一页加的（`head_start` 8-3 施工时照 `tui.startup` 加）：G7 那张表只有三种，可「新会话默认用什么」这类项，改了以后已经开着的会话本来就不该跟着变，说成「下一个回合」会让人以为当前会话也换了（「要跟着改的别的页」`14-配置.md`）。
 
 **收紧** `tighten`：项目配置信任过才算，算了也只能让限制更严（G3 照原样，2026-10-01 项目主人再确认）。每一项写明哪个方向是严：
 
@@ -233,7 +237,7 @@ miyu_config::settings! {
 - `LogSettings::ITEMS`：清单里的这几项，照声明的先后。
 - `LogSettings::from(&最终值)`（`From<&Values>`）：带类型的设置，代码只经它读值，不自己读文件、不另写常量（`14-配置.md` 第十节）。最终值 `Values` 是键到值，8-2 的分层合并交出它；8-1 还不读配置，用的是 `Values::defaults(清单)`，全是默认值。最终值里没有的项照默认值，最终值都校验过，这一步不会出错。字段的类型要能从值变过来（`From<&Value>`）：选项用 `String`，拿到的就是那个选项。
 
-**登记**（`crates/miyu-core/src/settings.rs`）：`MODULES` 一个模块一行，现在三行，照这个先后：`UiSettings::ITEMS`、`PermissionSettings::ITEMS`（`miyu-endpoint`，8-2）、`LogSettings::ITEMS`（`miyu-log`）。`items()` 把它们接成一张表。设置页的页照第一次出现的先后排：通用、权限、高级。
+**登记**（`crates/miyu-core/src/settings.rs`）：`MODULES` 一个模块一行，现在四行，照这个先后：`UiSettings::ITEMS`、`TuiSettings::ITEMS`（8-3，终端界面还没进工作区，先在这个文件里替它声明，并进来以后挪进它自己的 crate）、`PermissionSettings::ITEMS`（`miyu-endpoint`，8-2）、`LogSettings::ITEMS`（`miyu-log`）。`items()` 把它们接成一张表。设置页的页照第一次出现的先后排：通用、界面、权限、高级。
 
 **M8 的配置项**：
 
@@ -242,10 +246,12 @@ miyu_config::settings! {
 | `ui.language` | 选项 `auto`、`zh`、`en`、`ja` | `auto`，跟着系统 | 系统、个人 | 不能写 | `now` | 8-1 声明，8-2 用上 |
 | `log.level` | 选项 `error`、`warn`、`info`、`debug`、`trace`、`off` | `info` | 系统 | 不能写 | `now`，`MIYU_LOG` 压过 | 8-1 声明，8-2 读，8-4 当场换 |
 | `permission.start_read_only` | 开关 | `false` | 系统、个人、项目 | `true_only` | `new_session` | 8-2 |
+| `tui.startup` | 选项 `new`、`recent` | `new`，开一个新会话 | 系统、个人 | 不能写 | `head_start` | 8-3 |
 | `providers.<名字>.*`、`models.*`、`pools.<名字>.*` | 见 `models.md` | | | | | 8-6 到 8-8 |
 
 - `ui.language` 的 `auto`：跟着系统，终端的头照系统的语言，网页照浏览器（第二条第 8 条，2026-10-01 项目主人定）。它的界面提示：`general` 页的 `display` 组，常用项，下拉。`log.level` 的：`advanced` 页的 `log` 组，下拉。
 - 项目配置能写的，M8 里只有 `permission.start_read_only` 这一项（2026-10-01 项目主人定）。
+- `tui.startup`：终端界面启动时开一个新会话（`new`），还是接着最近的那一个（`recent`）。头自己用 `config.get` 读，核心不管它（2026-10-01 主会话和终端界面定）。界面提示：`interface` 页（界面）的 `tui` 组（终端界面），下拉。
 - `log.level` 只能放在系统配置里：运行日志是整个核心的，一个人设了不能算数。
 - 蓝图里写着「配置那一步能改」的几个数（压缩的几个数、`jobs.*`、回收处留几天、空闲多久退出）这次不挪：只挪真要调的（2026-10-01 主会话定）。有人要改哪一个，再为它开一张小单。
 
@@ -283,7 +289,7 @@ miyu_config::settings! {
 | `expected` | 期望什么，给人看的，照连接的语言 |
 | `got` | 收到了什么：原文照抄，最多 80 个字符，多了截掉加 `…`。密钥文件里的问题不带这一格 |
 | `suggest` | 拼错了的键名，离得最近的那一个。没有不写 |
-| `using` | 现在照什么用着。一项的问题（`wrong_type`、`not_an_option`、`wrong_layer`、`not_tightening`）写 `{"value": …, "from": "default" 或 "system" 或 "personal"}`：丢掉这一项以后，它那一层下面几层合出来的。整份文件的问题写 `{"from": "last_good"}` 或 `{"from": "nothing"}`（8-2 起来时读不好的都是 `nothing`，`last_good` 随 8-4 的重读）。不认识的键、一组键写成值的没有。`config.check` 查的是一段字：一项的问题照核心手里另外几层算，整份的问题不写 |
+| `using` | 现在照什么用着。一项的问题（`wrong_type`、`not_an_option`、`wrong_layer`、`not_tightening`）写 `{"value": …, "from": "default" 或 "system" 或 "personal"}`：丢掉这一项以后，它那一层下面几层合出来的。整份文件的问题写 `{"from": "last_good"}` 或 `{"from": "nothing"}`：起来时就读不好的是 `nothing`，重读时读不好、照上一次读好的用的是 `last_good`（8-4）。不认识的键、一组键写成值的没有。`config.check` 查的是一段字：一项的问题照核心手里另外几层算，整份的问题不写 |
 | `message` | 整句给人看的话，照连接的语言，把上面几样说成一句：错在哪、期望、收到、改法、现在照什么用（第四条）。在哪不在句子里：头照 `file`、`line`、`column` 自己写在前面 |
 
 | 原因码 | 级别 | 什么时候 | 哪一步 |
@@ -302,7 +308,7 @@ miyu_config::settings! {
 | `not_tightening` | 错误 | 项目配置写得比下面几层宽 | 8-2 |
 | `untrusted_project` | 警告 | 项目配置还没信任，或者信任以后内容变了：这一份先不用（第三条第 2 条） | 8-2 |
 | `unknown_secret` | 警告 | 引用的密钥还没设 | 8-5 |
-| `env_not_set` | 警告 | 引用的环境变量核心起来时没有设 | 8-5 |
+| `env_not_set` | 警告 | 引用的环境变量核心起来时没有设（设成空的也算没设） | 8-5 |
 
 #### 协议（8-2 到 8-5）
 
@@ -342,14 +348,14 @@ miyu_config::settings! {
 回应：
 
 ```json
-{"files":{"personal":{"file":"home/admin/settings.toml","version":"sha256:…"},"project":{"file":"~/src/app/.miyu/config.toml","trusted":true,"version":"sha256:…"},"system":{"file":"system/config.toml","version":null}},"items":{"ui.language":{"origin":{"file":"home/admin/settings.toml","layer":"personal","line":3},"value":"zh"}},"problems":[]}
+{"files":{"personal":{"file":"home/admin/settings.toml","version":"sha256:…"},"project":{"file":"~/src/app/.miyu/config.toml","trusted":true,"version":"sha256:…"},"secrets":{"file":"system/secrets.toml"},"system":{"file":"system/config.toml","version":null}},"items":{"ui.language":{"origin":{"file":"home/admin/settings.toml","layer":"personal","line":3},"value":"zh"}},"problems":[]}
 ```
 
 - `items`：键到 `{value, origin}`。
 - `all` 是 `true` 的，每一项多一格 `layers`：`[{origin, value, used}]`，从上往下，默认值在最后。`used` 是不是它生效。项目配置里写了、不算的（还没信任、不比下面宽、不能写在这一层），`used` 是 `false`，另带 `problem`，是那一条问题的原因码。
-- `files`：每一层的文件在哪、版本（第五条第 6 条）。文件还没有的，`version` 是 `null`。没写 `cwd`、没找到项目配置的，没有 `project`。
+- `files`：每一层的文件在哪、版本（第五条第 6 条）。文件还没有的，`version` 是 `null`。没写 `cwd`、没找到项目配置的，没有 `project`。另有 `secrets`：`{"file": "system/secrets.toml"}`，只说在哪，不给版本：版本是整份密钥的哈希（8-5）。
 - `files.project` 多一格 `trusted`：`true` 信任过这一份，`false` 选了不信任，`null` 还没问过或者信任以后内容变了。不是 `true` 的，项目配置不算进最终值（第三条第 2 条）。
-- `problems`：这几份文件现在的问题，全部，不只 `keys` 那几项的。
+- `problems`：这几份文件现在的问题，全部，不只 `keys` 那几项的。8-5 起连同引用取不到的（`unknown_secret`、`env_not_set`，在引用它的那份文件里），和密钥文件的（`file` 是 `system/secrets.toml`，不带 `got`）。
 - 写了清单里没有的键：`unknown_config_key`，同 `config.schema`。
 - 不带 `cwd` 就不碰项目配置。`cwd` 照 `session.create` 的写法（`protocol.md`「工作目录太宽」第 2 条换成真实的位置），换不成的当没找到项目配置。
 
@@ -379,16 +385,16 @@ miyu_config::settings! {
 ```
 
 - 每一项：`value` 这一层现在的值（删掉的不写）。`effective`、`origin` 算上别的层以后的最终值和来源（不算项目配置）。`applies` 什么时候生效。
-- 一项都没变的：`{"keys":{},"version":<现在的版本>}`，什么都不写。
+- 一项都没变的：`{"keys":{},"version":<现在的版本>}`，什么都不写，也不记日志。这一层本来就是这个值的、本来就没写又要删的，都算没变；文件还没有、又只是删的，不新建。
 
 1. `changes`、`text` 正好写一个。两个都写、都不写，`changes` 是空的，一项里 `value`、`input`、`unset` 不是正好一个，同一个键写了两次，`layer` 不是那两种，写了 `text` 没写 `version`：`bad_params`。
 2. 写了清单里没有的键：`unknown_config_key`。
-3. 一次的几项一起查、一起写：有一项不对（类型、范围、不能写在这一层），整条不收，`config_invalid`，`data.problems` 里是每一处。
-4. 文件现在读不进来（`syntax` 这类整份的问题），又是改几项的：`config_file_broken`，`data.problems` 里是那几处。整份换的不管这一条。
-5. 写了 `expect`、对不上：`config_conflict`，`data.current` 是这一层里这一项现在的样子（`{"value": …}` 或 `{}`），什么都没写。几项里有一项对不上，整条不收。
-6. 整份换的：`version` 和现在文件的版本对不上，`config_conflict`，`data.version` 是现在的版本。新的字里有错误（警告不算）：`config_invalid`。
-7. 收下的：写盘（第五条）、记日志（第六条）、推 `config.changed`（8-4 起，给订阅着的连接，发这一条的那个连接先见推送、后见回应），再回应。
-8. 先落盘，后回应：回应到的时候，文件已经写好、同步过了。
+3. 一次的几项一起查、一起写：有一项不对（类型、范围、不能写在这一层），整条不收，`config_invalid`，`data.problems` 里是每一处。这几条问题查的是请求，不带 `file`、行列，也不说「先照…用着」（什么都没变，8-3 施工时定）。
+4. 文件现在读不进来（`syntax` 这类整份的问题），又是改几项的：`config_file_broken`，`data.problems` 里是那几处。这一项所在的那一组在文件里写成了别的东西、放不进去的（`ui = "zh"`、`[[ui]]`，第五条第 2 条第 3 款）也是它，`data.problems` 是这份文件现在的全部问题。整份换的不管这一条。
+5. 写了 `expect`、对不上：`config_conflict`，`data.current` 是这一层里这一项现在的样子（`{"value": …}` 或 `{}`），什么都没写。几项里有一项对不上，整条不收，`data.current` 是头一个对不上的那一项的。这一项在文件里写错了（丢掉了）的当没写，是 `{}`。
+6. 整份换的：`version` 和现在文件的版本对不上，`config_conflict`，`data.version` 是现在的版本。新的字里有错误（警告不算）：`config_invalid`，`data.problems` 里只有那几处错误（照 `config.check` 的写法，不带 `file`）。
+7. 收下的：写盘（第五条）、记日志（第六条）、推 `config.changed`（给订阅着的连接，发这一条的那个连接先见推送、后见回应，8-4），再回应。写了盘的都推，整份换只动了注释的也推（`keys` 是空的）：头手里的版本跟着换。第 3 到 6 条都在第五条第 2 条第 1 款重读过的文件上查：手改过的照新的字。替换前发现这一瞬间有人手改了，从头再来，三次还不行的：`config_conflict`，`data.version` 是现在的版本（第五条第 6 条）。
+8. 先落盘，后回应：回应到的时候，文件已经写好、同步过了。配置服务同时换上新的最终值：之后握手的连接、造的会话照新的；已经连着的连接下一句照新的语言说，开着的会话下一个回合照新的（第八条，8-4）。
 
 **`config.check`**（查询，8-2）：校验一段配置的字，不生效。给 `miyu config edit`、`miyu config check` 和编辑器插件用。
 
@@ -412,17 +418,17 @@ miyu_config::settings! {
 1. 缺了格、类型不对：`bad_params`。
 2. 这个目录找不到项目配置：`no_project_config`。
 3. `version` 和这份文件现在的版本对不上（人看过以后它又变了）：`config_conflict`，`data.version` 是现在的版本。人信任的只能是他看过的那一份。
-4. 收下的：写进 `trust.toml`（第三条第 3 条），记账号日志 `trust.changed`（第六条），落了盘才回应。
+4. 收下的：写进 `trust.toml`（第三条第 3 条），记账号日志 `trust.changed`（第六条），落了盘才回应。写之前重读 `trust.toml`，手改过的在新的字上记；替换前发现有人手改，重来，三次还不行的：`config_conflict`。`trust.toml` 读不懂（手改坏了）、写不成：`internal_error`，记一条 `WARN config not written`，什么都没变（8-3 施工时定）。
 5. 不推送：项目配置不推（第三条第 5 条）。下一个回合、下一个会话照新的。
 
 **`session.create`、`session.send` 的回应多一格** `untrusted_project`（8-2）：这一次实际干活的目录找得到项目配置，又还没问过（`trust.toml` 里没有这个仓库，或者记的内容和现在的不一样），写它在哪，写法同来源的 `file`。信任着的、选了不信任的、没有项目配置的，不写。头照它问人：终端界面里问（M9），`miyu ask` 印一行（第十条第 10 条）。
 
-**订阅配置的推送**（8-4）：`subscribe`、`unsubscribe` 的 `stream` 多一种 `config`，不带 `session`。
+**订阅配置的推送**（8-4）：`subscribe`、`unsubscribe` 的 `stream` 多一种 `config`，不带 `session`、`after`。一个连接至多一个：还在推的再订阅还是那一个，掉了队的换一个新的。
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | `stream` | `"events"` 或 `"config"`，必写 | `config` 是配置的推送 |
-| `session` | 字符串 | `events` 必写。`config` 不写，写了是 `bad_params` |
+| `session` | 字符串 | `events` 必写。`config` 不写，写了是 `bad_params`（`after` 同样） |
 
 回应 `{}`。订阅了以后，系统配置、个人设置每变一次，推一条 `config.changed`。读得太慢、掉了队，推 `resync`，`params` 是 `{"stream":"config"}`，这个订阅停了，头重新订阅、`config.get` 补上。
 
@@ -451,9 +457,9 @@ miyu_config::settings! {
 | `name` | 字符串，必写 | 密钥的名字，照名字的写法 |
 | `value` | 字符串，必写 | 密钥本身 |
 
-回应 `{"replaced": <布尔>}`，落了盘才回：`replaced` 是这个名字原来有没有设。存的是去掉前后空白的值（粘贴时常带着换行）。名字不合写法、`value` 去掉前后空白是空的、有控制字符、超过 16 KiB：`bad_params`。M8 只写系统的 `system/secrets.toml`。成员自己的随多用户，那时加一格 `scope`，只加不改。
+回应 `{"replaced": <布尔>}`，落了盘才回：`replaced` 是这个名字原来有没有设。存的是去掉前后空白的值（粘贴时常带着换行）。名字不合写法、`value` 去掉前后空白是空的、有控制字符、超过 16 KiB：`bad_params`。密钥文件现在读不进来（手改坏了）、这个名字在文件里写成了一张表：`config_file_broken`，`problems` 是密钥文件的问题，一个字节不动。写不成、替换前一连三次有人手改：`internal_error`（8-5）。M8 只写系统的 `system/secrets.toml`。成员自己的随多用户，那时加一格 `scope`，只加不改。
 
-**`secret.delete`**（命令，8-5）：`name`，必写。回应 `{}`。没有这个密钥：`unknown_secret`。
+**`secret.delete`**（命令，8-5）：`name`，必写。回应 `{}`。没有这个密钥：`unknown_secret`。密钥文件读不进来、写不成同 `secret.set`。
 
 **`secret.list`**（查询，8-5）：不带参数。只列名字和是否已设置，从不交出值：
 
@@ -471,7 +477,7 @@ miyu_config::settings! {
 | `unknown_config_key` | `config.schema`、`config.get`、`config.set` 写了清单里没有的键 | `problems` | 8-2 |
 | `config_invalid` | `config.set` 的值不对、不能写在这一层，整份换的字里有错误 | `problems` | 8-3 |
 | `config_conflict` | `config.set` 的 `expect`、`version`，`config.trust` 的 `version` 对不上 | `current` 或 `version` | 8-3 |
-| `config_file_broken` | 文件现在读不进来，没法只改几项 | `problems` | 8-3 |
+| `config_file_broken` | 文件现在读不进来，没法只改几项；`secret.set`、`secret.delete` 时密钥文件读不进来（8-5） | `problems` | 8-3 |
 | `no_project_config` | `config.trust` 时这个目录找不到项目配置 | | 8-3 |
 | `unknown_secret` | `secret.delete` 删的密钥没有 | | 8-5 |
 
@@ -485,27 +491,33 @@ miyu_config::settings! {
 
 `config.changed`：
 
+样本 `docs/designs/samples/journal/config.changed.jsonl`（一行，文件里 `seq` 从 1 数起；`endpoint` 的 `config/journal/tests.rs` 照它逐字节比）：
+
 ```json
-{"seq":3,"at":"2026-10-01T08:00:00.000Z","kind":"config.changed","by":{"kind":"person","account":"admin"},"cause":"config-9f2c4e1a7b3d5f60-1","body":{"layer":"personal","file":"home/admin/settings.toml","via":"set","changes":[{"key":"ui.language","old":"en","new":"zh"}]}}
+{"seq":1,"at":"2026-10-01T08:00:00.000Z","kind":"config.changed","by":{"kind":"person","account":"admin"},"cause":"config-9f2c4e1a7b3d5f60-1","body":{"layer":"personal","file":"home/admin/settings.toml","via":"set","changes":[{"key":"ui.language","old":"en","new":"zh"}]}}
 ```
 
 - `body` 的格照这个先后：`layer`、`file`、`via`（`set`、`edit`、`file`）、`changes`。
-- `changes` 每一项：`key`，`old` 改之前这一层的值，`new` 改之后的。之前没写的不带 `old`，删掉的不带 `new`。只记清单里的项，不认识的键不记。
+- `changes` 每一项：`key`，`old` 改之前这一层的值，`new` 改之后的。之前没写的不带 `old`，删掉的不带 `new`。只记清单里的项，不认识的键、写错丢掉的、不能写在这一层的不记。照键名排。整份换的只动了注释、没有一项变了的，照样记一条，`changes` 是空的（落了盘就留痕，8-3 施工时定）。
 - 手改被看到的（`via` 是 `file`）：`by` 是 `{"kind":"kernel"}`，没有 `cause`。谁手改的核心不知道。
 
 `secret.changed`（8-5）：
 
+样本 `docs/designs/samples/journal/secret.changed.jsonl`（`endpoint` 的 `secrets/tests.rs` 照它逐字节比）：
+
 ```json
-{"seq":4,"at":"2026-10-01T08:01:00.000Z","kind":"secret.changed","by":{"kind":"person","account":"admin"},"cause":"secret-9f2c4e1a7b3d5f60-1","body":{"name":"deepseek","action":"set","via":"set"}}
+{"seq":1,"at":"2026-10-01T08:01:00.000Z","kind":"secret.changed","by":{"kind":"person","account":"admin"},"cause":"secret-9f2c4e1a7b3d5f60-1","body":{"name":"deepseek","action":"set","via":"set"}}
 ```
 
-- `action`：`set` 新设、`replaced` 换掉、`deleted` 删掉。`via`：`set`（经 `secret.set`、`secret.delete`）、`file`（手改被看到的，`by` 同上）。
+- `body` 的格照这个先后：`name`、`action`、`via`。`action`：`set` 新设、`replaced` 换掉、`deleted` 删掉。`via`：`set`（经 `secret.set`、`secret.delete`）、`file`（手改被看到的，`by` 是内核、没有 `cause`）。手改一次变了几个名字的，照名字的先后一个一条。
 - 只记名字，从不记值（`07-存储.md` 第九节）。
 
 `trust.changed`（8-3）：
 
+样本 `docs/designs/samples/journal/trust.changed.jsonl`：
+
 ```json
-{"seq":5,"at":"2026-10-01T08:02:00.000Z","kind":"trust.changed","by":{"kind":"person","account":"admin"},"cause":"config-9f2c4e1a7b3d5f60-2","body":{"path":"~/src/app","version":"sha256:…","trusted":true}}
+{"seq":1,"at":"2026-10-01T08:02:00.000Z","kind":"trust.changed","by":{"kind":"person","account":"admin"},"cause":"config-9f2c4e1a7b3d5f60-2","body":{"path":"~/src/app","version":"sha256:…","trusted":true}}
 ```
 
 - `path`：仓库在哪（`.miyu` 所在的那一层），写法同 `trust.toml`。`version`：信任、不信任的是哪一份。`trusted`：信不信任。手改 `trust.toml` 被看到的，照 `config.changed` 的规矩多一格 `via`（`file`），`by` 是内核。
@@ -526,7 +538,7 @@ miyu_config::settings! {
 | 选项 | 做什么 | 哪几个子命令认 |
 |---|---|---|
 | `--system` | 系统配置 | `set`、`unset`、`edit`、`check`、`path` |
-| `--project` | 当前目录的项目配置 | `edit`、`check`、`path` |
+| `--project` | 当前目录的项目配置 | `edit`、`check`、`path`；`set` 也认，认了说项目配置只能手改、退出码 2 |
 | `--format text\|json` | `text` 给人看（默认），`json` 给脚本 | `get`、`check`、`explain` |
 | `--yes`、`--no` | 信任、不信任，不问 | `trust` |
 
@@ -568,11 +580,11 @@ miyu_config::settings! {
 9. JSON Schema：draft-07。最上面三格 `$schema`、`properties`、`type: object`。键照 `.` 分段，前几段是一层层的表，每一张写成 `{"properties": {…}, "type": "object"}`；最后一段是这一项的属性：`title` 是名字，`description` 是说明接上「能写什么、能放在哪几层、什么时候生效」那几句（`config/schema-description`、`config/facts`），`default` 是默认值，选项写 `type: string` 和 `enum`（照清单的先后）；整数、小数的 `minimum`、`maximum` 随这几种类型加。不写 `additionalProperties: false`：不认识的键只是警告（G8），编辑器也不该标成错。格照名字的字母先后排，两格缩进，最后一个换行。这一层没有一项能放的，`properties` 是空的。
 10. 参考文件：开头两行注释（`config/reference-header`、`config/reference-where`）说明它是生成的、改它没有用、要改的写在哪。接着键照表分开：表是键去掉最后一段，表照名字的字母先后，表里的项也照字母先后（不照登记的先后：和 `miyu config get` 一样好找）。表和表之间、项和项之间空一行。每一项先两行注释：名字和说明（`config/reference-item`）；能写什么、能放在哪几层、什么时候生效（`config/facts`）；再一行 `键 = 默认值`，值照 TOML 写（字写成双引号的字符串，引号、反斜杠、控制字符转义）。字里带换行的，每一行都写成注释。核心不读它。
 11. 「能写什么」「能放在哪几层」里几个里的一个照 `cli/main.md`「参数写错时」的连法：一个的就是它，两个用「或」，三个以上前面的用顿号（英文逗号）。连词、标点也是字，在 `said` 里：值（写成代码的）用 `config/or-values`，中文「或」两边空一格（`trace 或 off`）；层的名字这类字用 `config/or`，不空格（`系统配置或个人设置`）；前面的都用 `config/list`。
-12. `ui.language` 变了（第八条），这三份照新的语言重新生成（8-4）。
+12. `ui.language` 变了（第八条），这三份照新的语言重新生成（8-4，`miyu-core` 的 `settings/follow.rs`）：比的是照核心这边的系统语言算出的那一种，`auto` 换成系统本来就是的那一种，不重写。
 
 **二、读和分层**（8-2）
 
-1. 核心起来时，在找到资源目录以后、在套接字上等连接之前，读系统配置、管理员的个人设置和 `trust.toml`，密钥文件随 8-5（`core.md`「起来的先后」多一步）。读不进来不影响起不起得来（G8）：问题记下，那一层照空的算，有问题的每份记一条 `WARN config problems file=… errors=… warnings=…`。`trust.toml` 读不进来的照没有记录（每一份项目配置都当还没问过），记一条 `WARN trust not read file=… error=…`；里面写法不对的那一条不算。
+1. 核心起来时，在找到资源目录以后、在套接字上等连接之前，读系统配置、管理员的个人设置、`trust.toml` 和密钥文件（8-5，第九条）（`core.md`「起来的先后」多一步）。读不进来不影响起不起得来（G8）：问题记下，那一层照空的算，有问题的每份记一条 `WARN config problems file=… errors=… warnings=…`。`trust.toml` 读不进来的照没有记录（每一份项目配置都当还没问过），记一条 `WARN trust not read file=… error=…`；里面写法不对的那一条不算。
 2. 读一份文件（`miyu-store` 的 `config_file.rs`）：
    1. 没有这个文件：这一层是空的，版本 `null`，不算问题。
    2. 顺着链接找到本体再读（链接指向的不在数据根里也读）。读不了：`unreadable`。
@@ -591,15 +603,15 @@ miyu_config::settings! {
    - 整份的问题（`unreadable`、`too_big`、`not_utf8`、`syntax`）：TOML 读不懂，这份文件整份照上一次读好的用。起来时就读不好的，照空的。
    - 两种都记成问题，所有的头都看得到：`config.get` 的 `problems`、推送、握手的 `config_errors`、`miyu config check`。
 5. 合并（`merge.rs`）：默认值、系统配置、个人设置、项目配置，上面的盖掉下面的，每一项记下来源（「最终值和来源」）。带 `env` 的项，环境变量设了、不是空的、读得懂的，最后盖上去：去掉前后空白，选项不分大小写（交回清单里的写法，`MIYU_LOG` 原来就不分），开关只认 `true`、`false`。读不懂的当没设，照配置，记一条 `WARN MIYU_LOG not understood, using config value=…`（`log.md` 第 2 条跟着改）。环境变量只在核心起来时读一次。
-6. 配置服务（`miyu-endpoint` 的 `Config`，放在核心的家底里）手里有：每份文件在哪、版本、解析好的项、问题，信任的记录，起来时的环境变量，不算项目配置的最终值 `Resolved`。8-2 起来以后就不变：造会话时照它和项目配置合一次，会话不另拿。上一次读好的项、序号、经 `tokio::sync::watch` 交给会话随 8-4（有了重读才用得上）。
+6. 配置服务（`miyu-endpoint` 的 `Config`，放在核心的家底里）手里有：每份文件在哪、版本、解析好的项、问题，信任的记录，起来时的环境变量，不算项目配置的最终值 `Resolved`。8-2 起来以后就不变：造会话时照它和项目配置合一次。8-4 起每换上一份新的（`config.set` 写成了、手改被看到的、`config.trust` 记下了），整份放进 `tokio::sync::watch` 交给会话、核心（`config/hub.rs`）：会话在回合开始时从里面取（第八条第 3 条），核心照它换级别、重写生成的文件。读不进来的文件照上一次读好的项用（`last_good`）。
 7. `log.level`：运行日志装上时照 `MIYU_LOG`（没设、读不懂的是 `INFO`）。读完配置，照 `log.level` 的最终值换（`Guard::set_level`，`log.md`）：`MIYU_LOG` 设了、读得懂的就是它；读不懂的先记那一条 `WARN`。再记一条 `INFO log level level=… from=…`，`from` 是 `env`、`config`、`default`。
 8. 界面语言：握手时算这个连接的 `language`。`ui.language` 的最终值（默认值、系统配置、个人设置，项目配置不能写它）不是 `auto` 的，就是它。是 `auto` 的，跟着系统（2026-10-01 项目主人定），照这一次握手报的 `locale`：`zh` 开头的是 `zh`，`ja` 开头的是 `ja`，别的、没报的是 `en`。
    - 头报的 `locale` 是系统的语言。终端里的头照 `miyu-store` 的 `locale`，用 `sys-locale`：Unix 上先看 `LC_ALL`、`LC_MESSAGES`、`LANG`（和现在命令行认的一样），macOS 上这几个都没设的看系统的首选语言，Windows 上看用户的界面语言。网页照浏览器的 `navigator.language`（随 M9）。
    - 核心自己要用语言、又没有头的时候（生成 Schema 和参考文件，第一条第 6 条），照核心这边的 `locale`，认法同上。
-   - 8-2 握手时算一次，记在连接上：起来以后 `ui.language` 不变。8-4 能改了以后，连接记着头报的 `locale`，每次说话都照这时的 `ui.language` 重算，不用再握手。
+   - 连接记着头报的 `locale` 照 `auto` 算出的那一种（`hello.rs` 的 `Shaken`），每收到一条都照这时的 `ui.language` 重算（8-4），不用再握手。推 `config.changed` 时照推送带着的那一份配置算：改了语言的那一条推送已经是新的语言。
    - 核心拒绝时说的话现在只有中文、英文（`protocol.md`「给人看的字」），`ja` 的照英文。配置的名字、说明、报错的话照 `human/<语言>.json`，有日文。
 9. `permission.start_read_only`：`session.create` 造会话时，照这个会话实际干活的目录（`protocol.md`「工作目录太宽」以后的那个）算最终值，带上信任着的项目配置。是 `true` 的，`session.created` 的权限是「工作区，只读开着」。子会话照旧抄父会话的（`agents.md` 第一条第 1 条），不另算。
-10. `config_errors`：系统配置、个人设置里现在的错误数（密钥文件的随 8-5），握手时给。`miyu ask` 照它在最前面印一行（第十条第 10 条）。
+10. `config_errors`：系统配置、个人设置、密钥文件（8-5）里现在的错误数，握手时给。`miyu ask` 照它在最前面印一行（第十条第 10 条）。
 
 **三、项目配置**（8-2 读，8-3 记信任。G3 照原样，2026-10-01 项目主人再确认）
 
@@ -616,9 +628,9 @@ miyu_config::settings! {
    - 仓库挪了地方，路径对不上：当没有记录，再问一次。
    - M8 里还没有能问的界面：`miyu ask` 印一行提醒，人用 `miyu config trust` 看一眼再定（第十条第 10、11 条）。终端界面里当场问，随 M9。
 3. 信任怎么记：`config.trust`，写进 `trust.toml`，照第五条的规矩写盘。
-   - 一个仓库一条 `[[project]]`，三格：`path` 仓库在哪（换成真实的位置，家目录下的写成 `~/…`），`version` 答的是哪一份，`trusted` 信不信任。同一个仓库再答一次，新的盖掉旧的。
-   - 核心新建这份文件时写一行开头的注释（`config/trust-header`）。
-   - 手改它也认：照第七条监视，重读。
+   - 一个仓库一条 `[[project]]`，三格：`path` 仓库在哪（换成真实的位置，家目录下的写成 `~/…`），`version` 答的是哪一份，`trusted` 信不信任。同一个仓库再答一次，新的盖掉旧的：原地换那一条的 `version`、`trusted`，别的字节不动（有几条的换最后一条，读的时候也是它算）。没有这个仓库的，在末尾加一条，前面空一行。
+   - 核心新建这份文件时写一行开头的注释（`config/trust-header`，照这个连接的语言），下面直接接第一条。
+   - 手改它也认：`config.trust` 写之前重读一遍，手改过的在新的字上记，记完换上连手改的在内的记录（8-3）；照第七条监视，当场重读（8-4）：回答变了的、新加的仓库每个记一条 `trust.changed`（`via` 是 `file`，删掉的仓库不记：删掉就是还没问过），换上，交给会话，不推。手改坏了读不懂的，照上一次读好的用，记一条 `WARN trust not read`。
 4. 信任了也只认收紧：清单里写了 `Project` 的项，照 `tighten` 和下面几层合出来的比（「收紧」），宽的不算，报 `not_tightening`。别的项写了不算，报 `wrong_layer`。M8 里能写的只有 `permission.start_read_only`（2026-10-01 项目主人定）。
 5. 不监视项目配置本身：每一个回合开始时照会话这时的目录重读一次（第八条第 3 条），造会话时读一次。改了项目配置，下一个回合、下一个会话就照新的。内容变了，信任跟着失效，再问。
 6. 只手改：`config.set` 不收 `project`，`miyu config set --project` 是参数不对。`miyu config edit --project` 打开它，存盘前照样检查（第十条第 6 条）。
@@ -638,9 +650,9 @@ miyu_config::settings! {
 
 1. 只有核心写配置文件（G4）。一个配置服务，所有的改、重读排着队一件件办。
 2. 改几项（`changes`）：
-   1. 先把文件现在的字节读一遍。和上一次读的不一样（手改过）：先照第七条第 3 条当手改重读（推送、记日志随 8-4），再在新的字上改（G5 第 4 条）。
+   1. 先把文件现在的字节读一遍。和上一次读的不一样（手改过）：先照第七条第 3 条当手改重读，推送、记日志（`via` 是 `file`），再在新的字上改（G5 第 4 条）。和监视走同一条路（`config/observe.rs`）。
    2. 查 `expect`（第 1 条的新字上），对不上拒绝。
-   3. 在 `toml_edit` 的文档上只改这几项：已经有的，原地换值，行尾注释留着。没有的，放进 `[<键的前几段>]` 那张表，有这张表就接在它最后一个键后面，没有就在文件末尾新开，前面空一行。删掉的，连同它那一行删掉，表空了、里面也没有注释的，表头一起删。
+   3. 只改这几项：照 `toml_edit` 读的时候记下的位置，只换那一段字（不把整份读成可改的文档再写回去：写回去的样子由它定，前后字节比不住）。已经有的，原地换值，行尾注释留着。没有的，放进 `[<键的前几段>]` 那张表，有这张表就接在它最后一个键那一行后面（表里还没有键的接在表头那一行后面），没有就在文件末尾新开，前面空一行（已经空着一行的不再空，空文件不空）；只因为子表才有、没有表头的，当没有。那一组写成点号连着的键（`ui.langauge = …`）的，照样写成点号连着的；写成行内表（`ui = { … }`）的，接在行内表里。删掉的，连同它那一行删掉，表空了、里面也没有注释的，表头一起删；那张表在文件末尾的，连表头前面那一行空行一起删（新建再删回到原样）。行内表里的删掉这一格和它旁边的逗号。那一组写成了别的东西（`ui = "zh"`、`[[ui]]`、这一项本身是一张表）、改完读不懂的，放不进去：`config_file_broken`。
    4. 别的字节一个不动：注释、空行、顺序、不认识的键（S9）。
    5. 值的写法：字用双引号，照 TOML 转义。列表、表写成一行。换行照这份文件原来的（第一个换行是 `\r\n` 的用 `\r\n`，新文件用 `\n`）。
    6. 配置文件原来没有的，新建，第一行写 `#:schema` 和 Schema 的相对路径（系统配置是 `../state/config/config.schema.json`，个人设置是 `../../state/config/settings.schema.json`），空一行，再写这几项。已经有的文件不加这一行（G10）。
@@ -658,20 +670,20 @@ miyu_config::settings! {
 **六、留痕**（8-3，G5 第 6 条）
 
 1. 改动落了盘，照「系统日志、账号日志」的写法追加一条：系统配置的进系统日志，个人设置的进账号日志。一次 `config.set` 一条，`changes` 里是这一层真变了的那几项。`config.trust` 记一条 `trust.changed`，进账号日志。
-2. 日志的写法（`miyu-store` 的 `journal.rs`）：打开时照会话日志的规矩截掉最后那半行（`store.md` 第 6 条），读最后一行拿 `seq`。追加一行、`sync_data`。
+2. 日志的写法（`miyu-store` 的 `journal.rs`）：打开时照会话日志的规矩截掉最后那半行（`store.md` 第 6 条），读最后一行拿 `seq`。追加一行、`sync_data`。每追加一条都重新打开一次：改配置是很少的事，不用在内存里留一个开着的文件，手改过的也认得（8-3）。最后一行完整、却读不懂的（手改坏了）不往后写，当写不进去。
 3. 先写配置，后写日志：配置文件是真相，日志是留痕。日志写不进去（坏了、磁盘满了），记一条 `WARN journal not written file=… error=…`，配置照改、照推送、照回应。
-4. 手改被看到的（8-4），照样记一条，`via` 是 `file`。核心没在跑时的手改看不到，不记。
+4. 手改被看到的（8-4），照样记一条，`via` 是 `file`，`by` 是内核，没有 `cause`。只动了注释、空行的不记；项没变、问题变了的（改坏了、改好了）记一条，`changes` 是空的。核心没在跑时的手改看不到，不记。
 
 **七、监视**（8-4）
 
 1. 核心读完配置以后开始监视，用 `notify`：Linux 上是 inotify，macOS 上是 FSEvents，Windows 上是 ReadDirectoryChangesW。
-2. 看的是目录，不是文件，不递归：`system/`、`home/admin/`。配置文件、密钥文件是链接的，另外看它本体所在的目录。很多编辑器存盘是先写新文件再改名，看文件会跟丢（`14-配置.md` 第五节）。
+2. 看的是目录，不是文件，不递归：`system/`、`home/admin/`。配置文件、信任的记录、密钥文件是链接的，另外看它本体所在的目录（开始监视那一刻是链接的才认：之后才换成链接的，要等核心重启）。很多编辑器存盘是先写新文件再改名，看文件会跟丢（`14-配置.md` 第五节）。
    - 路径都先换成真实的位置再比：macOS 的 FSEvents 报的是真实的路径，`/var` 这类是链接，照原样比会认不出来。
-3. 一个目录里有变动，看是不是 `config.toml`、`settings.toml`、`secrets.toml`、`trust.toml` 这几个名字，别的不理。200 毫秒里没有新的变动了，再重读那一份。
+3. 一个目录里有变动，看是不是 `config.toml`、`settings.toml`、`trust.toml`、`secrets.toml`（8-5）这几个名字，别的不理；只读的动静（打开、读完关上）也不理，核心重读一遍也是这样的动静。一份 200 毫秒里没有新的变动了，再重读那一份，在监视自己的线程上。监视报错、事件太多丢了的，当这几份都变了，都重读一遍。开始监视以后先把几份都看一遍：读配置和开始监视之间的手改也认得。
    - 字节和上一次读的一样：什么都不做。核心自己写的也走这里，认得出来。
-   - 不一样：照第二条读、解析、合并。这一层变了的项、问题有了变化的，推 `config.changed`（`via` 是 `file`），记日志（第六条第 4 条），换上新的最终值（第八条）。
+   - 不一样：照第二条读、解析、合并，读不进来的照上一次读好的项用（`last_good`）。这一层变了的项、问题有了变化的，推 `config.changed`（`via` 是 `file`，不带 `by`），记日志（第六条第 4 条）、记 `INFO config changed`；都换上新的最终值（第八条）。只动了注释、空行的，换上（版本跟着换），不推、不记。
    - 文件被删了：这一层变成空的，照样推、记。
-4. 监视起不来（Linux 上 inotify 的名额用完了这类），记一条 `WARN config watch unavailable error=…`，退回每 2 秒看一次这几份文件的修改时间和长短（`notify` 的轮询）。
+4. 监视起不来（Linux 上 inotify 的名额用完了这类），记一条 `WARN config watch unavailable error=…`，退回每 2 秒看一次这几份文件的修改时间和长短（`notify` 的轮询）。轮询也起不来的，记同一条，不监视，核心照样起来。
 5. 网络文件系统上的变动可能收不到，手改以后要等核心重启（「还没有的」）。
 
 **八、生效**（8-4，G7）
@@ -682,50 +694,54 @@ miyu_config::settings! {
    - `next_turn`：第 3 条。
    - `restart`：M8 没有。有了以后，推送里写着 `restart`，界面上写「重启核心后生效」。
 2. 正在进行的回合不受影响。
-3. 回合开始时冻结一份快照：会话 actor 在记下 `turn.started` 的那一刻，从 `watch` 取当前的 `Resolved`，再照会话这时的目录读一次项目配置、合上，得到这一轮的配置，这一轮的每一次请求（出错再来、压缩的摘要请求也算）都照它。回合之间改的，下一轮才用上。M8 里用它的是供应商、模型那一块（8-6 起，`models.md`）。
+3. 回合开始时冻结一份快照：会话 actor 在记下 `turn.started` 以后、跑回合开始的挂接点那一刻（`RunTurnStartHooks`），从 `watch` 取当前的一份，照会话这时的目录（`Session::cwd`）读一次项目配置、合上（在阻塞线程里），得到这一轮的配置，这一轮的每一次请求（出错再来、压缩的摘要请求也算）都照它，经 `ModelPort::call` 交给端口。回合之间改的，下一轮才用上。不开回合的请求（手动压缩、清空单开的那一轮、回顾、起标题）照上一轮的；造会话、载入时先取一份。M8 里用它的是供应商、模型那一块（8-6 起，`models.md`）：8-4 的端口还用不上它。
 4. 进策略快照的项（例如以后压缩的几个数）变了：下一个回合开始时换一份快照，记 `session.policy_changed`（`02-内核.md` K3）。M8 没有这样的项，这条路随第一项进快照的配置做（「还没有的」）。
 
 **九、密钥**（8-5，G9）
 
-1. 文件 `system/secrets.toml`：一行一个，`名字 = "值"`，平铺，没有表。名字照名字的写法（小写字母开头，只有小写字母、数字、`-`、`_`，最长 64 个字符）。核心新建时写一行开头的注释（`config/secrets-header`，照管理员的界面语言）。
-2. 权限：Unix 上新建、替换时都是 0600，临时文件建的时候就是 0600。读的时候组、别人能读的，照用，记一条 `WARN secrets readable by others file=…`，不去改它（`miyu doctor` 以后报）。Windows 上照数据根继承的访问控制：用户目录本来只有本人、系统、管理员组能进。
-3. 核心起来时读一次，之后照第七条监视它：手改的重读，记 `secret.changed`（`via` 是 `file`），只记变了的名字。读不进来的，照配置文件的规矩报问题（不带 `got`），照上一次读好的用。这些问题和配置文件的一起出现在 `config.get` 的 `problems`、握手的 `config_errors`、`miyu config check` 里。
-4. 写：`secret.set`、`secret.delete` 照第五条写盘（只改那一行，注释留着），落了盘记 `secret.changed`，再回应。
+1. 文件 `system/secrets.toml`：一行一个，`名字 = "值"`，平铺，没有表。名字照名字的写法（小写字母开头，只有小写字母、数字、`-`、`_`，最长 64 个字符）。核心新建时写一行开头的注释（`config/secrets-header`，照发 `secret.set` 的那个连接的语言：M8 只有管理员，就是管理员的界面语言）。
+2. 权限：Unix 上新建、替换时都是 0600，临时文件建的时候就是 0600，不带原文件的权限位：手改松了的，经 Miyu 写一次就收回来。读的时候组、别人能读的（权限位里有 `0o044` 的任何一位，顺着链接看本体），照用，记一条 `WARN secrets readable by others file=…`，不去改它（`miyu doctor` 以后报）：起来时读、手改重读时各记一次。Windows 上照数据根继承的访问控制：用户目录本来只有本人、系统、管理员组能进。
+3. 核心起来时读一次（照配置文件的读法：没有的是空的、1 MiB、BOM、UTF-8），之后照第七条监视它：
+   - 字节一样的什么都不做。变了的重读，变了的名字每个记一条 `secret.changed`（`via` 是 `file`），照名字的先后；交给会话、核心，不推（密钥的推送随界面，「还没有的」）。
+   - TOML 读不懂的：报整份的问题（`syntax` 只取 `toml_edit` 原话的最后一行，不带它印的原文），照上一次读好的用（`last_good`），不记日志。
+   - 写错的一行只丢这一行（G8）：名字不合写法的报 `bad_format`，值不是去掉前后空白不空的字（数、表、空的）报 `wrong_type`，都是错误、不带 `got`、不说「现在照什么用着」。手写的值去掉前后空白就用，不另查控制字符、长短。
+   - 这些问题和配置文件的一起出现在 `config.get` 的 `problems`（`file` 是 `system/secrets.toml`）、握手的 `config_errors`、`miyu config check` 里。
+4. 写：`secret.set`、`secret.delete` 拿着配置服务的锁，先照第 3 条重读（那一瞬间之前的手改，先当手改记），读不进来的回 `config_file_broken`。照第五条写盘，只改那一行（`miyu_config::edit::apply`，它 8-5 起认只有一段、放在最上面那张表里的键：新的一行接在最后一个值后面，还没有值的放在第一张表的表头前面），注释、别的行一个字节不动；替换前有人手改，从重读重来，最多三次，还不行的 `internal_error`。落了盘记 `secret.changed`、`INFO secret changed`，换上，再回应。
 5. 配置里引用密钥（类型 `secret`）：
    - `{ secret = "<名字>" }`：照名字到密钥文件里取。M8 只有系统的密钥文件。
-   - `{ env = "<变量>" }`：照核心起来时的环境取。拉起的核心的环境是拉起它的那个头的（`ipc.md`），之后在别的终端里设的，核心看不到，要等它重启。
-   - 引用的密钥没设：`unknown_secret`，警告：可以先写配置，后设密钥。环境变量没设：`env_not_set`，警告。
-6. 取出来的密钥是一个单独的类型：`Debug` 只印 `Secret(…)`，没有 `Display`，不能序列化。它不进日志、事件、blob、策略快照、协议的回应、运行日志、报错的话（`07-存储.md` 第九节）。`secret.set` 的参数不进运行日志（端点的 `DEBUG request` 那一行本来只记方法名）。
-7. 密钥变了，下一个回合开始时生效，和供应商的配置一样（第八条第 3 条，`models.md`）。
-8. `secret.list` 的 `used_by`：照系统配置、个人设置的最终值，找类型是 `secret`、写的是 `{ secret = 这个名字 }` 的项。
+   - `{ env = "<变量>" }`：照核心的环境取（`config/environment.rs`）。核心是拉起它的那个头的环境（`ipc.md`），起来以后不改自己的环境，所以就是起来时的；之后在别的终端里设的，核心看不到，要等它重启。
+   - 引用的密钥没设：`unknown_secret`，警告：可以先写配置，后设密钥。环境变量没设、设成了空的：`env_not_set`，警告。两种都随着查：设了密钥，下一次 `config.get` 就不报了。`config.check` 查一段字时也照核心手里的密钥、环境报。
+6. 取出来的密钥是一个单独的类型 `Secret`：`Debug` 只印 `Secret(…)`，没有 `Display`，不能序列化。它不进日志、事件、blob、策略快照、协议的回应、运行日志、报错的话（`07-存储.md` 第九节）。手里那一份密钥文件（`SecretsFile`）、读文件交回的样子（`miyu-store` 的 `Stored`）、核心的环境（`Environment`）的 `Debug` 都不印字。`secret.set` 的参数不进运行日志（端点的 `DEBUG request` 那一行本来只记方法名），参数的类型也不带 `Debug`。
+7. 密钥变了，下一个回合开始时生效，和供应商的配置一样（第八条第 3 条，`models.md`）：密钥文件住在配置服务里，换上就交给会话。
+8. `secret.list` 的 `used_by`：照系统配置、个人设置的最终值，找类型是 `secret`、写的是 `{ secret = 这个名字 }` 的项。上面一层盖掉的引用不算。
 
 **十、命令行**（8-2、8-3）
 
 1. **连核心**：照 `miyu ask` 连（`cli/ask.md` 第 2 步）。读、改配置都用不着模型，可 8-6 以前核心只在起来时读 `DEEPSEEK_API_KEY`：没设 key、核心又没在跑的，照 `miyu undo` 不拉起，说那一句，退出码 5（`cli/undo.md`）。8-6 以后 key 来自配置，改成一律拉起。
 2. **握手**：照 `miyu ask`，`caps.input` 是 `false`。之后给人看的字照回应的 `language`，没握手之前照环境（`cli/main.md`「界面语言」）。命令行自己的字只有中文、英文，`ja` 的照英文（「还没有的」）。
 3. **`get [键…]`**：`config.get`，带上当前目录当 `cwd`。只写一个键：标准输出上只印值，字不带引号，别的照 TOML 的写法（`true`、`3`、`["a", "b"]`）。写了几个、一个都没写：一行一个 `键 = 值`，TOML 的写法，照键名排。`--format json`：`config.get` 回应的 `items` 原样。
-4. **`set <键> <值>`**：`config.set`，`changes` 是 `[{key, input}]`，`layer` 照 `--system` 是 `system`，不写是 `personal`。不带 `expect`。成了：标准错误上印一行灰字（「样子」）。值有空格的照 shell 的规矩加引号。
-5. **`unset <键>`**：`config.set`，`changes` 是 `[{key, unset: true}]`。这一层本来就没写：说一句本来就没写，退出码 0。
+4. **`set <键> <值>`**：`config.set`，`changes` 是 `[{key, input}]`，`layer` 照 `--system` 是 `system`，不写是 `personal`。不带 `expect`。成了：标准错误上印一行灰字（「样子」）：回应里这一项的来源是这一层的，说写进了哪一层、什么时候生效；来源是上面一层（或者环境变量）的，说那一层写着什么、用的还是它。回应里没有这一项（本来就是）：`config.get` 带 `all` 找这一层写的值，说本来就是。值有空格的照 shell 的规矩加引号。`--project` 连核心以前就说项目配置只能手改，退出码 2。
+5. **`unset <键>`**：`config.set`，`changes` 是 `[{key, unset: true}]`。成了：说从哪一层删掉了、现在是哪一层的什么。这一层本来就没写（回应里没有这一项）：说一句本来就没写，退出码 0。
 6. **`edit`**（像 visudo，G4）：
-   1. 标准输入、标准错误不是终端：说「miyu config edit 要在终端里用」，退出码 2。
+   1. 标准输入、标准错误不是终端：说「miyu config edit 要在终端里用」，退出码 2。连核心以前就查（8-3）。
    2. `config.get` 拿到这一层的文件在哪（`files`）和版本，读它现在的字。没有文件的是空的。
-   3. 在原文件旁边（同一个目录，Schema 的相对路径照样对）写一份临时副本 `.<文件名>.edit-<随机>.toml`，Unix 上 0600。
+   3. 在原文件旁边（同一个目录，Schema 的相对路径照样对）写一份临时副本 `.<文件名>.edit-<随机>.toml`（8 位十六进制），Unix 上 0600。目录还没有的建上，最后没存的，这个新建的目录空了删掉。
    4. 用 `VISUAL`，没有用 `EDITOR`，都没有的 Unix 上是 `vi`、Windows 上是 `notepad`。Unix 上经 `sh -c` 跑，Windows 上经 `cmd /c`：带参数的（`code --wait`）也行，和 git 一样。编辑器退出码不是 0 的：说一句，副本删掉，退出码 1。
    5. 字没变：说「没改」，删掉副本，退出码 0。
    6. 变了：`config.check`。有错误：印出每一条，问「回车接着改，输入 q 放弃」（visudo 的做法，`14-配置.md` 第九节，2026-10-01 主会话定）。回车再打开编辑器，改的还在，存了再查。q 删掉副本，说放弃了，退出码 1。只有警告的：印出来，照样存。
-   7. 存：`config.set`，带 `text` 和第 2 步的版本。`config_conflict`：说「你编辑的时候文件被改过了」，副本留着、印出它在哪，退出码 1。成了：删掉副本，印一行灰字。
-   8. `--project`：项目配置核心不写，这一步改成由命令行自己照第五条第 4 到 7 条写回（仓库里的文件，写它的是人，命令行替人存盘）。没找到项目配置的，在仓库的根（有 `.git` 的那一层，没有就是当前目录）新建 `.miyu/config.toml`。
+   7. 存：`config.set`，带 `text` 和第 2 步的版本。`config_conflict`：说「你编辑的时候文件被改过了」，副本留着、印出它在哪，退出码 1。成了：删掉副本，印一行灰字，照回应里改了的几项什么时候生效（照键名的先后，一样的只说一次，几种接在一起）；一项都没变的（只动了注释）只说存好了。
+   8. `--project`：项目配置核心不写，这一步改成由命令行自己照第五条第 4 到 7 条写回（仓库里的文件，写它的是人，命令行替人存盘；用的是 `miyu-store` 的同一个 `config_file::write`）。没找到项目配置的，在仓库的根（有 `.git` 的那一层，没有就是当前目录）新建 `.miyu/config.toml`。成了只说存好了：项目配置什么时候生效照信任（改了内容要重新信任）。
 7. **`check [文件]`**：
-   - 不写文件：照 `config.get` 的 `files` 读系统配置、个人设置、当前目录的项目配置现在的字，一份份 `config.check`。读的是磁盘上现在的字，不是核心手里的那份：8-4 以前，核心起来以后的手改它还没重读。
+   - 不写文件：照 `config.get` 的 `files` 读系统配置、个人设置、当前目录的项目配置现在的字，一份份 `config.check`。读的是磁盘上现在的字，不是核心手里的那份：刚存下、监视还没来得及重读的也查得到。
    - 写了文件：照 `--system`、`--project` 当那一层查，都不写的当个人设置。
    - 标准输出上一条一行（「样子」），最后一行合计。一个问题都没有的，印一行「没有问题」。`--format json`：`{"problems":[…]}`。
    - 有错误退出码 1，只有警告、没有问题的 0。
 8. **`explain <键>`**：`config.get`，带 `cwd`、`all: true`，再 `config.schema` 拿名字和说明。印第一行是名字、键、说明、什么时候生效。下面每一层一行，从上往下（「样子」）。`--format json`：`config.get` 那一项原样，多 `name`、`description`。
 9. **`path`**：印出这一层的文件在哪，绝对路径，一行，文件还没有也印（给 `$EDITOR $(miyu config path)` 这样用）。`--project` 没找到的，印仓库的根下的 `.miyu/config.toml`，标准错误上说一句还没有这个文件。不写 `--system`、`--project` 的是个人设置。
-10. **`miyu ask` 起头那几行**：握手回应里有 `config_errors` 的，标准错误上最先印一行灰字，在沙盒用不了那一句前面（8-2）；`--format json` 的不印。造会话、说话的回应里有 `untrusted_project` 的，接着印一行灰字，提醒它还没信任、这次没用它、用 `miyu config trust` 看一眼再定：这一行随 8-3 和 `miyu config trust` 一起做（2026-10-01 主会话定），8-2 协议上已经带着这一格。写法见「给人看的字」。
+10. **`miyu ask` 起头那几行**：握手回应里有 `config_errors` 的，标准错误上最先印一行灰字，在沙盒用不了那一句前面（8-2）；`--format json` 的不印。造会话、说话的回应里有 `untrusted_project` 的，接着印一行灰字，提醒它还没信任、这次没用它、用 `miyu config trust` 看一眼再定（8-3，和 `miyu config trust` 一起做，2026-10-01 主会话定）：新开的会话照造会话的回应说，接着说的会话照说话的回应说，一次 `miyu ask` 只说一次，`--format json` 的不印。写法见「给人看的字」。
 11. **`trust`**：
     1. `config.get`，带当前目录当 `cwd`、`all: true`。没有 `files.project`：说「这里没有项目配置」，退出码 1。
-    2. 印出这份文件在哪、它会改哪几项（`layers` 里项目那一层的，`键 = 值` 和名字），有问题的照「样子」印在后面。
+    2. 标准输出上印出这份文件在哪、它会改哪几项（`layers` 里项目那一层、信任了就算的：没有 `problem` 或者是 `untrusted_project` 的；`键 = 值` 和名字，`键 = 值` 那一列照显示的宽度补齐），有问题的（不能写在这一层、写宽了、写错了）照「样子」报错一行印在后面，`untrusted_project` 那一条不印。
     3. 已经信任着这一份、又没写 `--no`：说「已经信任过这一份了」，退出码 0。
     4. 写了 `--yes`、`--no` 的，照它 `config.trust`，不问。都没写：标准输入、标准错误不是终端的，说「要在终端里回答，或者写 --yes、--no」，退出码 2。是终端的，问「项目配置只能让限制更严。信任这一份吗？[y/N]」：`y`、`yes`（不分大小写）是信任，别的、直接回车是不信任，都记下。
     5. `config.trust` 带第 1 步读到的 `version`。`config_conflict`：说「你看的时候它又被改过了，再跑一次」，退出码 1。成了：印一行灰字，退出码 0。
@@ -733,13 +749,14 @@ miyu_config::settings! {
 **十一、`miyu login`、`miyu logout`**（8-5，2026-10-01 项目主人定）
 
 1. 连核心、握手：照第十条第 1、2 条。
-2. `login` 写了名字：照名字的写法查，不合的是参数不对，退出码 2。
-3. `login` 没写名字：标准输入、标准错误都是终端的，`secret.list`，列出配置里用到的每一个密钥：编号、名字、谁在用（`used_by`）、设没设。输入编号选一个，也可以直接敲一个新名字。一个都没有：说「配置里还没有用到密钥的供应商：写 miyu login <名字>」，退出码 2。不是终端的：参数不对，退出码 2。8-11 以后这里还列出目录里的供应商，选了连配置一起写（`models.md`）。
+2. `login` 写了名字：照名字的写法查，不合的说「<名字> 不能当 key 的名字：……」，参数不对，退出码 2，连核心以前就说。
+3. `login` 没写名字：标准输入、标准错误都是终端的，`secret.list`，列出配置里用到的、设过的每一个密钥：编号、名字、谁在用（`used_by`）、设没设。输入编号选一个，也可以直接敲一个新名字。一个都没有：说「配置里还没有用到密钥的供应商：写 miyu login <名字>」，退出码 2。不是终端的：说「要在终端里选，或者写 miyu login <名字>」，参数不对，退出码 2，连核心以前就说。8-11 以后这里还列出目录里的供应商，选了连配置一起写（`models.md`）。
+   - 编号表、问的话在标准错误上，标准输出留给 `--list`。敲的不是列出的编号、也不合名字的写法：说第 2 条那一句，退出码 2；直接回车、读到头：说「没选」，退出码 1（2026-10-01 主会话定）。
 4. 读 key：标准输入是终端的，在标准错误上问「粘贴 <名字> 的 key（不显示）：」，关掉回显读一行（`rpassword`）。标准输入是管道的，整份读进来（`echo "$KEY" | miyu login deepseek`）。去掉前后空白是空的：说「没收到 key」，退出码 1。
-5. `secret.set`：成了，标准错误上印一行灰字，照回应的 `replaced` 说「存好了」或者「换掉了」。key 不印，也不印它的前几位。
+5. `secret.set`：成了，标准错误上印一行灰字，照回应的 `replaced` 说「存好了」或者「换掉了」。key 不印，也不印它的前几位。被拒绝的印核心的原话，退出码 1。
 6. `login --list`：`secret.list`，标准输出上一个一行：名字、已设置或未设置、谁在用。设了的在前，配置里用到、还没设的在后，灰字。一个都没有：印「还没有设过 key」。`--format json`：回应原样。
-7. `logout` 写了名字：`secret.delete`，成了印一行灰字「删掉了」。`unknown_secret`：说「<名字> 没有设过 key」，退出码 1。没写名字：终端里从设了的里面选（照第 3 条），不是终端的，参数不对。
-8. 退出码：0 成了。1 核心拒绝了、没收到 key、连不上核心。2 参数不对。5 同第十条第 1 条（8-6 以前）。
+7. `logout` 写了名字：`secret.delete`，成了印一行灰字「删掉了」。`unknown_secret`：说「<名字> 没有设过 key」，退出码 1。没写名字：终端里从设了的里面选（照第 3 条，头一行「设过的 key：」，问「选一个编号：」）；一个都没设过：说「还没有设过 key」，退出码 1。不是终端的，说「要在终端里选，或者写 miyu logout <名字>」，参数不对。
+8. 退出码：0 成了。1 核心拒绝了、没收到 key、没选、要删的没设过、连不上核心。2 参数不对。5 同第十条第 1 条（8-6 以前）。
 
 
 ### 样子
@@ -809,6 +826,7 @@ zh
 $ miyu config get
 log.level = "info"
 permission.start_read_only = false
+tui.startup = "new"
 ui.language = "zh"
 ```
 
@@ -822,17 +840,24 @@ ui.language = "zh"
 | 删掉了 | `· 从个人设置里删掉了 ui.language，现在是 "en"（系统配置）` | `· Removed ui.language from personal settings. It is now "en" (system config)` |
 | 本来就没写 | `· 个人设置里本来就没写 ui.language` | `· Personal settings did not have ui.language` |
 
-「当场生效」按 `applies` 换：`当场生效`、`以后开的会话生效`、`下一轮生效`、`重启核心后生效`（`takes effect at once`、`applies to sessions opened from now on`、`takes effect next turn`、`takes effect after the core restarts`）。
+「当场生效」按 `applies` 换：`当场生效`、`以后开的会话生效`、`下次打开界面时生效`、`下一轮生效`、`重启核心后生效`（`takes effect at once`、`applies to sessions opened from now on`、`takes effect the next time the interface opens`、`takes effect next turn`、`takes effect after the core restarts`）。M8 用得上前三种（`head_start` 8-3 加）。
+
+- 上面一层压着的，那一层照句子里的叫法：个人设置、系统配置、环境变量（`personal settings say`、`the system config says`、`the environment says`）。
+- 删掉了以后括号里是现在那个值从哪一层来：默认值、系统配置、个人设置（`default`、`system config`、`personal settings`），和 `explain` 的层名一样。
+- 本来就没写的，英文句首大写：`· The system config did not have log.level`。
 
 **`miyu config edit` 存了有错时**：
 
 ```text
 $ miyu config edit
-~/.miyu/home/admin/settings.toml:3:13 错误：ui.language 只能是 auto、zh、en 或 ja，写的是 "cn"。改成其中一个，例如 ui.language = "auto"。
+~/.miyu/home/admin/settings.toml:3:13 错误：ui.language 只能是 auto、zh、en 或 ja，写的是 "cn"。改成其中一个，例如 ui.language = "auto"。这一项先照 "auto" 用着（默认值）。
 有 1 处错误，还没存。回车接着改，输入 q 放弃：
 ```
 
-放弃：删掉副本，说「放弃了，文件没动」，退出码 1。
+- 一项的问题照 `config.check` 带「这一项先照…用着」（8-2 定的，8-3 照它改了这个例子）。
+- 问的那一句后面不换行，等人敲。英文的末尾冒号后面空一格。
+- 放弃：删掉副本，说「放弃了，文件没动」，退出码 1。读到头（Ctrl+D、管道关了）也算放弃。
+- 存好了：`· 存好了，当场生效`；改了几种生效时机不一样的项，接在一起（`· 存好了，当场生效、以后开的会话生效`）；只动了注释的 `· 存好了`。
 
 **`miyu config trust`**：
 
@@ -896,13 +921,18 @@ level = "info"
 # 能写：true 或 false。只能写在系统配置、个人设置或项目配置里。以后开的会话生效。
 start_read_only = false
 
+[tui]
+# 启动时打开：终端界面启动时开一个新会话，还是接着最近的那一个。
+# 能写：new 或 recent。只能写在系统配置或个人设置里。下次打开界面时生效。
+startup = "new"
+
 [ui]
 # 界面语言：终端、网页、命令行给你看的字用哪种话。auto 跟着终端或浏览器的语言。
 # 能写：auto、zh、en 或 ja。只能写在系统配置或个人设置里。当场生效。
 language = "auto"
 ```
 
-样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `permission.start_read_only`、`ui.language`）：
+样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `permission.start_read_only`、`tui.startup`、`ui.language`）：
 
 ```json
 {
@@ -915,6 +945,21 @@ language = "auto"
           "description": "打开以后，新会话一开始就是只读。她只能查、写计划，要改文件时你再关掉只读。项目配置里只能把它打开。能写：true 或 false。只能写在系统配置、个人设置或项目配置里。以后开的会话生效。",
           "title": "新会话开局只读",
           "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "tui": {
+      "properties": {
+        "startup": {
+          "default": "new",
+          "description": "终端界面启动时开一个新会话，还是接着最近的那一个。能写：new 或 recent。只能写在系统配置或个人设置里。下次打开界面时生效。",
+          "enum": [
+            "new",
+            "recent"
+          ],
+          "title": "启动时打开",
+          "type": "string"
         }
       },
       "type": "object"
@@ -972,7 +1017,7 @@ language = "auto"
 | 级别 | 这件事 | 哪一步 |
 |---|---|---|
 | `WARN` | `config problems file=… errors=… warnings=…` | 8-2 |
-| `WARN` | `trust not read file=home/<账号>/trust.toml error=…` | 8-2 |
+| `WARN` | `trust not read file=home/<账号>/trust.toml error=…`：起来时读不懂（照没有记录），手改坏了（照上一次读好的，8-4） | 8-2、8-4 |
 | `INFO` | `log level level=… from=env\|config\|default` | 8-2 |
 | `WARN` | `MIYU_LOG not understood, using config value=…` | 8-2 |
 | `WARN` | `config schema not written file=state/config/<文件名> error=…`：一份一条 | 8-1 |
@@ -982,11 +1027,11 @@ language = "auto"
 | `WARN` | `config watch unavailable error=…` | 8-4 |
 | `WARN` | `secrets readable by others file=…` | 8-5 |
 | `INFO` | `secret changed name=… action=… via=…` | 8-5 |
-| `INFO` | `project trust path=… trusted=…` | 8-3 |
+| `INFO` | `project trust path=… trusted=…`：经 `config.trust` 记的（8-3），手改被看到的（8-4） | 8-3、8-4 |
 
 ### 给人看的字
 
-**配置项的名字、说明、选项名**（`core/human/<语言>.json` 的 `config.items`，一项一格：`name`、`description`、`options`（选项到名字）；8-1 有前两项，`permission.start_read_only` 随 8-2）：
+**配置项的名字、说明、选项名**（`core/human/<语言>.json` 的 `config.items`，一项一格：`name`、`description`、`options`（选项到名字）；8-1 有前两项，`permission.start_read_only` 随 8-2，`tui.startup` 随 8-3）：
 
 | 键 | 中文 | 英文 | 日文 |
 |---|---|---|---|
@@ -998,15 +1043,20 @@ language = "auto"
 | 选项 | `error` 只记错误、`warn` 错误和警告、`info` 来龙去脉、`debug` 更细，排查用、`trace` 全记、`off` 不记 | Errors only、Errors and warnings、What happens、More detail, for debugging、Everything、Nothing | エラーのみ、エラーと警告、経過も記録、詳細（調査用）、すべて、記録しない |
 | `permission.start_read_only` 名字 | 新会话开局只读 | Start new sessions read-only | 新しいセッションを読み取り専用で始める |
 | 说明 | 打开以后，新会话一开始就是只读。她只能查、写计划，要改文件时你再关掉只读。项目配置里只能把它打开。 | When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on. | オンにすると、新しいセッションは読み取り専用で始まります。調査と計画だけを行い、ファイルを変更するときに読み取り専用をオフにします。プロジェクト設定ではオンにすることしかできません。 |
+| `tui.startup` 名字（8-3） | 启动时打开 | On start, open | 起動時に開く |
+| 说明 | 终端界面启动时开一个新会话，还是接着最近的那一个。 | Whether the terminal interface starts a new session or picks up the most recent one. | 端末画面を起動したときに、新しいセッションを始めるか、最近のセッションを続けるかです。 |
+| 选项 | `new` 新会话、`recent` 最近的会话 | A new session、The most recent session | 新しいセッション、最近のセッション |
 
-页和组（`config.pages`、`config.groups`，编号到名字；资源里只放清单用到的，`permissions`、`sessions` 随 8-2 加）：
+页和组（`config.pages`、`config.groups`，编号到名字；资源里只放清单用到的，`permissions`、`sessions` 随 8-2 加，`interface`、`tui` 随 8-3 加）：
 
 | 编号 | 中文 | 英文 | 日文 |
 |---|---|---|---|
 | 页 `general` | 通用 | General | 一般 |
+| 页 `interface` | 界面 | Interface | 画面 |
 | 页 `permissions` | 权限 | Permissions | 権限 |
 | 页 `advanced` | 高级 | Advanced | 詳細 |
 | 组 `display`（`general`） | 显示 | Display | 表示 |
+| 组 `tui`（`interface`） | 终端界面 | Terminal interface | 端末画面 |
 | 组 `sessions`（`permissions`） | 会话 | Sessions | セッション |
 | 组 `log`（`advanced`） | 运行日志 | Runtime log | 実行ログ |
 
@@ -1050,6 +1100,8 @@ language = "auto"
 | `config/stops` | | 。？！ | .?! |
 | `config/untrusted` | | 还没信任 | not trusted yet |
 | `config/env-not-set` | `key`、`name` | {key} 引用的环境变量 {name} 核心起来时没有设 | {key} refers to {name}, which was not set when the core started |
+| `config/bad-secret-name`（8-5） | `key` | {key} 不能当密钥的名字：小写字母开头，只有小写字母、数字、-、_，最长 64 个字符 | {key} is not a valid secret name: start with a lowercase letter and use only lowercase letters, digits, - and _, up to 64 characters |
+| `config/bad-secret-value`（8-5） | `key` | {key} 的值要写成带引号的字，不能是空的 | The value of {key} must be quoted text, not empty |
 | `config/fix-example` | `example` | 改成其中一个，例如 {example} | Write one of them, e.g. {example} |
 | `config/fix-write` | `example` | 改成 {example} | Write {example} |
 | `config/fix-move` | `layers` | 挪到{layers}里去 | Move it to {layers} |
@@ -1059,13 +1111,13 @@ language = "auto"
 | `config/using-nothing` | | 这份文件先不用 | The file is not used for now |
 | `config/layer/default`、`project`、`env`（`system`、`personal` 8-1 就有；编号照层的写法） | | 默认值、项目配置、环境变量 | the default、a project config、the environment |
 | `config/expected/bool`、`option`、`int`、`float`、`text`、`list`、`table` | | true 或 false、其中一个、整数、数、带引号的字、列表、一张表 | true or false、one of them、a whole number、a number、quoted text、a list、a table |
-| `config/applies/new_session`、`next_turn`、`restart`（`now` 8-1 就有；编号照 `applies` 的写法，程序照它拼） | | 以后开的会话生效、下一轮生效、重启核心后生效 | Applies to sessions opened from now on、Takes effect next turn、Takes effect after the core restarts |
+| `config/applies/new_session`、`head_start`、`next_turn`、`restart`（`now` 8-1 就有；编号照 `applies` 的写法，程序照它拼） | | 以后开的会话生效、下次打开界面时生效、下一轮生效、重启核心后生效 | Applies to sessions opened from now on、Takes effect the next time the interface opens、Takes effect next turn、Takes effect after the core restarts |
 | `config/secrets-header` | | Miyu 的密钥：只经 Miyu 写入、替换、删除。不要把这份文件贴给别人。 | Miyu's secrets: written, replaced and deleted only through Miyu. Do not share this file. |
 | `config/trust-header` | | Miyu 记着的项目配置的信任：哪个仓库、哪一份内容、信不信任。 | Which project configs Miyu trusts: the repository, the exact content, and the answer. |
 
 一句由几段接成时（第四条第 7 条）：不是以 `config/stops` 里的字结尾的段照 `config/sentence` 补上句号，段和段照 `config/then` 接。中文、日文补「。」、段和段直接接，英文补「.」、段和段之间空一格。
 
-8-2 加进资源的是用得上的几句：上表里除了 `config/out-of-range`、`config/unknown-secret`、`config/env-not-set`、`config/untrusted`、`config/secrets-header`、`config/trust-header`，`config/expected/` 只有 `bool`、`table`，`config/applies/` 只有 `new_session`；别的随用到它的那一步（8-3、8-5、第一项有范围的那一步）。日文的一份照中文写（施工 8-2）。
+8-2 加进资源的是用得上的几句：上表里除了 `config/out-of-range`、`config/unknown-secret`、`config/env-not-set`、`config/untrusted`、`config/secrets-header`、`config/trust-header`，`config/expected/` 只有 `bool`、`table`，`config/applies/` 只有 `new_session`；别的随用到它的那一步（8-3、8-5、第一项有范围的那一步）。日文的一份照中文写（施工 8-2）。8-3 加了 `config/trust-header`、`config/applies/head_start`（日文照中文写：「Miyu が記録しているプロジェクト設定の信頼：どのリポジトリの、どの内容を、信頼するかどうか。」「次に画面を開いたときに反映されます」）。8-5 加了 `config/secrets-header`、`config/unknown-secret`、`config/env-not-set`、`config/bad-secret-name`、`config/bad-secret-value`（后两句 2026-10-01 主会话定；日文照中文写）。类型是密钥的一项写错了（`wrong_type`）：期望照 `config/or-values` 把两种写法连起来（`{ secret = "…" } 或 { env = "…" }`），不另说改法，不加新的字。
 
 **协议拒绝时的话**（`protocol.md`「给人看的字」多的几行）：
 
@@ -1121,24 +1173,37 @@ language = "auto"
 | `login --list` 一个都没有 | 还没有设过 key | No keys yet |
 | `logout` 删掉了 | · 删掉了 <名字> 的 key | · Deleted the key for <name> |
 | `logout` 没有 | <名字> 没有设过 key | <name> has no key |
+| `logout` 选的头一行（8-5，主会话定） | 设过的 key： | Keys that are set: |
+| `logout` 选（8-5，主会话定） | 选一个编号： | Pick a number: |
+| 选的时候直接回车、读到头（8-5，主会话定） | 没选 | Nothing picked |
+| 名字不合写法（写的、敲的，8-5，主会话定） | <名字> 不能当 key 的名字：小写字母开头，只有小写字母、数字、-、_，最长 64 个字符 | <name> cannot name a key: start with a lowercase letter and use only lowercase letters, digits, - and _, up to 64 characters |
+| 不写名字又不在终端里（8-5，主会话定） | 要在终端里选，或者写 miyu login <名字>（`logout` 写 miyu logout <名字>） | Pick in a terminal, or run miyu login <name> |
+| `--list` 谁在用连起来 | 几项用「、」连 | joined with「, 」 |
 
-**帮助页** `crates/miyu-cli/src/help/zh/config.txt`（8-2 施工时照 `cli/main.md`「帮助页」的规矩定稿，最宽 80 列；只列做好了的四个子命令，`set`、`unset`、`edit`、`trust` 和 `--yes`、`--no` 随 8-3 加进来，样本在 `cli/config.md`）：
+**帮助页** `crates/miyu-cli/src/help/zh/config.txt`（8-2 施工时照 `cli/main.md`「帮助页」的规矩定稿，最宽 80 列；8-3 加了 `set`、`unset`、`edit`、`trust` 和 `--yes`、`--no`，样本在 `cli/config.md`）：
 
 ```text
 用法：miyu config <命令> [选项]
 
-看配置。改配置、信任项目配置的命令随后加上。
+看配置、改配置、信任项目配置。
 
 命令：
-  get [键…]     印出最终的值，只写一个键时只印值
-  check [文件]  检查配置有没有写错
-  explain <键>  这一项每一层写的什么、哪一个生效
-  path          印出配置文件在哪
+  get [键…]      印出最终的值，只写一个键时只印值
+  set <键> <值>  改一项
+  unset <键>     从这一层删掉一项，回到下面一层的值
+  edit           用编辑器打开，存盘时先检查
+  check [文件]   检查配置有没有写错
+  explain <键>   这一项每一层写的什么、哪一个生效
+  path           印出配置文件在哪
+  trust          看这里的项目配置会改什么，信任或者不信任它
 
 选项：
-      --system            系统配置，不写是个人设置（check、path）
-      --project           当前目录的项目配置（check、path）
+      --system            系统配置，不写是个人设置（set、unset、edit、check、
+                          path）
+      --project           当前目录的项目配置（edit、check、path）
       --format text|json  get、check、explain：json 给脚本
+      --yes               trust：信任，不问
+      --no                trust：不信任，不问
   -h, --help              印帮助
 ```
 
@@ -1147,20 +1212,26 @@ language = "auto"
 ```text
 Usage: miyu config <command> [options]
 
-See settings. Commands to change them and to trust a project config come
-later.
+See and change settings, and trust a project config.
 
 Commands:
-  get [key…]      Print the values in effect, or just the value of one key
-  check [file]    Look for mistakes
-  explain <key>   What each layer says and which one wins
-  path            Print where the file is
+  get [key…]           Print the values in effect, or just the value of one key
+  set <key> <value>    Change one setting
+  unset <key>          Remove one from this layer, back to the one below
+  edit                 Open in an editor, checked before it is saved
+  check [file]         Look for mistakes
+  explain <key>        What each layer says and which one wins
+  path                 Print where the file is
+  trust                See what the project config here would set, and trust
+                       it or not
 
 Options:
       --system            The system config, instead of personal settings
-                          (check, path)
-      --project           The project config here (check, path)
+                          (set, unset, edit, check, path)
+      --project           The project config here (edit, check, path)
       --format text|json  For get, check, explain: json for scripts
+      --yes               For trust: trust it, without asking
+      --no                For trust: do not trust it, without asking
   -h, --help              Print help
 ```
 
@@ -1223,7 +1294,7 @@ Options:
 | `crates/miyu-config/src/list/tests.rs` | 查清单：键重复、按段互为前缀（`ui.lang` 不算）、写法不对（一段、大写、别的字、空段、数字或 `_` 开头）、第一段 `ext`、默认值过不了校验、选项少于两个或写重、一层都没有或层写重，各一例；几处都错的全报 | 8-1 |
 | `crates/miyu-config/src/words/tests.rs` | 查资源的字：缺名字、说明、选项名，页和组没名字，资源里多了项、选项、页、组，各一例。几个里的一个怎么连（一个、两个、三个以上，值和字两种「或」）。一项说明后面那几句。缺了哪一句照实报 | 8-1 |
 | `crates/miyu-config/src/schema/tests.rs`、`reference/tests.rs`、`value/tests.rs` | 拿假的字和手写的几项：Schema 只有这一层的项、一层层的表、格照字母先后、这一层什么都没有的；参考文件表照名字排、表里的项照名字排、不重开同一张表、每一项两行注释、项间空一行、多行的字每一行都是注释；缺字报是哪一句。值写成 TOML（引号、反斜杠、控制字符转义）、写成 JSON | 8-1 |
-| `crates/miyu-core/tests/settings.rs` | 登记的全部清单过 `list::check`，照登记的先后。中文、英文、日文三份（直接读文件）过 `words::check`。照源码树的资源生成的两份 Schema、参考文件和样本逐字节一样（中文、英文），日文生成得出来 | 8-1 |
+| `crates/miyu-core/tests/settings.rs` | 登记的全部清单过 `list::check`，照登记的先后（8-3 起有 `tui.startup`）。中文、英文、日文三份（直接读文件）过 `words::check`。照源码树的资源生成的两份 Schema、参考文件和样本逐字节一样（中文、英文），日文生成得出来 | 8-1 |
 | `crates/miyu-core/src/settings/tests.rs` | 起来时生成：字照系统的语言挑（日文、没有的照英文）。资源里缺字、读不懂的，三份各记一条 `WARN`，什么都不写 | 8-1 |
 | `crates/miyu/tests/settings.rs` | 真核心：照 `LANG` 写三份，和样本逐字节一样（中文、英文）；一样的不重写（修改时间不变），改过的写回来；该是目录的地方是个文件，三份各记一条 `WARN`，照样起来 | 8-1 |
 | `crates/miyu-store/src/generated/tests.rs` | 没有的写上、目录建上；一样的不写（修改时间不变）；不一样的换掉、不留临时文件；目录建不了报错；临时文件点开头、不重名 | 8-1 |
@@ -1235,23 +1306,29 @@ Options:
 | `crates/miyu-config/src/merge/tests.rs` | 四层的先后和来源。环境变量压过（不分大小写）、读不懂的当没设、空的不算。一项写错只丢这一项、照下面几层或默认值，别的照常。项目配置收紧的收、宽的不算、一样的收、不能写的不算、没信任的不算（不信任的不再提醒）。每一层写的从上往下列、哪个生效、不算的原因 | 8-2 |
 | `crates/miyu-config/src/item/tests.rs`、`list/tests.rs`、`schema/tests.rs` | 开关、`tighten`、`new_session`、`toggle` 照宏生成；开关只认 `true`、`false`；只有关掉算宽；环境变量的读法。收紧写没写、写对没有。开关的 Schema 是 `boolean`、没有 `enum` | 8-2 |
 | `crates/miyu-endpoint/tests/config.rs` | 真核心：握手的 `language`（`auto` 照 `locale`，`zh`、`ja`、别的、没报的；定了的照定的，拒绝的话也照它，`ja` 的照英文）、`config_errors`（只数错误）。`config.schema`（和例子一字不差、登记的先后、开关的几格、页的先后）、`config.get`（来源、`files` 和版本、`all`、环境变量、一项写错的样子和 `using`、读不懂的文件照空的）、`config.check`（三层、收紧、写法不对、参数不对）。不认识的键两个方法都拒、带最近的。个人设置打开了开局只读 | 8-2 |
-| `crates/miyu-endpoint/src/config/tests/project.rs`、`trust.rs` | 往上找到仓库的根就停（`.git` 是文件、目录都算）、到家目录就停、不看家目录本身、家目录外面到根目录停、数据根里不找、只认最近的一份，家目录下的写成 `~/…`。信任的记录：仓库和版本都对上才算，挪了、变了的是还没问过，后面的记录盖掉前面的，写法不对的那一条不算 | 8-2 |
+| `crates/miyu-endpoint/src/config/tests/project.rs`、`trust.rs` | 记一个回答（8-3）：新建的带开头的注释，同一个仓库原地换、别的字节不动，没有的加在末尾，换行照原文件，读不懂的不改。往上找到仓库的根就停（`.git` 是文件、目录都算）、到家目录就停、不看家目录本身、家目录外面到根目录停、数据根里不找、只认最近的一份，家目录下的写成 `~/…`。信任的记录：仓库和版本都对上才算，挪了、变了的是还没问过，后面的记录盖掉前面的，写法不对的那一条不算 | 8-2 |
 | `crates/miyu-endpoint/tests/config_trust.rs` | 没有记录的、内容变了的、仓库挪了的不算，造会话、说话的回应带 `untrusted_project`，子目录里开的也找得到。信任着、版本一样的算，开局只读。不信任的不算、不再提醒。`config.get` 带目录：`files.project` 的 `trusted`、版本，没问过的报 `untrusted_project`，信任了写宽的报 `not_tightening`、每一层写明不算（8-2）。`config.trust` 的版本对不上、没有项目配置。一个仓库一条，新的盖掉旧的。账号日志 `trust.changed`。手改 `trust.toml` 重读（8-3） | 8-2、8-3 |
 | `crates/miyu-store/src/env/tests.rs` | 系统的语言：`LC_ALL`、`LC_MESSAGES`、`LANG` 的先后、空的不算（8-1），都没设的才看系统设置，macOS、Windows 上系统设置里总有一种语言（CI 上跑，8-2） | 8-1、8-2 |
 | `crates/miyu-store/src/config_file/tests.rs` | 读（8-2）：没有的是空的；BOM 去掉、版本照带 BOM 的字节；正好 1 MiB 的读、多一个字节的不读；不是 UTF-8 的、是目录的报错；链接指向别处的照读 | 8-2 |
 | `crates/miyu-log/tests/install.rs` | 装上照给的级别记，换级别以后照新的（8-2） | 8-2 |
-| `crates/miyu-config/src/edit/tests.rs` | 改一项、加一项（有表、没表）、删一项（表空了连表头删、有注释的留）、只动那一项（前后字节比）、换行照原文件、新文件第一行是 `#:schema`、`input` 照类型读 | 8-3 |
-| `crates/miyu-store/src/config_file/tests.rs` | 写（8-3）：顺着链接写、链接不动、绕圈报错、指向没有的新建。临时文件在本体旁边、崩在改名前原文件不变。权限位留着。Windows 上开着的文件重试 | 8-3 |
-| `crates/miyu-store/src/journal/tests.rs` | 截半行、`seq` 接着数、一行一条和样本一样 | 8-3 |
-| `crates/miyu-endpoint/tests/config_set.rs` | `config.set` 每一种拒绝。`expect` 对不上、整份换的版本对不上。写之前发现手改过先重读。一次几项全收或者全不收。先见推送、后见回应。日志记了一条。写不成什么都没变 | 8-3 |
-| `crates/miyu-store/src/watch/tests.rs` | 先写新文件再改名的存法认得出。200 毫秒合并。别的文件名不理。链接指向的目录也看。macOS 上照真实的位置比 | 8-4 |
-| `crates/miyu-endpoint/tests/config_watch.rs` | 手改推 `config.changed`（`via: file`）、记日志。核心自己写的不重推。改坏了推问题、改好了推空的。订阅、取消订阅、掉队推 `resync` | 8-4 |
-| `crates/miyu-session/tests/turn_config.rs` | 回合中途改了配置，这一轮照开始时的，下一轮照新的。项目配置每一轮开始重读 | 8-4 |
-| `crates/miyu-log/src/level/tests.rs` | 运行中换级别。`MIYU_LOG` 设了的不换 | 8-4 |
-| `crates/miyu-store/src/secrets/tests.rs`、`crates/miyu-endpoint/tests/secrets.rs` | 写、换、删、列（`used_by`、没设的也列）。0600。值不进回应、运行日志、报错（整份运行日志里搜不到值）。`{ env }` 照核心起来时的环境。手改重读。日志只记名字 | 8-5 |
-| `crates/miyu-cli/src/config/tests.rs`、`link/tests.rs`、`crates/miyu/tests/config.rs` | 8-2：`get` 的值、报错一行（级别上色）、`check` 的合计、`explain` 的几行照宽度对齐（和「样子」一样，两种语言）、环境变量和不算的那一行；文件换成真的位置、`~/…`；还没有项目配置时该在哪；握手以后照回应的语言。真核心带三层起来：日志的级别和 `config problems`，`get`（一个键、全部、`--format json` 的来源）、`explain`、`check`（现在的几份、写了文件、`--system`、`--format json`）、`path`（个人、`--system`、`--project` 没有的）印的对，照 `ui.language` 说话，不认识的键退出码 1；`miyu ask` 起头说配置有错（照系统配置的英文说）；帮助页两种语言；参数不对退出码 2；没有 key、核心没在跑的退出码 5。8-3：`set`、`unset`、`edit` 用一个假编辑器（改字、不改、改错再改好、放弃、冲突），`trust` 问、`--yes`、`--no`、不在终端里、冲突，`miyu ask` 起头没信任那一行 | 8-2、8-3 |
-| `crates/miyu-cli/tests/login.rs`、`crates/miyu/tests/login.rs` | `login` 写名字、选、管道进来的 key、假终端里不回显，`--list` 不带值（输出里搜不到 key），`logout`，两种语言，退出码 | 8-5 |
-| `crates/miyu-cli/src/help/tests.rs` | `config`（四个子命令的选项合在一起，8-2）、`login`、`logout`（8-5）三页列的选项和程序真有的对得上，最宽 80 列，照文件名读的是自己那一页 | 8-2、8-5 |
+| `crates/miyu-config/src/edit/tests.rs` | 改一项、加一项（有表、没表、表里还没有键、只因为子表才有的、点号连着的、行内表）、删一项（表空了连表头删、在末尾的连前面的空行、有注释的留、行内表连逗号）、只动那一项（前后字节比）、换行照原文件、新文件第一行是 `#:schema`、改了再删回到原样、放不进去的报出来、`input` 和 JSON 的值照类型读 | 8-3 |
+| `crates/miyu-store/src/config_file/tests.rs` | 写（8-3）：顺着链接写、链接不动、绕圈报错、指向没有的新建。临时文件在本体旁边、崩在改名前原文件不变、改名前一瞬间有人手改了就放弃、不留临时文件。权限位留着。Windows 上开着的文件重试。BOM 记下、照样加回 | 8-3 |
+| `crates/miyu-store/src/journal/tests.rs`、`crates/miyu-endpoint/src/config/journal/tests.rs` | 截半行、`seq` 从 1 数起、接着别人的数、一行一条照事件的外壳（没有 `turn`，内核照不认识的种类留着）、最后一行坏了不往后写；`config.changed`、`trust.changed` 和样本逐字节一样，没有的 `old`、`new` 不写 | 8-3 |
+| `crates/miyu-endpoint/tests/config_set.rs` | `config.set` 每一种拒绝（参数不对、不认识的键、值不对、层不对、文件读不进来）。`expect` 对不上、没写的是 `{}`、整份换的版本对不上、新的字有错误、只有警告的照存。写之前发现手改过先重读，BOM、换行照新的字。一次几项全收或者全不收。没变的不写、不记，删一项不新建文件。回应的样子、之后握手照新的语言。日志记了一条，系统配置的进系统日志。写不成什么都没变。先见推送、后见回应在 `config_watch.rs` | 8-3 |
+| `crates/miyu-store/src/watch/tests.rs` | 先写新文件再改名的存法认得出、删掉的认得出。合并：连着的几下交一次、静够了才交，隔开的另一次。别的文件名、别的目录里同名的、只读的动静不理，事件丢了的每一份都交一次。链接指向的目录也看，经链接给的目录交的是给的那个路径。照真实的位置比（macOS 的临时目录在 `/var` 下）。系统的监视起不来退回轮询（Linux 上拿还没有的目录让 inotify 拒绝），轮询也看得到 | 8-4 |
+| `crates/miyu-endpoint/tests/config_watch.rs` | 手改推 `config.changed`（`via: file`，不带 `by`，样子逐格比）、记账号日志（`by` 是内核、没有 `cause`）、换上。`config.set` 先见推送、后见回应，推的和回应的一样，核心自己写的不重推、不重记。改坏了推问题（`using` 是 `last_good`，项照上一次的）、改好了推空的。只动注释的不推（换上），字节一样的什么都不做（不换），删了这一层变空（`version` 是 `null`）。订阅不带会话、`after`，别的流、`events` 不带会话的 `bad_params`；取消订阅以后不推，再订阅照推。掉队推 `resync`、之后不推、回应一条不丢。改了 `ui.language`，连接下一句的拒绝、`config.schema` 照新的语言。手改 `trust.toml` 记 `trust.changed`（`via: file`）、`config.get` 照新的信任、不推。每一轮照那一刻的配置：项目配置改了内容不算、回合之间 `config.set` 的下一轮用上 | 8-4 |
+| `crates/miyu-endpoint/tests/config_watch_log.rs` | 运行日志：手改被看到的记 `INFO config changed layer=… via=file keys=…`；监视起不来记 `WARN config watch unavailable`、退回轮询照样推（Linux） | 8-4 |
+| `crates/miyu-session/tests/turn_config.rs` | 回合中途改了配置，这一轮的两次请求（出错再来的那一次也算）照开始时的，下一轮照新的。每一轮开始都照会话的目录重新取（造会话一次、每轮一次） | 8-4 |
+| `crates/miyu-core/src/settings/tests.rs` | 运行中换了配置：`log.level` 当场换级别、记 `INFO log level`，`ui.language` 变了重写生成的文件；`MIYU_LOG` 设了的，配置怎么改都不换级别 | 8-4 |
+| `crates/miyu-endpoint/src/config/journal/tests.rs`、`config/tests/trust.rs` | 手改被看到的日志：`by` 是内核、没有 `cause`，`trust.changed` 多 `via`。手改的信任记录只报回答变了的、新加的仓库，照最后一条算 | 8-4 |
+| `crates/miyu-config/src/secret/tests.rs` | 名字的写法；引用的两种写法（TOML、JSON、人敲的）认得出、别的不认；`Secret` 的 `Debug` 不印值；`secret.set` 收的值去掉前后空白、空的、控制字符、16 KiB 的边；密钥文件写错的一行报问题、不带 `got`；TOML 写错的几种报的话里没有 key；改一行只动那一行（接在后面、换、删、删到只剩一行或者空了、表头前面、`\r\n`、引号转义、写成表的放不进去）；引用取不到的报警告、说成话；类型是密钥的一项读、说、合并、生成 Schema | 8-5 |
+| `crates/miyu-store/src/secrets/tests.rs` | 没有的是空的；新建、替换都是 0600，临时文件建的时候就是；手改松了的写一次收回；组、别人读得到的说出来；顺着链接写；`Debug` 不印字；读了以后变了的不盖 | 8-5 |
+| `crates/miyu-endpoint/tests/secrets.rs`、`src/secrets/tests.rs` | 写、换、删、列（`used_by` 照最终值、没设的也列）；参数不对的九种；0600；回应、拒绝、系统日志里没有值，日志一条一条照样本、只记名字；引用取不到的报警告、设了就不报，`{ env }` 照核心的环境；密钥文件写错的算进 `config_errors`、写不了（`config_file_broken`，照上一次读好的用）；写之前的手改先记；监视看到手改（新设、换掉、删掉） | 8-5 |
+| `crates/miyu-endpoint/tests/secrets_log.rs` | 运行日志照 `TRACE` 记，走遍写、换、删、列、查、写错的参数、手改、改坏了再写：每一次改都有 `INFO secret changed`，组、别人读得到的有 `WARN secrets readable by others`，整份运行日志、系统日志里搜不到 key | 8-5 |
+| `crates/miyu-cli/src/config/tests.rs`、`link/tests.rs`、`crates/miyu/tests/config.rs` | 8-2：`get` 的值、报错一行（级别上色）、`check` 的合计、`explain` 的几行照宽度对齐（和「样子」一样，两种语言）、环境变量和不算的那一行；文件换成真的位置、`~/…`；还没有项目配置时该在哪；握手以后照回应的语言。真核心带三层起来：日志的级别和 `config problems`，`get`（一个键、全部、`--format json` 的来源）、`explain`、`check`（现在的几份、写了文件、`--system`、`--format json`）、`path`（个人、`--system`、`--project` 没有的）印的对，照 `ui.language` 说话，不认识的键退出码 1；`miyu ask` 起头说配置有错（照系统配置的英文说）；帮助页两种语言；参数不对退出码 2；没有 key、核心没在跑的退出码 5。8-3：`config/tests.rs` 照图纸对 `set`、`unset`、`edit`、`trust` 印的字（两种语言）、编辑器照 `VISUAL`、`EDITOR` 挑、经 shell 跑。`crates/miyu-cli/tests/config.rs` 在进程里起核心、人那一头照剧本回：`set`、`unset` 每一种说法（上面一层压着、本来就是、本来就没写、握手以后换语言），`edit` 用假编辑器（改错再改好、改的还在、副本在旁边、只有警告的照存、不改、放弃、读到头、编辑器出错、冲突留着副本、不在终端里、项目配置由命令行写），`trust` 没有项目配置、列出、问、`--yes`、`--no`、直接回车、不在终端里、本来就信任着、有问题的印在后面、看的时候又变了。`crates/miyu/tests/config.rs` 真核心：`set`、`unset`、`trust` 写进文件、运行日志，`set --project`、不在终端里的 `edit` 连核心以前退出码 2，`miyu ask` 起头没信任那一行 | 8-2、8-3 |
+| `crates/miyu-cli/tests/login.rs`、`login/pick/tests.rs`、`crates/miyu/tests/login.rs` | `login` 写名字、选、管道进来的 key、假终端里走关掉回显的那一条，`--list` 不带值（输出里搜不到 key），`logout`，两种语言，退出码；真核心上整份运行日志（`trace`）、系统日志里搜不到 key；`miyu config check` 印出密钥文件写错的那一行（`cli/login.md`「守着它的」） | 8-5 |
+| `crates/miyu-core/tests/config_words.rs` | 8-5 的四种原因码、密钥文件开头的注释三种语言都说得出来 | 8-5 |
+| `crates/miyu-cli/src/help/tests.rs` | `config`（八个子命令的选项合在一起，8-2、8-3）、`login`、`logout`（8-5）三页列的选项和程序真有的对得上，最宽 80 列，照文件名读的是自己那一页 | 8-2、8-3、8-5 |
 
 变异测试照施工的规矩跑（每一步的施工单写）。
 
@@ -1398,24 +1475,104 @@ Options:
 | `explain` 里不算的原因：还没信任、比下面几层宽、不能写在这一层 | 图纸只写了「← 不算：<原因>」，照原因码各一句 | 印原因码 |
 | `miyu ask` 起头那一行英文 1 处时用单数 | 照 `check` 合计的规矩 | 一律复数 |
 
+8-3 施工时照推荐定的技术细节（2026-10-01，施工员定，写进了正文）：
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| 改一项照 `toml_edit` 读的时候记下的位置只换那一段字，`toml_edit` 照旧只开 `parse` | 前后字节比得住；用的是已经在读的那一半，不多开功能 | 读成可改的文档改完写回：写回去的样子由它定，空格、引号的写法可能变 |
+| 那一组写成点号连着的、行内表的，照它的写法接上；只因为子表才有、没有表头的当没有，末尾新开；写成值、数组，这一项本身是表，改完读不懂的：放不进去，`config_file_broken` | 手写的文件什么样都有，写回去还得读得懂；放不进去是文件本身的毛病 | 一律在末尾开 `[ui]`：和点号写的 `ui.x = …` 撞，TOML 不许 |
+| 表空了删表头时，在文件末尾的连前面那一行空行一起删 | 新建时前面空了一行，改了再删回到原样 | 只删表头：每改一次多一行空行 |
+| 配置服务住在核心家底的一把锁里（`std::sync::Mutex`），拿着它不 `.await`；每一次改之前都重读这一层、换上 | 改、查排着队；一把锁最简单，改配置是很少的事；每次都重读比先比再读少一个分支，结果一样 | 一个 actor 收命令：多一套收件箱 |
+| 写成了就换上新的最终值：之后握手的连接、造的会话照新的；已经连着的连接、开着的会话怎么跟随 8-4 | 配置服务手里的必须是磁盘上的那一份，不然下一次改会当成手改；最终值顺手重算 | 8-4 以前不换：下一次改当成手改重读 |
+| `config.set` 里请求写错的问题不带 `file`、行列，也不说「先照…用着」 | 查的是请求，什么都没变 | 照文件里的说「先照…用着」：说的是没变的那个值，像是改了 |
+| 整份换的 `config_invalid` 只带错误；`expect` 几项对不上的 `current` 是头一个的 | 警告不拦；协议上只有一格 `current` | 全带；`current` 换成按键的表：多一种形状 |
+| 替换前有人手改、重来三次都不行：`config_conflict` 带 `version` | 头照版本重读再来 | `internal_error`：不是核心出了问题 |
+| 整份换的只动了注释也记一条日志，`changes` 是空的；什么都没写的不记 | 落了盘就留痕 | 只动注释的不记：日志里少一次写 |
+| 日志每追加一条都重新打开、读整份拿最后一行；`cause` 是这条命令的编号，时刻照核心的钟 | 改配置很少；不用留着开着的文件，手改过的也认得；和会话日志一样查得到是哪一次命令 | 开着文件、只读末尾：多一份要管的状态 |
+| 日志的样本 `seq` 是 1 | 样本是一份新日志的第一行，测试照它逐字节比 | 照起草时的 3、5：测试得先垫几行 |
+| `trust.toml` 同一个仓库有几条的换最后一条，没有的加在末尾；新建的开头注释照这个连接的语言；读不懂、写不成的 `internal_error` | 读的时候最后一条算；回答的人就在这个连接上；手改坏了的不替人修 | 照管理员的 `ui.language` 另算一次：结果一样，多一段代码 |
+| 生效时机多一种 `head_start`，字是「下次打开界面时生效」 | 头自己读、启动时读一次，核心不管它；「界面」不说是哪一种头，网页以后也用得上 | 写成 `restart`：那是重启核心 |
+| `tui.startup` 先在 `miyu-core/src/settings.rs` 替终端界面声明；登记在 `ui` 后面，页排成通用、界面、权限、高级 | 终端界面还没进工作区，核心不用它；界面的设置挨着通用 | 放端点：端点也不用它；放最后：界面排到高级后面 |
+| 名字、说明：「启动时打开」「终端界面启动时开一个新会话，还是接着最近的那一个。」，选项「新会话」「最近的会话」，页「界面」、组「终端界面」（中英日） | 照施工单给的形状写，说的是做什么，不说怎么做 | |
+| 命令行的 `set --project`、不在终端里的 `edit` 连核心以前就拦下，退出码 2 | 参数不对不该拉起核心；没设 key 时也该是 2，不是 5 | 连上核心再说：没设 key 的先报 5 |
+| 人那一头做成 `Console` 接口（是不是终端、读一行、开编辑器），`config_on` 收它 | 测试不用真终端、真编辑器也走得到每一条路 | 测试里起伪终端：要加依赖，三个平台各一套 |
+| `edit` 副本名 `.<文件名>.edit-<8 位十六进制>.toml`；为副本新建的目录没存时删掉（空的才删） | 不留下空的 `home/<账号>/`、`.miyu/` | 留着：没存也在仓库里多一个目录 |
+| `edit` 存好了照改了的几项什么时候生效接在一起说，只动注释的、项目配置只说「存好了」 | 图纸只有一项的写法 | |
+| `set` 的说法：回应里这一项的来源是上面一层（或环境变量）的，说那一层写着什么；回应里没有这一项（本来就是）的，再 `config.get` 带 `all` 拿这一层写的值 | 协议上「没变」的回应不带值，不为一句话加格 | 回应里另加一格：多一种形状 |
+| `trust` 列出的只有信任了就算的几项；不能写、写宽了的照报错一行印在后面，`untrusted_project` 那一条不印 | 列的是「会改什么」；没信任正是要问的 | 全列：列出了不会改的 |
+| `miyu ask` 的开头那几行挪进 `ask/follow/opening.rs` | `follow.rs` 加了没信任那一句就超过 500 行 | |
+| 端点 `Config::defaults` 里系统配置的路径原来是 `system/` 目录，改成 `system/config.toml` | 8-2 的小错：没读配置的核心上 `config.set` 会写错地方 | |
+
+8-4 施工时照推荐定的技术细节（2026-10-01，施工员定，写进了正文）：
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| 监视用 `notify` 8.2，只开默认的功能（macOS 上的 FSEvents），事件走标准库的通道；合并自己写（一份文件最后一次动静以后静 200 毫秒） | 少带依赖：`notify-debouncer-*` 多一层线程、多几个包，合并只要二十来行 | 用 `notify-debouncer-mini`：它照固定的节拍交，不是「静够了再交」 |
+| 只读的动静（打开、读完关上）不算，写完关上的算 | 核心重读一遍也会有这样的动静，认了就一直重读下去 | 全认：一直空转 |
+| 监视报错、事件丢了（`need_rescan`）的，几份都当变了，重读一遍 | 重读一样的什么都不做，比猜是哪一份稳 | 丢掉：可能漏掉手改 |
+| 监视的线程直接调配置服务（拿锁、重读、推送），拿的是核心的弱引用 | 配置服务本来就是一把同步的锁；弱引用不拖住核心退出 | 送进异步任务再办：多一条通道 |
+| 开始监视以后先把几份都看一遍 | 读配置和开始监视之间的手改也认得；一样的什么都不做 | 不看：那一小段的手改要等下一次改 |
+| 链接只在开始监视那一刻认 | 事后换成链接的少见，重启核心就认得 | 每次变动都重新找本体：多一套增删监视的代码 |
+| 重读时读不进来的，项照上一次读好的、问题照这一次的，文件记 `last_good` | 第二条第 4 条；问题要说现在的字哪里坏了 | 连问题也照上一次的：头看不到坏在哪 |
+| 手改只动了注释、空行的，换上、不推、不记；`config.set` 写了盘的都推（整份换只动注释的也推） | 第七条第 3 条只推变了的；经 `config.set` 改的，发的那个头等着先见推送、后见回应，版本也跟着换 | 手改的也推：注释对头没用 |
+| 手改的日志和推送同一个条件：项变了、问题变了；只有问题变了的 `changes` 是空的 | 一条规矩，改坏了、改好了都留得下痕 | 只有项变了才记：日志里看不到哪一次改坏了 |
+| 手改 `trust.toml`：回答变了的、新加的仓库每个一条 `trust.changed`（`via` 是 `file`），删掉的不记；读不懂的照上一次的，记 `WARN trust not read`；不推，交给会话 | 删掉就是还没问过，不是一个回答；项目配置不推（第三条第 5 条） | 删掉的也记一条：要多一种写法 |
+| 配置服务每换上一份，整份克隆放进两个 `watch`：一个给核心（`Arc<Config>`），一个给会话（`Arc<dyn ConfigSource>`）；推送走 `broadcast`，一个连接最多攒 16 条 | 会话在下一层，只认 trait；配置很少改，克隆不值得省；16 条够攒，再多就是读不动了 | 一个 `watch`：会话要认端点的类型，层序倒过来 |
+| 推送带着那一刻的整份配置，每个连接照自己这一刻的语言写成字 | 问题的话、名字照连接的语言；推送里的值和写成字的是同一份 | 推之前照三种语言都写好：多写两份 |
+| 连接记着头报的 `locale` 照 `auto` 算出的那一种，每收到一条都重算语言 | 第二条第 8 条：不用再握手；一次锁、一次查表 | 推 `config.changed` 时改连接记的语言：没订阅的连接跟不上 |
+| 订阅配置：一个连接至多一个，还在推的再订阅不换；`session`、`after` 写了是 `bad_params`；`config.set` 的回应经它写出去 | 照会话的订阅那样保证先推送后回应；`after` 对配置没有意思 | 回应直接写：可能跑到推送前面 |
+| 掉队记一条 `WARN endpoint lagged, resync stream=config` | 和会话的订阅掉队一样查得到 | 不记 |
+| 回合的配置在 `RunTurnStartHooks` 那一刻取，交给 `ModelPort::call` 的一格；造会话、载入时先取一份，不开回合的请求照上一轮的；内核加一个纯查询 `Session::cwd` | 挂接点那一下就是回合开始、落了盘以后（`models.md` 第六条第 3 条也在这一刻）；端口每次请求都拿得到，8-6 的路由直接用 | 放进 `Reports`：它管的是回报往哪送 |
+| 核心跟着配置换级别、重写文件（`follow`）：调它的那一刻就记下现在的样子，比的是算出来的语言 | 任务起来之前换的也看得到（测试里逮到过：起来晚了就把新的当成旧的）；`auto` 换成系统本来就是的那一种，字一样不用重写 | 任务起来以后再记：漏掉那一瞬间的改动 |
+| 「运行中换级别、`MIYU_LOG` 设了的不换」的测试放在 `miyu-core/src/settings/tests.rs` | 换不换由核心照最终值定（`MIYU_LOG` 在合并时就压过配置），`miyu-log` 只有把手；把手本身换级别 `tests/install.rs` 已经守着 | 放在 `miyu-log`：那里没有配置 |
+
+8-5 施工时照推荐定的技术细节（2026-10-01，施工员定，写进了正文；标着「主会话定」的是主会话同一天定的）：
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| 类型「密钥」只加类型（`Kind::Secret`、`Value::Secret`），`settings!` 宏不加：8-5 的清单里没有用它的项，测试手写 `Item` | 不为以后写代码：第一项用它的是 8-6 的供应商，那时再加宏的写法 | 先替供应商声明一项占位：清单里多一项没用的 |
+| 引用写错（不是正好一格、名字不合写法、`env` 是空的或有 `=`）报 `wrong_type`，期望照 `config/or-values` 把两种写法连起来，不另说改法 | 不加新的字；写法不对就是类型不对 | 加 `bad_format`、一句改法：多两句字 |
+| 密钥文件写错的一行：名字不合写法 `bad_format`，值不是不空的字 `wrong_type`，各一句新的字，不带 `got`（主会话定字） | 「报错」那张表的原因码够用；配置文件的那几句都带 `{got}`，不带的得另写 | 照配置文件的句子：句子里空着一格 |
+| 两种密钥文件的问题在代码里是两个原因码（`SecretName`、`SecretValue`），协议上写 `bad_format`、`wrong_type` | 说的话和配置文件的不一样，又不能改协议上的原因码 | 加一格「哪个文件」：问题的样子跟着变 |
+| 问题多一格 `name`：`unknown_secret`、`env_not_set` 说引用的是哪一个 | 原来的几格都不是这个意思 | 塞进 `why`、`current`：读的人猜不到 |
+| 引用取不到的警告不进文件读好的样子，用到时照现在的密钥、环境现算（`Config::missing`） | 设了密钥，警告当场就该没了；文件没变不用重读 | 读文件时算好存着：设了密钥还得重读一遍文件 |
+| 环境做成一个能查的把手 `Environment`，配置服务拿着它；核心照进程的，测试照手写的 | 核心起来以后不改自己的环境，现查就是起来时的；手改配置后来才引用的变量也查得到 | 起来时只记下当时引用的几个：之后手改加的引用查不到 |
+| 设成空的环境变量当没设（`env_not_set`） | 空的 key 用不了 | 设了就算：到 8-6 才发现用不了 |
+| 密钥文件住在配置服务里（`Config::secrets`），读写照配置文件的那套（`File` 的样子、`keeping`、`same_as`），监视加一个名字 | 都是锁里的一份、都要手改重读；会话从同一个 `watch` 拿到新的 | 另开一个服务：多一把锁、多一条交给会话的路 |
+| `config.get` 的 `files` 多 `secrets`，只有 `file`，没有 `version`；`miyu config check` 照它挑出密钥文件的问题 | 命令行要知道哪几条是密钥文件的；版本是整份密钥的哈希，不交出去 | 命令行写死路径；照给版本：哈希也是从值算的 |
+| 密钥文件的字不经协议交给核心查：`miyu config check` 印核心手里那一份的问题 | 字就是密钥 | 照配置文件读磁盘、`config.check`：值进了请求 |
+| 改一行用 `edit::apply`，让它认只有一段的键：放在最上面那张表里，新的一行接在最后一个值后面，还没有值的放在第一张表的表头前面；删的时候没有表头可删 | 注释、别的行一个字节不动和配置文件一样守得住；第一张表前面才是最上面那张表 | 自己拼行：两套改字的代码 |
+| 写临时文件时就是 0600（`durable::create_temp_with`），写的时候不带原文件的权限位（`Mode::Private`） | 不能有一瞬间是别人读得到的；手改松了的写一次收回来 | 写完再 `chmod`：有一段时间是松的 |
+| 读的时候组、别人读得到的照 `0o044` 认，起来时、手改重读时各记一次 `WARN` | 只管「读得到」，写的位不是泄漏 | 照 `0o077`：组能执行也报 |
+| 新建文件的开头注释照发 `secret.set` 的那个连接的语言 | 和 8-3 的 `trust.toml` 一样；M8 只有管理员，结果和照管理员的界面语言一样 | 照管理员的 `ui.language` 另算一次：多一段代码 |
+| 替换前一连三次有人手改：`internal_error`，记 `WARN config not written` | `config_conflict` 要带版本，密钥文件的版本不给 | 给一个不带版本的 `config_conflict`：形状对不上 |
+| 名字在文件里写成了一张表、文件读不进来：`config_file_broken`，带密钥文件的问题 | 和 `config.set` 一样：先把文件改好 | `bad_params`：请求本身没错 |
+| `secret.set` 的参数类型不带 `Debug`；手里的密钥文件、读文件交回的、环境的 `Debug` 不印字 | 谁顺手 `{:?}` 一下都不会漏 | 只靠不去印：守不住 |
+| 手写进密钥文件的值只去掉前后空白、不是空的就收，不查控制字符、长短 | 手改的人自己负责；只有 `secret.set` 要防头传错 | 一样查：手改的一行多一种报错 |
+| `secret.list` 的 `used_by` 照不算项目配置的最终值 | 项目配置不能放供应商的 key（第三条）；「谁在用」是管理员配的 | 带上当前目录的项目配置：命令行得报目录 |
+| 命令行的 `Console` 多三样：标准输入是不是终端、关掉回显读一行（`rpassword` 7.5，Apache-2.0）、整份读管道；`miyu config` 和 `miyu login` 共用 | 测试换成照剧本回的假终端，记着走的是哪一条；关不关回显照标准输入，不照标准错误 | 起伪终端测：要加依赖，三个平台各一套 |
+| 交互选的编号表、问的话在标准错误上；直接回车、读到头说「没选」退出码 1；敲的不合写法退出码 2；`logout` 一个都没设过退出码 1；不写名字又不在终端里退出码 2（主会话定） | 标准输出留给 `--list`；没选不是用错了；敲错的和命令行上写错的同一句 | 再问一次：管道里会一直问 |
+| `--list`、编号表里整列都空的不占位置 | M8 里谁都没在用，空一列难看 | 留着空的一列 |
+| `--format` 只能和 `--list` 一起写，名字和 `--list` 只能写一个（clap 拦，退出码 2） | 帮助页就是这么写的 | 忽略：写了没用也不说 |
+
 ### 要跟着改的别的页
 
 施工时改。8-1 改了的写在每一条末尾：
 
-- `protocol.md`：方法表加 `config.schema`、`config.get`、`config.set`、`config.check`、`config.trust`、`secret.set`、`secret.delete`、`secret.list`。握手的回应加 `language`、`config_errors`，`locale` 写明是系统的语言、`ui.language` 是 `auto` 时才用。`session.create`、`session.send` 的回应加 `untrusted_project`，`session.create` 第 2 条的开局权限照 `permission.start_read_only`。`subscribe`、`unsubscribe` 的 `stream` 加 `config`（不带 `session`），推送表加 `config.changed`，`resync` 加配置流。出错表加六个原因码，拒绝的 `data` 多 `problems`、`current`、`version`。「给人看的字」加六行。「还没有的」删掉配置那几项。 8-2 改了：方法表加 `config.schema`、`config.get`、`config.check`；握手的回应加 `language`、`config_errors`，`locale` 写明是系统的语言；`session.create`、`session.send` 的回应加 `untrusted_project`，开局权限照 `permission.start_read_only`；出错表加 `unknown_config_key`，拒绝的 `data` 可以多几格；「给人看的字」加一行；「还没有的」配置那几项改成指到 8-3、8-4。
-- `store.md`：「数据根里有什么」加 `system/config.toml`、`system/secrets.toml`、`system/journal.jsonl`、`home/<账号>/settings.toml`、`home/<账号>/trust.toml`、`home/<账号>/journal.jsonl`、`state/config/`。「在哪」加 `config_file.rs`、`journal.rs`、`watch.rs`、`secrets.rs`，`env.rs` 多 `locale`。「还没有的」删掉系统日志、账号日志、配置、密钥、信任那几条。8-1 改了：`state/config/`、`generated.rs`、`env.rs` 的 `locale`、`durable.rs` 的临时文件。 8-2 改了：「在哪」加 `config_file.rs`（读的那一半），`env.rs` 的 `locale` 换成 `sys-locale` 兜底；数据根里加 `system/config.toml`、`home/<账号>/settings.toml`、`home/<账号>/trust.toml`（只读）。
-- `store/resources.md`：`human/<语言>.json` 多一格 `config`（「只许有两格」改成三格）。说法多 `config/*`。`human_languages.rs` 也查 `config` 那一格三种语言对得上。8-1 改了：三格、`Words`、生成文件要的几句。 8-2 改了：`config` 那一格多 `permission.start_read_only`、页 `permissions`、组 `sessions`；`said` 多报错的话和接句子的三句；`Human` 多 `page`、`group`。
-- `core.md`：起来的先后在找到资源目录以后加「读配置、读密钥、读信任」，读完以后「写 Schema 和参考文件」「开始监视」。环境变量表的 `MIYU_LOG` 写明压过配置。运行日志加 `miyu::config` 那几行。模型那一节（`DEEPSEEK_API_KEY`、`MIYU_DEV_*`）由 `models.md` 那边改。8-1 改了：第 6 步找到资源目录以后写 Schema 和参考文件，`settings.rs`，`WARN config schema not written`。 8-2 改了：第 6 步找到资源目录以后读配置、照 `log.level` 换运行日志的级别，再写 Schema 和参考文件；`MIYU_LOG` 压过配置；运行日志加 `config problems`、`trust not read`、`log level`、`MIYU_LOG not understood, using config`。
-- `log.md`：级别由 `log.level` 定、`MIYU_LOG` 压过。读不懂的 `MIYU_LOG` 退到配置。运行中换级别。「还没有的」删掉 `log.level`。8-1 改了：`settings.rs` 声明 `log.level`，「还没有的」那一条写明声明了、8-2 读。 8-2 改了：`install` 收级别、交回的 `Guard` 能换级别（`set_level`）；读不懂的 `MIYU_LOG` 由核心读完配置以后记、退到配置；「还没有的」那一条改成只剩运行中换（8-4）。
-- `session/actor.md`：回合开始时取一份配置的快照，带上信任着的项目配置，这一轮都用它（第八条第 3 条）。
-- `cli/main.md`：子命令表加 `config`、`login`、`logout`。帮助页多三页，主帮助页加三行。界面语言握手以前照系统的语言（`sys-locale`，不再只看 `LANG` 这几个变量），握手以后照回应的 `language`，`ja` 的照英文。 8-2 改了：子命令表、主帮助页加 `config`，帮助页九页；界面语言握手以前照 `sys-locale` 兜底，握手以后照回应的 `language`，每个子命令都是。
-- `cli/ask.md`：起头配置有错、项目配置没信任的两行。给人看的字照握手回的语言。 8-2 改了：起头配置有错那一行；握手以后照回应的语言。没信任那一行随 8-3。
-- 命令行这两节施工时拆成 `cli/config.md`（8-2）、`cli/login.md`（8-5），照「每条命令一页」。 8-2 拆了 `cli/config.md`：四个子命令的走法、样子、帮助页的样本。
+- `protocol.md`：方法表加 `config.schema`、`config.get`、`config.set`、`config.check`、`config.trust`、`secret.set`、`secret.delete`、`secret.list`。握手的回应加 `language`、`config_errors`，`locale` 写明是系统的语言、`ui.language` 是 `auto` 时才用。`session.create`、`session.send` 的回应加 `untrusted_project`，`session.create` 第 2 条的开局权限照 `permission.start_read_only`。`subscribe`、`unsubscribe` 的 `stream` 加 `config`（不带 `session`），推送表加 `config.changed`，`resync` 加配置流。出错表加六个原因码，拒绝的 `data` 多 `problems`、`current`、`version`。「给人看的字」加六行。「还没有的」删掉配置那几项。 8-3 改了：方法表加 `config.set`、`config.trust`，出错表、「给人看的字」加四个原因码，拒绝的 `data` 多的几格，「还没有的」删掉这两个方法。 8-2 改了：方法表加 `config.schema`、`config.get`、`config.check`；握手的回应加 `language`、`config_errors`，`locale` 写明是系统的语言；`session.create`、`session.send` 的回应加 `untrusted_project`，开局权限照 `permission.start_read_only`；出错表加 `unknown_config_key`，拒绝的 `data` 可以多几格；「给人看的字」加一行；「还没有的」配置那几项改成指到 8-3、8-4。 8-4 改了：`subscribe`、`unsubscribe` 的 `stream` 加 `config`（不带 `session`、`after`），推送表加 `config.changed`，`resync` 加配置流，`config.set` 的回应经配置的订阅，握手的 `language` 写明下一句照新的，运行日志加配置的掉队，`bad_params` 那一行，「还没有的」删掉配置的订阅。 8-5 改了：方法表加 `secret.set`、`secret.delete`、`secret.list`，出错表、「给人看的字」加 `unknown_secret`，`config.get` 的 `files` 多 `secrets`，`config_file_broken` 也给密钥文件。
+- `store.md`：「数据根里有什么」加 `system/config.toml`、`system/secrets.toml`、`system/journal.jsonl`、`home/<账号>/settings.toml`、`home/<账号>/trust.toml`、`home/<账号>/journal.jsonl`、`state/config/`。「在哪」加 `config_file.rs`、`journal.rs`、`watch.rs`、`secrets.rs`，`env.rs` 多 `locale`。「还没有的」删掉系统日志、账号日志、配置、密钥、信任那几条。 8-3 改了：「在哪」加 `journal.rs`、`config_file.rs` 写的那一半；数据根里加两份 `journal.jsonl`；「还没有的」删掉系统日志、账号日志、配置。8-1 改了：`state/config/`、`generated.rs`、`env.rs` 的 `locale`、`durable.rs` 的临时文件。 8-2 改了：「在哪」加 `config_file.rs`（读的那一半），`env.rs` 的 `locale` 换成 `sys-locale` 兜底；数据根里加 `system/config.toml`、`home/<账号>/settings.toml`、`home/<账号>/trust.toml`（只读）。 8-4 改了：「在哪」加 `watch.rs`。 8-5 改了：「在哪」加 `secrets.rs`、`durable.rs` 的 0600 临时文件；数据根里加 `system/secrets.toml`；「还没有的」删掉密钥。
+- `store/resources.md`：`human/<语言>.json` 多一格 `config`（「只许有两格」改成三格）。说法多 `config/*`。`human_languages.rs` 也查 `config` 那一格三种语言对得上。8-1 改了：三格、`Words`、生成文件要的几句。 8-2 改了：`config` 那一格多 `permission.start_read_only`、页 `permissions`、组 `sessions`；`said` 多报错的话和接句子的三句；`Human` 多 `page`、`group`。 8-3 改了：`said` 多 `config/trust-header`、`config/applies/head_start`。 8-5 改了：`said` 多 `config/secrets-header`、`config/unknown-secret`、`config/env-not-set`、`config/bad-secret-name`、`config/bad-secret-value`。
+- `core.md`：起来的先后在找到资源目录以后加「读配置、读密钥、读信任」，读完以后「写 Schema 和参考文件」「开始监视」。环境变量表的 `MIYU_LOG` 写明压过配置。运行日志加 `miyu::config` 那几行。模型那一节（`DEEPSEEK_API_KEY`、`MIYU_DEV_*`）由 `models.md` 那边改。8-1 改了：第 6 步找到资源目录以后写 Schema 和参考文件，`settings.rs`，`WARN config schema not written`。 8-2 改了：第 6 步找到资源目录以后读配置、照 `log.level` 换运行日志的级别，再写 Schema 和参考文件；`MIYU_LOG` 压过配置；运行日志加 `config problems`、`trust not read`、`log level`、`MIYU_LOG not understood, using config`。 8-4 改了：第 6 步说「好了」之前开始监视、跟着配置换；`settings.rs` 那一行加 `follow`；运行日志加 `config watch unavailable`、`config changed via=file`。 8-5 改了：第 6 步读配置连同密钥文件；运行日志加 `secrets readable by others`、`secret changed`。
+- `log.md`：级别由 `log.level` 定、`MIYU_LOG` 压过。读不懂的 `MIYU_LOG` 退到配置。运行中换级别。「还没有的」删掉 `log.level`。8-1 改了：`settings.rs` 声明 `log.level`，「还没有的」那一条写明声明了、8-2 读。 8-2 改了：`install` 收级别、交回的 `Guard` 能换级别（`set_level`）；读不懂的 `MIYU_LOG` 由核心读完配置以后记、退到配置；「还没有的」那一条改成只剩运行中换（8-4）。 8-4 改了：`Guard::levels`，运行中照 `log.level` 当场换，「还没有的」删掉这一条。
+- `session/actor.md`：回合开始时取一份配置的快照，带上信任着的项目配置，这一轮都用它（第八条第 3 条）。 8-4 改了：「在哪」加 `config.rs`，跑回合开始的挂接点先冻结配置，请求模型带上这一轮的配置。
+- `cli/main.md`：子命令表加 `config`、`login`、`logout`。帮助页多三页，主帮助页加三行。界面语言握手以前照系统的语言（`sys-locale`，不再只看 `LANG` 这几个变量），握手以后照回应的 `language`，`ja` 的照英文。 8-2 改了：子命令表、主帮助页加 `config`，帮助页九页；界面语言握手以前照 `sys-locale` 兜底，握手以后照回应的 `language`，每个子命令都是。 8-5 改了：子命令表、主帮助页加 `login`、`logout`，帮助页十二页。
+- `cli/ask.md`：起头配置有错、项目配置没信任的两行。给人看的字照握手回的语言。 8-2 改了：起头配置有错那一行；握手以后照回应的语言。 8-3 改了：没信任那一行，开头几行挪进 `ask/follow/opening.rs`。
+- 命令行这两节施工时拆成 `cli/config.md`（8-2）、`cli/login.md`（8-5），照「每条命令一页」。 8-2 拆了 `cli/config.md`：四个子命令的走法、样子、帮助页的样本。 8-3 改了：加 `set`、`unset`、`edit`、`trust`，帮助页的样本，退出码。 8-5 拆了 `cli/login.md`：走法、样子、帮助页的样本、退出码；`cli/config.md` 的 `check` 印密钥文件的问题、`Console` 多三样。
 - `01-架构.md` 第九节：登记 `miyu-config` 在第 2 层。白名单加 `toml_edit`。8-1 改了：登记在第 2 层；8-1 不用 `toml_edit`，白名单随 8-2 加。 8-2 改了：白名单加 `toml_edit`。
-- `licenses.md`：新依赖 `toml_edit`（MIT OR Apache-2.0）、`notify`（CC0-1.0）、`sys-locale`（MIT OR Apache-2.0）、`rpassword`（Apache-2.0），都在能用的名单里。8-1 没有新依赖。 8-2 加了 `toml_edit`（和它带进来的 `toml_parser`、`toml_datetime`、`winnow`）、`sys-locale`，门禁过了。
-- `14-配置.md`：G3 不改。G7 的表加「以后开的会话」。G8 补了一句只丢写错的那一项（这个分支上已经改了）。第九节「命令行」那一行加 `trust`。8-1 改了：状态那一行记一句做到哪了。 8-2 改了：状态那一行记一句做到哪了。
-- `07-存储.md`：第二节加 `state/config/`。第三节系统日志加 `secret.changed`（系统的密钥），账号日志的 `trust.*` 写成 `trust.changed`。
-- `22-命令行.md` 第五节：`miyu config` 加 `trust`。加 `miyu login`、`miyu logout`（`miyu login --list`）。
+- `licenses.md`：新依赖 `toml_edit`（MIT OR Apache-2.0）、`notify`（CC0-1.0）、`sys-locale`（MIT OR Apache-2.0）、`rpassword`（Apache-2.0），都在能用的名单里。8-1 没有新依赖。 8-2 加了 `toml_edit`（和它带进来的 `toml_parser`、`toml_datetime`、`winnow`）、`sys-locale`，门禁过了。 8-4 加了 `notify`（和它带进来的 `notify-types`、`inotify`、`inotify-sys`、`fsevent-sys`、`walkdir`、`same-file`、`mio`），门禁过了。 8-5 加了 `rpassword`（和它带进来的 `rtoolbox`），门禁过了。
+- `14-配置.md`：G3 不改。G7 的表加「以后开的会话」。G8 补了一句只丢写错的那一项（这个分支上已经改了）。第九节「命令行」那一行加 `trust`。8-1 改了：状态那一行记一句做到哪了。 8-2 改了：状态那一行记一句做到哪了。 8-3 改了：状态那一行；G7 的表加「以后开的会话」「头下次启动」；第九节「命令行」那一行加 `trust`。 8-4 改了：状态那一行记一句做到哪了。 8-5 改了：状态那一行记一句做到哪了。
+- `07-存储.md`：第二节加 `state/config/`。第三节系统日志加 `secret.changed`（系统的密钥），账号日志的 `trust.*` 写成 `trust.changed`。 8-3 改了：第三节这两处。 8-5 改了：第九节写明密钥文件 0600、`miyu login`。
+- `22-命令行.md` 第五节：`miyu config` 加 `trust`。加 `miyu login`、`miyu logout`（`miyu login --list`）。 8-3 改了：`miyu config` 加 `trust`。 8-5 改了：加 `miyu login`、`miyu logout`。
 - `models.md`（另一个分身在画）：供应商、模型、池的键用这一页的清单声明。要的类型（整数、小数、网址、名字、引用、列表、表、密钥）和「人起的名字那一段」在它用上的那一步加。`models.chat` 这类的生效时机是 `new_session`。引用类的项「没有默认值」怎么算（G1 的测试要每一项有默认值），由它定，这一页的门禁照着改。取密钥经这一页的 `{ secret }`、`{ env }`。回合开始冻结的配置由它用上。`miyu login` 不写名字时列出目录里的供应商、借订阅的登录，由它接上。`DEEPSEEK_API_KEY` 的特判、`MIYU_DEV_*`、没 key 不拉起的规矩由它删，删的同一步把第十条第 1 条改成一律拉起。
 - `26-提示词.md` 第十节：不用改，配置这一块没有给模型看的字。
 - 跨会话的图纸（另一个分身在画）：没有交叉。

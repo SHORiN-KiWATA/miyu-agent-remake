@@ -32,7 +32,9 @@ impl Actor {
         let (stop, cancel) = oneshot::channel();
         self.calls.insert(seen, (stop, Instant::now()));
         let reports = Reports::new(seen, self.backs.clone());
-        self.model.call(seen, request, reports, Cancel::new(cancel));
+        let config = self.config.current();
+        self.model
+            .call(seen, request, config, reports, Cancel::new(cancel));
     }
 
     /// 发一次辅助请求（施工 3-8 四补的回顾、五补的起标题）：交给同一个端口，回报走辅助请求那一路，名字是用途和它照到的
@@ -53,7 +55,9 @@ impl Actor {
         self.asides
             .push((purpose.clone(), upto, stop, Instant::now()));
         let reports = Reports::aside(purpose, upto, self.backs.clone());
-        self.model.call(upto, request, reports, Cancel::new(cancel));
+        let config = self.config.current();
+        self.model
+            .call(upto, request, config, reports, Cancel::new(cancel));
     }
 
     /// 不要请求 `seen` 了：叫端口停下。

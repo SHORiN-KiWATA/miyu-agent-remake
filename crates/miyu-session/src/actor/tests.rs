@@ -55,7 +55,7 @@ impl ModelPort for Holding {
         &self.0
     }
 
-    fn call(&self, _: Seq, _: Request, _: Reports, _: Cancel) {}
+    fn call(&self, _: Seq, _: Request, _: &crate::TurnConfig, _: Reports, _: Cancel) {}
 }
 
 /// 说一句 `text`。
@@ -170,6 +170,7 @@ async fn a_write_that_fails_stops_the_session() {
         guard,
         mailbox,
         clock,
+        crate::config::Turning::start(crate::fixed(Default::default()), String::new()).await,
     );
     let (reply, created) = oneshot::channel();
     actor.wait_for(id("cmd-0"), reply);

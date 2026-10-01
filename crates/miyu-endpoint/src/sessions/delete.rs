@@ -11,7 +11,8 @@
 //! 4. 在跑的子会话一层层停下，不管它们忙不忙；它们和它自己的后台命令整组杀掉、不记回报；
 //! 5. 第 2 条那种，父会话照人停它记一条 `child.reported`（`stopped`，不带 `by_model`，叫醒父会话，`Handle::stopped_child`）：
 //!    回报在父会话的 actor 里当场记，不经会话表；
-//! 6. 目录挪进回收处，从最深的子会话起，它自己最后：半路崩了，它还在原处、列得出来，再删一次接着挪完。
+//! 6. 目录挪进回收处，从最深的子会话起，它自己最后：半路崩了，它还在原处、列得出来，再删一次接着挪完。挪走一个，删掉它在
+//!    会话列表的索引里的那一行（施工 3-8 七补）。
 
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
@@ -25,6 +26,7 @@ use miyu_store::trash;
 
 use super::{Open, Sessions, now};
 use crate::Core;
+use crate::list::forget;
 use crate::refusal::Refusal;
 
 impl Sessions {
@@ -63,10 +65,15 @@ impl Sessions {
         open.created
             .retain(|(_, session)| session != id && !family.contains(session));
         let (root, account, at) = (core.root.clone(), core.admin.clone(), now());
+        let index = Arc::clone(&core.index);
         let order: Vec<SessionId> = family.into_iter().rev().chain([id.clone()]).collect();
         let moved = tokio::task::spawn_blocking(move || {
             order.into_iter().try_for_each(|session| {
-                trash::discard(&root, &account, &session, at).map_err(|error| (session, error))
+                trash::discard(&root, &account, &session, at)
+                    .map_err(|error| (session.clone(), error))?;
+                // 挪走了才删那一行（施工 3-8 七补）：半路崩了，还在原处的照旧列得出来。
+                forget(&index, &session);
+                Ok(())
             })
         })
         .await;

@@ -61,6 +61,10 @@
       "name": "Message",
       "subject": "to",
       "icon": "↗"
+    },
+    "sessions": {
+      "name": "Sessions",
+      "icon": "≡"
     }
   },
   "said": {
@@ -128,6 +132,9 @@
     "history/read": "Read entries {from}–{to}",
     "history/none": "Nothing found",
     "history/no-log": "Could not read the history: {error}",
+    "history/no-session": "No session {session}",
+    "history/ambiguous": "{session} matches more than one session",
+    "history/not-here": "Cannot read other sessions here",
     "agent/started": "Started {job}",
     "agent/not-started": "Could not start",
     "jobs/listed": "Listed {count} jobs",
@@ -140,6 +147,10 @@
     "message_agent/no-parent": "No parent session",
     "message_agent/not-yours": "{to} is not its subagent",
     "message_agent/stopped": "{to} was stopped",
-    "message_agent/not-sent": "Not delivered"
+    "message_agent/not-sent": "Not delivered",
+    "sessions/listed": "Listed {count} sessions",
+    "sessions/none": "No other sessions",
+    "sessions/past-end": "All {total} other sessions are listed",
+    "sessions/failed": "Could not list sessions: {error}"
   }
 }

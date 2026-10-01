@@ -3,7 +3,8 @@
 //! 下层定义窄接口，上层实现）。执行器派子代理时经它造子会话、把交代送进去（`crate::agents`）；子会话经它向上回报
 //! （`crate::report`），父会话载入以后经它叫起还没回报的子会话（施工 7-6）。
 //!
-//! 测试里自己造的会话没有它：`agent` 照派不了出错。`jobs` 停子代理、读它在做什么也经它（施工 7-4）。
+//! 测试里自己造的会话没有它：`agent` 照派不了出错。`jobs` 停子代理、读它在做什么也经它（施工 7-4）。`sessions` 列主会话也经它
+//! （施工 C-3，`crate::sessions`）。
 
 use std::future::Future;
 use std::pin::Pin;
@@ -12,6 +13,7 @@ use miyu_kernel::event::Permission;
 use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Outcome};
+use miyu_tool::{Log, MainSession, Stop};
 
 use crate::jobs::Peek;
 
@@ -40,6 +42,20 @@ pub trait SessionPort: Send + Sync {
 
     /// 会话 `session` 这会儿的样子（施工 7-4）：照它的日志算，不载入它。
     fn peek(&self, session: SessionId) -> Pending<'_, Result<Peek, String>>;
+
+    /// 属主是 `owner` 的主会话（施工 C-3，`cross-session.md` 第一条第 2 款）：`session.created` 不带 `parent`、没删的，含调的这个
+    /// 会话自己，不排先后。和协议的 `session.list` 同一个函数算：每个会话只读地读一遍日志，不载入它；读下一个之前看一眼
+    /// `stop`，举起来了就不往下读，交回已经读到的。放会话的目录读不了、核心正在停：交回原因。
+    fn sessions(
+        &self,
+        owner: AccountId,
+        stop: Stop,
+    ) -> Pending<'_, Result<Vec<MainSession>, String>>;
+
+    /// 只读地开会话 `session` 的日志（施工 C-4，`cross-session.md` 第二条第 2 款）：不载入它，在跑的也读得到。核心正在停的
+    /// 交回原因；放会话目录本身不必读了才知道读不读得到，日志坏了、读不了的要等交回的 [`Log`] 读的时候才知道。`history`
+    /// 只在认出 `session` 参数写的是这个属主看得到的另一个会话（不是它自己）时才调它。
+    fn read_log(&self, session: SessionId) -> Pending<'_, Result<Log, String>>;
 }
 
 /// 端口交回的 future。

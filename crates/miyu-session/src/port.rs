@@ -15,6 +15,8 @@ use miyu_kernel::request::Request;
 use miyu_kernel::session::Limits;
 use miyu_store::blob::Blobs;
 
+use crate::config::TurnConfig;
+
 /// 给一个会话造请求模型的端口（施工 3-7 下）。造会话、载入时，拿到了这个会话的策略快照再造：驱动的
 /// 占位冻结在快照里，核心升级改了字，老会话照样逐字节重现当时的请求（施工 3-6 上）。
 pub trait Models: Send + Sync {
@@ -47,12 +49,20 @@ pub trait ModelPort: Send + Sync {
         }
     }
 
-    /// 发一次请求。马上返回，在别的任务里发：actor 不等它。
+    /// 发一次请求。马上返回，在别的任务里发：actor 不等它。`config` 是这一轮的配置（回合开始时冻结的，施工 8-4）：这一轮
+    /// 的每一次请求都照它，中途改了配置下一轮才用上。
     ///
     /// 回报照先后交给 `reports`：先报发出去了，再一段段交增量，最后报说完了；没发出去就失败了的，
     /// 直接报说完了。`cancel` 叫停了就停下，什么都不再报：会话不要这次请求了，或者会话停了。在别的
     /// 任务里发的，带上当前的 span（`tracing::Span::current()`），发出来的日志才带着会话编号。
-    fn call(&self, seen: Seq, request: Request, reports: Reports, cancel: Cancel);
+    fn call(
+        &self,
+        seen: Seq,
+        request: Request,
+        config: &TurnConfig,
+        reports: Reports,
+        cancel: Cancel,
+    );
 }
 
 /// 一次请求的回报送回哪里。

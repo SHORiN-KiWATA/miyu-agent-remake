@@ -4,7 +4,7 @@
 //! 表拿 tokio 的锁护着，载入期间一直拿着：两个连接同时说给同一个没在跑的会话，只载入一次、只起一个
 //! actor（一个会话只能有一个写者，`07-存储.md` 第三节）。
 
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -102,7 +102,7 @@ impl Sessions {
         }
         let workspace = workspace(core, &cwd);
         // 开局只读照这个会话实际干活的目录算，带上信任着的项目配置（`config.md` 第二条第 9 条）。
-        let (resolved, project) = core.config.with_project(&workspace);
+        let (resolved, project) = core.config().with_project(&workspace);
         let untrusted = project.and_then(|project| project.untrusted());
         if let Some((_, session)) = open.created.iter().find(|(id, _)| *id == command) {
             let id = session.clone();
@@ -138,6 +138,8 @@ impl Sessions {
             lineage: None,
             sessions: Some(spawn::port(core)),
             jobs: &core.jobs,
+            index: core.index_for(&core.admin),
+            configs: core.hub.configs(),
         })
         .await;
         let handle = match created {
@@ -218,6 +220,8 @@ impl Sessions {
             persona: &child.persona,
             venue: child.venue,
             sandbox_cache: core.sandbox_cache_of(&child.owner),
+            index: core.index_for(&child.owner),
+            configs: core.hub.configs(),
             owner: child.owner,
             permission: child.permission,
             attended: child.attended,
@@ -255,6 +259,16 @@ impl Sessions {
     pub(crate) async fn busy(&self) -> bool {
         let open = self.open.lock().await;
         open.running.values().any(|running| running.handle.busy())
+    }
+
+    /// 这时忙着的会话（施工 C-3）：在表里、有回合在进行，和 [`Sessions::busy`] 看的是同一样。列会话时照它写忙不忙。
+    pub(crate) async fn busy_ids(&self) -> BTreeSet<SessionId> {
+        let open = self.open.lock().await;
+        open.running
+            .iter()
+            .filter(|(_, running)| running.handle.busy())
+            .map(|(id, _)| id.clone())
+            .collect()
     }
 
     /// 有计划地停下全部在跑的会话：跑到一半的回合记成「重启了」，下次载入接着干（施工 3-9 上）。
@@ -394,8 +408,8 @@ fn offset() -> UtcOffset {
         .unwrap_or_else(|| unreachable!("UTC 在偏移的范围里"))
 }
 
-/// 现在：造会话编号用，编号的前 48 位是它。
-fn now() -> Timestamp {
+/// 现在：造会话编号用，编号的前 48 位是它；配置的日志也照它记时刻（施工 8-3）。
+pub(crate) fn now() -> Timestamp {
     let millis = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |since| i64::try_from(since.as_millis()).unwrap_or(0));

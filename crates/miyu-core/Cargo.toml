@@ -36,7 +36,7 @@ miyu-tool = { path = "../miyu-tool" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 # 核心的运行时：接连接、会话、请求都在上面；空闲的钟；停的信号。
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
 # 运行日志的门面（施工 3-7 上）。
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 
