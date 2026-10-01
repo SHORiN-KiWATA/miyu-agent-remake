@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>168</b><span>/ 185 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 W-3 路径，接着 4-5 再补（英文单数）、8-11 补（本机服务不走代理）；跨会话只剩 C-7 验收</span></li>
-    <li><b class="mono">307fb7bf</b><span>最近一步（8-11 第一次接入）的提交</span></li>
+    <li><b>169</b><span>/ 185 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 4-5 再补（英文单数），接着 8-11 补（本机服务不走代理）、W-4 mermaid；跨会话只剩 C-7 验收</span></li>
+    <li><b class="mono">cc0aeece</b><span>最近一步（W-3 路径）的提交</span></li>
   </ul>
 </header>
 
@@ -545,7 +545,7 @@ a.step:hover{border-color:var(--primary)}
       <ol class="chips">
         <li><a class="step done" href="#sW-1"><span class="n">W-1</span>给人看的字<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sW-2"><span class="n">W-2</span>列文件、找文件<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">W-3</span>路径</span></li>
+        <li><a class="step done" href="#sW-3"><span class="n">W-3</span>路径<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">W-4</span>mermaid</span></li>
         <li><span class="step"><span class="n">W-5</span>分块上传</span></li>
         <li><span class="step"><span class="n">W-6</span>分块读</span></li>
@@ -11603,6 +11603,55 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/W-2-列文件、找文件.md</code>；蓝图 <code>web-module.md</code> 第三条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sW-3" aria-labelledby="h-sW3">
+  <div class="sheet-head"><h2 id="h-sW3"><span class="no">W-3</span>路径</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头一连上就知道核心那边的家目录、平台、这个账号的工作区：握手回应多一格 <code>host</code>。另加 <code>fs.realpath</code>：一个路径换成真实的位置，还没建出来的几层原样接在最近一层在的后面。网页的桥 <code>web.info</code>、<code>web.realpath</code> 以后能删。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">路径</span><span class="dir-note">W-3</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>握手回应 <code>host</code>：<code>home</code>（读不出写 <code>null</code>）、<code>platform</code>、<code>workspace</code>（真实位置）</li>
+              <li><code>fs.realpath</code>：<code>~</code> 照家目录接，相对的接 <code>cwd</code>，往上找最近一层在的；只说位置，数据根里的照样换</li>
+              <li>复用 4-3 的 <code>resolve()</code>，没另开一份</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">握手不建账号目录</span><span class="rl">算 workspace 不顺手建出账号的家，施工时撞了一个测试才发现</span></div>
+          <div class="tile"><span class="nm">一种原因码</span><span class="rl">换不成真实位置一律 path_unreadable，和 fs.list 共用</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">W-3</dd></div>
+        <div><dt>名称</dt><dd>路径</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">cc0aeece</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/W-3-路径.md</code>；蓝图 <code>web-module.md</code> 第四条。</li>
       </ul>
     </div>
   </div>
