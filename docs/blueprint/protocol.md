@@ -34,7 +34,7 @@
 | `crates/miyu-endpoint/src/settings.rs` | 端点的配置项：界面语言 `ui.language`，`auto` 照系统的语言算出 `zh`、`en`、`ja`（施工 8-1 声明，8-2 握手时用）；新会话开局只读 `permission.start_read_only`（施工 8-2） |
 | `crates/miyu-endpoint/src/config.rs`、`config/` | 配置服务：起来时读的几份配置、最终值，照目录找项目配置、认信不信任；`config.schema`、`config.get`、`config.check`（施工 8-2，`config.md`）；`config.set`、`config.trust`，住在核心家底的一把锁里（施工 8-3）；监视配置文件、推 `config.changed`（施工 8-4）；密钥文件也住在这里（施工 8-5） |
 | `crates/miyu-endpoint/src/secrets.rs`、`secrets/` | `secret.set`、`secret.delete`、`secret.list`：只能写、删、列名字，从不交出值；手改密钥文件被看到的、留痕（施工 8-5，`config.md` 第九条） |
-| `crates/miyu-endpoint/src/models.rs`、`models/` | `model.list`：配好的供应商、模型、每一格资料的值和来源（施工 8-7，`models.md`「协议」），池、挡位、用途（施工 8-8）；`session.create` 的 `model` 怎么解析（`record`，施工 8-8） |
+| `crates/miyu-endpoint/src/models.rs`、`models/` | `model.list`：配好的供应商、模型、每一格资料的值和来源（施工 8-7，`models.md`「协议」），池、挡位、用途（施工 8-8），模型和 key 的冷却（施工 8-9）；`session.create` 的 `model` 怎么解析（`record`，施工 8-8） |
 
 ### 对外的样子
 
@@ -139,7 +139,7 @@
 | `secret.set` | 写入或者换掉一个密钥（`name`、`value`），落了盘、记了日志才回应 `{"replaced"}`（施工 8-5，`config.md`「协议」） |
 | `secret.delete` | 删掉一个密钥（`name`），回应 `{}`（施工 8-5） |
 | `secret.list` | 密钥的名字、设没设、谁在用（`used_by`），从不交出值（施工 8-5） |
-| `model.list` | 配好的供应商和模型，每一格资料的值和来源、状态，在用的目录（施工 8-7）；池、四个挡位、两种用途（施工 8-8：`pools`、`tiers`、`uses` 多 `vision`）。参数 `provider`（只看这一家）、`refresh`（先拉一遍供应商的模型列表）都可以不写；形状照 `models.md`「协议」`model.list` |
+| `model.list` | 配好的供应商和模型，每一格资料的值和来源、状态，在用的目录（施工 8-7）；池、四个挡位、两种用途（施工 8-8：`pools`、`tiers`、`uses` 多 `vision`）；模型、key 的状态多 `cooling`，带 `until`、`class`（施工 8-9）。参数 `provider`（只看这一家）、`refresh`（先拉一遍供应商的模型列表）都可以不写；形状照 `models.md`「协议」`model.list` |
 | `human.get` | 给人看的字：工具的样子、说法的模板原文，照这个连接的语言；不带 `config`（施工 W-1） |
 | `subscribe`、`unsubscribe` | 订阅、取消订阅会话的事件流 |
 
@@ -442,9 +442,9 @@
 2. 不写 `after` 的：这个连接已经订阅着这个会话、还在推的，还是那一个，回应照样带限额；停了推的（掉了队、会话停了），换一个新的。写了 `after` 的总是换一个新的（「补发」第 6 条）。
 3. 取消订阅：停掉转发。不载入会话，没订阅过的也回 `{}`。
 4. 不写 `after` 的，订阅的回应不排在推送后面：会话正忙的，回应之前可能已经有这个会话的推送。写了 `after` 的排在补发的后面（「补发」第 2 条）。
-5. 限额是造会话、载入时定的：会话 actor 把模型的限额交给内核以后，向内核要一份（`kernel/session.md` 的 `context_limits()`），`Handle` 带着它（`session/actor.md`）。会话里不变：一个核心只有一个模型，策略冻结在会话上。
+5. 限额是造会话、载入时定的：会话 actor 把模型的限额交给内核以后，向内核要一份（`kernel/session.md` 的 `context_limits()`），`Handle` 带着它（`session/actor.md`）。会话中途会变（施工 8-9）：钉住的池出错换了成员、成了以后，限额换成它的，`Handle` 跟着换，之后的 `subscribe` 交新的，订阅着的头收到一条 `model.changed`（`models.md`「瞬时事件」）。回合开始重新解析换了的随 8-10。
 6. 压缩线由内核算好，和它自己判到线用的是同一条；头照 `window` 画「用量 / 窗口」、照 `compaction_line` 算离压缩还有多少，不照公式自己算（公式里的输出预留、余量在策略里）。
-7. 限额不进日志，也不推瞬时事件：头每次接进来（造完会话、中途接进一个在跑的会话、掉了队重新订阅、核心重启以后）都经 `subscribe`，从回应里拿（为什么见 `04-核心协议.md` 第九节「先做的几样怎么写」）。
+7. 限额不进日志：头每次接进来（造完会话、中途接进一个在跑的会话、掉了队重新订阅、核心重启以后）都经 `subscribe`，从回应里拿（为什么见 `04-核心协议.md` 第九节「先做的几样怎么写」）；接着的时候变了的，照推过来的瞬时 `model.changed` 换（施工 8-9）。
 8. 订阅着就算这个头在看着这个会话（施工 7-9）：一次性的会话没有头订阅着，回报只记下、不叫醒她（`agents.md` 第三条第 3 条）。取消订阅、连接断了，就不算了；会话 actor 数着拿着订阅的头（`session/actor.md` 第 3 条），不进日志，协议上不另说。头要知道还有几个子代理没报、叫醒的那一轮会不会来，照推过来的事件自己数（`job.started`、`child.reported`、`job.messaged`，`cli/ask.md`「等子代理」），协议不另给：施工 7-9 照最简单、不加协议定。
 
 **补发**（施工 3-8 六补，`04-核心协议.md` 第六节第 9 条、第七节）
@@ -455,7 +455,7 @@
    例子：日志里有 42 条，头看到第 30 条掉了线，重连以后 `{"session": …, "stream": "events", "after": 30}`：先推第 31 到 42 条，再是回应 `{"id":"c2","jsonrpc":"2.0","result":{"limits":{},"upto":42}}`，之后从第 43 条接着推。
 2. 补的都在回应之前到（「先见结果，后见回应」）：回应交给新订阅的转发任务，排在补的后面。补完到回应之间，可能已经有新推的。
 3. `after` 不比 `upto` 小的，什么都不补，照常推新的；`upto` 照样是日志里最后一条，比 `after` 小的，是头记的比日志还多。
-4. 只补落了盘的：瞬时事件（`model.delta`、`tool.progress`、`status`）没有序号，不补。撤销、压缩、清空、撤回的事件照原样补，头照有效历史自己算怎么画（视图投影随 M9）。
+4. 只补落了盘的：瞬时事件（`model.delta`、`tool.progress`、`status`、`model.changed` 这些）没有序号，不补。撤销、压缩、清空、撤回的事件照原样补，头照有效历史自己算怎么画（视图投影随 M9）。
 5. 补的那一截和新的订阅在会话 actor 的同一步里拿（`session/actor.md` 第 6 条）：那一步之前落了盘的都推过了，之后的都还没推。读日志不占 actor：端点在这个连接上读完这一截（阻塞线程里一次读完，不分批：载入会话本来就整份读进内存，照最简单的做），交给转发任务先写；读的时候会话照常跑，新推的攒在这个订阅里。这个连接上的下一条请求，等读完才办（「一个连接」第 1 条）。
 6. 写了 `after` 的总是换一个新的订阅。这个连接原来订阅着这个会话的，先不再交回应给它，等它把手里的推送、回应都放进写队列，补的才开始写：两段不交错。新的订阅拿到了才放下旧的，这个头一直算看着（`subscribe` 第 8 条）。旧的推过、补的又补了的，序号是重的：头照序号认，补的是回应之前、从 `after + 1` 起连着到 `upto` 的那一段。
 7. 补的走同一个订阅，受同一个限：会话给每个订阅最多攒 1024 份（「慢和掉队」）。一次补得多、头读得慢、会话同时推得多的，照样掉队、推 `resync`，头带上最后看到的序号再来。
@@ -473,7 +473,7 @@
 
 推送的事件不都由这个连接的命令引起：内核自己起的标题（`session.set_meta` 第 6 条，施工 3-8 五补）一轮答完以后自己来，没有 `cause`。
 
-`event` 里的事件照原样嵌进去：落了盘的照 `kernel/events.md` 的写法，样本在 `docs/designs/samples/events/`；瞬时的 `model.delta`、`tool.progress`、`status` 没有 `seq`，样本在 `docs/designs/samples/transient/`。
+`event` 里的事件照原样嵌进去：落了盘的照 `kernel/events.md` 的写法，样本在 `docs/designs/samples/events/`；瞬时的 `model.delta`、`tool.progress`、`status`（施工 8-9 起换了端点的多 `failover`）、`model.changed`（施工 8-9，会话接下来请求的模型、限额变了，`models.md`「瞬时事件」）这些没有 `seq`，样本在 `docs/designs/samples/transient/`。
 
 ### 怎么走
 
@@ -717,7 +717,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/tools.rs` | 造会话、载入时用核心的工具目录；核心的沙盒造会话、载入时都交给会话，沙盒用不了的核心上执行命令没人能确认就拒（施工 5-4 上） |
 | `crates/miyu-endpoint/tests/socket.rs` | 真的套接字（Windows 上是命名管道）上握手、造会话、说话，第二个头也连得上 |
 | `crates/miyu-endpoint/tests/config.rs`、`config_trust.rs`（施工 8-2） | 握手的 `language`、`config_errors`；`config.schema`、`config.get`、`config.check`；`unknown_config_key` 带 `problems`；开局只读照配置、照信任着的项目配置；造会话、说话的回应带 `untrusted_project`（`config.md`「守着它的」）。`config.trust` 的回答、拒绝、日志（施工 8-3） |
-| `crates/miyu-endpoint/tests/models.rs`（施工 8-7） | `model.list` 的形状、来源、状态；`provider` 只看一家、`unknown_provider`、参数不对；`refresh` 拉完再答、不写的在后台拉（`models.md`「守着它的」） |
+| `crates/miyu-endpoint/tests/models.rs`（施工 8-7） | `model.list` 的形状、来源、状态；`provider` 只看一家、`unknown_provider`、参数不对；`refresh` 拉完再答、不写的在后台拉；冷却（施工 8-9）：模型照能用的 key 里最好的那个，都在冷却的带最早恢复的 `until`、`class`，认证失败停了整个 key 的那个 key 也是 `cooling`，取不到值的 key 不算（`models.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/models_pools.rs`（施工 8-8） | `model.list` 的 `pools`、`tiers`、`uses`；`session.create` 的 `model` 记下解析出的、`unknown_model` 什么都不造、不是字符串的 `bad_params`（`models.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/secrets.rs`、`secrets_log.rs`（施工 8-5） | `secret.*` 的回应、拒绝、日志；值不进回应、拒绝、系统日志、运行日志（`config.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/config_set.rs`（施工 8-3） | `config.set` 的回应、每一种拒绝、`expect`、版本、手改重读、全收或者全不收、写不成什么都没变、日志（`config.md`「守着它的」） |
@@ -753,5 +753,5 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 - 成员只能切到只读和工作区（`11-权限与沙盒.md`）：现在连上来的只有管理员，`session.set_permission_level` 不拦，多用户那一步再拦。
 - 消息结构只在 Rust 类型里定义一次，生成 JSON Schema 和 TypeScript 类型（第二节）。
 - 会话空闲一段时间后 actor 退出（`07-存储.md` 第七节）。
-- 换模型（`session.configure`，随配置和多供应商那一步）：那时限额会在会话中途变，推一条瞬时事件带新的限额和模型，头照最新的画。现在造会话、载入以后就不变，只在 `subscribe` 的回应里。
+- 换模型（`session.configure`，8-10）：回合开始重新解析换了模型、限额的，推 `model.changed`（`why` 是 `turn`）。8-9 做了出错换成员的那一半（`why` 是 `failover`）。
 - 视图流的会话状态（第五节，M8）里也带限额，字段只加不改。

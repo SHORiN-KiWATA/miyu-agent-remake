@@ -85,3 +85,63 @@ fn tool_progress_is_written_with_its_call() {
         r#"{"call_id":"call_45_1","text":"lib.rs\n"}"#
     );
 }
+
+/// 重试的状态：换了端点当场再来的多一格 `failover`，写在最后；不是的不写（施工 8-9）。
+#[test]
+fn failover_is_written_only_when_it_is_true() {
+    let status = |failover: bool| {
+        let mut transient = delta(0, Piece::End);
+        transient.body = TransientBody::Status(Status {
+            seen: Seq::new(44).unwrap(),
+            retry: Retry {
+                attempt: 1,
+                limit: 5,
+                wait_ms: 0,
+                class: ErrorClass::RateLimited,
+                message: "429".to_string(),
+                status: Some(429),
+                failover,
+            },
+        });
+        body_of(&transient)
+    };
+    assert_eq!(
+        status(true),
+        r#"{"seen":44,"retry":{"attempt":1,"limit":5,"wait_ms":0,"class":"rate_limited","message":"429","status":429,"failover":true}}"#
+    );
+    assert!(!status(false).contains("failover"));
+}
+
+/// `model.changed`（施工 8-9）：`ref`、`endpoint`、`model`、`limits`、`why` 照这个先后，没有的不写。
+#[test]
+fn model_changed_is_written_in_the_drawing_order() {
+    let mut transient = delta(0, Piece::End);
+    transient.by = By::Kernel;
+    transient.body = TransientBody::ModelChanged(Box::new(ModelChanged {
+        reference: Some("@duo".to_string()),
+        endpoint: Some(ProviderId::parse("b").unwrap()),
+        model: Some(ModelName::parse("y").unwrap()),
+        limits: ContextLimits {
+            window: Some(32_000),
+            compaction_line: Some(12_000),
+        },
+        why: ChangeWhy::Failover,
+    }));
+    let line = transient.to_line();
+    assert!(line.contains(r#""kind":"model.changed""#), "{line}");
+    assert_eq!(
+        body_of(&transient),
+        r#"{"ref":"@duo","endpoint":"b","model":"y","limits":{"window":32000,"compaction_line":12000},"why":"failover"}"#
+    );
+    transient.body = TransientBody::ModelChanged(Box::new(ModelChanged {
+        reference: None,
+        endpoint: None,
+        model: None,
+        limits: ContextLimits {
+            window: None,
+            compaction_line: None,
+        },
+        why: ChangeWhy::Failover,
+    }));
+    assert_eq!(body_of(&transient), r#"{"limits":{},"why":"failover"}"#);
+}

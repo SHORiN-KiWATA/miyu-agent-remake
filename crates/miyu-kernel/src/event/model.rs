@@ -182,7 +182,7 @@ pub struct CallError {
 
 text_enum!(
     /// 出错的分类：驱动分的六种（`05-内核接口.md` 第七节），加上内核自己查出来的几种，和端口没发出去就说完的
-    /// `no_model`（施工 8-6，`models.md`「事件」）。
+    /// `no_model`（施工 8-6）、`cooling`（施工 8-9，`models.md`「事件」）。
     ErrorClass {
         /// 可重试。
         Retryable = "retryable",
@@ -206,6 +206,9 @@ text_enum!(
         CompactionPaused = "compaction_paused",
         /// 没有能用的模型：`models.chat` 没配、会话的引用解析不出（施工 8-6）。端口当场说完，没发出去；内核不再来。
         NoModel = "no_model",
+        /// 候选不止一个，全在冷却（施工 8-9，`models.md`「怎么走」第五条第 6 条）：端口当场说完，没发出去。能再来：等到
+        /// 最早恢复的那一个（`wait_ms`）。
+        Cooling = "cooling",
     }
 );
 

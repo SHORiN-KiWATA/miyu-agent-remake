@@ -200,7 +200,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
             delta: watch.some_delta(rng),
         },
         20 | 21 => {
-            let (error, wait_ms) = some_ending(rng);
+            let (error, wait_ms, failover) = some_ending(rng);
             Input::ModelEnded {
                 at: at(45),
                 seen: watch.some_seen(rng),
@@ -208,6 +208,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
                 error,
                 wait_ms,
                 excess: None,
+                failover,
             }
         }
         22 => progress(watch.some_call(rng)),

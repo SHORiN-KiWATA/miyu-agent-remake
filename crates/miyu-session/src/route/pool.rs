@@ -3,8 +3,9 @@
 //! - 钉住：造端口时钉上一个成员：载入的、最近一条发出去了的 `model.called` 是这个池的成员的，就是它；不是的、新造的，取
 //!   指针指的那个，指针加一。以后每次请求先发给它。
 //! - 轮换：每次请求从指针指的那个成员起，指针加一。
-//! - 候选：从挑中的那个起，照写的先后绕一圈。这时用不了的（那一家推不出驱动、地址，地址、key 取不到）跳过、取下一个；钉住的
-//!   池，钉着的换成真发的那一个（8-8 只因为「这时用不了」换，出错才换随 8-9）。都用不了的，交第一个的原话。
+//! - 候选：从挑中的那个起，照写的先后绕一圈，每个成员的 key 照 `route/choice.rs` 排。这时用不了的（那一家推不出驱动、地址，
+//!   地址、key 取不到）跳过；都用不了的，交第一个的原话。钉住的池，钉着的成员只在成了时换成真发的那一个（施工 8-9，
+//!   `route/ended.rs`：出错换过去的、这时用不了跳过去的都一样）。
 //! - 认不出的成员（那一家没配）每次解析都记一行 `WARN pool member skipped`。
 //! - 指针往前走一次，在阻塞线程里写一次 `state/models/pools.json`（[`ModelData::save_pointers`]）。
 //! - 限额：钉住的照钉着的那个成员。轮换的取成员里窗口最小的、最大输出最小的（说得出的里面），一张图的算法只在成员都一样时
@@ -13,13 +14,13 @@
 use std::sync::Arc;
 
 use miyu_config::Values;
-use miyu_http::Endpoint;
 use miyu_kernel::origin::Model;
 use miyu_kernel::session::Limits;
 use miyu_models::facts::facts;
 use miyu_models::pools::{Member, Pool, Strategy};
 use miyu_models::provider::{self, NoModel, Target};
 
+use super::choice::Choice;
 use super::{Pinned, Route, Routes, images, none, nothing};
 use crate::TARGET;
 use crate::config::TurnConfig;
@@ -74,14 +75,15 @@ impl Routes {
 }
 
 impl Route {
-    /// 池这一次发给哪个成员：从钉着的（钉住）、指针指的（轮换，或者还没钉上的）起，照写的先后取第一个这时用得了的。
-    pub(super) fn member(
+    /// 池这一次的候选：从钉着的（钉住）、指针指的（轮换，或者还没钉上的）成员起，照写的先后绕一圈，每个用得了的成员的
+    /// key 排下来。一个都用不了的交第一个的原话。
+    pub(super) fn members(
         &self,
         config: &TurnConfig,
         values: &Values,
         pool: &Pool,
-        pinned: &mut Pinned,
-    ) -> Result<(Target, Endpoint), NoModel> {
+        pinned: &Pinned,
+    ) -> Result<Vec<Choice>, NoModel> {
         let data = &self.shared.data;
         for text in &pool.skipped {
             tracing::warn!(target: TARGET, pool = pool.name.as_str(), member = text.as_str(), "pool member skipped");
@@ -92,24 +94,24 @@ impl Route {
             .filter(|_| pool.strategy == Strategy::Pin)
             .and_then(|member| pool.find(&member.provider, &member.model));
         let first = held.unwrap_or_else(|| take(data, pool));
+        let mut choices = Vec::new();
         let mut problem = None;
         for at in pool.order(first) {
             let member = &pool.members[at];
             let tried = target(data, values, member)
-                .and_then(|target| Ok((self.endpoint(config, &target)?, target)));
+                .and_then(|target| self.choices(config, &target, Some(member), &pinned.moved));
             match tried {
-                Ok((endpoint, target)) => {
-                    if pool.strategy == Strategy::Pin {
-                        pinned.member = Some(member.clone());
-                    }
-                    return Ok((target, endpoint));
-                }
+                Ok(more) => choices.extend(more),
                 Err(error) => {
                     problem.get_or_insert(error);
                 }
             }
         }
-        Err(problem.unwrap_or_else(|| NoModel(format!("pool {:?} has no models", pool.name))))
+        match (choices.is_empty(), problem) {
+            (false, _) => Ok(choices),
+            (true, Some(problem)) => Err(problem),
+            (true, None) => Err(NoModel(format!("pool {:?} has no models", pool.name))),
+        }
     }
 }
 

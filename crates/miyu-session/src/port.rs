@@ -145,6 +145,19 @@ impl Reports {
             error,
             wait_ms,
             excess,
+            failover: false,
+        });
+    }
+
+    /// 出错了，端口换了端点（施工 8-9，`models.md`「怎么走」第五条第 3 条）：内核不管分类当场再来。`wait_ms` 是别的候选都在
+    /// 冷却时要等多久，有别的能用的没有。
+    pub fn failed_over(self, usage: Option<Usage>, error: CallError, wait_ms: Option<u64>) {
+        self.send(Report::Ended {
+            usage,
+            error: Some(error),
+            wait_ms,
+            excess: None,
+            failover: true,
         });
     }
 
@@ -195,12 +208,13 @@ pub(crate) enum Report {
     Sent { model: Model, request: ContentHash },
     /// 一段增量。
     Delta(Delta),
-    /// 说完了。
+    /// 说完了。`failover`：出错以后端口换了端点（施工 8-9）。
     Ended {
         usage: Option<Usage>,
         error: Option<CallError>,
         wait_ms: Option<u64>,
         excess: Option<u64>,
+        failover: bool,
     },
 }
 

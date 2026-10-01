@@ -8,7 +8,8 @@
 //!   就写（先写临时文件再改名，`miyu_store::generated`），写不成的记一行 `WARN`，内存里照样用。
 //! - 池的指针（施工 8-8，`models.md` 第三条第 6 条）：一个池一个，往前走一次（[`ModelData::take`]）写一次
 //!   `state/models/pools.json`（[`ModelData::save_pointers`]，在阻塞线程里，拿着指针的锁写：几次写不会把新的盖成旧的）。
-//! - 冷却表随 8-9。
+//! - 冷却表（施工 8-9，`models.md` 第五条第 2 条）：一个核心一份，只在内存里，另一把锁；`[models.cooldown]` 的规矩也在
+//!   这里，核心照配置的变化当场换（[`ModelData::set_cooldown_rules`]）。路由出错时记、挑端点时查，`model.list` 照它说状态。
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -21,6 +22,7 @@ use miyu_http::Client;
 use miyu_kernel::time::Timestamp;
 use miyu_models::Knowledge;
 use miyu_models::catalog::Loaded;
+use miyu_models::cooldown::{Cooldowns, Rules};
 use miyu_models::matching::Vendors;
 use miyu_models::observed::{Learned, ProviderList};
 use miyu_models::pools::Pointers;
@@ -38,6 +40,8 @@ pub struct ModelData {
     observed: Mutex<Observed>,
     /// 池的指针（施工 8-8）：另一把锁，写盘时拿着它，不挡查资料。
     pointers: Mutex<Pointers>,
+    /// 冷却表和 `[models.cooldown]` 的规矩（施工 8-9）：另一把锁，只在内存里。
+    cooldowns: Mutex<(Cooldowns, Rules)>,
     /// `state/models`：用出来的、供应商的列表、池的指针写在这里。没有的不写（测试里）。
     dir: Option<PathBuf>,
     /// 拉供应商的列表用的客户端（`miyu_http::fetcher`）；没有的不拉。
@@ -64,6 +68,7 @@ impl ModelData {
             catalog: watch::channel(None).0,
             observed: Mutex::new(Observed::default()),
             pointers: Mutex::new(Pointers::default()),
+            cooldowns: Mutex::new((Cooldowns::default(), Rules::default())),
             dir,
             fetcher: None,
         }
@@ -159,6 +164,24 @@ impl ModelData {
     pub fn save_pointers(&self) {
         let pointers = self.pointers();
         self.write("pools.json", &pointers.to_json());
+    }
+
+    /// 换上 `[models.cooldown]` 的规矩（施工 8-9）：核心起来时、配置换了时当场换，下一次出错用新的。
+    pub fn set_cooldown_rules(&self, rules: Rules) {
+        self.cooldowns().1 = rules;
+    }
+
+    /// 借着冷却表和这时的规矩做一件事（施工 8-9）：锁拿着，做完就放开，别在里面等。
+    pub fn cooldown<R>(&self, work: impl FnOnce(&mut Cooldowns, &Rules) -> R) -> R {
+        let mut held = self.cooldowns();
+        let (table, rules) = &mut *held;
+        work(table, rules)
+    }
+
+    fn cooldowns(&self) -> MutexGuard<'_, (Cooldowns, Rules)> {
+        self.cooldowns
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
     }
 
     fn lock(&self) -> MutexGuard<'_, Observed> {

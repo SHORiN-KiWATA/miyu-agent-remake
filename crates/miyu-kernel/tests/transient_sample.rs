@@ -5,7 +5,8 @@
 //! - 这几段增量交给累积器，拼出来的就是样本里 45 号回复的内容块：推给头的和写进日志的对得上；
 //! - 45 号回复里那次 `read` 执行中的一段输出（`tool.progress`）；
 //! - 44 号请求出了限速的错，等 1 秒再来的状态（`status`，施工 3-5 下）；117 号请求的限速带着 HTTP 状态码
-//!   （施工 3-5 三补）；
+//!   （施工 3-5 三补）；另一个会话里池的一个成员限速、换到下一个当场再来的状态（带 `failover`），和换过去成了以后推的
+//!   `model.changed`（施工 8-9）；
 //! - 54 号压缩写摘要时的两段进度（`compaction.progress`，施工 6-2 上），和压好了的那一条（`compaction.done`，
 //!   施工 6-3 下）。
 //!
@@ -16,11 +17,12 @@ use std::path::PathBuf;
 
 use miyu_kernel::accumulate::{Accumulator, Delta, Kind};
 use miyu_kernel::event::{
-    Body, CompactTrigger, CompactionDone, CompactionProgress, ErrorClass, Event, ModelDelta, Piece,
-    Retry, Status, ToolProgress, Transient, TransientBody, Usage,
+    Body, ChangeWhy, CompactTrigger, CompactionDone, CompactionProgress, ErrorClass, Event,
+    ModelChanged, ModelDelta, Piece, Retry, Status, ToolProgress, Transient, TransientBody, Usage,
 };
 use miyu_kernel::id::{CallId, CommandId, ModelName, ProviderId, Seq, TurnId};
 use miyu_kernel::origin::{By, Model, Tool};
+use miyu_kernel::session::ContextLimits;
 use miyu_kernel::time::Timestamp;
 
 /// 样本目录：这个 crate 的目录往上两级是仓库根。
@@ -150,15 +152,14 @@ fn the_tool_progress_sample_is_written_exactly() {
 }
 
 /// 第一行是连不上、可以重试的，没有 HTTP 状态码，不写那一格；第二行是 118 号 `model.called` 的限速，带着 429
-/// （施工 3-5 三补）。
+/// （施工 3-5 三补）；第三行是另一个会话里池的一个成员限速，端口换到下一个、当场再来（等 0 毫秒，带 `failover`，施工 8-9）。
 #[test]
 fn the_status_sample_is_written_exactly() {
     let status = |at: &str,
-                  turn: u64,
-                  cause: &str,
-                  seen: u64,
+                  (turn, cause, seen): (u64, &str, u64),
                   (class, message): (ErrorClass, &str),
-                  status: Option<u16>| {
+                  status: Option<u16>,
+                  (wait_ms, failover): (u64, bool)| {
         Transient {
             at: Timestamp::parse(at).expect("样本的时刻合写法"),
             turn: Some(TurnId::new(Seq::new(turn).expect("合法的序号"))),
@@ -169,10 +170,11 @@ fn the_status_sample_is_written_exactly() {
                 retry: Retry {
                     attempt: 1,
                     limit: 5,
-                    wait_ms: 1000,
+                    wait_ms,
                     class,
                     message: message.to_string(),
                     status,
+                    failover,
                 },
             }),
         }
@@ -183,22 +185,49 @@ fn the_status_sample_is_written_exactly() {
         [
             status(
                 "2026-09-25T07:04:07.200Z",
-                42,
-                "cmd-7f3a",
-                44,
+                (42, "cmd-7f3a", 44),
                 (ErrorClass::Retryable, "connection reset by peer"),
-                None
+                None,
+                (1000, false)
             ),
             status(
                 "2026-09-25T07:58:12.400Z",
-                117,
-                "cmd-d4e7",
-                117,
+                (117, "cmd-d4e7", 117),
                 (ErrorClass::RateLimited, "HTTP 429: Rate limit reached"),
-                Some(429)
+                Some(429),
+                (1000, false)
+            ),
+            status(
+                "2026-09-25T08:20:41.300Z",
+                (131, "cmd-a8c4", 132),
+                (ErrorClass::RateLimited, "HTTP 429: Rate limit reached"),
+                Some(429),
+                (0, true)
             ),
         ]
     );
+}
+
+/// 上面第三行那一次换过去的成员成了：钉着的换成它，限额照它的，推一条 `model.changed`（施工 8-9）。会话 actor 造，内核不推。
+#[test]
+fn the_model_changed_sample_is_written_exactly() {
+    let changed = Transient {
+        at: Timestamp::parse("2026-09-25T08:20:44.900Z").expect("样本的时刻合写法"),
+        turn: Some(TurnId::new(Seq::new(131).expect("合法的序号"))),
+        by: By::Kernel,
+        cause: Some(CommandId::parse("cmd-a8c4").expect("命令编号合写法")),
+        body: TransientBody::ModelChanged(Box::new(ModelChanged {
+            reference: Some("@duo".to_string()),
+            endpoint: Some(ProviderId::parse("bigmodel").expect("合编号的写法")),
+            model: Some(ModelName::parse("glm-5.3-flash").expect("合模型名的写法")),
+            limits: ContextLimits {
+                window: Some(200_000),
+                compaction_line: Some(167_000),
+            },
+            why: ChangeWhy::Failover,
+        })),
+    };
+    assert_eq!(lines("transient/model.changed.jsonl"), [changed.to_line()]);
 }
 
 #[test]

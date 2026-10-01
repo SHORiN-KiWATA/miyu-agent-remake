@@ -12,7 +12,7 @@ use super::action::{Action, Reason};
 use super::input::Input;
 use super::{Session, rejected};
 use crate::event::{Body, ChildReason, ChildReported, Event, JobReason, JobReported};
-use crate::id::{CommandId, JobId, Seq, TurnId};
+use crate::id::{CommandId, JobId, Seq, SessionId, TurnId};
 use crate::ledger::{Ledger, LedgerError};
 use crate::origin::By;
 use crate::time::Timestamp;
@@ -38,6 +38,19 @@ pub(super) enum Waker {
 }
 
 impl Session {
+    /// 日志里用过的任务编号最后一段最大的数（施工 7-5；照最后一段数，施工 7-1 补）：撤掉的回合里派的也算，一个都没派过的
+    /// 是 0。纯查询：会话 actor 造会话、载入以后照它建领号的，新派的任务从下一个数起（`session/tools.md`「任务编号」）。施工
+    /// 8-9 从 `session.rs` 挪来，那边放不下了。
+    pub fn last_job_number(&self) -> u64 {
+        self.ledger.last_job_number()
+    }
+
+    /// 派出去、一次都还没回报过的子代理的子会话（施工 7-6）：撤掉的回合里派的也在，被停掉的不在。纯查询：会话 actor 载入
+    /// 以后把它们叫起来，崩了的、重启了的由它们自己补报、接着干（`agents.md` 第八条）。
+    pub fn waiting_children(&self) -> Vec<SessionId> {
+        self.ledger.waiting_children().cloned().collect()
+    }
+
     /// 撤销这几轮时要停的（施工 7-8，`agents.md` 第七条第 1 条）：在这几轮里派出去、还在跑的任务，照编号（账本的
     /// `running_jobs`）。`by`、`cause` 是撤销的人和命令。一个都没有的不出。
     pub(super) fn stop_undone(

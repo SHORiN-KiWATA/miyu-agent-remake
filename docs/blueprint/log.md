@@ -145,6 +145,8 @@
 | `session` | WARN | `provider list failed` | `provider`、`error` | 拉供应商的模型列表失败，照旧用上一份（第二条第 10 条） |
 | `session` | WARN | `model data not written`、`model data unreadable` | `file`、`error`；`error` | `state/models/` 下的写不进、坏了当没有（施工 8-8 起连同 `pools.json`） |
 | `session` | WARN | `pool member skipped` | `pool`、`member` | 池里认不出的成员（那一家没配），每次解析记一行（`models.md` 第三条第 1 条，施工 8-8）。带会话编号 |
+| `session` | INFO | `endpoint cooling` | `provider`、`key`（第几个，从 1 数；没写 key 的没有）、`model`、`class`、`for_ms`、`failures` | 一次出错记了冷却：限速、可重试、认证失败三类，冷却多少毫秒、这个单位连着第几次（`models.md` 第五条第 2 条，施工 8-9）。key 的值不进日志。带会话编号 |
+| `session` | INFO | `failover` | `from`、`to` 或 `key`、`class` | 出错换端点：从 `<供应商>/<模型>` 换到别的模型写 `to`，只换 key、模型没变的写换到第几个 `key`（`models.md` 第五条第 8 条，施工 8-9）。别的候选都在冷却、只剩等的不记。带会话编号 |
 | `endpoint` | DEBUG | `unknown model` | `why` | `session.create` 的 `model` 解析不出，回 `unknown_model`（施工 8-8） |
 | `core` | INFO | `sandbox` | `helper`（助手的路径）、`platform`、`mechanisms`（逗号连起来，空的写 `none`） | 起来时探沙盒的助手，探成了（`sandbox.md`，施工 5-1） |
 | `core` | WARN | `sandbox unavailable` | `reason` | 起来时探沙盒的助手：没找到、跑不了、到时、说的读不懂 |

@@ -22,7 +22,7 @@
 | `crates/miyu-kernel/src/session/aside.rs` | 辅助请求在路上的那一次（回顾、起标题共用，施工 3-8 五补从 `recap.rs` 分出来）：照用途和名字认回报、收增量、说完了算出正文和那条 `model.called`；不带回合编号的事件怎么造 |
 | `crates/miyu-kernel/src/session/title.rs` | 起标题：该不该起（从日志一条条算）、落了盘以后发请求、收回来记 `model.called` 和 `session.meta_changed`、标题怎么截（「起标题」，施工 3-8 五补） |
 | `crates/miyu-kernel/src/session/replies.rs` | 命令的回应什么时候回：记下编号、等事件落盘、接受过的编号再来（施工 3-8 四补从 `session.rs` 挪出来） |
-| `crates/miyu-kernel/src/session/limits.rs` | 给头看的限额 `ContextLimits`：窗口、压缩线（施工 6-3 补） |
+| `crates/miyu-kernel/src/session/limits.rs` | 给头看的限额 `ContextLimits`：窗口、压缩线（施工 6-3 补）；在跑的回合和它的 `cause`（`turn_cause()`，施工 8-9） |
 | `crates/miyu-kernel/src/session/tools.rs`、`step.rs` | 这一步的调用：先查、派、收结果、补结果；每个调用走到了哪、轮到谁 |
 | `crates/miyu-kernel/src/session/queue.rs`、`interrupt.rs` | 排队的消息；打断 |
 | `crates/miyu-kernel/src/session/jobs.rs` | 回报到了：记下，开一轮、排着还是只记下（施工 7-2，`agents.md` 第三条）；子会话重交的认出来（施工 7-6） |
@@ -54,6 +54,7 @@
 | `landed()` | 落了盘的最后一条（施工 3-8 六补）：`Stored` 送进来那一刻就推送了，所以也是推过的最后一条；还没落过盘的没有，载入的是日志里最后一条。只读。会话 actor 订阅时照它定补发补到哪一条（`session/actor.md` 第 6 条） |
 | `deletable()` | 删得了没有（施工 3-8 三补）：空闲的删得了；正在读回日志、改回文件的是 `Restoring`；别的不空闲（有回合在进行、`turn.ended` 还没落盘）是 `TurnRunning`。只读。会话 actor 照它答应删、停下，挪目录是会话表的事（`protocol.md` 的 `session.delete`） |
 | `context_limits()` | 给头看的限额 `ContextLimits`（施工 6-3 补）：`window` 上下文窗口，`compaction_line` 压缩线，和内核判到线用的是同一条（`compaction.md` 第二条第 2 条）。没交过限额的、没报窗口的，两格都没有；策略里没有压缩的、算不出正数的，没有压缩线。只读，不出动作。协议照它回 `subscribe`（`protocol.md`） |
+| `turn_cause()` | 在跑的回合的编号和它的 `cause`；没有在跑的回合的没有（施工 8-9）。只读，不出动作。会话 actor 推 `model.changed` 时照它写 `turn`、`cause`（`models.md`「瞬时事件」） |
 
 **输入**（`Input`）：
 
@@ -66,7 +67,7 @@
 | `TurnStartHooksDone { at, turn, injected }` | 哪个回合；各模块的注入 `Injection { module, fact }`，照固定的先后 | 「回合」第 4 条 |
 | `RequestSent { at, seen, model, request }` | 哪次请求；发给了哪个端点的哪个模型（`Model { endpoint, model }`）；驱动编码以后的请求字节的哈希 | 「收回复」 |
 | `ModelDelta { at, seen, delta }` | 一段增量：`Start { index, kind }`、`Text { index, text }`、`Private { index, private }`、`End { index }` | 「收回复」 |
-| `ModelEnded { at, seen, usage, error, wait_ms, excess }` | 用量；出错的分类和原话；供应商说要等多少毫秒；超长的超了多少 token（施工 6-6 中，不进日志）。没发出去就失败的不报 `RequestSent`，直接报这一条 | 「收回复」「出错再来」 |
+| `ModelEnded { at, seen, usage, error, wait_ms, excess, failover }` | 用量；出错的分类和原话；供应商说要等多少毫秒（换了端点的是别的候选都在冷却时要等多久）；超长的超了多少 token（施工 6-6 中，不进日志）；端口换了端点（`failover`，施工 8-9，不进日志）。没发出去就失败的不报 `RequestSent`，直接报这一条 | 「收回复」「出错再来」 |
 | `Woke { at, seen }` | 为哪一次请求等的；等停着的，是那一步回复的序号 | 「出错再来」「打断」第 7 条 |
 | `ToolDone { at, call_id, error, blocks, duration_ms, human, effects, stopped }` | 出没出错、给模型看的内容、用时、给人看的说法、效果；叫它停以后停在了改之前的，`stopped` 是真的 | 「调工具」「打断」第 7 条 |
 | `ToolProgress { at, call_id, text }` | 一段输出 | 「调工具」 |
@@ -246,11 +247,11 @@
 
 **出错再来**：
 
-1. 可以再来的分类：`retryable`、`rate_limited`、`bad_stream`、`empty_reply`。`context_too_long`、`auth`、`content_policy`、`other`、`no_model`（端口没发出去就说完的：没有能用的模型，施工 8-6，`models.md`「怎么走」第一条第 7 条）、不认识的，不再来。
+1. 可以再来的分类：`retryable`、`rate_limited`、`bad_stream`、`empty_reply`，和 `cooling`（端口没发出去就说完的：候选不止一个、全在冷却，施工 8-9，`models.md`「怎么走」第五条第 6 条）。`context_too_long`、`auth`、`content_policy`、`other`、`no_model`（端口没发出去就说完的：没有能用的模型，施工 8-6，`models.md`「怎么走」第一条第 7 条）、不认识的，不再来。端口说换了端点（`failover` 是真，施工 8-9，`models.md`「怎么走」第五条第 3 条）的，不管分类都再来。
 2. 这一步已经连着再来的不到 5 次（`RETRY_LIMIT`）才再来：最多再来 5 次，第 6 次出错结束回合。
-3. 等多久：带着 `wait_ms` 的照它；没带的，第 1 到第 5 次各等 1、2、4、8、16 秒（`backoff`）。要等的超过 120000 毫秒（`WAIT_LIMIT_MS`），不再来，结束回合，`error`。
+3. 等多久：带着 `wait_ms` 的照它；没带的，换了端点的等 0 毫秒（当场再来，照样走下面的第 5、6 条：推 `status`、交 `Wake`，施工 8-9），别的第 1 到第 5 次各等 1、2、4、8、16 秒（`backoff`）。要等的超过 120000 毫秒（`WAIT_LIMIT_MS`），不再来，结束回合，`error`。换端点也算一次再来，数进第 2 条的 5 次。
 4. 收到了半截、写成了回复的，后面追加一条事实 `reply_cut`（`by` 是内核，`cause` 是回合的），每次都追加，不和以前的比。
-5. 回合停在 `Waiting`，出 `Append`、一条瞬时的 `status`（`by` 是内核，`cause` 是回合的，`body` 是 `seen` 和 `retry`：第几次、上限 5、等多少毫秒、分类、原话，出的错带着 HTTP 状态码的也带上）、`Wake`（这一刻加上要等的毫秒；超出能写的时刻，就是这一刻）。
+5. 回合停在 `Waiting`，出 `Append`、一条瞬时的 `status`（`by` 是内核，`cause` 是回合的，`body` 是 `seen` 和 `retry`：第几次、上限 5、等多少毫秒、分类、原话，出的错带着 HTTP 状态码的也带上，换了端点的多一格 `failover: true`，施工 8-9）、`Wake`（这一刻加上要等的毫秒；超出能写的时刻，就是这一刻）。
 6. `Woke`：正在等的就是这个 `seen`，回到 `Ready`；这一轮里切过权限级别的先查一遍事实；然后照「回合」第 5 条再组装一次。别的都不理。什么都没收到、等的时候也没来别的事的，有效历史里只多了 `model.called`，默认的组装不渲染它，再来的请求和上一次一样。
 7. 再来的那一次不算进请求数。再来的是摘要请求的，不标「下一次是重试」：它后面那一次主请求照常算一步。
 8. 等着的时候打断，这一轮结束；有计划的重启，照重启收拾；来了消息，照排队。
@@ -525,7 +526,7 @@
 | `crates/miyu-kernel/src/session/tests/clear.rs`、`scenario/clear.rs` | 清空（施工 6-8 补）：一批三条、不请求模型、不跑回合开始的挂接点、跑回合结束的，落了盘才回应；有回合在进行、本来就空（没说过话、刚清过）的拒绝，清完又说了一句的收；只有一份摘要、只有一条回报也清；记在一边的回报跟着清掉；同一个编号再来；下一轮只看到清空以后的、事实照常注入；撤掉回到清空以前、恢复又清空；暂停着也收、清完到线照常自动压；载入以后一样 |
 | `crates/miyu-kernel/src/session/tests/compact.rs`、`scenario/manual.rs` | 手动压缩（施工 6-8）：空闲时收、开的那一轮没有触发、不注入、不跑挂接点，落了盘才回应；有回合在进行时拒绝（改回文件时拒绝在 `restore.rs`）；没有能压的四种；摘要请求带着要求；成了同一批结束、排着的接着开；失败不数不暂停；重试同一个 N；打断、重启；暂停着也收、成了以后到线照常自动压 |
 | `crates/miyu-kernel/src/session/tests/scenario/reports.rs`、`scenario/reports_undo.rs`（施工 7-2） | 回报：闲着时开一轮、`trigger`、`cause` 是它，回应只附它；`by`、`cause` 照交来的，不带回合编号；正忙时下一步听到、不另开；最后一步里到的接着开；和排着的消息比由后来的开；只记下的六种不开、下一轮开始时在请求里；被人停掉的照样开；打断时不撤回、不接着开，接着发的由排着的消息开；没人看着的一次性会话只记下，有头订阅着照常开、头退了回合结束也不开；对不上的拒绝、不理；能恢复撤销时只记下，恢复以后由最后那条开、回应不附它；派它的那一轮撤掉了的不开，恢复了跟着回来；人说了下一句一起听到；载入不开轮、载入以后照样能由恢复开、载入以后当没人看着，回合里到的、开过一轮的载入以后不算记在一边的；派它的那一轮还撤着的，恢复了后来那一轮也不开；手动压缩那一轮也清掉记在一边的；派它的那一条压缩掉了、撤掉压缩读回重建以后照常开；恢复要改回文件的，改完了才由它开；由回报接着开的一轮撤掉，带走上一轮排着的话、回报留着；读回日志时到的后台命令结束，读回来记了撤销再记 |
-| `crates/miyu-kernel/src/session/tests/scenario/models.rs`（施工 8-6） | 端口当场说完的 `no_model`：这一轮以出错结束，不再来，不推重试的状态，照这个名字写进日志（`failover`、`cooling` 随 8-9，`Configure` 随 8-10） |
+| `crates/miyu-kernel/src/session/tests/scenario/models.rs`（施工 8-6、8-9） | 端口当场说完的 `no_model`：这一轮以出错结束，不再来，不推重试的状态，照这个名字写进日志；端口说换了端点的（施工 8-9）不管分类当场再来（等 0 毫秒）、照它说的等、数进 5 次，状态带 `failover`；`cooling` 照它说的等最早恢复的、没说的照退避、超过 2 分钟的不等，照这个名字写进日志（`Configure` 随 8-10） |
 | `crates/miyu-kernel/src/session/tests/scenario/harness.rs`（施工 7-10） | 别的 harness 发来的话：闲着开一轮、`trigger` 和 `cause` 照它、回应只附它、不带回合编号；正忙下一次请求听到、结束时不再开；最后一步里到的接着开；打断两种都不撤回、不接着开；不作废在等人回答的题；没人看着的一次性会话只记下；能恢复撤销时记在一边、载入以后恢复了接着开；撤掉它开的那一轮它留着，它开的那一轮重做不了；子会话里收到的不欠父会话回报 |
 | `crates/miyu-kernel/src/session/tests/scenario/peers.rs`（施工 C-2） | 别的会话发来的话：三种关系（人的、父会话的话排进这一轮，子代理、别的会话的不带回合编号）；闲着开一轮、`trigger` 和 `cause` 照它、回应只附它；正忙下一次请求听到、结束时不再开；最后一步里到的接着开；打断两种都不撤回、不接着开；不作废在等人回答的题；没人看着的一次性会话只记下；能恢复撤销时记在一边、载入以后恢复了接着开；撤掉它开的那一轮它留着，它开的那一轮重做不了；子会话里收到的不欠父会话回报 |
 | `crates/miyu-kernel/src/session/tests/scenario/watch.rs`（施工 C-6） | 空了的通知：在等的记下、叫醒、`cause` 照命令；不在等的拒、什么都不记；撤掉订它的那一轮不等了、恢复了又等；作废到点才记（含正好那一刻）、只记下、`cause` 是订它的那一轮的；又订从新的时刻算；`gone` 只记下；执行器交的 `idle` 不理；`vacant()` 要子代理都报完、后台命令不算；`last_line()` 的截法；它开的那一轮重做不了、撤销不带走；能恢复撤销时记在一边、载入以后恢复了接着开 |
@@ -545,7 +546,7 @@
 | `crates/miyu-kernel/src/session/tests/load.rs` | 走完的载入一样往下走；坏日志拒绝；崩在哪都收尾、等你开口；崩之前的命令不再生效；生效的权限回来；检查点重读过文件的，第一个动作是 `Recall`（施工 6-9；撤掉压缩的撤销载入以后见 `history.md`「守着它的」） |
 | `crates/miyu-kernel/src/session/tests/spans.rs`、`scenario/spans.rs`（施工 2-3 补） | 回复每一块的起止：思考、正文、工具调用各一块照增量的时刻，收块不算；驱动流完了才一起收块、字交错着来、私有数据、时钟往回拨；出错收的半截、打断收的半截只记留下的，空块不记；出错没收到字的没有这一格 |
 | `crates/miyu-kernel/src/session/tests/scenario.rs`、`scenario/retrying.rs`、`scenario/stopping.rs` | 执行器替身（`testkit`）把真会话一整轮一整轮地跑：两个读一起跑、中间来一句；只读拦写入；步数上限和失败的请求；重试的每一种（原样再来、半截接着说、半截的调用丢掉、带着 HTTP 状态码、照供应商等、5 次放弃、不该再来的、等的时候打断、重启、切级别、不算步数、说完清零）；打断接着发、重启接着干、崩了等你；停着的写：停在改之前、改完了、到 10 秒、又打断一次、等的时候来的消息排队和撤销被拒、等的时候重启（退回的不再接着干，接着发的交给下一轮） |
-| `crates/miyu-kernel/src/session/tests/random.rs` 和 `random/` | 三百例随机输入（CI 另跑两万例），每一步查：不变量（第 5 条一个会话查不了）；块的起止写了回复的才有、和回复的块一块一项，摘要请求没有（施工 2-3 补）；挂接点、请求、派工具、步数上限、只读的规矩；打断时停着的（叫它停只在打断里、停着的交回来才收尾、到点和又打断就不等，十个种子里一个多调写文件的专走这里）；崩了、重启了载入以后照规矩走；回报（施工 7-2，另一串随机数，七个种子里一个是一次性的会话）：对不上的拒绝、不理，开轮、排着、只记下、回合结束接着开、恢复撤销以后接着开照「回报」的规矩（`random/watch/reports.rs`）；清空（施工 6-8 补，另一串随机数）：照规矩收下或者拒绝，收下的一批三条（`random/watch/clear.rs`）；重做（施工 4-7 再补，和撤销同一串随机数）：照规矩收下或者拒绝，收下的撤最后一轮、重发撤掉的人的话、由最后一句开一轮（`random/watch/redo.rs`）；改标题、置顶（施工 3-8 三补，另一串随机数，每一例最后喂一次：夹在中间会让难得走到的几条路走不到）；回顾（施工 3-8 四补，另一串随机数，四个种子里一个）：照落了盘的有效历史判出拒绝、交回、并进、请求，请求照重建的有效历史组装，替身送的回报照内核的规矩算出写没写成，两条不带回合编号、回应照判出来的，排着的、回报、压缩的边界都不看它；有回顾在路上时不崩，跑完以前让它说完（`random/watch/recap.rs`、`random/recapping.rs`）；别的会话发来的话（施工 C-2，另一串随机数，三个发话方、四句话，随机的策略把数调小成 3 句、20 秒、5 句）：防刷屏照看守自己数的拒、原因对得上，收下的不带回合编号、同一批里不作废不撤回，叫不叫醒她照回报的规矩（`random/watch/peers.rs`、`random/peering.rs`）；每条路、每一种输入都走到过 |
+| `crates/miyu-kernel/src/session/tests/random.rs` 和 `random/` | 三百例随机输入（CI 另跑两万例），每一步查：不变量（第 5 条一个会话查不了）；块的起止写了回复的才有、和回复的块一块一项，摘要请求没有（施工 2-3 补）；挂接点、请求、派工具、步数上限、只读的规矩；打断时停着的（叫它停只在打断里、停着的交回来才收尾、到点和又打断就不等，十个种子里一个多调写文件的专走这里）；崩了、重启了载入以后照规矩走；回报（施工 7-2，另一串随机数，七个种子里一个是一次性的会话）：对不上的拒绝、不理，开轮、排着、只记下、回合结束接着开、恢复撤销以后接着开照「回报」的规矩（`random/watch/reports.rs`）；清空（施工 6-8 补，另一串随机数）：照规矩收下或者拒绝，收下的一批三条（`random/watch/clear.rs`）；重做（施工 4-7 再补，和撤销同一串随机数）：照规矩收下或者拒绝，收下的撤最后一轮、重发撤掉的人的话、由最后一句开一轮（`random/watch/redo.rs`）；改标题、置顶（施工 3-8 三补，另一串随机数，每一例最后喂一次：夹在中间会让难得走到的几条路走不到）；回顾（施工 3-8 四补，另一串随机数，四个种子里一个）：照落了盘的有效历史判出拒绝、交回、并进、请求，请求照重建的有效历史组装，替身送的回报照内核的规矩算出写没写成，两条不带回合编号、回应照判出来的，排着的、回报、压缩的边界都不看它；有回顾在路上时不崩，跑完以前让它说完（`random/watch/recap.rs`、`random/recapping.rs`）；别的会话发来的话（施工 C-2，另一串随机数，三个发话方、四句话，随机的策略把数调小成 3 句、20 秒、5 句）：防刷屏照看守自己数的拒、原因对得上，收下的不带回合编号、同一批里不作废不撤回，叫不叫醒她照回报的规矩（`random/watch/peers.rs`、`random/peering.rs`）；出错再来（施工 8-9 加换端点、全在冷却）：再来的只有能再来的分类和端口说换了端点的，换了端点、全在冷却的没到 5 次、要等的不超过 2 分钟就一定再来，推的 `status` 带的 `failover` 照端口说的，换了端点又没说等多久的等 0 毫秒（`random/watch/model.rs`、`random/endings.rs`）；每条路、每一种输入都走到过 |
 | `crates/miyu-kernel/src/tool/tests.rs`、`tool/texts/tests.rs` | 参数修正的每一种，嵌套的对象、数组里的也修；访问类别不认识的算写入；那几句的字段转义、每句带说法 |
 | `crates/miyu-kernel/src/accumulate/tests.rs` | 拼回复、调用编号、空块、交错的字、截断只留收全的调用、增量对不上的六种；每一块带着它在流里是第几块（施工 2-3 补） |
 | `crates/miyu-kernel/tests/resources.rs` | 出厂的那几句读得进来，带字段的换出来一字不差 |

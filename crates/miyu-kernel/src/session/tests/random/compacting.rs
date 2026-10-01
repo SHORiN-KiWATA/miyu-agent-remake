@@ -71,6 +71,7 @@ pub(super) fn some_overflow(rng: &mut Rng, watch: &Watch) -> Option<Input> {
         }),
         wait_ms: None,
         excess,
+        failover: false,
     })
 }
 

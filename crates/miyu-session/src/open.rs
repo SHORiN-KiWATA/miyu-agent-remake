@@ -149,9 +149,9 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         policy,
         environment,
     );
-    // 模型的限额在别的输入之前交（施工 6-3 上）：什么动作都不出。给头看的那一份当场要，`Handle` 带着（施工 6-3 补）。
+    // 模型的限额在别的输入之前交（施工 6-3 上）：什么动作都不出。给头看的那一份由 actor 当场要，`Handle` 和它共用（施工
+    // 6-3 补；施工 8-9 起会变）。
     session.handle(Input::Limits(model.limits()));
-    let limits = session.context_limits();
     // 子会话领的号带上它在父会话里的编号，照造它的命令读回（施工 7-1 补）。
     let prefix = lineage
         .as_ref()
@@ -202,6 +202,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     }
     let busy = actor.busy();
     let watched = actor.watched();
+    let limits = actor.limits();
     let (reply, answer) = oneshot::channel();
     actor.wait_for(command, reply);
     span.in_scope(|| {
@@ -328,7 +329,6 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     // 重启以后接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）；给头看的限额同上（施工 6-3 补）。检查点重读过的
     // 文件，内核在载入吐出来的动作里第一个要回原文（施工 6-9），actor 起来先做它。
     session.handle(Input::Limits(model.limits()));
-    let limits = session.context_limits();
     // 子会话领的号带上它在父会话里的编号，照 `session.created` 的 `cause` 读回（施工 7-1 补）。
     let prefix = created
         .parent
@@ -379,6 +379,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     );
     let busy = actor.busy();
     let watched = actor.watched();
+    let limits = actor.limits();
     if let Some(upstream) = upstream {
         actor.report_to(Reporter::start(upstream, span.clone()));
     }

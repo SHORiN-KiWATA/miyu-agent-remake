@@ -73,6 +73,12 @@ fn the_registered_list_is_well_formed() {
             "models.catalog.update",
             "models.catalog.url",
             "models.catalog.every",
+            "models.cooldown.rate_limited.base",
+            "models.cooldown.rate_limited.max",
+            "models.cooldown.retryable.base",
+            "models.cooldown.retryable.max",
+            "models.cooldown.auth.base",
+            "models.cooldown.auth.max",
             "log.level"
         ],
         "照登记的先后"

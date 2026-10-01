@@ -28,6 +28,33 @@ update = true
 # Allowed: an address starting with http:// or https:// or { env = "…" }. Only in the system config or personal settings. Takes effect at once.
 url = "https://models.dev/api.json"
 
+[models.cooldown.auth]
+# Auth failure pause: How long a whole key rests the first time it fails to authenticate or runs out of quota. It doubles each time in a row.
+# Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
+base = "10m"
+
+# Auth failure pause cap: The pause for a whole key stops doubling here.
+# Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
+max = "2h"
+
+[models.cooldown.rate_limited]
+# Rate limit cooldown: How long an endpoint rests the first time it is rate limited. It doubles each time in a row.
+# Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
+base = "30s"
+
+# Rate limit cooldown cap: The rate limit cooldown stops doubling here, even when the provider asks for longer.
+# Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
+max = "10m"
+
+[models.cooldown.retryable]
+# Error cooldown: How long an endpoint rests the first time it cannot be reached or fails on its side. It doubles each time in a row.
+# Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
+base = "10s"
+
+# Error cooldown cap: The cooldown for these errors stops doubling here.
+# Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
+max = "5m"
+
 [models.tiers]
 # Cheap tier: The cheap tier. Left out, it is the chat model.
 # Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.

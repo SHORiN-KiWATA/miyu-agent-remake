@@ -302,6 +302,26 @@ fn no_model_is_5_and_other_errors_are_1() {
     );
 }
 
+/// 候选全在冷却、没发出去的（施工 8-9）：和没有模型一样是 5，说候选都在冷却、接原话。
+#[test]
+fn cooling_is_5_too() {
+    let plan = plan(Format::Text, Language::Chinese);
+    let Fed { step, err, .. } = feed(
+        &plan,
+        false,
+        &failing(
+            Value::Null,
+            "cooling",
+            "all candidates cooling: a/m key 1 rate_limited until 2026-10-01T08:12:30.000Z",
+        ),
+    );
+    assert_eq!(step, Step::Done(exit::NO_MODEL));
+    assert_eq!(
+        err,
+        "出错了：候选都在冷却：all candidates cooling: a/m key 1 rate_limited until 2026-10-01T08:12:30.000Z\n"
+    );
+}
+
 #[test]
 fn a_retry_that_worked_is_not_an_error() {
     let plan = plan(Format::Text, Language::Chinese);

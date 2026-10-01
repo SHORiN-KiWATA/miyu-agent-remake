@@ -1,9 +1,11 @@
 //! 给头看的限额（施工 6-3 补，`docs/blueprint/kernel/session.md` 的 `context_limits()`、`protocol.md` 的 `subscribe`）：
-//! 会话实际用的模型的窗口，和内核自己判到线用的那一条压缩线。只读，不出动作。
+//! 会话实际用的模型的窗口，和内核自己判到线用的那一条压缩线；推 `model.changed` 要的在跑的回合（施工 8-9）。只读，不出
+//! 动作。
 
 use serde::Serialize;
 
 use super::Session;
+use crate::id::{CommandId, TurnId};
 
 /// 给头看的限额：头照它画「用量 / 窗口」、算离压缩还有多少。写成 JSON 就是协议里 `subscribe` 回应的 `limits`：
 /// 没有的格不写，从不写 `null`（`protocol.md`）。
@@ -25,5 +27,11 @@ impl Session {
             window: self.limits.as_ref().and_then(|limits| limits.window),
             compaction_line: self.line(),
         }
+    }
+
+    /// 在跑的回合和它的 `cause`（施工 8-9）：会话 actor 推 `model.changed` 时照它写（`by` 是内核，`cause` 是回合的，
+    /// `models.md`「瞬时事件」）。没有在跑的回合的没有。只读，不出动作。
+    pub fn turn_cause(&self) -> Option<(TurnId, Option<CommandId>)> {
+        self.turn.as_ref().map(|turn| (turn.id, turn.cause.clone()))
     }
 }

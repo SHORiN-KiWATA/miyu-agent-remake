@@ -15,8 +15,8 @@ use crate::matching::Vendors;
 use crate::observed::{Learned, ProviderList};
 use crate::profile::Profiles;
 use crate::settings::{
-    CatalogSettings, ModelSettings, PoolSettings, PriceSettings, ProviderSettings, TierSettings,
-    UseSettings,
+    AuthCooldown, CatalogSettings, ModelSettings, PoolSettings, PriceSettings, ProviderSettings,
+    RateLimitedCooldown, RetryableCooldown, TierSettings, UseSettings,
 };
 
 /// 裁出来的目录的原文。
@@ -90,6 +90,9 @@ pub(crate) fn items() -> Vec<Item> {
         TierSettings::ITEMS,
         PoolSettings::ITEMS,
         CatalogSettings::ITEMS,
+        RateLimitedCooldown::ITEMS,
+        RetryableCooldown::ITEMS,
+        AuthCooldown::ITEMS,
     ]
     .concat()
 }

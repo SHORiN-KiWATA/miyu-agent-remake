@@ -191,6 +191,7 @@ impl Language {
             "bad_summary" => ("取不出摘要", "no summary in the reply"),
             "compaction_paused" => ("自动压缩暂停着", "automatic compaction is paused"),
             "no_model" => ("没有可用的模型", "no model available"),
+            "cooling" => ("候选都在冷却", "all candidates are cooling down"),
             _ => ("模型出错", "model error"),
         };
         match self {
