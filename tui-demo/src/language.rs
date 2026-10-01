@@ -1,9 +1,7 @@
 //! 界面语言（蓝图 `tui.md`「界面语言」，2026-09-30 项目主人定）：一张表（`resources/languages.json`），现在是中文、
-//! 英文、日文。启动时照系统语言定，`/language` 开一个框选。界面上的字、命令的说明、运行状态行的词、工具的显示名都照它换。
+//! 英文、日文。启动时照系统语言定，`/language` 开一个框选。界面上的字、命令的说明、运行状态行的词都照它换；工具的
+//! 显示名照它向核心要（`human.get`，`human.rs`）。
 
-use miyu_store::env::Env;
-use miyu_store::human::Human;
-use miyu_store::resources::ResourceRoot;
 use serde::Deserialize;
 
 /// 界面用哪种语言：表里的代码（`zh`、`en`、`ja`）。
@@ -14,15 +12,6 @@ impl Language {
     /// 资源里用的写法：`zh`、`en`、`ja`。
     pub fn code(&self) -> &str {
         &self.0
-    }
-
-    /// 工具给人看的显示名：照 `MIYU_RESOURCES`（开发时）找核心的资源目录，读这种语言的那一份（核心那边哪个包没有这种
-    /// 语言就读它的英文）。读不出来的当没有，显示工具名本身。
-    pub fn human(&self) -> Human {
-        ResourceRoot::locate(&Env::current())
-            .ok()
-            .and_then(|root| Human::load(&root, self.code()).ok())
-            .unwrap_or_default()
     }
 }
 

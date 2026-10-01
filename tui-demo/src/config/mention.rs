@@ -2,20 +2,12 @@
 
 use serde::Deserialize;
 
-/// 清单建多大、列几条、多久重建。
+/// 问核心的节拍。
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MentionLook {
-    /// 清单最多收几个，收满就停。
-    pub cap: usize,
-    /// 最深走几层。
-    pub depth: usize,
-    /// 跳过这些名字的目录（隐藏目录本来就跳过）。
-    pub skip: Vec<String>,
-    /// 最多列几条。
-    pub shown: usize,
-    /// 隔多久以上再弹，重建一份清单（秒）。
-    pub refresh_secs: u64,
+    /// 核心的清单还在建：隔多久再问一次（毫秒）。
+    pub poll_ms: u64,
 }
 
 /// 列表上写的字。

@@ -6,6 +6,7 @@ use serde_json::Value;
 
 use miyu_kernel::event::Said;
 
+use super::Limits;
 use super::kinds::{EndReason, Level, ToolStatus};
 
 mod jobs;
@@ -181,6 +182,35 @@ pub enum Push {
     AuxUsage(Usage),
     /// 写成了一段回顾（`session.recapped`）。
     Recapped(String),
+    /// 出错的那次请求试的是哪个端点、模型（`model.called` 出错时的 `endpoint`、`model`）。
+    Tried {
+        /// 端点。
+        endpoint: String,
+        /// 模型。
+        model: String,
+    },
+    /// 换了模型（`model.changed`，瞬时的，核心 8-9）：新的端点、模型、限额，没值的是 `None`；`failover` 是出错换到别的
+    /// 端点（`why` 是 `failover`）。
+    ModelChanged {
+        /// 端点。
+        endpoint: Option<String>,
+        /// 模型。
+        model: Option<String>,
+        /// 限额。
+        limits: Option<Limits>,
+        /// 出错换的。
+        failover: bool,
+        /// 引用（模型、`@池`、挡位）。
+        reference: Option<String>,
+    },
+    /// 会话换了模型（`session.policy_changed` 的 `model`，核心 8-10）：人换的，或者钉着的没了内核退回默认（`replaced`
+    /// 是原来的）。
+    ModelSet {
+        /// 现在的引用。
+        reference: String,
+        /// 内核退回默认时原来的引用。
+        replaced: Option<String>,
+    },
     /// 订了「空了告诉我」的会话空下来了、等作废了、没了（`peer.idle`，核心 C-6）。
     PeerIdle {
         /// 被等的会话的整个编号。
@@ -256,6 +286,12 @@ pub fn read(event: &Value, mine: &dyn Fn(&str) -> bool) -> Vec<Push> {
                 let read_only = body["permission"]["read_only"] == true;
                 out.push(Push::Policy { level, read_only });
             }
+            if let Some(reference) = body["model"].as_str() {
+                out.push(Push::ModelSet {
+                    reference: reference.to_string(),
+                    replaced: body["replaced"].as_str().map(str::to_string),
+                });
+            }
         }
         // 写成了一段回顾：不进她的上下文，画在正文末尾（蓝图「回顾」）。
         "session.recapped" => {
@@ -268,6 +304,13 @@ pub fn read(event: &Value, mine: &dyn Fn(&str) -> bool) -> Vec<Push> {
                 out.push(Push::Title(title.to_string()));
             }
         }
+        "model.changed" => out.push(Push::ModelChanged {
+            endpoint: body["endpoint"].as_str().map(str::to_string),
+            model: body["model"].as_str().map(str::to_string),
+            limits: body.get("limits").map(Limits::read),
+            failover: body["why"] == "failover",
+            reference: body["ref"].as_str().map(str::to_string),
+        }),
         "peer.idle" => out.push(Push::PeerIdle {
             session: text(&body["session"]),
             reason: text(&body["reason"]),
@@ -376,7 +419,18 @@ pub fn read(event: &Value, mine: &dyn Fn(&str) -> bool) -> Vec<Push> {
             let error = || CallError::read(&body["error"]);
             match (body["result"].as_str(), summary) {
                 (Some("error"), true) => out.push(Push::Compaction(Compaction::Failed(error()))),
-                (Some("error"), false) => out.push(Push::CallFailed(error())),
+                (Some("error"), false) => {
+                    // 试的是哪个端点、模型：换端点那一行的「原来的」照它写（核心 8-9）。
+                    if let (Some(endpoint), Some(model)) =
+                        (body["endpoint"].as_str(), body["model"].as_str())
+                    {
+                        out.push(Push::Tried {
+                            endpoint: endpoint.to_string(),
+                            model: model.to_string(),
+                        });
+                    }
+                    out.push(Push::CallFailed(error()));
+                }
                 (Some("ok"), false) => out.push(Push::CallOk),
                 _ => {}
             }

@@ -34,7 +34,13 @@ pub fn lines(
     }
     let chrome = Chrome::new(&title, meta).hint(&words.hints);
     if found.items.is_empty() {
-        let empty = vec![Span::styled(words.empty.clone(), theme::faint())];
+        // 还没回：空着，不说对不上（第 2 条）。
+        let text = if found.ready {
+            words.empty.clone()
+        } else {
+            String::new()
+        };
+        let empty = vec![Span::styled(text, theme::faint())];
         return (chrome, vec![panel::item(false, empty, None, width)]);
     }
     let top = crate::menu::top(selected, pinned, found.items.len(), rows);
@@ -112,6 +118,7 @@ mod tests {
                 },
             ],
             status: Status::Partial,
+            ready: true,
         };
         let (chrome, rows) = lines(&found, 0, None, 8, 60, &words);
         let title: String = chrome.title.iter().map(|s| s.content.as_ref()).collect();

@@ -9,6 +9,7 @@ mod keys;
 mod language;
 mod mascot;
 mod mention;
+mod models;
 mod mouse;
 mod notify;
 mod output;
@@ -19,11 +20,12 @@ mod sessions;
 mod switch;
 mod takeback;
 mod updates;
+mod vim;
 
 use std::cell::RefCell;
 use std::time::{Duration, Instant};
 
-use miyu_store::human::Human;
+use crate::human::Human;
 use ratatui::crossterm::event::{Event, KeyCode, KeyEventKind, MouseEventKind};
 use ratatui::layout::Position;
 
@@ -131,6 +133,8 @@ pub struct App {
     pub panel: Option<Panel>,
     /// `/sessions` 开着时的会话列表（`switch.rs`）。
     pub session_list: Option<crate::session_list::SessionList>,
+    /// `/model` 开着时的框（`models.rs`）。
+    pub model_list: Option<crate::model_list::ModelList>,
     /// 确认和提问的抽屉：现在这一个和排着的（蓝图「确认和提问的抽屉」）。
     pub drawers: Drawers,
     /// 抽屉每一行是第几项（点哪一行点中哪一项）；上一帧排出来的。
@@ -272,6 +276,7 @@ impl App {
             feed: Feed::default(),
             panel: None,
             session_list: None,
+            model_list: None,
             drawers: Drawers::default(),
             drawer_rows: Vec::new(),
             caret: crate::caret::Caret::default(),
@@ -343,6 +348,7 @@ impl App {
             _ => {}
         }
         let menu_open = self.menu_matches().is_some() || self.mention_found().is_some();
+        let event = self.vim_keys(event, menu_open);
         let action = match event {
             // Windows 上松开键也报一次，只认按下和按住。
             Event::Key(key) if key.kind == KeyEventKind::Release => Action::None,
@@ -429,6 +435,7 @@ impl App {
             .chain(self.mascot_deadline(Instant::now()))
             .chain(self.jobs_deadline())
             .chain(self.drawer_deadline())
+            .chain(self.mention.deadline()) // 核心的清单在建：到点再问（「`@` 文件列表」第 2 条）
             // 整份重排没排完的：下一帧接着排（蓝图「正文」第 8 条）。
             .chain((self.row_cache.borrow().stale > 0).then(Instant::now))
             .min()

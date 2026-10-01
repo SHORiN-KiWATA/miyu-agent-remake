@@ -2,7 +2,7 @@
 
 use std::cell::RefCell;
 
-use miyu_store::human::Human;
+use crate::human::Human;
 
 use crate::config::Config;
 use crate::core::Level;

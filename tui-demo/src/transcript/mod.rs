@@ -14,9 +14,11 @@ mod entry;
 mod failure;
 mod foreign;
 mod jobs;
+mod model;
 mod queue;
 mod recap;
 mod redo;
+mod reply;
 mod steps;
 mod turn;
 mod words;
@@ -108,6 +110,8 @@ pub struct Transcript {
     pub retry: Option<String>,
     /// 这一轮最后一次请求出的错；后来又成了的清掉。
     failure: Option<CallError>,
+    /// 换模型、冷却（`model.rs`）。
+    models: model::ModelWatch,
     /// 在跑的这一轮的编号：这期间收到的都记在它名下。
     turn: Option<u64>,
     /// 被退回的排队消息：字和里面的粘贴块，等输入框拿走（`take_returned`）。
@@ -147,6 +151,7 @@ impl Default for Transcript {
             speed: None,
             retry: None,
             failure: None,
+            models: model::ModelWatch::default(),
             turn: None,
             reverted: Vec::new(),
             next_id: 0,
@@ -190,14 +195,6 @@ impl Transcript {
         });
     }
 
-    /// `order` 里的下一档，到头回到第一档；现在的不在里面的，是第一档。只算不改：切到哪一档由核心推来的
-    /// `session.policy_changed` 定（蓝图 `tui.md`「权限级别」第 2 条）。
-    pub fn next_level(&self, order: &[Level]) -> Level {
-        let at = order.iter().position(|l| *l == self.level);
-        let next = at.map_or(0, |i| (i + 1) % order.len().max(1));
-        order.get(next).copied().unwrap_or(self.level)
-    }
-
     /// 有没有还在进行的步骤、正在压缩：有就要转圈。
     pub fn busy(&self) -> bool {
         self.compacting.is_some()
@@ -206,29 +203,6 @@ impl Transcript {
                 .iter()
                 .filter_map(|e| e.segment.as_ref())
                 .any(|s| s.steps.iter().any(Step::busy))
-    }
-
-    /// `/copy` 复制的：她上一轮的回答，Markdown 原文；一轮里被工具隔成几段的连起来、中间空一行，撤掉的不算
-    /// （蓝图「斜杠命令」`/copy`）。还没有回答的是 `None`。
-    pub fn last_reply(&self) -> Option<String> {
-        let shown = |e: &&Entry| e.kind == Kind::Reply && !e.hidden && !e.text.trim().is_empty();
-        let last = self.entries.iter().rev().find(shown)?;
-        let parts: Vec<&str> = match last.turn {
-            Some(turn) => self
-                .entries
-                .iter()
-                .filter(shown)
-                .filter(|e| e.turn == Some(turn))
-                .map(|e| e.text.trim())
-                .collect(),
-            None => vec![last.text.trim()],
-        };
-        Some(parts.join("\n\n"))
-    }
-
-    /// 在跑的（刚结束的）这一轮是不是手动压缩、清空：核心单开的一轮，不是回答（「系统通知」第 1 条）。
-    pub fn manual_turn(&self) -> bool {
-        self.manual
     }
 
     /// 收一条核心那边的消息。
@@ -250,7 +224,12 @@ impl Transcript {
             | Update::Output { .. }
             | Update::Renamed(_)
             | Update::Sessions(_)
-            | Update::UiLanguage(_) => {}
+            | Update::UiLanguage(_)
+            | Update::Human(_) => {}
+            Update::CoolingUntil(until) => self.cooling_until(until),
+            Update::CurrentModel(current) => self.current_model(current),
+            Update::Configured(reference) => self.configured(reference),
+            Update::Choices(_) | Update::Files { .. } => {}
             Update::Failed(reason) => {
                 self.link = Link::Down(texts.core_failed.replace("{reason}", &reason));
             }
@@ -335,6 +314,18 @@ impl Transcript {
             Push::Model { endpoint, model } => self.model = Some((model, endpoint)),
             Push::Heard(seen) => self.heard(seen),
             Push::Clock(at) => self.clock.set(at),
+            Push::Tried { endpoint, model } => self.tried(&endpoint, &model),
+            Push::ModelChanged {
+                endpoint,
+                model,
+                limits,
+                failover,
+                reference,
+            } => self.model_changed(endpoint, model, limits, failover, reference, texts),
+            Push::ModelSet {
+                reference,
+                replaced,
+            } => self.model_set(reference, replaced, texts),
             Push::Said { seq, text } => self.said(seq, text),
             Push::BlockStart { index, block } => {
                 self.spoke = true;
@@ -412,9 +403,9 @@ impl Transcript {
             Push::Speed { output, ms } => {
                 self.speed = Some(output as f64 * 1000.0 / ms as f64);
             }
-            Push::CallFailed(error) => self.failure = Some(error),
+            Push::CallFailed(error) => self.call_failed(error),
             // 后来又成了：前面报过的错不算（蓝图「正文」第 4 条）。
-            Push::CallOk => self.failure = None,
+            Push::CallOk => self.call_ok(),
             Push::Retry {
                 attempt,
                 limit,

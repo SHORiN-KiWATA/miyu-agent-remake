@@ -151,6 +151,13 @@
     "empty_message": "改完一个字都不剩了",
     "unknown_job": "这个任务已经结束了"
   },
+  "models": {
+    "failover": "↻ 换了模型：{from} → {to}",
+    "cooling": "都在冷却",
+    "cooling_until": "都在冷却，{n} 分钟后恢复",
+    "replaced": "↻ 原来的模型没了，换回默认：{from} → {to}",
+    "switched": "下一轮起用 {name}"
+  },
   "recap": {
     "label": "回顾：{text}",
     "working": "正在回顾…"
@@ -192,6 +199,7 @@
     "context_too_long": "上下文太长",
     "auth": "认证失败",
     "no_model": "没有可用的模型",
+    "cooling": "模型都在冷却",
     "content_policy": "被内容策略拦下了",
     "bad_stream": "回复的流不对",
     "empty_reply": "回复是空的",
@@ -432,5 +440,19 @@
     "ticked": " · 已勾 {count}",
     "delete_many": "再按一次 Ctrl+D 删除 {count} 个会话",
     "deleted_many": "已删除 {count} 个会话"
+  },
+  "model_panel": {
+    "title": "模型",
+    "count": "  {count} 个",
+    "query": " · 搜索：",
+    "hint": "↑/↓ 选 · Enter 换 · Esc 关闭",
+    "loading": "正在读模型…",
+    "empty": "没有对得上的模型",
+    "current": "当前",
+    "cooling": "冷却 {n}m",
+    "cooling_bare": "冷却中",
+    "no_key": "没有 key",
+    "refuse_cooling": "这个模型在冷却，{n} 分钟后能用",
+    "refuse_no_key": "这个模型没有 key"
   }
 }

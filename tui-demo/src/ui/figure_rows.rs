@@ -109,7 +109,7 @@ mod tests {
     use std::sync::mpsc;
     use std::time::Duration;
 
-    use miyu_store::human::Human;
+    use crate::human::Human;
     use ratatui_image::picker::{Picker, ProtocolType};
 
     use super::rows;

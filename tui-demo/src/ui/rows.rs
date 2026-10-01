@@ -2,7 +2,7 @@
 //!
 //! 行首的缩进和两格槽（你说的话的 `┃`、转圈）不算内容，复制时不带（`13-终端界面.md` 第六节）。
 
-use miyu_store::human::Human;
+use crate::human::Human;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use unicode_width::UnicodeWidthStr;

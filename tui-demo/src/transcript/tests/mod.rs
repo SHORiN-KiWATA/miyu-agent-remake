@@ -15,6 +15,7 @@ mod folds;
 mod foreign;
 mod level;
 mod link;
+mod model;
 mod queue;
 mod recap;
 mod redo;

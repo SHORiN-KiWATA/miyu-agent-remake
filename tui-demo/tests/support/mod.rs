@@ -119,6 +119,11 @@ impl Home {
         }
     }
 
+    /// 核心的数据根。
+    pub fn root(&self) -> &Path {
+        &self.dir
+    }
+
     /// alice 的个人设置现在写着什么（没有的是空的）。
     pub fn settings(&self) -> String {
         std::fs::read_to_string(self.dir.join("home/alice/settings.toml")).unwrap_or_default()

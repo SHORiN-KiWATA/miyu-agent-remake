@@ -181,3 +181,38 @@ fn choosing_a_language_writes_it_into_personal_settings() {
         tui.pump(Duration::from_millis(100));
     }
 }
+
+#[test]
+fn the_at_list_asks_the_core_and_the_data_root_stays_closed() {
+    // 2026-10-01 核心 W-2：`@` 列文件、找文件问核心（`fs.list`、`fs.find`），不再自己读目录。数据根里、工作区以外的
+    // 核心不列：自己读目录时会列出来，所以这一条认得出问的是不是核心。
+    let home = Home::new(Script::new([]));
+    std::fs::create_dir_all(home.work.join("src")).unwrap();
+    std::fs::write(home.work.join("src/main.rs"), b"fn main() {}").unwrap();
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.type_text("@main");
+    tui.wait_for("src/main.rs");
+    tui.key(ESC);
+    tui.key(b"\x03");
+    tui.pump(Duration::from_millis(300));
+    tui.type_text(&format!("@{}/", home.root().display()));
+    tui.wait_for("没有对得上的");
+    assert!(!tui.shows("home/"), "{}", tui.lines().join("\n"));
+}
+
+#[test]
+fn ctrl_j_and_k_move_in_an_open_list() {
+    // 2026-10-01 项目主人：能搜的列表里要用 vim 的 Ctrl+J、Ctrl+K 上下。
+    let home = Home::new(Script::new([]));
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("/language");
+    tui.wait_for("自动（跟随系统：中文）");
+    // 第 0 行自动，下面中文、English、日本語：下、下、上、下、下，停在日本語。
+    for key in [b"\x0a", b"\x0a", b"\x0b", b"\x0a", b"\x0a"] {
+        tui.key(key);
+    }
+    tui.key(b"\r");
+    tui.wait_for("ワークスペース");
+}

@@ -140,7 +140,15 @@ fn left(app: &App) -> Vec<Span<'_>> {
             let icon = app.config.layout.level_icons.get(&level);
             let label = format!("{}{name}", icon.map_or("", String::as_str));
             let mut spans = vec![Span::styled(label, theme::level(level))];
-            if let Some((model, endpoint)) = &t.model {
+            // 都在冷却：模型那一格变黄写原因，到点了变回原样（「配置与模型」第 7 条）。
+            let now = jiff::Timestamp::now();
+            let cooling = t
+                .cooling()
+                .and_then(|until| cooling_word(until, now, &text.models));
+            if let Some(word) = cooling {
+                spans.push(Span::styled(" · ", theme::dim()));
+                spans.push(Span::styled(word, theme::warn()));
+            } else if let Some((model, endpoint)) = &t.model {
                 spans.push(Span::styled(" · ", theme::dim()));
                 spans.push(Span::styled(model.as_str(), theme::model()));
                 spans.push(Span::styled(format!(" {endpoint}"), theme::dim()));
@@ -148,6 +156,23 @@ fn left(app: &App) -> Vec<Span<'_>> {
             spans
         }
     }
+}
+
+/// 都在冷却时模型那一格写什么：知道几时恢复的写还要几分钟（向上取整），不知道的只写都在冷却；到点了是 `None`。
+fn cooling_word(
+    until: Option<jiff::Timestamp>,
+    now: jiff::Timestamp,
+    texts: &crate::config::ModelTexts,
+) -> Option<String> {
+    let Some(until) = until else {
+        return Some(texts.cooling.clone());
+    };
+    let left = until.duration_since(now).as_secs();
+    if left <= 0 {
+        return None;
+    }
+    let minutes = (left + 59) / 60;
+    Some(texts.cooling_until.replace("{n}", &minutes.to_string()))
 }
 
 /// 右边的格子，照显示的先后；`keep` 越大越晚丢：先丢速度，再丢累计，上下文留到最后。还是 0 的格子不写
@@ -288,5 +313,27 @@ mod tests {
         assert_eq!(shown(fit(parts(), 20)), "回复中 3s · 1.7k/1M");
         assert_eq!(shown(fit(parts(), 8)), "1.7k/1M");
         assert_eq!(shown(fit(parts(), 3)), "");
+    }
+
+    #[test]
+    fn cooling_says_how_long_until_it_is_back_and_goes_away_on_time() {
+        // 「配置与模型」第 7 条，核心 8-9。
+        let texts = crate::config::Config::builtin().unwrap().text.models;
+        let now: jiff::Timestamp = "2026-10-01T08:00:00Z".parse().unwrap();
+        let at = |s: &str| Some(s.parse::<jiff::Timestamp>().unwrap());
+        assert_eq!(
+            super::cooling_word(None, now, &texts).as_deref(),
+            Some("都在冷却")
+        );
+        assert_eq!(
+            super::cooling_word(at("2026-10-01T08:01:10Z"), now, &texts).as_deref(),
+            Some("都在冷却，2 分钟后恢复"),
+            "向上取整"
+        );
+        assert_eq!(
+            super::cooling_word(at("2026-10-01T07:59:00Z"), now, &texts),
+            None,
+            "到点了变回原样"
+        );
     }
 }

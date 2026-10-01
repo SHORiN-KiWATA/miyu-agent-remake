@@ -22,6 +22,7 @@ pub mod languages;
 mod margins;
 mod mascot_view;
 mod md_cache;
+pub mod model_list;
 mod panel;
 pub mod session_list;
 mod sidebar;
@@ -338,6 +339,16 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             let map = vec![None; lines.len()];
             (chrome, lines, map)
         }
+        Some(crate::app::Panel::Models) => match &app.model_list {
+            Some(list) => model_list::lines(
+                list,
+                app.transcript.model_ref(),
+                &app.config,
+                width,
+                usize::from(inner),
+            ),
+            None => Default::default(),
+        },
         Some(crate::app::Panel::Sessions) => match &app.session_list {
             Some(list) => session_list::lines(
                 list,

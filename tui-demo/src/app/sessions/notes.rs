@@ -3,7 +3,7 @@
 
 use std::time::Instant;
 
-use miyu_store::human::Human;
+use crate::human::Human;
 use unicode_width::UnicodeWidthChar;
 
 use crate::config::JobTexts;
@@ -263,7 +263,7 @@ mod tests {
         for push in pushes {
             child.update(Update::Push(push), &config.text);
         }
-        let human = miyu_store::human::Human::default();
+        let human = crate::human::Human::default();
         assert_eq!(
             super::doing(&child, &human, &config.text.jobs),
             "shell · 等十五秒"

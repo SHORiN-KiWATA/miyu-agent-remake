@@ -7,7 +7,7 @@ use std::io;
 use serde_json::{Value, json};
 use tokio::sync::mpsc;
 
-use super::config;
+use super::awaiting::Awaiting;
 use super::connect::{create, cwd, subscribe};
 use super::limits::Limits;
 use super::replay::Replay;
@@ -16,6 +16,7 @@ use super::rpc::Rpc;
 use super::sessions;
 use super::switch;
 use super::{Command, JobOutput, Level, Report, Served, Update, upload};
+use super::{asides, config};
 
 /// 跨重连都记着的：主会话、会话还没开时切的权限级别、另外订阅着的会话、命令对着哪个会话。
 #[derive(Debug, Default)]
@@ -32,6 +33,8 @@ pub struct Link {
     pub seen: HashMap<String, u64>,
     /// 正在补发的会话：补发来的照 [`Replay`] 读，回应到了算补完。
     pub replays: HashMap<String, Replay>,
+    /// 还没开会话时在 `/model` 选的：开会话时带上（「配置与模型」第 1 条）。
+    pub pending_model: Option<String>,
     /// 连上以后要带 `after` 订阅主会话（启动时进最近的那个，「会话列表」第 8 条）。
     pub replay_main: bool,
 }
@@ -41,33 +44,6 @@ impl Link {
     fn target(&self) -> Option<String> {
         self.viewing.clone().or_else(|| self.main.clone())
     }
-}
-
-/// 等着回应、回应要另外办的请求（记着请求的编号）。
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Awaiting {
-    /// 撤销：回应里给人看的几样交给界面。
-    Revert,
-    /// 恢复：同上。
-    Unrevert,
-    /// 说一句话：成了不用管，拒了要撤掉先画上的那句。
-    Send,
-    /// 重做：同上。
-    Redo,
-    /// 订阅另一个会话：回应里的限额交给界面，说明是哪个会话。
-    Watch(String),
-    /// 读一条后台命令的输出：哪个会话、任务编号。
-    Output(String, String),
-    /// 要回顾：交回的是上一句的，界面照回应画（写成了的照推送画）。
-    Recap,
-    /// 改名：成了弹一句（`None` 是去掉标题）。
-    Rename(Option<String>),
-    /// 带 `after` 订阅：回应到了算补完（「会话列表」第 5 条）。
-    Replay(String),
-    /// 列出会话：回应交给界面。
-    List,
-    /// 读界面语言：回应交给界面。
-    UiLanguage,
 }
 
 /// 在一条连接上收发，直到界面关了或者连接断了。
@@ -104,6 +80,18 @@ pub(super) async fn serve(
         tokio::select! {
             command = commands.recv() => {
                 let Some(command) = command else { return Served::Quit };
+                // 不对着会话的请求（列会话、置顶、删、模型资料、给人看的字、写配置、读输出）：照 `asides.rs` 的表发。
+                if let Some((method, params, kind)) = asides::request(&command) {
+                    match rpc.send(method, params).await {
+                        Ok(id) => {
+                            if let Some(kind) = kind {
+                                awaiting.insert(id, kind);
+                            }
+                        }
+                        Err(_) => return Served::Lost,
+                    }
+                    continue;
+                }
                 match command {
                     // 懒着开（施工会话 09-30 建议）：等第一句话再开，连按几下不留空会话。旧的有任务在跑的照样订阅着。
                     Command::New { keep } => {
@@ -164,39 +152,12 @@ pub(super) async fn serve(
                         }
                         continue;
                     }
-                    Command::ListSessions => {
-                        match rpc.send("session.list", json!({})).await {
-                            Ok(id) => awaiting.insert(id, Awaiting::List),
-                            Err(_) => return Served::Lost,
-                        };
-                        continue;
-                    }
-                    Command::Pin { session, pinned } => {
-                        let params = json!({"session": session, "pinned": pinned});
-                        if rpc.send("session.set_meta", params).await.is_err() {
-                            return Served::Lost;
+                    // 还没开会话：记着，开会话时带上，当场算换成了（「配置与模型」第 1 条）。
+                    Command::Configure(reference) if link.target().is_none() => {
+                        link.pending_model = Some(reference.clone());
+                        if !notify(Update::Configured(reference)) {
+                            return Served::Quit;
                         }
-                        continue;
-                    }
-                    Command::SetLanguage(code) => {
-                        if rpc.send("config.set", config::set_language(&code)).await.is_err() {
-                            return Served::Lost;
-                        }
-                        continue;
-                    }
-                    Command::Delete(session) => {
-                        if rpc.send("session.delete", json!({"session": session})).await.is_err() {
-                            return Served::Lost;
-                        }
-                        continue;
-                    }
-                    // 读输出对着派它的那个会话，不管现在对着哪个（`protocol.md` 的 `job.output`）。
-                    Command::Output { session, job, tail } => {
-                        let params = json!({"session": session, "job": job, "tail": tail});
-                        match rpc.send("job.output", params).await {
-                            Ok(id) => awaiting.insert(id, Awaiting::Output(session, job)),
-                            Err(_) => return Served::Lost,
-                        };
                         continue;
                     }
                     Command::Level(level) if link.target().is_none() => {
@@ -204,9 +165,12 @@ pub(super) async fn serve(
                         continue;
                     }
                     Command::Send { .. } if link.target().is_none() => {
-                        match fresh(rpc).await {
-                            Ok((id, limits)) => {
-                                if !notify(Update::Ready(id.clone())) || !notify(Update::Limits(limits)) {
+                        match fresh(rpc, link.pending_model.take().as_deref()).await {
+                            Ok((id, limits, current)) => {
+                                if !notify(Update::Ready(id.clone()))
+                                    || !notify(Update::Limits(limits))
+                                    || current.is_some_and(|c| !notify(Update::CurrentModel(c)))
+                                {
                                     return Served::Quit;
                                 }
                                 // 会话还没开时切过权限级别：先补发，再说话。
@@ -278,6 +242,7 @@ async fn send(
         Command::Send { .. } => Some(Awaiting::Send),
         Command::Redo { .. } => Some(Awaiting::Redo),
         Command::Recap => Some(Awaiting::Recap),
+        Command::Configure(ref reference) => Some(Awaiting::Configure(reference.clone())),
         Command::Rename(ref title) => Some(Awaiting::Rename(title.clone())),
         _ => None,
     };
@@ -319,10 +284,13 @@ async fn send(
 }
 
 /// `/new` 以后的第一句话：开会话、订阅。
-async fn fresh(rpc: &mut Rpc) -> Result<(String, Limits), Update> {
-    let id = create(rpc).await?;
-    let limits = subscribe(rpc, &id).await?;
-    Ok((id, limits))
+async fn fresh(
+    rpc: &mut Rpc,
+    model: Option<&str>,
+) -> Result<(String, Limits, Option<super::Current>), Update> {
+    let id = create(rpc, model).await?;
+    let (limits, current) = subscribe(rpc, &id).await?;
+    Ok((id, limits, current))
 }
 
 /// 订阅另一个会话，不等回应（回应里的限额由 [`take`] 交给界面）。
@@ -352,7 +320,11 @@ async fn take(
         return match kind {
             Some(Awaiting::Send | Awaiting::Redo) => notify(Update::Unsent { reason, message }),
             // 订阅不上（那个会话已经删了）：不用说。读不了配置（核心旧）：照系统语言，不用说。
-            Some(Awaiting::Watch(_) | Awaiting::UiLanguage) => true,
+            Some(
+                Awaiting::Watch(_) | Awaiting::UiLanguage | Awaiting::Human | Awaiting::Models,
+            ) => true,
+            Some(Awaiting::Choices) => notify(Update::Choices(Vec::new())),
+            Some(Awaiting::Files(word)) => notify(Update::Files { word, result: None }),
             // 切过去订阅不上（会话删了、日志坏了）：不再当它在补发，照一般的拒绝说。
             Some(Awaiting::Replay(session)) => {
                 link.replays.remove(&session);
@@ -391,6 +363,25 @@ async fn take(
                 output,
             });
         }
+        // 要不到一行行的（核心旧、出错）：交回空的，框里写没有。
+        Some(Awaiting::Choices) => {
+            return notify(Update::Choices(super::models::choices(&message["result"])));
+        }
+        Some(Awaiting::Files(word)) => {
+            let result = Some(message["result"].clone());
+            return notify(Update::Files { word, result });
+        }
+        Some(Awaiting::Configure(reference)) => return notify(Update::Configured(reference)),
+        Some(Awaiting::Models) => {
+            return notify(Update::CoolingUntil(super::models::earliest_cooling(
+                &message["result"],
+            )));
+        }
+        Some(Awaiting::Human) => {
+            return notify(Update::Human(crate::human::Human::from_reply(
+                &message["result"],
+            )));
+        }
         Some(Awaiting::UiLanguage) => {
             return notify(Update::UiLanguage(config::language(&message["result"])));
         }
@@ -404,6 +395,12 @@ async fn take(
                 update: Box::new(update),
             };
             let pushes = switch::finish(link, &session);
+            // 切过去的会话现在用的模型（核心 8-10）。
+            if let Some(current) = super::models::current(&message["result"])
+                && !notify(wrap(Update::CurrentModel(current)))
+            {
+                return false;
+            }
             return pushes.into_iter().all(|p| notify(wrap(Update::Push(p))))
                 && Limits::of(message).is_none_or(|limits| notify(wrap(Update::Limits(limits))));
         }

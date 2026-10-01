@@ -107,7 +107,7 @@ impl App {
         self.config.text = fresh.text;
         self.config.commands = fresh.commands;
         self.config.pulse = fresh.pulse;
-        self.human = next.human();
+        self.core.send(Command::FetchHuman(next.code().to_string()));
         let hint = if auto {
             let name = fresh.language_table.name(&next);
             self.config

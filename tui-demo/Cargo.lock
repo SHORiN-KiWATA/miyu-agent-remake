@@ -1807,6 +1807,7 @@ dependencies = [
  "ignore",
  "miyu-fs",
  "miyu-kernel",
+ "miyu-models",
  "miyu-sandbox",
  "miyu-tool",
  "rustix 1.1.5",
@@ -1887,6 +1888,7 @@ dependencies = [
 name = "miyu-fs"
 version = "0.0.0"
 dependencies = [
+ "ignore",
  "jiff",
  "libc",
  "objc2",
@@ -2035,7 +2037,6 @@ name = "miyu-tui-demo"
 version = "0.0.1"
 dependencies = [
  "base64 0.22.1",
- "ignore",
  "image",
  "jiff",
  "mermaid-rs-renderer",

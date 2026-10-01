@@ -36,6 +36,8 @@ pub enum Panel {
     },
     /// 会话列表（`/sessions`）：列表的状态在 [`App::session_list`](super::App) 上。
     Sessions,
+    /// 换模型（`/model`）：框的状态在 [`App::model_list`](super::App) 上。
+    Models,
 }
 
 impl App {
@@ -180,6 +182,7 @@ impl App {
             Panel::Help { scroll } => return self.help_key(scroll, key),
             Panel::Language { selected } => return self.language_key(selected, key),
             Panel::Sessions => return self.sessions_key(key),
+            Panel::Models => return self.models_key(key),
         };
         let items = self.board.panel_items(all);
         let at = |selected| {
@@ -232,6 +235,7 @@ impl App {
         if self.help_mouse(mouse, at)
             || self.language_mouse(mouse, at)
             || self.sessions_mouse(mouse, at)
+            || self.models_mouse(mouse, at)
         {
             return true;
         }

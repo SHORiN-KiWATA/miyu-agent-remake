@@ -151,6 +151,13 @@
     "empty_message": "編集後に何も残りませんでした",
     "unknown_job": "そのタスクはすでに終了しています"
   },
+  "models": {
+    "failover": "↻ モデルを切り替えました：{from} → {to}",
+    "cooling": "すべてクールダウン中",
+    "cooling_until": "すべてクールダウン中、{n} 分後に復帰",
+    "replaced": "↻ 固定していたモデルがなくなったので既定に戻しました：{from} → {to}",
+    "switched": "次のターンから {name} を使います"
+  },
   "recap": {
     "label": "振り返り：{text}",
     "working": "振り返り中…"
@@ -192,6 +199,7 @@
     "context_too_long": "コンテキストが長すぎます",
     "auth": "認証エラー",
     "no_model": "使えるモデルがありません",
+    "cooling": "すべてのモデルがクールダウン中",
     "content_policy": "コンテンツポリシーによりブロックされました",
     "bad_stream": "応答ストリームの形式が不正です",
     "empty_reply": "空の応答",
@@ -432,5 +440,19 @@
     "ticked": " · {count} 件選択",
     "delete_many": "もう一度 Ctrl+D で {count} 件のセッションを削除",
     "deleted_many": "{count} 件のセッションを削除しました"
+  },
+  "model_panel": {
+    "title": "モデル",
+    "count": "  {count} 件",
+    "query": " · 検索：",
+    "hint": "↑/↓ 選択 · Enter 切り替え · Esc 閉じる",
+    "loading": "モデルを読み込み中…",
+    "empty": "一致するモデルがありません",
+    "current": "使用中",
+    "cooling": "クールダウン {n}m",
+    "cooling_bare": "クールダウン中",
+    "no_key": "キーなし",
+    "refuse_cooling": "このモデルはクールダウン中です。{n} 分後に使えます",
+    "refuse_no_key": "このモデルにはキーがありません"
   }
 }

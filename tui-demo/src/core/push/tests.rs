@@ -397,3 +397,41 @@ fn a_peer_going_idle_is_read_with_its_reason_and_last_line() {
         }]
     );
 }
+
+#[test]
+fn a_failed_call_says_which_endpoint_it_tried() {
+    // 换端点那一行的「原来的」照它写（核心 8-9）。
+    let called = json!({"seq": 9, "kind": "model.called", "by": {"kind": "kernel"},
+        "body": {"seen": 3, "endpoint": "bad", "model": "m", "result": "error",
+            "error": {"class": "retryable", "message": "connection refused"}}});
+    let got = read_mine(&called);
+    let tried = got.iter().position(
+        |p| matches!(p, Push::Tried { endpoint, model } if endpoint == "bad" && model == "m"),
+    );
+    let failed = got.iter().position(|p| matches!(p, Push::CallFailed(_)));
+    assert!(
+        tried.is_some() && tried < failed,
+        "先说试的哪个，再说出错：{got:?}"
+    );
+}
+
+#[test]
+fn a_failover_model_change_is_read_with_its_limits() {
+    // 核心 8-9：瞬时的 `model.changed`，`why` 是 `failover`；没值的格不写。
+    let changed = json!({"at":"2026-09-25T08:20:44.900Z","kind":"model.changed","turn":131,"by":{"kind":"kernel"},
+        "body":{"ref":"@duo","endpoint":"bigmodel","model":"glm-5.3-flash",
+            "limits":{"window":200000,"compaction_line":167000},"why":"failover"}});
+    assert_eq!(
+        read_mine(&changed),
+        vec![Push::ModelChanged {
+            endpoint: Some("bigmodel".into()),
+            model: Some("glm-5.3-flash".into()),
+            limits: Some(crate::core::Limits {
+                window: Some(200_000),
+                compaction_line: Some(167_000)
+            }),
+            failover: true,
+            reference: Some("@duo".into()),
+        }]
+    );
+}

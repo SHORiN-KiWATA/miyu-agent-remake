@@ -38,6 +38,10 @@ pub(super) fn request(
         }
         Command::Clear => ("session.clear", json!({"session": session})),
         Command::Recap => ("session.recap", json!({"session": session})),
+        Command::Configure(reference) => (
+            "session.configure",
+            json!({"session": session, "model": reference}),
+        ),
         Command::Rename(title) => (
             "session.set_meta",
             json!({"session": session, "title": title}),
@@ -60,6 +64,10 @@ pub(super) fn request(
         | Command::Pin { .. }
         | Command::Delete(_)
         | Command::SetLanguage(_)
+        | Command::FetchHuman(_)
+        | Command::ListModels
+        | Command::ListChoices
+        | Command::Files { .. }
         | Command::Output { .. } => {
             return None;
         }

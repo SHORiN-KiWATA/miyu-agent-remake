@@ -17,6 +17,7 @@ mod figures;
 mod focus;
 mod frame_log;
 mod history;
+mod human;
 mod input;
 mod jobs;
 mod language;
@@ -27,6 +28,7 @@ mod mascot;
 mod mention;
 mod menu;
 mod meter;
+mod model_list;
 mod notify;
 mod open;
 mod pacing;
@@ -167,7 +169,11 @@ fn run(
     });
     // 读按键的线程：让出终端给编辑器时停下（`reader.rs`）。
     let reader = reader::Reader::spawn(move |event| sender.send(Incoming::Terminal(event)).is_ok());
-    let human = config.language.human();
+    // 工具的显示名、说法向核心要：连上以前发的排着，连上再发（`human.rs`，核心 W-1）。
+    core.send(core::Command::FetchHuman(
+        config.language.code().to_string(),
+    ));
+    let human = human::Human::default();
     let mut app = App::new(config, core, human, figures);
     let mut pointer = pointer::Pointer::default();
     // 终端显示得了几种颜色，启动时看一次（蓝图「主题」第 5 条）。

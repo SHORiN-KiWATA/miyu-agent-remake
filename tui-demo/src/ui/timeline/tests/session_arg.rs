@@ -11,10 +11,8 @@ use crate::ui::test_support::Fixture;
 
 #[test]
 fn a_step_on_another_session_names_it_by_its_short_id() {
-    use miyu_store::resources::ResourceRoot;
     let mut f = Fixture::new();
-    let root = ResourceRoot::at(concat!(env!("CARGO_MANIFEST_DIR"), "/../resources"));
-    f.human = miyu_store::human::Human::load(&root, "zh").unwrap();
+    f.human = crate::human::Human::from_resources("zh");
     let t0 = Instant::now();
     let history = |args: serde_json::Value| {
         step(
@@ -49,10 +47,8 @@ fn a_step_on_another_session_names_it_by_its_short_id() {
 #[test]
 fn a_message_to_another_session_names_it_by_its_short_id() {
     // C-5 起 `send_message` 的 `to` 可以是会话编号：标题写「留言 · 会话 短编号」，不写整个编号。
-    use miyu_store::resources::ResourceRoot;
     let mut f = Fixture::new();
-    let root = ResourceRoot::at(concat!(env!("CARGO_MANIFEST_DIR"), "/../resources"));
-    f.human = miyu_store::human::Human::load(&root, "zh").unwrap();
+    f.human = crate::human::Human::from_resources("zh");
     let t0 = Instant::now();
     let send = step(
         StepKind::Tool {

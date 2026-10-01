@@ -13,10 +13,8 @@ use crate::ui::test_support::Fixture;
 fn an_agent_step_says_the_job_then_the_description_and_opens_on_the_prompt() {
     // 2026-09-30 项目主人：原来是「派子代理 · 描述 · 派出去了：j10」，点开是结果那一句；改成「派子代理 · j10 · 描述」，
     // 点开看完整的交代。
-    use miyu_store::resources::ResourceRoot;
     let mut f = Fixture::new();
-    let root = ResourceRoot::at(concat!(env!("CARGO_MANIFEST_DIR"), "/../resources"));
-    f.human = miyu_store::human::Human::load(&root, "zh").unwrap();
+    f.human = crate::human::Human::from_resources("zh");
     let t0 = Instant::now();
     let said = miyu_kernel::event::Said {
         key: "software/basesystem/agent/started".into(),

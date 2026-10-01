@@ -15,11 +15,15 @@ pub struct Limits {
 impl Limits {
     /// 一条回应里的限额：`result.limits`；不是订阅的回应（没有这一格）的是 `None`。
     pub fn of(message: &Value) -> Option<Self> {
-        let limits = message["result"].get("limits")?;
-        Some(Self {
+        message["result"].get("limits").map(Self::read)
+    }
+
+    /// 照 `{window, compaction_line}` 这样一格读（`model.changed` 的 `limits`，核心 8-9）。
+    pub fn read(limits: &Value) -> Self {
+        Self {
             window: limits["window"].as_u64(),
             compaction_line: limits["compaction_line"].as_u64(),
-        })
+        }
     }
 }
 

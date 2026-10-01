@@ -151,4 +151,16 @@ impl Transcript {
             }
         }
     }
+
+    /// `order` 里的下一档，到头回到第一档；现在的不在里面的，是第一档。只算不改：切到哪一档由核心推来的
+    /// `session.policy_changed` 定（蓝图 `tui.md`「权限级别」第 2 条）。
+    pub fn next_level(&self, order: &[Level]) -> Level {
+        let at = order.iter().position(|l| *l == self.level);
+        let next = at.map_or(0, |i| (i + 1) % order.len().max(1));
+        order.get(next).copied().unwrap_or(self.level)
+    }
+    /// 在跑的（刚结束的）这一轮是不是手动压缩、清空：核心单开的一轮，不是回答（「系统通知」第 1 条）。
+    pub fn manual_turn(&self) -> bool {
+        self.manual
+    }
 }

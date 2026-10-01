@@ -1,11 +1,12 @@
 //! `@` 文件列表的按键和鼠标（蓝图 `tui.md`「`@` 文件列表」第 5 条）：`↑`、`↓` 选，`Tab` 进目录（文件同 `Enter`），
 //! `Enter` 收成块，`Esc` 关；悬停选中，点一下收成块。
 
-use std::path::PathBuf;
+use std::time::Instant;
 
 use ratatui::crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 
 use super::App;
+use crate::core::Command;
 use crate::input::Action;
 use crate::mention::{Found, escape};
 
@@ -17,11 +18,20 @@ impl App {
         {
             return None;
         }
-        let cwd = std::env::current_dir().ok()?;
-        let home = std::env::var_os("HOME").map(PathBuf::from);
         let editor = &self.input.editor;
         let (text, cursor) = (editor.text().to_string(), editor.cursor());
-        self.mention.find(&text, cursor, &cwd, home.as_deref())
+        let found = self.mention.find(&text, cursor)?;
+        // 词变了、清单在建到点了：问核心（`cwd` 是界面所在的工作目录）。
+        if let Some((word, ask)) = self.mention.next_ask(Instant::now()) {
+            let cwd = std::env::current_dir().unwrap_or_default();
+            let (method, params) = ask.request(&cwd.to_string_lossy());
+            self.core.send(Command::Files {
+                word,
+                method,
+                params,
+            });
+        }
+        Some(found)
     }
 
     /// 列表开着时的按键：管得了的交回 `Some`，别的（打字、挪光标）交给输入框。

@@ -6,11 +6,14 @@
 //! 拉起核心只认 `MIYU_CORE_BIN`，不去 PATH 里找 `miyu`：装着旧版的机器上，PATH 里的 `miyu` 是旧版，
 //! 给它 `core` 这个参数，它会把这个词当成一句话发给旧版的后台。
 
+mod asides;
+mod awaiting;
 mod backoff;
 mod config;
 mod connect;
 mod kinds;
 mod limits;
+mod models;
 mod output;
 mod push;
 mod replay;
@@ -31,6 +34,7 @@ use connect::{connect, subscribe};
 
 pub use kinds::{EndReason, Level, ToolStatus};
 pub use limits::Limits;
+pub use models::{Choice, ChoiceState, Current};
 pub use output::JobOutput;
 pub use push::{Block, CallError, Compaction, JobEnd, JobReason, JobStart, Push, Sender, Usage};
 use rpc::Rpc;
@@ -83,6 +87,23 @@ pub enum Command {
     },
     /// 删掉一个会话（`session.delete`），不管对着哪个会话。
     Delete(String),
+    /// 要 `/model` 框里的一行行（`model.list`），交回 [`Update::Choices`]。
+    ListChoices,
+    /// `@` 文件列表问核心（`fs.list`、`fs.find`，核心 W-2）：哪个词问的、方法、参数。
+    Files {
+        /// 哪个词问的：回应照它认。
+        word: crate::mention::Word,
+        /// `fs.list` 或 `fs.find`。
+        method: &'static str,
+        /// 参数。
+        params: serde_json::Value,
+    },
+    /// 这个会话换模型（`session.configure`，下一个回合开始生效，核心 8-10）：引用。还没开会话的记着，开会话时带上。
+    Configure(String),
+    /// 要模型资料（`model.list`），交回冷却着的最早什么时候恢复（[`Update::CoolingUntil`]，「配置与模型」第 7 条）。
+    ListModels,
+    /// 要这种语言的给人看的字（`human.get`，核心 W-1）：语言代码。回 [`Update::Human`]。
+    FetchHuman(String),
     /// 界面语言写进个人设置（`ui.language`，`auto` 或者语言代码；蓝图「界面语言」）。
     SetLanguage(String),
     /// 另外订阅一个会话：子代理的会话（「后台命令、子代理和侧边栏」、「切进子会话」）。它推来的包成 [`Update::Elsewhere`]。
@@ -146,6 +167,23 @@ pub enum Update {
     Limits(Limits),
     /// 会话里的事。
     Push(Push),
+    /// `/model` 框里的一行行（[`Command::ListChoices`] 的回应）；要不到的是空的。
+    Choices(Vec<Choice>),
+    /// `@` 文件列表的回应（[`Command::Files`]）：哪个词问的、回应的 `result`（回了错的是 `None`）。
+    Files {
+        /// 哪个词问的。
+        word: crate::mention::Word,
+        /// 回应。
+        result: Option<serde_json::Value>,
+    },
+    /// 换模型成了（[`Command::Configure`] 的回应）：引用。
+    Configured(String),
+    /// 会话现在用的模型（订阅的回应里的 `model`）。
+    CurrentModel(Current),
+    /// 冷却着的模型里最早什么时候恢复（[`Command::ListModels`] 的回应）；没有的是 `None`。
+    CoolingUntil(Option<jiff::Timestamp>),
+    /// 给人看的字（[`Command::FetchHuman`] 的回应）。
+    Human(crate::human::Human),
     /// 配置里界面语言的最终值（`ui.language`：`auto` 或者语言代码）：连上时读一次，别处改了再读（「界面语言」）。
     UiLanguage(String),
     /// 会话列表（[`Command::ListSessions`] 的回应）：只有主会话，照核心交回的先后。
@@ -247,7 +285,11 @@ async fn run(
                         (None, Some(id)) => notify(Update::Ready(id.clone())),
                         _ => notify(Update::Reconnected),
                     };
-                    if !said || limits.is_some_and(|l| !notify(Update::Limits(l))) {
+                    let (limits, current) = limits.map_or((None, None), |(l, c)| (Some(l), c));
+                    if !said
+                        || limits.is_some_and(|l| !notify(Update::Limits(l)))
+                        || current.is_some_and(|c| !notify(Update::CurrentModel(c)))
+                    {
                         return;
                     }
                     link.main = opened;
@@ -276,7 +318,7 @@ async fn run(
 async fn open(
     session: Option<&str>,
     first: bool,
-) -> Result<(Rpc, Option<String>, Option<Limits>), Update> {
+) -> Result<(Rpc, Option<String>, Option<(Limits, Option<Current>)>), Update> {
     let mut rpc = connect().await?;
     if session.is_none() && first && switch::wants_recent(&mut rpc).await {
         let list = rpc
@@ -290,8 +332,8 @@ async fn open(
     let Some(session) = session else {
         return Ok((rpc, None, None));
     };
-    let limits = subscribe(&mut rpc, session).await?;
-    Ok((rpc, Some(session.to_string()), Some(limits)))
+    let (limits, current) = subscribe(&mut rpc, session).await?;
+    Ok((rpc, Some(session.to_string()), Some((limits, current))))
 }
 
 #[cfg(test)]

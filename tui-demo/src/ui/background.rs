@@ -29,7 +29,8 @@ pub fn lines(
 ) -> (Chrome, Vec<Line<'static>>, Vec<Option<usize>>) {
     let words = &config.text.jobs;
     match panel {
-        None | Some(Panel::Help { .. } | Panel::Language { .. } | Panel::Sessions) => {
+        None
+        | Some(Panel::Help { .. } | Panel::Language { .. } | Panel::Sessions | Panel::Models) => {
             (Chrome::default(), Vec::new(), Vec::new())
         }
         Some(Panel::Background {

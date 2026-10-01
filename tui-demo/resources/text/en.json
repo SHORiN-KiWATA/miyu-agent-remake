@@ -151,6 +151,13 @@
     "empty_message": "Nothing left after the edit",
     "unknown_job": "That task has already ended"
   },
+  "models": {
+    "failover": "↻ Switched model: {from} → {to}",
+    "cooling": "All cooling down",
+    "cooling_until": "All cooling down, back in {n} min",
+    "replaced": "↻ The pinned model is gone, back to the default: {from} → {to}",
+    "switched": "Using {name} from the next turn"
+  },
   "recap": {
     "label": "Recap: {text}",
     "working": "Recapping…"
@@ -192,6 +199,7 @@
     "context_too_long": "Context too long",
     "auth": "Authentication failed",
     "no_model": "No usable model",
+    "cooling": "All models are cooling down",
     "content_policy": "Blocked by the content policy",
     "bad_stream": "Malformed reply stream",
     "empty_reply": "Empty reply",
@@ -432,5 +440,19 @@
     "ticked": " · {count} ticked",
     "delete_many": "Press Ctrl+D again to delete {count} sessions",
     "deleted_many": "Deleted {count} sessions"
+  },
+  "model_panel": {
+    "title": "Models",
+    "count": "  {count}",
+    "query": " · Search: ",
+    "hint": "↑/↓ select · Enter switch · Esc close",
+    "loading": "Reading models…",
+    "empty": "No matching models",
+    "current": "current",
+    "cooling": "cooling {n}m",
+    "cooling_bare": "cooling",
+    "no_key": "no key",
+    "refuse_cooling": "This model is cooling down, usable in {n} min",
+    "refuse_no_key": "This model has no key"
   }
 }

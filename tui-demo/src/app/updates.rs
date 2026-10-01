@@ -2,7 +2,7 @@
 //! 只弹提示的拒绝、撤销恢复时输入框里的那句、视口跟不跟、系统通知、被退回的排队消息放回输入框。
 
 use super::App;
-use crate::core::{Block, Push, Update};
+use crate::core::{Block, Command, Push, Update};
 use crate::transcript::Kind;
 
 impl App {
@@ -18,9 +18,31 @@ impl App {
             self.took_output(&session, &job, output);
             return;
         }
+        // 都在冷却：向核心要一次模型资料，看最早几时恢复（「配置与模型」第 7 条）。
+        if let Update::Push(Push::CallFailed(error)) = &update
+            && error.class == "cooling"
+        {
+            self.core.send(Command::ListModels);
+        }
+        // 给人看的字到了：换上，排好的行里有旧的工具名，扔掉重排（`human.rs`）。
+        if let Update::Human(human) = update {
+            self.human = human;
+            *self.row_cache.borrow_mut() = Default::default();
+            return;
+        }
         // 配置里的界面语言：照它换（`language.rs`）。
         if let Update::UiLanguage(code) = update {
             self.language_from_config(&code);
+            return;
+        }
+        // `/model` 的一行行：交给开着的框（`models.rs`）。
+        // `@` 文件列表的回应：交给列表，照哪个词问的认（`mention/`）。
+        if let Update::Files { word, result } = update {
+            self.mention.replied(&word, result.as_ref());
+            return;
+        }
+        if let Update::Choices(all) = update {
+            self.models_listed(all);
             return;
         }
         // 会话列表：交给开着的框（`switch.rs`）。

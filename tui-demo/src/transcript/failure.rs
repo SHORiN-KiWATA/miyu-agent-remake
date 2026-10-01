@@ -6,8 +6,9 @@ use crate::config::Texts;
 use crate::core::CallError;
 
 /// 内核自己查出来的分类：原话不是供应商的，只写分类的人话（`03-事件模型.md`「出错」）。
-const KERNEL_CLASSES: [&str; 5] = [
+const KERNEL_CLASSES: [&str; 6] = [
     "no_model",
+    "cooling",
     "bad_stream",
     "empty_reply",
     "bad_summary",

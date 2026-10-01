@@ -271,6 +271,7 @@ impl App {
             }
             Run::Rename => self.rename(words),
             Run::Sessions => self.open_sessions(),
+            Run::Model => self.open_models(),
             Run::Copy => self.copy_reply(),
             Run::New => self.new_session(),
             Run::Revert => self.core.send(Command::Revert),

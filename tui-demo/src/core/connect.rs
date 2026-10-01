@@ -52,21 +52,27 @@ pub(super) async fn connect() -> Result<Rpc, Update> {
 }
 
 /// 开一个会话（`cwd` 是启动时的目录），交回编号。
-pub(super) async fn create(rpc: &mut Rpc) -> Result<String, Update> {
-    let created = rpc
-        .call("session.create", json!({"cwd": cwd()}))
-        .await
-        .map_err(refused)?;
+pub(super) async fn create(rpc: &mut Rpc, model: Option<&str>) -> Result<String, Update> {
+    let mut params = json!({"cwd": cwd()});
+    // `/new` 以后、开会话以前在 `/model` 选的：开会话时带上（核心 8-8）。
+    if let Some(model) = model {
+        params["model"] = json!(model);
+    }
+    let created = rpc.call("session.create", params).await.map_err(refused)?;
     Ok(created["session"].as_str().unwrap_or_default().to_string())
 }
 
-/// 订阅一个会话的事件流，交回订阅的回应里的限额。核心重启以后，订阅时才载入这个会话。
-pub(super) async fn subscribe(rpc: &mut Rpc, session: &str) -> Result<Limits, Update> {
+/// 订阅一个会话的事件流，交回订阅的回应里的限额和会话现在用的模型。核心重启以后，订阅时才载入这个会话。
+pub(super) async fn subscribe(
+    rpc: &mut Rpc,
+    session: &str,
+) -> Result<(Limits, Option<super::Current>), Update> {
     let subscribed = rpc
         .call("subscribe", json!({"session": session, "stream": "events"}))
         .await
         .map_err(refused)?;
-    Ok(Limits::of(&json!({ "result": subscribed })).unwrap_or_default())
+    let limits = Limits::of(&json!({ "result": subscribed })).unwrap_or_default();
+    Ok((limits, super::models::current(&subscribed)))
 }
 
 /// 请求没成：连接断了的说断开，别的说连不上和原因。
