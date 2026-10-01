@@ -133,6 +133,7 @@ impl Refusal {
         data: None,
     };
     /// `fs.list`、`fs.find` 读不了这个路径（施工 W-2）：换不成真实的位置、不在、该是目录的不是目录、没有权限。
+    /// `fs.realpath` 也用它（施工 W-3）：换不成真实的位置——一层都不在、路上的链接指向不存在的地方、没有家目录。
     pub(crate) const PATH_UNREADABLE: Refusal = Refusal {
         code: REFUSED,
         reason: "path_unreadable",

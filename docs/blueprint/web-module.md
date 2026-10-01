@@ -20,7 +20,7 @@
 | 8. `web.files` | 核心 | `fs.list`、`fs.find` | W-2 |
 | 9. 核心没在跑时拉起它 | 网页软件，照别的头 | 无 | W-9 |
 
-状态：图纸，2026-10-01 项目主人批准。「网页界面是一个软件，网页的东西不放进核心」是项目主人 2026-10-01 定的，重开了设计 04 的 P5（末尾「要改的设计」）；「画 mermaid 在核心里，做成可选的软件包」也是同一天项目主人定的。技术细节照推荐定了，写在末尾「起草时定的」；项目主人拍板的六题单列一节。施工步子 W-1 到 W-11，W 是和 M8 并行的一条线，不占里程碑的号。W-1 做好了：`human.get`（`crates/miyu-endpoint/src/human.rs`、`crates/miyu-store/src/human.rs` 交出模板原文，`crates/miyu-endpoint/tests/human.rs`）。 W-2 做好了：`fs.list`、`fs.find`（`crates/miyu-fs/src/list.rs`、`find.rs`；`crates/miyu-endpoint/src/files.rs`、`files/cache.rs`；`crates/miyu-fs/src/list/tests.rs`、`find/tests.rs`；`crates/miyu-endpoint/tests/files.rs`）。
+状态：图纸，2026-10-01 项目主人批准。「网页界面是一个软件，网页的东西不放进核心」是项目主人 2026-10-01 定的，重开了设计 04 的 P5（末尾「要改的设计」）；「画 mermaid 在核心里，做成可选的软件包」也是同一天项目主人定的。技术细节照推荐定了，写在末尾「起草时定的」；项目主人拍板的六题单列一节。施工步子 W-1 到 W-11，W 是和 M8 并行的一条线，不占里程碑的号。W-1 做好了：`human.get`（`crates/miyu-endpoint/src/human.rs`、`crates/miyu-store/src/human.rs` 交出模板原文，`crates/miyu-endpoint/tests/human.rs`）。 W-2 做好了：`fs.list`、`fs.find`（`crates/miyu-fs/src/list.rs`、`find.rs`；`crates/miyu-endpoint/src/files.rs`、`files/cache.rs`；`crates/miyu-fs/src/list/tests.rs`、`find/tests.rs`；`crates/miyu-endpoint/tests/files.rs`）。W-3 做好了：握手回应的 `host`、`fs.realpath`（`crates/miyu-endpoint/src/hello.rs`、`files.rs`；`crates/miyu-endpoint/tests/hello.rs`）；施工时发现「从最近在的一层换成真实的位置」这段逻辑 4-3 就有了（`crates/miyu-fs/src/resolve.rs` 的 `resolve()`），没有新开 `real.rs`，改成直接复用它（「在哪」「起草时定的」第 38 条）。
 
 - W-1 到 W-7（核心的通用方法）现在就做，和 M8 并行。
 - W-8 到 W-11（身份、网页软件、媒体地址、打包）等用户系统：项目主人要的是第一次用一次性码进网页、建管理员账号，码当场作废，以后用用户名和密码登录（第 1、3 题）。用户系统照约定 M8 做完以后专门过一遍（「多用户、多终端」那次讨论），这几步的细节那时重画。这一页第一条、第十一条和 W-8 那几行写的是起草时的样子，只当参考；第九条、第十条的大部分不受影响。
@@ -45,7 +45,7 @@
 | `crates/miyu-store/src/blob.rs` | 分块暂存、改名进位置；读一段 | W-5、W-6 |
 | `crates/miyu-store/src/logins.rs` | `home/<账号>/logins.json`：读、写、删过期的 | W-8 |
 | `crates/miyu-fs/src/list.rs`、`find.rs` | 列一层；建清单、打分 | W-2 |
-| `crates/miyu-fs/src/real.rs` | 从最近一层在的目录换成真实的位置 | W-3 |
+| `crates/miyu-fs/src/resolve.rs` | 从最近一层在的目录换成真实的位置：`resolve()`，4-3 就有了，`fs.realpath` 直接复用，没有新开文件（「起草时定的」第 38 条） | W-3 |
 | `crates/miyu-fs/src/range.rs` | 安全地打开以后读一段 | W-6 |
 | `crates/miyu-mermaid/`（新，第 3 层） | 画 SVG、三种记号色、缓存、第一次用才读字体。可选软件包 `mermaid` | W-4 |
 | `crates/miyu-net/`（新，第 3 层） | 地址闸、钉住解析好的地址、自己跟重定向、读到 `</head>`、挖元数据、认图。可选软件包 `net`，以后 `web_fetch` 用同一份 | W-7 |
@@ -587,6 +587,9 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 | 35 | 找文件的清单在原生系统线程（`std::thread::spawn`）里建，不用 `tokio::task::spawn_blocking`（施工 W-2） | `miyu-fs` 本来不依赖 tokio，不为这一步新加这个依赖；照 proto/tui-demo 分支 `tui-demo/src/mention/index.rs` 的先例 | 用 `tokio::task::spawn_blocking`（`miyu-fs` 要新加 tokio 依赖，这个 crate 目前只有纯文件操作） |
 | 36 | `fs.find` 的 `partial` 是「清单本身没走完」或者「对上的比截出来的 50 条还多」两种之一（施工 W-2） | 第 18 条写了清单没建完先给一部分；`fs.list` 的 `partial` 已经是「截断了」的意思，`fs.list`、`fs.find`「两个的回应一个样子」照这个理解 | 只算「清单没走完」：目录不大、清单建完了，但对上的有 80 条只截了 50 条，头不知道还有更多 |
 | 37 | `Core` 新增 `with_files_fresh(Duration)`，照 `with_hello_wait` 的先例（施工 W-2） | `fs.find` 的 `fresh` 判断要不要重建清单的时长（出厂 `FRESH_SECS` 10 秒）做成核心的一个可换字段，测试设成几十毫秒，不用真等十秒 | 10 秒写死在 `find.rs` 里不让核心改（测试要么真等十秒、要么测不到「隔多久才重建」） |
+| 38 | `fs.realpath` 不新开 `crates/miyu-fs/src/real.rs`，直接调 `crates/miyu-fs/src/resolve.rs` 的 `resolve()`（施工 W-3） | 这张图纸起草时以为「从最近一层在的换成真实的位置」是没有的新逻辑，施工时发现 4-3 早就在 `resolve()` 里实现了（`fs.list`、`fs.find` 的 `cwd` 已经在用）：`fs.realpath` 要的 `~` 接家目录、相对路径接 `cwd`、还不存在的往上找最近一层，和 `resolve()` 一个字都不差，新开一个文件只是把同一段逻辑抄一遍 | 照图纸抄一份新代码进 `real.rs`（AGENTS.md 第 8 条：避免耦合、不要重复，发现设计和代码对不上先停下改图纸） |
+| 39 | `fs.realpath` 把 `ResolveError` 的几种（`NoHome`、`DanglingLink`、`ParentOfMissing`、`Io`）一律映射成 `path_unreadable`（施工 W-3） | 协议上只有一种「换不成真实的位置」的原因码，和 `fs.list`、`fs.find` 的 `path_unreadable` 是同一个；头不需要分清是哪一种换不成，换一条路径再试就是了 | 按错误种类拆成几个原因码（头用不上这么细，`path_unreadable` 的消息已经够说明白） |
+| 40 | 握手回应 `host.home`：系统的家目录读不出来时写 `null`，不省略这一格（施工 W-3） | `host` 这一格「总有」，三个子格也总有，省略 `home` 会让头多判一次「这一格在不在」；读不出来是真实状态，`null` 如实说 | 整个 `host.home` 省掉（和「总有」的说法矛盾，头还要多写一层 `.get()`） |
 
 ### 项目主人拍板的
 

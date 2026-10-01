@@ -9,8 +9,8 @@
 //! `secret.list` 在 `secrets.rs`（施工 8-5）。`model.list` 在 `models.rs`（施工 8-7）。`session.create` 带 `model` 的照这时的
 //! 配置解析好再造，解析不出的回 `unknown_model`、什么都不造（施工 8-8，`models::record`）。换模型 `session.configure`：先查
 //! 参数、再找会话、再照这时的配置解析，交给内核，回 `{}`（施工 8-10）。给人看的字 `human.get` 在 `human.rs`（施工 W-1）。
-//! 列文件、找文件 `fs.list`、`fs.find` 在 `files.rs`（施工 W-2）。第一次接入的 `provider.detect`、`provider.catalog`、
-//! `provider.test` 在 `providers.rs`（施工 8-11）。
+//! 列文件、找文件、换真实位置 `fs.list`、`fs.find`、`fs.realpath` 在 `files.rs`（施工 W-2、W-3）。第一次接入的
+//! `provider.detect`、`provider.catalog`、`provider.test` 在 `providers.rs`（施工 8-11）。
 
 use std::sync::Arc;
 
@@ -401,6 +401,7 @@ pub(crate) async fn call(
         }
         "fs.list" => files::list(core, params(request)?).await,
         "fs.find" => files::find(core, params(request)?).await,
+        "fs.realpath" => files::realpath(core, params(request)?).await,
         "session.set_meta" => {
             let params: MetaParams = params(request)?;
             let command = params.command()?;

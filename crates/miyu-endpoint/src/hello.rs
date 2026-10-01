@@ -7,6 +7,10 @@
 //!
 //! 施工 8-4 起 `ui.language` 能当场改：连接记着头报的系统语言（[`Shaken`]），每次说话都照这时的 `ui.language` 重算
 //! （[`Shaken::now`]），不用再握手（`config.md` 第二条第 8 条）。
+//!
+//! 回应带 `host`（施工 W-3，`web-module.md`「四、路径」）：系统的家目录（照原样）、核心所在的平台、这个账号的
+//! 工作区（换成真实的位置）。管理员的工作区核心起来时就建好了（`core.md`），这里不再建：握手不该替每一个连上来
+//! 的头造目录，换不成真实的位置（还没建出来）的就照原样交回。
 
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -140,6 +144,7 @@ pub(crate) fn hello(core: &Core, params: Value) -> Result<(Shaken, Value), (Refu
         "protocol": PROTOCOL,
         "core": {"version": env!("CARGO_PKG_VERSION")},
         "account": core.admin.as_str(),
+        "host": host(core),
         "sandbox": sandbox(&core.sandbox),
         "language": language,
     });
@@ -161,6 +166,20 @@ fn system(locale: Option<&str>) -> &'static str {
         "ja" => "ja",
         _ => "en",
     }
+}
+
+/// 握手的回应里的 `host`（施工 W-3，`web-module.md`「四、路径」）：`home` 是核心起来时拿到的系统的家目录，照
+/// 原样，读不出来的是 `null`；`platform` 是核心所在的平台；`workspace` 是这个账号的工作区，换成真实的位置。不在
+/// 这里建它：管理员的工作区核心起来时就建好了（`core.md`），握手不该替每一个连上来的头造目录；换不成的（没建出来）
+/// 照原样交回，工具自己用到时会报错。
+fn host(core: &Core) -> Value {
+    let workspace = core.root.workspace(&core.admin);
+    let workspace = std::fs::canonicalize(&workspace).unwrap_or(workspace);
+    json!({
+        "home": core.home.as_deref().map(|home| home.display().to_string()),
+        "platform": std::env::consts::OS,
+        "workspace": workspace.display().to_string(),
+    })
 }
 
 /// 握手的回应里的 `sandbox`：能用的 `{"usable": true}`，用不了的带原因（施工 5-4 下）。
