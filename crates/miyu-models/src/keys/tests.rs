@@ -34,14 +34,40 @@ fn the_same_session_always_gets_the_same_key() {
 fn the_pinned_key_comes_first_and_the_rest_keep_their_order() {
     for n in 0..40 {
         let session = format!("0199{n:04}-0000-7000-8000-000000000000");
-        let order = order(&session, 4);
+        let order = order(&session, 4, None);
         let first = pinned(&session, 4).expect("有 key");
         assert_eq!(order[0], first);
         let rest: Vec<usize> = (0..4).filter(|at| *at != first).collect();
         assert_eq!(order[1..], rest[..]);
     }
-    assert!(order("s", 0).is_empty());
-    assert_eq!(order("s", 1), [0]);
+    assert!(order("s", 0, None).is_empty());
+    assert_eq!(order("s", 1, None), [0]);
+}
+
+/// 出错换过去、成了的那一个在前（施工 8-9），别的照写的先后；换过去的那一个不在了（写的 key 少了）的照钉着的。
+#[test]
+fn a_key_moved_to_comes_first() {
+    let session = "0199aaaa-bbbb-7ccc-8ddd-eeeeffff0000";
+    let pinned = pinned(session, 3).expect("有 key");
+    let moved = (pinned + 1) % 3;
+    let order = order(session, 3, Some(moved));
+    assert_eq!(order[0], moved);
+    let rest: Vec<usize> = (0..3).filter(|at| *at != moved).collect();
+    assert_eq!(order[1..], rest[..]);
+    assert_eq!(super::order(session, 3, Some(7))[0], pinned);
+    assert!(super::order(session, 0, Some(0)).is_empty());
+}
+
+#[test]
+fn a_key_is_named_the_way_it_is_referenced() {
+    assert_eq!(
+        name(&Reference::Secret("relay".to_string())),
+        "secret:relay"
+    );
+    assert_eq!(
+        name(&Reference::Env("DEEPSEEK_API_KEY".to_string())),
+        "env:DEEPSEEK_API_KEY"
+    );
 }
 
 #[test]

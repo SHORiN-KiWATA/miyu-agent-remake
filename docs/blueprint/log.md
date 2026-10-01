@@ -139,11 +139,18 @@
 | `core` | WARN | `catalog unreadable`、`catalog empty` | `source`、`error`；`catalog empty` 没有键 | 一份目录读不了；两份都读不了 |
 | `core` | DEBUG | `catalog entry skipped` | `entry`（`<供应商>/<模型>` 或 `<供应商>`） | 目录里坏了、跳过的一个 |
 | `core` | INFO | `catalog refreshed`、`catalog not modified` | `fetched`、`providers`、`models`；304 的没有键 | 后台拉到了新目录、服务器说没变（第二条第 3 条） |
-| `core` | WARN | `catalog refresh failed` | `error` | 拉不到、读不了、写不进缓存：一小时后再试 |
+| `core` | WARN | `catalog refresh failed` | `error` | 拉不到、读不了、写不进缓存，`models.catalog.url` 是环境变量的引用、取不到（施工 8-8，`error` 是 `models.catalog.url has no address`）：一小时后再试 |
 | `core` | WARN | `catalog cache unavailable` | `reason` | 算不出缓存目录：只读快照、不拉 |
 | `session` | INFO | `learned window` | `provider`、`model`、`window` | 请求报上下文超长、说了上限、比手头的窗口小：记进 `state/models/learned.json`（第二条第 9 条）。带会话编号 |
 | `session` | WARN | `provider list failed` | `provider`、`error` | 拉供应商的模型列表失败，照旧用上一份（第二条第 10 条） |
-| `session` | WARN | `model data not written`、`model data unreadable` | `file`、`error`；`error` | `state/models/` 下的写不进、坏了当没有 |
+| `session` | WARN | `model data not written`、`model data unreadable` | `file`、`error`；`error` | `state/models/` 下的写不进、坏了当没有（施工 8-8 起连同 `pools.json`） |
+| `session` | WARN | `pool member skipped` | `pool`、`member` | 池里认不出的成员（那一家没配），每次解析记一行（`models.md` 第三条第 1 条，施工 8-8）。带会话编号 |
+| `session` | INFO | `endpoint cooling` | `provider`、`key`（第几个，从 1 数；没写 key 的没有）、`model`、`class`、`for_ms`、`failures` | 一次出错记了冷却：限速、可重试、认证失败三类，冷却多少毫秒、这个单位连着第几次（`models.md` 第五条第 2 条，施工 8-9）。key 的值不进日志。带会话编号 |
+| `session` | INFO | `failover` | `from`、`to` 或 `key`、`class` | 出错换端点：从 `<供应商>/<模型>` 换到别的模型写 `to`，只换 key、模型没变的写换到第几个 `key`（`models.md` 第五条第 8 条，施工 8-9）。别的候选都在冷却、只剩等的不记。带会话编号 |
+| `session` | INFO | `model fallback` | `from`、`to` | 回合开始重新解析，钉着的引用解析不出，退回这一轮的 `models.chat`：原来的、退回的（`models.md` 第六条第 4 条，施工 8-10）。带会话编号 |
+| `endpoint` | DEBUG | `unknown model` | `why` | `session.create`、`session.configure` 的 `model` 解析不出，回 `unknown_model`（施工 8-8、8-10） |
+| `session` | INFO | `provider tested` | `provider`、`model`（没有模型可试的是空的）、`ok` | `provider.test` 试了一次（`models.md` 第七条第 4 条第 7 款，施工 8-11）：不属于哪个会话，不带会话编号；候选的 `provider` 是它推的编号。key、地址不进这一行 |
+| `endpoint` | WARN | `probe text unreadable` | `error` | `provider.test` 读不了 `core/models/probe.txt`，回 `internal_error`（施工 8-11） |
 | `core` | INFO | `sandbox` | `helper`（助手的路径）、`platform`、`mechanisms`（逗号连起来，空的写 `none`） | 起来时探沙盒的助手，探成了（`sandbox.md`，施工 5-1） |
 | `core` | WARN | `sandbox unavailable` | `reason` | 起来时探沙盒的助手：没找到、跑不了、到时、说的读不懂 |
 | `session` | | | | 会话的每一行带会话编号，见 `session/actor.md` 的「运行日志」 |

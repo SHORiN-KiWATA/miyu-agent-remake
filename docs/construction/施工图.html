@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>162</b><span>/ 185 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 8-8 用途挡位池、W-1 给人看的字（网页模块 W-1 到 W-7 和 M8 并行）；跨会话只剩 C-7 验收</span></li>
-    <li><b class="mono">987a7bad</b><span>最近一步（C-6 空了告诉我）的提交</span></li>
+    <li><b>168</b><span>/ 185 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 W-3 路径，接着 4-5 再补（英文单数）、8-11 补（本机服务不走代理）；跨会话只剩 C-7 验收</span></li>
+    <li><b class="mono">307fb7bf</b><span>最近一步（8-11 第一次接入）的提交</span></li>
   </ul>
 </header>
 
@@ -516,10 +516,10 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s8-6"><span class="n">8-6</span>供应商<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-6b"><span class="n">8-6</span>地址也能放在环境变量里（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-7"><span class="n">8-7</span>模型资料<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">8-8</span>用途、挡位、池</span></li>
-        <li><span class="step"><span class="n">8-9</span>出错换端点</span></li>
-        <li><span class="step"><span class="n">8-10</span>会话里换模型</span></li>
-        <li><span class="step"><span class="n">8-11</span>第一次接入</span></li>
+        <li><a class="step done" href="#s8-8"><span class="n">8-8</span>用途、挡位、池<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s8-9"><span class="n">8-9</span>出错换端点<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s8-10"><span class="n">8-10</span>会话里换模型<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s8-11"><span class="n">8-11</span>第一次接入<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">8-12</span>Anthropic 消息接口</span></li>
         <li><span class="step"><span class="n">8-13</span>OpenAI Responses 接口</span></li>
         <li><span class="step"><span class="n">8-14</span>opencode Zen</span></li>
@@ -543,8 +543,8 @@ a.step:hover{border-color:var(--primary)}
     <li>
       <div class="ms-head"><span class="ms-id">W</span><span class="ms-name">网页模块</span><span class="ms-goal">核心给所有头的通用方法，网页界面是单独的软件；W-1 到 W-7 和 M8 并行，W-8 到 W-11 等用户系统（2026-10-01 图纸 web-module.md，项目主人批准）</span></div>
       <ol class="chips">
-        <li><span class="step"><span class="n">W-1</span>给人看的字</span></li>
-        <li><span class="step"><span class="n">W-2</span>列文件、找文件</span></li>
+        <li><a class="step done" href="#sW-1"><span class="n">W-1</span>给人看的字<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sW-2"><span class="n">W-2</span>列文件、找文件<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">W-3</span>路径</span></li>
         <li><span class="step"><span class="n">W-4</span>mermaid</span></li>
         <li><span class="step"><span class="n">W-5</span>分块上传</span></li>
@@ -11000,6 +11000,209 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s8-8" aria-labelledby="h-s88">
+  <div class="sheet-head"><h2 id="h-s88"><span class="no">8-8</span>用途、挡位、池</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">配置里能写看图的模型、四个挡位、池；池照 <code>pin</code> 钉一个成员或者照 <code>rotate</code> 每次请求换一个，用不了的成员跳过。<code>session.create</code> 能指定模型，<code>subagent</code> 能带挡位。<code>model.list</code> 多池和挡位。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">用途、挡位、池</span><span class="dir-note">8-8</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>配置多八项：<code>models.vision</code>、<code>models.tiers.*</code>、<code>pools.&lt;id&gt;.*</code>、供应商的 <code>cache</code>；引用没配的报 <code>bad_reference</code></li>
+              <li>池：钉住的造会话时钉上、载入时照日志认回；轮换的指针存在 <code>state/models/pools.json</code></li>
+              <li><code>session.create</code> 的 <code>model</code>、<code>unknown_model</code>；<code>subagent</code> 的 <code>tier</code>（工具面多 48 个 token）</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">挑中就钉</span><span class="rl">池里只因「用不了」换成员；出错换成员、成功才钉随 8-9</span></div>
+          <div class="tile new"><span class="nm">指针在会话那层</span><span class="rl">照 8-7 存用出来的窗口的办法</span></div>
+          <div class="tile"><span class="nm">8-6 补的尾巴</span><span class="rl">models.catalog.url 写环境变量引用的照引用取</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-8</dd></div>
+        <div><dt>名称</dt><dd>用途、挡位、池</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">00b65511</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>21 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型：<code>models.chat = "@duo"</code> 轮换的池，五次请求在两个成员间轮流；子代理带 <code>tier: cheap</code> 用的是那一挡的模型</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-8-用途、挡位、池.md</code>；蓝图 <code>models.md</code>、<code>config.md</code> 标 8-8 的几处。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-9" aria-labelledby="h-s89">
+  <div class="sheet-head"><h2 id="h-s89"><span class="no">8-9</span>出错换端点</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">一个端点出错，换到别的 key 或者池里别的成员接着说：照错误的分类定换不换、冷却多久，连着失败翻倍、有上限，真成功一次才清零；说到一半断的还发给原来那一个；候选全在冷却时说清是哪几个、到什么时候。换了模型推 <code>model.changed</code>，<code>model.list</code> 带冷却的状态。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">出错换端点</span><span class="dir-note">8-9</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>冷却表核心一份、只在内存：<code>[models.cooldown]</code> 三类各 <code>base</code>、<code>max</code>，<code>auth</code> 停整个 key</li>
+              <li>挑候选跳过冷却中的；全在冷却回 <code>cooling</code>，原话列出每个候选；换端点数进这一步的 5 次</li>
+              <li>钉住的池出错换成员、成了才钉；换了模型推 <code>model.changed</code>（<code>why: failover</code>），<code>status.retry</code> 带 <code>failover</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">换 key 不推</span><span class="rl">只换 key、模型没变的不推 model.changed；轮换的池也不推</span></div>
+          <div class="tile new"><span class="nm">日志的写法</span><span class="rl">failover 一行只换 key 的写 key=，换模型的写 to=</span></div>
+          <div class="tile"><span class="nm">随机测试</span><span class="rl">出错的分布改了，可以再来的占 9/16</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-9</dd></div>
+        <div><dt>名称</dt><dd>出错换端点</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">1982bc52</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>16 个手写变异全逮住；三台机器的 CI 和长跑全绿，release 两万例过</span></li>
+        <li><span class="ok">✓</span><span>真模型：钉住的池第一个成员指到只回 429 的本机假服务器，当场换到开发端点答完；日志记了冷却 30 秒和换端点；下一次直接发给换到的那一个</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-9-出错换端点.md</code>；蓝图 <code>models.md</code> 第四、五条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-10" aria-labelledby="h-s810">
+  <div class="sheet-head"><h2 id="h-s810"><span class="no">8-10</span>会话里换模型</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">开着的会话能换模型：头发 <code>session.configure</code>，下一个回合开始生效；钉着的模型、池没了退回 <code>models.chat</code>、记一条说明；配置变了也在下一个回合开始时生效，限额跟着变、推 <code>model.changed</code>（<code>why: turn</code>）。<code>subscribe</code> 带会话接下来请求的模型，<code>miyu ask --model</code>。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">会话里换模型</span><span class="dir-note">8-10</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>内核记着引用：<code>session.created</code> 的 <code>model</code> 被后来带 <code>model</code> 的 <code>session.policy_changed</code> 盖掉；撤掉的回合里改的也算</li>
+              <li>回合开始重新解析：解析不出退回 <code>models.chat</code>，<code>replaced</code> 记在注入的事实前面；手动压缩、清空那一轮不重新解析</li>
+              <li>换模型解除自动压缩的暂停；窗口、最大输出的生效时机改成 <code>next_turn</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">只改窗口也推</span><span class="rl">model.changed 的 why: turn 在引用、端点、窗口、压缩线有一格变了就推</span></div>
+          <div class="tile new"><span class="nm">接旧会话换不成</span><span class="rl">miyu ask -c --model 换不成退出码 1，不发话</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-10</dd></div>
+        <div><dt>名称</dt><dd>会话里换模型</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">169df271</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>17 个手写变异全逮住；三台机器的 CI 和长跑全绿，release 两万例过</span></li>
+        <li><span class="ok">✓</span><span>真模型：同一个会话里 <code>--model</code> 换到另一家，暗号照样答对；配置里删掉那一家，下一轮内核记下退回、请求发给 <code>models.chat</code></span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-10-会话里换模型.md</code>；蓝图 <code>models.md</code> 第六条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-11" aria-labelledby="h-s811">
+  <div class="sheet-head"><h2 id="h-s811"><span class="no">8-11</span>第一次接入</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">没配过模型的人能接上第一个模型：核心给引导要用的三个方法 <code>provider.detect</code>、<code>provider.catalog</code>、<code>provider.test</code>；主程序里一个最基本的 <code>miyu setup</code> 一行行问、敲数字；<code>miyu ask</code> 没模型时在终端里先走一遍。全屏的引导在各个头里做（M9）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">第一次接入</span><span class="dir-note">8-11</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>provider.detect</code>：环境变量里哪几家有 key（不交值）、本机哪些模型服务（只探本机、300 毫秒、并行）</li>
+              <li><code>provider.test</code>：真发一句 <code>Reply with OK.</code>（4 个 token），收到第一段就停；推荐能调工具、窗口够大、发布最晚的</li>
+              <li><code>miyu setup</code>：环境变量里的 key 只引用不复制，贴的 key 试通了才存成密钥，经核心写配置</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">先试再存</span><span class="rl">贴的 key 先照这一次的值试，通了才存</span></div>
+          <div class="tile new"><span class="nm">没模型不造会话</span><span class="rl">miyu ask 照 config.get 判有没有模型</span></div>
+          <div class="tile"><span class="nm">本机服务走了代理</span><span class="rl">NO_PROXY 没写回环的连不上，另开 8-11 补</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-11</dd></div>
+        <div><dt>名称</dt><dd>第一次接入</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">307fb7bf</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>18 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真的伪终端、真模型：本机假装成 Ollama 的转发器，空的数据根 <code>miyu setup</code> 选它、试通、选模型、写好配置，<code>miyu ask</code> 照常说话；没配模型直接 <code>miyu ask</code> 先走 setup 再发</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-11-第一次接入.md</code>；蓝图 <code>models.md</code> 第七条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sC-1" aria-labelledby="h-sC1">
   <div class="sheet-head"><h2 id="h-sC1"><span class="no">C-1</span>跨会话的事件和编号</h2><span class="pill done">已完成</span></div>
   <p class="purpose">跨会话这条线的第一步，和 M8 并行：会话的短编号，事件 <code>peer.idle</code>、效果 <code>peer.watch</code> 的类型、读写、样本，账本认得在等哪几个会话。这一步不收话、不列、不读、不发、不订，她和头都还看不到变化。</p>
@@ -11299,6 +11502,107 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/C-6-空了告诉我.md</code>；蓝图 <code>cross-session.md</code> 第六条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sW-1" aria-labelledby="h-sW1">
+  <div class="sheet-head"><h2 id="h-sW1"><span class="no">W-1</span>给人看的字</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">网页模块这条线的第一步，和 M8 并行：头要的给人看的字（工具的显示名、符号、说法的模板原文）由核心经协议 <code>human.get</code> 给，头不再自己去资源目录里读。网页的桥、终端演示照它去掉自己那一份。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">给人看的字</span><span class="dir-note">W-1</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>human.get</code>：内核和每个软件包的 <code>human/&lt;语言&gt;.json</code> 合成一份；说法的编号带位置，模板照原文给</li>
+              <li>不写语言照握手的；没有这种语言照英文；不带 <code>config</code></li>
+              <li>每次现读资源目录，在阻塞线程里读：开发时改了资源不用重启核心</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">原文另存一份</span><span class="rl">Human 里每句说法多留一份原文，不改内核的 Template</span></div>
+          <div class="tile new"><span class="nm">崩了也记</span><span class="rl">读的线程崩了记 ERROR human panicked，照别的阻塞读法</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">W-1</dd></div>
+        <div><dt>名称</dt><dd>给人看的字</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">9f25d78f</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真核心照源码树的资源，三种语言都交得出 <code>tools</code> 和 <code>said</code>；和 <code>Human::load</code> 读到的一字不差</span></li>
+        <li><span class="ok">✓</span><span>15 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/W-1-给人看的字.md</code>；蓝图 <code>web-module.md</code> 第二条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sW-2" aria-labelledby="h-sW2">
+  <div class="sheet-head"><h2 id="h-sW2"><span class="no">W-2</span>列文件、找文件</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头打 <code>@</code> 选文件要的两样由核心给：<code>fs.list</code> 列一层目录（照打的开头筛），<code>fs.find</code> 在一个目录里模糊找文件（建清单、打分）。列目录、建清单、打分挪进 <code>miyu-fs</code>，终端演示和网页的桥各自那一份以后能删。数据根里只有账号自己的工作区能列、能找。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">列文件、找文件</span><span class="dir-note">W-2</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>fs.list</code>：只读一层，开头对、大小写不论，点开头的打了点才列，目录在前，最多 50 条</li>
+              <li><code>fs.find</code>：认 <code>.gitignore</code>，跳过隐藏目录和名单，最深 8 层、最多 20000 个；没建完先给一部分（<code>building</code>），核心最多记 4 份清单</li>
+              <li>打分照桥的 <code>score</code> 搬来，测试一起搬；<code>path</code> 一律用 <code>/</code>，<code>full</code> 照平台</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">穿过数据根够到工作区</span><span class="rl">Boundary 多一问：要不要往下走，和这一条算不算数分开</span></div>
+          <div class="tile new"><span class="nm">清单在系统线程里建</span><span class="rl">miyu-fs 不为这一步依赖 tokio</span></div>
+          <div class="tile"><span class="nm">macOS 判 root</span><span class="rl">看自己建的临时目录归谁，macOS 没有 /proc</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">W-2</dd></div>
+        <div><dt>名称</dt><dd>列文件、找文件</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">10fb9008</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>15 个手写变异全逮住，补出了四处测试的缺口；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真核心：数据根拒、工作区能列能找，清单没建完先给一部分，<code>fresh</code> 隔够了才重建</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/W-2-列文件、找文件.md</code>；蓝图 <code>web-module.md</code> 第三条。</li>
       </ul>
     </div>
   </div>

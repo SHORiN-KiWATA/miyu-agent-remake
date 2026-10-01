@@ -17,7 +17,11 @@ async fn pushes_come_before_the_reply() {
     client.hello().await;
     let session = client.create("c1", "~").await;
     let reply = client.subscribe("c2", &session).await;
-    assert_eq!(reply["result"], json!({"limits": {}}), "{reply}");
+    assert_eq!(
+        reply["result"],
+        json!({"limits": {}, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}}),
+        "{reply}"
+    );
 
     client
         .line(&json!({"jsonrpc": "2.0", "id": "c3", "method": "session.send", "params": {"session": session, "text": "hi"}}).to_string())
@@ -164,7 +168,11 @@ async fn a_slow_reader_gets_a_resync_and_every_reply() {
 
     // 重新订阅：照常推。
     let reply = client.subscribe("c6", &session).await;
-    assert_eq!(reply["result"], json!({"limits": {}}), "{reply}");
+    assert_eq!(
+        reply["result"],
+        json!({"limits": {}, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}}),
+        "{reply}"
+    );
     client.say("c7", &session, "once more").await;
     let pushed = client.until_turn_ends(&session).await;
     assert!(kinds(&pushed).contains(&"message.assistant".to_string()));

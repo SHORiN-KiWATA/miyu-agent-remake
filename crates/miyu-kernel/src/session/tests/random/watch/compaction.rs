@@ -350,7 +350,7 @@ impl Watch {
                         self.seen_paths.insert("截不动算失败");
                     }
                     self.seen_paths.insert("摘要请求出错");
-                    self.failed(called.seen, before, after);
+                    self.failed(called, before, after);
                     // 再来的（施工 6-7）：被动压缩的下一次还是它。
                     if self.retries.expecting == Some(called.seen) {
                         self.passive_again();

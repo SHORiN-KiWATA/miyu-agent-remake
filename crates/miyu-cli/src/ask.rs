@@ -1,6 +1,7 @@
 //! `miyu ask`（`docs/designs/22-命令行.md` 第三节，施工 3-9 下）：连上核心（没在跑就拉起来），开一个一次性
 //! 会话，或者接着说；把一句话发给她，边收边打，她做的每一步印成一行（施工 4-5 下）；问完印一行用量。她派了子代理的，
-//! 等它们都报回来、被叫醒的几轮也印完才退出（施工 7-9）。
+//! 等它们都报回来、被叫醒的几轮也印完才退出（施工 7-9）。没写 `--model` 的先看有没有模型（施工 8-11，
+//! [`crate::model_ready_on`]）：没有的在终端里先走一遍 `miyu setup`，不在终端里退出码 5、不造会话。
 
 pub(crate) mod follow;
 mod steps;
@@ -44,7 +45,9 @@ use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
+use crate::config::Terminal;
 use crate::language::{self, Language};
+use crate::setup::{HeadEnv, Setup, SetupPlan, model_ready_on};
 use crate::shown;
 
 /// 退出码（`22-命令行.md` 第二节）。
@@ -57,7 +60,7 @@ pub mod exit {
     pub const INTERRUPTED: u8 = 3;
     /// 有几步要人确认，这里不问，没做（`22-命令行.md` O3）。
     pub const UNATTENDED: u8 = 4;
-    /// 没有可用的模型。
+    /// 没有可用的模型：没配，或者候选全在冷却、没发出去（施工 8-9）。
     pub const NO_MODEL: u8 = 5;
 }
 
@@ -89,6 +92,9 @@ pub struct Ask {
     /// 截短由核心做。
     #[arg(long, value_name = "NAME", value_parser = harness_name)]
     pub from: Option<String>,
+    /// 用哪个模型（施工 8-10）：模型、`@池` 或者挡位，原样交给核心解析。新开的会话照它造，接着的会话先换成它，以后都用它。
+    #[arg(long, value_name = "MODEL")]
+    pub model: Option<String>,
 }
 
 /// `--from` 的值（施工 7-10）：空的、只有空白的读不成，照「参数写错时」说（`cli/main.md`）；别的照原样。
@@ -188,6 +194,8 @@ pub struct Plan {
     pub timeout: Option<Duration>,
     /// 别的 harness 报的名字（施工 7-10）：有的，`session.send` 带上 `from`，不带 `cwd`，`dirs` 只在写了 `--add-dir` 时带。
     pub from: Option<String>,
+    /// 用哪个模型（施工 8-10，`--model`）：新开的会话 `session.create` 带上它，接着的会话先 `session.configure`；没写的没有。
+    pub model: Option<String>,
 }
 
 /// 写到哪里：回答写 `out`，思考、用量、出错写 `err`；`gray` 的思考、用量是灰色。
@@ -231,11 +239,33 @@ async fn run(args: Ask, start: impl FnOnce() -> Command, language: Language) -> 
     let connected = connect_or_start(&root, start)
         .await
         .map_err(|error| error.to_string());
-    let (connection, token) = match connected {
+    let (mut connection, token) = match connected {
         Ok(connected) => connected,
         Err(reason) => return failed(&reason),
     };
     let plan = plan(args, &env, language);
+    if plan.model.is_none() {
+        // 先看有没有模型，用一条连接；有了（或者走完了 setup）再连一次说话，`talk` 不用管这一段（施工 8-11）。
+        let ready = SetupPlan {
+            setup: Setup::default(),
+            language,
+            gray: shown::colored(
+                io::stderr().is_terminal(),
+                std::env::var_os("NO_COLOR").as_deref(),
+            ),
+            here: HeadEnv::process(),
+        };
+        let mut console = Terminal::current();
+        let checked =
+            model_ready_on(connection, &token, &ready, &mut console, &mut io::stderr()).await;
+        if let Err(code) = checked {
+            return code;
+        }
+        connection = match miyu_ipc::connect(&root).await {
+            Ok((connection, _)) => connection,
+            Err(error) => return failed(&error.to_string()),
+        };
+    }
     let presses = presses();
     let mut out = io::stdout();
     let mut err = io::stderr();
@@ -273,6 +303,7 @@ fn plan(args: Ask, env: &Env, language: Language) -> Plan {
         home: env.home.clone(),
         timeout: args.timeout,
         from: args.from,
+        model: args.model,
     }
 }
 

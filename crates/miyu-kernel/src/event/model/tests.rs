@@ -155,6 +155,7 @@ fn each_error_class_reads_into_its_own_variant() {
         ("bad_summary", ErrorClass::BadSummary),
         ("compaction_paused", ErrorClass::CompactionPaused),
         ("no_model", ErrorClass::NoModel),
+        ("cooling", ErrorClass::Cooling),
         ("overloaded", ErrorClass::Other("overloaded".to_string())),
     ] {
         let body = format!(

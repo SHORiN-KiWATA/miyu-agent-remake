@@ -7,7 +7,7 @@ use clap::{Args, Command};
 
 use super::{Page, page};
 use crate::language::Language;
-use crate::{Ask, Compact, Config, Login, Logout, Recap, Redo, Rename, Sandbox, Undo};
+use crate::{Ask, Compact, Config, Login, Logout, Recap, Redo, Rename, Sandbox, Setup, Undo};
 
 /// 一个选项：几种写法（`-c`、`--continue`），和后面写的值（没有的是空的）。
 type Listed = BTreeSet<(Vec<String>, String)>;
@@ -37,7 +37,8 @@ fn listed(page: &str) -> Listed {
 
 /// 程序真有的选项：`command` 里有名字的参数，加上 clap 给每条命令都加的 `-h`、`--help`。要写值的，值写成能写的几样
 /// 用 `|` 连起来；不限的照 clap 的值名在 `values` 里查页里写成什么（`SESSION` 是 `<编号>`，`DIR` 是 `<目录>`，施工 5-10
-/// 上；`FILE` 是 `<文件>`，施工 3-9 三补；`TIME` 是 `<时长>`，施工 7-9；`NAME` 是 `<名字>`，施工 7-10），查不到的写成 `<值名>`。藏起来的不算：它们不给人用（`sandbox` 那两个，施工 5-8）。
+/// 上；`FILE` 是 `<文件>`，施工 3-9 三补；`TIME` 是 `<时长>`，施工 7-9；`NAME` 是 `<名字>`，施工 7-10；`MODEL` 是 `<模型>`，施工
+/// 8-10；`ID` 是 `<编号>`、`VAR` 是 `<变量>`，施工 8-11），查不到的写成 `<值名>`。藏起来的不算：它们不给人用（`sandbox` 那两个，施工 5-8）。
 fn real(command: &Command, values: &[(&str, &str)]) -> Listed {
     let mut options = Listed::new();
     for arg in command.get_arguments().filter(|arg| !arg.is_hide_set()) {
@@ -98,6 +99,9 @@ fn each_page_lists_exactly_the_options_there_are() {
         ("FILE", "<文件>"),
         ("TIME", "<时长>"),
         ("NAME", "<名字>"),
+        ("MODEL", "<模型>"),
+        ("ID", "<编号>"),
+        ("VAR", "<变量>"),
     ];
     let english = [
         ("SESSION", "<id>"),
@@ -105,6 +109,9 @@ fn each_page_lists_exactly_the_options_there_are() {
         ("FILE", "<file>"),
         ("TIME", "<time>"),
         ("NAME", "<name>"),
+        ("MODEL", "<model>"),
+        ("ID", "<id>"),
+        ("VAR", "<var>"),
     ];
     for (language, id) in [(Language::Chinese, &chinese), (Language::English, &english)] {
         assert_eq!(
@@ -188,6 +195,13 @@ fn each_page_lists_exactly_the_options_there_are() {
             real(&logout, id),
             "{language:?} logout"
         );
+        // `setup` 那一页（施工 8-11）：三个跳过一步的选项。
+        let setup = Setup::augment_args(Command::new("setup"));
+        assert_eq!(
+            listed(page(language, Page::Setup)),
+            real(&setup, id),
+            "{language:?} setup"
+        );
         // `sandbox` 那一页：`sandbox`、`sandbox setup`、`sandbox remove` 印的都是它。
         let sandbox = Sandbox::augment_args(Command::new("sandbox"));
         let mut commands = vec![sandbox.clone()];
@@ -222,6 +236,7 @@ fn each_page_is_its_own_file() {
             (Page::Config, "config"),
             (Page::Login, "login"),
             (Page::Logout, "logout"),
+            (Page::Setup, "setup"),
         ] {
             let file = dir.join(code).join(format!("{name}.txt"));
             let on_disk = std::fs::read_to_string(&file).expect("有这一页");
@@ -261,6 +276,7 @@ fn pages_fit_in_eighty_columns_and_end_with_one_newline() {
             Page::Config,
             Page::Login,
             Page::Logout,
+            Page::Setup,
         ] {
             let text = page(language, which);
             assert!(

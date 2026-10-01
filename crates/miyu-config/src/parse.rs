@@ -252,6 +252,7 @@ pub(crate) fn read(kind: Kind, value: &TomlValue) -> Option<Value> {
             | Kind::Url
             | Kind::Name
             | Kind::Reference
+            | Kind::Model
             | Kind::Text { .. }
             | Kind::Duration { .. },
             TomlValue::String(text),

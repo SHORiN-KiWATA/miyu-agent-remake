@@ -3,7 +3,8 @@
 //! 的资源文件，`models.md`「在哪」末尾）。
 //!
 //! 档案只有用得上的几格：驱动、地址、`openai-chat` 的开关、一张图怎么算（8-6），`[npm]`：目录里的 AI SDK 包名 → 驱动
-//! （8-7，照目录推驱动）。另配的头、占位工具、找 key 的环境变量、本机服务随 8-11、8-14。8-6 加的「能收哪些输入」8-7 拿掉了：
+//! （8-7，照目录推驱动），名字（8-11：只在档案里的一家，第一次接入列给人看）。另配的头、占位工具随 8-14；找 key 的环境
+//! 变量随第一家用得上它的。8-6 加的「能收哪些输入」8-7 拿掉了：
 //! 照模型资料（目录、手写的，「施工时定的」8-7）。
 
 use std::collections::BTreeMap;
@@ -30,6 +31,9 @@ pub struct Profiles {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Profile {
+    /// 给人看的名字（施工 8-11）：目录里没有的一家（`ollama`）靠它；目录里有的压过目录的。
+    #[serde(default)]
+    pub name: Option<String>,
     /// 驱动，写法同配置的 `driver`。
     #[serde(default)]
     pub driver: Option<String>,

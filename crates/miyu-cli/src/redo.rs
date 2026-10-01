@@ -206,6 +206,7 @@ fn printing(plan: &RedoPlan) -> Plan {
         home: plan.home.clone(),
         timeout: None,
         from: None,
+        model: None,
     }
 }
 

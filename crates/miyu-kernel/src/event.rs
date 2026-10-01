@@ -42,8 +42,8 @@ pub use restore::{FilesRestored, RestoreAction, RestoreOutcome, Restored};
 pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated, SessionRecapped};
 pub use tool::{ApprovalDecided, ApprovalRequested, Decision, Said, ToolResult, ToolStatus};
 pub use transient::{
-    CompactionDone, CompactionProgress, ModelDelta, Piece, Retry, Status, ToolProgress, Transient,
-    TransientBody,
+    ChangeWhy, CompactionDone, CompactionProgress, ModelChanged, ModelDelta, Piece, Retry, Status,
+    ToolProgress, Transient, TransientBody,
 };
 pub use turn::{EndReason, TurnEnded, TurnReverted, TurnStarted, TurnUnreverted};
 

@@ -290,7 +290,7 @@ pub(crate) fn check(core: &Core, peer: Peer, params: CheckParams) -> Result<Valu
         }
     };
     let mut layers = config.layers(None);
-    let missing = config.missing(&parsed, layer);
+    let missing = config.missing_if(&parsed, layer);
     let mut found: Vec<&Problem> = parsed.problems.iter().chain(&missing).collect();
     let tightening;
     if layer == Layer::Project {

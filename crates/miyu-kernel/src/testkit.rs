@@ -18,6 +18,7 @@ mod limits;
 mod opening;
 mod peers;
 mod respond;
+mod routing;
 mod script;
 mod stage;
 

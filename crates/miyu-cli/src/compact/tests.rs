@@ -232,9 +232,7 @@ fn without_a_model_it_exits_five() {
     );
     assert_eq!(step, Step::Done(exit::NO_MODEL));
     assert!(
-        err.ends_with(
-            "没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。\n"
-        ),
+        err.ends_with("没有可用的模型：还没配。运行 miyu setup。\n"),
         "{err}"
     );
 }

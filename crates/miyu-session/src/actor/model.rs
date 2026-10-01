@@ -1,20 +1,28 @@
 //! 请求模型的那几样（施工 3-7 下；施工 4-7 上从 `actor.rs` 挪出来，那边放不下了）：交给端口、叫停、说完了记一行
 //! 收场（`28-运行日志.md` 第三节）。辅助请求（施工 3-8 四补的回顾、五补的起标题）也在这里：同一个端口，回报另走一路。
+//! 说完了跟着端口的限额（施工 8-9，[`Actor::follow_limits`]）：变了交给内核，模型变了推 `model.changed`。回合开始时叫端口照
+//! 这一轮的配置重新解析会话的引用（施工 8-10，[`Actor::turn_start`]）：限额变了交给内核，头看得到的变了推 `model.changed`。
 
 use std::time::Instant;
 
 use tokio::sync::oneshot;
 
-use miyu_kernel::event::{CallError, Purpose, Usage};
-use miyu_kernel::id::Seq;
+use miyu_kernel::event::{
+    CallError, ChangeWhy, ModelChanged, Purpose, Transient, TransientBody, Usage,
+};
+use miyu_kernel::id::{Seq, TurnId};
+use miyu_kernel::origin::By;
 use miyu_kernel::request::{Difference, Request};
-use miyu_kernel::session::Input;
+use miyu_kernel::session::{Input, Limits};
 use miyu_kernel::time::Timestamp;
 
 use super::{Actor, answer};
 use crate::TARGET;
+use crate::handle::Pushed;
 use crate::lines::{millis, where_};
 use crate::port::{Cancel, Report, Reports};
+use crate::route::NONE;
+use crate::shown::{Next, Shown};
 
 impl Actor {
     /// 请求模型：交给端口，记下叫停它的那一头和这一刻。前缀和上一次比变了的，运行日志里写上第一处不同在哪
@@ -74,12 +82,98 @@ impl Actor {
         );
     }
 
-    /// 请求 `seen` 说完了：不用再叫停它了；记一行收场（`28-运行日志.md` 第三节）。
+    /// 请求 `seen` 说完了：不用再叫停它了；记一行收场（`28-运行日志.md` 第三节）；跟着端口的限额（施工 8-9）。
     pub(super) fn ended(&mut self, seen: Seq, usage: Option<&Usage>, error: Option<&CallError>) {
+        self.follow_limits();
         let Some((_, asked)) = self.calls.remove(&seen) else {
             return;
         };
         finished(seen, asked, usage, error, "");
+    }
+
+    /// 一次请求说完了（主请求、辅助请求都算）：端口的限额和上一次交给内核的比（施工 8-9，`models.md`「怎么走」第五条第 7
+    /// 条）。变了的当场交 `Input::Limits`（不出动作），给头看的跟着换；限额里的模型变了、不是 `none` 的（轮换的池总是
+    /// `none`），推一条 `model.changed`，`why` 是 `failover`。在送进说完了之前做：回合还开着，说完了的用量也照新的模型算锚。
+    pub(super) fn follow_limits(&mut self) {
+        let limits = self.model.limits();
+        if limits == self.handed {
+            return;
+        }
+        let moved = limits.model != self.handed.model && limits.model.endpoint.as_str() != NONE;
+        self.hand(limits);
+        if moved {
+            self.announce(ChangeWhy::Failover);
+        }
+    }
+
+    /// 回合开始（`turn.started` 已经落了盘）：冻结这一轮的配置，带上会话这时的目录的项目配置（施工 8-4）；叫端口照它重新
+    /// 解析内核交来的引用 `reference`（施工 8-10，`models.md`「怎么走」第六条第 3 条）。限额变了交给内核；头看得到的（引用、
+    /// 接下来发给谁、窗口、压缩线）变了推一条 `model.changed`，`why` 是 `turn`（「施工时定的」8-10）。交回挂接点跑完了，带着
+    /// 退回了默认的那一次：现在没有模块挂回合开始。
+    pub(super) async fn turn_start(&mut self, turn: TurnId, reference: Option<String>) -> Input {
+        self.config.turn(self.session.cwd().to_string()).await;
+        let before = self.shown_now();
+        let replaced = self.model.turn(self.config.current(), reference.as_deref());
+        self.hand(self.model.limits());
+        if self.shown_now() != before {
+            self.announce(ChangeWhy::Turn);
+        }
+        Input::TurnStartHooksDone {
+            at: self.clock.now(),
+            turn,
+            injected: Vec::new(),
+            replaced,
+        }
+    }
+
+    /// 限额 `limits` 变了的交给内核；给头看的照内核算的限额、端口的引用和模型写一次。
+    fn hand(&mut self, limits: Limits) {
+        if limits != self.handed {
+            self.session.handle(Input::Limits(limits.clone()));
+            self.handed = limits;
+        }
+        let shown = Shown {
+            limits: self.session.context_limits(),
+            next: Next::of(&*self.model),
+        };
+        *self
+            .shown
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = shown;
+    }
+
+    /// 给头看的那一份，这一刻的。
+    fn shown_now(&self) -> Shown {
+        self.shown
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    /// 推一条 `model.changed`，照给头看的那一份写：`by` 是内核，`turn`、`cause` 照内核这时的回合。
+    fn announce(&mut self, why: ChangeWhy) {
+        let Shown { limits, next } = self.shown_now();
+        let (turn, cause) = self
+            .session
+            .turn_cause()
+            .map_or((None, None), |(turn, cause)| (Some(turn), cause));
+        let (endpoint, model) = next.model.map_or((None, None), |model| {
+            (Some(model.endpoint), Some(model.model))
+        });
+        let at = self.clock.now();
+        self.push(Pushed::Transient(Transient {
+            at,
+            turn,
+            by: By::Kernel,
+            cause,
+            body: TransientBody::ModelChanged(Box::new(ModelChanged {
+                reference: next.reference,
+                endpoint,
+                model,
+                limits,
+                why,
+            })),
+        }));
     }
 
     /// 辅助请求的一样回报，写成内核的输入；说完了的先记一行收场（施工 3-8 五补从 `actor.rs` 挪来，那边放不下了）。
@@ -105,6 +199,7 @@ impl Actor {
                 delta,
             },
             Report::Ended { usage, error, .. } => {
+                self.follow_limits();
                 self.aside_ended(&purpose, upto, usage.as_ref(), error.as_ref());
                 Input::AsideEnded {
                     at,

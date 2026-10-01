@@ -132,6 +132,18 @@ impl Refusal {
         reason: "unknown_attachment",
         data: None,
     };
+    /// `fs.list`、`fs.find` 读不了这个路径（施工 W-2）：换不成真实的位置、不在、该是目录的不是目录、没有权限。
+    pub(crate) const PATH_UNREADABLE: Refusal = Refusal {
+        code: REFUSED,
+        reason: "path_unreadable",
+        data: None,
+    };
+    /// `fs.list`、`fs.find` 的目录落在数据根里、又不在这个账号的工作区里（施工 W-2）。
+    pub(crate) const PATH_FORBIDDEN: Refusal = Refusal {
+        code: REFUSED,
+        reason: "path_forbidden",
+        data: None,
+    };
 
     /// `config.trust` 时这个目录找不到项目配置（施工 8-3）。
     pub(crate) const NO_PROJECT_CONFIG: Refusal = Refusal {
@@ -150,6 +162,12 @@ impl Refusal {
     pub(crate) const UNKNOWN_PROVIDER: Refusal = Refusal {
         code: REFUSED,
         reason: "unknown_provider",
+        data: None,
+    };
+    /// `session.create` 的 `model` 解析不出（施工 8-8）：没有这家供应商、没有这个池、池是空的、挡位没配又没有 `models.chat`。
+    pub(crate) const UNKNOWN_MODEL: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_model",
         data: None,
     };
     /// 请求里写了清单里没有的配置项（施工 8-2，`config.schema`、`config.get`、`config.set`）：`data.problems` 里每个不认识的
@@ -262,6 +280,12 @@ impl Refusal {
                 "附件不在核心里：先用 blob.put 传上来。",
                 "The attachment is not in the core; upload it with blob.put first.",
             ),
+            // 施工 W-2（`web-module.md`「给人看的字」）。
+            "path_unreadable" => ("读不了这个路径。", "This path cannot be read."),
+            "path_forbidden" => (
+                "这是 Miyu 自己的数据，不给看。",
+                "This is Miyu's own data and is not shown.",
+            ),
             "not_running" => (
                 "没有正在进行的回合，打断不了。",
                 "No turn is running, so there is nothing to interrupt.",
@@ -322,6 +346,10 @@ impl Refusal {
             ),
             "unknown_secret" => ("没有这个密钥。", "There is no such secret."),
             "unknown_provider" => ("没有这个供应商。", "There is no such provider."),
+            "unknown_model" => (
+                "配置里没有这个模型、池或者挡位。",
+                "There is no such model, pool or tier in the configuration.",
+            ),
             "recap_failed" => (
                 "回顾没写成：请求模型出错了。",
                 "The recap could not be written: the model request failed.",

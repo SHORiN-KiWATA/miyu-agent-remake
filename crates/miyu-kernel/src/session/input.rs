@@ -42,6 +42,9 @@ pub enum Input {
         turn: TurnId,
         /// 各模块交回来的注入，照固定的先后：先按声明的优先级，再按模块编号。
         injected: Vec<Injection>,
+        /// 执行器照这一轮的配置重新解析会话的引用，钉着的没了、退回了默认的（施工 8-10，`models.md`「怎么走」第六条第 3
+        /// 条）：原来的、退回的。内核在注入前面记一条 `session.policy_changed`。没退回的没有。
+        replaced: Option<Replaced>,
     },
     /// 请求发出去了（`02-内核.md` 第六节「回复怎么收、回合怎么结束」）。
     RequestSent {
@@ -78,6 +81,9 @@ pub enum Input {
         wait_ms: Option<u64>,
         /// 超长时超了多少 token，驱动从原话里解析的（施工 6-6 中）：摘要请求照它截短。解析不出来的、别的出错，没有。
         excess: Option<u64>,
+        /// 出错以后端口换了端点（施工 8-9，`models.md`「怎么走」第五条第 3 条）：不管分类当场再来，`wait_ms` 是别的候选
+        /// 都在冷却时要等多久。不进日志。
+        failover: bool,
     },
     /// 到点了：内核交出去的「到点叫醒」到时候了（`02-内核.md` 第四节）。回合已经不在等了的，不理。
     Woke {
@@ -301,6 +307,11 @@ pub enum Command {
         /// 只读开关；不改就没有。
         read_only: Option<bool>,
     },
+    /// `session.configure`：换模型（施工 8-10，`configure.rs`）。下一个回合开始时生效；和现在的一样的接受、什么都不记。
+    Configure {
+        /// 换成的引用：模型或 `@池`，挡位在协议那一头已经解析好。内核只存字，不解读。
+        model: String,
+    },
     /// `session.set_meta`：改标题、置顶，改哪样写哪样（施工 3-8 三补，`meta.rs`）。
     SetMeta {
         /// 新的标题，照 `session.meta_changed` 的写法：空的是去掉标题；不改就没有。去掉前后空白、量长短是协议端点的事
@@ -390,6 +401,15 @@ pub struct Injection {
     pub module: ModuleId,
     /// 注入的那一块，原样追加。
     pub fact: ContextInjected,
+}
+
+/// 钉着的引用没了、执行器退回了默认（施工 8-10）：交回 [`Input::TurnStartHooksDone`] 的 `replaced`。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Replaced {
+    /// 原来的引用：回合开始时内核交出去的那一个。
+    pub from: String,
+    /// 退回的引用：这一轮的 `models.chat`。
+    pub to: String,
 }
 
 /// 会话要发给的模型的限额（`compaction.md`「对外的样子」模型的资料）：压缩线照它算。

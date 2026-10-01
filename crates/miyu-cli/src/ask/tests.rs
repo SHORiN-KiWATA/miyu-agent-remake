@@ -28,6 +28,7 @@ fn ask(words: &[&str]) -> Ask {
         file: Vec::new(),
         timeout: None,
         from: None,
+        model: None,
     }
 }
 

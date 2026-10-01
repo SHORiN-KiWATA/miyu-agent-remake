@@ -6,6 +6,10 @@
 //!
 //! 等多久：供应商说了的照它，最多 2 分钟，说得更久的不等；没说的 1、2、4、8、16 秒。内核是纯逻辑，
 //! 自己不睡，交出「到点叫醒」；等的时候推一条 `status`。重试不算步数。
+//!
+//! 换端点（施工 8-9，`docs/blueprint/models.md`「怎么走」第五条第 5 条）：端口说换了端点（`failover`）的，不管分类都再来，
+//! 没说等多久的当场来（等 0 毫秒，照样走「到点叫醒」）；全在冷却的 `cooling` 也能再来，等到最早恢复的那一个。换端点
+//! 也数进这一步的 5 次，推的 `status` 带 `failover`。
 
 use super::Session;
 use super::action::Action;
@@ -21,22 +25,46 @@ pub(super) const RETRY_LIMIT: u32 = 5;
 /// 供应商说要等的，最多等多久：更久的不等，这一轮以出错结束。
 const WAIT_LIMIT_MS: u64 = 120_000;
 
+/// 出错时端口说的：要等多久（供应商说的，或者别的候选都在冷却时最早恢复的那一个还要多久），和是不是换了端点（施工 8-9）。
+#[derive(Debug, Clone, Copy, Default)]
+pub(super) struct Said {
+    /// 要等多久，毫秒；没说的没有。
+    pub(super) wait_ms: Option<u64>,
+    /// 端口换了端点：不管分类都再来。
+    pub(super) failover: bool,
+}
+
+/// 定了再来：等多久、是不是换了端点。
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Again {
+    wait: u64,
+    failover: bool,
+}
+
 impl Session {
-    /// 这个错要不要再来、等多久：可以重试的几类，这一步连着还没到上限，要等的不超过 2 分钟。
-    pub(super) fn retry_wait(&self, error: &CallError, wait_ms: Option<u64>) -> Option<u64> {
+    /// 这个错要不要再来、等多久：可以重试的几类（端口说换了端点的不管分类），这一步连着还没到上限，要等的不超过 2 分钟。
+    /// 没说等多久的：换了端点的当场来，别的照退避。
+    pub(super) fn retry_wait(&self, error: &CallError, said: Said) -> Option<Again> {
         let turn = self.turn.as_ref()?;
-        if !retryable(&error.class) || turn.retries >= RETRY_LIMIT {
+        if !(said.failover || retryable(&error.class)) || turn.retries >= RETRY_LIMIT {
             return None;
         }
-        let wait = wait_ms.unwrap_or_else(|| backoff(turn.retries + 1));
-        (wait <= WAIT_LIMIT_MS).then_some(wait)
+        let wait = match (said.wait_ms, said.failover) {
+            (Some(wait), _) => wait,
+            (None, true) => 0,
+            (None, false) => backoff(turn.retries + 1),
+        };
+        (wait <= WAIT_LIMIT_MS).then_some(Again {
+            wait,
+            failover: said.failover,
+        })
     }
 
     /// 等着再来：收到了一半的（`cut`），半截已经写成回复，后面追加被打断的那一句；回合停在
     /// 「等着重试」，推一条 `status`，交出到点叫醒。
     #[expect(
         clippy::too_many_arguments,
-        reason = "一次出错收场要的都在这里：时刻、哪次请求、cause、这一批事件、有没有半截、出了什么错、等多久"
+        reason = "一次出错收场要的都在这里：时刻、哪次请求、cause、这一批事件、有没有半截、出了什么错、怎么再来"
     )]
     pub(super) fn wait_to_retry(
         &mut self,
@@ -46,7 +74,7 @@ impl Session {
         mut events: Vec<Event>,
         cut: bool,
         error: CallError,
-        wait: u64,
+        again: Again,
     ) -> Vec<Action> {
         if cut {
             let fact = self.policy.facts.reply_cut();
@@ -67,10 +95,11 @@ impl Session {
                 retry: Retry {
                     attempt: turn.retries,
                     limit: RETRY_LIMIT,
-                    wait_ms: wait,
+                    wait_ms: again.wait,
                     class: error.class,
                     message: error.message,
                     status: error.status,
+                    failover: again.failover,
                 },
             }),
         };
@@ -78,7 +107,7 @@ impl Session {
             Action::Append(events),
             Action::PushTransient(status),
             Action::Wake {
-                at: later(at, wait),
+                at: later(at, again.wait),
                 seen,
             },
         ]
@@ -113,7 +142,8 @@ impl Session {
 }
 
 /// 可以重试的几类。上下文超长的先压缩（M6），认证失败、内容策略、其他，重试也没用；端口没发出去就说完的 `no_model`
-/// （没有能用的模型，施工 8-6）也不再来：配置改好以前再来也是一样。
+/// （没有能用的模型，施工 8-6）也不再来：配置改好以前再来也是一样。全在冷却的 `cooling`（施工 8-9）等到最早恢复的那一个
+/// 再来。
 fn retryable(class: &ErrorClass) -> bool {
     matches!(
         class,
@@ -121,6 +151,7 @@ fn retryable(class: &ErrorClass) -> bool {
             | ErrorClass::RateLimited
             | ErrorClass::BadStream
             | ErrorClass::EmptyReply
+            | ErrorClass::Cooling
     )
 }
 

@@ -34,6 +34,8 @@ kinds! {
     SetPermission,
     /// 改标题、置顶（施工 3-8 三补）。
     SetMeta,
+    /// 换模型（施工 8-10）。
+    Configure,
     /// 回答确认。
     Decide,
     /// 回答一组题。
@@ -113,6 +115,7 @@ impl InputKind {
                 } => InputKind::TakeBack,
                 Command::SetPermission { .. } => InputKind::SetPermission,
                 Command::SetMeta { .. } => InputKind::SetMeta,
+                Command::Configure { .. } => InputKind::Configure,
                 Command::Answer {
                     answer: Answer::Approval { .. },
                     ..

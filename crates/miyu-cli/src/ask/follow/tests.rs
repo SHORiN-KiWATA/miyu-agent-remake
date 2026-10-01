@@ -31,6 +31,7 @@ fn plan(format: Format, language: Language) -> Plan {
         home: Some(under(&["home"])),
         timeout: None,
         from: None,
+        model: None,
     }
 }
 
@@ -272,10 +273,7 @@ fn no_model_is_5_and_other_errors_are_1() {
     );
     assert_eq!(step, Step::Done(exit::NO_MODEL));
     assert_eq!(out, "");
-    assert_eq!(
-        err,
-        "没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。\n"
-    );
+    assert_eq!(err, "没有可用的模型：还没配。运行 miyu setup。\n");
     // 没发出去的认证失败不再当没有模型（施工 8-6 以前没有 key 是这样报的）。
     let Fed { step, .. } = feed(&plan, false, &failing(Value::Null, "auth", "denied"));
     assert_eq!(step, Step::Done(exit::ERROR));
@@ -299,6 +297,26 @@ fn no_model_is_5_and_other_errors_are_1() {
     assert_eq!(
         printed["error"],
         json!({"class": "rate_limited", "message": "HTTP 429"})
+    );
+}
+
+/// 候选全在冷却、没发出去的（施工 8-9）：和没有模型一样是 5，说候选都在冷却、接原话。
+#[test]
+fn cooling_is_5_too() {
+    let plan = plan(Format::Text, Language::Chinese);
+    let Fed { step, err, .. } = feed(
+        &plan,
+        false,
+        &failing(
+            Value::Null,
+            "cooling",
+            "all candidates cooling: a/m key 1 rate_limited until 2026-10-01T08:12:30.000Z",
+        ),
+    );
+    assert_eq!(step, Step::Done(exit::NO_MODEL));
+    assert_eq!(
+        err,
+        "出错了：候选都在冷却：all candidates cooling: a/m key 1 rate_limited until 2026-10-01T08:12:30.000Z\n"
     );
 }
 

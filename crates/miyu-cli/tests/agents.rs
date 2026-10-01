@@ -241,7 +241,7 @@ async fn a_subagent_from_before_is_waited_for_once_messaged_like_the_sample() {
 
 #[tokio::test]
 async fn a_background_command_is_not_waited_for_and_says_it_went_to_the_background() {
-    let work = support::Outside::new();
+    let work = support::outside::Outside::new();
     let args = json!({"command": "sleep 2", "description": "睡一会", "run_in_background": true});
     let router = Router::new(
         "后台睡一会",

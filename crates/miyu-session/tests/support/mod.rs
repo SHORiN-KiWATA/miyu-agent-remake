@@ -44,7 +44,11 @@ impl Scratch {
     fn under(dir: &Path) -> Scratch {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        Scratch(dir.join(format!("miyu-session-{}-{n}", std::process::id())))
+        Scratch(dir.join(format!(
+            "miyu-session-{}-{}-{n}",
+            std::process::id(),
+            stamp()
+        )))
     }
 }
 
@@ -101,6 +105,8 @@ pub struct Lines {
     pub command: Option<CommandId>,
     /// 一次性的（`miyu ask` 开的那种）：没有头订阅着时回报只记下（施工 7-9）。默认不是。
     pub oneshot: bool,
+    /// 用哪个模型（施工 8-8）：解析好的引用；默认没有，照这时的 `models.chat`。
+    pub model: Option<String>,
 }
 
 impl Default for Lines {
@@ -112,6 +118,7 @@ impl Default for Lines {
             sessions: None,
             command: None,
             oneshot: false,
+            model: None,
         }
     }
 }
@@ -233,6 +240,7 @@ impl Home {
             jobs: &self.jobs,
             index: Some(Arc::clone(&self.index)),
             configs: self.configs.clone(),
+            model: lines.model,
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -440,4 +448,11 @@ pub async fn until_turn_ends(subscription: &mut Subscription) -> Vec<Arc<Pushed>
             return pushed;
         }
     }
+}
+
+/// 纳秒时刻：临时目录名里加上它，Windows 很快复用进程号，光靠进程号和序号会撞上前一个测试进程留下的目录。
+fn stamp() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_nanos())
 }

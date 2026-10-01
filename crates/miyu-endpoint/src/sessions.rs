@@ -140,6 +140,7 @@ impl Sessions {
             jobs: &core.jobs,
             index: core.index_for(&core.admin),
             configs: core.hub.configs(),
+            model: who.model,
         })
         .await;
         let handle = match created {
@@ -236,6 +237,7 @@ impl Sessions {
             lineage: Some(child.lineage),
             sessions: Some(spawn::port(core)),
             jobs: &core.jobs,
+            model: child.model,
         })
         .await
         .map_err(|error| error.to_string())?;
@@ -282,13 +284,16 @@ impl Sessions {
     }
 }
 
-/// 造会话时要记下的两样：有没有人能确认，是不是一次性的。
-#[derive(Debug, Clone, Copy)]
+/// 造会话时要记下的几样：有没有人能确认，是不是一次性的，用哪个模型。
+#[derive(Debug, Clone)]
 pub(crate) struct Opening {
     /// 有没有人能确认：头握手时报的。
     pub(crate) attended: bool,
     /// 一次性的：`miyu ask` 开的（施工 3-9 下）。
     pub(crate) oneshot: bool,
+    /// 用哪个模型（施工 8-8）：`session.create` 的 `model` 照这时的配置解析好的引用，模型或 `@池`；没写的是空的，照这时的
+    /// `models.chat`。
+    pub(crate) model: Option<String>,
 }
 
 /// 管理员：本机连上来的都是他（`06-多用户与身份.md` 第二节）。

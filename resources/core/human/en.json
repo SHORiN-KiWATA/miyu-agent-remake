@@ -37,7 +37,39 @@
       },
       "models.chat": {
         "name": "Chat model",
-        "description": "The model new sessions use, written as provider/model, for example deepseek/deepseek-flash."
+        "description": "The model new sessions use, written as provider/model, for example deepseek/deepseek-flash, or @pool."
+      },
+      "models.vision": {
+        "name": "Vision model",
+        "description": "Looks at images for the chat model when it cannot. Written like the chat model."
+      },
+      "models.tiers.lite": {
+        "name": "Lite tier",
+        "description": "The lightest, fastest tier, which she can pick for a subagent. Left out, it is the chat model."
+      },
+      "models.tiers.cheap": {
+        "name": "Cheap tier",
+        "description": "The cheap tier. Left out, it is the chat model."
+      },
+      "models.tiers.standard": {
+        "name": "Standard tier",
+        "description": "The standard tier. Left out, it is the chat model."
+      },
+      "models.tiers.flagship": {
+        "name": "Flagship tier",
+        "description": "The strongest tier. Left out, it is the chat model."
+      },
+      "pools.<id>.models": {
+        "name": "Pool members",
+        "description": "A group of models, each written as provider/model."
+      },
+      "pools.<id>.strategy": {
+        "name": "Pool strategy",
+        "description": "Keep a session on one member, or take the next member for every request. Left out, a pool whose members are all billed per request rotates and the others pin.",
+        "options": {
+          "pin": "Pin",
+          "rotate": "Rotate"
+        }
       },
       "providers.<id>.driver": {
         "name": "Driver",
@@ -71,6 +103,15 @@
       "providers.<id>.local": {
         "name": "Local service",
         "description": "A model service on this machine, counted as free. Left out, it follows the address: on this machine means yes."
+      },
+      "providers.<id>.cache": {
+        "name": "Cache class",
+        "description": "How this provider bills its cache. For now it only decides how a pool without a strategy splits. Left out, it follows the driver.",
+        "options": {
+          "contract": "Billed by prefix",
+          "best_effort": "Best effort",
+          "per_request": "Per request"
+        }
       },
       "providers.<id>.models.<model>.catalog": {
         "name": "Catalog entry",
@@ -132,6 +173,30 @@
       "models.catalog.every": {
         "name": "Update every",
         "description": "Fetch again once the cached catalog is this old."
+      },
+      "models.cooldown.rate_limited.base": {
+        "name": "Rate limit cooldown",
+        "description": "How long an endpoint rests the first time it is rate limited. It doubles each time in a row."
+      },
+      "models.cooldown.rate_limited.max": {
+        "name": "Rate limit cooldown cap",
+        "description": "The rate limit cooldown stops doubling here, even when the provider asks for longer."
+      },
+      "models.cooldown.retryable.base": {
+        "name": "Error cooldown",
+        "description": "How long an endpoint rests the first time it cannot be reached or fails on its side. It doubles each time in a row."
+      },
+      "models.cooldown.retryable.max": {
+        "name": "Error cooldown cap",
+        "description": "The cooldown for these errors stops doubling here."
+      },
+      "models.cooldown.auth.base": {
+        "name": "Auth failure pause",
+        "description": "How long a whole key rests the first time it fails to authenticate or runs out of quota. It doubles each time in a row."
+      },
+      "models.cooldown.auth.max": {
+        "name": "Auth failure pause cap",
+        "description": "The pause for a whole key stops doubling here."
       }
     },
     "pages": {
@@ -147,8 +212,11 @@
       "log": "Runtime log",
       "sessions": "Sessions",
       "uses": "Uses",
+      "tiers": "Tiers",
+      "pools": "Pools",
       "providers": "Providers",
-      "catalog": "Model catalog"
+      "catalog": "Model catalog",
+      "cooldown": "Cooldown"
     }
   },
   "said": {
@@ -188,6 +256,8 @@
     "config/secrets-header": "Miyu's secrets: written, replaced and deleted only through Miyu. Do not share this file.",
     "config/unknown-secret": "{key} refers to the secret {name}, which is not set",
     "config/env-not-set": "{key} refers to {name}, which was not set when the core started",
+    "config/no-provider": "{key} points at the provider {name}, which is not configured",
+    "config/no-pool": "{key} points at the pool {name}, which is not configured",
     "config/bad-secret-name": "{key} is not a valid secret name: start with a lowercase letter and use only lowercase letters, digits, - and _, up to 64 characters",
     "config/bad-secret-value": "The value of {key} must be quoted text, not empty",
     "config/trust-header": "Which project configs Miyu trusts: the repository, the exact content, and the answer.",
@@ -222,6 +292,7 @@
     "config/expected/url": "an address starting with http:// or https://",
     "config/expected/name": "a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters",
     "config/expected/reference": "<provider>/<model> or @<pool>",
+    "config/expected/model": "<provider>/<model>",
     "config/expected/list": "a list of {item}",
     "config/expected/id": "start with a lowercase letter and use only lowercase letters, digits, - and _, up to 32 characters",
     "config/expected/model-name": "1 to 128 bytes without control characters",

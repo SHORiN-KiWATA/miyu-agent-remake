@@ -1,5 +1,5 @@
 //! `miyu ask` 的对话（`docs/construction/3-9-miyu-ask（下）.md`）：在进程里起一个核心，在真的套接字上走一遍：
-//! 新开一次性会话、边收边打、用量一行；`--continue`、`--session`；没有模型；Ctrl+C。
+//! 新开一次性会话、边收边打、用量一行；`--continue`、`--session`；没有模型；`--model`（施工 8-10）；Ctrl+C。
 
 mod support;
 
@@ -99,6 +99,50 @@ async fn an_unknown_session_is_refused_in_the_heads_language() {
     assert!(err.contains("会话"), "中文的拒绝：{err}");
 }
 
+/// `--model`（施工 8-10）：新开的会话照它造；接着的先换成它（挡位照这时的配置换成它的值），以后都用它；换不成的照核心的
+/// 原话说，退出码 1，不发话。
+#[tokio::test]
+async fn model_makes_a_new_session_with_it_and_switches_a_continued_one() {
+    const CONFIG: &str = "[providers.a]\nkeys = []\n\n[providers.b]\nkeys = []\n\n[models]\nchat = \"a/m\"\n\n[models.tiers]\nlite = \"b/small\"\n";
+    let script = Script::new([Play::Says("一。"), Play::Says("二。")]);
+    let home = Home::configured(Arc::new(script), CONFIG);
+    let first = Plan {
+        model: Some("b/n".to_string()),
+        ..plan("第一句")
+    };
+    let Asked { code, err, .. } = home.ask(&first).await;
+    assert_eq!(code, 0, "{err}");
+    let session = home.sessions()[0].clone();
+    let created =
+        first_event(&home.root.session_dir(&AccountIdOf::admin(), &session)).expect("读得到");
+    assert!(
+        matches!(&created.body, Body::SessionCreated(created) if created.model.as_deref() == Some("b/n")),
+        "新开的照它造：{created:?}"
+    );
+    let switch = |model: &str, text: &str| Plan {
+        target: Target::Continue,
+        model: Some(model.to_string()),
+        ..plan(text)
+    };
+    let Asked { code, err, .. } = home.ask(&switch("lite", "第二句")).await;
+    assert_eq!(code, 0, "{err}");
+    let kinds = |home: &Home| -> Vec<String> {
+        home.log(&session)
+            .iter()
+            .filter_map(|event| match &event.body {
+                Body::PolicyChanged(changed) => changed.model.clone(),
+                Body::MessageUser(_) => Some("说".to_string()),
+                _ => None,
+            })
+            .collect()
+    };
+    assert_eq!(kinds(&home), ["说", "b/small", "说"], "先换，再说");
+    let Asked { code, err, .. } = home.ask(&switch("c/x", "第三句")).await;
+    assert_eq!(code, 1);
+    assert!(!err.is_empty(), "照核心的原话说");
+    assert_eq!(kinds(&home), ["说", "b/small", "说"], "换不成的不发话");
+}
+
 #[tokio::test]
 async fn without_a_model_it_is_exit_code_5() {
     // 核心照出厂的档案造路由，配置里什么都没写：每次请求都是 `no_model`（施工 8-6）。
@@ -106,10 +150,7 @@ async fn without_a_model_it_is_exit_code_5() {
     let Asked { code, out, err, .. } = home.ask(&plan("在吗")).await;
     assert_eq!(code, 5, "{err}");
     assert_eq!(out, "");
-    assert_eq!(
-        err,
-        "没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。\n"
-    );
+    assert_eq!(err, "没有可用的模型：还没配。运行 miyu setup。\n");
 }
 
 #[tokio::test]

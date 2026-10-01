@@ -1,5 +1,6 @@
 //! 会话事件的测试：图纸上的写法读写一字不差、认得出种类；权限两格都要写；
-//! 不认识的级别原样留着；坏的报错说清是哪一种；子会话带着父会话和第几层（施工 7-1）。
+//! 不认识的级别原样留着；坏的报错说清是哪一种；子会话带着父会话和第几层（施工 7-1）；会话用哪个模型（施工 8-8）；
+//! 换模型的两格（施工 8-10）。
 
 use super::*;
 use crate::event::{Body, Event};
@@ -102,6 +103,91 @@ fn a_child_session_names_its_parent_and_depth() {
     ] {
         let body = created("workspace").replace("}}", &format!("}},{bad}}}"));
         rejected::<Event>(&event_line("session.created", &body), why);
+    }
+}
+
+/// 会话用哪个模型（施工 8-8）：写在最后，读写一字不差；以前的日志没有这一格，照没有读，写回去一个字节不变；`null` 当没有。
+#[test]
+fn a_session_records_its_model_and_old_logs_read_without_it() {
+    let parent = "01a0d75d-2180-7a3c-9e41-5b7d2c8f6a10";
+    for model in [
+        "deepseek/deepseek-flash",
+        "@free",
+        "openrouter/deepseek/deepseek-v4",
+    ] {
+        let body = created("workspace").replace("}}", &format!(r#"}},"model":"{model}"}}"#));
+        match read_body("session.created", &body) {
+            Body::SessionCreated(created) => assert_eq!(created.model.as_deref(), Some(model)),
+            other => panic!("{other:?}"),
+        }
+    }
+    let child = format!(
+        r#"{{"owner":"alice","venue":"local","policy":"{HASH}","permission":{{"level":"workspace","read_only":false}},"cwd":"~/src/miyu","parent":"{parent}","depth":1,"model":"@free"}}"#
+    );
+    read_body("session.created", &child);
+    match read_body("session.created", &created("workspace")) {
+        Body::SessionCreated(created) => assert_eq!(created.model, None, "以前的日志没有"),
+        other => panic!("{other:?}"),
+    }
+    let nulled = created("workspace").replace("}}", r#"},"model":null}"#);
+    let event = Event::from_line(&event_line("session.created", &nulled)).unwrap();
+    assert_eq!(
+        event.to_line(),
+        event_line("session.created", &created("workspace"))
+    );
+    let wrong = created("workspace").replace("}}", r#"},"model":3}"#);
+    rejected::<Event>(&event_line("session.created", &wrong), "invalid type");
+}
+
+/// 换模型（施工 8-10）：`model`、`replaced` 两格写在最后，读写一字不差；以前的日志没有这两格，照没有读，写回去一个字节不
+/// 变；`null` 当没有；不是字的读不进来。
+#[test]
+fn a_policy_change_records_the_model_and_what_it_replaced() {
+    for body in [
+        r#"{"model":"@free"}"#,
+        r#"{"model":"deepseek/deepseek-flash","replaced":"claude/opus"}"#,
+        r#"{"permission":{"level":"workspace","read_only":true},"model":"a/m"}"#,
+    ] {
+        let line = event_line("session.policy_changed", body);
+        let event = Event::from_line(&line).unwrap();
+        assert_eq!(event.to_line(), line, "一字不差");
+    }
+    match read_body(
+        "session.policy_changed",
+        r#"{"model":"deepseek/deepseek-flash","replaced":"claude/opus"}"#,
+    ) {
+        Body::PolicyChanged(changed) => assert_eq!(
+            (changed.model.as_deref(), changed.replaced.as_deref()),
+            (Some("deepseek/deepseek-flash"), Some("claude/opus"))
+        ),
+        other => panic!("{other:?}"),
+    }
+    match read_body(
+        "session.policy_changed",
+        r#"{"permission":{"level":"full","read_only":false}}"#,
+    ) {
+        Body::PolicyChanged(changed) => {
+            assert_eq!(
+                (changed.model, changed.replaced),
+                (None, None),
+                "以前的日志"
+            );
+        }
+        other => panic!("{other:?}"),
+    }
+    let nulled =
+        r#"{"permission":{"level":"full","read_only":false},"model":null,"replaced":null}"#;
+    let event = Event::from_line(&event_line("session.policy_changed", nulled)).unwrap();
+    assert_eq!(
+        event.to_line(),
+        event_line(
+            "session.policy_changed",
+            r#"{"permission":{"level":"full","read_only":false}}"#
+        )
+    );
+    for wrong in [r#"{"model":3}"#, r#"{"model":"a/m","replaced":["b/m"]}"#] {
+        let line = event_line("session.policy_changed", wrong);
+        rejected::<Event>(&line, "body of session.policy_changed not readable");
     }
 }
 

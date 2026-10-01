@@ -53,6 +53,7 @@ GPL-3.0-or-later，见 `LICENSE`。
 
 ### 依赖记录
 
+- 施工 W-2 给 `miyu-fs` 加了 `ignore` 0.4（Unlicense OR MIT，`fs.find` 建清单走目录、认 `.gitignore`）：这个包本来就在依赖图里（`miyu-basesystem` 的 `glob`、`grep`），这次只是多一个 crate 直接用它，没给图里添新的第三方包。门禁过了。
 - 施工 8-5 加了 `rpassword` 7.5（Apache-2.0，`miyu login` 贴 key 时关掉回显读一行），它带进来的 `rtoolbox`（Apache-2.0）；`libc`、`windows-sys` 原来就有。都在能用的名单里，门禁过了。
 - 施工 8-4 加了 `notify` 8.2（CC0-1.0，监视配置文件，只开默认的 macOS FSEvents），它带进来的 `notify-types`（MIT OR Apache-2.0）、`inotify`、`inotify-sys`（ISC，Linux）、`fsevent-sys`（MIT，macOS）、`walkdir`、`same-file`（Unlicense OR MIT）、`mio`（MIT）、`bitflags`、`libc`、`log`、`windows-sys`（MIT 或 Apache-2.0，多数原来就有）。都在能用的名单里，门禁过了。
 - 施工 8-2 加了 `toml_edit`（MIT OR Apache-2.0，读配置的 TOML，纯逻辑层的白名单里）和它带进来的 `toml_parser`、`toml_datetime`、`winnow`（MIT 或 Apache-2.0；`indexmap` 这些原来就有）；`sys-locale`（MIT OR Apache-2.0，系统设置里的语言）。都在能用的名单里，门禁过了。

@@ -32,11 +32,15 @@ impl Stage {
                 self.transients.push(transient);
                 Vec::new()
             }
-            Action::RunTurnStartHooks { turn } => vec![Input::TurnStartHooksDone {
-                at: self.tick(),
-                turn,
-                injected: self.injections.pop_front().unwrap_or_default(),
-            }],
+            Action::RunTurnStartHooks { turn, model } => {
+                let replaced = self.routing.resolve(model);
+                vec![Input::TurnStartHooksDone {
+                    at: self.tick(),
+                    turn,
+                    injected: self.injections.pop_front().unwrap_or_default(),
+                    replaced,
+                }]
+            }
             Action::CallModel { seen, request, .. } => self.call(seen, request),
             // 回顾（施工 3-8 四补）、起标题（五补）：照各自的剧本回，`aside.rs`。
             Action::Aside {
@@ -178,6 +182,7 @@ impl Stage {
             error: line.error.clone(),
             wait_ms: line.wait_ms,
             excess: line.excess,
+            failover: line.failover,
         }
     }
 

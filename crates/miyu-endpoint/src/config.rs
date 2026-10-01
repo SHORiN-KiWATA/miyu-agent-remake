@@ -254,24 +254,76 @@ impl Config {
         &self.resolved
     }
 
-    /// 系统配置、个人设置、密钥文件（施工 8-5）里现在有几处错误（不算警告）：握手的 `config_errors`。
+    /// 系统配置、个人设置、密钥文件（施工 8-5）里现在有几处错误（不算警告）：握手的 `config_errors`。引用的供应商、池没有的
+    /// （施工 8-8，`Config::missing` 里的 `bad_reference`）也算。
     pub fn errors(&self) -> usize {
-        self.system.counts().0 + self.personal.counts().0 + self.secrets.errors()
+        let dangling = [&self.system, &self.personal]
+            .into_iter()
+            .flat_map(|file| self.missing(&file.parsed, file.layer))
+            .filter(|problem| problem.severity() == miyu_config::problem::Severity::Error)
+            .count();
+        self.system.counts().0 + self.personal.counts().0 + self.secrets.errors() + dangling
     }
 
-    /// 一份配置文件里引用的密钥、环境变量取不到的（施工 8-5）：`unknown_secret`、`env_not_set`，都是警告。
+    /// 一份配置文件读进来以后另查的：引用的密钥、环境变量取不到的（施工 8-5，`unknown_secret`、`env_not_set`，警告）；引用、
+    /// 池的成员指的供应商、池在不算项目配置的最终值里没有的（施工 8-8，`bad_reference`，错误，只报不丢：路由当场照样说
+    /// `no_model` 和为什么）。
     pub(crate) fn missing(
         &self,
         parsed: &miyu_config::parse::Parsed,
         layer: Layer,
     ) -> Vec<miyu_config::problem::Problem> {
-        miyu_config::secret::missing(
+        self.missing_in(parsed, layer, &self.resolved.values())
+    }
+
+    /// 同 [`Config::missing`]，引用照「`parsed` 换掉它那一层」合出来的最终值查（施工 8-8）：`config.check` 查一段还没生效的
+    /// 字，字里新配的供应商、池要算上。
+    pub(crate) fn missing_if(
+        &self,
+        parsed: &miyu_config::parse::Parsed,
+        layer: Layer,
+    ) -> Vec<miyu_config::problem::Problem> {
+        let mut layers = self.layers(None);
+        match layer {
+            Layer::System => layers.system = Some(parsed),
+            Layer::Personal => layers.personal = Some(parsed),
+            Layer::Project => layers.project = Some((parsed, Trust::Trusted)),
+        }
+        let merged = merge(&self.items, &layers, &|name| self.env.get(name).cloned());
+        self.missing_in(parsed, layer, &merged.values())
+    }
+
+    /// 照最终值 `values` 查 `parsed` 里引用的东西在不在。
+    fn missing_in(
+        &self,
+        parsed: &miyu_config::parse::Parsed,
+        layer: Layer,
+        values: &miyu_config::Values,
+    ) -> Vec<miyu_config::problem::Problem> {
+        let mut found = miyu_config::secret::missing(
             &self.items,
             parsed,
             layer,
             &|name| self.secrets.has(name),
             &|name| self.environment.has(name),
-        )
+        );
+        let (providers, pools) = (
+            miyu_models::provider::configured(values),
+            miyu_models::pools::names(values),
+        );
+        found.extend(miyu_config::dangling::dangling(
+            &self.items,
+            parsed,
+            layer,
+            &|name| providers.iter().any(|id| id == name),
+            &|name| pools.iter().any(|pool| pool == name),
+        ));
+        found
+    }
+
+    /// 核心的环境里变量 `name` 设了、去掉前后空白不是空的（施工 8-11，`provider.detect`）：只说有没有，值不交出去。
+    pub(crate) fn env_set(&self, name: &str) -> bool {
+        self.environment.has(name)
     }
 
     /// 照引用取一个密钥（施工 8-6，路由取 key）：`{ secret }` 照手里的密钥文件，`{ env }` 照核心的环境。没设的、设成空的、

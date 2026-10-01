@@ -8,7 +8,7 @@ use super::Session;
 use super::action::Action;
 use super::breaker::Before;
 use super::call::Call;
-use super::input::Injection;
+use super::input::{Injection, Replaced};
 use super::manual::Manual;
 use super::overflow::Passive;
 use super::step::Step;
@@ -169,13 +169,15 @@ impl Session {
         events
     }
 
-    /// 回合开始的挂接点跑完了：照交回来的先后追加成 `context.injected`，`by` 是各自的模块，
-    /// 然后回合往下走。回合对不上的、同一个回合第二次来的，不理：打断以后迟到的就是这种。
+    /// 回合开始的挂接点跑完了：执行器退回了默认的，先记一条 `session.policy_changed`（施工 8-10，`configure.rs`）；再照
+    /// 交回来的先后追加成 `context.injected`，`by` 是各自的模块，然后回合往下走。回合对不上的、同一个回合第二次来的，不理：
+    /// 打断以后迟到的就是这种。
     pub(super) fn turn_start_hooked(
         &mut self,
         at: Timestamp,
         turn: TurnId,
         injected: Vec<Injection>,
+        replaced: Option<Replaced>,
     ) -> Vec<Action> {
         let Some(current) = self.turn.as_mut() else {
             return Vec::new();
@@ -185,15 +187,17 @@ impl Session {
         }
         current.stage = Stage::Ready;
         let cause = current.cause.clone();
-        let mut events: Vec<Event> = injected
+        let mut events: Vec<Event> = self
+            .fall_back(at, cause.clone(), replaced)
             .into_iter()
-            .map(|injection| {
-                let by = By::Module(Module {
-                    id: injection.module,
-                });
-                self.record(at, by, cause.clone(), Body::ContextInjected(injection.fact))
-            })
             .collect();
+        for injection in injected {
+            let by = By::Module(Module {
+                id: injection.module,
+            });
+            let fact = Body::ContextInjected(injection.fact);
+            events.push(self.record(at, by, cause.clone(), fact));
+        }
         events.extend(self.refresh_facts(at));
         let mut actions = Vec::new();
         if !events.is_empty() {
@@ -218,7 +222,10 @@ impl Session {
         match turn.stage {
             Stage::Opening { opened } if self.stored.is_some_and(|stored| stored >= opened) => {
                 turn.stage = Stage::Hooking;
-                vec![Action::RunTurnStartHooks { turn: turn.id }]
+                let turn = turn.id;
+                // 执行器先照这一轮的配置重新解析会话的引用（施工 8-10）。
+                let model = self.reference().map(str::to_string);
+                vec![Action::RunTurnStartHooks { turn, model }]
             }
             Stage::Ready if self.unstored.is_empty() => self.ask(at),
             _ => Vec::new(),

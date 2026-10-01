@@ -8,9 +8,13 @@
 //! - [`too_wide`]：头报来的工作目录太宽，不能拿它当工作区（施工 4-3 下）；
 //! - [`within`]：一个真实的位置在不在某个目录里，往下走目录的工具照它跳过数据根（施工 4-4 下）；
 //! - [`replace()`]：把一份文件整体换成新的内容，先写临时文件再改名盖上去（施工 4-6 上，4-7 上挪来）；
-//! - [`trash`]：系统的回收站，放进去、移回来（施工 4-6 下，4-7 上挪来）。
+//! - [`trash`]：系统的回收站，放进去、移回来（施工 4-6 下，4-7 上挪来）；
+//! - [`list_dir()`]：列一层目录，像 shell 补全那样（`fs.list`，施工 W-2）；
+//! - [`Index`]：模糊找文件的清单；[`score()`]：打分，`fs.find` 用（施工 W-2）。
 
 mod boundary;
+mod find;
+mod list;
 #[cfg(unix)]
 mod nofollow;
 mod open;
@@ -20,6 +24,8 @@ pub mod trash;
 mod wide;
 
 pub use boundary::{Boundary, Places, Zone, within};
+pub use find::{Built, CAP, DEPTH, FRESH_SECS, Found, Index, MAX_INDEXES, SHOWN, score};
+pub use list::{Entry, list_dir};
 pub use open::{Kind, OpenError, open_file};
 pub use replace::replace;
 pub use resolve::{ResolveError, resolve, resolve_itself, tilde};

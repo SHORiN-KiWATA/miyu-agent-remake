@@ -29,6 +29,8 @@ pub struct Line {
     pub hold: bool,
     /// 说完了报的用量；没有的照默认：没命中缓存的 100，输出 10（施工 6-2 上）。
     pub usage: Option<Usage>,
+    /// 出错时端口说换了端点（施工 8-9）。
+    pub failover: bool,
 }
 
 impl Line {
@@ -51,6 +53,7 @@ impl Line {
             excess: None,
             hold: false,
             usage: None,
+            failover: false,
         }
     }
 
@@ -86,6 +89,14 @@ impl Line {
     pub fn waits(self, wait_ms: u64) -> Line {
         Line {
             wait_ms: Some(wait_ms),
+            ..self
+        }
+    }
+
+    /// 同样的出错，端口说换了端点（施工 8-9）：内核不管分类当场再来。
+    pub fn fails_over(self) -> Line {
+        Line {
+            failover: true,
             ..self
         }
     }

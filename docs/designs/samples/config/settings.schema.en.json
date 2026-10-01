@@ -45,8 +45,100 @@
           "type": "object"
         },
         "chat": {
-          "description": "The model new sessions use, written as provider/model, for example deepseek/deepseek-flash. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Applies to sessions opened from now on.",
+          "description": "The model new sessions use, written as provider/model, for example deepseek/deepseek-flash, or @pool. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Applies to sessions opened from now on.",
           "title": "Chat model",
+          "type": "string"
+        },
+        "cooldown": {
+          "properties": {
+            "auth": {
+              "properties": {
+                "base": {
+                  "default": "10m",
+                  "description": "How long a whole key rests the first time it fails to authenticate or runs out of quota. It doubles each time in a row. Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "Auth failure pause",
+                  "type": "string"
+                },
+                "max": {
+                  "default": "2h",
+                  "description": "The pause for a whole key stops doubling here. Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "Auth failure pause cap",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "rate_limited": {
+              "properties": {
+                "base": {
+                  "default": "30s",
+                  "description": "How long an endpoint rests the first time it is rate limited. It doubles each time in a row. Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "Rate limit cooldown",
+                  "type": "string"
+                },
+                "max": {
+                  "default": "10m",
+                  "description": "The rate limit cooldown stops doubling here, even when the provider asks for longer. Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "Rate limit cooldown cap",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "retryable": {
+              "properties": {
+                "base": {
+                  "default": "10s",
+                  "description": "How long an endpoint rests the first time it cannot be reached or fails on its side. It doubles each time in a row. Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "Error cooldown",
+                  "type": "string"
+                },
+                "max": {
+                  "default": "5m",
+                  "description": "The cooldown for these errors stops doubling here. Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "Error cooldown cap",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "tiers": {
+          "properties": {
+            "cheap": {
+              "description": "The cheap tier. Left out, it is the chat model. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.",
+              "title": "Cheap tier",
+              "type": "string"
+            },
+            "flagship": {
+              "description": "The strongest tier. Left out, it is the chat model. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.",
+              "title": "Flagship tier",
+              "type": "string"
+            },
+            "lite": {
+              "description": "The lightest, fastest tier, which she can pick for a subagent. Left out, it is the chat model. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.",
+              "title": "Lite tier",
+              "type": "string"
+            },
+            "standard": {
+              "description": "The standard tier. Left out, it is the chat model. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.",
+              "title": "Standard tier",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "vision": {
+          "description": "Looks at images for the chat model when it cannot. Written like the chat model. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.",
+          "title": "Vision model",
           "type": "string"
         }
       },
@@ -60,6 +152,31 @@
           "title": "Start new sessions read-only",
           "type": "boolean"
         }
+      },
+      "type": "object"
+    },
+    "pools": {
+      "additionalProperties": {
+        "properties": {
+          "models": {
+            "description": "A group of models, each written as provider/model. Allowed: a list of <provider>/<model>. Only in the system config or personal settings. Takes effect next turn.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Pool members",
+            "type": "array"
+          },
+          "strategy": {
+            "description": "Keep a session on one member, or take the next member for every request. Left out, a pool whose members are all billed per request rotates and the others pin. Allowed: pin or rotate. Only in the system config or personal settings. Takes effect next turn.",
+            "enum": [
+              "pin",
+              "rotate"
+            ],
+            "title": "Pool strategy",
+            "type": "string"
+          }
+        },
+        "type": "object"
       },
       "type": "object"
     },
@@ -87,6 +204,16 @@
               }
             ],
             "title": "Address"
+          },
+          "cache": {
+            "description": "How this provider bills its cache. For now it only decides how a pool without a strategy splits. Left out, it follows the driver. Allowed: contract, best_effort or per_request. Only in the system config or personal settings. Takes effect next turn.",
+            "enum": [
+              "contract",
+              "best_effort",
+              "per_request"
+            ],
+            "title": "Cache class",
+            "type": "string"
           },
           "catalog": {
             "description": "Which provider in the model data this one is, for example deepseek for a relay that only forwards DeepSeek. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Takes effect next turn.",
@@ -166,7 +293,7 @@
                   "type": "array"
                 },
                 "max_output": {
-                  "description": "How many tokens this model can write at most in one reply. Allowed: a whole number from 1 to 100000000. Only in the system config or personal settings. Applies to sessions opened from now on.",
+                  "description": "How many tokens this model can write at most in one reply. Allowed: a whole number from 1 to 100000000. Only in the system config or personal settings. Takes effect next turn.",
                   "maximum": 100000000,
                   "minimum": 1,
                   "title": "Max output",
@@ -235,7 +362,7 @@
                   "type": "boolean"
                 },
                 "window": {
-                  "description": "The context window of this model, in tokens. Allowed: a whole number from 1 to 100000000. Only in the system config or personal settings. Applies to sessions opened from now on.",
+                  "description": "The context window of this model, in tokens. Allowed: a whole number from 1 to 100000000. Only in the system config or personal settings. Takes effect next turn.",
                   "maximum": 100000000,
                   "minimum": 1,
                   "title": "Context window",

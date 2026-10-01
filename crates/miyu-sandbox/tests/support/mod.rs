@@ -23,6 +23,7 @@ impl Dir {
     pub fn new() -> Dir {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
+        // 不像别的夹具那样加纳秒时刻：有的测试在这下面建套接字，macOS 上套接字的路径最长 104 字节。
         let dir = std::env::temp_dir().join(format!("miyu-sandbox-{}-{n}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("建得了目录");
         Dir(dir)

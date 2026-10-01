@@ -6,124 +6,36 @@ use std::sync::Arc;
 
 use tokio::sync::{mpsc, oneshot};
 
-use miyu_kernel::event::{Body, Event, Permission, SessionCreated};
-use miyu_kernel::facts::Environment;
-use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
-use miyu_kernel::origin::By;
+use miyu_kernel::event::{Body, Event, SessionCreated};
+use miyu_kernel::origin::Model;
 use miyu_kernel::session::{Input, Session};
+use miyu_models::provider::chat;
 use miyu_policy::{Snapshot, compose};
 use miyu_store::blob::Blobs;
-use miyu_store::index::SessionIndex;
 use miyu_store::log::{SEGMENT_LIMIT, SessionLog, abandon};
-use miyu_store::resources::ResourceRoot;
-use miyu_store::root::DataRoot;
-use miyu_tool::{Catalog, Log, Seen};
+use miyu_tool::{Log, Seen};
 
 use crate::TARGET;
 use crate::actor::{self, Actor, JobKit};
 use crate::agents::{Agents, job_in};
 use crate::blocking::blocking;
 use crate::clock::Clock;
-use crate::config::{Configs, Turning};
+use crate::config::Turning;
 use crate::effects;
 use crate::guard::Guard;
 use crate::handle::Handle;
 use crate::job_ids::JobIds;
-use crate::jobs::{Jobs, Roster};
-use crate::port::{ForSession, Models};
+use crate::jobs::Roster;
+use crate::port::ForSession;
 use crate::report::{Reporter, Upstream, wake_children};
-use crate::sandbox::SandboxCache;
-use crate::spawn::{Lineage, SessionPort};
 use crate::store::{Indexed, LogDir};
 use crate::tools::ToolKit;
 
 mod error;
+mod setup;
 
 pub use error::{CreateError, LoadError};
-
-/// 造一个会话要的。
-pub struct Create<'a> {
-    /// 数据根。
-    pub root: &'a DataRoot,
-    /// 资源目录：人格的原文从这里读。
-    pub resources: &'a ResourceRoot,
-    /// 会话编号，照 [`crate::new_id`] 造。
-    pub id: SessionId,
-    /// 照哪个人格造。
-    pub persona: &'a str,
-    /// 在哪个场所。
-    pub venue: VenueId,
-    /// 会话的属主：会话、blob 都在他的家目录里。
-    pub owner: AccountId,
-    /// 开始时的权限。
-    pub permission: Permission,
-    /// 有没有人能确认（`02-内核.md` 第六节「确认怎么走」第 2 条）。
-    pub attended: bool,
-    /// 一次性的：`miyu ask` 开的（`22-命令行.md` O2，施工 3-9 下）。
-    pub oneshot: bool,
-    /// 会话所在的环境：时区、工作目录。
-    pub environment: Environment,
-    /// 造会话的那个命令的编号：`session.created` 的 `cause`。
-    pub command: CommandId,
-    /// 谁发的造会话。
-    pub by: By,
-    /// 给会话造请求模型的端口：驱动的占位取自这个会话的策略快照。
-    pub models: &'a dyn Models,
-    /// 工具目录：照它存下这个会话的工具面（施工 4-1），以后一直照快照发。
-    pub tools: &'a Catalog,
-    /// 系统的家目录：权限策略照它换 `~`、找工具链目录（施工 4-3 下）。读不出来的是空的。
-    pub home: Option<&'a Path>,
-    /// 沙盒的助手：这台机器上的沙盒能用才有（核心起来时探的，施工 5-4 上）。权限策略照它判执行命令，执行器照它
-    /// 给每次调用写沙盒。
-    pub sandbox: Option<&'a Path>,
-    /// 沙盒的缓存：属主的那一份在哪、你的 cargo 目录在哪（施工 5-4 下）。核心算不出缓存目录的没有，沙盒里不设工具链的
-    /// 变量。
-    pub sandbox_cache: Option<SandboxCache>,
-    /// 父会话和第几层（施工 7-5）：子会话才有，写进 `session.created`；system 接上子会话的场所说明；到了深度上限的，
-    /// 工具面里不给 `agent`。
-    pub lineage: Option<Lineage>,
-    /// 造子会话、给别的会话发命令的端口（施工 7-5）：会话表交进来，派子代理经它。没有的（测试里自己造的），`agent` 照派
-    /// 不了出错。
-    pub sessions: Option<Arc<dyn SessionPort>>,
-    /// 执行器的任务表，核心里一张（施工 7-3）：后台命令交给它。
-    pub jobs: &'a Arc<Jobs>,
-    /// 属主的会话列表的索引（施工 3-8 七补）：日志每落一批，顺手更新这个会话的那一行。没有的（测试里自己造的）不更新。
-    pub index: Option<Arc<SessionIndex>>,
-    /// 从哪取配置（施工 8-4）：回合开始时照它冻结这一轮的配置。没有配置服务的（测试里）给 [`crate::fixed`] 的一份。
-    pub configs: Configs,
-}
-
-/// 载入一个会话要的。
-pub struct Load<'a> {
-    /// 数据根。
-    pub root: &'a DataRoot,
-    /// 会话的属主。
-    pub owner: AccountId,
-    /// 会话编号。
-    pub id: SessionId,
-    /// 会话所在的环境：时区、工作目录。
-    pub environment: Environment,
-    /// 给会话造请求模型的端口：驱动的占位取自这个会话的策略快照。
-    pub models: &'a dyn Models,
-    /// 工具目录：执行工具时照名字在这里找（施工 4-2）。工具面照快照，不照它。
-    pub tools: &'a Catalog,
-    /// 系统的家目录：权限策略照它换 `~`、找工具链目录（施工 4-3 下）。读不出来的是空的。
-    pub home: Option<&'a Path>,
-    /// 沙盒的助手：这台机器上的沙盒能用才有（核心起来时探的，施工 5-4 上）。权限策略照它判执行命令，执行器照它
-    /// 给每次调用写沙盒。
-    pub sandbox: Option<&'a Path>,
-    /// 沙盒的缓存：属主的那一份在哪、你的 cargo 目录在哪（施工 5-4 下）。核心算不出缓存目录的没有，沙盒里不设工具链的
-    /// 变量。
-    pub sandbox_cache: Option<SandboxCache>,
-    /// 造子会话、给别的会话发命令的端口（施工 7-5）：同 [`Create::sessions`]。
-    pub sessions: Option<Arc<dyn SessionPort>>,
-    /// 执行器的任务表，核心里一张（施工 7-3）：后台命令交给它，任务编号照日志往后数。
-    pub jobs: &'a Arc<Jobs>,
-    /// 同 [`Create::index`]。
-    pub index: Option<Arc<SessionIndex>>,
-    /// 同 [`Create::configs`]。
-    pub configs: Configs,
-}
+pub use setup::{Create, Load};
 
 /// 造一个会话：先把策略快照存成 blob（先落 blob，再写引用它的事件），再建会话目录和日志，交给内核
 /// 造会话；`session.created` 落了盘，才交回 [`Handle`]。子会话（带着 [`Create::lineage`]）的 system 接上场所说明
@@ -156,9 +68,12 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         jobs,
         index,
         configs,
+        model,
     } = setup;
     let span = actor::span(&id);
     let config = Turning::start(configs, environment.cwd.clone()).await;
+    // 没指定的照这时的 `models.chat`：记进 `session.created`，以后照它（施工 8-8）。
+    let reference = model.or_else(|| chat(&config.current().resolved.values()));
     let (resources, name) = (resources.clone(), persona.to_string());
     let face = Agents::face(tools, &venue, lineage.as_ref());
     let child = lineage.is_some();
@@ -195,6 +110,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         config: Arc::clone(config.current()),
         texts,
         blobs,
+        reference: reference.clone(),
+        sent: None,
     });
     let mut clock = Clock::default();
     let upstream = Upstream::of(
@@ -220,6 +137,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         cwd: Some(environment.cwd.clone()),
         parent: lineage.as_ref().map(|lineage| lineage.parent.clone()),
         depth: lineage.as_ref().map(|lineage| lineage.depth),
+        model: reference,
         ..snapshot.session_created(owner, venue.clone(), permission)
     };
     let (mut session, first) = Session::create(
@@ -231,9 +149,9 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         policy,
         environment,
     );
-    // 模型的限额在别的输入之前交（施工 6-3 上）：什么动作都不出。给头看的那一份当场要，`Handle` 带着（施工 6-3 补）。
+    // 模型的限额在别的输入之前交（施工 6-3 上）：什么动作都不出。给头看的那一份由 actor 当场要，`Handle` 和它共用（施工
+    // 6-3 补；施工 8-9 起会变）。
     session.handle(Input::Limits(model.limits()));
-    let limits = session.context_limits();
     // 子会话领的号带上它在父会话里的编号，照造它的命令读回（施工 7-1 补）。
     let prefix = lineage
         .as_ref()
@@ -284,6 +202,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     }
     let busy = actor.busy();
     let watched = actor.watched();
+    let shown = actor.shown();
     let (reply, answer) = oneshot::channel();
     actor.wait_for(command, reply);
     span.in_scope(|| {
@@ -291,7 +210,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     });
     actor::spawn(actor, first, span);
     match answer.await {
-        Ok(_) => Ok(Handle::new(id, inbox, busy, oneshot, watched, limits)),
+        Ok(_) => Ok(Handle::new(id, inbox, busy, oneshot, watched, shown)),
         Err(_) => {
             // 造会话那一条没落盘：只剩空的第一段的会话目录删掉；快照的 blob 留着，按内容存，别的会话可能也在用
             // （施工 4-9 再补四下：原来都留在磁盘上）。
@@ -389,26 +308,29 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     });
     let kept = blobs.clone();
     models.ready().await;
-    let model = models.port(ForSession {
-        id: id.clone(),
-        config: Arc::clone(config.current()),
-        texts,
-        blobs,
-    });
     // 系统时间比日志里最后一条还早（往回拨过），照最后一条的：时刻不往回走。
     let mut clock = events
         .last()
         .map_or_else(Clock::default, |event| Clock::since(event.at));
     let count = events.len();
-    // 她看过的文件（施工 4-6 上）、派出去的任务（施工 7-4）从日志里重建：内核收走日志之前。
+    // 她看过的文件（施工 4-6 上）、派出去的任务（施工 7-4）、最近发给了谁（施工 8-8）从日志里重建：内核收走日志之前。
     let seen = effects::seen_in(&events);
     let roster = Roster::from_events(&events);
+    let sent = last_sent(&events);
     let (mut session, first) = Session::load(id.clone(), events, clock.now(), policy, environment)
         .map_err(LoadError::Kernel)?;
+    // 路由照内核从日志算的引用造（施工 8-10）：换过模型的是换过以后的。
+    let model = models.port(ForSession {
+        id: id.clone(),
+        config: Arc::clone(config.current()),
+        texts,
+        blobs,
+        reference: session.reference().map(str::to_string),
+        sent,
+    });
     // 重启以后接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）；给头看的限额同上（施工 6-3 补）。检查点重读过的
     // 文件，内核在载入吐出来的动作里第一个要回原文（施工 6-9），actor 起来先做它。
     session.handle(Input::Limits(model.limits()));
-    let limits = session.context_limits();
     // 子会话领的号带上它在父会话里的编号，照 `session.created` 的 `cause` 读回（施工 7-1 补）。
     let prefix = created
         .parent
@@ -459,6 +381,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     );
     let busy = actor.busy();
     let watched = actor.watched();
+    let shown = actor.shown();
     if let Some(upstream) = upstream {
         actor.report_to(Reporter::start(upstream, span.clone()));
     }
@@ -475,8 +398,19 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         busy,
         created.oneshot,
         watched,
-        limits,
+        shown,
     ))
+}
+
+/// 最近一条发出去了的 `model.called` 发给了谁（施工 8-8）：钉住的池载入时照它认钉着的成员（「起草时定的」第 2 条）。
+fn last_sent(events: &[Event]) -> Option<Model> {
+    events.iter().rev().find_map(|event| match &event.body {
+        Body::ModelCalled(called) => Some(Model {
+            endpoint: called.endpoint.clone()?,
+            model: called.model.clone()?,
+        }),
+        _ => None,
+    })
 }
 
 #[cfg(test)]

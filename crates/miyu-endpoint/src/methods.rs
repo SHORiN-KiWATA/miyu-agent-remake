@@ -6,7 +6,11 @@
 //! 由会话表办。造会话、说话的回应再带上会话实际在哪个目录里干活（施工 4-5 下），这个目录的项目配置还没问过信不信任的，
 //! 再带上它在哪（`untrusted_project`，施工 8-2）。查配置的三个方法在 `config/methods.rs`（施工 8-2），改配置的 `config.set`、
 //! 信任项目配置的 `config.trust` 在 `config/set.rs`、`config/trusting.rs`（施工 8-3）。密钥的 `secret.set`、`secret.delete`、
-//! `secret.list` 在 `secrets.rs`（施工 8-5）。`model.list` 在 `models.rs`（施工 8-7）。
+//! `secret.list` 在 `secrets.rs`（施工 8-5）。`model.list` 在 `models.rs`（施工 8-7）。`session.create` 带 `model` 的照这时的
+//! 配置解析好再造，解析不出的回 `unknown_model`、什么都不造（施工 8-8，`models::record`）。换模型 `session.configure`：先查
+//! 参数、再找会话、再照这时的配置解析，交给内核，回 `{}`（施工 8-10）。给人看的字 `human.get` 在 `human.rs`（施工 W-1）。
+//! 列文件、找文件 `fs.list`、`fs.find` 在 `files.rs`（施工 W-2）。第一次接入的 `provider.detect`、`provider.catalog`、
+//! `provider.test` 在 `providers.rs`（施工 8-11）。
 
 use std::sync::Arc;
 
@@ -23,12 +27,15 @@ use miyu_session::Handle;
 use crate::Core;
 use crate::attach::{self, Attachment};
 use crate::config;
+use crate::files;
 use crate::from;
 use crate::hello::Peer;
+use crate::human;
 use crate::job_output;
 use crate::list;
 use crate::meta::MetaParams;
 use crate::models;
+use crate::providers;
 use crate::refusal::Refusal;
 use crate::secrets;
 use crate::sessions::{Opening, admin};
@@ -50,6 +57,9 @@ struct CreateParams {
     /// 加进来的目录（施工 5-10 上）：和工作区一样能读能写。
     #[serde(default)]
     dirs: Vec<String>,
+    /// 用哪个模型（施工 8-8）：模型、`@池` 或者挡位；不写、写 `null` 的照这时的 `models.chat`。
+    #[serde(default)]
+    model: Option<String>,
 }
 
 /// `session.list` 的参数（施工 3-9 下）。
@@ -185,9 +195,15 @@ pub(crate) async fn call(
         "session.create" => {
             let params: CreateParams = params(request)?;
             let persona = params.persona.as_deref().unwrap_or(PERSONA);
+            // 解析不出的什么都不造（施工 8-8）。
+            let model = params
+                .model
+                .map(|text| models::record(core, &text))
+                .transpose()?;
             let who = Opening {
                 attended: peer.input,
                 oneshot: params.oneshot,
+                model,
             };
             let created = core
                 .sessions
@@ -359,6 +375,7 @@ pub(crate) async fn call(
             }
         }
         "job.output" => job_output::read(core, params(request)?).await,
+        "human.get" => human::get(core, peer, params(request)?).await,
         "config.schema" => config::methods::schema(core, peer, params(request)?),
         "config.get" => config::methods::get(core, peer, params(request)?),
         "config.check" => config::methods::check(core, peer, params(request)?),
@@ -368,7 +385,22 @@ pub(crate) async fn call(
         "secret.delete" => secrets::delete(core, peer, &request.id, params(request)?),
         "secret.list" => Ok(secrets::list(core)),
         "model.list" => models::list(core, params(request)?).await,
+        "provider.detect" => providers::detect(core).await,
+        "provider.catalog" => providers::catalog(core, params(request)?).await,
+        "provider.test" => providers::test(core, params(request)?).await,
         "blob.put" => attach::put(core, params(request)?).await,
+        "session.configure" => {
+            let params: models::ConfigureParams = params(request)?;
+            let text = params.model()?;
+            let session = session(&params.session)?;
+            let found = core.sessions.get(core, &session, None, None).await?;
+            let model = models::record(core, text)?;
+            let command = Command::Configure { model };
+            command_to(core, request, &session, &found.handle, command).await?;
+            Ok(json!({}))
+        }
+        "fs.list" => files::list(core, params(request)?).await,
+        "fs.find" => files::find(core, params(request)?).await,
         "session.set_meta" => {
             let params: MetaParams = params(request)?;
             let command = params.command()?;

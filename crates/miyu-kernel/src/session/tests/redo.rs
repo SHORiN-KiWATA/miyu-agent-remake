@@ -5,7 +5,7 @@
 use super::load::Logged;
 use super::restore::{edited, steps_of};
 use super::*;
-use crate::event::FilesRestored;
+use crate::event::{FilesRestored, MessageUser};
 
 /// `n` 号命令：alice 重做最后一轮，开这一轮的那一句换成 `words`（没有的原样）。
 fn redo(n: u64, words: Option<&str>) -> Input {
@@ -76,7 +76,8 @@ fn a_redo_is_one_batch_and_replies_when_it_is_stored() {
     );
     assert!(
         actions.contains(&Action::RunTurnStartHooks {
-            turn: TurnId::new(seq(11))
+            turn: TurnId::new(seq(11)),
+            model: None,
         }),
         "新的一轮照常往下走"
     );

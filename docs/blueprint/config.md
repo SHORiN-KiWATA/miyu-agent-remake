@@ -26,6 +26,7 @@
 | `crates/miyu-config/src/merge.rs` | 分层合出最终值和来源（`Origin`）。项目配置只认信任过的、收紧的；环境变量最后盖上；一项在它那一层下面合出来的（`below`，报错的「现在照什么用着」）；每一层写的（`explain`） | 8-2 |
 | `crates/miyu-config/src/problem.rs`、`problem/tell.rs` | 报错：原因码、行列、收到的原文、离得最近的键名（`problem.rs`）；照一种语言说成话：期望、改法、现在照什么用着（`tell.rs`） | 8-2 |
 | `crates/miyu-config/src/edit.rs` | 改一项、删一项：照 `toml_edit` 记下的位置只换那一段字，别的字节一个不变；新文件第一行 `#:schema`；人敲的字、协议上 JSON 的值照类型读（`input`、`from_json`） | 8-3 |
+| `crates/miyu-config/src/dangling.rs` | 引用的东西没有（8-8）：引用、模型的列表指的供应商、池没有的报 `bad_reference`，有没有由用的一方交闭包说；端点的配置服务在 `Config::missing` 里调它 | 8-8 |
 | `crates/miyu-config/src/secret.rs` | 密钥（8-5）：名字的写法（`valid_name`）；配置里的引用 `Reference`（`{ secret = … }`、`{ env = … }`，TOML、JSON、人敲的三种读法）；取出来的密钥 `Secret`（`Debug` 只印 `Secret(…)`）；密钥文件的字怎么读（`parse_file`）、怎么改一行（`set_in`、`unset_in`，经 `edit::apply`，它 8-5 起认只有一段的键）；引用取不到的报警告（`missing`） | 8-5 |
 | `crates/miyu-store/src/config_file.rs` | 读配置文件：没有的是空的、上限、开头的 BOM、UTF-8、版本（8-2），记下有没有 BOM（8-3）。写（`write`）：顺着链接、先写临时文件再替换、同步、替换前再读一次、Windows 上重试（8-3）。临时文件的名字和生成的文件共用 `durable.rs` 的 `temp_name` | 8-2、8-3 |
 | `crates/miyu-store/src/generated.rs` | 核心生成的派生文件：和磁盘上的逐字节比，一样的不写，不一样的先写临时文件再替换 | 8-1 |
@@ -155,7 +156,8 @@ trusted = true
 | 路径 `path` | `"~/notes"` | 绝对路径，或者 `~`、`~/` 开头 | 同上 |
 | 网址 `url` | `"https://…"`，或者 `{ env = "DEEPSEEK_API_URL" }`（施工 8-6b，照「密钥」这一行的读法、查法：行内表、有表头的表都认，没有 `{ secret = … }`：地址不进密钥文件） | `http://`、`https://` 开头（不分大小写），后面有主机名，没有空白、控制字符；不对的 `bad_format`；`{ env = … }` 取不到的（没设、设成空的）照第九条报 `env_not_set`，指的东西在不在由用它的一方当场说（8-6b 由会话的路由当场说 `no_model`） | 8-6（供应商的 `base_url`），8-6b 加引用 |
 | 名字 `name` | `"deepseek"` | 小写字母开头，只有小写字母、数字、`-`、`_`，最长 64 个字符；不对的 `bad_format` | 8-6（供应商的 `catalog`） |
-| 引用 `reference` | `"deepseek/deepseek-v4"` | 模型 `<供应商>/<模型>` 或池 `@<池>`（`models.md`「三种写法」里配置能写的两种），写法不对的 `bad_format`。指的东西在不在，8-6 由用它的一方查（会话的路由当场说 `no_model`），跨项的 `bad_reference` 随 8-8 | 8-6（`models.chat`） |
+| 引用 `reference` | `"deepseek/deepseek-v4"` | 模型 `<供应商>/<模型>` 或池 `@<池>`（`models.md`「三种写法」里配置能写的两种），写法不对的 `bad_format`。指的供应商、池在不在，读进来以后照最终值另查，没有的 `bad_reference`（8-8，`miyu_config::dangling`，「报错」那张表），会话的路由也当场说 `no_model` | 8-6（`models.chat`） |
+| 模型 `model` | `"deepseek/deepseek-v4"` | 只能是 `<供应商>/<模型>`：池、挡位、写法不对的 `bad_format`。指的供应商在不在同引用 | 8-8（池的成员：宏里写 `models`，模型的列表） |
 | 密钥 `secret` | `{ secret = "deepseek" }`、`{ env = "DEEPSEEK_API_KEY" }`，行内表、有表头的表都认 | 正好一格；`secret` 的照名字的写法，`env` 的不是空的、没有 `=`；写错的 `wrong_type`。不由环境变量压过（第九条） | 8-5（类型加了，清单里用它的项随 8-6） |
 | 列表 `list` | `[…]` | 每一个照元素的类型查，元素不能再是列表；宏里写 `secrets` 是密钥的列表 | 8-6（供应商的 `keys`） |
 | 表 `table` | `[a.b]`，或者 `{ … }` | 键照名字的写法，值照元素的类型查 | 同上 |
@@ -238,7 +240,7 @@ miyu_config::settings! {
 - `LogSettings::ITEMS`：清单里的这几项，照声明的先后。
 - `LogSettings::from(&最终值)`（`From<&Values>`）：带类型的设置，代码只经它读值，不自己读文件、不另写常量（`14-配置.md` 第十节）。最终值 `Values` 是键到值，8-2 的分层合并交出它；8-1 还不读配置，用的是 `Values::defaults(清单)`，全是默认值。最终值里没有的项照默认值，最终值都校验过，这一步不会出错。字段的类型要能从值变过来（`From<&Value>`）：选项用 `String`，拿到的就是那个选项。
 
-**登记**（`crates/miyu-core/src/settings.rs`）：`MODULES` 一个模块一行，现在七行，照这个先后：`UiSettings::ITEMS`、`TuiSettings::ITEMS`（8-3，终端界面还没进工作区，先在这个文件里替它声明，并进来以后挪进它自己的 crate）、`PermissionSettings::ITEMS`（`miyu-endpoint`，8-2）、`UseSettings::ITEMS`、`ProviderSettings::ITEMS`、`ModelSettings::ITEMS`（`miyu-models`，8-6）、`LogSettings::ITEMS`（`miyu-log`）。`items()` 把它们接成一张表。设置页的页照第一次出现的先后排：通用、界面、权限、模型、高级；模型那一页先「用途」、再「供应商」。
+**登记**（`crates/miyu-core/src/settings.rs`）：`MODULES` 一个模块一行，现在十一行，照这个先后：`UiSettings::ITEMS`、`TuiSettings::ITEMS`（8-3，终端界面还没进工作区，先在这个文件里替它声明，并进来以后挪进它自己的 crate）、`PermissionSettings::ITEMS`（`miyu-endpoint`，8-2）、`UseSettings::ITEMS`、`TierSettings::ITEMS`、`PoolSettings::ITEMS`（8-8）、`ProviderSettings::ITEMS`、`ModelSettings::ITEMS`（`miyu-models`，8-6）、`PriceSettings::ITEMS`、`CatalogSettings::ITEMS`（8-7）、`LogSettings::ITEMS`（`miyu-log`）。`items()` 把它们接成一张表。设置页的页照第一次出现的先后排：通用、界面、权限、模型、高级；模型那一页先「用途」、再「挡位」「池」（8-8）、再「供应商」、再「目录」。
 
 **M8 的配置项**：
 
@@ -249,24 +251,31 @@ miyu_config::settings! {
 | `permission.start_read_only` | 开关 | `false` | 系统、个人、项目 | `true_only` | `new_session` | 8-2 |
 | `tui.startup` | 选项 `new`、`recent` | `new`，开一个新会话 | 系统、个人 | 不能写 | `head_start` | 8-3 |
 | `models.chat` | 引用 | 没有：`no_model` | 系统、个人 | 不能写 | `new_session` | 8-6 |
+| `models.vision` | 引用 | 没有 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
+| `models.tiers.lite`、`cheap`、`standard`、`flagship` | 引用 | 没有：用 `models.chat` | 系统、个人 | 不能写 | `next_turn` | 8-8 |
+| `pools.<id>.models` | 模型的列表 | 没有：这个池解析不出 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
+| `pools.<id>.strategy` | 选项 `pin`、`rotate` | 没有：照成员的缓存类别定 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
 | `providers.<id>.driver` | 选项 `openai-chat`、`anthropic`、`openai-responses` | 没有：照档案推 | 系统、个人 | 不能写 | `next_turn` | 8-6 |
 | `providers.<id>.base_url` | 网址 | 没有：照档案推 | 系统、个人 | 不能写 | `next_turn` | 8-6 |
 | `providers.<id>.keys` | 密钥的列表 | `[]`：不带认证头 | 系统、个人 | 不能写 | `next_turn` | 8-6 |
 | `providers.<id>.catalog` | 名字 | 没有：照编号 | 系统、个人 | 不能写 | `next_turn` | 8-6 |
-| `providers.<id>.models.<model>.window` | 整数 1 到 100000000 | 没有：照模型资料 | 系统、个人 | 不能写 | `new_session` | 8-6 |
+| `providers.<id>.models.<model>.window` | 整数 1 到 100000000 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn`（施工 8-10 起：开着的会话下一个回合开始时用上） | 8-6 |
 | `providers.<id>.price_multiplier`、`providers.<id>.models.<model>.price_multiplier` | 小数 0 到 1000 | 没有：1 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.local` | 开关 | 没有：照地址，在本机的是 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
+| `providers.<id>.cache` | 选项 `contract`、`best_effort`、`per_request` | 没有：照驱动 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
 | `providers.<id>.models.<model>.catalog` | 文字，最多 256 个字符 | 没有：照名字对目录 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
-| `providers.<id>.models.<model>.max_output` | 整数 1 到 100000000 | 没有：照模型资料 | 系统、个人 | 不能写 | `new_session` | 8-7 |
+| `providers.<id>.models.<model>.max_output` | 整数 1 到 100000000 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn`（施工 8-10 起：开着的会话下一个回合开始时用上） | 8-7 |
 | `providers.<id>.models.<model>.inputs` | 选项 `text`、`image`、`pdf` 的列表 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.tools` | 开关 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.reasoning` | 文字的列表，每个最多 32 个字符 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.price.input`、`output`、`cache_read`、`cache_write` | 小数 0 到 1000000 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.price.currency` | 文字，最多 3 个字符 | 没有：`USD` | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `models.catalog.update` | 开关 | `true`，`MIYU_CATALOG_UPDATE` 压过 | 系统、个人 | 不能写 | `now` | 8-7 |
-| `models.catalog.url` | 网址 | `https://models.dev/api.json` | 系统、个人 | 不能写 | `now` | 8-7 |
+| `models.catalog.url` | 网址（能写 `{ env = … }`，8-8 起照引用取） | `https://models.dev/api.json` | 系统、个人 | 不能写 | `now` | 8-7 |
 | `models.catalog.every` | 时长 1 小时到 30 天 | `24h` | 系统、个人 | 不能写 | `now` | 8-7 |
-| 模型的 `driver`，供应商的 `headers`、`cache`、`compat`、`placeholder_tools`，`models.*` 的别的、`pools.<id>.*` | 见 `models.md` | | | | | 8-8 到 8-15 |
+| `models.cooldown.rate_limited.base`、`retryable.base`、`auth.base` | 时长 1 秒到 1 小时 | `30s`、`10s`、`10m` | 系统、个人 | 不能写 | `now` | 8-9 |
+| `models.cooldown.rate_limited.max`、`retryable.max`、`auth.max` | 时长 1 秒到 1 天 | `10m`、`5m`、`2h` | 系统、个人 | 不能写 | `now` | 8-9 |
+| 模型的 `driver`，供应商的 `headers`、`compat`、`placeholder_tools`，`models.*` 的别的 | 见 `models.md` | | | | | 8-10 到 8-15 |
 
 - `ui.language` 的 `auto`：跟着系统，终端的头照系统的语言，网页照浏览器（第二条第 8 条，2026-10-01 项目主人定）。它的界面提示：`general` 页的 `display` 组，常用项，下拉。`log.level` 的：`advanced` 页的 `log` 组，下拉。
 - 项目配置能写的，M8 里只有 `permission.start_read_only` 这一项（2026-10-01 项目主人定）。
@@ -322,7 +331,7 @@ miyu_config::settings! {
 | `not_an_option` | 错误 | 选项不在列出的几个里 | 8-2 |
 | `out_of_range` | 错误 | 数不在范围里，字太长 | 8-6（整数） |
 | `bad_format` | 错误 | 时长、路径、网址、名字、引用写法不对；键里人起的名字那一段写法不对 | 8-6（网址、名字、引用、键里的名字） |
-| `bad_reference` | 错误 | 引用的东西没有 | 8-8（8-6 由会话的路由当场说 `no_model`，「施工时定的」8-6） |
+| `bad_reference` | 错误 | 引用、模型的列表指的供应商、池在不算项目配置的最终值里没有（`name` 是指的那个）。读进来以后另查、只报不丢：值照样用，路由当场照它说 `no_model`；算进 `config_errors`。`config.check` 照「这段字换掉它那一层」合出来的查 | 8-8 |
 | `wrong_layer` | 错误 | 这一项不能写在这一层 | 8-2 |
 | `not_tightening` | 错误 | 项目配置写得比下面几层宽 | 8-2 |
 | `untrusted_project` | 警告 | 项目配置还没信任，或者信任以后内容变了：这一份先不用（第三条第 2 条） | 8-2 |
@@ -936,9 +945,13 @@ $ miyu logout bigmodel-2
 level = "info"
 
 [models]
-# 主对话的模型：新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash。
+# 主对话的模型：新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash；也能写 @池。
 # 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。以后开的会话生效。
 # chat =
+
+# 看图的模型：主对话的模型看不了图时，替它看图的模型。写法同主对话的模型。
+# 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。
+# vision =
 
 [models.catalog]
 # 多久更新一次：缓存的目录旧过这么久才再拉。
@@ -953,15 +966,72 @@ update = true
 # 能写：http:// 或 https:// 开头的网址 或 { env = "…" }。只能写在系统配置或个人设置里。当场生效。
 url = "https://models.dev/api.json"
 
+[models.cooldown.auth]
+# 认证失败先停用多久：认证失败、额度用完时，整个 key 第一次停用这么久，连着再失败就翻倍。
+# 能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+base = "10m"
+
+# 认证失败最多停用多久：整个 key 的停用翻倍到这么久为止。
+# 能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+max = "2h"
+
+[models.cooldown.rate_limited]
+# 限速后先冷却多久：一个端点被限速，第一次停用这么久，连着再被限速就翻倍。
+# 能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+base = "30s"
+
+# 限速最多冷却多久：限速的冷却翻倍到这么久为止，供应商说要等更久的也不超过它。
+# 能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+max = "10m"
+
+[models.cooldown.retryable]
+# 出错后先冷却多久：连不上、服务端出错，第一次停用这么久，连着再出错就翻倍。
+# 能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+base = "10s"
+
+# 出错最多冷却多久：这类错的冷却翻倍到这么久为止。
+# 能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+max = "5m"
+
+[models.tiers]
+# 便宜挡：便宜的一挡。没配的用主对话的模型。
+# 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。
+# cheap =
+
+# 旗舰挡：最强的一挡。没配的用主对话的模型。
+# 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。
+# flagship =
+
+# 轻量挡：最轻、最快的一挡：她派子代理时可以选。没配的用主对话的模型。
+# 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。
+# lite =
+
+# 普通挡：普通的一挡。没配的用主对话的模型。
+# 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。
+# standard =
+
 [permission]
 # 新会话开局只读：打开以后，新会话一开始就是只读。她只能查、写计划，要改文件时你再关掉只读。项目配置里只能把它打开。
 # 能写：true 或 false。只能写在系统配置、个人设置或项目配置里。以后开的会话生效。
 start_read_only = false
 
+[pools."<id>"]
+# 池的成员：几个模型编成一组，每个写成 供应商/模型。
+# 能写：<供应商>/<模型> 的列表。只能写在系统配置或个人设置里。下一轮生效。
+# models =
+
+# 池的分法：一个会话一直用一个成员，还是每次请求换下一个。不写的：成员全是按次计费的轮换，别的钉住。
+# 能写：pin 或 rotate。只能写在系统配置或个人设置里。下一轮生效。
+# strategy =
+
 [providers."<id>"]
 # 地址：这家的接口地址，路径由驱动接在后面。认得出的供应商可以不写。
 # 能写：http:// 或 https:// 开头的网址 或 { env = "…" }。只能写在系统配置或个人设置里。下一轮生效。
 # base_url =
+
+# 缓存类别：这家的缓存怎么算钱。现在只用来定池不写分法时怎么分。不写照驱动的默认。
+# 能写：contract、best_effort 或 per_request。只能写在系统配置或个人设置里。下一轮生效。
+# cache =
 
 # 对应的供应商：这家对应资料里的哪一家，例如只转 DeepSeek 的中转写 deepseek。
 # 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。下一轮生效。
@@ -993,7 +1063,7 @@ keys = []
 # inputs =
 
 # 最大输出：这个模型一次最多输出多少 token。
-# 能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。以后开的会话生效。
+# 能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。下一轮生效。
 # max_output =
 
 # 倍率：这个模型的价格照它乘，盖过供应商上写的。
@@ -1009,7 +1079,7 @@ keys = []
 # tools =
 
 # 上下文窗口：这个模型的上下文窗口，单位 token。
-# 能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。以后开的会话生效。
+# 能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。下一轮生效。
 # window =
 
 [providers."<id>".models."<model>".price]
@@ -1044,7 +1114,7 @@ startup = "new"
 language = "auto"
 ```
 
-样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `models.chat`、`models.catalog.*`（8-7）、`permission.start_read_only`、`providers.<id>.*`、`tui.startup`、`ui.language`）：
+样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `models.chat`、`models.vision`、`models.tiers.*`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`models.cooldown.*`（8-9）、`permission.start_read_only`、`providers.<id>.*`、`tui.startup`、`ui.language`）：
 
 ```json
 {
@@ -1094,8 +1164,100 @@ language = "auto"
           "type": "object"
         },
         "chat": {
-          "description": "新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。以后开的会话生效。",
+          "description": "新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash；也能写 @池。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。以后开的会话生效。",
           "title": "主对话的模型",
+          "type": "string"
+        },
+        "cooldown": {
+          "properties": {
+            "auth": {
+              "properties": {
+                "base": {
+                  "default": "10m",
+                  "description": "认证失败、额度用完时，整个 key 第一次停用这么久，连着再失败就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "认证失败先停用多久",
+                  "type": "string"
+                },
+                "max": {
+                  "default": "2h",
+                  "description": "整个 key 的停用翻倍到这么久为止。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "认证失败最多停用多久",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "rate_limited": {
+              "properties": {
+                "base": {
+                  "default": "30s",
+                  "description": "一个端点被限速，第一次停用这么久，连着再被限速就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "限速后先冷却多久",
+                  "type": "string"
+                },
+                "max": {
+                  "default": "10m",
+                  "description": "限速的冷却翻倍到这么久为止，供应商说要等更久的也不超过它。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "限速最多冷却多久",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "retryable": {
+              "properties": {
+                "base": {
+                  "default": "10s",
+                  "description": "连不上、服务端出错，第一次停用这么久，连着再出错就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "出错后先冷却多久",
+                  "type": "string"
+                },
+                "max": {
+                  "default": "5m",
+                  "description": "这类错的冷却翻倍到这么久为止。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "出错最多冷却多久",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "tiers": {
+          "properties": {
+            "cheap": {
+              "description": "便宜的一挡。没配的用主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
+              "title": "便宜挡",
+              "type": "string"
+            },
+            "flagship": {
+              "description": "最强的一挡。没配的用主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
+              "title": "旗舰挡",
+              "type": "string"
+            },
+            "lite": {
+              "description": "最轻、最快的一挡：她派子代理时可以选。没配的用主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
+              "title": "轻量挡",
+              "type": "string"
+            },
+            "standard": {
+              "description": "普通的一挡。没配的用主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
+              "title": "普通挡",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "vision": {
+          "description": "主对话的模型看不了图时，替它看图的模型。写法同主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
+          "title": "看图的模型",
           "type": "string"
         }
       },
@@ -1109,6 +1271,31 @@ language = "auto"
           "title": "新会话开局只读",
           "type": "boolean"
         }
+      },
+      "type": "object"
+    },
+    "pools": {
+      "additionalProperties": {
+        "properties": {
+          "models": {
+            "description": "几个模型编成一组，每个写成 供应商/模型。能写：<供应商>/<模型> 的列表。只能写在系统配置或个人设置里。下一轮生效。",
+            "items": {
+              "type": "string"
+            },
+            "title": "池的成员",
+            "type": "array"
+          },
+          "strategy": {
+            "description": "一个会话一直用一个成员，还是每次请求换下一个。不写的：成员全是按次计费的轮换，别的钉住。能写：pin 或 rotate。只能写在系统配置或个人设置里。下一轮生效。",
+            "enum": [
+              "pin",
+              "rotate"
+            ],
+            "title": "池的分法",
+            "type": "string"
+          }
+        },
+        "type": "object"
       },
       "type": "object"
     },
@@ -1136,6 +1323,16 @@ language = "auto"
               }
             ],
             "title": "地址"
+          },
+          "cache": {
+            "description": "这家的缓存怎么算钱。现在只用来定池不写分法时怎么分。不写照驱动的默认。能写：contract、best_effort 或 per_request。只能写在系统配置或个人设置里。下一轮生效。",
+            "enum": [
+              "contract",
+              "best_effort",
+              "per_request"
+            ],
+            "title": "缓存类别",
+            "type": "string"
           },
           "catalog": {
             "description": "这家对应资料里的哪一家，例如只转 DeepSeek 的中转写 deepseek。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。下一轮生效。",
@@ -1215,7 +1412,7 @@ language = "auto"
                   "type": "array"
                 },
                 "max_output": {
-                  "description": "这个模型一次最多输出多少 token。能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。以后开的会话生效。",
+                  "description": "这个模型一次最多输出多少 token。能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。下一轮生效。",
                   "maximum": 100000000,
                   "minimum": 1,
                   "title": "最大输出",
@@ -1284,7 +1481,7 @@ language = "auto"
                   "type": "boolean"
                 },
                 "window": {
-                  "description": "这个模型的上下文窗口，单位 token。能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。以后开的会话生效。",
+                  "description": "这个模型的上下文窗口，单位 token。能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。下一轮生效。",
                   "maximum": 100000000,
                   "minimum": 1,
                   "title": "上下文窗口",
@@ -1404,7 +1601,7 @@ language = "auto"
 | 说明 | 终端界面启动时开一个新会话，还是接着最近的那一个。 | Whether the terminal interface starts a new session or picks up the most recent one. | 端末画面を起動したときに、新しいセッションを始めるか、最近のセッションを続けるかです。 |
 | 选项 | `new` 新会话、`recent` 最近的会话 | A new session、The most recent session | 新しいセッション、最近のセッション |
 | `models.chat` 名字（8-6，主会话定） | 主对话的模型 | Chat model | 会話のモデル |
-| 说明 | 新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash。 | The model new sessions use, written as provider/model, for example deepseek/deepseek-flash. | 新しいセッションが使うモデル。プロバイダー/モデル の形で書きます。例：deepseek/deepseek-flash。 |
+| 说明（8-8 加了能写池那一句） | 新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash；也能写 @池。 | The model new sessions use, written as provider/model, for example deepseek/deepseek-flash, or @pool. | 新しいセッションが使うモデル。プロバイダー/モデル の形で書きます。例：deepseek/deepseek-flash。@プール でもかまいません。 |
 | `providers.<id>.driver` 名字（8-6） | 驱动 | Driver | ドライバー |
 | 说明 | 怎么和这家说话。认得出的供应商可以不写。 | How to talk to this provider. Known providers can leave it out. | このプロバイダーとの話し方。知っているプロバイダーなら書かなくてもかまいません。 |
 | 选项 | `openai-chat` OpenAI 兼容的对话接口、`anthropic` Anthropic 消息接口、`openai-responses` OpenAI Responses 接口 | OpenAI-compatible chat、Anthropic Messages、OpenAI Responses | OpenAI 互換のチャット、Anthropic Messages、OpenAI Responses |
@@ -1416,6 +1613,24 @@ language = "auto"
 | 说明 | 这家对应资料里的哪一家，例如只转 DeepSeek 的中转写 deepseek。 | Which provider in the model data this one is, for example deepseek for a relay that only forwards DeepSeek. | モデル資料のどのプロバイダーに当たるか。DeepSeek だけを中継するなら deepseek と書きます。 |
 | `providers.<id>.models.<model>.window` 名字（8-6） | 上下文窗口 | Context window | コンテキストウィンドウ |
 | 说明 | 这个模型的上下文窗口，单位 token。 | The context window of this model, in tokens. | このモデルのコンテキストウィンドウ。単位はトークン。 |
+| `models.vision` 名字（8-8） | 看图的模型 | Vision model | 画像を見るモデル |
+| 说明 | 主对话的模型看不了图时，替它看图的模型。写法同主对话的模型。 | Looks at images for the chat model when it cannot. Written like the chat model. | 会話のモデルが画像を見られないとき、代わりに見るモデル。書き方は会話のモデルと同じです。 |
+| `models.tiers.lite` 名字（8-8） | 轻量挡 | Lite tier | 軽量の段 |
+| 说明 | 最轻、最快的一挡：她派子代理时可以选。没配的用主对话的模型。 | The lightest, fastest tier, which she can pick for a subagent. Left out, it is the chat model. | いちばん軽くて速い段。サブエージェントを出すときに選べます。書かなければ会話のモデルです。 |
+| `models.tiers.cheap` 名字（8-8） | 便宜挡 | Cheap tier | 安価の段 |
+| 说明 | 便宜的一挡。没配的用主对话的模型。 | The cheap tier. Left out, it is the chat model. | 安い段。書かなければ会話のモデルです。 |
+| `models.tiers.standard` 名字（8-8） | 普通挡 | Standard tier | 標準の段 |
+| 说明 | 普通的一挡。没配的用主对话的模型。 | The standard tier. Left out, it is the chat model. | 標準の段。書かなければ会話のモデルです。 |
+| `models.tiers.flagship` 名字（8-8） | 旗舰挡 | Flagship tier | 最上位の段 |
+| 说明 | 最强的一挡。没配的用主对话的模型。 | The strongest tier. Left out, it is the chat model. | いちばん強い段。書かなければ会話のモデルです。 |
+| `pools.<id>.models` 名字（8-8） | 池的成员 | Pool members | プールのメンバー |
+| 说明 | 几个模型编成一组，每个写成 供应商/模型。 | A group of models, each written as provider/model. | いくつかのモデルをひとまとめにします。それぞれ プロバイダー/モデル の形で書きます。 |
+| `pools.<id>.strategy` 名字（8-8） | 池的分法 | Pool strategy | プールの分け方 |
+| 说明 | 一个会话一直用一个成员，还是每次请求换下一个。不写的：成员全是按次计费的轮换，别的钉住。 | Keep a session on one member, or take the next member for every request. Left out, a pool whose members are all billed per request rotates and the others pin. | ひとつのセッションでずっと同じメンバーを使うか、リクエストごとに次のメンバーに替えるか。書かなければ、メンバーがすべてリクエストごとの課金なら順番に替え、ほかは固定します。 |
+| 选项 | `pin` 钉住、`rotate` 轮换 | Pin、Rotate | 固定、順番に替える |
+| `providers.<id>.cache` 名字（8-8） | 缓存类别 | Cache class | キャッシュの種類 |
+| 说明 | 这家的缓存怎么算钱。现在只用来定池不写分法时怎么分。不写照驱动的默认。 | How this provider bills its cache. For now it only decides how a pool without a strategy splits. Left out, it follows the driver. | このプロバイダーのキャッシュの課金のしかた。いまは分け方を書いていないプールの分け方を決めるだけです。書かなければドライバーの既定に従います。 |
+| 选项 | `contract` 照前缀计费、`best_effort` 尽量命中、`per_request` 按次计费 | Billed by prefix、Best effort、Per request | 前置きで課金、できるだけ当てる、リクエストごと |
 
 页和组（`config.pages`、`config.groups`，编号到名字；资源里只放清单用到的，`permissions`、`sessions` 随 8-2 加，`interface`、`tui` 随 8-3 加）：
 
@@ -1430,6 +1645,8 @@ language = "auto"
 | 组 `sessions`（`permissions`） | 会话 | Sessions | セッション |
 | 页 `models`（8-6，主会话定） | 模型 | Models | モデル |
 | 组 `uses`（`models`） | 用途 | Uses | 用途 |
+| 组 `tiers`（`models`，8-8） | 挡位 | Tiers | 段 |
+| 组 `pools`（`models`，8-8） | 池 | Pools | プール |
 | 组 `providers`（`models`） | 供应商 | Providers | プロバイダー |
 | 组 `log`（`advanced`） | 运行日志 | Runtime log | 実行ログ |
 
@@ -1492,6 +1709,9 @@ language = "auto"
 | `config/expected/int`（8-6，带范围） | `min`、`max` | {min} 到 {max} 之间的整数 | a whole number from {min} to {max} |
 | `config/expected/url`、`name`、`reference`（8-6） | | http:// 或 https:// 开头的网址、小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符、<供应商>/<模型> 或 @<池> | an address starting with http:// or https://、a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters、<provider>/<model> or @<pool> |
 | `config/expected/list`（8-6，带元素） | `item` | {item} 的列表 | a list of {item} |
+| `config/expected/model`（8-8，池的成员） | | <供应商>/<模型> | <provider>/<model> |
+| `config/no-provider`（8-8，`bad_reference`） | `key`、`name` | {key} 指的供应商 {name} 没有配 | {key} points at the provider {name}, which is not configured |
+| `config/no-pool`（8-8，`bad_reference`） | `key`、`name` | {key} 指的池 {name} 没有配 | {key} points at the pool {name}, which is not configured |
 | `config/expected/float`（8-7，带范围） | `min`、`max` | {min} 到 {max} 之间的数 | a number from {min} to {max} |
 | `config/expected/text`（8-7） | `max` | 最多 {max} 个字的文字 | text of at most {max} characters |
 | `config/expected/duration`（8-7，范围写成 `1h`、`720h` 这样） | `min`、`max` | {min} 到 {max} 之间的时长，写成 30s、10m、1h 这样 | a length of time from {min} to {max}, written like 30s, 10m or 1h |
@@ -1712,6 +1932,9 @@ Options:
 | `crates/miyu-cli/src/config/tests.rs`、`link/tests.rs`、`crates/miyu/tests/config.rs` | 8-2：`get` 的值、报错一行（级别上色）、`check` 的合计、`explain` 的几行照宽度对齐（和「样子」一样，两种语言）、环境变量和不算的那一行；文件换成真的位置、`~/…`；还没有项目配置时该在哪；握手以后照回应的语言。真核心带三层起来：日志的级别和 `config problems`，`get`（一个键、全部、`--format json` 的来源）、`explain`、`check`（现在的几份、写了文件、`--system`、`--format json`）、`path`（个人、`--system`、`--project` 没有的）印的对，照 `ui.language` 说话，不认识的键退出码 1；`miyu ask` 起头说配置有错（照系统配置的英文说）；帮助页两种语言；参数不对退出码 2；没有 key、核心没在跑的退出码 5。8-3：`config/tests.rs` 照图纸对 `set`、`unset`、`edit`、`trust` 印的字（两种语言）、编辑器照 `VISUAL`、`EDITOR` 挑、经 shell 跑。`crates/miyu-cli/tests/config.rs` 在进程里起核心、人那一头照剧本回：`set`、`unset` 每一种说法（上面一层压着、本来就是、本来就没写、握手以后换语言），`edit` 用假编辑器（改错再改好、改的还在、副本在旁边、只有警告的照存、不改、放弃、读到头、编辑器出错、冲突留着副本、不在终端里、项目配置由命令行写），`trust` 没有项目配置、列出、问、`--yes`、`--no`、直接回车、不在终端里、本来就信任着、有问题的印在后面、看的时候又变了。`crates/miyu/tests/config.rs` 真核心：`set`、`unset`、`trust` 写进文件、运行日志，`set --project`、不在终端里的 `edit` 连核心以前退出码 2，`miyu ask` 起头没信任那一行 | 8-2、8-3 |
 | `crates/miyu-cli/tests/login.rs`、`login/pick/tests.rs`、`crates/miyu/tests/login.rs` | `login` 写名字、选、管道进来的 key、假终端里走关掉回显的那一条，`--list` 不带值（输出里搜不到 key），`logout`，两种语言，退出码；真核心上整份运行日志（`trace`）、系统日志里搜不到 key；`miyu config check` 印出密钥文件写错的那一行（`cli/login.md`「守着它的」） | 8-5 |
 | `crates/miyu-core/tests/config_words.rs` | 8-5 的四种原因码、密钥文件开头的注释三种语言都说得出来 | 8-5 |
+| `crates/miyu-config/src/dangling/tests.rs` | `bad_reference`：供应商、池没配的一处一条、带名字、指到值那一行，列表里一个一条，配了的、不算数的那一层不报，说成话；类型「模型」只收 `<供应商>/<模型>`，池的成员写了池是 `bad_format` | 8-8 |
+| `crates/miyu-endpoint/tests/models_pools.rs` | `bad_reference` 照最终值查、算进 `config_errors`、`config.get` 里的话，`config.check` 照新的字查（连同 `models.md` 的几条） | 8-8 |
+| `crates/miyu-config/src/value/tests.rs` | 有默认值的网址读写死的、引用的（8-8，`models.catalog.url`） | 8-8 |
 | `crates/miyu-cli/src/help/tests.rs` | `config`（八个子命令的选项合在一起，8-2、8-3）、`login`、`logout`（8-5）三页列的选项和程序真有的对得上，最宽 80 列，照文件名读的是自己那一页 | 8-2、8-3、8-5 |
 
 变异测试照施工的规矩跑（每一步的施工单写）。
@@ -1734,7 +1957,7 @@ Options:
 ### 还没有的
 
 - 人格、预设两层，每一项跟着谁走：随人格那一段（`16-人格与预设.md` 第四节）。
-- 会话里临时改的那一层：随 8-10（`session.configure`，`models.md`）。
+- 会话里临时改的那一层：8-10 的 `session.configure` 只换模型，记在会话的日志里（`models.md`「怎么走」第六条），不是配置的一层；别的临时开关加进来时再定（`04-核心协议.md` 第九节）。
 - 锁：管理员锁住某些项，上层写了也不算，界面显示只读（`14-配置.md` 第三节）：随多用户。
 - 谁能改按管理能力细分，清单的那一格，拒绝的原因码：随多用户（`06-多用户与身份.md` 第四节）。
 - 成员自己的密钥 `home/<账号>/secrets.toml`、成员自己的供应商，个人设置里的引用先找自己的，`miyu login` 存到自己的家目录：随多用户（`15-模型与供应商.md` M6）。
@@ -1975,13 +2198,23 @@ Options:
 | 对目录、判断本机服务这两处字面地址才用得上的查法，引用解不出字面地址时当没有这一格（`literal()`），不强行解出来再查 | 目录识别、本机判断都是「锦上添花」，查不出来退回默认值（不认得这家、照不在本机算）没有坏处；强行解出来就要在这一层引入环境访问 | 这两处也接 `secret` 闭包去解：污染了纯逻辑层（这两处原来都不碰 IO） |
 | `words::expected`、Schema 的 `shape` 对 `Kind::Url` 都接上「或 `{ env = "…" }`」（照密钥两种写法连起来的样子，`one_of`） | 参考文件、Schema 是用户发现「网址还能这样写」的唯一地方，不接上就没人知道 | 只改 `check`，不改说明：功能有了，没人用得上 |
 
+8-8 施工时照推荐定的配置这一半（2026-10-01，施工员定，写进了正文；模型那一半在 `models.md`「施工时定的」8-8）：
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| 加一种类型「模型」（`Kind::Model`，`config.schema` 的 `type` 是 `model`，宏里 `models` 是它的列表），给池的成员 | 池的成员只能写模型；写在类型上，写错当场报文件、行、列 | 用引用、跨项再查：池写成成员要等用到时才报 |
+| `bad_reference` 是两种原因码 `NoProvider`、`NoPool`，协议上都写 `bad_reference`，话分两句（`config/no-provider`、`config/no-pool`），`name` 是指的那个 | 说得出是哪一家、哪个池没有；照 `bad_format` 和 `bad_segment` 的先例 | 一句话不分：人要自己看是供应商还是池 |
+| `bad_reference` 照不算项目配置的最终值另查（`miyu_config::dangling`，和引用的密钥取不到挂在同一处 `Config::missing`），只报不丢，算进 `config_errors`；`config.check` 照「这段字换掉它那一层」合出来的查 | 指的东西可能配在另一层；照样用着，路由当场说清是哪一家没有；`config.check` 查的字里新配的要算上，不然自己引用自己也报错 | 合并时丢掉这一项：合并要认识模型那一块，丢了反而说「没配」 |
+| 有没有由用的一方交两个闭包说，`miyu-config` 只认引用的写法 | 配置这一层不认识模型那一块的键 | 在 `miyu-config` 里认 `providers.<id>`、`pools.<id>` |
+| `models.catalog.url` 换成 `Address`（有默认值的网址 `Setting for Address`），改了 8-6b 那一条「`models.catalog.url` 读进 `String`，写了引用读成空的」 | 8-6b 留下的小毛病：写了引用一直拉不到；网址类型整体认引用，这一项不该例外 | 写了引用的报错：和「网址整体认引用」对不上 |
+
 ### 要跟着改的别的页
 
 施工时改。8-1 改了的写在每一条末尾：
 
 - `protocol.md`：方法表加 `config.schema`、`config.get`、`config.set`、`config.check`、`config.trust`、`secret.set`、`secret.delete`、`secret.list`。握手的回应加 `language`、`config_errors`，`locale` 写明是系统的语言、`ui.language` 是 `auto` 时才用。`session.create`、`session.send` 的回应加 `untrusted_project`，`session.create` 第 2 条的开局权限照 `permission.start_read_only`。`subscribe`、`unsubscribe` 的 `stream` 加 `config`（不带 `session`），推送表加 `config.changed`，`resync` 加配置流。出错表加六个原因码，拒绝的 `data` 多 `problems`、`current`、`version`。「给人看的字」加六行。「还没有的」删掉配置那几项。 8-3 改了：方法表加 `config.set`、`config.trust`，出错表、「给人看的字」加四个原因码，拒绝的 `data` 多的几格，「还没有的」删掉这两个方法。 8-2 改了：方法表加 `config.schema`、`config.get`、`config.check`；握手的回应加 `language`、`config_errors`，`locale` 写明是系统的语言；`session.create`、`session.send` 的回应加 `untrusted_project`，开局权限照 `permission.start_read_only`；出错表加 `unknown_config_key`，拒绝的 `data` 可以多几格；「给人看的字」加一行；「还没有的」配置那几项改成指到 8-3、8-4。 8-4 改了：`subscribe`、`unsubscribe` 的 `stream` 加 `config`（不带 `session`、`after`），推送表加 `config.changed`，`resync` 加配置流，`config.set` 的回应经配置的订阅，握手的 `language` 写明下一句照新的，运行日志加配置的掉队，`bad_params` 那一行，「还没有的」删掉配置的订阅。 8-5 改了：方法表加 `secret.set`、`secret.delete`、`secret.list`，出错表、「给人看的字」加 `unknown_secret`，`config.get` 的 `files` 多 `secrets`，`config_file_broken` 也给密钥文件。
 - `store.md`：「数据根里有什么」加 `system/config.toml`、`system/secrets.toml`、`system/journal.jsonl`、`home/<账号>/settings.toml`、`home/<账号>/trust.toml`、`home/<账号>/journal.jsonl`、`state/config/`。「在哪」加 `config_file.rs`、`journal.rs`、`watch.rs`、`secrets.rs`，`env.rs` 多 `locale`。「还没有的」删掉系统日志、账号日志、配置、密钥、信任那几条。 8-3 改了：「在哪」加 `journal.rs`、`config_file.rs` 写的那一半；数据根里加两份 `journal.jsonl`；「还没有的」删掉系统日志、账号日志、配置。8-1 改了：`state/config/`、`generated.rs`、`env.rs` 的 `locale`、`durable.rs` 的临时文件。 8-2 改了：「在哪」加 `config_file.rs`（读的那一半），`env.rs` 的 `locale` 换成 `sys-locale` 兜底；数据根里加 `system/config.toml`、`home/<账号>/settings.toml`、`home/<账号>/trust.toml`（只读）。 8-4 改了：「在哪」加 `watch.rs`。 8-5 改了：「在哪」加 `secrets.rs`、`durable.rs` 的 0600 临时文件；数据根里加 `system/secrets.toml`；「还没有的」删掉密钥。
-- `store/resources.md`：`human/<语言>.json` 多一格 `config`（「只许有两格」改成三格）。说法多 `config/*`。`human_languages.rs` 也查 `config` 那一格三种语言对得上。8-1 改了：三格、`Words`、生成文件要的几句。 8-2 改了：`config` 那一格多 `permission.start_read_only`、页 `permissions`、组 `sessions`；`said` 多报错的话和接句子的三句；`Human` 多 `page`、`group`。 8-3 改了：`said` 多 `config/trust-header`、`config/applies/head_start`。 8-5 改了：`said` 多 `config/secrets-header`、`config/unknown-secret`、`config/env-not-set`、`config/bad-secret-name`、`config/bad-secret-value`。
+- `store/resources.md`：`human/<语言>.json` 多一格 `config`（「只许有两格」改成三格）。说法多 `config/*`。`human_languages.rs` 也查 `config` 那一格三种语言对得上。8-1 改了：三格、`Words`、生成文件要的几句。 8-2 改了：`config` 那一格多 `permission.start_read_only`、页 `permissions`、组 `sessions`；`said` 多报错的话和接句子的三句；`Human` 多 `page`、`group`。 8-3 改了：`said` 多 `config/trust-header`、`config/applies/head_start`。 8-5 改了：`said` 多 `config/secrets-header`、`config/unknown-secret`、`config/env-not-set`、`config/bad-secret-name`、`config/bad-secret-value`。 8-8 改了：`config` 那一格多 `models.vision`、四个挡位、`pools.<id>.*`、`providers.<id>.cache`，组 `tiers`、`pools`；`said` 多 `config/expected/model`、`config/no-provider`、`config/no-pool`。
 - `core.md`：起来的先后在找到资源目录以后加「读配置、读密钥、读信任」，读完以后「写 Schema 和参考文件」「开始监视」。环境变量表的 `MIYU_LOG` 写明压过配置。运行日志加 `miyu::config` 那几行。模型那一节（`DEEPSEEK_API_KEY`、`MIYU_DEV_*`）由 `models.md` 那边改。8-1 改了：第 6 步找到资源目录以后写 Schema 和参考文件，`settings.rs`，`WARN config schema not written`。 8-2 改了：第 6 步找到资源目录以后读配置、照 `log.level` 换运行日志的级别，再写 Schema 和参考文件；`MIYU_LOG` 压过配置；运行日志加 `config problems`、`trust not read`、`log level`、`MIYU_LOG not understood, using config`。 8-4 改了：第 6 步说「好了」之前开始监视、跟着配置换；`settings.rs` 那一行加 `follow`；运行日志加 `config watch unavailable`、`config changed via=file`。 8-5 改了：第 6 步读配置连同密钥文件；运行日志加 `secrets readable by others`、`secret changed`。
 - `log.md`：级别由 `log.level` 定、`MIYU_LOG` 压过。读不懂的 `MIYU_LOG` 退到配置。运行中换级别。「还没有的」删掉 `log.level`。8-1 改了：`settings.rs` 声明 `log.level`，「还没有的」那一条写明声明了、8-2 读。 8-2 改了：`install` 收级别、交回的 `Guard` 能换级别（`set_level`）；读不懂的 `MIYU_LOG` 由核心读完配置以后记、退到配置；「还没有的」那一条改成只剩运行中换（8-4）。 8-4 改了：`Guard::levels`，运行中照 `log.level` 当场换，「还没有的」删掉这一条。
 - `session/actor.md`：回合开始时取一份配置的快照，带上信任着的项目配置，这一轮都用它（第八条第 3 条）。 8-4 改了：「在哪」加 `config.rs`，跑回合开始的挂接点先冻结配置，请求模型带上这一轮的配置。
@@ -1993,6 +2226,6 @@ Options:
 - `14-配置.md`：G3 不改。G7 的表加「以后开的会话」。G8 补了一句只丢写错的那一项（这个分支上已经改了）。第九节「命令行」那一行加 `trust`。8-1 改了：状态那一行记一句做到哪了。 8-2 改了：状态那一行记一句做到哪了。 8-3 改了：状态那一行；G7 的表加「以后开的会话」「头下次启动」；第九节「命令行」那一行加 `trust`。 8-4 改了：状态那一行记一句做到哪了。 8-5 改了：状态那一行记一句做到哪了。
 - `07-存储.md`：第二节加 `state/config/`。第三节系统日志加 `secret.changed`（系统的密钥），账号日志的 `trust.*` 写成 `trust.changed`。 8-3 改了：第三节这两处。 8-5 改了：第九节写明密钥文件 0600、`miyu login`。
 - `22-命令行.md` 第五节：`miyu config` 加 `trust`。加 `miyu login`、`miyu logout`（`miyu login --list`）。 8-3 改了：`miyu config` 加 `trust`。 8-5 改了：加 `miyu login`、`miyu logout`。
-- `models.md`（另一个分身在画）：供应商、模型、池的键用这一页的清单声明。8-6 改了：清单登记了 `models.chat`、`providers.<id>.driver`、`base_url`、`keys`、`catalog`、`providers.<id>.models.<model>.window`；类型加了整数、网址、名字、引用、密钥的列表，生效时机加了 `next_turn`，控件加了 `text`、`number`、`list`，键里加了人起的名字那一段；没有默认值的项写 `none`；`DEEPSEEK_API_KEY` 的特判、`MIYU_DEV_*`、没 key 不拉起的规矩删了，第十条第 1 条改成一律拉起；跨项的 `bad_reference` 挪到 8-8。要的类型（整数、小数、网址、名字、引用、列表、表、密钥）和「人起的名字那一段」在它用上的那一步加。`models.chat` 这类的生效时机是 `new_session`。引用类的项「没有默认值」怎么算（G1 的测试要每一项有默认值），由它定，这一页的门禁照着改。取密钥经这一页的 `{ secret }`、`{ env }`。回合开始冻结的配置由它用上。`miyu login` 不写名字时列出目录里的供应商、借订阅的登录，由它接上。`DEEPSEEK_API_KEY` 的特判、`MIYU_DEV_*`、没 key 不拉起的规矩由它删，删的同一步把第十条第 1 条改成一律拉起。
+- `models.md`（另一个分身在画）：供应商、模型、池的键用这一页的清单声明。8-6 改了：清单登记了 `models.chat`、`providers.<id>.driver`、`base_url`、`keys`、`catalog`、`providers.<id>.models.<model>.window`；类型加了整数、网址、名字、引用、密钥的列表，生效时机加了 `next_turn`，控件加了 `text`、`number`、`list`，键里加了人起的名字那一段；没有默认值的项写 `none`；`DEEPSEEK_API_KEY` 的特判、`MIYU_DEV_*`、没 key 不拉起的规矩删了，第十条第 1 条改成一律拉起；跨项的 `bad_reference` 挪到 8-8。8-8 改了：清单登记了 `models.vision`、四个挡位、`pools.<id>.models`、`strategy`、`providers.<id>.cache`，类型加了「模型」，`bad_reference` 做了，`models.catalog.url` 照引用取。要的类型（整数、小数、网址、名字、引用、列表、表、密钥）和「人起的名字那一段」在它用上的那一步加。`models.chat` 这类的生效时机是 `new_session`。引用类的项「没有默认值」怎么算（G1 的测试要每一项有默认值），由它定，这一页的门禁照着改。取密钥经这一页的 `{ secret }`、`{ env }`。回合开始冻结的配置由它用上。`miyu login` 不写名字时列出目录里的供应商、借订阅的登录，由它接上。`DEEPSEEK_API_KEY` 的特判、`MIYU_DEV_*`、没 key 不拉起的规矩由它删，删的同一步把第十条第 1 条改成一律拉起。
 - `26-提示词.md` 第十节：不用改，配置这一块没有给模型看的字。
 - 跨会话的图纸（另一个分身在画）：没有交叉。

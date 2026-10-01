@@ -23,6 +23,20 @@ fn the_shipped_profiles_keep_what_was_in_the_code() {
     );
     assert_eq!(profiles.npm["@ai-sdk/openai-compatible"], "openai-chat");
     assert_eq!(deepseek.image_tokens, Some(ImageTokens::DeepSeek));
+    // 施工 8-11：Ollama 只为第一次接入找本机的服务，目录里没有，名字、驱动、地址都在档案里。
+    let ollama = &profiles.providers["ollama"];
+    assert_eq!(
+        (
+            ollama.name.as_deref(),
+            ollama.driver.as_deref(),
+            ollama.base_url.as_deref()
+        ),
+        (
+            Some("Ollama"),
+            Some("openai-chat"),
+            Some("http://127.0.0.1:11434/v1")
+        )
+    );
 }
 
 #[test]

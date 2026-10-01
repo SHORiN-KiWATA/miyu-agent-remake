@@ -10,6 +10,7 @@ mod config_write;
 mod harness;
 mod login;
 mod sandbox;
+mod setup;
 mod undo;
 
 /// 界面语言。
@@ -142,14 +143,12 @@ impl Language {
         }
     }
 
-    /// 没有可用的模型（施工 8-6，主会话定：`miyu setup` 随 8-11，那时换成指向它的那一句）。
+    /// 没有可用的模型（施工 8-6；施工 8-11 起指向 `miyu setup`，`models.md`「给人看的字」）。
     pub fn no_model(&self) -> String {
         match self {
-            Language::Chinese => {
-                "没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。".to_string()
-            }
+            Language::Chinese => "没有可用的模型：还没配。运行 miyu setup。".to_string(),
             Language::English => {
-                "No model is available: none is set up. Add a provider and models.chat with miyu config edit --system.".to_string()
+                "No model is available: none is set up. Run miyu setup.".to_string()
             }
         }
     }
@@ -191,6 +190,7 @@ impl Language {
             "bad_summary" => ("取不出摘要", "no summary in the reply"),
             "compaction_paused" => ("自动压缩暂停着", "automatic compaction is paused"),
             "no_model" => ("没有可用的模型", "no model available"),
+            "cooling" => ("候选都在冷却", "all candidates are cooling down"),
             _ => ("模型出错", "model error"),
         };
         match self {

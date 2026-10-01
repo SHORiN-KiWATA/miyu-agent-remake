@@ -11,6 +11,7 @@ Commands:
   config <command>      See and change settings, trust a project config
   login [name]          Save a provider's key; --list shows which are set
   logout [name]         Delete a provider's key
+  setup                 Connect the first model: find a key, try it, save it
   sandbox setup|remove  Set up or remove the sandbox user (Windows, needs admin)
 
 ask options:
@@ -21,6 +22,7 @@ ask options:
       --file <file>       Attach a file: image, PDF, text…; repeatable
       --timeout <time>    Stop waiting after this long: 30s, 10m, 1h
       --from <name>       For another harness: its name, e.g. claude-code
+      --model <model>     Use this model; a continued session keeps it
 
 undo, restore, redo, compact, recap, rename options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened

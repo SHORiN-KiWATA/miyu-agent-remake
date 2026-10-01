@@ -84,10 +84,9 @@ impl Value {
     }
 }
 
-/// 选项的设置类型是字：照原样拿出来。最终值都校验过，开关变不成字，不会走到那一支（写成 TOML 的样子）。网址类型的
-/// 字段用 `String`、不用 [`Address`] 的（`models.catalog.url`：公开的资源地址，没有引用的必要），写成了 `{ env = … }`
-/// 的（`Kind::Url` 的 `check` 收下它：网址类型整体认引用，施工 8-6b）读成空字，不写死的 TOML 字节，防着字段被悄悄
-/// 填进一句读不出地址的乱码。
+/// 选项的设置类型是字：照原样拿出来。最终值都校验过，开关变不成字，不会走到那一支（写成 TOML 的样子）。引用
+/// （`{ env = … }`）读成空字，不写死的 TOML 字节，防着字段被悄悄填进一句读不出地址的乱码：网址类型整体认引用（施工
+/// 8-6b），网址的字段一律用 [`Address`]（施工 8-8 把 `models.catalog.url` 也换了过来）。
 impl From<&Value> for String {
     fn from(value: &Value) -> String {
         match value {
@@ -158,6 +157,13 @@ impl Setting for Option<Address> {
             Some(Value::Secret(Reference::Env(name))) => Some(Address::Env(name.clone())),
             _ => None,
         }
+    }
+}
+
+/// 有默认值的网址（施工 8-8，`models.catalog.url`）：同上；读不出来的（正常碰不到）是空的地址。
+impl Setting for Address {
+    fn read(value: Option<&Value>) -> Address {
+        <Option<Address> as Setting>::read(value).unwrap_or_else(|| Address::Literal(String::new()))
     }
 }
 

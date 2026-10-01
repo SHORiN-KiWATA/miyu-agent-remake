@@ -115,7 +115,7 @@ fn shape(kind: Kind) -> Map<String, Json> {
                 json!([{"type": "string", "format": "uri"}, reference_shape("env")]),
             );
         }
-        Kind::Name | Kind::Reference => {
+        Kind::Name | Kind::Reference | Kind::Model => {
             property.insert("type".to_string(), json!("string"));
         }
         Kind::Float { min, max } => {

@@ -13,7 +13,8 @@ use tokio::sync::mpsc;
 use miyu_cli::{Format, Plan, Target};
 use miyu_ipc::Listener;
 use miyu_session::testkit::{Play, Script};
-use support::{AccountIdOf, Asked, Bare, Home, Outside, ask_at, dirs, plan, resources};
+use support::outside::Outside;
+use support::{AccountIdOf, Asked, Bare, Home, ask_at, dirs, plan, resources};
 
 /// 起一个核心：请求模型照 `plays`，工具是真的三件读的。
 fn home(plays: impl IntoIterator<Item = Play>) -> Home {

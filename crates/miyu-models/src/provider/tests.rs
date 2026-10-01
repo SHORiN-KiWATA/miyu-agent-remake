@@ -1,5 +1,5 @@
-//! 一家供应商这一轮的样子、一个引用发给谁（施工 8-6）：手写的压过档案、档案照 `catalog` 找、推不出来的说清楚、没配
-//! `models.chat` 的是 `no_model` 的那一句。照目录推驱动、地址，本机的服务（施工 8-7）。
+//! 一家供应商这一轮的样子（施工 8-6）：手写的压过档案、档案照 `catalog` 找、推不出来的说清楚。照目录推驱动、地址，本机的
+//! 服务（施工 8-7）。一个引用发给谁挪到 `reference/tests.rs`（施工 8-8）。
 
 use serde_json::json;
 
@@ -146,44 +146,6 @@ fn a_local_service_is_told_by_its_address_or_by_hand() {
     assert!(local("lan"), "手写的");
     assert!(!local("loop"), "手写的盖过地址");
     assert!(!local("far"));
-}
-
-#[test]
-fn a_reference_resolves_to_a_provider_and_a_model() {
-    let values = values(
-        "[providers.deepseek]\nkeys = [{ secret = \"deepseek\" }]\n\n[models]\nchat = \"deepseek/deepseek-flash\"\n",
-    );
-    let held = held(false);
-    let knowledge = held.knowledge();
-    let found = target(&values, &knowledge, "deepseek/deepseek-flash").expect("解析得出");
-    assert_eq!(
-        (found.provider.id.as_str(), found.model.as_str()),
-        ("deepseek", "deepseek-flash")
-    );
-    let tier = target(&values, &knowledge, "flagship").expect("挡位没配退回 chat");
-    assert_eq!(tier, found);
-    assert_eq!(
-        target(&values, &knowledge, "@free"),
-        Err(NoModel(r#"no pool "free""#.to_string()))
-    );
-    assert_eq!(
-        target(&values, &knowledge, "openai/gpt-5"),
-        Err(NoModel(r#"no provider "openai""#.to_string()))
-    );
-    assert_eq!(
-        target(&values, &knowledge, "nope"),
-        Err(NoModel(
-            r#""nope" is not a model, a pool or a tier"#.to_string()
-        ))
-    );
-    assert_eq!(chat(&values).as_deref(), Some("deepseek/deepseek-flash"));
-    let empty = Values::default();
-    assert_eq!(chat(&empty), None);
-    assert_eq!(
-        target(&empty, &knowledge, "lite"),
-        Err(NoModel(NOT_CONFIGURED.to_string()))
-    );
-    assert_eq!(NOT_CONFIGURED, "no model configured: set models.chat");
 }
 
 /// 地址是环境变量的引用（施工 8-6b）：对目录认不出（手写的地址查不到字面），本机的服务也查不出来——想算本机的要自己写

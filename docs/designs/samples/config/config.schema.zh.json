@@ -64,8 +64,100 @@
           "type": "object"
         },
         "chat": {
-          "description": "新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。以后开的会话生效。",
+          "description": "新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash；也能写 @池。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。以后开的会话生效。",
           "title": "主对话的模型",
+          "type": "string"
+        },
+        "cooldown": {
+          "properties": {
+            "auth": {
+              "properties": {
+                "base": {
+                  "default": "10m",
+                  "description": "认证失败、额度用完时，整个 key 第一次停用这么久，连着再失败就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "认证失败先停用多久",
+                  "type": "string"
+                },
+                "max": {
+                  "default": "2h",
+                  "description": "整个 key 的停用翻倍到这么久为止。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "认证失败最多停用多久",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "rate_limited": {
+              "properties": {
+                "base": {
+                  "default": "30s",
+                  "description": "一个端点被限速，第一次停用这么久，连着再被限速就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "限速后先冷却多久",
+                  "type": "string"
+                },
+                "max": {
+                  "default": "10m",
+                  "description": "限速的冷却翻倍到这么久为止，供应商说要等更久的也不超过它。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "限速最多冷却多久",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "retryable": {
+              "properties": {
+                "base": {
+                  "default": "10s",
+                  "description": "连不上、服务端出错，第一次停用这么久，连着再出错就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "出错后先冷却多久",
+                  "type": "string"
+                },
+                "max": {
+                  "default": "5m",
+                  "description": "这类错的冷却翻倍到这么久为止。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "出错最多冷却多久",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "tiers": {
+          "properties": {
+            "cheap": {
+              "description": "便宜的一挡。没配的用主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
+              "title": "便宜挡",
+              "type": "string"
+            },
+            "flagship": {
+              "description": "最强的一挡。没配的用主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
+              "title": "旗舰挡",
+              "type": "string"
+            },
+            "lite": {
+              "description": "最轻、最快的一挡：她派子代理时可以选。没配的用主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
+              "title": "轻量挡",
+              "type": "string"
+            },
+            "standard": {
+              "description": "普通的一挡。没配的用主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
+              "title": "普通挡",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "vision": {
+          "description": "主对话的模型看不了图时，替它看图的模型。写法同主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
+          "title": "看图的模型",
           "type": "string"
         }
       },
@@ -79,6 +171,31 @@
           "title": "新会话开局只读",
           "type": "boolean"
         }
+      },
+      "type": "object"
+    },
+    "pools": {
+      "additionalProperties": {
+        "properties": {
+          "models": {
+            "description": "几个模型编成一组，每个写成 供应商/模型。能写：<供应商>/<模型> 的列表。只能写在系统配置或个人设置里。下一轮生效。",
+            "items": {
+              "type": "string"
+            },
+            "title": "池的成员",
+            "type": "array"
+          },
+          "strategy": {
+            "description": "一个会话一直用一个成员，还是每次请求换下一个。不写的：成员全是按次计费的轮换，别的钉住。能写：pin 或 rotate。只能写在系统配置或个人设置里。下一轮生效。",
+            "enum": [
+              "pin",
+              "rotate"
+            ],
+            "title": "池的分法",
+            "type": "string"
+          }
+        },
+        "type": "object"
       },
       "type": "object"
     },
@@ -106,6 +223,16 @@
               }
             ],
             "title": "地址"
+          },
+          "cache": {
+            "description": "这家的缓存怎么算钱。现在只用来定池不写分法时怎么分。不写照驱动的默认。能写：contract、best_effort 或 per_request。只能写在系统配置或个人设置里。下一轮生效。",
+            "enum": [
+              "contract",
+              "best_effort",
+              "per_request"
+            ],
+            "title": "缓存类别",
+            "type": "string"
           },
           "catalog": {
             "description": "这家对应资料里的哪一家，例如只转 DeepSeek 的中转写 deepseek。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。下一轮生效。",
@@ -185,7 +312,7 @@
                   "type": "array"
                 },
                 "max_output": {
-                  "description": "这个模型一次最多输出多少 token。能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。以后开的会话生效。",
+                  "description": "这个模型一次最多输出多少 token。能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。下一轮生效。",
                   "maximum": 100000000,
                   "minimum": 1,
                   "title": "最大输出",
@@ -254,7 +381,7 @@
                   "type": "boolean"
                 },
                 "window": {
-                  "description": "这个模型的上下文窗口，单位 token。能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。以后开的会话生效。",
+                  "description": "这个模型的上下文窗口，单位 token。能写：1 到 100000000 之间的整数。只能写在系统配置或个人设置里。下一轮生效。",
                   "maximum": 100000000,
                   "minimum": 1,
                   "title": "上下文窗口",

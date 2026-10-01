@@ -20,6 +20,8 @@
 //!   测试照它在进程里走一遍（施工 8-2）；
 //! - [`Login`]、[`Logout`]：`miyu login`、`miyu logout` 的参数；[`login()`]：存、列、删一次 key，交回退出码；[`login_on`]：
 //!   在连上了的连接上办一次，测试照它在进程里走一遍（施工 8-5）；
+//! - [`Setup`]：`miyu setup` 的参数；[`setup()`]：第一次接入模型，交回退出码；[`setup_on`]：在连上了的连接上走一遍；
+//!   [`model_ready_on`]：`miyu ask` 说话之前看有没有模型、没有就先走一遍（施工 8-11）；
 //! - [`language`]：给人看的话跟着界面语言。
 
 mod ask;
@@ -35,6 +37,7 @@ mod redo;
 mod rename;
 mod rpc;
 mod sandbox;
+mod setup;
 mod shown;
 mod undo;
 
@@ -47,4 +50,5 @@ pub use recap::{Recap, RecapPlan, recap, recap_on};
 pub use redo::{Redo, RedoPlan, redo, redo_on};
 pub use rename::{Rename, RenamePlan, rename, rename_on};
 pub use sandbox::{Action as SandboxAction, OwnerArgs, Sandbox, sandbox};
+pub use setup::{HeadEnv, Setup, SetupPlan, model_ready_on, setup, setup_on};
 pub use undo::{Direction, Undo, UndoPlan, undo, undo_on};

@@ -1,5 +1,5 @@
 //! 经路由请求假服务器（施工 8-6）：配置照系统配置的字读、合，供应商的地址指到假服务器，key 由测试给。模型资料（施工 8-7）
-//! 默认没有目录、读完了。
+//! 默认没有目录、读完了。说一轮、读日志里的请求记录几个测试共用（施工 8-8 从 `route.rs` 挪来，`route_pools.rs` 也用）。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -8,11 +8,17 @@ use miyu_config::merge::{Layers, merge};
 use miyu_config::parse::parse;
 use miyu_config::secret::{Reference, Secret};
 use miyu_config::{Item, Layer};
+use miyu_http::testkit::{Piece, Reply};
 use miyu_http::{Proxy, client};
+use miyu_kernel::event::{Body, ModelCalled};
 use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
-use miyu_models::settings::{ModelSettings, PriceSettings, ProviderSettings, UseSettings};
-use miyu_session::{Configs, ModelData, Observed, Routes, fixed_with};
+use miyu_models::settings::{
+    ModelSettings, PoolSettings, PriceSettings, ProviderSettings, TierSettings, UseSettings,
+};
+use miyu_session::{Configs, Handle, ModelData, Observed, Routes, fixed_with};
+
+use super::{Home, ask, say, until_turn_ends, watch};
 
 /// 模型这一块的配置项。
 pub fn items() -> Vec<Item> {
@@ -21,6 +27,8 @@ pub fn items() -> Vec<Item> {
         ModelSettings::ITEMS,
         PriceSettings::ITEMS,
         UseSettings::ITEMS,
+        TierSettings::ITEMS,
+        PoolSettings::ITEMS,
     ]
     .concat()
 }
@@ -75,4 +83,49 @@ pub fn served(base_url: &str, profile: serde_json::Value, model: &str) -> (Route
         Duration::from_secs(5),
     );
     (routes, configs)
+}
+
+/// 说「你好！」的流，`n` 份。
+pub fn hellos(n: usize) -> Vec<Reply> {
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../docs/designs/samples/drivers/openai-chat/streams/openai-text.sse");
+    let bytes = std::fs::read(&path).expect("样本读得到");
+    (0..n)
+        .map(|_| Reply::stream(vec![Piece::Bytes(bytes.clone())]))
+        .collect()
+}
+
+/// 样本的流在第 `n` 条事件之后断开：前面的照发，后面的不发。样本里事件之间是 `\r\n\r\n`（故意的 CRLF）。施工 8-9 从
+/// `http.rs` 挪来，`route_failover.rs` 也用。
+pub fn cut_after(n: usize) -> Reply {
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../docs/designs/samples/drivers/openai-chat/streams/openai-text.sse");
+    let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("读不了 {}：{e}", path.display()));
+    let mut end = 0;
+    for _ in 0..n {
+        end += bytes[end..]
+            .windows(4)
+            .position(|window| window == b"\r\n\r\n")
+            .expect("样本里有这么多条")
+            + 4;
+    }
+    Reply::stream(vec![Piece::Bytes(bytes[..end].to_vec()), Piece::Drop])
+}
+
+/// 说一句、等这一轮说完。
+pub async fn turn(handle: &Handle, command: &str) {
+    let mut pushes = watch(handle).await;
+    ask(handle, command, say("hi")).await.expect("会话在跑");
+    until_turn_ends(&mut pushes).await;
+}
+
+/// 会话日志里的每一条 `model.called`，照先后。
+pub fn called(home: &Home, handle: &Handle) -> Vec<ModelCalled> {
+    home.log(handle.id())
+        .into_iter()
+        .filter_map(|event| match event.body {
+            Body::ModelCalled(called) => Some(called),
+            _ => None,
+        })
+        .collect()
 }

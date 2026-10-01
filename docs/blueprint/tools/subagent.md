@@ -2,13 +2,13 @@
 
 ### 是什么
 
-派一个子代理去做一件事：执行器照父会话抄好属主、场所、工作目录、权限、能不能确认，造一个子会话，把交代作为父会话发来的话送进去，开它的第一轮；子会话造好、交代送到就返回编号和标题，不等它做完。它在后台跑，做完怎么回报见 `agents.md` 第二条（施工 7-6）。以前叫 `agent`：以前造的会话照旧名字调，照样派得出去（「以前的名字」）。
+派一个子代理去做一件事：执行器照父会话抄好属主、场所、工作目录、权限、能不能确认，照她选的挡位定它用哪个模型（施工 8-8），造一个子会话，把交代作为父会话发来的话送进去，开它的第一轮；子会话造好、交代送到就返回编号和标题，不等它做完。它在后台跑，做完怎么回报见 `agents.md` 第二条（施工 7-6）。以前叫 `agent`：以前造的会话照旧名字调，照样派得出去（「以前的名字」）。
 
 ### 在哪
 
 | 代码 | 管什么 |
 |---|---|
-| `crates/miyu-basesystem/src/subagent.rs` | 参数、交给端口、结果和效果；以前的名字（`formerly`） |
+| `crates/miyu-basesystem/src/subagent.rs` | 参数（`tier` 照 `miyu_models::reference::TIERS` 查，施工 8-8）、交给端口、结果和效果；以前的名字（`formerly`） |
 | `crates/miyu-tool/src/agents.rs` | 派子代理的端口 `AgentPort`（`tools/interface.md`）；名字 `SUBAGENT`、以前的名字 `SUBAGENT_FORMERLY`，`is_subagent` 两个都认 |
 | `crates/miyu-tool/src/catalog.rs` | 工具目录照以前的名字也找得到这一件（`tools/interface.md`「登记」） |
 | `crates/miyu-session/src/agents.rs` | 执行器这一头：照父会话填好子会话，经会话表的端口造出来、送交代（`session/tools.md`「派子代理」） |
@@ -19,14 +19,14 @@
 
 ### 对外的样子
 
-访问类别 `read`：派出去这一下什么都不改，子会话照父会话抄了权限，改不改由它自己的权限管。连着的只读调用一起派，所以一步里调几次，就同时派几个（`agents.md` 第一条第 4 条）；只读开着的时候也派得出去，子会话抄着只读。说明和参数的原文如下，说明照 `26-提示词.md` 附录的草稿，「它看不到这边的对话，交代要自己说得清」那一句留着。
+访问类别 `read`：派出去这一下什么都不改，子会话照父会话抄了权限，改不改由它自己的权限管。连着的只读调用一起派，所以一步里调几次，就同时派几个（`agents.md` 第一条第 4 条）；只读开着的时候也派得出去，子会话抄着只读。说明和参数的原文如下，说明照 `26-提示词.md` 附录的草稿，「它看不到这边的对话，交代要自己说得清」那一句留着。施工 8-8 加 `tier`（`models.md`「工具」）：说明、另两格一字不改，边际份量 141 → 189（`26-提示词.md` 第十节）。
 
 样本 `resources/software/basesystem/tools/subagent.json`：
 
 ```json
 {
   "description": "Start a subagent in a new session to do one task in the background; its report arrives as a message when it finishes. It sees nothing of this conversation, so the prompt must stand on its own: background, what is already known, the goal and what to report.",
-  "parameters": {"type":"object","properties":{"description":{"type":"string","description":"A short title for the task, 3 to 5 words."},"prompt":{"type":"string","description":"The task for the subagent to perform."}},"required":["description","prompt"]}
+  "parameters": {"type":"object","properties":{"description":{"type":"string","description":"A short title for the task, 3 to 5 words."},"prompt":{"type":"string","description":"The task for the subagent to perform."},"tier":{"type":"string","enum":["lite","cheap","standard","flagship"],"description":"Model tier for the task, lightest to strongest. Default: your own model."}},"required":["description","prompt"]}
 }
 ```
 
@@ -34,8 +34,9 @@
 |---|---|---|
 | `description` | 是 | 短标题：记进 `job.started` 的 `title`，头显示用，不交给子会话 |
 | `prompt` | 是 | 整段交代：原样送进子会话，不加包装 |
+| `tier` | 否 | 挡位：`lite`、`cheap`、`standard`、`flagship` 之一（施工 8-8，名单只在 `miyu_models::reference::TIERS`）。交给端口，执行器照父会话这一轮的配置解析成子会话的模型（没配的是 `models.chat`）；不写、写 `null` 的，子会话用父会话这时用的（`models.md`「怎么走」第三条第 4 条） |
 
-- 别的参数不认，也不报错。挡位、人格、预设三个参数随配置和预设那一步（「还没有的」）。
+- 别的参数不认，也不报错。人格、预设两个参数随配置和预设那一步（「还没有的」）。
 - 一条路径都不报：权限策略照访问类别判，读的放行（`session/guard.md`）。
 - 只有能派子代理的会话工具面里有它：在本机（场所 `local`）、还没到深度上限（`jobs.depth`，`agents.md`「对外的样子」）。场所会话、到了上限的会话造会话时就拿掉它，她调了照没有这件工具拒掉（`kernel/tools.md`）。
 
@@ -49,9 +50,9 @@
 
 ### 怎么走
 
-1. 读参数：读不成的（少了哪一个、不是字符串），交回参数不对的那一句，端口一次都不问。
+1. 读参数：读不成的（少了哪一个、不是字符串，`tier` 不是四个挡位之一：原话照 `serde` 的 `unknown variant`，列出能写的几个），交回参数不对的那一句，端口一次都不问。
 2. 这一次调用没有派子代理的端口（`Call.agents` 是空的：测试里的假调用，没装会话表的核心）：交回派不了。
-3. 交给端口 `spawn(description, prompt)`：执行器领一个任务编号，造子会话，把交代送进去（`session/tools.md`「派子代理」）。端口说派不了的，交回派不了；原因执行器已经记进运行日志，不给她看。
+3. 交给端口 `spawn(description, prompt, tier)`：执行器领一个任务编号，照挡位定子会话的模型，造子会话，把交代送进去（`session/tools.md`「派子代理」）。端口说派不了的，交回派不了；原因执行器已经记进运行日志，不给她看。
 4. 派出去了：交回派出去了那一句，效果报一条 `job.started`：`job` 是端口交回的编号，`what` 是 `agent`，`title` 是 `description` 原样，`session` 是子会话的编号（`kernel/events-bodies.md`）。
 5. 不看叫停的旗：端口一下就返回。被掐掉的时候子会话可能已经造好了：它照样跑，父会话的日志里没有这一次的 `job.started`（撤销、停掉随 7-8）。
 
@@ -93,8 +94,9 @@ Started subagent j1: "查导出".
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-basesystem/tests/subagent.rs` | 只声明标题和交代、访问类别是读、说明里那一句在；交给端口的原样，交回的字和 `job.started`；没有端口、端口派不了的交回派不了、不报效果；少了参数的端口不问；两种说法两种语言都换得出字；`subagent`、`agent` 两个显示名三种语言里都在、一样 |
+| `crates/miyu-basesystem/tests/subagent.rs` | 声明标题、交代和挡位（`enum` 和 `TIERS` 一样，施工 8-8）、访问类别是读、说明里那一句在；挡位四个都交给端口、不写和 `null` 交没有、写错的照参数不对端口不问；交给端口的原样，交回的字和 `job.started`；没有端口、端口派不了的交回派不了、不报效果；少了参数的端口不问；两种说法两种语言都换得出字；`subagent`、`agent` 两个显示名三种语言里都在、一样 |
 | `crates/miyu-session/tests/spawn.rs` | 执行器交给会话表的子会话抄对了每一样、交代记成父会话发的；一步里调两次派两个、各领各的编号；领了没派成的不回收、载入以后接着数；没有会话表的派不了；什么会话工具面里有 `subagent`、新会话里没有 `agent`（`session/tools.md`） |
+| `crates/miyu-session/tests/spawn/tier.rs` | 子会话的模型：挡位照父会话这一轮的配置解析，不写的抄父会话的（施工 8-8） |
 | `crates/miyu-session/tests/spawn/renamed.rs` | 以前的名字：新会话调 `agent` 照没有的工具拒掉；拿改名以前的目录造的会话换现在的核心载入，工具面一个字节不变、调 `agent` 照样派得出去；两张工具面只差名字和它带来的先后 |
 | `crates/miyu-endpoint/tests/orphans.rs` | 改名以前造的父会话，派到一半的空子会话照样收掉 |
 | `crates/miyu-tool/src/catalog/tests.rs` | 目录照以前的名字找得到、以前的名字不进工具面、撞名的登记不上 |
@@ -110,4 +112,4 @@ Started subagent j1: "查导出".
 
 ### 还没有的
 
-- `tier`、`persona`、`preset` 三个参数：随配置和预设那一步，加的时候工具面变一次（`15-模型与供应商.md`、`16-人格与预设.md`）。
+- `persona`、`preset` 两个参数：随配置和预设那一步，加的时候工具面变一次（`16-人格与预设.md`）。`tier` 施工 8-8 加了。

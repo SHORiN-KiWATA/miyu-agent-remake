@@ -37,7 +37,9 @@
 //! - 回报：对不上的拒绝、不理；闲着时开一轮还是只记下，正忙时排着、回合结束时接着开，恢复撤销以后接着开（施工 7-2，
 //!   `watch/reports.rs`、`random/reporting.rs`）；
 //! - 别的会话发来的话：防刷屏照规矩拒，收下的照回报的规矩叫不叫醒她（施工 C-2，`watch/peers.rs`、`random/peering.rs`）；
-//!   空了的通知：在等的才收，作废照时刻，叫不叫醒照原因（施工 C-6）。
+//!   空了的通知：在等的才收，作废照时刻，叫不叫醒照原因（施工 C-6）；
+//! - 换模型：一样的不记，不一样的记一条，回合开始交的是会话的引用，退回默认的对得上才记、记在注入前面；熔断只看换过去
+//!   以后的（施工 8-10，`watch/configure.rs`、`random/configuring.rs`）。
 //!
 //! 每一步还照九条不变量查（`watch/invariants.rs`，`02-内核.md` 第九节「不变量怎么查」）。
 //!
@@ -46,6 +48,7 @@
 
 mod asking;
 mod compacting;
+mod configuring;
 mod endings;
 mod kinds;
 mod naming;
@@ -200,7 +203,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
             delta: watch.some_delta(rng),
         },
         20 | 21 => {
-            let (error, wait_ms) = some_ending(rng);
+            let (error, wait_ms, failover) = some_ending(rng);
             Input::ModelEnded {
                 at: at(45),
                 seen: watch.some_seen(rng),
@@ -208,6 +211,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
                 error,
                 wait_ms,
                 excess: None,
+                failover,
             }
         }
         22 => progress(watch.some_call(rng)),
@@ -322,6 +326,8 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let (mut recaps, recapping) = (Rng(seed ^ 0x2EC4_9A00), seed % 4 == 1);
         // 五个种子里有一个、一次性的会话不重做（施工 4-7 再补）：重做占掉闲着的时候，回报闲着时开一轮、没人看着只记下难得走到。
         let (mut redos, redoing) = (Rng(seed ^ 0x2ED0_2ED0), seed % 5 != 2 && !oneshot);
+        // 四个种子里有一个换模型（施工 8-10）：另一串随机数、另一串命令编号，挂接点的结果偶尔带着退回。
+        let (mut models, configuring, mut model_ids) = (Rng(seed ^ 0x30DE_1000), seed % 4 == 2, 0);
         for _ in 0..300 {
             // 有回顾在路上的不崩：崩了它就丢了，等着的命令收不到回应（施工 3-8 四补）。
             if watch.all_stored() && crashes.below(200) == 0 && watch.recaps_idle() {
@@ -373,7 +379,15 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
             if recapping && let Some(input) = some_recap(&mut recaps, &watch, &mut next_id) {
                 watch.feed(&mut session, input);
             }
-            let input = some_input(&mut rng, &mut watch, &mut next_id);
+            if configuring
+                && let Some(input) = configuring::some_configure(&mut models, &mut model_ids)
+            {
+                watch.feed(&mut session, input);
+            }
+            let mut input = some_input(&mut rng, &mut watch, &mut next_id);
+            if configuring {
+                input = configuring::with_fallback(&mut models, &watch, input);
+            }
             watch.feed(&mut session, input);
         }
         if let Some(input) = read_back_now(&watch) {

@@ -11,6 +11,7 @@
   config <命令>         看配置、改配置、信任项目配置
   login [名字]          存一个供应商的 key；--list 列出哪几家设了
   logout [名字]         删掉一个供应商的 key
+  setup                 接上第一个模型：找现成的 key，试通了写进配置
   sandbox setup|remove  装好、撤掉沙盒用户（Windows，要管理员权限）
 
 ask 的选项：
@@ -21,6 +22,7 @@ ask 的选项：
       --file <文件>       附上一个文件，图片、PDF、文本都行，可以写好几次
       --timeout <时长>    最多等多久，到了就不等了：30s、10m、1h
       --from <名字>       别的 harness 用：写上它的名字，例如 claude-code
+      --model <模型>      用这个模型说；接着的会话以后都用它
 
 undo、restore、redo、compact、recap、rename 的选项：
   -s, --session <编号>  哪个会话；不写就是上一次 miyu ask 开的

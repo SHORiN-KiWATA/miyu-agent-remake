@@ -12,7 +12,7 @@
 |---|---|
 | `crates/miyu-endpoint/src/lib.rs` | `Core`：核心的家底（数据根、资源目录、请求模型的端口、工具目录、系统的家目录、沙盒的助手（施工 5-4 上）、管理员、本机令牌、会话表、配置（施工 8-2））；数着几个连接；空不空闲；停下全部会话 |
 | `crates/miyu-endpoint/src/listen.rs` | `run`：在监听器上一个个接连接 |
-| `crates/miyu-endpoint/src/connection.rs` | `serve`：一个连接，读写分开；握手以前拦住；`subscribe`（回应带会话的限额；带 `after` 的先补发，施工 3-8 六补）、`unsubscribe` |
+| `crates/miyu-endpoint/src/connection.rs` | `serve`：一个连接，读写分开；握手以前拦住；`subscribe`（回应带会话的限额、接下来请求的模型（施工 8-10）；带 `after` 的先补发，施工 3-8 六补）、`unsubscribe` |
 | `crates/miyu-endpoint/src/wire.rs` | 读一行、认成请求、回应写成一行 |
 | `crates/miyu-endpoint/src/hello.rs` | 握手 |
 | `crates/miyu-endpoint/src/methods.rs` | 握手以后的方法 |
@@ -34,7 +34,8 @@
 | `crates/miyu-endpoint/src/settings.rs` | 端点的配置项：界面语言 `ui.language`，`auto` 照系统的语言算出 `zh`、`en`、`ja`（施工 8-1 声明，8-2 握手时用）；新会话开局只读 `permission.start_read_only`（施工 8-2） |
 | `crates/miyu-endpoint/src/config.rs`、`config/` | 配置服务：起来时读的几份配置、最终值，照目录找项目配置、认信不信任；`config.schema`、`config.get`、`config.check`（施工 8-2，`config.md`）；`config.set`、`config.trust`，住在核心家底的一把锁里（施工 8-3）；监视配置文件、推 `config.changed`（施工 8-4）；密钥文件也住在这里（施工 8-5） |
 | `crates/miyu-endpoint/src/secrets.rs`、`secrets/` | `secret.set`、`secret.delete`、`secret.list`：只能写、删、列名字，从不交出值；手改密钥文件被看到的、留痕（施工 8-5，`config.md` 第九条） |
-| `crates/miyu-endpoint/src/models.rs`、`models/` | `model.list`：配好的供应商、模型、每一格资料的值和来源（施工 8-7，`models.md`「协议」） |
+| `crates/miyu-endpoint/src/models.rs`、`models/` | `model.list`：配好的供应商、模型、每一格资料的值和来源（施工 8-7，`models.md`「协议」），池、挡位、用途（施工 8-8），模型和 key 的冷却（施工 8-9）；`session.create`、`session.configure` 的 `model` 怎么解析（`record`，施工 8-8、8-10）；`session.configure` 的参数、`subscribe` 回应的 `model`（施工 8-10） |
+| `crates/miyu-endpoint/src/providers.rs`、`providers/trial.rs` | 第一次接入的 `provider.detect`、`provider.catalog`、`provider.test`（施工 8-11，`models.md`「协议」、「怎么走」第七条）；探本机、试一次在会话那一层（`miyu_session::find_local`、`probe`） |
 
 ### 对外的样子
 
@@ -129,7 +130,10 @@
 | `job.stop` | 停掉一个后台命令或者子代理（施工 7-4） |
 | `job.output` | 读一条后台命令到这时为止的输出（施工 7-4 补） |
 | `blob.put` | 传一个附件，存成 blob（施工 3-9 三补） |
+| `fs.list` | 列一层目录：数据根只有账号自己的工作区能列（施工 W-2） |
+| `fs.find` | 在一个目录里模糊找文件：数据根只有账号自己的工作区能找（施工 W-2） |
 | `session.set_meta` | 改标题、置顶（施工 3-8 三补） |
+| `session.configure` | 换模型，下一个回合开始生效（施工 8-10，`models.md`「协议」） |
 | `session.delete` | 删除会话：挪进回收处，留 7 天（施工 3-8 三补） |
 | `config.schema` | 配置清单，名字和说明照这个连接的语言（施工 8-2，`config.md`「协议」） |
 | `config.get` | 最终值和来源，每一份文件在哪、版本，现在的全部问题；带 `cwd` 的算上那个目录的项目配置（施工 8-2）。`files` 多 `secrets`，只有 `file`；问题里有密钥文件的、引用取不到的（施工 8-5） |
@@ -139,7 +143,11 @@
 | `secret.set` | 写入或者换掉一个密钥（`name`、`value`），落了盘、记了日志才回应 `{"replaced"}`（施工 8-5，`config.md`「协议」） |
 | `secret.delete` | 删掉一个密钥（`name`），回应 `{}`（施工 8-5） |
 | `secret.list` | 密钥的名字、设没设、谁在用（`used_by`），从不交出值（施工 8-5） |
-| `model.list` | 配好的供应商和模型，每一格资料的值和来源、状态，在用的目录（施工 8-7）。参数 `provider`（只看这一家）、`refresh`（先拉一遍供应商的模型列表）都可以不写；形状照 `models.md`「协议」`model.list` |
+| `model.list` | 配好的供应商和模型，每一格资料的值和来源、状态，在用的目录（施工 8-7）；池、四个挡位、两种用途（施工 8-8：`pools`、`tiers`、`uses` 多 `vision`）；模型、key 的状态多 `cooling`，带 `until`、`class`（施工 8-9）。参数 `provider`（只看这一家）、`refresh`（先拉一遍供应商的模型列表）都可以不写；形状照 `models.md`「协议」`model.list` |
+| `provider.detect` | 找现成的：核心的环境里设了的 key（不交值）、本机跑着的模型服务、找了哪些环境变量（施工 8-11）；形状照 `models.md`「协议」 |
+| `provider.catalog` | 搜目录和档案里的供应商：`query`、`limit` 都可以不写；每一家能不能用、在不在本机（施工 8-11） |
+| `provider.test` | 试一家：配好了的（`provider`）或者还没写进配置的（`candidate`），列模型、真发一句、收到第一段正文就停，交回成没成、哪一步、出错；会花一点额度（施工 8-11） |
+| `human.get` | 给人看的字：工具的样子、说法的模板原文，照这个连接的语言；不带 `config`（施工 W-1） |
 | `subscribe`、`unsubscribe` | 订阅、取消订阅会话的事件流 |
 
 带 `session` 的，它要合会话编号的写法：UUID 的标准写法，小写十六进制，8-4-4-4-12；不合的 `bad_params`。找会话照下面「会话表」。
@@ -152,6 +160,7 @@
 | `cwd` | 字符串，必写 | 头的工作目录，人看到的那种写法，例如 `~/src/miyu` |
 | `oneshot` | 布尔，不写是 `false` | 一次性的：`miyu ask` 开的写 `true`，记进 `session.created` |
 | `dirs` | 字符串的数组，可以不写 | 加进来的目录：和工作区一样能读能写（「加进来的目录」（施工 5-10 上））。不写是没有 |
+| `model` | 字符串，可以不写 | 用哪个模型：模型 `<供应商>/<模型>`、池 `@<池>` 或者挡位（施工 8-8，`models.md`「三种写法」）。照这时的配置解析好（挡位换成它的值），记进 `session.created` 的 `model`；不写、写 `null` 的照这时的 `models.chat`，那也没配的不写 |
 
 回应：`session` 新会话的编号；`events` 是 `[1]`，就是 `session.created` 那一条；`cwd` 是会话实际在哪个目录里干活（「工作目录太宽」）；`untrusted_project`：这个目录找得到项目配置、又还没问过信不信任（`trust.toml` 里没有这个仓库，或者记的内容和现在的不一样），写它在哪，写法同配置来源的 `file`（家目录下的写成 `~/…`）。信任着的、选了不信任的、没有项目配置的不写（施工 8-2，`config.md` 第三条第 2 条）。
 
@@ -159,7 +168,8 @@
 2. 属主是管理员，场所是 `local`，权限从「工作区」开始，只读照 `permission.start_read_only` 的最终值：照实际干活的目录算，带上信任着的项目配置（施工 8-2，`config.md` 第二条第 9 条），没写的是不只读；有没有人能确认，照这个连接握手时的 `caps.input`；环境是核心所在机器此刻的时区偏移（到分钟）和实际干活的目录。
 3. `session.created` 落了盘才回应。
 4. 同一个命令编号再发：记着最近 1024 个造会话的编号，是其中之一的，交回上一次造的那一个，不再造；`cwd` 照这一次报的算。核心重启以后，第一次造会话时，从最新的 1024 个会话的 `session.created` 里把编号补回来（它的 `cause` 就是造会话的命令编号，施工 4-9 再补三上），在阻塞线程里读。
-5. 人格的编号不合写法（小写英文字母开头，只有小写字母、数字、`-`、`_`，最长 64 字节）：`bad_params`。人格的目录 `personas/<编号>/` 不存在：`unknown_persona`。资源目录里别的读不了（人格目录里的文件、随核心附带的 `core/` 下的字，安装坏了）：`internal_error`（施工 4-9 再补三上）。别的造不成（策略造不出来、磁盘上建不成、`session.created` 没落盘）：`internal_error`，原因记进运行日志。
+5. `model` 不是字符串：`bad_params`。解析不出（没有这家供应商、没有这个池、池里一个成员都认不出、挡位没配又没有 `models.chat`）：`unknown_model`，什么都不造（施工 8-8，`models.md`「协议」）。先解析再找同一个命令编号造过的。
+6. 人格的编号不合写法（小写英文字母开头，只有小写字母、数字、`-`、`_`，最长 64 字节）：`bad_params`。人格的目录 `personas/<编号>/` 不存在：`unknown_persona`。资源目录里别的读不了（人格目录里的文件、随核心附带的 `core/` 下的字，安装坏了）：`internal_error`（施工 4-9 再补三上）。别的造不成（策略造不出来、磁盘上建不成、`session.created` 没落盘）：`internal_error`，原因记进运行日志。
 
 **`session.list`**
 
@@ -231,6 +241,43 @@
    3. 别的：`media_type` 写了的照写的，只是写成 `application/pdf`、`image/…` 的不算（驱动照它们把内容当 PDF、当图发，内容不是，供应商会拒）；没写、不算的，整份是 UTF-8、没有 NUL 字节的是 `text/plain`（和驱动认文本文件是同一条，`drivers/openai-chat.md` 第 9 条），别的 `application/octet-stream`。扩展名不认：头知道得更准的（例如浏览器给的类型）自己写 `media_type`（施工 3-9 三补定：扩展名的表是一份写死的名单，驱动给模型看的只有文件名和内容，用不上它）。
 5. 存成管理员的 blob（`store.md` 第九条），落了盘才回应；同一份内容再传，还是那一个 blob。存不下来：`internal_error`，记一条运行日志。
 6. 不碰会话，没有命令编号的去重：内容一样，存几次都是同一个。传了没发的留在 blob 里，随存储的回收那一步清。
+
+**`fs.list`**（施工 W-2，`web-module.md`「三、列文件、找文件」）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `cwd` | 字符串，必写 | 相对的路径照它接：绝对路径，或者 `~`、`~/…`，头报的那种写法 |
+| `dir` | 字符串，不写是 `""` | 打的那一截目录：`~` 打头的照家目录，绝对的照原样，别的照 `cwd` |
+| `prefix` | 字符串，不写是 `""` | 名字的开头 |
+
+回应 `{"items": […], "partial": <布尔>}`：`items` 每一条 `{"dir": <布尔>, "full": <绝对路径>, "marks": [<第几个字>…], "path": <列表上写的>, "size": <字节数>}`，`size` 只有文件才有；`partial` 列没列全。
+
+```json
+{"building":false,"items":[{"dir":false,"full":"<家目录>/src/miyu/src/main.rs","marks":[4,5,6,7],"path":"src/main.rs","size":2048}],"partial":false}
+```
+
+1. `cwd` 照 `fs.md` 换成真实的位置（`~` 照家目录接），要是一个目录。换不成、不在、不是目录：`path_unreadable`。落在数据根里、又不在这个账号的工作区里：`path_forbidden`。
+2. `dir` 照上面的参数表接好、换成真实的位置，只读那一层；同样要是一个目录、同样落进「谁都不能碰」那一片的 `path_forbidden`。
+3. 名字照开头对 `prefix`，大小写不论。点开头的藏起来，`prefix` 以 `.` 开头才列。目录在前、文件在后，各照名字排（大小写不论）。目录的 `path` 后面带 `/`。最多 50 条，多了截掉、`partial` 是 `true`。`marks` 是 `path` 的前几个字，`prefix` 有几个字就几个。
+4. 这一层里有东西落进了「谁都不能碰」那一片的（例如往上列到数据根的上级，列出来的一层恰好含着数据根自己），单单那一条不列，旁边的照样列。
+5. `full` 照平台的写法（Windows 上是 `C:\…`）；`size` 照文件现在的大小，读不出来的不写。
+
+**`fs.find`**（施工 W-2，`web-module.md`「三、列文件、找文件」）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `cwd` | 字符串，必写 | 在哪个目录里找，写法同上 |
+| `query` | 字符串，不写是 `""` | 打的字 |
+| `fresh` | 布尔，不写是 `false` | 头开列表时写 `true`：清单建好 10 秒以上的重建 |
+
+回应同 `fs.list`，另有 `building`：清单还在建。
+
+1. `cwd` 照 `fs.list` 第 1 条换、查边界。
+2. 在 `cwd` 里建一份清单：`ignore` 库，和核心的 `glob`、`grep` 同一套，认 `.gitignore`（不要求是 git 仓库），跳过隐藏目录和出厂名单里的 `node_modules`、`target`，跳过数据根（工作区除外，工作区常常就在数据根里面），不跟链接；最深 8 层，最多 20000 个，收满就停、`partial` 是 `true`。`path` 是相对 `cwd` 的，用 `/` 连，目录后面带 `/`。
+3. 清单在后台线程里建，不挡别的请求。还没建完，照已经建好的那一部分答，`building` 是 `true`；头隔 200 毫秒再问，直到 `false`。
+4. 什么时候重建：这个目录还没有清单；`fresh` 是 `true`、清单建好 10 秒以上。核心最多记 4 个目录的清单，多了丢最久没用的。同一个目录同时来两次，第二次拿到第一次那一份。
+5. 怎么排：打的字照先后都在 `path` 里（大小写不论）才列。先试整个落在文件名里，落不下再从路径开头找；每个字对上 1 分，落在文件名里多 3 分，在一段的开头（路径的头一个字，或者前面是 `/`、`-`、`_`、`.`、空格）多 8 分，和上一个字连着多 5 分；文件名去掉扩展名正好是打的字多 100 分。分高的在前，一样的路径短的在前，再一样的照字排。最多 50 条，对得上的比截出来的还多也算 `partial`。`query` 是空的都对得上、0 分。
+6. 建清单时读不了一层目录的（没有权限这类），跳过它接着建，不算整份失败。
 
 **`session.interrupt`**
 
@@ -357,6 +404,24 @@
 7. 这个会话没派过这个任务（不认识的种类也算）：`unknown_job`，和 `job.stop` 同一个原因码。是子代理的：`not_a_command`，它说了什么，头订阅它的子会话看（`agents.md`）。
 8. 谁能读照 `job.stop`：现在连上来的只有管理员（「还没有的」）。
 
+**`human.get`**（施工 W-1，`web-module.md`「二、给人看的字」）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `language` | 字符串，可以不写 | 2 到 8 个小写字母，例如 `zh`。不写照这个连接的语言（握手回应的 `language`） |
+
+回应：`{"language": <语言>, "said": {<说法的编号>: <模板>}, "tools": {<工具名>: <样子>}}`。查询，不改会话：不推送。例子（格照名字的字母先后排）：
+
+```json
+{"id":"h1","jsonrpc":"2.0","result":{"language":"zh","said":{"core/tool-results/unattended":"要确认，这里没人能确认"},"tools":{"read":{"icon":"→","name":"读取","subject":"file_path"}}}}
+```
+
+1. 每次现读资源目录，照 `store/resources.md`「怎么走」第 3 条的读法：先读内核的 `core/human/<语言>.json`，再照名字的先后读 `software/` 下每个软件包的 `human/<语言>.json`，哪一份没有这种语言照英文。开发时改了资源，下一次调就是新的，不用重启核心。在阻塞线程里读。
+2. `tools` 合成一张，软件包盖掉内核的同名工具；`said` 的编号前面加上它在资源目录里的位置（`core/…`、`software/<包>/…`），模板原样给、一个字不换：换字段是头的事，照 `store/resources.md`「怎么走」第 4 条，控制字符换成 `�`。
+3. 不给 `config` 那一格：配置的名字、说明在 `config.schema` 里。
+4. `language` 不合写法：`bad_params`。读得到却读不懂：`internal_error`，记一行 `WARN human not read error=…`，写明是哪一份。
+5. 回应的 `language` 是要的那一种；哪一份退回了英文，回应里不分，和 `miyu ask` 读到的一样。
+
 **`session.set_meta`**（施工 3-8 三补，`kernel/session.md`「改标题、置顶」）
 
 | 参数 | 类型 | 说明 |
@@ -373,6 +438,21 @@
 4. 还剩的记一条 `session.meta_changed`，只写还剩的那几格；去掉标题写成 `"title":""`（`kernel/events-bodies.md`）。`by` 取自连接，`cause` 是这一条的 `id`，回合进行中改的带上这个回合；落了盘才回应。改名不影响回合：标题、置顶不进请求。
 5. 先找会话，找不到的回的是找不到；没在跑的照「会话表」载入。
 6. **内核自己起的标题**（施工 3-8 五补，`kernel/session.md`「起标题」）：没起名的会话一轮答完，核心单独发一次起标题的请求，起好了也记成 `session.meta_changed`（只写 `title`），推给订阅着这个会话的头，前面紧跟着那一次请求的 `model.called`（`purpose` 是 `title`）；两条都是 `by` 内核，没有 `cause`、不带 `turn`。和人改的一样出现在 `session.list` 里。人起过名、去掉过的会话不起，子会话、一次性的会话不起。头分得出是谁起的：看 `by`。协议的形状没变，只是 `session.meta_changed` 多了由内核起的这一种。
+
+**`session.configure`**（施工 8-10，`models.md`「协议」「怎么走」第六条，`kernel/session.md`「换模型」）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `session` | 字符串，必写 | 哪个会话 |
+| `model` | 字符串，必写 | 换成的模型 `<供应商>/<模型>`、`@池` 或者挡位（`models.md`「三种写法」） |
+
+回应：`{}`。换了没有，看推送里的 `session.policy_changed`。
+
+1. `model` 没写、不是字符串、是空字（`""`）的：`bad_params`，不找会话；`session` 不合写法的也是。
+2. 先找会话，找不到的回的是找不到；没在跑的照「会话表」载入。再照这时不算项目配置的最终值解析（和 `session.create` 的 `model` 一样，挡位换成它这时的值）：解析不出的 `unknown_model`，什么都不记，原话记一行 `DEBUG unknown model`。
+3. 和会话现在的引用一样的：什么都不记，照样回 `{}`。不一样的记一条 `session.policy_changed`，只写 `model`，`by` 取自连接，`cause` 是这一条的 `id`，回合进行中换的带上这个回合；落了盘才回应。
+4. 下一个回合开始时生效，一轮里前后一致；撤掉的回合里换的也算。生效的那一刻，订阅着的头收到 `model.changed`（`why` 是 `turn`），之后的 `subscribe` 带新的 `model`、限额。
+5. 以后别的临时开关（`04-核心协议.md` 第九节）加进来也是这个方法，那时参数至少写一个。
 
 **`session.delete`**（施工 3-8 三补，`store.md` 第 12 条，`agents.md` 第七条第 5 条）
 
@@ -400,7 +480,9 @@
 | `stream` | 字符串，必写 | `events` 会话的事件流；`config` 配置的推送（施工 8-4，`config.md`「订阅配置的推送」）。别的 `bad_params` |
 | `after` | 非负整数，可以不写 | 只有 `subscribe` 的 `events` 认（施工 3-8 六补，`config` 写了 `bad_params`）：先补发日志里序号大于它、落了盘的事件，`0` 是从头。见下面「补发」 |
 
-回应：`config` 的都是 `{}`。`subscribe` 的是 `{"limits": <限额>}`，写了 `after` 的多一格 `upto`（补到哪一条）：`{"limits": <限额>, "upto": <序号>}`。`unsubscribe` 的是空对象 `{}`。
+回应：`config` 的都是 `{}`。`subscribe` 的是 `{"limits": <限额>, "model": <模型>}`，写了 `after` 的多一格 `upto`（补到哪一条）：`{"limits": <限额>, "model": <模型>, "upto": <序号>}`。`unsubscribe` 的是空对象 `{}`。
+
+**模型** `model`（施工 8-10，`models.md`「协议」）：会话接下来请求的。`ref` 是会话的引用（模型或 `@池`），`endpoint`、`model` 是接下来发给哪一家的哪个模型；轮换的池（每次都换）、解析不出的没有 `endpoint`、`model`，没配 `models.chat` 的会话没有 `ref`。一个都没有的不写这一格。回合开始重新解析过的、出错换了成员的是换了以后的。
 
 **限额** `limits`：会话实际用的模型给这个会话多少地方（施工 6-3 补）。两格都是 token 数，没有的不写，从不写 `null`；两格都没有就是 `{}`。
 
@@ -409,21 +491,21 @@
 | `window` | 非负整数，可以没有 | 上下文窗口。模型的资料没报的没有（`compaction.md`「对外的样子」模型的资料） |
 | `compaction_line` | 非负整数，可以没有 | 压缩线：用量过了它，发下一次请求之前自动压（`compaction.md` 第二条第 2 条）。没有窗口的、窗口太小算不出正数的没有 |
 
-例子：核心照 DeepSeek 的资料，窗口 1000000、最大输出 393216，压缩线 = 1000000 − min(393216, 20000) − 13000：
+例子：会话照 `models.chat` 记下 `deepseek/deepseek-v4`，核心照 DeepSeek 的资料，窗口 1000000、最大输出 393216，压缩线 = 1000000 − min(393216, 20000) − 13000（键照字母先后排）：
 
 ```json
-{"id":"c2","jsonrpc":"2.0","result":{"limits":{"compaction_line":967000,"window":1000000}}}
+{"id":"c2","jsonrpc":"2.0","result":{"limits":{"compaction_line":967000,"window":1000000},"model":{"endpoint":"deepseek","model":"deepseek-v4","ref":"deepseek/deepseek-v4"}}}
 ```
 
-模型的资料没报窗口的：`{"id":"c2","jsonrpc":"2.0","result":{"limits":{}}}`。
+模型的资料没报窗口的：`{"id":"c2","jsonrpc":"2.0","result":{"limits":{},"model":{…}}}`。
 
 1. 订阅：从这一刻起的推送都转给这个连接。不写 `after` 的，以前的不补。没在跑的会话先载入。
 2. 不写 `after` 的：这个连接已经订阅着这个会话、还在推的，还是那一个，回应照样带限额；停了推的（掉了队、会话停了），换一个新的。写了 `after` 的总是换一个新的（「补发」第 6 条）。
 3. 取消订阅：停掉转发。不载入会话，没订阅过的也回 `{}`。
 4. 不写 `after` 的，订阅的回应不排在推送后面：会话正忙的，回应之前可能已经有这个会话的推送。写了 `after` 的排在补发的后面（「补发」第 2 条）。
-5. 限额是造会话、载入时定的：会话 actor 把模型的限额交给内核以后，向内核要一份（`kernel/session.md` 的 `context_limits()`），`Handle` 带着它（`session/actor.md`）。会话里不变：一个核心只有一个模型，策略冻结在会话上。
+5. 限额、模型是造会话、载入时定的：会话 actor 把模型的限额交给内核以后，向内核要一份（`kernel/session.md` 的 `context_limits()`），连同端口的引用和接下来发给谁，`Handle` 带着它（`session/actor.md`）。会话中途会变：钉住的池出错换了成员、成了以后（施工 8-9），回合开始重新解析换了模型、钉着的没了、配置改了窗口的（施工 8-10），`Handle` 跟着换，之后的 `subscribe` 交新的，订阅着的头收到一条 `model.changed`（`models.md`「瞬时事件」，`why` 是 `failover` 或 `turn`）。
 6. 压缩线由内核算好，和它自己判到线用的是同一条；头照 `window` 画「用量 / 窗口」、照 `compaction_line` 算离压缩还有多少，不照公式自己算（公式里的输出预留、余量在策略里）。
-7. 限额不进日志，也不推瞬时事件：头每次接进来（造完会话、中途接进一个在跑的会话、掉了队重新订阅、核心重启以后）都经 `subscribe`，从回应里拿（为什么见 `04-核心协议.md` 第九节「先做的几样怎么写」）。
+7. 限额不进日志：头每次接进来（造完会话、中途接进一个在跑的会话、掉了队重新订阅、核心重启以后）都经 `subscribe`，从回应里拿（为什么见 `04-核心协议.md` 第九节「先做的几样怎么写」）；接着的时候变了的，照推过来的瞬时 `model.changed` 换（施工 8-9）。
 8. 订阅着就算这个头在看着这个会话（施工 7-9）：一次性的会话没有头订阅着，回报只记下、不叫醒她（`agents.md` 第三条第 3 条）。取消订阅、连接断了，就不算了；会话 actor 数着拿着订阅的头（`session/actor.md` 第 3 条），不进日志，协议上不另说。头要知道还有几个子代理没报、叫醒的那一轮会不会来，照推过来的事件自己数（`job.started`、`child.reported`、`job.messaged`，`cli/ask.md`「等子代理」），协议不另给：施工 7-9 照最简单、不加协议定。
 
 **补发**（施工 3-8 六补，`04-核心协议.md` 第六节第 9 条、第七节）
@@ -434,7 +516,7 @@
    例子：日志里有 42 条，头看到第 30 条掉了线，重连以后 `{"session": …, "stream": "events", "after": 30}`：先推第 31 到 42 条，再是回应 `{"id":"c2","jsonrpc":"2.0","result":{"limits":{},"upto":42}}`，之后从第 43 条接着推。
 2. 补的都在回应之前到（「先见结果，后见回应」）：回应交给新订阅的转发任务，排在补的后面。补完到回应之间，可能已经有新推的。
 3. `after` 不比 `upto` 小的，什么都不补，照常推新的；`upto` 照样是日志里最后一条，比 `after` 小的，是头记的比日志还多。
-4. 只补落了盘的：瞬时事件（`model.delta`、`tool.progress`、`status`）没有序号，不补。撤销、压缩、清空、撤回的事件照原样补，头照有效历史自己算怎么画（视图投影随 M9）。
+4. 只补落了盘的：瞬时事件（`model.delta`、`tool.progress`、`status`、`model.changed` 这些）没有序号，不补。撤销、压缩、清空、撤回的事件照原样补，头照有效历史自己算怎么画（视图投影随 M9）。
 5. 补的那一截和新的订阅在会话 actor 的同一步里拿（`session/actor.md` 第 6 条）：那一步之前落了盘的都推过了，之后的都还没推。读日志不占 actor：端点在这个连接上读完这一截（阻塞线程里一次读完，不分批：载入会话本来就整份读进内存，照最简单的做），交给转发任务先写；读的时候会话照常跑，新推的攒在这个订阅里。这个连接上的下一条请求，等读完才办（「一个连接」第 1 条）。
 6. 写了 `after` 的总是换一个新的订阅。这个连接原来订阅着这个会话的，先不再交回应给它，等它把手里的推送、回应都放进写队列，补的才开始写：两段不交错。新的订阅拿到了才放下旧的，这个头一直算看着（`subscribe` 第 8 条）。旧的推过、补的又补了的，序号是重的：头照序号认，补的是回应之前、从 `after + 1` 起连着到 `upto` 的那一段。
 7. 补的走同一个订阅，受同一个限：会话给每个订阅最多攒 1024 份（「慢和掉队」）。一次补得多、头读得慢、会话同时推得多的，照样掉队、推 `resync`，头带上最后看到的序号再来。
@@ -452,7 +534,7 @@
 
 推送的事件不都由这个连接的命令引起：内核自己起的标题（`session.set_meta` 第 6 条，施工 3-8 五补）一轮答完以后自己来，没有 `cause`。
 
-`event` 里的事件照原样嵌进去：落了盘的照 `kernel/events.md` 的写法，样本在 `docs/designs/samples/events/`；瞬时的 `model.delta`、`tool.progress`、`status` 没有 `seq`，样本在 `docs/designs/samples/transient/`。
+`event` 里的事件照原样嵌进去：落了盘的照 `kernel/events.md` 的写法，样本在 `docs/designs/samples/events/`；瞬时的 `model.delta`、`tool.progress`、`status`（施工 8-9 起换了端点的多 `failover`）、`model.changed`（施工 8-9，会话接下来请求的模型、限额变了，`models.md`「瞬时事件」）这些没有 `seq`，样本在 `docs/designs/samples/transient/`。
 
 ### 怎么走
 
@@ -523,8 +605,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `parse_error` | -32700 | 不是 JSON；一行太长（之后断开） |
 | `invalid_request` | -32600 | 是 JSON，不是请求（「请求」的表） |
 | `unknown_method` | -32601 | 握手以后，没有这个方法 |
-| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`、`config`，`config` 带了 `session`、`after`（施工 8-4）；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；`session.send` 的 `from` 不是字符串、去掉控制字符以后是空的（施工 7-10）；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字；`job.stop`、`job.output` 的任务编号不合写法（施工 7-4），`job.output` 的 `tail` 不是 1 到 2000 的整数（施工 7-4 补） |
-| `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了；附件存不下来、读不出来；删会话时读不了放会话的目录、挪不进回收处、崩了；读后台命令的输出时崩了（施工 7-4 补） |
+| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`、`config`，`config` 带了 `session`、`after`（施工 8-4）；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；`session.send` 的 `from` 不是字符串、去掉控制字符以后是空的（施工 7-10）；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字；`job.stop`、`job.output` 的任务编号不合写法（施工 7-4），`job.output` 的 `tail` 不是 1 到 2000 的整数（施工 7-4 补）；`human.get` 的 `language` 不合写法（施工 W-1） |
+| `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了；附件存不下来、读不出来；删会话时读不了放会话的目录、挪不进回收处、崩了；读后台命令的输出时崩了（施工 7-4 补）；给人看的字读不懂（施工 W-1） |
 | `hello_first` | -32010 | 握手以前发了别的方法 |
 | `protocol_mismatch` | -32010 | 头支持的主版本里没有 1（之后断开） |
 | `bad_token` | -32010 | 本机令牌没带、不对（之后断开） |
@@ -538,6 +620,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `attachment_too_big` | -32010 | 附件超过 20 MiB；图片超过 5 MiB，或者哪一边超过 8000 像素（施工 3-9 三补） |
 | `attachment_in_data_root` | -32010 | `blob.put` 的 `path` 在数据根里、管理员的工作区以外（施工 3-9 三补） |
 | `unknown_attachment` | -32010 | `session.send`、`session.redo` 附的 blob 这个核心里没有（施工 3-9 三补） |
+| `path_unreadable` | -32010 | `fs.list`、`fs.find` 换不成真实的位置、不在、该是目录的不是目录、没有权限（施工 W-2） |
+| `path_forbidden` | -32010 | `fs.list`、`fs.find` 的目录落在数据根里、又不在这个账号的工作区里（施工 W-2） |
 | `not_running` | -32010 | 打断时没有回合在进行 |
 | `turn_running` | -32010 | 撤销、重做、手动压缩、清空、删会话时有回合在进行 |
 | `unknown_turn` | -32010 | 要撤的那一轮不在有效历史里：没有，或者已经撤掉了 |
@@ -556,7 +640,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `config_file_broken` | -32010 | `config.set` 改几项时文件读不进来，或者这一项放不进去：`data.problems` 是这份文件现在的问题（施工 8-3）；`secret.set`、`secret.delete` 时密钥文件读不进来、名字写成了一张表（施工 8-5） |
 | `no_project_config` | -32010 | `config.trust` 时这个目录找不到项目配置（施工 8-3） |
 | `unknown_secret` | -32010 | `secret.delete` 删的密钥没有（施工 8-5） |
-| `unknown_provider` | -32010 | `model.list` 的 `provider` 不是配好了的（施工 8-7） |
+| `unknown_provider` | -32010 | `model.list`、`provider.test` 的 `provider` 不是配好了的（施工 8-7、8-11） |
+| `unknown_model` | -32010 | `session.create` 的 `model` 解析不出：没有这家供应商、没有这个池、池是空的、挡位没配又没有 `models.chat`（施工 8-8） |
 | `restoring` | -32010 | 撤销、恢复还没做完（正在读回更早的日志、正在改回文件）时来的命令、删会话。兜底：会话做完才接下一个命令，照常碰不到 |
 
 - 从 `empty_message` 起，除了 `dir_too_wide`、附件的四个和 `not_a_command`，十三个是内核拒命令时给的原因码（`kernel/session.md`）。
@@ -600,6 +685,10 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `WARN` | `attachment not read blob=… error=…` | `session.send` 的附件读不出来：坏了、读不了 |
 | `ERROR` | `attachment panicked error=…` | 读、存附件时崩了 |
 | `ERROR` | `job output panicked error=…` | 读后台命令的输出时崩了（施工 7-4 补） |
+| `WARN` | `human not read error=…` | `human.get` 给人看的字读不懂（施工 W-1） |
+| `ERROR` | `human panicked error=…` | 读给人看的字时崩了（施工 W-1，照别的 `spawn_blocking` 同一个写法） |
+| `WARN` | `files index failed dir=… error=…` | `fs.find` 建清单时读不了一层目录，跳过它接着建（施工 W-2） |
+| `ERROR` | `files panicked error=…` | `fs.list`、`fs.find` 在阻塞线程里崩了（施工 W-2） |
 
 撤销、恢复的回应写不成的两行见 `protocol/undo.md`。
 
@@ -627,6 +716,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `attachment_too_big` | 附件太大：一个最多 20 MiB，图片最多 5 MiB、每边最多 8000 像素。 | The attachment is too big: at most 20 MiB, and an image at most 5 MiB and 8000 pixels a side. |
 | `attachment_in_data_root` | Miyu 的数据根里的文件不能当附件。 | Files in Miyu's data root cannot be attached. |
 | `unknown_attachment` | 附件不在核心里：先用 blob.put 传上来。 | The attachment is not in the core; upload it with blob.put first. |
+| `path_unreadable` | 读不了这个路径。 | This path cannot be read. |
+| `path_forbidden` | 这是 Miyu 自己的数据，不给看。 | This is Miyu's own data and is not shown. |
 | `not_running` | 没有正在进行的回合，打断不了。 | No turn is running, so there is nothing to interrupt. |
 | `turn_running` | 有回合在进行：先打断，或者等它做完。 | A turn is running; interrupt it or wait for it to finish. |
 | `unknown_turn` | 没有这一轮，或者它已经撤掉了。 | There is no such turn, or it has already been undone. |
@@ -646,6 +737,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `no_project_config` | 这个目录找不到项目配置。 | There is no project config for this directory. |
 | `unknown_secret` | 没有这个密钥。 | There is no such secret. |
 | `unknown_provider` | 没有这个供应商。 | There is no such provider. |
+| `unknown_model` | 配置里没有这个模型、池或者挡位。 | There is no such model, pool or tier in the configuration. |
 | `recap_failed` | 回顾没写成：请求模型出错了。 | The recap could not be written: the model request failed. |
 | 别的 | 被拒绝了。 | Refused. |
 
@@ -655,7 +747,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 |---|---|
 | `crates/miyu-endpoint/src/wire/tests.rs` | 认请求的每一条、回应是一行、去掉行尾、太长的 |
 | `crates/miyu-endpoint/tests/endpoint.rs` | 握手先行、令牌（长短也比）、版本对不上，被拒的断开；握手的回应照核心探到的报沙盒，四种（施工 5-4 下）；造会话、说话；同一个造会话只造一个；没有的会话；载入上一次运行的会话；两个连接只载入一次；照头的语言拒绝；JSON-RPC 的错误码、通知不回应；太长的断开；工作目录跟着头；不能输入的头造的会话没人确认；空消息；停了的会话下次再载入；打断时排着的接着发 |
-| `crates/miyu-endpoint/tests/limits.rs` | 订阅的回应带限额（施工 6-3 补）：窗口、压缩线照核心的模型算；没报窗口的是 `{}`，窗口太小的只有 `window`；已经订阅着的再订阅也带；核心重启以后载入的照样带；`unsubscribe` 还是 `{}` |
+| `crates/miyu-endpoint/tests/limits.rs` | 订阅的回应带限额（施工 6-3 补）：窗口、压缩线照核心的模型算；没报窗口的是 `{}`，窗口太小的只有 `window`；已经订阅着的再订阅也带；核心重启以后载入的照样带；`unsubscribe` 还是 `{}`；回应带 `model`，照蓝图的例子一字不差（施工 8-10） |
 | `crates/miyu-endpoint/tests/subscribe.rs` | 先见结果后见回应；两个会话不串；取消订阅以后不推；掉队推 `resync`、回应一条不丢、重新订阅照常推；积压时回应排在推送后面；取消订阅时已经交给转发任务的回应照样到；会话停了推 `resync`；订阅要握手、要有这个会话、只认 `events` |
 | `crates/miyu-endpoint/tests/replay.rs`（施工 3-8 六补） | 补发：`after` 是 0 补整份日志、一字不差、都在回应前面、回应带 `upto`、没有瞬时的，补完接着推下一条；中间的序号补之后的；最后一条、比最后一条大的什么都不补、照常推、一条不重；不写、写 `null` 的照旧、回应没有 `upto`；写错的八种 `bad_params`、先查参数不找会话、一个都没订阅上；核心重启以后要载入的照样补；订阅着、推送堵着时带 `after` 再订阅，旧的手里的回应照样到、补的中间不夹旧的、之后只有新的在推；日志坏了的 `session_broken`、没订阅上，没有要补的不读日志 |
 | `crates/miyu-endpoint/tests/replay_race.rs`（施工 3-8 六补） | 掉了队的头带上最后看到的序号重新订阅，看到的和补的合起来就是日志；真核心：另一个头一句接一句地说、会话一直在追加，中途几个头先后从头订阅，每个头补的和推的合起来都和日志一字不差 |
@@ -675,6 +767,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/job_stop.rs` | 协议上停子代理（施工 7-4）：回应 `{}`、回应之前父会话记下了回报、子会话那一轮被父会话打断；停过的、没有的 `unknown_job`，中文、英文；编号不合写法、不是字符串的参数不对；没有这个会话 |
 | `crates/miyu-endpoint/tests/job_output.rs` | 协议上读后台命令的输出（施工 7-4 补），后台命令用假的：跑着的读到这时为止的、`running` 是真，和她用 `jobs` 读到的一样；结束了的读 blob（拿掉输出文件照样读得到）、`running` 是假，和 `jobs` 读到的一字不差；`tail` 截尾、`truncated`、`lines`，最后一段没有换行的照样，不写 `tail` 交最后 200 行；超了上限从前面按整行去掉；开不了的输出文件当是空的；空的；没有这个任务、编号不合写法、`tail` 不对的七种（先查、不找会话）、没有这个会话、子代理的拒绝，中文、英文；拒绝的什么都不写 |
 | `crates/miyu-endpoint/src/job_output/tests.rs` | 取尾巴（施工 7-4 补）：照 `jobs` 数行、只照换行切；最后几行；上限正好 131,072 字节的一行整行给、多一个字节只留末尾；超了从前面按整行去掉；最后一行太长只交末尾、前面的不接上（前面那一行正好放得下也不接），读的时候就去掉过前面的也一样；中间太长的一行、截过的一行后面又来了行，整行去掉；截处从一个字的开头起，剩半个字的跳过；解不开的字节换成 `�`；读不下去的读到多少算多少；最坏的回应（每个字节都转义成六个、编号全是引号）放得进一行；回应的格 |
+| `crates/miyu-endpoint/tests/human.rs`（施工 W-1） | 协议上 `human.get`：和 `Human::load` 读到的一样，工具的样子一样、说法的编号带位置（`core/…`、`software/<包>/…`）、模板是原文一个字不换；软件包盖掉内核的同名工具；没有这种语言照英文；不写 `language` 照握手的语言；`language` 不合写法参数不对；回应里没有 `config` 那一格；读不懂 `internal_error`；改了资源，核心不重启下一次调就是新的；真核心照源码树的资源，`zh`、`en`、`ja` 三种都交得出 `tools`、`said` |
 | `crates/miyu-endpoint/tests/redo.rs` | 协议上重做（施工 4-7 再补）：回应带撤销的几样和重发的那一句、推送里是一批撤销、原话、新的一轮，新的一轮的请求和撤掉的那一轮的一字不差；换了话的推送里是新的话、`said` 是原来的；改过文件的先改回、回应带 `files`；重做以后恢复不了；最后一轮是清空、没说过话的，有回合在进行、换成空的拒绝，中文、英文；`text` 不是字符串、会话编号不对的参数不对，写 `null` 当没写；附件照带、换掉、不要，没有的 blob `unknown_attachment` 什么都不写 |
 | `crates/miyu-endpoint/tests/compact.rs` | 协议上手动压缩（施工 6-8）：回应是那一轮的开头、推送里压好了；要求原样到了摘要请求里；撤掉那一轮的回应里没有 `said`；有回合在进行、没有能压的两种拒绝，中文、英文；`instructions` 不是字符串的参数不对 |
 | `crates/miyu-endpoint/tests/recap.rs`（施工 3-8 四补） | 协议上要回顾：回应是那一句、照到的、不是交回的；推送里先有回顾的 `model.called`、`session.recapped`，都不带回合编号、`cause` 是这一条，再是回应，别的头也收到；请求是一条 user、没有 system 和工具面；没有新内容再要一次交回上一句、不请求；有回合在进行时照收、照到的是这一轮那句话；没有能回顾的、没写成的两种拒绝，中文、英文，没写成的不再来；会话编号不对、没写、不是字符串的参数不对，没有的会话找不到 |
@@ -686,12 +779,15 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/idle.rs` | 连着连接、跑着回合不空闲；停下全部会话，跑到一半的记成重启了 |
 | `crates/miyu-endpoint/tests/attach.rs` | `blob.put`（施工 3-9 三补）：传路径、传内容；照内容认图片（扩展名不算）、PDF、文本、别的文件，量宽高，回应的格照字母排、存成管理员的 blob；写了的媒体类型什么时候算、改名、写 `null` 等于没写；太大（20 MiB、图片的宽高和 5 MiB，正好在线上的收）；数据根里的不给、管理员的工作区给、指到数据根里的链接不给；读不了（没有、目录、没有家目录时的 `~`）；参数不对的十二种、一个都没存；四种拒绝的中英文 |
 | `crates/miyu-endpoint/tests/attach_send.rs` | `session.send` 带附件（施工 3-9 三补）：照先后接在文字后面，宽高、种类照核心量的，图片块带着 `blob.put` 的名字（施工 3-9 四补），她收到的请求里就是这几块；只有附件也是一句话，`null` 是没有；blob 不在的拒绝、什么都没写、换的工作目录也没送进会话；附件的格不对的七种 |
+| `crates/miyu-endpoint/tests/files.rs` | `fs.list`、`fs.find`（施工 W-2）：真核心上数据根不列不找、账号的工作区照样列；开头对、大小写不论、点开头的打了点才列、目录在前、50 条截断、`marks`；模糊找有 `marks`、子目录的 `path` 用 `/`；清单没建完先给一部分、`building`；`fresh` 隔一段时间才重建、不是 `true` 不重建；最多记 4 份、多了丢最久没用的；换不成真实的位置、不是目录的 `path_unreadable`；没写 `cwd` 的 `bad_params` |
 | `crates/miyu-endpoint/tests/from.rs`、`src/from/tests.rs` | `session.send` 带 `from`（施工 7-10）：记成 `harness`、带着名字，不带的、`null` 照旧记成本人；闲着开一轮、`cause` 是这一条，正忙排进这一轮；附件照收；控制字符去掉、截到 128 字节不截断一个字；空的、只有控制字符的、不是字符串的参数不对，什么都没写；`session.create`、`session.redo` 写了不理 |
 | `crates/miyu-endpoint/src/attach/kind/tests.rs` | 认附件：量得出的图是图片、头写的不算，量不出的当文件；图片的上限和线上的；PDF 照开头认；别的文件照头写的，写成 PDF、图片的照内容认，文本、空的、二进制、不是 UTF-8 的 |
 | `crates/miyu-endpoint/tests/tools.rs` | 造会话、载入时用核心的工具目录；核心的沙盒造会话、载入时都交给会话，沙盒用不了的核心上执行命令没人能确认就拒（施工 5-4 上） |
 | `crates/miyu-endpoint/tests/socket.rs` | 真的套接字（Windows 上是命名管道）上握手、造会话、说话，第二个头也连得上 |
 | `crates/miyu-endpoint/tests/config.rs`、`config_trust.rs`（施工 8-2） | 握手的 `language`、`config_errors`；`config.schema`、`config.get`、`config.check`；`unknown_config_key` 带 `problems`；开局只读照配置、照信任着的项目配置；造会话、说话的回应带 `untrusted_project`（`config.md`「守着它的」）。`config.trust` 的回答、拒绝、日志（施工 8-3） |
-| `crates/miyu-endpoint/tests/models.rs`（施工 8-7） | `model.list` 的形状、来源、状态；`provider` 只看一家、`unknown_provider`、参数不对；`refresh` 拉完再答、不写的在后台拉（`models.md`「守着它的」） |
+| `crates/miyu-endpoint/tests/models.rs`（施工 8-7） | `model.list` 的形状、来源、状态；`provider` 只看一家、`unknown_provider`、参数不对；`refresh` 拉完再答、不写的在后台拉；冷却（施工 8-9）：模型照能用的 key 里最好的那个，都在冷却的带最早恢复的 `until`、`class`，认证失败停了整个 key 的那个 key 也是 `cooling`，取不到值的 key 不算（`models.md`「守着它的」） |
+| `crates/miyu-endpoint/tests/models_pools.rs`（施工 8-8） | `model.list` 的 `pools`、`tiers`、`uses`；`session.create` 的 `model` 记下解析出的、`unknown_model` 什么都不造、不是字符串的 `bad_params`；`session.configure` 照这时的配置解析好记一条、先推再回应、一样的不记，参数不对的几种 `bad_params`、先找会话、解析不出的 `unknown_model`、都什么都不记；`subscribe` 的 `model` 照真路由解析出的写，轮换的池只有 `ref`，一个都没有的不写（施工 8-10，`models.md`「守着它的」） |
+| `crates/miyu-endpoint/tests/providers.rs`、`providers_test.rs`、`providers_log.rs`（施工 8-11） | `provider.detect`、`provider.catalog`、`provider.test` 的形状、参数不对、`unknown_provider`，`{value}` 的 key 不进回应和运行日志（`models.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/secrets.rs`、`secrets_log.rs`（施工 8-5） | `secret.*` 的回应、拒绝、日志；值不进回应、拒绝、系统日志、运行日志（`config.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/config_set.rs`（施工 8-3） | `config.set` 的回应、每一种拒绝、`expect`、版本、手改重读、全收或者全不收、写不成什么都没变、日志（`config.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/config_watch.rs`、`config_watch_log.rs`（施工 8-4） | 订阅配置、取消、参数不对；手改推 `config.changed`；`config.set` 先见推送后见回应；掉队推 `resync`；改了语言下一句照新的（`config.md`「守着它的」） |
@@ -713,7 +809,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 
 设计里有、还没做的：
 
-- 第九节表里的其余方法：`session.fork`、`session.configure`、`session.answer`（随 M9 的抽屉）、`command.run`、查询、账号……（`04-核心协议.md` 第九节）。
+- 第九节表里的其余方法：`session.fork`、`session.answer`（随 M9 的抽屉）、`command.run`、查询、账号……（`04-核心协议.md` 第九节）。
 - 附件分块上传、远程的头传大文件（`04-核心协议.md` 第十一节）；blob 的回收（`store.md`「还没有的」）。
 - 视图流、会话列表流，`view.*`、`sessions.changed` 这些推送；核心决定「显示什么」（第五节、P3）。改名、置顶、删除现在只推给订阅着那个会话的头（删除是 `resync`），别的头要重新列。
 - 找回删了的会话、自动起标题（照第一句话生成，要请求模型）：以后（施工 3-8 三补）。回收处里的文件留着，找回时挪回去。
@@ -726,5 +822,4 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 - 成员只能切到只读和工作区（`11-权限与沙盒.md`）：现在连上来的只有管理员，`session.set_permission_level` 不拦，多用户那一步再拦。
 - 消息结构只在 Rust 类型里定义一次，生成 JSON Schema 和 TypeScript 类型（第二节）。
 - 会话空闲一段时间后 actor 退出（`07-存储.md` 第七节）。
-- 换模型（`session.configure`，随配置和多供应商那一步）：那时限额会在会话中途变，推一条瞬时事件带新的限额和模型，头照最新的画。现在造会话、载入以后就不变，只在 `subscribe` 的回应里。
 - 视图流的会话状态（第五节，M8）里也带限额，字段只加不改。

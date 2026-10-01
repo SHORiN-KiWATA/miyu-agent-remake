@@ -5,8 +5,8 @@
 //! （`miyu-kernel` 的 `testkit`）一个先后。
 
 use std::collections::{BTreeMap, VecDeque};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use tokio::sync::{broadcast, mpsc, oneshot};
@@ -14,10 +14,11 @@ use tracing::Instrument;
 
 use miyu_kernel::event::Purpose;
 use miyu_kernel::id::{CommandId, Seq, SessionId};
-use miyu_kernel::session::{Action, Input, Outcome, Session};
+use miyu_kernel::session::{Action, Input, Limits, Outcome, Session};
 use miyu_kernel::time::Timestamp;
 
 use crate::TARGET;
+use crate::agents::Inherit;
 use crate::blocking::blocking;
 use crate::clock::Clock;
 use crate::config::Turning;
@@ -29,6 +30,7 @@ use crate::lines::note;
 use crate::peers::Watches;
 use crate::port::{Back, ModelPort};
 use crate::report::Reporter;
+use crate::shown::{Next, Shown};
 use crate::store::Store;
 use crate::tools::{Dispatch, ToolKit, Tools};
 
@@ -95,6 +97,10 @@ pub(crate) struct Actor {
     finished_at: Option<Timestamp>,
     /// 「空了告诉我」被等的这一边：谁在等这个会话空下来（施工 C-6，`watchers.rs`）。
     waiters: watchers::Waiters,
+    /// 上一次交给内核的限额（施工 8-9，`model.rs`）：请求说完了、回合开始重新解析完和端口的比，变了再交。
+    handed: Limits,
+    /// 给头看的限额和会话接下来请求的模型，和 `Handle` 共用（施工 8-9、8-10）：交了新的限额、回合开始解析完写一次。
+    shown: Arc<Mutex<Shown>>,
 }
 
 /// 会话停了：写不进去。
@@ -152,6 +158,12 @@ impl Actor {
         let (pushes, _) = broadcast::channel(PUSH_QUEUE);
         let busy = Arc::new(AtomicBool::new(!session.idle()));
         let busy_seen = !session.vacant();
+        // 造会话、载入时已经把端口的限额交给了内核（`open.rs`）：记下交的是哪一份。
+        let handed = model.limits();
+        let shown = Arc::new(Mutex::new(Shown {
+            limits: session.context_limits(),
+            next: Next::of(&*model),
+        }));
         Actor {
             session,
             store: Some(store),
@@ -176,6 +188,8 @@ impl Actor {
             busy_seen,
             finished_at: None,
             waiters: watchers::Waiters::new(),
+            handed,
+            shown,
         }
     }
 
@@ -187,6 +201,11 @@ impl Actor {
     /// 有没有在跑的回合：交给 `Handle` 的那一份。
     pub(crate) fn busy(&self) -> Arc<AtomicBool> {
         Arc::clone(&self.busy)
+    }
+
+    /// 给头看的限额和模型：交给 `Handle` 的那一份（施工 8-9、8-10）。
+    pub(crate) fn shown(&self) -> Arc<Mutex<Shown>> {
+        Arc::clone(&self.shown)
     }
 
     /// 这时有没有至少一个头订阅着：交给 `Handle` 的那一份（施工 C-5）。
@@ -286,15 +305,8 @@ impl Actor {
                 self.push(Pushed::Transient(transient));
                 None
             }
-            // 回合开始（`turn.started` 已经落了盘）：冻结这一轮的配置，带上会话这时的目录的项目配置（施工 8-4）。
-            Action::RunTurnStartHooks { turn } => {
-                self.config.turn(self.session.cwd().to_string()).await;
-                Some(Input::TurnStartHooksDone {
-                    at: self.clock.now(),
-                    turn,
-                    injected: Vec::new(),
-                })
-            }
+            // 回合开始（`turn.started` 已经落了盘）：冻结这一轮的配置，重新解析会话的引用（施工 8-4、8-10，`model.rs`）。
+            Action::RunTurnStartHooks { turn, model } => Some(self.turn_start(turn, model).await),
             Action::CallModel {
                 seen,
                 request,
@@ -361,6 +373,7 @@ impl Actor {
                         permission,
                         jobs,
                         subagents: self.session.subagents(),
+                        inherit: Inherit::of(&*self.model, self.config.current()),
                     },
                 )
             }

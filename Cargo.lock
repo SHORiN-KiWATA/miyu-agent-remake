@@ -1136,6 +1136,7 @@ dependencies = [
  "miyu-fs",
  "miyu-kernel",
  "miyu-log",
+ "miyu-models",
  "miyu-sandbox",
  "miyu-store",
  "miyu-tool",
@@ -1156,8 +1157,10 @@ dependencies = [
  "miyu-config",
  "miyu-core",
  "miyu-endpoint",
+ "miyu-http",
  "miyu-ipc",
  "miyu-kernel",
+ "miyu-models",
  "miyu-pipe",
  "miyu-sandbox",
  "miyu-session",
@@ -1244,6 +1247,7 @@ dependencies = [
 name = "miyu-fs"
 version = "0.0.0"
 dependencies = [
+ "ignore",
  "jiff",
  "libc",
  "objc2",

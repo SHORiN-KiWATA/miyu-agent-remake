@@ -3,6 +3,7 @@
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
 
 pub mod deleting;
+pub mod providers;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -188,6 +189,15 @@ impl Home {
     /// 一份核心，资源目录是 `resources`（施工 4-9 再补三上：造一份坏了的）。
     pub fn core_with_resources(&self, script: &Script, resources: PathBuf) -> Arc<Core> {
         Arc::new(self.bare(script, resources))
+    }
+
+    /// 一份核心，`fs.find` 的 `fresh` 照 `fresh` 这个时长判断要不要重建清单（施工 W-2）：测试里设短的，不用真等
+    /// 十秒。
+    pub fn core_files_fresh(&self, script: &Script, fresh: Duration) -> Arc<Core> {
+        Arc::new(
+            self.bare(script, default_resources())
+                .with_files_fresh(fresh),
+        )
     }
 
     fn bare(&self, script: &Script, resources: PathBuf) -> Core {

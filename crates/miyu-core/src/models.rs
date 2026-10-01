@@ -1,7 +1,8 @@
 //! 模型（`docs/blueprint/models.md`、`core.md`「模型」，施工 8-6、8-7）：起来时读资源目录里的供应商档案
 //! （`models/profiles.toml`）、认原厂的表（`models/vendors.toml`），造每个会话的路由（`miyu_session::Routes`）和核心一份的
 //! 模型资料（`miyu_session::ModelData`）。写了 `ready` 以后在阻塞线程里读目录（[`catalog`]）、用出来的、供应商的列表，
-//! 读完放行等着它的；再在后台更新目录（[`refresh`]）。用哪家供应商、哪个模型、哪个 key，全照配置。
+//! 读完放行等着它的；再在后台更新目录（[`refresh`]）。另造一个不走代理的 GET 客户端给第一次接入探本机的服务（施工 8-11）。用哪家供应商、哪个模型、哪个 key，全照配置。冷却的规矩照配置当场换
+//! （[`follow_cooldown`]，施工 8-9）。
 //!
 //! 档案、认原厂的表是 TOML，这里读成 JSON 交给 `miyu-models`（那一层只用白名单里的 `serde_json`）。
 
@@ -13,7 +14,9 @@ use std::sync::Arc;
 
 use tokio::sync::watch;
 
+use miyu_config::secret::Reference;
 use miyu_http::{Proxy, client, fetcher};
+use miyu_models::cooldown::Rules;
 use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
 use miyu_models::settings::CatalogSettings;
@@ -22,7 +25,7 @@ use miyu_store::resources::ResourceRoot;
 
 use crate::TARGET;
 use catalog::Places;
-use refresh::Refresher;
+use refresh::{Refresher, Schedule};
 
 /// 照资源目录造路由，模型资料还没读（目录、用出来的、供应商的列表随 [`start`]）。用出来的、列表写进 `state`
 /// （`state/models`，没有的不写）。
@@ -46,9 +49,14 @@ pub fn prepare(resources: &ResourceRoot, state: Option<PathBuf>) -> Result<Route
     );
     let client = client(Proxy::FromEnvironment).map_err(|error| error.to_string())?;
     let lists = fetcher(Proxy::FromEnvironment).map_err(|error| error.to_string())?;
+    // 探本机的服务不走代理（施工 8-11）：环境变量里的代理不会自动绕过回环。
+    let local = fetcher(Proxy::Off).map_err(|error| error.to_string())?;
+    let data = ModelData::new(profiles, vendors, state)
+        .with_fetcher(lists)
+        .with_local(local);
     Ok(Routes {
         client,
-        data: Arc::new(ModelData::new(profiles, vendors, state).with_fetcher(lists)),
+        data: Arc::new(data),
         idle: IDLE,
     })
 }
@@ -77,7 +85,7 @@ pub fn start(
     snapshot: PathBuf,
     cache: Option<PathBuf>,
     state: Option<PathBuf>,
-    settings: watch::Receiver<CatalogSettings>,
+    settings: watch::Receiver<Schedule>,
 ) {
     let places = Places {
         snapshot,
@@ -122,12 +130,17 @@ pub fn cache(env: &miyu_store::env::Env) -> Option<PathBuf> {
     }
 }
 
-/// 配置里 `[models.catalog]` 那几项：配置换了当场跟着换（当场生效）。
+/// 配置里 `[models.catalog]` 那几项：配置换了当场跟着换（当场生效）。地址是环境变量的引用的照核心的环境取（施工 8-8）。
 pub fn catalog_settings(
     mut config: watch::Receiver<Arc<miyu_endpoint::config::Config>>,
-) -> watch::Receiver<CatalogSettings> {
-    let of =
-        |config: &miyu_endpoint::config::Config| CatalogSettings::from(&config.resolved().values());
+) -> watch::Receiver<Schedule> {
+    let of = |config: &miyu_endpoint::config::Config| {
+        let settings = CatalogSettings::from(&config.resolved().values());
+        Schedule::of(settings, &|name| {
+            let secret = config.secret(&Reference::Env(name.to_string()))?;
+            Some(secret.expose().to_string())
+        })
+    };
     let (sender, receiver) = watch::channel(of(&config.borrow_and_update()));
     tokio::spawn(async move {
         while config.changed().await.is_ok() {
@@ -140,6 +153,23 @@ pub fn catalog_settings(
         }
     });
     receiver
+}
+
+/// 配置里 `[models.cooldown]` 那三类（施工 8-9，`models.md`「对外的样子」）：当场生效，起来时照配置换上，配置换了跟着换，
+/// 下一次出错用新的。冷却表本身在模型资料里，只在内存里。
+pub fn follow_cooldown(
+    mut config: watch::Receiver<Arc<miyu_endpoint::config::Config>>,
+    data: Arc<ModelData>,
+) {
+    let rules =
+        |config: &miyu_endpoint::config::Config| Rules::from_values(&config.resolved().values());
+    data.set_cooldown_rules(rules(&config.borrow_and_update()));
+    tokio::spawn(async move {
+        while config.changed().await.is_ok() {
+            let now = rules(&config.borrow_and_update());
+            data.set_cooldown_rules(now);
+        }
+    });
 }
 
 /// 认原厂的表：TOML 的字先变成 JSON，再照 `miyu-models` 的样子读。

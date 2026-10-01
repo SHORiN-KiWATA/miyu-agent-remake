@@ -5,7 +5,8 @@
 //!   不到 3、已经暂停着的，不夹；
 //! - 每次压缩的 `refills` 照上一次压缩所在的回合算：第 3 个回合以内的是上一次的加一；该是第 3 次的不压，改写暂停
 //!   （`too_large`），`entry` 是估得最大的那一条；
-//! - 暂停着不发摘要请求；没发出去的 `model.called` 只在暂停着时有，分类 `compaction_paused`，紧跟着出错的回合结束。
+//! - 暂停着不发摘要请求；没发出去的 `model.called` 只在暂停着时有，分类 `compaction_paused`，紧跟着出错的回合结束；
+//! - 换了模型的，写在最近一次换模型前面的暂停、失败不再算（施工 8-10，`watch/configure.rs`）。
 
 use super::*;
 use crate::event::{CompactTrigger, CompactionPaused, ContextCompacted, ModelCalled, PauseReason};
@@ -29,11 +30,11 @@ impl Watch {
         live[after.map_or(0, |k| k + 1)..].to_vec()
     }
 
-    /// 暂停着：最近一次压缩以后写下了暂停。
+    /// 暂停着：最近一次压缩以后、最近一次换模型以后写下了暂停（换模型解除暂停，施工 8-10）。
     pub(super) fn breaker_paused(&self) -> bool {
-        self.since_compaction()
-            .iter()
-            .any(|event| matches!(event.body, Body::CompactionPaused(_)))
+        self.since_compaction().iter().any(|event| {
+            matches!(event.body, Body::CompactionPaused(_)) && self.after_model_change(event.seq)
+        })
     }
 
     /// 最近一次压缩以后，自动压缩出错结束了几轮。
@@ -58,6 +59,7 @@ impl Watch {
                 Body::ModelCalled(called) => last = Some(called),
                 Body::TurnEnded(ended)
                     if ended.reason == EndReason::Error
+                        && self.after_model_change(event.seq)
                         && last.is_some_and(|called| {
                             (called.result == CallResult::Error
                                 && called.compaction == Some(CompactTrigger::Auto))

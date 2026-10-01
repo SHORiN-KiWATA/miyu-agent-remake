@@ -31,6 +31,9 @@ pub enum Action {
     RunTurnStartHooks {
         /// 哪个回合。
         turn: TurnId,
+        /// 会话现在的引用（施工 8-10）：执行器先照这一轮的配置重新解析它，退回了默认的随
+        /// [`super::Input::TurnStartHooksDone`] 交回。以前的会话没有记下引用的是没有：跟着 `models.chat`。
+        model: Option<String>,
     },
     /// 请求模型：把这份请求交给驱动编码、发出去（`05-内核接口.md` 第七节）。发出去了、
     /// 每一段增量、说完了，都带着 `seen` 回报（`02-内核.md` 第六节「回复怎么收、回合怎么结束」）。

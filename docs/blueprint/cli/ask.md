@@ -37,6 +37,7 @@
 | `--add-dir <目录>` | 多放行一个目录：和工作区一样能读能写；可以写好几次（施工 5-10 上） |
 | `--file <文件>` | 附上一个文件：图片、PDF、文本……；可以写好几次，照写的先后（施工 3-9 三补） |
 | `--from <名字>` | 别的 harness 发的（施工 7-10，`agents.md` 第十一条第 4 条）：写上它的名字，这一句记成它说的，不是本人。和 `-s`、`-c` 一起用是往那个会话里发；都不写开一个新会话。空的、只有空白的照「参数写错时」说（`cli/main.md`），退出码 2 |
+| `--model <模型>` | 用哪个模型（施工 8-10，`models.md`「命令行」）：模型 `<供应商>/<模型>`、`@池` 或者挡位，原样交给核心解析。不写 `-c`、`-s` 的，新开的会话照它造；接着说的，先换成它：永久换，以后都用它（`models.md`「定的」第 2 条） |
 | `--timeout <时长>` | 最多等多久：从发出算到全部了结，到了不再等，退出码 3（施工 7-9，「等子代理」第 8 条）。正整数，后面可以跟 `s`、`m`、`h`，不写是秒（`30`、`30s`、`10m`、`1h`），照 GNU `timeout` 的写法；0、负数、小数、别的单位照「参数写错时」说（`cli/main.md`），退出码 2。长到算不出那一刻的，当没写 |
 
 - 界面语言：`LC_ALL`、`LC_MESSAGES`、`LANG` 里第一个设了、不是空的（`cli/main.md`），`zh` 开头说中文，别的说英文。帮助页也照它。
@@ -49,6 +50,7 @@
 2. **连核心**：
    1. 连；核心没在跑就拉起来（施工 8-6 起 key 来自配置，一律拉起；以前没设 `DEEPSEEK_API_KEY` 的不拉起）。
    2. 连不上：原因写在标准错误上，退出码 1。
+   3. **先看有没有模型**（施工 8-11，`models.md` 第七条第 6 条）：没写 `--model` 的，在这条连接上握手、问 `config.get` 的 `models.chat`（`crates/miyu-cli/src/setup.rs` 的 `model_ready_on`）。有值的往下走。没有的：标准输入、标准错误都是终端的，说「还没有模型，先接上一个。」，接着走一遍 `miyu setup`（`cli/setup.md`，参数都不写），写好了往下走，没走完的照它的退出码退出；不是终端的，说没有模型那一句（下面「给人看的字」），退出码 5，不造会话。往下走的另连一次核心，从第 3 条握手起照常（这一条连接只管看模型、走 setup）。写了 `--model` 的不看：造会话、换模型时核心照它解析。
 3. **握手** `hello`：`protocol` 是 `[1, 1]`；`head` 是 `{"kind": "cli", "version": <版本>}`；`locale` 是 `zh-CN` 或 `en`；`caps.input` 是 `false`；带上本机令牌。
    - `caps.input` 是 `false`：`miyu ask` 里没有确认的界面，要确认的那一步，核心当场拒绝。
    - 回应里的 `sandbox` 说用不了：执行命令都要确认，这里确认不了。第一步之前、目录太宽那一句之前说一句，照原因和这台机器的系统写（下面「给人看的字」），一次（施工 5-4 下）。
@@ -58,9 +60,10 @@
    - 被拒绝的：标准错误上印 `附不上 <绝对路径>：<核心照握手时的语言说的原因>`，退出码 1，不再往下：不造会话、不发话，也不留下空的会话。核心断开的，照第 11 条。
    - 在找会话之前传：`--continue`、`--session` 的，传不上也什么都不送进那个会话。
 5. **找会话**：
-   1. 不写：`session.create`，带 `cwd`（敲命令时的目录；读不出来的写 `.`）、`dirs`（加进来的目录，没有的写空的）和 `oneshot: true`。回应里的 `cwd` 和敲命令时的目录不一样（目录太宽，退回账号的工作区），第一步之前说一句。
+   1. 不写：`session.create`，带 `cwd`（敲命令时的目录；读不出来的写 `.`）、`dirs`（加进来的目录，没有的写空的）和 `oneshot: true`；写了 `--model` 的再带 `model`（施工 8-10）。回应里的 `cwd` 和敲命令时的目录不一样（目录太宽，退回账号的工作区），第一步之前说一句。解析不出的：核心照握手时的语言写的原因照原样印在标准错误上，退出码 1，什么都不造。
    2. `--continue`：`session.list`，带 `oneshot: true`、`limit: 1`，取第一个。一个都没有：说「还没有 miyu ask 开过的会话」，退出码 1。
    3. `--session`：照写的。
+   4. 接着说、写了 `--model` 的（施工 8-10）：找到会话以后、订阅之前发 `session.configure`，带 `session`、`model`。被拒绝的（解析不出、没有这个会话）：核心的原因照原样印在标准错误上，退出码 1，不订阅、不发话（`models.md`「施工时定的」8-10）。换成了的，这一句起就用它（下一个回合开始生效，这一句开的就是下一轮）。
 6. **订阅** `subscribe`：`{"session": …, "stream": "events"}`。
 7. **发** `session.send`（写了 `--timeout` 的，从这一刻算起）：`{"session": …, "text": …, "cwd": …, "dirs": […]}`：`dirs` 每次都写，没有 `--add-dir` 就是空的，所以 `--continue` 时各次照各次的。写了 `--from` 的（施工 7-10）：带上 `"from": <名字>`，照写的原样，去控制字符、截短由核心做（`protocol.md` 的 `session.send` 第 6 条）；不带 `cwd`，`dirs` 只在写了 `--add-dir` 时带（2026-09-30 主会话定：会话的工作目录、加进来的目录是人的，别的 harness 发一句不该把它们换成自己的）。开新会话时 `session.create` 照常带 `cwd`、`dirs`：那个会话是它开的。有附件的，再带 `attachments`：第 4 条的 `blob.put` 回应照先后原样放进去；没有附件的不写这一格。请求的编号是 `ask-<16 位十六进制>-<序号>`：前缀每个进程随机一次（取不到随机数的，用进程号和此刻的纳秒，各写成十六进制接在一起），序号从 1 数起。被拒绝的：核心照握手时的语言写的原因，照原样印在标准错误上，退出码 1。回应里有 `cwd`、和前面说过的不一样的，也说一句目录太宽，一次 `miyu ask` 至多说一次。
 8. **跟着那一轮**：`turn.started` 的 `cause` 是自己发的那条命令的，就是它；之后只收这一轮的推送，照回合编号认。收到 `resync`（掉队了），重新订阅，不补看掉的那些。
@@ -201,7 +204,8 @@ todo.md
 |---|---|---|
 | `completed` | 不印 | 0；有几步因为要确认没做的，4 |
 | `interrupted` | 打断了 | 3 |
-| `error`，没发出去、分类是 `no_model`（施工 8-6；以前认的是没发出去的认证失败） | 没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。 | 5 |
+| `error`，没发出去、分类是 `no_model`（施工 8-6；以前认的是没发出去的认证失败） | 没有可用的模型：还没配。运行 miyu setup。 | 5 |
+| `error`，没发出去、分类是 `cooling`（施工 8-9：候选全在冷却，`models.md`「怎么走」第五条第 6 条） | 出错了：候选都在冷却：<原话> | 5 |
 | `error`，别的 | 出错了：<分类>：<原话>；原话去掉前后空白是空的，只写分类；最后一次请求没出错、一次都没请求的，是「出错了：模型出错」 | 1 |
 | 别的原因 | 这一轮没走完：<原因> | 1 |
 
@@ -295,7 +299,7 @@ C 也查完了。
 | 2 | 参数不对（`cli/main.md`） |
 | 3 | 按了两次 Ctrl+C；或者这一轮被打断了；等子代理的时候按了 Ctrl+C、到了 `--timeout`（施工 7-9）；`--from` 按了一次 Ctrl+C、到了 `--timeout`（施工 7-10） |
 | 4 | 这一轮照常结束，可有几步因为要确认没做 |
-| 5 | 没有可用的模型：没设 key、核心也没在跑；或者没发出去就认证失败 |
+| 5 | 没有可用的模型：没配，或者候选全在冷却、没发出去（施工 8-9） |
 
 几样同时有的，照最后结束的那一轮怎么结束的算：4 只在照常结束时才有，几步没做照跟过的几轮加起来。
 
@@ -324,7 +328,8 @@ C 也查完了。
 | 最后那一句，一步 | `· 1 步没做：要你确认，miyu ask 里确认不了` | `· 1 step not done: it needs your approval, which cannot be given in miyu ask` |
 | 最后那一句，几步 | `· 2 步没做：要你确认，miyu ask 里确认不了` | `· 2 steps not done: they need your approval, which cannot be given in miyu ask` |
 | 一步没做成的词 | 出错、没做、打断了、跳过了 | failed、not done、interrupted、skipped |
-| 没有模型（施工 8-6，主会话定：`miyu setup` 随 8-11，那时换成指向它的那一句） | 没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。 | No model is available: none is set up. Add a provider and models.chat with miyu config edit --system. |
+| 没有模型（施工 8-6；施工 8-11 换成指向 `miyu setup` 的这一句） | 没有可用的模型：还没配。运行 miyu setup。 | No model is available: none is set up. Run miyu setup. |
+| 没有模型、在终端里，先走 setup（施工 8-11） | 还没有模型，先接上一个。 | No model is set up yet. Let's connect one first. |
 | 没有一次性会话 | 还没有 miyu ask 开过的会话 | No session opened by miyu ask yet |
 | 附件传不上（施工 3-9 三补） | 附不上 <文件>：<核心说的原因> | Cannot attach <file>: <reason> |
 | 打断了 | 打断了 | Interrupted |
@@ -378,6 +383,7 @@ C 也查完了。
       --file <文件>       附上一个文件，图片、PDF、文本都行，可以写好几次
       --timeout <时长>    最多等多久，到了就不等了：30s、10m、1h
       --from <名字>       别的 harness 用：写上它的名字，例如 claude-code
+      --model <模型>      用这个模型说；接着的会话以后都用它
   -h, --help              印帮助
 ```
 
@@ -397,6 +403,7 @@ Options:
       --file <file>       Attach a file: image, PDF, text…; repeatable
       --timeout <time>    Stop waiting after this long: 30s, 10m, 1h
       --from <name>       For another harness: its name, e.g. claude-code
+      --model <model>     Use this model; a continued session keeps it
   -h, --help              Print help
 ```
 
@@ -421,10 +428,11 @@ Options:
 | `crates/miyu-cli/src/ask/follow/tests/joining.rs`（施工 7-10） | 接上正忙的那一轮：人的话带着回合编号的当场接上，`--from` 的话接下一条带回合编号的推送；接上以前的推送不印；接上的那一轮没听到就结束的（被打断的也是）接着跟下一轮、不收尾，听到了的照它怎么结束收尾；闲着时由它开的那一轮照旧认；`--from` 在她那一轮还在进行时不等了的两种说法，两种语言，在等子代理时照旧 |
 | `crates/miyu-cli/src/ask/tests.rs` | 几个词用空格连起来；给人看的字照界面语言读，读不出来的当没有；加进来的目录照写的先后、去掉重复的；相对的接成绝对的，不是目录的读不成（施工 5-10 上）；`--file` 相对的接成绝对的、不查在不在，照写的先后、不去重（施工 3-9 三补）；`--timeout` 的写法，读不成的几种（施工 7-9）；`--from` 空的、只有空白的读不成，别的照原样（施工 7-10） |
 | `crates/miyu-cli/tests/attach.rs` | 真的核心走一遍 `--file`（施工 3-9 三补）：文字在前、附件照写的先后变成块，图片的宽高、文本的媒体类型；没有的、太大的说是哪个文件、为什么，中文、英文，退出码 1，不造会话 |
-| `crates/miyu-cli/tests/ask.rs` | 真的核心：开一次性会话、`--continue`、没有会话可接、被拒绝、没有模型、Ctrl+C 一次和两次；加进来的目录跟着每一次 `miyu ask`：`--continue` 不写的那一轮就没有，太宽的造会话时就被拒、不留空会话（施工 5-10 上） |
+| `crates/miyu-cli/tests/ask.rs` | 真的核心：开一次性会话、`--continue`、没有会话可接、被拒绝、没有模型、Ctrl+C 一次和两次；加进来的目录跟着每一次 `miyu ask`：`--continue` 不写的那一轮就没有，太宽的造会话时就被拒、不留空会话（施工 5-10 上）；`--model` 新开的照它造、接着的先换（挡位换成它的值）再说、换不成的退出码 1 不发话（施工 8-10） |
 | `crates/miyu-cli/tests/steps.rs` | 真的核心、真的工具走一遍：每一步、执行命令和编辑那两块、目录太宽、给脚本的只看退出码。要确认的一步是写到工作区外面（施工 5-4 上起读哪儿都不问）；执行命令经 cargo 编出来的助手在沙盒里跑 |
 | `crates/miyu-cli/src/shown/tests.rs` | 原色的段不带控制序列，上过色的行尾回到原色 |
-| `crates/miyu/tests/ask.rs` | 真跑主程序：没有 key、核心没在跑的不拉起，退出码 5；核心在跑的照样连；参数不对退出码 2；`-h` 印帮助页，跟着界面语言 |
+| `crates/miyu/tests/ask.rs` | 真跑主程序：没配模型的退出码 5、不造会话（施工 8-11）；核心在跑的照样连；参数不对退出码 2；`-h` 印帮助页，跟着界面语言 |
+| `crates/miyu-cli/tests/setup.rs`（施工 8-11） | 说话之前先看有没有模型：不是终端的退出码 5、不造会话，终端里先走一遍 `miyu setup`、写好了往下走，有了的一句不问（`cli/setup.md`「守着它的」） |
 
 ### 出处
 
@@ -437,7 +445,7 @@ Options:
 
 设计里有、还没做的（`22-命令行.md` 第三节）：
 
-- `--persona`、`--preset`、`--model`、`--tools`、`--no-memory`，`--format stream-json`。
+- `--persona`、`--preset`、`--tools`、`--no-memory`，`--format stream-json`。
 - 管道进来的内容当附件。
 - 还没配模型时，先问首次引导的那两件事。
 - 这一句一时没有哪一轮听到它的，一直等到有一轮听到它：接上的那一轮被打断、这一句被退回了（`return`），或者 `--from` 的话被打断以后只记下、那个会话还能恢复撤销时只记下。按 Ctrl+C 或者用 `--timeout`（施工 7-10）。

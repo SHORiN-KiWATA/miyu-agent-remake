@@ -1,7 +1,8 @@
 //! 发一次（`docs/designs/05-内核接口.md` 第七节「驱动的规格」「HTTP 执行器」，施工 3-7 下；施工 8-6 从 `http.rs` 挪来）：
 //! 一次请求在派出去的任务里走完，不占 actor：照驱动列的清单在阻塞线程里取 blob，编码成字节，经 `miyu_http::send` 发出去、
 //! 流式读回来，回报交回 actor。任务带着会话的 span，HTTP 的日志写在会话编号后面。报上下文超长、说了上限、比手头的窗口
-//! 小的，记下用出来的窗口（施工 8-7，`models.md`「怎么走」第二条第 9 条）。
+//! 小的，记下用出来的窗口（施工 8-7，`models.md`「怎么走」第二条第 9 条）。说完了先交给路由记冷却、钉成员（施工 8-9，
+//! `route/ended.rs`），出错换了端点的照「换了端点」报。
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
@@ -20,6 +21,7 @@ use miyu_store::blob::Blobs;
 use crate::blocking::blocking;
 use crate::clock::wall_now;
 use crate::port::{Cancel, Reports};
+use crate::route::ended::Tried;
 use crate::route::shared::ModelData;
 
 /// 挑定了的这一次：发给谁、怎么编码、编码要的 blob 在哪。
@@ -34,6 +36,8 @@ pub(super) struct Chosen {
     pub(super) idle: Duration,
     /// 报了上限时记到哪。
     pub(super) learn: Learn,
+    /// 说完了路由照它记（施工 8-9）。
+    pub(super) tried: Tried,
 }
 
 /// 用出来的窗口记到哪：这一家、这个模型，和发的时候手头的窗口。
@@ -71,7 +75,9 @@ async fn ask(chosen: Chosen, request: Request, reports: Reports, cancel: Cancel)
     let encoded = match chosen.driver.encode(&request, &chosen.call, &fetched) {
         Ok(encoded) => encoded,
         Err(EncodeError::MissingBlob(hash)) => {
-            return reports.ended(None, Some(missing(&hash)), None, None);
+            let error = missing(&hash);
+            chosen.tried.failed(&error.class, None, false);
+            return reports.ended(None, Some(error), None, None);
         }
     };
     let attempt = Attempt {
@@ -82,25 +88,37 @@ async fn ask(chosen: Chosen, request: Request, reports: Reports, cancel: Cancel)
         path: &encoded.path,
         idle: chosen.idle,
     };
+    let mut received = false;
     let outcome = send(attempt, cancel.wait(), |progress| match progress {
         Progress::Sent { request } => reports.sent(chosen.model.clone(), request),
-        Progress::Delta(delta) => reports.delta(delta),
+        Progress::Delta(delta) => {
+            received = true;
+            reports.delta(delta);
+        }
     })
     .await;
-    if let Outcome::Ended { usage, error } = outcome {
-        let wait_ms = error
-            .as_ref()
-            .and_then(|classified| classified.retry_after_ms);
-        let excess = error.as_ref().and_then(|classified| classified.excess);
-        if let Some(limit) = error.as_ref().and_then(|classified| classified.limit) {
-            chosen.learn.limit(limit).await;
-        }
-        reports.ended(
+    let Outcome::Ended { usage, error } = outcome else {
+        return chosen.tried.cancelled();
+    };
+    let Some(classified) = error else {
+        chosen.tried.succeeded();
+        return reports.ended(usage, None, None, None);
+    };
+    if let Some(limit) = classified.limit {
+        chosen.learn.limit(limit).await;
+    }
+    let class = &classified.error.class;
+    let switch = chosen
+        .tried
+        .failed(class, classified.retry_after_ms, received);
+    match switch.failover {
+        true => reports.failed_over(usage, classified.error, switch.wait_ms),
+        false => reports.ended(
             usage,
-            error.map(|classified| classified.error),
-            wait_ms,
-            excess,
-        );
+            Some(classified.error),
+            switch.wait_ms,
+            classified.excess,
+        ),
     }
 }
 

@@ -151,6 +151,22 @@ impl Boundary {
         }
         Zone::Outside
     }
+
+    /// 走目录的工具（`fs.find`，施工 W-2）要不要挡住往下走进 `dir`：`dir` 落进「谁都不能碰」那一片、又没有
+    /// 工作区、加进来的目录藏在它底下——工作区常常就在数据根里面（默认的会话就在那里干活），得穿过数据根才能
+    /// 走到它，但数据根自己、旁的子目录不许进（施工 W-2）。
+    #[must_use]
+    pub fn blocks_descent(&self, dir: &Path) -> bool {
+        if self.zone(dir) != Zone::Forbidden {
+            return false;
+        }
+        let leads_somewhere_writable = self
+            .workspace
+            .as_ref()
+            .is_some_and(|workspace| workspace.starts_with(dir))
+            || self.dirs.iter().any(|d| d.starts_with(dir));
+        !leads_somewhere_writable
+    }
 }
 
 /// 在工作区、加进来的目录里的这一段落在哪一片：会在沙盒外被执行的只能读，别的能读能写。

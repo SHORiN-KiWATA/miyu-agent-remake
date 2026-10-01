@@ -1,5 +1,7 @@
 //! 协议上的 `model.list`（`docs/blueprint/models.md`「协议」，施工 8-7）：配好的供应商，每家的 key、对上了目录里的哪一家、
-//! 模型，每个模型每一格资料的值和来源、状态；在用的目录。池、挡位随 8-8，冷却随 8-9。
+//! 模型，每个模型每一格资料的值和来源、状态；在用的目录。池、挡位、用途的 `vision`（施工 8-8）：池写的成员和怎么分，四个挡位、
+//! 两种用途各配的引用，没配的是 `null`。模型、key 的冷却（施工 8-9）照核心一份的冷却表，照这一刻说。`session.create` 的 `model` 怎么解析也在这里（[`record`]，施工 8-8）。
+//! `session.configure` 的参数（[`ConfigureParams`]）、`subscribe` 回应的 `model`（[`next`]）也在这里（施工 8-10）。
 //!
 //! 1. 先等目录读完（核心写了 `ready` 以后才读）。
 //! 2. `provider` 写了、不是配好了的：`unknown_provider`。
@@ -14,11 +16,12 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use miyu_config::Layer;
 use miyu_config::secret::{Reference, Secret};
-use miyu_models::provider;
-use miyu_models::settings::ProviderSettings;
-use miyu_session::{ModelData, STALE, refresh_list};
+use miyu_config::{Layer, Values};
+use miyu_models::pools;
+use miyu_models::provider::{self, NoModel};
+use miyu_models::settings::{ProviderSettings, TierSettings, UseSettings};
+use miyu_session::{ModelData, Next, STALE, refresh_list};
 
 use crate::Core;
 use crate::refusal::Refusal;
@@ -84,24 +87,100 @@ pub(crate) async fn list(core: &Core, params: Value) -> Result<Value, Refusal> {
     } else {
         refresh_stale(&data, &snapshot, &chosen);
     }
+    let now = crate::sessions::now();
     let providers: Vec<Value> = chosen
         .iter()
-        .map(|id| entry::provider(&data, &snapshot, id))
+        .map(|id| entry::provider(&data, &snapshot, id, now))
         .collect();
     let catalog = data.catalog().map_or(
         Value::Null,
         |loaded| json!({"source": loaded.source.as_str(), "fetched": loaded.fetched}),
     );
+    let uses = UseSettings::from(&values);
+    let tiers = TierSettings::from(&values);
     Ok(json!({
         "providers": providers,
-        "uses": {"chat": provider::chat(&values)},
+        "pools": pools_json(&values),
+        "tiers": {
+            "lite": tiers.lite,
+            "cheap": tiers.cheap,
+            "standard": tiers.standard,
+            "flagship": tiers.flagship,
+        },
+        "uses": {"chat": uses.chat, "vision": uses.vision},
         "catalog": catalog,
     }))
 }
 
+/// 每个池：名字、怎么分（没写的照成员定）、写的成员（照写的原样）。照名字排。
+fn pools_json(values: &Values) -> Vec<Value> {
+    pools::names(values)
+        .into_iter()
+        .filter_map(|name| {
+            let (models, strategy) = pools::listed(values, &name)?;
+            Some(json!({"name": name, "strategy": strategy.as_str(), "models": models}))
+        })
+        .collect()
+}
+
+/// `session.configure` 的参数（施工 8-10，`docs/blueprint/models.md`「协议」）：哪个会话、换成的模型、`@池` 或者挡位，两格都
+/// 必写，不是字的读不成（`bad_params`）。
+#[derive(Debug, Deserialize)]
+pub(crate) struct ConfigureParams {
+    /// 哪个会话。
+    pub(crate) session: String,
+    /// 换成的引用，还没解析。
+    model: String,
+}
+
+impl ConfigureParams {
+    /// 换成的引用，原样：空字是参数不对（「施工时定的」8-10）。
+    ///
+    /// # Errors
+    ///
+    /// 空字：`bad_params`。
+    pub(crate) fn model(&self) -> Result<&str, Refusal> {
+        match self.model.is_empty() {
+            true => Err(Refusal::BAD_PARAMS),
+            false => Ok(&self.model),
+        }
+    }
+}
+
+/// `subscribe` 回应的 `model`（施工 8-10）：`{"ref":…,"endpoint":…,"model":…}`，会话接下来请求的；轮换的池没有 `endpoint`、
+/// `model`，一个模型都没有的没有这一格。
+pub(crate) fn next(next: &Next) -> Option<Value> {
+    if next.is_empty() {
+        return None;
+    }
+    let mut written = serde_json::Map::new();
+    if let Some(reference) = &next.reference {
+        written.insert("ref".to_string(), json!(reference));
+    }
+    if let Some(model) = &next.model {
+        written.insert("endpoint".to_string(), json!(model.endpoint.as_str()));
+        written.insert("model".to_string(), json!(model.model.as_str()));
+    }
+    Some(Value::Object(written))
+}
+
+/// `session.create` 的 `model`（施工 8-8）：照这时的配置解析成会话记下的引用（模型或 `@池`，挡位换成它这时的值）。照不算项目
+/// 配置的最终值：模型这一块项目配置里本来就不能写。
+///
+/// # Errors
+///
+/// 解析不出：没有这家供应商、没有这个池、池是空的、挡位没配又没有 `models.chat`（`unknown_model`，原话记一行 `DEBUG`）。
+pub(crate) fn record(core: &Core, text: &str) -> Result<String, Refusal> {
+    let values = core.config().resolved().values();
+    miyu_models::reference::record(&values, text).map_err(|NoModel(why)| {
+        tracing::debug!(target: "miyu::endpoint", why = %why, "unknown model");
+        Refusal::UNKNOWN_MODEL
+    })
+}
+
 /// 抄一份这一刻的配置：每个用得到的引用（key，和地址是环境变量的引用时，施工 8-6b）都先取好值，拉列表、`model.list`
-/// 用的是同一份，不会各自再问一次核心的环境。
-fn snapshot(core: &Core) -> Snapshot {
+/// 用的是同一份，不会各自再问一次核心的环境。`provider.detect`、`provider.test` 也用（施工 8-11）。
+pub(crate) fn snapshot(core: &Core) -> Snapshot {
     let config = core.config();
     let resolved = config.resolved().clone();
     let values = resolved.values();

@@ -52,6 +52,8 @@ fn switched_to(event: &Event) -> Option<&Permission> {
         Body::PolicyChanged(PolicyChanged {
             policy: None,
             permission: Some(permission),
+            model: None,
+            replaced: None,
         }) => Some(permission),
         _ => None,
     }

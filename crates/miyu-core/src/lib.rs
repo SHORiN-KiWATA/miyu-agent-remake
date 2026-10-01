@@ -201,6 +201,7 @@ async fn run(
         words,
         live.locale,
     ));
+    models::follow_cooldown(core.config_now(), Arc::clone(&model_data));
     // 监视配置文件（第七条）：拿着它一直到停，丢掉就不看了。
     let _watching = core.watch_config();
     say(&Ready::Ready);

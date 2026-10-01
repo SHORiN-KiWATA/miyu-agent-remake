@@ -4,6 +4,10 @@
 //! 一个会话一份 [`Agents`]：属主、场所、第几层、父会话、有没有人能确认，造会话、载入时定。每一次调用照这一轮的工作目录、
 //! 加进来的目录、派出去那一刻的权限造一个端口交给工具（[`Agents::for_call`]），编号从会话共用的那一串里领；父子之间留言的
 //! 端口也照它造（`crate::messages`，施工 7-7）。
+//!
+//! 子会话用哪个模型（施工 8-8，`models.md`「怎么走」第三条第 4 条）：她写了挡位的，照这一轮的配置解析这一挡（没配的是
+//! `models.chat`，`miyu_models::reference::tier`）；没写的，用父会话这时生效的引用（[`Inherit`]）。解析出来的记进子会话
+//! `session.created` 的 `model`。
 
 use std::sync::Arc;
 
@@ -18,6 +22,7 @@ use miyu_tool::{
 };
 
 use crate::TARGET;
+use crate::config::TurnConfig;
 use crate::job_ids::JobIds;
 use crate::spawn::{Child, Lineage, SessionPort};
 
@@ -92,13 +97,13 @@ impl Agents {
     }
 
     /// 交给一次调用的端口：编号从 `ids` 领，子会话在这一轮的工作目录 `cwd`、加进来的目录 `dirs` 里，权限照派出去那一刻
-    /// 实际的 `permission`。
+    /// 实际的 `permission`，模型照 `inherit`（施工 8-8）。
     pub(crate) fn for_call(
         self: &Arc<Agents>,
         ids: Arc<JobIds>,
-        cwd: String,
-        dirs: Vec<String>,
+        (cwd, dirs): (String, Vec<String>),
         permission: Permission,
+        inherit: Inherit,
     ) -> Arc<dyn AgentPort> {
         Arc::new(Spawner {
             agents: Arc::clone(self),
@@ -106,7 +111,35 @@ impl Agents {
             cwd,
             dirs,
             permission,
+            inherit,
         })
+    }
+}
+
+/// 子会话用哪个模型要的（施工 8-8）：父会话这时生效的引用（她没写挡位时子会话记下它），这一轮的配置（写了挡位的照它解析）。
+#[derive(Debug)]
+pub(crate) struct Inherit {
+    /// 父会话这时生效的引用：模型或 `@池`；没有的是空的（子会话照它那时的 `models.chat`）。
+    pub(crate) reference: Option<String>,
+    /// 父会话这一轮冻结的配置。
+    pub(crate) config: TurnConfig,
+}
+
+impl Inherit {
+    /// 照会话请求模型的端口 `model`（它这时生效的引用）、这一轮的配置 `config` 抄一份。
+    pub(crate) fn of(model: &dyn crate::port::ModelPort, config: &TurnConfig) -> Inherit {
+        Inherit {
+            reference: model.reference(),
+            config: Arc::clone(config),
+        }
+    }
+
+    /// 子会话记下的引用：写了挡位 `tier` 的照这一轮的配置解析（没配的是 `models.chat`），没写的是父会话的。
+    fn model(&self, tier: Option<&str>) -> Option<String> {
+        match tier {
+            Some(tier) => miyu_models::reference::tier(&self.config.resolved.values(), tier),
+            None => self.reference.clone(),
+        }
     }
 }
 
@@ -117,11 +150,17 @@ struct Spawner {
     cwd: String,
     dirs: Vec<String>,
     permission: Permission,
+    inherit: Inherit,
 }
 
 impl AgentPort for Spawner {
     /// 标题不交给子会话：它只给头看，记在 `job.started` 里（工具报）。
-    fn spawn<'a>(&'a self, _description: &'a str, prompt: &'a str) -> Spawning<'a> {
+    fn spawn<'a>(
+        &'a self,
+        _description: &'a str,
+        prompt: &'a str,
+        tier: Option<&'a str>,
+    ) -> Spawning<'a> {
         Box::pin(async move {
             let job = self.ids.next();
             let agents = &self.agents;
@@ -139,6 +178,7 @@ impl AgentPort for Spawner {
                 attended: agents.attended,
                 cwd: self.cwd.clone(),
                 dirs: self.dirs.clone(),
+                model: self.inherit.model(tier),
             };
             let job_text = job.to_string();
             let session = agents.port.create(child).await.map_err(|error| {

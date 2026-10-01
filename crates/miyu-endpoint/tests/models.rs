@@ -114,7 +114,10 @@ async fn the_list_has_providers_models_facts_and_states() {
     let reply = list(&home, &[("DEEPSEEK_API_KEY", "sk-1")], data(), json!({})).await;
     let result = &reply["result"];
     assert!(result.is_object(), "{reply}");
-    assert_eq!(result["uses"], json!({"chat": "deepseek/deepseek-flash"}));
+    assert_eq!(
+        result["uses"],
+        json!({"chat": "deepseek/deepseek-flash", "vision": null})
+    );
     assert_eq!(
         result["catalog"],
         json!({"source": "snapshot", "fetched": "2026-10-01T03:25:54.000Z"})
@@ -366,4 +369,81 @@ async fn fetching_the_provider_list_resolves_an_env_based_address() {
     let relay = &reply["result"]["providers"][0];
     assert_eq!(relay["base_url"], json!({"env": "RELAY_URL"}));
     assert!(!reply.to_string().contains(&server.base_url), "{reply}");
+}
+
+/// 冷却（施工 8-9，`models.md`「协议」`model.list` 的 `state`）：模型的状态照它能用的 key（取得到值的）里最好的那个，
+/// 都在冷却的是 `cooling`，带最早恢复的 `until` 和那一个的 `class`；认证失败停了整个 key 的，那个 key 也是 `cooling`。
+/// 取不到值的 key 不算：`DEEPSEEK_2` 没设的时候，只看第一个 key。
+#[tokio::test]
+async fn cooling_shows_on_models_and_keys() {
+    use miyu_kernel::event::ErrorClass;
+    use miyu_models::cooldown::Candidate;
+
+    let home = Home::new();
+    home.write(
+        "system/config.toml",
+        &config("https://relay.example.invalid/v1"),
+    );
+    let data = data();
+    let now = wall_now();
+    let fail = |key: &str, model: &str, class: ErrorClass| {
+        data.cooldown(|table, rules| {
+            table
+                .fail(
+                    &Candidate::new("deepseek", Some(key), model),
+                    &class,
+                    None,
+                    rules,
+                    now,
+                )
+                .expect("记了")
+                .until
+        })
+    };
+    let limited = fail(
+        "env:DEEPSEEK_API_KEY",
+        "deepseek-flash",
+        ErrorClass::RateLimited,
+    );
+    let stopped = fail("env:DEEPSEEK_2", "deepseek-v4-pro", ErrorClass::Auth);
+    let both = [("DEEPSEEK_API_KEY", "sk-1"), ("DEEPSEEK_2", "sk-2")];
+    let reply = list(
+        &home,
+        &both,
+        Arc::clone(&data),
+        json!({"provider": "deepseek"}),
+    )
+    .await;
+    let deepseek = &reply["result"]["providers"][0];
+    assert_eq!(
+        deepseek["keys"],
+        json!([{"ref": "env:DEEPSEEK_API_KEY", "set": true, "state": "ok"},
+               {"ref": "env:DEEPSEEK_2", "set": true, "state": "cooling", "until": stopped, "class": "auth"}]),
+        "认证失败停了整个 key"
+    );
+    let flash = model(deepseek, "deepseek-flash");
+    assert_eq!(
+        (&flash["state"], &flash["until"], &flash["class"]),
+        (&json!("cooling"), &json!(limited), &json!("rate_limited")),
+        "两个 key 都不能用：最早恢复的那一个"
+    );
+    let pro = model(deepseek, "deepseek-v4-pro");
+    assert_eq!(pro["state"], "ok", "第一个 key 能用");
+    assert!(pro.get("until").is_none(), "{pro}");
+    // 第二个 key 取不到值：只看第一个，pro 照样能用，flash 照第一个 key 的冷却。
+    let one = [("DEEPSEEK_API_KEY", "sk-1")];
+    let reply = list(&home, &one, data, json!({"provider": "deepseek"})).await;
+    let deepseek = &reply["result"]["providers"][0];
+    assert_eq!(model(deepseek, "deepseek-flash")["until"], json!(limited));
+    assert_eq!(model(deepseek, "deepseek-v4-flash")["state"], "ok");
+}
+
+/// 现在，照系统时间。
+fn wall_now() -> miyu_kernel::time::Timestamp {
+    let millis = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("系统时间在 1970 年以后")
+        .as_millis();
+    miyu_kernel::time::Timestamp::from_unix_millis(i64::try_from(millis).expect("放得下"))
+        .expect("在范围里")
 }

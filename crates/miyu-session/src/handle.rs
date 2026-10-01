@@ -1,8 +1,8 @@
 //! 拿着一个会话：发命令、订阅、有计划地停下（施工 3-7 中）。拿着它的都放下了，actor 就退出。
 
 use std::fmt;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use tokio::sync::broadcast::error::{RecvError, TryRecvError};
 use tokio::sync::{broadcast, mpsc, oneshot};
@@ -17,6 +17,7 @@ use miyu_tool::{JobError, Log, Output};
 
 use crate::backlog::Backlog;
 use crate::jobs::Unreadable;
+use crate::shown::{Next, Shown};
 
 /// 一个会话：它的 actor 的收件箱。可以复制，几个头一起拿着。
 #[derive(Debug, Clone)]
@@ -30,9 +31,9 @@ pub struct Handle {
     oneshot: bool,
     /// 拿着订阅的头有没有至少一个：actor 每多了、少了一个订阅就写一次（施工 7-9，施工 C-5 从 `busy` 的做法照抄）。
     watched: Arc<AtomicBool>,
-    /// 给头看的限额：造会话、载入时交完限额向内核要的（施工 6-3 补）。会话里不变：一个核心一个模型，策略冻结在会话上；
-    /// 换模型那一步再改成会变的。
-    limits: ContextLimits,
+    /// 给头看的限额和会话接下来请求的模型：造会话、载入时交完限额向内核要的（施工 6-3 补）。和 actor 共用：钉住的池出错换了
+    /// 成员（施工 8-9）、回合开始重新解析（施工 8-10），actor 写一次。
+    shown: Arc<Mutex<Shown>>,
 }
 
 /// 发给 actor 的。
@@ -115,7 +116,7 @@ impl Handle {
         busy: Arc<AtomicBool>,
         oneshot: bool,
         watched: Arc<AtomicBool>,
-        limits: ContextLimits,
+        shown: Arc<Mutex<Shown>>,
     ) -> Handle {
         Handle {
             id,
@@ -123,7 +124,7 @@ impl Handle {
             busy,
             oneshot,
             watched,
-            limits,
+            shown,
         }
     }
 
@@ -147,9 +148,23 @@ impl Handle {
         &self.id
     }
 
-    /// 给头看的限额：窗口、压缩线（施工 6-3 补）。协议照它回 `subscribe`（`docs/blueprint/protocol.md`）。
+    /// 给头看的限额：窗口、压缩线（施工 6-3 补）。协议照它回 `subscribe`（`docs/blueprint/protocol.md`）。会话中途变了的
+    /// 是变了以后的（施工 8-9、8-10）。
     pub fn limits(&self) -> ContextLimits {
-        self.limits
+        self.shown
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .limits
+    }
+
+    /// 会话接下来请求的模型（施工 8-10）：引用、接下来发给谁。协议照它写 `subscribe` 回应的 `model`。回合开始重新解析过、
+    /// 出错换了成员的是换了以后的。
+    pub fn next(&self) -> Next {
+        self.shown
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .next
+            .clone()
     }
 
     /// 发一个命令，等它的回应：接受的，它产生的事件落了盘才回（`07-存储.md` S4）；拒绝的当场回。

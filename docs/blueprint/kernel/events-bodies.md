@@ -47,8 +47,9 @@
 | `cwd` | 字符串 | 可以没有 | 开会话时实际干活的目录，人看到的那种写法（施工 4-9 再补三上）。之前的日志没有 |
 | `parent` | 会话编号 | 可以没有 | 父会话：派它的那个会话（`agents.md`，施工 7-1）。主会话没有 |
 | `depth` | 整数（`u32`） | 可以没有 | 第几层：父会话的加一。主会话是第 0 层，不写。和 `parent` 同有同无、至少是 1，由账本查（`kernel/history.md`） |
+| `model` | 字符串 | 可以没有 | 会话用哪个模型（施工 8-8，`models.md`「事件」）：造会话时解析好的引用，模型 `<供应商>/<模型>` 或池 `@<池>`，挡位已经换成它那时的值。协议造的照 `session.create` 的 `model`，没写的照那时的 `models.chat`；子会话照 `subagent` 的 `tier`，没写的照父会话那时的。那时连 `models.chat` 都没配的不写。内核只记不解读 |
 
-子会话不写 `oneshot`：`--continue`、`miyu undo` 找「最近一次 `miyu ask` 开的」不会找到它（`agents.md`）。以前的日志没有 `parent`、`depth` 两格，原样一个字节不变。
+子会话不写 `oneshot`：`--continue`、`miyu undo` 找「最近一次 `miyu ask` 开的」不会找到它（`agents.md`）。以前的日志没有 `parent`、`depth`、`model` 几格，原样一个字节不变；没有 `model` 的，路由照载入那一刻的 `models.chat`（`models.md`「怎么走」第一条第 7 条）。样本两条都带 `model`（施工 8-8）。
 
 **权限**（`session.created`、`session.policy_changed` 里的 `permission`）：
 
@@ -59,14 +60,16 @@
 
 两格都写，少一格读不进来。不认识的级别按最严的算（`kernel/blocks.md` 第 19 条）。每一级能做什么，见 `session/guard.md`。
 
-**`session.policy_changed`**：换了策略快照，或者换了权限，也可以一起换。
+**`session.policy_changed`**：换了策略快照，或者换了权限，或者换了模型，也可以一起换。
 
 | 格 | 写法 | 有没有 | 是什么 |
 |---|---|---|---|
 | `policy` | 内容哈希 | 可以没有 | 新的策略快照，下一个回合开始时生效（还没有哪里写，见「还没有的」） |
 | `permission` | 权限 | 可以没有 | 新的权限：收紧的当场生效，放宽的下一次请求时生效（`kernel/session.md`） |
+| `model` | 字符串 | 可以没有 | 换成的模型引用（施工 8-10，`models.md`「事件」）：模型 `<供应商>/<模型>` 或池 `@<池>`，下一个回合开始时生效。人换的 `by` 是人，`cause` 是 `session.configure`；钉着的没了、退回默认的 `by` 是内核，带着回合 |
+| `replaced` | 字符串 | 可以没有 | 钉着的引用没了、内核退回默认时写：原来那个（施工 8-10）。只和 `model` 一起出现，账本查（`replaced comes only with model`） |
 
-两格都没有的 `{}` 也读得进来。内核现在只在切权限时写它，只写 `permission`。
+几格都没有的 `{}` 也读得进来。内核切权限时只写 `permission`，换模型时只写 `model`，退回默认时写 `model`、`replaced`（`kernel/session.md`「换模型」）。以前的日志没有 `model`、`replaced`，照没有读。样本里 139 号是人换的，144 号是 143 号回合开始时池没了、退回的。
 
 **`session.meta_changed`**：改了哪项写哪项。
 
@@ -356,6 +359,7 @@
 | `bad_summary` | 摘要请求的回复里取不出摘要：空的，或者调了工具（施工 6-2 上） | 内核 |
 | `compaction_paused` | 自动压缩暂停着，这一次请求明知放不下，没发（施工 6-6 上） | 内核 |
 | `no_model` | 没有能用的模型：`models.chat` 没配、会话的引用解析不出也退不回去、那一家用不了、key 一个都取不到。没发出去，没有 `endpoint`、`model`、`request`，不再来（施工 8-6，`models.md`「事件」） | 执行器（会话的路由） |
+| `cooling` | 候选不止一个，全在冷却：没发出去，没有 `endpoint`、`model`、`request`；原话写每个候选为什么、到什么时候。能再来：等到最早恢复的那一个（施工 8-9，`models.md`「怎么走」第五条第 6 条） | 执行器（会话的路由） |
 
 **`job.reported`**：后台命令结束了（施工 7-1，`agents.md`）。
 
@@ -437,7 +441,7 @@
 
 | 测试 | 守哪几种 |
 |---|---|
-| `crates/miyu-kernel/src/event/session/tests.rs` | 会话的四种：图纸上的写法、一次性的写与不写、每一级读成自己那一种、不认识的级别原样留着、权限两格都要写、坏的说是哪一种；子会话的 `parent`、`depth` 读写一字不差，主会话不写这两格（施工 7-1）；`session.recapped` 两格都要写（施工 3-8 四补） |
+| `crates/miyu-kernel/src/event/session/tests.rs` | 会话的四种：图纸上的写法、一次性的写与不写、每一级读成自己那一种、不认识的级别原样留着、权限两格都要写、坏的说是哪一种；子会话的 `parent`、`depth` 读写一字不差，主会话不写这两格（施工 7-1）；`session.recapped` 两格都要写（施工 3-8 四补）；`session.policy_changed` 的 `model`、`replaced` 读写一字不差、以前的日志照读、`null` 当没有、不是字的读不进来（施工 8-10） |
 | `crates/miyu-kernel/src/event/turn/tests.rs` | 回合的四种：图纸上的写法、没有 `trigger` 的不写这一格（施工 6-8）、每种结束原因、不认识的原样留着、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/restore/tests.rs` | `files.restored` 的每一格读写一字不差；新的 `action`、`outcome` 原样留着 |
 | `crates/miyu-kernel/src/event/message/tests.rs` | `message.assistant` 图纸上的写法、`seen` 必有、`interrupted` 只在是真时写；`message.withdrawn` 的写法和序号从 1 起 |
@@ -448,7 +452,7 @@
 | `crates/miyu-kernel/src/event/question/tests.rs` | 提问的两种：图纸上的写法、没写的格子不写、第 4 条对不对得上题目、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/context/tests.rs` | 上下文的几种：图纸上的写法、手动压缩带着要求（施工 6-8）、清空的空摘要照样写出 `summary`（施工 6-8 补）、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/model/tests.rs` | `model.called` 图纸上的写法；没发出去就失败的只有知道的几格；每种出错的分类；出错带着 HTTP 状态码、没有这一格的旧日志照读（施工 3-5 三补）；块的起止读写一字不差、没有这一格的旧日志照读（施工 2-3 补）；第一处不同的写法；`purpose` 读写一字不差、不认识的原样留着、带了的才是辅助请求（施工 3-8 四补） |
-| `crates/miyu-kernel/tests/samples.rs` | 每一种的样本读写一字不差 |
+| `crates/miyu-kernel/tests/samples.rs` | 每一种的样本读写一字不差；换模型的几条一条接一条：退回的带着回合、原来的正是前面换成的（施工 8-10） |
 | `crates/miyu-kernel/tests/resources.rs` 的 `the_sample_denial_is_the_sentence_with_the_reason` | 样本里 71 号被人拒绝的结果，就是资源里带理由的那一句 |
 
 ### 出处
@@ -469,4 +473,4 @@
 - `job.started` 的后台命令由 `shell` 写、`job.reported` 由执行器的任务表交、载入时内核补 `aborted`（施工 7-3）；子代理的 `job.started`、`session.created` 的 `parent`、`depth` 由派子代理写（施工 7-5），`child.reported` 由子会话交（施工 7-6）。
 - 会问人的工具：`question.asked` 读写都有了，还没有工具会问（`ask_user`，`10-自带软件.md` 第三节）。
 - 选了「本会话都允许」「这个工作区以后都允许」的，决定记下了，执行前的链还不照它放行；工作区的那种还要存进工作区的配置（`02-内核.md` 第六节「确认怎么走」第 3 条，M5）。
-- `session.policy_changed` 的 `policy`：换策略快照（目录变了、配置改了）还没有，内核只写过换权限（`05-内核接口.md` 第八节，`02-内核.md` K3）。
+- `session.policy_changed` 的 `policy`：换策略快照（目录变了、配置改了）还没有，内核只写过换权限、换模型（`05-内核接口.md` 第八节，`02-内核.md` K3）。

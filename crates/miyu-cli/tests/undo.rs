@@ -11,7 +11,8 @@ use serde_json::json;
 use miyu_cli::language::Language;
 use miyu_cli::{Direction, Plan, UndoPlan};
 use miyu_session::testkit::{Play, Script};
-use support::{Home, Outside, plan, resources};
+use support::outside::Outside;
+use support::{Home, plan, resources};
 
 /// 起一个核心：请求模型照 `plays`，工具是出厂的那几件。
 fn home(plays: impl IntoIterator<Item = Play>) -> Home {

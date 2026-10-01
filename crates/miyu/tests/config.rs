@@ -108,7 +108,7 @@ async fn a_core_with_three_layers_says_where_each_value_came_from() {
     assert_eq!(
         stdout(&all),
         // 测试拉起的核心带着 `MIYU_CATALOG_UPDATE=false`（施工 8-7）：环境变量压过的那一项照它。
-        "log.level = \"debug\"\nmodels.catalog.every = \"24h\"\nmodels.catalog.update = false\nmodels.catalog.url = \"https://models.dev/api.json\"\npermission.start_read_only = false\ntui.startup = \"new\"\nui.language = \"zh\"\n"
+        "log.level = \"debug\"\nmodels.catalog.every = \"24h\"\nmodels.catalog.update = false\nmodels.catalog.url = \"https://models.dev/api.json\"\nmodels.cooldown.auth.base = \"10m\"\nmodels.cooldown.auth.max = \"2h\"\nmodels.cooldown.rate_limited.base = \"30s\"\nmodels.cooldown.rate_limited.max = \"10m\"\nmodels.cooldown.retryable.base = \"10s\"\nmodels.cooldown.retryable.max = \"5m\"\npermission.start_read_only = false\ntui.startup = \"new\"\nui.language = \"zh\"\n"
     );
     let json = run(
         &root,
@@ -246,7 +246,11 @@ async fn check_reports_each_problem_on_a_line_and_the_total() {
 async fn ask_first_says_the_config_has_errors_and_path_says_where_a_project_config_goes() {
     let home = Home::new();
     let root = home.root.path().to_path_buf();
-    write(&root.join("system").join("config.toml"), SYSTEM);
+    // 配一个用不了的模型（施工 8-11）：没配的 `miyu ask` 不造会话，看不到造会话时说的那几句。
+    write(
+        &root.join("system").join("config.toml"),
+        &format!("{SYSTEM}\n{}", support::UNUSABLE_MODEL),
+    );
     let (held, _) = within("拉起", connect_or_start(&home.root, || home.core()))
         .await
         .expect("拉得起");

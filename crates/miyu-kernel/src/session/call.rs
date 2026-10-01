@@ -7,7 +7,6 @@
 use super::Session;
 use super::action::Action;
 use super::compaction::Compacting;
-use super::input::Reread;
 use super::spans::{Mark, Spans, millis};
 use super::summary::{Summarized, called_tool};
 use super::turn::Stage;
@@ -40,7 +39,7 @@ pub(super) struct Call {
     /// 每一块的起止，照流里的编号（施工 2-3 补）。
     spans: Spans,
     /// 这是压缩的摘要请求：替代到哪、进度（施工 6-2 上）。主请求没有。
-    compaction: Option<Box<Compacting>>,
+    pub(super) compaction: Option<Box<Compacting>>,
 }
 
 /// 请求发出去时，执行器报来的。
@@ -193,7 +192,8 @@ impl Session {
                 progress,
             ))],
             Err(error) => {
-                let mut actions = self.model_ended(at, seen, None, Some(error), None, None);
+                let mut actions =
+                    self.model_ended(at, seen, None, Some(error), Default::default(), None);
                 actions.push(Action::CancelModel { seen });
                 actions
             }
@@ -201,15 +201,15 @@ impl Session {
     }
 
     /// 模型说完了：正常说完的写成回复；出错的，收到的半截也写成回复，只留思考和正文（施工 3-5 下）。
-    /// 都记一条 `model.called`。出了可以重试的错，等着再来（`retry.rs`）；不能重试的，结束回合；
-    /// 回复里没有工具调用的，结束回合；有工具调用的，接着调工具。
+    /// 都记一条 `model.called`。出了可以重试的错（端口说换了端点的也算，施工 8-9），等着再来（`retry.rs`）；不能重试的，
+    /// 结束回合；回复里没有工具调用的，结束回合；有工具调用的，接着调工具。
     pub(super) fn model_ended(
         &mut self,
         at: Timestamp,
         seen: Seq,
         usage: Option<Usage>,
         error: Option<CallError>,
-        wait_ms: Option<u64>,
+        said: super::retry::Said,
         excess: Option<u64>,
     ) -> Vec<Action> {
         let Some((call, cause)) = self.take_call(seen) else {
@@ -252,7 +252,7 @@ impl Session {
                 }
                 return vec![Action::Append(events)];
             }
-            if let Some(wait) = self.retry_wait(&error, wait_ms) {
+            if let Some(retrying) = self.retry_wait(&error, said) {
                 // 再来的是摘要请求，不标「下一次是重试」：它后面那一次主请求照常算一步。被动压缩的摘要请求连压什么也记回去，
                 // 到点了照它再压（施工 6-7）：它不看压缩线。截到哪、截了几次、是不是隔离式也记回去，照它再发（施工 6-6 补）。
                 let compaction = settled.compaction.as_deref();
@@ -264,7 +264,7 @@ impl Session {
                     turn.again = again.or(turn.again);
                 }
                 let cut = settled.reply.is_some();
-                return self.wait_to_retry(at, seen, cause, events, cut, error, wait);
+                return self.wait_to_retry(at, seen, cause, events, cut, error, retrying);
             }
             // 摘要请求不再来了，是一次压缩失败：连着数到了次数，暂停排在 `turn.ended` 前面（施工 6-6 上）；手动的不数。
             if let Some(compacting) = settled.compaction.as_deref() {
@@ -452,16 +452,8 @@ impl Session {
         }
     }
 
-    /// 执行器送回了第 `seen` 次摘要请求的重读结果（施工 6-5）：记在那次请求上。不是在路上的那一次的，不理。
-    pub(super) fn reread_done(&mut self, seen: Seq, files: Vec<Reread>) -> Vec<Action> {
-        if let Some(compacting) = self.call(seen).and_then(|call| call.compaction.as_mut()) {
-            compacting.reread(files);
-        }
-        Vec::new()
-    }
-
     /// 在路上、名字是 `seen` 的那次请求。
-    fn call(&mut self, seen: Seq) -> Option<&mut Call> {
+    pub(super) fn call(&mut self, seen: Seq) -> Option<&mut Call> {
         match &mut self.turn.as_mut()?.stage {
             Stage::Asking(call) if call.seen == seen => Some(call),
             _ => None,

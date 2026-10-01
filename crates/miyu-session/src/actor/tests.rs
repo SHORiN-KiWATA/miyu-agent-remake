@@ -176,6 +176,7 @@ async fn a_write_that_fails_stops_the_session() {
     actor.wait_for(id("cmd-0"), reply);
     let busy = actor.busy();
     let watched = actor.watched();
+    let shown = actor.shown();
     let session = crate::new_id(Timestamp::from_unix_millis(0).expect("在范围里"));
     spawn(actor, first, span(&session));
     assert!(matches!(
@@ -183,11 +184,7 @@ async fn a_write_that_fails_stops_the_session() {
         Ok(Outcome::Accepted { .. })
     ));
 
-    let nothing = miyu_kernel::session::ContextLimits {
-        window: None,
-        compaction_line: None,
-    };
-    let handle = Handle::new(session.clone(), inbox, busy, false, watched, nothing);
+    let handle = Handle::new(session.clone(), inbox, busy, false, watched, shown);
     assert!(!handle.busy(), "刚造出来，没有回合");
     let first = within(
         "第一句的回应",

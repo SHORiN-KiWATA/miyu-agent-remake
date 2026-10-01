@@ -37,6 +37,7 @@ impl Home {
     fn named(name: &str) -> Home {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
+        // 不像别的夹具那样加纳秒时刻：套接字建在这下面，macOS 上套接字的路径最长 104 字节。
         let dir = std::env::temp_dir().join(format!("miyu-ipc-{}-{n}", std::process::id()));
         fs::create_dir_all(&dir).expect("临时目录建得了");
         let root = DataRoot::locate(&Env {

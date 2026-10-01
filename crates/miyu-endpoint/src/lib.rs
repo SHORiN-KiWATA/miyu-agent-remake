@@ -13,19 +13,25 @@
 //! - [`config`]：配置服务：起来时读的几份配置、最终值，`config.schema`、`config.get`、`config.check`（施工 8-2）；
 //!   `config.set`、`config.trust`（施工 8-3）；监视配置文件、推 `config.changed`、把当前的一份交给会话和核心（施工 8-4）；
 //! - 密钥：`secret.set`、`secret.delete`、`secret.list`，只能写、删、列名字，从不交出值（施工 8-5，`secrets.rs`）；
-//! - 模型：`model.list`，配好的供应商、模型、每一格资料的值和来源（施工 8-7，`models.rs`）。
+//! - 模型：`model.list`，配好的供应商、模型、每一格资料的值和来源（施工 8-7，`models.rs`）；第一次接入的
+//!   `provider.detect`、`provider.catalog`、`provider.test`（施工 8-11，`providers.rs`）；
+//! - 给人看的字：`human.get`，工具的样子、说法的模板原文，头不用再自己去资源目录里读（施工 W-1，`human.rs`）。
+//! - 文件：`fs.list` 列一层目录，`fs.find` 模糊找文件，数据根只有账号自己的工作区能列、能找（施工 W-2，`files.rs`）。
 
 mod attach;
 pub mod config;
 mod connection;
+mod files;
 mod from;
 mod hello;
+mod human;
 mod job_output;
 mod list;
 mod listen;
 mod meta;
 mod methods;
 mod models;
+mod providers;
 mod refusal;
 mod secrets;
 mod sessions;
@@ -97,6 +103,11 @@ pub struct Core {
     hub: Hub,
     /// 核心一份的模型资料（施工 8-7）：`model.list` 照它列。路由手里是同一份。
     model_data: Arc<ModelData>,
+    /// 找文件的清单记几份（施工 W-2，`files.rs`）：各个连接共用。
+    files: files::Cache,
+    /// `fresh` 时，清单建好多久以上才重建（施工 W-2）：出厂值 [`miyu_fs::FRESH_SECS`]，测试里设短的，不用真等
+    /// 十秒。
+    files_fresh: Duration,
 }
 
 /// 空的模型资料：没有档案、没有目录，读完了。
@@ -145,6 +156,8 @@ impl Core {
             connections: AtomicUsize::new(0),
             hello_wait: HELLO_WAIT,
             model_data: empty_model_data(),
+            files: files::Cache::default(),
+            files_fresh: Duration::from_secs(miyu_fs::FRESH_SECS),
         }
     }
 
@@ -159,6 +172,14 @@ impl Core {
     #[must_use]
     pub fn with_hello_wait(mut self, wait: Duration) -> Core {
         self.hello_wait = wait;
+        self
+    }
+
+    /// 同一份家底，`fs.find` 的 `fresh` 照 `fresh` 这个时长判断要不要重建清单（施工 W-2）：测试里设短的，不用
+    /// 真等十秒。
+    #[must_use]
+    pub fn with_files_fresh(mut self, fresh: Duration) -> Core {
+        self.files_fresh = fresh;
         self
     }
 

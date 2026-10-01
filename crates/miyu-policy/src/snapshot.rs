@@ -287,8 +287,8 @@ impl Snapshot {
         serde_json::from_slice(bytes).map_err(|error| SnapshotError(error.to_string()))
     }
 
-    /// 造会话的那一条：属主、场所、这份快照的哈希、开始时的权限（`03-事件模型.md` 第三节）。工作目录由造会话的一方
-    /// 填上。造出来的是主会话：父会话、第几层没有（子会话随 M7，`agents.md`）。
+    /// 造会话的那一条：属主、场所、这份快照的哈希、开始时的权限（`03-事件模型.md` 第三节）。工作目录、模型（施工 8-8）由
+    /// 造会话的一方填上。造出来的是主会话：父会话、第几层没有（子会话随 M7，`agents.md`）。
     pub fn session_created(
         &self,
         owner: AccountId,
@@ -304,6 +304,7 @@ impl Snapshot {
             cwd: None,
             parent: None,
             depth: None,
+            model: None,
         }
     }
 

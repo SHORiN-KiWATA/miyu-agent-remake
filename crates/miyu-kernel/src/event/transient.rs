@@ -9,8 +9,10 @@ use serde::{Serialize, Serializer};
 
 use crate::accumulate::Kind;
 use crate::event::{CompactTrigger, ErrorClass, Usage};
-use crate::id::{CallId, CommandId, Seq, TurnId};
+use crate::id::{CallId, CommandId, ModelName, ProviderId, Seq, TurnId};
 use crate::origin::By;
+use crate::session::ContextLimits;
+use crate::text_enum::text_enum;
 use crate::time::Timestamp;
 
 /// 一条瞬时事件。
@@ -41,7 +43,40 @@ pub enum TransientBody {
     CompactionProgress(CompactionProgress),
     /// `compaction.done`：压好了，压前、压后的用量（施工 6-3 下）。
     CompactionDone(CompactionDone),
+    /// `model.changed`：会话接下来请求的模型、限额变了（施工 8-9，`models.md`「瞬时事件」）。会话 actor 造，内核不推。装在
+    /// 盒子里：它比别的种类大出一截，推送的队列里每一份都照最大的那一种占地方（clippy 的 `large_enum_variant`）。
+    ModelChanged(Box<ModelChanged>),
 }
+
+/// `model.changed` 的 `body`（施工 8-9）：会话接下来请求的模型、限额变了，头照它换底栏、限额，`why` 是 `failover` 的在
+/// 时间线上出一条通知。写出去的格照这个先后，没有的不写。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ModelChanged {
+    /// 会话的引用：模型或 `@池`。
+    #[serde(rename = "ref", skip_serializing_if = "Option::is_none")]
+    pub reference: Option<String>,
+    /// 接下来发给哪一家。轮换的池没有（每次都换）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub endpoint: Option<ProviderId>,
+    /// 接下来发给哪个模型。轮换的池没有。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<ModelName>,
+    /// 和 `subscribe` 回应里的一样：窗口、压缩线，没有的不写。
+    pub limits: ContextLimits,
+    /// 为什么变。
+    pub why: ChangeWhy,
+}
+
+text_enum!(
+    /// `model.changed` 为什么推（施工 8-9；回合开始时重新解析的 `turn`，施工 8-10）。
+    ChangeWhy {
+        /// 回合开始时照这一轮的配置重新解析，头看得到的变了：换了模型、钉着的没了、配置改了（`models.md`「怎么走」第六条
+        /// 第 3 条，施工 8-10）。
+        Turn = "turn",
+        /// 出错换到了池里别的模型：成了才钉过去（`models.md`「怎么走」第四条第 5 条、第五条第 7 条）。
+        Failover = "failover",
+    }
+);
 
 /// `compaction.done` 的 `body`：压好了。压前、压后都是本地估算，和压缩线同一个算法；摘要请求的用量、用时取自它的
 /// `model.called`（施工 6-3 下，`compaction.md` 第十三条）。头照它印「上下文已压缩」，核心照它记度量。
@@ -101,6 +136,9 @@ pub struct Retry {
     /// 出错的 HTTP 状态码，照那一次的 `model.called` 带过来（施工 3-5 三补）；没有的不写。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<u16>,
+    /// 换了端点当场再来（施工 8-9，`models.md`「怎么走」第五条第 5 条）：端口说的。不是的不写。
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub failover: bool,
 }
 
 /// `tool.progress` 的 `body`：哪一次调用、一段输出（`03-事件模型.md` 第五节）。结果以
@@ -144,6 +182,7 @@ impl TransientBody {
             TransientBody::Status(_) => "status",
             TransientBody::CompactionProgress(_) => "compaction.progress",
             TransientBody::CompactionDone(_) => "compaction.done",
+            TransientBody::ModelChanged(_) => "model.changed",
         }
     }
 }
@@ -194,6 +233,7 @@ impl Serialize for TransientBody {
             TransientBody::Status(status) => status.serialize(s),
             TransientBody::CompactionProgress(progress) => progress.serialize(s),
             TransientBody::CompactionDone(done) => done.serialize(s),
+            TransientBody::ModelChanged(changed) => changed.serialize(s),
         }
     }
 }
