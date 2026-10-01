@@ -183,16 +183,4 @@ impl Language {
             Language::English => "Until you say something else, miyu restore brings it back.",
         }
     }
-
-    /// 核心没在跑，又没设 key：不拉起（施工 4-9 再补一，照 `miyu ask` 的规矩）。
-    pub(crate) fn undo_needs_key(&self) -> &'static str {
-        match self {
-            Language::Chinese => {
-                "核心没在跑。先设 DEEPSEEK_API_KEY：没有 key 拉起的核心，之后的 miyu ask 也用不了"
-            }
-            Language::English => {
-                "The core is not running. Set DEEPSEEK_API_KEY first: a core started without it cannot serve miyu ask later"
-            }
-        }
-    }
 }

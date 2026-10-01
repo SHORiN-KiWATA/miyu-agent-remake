@@ -228,7 +228,7 @@ async fn deleting_a_messaged_child_settles_what_its_parent_waits_for() {
             Script::new([
                 Play::calls(&[("subagent", &agent("查 A"))]),
                 Play::Says("派出去了。"),
-                Play::calls(&[("message_agent", &message)]),
+                Play::calls(&[("send_message", &message)]),
                 Play::Says("留了言。"),
                 Play::Says("知道它停了。"),
             ]),

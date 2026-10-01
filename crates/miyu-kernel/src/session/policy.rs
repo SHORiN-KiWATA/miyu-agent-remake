@@ -50,8 +50,8 @@ pub struct Titles {
     pub chars: usize,
 }
 
-/// 别的会话发来的话怎么防刷屏（施工 C-2，`docs/blueprint/cross-session.md` 第五条第 1 到 3 款）。数是策略数据，放在策略
-/// 快照里。
+/// 别的会话发来的话怎么防刷屏（施工 C-2，`docs/blueprint/cross-session.md` 第五条第 1 到 3 款），「空了告诉我」等多久、
+/// 通知带多长的一行（施工 C-6，第六条第 6、8 款）。数是策略数据，放在策略快照里。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Peers {
     /// 同一个发话方在一个窗口里最多几句：策略数据 `peers.burst`，出厂 5。
@@ -60,6 +60,11 @@ pub struct Peers {
     pub window: u64,
     /// 还没听到的别的会话的话最多几句，不分发话方：策略数据 `peers.unread`，出厂 50。
     pub unread: usize,
+    /// 订了多久没等到通知就作废，单位小时：策略数据 `peers.watch_hours`，出厂 12（施工 C-6）。等的这一边照它查到没到点。
+    pub watch_hours: u64,
+    /// 通知里带的那一行最多几个字（Unicode 字符）：策略数据 `peers.status_chars`，出厂 200（施工 C-6）。被等的这一边照它
+    /// 截 [`super::Session::last_line`]。
+    pub status_chars: usize,
 }
 
 /// 子会话向上回报的正文怎么截（施工 7-6，`docs/blueprint/agents.md` 第二条第 3 条）：超过 `chars` 个字的留头尾各一半，

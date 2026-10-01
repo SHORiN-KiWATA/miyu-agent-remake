@@ -6,6 +6,8 @@
 //!
 //! 停子代理、看它在做什么也经它（施工 7-4）：停下子会话、照它的日志算它这会儿的样子。她列会话也经它（施工 C-3）：和
 //! `session.list` 同一个函数算（`crate::list`）。她读别的会话的日志也经它（施工 C-4）：只算出目录，不载入那个会话。
+//! 她发给别的会话时，对方是不是没人看着的一次性会话也经它看（施工 C-5）。她订「空了告诉我」也经它：把「谁在等」交给被等的
+//! 那个会话的 actor，它没载入的先载入（施工 C-6）。
 
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
@@ -14,13 +16,15 @@ use miyu_kernel::event::Event;
 use miyu_kernel::id::{AccountId, CommandId, SessionId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Outcome, Queued};
-use miyu_session::{Child, Peek, Pending, SessionPort, peek};
+use miyu_kernel::time::Timestamp;
+use miyu_session::{Child, NotWatched, Peek, Pending, SessionPort, peek};
 use miyu_store::index::Row;
 use miyu_store::log::{read_events, read_segments};
 use miyu_tool::{Log, MainSession, ReadLog, Stop};
 
 use crate::Core;
 use crate::list::scan;
+use crate::refusal::Refusal;
 
 /// 交给会话的端口：造子会话、给会话发命令都照会话表的规矩。
 pub(crate) fn port(core: &Arc<Core>) -> Arc<dyn SessionPort> {
@@ -162,6 +166,56 @@ impl SessionPort for Table {
             let dir = core.root.session_dir(&core.admin, &session);
             Ok(Log::new(Dir(dir)))
         })
+    }
+
+    /// 会话 `session` 这时是不是没人看着的一次性会话（施工 C-5）：`send_message` 刚经 [`Table::command`] 把它载入过，
+    /// 这里照会话表里的 `Handle` 看（`cross-session.md` 第三条第 4 款）；核心正在停、这个会话不在表里的，当不是。
+    fn held(&self, session: SessionId) -> Pending<'_, bool> {
+        Box::pin(async move {
+            let Ok(core) = self.core() else {
+                return false;
+            };
+            match core.sessions.get(&core, &session, None, None).await {
+                Ok(found) => found.handle.oneshot() && !found.handle.watched(),
+                Err(_) => false,
+            }
+        })
+    }
+
+    fn watch(
+        &self,
+        session: SessionId,
+        watcher: SessionId,
+        since: Timestamp,
+    ) -> Pending<'_, Result<(), NotWatched>> {
+        Box::pin(self.watch_session(session, watcher, since))
+    }
+}
+
+impl Table {
+    /// 「空了告诉我」（施工 C-6，`cross-session.md` 第六条第 3 款）：照会话表的规矩找到 `session`（没在跑的先载入），把
+    /// 「`watcher` 在等」交给它的 actor。找不到的（删了、从来没有）是不在了；载入不了、它停了、核心正在停的交回原因。
+    async fn watch_session(
+        &self,
+        session: SessionId,
+        watcher: SessionId,
+        since: Timestamp,
+    ) -> Result<(), NotWatched> {
+        let core = self.core().map_err(NotWatched::Failed)?;
+        let found = match core.sessions.get(&core, &session, None, None).await {
+            Ok(found) => found,
+            Err(refusal) if refusal == Refusal::NOT_FOUND => return Err(NotWatched::Gone),
+            Err(refusal) => {
+                return Err(NotWatched::Failed(format!(
+                    "session {session} not opened: {refusal:?}"
+                )));
+            }
+        };
+        if found.handle.watch(watcher, since).is_err() {
+            core.sessions.forget(&session).await;
+            return Err(NotWatched::Failed(format!("session {session} stopped")));
+        }
+        Ok(())
     }
 }
 

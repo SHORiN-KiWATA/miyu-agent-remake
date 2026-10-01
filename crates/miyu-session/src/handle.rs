@@ -12,6 +12,7 @@ use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{CommandId, JobId, SessionId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, ContextLimits, Outcome, Reason};
+use miyu_kernel::time::Timestamp;
 use miyu_tool::{JobError, Log, Output};
 
 use crate::backlog::Backlog;
@@ -24,6 +25,11 @@ pub struct Handle {
     inbox: mpsc::UnboundedSender<Message>,
     /// 有没有在跑的回合：actor 每送完一批输入就写一次（施工 3-9 上）。
     busy: Arc<AtomicBool>,
+    /// 一次性的会话：`miyu ask` 开的（`session.created` 的 `oneshot`）。造好以后不变（施工 C-5，`send_message` 照它和
+    /// [`Handle::watched`] 决定说 `sent` 还是 `held`）。
+    oneshot: bool,
+    /// 拿着订阅的头有没有至少一个：actor 每多了、少了一个订阅就写一次（施工 7-9，施工 C-5 从 `busy` 的做法照抄）。
+    watched: Arc<AtomicBool>,
     /// 给头看的限额：造会话、载入时交完限额向内核要的（施工 6-3 补）。会话里不变：一个核心一个模型，策略冻结在会话上；
     /// 换模型那一步再改成会变的。
     limits: ContextLimits,
@@ -59,6 +65,11 @@ pub(crate) enum Message {
     Output {
         job: JobId,
         reply: oneshot::Sender<Result<Output, Unreadable>>,
+    },
+    /// 会话 `watcher` 等这个会话空下来（施工 C-6）：记进名单，不进内核、不写盘；`since` 是那一边这次订的起算时刻。
+    Watch {
+        watcher: SessionId,
+        since: Timestamp,
     },
 }
 
@@ -102,12 +113,16 @@ impl Handle {
         id: SessionId,
         inbox: mpsc::UnboundedSender<Message>,
         busy: Arc<AtomicBool>,
+        oneshot: bool,
+        watched: Arc<AtomicBool>,
         limits: ContextLimits,
     ) -> Handle {
         Handle {
             id,
             inbox,
             busy,
+            oneshot,
+            watched,
             limits,
         }
     }
@@ -115,6 +130,16 @@ impl Handle {
     /// 有没有在跑的回合：核心看它决定能不能空闲退出（施工 3-9 上）。会话停了的，不算在跑。
     pub fn busy(&self) -> bool {
         self.busy.load(Ordering::Acquire)
+    }
+
+    /// 一次性的会话：`miyu ask` 开的（施工 C-5，`cross-session.md` 第三条第 4 款）。
+    pub fn oneshot(&self) -> bool {
+        self.oneshot
+    }
+
+    /// 这时有没有至少一个头订阅着（施工 C-5）：造会话、载入以后是假的，和内核一样当没人看着。
+    pub fn watched(&self) -> bool {
+        self.watched.load(Ordering::Acquire)
     }
 
     /// 会话编号。
@@ -296,6 +321,17 @@ impl Handle {
         let (reply, answer) = oneshot::channel();
         self.send(Message::Halt(Halt::Deleted { job, reply }))?;
         answer.await.map_err(|_| Stopped)
+    }
+
+    /// 会话 `watcher` 等这个会话空下来（施工 C-6，`cross-session.md` 第六条第 3 款，2026-10-01 改）：记进它 actor 的
+    /// 名单，同一个会话只记一个（后订的替掉先订的）；这时正忙着、或者 `since` 不晚于它上一次忙完的时刻才当场发通知，
+    /// 不然等它下一次忙完。`since` 是那一边这次订的起算时刻。交进收件箱就回，不等。
+    ///
+    /// # Errors
+    ///
+    /// 会话停了。
+    pub fn watch(&self, watcher: SessionId, since: Timestamp) -> Result<(), Stopped> {
+        self.send(Message::Watch { watcher, since })
     }
 
     fn send(&self, message: Message) -> Result<(), Stopped> {

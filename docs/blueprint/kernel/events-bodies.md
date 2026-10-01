@@ -219,8 +219,8 @@
 | | `what`，必有 | `command` 后台命令，`agent` 子代理；不认识的原样留着 |
 | | `title`，必有 | 调用时给的 `description`，头显示用 |
 | | `session`，可以没有 | 子代理的会话编号：`agent` 必有，`command` 没有，不认识的种类不管，由账本查 |
-| `job.messaged` | `job`，必有 | 给这个任务编号的子代理留了言（施工 7-7，`agents.md` 第六条）：`message_agent` 那次调用报一条，它欠一份回报。对得上这个会话派的一个子代理，由账本查 |
-| `peer.watch` | `session`，必有 | 订了别的会话的「空了告诉我」（施工 C-1，`cross-session.md`「效果 peer.watch」）：被等的会话的整个编号。`send_message` 写 `notify_when_idle` 的那次调用报一条（工具随施工 C-6），这就是订的记录，账本照它算在等哪几个会话、从这条结果的时刻算起；不是这个会话自己，由账本查 |
+| `job.messaged` | `job`，必有 | 给这个任务编号的子代理留了言（施工 7-7，`agents.md` 第六条）：`send_message` 那次调用报一条，它欠一份回报。对得上这个会话派的一个子代理，由账本查 |
+| `peer.watch` | `session`，必有 | 订了别的会话的「空了告诉我」（施工 C-1，`cross-session.md`「效果 peer.watch」）：被等的会话的整个编号。`send_message` 写 `notify_when_idle` 的那次调用报一条（施工 C-6），这就是订的记录，账本照它算在等哪几个会话、从这条结果的时刻算起；不是这个会话自己，由账本查 |
 
 - 改前改后的内容由执行器存成 blob，效果里是它们的哈希（`session/actor.md`）。
 - 缺了 `kind`、认识的种类缺了必有的格、哈希或者任务编号不合写法的，读不进来。
@@ -355,6 +355,7 @@
 | `empty_reply` | 回复里一个块都没有；回顾的回复里没有正文（施工 3-8 四补） | 内核 |
 | `bad_summary` | 摘要请求的回复里取不出摘要：空的，或者调了工具（施工 6-2 上） | 内核 |
 | `compaction_paused` | 自动压缩暂停着，这一次请求明知放不下，没发（施工 6-6 上） | 内核 |
+| `no_model` | 没有能用的模型：`models.chat` 没配、会话的引用解析不出也退不回去、那一家用不了、key 一个都取不到。没发出去，没有 `endpoint`、`model`、`request`，不再来（施工 8-6，`models.md`「事件」） | 执行器（会话的路由） |
 
 **`job.reported`**：后台命令结束了（施工 7-1，`agents.md`）。
 
@@ -418,9 +419,9 @@
 
 - 不认识的原样留着：新版本才有的，也算等到了头，账本不查它的 `by`（`kernel/history.md`）。
 - `by` 由账本查：这时在等 `session`，`idle` 的是那个会话、`expired`、`gone` 的是内核（`kernel/history.md`）。
-- `cause`：`idle` 的是交来通知的那个命令，`<被等的会话>/idle/<等的会话>/<被等的会话这时日志最后一条的序号>`；`expired`、`gone` 的是订它的那一轮的 `cause`（施工 C-6）。
+- `cause`：`idle` 的是交来通知的那个命令，`<被等的会话>/idle/<等的会话>/<等的那一边这次订的起算时刻，Unix 毫秒>`；`expired`、`gone` 的是订它的那一轮的 `cause`（施工 C-6，`cross-session.md`「起草时定的」第 53 条）。
 - 不带回合编号：它是别处来的，撤哪一轮都不拿走（`cross-session.md` 第七条第 2 款）。账本照「带 `turn` 的是正在进行的那个回合」查，不另立规矩，和两种回报一样。
-- 名字不叫 `session.*`：渲染表里 `session.*` 一律不进上下文（`kernel/request.md`「组装」第 3 条）。现在不渲染，渲染随施工 C-6。
+- 名字不叫 `session.*`：渲染表里 `session.*` 一律不进上下文（`kernel/request.md`「组装」第 3 条）。渲染成带标签的一块（施工 C-6，`kernel/request.md`「空了的通知」）。
 
 **两种回报的 `turn`**：一律不带（2026-09-30 定）：回报不属于哪一轮，带了这一轮的编号，撤这一轮时会跟着被拿走，和「别处来的留着」冲突（`kernel/history.md`「拿走什么」）。账本照「带 `turn` 的是正在进行的那个回合」查，不另立规矩。谁写、到了开不开一轮见 `kernel/session.md`「回报」，渲染成什么样见 `kernel/request.md`「回报」（施工 7-2）。
 
@@ -466,7 +467,6 @@
 - `session.created` 的分叉来源：做分叉时加（`03-事件模型.md` 第七节）。
 - `tool.result` 里大输出的全文（`03-事件模型.md` 第三节，`08-上下文投影.md` C9）。
 - `job.started` 的后台命令由 `shell` 写、`job.reported` 由执行器的任务表交、载入时内核补 `aborted`（施工 7-3）；子代理的 `job.started`、`session.created` 的 `parent`、`depth` 由派子代理写（施工 7-5），`child.reported` 由子会话交（施工 7-6）。
-- `peer.watch`、`peer.idle` 读写、账本都有了，还没有工具报 `peer.watch`、没有哪里写 `peer.idle`：施工 C-6。
 - 会问人的工具：`question.asked` 读写都有了，还没有工具会问（`ask_user`，`10-自带软件.md` 第三节）。
 - 选了「本会话都允许」「这个工作区以后都允许」的，决定记下了，执行前的链还不照它放行；工作区的那种还要存进工作区的配置（`02-内核.md` 第六节「确认怎么走」第 3 条，M5）。
 - `session.policy_changed` 的 `policy`：换策略快照（目录变了、配置改了）还没有，内核只写过换权限（`05-内核接口.md` 第八节，`02-内核.md` K3）。

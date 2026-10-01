@@ -1,6 +1,6 @@
 //! 真跑 `miyu redo`（施工 4-7 再补，`docs/blueprint/cli/redo.md`）：帮助页跟着界面语言，是重做那一页、不是恢复那一页；核心在跑的，
-//! 重做上一次 `miyu ask` 的那一轮，先说撤掉了哪一轮，`-s` 和 `--session` 重做的是写的那个；没有 key、核心也没在跑的，不拉起，
-//! 照 `miyu ask` 说没有可用的模型，退出码 5。
+//! 重做上一次 `miyu ask` 的那一轮，先说撤掉了哪一轮，`-s` 和 `--session` 重做的是写的那个；核心没配模型的，照 `miyu ask` 说没有
+//! 可用的模型，退出码 5。
 
 mod support;
 
@@ -12,16 +12,16 @@ use miyu_cli::language::Language;
 use miyu_ipc::connect_or_start;
 use support::{Home, MIYU, within};
 
-/// 在数据根 `root` 上跑 `miyu <args>`：没有 key，界面语言是 `lang`。
+/// 在数据根 `root` 上跑 `miyu <args>`：界面语言是 `lang`。
 fn miyu(root: &Path, lang: &str, args: &[&str]) -> Output {
     Command::new(MIYU)
         .args(args)
         .env("MIYU_HOME", root)
+        .envs(support::offline(root))
         .env("MIYU_RESOURCES", support::resources())
         .env("LANG", lang)
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")
-        .env_remove("DEEPSEEK_API_KEY")
         .env_remove("XDG_RUNTIME_DIR")
         .output()
         .expect("跑得起来")
@@ -62,7 +62,7 @@ async fn the_last_ask_or_the_given_session_is_the_one_redone() {
         .await
         .expect("拉得起");
     let root = home.root.path().to_path_buf();
-    // 核心没有 key：这一轮说「没有可用的模型」，可那一句记下了，是人开的一轮，重做得了；新的一轮照样没有模型。
+    // 核心没配模型：这一轮说「没有可用的模型」，可那一句记下了，是人开的一轮，重做得了；新的一轮照样没有模型。
     let asked = run(&root, vec!["ask".into(), "在吗".into()]).await;
     assert_eq!(asked.status.code(), Some(5), "{asked:?}");
     let redone = run(&root, vec!["redo".into()]).await;
@@ -83,7 +83,7 @@ async fn the_last_ask_or_the_given_session_is_the_one_redone() {
     );
     assert_eq!(
         lines.last(),
-        Some(&"没有可用的模型：设环境变量 DEEPSEEK_API_KEY"),
+        Some(&"没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。"),
         "{said}"
     );
     // `-s`、`--session` 重做的是写的那个：写一个不在的，照核心说的。
@@ -99,24 +99,4 @@ async fn the_last_ask_or_the_given_session_is_the_one_redone() {
     }
     drop(held);
     home.until_stopped().await;
-}
-
-#[test]
-fn without_a_key_and_a_core_nothing_is_started() {
-    let home = Home::new();
-    let redone = miyu(home.root.path(), "zh_CN.UTF-8", &["redo"]);
-    assert_eq!(redone.status.code(), Some(5), "{redone:?}");
-    assert!(redone.stdout.is_empty());
-    assert_eq!(
-        String::from_utf8_lossy(&redone.stderr),
-        "没有可用的模型：设环境变量 DEEPSEEK_API_KEY\n"
-    );
-    let redone = miyu(home.root.path(), "C", &["redo", "say", "it", "again"]);
-    assert_eq!(redone.status.code(), Some(5), "{redone:?}");
-    assert_eq!(
-        String::from_utf8_lossy(&redone.stderr),
-        "No model available: set DEEPSEEK_API_KEY\n"
-    );
-    assert!(!home.root.run().join("socket").exists(), "没拉起核心");
-    assert!(home.core_log().is_empty());
 }

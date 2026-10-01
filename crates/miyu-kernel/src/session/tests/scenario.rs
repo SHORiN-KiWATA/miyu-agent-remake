@@ -14,6 +14,7 @@ mod harness;
 mod isolate;
 mod manual;
 mod messages;
+mod models;
 mod overflow;
 mod peers;
 mod permission_changed;
@@ -32,6 +33,7 @@ mod title;
 mod undo_jobs;
 mod upward;
 mod upward_load;
+mod watch;
 
 use super::executor::call;
 use super::*;

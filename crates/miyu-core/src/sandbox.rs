@@ -66,7 +66,7 @@ pub(crate) fn cache(
 }
 
 /// 算不出缓存目录的原因，运行日志里一律英文。
-fn why(error: &RootError) -> &'static str {
+pub(crate) fn why(error: &RootError) -> &'static str {
     match error {
         RootError::NoHome => "no home directory",
         RootError::NoLocalAppData => "no LOCALAPPDATA",

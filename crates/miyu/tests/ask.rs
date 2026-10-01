@@ -1,5 +1,5 @@
-//! 真跑 `miyu ask`（`docs/construction/3-9-miyu-ask（下）.md`）：没有 key、核心也没在跑的，不拉起、退出码 5；
-//! 核心在跑的，头没有 key 照样连它；参数不对的退出码 2；帮助页跟着界面语言。
+//! 真跑 `miyu ask`（`docs/construction/3-9-miyu-ask（下）.md`）：核心没配模型的，退出码 5（施工 8-6 起 key 来自配置，头
+//! 一律拉起核心）；参数不对的退出码 2；帮助页跟着界面语言。
 
 mod support;
 
@@ -10,38 +10,24 @@ use miyu_cli::language::Language;
 use miyu_ipc::connect_or_start;
 use support::{Home, MIYU, within};
 
-/// 在临时的数据根上跑 `miyu ask <args>`：没有 key，界面语言是 `lang`。
+/// 在临时的数据根上跑 `miyu ask <args>`：界面语言是 `lang`。
 fn ask(home: &Home, lang: &str, args: &[&str]) -> Output {
     Command::new(MIYU)
         .arg("ask")
         .args(args)
         .env("MIYU_HOME", home.root.path())
+        .envs(support::offline(home.root.path()))
         .env("MIYU_RESOURCES", support::resources())
         .env("LANG", lang)
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")
-        .env_remove("DEEPSEEK_API_KEY")
         .env_remove("XDG_RUNTIME_DIR")
         .output()
         .expect("跑得起来")
 }
 
-#[test]
-fn without_a_key_and_a_core_nothing_is_started() {
-    let home = Home::new();
-    let output = ask(&home, "zh_CN.UTF-8", &["在吗"]);
-    assert_eq!(output.status.code(), Some(5), "{output:?}");
-    assert!(output.stdout.is_empty());
-    assert_eq!(
-        String::from_utf8_lossy(&output.stderr),
-        "没有可用的模型：设环境变量 DEEPSEEK_API_KEY\n"
-    );
-    assert!(!home.root.run().join("socket").exists(), "没拉起核心");
-    assert!(home.core_log().is_empty());
-}
-
 #[tokio::test]
-async fn a_running_core_is_used_even_without_a_key_here() {
+async fn a_core_without_a_model_says_so() {
     let home = Home::new();
     let (held, _) = within("拉起", connect_or_start(&home.root, || home.core()))
         .await
@@ -51,23 +37,23 @@ async fn a_running_core_is_used_even_without_a_key_here() {
         move || {
             Command::new(MIYU)
                 .args(["ask", "在吗"])
-                .env("MIYU_HOME", home_root)
+                .env("MIYU_HOME", &home_root)
+                .envs(support::offline(&home_root))
                 .env("LANG", "zh_CN.UTF-8")
                 .env_remove("LC_ALL")
                 .env_remove("LC_MESSAGES")
-                .env_remove("DEEPSEEK_API_KEY")
                 .output()
                 .expect("跑得起来")
         }
     })
     .await
     .expect("没 panic");
-    // 核心也没有 key：这一轮说「没有可用的模型」。这台机器上的沙盒用不了的（例如 Windows 上 5-9 以前），前面还有
+    // 核心也没配模型：这一轮说「没有可用的模型」。这台机器上的沙盒用不了的（例如 Windows 上 5-9 以前），前面还有
     // 沙盒用不了那一句，照这台机器的样子另有测试（施工 5-4 下）。
     assert_eq!(output.status.code(), Some(5), "{output:?}");
     assert_eq!(
         without_the_sandbox_line(&String::from_utf8_lossy(&output.stderr)),
-        "没有可用的模型：设环境变量 DEEPSEEK_API_KEY\n"
+        "没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。\n"
     );
     drop(held);
     home.until_stopped().await;

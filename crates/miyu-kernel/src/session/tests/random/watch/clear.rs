@@ -54,6 +54,7 @@ impl Watch {
                         | Body::ToolResult(_)
                         | Body::JobReported(_)
                         | Body::ChildReported(_)
+                        | Body::PeerIdle(_)
                 )
             })
     }

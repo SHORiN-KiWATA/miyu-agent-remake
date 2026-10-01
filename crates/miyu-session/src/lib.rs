@@ -8,12 +8,14 @@
 //! - [`create()`]：造一个会话，照人格存下策略快照；
 //! - [`load()`]：从磁盘载入一个会话，照快照重建策略；
 //! - [`Handle`]：发命令、订阅、有计划地停下；[`Backlog`]：订阅时要补发的那一截（施工 3-8 六补）；
-//! - [`Models`]、[`ModelPort`]：给会话造请求模型的端口，和端口本身。[`HttpModels`] 经驱动和 HTTP
-//!   执行器请求（施工 3-7 下），测试里照剧本回；
+//! - [`Models`]、[`ModelPort`]：给会话造请求模型的端口，和端口本身。[`Routes`] 照配置挑供应商、钉 key，经驱动和
+//!   HTTP 执行器请求（施工 3-7 下、8-6），测试里照剧本回；[`ModelData`]：核心一份的模型资料，[`refresh_list`]：拉供应商的
+//!   模型列表（施工 8-7）；
 //! - [`new_id`]：新的会话编号；
 //! - [`SessionPort`]：造子会话、给别的会话发命令的端口（施工 7-5），会话表实现、造会话和载入时交进来。
 //! - [`Jobs`]：执行器的任务表，核心里一张：后台命令活过起它的那次调用（施工 7-3）；
-//! - [`Configs`]、[`ConfigSource`]：会话从哪取配置，回合开始时冻结一份（[`TurnConfig`]），这一轮的请求都照它（施工 8-4）。
+//! - [`Configs`]、[`ConfigSource`]：会话从哪取配置，回合开始时冻结一份（[`TurnConfig`]），这一轮的请求都照它（施工 8-4），
+//!   连同取 key 的办法（[`Turn`]，施工 8-6）。
 
 mod actor;
 mod agents;
@@ -24,18 +26,19 @@ mod config;
 mod effects;
 mod guard;
 mod handle;
-mod http;
 mod job_ids;
 mod jobs;
 mod kinds;
 mod lines;
 mod messages;
 mod open;
+mod peers;
 mod pictures;
 mod port;
 mod report;
 mod reread;
 mod restore;
+mod route;
 mod sandbox;
 mod sessions;
 mod spawn;
@@ -47,14 +50,14 @@ mod tools;
 pub use agents::job_in;
 pub use backlog::Backlog;
 pub use clock::new_id;
-pub use config::{ConfigSource, Configs, TurnConfig, fixed};
+pub use config::{ConfigSource, Configs, Turn, TurnConfig, fixed, fixed_with};
 pub use handle::{Ended, Handle, Pushed, Stopped, Subscription};
-pub use http::{HttpModels, IDLE};
 pub use jobs::{Jobs, Peek, Unreadable, peek};
 pub use open::{Create, CreateError, Load, LoadError, create, load};
 pub use port::{Cancel, ForSession, ModelPort, Models, Reports};
+pub use route::{IDLE, ModelData, Observed, Routes, STALE, read_observed, refresh_list};
 pub use sandbox::SandboxCache;
-pub use spawn::{Child, Lineage, Pending, SessionPort};
+pub use spawn::{Child, Lineage, NotWatched, Pending, SessionPort};
 
 /// 运行日志的来源：`session`（`28-运行日志.md` 第二节）。
 const TARGET: &str = "miyu::session";

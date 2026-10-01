@@ -72,7 +72,12 @@ impl LayerParam {
 pub(crate) fn schema(core: &Core, peer: Peer, params: SchemaParams) -> Result<Value, Refusal> {
     let words = words(core, peer.language)?;
     let config = &*core.config();
-    let items = selected(config, params.keys.as_deref(), &words)?;
+    let mut items: Vec<&Item> = Vec::new();
+    for (item, _) in selected(config, params.keys.as_deref(), &words)? {
+        if !items.iter().any(|seen| seen.key == item.key) {
+            items.push(item);
+        }
+    }
     let fallback = || Human::load(&core.resources, FALLBACK).ok();
     let english = if items.iter().all(|item| words.item(item.key).is_some()) {
         None
@@ -106,7 +111,12 @@ fn schema_item(item: &Item, said: Option<&miyu_config::ItemWords>) -> Value {
     let mut map = Map::new();
     map.insert("key".to_string(), json!(item.key));
     map.insert("type".to_string(), json!(item.kind.as_str()));
-    if let Kind::Option(options) = item.kind {
+    // 选项的列表（施工 8-7：模型能收哪些输入）也列出能选的几个。
+    let options = match item.kind {
+        Kind::Option(options) | Kind::List(&Kind::Option(options)) => Some(options),
+        _ => None,
+    };
+    if let Some(options) = options {
         let named: Vec<Value> = options
             .iter()
             .map(|option| {
@@ -118,7 +128,27 @@ fn schema_item(item: &Item, said: Option<&miyu_config::ItemWords>) -> Value {
             .collect();
         map.insert("options".to_string(), json!(named));
     }
-    map.insert("default".to_string(), item.default.json());
+    if let Some(default) = &item.default {
+        map.insert("default".to_string(), default.json());
+    }
+    match item.kind {
+        Kind::Int { min, max } | Kind::Float { min, max } => {
+            map.insert("min".to_string(), json!(min));
+            map.insert("max".to_string(), json!(max));
+        }
+        // 时长的范围写成秒（施工 8-7）。
+        Kind::Duration { min, max } => {
+            map.insert("min".to_string(), json!(min));
+            map.insert("max".to_string(), json!(max));
+        }
+        Kind::Text { max } => {
+            map.insert("max".to_string(), json!(max));
+        }
+        Kind::List(inner) => {
+            map.insert("element".to_string(), json!(inner.as_str()));
+        }
+        _ => {}
+    }
     let layers: Vec<&str> = item.layers.iter().map(|layer| layer.as_str()).collect();
     map.insert("layers".to_string(), json!(layers));
     if let Some(tighten) = item.tighten {
@@ -158,7 +188,6 @@ fn config_name(words: &Human, english: Option<&Human>, what: &str, id: &str) -> 
 pub(crate) fn get(core: &Core, peer: Peer, params: GetParams) -> Result<Value, Refusal> {
     let words = words(core, peer.language)?;
     let config = &*core.config();
-    let items = selected(config, params.keys.as_deref(), &words)?;
     let project = params.cwd.as_deref().and_then(|cwd| config.project(cwd));
     let layers = config.layers(project.as_ref());
     let resolved = merge(config.items(), &layers, &|name| {
@@ -169,16 +198,17 @@ pub(crate) fn get(core: &Core, peer: Peer, params: GetParams) -> Result<Value, R
         Layer::Personal => Some(config.personal.shown.clone()),
         Layer::Project => project.as_ref().map(|project| project.file.shown.clone()),
     };
+    let wanted = selected_in(config, &resolved, params.keys.as_deref(), &words)?;
     let mut listed = Map::new();
-    for item in items {
-        let Some((value, origin)) = resolved.get(item.key) else {
+    for (item, key) in wanted {
+        let Some((value, origin)) = resolved.get(&key) else {
             continue;
         };
         let mut entry = Map::new();
         entry.insert("origin".to_string(), wire::origin(origin, &shown));
         entry.insert("value".to_string(), value.json());
         if params.all {
-            let rows: Vec<Value> = explain(item, &layers, &resolved)
+            let rows: Vec<Value> = explain(item, &key, &layers, &resolved)
                 .iter()
                 .map(|row| {
                     let mut map = Map::new();
@@ -193,7 +223,7 @@ pub(crate) fn get(core: &Core, peer: Peer, params: GetParams) -> Result<Value, R
                 .collect();
             entry.insert("layers".to_string(), json!(rows));
         }
-        listed.insert(item.key.to_string(), Value::Object(entry));
+        listed.insert(key, Value::Object(entry));
     }
     let mut problems = Vec::new();
     for file in [&config.system, &config.personal] {
@@ -302,22 +332,23 @@ pub(crate) fn said_at(
     place: Option<(&str, bool)>,
     words: &Human,
 ) -> Result<Value, Refusal> {
-    let item = problem
-        .key
-        .as_deref()
-        .and_then(|key| config.items().iter().find(|item| item.key == key));
+    let key = problem.key.as_deref().unwrap_or_default();
+    let item = miyu_config::key::item_of(config.items(), key);
     let using = match (problem.code, item) {
         (code, _) if code.whole_file() => place.map(|(_, last_good)| match last_good {
             true => Using::LastGood,
             false => Using::Nothing,
         }),
         (
-            Code::WrongType | Code::NotAnOption | Code::WrongLayer | Code::NotTightening,
+            Code::WrongType
+            | Code::NotAnOption
+            | Code::OutOfRange
+            | Code::BadFormat
+            | Code::WrongLayer
+            | Code::NotTightening,
             Some(item),
-        ) => {
-            let (value, origin) = below(item, layers, problem.layer);
-            Some(Using::Value(value, origin))
-        }
+        ) => below(item, key, layers, problem.layer)
+            .map(|(value, origin)| Using::Value(value, origin)),
         _ => None,
     };
     let told = told(problem, config.items(), using.as_ref(), words)?;
@@ -346,43 +377,77 @@ pub(crate) fn words(core: &Core, language: &str) -> Result<Human, Refusal> {
     })
 }
 
-/// 请求里的 `keys` 挑出的几项，照清单的先后；不写的是全部。有不认识的：`unknown_config_key`。
+/// 请求里的 `keys` 挑出的几项和真的键，照清单的先后；不写的是全部写死的项（键里有人起的名字的项，`config.schema` 用它的样子）。
+/// 一个真的键对得上一项的样子就算（施工 8-6）。有不认识的：`unknown_config_key`。
 pub(super) fn selected<'a>(
     config: &'a Config,
     keys: Option<&[String]>,
     words: &Human,
-) -> Result<Vec<&'a Item>, Refusal> {
+) -> Result<Vec<(&'a Item, String)>, Refusal> {
     let items = config.items();
     let Some(keys) = keys else {
-        return Ok(items.iter().collect());
+        return Ok(items
+            .iter()
+            .map(|item| (item, item.key.to_string()))
+            .collect());
     };
     let mut unknown = Vec::new();
-    for key in keys
-        .iter()
-        .filter(|key| !items.iter().any(|item| item.key == key.as_str()))
-    {
-        let problem = Problem {
-            code: Code::UnknownKey,
-            layer: Layer::Personal,
-            at: None,
-            key: Some(key.clone()),
-            got: None,
-            why: None,
-            suggest: nearest(items, key),
-            current: None,
-            name: None,
-        };
-        let told = told(&problem, items, None, words)?;
-        // 请求里写错的键是这一条请求的错：级别写错误（文件里不认识的键才是警告）。
-        let mut entry = wire::problem(&problem, None, &told, None);
-        entry["level"] = json!("error");
-        unknown.push(entry);
+    let mut found = Vec::new();
+    for key in keys {
+        match miyu_config::key::item_of(items, key) {
+            Some(item) => found.push((item, key.clone())),
+            None => {
+                let problem = Problem {
+                    code: Code::UnknownKey,
+                    layer: Layer::Personal,
+                    at: None,
+                    key: Some(key.clone()),
+                    got: None,
+                    why: None,
+                    suggest: nearest(items, key),
+                    current: None,
+                    name: None,
+                };
+                let told = told(&problem, items, None, words)?;
+                // 请求里写错的键是这一条请求的错：级别写错误（文件里不认识的键才是警告）。
+                let mut entry = wire::problem(&problem, None, &told, None);
+                entry["level"] = json!("error");
+                unknown.push(entry);
+            }
+        }
     }
     if !unknown.is_empty() {
         return Err(Refusal::unknown_config_key(unknown));
     }
-    Ok(items
+    found.sort_by_key(|(item, key)| {
+        let at = items.iter().position(|listed| listed.key == item.key);
+        (at, key.clone())
+    });
+    found.dedup_by(|a, b| a.1 == b.1);
+    Ok(found)
+}
+
+/// `config.get` 挑的：写了 `keys` 的照 [`selected`]；没写的是全部写死的项，加上最终值 `resolved` 里键里有人起的名字的
+/// 每一个真的键（施工 8-6）。
+fn selected_in<'a>(
+    config: &'a Config,
+    resolved: &miyu_config::merge::Resolved,
+    keys: Option<&[String]>,
+    words: &Human,
+) -> Result<Vec<(&'a Item, String)>, Refusal> {
+    if keys.is_some() {
+        return selected(config, keys, words);
+    }
+    let items = config.items();
+    let mut found: Vec<(&Item, String)> = items
         .iter()
-        .filter(|item| keys.iter().any(|key| key == item.key))
-        .collect())
+        .filter(|item| !item.is_pattern())
+        .map(|item| (item, item.key.to_string()))
+        .collect();
+    for key in resolved.keys() {
+        if let Some(item) = miyu_config::key::item_of(items, key).filter(|item| item.is_pattern()) {
+            found.push((item, key.to_string()));
+        }
+    }
+    Ok(found)
 }

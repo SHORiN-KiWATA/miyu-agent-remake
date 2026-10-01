@@ -195,13 +195,16 @@ impl Watch {
             _ => None,
         });
         let floor = asked_before.max(answered);
-        // 还没听到的回报也算这一轮要回应的（施工 7-8）。
+        // 还没听到的回报也算这一轮要回应的（施工 7-8），空了的通知一样（施工 C-6）。
         let unanswered = effective
             .iter()
             .find(|event| {
                 matches!(
                     event.body,
-                    Body::MessageUser(_) | Body::JobReported(_) | Body::ChildReported(_)
+                    Body::MessageUser(_)
+                        | Body::JobReported(_)
+                        | Body::ChildReported(_)
+                        | Body::PeerIdle(_)
                 ) && floor.is_none_or(|f| event.seq > f)
             })
             .map(|event| event.seq);

@@ -19,7 +19,7 @@ use toml_edit::{Document, InlineTable, Item as Node, Table, Value as TomlValue};
 
 use crate::item::Kind;
 use crate::secret::Reference;
-use crate::value::Value;
+use crate::value::{Number, Value};
 
 /// 改一项还是删一项。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,7 +58,9 @@ pub fn apply(text: &str, change: Change<'_>) -> Result<String, Blocked> {
     let key = change.key();
     let blocked = || Blocked(key.to_string());
     let document = Document::parse(text).map_err(|_| blocked())?;
-    let path: Vec<&str> = key.split('.').collect();
+    // 真的键照 TOML 的写法拆：人起的名字那一段可能带引号（施工 8-6）。
+    let path = crate::key::split(key).ok_or_else(blocked)?;
+    let path: Vec<&str> = path.iter().map(String::as_str).collect();
     // 没有组的键（只有一段）放在最上面那张表里：密钥文件平铺，一行一个（施工 8-5）。
     let Some((last, group)) = path.split_last() else {
         return Err(blocked());
@@ -75,8 +77,11 @@ pub fn apply(text: &str, change: Change<'_>) -> Result<String, Blocked> {
     }
 }
 
-/// 人敲的字照这一项的类型读（第五条第 3 条）：开关只认 `true`、`false`；选项照原样，两头带着双引号、是一个 TOML 字符串的
-/// 去掉引号再用（照 TOML 转义读）；密钥照 TOML 的行内表读（`{ secret = "deepseek" }`，施工 8-5）。读不成的是空的（`wrong_type`）；读成了、不在选项里的由调用的一方查。
+/// 人敲的字照这一项的类型读（第五条第 3 条）：开关只认 `true`、`false`；选项、名字、引用照原样，两头带着双引号、
+/// 是一个 TOML 字符串的去掉引号再用（照 TOML 转义读）；密钥照 TOML 的行内表读（`{ secret = "deepseek" }`，施工 8-5）；
+/// 整数照 TOML 的整数读，列表照 TOML 的数组读（施工 8-6）；文字、时长同选项，小数照 TOML 的小数、整数读（施工 8-7）；
+/// 网址先试引用（同密钥的读法），不是引用形状的照字读（施工 8-6b）。读不成的是空的（`wrong_type`）；读成了、不合这种
+/// 类型的（不在选项里、不在范围里、写法不对、网址是 `{ secret = … }`）由调用的一方查。
 pub fn input(kind: Kind, text: &str) -> Option<Value> {
     match kind {
         Kind::Bool => match text {
@@ -84,20 +89,48 @@ pub fn input(kind: Kind, text: &str) -> Option<Value> {
             "false" => Some(Value::Bool(false)),
             _ => None,
         },
-        Kind::Option(_) => Some(Value::Text(Cow::Owned(unquoted(text)))),
+        Kind::Option(_)
+        | Kind::Name
+        | Kind::Reference
+        | Kind::Text { .. }
+        | Kind::Duration { .. } => Some(Value::Text(Cow::Owned(unquoted(text)))),
+        Kind::Url => Reference::from_input(text)
+            .map(Value::Secret)
+            .or_else(|| Some(Value::Text(Cow::Owned(unquoted(text))))),
         Kind::Secret => Reference::from_input(text).map(Value::Secret),
+        Kind::Int { .. } | Kind::Float { .. } | Kind::List(_) => {
+            let document = Document::parse(format!("v = {text}")).ok()?;
+            let value = document.get("v")?.as_value()?;
+            crate::parse::read(kind, value)
+        }
     }
 }
 
-/// 协议上 JSON 的值照这一项的类型读：选项要字，开关要布尔，密钥要 `{"secret": …}` 或 `{"env": …}`。别的是空的
-/// （`wrong_type`）。
+/// 协议上 JSON 的值照这一项的类型读：选项、名字、引用要字，开关要布尔，密钥要 `{"secret": …}` 或 `{"env": …}`，
+/// 整数要整数，列表要数组、每一个照元素的类型（施工 8-6）；文字、时长要字，小数要数（施工 8-7）；网址要字（写死的）或者
+/// `{"env": …}`（引用，施工 8-6b，`{"secret": …}` 读得出来但 `Kind::check` 会挡）。别的是空的（`wrong_type`）。
 pub fn from_json(kind: Kind, value: &serde_json::Value) -> Option<Value> {
     match (kind, value) {
-        (Kind::Option(_), serde_json::Value::String(text)) => {
-            Some(Value::Text(Cow::Owned(text.clone())))
-        }
+        (
+            Kind::Option(_)
+            | Kind::Name
+            | Kind::Reference
+            | Kind::Text { .. }
+            | Kind::Duration { .. },
+            serde_json::Value::String(text),
+        ) => Some(Value::Text(Cow::Owned(text.clone()))),
+        (Kind::Url, serde_json::Value::String(text)) => Some(Value::Text(Cow::Owned(text.clone()))),
+        (Kind::Float { .. }, serde_json::Value::Number(number)) => number
+            .as_f64()
+            .map(|number| Value::Float(Number::new(number))),
         (Kind::Bool, serde_json::Value::Bool(on)) => Some(Value::Bool(*on)),
-        (Kind::Secret, value) => Reference::from_json(value).map(Value::Secret),
+        (Kind::Secret | Kind::Url, value) => Reference::from_json(value).map(Value::Secret),
+        (Kind::Int { .. }, serde_json::Value::Number(number)) => number.as_i64().map(Value::Int),
+        (Kind::List(inner), serde_json::Value::Array(values)) => values
+            .iter()
+            .map(|value| from_json(*inner, value))
+            .collect::<Option<Vec<_>>>()
+            .map(Value::List),
         _ => None,
     }
 }
@@ -180,30 +213,37 @@ fn set(
     }
     let nl = newline(text);
     match section {
-        Section::Header(table) if group.is_empty() => {
-            Some(top_line(text, table, &format!("{last} = {written}"), nl))
-        }
+        Section::Header(table) if group.is_empty() => Some(top_line(
+            text,
+            table,
+            &format!("{} = {written}", crate::key::join(&[last])),
+            nl,
+        )),
         Section::Header(table) => {
             let after = last_value_end(table).or_else(|| table.span().map(|span| span.end))?;
-            Some(insert_line(text, after, &format!("{last} = {written}"), nl))
+            let line = format!("{} = {written}", crate::key::join(&[last]));
+            Some(insert_line(text, after, &line, nl))
         }
         Section::Dotted(table, anchor) => {
             let after = last_value_end(table)?;
-            let key = [&group[*anchor..], &[last]].concat().join(".");
+            let key = crate::key::join(&[&group[*anchor..], &[last]].concat());
             Some(insert_line(text, after, &format!("{key} = {written}"), nl))
         }
-        Section::Inline(table, span) => match inline_last_end(table) {
-            Some(after) => Some(splice(text, after..after, &format!(", {last} = {written}"))),
-            None => Some(splice(
-                text,
-                span.clone(),
-                &format!("{{ {last} = {written} }}"),
-            )),
-        },
+        Section::Inline(table, span) => {
+            let last = crate::key::join(&[last]);
+            match inline_last_end(table) {
+                Some(after) => Some(splice(text, after..after, &format!(", {last} = {written}"))),
+                None => Some(splice(
+                    text,
+                    span.clone(),
+                    &format!("{{ {last} = {written} }}"),
+                )),
+            }
+        }
         Section::Missing => Some(append_table(
             text,
-            &group.join("."),
-            &format!("{last} = {written}"),
+            &crate::key::join(group),
+            &format!("{} = {written}", crate::key::join(&[last])),
             nl,
         )),
     }

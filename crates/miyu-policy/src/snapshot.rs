@@ -354,7 +354,7 @@ impl Snapshot {
                 .as_ref()
                 .map(HarnessTexts::rendered)
                 .transpose()?,
-            peers: core.peers.as_ref().map(PeerTexts::rendered).transpose()?,
+            peers: self.peer_texts()?,
             recap: self.recap(),
             title: self.title(),
         };

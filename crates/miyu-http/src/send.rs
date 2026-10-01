@@ -21,7 +21,7 @@ use miyu_drivers::classify::{Classified, Failure};
 use miyu_kernel::accumulate::Delta;
 use miyu_kernel::event::{CallError, ErrorClass, Usage};
 use miyu_kernel::id::ContentHash;
-use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
+use reqwest::header::{ACCEPT, CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
 use tokio::time::timeout;
 
 use crate::Endpoint;
@@ -127,7 +127,17 @@ async fn exchange(
         attempt.endpoint.base_url.trim_end_matches('/'),
         attempt.path
     );
-    // 另配的头：名字、值写得不对的，造不出请求（施工 4-9 再补三下）。
+    // 认证头照驱动（施工 8-6），没有 key 的不带；另配的头：名字、值写得不对的，造不出请求（施工 4-9 再补三下）。认证头的
+    // 值里有 key，写不对时只报头的名字。
+    let auth = attempt
+        .endpoint
+        .key()
+        .map(|key| attempt.driver.auth(key))
+        .unwrap_or_default();
+    let auth = match extra_headers(&auth) {
+        Ok(auth) => auth,
+        Err(_) => return misconfigured("认证头"),
+    };
     let extra = match extra_headers(&attempt.endpoint.headers) {
         Ok(extra) => extra,
         Err(why) => return misconfigured(&why),
@@ -135,7 +145,7 @@ async fn exchange(
     let request = attempt
         .client
         .post(url)
-        .header(AUTHORIZATION, format!("Bearer {}", attempt.endpoint.key()))
+        .headers(auth)
         .header(CONTENT_TYPE, "application/json")
         .header(ACCEPT, "text/event-stream")
         // 另配的头换掉同名的，不是再加一个（施工 4-9 再补三下）。
@@ -229,11 +239,12 @@ async fn exchange(
     Outcome::Ended {
         usage: ending.usage,
         // 流里报的错带着解码器留下的要等多久（施工 4-9 再补三下）。
-        // 超了多少只从 HTTP 的出错里解析：流里报超长的少见，报了照没有算。
+        // 超了多少、上限只从 HTTP 的出错里解析：流里报超长的少见，报了照没有算。
         error: error.map(|error| Classified {
             error,
             retry_after_ms: ending.retry_after_ms,
             excess: None,
+            limit: None,
         }),
     }
 }
@@ -274,6 +285,7 @@ fn misconfigured(why: &str) -> Outcome {
             },
             retry_after_ms: None,
             excess: None,
+            limit: None,
         }),
     }
 }
@@ -290,6 +302,7 @@ fn idle(idle: Duration) -> Outcome {
             },
             retry_after_ms: None,
             excess: None,
+            limit: None,
         }),
     }
 }

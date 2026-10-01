@@ -1,7 +1,7 @@
 //! 父子之间留言，执行器这一头（施工 7-7，`docs/blueprint/agents.md` 第六条、`session/tools.md`「父子之间留言」）：会话表的
-//! 端口换成假的，看 `message_agent` 的留言送对了会话、`by` 是这个会话、命令编号照调用、原话一块字；发给父的送到父会话；拒的
+//! 端口换成假的，看 `send_message` 的留言送对了会话、`by` 是这个会话、命令编号照调用、原话一块字；发给父的送到父会话；拒的
 //! 每一种：主会话没有父、不是她派的（没派过、派它的那一轮撤掉了）、被停掉了、对方拒收、没有会话表。工具面上什么时候有
-//! `message_agent`：本机的都有，到了深度上限的也有，群里没有。
+//! `send_message`：本机的都有，到了深度上限的也有，群里没有。
 
 mod support;
 
@@ -98,6 +98,25 @@ impl SessionPort for Table {
     ) -> Pending<'_, Result<Vec<miyu_tool::MainSession>, String>> {
         Box::pin(async { Ok(Vec::new()) })
     }
+
+    /// 这几份假的会话表没有一次性会话（施工 C-5）：发给父会话、子代理的，一律照送到了算。
+    fn held(&self, _session: SessionId) -> Pending<'_, bool> {
+        Box::pin(async { false })
+    }
+
+    /// 这个测试不订「空了告诉我」（施工 C-6）。
+    fn watch(
+        &self,
+        _session: SessionId,
+        _watcher: SessionId,
+        _since: miyu_kernel::time::Timestamp,
+    ) -> Pending<'_, Result<(), miyu_session::NotWatched>> {
+        Box::pin(async {
+            Err(miyu_session::NotWatched::Failed(
+                "no watches here".to_string(),
+            ))
+        })
+    }
 }
 
 /// 第 `n` 个子会话的编号。
@@ -105,7 +124,7 @@ fn child_id(n: usize) -> SessionId {
     SessionId::parse(&format!("01a0d78c-ca52-7d19-8b64-0e3f5a7c2d9{n}")).expect("合写法")
 }
 
-/// 真的基础系统：`agent`、`message_agent` 在里面。
+/// 真的基础系统：`subagent`、`send_message` 在里面。
 fn basesystem(home: &Home) -> Catalog {
     Catalog::new(miyu_basesystem::tools(home.resources.path()).expect("读得出")).expect("合写法")
 }
@@ -116,10 +135,10 @@ fn agent(title: &str) -> Play {
     Play::calls(&[("subagent", &args.to_string())])
 }
 
-/// 调一次 `message_agent`。
+/// 调一次 `send_message`。
 fn message(to: &str, words: &str) -> Play {
     let args = serde_json::json!({"to": to, "message": words});
-    Play::calls(&[("message_agent", &args.to_string())])
+    Play::calls(&[("send_message", &args.to_string())])
 }
 
 /// 造一个会话：场所、父会话照 `lines`，会话表是 `table`（没有的是空的）。
@@ -251,11 +270,11 @@ async fn a_subagent_at_the_depth_limit_messages_its_parent() {
         "作为子会话发来的话"
     );
     assert_eq!(command, say("Which file?"));
-    // 到了深度上限：没有 `subagent`，`message_agent` 留着。
+    // 到了深度上限：没有 `subagent`，`send_message` 留着。
     let requests = script.requests();
     let tools = names(&requests[0].1);
     assert!(
-        tools.contains(&"message_agent") && !tools.contains(&"subagent"),
+        tools.contains(&"send_message") && !tools.contains(&"subagent"),
         "{tools:?}"
     );
 }
@@ -401,7 +420,7 @@ async fn every_local_session_has_it_and_a_group_does_not() {
         let requests = script.requests();
         let request = &requests[0].1;
         assert_eq!(
-            names(request).contains(&"message_agent"),
+            names(request).contains(&"send_message"),
             has,
             "{:?}",
             names(request)

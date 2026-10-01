@@ -126,6 +126,11 @@ impl Duty {
         Some(upward)
     }
 
+    /// 最近开的那一轮到现在最后说的话（施工 C-6）：闲着时就是最近结束的那一轮的，「空了」的通知照它取第一行。
+    pub(super) fn answer(&self) -> &str {
+        &self.answer
+    }
+
     /// 最后报的那一份。
     pub(super) fn last(&self) -> Option<&Upward> {
         self.last.as_ref()

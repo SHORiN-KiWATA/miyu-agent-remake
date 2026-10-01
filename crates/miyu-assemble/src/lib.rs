@@ -29,7 +29,7 @@ mod title;
 mod test_support;
 
 pub use texts::{
-    HarnessTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title, TurnEndedTexts,
+    HarnessTexts, IdleTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title, TurnEndedTexts,
 };
 
 use miyu_kernel::assemble::Assembler;

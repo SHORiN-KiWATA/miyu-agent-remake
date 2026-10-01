@@ -142,11 +142,15 @@ impl Language {
         }
     }
 
-    /// 没有可用的模型。
+    /// 没有可用的模型（施工 8-6，主会话定：`miyu setup` 随 8-11，那时换成指向它的那一句）。
     pub fn no_model(&self) -> String {
         match self {
-            Language::Chinese => "没有可用的模型：设环境变量 DEEPSEEK_API_KEY".to_string(),
-            Language::English => "No model available: set DEEPSEEK_API_KEY".to_string(),
+            Language::Chinese => {
+                "没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。".to_string()
+            }
+            Language::English => {
+                "No model is available: none is set up. Add a provider and models.chat with miyu config edit --system.".to_string()
+            }
         }
     }
 
@@ -186,6 +190,7 @@ impl Language {
             "empty_reply" => ("回复是空的", "empty reply"),
             "bad_summary" => ("取不出摘要", "no summary in the reply"),
             "compaction_paused" => ("自动压缩暂停着", "automatic compaction is paused"),
+            "no_model" => ("没有可用的模型", "no model available"),
             _ => ("模型出错", "model error"),
         };
         match self {

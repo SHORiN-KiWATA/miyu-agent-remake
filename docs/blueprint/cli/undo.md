@@ -2,7 +2,7 @@
 
 ### 是什么
 
-在 shell 里撤掉当前会话的最后一轮，把她改过的文件改回去；发下一句之前，`miyu restore` 恢复最近一次撤销。`miyu undo` 也可以写成 `miyu rewind`（2026-09-29 项目主人定：恢复原来叫 `miyu redo`，施工 4-7 补改名）。连上核心（没在跑、又设了 `DEEPSEEK_API_KEY` 的，拉起来），找会话，发 `session.revert` 或者 `session.unrevert`，照核心交回的几样印出改回了哪些文件。
+在 shell 里撤掉当前会话的最后一轮，把她改过的文件改回去；发下一句之前，`miyu restore` 恢复最近一次撤销。`miyu undo` 也可以写成 `miyu rewind`（2026-09-29 项目主人定：恢复原来叫 `miyu redo`，施工 4-7 补改名）。连上核心（没在跑就拉起来，施工 8-6 起一律拉起），找会话，发 `session.revert` 或者 `session.unrevert`，照核心交回的几样印出改回了哪些文件。
 
 ### 在哪
 
@@ -30,7 +30,7 @@
 ### 怎么走
 
 1. **找数据根**，建骨架。出错：原因写在标准错误上，退出码 1。
-2. **连核心**（`ipc.md`），照 `miyu ask` 的规矩：设了 `DEEPSEEK_API_KEY`（去掉前后空白不是空的），没在跑就拉起来；没设的，核心在跑的照样连，没在跑的不拉起，说「核心没在跑。先设 DEEPSEEK_API_KEY：没有 key 拉起的核心，之后的 miyu ask 也用不了」，退出码 5。撤销、恢复本身用不着模型，不拉起是怕拉起一个没有 key 的核心。连不上、拉不起：原因写在标准错误上，退出码 1。
+2. **连核心**（`ipc.md`），照 `miyu ask` 的规矩：没在跑就拉起来（施工 8-6 起 key 来自配置，一律拉起；以前没设 `DEEPSEEK_API_KEY` 的不拉起、退出码 5）。连不上、拉不起：原因写在标准错误上，退出码 1。
 3. **握手** `hello`：和 `miyu ask` 一样（`cli/ask.md` 第 3 步），`caps.input` 是 `false`。
 4. **找会话**：
    1. 写了 `--session`：照写的，头这边不查写法，交给核心查。
@@ -166,7 +166,6 @@ ESC[90m    ESC[31m-fn main() {}ESC[0m
 | 0 | 被接受：有文件没动、改回时出错的也是 0 |
 | 1 | 找不到数据根、建不了骨架；连不上、拉不起核心；被拒绝；核心断开；请求写不出去；一个一次性会话都没有 |
 | 2 | 参数不对（`cli/main.md`） |
-| 5 | 核心没在跑，又没设 `DEEPSEEK_API_KEY`：不拉起 |
 
 ### 给人看的字
 
@@ -193,7 +192,6 @@ ESC[90m    ESC[31m-fn main() {}ESC[0m
 | 执行过命令，几轮 | `· 这几轮执行过 <几> 条命令：命令改的文件撤不回` | 同上 |
 | 最后一行 | 发下一句之前，可以用 miyu restore 恢复。 | Until you say something else, miyu restore brings it back. |
 | 没有一次性会话 | 还没有 miyu ask 开过的会话 | No session opened by miyu ask yet |
-| 核心没在跑、没设 key | 核心没在跑。先设 DEEPSEEK_API_KEY：没有 key 拉起的核心，之后的 miyu ask 也用不了 | The core is not running. Set DEEPSEEK_API_KEY first: a core started without it cannot serve miyu ask later |
 | 核心断开 | 核心断开了 | The core went away |
 
 - 英文的引号是弯引号 `“` `”`。做了什么、没动的原因见上面的表。
@@ -256,7 +254,7 @@ Options:
 |---|---|
 | `crates/miyu-cli/src/undo/tests.rs` | 定的样子一行行对；恢复的第一行、差异的头一行，不说命令、不说怎么恢复；每种没动的原因、出错、认不得的结局；还有几行；路径写短；上色（没动、出错红，加的行绿，删的行红）；英文，一条命令、还有一行写单数；人说的话、路径截断；几轮；撤掉了压缩的那一句：一次、几次同一句、两种语言、在第一行下面，没有的、恢复的不印（施工 6-9）；撤掉了清空的那一句：只有它、和压缩那一句都有的（先压缩后清空）、两种语言，没有的、恢复的不印，两样都有的和 `docs/designs/samples/cli/undo-clear-text.txt` 逐字节一样（施工 6-8 补）；差异里的制表符照原样、别的控制字符换掉；定的样子和 `docs/designs/samples/cli/undo-text.txt` 逐字节一样，蓝图里的样本块由门禁和同一份比（施工 4-9 三补）；停掉了几个任务那一句：在压缩、清空那两句下面、文件上面，两种语言、英文一个写单数，没有的、空的、恢复的不印，和 `docs/designs/samples/cli/undo-jobs-text.txt` 逐字节一样（施工 7-8） |
 | `crates/miyu-cli/tests/undo.rs` | 真的核心、真的工具：撤销改回文件、照样子印在标准输出上，恢复又改回来；之后又被改过的印差异、退出码 0；撤完了再撤说「没有能撤销的回合。」、退出码 1；一个会话都没有、退出码 1；`--session` 撤的是指定的那个 |
-| `crates/miyu/tests/undo.rs` | 真跑主程序：`undo`、`rewind`、`restore` 的 `-h` 印帮助页，跟着界面语言；`-s` 和 `--session` 一样；撤掉上一次 `miyu ask` 的那一轮、再恢复，两条命令各接各的；没有 key、核心也没在跑的，不拉起、退出码 5、两种语言的那一句 |
+| `crates/miyu/tests/undo.rs` | 真跑主程序：`undo`、`rewind`、`restore` 的 `-h` 印帮助页，跟着界面语言；`-s` 和 `--session` 一样；撤掉上一次 `miyu ask` 的那一轮、再恢复，两条命令各接各的 |
 | `crates/miyu-endpoint/tests/undo.rs` | 核心交回的几样（`protocol/undo.md`） |
 
 ### 出处

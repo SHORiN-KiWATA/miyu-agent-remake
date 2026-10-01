@@ -15,6 +15,7 @@
 | `crates/miyu-drivers/src/openai_chat/wire.rs` | 线上的 JSON 结构、工具面 |
 | `crates/miyu-drivers/src/openai_chat/decode.rs` | 解码：块、工具调用、`finish_reason`、流里的错 |
 | `crates/miyu-drivers/src/openai_chat/usage.rs` | 各家的用量归成四项 |
+| `crates/miyu-drivers/src/openai_chat/models.rs` | 列模型：`GET /models` 的回应读出模型名和报了的窗口（施工 8-7） |
 | `crates/miyu-drivers/src/sse.rs` | SSE 分帧 |
 | `crates/miyu-drivers/src/classify.rs` | 出错分类、要等多久、原话 |
 | `crates/miyu-drivers/src/texts.rs` | 给模型看的几句：五句占位，文本文件的三句（施工 3-9 三补），带名字的图片的三句（施工 3-9 四补） |
@@ -33,6 +34,9 @@
 | `encode(请求, Call, blob)` | 编码，交回 `Encoded` |
 | `decoder()` | 一次响应一个解码器 `Decode`：`feed(字节) -> 增量`、`done()`、`finished()`（`finish_reason` 到了没有，施工 4-9 再补三下）、`finish() -> Ending` |
 | `classify(Failure)` | 出错分类，交回 `Classified` |
+| `auth(key)` | 带 key 的请求要带的认证头（施工 8-6，`models.md`「驱动要守的约定」第 2 条）：`Authorization: Bearer <key>`。HTTP 执行器照它写，不自己写；没有 key 的请求不问它 |
+| `models_path()` | 列模型发到地址后面的哪一截（施工 8-7，「驱动要守的约定」第 3 条）：`/models` |
+| `parse_models(字节)` | 读列模型的回应 `{"data":[{"id":…},…]}`，交回 `Listed { id, window }` 的列表：名字不是字、是空的跳过；窗口照 `context_window`、`context_length`、`max_context_length` 先有的算，不是正整数的当没报。不是 JSON、没有 `data` 数组的报 `model list not readable: …`。OpenAI 的这一条不分页 |
 
 `OpenAiChat::new(Compat, DriverTexts)`：开关和占位造的时候交进来，会话里不变。
 
@@ -42,9 +46,9 @@
 
 **说完了** `Ending`：`deltas`（流完了才冲刷出来的那一条解出的增量；正常说完的，再加上收块的 `End`）、`usage`（用量，没报的没有）、`error`（出错的分类和原话，正常说完的没有）、`retry_after_ms`（流里报的错，供应商说要等多久；施工 4-9 再补三下）。
 
-**开关** `Compat`，跟着供应商定：
+**开关** `Compat`，跟着供应商定：来自供应商的档案（`resources/models/profiles.toml` 的 `compat`，施工 8-6，`models.md`「怎么走」第一条第 3 条），档案没有的用默认。`Continuation::Prefix` 的 `path` 是字（档案里写的），`Compat` 不再是 `Copy`。DeepSeek 那一套以前写在代码里（`Compat::deepseek()`），8-6 挪进档案；代码里那一份只在 `testkit` 开关打开时编进去，给请求形状探针和别的测试用，核心的测试守着它和档案一样。
 
-| 格 | 取值 | 默认 | DeepSeek（`Compat::deepseek()`） |
+| 格 | 取值 | 默认 | DeepSeek（档案的 `[providers.deepseek]`） |
 |---|---|---|---|
 | `output_limit` | `MaxTokens` 写 `max_tokens`；`MaxCompletionTokens` 写 `max_completion_tokens` | `MaxTokens` | 同默认 |
 | `reasoning` | `Drop` 不回传；`Replay { field, always }`：`field` 是 `ReasoningContent`（`reasoning_content`）或 `Reasoning`（`reasoning`），`always` 是没有思考时也写空串 | `Drop` | `Replay { ReasoningContent, always: true }` |
@@ -53,7 +57,7 @@
 
 常量：`FAMILY` = `openai-chat`，`PATH` = `/chat/completions`，`MESSAGE_LIMIT` = 2000（原话最多几个字节，在 `classify.rs`）。
 
-**出错的输入** `Failure { status, headers, body }`：HTTP 状态（没有的是连不上、流里报的）、响应头（名字不分大小写）、响应体。`Failure::stream(body)` 是流里报的错，没有状态和头。**分好的类** `Classified { error, retry_after_ms, excess }`：分类、原话和 HTTP 状态码，供应商说了要等多久（毫秒），超长的超了多少 token（施工 6-6 中）。分类是内核的 `ErrorClass`：`context_too_long`、`content_policy`、`auth`、`rate_limited`、`retryable`、`other`，解码时还会出 `bad_stream`。
+**出错的输入** `Failure { status, headers, body }`：HTTP 状态（没有的是连不上、流里报的）、响应头（名字不分大小写）、响应体。`Failure::stream(body)` 是流里报的错，没有状态和头。**分好的类** `Classified { error, retry_after_ms, excess, limit }`：分类、原话和 HTTP 状态码，供应商说了要等多久（毫秒），超长的超了多少 token（施工 6-6 中），超长的报了的上限（施工 8-7）。分类是内核的 `ErrorClass`：`context_too_long`、`content_policy`、`auth`、`rate_limited`、`retryable`、`other`，解码时还会出 `bad_stream`。
 
 ### 怎么走：编码
 
@@ -186,10 +190,11 @@
 5. **原话**：有 HTTP 状态的写成 `HTTP <状态>: <原话>`，流里报的只写原话；最长 2000 字节，截在字的边界上。原话给查问题的人看，不进上下文。HTTP 状态码另写进 `status`，原话开头的 `HTTP <状态>: ` 照留；连不上的、流里报的没有，流里的 `code` 只拿来分类（施工 3-5 三补）。
 6. **要等多久**，先有的算：头 `retry-after-ms`（毫秒）；头 `retry-after`（秒，可以带小数；写成日期的不认）；找说法的字里的 `try again in <数>`，单位 `ms` 是毫秒、`s` 开头的是秒（`s`、`seconds`）。非负的数才算，四舍五入到毫秒。都没有就不写，由内核退避。头的名字不分大小写，值去掉前后空白。流里报的错，解码器连同要等多久一起留下，收尾时交给 HTTP 执行器（施工 4-9 再补三下）。
 7. **超了多少**（施工 6-6 中，`compaction.md` 第三条第 10 条）：分成 `context_too_long` 的，从找说法的字里解析，先对上的算：`maximum context length is <N>` 后面跟着 `resulted in <M>` 或者 `requested <M>`（OpenAI、DeepSeek 的写法）；`prompt is too long: <M> tokens > <N>`（Anthropic 的写法）。数可以带千分位的逗号。M 比 N 大才算，`excess` 是 M 减 N；别的分类、解析不出来的没有。
+8. **报了的上限**（施工 8-7，`models.md`「驱动要守的约定」第 7 条）：分成 `context_too_long` 的，同样的两种写法里说得出 N 的交出 `limit`，就是 N，后半段说不出、没超的也交；N 是 0 的、别的分类没有。执行器照它记下用出来的窗口（`models.md`「怎么走」第二条第 9 条）。
 
 ### 现在接的是哪一家
 
-核心起来时照 `DEEPSEEK_API_KEY` 接 DeepSeek 官方（`core.md`）：`Compat::deepseek()`，模型 `deepseek-flash`，不写输出上限，收图片、不收 PDF（施工 4-13）。别的开关组合只有测试在用。
+照配置（施工 8-6，`models.md`）：`[providers.<编号>]` 写了 `driver = "openai-chat"`，或者档案推得出是它的，或者它对上的目录里那一家的 `npm` 照档案的 `[npm]` 换成它的（施工 8-7），都走这个驱动。开关照档案（写了 `catalog` 的照它指的那一家的档案）；档案里只有 DeepSeek 官方一家：上表那一套开关，一张图照官方计算器的算法。能收哪些输入照模型资料（施工 8-7：手写的，再是目录；都没有的只收字），目录里 DeepSeek 官方的 `deepseek-flash` 收图、不收 PDF。不写输出上限。档案里没有的供应商用默认的开关。
 
 ### 样子
 
@@ -274,7 +279,9 @@ A file was attached here (报告.pdf, application/pdf, 15 bytes), but this model
 | `crates/miyu-drivers/tests/openai_chat_continuation.rs` | DeepSeek 接着写（样本、路径、半截带思考）；没有开关或者没有记号一字不变；`partial` 的写法 |
 | `crates/miyu-drivers/tests/openai_chat_streams.rs` | 十三份流的样本；从哪里切开喂都一样；累积器一条都不拒；解出来的编码回去用供应商的编号；驱动的接口走一遍；`error` 是 `false`、`0`、`[]` 的是噪声，有内容的照旧出错；流里的限速连同要等多久交回；`finished()` 在 `finish_reason` 到了以后才说是 |
 | `crates/miyu-drivers/src/sse/tests.rs` | 三种换行、切开的 CRLF、几行 data 和注释、只有注释、事件名、切开的汉字、断在半条上、从哪里切开都一样 |
-| `crates/miyu-drivers/src/classify/tests.rs` | 每一类的例子；提到 token 的限速不当超长；额度算认证失败；要等多久的四种写法；`x-should-retry`；原话和 2000 字节；HTTP 状态码另记一格，连不上的、流里报的没有（施工 3-5 三补） |
+| `crates/miyu-drivers/src/openai_chat/models/tests.rs` | 列模型：名字和报了的窗口、三种窗口的写法先后、坏的跳过；回应坏了说是模型列表（施工 8-7） |
+| `crates/miyu-drivers/src/classify/excess/tests.rs` | 超了多少的几种写法；报了的上限单独读，后半段说不出也交、0 不交（施工 8-7） |
+| `crates/miyu-drivers/src/classify/tests.rs` | 超长的交出上限、限速的不交（施工 8-7）；每一类的例子；提到 token 的限速不当超长；额度算认证失败；要等多久的四种写法；`x-should-retry`；原话和 2000 字节；HTTP 状态码另记一格，连不上的、流里报的没有（施工 3-5 三补） |
 | `crates/miyu-drivers/src/texts/tests.rs` | 文件名换进去、转义；以前的 `file-omitted` 没有大小照样换得出；文本文件带文件名、补换行、空的、截过的写明、文件名转义内容原样；没有那三句的交回空的；带名字的图片的标签、占位带名字、转义，不带名字的照旧，没有那三句的照不带名字的写（施工 3-9 四补）；不该有的字段报错 |
 | `crates/miyu-drivers/src/base64/tests.rs` | RFC 4648 的测试值，`+`、`/` |
 | `crates/miyu-assemble/tests/probe.rs`、`random_logs.rs` | 编码以后也是上一次的前缀延伸（接着写那一次拿不接着写的编码比） |
@@ -288,8 +295,8 @@ A file was attached here (报告.pdf, application/pdf, 15 bytes), but this model
 
 ### 还没有的
 
-- 驱动规格里的 `models`（模型资料）、`cache`（缓存类型）、子进程的 `transport`（`05-内核接口.md` 第七节）。
-- 哪个供应商用哪一套开关、用户自己加的供应商：配置那一步（`05-内核接口.md` 第七节，`15-模型与供应商.md` 第二节）。
+- 驱动规格里的 `cache`（缓存类型）、子进程的 `transport`（`05-内核接口.md` 第七节）。列模型分页的几家（随它们自己的驱动）。
+- 配置里手写的 `compat` 一格格盖在档案上面（`models.md`「对外的样子」）：随用到它的那一步。
 - 别的驱动家族：OpenAI 的 Responses 接口、Anthropic 的消息接口、借用 agent CLI 的子进程（`15-模型与供应商.md` 第二节）。
 - 接 opencode Zen 要的：工具面缺 `read`、`shell` 时补同名的占位声明，带 `x-opencode-*` 头（`15-模型与供应商.md` 第二节）。
 - Kimi、通义的 `partial`、Mistral 的 `prefix`：写法有了，出厂没开，等实测（`05-内核接口.md` 第七节）。

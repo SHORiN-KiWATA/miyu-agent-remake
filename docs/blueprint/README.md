@@ -47,7 +47,7 @@
 | `tools/history.md` | 翻这个会话自己的日志：图纸，M6 施工（2026-09-29） |
 | `tools/subagent.md` | 派子代理（施工 7-5；7-5 再补从 `agent` 改名） |
 | `tools/jobs.md` | 看、读、停派出去的任务（施工 7-4） |
-| `tools/message_agent.md` | 父子之间留言（施工 7-7） |
+| `tools/send_message.md` | 父子之间留言（施工 7-7） |
 | `tools/sessions.md` | 列你别的主会话（施工 C-3，跨会话） |
 | `cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`、`cli/config.md`、`cli/login.md`、`cli/main.md` | 每条命令一页（`cli/compact.md` 施工 6-8，`cli/redo.md` 施工 4-7 再补，`cli/recap.md` 施工 3-8 四补，`cli/rename.md` 施工 3-8 五补，`cli/config.md` 施工 8-2，`cli/login.md` 施工 8-5）；主程序 |
 | `sandbox.md` | 沙盒：规格、助手 `miyu-sandbox`、探测、找助手（施工 5-1 起） |
@@ -59,6 +59,7 @@
 | `cross-session.md` | 跨会话：列会话、读别的会话、给别的会话发话、空了告诉我、防刷屏：图纸，定稿（2026-10-01 项目主人批准），跨会话 C-1 到 C-7 照它施工 |
 | `models.md` | 供应商和模型：供应商的配置、模型资料和四层对目录、用途挡位池、出错换端点和冷却、会话里换模型、第一次接入、opencode Zen、用量和金额：图纸，定稿（2026-10-01 项目主人批准），M8 照它施工 |
 | `config.md` | 配置和密钥：清单、分层、项目配置的信任、校验和报错、写盘、留痕、监视和生效、密钥、`config.*`、`secret.*`、`miyu config`、`miyu login`、`miyu logout`：图纸，定稿（2026-10-01 项目主人批准），M8 的 8-1 到 8-5 照它施工 |
+| `web-module.md` | 网页界面这个软件和核心给它的通用方法：网页软件 `miyu-web`（端口、页面、WebSocket 照转、一次性登录、媒体地址），核心给所有头的 `human.get`、`fs.*`、`mermaid.render`、分块传和读 blob、`link.preview`：图纸，2026-10-01 项目主人批准；W-1 到 W-7 现在做，身份、网页软件等用户系统 |
 | `licenses.md` | 仓库用什么许可证；门禁查依赖的许可证能不能和它合在一起发（施工 4-12） |
 | `prompts.md` | 给模型看的每一份字的原文，按进到请求的哪里分组，带 token 数、什么时候出现；由门禁从 `resources/` 和登记簿生成（施工 4-9 三补） |
 

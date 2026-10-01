@@ -13,8 +13,9 @@ use std::path::{Path, PathBuf};
 
 use miyu_policy::{
     CompactionTexts, CoreLines, CoreTexts, DriverPlaceholders, FactTexts, HarnessTexts,
-    ImageNameTexts, JobTexts, PeerTexts, PermissionTexts, PersonaTexts, RebuildTexts, RecapTexts,
-    ShortenTexts, Sources, TextFileTexts, TitleTexts, ToolResultTexts, TurnEndedTexts,
+    ImageNameTexts, JobTexts, PeerIdleTexts, PeerTexts, PermissionTexts, PersonaTexts,
+    RebuildTexts, RecapTexts, ShortenTexts, Sources, TextFileTexts, TitleTexts, ToolResultTexts,
+    TurnEndedTexts,
 };
 
 use crate::env::Env;
@@ -288,6 +289,13 @@ impl ResourceRoot {
             peers: Some(PeerTexts {
                 message_open: core(&["peers", "message-open.txt"])?,
                 message_close: core(&["peers", "message-close.txt"])?,
+                idle: Some(PeerIdleTexts {
+                    idle_open: core(&["peers", "idle-open.txt"])?,
+                    idle_silent: core(&["peers", "idle-silent.txt"])?,
+                    idle_expired: core(&["peers", "idle-expired.txt"])?,
+                    idle_gone: core(&["peers", "idle-gone.txt"])?,
+                    idle_close: core(&["peers", "idle-close.txt"])?,
+                }),
             }),
             recap: Some(RecapTexts {
                 instruction: core(&["recap", "instruction.txt"])?,
@@ -302,13 +310,28 @@ impl ResourceRoot {
         })
     }
 
-    /// 模型资料的原文（`models/models-dev.json`，施工 6-3 上）：从 models.dev 抽出来的窗口、最大输出。怎么读由核心定。
+    /// models.dev 目录的快照在哪（`models/models-dev.json`，施工 8-7）：原样的 `api.json`，旁边的 `models-dev.meta.json` 是
+    /// 它是什么时候拉的。约 5 MB，由核心起来以后在后台读；读不了的照样起来（`models.md`「怎么走」第二条第 1 条）。
+    pub fn catalog_snapshot(&self) -> std::path::PathBuf {
+        self.path.join("models").join("models-dev.json")
+    }
+
+    /// 认原厂的表的原文（`models/vendors.toml`，施工 8-7）。怎么读由核心定。
     ///
     /// # Errors
     ///
     /// 读不出来：写明是哪个文件。
-    pub fn models(&self) -> Result<String, SourceError> {
-        self.read(&["models", "models-dev.json"])
+    pub fn vendors(&self) -> Result<String, SourceError> {
+        self.read(&["models", "vendors.toml"])
+    }
+
+    /// 供应商的档案的原文（`models/profiles.toml`，施工 8-6）：认得出的供应商的驱动、地址、开关。怎么读由核心定。
+    ///
+    /// # Errors
+    ///
+    /// 读不出来：写明是哪个文件。
+    pub fn profiles(&self) -> Result<String, SourceError> {
+        self.read(&["models", "profiles.toml"])
     }
 
     /// 读资源目录下的一份文件，路径一段一段地接上（三个平台一样）。

@@ -51,8 +51,8 @@ impl Store for Failing {
 struct Holding(Model);
 
 impl ModelPort for Holding {
-    fn model(&self) -> &Model {
-        &self.0
+    fn model(&self) -> Model {
+        self.0.clone()
     }
 
     fn call(&self, _: Seq, _: Request, _: &crate::TurnConfig, _: Reports, _: Cancel) {}
@@ -175,6 +175,7 @@ async fn a_write_that_fails_stops_the_session() {
     let (reply, created) = oneshot::channel();
     actor.wait_for(id("cmd-0"), reply);
     let busy = actor.busy();
+    let watched = actor.watched();
     let session = crate::new_id(Timestamp::from_unix_millis(0).expect("在范围里"));
     spawn(actor, first, span(&session));
     assert!(matches!(
@@ -186,7 +187,7 @@ async fn a_write_that_fails_stops_the_session() {
         window: None,
         compaction_line: None,
     };
-    let handle = Handle::new(session.clone(), inbox, busy, nothing);
+    let handle = Handle::new(session.clone(), inbox, busy, false, watched, nothing);
     assert!(!handle.busy(), "刚造出来，没有回合");
     let first = within(
         "第一句的回应",

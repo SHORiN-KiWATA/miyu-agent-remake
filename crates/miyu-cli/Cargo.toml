@@ -34,7 +34,7 @@ tokio = { version = "1", features = ["io-util", "macros", "rt", "signal", "sync"
 miyu-pipe = { path = "../miyu-pipe" }
 
 [dev-dependencies]
-# 测试里在进程里起核心：没有 key 时的端口。
+# 测试里在进程里起核心：照出厂档案造的路由（施工 8-6，没配模型时的端口）。
 miyu-core = { path = "../miyu-core" }
 # 测试里在进程里起核心：协议端点。
 miyu-endpoint = { path = "../miyu-endpoint" }

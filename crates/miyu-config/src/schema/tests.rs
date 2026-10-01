@@ -122,7 +122,7 @@ fn a_switch_is_a_boolean_without_an_enum() {
     use crate::value::Value;
     let switch = Item {
         kind: Kind::Bool,
-        default: Value::Bool(false),
+        default: Some(Value::Bool(false)),
         ..item("permission.start_read_only", &[], "")
     };
     let items = [switch];

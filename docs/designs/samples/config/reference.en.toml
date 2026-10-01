@@ -6,10 +6,103 @@
 # Allowed: error, warn, info, debug, trace or off. Only in the system config. Takes effect at once.
 level = "info"
 
+[models]
+# Chat model: The model new sessions use, written as provider/model, for example deepseek/deepseek-flash.
+# Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Applies to sessions opened from now on.
+# chat =
+
+[models.catalog]
+# Update every: Fetch again once the cached catalog is this old.
+# Allowed: a length of time from 1h to 720h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
+every = "24h"
+
+# Update the catalog: Fetch a newer model catalog from models.dev in the background. Off uses only the bundled and already fetched ones.
+# Allowed: true or false. Only in the system config or personal settings. Takes effect at once.
+update = true
+
+# Catalog address: Where to fetch the model catalog from.
+# Allowed: an address starting with http:// or https:// or { env = "…" }. Only in the system config or personal settings. Takes effect at once.
+url = "https://models.dev/api.json"
+
 [permission]
 # Start new sessions read-only: When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on.
 # Allowed: true or false. Only in the system config, personal settings or a project config. Applies to sessions opened from now on.
 start_read_only = false
+
+[providers."<id>"]
+# Address: The address of this provider's API; the driver adds the path. Known providers can leave it out.
+# Allowed: an address starting with http:// or https:// or { env = "…" }. Only in the system config or personal settings. Takes effect next turn.
+# base_url =
+
+# Catalog provider: Which provider in the model data this one is, for example deepseek for a relay that only forwards DeepSeek.
+# Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Takes effect next turn.
+# catalog =
+
+# Driver: How to talk to this provider. Known providers can leave it out.
+# Allowed: openai-chat, anthropic or openai-responses. Only in the system config or personal settings. Takes effect next turn.
+# driver =
+
+# Keys: Write { secret = "name" } (saved with miyu login) or { env = "VARIABLE" }. Each session sticks to one of them. Empty means no auth header.
+# Allowed: a list of { secret = "…" } or { env = "…" }. Only in the system config or personal settings. Takes effect next turn.
+keys = []
+
+# Local service: A model service on this machine, counted as free. Left out, it follows the address: on this machine means yes.
+# Allowed: true or false. Only in the system config or personal settings. Takes effect next turn.
+# local =
+
+# Price multiplier: Prices of this provider are multiplied by it. 1 if left out. A multiplier on the model wins.
+# Allowed: a number from 0 to 1000. Only in the system config or personal settings. Takes effect next turn.
+# price_multiplier =
+
+[providers."<id>".models."<model>"]
+# Catalog entry: Which models.dev entry to use: <provider>/<model>. Left out, it is found by name.
+# Allowed: text of at most 256 characters. Only in the system config or personal settings. Takes effect next turn.
+# catalog =
+
+# Inputs: What this model can read: text, images, PDF.
+# Allowed: a list of text, image or pdf. Only in the system config or personal settings. Takes effect next turn.
+# inputs =
+
+# Max output: How many tokens this model can write at most in one reply.
+# Allowed: a whole number from 1 to 100000000. Only in the system config or personal settings. Applies to sessions opened from now on.
+# max_output =
+
+# Price multiplier: Prices of this model are multiplied by it, over the one on the provider.
+# Allowed: a number from 0 to 1000. Only in the system config or personal settings. Takes effect next turn.
+# price_multiplier =
+
+# Reasoning levels: Which reasoning levels this model offers.
+# Allowed: a list of text of at most 32 characters. Only in the system config or personal settings. Takes effect next turn.
+# reasoning =
+
+# Tool calls: Whether this model can call tools.
+# Allowed: true or false. Only in the system config or personal settings. Takes effect next turn.
+# tools =
+
+# Context window: The context window of this model, in tokens.
+# Allowed: a whole number from 1 to 100000000. Only in the system config or personal settings. Applies to sessions opened from now on.
+# window =
+
+[providers."<id>".models."<model>".price]
+# Cache read price: Price per million tokens read from the cache.
+# Allowed: a number from 0 to 1000000. Only in the system config or personal settings. Takes effect next turn.
+# cache_read =
+
+# Cache write price: Price per million tokens written to the cache.
+# Allowed: a number from 0 to 1000000. Only in the system config or personal settings. Takes effect next turn.
+# cache_write =
+
+# Currency: Currency of the price, three capital letters such as USD or CNY. USD if left out.
+# Allowed: text of at most 3 characters. Only in the system config or personal settings. Takes effect next turn.
+# currency =
+
+# Input price: Price per million input tokens. A written price is used whole.
+# Allowed: a number from 0 to 1000000. Only in the system config or personal settings. Takes effect next turn.
+# input =
+
+# Output price: Price per million output tokens.
+# Allowed: a number from 0 to 1000000. Only in the system config or personal settings. Takes effect next turn.
+# output =
 
 [tui]
 # On start, open: Whether the terminal interface starts a new session or picks up the most recent one.

@@ -2,8 +2,9 @@
 //! 不读它。
 //!
 //! 开头两行说明它是生成的、改它没有用、要改的写在哪。接着键照表分开，表照名字的字母先后，表里的项也照字母先后：
-//! 每一项先两行注释（名字和说明；能写什么、能放在哪几层、什么时候生效），再一行 `键 = 默认值`。表和表之间、项和项
-//! 之间空一行，最后一个换行。
+//! 每一项先两行注释（名字和说明；能写什么、能放在哪几层、什么时候生效），再一行 `键 = 默认值`。没有默认值的（施工 8-6）
+//! 这一行写成注释 `# 键 =`。人起的名字那一段写成带引号的占位：`[providers."<id>"]`，照样是读得懂的 TOML。表和表之间、
+//! 项和项之间空一行，最后一个换行。
 
 use crate::item::Item;
 use crate::words::{self, Missing, Words};
@@ -23,18 +24,19 @@ pub fn render(items: &[Item], words: &dyn Words) -> Result<String, Missing> {
         &mut text,
         &words::sentence(words, "config/reference-where", &[])?,
     );
-    let mut sorted: Vec<(&str, &str, &Item)> = items
+    let mut sorted: Vec<(String, &str, &Item)> = items
         .iter()
         .map(|item| {
             let (table, name) = item.key.rsplit_once('.').unwrap_or(("", item.key));
-            (table, name, item)
+            let table: Vec<&str> = table.split('.').filter(|part| !part.is_empty()).collect();
+            (crate::key::join(&table), name, item)
         })
         .collect();
-    sorted.sort_by_key(|(table, name, _)| (*table, *name));
+    sorted.sort_by(|(a, x, _), (b, y, _)| (a, x).cmp(&(b, y)));
     let mut current = None;
     for (table, name, item) in sorted {
         text.push('\n');
-        if current != Some(table) {
+        if current.as_ref() != Some(&table) {
             if !table.is_empty() {
                 text.push_str(&format!("[{table}]\n"));
             }
@@ -50,7 +52,10 @@ pub fn render(items: &[Item], words: &dyn Words) -> Result<String, Missing> {
             )?,
         );
         comment(&mut text, &words::facts(words, item)?);
-        text.push_str(&format!("{name} = {}\n", item.default.toml()));
+        match &item.default {
+            Some(default) => text.push_str(&format!("{name} = {}\n", default.toml())),
+            None => text.push_str(&format!("# {name} =\n")),
+        }
     }
     Ok(text)
 }

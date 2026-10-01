@@ -3,6 +3,8 @@
 
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
 
+pub mod routing;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};

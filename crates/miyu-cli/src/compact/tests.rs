@@ -219,11 +219,11 @@ fn a_failed_compaction_says_why_and_exits_one() {
 
 #[test]
 fn without_a_model_it_exits_five() {
-    // 核心没有 key：摘要请求没发出去就认证失败。
+    // 核心没配模型：摘要请求没发出去就是 `no_model`（施工 8-6）。
     let failed = event(
         "model.called",
         json!({"seen": 8, "messages": 3, "result": "error", "compaction": "manual",
-            "error": {"class": "auth", "message": "no key"}}),
+            "error": {"class": "no_model", "message": "no model configured: set models.chat"}}),
     );
     let Fed { step, err, .. } = feed(
         Language::Chinese,
@@ -232,7 +232,9 @@ fn without_a_model_it_exits_five() {
     );
     assert_eq!(step, Step::Done(exit::NO_MODEL));
     assert!(
-        err.ends_with("没有可用的模型：设环境变量 DEEPSEEK_API_KEY\n"),
+        err.ends_with(
+            "没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。\n"
+        ),
         "{err}"
     );
 }

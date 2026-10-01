@@ -25,7 +25,7 @@ use super::{Config, TARGET, trust};
 use crate::Core;
 
 /// 一项的改动：键、之前这一层的值、之后的（没写的是空的）。
-pub(super) type Difference = (&'static str, Option<Value>, Option<Value>);
+pub(super) type Difference = (String, Option<Value>, Option<Value>);
 
 impl Core {
     /// 开始监视配置文件（核心读完配置以后，第七条）：交回监视，丢掉就停。系统的监视起不来的退回轮询，记一条
@@ -104,7 +104,7 @@ pub(super) fn observe(core: &Core, config: &mut Config, layer: Layer) {
         core.hub.publish(config, None);
         return;
     }
-    let keys: Vec<&'static str> = changes.iter().map(|(key, _, _)| *key).collect();
+    let keys: Vec<String> = changes.iter().map(|(key, _, _)| key.clone()).collect();
     record(config, layer, Via::File, By::Kernel, None, &changes);
     core.hub.publish(
         config,
@@ -143,7 +143,7 @@ pub(super) fn record(
         changes: changes
             .iter()
             .map(|(key, old, new)| KeyChange {
-                key,
+                key: key.clone(),
                 old: old.as_ref().map(Value::json),
                 new: new.as_ref().map(Value::json),
             })
@@ -158,7 +158,7 @@ pub(super) fn record(
         "config.changed",
         &body,
     );
-    let keys: Vec<&str> = changes.iter().map(|(key, _, _)| *key).collect();
+    let keys: Vec<&str> = changes.iter().map(|(key, _, _)| key.as_str()).collect();
     tracing::info!(
         target: TARGET,
         layer = %layer.as_str(),
@@ -217,19 +217,18 @@ pub(super) fn differences(old: &File, new: &File) -> Vec<Difference> {
             .filter(|entry| entry.counts)
             .map(|entry| entry.value.clone())
     };
-    let mut keys: Vec<&'static str> = old
+    let mut keys: Vec<&String> = old
         .parsed
         .entries
         .keys()
         .chain(new.parsed.entries.keys())
-        .copied()
         .collect();
     keys.sort_unstable();
     keys.dedup();
     keys.into_iter()
         .filter_map(|key| {
             let (before, after) = (value(old, key), value(new, key));
-            (before != after).then_some((key, before, after))
+            (before != after).then(|| (key.clone(), before, after))
         })
         .collect()
 }

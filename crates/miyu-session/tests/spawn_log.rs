@@ -43,6 +43,25 @@ impl SessionPort for Table {
         Box::pin(async { Err("no logs here".to_string()) })
     }
 
+    /// 这份假的会话表没有一次性会话（施工 C-5）：用不到的时候一律照送到了算。
+    fn held(&self, _session: SessionId) -> Pending<'_, bool> {
+        Box::pin(async { false })
+    }
+
+    /// 这个测试不订「空了告诉我」（施工 C-6）。
+    fn watch(
+        &self,
+        _session: SessionId,
+        _watcher: SessionId,
+        _since: miyu_kernel::time::Timestamp,
+    ) -> Pending<'_, Result<(), miyu_session::NotWatched>> {
+        Box::pin(async {
+            Err(miyu_session::NotWatched::Failed(
+                "no watches here".to_string(),
+            ))
+        })
+    }
+
     fn command(
         &self,
         _session: SessionId,

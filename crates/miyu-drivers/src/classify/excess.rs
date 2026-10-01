@@ -1,5 +1,6 @@
 //! 超长的超了多少 token（`docs/blueprint/drivers/openai-chat.md`「出错怎么分」第 7 条，施工 6-6 中）：从找说法的字里
-//! 解析，交给内核截短摘要请求（`compaction.md` 第三条第 10 条）。纯逻辑层没有正则，照几家常见的写法一段一段找。
+//! 解析，交给内核截短摘要请求（`compaction.md` 第三条第 10 条）。报了的上限另交出来（施工 8-7）：执行器照它记下用出来的
+//! 窗口（`models.md`「怎么走」第二条第 9 条）。纯逻辑层没有正则，照几家常见的写法一段一段找。
 
 /// 超了多少 token：`text` 是小写以后找说法的字。先对上的算：
 ///
@@ -9,6 +10,18 @@
 /// M 比 N 大才算，交回 M 减 N；别的都没有。
 pub(super) fn excess(text: &str) -> Option<u64> {
     context_length(text).or_else(|| prompt_too_long(text))
+}
+
+/// 报了的上限 N（施工 8-7）：`text` 是小写以后找说法的字，写法同 [`excess`]，只要说得出 N，后半段说不出也算。0 不算。
+pub(super) fn limit(text: &str) -> Option<u64> {
+    let after = |phrase: &str| text.split_once(phrase).map(|(_, rest)| rest);
+    let stated = after("maximum context length is")
+        .and_then(number)
+        .or_else(|| {
+            let (_, rest) = number(after("prompt is too long:")?)?;
+            number(rest.split_once('>')?.1)
+        });
+    stated.map(|(limit, _)| limit).filter(|limit| *limit > 0)
 }
 
 /// `maximum context length is <N> … resulted in <M>` / `… requested <M>`。

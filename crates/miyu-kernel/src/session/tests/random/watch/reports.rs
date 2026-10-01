@@ -6,7 +6,8 @@
 //!   的排着，下一次主请求听到，回合结束时还没听到的照排队的消息接着开（`watch/queue.rs`）；
 //! - 恢复了撤销、这时开得了，记在一边的里面派它的那一轮还在的，由最后那条接着开，和恢复那一条、改回文件的结局同一批；
 //! - 有没有头订阅着什么都不出；载入以后当没人看着（`watch/load.rs`）；
-//! - 别的会话发来的话（施工 C-2，`watch/peers.rs`）叫不叫醒她也照这一套，它不是哪个任务的，一律算会叫醒她的。
+//! - 别的会话发来的话（施工 C-2，`watch/peers.rs`）叫不叫醒她也照这一套，它不是哪个任务的，一律算会叫醒她的；空了的
+//!   通知（施工 C-6）也是，作废、不在了的只记下。
 
 use super::*;
 use crate::event::{ChildReason, Effect, JobKind, JobReason};
@@ -217,6 +218,28 @@ impl Watch {
                     );
                     self.seen_paths.insert("别的会话的话只记下");
                     self.reports.deferred.push((event.seq, None));
+                }
+            }
+            // 空了的通知（施工 C-6）：空下来了的照别的会话的话叫醒她，作废、不在了的只记下。
+            Body::PeerIdle(idle) => {
+                assert_eq!(event.turn, None, "种子 {seed}：通知不带回合编号");
+                let wakes = idle.reason == crate::event::IdleReason::Idle;
+                let opens = next == Some(event.seq);
+                if self.turn_open() {
+                    assert!(!opens, "种子 {seed}：正忙时到的通知不开轮");
+                    if wakes {
+                        self.reports.pending.push(event.seq);
+                    }
+                } else if wakes && self.can_wake() {
+                    self.seen_paths.insert("闲着时通知开了一轮");
+                    assert!(opens, "种子 {seed}：闲着时到的通知 {} 该开一轮", event.seq);
+                } else {
+                    assert!(!opens, "种子 {seed}：通知 {} 只记下，不开轮", event.seq);
+                    if wakes {
+                        self.reports.deferred.push((event.seq, None));
+                    } else {
+                        self.seen_paths.insert("作废、不在了只记下");
+                    }
                 }
             }
             Body::MessageAssistant(reply) => self.peers_heard(reply.seen),

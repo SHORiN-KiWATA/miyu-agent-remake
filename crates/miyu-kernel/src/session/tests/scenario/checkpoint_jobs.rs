@@ -1,5 +1,5 @@
 //! 压缩里的任务（施工 7-8，`docs/blueprint/compaction.md` 第三条第 2 条、第八条，`agents.md` 第十条）：还没听到的回报算
-//! 这一轮要回应的，不压进摘要；撤到压缩以前也停派出去的。检查点里代码写的几段不列还在跑的任务：7-8 加过那一段，
+//! 这一轮要回应的，不压进摘要（还没听到的空了的通知也是，施工 C-6）；撤到压缩以前也停派出去的。检查点里代码写的几段不列还在跑的任务：7-8 加过那一段，
 //! 2026-10-01 实测摘要记得住，照「非必要不加」去掉了（施工 7-8 补）。
 
 use super::reports::CHILD;
@@ -102,6 +102,41 @@ fn a_report_not_yet_heard_stays_after_the_checkpoint() {
     assert!(
         listed_request(request).contains(&format!("{report} job.reported")),
         "压完的请求里回报原样在：{}",
+        listed_request(request)
+    );
+}
+
+/// 空了的通知一样（施工 C-6，`compaction.md` 第三条第 2 条）：作废了的只记下，没人听到过，压到它前面为止。
+#[test]
+fn a_notice_not_yet_heard_stays_after_the_checkpoint() {
+    let peer = "0192f3a0-2222-7abc-8def-5566899aa000";
+    let mut s = compacting();
+    s.model([
+        Line::calls("订了。", &[("read", "{}")]),
+        Line::says("等它。").reports(5_000),
+    ]);
+    s.tools([Play::watches(peer)]);
+    s.say("它做完告诉我");
+    let [(_, since)] = s.watching().try_into().unwrap();
+    let due = since.unix_millis() + 12 * 3_600_000;
+    s.watch_ends_at(
+        peer,
+        crate::event::IdleReason::Expired,
+        crate::time::Timestamp::from_unix_millis(due).unwrap(),
+    );
+    let notice = s.log().last().unwrap().seq;
+    assert!(matches!(s.log().last().unwrap().body, Body::PeerIdle(_)));
+    next_turn(&mut s);
+    let compacted = compacted(&s);
+    assert!(
+        compacted.upto < notice,
+        "还没听到的通知算这一轮要回应的，压到它前面为止：upto {}，通知 {notice}",
+        compacted.upto
+    );
+    let request = &s.requests().last().unwrap().1;
+    assert!(
+        listed_request(request).contains(&format!("{notice} peer.idle")),
+        "压完的请求里通知原样在：{}",
         listed_request(request)
     );
 }

@@ -45,7 +45,7 @@ pub fn tell(
     let key = problem.key.as_deref().unwrap_or_default();
     let got = problem.got.as_deref().unwrap_or_default();
     let why = problem.why.as_deref().unwrap_or_default();
-    let item = items.iter().find(|item| item.key == key);
+    let item = crate::key::item_of(items, key);
     let mut expected = None;
     let mut parts = Vec::new();
     let mut says_using = problem.code.whole_file();
@@ -68,10 +68,10 @@ pub fn tell(
                 parts.push(sentence(words, "config/kept", &[])?);
             }
         }
-        Code::WrongType | Code::NotAnOption => match item {
+        Code::WrongType | Code::NotAnOption | Code::OutOfRange | Code::BadFormat => match item {
             Some(item) => {
                 says_using = true;
-                let (said, fix) = value_problem(item, got, words)?;
+                let (said, fix) = value_problem(item, key, problem.code, got, words)?;
                 expected = Some(said.0);
                 parts.push(said.1);
                 parts.extend(Some(fix).filter(|fix| !fix.is_empty()));
@@ -121,6 +121,19 @@ pub fn tell(
             let name = problem.name.as_deref().unwrap_or_default();
             parts.push(sentence(words, said, &[("key", key), ("name", name)])?);
         }
+        Code::BadSegment => {
+            let name = problem.name.as_deref().unwrap_or_default();
+            let expected = match why {
+                crate::key::MODEL => "config/expected/model-name",
+                _ => "config/expected/id",
+            };
+            let expected = sentence(words, expected, &[])?;
+            parts.push(sentence(
+                words,
+                "config/bad-segment",
+                &[("key", key), ("name", name), ("expected", &expected)],
+            )?);
+        }
         Code::SecretName => parts.push(sentence(words, "config/bad-secret-name", &[("key", key)])?),
         Code::SecretValue => {
             parts.push(sentence(words, "config/bad-secret-value", &[("key", key)])?);
@@ -135,25 +148,31 @@ pub fn tell(
     })
 }
 
-/// 值写得不对的一项：（期望什么，错在哪那一段）和改法。选项列出能写的几个，改法取默认值；开关期望 `true` 或 `false`，
-/// 改法取默认值的另一个（「怎么走」第四条第 5 条）。
+/// 值写得不对的一项（真的键 `key`）：（期望什么，错在哪那一段）和改法。选项列出能写的几个，改法取默认值（没有默认值的
+/// 取第一个）；开关期望 `true` 或 `false`，改法取默认值的另一个（「怎么走」第四条第 5 条）；数、时长不在范围里的说范围；别的
+/// 类型期望照 [`words::expected`]，不另说改法（施工 8-6）。
 fn value_problem(
     item: &Item,
+    key: &str,
+    code: Code,
     got: &str,
     words: &dyn Words,
 ) -> Result<((String, String), String), Missing> {
-    let key = item.key;
     match item.kind {
         Kind::Option(options) => {
-            let options = one_of(words, options, "config/or-values")?;
+            let listed = one_of(words, options, "config/or-values")?;
             let said = sentence(
                 words,
                 "config/not-an-option",
-                &[("key", key), ("options", &options), ("got", got)],
+                &[("key", key), ("options", &listed), ("got", got)],
             )?;
-            let example = format!("{key} = {}", item.default.toml());
+            let example = match &item.default {
+                Some(default) => default.toml(),
+                None => Value::Text(options.first().copied().unwrap_or_default().into()).toml(),
+            };
+            let example = format!("{key} = {example}");
             let fix = sentence(words, "config/fix-example", &[("example", &example)])?;
-            Ok(((options, said), fix))
+            Ok(((listed, said), fix))
         }
         Kind::Bool => {
             let expected = sentence(words, "config/expected/bool", &[])?;
@@ -162,22 +181,56 @@ fn value_problem(
                 "config/wrong-type",
                 &[("key", key), ("expected", &expected), ("got", got)],
             )?;
-            let other = Value::Bool(!bool::from(&item.default));
-            let example = format!("{key} = {}", other.toml());
+            let on = item.default.as_ref().is_some_and(bool::from);
+            let example = format!("{key} = {}", Value::Bool(!on).toml());
             let fix = sentence(words, "config/fix-write", &[("example", &example)])?;
             Ok(((expected, said), fix))
         }
-        Kind::Secret => {
-            let expected = one_of(words, words::allowed(item.kind), "config/or-values")?;
+        Kind::Int { min, max } | Kind::Float { min, max } if code == Code::OutOfRange => {
+            out_of_range(
+                words,
+                item.kind,
+                key,
+                (&min.to_string(), &max.to_string()),
+                got,
+            )
+        }
+        Kind::Duration { min, max } if code == Code::OutOfRange => {
+            let (min, max) = (format!("{min}s"), format!("{max}s"));
+            out_of_range(words, item.kind, key, (&min, &max), got)
+        }
+        kind => {
+            let expected = words::expected(words, kind)?;
+            let said = match code {
+                Code::BadFormat => "config/bad-format",
+                _ => "config/wrong-type",
+            };
             let said = sentence(
                 words,
-                "config/wrong-type",
+                said,
                 &[("key", key), ("expected", &expected), ("got", got)],
             )?;
-            // 能写的两种已经在期望里了，不另说改法。
+            // 能写的已经在期望里了，不另说改法。
             Ok(((expected, said), String::new()))
         }
     }
+}
+
+/// 数、时长不在范围里（最小、最大照这种类型的写法给）：期望照 [`words::expected`]，不另说改法。
+fn out_of_range(
+    words: &dyn Words,
+    kind: Kind,
+    key: &str,
+    (min, max): (&str, &str),
+    got: &str,
+) -> Result<((String, String), String), Missing> {
+    let expected = words::expected(words, kind)?;
+    let said = sentence(
+        words,
+        "config/out-of-range",
+        &[("key", key), ("min", min), ("max", max), ("got", got)],
+    )?;
+    Ok(((expected, said), String::new()))
 }
 
 /// 几层的名字连成「系统配置或个人设置」。

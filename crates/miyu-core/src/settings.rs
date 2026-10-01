@@ -16,6 +16,9 @@ use miyu_endpoint::settings::{PermissionSettings, UiSettings};
 use miyu_kernel::id::AccountId;
 use miyu_log::settings::LogSettings;
 use miyu_log::{Guard, Level, Levels};
+use miyu_models::settings::{
+    CatalogSettings, ModelSettings, PriceSettings, ProviderSettings, UseSettings,
+};
 use miyu_store::generated;
 use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
@@ -25,11 +28,16 @@ use miyu_store::root::DataRoot;
 const TARGET: &str = "miyu::config";
 
 /// 登记的模块，照这个先后，一个模块里照声明的先后。加一个模块只加一行。设置页的页照第一次出现的先后排：通用、界面、
-/// 权限、高级（施工 8-2、8-3）。
-const MODULES: [&[Item]; 4] = [
+/// 权限、模型、高级（施工 8-2、8-3、8-6）；模型那一页先「用途」、再「供应商」、再「目录」（施工 8-7）。
+const MODULES: [&[Item]; 9] = [
     UiSettings::ITEMS,
     TuiSettings::ITEMS,
     PermissionSettings::ITEMS,
+    UseSettings::ITEMS,
+    ProviderSettings::ITEMS,
+    ModelSettings::ITEMS,
+    PriceSettings::ITEMS,
+    CatalogSettings::ITEMS,
     LogSettings::ITEMS,
 ];
 

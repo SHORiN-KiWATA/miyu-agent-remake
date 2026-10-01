@@ -17,7 +17,7 @@ const GOT_CHARS: usize = 80;
 /// 离得最近的键名最远差几个字（「怎么走」第四条第 2 条）。
 const NEAREST: usize = 3;
 
-/// 原因码（「报错」那张表里标 8-2、8-5 的几种）。
+/// 原因码（「报错」那张表里标 8-2、8-5、8-6 的几种）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Code {
     /// 文件读不了：没有权限、是个目录……（没有这个文件不算）。
@@ -34,6 +34,13 @@ pub enum Code {
     WrongType,
     /// 选项不在列出的几个里。
     NotAnOption,
+    /// 数不在范围里（施工 8-6）。
+    OutOfRange,
+    /// 网址、名字、引用写法不对（施工 8-6）。
+    BadFormat,
+    /// 键里人起的名字那一段写法不对（施工 8-6，`[providers.DeepSeek]`）：`name` 是那一段，`why` 是它该合的占位。协议上
+    /// 写 `bad_format`，说的话不一样。
+    BadSegment,
     /// 这一项不能写在这一层。
     WrongLayer,
     /// 项目配置写得比下面几层宽。
@@ -61,6 +68,8 @@ impl Code {
             Code::UnknownKey => "unknown_key",
             Code::WrongType => "wrong_type",
             Code::NotAnOption => "not_an_option",
+            Code::OutOfRange => "out_of_range",
+            Code::BadFormat | Code::BadSegment => "bad_format",
             Code::WrongLayer => "wrong_layer",
             Code::NotTightening => "not_tightening",
             Code::UntrustedProject => "untrusted_project",

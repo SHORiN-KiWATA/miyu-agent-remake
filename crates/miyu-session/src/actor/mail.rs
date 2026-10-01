@@ -1,7 +1,10 @@
 //! 人的那条收件箱里的一封怎么办（`docs/blueprint/session/actor.md` 第 3 条第 4 点）：命令照 actor 的时钟记下到的时刻送进
 //! 内核，订阅当场办（连同补发补到哪一条，施工 3-8 六补）；拿着订阅的头从没有到有、从有到没有，交内核 `Watched`
-//! （施工 7-9）。施工 7-9 从 `actor.rs` 挪出来。
-//! 头读后台命令的输出（施工 7-4 补）不进内核：另起一个任务读，当场办完。
+//! （施工 7-9），和 `Handle` 共用的旗一起写（施工 C-5）。施工 7-9 从 `actor.rs` 挪出来。
+//! 头读后台命令的输出（施工 7-4 补）不进内核：另起一个任务读，当场办完。别的会话等这个会话空下来（施工 C-6）也不进内核：
+//! 记进名单，当场办完。
+
+use std::sync::atomic::Ordering;
 
 use tokio::sync::oneshot;
 
@@ -68,16 +71,24 @@ impl Actor {
                 tokio::spawn(async move { answer(reply, reading.await) });
                 Mail::Done
             }
+            // 有会话在等这个会话空下来（施工 C-6，`watchers.rs`）：不进内核，记进名单，上不上膛照 `watchers.rs` 判
+            // （2026-10-01 改：空着的先不发，等下一次忙完）。
+            Message::Watch { watcher, since } => {
+                self.add_waiter(watcher, since);
+                Mail::Done
+            }
         }
     }
 
-    /// 多了（`more`）或者少了一个拿着订阅的头（施工 7-9）：从没有到有、从有到没有，交内核 `Watched`；别的当场办完。
+    /// 多了（`more`）或者少了一个拿着订阅的头（施工 7-9）：从没有到有、从有到没有，交内核 `Watched`，和 `Handle` 共用的
+    /// 那面旗一起写（施工 C-5，照 `busy` 的做法）；别的当场办完。
     fn watch(&mut self, more: bool) -> Mail {
         let before = self.watchers;
         self.watchers = match more {
             true => before + 1,
             false => before.saturating_sub(1),
         };
+        self.watched.store(self.watchers > 0, Ordering::Release);
         match (before, self.watchers) {
             (0, 1) => Mail::Input(Input::Watched { watched: true }),
             (1, 0) => Mail::Input(Input::Watched { watched: false }),

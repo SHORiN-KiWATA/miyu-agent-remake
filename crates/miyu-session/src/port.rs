@@ -2,6 +2,8 @@
 //! 它，它的回报送回 actor 的收件箱。3-7（下）接上驱动和 HTTP 执行器，以后资源调度夹在中间；测试里
 //! 照剧本回。
 
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 use tokio::sync::{mpsc, oneshot};
@@ -9,7 +11,7 @@ use tokio::sync::{mpsc, oneshot};
 use miyu_drivers::DriverTexts;
 use miyu_kernel::accumulate::Delta;
 use miyu_kernel::event::{CallError, Purpose, Usage};
-use miyu_kernel::id::{ContentHash, Seq};
+use miyu_kernel::id::{ContentHash, Seq, SessionId};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
 use miyu_kernel::session::Limits;
@@ -20,6 +22,11 @@ use crate::config::TurnConfig;
 /// 给一个会话造请求模型的端口（施工 3-7 下）。造会话、载入时，拿到了这个会话的策略快照再造：驱动的
 /// 占位冻结在快照里，核心升级改了字，老会话照样逐字节重现当时的请求（施工 3-6 上）。
 pub trait Models: Send + Sync {
+    /// 等造端口要的都备好了（施工 8-7：目录在写了 `ready` 以后才读完）。造会话、载入时在造端口之前等它。默认马上好。
+    fn ready(&self) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(std::future::ready(()))
+    }
+
     /// 造这个会话的端口。
     fn port(&self, session: ForSession) -> Arc<dyn ModelPort>;
 }
@@ -27,6 +34,10 @@ pub trait Models: Send + Sync {
 /// 造端口时交进来的，这个会话自己的。
 #[derive(Debug, Clone)]
 pub struct ForSession {
+    /// 会话编号：路由照它挑 key（施工 8-6，`models.md` 第一条第 6 条）。
+    pub id: SessionId,
+    /// 造会话、载入时取的那一份配置（施工 8-6）：会话用哪个模型、限额照它定。
+    pub config: TurnConfig,
     /// 驱动的占位：取自这个会话的策略快照。
     pub texts: DriverTexts,
     /// 属主的 blob：编码要用的图、文件在这里。
@@ -35,14 +46,15 @@ pub struct ForSession {
 
 /// 请求模型的端口。
 pub trait ModelPort: Send + Sync {
-    /// 发给哪个端点的哪个模型：记进运行日志的 `request` 那一行。
-    fn model(&self) -> &Model;
+    /// 发给哪个端点的哪个模型：记进运行日志的 `request` 那一行。路由的是这个会话钉着的、上一次解析出来的那一个（施工 8-6：
+    /// 回合开始时照新的配置可能换，真发给谁记在 `model.called` 里）。
+    fn model(&self) -> Model;
 
     /// 这个模型的限额：窗口、最大输出、一张图怎么算（施工 6-3 上）。会话 actor 造会话、载入以后交给内核。不知道的
     /// 都是没有：不主动压。
     fn limits(&self) -> Limits {
         Limits {
-            model: self.model().clone(),
+            model: self.model(),
             window: None,
             max_output: None,
             images: None,
@@ -197,4 +209,9 @@ pub(crate) enum Back {
     Tool(crate::tools::ToolBack),
     /// 一条后台命令结束了（施工 7-3）。
     Job(crate::jobs::Ended),
+    /// 等会话 `session` 等不到了（施工 C-6，`peers.rs`）：到点了是 `expired`，订的时候它不在了是 `gone`。
+    WatchEnded {
+        session: miyu_kernel::id::SessionId,
+        reason: miyu_kernel::event::IdleReason,
+    },
 }

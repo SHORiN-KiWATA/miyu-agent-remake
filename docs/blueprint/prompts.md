@@ -1339,59 +1339,180 @@ No output.
 ({job} is still running. It is using {tools} now.)
 ```
 
-#### `software/basesystem/message_agent/sent.txt`
+#### `software/basesystem/send_message/sent.txt`
 
 - 什么时候加进来：送到了
-- token：6（`{to}` 按 `j1` 算，2026-09-30 量）
-- 为什么加：每次调用都要有结果：发给了谁；对方的回应照留言、回报自己来（施工 7-7）
+- token：6（`{to}` 按 `j1` 算，2026-09-30 量，字节没变）
+- 为什么加：每次调用都要有结果：发给了谁；对方的回应照留言、回报自己来（施工 7-7；施工 C-5 从 `message_agent/` 挪来，字节不变）
 - 指纹：`01bcaece`
 
 ```text
 Message sent to {to}.
 ```
 
-#### `software/basesystem/message_agent/no-parent.txt`
+#### `software/basesystem/send_message/held.txt`
+
+- 什么时候加进来：送到了，对方是没人看着的一次性会话
+- token：26（2026-10-01 主会话量，开发端点的 `deepseek-v4.1-flash`，`{to}` 按 `22334455`，带行尾换行）
+- 为什么加：不是出错：话记下了，等人接着说时才一起看到，不是没送到（施工 C-5，`cross-session.md` 第三条第 4 款）
+- 指纹：`c39e1724`
+
+```text
+Message saved for {to}. Nobody is watching that one-shot session, so it reads this only when someone continues it.
+```
+
+#### `software/basesystem/send_message/no-parent.txt`
 
 - 什么时候加进来：主会话写了 `to: parent`
-- token：6（2026-09-30 量）
-- 为什么加：说清为什么拒：主会话没有父（`agents.md` 第六条第 1 条，施工 7-7）
+- token：6（2026-09-30 量，字节没变）
+- 为什么加：说清为什么拒：主会话没有父（`agents.md` 第六条第 1 条，施工 7-7；施工 C-5 从 `message_agent/` 挪来）
 - 指纹：`1bd9fcb3`
 
 ```text
 This session has no parent.
 ```
 
-#### `software/basesystem/message_agent/not-yours.txt`
+#### `software/basesystem/send_message/not-yours.txt`
 
 - 什么时候加进来：`to` 不是她派的子代理：没派过、是后台命令、派它的那一轮撤掉了、写法都不对的
-- token：22（`{to}` 按 `j7` 算，2026-09-30 量）
-- 为什么加：说清为什么拒、能发给谁：只在相邻两层之间，兄弟、孙代理找不到（`agents.md` 第六条第 1 条，施工 7-7）
+- token：22（`{to}` 按 `j7` 算，2026-09-30 量，字节没变）
+- 为什么加：说清为什么拒、能发给谁：只在相邻两层之间，兄弟、孙代理找不到（`agents.md` 第六条第 1 条，施工 7-7；施工 C-5 从 `message_agent/` 挪来）
 - 指纹：`8adc0666`
 
 ```text
 "{to}" is not a subagent you started. Message only your own subagents or your parent.
 ```
 
-#### `software/basesystem/message_agent/stopped.txt`
+#### `software/basesystem/send_message/stopped.txt`
 
 - 什么时候加进来：发给被停掉的子代理
-- token：12（`{to}` 按 `j1` 算，2026-09-30 量）
-- 为什么加：说清为什么拒：被停掉的不再收留言（施工 7-7）
+- token：12（`{to}` 按 `j1` 算，2026-09-30 量，字节没变）
+- 为什么加：说清为什么拒：被停掉的不再收留言（施工 7-7；施工 C-5 从 `message_agent/` 挪来）
 - 指纹：`54d2dded`
 
 ```text
 Subagent {to} was stopped and takes no more messages.
 ```
 
-#### `software/basesystem/message_agent/not-sent.txt`
+#### `software/basesystem/send_message/not-sent.txt`
 
 - 什么时候加进来：送不到：对方拒收、对方的会话停了、核心正在停、没装会话表
-- token：7（2026-09-30 量）
-- 为什么加：每次调用都要有结果；原因记进运行日志，不给她看（施工 7-7）
+- token：7（2026-09-30 量，字节没变）
+- 为什么加：每次调用都要有结果；原因记进运行日志，不给她看（施工 7-7；施工 C-5 从 `message_agent/` 挪来）
 - 指纹：`c97a85d0`
 
 ```text
 The message could not be delivered.
+```
+
+#### `software/basesystem/send_message/no-session.txt`
+
+- 什么时候加进来：找不到 `to` 写的会话
+- token：10
+- 为什么加：说清为什么拒：没有这个会话（施工 C-5，`cross-session.md` 第三条第 1 款，和 `history/no-session.txt` 同一句写法）
+- 指纹：`3624af86`
+
+```text
+No session has the id "{to}".
+```
+
+#### `software/basesystem/send_message/ambiguous.txt`
+
+- 什么时候加进来：`to` 对得上不止一个会话
+- token：16
+- 为什么加：说清为什么拒、怎么改：写长一点（施工 C-5，和 `history/ambiguous.txt` 同一句写法）
+- 指纹：`dabeaa1b`
+
+```text
+"{to}" matches more than one session. Use the full id.
+```
+
+#### `software/basesystem/send_message/self.txt`
+
+- 什么时候加进来：`to` 写的就是这个会话自己
+- token：9
+- 为什么加：说清为什么拒：发给自己没有意义（施工 C-5）
+- 指纹：`e18cb0d7`
+
+```text
+"{to}" is this session.
+```
+
+#### `software/basesystem/send_message/not-here.txt`
+
+- 什么时候加进来：这个会话不能发给别的会话、不能订别的会话：子会话、场所会话写了会话编号
+- token：9
+- 为什么加：说清为什么拒，不去找（施工 C-5，`cross-session.md` 第九条）
+- 指纹：`b3517be6`
+
+```text
+This session cannot message or watch other sessions.
+```
+
+#### `software/basesystem/send_message/too-long.txt`
+
+- 什么时候加进来：`message` 超过 `peers.message_chars`（100000 个字）
+- token：21（`chars` 120000、`limit` 100000）
+- 为什么加：说清上限，好改短一点；发出去之前拒，父子之间的留言也照它（施工 C-5，`cross-session.md` 第五条第 4 款）
+- 指纹：`ccc6bacc`
+
+```text
+The message has {chars} characters, over the limit of {limit}. Send a shorter one.
+```
+
+#### `software/basesystem/send_message/too-many.txt`
+
+- 什么时候加进来：同一个发话方在窗口里到了限速的上限（只在发给别的会话时碰到）
+- token：22
+- 为什么加：说清楚该怎么办：并成一句、过会儿再发（施工 C-5，`cross-session.md` 第五条第 1 款）
+- 指纹：`53ecfdda`
+
+```text
+Too many messages to {to} just now. Put the rest into one message and send it later.
+```
+
+#### `software/basesystem/send_message/duplicate.txt`
+
+- 什么时候加进来：同一个发话方在窗口里发过一字不差的一句
+- token：9
+- 为什么加：不是出错：那句话已经在那边了（施工 C-5，`cross-session.md` 第五条第 2 款）
+- 指纹：`ed1145c4`
+
+```text
+{to} already has this exact message.
+```
+
+#### `software/basesystem/send_message/inbox-full.txt`
+
+- 什么时候加进来：对方还没听到的别的会话的话到了上限
+- token：18
+- 为什么加：说清楚该怎么办：等对方看过再发（施工 C-5，`cross-session.md` 第五条第 3 款）
+- 指纹：`3a51c72d`
+
+```text
+{to} has too many unread messages. Send again after it has read them.
+```
+
+#### `software/basesystem/send_message/watching.txt`
+
+- 什么时候加进来：订了别的会话「空了告诉我」：只订的就这一句，带话的接在发话那一句后面
+- token：17（`{to}` 按 `9f03b21c` 算，2026-10-01 主会话照开发端点、`deepseek-v4.1-flash` 量，带行尾换行；和 `sent.txt` 接起来 28）
+- 为什么加：每次调用都要有结果：说清订了、下次空下来会来一条通知，她不用 `sleep` 着等（施工 C-6，`cross-session.md` 第六条第 2 款；C-5 实测看到拿了回执还 `sleep`）
+- 指纹：`b3530e22`
+
+```text
+You will get a notice when {to} is next idle.
+```
+
+#### `software/basesystem/send_message/watch-peers-only.txt`
+
+- 什么时候加进来：`notify_when_idle` 写给了子代理、父会话：整次拒，留言也不发
+- token：12（2026-10-01 主会话量）
+- 为什么加：说清为什么拒：只能等别的会话空下来（施工 C-6，照 Claude Code；子代理做完本来就会报上来）
+- 指纹：`89372a9a`
+
+```text
+notify_when_idle works only for other sessions.
 ```
 
 #### `software/basesystem/sessions/you.txt`
@@ -1849,6 +1970,65 @@ You are a subagent, started by another session to do one task. That parent sessi
 </session-message>
 ```
 
+### 人这边：空了的通知（一块带标签的事实）
+
+#### `core/peers/idle-open.txt`
+
+- 什么时候加进来：标签那一行，等的那个会话空下来了、作废了、不在了（`peer.idle`）；闲着时是开这一轮的那条，正忙时排在那一步的工具结果后面，之后每次请求照原文带
+- token：18（字段按短编号 `9f03b21c`、原因 `idle` 算，写 `expired` 一样，2026-10-01 主会话照开发端点、`deepseek-v4.1-flash` 量）
+- 为什么加：注明是哪个会话、为什么来（施工 C-6，`cross-session.md` 第八条第 4 款）：她订了「空了告诉我」，这一块就是那条通知
+- 指纹：`12253b47`
+
+```text
+<session-idle session="{id}" reason="{reason}">
+```
+
+#### `core/peers/idle-close.txt`
+
+- 什么时候加进来：收尾那一行，同 `idle-open.txt`
+- token：5（2026-10-01 主会话量）
+- 为什么加：标签的收尾（施工 C-6）
+- 指纹：`f9df124e`
+
+```text
+</session-idle>
+```
+
+### 人这边：空了的通知里那一句
+
+#### `core/peers/idle-silent.txt`
+
+- 什么时候加进来：等的那个会话空下来了，那一轮一个字都没说
+- token：8（2026-10-01 主会话量）
+- 为什么加：没有那一行时也要说清它做完了、没说话，不留一块空的（施工 C-6）
+- 指纹：`4fbe184b`
+
+```text
+It ended its turn without saying anything.
+```
+
+#### `core/peers/idle-expired.txt`
+
+- 什么时候加进来：订了 `peers.watch_hours` 小时没等到，作废了
+- token：14（`hours` 按 12 算，2026-10-01 主会话量）
+- 为什么加：说清不再等了、为什么（施工 C-6，`cross-session.md` 第六条第 8 款）
+- 指纹：`d77866f5`
+
+```text
+No notice came within {hours} hours, so the request was dropped.
+```
+
+#### `core/peers/idle-gone.txt`
+
+- 什么时候加进来：订的时候那个会话不在了
+- token：6（2026-10-01 主会话量）
+- 为什么加：说清等不到的原因（施工 C-6，第六条第 9 款）
+- 指纹：`0b720af1`
+
+```text
+The session no longer exists.
+```
+
 ### 回顾那一次请求，不进主对话
 
 #### `core/recap/instruction.txt`
@@ -2127,28 +2307,28 @@ Conversation:
 #### `software/basesystem/tools/sessions.json`
 
 - 什么时候加进来：会话的工具面里有 `sessions`：本机的主会话（每次请求都带）
-- token：95（2026-10-01 主会话照开发端点、`deepseek-v4.1-flash` 量，十二件一起时的边际份量）
-- 为什么加：`sessions` 的说明和参数（施工 C-3，`cross-session.md` 第一条）：两句，列出你别的会话、最近有动静的在前，每一行有编号、标题、工作目录、忙不忙、最近一次动静。草稿第二句点名 `send_message`、`history`，C-3 时还没有这两样（`send_message` C-5 才改名，`history` 的 `session` C-4 才加），照 J4 先不点名，C-5 改名时补上、和那一次冷启动放在一起（2026-10-01 主会话定）。参数 `limit`、`offset` 各一句，照 `history`、`grep` 的写法。列会话是新的一件事，藏进 `jobs`、`history` 的参数里她想不起来（`cross-session.md`「起草时定的」第 1 条）
-- 指纹：`7467799a`
+- token：95 → 101（2026-10-01 主会话照开发端点、`deepseek-v4.1-flash` 量，十二件一起时的边际份量；C-5 第二句点名 `send_message`、`history`，多 6）
+- 为什么加：`sessions` 的说明和参数（施工 C-3，`cross-session.md` 第一条）：两句，列出你别的会话、最近有动静的在前，每一行有编号、标题、工作目录、忙不忙、最近一次动静。草稿第二句点名 `send_message`、`history`，C-3 时还没有这两样（`send_message` C-5 才改名，`history` 的 `session` C-4 才加），照 J4 先不点名，C-5 改名时补上、和那一次冷启动放在一起（2026-10-01 主会话定）：第二句从「Each row gives the session id, …」改成「Each row gives the id to use with send_message and history, …」。参数 `limit`、`offset` 各一句，照 `history`、`grep` 的写法。列会话是新的一件事，藏进 `jobs`、`history` 的参数里她想不起来（`cross-session.md`「起草时定的」第 1 条）
+- 指纹：`8df0f13c`
 
 ```json
 {
-  "description": "List your other sessions, most recently active first. Each row gives the session id, the title, working directory, whether it is busy and when it was last active.",
+  "description": "List your other sessions, most recently active first. Each row gives the id to use with send_message and history, the title, working directory, whether it is busy and when it was last active.",
   "parameters": {"type":"object","properties":{"limit":{"type":"integer","description":"Default 20."},"offset":{"type":"integer","description":"How many sessions to skip."}}}
 }
 ```
 
-#### `software/basesystem/tools/message_agent.json`
+#### `software/basesystem/tools/send_message.json`
 
-- 什么时候加进来：会话的工具面里有 `message_agent`：本机的会话，到了深度上限的也有（每次请求都带）
-- token：153（2026-09-30 照项目主人给的端点、`deepseek-v4.1-flash` 量，十一件一起时的边际份量）
-- 为什么加：`message_agent` 的说明和参数（施工 7-7）：说明照附录的草稿，一字不差，三句：发给自己派的子代理或者父（`to: parent`），对方下一步看到、闲着就开一轮，只发对方现在就得知道的（问题、改变安排的发现），最后的回报自己会送。最后一句防她一有进展就发、刷屏叫醒对方（`agents.md` 第六条第 5 条）。参数 `to`、`message` 各一句。第三句原来用分号接，合并时照「不用分号把几句串成一句」改成 since，重量多 1 个
-- 指纹：`346da410`
+- 什么时候加进来：会话的工具面里有 `send_message`：本机的会话，到了深度上限的也有（每次请求都带）；旧会话冻着 `message_agent` 这个名字
+- token：165 → 204（施工 C-5 是 165；施工 C-6，2026-10-01 主会话照开发端点、`deepseek-v4.1-flash` 量，十二件一起时的边际份量，多 39。整个 tools 数组 2108 → 2147，多 39）
+- 为什么加：`send_message` 的说明和参数（施工 C-5，从 `message_agent` 改名）：说明第一句多了「or to another of your sessions by its id」，第二、三句一字不改（原来施工 7-7 的三句：发给自己派的子代理或者父、对方下一步看到闲着就开一轮、只发对方现在就得知道的）。参数 `to` 多认会话编号。文件从 `message_agent.json` 挪来，这次改名、改说明第一句、`to` 一起改，只冷一次缓存。施工 C-6 加 `notify_when_idle`（「空了告诉我」，`cross-session.md` 第六条，照 Claude Code 的 `SendMessage`，项目主人定）：一句，订那个会话下次空下来时的一条通知；`message` 的说明多半句「可以不写」，必填的只剩 `to`。说明本身一字没动：「只能订别的会话」写进被拒的那一句（调用之后才用得上）
+- 指纹：`ac9f57af`
 
 ```json
 {
-  "description": "Send a message to a subagent you started, or to your parent with `to: parent`. The other side reads it at its next step, or starts a new turn with it if idle. Send only what they need to know now, such as a question or a finding that changes their plan, since your final report goes up on its own.",
-  "parameters": {"type":"object","properties":{"to":{"type":"string","description":"The job id of your subagent, such as j1, or parent."},"message":{"type":"string","description":"The message to send."}},"required":["to","message"]}
+  "description": "Send a message to a subagent you started, to your parent with `to: parent`, or to another of your sessions by its id. The other side reads it at its next step, or starts a new turn with it if idle. Send only what they need to know now, such as a question or a finding that changes their plan, since your final report goes up on its own.",
+  "parameters": {"type":"object","properties":{"to":{"type":"string","description":"The job id of your subagent, such as j1, parent, or a session id."},"message":{"type":"string","description":"The message to send, which can be left out with notify_when_idle."},"notify_when_idle":{"type":"boolean","description":"Get one notice when that other session next finishes its work."}},"required":["to"]}
 }
 ```
 

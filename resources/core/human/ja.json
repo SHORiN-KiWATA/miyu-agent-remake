@@ -34,19 +34,121 @@
       "permission.start_read_only": {
         "name": "新しいセッションを読み取り専用で始める",
         "description": "オンにすると、新しいセッションは読み取り専用で始まります。調査と計画だけを行い、ファイルを変更するときに読み取り専用をオフにします。プロジェクト設定ではオンにすることしかできません。"
+      },
+      "models.chat": {
+        "name": "会話のモデル",
+        "description": "新しいセッションが使うモデル。プロバイダー/モデル の形で書きます。例：deepseek/deepseek-flash。"
+      },
+      "providers.<id>.driver": {
+        "name": "ドライバー",
+        "description": "このプロバイダーとの話し方。知っているプロバイダーなら書かなくてもかまいません。",
+        "options": {
+          "openai-chat": "OpenAI 互換のチャット",
+          "anthropic": "Anthropic Messages",
+          "openai-responses": "OpenAI Responses"
+        }
+      },
+      "providers.<id>.base_url": {
+        "name": "アドレス",
+        "description": "このプロバイダーの API のアドレス。パスはドライバーが付けます。知っているプロバイダーなら書かなくてもかまいません。"
+      },
+      "providers.<id>.keys": {
+        "name": "キー",
+        "description": "{ secret = \"名前\" }（miyu login で保存）か { env = \"環境変数\" } を書きます。セッションはそのうちの一つを使い続けます。空なら認証ヘッダーを付けません。"
+      },
+      "providers.<id>.catalog": {
+        "name": "対応するプロバイダー",
+        "description": "モデル資料のどのプロバイダーに当たるか。DeepSeek だけを中継するなら deepseek と書きます。"
+      },
+      "providers.<id>.models.<model>.window": {
+        "name": "コンテキストウィンドウ",
+        "description": "このモデルのコンテキストウィンドウ。単位はトークン。"
+      },
+      "providers.<id>.price_multiplier": {
+        "name": "倍率",
+        "description": "このプロバイダーの価格に掛ける数。書かなければ 1。モデルに書いたほうが優先されます。"
+      },
+      "providers.<id>.local": {
+        "name": "ローカルのサービス",
+        "description": "このマシンで動くモデルのサービスで、価格は 0 として数えます。書かなければアドレスで決まります。"
+      },
+      "providers.<id>.models.<model>.catalog": {
+        "name": "カタログの項目",
+        "description": "models.dev のどの項目に合わせるか：<プロバイダー>/<モデル>。書かなければ名前で探します。"
+      },
+      "providers.<id>.models.<model>.max_output": {
+        "name": "最大出力",
+        "description": "このモデルが一度に出力できるトークン数の上限。"
+      },
+      "providers.<id>.models.<model>.inputs": {
+        "name": "入力",
+        "description": "このモデルが読めるもの：テキスト、画像、PDF。",
+        "options": {
+          "text": "テキスト",
+          "image": "画像",
+          "pdf": "PDF"
+        }
+      },
+      "providers.<id>.models.<model>.tools": {
+        "name": "ツール呼び出し",
+        "description": "このモデルがツールを呼べるかどうか。"
+      },
+      "providers.<id>.models.<model>.reasoning": {
+        "name": "思考の強さ",
+        "description": "このモデルの思考の強さの段階。"
+      },
+      "providers.<id>.models.<model>.price_multiplier": {
+        "name": "倍率",
+        "description": "このモデルの価格に掛ける数。プロバイダーに書いたものより優先されます。"
+      },
+      "providers.<id>.models.<model>.price.input": {
+        "name": "入力の価格",
+        "description": "入力 100 万トークンあたりの価格。書いた価格はまるごと使われます。"
+      },
+      "providers.<id>.models.<model>.price.output": {
+        "name": "出力の価格",
+        "description": "出力 100 万トークンあたりの価格。"
+      },
+      "providers.<id>.models.<model>.price.cache_read": {
+        "name": "キャッシュ読み出しの価格",
+        "description": "キャッシュから読む 100 万トークンあたりの価格。"
+      },
+      "providers.<id>.models.<model>.price.cache_write": {
+        "name": "キャッシュ書き込みの価格",
+        "description": "キャッシュに書く 100 万トークンあたりの価格。"
+      },
+      "providers.<id>.models.<model>.price.currency": {
+        "name": "通貨",
+        "description": "価格の通貨。USD、CNY のような大文字 3 文字。書かなければ USD。"
+      },
+      "models.catalog.update": {
+        "name": "カタログを更新",
+        "description": "バックグラウンドで models.dev から新しいモデルカタログを取ってきます。オフなら同梱のものと取得済みのものだけを使います。"
+      },
+      "models.catalog.url": {
+        "name": "カタログのアドレス",
+        "description": "モデルカタログをどこから取ってくるか。"
+      },
+      "models.catalog.every": {
+        "name": "更新の間隔",
+        "description": "キャッシュのカタログがこれより古くなったら取り直します。"
       }
     },
     "pages": {
       "general": "一般",
       "interface": "画面",
       "advanced": "詳細",
-      "permissions": "権限"
+      "permissions": "権限",
+      "models": "モデル"
     },
     "groups": {
       "display": "表示",
       "tui": "端末画面",
       "log": "実行ログ",
-      "sessions": "セッション"
+      "sessions": "セッション",
+      "uses": "用途",
+      "providers": "プロバイダー",
+      "catalog": "モデルカタログ"
     }
   },
   "said": {
@@ -111,6 +213,20 @@
     "config/expected/table": "テーブル",
     "config/sentence": "{text}。",
     "config/then": "{rest}{next}",
-    "config/stops": "。？！"
+    "config/stops": "。？！",
+    "config/applies/next_turn": "次のターンから反映されます",
+    "config/expected/int": "{min} から {max} までの整数",
+    "config/expected/float": "{min} から {max} までの数",
+    "config/expected/text": "{max} 文字までのテキスト",
+    "config/expected/duration": "{min} から {max} までの時間（30s、10m、1h のように書く）",
+    "config/expected/url": "http:// か https:// で始まるアドレス",
+    "config/expected/name": "小文字で始め、小文字、数字、-、_ だけで、64 文字までの名前",
+    "config/expected/reference": "<プロバイダー>/<モデル> または @<プール>",
+    "config/expected/list": "{item} のリスト",
+    "config/expected/id": "小文字で始め、小文字、数字、-、_ だけで、32 文字まで",
+    "config/expected/model-name": "1 から 128 バイトで、制御文字なし",
+    "config/bad-format": "{key} には {expected} を書きます。書かれているのは {got} です",
+    "config/out-of-range": "{key} は {min} から {max} までです。書かれているのは {got} です",
+    "config/bad-segment": "{key} の {name} は名前にできません：{expected}"
   }
 }

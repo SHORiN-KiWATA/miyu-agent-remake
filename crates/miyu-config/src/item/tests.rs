@@ -67,7 +67,7 @@ fn a_switch_is_declared_with_how_a_project_tightens_it() {
         [Item {
             key: "switch.start_read_only",
             kind: Kind::Bool,
-            default: Value::Bool(false),
+            default: Some(Value::Bool(false)),
             layers: &[Layer::System, Layer::Personal, Layer::Project],
             tighten: Some(Tighten::TrueOnly),
             env: None,
@@ -124,7 +124,7 @@ fn the_items_follow_the_fields_in_order() {
             Item {
                 key: "sample.first",
                 kind: Kind::Option(&["a", "b"]),
-                default: Value::Text(Cow::Borrowed("b")),
+                default: Some(Value::Text(Cow::Borrowed("b"))),
                 layers: &[Layer::System, Layer::Personal],
                 tighten: None,
                 env: None,
@@ -139,7 +139,7 @@ fn the_items_follow_the_fields_in_order() {
             Item {
                 key: "sample.second",
                 kind: Kind::Option(&["x", "y", "z"]),
-                default: Value::Text(Cow::Borrowed("x")),
+                default: Some(Value::Text(Cow::Borrowed("x"))),
                 layers: &[Layer::System],
                 tighten: None,
                 env: Some("MIYU_SAMPLE"),
@@ -166,7 +166,7 @@ fn the_settings_come_from_the_values() {
     );
     // 最终值里有的照它，不照写在代码里的默认值：拿一份改了默认值的清单造最终值。
     let changed = [Item {
-        default: Value::Text(Cow::Borrowed("z")),
+        default: Some(Value::Text(Cow::Borrowed("z"))),
         ..Sample::ITEMS[1].clone()
     }];
     assert_eq!(

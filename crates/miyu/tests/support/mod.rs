@@ -27,7 +27,8 @@ impl Home {
     pub fn new() -> Home {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("miyu-main-{}-{n}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("miyu-main-{}-{}-{n}", std::process::id(), stamp()));
         let root = DataRoot::locate(&Env {
             platform: Platform::current(),
             miyu_home: Some(dir.clone().into_os_string()),
@@ -49,9 +50,9 @@ impl Home {
         command
             .args(["core", "--idle-seconds", "1"])
             .env("MIYU_HOME", self.root.path())
+            .envs(offline(self.root.path()))
             .env("MIYU_RESOURCES", resources())
             .env_remove("XDG_RUNTIME_DIR")
-            .env_remove("DEEPSEEK_API_KEY")
             .env_remove("MIYU_LOG");
         command
     }
@@ -76,6 +77,29 @@ impl Home {
             }
         })
         .await;
+    }
+}
+
+impl Home {
+    /// 停掉头拉起的核心（施工 8-6 起没有 key 也拉起；它空闲十分钟才走）：照运行日志「起来了」那一行的进程号结束它，等它走。
+    pub async fn kill_core(&self) {
+        let log = self.core_log();
+        let pid = log
+            .rsplit("pid=")
+            .next()
+            .filter(|_| log.contains("pid="))
+            .and_then(|rest| rest.split(|c: char| !c.is_ascii_digit()).next())
+            .expect("运行日志里有进程号")
+            .to_string();
+        #[cfg(unix)]
+        let killed = Command::new("kill").arg(&pid).status();
+        #[cfg(windows)]
+        let killed = Command::new("taskkill").args(["/PID", &pid, "/F"]).status();
+        assert!(
+            killed.is_ok_and(|status| status.success()),
+            "结束得了 {pid}"
+        );
+        self.until_stopped().await;
     }
 }
 
@@ -129,4 +153,52 @@ pub async fn hello(connection: Connection, token: &str) -> Value {
 /// 日志里有几行带着 `words`。
 pub fn count(log: &str, words: &str) -> usize {
     log.lines().filter(|line| line.contains(words)).count()
+}
+
+/// 起名用的纳秒数：Windows 上进程号复用得快，前一个测试进程留下的、核心开着文件删不掉的目录会撞名（2026-10-01 CI 撞见）。
+fn stamp() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_nanos())
+}
+
+/// 在 `dir` 里跑一个会拉起核心的头（施工 8-6 起没有 key 也拉起）：标准输出、标准错误接到这个数据根旁边的文件里，标准输入照 `input`
+/// 写完关上。不用管道：Windows 上拉起的核心继承了管道的句柄，等管道关上就要等核心退出（十分钟）。
+pub fn run_starting(dir: &Path, mut command: Command, input: &str) -> std::process::Output {
+    use std::io::Write;
+    use std::process::Stdio;
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let n = NEXT.fetch_add(1, Ordering::Relaxed);
+    let (out, err) = (
+        dir.join(format!("out-{n}.txt")),
+        dir.join(format!("err-{n}.txt")),
+    );
+    let mut child = command
+        .stdin(Stdio::piped())
+        .stdout(std::fs::File::create(&out).expect("建得了"))
+        .stderr(std::fs::File::create(&err).expect("建得了"))
+        .spawn()
+        .expect("跑得起来");
+    let mut stdin = child.stdin.take().expect("有标准输入");
+    // 不读标准输入就退出的，写不进去也不要紧。
+    let _written = stdin.write_all(input.as_bytes());
+    drop(stdin);
+    let status = child.wait().expect("等得到");
+    std::process::Output {
+        status,
+        stdout: std::fs::read(&out).expect("读得到"),
+        stderr: std::fs::read(&err).expect("读得到"),
+    }
+}
+
+/// 拉起的核心不去 models.dev 拉目录（施工 8-7，主会话定）：`MIYU_CATALOG_UPDATE=false`；缓存目录指到数据根里的临时一格
+/// （Linux 的 `XDG_CACHE_HOME`、Windows 的 `LOCALAPPDATA`），哪个测试漏带了也只写进临时目录。macOS 的缓存目录照家目录，
+/// 不改家目录，只靠前一条。
+pub fn offline(root: impl AsRef<Path>) -> [(&'static str, PathBuf); 3] {
+    let cache = root.as_ref().join("state").join("test-cache");
+    [
+        ("MIYU_CATALOG_UPDATE", PathBuf::from("false")),
+        ("XDG_CACHE_HOME", cache.clone()),
+        ("LOCALAPPDATA", cache),
+    ]
 }

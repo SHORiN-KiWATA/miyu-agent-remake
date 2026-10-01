@@ -6,35 +6,33 @@ mod support;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use miyu_drivers::openai_chat::Compat;
-use miyu_drivers::{Call, Inputs};
+use miyu_drivers::Inputs;
 use miyu_http::testkit::{Piece, Reply, Server};
-use miyu_http::{Endpoint, Proxy, client};
 use miyu_kernel::block::{Block, Image, Text};
 use miyu_kernel::event::{Body, CallResult, ErrorClass, Event, ModelCalled, Usage};
 use miyu_kernel::id::{ContentHash, MediaType, ModelName, ProviderId};
 use miyu_kernel::session::{Command, Outcome, Queued};
-use miyu_session::HttpModels;
+use miyu_session::Routes;
 use miyu_store::blob::Blobs;
 use support::{Home, alice_account, ask, say, until_turn_ends, watch, within};
 
-/// 发给假服务器的端口：deepseek 的 deepseek-v4，OpenAI 兼容的写法，空闲超时五秒。
-fn models(server: &Server, inputs: Inputs) -> HttpModels {
-    HttpModels {
-        client: client(Proxy::Off).expect("造得出客户端"),
-        provider: ProviderId::parse("deepseek").expect("端点合写法"),
-        endpoint: Endpoint::new(&server.base_url, "sk-test"),
-        compat: Compat::default(),
-        call: Call {
-            model: ModelName::parse("deepseek-v4").expect("模型名合写法"),
-            max_output: None,
-            inputs,
-        },
-        idle: Duration::from_secs(5),
-        window: None,
-        max_output: None,
-        images: None,
+/// 发给假服务器的路由（施工 8-6 起照配置）：deepseek 的 deepseek-v4，OpenAI 兼容的写法，空闲超时五秒；`inputs` 照手写的
+/// 模型资料（施工 8-7），接着写的照 `continues` 用 DeepSeek 的那一套开关。会话的配置换成指到这台服务器的那一份。
+fn models(home: &mut Home, server: &Server, inputs: Inputs, continues: bool) -> Routes {
+    let mut profile = serde_json::json!({});
+    let model = match inputs.images {
+        true => "inputs = [\"text\", \"image\"]\n",
+        false => "",
+    };
+    if continues {
+        profile["compat"] = serde_json::json!({
+            "reasoning": {"replay": "reasoning_content", "always": true},
+            "continuation": {"field": "prefix", "path": "/beta/chat/completions"}
+        });
     }
+    let (routes, configs) = support::routing::served(&server.base_url, profile, model);
+    home.configs = configs;
+    routes
 }
 
 /// 驱动的流的样本：说「你好！」，用量 80 + 1920（命中）+ 3。
@@ -74,9 +72,10 @@ fn hello() -> Vec<Block> {
 
 #[tokio::test]
 async fn a_reply_comes_back_from_the_server() {
-    let home = Home::new();
+    let mut home = Home::new();
     let server = Server::start(vec![said_hello()]).await;
-    let handle = home.create(&models(&server, Inputs::default())).await;
+    let routes = models(&mut home, &server, Inputs::default(), false);
+    let handle = home.create(&routes).await;
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
     until_turn_ends(&mut pushes).await;
@@ -111,7 +110,7 @@ async fn a_reply_comes_back_from_the_server() {
 
 #[tokio::test]
 async fn a_rate_limit_waits_as_long_as_the_server_says() {
-    let home = Home::new();
+    let mut home = Home::new();
     let server = Server::start(vec![
         Reply::error(
             429,
@@ -121,7 +120,8 @@ async fn a_rate_limit_waits_as_long_as_the_server_says() {
         said_hello(),
     ])
     .await;
-    let handle = home.create(&models(&server, Inputs::default())).await;
+    let routes = models(&mut home, &server, Inputs::default(), false);
+    let handle = home.create(&routes).await;
     let mut pushes = watch(&handle).await;
     let started = Instant::now();
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
@@ -155,9 +155,10 @@ async fn a_rate_limit_waits_as_long_as_the_server_says() {
 
 #[tokio::test]
 async fn interrupting_drops_the_connection() {
-    let home = Home::new();
+    let mut home = Home::new();
     let mut server = Server::start(vec![Reply::stream(vec![Piece::Stall])]).await;
-    let handle = home.create(&models(&server, Inputs::default())).await;
+    let routes = models(&mut home, &server, Inputs::default(), false);
+    let handle = home.create(&routes).await;
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
     // 假服务器回完了头、停住了：请求在读流。
@@ -179,13 +180,14 @@ async fn interrupting_drops_the_connection() {
 
 #[tokio::test]
 async fn a_missing_blob_fails_without_sending() {
-    let home = Home::new();
+    let mut home = Home::new();
     let server = Server::start(Vec::new()).await;
     let images = Inputs {
         images: true,
         pdf: false,
     };
-    let handle = home.create(&models(&server, images)).await;
+    let routes = models(&mut home, &server, images, false);
+    let handle = home.create(&routes).await;
     let mut pushes = watch(&handle).await;
     // 一张图，它的 blob 从没存过。
     let missing = ContentHash::of(b"never stored");
@@ -241,11 +243,10 @@ fn cut_after(n: usize) -> Reply {
 
 #[tokio::test]
 async fn a_reply_cut_off_goes_on_through_the_continuation_path() {
-    let home = Home::new();
+    let mut home = Home::new();
     // 说到「你好」就断了；再请求时她接着说完。
     let server = Server::start(vec![cut_after(2), said_hello()]).await;
-    let mut deepseek = models(&server, Inputs::default());
-    deepseek.compat = Compat::deepseek();
+    let deepseek = models(&mut home, &server, Inputs::default(), true);
     let handle = home.create(&deepseek).await;
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
@@ -259,10 +260,10 @@ async fn a_reply_cut_off_goes_on_through_the_continuation_path() {
 
 #[tokio::test]
 async fn a_stalled_reply_times_out_by_the_idle_limit() {
-    let home = Home::new();
+    let mut home = Home::new();
     // 回完头就停住：200 毫秒没收到新的字节，算断了，重试一次说完。
     let server = Server::start(vec![Reply::stream(vec![Piece::Stall]), said_hello()]).await;
-    let mut quick = models(&server, Inputs::default());
+    let mut quick = models(&mut home, &server, Inputs::default(), false);
     quick.idle = Duration::from_millis(200);
     let handle = home.create(&quick).await;
     let mut pushes = watch(&handle).await;
@@ -279,13 +280,14 @@ async fn a_stalled_reply_times_out_by_the_idle_limit() {
 
 #[tokio::test]
 async fn an_image_goes_out_as_its_bytes() {
-    let home = Home::new();
+    let mut home = Home::new();
     let server = Server::start(vec![said_hello()]).await;
     let images = Inputs {
         images: true,
         pdf: false,
     };
-    let handle = home.create(&models(&server, images)).await;
+    let routes = models(&mut home, &server, images, false);
+    let handle = home.create(&routes).await;
     // 属主的 blob 里存着这张「图」：四个字节 miyu，base64 是 bWl5dQ==。
     let blob = Blobs::new(home.root.blobs(&alice_account()))
         .put(b"miyu")

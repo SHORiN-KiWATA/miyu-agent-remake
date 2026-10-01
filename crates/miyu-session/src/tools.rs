@@ -134,11 +134,16 @@ pub(crate) struct Dispatch {
     pub(crate) permission: Permission,
     /// 这次调用的任务端口（施工 7-3）：`shell` 把后台命令交给它。
     pub(crate) jobs: Arc<dyn JobPort>,
-    /// 这个会话这一刻派出去的子代理（施工 7-7）：`message_agent` 照它认 `to`。
+    /// 这个会话这一刻派出去的子代理（施工 7-7）：`send_message` 照它认 `to`。
     pub(crate) subagents: BTreeMap<JobId, Subagent>,
 }
 
 impl Tools {
+    /// 派子代理、给别的会话发话用的端口和这个会话的几样（施工 C-6：「空了告诉我」两边都经它找会话表）：会话表交进来了才有。
+    pub(crate) fn agents(&self) -> Option<&Arc<Agents>> {
+        self.agents.as_ref()
+    }
+
     /// 照 `kit` 跑，回报送进 `backs`。
     pub(crate) fn new(kit: ToolKit, backs: mpsc::UnboundedSender<Back>) -> Tools {
         let sandbox = kit.sandbox.map(|helper| {

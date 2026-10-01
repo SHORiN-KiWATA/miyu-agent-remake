@@ -6,6 +6,8 @@
 //! - 不在清单里的键：`unknown_key`，警告，原样留在文件里，不进最终值；拼错的给出离得最近的键名。
 //! - 一组键（`ui`）下面写成了一个值：`wrong_type`，期望一张表。
 //! - 这一层不能写的：`wrong_layer`；值写得对的照样记下来（不算），`miyu config explain` 列得出它。
+//! - 键里人起的名字那一段（施工 8-6）：照清单里的样子认（[`crate::key`]），写法不对的那一段报一条 `bad_format`，底下的
+//!   都不收。真的键照 [`crate::key::join`] 的写法记。
 //!
 //! 开头的 UTF-8 BOM 去掉再解析（读文件的一方已经去掉了，这里再去一次不碍事），行、列照去掉以后的字算。
 
@@ -15,8 +17,9 @@ use std::ops::Range;
 use toml_edit::{Document, Item as Node, Key, Value as TomlValue};
 
 use crate::item::{Item, Kind, Layer};
+use crate::key::{self, Fit};
 use crate::problem::{At, Code, Problem, nearest};
-use crate::value::Value;
+use crate::value::{Number, Value};
 
 /// 开头的 UTF-8 BOM。
 const BOM: char = '\u{FEFF}';
@@ -24,8 +27,8 @@ const BOM: char = '\u{FEFF}';
 /// 读好的一份：写对了的项，和发现的问题。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Parsed {
-    /// 写对了的项：键到它写的值和位置。不能写在这一层的也在，`counts` 是 `false`。
-    pub entries: BTreeMap<&'static str, Entry>,
+    /// 写对了的项：真的键到它写的值和位置。不能写在这一层的也在，`counts` 是 `false`。
+    pub entries: BTreeMap<String, Entry>,
     /// 一项一项的问题，照在文件里的先后。
     pub problems: Vec<Problem>,
 }
@@ -33,6 +36,8 @@ pub struct Parsed {
 /// 一项写的值。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
+    /// 清单里的哪一项（它的键，可能是带占位的样子，施工 8-6）。
+    pub item: &'static str,
     /// 写的值，过了类型的校验。
     pub value: Value,
     /// 键所在的那一行（来源的 `line`）。
@@ -66,7 +71,7 @@ pub fn parse(items: &[Item], layer: Layer, text: &str) -> Result<Parsed, Box<Pro
         parsed: Parsed::default(),
     };
     if let Some(root) = document.as_item().as_table_like() {
-        reader.table(root, "", None);
+        reader.table(root, &[], None);
     }
     reader
         .parsed
@@ -97,96 +102,111 @@ struct Reader<'a> {
 impl Reader<'_> {
     /// 一张表 `table`（键的前几段是 `prefix`，最上面的是空的）里的每一格。点号连着写的键（`ui.language = …`）里的表，
     /// 位置照整个键的开头 `anchor` 算：报错指到这一行的键的第一个字。
-    fn table(&mut self, table: &dyn toml_edit::TableLike, prefix: &str, anchor: Option<At>) {
+    fn table(&mut self, table: &dyn toml_edit::TableLike, prefix: &[String], anchor: Option<At>) {
         for (name, _) in table.iter() {
             let Some((key, node)) = table.get_key_value(name) else {
                 continue;
             };
-            let full = match prefix {
-                "" => name.to_string(),
-                _ => format!("{prefix}.{name}"),
-            };
+            let path: Vec<String> = prefix
+                .iter()
+                .cloned()
+                .chain(std::iter::once(name.to_string()))
+                .collect();
             let key_at = anchor.unwrap_or_else(|| self.at(key.span()));
-            self.node(&full, key, key_at, node);
+            self.node(&path, key, key_at, node);
         }
     }
 
-    /// 一格：清单里的一项、一组键，或者不认识的。键在 `key_at`。
-    fn node(&mut self, full: &str, key: &Key, key_at: At, node: &Node) {
+    /// 一格：清单里的一项、一组键，或者不认识的。键是一段段的 `path`，在 `key_at`。
+    fn node(&mut self, path: &[String], key: &Key, key_at: At, node: &Node) {
         let inner = |table: &dyn toml_edit::TableLike| table.is_dotted().then_some(key_at);
-        if let Some(item) = self.items.iter().find(|item| item.key == full) {
-            self.item(item, key_at, node);
-        } else if self.is_group(full) {
+        let full = key::join(path);
+        let last = path.len() - 1;
+        let mut bad = None;
+        let mut group = false;
+        let mut found = None;
+        // 占位不会是最后一段（`list::check`）：名字写错的那一段总在一组键上，在对一组的开头时查出来。
+        for item in self.items {
+            if matches!(key::fit(item.key, path), Fit::Yes(_)) {
+                found = Some(item);
+            }
+            match key::fit_start(item.key, path) {
+                Fit::Yes(_) => group = true,
+                Fit::BadName { at, placeholder } if at == last => bad = Some(placeholder),
+                _ => {}
+            }
+        }
+        if let Some(item) = found {
+            self.item(item, &full, key_at, node);
+        } else if group {
             match node.as_table_like() {
-                Some(table) => self.table(table, full, inner(table)),
+                Some(table) => self.table(table, path, inner(table)),
                 None => {
                     let at = self.value_at(node, key_at);
                     let raw = self.raw(node, key);
-                    let problem = Problem::item(Code::WrongType, self.layer, full, at, &raw);
+                    let problem = Problem::item(Code::WrongType, self.layer, &full, at, &raw);
                     self.parsed.problems.push(problem);
                 }
             }
+        } else if let Some(placeholder) = bad {
+            // 人起的名字写法不对：报这一段，底下的都不收（施工 8-6）。
+            let mut problem = Problem::item(Code::BadSegment, self.layer, &full, key_at, "");
+            problem.got = None;
+            problem.name = Some(path[last].clone());
+            problem.why = Some(placeholder.to_string());
+            self.parsed.problems.push(problem);
         } else if let Some(table) = node.as_table_like() {
             // 不认识的一张表：往里走，每一项照整个键报，离得最近的键名才找得准（`uii.language` 找得到 `ui.language`）。
-            self.table(table, full, inner(table));
+            self.table(table, path, inner(table));
         } else {
             let raw = self.raw(node, key);
-            let mut problem = Problem::item(Code::UnknownKey, self.layer, full, key_at, &raw);
-            problem.suggest = nearest(self.items, full);
+            let mut problem = Problem::item(Code::UnknownKey, self.layer, &full, key_at, &raw);
+            problem.suggest = nearest(self.items, &full);
             self.parsed.problems.push(problem);
         }
     }
 
-    /// 清单里的一项 `item`，键在 `key_at`。
-    fn item(&mut self, item: &Item, key_at: At, node: &Node) {
+    /// 清单里的一项 `item`，真的键是 `full`，在 `key_at`。
+    fn item(&mut self, item: &Item, full: &str, key_at: At, node: &Node) {
         let at = self.value_at(node, key_at);
         let raw = self.slice(node.span()).unwrap_or_default().to_string();
         let value = match item.kind {
             Kind::Secret => crate::secret::read_node(node).map(Value::Secret),
+            // 网址：先试引用（`{ env = … }`，施工 8-6b；`{ secret = … }` 也读得出字节，交给 `Kind::check` 去挡），不是
+            // 引用形状的再照字读。
+            Kind::Url => crate::secret::read_node(node)
+                .map(Value::Secret)
+                .or_else(|| node.as_value().and_then(|value| read(item.kind, value))),
             kind => node.as_value().and_then(|value| read(kind, value)),
         };
         let counts = item.layers.contains(&self.layer);
         if !counts {
-            self.parsed.problems.push(Problem::item(
-                Code::WrongLayer,
-                self.layer,
-                item.key,
-                at,
-                &raw,
-            ));
+            self.parsed
+                .problems
+                .push(Problem::item(Code::WrongLayer, self.layer, full, at, &raw));
         }
-        match value {
-            Some(value) if item.kind.accepts(&value) => {
+        let checked = value.ok_or(Code::WrongType).and_then(|value| {
+            item.kind.check(&value)?;
+            Ok(value)
+        });
+        match checked {
+            Ok(value) => {
                 let entry = Entry {
+                    item: item.key,
                     value,
                     line: key_at.line,
                     at,
                     raw,
                     counts,
                 };
-                self.parsed.entries.insert(item.key, entry);
+                self.parsed.entries.insert(full.to_string(), entry);
             }
-            _ if !counts => {}
-            Some(_) if matches!(item.kind, Kind::Option(_)) => self.parsed.problems.push(
-                Problem::item(Code::NotAnOption, self.layer, item.key, at, &raw),
-            ),
-            _ => self.parsed.problems.push(Problem::item(
-                Code::WrongType,
-                self.layer,
-                item.key,
-                at,
-                &raw,
-            )),
+            Err(_) if !counts => {}
+            Err(code) => self
+                .parsed
+                .problems
+                .push(Problem::item(code, self.layer, full, at, &raw)),
         }
-    }
-
-    /// `full` 是不是一组键：清单里有一项以它加一段开头。
-    fn is_group(&self, full: &str) -> bool {
-        self.items.iter().any(|item| {
-            item.key
-                .strip_prefix(full)
-                .is_some_and(|rest| rest.starts_with('.'))
-        })
     }
 
     /// 一格的值在哪；没有位置的（表头这类）照键的位置。
@@ -223,13 +243,36 @@ impl Reader<'_> {
     }
 }
 
-/// 照类型读一个 TOML 的值：选项要字，开关要布尔。别的写法读不成。密钥的引用是一张表，不走这里（[`crate::secret`]）。
-fn read(kind: Kind, value: &TomlValue) -> Option<Value> {
+/// 照类型读一个 TOML 的值：选项、网址、名字、引用、文字、时长要字，开关要布尔，整数要整数，小数要小数或整数，密钥要只有一格的行内表，列表要数组、
+/// 每一个照元素的类型。别的写法读不成。有表头的密钥不是值，不走这里（[`crate::secret::read_node`]）。
+pub(crate) fn read(kind: Kind, value: &TomlValue) -> Option<Value> {
     match (kind, value) {
-        (Kind::Option(_), TomlValue::String(text)) => {
-            Some(Value::Text(std::borrow::Cow::Owned(text.value().clone())))
+        (
+            Kind::Option(_)
+            | Kind::Url
+            | Kind::Name
+            | Kind::Reference
+            | Kind::Text { .. }
+            | Kind::Duration { .. },
+            TomlValue::String(text),
+        ) => Some(Value::Text(std::borrow::Cow::Owned(text.value().clone()))),
+        // 小数也收整数：`price_multiplier = 1` 是常见的写法（施工 8-7）。
+        (Kind::Float { .. }, TomlValue::Float(number)) => {
+            Some(Value::Float(Number::new(*number.value())))
+        }
+        (Kind::Float { .. }, TomlValue::Integer(number)) => {
+            Some(Value::Float(Number::new(*number.value() as f64)))
         }
         (Kind::Bool, TomlValue::Boolean(on)) => Some(Value::Bool(*on.value())),
+        (Kind::Int { .. }, TomlValue::Integer(number)) => Some(Value::Int(*number.value())),
+        (Kind::Secret, TomlValue::InlineTable(table)) => {
+            crate::secret::Reference::read(table).map(Value::Secret)
+        }
+        (Kind::List(inner), TomlValue::Array(array)) => array
+            .iter()
+            .map(|value| read(*inner, value))
+            .collect::<Option<Vec<_>>>()
+            .map(Value::List),
         _ => None,
     }
 }

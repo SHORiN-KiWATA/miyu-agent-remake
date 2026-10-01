@@ -45,3 +45,14 @@ fn defaults_hold_every_item_and_nothing_else() {
 fn a_text_setting_is_the_text_itself() {
     assert_eq!(String::from(&text("zh")), "zh");
 }
+
+/// 网址类型用 `String`（不是 [`crate::Address`]）的字段，写成了引用（施工 8-6b：`Kind::Url` 整体认 `{ env = … }`）：
+/// 读成空字，不读成那一句 TOML 字节（`models.catalog.url` 这类没有引用的必要，防着悄悄被填进读不出地址的乱码）。
+#[test]
+fn a_reference_in_a_plain_string_field_reads_as_empty_not_as_toml() {
+    use crate::secret::Reference;
+    assert_eq!(
+        String::from(&Value::Secret(Reference::Env("X".to_string()))),
+        ""
+    );
+}

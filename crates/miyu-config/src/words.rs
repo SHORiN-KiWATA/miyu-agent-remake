@@ -77,9 +77,10 @@ pub fn check(items: &[Item], words: &ConfigWords) -> Vec<String> {
         if said.description.trim().is_empty() {
             problems.push(format!("{key}：说明是空的"));
         }
+        // 选项的列表（施工 8-7）里的选项也要有名字。
         let options = match item.kind {
-            Kind::Option(options) => options,
-            Kind::Bool | Kind::Secret => &[],
+            Kind::Option(options) | Kind::List(&Kind::Option(options)) => options,
+            _ => &[],
         };
         for option in options {
             if said
@@ -159,19 +160,71 @@ pub(crate) fn one_of(words: &dyn Words, parts: &[&str], or: &str) -> Result<Stri
     sentence(words, or, &[("rest", &listed), ("last", last)])
 }
 
-/// 能写的几个值，照写法：选项是列出的几个，开关是 `true`、`false`，密钥是两种引用（施工 8-5）。
+/// 能写的几个值，照写法：选项是列出的几个，开关是 `true`、`false`，密钥是两种引用（施工 8-5）。数不完的几种（整数、网址、
+/// 名字、引用、列表，施工 8-6）是空的：说成一句话，见 [`expected`]。
 pub(crate) fn allowed(kind: Kind) -> &'static [&'static str] {
     match kind {
         Kind::Option(options) => options,
         Kind::Bool => &["true", "false"],
         Kind::Secret => &[r#"{ secret = "…" }"#, r#"{ env = "…" }"#],
+        _ => &[],
+    }
+}
+
+/// 能写什么，说成给人看的话：数得完的几种照 [`allowed`] 连成「a、b 或 c」；整数说范围，名字、引用各一句，列表说
+/// 「元素的列表」（施工 8-6，`config/expected/…`）；小数、时长说范围，文字说最多几个字（施工 8-7）；网址说地址的写法，
+/// 再接上「或者 `{ env = "…" }`」（施工 8-6b，照密钥两种写法连起来的样子）。
+pub(crate) fn expected(words: &dyn Words, kind: Kind) -> Result<String, Missing> {
+    match kind {
+        Kind::Option(_) | Kind::Bool | Kind::Secret => {
+            one_of(words, allowed(kind), "config/or-values")
+        }
+        Kind::Int { min, max } => sentence(
+            words,
+            "config/expected/int",
+            &[("min", &min.to_string()), ("max", &max.to_string())],
+        ),
+        Kind::Float { min, max } => sentence(
+            words,
+            "config/expected/float",
+            &[("min", &min.to_string()), ("max", &max.to_string())],
+        ),
+        Kind::Text { max } => sentence(words, "config/expected/text", &[("max", &max.to_string())]),
+        Kind::Duration { min, max } => sentence(
+            words,
+            "config/expected/duration",
+            &[("min", &seconds(min)), ("max", &seconds(max))],
+        ),
+        Kind::Url => {
+            let address = sentence(words, "config/expected/url", &[])?;
+            one_of(
+                words,
+                &[address.as_str(), r#"{ env = "…" }"#],
+                "config/or-values",
+            )
+        }
+        Kind::Name => sentence(words, "config/expected/name", &[]),
+        Kind::Reference => sentence(words, "config/expected/reference", &[]),
+        Kind::List(inner) => {
+            let item = expected(words, *inner)?;
+            sentence(words, "config/expected/list", &[("item", &item)])
+        }
+    }
+}
+
+/// 一段秒数写成时长的写法：整小时的写 `h`，整分钟的写 `m`，别的写 `s`（施工 8-7）。
+fn seconds(seconds: u64) -> String {
+    match seconds {
+        hours if hours % 3600 == 0 => format!("{}h", hours / 3600),
+        minutes if minutes % 60 == 0 => format!("{}m", minutes / 60),
+        seconds => format!("{seconds}s"),
     }
 }
 
 /// 一项说明后面那几句（`config/facts`）：能写什么、能放在哪几层、什么时候生效。参考文件里是每一项的第二行，
 /// JSON Schema 里接在说明后面。
 pub(crate) fn facts(words: &dyn Words, item: &Item) -> Result<String, Missing> {
-    let values = one_of(words, allowed(item.kind), "config/or-values")?;
+    let values = expected(words, item.kind)?;
     let mut layers = Vec::new();
     for layer in item.layers {
         layers.push(sentence(

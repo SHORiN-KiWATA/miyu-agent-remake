@@ -65,6 +65,11 @@
     "sessions": {
       "name": "Sessions",
       "icon": "≡"
+    },
+    "send_message": {
+      "name": "Message",
+      "subject": "to",
+      "icon": "↗"
     }
   },
   "said": {
@@ -148,6 +153,22 @@
     "message_agent/not-yours": "{to} is not its subagent",
     "message_agent/stopped": "{to} was stopped",
     "message_agent/not-sent": "Not delivered",
+    "send_message/sent": "Sent to {to}",
+    "send_message/held": "Saved: {to} is a one-shot session nobody is watching",
+    "send_message/no-parent": "No parent session",
+    "send_message/not-yours": "{to} is not its subagent",
+    "send_message/stopped": "{to} was stopped",
+    "send_message/not-sent": "Not delivered",
+    "send_message/no-session": "No session {to}",
+    "send_message/ambiguous": "{to} matches more than one session",
+    "send_message/self": "{to} is this session",
+    "send_message/not-here": "Cannot message other sessions here",
+    "send_message/too-long": "Too long: {chars} characters, at most {limit}",
+    "send_message/too-many": "Too many messages to {to} just now",
+    "send_message/duplicate": "{to} already got the same message",
+    "send_message/inbox-full": "{to} has too many unread messages",
+    "send_message/watching": "Will tell her when {to} is idle",
+    "send_message/watch-peers-only": "Only other sessions can be watched",
     "sessions/listed": "Listed {count} sessions",
     "sessions/none": "No other sessions",
     "sessions/past-end": "All {total} other sessions are listed",

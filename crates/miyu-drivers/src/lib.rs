@@ -3,7 +3,7 @@
 //! 驱动是纯粹的翻译器：统一的请求编码成各家接口的请求字节，各家的响应解码成统一的增量，出错
 //! 分成几类。真正发请求的是执行器。现在有的：
 //!
-//! - [`Driver`]：驱动的接口，执行器照着它调：家族、路径、要哪些 blob、编码、解码器、分类；
+//! - [`Driver`]：驱动的接口，执行器照着它调：家族、路径、要哪些 blob、编码、解码器、分类、认证头、列模型（[`Listed`]）；
 //! - [`openai_chat`]：OpenAI 兼容的对话接口（DeepSeek、智谱、OpenRouter、本机的 Ollama 这些）；
 //! - [`sse`]：SSE 分帧；[`classify`]：出错分类；[`base64`]：图片、文件写成 data URL 要用的编码；
 //! - [`DeepSeekImages`]：一张图在 DeepSeek 上算多少 token（施工 6-3 上）；
@@ -55,6 +55,15 @@ pub struct Inputs {
     pub pdf: bool,
 }
 
+/// 供应商的模型列表里的一个（`models.md`「驱动要守的约定」第 3 条，施工 8-7）：模型名，和它报了的窗口。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Listed {
+    /// 模型名，照供应商那边的叫法。
+    pub id: String,
+    /// 报了的上下文窗口；没报的没有。
+    pub window: Option<u64>,
+}
+
 /// 取 blob 字节的端口：执行器照驱动列出的清单先取出来，编码时交进来。
 pub trait BlobBytes {
     /// 这个 blob 的字节；没有，返回 `None`。
@@ -76,7 +85,7 @@ pub struct Encoded {
     /// 条数不一定和统一的请求一样。
     pub messages: Vec<Range<usize>>,
     /// 发到供应商地址后面的哪一截：平时是驱动的那一条，接着写的另有一条（施工 3-5 再补）。
-    pub path: &'static str,
+    pub path: String,
 }
 
 /// 编码不成。

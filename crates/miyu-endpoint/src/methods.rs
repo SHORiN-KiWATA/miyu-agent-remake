@@ -6,7 +6,7 @@
 //! 由会话表办。造会话、说话的回应再带上会话实际在哪个目录里干活（施工 4-5 下），这个目录的项目配置还没问过信不信任的，
 //! 再带上它在哪（`untrusted_project`，施工 8-2）。查配置的三个方法在 `config/methods.rs`（施工 8-2），改配置的 `config.set`、
 //! 信任项目配置的 `config.trust` 在 `config/set.rs`、`config/trusting.rs`（施工 8-3）。密钥的 `secret.set`、`secret.delete`、
-//! `secret.list` 在 `secrets.rs`（施工 8-5）。
+//! `secret.list` 在 `secrets.rs`（施工 8-5）。`model.list` 在 `models.rs`（施工 8-7）。
 
 use std::sync::Arc;
 
@@ -28,6 +28,7 @@ use crate::hello::Peer;
 use crate::job_output;
 use crate::list;
 use crate::meta::MetaParams;
+use crate::models;
 use crate::refusal::Refusal;
 use crate::secrets;
 use crate::sessions::{Opening, admin};
@@ -366,6 +367,7 @@ pub(crate) async fn call(
         "secret.set" => secrets::set(core, peer, &request.id, params(request)?),
         "secret.delete" => secrets::delete(core, peer, &request.id, params(request)?),
         "secret.list" => Ok(secrets::list(core)),
+        "model.list" => models::list(core, params(request)?).await,
         "blob.put" => attach::put(core, params(request)?).await,
         "session.set_meta" => {
             let params: MetaParams = params(request)?;

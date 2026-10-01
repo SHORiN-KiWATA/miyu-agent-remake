@@ -40,6 +40,9 @@ pub struct Classified {
     pub retry_after_ms: Option<u64>,
     /// 超长的超了多少 token（施工 6-6 中）：内核照它截短摘要请求。别的分类、原话里解析不出来的没有。
     pub excess: Option<u64>,
+    /// 超长的报了的上限 N（`models.md`「驱动要守的约定」第 7 条，施工 8-7）：执行器照它记下用出来的窗口。别的分类、
+    /// 原话里没说的没有。
+    pub limit: Option<u64>,
 }
 
 /// 原话最长多少字节：出错页可能是一整页 HTML。
@@ -158,9 +161,9 @@ pub fn classify(failure: &Failure<'_>) -> Classified {
             Some(_) => ErrorClass::Unclassified,
         }
     };
-    let excess = (class == ErrorClass::ContextTooLong)
-        .then(|| excess::excess(&text))
-        .flatten();
+    let too_long = class == ErrorClass::ContextTooLong;
+    let excess = too_long.then(|| excess::excess(&text)).flatten();
+    let limit = too_long.then(|| excess::limit(&text)).flatten();
     let message = match failure.status {
         Some(status) => format!("HTTP {status}: {}", said.message),
         None => said.message,
@@ -174,6 +177,7 @@ pub fn classify(failure: &Failure<'_>) -> Classified {
         },
         retry_after_ms: retry_after(failure.headers, &text),
         excess,
+        limit,
     }
 }
 

@@ -1,0 +1,24 @@
+[package]
+name = "miyu-models"
+description = "模型这一块的纯逻辑：供应商的配置项、档案、三种写法、照会话编号挑 key（施工 8-6 起），models.dev 的目录、四层对目录、模型的资料和来源（施工 8-7）；不碰文件和网络"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+miyu-config = { path = "../miyu-config" }
+miyu-drivers = { path = "../miyu-drivers" }
+miyu-kernel = { path = "../miyu-kernel" }
+serde = { version = "1.0", features = ["derive"] }
+# 目录一个模型一个模型地读，坏一个不连累别的（施工 8-7）：先借着原文，再各自读。
+serde_json = { version = "1.0", features = ["raw_value"] }
+sha2 = { version = "0.11", default-features = false }
+
+[dev-dependencies]
+# 档案里 DeepSeek 那一套和测试用的 `Compat::deepseek()` 比。
+miyu-drivers = { path = "../miyu-drivers", features = ["testkit"] }
+
+[lints]
+workspace = true

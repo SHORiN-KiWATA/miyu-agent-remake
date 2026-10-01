@@ -35,7 +35,7 @@ pub(super) use reports::Job;
 
 /// 看守。
 pub(super) struct Watch {
-    seed: u64,
+    pub(super) seed: u64,
     /// 追加过的事件，照先后。
     events: Vec<Event>,
     pushed: BTreeSet<Seq>,
@@ -207,6 +207,7 @@ impl Watch {
         let clear = self.before_clear(&input).filter(|_| !refused);
         let report = self.before_report(&input).filter(|_| !refused);
         let peer = self.before_peer(&input).filter(|_| !refused);
+        let notice = self.before_notice(session, &input).filter(|_| !refused);
         let recap = self.before_recap(&input, refused);
         let stop = self.before_stop(&input);
         let fresh_interrupt = match &input {
@@ -268,6 +269,7 @@ impl Watch {
         self.after_clear(&actions, clear);
         self.after_report(&actions, report);
         self.after_peer(&actions, peer);
+        self.after_notice(session, &actions, notice);
         self.after_recap(&actions, recap);
         self.restore_matches(&actions, reverting);
         for action in actions {

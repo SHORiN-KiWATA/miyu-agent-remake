@@ -111,7 +111,7 @@ fn an_item_needs_one_layer_and_no_layer_twice() {
 fn every_problem_is_reported() {
     let bad = Item {
         kind: Kind::Option(&["a"]),
-        default: Value::Text(Cow::Borrowed("b")),
+        default: Some(Value::Text(Cow::Borrowed("b"))),
         layers: &[],
         ..item("Bad", &["a", "b"], "a")
     };
@@ -128,7 +128,7 @@ fn a_project_item_says_how_it_tightens_and_only_then() {
     use crate::item::Tighten;
     let switch = Item {
         kind: Kind::Bool,
-        default: Value::Bool(false),
+        default: Some(Value::Bool(false)),
         layers: &[Layer::System, Layer::Project],
         tighten: Some(Tighten::TrueOnly),
         ..item("permission.start_read_only", &[], "")
@@ -158,7 +158,7 @@ fn a_project_item_says_how_it_tightens_and_only_then() {
     );
     assert_eq!(
         one(Item {
-            default: Value::Text(Cow::Borrowed("false")),
+            default: Some(Value::Text(Cow::Borrowed("false"))),
             ..switch
         }),
         vec!["permission.start_read_only：默认值 \"false\" 过不了自己的校验"]

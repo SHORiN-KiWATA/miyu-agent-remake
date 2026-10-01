@@ -105,6 +105,25 @@ impl SessionPort for Table {
             Ok(Log::new(LogDir(dir)))
         })
     }
+
+    /// 这几个测试不发话（施工 C-5）：用不到。
+    fn held(&self, _session: SessionId) -> Pending<'_, bool> {
+        Box::pin(async { false })
+    }
+
+    /// 这个测试不订「空了告诉我」（施工 C-6）。
+    fn watch(
+        &self,
+        _session: SessionId,
+        _watcher: SessionId,
+        _since: miyu_kernel::time::Timestamp,
+    ) -> Pending<'_, Result<(), miyu_session::NotWatched>> {
+        Box::pin(async {
+            Err(miyu_session::NotWatched::Failed(
+                "no watches here".to_string(),
+            ))
+        })
+    }
 }
 
 fn main(id: &str, title: &str, at: &str) -> MainSession {
@@ -247,7 +266,7 @@ async fn only_a_local_main_session_has_it() {
     for (lines, want) in [
         (Lines::default(), all.clone()),
         (child, without(&["sessions"])),
-        (group, without(&["sessions", "subagent", "message_agent"])),
+        (group, without(&["sessions", "subagent", "send_message"])),
     ] {
         let script = Script::new([Play::Says("好。")]);
         let handle = session(&home, &script, None, lines).await;

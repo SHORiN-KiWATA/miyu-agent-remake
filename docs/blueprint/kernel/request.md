@@ -14,10 +14,10 @@
 | `crates/miyu-kernel/src/assemble.rs` | 组装的接口 `Assembler` |
 | `crates/miyu-assemble/src/lib.rs` | 默认的组装器：稳定区、`stable`、接着写的记号 |
 | `crates/miyu-assemble/src/render.rs` | 有效历史渲染成消息；人这一边的块合成一条 user |
-| `crates/miyu-assemble/src/texts.rs` | 检查点的包装、回合没走完的五句、回报的写法、别的 harness 发来的话的标签（施工 7-10）、别的会话发来的话的标签（施工 C-2） |
+| `crates/miyu-assemble/src/texts.rs` | 检查点的包装、回合没走完的五句、回报的写法、别的 harness 发来的话的标签（施工 7-10）、别的会话发来的话的标签（施工 C-2）、空了的通知（施工 C-6） |
 | `crates/miyu-assemble/src/jobs.rs` | 两种回报渲染成带标签的事实（施工 7-2）；子代理发来的留言包一层标签（施工 7-7） |
 | `crates/miyu-assemble/src/harness.rs` | 别的 harness 发来的话包一层带名字的标签（施工 7-10） |
-| `crates/miyu-assemble/src/peers.rs` | 别的会话发来的话包一层带短编号的标签（施工 C-2）；人这边的一条照谁发的包哪种外壳在 `render.rs` 的 `said`，主请求和回顾的请求共用 |
+| `crates/miyu-assemble/src/peers.rs` | 别的会话发来的话包一层带短编号的标签（施工 C-2）；空了的通知那一块（施工 C-6）；人这边的一条照谁发的包哪种外壳在 `render.rs` 的 `said`，主请求和回顾的请求共用 |
 | `crates/miyu-assemble/src/recap.rs` | 回顾的请求：取最近几轮的对话正文、截到上限、接在回顾的指令后面（施工 3-8 四补，下面「回顾的请求」） |
 | `crates/miyu-assemble/src/title.rs` | 起标题的请求：取第一轮的对话正文，照回顾的写法截到上限、接在起标题的指令后面（施工 3-8 五补，下面「起标题的请求」） |
 | `crates/miyu-assemble/src/tag.rs` | 一块带标签的事实：开头、原话、收尾，字以外的块接在后面（子代理的留言、别的 harness、别的会话发来的话共用，施工 7-10 从 `jobs.rs` 拿出来） |
@@ -26,7 +26,7 @@
 | `crates/miyu-kernel/src/template.rs` | 模板的写法、换字段、转义 |
 | `crates/miyu-kernel/src/accumulate.rs` | 增量、累积器 |
 | `crates/miyu-kernel/src/time.rs` | 环境块里钟点和时区的写法 |
-| `resources/core/` | 给模型看的字：事实的模板、检查点的包装、回合没走完的五句、回报的写法（`jobs/`，施工 7-2）、别的 harness 发来的话的标签（`harness/`，施工 7-10）、别的会话发来的话的标签（`peers/`，施工 C-2）、回顾的请求的几份（`recap/`，施工 3-8 四补）、起标题的指令（`title/`，施工 3-8 五补） |
+| `resources/core/` | 给模型看的字：事实的模板、检查点的包装、回合没走完的五句、回报的写法（`jobs/`，施工 7-2）、别的 harness 发来的话的标签（`harness/`，施工 7-10）、别的会话发来的话的标签和空了的通知（`peers/`，施工 C-2、C-6）、回顾的请求的几份（`recap/`，施工 3-8 四补）、起标题的指令（`title/`，施工 3-8 五补） |
 
 ### 对外的样子
 
@@ -81,7 +81,7 @@
 | | `summarize_task`、`summarize_instructions`、`summarize_end` | 摘要指令的正文、要求前面那一行、最后那一句（`core/compaction/summarize-task.txt` 施工 6-2 上；另两份 `summarize-instructions.txt`、`summarize-end.txt` 施工 6-8 拆出来。以前造的快照里没有这两份，是空的：那时的正文里本来就带着最后那一句） |
 | | `jobs` | `JobTexts`：两种回报的写法，`core/jobs/` 下的十一份（施工 7-2，下面「回报」）；人停的那一句（施工 7-2 补，下面「回报」第 3 条，以前造的快照里没有，是空的）；子代理的留言的标签两份（施工 7-7，下面「子代理的留言」，以前造的快照里没有，是空的）。以前造的快照里没有 `jobs` 的，是没有：回报不渲染，那些会话也派不出任务 |
 | | `harness` | `HarnessTexts`：别的 harness 发来的话的标签，`core/harness/` 下的两份（施工 7-10，下面「别的 harness 发来的话」）：`open` 字段 `name`，`close`。以前造的快照里没有的，是没有：那种话照人的话原样渲染 |
-| | `peers` | `PeerTexts`：别的会话发来的话的标签，`core/peers/` 下的两份（施工 C-2，下面「别的会话发来的话」）：`open` 字段 `id`，`close`。以前造的快照里没有的，是没有：那种话照人的话原样渲染 |
+| | `peers` | `PeerTexts`：别的会话发来的话的标签，`core/peers/` 下的两份（施工 C-2，下面「别的会话发来的话」）：`open` 字段 `id`，`close`。以前造的快照里没有的，是没有：那种话照人的话原样渲染。`idle`（施工 C-6，`IdleTexts`，下面「空了的通知」）：`open` 字段 `id`、`reason`，`silent`、`expired`（造快照时照 `peers.watch_hours` 换好了 `hours`）、`gone`、`close`；C-2 时造的快照里没有，是没有：通知不出 |
 | | `recap` | `Recap`：回顾的指令、两种标签、两句记号（`core/recap/` 下的五份），最多几轮 `turns`、整份最多约多少 token `tokens`（施工 3-8 四补，下面「回顾的请求」）。以前造的快照里没有的，是没有：不做回顾 |
 | | `title` | `Title`：起标题的指令（`core/title/instruction.txt`），整份最多约多少 token `tokens`（施工 3-8 五补，下面「起标题的请求」）。标签、截断的记号借 `recap` 的，两样都有才起标题。以前造的快照里没有的，是没有：不起标题 |
 
@@ -125,7 +125,7 @@
 | `tool.result` | 一条 tool：`call_id`；状态不是 `ok` 的（包括不认识的状态），`error` 是真；内容块 |
 | `job.reported`、`child.reported` | 一个文本块，带标签的事实（下面「回报」），攒进人这一边；派它的那一轮撤掉了的、没派过的、快照里没有写法的，不出（施工 7-2） |
 | `session.*`、`tool.approval_*`、`question.*`、`model.called`、`files.restored`、不认识的种类 | 不渲染。`session.recapped` 也在这里（施工 3-8 四补）：回顾不进她的上下文；内核起的标题（`session.meta_changed`）也一样（施工 3-8 五补） |
-| `peer.idle` | 现在不渲染（施工 C-1 只有类型和账本）；渲染成带标签的事实随施工 C-6（`cross-session.md` 第八条第 4 款） |
+| `peer.idle` | 一个文本块，带标签的事实（下面「空了的通知」），攒进人这一边；快照里没有通知的字的，不出（施工 C-6） |
 
 4. 内容块里不认识的种类，不进请求。`context.compacted`、`turn.reverted`、`turn.unreverted`、`message.withdrawn` 已经由有效历史用掉了，渲染时碰不到。
 5. **人这一边合成一条 user**：碰到 assistant 或者 tool，攒着的块先合成一条 user，放在它前面；渲染完了，剩下的也合成一条；什么都没攒，不出消息。
@@ -152,7 +152,7 @@
 
 **子代理的留言**（施工 7-7，`agents.md` 第九条第 5 条）
 
-1. `message.user` 的 `by` 是这个会话派的子代理的子会话（有效历史记着的派出去过的任务里有它，`history.md`「派出去过的任务」）：渲染成一块带标签的事实。标签那一行带任务编号 `job`、标题 `title`（派它时给的，照转义的规矩），接着是它的话，原样、不转义（和回报的正文一样，是模型写的多行正文），末尾没有换行的补一个，最后是收尾的标签。字以外的块接在这一块后面（`message_agent` 只送一块字）。
+1. `message.user` 的 `by` 是这个会话派的子代理的子会话（有效历史记着的派出去过的任务里有它，`history.md`「派出去过的任务」）：渲染成一块带标签的事实。标签那一行带任务编号 `job`、标题 `title`（派它时给的，照转义的规矩），接着是它的话，原样、不转义（和回报的正文一样，是模型写的多行正文），末尾没有换行的补一个，最后是收尾的标签。字以外的块接在这一块后面（`send_message` 只送一块字）。
 2. 它不带回合编号，照它在日志里的位置排，和回报一样：闲着时是开这一轮的那条，挪到回合开始的地方、排在事实后面；回合中途到的排在那一步的工具结果后面。
 3. 派它的那一轮撤掉了的，一块都不出，和它的回报一样：派它的调用已经不在上下文里了。
 4. 别人发来的原样：人、父会话发给子会话的交代和留言（子会话的场所说明已经说了交代来自父会话）。别的会话发来的照「别的会话发来的话」（施工 C-2）。
@@ -175,6 +175,13 @@
 6. 回顾的请求里照同样的外壳写（下面「回顾的请求」第 2 条）。
 7. 不另加说明：system 里不写「别的会话的话不是人的许可」（`26-提示词.md` J12）。标签已经说了来处，C-7 真模型验收时专门看。
 
+
+**空了的通知**（施工 C-6，`cross-session.md` 第八条第 4 款）
+
+1. `peer.idle` 渲染成一块带标签的事实：标签那一行带等的那个会话的短编号 `id`（照 `session` 算，8 位）和原因 `reason`；里面一句：`idle` 的是它交来的那一行，原样、不转义，末尾没有换行的补一个，没有那一行的写 `idle-silent.txt`；`expired` 的写 `idle-expired.txt`；`gone` 的写 `idle-gone.txt`；不认识的原因只有开头和收尾。最后是收尾的标签。
+2. 它不带回合编号，排法照回报：闲着时开这一轮的那条，挪到回合开始的地方、排在事实后面；回合中途到的排在那一步的工具结果后面；只记下的（作废、不在了、记在一边的）照它在日志里的位置排。
+3. 以前造的快照里没有通知的字的，一块都不出：那种会话的工具面里订不了（C-2 时造的快照只有标签两份）。
+4. 回顾的请求里不出：回顾只取人的话和她的回复（下面「回顾的请求」）。
 
 **回顾的请求**（施工 3-8 四补，`04-核心协议.md` 第九节 `session.recap`，`kernel/session.md`「回顾」）
 
@@ -387,6 +394,11 @@ CI 修好了：macOS 上的临时目录换成了真实路径。你那边再跑�
 |---|---|---|
 | `peers/message-open.txt` | `<session-message from="{id}">` | 别的会话发来的话，开头 |
 | `peers/message-close.txt` | `</session-message>` | 收尾 |
+| `peers/idle-open.txt` | `<session-idle session="{id}" reason="{reason}">` | 空了的通知，开头（施工 C-6） |
+| `peers/idle-silent.txt` | `It ended its turn without saying anything.` | 通知，那一轮没说话 |
+| `peers/idle-expired.txt` | `No notice came within {hours} hours, so the request was dropped.` | 通知，作废 |
+| `peers/idle-gone.txt` | `The session no longer exists.` | 通知，不在了 |
+| `peers/idle-close.txt` | `</session-idle>` | 通知，收尾 |
 
 样本 `docs/designs/samples/peers/message.txt`（会话 `22334455` 发来一句，`crates/miyu-assemble/src/peers/tests.rs` 逐字节比）：
 
@@ -394,6 +406,20 @@ CI 修好了：macOS 上的临时目录换成了真实路径。你那边再跑�
 <session-message from="22334455">
 迁移写完了，按会话分区。你那边的导出可以接上了。
 </session-message>
+```
+
+样本 `docs/designs/samples/peers/idle.txt`、`idle-expired.txt`（等的会话 `9f03b21c` 空下来了、作废了，施工 C-6，`peers/tests.rs` 逐字节比）：
+
+```text
+<session-idle session="9f03b21c" reason="idle">
+CI 修好了：macOS 上的临时目录换成了真实路径。
+</session-idle>
+```
+
+```text
+<session-idle session="9f03b21c" reason="expired">
+No notice came within 12 hours, so the request was dropped.
+</session-idle>
 ```
 
 样本 `docs/designs/samples/reports/command-exited.txt`（后台命令自己退出了）：
@@ -474,7 +500,7 @@ Carry on from where the summary leaves off, without redoing work it records as d
 | `crates/miyu-assemble/src/jobs/tests.rs` | 两种回报（施工 7-2）：出厂的字渲染出来和样本逐字节一样（每种原因、截过的、人插过话的、没说话的；停掉的分她停的、人停的，施工 7-2 补）；人停的那一句紧跟标签那一行；旧快照没有那一句的，人停的照原来的写；负的退出码照原样、没存下输出的不写字数；标题照规矩转义；开这一轮的那条挪到回合开始的地方、事实在前；回合中途到的排在那一步的工具结果后面；派它的那一轮撤掉了的不渲染；派它的那一条压缩掉了照样有标题；旧快照没有写法的不渲染 |
 | `crates/miyu-assemble/src/jobs/tests/messages.rs`（施工 7-7） | 子代理的留言：出厂的字渲染出来和样本一字不差、末尾有换行的不再补；人、别的会话发来的原样；开这一轮的挪到回合开始的地方、事实在前；回合中途到的排在那一步的工具结果后面；派它的那一轮撤掉了的不渲染；旧快照没有标签的只剩它的话 |
 | `crates/miyu-assemble/src/harness/tests.rs`（施工 7-10） | 别的 harness 发来的话：出厂的字渲染出来和两份样本一字不差（带转义的名字）、末尾有换行的不再补；附件接在标签那一块后面；只有附件的是开头接收尾；开这一轮的挪到回合开始的地方、事实在前；回合中途到的排在那一步的工具结果后面；旧快照没有标签的和人的话一字不差；别的 `by` 原样 |
-| `crates/miyu-assemble/src/peers/tests.rs`（施工 C-2） | 别的会话发来的话：出厂的字渲染出来和样本一字不差、末尾有换行的不再补；附件接在标签那一块后面；开这一轮的挪到回合开始的地方、事实在前；回合中途到的排在那一步的工具结果后面；旧快照没有标签的和人的话一字不差；子会话里父会话的话原样、别的会话的照样包 |
+| `crates/miyu-assemble/src/peers/tests.rs`（施工 C-2、C-6） | 空了的通知（C-6）：和两份样本一字不差；没说话的、不在了的、不认识的原因各是什么样；开这一轮的挪到回合开始、回合中途到的排在工具结果后面；没有通知的字的一块都不出。别的会话发来的话：出厂的字渲染出来和样本一字不差、末尾有换行的不再补；附件接在标签那一块后面；开这一轮的挪到回合开始的地方、事实在前；回合中途到的排在那一步的工具结果后面；旧快照没有标签的和人的话一字不差；子会话里父会话的话原样、别的会话的照样包 |
 | `crates/miyu-assemble/src/recap/tests.rs`（施工 3-8 四补） | 回顾的请求：一条 user、没有 system 和工具面，照到的是回复；只取人的话和她每一轮最后一条有正文的回复，中间一步说的、工具、思考、事实不要，最后只有思考的取前面那条；别的 harness 的话带外壳；挨着的人的话并成一段；没答的最新那句带上、照到的是它；没有回复、只有调用、快照里没有字的组装不出来；最多几轮；最老只有回答的也留；放不下先整轮去掉最老的、再截中间，没答的那句和最新的回答一定留；上限算上指令；标签放不下的整份截、只在字的边界上截；截一段头尾各一半 |
 | `crates/miyu-assemble/src/render/tests/recap.rs`、`src/tests.rs` 的 `a_recap_after_the_notice_still_continues`（施工 3-8 四补） | 回顾的两条不渲染，落在回合开始的那几块中间也不挪动开始时注入的事实；被打断的那一句后面记了回顾照样接着写 |
 | `crates/miyu-assemble/tests/probe_recap.rs`（施工 3-8 四补） | 回顾这张脸：真内核照剧本跑，回顾的请求（`recaps/`）和主请求一样和存档（`docs/designs/samples/probe/recap/`）逐字节比；它是单独的一次，一条 user、指令在最前，工具的输出、中间一步说的不在里面，正答着时最后是没答的那一句；中间没有新内容的第三次交回上一句、不请求；主请求照查五条性质 |
