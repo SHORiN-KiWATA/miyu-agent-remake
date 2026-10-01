@@ -1,11 +1,66 @@
-//! `history` 交回的给人看的说法（施工 6-4）：找到几条、读了第几到第几条、没有找到、读不了记录；中文、英文两份字里
-//! 都有，换得出字，显示名也有。
+//! `history` 交回的给人看的说法（施工 6-4）：找到几条、读了第几到第几条、没有找到、读不了记录；读别的会话找不到、
+//! 对得上不止一个、这个会话不能读别的会话（施工 C-4）；中文、英文两份字里都有，换得出字，显示名也有。
 
 mod support;
 
-use miyu_kernel::event::{Event, Said};
+use std::sync::Arc;
 
-use support::{Site, check, human, readable, said};
+use miyu_kernel::event::{Event, Said};
+use miyu_kernel::id::SessionId;
+use miyu_kernel::time::UtcOffset;
+use miyu_store::human::Human;
+use miyu_store::resources::ResourceRoot;
+use miyu_tool::{Listing, MainSession, Opening, SessionsPort, Stop};
+
+use support::{Site, check, human, readable, resources, said};
+
+/// 假的列会话、开日志的端口：只用来走到「找不到」「对得上不止一个」两种拒绝，一步都不会真的开日志。
+struct Peers {
+    this: SessionId,
+    others: Vec<SessionId>,
+}
+
+fn peer(text: &str) -> MainSession {
+    MainSession {
+        id: SessionId::parse(text).expect("合写法"),
+        title: String::new(),
+        cwd: "~".to_string(),
+        busy: false,
+        last_active: miyu_kernel::time::Timestamp::parse("2026-09-29T05:00:00.000Z")
+            .expect("合写法"),
+    }
+}
+
+impl SessionsPort for Peers {
+    fn this(&self) -> &SessionId {
+        &self.this
+    }
+
+    fn list<'a>(&'a self, _stop: &'a Stop) -> Listing<'a> {
+        let listed = self.others.iter().map(|id| peer(id.as_str())).collect();
+        Box::pin(async move { Ok(listed) })
+    }
+
+    fn open<'a>(&'a self, _session: &'a SessionId) -> Opening<'a> {
+        Box::pin(async { Err("not reached in this test".to_string()) })
+    }
+}
+
+/// 她自己：短编号 `11112222`。
+const THIS: &str = "0192f3a0-1111-7abc-8def-111122223333";
+/// 短编号被两个会话共享，用来测「对得上不止一个」。
+const TWIN_A: &str = "0192f3a0-2222-7abc-8def-aaaa22334455";
+const TWIN_B: &str = "0192f3a0-3333-7abc-8def-bbbb22334455";
+
+fn peers_port() -> Arc<dyn SessionsPort> {
+    Arc::new(Peers {
+        this: SessionId::parse(THIS).expect("合写法"),
+        others: vec![
+            SessionId::parse(TWIN_A).expect("合写法"),
+            SessionId::parse(TWIN_B).expect("合写法"),
+        ],
+    })
+}
 
 /// 人说的第 `seq` 条。
 fn message(seq: u64, text: &str) -> Event {
@@ -46,5 +101,51 @@ async fn every_history_outcome_says_something_people_can_read() {
         human(site.done("history", serde_json::json!({})).await),
         said("history/no-log").with("error", "this call has no log"),
     );
+    check(
+        &mut checked,
+        human(
+            site.done_with_sessions(
+                "history",
+                serde_json::json!({"session": "deadbeef"}),
+                Some(peers_port()),
+                UtcOffset::UTC,
+                Stop::default(),
+            )
+            .await,
+        ),
+        said("history/no-session").with("session", "deadbeef"),
+    );
+    check(
+        &mut checked,
+        human(
+            site.done_with_sessions(
+                "history",
+                serde_json::json!({"session": "22334455"}),
+                Some(peers_port()),
+                UtcOffset::UTC,
+                Stop::default(),
+            )
+            .await,
+        ),
+        said("history/ambiguous").with("session", "22334455"),
+    );
+    check(
+        &mut checked,
+        human(
+            site.done_with_sessions(
+                "history",
+                serde_json::json!({"session": "22334455"}),
+                None,
+                UtcOffset::UTC,
+                Stop::default(),
+            )
+            .await,
+        ),
+        said("history/not-here"),
+    );
     readable(&checked, &["history"]);
+    let words = Human::load(&ResourceRoot::at(resources()), "ja").expect("日文的字读得出来");
+    for said in &checked {
+        assert!(words.say(said).is_some(), "ja 没有 {said:?}");
+    }
 }

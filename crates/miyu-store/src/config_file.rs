@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 
-use crate::durable::{create_dir, create_temp, discard, sync_dir, temp_name};
+use crate::durable::{create_dir, create_temp_with, discard, sync_dir, temp_name};
 
 /// 一份配置文件最多多大：1 MiB。
 pub const LIMIT: u64 = 1024 * 1024;
@@ -160,14 +160,25 @@ impl From<io::Error> for WriteError {
 ///
 /// 这一瞬间有人手改了（[`WriteError::Changed`]）；链接绕圈、太深；写不进、同步不了、改不了名。都是什么都没变。
 pub fn write(path: &Path, content: &[u8], read: Option<&str>) -> Result<(), WriteError> {
-    write_with(path, content, read, &mut |_| Ok(()))
+    write_with(path, content, read, Mode::Keep, &mut |_| Ok(()))
 }
 
-/// 同 [`write()`]，改名之前先叫一声 `before_rename`（交给它临时文件在哪）：测试照它在那一瞬间手改文件、装作崩了。
+/// 写成的文件是什么权限。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Mode {
+    /// 带上原文件的权限位，新文件照系统默认（配置文件）。
+    Keep,
+    /// Unix 上一律 0600，临时文件建的时候就是（密钥文件，施工 8-5）。
+    Private,
+}
+
+/// 同 [`write()`]，权限照 `mode`；改名之前先叫一声 `before_rename`（交给它临时文件在哪）：测试照它在那一瞬间手改文件、
+/// 装作崩了。
 pub(crate) fn write_with(
     path: &Path,
     content: &[u8],
     read: Option<&str>,
+    mode: Mode,
     before_rename: &mut dyn FnMut(&Path) -> io::Result<()>,
 ) -> Result<(), WriteError> {
     let target = real(path)?;
@@ -179,8 +190,8 @@ pub(crate) fn write_with(
     };
     create_dir(dir)?;
     let name = name.to_string_lossy();
-    let (temp, file) = create_temp(dir, || temp_name(&name))?;
-    let written = replace(file, content, &temp, &target, read, before_rename);
+    let (temp, file) = create_temp_with(dir, || temp_name(&name), mode == Mode::Private)?;
+    let written = replace(file, content, &temp, &target, read, mode, before_rename);
     if written.is_err() {
         discard(&temp);
     }
@@ -188,18 +199,21 @@ pub(crate) fn write_with(
     Ok(sync_dir(dir)?)
 }
 
-/// 写进临时文件、同步、带上原来的权限位、关上；再读一次本体、对得上才改名盖上。
+/// 写进临时文件、同步、带上原来的权限位（`Private` 的不带，建的时候就是 0600）、关上；再读一次本体、对得上才改名盖上。
 fn replace(
     mut file: File,
     content: &[u8],
     temp: &Path,
     target: &Path,
     read: Option<&str>,
+    mode: Mode,
     before_rename: &mut dyn FnMut(&Path) -> io::Result<()>,
 ) -> Result<(), WriteError> {
     file.write_all(content)?;
     file.sync_data()?;
-    if let Ok(metadata) = fs::metadata(target) {
+    if mode == Mode::Keep
+        && let Ok(metadata) = fs::metadata(target)
+    {
         file.set_permissions(metadata.permissions())?;
     }
     drop(file);

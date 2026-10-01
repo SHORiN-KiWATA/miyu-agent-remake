@@ -17,7 +17,7 @@ const GOT_CHARS: usize = 80;
 /// 离得最近的键名最远差几个字（「怎么走」第四条第 2 条）。
 const NEAREST: usize = 3;
 
-/// 原因码（「报错」那张表里标 8-2 的几种）。
+/// 原因码（「报错」那张表里标 8-2、8-5 的几种）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Code {
     /// 文件读不了：没有权限、是个目录……（没有这个文件不算）。
@@ -40,6 +40,14 @@ pub enum Code {
     NotTightening,
     /// 项目配置还没信任，或者信任以后内容变了：这一份先不用。警告。
     UntrustedProject,
+    /// 引用的密钥还没设：警告，可以先写配置、后设密钥（施工 8-5）。
+    UnknownSecret,
+    /// 引用的环境变量核心起来时没有设：警告（施工 8-5）。
+    EnvNotSet,
+    /// 密钥文件里一行的名字不合写法（施工 8-5）。协议上写 `bad_format`：名字写法不对。
+    SecretName,
+    /// 密钥文件里一行的值不是不空的字（施工 8-5）。协议上写 `wrong_type`；和配置文件的 `wrong_type` 分开，说的话不一样。
+    SecretValue,
 }
 
 impl Code {
@@ -56,13 +64,19 @@ impl Code {
             Code::WrongLayer => "wrong_layer",
             Code::NotTightening => "not_tightening",
             Code::UntrustedProject => "untrusted_project",
+            Code::UnknownSecret => "unknown_secret",
+            Code::EnvNotSet => "env_not_set",
+            Code::SecretName => "bad_format",
+            Code::SecretValue => "wrong_type",
         }
     }
 
     /// 是错误还是警告。
     pub fn severity(self) -> Severity {
         match self {
-            Code::UnknownKey | Code::UntrustedProject => Severity::Warning,
+            Code::UnknownKey | Code::UntrustedProject | Code::UnknownSecret | Code::EnvNotSet => {
+                Severity::Warning
+            }
             _ => Severity::Error,
         }
     }
@@ -135,6 +149,8 @@ pub struct Problem {
     pub suggest: Option<&'static str>,
     /// 下面几层合出来的值：`not_tightening` 说「现在是什么」。
     pub current: Option<Value>,
+    /// 引用的密钥、环境变量的名字：`unknown_secret`、`env_not_set` 说「引用的是哪一个」（施工 8-5）。
+    pub name: Option<String>,
 }
 
 impl Problem {
@@ -149,6 +165,7 @@ impl Problem {
             why,
             suggest: None,
             current: None,
+            name: None,
         }
     }
 
@@ -163,6 +180,7 @@ impl Problem {
             why: None,
             suggest: None,
             current: None,
+            name: None,
         }
     }
 

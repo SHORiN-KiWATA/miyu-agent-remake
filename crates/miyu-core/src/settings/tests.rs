@@ -120,12 +120,8 @@ fn missing_words_are_logged_for_each_file_and_nothing_is_written() {
 /// 照 `system` 这份系统配置、`env` 的环境变量读一份配置（施工 8-4）。
 fn config(root: &DataRoot, system: &str, env: &[(&str, &str)]) -> Config {
     std::fs::write(root.system().join("config.toml"), system).expect("写得进");
-    let lookup = |name: &str| {
-        env.iter()
-            .find(|(key, _)| *key == name)
-            .map(|(_, value)| (*value).to_string())
-    };
-    Config::load(root, &crate::admin(), None, items(), &lookup)
+    let environment = miyu_endpoint::config::Environment::of(env);
+    Config::load(root, &crate::admin(), None, items(), environment)
 }
 
 /// 等到 `done` 成立，最多十秒。

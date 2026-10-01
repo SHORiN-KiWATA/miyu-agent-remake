@@ -1,10 +1,13 @@
 //! 人那一头（施工 8-3，`config.md` 第十条第 6、11 条）：`edit`、`trust` 要看是不是在终端里、问人一句、开编辑器。做成一个
 //! 接口：真的一份照标准输入、标准错误和 `VISUAL`、`EDITOR`；测试换成照剧本回的，不用真的终端、真的编辑器。
 //!
+//! `miyu login` 也用它（施工 8-5，第十一条第 4 条）：标准输入是终端的，关掉回显读一行 key（`rpassword`，读的是终端本身）；
+//! 是管道的，整份读进来。
+//!
 //! 编辑器照 `VISUAL`，没有照 `EDITOR`，都没有（或者是空的）的 Unix 上是 `vi`、Windows 上是 `notepad`。Unix 上经 `sh -c`
 //! 跑，Windows 上经 `cmd /c`：带参数的（`code --wait`）也行，和 git 一样。
 
-use std::io::{self, BufRead, IsTerminal};
+use std::io::{self, BufRead, IsTerminal, Read};
 use std::path::Path;
 use std::process::Command;
 
@@ -24,6 +27,20 @@ pub trait Console {
     ///
     /// 编辑器起不来。
     fn edit(&mut self, path: &Path) -> io::Result<Option<i32>>;
+    /// 标准输入是终端：人在敲（施工 8-5：贴 key 要关掉回显；不是的整份读管道）。
+    fn typed(&self) -> bool;
+    /// 关掉回显读一行，去掉换行：贴 key 用，敲的字不出现在屏幕上（施工 8-5）。读到头了是空的。
+    ///
+    /// # Errors
+    ///
+    /// 读不了终端、关不掉回显。
+    fn hidden(&mut self) -> io::Result<Option<String>>;
+    /// 把标准输入整份读进来（施工 8-5：`echo "$KEY" | miyu login deepseek`）。
+    ///
+    /// # Errors
+    ///
+    /// 读不了标准输入、不是 UTF-8。
+    fn all(&mut self) -> io::Result<String>;
 }
 
 /// 真的终端：这个进程的标准输入、标准错误，和环境变量里的编辑器。
@@ -60,6 +77,25 @@ impl Console for Terminal {
         editor_command(&self.editor, path)
             .status()
             .map(|status| status.code())
+    }
+
+    fn typed(&self) -> bool {
+        io::stdin().is_terminal()
+    }
+
+    fn hidden(&mut self) -> io::Result<Option<String>> {
+        // rpassword 读的是终端本身（Unix 上 /dev/tty，Windows 上 CONIN$），读完把回显照原样开回来。
+        match rpassword::read_password() {
+            Ok(line) => Ok(Some(line)),
+            Err(error) if error.kind() == io::ErrorKind::UnexpectedEof => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+
+    fn all(&mut self) -> io::Result<String> {
+        let mut text = String::new();
+        io::stdin().lock().read_to_string(&mut text)?;
+        Ok(text)
     }
 }
 

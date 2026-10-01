@@ -128,10 +128,16 @@ fn a_hand_edit_just_before_the_rename_wins_and_nothing_is_left_behind() {
     let path = temp.path().join("config.toml");
     fs::write(&path, "a = 1\n").unwrap();
     let mut beside = None;
-    let written = write_with(&path, b"a = 2\n", Some(&version(b"a = 1\n")), &mut |temp| {
-        beside = Some(temp.to_path_buf());
-        fs::write(&path, "a = 9\n")
-    });
+    let written = write_with(
+        &path,
+        b"a = 2\n",
+        Some(&version(b"a = 1\n")),
+        Mode::Keep,
+        &mut |temp| {
+            beside = Some(temp.to_path_buf());
+            fs::write(&path, "a = 9\n")
+        },
+    );
     assert!(matches!(written, Err(WriteError::Changed)));
     assert_eq!(fs::read(&path).unwrap(), b"a = 9\n", "手改的留着");
     let beside = beside.unwrap();
@@ -153,9 +159,13 @@ fn a_crash_before_the_rename_leaves_the_file_as_it_was() {
     fs::create_dir_all(temp.path()).unwrap();
     let path = temp.path().join("config.toml");
     fs::write(&path, "a = 1\n").unwrap();
-    let written = write_with(&path, b"a = 2\n", Some(&version(b"a = 1\n")), &mut |_| {
-        Err(io::Error::other("崩了"))
-    });
+    let written = write_with(
+        &path,
+        b"a = 2\n",
+        Some(&version(b"a = 1\n")),
+        Mode::Keep,
+        &mut |_| Err(io::Error::other("崩了")),
+    );
     assert!(matches!(written, Err(WriteError::Io(_))));
     assert_eq!(fs::read(&path).unwrap(), b"a = 1\n");
 }

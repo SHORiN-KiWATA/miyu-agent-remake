@@ -11,7 +11,8 @@
 //! - [`settings`]：端点的配置项，界面语言 `ui.language`（施工 8-1）、新会话开局只读 `permission.start_read_only`
 //!   （施工 8-2）；
 //! - [`config`]：配置服务：起来时读的几份配置、最终值，`config.schema`、`config.get`、`config.check`（施工 8-2）；
-//!   `config.set`、`config.trust`（施工 8-3）；监视配置文件、推 `config.changed`、把当前的一份交给会话和核心（施工 8-4）。
+//!   `config.set`、`config.trust`（施工 8-3）；监视配置文件、推 `config.changed`、把当前的一份交给会话和核心（施工 8-4）；
+//! - 密钥：`secret.set`、`secret.delete`、`secret.list`，只能写、删、列名字，从不交出值（施工 8-5，`secrets.rs`）。
 
 mod attach;
 pub mod config;
@@ -24,6 +25,7 @@ mod listen;
 mod meta;
 mod methods;
 mod refusal;
+mod secrets;
 mod sessions;
 pub mod settings;
 mod spawn;

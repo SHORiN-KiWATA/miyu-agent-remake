@@ -58,7 +58,7 @@ pub(super) struct TrustChanged<'a> {
 
 /// 往 `path`（给人看的写法是 `shown`）追加一条 `kind`，内容是 `body`：谁 `by`、哪个命令 `cause`（手改被看到的没有）、
 /// 什么时候 `at`。写不进去的记一条 `WARN`，不往上报。
-pub(super) fn record(
+pub(crate) fn record(
     path: &Path,
     shown: &str,
     at: miyu_kernel::time::Timestamp,

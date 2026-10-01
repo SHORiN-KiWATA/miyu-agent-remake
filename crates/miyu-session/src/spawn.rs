@@ -13,7 +13,7 @@ use miyu_kernel::event::Permission;
 use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Outcome};
-use miyu_tool::{MainSession, Stop};
+use miyu_tool::{Log, MainSession, Stop};
 
 use crate::jobs::Peek;
 
@@ -51,6 +51,11 @@ pub trait SessionPort: Send + Sync {
         owner: AccountId,
         stop: Stop,
     ) -> Pending<'_, Result<Vec<MainSession>, String>>;
+
+    /// 只读地开会话 `session` 的日志（施工 C-4，`cross-session.md` 第二条第 2 款）：不载入它，在跑的也读得到。核心正在停的
+    /// 交回原因；放会话目录本身不必读了才知道读不读得到，日志坏了、读不了的要等交回的 [`Log`] 读的时候才知道。`history`
+    /// 只在认出 `session` 参数写的是这个属主看得到的另一个会话（不是它自己）时才调它。
+    fn read_log(&self, session: SessionId) -> Pending<'_, Result<Log, String>>;
 }
 
 /// 端口交回的 future。

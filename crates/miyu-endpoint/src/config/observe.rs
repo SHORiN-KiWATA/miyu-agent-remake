@@ -1,5 +1,5 @@
 //! 手改被看到的（`docs/blueprint/config.md`「怎么走」第七条第 3 条、第六条第 4 条，施工 8-4）：监视系统配置、个人设置、
-//! 信任的记录所在的目录，哪一份变了重读。
+//! 信任的记录、密钥文件（施工 8-5，重读在 `crate::secrets`）所在的目录，哪一份变了重读。
 //!
 //! 1. 字节和上一次读的一样（核心自己写的也走这里）：什么都不做。
 //! 2. 不一样：照第二条读、解析、合并。读不进来的照上一次读好的用。这一层变了的项、问题有了变化的：记日志（`via` 是
@@ -60,6 +60,8 @@ impl Core {
         let mut config = self.config();
         if path == config.places.trust {
             observe_trust(self, &mut config);
+        } else if path == config.secrets.path {
+            crate::secrets::observe(self, &mut config);
         } else if let Some(layer) = config.layer_at(path) {
             observe(self, &mut config, layer);
         }
@@ -67,12 +69,13 @@ impl Core {
 }
 
 impl Config {
-    /// 要监视的几份：系统配置、个人设置、信任的记录。
+    /// 要监视的几份：系统配置、个人设置、信任的记录、密钥文件（施工 8-5）。
     fn watched(&self) -> Vec<PathBuf> {
         vec![
             self.system.path.clone(),
             self.personal.path.clone(),
             self.places.trust.clone(),
+            self.secrets.path.clone(),
         ]
     }
 

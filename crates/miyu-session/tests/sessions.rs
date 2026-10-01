@@ -15,16 +15,30 @@ use miyu_kernel::session::{Command, Outcome};
 use miyu_kernel::time::Timestamp;
 use miyu_session::testkit::{Play, Script};
 use miyu_session::{Child, Handle, Lineage, Pending, SessionPort};
-use miyu_tool::{Catalog, MainSession, Stop};
+use miyu_store::root::DataRoot;
+use miyu_tool::{Catalog, Log, MainSession, Stop};
 
 use support::*;
 
-/// 假的会话表：列会话时交回 `listed` 再加上问它的那个会话，记下每次问的属主。
-#[derive(Default)]
+/// 假的会话表：列会话时交回 `listed` 再加上问它的那个会话，记下每次问的属主；读别的会话的日志（施工 C-4）照
+/// `root` 上真实的目录读，和生产里一样不载入它。
 struct Table {
+    root: Option<DataRoot>,
     listed: Vec<MainSession>,
     asked: Mutex<Vec<AccountId>>,
     this: Mutex<Option<SessionId>>,
+}
+
+impl Default for Table {
+    /// 没给数据根的：读别的会话的日志用不上（列会话不用它）。
+    fn default() -> Table {
+        Table {
+            root: None,
+            listed: Vec::new(),
+            asked: Mutex::new(Vec::new()),
+            this: Mutex::new(None),
+        }
+    }
 }
 
 impl SessionPort for Table {
@@ -79,6 +93,17 @@ impl SessionPort for Table {
             listed.push(main(this.as_str(), "我自己", "2026-10-01T09:00:00.000Z"));
         }
         Box::pin(async move { Ok(listed) })
+    }
+
+    /// 只算出会话 `session` 的真实目录（施工 C-4），和生产里一样不读盘、不载入它。没给数据根的这份假会话表
+    /// 用不到（这几个测试不读别的会话）。
+    fn read_log(&self, session: SessionId) -> Pending<'_, Result<Log, String>> {
+        let root = self.root.clone();
+        Box::pin(async move {
+            let root = root.ok_or_else(|| "no data root in this fake".to_string())?;
+            let dir = root.session_dir(&alice_account(), &session);
+            Ok(Log::new(LogDir(dir)))
+        })
     }
 }
 

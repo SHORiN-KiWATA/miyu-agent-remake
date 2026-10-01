@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>153</b><span>/ 156 步<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；下一步 8-4 监视与生效、C-4 读别的会话</span></li>
-    <li><b class="mono">abce08a2</b><span>最近一步（3-8 七补 会话列表的索引）的提交</span></li>
+    <li><b>156</b><span>/ 172 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；下一步 8-6 供应商、C-5 发给别的会话</span></li>
+    <li><b class="mono">e36088df</b><span>最近一步（C-4 读别的会话）的提交</span></li>
   </ul>
 </header>
 
@@ -510,8 +510,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s8-1"><span class="n">8-1</span>配置清单<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-2"><span class="n">8-2</span>读配置<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-3"><span class="n">8-3</span>写配置<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">8-4</span>监视与生效</span></li>
-        <li><span class="step"><span class="n">8-5</span>密钥</span></li>
+        <li><a class="step done" href="#s8-4"><span class="n">8-4</span>监视与生效<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s8-5"><span class="n">8-5</span>密钥<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">8-6</span>供应商</span></li>
         <li><span class="step"><span class="n">8-7</span>模型资料</span></li>
         <li><span class="step"><span class="n">8-8</span>用途、挡位、池</span></li>
@@ -532,7 +532,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sC-1"><span class="n">C-1</span>跨会话的事件和编号<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sC-2"><span class="n">C-2</span>收别的会话发来的话<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sC-3"><span class="n">C-3</span>列会话<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">C-4</span>读别的会话</span></li>
+        <li><a class="step done" href="#sC-4"><span class="n">C-4</span>读别的会话<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">C-5</span>发给别的会话</span></li>
         <li><span class="step"><span class="n">C-6</span>空了告诉我</span></li>
         <li><span class="step"><span class="n">C-7</span>跨会话验收</span></li>
@@ -10680,6 +10680,108 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s8-4" aria-labelledby="h-s84">
+  <div class="sheet-head"><h2 id="h-s84"><span class="no">8-4</span>监视与生效</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">手改文件、终端界面、网页三种改法都能当场看到（项目主人 10-01 要的）：核心监视几份配置文件，手改存盘就重读、推 <code>config.changed</code>、记日志；开着的设置页跟着刷新，不会拿旧值盖掉刚改的。回合开始取一份配置，中途改了下一轮生效；<code>log.level</code> 当场换，<code>ui.language</code> 变了连着的头下一句就换语言。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">监视与生效</span><span class="dir-note">8-4</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>监视用 <code>notify</code>：认得出「先写新文件再改名」的存法，200 毫秒合并，照真实路径比；起不来退回每 2 秒轮询</li>
+              <li>订阅 <code>stream: config</code>，推 <code>config.changed</code>（via：set、edit、file），掉队推 resync</li>
+              <li>改坏了照上一次读好的用，推问题；字节一样的不重推</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">发的连接先见推送</span><span class="rl">config.set 的回应经配置订阅走</span></div>
+          <div class="tile new"><span class="nm">回合开始的快照</span><span class="rl">带上会话目录的项目配置，这一轮都用它</span></div>
+          <div class="tile"><span class="nm">只动注释的</span><span class="rl">换上，不推不记</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-4</dd></div>
+        <div><dt>名称</dt><dd>监视与生效</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">a1dc26fb</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>18 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>测试逮到一个真毛病：跟随任务起来晚了会漏掉起来之前的改动，已改</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-4-监视与生效.md</code>；蓝图 <code>config.md</code> 第七、八条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-5" aria-labelledby="h-s85">
+  <div class="sheet-head"><h2 id="h-s85"><span class="no">8-5</span>密钥</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">模型供应商的 key 这类密钥单独放在 <code>system/secrets.toml</code>（0600），配置里只写引用 <code>{ secret = … }</code> 或 <code>{ env = … }</code>。协议只能写、删、列名字，从不交出值；命令行有 <code>miyu login</code>、<code>miyu logout</code>、<code>miyu login --list</code>（照 opencode、codex，项目主人定）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">密钥</span><span class="dir-note">8-5</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>secret.set</code>（回应 replaced）、<code>secret.delete</code>、<code>secret.list</code>（名字、设没设、谁在用）</li>
+              <li>值不进回应、推送、运行日志、报错、journal：TRACE 级别下搜过</li>
+              <li>手改 <code>secrets.toml</code> 被监视看到；写错的报 bad_format、wrong_type，不带原文</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">贴 key 不回显</span><span class="rl">rpassword；编号表印在标准错误，标准输出留给 --list</span></div>
+          <div class="tile new"><span class="nm">引用取不到只是警告</span><span class="rl">unknown_secret、env_not_set</span></div>
+          <div class="tile"><span class="nm">还没有</span><span class="rl">贴 key 时按 Ctrl+C，终端不会恢复回显（下一张小单修）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-5</dd></div>
+        <div><dt>名称</dt><dd>密钥</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">4b72441c</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>17 个手写变异全逮住，泄漏值的 6 种都在；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>测试逮到一个真毛病：删最上面一项把只剩一行的文件整份清空，已修</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-5-密钥.md</code>；蓝图 <code>config.md</code> 第九、十一条，<code>cli/login.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sC-1" aria-labelledby="h-sC1">
   <div class="sheet-head"><h2 id="h-sC1"><span class="no">C-1</span>跨会话的事件和编号</h2><span class="pill done">已完成</span></div>
   <p class="purpose">跨会话这条线的第一步，和 M8 并行：会话的短编号，事件 <code>peer.idle</code>、效果 <code>peer.watch</code> 的类型、读写、样本，账本认得在等哪几个会话。这一步不收话、不列、不读、不发、不订，她和头都还看不到变化。</p>
@@ -10832,6 +10934,57 @@ a.step:hover{border-color:var(--primary)}
     </div>
   </div>
 </section>
+
+<section class="sheet" id="sC-4" aria-labelledby="h-sC4">
+  <div class="sheet-head"><h2 id="h-sC4"><span class="no">C-4</span>读别的会话</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她能翻你别的主会话说过什么：<code>history</code> 多一格 <code>session</code>，写会话编号（整个或至少 8 位后缀）就读那个会话的日志，和翻自己的一样能找、能读、能筛。只读，不载入那个会话；子会话、群里的不能用。一次只搜一个会话（项目主人定）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">读别的会话</span><span class="dir-note">C-4</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>认编号用 C-3 的 <code>find_session</code>；<code>SessionsPort</code> 多 <code>open</code></li>
+              <li>找不到、对得上不止一个、子会话和群里各拒一句（10、16、7 token）</li>
+              <li><code>history</code> 这一件 197 → 224 token，整个工具面 2063 → 2090</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">派 Sonnet</span><span class="rl">照省额度第 5 条，第一次用便宜的模型施工</span></div>
+          <div class="tile"><span class="nm">时区照自己的</span><span class="rl">读别的会话，时刻照这个会话的时区写</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">C-4</dd></div>
+        <div><dt>名称</dt><dd>读别的会话</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">e36088df</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>11 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型：她先 sessions 找到「暗号测试」，再 history 带 session 读出暗号和出处</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/C-4-读别的会话.md</code>；蓝图 <code>tools/history.md</code>、<code>cross-session.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 
 
 

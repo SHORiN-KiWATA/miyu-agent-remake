@@ -1,11 +1,13 @@
 //! `history` 的测试（施工 6-4）：哪些算一条（撤掉的、撤回的不算，以前的摘要算）；四种筛；时刻的写法和时区；参数
-//! 不对；读不了日志；叫停。找在 `tests/find.rs`，读在 `tests/read.rs`，人切权限级别在 `tests/permission.rs`（施工 2-7 补）。
+//! 不对；读不了日志；叫停。找在 `tests/find.rs`，读在 `tests/read.rs`，人切权限级别在 `tests/permission.rs`（施工 2-7 补），
+//! 读别的会话在 `tests/other.rs`（施工 C-4）。
 //!
 //! 日志用样本会话（`docs/designs/samples/events/`）第 86 条以前的：第 42 轮撤掉了、第 54 条压缩、第 59 条撤回、
 //! 第 76 轮撤了又恢复。还算数的是 52、54、55、63、64、67、71、72、75、77、81、82；52、63 是人切权限级别（施工 2-7 补）。
 
 mod find;
 mod harness;
+mod other;
 mod peers;
 mod permission;
 mod read;

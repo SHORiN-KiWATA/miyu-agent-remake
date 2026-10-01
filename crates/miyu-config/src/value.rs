@@ -1,12 +1,13 @@
 //! 值（`docs/blueprint/config.md`「配置清单」）：一项的值 [`Value`]，写成 TOML、写成协议上的 JSON；一份最终值
 //! [`Values`]。
 //!
-//! 现在有字（选项写成字）和开关（施工 8-2）：别的写法随用到它的那一步加。
+//! 现在有字（选项写成字）、开关（施工 8-2）和密钥的引用（施工 8-5）：别的写法随用到它的那一步加。
 
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use crate::item::Item;
+use crate::secret::Reference;
 
 /// 一项的值。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,6 +16,8 @@ pub enum Value {
     Text(Cow<'static, str>),
     /// 开关（施工 8-2）。
     Bool(bool),
+    /// 密钥的引用（施工 8-5）：只有名字，不是密钥本身。
+    Secret(Reference),
 }
 
 impl Value {
@@ -23,6 +26,7 @@ impl Value {
         match self {
             Value::Text(text) => quoted(text),
             Value::Bool(on) => on.to_string(),
+            Value::Secret(reference) => reference.toml(),
         }
     }
 
@@ -31,16 +35,17 @@ impl Value {
         match self {
             Value::Text(text) => serde_json::Value::String(text.to_string()),
             Value::Bool(on) => serde_json::Value::Bool(*on),
+            Value::Secret(reference) => reference.json(),
         }
     }
 }
 
-/// 选项的设置类型是字：照原样拿出来。最终值都校验过，开关变不成字，不会走到那一支（写成 `true`、`false`）。
+/// 选项的设置类型是字：照原样拿出来。最终值都校验过，开关、引用变不成字，不会走到那一支（写成 TOML 的样子）。
 impl From<&Value> for String {
     fn from(value: &Value) -> String {
         match value {
             Value::Text(text) => text.to_string(),
-            Value::Bool(on) => on.to_string(),
+            other => other.toml(),
         }
     }
 }

@@ -1,7 +1,8 @@
 //! `miyu config check [文件]`（`config.md` 第十条第 7 条）：查配置有没有写错。
 //!
 //! - 不写文件：照 `config.get` 的 `files` 读系统配置、个人设置、当前目录的项目配置现在的字（磁盘上的，不是核心手里的
-//!   那份），一份份 `config.check`。写了 `--system`、`--project` 的只查那一份。
+//!   那份），一份份 `config.check`。写了 `--system`、`--project` 的只查那一份。密钥文件（施工 8-5）照 `config.get` 回的
+//!   问题（核心手里的那一份）：它的字是密钥，不拿去 `config.check`；`--project` 的不查它。
 //! - 写了文件：照 `--system`、`--project` 当那一层查，都不写的当个人设置。
 //! - 标准输出上一条一行，最后一行合计；一个问题都没有的印「没有问题」。`--format json`：`{"problems":[…]}`，每一条
 //!   多一格 `file`。有错误退出码 1，只有警告、没有问题的 0。
@@ -54,6 +55,8 @@ pub(super) async fn check(
 ) -> u8 {
     let places = Places::of(talk.plan);
     let mut targets: Vec<(&str, String, std::path::PathBuf)> = Vec::new();
+    // 密钥文件的问题照核心手里的那一份（施工 8-5）：它的字是密钥，不经协议交给核心查。
+    let mut secrets: Vec<Value> = Vec::new();
     match file {
         Some(file) => {
             let layer = match only {
@@ -65,10 +68,22 @@ pub(super) async fn check(
             targets.push((layer, shown, file.to_path_buf()));
         }
         None => {
-            let files = match talk.ask("config.get", json!({"cwd": talk.cwd()})).await {
-                Ok(result) => result["files"].clone(),
+            let got = match talk.ask("config.get", json!({"cwd": talk.cwd()})).await {
+                Ok(result) => result,
                 Err(code) => return code,
             };
+            let files = &got["files"];
+            if let (Only::All | Only::System, Some(file)) =
+                (only, files["secrets"]["file"].as_str())
+            {
+                for problem in got["problems"].as_array().into_iter().flatten() {
+                    if problem["file"] == file {
+                        let mut problem = problem.clone();
+                        problem["file"] = json!(places.shown(file));
+                        secrets.push(problem);
+                    }
+                }
+            }
             for layer in ["system", "personal", "project"] {
                 let wanted = match only {
                     Only::All => true,
@@ -109,6 +124,7 @@ pub(super) async fn check(
             problems.push(problem);
         }
     }
+    problems.extend(secrets);
     let errors = problems
         .iter()
         .filter(|problem| problem["level"] != "warning")

@@ -197,13 +197,20 @@ pub(crate) fn get(core: &Core, peer: Peer, params: GetParams) -> Result<Value, R
     }
     let mut problems = Vec::new();
     for file in [&config.system, &config.personal] {
-        for problem in file.problems() {
+        let missing = config.missing(&file.parsed, file.layer);
+        for problem in file.problems().chain(&missing) {
             problems.push(said(config, &layers, problem, Some(file), &words)?);
         }
     }
+    let secrets = &config.secrets;
+    for problem in secrets.problems() {
+        let place = Some((secrets.shown.as_str(), secrets.last_good));
+        problems.push(said_at(config, &layers, problem, place, &words)?);
+    }
     if let Some(project) = &project {
         let merged = resolved.problems.iter();
-        for problem in project.file.problems().chain(merged) {
+        let missing = config.missing(&project.file.parsed, Layer::Project);
+        for problem in project.file.problems().chain(merged).chain(&missing) {
             problems.push(said(config, &layers, problem, Some(&project.file), &words)?);
         }
     }
@@ -214,7 +221,8 @@ pub(crate) fn get(core: &Core, peer: Peer, params: GetParams) -> Result<Value, R
     }))
 }
 
-/// `files`：每一层的文件在哪、版本；项目配置多一格信不信任。
+/// `files`：每一层的文件在哪、版本；项目配置多一格信不信任；密钥文件只说在哪（施工 8-5：它的版本是整份密钥的哈希，
+/// 不交出去）。
 fn files(config: &Config, project: Option<&Project>) -> Value {
     let mut files = Map::new();
     for file in [&config.system, &config.personal] {
@@ -223,6 +231,7 @@ fn files(config: &Config, project: Option<&Project>) -> Value {
             json!({"file": file.shown, "version": file.version}),
         );
     }
+    files.insert("secrets".to_string(), json!({"file": config.secrets.shown}));
     if let Some(project) = project {
         let trusted = match project.trust {
             Trust::Trusted => json!(true),
@@ -251,7 +260,8 @@ pub(crate) fn check(core: &Core, peer: Peer, params: CheckParams) -> Result<Valu
         }
     };
     let mut layers = config.layers(None);
-    let mut found: Vec<&Problem> = parsed.problems.iter().collect();
+    let missing = config.missing(&parsed, layer);
+    let mut found: Vec<&Problem> = parsed.problems.iter().chain(&missing).collect();
     let tightening;
     if layer == Layer::Project {
         layers.project = Some((&parsed, Trust::Trusted));
@@ -280,12 +290,24 @@ pub(super) fn said(
     file: Option<&File>,
     words: &Human,
 ) -> Result<Value, Refusal> {
+    let place = file.map(|file| (file.shown.as_str(), file.last_good));
+    said_at(config, layers, problem, place, words)
+}
+
+/// 同 [`said`]，文件只给在哪、是不是照上一次读好的用着（`place`）：密钥文件不是一层配置（施工 8-5）。
+pub(crate) fn said_at(
+    config: &Config,
+    layers: &Layers,
+    problem: &Problem,
+    place: Option<(&str, bool)>,
+    words: &Human,
+) -> Result<Value, Refusal> {
     let item = problem
         .key
         .as_deref()
         .and_then(|key| config.items().iter().find(|item| item.key == key));
     let using = match (problem.code, item) {
-        (code, _) if code.whole_file() => file.map(|file| match file.last_good {
+        (code, _) if code.whole_file() => place.map(|(_, last_good)| match last_good {
             true => Using::LastGood,
             false => Using::Nothing,
         }),
@@ -299,7 +321,7 @@ pub(super) fn said(
         _ => None,
     };
     let told = told(problem, config.items(), using.as_ref(), words)?;
-    let shown = file.map(|file| file.shown.as_str());
+    let shown = place.map(|(shown, _)| shown);
     Ok(wire::problem(problem, shown, &told, using.as_ref()))
 }
 
@@ -317,7 +339,7 @@ pub(super) fn told(
 }
 
 /// 这个连接的语言的字。读不懂是装坏了：内部出错。
-pub(super) fn words(core: &Core, language: &str) -> Result<Human, Refusal> {
+pub(crate) fn words(core: &Core, language: &str) -> Result<Human, Refusal> {
     Human::load(&core.resources, language).map_err(|error| {
         tracing::warn!(target: TARGET, error = %error, "resource unreadable");
         Refusal::INTERNAL
@@ -348,6 +370,7 @@ pub(super) fn selected<'a>(
             why: None,
             suggest: nearest(items, key),
             current: None,
+            name: None,
         };
         let told = told(&problem, items, None, words)?;
         // 请求里写错的键是这一条请求的错：级别写错误（文件里不认识的键才是警告）。

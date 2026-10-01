@@ -6,76 +6,14 @@
 
 mod support;
 
-use std::collections::VecDeque;
-use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use miyu_cli::language::Language;
-use miyu_cli::{ConfigCommand, ConfigPlan, Console};
+use miyu_cli::{ConfigCommand, ConfigPlan};
 use miyu_session::testkit::Script;
+use support::configuring::{Edit, Fake, at_terminal};
 use support::{Asked, Home, Outside};
-
-/// 编辑器这一次怎么改。
-enum Edit {
-    /// 副本改成这些字。
-    Write(&'static str),
-    /// 不动。
-    Keep,
-    /// 退出码不是 0。
-    Fail(i32),
-    /// 改副本的同时，别处把真的文件改成了另一份。
-    Meanwhile(PathBuf, &'static str, &'static str),
-}
-
-/// 照剧本回的人那一头。
-#[derive(Default)]
-struct Fake {
-    terminal: bool,
-    answers: VecDeque<&'static str>,
-    edits: VecDeque<Edit>,
-    /// 问人的时候，别处把这份文件改成这些字（`trust` 看的时候又变了）。
-    meanwhile: Option<(PathBuf, &'static str)>,
-    /// 编辑器打开过的副本，和打开时里面的字。
-    opened: Vec<(PathBuf, String)>,
-}
-
-impl Console for Fake {
-    fn terminal(&self) -> bool {
-        self.terminal
-    }
-
-    fn line(&mut self) -> io::Result<Option<String>> {
-        if let Some((path, text)) = self.meanwhile.take() {
-            std::fs::write(path, text)?;
-        }
-        Ok(self.answers.pop_front().map(str::to_string))
-    }
-
-    fn edit(&mut self, path: &Path) -> io::Result<Option<i32>> {
-        self.opened
-            .push((path.to_path_buf(), std::fs::read_to_string(path)?));
-        match self.edits.pop_front() {
-            Some(Edit::Write(text)) => std::fs::write(path, text).map(|()| Some(0)),
-            Some(Edit::Keep) | None => Ok(Some(0)),
-            Some(Edit::Fail(code)) => Ok(Some(code)),
-            Some(Edit::Meanwhile(real, other, text)) => {
-                std::fs::write(real, other)?;
-                std::fs::write(path, text).map(|()| Some(0))
-            }
-        }
-    }
-}
-
-/// 在终端里、敲 `answers`、编辑器照 `edits` 改。
-fn at_terminal(answers: &[&'static str], edits: Vec<Edit>) -> Fake {
-    Fake {
-        terminal: true,
-        answers: answers.iter().copied().collect(),
-        edits: edits.into(),
-        ..Fake::default()
-    }
-}
 
 fn home() -> Home {
     Home::new(Arc::new(Script::new([])))

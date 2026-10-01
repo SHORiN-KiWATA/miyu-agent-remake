@@ -240,6 +240,7 @@ fn request_problem(
         why: None,
         suggest: None,
         current: None,
+        name: None,
     };
     let told = told(&problem, config.items(), None, words)?;
     Ok(wire::problem(&problem, None, &told, None))

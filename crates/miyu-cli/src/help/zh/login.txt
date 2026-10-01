@@ -1,0 +1,10 @@
+用法：miyu login [名字]
+      miyu login --list [--format text|json]
+
+存一个供应商的 key。不写名字的，从配置里用到的里面选。贴的时候不显示，
+也可以从管道进来：echo "$KEY" | miyu login deepseek
+
+选项：
+      --list              列出哪几家设了 key，不给看 key 本身
+      --format text|json  --list 的输出：json 给脚本
+  -h, --help              印帮助

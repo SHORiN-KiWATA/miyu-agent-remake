@@ -14,7 +14,7 @@ use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_kernel::tool::Access;
 use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
-use miyu_tool::{Done, Listing, MainSession, SessionsPort, Stop};
+use miyu_tool::{Done, Listing, MainSession, Opening, SessionsPort, Stop};
 
 use support::{Site, check, human, readable, resources, said, tool};
 
@@ -47,6 +47,11 @@ impl SessionsPort for Port {
         self.asked.fetch_add(1, Ordering::Relaxed);
         let listed = self.listed.clone();
         Box::pin(async move { listed })
+    }
+
+    /// `sessions` 用不到开别的会话的日志（施工 C-4，那是 `history` 的事）。
+    fn open<'a>(&'a self, _session: &'a SessionId) -> Opening<'a> {
+        Box::pin(async { Err("not reached in this test".to_string()) })
     }
 }
 

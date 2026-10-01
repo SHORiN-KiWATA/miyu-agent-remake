@@ -140,6 +140,12 @@ impl Refusal {
         data: None,
     };
 
+    /// `secret.delete` 删的密钥没有（施工 8-5）。
+    pub(crate) const UNKNOWN_SECRET: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_secret",
+        data: None,
+    };
     /// 请求里写了清单里没有的配置项（施工 8-2，`config.schema`、`config.get`、`config.set`）：`data.problems` 里每个不认识的
     /// 一条。
     pub(crate) fn unknown_config_key(problems: Vec<serde_json::Value>) -> Refusal {
@@ -308,6 +314,7 @@ impl Refusal {
                 "这个目录找不到项目配置。",
                 "There is no project config for this directory.",
             ),
+            "unknown_secret" => ("没有这个密钥。", "There is no such secret."),
             "recap_failed" => (
                 "回顾没写成：请求模型出错了。",
                 "The recap could not be written: the model request failed.",

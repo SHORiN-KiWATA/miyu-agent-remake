@@ -1174,6 +1174,39 @@ session {id}
 Changed the permission level to {level}
 ```
 
+#### `software/basesystem/history/no-session.txt`
+
+- 什么时候加进来：`session` 写了个找不到的编号
+- token：10（`{session}` 按 `deadbeef` 算，2026-10-01 主会话照开发端点量）
+- 为什么加：每次调用都要有结果，带上她写的那个编号，让她看得出是拼错了还是那个会话真的没有（施工 C-4，`cross-session.md` 第二条）
+- 指纹：`1917c8de`
+
+```text
+No session has the id "{session}".
+```
+
+#### `software/basesystem/history/ambiguous.txt`
+
+- 什么时候加进来：`session` 写的后缀对得上不止一个会话
+- token：16（`{session}` 按 `22334455` 算，2026-10-01 主会话照开发端点量）
+- 为什么加：告诉她写长一点，和 `send_message`、`sessions` 撞了的处理是同一个认法（施工 C-4）
+- 指纹：`70000175`
+
+```text
+"{session}" matches more than one session. Use the full id.
+```
+
+#### `software/basesystem/history/not-here.txt`
+
+- 什么时候加进来：这个会话没有列会话的端口（子会话、场所会话），写了 `session` 也不去找
+- token：7（2026-10-01 主会话照开发端点量）
+- 为什么加：子会话的事经它的父会话，场所会话（群）里的人不可信，不能经她读人的会话（施工 C-4 第九条）
+- 指纹：`f27a80b5`
+
+```text
+This session cannot read other sessions.
+```
+
 #### `software/basesystem/agent/started.txt`
 
 - 什么时候加进来：派出去了
@@ -1996,14 +2029,14 @@ Conversation:
 #### `software/basesystem/tools/history.json`
 
 - 什么时候加进来：会话的工具面里有 `history`（每次请求都带）
-- token：197
-- 为什么加：`history` 的说明和参数（施工 6-4）：说明两句，是什么、压缩换出去的也找得回；参数照图纸，`limit` 只写默认值。量法同上，八件一起时的边际份量（2026-09-29 照项目主人给的端点、`deepseek-v4.1-flash` 量）
-- 指纹：`65964932`
+- token：224（2026-10-01 主会话照开发端点、`deepseek-v4.1-flash` 量，十二件一起时的边际份量；原来 197，多 27，就是 `session` 这一格）
+- 为什么加：`history` 的说明和参数（施工 6-4）：说明两句，是什么、压缩换出去的也找得回；参数照图纸，`limit` 只写默认值。量法同上，八件一起时的边际份量（2026-09-29 照项目主人给的端点、`deepseek-v4.1-flash` 量）。施工 C-4 加 `session`（`cross-session.md` 第二条）：写了就读别的会话的日志，不是这次调用自己的
+- 指纹：`a194ba84`
 
 ```json
 {
   "description": "Search or read back earlier parts of this conversation, including what compaction moved out of context. Entries are numbered in log order.",
-  "parameters": {"type":"object","properties":{"query":{"type":"string","description":"Words to look for. Without it, entries are listed in order."},"from":{"type":"integer","description":"First entry number."},"to":{"type":"integer","description":"Last entry number."},"since":{"type":"string","description":"Earliest time, like 2026-09-29 14:00."},"until":{"type":"string","description":"Latest time."},"by":{"type":"string","enum":["user","assistant","tool"]},"limit":{"type":"integer","description":"Default 20."}}}
+  "parameters": {"type":"object","properties":{"query":{"type":"string","description":"Words to look for. Without it, entries are listed in order."},"from":{"type":"integer","description":"First entry number."},"to":{"type":"integer","description":"Last entry number."},"since":{"type":"string","description":"Earliest time, like 2026-09-29 14:00."},"until":{"type":"string","description":"Latest time."},"by":{"type":"string","enum":["user","assistant","tool"]},"limit":{"type":"integer","description":"Default 20."},"session":{"type":"string","description":"Another session's id, to read that session instead of this one."}}}
 }
 ```
 

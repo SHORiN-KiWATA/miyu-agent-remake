@@ -5,6 +5,10 @@
 //! 每一次调用造一个，交给 [`crate::Call::sessions`]。只有本机的主会话有；测试里的假调用没有，`sessions` 照「没有别的会话」答。
 //!
 //! 认会话编号（[`find_session`]）也在这里：她写的整个编号或者后缀，在一批会话里对。读、发给别的会话（C-4、C-5）照它认。
+//!
+//! 只读地开别的会话的日志（[`SessionsPort::open`]，施工 C-4）也在这里：`history` 认出 `session` 参数写的是哪一个以后，
+//! 拿它开日志，和读自己的日志（[`crate::Log`]）走同一条路。不载入那个会话：交回来的只是一个能一段段读的入口，读不读得到
+//! 要等真的读的时候才知道。
 
 use std::fmt;
 use std::future::Future;
@@ -13,7 +17,7 @@ use std::pin::Pin;
 use miyu_kernel::id::SessionId;
 use miyu_kernel::time::Timestamp;
 
-use crate::Stop;
+use crate::{Log, Stop};
 
 /// 列会话的那件工具的名字（`cross-session.md` 第九条）：只有本机的主会话，造会话时工具面上有它。
 pub const SESSIONS: &str = "sessions";
@@ -29,10 +33,18 @@ pub trait SessionsPort: Send + Sync {
     /// 属主和这个会话一样的主会话（`session.created` 不带 `parent`），删了的不算，不含这个会话自己，不排先后。每个会话读一遍
     /// 它的日志；读下一个之前看一眼 `stop`，举起来了就不往下读，交回已经读到的。
     fn list<'a>(&'a self, stop: &'a Stop) -> Listing<'a>;
+
+    /// 只读地开会话 `session` 的日志（`cross-session.md` 第二条第 2 款，施工 C-4）：不载入它，在跑的也读得到。`session`
+    /// 要是这一次 [`SessionsPort::list`] 交回的那一批里的一个，调用这个方法之前照它认；认成这个会话自己的不叫它，照读
+    /// [`crate::Call::log`]。核心正在停的交回原因；日志坏了、读不了的不在这里报，等交回的 [`Log`] 读的时候才知道。
+    fn open<'a>(&'a self, session: &'a SessionId) -> Opening<'a>;
 }
 
 /// 列会话的 future。列不出来（放会话的目录读不了、核心正在停）交回原因，英文的一句。
 pub type Listing<'a> = Pin<Box<dyn Future<Output = Result<Vec<MainSession>, String>> + Send + 'a>>;
+
+/// [`SessionsPort::open`] 的 future。
+pub type Opening<'a> = Pin<Box<dyn Future<Output = Result<Log, String>> + Send + 'a>>;
 
 /// 列出来的一个主会话（`cross-session.md` 第一条第 2 款）：`session.list` 的那一项多出的三格也照它算。
 #[derive(Debug, Clone, PartialEq, Eq)]
