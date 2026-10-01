@@ -12,10 +12,10 @@
 //! 列文件、找文件、换真实位置 `fs.list`、`fs.find`、`fs.realpath` 在 `files.rs`（施工 W-2、W-3）。第一次接入的
 //! `provider.detect`、`provider.catalog`、`provider.test` 在 `providers.rs`（施工 8-11）。分块上传
 //! `blob.open`、`blob.write`、`blob.close` 在 `uploads.rs`（施工 W-5），要这个连接的上传表 `uploads`。
+//! 各方法的参数在 `methods/params.rs`（W-5 合并时这一份过了 500 行，挪出去的）。
 
 use std::sync::Arc;
 
-use serde::Deserialize;
 use serde_json::{Value, json};
 
 use miyu_kernel::block::{Block, Text};
@@ -26,7 +26,7 @@ use miyu_kernel::session::{Command, Outcome, Queued};
 use miyu_session::Handle;
 
 use crate::Core;
-use crate::attach::{self, Attachment};
+use crate::attach;
 use crate::config;
 use crate::files;
 use crate::from;
@@ -44,148 +44,12 @@ use crate::undo;
 use crate::uploads::{self, Uploads};
 use crate::wire::Request;
 
+mod params;
+
+use params::*;
+
 /// 没写人格时用的：出厂的软件工程师（施工 3-6 上）。
 const PERSONA: &str = "engineer";
-
-/// `session.create` 的参数。
-#[derive(Debug, Deserialize)]
-struct CreateParams {
-    #[serde(default)]
-    persona: Option<String>,
-    cwd: String,
-    /// 一次性的：`miyu ask` 开的（施工 3-9 下）。
-    #[serde(default)]
-    oneshot: bool,
-    /// 加进来的目录（施工 5-10 上）：和工作区一样能读能写。
-    #[serde(default)]
-    dirs: Vec<String>,
-    /// 用哪个模型（施工 8-8）：模型或 `@池`；不写、写 `null` 的照这时的 `models.chat`。
-    #[serde(default)]
-    model: Option<String>,
-}
-
-/// `session.list` 的参数（施工 3-9 下）。
-#[derive(Debug, Deserialize)]
-struct ListParams {
-    /// 只要一次性的。
-    #[serde(default)]
-    oneshot: bool,
-    /// 最多几个。
-    #[serde(default)]
-    limit: Option<usize>,
-}
-
-/// `session.send` 的参数。
-#[derive(Debug, Deserialize)]
-struct SendParams {
-    session: String,
-    text: String,
-    #[serde(default)]
-    urgent: bool,
-    #[serde(default)]
-    cwd: Option<String>,
-    /// 加进来的目录（施工 5-10 上）：不写的照旧。
-    #[serde(default)]
-    dirs: Option<Vec<String>>,
-    /// 附件（施工 3-9 三补）：`blob.put` 的回应，照先后接在文字后面；不写、写 `null` 的是没有。
-    #[serde(default)]
-    attachments: Option<Vec<Attachment>>,
-    /// 别的 harness 报的名字（施工 7-10）：写了的，这一句是它说的；不写、写 `null` 的是本人。
-    #[serde(default)]
-    from: Option<String>,
-}
-
-/// `session.interrupt` 的参数。
-#[derive(Debug, Deserialize)]
-struct InterruptParams {
-    session: String,
-    queued: QueuedParam,
-}
-
-/// `session.revert` 的参数（施工 4-7 上）：从哪一轮起撤，回合编号就是那一轮 `turn.started` 的序号；不写的撤
-/// 最后一轮（施工 4-7 下）。
-#[derive(Debug, Deserialize)]
-struct RevertParams {
-    session: String,
-    #[serde(default)]
-    turn: Option<u64>,
-}
-
-/// `session.unrevert` 的参数（施工 4-7 上）。
-#[derive(Debug, Deserialize)]
-struct UnrevertParams {
-    session: String,
-}
-
-/// `session.redo` 的参数（施工 4-7 再补）：开这一轮的那一句换成的话、换成的附件，写法照 `session.send`；不写、写 `null` 的
-/// 照原来那一句的。
-#[derive(Debug, Deserialize)]
-struct RedoParams {
-    session: String,
-    #[serde(default)]
-    text: Option<String>,
-    #[serde(default)]
-    attachments: Option<Vec<Attachment>>,
-}
-
-/// `session.clear` 的参数（施工 6-8 补）。
-#[derive(Debug, Deserialize)]
-struct ClearParams {
-    session: String,
-}
-
-/// `session.recap` 的参数（施工 3-8 四补）。
-#[derive(Debug, Deserialize)]
-struct RecapParams {
-    session: String,
-}
-
-/// `session.compact` 的参数（施工 6-8）：人附的要求可以不写，原样交给内核（只有空白的由内核当没写）。
-#[derive(Debug, Deserialize)]
-struct CompactParams {
-    session: String,
-    #[serde(default)]
-    instructions: Option<String>,
-}
-
-/// `session.set_permission_level` 的参数（施工 3-8 再补）：常用的那一级、只读开关，改哪样写哪样；两格都不写的是参数不对。
-#[derive(Debug, Deserialize)]
-struct PermissionParams {
-    session: String,
-    #[serde(default)]
-    level: Option<LevelParam>,
-    #[serde(default)]
-    read_only: Option<bool>,
-}
-
-/// `session.delete` 的参数（施工 3-8 三补）。
-#[derive(Debug, Deserialize)]
-struct DeleteParams {
-    session: String,
-}
-
-/// 协议上能切到的常用的那一级。只认这两种，别的是参数不对：内核的 `unknown_level` 从协议上碰不到，和 `queued`、`stream`
-/// 一样，值不在表里的算参数读不成（`protocol.md` 的 `session.set_permission_level`）。
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum LevelParam {
-    Workspace,
-    Full,
-}
-
-/// `job.stop` 的参数（施工 7-4）：哪个会话的哪个任务。
-#[derive(Debug, Deserialize)]
-struct JobStopParams {
-    session: String,
-    job: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum QueuedParam {
-    Send,
-    Return,
-}
 
 /// 照方法办一条请求：交回回应的 `result`，或者拒绝。
 pub(crate) async fn call(
