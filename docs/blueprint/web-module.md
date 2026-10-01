@@ -51,7 +51,7 @@
 | `crates/miyu-net/`（新，第 3 层） | 地址闸、钉住解析好的地址、自己跟重定向、读到 `</head>`、挖元数据、认图。可选软件包 `net`，以后 `web_fetch` 用同一份 | W-7 |
 | `crates/miyu-core/src/packages.rs` | 照编进来的可选软件包往查询表里登记（cargo 开关 `mermaid`、`net`）；起来时清掉分块上传留下的暂存 | W-4、W-5、W-7 |
 | `crates/miyu-ipc/src/lib.rs`、`start.rs` | 不读本机令牌的连法：`connect_bare`、`connect_or_start_bare` | W-8 |
-| `crates/miyu-cli/src/web.rs` | `miyu web`：找主程序旁边的 `miyu-web`，把参数交给它 | W-9 |
+| `crates/miyu-cli/src/web.rs` | `miyu web`：照装了的清单找网页软件，把参数交给它（2026-10-01 项目主人定的清单登记，施工方案 M9 那一段第 4 条；原来写的「找主程序旁边的 `miyu-web`」作废） | W-9 |
 | `resources/software/mermaid/style.json` | 字体、三种记号色 | W-4 |
 | `resources/software/net/link_preview.json` | 抓链接卡片的规矩：时限、上限、请求头、记多久（照桥的那份） | W-7 |
 | `resources/core/human/{zh,en,ja}.json` | 新原因码的话 | 各步 |

@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>166</b><span>/ 185 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 W-2 列文件找文件，接着 W-3 路径、8-11 第一次接入；跨会话只剩 C-7 验收</span></li>
-    <li><b class="mono">169df271</b><span>最近一步（8-10 会话里换模型）的提交</span></li>
+    <li><b>167</b><span>/ 185 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 W-3 路径、8-11 第一次接入；跨会话只剩 C-7 验收</span></li>
+    <li><b class="mono">10fb9008</b><span>最近一步（W-2 列文件、找文件）的提交</span></li>
   </ul>
 </header>
 
@@ -544,7 +544,7 @@ a.step:hover{border-color:var(--primary)}
       <div class="ms-head"><span class="ms-id">W</span><span class="ms-name">网页模块</span><span class="ms-goal">核心给所有头的通用方法，网页界面是单独的软件；W-1 到 W-7 和 M8 并行，W-8 到 W-11 等用户系统（2026-10-01 图纸 web-module.md，项目主人批准）</span></div>
       <ol class="chips">
         <li><a class="step done" href="#sW-1"><span class="n">W-1</span>给人看的字<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">W-2</span>列文件、找文件</span></li>
+        <li><a class="step done" href="#sW-2"><span class="n">W-2</span>列文件、找文件<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">W-3</span>路径</span></li>
         <li><span class="step"><span class="n">W-4</span>mermaid</span></li>
         <li><span class="step"><span class="n">W-5</span>分块上传</span></li>
@@ -11501,6 +11501,57 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/W-1-给人看的字.md</code>；蓝图 <code>web-module.md</code> 第二条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sW-2" aria-labelledby="h-sW2">
+  <div class="sheet-head"><h2 id="h-sW2"><span class="no">W-2</span>列文件、找文件</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头打 <code>@</code> 选文件要的两样由核心给：<code>fs.list</code> 列一层目录（照打的开头筛），<code>fs.find</code> 在一个目录里模糊找文件（建清单、打分）。列目录、建清单、打分挪进 <code>miyu-fs</code>，终端演示和网页的桥各自那一份以后能删。数据根里只有账号自己的工作区能列、能找。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">列文件、找文件</span><span class="dir-note">W-2</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>fs.list</code>：只读一层，开头对、大小写不论，点开头的打了点才列，目录在前，最多 50 条</li>
+              <li><code>fs.find</code>：认 <code>.gitignore</code>，跳过隐藏目录和名单，最深 8 层、最多 20000 个；没建完先给一部分（<code>building</code>），核心最多记 4 份清单</li>
+              <li>打分照桥的 <code>score</code> 搬来，测试一起搬；<code>path</code> 一律用 <code>/</code>，<code>full</code> 照平台</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">穿过数据根够到工作区</span><span class="rl">Boundary 多一问：要不要往下走，和这一条算不算数分开</span></div>
+          <div class="tile new"><span class="nm">清单在系统线程里建</span><span class="rl">miyu-fs 不为这一步依赖 tokio</span></div>
+          <div class="tile"><span class="nm">macOS 判 root</span><span class="rl">看自己建的临时目录归谁，macOS 没有 /proc</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">W-2</dd></div>
+        <div><dt>名称</dt><dd>列文件、找文件</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">10fb9008</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>15 个手写变异全逮住，补出了四处测试的缺口；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真核心：数据根拒、工作区能列能找，清单没建完先给一部分，<code>fresh</code> 隔够了才重建</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/W-2-列文件、找文件.md</code>；蓝图 <code>web-module.md</code> 第三条。</li>
       </ul>
     </div>
   </div>
