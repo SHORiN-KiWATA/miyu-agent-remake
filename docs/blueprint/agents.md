@@ -59,7 +59,7 @@
 
 | 名字 | 默认 | 管什么 |
 |---|---|---|
-| `jobs.depth` | 2 | 派生的深度上限：主会话是第 0 层，它派的子代理是第 1 层，子代理派的孙代理是第 2 层（2026-09-29 项目主人定：子代理能派孙代理）。到了上限的会话工具面里没有 `subagent`，`send_message` 留着、只能发给父（第一条第 6 条）。出厂值在 `crates/miyu-policy/src/jobs.rs`（`JOB_DEPTH`，施工 7-5）：只在造会话定工具面时用，不进快照 |
+| `jobs.depth` | 2 | 派生的深度上限：主会话是第 0 层，它派的子代理是第 1 层，子代理派的孙代理是第 2 层（2026-09-29 项目主人定：子代理能派孙代理）。到了上限的会话工具面里没有 `subagent`，`send_message` 留着、只能发给父（第一条第 6 条）。出厂值在 `crates/miyu-policy/src/jobs.rs`（`JOB_DEPTH`，施工 7-5）：只在造会话定工具面时用，不进快照。不做成配置项（2026-10-01 项目主人定：两层够用；要改只改这一处） |
 | `jobs.report_chars` | 30000 | 回报的正文最多几个字，多了留头尾各一半（第二条第 3 条）。出厂值在 `crates/miyu-policy/src/jobs.rs`（`REPORT_CHARS`），快照里是 `jobs.report_chars`（施工 7-6）。停掉子代理时交回的回报也照它截，用的是同一份（施工 7-4） |
 | `jobs.output_chars` | 30000 | `jobs` 读输出一页最多几个字，照 `read` 的分页、停在整行上（施工 7-4 定：读得到后面，不用头尾截）。出厂值在 `crates/miyu-basesystem/src/jobs/page.rs`（`LIMIT`），配置那一步能改 |
 
