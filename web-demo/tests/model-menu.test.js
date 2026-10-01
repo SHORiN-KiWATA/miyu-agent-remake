@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadRes } from './support.js';
-import { menuOf, footerOf } from '../src/model/model-menu.js';
+import { menuOf, footerOf, effortLevels, effortRows, effortLabel } from '../src/model/model-menu.js';
 
 loadRes();
 
@@ -51,4 +51,26 @@ test('框下面那一截：引用照第一个 / 拆成模型名和供应商（�
   assert.deepEqual(footerOf('dev/cline-pass/deepseek-v4.1-flash'), { model: 'cline-pass/deepseek-v4.1-flash', endpoint: 'dev' });
   assert.deepEqual(footerOf('@duo'), { model: '@duo', endpoint: null });
   assert.deepEqual(footerOf('cheap'), { model: 'cheap', endpoint: null });
+});
+
+test('思考强度有哪几档：照这个模型的资料（facts.reasoning）；池、认不出的、没写的都没有', () => {
+  const list = { ...LIST, providers: [{ id: 'dev', models: [
+    model('dev', 'deepseek-v4-pro', { facts: { reasoning: { value: ['max', 'low', 'off', 'high'] } } }),
+    model('dev', 'plain'),
+  ] }] };
+  assert.deepEqual(effortLevels(list, 'dev/deepseek-v4-pro'), ['max', 'low', 'off', 'high']);
+  assert.deepEqual(effortLevels(list, 'dev/plain'), []);
+  assert.deepEqual(effortLevels(list, '@duo'), []);
+  assert.deepEqual(effortLevels(null, 'dev/deepseek-v4-pro'), []);
+});
+
+test('思考强度的子菜单：默认一直有，别的只列这个模型有的那几档（这个模型没有的不列），照 关、默认、极低、低、中、高、更高、最高 排；只有开关的是 关、默认、开；认不出的名字照原样排在后面；现在那一档打勾', () => {
+  const rows = effortRows(['max', 'weird', 'low', 'off', 'high'], 'high');
+  assert.deepEqual(rows.map((r) => [r.level, r.title, r.current]), [
+    ['off', '关', false], [null, '默认', false], ['low', '低', false], ['high', '高', true], ['max', '最高', false], ['weird', 'weird', false],
+  ]);
+  assert.deepEqual(effortRows(['off', 'on'], null).map((r) => [r.title, r.current]), [['关', false], ['默认', true], ['开', false]]);
+  assert.deepEqual(effortRows([], null).map((r) => r.title), ['默认'], '一档都没报的：只有默认');
+  assert.equal(effortLabel('xhigh'), '更高');
+  assert.equal(effortLabel(null), '默认');
 });

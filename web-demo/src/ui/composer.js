@@ -569,13 +569,15 @@ export class Composer {
   }
 
   drawFooter(f) {
-    const { level, label, model, endpoint } = f.left;
+    const { level, label, model, endpoint, effort } = f.left;
     this.drawLevel(level, label);
-    const sig = `${model}|${endpoint}`;
+    const sig = `${model}|${endpoint}|${effort}`;
     if (this.model.dataset.sig !== sig) {
       this.model.dataset.sig = sig;
       // <模型名> <小字供应商>：模型名照正常的字色、不加粗（蓝图「换模型的菜单」第 1 条）
-      replace(this.model, model ? [h('span.footer-model-name', model), endpoint ? h('span.footer-model-prov', endpoint) : null] : null);
+      // 后面接思考强度（工作区那个蓝），默认的不写
+      replace(this.model, model ? [h('span.footer-model-name', model), endpoint ? h('span.footer-model-prov', endpoint) : null,
+        effort ? h('span.footer-model-sep', ' · ') : null, effort ? h('span.footer-model-effort', effort) : null] : null);
       this.model.hidden = !model;
       this.modelSep.hidden = !model;
     }

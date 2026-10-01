@@ -28,7 +28,7 @@ import { copy } from '../markdown/build.js';
 import { childrenOf, runningDeep } from '../lib/jobs.js';
 import { SessionsPage } from './sessions-page.js';
 import { listFiles } from '../core/files.js';
-import { footerOf } from '../model/model-menu.js';
+import { footerOf, effortLevels, effortLabel } from '../model/model-menu.js';
 import { Crumbs, BackButton } from './crumbs.js';
 import { pathOf } from '../model/tree.js';
 
@@ -61,6 +61,8 @@ export class App {
     this.pendingModel = /** @type {string|null} */ (null);
     /** 会话 → 选过、还没生效的模型（下一轮才换）和那时开过几轮：开了新的一轮就照核心推的 */
     this.picked = /** @type {Map<string, {ref: string, turns: number}>} */ (new Map());
+    /** 会话（新会话是空的）→ 模型 → 选过、还没生效的思考强度和那时开过几轮（核心施工 8-18：强度是这个会话里这一个模型的一格） */
+    this.pickedEffort = /** @type {Map<string, Map<string, {level: string|null, turns: number}>>} */ (new Map());
     /** 上一次问到的 `model.list`：新会话框下面写默认的那一个；换模型的菜单每次打开再问一次 */
     this.models = /** @type {any} */ (null);
     /** 换级别的命令发出去了还没回应：这时候再点不算。 */
@@ -157,8 +159,15 @@ export class App {
       // 换模型的菜单（蓝图「换模型的菜单」）：每次打开问一次 `model.list`；选了下一轮生效
       models: {
         load: () => this.loadModels(),
+        cached: () => this.models,
         current: () => this.modelRef(),
         choose: (row) => this.setModel(row.ref),
+        effort: () => {
+          const ref = this.modelRef();
+          const model = ref && !ref.startsWith('@') ? ref : null;
+          return { model, levels: effortLevels(this.models, model), current: this.effortLevel() };
+        },
+        chooseEffort: (level) => this.setEffort(level),
       },
       // `@` 选文件（蓝图「`@` 选文件」）：问核心列、找（`fs.list`、`fs.find`，核心施工 W-2），照这个会话的工作目录
       files: (plan, fresh, onUpdate, stale) => listFiles(this.store.conn, this.workdir(), plan, fresh, onUpdate, stale),
@@ -294,6 +303,7 @@ export class App {
   open(id, listed = false) {
     this.pendingLevel = null;
     this.pendingModel = null;
+    this.pickedEffort.delete('');
     this.current = id;
     this.sessionsPage?.close();
     // 没读过的会话第一次打开时才读、订阅：子代理的不进会话表的顶层；全部会话那一页开的老会话进（`listed`）
@@ -321,6 +331,10 @@ export class App {
       if (!this.current) {
         this.current = await this.store.create(this.cwd, this.pendingModel);
         this.pendingModel = null;
+        // 还没开时选过思考强度的：开了以后发给核心（`session.create` 不带强度）
+        const efforts = this.pickedEffort.get('');
+        this.pickedEffort.delete('');
+        for (const [model, { level }] of efforts ?? []) await this.configureEffort(this.current, model, level);
         this.store.view(this.current);
         // 还是这一段对话：跟着新会话走的软件包（演示待办）跟过去
         this.ctx.emit('session.created', { from: null, to: this.current });
@@ -497,6 +511,67 @@ export class App {
     }
   }
 
+  /** 选过还没生效的思考强度：这个会话、这个模型的；开了新的一轮就照核心记着的。 */
+  pickedEffortOf(session, model) {
+    const key = session ?? '';
+    const entry = this.pickedEffort.get(key)?.get(model);
+    if (!entry) return undefined;
+    const turns = session ? (this.store.sessions.get(session)?.events ?? []).filter((e) => e.kind === 'turn.started').length : 0;
+    if (session && turns > entry.turns) {
+      this.pickedEffort.get(key)?.delete(model);
+      return undefined;
+    }
+    return entry;
+  }
+
+  /**
+   * 现在这个模型的思考强度（`null` 是默认）：选过还没生效的照选的；核心报的（`subscribe` 回应、`model.changed` 的 `effort`，
+   * 核心施工 8-18）是这个模型的照它；都没有的是默认。
+   */
+  effortLevel() {
+    const ref = this.modelRef();
+    if (!ref || ref.startsWith('@')) return null;
+    const picked = this.pickedEffortOf(this.current, ref);
+    if (picked) return picked.level;
+    const s = this.current ? this.store.sessions.get(this.current) : null;
+    return s?.model?.ref === ref ? s.model?.effort?.level ?? null : null;
+  }
+
+  /**
+   * 换思考强度（蓝图「换模型的菜单」第 2 条，核心施工 8-18）：开着的会话发 `session.configure {effort: {model, level}}`，只改这个会话
+   * 里这一个模型，下一轮生效，框下面当场照选的写；还没开的新会话先记着，开了再发。拒了的放回去、写一句。
+   * @param {string|null} level `null` 是清掉、回到配置的默认
+   */
+  async setEffort(level) {
+    const model = this.modelRef();
+    if (!model || model.startsWith('@')) return;
+    const session = this.current;
+    const key = session ?? '';
+    const turns = session ? (this.store.sessions.get(session)?.events ?? []).filter((e) => e.kind === 'turn.started').length : 0;
+    const map = this.pickedEffort.get(key) ?? new Map();
+    this.pickedEffort.set(key, map);
+    const before = map.get(model);
+    map.set(model, { level, turns });
+    this.render();
+    if (!session) return;
+    if (!(await this.configureEffort(session, model, level))) {
+      if (before) map.set(model, before);
+      else map.delete(model);
+      this.render();
+    }
+  }
+
+  /** 发 `session.configure` 的思考强度；拒了的写一句，交回成没成。 */
+  async configureEffort(session, model, level) {
+    try {
+      await this.store.conn.request('session.configure', { session, effort: { model, level } });
+      return true;
+    } catch (err) {
+      this.composer.say(refusalText(err));
+      return false;
+    }
+  }
+
   /** 点权限级别：换到下一级。开着的会话发给核心，画等 `session.policy_changed`；还没开的新会话先记着（见开头）。 */
   async cycleLevel() {
     if (this.switching) return;
@@ -567,6 +642,9 @@ export class App {
     const ref = this.modelRef();
     const picked = this.current ? this.picked.get(this.current) : null;
     if (ref && (!this.current || picked || ref.startsWith('@'))) f.left = { ...f.left, ...footerOf(ref) };
+    // 思考强度：默认的不写（蓝图「换模型的菜单」第 1 条）
+    const effort = this.effortLevel();
+    f.left = { ...f.left, effort: effort === null ? null : effortLabel(effort) };
     const level = this.current ? null : this.pendingLevel;
     if (level) f.left = { ...f.left, level, label: levelLabel(level) };
     this.composer.drawFooter(f);

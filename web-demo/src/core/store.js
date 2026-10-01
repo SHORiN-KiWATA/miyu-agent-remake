@@ -17,7 +17,7 @@ import { summarize } from '../model/session.js';
  *   在压缩（瞬时的 `compaction.progress`）：压好了记下前后的用量（`compaction.done`），落了盘的那一条的序号（走满以前先不画）
  * @typedef {{id: string, events: any[], live: Live|null, marks: Map<string, {start: number, end: number|null}>,
  *   limits: any, unread: boolean, replaying?: boolean, retry: Retry|null, compacting: Compacting|null, compactStats: Map<number, {before: number, after: number}>,
- *   changes: {after: number, at: string, body: any}[], model: {ref?: string, endpoint?: string, model?: string}|null}} Session
+ *   changes: {after: number, at: string, body: any}[], model: {ref?: string, endpoint?: string, model?: string, effort?: {level: string, from: string}}|null}} Session
  */
 
 /** 一个刚知道、还没读的会话。 */
@@ -263,7 +263,9 @@ export class Store {
     if (e.kind === 'model.changed') {
       if (e.body?.limits) s.limits = { ...s.limits, ...e.body.limits };
       // 接下来请求的模型：轮换的池只有 `ref`（8-10）
-      s.model = { ref: e.body?.ref, ...(e.body?.endpoint ? { endpoint: e.body.endpoint } : {}), ...(e.body?.model ? { model: e.body.model } : {}) };
+      s.model = { ref: e.body?.ref, ...(e.body?.endpoint ? { endpoint: e.body.endpoint } : {}), ...(e.body?.model ? { model: e.body.model } : {}),
+        // 接下来请求那个模型的思考强度（`{level, from}`，核心施工 8-18；什么都不带的不写）
+        ...(e.body?.effort ? { effort: e.body.effort } : {}) };
       if (e.body?.why === 'failover') s.changes.push({ after: s.events.at(-1)?.seq ?? 0, at: e.at, body: e.body });
       return;
     }

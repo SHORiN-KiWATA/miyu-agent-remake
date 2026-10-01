@@ -1,10 +1,11 @@
 // @ts-check
 //! 退场（蓝图 `web.md`「动效」）：一个节点的动画要走多久（照计算好的 `animation-duration`、`animation-delay`，几段取最长的）；
-//! 在流里占着地方的一块出来、收回去（`unfold`）。
+//! 在流里占着地方的一块出来、收回去（`unfold`）；照 CSS 的 `cubic-bezier()` 算曲线；高度对齐到整的屏幕像素（整页放大 1.1、屏幕缩放
+//! 以后，一帧一帧缓的小数高度会让贴着下沿的内容上下抖 1 像素：2026-10-02 项目主人觉得切页抖，逐帧截图量出来的）。
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { span, unfold } from '../../src/lib/motion.js';
+import { span, unfold, cubicBezier, snapToPixels, parseBezier } from '../../src/lib/motion.js';
 
 test('动画走多久：秒、毫秒都认，几段取最长的（时长加延迟）；没有动画是 0', () => {
   assert.equal(span('0.12s', '0s'), 120);
@@ -35,4 +36,28 @@ test('占着地方的一块：出来是 is-on、能点、读屏读；收回去�
   assert.ok(!el.classes.has('is-on'));
   assert.equal(el.inert, true);
   assert.equal(el.attrs['aria-hidden'], 'true');
+});
+
+test('cubicBezier 照 CSS 的写法：两头是 0、1；ease 在一半时约 0.8024；linear 是直的', () => {
+  const ease = cubicBezier(0.25, 0.1, 0.25, 1);
+  assert.equal(ease(0), 0);
+  assert.equal(ease(1), 1);
+  assert.ok(Math.abs(ease(0.5) - 0.8024) < 0.001, String(ease(0.5)));
+  const linear = cubicBezier(0, 0, 1, 1);
+  for (const x of [0.1, 0.37, 0.9]) assert.ok(Math.abs(linear(x) - x) < 1e-6);
+  assert.equal(ease(-1), 0, '越界的夹住');
+  assert.equal(ease(2), 1);
+});
+
+test('parseBezier 读 CSS 里写的 cubic-bezier(…)；读不懂的照 ease', () => {
+  assert.deepEqual(parseBezier(' cubic-bezier(0.25, 0.1, 0.25, 1)'), [0.25, 0.1, 0.25, 1]);
+  assert.deepEqual(parseBezier('nonsense'), [0.25, 0.1, 0.25, 1]);
+});
+
+test('snapToPixels：高度对齐到整的屏幕像素（屏幕上一像素是 1 ÷ 放大倍数个 CSS 像素）', () => {
+  const unit = 1 / 1.1;
+  const h = snapToPixels(123.456, 1.1);
+  assert.ok(Math.abs(h / unit - Math.round(h / unit)) < 1e-9, '是整的屏幕像素');
+  assert.ok(Math.abs(h - 123.456) <= unit / 2 + 1e-9, '离原来的不到半个屏幕像素');
+  assert.equal(snapToPixels(10, 1), 10);
 });

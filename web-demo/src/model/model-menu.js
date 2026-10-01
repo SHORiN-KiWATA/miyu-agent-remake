@@ -2,7 +2,7 @@
 //! 换模型的菜单要列什么（蓝图 `web.md`「换模型的菜单」，照 Claude 网页端的模型菜单）：照核心的 `model.list`（核心施工 8-7、
 //! 8-8、8-9）排出模型、模型池两页；框下面那一截怎么拆。纯函数，画在 `ui/model-menu.js`。
 
-import { t } from '../util/res.js';
+import { res, t } from '../util/res.js';
 import { hhmm } from './format.js';
 
 /**
@@ -44,4 +44,40 @@ function why(m) {
 export function footerOf(ref) {
   const cut = ref.startsWith('@') ? -1 : ref.indexOf('/');
   return cut > 0 ? { model: ref.slice(cut + 1), endpoint: ref.slice(0, cut) } : { model: ref, endpoint: null };
+}
+
+/**
+ * 这个模型的思考强度有哪几档（`model.list` 里它的 `facts.reasoning`，核心施工 8-7；能关的带 `off`，8-18）。池、列表里没有的、
+ * 没写的是空的：菜单里就不画思考强度那一行（池不设思考强度，蓝图「换模型的菜单」第 2 条）。
+ * @param {any} list
+ * @param {string|null} ref
+ * @returns {string[]}
+ */
+export function effortLevels(list, ref) {
+  if (!list || !ref || ref.startsWith('@')) return [];
+  for (const p of list.providers ?? []) {
+    const m = (p.models ?? []).find((x) => x.ref === ref);
+    if (m) return Array.isArray(m.facts?.reasoning?.value) ? m.facts.reasoning.value : [];
+  }
+  return [];
+}
+
+/** 一档怎么写：`null` 是默认；表里没有的照原样。 @param {string|null} level */
+export function effortLabel(level) {
+  return level === null ? t('model_menu.effort.default') : res.text.model_menu?.effort?.levels?.[level] ?? level;
+}
+
+/**
+ * 思考强度的子菜单（蓝图「换模型的菜单」第 2 条）：默认一直有，别的只列这个模型报的那几档（没有的不列，2026-10-02 项目主人定），
+ * 照 `layout.json` 的 `effort_order` 排（关、默认、极低、低、中、高、更高、最高；只有开关的是 关、默认、开）。认不出的名字照原样
+ * 排在后面。现在那一档打勾（`null` 是默认）。
+ * @param {string[]} levels 这个模型报的几档
+ * @param {string|null} current
+ * @returns {{level: string|null, title: string, current: boolean}[]}
+ */
+export function effortRows(levels, current) {
+  const order = /** @type {(string|null)[]} */ (res.layout.effort_order);
+  const known = order.filter((lv) => lv === null || levels.includes(lv));
+  const rest = levels.filter((lv) => !order.includes(lv));
+  return [...known, ...rest].map((level) => ({ level, title: effortLabel(level), current: level === current }));
 }

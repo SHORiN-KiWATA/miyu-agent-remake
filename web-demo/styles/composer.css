@@ -160,27 +160,38 @@
 .footer-model:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
 .footer-model-name { min-width: 0; overflow: hidden; color: var(--text); font-weight: 400; text-overflow: ellipsis; }
 .footer-model-prov { flex: none; margin-left: 0.4em; color: var(--t-dim); font-size: 11.5px; }
+/* 思考强度用工作区那个蓝（蓝图「换模型的菜单」第 1 条）；前面的点照框下面那一行的暗色 */
+.footer-model-sep { flex: none; white-space: pre; }
+.footer-model-effort { flex: none; color: var(--t-workspace); }
 /* 菜单：浮在那一截上面，和命令列表一样的底、细线、阴影；进出从那一截长出来、缩回去（原点在那一截的中点） */
 .model-menu {
   /* 宽照列表最长的那个名字，最窄 --menu-min、最宽 --menu-w；打开时定下来，换页不变（model-menu.js） */
-  position: absolute; z-index: 4; bottom: calc(100% + 6px); width: max-content; min-width: var(--menu-min, 200px); max-width: var(--menu-w, 300px); padding: 6px;
+  /* 盖在吉祥物上面（吉祥物那一层是 40，packages/mascot/style.css；2026-10-02 项目主人指出原来被它挡着） */
+  position: absolute; z-index: 45; bottom: calc(100% + 6px); width: max-content; min-width: var(--menu-min, 200px); max-width: var(--menu-w, 300px); padding: 6px;
   border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--surface-1) 94%, transparent);
   -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: var(--float-shadow);
   color: var(--text); font: 13px/1.35 var(--sans); white-space: normal; text-align: left;
   transform-origin: var(--origin, 24px) 100%;
-  animation: menu-grow 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  /* 展开、收起、换页多长（2026-10-02 项目主人指出原来 0.18、0.12、0.2 秒太快） */
+  --menu-grow: 0.26s; --menu-shrink: 0.18s; --menu-turn: 0.32s;
+  /* 换页的曲线：一点就动、尾巴缓（两头缓的那种起步慢，有延迟感，2026-10-02 项目主人指出） */
+  --menu-turn-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  animation: menu-grow var(--menu-grow) cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
-.model-menu.is-leaving { animation: menu-shrink 0.12s var(--ease-in) both; }
+.model-menu.is-leaving { animation: menu-shrink var(--menu-shrink) var(--ease-in) both; }
 @keyframes menu-grow { from { opacity: 0; transform: translateY(6px) scale(0.96); } }
 @keyframes menu-shrink { to { opacity: 0; transform: translateY(4px) scale(0.98); } }
 /* 列表最多露 --rows 行（一行 42px），多的在里面滚；换页时高度缓过去、列表从一边滑进来 */
-.model-menu-pages { overflow: hidden; transition: height 0.2s var(--ease-out); }
-.model-menu-list { max-height: calc(var(--rows) * 42px); overflow-y: auto; overscroll-behavior: contain; }
-.model-menu-list.is-from-right { animation: menu-from-right 0.2s var(--ease-out) both; }
-.model-menu-list.is-from-left { animation: menu-from-left 0.2s var(--ease-out) both; }
-@keyframes menu-from-right { from { opacity: 0; transform: translateX(16px); } }
-@keyframes menu-from-left { from { opacity: 0; transform: translateX(-16px); } }
-.model-menu-row { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 4px 8px; border-radius: 8px; cursor: pointer; }
+/* 换页时列表贴着下沿（挨着切换那一格）：高度变时只有上沿在动，列表不跟着上下挪（2026-10-02 项目主人觉得抖） */
+/* 高度不用 CSS 过渡：model-menu.js 的 slideHeight 一帧一帧缓、对齐到整的屏幕像素（CSS 过渡缓小数高度，字跟着抖 1 像素） */
+.model-menu-pages { position: relative; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
+.model-menu-pages > .model-menu-sheet { flex: none; }
+.model-menu-list { position: relative; max-height: calc(var(--rows) * 42px); overflow-y: auto; overscroll-behavior: contain; }
+.model-menu-sheet.is-from-right { animation: menu-from-right var(--menu-turn) var(--menu-turn-ease) both; }
+.model-menu-sheet.is-from-left { animation: menu-from-left var(--menu-turn) var(--menu-turn-ease) both; }
+@keyframes menu-from-right { from { opacity: 0; transform: translateX(8px); } }
+@keyframes menu-from-left { from { opacity: 0; transform: translateX(-8px); } }
+.model-menu-row { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 4px 8px; border-radius: 8px; cursor: pointer; }
 .model-menu-row.is-selected { background: var(--surface-2); }
 .model-menu-row.is-off { cursor: default; opacity: 0.5; }
 .model-menu-row.is-off.is-selected { background: none; }
@@ -190,19 +201,30 @@
 .model-menu-row > .icon { width: 15px; height: 15px; flex: none; color: var(--accent); opacity: 0; transition: opacity 0.15s ease; }
 .model-menu-row.is-current > .icon { opacity: 1; }
 .model-menu-note { padding: 8px; color: var(--text-faint); font-size: 12.5px; }
-/* 「模型 | 模型池」切换：两格，滑块跟着换 */
-.model-menu-switch { position: relative; display: grid; grid-template-columns: 1fr 1fr; margin: 6px 2px 0; padding: 3px; border-radius: 9px; background: var(--surface-2); }
-.model-menu-switch > button {
-  position: relative; z-index: 1; padding: 3px 0; border: 0; border-radius: 7px; background: none; color: var(--text-soft);
-  font: 12.5px var(--sans); cursor: pointer; transition: color 0.15s ease;
+/* 思考强度那一行：一根细线，「思考强度」右边暗色写现在那一档、一个 ›；子菜单贴着右沿往右展开（下沿和这一行对齐，往上长） */
+.model-menu-line { height: 1px; margin: 4px 8px; background: var(--line); }
+/* 一行字的（思考强度那一行、子菜单的每一档）矮一些：32px（2026-10-02 项目主人指出原来和两行字的一样高） */
+.model-menu-row.is-item { min-height: 32px; }
+.model-menu-row.is-item > .model-menu-title { flex: 1; }
+.model-menu-value { color: var(--text-faint); font-size: 12.5px; }
+.model-menu-row.is-item > .icon { width: 15px; height: 15px; flex: none; color: var(--text-faint); opacity: 1; }
+.model-menu-sub { bottom: auto; left: calc(100% + 4px); width: auto; min-width: 120px; max-width: none; transform-origin: 0 100%; }
+.model-menu-sub .model-menu-row { min-height: 32px; padding-right: 10px; }
+.model-menu-sub { min-width: 150px; }
+
+/* 「模型 | 模型池」切换：两格，滑块跟着换；整个点哪儿都换到另一页 */
+.model-menu-switch { position: relative; display: grid; grid-template-columns: 1fr 1fr; margin: 6px 2px 0; padding: 3px; border-radius: 9px; background: var(--surface-2); cursor: pointer; user-select: none; }
+.model-menu-switch > .model-menu-tab {
+  position: relative; z-index: 1; padding: 3px 0; border-radius: 7px; color: var(--text-soft); text-align: center;
+  font: 12.5px var(--sans); transition: color var(--menu-turn) ease;
 }
-.model-menu-switch > button[aria-pressed="true"] { color: var(--text); font-weight: 500; }
+.model-menu-switch > .model-menu-tab[aria-pressed="true"] { color: var(--text); font-weight: 500; }
 .model-menu-thumb {
   position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 7px; background: var(--surface-1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); transition: transform 0.2s var(--ease-out);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); transition: transform var(--menu-turn) var(--menu-turn-ease);
 }
 .model-menu-switch.on-pools .model-menu-thumb { transform: translateX(100%); }
 @media (prefers-reduced-motion: reduce) {
-  .model-menu, .model-menu-list.is-from-right, .model-menu-list.is-from-left { animation: none; }
+  .model-menu, .model-menu-sheet.is-from-right, .model-menu-sheet.is-from-left { animation: none; }
   .model-menu-pages, .model-menu-thumb { transition: none; }
 }

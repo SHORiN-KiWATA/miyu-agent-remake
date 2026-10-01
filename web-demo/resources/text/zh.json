@@ -391,6 +391,21 @@
     "no_key": "没设 key",
     "failed": "拿不到模型列表：{message}",
     "loading": "正在读模型列表…",
-    "empty": "没有配模型"
+    "empty": "没有配模型",
+    "effort": {
+      "title": "思考强度",
+      "default": "默认",
+      "levels": {
+        "off": "关",
+        "minimal": "极低",
+        "low": "低",
+        "medium": "中",
+        "high": "高",
+        "xhigh": "更高",
+        "max": "最高",
+        "on": "开"
+      }
+    },
+    "no_pools": "还没有配模型池"
   }
 }

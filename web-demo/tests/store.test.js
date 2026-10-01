@@ -100,6 +100,8 @@ test('会话接下来请求的模型（8-10）：model.changed 带 endpoint、mo
   assert.deepEqual(s.model, { ref: 'cheap', endpoint: 'dev', model: 'small' });
   assert.equal(s.limits.window, 64000);
   assert.equal(s.changes.length, 0, 'turn 的不出那一行');
+  push(store, transient(2, 'model.changed', { ref: 'dev/m', endpoint: 'dev', model: 'm', effort: { level: 'high', from: 'session' }, why: 'turn' }));
+  assert.deepEqual(s.model?.effort, { level: 'high', from: 'session' }, '思考强度（8-18）跟着记');
   push(store, transient(2, 'model.changed', { ref: '@spread', why: 'turn' }));
   assert.deepEqual(s.model, { ref: '@spread' }, '轮换的池只有 ref');
 });
