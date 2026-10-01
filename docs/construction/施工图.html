@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>165</b><span>/ 185 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 W-2 列文件找文件，接着 8-10 会话里换模型、W-3 路径；跨会话只剩 C-7 验收</span></li>
-    <li><b class="mono">1982bc52</b><span>最近一步（8-9 出错换端点）的提交</span></li>
+    <li><b>166</b><span>/ 185 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 W-2 列文件找文件，接着 W-3 路径、8-11 第一次接入；跨会话只剩 C-7 验收</span></li>
+    <li><b class="mono">169df271</b><span>最近一步（8-10 会话里换模型）的提交</span></li>
   </ul>
 </header>
 
@@ -518,7 +518,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s8-7"><span class="n">8-7</span>模型资料<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-8"><span class="n">8-8</span>用途、挡位、池<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-9"><span class="n">8-9</span>出错换端点<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">8-10</span>会话里换模型</span></li>
+        <li><a class="step done" href="#s8-10"><span class="n">8-10</span>会话里换模型<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">8-11</span>第一次接入</span></li>
         <li><span class="step"><span class="n">8-12</span>Anthropic 消息接口</span></li>
         <li><span class="step"><span class="n">8-13</span>OpenAI Responses 接口</span></li>
@@ -11097,6 +11097,56 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/8-9-出错换端点.md</code>；蓝图 <code>models.md</code> 第四、五条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-10" aria-labelledby="h-s810">
+  <div class="sheet-head"><h2 id="h-s810"><span class="no">8-10</span>会话里换模型</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">开着的会话能换模型：头发 <code>session.configure</code>，下一个回合开始生效；钉着的模型、池没了退回 <code>models.chat</code>、记一条说明；配置变了也在下一个回合开始时生效，限额跟着变、推 <code>model.changed</code>（<code>why: turn</code>）。<code>subscribe</code> 带会话接下来请求的模型，<code>miyu ask --model</code>。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">会话里换模型</span><span class="dir-note">8-10</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>内核记着引用：<code>session.created</code> 的 <code>model</code> 被后来带 <code>model</code> 的 <code>session.policy_changed</code> 盖掉；撤掉的回合里改的也算</li>
+              <li>回合开始重新解析：解析不出退回 <code>models.chat</code>，<code>replaced</code> 记在注入的事实前面；手动压缩、清空那一轮不重新解析</li>
+              <li>换模型解除自动压缩的暂停；窗口、最大输出的生效时机改成 <code>next_turn</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">只改窗口也推</span><span class="rl">model.changed 的 why: turn 在引用、端点、窗口、压缩线有一格变了就推</span></div>
+          <div class="tile new"><span class="nm">接旧会话换不成</span><span class="rl">miyu ask -c --model 换不成退出码 1，不发话</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-10</dd></div>
+        <div><dt>名称</dt><dd>会话里换模型</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">169df271</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>17 个手写变异全逮住；三台机器的 CI 和长跑全绿，release 两万例过</span></li>
+        <li><span class="ok">✓</span><span>真模型：同一个会话里 <code>--model</code> 换到另一家，暗号照样答对；配置里删掉那一家，下一轮内核记下退回、请求发给 <code>models.chat</code></span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-10-会话里换模型.md</code>；蓝图 <code>models.md</code> 第六条。</li>
       </ul>
     </div>
   </div>
