@@ -5,7 +5,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::boundary::{Boundary, Places};
@@ -243,12 +242,14 @@ fn a_build_still_finishes_when_results_are_read_mid_flight() {
 #[test]
 fn unreadable_subdirectories_are_skipped_and_reported_through_the_callback() {
     use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    use std::sync::{Arc, Mutex};
 
-    if fs::metadata("/proc/self").expect("有").uid() == 0 {
-        return;
-    }
     let scratch = Scratch::new();
     let root = &scratch.0;
+    // root 读得了 0o000 的目录，这一条在 root 下不成立。看自己刚建的目录归谁：macOS 没有 /proc。
+    if fs::metadata(root).expect("有").uid() == 0 {
+        return;
+    }
     touch(root, "locked/secret.txt");
     touch(root, "keep.txt");
     let locked = root.join("locked");
