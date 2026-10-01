@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use miyu_http::testkit::{Piece, Reply, Server};
-use miyu_http::{Get, Got, Proxy, fetcher, get};
+use miyu_http::{Get, Got, Proxy, fetcher, get, get_full};
 
 /// 照 `server` 的地址加 `/models` GET 一次。
 async fn fetch(server: &Server, etag: Option<&str>, limit: usize) -> Result<Got, String> {
@@ -85,4 +85,56 @@ async fn failures_say_what_happened_without_the_address_or_the_key() {
     let refused = fetch(&nobody, None, 1024).await.expect_err("连不上");
     assert!(!refused.contains("sk-"), "{refused}");
     assert!(!refused.contains("127.0.0.1"), "{refused}");
+}
+
+#[tokio::test]
+async fn the_full_failure_keeps_the_status_the_headers_and_the_body() {
+    // 施工 8-11：`provider.test` 列模型失败时照驱动分类，要状态码、头、响应体；原话和 `get` 的一样。
+    let server = Server::start(vec![
+        Reply::error(
+            401,
+            &[("Retry-After", "7")],
+            "{\"error\":{\"message\":\"bad key\"}}",
+        ),
+        Reply::error(404, &[], ""),
+    ])
+    .await;
+    let client = fetcher(Proxy::Off).expect("造得出客户端");
+    let url = format!("{}/models", server.base_url);
+    let ask = || Get {
+        client: &client,
+        url: &url,
+        headers: &[],
+        etag: None,
+        timeout: Duration::from_secs(2),
+        limit: 1024,
+    };
+    let failed = get_full(ask()).await.expect_err("401");
+    assert_eq!(failed.status, Some(401));
+    assert_eq!(failed.message, "HTTP 401");
+    assert_eq!(failed.body, b"{\"error\":{\"message\":\"bad key\"}}");
+    assert!(
+        failed
+            .headers
+            .iter()
+            .any(|(name, value)| name == "retry-after" && value == "7"),
+        "{:?}",
+        failed.headers
+    );
+    assert_eq!(get(ask()).await, Err("HTTP 404".to_string()));
+    drop(server);
+    let nobody = Server::start(Vec::new()).await;
+    let url = format!("{}/models", nobody.base_url);
+    let refused = get_full(Get {
+        client: &client,
+        url: &url,
+        headers: &[],
+        etag: None,
+        timeout: Duration::from_secs(2),
+        limit: 1024,
+    })
+    .await
+    .expect_err("连不上");
+    assert_eq!(refused.status, None, "连不上的没有状态码");
+    assert!(refused.body.is_empty());
 }

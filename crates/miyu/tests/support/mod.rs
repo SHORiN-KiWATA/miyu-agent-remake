@@ -17,6 +17,10 @@ use miyu_store::root::DataRoot;
 /// 测试构建出来的主程序。
 pub const MIYU: &str = env!("CARGO_BIN_EXE_miyu");
 
+/// 一个永远用不了的主对话的模型（施工 8-11）：驱动还没有，请求当场 `no_model`，一个字节都不往外发。`miyu ask` 说话之前先看
+/// `models.chat` 配没配，没配的不造会话；要看「没有可用的模型」那一轮的测试照它写系统配置。
+pub const UNUSABLE_MODEL: &str = "[providers.idle]\ndriver = \"anthropic\"\nbase_url = \"https://idle.invalid\"\nkeys = []\n\n[models]\nchat = \"idle/none\"\n";
+
 /// 一个用完就删的临时数据根，建好了骨架。
 pub struct Home {
     pub dir: PathBuf,
@@ -41,6 +45,13 @@ impl Home {
         .expect("MIYU_HOME 是绝对路径");
         root.prepare().expect("临时目录里建得了骨架");
         Home { dir, root }
+    }
+
+    /// 系统配置写成 `text`：核心起来之前写。
+    pub fn system_config(&self, text: &str) {
+        let file = self.root.path().join("system").join("config.toml");
+        std::fs::create_dir_all(file.parent().expect("有上一级")).expect("建得了目录");
+        std::fs::write(file, text).expect("写得进");
     }
 
     /// 拉起核心的命令：`miyu core`，空闲 1 秒就走；数据根是这个临时目录，资源目录是源码树的；不用

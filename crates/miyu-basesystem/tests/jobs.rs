@@ -324,7 +324,18 @@ async fn every_result_is_said_in_both_languages() {
     check(
         &mut checked,
         human(done),
-        said("jobs/listed").with("count", "1"),
+        said("jobs/listed/one").with("count", "1"),
+    );
+    let mut port = Port::new();
+    port.listed = vec![
+        listed(1, JobKind::Command, "a", None, 1),
+        listed(2, JobKind::Command, "b", None, 1),
+    ];
+    let done = jobs(Some(port), json!({"action": "list"})).await;
+    check(
+        &mut checked,
+        human(done),
+        said("jobs/listed").with("count", "2"),
     );
     let done = jobs(Some(Port::new()), json!({"action": "list"})).await;
     check(&mut checked, human(done), said("jobs/none"));

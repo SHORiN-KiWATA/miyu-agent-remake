@@ -11,6 +11,9 @@
 //! - 指针一个池一个，核心一份（[`Pointers`]，`state/models/pools.json`：`{"<池>":<下一个是第几个>}`，由执行器读写）。成员变了，
 //!   指针对新的个数取余。
 //!
+//! - 派子代理能选的（施工 8-8 补，[`offered`]）：开关 `subagent` 开着、至少有一个认得出的成员的池，照名字的字节序排，带上
+//!   给模型看的说明。会话开局时照它拼 `subagent` 的参数（`models.md`「工具」）。
+//!
 //! 这一层不碰文件，指针的字由执行器读写；挑哪一个、指针怎么走在这里。出错换下一个、冷却随 8-9。
 
 use std::collections::BTreeMap;
@@ -66,7 +69,31 @@ pub struct Pool {
     pub skipped: Vec<String>,
 }
 
-/// 配置里有哪几个池：照名字排。
+/// 派子代理能选的一个池（施工 8-8 补）：名字，给模型看的说明（没写的没有）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Offer {
+    /// 池的名字：`@` 后面那一段，`subagent` 的 `pool` 写的就是它。
+    pub name: String,
+    /// 给模型看的一句：`pools.<名字>.description`。
+    pub description: Option<String>,
+}
+
+/// 照这时的配置 `values`，派子代理能选哪几个池（施工 8-8 补，`models.md`「工具」第 1 条）：`subagent` 开着、至少有一个
+/// 认得出的成员（[`pool`] 解析得出），照名字的字节序排。
+pub fn offered(values: &Values) -> Vec<Offer> {
+    names(values)
+        .into_iter()
+        .filter_map(|name| {
+            let settings = PoolSettings::at(values, &[&name]);
+            (settings.subagent && pool(values, &name).is_ok()).then_some(Offer {
+                name,
+                description: settings.description,
+            })
+        })
+        .collect()
+}
+
+/// 配置里有哪几个池：照名字的字节序排。
 pub fn names(values: &Values) -> Vec<String> {
     miyu_config::key::names(values.keys(), "pools.<id>", &[])
 }

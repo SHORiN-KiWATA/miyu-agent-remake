@@ -34,6 +34,8 @@ pub enum Piece {
     Stall,
     /// 直接断开。
     Drop,
+    /// 等别的连接也走到这一道闸，一起放行（施工 8-11）：几个连接得同时在才回得出来，证明对方是一起发的。
+    Gate(Arc<tokio::sync::Barrier>),
 }
 
 impl Reply {
@@ -211,6 +213,9 @@ async fn serve(
                 return;
             }
             Piece::Drop => return,
+            Piece::Gate(gate) => {
+                gate.wait().await;
+            }
         }
     }
     let _unused = socket.shutdown().await;

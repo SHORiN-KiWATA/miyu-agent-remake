@@ -373,7 +373,7 @@ impl Actor {
                         permission,
                         jobs,
                         subagents: self.session.subagents(),
-                        inherit: Inherit::of(&*self.model, self.config.current()),
+                        inherit: Inherit::of(&*self.model),
                     },
                 )
             }

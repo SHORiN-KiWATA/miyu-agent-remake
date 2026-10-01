@@ -1,6 +1,7 @@
 //! 协议上的 `model.list`（`docs/blueprint/models.md`「协议」，施工 8-7）：配好的供应商，每家的 key、对上了目录里的哪一家、
-//! 模型，每个模型每一格资料的值和来源、状态；在用的目录。池、挡位、用途的 `vision`（施工 8-8）：池写的成员和怎么分，四个挡位、
-//! 两种用途各配的引用，没配的是 `null`。模型、key 的冷却（施工 8-9）照核心一份的冷却表，照这一刻说。`session.create` 的 `model` 怎么解析也在这里（[`record`]，施工 8-8）。
+//! 模型，每个模型每一格资料的值和来源、状态；在用的目录。池、用途的 `vision`（施工 8-8）：池写的成员和怎么分，派子代理能不能
+//! 选、给模型看的说明（施工 8-8 补），两种用途各配的引用，没配的是 `null`。8-8 的 `tiers` 8-8 补去掉了。模型、key 的冷却
+//! （施工 8-9）照核心一份的冷却表，照这一刻说。`session.create` 的 `model` 怎么解析也在这里（[`record`]，施工 8-8）。
 //! `session.configure` 的参数（[`ConfigureParams`]）、`subscribe` 回应的 `model`（[`next`]）也在这里（施工 8-10）。
 //!
 //! 1. 先等目录读完（核心写了 `ready` 以后才读）。
@@ -20,7 +21,7 @@ use miyu_config::secret::{Reference, Secret};
 use miyu_config::{Layer, Values};
 use miyu_models::pools;
 use miyu_models::provider::{self, NoModel};
-use miyu_models::settings::{ProviderSettings, TierSettings, UseSettings};
+use miyu_models::settings::{PoolSettings, ProviderSettings, UseSettings};
 use miyu_session::{ModelData, Next, STALE, refresh_list};
 
 use crate::Core;
@@ -97,34 +98,35 @@ pub(crate) async fn list(core: &Core, params: Value) -> Result<Value, Refusal> {
         |loaded| json!({"source": loaded.source.as_str(), "fetched": loaded.fetched}),
     );
     let uses = UseSettings::from(&values);
-    let tiers = TierSettings::from(&values);
     Ok(json!({
         "providers": providers,
         "pools": pools_json(&values),
-        "tiers": {
-            "lite": tiers.lite,
-            "cheap": tiers.cheap,
-            "standard": tiers.standard,
-            "flagship": tiers.flagship,
-        },
         "uses": {"chat": uses.chat, "vision": uses.vision},
         "catalog": catalog,
     }))
 }
 
-/// 每个池：名字、怎么分（没写的照成员定）、写的成员（照写的原样）。照名字排。
+/// 每个池：名字、怎么分（没写的照成员定）、写的成员（照写的原样），派子代理能不能选（没写的是 `false`）、给模型看的说明
+/// （没写的是 `null`，施工 8-8 补）。照名字排。
 fn pools_json(values: &Values) -> Vec<Value> {
     pools::names(values)
         .into_iter()
         .filter_map(|name| {
             let (models, strategy) = pools::listed(values, &name)?;
-            Some(json!({"name": name, "strategy": strategy.as_str(), "models": models}))
+            let settings = PoolSettings::at(values, &[&name]);
+            Some(json!({
+                "name": name,
+                "strategy": strategy.as_str(),
+                "models": models,
+                "subagent": settings.subagent,
+                "description": settings.description,
+            }))
         })
         .collect()
 }
 
-/// `session.configure` 的参数（施工 8-10，`docs/blueprint/models.md`「协议」）：哪个会话、换成的模型、`@池` 或者挡位，两格都
-/// 必写，不是字的读不成（`bad_params`）。
+/// `session.configure` 的参数（施工 8-10，`docs/blueprint/models.md`「协议」）：哪个会话、换成的模型或 `@池`，两格都必写，
+/// 不是字的读不成（`bad_params`）。
 #[derive(Debug, Deserialize)]
 pub(crate) struct ConfigureParams {
     /// 哪个会话。
@@ -164,12 +166,12 @@ pub(crate) fn next(next: &Next) -> Option<Value> {
     Some(Value::Object(written))
 }
 
-/// `session.create` 的 `model`（施工 8-8）：照这时的配置解析成会话记下的引用（模型或 `@池`，挡位换成它这时的值）。照不算项目
-/// 配置的最终值：模型这一块项目配置里本来就不能写。
+/// `session.create` 的 `model`（施工 8-8）：照这时的配置查过，交回会话记下的引用（模型或 `@池`）。照不算项目配置的最终值：
+/// 模型这一块项目配置里本来就不能写。
 ///
 /// # Errors
 ///
-/// 解析不出：没有这家供应商、没有这个池、池是空的、挡位没配又没有 `models.chat`（`unknown_model`，原话记一行 `DEBUG`）。
+/// 解析不出：写法不对（连同以前的挡位名）、没有这家供应商、没有这个池、池是空的（`unknown_model`，原话记一行 `DEBUG`）。
 pub(crate) fn record(core: &Core, text: &str) -> Result<String, Refusal> {
     let values = core.config().resolved().values();
     miyu_models::reference::record(&values, text).map_err(|NoModel(why)| {
@@ -179,8 +181,8 @@ pub(crate) fn record(core: &Core, text: &str) -> Result<String, Refusal> {
 }
 
 /// 抄一份这一刻的配置：每个用得到的引用（key，和地址是环境变量的引用时，施工 8-6b）都先取好值，拉列表、`model.list`
-/// 用的是同一份，不会各自再问一次核心的环境。
-fn snapshot(core: &Core) -> Snapshot {
+/// 用的是同一份，不会各自再问一次核心的环境。`provider.detect`、`provider.test` 也用（施工 8-11）。
+pub(crate) fn snapshot(core: &Core) -> Snapshot {
     let config = core.config();
     let resolved = config.resolved().clone();
     let values = resolved.values();

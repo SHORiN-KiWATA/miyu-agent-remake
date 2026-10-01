@@ -190,6 +190,11 @@ pub(crate) fn expected(words: &dyn Words, kind: Kind) -> Result<String, Missing>
             &[("min", &min.to_string()), ("max", &max.to_string())],
         ),
         Kind::Text { max } => sentence(words, "config/expected/text", &[("max", &max.to_string())]),
+        Kind::English { max } => sentence(
+            words,
+            "config/expected/english",
+            &[("max", &max.to_string())],
+        ),
         Kind::Duration { min, max } => sentence(
             words,
             "config/expected/duration",

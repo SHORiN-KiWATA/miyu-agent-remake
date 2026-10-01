@@ -141,7 +141,7 @@ fn schema_item(item: &Item, said: Option<&miyu_config::ItemWords>) -> Value {
             map.insert("min".to_string(), json!(min));
             map.insert("max".to_string(), json!(max));
         }
-        Kind::Text { max } => {
+        Kind::Text { max } | Kind::English { max } => {
             map.insert("max".to_string(), json!(max));
         }
         Kind::List(inner) => {

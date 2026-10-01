@@ -21,7 +21,7 @@
 | `crates/miyu-fs/src/list.rs` | 列一层目录（`fs.list`，施工 W-2） |
 | `crates/miyu-fs/src/find.rs` | 模糊找文件的清单（`Index`）、打分（`score`），`fs.find` 用（施工 W-2） |
 
-用它的：基础系统的几件工具（`tools/`）；权限策略 `crates/miyu-session/src/guard.rs`（换成真实的位置、查边界；判 `trash` 时最后一段不跟链接）；撤销时改回文件 `crates/miyu-session/src/restore.rs`（`replace`、`trash::put`、`trash::restore`）；开会话时挑工作区 `crates/miyu-endpoint/src/sessions.rs`（`resolve`、`too_wide`）；`blob.put` 读人附的文件 `crates/miyu-endpoint/src/attach.rs`（`resolve`、`tilde`、边界表只拦谁都不能碰的那一片、`open_file`，施工 3-9 三补，`protocol.md`）；`fs.list`、`fs.find` `crates/miyu-endpoint/src/files.rs`（`resolve`、边界表、`list_dir`、`find::Index`、`find::score`，找文件的清单记几份住在 `files/cache.rs`，施工 W-2，`protocol.md`）。
+用它的：基础系统的几件工具（`tools/`）；权限策略 `crates/miyu-session/src/guard.rs`（换成真实的位置、查边界；判 `trash` 时最后一段不跟链接）；撤销时改回文件 `crates/miyu-session/src/restore.rs`（`replace`、`trash::put`、`trash::restore`）；开会话时挑工作区 `crates/miyu-endpoint/src/sessions.rs`（`resolve`、`too_wide`）；`blob.put` 读人附的文件 `crates/miyu-endpoint/src/attach.rs`（`resolve`、`tilde`、边界表只拦谁都不能碰的那一片、`open_file`，施工 3-9 三补，`protocol.md`）；`fs.list`、`fs.find` `crates/miyu-endpoint/src/files.rs`（`resolve`、边界表、`list_dir`、`find::Index`、`find::score`，找文件的清单记几份住在 `files/cache.rs`，施工 W-2，`protocol.md`）；`fs.realpath` 同一个 `crates/miyu-endpoint/src/files.rs`（直接用 `resolve`，不查边界，施工 W-3，`protocol.md`）；握手回应的 `host.home`（施工 W-3，`crates/miyu-endpoint/src/hello.rs`）照原样不走这一层，`host.workspace` 只调 `std::fs::canonicalize`，没有 `~`、相对路径要接，不用 `resolve`。
 
 ### 对外的样子
 
@@ -304,4 +304,4 @@
 - 成员的边界（只能碰自己的工作区）、别人分享来的工作区加进边界（第三节、第四节，`06-多用户与身份.md` U12）。
 - 放不进回收站时问人要不要永久删除：随 M8 的当场确认（`10-自带软件.md` 第三节）。
 - Windows 的回收站设成「立即删除」、东西比回收站的容量上限还大：还没验证会怎样（第三节）。
-- 从最近在的一层换成真实的位置（`fs.realpath`）、安全地打开以后读一段（`fs.read`）：W-3、W-6。`fs.list`、`fs.find` 的出厂数（50、20000、8 层、10 秒、4 份、跳过的名单）现在写在代码里，配置那一步能改（`web-module.md`「起草时定的」第 29 条）。
+- 安全地打开以后读一段（`fs.read`）：W-6（`fs.realpath` 已经做了，W-3，复用的是这一节第二条「换成真实的位置」，没有新加逻辑）。`fs.list`、`fs.find` 的出厂数（50、20000、8 层、10 秒、4 份、跳过的名单）现在写在代码里，配置那一步能改（`web-module.md`「起草时定的」第 29 条）。

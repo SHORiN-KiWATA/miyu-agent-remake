@@ -49,7 +49,7 @@
 | `tools/jobs.md` | 看、读、停派出去的任务（施工 7-4） |
 | `tools/send_message.md` | 父子之间留言（施工 7-7） |
 | `tools/sessions.md` | 列你别的主会话（施工 C-3，跨会话） |
-| `cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`、`cli/config.md`、`cli/login.md`、`cli/main.md` | 每条命令一页（`cli/compact.md` 施工 6-8，`cli/redo.md` 施工 4-7 再补，`cli/recap.md` 施工 3-8 四补，`cli/rename.md` 施工 3-8 五补，`cli/config.md` 施工 8-2，`cli/login.md` 施工 8-5）；主程序 |
+| `cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`、`cli/config.md`、`cli/login.md`、`cli/setup.md`、`cli/main.md` | 每条命令一页（`cli/compact.md` 施工 6-8，`cli/redo.md` 施工 4-7 再补，`cli/recap.md` 施工 3-8 四补，`cli/rename.md` 施工 3-8 五补，`cli/config.md` 施工 8-2，`cli/login.md` 施工 8-5，`cli/setup.md` 施工 8-11）；主程序 |
 | `sandbox.md` | 沙盒：规格、助手 `miyu-sandbox`、探测、找助手（施工 5-1 起） |
 | `sandbox/linux.md` | 沙盒在 Linux 上怎么收紧：只用 Landlock，整盘能读、只管写（施工 5-2 起，5-3 改成只管写） |
 | `sandbox/macos.md` | 沙盒在 macOS 上怎么收紧：Seatbelt 配置的底子、照规格生成的规则、换成真实的位置、装上、探测报 `seatbelt`（施工 5-7 起） |
@@ -58,7 +58,7 @@
 | `agents.md` | 分身：子代理和后台命令，派出去、回报、留言、停、撤销、载入、`miyu ask` 等回报、别的 harness 发消息：图纸，M7 施工（2026-09-29） |
 | `tui.md` | 终端界面的演示：版式、按键、鼠标、时间线、斜杠命令；和设计 13 的出入（分支 `proto/tui-demo`） |
 | `cross-session.md` | 跨会话：列会话、读别的会话、给别的会话发话、空了告诉我、防刷屏：图纸，定稿（2026-10-01 项目主人批准），跨会话 C-1 到 C-7 照它施工 |
-| `models.md` | 供应商和模型：供应商的配置、模型资料和四层对目录、用途挡位池、出错换端点和冷却、会话里换模型、第一次接入、opencode Zen、用量和金额：图纸，定稿（2026-10-01 项目主人批准），M8 照它施工 |
+| `models.md` | 供应商和模型：供应商的配置、模型资料和四层对目录、用途和池、出错换端点和冷却、会话里换模型、第一次接入、opencode Zen、用量和金额：图纸，定稿（2026-10-01 项目主人批准），M8 照它施工 |
 | `config.md` | 配置和密钥：清单、分层、项目配置的信任、校验和报错、写盘、留痕、监视和生效、密钥、`config.*`、`secret.*`、`miyu config`、`miyu login`、`miyu logout`：图纸，定稿（2026-10-01 项目主人批准），M8 的 8-1 到 8-5 照它施工 |
 | `web-module.md` | 网页界面这个软件和核心给它的通用方法：网页软件 `miyu-web`（端口、页面、WebSocket 照转、一次性登录、媒体地址），核心给所有头的 `human.get`、`fs.*`、`mermaid.render`、分块传和读 blob、`link.preview`：图纸，2026-10-01 项目主人批准；W-1 到 W-7 现在做，身份、网页软件等用户系统 |
 | `licenses.md` | 仓库用什么许可证；门禁查依赖的许可证能不能和它合在一起发（施工 4-12） |

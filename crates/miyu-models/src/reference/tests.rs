@@ -1,5 +1,5 @@
-//! 三种写法（`models.md`「守着它的」第一行，施工 8-6）：先后、切在第一个 `/`、哪里能写哪几种。施工 8-8：挡位退回 `chat`、
-//! 不借相邻的；池的认不出的成员跳过；造会话记下的是解析出的模型或池；一个引用这一轮指到哪。
+//! 两种写法（`models.md`「守着它的」第一行，施工 8-6）：先后、切在第一个 `/`、哪里能写哪几种。施工 8-8：池的认不出的成员
+//! 跳过；造会话记下的是查过的模型或池；一个引用这一轮指到哪。施工 8-8 补：以前的挡位名哪里都不认。
 
 use serde_json::json;
 
@@ -16,27 +16,27 @@ fn model(provider: &str, model: &str) -> Reference {
 }
 
 #[test]
-fn the_three_ways_are_read_in_order() {
+fn the_two_ways_are_read_in_order() {
     assert_eq!(
         Reference::parse("@free"),
         Ok(Reference::Pool("free".to_string()))
     );
-    for tier in TIERS {
-        assert_eq!(Reference::parse(tier), Ok(Reference::Tier(tier)));
-    }
     assert_eq!(
         Reference::parse("deepseek/deepseek-flash"),
         Ok(model("deepseek", "deepseek-flash"))
     );
-    // `@` 在前：`@lite` 是池，不是挡位；挡位只认正好是那几个词的。
     assert_eq!(
         Reference::parse("@lite"),
         Ok(Reference::Pool("lite".to_string()))
     );
-    assert_eq!(
-        Reference::parse("Lite"),
-        Err(Bad::NotAReference("Lite".to_string()))
-    );
+    // 以前的挡位名（施工 8-8 补去掉了）：照写法不对。
+    for tier in ["lite", "cheap", "standard", "flagship", "Lite"] {
+        assert_eq!(
+            Reference::parse(tier),
+            Err(Bad::NotAReference(tier.to_string())),
+            "{tier}"
+        );
+    }
 }
 
 #[test]
@@ -61,14 +61,13 @@ fn a_model_is_cut_at_the_first_slash() {
     }
     assert_eq!(model("openrouter", "a/b").to_string(), "openrouter/a/b");
     assert_eq!(Reference::Pool("free".to_string()).to_string(), "@free");
-    assert_eq!(Reference::Tier("lite").to_string(), "lite");
 }
 
 #[test]
 fn each_place_takes_only_its_kinds() {
     assert_eq!(
         Reference::parse_at("cheap", Place::Use),
-        Err(Bad::TierHere("cheap".to_string()))
+        Err(Bad::NotAReference("cheap".to_string()))
     );
     assert!(Reference::parse_at("@free", Place::Use).is_ok());
     assert!(Reference::parse_at("dev/m", Place::Use).is_ok());
@@ -78,23 +77,16 @@ fn each_place_takes_only_its_kinds() {
     );
     assert_eq!(
         Reference::parse_at("lite", Place::PoolMember),
-        Err(Bad::NotAModel("lite".to_string()))
+        Err(Bad::NotAReference("lite".to_string()))
     );
     assert!(Reference::parse_at("dev/m", Place::PoolMember).is_ok());
-    for text in ["lite", "@free", "dev/m"] {
-        assert!(Reference::parse_at(text, Place::Session).is_ok(), "{text}");
-    }
 }
 
 #[test]
 fn the_errors_say_what_the_blueprint_says() {
     assert_eq!(
         Bad::NotAReference("x".to_string()).to_string(),
-        r#""x" is not a model, a pool or a tier"#
-    );
-    assert_eq!(
-        Bad::TierHere("lite".to_string()).to_string(),
-        r#"a tier cannot be used here: "lite""#
+        r#""x" is not a model or a pool"#
     );
     assert_eq!(
         Bad::NotAModel("@p".to_string()).to_string(),
@@ -141,27 +133,23 @@ fn the_config_accepts_as_a_pool_member_what_a_pool_member_place_accepts() {
     }
 }
 
-/// 两家、一个池、两个挡位配了：`lite` 是池，`flagship` 是模型，另两挡没配。
-const CONFIG: &str = "[providers.a]\ndriver = \"openai-chat\"\nbase_url = \"https://a.invalid\"\n\n[providers.b]\ndriver = \"openai-chat\"\nbase_url = \"https://b.invalid\"\n\n[models]\nchat = \"a/main\"\n\n[models.tiers]\nlite = \"@free\"\nflagship = \"b/big\"\n\n[pools.free]\nmodels = [\"a/x\", \"gone/y\", \"b/z\"]\n";
+/// 两家、一个池，`models.chat` 是 `a/main`、`models.vision` 是 `b/big`。
+const CONFIG: &str = "[providers.a]\ndriver = \"openai-chat\"\nbase_url = \"https://a.invalid\"\n\n[providers.b]\ndriver = \"openai-chat\"\nbase_url = \"https://b.invalid\"\n\n[models]\nchat = \"a/main\"\nvision = \"b/big\"\n\n[pools.free]\nmodels = [\"a/x\", \"gone/y\", \"b/z\"]\n";
 
 fn values(source: &str) -> Values {
     resolved(source).values()
 }
 
+/// 用途、池里点名的模型（`model.list` 照它列）：照 `chat`、`vision`、池的成员的先后，池、写法不对的不算（施工 8-8 补：
+/// 没有挡位了）。
 #[test]
-fn a_tier_is_its_value_or_the_chat_model_never_a_neighbour() {
-    let values = values(CONFIG);
-    assert_eq!(tier(&values, "lite").as_deref(), Some("@free"));
-    assert_eq!(tier(&values, "flagship").as_deref(), Some("b/big"));
-    for unset in ["cheap", "standard"] {
-        assert_eq!(
-            tier(&values, unset).as_deref(),
-            Some("a/main"),
-            "{unset} 没配：用 chat，不借相邻的"
-        );
-    }
-    assert_eq!(tier(&values, "huge"), None, "不是挡位");
-    assert_eq!(tier(&Values::default(), "lite"), None, "chat 也没配");
+fn named_models_come_from_the_uses_and_the_pools() {
+    let named = named(&values(CONFIG));
+    let named: Vec<String> = named
+        .into_iter()
+        .map(|(provider, model)| format!("{provider}/{model}"))
+        .collect();
+    assert_eq!(named, ["a/main", "b/big", "a/x", "gone/y", "b/z"]);
 }
 
 #[test]
@@ -174,17 +162,12 @@ fn a_session_records_the_model_or_pool_a_reference_resolves_to_now() {
         "模型名不查"
     );
     assert_eq!(record("@free").as_deref(), Ok("@free"));
-    assert_eq!(
-        record("lite").as_deref(),
-        Ok("@free"),
-        "挡位记下的是它这时的值"
-    );
-    assert_eq!(record("flagship").as_deref(), Ok("b/big"));
-    assert_eq!(record("cheap").as_deref(), Ok("a/main"), "没配的用 chat");
     for (text, why) in [
         ("c/m", r#"no provider "c""#),
         ("@paid", r#"no pool "paid""#),
-        ("nope", r#""nope" is not a model, a pool or a tier"#),
+        ("nope", r#""nope" is not a model or a pool"#),
+        ("lite", r#""lite" is not a model or a pool"#),
+        ("flagship", r#""flagship" is not a model or a pool"#),
     ] {
         assert_eq!(record(text), Err(NoModel(why.to_string())), "{text}");
     }
@@ -194,11 +177,6 @@ fn a_session_records_the_model_or_pool_a_reference_resolves_to_now() {
         crate::reference::record(&bare, "@empty"),
         Err(NoModel(r#"pool "empty" has no models"#.to_string()))
     );
-    assert_eq!(
-        crate::reference::record(&bare, "lite"),
-        Err(NoModel(NOT_CONFIGURED.to_string())),
-        "挡位没配又没有 chat"
-    );
 }
 
 #[test]
@@ -206,7 +184,7 @@ fn a_reference_resolves_to_a_model_or_a_pool_this_turn() {
     let values = values(CONFIG);
     let held = Held::new(json!({}), false);
     let knowledge = held.knowledge();
-    match resolve(&values, &knowledge, "flagship") {
+    match resolve(&values, &knowledge, "b/big") {
         Ok(Resolved::Model(target)) => {
             assert_eq!(
                 (target.provider.id.as_str(), target.model.as_str()),
@@ -216,7 +194,7 @@ fn a_reference_resolves_to_a_model_or_a_pool_this_turn() {
         }
         other => panic!("{other:?}"),
     }
-    match resolve(&values, &knowledge, "lite") {
+    match resolve(&values, &knowledge, "@free") {
         Ok(Resolved::Pool(pool)) => {
             assert_eq!(pool.name, "free");
             assert_eq!(pool.strategy, Strategy::Pin);
@@ -240,16 +218,19 @@ fn a_reference_resolves_to_a_model_or_a_pool_this_turn() {
     }
     assert_eq!(
         resolve(&values, &knowledge, "cheap"),
-        resolve(&values, &knowledge, "a/main"),
-        "没配的挡位用 chat"
+        Err(NoModel(r#""cheap" is not a model or a pool"#.to_string())),
+        "以前的挡位名不认"
     );
     assert_eq!(
         resolve(&values, &knowledge, "c/m"),
         Err(NoModel(r#"no provider "c""#.to_string()))
     );
     assert_eq!(
-        resolve(&Values::default(), &knowledge, "lite"),
-        Err(NoModel(NOT_CONFIGURED.to_string()))
+        resolve(&Values::default(), &knowledge, "@free"),
+        Err(NoModel(r#"no pool "free""#.to_string()))
     );
-    assert_eq!(NOT_CONFIGURED, "no model configured: set models.chat");
+    assert_eq!(
+        crate::provider::NOT_CONFIGURED,
+        "no model configured: set models.chat"
+    );
 }

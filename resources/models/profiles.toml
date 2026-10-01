@@ -15,3 +15,9 @@ driver = "openai-chat"
 base_url = "https://api.deepseek.com"
 image_tokens = "deepseek"
 compat = { reasoning = { replay = "reasoning_content", always = true }, continuation = { field = "prefix", path = "/beta/chat/completions" } }
+
+# Ollama 本机的服务（施工 8-11）：目录里没有（目录里的 ollama-cloud 是云端的），只为第一次接入找现成的本机服务。
+[providers.ollama]
+name = "Ollama"
+driver = "openai-chat"
+base_url = "http://127.0.0.1:11434/v1"

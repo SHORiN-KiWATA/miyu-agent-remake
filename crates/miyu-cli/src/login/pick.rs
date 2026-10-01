@@ -28,7 +28,7 @@ fn padded(text: &str, width: usize) -> String {
 }
 
 /// 几格字连成一行，列和列之间空两格，最后一列不补空格；整列都是空的（谁都没在用）不占位置。
-fn row(cells: &[&str], widths: &[usize]) -> String {
+pub(crate) fn row(cells: &[&str], widths: &[usize]) -> String {
     let mut parts: Vec<String> = cells
         .iter()
         .zip(widths)
@@ -42,7 +42,7 @@ fn row(cells: &[&str], widths: &[usize]) -> String {
 }
 
 /// 每一列最宽的。
-fn widths(rows: &[Vec<String>]) -> Vec<usize> {
+pub(crate) fn widths(rows: &[Vec<String>]) -> Vec<usize> {
     let count = rows.iter().map(Vec::len).max().unwrap_or(0);
     (0..count)
         .map(|at| {

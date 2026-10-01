@@ -57,7 +57,10 @@ pub use handle::{Ended, Handle, Pushed, Stopped, Subscription};
 pub use jobs::{Jobs, Peek, Unreadable, peek};
 pub use open::{Create, CreateError, Load, LoadError, create, load};
 pub use port::{Cancel, ForSession, ModelPort, Models, Reports};
-pub use route::{IDLE, ModelData, Observed, Routes, STALE, read_observed, refresh_list};
+pub use route::{
+    IDLE, LOCAL_WAIT, ModelData, Observed, Probe, Probed, Routes, Running, STALE, Stage,
+    find_local, probe, read_observed, refresh_list,
+};
 pub use sandbox::SandboxCache;
 pub use shown::{Next, Shown};
 pub use spawn::{Child, Lineage, NotWatched, Pending, SessionPort};

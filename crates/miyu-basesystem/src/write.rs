@@ -16,7 +16,7 @@ use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Stop, Target, Tool};
 
 use crate::blocking::blocking;
-use crate::common::{Common, Shown, contents, said};
+use crate::common::{Common, Shown, contents, said_n};
 use crate::load::{self, LoadError, say};
 use crate::text::{Style, line_count};
 
@@ -134,7 +134,7 @@ fn write(texts: &Texts, call: &Call, args: &Args, stop: &Stop) -> Done {
     };
     let shown = Shown::here(call).path(&real);
     Done::ok(say(template, &[("path", &shown)]))
-        .said(said(key).with("count", line_count(&args.content).to_string()))
+        .said(said_n(key, "count", line_count(&args.content) as u64))
         .effect(Effect::Changed {
             path: real,
             before,

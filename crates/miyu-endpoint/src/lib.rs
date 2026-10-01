@@ -13,7 +13,8 @@
 //! - [`config`]：配置服务：起来时读的几份配置、最终值，`config.schema`、`config.get`、`config.check`（施工 8-2）；
 //!   `config.set`、`config.trust`（施工 8-3）；监视配置文件、推 `config.changed`、把当前的一份交给会话和核心（施工 8-4）；
 //! - 密钥：`secret.set`、`secret.delete`、`secret.list`，只能写、删、列名字，从不交出值（施工 8-5，`secrets.rs`）；
-//! - 模型：`model.list`，配好的供应商、模型、每一格资料的值和来源（施工 8-7，`models.rs`）；
+//! - 模型：`model.list`，配好的供应商、模型、每一格资料的值和来源（施工 8-7，`models.rs`）；第一次接入的
+//!   `provider.detect`、`provider.catalog`、`provider.test`（施工 8-11，`providers.rs`）；
 //! - 给人看的字：`human.get`，工具的样子、说法的模板原文，头不用再自己去资源目录里读（施工 W-1，`human.rs`）。
 //! - 文件：`fs.list` 列一层目录，`fs.find` 模糊找文件，数据根只有账号自己的工作区能列、能找（施工 W-2，`files.rs`）。
 
@@ -30,6 +31,7 @@ mod listen;
 mod meta;
 mod methods;
 mod models;
+mod providers;
 mod refusal;
 mod secrets;
 mod sessions;

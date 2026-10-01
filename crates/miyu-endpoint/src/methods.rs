@@ -9,7 +9,8 @@
 //! `secret.list` 在 `secrets.rs`（施工 8-5）。`model.list` 在 `models.rs`（施工 8-7）。`session.create` 带 `model` 的照这时的
 //! 配置解析好再造，解析不出的回 `unknown_model`、什么都不造（施工 8-8，`models::record`）。换模型 `session.configure`：先查
 //! 参数、再找会话、再照这时的配置解析，交给内核，回 `{}`（施工 8-10）。给人看的字 `human.get` 在 `human.rs`（施工 W-1）。
-//! 列文件、找文件 `fs.list`、`fs.find` 在 `files.rs`（施工 W-2）。
+//! 列文件、找文件、换真实位置 `fs.list`、`fs.find`、`fs.realpath` 在 `files.rs`（施工 W-2、W-3）。第一次接入的
+//! `provider.detect`、`provider.catalog`、`provider.test` 在 `providers.rs`（施工 8-11）。
 
 use std::sync::Arc;
 
@@ -34,6 +35,7 @@ use crate::job_output;
 use crate::list;
 use crate::meta::MetaParams;
 use crate::models;
+use crate::providers;
 use crate::refusal::Refusal;
 use crate::secrets;
 use crate::sessions::{Opening, admin};
@@ -55,7 +57,7 @@ struct CreateParams {
     /// 加进来的目录（施工 5-10 上）：和工作区一样能读能写。
     #[serde(default)]
     dirs: Vec<String>,
-    /// 用哪个模型（施工 8-8）：模型、`@池` 或者挡位；不写、写 `null` 的照这时的 `models.chat`。
+    /// 用哪个模型（施工 8-8）：模型或 `@池`；不写、写 `null` 的照这时的 `models.chat`。
     #[serde(default)]
     model: Option<String>,
 }
@@ -383,6 +385,9 @@ pub(crate) async fn call(
         "secret.delete" => secrets::delete(core, peer, &request.id, params(request)?),
         "secret.list" => Ok(secrets::list(core)),
         "model.list" => models::list(core, params(request)?).await,
+        "provider.detect" => providers::detect(core).await,
+        "provider.catalog" => providers::catalog(core, params(request)?).await,
+        "provider.test" => providers::test(core, params(request)?).await,
         "blob.put" => attach::put(core, params(request)?).await,
         "session.configure" => {
             let params: models::ConfigureParams = params(request)?;
@@ -396,6 +401,7 @@ pub(crate) async fn call(
         }
         "fs.list" => files::list(core, params(request)?).await,
         "fs.find" => files::find(core, params(request)?).await,
+        "fs.realpath" => files::realpath(core, params(request)?).await,
         "session.set_meta" => {
             let params: MetaParams = params(request)?;
             let command = params.command()?;

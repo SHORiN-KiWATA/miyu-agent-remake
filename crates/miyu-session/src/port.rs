@@ -57,7 +57,7 @@ pub trait ModelPort: Send + Sync {
     /// 回合开始时照新的配置可能换，真发给谁记在 `model.called` 里）。
     fn model(&self) -> Model;
 
-    /// 会话这时生效的引用（施工 8-8）：模型或 `@池`。派子代理不写挡位时，子会话记下它（`models.md` 第三条第 4 条）。路由的是
+    /// 会话这时生效的引用（施工 8-8）：模型或 `@池`。派子代理不写池时，子会话记下它（`models.md` 第三条第 4 条）。路由的是
     /// 钉着的那一个；不知道的（测试的端口）没有。
     fn reference(&self) -> Option<String> {
         None

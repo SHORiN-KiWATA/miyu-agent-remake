@@ -152,6 +152,17 @@ pub(crate) fn said(key: &str) -> Said {
     Said::new(format!("software/basesystem/{key}"))
 }
 
+/// 说法管着一个数、后面跟一个可数名词的那几句（施工 4-5 再补「一个的时候说单数」）：`n` 是 1 的时候，编号多接一段
+/// `/one`，换出来的那一句写成单数；别的数照旧走 `key` 本身。换进去的字段还是叫 `field`，值是 `n`。
+pub(crate) fn said_n(key: &str, field: &str, n: u64) -> Said {
+    let route = if n == 1 {
+        format!("{key}/one")
+    } else {
+        key.to_string()
+    };
+    said(&route).with(field, n.to_string())
+}
+
 /// 一个可选的字符串参数：`"undefined"`、`"null"`、空串当没传。Claude Code 在说明里专门叮嘱过模型别这么传，
 /// 这里在代码里兜住，不写进说明（施工 4-4 下）。
 pub(crate) fn given(value: Option<String>) -> Option<String> {

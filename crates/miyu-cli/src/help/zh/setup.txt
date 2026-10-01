@@ -1,0 +1,13 @@
+用法：miyu setup [选项]
+
+接上第一个模型：找环境变量里的 key 和本机的模型服务，没有的从目录里
+搜一家、贴 key；试通了，选主对话的模型，写进系统配置。
+
+选项：
+      --provider <编号>  不选了，用目录里的这一家
+      --env <变量>       不贴了，key 照这个环境变量取
+      --model <模型>     不选了，用这个模型
+  -h, --help             印帮助
+
+不在终端里的要写 --provider，key 从管道进来：
+  echo "$KEY" | miyu setup --provider deepseek

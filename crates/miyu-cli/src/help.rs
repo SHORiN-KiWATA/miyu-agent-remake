@@ -1,4 +1,4 @@
-//! 帮助页（施工 4-11，`docs/blueprint/cli/main.md`「帮助页」）：自己写的，一种语言十二页（施工 3-8 四补加了 `recap`，五补加了 `rename`，施工 8-2 加了 `config`，施工 8-5 加了 `login`、`logout`），编进程序，资源目录找不到
+//! 帮助页（施工 4-11，`docs/blueprint/cli/main.md`「帮助页」）：自己写的，一种语言十三页（施工 3-8 四补加了 `recap`，五补加了 `rename`，施工 8-2 加了 `config`，施工 8-5 加了 `login`、`logout`，施工 8-11 加了 `setup`），编进程序，资源目录找不到
 //! 也印得出。主程序把它们交给 clap 的 `override_help`：`-h`、`--help`、`miyu help <子命令>` 印的都是这几页。
 
 use crate::language::Language;
@@ -30,6 +30,8 @@ pub enum Page {
     Logout,
     /// `miyu sandbox -h`，`miyu sandbox setup -h`、`miyu sandbox remove -h` 也印它（施工 5-8）。
     Sandbox,
+    /// `miyu setup -h`（施工 8-11）。
+    Setup,
 }
 
 /// 这种语言的这一页，以一个换行结尾。
@@ -59,6 +61,8 @@ pub fn page(language: Language, page: Page) -> &'static str {
         (Language::English, Page::Logout) => include_str!("help/en/logout.txt"),
         (Language::Chinese, Page::Sandbox) => include_str!("help/zh/sandbox.txt"),
         (Language::English, Page::Sandbox) => include_str!("help/en/sandbox.txt"),
+        (Language::Chinese, Page::Setup) => include_str!("help/zh/setup.txt"),
+        (Language::English, Page::Setup) => include_str!("help/en/setup.txt"),
     }
 }
 

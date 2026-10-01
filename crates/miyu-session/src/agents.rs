@@ -5,24 +5,27 @@
 //! 加进来的目录、派出去那一刻的权限造一个端口交给工具（[`Agents::for_call`]），编号从会话共用的那一串里领；父子之间留言的
 //! 端口也照它造（`crate::messages`，施工 7-7）。
 //!
-//! 子会话用哪个模型（施工 8-8，`models.md`「怎么走」第三条第 4 条）：她写了挡位的，照这一轮的配置解析这一挡（没配的是
-//! `models.chat`，`miyu_models::reference::tier`）；没写的，用父会话这时生效的引用（[`Inherit`]）。解析出来的记进子会话
-//! `session.created` 的 `model`。
+//! 子会话用哪个模型（施工 8-8，`models.md`「怎么走」第三条第 4 条）：她写了池的（施工 8-8 补，只能是这个会话列着的），子会话
+//! 记 `@<池>`；没写的，用父会话这时生效的引用（[`Inherit`]）。记进子会话 `session.created` 的 `model`。
+//!
+//! 列着哪几个池（施工 8-8 补，`models.md`「工具」）：造会话时照那时的配置拼进工具面上 `subagent` 的 `pool`（[`Agents::face`]），
+//! 造会话、载入时再照快照读回（[`Agents::pools_in`]），存在 [`Agents::pools`]，整个会话不变。
 
 use std::sync::Arc;
 
+use miyu_config::Values;
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::Permission;
 use miyu_kernel::id::{AccountId, CommandId, JobId, SessionId, VenueId};
 use miyu_kernel::origin::{By, Session};
 use miyu_kernel::session::{Command, Outcome};
-use miyu_policy::{JOB_DEPTH, ToolEntry};
+use miyu_policy::{Choice, JOB_DEPTH, ToolEntry};
 use miyu_tool::{
     AgentPort, Catalog, NotSpawned, SEND_MESSAGE, SESSIONS, SUBAGENT, Spawned, Spawning,
+    is_subagent,
 };
 
 use crate::TARGET;
-use crate::config::TurnConfig;
 use crate::job_ids::JobIds;
 use crate::spawn::{Child, Lineage, SessionPort};
 
@@ -50,6 +53,8 @@ pub(crate) struct Agents {
     pub(crate) attended: bool,
     /// 回报的正文怎么截：快照里的（施工 7-4）。停掉子代理时交回的回报照它截，和子会话自己向上回报的一样。
     pub(crate) reports: miyu_kernel::session::Reports,
+    /// 派子代理能选的池（施工 8-8 补）：快照里 `subagent` 的 `pool` 的 `enum`（[`Agents::pools_in`]），没有的是空的。
+    pub(crate) pools: Vec<String>,
 }
 
 impl Agents {
@@ -69,10 +74,13 @@ impl Agents {
     /// `subagent`；场所会话（群）不给 `send_message`：它没有父，也派不了子代理，给了只会被 `not-here.txt` 拒。到了
     /// 深度上限的子会话照样有 `send_message`，能发给父、能发给别的会话，只是不能派子代理。只有本机的主会话有 `sessions`
     /// （[`Agents::lists_sessions`]）。工具面造会话时定，一个会话里不变，给了只会被拒的不给（`agents.md` 第一条第 6 条）。
+    /// `subagent` 的 `pool` 照这时的配置 `values` 填上能选的池（施工 8-8 补：`miyu_models::pools::offered`，一个都没有的拿掉
+    /// 这个参数）。
     pub(crate) fn face(
         tools: &Catalog,
         venue: &VenueId,
         lineage: Option<&Lineage>,
+        values: &Values,
     ) -> Vec<ToolEntry> {
         let spawns = Agents::allowed(venue, lineage);
         let local = venue.as_str() == LOCAL;
@@ -82,13 +90,29 @@ impl Agents {
             .filter(|spec| spawns || spec.name != SUBAGENT)
             .filter(|spec| local || spec.name != SEND_MESSAGE)
             .filter(|spec| lists || spec.name != SESSIONS)
-            .map(|spec| ToolEntry {
-                name: spec.name.clone(),
-                description: spec.description.clone(),
-                parameters: spec.parameters.clone(),
-                access: spec.access.clone(),
+            .map(|spec| {
+                let mut entry = ToolEntry {
+                    name: spec.name.clone(),
+                    description: spec.description.clone(),
+                    parameters: spec.parameters.clone(),
+                    access: spec.access.clone(),
+                };
+                // 以前的名字也填：只在测试里拿改名以前的目录造会话时碰得到，照同一个规矩，两张工具面只差名字。
+                if is_subagent(&spec.name) {
+                    entry.offer(POOL, &choices(values));
+                }
+                entry
             })
             .collect()
+    }
+
+    /// 快照的工具面 `face` 上派子代理能选的池（施工 8-8 补）：`subagent`（以前的名字也算）的 `pool` 的 `enum`。没有这件、
+    /// 没有这一格的（以前造的会话、不能派的会话）是空的。
+    pub(crate) fn pools_in(face: &[ToolEntry]) -> Vec<String> {
+        face.iter()
+            .find(|entry| is_subagent(&entry.name))
+            .map(|entry| entry.offered(POOL))
+            .unwrap_or_default()
     }
 
     /// 第几层照 `lineage` 算：主会话没有，是 0。
@@ -116,31 +140,43 @@ impl Agents {
     }
 }
 
-/// 子会话用哪个模型要的（施工 8-8）：父会话这时生效的引用（她没写挡位时子会话记下它），这一轮的配置（写了挡位的照它解析）。
+/// 子会话用哪个模型要的（施工 8-8）：父会话这时生效的引用（她没写池时子会话记下它）。
 #[derive(Debug)]
 pub(crate) struct Inherit {
     /// 父会话这时生效的引用：模型或 `@池`；没有的是空的（子会话照它那时的 `models.chat`）。
     pub(crate) reference: Option<String>,
-    /// 父会话这一轮冻结的配置。
-    pub(crate) config: TurnConfig,
 }
 
 impl Inherit {
-    /// 照会话请求模型的端口 `model`（它这时生效的引用）、这一轮的配置 `config` 抄一份。
-    pub(crate) fn of(model: &dyn crate::port::ModelPort, config: &TurnConfig) -> Inherit {
+    /// 照会话请求模型的端口 `model`（它这时生效的引用）抄一份。
+    pub(crate) fn of(model: &dyn crate::port::ModelPort) -> Inherit {
         Inherit {
             reference: model.reference(),
-            config: Arc::clone(config),
         }
     }
 
-    /// 子会话记下的引用：写了挡位 `tier` 的照这一轮的配置解析（没配的是 `models.chat`），没写的是父会话的。
-    fn model(&self, tier: Option<&str>) -> Option<String> {
-        match tier {
-            Some(tier) => miyu_models::reference::tier(&self.config.resolved.values(), tier),
+    /// 子会话记下的引用：写了池 `pool` 的是 `@<池>`（施工 8-8 补：这时还解析不解析得出不查，解析不出的子会话照它的路由退回
+    /// `models.chat`），没写的是父会话的。
+    fn model(&self, pool: Option<&str>) -> Option<String> {
+        match pool {
+            Some(pool) => Some(format!("@{pool}")),
             None => self.reference.clone(),
         }
     }
+}
+
+/// `subagent` 上填池的那个参数（施工 8-8 补）。
+const POOL: &str = "pool";
+
+/// 照这时的配置 `values`，派子代理能选的池写成工具面要的样子。
+fn choices(values: &Values) -> Vec<Choice> {
+    miyu_models::pools::offered(values)
+        .into_iter()
+        .map(|offer| Choice {
+            name: offer.name,
+            description: offer.description,
+        })
+        .collect()
 }
 
 /// 一次调用的派子代理的端口。
@@ -159,7 +195,7 @@ impl AgentPort for Spawner {
         &'a self,
         _description: &'a str,
         prompt: &'a str,
-        tier: Option<&'a str>,
+        pool: Option<&'a str>,
     ) -> Spawning<'a> {
         Box::pin(async move {
             let job = self.ids.next();
@@ -178,7 +214,7 @@ impl AgentPort for Spawner {
                 attended: agents.attended,
                 cwd: self.cwd.clone(),
                 dirs: self.dirs.clone(),
-                model: self.inherit.model(tier),
+                model: self.inherit.model(pool),
             };
             let job_text = job.to_string();
             let session = agents.port.create(child).await.map_err(|error| {
@@ -215,6 +251,10 @@ impl AgentPort for Spawner {
             tracing::warn!(target: TARGET, job = job_text.as_str(), child = session.as_str(), error = why.as_str(), "subagent not given its task");
             Err(NotSpawned)
         })
+    }
+
+    fn pools(&self) -> &[String] {
+        &self.agents.pools
     }
 }
 

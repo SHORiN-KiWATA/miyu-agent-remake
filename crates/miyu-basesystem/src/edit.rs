@@ -17,7 +17,7 @@ use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Stop, Target, Tool};
 
 use crate::blocking::blocking;
-use crate::common::{Common, Shown, contents, said};
+use crate::common::{Common, Shown, contents, said, said_n};
 use crate::load::{self, LoadError, say};
 use crate::text::Style;
 use find::Found;
@@ -201,7 +201,7 @@ fn edit(texts: &Texts, call: &Call, path: &str, changes: &[Change], stop: &Stop)
         return texts.common.write_failed(path, &error);
     }
     Done::ok(say(&texts.edited, &[("path", &shown.path(&real))]))
-        .said(said("edit/edited").with("count", places.len().to_string()))
+        .said(said_n("edit/edited", "count", places.len() as u64))
         .effect(Effect::Changed {
             path: real,
             before: Some(old),

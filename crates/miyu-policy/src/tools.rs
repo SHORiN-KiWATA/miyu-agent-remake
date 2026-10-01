@@ -1,6 +1,7 @@
 //! 快照里的工具面（施工 4-1）：照名字排好，每件带访问类别。造策略时拆成两份：组装器的工具面（进 tools
 //! 数组的名字、说明、参数格式），内核的工具规则（查调用、修正参数用的访问类别和参数格式）。执行器替工具
-//! 写的两句也从快照里拿（施工 4-2）。
+//! 写的两句也从快照里拿（施工 4-2）。一个参数照会话开局时的配置填上能选的几个，在 [`choice`]（施工 8-8 补：`subagent` 的
+//! `pool`）。
 
 use std::collections::BTreeMap;
 
@@ -12,6 +13,10 @@ use miyu_kernel::tool::{Access, ToolRule, Worded};
 use serde::{Deserialize, Serialize};
 
 use crate::snapshot::{BuildError, Snapshot};
+
+pub(crate) mod choice;
+
+pub use choice::Choice;
 
 /// 工具面上的一件：名字、说明、参数格式、访问类别，照这个先后写进快照。说明和参数格式原样进 tools
 /// 数组，一个字节不改。

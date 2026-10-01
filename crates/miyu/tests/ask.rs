@@ -1,5 +1,5 @@
-//! 真跑 `miyu ask`（`docs/construction/3-9-miyu-ask（下）.md`）：核心没配模型的，退出码 5（施工 8-6 起 key 来自配置，头
-//! 一律拉起核心）；参数不对的退出码 2；帮助页跟着界面语言。
+//! 真跑 `miyu ask`（`docs/construction/3-9-miyu-ask（下）.md`）：核心没配模型的，退出码 5、不造会话（施工 8-6 起 key 来自配置，头
+//! 一律拉起核心；施工 8-11 起说话之前先看）；参数不对的退出码 2；帮助页跟着界面语言。
 
 mod support;
 
@@ -53,8 +53,11 @@ async fn a_core_without_a_model_says_so() {
     assert_eq!(output.status.code(), Some(5), "{output:?}");
     assert_eq!(
         without_the_sandbox_line(&String::from_utf8_lossy(&output.stderr)),
-        "没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。\n"
+        "没有可用的模型：还没配。运行 miyu setup。\n"
     );
+    // 施工 8-11：说话之前先看有没有模型，不在终端里的不造会话（会话目录里一个都没有）。
+    let admin = miyu_kernel::id::AccountId::parse("admin").expect("合写法");
+    assert_eq!(home.root.sessions(&admin).expect("读得了"), Vec::new());
     drop(held);
     home.until_stopped().await;
 }

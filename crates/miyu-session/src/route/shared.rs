@@ -10,6 +10,9 @@
 //!   `state/models/pools.json`（[`ModelData::save_pointers`]，在阻塞线程里，拿着指针的锁写：几次写不会把新的盖成旧的）。
 //! - 冷却表（施工 8-9，`models.md` 第五条第 2 条）：一个核心一份，只在内存里，另一把锁；`[models.cooldown]` 的规矩也在
 //!   这里，核心照配置的变化当场换（[`ModelData::set_cooldown_rules`]）。路由出错时记、挑端点时查，`model.list` 照它说状态。
+//! - 两个 GET 的客户端：拉列表的（照环境变量的代理，施工 8-11），探本机的服务的（不走代理：代理不会自动绕过回环，施工
+//!   8-11，[`ModelData::local`]）。拉某一家的列表、`provider.test` 照地址挑用哪个（[`ModelData::fetcher_for`]，施工 8-11
+//!   补）：地址落在本机的也不走代理，和探本机的服务一样。
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -17,7 +20,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use tokio::sync::watch;
 
-use miyu_http::Client;
+use miyu_http::{Client, is_loopback_url};
 
 use miyu_kernel::time::Timestamp;
 use miyu_models::Knowledge;
@@ -46,6 +49,8 @@ pub struct ModelData {
     dir: Option<PathBuf>,
     /// 拉供应商的列表用的客户端（`miyu_http::fetcher`）；没有的不拉。
     fetcher: Option<Client>,
+    /// 探本机的服务用的客户端（不走代理，施工 8-11）；没有的不探。
+    local: Option<Client>,
 }
 
 /// 用出来的、供应商的列表、池的指针：核心起来时从 `state/models/` 读回来的。
@@ -71,6 +76,7 @@ impl ModelData {
             cooldowns: Mutex::new((Cooldowns::default(), Rules::default())),
             dir,
             fetcher: None,
+            local: None,
         }
     }
 
@@ -84,6 +90,28 @@ impl ModelData {
     /// 拉供应商的列表用的客户端；没有的不拉。
     pub fn fetcher(&self) -> Option<&Client> {
         self.fetcher.as_ref()
+    }
+
+    /// 照地址 `url` 挑用哪个 GET 客户端（施工 8-11 补，`http.md`「客户端」第 5 条）：回环地址不走代理，用探本机的那个
+    /// （没有的退回平时那个）；别的照旧用拉列表的那个。`provider.test`、拉某一家的模型列表都照它挑：地址落在本机时也不该
+    /// 被代理挡住，和探本机的服务一样。
+    pub fn fetcher_for(&self, url: &str) -> Option<&Client> {
+        match is_loopback_url(url) {
+            true => self.local.as_ref().or(self.fetcher.as_ref()),
+            false => self.fetcher.as_ref(),
+        }
+    }
+
+    /// 同一份，探本机的服务用 `client`（施工 8-11）：要不走代理的那种（`miyu_http::fetcher(Proxy::Off)`）。
+    #[must_use]
+    pub fn with_local(mut self, client: Client) -> ModelData {
+        self.local = Some(client);
+        self
+    }
+
+    /// 探本机的服务用的客户端；没有的不探（`provider.detect` 的 `local` 是空的）。
+    pub fn local(&self) -> Option<&Client> {
+        self.local.as_ref()
     }
 
     /// 目录读完了（读没读成都算）：连同读好的用出来的、供应商的列表一起换上，等着的都放行。

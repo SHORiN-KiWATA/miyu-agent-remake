@@ -133,6 +133,7 @@ impl Refusal {
         data: None,
     };
     /// `fs.list`、`fs.find` 读不了这个路径（施工 W-2）：换不成真实的位置、不在、该是目录的不是目录、没有权限。
+    /// `fs.realpath` 也用它（施工 W-3）：换不成真实的位置——一层都不在、路上的链接指向不存在的地方、没有家目录。
     pub(crate) const PATH_UNREADABLE: Refusal = Refusal {
         code: REFUSED,
         reason: "path_unreadable",
@@ -164,7 +165,8 @@ impl Refusal {
         reason: "unknown_provider",
         data: None,
     };
-    /// `session.create` 的 `model` 解析不出（施工 8-8）：没有这家供应商、没有这个池、池是空的、挡位没配又没有 `models.chat`。
+    /// `session.create`、`session.configure` 的 `model` 解析不出（施工 8-8）：写法不对（连同以前的挡位名，施工 8-8 补）、没有
+    /// 这家供应商、没有这个池、池是空的。
     pub(crate) const UNKNOWN_MODEL: Refusal = Refusal {
         code: REFUSED,
         reason: "unknown_model",
@@ -347,8 +349,8 @@ impl Refusal {
             "unknown_secret" => ("没有这个密钥。", "There is no such secret."),
             "unknown_provider" => ("没有这个供应商。", "There is no such provider."),
             "unknown_model" => (
-                "配置里没有这个模型、池或者挡位。",
-                "There is no such model, pool or tier in the configuration.",
+                "配置里没有这个模型或者池。",
+                "There is no such model or pool in the configuration.",
             ),
             "recap_failed" => (
                 "回顾没写成：请求模型出错了。",

@@ -4,7 +4,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use miyu_config::merge::{Layers, merge};
+use miyu_config::merge::{Layers, Resolved, merge};
 use miyu_config::parse::parse;
 use miyu_config::secret::{Reference, Secret};
 use miyu_config::{Item, Layer};
@@ -14,7 +14,7 @@ use miyu_kernel::event::{Body, ModelCalled};
 use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
 use miyu_models::settings::{
-    ModelSettings, PoolSettings, PriceSettings, ProviderSettings, TierSettings, UseSettings,
+    ModelSettings, PoolSettings, PriceSettings, ProviderSettings, UseSettings,
 };
 use miyu_session::{Configs, Handle, ModelData, Observed, Routes, fixed_with};
 
@@ -27,7 +27,6 @@ pub fn items() -> Vec<Item> {
         ModelSettings::ITEMS,
         PriceSettings::ITEMS,
         UseSettings::ITEMS,
-        TierSettings::ITEMS,
         PoolSettings::ITEMS,
     ]
     .concat()
@@ -35,17 +34,22 @@ pub fn items() -> Vec<Item> {
 
 /// 照系统配置的字 `source` 造一份不变的配置，另带取得到的几个密钥：引用和值。写错的配置当场报出来。
 pub fn configs(source: &str, secrets: &[(Reference, &str)]) -> Configs {
+    let secrets = secrets
+        .iter()
+        .map(|(reference, value)| (reference.clone(), Secret::new(value).expect("key 合写法")))
+        .collect();
+    fixed_with(resolved(source), secrets)
+}
+
+/// 照系统配置的字 `source` 合出来的最终值。写错的配置当场报出来。
+pub fn resolved(source: &str) -> Resolved {
     let parsed = parse(&items(), Layer::System, source).expect("写法对");
     assert!(parsed.problems.is_empty(), "{:?}", parsed.problems);
     let layers = Layers {
         system: Some(&parsed),
         ..Layers::default()
     };
-    let secrets = secrets
-        .iter()
-        .map(|(reference, value)| (reference.clone(), Secret::new(value).expect("key 合写法")))
-        .collect();
-    fixed_with(merge(&items(), &layers, &|_| None), secrets)
+    merge(&items(), &layers, &|_| None)
 }
 
 /// 核心一份的：档案照 JSON 的 `profiles`，没有目录（读完了），空闲超时 `idle`。
@@ -63,6 +67,7 @@ pub fn routes(profiles: serde_json::Value, idle: Duration) -> Routes {
 pub fn routes_with(data: Arc<ModelData>, idle: Duration) -> Routes {
     Routes {
         client: client(Proxy::Off).expect("造得出客户端"),
+        direct: client(Proxy::Off).expect("造得出客户端"),
         data,
         idle,
     }

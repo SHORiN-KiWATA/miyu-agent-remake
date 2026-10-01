@@ -13,7 +13,7 @@ use miyu_kernel::template::Template;
 use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, MainSession, Progress, Running, SESSIONS, Spec, Tool};
 
-use crate::common::{Common, integer, said};
+use crate::common::{Common, integer, said, said_n};
 use crate::load::{self, LoadError, say};
 
 /// 一页默认几个。
@@ -140,7 +140,7 @@ impl Texts {
                 &self.past_end,
                 &[("total", &total_text), ("offset", &offset)],
             ));
-            return Done::ok(text).said(said("sessions/past-end").with("total", total_text));
+            return Done::ok(text).said(said_n("sessions/past-end", "total", total as u64));
         }
         let end = total.min(offset.saturating_add(limit));
         for one in &listed[offset..end] {
@@ -173,8 +173,7 @@ impl Texts {
                 ],
             ));
         }
-        let count = (end - offset).to_string();
-        Done::ok(text).said(said("sessions/listed").with("count", count))
+        Done::ok(text).said(said_n("sessions/listed", "count", (end - offset) as u64))
     }
 
     /// 列不出来：`error` 是端口交回的原因。

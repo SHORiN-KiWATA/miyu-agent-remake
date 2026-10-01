@@ -58,11 +58,12 @@ fn the_help_is_the_redo_page_in_the_language() {
 #[tokio::test]
 async fn the_last_ask_or_the_given_session_is_the_one_redone() {
     let home = Home::new();
+    home.system_config(support::UNUSABLE_MODEL);
     let (held, _) = within("拉起", connect_or_start(&home.root, || home.core()))
         .await
         .expect("拉得起");
     let root = home.root.path().to_path_buf();
-    // 核心没配模型：这一轮说「没有可用的模型」，可那一句记下了，是人开的一轮，重做得了；新的一轮照样没有模型。
+    // 配的模型用不了（驱动还没有，施工 8-11 起没配的 `miyu ask` 不造会话）：这一轮说「没有可用的模型」，可那一句记下了，是人开的一轮，重做得了；新的一轮照样没有模型。
     let asked = run(&root, vec!["ask".into(), "在吗".into()]).await;
     assert_eq!(asked.status.code(), Some(5), "{asked:?}");
     let redone = run(&root, vec!["redo".into()]).await;
@@ -83,7 +84,7 @@ async fn the_last_ask_or_the_given_session_is_the_one_redone() {
     );
     assert_eq!(
         lines.last(),
-        Some(&"没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。"),
+        Some(&"没有可用的模型：还没配。运行 miyu setup。"),
         "{said}"
     );
     // `-s`、`--session` 重做的是写的那个：写一个不在的，照核心说的。

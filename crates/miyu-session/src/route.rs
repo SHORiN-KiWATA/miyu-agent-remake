@@ -17,20 +17,27 @@
 //!   成了的清零，钉住的池钉到它，会话的 key 换成它。
 //! - 地址：写死的直接用，是环境变量的引用的照 `config.secret` 取（施工 8-6b，`miyu_models::provider::resolve_base_url`），
 //!   和取 key 同一个办法；取不到也是 `no_model`，地址不会流进请求之外的任何地方。
-//! - 发：照驱动编码、经 HTTP 执行器发、流式读回来（[`send`]），和原来一样。
+//! - 发：照驱动编码、经 HTTP 执行器发、流式读回来（[`send`]），和原来一样。地址落在本机的不走代理（施工 8-11 补，
+//!   `http.md`「客户端」第 5 条）：照地址在 `client`、`direct` 两个客户端里挑一个（[`Routes`]），核心起来时两个都造好。
 //! - 资料（施工 8-7）：窗口、最大输出、能收什么照核心一份的模型资料查（[`ModelData`]，`miyu_models::facts`）；目录在写了
 //!   `ready` 以后才读完，造端口之前先等它（[`Models::ready`]）。报上下文超长、说了上限、比手头的窗口小的，记下用出来的
 //!   窗口（第二条第 9 条）：新造的、载入的会话用上，开着的会话下一个回合开始时用上（施工 8-10）。
+//! - 第一次接入（施工 8-11）：探本机的服务（`route/local.rs`）、试一家供应商（`route/probe.rs`），协议的 `provider.detect`、
+//!   `provider.test` 调它们；和拉列表一样在这一层，不属于哪个会话。
 
 mod choice;
 mod ended;
 mod lists;
+mod local;
 mod pool;
+mod probe;
 mod send;
 pub(crate) mod shared;
 mod turn;
 
 pub use lists::{STALE, refresh_list};
+pub use local::{LOCAL_WAIT, Running, find_local};
+pub use probe::{Probe, Probed, Stage, probe};
 pub use shared::{ModelData, Observed, read_observed};
 
 use std::collections::BTreeMap;
@@ -41,7 +48,7 @@ use std::time::Duration;
 
 use miyu_drivers::DriverTexts;
 use miyu_drivers::{Call, DeepSeekImages, OpenAiChat};
-use miyu_http::Client;
+use miyu_http::{Client, is_loopback_url};
 use miyu_kernel::estimate::ImagePrice;
 use miyu_kernel::event::{CallError, ErrorClass};
 use miyu_kernel::id::{ModelName, ProviderId, Seq, SessionId};
@@ -71,8 +78,10 @@ pub(crate) const NONE: &str = "none";
 /// 核心一份的：HTTP 客户端、模型资料（档案、目录、用出来的、供应商的列表、冷却表）、空闲超时。给每个会话造一个路由。
 #[derive(Clone)]
 pub struct Routes {
-    /// HTTP 客户端：一个核心一个，连接跨请求复用。
+    /// HTTP 客户端：一个核心一个，连接跨请求复用，照环境变量走代理。
     pub client: Client,
+    /// 不走代理的那一个：地址落在本机时用（施工 8-11 补，`http.md`「客户端」第 5 条）。
+    pub direct: Client,
     /// 模型资料（施工 8-7）。
     pub data: Arc<ModelData>,
     /// 空闲超时，平时是 [`IDLE`]。
@@ -248,8 +257,13 @@ impl Route {
         let (facts, _): (Facts, _) = data
             .with(|knowledge| facts(&config.resolved, knowledge, &target.provider, &target.model));
         let endpoint = picked.endpoint.clone();
+        // 地址落在本机的不走代理（施工 8-11 补）：和探本机的服务、拉列表一样。
+        let client = match is_loopback_url(&endpoint.base_url) {
+            true => self.shared.direct.clone(),
+            false => self.shared.client.clone(),
+        };
         Ok(send::Chosen {
-            client: self.shared.client.clone(),
+            client,
             model: model_of(&target),
             endpoint,
             driver: OpenAiChat::new(target.provider.compat.clone(), self.texts.clone()),

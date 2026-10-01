@@ -111,13 +111,16 @@ fn kind_problems(item: &Item) -> Vec<String> {
         Kind::Duration { min, max } if min > max || min == 0 => {
             vec![format!("{}：时长的最短要大于 0、不比最长长", item.key)]
         }
-        Kind::Text { max: 0 } => vec![format!("{}：文字至少能写一个字", item.key)],
+        Kind::Text { max: 0 } | Kind::English { max: 0 } => {
+            vec![format!("{}：文字至少能写一个字", item.key)]
+        }
         Kind::List(Kind::List(_)) => vec![format!("{}：列表的元素不能是列表", item.key)],
         Kind::Bool
         | Kind::Secret
         | Kind::Int { .. }
         | Kind::Float { .. }
         | Kind::Text { .. }
+        | Kind::English { .. }
         | Kind::Duration { .. }
         | Kind::Url
         | Kind::Name

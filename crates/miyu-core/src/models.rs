@@ -1,7 +1,9 @@
 //! 模型（`docs/blueprint/models.md`、`core.md`「模型」，施工 8-6、8-7）：起来时读资源目录里的供应商档案
 //! （`models/profiles.toml`）、认原厂的表（`models/vendors.toml`），造每个会话的路由（`miyu_session::Routes`）和核心一份的
 //! 模型资料（`miyu_session::ModelData`）。写了 `ready` 以后在阻塞线程里读目录（[`catalog`]）、用出来的、供应商的列表，
-//! 读完放行等着它的；再在后台更新目录（[`refresh`]）。用哪家供应商、哪个模型、哪个 key，全照配置。冷却的规矩照配置当场换
+//! 读完放行等着它的；再在后台更新目录（[`refresh`]）。另造一个不走代理的 GET 客户端给第一次接入探本机的服务（施工
+//! 8-11），POST 的客户端也配一个不走代理的（施工 8-11 补：地址落在本机的平时发请求也不该被代理挡住）。用哪家供应商、
+//! 哪个模型、哪个 key，全照配置。冷却的规矩照配置当场换
 //! （[`follow_cooldown`]，施工 8-9）。
 //!
 //! 档案、认原厂的表是 TOML，这里读成 JSON 交给 `miyu-models`（那一层只用白名单里的 `serde_json`）。
@@ -47,11 +49,19 @@ pub fn prepare(resources: &ResourceRoot, state: Option<PathBuf>) -> Result<Route
         profiles = profiles.providers.len(),
         "model profiles loaded"
     );
+    // 地址落在本机的不走代理（施工 8-11 补）：环境变量里的代理不会自动绕过回环。
+    let direct = client(Proxy::Off).map_err(|error| error.to_string())?;
     let client = client(Proxy::FromEnvironment).map_err(|error| error.to_string())?;
     let lists = fetcher(Proxy::FromEnvironment).map_err(|error| error.to_string())?;
+    // 探本机的服务不走代理（施工 8-11）：同上。
+    let local = fetcher(Proxy::Off).map_err(|error| error.to_string())?;
+    let data = ModelData::new(profiles, vendors, state)
+        .with_fetcher(lists)
+        .with_local(local);
     Ok(Routes {
         client,
-        data: Arc::new(ModelData::new(profiles, vendors, state).with_fetcher(lists)),
+        direct,
+        data: Arc::new(data),
         idle: IDLE,
     })
 }

@@ -173,7 +173,8 @@ macro_rules! settings {
 
 /// [`settings!`](crate::settings) 里 `kind` 那一格：选项至少两个，写成 `option ["a", "b"]`；整数写成 `int [最小, 最大]`；
 /// 小数 `float [最小, 最大]`、文字 `text [最多几个字]`、时长 `duration [最短秒数, 最长秒数]`，选项的列表 `options [..]`、
-/// 文字的列表 `texts [最多几个字]`（施工 8-7），模型的列表 `models`（施工 8-8）；别的写名字。选项只有一个的认不出来，
+/// 文字的列表 `texts [最多几个字]`（施工 8-7），模型的列表 `models`（施工 8-8），给模型看的字 `english [最多几个字]`（施工 8-8
+/// 补）；别的写名字。选项只有一个的认不出来，
 /// 编译不过。
 #[doc(hidden)]
 #[macro_export]
@@ -216,6 +217,9 @@ macro_rules! __settings_kind {
     };
     (text [$max:literal]) => {
         $crate::Kind::Text { max: $max }
+    };
+    (english [$max:literal]) => {
+        $crate::Kind::English { max: $max }
     };
     (texts [$max:literal]) => {
         $crate::Kind::List(&$crate::Kind::Text { max: $max })

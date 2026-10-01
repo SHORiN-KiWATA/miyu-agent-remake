@@ -1,9 +1,12 @@
-//! `fs.list`、`fs.find`（施工 W-2，`docs/blueprint/web-module.md`「三、列文件、找文件」）：列一层目录、在一个
-//! 目录里模糊找文件。两个方法的回应一个样子：`items` 每一条 `{dir, full, marks, path, size}`；数据根只有账号
-//! 自己的工作区能列、能找，落进去的 `path_forbidden`，换不成真实的位置、不是目录的 `path_unreadable`。
+//! `fs.list`、`fs.find`、`fs.realpath`（施工 W-2、W-3，`docs/blueprint/web-module.md`「三、列文件、找文件」
+//! 「四、路径」）：列一层目录、在一个目录里模糊找文件、把一个路径换成真实的位置。`fs.list`、`fs.find` 的回应一个
+//! 样子：`items` 每一条 `{dir, full, marks, path, size}`；数据根只有账号自己的工作区能列、能找，落进去的
+//! `path_forbidden`，换不成真实的位置、不是目录的 `path_unreadable`。`fs.realpath` 不查边界，只换位置：落在
+//! 数据根里的照样换。
 //!
-//! 列目录、建清单、打分住在 `miyu-fs`（[`miyu_fs::list_dir`]、[`miyu_fs::Index`]、[`miyu_fs::score`]）；这里只管
-//! 参数、边界表、回应的 JSON，和找文件的清单记几份（[`Cache`]）。
+//! 列目录、建清单、打分、换真实位置都住在 `miyu-fs`（[`miyu_fs::list_dir`]、[`miyu_fs::Index`]、
+//! [`miyu_fs::score`]、[`miyu_fs::resolve`]）；这里只管参数、边界表、回应的 JSON，和找文件的清单记几份
+//! （[`Cache`]）。
 
 mod cache;
 
@@ -12,7 +15,7 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
-use miyu_fs::{Boundary, Places, Zone, resolve};
+use miyu_fs::{Boundary, Places, Zone, resolve, tilde};
 use miyu_kernel::id::AccountId;
 use miyu_store::root::DataRoot;
 
@@ -47,6 +50,16 @@ pub(crate) struct FindParams {
     /// 头开列表时写 `true`：清单建好 10 秒以上的重建。
     #[serde(default)]
     fresh: bool,
+}
+
+/// `fs.realpath` 的参数（施工 W-3）。
+#[derive(Debug, Deserialize)]
+pub(crate) struct RealpathParams {
+    /// 要换的路径：绝对的，或者 `~`、`~/…`；相对的要配 `cwd`。
+    path: String,
+    /// `path` 是相对的才要：接在它前面，写法同 `fs.list` 的 `cwd`。
+    #[serde(default)]
+    cwd: Option<String>,
 }
 
 /// 读、存要的几样：数据根、管理员、系统的家目录。
@@ -106,6 +119,27 @@ pub(crate) async fn find(core: &Core, params: FindParams) -> Result<Value, Refus
         })
         .collect();
     Ok(json!({"building": !scored.done, "items": items, "partial": scored.partial}))
+}
+
+/// `fs.realpath`：`path` 换成真实的位置（`web-module.md`「四、路径」）。`~` 照家目录接；绝对的照原样；相对的
+/// 接在 `cwd` 上，`cwd` 自己也可能是 `~`、相对的写法，照同一条路换。都不是的（相对、又没给 `cwd`）`bad_params`。
+/// 不查边界，落在数据根里的照样换；换不成的（一层都不在、读不出符号链接指向哪、没有家目录）`path_unreadable`。
+pub(crate) async fn realpath(core: &Core, params: RealpathParams) -> Result<Value, Refusal> {
+    let place = place(core);
+    blocking(move || realpath_blocking(&place, params)).await
+}
+
+fn realpath_blocking(place: &Place, params: RealpathParams) -> Result<Value, Refusal> {
+    let anchored = tilde(&params.path).is_some() || Path::new(&params.path).is_absolute();
+    let base = match (&params.cwd, anchored) {
+        (_, true) => PathBuf::from("/"),
+        (Some(cwd), false) => resolve(Path::new("/"), place.home.as_deref(), cwd)
+            .map_err(|_| Refusal::PATH_UNREADABLE)?,
+        (None, false) => return Err(Refusal::BAD_PARAMS),
+    };
+    let real = resolve(&base, place.home.as_deref(), &params.path)
+        .map_err(|_| Refusal::PATH_UNREADABLE)?;
+    Ok(json!({"path": real.display().to_string()}))
 }
 
 /// 打分排过序的一条：路径、是不是目录、对上的字（第几个字）。

@@ -1,7 +1,7 @@
 //! `model.list` 里的一家（`docs/blueprint/models.md`「协议」`model.list` 那张表，施工 8-7）：驱动、地址、key、对上了目录里的
 //! 哪一家、模型。
 //!
-//! - 列哪些模型：供应商的列表里的、目录里对上的那一家的、配置里手写了的、用途挡位池里点名的（施工 8-8），合在一起去重，
+//! - 列哪些模型：供应商的列表里的、目录里对上的那一家的、配置里手写了的、用途池里点名的（施工 8-8），合在一起去重，
 //!   照模型名排；
 //!   `listed` 照 `config`、`provider`、`catalog` 的先后写从哪几处列出来的。
 //! - 模型的 `state`：写了 key、一个都没有值的是 `no_key`。别的照这个模型能用的 key（取得到值的，没写 key 的是那一个）里
@@ -179,7 +179,7 @@ fn address_json(address: &Address) -> Value {
     }
 }
 
-/// 配置里提到的这一家的模型：手写了资料的，用途、挡位、池里点名的（施工 8-8，`miyu_models::reference::named`）。
+/// 配置里提到的这一家的模型：手写了资料的，用途、池里点名的（施工 8-8，`miyu_models::reference::named`）。
 fn written_models(values: &miyu_config::Values, id: &str) -> Vec<String> {
     let mut models = miyu_config::key::names(values.keys(), "providers.<id>.models.<model>", &[id]);
     models.extend(

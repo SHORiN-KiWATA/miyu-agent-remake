@@ -4,7 +4,8 @@
 //! 第 2 层，纯逻辑。读文件是执行器的事（`miyu-store` 的资源目录），这里收读好的原文 [`Sources`]：
 //!
 //! - [`compose()`]：拼成 [`Snapshot`]，system 照 `docs/designs/26-提示词.md` 第四节拼；
-//!   [`Snapshot::with_tools`] 带上工具面（施工 4-1）；
+//!   [`Snapshot::with_tools`] 带上工具面（施工 4-1），[`ToolEntry::offer`] 照会话开局时的配置填一个参数能选的几个（施工
+//!   8-8 补）；
 //! - [`Snapshot::to_bytes`]、[`Snapshot::hash`]、[`Snapshot::from_bytes`]：规范的字节、内容哈希、读回来；
 //! - [`Snapshot::policy`]、[`Snapshot::driver_texts`]：照快照造出内核的策略、驱动的占位。
 
@@ -46,4 +47,4 @@ pub use snapshot::{
 };
 pub use text_file::TextFileTexts;
 pub use title::{TITLE, TitleNumbers, TitleTexts};
-pub use tools::{RunTexts, ToolEntry};
+pub use tools::{Choice, RunTexts, ToolEntry};

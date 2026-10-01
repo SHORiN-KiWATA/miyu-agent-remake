@@ -11,6 +11,7 @@ Commands:
   config <command>      See and change settings, trust a project config
   login [name]          Save a provider's key; --list shows which are set
   logout [name]         Delete a provider's key
+  setup                 Connect the first model: find a key, try it, save it
   sandbox setup|remove  Set up or remove the sandbox user (Windows, needs admin)
 
 ask options:

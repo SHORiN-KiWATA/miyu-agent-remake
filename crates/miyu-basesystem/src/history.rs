@@ -25,7 +25,7 @@ use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Found, Log, Progress, Running, Spec, Stop, Tool, find_session};
 
 use crate::blocking::blocking;
-use crate::common::{Common, given, integer, said};
+use crate::common::{Common, given, integer, said, said_n};
 use crate::load::{self, LoadError, say};
 
 use entry::{Entry, Placeholders, Who};
@@ -264,7 +264,7 @@ fn look(texts: &Texts, log: &Log, offset: UtcOffset, wanted: &Wanted, stop: &Sto
             .filter_map(|entry| page::hit(&entry.text, &wanted.words).map(|hit| (entry, hit)))
             .collect();
         let page = page::found(&found, wanted.limit, offset, &texts.footers);
-        let human = said("history/found").with("count", page.total.to_string());
+        let human = said_n("history/found", "count", page.total as u64);
         (page, human)
     };
     shown(texts, page, human)

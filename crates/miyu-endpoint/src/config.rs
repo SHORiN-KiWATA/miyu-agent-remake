@@ -321,6 +321,11 @@ impl Config {
         found
     }
 
+    /// 核心的环境里变量 `name` 设了、去掉前后空白不是空的（施工 8-11，`provider.detect`）：只说有没有，值不交出去。
+    pub(crate) fn env_set(&self, name: &str) -> bool {
+        self.environment.has(name)
+    }
+
     /// 照引用取一个密钥（施工 8-6，路由取 key）：`{ secret }` 照手里的密钥文件，`{ env }` 照核心的环境。没设的、设成空的、
     /// 有控制字符、太长的是空的。
     pub fn secret(

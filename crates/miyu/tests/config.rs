@@ -246,7 +246,11 @@ async fn check_reports_each_problem_on_a_line_and_the_total() {
 async fn ask_first_says_the_config_has_errors_and_path_says_where_a_project_config_goes() {
     let home = Home::new();
     let root = home.root.path().to_path_buf();
-    write(&root.join("system").join("config.toml"), SYSTEM);
+    // 配一个用不了的模型（施工 8-11）：没配的 `miyu ask` 不造会话，看不到造会话时说的那几句。
+    write(
+        &root.join("system").join("config.toml"),
+        &format!("{SYSTEM}\n{}", support::UNUSABLE_MODEL),
+    );
     let (held, _) = within("拉起", connect_or_start(&home.root, || home.core()))
         .await
         .expect("拉得起");

@@ -3,7 +3,8 @@
 //!
 //! - 供应商：`id`、`name`、`env`、`npm`、`api`、`doc`、`models`；
 //! - 模型：`id`、`name`、`family`、`tool_call`、`modalities.input`、`limit`（`context`、`input`、`output`）、`cost`、
-//!   `reasoning_options`、`status`。窗口取 `limit.context` 和 `limit.input` 里小的那个。
+//!   `reasoning_options`、`status`、`release_date`（施工 8-11，推荐模型用）。窗口取 `limit.context` 和 `limit.input` 里小的
+//!   那个。
 //!
 //! 一个模型的格坏了（类型不对、数是负的），跳过它，交回它的名字由读的一方记一行；一家供应商自己的格坏了，整家跳过。
 //! 整份不是 JSON 对象的，算读不了。读好以后照名字建两份索引：一模一样的名字、规整以后的名字（[`crate::matching`]）。
@@ -72,6 +73,8 @@ pub struct CatalogModel {
     pub reasoning: Option<Vec<String>>,
     /// `deprecated`、`beta` 这类。
     pub status: Option<String>,
+    /// 发布日期，原样（`2026-09-10`）：照字比新旧（施工 8-11，第一次接入推荐模型用）。
+    pub release_date: Option<String>,
 }
 
 /// 在用的目录：读好的，和它是哪一份、什么时候拉的（`model.list` 的 `catalog`，来源的 `fetched`）。
@@ -152,6 +155,8 @@ struct RawModel {
     reasoning_options: Option<Vec<ReasoningOption>>,
     #[serde(default)]
     status: Option<String>,
+    #[serde(default)]
+    release_date: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -301,6 +306,7 @@ impl From<RawModel> for CatalogModel {
             price: raw.cost.map(price::RawCost::price),
             reasoning: raw.reasoning_options.and_then(reasoning),
             status: raw.status,
+            release_date: raw.release_date,
         }
     }
 }

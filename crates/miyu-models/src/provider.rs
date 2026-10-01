@@ -8,8 +8,8 @@
 //! 3. key：照写的先后。取不到值的不当候选（由执行器取，这里只排先后，[`crate::keys`]）。
 //! 4. 本机的服务：手写的 `local`，没写的照地址在不在本机（第二条第 12 条，8-7）。手写的地址是环境变量的引用时查不出来，
 //!    照不在本机算，想算本机的自己写 `local = true`（施工 8-6b）。
-//! 5. 没有模型：`models.chat` 没配、引用解析不出，交 [`NoModel`]，原话照「出错」那张表。引用指到一个模型还是一个池、
-//!    挡位换成什么，在 [`crate::reference::resolve`]（施工 8-8）。
+//! 5. 没有模型：`models.chat` 没配、引用解析不出，交 [`NoModel`]，原话照「出错」那张表。引用指到一个模型还是一个池，在
+//!    [`crate::reference::resolve`]（施工 8-8）。
 //!
 //! 地址可能是写死的，也可能是一个环境变量的引用（施工 8-6b，[`miyu_config::Address`]）：这里只带着引用走，不解出地址
 //! 本身——对目录、本机的服务这两处用得到字面地址的，查不到的就当没有；真要连供应商的那一刻才经 [`resolve_base_url`]
@@ -31,6 +31,17 @@ use crate::settings::{ProviderSettings, UseSettings};
 pub enum Driver {
     /// `openai-chat`。
     OpenAiChat,
+}
+
+impl Driver {
+    /// 配置、档案里驱动的写法认成现在有的哪一种（施工 8-11 从 [`provider`] 里拿出来，`provider.catalog` 的 `supported` 也照
+    /// 它）；还没有的（`anthropic`、`openai-responses`）、不认识的是空的。
+    pub fn parse(name: &str) -> Option<Driver> {
+        match name {
+            "openai-chat" => Some(Driver::OpenAiChat),
+            _ => None,
+        }
+    }
 }
 
 /// 一家供应商这一轮的样子。
@@ -133,13 +144,10 @@ pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<
             "provider {id:?} needs driver and base_url: it matches nothing in the catalog"
         )));
     };
-    let driver = match driver.as_str() {
-        "openai-chat" => Driver::OpenAiChat,
-        other => {
-            return Err(NoModel(format!(
-                "driver {other:?} of provider {id:?} is not available yet"
-            )));
-        }
+    let Some(driver_kind) = Driver::parse(&driver) else {
+        return Err(NoModel(format!(
+            "driver {driver:?} of provider {id:?} is not available yet"
+        )));
     };
     // 本机的服务：是环境变量的引用时查不出来，照不在本机算（第四条，施工 8-6b）。
     let local = settings
@@ -147,7 +155,7 @@ pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<
         .unwrap_or_else(|| literal(&base_url).is_some_and(on_this_machine));
     Ok(Provider {
         id: id.to_string(),
-        driver,
+        driver: driver_kind,
         base_url,
         compat: profile
             .compat
@@ -189,8 +197,8 @@ pub fn resolve_base_url(
     }
 }
 
-/// 地址在本机：主机名是 `127.0.0.1`、`localhost`、`::1`（写成 `[::1]`），不分大小写。
-fn on_this_machine(base_url: &str) -> bool {
+/// 地址在本机：主机名是 `127.0.0.1`、`localhost`、`::1`（写成 `[::1]`），不分大小写。第一次接入探哪几家也照它（施工 8-11）。
+pub(crate) fn on_this_machine(base_url: &str) -> bool {
     let rest = base_url
         .split_once("://")
         .map_or(base_url, |(_, rest)| rest);

@@ -61,11 +61,12 @@ fn the_help_is_the_page_in_the_language() {
 #[tokio::test]
 async fn the_last_ask_or_the_given_session_is_the_one_recapped() {
     let home = Home::new();
+    home.system_config(support::UNUSABLE_MODEL);
     let (held, _) = within("拉起", connect_or_start(&home.root, || home.core()))
         .await
         .expect("拉得起");
     let root = home.root.path().to_path_buf();
-    // 核心没配模型：这一轮说「没有可用的模型」，她一句都没回，没有可回顾的。
+    // 配的模型用不了（驱动还没有，施工 8-11 起没配的 `miyu ask` 不造会话）：这一轮说「没有可用的模型」，她一句都没回，没有可回顾的。
     let asked = run(&root, vec!["ask".into(), "在吗".into()]).await;
     assert_eq!(asked.status.code(), Some(5), "{asked:?}");
     let recapped = run(&root, vec!["recap".into()]).await;

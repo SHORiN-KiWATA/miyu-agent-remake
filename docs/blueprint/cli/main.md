@@ -9,9 +9,9 @@
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu/src/main.rs` | 子命令；换上帮助页；参数不对时交给 `misuse`；拉起核心用的命令 |
-| `crates/miyu-cli/src/help.rs`、`help/{zh,en}/{miyu,ask,undo,restore,redo,compact,recap,rename,sandbox,config,login,logout}.txt` | 帮助页：一种语言十二页，编进程序（施工 4-11；`sandbox` 那一页施工 5-8，`compact` 那一页施工 6-8，`redo` 那一页施工 4-7 再补，`recap` 那一页施工 3-8 四补，`rename` 那一页施工 3-8 五补，`config` 那一页施工 8-2，`login`、`logout` 两页施工 8-5） |
+| `crates/miyu-cli/src/help.rs`、`help/{zh,en}/{miyu,ask,undo,restore,redo,compact,recap,rename,sandbox,config,login,logout,setup}.txt` | 帮助页：一种语言十三页，编进程序（施工 4-11；`setup` 那一页施工 8-11，`sandbox` 那一页施工 5-8，`compact` 那一页施工 6-8，`redo` 那一页施工 4-7 再补，`recap` 那一页施工 3-8 四补，`rename` 那一页施工 3-8 五补，`config` 那一页施工 8-2，`login`、`logout` 两页施工 8-5） |
 | `crates/miyu-cli/src/misuse.rs` | 参数写错时说的那一句，不认识的子命令也在这里（施工 4-11）；少了子命令、嵌着的子命令写错、成对的选项少了一个（施工 5-8） |
-| `crates/miyu-cli/src/lib.rs` | 命令行的头对外的几样：`Ask`、`ask`、`talk`、`Format`、`Plan`、`Screen`、`Target`、`exit`，`Undo`、`undo`、`undo_on`、`Direction`、`UndoPlan`，`Compact`、`compact`（施工 6-8），`Recap`、`recap`、`recap_on`、`RecapPlan`（施工 3-8 四补），`Rename`、`rename`、`rename_on`、`RenamePlan`（施工 3-8 五补），`Redo`、`redo`、`redo_on`、`RedoPlan`（施工 4-7 再补），`Sandbox`、`sandbox`，`help`、`misuse`、`language` |
+| `crates/miyu-cli/src/lib.rs` | 命令行的头对外的几样：`Ask`、`ask`、`talk`、`Format`、`Plan`、`Screen`、`Target`、`exit`，`Undo`、`undo`、`undo_on`、`Direction`、`UndoPlan`，`Compact`、`compact`（施工 6-8），`Recap`、`recap`、`recap_on`、`RecapPlan`（施工 3-8 四补），`Rename`、`rename`、`rename_on`、`RenamePlan`（施工 3-8 五补），`Redo`、`redo`、`redo_on`、`RedoPlan`（施工 4-7 再补），`Setup`、`setup`、`setup_on`、`SetupPlan`、`HeadEnv`、`model_ready_on`（施工 8-11），`Sandbox`、`sandbox`，`help`、`misuse`、`language` |
 | `crates/miyu-cli/src/language.rs` | 界面语言；这一页和 `miyu ask` 给人看的字 |
 | `crates/miyu-cli/src/language/undo.rs` | `miyu undo`、`miyu restore` 给人看的字（`cli/undo.md`） |
 | `crates/miyu-cli/src/sandbox.rs`、`sandbox/flow.rs`、`language/sandbox.rs` | `miyu sandbox setup`、`remove`（`sandbox/windows.md`，施工 5-8） |
@@ -30,6 +30,7 @@
 | `rename` | 给当前会话起名（施工 3-8 五补） | `cli/rename.md` |
 | `config` | `get`、`check`、`explain`、`path`：看配置（施工 8-2）；`set`、`unset`、`edit`、`trust`：改配置、信任项目配置（施工 8-3） | `cli/config.md` |
 | `login`、`logout` | 存、列、删供应商的 key（施工 8-5） | `cli/login.md` |
+| `setup` | 接上第一个模型：找现成的 key 和本机的服务，或者搜目录、贴 key，试通了写进系统配置（施工 8-11） | `cli/setup.md` |
 | `sandbox` | `setup`、`remove`：Windows 上装好、撤掉沙盒用户，要管理员权限；别的平台上说一句不用装 | `sandbox/windows.md` |
 | `core` | 核心进程：由头拉起，平时不用人敲；不写进帮助 | `core.md` |
 | `help` | clap 自带：印帮助，`miyu help <子命令>` 印那一条的 | |
@@ -48,18 +49,18 @@
 
 ### 怎么走
 
-1. 先照界面语言给主程序和 `ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename`、`config`（连同它的八个子命令）、`login`、`logout`、`sandbox`（连同它的 `setup`、`remove`）换上帮助页（clap 的 `override_help`；`rewind` 是 `undo` 的别名，用同一页），再解析参数。
+1. 先照界面语言给主程序和 `ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename`、`config`（连同它的八个子命令）、`login`、`logout`、`setup`、`sandbox`（连同它的 `setup`、`remove`）换上帮助页（clap 的 `override_help`；`rewind` 是 `undo` 的别名，用同一页），再解析参数。
 2. 解析参数，不对的：
    1. 不认识的子命令：标准错误上说「没有 <名字> 这个子命令。想和她对话，用 miyu ask "…"」，退出码 2。不连核心，不拉起，什么都不发。
    2. `-h`、`--help`、`help`、`help <子命令>`：把那一页原样印在标准输出上，退出码 0。`-V`、`--version`：印 `miyu <版本>`，退出码 0。
    3. 别的：标准错误上说一句（下面「参数写错时」），退出码 2。
 3. 没写子命令：标准错误上说「终端界面还没做好。想和她对话，用 miyu ask "…"」，退出码 2。
-4. `ask`、`undo`（`rewind`）、`restore`、`redo`、`compact`、`recap`、`rename`、`config`、`login`、`logout`：交给命令行的头（`cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`、`cli/config.md`、`cli/login.md`），连同拉起核心用的命令。
+4. `ask`、`undo`（`rewind`）、`restore`、`redo`、`compact`、`recap`、`rename`、`config`、`login`、`logout`、`setup`：交给命令行的头（`cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`、`cli/config.md`、`cli/login.md`、`cli/setup.md`），连同拉起核心用的命令。
 5. 拉起核心用的命令：自己这个程序（`std::env::current_exe`，拿不到的用 `miyu`，照 `PATH` 找），加上 `core`。别的参数、环境变量不加；工作目录、标准输入输出、跟终端脱开，由拉起的那一边接（`ipc.md`）。
 6. `core`：跑核心进程，`--idle-seconds <秒>` 是空闲多少秒退出，不写是 600（`core.md`）。
 7. `sandbox setup`、`sandbox remove`：交给命令行的头（`sandbox/windows.md`）。
 
-**帮助页**：自己写的，一种语言十二页（`miyu`、`ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename`、`sandbox`、`config`、`login`、`logout`），编进程序，资源目录找不到也印得出；每页以一个换行结尾，最宽 80 列（中文字算两列）。`ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename` 的七页见 `cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`，`sandbox` 那一页见 `sandbox/windows.md`，`login`、`logout` 两页见 `cli/login.md`；`miyu sandbox setup -h`、`miyu sandbox remove -h` 印的也是它。`help` 子命令、`core` 不列；`miyu core --help` 照样印得出，是 clap 照代码注释生成的。
+**帮助页**：自己写的，一种语言十三页（`miyu`、`ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename`、`sandbox`、`config`、`login`、`logout`、`setup`），编进程序，资源目录找不到也印得出；每页以一个换行结尾，最宽 80 列（中文字算两列）。`ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename` 的七页见 `cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`，`sandbox` 那一页见 `sandbox/windows.md`，`login`、`logout` 两页见 `cli/login.md`；`miyu sandbox setup -h`、`miyu sandbox remove -h` 印的也是它。`help` 子命令、`core` 不列；`miyu core --help` 照样印得出，是 clap 照代码注释生成的。
 
 样本 `crates/miyu-cli/src/help/zh/miyu.txt`（帮助页，中文）：
 
@@ -77,6 +78,7 @@
   config <命令>         看配置、改配置、信任项目配置
   login [名字]          存一个供应商的 key；--list 列出哪几家设了
   logout [名字]         删掉一个供应商的 key
+  setup                 接上第一个模型：找现成的 key，试通了写进配置
   sandbox setup|remove  装好、撤掉沙盒用户（Windows，要管理员权限）
 
 ask 的选项：
@@ -121,6 +123,7 @@ Commands:
   config <command>      See and change settings, trust a project config
   login [name]          Save a provider's key; --list shows which are set
   logout [name]         Delete a provider's key
+  setup                 Connect the first model: find a key, try it, save it
   sandbox setup|remove  Set up or remove the sandbox user (Windows, needs admin)
 
 ask options:
@@ -229,5 +232,5 @@ Examples:
 
 - 只敲 `miyu` 打开终端界面（`22-命令行.md` 第五节、`13-终端界面.md`）：现在只说还没做好。
 - 会话怎么接：现在每次 `miyu ask` 开一个一次性会话，`--continue`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename` 管的都是上一次 `miyu ask` 开的那个，容易让人迷惑。做头的时候和终端里的会话一起重定（2026-09-28 项目主人定）。
-- 第五节表里的其余命令：`stdio`、`web`、`setup`、`status`、`doctor`、`logs`、`session`、`config`、`persona`、`preset`、`memory`、`kb`、`venue`、`listen`、`stt`、`pkg`、`tools`、`account`、`service`、`upgrade`、`shell-init`、`completions`。
+- 第五节表里的其余命令：`stdio`、`web`、`status`、`doctor`、`logs`、`session`、`config`、`persona`、`preset`、`memory`、`kb`、`venue`、`listen`、`stt`、`pkg`、`tools`、`account`、`service`、`upgrade`、`shell-init`、`completions`。
 - 界面语言是配置里跟着人走的一项（`14-配置.md` 第一节、`16-人格与预设.md` 第五节）；界面的字放在代码之外（`00-设计理念.md` 第六节）：现在照环境变量，字写在代码里。
