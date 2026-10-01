@@ -18,8 +18,10 @@
 | `crates/miyu-fs/src/trash.rs` | 回收站：放进去、移回来 |
 | `crates/miyu-fs/src/trash/linux.rs`、`macos.rs`、`windows.rs`、`other.rs` | 各平台的回收站；别的系统一律收不了 |
 | `crates/miyu-fs/src/trash/recycled.rs` | Windows 回收站里的 `$I` 记录；每个平台都编，测试到处都跑 |
+| `crates/miyu-fs/src/list.rs` | 列一层目录（`fs.list`，施工 W-2） |
+| `crates/miyu-fs/src/find.rs` | 模糊找文件的清单（`Index`）、打分（`score`），`fs.find` 用（施工 W-2） |
 
-用它的：基础系统的几件工具（`tools/`）；权限策略 `crates/miyu-session/src/guard.rs`（换成真实的位置、查边界；判 `trash` 时最后一段不跟链接）；撤销时改回文件 `crates/miyu-session/src/restore.rs`（`replace`、`trash::put`、`trash::restore`）；开会话时挑工作区 `crates/miyu-endpoint/src/sessions.rs`（`resolve`、`too_wide`）；`blob.put` 读人附的文件 `crates/miyu-endpoint/src/attach.rs`（`resolve`、`tilde`、边界表只拦谁都不能碰的那一片、`open_file`，施工 3-9 三补，`protocol.md`）。
+用它的：基础系统的几件工具（`tools/`）；权限策略 `crates/miyu-session/src/guard.rs`（换成真实的位置、查边界；判 `trash` 时最后一段不跟链接）；撤销时改回文件 `crates/miyu-session/src/restore.rs`（`replace`、`trash::put`、`trash::restore`）；开会话时挑工作区 `crates/miyu-endpoint/src/sessions.rs`（`resolve`、`too_wide`）；`blob.put` 读人附的文件 `crates/miyu-endpoint/src/attach.rs`（`resolve`、`tilde`、边界表只拦谁都不能碰的那一片、`open_file`，施工 3-9 三补，`protocol.md`）；`fs.list`、`fs.find` `crates/miyu-endpoint/src/files.rs`（`resolve`、边界表、`list_dir`、`find::Index`、`find::score`，找文件的清单记几份住在 `files/cache.rs`，施工 W-2，`protocol.md`）。
 
 ### 对外的样子
 
@@ -31,6 +33,7 @@
 | `Boundary::new(&places)` | 边界表：每一片换成真实的位置 |
 | `Boundary::zone(path)` | 真实的位置 `path` 落在哪一片 |
 | `within(path, root)` | 真实的位置在不在目录 `root` 里 |
+| `Boundary::blocks_descent(dir)` | 走目录的工具（`fs.find`）要不要挡住往下走进 `dir`：落进「谁都不能碰」那一片、又没有工作区、加进来的目录藏在它底下（施工 W-2） |
 | `resolve(cwd, home, input)` | 她给的路径换成真实的位置 |
 | `resolve_itself(cwd, home, input)` | 同上，最后一段不跟链接：碰的是这一条本身（`trash`）；没有名字可碰的交回空的 |
 | `tilde(input)` | `~` 开头的，交回 `~` 后面那一截 |
@@ -39,6 +42,10 @@
 | `replace(real, bytes)` | 把一份文件整体换成 `bytes` |
 | `trash::put(real, home)` | 放进系统的回收站，交回它在回收站里的真实路径 |
 | `trash::restore(kept, to)` | 把回收站里的 `kept` 移回 `to` |
+| `list_dir(dir, prefix, boundary)` | 列 `dir` 这一层：名字照 `prefix` 开头对、落进「谁都不能碰」那一片的不列，交回最多 `SHOWN` 条和有没有列全（`fs.list`，施工 W-2） |
+| `find::Index::start(root, boundary, cap, on_error)` | 在后台线程里建 `root` 的清单，随时能照 `Index::with` 读建到现在的那部分（`fs.find`，施工 W-2） |
+| `find::score(path, query)` | 模糊找怎么打分：交回分和对上的是第几个字（施工 W-2） |
+| `find::{SHOWN, CAP, DEPTH, FRESH_SECS, MAX_INDEXES}` | 列、找文件的出厂数：一次列最多几条、清单最多收几个、最深几层、`fresh` 时多久重建、核心最多记几份清单（施工 W-2） |
 | `ResolveError`、`OpenError`、`Kind`、`trash::Refused` | 换不成、打不开、不是普通文件时是什么、放不进回收站：见第四节、第六节和「出错」 |
 
 ### 怎么走
@@ -220,6 +227,26 @@
 - `to` 要空着、`kept` 要还在：先查的是调用的一方（`crates/miyu-session/src/restore.rs`）。查和移之间 `to` 被别的程序占了的，改名会盖掉它。
 - 出错：上级目录建不了、改名移不回去（例如 `kept` 已经没了）：报那个错。
 
+#### 七、列一层、模糊找（`fs.list`、`fs.find`，施工 W-2；协议层的参数、边界检查、出错、清单记几份在 `web-module.md`「三、列文件、找文件」、`protocol.md`）
+
+**列一层**（`list_dir(dir, prefix, boundary)`）：
+
+1. 只读 `dir` 这一层，不往下走。名字照 `prefix` 开头对、大小写不论；点开头的要 `prefix` 也以 `.` 开头才列。目录在前、文件在后，各照名字排（大小写不论）。目录的名字后面带 `/`。
+2. 每一条照 `boundary.zone` 判：落进「谁都不能碰」那一片的不列，旁边的照样列。
+3. 最多交回 `SHOWN`（50）条，多了截掉、交回「列没列全」。
+
+**模糊找的清单**（`find::Index`）：
+
+1. `Index::start(root, boundary, cap, on_error)` 在一个新的系统线程里走一遍 `root`：`ignore` 库认 `.gitignore`（`require_git(false)`，不要求是 git 仓库），跳过隐藏的、出厂名单（`node_modules`、`target`），不跟链接，最深 `DEPTH`（8）层。交回的 `Index` 立刻能用，清单还在建。
+2. `Index::with(f)` 拿着锁的这一刻看一份快照：`entries`（收到的，先后不定）、`done`（走完了没有）、`partial`（收满 `cap` 就停、没走完）。
+3. 走目录时，目录落进「谁都不能碰」那一片的，照 `Boundary::blocks_descent` 判要不要继续往下走：工作区、加进来的目录藏在它底下的（常见的是账号自己的工作区就在数据根里面）照样进去，不然就不进；进去以后这一条自己（它落进了那一片）不收进 `entries`，底下不落进那一片的照收。
+4. 走到一层读不了的目录（没有权限这类），`on_error` 收到那一句错误原话，跳过它接着建，不算整份失败。
+5. `entries` 里每一条是相对 `root`、用 `/` 连起来的路径（不管平台），目录后面带 `/`。
+
+**打分**（`find::score(path, query)`）：`query` 的字照先后都在 `path` 里（不论大小写）才算，交回分和对上的是第几个字（按字符数）；对不上的是 `None`。先试整个落在文件名里，落不下再从路径开头找；每个字对上 1 分，落在文件名里多 3 分，在一段的开头（路径的头一个字，或者前面是 `/`、`-`、`_`、`.`、空格）多 8 分，和上一个字连着多 5 分；文件名去掉扩展名正好是打的字多 100 分。`query` 是空的都对得上、0 分。照 proto/web-demo 分支 `web-demo/bridge/src/mention.rs` 的 `score` 搬过来，测试一起搬。
+
+- 清单记几份、`fresh` 多久重建、排序、截到多少条、拼成协议回应的 JSON 都在协议端点（`crates/miyu-endpoint/src/files.rs`、`files/cache.rs`），这里只是走目录、打分的底子。
+
 ### 出错
 
 出错写成的字是英文。`ResolveError` 的字她看得到：权限策略拒绝时填进 `reason`（`core/permissions/unresolvable`），工具出错时填进 `error`（`tools/`）。
@@ -258,6 +285,8 @@
 | `crates/miyu-fs/src/trash/recycled/tests.rs` | `$I` 第 2 版、第 1 版，认不出的、不够长的、字数说得比记录长的，`$I` 在 `$R` 旁边 |
 | `crates/miyu-basesystem/tests/trash.rs` | 经 `trash` 这件工具：Linux 上放进家目录的回收站、记录的样子、`files/` 和 `info/` 是 `0700`、重名接 `.2`、同名却没有记录的不盖、目录和链接、转义、挪不动的不删也不留记录、家目录的回收站建不了的不删 |
 | `crates/miyu-basesystem/tests/write.rs` | 经 `write`：原来的权限照留、不留临时文件、只读的不写 |
+| `crates/miyu-fs/src/list/tests.rs` | 开头对、大小写不论、点开头的打了点才列、目录在前、50 条截断、`partial`；落进「谁都不能碰」那一片的不列、旁边照样列；读不了的目录是错（施工 W-2） |
+| `crates/miyu-fs/src/find/tests.rs` | 打分（照桥的 `score` 测试，一样先在文件名里找、落在一段开头的分高、连着的分高、文件名正好是的分高）；模糊找：认 `.gitignore`（不要求是 git 仓库）、跳过隐藏目录和名单、最深几层、收满就停、落进「谁都不能碰」那一片的不收、工作区在数据根里面照样穿得过去、读不了一层目录的跳过并报给 `on_error`、建到一半也能读（施工 W-2） |
 
 没测到的：Linux 另一块盘上的 `.Trash/<uid>`、`.Trash-<uid>`（测试机上造不出另一块盘）；`XDG_DATA_HOME` 那一条（测试里不改环境变量）。
 
@@ -265,6 +294,7 @@
 
 - `11-权限与沙盒.md` 第四节（边界的默认值、几片重叠时谁说了算、第一版的清单、当前目录太宽）、第七节（核心进程里的文件工具、第一版怎么做）、A4、A9。
 - `10-自带软件.md` 第三节（「`write` 的细则」：先写临时文件再改名盖上去；「`trash` 的细则」：三个平台怎么放）、第七节（「改回文件的细则」：移回来）。
+- `web-module.md`「三、列文件、找文件」（施工 W-2，`fs.list`、`fs.find` 协议层的参数、出错、清单记几份）；打分照 proto/web-demo 分支 `web-demo/bridge/src/mention.rs` 的 `score` 搬过来。
 
 ### 还没有的
 
@@ -274,3 +304,4 @@
 - 成员的边界（只能碰自己的工作区）、别人分享来的工作区加进边界（第三节、第四节，`06-多用户与身份.md` U12）。
 - 放不进回收站时问人要不要永久删除：随 M8 的当场确认（`10-自带软件.md` 第三节）。
 - Windows 的回收站设成「立即删除」、东西比回收站的容量上限还大：还没验证会怎样（第三节）。
+- 从最近在的一层换成真实的位置（`fs.realpath`）、安全地打开以后读一段（`fs.read`）：W-3、W-6。`fs.list`、`fs.find` 的出厂数（50、20000、8 层、10 秒、4 份、跳过的名单）现在写在代码里，配置那一步能改（`web-module.md`「起草时定的」第 29 条）。

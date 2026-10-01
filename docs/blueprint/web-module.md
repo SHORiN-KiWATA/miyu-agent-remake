@@ -20,7 +20,7 @@
 | 8. `web.files` | 核心 | `fs.list`、`fs.find` | W-2 |
 | 9. 核心没在跑时拉起它 | 网页软件，照别的头 | 无 | W-9 |
 
-状态：图纸，2026-10-01 项目主人批准。「网页界面是一个软件，网页的东西不放进核心」是项目主人 2026-10-01 定的，重开了设计 04 的 P5（末尾「要改的设计」）；「画 mermaid 在核心里，做成可选的软件包」也是同一天项目主人定的。技术细节照推荐定了，写在末尾「起草时定的」；项目主人拍板的六题单列一节。施工步子 W-1 到 W-11，W 是和 M8 并行的一条线，不占里程碑的号。W-1 做好了：`human.get`（`crates/miyu-endpoint/src/human.rs`、`crates/miyu-store/src/human.rs` 交出模板原文，`crates/miyu-endpoint/tests/human.rs`）。
+状态：图纸，2026-10-01 项目主人批准。「网页界面是一个软件，网页的东西不放进核心」是项目主人 2026-10-01 定的，重开了设计 04 的 P5（末尾「要改的设计」）；「画 mermaid 在核心里，做成可选的软件包」也是同一天项目主人定的。技术细节照推荐定了，写在末尾「起草时定的」；项目主人拍板的六题单列一节。施工步子 W-1 到 W-11，W 是和 M8 并行的一条线，不占里程碑的号。W-1 做好了：`human.get`（`crates/miyu-endpoint/src/human.rs`、`crates/miyu-store/src/human.rs` 交出模板原文，`crates/miyu-endpoint/tests/human.rs`）。 W-2 做好了：`fs.list`、`fs.find`（`crates/miyu-fs/src/list.rs`、`find.rs`；`crates/miyu-endpoint/src/files.rs`、`files/cache.rs`；`crates/miyu-fs/src/list/tests.rs`、`find/tests.rs`；`crates/miyu-endpoint/tests/files.rs`）。
 
 - W-1 到 W-7（核心的通用方法）现在就做，和 M8 并行。
 - W-8 到 W-11（身份、网页软件、媒体地址、打包）等用户系统：项目主人要的是第一次用一次性码进网页、建管理员账号，码当场作废，以后用用户名和密码登录（第 1、3 题）。用户系统照约定 M8 做完以后专门过一遍（「多用户、多终端」那次讨论），这几步的细节那时重画。这一页第一条、第十一条和 W-8 那几行写的是起草时的样子，只当参考；第九条、第十条的大部分不受影响。
@@ -582,6 +582,11 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 | 30 | `logins.json` 最多 64 行，过期的写的时候删 | 文件不会一直长；写的时候顺手删，不另起清理 | 不设上限 |
 | 31 | `link.preview` 在后台的任务里抓，回应照 `id` 对上，不挡这个连接后面的请求 | 抓一页要几秒；一个连接上的请求本来一条条办，页面上别的都会卡住 | 照一条条办（卡片多的时候整个页面卡几秒） |
 | 32 | `human.get` 每次现读资源目录 | 一个连接只要一次，读几份 JSON 很快；开发时改了资源不用重启核心 | 核心起来时读好记着 |
+| 33 | `find::Index::start` 的清单上限 `cap` 当参数传，不直接读 `CAP` 常量（施工 W-2） | 出厂调用传 `miyu_fs::CAP`；测试传小一点的数，不用真的在磁盘上造两万个文件才能测到「收满就停」 | `cap` 写死在 `Index::start` 里（测试要么真造两万个文件、要么测不到这一条） |
+| 34 | `Boundary` 新增 `blocks_descent(dir)`，和 `zone(path)` 分开（施工 W-2） | `fs.find` 要穿过数据根去够到里面的工作区，但数据根自己、别的子目录不许进：「要不要往下走」和「这一条算不算数」是两个问题，`zone` 答后者，`blocks_descent` 答前者 | 只用 `zone`：要么数据根整个进不去（工作区在数据根里的找不到），要么数据根里別的内容也被走进去（`zone` 分不清「借道」和「目的地」） |
+| 35 | 找文件的清单在原生系统线程（`std::thread::spawn`）里建，不用 `tokio::task::spawn_blocking`（施工 W-2） | `miyu-fs` 本来不依赖 tokio，不为这一步新加这个依赖；照 proto/tui-demo 分支 `tui-demo/src/mention/index.rs` 的先例 | 用 `tokio::task::spawn_blocking`（`miyu-fs` 要新加 tokio 依赖，这个 crate 目前只有纯文件操作） |
+| 36 | `fs.find` 的 `partial` 是「清单本身没走完」或者「对上的比截出来的 50 条还多」两种之一（施工 W-2） | 第 18 条写了清单没建完先给一部分；`fs.list` 的 `partial` 已经是「截断了」的意思，`fs.list`、`fs.find`「两个的回应一个样子」照这个理解 | 只算「清单没走完」：目录不大、清单建完了，但对上的有 80 条只截了 50 条，头不知道还有更多 |
+| 37 | `Core` 新增 `with_files_fresh(Duration)`，照 `with_hello_wait` 的先例（施工 W-2） | `fs.find` 的 `fresh` 判断要不要重建清单的时长（出厂 `FRESH_SECS` 10 秒）做成核心的一个可换字段，测试设成几十毫秒，不用真等十秒 | 10 秒写死在 `find.rs` 里不让核心改（测试要么真等十秒、要么测不到「隔多久才重建」） |
 
 ### 项目主人拍板的
 

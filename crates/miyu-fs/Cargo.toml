@@ -10,6 +10,9 @@ publish.workspace = true
 [dependencies]
 # 运行日志的门面：没删掉的临时文件、回收站里没删掉的记录记一条（施工 4-6 上、下，4-7 上挪来）。
 tracing = { version = "0.1", default-features = false, features = ["std"] }
+# 模糊找文件建清单走目录（施工 W-2）：认 .gitignore、跳过隐藏的，和 miyu-basesystem 的 glob、grep 同一套
+# （MIT OR Unlicense）；依赖树里本来就有它。
+ignore = "0.4"
 
 [target.'cfg(unix)'.dependencies]
 # 打开时不跟随最后一层的链接、不阻塞：O_NOFOLLOW、O_NONBLOCK、ELOOP 在各个 Unix 上的值不一样，从这里取，
