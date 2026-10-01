@@ -33,7 +33,7 @@ pub(super) struct ConfigChanged<'a> {
 #[derive(Debug, Serialize)]
 pub(super) struct KeyChange {
     /// 哪一项。
-    pub(super) key: &'static str,
+    pub(super) key: String,
     /// 改之前这一层的值。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) old: Option<serde_json::Value>,

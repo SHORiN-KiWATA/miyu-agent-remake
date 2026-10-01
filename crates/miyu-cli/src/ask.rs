@@ -38,7 +38,7 @@ use std::time::Duration;
 use clap::{Args, ValueEnum};
 use tokio::sync::mpsc;
 
-use miyu_ipc::{ConnectError, connect_or_start};
+use miyu_ipc::connect_or_start;
 use miyu_store::env::Env;
 use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
@@ -228,21 +228,9 @@ async fn run(args: Ask, start: impl FnOnce() -> Command, language: Language) -> 
     if let Err(error) = root.prepare() {
         return failed(&error.to_string());
     }
-    let key = std::env::var("DEEPSEEK_API_KEY").is_ok_and(|key| !key.trim().is_empty());
-    let connected = match key {
-        true => connect_or_start(&root, start)
-            .await
-            .map_err(|error| error.to_string()),
-        // 没有 key：核心在跑的照样连（它可能有），没在跑的不拉起。
-        false => match miyu_ipc::connect(&root).await {
-            Ok(connected) => Ok(connected),
-            Err(ConnectError::NotRunning) => {
-                eprintln!("{}", language.no_model());
-                return exit::NO_MODEL;
-            }
-            Err(error) => Err(error.to_string()),
-        },
-    };
+    let connected = connect_or_start(&root, start)
+        .await
+        .map_err(|error| error.to_string());
     let (connection, token) = match connected {
         Ok(connected) => connected,
         Err(reason) => return failed(&reason),

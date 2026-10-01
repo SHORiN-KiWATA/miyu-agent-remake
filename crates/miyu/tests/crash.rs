@@ -122,13 +122,16 @@ impl Rpc {
     }
 }
 
-/// 拉起核心：模型是 `server`，等它写来 `ready`。
+/// 拉起核心：模型是 `server`（照 `cargo xtask dev-home` 造的那样写一份系统配置，施工 8-6），等它写来 `ready`。
 fn start(home: &Home, server: &Server) -> Child {
+    let config = format!(
+        "[providers.dev]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\ncatalog = \"deepseek\"\nkeys = [{{ env = \"MIYU_TEST_KEY\" }}]\n\n[models]\nchat = \"dev/deepseek-chat\"\n",
+        server.base_url
+    );
+    std::fs::write(home.root.path().join("system").join("config.toml"), config).expect("写得进");
     let mut core = home
         .core()
-        .env("DEEPSEEK_API_KEY", "test")
-        .env("MIYU_DEV_BASE_URL", &server.base_url)
-        .env("MIYU_DEV_MODEL", "deepseek-chat")
+        .env("MIYU_TEST_KEY", "test")
         .env("NO_PROXY", "127.0.0.1")
         .env_remove("HTTP_PROXY")
         .env_remove("HTTPS_PROXY")

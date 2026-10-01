@@ -91,7 +91,7 @@ fn the_partial_style_writes_its_own_field() {
     let partial = Compat {
         continuation: Continuation::Prefix {
             field: ContinuationField::Partial,
-            path: PATH,
+            path: PATH.to_string(),
         },
         ..deepseek()
     };

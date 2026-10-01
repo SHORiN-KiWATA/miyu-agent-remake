@@ -418,7 +418,10 @@ async fn every_turn_takes_the_config_of_that_moment() {
         .configs()
         .iter()
         .map(|config| {
-            let (value, origin) = config.get("permission.start_read_only").expect("有这一项");
+            let (value, origin) = config
+                .resolved
+                .get("permission.start_read_only")
+                .expect("有这一项");
             (value.json(), json!(origin.layer_name()))
         })
         .collect();

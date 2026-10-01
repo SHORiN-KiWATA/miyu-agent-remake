@@ -1,6 +1,6 @@
-//! 模型资料（施工 6-3 上，`docs/blueprint/core.md`「模型」）：资源目录里的 `models/models-dev.json`，从 models.dev 的
-//! `api.json` 抽出来的，只留驱动认得的供应商，每个模型只留窗口（`limit.context`）和最大输出（`limit.output`），形状照
-//! models.dev 原来的。照（供应商，模型名）查。
+//! 模型资料（施工 6-3 上，`docs/blueprint/core.md`「模型」；施工 8-6 从核心挪到这里，路由照它查）：资源目录里的
+//! `models/models-dev.json`，从 models.dev 的 `api.json` 抽出来的，只留驱动认得的供应商，每个模型只留窗口（`limit.context`）
+//! 和最大输出（`limit.output`），形状照 models.dev 原来的。照（供应商，模型名）查。核心读好字交进来。8-7 换成完整的目录。
 
 use std::collections::BTreeMap;
 

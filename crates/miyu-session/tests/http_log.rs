@@ -7,15 +7,9 @@
 mod support;
 
 use std::path::PathBuf;
-use std::time::Duration;
 
-use miyu_drivers::openai_chat::Compat;
-use miyu_drivers::{Call, Inputs};
 use miyu_http::testkit::{Piece, Reply, Server};
-use miyu_http::{Endpoint, Proxy, client};
-use miyu_kernel::id::{ModelName, ProviderId};
 use miyu_log::{LevelFilter, Memory};
-use miyu_session::HttpModels;
 use support::{Home, ask, say, until_turn_ends, watch};
 
 #[tokio::test]
@@ -30,25 +24,9 @@ async fn the_http_lines_carry_the_session() {
         .join("../../docs/designs/samples/drivers/openai-chat/streams/openai-text.sse");
     let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("读不了 {}：{e}", path.display()));
     let server = Server::start(vec![Reply::stream(vec![Piece::Bytes(bytes)])]).await;
-    let models = HttpModels {
-        client: client(Proxy::Off).expect("造得出客户端"),
-        provider: ProviderId::parse("deepseek").expect("端点合写法"),
-        endpoint: Endpoint::new(&server.base_url, "sk-test"),
-        compat: Compat::default(),
-        call: Call {
-            model: ModelName::parse("deepseek-v4").expect("模型名合写法"),
-            max_output: None,
-            inputs: Inputs::default(),
-        },
-        idle: Duration::from_secs(5),
-
-        window: None,
-
-        max_output: None,
-
-        images: None,
-    };
-    let home = Home::new();
+    let (models, configs) = support::routing::served(&server.base_url, serde_json::json!({}));
+    let mut home = Home::new();
+    home.configs = configs;
     let handle = home.create(&models).await;
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");

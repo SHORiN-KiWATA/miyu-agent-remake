@@ -20,6 +20,8 @@ miyu-cli = { path = "../miyu-cli" }
 miyu-core = { path = "../miyu-core" }
 
 [dev-dependencies]
+# 测试 `cargo xtask dev-home` 造的配置照清单读得进来（施工 8-6）。
+miyu-config = { path = "../miyu-config" }
 # 测试里拉起核心、连上它（施工 3-9 上）。
 miyu-ipc = { path = "../miyu-ipc" }
 # 测试里的假模型：本机回环上照剧本回的 HTTP 服务器（施工 7-8：核心崩了后台命令跟着没）。

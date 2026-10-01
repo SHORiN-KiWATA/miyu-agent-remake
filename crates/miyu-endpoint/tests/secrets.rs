@@ -28,7 +28,9 @@ fn secret_item(key: &'static str) -> Item {
     Item {
         key,
         kind: Kind::Secret,
-        default: ConfigValue::Secret(Reference::Env("EXAMPLE_KEY".to_string())),
+        default: Some(ConfigValue::Secret(Reference::Env(
+            "EXAMPLE_KEY".to_string(),
+        ))),
         layers: &[Layer::System, Layer::Personal],
         tighten: None,
         env: None,

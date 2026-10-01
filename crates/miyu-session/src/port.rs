@@ -9,7 +9,7 @@ use tokio::sync::{mpsc, oneshot};
 use miyu_drivers::DriverTexts;
 use miyu_kernel::accumulate::Delta;
 use miyu_kernel::event::{CallError, Purpose, Usage};
-use miyu_kernel::id::{ContentHash, Seq};
+use miyu_kernel::id::{ContentHash, Seq, SessionId};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
 use miyu_kernel::session::Limits;
@@ -27,6 +27,10 @@ pub trait Models: Send + Sync {
 /// 造端口时交进来的，这个会话自己的。
 #[derive(Debug, Clone)]
 pub struct ForSession {
+    /// 会话编号：路由照它挑 key（施工 8-6，`models.md` 第一条第 6 条）。
+    pub id: SessionId,
+    /// 造会话、载入时取的那一份配置（施工 8-6）：会话用哪个模型、限额照它定。
+    pub config: TurnConfig,
     /// 驱动的占位：取自这个会话的策略快照。
     pub texts: DriverTexts,
     /// 属主的 blob：编码要用的图、文件在这里。
@@ -35,14 +39,15 @@ pub struct ForSession {
 
 /// 请求模型的端口。
 pub trait ModelPort: Send + Sync {
-    /// 发给哪个端点的哪个模型：记进运行日志的 `request` 那一行。
-    fn model(&self) -> &Model;
+    /// 发给哪个端点的哪个模型：记进运行日志的 `request` 那一行。路由的是这个会话钉着的、上一次解析出来的那一个（施工 8-6：
+    /// 回合开始时照新的配置可能换，真发给谁记在 `model.called` 里）。
+    fn model(&self) -> Model;
 
     /// 这个模型的限额：窗口、最大输出、一张图怎么算（施工 6-3 上）。会话 actor 造会话、载入以后交给内核。不知道的
     /// 都是没有：不主动压。
     fn limits(&self) -> Limits {
         Limits {
-            model: self.model().clone(),
+            model: self.model(),
             window: None,
             max_output: None,
             images: None,

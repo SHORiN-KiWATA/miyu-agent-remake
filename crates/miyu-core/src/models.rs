@@ -1,216 +1,99 @@
-//! 模型（`docs/designs/15-模型与供应商.md` 第七节，施工 3-9 上）：配置系统做出来之前，只认环境变量
-//! `DEEPSEEK_API_KEY`（2026-09-27 项目主人定），设了就接 DeepSeek 官方的 `deepseek-flash`；没设的，每次
-//! 请求都当场回「没有可用的模型」。key 只在内存里，不落盘、不写配置、不进日志。
+//! 模型（`docs/blueprint/models.md`、`core.md`「模型」，施工 8-6）：起来时读资源目录里的供应商档案
+//! （`models/profiles.toml`）和模型资料（`models/models-dev.json`），造每个会话的路由（`miyu_session::Routes`）。用哪家
+//! 供应商、哪个模型、哪个 key，全照配置（`[providers.*]`、`models.chat`），每一轮开始时冻结的那一份；核心不再读开发用的
+//! 环境变量。没配的，每次请求都当场说完：`no_model`。
 //!
-//! 开发用的 `MIYU_DEV_BASE_URL`、`MIYU_DEV_MODEL` 替换地址和模型（施工 3-9 再补，2026-09-29 项目主人定），
-//! `MIYU_DEV_WINDOW` 给窗口（施工 6-3 上，同一天定），配置系统做好以后删掉。
-//!
-//! 模型的窗口、最大输出照资源目录里的模型资料查（[`ModelTable`]）；一张图怎么算跟着驱动的写法走，DeepSeek 的写法交官方
-//! 计算器的算法。
-
-mod table;
-
-pub use table::{ModelFacts, ModelTable};
+//! 档案是 TOML，这里读成 JSON 交给 `miyu-models`（那一层只用白名单里的 `serde_json`）。
 
 use std::sync::Arc;
 
-use miyu_drivers::openai_chat::Compat;
-use miyu_drivers::{Call, DeepSeekImages, Inputs};
-use miyu_http::{Endpoint, Proxy, client};
-use miyu_kernel::event::{CallError, ErrorClass};
-use miyu_kernel::id::{ModelName, ProviderId, Seq};
-use miyu_kernel::origin::Model;
-use miyu_kernel::request::Request;
-use miyu_session::{Cancel, ForSession, HttpModels, ModelPort, Models, Reports};
+use miyu_http::{Proxy, client};
+use miyu_models::ModelTable;
+use miyu_models::profile::Profiles;
+use miyu_session::{IDLE, Models, Routes};
+use miyu_store::resources::ResourceRoot;
 
 use crate::TARGET;
 
-/// DeepSeek 官方的地址。
-const BASE_URL: &str = "https://api.deepseek.com";
-
-/// 端点的编号：记进 `model.called`。
-const PROVIDER: &str = "deepseek";
-
-/// 换了地址的端点编号：看得出这一次没走 DeepSeek 官方。
-const DEV_PROVIDER: &str = "dev";
-
-/// 起来时从环境变量读到的：key，和开发用的地址、模型。
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ModelEnv {
-    /// `DEEPSEEK_API_KEY`。
-    pub key: Option<String>,
-    /// `MIYU_DEV_BASE_URL`。
-    pub base_url: Option<String>,
-    /// `MIYU_DEV_MODEL`。
-    pub model: Option<String>,
-    /// `MIYU_DEV_WINDOW`。
-    pub window: Option<String>,
-}
-
-/// 挑定的端点：地址、编号、模型、key。
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Chosen {
-    base_url: String,
-    provider: &'static str,
-    model: ModelName,
-    key: String,
-    /// `MIYU_DEV_WINDOW` 给的窗口。
-    window: Option<u64>,
-}
-
-/// 照环境变量挑端点：没有 key 的是 `None`；开发用的两个，去掉前后空白不是空的才算设了。
-fn choose(env: &ModelEnv) -> Result<Option<Chosen>, String> {
-    let set = |value: &Option<String>| {
-        value
-            .as_deref()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(str::to_string)
-    };
-    let Some(key) = set(&env.key) else {
-        return Ok(None);
-    };
-    let model = match set(&env.model) {
-        Some(name) => ModelName::parse(&name)
-            .map_err(|error| format!("MIYU_DEV_MODEL {name:?} is not a model name: {error}"))?,
-        None => model(MODEL),
-    };
-    let (base_url, provider) = match set(&env.base_url) {
-        Some(url) => (url, DEV_PROVIDER),
-        None => (BASE_URL.to_string(), PROVIDER),
-    };
-    let window = match set(&env.window) {
-        Some(text) => Some(
-            text.parse::<u64>()
-                .ok()
-                .filter(|window| *window > 0)
-                .ok_or_else(|| {
-                    format!("MIYU_DEV_WINDOW {text:?} is not a positive whole number")
-                })?,
-        ),
-        None => None,
-    };
-    Ok(Some(Chosen {
-        base_url,
-        provider,
-        model,
-        key,
-        window,
-    }))
-}
-
-/// 这个模型的资料：驱动用的是 DeepSeek 的写法，开发端点也照 `deepseek` 那一家查；`MIYU_DEV_WINDOW` 压过查到的窗口。
-fn facts(chosen: &Chosen, table: &ModelTable) -> ModelFacts {
-    let found = table.find(PROVIDER, chosen.model.as_str());
-    ModelFacts {
-        window: chosen.window.or(found.window),
-        max_output: found.max_output,
-    }
-}
-
-/// 模型名，照 DeepSeek 那边的叫法。
-const MODEL: &str = "deepseek-flash";
-
-/// 照环境变量造给会话请求模型的端口：有 key 的接 DeepSeek 官方，设了开发用的地址、模型的换成它们；没有 key 的回「没有
-/// 可用的模型」。窗口、最大输出照 `table` 查。
+/// 照资源目录造给会话请求模型的路由。
 ///
 /// # Errors
 ///
-/// `MIYU_DEV_MODEL` 不合模型名的写法、`MIYU_DEV_WINDOW` 不是正整数；HTTP 客户端造不出来（系统的证书读不了之类）。
-/// 交回原因。
-pub fn from_env(env: &ModelEnv, table: &ModelTable) -> Result<Arc<dyn Models>, String> {
-    let Some(chosen) = choose(env)? else {
-        tracing::warn!(target: TARGET, "DEEPSEEK_API_KEY not set, no model");
-        return Ok(Arc::new(Unavailable));
-    };
-    if chosen.base_url != BASE_URL || chosen.model.as_str() != MODEL {
-        tracing::info!(
-            target: TARGET,
-            "dev endpoint base_url={} model={}",
-            chosen.base_url,
-            chosen.model
-        );
-    }
-    let facts = facts(&chosen, table);
+/// 档案、模型资料读不出来、写法不对（安装坏了）；HTTP 客户端造不出来（系统的证书读不了之类）。交回原因。
+pub fn routes(resources: &ResourceRoot) -> Result<Arc<dyn Models>, String> {
+    let table = resources
+        .models()
+        .map_err(|error| error.to_string())
+        .and_then(|text| ModelTable::parse(&text))?;
+    let profiles = resources
+        .profiles()
+        .map_err(|error| error.to_string())
+        .and_then(|text| profiles(&text))?;
     tracing::info!(
         target: TARGET,
-        "model limits model={} window={} max_output={}",
-        chosen.model,
-        or_none(facts.window),
-        or_none(facts.max_output)
+        profiles = profiles.providers.len(),
+        "model profiles loaded"
     );
     let client = client(Proxy::FromEnvironment).map_err(|error| error.to_string())?;
-    Ok(Arc::new(HttpModels {
+    Ok(Arc::new(Routes {
         client,
-        provider: provider(chosen.provider),
-        endpoint: Endpoint::new(&chosen.base_url, &chosen.key),
-        compat: Compat::deepseek(),
-        call: call(chosen.model),
-        idle: miyu_session::IDLE,
-        window: facts.window,
-        max_output: facts.max_output,
-        images: Some(Arc::new(DeepSeekImages)),
+        profiles: Arc::new(profiles),
+        table: Arc::new(table),
+        idle: IDLE,
     }))
 }
 
-/// 日志里的数：没有的写 `none`。
-fn or_none(value: Option<u64>) -> String {
-    value.map_or_else(|| "none".to_string(), |value| value.to_string())
+/// 读档案：TOML 的字先变成 JSON，再照 `miyu-models` 的样子读。
+///
+/// # Errors
+///
+/// TOML 写法不对、有 JSON 写不下的值（日期时间）、形状不对：原因写明是档案。
+pub fn profiles(text: &str) -> Result<Profiles, String> {
+    let document = toml_edit::Document::parse(text).map_err(|error| {
+        format!(
+            "models/profiles.toml not readable: {}",
+            error.message().trim()
+        )
+    })?;
+    let json = table(document.as_table())?;
+    Profiles::parse(&json)
 }
 
-/// 没有可用的模型。
-struct Unavailable;
-
-impl Models for Unavailable {
-    fn port(&self, _: ForSession) -> Arc<dyn ModelPort> {
-        Arc::new(NoModel(Model {
-            endpoint: provider("none"),
-            model: model("none"),
-        }))
+/// 一张 TOML 的表（有表头的、行内的都行）写成 JSON 的对象。
+fn table(table: &dyn toml_edit::TableLike) -> Result<serde_json::Value, String> {
+    let mut object = serde_json::Map::new();
+    for (key, node) in table.iter() {
+        let value = match node {
+            toml_edit::Item::Value(value) => value_json(value)?,
+            toml_edit::Item::Table(inner) => self::table(inner)?,
+            toml_edit::Item::ArrayOfTables(array) => serde_json::Value::Array(
+                array
+                    .iter()
+                    .map(|inner| self::table(inner))
+                    .collect::<Result<_, _>>()?,
+            ),
+            toml_edit::Item::None => continue,
+        };
+        object.insert(key.to_string(), value);
     }
+    Ok(serde_json::Value::Object(object))
 }
 
-/// 每次请求都当场说完，没发出去；分类是认证失败（没有 key），内核不重试。
-struct NoModel(Model);
-
-impl ModelPort for NoModel {
-    fn model(&self) -> &Model {
-        &self.0
-    }
-
-    fn call(&self, _: Seq, _: Request, _: &miyu_session::TurnConfig, reports: Reports, _: Cancel) {
-        reports.ended(
-            None,
-            Some(CallError {
-                class: ErrorClass::Auth,
-                message: "no model: set DEEPSEEK_API_KEY".to_string(),
-                status: None,
-            }),
-            None,
-            None,
-        );
-    }
-}
-
-/// 每次请求 DeepSeek 定的：模型名，不写输出上限；收图，不收 PDF。DeepSeek 从 2026-08-21 起收图，只收 user 消息里的，
-/// 工具结果里的图由驱动挪过去（施工 4-13）。
-fn call(model: ModelName) -> Call {
-    Call {
-        model,
-        max_output: None,
-        inputs: Inputs {
-            images: true,
-            pdf: false,
-        },
-    }
-}
-
-fn provider(name: &str) -> ProviderId {
-    ProviderId::parse(name).unwrap_or_else(|e| unreachable!("「{name}」合端点编号的写法：{e}"))
-}
-
-fn model(name: &str) -> ModelName {
-    ModelName::parse(name).unwrap_or_else(|e| unreachable!("「{name}」合模型名的写法：{e}"))
+/// 一个 TOML 的值写成 JSON。
+fn value_json(value: &toml_edit::Value) -> Result<serde_json::Value, String> {
+    Ok(match value {
+        toml_edit::Value::String(text) => serde_json::Value::from(text.value().as_str()),
+        toml_edit::Value::Integer(number) => serde_json::Value::from(*number.value()),
+        toml_edit::Value::Float(number) => serde_json::Value::from(*number.value()),
+        toml_edit::Value::Boolean(on) => serde_json::Value::from(*on.value()),
+        toml_edit::Value::Array(array) => {
+            serde_json::Value::Array(array.iter().map(value_json).collect::<Result<_, _>>()?)
+        }
+        toml_edit::Value::InlineTable(inner) => table(inner)?,
+        toml_edit::Value::Datetime(_) => {
+            return Err("models/profiles.toml not readable: a date is not expected".to_string());
+        }
+    })
 }
 
 #[cfg(test)]

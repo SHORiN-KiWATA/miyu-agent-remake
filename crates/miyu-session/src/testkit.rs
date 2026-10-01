@@ -147,8 +147,8 @@ impl Models for Script {
 }
 
 impl ModelPort for Script {
-    fn model(&self) -> &Model {
-        &self.model
+    fn model(&self) -> Model {
+        self.model.clone()
     }
 
     fn limits(&self) -> Limits {

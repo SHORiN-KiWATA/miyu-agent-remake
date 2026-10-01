@@ -36,11 +36,11 @@
 | `trust` | 看当前目录的项目配置会改什么，信任或者不信任它（施工 8-3） | `--yes`、`--no`（只能写一个） |
 
 - `--system`、`--project` 只能写一个。子命令不认的选项、少了子命令、`explain` 没写键：参数不对，退出码 2（`cli/main.md`「参数写错时」）。
-- 用到的环境变量：`MIYU_HOME`、`NO_COLOR`、`DEEPSEEK_API_KEY`（8-6 以前看它拉不拉起核心），`edit` 还有 `VISUAL`、`EDITOR`；界面语言照 `cli/main.md`。
+- 用到的环境变量：`MIYU_HOME`、`NO_COLOR`，`edit` 还有 `VISUAL`、`EDITOR`；界面语言照 `cli/main.md`。
 
 ### 怎么走
 
-1. **连核心**：照 `miyu recap`（`config.md` 第十条第 1 条）：设了 `DEEPSEEK_API_KEY` 的，没在跑就拉起来；没设的，核心在跑的照样连，没在跑的不拉起，说没有可用的模型，退出码 5。8-6 以后 key 来自配置，改成一律拉起。
+1. **连核心**：照 `miyu recap`（`config.md` 第十条第 1 条）：没在跑就拉起来（施工 8-6 起 key 来自配置，一律拉起；以前没设 `DEEPSEEK_API_KEY` 的不拉起、退出码 5）。
 2. **握手**：`caps.input` 是 `false`。之后给人看的字照回应的 `language`（`cli/main.md`「界面语言」）。
 3. **被拒绝的**：`data.problems` 里有东西的（`unknown_config_key`），一条一句印在标准错误上（带最近的键名）；没有的印核心的原话。退出码 1。
 4. **`get`**：`config.get`，带当前目录当 `cwd`，写了键的带 `keys`。只写一个键：标准输出上只印值，字不带引号，别的照 TOML 的写法（`true`）。写了几个、一个都没写：一行一个 `键 = 值`，照键名排。`--format json`：回应的 `items` 原样，一行。
@@ -123,7 +123,6 @@ Options:
 | 0 | 成了；`check` 没有错误；`edit` 没改；`unset` 本来就没写；`trust` 记下了、本来就信任着 |
 | 1 | 核心拒绝了（不认识的键、值不对、冲突、文件读不进来）；`check` 有错误；`edit` 放弃了、编辑器出错、冲突；`trust` 这里没有项目配置、冲突；连不上核心、数据根的错 |
 | 2 | 参数不对；`set --project`；`edit` 不在终端里；`trust` 不在终端里又没写 `--yes`、`--no` |
-| 5 | 核心没在跑、又没设 `DEEPSEEK_API_KEY`（8-6 以前） |
 
 ### 给人看的字
 
@@ -137,7 +136,7 @@ Options:
 | `crates/miyu-cli/src/help/tests.rs` | 这一页列的选项和八个子命令真有的合在一起一一对得上，最宽 80 列 |
 | `crates/miyu-cli/tests/config.rs`（施工 8-3） | 在进程里起核心、人那一头照剧本回：`set`、`unset`、`edit`、`trust` 每一条路印的字、退出码、文件（`config.md`「守着它的」） |
 | `crates/miyu/tests/login.rs`（施工 8-5） | 真核心：`check` 印出密钥文件写错的那一行，不带值；`--project` 不印它 |
-| `crates/miyu/tests/config.rs` | 真核心带三层配置起来：`get`、`explain`、`check`、`path` 印的对，照 `ui.language` 说话，退出码；帮助页；参数不对 2；没有 key、核心没在跑 5 |
+| `crates/miyu/tests/config.rs` | 真核心带三层配置起来：`get`、`explain`、`check`、`path` 印的对，照 `ui.language` 说话，退出码；帮助页；参数不对 2；核心没在跑的拉起来（施工 8-6） |
 
 ### 出处
 

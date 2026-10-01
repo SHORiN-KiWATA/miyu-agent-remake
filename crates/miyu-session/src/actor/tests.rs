@@ -51,8 +51,8 @@ impl Store for Failing {
 struct Holding(Model);
 
 impl ModelPort for Holding {
-    fn model(&self) -> &Model {
-        &self.0
+    fn model(&self) -> Model {
+        self.0.clone()
     }
 
     fn call(&self, _: Seq, _: Request, _: &crate::TurnConfig, _: Reports, _: Cancel) {}

@@ -7,6 +7,8 @@
 //!   的报一条 `untrusted_project`（警告），选了不信任的不报。
 //! - 环境变量设了、不是空的、读得懂的才盖上去（[`crate::Kind::from_env`]）；读不懂的当没设，交回去由核心记一条 `WARN`。
 //! - 一份文件里写错的项已经在解析时丢掉了（[`crate::parse`]），这里只合写对了的。
+//! - 键里有人起的名字那一段的项（施工 8-6）：哪几层写了哪几个真的键，每个各合各的；没有默认值的项哪一层都没写，最终值里
+//!   就没有它。
 
 use std::collections::BTreeMap;
 
@@ -67,7 +69,7 @@ pub struct Layers<'a> {
 /// 合出来的最终值。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Resolved {
-    entries: BTreeMap<&'static str, (Value, Origin)>,
+    entries: BTreeMap<String, (Value, Origin)>,
     /// 合的时候发现的问题：项目配置的 `not_tightening`、`untrusted_project`。
     pub problems: Vec<Problem>,
     /// 读不懂、当没设的环境变量：名字和原值。
@@ -75,7 +77,7 @@ pub struct Resolved {
 }
 
 impl Resolved {
-    /// 键 `key` 的最终值和来源；清单里没有的是空的。
+    /// 真的键 `key` 的最终值和来源；清单里没有的、没写又没有默认值的是空的。
     pub fn get(&self, key: &str) -> Option<(&Value, &Origin)> {
         self.entries.get(key).map(|(value, origin)| (value, origin))
     }
@@ -87,6 +89,11 @@ impl Resolved {
             values.set(key, value.clone());
         }
         values
+    }
+
+    /// 全部真的键，照字节排。
+    pub fn keys(&self) -> impl Iterator<Item = &str> {
+        self.entries.keys().map(String::as_str)
     }
 }
 
@@ -111,43 +118,73 @@ pub fn merge(items: &[Item], layers: &Layers, env: &dyn Fn(&str) -> Option<Strin
             .problems
             .push(Problem::file(Code::UntrustedProject, Layer::Project, None));
     }
-    for item in items {
-        let mut top = below(item, layers, Layer::Project);
+    for (item, key) in concrete(items, layers) {
+        let mut top = below(item, &key, layers, Layer::Project);
         if let Some((project, Trust::Trusted)) = layers.project
-            && let Some(entry) = project.entries.get(item.key).filter(|entry| entry.counts)
+            && let Some(entry) = project.entries.get(&key).filter(|entry| entry.counts)
         {
-            match item.tighten {
-                Some(tighten) if tighten.looser(&entry.value, &top.0) => {
+            match (item.tighten, &top) {
+                (Some(tighten), Some((below, _))) if tighten.looser(&entry.value, below) => {
                     let mut problem = Problem::item(
                         Code::NotTightening,
                         Layer::Project,
-                        item.key,
+                        &key,
                         entry.at,
                         &entry.raw,
                     );
-                    problem.current = Some(top.0.clone());
+                    problem.current = Some(below.clone());
                     resolved.problems.push(problem);
                 }
-                _ => top = file(Layer::Project, entry),
+                _ => top = Some(file(Layer::Project, entry)),
             }
         }
         if let Some(name) = item.env
             && let Some(raw) = env(name).filter(|raw| !raw.trim().is_empty())
         {
             match item.kind.from_env(&raw) {
-                Some(value) => top = (value, Origin::Env(name)),
+                Some(value) => top = Some((value, Origin::Env(name))),
                 None => resolved.ignored_env.push((name, raw)),
             }
         }
-        resolved.entries.insert(item.key, top);
+        if let Some(top) = top {
+            resolved.entries.insert(key, top);
+        }
     }
     resolved
 }
 
-/// `item` 在 `layer` 下面那几层合出来的值和来源（不算环境变量）：一项写错了，丢掉它以后照什么用（「报错」的
-/// `using`）；项目配置和它比收不收紧。
-pub fn below(item: &Item, layers: &Layers, layer: Layer) -> (Value, Origin) {
-    let mut top = (item.default.clone(), Origin::Default);
+/// 要合的每一个真的键和它是清单里的哪一项：写死的键一项一个；键里有人起的名字的，哪一层写了哪个就是哪个（施工 8-6）。
+fn concrete<'a>(items: &'a [Item], layers: &Layers) -> Vec<(&'a Item, String)> {
+    let files = [
+        layers.system,
+        layers.personal,
+        layers.project.map(|(parsed, _)| parsed),
+    ];
+    let mut keys = Vec::new();
+    for item in items {
+        if !item.is_pattern() {
+            keys.push((item, item.key.to_string()));
+            continue;
+        }
+        let written: std::collections::BTreeSet<&String> = files
+            .iter()
+            .flatten()
+            .flat_map(|parsed| parsed.entries.iter())
+            .filter(|(_, entry)| entry.item == item.key)
+            .map(|(key, _)| key)
+            .collect();
+        keys.extend(written.into_iter().map(|key| (item, key.clone())));
+    }
+    keys
+}
+
+/// 真的键 `key`（清单里的 `item`）在 `layer` 下面那几层合出来的值和来源（不算环境变量）：一项写错了，丢掉它以后照什么用
+/// （「报错」的 `using`）；项目配置和它比收不收紧。下面几层都没写、又没有默认值的是空的。
+pub fn below(item: &Item, key: &str, layers: &Layers, layer: Layer) -> Option<(Value, Origin)> {
+    let mut top = item
+        .default
+        .clone()
+        .map(|default| (default, Origin::Default));
     let files = [
         (Layer::System, layers.system),
         (Layer::Personal, layers.personal),
@@ -157,10 +194,10 @@ pub fn below(item: &Item, layers: &Layers, layer: Layer) -> (Value, Origin) {
             break;
         }
         if let Some(entry) = parsed
-            .and_then(|parsed| parsed.entries.get(item.key))
+            .and_then(|parsed| parsed.entries.get(key))
             .filter(|entry| entry.counts)
         {
-            top = file(at, entry);
+            top = Some(file(at, entry));
         }
     }
     top
@@ -177,12 +214,13 @@ fn file(layer: Layer, entry: &crate::parse::Entry) -> (Value, Origin) {
     )
 }
 
-/// 键 `item` 每一层写的，从上往下，默认值在最后；`resolved` 是同样几层合出来的（照它定哪一个生效）。
-pub fn explain(item: &Item, layers: &Layers, resolved: &Resolved) -> Vec<Written> {
-    let used = resolved.get(item.key).map(|(_, origin)| origin.clone());
+/// 真的键 `key`（清单里的 `item`）每一层写的，从上往下，默认值在最后（有的话）；`resolved` 是同样几层合出来的（照它定
+/// 哪一个生效）。
+pub fn explain(item: &Item, key: &str, layers: &Layers, resolved: &Resolved) -> Vec<Written> {
+    let used = resolved.get(key).map(|(_, origin)| origin.clone());
     let mut written = Vec::new();
     if let Some(Origin::Env(name)) = &used
-        && let Some((value, _)) = resolved.get(item.key)
+        && let Some((value, _)) = resolved.get(key)
     {
         written.push(Written {
             origin: Origin::Env(name),
@@ -197,17 +235,17 @@ pub fn explain(item: &Item, layers: &Layers, resolved: &Resolved) -> Vec<Written
         (Layer::System, layers.system),
     ];
     for (layer, parsed) in files {
-        let Some(entry) = parsed.and_then(|parsed| parsed.entries.get(item.key)) else {
+        let Some(entry) = parsed.and_then(|parsed| parsed.entries.get(key)) else {
             continue;
         };
         let (_, origin) = file(layer, entry);
+        let looser = |tighten: crate::item::Tighten| {
+            below(item, key, layers, Layer::Project)
+                .is_some_and(|(below, _)| tighten.looser(&entry.value, &below))
+        };
         let problem = match (layer, layers.project) {
             _ if !entry.counts => Some(Code::WrongLayer),
-            (Layer::Project, Some((_, Trust::Trusted)))
-                if item.tighten.is_some_and(|tighten| {
-                    tighten.looser(&entry.value, &below(item, layers, Layer::Project).0)
-                }) =>
-            {
+            (Layer::Project, Some((_, Trust::Trusted))) if item.tighten.is_some_and(looser) => {
                 Some(Code::NotTightening)
             }
             (Layer::Project, Some((_, Trust::Unknown | Trust::Distrusted))) => {
@@ -222,12 +260,14 @@ pub fn explain(item: &Item, layers: &Layers, resolved: &Resolved) -> Vec<Written
             problem,
         });
     }
-    written.push(Written {
-        used: used == Some(Origin::Default),
-        origin: Origin::Default,
-        value: item.default.clone(),
-        problem: None,
-    });
+    if let Some(default) = &item.default {
+        written.push(Written {
+            used: used == Some(Origin::Default),
+            origin: Origin::Default,
+            value: default.clone(),
+            problem: None,
+        });
+    }
     written
 }
 

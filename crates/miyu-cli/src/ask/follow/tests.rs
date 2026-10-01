@@ -264,11 +264,21 @@ fn no_model_is_5_and_other_errors_are_1() {
     let Fed { step, out, err, .. } = feed(
         &plan,
         false,
-        &failing(Value::Null, "auth", "no model: set DEEPSEEK_API_KEY"),
+        &failing(
+            Value::Null,
+            "no_model",
+            "no model configured: set models.chat",
+        ),
     );
     assert_eq!(step, Step::Done(exit::NO_MODEL));
     assert_eq!(out, "");
-    assert_eq!(err, "没有可用的模型：设环境变量 DEEPSEEK_API_KEY\n");
+    assert_eq!(
+        err,
+        "没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。\n"
+    );
+    // 没发出去的认证失败不再当没有模型（施工 8-6 以前没有 key 是这样报的）。
+    let Fed { step, .. } = feed(&plan, false, &failing(Value::Null, "auth", "denied"));
+    assert_eq!(step, Step::Done(exit::ERROR));
     let Fed { step, err, .. } = feed(
         &plan,
         false,

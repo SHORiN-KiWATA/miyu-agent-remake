@@ -113,7 +113,7 @@ impl Models for Brain {
 }
 
 impl ModelPort for Brain {
-    fn model(&self) -> &Model {
+    fn model(&self) -> Model {
         static SCRIPT: std::sync::OnceLock<Script> = std::sync::OnceLock::new();
         SCRIPT.get_or_init(|| Script::new([])).model()
     }

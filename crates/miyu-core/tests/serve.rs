@@ -231,33 +231,31 @@ async fn a_stop_signal_records_background_commands_as_restarted_then_kills_them(
     assert_eq!(reported.by, By::Kernel);
 }
 
+/// 没配模型（施工 8-6）：核心照出厂的档案造路由，配置里没有 `models.chat`，每次请求都当场说完，分类 `no_model`，没发出去。
 #[tokio::test]
-async fn without_a_key_every_request_says_there_is_no_model() {
-    for key in [None, Some("  ".to_string())] {
-        let home = Home::new();
-        let opened = home.open();
-        let env = models::ModelEnv {
-            key: key.clone(),
-            ..models::ModelEnv::default()
-        };
-        let models = models::from_env(&env, &models::ModelTable::default()).expect("造得出");
-        let core = home.core(models, &opened.token);
-        let running = tokio::spawn(serve(opened.listener, core, IDLE, std::future::pending()));
-        let mut head = Head::connect(&home.root).await;
-        let session = head.create().await;
-        head.say(&session, "在吗").await;
-        let log = home.until_turn_ends(&session).await;
-        let called = log.iter().find_map(|event| match &event.body {
-            Body::ModelCalled(called) => Some(called.clone()),
-            _ => None,
-        });
-        let called = called.unwrap_or_else(|| panic!("{key:?}：记了一次请求：{log:?}"));
-        assert_eq!(called.result, CallResult::Error, "{key:?}");
-        let error = called.error.expect("出错的带原因");
-        assert_eq!(error.class, ErrorClass::Auth, "{key:?}");
-        assert_eq!(error.message, "no model: set DEEPSEEK_API_KEY");
-        assert_eq!(called.endpoint, None, "没发出去");
-        drop(head);
-        within("空闲退出", running).await.expect("没 panic");
-    }
+async fn without_a_model_every_request_says_there_is_no_model() {
+    let home = Home::new();
+    let opened = home.open();
+    let resources = miyu_store::resources::ResourceRoot::at(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"),
+    );
+    let models = models::routes(&resources).expect("造得出");
+    let core = home.core(models, &opened.token);
+    let running = tokio::spawn(serve(opened.listener, core, IDLE, std::future::pending()));
+    let mut head = Head::connect(&home.root).await;
+    let session = head.create().await;
+    head.say(&session, "在吗").await;
+    let log = home.until_turn_ends(&session).await;
+    let called = log.iter().find_map(|event| match &event.body {
+        Body::ModelCalled(called) => Some(called.clone()),
+        _ => None,
+    });
+    let called = called.unwrap_or_else(|| panic!("记了一次请求：{log:?}"));
+    assert_eq!(called.result, CallResult::Error);
+    let error = called.error.expect("出错的带原因");
+    assert_eq!(error.class, ErrorClass::NoModel);
+    assert_eq!(error.message, "no model configured: set models.chat");
+    assert_eq!(called.endpoint, None, "没发出去");
+    drop(head);
+    within("空闲退出", running).await.expect("没 panic");
 }

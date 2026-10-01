@@ -31,6 +31,14 @@ impl ConfigSource for Config {
     fn with_project(&self, dir: &str) -> miyu_config::merge::Resolved {
         Config::with_project(self, dir).0
     }
+
+    /// `{ secret }` 照手里的密钥文件，`{ env }` 照核心的环境（施工 8-6）：没设的、设成空的、有控制字符的是空的。
+    fn secret(
+        &self,
+        reference: &miyu_config::secret::Reference,
+    ) -> Option<miyu_config::secret::Secret> {
+        Config::secret(self, reference)
+    }
 }
 
 impl Hub {
@@ -91,6 +99,6 @@ pub(crate) struct Pushing {
     pub(crate) via: super::push::Via,
     /// 谁改的：`via` 是 `set`、`edit` 才有。
     pub(crate) by: Option<miyu_kernel::origin::By>,
-    /// 这一层变了的项，照键名排。
-    pub(crate) keys: Vec<&'static str>,
+    /// 这一层变了的项（真的键），照键名排。
+    pub(crate) keys: Vec<String>,
 }

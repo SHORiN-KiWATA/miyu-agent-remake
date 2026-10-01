@@ -64,7 +64,8 @@ impl Follow<'_> {
             ("completed", _) if self.unattended > 0 => (exit::UNATTENDED, None),
             ("completed", _) => (exit::OK, None),
             ("interrupted", _) => (exit::INTERRUPTED, Some(language.interrupted())),
-            ("error", Some(failure)) if failure.class == "auth" && !failure.sent => {
+            // 没有能用的模型：端口没发出去就说完的 `no_model`（施工 8-6；原来认的是没发出去的 `auth`）。
+            ("error", Some(failure)) if failure.class == "no_model" && !failure.sent => {
                 (exit::NO_MODEL, Some(language.no_model()))
             }
             ("error", Some(failure)) => (

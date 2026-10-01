@@ -26,6 +26,7 @@ miyu-fs = { path = "../miyu-fs" }
 miyu-sandbox = { path = "../miyu-sandbox" }
 # 回合开始时冻结的配置是它合出来的最终值（施工 8-4，`config.md` 第八条第 3 条）。
 miyu-config = { path = "../miyu-config" }
+miyu-models = { path = "../miyu-models" }
 # 权限策略提的放行规则、给头看的说明写成 JSON（施工 4-3 下）。
 serde_json = "1.0"
 # 理由见 docs/construction/3-7-会话actor（中）.md「我定的」：一个会话一个异步任务，收件箱、推送、

@@ -1104,6 +1104,7 @@ version = "0.0.0"
 dependencies = [
  "clap",
  "miyu-cli",
+ "miyu-config",
  "miyu-core",
  "miyu-http",
  "miyu-ipc",
@@ -1188,6 +1189,7 @@ dependencies = [
  "miyu-ipc",
  "miyu-kernel",
  "miyu-log",
+ "miyu-models",
  "miyu-sandbox",
  "miyu-session",
  "miyu-store",
@@ -1195,6 +1197,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "toml_edit",
  "tracing",
 ]
 
@@ -1202,6 +1205,7 @@ dependencies = [
 name = "miyu-drivers"
 version = "0.0.0"
 dependencies = [
+ "miyu-drivers",
  "miyu-kernel",
  "serde",
  "serde_json",
@@ -1294,6 +1298,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-models"
+version = "0.0.0"
+dependencies = [
+ "miyu-config",
+ "miyu-drivers",
+ "miyu-kernel",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "miyu-pipe"
 version = "0.0.0"
 dependencies = [
@@ -1339,6 +1355,7 @@ dependencies = [
  "miyu-http",
  "miyu-kernel",
  "miyu-log",
+ "miyu-models",
  "miyu-policy",
  "miyu-sandbox",
  "miyu-session",
@@ -2762,6 +2779,7 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 name = "xtask"
 version = "0.0.0"
 dependencies = [
+ "miyu-store",
  "serde_json",
  "sha2",
 ]

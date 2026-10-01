@@ -1,6 +1,5 @@
 //! 真跑 `miyu undo`（别名 `miyu rewind`）、`miyu restore`（`docs/construction/4-7-miyu undo、miyu redo（下）.md`，改名施工
-//! 4-7 补）：说明跟着界面语言；核心在跑的，撤掉上一次 `miyu ask` 的那一轮、再恢复它，几条命令各接对了自己的那一个；没有
-//! key、核心也没在跑的，不拉起、退出码 5（施工 4-9 再补一）。`miyu redo` 施工 4-7 再补又有了，是重做（`tests/redo.rs`）。
+//! 4-7 补）：说明跟着界面语言；核心在跑的，撤掉上一次 `miyu ask` 的那一轮、再恢复它，几条命令各接对了自己的那一个。`miyu redo` 施工 4-7 再补又有了，是重做（`tests/redo.rs`）。
 
 mod support;
 
@@ -12,7 +11,7 @@ use miyu_cli::language::Language;
 use miyu_ipc::connect_or_start;
 use support::{Home, MIYU, within};
 
-/// 在数据根 `root` 上跑 `miyu <args>`：没有 key，界面语言是 `lang`。
+/// 在数据根 `root` 上跑 `miyu <args>`：界面语言是 `lang`。
 fn miyu(root: &Path, lang: &str, args: &[&str]) -> Output {
     Command::new(MIYU)
         .args(args)
@@ -21,7 +20,6 @@ fn miyu(root: &Path, lang: &str, args: &[&str]) -> Output {
         .env("LANG", lang)
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")
-        .env_remove("DEEPSEEK_API_KEY")
         .env_remove("XDG_RUNTIME_DIR")
         .output()
         .expect("跑得起来")
@@ -66,7 +64,7 @@ async fn undo_and_restore_the_last_ask() {
         .await
         .expect("拉得起");
     let root = home.root.path().to_path_buf();
-    // 核心没有 key：这一轮说「没有可用的模型」，可也是一轮。
+    // 核心没配模型：这一轮说「没有可用的模型」，可也是一轮。
     let asked = run(&root, &["ask", "在吗"]).await;
     assert_eq!(asked.status.code(), Some(5), "{asked:?}");
     let undone = run(&root, &["undo"]).await;
@@ -90,24 +88,4 @@ async fn undo_and_restore_the_last_ask() {
     );
     drop(held);
     home.until_stopped().await;
-}
-
-#[test]
-fn without_a_key_and_a_core_nothing_is_started() {
-    let home = Home::new();
-    let undone = miyu(home.root.path(), "zh_CN.UTF-8", &["undo"]);
-    assert_eq!(undone.status.code(), Some(5), "{undone:?}");
-    assert!(undone.stdout.is_empty());
-    assert_eq!(
-        String::from_utf8_lossy(&undone.stderr),
-        "核心没在跑。先设 DEEPSEEK_API_KEY：没有 key 拉起的核心，之后的 miyu ask 也用不了\n"
-    );
-    let restored = miyu(home.root.path(), "C", &["restore"]);
-    assert_eq!(restored.status.code(), Some(5), "{restored:?}");
-    assert_eq!(
-        String::from_utf8_lossy(&restored.stderr),
-        "The core is not running. Set DEEPSEEK_API_KEY first: a core started without it cannot serve miyu ask later\n"
-    );
-    assert!(!home.root.run().join("socket").exists(), "没拉起核心");
-    assert!(home.core_log().is_empty());
 }

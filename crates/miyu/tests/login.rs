@@ -1,6 +1,6 @@
 //! 真核心上的 `miyu login`、`miyu logout`（施工 8-5，`docs/blueprint/config.md`「守着它的」）：管道进来的 key 存进
 //! `system/secrets.toml`，`--list` 两种格式里没有 key，`logout` 删掉、没设过的退出码 1；名字写错、不写名字又不在终端里、
-//! `--format` 不带 `--list` 退出码 2；没有 key、核心也没在跑的退出码 5；帮助页两种语言。整份运行日志（`trace`）、
+//! `--format` 不带 `--list` 退出码 2；核心没在跑的拉起来（施工 8-6）；帮助页两种语言。整份运行日志（`trace`）、
 //! 系统日志、屏幕上都搜不到 key。
 
 mod support;
@@ -27,7 +27,6 @@ fn miyu(root: &Path, lang: &str, args: &[&str], input: &str) -> Output {
         .env("LANG", lang)
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")
-        .env_remove("DEEPSEEK_API_KEY")
         .env_remove("XDG_RUNTIME_DIR")
         .env_remove("NO_COLOR")
         .stdin(Stdio::piped())
@@ -203,9 +202,23 @@ async fn misuse_and_no_core_are_refused_before_reading_a_key() {
     assert_eq!(format.status.code(), Some(2), "--format 只给 --list");
     let both = run(&root, "C", &["login", "deepseek", "--list"], "").await;
     assert_eq!(both.status.code(), Some(2));
-    let no_model = run(&root, "C", &["login", "deepseek"], FAKE).await;
-    assert_eq!(no_model.status.code(), Some(5), "{no_model:?}");
-    assert!(!root.join("system").join("secrets.toml").exists());
+    // 核心没在跑的拉起来（施工 8-6 起一律拉起，原来没设 DEEPSEEK_API_KEY 的退出码 5）。
+    let mut command = Command::new(MIYU);
+    command
+        .args(["login", "deepseek"])
+        .env("MIYU_HOME", &root)
+        .env("MIYU_RESOURCES", support::resources())
+        .env("LANG", "C")
+        .env_remove("LC_ALL")
+        .env_remove("LC_MESSAGES")
+        .env_remove("XDG_RUNTIME_DIR");
+    let dir = home.dir.clone();
+    let started = tokio::task::spawn_blocking(move || support::run_starting(&dir, command, FAKE))
+        .await
+        .expect("没 panic");
+    assert_eq!(started.status.code(), Some(0), "{started:?}");
+    assert!(root.join("system").join("secrets.toml").exists());
+    home.kill_core().await;
     for (lang, language) in [("zh_CN.UTF-8", Language::Chinese), ("C", Language::English)] {
         let help = run(&root, lang, &["login", "-h"], "").await;
         assert_eq!(text(&help.stdout), page(language, Page::Login));

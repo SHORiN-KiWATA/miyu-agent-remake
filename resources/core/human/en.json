@@ -34,19 +34,51 @@
       "permission.start_read_only": {
         "name": "Start new sessions read-only",
         "description": "When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on."
+      },
+      "models.chat": {
+        "name": "Chat model",
+        "description": "The model new sessions use, written as provider/model, for example deepseek/deepseek-flash."
+      },
+      "providers.<id>.driver": {
+        "name": "Driver",
+        "description": "How to talk to this provider. Known providers can leave it out.",
+        "options": {
+          "openai-chat": "OpenAI-compatible chat",
+          "anthropic": "Anthropic Messages",
+          "openai-responses": "OpenAI Responses"
+        }
+      },
+      "providers.<id>.base_url": {
+        "name": "Address",
+        "description": "The address of this provider's API; the driver adds the path. Known providers can leave it out."
+      },
+      "providers.<id>.keys": {
+        "name": "Keys",
+        "description": "Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Each session sticks to one of them. Empty means no auth header."
+      },
+      "providers.<id>.catalog": {
+        "name": "Catalog provider",
+        "description": "Which provider in the model data this one is, for example deepseek for a relay that only forwards DeepSeek."
+      },
+      "providers.<id>.models.<model>.window": {
+        "name": "Context window",
+        "description": "The context window of this model, in tokens."
       }
     },
     "pages": {
       "general": "General",
       "interface": "Interface",
       "advanced": "Advanced",
-      "permissions": "Permissions"
+      "permissions": "Permissions",
+      "models": "Models"
     },
     "groups": {
       "display": "Display",
       "tui": "Terminal interface",
       "log": "Runtime log",
-      "sessions": "Sessions"
+      "sessions": "Sessions",
+      "uses": "Uses",
+      "providers": "Providers"
     }
   },
   "said": {
@@ -111,6 +143,17 @@
     "config/expected/table": "a table",
     "config/sentence": "{text}.",
     "config/then": "{rest} {next}",
-    "config/stops": ".?!"
+    "config/stops": ".?!",
+    "config/applies/next_turn": "Takes effect next turn",
+    "config/expected/int": "a whole number from {min} to {max}",
+    "config/expected/url": "an address starting with http:// or https://",
+    "config/expected/name": "a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters",
+    "config/expected/reference": "<provider>/<model> or @<pool>",
+    "config/expected/list": "a list of {item}",
+    "config/expected/id": "start with a lowercase letter and use only lowercase letters, digits, - and _, up to 32 characters",
+    "config/expected/model-name": "1 to 128 bytes without control characters",
+    "config/bad-format": "{key} needs {expected}, not {got}",
+    "config/out-of-range": "{key} must be between {min} and {max}, not {got}",
+    "config/bad-segment": "{name} in {key} cannot be a name: {expected}"
   }
 }

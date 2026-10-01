@@ -79,7 +79,7 @@ impl Models for Router {
 }
 
 impl ModelPort for Router {
-    fn model(&self) -> &Model {
+    fn model(&self) -> Model {
         self.0[0].script.model()
     }
 

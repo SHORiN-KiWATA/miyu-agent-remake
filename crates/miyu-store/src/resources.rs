@@ -311,6 +311,15 @@ impl ResourceRoot {
         self.read(&["models", "models-dev.json"])
     }
 
+    /// 供应商的档案的原文（`models/profiles.toml`，施工 8-6）：认得出的供应商的驱动、地址、开关。怎么读由核心定。
+    ///
+    /// # Errors
+    ///
+    /// 读不出来：写明是哪个文件。
+    pub fn profiles(&self) -> Result<String, SourceError> {
+        self.read(&["models", "profiles.toml"])
+    }
+
     /// 读资源目录下的一份文件，路径一段一段地接上（三个平台一样）。
     fn read(&self, parts: &[&str]) -> Result<String, SourceError> {
         let path = parts

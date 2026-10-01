@@ -50,8 +50,8 @@ pub(crate) struct Changed {
     pub(crate) via: Via,
     /// 谁改的：`via` 是 `set`、`edit` 才有。
     pub(crate) by: Option<By>,
-    /// 这一层变了的项，照键名排。
-    pub(crate) keys: Vec<&'static str>,
+    /// 这一层变了的项（真的键），照键名排。
+    pub(crate) keys: Vec<String>,
 }
 
 /// `config.changed` 这一行的样子：格照字母先后，`by` 照内核的写法（`kind` 在最前），所以用带顺序的结构体。
@@ -106,12 +106,12 @@ impl Changed {
 
 /// 这一层变了的几项写成协议上的样子（`config.set` 的回应、推送共用）：什么时候生效、最终值和来源（不算项目配置）、这一层
 /// 现在写的值（删掉的不写）。
-pub(super) fn keys(config: &Config, layer: Layer, changed: &[&str]) -> Map<String, Value> {
+pub(super) fn keys(config: &Config, layer: Layer, changed: &[String]) -> Map<String, Value> {
     let shown = |at: Layer| Some(config.file(at).shown.clone());
     let file = config.file(layer);
     let mut listed = Map::new();
     for key in changed {
-        let Some(item) = config.items().iter().find(|item| item.key == *key) else {
+        let Some(item) = miyu_config::key::item_of(config.items(), key) else {
             continue;
         };
         let mut entry = Map::new();
@@ -123,7 +123,7 @@ pub(super) fn keys(config: &Config, layer: Layer, changed: &[&str]) -> Map<Strin
         if let Some(written) = file.parsed.entries.get(key).filter(|entry| entry.counts) {
             entry.insert("value".to_string(), written.value.json());
         }
-        listed.insert((*key).to_string(), Value::Object(entry));
+        listed.insert(key.clone(), Value::Object(entry));
     }
     listed
 }

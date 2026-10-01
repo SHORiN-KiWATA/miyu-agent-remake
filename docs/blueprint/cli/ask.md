@@ -40,16 +40,15 @@
 | `--timeout <时长>` | 最多等多久：从发出算到全部了结，到了不再等，退出码 3（施工 7-9，「等子代理」第 8 条）。正整数，后面可以跟 `s`、`m`、`h`，不写是秒（`30`、`30s`、`10m`、`1h`），照 GNU `timeout` 的写法；0、负数、小数、别的单位照「参数写错时」说（`cli/main.md`），退出码 2。长到算不出那一刻的，当没写 |
 
 - 界面语言：`LC_ALL`、`LC_MESSAGES`、`LANG` 里第一个设了、不是空的（`cli/main.md`），`zh` 开头说中文，别的说英文。帮助页也照它。
-- 用到的环境变量：`MIYU_HOME`（数据根，不设是 `~/.miyu`）、`MIYU_RESOURCES`（资源目录，开发时用）、`DEEPSEEK_API_KEY`、`NO_COLOR`。
+- 用到的环境变量：`MIYU_HOME`（数据根，不设是 `~/.miyu`）、`MIYU_RESOURCES`（资源目录，开发时用）、`NO_COLOR`。模型、key 来自配置（施工 8-6，`models.md`），头不看 key。
 
 ### 怎么走
 
 0. **加进来的目录**（施工 5-10 上）：`--add-dir` 的每一个，相对的照敲命令时的目录接成绝对的；不存在的、不是目录的，照「参数写错时」说（`cli/main.md`），退出码 2。照写的先后，去掉重复的。
 1. **找数据根**，建骨架。出错：原因写在标准错误上，退出码 1。
 2. **连核心**：
-   1. 设了 `DEEPSEEK_API_KEY`（去掉前后空白不是空的）：连；核心没在跑就拉起来。
-   2. 没设：核心在跑的照样连，它可能有 key；没在跑的不拉起，说「没有可用的模型：设环境变量 DEEPSEEK_API_KEY」，退出码 5。
-   3. 连不上：原因写在标准错误上，退出码 1。
+   1. 连；核心没在跑就拉起来（施工 8-6 起 key 来自配置，一律拉起；以前没设 `DEEPSEEK_API_KEY` 的不拉起）。
+   2. 连不上：原因写在标准错误上，退出码 1。
 3. **握手** `hello`：`protocol` 是 `[1, 1]`；`head` 是 `{"kind": "cli", "version": <版本>}`；`locale` 是 `zh-CN` 或 `en`；`caps.input` 是 `false`；带上本机令牌。
    - `caps.input` 是 `false`：`miyu ask` 里没有确认的界面，要确认的那一步，核心当场拒绝。
    - 回应里的 `sandbox` 说用不了：执行命令都要确认，这里确认不了。第一步之前、目录太宽那一句之前说一句，照原因和这台机器的系统写（下面「给人看的字」），一次（施工 5-4 下）。
@@ -202,7 +201,7 @@ todo.md
 |---|---|---|
 | `completed` | 不印 | 0；有几步因为要确认没做的，4 |
 | `interrupted` | 打断了 | 3 |
-| `error`，没发出去、分类是认证失败 | 没有可用的模型：设环境变量 DEEPSEEK_API_KEY | 5 |
+| `error`，没发出去、分类是 `no_model`（施工 8-6；以前认的是没发出去的认证失败） | 没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。 | 5 |
 | `error`，别的 | 出错了：<分类>：<原话>；原话去掉前后空白是空的，只写分类；最后一次请求没出错、一次都没请求的，是「出错了：模型出错」 | 1 |
 | 别的原因 | 这一轮没走完：<原因> | 1 |
 
@@ -325,7 +324,7 @@ C 也查完了。
 | 最后那一句，一步 | `· 1 步没做：要你确认，miyu ask 里确认不了` | `· 1 step not done: it needs your approval, which cannot be given in miyu ask` |
 | 最后那一句，几步 | `· 2 步没做：要你确认，miyu ask 里确认不了` | `· 2 steps not done: they need your approval, which cannot be given in miyu ask` |
 | 一步没做成的词 | 出错、没做、打断了、跳过了 | failed、not done、interrupted、skipped |
-| 没有模型 | 没有可用的模型：设环境变量 DEEPSEEK_API_KEY | No model available: set DEEPSEEK_API_KEY |
+| 没有模型（施工 8-6，主会话定：`miyu setup` 随 8-11，那时换成指向它的那一句） | 没有可用的模型：还没配。用 miyu config edit --system 写一家供应商和 models.chat。 | No model is available: none is set up. Add a provider and models.chat with miyu config edit --system. |
 | 没有一次性会话 | 还没有 miyu ask 开过的会话 | No session opened by miyu ask yet |
 | 附件传不上（施工 3-9 三补） | 附不上 <文件>：<核心说的原因> | Cannot attach <file>: <reason> |
 | 打断了 | 打断了 | Interrupted |

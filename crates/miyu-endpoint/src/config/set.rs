@@ -20,7 +20,7 @@ use serde_json::{Map, Value as Json, json};
 use miyu_config::edit::{self, Change};
 use miyu_config::parse::parse;
 use miyu_config::problem::{Code, Problem, Severity, got};
-use miyu_config::{Item, Layer, Value};
+use miyu_config::{Layer, Value};
 use miyu_kernel::id::CommandId;
 use miyu_kernel::origin::{By, Person};
 use miyu_store::config_file::{self, ConfigText, WriteError};
@@ -97,7 +97,8 @@ enum Plan {
 
 /// 改的一项。
 struct Wanted {
-    item: Item,
+    /// 真的键（键里有人起的名字的，施工 8-6）。
+    key: String,
     value: Option<Value>,
     expect: Option<Option<Json>>,
 }
@@ -180,7 +181,7 @@ fn wanted(
     let mut wanted = Vec::new();
     let mut problems = Vec::new();
     for change in changes {
-        let Some(item) = config.items().iter().find(|item| item.key == change.key) else {
+        let Some(item) = miyu_config::key::item_of(config.items(), &change.key) else {
             return Err(Refusal::BAD_PARAMS);
         };
         let value = match (change.value, change.input, change.unset) {
@@ -201,17 +202,23 @@ fn wanted(
                 let code = match &read {
                     _ if !item.layers.contains(&layer) => Some(Code::WrongLayer),
                     None => Some(Code::WrongType),
-                    Some(read) if !item.kind.accepts(read) => Some(Code::NotAnOption),
-                    Some(_) => None,
+                    Some(read) => item.kind.check(read).err(),
                 };
                 if let Some(code) = code {
-                    problems.push(request_problem(config, code, layer, item, &raw, words)?);
+                    problems.push(request_problem(
+                        config,
+                        code,
+                        layer,
+                        &change.key,
+                        &raw,
+                        words,
+                    )?);
                 }
                 read
             }
         };
         wanted.push(Wanted {
-            item: item.clone(),
+            key: change.key,
             value,
             expect,
         });
@@ -227,7 +234,7 @@ fn request_problem(
     config: &Config,
     code: Code,
     layer: Layer,
-    item: &Item,
+    key: &str,
     raw: &str,
     words: &Human,
 ) -> Result<Json, Refusal> {
@@ -235,7 +242,7 @@ fn request_problem(
         code,
         layer,
         at: None,
-        key: Some(item.key.to_string()),
+        key: Some(key.to_string()),
         got: Some(got(raw)),
         why: None,
         suggest: None,
@@ -310,7 +317,7 @@ fn changed(
     };
     for want in wanted {
         if let Some(expected) = &want.expect {
-            let now = current(want.item.key).map(Value::json);
+            let now = current(&want.key).map(Value::json);
             if &now != expected {
                 let shown = now.map_or_else(|| json!({}), |value| json!({ "value": value }));
                 return Err(Refusal::config_conflict_current(shown));
@@ -324,9 +331,9 @@ fn changed(
     let mut text = start.clone();
     for want in wanted {
         let change = match &want.value {
-            Some(value) if current(want.item.key) == Some(value) => continue,
-            Some(value) => Change::Set(want.item.key, value),
-            None => Change::Unset(want.item.key),
+            Some(value) if current(&want.key) == Some(value) => continue,
+            Some(value) => Change::Set(&want.key, value),
+            None => Change::Unset(&want.key),
         };
         text = match edit::apply(&text, change) {
             Ok(text) => text,
@@ -355,7 +362,7 @@ fn done(
         account: config.places.account.clone(),
     });
     record(config, layer, via, by.clone(), Some(cause), &changes);
-    let keys: Vec<&'static str> = changes.iter().map(|(key, _, _)| *key).collect();
+    let keys: Vec<String> = changes.iter().map(|(key, _, _)| key.clone()).collect();
     let listed = push::keys(config, layer, &keys);
     core.hub.publish(
         config,
