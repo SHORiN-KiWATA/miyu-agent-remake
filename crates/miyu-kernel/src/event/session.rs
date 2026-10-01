@@ -38,7 +38,7 @@ pub struct SessionCreated {
     pub model: Option<String>,
 }
 
-/// `session.policy_changed`：换了策略快照，或者换了权限，或者换了模型，也可以一起换。
+/// `session.policy_changed`：换了策略快照，或者换了权限，或者换了模型、思考强度，也可以一起换。
 /// 谁换的看事件的 `by`：人改的是配置，内核换的是目录变了、钉着的模型没了。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PolicyChanged {
@@ -56,6 +56,20 @@ pub struct PolicyChanged {
     /// 钉着的引用没了、内核退回默认时写（施工 8-10）：原来那个。只和 `model` 一起出现（账本查）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub replaced: Option<String>,
+    /// 会话给一个模型记的思考强度换了（施工 8-18，`models.md`「事件」）：人换的，`by` 是人。下一个回合开始时生效，撤掉的
+    /// 回合里的也算（照 `model`）。以前的日志没有这一格。内核只记不解读：载入时照日志拼出每个模型的一格。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effort: Option<Effort>,
+}
+
+/// `session.policy_changed` 的 `effort`（施工 8-18）：会话给模型 `model` 记的那一格换成 `level`。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Effort {
+    /// 哪个模型：`<供应商>/<模型>`，不是池（协议那一头查过）。
+    pub model: String,
+    /// 换成的一档，规整过的名字（`off`、`on`，或者目录里的档位名）；`null` 是清掉这一格，回到配置的默认。总是写：清掉的
+    /// 写 `null`。
+    pub level: Option<String>,
 }
 
 /// `session.meta_changed`：改了哪项写哪项。

@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>172</b><span>/ 190 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 8-18 思考强度、W-4 mermaid，接着 8-20 模型调用口；跨会话只剩 C-7 验收</span></li>
-    <li><b class="mono">ae3015f9</b><span>最近一步（8-8 补 挡位改成池）的提交</span></li>
+    <li><b>175</b><span>/ 192 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 8-20 模型调用口、W-5 分块上传，接着 8-18 补去掉会话里的思考强度；跨会话只剩 C-7 验收</span></li>
+    <li><b class="mono">3eba8a97</b><span>最近一步（4-7 再补 改回的文件也带差异）的提交</span></li>
   </ul>
 </header>
 
@@ -422,6 +422,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-7b"><span class="n">4-7</span>undo、redo 命令（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-7c"><span class="n">4-7</span>命令改名（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-7d"><span class="n">4-7</span>重做上一轮（再补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s4-7e"><span class="n">4-7</span>改回的文件也带差异（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-8"><span class="n">4-8</span>执行命令<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9"><span class="n">4-9</span>没人能确认时说清楚<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9b"><span class="n">4-9</span>补完蓝图（补）<span class="st">✓</span></a></li>
@@ -529,7 +530,8 @@ a.step:hover{border-color:var(--primary)}
         <li><span class="step"><span class="n">8-15</span>用量与金额</span></li>
         <li><span class="step"><span class="n">8-20</span>模型调用口</span></li>
         <li><span class="step"><span class="n">8-17</span>替看不了图的模型看图</span></li>
-        <li><span class="step"><span class="n">8-18</span>思考强度</span></li>
+        <li><a class="step done" href="#s8-18"><span class="n">8-18</span>思考强度<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">8-18</span>去掉会话里的思考强度（补）</span></li>
         <li><span class="step"><span class="n">8-16</span>M8 验收</span></li>
       </ol>
     </li>
@@ -551,7 +553,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sW-1"><span class="n">W-1</span>给人看的字<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sW-2"><span class="n">W-2</span>列文件、找文件<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sW-3"><span class="n">W-3</span>路径<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">W-4</span>mermaid</span></li>
+        <li><a class="step done" href="#sW-4"><span class="n">W-4</span>mermaid<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">W-5</span>分块上传</span></li>
         <li><span class="step"><span class="n">W-6</span>分块读</span></li>
         <li><span class="step"><span class="n">W-7</span>链接卡片</span></li>
@@ -6436,6 +6438,54 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s4-7e" aria-labelledby="h-s47e">
+  <div class="sheet-head"><h2 id="h-s47e"><span class="no">4-7 再补</span>改回的文件也带差异（再补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">撤销、重做把文件改回去时，头能列出每个文件、点开看这次改成了什么样。以前回应的 <code>files</code> 里只有没动的（之后又被改过的）才带差异，项目主人 2026-10-02 要改回了的也带。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">改回的文件也带差异（再补）</span><span class="dir-note">4-7 再补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>改回了的、写回内容的那一项带 <code>diff</code>：改回以前对改回以后，规矩照旧（上下 3 行、最多 20 行、<code>more</code>）</li>
+              <li>带差异的每一项多 <code>added</code>、<code>removed</code>，照整份差异数</li>
+              <li>挪进挪出回收站的、本来就一样的不带；<code>miyu undo</code> 照旧印，代码不用改</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">两边都从 blob 取</span><span class="rl">差异的前后两份照账号的 blob，不读磁盘</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-7 再补</dd></div>
+        <div><dt>名称</dt><dd>改回的文件也带差异（再补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-02</dd></div>
+        <div><dt>提交</dt><dd class="mono">3eba8a97</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>15 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/4-7-改回的文件也带差异（再补）.md</code>；蓝图 <code>protocol/undo.md</code>、<code>cli/undo.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="s4-8" aria-labelledby="h-s48">
   <div class="sheet-head"><h2 id="h-s48"><span class="no">4-8</span>执行命令</h2><span class="pill done">已完成</span></div>
   <p class="purpose">读、找、搜、写、改、删都有了专用的工具，剩下的广度交给 shell：编译、跑测试、git、装依赖、跑脚本。这一步做前台的：命令跑完才交回，超时、叫停时整组杀掉，输出太长截成头尾两段，报退出码。命令只拿到白名单上的环境变量，核心环境里的密钥拿不到。后台命令随 M7。</p>
@@ -11307,6 +11357,56 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s8-18" aria-labelledby="h-s818">
+  <div class="sheet-head"><h2 id="h-s818"><span class="no">8-18</span>思考强度</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">照 opencode 的做法：配置里每个模型一个默认强度，会话里改只改这个会话这一个模型的一格，一次请求照会话的、再照配置的、再什么都不带（照供应商的默认）。能关思考的模型多一档 <code>off</code>。换模型、换强度都不出提示，头只改底栏。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">思考强度</span><span class="dir-note">8-18</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>配置 <code>providers.&lt;id&gt;.models.&lt;model&gt;.effort</code>；写了模型没有的档报 <code>unknown_effort</code>、请求照不带发</li>
+              <li><code>session.configure</code> 的 <code>effort</code> <code>{model, level}</code>，记进 <code>session.policy_changed</code>，载入时拼回每个模型的一格</li>
+              <li><code>openai-chat</code> 发 <code>reasoning_effort</code> 或照档案的开关（DeepSeek 是 <code>thinking.type</code>）；没写的请求一个字节不变</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">开关只在档案写了时加 off</span><span class="rl">目录里的档位照原样，none、disabled 规整成 off</span></div>
+          <div class="tile"><span class="nm">目录里多一个 default</span><span class="rl">groq 的两个 Qwen 有一档叫 default，照原样给</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-18</dd></div>
+        <div><dt>名称</dt><dd>思考强度</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">a8dffd11</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>18 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型：配置写 <code>off</code> 只回答案（输出 1 个 token），改成 <code>high</code> 下一轮带思考（73 个）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-18-思考强度.md</code>；蓝图 <code>models.md</code>「思考强度」、<code>config.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="s8-11b" aria-labelledby="h-s811b">
   <div class="sheet-head"><h2 id="h-s811b"><span class="no">8-11 补</span>本机的服务不走代理（补）</h2><span class="pill done">已完成</span></div>
   <p class="purpose">8-11 实测时发现：请求本机的模型服务也照环境变量走代理，<code>NO_PROXY</code> 没写回环地址的机器探不到、连不上本机的服务。改成回环地址一律直连：探本机服务、列模型、试通、平时发请求都算。</p>
@@ -11805,6 +11905,57 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/W-3-路径.md</code>；蓝图 <code>web-module.md</code> 第四条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sW-4" aria-labelledby="h-sW4">
+  <div class="sheet-head"><h2 id="h-sW4"><span class="no">W-4</span>mermaid</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">mermaid 源码画成 SVG 由核心做，做成可选的软件包 <code>mermaid</code>（crate <code>miyu-mermaid</code>，cargo 开关 <code>mermaid</code>，发行版默认打开）：同一张图终端和网页看只画一次。顺带立起可选软件包登记查询的那张表，W-7 的 <code>net</code> 照它登记。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">mermaid</span><span class="dir-note">W-4</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>mermaid.render</code>：回 SVG 和三种记号色 <code>marks</code>，头换成自己的颜色；同一份源码第二次不重画（最多 64 张）</li>
+              <li>查询表 <code>queries.rs</code>：核心起来时照编进来的包登记，没编进来的方法回 <code>unknown_method</code></li>
+              <li>第一次调才读 <code>style.json</code>；字体真要画时才探、整个进程一次</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">体积</span><span class="rl">release 主程序多 3.9 MB（28.5 → 32.6 MB），不要的编译时关掉开关</span></div>
+          <div class="tile new"><span class="nm">Windows 上探字体慢</span><span class="rl">几个测试一起扫过了十秒：探字体挪到真要画之前，空的、太长的、缓存命中的不用等</span></div>
+          <div class="tile"><span class="nm">接住崩溃</span><span class="rl">画图的库崩了当画不出，回 mermaid_failed</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">W-4</dd></div>
+        <div><dt>名称</dt><dd>mermaid</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">022e7f26</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>17 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真核心：一张流程图、一张时序图都出 SVG；空的、太长的、画不出的各回各的原因码</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/W-4-mermaid.md</code>；蓝图 <code>mermaid.md</code>（新页）、<code>web-module.md</code> 第五条。</li>
       </ul>
     </div>
   </div>

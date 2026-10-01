@@ -1,6 +1,6 @@
 //! `miyu undo`、`miyu redo`（`docs/construction/4-7-miyu undo、miyu redo（下）.md`）：在进程里起一个核心，工具是真的；
-//! 她用 `miyu ask` 改了一个文件，`miyu undo` 改回来、照定的样子印在标准输出上，`miyu restore` 又改回她改完的样子；
-//! 之后又被改过的印出差异；一轮都没有的、一个会话都没有的，说清楚，退出码 1。
+//! 她用 `miyu ask` 改了一个文件，`miyu undo` 改回来、照定的样子印在标准输出上（改回了内容的附差异，施工 4-7 再补），
+//! `miyu restore` 又改回她改完的样子；之后又被改过的印出差异；一轮都没有的、一个会话都没有的，说清楚，退出码 1。
 
 mod support;
 
@@ -65,13 +65,16 @@ async fn undo_puts_the_file_back_and_says_so_and_restore_brings_it_again() {
     assert_eq!(undone.code, 0, "{}", undone.err);
     assert_eq!(
         undone.out,
-        "· 撤销「改一下」这一轮\n· 改回 a.txt\n发下一句之前，可以用 miyu restore 恢复。\n"
+        "· 撤销「改一下」这一轮\n· 改回 a.txt\n    --- 她改完的\n    +++ 现在\n    @@ -1 +1 @@\n    -new\n    +old\n发下一句之前，可以用 miyu restore 恢复。\n"
     );
     assert_eq!(undone.err, "", "结果走标准输出");
     assert_eq!(std::fs::read_to_string(&file).expect("在"), "old\n");
     let restored = home.undo(&undo(Direction::Restore)).await;
     assert_eq!(restored.code, 0, "{}", restored.err);
-    assert_eq!(restored.out, "· 恢复「改一下」这一轮\n· 改回 a.txt\n");
+    assert_eq!(
+        restored.out,
+        "· 恢复「改一下」这一轮\n· 改回 a.txt\n    --- 撤销以后的\n    +++ 现在\n    @@ -1 +1 @@\n    -old\n    +new\n"
+    );
     assert_eq!(std::fs::read_to_string(&file).expect("在"), "new\n");
 }
 

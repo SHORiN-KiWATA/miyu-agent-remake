@@ -33,11 +33,10 @@ fn the_trimmed_real_catalog_reads_with_the_broken_model_skipped() {
     );
     assert_eq!(
         flash.reasoning,
-        Some(vec![
-            "low".to_string(),
-            "high".to_string(),
-            "max".to_string()
-        ])
+        Some(Reasoning {
+            levels: vec!["low".to_string(), "high".to_string(), "max".to_string()],
+            toggle: true,
+        })
     );
     assert_eq!(flash.status, None);
     let price = flash.price.as_ref().expect("有价");
@@ -87,6 +86,8 @@ fn odd_fields_are_read_the_cautious_way() {
         "p": {"id": "p", "models": {
             "toggle": {"reasoning_options": [{"type": "toggle"}], "modalities": {"input": ["text", "audio", "pdf"]}},
             "null-level": {"reasoning_options": [{"type": "effort", "values": [null, "low", "high"]}]},
+            "off-by-name": {"reasoning_options": [{"type": "effort", "values": ["none", "disabled", "low"]}]},
+            "budget-only": {"reasoning_options": [{"type": "budget_tokens", "min": 1024}]},
             "input-only": {"limit": {"input": 5000}},
             "zero": {"limit": {"context": 0, "output": 0}},
             "tiered": {"cost": {"input": 1, "tiers": [{"input": 2, "tier": {"type": "other", "size": 9}}]}},
@@ -103,14 +104,36 @@ fn odd_fields_are_read_the_cautious_way() {
         ["p/bad-cost", "p/bad-limit", "p/bad-tools", "q"]
     );
     let model = |name: &str| read.catalog.model("p", name).cloned().expect("有");
-    assert_eq!(model("toggle").reasoning, Some(vec!["on".to_string()]));
+    assert_eq!(
+        model("toggle").reasoning,
+        Some(Reasoning {
+            levels: Vec::new(),
+            toggle: true
+        }),
+        "只有开关的：没有档位，开关记下（能不能关照档案，施工 8-18）"
+    );
+    assert_eq!(
+        model("off-by-name").reasoning,
+        Some(Reasoning {
+            levels: vec!["off".to_string(), "low".to_string()],
+            toggle: false
+        }),
+        "none、disabled 读成 off，重复的只留第一个（施工 8-18）"
+    );
+    assert_eq!(
+        model("budget-only").reasoning,
+        None,
+        "只有思考预算的没有档位"
+    );
     assert_eq!(
         model("toggle").inputs,
         Some(vec!["text".to_string(), "pdf".to_string()]),
         "认得的几种照固定的先后"
     );
     assert_eq!(
-        model("null-level").reasoning,
+        model("null-level")
+            .reasoning
+            .map(|reasoning| reasoning.levels),
         Some(vec!["low".to_string(), "high".to_string()]),
         "写了 null 的那一级不算，整个模型照读"
     );

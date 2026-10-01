@@ -17,7 +17,7 @@ const GOT_CHARS: usize = 80;
 /// 离得最近的键名最远差几个字（「怎么走」第四条第 2 条）。
 const NEAREST: usize = 3;
 
-/// 原因码（「报错」那张表里标 8-2、8-5、8-6、8-8 的几种）。
+/// 原因码（「报错」那张表里标 8-2、8-5、8-6、8-8、8-18 的几种）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Code {
     /// 文件读不了：没有权限、是个目录……（没有这个文件不算）。
@@ -59,6 +59,9 @@ pub enum Code {
     NoProvider,
     /// 引用的池没有配（施工 8-8）：`name` 是池的名字。协议上写 `bad_reference`，说的话和供应商的不一样。
     NoPool,
+    /// 模型默认的思考强度不在这个模型这时的档位里（施工 8-18，`miyu_models::effort::unknown` 查）：`name` 是写的那一档。
+    /// 只报不丢，请求照没写发。
+    UnknownEffort,
 }
 
 impl Code {
@@ -82,6 +85,7 @@ impl Code {
             Code::SecretName => "bad_format",
             Code::SecretValue => "wrong_type",
             Code::NoProvider | Code::NoPool => "bad_reference",
+            Code::UnknownEffort => "unknown_effort",
         }
     }
 
@@ -164,7 +168,7 @@ pub struct Problem {
     /// 下面几层合出来的值：`not_tightening` 说「现在是什么」。
     pub current: Option<Value>,
     /// 引用的密钥、环境变量的名字：`unknown_secret`、`env_not_set` 说「引用的是哪一个」（施工 8-5）；引用的供应商、池的
-    /// 名字：`bad_reference` 说「指的是哪一个」（施工 8-8）。
+    /// 名字：`bad_reference` 说「指的是哪一个」（施工 8-8）；写的那一档：`unknown_effort`（施工 8-18）。
     pub name: Option<String>,
 }
 

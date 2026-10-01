@@ -189,10 +189,11 @@
 | `shell` | DEBUG | `command output still open after the command ended` | | 命令退出了，输出还没关 |
 | `shell` | DEBUG | `command output not readable` | `error` | 读命令的输出出错 |
 | `shell` | WARN | `command group not killed`、`command tree not killed` | `error` | Unix 杀不掉进程组；Windows 杀不掉进程树 |
+| `mermaid` | WARN | `not ready` | `error` | 画图的库初始化不了：`style.json` 读不懂，或者这台机器上一种字体都读不到。只记第一次（施工 W-4，`mermaid.md`） |
 
 `http` 的几行没有 `session` 这一格，可发它们的请求任务带着会话的 span，照第 5 条也带会话编号（`session/actor.md` 第 8 条）。
 
-每一行的细节见各部件的页：`core.md`、`drivers/openai-chat.md` 和 `http.md`、`protocol.md`、`ipc.md`、`fs.md`、`tools/shell.md`。
+每一行的细节见各部件的页：`core.md`、`drivers/openai-chat.md` 和 `http.md`、`protocol.md`、`ipc.md`、`fs.md`、`tools/shell.md`、`mermaid.md`。
 
 ### 样子
 

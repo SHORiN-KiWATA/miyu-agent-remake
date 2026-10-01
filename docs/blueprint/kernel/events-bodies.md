@@ -60,7 +60,7 @@
 
 两格都写，少一格读不进来。不认识的级别按最严的算（`kernel/blocks.md` 第 19 条）。每一级能做什么，见 `session/guard.md`。
 
-**`session.policy_changed`**：换了策略快照，或者换了权限，或者换了模型，也可以一起换。
+**`session.policy_changed`**：换了策略快照，或者换了权限，或者换了模型、思考强度，也可以一起换。
 
 | 格 | 写法 | 有没有 | 是什么 |
 |---|---|---|---|
@@ -68,8 +68,9 @@
 | `permission` | 权限 | 可以没有 | 新的权限：收紧的当场生效，放宽的下一次请求时生效（`kernel/session.md`） |
 | `model` | 字符串 | 可以没有 | 换成的模型引用（施工 8-10，`models.md`「事件」）：模型 `<供应商>/<模型>` 或池 `@<池>`，下一个回合开始时生效。人换的 `by` 是人，`cause` 是 `session.configure`；钉着的没了、退回默认的 `by` 是内核，带着回合 |
 | `replaced` | 字符串 | 可以没有 | 钉着的引用没了、内核退回默认时写：原来那个（施工 8-10）。只和 `model` 一起出现，账本查（`replaced comes only with model`） |
+| `effort` | `{"model": 字符串, "level": 字符串或 null}` | 可以没有 | 会话给模型 `model`（`<供应商>/<模型>`）记的思考强度换成 `level`，`null` 是清掉、回到配置的默认（施工 8-18，`models.md`「事件」）。`level` 总是写。人换的 `by` 是人，`cause` 是 `session.configure`。下一个回合开始时生效，撤掉的回合里的也算 |
 
-几格都没有的 `{}` 也读得进来。内核切权限时只写 `permission`，换模型时只写 `model`，退回默认时写 `model`、`replaced`（`kernel/session.md`「换模型」）。以前的日志没有 `model`、`replaced`，照没有读。样本里 139 号是人换的，144 号是 143 号回合开始时池没了、退回的。
+几格都没有的 `{}` 也读得进来。内核切权限时只写 `permission`，换模型时只写 `model`，换思考强度时只写 `effort`，两样一起换的写两格，退回默认时写 `model`、`replaced`（`kernel/session.md`「换模型」）。以前的日志没有 `model`、`replaced`、`effort`，照没有读。样本里 139 号是人换的，140 号是人给 `deepseek/deepseek-v4` 记了 `high`（施工 8-18），144 号是 143 号回合开始时池没了、退回的。
 
 **`session.meta_changed`**：改了哪项写哪项。
 
@@ -441,7 +442,7 @@
 
 | 测试 | 守哪几种 |
 |---|---|
-| `crates/miyu-kernel/src/event/session/tests.rs` | 会话的四种：图纸上的写法、一次性的写与不写、每一级读成自己那一种、不认识的级别原样留着、权限两格都要写、坏的说是哪一种；子会话的 `parent`、`depth` 读写一字不差，主会话不写这两格（施工 7-1）；`session.recapped` 两格都要写（施工 3-8 四补）；`session.policy_changed` 的 `model`、`replaced` 读写一字不差、以前的日志照读、`null` 当没有、不是字的读不进来（施工 8-10） |
+| `crates/miyu-kernel/src/event/session/tests.rs` | 会话的四种：图纸上的写法、一次性的写与不写、每一级读成自己那一种、不认识的级别原样留着、权限两格都要写、坏的说是哪一种；子会话的 `parent`、`depth` 读写一字不差，主会话不写这两格（施工 7-1）；`session.recapped` 两格都要写（施工 3-8 四补）；`session.policy_changed` 的 `model`、`replaced` 读写一字不差、以前的日志照读、`null` 当没有、不是字的读不进来（施工 8-10）；`effort` 读写一字不差、清掉的写 `null`、和 `model` 在同一条里、以前的日志照读、写坏的读不进来（施工 8-18） |
 | `crates/miyu-kernel/src/event/turn/tests.rs` | 回合的四种：图纸上的写法、没有 `trigger` 的不写这一格（施工 6-8）、每种结束原因、不认识的原样留着、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/restore/tests.rs` | `files.restored` 的每一格读写一字不差；新的 `action`、`outcome` 原样留着 |
 | `crates/miyu-kernel/src/event/message/tests.rs` | `message.assistant` 图纸上的写法、`seen` 必有、`interrupted` 只在是真时写；`message.withdrawn` 的写法和序号从 1 起 |

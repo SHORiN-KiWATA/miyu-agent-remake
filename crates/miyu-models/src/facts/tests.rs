@@ -54,6 +54,7 @@ fn every_fact_from_the_catalog_carries_its_entry_layer_and_date() {
             "inputs": with(json!(["text", "image"])),
             "tools": with(json!(true)),
             "reasoning": with(json!(["low", "high", "max"])),
+            "effort": {"value": null, "from": "default"},
             "price": with(json!({"input": 0.15, "output": 0.6, "cache_read": 0.003, "reasoning": 0.6, "currency": "USD"})),
             "multiplier": {"value": 1.0, "from": "default"},
             "name": with(json!("DeepSeek V4.1 Flash")),
@@ -88,6 +89,44 @@ fn each_fact_is_looked_up_on_its_own() {
     assert_eq!(facts.tools.value, Some(false));
     assert_eq!(facts.reasoning.value, Some(vec!["high".to_string()]));
     assert!(matches!(facts.price.source, Source::Catalog { .. }));
+}
+
+/// 思考强度（施工 8-18）：目录的开关只在档案写了开关时算，多一档 `off`；手写的几档规整过、盖过目录的；默认的那一档只认
+/// 写在档位里的，`none` 读成 `off`，来源写文件和行；不在档位里的照没写。
+#[test]
+fn reasoning_levels_follow_the_profile_and_the_default_must_be_one_of_them() {
+    let toggled = Held::new(
+        json!({
+            "npm": {"@ai-sdk/openai-compatible": "openai-chat"},
+            "providers": {"deepseek": {"compat": {"toggle": {"field": "thinking", "on": true, "off": false}}}}
+        }),
+        true,
+    );
+    let (facts, _) = facts_of(&toggled, DEEPSEEK, "deepseek", "deepseek-flash");
+    assert_eq!(
+        facts.reasoning.value,
+        Some(["off", "low", "high", "max"].map(str::to_string).to_vec()),
+        "档案写了开关：多一档 off"
+    );
+    let (plain, _) = facts_of(&held(), DEEPSEEK, "deepseek", "deepseek-flash");
+    assert_eq!(plain.levels(), ["low", "high", "max"], "档案没写开关：不加");
+    let written = "[providers.deepseek]\nkeys = []\n\n[providers.deepseek.models.\"deepseek-flash\"]\neffort = \"none\"\n";
+    let (facts, _) = facts_of(&toggled, written, "deepseek", "deepseek-flash");
+    assert_eq!(facts.effort.value.as_deref(), Some("off"));
+    assert_eq!(
+        Json::Object(facts.effort.source.json(&file)),
+        json!({"from": "config", "file": "system/config.toml", "line": 5})
+    );
+    let (facts, _) = facts_of(&held(), written, "deepseek", "deepseek-flash");
+    assert_eq!(
+        (facts.effort.value, facts.effort.source),
+        (None, Source::Default),
+        "没有开关就没有 off：照没写"
+    );
+    let own = "[providers.deepseek]\nkeys = []\n\n[providers.deepseek.models.\"deepseek-flash\"]\nreasoning = [\"disabled\", \"turbo\"]\neffort = \"turbo\"\n";
+    let (facts, _) = facts_of(&toggled, own, "deepseek", "deepseek-flash");
+    assert_eq!(facts.levels(), ["off", "turbo"], "手写的盖过目录，照样规整");
+    assert_eq!(facts.effort.value.as_deref(), Some("turbo"));
 }
 
 /// 窗口：手写的、用出来的、供应商的列表、目录，先有的算。

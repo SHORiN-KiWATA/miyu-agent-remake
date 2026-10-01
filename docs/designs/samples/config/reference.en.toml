@@ -111,6 +111,10 @@ keys = []
 # Allowed: text of at most 256 characters. Only in the system config or personal settings. Takes effect next turn.
 # catalog =
 
+# Default reasoning effort: The reasoning effort this model uses by default: one of its levels, for example high, or off where thinking can be turned off. Left out, the provider decides.
+# Allowed: text of at most 32 characters. Only in the system config or personal settings. Takes effect next turn.
+# effort =
+
 # Inputs: What this model can read: text, images, PDF.
 # Allowed: a list of text, image or pdf. Only in the system config or personal settings. Takes effect next turn.
 # inputs =

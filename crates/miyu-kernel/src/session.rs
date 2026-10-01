@@ -376,7 +376,7 @@ impl Session {
             Command::Send { blocks, urgent } => self.send(id, by, at, blocks, urgent),
             Command::Interrupt { queued } => self.interrupt(id, by, at, queued),
             Command::SetMeta { title, pinned } => self.set_meta(id, by, at, title, pinned),
-            Command::Configure { model } => self.configure(id, by, at, model),
+            Command::Configure { model, effort } => self.configure(id, by, at, model, effort),
             Command::SetPermission { level, read_only } => {
                 self.set_permission(id, by, at, level, read_only)
             }

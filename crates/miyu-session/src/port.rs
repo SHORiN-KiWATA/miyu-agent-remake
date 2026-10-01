@@ -2,6 +2,7 @@
 //! 它，它的回报送回 actor 的收件箱。3-7（下）接上驱动和 HTTP 执行器，以后资源调度夹在中间；测试里
 //! 照剧本回。
 
+use std::collections::BTreeMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -10,7 +11,7 @@ use tokio::sync::{mpsc, oneshot};
 
 use miyu_drivers::DriverTexts;
 use miyu_kernel::accumulate::Delta;
-use miyu_kernel::event::{CallError, Purpose, Usage};
+use miyu_kernel::event::{CallError, EffortInUse, Purpose, Usage};
 use miyu_kernel::id::{ContentHash, Seq, SessionId};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
@@ -49,6 +50,9 @@ pub struct ForSession {
     /// 最近一条发出去了的 `model.called` 发给了谁（施工 8-8，「起草时定的」第 2 条）：引用是钉住的池的，照它认钉着的成员。
     /// 新造的会话、一次都没发出去过的没有。
     pub sent: Option<Model>,
+    /// 会话给每个模型记的思考强度（施工 8-18）：`<供应商>/<模型>` 到那一档。造会话的是空的；载入的是内核从日志拼的
+    /// （`Session::efforts()`）。
+    pub efforts: BTreeMap<String, String>,
 }
 
 /// 请求模型的端口。
@@ -64,9 +68,21 @@ pub trait ModelPort: Send + Sync {
     }
 
     /// 回合开始（施工 8-10，`models.md`「怎么走」第六条第 3 条）：照这一轮的配置 `config` 重新解析会话的引用 `reference`
-    /// （内核交的，以前的会话没有的照端口自己记着的）；端点、限额跟着换。钉着的没了、退回了这一轮的 `models.chat` 的，交回
-    /// 原来的和退回的，内核记下。不重新解析的（测试的端口）什么都不做。
-    fn turn(&self, _config: &TurnConfig, _reference: Option<&str>) -> Option<Replaced> {
+    /// （内核交的，以前的会话没有的照端口自己记着的）；端点、限额跟着换。会话给每个模型记的思考强度 `efforts` 换成内核交的
+    /// （施工 8-18）。钉着的没了、退回了这一轮的 `models.chat` 的，交回原来的和退回的，内核记下。不重新解析的（测试的端口）
+    /// 什么都不做。
+    fn turn(
+        &self,
+        _config: &TurnConfig,
+        _reference: Option<&str>,
+        _efforts: &BTreeMap<String, String>,
+    ) -> Option<Replaced> {
+        None
+    }
+
+    /// 接下来那个模型真用的思考强度（施工 8-18，`models.md`「怎么走」第十一条第 7 条）：给头看的，`subscribe`、
+    /// `model.changed` 照它写。轮换的池、什么都不带的、不知道的（测试的端口）没有。
+    fn effort(&self) -> Option<EffortInUse> {
         None
     }
 

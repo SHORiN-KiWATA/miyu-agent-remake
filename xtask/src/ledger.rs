@@ -33,6 +33,11 @@ const HUMAN: &str = "human";
 /// 资源目录最上一层的这个目录放模型资料，是数据，不发给模型，不登记（施工 6-3 上）。
 const DATA: &str = "models";
 
+/// `software/mermaid/` 整个是数据（字体、三种记号色、源码的上限），不发给模型，不登记（施工 W-4，
+/// `mermaid.md`「样子」：「这条线不加给模型看的字」）。
+const SOFTWARE_DIR: &str = "software/";
+const MERMAID: &str = "mermaid";
+
 /// 查一遍，交回对不上的地方。
 pub fn check(root: &Path) -> Vec<String> {
     let text = match std::fs::read_to_string(root.join(PATH)) {
@@ -78,8 +83,12 @@ fn walk(dir: &Path, prefix: &str, files: &mut BTreeMap<String, Vec<u8>>) -> Resu
         let name = entry.file_name().to_string_lossy().into_owned();
         let path = format!("{prefix}{name}");
         if entry.file_type().map_err(unreadable)?.is_dir() {
-            // 给人看的字不发给模型，不进登记簿（26 第十节，施工 4-5 上）。
-            if name == HUMAN || (prefix.is_empty() && name == DATA) {
+            // 给人看的字、模型资料、mermaid 的 style.json 都不发给模型，不进登记簿
+            // （26 第十节，施工 4-5 上、6-3 上、W-4）。
+            if name == HUMAN
+                || (prefix.is_empty() && name == DATA)
+                || (prefix == SOFTWARE_DIR && name == MERMAID)
+            {
                 continue;
             }
             walk(&entry.path(), &format!("{path}/"), files)?;
@@ -189,6 +198,8 @@ mod tests {
             ("software/x/tools/t.json", "{}"),
             ("models/models-dev.json", "{}"),
             ("core/models/m.txt", "m"),
+            ("software/mermaid/style.json", "{}"),
+            ("software/x/mermaid/not_special_here.json", "{}"),
         ] {
             let path = dir.join(path);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -198,10 +209,16 @@ mod tests {
         let walked = walk(&dir, "", &mut found);
         std::fs::remove_dir_all(&dir).unwrap();
         walked.unwrap();
-        // 给人看的字、最上一层的模型资料不登记，别的照查（别处叫 models 的目录照查）。
+        // 给人看的字、最上一层的模型资料、software/mermaid/ 不登记，别的照查（别处叫 models、mermaid 的
+        // 目录照查：只有正好 software/mermaid/ 这一处才豁免）。
         assert_eq!(
             found.keys().collect::<Vec<_>>(),
-            ["core/a.txt", "core/models/m.txt", "software/x/tools/t.json"]
+            [
+                "core/a.txt",
+                "core/models/m.txt",
+                "software/x/mermaid/not_special_here.json",
+                "software/x/tools/t.json",
+            ]
         );
     }
 }

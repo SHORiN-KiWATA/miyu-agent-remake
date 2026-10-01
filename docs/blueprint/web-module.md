@@ -280,15 +280,7 @@ sequenceDiagram
 
 **五、mermaid**（`mermaid.render`，W-4；设计 04 第五节、13 第九节，2026-10-01 项目主人定）
 
-1. 画 mermaid 在核心里：代码只有一份，同一张图终端和网页看只画一次，画图的内存只在核心里。做成可选的软件包 `mermaid`：crate `miyu-mermaid`，经 `miyu-core` 的 cargo 开关 `mermaid` 编进来，发行版默认打开。没编进来的核心里没有这块代码，`mermaid.render` 回 `unknown_method`，头照代码块显示源码。
-2. 第一次调才初始化：读 `resources/software/mermaid/style.json`、读系统的字体库（画图的库要量字的宽）。之后一直留着，直到核心退出。
-3. 源码去掉前后空白。空的：`bad_params`。超过 64 KiB：`mermaid_too_long`。
-4. 缓存：照源码的 SHA-256，最多 64 张，满了丢最久没用的。设计说「源码加尺寸」：SVG 不分尺寸，缓存只照源码；尺寸只在终端栅格化时用，那一步在头里。
-5. 一次画一张（一把锁），在阻塞线程里画。画图的库崩了（panic），当画不出。
-6. 画不出：`mermaid_failed`，`data.detail` 是画图的库的原话（英文）。
-7. 样子照终端演示和桥：从画图的库的暗色主题改起，底和框都不填色；字、线、连线标签的垫底先填三种图里不会自己出现的记号色，回应的 `marks` 写明是哪三种。网页把它们换成页面的 CSS 变量（换主题不用重画），终端换成主题色再栅格化。字体照 `style.json` 的一串（正文常用的几种，最后是 `sans-serif`）。
-8. 用的库照终端演示和桥：`mermaid-rs-renderer` 0.3.1，同一个版本。核心出了以后，终端演示和桥各带的那一份都去掉。
-9. 视图投影（M9）做出来以后，`view.detail` 取 mermaid 那一项，照同一个画法、同一份缓存给。
+另见 `mermaid.md`：施工 W-4 时这一节的内容搬过去了，连同「在哪」`crates/miyu-mermaid/`、`style.json` 那两行的细节、「守着它的」对应的那一行（`web-module.md`「起草时定的」第 23 条）。
 
 **六、分块上传**（`blob.open`、`blob.write`、`blob.close`，W-5；设计 04 第十节「后续再定」的分块上传）
 

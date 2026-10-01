@@ -286,6 +286,13 @@
                   "title": "对应目录里的",
                   "type": "string"
                 },
+                "effort": {
+                  "description": "这个模型默认的思考强度，写它的一档，例如 high；能关思考的写 off。不写的照供应商的默认。能写：最多 32 个字的文字。只能写在系统配置或个人设置里。下一轮生效。",
+                  "maxLength": 32,
+                  "minLength": 1,
+                  "title": "默认的思考强度",
+                  "type": "string"
+                },
                 "inputs": {
                   "description": "这个模型能读的：文字、图片、PDF。能写：text、image 或 pdf 的列表。只能写在系统配置或个人设置里。下一轮生效。",
                   "items": {

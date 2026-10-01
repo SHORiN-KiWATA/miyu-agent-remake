@@ -49,6 +49,7 @@ pub fn call(inputs: Inputs, max_output: Option<u32>) -> Call {
         model: ModelName::parse("deepseek-v4").expect("模型名合写法"),
         max_output,
         inputs,
+        effort: None,
     }
 }
 

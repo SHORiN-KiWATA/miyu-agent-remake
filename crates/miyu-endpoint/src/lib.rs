@@ -17,6 +17,9 @@
 //!   `provider.detect`、`provider.catalog`、`provider.test`（施工 8-11，`providers.rs`）；
 //! - 给人看的字：`human.get`，工具的样子、说法的模板原文，头不用再自己去资源目录里读（施工 W-1，`human.rs`）。
 //! - 文件：`fs.list` 列一层目录，`fs.find` 模糊找文件，数据根只有账号自己的工作区能列、能找（施工 W-2，`files.rs`）。
+//! - 可选软件包登记的查询：方法名到怎么答的一张表（[`queries`]，施工 W-4）。核心起来时照编进来的包
+//!   （`miyu-core` 的 cargo 开关）往里登记，`mermaid.render` 就是这样接进来的；没编进来的方法，这张表里
+//!   压根没有它，握手以后的方法里找不到、这张表里也找不到的，一律 `unknown_method`。
 
 mod attach;
 pub mod config;
@@ -32,6 +35,7 @@ mod meta;
 mod methods;
 mod models;
 mod providers;
+pub mod queries;
 mod refusal;
 mod secrets;
 mod sessions;
@@ -62,6 +66,7 @@ use miyu_tool::Catalog;
 
 use config::Config;
 use config::hub::Hub;
+use queries::Queries;
 use sessions::Sessions;
 
 /// 核心的家底：一个核心一份，各个连接一起用。
@@ -108,6 +113,8 @@ pub struct Core {
     /// `fresh` 时，清单建好多久以上才重建（施工 W-2）：出厂值 [`miyu_fs::FRESH_SECS`]，测试里设短的，不用真等
     /// 十秒。
     files_fresh: Duration,
+    /// 可选软件包登记的查询（施工 W-4）：核心起来时照编进来的包往里登记，空表就是没编进来任何一个。
+    queries: Queries,
 }
 
 /// 空的模型资料：没有档案、没有目录，读完了。
@@ -136,7 +143,9 @@ impl Core {
             settings::PermissionSettings::ITEMS,
         ]
         .concat();
-        let config = Config::defaults(&root, &admin, items);
+        let mut config = Config::defaults(&root, &admin, items);
+        let model_data = empty_model_data();
+        config.set_models(Arc::clone(&model_data));
         let index = Arc::new(list::open_index(&root, &admin));
         Core {
             index,
@@ -155,15 +164,23 @@ impl Core {
             jobs: Arc::new(Jobs::new()),
             connections: AtomicUsize::new(0),
             hello_wait: HELLO_WAIT,
-            model_data: empty_model_data(),
+            model_data,
             files: files::Cache::default(),
             files_fresh: Duration::from_secs(miyu_fs::FRESH_SECS),
+            queries: Queries::default(),
         }
     }
 
     /// 同一份家底，模型资料照 `data`（施工 8-7）：核心起来时把路由手里的那一份交进来。没设的是空的：没有档案、没有目录。
+    /// 配置服务也拿着它：查模型默认的思考强度在不在档位里（施工 8-18）。
     #[must_use]
     pub fn with_model_data(mut self, data: Arc<ModelData>) -> Core {
+        let config = self
+            .config
+            .get_mut()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        config.set_models(Arc::clone(&data));
+        self.hub = Hub::new(config);
         self.model_data = data;
         self
     }
@@ -183,9 +200,18 @@ impl Core {
         self
     }
 
+    /// 同一份家底，可选软件包登记的查询照 `queries`（施工 W-4）：核心起来时照编进来的包往里登记一份，这里
+    /// 整个换上。没设的是空表，没有任何可选软件包的方法。
+    #[must_use]
+    pub fn with_queries(mut self, queries: Queries) -> Core {
+        self.queries = queries;
+        self
+    }
+
     /// 同一份家底，配置照 `config`（施工 8-2）：核心起来时读好交进来。没设的全是默认值，只认端点自己的两项。
     #[must_use]
-    pub fn with_config(mut self, config: Config) -> Core {
+    pub fn with_config(mut self, mut config: Config) -> Core {
+        config.set_models(Arc::clone(&self.model_data));
         self.hub = Hub::new(&config);
         self.config = std::sync::Mutex::new(config);
         self

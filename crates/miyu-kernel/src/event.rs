@@ -39,11 +39,13 @@ pub use model::{
 pub use peer::{IdleReason, PeerIdle};
 pub use question::{Choice, Question, QuestionAnswered, QuestionAsked, Response, fits};
 pub use restore::{FilesRestored, RestoreAction, RestoreOutcome, Restored};
-pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated, SessionRecapped};
+pub use session::{
+    Effort, Level, MetaChanged, Permission, PolicyChanged, SessionCreated, SessionRecapped,
+};
 pub use tool::{ApprovalDecided, ApprovalRequested, Decision, Said, ToolResult, ToolStatus};
 pub use transient::{
-    ChangeWhy, CompactionDone, CompactionProgress, ModelChanged, ModelDelta, Piece, Retry, Status,
-    ToolProgress, Transient, TransientBody,
+    ChangeWhy, CompactionDone, CompactionProgress, EffortInUse, EffortSource, ModelChanged,
+    ModelDelta, Piece, Retry, Status, ToolProgress, Transient, TransientBody,
 };
 pub use turn::{EndReason, TurnEnded, TurnReverted, TurnStarted, TurnUnreverted};
 

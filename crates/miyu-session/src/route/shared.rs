@@ -135,6 +135,11 @@ impl ModelData {
         }
     }
 
+    /// 目录读完了（读没读成都算，施工 8-18）：配置服务查思考强度的档位以前看它，读完以前不查。
+    pub fn is_loaded(&self) -> bool {
+        self.catalog.borrow().is_some()
+    }
+
     /// 在用的目录；还没读完、读不成的没有。
     pub fn catalog(&self) -> Option<Arc<Loaded>> {
         self.catalog.borrow().clone().flatten()

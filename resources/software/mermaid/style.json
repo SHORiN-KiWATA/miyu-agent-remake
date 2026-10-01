@@ -1,0 +1,6 @@
+{
+  "fonts": ["Noto Sans CJK SC", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Inter", "sans-serif"],
+  "marks": { "text": "#010203", "line": "#040506", "label": "#070809" },
+  "max_source": 65536,
+  "keep": 64
+}

@@ -56,10 +56,11 @@
 │   ├── jobs/<哪一份>.txt                 两种回报的写法，11 份（施工 7-2）；回报截在中间的那一行（施工 7-6）；留言的标签，2 份（施工 7-7）；人停的那一句（施工 7-2 补）
 │   └── human/zh.json、en.json、ja.json   给人看的字
 ├── personas/<人格>/prompts/persona.md    人设；出厂的只有 engineer
-└── software/<软件包>/                    出厂的只有 basesystem
-    ├── tools/<工具>.json                 给模型看的说明和参数格式
-    ├── <工具>/<名字>.txt、common/<名字>.txt  工具输出里给她看的几句
-    └── human/zh.json、en.json、ja.json   给人看的字
+└── software/<软件包>/                    出厂的有 basesystem、mermaid
+    ├── tools/<工具>.json                 给模型看的说明和参数格式（basesystem）
+    ├── <工具>/<名字>.txt、common/<名字>.txt  工具输出里给她看的几句（basesystem）
+    ├── human/zh.json、en.json、ja.json   给人看的字（basesystem）
+    └── mermaid/style.json                字体、三种记号色、源码的上限、记几张（施工 W-4，`mermaid.md`）
 ```
 
 | 哪几份 | 谁读 | 什么时候 |
@@ -69,6 +70,7 @@
 | `core/permission-rule.txt`、`core/local-paths-rule.txt` | `ResourceRoot::core_lines` | 造会话时，接在 system 最后（施工 2-7 补，`policy.md` 的 `with_core_lines`） |
 | `core/human/`、`software/<软件包>/human/` | `Human::load` | `miyu ask` 起来时读一次，印每一步用（`cli/ask.md`）；核心起来时照系统的语言读一次，生成配置的 Schema 和参考文件（施工 8-1，`config.md`） |
 | `software/basesystem/` 下别的 | `miyu-basesystem` | 核心起来时登记工具（`tools/*.md`） |
+| `software/mermaid/style.json` | `miyu-mermaid` | `mermaid.render` 第一次调时读一次，之后留着（施工 W-4，`mermaid.md`） |
 | `models/models-dev.json`、`models-dev.meta.json` | `ResourceRoot::catalog_snapshot` | 核心写了 `ready` 以后读一次，和缓存目录里后台拉的那一份挑新的（施工 8-7，`models.md`）。原样的 `api.json` 和它是什么时候拉的。是数据，不发给模型，不进登记簿 |
 | `models/models-dev.LICENSE` | 没人读 | models.dev 的 MIT 许可证原文，跟着快照一起发（`licenses.md`「资源里的第三方数据」） |
 | `models/profiles.toml` | `ResourceRoot::profiles` | 核心起来时读一次，`[npm]`（包名 → 驱动，施工 8-7）、认得出的供应商的驱动、地址、开关、一张图怎么算（施工 8-6，`models.md`）。是数据，不发给模型，不进登记簿 |
@@ -208,7 +210,7 @@
 
 - 同名覆盖：自己的家目录、系统区、出厂的三层，出厂的排在最后（`26-提示词.md` 第八节、J9，`16-人格与预设.md` 第四节）。现在只读资源目录这一处。
 - 人格目录里别的文件：`persona.toml`、示范对话、角色扮演提示，和预设（`16-人格与预设.md` 第三节）。
-- 网页、字体这类资源（`12-进程形态与分发.md` 第三节）。
+- 网页这类资源（`12-进程形态与分发.md` 第三节）：`web/`，随 W-9。mermaid 要的字体、颜色这类已经有了（`software/mermaid/style.json`，施工 W-4）。
 
 **目录的快照怎么刷新**（施工 8-7）：下载原样的 `api.json`，旁边的 `meta` 写出处和服务器回的时刻（UTC），许可证照 models.dev 仓库的 `LICENSE` 原文：
 

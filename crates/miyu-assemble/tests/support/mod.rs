@@ -272,6 +272,7 @@ pub fn wire(request: &Request) -> Encoded {
         model: ModelName::parse("deepseek-v4").expect("模型名合写法"),
         max_output: Some(8192),
         inputs: Inputs::default(),
+        effort: None,
     };
     openai_chat::encode(
         request,

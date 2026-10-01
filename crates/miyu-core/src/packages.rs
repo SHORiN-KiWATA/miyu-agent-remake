@@ -1,0 +1,77 @@
+//! 可选软件包：核心起来时照编进来的包（cargo 开关）往查询表里登记（`web-module.md`「在哪」「起草时定的」
+//! 第 19、20 条，`mermaid.md`「怎么走」，施工 W-4）。加一个包只在这里多登记一行，不改端点的中心逻辑；没编
+//! 进来的包，它的方法压根不在这张表里，端点照 `unknown_method` 处理（`queries.rs`）。
+//!
+//! 现在只有 `mermaid`（发行版默认打开）。`net`（W-7）照它的样子加。
+
+use miyu_endpoint::queries::Queries;
+use miyu_store::resources::ResourceRoot;
+
+/// 照编进来的包往一张新的查询表里登记，交给 [`miyu_endpoint::Core::with_queries`]。
+pub fn register(resources: &ResourceRoot) -> Queries {
+    let queries = Queries::new();
+    #[cfg(feature = "mermaid")]
+    let queries = mermaid::register(resources, queries);
+    #[cfg(not(feature = "mermaid"))]
+    let _ = resources;
+    queries
+}
+
+#[cfg(feature = "mermaid")]
+mod mermaid {
+    use std::sync::Arc;
+
+    use serde::Deserialize;
+    use serde_json::{Value, json};
+
+    use miyu_endpoint::Core;
+    use miyu_endpoint::queries::QueryError;
+    use miyu_mermaid::{Mermaid, RenderError};
+
+    use super::{Queries, ResourceRoot};
+
+    /// `mermaid.render` 的参数：`source` 必写（`web-module.md`「每个方法的参数和回应」）。
+    #[derive(Deserialize)]
+    struct Params {
+        source: String,
+    }
+
+    /// 登记 `mermaid.render`：一个核心一份 [`Mermaid`]，交给闭包捕获，和核心的生命周期一样长
+    /// （`mermaid.md`「怎么走」第 1 条：读字体、`style.json` 都等第一次调）。
+    pub(super) fn register(resources: &ResourceRoot, queries: Queries) -> Queries {
+        let mermaid = Arc::new(Mermaid::new(resources.path()));
+        queries.register("mermaid.render", move |_core: Arc<Core>, params: Value| {
+            let mermaid = Arc::clone(&mermaid);
+            async move { render(&mermaid, params).await }
+        })
+    }
+
+    /// 真正办事：参数读不成是 `bad_params`；画图在阻塞线程里（`mermaid.md`「怎么走」第 5 条）。
+    async fn render(mermaid: &Arc<Mermaid>, params: Value) -> Result<Value, QueryError> {
+        let params: Params = serde_json::from_value(params).map_err(|_| QueryError::BadParams)?;
+        let mermaid = Arc::clone(mermaid);
+        let outcome = tokio::task::spawn_blocking(move || mermaid.render(&params.source)).await;
+        match outcome {
+            Ok(Ok(rendered)) => Ok(json!({
+                "marks": {
+                    "label": rendered.marks.label,
+                    "line": rendered.marks.line,
+                    "text": rendered.marks.text,
+                },
+                "svg": rendered.svg,
+            })),
+            Ok(Err(RenderError::Empty)) => Err(QueryError::BadParams),
+            Ok(Err(RenderError::TooLong { .. })) => Err(QueryError::Reason("mermaid_too_long")),
+            Ok(Err(RenderError::Failed(detail))) => Err(QueryError::ReasonWithDetail(
+                "mermaid_failed",
+                "detail",
+                json!(detail),
+            )),
+            // `style.json` 读不懂、这台机器上一种字体都读不到：`Mermaid` 自己已经记了 `WARN mermaid not ready`。
+            Ok(Err(RenderError::NotReady)) => Err(QueryError::Internal),
+            // 阻塞线程本身崩了：`Mermaid::render` 已经把画图的库的 panic 接住了，这里不该走到，照「不该走到
+            // 的状态」当内部出错，不往上冒。
+            Err(_) => Err(QueryError::Internal),
+        }
+    }
+}

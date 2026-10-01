@@ -12,6 +12,7 @@ mod compact;
 mod configure;
 mod difference;
 mod dirs;
+mod effort;
 mod executor;
 mod idle;
 mod interrupt;

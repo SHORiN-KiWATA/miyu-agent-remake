@@ -6,7 +6,8 @@
 //! （`models.md`「模型的资料」）：供应商的倍率、本机；模型手写的资料（对目录里的哪一个、最大输出、能收什么、能不能调工具、
 //! 思考强度、价格、倍率）；目录怎么更新 `[models.catalog]`。8-8 加上看图的模型、池，供应商的缓存类别（池不写分法时照它
 //! 定，[`crate::pools`]）；8-8 的四个挡位 8-8 补去掉了，池多派子代理能不能选、给模型看的说明两项。别的格（另配的头、开关、占位工具、模型的驱动）随用到它的那一步加（「施工时定的」
-//! 8-6、8-7、8-8）。8-9 加上冷却 `[models.cooldown]` 的三类。项目配置一项都不能写。
+//! 8-6、8-7、8-8）。8-9 加上冷却 `[models.cooldown]` 的三类。8-18 加上模型默认的思考强度
+//! `effort`。项目配置一项都不能写。
 //!
 //! `base_url` 8-6b 起也能写 `{ env = … }`：地址不进任何回应、日志、文件，照核心起来时的环境取（[`crate::provider`] 的
 //! `resolve_base_url`）。
@@ -112,12 +113,20 @@ miyu_config::settings! {
             applies: next_turn,
             ui: { page: "models", group: "providers", control: toggle },
         },
-        /// 思考强度有哪几级（施工 8-7）：只给 `model.list` 看。
+        /// 思考强度有哪几档（施工 8-7）：盖过目录的；`none`、`disabled` 读成 `off`（施工 8-18，[`crate::effort`]）。
         reasoning: Option<Vec<String>> = none {
             kind: texts [32],
             layers: [System, Personal],
             applies: next_turn,
             ui: { page: "models", group: "providers", control: list },
+        },
+        /// 默认的思考强度（施工 8-18，`models.md`「怎么走」第十一条第 2 条）：这个模型的一档，不写的请求里不带、照供应商的
+        /// 默认。不在这时的档位里的照没写，配置报 `unknown_effort`（[`crate::effort::unknown`]）。
+        effort: Option<String> = none {
+            kind: text [32],
+            layers: [System, Personal],
+            applies: next_turn,
+            ui: { page: "models", group: "providers", control: text },
         },
         /// 倍率：盖过供应商上写的（施工 8-7）。
         price_multiplier: Option<Number> = none {

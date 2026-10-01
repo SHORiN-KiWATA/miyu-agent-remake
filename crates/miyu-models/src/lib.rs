@@ -9,6 +9,7 @@
 //! - [`cooldown`]：出错以后的冷却：按分类、翻倍、封顶、成功清零（施工 8-9）；
 //! - [`catalog`]：models.dev 的目录（施工 8-7）；[`matching`]：四层对目录、规整、认原厂；
 //! - [`facts`]：一个模型的资料，每一格的值和来源；[`observed`]：用出来的、供应商的列表；
+//! - [`effort`]：思考强度：档位名怎么规整、一次请求用哪一档、空闲超时放大几倍、配置里写错的（施工 8-18）；
 //! - [`Knowledge`]：查资料时手头的几份；
 //! - [`onboard`]：第一次接入（施工 8-11）：每一家合起来、找哪些环境变量、探本机的哪几家、搜目录、推荐模型、还没写进配置的
 //!   一家。
@@ -18,6 +19,7 @@
 
 pub mod catalog;
 pub mod cooldown;
+pub mod effort;
 pub mod facts;
 pub mod keys;
 mod knowledge;

@@ -328,6 +328,8 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let (mut redos, redoing) = (Rng(seed ^ 0x2ED0_2ED0), seed % 5 != 2 && !oneshot);
         // 四个种子里有一个换模型（施工 8-10）：另一串随机数、另一串命令编号，挂接点的结果偶尔带着退回。
         let (mut models, configuring, mut model_ids) = (Rng(seed ^ 0x30DE_1000), seed % 4 == 2, 0);
+        // 换思考强度也在这几个种子里（施工 8-18）：再另用一串随机数、一串命令编号，原来的输入不跟着错开。
+        let (mut efforts, mut effort_ids) = (Rng(seed ^ 0xEFF0_1800), 0);
         for _ in 0..300 {
             // 有回顾在路上的不崩：崩了它就丢了，等着的命令收不到回应（施工 3-8 四补）。
             if watch.all_stored() && crashes.below(200) == 0 && watch.recaps_idle() {
@@ -381,6 +383,11 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
             }
             if configuring
                 && let Some(input) = configuring::some_configure(&mut models, &mut model_ids)
+            {
+                watch.feed(&mut session, input);
+            }
+            if configuring
+                && let Some(input) = configuring::some_effort(&mut efforts, &mut effort_ids)
             {
                 watch.feed(&mut session, input);
             }

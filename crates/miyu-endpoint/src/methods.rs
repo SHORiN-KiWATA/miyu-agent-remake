@@ -391,11 +391,15 @@ pub(crate) async fn call(
         "blob.put" => attach::put(core, params(request)?).await,
         "session.configure" => {
             let params: models::ConfigureParams = params(request)?;
-            let text = params.model()?;
+            let (text, asked) = params.asked()?;
             let session = session(&params.session)?;
             let found = core.sessions.get(core, &session, None, None).await?;
-            let model = models::record(core, text)?;
-            let command = Command::Configure { model };
+            let model = text.map(|text| models::record(core, text)).transpose()?;
+            let effort = match asked {
+                Some(asked) => Some(models::effort(core, asked).await?),
+                None => None,
+            };
+            let command = Command::Configure { model, effort };
             command_to(core, request, &session, &found.handle, command).await?;
             Ok(json!({}))
         }
@@ -416,7 +420,13 @@ pub(crate) async fn call(
             core.sessions.delete(core, &session).await?;
             Ok(json!({}))
         }
-        _ => Err(Refusal::UNKNOWN_METHOD),
+        other => match core.queries.get(other) {
+            // 可选软件包登记的查询（施工 W-4，`queries.rs`）：没登记的方法，这张表之外当没有这个方法。
+            Some(handler) => handler(Arc::clone(core), request.params.clone())
+                .await
+                .map_err(Refusal::from),
+            None => Err(Refusal::UNKNOWN_METHOD),
+        },
     }
 }
 

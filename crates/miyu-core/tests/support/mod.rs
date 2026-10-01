@@ -21,6 +21,11 @@ use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_tool::Catalog;
 
+/// 源码树里的资源目录：测试跑在 `crates/miyu-core/` 下，往上两级就是仓库根。
+pub fn resources() -> ResourceRoot {
+    ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"))
+}
+
 /// 一个用完就删的临时数据根，建好了骨架。
 pub struct Home {
     dir: PathBuf,
@@ -65,13 +70,35 @@ impl Home {
     pub fn core_with(&self, models: Arc<dyn Models>, token: &str, tools: Catalog) -> Arc<Core> {
         Arc::new(Core::new(
             self.root.clone(),
-            ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")),
+            resources(),
             models,
             tools,
             None,
             miyu_core::admin(),
             token.to_string(),
         ))
+    }
+
+    /// 同 [`Home::core_with`]，可选软件包登记的查询表换成 `queries`（施工 W-4，`packages.rs`）：默认开的几个包
+    /// 不是这里测的，用得上真的那张表的测试照 `miyu_core::packages::register(&resources())` 造。
+    pub fn core_with_queries(
+        &self,
+        models: Arc<dyn Models>,
+        token: &str,
+        queries: miyu_endpoint::queries::Queries,
+    ) -> Arc<Core> {
+        Arc::new(
+            Core::new(
+                self.root.clone(),
+                resources(),
+                models,
+                Catalog::default(),
+                None,
+                miyu_core::admin(),
+                token.to_string(),
+            )
+            .with_queries(queries),
+        )
     }
 
     /// 磁盘上会话 `session` 的日志，照先后。只读：会话可能正在写，载入用的 `SessionLog::open` 会截掉正在写的那半行（施工 3-9 下在 macOS 的 CI 上撞到过：会话目录刚建、第一段还没有，它报没有这个会话）。还没写出第一条的当是空的。
@@ -156,7 +183,8 @@ impl Head {
             .write_all(format!("{request}\n").as_bytes())
             .await
             .expect("写得进");
-        within("回应", async {
+        // 等得久一点：第一次画 mermaid 要扫系统的字体库，CI 的 Windows 机器上几个测试一起扫会过十秒。
+        tokio::time::timeout(Duration::from_secs(60), async {
             loop {
                 let mut line = String::new();
                 let read = self.reader.read_line(&mut line).await.expect("读得了");
@@ -168,6 +196,7 @@ impl Head {
             }
         })
         .await
+        .unwrap_or_else(|_| panic!("一分钟内没等到回应"))
     }
 
     /// 造一个会话，交回它的编号。

@@ -16,7 +16,11 @@
 //!
 //! 施工 8-5：密钥文件也在这里（`crate::secrets`）：起来时读、手改了重读，引用的密钥、环境变量取不到的报警告
 //! （`Config::missing`），密钥文件的错误算进 `config_errors`。
+//!
+//! 施工 8-18：模型默认的思考强度不在档位里的也在 `Config::missing` 里报（`config/effort.rs`）：档位要核心一份的模型资料，
+//! 核心起来时交进来（`Core::with_model_data`）。
 
+mod effort;
 mod environment;
 pub(crate) mod file;
 pub(crate) mod hub;
@@ -35,10 +39,12 @@ mod tests;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use miyu_config::merge::{Layers, Resolved, Trust, merge};
 use miyu_config::{Item, Layer};
 use miyu_kernel::id::AccountId;
+use miyu_session::ModelData;
 use miyu_store::root::DataRoot;
 
 pub use environment::Environment;
@@ -87,6 +93,8 @@ pub struct Config {
     pub(crate) places: Places,
     /// 不算项目配置的最终值。
     resolved: Resolved,
+    /// 核心一份的模型资料（施工 8-18）：查模型默认的思考强度在不在档位里。没交的（单独读配置的测试）不查。
+    models: Option<Arc<ModelData>>,
 }
 
 /// 能改的两层的文件：哪一层、在哪、给人看的写法（数据根里的写成相对数据根的）。
@@ -239,6 +247,7 @@ impl Config {
             secrets: SecretsFile::nothing(&secrets_path(root), &SECRETS.join("/")),
             places: Places::of(root, account),
             resolved: Resolved::default(),
+            models: None,
         };
         config.resolved = config.merged(None);
         config
@@ -247,6 +256,11 @@ impl Config {
     /// 登记的全部配置项。
     pub fn items(&self) -> &[Item] {
         &self.items
+    }
+
+    /// 模型默认的思考强度照 `data` 查档位（施工 8-18）：核心造家底时交进来。
+    pub(crate) fn set_models(&mut self, data: Arc<ModelData>) {
+        self.models = Some(data);
     }
 
     /// 不算项目配置的最终值。
@@ -267,13 +281,13 @@ impl Config {
 
     /// 一份配置文件读进来以后另查的：引用的密钥、环境变量取不到的（施工 8-5，`unknown_secret`、`env_not_set`，警告）；引用、
     /// 池的成员指的供应商、池在不算项目配置的最终值里没有的（施工 8-8，`bad_reference`，错误，只报不丢：路由当场照样说
-    /// `no_model` 和为什么）。
+    /// `no_model` 和为什么）；模型默认的思考强度不在档位里的（施工 8-18，`unknown_effort`，错误，只报不丢：请求照没写发）。
     pub(crate) fn missing(
         &self,
         parsed: &miyu_config::parse::Parsed,
         layer: Layer,
     ) -> Vec<miyu_config::problem::Problem> {
-        self.missing_in(parsed, layer, &self.resolved.values())
+        self.missing_in(parsed, layer, &self.resolved)
     }
 
     /// 同 [`Config::missing`]，引用照「`parsed` 换掉它那一层」合出来的最终值查（施工 8-8）：`config.check` 查一段还没生效的
@@ -290,16 +304,17 @@ impl Config {
             Layer::Project => layers.project = Some((parsed, Trust::Trusted)),
         }
         let merged = merge(&self.items, &layers, &|name| self.env.get(name).cloned());
-        self.missing_in(parsed, layer, &merged.values())
+        self.missing_in(parsed, layer, &merged)
     }
 
-    /// 照最终值 `values` 查 `parsed` 里引用的东西在不在。
+    /// 照最终值 `resolved` 查 `parsed` 里引用的东西在不在、写的思考强度在不在档位里。
     fn missing_in(
         &self,
         parsed: &miyu_config::parse::Parsed,
         layer: Layer,
-        values: &miyu_config::Values,
+        resolved: &Resolved,
     ) -> Vec<miyu_config::problem::Problem> {
+        let values = &resolved.values();
         let mut found = miyu_config::secret::missing(
             &self.items,
             parsed,
@@ -318,6 +333,9 @@ impl Config {
             &|name| providers.iter().any(|id| id == name),
             &|name| pools.iter().any(|pool| pool == name),
         ));
+        if let Some(data) = &self.models {
+            found.extend(effort::unknown(data, parsed, layer, resolved));
+        }
         found
     }
 

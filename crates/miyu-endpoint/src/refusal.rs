@@ -145,6 +145,8 @@ impl Refusal {
         reason: "path_forbidden",
         data: None,
     };
+    // `mermaid_too_long`、`mermaid_failed`（施工 W-4）：查询方法（`queries.rs`）只拿得到
+    // `queries::QueryError`，这两种拒绝经 `From<QueryError>` 现造，不在这里登记成常量。
 
     /// `config.trust` 时这个目录找不到项目配置（施工 8-3）。
     pub(crate) const NO_PROJECT_CONFIG: Refusal = Refusal {
@@ -170,6 +172,12 @@ impl Refusal {
     pub(crate) const UNKNOWN_MODEL: Refusal = Refusal {
         code: REFUSED,
         reason: "unknown_model",
+        data: None,
+    };
+    /// `session.configure` 的 `effort.level` 不在那个模型这时的档位里（施工 8-18）。
+    pub(crate) const UNKNOWN_EFFORT: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_effort",
         data: None,
     };
     /// 请求里写了清单里没有的配置项（施工 8-2，`config.schema`、`config.get`、`config.set`）：`data.problems` 里每个不认识的
@@ -288,6 +296,9 @@ impl Refusal {
                 "这是 Miyu 自己的数据，不给看。",
                 "This is Miyu's own data and is not shown.",
             ),
+            // 施工 W-4（`mermaid.md`「给人看的字」）。
+            "mermaid_too_long" => ("这张图的源码太长了。", "The diagram source is too long."),
+            "mermaid_failed" => ("这张图画不出来。", "The diagram could not be drawn."),
             "not_running" => (
                 "没有正在进行的回合，打断不了。",
                 "No turn is running, so there is nothing to interrupt.",
@@ -352,6 +363,11 @@ impl Refusal {
                 "配置里没有这个模型或者池。",
                 "There is no such model or pool in the configuration.",
             ),
+            // 施工 8-18（`models.md`「给人看的字」）。
+            "unknown_effort" => (
+                "这个模型没有这一档思考强度。",
+                "This model has no such reasoning effort level.",
+            ),
             "recap_failed" => (
                 "回顾没写成：请求模型出错了。",
                 "The recap could not be written: the model request failed.",
@@ -381,6 +397,26 @@ impl Locale {
         match locale {
             Some(locale) if locale.starts_with("zh") => Locale::Zh,
             _ => Locale::En,
+        }
+    }
+}
+
+/// 可选软件包登记的查询拒绝时（施工 W-4，`queries.rs`），翻成协议上真正的拒绝：软件包的代码（`miyu-core`
+/// 之类）不认得 JSON-RPC 的错误码，只拿得到 [`crate::queries::QueryError`] 这几种。
+impl From<crate::queries::QueryError> for Refusal {
+    fn from(error: crate::queries::QueryError) -> Refusal {
+        use crate::queries::QueryError;
+        match error {
+            QueryError::BadParams => Refusal::BAD_PARAMS,
+            QueryError::Internal => Refusal::INTERNAL,
+            QueryError::Reason(reason) => Refusal {
+                code: REFUSED,
+                reason,
+                data: None,
+            },
+            QueryError::ReasonWithDetail(reason, field, value) => {
+                Refusal::with(reason, field, value)
+            }
         }
     }
 }

@@ -34,7 +34,7 @@
 | `crates/miyu-store/src/journal.rs` | 系统日志、账号日志 `journal.jsonl`：每追加一条都重新打开、截半行、读最后一行接着数 `seq`、追加、同步 | 8-3 |
 | `crates/miyu-store/src/watch.rs` | 监视几份文件所在的目录（`notify`），照真实的位置和文件名认，只读的动静不理，一份 200 毫秒没有新的变动了才交出去；系统的监视起不来的退回轮询，交回原因 | 8-4 |
 | `crates/miyu-store/src/secrets.rs` | 密钥文件（8-5）：照配置文件的规矩读，另看组、别人读不读得到（`Stored::open`）；照配置文件的规矩写，Unix 上一律 0600，临时文件建的时候就是（`config_file::write_with` 的 `Mode::Private`、`durable::create_temp_with`） | 8-5 |
-| `crates/miyu-endpoint/src/config.rs`、`config/` | 配置服务：手里的几份文件、当前的最终值（8-2）；改、重读（8-3）；推送、推送的订阅（8-4）。它住在核心家底的一把锁里（`Core::config`）。`config/observe.rs` 监视看到手改、`config.set` 写之前的重读（8-4），`config/hub.rs` 换上新的一份交给会话、核心，推给订阅着的连接（8-4），`config/push.rs` 的 `config.changed`（8-4），`config/file.rs` 一份文件读好的样子（8-3 起连同字和 BOM），`config/project.rs` 往上找项目配置，`config/methods.rs` 三个查询，`config/set.rs` 的 `config.set`（8-3），`config/journal.rs` 留痕（8-3），`config/wire.rs` 协议上的写法 | 8-2 起 |
+| `crates/miyu-endpoint/src/config.rs`、`config/` | 配置服务：手里的几份文件、当前的最终值（8-2）；改、重读（8-3）；推送、推送的订阅（8-4）。它住在核心家底的一把锁里（`Core::config`）。`config/observe.rs` 监视看到手改、`config.set` 写之前的重读（8-4），`config/hub.rs` 换上新的一份交给会话、核心，推给订阅着的连接（8-4），`config/push.rs` 的 `config.changed`（8-4），`config/file.rs` 一份文件读好的样子（8-3 起连同字和 BOM），`config/project.rs` 往上找项目配置，`config/effort.rs` 模型的 `effort` 不在档位里的（8-18），`config/methods.rs` 三个查询，`config/set.rs` 的 `config.set`（8-3），`config/journal.rs` 留痕（8-3），`config/wire.rs` 协议上的写法 | 8-2 起 |
 | `crates/miyu-endpoint/src/settings.rs` | 端点自己的两项：`ui.language`（8-1 声明，`language_for` 照它和系统的语言算出用哪种语言）、`permission.start_read_only`（8-2） | 8-1、8-2 |
 | `crates/miyu-endpoint/src/config/trust.rs`、`config/trusting.rs` | 项目配置的信任：读 `trust.toml`、照仓库和版本认信不信任（8-2），在字上记一个回答（`recorded`，8-3）；`trusting.rs` 是 `config.trust`（8-3） | 8-2、8-3 |
 | `crates/miyu-endpoint/src/secrets.rs`、`secrets/file.rs` | `secret.set`、`secret.delete`、`secret.list`，手改密钥文件被看到的（`observe`），留痕 `secret.changed`（8-5）。`secrets/file.rs` 是手里的那一份密钥文件（`SecretsFile`，住在配置服务里：`Config::secrets`），`Debug` 不印字 | 8-5 |
@@ -151,7 +151,7 @@ trusted = true
 | 选项 `option` | `"zh"` | 只能是列出的几个之一，区分大小写 | 8-1（`ui.language`、`log.level`） |
 | 整数 `int` | `3` | 必写最小、最大；不在范围里的 `out_of_range` | 8-6（模型的 `window`） |
 | 小数 `float` | `1.5`，整数也收（`1` 读成 `1.0`） | 必写最小、最大，宏里写成整数 `float [0, 1000]`。`nan`、`inf`、不在范围里的 `out_of_range`；写回 TOML 的整数带 `.0` | 8-7（倍率、价格，`models.md`） |
-| 文字 `text` | `"…"` | 必写最多几个字符，宏里写 `text [3]`；空的、超了的、有控制字符的 `bad_format` | 8-7（币种、对目录里的哪一个；`texts [32]` 是文字的列表：思考强度） |
+| 文字 `text` | `"…"` | 必写最多几个字符，宏里写 `text [3]`；空的、超了的、有控制字符的 `bad_format` | 8-7（币种、对目录里的哪一个；`texts [32]` 是文字的列表：思考强度）；8-18（模型默认的思考强度 `text [32]`） |
 | 时长 `duration` | `"30s"`、`"10m"`、`"1h"` | 写法照 `miyu ask --timeout`（`cli/ask.md`）：正整数后面跟 `s`、`m`、`h`，不写是秒；读不成的 `bad_format`。必写最短、最长（秒），宏里写 `duration [3600, 2592000]`，不在范围里的 `out_of_range`。设置类型的字段是 `Duration` | 8-7（目录多久拉一次） |
 | 路径 `path` | `"~/notes"` | 绝对路径，或者 `~`、`~/` 开头 | 同上 |
 | 网址 `url` | `"https://…"`，或者 `{ env = "DEEPSEEK_API_URL" }`（施工 8-6b，照「密钥」这一行的读法、查法：行内表、有表头的表都认，没有 `{ secret = … }`：地址不进密钥文件） | `http://`、`https://` 开头（不分大小写），后面有主机名，没有空白、控制字符；不对的 `bad_format`；`{ env = … }` 取不到的（没设、设成空的）照第九条报 `env_not_set`，指的东西在不在由用它的一方当场说（8-6b 由会话的路由当场说 `no_model`） | 8-6（供应商的 `base_url`），8-6b 加引用 |
@@ -270,6 +270,7 @@ miyu_config::settings! {
 | `providers.<id>.models.<model>.inputs` | 选项 `text`、`image`、`pdf` 的列表 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.tools` | 开关 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.reasoning` | 文字的列表，每个最多 32 个字符 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
+| `providers.<id>.models.<model>.effort` | 文字，最多 32 个字符：这个模型的一档（`models.md`「怎么走」第十一条） | 没有：请求里不带，照供应商的默认 | 系统、个人 | 不能写 | `next_turn` | 8-18 |
 | `providers.<id>.models.<model>.price.input`、`output`、`cache_read`、`cache_write` | 小数 0 到 1000000 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.price.currency` | 文字，最多 3 个字符 | 没有：`USD` | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `models.catalog.update` | 开关 | `true`，`MIYU_CATALOG_UPDATE` 压过 | 系统、个人 | 不能写 | `now` | 8-7 |
@@ -334,6 +335,7 @@ miyu_config::settings! {
 | `out_of_range` | 错误 | 数不在范围里，字太长 | 8-6（整数） |
 | `bad_format` | 错误 | 时长、路径、网址、名字、引用写法不对；键里人起的名字那一段写法不对 | 8-6（网址、名字、引用、键里的名字） |
 | `bad_reference` | 错误 | 引用、模型的列表指的供应商、池在不算项目配置的最终值里没有（`name` 是指的那个）。读进来以后另查、只报不丢：值照样用，路由当场照它说 `no_model`；算进 `config_errors`。`config.check` 照「这段字换掉它那一层」合出来的查 | 8-8 |
+| `unknown_effort` | 错误 | 模型的 `effort` 不在这个模型这时的档位里（`name` 是写的那一档，档位照 `models.md`「模型的资料」的 `reasoning`）。照 `bad_reference` 的办法：读进来以后另查、只报不丢，请求照没写发；算进 `config_errors`；`config.check` 照「这段字换掉它那一层」合出来的查。档位要目录：目录读完以前不查。那一家用不了（推不出驱动、地址）的不查 | 8-18 |
 | `wrong_layer` | 错误 | 这一项不能写在这一层 | 8-2 |
 | `not_tightening` | 错误 | 项目配置写得比下面几层宽 | 8-2 |
 | `untrusted_project` | 警告 | 项目配置还没信任，或者信任以后内容变了：这一份先不用（第三条第 2 条） | 8-2 |
@@ -1051,6 +1053,10 @@ keys = []
 # 能写：最多 256 个字的文字。只能写在系统配置或个人设置里。下一轮生效。
 # catalog =
 
+# 默认的思考强度：这个模型默认的思考强度，写它的一档，例如 high；能关思考的写 off。不写的照供应商的默认。
+# 能写：最多 32 个字的文字。只能写在系统配置或个人设置里。下一轮生效。
+# effort =
+
 # 能收哪些输入：这个模型能读的：文字、图片、PDF。
 # 能写：text、image 或 pdf 的列表。只能写在系统配置或个人设置里。下一轮生效。
 # inputs =
@@ -1379,6 +1385,13 @@ language = "auto"
                   "title": "对应目录里的",
                   "type": "string"
                 },
+                "effort": {
+                  "description": "这个模型默认的思考强度，写它的一档，例如 high；能关思考的写 off。不写的照供应商的默认。能写：最多 32 个字的文字。只能写在系统配置或个人设置里。下一轮生效。",
+                  "maxLength": 32,
+                  "minLength": 1,
+                  "title": "默认的思考强度",
+                  "type": "string"
+                },
                 "inputs": {
                   "description": "这个模型能读的：文字、图片、PDF。能写：text、image 或 pdf 的列表。只能写在系统配置或个人设置里。下一轮生效。",
                   "items": {
@@ -1608,6 +1621,8 @@ language = "auto"
 | `providers.<id>.cache` 名字（8-8） | 缓存类别 | Cache class | キャッシュの種類 |
 | 说明 | 这家的缓存怎么算钱。现在只用来定池不写分法时怎么分。不写照驱动的默认。 | How this provider bills its cache. For now it only decides how a pool without a strategy splits. Left out, it follows the driver. | このプロバイダーのキャッシュの課金のしかた。いまは分け方を書いていないプールの分け方を決めるだけです。書かなければドライバーの既定に従います。 |
 | 选项 | `contract` 照前缀计费、`best_effort` 尽量命中、`per_request` 按次计费 | Billed by prefix、Best effort、Per request | 前置きで課金、できるだけ当てる、リクエストごと |
+| `providers.<id>.models.<model>.effort` 名字（8-18） | 默认的思考强度 | Default reasoning effort | 既定の思考の強さ |
+| 说明 | 这个模型默认的思考强度，写它的一档，例如 high；能关思考的写 off。不写的照供应商的默认。 | The reasoning effort this model uses by default: one of its levels, for example high, or off where thinking can be turned off. Left out, the provider decides. | このモデルが既定で使う思考の強さ。段階のひとつを書きます（例：high）。思考を切れるモデルは off。書かなければプロバイダーの既定に従います。 |
 
 页和组（`config.pages`、`config.groups`，编号到名字；资源里只放清单用到的，`permissions`、`sessions` 随 8-2 加，`interface`、`tui` 随 8-3 加）：
 
@@ -1688,6 +1703,7 @@ language = "auto"
 | `config/expected/model`（8-8，池的成员） | | <供应商>/<模型> | <provider>/<model> |
 | `config/no-provider`（8-8，`bad_reference`） | `key`、`name` | {key} 指的供应商 {name} 没有配 | {key} points at the provider {name}, which is not configured |
 | `config/no-pool`（8-8，`bad_reference`） | `key`、`name` | {key} 指的池 {name} 没有配 | {key} points at the pool {name}, which is not configured |
+| `config/unknown-effort`（8-18，`unknown_effort`） | `key`、`name` | {key} 写的 {name} 不是这个模型现在有的一档：请求照没写发 | {key} is {name}, which is not one of this model's levels now. Requests go out as if it were not set |
 | `config/expected/float`（8-7，带范围） | `min`、`max` | {min} 到 {max} 之间的数 | a number from {min} to {max} |
 | `config/expected/text`（8-7） | `max` | 最多 {max} 个字的文字 | text of at most {max} characters |
 | `config/expected/english`（8-8 补，日文 `{max} 文字までの英語一行`） | `max` | 最多 {max} 个字的一行英文 | one line of English, at most {max} characters |
@@ -1911,6 +1927,7 @@ Options:
 | `crates/miyu-core/tests/config_words.rs` | 8-5 的四种原因码、密钥文件开头的注释三种语言都说得出来 | 8-5 |
 | `crates/miyu-config/src/dangling/tests.rs` | `bad_reference`：供应商、池没配的一处一条、带名字、指到值那一行，列表里一个一条，配了的、不算数的那一层不报，说成话；类型「模型」只收 `<供应商>/<模型>`，池的成员写了池是 `bad_format` | 8-8 |
 | `crates/miyu-endpoint/tests/models_pools.rs` | `bad_reference` 照最终值查、算进 `config_errors`、`config.get` 里的话，`config.check` 照新的字查（连同 `models.md` 的几条） | 8-8 |
+| `crates/miyu-models/src/effort/tests.rs`、`crates/miyu-endpoint/tests/models_effort.rs` | `unknown_effort`：写的不在档位里的一处一条、带写的那一档、指到值那一行，在档位里的、那一家用不了的、不算数的那一层不报，说成话；算进 `config_errors`，`config.get` 的 `problems` 里有，`config.check` 照新的字查；请求照没写发（连同 `models.md` 的几条） | 8-18 |
 | `crates/miyu-config/src/value/tests.rs` | 有默认值的网址读写死的、引用的（8-8，`models.catalog.url`） | 8-8 |
 | `crates/miyu-config/src/item/kind/tests.rs`（8-8 补那几条） | 给模型看的字：一行、最多几个字、没有控制字符、CJK 的字占一半以上的 `bad_format`，从 TOML 和协议读、Schema、期望说要英文、宏的写法 | 8-8 补 |
 | `crates/miyu-core/tests/settings.rs`（8-8 补那一条） | `models.tiers.*` 照不认识的键警告、原样留着；池的两项读得进、写错的报 | 8-8 补 |
@@ -2195,6 +2212,15 @@ Options:
 | CJK 的字照 Unicode 的几段认：汉字（连同扩展区、兼容汉字）、假名、谚文、CJK 的标点、全角的字（`U+FF00` 到 `U+FFEF`）；字数乘二不小于总字数就不收（`kind/english.rs`） | 「占一半以上」含一半：宁严。几段是写死的范围，规则本身简单，不另引依赖 | 引 `unicode-script`：一个判断多一个依赖 |
 | `pools.<id>.subagent`、`description` 的生效时机 `new_session` | 只在造会话时拼进工具面一次 | `next_turn`：开着的会话不跟着变，说「下一轮」会让人以为变了 |
 | `models.tiers.*` 从清单里拿掉，不另做迁移 | 照「不认识的键」警告、原样留着（第四条），人看得到、删得掉 | 读到时自动改写成池：要猜挡位该变成哪个池 |
+
+8-18 施工时照推荐定的配置这一半（2026-10-02 施工时定，写进了正文；模型那一半在 `models.md`「施工时定的」8-18）：
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| `providers.<id>.models.<model>.effort` 是文字（`text [32]`，和 `reasoning` 的每一档一样长），不是选项；`next_turn` | 档位名随目录、随模型变，清单里写不死 | 选项：要把每家的档位名写进代码 |
+| `unknown_effort` 是新的原因码（`Code::UnknownEffort`），话是 `config/unknown-effort`，`name` 是写的那一档 | 说得出写的是哪一档，人一眼看出是写错了还是目录变了 | 借 `bad_format`：写法本身没错 |
+| 查法放在端点的配置服务（`config/effort.rs`，`Config::missing` 调它），档位照核心一份的模型资料算（核心起来时交给配置服务，`Core::with_model_data`）；纯的那一半在 `miyu_models::effort::unknown` | 档位要档案、目录，配置那一层没有；照 `bad_reference` 挂在同一处 | 合并时丢掉：目录一变，配置就跟着变 |
+| 目录读完以前、那一家用不了的不查 | 起来那一刻目录还没读，查了会把每一个都报成错；用不了的那一家推不出档案，开关算不出来 | 照手里的查：起来时多报一堆错 |
 
 ### 要跟着改的别的页
 

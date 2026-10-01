@@ -40,7 +40,7 @@
 
 `OpenAiChat::new(Compat, DriverTexts)`：开关和占位造的时候交进来，会话里不变。
 
-**一次调用要定的** `Call`：`model`（模型名，照供应商的叫法）、`max_output`（输出上限，没有就不写）、`inputs`：`Inputs { images, pdf }`，能看图、能读 PDF，默认都是不能。
+**一次调用要定的** `Call`：`model`（模型名，照供应商的叫法）、`max_output`（输出上限，没有就不写）、`inputs`：`Inputs { images, pdf }`，能看图、能读 PDF，默认都是不能；`effort`：这一次的思考强度（施工 8-18，规整过的名字 `off`、`on`（常量 `EFFORT_OFF`、`EFFORT_ON`）或者目录里的档位名，没有就什么都不加）。
 
 **编码的结果** `Encoded`：`body`（请求字节，发出去的就是它）、`messages`（每条线上的消息在字节里的位置，照先后；system 和挪出来的那条 user 也各算一条）、`path`（发到地址后面的哪一截）。
 
@@ -54,6 +54,7 @@
 | `reasoning` | `Drop` 不回传；`Replay { field, always }`：`field` 是 `ReasoningContent`（`reasoning_content`）或 `Reasoning`（`reasoning`），`always` 是没有思考时也写空串 | `Drop` | `Replay { ReasoningContent, always: true }` |
 | `stream_usage` | 发不发 `stream_options.include_usage` | 发 | 同默认 |
 | `continuation` | `None` 不会接着写；`Prefix { field, path }`：`field` 是 `Prefix`（`prefix`）或 `Partial`（`partial`） | `None` | `Prefix { Prefix, "/beta/chat/completions" }` |
+| `toggle` | 开关思考的字段（施工 8-18）：`Toggle { field, on, off }`，`on`、`off` 照原样的 JSON 发；没有的是没有。装在 `Box` 里 | 没有 | `thinking`：`{"type":"enabled"}`、`{"type":"disabled"}` |
 
 常量：`FAMILY` = `openai-chat`，`PATH` = `/chat/completions`，`MESSAGE_LIMIT` = 2000（原话最多几个字节，在 `classify.rs`）。
 
@@ -61,7 +62,7 @@
 
 ### 怎么走：编码
 
-1. **顶层**，照这个先后，别的字段一概不发：`model`、`messages`、`tools`（见第 8 条）、`"stream":true`、`"stream_options":{"include_usage":true}`（开关开着才有）、输出上限（`Call.max_output` 有才写，字段名照开关）。紧凑的 JSON，结构体照声明的先后写，参数格式原样照抄。
+1. **顶层**，照这个先后，别的字段一概不发：`model`、`messages`、`tools`（见第 8 条）、`"stream":true`、`"stream_options":{"include_usage":true}`（开关开着才有）、输出上限（`Call.max_output` 有才写，字段名照开关）、思考强度（`Call.effort` 有才写，施工 8-18，`openai_chat/effort.rs`：档位写 `"reasoning_effort":"<档位>"`；`off` 有开关的写 `"<field>":<off>`，没有的写 `"reasoning_effort":"none"`；`on` 有开关的写 `"<field>":<on>`，没有的不写）。紧凑的 JSON，结构体照声明的先后写，参数格式原样照抄。
 2. **system**：第一条 `{"role":"system","content":…}`；空的不发。
 3. **user**：
    - 全是文字的，`content` 是一个字符串：相邻两块之间补一个换行，前一块已经以换行结尾的不补；空的一块什么都不接。
@@ -276,6 +277,7 @@ A file was attached here (报告.pdf, application/pdf, 15 bytes), but this model
 | `crates/miyu-drivers/tests/openai_chat_files.rs` | 文本文件（施工 3-9 三补）：照字放进消息、带文件名，空的，二进制的、不是 UTF-8 的、读不了的 PDF 写占位带大小（样本）；能读 PDF 的照旧发 `file`；超过 64 KiB 的截掉、写明给了多少；工具结果里的照字进 `content`；以前造的快照没有那三句的写占位；缺 blob 报错 |
 | `crates/miyu-drivers/tests/openai_chat_image_names.rs` | 带名字的图片（施工 3-9 四补）：能看图的前后各一段标签，和挨着的字拼成一段；不能看图的占位写名字（两份样本）；工具结果里带名字的连同标签一起挪、就地的占位写名字；以前造的快照没有那三句的，带名字的和不带名字的一字不差，不带名字的出厂这一份也照旧 |
 | `crates/miyu-drivers/src/text_file/tests.rs` | 什么算文本：空的、UTF-8、BOM 算，NUL（在后面的也算）、Latin-1、PDF 不算；截到 64 KiB、截在字的边界上 |
+| `crates/miyu-drivers/tests/openai_chat_effort.rs` | 思考强度（施工 8-18）：没写的不加；档位发 `reasoning_effort`、接在最后；`off`、`on` 照开关；没有开关的 `off` 发 `none`、`on` 不加；前面的字节一个不动 |
 | `crates/miyu-drivers/tests/openai_chat_continuation.rs` | DeepSeek 接着写（样本、路径、半截带思考）；没有开关或者没有记号一字不变；`partial` 的写法 |
 | `crates/miyu-drivers/tests/openai_chat_streams.rs` | 十三份流的样本；从哪里切开喂都一样；累积器一条都不拒；解出来的编码回去用供应商的编号；驱动的接口走一遍；`error` 是 `false`、`0`、`[]` 的是噪声，有内容的照旧出错；流里的限速连同要等多久交回；`finished()` 在 `finish_reason` 到了以后才说是 |
 | `crates/miyu-drivers/src/sse/tests.rs` | 三种换行、切开的 CRLF、几行 data 和注释、只有注释、事件名、切开的汉字、断在半条上、从哪里切开都一样 |

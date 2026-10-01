@@ -311,9 +311,13 @@ impl Watch {
                 *self.replied.entry(id.clone()).or_default() += 1;
                 self.replied_at_most_received(&id);
             }
-            Action::RunTurnStartHooks { turn, model } => {
+            Action::RunTurnStartHooks {
+                turn,
+                model,
+                efforts,
+            } => {
                 self.start_hooks(turn);
-                self.hooks_model(model.as_deref());
+                self.hooks_model(model.as_deref(), &efforts);
             }
             Action::CallModel { seen, request, .. } => self.called(seen, &request),
             Action::Aside { upto, request, .. } => self.recap_issued(upto, &request),
