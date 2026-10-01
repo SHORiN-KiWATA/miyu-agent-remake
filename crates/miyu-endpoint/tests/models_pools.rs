@@ -49,6 +49,7 @@ fn routed(home: &Home) -> Arc<Core> {
     let data = no_catalog();
     let routes = Routes {
         client: miyu_http::client(miyu_http::Proxy::Off).expect("造得出客户端"),
+        direct: miyu_http::client(miyu_http::Proxy::Off).expect("造得出客户端"),
         data: Arc::clone(&data),
         idle: std::time::Duration::from_secs(5),
     };
