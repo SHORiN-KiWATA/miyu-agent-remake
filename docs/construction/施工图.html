@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>175</b><span>/ 192 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 8-20 模型调用口、W-5 分块上传，接着 8-18 补去掉会话里的思考强度；跨会话只剩 C-7 验收</span></li>
-    <li><b class="mono">3eba8a97</b><span>最近一步（4-7 再补 改回的文件也带差异）的提交</span></li>
+    <li><b>176</b><span>/ 192 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 8-20 模型调用口（合并中）、W-6 分块读，接着 8-18 补去掉会话里的思考强度；跨会话只剩 C-7 验收</span></li>
+    <li><b class="mono">e9c28627</b><span>最近一步（W-5 分块上传）的提交</span></li>
   </ul>
 </header>
 
@@ -554,7 +554,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sW-2"><span class="n">W-2</span>列文件、找文件<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sW-3"><span class="n">W-3</span>路径<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sW-4"><span class="n">W-4</span>mermaid<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">W-5</span>分块上传</span></li>
+        <li><a class="step done" href="#sW-5"><span class="n">W-5</span>分块上传<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">W-6</span>分块读</span></li>
         <li><span class="step"><span class="n">W-7</span>链接卡片</span></li>
         <li><span class="step"><span class="n">W-8</span>身份</span></li>
@@ -11956,6 +11956,55 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/W-4-mermaid.md</code>；蓝图 <code>mermaid.md</code>（新页）、<code>web-module.md</code> 第五条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sW-5" aria-labelledby="h-sW5">
+  <div class="sheet-head"><h2 id="h-sW5"><span class="no">W-5</span>分块上传</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头能把一个附件分块传给核心，最后存成 blob：<code>blob.open</code> 开一个上传、<code>blob.write</code> 一块一块写、<code>blob.close</code> 收齐了存好，回应和 <code>blob.put</code> 一样。网页的桥收附件那一块以后能删：页面经 WebSocket 直接分块传。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">分块上传</span><span class="dir-note">W-5</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>上传跟着连接走：编号只认开它的连接，断了、60 秒不写都作废并删暂存；一个连接同时最多 4 个</li>
+              <li><code>offset</code> 要正好接上，接不上回 <code>upload_offset</code> 带收到了多少；一块最多 512 KiB，整个最多 20 MiB</li>
+              <li>暂存在 <code>blobs/tmp/</code>，收齐改名进位置；核心起来时清掉崩溃留下的</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">清暂存在 core 那层</span><span class="rl">层序不许 endpoint 依赖 core：底下的清理在 Blobs，调用在 packages.rs</span></div>
+          <div class="tile"><span class="nm">methods.rs 拆了</span><span class="rl">合并时过了 500 行，参数挪进 methods/params.rs</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">W-5</dd></div>
+        <div><dt>名称</dt><dd>分块上传</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">e9c28627</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>15 个手写变异全逮住（补出一处只比哈希、没回读内容的盲点）；三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/W-5-分块上传.md</code>；蓝图 <code>web-module.md</code> 第六条。</li>
       </ul>
     </div>
   </div>
