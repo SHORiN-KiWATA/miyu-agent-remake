@@ -178,6 +178,7 @@ impl Stage {
             error: line.error.clone(),
             wait_ms: line.wait_ms,
             excess: line.excess,
+            failover: line.failover,
         }
     }
 

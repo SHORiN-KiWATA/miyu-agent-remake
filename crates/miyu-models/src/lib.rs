@@ -6,6 +6,7 @@
 //! - [`provider`]：一家供应商照这一轮的配置、档案、目录合出来的样子，一个引用这一轮发给谁，没有模型时说什么；
 //! - [`keys`]：一个会话钉在哪一个 key 上，候选的先后；
 //! - [`pools`]：池的成员、怎么分、指针怎么走（施工 8-8）；
+//! - [`cooldown`]：出错以后的冷却：按分类、翻倍、封顶、成功清零（施工 8-9）；
 //! - [`catalog`]：models.dev 的目录（施工 8-7）；[`matching`]：四层对目录、规整、认原厂；
 //! - [`facts`]：一个模型的资料，每一格的值和来源；[`observed`]：用出来的、供应商的列表；
 //! - [`Knowledge`]：查资料时手头的几份。
@@ -14,6 +15,7 @@
 //! 协议的 `model.list` 照它列模型。
 
 pub mod catalog;
+pub mod cooldown;
 pub mod facts;
 pub mod keys;
 mod knowledge;

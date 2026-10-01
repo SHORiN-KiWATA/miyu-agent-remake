@@ -173,6 +173,30 @@
       "models.catalog.every": {
         "name": "更新の間隔",
         "description": "キャッシュのカタログがこれより古くなったら取り直します。"
+      },
+      "models.cooldown.rate_limited.base": {
+        "name": "レート制限後の休止",
+        "description": "エンドポイントがレート制限されたとき、最初に休ませる時間。続けて制限されると倍になります。"
+      },
+      "models.cooldown.rate_limited.max": {
+        "name": "レート制限の休止の上限",
+        "description": "レート制限の休止はここまでで倍にするのをやめます。プロバイダーがもっと長く待つよう言っても超えません。"
+      },
+      "models.cooldown.retryable.base": {
+        "name": "エラー後の休止",
+        "description": "つながらない、サーバー側のエラーのとき、最初に休ませる時間。続けて失敗すると倍になります。"
+      },
+      "models.cooldown.retryable.max": {
+        "name": "エラーの休止の上限",
+        "description": "このエラーの休止はここまでで倍にするのをやめます。"
+      },
+      "models.cooldown.auth.base": {
+        "name": "認証失敗後の停止",
+        "description": "認証に失敗したり利用枠を使い切ったりしたとき、キー全体を最初に止める時間。続けて失敗すると倍になります。"
+      },
+      "models.cooldown.auth.max": {
+        "name": "認証失敗の停止の上限",
+        "description": "キー全体の停止はここまでで倍にするのをやめます。"
       }
     },
     "pages": {
@@ -191,7 +215,8 @@
       "tiers": "段",
       "pools": "プール",
       "providers": "プロバイダー",
-      "catalog": "モデルカタログ"
+      "catalog": "モデルカタログ",
+      "cooldown": "クールダウン"
     }
   },
   "said": {

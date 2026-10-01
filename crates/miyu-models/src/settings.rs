@@ -6,7 +6,7 @@
 //! （`models.md`「模型的资料」）：供应商的倍率、本机；模型手写的资料（对目录里的哪一个、最大输出、能收什么、能不能调工具、
 //! 思考强度、价格、倍率）；目录怎么更新 `[models.catalog]`。8-8 加上看图的模型、四个挡位、池，供应商的缓存类别（池不写
 //! 分法时照它定，[`crate::pools`]）。别的格（另配的头、开关、占位工具、模型的驱动）随用到它的那一步加（「施工时定的」
-//! 8-6、8-7、8-8）。项目配置一项都不能写。
+//! 8-6、8-7、8-8）。8-9 加上冷却 `[models.cooldown]` 的三类。项目配置一项都不能写。
 //!
 //! `base_url` 8-6b 起也能写 `{ env = … }`：地址不进任何回应、日志、文件，照核心起来时的环境取（[`crate::provider`] 的
 //! `resolve_base_url`）。
@@ -271,6 +271,67 @@ miyu_config::settings! {
             layers: [System, Personal],
             applies: next_turn,
             ui: { page: "models", group: "pools", control: select },
+        },
+    }
+}
+
+miyu_config::settings! {
+    /// 限速的冷却（`models.md`「对外的样子」`[models.cooldown]`、「怎么走」第五条第 2 条，施工 8-9）：连着失败的第 n 次冷却
+    /// `min(base × 2^(n−1), max)`，供应商说得更长的照它、也不超过 `max`。当场生效，下一次出错用新的。
+    pub struct RateLimitedCooldown in "models.cooldown.rate_limited" {
+        /// 第一次冷却多久。
+        base: Duration = "30s" {
+            kind: duration [1, 3600],
+            layers: [System, Personal],
+            applies: now,
+            ui: { page: "models", group: "cooldown", control: text },
+        },
+        /// 最多冷却多久。
+        max: Duration = "10m" {
+            kind: duration [1, 86400],
+            layers: [System, Personal],
+            applies: now,
+            ui: { page: "models", group: "cooldown", control: text },
+        },
+    }
+}
+
+miyu_config::settings! {
+    /// 可重试的错（连不上、5xx）的冷却（施工 8-9）：算法同 [`RateLimitedCooldown`]。
+    pub struct RetryableCooldown in "models.cooldown.retryable" {
+        /// 第一次冷却多久。
+        base: Duration = "10s" {
+            kind: duration [1, 3600],
+            layers: [System, Personal],
+            applies: now,
+            ui: { page: "models", group: "cooldown", control: text },
+        },
+        /// 最多冷却多久。
+        max: Duration = "5m" {
+            kind: duration [1, 86400],
+            layers: [System, Personal],
+            applies: now,
+            ui: { page: "models", group: "cooldown", control: text },
+        },
+    }
+}
+
+miyu_config::settings! {
+    /// 认证失败（额度用完的也在这一类）的冷却（施工 8-9）：停整个 key，算法同 [`RateLimitedCooldown`]。
+    pub struct AuthCooldown in "models.cooldown.auth" {
+        /// 第一次冷却多久。
+        base: Duration = "10m" {
+            kind: duration [1, 3600],
+            layers: [System, Personal],
+            applies: now,
+            ui: { page: "models", group: "cooldown", control: text },
+        },
+        /// 最多冷却多久。
+        max: Duration = "2h" {
+            kind: duration [1, 86400],
+            layers: [System, Personal],
+            applies: now,
+            ui: { page: "models", group: "cooldown", control: text },
         },
     }
 }

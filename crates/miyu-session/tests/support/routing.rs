@@ -95,6 +95,23 @@ pub fn hellos(n: usize) -> Vec<Reply> {
         .collect()
 }
 
+/// 样本的流在第 `n` 条事件之后断开：前面的照发，后面的不发。样本里事件之间是 `\r\n\r\n`（故意的 CRLF）。施工 8-9 从
+/// `http.rs` 挪来，`route_failover.rs` 也用。
+pub fn cut_after(n: usize) -> Reply {
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../docs/designs/samples/drivers/openai-chat/streams/openai-text.sse");
+    let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("读不了 {}：{e}", path.display()));
+    let mut end = 0;
+    for _ in 0..n {
+        end += bytes[end..]
+            .windows(4)
+            .position(|window| window == b"\r\n\r\n")
+            .expect("样本里有这么多条")
+            + 4;
+    }
+    Reply::stream(vec![Piece::Bytes(bytes[..end].to_vec()), Piece::Drop])
+}
+
 /// 说一句、等这一轮说完。
 pub async fn turn(handle: &Handle, command: &str) {
     let mut pushes = watch(handle).await;

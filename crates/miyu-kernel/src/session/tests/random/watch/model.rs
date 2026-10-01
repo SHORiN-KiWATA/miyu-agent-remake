@@ -7,10 +7,24 @@
 //! - 出错的：要么紧跟着出错的回合结束，要么再来。再来的，前面是半截回复的（带 `interrupted`，一个
 //!   工具调用都没有），后面紧跟着被打断的那一句；什么都没收到的，这一批到它为止；
 //! - 再来的交出到点叫醒，推一条 `status`；叫醒以前不请求；叫醒以后的那一次是重试，不算步数；
-//! - 一步里连着再来不超过 5 次。
+//! - 一步里连着再来不超过 5 次；
+//! - 再来的只有能再来的分类，和端口说换了端点的（不管分类）；换了端点、全在冷却的，没到 5 次、要等的不超过 2 分钟就一定
+//!   再来；推的 `status` 带的 `failover` 和端口说的一样，换了端点又没说等多久的等 0 毫秒（施工 8-9）。
+
+use std::collections::BTreeMap;
 
 use super::*;
 use crate::event::{ModelCalled, Status};
+
+/// 供应商说的、要等多久的上限（`retry.rs` 的 `WAIT_LIMIT_MS`）：看守自己记一份，不借内核的。
+const WAIT_LIMIT_MS: u64 = 120_000;
+
+/// 端口说完一次请求时说的（施工 8-9）：要等多久、换没换端点。
+#[derive(Debug, Clone, Copy, Default)]
+pub(super) struct Said {
+    wait_ms: Option<u64>,
+    failover: bool,
+}
 
 /// 重试走到哪了。
 #[derive(Debug, Default)]
@@ -23,6 +37,10 @@ pub(super) struct Retries {
     woken: bool,
     /// 这一步连着再来了几次。
     failures: u32,
+    /// 每次请求最近一次喂进去的说完了，端口说的（施工 8-9）。记了 `model.called` 就拿走：摘要请求再来时名字不变。
+    said: BTreeMap<Seq, Said>,
+    /// 刚记了出错、要再来的那一次端口说的：推的 `status` 照它查。
+    expecting_said: Said,
 }
 
 impl Watch {
@@ -149,7 +167,7 @@ impl Watch {
             }
             _ => {
                 self.seen_paths.insert("出错了");
-                self.failed(called.seen, before, after);
+                self.failed(called, before, after);
             }
         }
     }
@@ -178,9 +196,20 @@ impl Watch {
         );
     }
 
-    /// 出错的收场：紧跟着出错的回合结束的，是不再来了；不是的，是再来。
-    pub(super) fn failed(&mut self, seen: Seq, before: Option<&Body>, after: Option<&Body>) {
+    /// 出错的收场：紧跟着出错的回合结束的，是不再来了；不是的，是再来。再来的只有能再来的分类和换了端点的；换了端点、
+    /// 全在冷却的，没到上限、要等的不超过 2 分钟就一定再来（施工 8-9）。
+    pub(super) fn failed(
+        &mut self,
+        called: &ModelCalled,
+        before: Option<&Body>,
+        after: Option<&Body>,
+    ) {
         let seed = self.seed;
+        let seen = called.seen;
+        let said = self.retries.said.remove(&seen).unwrap_or_default();
+        let class = called.error.as_ref().map(|error| &error.class);
+        let cooling = class == Some(&ErrorClass::Cooling);
+        let waits_ok = said.wait_ms.is_none_or(|wait| wait <= WAIT_LIMIT_MS);
         let partial = match before {
             Some(Body::MessageAssistant(reply)) if reply.seen == seen => {
                 assert!(
@@ -199,7 +228,21 @@ impl Watch {
             _ => false,
         };
         if matches!(after, Some(Body::TurnEnded(ended)) if ended.reason == EndReason::Error) {
+            assert!(
+                !((said.failover || cooling) && waits_ok && self.retries.failures < 5),
+                "种子 {seed}：换了端点、全在冷却的没到上限也不再来（{class:?}，{said:?}）"
+            );
             return;
+        }
+        assert!(
+            said.failover || class.is_some_and(can_retry),
+            "种子 {seed}：{class:?} 没换端点也再来了"
+        );
+        if said.failover {
+            self.seen_paths.insert("换了端点再来");
+        }
+        if cooling {
+            self.seen_paths.insert("全在冷却等着再来");
         }
         if partial {
             self.seen_paths.insert("带着半截再来");
@@ -220,6 +263,7 @@ impl Watch {
             self.retries.failures
         );
         self.retries.expecting = Some(seen);
+        self.retries.expecting_said = said;
     }
 
     /// 推了 `status`：是刚记了出错、要再来的那一次。
@@ -232,6 +276,17 @@ impl Watch {
             "种子 {seed}：推的重试状态不是刚出错的那一次"
         );
         assert_eq!(status.retry.attempt, self.retries.failures);
+        let said = self.retries.expecting_said;
+        assert_eq!(
+            status.retry.failover, said.failover,
+            "种子 {seed}：状态的 failover 照端口说的"
+        );
+        if said.failover && said.wait_ms.is_none() {
+            assert_eq!(
+                status.retry.wait_ms, 0,
+                "种子 {seed}：换了端点没说等多久的当场来"
+            );
+        }
     }
 
     /// 交出到点叫醒：是刚记了出错、要再来的那一次。
@@ -246,8 +301,23 @@ impl Watch {
         self.retries.waiting = Some(seen);
     }
 
-    /// 喂进「到点了」：对得上在等的那一次，下一次请求就是重试。
+    /// 喂进「到点了」：对得上在等的那一次，下一次请求就是重试。喂进说完了的：记下端口说的（施工 8-9）。
     pub(super) fn retry_fed(&mut self, input: &Input) {
+        // 内核只收在路上的那一次的：对不上的不理，也不记。
+        if let Input::ModelEnded {
+            seen,
+            wait_ms,
+            failover,
+            ..
+        } = input
+            && self.asking == Some(*seen)
+        {
+            let said = Said {
+                wait_ms: *wait_ms,
+                failover: *failover,
+            };
+            self.retries.said.insert(*seen, said);
+        }
         if let Input::Woke { seen, .. } = input
             && self.retries.waiting == Some(*seen)
         {
@@ -281,4 +351,16 @@ impl Watch {
     pub(super) fn retry_ended(&mut self) {
         self.retries = Retries::default();
     }
+}
+
+/// 不换端点也能再来的分类：看守自己列一份，不借内核的（`kernel/session.md`「出错再来」第 1 条，施工 8-9 加 `cooling`）。
+fn can_retry(class: &ErrorClass) -> bool {
+    matches!(
+        class,
+        ErrorClass::Retryable
+            | ErrorClass::RateLimited
+            | ErrorClass::BadStream
+            | ErrorClass::EmptyReply
+            | ErrorClass::Cooling
+    )
 }

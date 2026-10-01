@@ -68,6 +68,11 @@ impl Follow<'_> {
             ("error", Some(failure)) if failure.class == "no_model" && !failure.sent => {
                 (exit::NO_MODEL, Some(language.no_model()))
             }
+            // 候选全在冷却、没发出去的（施工 8-9）：这时也没有能用的模型。
+            ("error", Some(failure)) if failure.class == "cooling" && !failure.sent => (
+                exit::NO_MODEL,
+                Some(language.failed(&failure.class, &failure.message)),
+            ),
             ("error", Some(failure)) => (
                 exit::ERROR,
                 Some(language.failed(&failure.class, &failure.message)),

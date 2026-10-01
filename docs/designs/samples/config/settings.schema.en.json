@@ -49,6 +49,68 @@
           "title": "Chat model",
           "type": "string"
         },
+        "cooldown": {
+          "properties": {
+            "auth": {
+              "properties": {
+                "base": {
+                  "default": "10m",
+                  "description": "How long a whole key rests the first time it fails to authenticate or runs out of quota. It doubles each time in a row. Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "Auth failure pause",
+                  "type": "string"
+                },
+                "max": {
+                  "default": "2h",
+                  "description": "The pause for a whole key stops doubling here. Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "Auth failure pause cap",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "rate_limited": {
+              "properties": {
+                "base": {
+                  "default": "30s",
+                  "description": "How long an endpoint rests the first time it is rate limited. It doubles each time in a row. Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "Rate limit cooldown",
+                  "type": "string"
+                },
+                "max": {
+                  "default": "10m",
+                  "description": "The rate limit cooldown stops doubling here, even when the provider asks for longer. Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "Rate limit cooldown cap",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "retryable": {
+              "properties": {
+                "base": {
+                  "default": "10s",
+                  "description": "How long an endpoint rests the first time it cannot be reached or fails on its side. It doubles each time in a row. Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "Error cooldown",
+                  "type": "string"
+                },
+                "max": {
+                  "default": "5m",
+                  "description": "The cooldown for these errors stops doubling here. Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "Error cooldown cap",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
         "tiers": {
           "properties": {
             "cheap": {

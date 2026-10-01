@@ -57,7 +57,7 @@ pub mod exit {
     pub const INTERRUPTED: u8 = 3;
     /// 有几步要人确认，这里不问，没做（`22-命令行.md` O3）。
     pub const UNATTENDED: u8 = 4;
-    /// 没有可用的模型。
+    /// 没有可用的模型：没配，或者候选全在冷却、没发出去（施工 8-9）。
     pub const NO_MODEL: u8 = 5;
 }
 

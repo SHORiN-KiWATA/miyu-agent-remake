@@ -14,6 +14,7 @@ use miyu_kernel::id::{ContentHash, MediaType, ModelName, ProviderId};
 use miyu_kernel::session::{Command, Outcome, Queued};
 use miyu_session::Routes;
 use miyu_store::blob::Blobs;
+use support::routing::cut_after;
 use support::{Home, alice_account, ask, say, until_turn_ends, watch, within};
 
 /// 发给假服务器的路由（施工 8-6 起照配置）：deepseek 的 deepseek-v4，OpenAI 兼容的写法，空闲超时五秒；`inputs` 照手写的
@@ -223,22 +224,6 @@ async fn a_missing_blob_fails_without_sending() {
     assert_eq!(error.class, ErrorClass::Unclassified);
     assert!(error.message.contains(missing.hex()), "{}", error.message);
     assert!(server.received().is_empty(), "没发出去");
-}
-
-/// 样本的流在第 `n` 条事件之后断开：前面的照发，后面的不发。样本里事件之间是 `\r\n\r\n`（故意的 CRLF）。
-fn cut_after(n: usize) -> Reply {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../docs/designs/samples/drivers/openai-chat/streams/openai-text.sse");
-    let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("读不了 {}：{e}", path.display()));
-    let mut end = 0;
-    for _ in 0..n {
-        end += bytes[end..]
-            .windows(4)
-            .position(|window| window == b"\r\n\r\n")
-            .expect("样本里有这么多条")
-            + 4;
-    }
-    Reply::stream(vec![Piece::Bytes(bytes[..end].to_vec()), Piece::Drop])
 }
 
 #[tokio::test]

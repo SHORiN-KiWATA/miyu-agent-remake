@@ -173,6 +173,30 @@
       "models.catalog.every": {
         "name": "多久更新一次",
         "description": "缓存的目录旧过这么久才再拉。"
+      },
+      "models.cooldown.rate_limited.base": {
+        "name": "限速后先冷却多久",
+        "description": "一个端点被限速，第一次停用这么久，连着再被限速就翻倍。"
+      },
+      "models.cooldown.rate_limited.max": {
+        "name": "限速最多冷却多久",
+        "description": "限速的冷却翻倍到这么久为止，供应商说要等更久的也不超过它。"
+      },
+      "models.cooldown.retryable.base": {
+        "name": "出错后先冷却多久",
+        "description": "连不上、服务端出错，第一次停用这么久，连着再出错就翻倍。"
+      },
+      "models.cooldown.retryable.max": {
+        "name": "出错最多冷却多久",
+        "description": "这类错的冷却翻倍到这么久为止。"
+      },
+      "models.cooldown.auth.base": {
+        "name": "认证失败先停用多久",
+        "description": "认证失败、额度用完时，整个 key 第一次停用这么久，连着再失败就翻倍。"
+      },
+      "models.cooldown.auth.max": {
+        "name": "认证失败最多停用多久",
+        "description": "整个 key 的停用翻倍到这么久为止。"
       }
     },
     "pages": {
@@ -191,7 +215,8 @@
       "tiers": "挡位",
       "pools": "池",
       "providers": "供应商",
-      "catalog": "模型目录"
+      "catalog": "模型目录",
+      "cooldown": "冷却"
     }
   },
   "said": {

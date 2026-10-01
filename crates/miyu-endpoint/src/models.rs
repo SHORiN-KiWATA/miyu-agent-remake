@@ -1,6 +1,6 @@
 //! 协议上的 `model.list`（`docs/blueprint/models.md`「协议」，施工 8-7）：配好的供应商，每家的 key、对上了目录里的哪一家、
 //! 模型，每个模型每一格资料的值和来源、状态；在用的目录。池、挡位、用途的 `vision`（施工 8-8）：池写的成员和怎么分，四个挡位、
-//! 两种用途各配的引用，没配的是 `null`。冷却随 8-9。`session.create` 的 `model` 怎么解析也在这里（[`record`]，施工 8-8）。
+//! 两种用途各配的引用，没配的是 `null`。模型、key 的冷却（施工 8-9）照核心一份的冷却表，照这一刻说。`session.create` 的 `model` 怎么解析也在这里（[`record`]，施工 8-8）。
 //!
 //! 1. 先等目录读完（核心写了 `ready` 以后才读）。
 //! 2. `provider` 写了、不是配好了的：`unknown_provider`。
@@ -86,9 +86,10 @@ pub(crate) async fn list(core: &Core, params: Value) -> Result<Value, Refusal> {
     } else {
         refresh_stale(&data, &snapshot, &chosen);
     }
+    let now = crate::sessions::now();
     let providers: Vec<Value> = chosen
         .iter()
-        .map(|id| entry::provider(&data, &snapshot, id))
+        .map(|id| entry::provider(&data, &snapshot, id, now))
         .collect();
     let catalog = data.catalog().map_or(
         Value::Null,

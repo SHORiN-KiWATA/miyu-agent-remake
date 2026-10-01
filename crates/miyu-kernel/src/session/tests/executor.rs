@@ -67,6 +67,7 @@ pub(super) fn ended(seen: u64) -> Input {
         error: None,
         wait_ms: None,
         excess: None,
+        failover: false,
     }
 }
 
@@ -83,6 +84,7 @@ pub(super) fn failed(seen: u64, class: ErrorClass, message: &str) -> Input {
         }),
         wait_ms: None,
         excess: None,
+        failover: false,
     }
 }
 

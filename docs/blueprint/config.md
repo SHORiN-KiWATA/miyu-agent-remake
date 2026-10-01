@@ -273,7 +273,9 @@ miyu_config::settings! {
 | `models.catalog.update` | 开关 | `true`，`MIYU_CATALOG_UPDATE` 压过 | 系统、个人 | 不能写 | `now` | 8-7 |
 | `models.catalog.url` | 网址（能写 `{ env = … }`，8-8 起照引用取） | `https://models.dev/api.json` | 系统、个人 | 不能写 | `now` | 8-7 |
 | `models.catalog.every` | 时长 1 小时到 30 天 | `24h` | 系统、个人 | 不能写 | `now` | 8-7 |
-| 模型的 `driver`，供应商的 `headers`、`compat`、`placeholder_tools`，`models.*` 的别的 | 见 `models.md` | | | | | 8-9 到 8-15 |
+| `models.cooldown.rate_limited.base`、`retryable.base`、`auth.base` | 时长 1 秒到 1 小时 | `30s`、`10s`、`10m` | 系统、个人 | 不能写 | `now` | 8-9 |
+| `models.cooldown.rate_limited.max`、`retryable.max`、`auth.max` | 时长 1 秒到 1 天 | `10m`、`5m`、`2h` | 系统、个人 | 不能写 | `now` | 8-9 |
+| 模型的 `driver`，供应商的 `headers`、`compat`、`placeholder_tools`，`models.*` 的别的 | 见 `models.md` | | | | | 8-10 到 8-15 |
 
 - `ui.language` 的 `auto`：跟着系统，终端的头照系统的语言，网页照浏览器（第二条第 8 条，2026-10-01 项目主人定）。它的界面提示：`general` 页的 `display` 组，常用项，下拉。`log.level` 的：`advanced` 页的 `log` 组，下拉。
 - 项目配置能写的，M8 里只有 `permission.start_read_only` 这一项（2026-10-01 项目主人定）。
@@ -964,6 +966,33 @@ update = true
 # 能写：http:// 或 https:// 开头的网址 或 { env = "…" }。只能写在系统配置或个人设置里。当场生效。
 url = "https://models.dev/api.json"
 
+[models.cooldown.auth]
+# 认证失败先停用多久：认证失败、额度用完时，整个 key 第一次停用这么久，连着再失败就翻倍。
+# 能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+base = "10m"
+
+# 认证失败最多停用多久：整个 key 的停用翻倍到这么久为止。
+# 能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+max = "2h"
+
+[models.cooldown.rate_limited]
+# 限速后先冷却多久：一个端点被限速，第一次停用这么久，连着再被限速就翻倍。
+# 能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+base = "30s"
+
+# 限速最多冷却多久：限速的冷却翻倍到这么久为止，供应商说要等更久的也不超过它。
+# 能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+max = "10m"
+
+[models.cooldown.retryable]
+# 出错后先冷却多久：连不上、服务端出错，第一次停用这么久，连着再出错就翻倍。
+# 能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+base = "10s"
+
+# 出错最多冷却多久：这类错的冷却翻倍到这么久为止。
+# 能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+max = "5m"
+
 [models.tiers]
 # 便宜挡：便宜的一挡。没配的用主对话的模型。
 # 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。
@@ -1085,7 +1114,7 @@ startup = "new"
 language = "auto"
 ```
 
-样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `models.chat`、`models.vision`、`models.tiers.*`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`permission.start_read_only`、`providers.<id>.*`、`tui.startup`、`ui.language`）：
+样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `models.chat`、`models.vision`、`models.tiers.*`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`models.cooldown.*`（8-9）、`permission.start_read_only`、`providers.<id>.*`、`tui.startup`、`ui.language`）：
 
 ```json
 {
@@ -1138,6 +1167,68 @@ language = "auto"
           "description": "新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash；也能写 @池。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。以后开的会话生效。",
           "title": "主对话的模型",
           "type": "string"
+        },
+        "cooldown": {
+          "properties": {
+            "auth": {
+              "properties": {
+                "base": {
+                  "default": "10m",
+                  "description": "认证失败、额度用完时，整个 key 第一次停用这么久，连着再失败就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "认证失败先停用多久",
+                  "type": "string"
+                },
+                "max": {
+                  "default": "2h",
+                  "description": "整个 key 的停用翻倍到这么久为止。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "认证失败最多停用多久",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "rate_limited": {
+              "properties": {
+                "base": {
+                  "default": "30s",
+                  "description": "一个端点被限速，第一次停用这么久，连着再被限速就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "限速后先冷却多久",
+                  "type": "string"
+                },
+                "max": {
+                  "default": "10m",
+                  "description": "限速的冷却翻倍到这么久为止，供应商说要等更久的也不超过它。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "限速最多冷却多久",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "retryable": {
+              "properties": {
+                "base": {
+                  "default": "10s",
+                  "description": "连不上、服务端出错，第一次停用这么久，连着再出错就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "出错后先冷却多久",
+                  "type": "string"
+                },
+                "max": {
+                  "default": "5m",
+                  "description": "这类错的冷却翻倍到这么久为止。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "pattern": "^[0-9]+[smh]?$",
+                  "title": "出错最多冷却多久",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
         },
         "tiers": {
           "properties": {

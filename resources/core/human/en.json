@@ -173,6 +173,30 @@
       "models.catalog.every": {
         "name": "Update every",
         "description": "Fetch again once the cached catalog is this old."
+      },
+      "models.cooldown.rate_limited.base": {
+        "name": "Rate limit cooldown",
+        "description": "How long an endpoint rests the first time it is rate limited. It doubles each time in a row."
+      },
+      "models.cooldown.rate_limited.max": {
+        "name": "Rate limit cooldown cap",
+        "description": "The rate limit cooldown stops doubling here, even when the provider asks for longer."
+      },
+      "models.cooldown.retryable.base": {
+        "name": "Error cooldown",
+        "description": "How long an endpoint rests the first time it cannot be reached or fails on its side. It doubles each time in a row."
+      },
+      "models.cooldown.retryable.max": {
+        "name": "Error cooldown cap",
+        "description": "The cooldown for these errors stops doubling here."
+      },
+      "models.cooldown.auth.base": {
+        "name": "Auth failure pause",
+        "description": "How long a whole key rests the first time it fails to authenticate or runs out of quota. It doubles each time in a row."
+      },
+      "models.cooldown.auth.max": {
+        "name": "Auth failure pause cap",
+        "description": "The pause for a whole key stops doubling here."
       }
     },
     "pages": {
@@ -191,7 +215,8 @@
       "tiers": "Tiers",
       "pools": "Pools",
       "providers": "Providers",
-      "catalog": "Model catalog"
+      "catalog": "Model catalog",
+      "cooldown": "Cooldown"
     }
   },
   "said": {

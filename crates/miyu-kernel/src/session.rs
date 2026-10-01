@@ -216,18 +216,6 @@ impl Session {
         }
     }
 
-    /// 日志里用过的任务编号最后一段最大的数（施工 7-5；照最后一段数，施工 7-1 补）：撤掉的回合里派的也算，一个都没派过的
-    /// 是 0。纯查询：会话 actor 造会话、载入以后照它建领号的，新派的任务从下一个数起（`session/tools.md`「任务编号」）。
-    pub fn last_job_number(&self) -> u64 {
-        self.ledger.last_job_number()
-    }
-
-    /// 派出去、一次都还没回报过的子代理的子会话（施工 7-6）：撤掉的回合里派的也在，被停掉的不在。纯查询：会话 actor 载入
-    /// 以后把它们叫起来，崩了的、重启了的由它们自己补报、接着干（`agents.md` 第八条）。
-    pub fn waiting_children(&self) -> Vec<SessionId> {
-        self.ledger.waiting_children().cloned().collect()
-    }
-
     /// 送进一条输入，出来一串动作。
     ///
     /// # Panics
@@ -267,7 +255,15 @@ impl Session {
                 error,
                 wait_ms,
                 excess,
-            } => self.model_ended(at, seen, usage, error, wait_ms, excess),
+                failover,
+            } => self.model_ended(
+                at,
+                seen,
+                usage,
+                error,
+                retry::Said { wait_ms, failover },
+                excess,
+            ),
             Input::Woke { at, seen } => self.woke(at, seen),
             Input::ToolDone {
                 at,

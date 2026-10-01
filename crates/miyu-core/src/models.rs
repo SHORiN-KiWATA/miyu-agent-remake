@@ -1,7 +1,8 @@
 //! 模型（`docs/blueprint/models.md`、`core.md`「模型」，施工 8-6、8-7）：起来时读资源目录里的供应商档案
 //! （`models/profiles.toml`）、认原厂的表（`models/vendors.toml`），造每个会话的路由（`miyu_session::Routes`）和核心一份的
 //! 模型资料（`miyu_session::ModelData`）。写了 `ready` 以后在阻塞线程里读目录（[`catalog`]）、用出来的、供应商的列表，
-//! 读完放行等着它的；再在后台更新目录（[`refresh`]）。用哪家供应商、哪个模型、哪个 key，全照配置。
+//! 读完放行等着它的；再在后台更新目录（[`refresh`]）。用哪家供应商、哪个模型、哪个 key，全照配置。冷却的规矩照配置当场换
+//! （[`follow_cooldown`]，施工 8-9）。
 //!
 //! 档案、认原厂的表是 TOML，这里读成 JSON 交给 `miyu-models`（那一层只用白名单里的 `serde_json`）。
 
@@ -15,6 +16,7 @@ use tokio::sync::watch;
 
 use miyu_config::secret::Reference;
 use miyu_http::{Proxy, client, fetcher};
+use miyu_models::cooldown::Rules;
 use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
 use miyu_models::settings::CatalogSettings;
@@ -146,6 +148,23 @@ pub fn catalog_settings(
         }
     });
     receiver
+}
+
+/// 配置里 `[models.cooldown]` 那三类（施工 8-9，`models.md`「对外的样子」）：当场生效，起来时照配置换上，配置换了跟着换，
+/// 下一次出错用新的。冷却表本身在模型资料里，只在内存里。
+pub fn follow_cooldown(
+    mut config: watch::Receiver<Arc<miyu_endpoint::config::Config>>,
+    data: Arc<ModelData>,
+) {
+    let rules =
+        |config: &miyu_endpoint::config::Config| Rules::from_values(&config.resolved().values());
+    data.set_cooldown_rules(rules(&config.borrow_and_update()));
+    tokio::spawn(async move {
+        while config.changed().await.is_ok() {
+            let now = rules(&config.borrow_and_update());
+            data.set_cooldown_rules(now);
+        }
+    });
 }
 
 /// 认原厂的表：TOML 的字先变成 JSON，再照 `miyu-models` 的样子读。
