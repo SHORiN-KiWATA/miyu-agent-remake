@@ -20,8 +20,8 @@
 //! - `@` 选文件由桥列目录、在工作目录里找（`mention.rs`，`web.files`），数据根不给；核心以后经协议给。
 //!
 //! 用法：`cargo run -- [端口]`，默认 8765；页面文件是这个 crate 上一层的 `web-demo/`。
-//! 核心没在跑、给了 `MIYU_CORE_BIN` 的，拉起来（`<它> core`）；别的环境变量（`MIYU_HOME`、
-//! `DEEPSEEK_API_KEY`、`MIYU_DEV_*`）由拉起的核心照常读。
+//! 核心没在跑、给了 `MIYU_CORE_BIN` 的，拉起来（`<它> core`）；别的环境变量（`MIYU_HOME`、数据根的配置里
+//! key 引用的那个，开发用的是 `DEEPSEEK_API_KEY`）由拉起的核心照常读。
 
 mod files;
 mod history;

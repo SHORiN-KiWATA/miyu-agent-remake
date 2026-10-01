@@ -77,6 +77,18 @@ test('压缩的进度（瞬时的 compaction.progress、compaction.done）：记
   assert.equal(s.compacting, null);
 });
 
+test('压好了的两条谁先到不一定：落了盘的 context.compacted 先到，跟着来的 compaction.done 照样记上前后的用量', () => {
+  const store = fresh();
+  const s = store.sessions.get('S');
+  const transient = (at, kind, body) => { const { seq, ...e } = ev(0, at, kind, 9, body, { kind: 'kernel' }); return e; };
+  push(store, transient(1, 'compaction.progress', { seen: 8, written: 3120, expected: 20000 }));
+  push(store, ev(20, 3, 'context.compacted', 9, { upto: 8, summary: '摘要', trigger: 'auto' }));
+  assert.equal(s.compactStats.size, 0);
+  push(store, transient(3, 'compaction.done', { seen: 8, trigger: 'auto', before: 812345, after: 31020 }));
+  assert.deepEqual(s.compactStats.get(20), { before: 812345, after: 31020 });
+  assert.equal(s.compacting.note, 20);
+});
+
 test('压缩没压成（落了盘的 model.called 带 compaction、出错）、这一轮先结束了：进度那一行收掉', () => {
   const store = fresh();
   const s = store.sessions.get('S');
@@ -113,4 +125,26 @@ test('读一个会话、掉了队补上：订阅带 after（0 从头，掉队的
   await store.catchUp(s);
   assert.deepEqual(s.events.map((e) => e.seq), [1, 2, 3], '补回来的重复的去掉');
   assert.deepEqual(calls, [['subscribe', 0], ['subscribe', 3]]);
+});
+
+test('起来时读最近活动的那几个（session.list 的 last_active，C-3）；旧核心没有这一格的照列出来的先后（2026-10-01）', async () => {
+  const listed = [
+    { session: 'new', oneshot: false, parent: null, last_active: '2026-10-01T01:00:00.000Z' },
+    { session: 'old-but-busy', oneshot: false, parent: null, last_active: '2026-10-01T05:00:00.000Z' },
+    { session: 'mid', oneshot: false, parent: null, last_active: '2026-10-01T03:00:00.000Z' },
+    { session: 'child', oneshot: false, parent: 'mid', last_active: '2026-10-01T09:00:00.000Z' },
+  ];
+  const loaded = [];
+  const conn = {
+    onPush() {},
+    request: async (method, params) => {
+      if (method === 'session.list') return { sessions: listed };
+      if (method === 'subscribe') loaded.push(params.session);
+      return {};
+    },
+  };
+  const store = new Store(/** @type {any} */ (conn));
+  await store.boot();
+  assert.deepEqual(loaded, ['old-but-busy', 'mid', 'new'], '照最近活动，子代理的不列');
+  assert.deepEqual(store.order, ['old-but-busy', 'mid', 'new']);
 });

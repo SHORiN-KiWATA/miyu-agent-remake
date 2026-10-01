@@ -31,8 +31,10 @@
   "compaction": { "cells": 24, "cap": 0.95, "pause_ms": [300, 1500], "finish_ms": 400, "hold_ms": 200, "breathe_after_ms": 3000, "dot_ms": 1000 },
   "sidebar_move_ms": 240,
   "result_image_max": 160,
+  "result_image_thumb": 96,
   "narrow_below": 836,
   "follow_within": 48,
+  "glide_rate": 0.18,
   "follow_keep": 0.4,
   "scroll_intent_ms": 1000,
   "release_ms": 320,
@@ -58,7 +60,7 @@
   "user_media": 160,
   "note_marks": {
     "good": "●",
-    "error": "✗",
+    "error": "●",
     "stopped": "●",
     "failed": "●"
   },

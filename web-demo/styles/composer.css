@@ -135,3 +135,10 @@
 .composer-jump:hover { color: var(--text); }
 .composer-jump .icon { width: 16px; height: 16px; }
 .composer-jump.is-leaving { animation: sink-out var(--motion-out) var(--ease-in) both; }
+
+/* Ctrl+S 暂存着东西（蓝图 web.md「按键」）：框第一行最右边暗色写「已暂存」，框里的字（和底下垫的那层）给它让出地方 */
+.composer-stash {
+  position: absolute; top: 14px; right: 18px; z-index: 2; color: var(--text-faint); font-size: 12px; line-height: calc(15px * 1.6);
+  pointer-events: auto; animation: fade-in var(--motion-in) var(--ease-out);
+}
+.composer-field.has-stash > .composer-input, .composer-field.has-stash > .composer-backdrop { padding-right: 76px; }

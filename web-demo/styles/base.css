@@ -102,14 +102,20 @@ button, textarea { font: inherit; color: inherit; }
 
 /* 在线的圆点：2.4 秒往外呼一圈；连着绿，连接中金，断了红（旧版 .status-dot） */
 .status-dot {
-  display: inline-block; width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%;
-  color: var(--online); background: currentColor; animation: status-pulse 2.4s ease-in-out infinite;
+  position: relative; display: inline-block; width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%;
+  color: var(--online); background: currentColor;
+}
+/* 呼吸的那一圈：垫在后面的一个圆，只动 transform、opacity（交给合成层，不用每一帧重画；原来动 box-shadow，在线时整页
+   一直在重画，蓝图「性能」） */
+.status-dot::after, .session-unread-dot::after {
+  position: absolute; inset: 0; border-radius: 50%; background: currentColor; content: ""; opacity: 0;
+  animation: status-pulse 2.4s ease-in-out infinite; will-change: transform, opacity;
 }
 .status-dot.is-connecting { color: var(--gold); }
 .status-dot.is-offline { color: var(--danger); }
 @keyframes status-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 45%, transparent); }
-  50% { box-shadow: 0 0 0 5px transparent; }
+  0% { transform: scale(1); opacity: 0.45; }
+  50%, 100% { transform: scale(2.6); opacity: 0; }
 }
 
 /* 起不来时整页一句话 */

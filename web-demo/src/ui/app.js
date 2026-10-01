@@ -198,6 +198,7 @@ export class App {
       list: async () => (await this.store.conn.request('session.list', {})).sessions ?? [],
       titleOf: (id) => (this.store.sessions.has(id) ? this.store.summary(id).title : null),
       active: (id) => (this.store.sessions.has(id) ? this.store.summary(id).active : null),
+      loaded: (id) => this.store.sessions.has(id),
       running: (id) => (this.store.sessions.has(id) ? this.store.summary(id).running : false),
       jobs: (id) => runningDeep(id, (sid) => this.store.sessions.get(sid)?.events ?? null),
       agents: (id) => this.descendants(id).length,
@@ -496,7 +497,7 @@ export class App {
     this.chat.setRunning(!!view.running);
     // 对话区画了一次：照它画的软件包（运行状态行这类）听这个事件
     this.ctx.emit('view.changed', { session: s?.id ?? null, running: view.running, events, live: s?.live ?? null, retry: s?.retry ?? null, queued: view.queued });
-    const f = footer(events, s?.limits ?? {});
+    const f = footer(events, s?.limits ?? {}, s?.compactStats);
     const level = this.current ? null : this.pendingLevel;
     if (level) f.left = { ...f.left, level, label: levelLabel(level) };
     this.composer.drawFooter(f);

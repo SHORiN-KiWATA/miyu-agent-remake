@@ -93,7 +93,8 @@
 /* 点开以后箭头一直露着（不悬停也看得出开着、能收；2026-10-01 项目主人） */
 .tl-step.is-open > .tl-row .tl-chevron, .tl-segment.is-open > .tl-summary > .tl-chevron { opacity: 0.8; }
 .tl-window {
-  cursor: pointer; display: flex; flex-direction: column; justify-content: flex-end; max-height: calc(var(--tl-rows) * 1.75em);
+  /* 一行一块往后接，滚到底（steps.js 的 roll）：不用 flex-end，不然上面溢出的滚不到 */
+  cursor: pointer; display: block; max-height: calc(var(--tl-rows) * 1.75em);
   margin: 2px 8px 2px 0; padding-left: var(--tl-indent); overflow: hidden;
   color: var(--tl-think); font-size: 12px; font-weight: 400; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere;
 }
@@ -176,6 +177,8 @@
 .tl-body:empty { display: none; }
 .tl-body > * + * { margin-top: 9px; padding-top: 9px; border-top: 1px solid color-mix(in srgb, var(--text) 12%, transparent); }
 .tl-label { margin-bottom: 3px; color: var(--text-faint); font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+/* 收着时预览区的小图（读图）：和命令那几行一样缩进（蓝图 web.md「图片」第 2 条） */
+.tl-thumbs { margin: 2px 8px 4px 0; padding-left: var(--tl-indent); }
 /* 结果里的图（读图）：小一点，几张排一行放不下折行（蓝图 web.md「图片」第 2 条） */
 .tl-images { display: flex; flex-wrap: wrap; gap: 8px; }
 .tl-images .conversation-media { margin: 2px 0 0; }

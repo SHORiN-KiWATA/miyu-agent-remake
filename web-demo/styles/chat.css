@@ -9,10 +9,14 @@
 .chat-scroll {
   /* 滚到哪由 follow.js 管：关掉浏览器自己的滚动锚定，不然上面的内容一变高矮它自己挪 scrollTop，被当成人滚的 */
   flex: 1; min-height: 0; overflow-y: auto; overflow-anchor: none;
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
 }
-.timeline { width: min(100%, 980px); margin: 0 auto; padding: 24px 30px 42px; }
+/* 淡出：贴着滚动区底边的一条，从透明渐变到底色（2026-10-01 改：原来用 mask-image 罩着整个滚动区，每滚一下整片正文都要
+   重画，滚动掉帧；这样看着一样，滚动时不用重画正文，蓝图「性能」） */
+.chat-fade {
+  position: sticky; bottom: 0; height: 28px; margin-top: -28px; pointer-events: none;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--surface) 0%, transparent), var(--surface));
+}
+.timeline { width: min(100%, 980px); margin: 0 auto; padding: 24px 30px 14px; }
 
 /* 你说的话：下面 27px 的空算在它里面，悬停到按钮上不断 */
 .user-message { position: relative; display: grid; justify-items: end; padding-bottom: 27px; }
@@ -40,7 +44,7 @@
 }
 .compacting.is-leaving { animation: fade-out var(--motion-out) ease-in both; }
 .compacting.is-breathing .compacting-line, .compacting.is-breathing .compacting-bar { animation: compacting-breathe 2s ease-in-out infinite; }
-.compacting-line { display: flex; align-items: baseline; width: min(100%, 360px); font-size: 11.5px; line-height: 1.5; }
+.compacting-line { display: flex; align-items: baseline; font-size: 11.5px; line-height: 1.5; }
 .compacting-label {
   color: var(--cp-base); font-weight: 600;
   background: linear-gradient(90deg, var(--cp-base) 40%, var(--cp-peak) 50%, var(--cp-base) 60%) 100% 0 / 250% 100% no-repeat;
@@ -48,21 +52,18 @@
   animation: compacting-sweep 3s linear infinite;
 }
 .compacting-dots { display: inline-block; width: 1.4em; color: var(--cp-base); font-weight: 600; }
-.compacting-count { margin-left: auto; color: var(--text-faint); font: 11px var(--mono); font-variant-numeric: tabular-nums; }
+/* 字数紧跟在点后面（点那一格照「...」占宽，数字不跟着点跳；照运行状态行的用时） */
+.compacting-count { margin-left: 0.4em; color: var(--text-faint); font: 11px var(--mono); font-variant-numeric: tabular-nums; }
 .compacting-bar { display: flex; align-items: center; gap: 10px; margin-top: 7px; }
 .compacting-track { position: relative; width: 240px; max-width: 70%; height: 4px; overflow: hidden; border-radius: 999px; background: var(--line); }
+/* 走过的一段只是实心的 accent，不扫光：流光只在上面那几个字上（2026-10-01 项目主人定） */
 .compacting-fill { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: inherit; background: var(--accent); transition: width .22s cubic-bezier(.2, 0, 0, 1); }
-.compacting-fill::after {
-  position: absolute; top: 0; right: 0; bottom: 0; width: 10px; border-radius: inherit; background: var(--cp-peak); content: ""; opacity: 0;
-  animation: compacting-edge 1.1s ease-in-out infinite;
-}
 .compacting-pct { min-width: 3.2em; color: var(--text-faint); font: 11px var(--mono); font-variant-numeric: tabular-nums; }
 @keyframes compacting-sweep { from { background-position: 100% 0; } to { background-position: 0 0; } }
 @keyframes compacting-breathe { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
-@keyframes compacting-edge { 0%, 100% { opacity: 0; } 50% { opacity: .5; } }
 @media (prefers-reduced-motion: reduce) {
   .compacting-label { animation: none; background: none; -webkit-text-fill-color: currentColor; }
-  .compacting.is-breathing .compacting-line, .compacting.is-breathing .compacting-bar, .compacting-fill::after { animation: none; }
+  .compacting.is-breathing .compacting-line, .compacting.is-breathing .compacting-bar { animation: none; }
 }
 /* 压缩失败那一行：红色实心圆点，字也红（蓝图「压缩的进度」第 6 条） */
 .note-line.tone-failed .note-mark, .note-line.tone-failed .note-text { color: var(--t-error); }
@@ -206,7 +207,7 @@
 @media (max-width: 836px) {
   .note { padding-left: 38px; }
   .chat-tail { padding-left: 38px; }
-  .timeline { padding: 22px 13px 32px; }
+  .timeline { padding: 22px 13px 12px; }
   .user-bubble, .user-attachments { max-width: 86%; }
   .assistant-message { max-width: 100%; padding-left: 38px; }
   .assistant-label img { width: 28px; height: 28px; }

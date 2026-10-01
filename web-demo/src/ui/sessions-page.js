@@ -13,7 +13,7 @@ import { rank } from '../model/session.js';
 
 /**
  * @typedef {{list: () => Promise<{session: string, title?: string, parent?: string|null, oneshot?: boolean}[]>,
- *   titleOf: (id: string) => string|null, active: (id: string) => number|null, running: (id: string) => boolean, jobs: (id: string) => number, agents: (id: string) => number,
+ *   titleOf: (id: string) => string|null, active: (id: string) => number|null, loaded: (id: string) => boolean, running: (id: string) => boolean, jobs: (id: string) => number, agents: (id: string) => number,
  *   open: (id: string) => void, newSession: () => void,
  *   removeMany: (ids: string[]) => Promise<string[]>, dropped: (id: string) => void}} PageActions
  */
@@ -69,7 +69,7 @@ export class SessionsPage {
       const all = await this.on.list();
       // 先后照左栏（`rank`）：置顶的在最前，别的照最近活动；读过日志的照日志算，没读过的先照开的时刻（C-3 以后照 `last_active`）
       this.rows = rank(all.filter((s) => !s.oneshot && !s.parent).map((s) => ({
-        session: s.session, title: s.title ?? this.on.titleOf(s.session), pinned: !!s.pinned,
+        session: s.session, title: s.title ?? this.on.titleOf(s.session), pinned: !!s.pinned, busy: !!s.busy,
         active: s.last_active ? Date.parse(s.last_active) : this.on.active(s.session),
       })));
     } catch {
@@ -123,9 +123,14 @@ export class SessionsPage {
     if (this.liveSig() !== this.live) this.draw();
   }
 
+  /** 在不在跑：读过日志的照日志（跟着推送变）；没读过的照列表里的 `busy`（C-3，打开这一页那一刻的）。 */
+  isRunning(r) {
+    return this.on.running(r.session) || (!this.on.loaded(r.session) && !!r.busy);
+  }
+
   /** 这几行在不在跑、几个后台任务，拼成一串比。 */
   liveSig() {
-    return this.rows.map((r) => `${this.on.running(r.session) ? 1 : 0}${this.on.jobs(r.session)}:${this.on.agents(r.session)}`).join(',');
+    return this.rows.map((r) => `${this.isRunning(r) ? 1 : 0}${this.on.jobs(r.session)}:${this.on.agents(r.session)}`).join(',');
   }
 
   /** 一列：一个会话一行，标题、什么时候开的（有后台任务在跑的左边写几个）；多选时前面一个勾选框。 */
@@ -151,7 +156,7 @@ export class SessionsPage {
       };
       return h(`button.sessions-row${on ? '.is-selected' : ''}`, { type: 'button', dataset: { session: r.session }, onclick: click },
         this.selecting ? h('span.sessions-check', icon(on ? 'square-check' : 'square')) : null,
-        this.on.running(r.session) ? h('span.session-run-spinner.sessions-run') : null,
+        this.isRunning(r) ? h('span.session-run-spinner.sessions-run') : null,
         h(`span.sessions-name${r.title ? '' : '.is-untitled'}`, r.title ?? t('sessions_page.untitled')),
         agents(this.on.agents(r.session)),
         jobs(this.on.jobs(r.session)),

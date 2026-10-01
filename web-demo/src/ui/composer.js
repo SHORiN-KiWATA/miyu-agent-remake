@@ -32,6 +32,7 @@ import { blockLabel, expand, used, erase, pieces } from '../model/blocks.js';
 import { Recall } from '../model/history.js';
 import { show, hide, span } from '../lib/motion.js';
 import { isNewline, insertNewline } from '../lib/newline.js';
+import { stash } from '../model/stash.js';
 
 /**
  * @typedef {{id: string, has: () => boolean, busy: () => boolean, take: () => Record<string, any>|null, putBack: (given: any) => void,
@@ -106,7 +107,11 @@ export class Composer {
     this.takeoverEl = h('div.composer-takeover');
     /** 跳到底部（蓝图「输入框」）：浮在框右上角，正文离底部远了才露；点了做什么由整页接（`onJump`） */
     this.jumpButton = h('button.composer-jump', { type: 'button', hidden: true, title: t('jump_bottom'), 'aria-label': t('jump_bottom'), onclick: () => this.onJump?.() }, icon('arrow-down'));
-    this.box = h('div.composer', this.notice, this.jumpButton, this.takeoverEl, this.head, h('div.composer-field', this.backdrop, this.input), this.bar = h('div.composer-bar', this.tools, this.sendButton), this.menu.el, this.picker.el, this.historyList.el, this.mention.el, this.float);
+    /** Ctrl+S 暂存着的（`model/stash.js`）：只在这个页面里；存着时框第一行最右边暗色写「已暂存」 */
+    this.stashed = /** @type {import('../model/stash.js').Draft|null} */ (null);
+    this.stashMark = h('span.composer-stash', { hidden: true, title: t('stash.hint') }, t('stash.mark'));
+    this.field = h('div.composer-field', this.backdrop, this.input, this.stashMark);
+    this.box = h('div.composer', this.notice, this.jumpButton, this.takeoverEl, this.head, this.field, this.bar = h('div.composer-bar', this.tools, this.sendButton), this.menu.el, this.picker.el, this.historyList.el, this.mention.el, this.float);
     this.el = h('div.composer-dock', this.box, this.footer);
     this.parts = /** @type {{key: string, text: string}[]} */ ([]);
     /** 撤销时放回框里的那句：恢复时还没动过的收回去（`tui.md`「输入框」第 7 条）。 */
@@ -127,6 +132,23 @@ export class Composer {
     if (on === !this.jumpButton.hidden && !this.jumpButton.classList.contains('is-leaving')) return;
     if (on) show(this.jumpButton);
     else hide(this.jumpButton);
+  }
+
+  /** Ctrl+S：框里的字和文件块存起来、取回来、互换（`model/stash.js`）；存着东西时框第一行最右边写「已暂存」。 */
+  toggleStash() {
+    const text = this.input.value;
+    const current = { text, blocks: /** @type {[string, string][]} */ ([...this.blocks].filter(([label]) => text.includes(label))) };
+    const r = stash(current, this.stashed);
+    this.stashed = r.stashed;
+    if (r.said !== 'empty') {
+      this.input.value = r.input.text;
+      this.blocks = new Map(r.input.blocks);
+      this.input.setSelectionRange(r.input.text.length, r.input.text.length);
+      this.changed();
+    }
+    this.stashMark.hidden = !this.stashed;
+    this.field.classList.toggle('has-stash', !!this.stashed);
+    if (r.said === 'stashed' || r.said === 'empty') this.say(t(`stash.${r.said}`));
   }
 
   /**
@@ -308,6 +330,12 @@ export class Composer {
 
   key(ev) {
     if (ev.isComposing || ev.keyCode === 229) return;
+    // Ctrl+S 暂存：有字存起来、空着取回来、两边都有互换（照 TUI）
+    if (ev.ctrlKey && !ev.shiftKey && !ev.altKey && !ev.metaKey && ev.key.toLowerCase() === 's') {
+      ev.preventDefault();
+      this.toggleStash();
+      return;
+    }
     // Ctrl+J 换行（照 TUI；Shift+Enter 由框自己换）
     if (ev.ctrlKey && isNewline(ev)) {
       ev.preventDefault();

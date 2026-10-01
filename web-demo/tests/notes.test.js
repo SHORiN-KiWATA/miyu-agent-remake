@@ -24,7 +24,7 @@ function jobsLog() {
     ev(3, 0, 'turn.started', 3, { trigger: 2 }),
     ev(4, 1, 'message.assistant', 3, { seen: 3, blocks: [
       { type: 'tool_call', call_id: 'c1', name: 'shell', args: '{"command":"cargo test","background":true,"description":"跑测试"}' },
-      { type: 'tool_call', call_id: 'c2', name: 'agent', args: '{"description":"查文档"}' },
+      { type: 'tool_call', call_id: 'c2', name: 'subagent', args: '{"description":"查文档"}' },
     ] }),
     ev(5, 2, 'tool.result', 3, { call_id: 'c1', status: 'ok', blocks: [{ type: 'text', text: 'started j1' }], effects: [{ kind: 'job.started', job: 'j1', what: 'command', title: '跑测试' }] }),
     ev(6, 2, 'tool.result', 3, { call_id: 'c2', status: 'ok', blocks: [{ type: 'text', text: 'started j2' }], effects: [{ kind: 'job.started', job: 'j2', what: 'agent', title: '查文档', session: CHILD }] }),
@@ -47,8 +47,8 @@ test('后台命令的回报：完成带用时，失败带退出码或信号，�
   const items = project(log).items;
   assert.deepEqual(notes(items), [
     'good|●|后台命令完成 · 跑测试 · 20.0s',
-    'error|✗|后台命令失败 · 跑测试 · 退出码 101',
-    'error|✗|后台命令失败 · 跑测试 · 信号 9',
+    'error|●|后台命令失败 · 跑测试 · 退出码 101',
+    'error|●|后台命令失败 · 跑测试 · 信号 9',
     'stopped|●|后台命令已停止 · 跑测试',
     'stopped|●|后台命令中断：核心退出过 · j9',
     'dim||后台命令 · 跑测试 · exploded',
@@ -66,6 +66,32 @@ test('子代理的回报：交回报告的点开是正文，截过的记下；�
   const items = project(log).items;
   assert.deepEqual(notes(items), ['good|●|子代理交回报告 · 查文档', 'stopped|●|子代理随撤销停止 · 查文档']);
   assert.deepEqual(items.find((it) => it.type === 'note').detail, { kind: 'text', text: '文档在 docs/ 下', truncated: true });
+});
+
+test('别的会话空下来了（peer.idle，C-6）：「会话 短编号 回复：status」；等不到的暗；不属于哪一轮，叫醒的一轮接在下面', () => {
+  const PEER = '0199a000-0000-7000-8000-00000000abcd';
+  const log = [...jobsLog(),
+    ev(9, 40, 'peer.idle', undefined, { session: PEER, reason: 'idle', status: '构建修好了，测试全过' }, { kind: 'session', id: PEER }),
+    ev(10, 40, 'turn.started', 10, { trigger: 9 }),
+    ev(11, 41, 'message.assistant', 10, { seen: 10, blocks: [{ type: 'text', text: '它那边好了。' }] }),
+    ev(12, 41, 'turn.ended', 10, { reason: 'completed' }),
+    ev(13, 50, 'peer.idle', undefined, { session: PEER, reason: 'idle' }, { kind: 'session', id: PEER }),
+    ev(14, 60, 'peer.idle', undefined, { session: PEER, reason: 'expired' }),
+    ev(15, 61, 'peer.idle', undefined, { session: PEER, reason: 'gone' }),
+    ev(16, 62, 'peer.idle', undefined, { session: PEER, reason: 'exploded' }),
+  ];
+  const items = project(log).items;
+  assert.deepEqual(notes(items), [
+    'good|●|会话 0000abcd 回复：构建修好了，测试全过',
+    'good|●|会话 0000abcd 回复了',
+    'stopped|●|会话 0000abcd 一直没空下来，不等了',
+    'stopped|●|会话 0000abcd 不在了，不等了',
+    'dim||会话 0000abcd · exploded',
+  ]);
+  const first = items.find((it) => it.type === 'note');
+  assert.equal(first.turn, null);
+  assert.deepEqual(first.detail, { kind: 'text', text: `${PEER}\n\n构建修好了，测试全过`, truncated: false });
+  assert.deepEqual(group(project(log.slice(0, 12)).items).map((b) => b.kind), ['user', 'her', 'note', 'her']);
 });
 
 test('回报叫醒她开的一轮：没有你的话，她的一块接在回报下面；回报自己一块，不挂在她的头下', () => {
@@ -142,6 +168,7 @@ test('出错那一句：402、404 加人话；内核自己查出来的写分类�
   assert.equal(failureText({ class: 'bad_stream', message: 'eof' }), '回复的流不对：eof');
   assert.equal(failureText({ class: 'empty_reply', message: '' }), '回复是空的');
   assert.equal(failureText({ class: 'auth', message: '' }), '认证失败');
+  assert.equal(failureText({ class: 'no_model', message: 'models.chat is not set' }), '没配好模型：models.chat is not set', '没配好模型（8-6）是内核查出来的');
 });
 
 test('清空以后框下面那一行的上下文清零，下一次请求再照实际的写', () => {
@@ -154,14 +181,27 @@ test('清空以后框下面那一行的上下文清零，下一次请求再照�
   assert.equal(footer(log, {}).right.find((p) => p.key === 'context')?.text, '60');
 });
 
-test('子会话里派它的会话发来的：写「派它的会话」；都对不上的写「另一个会话」', () => {
+test('压好了框下面那一行的上下文换成压完的用量；读回来不知道压完多少的先不写，下一次请求再照实际的写（2026-10-01）', () => {
+  const log = [...jobsLog(),
+    ev(9, 7, 'model.called', 3, { seen: 6, messages: 3, result: 'ok', usage, model: 'm', endpoint: 'e' }),
+    ev(10, 50, 'model.called', 11, { seen: 9, messages: 3, result: 'ok', usage, model: 'm', endpoint: 'e', compaction: true }),
+    ev(11, 50, 'context.compacted', 11, { upto: 9, summary: '摘要', trigger: 'manual' }),
+  ];
+  assert.equal(footer(log, {}, new Map([[11, { before: 950, after: 300 }]])).right.find((p) => p.key === 'context')?.text, '300', '看着压好的照 after');
+  assert.equal(footer(log, {}).right.find((p) => p.key === 'context'), undefined, '读回来的先不写');
+  log.push(ev(12, 60, 'model.called', 12, { seen: 11, messages: 1, result: 'ok', usage: { ...usage, uncached: 10, cache_read: 0 }, model: 'm', endpoint: 'e' }));
+  assert.equal(footer(log, {}).right.find((p) => p.key === 'context')?.text, '60');
+});
+
+test('子会话里派它的会话发来的：写「派它的会话」；别的会话发来的写「从会话 短编号 收到消息」（标题界面那边接）', () => {
   const PARENT = '0199a000-0000-7000-8000-000000000001';
   const log = [
     ev(1, 0, 'session.created', undefined, { permission: { level: 'workspace', read_only: false }, parent: PARENT, depth: 1 }),
     ev(2, 0, 'message.user', undefined, { blocks: [{ type: 'text', text: '去查文档' }] }, { kind: 'session', id: PARENT }),
     ev(3, 1, 'message.user', undefined, { blocks: [{ type: 'text', text: '?' }] }, { kind: 'session', id: '0199a000-0000-7000-8000-00000000000f' }),
   ];
-  assert.deepEqual(project(log).items.filter((it) => it.type === 'user').map((u) => u.speaker.name), ['派它的会话', '另一个会话']);
+  assert.deepEqual(project(log).items.filter((it) => it.type === 'user').map((u) => u.speaker.name), ['派它的会话', '从会话 0000000f 收到消息']);
+  assert.equal(project(log).items.filter((it) => it.type === 'user')[1].speaker.id, '0199a000-0000-7000-8000-00000000000f', '界面照编号找标题、打开');
 });
 
 test('打断的那一轮收尾：还有在跑的后台任务的，记着几个（后面接一句「后台还有 N 个在跑」）', () => {

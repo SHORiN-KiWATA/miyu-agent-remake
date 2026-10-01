@@ -77,7 +77,9 @@ export class StepView {
           toggle(e);
         },
       });
-      this.el = h(`div.tl-step.is-tool${message ? '.is-message' : ''}${fresh ? '.is-new' : ''}`, this.row, this.command, h('div.tl-fold', h('div.tl-fold-inner', this.body)));
+      // 收着时结果里的图（读图）画在预览区，小一点；点开换成细节里的那张（蓝图「图片」第 2 条）
+      this.thumbs = h('div.tl-thumbs', { hidden: true });
+      this.el = h(`div.tl-step.is-tool${message ? '.is-message' : ''}${fresh ? '.is-new' : ''}`, this.row, this.command, this.thumbs, h('div.tl-fold', h('div.tl-fold-inner', this.body)));
     }
     this.spinning = false;
   }
@@ -127,9 +129,39 @@ export class StepView {
     const rolling = this.live && !open && !!step.text.trim();
     this.window.hidden = !rolling;
     this.el.classList.toggle('is-rolling', rolling);
-    if (rolling) this.window.textContent = thinkingTail(step);
+    if (rolling) this.roll(step.text.trim());
+    else this.rollText = '';
     // 收起时字留着，收的动画里还看得到；点开时照最新的字接上
     if (open) this.thinkText(step.text.trim());
+  }
+
+  /**
+   * 在想时滚着的那几行（蓝图「时间线」思考的预览）：一行一块，只往后接，前面的只留两屏（滚出去的去掉，浏览器的滚动锚定
+   * 保着看得见的几行不动）；来了新的一行，原来的几行一起往上滑（平滑地滚到底），不一下跳上去（2026-10-01 项目主人指出）。
+   * 刚露出来的那一下直接到底。
+   * @param {string} text
+   */
+  roll(text) {
+    const box = this.window;
+    const keep = res.timeline.thinking_rows * 2;
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!this.rollText || !text.startsWith(this.rollText)) {
+      // 刚露出来、字不是接着原来的：只排最后两屏，直接到底
+      this.rollText = text;
+      box.replaceChildren(...thinkingTail(text, keep).split('\n').map((line) => h('div.tl-think-line', line)));
+      box.scrollTop = box.scrollHeight;
+      return;
+    }
+    const added = text.slice(this.rollText.length);
+    if (!added) return;
+    this.rollText = text;
+    const parts = added.split('\n');
+    const tail = /** @type {HTMLElement} */ (box.lastElementChild);
+    if (tail.firstChild) /** @type {Text} */ (tail.firstChild).appendData(parts[0]);
+    else tail.append(parts[0]);
+    for (const part of parts.slice(1)) box.append(h('div.tl-think-line', part));
+    while (box.childElementCount > keep) box.firstElementChild?.remove();
+    box.scrollTo({ top: box.scrollHeight, behavior: reduced ? 'auto' : 'smooth' });
   }
 
   /**
@@ -185,6 +217,7 @@ export class StepView {
       replace(this.command, lines ? [...lines.lines.map((l) => h('div.tl-cline', l)), lines.more ? h('div.tl-more', '⋮') : null] : []);
     }
     this.command.hidden = !lines;
+    this.drawThumbs(step, open);
     if (!open) return;
     const body = JSON.stringify([step.output, step.status, step.args, step.said]);
     if (body === this.drawnBody) return;
@@ -194,13 +227,26 @@ export class StepView {
         : h('div.tl-detail', h('div.tl-label', s.label), h('pre', s.text)))));
   }
 
+  /** 收着时预览区的小图（`result_image_thumb`）：点开了收掉，换成细节里的；图变了才重画。 */
+  drawThumbs(step, open) {
+    const images = step.images ?? [];
+    this.thumbs.hidden = open || !images.length || !this.where.session;
+    const sig = images.map((img) => img.blob).join(',');
+    if (this.thumbs.hidden || this.thumbs.dataset.sig === sig) return;
+    this.thumbs.dataset.sig = sig;
+    const row = /** @type {HTMLElement} */ (this.imagesNode({ label: '', images }).lastChild);
+    row.style.setProperty('--media-max', `${res.layout.result_image_thumb}px`);
+    replace(this.thumbs, row);
+  }
+
   /** 结果里的图：小一点（`result_image_max`），照核心收下的 blob 取，点开是灯箱（蓝图「图片」第 2 条）。 */
   imagesNode(s) {
     const name = String(this.step.parsed?.file_path ?? '').split('/').pop() || undefined;
     const session = this.where.session;
     return h('div.tl-detail', s.label ? h('div.tl-label', s.label) : null,
       h('div.tl-images', { style: `--media-max: ${res.layout.result_image_max}px` }, s.images.map((img) => (session
-        ? imageCard({ url: blobUrl(session, img.blob, img.media_type), name, width: img.width, height: img.height, lightbox: this.where.lightbox })
+        // 不照记的宽高先占地方：记的是原图的，blob 可能缩过、比例对不上，框会多出一截空（照图自己的比例画）
+        ? imageCard({ url: blobUrl(session, img.blob, img.media_type), name, lightbox: this.where.lightbox })
         : null))));
   }
 

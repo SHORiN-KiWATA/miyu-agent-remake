@@ -18,7 +18,7 @@ import { Slots } from './slots.js';
 import { Seams } from './seams.js';
 import { Loader, rows } from './loader.js';
 import { loadResources, useTexts, res, t } from '../util/res.js';
-import { pick, settingOf, options, languageSpec } from './language.js';
+import { pick, settingOf, options, languageSpec, fromConfig } from './language.js';
 import { Connection } from '../core/connection.js';
 import { Store } from '../core/store.js';
 import { useHost } from '../core/host.js';
@@ -28,6 +28,8 @@ import { useIcons } from '../lib/dom.js';
 import { KERNEL_SERVICES } from './services.js';
 
 /** 个人那一层（停用、启用、改配置）存在这台设备上的名字（带上账号）；核心有了个人设置以后搬进账号的家目录。 */
+/** JSON-RPC 的「没有这个方法」：连的核心还没有配置的接口 */
+const NO_METHOD = -32601;
 const USER_LAYER = 'packages';
 /** 内核自己的设置项在个人那一层里的编号（和软件包的补丁放在一起；发行版的写在 `distro.json` 的 `kernel`） */
 const KERNEL = 'kernel';
@@ -70,8 +72,20 @@ export async function boot(root) {
   // 这个页面登录成哪个账号：这台设备上存的按它分开（「多用户、多终端」第 5 条）
   const account = hello?.account ?? 'admin';
   const storage = accountStorage(host.store, account, LEGACY);
-  // 知道账号了：照个人那一层再定一次界面语言；界面的字、收起那一行的写法有一样变了重装字（重连时的握手照新的写）
+  // 知道账号了：照个人那一层再定一次界面语言；界面的字、收起那一行的写法有一样变了重装字（重连时的握手照新的写）。
+  // 核心有配置的：个人设置的 `ui.language` 说了算（蓝图「界面语言」第 5 条，规矩 A，和终端界面一样）；旧核心照这台设备上记的
   let setting = settingOf(res.languages, distro.kernel ?? {}, storage.get(USER_LAYER, {})[KERNEL]?.config ?? {});
+  /** 核心有没有配置的接口（`config.get`）：没有的，`/language` 只记在这台设备上 */
+  let viaCore = false;
+  const readCore = () => conn.request('config.get', { keys: ['ui.language'] }).then((got) => {
+    viaCore = true;
+    return fromConfig(got);
+  }, (err) => {
+    if (err?.code !== NO_METHOD) console.error(`读不到个人设置的界面语言：${err.message}`);
+    return null;
+  });
+  const fromCore = await readCore();
+  if (fromCore) setting = fromCore;
   const chosen = pick(setting, browser, res.languages);
   if (chosen.code !== language.code || chosen.summary !== language.summary) {
     await useTexts(resources, chosen);
@@ -94,8 +108,42 @@ export async function boot(root) {
   conn.onReopen(() => {
     conn.request('hello', greeting)
       .then(() => store.resume())
+      // 配置的订阅也要等重新握手以后（蓝图「界面语言」第 5 条）
+      .then(() => followConfig())
       .catch((err) => console.error(`重连以后接不上：${err.message}`));
   });
+
+  /**
+   * 换成这个设置（`auto` 或一种语言）：记进这台设备上的那一层（下次起来、旧核心照它）；界面的字、收起那一行的写法有一样变了，
+   * 重新载入页面。交回换完用哪一种、重不重载。
+   * @param {string} value
+   */
+  const applyLanguage = (value) => {
+    const user = storage.get(USER_LAYER, {});
+    user[KERNEL] = { ...user[KERNEL], config: { ...user[KERNEL]?.config, language: value } };
+    storage.set(USER_LAYER, user);
+    setting = value;
+    const next = pick(value, browser, res.languages);
+    const reload = next.code !== language.code || next.summary !== language.summary;
+    if (reload) location.reload();
+    return { language: next, reload };
+  };
+  // 订阅配置（蓝图「界面语言」第 5 条）：别的头、命令行、手改设置文件改了 `ui.language`，当场跟着；掉了队、断了又连上，重新订阅、再读一次
+  const followConfig = () => {
+    if (!viaCore) return;
+    conn.request('subscribe', { stream: 'config' })
+      .then(readCore)
+      .then((value) => { if (value && value !== setting) applyLanguage(value); })
+      .catch((err) => console.error(`订阅不上配置：${err.message}`));
+  };
+  conn.onPush((method, params) => {
+    if (method === 'config.changed') {
+      const value = fromConfig(params);
+      if (value && value !== setting) applyLanguage(value);
+    }
+    if (method === 'resync' && params?.stream === 'config') followConfig();
+  });
+  followConfig();
 
   const registry = new Registry();
   const slots = new Slots();
@@ -168,15 +216,10 @@ export async function boot(root) {
          * 改设置项（`auto` 或表里的一种）；界面的字、时间线收起那一行的写法有一样变了，重新载入页面。交回改完用哪一种、
          * 重不重载。
          */
-        set: (value) => {
-          const user = storage.get(USER_LAYER, {});
-          user[KERNEL] = { ...user[KERNEL], config: { ...user[KERNEL]?.config, language: value } };
-          storage.set(USER_LAYER, user);
-          setting = value;
-          const next = pick(value, browser, res.languages);
-          const reload = next.code !== language.code || next.summary !== language.summary;
-          if (reload) location.reload();
-          return { language: next, reload };
+        set: async (value) => {
+          // 核心有配置的写回个人设置（成了才换；拒了的抛出去，由命令那边提示原因）；旧核心只记在这台设备上
+          if (viaCore) await conn.request('config.set', { layer: 'personal', changes: [{ key: 'ui.language', value }] });
+          return applyLanguage(value);
         },
       });
       ctx.provide('packages', {

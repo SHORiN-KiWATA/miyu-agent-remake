@@ -158,12 +158,52 @@ export class Follow {
         this.follow = false;
       }
     }
-    this.place(top, view, natural);
+    this.glide(top, view, natural);
     this.floor = top;
+  }
+
+  /**
+   * 跟着最新的往下走：缓过去，不一下跳到位（蓝图「滚动」：追着要到的位置走，一帧走剩下的 `glide_rate`）。往回、一下要走
+   * 过一屏的、减少动画的照旧一下到位；人一滚（`intentAt`）就停下来交给人。走的时候每一帧记下放到了哪（`placed`），
+   * 浏览器报的滚动不当成人滚的。
+   */
+  glide(top, view, natural) {
+    this.spacer.style.height = `${padFor(top, view, natural)}px`;
+    const from = this.el.scrollTop;
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced || top <= from || top - from > view) {
+      this.glideTo = null;
+      this.place(top, view, natural);
+      return;
+    }
+    this.glideTo = top;
+    if (this.gliding) return;
+    this.gliding = true;
+    const start = performance.now();
+    const step = () => {
+      const to = this.glideTo;
+      if (to == null || this.intentAt > start || !this.follow) {
+        this.gliding = false;
+        return;
+      }
+      const at = this.el.scrollTop;
+      const left = to - at;
+      if (Math.abs(left) < 0.5) {
+        this.gliding = false;
+        return;
+      }
+      this.el.scrollTop = at + (Math.abs(left) < 1 ? left : left * res.layout.glide_rate);
+      this.placed = this.el.scrollTop;
+      this.lastTop = this.placed;
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   }
 
   /** 视口放到 `top`，底下不够的垫上。 */
   place(top, view, natural) {
+    // 一下定位的（钉住被点的那一行、清空顶到最上面、往回）：还在缓的停掉
+    this.glideTo = null;
     this.spacer.style.height = `${padFor(top, view, natural)}px`;
     this.el.scrollTop = top;
     this.placed = this.el.scrollTop;

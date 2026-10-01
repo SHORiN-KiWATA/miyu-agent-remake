@@ -92,9 +92,11 @@
 .session-lead { display: grid; width: 11px; height: 14px; place-items: center; }
 .session-run-spinner { color: var(--gold); font-family: var(--mono); font-size: 17px; line-height: 1; }
 .session-unread-dot {
-  display: block; width: 11px; height: 11px; border-radius: 50%; color: var(--accent);
-  background: radial-gradient(circle, currentColor 0 3.5px, transparent 3.5px); animation: status-pulse 2.4s ease-in-out infinite;
+  position: relative; display: block; width: 11px; height: 11px; border-radius: 50%; color: var(--accent);
+  background: radial-gradient(circle, currentColor 0 3.5px, transparent 3.5px);
 }
+/* 没看过的那一圈：只画在中间那个点上（呼吸照 base.css 的 status-pulse，只动 transform、opacity） */
+.session-unread-dot::after { inset: 2px; }
 .session-copy { display: flex; min-width: 0; align-items: center; gap: 4px; }
 .session-copy strong { display: block; min-width: 0; flex: 1; font-size: 12.5px; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 顶层收着的：标题前面写下面挂了几个子代理 */

@@ -146,20 +146,20 @@ test('留言认出发给的是哪个子代理：照派它的那一步的标题�
     ev(1, 0, 'session.created', undefined, { permission: { level: 'workspace', read_only: false } }),
     ev(2, 0, 'message.user', undefined, { blocks: [{ type: 'text', text: '派一个去查' }] }),
     ev(3, 0, 'turn.started', 3, { trigger: 2 }),
-    ev(4, 1, 'message.assistant', 3, { seen: 3, blocks: [{ type: 'tool_call', call_id: 'c1', name: 'agent', args: '{"description":"查文档","prompt":"去查"}' }] }, MODEL),
+    ev(4, 1, 'message.assistant', 3, { seen: 3, blocks: [{ type: 'tool_call', call_id: 'c1', name: 'subagent', args: '{"description":"查文档","prompt":"去查"}' }] }, MODEL),
     ev(5, 2, 'tool.result', 3, { call_id: 'c1', status: 'ok', blocks: [{ type: 'text', text: 'started j2' }], effects: [{ kind: 'job.started', job: 'j2' }] }),
     ev(6, 3, 'message.assistant', 3, { seen: 5, blocks: [{ type: 'text', text: '派出去了。' }] }, MODEL),
     ev(7, 4, 'turn.ended', 3, { reason: 'completed' }),
     ev(8, 5, 'message.user', undefined, { blocks: [{ type: 'text', text: '告诉它先别改' }] }),
     ev(9, 5, 'turn.started', 9, { trigger: 8 }),
     ev(10, 6, 'message.assistant', 9, { seen: 9, blocks: [
-      { type: 'tool_call', call_id: 'c2', name: 'message_agent', args: '{"to":"j2","message":"先别改"}' },
-      { type: 'tool_call', call_id: 'c3', name: 'message_agent', args: '{"to":"j9","message":"x"}' },
+      { type: 'tool_call', call_id: 'c2', name: 'send_message', args: '{"to":"j2","message":"先别改"}' },
+      { type: 'tool_call', call_id: 'c3', name: 'send_message', args: '{"to":"j9","message":"x"}' },
     ] }, MODEL),
     ev(11, 7, 'tool.result', 9, { call_id: 'c2', status: 'ok', blocks: [{ type: 'text', text: 'Message sent to j2.' }] }),
     ev(12, 7, 'tool.result', 9, { call_id: 'c3', status: 'error', blocks: [{ type: 'text', text: 'not yours' }] }),
   ]).items;
-  const steps = items.filter((it) => it.type === 'steps').flatMap((it) => it.steps).filter((s) => s.name === 'message_agent');
+  const steps = items.filter((it) => it.type === 'steps').flatMap((it) => it.steps).filter((s) => s.name === 'send_message');
   assert.deepEqual(steps.map((s) => s.toTitle ?? null), ['查文档', null]);
 });
 

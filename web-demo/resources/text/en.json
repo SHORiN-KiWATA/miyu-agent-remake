@@ -46,6 +46,10 @@
       "messages": [
         "1 message",
         "{count} messages"
+      ],
+      "messaged_sessions": [
+        "Messaged 1 session",
+        "Messaged {count} sessions"
       ]
     }
   }

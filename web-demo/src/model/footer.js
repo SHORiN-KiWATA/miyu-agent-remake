@@ -11,8 +11,9 @@ const input = (u) => u.uncached + u.cache_read + u.cache_write;
 /**
  * @param {any[]} events 这个会话的持久事件
  * @param {{window?: number}} limits `subscribe` 回应里的限额（蓝图 `protocol.md`）
+ * @param {Map<number, {before: number, after: number}>} [stats] 看着压好的那几次压缩的前后用量，照落了盘的那一条的序号（`core/store.js`）
  */
-export function footer(events, limits) {
+export function footer(events, limits, stats = new Map()) {
   let level = 'workspace';
   let model = null;
   let endpoint = null;
@@ -24,6 +25,8 @@ export function footer(events, limits) {
     if ((e.kind === 'session.created' || e.kind === 'session.policy_changed') && b.permission) level = levelOf(b.permission);
     // 清空了：上下文清零，下一次请求再照实际的写（蓝图 `web.md`「压缩、清空」）
     if (e.kind === 'context.compacted' && b.trigger === 'clear') context = 0;
+    // 压好了：换成压完的用量（看着压好的那一次核心估的 `after`）；读回来的不知道，先不写，下一次主请求再照实际的写
+    else if (e.kind === 'context.compacted') context = stats.get(e.seq)?.after ?? 0;
     if (e.kind !== 'model.called') continue;
     if (b.model) ({ model, endpoint } = b);
     if (!b.usage) continue;

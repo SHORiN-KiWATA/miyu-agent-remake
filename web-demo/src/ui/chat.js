@@ -44,7 +44,8 @@ export class Chat {
     this.list.append(this.compacting.el, this.tail);
     /** 内容变短时垫在底下的空白（见开头）。 */
     this.spacer = h('div.chat-spacer');
-    this.el = h('div.chat-scroll', this.list, this.spacer);
+    // 底边的淡出（sticky 的一条，不用 mask：滚动时不用重画整片正文）
+    this.el = h('div.chat-scroll', this.list, this.spacer, h('div.chat-fade', { 'aria-hidden': 'true' }));
     this.scroll = new Follow(this.el, this.list, this.spacer);
     /** 看着你说的话的（软件包 rail 这类，经服务 `chat`）：每画一次交一份；新来的先拿到现在的 */
     this.promptWatchers = new Set();
@@ -273,7 +274,7 @@ function reconcile(parent, known, items, chat) {
       }
       rec.view.update(it);
     } else {
-      const sig = JSON.stringify(it);
+      const sig = sigOf(it);
       if (!rec || rec.sig !== sig) {
         const node = itemNode(it, chat);
         rec?.node.replaceWith(node);
@@ -292,6 +293,14 @@ function reconcile(parent, known, items, chat) {
     rec.node.remove();
     known.delete(key);
   }
+}
+
+/**
+ * 一条的签名：变了才重画。长的字不整串比，只比长度和末尾一截（在收的回答只往后接；蓝图「性能」：原来每画一次把每条回答
+ * 整串序列化，长会话里她每来一段字都要上百毫秒）。
+ */
+function sigOf(it) {
+  return JSON.stringify(it, (_, v) => (typeof v === 'string' && v.length > 256 ? `${v.length}:${v.slice(0, 32)}…${v.slice(-64)}` : v));
 }
 
 /** 她的一轮：头像和名字，下面是内容；`cont` 的是接着她同一轮的（中间插进来一句话），只有内容。 */

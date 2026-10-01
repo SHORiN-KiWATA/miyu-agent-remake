@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { pick, options, languageSpec, settingOf } from '../src/kernel/language.js';
+import { pick, options, languageSpec, settingOf, fromConfig } from '../src/kernel/language.js';
 import { local, merge } from '../src/lib/text.js';
 import { res, settle } from '../src/util/res.js';
 
@@ -137,4 +137,20 @@ test('时间线收起那一行：跟着浏览器（auto）的用英文那一套�
   assert.equal(res.text.timeline.thought, ja.timeline.thought);
   settle(zh, ja, lang('ja', 'ja'), [], null);
   assert.equal(res.text.timeline.summary.ran[0], ja.timeline.summary.ran[0]);
+});
+
+test('个人设置写了网页的表里没有的语言（en）：界面照浏览器认，收起那一行照它写（有那一套字）（蓝图「界面语言」第 5 条）', () => {
+  const table = JSON.parse(readFileSync(new URL('../resources/languages.json', import.meta.url), 'utf8'));
+  const got = pick('en', ['ja-JP'], table);
+  assert.equal(got.code, 'ja');
+  assert.equal(got.summary, 'en');
+  assert.equal(pick('fr', ['zh-CN'], table).summary, 'zh', '连收起那一行的字都没有的：照界面那一种');
+});
+
+test('从核心读个人设置的界面语言：config.get 的 items、config.changed 的 keys（取 effective）；没有的是 null', () => {
+  assert.equal(fromConfig({ items: { 'ui.language': { value: 'ja', origin: { layer: 'personal' } } } }), 'ja');
+  assert.equal(fromConfig({ keys: { 'ui.language': { effective: 'zh', value: 'zh', applies: 'now' } } }), 'zh');
+  assert.equal(fromConfig({ keys: { 'ui.language': { effective: 'auto', applies: 'now' } } }), 'auto', '删掉了的那一项照 effective（回到默认）');
+  assert.equal(fromConfig({ keys: { 'log.level': { effective: 'info' } } }), null);
+  assert.equal(fromConfig(null), null);
 });

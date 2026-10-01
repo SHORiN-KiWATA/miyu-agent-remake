@@ -5,6 +5,7 @@
 
 import { res, t } from '../util/res.js';
 import { seconds, short } from './format.js';
+import { shortSession } from './words.js';
 
 /**
  * @typedef {{what: string, title: string, session: string|null, command: string|null}} Job 派出去的一个任务（`tool.result` 的效果
@@ -15,7 +16,7 @@ import { seconds, short } from './format.js';
  */
 
 /** 内核自己查出来的几种错：不是供应商的原话，写分类的人话（`tui.md`「正文」第 4 条）。 */
-const KERNEL_CLASSES = ['bad_stream', 'empty_reply', 'bad_summary', 'compaction_paused'];
+const KERNEL_CLASSES = ['bad_stream', 'empty_reply', 'bad_summary', 'compaction_paused', 'no_model'];
 
 /**
  * 一条 `tool.result` 里派出去的任务，记进 `jobs`（任务编号 → 种类、标题、子会话、命令）。
@@ -33,7 +34,7 @@ export function noteJobs(e, jobs, args) {
 }
 
 /**
- * 一句话是谁说的：人照账号；子代理照派它的那次的标题；别的 harness 照它报的名字、注明是别的 agent；平台上的人写「外部」。
+ * 一句话是谁说的：人照账号；子代理照派它的那次的标题；父会话写「派它的会话」，别的会话写「从会话 短编号 收到消息」；别的 harness 照它报的名字、注明是别的 agent；平台上的人写「外部」。
  * @param {any} by 事件的 `by`
  * @param {Map<string, Job>} jobs
  * @param {string|null} [parent] 这个会话是子会话的：派它的那个会话（`session.created` 的 `parent`）
@@ -45,11 +46,40 @@ export function speakerOf(by, jobs, parent = null) {
   if (by?.kind === 'session') {
     const job = [...jobs.values()].find((j) => j.session === by.id);
     if (job) return { kind: 'agent', account: null, name: t('notes.agent_speaker', { title: job.title }) };
-    return { kind: by.id === parent ? 'parent' : 'session', account: null, name: by.id === parent ? n.parent_speaker : n.other_session, id: by.id };
+    if (by.id === parent) return { kind: 'parent', account: null, name: n.parent_speaker, id: by.id };
+    // 别的会话发来的（施工 C-5）：「从会话 短编号 收到消息」，标题界面那边照会话表接（2026-10-01 项目主人定，照终端）
+    return { kind: 'session', account: null, name: t('notes.session_speaker', { id: shortSession(String(by.id ?? '')) }), id: by.id };
   }
   if (by?.kind === 'harness') return { kind: 'harness', account: null, name: t('notes.harness_speaker', { name: by.name ?? '' }) };
   if (by?.kind === 'external') return { kind: 'external', account: null, name: n.external };
   return { kind: by?.kind ?? 'unknown', account: null, name: by?.kind ?? '' };
+}
+
+/**
+ * 别的会话空下来了、等不到了（`peer.idle`，跨会话施工 C-6）：不属于哪一轮。`idle` 写「会话 短编号 回复：status」（没有 status 的写「回复了」），绿点；
+ * `expired`、`gone` 暗点（只记下、不叫醒她）；点开看完整的编号和 `status`。
+ * @param {any} e
+ */
+export function peerNote(e) {
+  const b = e.body;
+  const id = String(b.session ?? '');
+  const short = shortSession(id);
+  const marks = res.layout.note_marks;
+  const status = typeof b.status === 'string' ? b.status.trim() : '';
+  let tone = 'dim';
+  let text;
+  if (b.reason === 'idle') {
+    tone = 'good';
+    text = status ? t('notes.peer.idle_status', { id: short, status }) : t('notes.peer.idle', { id: short });
+  } else if (b.reason === 'expired' || b.reason === 'gone') {
+    tone = 'stopped';
+    text = t(`notes.peer.${b.reason}`, { id: short });
+  } else {
+    text = t('notes.peer.unknown', { id: short, reason: b.reason });
+  }
+  /** @type {Detail} */
+  const detail = { kind: 'text', text: status ? `${id}\n\n${status}` : id, truncated: false };
+  return { type: 'note', key: `n${e.seq}`, seq: e.seq, turn: null, tone, mark: marks[tone] ?? '', text, detail };
 }
 
 /**

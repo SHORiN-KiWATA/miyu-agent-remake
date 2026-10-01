@@ -17,6 +17,21 @@ const HOME = '/home/me';
 function tool(name, args, more = {}) {
   return { key: name, kind: 'tool', name, args: JSON.stringify(args), parsed: args, state: 'done', status: 'ok', output: '', said: null, start: ms(0), end: ms(1), duration: null, ...more };
 }
+/**
+ * 临时放几句说法再跑：核心的说法是仓库资源目录里读的，有的要合进 main 才有；跑完放回原样。
+ * @param {Record<string, string>} templates
+ * @param {() => void} fn
+ */
+function withSaid(templates, fn) {
+  const said = /** @type {Record<string, string>} */ (res.human.said);
+  const had = Object.fromEntries(Object.keys(templates).map((k) => [k, said[k]]));
+  Object.assign(said, templates);
+  try {
+    fn();
+  } finally {
+    for (const [k, v] of Object.entries(had)) if (v === undefined) delete said[k]; else said[k] = v;
+  }
+}
 function thought(text, start = null, end = null, more = {}) {
   return { key: 'th', kind: 'thought', text, state: 'done', start, end, ...more };
 }
@@ -32,9 +47,9 @@ test('思考：在想的写「正在思考」、整秒走表；想完「已思�
   assert.equal(row(thought('x'), HOME).took, null);
 });
 
-test('执行命令：图标 terminal，对象是短标题；用时照 duration_ms，在跑的走表', () => {
+test('执行命令：图标 square-terminal（带外框），对象是短标题；用时照 duration_ms，在跑的走表', () => {
   const r = row(tool('shell', { command: 'ls -la', description: '列目录' }, { duration: 23 }), HOME);
-  assert.deepEqual([r.icon, r.name, r.subject, r.took, r.mono], ['terminal', '执行命令', '列目录', '23 ms', false]);
+  assert.deepEqual([r.icon, r.name, r.subject, r.took, r.mono], ['square-terminal', '执行命令', '列目录', '23 ms', false]);
   assert.equal(row(tool('shell', { command: 'x' }, { duration: 1234 }), HOME).took, '1.2 s');
   assert.equal(row(tool('shell', { command: 'x' }, { duration: 12_400 }), HOME).took, '12 s');
   const running = row(tool('shell', { command: 'x' }, { state: 'running', status: null, start: ms(5) }), HOME);
@@ -81,7 +96,8 @@ test('思考收着时的那一小段：最后 160 个字，空白压成一个空
   const english = peek(thought(`abc what${' y'.repeat(78)}`));
   assert.equal(english, `…${' y'.repeat(78).trimStart()}`, '截在 what 中间：留下的 hat 不要');
   const lines = Array.from({ length: 14 }, (_, i) => `第${i + 1}行`).join('\n');
-  assert.deepEqual(thinkingTail(thought(`\n${lines}\n`)).split('\n'), Array.from({ length: 10 }, (_, i) => `第${i + 5}行`));
+  assert.deepEqual(thinkingTail(`\n${lines}\n`).split('\n'), Array.from({ length: 10 }, (_, i) => `第${i + 5}行`));
+  assert.deepEqual(thinkingTail(lines, 3).split('\n'), ['第12行', '第13行', '第14行'], '要几行给几行');
 });
 
 test('命令写在下面的几行：最多 8 行，放不下时让出最后一行写 ⋮；还没有命令的没有', () => {
@@ -168,8 +184,8 @@ test('收起那一行：一步的时刻都不知道的不写用时', () => {
 });
 
 test('收起那一行：派子代理写 Spawned，给子代理留言写 Messaged，不写 Used 1 tool', () => {
-  const agent = tool('agent', { description: '查文档', prompt: 'x' });
-  const message = tool('message_agent', { to: 'j2', message: 'x' });
+  const agent = tool('subagent', { description: '查文档', prompt: 'x' });
+  const message = tool('send_message', { to: 'j2', message: 'x' });
   assert.equal(line([agent]), 'Spawned 1 agent · 1s');
   assert.equal(line([agent, agent, message]), 'Spawned 2 agents · 1 message · 1s');
   assert.equal(line([message]), 'Messaged 1 agent · 1s');
@@ -178,21 +194,20 @@ test('收起那一行：派子代理写 Spawned，给子代理留言写 Messaged
 
 test('派子代理那一步：写「派子代理 · 编号 · 标题」（编号照结果里的 job.started），不写结果那一句；点开是完整的提示词', () => {
   const args = { description: 'Fix 2 mismatches', prompt: '你是子代理。\n先读 docs/，再改两处不一致。' };
-  const spawned = tool('agent', args, { state: 'done', status: 'ok', job: 'j2', said: { key: 'agent/started', fields: { job: 'j2' } }, output: 'started j2' });
+  const spawned = tool('subagent', args, { state: 'done', status: 'ok', job: 'j2', said: { key: 'agent/started', fields: { job: 'j2' } }, output: 'started j2' });
   const r = row(spawned, HOME);
   assert.equal(r.name, '派子代理');
   assert.equal(r.subject, 'j2 · Fix 2 mismatches');
   assert.equal(r.said, null);
   assert.deepEqual(details(spawned), [{ kind: 'text', label: '提示词', text: '你是子代理。\n先读 docs/，再改两处不一致。' }]);
-  const running = tool('agent', args, { state: 'running' });
+  const running = tool('subagent', args, { state: 'running' });
   assert.equal(row(running, HOME).subject, 'Fix 2 mismatches', '还没派出去（没有编号）的只写标题');
 });
 
 test('留言那一步：写「留言 · j2」，送到了不接结果那一句；收着时后面是留言开头的预览，点开是发给谁、完整的消息（2026-10-01）', () => {
   const text = '先别改 a.rs，\n  我这边刚发现它被别处引用了。';
-  const sent = tool('message_agent', { to: 'j2', message: text }, { toTitle: 'Fix 2 mismatches', said: { key: 'software/basesystem/message_agent/sent', fields: { to: 'j2' } }, output: 'Message sent to j2.' });
+  const sent = tool('send_message', { to: 'j2', message: text }, { toTitle: 'Fix 2 mismatches', said: { key: 'software/basesystem/send_message/sent', fields: { to: 'j2' } }, output: 'Message sent to j2.' });
   const r = row(sent, HOME);
-  assert.equal(r.name, '留言');
   assert.equal(r.subject, 'j2');
   assert.equal(r.mono, false);
   assert.equal(r.said, null, '送到了那一句和对象重了，不写');
@@ -202,19 +217,43 @@ test('留言那一步：写「留言 · j2」，送到了不接结果那一句�
     { kind: 'text', label: '消息', text },
   ]);
   // 找不到标题的只写编号；发给父会话的写「父会话」
-  assert.equal(details(tool('message_agent', { to: 'j3', message: 'x' }))[0].text, 'j3');
-  const up = tool('message_agent', { to: 'parent', message: '做完一半了' });
+  assert.equal(details(tool('send_message', { to: 'j3', message: 'x' }))[0].text, 'j3');
+  const up = tool('send_message', { to: 'parent', message: '做完一半了' });
   assert.equal(row(up, HOME).subject, '父会话');
   assert.equal(details(up)[0].text, '父会话');
   // 没送到的照写结果那一句，点开接着结果
-  const stopped = tool('message_agent', { to: 'j2', message: 'x' }, { status: 'error', said: { key: 'software/basesystem/message_agent/stopped', fields: { to: 'j2' } }, output: 'Subagent j2 was stopped and takes no more messages.' });
-  assert.equal(row(stopped, HOME).said, 'j2 已经停了');
-  assert.equal(details(stopped).at(-1)?.label, '结果');
+  const key = 'software/basesystem/send_message/stopped';
+  withSaid({ [key]: '{to} 已经停了' }, () => {
+    const stopped = tool('send_message', { to: 'j2', message: 'x' }, { status: 'error', said: { key, fields: { to: 'j2' } }, output: 'Subagent j2 was stopped and takes no more messages.' });
+    assert.equal(row(stopped, HOME).said, 'j2 已经停了');
+    assert.equal(details(stopped).at(-1)?.label, '结果');
+  });
+});
+
+test('留言发给别的会话（核心施工 C-5）：写「会话 短编号」；存下了照写那一句', () => {
+  const sent = tool('send_message', { to: 'j2', message: '先别改' }, { toTitle: 'Fix 2 mismatches' });
+  // 显示名是核心的工具表给的（合进 main 以后有 send_message），这里只看网页这边：图标、算留言、对象、预览、细节
+  assert.equal(row(sent, HOME).icon, 'bot-message-square');
+  assert.equal(messagePeek(sent), '先别改');
+  assert.equal(details(sent)[0].text, 'j2 · Fix 2 mismatches');
+  // 会话编号：整个的、后缀的都写最后 8 位（核心的短编号）
+  const peer = tool('send_message', { to: '019a6f2e-7c41-7d3b-9a52-1f0e8c3b4d5a', message: '帮我看下' });
+  assert.equal(row(peer, HOME).subject, '会话 8c3b4d5a');
+  assert.equal(details(peer)[0].text, '会话 8c3b4d5a');
+  assert.equal(row(tool('send_message', { to: '0e8c3b4d5a', message: 'x' }), HOME).subject, '会话 8c3b4d5a');
+  assert.equal(row(tool('send_message', { to: 'j12', message: 'x' }), HOME).subject, 'j12', '任务编号不是会话');
+  // 存下了（对方是没人看着的一次性会话）：送到了以外的话都照写
+  const key = 'software/basesystem/send_message/held';
+  withSaid({ [key]: '给 {to} 存下了' }, () => {
+    const held = tool('send_message', { to: '8c3b4d5a', message: 'x' }, { said: { key, fields: { to: '8c3b4d5a' } }, output: 'Message saved for 8c3b4d5a.' });
+    assert.equal(row(held, HOME).said, '给 8c3b4d5a 存下了');
+    assert.equal(details(held).at(-1)?.label, '结果');
+  });
 });
 
 test('留言的预览：长的截开头 peek_chars 个字、末尾写 …；别的步没有', () => {
   const long = 'a'.repeat(400);
-  const p = messagePeek(tool('message_agent', { to: 'j2', message: long }));
+  const p = messagePeek(tool('send_message', { to: 'j2', message: long }));
   assert.equal(p.length, 160);
   assert.ok(p.endsWith('…'));
   assert.equal(messagePeek(tool('read', { file_path: 'x' })), '');
@@ -225,16 +264,44 @@ test('收起那一行：手动定了语言的照那种语言写（中文、日�
   const english = res.text.timeline.summary;
   const own = (code) => JSON.parse(readFileSync(new URL(`../resources/text/${code}.json`, import.meta.url), 'utf8')).timeline.summary;
   const steps = [tool('shell', { command: 'a' }), tool('shell', { command: 'b' }), tool('edit', {}), thought('x', ms(0), ms(2))];
-  const agent = tool('agent', { description: '查文档', prompt: 'x' });
+  const agent = tool('subagent', { description: '查文档', prompt: 'x' });
   try {
     res.text.timeline.summary = own('zh');
     assert.equal(line(steps), '执行了 2 条命令 · 1 处编辑 · 1 次思考 · 2s');
-    assert.equal(line([agent, tool('message_agent', { to: 'j2', message: 'x' })]), '派了 1 个子代理 · 1 条留言 · 1s');
+    assert.equal(line([agent, tool('send_message', { to: 'j2', message: 'x' })]), '派了 1 个子代理 · 1 条留言 · 1s');
     assert.equal(line([thought('x', ms(0), ms(26))]), '思考了 26s');
     res.text.timeline.summary = own('ja');
     assert.equal(line(steps), 'コマンドを 2 件実行 · 編集 1 件 · 思考 1 回 · 2s');
     assert.equal(line([agent]), 'サブエージェントを 1 件派遣 · 1s');
     assert.equal(line([thought('x', ms(0), ms(26))]), '思考時間 26s');
+  } finally {
+    res.text.timeline.summary = english;
+  }
+});
+
+test('每件工具都有自己的图标，不落到扳手：列会话 sessions 和左栏「会话」同一个（2026-10-01 项目主人指出）', () => {
+  assert.equal(row(tool('sessions', {}), HOME).icon, 'message-circle');
+  for (const name of ['shell', 'read', 'glob', 'grep', 'history', 'write', 'edit', 'trash', 'subagent', 'send_message', 'jobs', 'sessions']) {
+    assert.notEqual(row(tool(name, {}), HOME).icon, res.timeline.icon_default, name);
+  }
+});
+
+test('收起那一行：发给别的会话的留言另数一格，打不打头都写 Messaged N session(s)，排在给子代理的留言后面（2026-10-01 项目主人定，和 TUI 一样）', () => {
+  const peer = (to) => tool('send_message', { to, message: 'x' });
+  const id = '0199a000-0000-7000-8000-00000000000f';
+  assert.equal(line([peer(id)]), 'Messaged 1 session · 1s');
+  assert.equal(line([peer(id), peer('0000000f')]), 'Messaged 2 sessions · 1s');
+  assert.equal(line([peer('j2'), peer(id)]), 'Messaged 1 agent · Messaged 1 session · 1s');
+  assert.equal(line([tool('shell', { command: 'a' }), peer(id)]), 'Ran 1 command · Messaged 1 session · 1s');
+  assert.equal(line([peer(id), tool('read', { file_path: 'x' })]), 'Messaged 1 session · 1 tool · 1s');
+  assert.equal(line([peer('j10'), peer('parent')]), 'Messaged 2 agents · 1s', 'j10、parent 不是会话');
+  const english = res.text.timeline.summary;
+  const own = (code) => JSON.parse(readFileSync(new URL(`../resources/text/${code}.json`, import.meta.url), 'utf8')).timeline.summary;
+  try {
+    res.text.timeline.summary = own('zh');
+    assert.equal(line([peer('j2'), peer(id)]), '给 1 个子代理留言 · 给 1 个会话留言 · 1s');
+    res.text.timeline.summary = own('ja');
+    assert.equal(line([peer(id)]), 'セッション 1 件にメッセージ · 1s');
   } finally {
     res.text.timeline.summary = english;
   }
@@ -263,12 +330,11 @@ test('收起那一行：没改成的编辑（出错、被拒、打断）不算 e
   assert.equal(line([denied]), 'Used 1 tool · 1 err · 1s');
 });
 
-test('派子代理的工具改名 subagent（施工 7-5 再补）：新旧两个名字都认成派子代理，图标、那一行、收起那一行一样', () => {
+test('派子代理的工具 subagent：图标、那一行、收起那一行', () => {
   const args = { description: '查文档', prompt: '去查' };
   const neu = tool('subagent', args, { job: 'j3' });
   assert.equal(row(neu, HOME).icon, 'bot');
   assert.equal(row(neu, HOME).subject, 'j3 · 查文档');
   assert.equal(line([neu]), 'Spawned 1 agent · 1s');
-  assert.equal(line([neu, tool('agent', args)]), 'Spawned 2 agents · 1s', '旧会话里的 agent 照旧认');
   assert.deepEqual(details(neu), [{ kind: 'text', label: '提示词', text: '去查' }]);
 });

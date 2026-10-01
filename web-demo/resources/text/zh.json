@@ -56,6 +56,7 @@
     "empty_reply": "回复是空的",
     "bad_summary": "取不出摘要",
     "compaction_paused": "自动压缩暂停着",
+    "no_model": "没配好模型",
     "other": "模型出错"
   },
   "levels": {
@@ -101,6 +102,7 @@
     "parent": "父会话",
     "message_subject": "{to}",
     "message_to": "{job} · {title}",
+    "message_session": "会话 {id}",
     "peek_sep": "·",
     "agent_subject": "{job} · {title}",
     "agent_pending": "{title}",
@@ -151,6 +153,10 @@
       "messages": [
         "1 条留言",
         "{count} 条留言"
+      ],
+      "messaged_sessions": [
+        "给 1 个会话留言",
+        "给 {count} 个会话留言"
       ]
     }
   },
@@ -259,7 +265,8 @@
     "cancel": "取消",
     "send": "发送",
     "download": "下载 {name}",
-    "from": "来自「{title}」"
+    "from": "来自「{title}」",
+    "from_session": "从会话 {id}「{title}」收到消息"
   },
   "esc_interrupt_hint": "再按一次 Esc 打断",
   "interrupt": "打断",
@@ -321,12 +328,19 @@
     "command_label": "命令",
     "output_label": "输出",
     "parent_speaker": "派它的会话",
-    "other_session": "另一个会话",
     "recap": "回顾",
     "compact_failed": "压缩失败：{reason}",
     "compacted_stats": "上下文已压缩：{before} → {after} token",
     "compacting": "正在压缩上下文",
-    "compacting_count": "{count} 字"
+    "compacting_count": "{count} 字",
+    "session_speaker": "从会话 {id} 收到消息",
+    "peer": {
+      "idle": "会话 {id} 回复了",
+      "idle_status": "会话 {id} 回复：{status}",
+      "expired": "会话 {id} 一直没空下来，不等了",
+      "gone": "会话 {id} 不在了，不等了",
+      "unknown": "会话 {id} · {reason}"
+    }
   },
   "ago": {
     "now": "刚才",
@@ -353,5 +367,11 @@
     "aborted": "核心上次在这一轮崩了，没做完",
     "step_limit": "请求次数到了上限，停了"
   },
-  "jump_bottom": "回到最底下"
+  "jump_bottom": "回到最底下",
+  "stash": {
+    "mark": "已暂存",
+    "hint": "Ctrl+S 取回",
+    "stashed": "已暂存 · Ctrl+S 取回",
+    "empty": "没有暂存的"
+  }
 }

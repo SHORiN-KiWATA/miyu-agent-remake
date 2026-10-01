@@ -12,12 +12,14 @@
 ```sh
 cargo build -p miyu
 cargo build --manifest-path web-demo/bridge/Cargo.toml
-MIYU_HOME=<单独的测试目录> MIYU_RESOURCES=$PWD/resources MIYU_CORE_BIN=$PWD/target/debug/miyu \
-  DEEPSEEK_API_KEY=<key> MIYU_DEV_BASE_URL=<地址，写到 /v1> MIYU_DEV_MODEL=<模型> MIYU_DEV_WINDOW=300000 \
-  web-demo/bridge/target/debug/miyu-web-bridge 8766
+# 第一次：建数据根的骨架、写模型的配置（system/config.toml；已经有配置的不覆盖）
+MIYU_DEV_BASE_URL=<地址，写到 /v1> MIYU_DEV_MODEL=<模型> MIYU_DEV_WINDOW=300000 cargo xtask dev-home <单独的测试目录>
+MIYU_HOME=<同一个目录> MIYU_RESOURCES=$PWD/resources MIYU_CORE_BIN=$PWD/target/debug/miyu \
+  DEEPSEEK_API_KEY=<key> MIYU_DEV_BASE_URL=<地址，写到 /v1> web-demo/bridge/target/debug/miyu-web-bridge 8766
 ```
 
 - 打开桥打出来的链接（`http://127.0.0.1:8766/#k=…`）。口令这一次启动有效，没有它连不上。最后那个数是端口，不写是 8765。
+- 模型从数据根的配置来（核心施工 8-6）：`dev-home` 写一家供应商 `dev`，地址引用环境变量 `MIYU_DEV_BASE_URL`、key 引用 `DEEPSEEK_API_KEY`，配置文件里没有地址和 key（`dev-home` 要设着地址，只查它的写法、不写进去）。
 - 变量写在命令前面，不要 `export`；key 和地址只放在命令里，不写进任何文件。
 - 核心没在跑时桥用 `MIYU_CORE_BIN` 拉起来；核心只在起来那一刻读环境变量，改了变量先停核心。桥停了核心不跟着停。
 - 新会话在起桥的那个目录里干活。

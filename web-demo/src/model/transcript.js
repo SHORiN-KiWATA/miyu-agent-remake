@@ -17,7 +17,7 @@ import { res, t } from '../util/res.js';
 import { short, hitRate, seconds, hhmm } from './format.js';
 import { text, attachments } from './session.js';
 import { Timeline } from './timeline.js';
-import { noteJobs, speakerOf, reportNote, compactedNote, failureText, recapNote, compactFailedNote } from './notes.js';
+import { noteJobs, speakerOf, reportNote, peerNote, compactedNote, failureText, recapNote, compactFailedNote } from './notes.js';
 import { tasksOf, running as runningJobs } from '../lib/jobs.js';
 
 /** 权限：只读开着是只读，关着照常用的那一级（`kernel/events-bodies.md`「权限」）。 */
@@ -124,6 +124,11 @@ export function project(events, live = null, marks = new Map(), stats = new Map(
         // 她正在回答时来的：在进行的那段时间线收起，她接着的步另起一段排在这一行下面
         timeline.speak(Date.parse(e.at));
         items.push(reportNote(e, jobs));
+        break;
+      case 'peer.idle':
+        // 别的会话空下来了、等不到了（C-6）：和回报一样不属于哪一轮
+        timeline.speak(Date.parse(e.at));
+        items.push(peerNote(e));
         break;
       case 'context.compacted': {
         const note = compactedNote(e, stats.get(e.seq) ?? null);

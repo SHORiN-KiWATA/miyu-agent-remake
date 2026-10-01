@@ -13,6 +13,7 @@ import { res, t } from '../util/res.js';
 import { leave } from '../lib/motion.js';
 import { imageCard } from './media.js';
 import { blobUrl } from '../core/host.js';
+import { shortSession } from '../model/words.js';
 
 /**
  * @typedef {{copy: (text: string) => void, edit: (text: string) => void, copyTurn: (turn: number) => void, redo: () => void, openJobs: () => void, openSession: (id: string) => void, compacted?: (session: string|null) => void}} Actions
@@ -152,14 +153,19 @@ function videoThumb(a, session, card) {
 
 /**
  * 气泡上面那一行小字：是谁说的。子代理的会话里派它的会话发来的，写「来自「标题」」、后面一个小箭头，点了回到那个会话（蓝图「不是你
- * 说的话」）；标题拿不到的写「派它的会话」。
+ * 说的话」）；标题拿不到的写「派它的会话」。别的会话发来的写「从会话 短编号「标题」收到消息」，会话表里有它的才带箭头、能点开；
+ * 没标题的不写「」（2026-10-01 项目主人定，照终端）。
  */
 function speakerNode(speaker, on, media) {
-  if (speaker?.kind !== 'parent' || !speaker.id) return h('div.user-speaker', speaker?.name ?? '');
-  const title = media.titleOf?.(speaker.id);
-  const id = speaker.id;
+  const id = speaker?.id;
+  if ((speaker?.kind !== 'parent' && speaker?.kind !== 'session') || !id) return h('div.user-speaker', speaker?.name ?? '');
+  const title = media.titleOf?.(id) ?? null;
+  if (speaker.kind === 'session' && !title) return h('div.user-speaker', speaker.name);
+  const text = speaker.kind === 'parent'
+    ? (title ? t('said.from', { title }) : speaker.name)
+    : t('said.from_session', { id: shortSession(id), title });
   return h('button.user-speaker.is-link', { type: 'button', title: title ?? speaker.name, onclick: () => on.openSession(id) },
-    h('span.user-speaker-text', title ? t('said.from', { title }) : speaker.name), icon('arrow-up-right'));
+    h('span.user-speaker-text', text), icon('arrow-up-right'));
 }
 
 /** 一个图标按钮：名字写在 `title`、`aria-label` 里。 */

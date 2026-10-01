@@ -10,8 +10,36 @@ import { res, t } from '../util/res.js';
 import { clock, tilde, toolDuration } from './format.js';
 import { fromArgs } from './diff.js';
 
-/** 留言发给父会话时 `to` 写的（`tools/message_agent.md`） */
+/** 留言发给父会话时 `to` 写的（`tools/send_message.md`） */
 const PARENT = 'parent';
+/** 留言的 `to` 是会话编号（整个或至少 8 位后缀，核心施工 C-5）：至少 8 个字符、只有十六进制和 `-`；`j10`、`parent` 不算 */
+const SESSION_ID = /^[0-9a-f-]{8,}$/i;
+
+/** @param {unknown} to 留言的 `to` */
+export function isSessionId(to) {
+  return typeof to === 'string' && SESSION_ID.test(to);
+}
+
+/** 会话的短编号：编号最后 `session_short` 位（照核心，`kernel/ids.md`「会话的短编号」）。 @param {string} id */
+export function shortSession(id) {
+  return id.slice(-res.timeline.session_short);
+}
+
+/**
+ * 留言发给谁、写成给人看的：父会话写「父会话」，别的会话写「会话 短编号」，任务编号照写（有标题的接标题）。
+ * @param {string} to
+ * @param {string|null|undefined} [title] 派那个子代理的那一步的 `description`
+ */
+function recipient(to, title) {
+  if (to === PARENT) return t('timeline.parent');
+  if (isSessionId(to)) return t('timeline.message_session', { id: shortSession(to) });
+  return title ? t('timeline.message_to', { job: to, title }) : to;
+}
+
+/** 留言送到了（`sent`）：那一句和对象重了，不写；存下了（`held`）、没送到的照写。 */
+function delivered(step) {
+  return step.status === 'ok' && !step.said?.key?.endsWith('/held');
+}
 
 /** 一件工具算哪一类：`command`、`edit`、`agent`、`message`；没登记的是 `null`（`timeline.json` 的 `kinds`，收起那一行照它数）。 */
 export const kindOf = (name) => res.timeline.kinds[name] ?? null;
@@ -68,11 +96,11 @@ export function row(step, home) {
     return { ...base, icon, name, subject, failed: bad };
   }
   if (kind === 'message') {
-    // 留言：「留言 · j2」（发给父会话的写「父会话」），送到了不写结果那一句（和对象重了），没送到的照写；收着时后面接留言
+    // 留言：「留言 · j2」（发给父会话的写「父会话」，别的会话写「会话 短编号」），送到了不写结果那一句（和对象重了），存下了、没送到的照写；收着时后面接留言
     // 开头的预览（`messagePeek`），点开是发给谁、完整的消息（2026-10-01 项目主人定）
     const to = arg(step, 'to');
-    const subject = to ? t('timeline.message_subject', { to: to === PARENT ? t('timeline.parent') : to }) : null;
-    return { ...base, icon, name, subject, said: step.status === 'ok' ? null : say(step.said), failed: bad };
+    const subject = to ? t('timeline.message_subject', { to: recipient(to) }) : null;
+    return { ...base, icon, name, subject, said: delivered(step) ? null : say(step.said), failed: bad };
   }
   const subject = face?.subject ? arg(step, face.subject) : null;
   return { ...base, icon, name, subject: subject ? tilde(subject, home) : null, mono: true, said: say(step.said), failed: bad, diff: counts(step) };
@@ -124,13 +152,17 @@ export function messagePeek(step) {
   return text.length <= room ? text : `${text.slice(0, room - 1)}…`;
 }
 
-/** 在想、收着的时候那一行下面滚着显示的：最后 `thinking_rows` 行，首尾的空行不算。 */
-export function thinkingTail(step) {
-  const text = step.kind === 'thought' ? step.text.trim() : '';
+/**
+ * 在想、收着的时候那一行下面滚着显示的：最后 `rows` 行（默认 `thinking_rows`），首尾的空行不算。
+ * @param {string} text 思考的字
+ * @param {number} [rows]
+ */
+export function thinkingTail(text, rows = res.timeline.thinking_rows) {
+  const body = text.trim();
   // 从末尾往回数几个换行：不把全文切开（想得长的，每来一段字都切一遍很费）
-  let at = text.length;
-  for (let n = 0; n < res.timeline.thinking_rows && at > 0; n++) at = text.lastIndexOf('\n', at - 1);
-  return at > 0 ? text.slice(at + 1) : text;
+  let at = body.length;
+  for (let n = 0; n < rows && at > 0; n++) at = body.lastIndexOf('\n', at - 1);
+  return at > 0 ? body.slice(at + 1) : body;
 }
 
 /**
@@ -172,15 +204,15 @@ export function details(step) {
     const prompt = arg(step, 'prompt');
     return [...(prompt ? [{ kind: /** @type {const} */ ('text'), label: t('timeline.prompt'), text: prompt }] : []), ...(step.status === 'ok' ? [] : result)];
   }
-  // 留言：发给谁（编号加子代理的标题，父会话写「父会话」）、完整的消息；没送到的接着结果
+  // 留言：发给谁（编号加子代理的标题，父会话写「父会话」，别的会话写「会话 短编号」）、完整的消息；存下了、没送到的接着结果
   if (kindOf(step.name) === 'message') {
     const to = arg(step, 'to');
-    const who = to === PARENT ? t('timeline.parent') : to && step.toTitle ? t('timeline.message_to', { job: to, title: step.toTitle }) : to;
+    const who = to ? recipient(to, step.toTitle) : null;
     const message = arg(step, 'message');
     return [
       ...(who ? [{ kind: /** @type {const} */ ('text'), label: t('timeline.to'), text: who }] : []),
       ...(message ? [{ kind: /** @type {const} */ ('text'), label: t('timeline.message'), text: message }] : []),
-      ...(step.status === 'ok' ? [] : result),
+      ...(delivered(step) ? [] : result),
     ];
   }
   const lines = commandLines(step);
@@ -198,7 +230,7 @@ export function details(step) {
  */
 export function summary(steps, now) {
   const words = res.text.timeline.summary;
-  const n = { commands: 0, agents: 0, messages: 0, edits: 0, tools: 0, thoughts: 0, errors: 0 };
+  const n = { commands: 0, agents: 0, messages: 0, sessions: 0, edits: 0, tools: 0, thoughts: 0, errors: 0 };
   let thinking = 0;
   let known = true;
   for (const step of steps) {
@@ -213,6 +245,8 @@ export function summary(steps, now) {
     const kind = kindOf(step.name);
     if (kind === 'command') n.commands += 1;
     else if (kind === 'agent') n.agents += 1;
+    // 发给别的会话的另数一格（2026-10-01 项目主人定，和 TUI 一样）
+    else if (kind === 'message' && isSessionId(arg(step, 'to'))) n.sessions += 1;
     else if (kind === 'message') n.messages += 1;
     else if (kind === 'edit' && !unchanged(step)) n.edits += 1;
     else n.tools += 1;
@@ -228,27 +262,28 @@ export function summary(steps, now) {
     if (n.errors) parts.push([count(n.errors, words.errors), false]);
     if (took) parts.push([took, false]);
   };
-  if (n.commands + n.agents + n.messages + n.tools + n.edits === 0) {
+  if (n.commands + n.agents + n.messages + n.sessions + n.tools + n.edits === 0) {
     // 只想过：本来就带时间；历史里不知道想了多久的，写几段思考
     if (known) return { spans: [{ text: words.thought_for.replace('{elapsed}', `${Math.max(1, Math.floor(thinking / 1000))}s`), tone: 'base' }], failed: false };
     tail();
     return { spans: join(parts, null), failed: false };
   }
   // 做事的只有一条命令（思考不算）、有短标题：短标题打头
-  const only = n.commands === 1 && n.agents + n.messages + n.edits + n.tools === 0 ? steps.map((s) => arg(s, 'description')).find(Boolean) : null;
+  const only = n.commands === 1 && n.agents + n.messages + n.sessions + n.edits + n.tools === 0 ? steps.map((s) => arg(s, 'description')).find(Boolean) : null;
   if (only) {
     parts.push([only, false]);
     tail();
     return { spans: join(parts, null), failed: n.errors > 0 };
   }
-  // 打头那一格：命令、子代理、留言、别的工具、编辑，先有哪样写哪样（派子代理的不写 Used 1 tool，蓝图「时间线」）；
-  // 别的类跟在后面，打头那一格已经写过的类不再写一遍
-  const lead = n.commands ? 'commands' : n.agents ? 'agents' : n.messages ? 'messages' : n.tools ? 'tools' : 'edits';
-  const heads = { commands: words.ran, agents: words.spawned, messages: words.messaged, tools: words.used, edits: words.made };
+  // 打头那一格：命令、子代理、留言、发给别的会话的留言、别的工具、编辑，先有哪样写哪样（派子代理的不写 Used 1 tool，
+  // 蓝图「时间线」）；别的类跟在后面，打头那一格已经写过的类不再写一遍。发给别的会话的打不打头都写 Messaged 1 session
+  const lead = n.commands ? 'commands' : n.agents ? 'agents' : n.messages ? 'messages' : n.sessions ? 'sessions' : n.tools ? 'tools' : 'edits';
+  const heads = { commands: words.ran, agents: words.spawned, messages: words.messaged, sessions: words.messaged_sessions, tools: words.used, edits: words.made };
   parts.push([count(n[lead], heads[lead]), lead === 'edits']);
   if (lead !== 'edits' && n.edits) parts.push([count(n.edits, words.edits), true]);
   if (lead !== 'agents' && n.agents) parts.push([count(n.agents, words.agents), false]);
   if (lead !== 'messages' && n.messages) parts.push([count(n.messages, words.messages), false]);
+  if (lead !== 'sessions' && n.sessions) parts.push([count(n.sessions, words.messaged_sessions), false]);
   if (lead !== 'tools' && n.tools) parts.push([count(n.tools, words.tools), false]);
   tail();
   return { spans: join(parts, changed(steps)), failed: false };

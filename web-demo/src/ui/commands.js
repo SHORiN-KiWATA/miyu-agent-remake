@@ -257,9 +257,10 @@ function latestTurn(app) {
 }
 
 /** 改界面语言：界面的字、收起那一行的写法变了内核重新载入页面；都没变的提示一句。 */
-function setLanguage(app, value) {
-  const done = app.ctx.language.set(value);
-  if (!done.reload) app.composer.say(t('commands.language_changed', { name: done.language.name }));
+async function setLanguage(app, value) {
+  // 写回个人设置（核心有配置的）；拒了的照原因提示，不换（蓝图「界面语言」第 5 条）
+  const done = await app.ctx.language.set(value).catch((err) => { app.composer.say(refusalText(err)); return null; });
+  if (done && !done.reload) app.composer.say(t('commands.language_changed', { name: done.language.name }));
 }
 
 /** 撤销、恢复、压缩要一个开了的会话；还没开的新会话提示一句，交回 `null`。 */

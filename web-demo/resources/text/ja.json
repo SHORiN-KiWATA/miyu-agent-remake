@@ -56,6 +56,7 @@
     "empty_reply": "空の応答",
     "bad_summary": "要約を取得できませんでした",
     "compaction_paused": "自動圧縮は一時停止中です",
+    "no_model": "モデルが設定されていません",
     "other": "モデルエラー"
   },
   "levels": {
@@ -101,6 +102,7 @@
     "parent": "親セッション",
     "message_subject": "{to}",
     "message_to": "{job} · {title}",
+    "message_session": "セッション {id}",
     "peek_sep": "·",
     "agent_subject": "{job} · {title}",
     "agent_pending": "{title}",
@@ -151,6 +153,10 @@
       "messages": [
         "メッセージ 1 件",
         "メッセージ {count} 件"
+      ],
+      "messaged_sessions": [
+        "セッション 1 件にメッセージ",
+        "セッション {count} 件にメッセージ"
       ]
     }
   },
@@ -259,7 +265,8 @@
     "cancel": "キャンセル",
     "send": "送信",
     "download": "{name} をダウンロード",
-    "from": "「{title}」から"
+    "from": "「{title}」から",
+    "from_session": "セッション {id}「{title}」からのメッセージ"
   },
   "esc_interrupt_hint": "もう一度 Esc で中断",
   "interrupt": "中断",
@@ -321,12 +328,19 @@
     "command_label": "コマンド",
     "output_label": "出力",
     "parent_speaker": "派遣元のセッション",
-    "other_session": "別のセッション",
     "recap": "振り返り",
     "compact_failed": "圧縮に失敗しました：{reason}",
     "compacted_stats": "コンテキストを圧縮しました：{before} → {after} トークン",
     "compacting": "コンテキストを圧縮しています",
-    "compacting_count": "{count} 字"
+    "compacting_count": "{count} 字",
+    "session_speaker": "セッション {id} からのメッセージ",
+    "peer": {
+      "idle": "セッション {id} が返信しました",
+      "idle_status": "セッション {id} の返信：{status}",
+      "expired": "セッション {id} はずっと空かないため、待つのをやめました",
+      "gone": "セッション {id} はもうないため、待つのをやめました",
+      "unknown": "セッション {id} · {reason}"
+    }
   },
   "ago": {
     "now": "たった今",
@@ -353,5 +367,11 @@
     "aborted": "前回このターンの途中でコアが落ちました",
     "step_limit": "リクエスト回数の上限に達しました"
   },
-  "jump_bottom": "一番下へ"
+  "jump_bottom": "一番下へ",
+  "stash": {
+    "mark": "退避中",
+    "hint": "Ctrl+S で戻す",
+    "stashed": "退避しました · Ctrl+S で戻す",
+    "empty": "退避したものはありません"
+  }
 }

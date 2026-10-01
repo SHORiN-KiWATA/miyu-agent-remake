@@ -46,8 +46,10 @@ export function settingOf(table, distro, user) {
 export function pick(setting, browser, table) {
   const byCode = (code) => table.languages.find((l) => l.code === code);
   const matched = (tag) => table.languages.find((l) => l.locales.some((p) => tag.toLowerCase().startsWith(p.toLowerCase())));
-  const entry = (setting !== AUTO && byCode(setting)) || browser.map(matched).find(Boolean) || byCode(table.fallback) || table.languages[0];
-  const summary = setting === AUTO ? table.auto_summary ?? entry.code : entry.code;
+  const chosen = setting !== AUTO ? byCode(setting) : null;
+  const entry = chosen || browser.map(matched).find(Boolean) || byCode(table.fallback) || table.languages[0];
+  // 表里没有的（个人设置写了 `en`，英文界面还没写）：界面照浏览器认，收起那一行照它写——只有它有那一套字（`auto_summary`）时
+  const summary = setting === AUTO ? table.auto_summary ?? entry.code : chosen ? entry.code : setting === table.auto_summary ? setting : entry.code;
   return { ...entry, fallback: table.fallback, summary };
 }
 
@@ -65,4 +67,18 @@ export function options(setting, browser, table) {
     ...table.languages.map((l) => ({ value: l.code, name: l.name, auto: false })),
   ];
   return { items, current: Math.max(0, items.findIndex((x) => x.value === setting)) };
+}
+
+/**
+ * 从核心读到的个人设置的界面语言（蓝图 `web.md`「界面语言」第 5 条）：`config.get` 回应的 `items["ui.language"].value`，
+ * `config.changed` 推送的 `keys["ui.language"].effective`（删掉了那一项的照它回到的默认）；没有这一项的是 `null`。
+ * @param {any} got
+ * @returns {string|null}
+ */
+export function fromConfig(got) {
+  const item = got?.items?.['ui.language'];
+  if (item && typeof item.value === 'string') return item.value;
+  const key = got?.keys?.['ui.language'];
+  if (key && typeof key.effective === 'string') return key.effective;
+  return null;
 }

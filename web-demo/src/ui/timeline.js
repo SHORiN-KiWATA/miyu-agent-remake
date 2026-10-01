@@ -68,8 +68,18 @@ export class SegmentView {
   /** @param {import('../model/timeline.js').Segment} segment */
   update(segment) {
     this.segment = segment;
+    const expanded = this.expanded();
+    // 做完了、和上一次画的一样（步数、每一步的状态、开没开）：什么都不用动（蓝图「性能」：原来对话区每画一次，每一段连同
+    // 里面的每一步都重算一遍，长会话里她每来一段字都要几百毫秒）
+    // 做完的段里的步不会再变：比步数和最后一步就够
+    const last = segment.steps.at(-1);
+    const sig = segment.finished
+      ? `${expanded}|${this.open}|${segment.steps.length}|${last?.key}:${last?.state}:${last?.status ?? ''}:${last?.output?.length ?? 0}`
+      : null;
+    if (sig && sig === this.drawnSig) return;
+    this.drawnSig = sig;
     this.el.classList.toggle('is-live', !segment.finished);
-    this.el.classList.toggle('is-open', this.expanded());
+    this.el.classList.toggle('is-open', expanded);
     // 收起那一行：做完了才有
     this.summary.hidden = !segment.finished;
     if (segment.finished) {
@@ -82,6 +92,8 @@ export class SegmentView {
         this.summaryText.replaceChildren(...s.spans.map((span) => (span.tone === 'base' ? span.text : h(`span.tl-${span.tone}`, span.text))));
       }
     }
+    // 收着、没打开过的：里面的步不建，点开时才建（节点少了，排版也快；收起来的留着，收的动画里还看得到）
+    if (!expanded && !this.views.size) return;
     const spinning = active(segment);
     const bare = this.bare();
     const keep = new Set();

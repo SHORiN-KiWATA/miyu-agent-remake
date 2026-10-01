@@ -44,7 +44,7 @@ export class Store {
   changed() { for (const fn of this.listeners) fn(); }
 
   /**
-   * 起来：列出会话，最新的几个（`layout.json` 的 `listed_sessions`）读日志、订阅（蓝图 `web.md`「连核心」第 3 条）。
+   * 起来：列出会话，最近活动的几个（`layout.json` 的 `listed_sessions`，照 `last_active`）读日志、订阅（蓝图 `web.md`「连核心」第 3 条）。
    *
    * # Errors
    * 核心拒绝列会话时抛出来；单个会话读不了的跳过。
@@ -52,7 +52,10 @@ export class Store {
   async boot() {
     const { sessions } = await this.conn.request('session.list', {});
     // 一次性的（`miyu ask`）、子会话（`parent` 不是空的，子代理的）不列（蓝图 `web.md`「会话表的一项」）
-    const ids = sessions.filter((s) => !s.oneshot && !s.parent).slice(0, res.layout.listed_sessions).map((s) => s.session);
+    // 照最近活动挑（`last_active`，C-3）：最近聊过的老会话也进左栏；旧核心没有这一格的照列出来的先后（编号倒着，最新开的在前）
+    const top = sessions.filter((s) => !s.oneshot && !s.parent);
+    const ranked = top.some((s) => s.last_active) ? [...top].sort((a, b) => Date.parse(b.last_active ?? 0) - Date.parse(a.last_active ?? 0)) : top;
+    const ids = ranked.slice(0, res.layout.listed_sessions).map((s) => s.session);
     for (const id of ids) {
       try {
         await this.load(id);
@@ -237,7 +240,14 @@ export class Store {
       return;
     }
     if (e.kind === 'compaction.done') {
-      if (s.compacting) s.compacting.done = { before: e.body.before, after: e.body.after };
+      if (!s.compacting) return;
+      s.compacting.done = { before: e.body.before, after: e.body.after };
+      // 落了盘的那一条先到了的（核心「同时」推，两条谁先到不一定）：补记上前后的用量
+      const last = s.events.at(-1);
+      if (last?.kind === 'context.compacted' && last.body.trigger !== 'clear' && !s.compactStats.has(last.seq)) {
+        s.compactStats.set(last.seq, s.compacting.done);
+        s.compacting.note = last.seq;
+      }
       return;
     }
     if (e.kind === 'status' && e.body?.retry && typeof e.body.retry === 'object') {
