@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>174</b><span>/ 191 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 4-7 再补撤销带差异、W-5 分块上传，接着 8-20 模型调用口；跨会话只剩 C-7 验收</span></li>
-    <li><b class="mono">a8dffd11</b><span>最近一步（8-18 思考强度）的提交</span></li>
+    <li><b>175</b><span>/ 192 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 8-20 模型调用口、W-5 分块上传，接着 8-18 补去掉会话里的思考强度；跨会话只剩 C-7 验收</span></li>
+    <li><b class="mono">3eba8a97</b><span>最近一步（4-7 再补 改回的文件也带差异）的提交</span></li>
   </ul>
 </header>
 
@@ -422,7 +422,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s4-7b"><span class="n">4-7</span>undo、redo 命令（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-7c"><span class="n">4-7</span>命令改名（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-7d"><span class="n">4-7</span>重做上一轮（再补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">4-7</span>改回的文件也带差异（再补）</span></li>
+        <li><a class="step done" href="#s4-7d"><span class="n">4-7</span>改回的文件也带差异（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-8"><span class="n">4-8</span>执行命令<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9"><span class="n">4-9</span>没人能确认时说清楚<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s4-9b"><span class="n">4-9</span>补完蓝图（补）<span class="st">✓</span></a></li>
@@ -531,6 +531,7 @@ a.step:hover{border-color:var(--primary)}
         <li><span class="step"><span class="n">8-20</span>模型调用口</span></li>
         <li><span class="step"><span class="n">8-17</span>替看不了图的模型看图</span></li>
         <li><a class="step done" href="#s8-18"><span class="n">8-18</span>思考强度<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">8-18</span>去掉会话里的思考强度（补）</span></li>
         <li><span class="step"><span class="n">8-16</span>M8 验收</span></li>
       </ol>
     </li>
@@ -6432,6 +6433,54 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li>蓝图 <code>cli/redo.md</code>、<code>kernel/history.md</code>、<code>protocol.md</code>。</li>
         <li><code>docs/construction/4-7-重做上一轮（再补）.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s4-7d" aria-labelledby="h-s47d">
+  <div class="sheet-head"><h2 id="h-s47d"><span class="no">4-7 再补</span>改回的文件也带差异（再补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">撤销、重做把文件改回去时，头能列出每个文件、点开看这次改成了什么样。以前回应的 <code>files</code> 里只有没动的（之后又被改过的）才带差异，项目主人 2026-10-02 要改回了的也带。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">改回的文件也带差异（再补）</span><span class="dir-note">4-7 再补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>改回了的、写回内容的那一项带 <code>diff</code>：改回以前对改回以后，规矩照旧（上下 3 行、最多 20 行、<code>more</code>）</li>
+              <li>带差异的每一项多 <code>added</code>、<code>removed</code>，照整份差异数</li>
+              <li>挪进挪出回收站的、本来就一样的不带；<code>miyu undo</code> 照旧印，代码不用改</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">两边都从 blob 取</span><span class="rl">差异的前后两份照账号的 blob，不读磁盘</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">4-7 再补</dd></div>
+        <div><dt>名称</dt><dd>改回的文件也带差异（再补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-02</dd></div>
+        <div><dt>提交</dt><dd class="mono">3eba8a97</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>15 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/4-7-改回的文件也带差异（再补）.md</code>；蓝图 <code>protocol/undo.md</code>、<code>cli/undo.md</code>。</li>
       </ul>
     </div>
   </div>
