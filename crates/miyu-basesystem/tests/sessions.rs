@@ -340,12 +340,12 @@ async fn every_result_is_said_in_three_languages() {
     check(
         &mut checked,
         human(sessions(&port, json!({})).await),
-        said("sessions/listed").with("count", "1"),
+        said("sessions/listed/one").with("count", "1"),
     );
     check(
         &mut checked,
         human(sessions(&port, json!({"offset": 1})).await),
-        said("sessions/past-end").with("total", "1"),
+        said("sessions/past-end/one").with("total", "1"),
     );
     let empty = Arc::new(Port::new(Vec::new()));
     check(

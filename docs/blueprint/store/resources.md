@@ -126,6 +126,11 @@
 4. `said` 里每一句的编号，前面加上这一份在资源目录里的位置：内核的加 `core/`，软件包的加 `software/<软件包>/`。例如 `core/human/zh.json` 里的 `tool-results/unattended`，就是说法 `core/tool-results/unattended`。
 5. `tools` 合成一张表：后读的盖掉先读的同名工具。`config` 的项、页、组也各合成一张表，后读的盖掉先读的（现在只有内核那一份写它）。
 6. 语言的编号由头交进来：`miyu ask` 交 `zh` 或 `en`（`cli/ask.md`）。
+7. **一个的时候说单数**（施工 4-5 再补）：一句说法管着的数是 1 时，编号多接一段 `/one`，例如 `read/lines/one`；发说法的那一处自己挑，是 1 就发 `X/one`，别的数照旧发 `X`，模板本身不挑单复数（「模板只做字段替换」，`05-内核接口.md`）。读完一种语言的全部文件以后，凡是有 `X` 没有 `X/one` 的，拿 `X` 的内容原样补一份 `X/one`：英文那种需要单数的字段后面紧跟着可数名词的（`{count}`、`{total}` 这类），自己写了 `X/one` 那一句，照它；中文、日文不挑单复数，没写，退到这条规矩补出来，和 `X` 一个字不差。软件包自己写了 `X/one` 的，不补（已经有了）。
+
+   因为是补在全部文件读完以后，`human.get`（施工 W-1）交出去的 `said_entries()` 里，每种语言都能找到 `X/one`，不止写了它的那一种。
+
+   没选的两种：模板里写复数的语法（每个头都要会挑，逻辑进了模板）；英文改说法躲开单复数，例如 `lines: 1`（读着不像人话）。
 
 **4. 照说法换成一句话**（`Human::say`）
 
@@ -160,6 +165,7 @@
 
 - `tools` 里每件工具只许有 `name`（必填）、`subject`、`icon`、`block`（都可以不写）；`block` 只能是 `command` 或者 `edits`。
 - 这一份在 `software/basesystem/human/zh.json` 里，`read/lines` 就是说法 `software/basesystem/read/lines`：字段 `count` 是 `37` 时，换成「37 行」。
+- 中文不挑单复数，这一份不用写 `read/lines/one`；`software/basesystem/human/en.json` 里那一句是 `"{count} lines"`，另写了一句 `"read/lines/one": "{count} line"`（上面「怎么走」第 3 条第 7 款）。
 - 每件工具的显示名、结果那一句，见 `tools/*.md` 和 `cli/ask.md`。
 - `config` 里只许有 `items`、`pages`、`groups`；一项只许有 `name`、`description`（必填）、`options`（可以不写）。写了什么、和配置清单怎么对上，见 `config.md`「给人看的字」「怎么走」第一条第 5 条。内核那一份的 `said` 里还有生成文件要的几句、报错的话和接句子的三句 `config/…`（施工 8-1、8-2，`config.md`「给人看的字」），`trust.toml` 开头那一行注释 `config/trust-header`、生效时机 `config/applies/head_start`（施工 8-3）；8-6 加的类型、生效时机、报错要的 `config/applies/next_turn`、`config/expected/int`、`url`、`name`、`reference`、`list`、`id`、`model-name`、`config/bad-format`、`config/out-of-range`、`config/bad-segment`，`config` 那一格多了模型那一块的六项、页 `models`、组 `uses`、`providers`；8-7 加的类型要的 `config/expected/float`、`text`、`duration`，`config` 那一格多了模型资料、目录更新的十六项、组 `catalog`。
 
@@ -188,8 +194,8 @@
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-store/src/resources/tests.rs` | `MIYU_RESOURCES` 优先、开头的 `~` 照家目录接、要是绝对路径、要是目录；程序旁边的 `resources/`、上一级的 `share/miyu/`；都没有时写明找过哪两处、不知道程序在哪；读出软件工程师的人设和随核心附带的字（会话编号的模板是它那份文件，施工 1-13 再补；切了级别以后的权限那一份也是，施工 2-7 补）；人设文件缺了写明是哪一份；不合写法的编号拒绝；子会话的场所说明是它自己那份文件，没有的写明是哪一份（施工 7-5）；核心的几行是它们那两份文件，没有的写明是哪一份（施工 2-7 补） |
-| `crates/miyu-store/tests/human.rs` | 内核给模型的每一句（`core/tool-results/`、`core/permissions/`）两种语言都有给人看的一句，要的字段不多于给模型的；照语言换成字，没有的语言照英文，没有这一句、少了字段的换不出；工具的显示名、后面跟的参数、符号、下面那一块，`block` 写别的读不懂；控制字符换掉、引号反斜杠照原样；什么都没有不算错，只有英文的照英文，读不懂的写明是哪一份、哪一句；配置那一格照 `Words` 交出去、句子的编号加 `core/`、写错了说是哪一份（施工 8-1） |
-| `crates/miyu-store/tests/human_languages.rs`（施工 4-5 补） | 内核和每个软件包都有中文、英文、日文三份，说法的键、每一句要的字段、工具的样子（显示名以外）、配置那一格的项和选项、页、组（施工 8-1）都和英文那一份一样，每件工具都有显示名，配置的名字、说明都不空；日文照语言换得出（找不到的语言会退回英文，所以直接查文件） |
+| `crates/miyu-store/tests/human.rs` | 内核给模型的每一句（`core/tool-results/`、`core/permissions/`）两种语言都有给人看的一句，要的字段不多于给模型的；照语言换成字，没有的语言照英文，没有这一句、少了字段的换不出；工具的显示名、后面跟的参数、符号、下面那一块，`block` 写别的读不懂；控制字符换掉、引号反斜杠照原样；什么都没有不算错，只有英文的照英文，读不懂的写明是哪一份、哪一句；配置那一格照 `Words` 交出去、句子的编号加 `core/`、写错了说是哪一份（施工 8-1）；中文、日文没写 `X/one` 的，退到 `X` 的字，英文自己写的不一样；每种语言的 `said_entries()` 都交得出清单上每一句的 `/one`；软件包自己写了 `X/one` 的，补的规矩不盖掉它（施工 4-5 再补） |
+| `crates/miyu-store/tests/human_languages.rs`（施工 4-5 补；4-5 再补加了单数的门禁） | 内核和每个软件包都有中文、英文、日文三份，说法的键、每一句要的字段、工具的样子（显示名以外）、配置那一格的项和选项、页、组（施工 8-1）都和英文那一份一样（没写 `X/one` 的按 `Human::load` 的规矩补齐了再比）；每件工具都有显示名，配置的名字、说明都不空；日文照语言换得出（找不到的语言会退回英文，所以直接查文件）；门禁：英文 `{count}`、`{total}` 后面紧跟着词的每一句，都有 `/one` 那一句对着 |
 | `crates/miyu-store/tests/snapshot.rs` | 从源码树的资源目录拼出软件工程师的快照 |
 
 ### 出处

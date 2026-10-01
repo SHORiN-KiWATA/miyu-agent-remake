@@ -1,10 +1,12 @@
-//! 共用的几样：当没传的几种写法、Windows 的前缀、相近的名字怎么算。
+//! 共用的几样：当没传的几种写法、Windows 的前缀、相近的名字怎么算；数是 1 的时候编号多接 `/one`
+//! （施工 4-5 再补）。
 
 use std::path::Path;
 
 use super::given;
 use super::shown::plain;
 use super::similar::closeness;
+use super::{said, said_n};
 
 #[test]
 fn undefined_null_and_empty_are_not_given() {
@@ -39,4 +41,25 @@ fn near_names_are_case_stem_or_a_couple_of_edits() {
     assert_eq!(closeness("config.toml", "other.toml"), None);
     // 太短的不照改几个字算。
     assert_eq!(closeness("a.c", "b.c"), None);
+}
+
+#[test]
+fn said_n_routes_to_one_only_when_the_number_is_one() {
+    assert_eq!(
+        said_n("read/lines", "count", 1),
+        said("read/lines/one").with("count", "1")
+    );
+    assert_eq!(
+        said_n("read/lines", "count", 0),
+        said("read/lines").with("count", "0")
+    );
+    assert_eq!(
+        said_n("read/lines", "count", 2),
+        said("read/lines").with("count", "2")
+    );
+    // 大的数也照旧，不是只挡住 0、2 两个边界。
+    assert_eq!(
+        said_n("read/lines", "count", 37),
+        said("read/lines").with("count", "37")
+    );
 }

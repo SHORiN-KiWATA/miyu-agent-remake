@@ -93,7 +93,10 @@ async fn a_new_file_is_created_with_its_folders() {
         std::fs::read(site.0.join("work/src/new/a.rs")).unwrap(),
         b"fn a() {}\n"
     );
-    assert_eq!(done.human, Some(said("write/created").with("count", "1")));
+    assert_eq!(
+        done.human,
+        Some(said("write/created/one").with("count", "1"))
+    );
     assert_eq!(
         done.effects,
         [Effect::Changed {
@@ -106,6 +109,15 @@ async fn a_new_file_is_created_with_its_folders() {
     let absolute = site.real("work").join("b.txt");
     let done = write(&site, &absolute.to_string_lossy(), "b\n", Seen::new()).await;
     assert_eq!(text(&done), format!("Created {}.\n", quoted("b.txt")));
+}
+
+/// 数是 0 的时候不是 1，照旧不接 `/one`（施工 4-5 再补「一个的时候说单数」）。
+#[tokio::test]
+async fn an_empty_new_file_keeps_the_plain_key() {
+    let site = Site::new();
+    let done = write(&site, "empty.txt", "", Seen::new()).await;
+    assert!(!done.error, "{done:?}");
+    assert_eq!(done.human, Some(said("write/created").with("count", "0")));
 }
 
 #[tokio::test]

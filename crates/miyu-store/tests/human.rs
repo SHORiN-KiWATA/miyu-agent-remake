@@ -103,6 +103,84 @@ fn a_said_turns_into_words_in_the_language_asked_for() {
     );
 }
 
+/// 数是 1 的时候编号多接 `/one`（施工 4-5 再补「一个的时候说单数」）：英文自己写了需要单数的那几句；中文、日文
+/// 不挑单复数，没写的，`Human::load` 读完拿没有 `/one` 的那一句原样补上。
+#[test]
+fn a_one_falls_back_to_the_plain_text_in_chinese_and_japanese() {
+    let one = Said::new("software/basesystem/read/lines/one").with("count", "1");
+    let plain = Said::new("software/basesystem/read/lines").with("count", "1");
+    for language in ["zh", "ja"] {
+        let words = load(language);
+        assert_eq!(
+            words.say(&one),
+            words.say(&plain),
+            "{language} 没写 read/lines/one，该跟 read/lines 的字一样"
+        );
+    }
+    // 英文自己写了单数，跟复数的不一样。
+    let en = load("en");
+    assert_eq!(en.say(&one).as_deref(), Some("1 line"));
+    assert_eq!(
+        en.say(&Said::new("software/basesystem/read/lines").with("count", "2"))
+            .as_deref(),
+        Some("2 lines")
+    );
+}
+
+/// 每种语言都交得出 `/one`（`human.get`，施工 W-1）：英文清单上的每一句，字段后面跟着可数名词的都有，含两句
+/// 现在代码碰不到的（`edit/not-unique`：唯一能构造出来的不唯一都是两处以上；`glob/files-more`：到了这一句，一共
+/// 找到的文件数本来就过了列出来的上限）——英文的字照写，照「找全」的规矩补齐。
+#[test]
+fn said_entries_carries_the_singular_in_every_language() {
+    let keys = [
+        "read/lines",
+        "read/entries",
+        "read/past-end",
+        "read/past-end-entries",
+        "glob/files",
+        "glob/files-more",
+        "grep/files",
+        "grep/counts",
+        "grep/matches",
+        "grep/past-end",
+        "write/created",
+        "write/updated",
+        "edit/edited",
+        "edit/not-unique",
+        "shell/done",
+        "history/found",
+        "jobs/listed",
+        "sessions/listed",
+        "sessions/past-end",
+    ];
+    for language in ["zh", "en", "ja"] {
+        let words = load(language);
+        let entries: std::collections::BTreeSet<&str> =
+            words.said_entries().map(|(key, _)| key).collect();
+        for key in keys {
+            let one = format!("software/basesystem/{key}/one");
+            assert!(entries.contains(one.as_str()), "{language} 没有 {one}");
+        }
+    }
+}
+
+/// 一个软件包自己写了 `X/one`、和 `X` 不一样：补的规矩不盖掉它。
+#[test]
+fn an_explicit_one_is_not_overwritten_by_the_fallback() {
+    let scratch = Scratch::new();
+    scratch.file(
+        "software/pkg/human/en.json",
+        r#"{"said":{"x/y":"{n} items","x/y/one":"one item"}}"#,
+    );
+    let words = Human::load(&ResourceRoot::at(&scratch.0), "en").expect("读得出来");
+    assert_eq!(
+        words
+            .say(&Said::new("software/pkg/x/y/one").with("n", "1"))
+            .as_deref(),
+        Some("one item")
+    );
+}
+
 #[test]
 fn tools_have_a_name_and_the_argument_that_follows_it() {
     let zh = load("zh");

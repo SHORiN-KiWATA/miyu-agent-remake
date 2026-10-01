@@ -11,7 +11,7 @@ use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Progress, Running, Spec, Stop, Target, Tool};
 
 use crate::blocking::blocking;
-use crate::common::{Common, Shown, given, said};
+use crate::common::{Common, Shown, given, said, said_n};
 use crate::load::{self, LoadError, say};
 use crate::pattern::{Pattern, split_absolute};
 use crate::walk;
@@ -152,5 +152,5 @@ fn find(texts: &Texts, call: &Call, args: &Args, stop: &Stop) -> Done {
                 .with("total", total),
         );
     }
-    Done::ok(text).said(said("glob/files").with("count", total))
+    Done::ok(text).said(said_n("glob/files", "count", found.len() as u64))
 }

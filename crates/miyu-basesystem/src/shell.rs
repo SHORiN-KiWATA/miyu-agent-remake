@@ -27,7 +27,7 @@ use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Effect, Progress, Running, Spec, Tool};
 
 use crate::blocking::blocking;
-use crate::common::{Common, said};
+use crate::common::{Common, said, said_n};
 use crate::load::{self, LoadError, say};
 use output::{Capture, Shown};
 use process::{Ending, Finished, Guard};
@@ -161,8 +161,7 @@ impl Shell {
                 Some(0) if output.is_empty() => {
                     Done::ok(say(&self.texts.empty, &[])).said(said("shell/quiet"))
                 }
-                Some(0) => Done::ok(body)
-                    .said(said("shell/done").with("count", output.lines().to_string())),
+                Some(0) => Done::ok(body).said(said_n("shell/done", "count", output.lines())),
                 Some(code) => {
                     let code = code.to_string();
                     Done::error(body + &say(&self.texts.exit, &[("code", &code)]))

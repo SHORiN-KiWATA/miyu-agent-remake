@@ -63,6 +63,7 @@ pub fn routes(profiles: serde_json::Value, idle: Duration) -> Routes {
 pub fn routes_with(data: Arc<ModelData>, idle: Duration) -> Routes {
     Routes {
         client: client(Proxy::Off).expect("造得出客户端"),
+        direct: client(Proxy::Off).expect("造得出客户端"),
         data,
         idle,
     }

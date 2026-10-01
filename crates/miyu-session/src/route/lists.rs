@@ -65,7 +65,6 @@ async fn fetch(
     secret: &(dyn Fn(&Reference) -> Option<Secret> + Sync),
     id: &str,
 ) -> Result<Vec<ListedModel>, String> {
-    let client = data.fetcher().ok_or("no client to fetch with")?;
     let provider = data
         .with(|knowledge| provider::provider(values, knowledge, id))
         .map_err(|NoModel(why)| why)?;
@@ -84,6 +83,10 @@ async fn fetch(
     };
     // 地址也可能是环境变量的引用（施工 8-6b），照同一个 `secret` 取。
     let base_url = provider::resolve_base_url(&provider, secret).map_err(|NoModel(why)| why)?;
+    // 地址落在本机的不走代理，和探本机的服务一样（施工 8-11 补）。
+    let client = data
+        .fetcher_for(&base_url)
+        .ok_or("no client to fetch with")?;
     list_models(client, &driver, &base_url, &headers, TIMEOUT)
         .await
         .map_err(|failed| failed.message)

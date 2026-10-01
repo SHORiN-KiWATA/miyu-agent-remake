@@ -15,7 +15,7 @@ use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, JobError, JobPort, Listed, Output, Progress, Running, Spec, Tool};
 
 use crate::blocking::blocking;
-use crate::common::{Common, given, said};
+use crate::common::{Common, given, said, said_n};
 use crate::load::{self, LoadError, say};
 use page::Page;
 
@@ -163,7 +163,7 @@ impl Texts {
                 )
             })
             .collect();
-        Done::ok(text).said(said("jobs/listed").with("count", listed.len().to_string()))
+        Done::ok(text).said(said_n("jobs/listed", "count", listed.len() as u64))
     }
 
     /// 没有这个任务：`id` 是她给的原样。

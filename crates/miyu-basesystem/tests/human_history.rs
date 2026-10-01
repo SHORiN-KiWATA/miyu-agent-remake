@@ -84,7 +84,21 @@ async fn every_history_outcome_says_something_people_can_read() {
     check(
         &mut checked,
         human(run(serde_json::json!({"query": "表"})).await),
-        said("history/found").with("count", "1"),
+        said("history/found/one").with("count", "1"),
+    );
+    // 找到不止一条：照旧，编号不接 `/one`（施工 4-5 再补「一个的时候说单数」）。独立的一份日志，不碰上面共用的
+    // `log()`：改它会连带改掉 `history/read` 读到的范围。
+    check(
+        &mut checked,
+        human(
+            site.done_with_log(
+                "history",
+                serde_json::json!({"query": "会话"}),
+                vec![message(2, "按会话分区"), message(3, "按会话建表")],
+            )
+            .await,
+        ),
+        said("history/found").with("count", "2"),
     );
     check(
         &mut checked,

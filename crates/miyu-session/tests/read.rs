@@ -107,7 +107,7 @@ async fn she_reads_a_file_in_the_workspace_and_hears_it() {
     // 工具交的给人看的说法，经会话记进日志（施工 4-5 上）；数据根里被拒的，是权限策略写的那一句的说法。
     assert_eq!(
         inside.human,
-        Some(Said::new("software/basesystem/read/lines").with("count", "1"))
+        Some(Said::new("software/basesystem/read/lines/one").with("count", "1"))
     );
     assert_eq!(outside.status, ToolStatus::Ok, "边界以外的读不用问");
     assert_eq!(text(&outside.blocks), "1\tfar\n");

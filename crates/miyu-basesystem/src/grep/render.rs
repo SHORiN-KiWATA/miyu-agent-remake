@@ -9,7 +9,7 @@ use miyu_tool::Done;
 
 use super::search::Found;
 use super::{Page, Texts};
-use crate::common::{OUTPUT_BYTES, Shown, said};
+use crate::common::{OUTPUT_BYTES, Shown, said, said_n};
 use crate::load::say;
 
 /// 只列文件。`found` 是有匹配的每个文件，照先后。
@@ -73,7 +73,7 @@ fn counted(texts: &Texts, rows: &[String], page: Page, key: &str) -> Done {
         ));
     }
     let human = if page.offset == 0 && to == total {
-        said(key).with("count", total.to_string())
+        said_n(key, "count", total as u64)
     } else {
         said(&format!("{key}-part"))
             .with("from", (page.offset + 1).to_string())
@@ -157,7 +157,7 @@ pub(super) fn lines(texts: &Texts, shown: &Shown, found: &[Found], page: Page) -
         );
     }
     let human = if page.offset == 0 {
-        said("grep/matches").with("count", to.to_string())
+        said_n("grep/matches", "count", to as u64)
     } else {
         said("grep/matches-part")
             .with("from", from)
@@ -178,14 +178,10 @@ fn near(wanted: &[u64], number: u64, page: Page) -> bool {
 
 /// `offset` 过了头：一共 `total` 条。
 fn past_end(texts: &Texts, total: usize, offset: usize) -> Done {
-    let (total, offset) = (total.to_string(), offset.to_string());
+    let offset = offset.to_string();
     Done::ok(say(
         &texts.past_end,
-        &[("total", &total), ("offset", &offset)],
+        &[("total", &total.to_string()), ("offset", &offset)],
     ))
-    .said(
-        said("grep/past-end")
-            .with("total", total)
-            .with("offset", offset),
-    )
+    .said(said_n("grep/past-end", "total", total as u64).with("offset", offset))
 }

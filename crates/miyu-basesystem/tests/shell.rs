@@ -94,7 +94,7 @@ async fn a_command_runs_in_the_working_directory() {
     );
     assert_eq!(
         done.human,
-        Some(said("shell/done").with("count", "1")),
+        Some(said("shell/done/one").with("count", "1")),
         "{printed}"
     );
 }

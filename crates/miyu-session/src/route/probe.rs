@@ -5,8 +5,9 @@
 //! 2. 列模型（[`list_models`]，和拉列表一样整个 30 秒）。拉到了的，`save` 的（配好了的一家）存进供应商的列表；拉不到的
 //!    照目录里对上的那一家列，出错照驱动分类留着。
 //! 3. 挑模型：写了的用它；没写的照推荐挑（`miyu_models::onboard::recommend`）。列表是空的：`list`，交第 2 步的出错。
-//! 4. 发：只有一条 user，没有 system、没有工具面；收到正文那一块的第一段字就叫停，空闲 60 秒。客户端是拉列表的那一个
-//!    （照环境变量的代理，和会话真发时一样）。请求发了就报请求的结果（「施工时定的」8-11）。
+//! 4. 发：只有一条 user，没有 system、没有工具面；收到正文那一块的第一段字就叫停，空闲 60 秒。客户端和列模型用同一个
+//!    （照地址挑，施工 8-11 补：地址落在本机的不走代理，别的照环境变量，和会话真发时一样）。请求发了就报请求的结果
+//!    （「施工时定的」8-11）。
 //! 5. 不记会话日志、不记用量；记一行 `INFO provider tested`。key、地址不进任何一行。
 
 use std::collections::BTreeMap;
@@ -136,8 +137,9 @@ async fn run(
         })?),
     };
     let unready = |why: String| failed(Stage::Config, ErrorClass::Unclassified, why);
+    // 地址落在本机的不走代理（施工 8-11 补，`route/shared.rs` `ModelData::fetcher_for`）。
     let client = data
-        .fetcher()
+        .fetcher_for(&base_url)
         .cloned()
         .ok_or_else(|| unready("no client to send with".to_string()))?;
     let texts = listing_texts().map_err(unready)?;
