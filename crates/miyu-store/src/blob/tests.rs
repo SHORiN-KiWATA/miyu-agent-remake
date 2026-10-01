@@ -1,5 +1,6 @@
 //! blob 的测试：存了再取；放在哪；同一份存两遍；崩溃留下的临时文件；撞名；改名时目标已经有了；
-//! 读出来不对；两个账号各存各的；分块上传的暂存、改名进位置、扔掉、核心起来时清（施工 W-5）。
+//! 读出来不对；两个账号各存各的；分块上传的暂存、改名进位置、扔掉、核心起来时清（施工 W-5）；
+//! 读一段（施工 W-6）。
 
 use std::time::Duration;
 
@@ -278,4 +279,40 @@ fn clear_uploads_is_fine_when_tmp_was_never_created() {
     let scratch = Scratch::new();
     let blobs = blobs_in(&scratch);
     assert_eq!(blobs.clear_uploads().unwrap(), 0);
+}
+
+#[test]
+fn read_range_reads_a_segment_and_stops_at_the_end() {
+    let scratch = Scratch::new();
+    let blobs = blobs_in(&scratch);
+    let hash = blobs.put(b"0123456789").unwrap();
+    assert_eq!(
+        blobs.read_range(&hash, 3, 4).unwrap(),
+        (b"3456".to_vec(), 10)
+    );
+    assert_eq!(
+        blobs.read_range(&hash, 8, 100).unwrap(),
+        (b"89".to_vec(), 10),
+        "length 超过剩下的，读到结尾就停"
+    );
+}
+
+#[test]
+fn read_range_past_the_end_is_empty_and_zero_length_only_reports_the_size() {
+    let scratch = Scratch::new();
+    let blobs = blobs_in(&scratch);
+    let hash = blobs.put(b"0123456789").unwrap();
+    assert_eq!(blobs.read_range(&hash, 20, 4).unwrap(), (Vec::new(), 10));
+    assert_eq!(blobs.read_range(&hash, 0, 0).unwrap(), (Vec::new(), 10));
+}
+
+#[test]
+fn read_range_of_an_unknown_blob_is_missing() {
+    let scratch = Scratch::new();
+    let blobs = blobs_in(&scratch);
+    let hash = ContentHash::of(b"never stored");
+    assert!(matches!(
+        blobs.read_range(&hash, 0, 4),
+        Err(BlobError::Missing(missing)) if missing == hash
+    ));
 }

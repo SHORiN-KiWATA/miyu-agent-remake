@@ -135,15 +135,23 @@ impl Refusal {
     };
     /// `fs.list`、`fs.find` 读不了这个路径（施工 W-2）：换不成真实的位置、不在、该是目录的不是目录、没有权限。
     /// `fs.realpath` 也用它（施工 W-3）：换不成真实的位置——一层都不在、路上的链接指向不存在的地方、没有家目录。
+    /// `fs.read` 也用它（施工 W-6）：换不成真实的位置、没有、不是普通文件、没有权限。
     pub(crate) const PATH_UNREADABLE: Refusal = Refusal {
         code: REFUSED,
         reason: "path_unreadable",
         data: None,
     };
-    /// `fs.list`、`fs.find` 的目录落在数据根里、又不在这个账号的工作区里（施工 W-2）。
+    /// `fs.list`、`fs.find` 的目录落在数据根里、又不在这个账号的工作区里（施工 W-2）。`fs.read` 的路径也一样
+    /// （施工 W-6）。
     pub(crate) const PATH_FORBIDDEN: Refusal = Refusal {
         code: REFUSED,
         reason: "path_forbidden",
+        data: None,
+    };
+    /// `blob.get` 的 blob 这个账号没有（施工 W-6）。
+    pub(crate) const UNKNOWN_BLOB: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_blob",
         data: None,
     };
     // `mermaid_too_long`、`mermaid_failed`（施工 W-4）：查询方法（`queries.rs`）只拿得到
@@ -359,6 +367,8 @@ impl Refusal {
                 "The upload is out of step; continue from where the core says.",
             ),
             "upload_incomplete" => ("文件还没传完。", "The file is not fully uploaded yet."),
+            // 施工 W-6（`web-module.md`「给人看的字」）。
+            "unknown_blob" => ("找不到这份内容。", "This content cannot be found."),
             "not_running" => (
                 "没有正在进行的回合，打断不了。",
                 "No turn is running, so there is nothing to interrupt.",

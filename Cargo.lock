@@ -1463,6 +1463,7 @@ name = "miyu-store"
 version = "0.0.0"
 dependencies = [
  "miyu-config",
+ "miyu-fs",
  "miyu-kernel",
  "miyu-policy",
  "notify",

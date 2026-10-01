@@ -9,6 +9,9 @@
 //! 分块上传（`web-module.md`「六、分块上传」，施工 W-5）：暂存文件也在 `tmp/` 里，叫 `upload-<编号>`，和
 //! [`Blobs::put`] 自己的临时文件名（`<进程号>-<计数>`）撞不上；`blob.write` 一块一块写进去，`blob.close` 照
 //! [`Blobs::put`] 同一个办法改名进位置。崩了、被杀留下的，核心起来时照 [`Blobs::clear_uploads`] 清一遍。
+//!
+//! 分块读（`web-module.md`「七、分块读」，施工 W-6）：[`Blobs::read_range`] 一块一块读出来，不用整份先取
+//! 进内存。
 
 use std::fmt;
 use std::fs::{self, File, OpenOptions};
@@ -70,6 +73,28 @@ impl Blobs {
         }
         stored?;
         Ok(hash)
+    }
+
+    /// 读一段：从 `offset` 起读最多 `length` 个字节，读到结尾就停；`offset` 过了结尾的是空的；`length` 写 0
+    /// 只问大小。`size`（第二个值）是打开那一刻的大小；不重新核对整份内容的哈希，核对在核心自己用整份内容的
+    /// 时候（施工 W-6，`web-module.md`「七、分块读」第 1、3、4 条）。安全地打开照 [`miyu_fs::read_range`]，
+    /// 和 `fs.read` 共用一份，不另写一套跟链接的判断。
+    ///
+    /// # Errors
+    ///
+    /// 没有这个 blob；读不了。
+    pub fn read_range(
+        &self,
+        hash: &ContentHash,
+        offset: u64,
+        length: u64,
+    ) -> Result<(Vec<u8>, u64), BlobError> {
+        let segment =
+            miyu_fs::read_range(&self.path(hash), offset, length).map_err(|error| match error {
+                miyu_fs::OpenError::NotFound => BlobError::Missing(hash.clone()),
+                other => BlobError::Io(io::Error::other(other)),
+            })?;
+        Ok((segment.data, segment.size))
     }
 
     /// 取一份内容，核对它的哈希：读出来和名字对不上，报错，不悄悄用，也不删（07 第五节）。

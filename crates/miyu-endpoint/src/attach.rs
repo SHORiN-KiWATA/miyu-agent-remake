@@ -7,6 +7,7 @@
 //!   自己量的；图片块、文件块都带着头交回来的名字（图片的施工 3-9 四补）。
 //! - [`images`]：`model.call` 的图照哈希变成图片块（施工 8-20）：blob 要在这个账号里，照内容认，不是图的参数不对；不带
 //!   名字。
+//! - [`get`]：`blob.get`，分块读这个账号的一个 blob，照属主给，不照会话（施工 W-6，`web-module.md`「七、分块读」）。
 //!
 //! 读文件、读 blob、存 blob 都碰磁盘，在阻塞线程里做。
 //!
@@ -64,6 +65,22 @@ pub(crate) struct Attachment {
     blob: String,
     name: String,
     media_type: String,
+}
+
+/// `blob.get` 的参数（施工 W-6）：`blob` 必写（内容哈希）；`offset` 不写是 0；`length` 不写是
+/// [`miyu_fs::MAX_LENGTH`]，最多这个数，写 0 只问大小。
+#[derive(Debug, Deserialize)]
+pub(crate) struct GetParams {
+    blob: String,
+    #[serde(default)]
+    offset: u64,
+    #[serde(default = "default_length")]
+    length: u64,
+}
+
+/// `blob.get` 不写 `length` 时读多少（施工 W-6，`fs.read` 同样的默认值在 `files.rs`）。
+fn default_length() -> u64 {
+    miyu_fs::MAX_LENGTH
 }
 
 /// 从哪来：本机的路径（文件名可以没写），或者头交来的内容和文件名。
@@ -167,6 +184,36 @@ fn read_blob(blobs: &Blobs, blob: &ContentHash) -> Result<Vec<u8>, Refusal> {
             Refusal::INTERNAL
         }
     })
+}
+
+/// `blob.get`：分块读这个账号的一个 blob，照属主给，不照会话（施工 W-6，`web-module.md`「七、分块读」第 1、12
+/// 条）。没有这个 blob：`unknown_blob`；`length` 超过 [`miyu_fs::MAX_LENGTH`]：`bad_params`。
+pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal> {
+    if params.length > miyu_fs::MAX_LENGTH {
+        return Err(Refusal::BAD_PARAMS);
+    }
+    let hash = ContentHash::parse(&params.blob).map_err(|_| Refusal::BAD_PARAMS)?;
+    let place = place(core);
+    blocking(move || get_blocking(&place, &hash, params.offset, params.length)).await
+}
+
+fn get_blocking(
+    place: &Place,
+    hash: &ContentHash,
+    offset: u64,
+    length: u64,
+) -> Result<Value, Refusal> {
+    let blobs = Blobs::new(place.root.blobs(&place.admin));
+    let (data, size) = blobs
+        .read_range(hash, offset, length)
+        .map_err(|error| match error {
+            BlobError::Missing(_) => Refusal::UNKNOWN_BLOB,
+            error => {
+                tracing::warn!(target: TARGET, error = %error, "blob not read");
+                Refusal::INTERNAL
+            }
+        })?;
+    Ok(json!({"data": STANDARD.encode(&data), "size": size}))
 }
 
 /// 一个附件造成一块：blob 要在，照内容再认一遍；名字照头交回来的，图片也带（施工 3-9 四补）。

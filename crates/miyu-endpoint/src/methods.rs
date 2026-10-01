@@ -9,9 +9,11 @@
 //! `secret.list` 在 `secrets.rs`（施工 8-5）。`model.list` 在 `models.rs`（施工 8-7）。`session.create` 带 `model` 的照这时的
 //! 配置解析好再造，解析不出的回 `unknown_model`、什么都不造（施工 8-8，`models::record`）。换模型 `session.configure`：先查
 //! 参数、再找会话、再照这时的配置解析，交给内核，回 `{}`（施工 8-10）。给人看的字 `human.get` 在 `human.rs`（施工 W-1）。
-//! 列文件、找文件、换真实位置 `fs.list`、`fs.find`、`fs.realpath` 在 `files.rs`（施工 W-2、W-3）。第一次接入的
+//! 列文件、找文件、换真实位置、分块读 `fs.list`、`fs.find`、`fs.realpath`、`fs.read` 在 `files.rs`
+//! （施工 W-2、W-3、W-6）。第一次接入的
 //! `provider.detect`、`provider.catalog`、`provider.test` 在 `providers.rs`（施工 8-11）。分块上传
-//! `blob.open`、`blob.write`、`blob.close` 在 `uploads.rs`（施工 W-5），要这个连接的上传表 `uploads`。
+//! `blob.open`、`blob.write`、`blob.close` 在 `uploads.rs`（施工 W-5），要这个连接的上传表 `uploads`。分块读一个 blob
+//! `blob.get` 在 `attach.rs`（施工 W-6）。
 //! 各方法的参数在 `methods/params.rs`（W-5 合并时这一份过了 500 行，挪出去的）。
 
 use std::sync::Arc;
@@ -260,6 +262,7 @@ pub(crate) async fn call(
         "blob.open" => uploads::open(core, uploads, params(request)?).await,
         "blob.write" => uploads::write(core, uploads, params(request)?).await,
         "blob.close" => uploads::close(core, uploads, params(request)?).await,
+        "blob.get" => attach::get(core, params(request)?).await,
         "session.configure" => {
             let params: models::ConfigureParams = params(request)?;
             let text = params.model()?;
@@ -273,6 +276,7 @@ pub(crate) async fn call(
         "fs.list" => files::list(core, params(request)?).await,
         "fs.find" => files::find(core, params(request)?).await,
         "fs.realpath" => files::realpath(core, params(request)?).await,
+        "fs.read" => files::read(core, params(request)?).await,
         "session.set_meta" => {
             let params: MetaParams = params(request)?;
             let command = params.command()?;
