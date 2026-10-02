@@ -263,3 +263,134 @@ fn an_opened_undo_lists_each_file_and_opens_a_diff_on_click() {
         "{text:#?}"
     );
 }
+
+/// 从真实的用户消息排版到选区提取，不能把标签当作原文。
+#[test]
+fn mouse_copy_expands_chips_once_across_wraps() {
+    use crate::body_view::BodyView;
+    use crate::transcript::{Chip, Kind, Transcript};
+    use crate::ui::test_support::Fixture;
+    let f = Fixture::new();
+    let mut t = Transcript::default();
+    t.note(Kind::User, "前[已粘贴 14 行]中[已粘贴 14 行]后".into());
+    t.entries[0].pasted = vec![
+        Chip {
+            label: "[已粘贴 14 行]".into(),
+            full: "第一段\n原文".into(),
+            kind: None,
+            file: None,
+        },
+        Chip {
+            label: "[已粘贴 14 行]".into(),
+            full: "第二段".into(),
+            kind: None,
+            file: None,
+        },
+    ];
+    for width in [1, 2, 6, 60] {
+        let mut ctx = f.ctx();
+        ctx.width = width;
+        let rows = super::entry_rows(0, &t.entries[0], &ctx);
+        let mut view = BodyView::default();
+        view.rows = rows.into();
+        view.select = Some(((1, 0), (view.rows.len() - 2, 100)));
+        assert_eq!(
+            view.selected_text(),
+            "前第一段\n原文中第二段后",
+            "宽度 {width}"
+        );
+        view.select = view.select.map(|(a, b)| (b, a));
+        assert_eq!(view.selected_text(), "前第一段\n原文中第二段后");
+    }
+    let rows = super::entry_rows(0, &t.entries[0], &f.ctx());
+    let mut view = BodyView::default();
+    view.rows = rows.into();
+    view.select = Some(((1, 6), (1, 7)));
+    assert_eq!(
+        view.selected_text(),
+        "第一段\n原文",
+        "选到半个标签也展开整块"
+    );
+    t.entries[0].open = true;
+    let rows = super::entry_rows(0, &t.entries[0], &f.ctx());
+    let mut view = BodyView::default();
+    view.rows = rows.into();
+    view.select = Some(((1, 4), (1, 5)));
+    assert_eq!(view.selected_text(), "第", "展开后按实际选区复制");
+}
+
+#[test]
+fn mouse_copy_expands_file_paths_but_not_literal_labels() {
+    use crate::body_view::BodyView;
+    use crate::transcript::{Chip, Kind, Transcript};
+    use crate::ui::test_support::Fixture;
+    let f = Fixture::new();
+    let mut t = Transcript::default();
+    t.note(Kind::User, "[文件 1] [已粘贴 14 行]".into());
+    t.entries[0].pasted = vec![Chip {
+        label: "[文件 1]".into(),
+        full: "/tmp/中文文件.txt".into(),
+        kind: None,
+        file: Some("/tmp/中文文件.txt".into()),
+    }];
+    let rows = super::entry_rows(0, &t.entries[0], &f.ctx());
+    let mut view = BodyView::default();
+    view.rows = rows.into();
+    view.select = Some(((1, 0), (view.rows.len() - 2, 100)));
+    assert_eq!(view.selected_text(), "/tmp/中文文件.txt [已粘贴 14 行]");
+}
+
+#[test]
+fn mouse_copy_keeps_attachment_labels_and_separates_entries() {
+    use crate::body_view::BodyView;
+    use crate::transcript::{Chip, Kind, Transcript};
+    use crate::ui::test_support::{Fixture, fresh_rows};
+    let f = Fixture::new();
+    let mut t = Transcript::default();
+    for full in ["一", "二"] {
+        t.note(Kind::User, "[已粘贴 14 行][图片 1]".into());
+        t.entries.last_mut().unwrap().pasted = vec![
+            Chip {
+                label: "[已粘贴 14 行]".into(),
+                full: full.into(),
+                kind: None,
+                file: None,
+            },
+            Chip {
+                label: "[图片 1]".into(),
+                full: "[图片 1]".into(),
+                kind: Some("image".into()),
+                file: Some("/tmp/a.png".into()),
+            },
+        ];
+    }
+    let mut view = BodyView::default();
+    view.rows = fresh_rows(&t.entries, &f.ctx()).into();
+    view.select = Some(((1, 0), (view.rows.len() - 2, 100)));
+    assert_eq!(view.selected_text(), "一[图片 1]\n\n\n\n二[图片 1]");
+}
+
+#[test]
+fn mouse_copy_preserves_whitespace_inside_expanded_original() {
+    use crate::body_view::BodyView;
+    use crate::transcript::{Chip, Kind, Transcript};
+    use crate::ui::test_support::Fixture;
+    let f = Fixture::new();
+    let mut t = Transcript::default();
+    t.note(Kind::User, "[已粘贴 14 行]".into());
+    let full = "正文末尾的空格  \n\n";
+    t.entries[0].pasted = vec![Chip {
+        label: "[已粘贴 14 行]".into(),
+        full: full.into(),
+        kind: None,
+        file: None,
+    }];
+    for width in [2, 60] {
+        let mut ctx = f.ctx();
+        ctx.width = width;
+        let mut view = BodyView::default();
+        view.rows = super::entry_rows(0, &t.entries[0], &ctx).into();
+        view.select = Some(((1, 0), (view.rows.len() - 2, 100)));
+        assert_eq!(view.selected_text(), full);
+    }
+}

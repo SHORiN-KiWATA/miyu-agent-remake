@@ -197,7 +197,7 @@ fn dragging_selects_and_ctrl_c_copies() {
     i.mouse(mouse(MouseEventKind::Down(MouseButton::Left), 10, 5), true);
     i.mouse(mouse(MouseEventKind::Drag(MouseButton::Left), 15, 5), true);
     let up = i.mouse(mouse(MouseEventKind::Up(MouseButton::Left), 15, 5), true);
-    assert_eq!(up, Action::None, "松开不复制");
+    assert_eq!(up, Action::Copy("hello".into()), "松开自动复制");
     assert_eq!(selected(&i), Some("hello"), "选区留着");
     let copied = press(&mut i, KeyCode::Char('c'), KeyModifiers::CONTROL);
     assert_eq!(copied, Action::Copy("hello".into()));
@@ -210,7 +210,11 @@ fn double_click_selects_a_word() {
     let down = mouse(MouseEventKind::Down(MouseButton::Left), 17, 5);
     i.mouse(down, true);
     i.mouse(mouse(MouseEventKind::Up(MouseButton::Left), 17, 5), true);
-    assert_eq!(i.mouse(down, true), Action::None, "双击只选中，不复制");
+    assert_eq!(
+        i.mouse(down, true),
+        Action::Copy("world".into()),
+        "双击自动复制"
+    );
     assert_eq!(selected(&i), Some("world"));
 }
 

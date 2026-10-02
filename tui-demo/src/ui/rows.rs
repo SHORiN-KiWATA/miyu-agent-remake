@@ -43,6 +43,8 @@ pub struct Row {
     pub shade: bool,
     /// 内容的字，复制用。
     pub plain: String,
+    /// 收起的块在这一行占的列和原文，复制时替换；原文跨折行共享。
+    pub copy_blocks: Vec<CopyBlock>,
     /// 内容从正文区左边第几列起。
     pub content_x: u16,
     /// 这一行是上一行折下来的：复制时接回上一行，不加换行。
@@ -57,6 +59,17 @@ pub struct Row {
     pub icon: Option<FigureCell>,
     /// 这一行是「正在画图」：图做好了要重排（按条记着的行认它，「正文」第 8 条）。
     pub figure_pending: bool,
+}
+
+/// 收起的块的一截：显示列映射到整块原文；同一条目的同一块只复制一次。
+#[derive(Debug, Clone)]
+pub struct CopyBlock {
+    /// 条目和块的编号；同名块也各是各的。
+    pub id: (usize, usize),
+    /// 这一行内容里的起列和止列（不含）。
+    pub cols: (u16, u16),
+    /// 整块原文或文件路径；折行只共享，不重复存全文。
+    pub text: std::rc::Rc<str>,
 }
 
 /// 图的一行：哪张图（做好的图的键）的第几行。
@@ -128,6 +141,7 @@ impl Ctx<'_> {
             target: None,
             shade: false,
             plain,
+            copy_blocks: Vec::new(),
             content_x: self.content_x() + u16::try_from(lead_width).unwrap_or(0),
             joined: false,
             links: Vec::new(),

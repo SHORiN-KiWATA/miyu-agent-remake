@@ -1,4 +1,4 @@
-//! 侧边栏的字能拖选（蓝图 `tui.md`「后台命令、子代理和侧边栏」第 7 条）：按下、拖动定选区，松开不复制；
+//! 侧边栏的字能拖选（蓝图 `tui.md`「后台命令、子代理和侧边栏」第 7 条）：按下、拖动定选区，松开由外面复制并保留选区；
 //! 只点不拖的算点。画的时候把写了字的行记下来，复制时照屏幕的列切。
 
 use unicode_width::UnicodeWidthStr;
@@ -24,6 +24,8 @@ pub struct SideSelect {
     head: Option<(u16, u16)>,
     /// 按下以后动过。
     moved: bool,
+    /// 正在拖选，松开后仍留选区但不再抓鼠标事件。
+    pressed: bool,
 }
 
 impl SideSelect {
@@ -37,6 +39,7 @@ impl SideSelect {
         self.anchor = Some((x, y));
         self.head = Some((x, y));
         self.moved = false;
+        self.pressed = true;
     }
 
     /// 拖到这里。
@@ -50,6 +53,7 @@ impl SideSelect {
 
     /// 松开：只点没拖的算点一下，交回 `true`，选区不留。
     pub fn release(&mut self) -> bool {
+        self.pressed = false;
         let click = self.anchor.is_some() && !self.moved;
         if click {
             self.clear();
@@ -59,6 +63,7 @@ impl SideSelect {
 
     /// 取消选区。
     pub fn clear(&mut self) {
+        self.pressed = false;
         self.anchor = None;
         self.head = None;
         self.moved = false;
@@ -66,7 +71,7 @@ impl SideSelect {
 
     /// 按着还没松开。
     pub fn pressing(&self) -> bool {
-        self.anchor.is_some()
+        self.pressed
     }
 
     /// 有选区。
@@ -144,7 +149,9 @@ mod tests {
         // 从第 11 行的「~」拖到第 12 行「miyu」的末尾。
         s.press(102, 11);
         s.drag(106, 12);
+        assert!(s.pressing());
         assert!(!s.release(), "拖过了，不算点");
+        assert!(!s.pressing(), "松开后不再抓后续的鼠标事件");
         assert!(s.active());
         assert_eq!(s.text(), "~/Documents/github/\nmiyu");
         assert_eq!(

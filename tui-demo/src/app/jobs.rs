@@ -334,6 +334,11 @@ impl App {
                     } else if areas.todo.contains(at) {
                         self.todo_full = !self.todo_full;
                     }
+                } else {
+                    let text = self.side_select.text();
+                    if !text.is_empty() {
+                        self.copy(&text);
+                    }
                 }
                 true
             }

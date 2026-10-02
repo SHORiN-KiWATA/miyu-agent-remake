@@ -2,7 +2,9 @@
 //!
 //! - 没滚过时跟着最新的走；滚过以后钉在那里，新来的字不会把看着的地方挤走。
 //! - 点开、收起时，被点的那一行留在原来的屏幕位置，展开的内容往下长（设计稿「思考的输出」）。
-//! - 拖着选字，松开留着选区，按 Ctrl+C 才复制；复制的字不带行首的竖线和缩进（`13-终端界面.md` 第六节）。
+//! - 拖着选字，松开复制并留着选区，Ctrl+C 仍可复制；复制的字不带行首的竖线和缩进（`13-终端界面.md` 第六节）。
+
+use std::collections::HashSet;
 
 use ratatui::crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
@@ -22,6 +24,8 @@ pub type Point = (usize, u16);
 pub enum BodyAction {
     /// 什么都不用做。
     None,
+    /// 选区完成，请外面复制已展开的原文。
+    Copy(String),
     /// 展开或收起这一样。
     Toggle(Target),
     /// 用系统的打开方式开这个地址。
@@ -97,9 +101,14 @@ impl BodyView {
             }
             MouseEventKind::Up(MouseButton::Left) => {
                 let press = self.press.take();
-                // 拖过的：松开只留着选区，按 Ctrl+C 才复制。
-                if self.select.is_some() {
-                    return BodyAction::None;
+                // 拖过的：松开复制原文，保留选区；空白和装饰不覆盖剪贴板。
+                if press.is_some() && self.select.is_some() {
+                    let text = self.selected_text();
+                    return if text.is_empty() {
+                        BodyAction::None
+                    } else {
+                        BodyAction::Copy(text)
+                    };
                 }
                 // 点在链接上：开它，不展开收起。
                 if let Some(url) = press.and_then(|p| self.link_at(p)) {
@@ -121,32 +130,52 @@ impl BodyView {
         BodyAction::None
     }
 
-    /// 选中的字：不带行首的槽和引子；折下来的行接回上一行，只在原文换行的地方换行；每一行行尾的空白去掉。
+    /// 选中的字：不带行首的槽和引子；折下来的行接回上一行，只在原文换行的地方换行；布局行尾空白去掉，展开原文的空白保留。
     pub fn selected_text(&self) -> String {
         let Some((a, b)) = self.select else {
             return String::new();
         };
         let (start, end) = if a <= b { (a, b) } else { (b, a) };
-        let mut lines: Vec<String> = Vec::new();
+        // 每行记住最后一次展开的原文到哪里，不能把原文末尾的空格、换行当布局空白删掉。
+        let mut lines: Vec<(String, usize)> = Vec::new();
+        let mut copied = HashSet::new();
         for r in start.0..=end.0 {
             let Some(row) = self.rows.get(r).filter(|row| row.copy) else {
                 continue;
             };
             let from = if r == start.0 { start.1 } else { 0 };
             let to = if r == end.0 { end.1 + 1 } else { u16::MAX };
-            let piece = slice(
-                &row.plain,
-                from.saturating_sub(row.content_x),
-                to.saturating_sub(row.content_x),
-            );
+            let from = from.saturating_sub(row.content_x);
+            let to = to.saturating_sub(row.content_x);
+            let mut piece = String::new();
+            let mut protected = 0;
+            let mut at = from;
+            for block in &row.copy_blocks {
+                let (s, e) = block.cols;
+                if from >= e || to <= s {
+                    continue;
+                }
+                piece.push_str(&slice(&row.plain, at, s.max(at)));
+                if copied.insert(block.id) {
+                    piece.push_str(&block.text);
+                    protected = piece.len();
+                }
+                at = e.min(to);
+            }
+            piece.push_str(&slice(&row.plain, at, to));
             match lines.last_mut() {
-                Some(last) if row.joined => last.push_str(&piece),
-                _ => lines.push(piece),
+                Some((last, end)) if row.joined => {
+                    if protected > 0 {
+                        *end = last.len() + protected;
+                    }
+                    last.push_str(&piece);
+                }
+                _ => lines.push((piece, protected)),
             }
         }
         lines
             .iter()
-            .map(|l| l.trim_end())
+            .map(|(line, end)| format!("{}{}", &line[..*end], line[*end..].trim_end()))
             .collect::<Vec<_>>()
             .join("\n")
     }
@@ -282,6 +311,7 @@ mod tests {
             target: None,
             shade: false,
             plain: plain.into(),
+            copy_blocks: Vec::new(),
             content_x: 4,
             joined: false,
             links: Vec::new(),
@@ -322,7 +352,7 @@ mod tests {
     }
 
     #[test]
-    fn releasing_a_drag_keeps_the_selection_and_copies_nothing() {
+    fn releasing_a_drag_copies_and_keeps_the_selection() {
         use ratatui::crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
         let mut v = view();
         let at = |kind, column| MouseEvent {
@@ -334,7 +364,7 @@ mod tests {
         v.mouse(at(MouseEventKind::Down(MouseButton::Left), 4));
         v.mouse(at(MouseEventKind::Drag(MouseButton::Left), 7));
         let up = v.mouse(at(MouseEventKind::Up(MouseButton::Left), 7));
-        assert_eq!(up, super::BodyAction::None);
+        assert_eq!(up, super::BodyAction::Copy("你好".into()));
         assert_eq!(v.selected_text(), "你好");
     }
 

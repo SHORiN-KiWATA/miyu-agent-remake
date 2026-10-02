@@ -375,3 +375,80 @@ fn typing_does_not_toggle_the_cursor_off_and_on_every_frame() {
         String::from_utf8_lossy(&recorded)
     );
 }
+
+/// 真界面处理鼠标事件后必须发出原文的 OSC 52；仅选区取字单测守不住这条链。
+#[test]
+fn mouse_selection_copies_expanded_text_to_osc52() {
+    use base64::Engine;
+    use unicode_width::UnicodeWidthStr;
+    let home = Home::new(Script::new([Play::Says("收到。")]));
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    let full = (1..=12)
+        .map(|n| format!("原文第 {n} 行"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    tui.send(format!("\x1b[200~{full}\x1b[201~").as_bytes());
+    tui.wait_for("[已粘贴 12 行]");
+    let locate = |tui: &support::Tui| {
+        tui.lines()
+            .iter()
+            .enumerate()
+            .find_map(|(row, line)| {
+                let at = line.find("[已粘贴 12 行]")?;
+                Some((line[..at].width() + 1, row + 1))
+            })
+            .expect("屏幕上有块")
+    };
+    let expected = format!(
+        "\x1b]52;c;{}\x07",
+        base64::engine::general_purpose::STANDARD.encode(&full)
+    );
+    let (x, y) = locate(&tui);
+    tui.record();
+    tui.send(
+        format!(
+            "\x1b[<0;{x};{y}M\x1b[<32;{};{y}M\x1b[<0;{};{y}m",
+            usize::from(support::COLS) - 1,
+            usize::from(support::COLS) - 1
+        )
+        .as_bytes(),
+    );
+    tui.wait_for("已复制");
+    tui.pump(Duration::from_millis(100));
+    let bytes = tui.recorded();
+    assert_eq!(
+        bytes
+            .windows(expected.len())
+            .filter(|w| *w == expected.as_bytes())
+            .count(),
+        1,
+        "输入框松开只复制一次原文"
+    );
+    tui.send(b"\r");
+    tui.wait_for("收到。");
+    tui.wait_for("▣  ");
+    let (x, y) = locate(&tui);
+    tui.record();
+    // 正文只选标签中间一截，仍得到整块原文，不触发点击展开。
+    tui.send(
+        format!(
+            "\x1b[<0;{};{y}M\x1b[<32;{};{y}M\x1b[<0;{};{y}m",
+            x + 1,
+            x + 3,
+            x + 3
+        )
+        .as_bytes(),
+    );
+    tui.pump(Duration::from_millis(500));
+    let bytes = tui.recorded();
+    assert_eq!(
+        bytes
+            .windows(expected.len())
+            .filter(|w| *w == expected.as_bytes())
+            .count(),
+        1,
+        "正文松开只复制一次原文"
+    );
+    assert!(tui.shows("[已粘贴 12 行]"), "复制不展开屏幕内容");
+}

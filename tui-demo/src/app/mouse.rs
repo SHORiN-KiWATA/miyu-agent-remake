@@ -15,18 +15,21 @@ impl App {
         let at = Position::new(mouse.column, mouse.row);
         // 首页的吉祥物没字可看时跟着鼠标转头（`tui.md`「空会话的首页」第 6 条）。
         self.pointer = Some(at);
-        if self.jobs_mouse(mouse, at) {
+        // 已抓住的拖选和松开始终归起点区域，经过侧栏、按钮或抽屉也不被截走。
+        let captured = self.grab.is_some()
+            && matches!(mouse.kind, MouseEventKind::Drag(_) | MouseEventKind::Up(_));
+        if !captured && self.jobs_mouse(mouse, at) {
             return Action::None;
         }
         // 回到底部的按钮（`ui/bottom_button.rs`）。
-        if self.areas.bottom.contains(at) {
+        if !captured && self.areas.bottom.contains(at) {
             if matches!(mouse.kind, MouseEventKind::Down(_)) {
                 self.view.follow();
             }
             return Action::None;
         }
         // 抽屉开着：悬停选中那一项，点一下等于 `Enter`（`tui.md`「确认和提问的抽屉」第 4 条）。
-        if self.drawers.open() && self.areas.text.contains(at) {
+        if !captured && self.drawers.open() && self.areas.text.contains(at) {
             let row = usize::from(at.y - self.areas.text.y);
             if let Some(index) = self.drawer_rows.get(row).copied().flatten() {
                 match mouse.kind {
@@ -80,6 +83,7 @@ impl App {
             Some(Grab::Body) => {
                 match self.view.mouse(mouse) {
                     BodyAction::None => {}
+                    BodyAction::Copy(text) => return Action::Copy(text),
                     BodyAction::Toggle(target) => self.toggle(target),
                     BodyAction::Open(url) => self.open_link(&url),
                 }

@@ -34,7 +34,10 @@ impl InputBox {
                     let (start, end) = self.editor.word_at(pos);
                     self.editor.select(start, end);
                     self.last_click = None;
-                    return Action::None;
+                    return self
+                        .editor
+                        .selected_full()
+                        .map_or(Action::None, Action::Copy);
                 }
                 self.editor.select(pos, pos);
                 self.dragging = true;
@@ -54,12 +57,16 @@ impl InputBox {
                 let pos = self.offset_under(event.column, event.row);
                 self.editor.move_to(pos, true);
             }
-            // 松开只留着选区，不复制：按 Ctrl+C 才复制（`tui.md`「鼠标」）。
+            // 松开复制原文并保留选区；单击附件仍打开文件（`tui.md`「鼠标」）。
             MouseEventKind::Up(MouseButton::Left) if self.dragging => {
                 self.dragging = false;
                 if let Some((file, _)) = self.pressed.take() {
                     return Action::Open(file.display().to_string());
                 }
+                return self
+                    .editor
+                    .selected_full()
+                    .map_or(Action::None, Action::Copy);
             }
             MouseEventKind::ScrollUp if inside => {
                 self.follow = false;

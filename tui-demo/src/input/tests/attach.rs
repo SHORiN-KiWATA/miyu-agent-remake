@@ -194,7 +194,7 @@ fn clicking_an_attachment_in_the_box_opens_it_and_leaves_the_cursor() {
         mouse(MouseEventKind::Drag(MouseButton::Left), 10 + 11, 5),
         true,
     );
-    assert_eq!(at(&mut i, up, 11), Action::None);
+    assert_eq!(at(&mut i, up, 11), Action::Copy("[图片 1]吧".into()));
     assert!(i.editor.selection().is_some(), "选中了");
     // 点块旁边的字：照旧放光标。
     at(&mut i, down, 0);

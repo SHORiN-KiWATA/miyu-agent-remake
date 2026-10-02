@@ -218,3 +218,24 @@ fn copying_a_selection_gives_the_full_text() {
     let ctrl_c = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL);
     assert_eq!(i.key(ctrl_c), Action::Copy(format!("看{}", lines_of(12))));
 }
+
+#[test]
+fn mouse_release_copies_expanded_paste() {
+    use ratatui::crossterm::event::{MouseButton, MouseEventKind};
+    let mut i = folding();
+    i.editor.insert("看");
+    i.paste(&lines_of(12));
+    i.mouse(
+        super::mouse(MouseEventKind::Down(MouseButton::Left), 10, 5),
+        true,
+    );
+    i.mouse(
+        super::mouse(MouseEventKind::Drag(MouseButton::Left), 35, 5),
+        true,
+    );
+    let up = i.mouse(
+        super::mouse(MouseEventKind::Up(MouseButton::Left), 35, 5),
+        true,
+    );
+    assert_eq!(up, Action::Copy(format!("看{}", lines_of(12))));
+}

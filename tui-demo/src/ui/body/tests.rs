@@ -12,6 +12,7 @@ fn rows(n: usize) -> crate::ui::row_cache::Rows {
         target: None,
         shade: false,
         plain: String::new(),
+        copy_blocks: Vec::new(),
         content_x: 0,
         joined: false,
         links: Vec::new(),

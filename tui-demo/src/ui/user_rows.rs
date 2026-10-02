@@ -7,10 +7,11 @@ use ratatui::style::Style;
 use ratatui::text::Span;
 use unicode_width::UnicodeWidthStr;
 
-use super::rows::{Ctx, Row, Target};
+use super::rows::{CopyBlock, Ctx, Row, Target};
 use crate::input::wrap_words;
 use crate::theme;
 use crate::transcript::{Chip, Entry};
+use std::rc::Rc;
 
 /// 排成的行。`i` 是它在正文里是第几条。
 pub fn rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
@@ -71,6 +72,7 @@ pub fn rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
         }
         let mut row = ctx.row(bar.clone(), spans(&text, line.start, line.end, &styled));
         row.links = links(&text, line.start, line.end, &pieces);
+        row.copy_blocks = copy_blocks(i, &text, line.start, line.end, &pieces);
         row.joined = prev_end == Some(line.start);
         prev_end = Some(line.end);
         out.push(row);
@@ -103,6 +105,7 @@ struct Piece {
     to: usize,
     style: Style,
     file: Option<String>,
+    replacement: Option<(usize, Rc<str>)>,
 }
 
 /// 排成的字，和每一块。收着的块写块上的字，悬停时亮一档；点开了粘贴块原地换成全文，悬停时粘的那几段铺上块的
@@ -116,7 +119,7 @@ fn shaped(text: &str, chips: &[Chip], open: bool, hovered: bool) -> (String, Vec
     let mut out = String::with_capacity(text.len());
     let mut pieces = Vec::new();
     let mut at = 0;
-    for ((start, end), c) in block_ranges(text, chips).into_iter().zip(chips) {
+    for (index, ((start, end), c)) in block_ranges(text, chips).into_iter().zip(chips).enumerate() {
         out.push_str(&text[at..start]);
         let from = out.len();
         let file = c.file.as_ref().map(|f| f.display().to_string());
@@ -129,6 +132,7 @@ fn shaped(text: &str, chips: &[Chip], open: bool, hovered: bool) -> (String, Vec
                     to: out.len(),
                     style,
                     file,
+                    replacement: None,
                 });
             }
         } else {
@@ -139,12 +143,40 @@ fn shaped(text: &str, chips: &[Chip], open: bool, hovered: bool) -> (String, Vec
                 to: out.len(),
                 style,
                 file,
+                replacement: (!c.attachment()).then(|| (index, Rc::from(c.full.as_str()))),
             });
         }
         at = end;
     }
     out.push_str(&text[at..]);
     (out, pieces)
+}
+
+/// 把收起的块投影到折行的显示列，复制不依赖标签的文字；同一块跨行共用原文和编号。
+fn copy_blocks(
+    entry: usize,
+    text: &str,
+    start: usize,
+    end: usize,
+    pieces: &[Piece],
+) -> Vec<CopyBlock> {
+    let cols = |a: usize, b: usize| u16::try_from(text[a..b].width()).unwrap_or(u16::MAX);
+    pieces
+        .iter()
+        .filter_map(|p| {
+            let (index, full) = p.replacement.as_ref()?;
+            let (s, e) = (p.from.max(start), p.to.min(end));
+            if s >= e {
+                return None;
+            }
+            let from = cols(start, s);
+            Some(CopyBlock {
+                id: (entry, *index),
+                cols: (from, from + cols(s, e)),
+                text: full.clone(),
+            })
+        })
+        .collect()
 }
 
 /// `[start, end)` 这一行里附件块占的列（从内容开头算）和文件：点它、悬停它照链接办（「她的回答：Markdown」第 10 条）。
