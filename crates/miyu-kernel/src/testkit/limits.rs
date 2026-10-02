@@ -13,6 +13,7 @@ impl Stage {
             window,
             max_output,
             images: None,
+            blind: false,
         });
     }
 

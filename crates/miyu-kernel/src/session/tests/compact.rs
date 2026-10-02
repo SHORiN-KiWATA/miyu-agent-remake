@@ -47,6 +47,7 @@ fn loaded(log: Vec<Event>, compaction: Option<Compaction>, window: Option<u64>) 
             window: Some(window),
             max_output: None,
             images: None,
+            blind: false,
         }));
     }
     session
@@ -161,6 +162,7 @@ fn a_model_without_a_window_can_still_be_compacted_by_hand() {
         window: None,
         max_output: None,
         images: None,
+        blind: false,
     }));
     session.handle(compact(3, None));
     let actions = session.handle(stored(9));
@@ -190,6 +192,7 @@ fn the_tail_is_the_smaller_of_its_cap_and_a_quarter_of_the_line() {
         window: None,
         max_output: None,
         images: None,
+        blind: false,
     }));
     let actions = session.handle(compact(3, None));
     assert_eq!(actions, [rejected_reply(3, Reason::NothingToCompact)]);

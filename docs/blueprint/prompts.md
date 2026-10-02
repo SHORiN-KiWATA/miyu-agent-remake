@@ -1673,6 +1673,40 @@ These images and files were returned by the tool calls above.
 The tool returned only images or files. They are in the next message.
 ```
 
+#### `core/drivers/image-description-open-named.txt`
+
+- 什么时候加进来：同上，人附的、带名字的图（施工 8-17）
+- token：10
+- 为什么加：同 `image-description-open.txt`；带上文件名，看不了图的也知道附的是哪个文件（施工 3-9 四补的理由）。模板没有可以不填的字段，另成一份
+- 指纹：`5ee6d0c8`
+
+```text
+<image-description name="{name}">
+```
+
+#### `core/drivers/image-description-close.txt`
+
+- 什么时候加进来：同 `image-description-open.txt`
+- token：5
+- 为什么加：同 `image-description-open.txt`
+- 指纹：`42ba5301`
+
+```text
+</image-description>
+```
+
+#### `core/vision/question.txt`
+
+- 什么时候加进来：人这一轮说过字不空的话：接在指令后面，后面紧跟最近那一句的原话（施工 8-17）
+- token：13
+- 为什么加：`10-自带软件.md` 第三节末尾记的第一个办法：带上人最近说的那句，让转述照着人要找的东西写细一点（施工 8-17，主会话定）。一个空行和一行标明下面是人的话
+- 指纹：`98f28542`
+
+```text
+
+The user's latest message, so you know what matters most:
+```
+
 ### 人附的文本文件的开头，人这边
 
 #### `core/drivers/file-open.txt`
@@ -1736,6 +1770,19 @@ Only the first {shown} of {total} bytes of this file are shown.
 
 ```text
 </image>
+```
+
+### 主请求里图的位置，人这边或者工具结果里
+
+#### `core/drivers/image-description-open.txt`
+
+- 什么时候加进来：模型看不了图，这张图 `models.vision` 替它转述过（`image.described`）；不带名字的图（施工 8-17）
+- token：5
+- 为什么加：替看不了图的模型看图（`10-自带软件.md` 第三节末尾，B11，施工 8-17）：图的位置换成转述，前后一对标签，她知道这一段是图的转述、不是原图。只写是图的转述，没写「别的模型替你看的」（非必要不加）；主会话真模型对比时她把转述当成自己看过的原图、乱编细节，再加
+- 指纹：`2fb4a50d`
+
+```text
+<image-description>
 ```
 
 ### 人这边：任务的回报（一块带标签的事实）
@@ -2105,6 +2152,19 @@ Write a title of 3 to 7 words for this conversation, in the language of the conv
 Conversation:
 ```
 
+### 转述一张图那一次请求，不进主对话
+
+#### `core/vision/instruction.txt`
+
+- 什么时候加进来：模型看不了图、请求里有还没转述过的图：一张图一次，经一次性入口发给 `models.vision`；一条 user 的第一块，后面是这张图（施工 8-17）
+- token：27
+- 为什么加：替看不了图的模型看图（`10-自带软件.md` 第三节末尾：画面里有什么，图上的字照原样抄下来；施工 8-17）。三句英文：写画面里有什么、给看不到它的人看；图上的字照原样抄；只回转述
+- 指纹：`342f98c2`
+
+```text
+Describe what this image shows for someone who cannot see it. Copy all text in it exactly as written. Reply with the description only.
+```
+
 ### 试一次供应商那一次请求，不进主对话
 
 #### `core/models/probe.txt`
@@ -2291,15 +2351,15 @@ Reply with OK.
 
 #### `software/basesystem/tools/subagent.json`
 
-- 什么时候加进来：会话的工具面里有 `subagent`：本机、没到深度上限的会话（每次请求都带）
-- token：189（2026-10-01 主会话照开发端点、`deepseek-v4.1-flash` 量，十二件一起时的边际份量；施工 8-8 加 `tier` 以前是 141）
-- 为什么加：派子代理的说明和参数（施工 7-5）：说明照附录的草稿，两句：在后台派一个子会话做一件事、回报自己送来，它看不到这边的对话、交代要自己说得清（背景、已知的、目标、要报什么）。参数声明 `description`、`prompt`，各一句，名字照 Claude Code。量法同上，九件一起时的边际份量 140。施工 7-5 再补从 `agent` 改名 `subagent`（2026-10-01 项目主人定：在 Miyu 里「agent」可能指她自己、子代理、别的会话），文件跟着改名，说明、参数一字不改；十一件一起时 140 → 141。施工 8-8 加 `tier`（`models.md`「工具」）：四个挡位的 `enum`，一句说明「从轻到强，不写用你自己的模型」，不进 `required`；说明、另两格一字不改，141 → 189，多 48。不加的话她派不了更便宜、更强的模型，只能和父会话用同一个；人格、预设随配置和预设
-- 指纹：`11ba90d2`
+- 什么时候加进来：会话的工具面里有 `subagent`：本机、没到深度上限的会话（每次请求都带）；`pool` 那一格会话开局时照配置拼，一个池都没列的没有它
+- token：141（不列池时；2026-10-02 主会话照开发端点、`deepseek-v4.1-flash` 量，十二件一起时的边际份量。每列一个池约多十几个 token：一个带说明的典型池时 182，tools 数组 2188；施工 8-8 带 `tier` 时是 189）
+- 为什么加：派子代理的说明和参数（施工 7-5）：说明照附录的草稿，两句：在后台派一个子会话做一件事、回报自己送来，它看不到这边的对话、交代要自己说得清（背景、已知的、目标、要报什么）。参数声明 `description`、`prompt`，各一句，名字照 Claude Code。量法同上，九件一起时的边际份量 140。施工 7-5 再补从 `agent` 改名 `subagent`（2026-10-01 项目主人定：在 Miyu 里「agent」可能指她自己、子代理、别的会话），文件跟着改名，说明、参数一字不改；十一件一起时 140 → 141。施工 8-8 加 `tier`（`models.md`「工具」）：四个挡位的 `enum`，一句说明「从轻到强，不写用你自己的模型」，不进 `required`；说明、另两格一字不改，141 → 189，多 48。不加的话她派不了更便宜、更强的模型，只能和父会话用同一个。施工 8-8 补把 `tier` 换成 `pool`（`models.md`「工具」，2026-10-01 项目主人定：去掉挡位，模型只照池的名字分）：资源里是一句说明「给哪个池，不写用你自己的模型」，没有 `enum`；会话开局时照配置插上开着开关、有成员的池，说明后面每个池一行「池名: 说明」，一个都没有的拿掉 `pool`，189 → 不列池时 141。人格、预设随配置和预设
+- 指纹：`a7fea082`
 
 ```json
 {
   "description": "Start a subagent in a new session to do one task in the background; its report arrives as a message when it finishes. It sees nothing of this conversation, so the prompt must stand on its own: background, what is already known, the goal and what to report.",
-  "parameters": {"type":"object","properties":{"description":{"type":"string","description":"A short title for the task, 3 to 5 words."},"prompt":{"type":"string","description":"The task for the subagent to perform."},"tier":{"type":"string","enum":["lite","cheap","standard","flagship"],"description":"Model tier for the task, lightest to strongest. Default: your own model."}},"required":["description","prompt"]}
+  "parameters": {"type":"object","properties":{"description":{"type":"string","description":"A short title for the task, 3 to 5 words."},"prompt":{"type":"string","description":"The task for the subagent to perform."},"pool":{"type":"string","description":"Model pool for the task. Default: your own model."}},"required":["description","prompt"]}
 }
 ```
 

@@ -75,7 +75,14 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     // 没指定的照这时的 `models.chat`：记进 `session.created`，以后照它（施工 8-8）。
     let reference = model.or_else(|| chat(&config.current().resolved.values()));
     let (resources, name) = (resources.clone(), persona.to_string());
-    let face = Agents::face(tools, &venue, lineage.as_ref());
+    // 工具面照这时的配置拼：`subagent` 能选哪几个池（施工 8-8 补），以后照快照、载入不重拼。
+    let face = Agents::face(
+        tools,
+        &venue,
+        lineage.as_ref(),
+        &config.current().resolved.values(),
+    );
+    let pools = Agents::pools_in(&face);
     let child = lineage.is_some();
     let count = face.len();
     let dir = root.session_dir(&owner, &id);
@@ -130,6 +137,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             parent: lineage.as_ref().map(|lineage| lineage.parent.clone()),
             attended,
             reports: policy.reports.clone(),
+            pools,
         })
     });
     let created = SessionCreated {
@@ -257,7 +265,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
     let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
-    let (log, events, (created, command), attended, policy, texts, run, guard) =
+    let (log, events, (created, command), (attended, pools), policy, texts, run, guard) =
         blocking(move || {
             let (log, events) = SessionLog::open(&dir, SEGMENT_LIMIT).map_err(LoadError::Log)?;
             let (created, command) = match events.first() {
@@ -274,12 +282,13 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             let texts = snapshot.driver_texts().map_err(LoadError::Policy)?;
             let run = snapshot.run_texts().map_err(LoadError::Policy)?;
             let guard = snapshot.guard_texts().map_err(LoadError::Policy)?;
-            let attended = snapshot.attended;
+            // 能选的池照快照读回（施工 8-8 补）：造会话时拼的那一份，不重拼。
+            let chosen = (snapshot.attended, Agents::pools_in(&snapshot.tools));
             Ok((
                 log,
                 events,
                 (created, command),
-                attended,
+                chosen,
                 policy,
                 texts,
                 run,
@@ -304,6 +313,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             parent: created.parent.clone(),
             attended,
             reports: policy.reports.clone(),
+            pools,
         })
     });
     let kept = blobs.clone();

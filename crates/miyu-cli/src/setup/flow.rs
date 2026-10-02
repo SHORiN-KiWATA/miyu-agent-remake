@@ -3,6 +3,8 @@
 //!
 //! 贴的 key 只在内存里：先照 `{value}` 试，通了才 `secret.set`（「施工时定的」8-11：试不通的不留下，也不盖掉原来的同名
 //! 密钥）。从不印出来。
+//!
+//! 配置里一个池都没有的，写配置时一起写三个预设的池（施工 8-8 补，[`PRESET_POOLS`]）。
 
 use std::io::Write;
 
@@ -15,6 +17,10 @@ use crate::exit;
 use crate::link;
 use crate::rpc::Rpc;
 use crate::shown::{Line, say, write};
+
+/// 预先建好的三个池（施工 8-8 补，`docs/blueprint/models.md` 第七条第 5 条第 7 款）：成员是空的，开关开着，不带说明。填了
+/// 成员才出现在子代理的选项里；除了是预先建好的，它们是普通的池，能删、能改名（2026-10-01 项目主人定）。
+const PRESET_POOLS: [&str; 3] = ["lite", "standard", "flagship"];
 
 /// 走一遍时手里的几样。
 pub(super) struct Flow<'a> {
@@ -203,7 +209,7 @@ impl<'a> Flow<'a> {
         Ok(())
     }
 
-    /// 写系统配置：这一家的 `keys`（已经配好的那一家不写）和 `models.chat`。
+    /// 写系统配置：这一家的 `keys`（已经配好的那一家不写）和 `models.chat`；配置里一个池都没有的，同一次一起写三个预设的池。
     async fn write_config(&mut self, chosen: &Chosen, model: &str) -> Result<(), u8> {
         let (id, mut changes) = match &chosen.key {
             Key::Configured(id) => (id.clone(), Vec::new()),
@@ -226,10 +232,25 @@ impl<'a> Flow<'a> {
         };
         let reference = format!("{id}/{model}");
         changes.push(json!({"key": "models.chat", "value": reference}));
+        if !self.has_pools().await? {
+            for pool in PRESET_POOLS {
+                changes.push(json!({"key": format!("pools.{pool}.models"), "value": []}));
+                changes.push(json!({"key": format!("pools.{pool}.subagent"), "value": true}));
+            }
+        }
         self.request("config.set", json!({"layer": "system", "changes": changes}))
             .await?;
         say(self.err, &self.plan.language.set_up(&reference));
         Ok(())
+    }
+
+    /// 配置里有没有池（施工 8-8 补）：`config.get` 不带 `cwd`、`keys`（系统、个人合出来的；项目配置里本来不能写池），
+    /// `items` 里有 `pools.` 开头的键就算有。
+    async fn has_pools(&mut self) -> Result<bool, u8> {
+        let got = self.request("config.get", json!({})).await?;
+        Ok(got["items"]
+            .as_object()
+            .is_some_and(|items| items.keys().any(|key| key.starts_with("pools."))))
     }
 
     /// 问一句，读人敲的一行；读不了、读到头的是空的。

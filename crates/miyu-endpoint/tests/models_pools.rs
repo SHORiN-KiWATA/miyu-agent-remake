@@ -1,7 +1,7 @@
-//! 用途、挡位、池在协议上的样子（施工 8-8，`docs/blueprint/models.md`「协议」）：`model.list` 多 `pools`、`tiers`，`uses` 多
-//! `vision`，用途挡位池里点名的模型也列；`session.create` 的 `model` 照这时的配置解析好记进 `session.created`，解析不出的
-//! `unknown_model`、什么都不造；派子代理时子会话照挡位、父会话记下的；引用的供应商、池没配的，配置的问题里报
-//! `bad_reference`、算进 `config_errors`。换模型（施工 8-10）：`session.configure` 照这时的配置解析好交给内核，一样的不记，
+//! 用途、池在协议上的样子（施工 8-8，`docs/blueprint/models.md`「协议」）：`model.list` 多 `pools`（施工 8-8 补多 `subagent`、
+//! `description`，没有 `tiers`），`uses` 多 `vision`，用途池里点名的模型也列；`session.create` 的 `model` 照这时的配置查过记进
+//! `session.created`，解析不出的（连同以前的挡位名）`unknown_model`、什么都不造；派子代理时子会话照 `pool`、父会话记下的；引用
+//! 的供应商、池没配的，配置的问题里报 `bad_reference`、算进 `config_errors`。换模型（施工 8-10）：`session.configure` 照这时的配置解析好交给内核，一样的不记，
 //! 解析不出、参数不对的什么都不记；`subscribe` 回应的 `model` 照会话接下来请求的写。
 
 mod support;
@@ -16,8 +16,7 @@ use miyu_kernel::event::Body;
 use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
 use miyu_models::settings::{
-    CatalogSettings, ModelSettings, PoolSettings, PriceSettings, ProviderSettings, TierSettings,
-    UseSettings,
+    CatalogSettings, ModelSettings, PoolSettings, PriceSettings, ProviderSettings, UseSettings,
 };
 use miyu_session::testkit::{Play, Script};
 use miyu_session::{ModelData, Models, Observed, Routes};
@@ -26,13 +25,13 @@ use miyu_tool::Catalog as ToolCatalog;
 
 use support::*;
 
-/// 两家 `a`、`b`（`b` 按次计费），主对话 `a/m`、看图 `b/v`，`lite` 是池 `@free`、`flagship` 是 `b/big`；池 `free` 钉住（成员
-/// 有一个认不出），池 `fast` 不写分法（成员全是按次计费的：轮换），池 `empty` 一个成员都认不出。
+/// 两家 `a`、`b`（`b` 按次计费），主对话 `a/m`、看图 `b/v`；池 `free` 钉住（成员有一个认不出），派子代理能选、带说明；池
+/// `fast` 不写分法（成员全是按次计费的：轮换）；池 `empty` 一个成员都认不出，开关开着。
 const CONFIG: &str = "[providers.a]\ndriver = \"openai-chat\"\nbase_url = \"https://a.invalid\"\n\n\
 [providers.b]\ndriver = \"openai-chat\"\nbase_url = \"https://b.invalid\"\ncache = \"per_request\"\n\n\
-[models]\nchat = \"a/m\"\nvision = \"b/v\"\n\n[models.tiers]\nlite = \"@free\"\nflagship = \"b/big\"\n\n\
-[pools.free]\nmodels = [\"a/x\", \"gone/y\", \"b/z\"]\nstrategy = \"pin\"\n\n[pools.fast]\nmodels = [\"b/z\"]\n\n\
-[pools.empty]\nmodels = [\"gone/y\"]\n";
+[models]\nchat = \"a/m\"\nvision = \"b/v\"\n\n\
+[pools.free]\nmodels = [\"a/x\", \"gone/y\", \"b/z\"]\nstrategy = \"pin\"\nsubagent = true\ndescription = \"Free models.\"\n\n\
+[pools.fast]\nmodels = [\"b/z\"]\n\n[pools.empty]\nmodels = [\"gone/y\"]\nsubagent = true\n";
 
 /// 一份核心：清单带上模型这一块，配置照磁盘上现在的几份读，没有目录。请求模型照 `script`，工具照 `tools`。
 fn core_with(home: &Home, script: Script, tools: ToolCatalog) -> Arc<Core> {
@@ -77,7 +76,6 @@ fn built(
     let items = [
         miyu_endpoint::settings::UiSettings::ITEMS,
         UseSettings::ITEMS,
-        TierSettings::ITEMS,
         PoolSettings::ITEMS,
         ProviderSettings::ITEMS,
         ModelSettings::ITEMS,
@@ -121,7 +119,7 @@ fn models(list: &Value, provider: &str) -> Vec<String> {
 }
 
 #[tokio::test]
-async fn model_list_has_pools_tiers_and_both_uses() {
+async fn model_list_has_pools_and_both_uses() {
     let home = Home::new();
     home.write("system/config.toml", CONFIG);
     let (mut client, _) = connect(&home).await;
@@ -130,32 +128,21 @@ async fn model_list_has_pools_tiers_and_both_uses() {
     assert_eq!(
         result["pools"],
         json!([
-            {"name": "empty", "strategy": "pin", "models": ["gone/y"]},
-            {"name": "fast", "strategy": "rotate", "models": ["b/z"]},
-            {"name": "free", "strategy": "pin", "models": ["a/x", "gone/y", "b/z"]},
+            {"name": "empty", "strategy": "pin", "models": ["gone/y"], "subagent": true, "description": null},
+            {"name": "fast", "strategy": "rotate", "models": ["b/z"], "subagent": false, "description": null},
+            {"name": "free", "strategy": "pin", "models": ["a/x", "gone/y", "b/z"], "subagent": true, "description": "Free models."},
         ]),
-        "照名字排，成员照写的原样，分法没写的照成员定"
+        "照名字排，成员照写的原样，分法没写的照成员定，开关没写的是 false，说明没写的是 null"
     );
-    assert_eq!(
-        result["tiers"],
-        json!({"lite": "@free", "cheap": null, "standard": null, "flagship": "b/big"})
-    );
+    assert_eq!(result.get("tiers"), None, "施工 8-8 补去掉了挡位");
     assert_eq!(result["uses"], json!({"chat": "a/m", "vision": "b/v"}));
     assert_eq!(models(result, "a"), ["m", "x"], "用途、池里点名的");
-    assert_eq!(
-        models(result, "b"),
-        ["big", "v", "z"],
-        "挡位、用途、池里点名的"
-    );
-    // 什么都没配的：池是空的，挡位、用途都是 null。
+    assert_eq!(models(result, "b"), ["v", "z"], "用途、池里点名的");
+    // 什么都没配的：池是空的，用途都是 null。
     let bare = Home::new();
     let (mut client, _) = connect(&bare).await;
     let reply = client.call("l2", "model.list", json!({})).await;
     assert_eq!(reply["result"]["pools"], json!([]));
-    assert_eq!(
-        reply["result"]["tiers"],
-        json!({"lite": null, "cheap": null, "standard": null, "flagship": null})
-    );
     assert_eq!(
         reply["result"]["uses"],
         json!({"chat": null, "vision": null})
@@ -186,9 +173,7 @@ async fn session_create_records_the_resolved_model_or_refuses_it() {
     home.write("system/config.toml", CONFIG);
     let (mut client, _) = connect(&home).await;
     for (n, (model, wanted)) in [
-        (json!("lite"), "@free"),
-        (json!("flagship"), "b/big"),
-        (json!("cheap"), "a/m"),
+        (json!("@free"), "@free"),
         (json!("b/anything"), "b/anything"),
         (json!("@fast"), "@fast"),
         (Value::Null, "a/m"),
@@ -200,9 +185,11 @@ async fn session_create_records_the_resolved_model_or_refuses_it() {
         assert_eq!(recorded(&home, &reply).as_deref(), Some(wanted), "{model}");
     }
     let made = home.root.sessions(&alice()).expect("读得了").len();
-    for (n, model) in ["c/m", "@nope", "@empty", "nope", "Lite"]
-        .into_iter()
-        .enumerate()
+    for (n, model) in [
+        "c/m", "@nope", "@empty", "nope", "Lite", "lite", "cheap", "standard", "flagship",
+    ]
+    .into_iter()
+    .enumerate()
     {
         let reply = create(&mut client, &format!("no-{n}"), json!(model)).await;
         assert_eq!(reason(&reply), Some("unknown_model"), "{model}：{reply}");
@@ -214,12 +201,17 @@ async fn session_create_records_the_resolved_model_or_refuses_it() {
         made,
         "解析不出的什么都不造"
     );
-    // 挡位没配、`models.chat` 也没配：解析不出。
+    // `models.chat` 没配：没写的不记。有个池叫 `lite` 的，写 `lite` 的也不是它（施工 8-8 补：挡位名照写法不对）。
     let bare = Home::new();
-    bare.write("system/config.toml", "[providers.a]\nkeys = []\n");
+    bare.write(
+        "system/config.toml",
+        "[providers.a]\nkeys = []\n\n[pools.lite]\nmodels = [\"a/x\"]\n",
+    );
     let (mut client, _) = connect(&bare).await;
-    let reply = create(&mut client, "tier", json!("lite")).await;
-    assert_eq!(reason(&reply), Some("unknown_model"));
+    let reply = create(&mut client, "lite", json!("lite")).await;
+    assert_eq!(reason(&reply), Some("unknown_model"), "{reply}");
+    let reply = create(&mut client, "at-lite", json!("@lite")).await;
+    assert_eq!(recorded(&bare, &reply).as_deref(), Some("@lite"));
     let reply = create(&mut client, "plain", Value::Null).await;
     assert_eq!(recorded(&bare, &reply), None, "chat 也没配的不写");
 }
@@ -229,7 +221,7 @@ async fn a_reference_to_what_is_not_configured_is_a_bad_reference() {
     let home = Home::new();
     home.write(
         "system/config.toml",
-        "[ui]\nlanguage = \"en\"\n\n[providers.a]\nkeys = []\n\n[models]\nchat = \"c/m\"\n\n[models.tiers]\nlite = \"@nope\"\n\n[pools.p]\nmodels = [\"a/x\", \"d/y\"]\n",
+        "[ui]\nlanguage = \"en\"\n\n[providers.a]\nkeys = []\n\n[models]\nchat = \"c/m\"\nvision = \"@nope\"\n\n[pools.p]\nmodels = [\"a/x\", \"d/y\"]\n",
     );
     let (mut client, hello) = connect(&home).await;
     assert_eq!(hello["result"]["config_errors"], 3, "{hello}");
@@ -249,7 +241,7 @@ async fn a_reference_to_what_is_not_configured_is_a_bad_reference() {
         problems,
         [
             ("bad_reference".to_string(), "models.chat".to_string()),
-            ("bad_reference".to_string(), "models.tiers.lite".to_string()),
+            ("bad_reference".to_string(), "models.vision".to_string()),
             ("bad_reference".to_string(), "pools.p.models".to_string()),
         ]
     );
@@ -270,16 +262,16 @@ async fn a_reference_to_what_is_not_configured_is_a_bad_reference() {
     assert_eq!(checked["result"]["problems"], json!([]), "{checked}");
 }
 
-/// 真核心派子代理（施工 8-8）：写了挡位的照这时的配置解析，没写的抄父会话记下的，记进子会话的 `session.created`。
+/// 真核心派子代理（施工 8-8 补）：写了 `pool` 的记 `@池`，没写的抄父会话记下的，记进子会话的 `session.created`。
 #[tokio::test]
-async fn a_child_session_records_the_tier_or_its_parent_model() {
+async fn a_child_session_records_the_pool_or_its_parent_model() {
     let home = Home::new();
     home.write("system/config.toml", CONFIG);
     let tools = ToolCatalog::new(miyu_basesystem::tools(&default_resources()).unwrap()).unwrap();
-    let tiered = json!({"description": "轻量", "prompt": "Task.", "tier": "lite"}).to_string();
+    let pooled = json!({"description": "轻量", "prompt": "Task.", "pool": "free"}).to_string();
     let plain = json!({"description": "跟父会话", "prompt": "Task."}).to_string();
     let script = Script::new([
-        Play::calls(&[("subagent", &tiered), ("subagent", &plain)]),
+        Play::calls(&[("subagent", &pooled), ("subagent", &plain)]),
         Play::Says("好。"),
         Play::Says("好。"),
         Play::Says("好。"),
@@ -293,7 +285,7 @@ async fn a_child_session_records_the_tier_or_its_parent_model() {
         .call(
             "c1",
             "session.create",
-            json!({"cwd": work, "model": "flagship"}),
+            json!({"cwd": work, "model": "b/big"}),
         )
         .await;
     assert_eq!(recorded(&home, &reply).as_deref(), Some("b/big"));
@@ -376,17 +368,13 @@ async fn session_configure_records_the_resolved_model_once() {
     let (mut client, _) = connect(&home).await;
     let session = client.create("c1", "/tmp").await;
     client.subscribe("c2", &session).await;
-    let (pushed, reply) = configuring(&mut client, "c3", &session, json!("lite")).await;
+    let (pushed, reply) = configuring(&mut client, "c3", &session, json!("@free")).await;
     assert_eq!(reply["result"], json!({}), "{reply}");
     let event = events(&pushed)
         .into_iter()
         .find(|event| event["kind"] == "session.policy_changed")
         .expect("先推那一条，再回应");
-    assert_eq!(
-        event["body"],
-        json!({"model": "@free"}),
-        "挡位照这时的配置换成它的值"
-    );
+    assert_eq!(event["body"], json!({"model": "@free"}));
     // 一样的：回 `{}`，什么都不记。
     let reply = configure(&mut client, "c4", &session, json!("@free")).await;
     assert_eq!(reply["result"], json!({}), "{reply}");
@@ -420,7 +408,10 @@ async fn session_configure_refuses_what_it_cannot_take() {
     let missing = "0192f3a0-1111-7abc-8def-001122334455";
     let reply = configure(&mut client, "gone", missing, json!("c/m")).await;
     assert_eq!(reason(&reply), Some("session_not_found"), "{reply}");
-    for (n, model) in ["c/m", "@nope", "@empty", "nope"].into_iter().enumerate() {
+    for (n, model) in ["c/m", "@nope", "@empty", "nope", "lite"]
+        .into_iter()
+        .enumerate()
+    {
         let reply = configure(&mut client, &format!("no-{n}"), &session, json!(model)).await;
         assert_eq!(reason(&reply), Some("unknown_model"), "{model}：{reply}");
     }

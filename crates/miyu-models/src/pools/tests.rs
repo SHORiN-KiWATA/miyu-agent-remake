@@ -105,3 +105,39 @@ fn the_pointer_walks_round_and_follows_a_changed_member_count() {
     assert!(Pointers::parse("[1]").is_err());
     assert!(Pointers::parse(r#"{"p":-1}"#).is_err());
 }
+
+/// 派子代理能选的池（施工 8-8 补）：开关开着、至少有一个认得出的成员的才列，照名字的字节序排，说明照写的。
+#[test]
+fn subagents_are_offered_switched_on_pools_with_members_by_name() {
+    let config = values(
+        "[providers.a]\nkeys = []\n\n\
+         [pools.zeta]\nmodels = [\"a/z\"]\nsubagent = true\n\n\
+         [pools.alpha]\nmodels = [\"a/x\"]\nsubagent = true\ndescription = \"Quick lookups.\"\n\n\
+         [pools.off]\nmodels = [\"a/y\"]\n\n\
+         [pools.lite]\nmodels = []\nsubagent = true\n\n\
+         [pools.gone]\nmodels = [\"nope/y\"]\nsubagent = true\n",
+    );
+    let listed = offered(&config);
+    let names: Vec<&str> = listed.iter().map(|offer| offer.name.as_str()).collect();
+    assert_eq!(
+        names,
+        ["alpha", "zeta"],
+        "没开的、空的、一个成员都认不出的不列"
+    );
+    assert_eq!(listed[0].description.as_deref(), Some("Quick lookups."));
+    assert_eq!(listed[1].description, None);
+    assert!(offered(&values("")).is_empty(), "一个池都没有");
+}
+
+#[test]
+fn offered_names_sort_by_bytes() {
+    let config = values(
+        "[providers.a]\nkeys = []\n\n[pools.b]\nmodels = [\"a/x\"]\nsubagent = true\n\n\
+         [pools.a-1]\nmodels = [\"a/x\"]\nsubagent = true\n\n[pools.a_1]\nmodels = [\"a/x\"]\nsubagent = true\n",
+    );
+    let names: Vec<String> = offered(&config)
+        .into_iter()
+        .map(|offer| offer.name)
+        .collect();
+    assert_eq!(names, ["a-1", "a_1", "b"]);
+}

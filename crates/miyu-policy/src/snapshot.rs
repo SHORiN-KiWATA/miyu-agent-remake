@@ -25,6 +25,7 @@ use crate::recap::{RecapNumbers, RecapTexts};
 use crate::shorten::{ShortenNumbers, ShortenTexts};
 use crate::title::{TitleNumbers, TitleTexts};
 use crate::tools::{self, ToolEntry};
+use crate::vision::VisionTexts;
 
 /// 一份策略快照。字段的先后就是字节里的先后：改了先后，快照的字节就变了。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -138,6 +139,9 @@ pub struct CoreTexts {
     /// 起标题的字（`title/`，施工 3-8 五补）。以前造的快照里没有，读成没有：不起标题；没有的不写。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<TitleTexts>,
+    /// 转述一张图的字（`vision/`，施工 8-17）。以前造的快照里没有，读成没有：不转述；没有的不写。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vision: Option<VisionTexts>,
 }
 
 /// 压缩的几句（施工 6-2 上）。
@@ -358,6 +362,7 @@ impl Snapshot {
             peers: self.peer_texts()?,
             recap: self.recap(),
             title: self.title(),
+            vision: self.vision(),
         };
         let (face, rules) = tools::split(&self.tools)?;
         let stable = Stable {

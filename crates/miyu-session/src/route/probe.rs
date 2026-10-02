@@ -215,11 +215,13 @@ async fn ask(
         }],
         stable: 0,
         continuation: false,
+        described: Default::default(),
     };
     let call = Call {
         model: name,
         max_output: None,
         inputs: Inputs::default(),
+        effort: None,
     };
     let encoded = driver
         .encode(&request, &call, &BTreeMap::new())

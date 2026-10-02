@@ -1,64 +1,89 @@
-//! 发一次（`docs/designs/05-内核接口.md` 第七节「驱动的规格」「HTTP 执行器」，施工 3-7 下；施工 8-6 从 `http.rs` 挪来）：
-//! 一次请求在派出去的任务里走完，不占 actor：照驱动列的清单在阻塞线程里取 blob，编码成字节，经 `miyu_http::send` 发出去、
-//! 流式读回来，回报交回 actor。任务带着会话的 span，HTTP 的日志写在会话编号后面。报上下文超长、说了上限、比手头的窗口
-//! 小的，记下用出来的窗口（施工 8-7，`models.md`「怎么走」第二条第 9 条）。说完了先交给路由记冷却、钉成员（施工 8-9，
-//! `route/ended.rs`），出错换了端点的照「换了端点」报。
+//! 会话入口发一次（`docs/designs/05-内核接口.md` 第七节「驱动的规格」「HTTP 执行器」，施工 3-7 下；施工 8-6 从 `http.rs`
+//! 挪来；施工 8-20 起取 blob、编码、发都调底子 `route/exchange.rs`）：一次请求在派出去的任务里走完，不占 actor，回报交回
+//! actor。任务带着会话的 span，HTTP 的日志写在会话编号后面。说完了先交给路由记（施工 8-9，[`Tried`]：冷却、换端点照底子
+//! 的 `route/ended.rs`，会话自己的几样在这里），出错换了端点的照「换了端点」报。
+//!
+//! 会话自己记的（`docs/blueprint/models.md`「怎么走」第四条第 3、5、6 条）：
+//! - 成了：钉住的池，钉着的成员换成它（限额跟着换成它的）；会话的 key 换成它；主请求的「说到一半断了」放开。
+//! - 出错：收到过增量才出错的，主请求记下它，下一次主请求还发给它；别的放开。
+//! - 被叫停：什么都不记，主请求的「说到一半断了」放开。
 
-use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Arc;
-use std::time::Duration;
+use std::sync::{Arc, Mutex};
 
 use tracing::Instrument;
 
-use miyu_drivers::{Call, Driver, EncodeError, OpenAiChat};
-use miyu_http::{Attempt, Client, Endpoint, Outcome, Progress, send};
-use miyu_kernel::event::{CallError, ErrorClass};
-use miyu_kernel::id::ContentHash;
-use miyu_kernel::origin::Model;
+use miyu_http::Progress;
+use miyu_kernel::event::ErrorClass;
 use miyu_kernel::request::Request;
 use miyu_store::blob::Blobs;
 
-use crate::blocking::blocking;
-use crate::clock::wall_now;
+use super::base::Ready;
+use super::ended::{Picked, Switch};
+use super::exchange::{Exchanged, exchange};
+use super::{Pinned, lock};
+use crate::config::TurnConfig;
 use crate::port::{Cancel, Reports};
-use crate::route::ended::Tried;
-use crate::route::shared::ModelData;
 
-/// 挑定了的这一次：发给谁、怎么编码、编码要的 blob 在哪。
+/// 挑定了的这一次：底子备好的、编码要的 blob 在哪、说完了会话记什么。
 pub(super) struct Chosen {
-    pub(super) client: Client,
-    /// 记进 `model.called` 的端点和模型。
-    pub(super) model: Model,
-    pub(super) endpoint: Endpoint,
-    pub(super) driver: OpenAiChat,
-    pub(super) call: Call,
+    pub(super) ready: Ready,
     pub(super) blobs: Blobs,
-    pub(super) idle: Duration,
-    /// 报了上限时记到哪。
-    pub(super) learn: Learn,
     /// 说完了路由照它记（施工 8-9）。
     pub(super) tried: Tried,
 }
 
-/// 用出来的窗口记到哪：这一家、这个模型，和发的时候手头的窗口。
-pub(super) struct Learn {
-    pub(super) data: Arc<ModelData>,
-    pub(super) provider: String,
-    pub(super) model: String,
-    pub(super) window: Option<u64>,
+/// 发出去的这一次，会话这一头：底子挑中的那一次，和会话钉着的那一份。
+pub(super) struct Tried {
+    /// 底子挑中的：冷却照它记。
+    pub(super) picked: Picked,
+    /// 会话钉着的那一份。
+    pub(super) pinned: Arc<Mutex<Pinned>>,
+    /// 这一轮的配置：换成员时照它算限额。
+    pub(super) config: TurnConfig,
+    /// 是主请求（摘要请求也算）：只有它认「说到一半断了」。
+    pub(super) main: bool,
+    /// 引用是钉住的池：成了就钉到这个成员。
+    pub(super) pins: bool,
 }
 
-impl Learn {
-    /// 报了的上限 `limit` 比手头的窗口小（或者手头没有窗口）：记下。
-    async fn limit(self, limit: u64) {
-        if self.window.is_some_and(|window| window <= limit) {
-            return;
+impl Tried {
+    /// 成了。
+    fn succeeded(self) {
+        self.picked.succeeded();
+        let picked = &self.picked.choice;
+        let changed =
+            self.pins && picked.member.is_some() && lock(&self.pinned).member != picked.member;
+        // 限额照模型资料算，不拿着钉着的锁算。
+        let limits = changed.then(|| self.picked.routes.limits(&self.config, &picked.target));
+        let mut pinned = lock(&self.pinned);
+        if self.main {
+            pinned.sticky = None;
         }
-        blocking(move || {
-            self.data
-                .learn(&self.provider, &self.model, limit, wall_now());
-        })
-        .await;
+        if let Some(key) = &picked.who.key {
+            pinned
+                .moved
+                .insert(picked.who.provider.clone(), key.clone());
+        }
+        if let Some(limits) = limits {
+            pinned.member.clone_from(&picked.member);
+            pinned.limits = limits;
+        }
+    }
+
+    /// 出错了，分类 `class`，供应商说了要等 `said_ms` 毫秒（没说的没有）；`cut`：收到过增量才出错的。
+    fn failed(self, class: &ErrorClass, said_ms: Option<u64>, cut: bool) -> Switch {
+        let switch = self.picked.failed(class, said_ms, cut);
+        if self.main {
+            lock(&self.pinned).sticky = cut.then(|| self.picked.choice.who.clone());
+        }
+        switch
+    }
+
+    /// 被叫停了：什么都不记，主请求的「说到一半断了」放开。
+    fn cancelled(self) {
+        if self.main {
+            lock(&self.pinned).sticky = None;
+        }
     }
 }
 
@@ -67,46 +92,40 @@ pub(super) fn spawn(chosen: Chosen, request: Request, reports: Reports, cancel: 
     tokio::spawn(ask(chosen, request, reports, cancel).instrument(tracing::Span::current()));
 }
 
-/// 请求一次：取 blob、编码、发、把回报交回 actor。被叫停的什么都不再报。
+/// 请求一次：经底子发，把回报交回 actor。被叫停的什么都不再报。
 async fn ask(chosen: Chosen, request: Request, reports: Reports, cancel: Cancel) {
-    let needed = chosen.driver.blobs_needed(&request, &chosen.call);
-    let blobs = chosen.blobs.clone();
-    let fetched = blocking(move || fetch(&blobs, needed)).await;
-    let encoded = match chosen.driver.encode(&request, &chosen.call, &fetched) {
-        Ok(encoded) => encoded,
-        Err(EncodeError::MissingBlob(hash)) => {
-            let error = missing(&hash);
+    let ready = &chosen.ready;
+    let mut received = false;
+    let exchanged =
+        exchange(
+            ready,
+            &request,
+            &chosen.blobs,
+            cancel.wait(),
+            |progress| match progress {
+                Progress::Sent { request } => reports.sent(ready.model.clone(), request),
+                Progress::Delta(delta) => {
+                    received = true;
+                    reports.delta(delta);
+                }
+            },
+        )
+        .await;
+    let (usage, classified) = match exchanged {
+        Exchanged::Missing(error) => {
             chosen.tried.failed(&error.class, None, false);
             return reports.ended(None, Some(error), None, None);
         }
-    };
-    let attempt = Attempt {
-        client: &chosen.client,
-        endpoint: &chosen.endpoint,
-        driver: &chosen.driver,
-        body: &encoded.body,
-        path: &encoded.path,
-        idle: chosen.idle,
-    };
-    let mut received = false;
-    let outcome = send(attempt, cancel.wait(), |progress| match progress {
-        Progress::Sent { request } => reports.sent(chosen.model.clone(), request),
-        Progress::Delta(delta) => {
-            received = true;
-            reports.delta(delta);
+        Exchanged::Cancelled => return chosen.tried.cancelled(),
+        Exchanged::Ended { usage, error: None } => {
+            chosen.tried.succeeded();
+            return reports.ended(usage, None, None, None);
         }
-    })
-    .await;
-    let Outcome::Ended { usage, error } = outcome else {
-        return chosen.tried.cancelled();
+        Exchanged::Ended {
+            usage,
+            error: Some(classified),
+        } => (usage, classified),
     };
-    let Some(classified) = error else {
-        chosen.tried.succeeded();
-        return reports.ended(usage, None, None, None);
-    };
-    if let Some(limit) = classified.limit {
-        chosen.learn.limit(limit).await;
-    }
     let class = &classified.error.class;
     let switch = chosen
         .tried
@@ -119,22 +138,5 @@ async fn ask(chosen: Chosen, request: Request, reports: Reports, cancel: Cancel)
             switch.wait_ms,
             classified.excess,
         ),
-    }
-}
-
-/// 照清单取 blob。取不出来的（丢了、坏了、读不了）不在里面：编码时驱动报缺的是哪一个。
-fn fetch(blobs: &Blobs, needed: BTreeSet<ContentHash>) -> BTreeMap<ContentHash, Vec<u8>> {
-    needed
-        .into_iter()
-        .filter_map(|hash| blobs.get(&hash).ok().map(|bytes| (hash, bytes)))
-        .collect()
-}
-
-/// 编码要的 blob 取不出来（`05-内核接口.md` 第七节）：分类「其他」，重试也没用。
-fn missing(hash: &ContentHash) -> CallError {
-    CallError {
-        class: ErrorClass::Unclassified,
-        message: format!("编码要用的 blob {hash} 取不出来"),
-        status: None,
     }
 }

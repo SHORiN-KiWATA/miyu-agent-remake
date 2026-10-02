@@ -254,6 +254,7 @@ pub(crate) fn read(kind: Kind, value: &TomlValue) -> Option<Value> {
             | Kind::Reference
             | Kind::Model
             | Kind::Text { .. }
+            | Kind::English { .. }
             | Kind::Duration { .. },
             TomlValue::String(text),
         ) => Some(Value::Text(std::borrow::Cow::Owned(text.value().clone()))),

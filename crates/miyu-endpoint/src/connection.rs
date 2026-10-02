@@ -4,6 +4,13 @@
 //! 读和写分开：读的一头一条条办请求；写的一头从一个有上限的队列里取出一行行写出去。订阅的推送由各自的
 //! 转发任务放进同一个队列（施工 3-8 中）。头读得慢，队列满了，转发任务就不再从会话那里拿，会话那边的
 //! 队列满了就掉队：核心和会话都不等这个头（第七节）。
+//!
+//! 分块上传跟着连接走（施工 W-5）：这个连接的上传表（[`crate::uploads::Uploads`]）住在读的一头的循环里，
+//! 和请求一条条办；连接断了，循环结束前把它开着的上传全部作废、删暂存文件。
+//!
+//! 登记成在后台答的查询（`link.preview`，施工 W-7，`net.md`「怎么走」第 11 条）是一条条办的例外：交给这个连接自己的
+//! 一组后台任务，接着读下一行；办完了回应照 `id` 对上，直接放进写队列。连接断了，这组任务一起停：不然连接走了
+//! 还在抓，核心一直不算空闲。
 
 use std::sync::Arc;
 
@@ -11,14 +18,17 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::sync::mpsc;
+use tokio::task::JoinSet;
 
 use miyu_kernel::id::SessionId;
 use miyu_session::Handle;
 
 use crate::hello::{Shaken, hello};
 use crate::methods;
+use crate::queries::Handler;
 use crate::refusal::{Locale, Refusal};
 use crate::subscriptions::{Subscriptions, Target};
+use crate::uploads::Uploads;
 use crate::wire::{self, Incoming, Read, Request};
 use crate::{Connected, Core};
 
@@ -56,6 +66,10 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
     let mut reader = BufReader::new(read);
     let mut shaken: Option<Shaken> = None;
     let mut subscriptions = Subscriptions::default();
+    // 这个连接上的分块上传（施工 W-5）：和请求一条条办，不用锁。
+    let mut uploads = Uploads::new(core.upload_idle);
+    // 这个连接在后台答的请求（施工 W-7）：连接断了，丢掉它就一起停了。
+    let mut background = JoinSet::new();
     // 握手的期限（施工 4-9 再补三上）：连上以后这么久还没握手成的，断开。
     let deadline = tokio::time::Instant::now() + core.hello_wait;
     loop {
@@ -94,6 +108,19 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
             }
         };
         tracing::debug!(target: "miyu::endpoint", method = request.method.as_str(), "request");
+        reap(&mut background);
+        if peer.is_some()
+            && let Some(handler) = core.queries.background(&request.method)
+        {
+            background.spawn(answer_later(
+                handler,
+                Arc::clone(&core),
+                request,
+                locale,
+                out.clone(),
+            ));
+            continue;
+        }
         let id = || Value::String(request.id.as_str().to_string());
         let (answer, target, close) = match (request.method.as_str(), peer) {
             ("hello", _) => match hello(&core, request.params.clone()) {
@@ -136,7 +163,7 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
                 (answer(&request, result, locale), None, false)
             }
             (_, Some(peer)) => {
-                let result = methods::call(&core, peer, &request).await;
+                let result = methods::call(&core, peer, &request, &mut uploads).await;
                 (answer(&request, result, locale), target(&request), false)
             }
         };
@@ -144,8 +171,37 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
             break;
         }
     }
+    // 连接断了：在后台答的一起停（施工 W-7）；它开着的上传全部作废，删暂存文件（`web-module.md`「怎么走」第六条
+    // 第 4 款）。
+    background.abort_all();
+    uploads.discard_all(&core).await;
     if shaken.is_some() {
         tracing::info!(target: "miyu::endpoint", "disconnected");
+    }
+}
+
+/// 在后台答一条（施工 W-7）：办完了把回应放进写队列。连接已经断了的，放不进去也不要紧，没人收了。
+async fn answer_later(
+    handler: Handler,
+    core: Arc<Core>,
+    request: Request,
+    locale: Locale,
+    out: mpsc::Sender<String>,
+) {
+    let result = handler(core, request.params.clone())
+        .await
+        .map_err(Refusal::from);
+    send(&out, answer(&request, result, locale)).await;
+}
+
+/// 收掉办完了的后台任务，不让这一组越攒越多；崩了的记一行（它的回应永远不会来了）。
+fn reap(background: &mut JoinSet<()>) {
+    while let Some(joined) = background.try_join_next() {
+        if let Err(error) = joined
+            && error.is_panic()
+        {
+            tracing::error!(target: "miyu::endpoint", error = %error, "background request panicked");
+        }
     }
 }
 

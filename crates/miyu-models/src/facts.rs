@@ -5,6 +5,8 @@
 //!   不借（`Matched::price`）。
 //! - 价格是一整格：手写了一项就整份用手写的；本机的服务只认手写的，没写的是 0，来源 `local`。
 //! - 倍率：模型手写的，再是供应商手写的，都没有是 1。
+//! - 思考强度（施工 8-18，[`crate::effort`]）：几档照手写的、目录的，规整过；目录的开关只在这一家的档案写了开关时才算。默认的
+//!   那一档只认配置写的、在这时的档位里的。
 //!
 //! 驱动、缓存类别这两格随用到它们的那一步（「施工时定的」8-7）。
 
@@ -18,6 +20,7 @@ use miyu_drivers::Inputs;
 use serde_json::{Map, Value as Json, json};
 
 use crate::catalog::{CatalogModel, Price, Rates, USD};
+use crate::effort;
 use crate::knowledge::Knowledge;
 use crate::matching::{Found, Matched, find};
 use crate::provider::Provider;
@@ -42,8 +45,10 @@ pub struct Facts {
     pub inputs: Fact<Vec<String>>,
     /// 能不能调工具。没有：不知道，照样带工具面。
     pub tools: Fact<Option<bool>>,
-    /// 思考强度有哪几级。
+    /// 思考强度有哪几档（施工 8-18 起规整过：`none`、`disabled` 读成 `off`，目录的开关照档案加 `off`、`on`）。
     pub reasoning: Fact<Option<Vec<String>>>,
+    /// 默认的思考强度（施工 8-18）：配置写的、在这时的档位里的那一档；没写的、不在档位里的没有（请求照没写发）。
+    pub effort: Fact<Option<String>>,
     /// 价格。没有：不算金额。
     pub price: Fact<Option<Price>>,
     /// 倍率。
@@ -55,6 +60,11 @@ pub struct Facts {
 }
 
 impl Facts {
+    /// 思考强度这时有哪几档（施工 8-18）：没有的是空的。
+    pub fn levels(&self) -> &[String] {
+        self.reasoning.value.as_deref().unwrap_or_default()
+    }
+
     /// 能收哪些输入，写成驱动认的样子（`Call.inputs`）。
     pub fn driver_inputs(&self) -> Inputs {
         let has = |name: &str| self.inputs.value.iter().any(|input| input == name);
@@ -85,6 +95,7 @@ impl Facts {
             json!(self.reasoning.value),
             &self.reasoning.source,
         );
+        put("effort", json!(self.effort.value), &self.effort.source);
         let price = self.price.value.as_ref().map_or(Json::Null, Price::json);
         put("price", price, &self.price.source);
         put(
@@ -146,6 +157,21 @@ pub fn facts(
             },
         ))
     });
+    let reasoning = fact(
+        written
+            .texts(&["reasoning"])
+            .map(|(names, source)| (effort::levels(&names), source))
+            .or_else(|| {
+                let switchable = provider.compat.toggle.is_some();
+                let offered = effort::offered(model_data?.reasoning.as_ref()?, switchable)?;
+                Some((offered, borrowed.clone()?))
+            }),
+    );
+    let chosen = written.text(&["effort"]).and_then(|(level, source)| {
+        let level = effort::normalize(&level).to_string();
+        let known = reasoning.value.as_deref().unwrap_or_default();
+        known.contains(&level).then_some((level, source))
+    });
     let window = written
         .int(&["window"])
         .or_else(|| learned.map(|stamped| (stamped.value, Source::Learned { at: stamped.at })))
@@ -169,11 +195,8 @@ pub fn facts(
                 .bool(&["tools"])
                 .or_else(|| Some((model_data?.tools?, borrowed.clone()?))),
         ),
-        reasoning: fact(
-            written
-                .texts(&["reasoning"])
-                .or_else(|| Some((model_data?.reasoning.clone()?, borrowed.clone()?))),
-        ),
+        reasoning,
+        effort: fact(chosen),
         price: price(&written, provider.local, entry),
         multiplier: or_default(
             written

@@ -17,8 +17,9 @@ use std::path::PathBuf;
 
 use miyu_kernel::accumulate::{Accumulator, Delta, Kind};
 use miyu_kernel::event::{
-    Body, ChangeWhy, CompactTrigger, CompactionDone, CompactionProgress, ErrorClass, Event,
-    ModelChanged, ModelDelta, Piece, Retry, Status, ToolProgress, Transient, TransientBody, Usage,
+    Body, ChangeWhy, CompactTrigger, CompactionDone, CompactionProgress, EffortInUse, EffortSource,
+    ErrorClass, Event, ModelChanged, ModelDelta, Piece, Retry, Status, ToolProgress, Transient,
+    TransientBody, Usage,
 };
 use miyu_kernel::id::{CallId, CommandId, ModelName, ProviderId, Seq, TurnId};
 use miyu_kernel::origin::{By, Model, Tool};
@@ -209,7 +210,8 @@ fn the_status_sample_is_written_exactly() {
 }
 
 /// 上面第三行那一次换过去的成员成了：钉着的换成它，限额照它的，推一条 `model.changed`（施工 8-9）。第二条是样本会话 143 号
-/// 回合开始时池 `free` 没了、退回 `models.chat` 的那一次（施工 8-10，和 144 号 `session.policy_changed` 对得上）。会话 actor
+/// 回合开始时池 `free` 没了、退回 `models.chat` 的那一次（施工 8-10，和 144 号 `session.policy_changed` 对得上），带着
+/// `deepseek/deepseek-v4` 配置的默认思考强度，从哪来是配置的哪一层（施工 8-18；8-18（补）起不再认会话那一层）。会话 actor
 /// 造，内核不推。
 #[test]
 fn the_model_changed_sample_is_written_exactly() {
@@ -222,6 +224,10 @@ fn the_model_changed_sample_is_written_exactly() {
             reference: Some("deepseek/deepseek-v4".to_string()),
             endpoint: Some(ProviderId::parse("deepseek").expect("合编号的写法")),
             model: Some(ModelName::parse("deepseek-v4").expect("合模型名的写法")),
+            effort: Some(EffortInUse {
+                level: "high".to_string(),
+                from: EffortSource::System,
+            }),
             limits: ContextLimits {
                 window: Some(1_000_000),
                 compaction_line: Some(967_000),
@@ -238,6 +244,7 @@ fn the_model_changed_sample_is_written_exactly() {
             reference: Some("@duo".to_string()),
             endpoint: Some(ProviderId::parse("bigmodel").expect("合编号的写法")),
             model: Some(ModelName::parse("glm-5.3-flash").expect("合模型名的写法")),
+            effort: None,
             limits: ContextLimits {
                 window: Some(200_000),
                 compaction_line: Some(167_000),

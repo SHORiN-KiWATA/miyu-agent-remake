@@ -13,9 +13,9 @@ use std::path::{Path, PathBuf};
 
 use miyu_policy::{
     CompactionTexts, CoreLines, CoreTexts, DriverPlaceholders, FactTexts, HarnessTexts,
-    ImageNameTexts, JobTexts, PeerIdleTexts, PeerTexts, PermissionTexts, PersonaTexts,
-    RebuildTexts, RecapTexts, ShortenTexts, Sources, TextFileTexts, TitleTexts, ToolResultTexts,
-    TurnEndedTexts,
+    ImageDescriptionTexts, ImageNameTexts, JobTexts, PeerIdleTexts, PeerTexts, PermissionTexts,
+    PersonaTexts, RebuildTexts, RecapTexts, ShortenTexts, Sources, TextFileTexts, TitleTexts,
+    ToolResultTexts, TurnEndedTexts, VisionTexts,
 };
 
 use crate::env::Env;
@@ -246,6 +246,11 @@ impl ResourceRoot {
                     image_close: driver("image-close.txt")?,
                     image_omitted_named: driver("image-omitted-named.txt")?,
                 }),
+                image_description: Some(ImageDescriptionTexts {
+                    image_description_open: driver("image-description-open.txt")?,
+                    image_description_open_named: driver("image-description-open-named.txt")?,
+                    image_description_close: driver("image-description-close.txt")?,
+                }),
             },
             compaction: Some(CompactionTexts {
                 summarize_task: core(&["compaction", "summarize-task.txt"])?,
@@ -306,6 +311,10 @@ impl ResourceRoot {
             }),
             title: Some(TitleTexts {
                 instruction: core(&["title", "instruction.txt"])?,
+            }),
+            vision: Some(VisionTexts {
+                instruction: core(&["vision", "instruction.txt"])?,
+                question: core(&["vision", "question.txt"])?,
             }),
         })
     }

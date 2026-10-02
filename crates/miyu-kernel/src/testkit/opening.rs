@@ -141,6 +141,7 @@ impl Stage {
             title_lines: VecDeque::new(),
             held_title: None,
             routing: super::routing::Routing::default(),
+            sight: super::sight::Sight::default(),
         };
         stage.settle(actions);
         stage

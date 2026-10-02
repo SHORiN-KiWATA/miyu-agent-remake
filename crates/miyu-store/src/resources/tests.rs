@@ -204,6 +204,16 @@ fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
         sources.core.title.expect("出厂的有起标题的字").instruction,
         include_str!("../../../../resources/core/title/instruction.txt")
     );
+    // 转述一张图的两份（施工 8-17）。
+    let vision = sources.core.vision.expect("出厂的有转述一张图的字");
+    assert_eq!(
+        vision.instruction,
+        include_str!("../../../../resources/core/vision/instruction.txt")
+    );
+    assert_eq!(
+        vision.question,
+        include_str!("../../../../resources/core/vision/question.txt")
+    );
     // 文本文件照字放进消息的三句（施工 3-9 三补）：每一格是它自己那份文件。
     let drivers = sources.core.drivers;
     let text = drivers.text_file.expect("出厂的有文本文件的三句");
@@ -222,6 +232,22 @@ fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
     assert_eq!(
         image.image_omitted_named,
         driver!("image-omitted-named.txt")
+    );
+    // 替它看的图的三句标签（施工 8-17）：同上。
+    let wrap = drivers
+        .image_description
+        .expect("出厂的有替它看的图的三句标签");
+    assert_eq!(
+        wrap.image_description_open,
+        driver!("image-description-open.txt")
+    );
+    assert_eq!(
+        wrap.image_description_open_named,
+        driver!("image-description-open-named.txt")
+    );
+    assert_eq!(
+        wrap.image_description_close,
+        driver!("image-description-close.txt")
     );
 }
 

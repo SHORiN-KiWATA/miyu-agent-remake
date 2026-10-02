@@ -26,9 +26,9 @@ mod renamed;
 #[path = "spawn/depth.rs"]
 mod depth;
 
-/// 子会话用哪个模型（施工 8-8）：挡位照父会话这一轮的配置解析，不写的抄父会话的引用。
-#[path = "spawn/tier.rs"]
-mod tier;
+/// 子会话用哪个模型、工具面上能选哪几个池（施工 8-8 补，取代 8-8 的挡位）。
+#[path = "spawn/pool.rs"]
+mod pool;
 
 /// 场所说明的原文。
 const VENUE: &str = include_str!("../../../resources/core/jobs/subagent-venue.txt");

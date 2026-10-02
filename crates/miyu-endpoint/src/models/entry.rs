@@ -1,7 +1,7 @@
 //! `model.list` 里的一家（`docs/blueprint/models.md`「协议」`model.list` 那张表，施工 8-7）：驱动、地址、key、对上了目录里的
 //! 哪一家、模型。
 //!
-//! - 列哪些模型：供应商的列表里的、目录里对上的那一家的、配置里手写了的、用途挡位池里点名的（施工 8-8），合在一起去重，
+//! - 列哪些模型：供应商的列表里的、目录里对上的那一家的、配置里手写了的、用途池里点名的（施工 8-8），合在一起去重，
 //!   照模型名排；
 //!   `listed` 照 `config`、`provider`、`catalog` 的先后写从哪几处列出来的。
 //! - 模型的 `state`：写了 key、一个都没有值的是 `no_key`。别的照这个模型能用的 key（取得到值的，没写 key 的是那一个）里
@@ -11,14 +11,17 @@
 //! - 这一家用不了（推不出驱动、地址，驱动还没有）：驱动、地址照手写的写，没写的是 `null`，带上 `problem` 那一句，没有模型。
 //! - `base_url` 照配置写的样子交（`address_json`，施工 8-6b）：写死的是地址本身，是环境变量的引用的交 `{"env": "…"}`，
 //!   地址本身不解出来，不会进这份回应。
+//! - 思考强度的那一格多 `key`（施工 8-18（补），`models.md`「协议」）：这一项完整的配置键名，头照抄它发 `config.set`。
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{Value, json};
 
 use miyu_config::Address;
+use miyu_config::key as config_key;
 use miyu_kernel::time::Timestamp;
 use miyu_models::cooldown::{Candidate, Cooling};
+use miyu_models::effort;
 use miyu_models::facts::facts;
 use miyu_models::keys;
 use miyu_models::matching::Found;
@@ -104,6 +107,8 @@ pub(crate) fn provider(data: &ModelData, snapshot: &Snapshot, id: &str, now: Tim
                             "listed": places,
                             "facts": facts.json(&|layer| snapshot.file(layer)),
                         });
+                        entry["facts"]["effort"]["key"] =
+                            json!(config_key::fill(effort::ITEM, &[id, &model]));
                         match no_key {
                             true => entry["state"] = json!("no_key"),
                             false => {
@@ -179,7 +184,7 @@ fn address_json(address: &Address) -> Value {
     }
 }
 
-/// 配置里提到的这一家的模型：手写了资料的，用途、挡位、池里点名的（施工 8-8，`miyu_models::reference::named`）。
+/// 配置里提到的这一家的模型：手写了资料的，用途、池里点名的（施工 8-8，`miyu_models::reference::named`）。
 fn written_models(values: &miyu_config::Values, id: &str) -> Vec<String> {
     let mut models = miyu_config::key::names(values.keys(), "providers.<id>.models.<model>", &[id]);
     models.extend(

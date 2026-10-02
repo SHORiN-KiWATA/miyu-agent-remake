@@ -51,11 +51,12 @@ impl Source {
         }
     }
 
-    /// 写成协议上的样子：`from` 和另带的几格。手写的写成哪份文件，由 `file` 照层给（数据根里的相对路径）。
+    /// 写成协议上的样子：`from` 和另带的几格。手写的写成哪份文件，由 `file` 照层给（数据根里的相对路径）；`layer`
+    /// 是配置的哪一层给的这一格，`system` 或 `personal`（施工 8-7（补），照 `config.get` 说的来源一样写法）。
     pub fn json(&self, file: &dyn Fn(Layer) -> String) -> Map<String, Value> {
         let value = match self {
             Source::Config { layer, line } => {
-                json!({"from": "config", "file": file(*layer), "line": line})
+                json!({"from": "config", "file": file(*layer), "line": line, "layer": layer.as_str()})
             }
             Source::Learned { at } => json!({"from": "learned", "at": at}),
             Source::Provider { fetched } => json!({"from": "provider", "fetched": fetched}),

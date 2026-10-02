@@ -56,10 +56,12 @@
 │   ├── jobs/<哪一份>.txt                 两种回报的写法，11 份（施工 7-2）；回报截在中间的那一行（施工 7-6）；留言的标签，2 份（施工 7-7）；人停的那一句（施工 7-2 补）
 │   └── human/zh.json、en.json、ja.json   给人看的字
 ├── personas/<人格>/prompts/persona.md    人设；出厂的只有 engineer
-└── software/<软件包>/                    出厂的只有 basesystem
-    ├── tools/<工具>.json                 给模型看的说明和参数格式
-    ├── <工具>/<名字>.txt、common/<名字>.txt  工具输出里给她看的几句
-    └── human/zh.json、en.json、ja.json   给人看的字
+└── software/<软件包>/                    出厂的有 basesystem、mermaid、net
+    ├── tools/<工具>.json                 给模型看的说明和参数格式（basesystem）
+    ├── <工具>/<名字>.txt、common/<名字>.txt  工具输出里给她看的几句（basesystem）
+    ├── human/zh.json、en.json、ja.json   给人看的字（basesystem）
+    ├── mermaid/style.json                字体、三种记号色、源码的上限、记几张（施工 W-4，`mermaid.md`）
+    └── net/link_preview.json             抓链接卡片的时限、上限、请求头、记多久（施工 W-7，`net.md`）
 ```
 
 | 哪几份 | 谁读 | 什么时候 |
@@ -69,6 +71,8 @@
 | `core/permission-rule.txt`、`core/local-paths-rule.txt` | `ResourceRoot::core_lines` | 造会话时，接在 system 最后（施工 2-7 补，`policy.md` 的 `with_core_lines`） |
 | `core/human/`、`software/<软件包>/human/` | `Human::load` | `miyu ask` 起来时读一次，印每一步用（`cli/ask.md`）；核心起来时照系统的语言读一次，生成配置的 Schema 和参考文件（施工 8-1，`config.md`） |
 | `software/basesystem/` 下别的 | `miyu-basesystem` | 核心起来时登记工具（`tools/*.md`） |
+| `software/mermaid/style.json` | `miyu-mermaid` | `mermaid.render` 第一次调时读一次，之后留着（施工 W-4，`mermaid.md`） |
+| `software/net/link_preview.json` | `miyu-net` | `link.preview` 第一次调时读一次，之后留着（施工 W-7，`net.md`）。是数据，不发给模型，不进登记簿 |
 | `models/models-dev.json`、`models-dev.meta.json` | `ResourceRoot::catalog_snapshot` | 核心写了 `ready` 以后读一次，和缓存目录里后台拉的那一份挑新的（施工 8-7，`models.md`）。原样的 `api.json` 和它是什么时候拉的。是数据，不发给模型，不进登记簿 |
 | `models/models-dev.LICENSE` | 没人读 | models.dev 的 MIT 许可证原文，跟着快照一起发（`licenses.md`「资源里的第三方数据」） |
 | `models/profiles.toml` | `ResourceRoot::profiles` | 核心起来时读一次，`[npm]`（包名 → 驱动，施工 8-7）、认得出的供应商的驱动、地址、开关、一张图怎么算（施工 8-6，`models.md`）。是数据，不发给模型，不进登记簿 |
@@ -104,7 +108,7 @@
 | `core/facts/env.txt`、`permission.txt`、`reply-cut.txt`、`session.txt`、`permission-changed.txt` | 事实的模板（`session.txt` 施工 1-13 再补，`permission-changed.txt` 施工 2-7 补） |
 | `core/tool-results/unknown.txt`、`not-an-object.txt`、`cancelled-before.txt`、`cancelled-running.txt`、`skipped.txt`、`read-only.txt`、`denied.txt`、`denied-with-reason.txt`、`unattended.txt`、`question-interrupted.txt`、`question-voided.txt`、`question-unattended.txt`、`restarted.txt`、`unavailable.txt`、`crashed.txt` | 替工具写的结果 |
 | `core/permissions/forbidden.txt`、`unresolvable.txt` | 权限策略拒绝时的话（`session/guard.md`） |
-| `core/drivers/image-omitted.txt`、`file-omitted.txt`、`no-output.txt`、`tool-attachments.txt`、`tool-attachments-only.txt`、`file-open.txt`、`file-cut.txt`、`file-close.txt`、`image-open.txt`、`image-close.txt`、`image-omitted-named.txt` | 驱动的占位，文本文件照字放进消息的三句（施工 3-9 三补），带名字的图片的三句（施工 3-9 四补，`drivers/openai-chat.md` 第 9 条） |
+| `core/drivers/image-omitted.txt`、`file-omitted.txt`、`no-output.txt`、`tool-attachments.txt`、`tool-attachments-only.txt`、`file-open.txt`、`file-cut.txt`、`file-close.txt`、`image-open.txt`、`image-close.txt`、`image-omitted-named.txt`、`image-description-open.txt`、`image-description-open-named.txt`、`image-description-close.txt` | 驱动的占位，文本文件照字放进消息的三句（施工 3-9 三补），带名字的图片的三句（施工 3-9 四补），替它看的图的三句标签（施工 8-17，`drivers/openai-chat.md` 第 9 条） |
 | `core/compaction/summarize-task.txt`、`summarize-instructions.txt`、`summarize-end.txt`、`notes-files.txt`、`notes-files-more.txt`、`notes-retrieve.txt`、`notes-too-large.txt`、`restored-open.txt`、`restored-close.txt`、`truncated.txt`、`notes-uncovered.txt`、`summarize-system.txt` | 压缩的字：摘要指令（施工 6-2 上；施工 6-8 拆出最后那一句、加上手动压缩的要求前面那一行，`compaction.md` 第七条），检查点里代码写的几段、重读的文件那一块的头尾（施工 6-5，`compaction.md` 第八条），截过的摘要请求前面补的那一条、摘要没看到的那一段（施工 6-6 中，第三条第 10 条），隔离式那一句 system（施工 6-6 下，第四条） |
 | `core/jobs/command-open.txt`、`command-exit.txt`、`command-signal.txt`、`command-duration.txt`、`command-output.txt`、`command-close.txt`、`subagent-open.txt`、`subagent-person.txt`、`subagent-truncated.txt`、`subagent-silent.txt`、`subagent-close.txt` | 两种回报的写法（施工 7-2，`kernel/request.md`「回报」） |
 | `core/jobs/subagent-omitted.txt` | 子会话回报的正文截在中间的那一行，字段 `count`（施工 7-6，`kernel/session.md`「向上回报」第 3 条） |
@@ -115,6 +119,7 @@
 | `core/peers/idle-open.txt`、`idle-silent.txt`、`idle-expired.txt`、`idle-gone.txt`、`idle-close.txt` | 空了的通知：标签（字段 `id`、`reason`）、没说话的、作废了（字段 `hours`）、不在了、收尾（施工 C-6，`kernel/request.md`「空了的通知」） |
 | `core/recap/instruction.txt`、`user.txt`、`assistant.txt`、`omitted.txt`、`excerpted.txt` | 回顾的请求的指令、两种标签、两句记号（施工 3-8 四补，`kernel/request.md`「回顾的请求」） |
 | `core/title/instruction.txt` | 起标题的请求的指令（施工 3-8 五补，`kernel/request.md`「起标题的请求」） |
+| `core/vision/instruction.txt`、`question.txt` | 转述一张图的请求的指令、人的话前面那一行（施工 8-17，`kernel/request.md`「替它看的图」） |
 | `core/models/probe.txt` | `provider.test` 发的那一句（施工 8-11，`models.md`「怎么走」第七条第 4 条），`ResourceRoot::probe` 每试一次读一次 |
 | `personas/<人格>/prompts/persona.md` | 人设 |
 
@@ -208,7 +213,7 @@
 
 - 同名覆盖：自己的家目录、系统区、出厂的三层，出厂的排在最后（`26-提示词.md` 第八节、J9，`16-人格与预设.md` 第四节）。现在只读资源目录这一处。
 - 人格目录里别的文件：`persona.toml`、示范对话、角色扮演提示，和预设（`16-人格与预设.md` 第三节）。
-- 网页、字体这类资源（`12-进程形态与分发.md` 第三节）。
+- 网页这类资源（`12-进程形态与分发.md` 第三节）：`web/`，随 W-9。mermaid 要的字体、颜色这类已经有了（`software/mermaid/style.json`，施工 W-4）。
 
 **目录的快照怎么刷新**（施工 8-7）：下载原样的 `api.json`，旁边的 `meta` 写出处和服务器回的时刻（UTC），许可证照 models.dev 仓库的 `LICENSE` 原文：
 

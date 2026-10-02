@@ -43,22 +43,6 @@
         "name": "Vision model",
         "description": "Looks at images for the chat model when it cannot. Written like the chat model."
       },
-      "models.tiers.lite": {
-        "name": "Lite tier",
-        "description": "The lightest, fastest tier, which she can pick for a subagent. Left out, it is the chat model."
-      },
-      "models.tiers.cheap": {
-        "name": "Cheap tier",
-        "description": "The cheap tier. Left out, it is the chat model."
-      },
-      "models.tiers.standard": {
-        "name": "Standard tier",
-        "description": "The standard tier. Left out, it is the chat model."
-      },
-      "models.tiers.flagship": {
-        "name": "Flagship tier",
-        "description": "The strongest tier. Left out, it is the chat model."
-      },
       "pools.<id>.models": {
         "name": "Pool members",
         "description": "A group of models, each written as provider/model."
@@ -70,6 +54,14 @@
           "pin": "Pin",
           "rotate": "Rotate"
         }
+      },
+      "pools.<id>.subagent": {
+        "name": "Subagents can pick it",
+        "description": "When on, she can pick this pool for a subagent in new sessions. It is listed only once it has members."
+      },
+      "pools.<id>.description": {
+        "name": "Description for the model",
+        "description": "One line she sees after the pool name when she starts a subagent. Write it in English."
       },
       "providers.<id>.driver": {
         "name": "Driver",
@@ -137,6 +129,10 @@
       "providers.<id>.models.<model>.reasoning": {
         "name": "Reasoning levels",
         "description": "Which reasoning levels this model offers."
+      },
+      "providers.<id>.models.<model>.effort": {
+        "name": "Default reasoning effort",
+        "description": "The reasoning effort this model uses by default: one of its levels, for example high, or off where thinking can be turned off. Left out, the provider decides."
       },
       "providers.<id>.models.<model>.price_multiplier": {
         "name": "Price multiplier",
@@ -212,7 +208,6 @@
       "log": "Runtime log",
       "sessions": "Sessions",
       "uses": "Uses",
-      "tiers": "Tiers",
       "pools": "Pools",
       "providers": "Providers",
       "catalog": "Model catalog",
@@ -258,6 +253,7 @@
     "config/env-not-set": "{key} refers to {name}, which was not set when the core started",
     "config/no-provider": "{key} points at the provider {name}, which is not configured",
     "config/no-pool": "{key} points at the pool {name}, which is not configured",
+    "config/unknown-effort": "{key} is {name}, which is not one of this model's levels now. Requests go out as if it were not set",
     "config/bad-secret-name": "{key} is not a valid secret name: start with a lowercase letter and use only lowercase letters, digits, - and _, up to 64 characters",
     "config/bad-secret-value": "The value of {key} must be quoted text, not empty",
     "config/trust-header": "Which project configs Miyu trusts: the repository, the exact content, and the answer.",
@@ -288,6 +284,7 @@
     "config/expected/int": "a whole number from {min} to {max}",
     "config/expected/float": "a number from {min} to {max}",
     "config/expected/text": "text of at most {max} characters",
+    "config/expected/english": "one line of English, at most {max} characters",
     "config/expected/duration": "a length of time from {min} to {max}, written like 30s, 10m or 1h",
     "config/expected/url": "an address starting with http:// or https://",
     "config/expected/name": "a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters",

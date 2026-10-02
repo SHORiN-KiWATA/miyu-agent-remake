@@ -331,6 +331,11 @@ impl Actor {
                 self.cancel(seen);
                 None
             }
+            // 替看不了图的模型看图（施工 8-17，`model.rs`）：交给端口，结果另走一路送回。
+            Action::Describe { blob, request } => {
+                self.describe(blob, request);
+                None
+            }
             Action::RunTurnEndHooks { .. } => None,
             Action::GuardTool {
                 call_id,
@@ -373,7 +378,7 @@ impl Actor {
                         permission,
                         jobs,
                         subagents: self.session.subagents(),
-                        inherit: Inherit::of(&*self.model, self.config.current()),
+                        inherit: Inherit::of(&*self.model),
                     },
                 )
             }

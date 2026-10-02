@@ -94,6 +94,7 @@ pub fn input(kind: Kind, text: &str) -> Option<Value> {
         | Kind::Reference
         | Kind::Model
         | Kind::Text { .. }
+        | Kind::English { .. }
         | Kind::Duration { .. } => Some(Value::Text(Cow::Owned(unquoted(text)))),
         Kind::Url => Reference::from_input(text)
             .map(Value::Secret)
@@ -118,6 +119,7 @@ pub fn from_json(kind: Kind, value: &serde_json::Value) -> Option<Value> {
             | Kind::Reference
             | Kind::Model
             | Kind::Text { .. }
+            | Kind::English { .. }
             | Kind::Duration { .. },
             serde_json::Value::String(text),
         ) => Some(Value::Text(Cow::Owned(text.clone()))),

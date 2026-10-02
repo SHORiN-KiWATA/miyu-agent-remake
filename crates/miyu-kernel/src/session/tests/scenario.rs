@@ -33,6 +33,7 @@ mod title;
 mod undo_jobs;
 mod upward;
 mod upward_load;
+mod vision;
 mod watch;
 
 use super::executor::call;

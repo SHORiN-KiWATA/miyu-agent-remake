@@ -112,7 +112,7 @@ fn failover_is_written_only_when_it_is_true() {
     assert!(!status(false).contains("failover"));
 }
 
-/// `model.changed`（施工 8-9）：`ref`、`endpoint`、`model`、`limits`、`why` 照这个先后，没有的不写。
+/// `model.changed`（施工 8-9）：`ref`、`endpoint`、`model`、`effort`（施工 8-18）、`limits`、`why` 照这个先后，没有的不写。
 #[test]
 fn model_changed_is_written_in_the_drawing_order() {
     let mut transient = delta(0, Piece::End);
@@ -121,6 +121,7 @@ fn model_changed_is_written_in_the_drawing_order() {
         reference: Some("@duo".to_string()),
         endpoint: Some(ProviderId::parse("b").unwrap()),
         model: Some(ModelName::parse("y").unwrap()),
+        effort: None,
         limits: ContextLimits {
             window: Some(32_000),
             compaction_line: Some(12_000),
@@ -133,10 +134,23 @@ fn model_changed_is_written_in_the_drawing_order() {
         body_of(&transient),
         r#"{"ref":"@duo","endpoint":"b","model":"y","limits":{"window":32000,"compaction_line":12000},"why":"failover"}"#
     );
+    if let TransientBody::ModelChanged(changed) = &mut transient.body {
+        changed.effort = Some(EffortInUse {
+            level: "off".to_string(),
+            from: EffortSource::Personal,
+        });
+        changed.why = ChangeWhy::Turn;
+    }
+    assert_eq!(
+        body_of(&transient),
+        r#"{"ref":"@duo","endpoint":"b","model":"y","effort":{"level":"off","from":"personal"},"limits":{"window":32000,"compaction_line":12000},"why":"turn"}"#,
+        "思考强度在模型后面、限额前面（施工 8-18）；从哪来是配置的哪一层（8-18 补）"
+    );
     transient.body = TransientBody::ModelChanged(Box::new(ModelChanged {
         reference: None,
         endpoint: None,
         model: None,
+        effort: None,
         limits: ContextLimits {
             window: None,
             compaction_line: None,

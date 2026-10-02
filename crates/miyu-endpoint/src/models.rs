@@ -1,7 +1,10 @@
 //! 协议上的 `model.list`（`docs/blueprint/models.md`「协议」，施工 8-7）：配好的供应商，每家的 key、对上了目录里的哪一家、
-//! 模型，每个模型每一格资料的值和来源、状态；在用的目录。池、挡位、用途的 `vision`（施工 8-8）：池写的成员和怎么分，四个挡位、
-//! 两种用途各配的引用，没配的是 `null`。模型、key 的冷却（施工 8-9）照核心一份的冷却表，照这一刻说。`session.create` 的 `model` 怎么解析也在这里（[`record`]，施工 8-8）。
-//! `session.configure` 的参数（[`ConfigureParams`]）、`subscribe` 回应的 `model`（[`next`]）也在这里（施工 8-10）。
+//! 模型，每个模型每一格资料的值和来源、状态（思考强度的那一格多 `key`，施工 8-18（补））；在用的目录。池、用途的 `vision`
+//! （施工 8-8）：池写的成员和怎么分，派子代理能不能选、给模型看的说明（施工 8-8 补），两种用途各配的引用，没配的是
+//! `null`。8-8 的 `tiers` 8-8 补去掉了。模型、key 的冷却（施工 8-9）照核心一份的冷却表，照这一刻说。`session.create` 的
+//! `model` 怎么解析也在这里（[`record`]，施工 8-8）。`session.configure` 的参数（[`ConfigureParams`]，施工 8-10）、
+//! `subscribe` 回应的 `model`（[`next`]，施工 8-10；8-18 多 `effort`，从哪来是配置的哪一层，8-18（补））也在这里。
+//! `model.call` 经一次性入口叫一次模型（`models/call.rs`，施工 8-20）。
 //!
 //! 1. 先等目录读完（核心写了 `ready` 以后才读）。
 //! 2. `provider` 写了、不是配好了的：`unknown_provider`。
@@ -9,7 +12,10 @@
 //!    没有列表、旧过 24 小时的几家在后台拉，这一次先照手头的答。
 //! 4. 照不算项目配置的最终值答。key 的值从不交出去，只说有没有值。
 
+mod call;
 mod entry;
+
+pub(crate) use call::call;
 
 use std::sync::Arc;
 
@@ -20,7 +26,7 @@ use miyu_config::secret::{Reference, Secret};
 use miyu_config::{Layer, Values};
 use miyu_models::pools;
 use miyu_models::provider::{self, NoModel};
-use miyu_models::settings::{ProviderSettings, TierSettings, UseSettings};
+use miyu_models::settings::{PoolSettings, ProviderSettings, UseSettings};
 use miyu_session::{ModelData, Next, STALE, refresh_list};
 
 use crate::Core;
@@ -33,6 +39,38 @@ struct ListParams {
     provider: Option<String>,
     #[serde(default)]
     refresh: Option<bool>,
+}
+
+/// `session.configure` 的参数：`session`、`model` 都必写，`model` 是空字当参数不对（「施工时定的」8-10）。思考强度改在
+/// 配置里，这里不再收 `effort`：写了（不是 `null`）的也是参数不对（施工 8-18（补），「怎么走」第十一条）——这是协议里
+/// 「同一个主版本只加、都忽略不认识的字段」的一处例外：这个字段以前收过，照样收但当场拒，免得旧头以为还能这样换、静悄悄
+/// 没生效。
+#[derive(Debug, Deserialize)]
+pub(crate) struct ConfigureParams {
+    /// 哪个会话。
+    pub(crate) session: String,
+    /// 换成的引用，还没解析。
+    model: String,
+    /// 以前收的思考强度；只用来判断写没写，内容不读。
+    #[serde(default)]
+    effort: Option<Value>,
+}
+
+impl ConfigureParams {
+    /// 换成的引用，原样：空字、写了 `effort` 的是参数不对。
+    ///
+    /// # Errors
+    ///
+    /// 空字、写了 `effort`：`bad_params`。
+    pub(crate) fn model(&self) -> Result<&str, Refusal> {
+        if self.effort.is_some() {
+            return Err(Refusal::BAD_PARAMS);
+        }
+        match self.model.is_empty() {
+            true => Err(Refusal::BAD_PARAMS),
+            false => Ok(&self.model),
+        }
+    }
 }
 
 /// 答 `model.list` 要的那一刻的配置：最终值、各层的文件、引用到的 key 有没有值（拿着配置服务的锁抄一份，抄完就放开）。
@@ -97,58 +135,36 @@ pub(crate) async fn list(core: &Core, params: Value) -> Result<Value, Refusal> {
         |loaded| json!({"source": loaded.source.as_str(), "fetched": loaded.fetched}),
     );
     let uses = UseSettings::from(&values);
-    let tiers = TierSettings::from(&values);
     Ok(json!({
         "providers": providers,
         "pools": pools_json(&values),
-        "tiers": {
-            "lite": tiers.lite,
-            "cheap": tiers.cheap,
-            "standard": tiers.standard,
-            "flagship": tiers.flagship,
-        },
         "uses": {"chat": uses.chat, "vision": uses.vision},
         "catalog": catalog,
     }))
 }
 
-/// 每个池：名字、怎么分（没写的照成员定）、写的成员（照写的原样）。照名字排。
+/// 每个池：名字、怎么分（没写的照成员定）、写的成员（照写的原样），派子代理能不能选（没写的是 `false`）、给模型看的说明
+/// （没写的是 `null`，施工 8-8 补）。照名字排。
 fn pools_json(values: &Values) -> Vec<Value> {
     pools::names(values)
         .into_iter()
         .filter_map(|name| {
             let (models, strategy) = pools::listed(values, &name)?;
-            Some(json!({"name": name, "strategy": strategy.as_str(), "models": models}))
+            let settings = PoolSettings::at(values, &[&name]);
+            Some(json!({
+                "name": name,
+                "strategy": strategy.as_str(),
+                "models": models,
+                "subagent": settings.subagent,
+                "description": settings.description,
+            }))
         })
         .collect()
 }
 
-/// `session.configure` 的参数（施工 8-10，`docs/blueprint/models.md`「协议」）：哪个会话、换成的模型、`@池` 或者挡位，两格都
-/// 必写，不是字的读不成（`bad_params`）。
-#[derive(Debug, Deserialize)]
-pub(crate) struct ConfigureParams {
-    /// 哪个会话。
-    pub(crate) session: String,
-    /// 换成的引用，还没解析。
-    model: String,
-}
-
-impl ConfigureParams {
-    /// 换成的引用，原样：空字是参数不对（「施工时定的」8-10）。
-    ///
-    /// # Errors
-    ///
-    /// 空字：`bad_params`。
-    pub(crate) fn model(&self) -> Result<&str, Refusal> {
-        match self.model.is_empty() {
-            true => Err(Refusal::BAD_PARAMS),
-            false => Ok(&self.model),
-        }
-    }
-}
-
 /// `subscribe` 回应的 `model`（施工 8-10）：`{"ref":…,"endpoint":…,"model":…}`，会话接下来请求的；轮换的池没有 `endpoint`、
-/// `model`，一个模型都没有的没有这一格。
+/// `model`，一个模型都没有的没有这一格。施工 8-18 多 `effort`：`{"level":…,"from":…}`，接下来那个模型真用的思考强度，什么
+/// 都不带的没有。
 pub(crate) fn next(next: &Next) -> Option<Value> {
     if next.is_empty() {
         return None;
@@ -161,15 +177,21 @@ pub(crate) fn next(next: &Next) -> Option<Value> {
         written.insert("endpoint".to_string(), json!(model.endpoint.as_str()));
         written.insert("model".to_string(), json!(model.model.as_str()));
     }
+    if let Some(effort) = &next.effort {
+        written.insert(
+            "effort".to_string(),
+            json!({"level": effort.level, "from": effort.from.as_str()}),
+        );
+    }
     Some(Value::Object(written))
 }
 
-/// `session.create` 的 `model`（施工 8-8）：照这时的配置解析成会话记下的引用（模型或 `@池`，挡位换成它这时的值）。照不算项目
-/// 配置的最终值：模型这一块项目配置里本来就不能写。
+/// `session.create` 的 `model`（施工 8-8）：照这时的配置查过，交回会话记下的引用（模型或 `@池`）。照不算项目配置的最终值：
+/// 模型这一块项目配置里本来就不能写。
 ///
 /// # Errors
 ///
-/// 解析不出：没有这家供应商、没有这个池、池是空的、挡位没配又没有 `models.chat`（`unknown_model`，原话记一行 `DEBUG`）。
+/// 解析不出：写法不对（连同以前的挡位名）、没有这家供应商、没有这个池、池是空的（`unknown_model`，原话记一行 `DEBUG`）。
 pub(crate) fn record(core: &Core, text: &str) -> Result<String, Refusal> {
     let values = core.config().resolved().values();
     miyu_models::reference::record(&values, text).map_err(|NoModel(why)| {

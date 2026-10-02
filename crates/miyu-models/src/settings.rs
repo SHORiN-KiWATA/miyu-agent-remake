@@ -1,12 +1,13 @@
 //! 模型这一块的配置项（`docs/blueprint/models.md`「配置：模型这一块的键」，`config.md`「配置清单」，施工 8-6）：
-//! 一家供应商 `[providers.<id>]`、一个模型手写的资料 `[providers.<id>.models."<model>"]`、用途 `[models]`、挡位
-//! `[models.tiers]`、池 `[pools.<名字>]`。
+//! 一家供应商 `[providers.<id>]`、一个模型手写的资料 `[providers.<id>.models."<model>"]`、用途 `[models]`、池
+//! `[pools.<名字>]`。
 //!
 //! 8-6 只声明用得上的几格：驱动、地址、几个 key、对应目录里的哪一家、模型的窗口、主对话的模型。8-7 加上模型资料要的
 //! （`models.md`「模型的资料」）：供应商的倍率、本机；模型手写的资料（对目录里的哪一个、最大输出、能收什么、能不能调工具、
-//! 思考强度、价格、倍率）；目录怎么更新 `[models.catalog]`。8-8 加上看图的模型、四个挡位、池，供应商的缓存类别（池不写
-//! 分法时照它定，[`crate::pools`]）。别的格（另配的头、开关、占位工具、模型的驱动）随用到它的那一步加（「施工时定的」
-//! 8-6、8-7、8-8）。8-9 加上冷却 `[models.cooldown]` 的三类。项目配置一项都不能写。
+//! 思考强度、价格、倍率）；目录怎么更新 `[models.catalog]`。8-8 加上看图的模型、池，供应商的缓存类别（池不写分法时照它
+//! 定，[`crate::pools`]）；8-8 的四个挡位 8-8 补去掉了，池多派子代理能不能选、给模型看的说明两项。别的格（另配的头、开关、占位工具、模型的驱动）随用到它的那一步加（「施工时定的」
+//! 8-6、8-7、8-8）。8-9 加上冷却 `[models.cooldown]` 的三类。8-18 加上模型默认的思考强度
+//! `effort`。项目配置一项都不能写。
 //!
 //! `base_url` 8-6b 起也能写 `{ env = … }`：地址不进任何回应、日志、文件，照核心起来时的环境取（[`crate::provider`] 的
 //! `resolve_base_url`）。
@@ -112,12 +113,20 @@ miyu_config::settings! {
             applies: next_turn,
             ui: { page: "models", group: "providers", control: toggle },
         },
-        /// 思考强度有哪几级（施工 8-7）：只给 `model.list` 看。
+        /// 思考强度有哪几档（施工 8-7）：盖过目录的；`none`、`disabled` 读成 `off`（施工 8-18，[`crate::effort`]）。
         reasoning: Option<Vec<String>> = none {
             kind: texts [32],
             layers: [System, Personal],
             applies: next_turn,
             ui: { page: "models", group: "providers", control: list },
+        },
+        /// 默认的思考强度（施工 8-18，`models.md`「怎么走」第十一条第 2 条）：这个模型的一档，不写的请求里不带、照供应商的
+        /// 默认。不在这时的档位里的照没写，配置报 `unknown_effort`（[`crate::effort::unknown`]）。
+        effort: Option<String> = none {
+            kind: text [32],
+            layers: [System, Personal],
+            applies: next_turn,
+            ui: { page: "models", group: "providers", control: text },
         },
         /// 倍率：盖过供应商上写的（施工 8-7）。
         price_multiplier: Option<Number> = none {
@@ -219,46 +228,11 @@ miyu_config::settings! {
 }
 
 miyu_config::settings! {
-    /// 四个挡位（`models.md`「对外的样子」`[models.tiers]`，施工 8-8）：轻量、便宜、普通、旗舰。没配的用 `models.chat`，
-    /// 不借相邻的挡位（`15-模型与供应商.md` M3）。挡位的值不能再写挡位：会绕圈。派子代理、造会话时照这一刻的配置解析，
-    /// 解析出的模型或池记进会话，这一挡以后改了已经造好的会话不跟着换（「定的」第 1 条）。
-    pub struct TierSettings in "models.tiers" {
-        /// 轻量：最轻、最快的。
-        lite: Option<String> = none {
-            kind: reference,
-            layers: [System, Personal],
-            applies: next_turn,
-            ui: { page: "models", group: "tiers", control: text },
-        },
-        /// 便宜。
-        cheap: Option<String> = none {
-            kind: reference,
-            layers: [System, Personal],
-            applies: next_turn,
-            ui: { page: "models", group: "tiers", control: text },
-        },
-        /// 普通。
-        standard: Option<String> = none {
-            kind: reference,
-            layers: [System, Personal],
-            applies: next_turn,
-            ui: { page: "models", group: "tiers", control: text },
-        },
-        /// 旗舰：最强的。
-        flagship: Option<String> = none {
-            kind: reference,
-            layers: [System, Personal],
-            applies: next_turn,
-            ui: { page: "models", group: "tiers", control: text },
-        },
-    }
-}
-
-miyu_config::settings! {
     /// 一个池（`models.md`「对外的样子」`[pools.<名字>]`，「怎么走」第三条第 6 条，施工 8-8）：几个模型编成一组。名字是键里
     /// `<id>` 那一段，「路径里的名字」的写法。
     pub struct PoolSettings in "pools.<id>" {
-        /// 成员：模型的列表，只能是 `<供应商>/<模型>`，照写的先后。至少一个：一个都没有的池解析不出。
+        /// 成员：模型的列表，只能是 `<供应商>/<模型>`，照写的先后。可以是空的（`miyu setup` 预先建的三个池），一个都没有的池
+        /// 解析不出。
         models: Option<Vec<String>> = none {
             kind: models,
             layers: [System, Personal],
@@ -271,6 +245,21 @@ miyu_config::settings! {
             layers: [System, Personal],
             applies: next_turn,
             ui: { page: "models", group: "pools", control: select },
+        },
+        /// 在不在派子代理的选项里（施工 8-8 补，`models.md`「工具」）：开着、有认得出的成员的，新会话的 `subagent` 能选它
+        /// （[`crate::pools::offered`]）。会话开局时拼进工具面，整个会话不变：新会话生效。
+        subagent: bool = false {
+            kind: bool,
+            layers: [System, Personal],
+            applies: new_session,
+            ui: { page: "models", group: "pools", control: toggle },
+        },
+        /// 给模型看的一句（施工 8-8 补）：`subagent` 的参数里接在池名后面。一行英文，CJK 的字占一半以上的不收。
+        description: Option<String> = none {
+            kind: english [60],
+            layers: [System, Personal],
+            applies: new_session,
+            ui: { page: "models", group: "pools", control: text },
         },
     }
 }

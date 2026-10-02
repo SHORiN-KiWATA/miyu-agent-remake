@@ -1,13 +1,15 @@
 //! 模型的资料（施工 8-7）：每一格各查各的，价格整份不拼，第 3、4 层借哪些，本机的当免费，倍率谁盖谁，来源一字不差。
 
 use miyu_config::Layer;
+use miyu_config::merge::{Layers, Resolved, merge};
+use miyu_config::parse::parse;
 use miyu_kernel::time::Timestamp;
 use serde_json::json;
 
 use super::*;
 use crate::observed::{ListedModel, ProviderList};
 use crate::provider::provider;
-use crate::test_support::{Held, resolved};
+use crate::test_support::{Held, items, resolved};
 
 /// 档案只认 OpenAI 兼容的包，带上裁出来的目录。
 fn held() -> Held {
@@ -54,6 +56,7 @@ fn every_fact_from_the_catalog_carries_its_entry_layer_and_date() {
             "inputs": with(json!(["text", "image"])),
             "tools": with(json!(true)),
             "reasoning": with(json!(["low", "high", "max"])),
+            "effort": {"value": null, "from": "default"},
             "price": with(json!({"input": 0.15, "output": 0.6, "cache_read": 0.003, "reasoning": 0.6, "currency": "USD"})),
             "multiplier": {"value": 1.0, "from": "default"},
             "name": with(json!("DeepSeek V4.1 Flash")),
@@ -77,7 +80,7 @@ fn each_fact_is_looked_up_on_its_own() {
     assert_eq!(facts.window.value, Some(60_000));
     assert_eq!(
         facts.window.source.json(&file),
-        json!({"from": "config", "file": "system/config.toml", "line": 5})
+        json!({"from": "config", "file": "system/config.toml", "line": 5, "layer": "system"})
             .as_object()
             .cloned()
             .expect("对象")
@@ -88,6 +91,167 @@ fn each_fact_is_looked_up_on_its_own() {
     assert_eq!(facts.tools.value, Some(false));
     assert_eq!(facts.reasoning.value, Some(vec!["high".to_string()]));
     assert!(matches!(facts.price.source, Source::Catalog { .. }));
+}
+
+/// 思考强度（施工 8-18）：目录的开关只在档案写了开关时算，多一档 `off`；手写的几档规整过、盖过目录的；默认的那一档只认
+/// 写在档位里的，`none` 读成 `off`，来源写文件和行；不在档位里的照没写。
+#[test]
+fn reasoning_levels_follow_the_profile_and_the_default_must_be_one_of_them() {
+    let toggled = Held::new(
+        json!({
+            "npm": {"@ai-sdk/openai-compatible": "openai-chat"},
+            "providers": {"deepseek": {"compat": {"toggle": {"field": "thinking", "on": true, "off": false}}}}
+        }),
+        true,
+    );
+    let (facts, _) = facts_of(&toggled, DEEPSEEK, "deepseek", "deepseek-flash");
+    assert_eq!(
+        facts.reasoning.value,
+        Some(["off", "low", "high", "max"].map(str::to_string).to_vec()),
+        "档案写了开关：多一档 off"
+    );
+    let (plain, _) = facts_of(&held(), DEEPSEEK, "deepseek", "deepseek-flash");
+    assert_eq!(plain.levels(), ["low", "high", "max"], "档案没写开关：不加");
+    let written = "[providers.deepseek]\nkeys = []\n\n[providers.deepseek.models.\"deepseek-flash\"]\neffort = \"none\"\n";
+    let (facts, _) = facts_of(&toggled, written, "deepseek", "deepseek-flash");
+    assert_eq!(facts.effort.value.as_deref(), Some("off"));
+    assert_eq!(
+        Json::Object(facts.effort.source.json(&file)),
+        json!({"from": "config", "file": "system/config.toml", "line": 5, "layer": "system"})
+    );
+    let (facts, _) = facts_of(&held(), written, "deepseek", "deepseek-flash");
+    assert_eq!(
+        (facts.effort.value, facts.effort.source),
+        (None, Source::Default),
+        "没有开关就没有 off：照没写"
+    );
+    let own = "[providers.deepseek]\nkeys = []\n\n[providers.deepseek.models.\"deepseek-flash\"]\nreasoning = [\"disabled\", \"turbo\"]\neffort = \"turbo\"\n";
+    let (facts, _) = facts_of(&toggled, own, "deepseek", "deepseek-flash");
+    assert_eq!(facts.levels(), ["off", "turbo"], "手写的盖过目录，照样规整");
+    assert_eq!(facts.effort.value.as_deref(), Some("turbo"));
+}
+
+/// 两层都合出来的最终值：系统配置 `system`，个人设置 `personal`，没写的那一层传空字。
+fn two_layers(system: &str, personal: &str) -> Resolved {
+    let item_list = items();
+    let system = parse(&item_list, Layer::System, system).expect("写法对");
+    let personal = parse(&item_list, Layer::Personal, personal).expect("写法对");
+    let layers = Layers {
+        system: Some(&system),
+        personal: Some(&personal),
+        ..Layers::default()
+    };
+    merge(&item_list, &layers, &|_| None)
+}
+
+/// 照两层配置查 `deepseek-flash` 的默认思考强度：值和来源。
+fn effort_of(held: &Held, system: &str, personal: &str) -> (Option<String>, Source) {
+    let resolved = two_layers(system, personal);
+    let knowledge = held.knowledge();
+    let provider = provider(&resolved.values(), &knowledge, "deepseek").expect("配了");
+    let (facts, _) = facts(&resolved, &knowledge, &provider, "deepseek-flash");
+    (facts.effort.value, facts.effort.source)
+}
+
+/// 配置两层都写、只写一层、都不写：默认的思考强度（施工 8-18（补）去掉会话那一层以后，只剩配置的两层，个人设置压着
+/// 系统配置，和别的字段一样，「怎么走」第十一条第 2 条）。
+#[test]
+fn effort_default_is_personal_over_system_or_whichever_is_written() {
+    let held = held();
+    let level = |layer: &str| {
+        format!("[providers.deepseek.models.\"deepseek-flash\"]\neffort = \"{layer}\"\n")
+    };
+    let system = format!("{DEEPSEEK}\n{}", level("low"));
+
+    let (value, source) = effort_of(&held, &system, &level("high"));
+    assert_eq!(
+        value.as_deref(),
+        Some("high"),
+        "两层都写：个人设置压着系统配置"
+    );
+    assert!(matches!(
+        source,
+        Source::Config {
+            layer: Layer::Personal,
+            ..
+        }
+    ));
+
+    let (value, source) = effort_of(&held, &system, "");
+    assert_eq!(value.as_deref(), Some("low"), "只写了系统配置");
+    assert!(matches!(
+        source,
+        Source::Config {
+            layer: Layer::System,
+            ..
+        }
+    ));
+
+    let (value, source) = effort_of(&held, DEEPSEEK, &level("high"));
+    assert_eq!(value.as_deref(), Some("high"), "只写了个人设置");
+    assert!(matches!(
+        source,
+        Source::Config {
+            layer: Layer::Personal,
+            ..
+        }
+    ));
+
+    let (value, source) = effort_of(&held, DEEPSEEK, "");
+    assert_eq!(value, None, "都不写：没有默认");
+    assert_eq!(source, Source::Default);
+}
+
+/// 来源是配置的，`layer` 格说是哪一层：系统配置 `system`，个人设置 `personal`，两层都写时跟着真的来源走（个人设置压着
+/// 系统配置，施工 8-7（补），照 `config.get` 说的来源一样写法）。
+#[test]
+fn facts_json_says_which_config_layer_a_value_came_from() {
+    let held = held();
+    let system = "[providers.deepseek]\nkeys = []\n\n[providers.deepseek.models.\"deepseek-flash\"]\nwindow = 60000\n";
+    let personal = "[providers.deepseek.models.\"deepseek-flash\"]\nwindow = 70000\n";
+
+    let window_of = |system: &str, personal: &str| {
+        let resolved = two_layers(system, personal);
+        let knowledge = held.knowledge();
+        let provider = provider(&resolved.values(), &knowledge, "deepseek").expect("配了");
+        let (facts, _) = facts(&resolved, &knowledge, &provider, "deepseek-flash");
+        facts.window
+    };
+
+    let both = window_of(system, personal);
+    assert_eq!(both.value, Some(70_000), "两层都写：个人设置压着系统配置");
+    assert_eq!(
+        Json::Object(both.source.json(&file)),
+        json!({"from": "config", "file": "personal/config.toml", "line": 2, "layer": "personal"})
+    );
+
+    let system_only = window_of(system, "");
+    assert_eq!(system_only.value, Some(60_000), "只写了系统配置");
+    assert_eq!(
+        Json::Object(system_only.source.json(&file)),
+        json!({"from": "config", "file": "system/config.toml", "line": 5, "layer": "system"})
+    );
+}
+
+/// 别的来源不带 `layer`：学来的、供应商列表、本机的、驱动默认都没有这一格，只有手写的配置区分系统、个人两层。
+#[test]
+fn non_config_sources_carry_no_layer_field() {
+    let sources = [
+        Source::Learned {
+            at: at("2026-10-01T08:12:30.000Z"),
+        },
+        Source::Provider {
+            fetched: at("2026-10-01T03:00:00.000Z"),
+        },
+        Source::Local,
+        Source::Default,
+    ];
+    for source in sources {
+        assert!(
+            !source.json(&file).contains_key("layer"),
+            "{source:?} 不该带 layer"
+        );
+    }
 }
 
 /// 窗口：手写的、用出来的、供应商的列表、目录，先有的算。

@@ -2,9 +2,12 @@
 //! 3-9 四补挪来；别的 harness 发来的话的标签，施工 7-10）。
 
 use miyu_assemble::{
-    HarnessTexts, IdleTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title, TurnEndedTexts,
+    HarnessTexts, IdleTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title,
+    TurnEndedTexts, Vision,
 };
-use miyu_drivers::{DriverTextSources, DriverTexts, ImageNameSources, TextFileSources};
+use miyu_drivers::{
+    DriverTextSources, DriverTexts, ImageDescriptionSources, ImageNameSources, TextFileSources,
+};
 use miyu_kernel::template::Template;
 
 /// 出厂的摘要指令（3-9 三补合并时从 `mod.rs` 挪来）：摘要请求的最后一块（施工 6-2 上）；正文接最后那一句（施工 6-8 拆开）。
@@ -75,6 +78,15 @@ pub(super) fn texts() -> Texts {
         }),
         recap: Some(recap()),
         title: Some(title()),
+        vision: Some(vision()),
+    }
+}
+
+/// 出厂的转述一张图的两份（施工 8-17），资源目录里的真文件。
+pub fn vision() -> Vision {
+    Vision {
+        instruction: include_str!("../../../../resources/core/vision/instruction.txt").to_string(),
+        question: include_str!("../../../../resources/core/vision/question.txt").to_string(),
     }
 }
 
@@ -150,6 +162,17 @@ pub(super) fn driver_texts() -> DriverTexts {
             image_close: include_str!("../../../../resources/core/drivers/image-close.txt"),
             image_omitted_named: include_str!(
                 "../../../../resources/core/drivers/image-omitted-named.txt"
+            ),
+        }),
+        image_description: Some(ImageDescriptionSources {
+            image_description_open: include_str!(
+                "../../../../resources/core/drivers/image-description-open.txt"
+            ),
+            image_description_open_named: include_str!(
+                "../../../../resources/core/drivers/image-description-open-named.txt"
+            ),
+            image_description_close: include_str!(
+                "../../../../resources/core/drivers/image-description-close.txt"
             ),
         }),
     })

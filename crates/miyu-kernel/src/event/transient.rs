@@ -61,11 +61,35 @@ pub struct ModelChanged {
     /// 接下来发给哪个模型。轮换的池没有。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<ModelName>,
+    /// 接下来那个模型真用的思考强度（施工 8-18）：一档和从哪来。请求里什么都不带的、轮换的池没有。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effort: Option<EffortInUse>,
     /// 和 `subscribe` 回应里的一样：窗口、压缩线，没有的不写。
     pub limits: ContextLimits,
     /// 为什么变。
     pub why: ChangeWhy,
 }
+
+/// 一次请求用的思考强度和它从哪来（施工 8-18，8-18（补）起从哪来是配置的哪一层；`models.md`「怎么走」第十一条第 4
+/// 条）：`model.changed`、`subscribe` 回应的 `effort`。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct EffortInUse {
+    /// 那一档：规整过的名字（`off`、`on`，或者目录里的档位名）。
+    pub level: String,
+    /// 从配置的哪一层来。
+    pub from: EffortSource,
+}
+
+text_enum!(
+    /// 思考强度从配置的哪一层来（施工 8-18；8-18（补）起不再有会话那一层，只剩配置的两层）：`providers.<id>.models.<model>
+    /// .effort` 写在系统配置还是个人设置里，照 `config.get` 说的来源。
+    EffortSource {
+        /// 系统配置 `system/config.toml`。
+        System = "system",
+        /// 个人设置 `home/<账号>/settings.toml`。
+        Personal = "personal",
+    }
+);
 
 text_enum!(
     /// `model.changed` 为什么推（施工 8-9；回合开始时重新解析的 `turn`，施工 8-10）。

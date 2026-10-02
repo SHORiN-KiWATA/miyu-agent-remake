@@ -12,7 +12,8 @@ fn the_deepseek_profile_reads_into_the_switches() {
         "image_tokens": "deepseek",
         "compat": {
             "reasoning": {"replay": "reasoning_content", "always": true},
-            "continuation": {"field": "prefix", "path": "/beta/chat/completions"}
+            "continuation": {"field": "prefix", "path": "/beta/chat/completions"},
+            "toggle": {"field": "thinking", "on": {"type": "enabled"}, "off": {"type": "disabled"}}
         }
     }}}))
     .expect("读得进来");
@@ -42,6 +43,15 @@ fn each_switch_lays_over_the_default() {
     assert_eq!(
         compat(json!({"reasoning": "drop", "continuation": "none"})),
         Compat::default()
+    );
+    // 开关思考的字段（施工 8-18）：值照原样的 JSON，什么形状都收。
+    assert_eq!(
+        compat(json!({"toggle": {"field": "enable_thinking", "on": true, "off": false}})).toggle,
+        Some(Box::new(Toggle {
+            field: "enable_thinking".to_string(),
+            on: json!(true),
+            off: json!(false),
+        }))
     );
     assert_eq!(
         compat(

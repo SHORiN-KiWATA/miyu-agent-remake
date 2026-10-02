@@ -30,9 +30,9 @@ pub struct SessionCreated {
     /// 第几层：父会话的加一，主会话是第 0 层、不写。和 `parent` 同有同无、至少是 1，由账本查（`kernel/history.md`）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub depth: Option<u32>,
-    /// 会话用哪个模型（施工 8-8，`models.md`「事件」）：造会话时解析好的引用，模型 `<供应商>/<模型>` 或池 `@<池>`，挡位已经
-    /// 换成了它那时的值。协议造的照 `session.create` 的 `model`，没写的照那时的 `models.chat`；子会话的照 `subagent` 的
-    /// `tier`，没写的照父会话那时的。那时连 `models.chat` 都没配的不写；以前的日志没有这一格，照没有读。内核只记不解读，
+    /// 会话用哪个模型（施工 8-8，`models.md`「事件」）：造会话时解析好的引用，模型 `<供应商>/<模型>` 或池 `@<池>`（施工 8-8
+    /// 造的可能是挡位换成的那时的值）。协议造的照 `session.create` 的 `model`，没写的照那时的 `models.chat`；子会话的照
+    /// `subagent` 的 `pool`（施工 8-8 补；8-8 是 `tier`），没写的照父会话那时的。那时连 `models.chat` 都没配的不写；以前的日志没有这一格，照没有读。内核只记不解读，
     /// 引用怎么认在 `miyu-models`。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
@@ -40,6 +40,10 @@ pub struct SessionCreated {
 
 /// `session.policy_changed`：换了策略快照，或者换了权限，或者换了模型，也可以一起换。
 /// 谁换的看事件的 `by`：人改的是配置，内核换的是目录变了、钉着的模型没了。
+///
+/// 施工 8-18 曾在这里加过 `effort`（会话给一个模型记的思考强度）；8-18（补）去掉了这一层，思考强度改在配置里
+/// （`models.md`「怎么走」第十一条）。以前的日志里带 `effort` 的照样读得进（格式只加不改，不认识的字段不管，
+/// `event.rs`「读进来的样子」），内核不再理它。
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PolicyChanged {
     /// 新的策略快照，下一个回合开始时生效（`02-内核.md` K3）。
@@ -48,8 +52,8 @@ pub struct PolicyChanged {
     /// 新的权限：收紧当场生效，放宽下一步生效（`11-权限与沙盒.md` 第二节）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub permission: Option<Permission>,
-    /// 换成的模型引用（施工 8-10，`models.md`「事件」）：模型 `<供应商>/<模型>` 或池 `@<池>`，挡位在协议那一头已经换成了它
-    /// 的值。人换的 `by` 是人；钉着的没了、内核退回默认的 `by` 是内核，带着 `replaced`。下一个回合开始时生效，撤掉的回合里
+    /// 换成的模型引用（施工 8-10，`models.md`「事件」）：模型 `<供应商>/<模型>` 或池 `@<池>`（施工 8-8 补以前，挡位在协议
+    /// 那一头已经换成了它的值）。人换的 `by` 是人；钉着的没了、内核退回默认的 `by` 是内核，带着 `replaced`。下一个回合开始时生效，撤掉的回合里
     /// 的也算。以前的日志没有这一格。内核只记不解读。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,

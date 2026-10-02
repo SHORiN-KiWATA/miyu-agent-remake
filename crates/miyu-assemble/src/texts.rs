@@ -47,6 +47,18 @@ pub struct Texts {
     /// 起标题的请求要用的（`core/title/`，施工 3-8 五补）：对话记录的标签和截断的记号借回顾的，两样都有才起标题。以前造的
     /// 快照里没有，是没有：那些会话不起标题。
     pub title: Option<Title>,
+    /// 转述一张图的请求要用的（`core/vision/`，施工 8-17）。以前造的快照里没有，是没有：那些会话不转述，看不了图的照旧写
+    /// 占位。
+    pub vision: Option<Vision>,
+}
+
+/// 转述一张图的请求要用的两份（施工 8-17，`docs/blueprint/kernel/request.md`「替它看的图」）：换行都在文件里，拼的时候不加字。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Vision {
+    /// 指令（`instruction.txt`），以换行结尾。
+    pub instruction: String,
+    /// 人的话前面那一行（`question.txt`）：以空行开头、以换行结尾，后面紧跟人这一轮最近说的那一句的原话。
+    pub question: String,
 }
 
 /// 起标题的请求要用的（施工 3-8 五补，`docs/blueprint/kernel/request.md`「起标题的请求」）：指令，和一个数，是策略数据。

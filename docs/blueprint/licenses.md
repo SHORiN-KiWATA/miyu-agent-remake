@@ -53,6 +53,8 @@ GPL-3.0-or-later，见 `LICENSE`。
 
 ### 依赖记录
 
+- 施工 W-7 给 `miyu-net`（新 crate，可选软件包 `net`，默认打开）直接用了 `hyper-util` 0.1（MIT，开 `client-proxy`：判这一跳走不走代理，reqwest 自己照环境变量走代理用的就是它的 `Matcher`）、`http` 1（MIT OR Apache-2.0，`Matcher` 收的地址类型）；`reqwest`、`tokio`、`serde`、`serde_json`、`tracing` 照 `miyu-http` 的写法。这几个本来就在依赖图里（reqwest 带进来的），没给图里添新的第三方包。门禁过了。
+- 施工 W-4 给 `miyu-mermaid`（新 crate，可选软件包 `mermaid`，默认打开）加了 `mermaid-rs-renderer` 0.3.1（MIT，mermaid 源码画成 SVG，关掉它默认的 `cli`、`png` 两个功能，只要出 SVG 的那一半，和它一起进来的 `clap`、`resvg`、`usvg` 都不进依赖图）；它带进来的 `anyhow`（MIT OR Apache-2.0）、`fontdb` 0.23（MIT，量字的宽要用；`miyu-mermaid` 自己也直接用它独立探一次字体库找不找得到字）、`json5`（MIT）、`once_cell`（MIT OR Apache-2.0）、`regex`（MIT OR Apache-2.0）、`serde`、`serde_json`（都在依赖图里）、`thiserror`（MIT OR Apache-2.0）、`ttf-parser`（MIT OR Apache-2.0）。`fontdb` 在 Linux 上默认功能还带来 `fontconfig-parser`（MIT，依赖 `roxmltree`，MIT OR Apache-2.0）、`memmap2`（MIT OR Apache-2.0）、`slotmap`（Zlib，依赖 `version_check`，MIT OR Apache-2.0）、`tinyvec`（Zlib OR Apache-2.0 OR MIT）、`log`（MIT OR Apache-2.0）；macOS、Windows 上不编进 `fontconfig-parser`（它只在 `cfg(all(unix, not(macos), not(android)))` 下才是依赖）。都在能用的名单里，门禁过了。`sha2`、`tracing` 原来就有。
 - 施工 W-2 给 `miyu-fs` 加了 `ignore` 0.4（Unlicense OR MIT，`fs.find` 建清单走目录、认 `.gitignore`）：这个包本来就在依赖图里（`miyu-basesystem` 的 `glob`、`grep`），这次只是多一个 crate 直接用它，没给图里添新的第三方包。门禁过了。
 - 施工 8-5 加了 `rpassword` 7.5（Apache-2.0，`miyu login` 贴 key 时关掉回显读一行），它带进来的 `rtoolbox`（Apache-2.0）；`libc`、`windows-sys` 原来就有。都在能用的名单里，门禁过了。
 - 施工 8-4 加了 `notify` 8.2（CC0-1.0，监视配置文件，只开默认的 macOS FSEvents），它带进来的 `notify-types`（MIT OR Apache-2.0）、`inotify`、`inotify-sys`（ISC，Linux）、`fsevent-sys`（MIT，macOS）、`walkdir`、`same-file`（Unlicense OR MIT）、`mio`（MIT）、`bitflags`、`libc`、`log`、`windows-sys`（MIT 或 Apache-2.0，多数原来就有）。都在能用的名单里，门禁过了。

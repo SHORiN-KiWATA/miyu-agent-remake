@@ -9,13 +9,14 @@
 mod anchor;
 mod archive;
 mod sent;
+pub mod sight;
 mod texts;
 mod titled;
 
 pub use anchor::anchored;
 pub use archive::{files, matches_the_archive};
 pub use sent::{Sent, sent};
-pub use texts::{LINES, SUMMARIZE, VENUE, recap, title};
+pub use texts::{LINES, SUMMARIZE, VENUE, recap, title, vision};
 use texts::{driver_texts, texts};
 pub use titled::titled_stage;
 
@@ -272,6 +273,7 @@ pub fn wire(request: &Request) -> Encoded {
         model: ModelName::parse("deepseek-v4").expect("模型名合写法"),
         max_output: Some(8192),
         inputs: Inputs::default(),
+        effort: None,
     };
     openai_chat::encode(
         request,

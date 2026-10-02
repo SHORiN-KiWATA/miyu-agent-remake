@@ -4,6 +4,9 @@
 //! 会话的引用从日志算：`session.created` 的 `model`，被后来带 `model` 的 `session.policy_changed` 盖掉，撤掉的回合里的也算
 //! （换模型不是对话的一部分，照改标题）。内核只存字，不解读：回合开始时交给执行器照这一轮的配置重新解析，钉着的没了、
 //! 执行器退回了默认的，内核在注入前面记一条，`by` 是内核。
+//!
+//! 施工 8-18 曾在这里加过会话给每个模型记的思考强度；8-18（补）去掉了这一层，`note` 不再认 `effort` 这一格（以前的日志
+//! 里有的，照样读得进，只是不再拼进来，`event/session.rs`）。
 
 use super::action::Action;
 use super::input::Replaced;

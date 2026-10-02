@@ -178,6 +178,7 @@ async fn the_list_has_providers_models_facts_and_states() {
                 "inputs": fact(json!(["text", "image"])),
                 "tools": fact(json!(true)),
                 "reasoning": fact(json!(["low", "high", "max"])),
+                "effort": {"value": null, "from": "default", "key": "providers.deepseek.models.deepseek-flash.effort"},
                 "price": fact(json!({"input": 0.15, "output": 0.6, "cache_read": 0.003, "reasoning": 0.6, "currency": "USD"})),
                 "multiplier": {"value": 1.0, "from": "default"},
                 "name": fact(json!("DeepSeek V4.1 Flash")),
@@ -194,7 +195,7 @@ async fn the_list_has_providers_models_facts_and_states() {
     assert_eq!(sonnet["state"], "no_key");
     assert_eq!(
         sonnet["facts"]["window"],
-        json!({"value": 100_000, "from": "config", "file": "system/config.toml", "line": 12})
+        json!({"value": 100_000, "from": "config", "file": "system/config.toml", "line": 12, "layer": "system"})
     );
     assert_eq!(sonnet["facts"]["price"]["from"], "catalog");
     assert_eq!(
@@ -204,7 +205,7 @@ async fn the_list_has_providers_models_facts_and_states() {
     assert_eq!(sonnet["facts"]["price"]["layer"], 3);
     assert_eq!(
         sonnet["facts"]["multiplier"],
-        json!({"value": 0.5, "from": "config", "file": "system/config.toml", "line": 8})
+        json!({"value": 0.5, "from": "config", "file": "system/config.toml", "line": 8, "layer": "system"})
     );
     // 手写指定的条目不存在：标出来，不借目录。
     let x = model(newapi, "x");
@@ -213,6 +214,31 @@ async fn the_list_has_providers_models_facts_and_states() {
         x["facts"]["window"],
         json!({"value": null, "from": "default"})
     );
+}
+
+/// `model.list` 的 `facts` 里，来源是配置的一格带 `layer`：系统配置写的 `system`，个人设置写的 `personal`，两层都写时跟着
+/// 真的来源走（个人设置压着系统配置，施工 8-7（补））。
+#[tokio::test]
+async fn model_list_facts_say_which_config_layer_won() {
+    let home = Home::new();
+    home.write(
+        "system/config.toml",
+        &config("https://relay.example.invalid/v1"),
+    );
+    home.write(
+        "home/alice/settings.toml",
+        "[providers.newapi.models.\"claude-sonnet-4-5\"]\nwindow = 222222\n",
+    );
+    let reply = list(&home, &[], data(), json!({"provider": "newapi"})).await;
+    let newapi = &reply["result"]["providers"][0];
+    let sonnet = model(newapi, "claude-sonnet-4-5");
+    assert_eq!(
+        sonnet["facts"]["window"],
+        json!({"value": 222_222, "from": "config", "file": "home/alice/settings.toml", "line": 2, "layer": "personal"}),
+        "个人设置压着系统配置，layer 跟着换"
+    );
+    // 只写了系统配置的那一格（倍率）还是 system。
+    assert_eq!(sonnet["facts"]["multiplier"]["layer"], "system");
 }
 
 #[tokio::test]

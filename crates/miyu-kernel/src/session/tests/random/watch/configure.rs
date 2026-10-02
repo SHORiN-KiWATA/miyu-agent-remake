@@ -1,7 +1,7 @@
 //! 看守查换模型（施工 8-10，`docs/blueprint/models.md`「怎么走」第六条），照看守自己记下的日志算，不看会话：
 //!
-//! - 收下的换模型：和记着的引用一样的，回应不带事件、什么都不记；不一样的，只记一条 `session.policy_changed`，只有
-//!   `model`，`by` 是换的人、`cause` 是命令，回合进行中的带上这个回合；
+//! - 收下的换模型：和记着的一样的接受、什么都不记；别的只记一条 `session.policy_changed`，只写 `model`，`by` 是换的人、
+//!   `cause` 是命令，回合进行中的带上这个回合；
 //! - 叫跑回合开始的挂接点时交的引用就是记着的那一个；
 //! - 挂接点的结果带着退回：结果收下了、交来的原来的正是记着的、退回的不一样，追加的第一条就是退回的那一条（`model` 是
 //!   退回的，`replaced` 是原来的，`by` 是内核，带着回合，`cause` 是回合的）；别的不记；
@@ -21,9 +21,9 @@ pub(super) struct Models {
 
 /// 送进去之前判出来的：该怎样。
 pub(super) enum Expect {
-    /// 换成和现在一样的：接受，什么都不记。
+    /// 和现在一样：接受，什么都不记。
     Same(CommandId),
-    /// 换成别的：记一条，换成它。
+    /// 换了：记一条，只写换成的引用。
     Changed(CommandId, String),
     /// 挂接点的结果带着退回：该记的是这一次，不该记的是没有。
     Fallback(Option<Replaced>),
@@ -47,10 +47,12 @@ impl Watch {
                 id,
                 command: Command::Configure { model },
                 ..
-            }) if self.fresh(id) && !refused => Some(match self.reference() == Some(model) {
-                true => Expect::Same(id.clone()),
-                false => Expect::Changed(id.clone(), model.clone()),
-            }),
+            }) if self.fresh(id) && !refused => {
+                Some(match self.reference() == Some(model.as_str()) {
+                    true => Expect::Same(id.clone()),
+                    false => Expect::Changed(id.clone(), model.clone()),
+                })
+            }
             Input::TurnStartHooksDone {
                 turn,
                 replaced: Some(replaced),
@@ -97,7 +99,11 @@ impl Watch {
                 self.seen_paths.insert("换了模型");
                 assert_eq!(appended.len(), 1, "种子 {seed}：换模型只记一条");
                 let event = appended[0];
-                assert_eq!(event.body, changed(Some(model), None), "种子 {seed}");
+                let body = Body::PolicyChanged(PolicyChanged {
+                    model: Some(model),
+                    ..PolicyChanged::default()
+                });
+                assert_eq!(event.body, body, "种子 {seed}");
                 assert_eq!(event.by, alice(), "种子 {seed}：换的人");
                 assert_eq!(event.cause, Some(id), "种子 {seed}");
                 let turn = self.turn_open().then(|| self.open_turn());

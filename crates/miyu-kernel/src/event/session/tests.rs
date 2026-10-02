@@ -1,6 +1,6 @@
 //! 会话事件的测试：图纸上的写法读写一字不差、认得出种类；权限两格都要写；
 //! 不认识的级别原样留着；坏的报错说清是哪一种；子会话带着父会话和第几层（施工 7-1）；会话用哪个模型（施工 8-8）；
-//! 换模型的两格（施工 8-10）。
+//! 换模型的两格（施工 8-10）；以前的日志带过的思考强度照读得进、内核不理它（施工 8-18 加，8-18（补）去掉）。
 
 use super::*;
 use crate::event::{Body, Event};
@@ -188,6 +188,36 @@ fn a_policy_change_records_the_model_and_what_it_replaced() {
     for wrong in [r#"{"model":3}"#, r#"{"model":"a/m","replaced":["b/m"]}"#] {
         let line = event_line("session.policy_changed", wrong);
         rejected::<Event>(&line, "body of session.policy_changed not readable");
+    }
+}
+
+/// 以前（施工 8-18）的日志里 `session.policy_changed` 带过一格 `effort`（会话给一个模型记的思考强度）；8-18（补）去掉了
+/// 这一层，内核不再写它。旧日志里带着的照样读得进（格式只加不改，不认识的字段不管，`event.rs`「读进来的样子」），内核不
+/// 理它：读出来的 `PolicyChanged` 没有这一格，和 `model` 一起来的也只认 `model`。
+#[test]
+fn an_old_effort_cell_is_read_without_error_and_ignored() {
+    for body in [
+        r#"{"effort":{"model":"deepseek/deepseek-v4","level":"high"}}"#,
+        r#"{"effort":{"model":"deepseek/deepseek-v4","level":null}}"#,
+        r#"{"model":"@free","effort":{"model":"a/m","level":"off"}}"#,
+    ] {
+        let line = event_line("session.policy_changed", body);
+        Event::from_line(&line).unwrap_or_else(|e| panic!("{body}：应该读得进：{e}"));
+    }
+    let line = event_line(
+        "session.policy_changed",
+        r#"{"model":"@free","effort":{"model":"a/m","level":"off"}}"#,
+    );
+    match Event::from_line(&line).expect("读得进").body {
+        Body::PolicyChanged(changed) => assert_eq!(
+            changed,
+            PolicyChanged {
+                model: Some("@free".to_string()),
+                ..PolicyChanged::default()
+            },
+            "effort 照读得进，内核不理它"
+        ),
+        other => panic!("{other:?}"),
     }
 }
 

@@ -92,7 +92,7 @@ pub struct Ask {
     /// 截短由核心做。
     #[arg(long, value_name = "NAME", value_parser = harness_name)]
     pub from: Option<String>,
-    /// 用哪个模型（施工 8-10）：模型、`@池` 或者挡位，原样交给核心解析。新开的会话照它造，接着的会话先换成它，以后都用它。
+    /// 用哪个模型（施工 8-10）：模型或 `@池`，原样交给核心解析。新开的会话照它造，接着的会话先换成它，以后都用它。
     #[arg(long, value_name = "MODEL")]
     pub model: Option<String>,
 }

@@ -2,7 +2,7 @@
 //! 认得出的供应商可以少写，驱动、地址、开关照档案推。档案是资源目录里的 TOML，核心读成 JSON 再交进来（这一层不读 TOML
 //! 的资源文件，`models.md`「在哪」末尾）。
 //!
-//! 档案只有用得上的几格：驱动、地址、`openai-chat` 的开关、一张图怎么算（8-6），`[npm]`：目录里的 AI SDK 包名 → 驱动
+//! 档案只有用得上的几格：驱动、地址、`openai-chat` 的开关（8-18 多开关思考的 `toggle`）、一张图怎么算（8-6），`[npm]`：目录里的 AI SDK 包名 → 驱动
 //! （8-7，照目录推驱动），名字（8-11：只在档案里的一家，第一次接入列给人看）。另配的头、占位工具随 8-14；找 key 的环境
 //! 变量随第一家用得上它的。8-6 加的「能收哪些输入」8-7 拿掉了：
 //! 照模型资料（目录、手写的，「施工时定的」8-7）。
@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 use serde::Deserialize;
 
 use miyu_drivers::openai_chat::{
-    Compat, Continuation, ContinuationField, OutputLimit, ReasoningField, ReasoningReplay,
+    Compat, Continuation, ContinuationField, OutputLimit, ReasoningField, ReasoningReplay, Toggle,
 };
 
 /// 读好的档案。
@@ -72,6 +72,21 @@ pub struct CompatSpec {
     /// `"none"`，或者 `{ field, path }`。
     #[serde(default)]
     pub continuation: Option<ContinuationSpec>,
+    /// 开关思考写在哪个字段（施工 8-18）：`{ field, on, off }`。
+    #[serde(default)]
+    pub toggle: Option<ToggleSpec>,
+}
+
+/// 开关思考的写法（施工 8-18，`models.md`「对外的样子」`compat` 那张表）：顶层的哪个字段，开、关各写什么（照原样的 JSON 发）。
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ToggleSpec {
+    /// 顶层的字段，例如 `thinking`。
+    pub field: String,
+    /// 开：例如 `{ type = "enabled" }`。
+    pub on: serde_json::Value,
+    /// 关：例如 `{ type = "disabled" }`。
+    pub off: serde_json::Value,
 }
 
 /// 输出上限写在哪个字段。
@@ -199,6 +214,13 @@ impl CompatSpec {
                 },
             };
         }
+        compat.toggle = self.toggle.as_ref().map(|toggle| {
+            Box::new(Toggle {
+                field: toggle.field.clone(),
+                on: toggle.on.clone(),
+                off: toggle.off.clone(),
+            })
+        });
         compat
     }
 }

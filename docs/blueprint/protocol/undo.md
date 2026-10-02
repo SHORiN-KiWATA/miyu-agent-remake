@@ -47,8 +47,10 @@
 | `action` | 做了什么：`write` 写回一份内容；`trash` 移进回收站；`untrash` 从回收站移回原处 |
 | `outcome` | 结局，见下表 |
 | `error` | 出错（`failed`）时系统的原话；别的没有这一格 |
-| `diff` | 之后又被改过的差异，几行字；没有的不写这一格 |
+| `diff` | 几行字：`changed` 的是之后又被改过的差异；`restored`、`action` 是 `write` 的是改回以前对改回以后的差异（施工 4-7 再补）。两边一样（`restored` 里本来就一样、没写的）没有差异，没有这一格；`trash`、`untrash` 也没有 |
 | `more` | 差异里没交出来的行数；是 0 的不写这一格 |
+| `added` | 差异里新增了几行，照整份差异数，不照截断以后的；有 `diff` 的才有（施工 4-7 再补） |
+| `removed` | 差异里删掉了几行，照整份差异数，不照截断以后的；有 `diff` 的才有（施工 4-7 再补） |
 
 | `outcome` | 意思 |
 |---|---|
@@ -63,10 +65,10 @@
 
 `action`、`outcome` 是新版本才有的取值的，照原样交出去。怎么核对、怎么改回见 `kernel/history.md`、`fs.md`。
 
-例子（撤销，第二个文件之后又被改过）：
+例子（撤销，第一个文件改回了内容、第二个文件之后又被改过，施工 4-7 再补带了 `diff`、`added`、`removed`）：
 
 ```json
-{"id":"undo-5c1e0a9b7d3f2468-3","jsonrpc":"2.0","result":{"commands":2,"cwd":"/home/me/proj","events":[14,15],"files":[{"action":"write","outcome":"restored","path":"/home/me/proj/src/a.rs"},{"action":"write","diff":["@@ -3 +3 @@","-fn main() {}","+fn main() { println!(\"hi\"); }"],"outcome":"changed","path":"/home/me/proj/src/b.rs"}],"said":"把 README 改成中文","turns":1}}
+{"id":"undo-5c1e0a9b7d3f2468-3","jsonrpc":"2.0","result":{"commands":2,"cwd":"/home/me/proj","events":[14,15],"files":[{"action":"write","added":1,"diff":["@@ -1 +1 @@","-let x = 2;","+let x = 1;"],"outcome":"restored","path":"/home/me/proj/src/a.rs","removed":1},{"action":"write","added":1,"diff":["@@ -3 +3 @@","-fn main() {}","+fn main() { println!(\"hi\"); }"],"outcome":"changed","path":"/home/me/proj/src/b.rs","removed":1}],"said":"把 README 改成中文","turns":1}}
 ```
 
 ### 怎么走
@@ -78,12 +80,13 @@
 5. **`compactions`**、**`clears`**：只有撤销有。数日志里 `context.compacted`，`turn` 在那几轮里的才算（施工 6-9）；`trigger` 是 `clear` 的数进 `clears`，别的数进 `compactions`（施工 6-8 补，2026-09-30 项目主人定撤掉清空单说一句）。是 0 的不写。
 6. **`jobs`**：只有撤销有（施工 7-8，`agents.md` 第七条第 1 条）。回应不等停掉的回报落盘，所以照日志算撤销那一刻的：`turn.reverted` 以前的日志过一遍账本，还在跑的（`running_jobs`）里挑派它的 `job.started` 在撤掉的那几轮里的，照编号；和内核交给执行器停的是同一批。撤销以前的日志过不了账本的，照空的交，记一行 `WARN undo report jobs not read`。一个都没有的不写。恢复的不写：停掉的不会再起来。
 7. **`files`**：照 `events` 的第二条 `files.restored`，一步一项，照原来的先后。没有第二条的、第二条不是它的（重做没改回文件，第二条是重发的那一句）是空的。
-8. **差异**：只有 `changed` 的才算。
-   1. 要对照的内容：撤销时是她改完的样子（这一步照的那个 `file.changed` 效果的改后），恢复时是撤销以后的样子（改前）。恢复时改前是 `null` 的（她新建的），没有差异；这一步照的不是 `file.changed` 的（`file.trashed`），也没有。
-   2. 对照的内容从账号的 blob 里取；现在的内容照 `path` 读。
+8. **差异**：`changed` 的，和 `restored`、`action` 是 `write` 的才算（施工 4-7 再补）；`trash`、`untrash` 不算：只是挪位置，内容没变。
+   1. 要对照的两边。`changed`：这一步照的那个 `file.changed` 效果（撤销时是改后、恢复时是改前）对现在磁盘上 `path` 的内容。`restored`（`action` 是 `write`）：改回以前对改回以后，两边都是那个效果的改前、改后（撤销时前者是改后、后者是改前；恢复时反过来），都从账号的 blob 取，不读磁盘——这时磁盘上已经是改回以后的样子了。改前是 `null`（新建的文件）的一边，当空的算，不是没有差异；这一步照的不是 `file.changed` 的，没有差异。
+   2. 对照的内容从账号的 blob 里取；`changed` 的「现在」照 `path` 读磁盘。
    3. 两边任一边超过 1 MiB（1,048,576 字节）、不是 UTF-8、取不出来、读不了：没有差异。
-   4. 统一格式的差异，上下文 3 行：每一段以 `@@ … @@` 那一行起头，接着是 ` `、`-`、`+` 开头的行。不带 `---`、`+++` 那两行；文件结尾没有换行的，也不加「没有换行」那一句。
-   5. 交前 20 行，剩下的行数写进 `more`。
+   4. 两边一样：没有差异，不写 `diff`（`restored` 里「现在已经是要改成的样子」、没写的，就是这一种）。
+   5. 统一格式的差异，上下文 3 行：每一段以 `@@ … @@` 那一行起头，接着是 ` `、`-`、`+` 开头的行。不带 `---`、`+++` 那两行；文件结尾没有换行的，也不加「没有换行」那一句。
+   6. 交前 20 行，剩下的行数写进 `more`；`added`、`removed` 数整份差异里 `+`、`-` 开头的行，不照截断以后的。
 9. **路径**：`path` 和 `cwd` 在 Windows 上去掉 `\\?\` 这个前缀；`\\?\UNC\` 开头的照原样。
 10. **`cwd`**：会话表里这个会话现在实际干活的目录（`protocol.md`「会话表」），换成真实的位置（顺着链接找到本体，换不成的照原样）：效果里的路径是真实的位置，头照它写相对的路径才对得上。
 11. **写不成的**：日志读不出来的（记一条运行日志）、`events` 的第一条不是撤销或恢复的，这几样照空的交：`turns` 是 `0`、`files` 是空的，没有 `said`、`commands`、`compactions`、`clears`、`jobs`。撤销本身已经成了，照样是接受。写的时候崩了的，也照空的交，`cwd` 是空字符串。
@@ -110,8 +113,8 @@
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-endpoint/tests/undo.rs` | 不写回合编号的撤最后一轮：`events`、`cwd`、`turns`、`said`、`commands`、`files`，没撤掉压缩的不写 `compactions`；恢复时不带 `commands`；之后又被改过的附差异，最多 20 行、`more`；两轮的会话只算撤掉的那一轮、`said` 只取第一行去掉空白；恢复时对照改前的；上下文 3 行、不加「没有换行」；太大的、不是文本的不附差异；工作目录是链接的写真实的位置；被打断的一轮只算跑过的命令、排在后面没派的不算；`said` 跳过开头的空行，全是空白的没有这一格 |
-| `crates/miyu-endpoint/src/undo/tests.rs` | 数跑过的命令：跑过的、可能跑了一半的算，没跑过的不算；数压缩：`turn` 在撤掉的几轮里的才算，一轮里压过两次的是 2（施工 6-9）；清空另数，数压缩的不算它（施工 6-8 补） |
+| `crates/miyu-endpoint/tests/undo.rs` | 不写回合编号的撤最后一轮：`events`、`cwd`、`turns`、`said`、`commands`、`files`，没撤掉压缩的不写 `compactions`；恢复时不带 `commands`；改回了内容的、之后又被改过的都附差异，连同 `added`、`removed`（施工 4-7 再补）；最多 20 行、`more`；两轮的会话只算撤掉的那一轮、`said` 只取第一行去掉空白；恢复时对照改前的；上下文 3 行、不加「没有换行」；太大的、不是文本的不附差异；工作目录是链接的写真实的位置；被打断的一轮只算跑过的命令、排在后面没派的不算；`said` 跳过开头的空行，全是空白的没有这一格 |
+| `crates/miyu-endpoint/src/undo/tests.rs` | 数跑过的命令：跑过的、可能跑了一半的算，没跑过的不算；数压缩：`turn` 在撤掉的几轮里的才算，一轮里压过两次的是 2（施工 6-9）；清空另数，数压缩的不算它（施工 6-8 补）；改回了内容的附差异、`added`、`removed`，恢复时反过来；新建的文件改回以前当空的算；`trash`、`untrash`、两边一样的不附差异；太大的不附；长差异 `added`、`removed` 照整份算（施工 4-7 再补） |
 | `crates/miyu-endpoint/tests/redo.rs` | 重做的回应：撤销那几样照撤销写，`events` 最后是重发的那一句（施工 4-7 再补，`protocol.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/undo_jobs.rs`（施工 7-8） | 撤销、重做的回应列出停掉的任务（编号、种类、标题），回应之前后台命令已经杀了、随后记 `undone`；恢复的不带、停过的再撤销不列 |
 | `crates/miyu-endpoint/tests/revert.rs` | 撤销、恢复的 `events`；`nothing_to_unrevert`、`unknown_turn`、`nothing_to_revert` 照头的语言；`turn` 写 0 |

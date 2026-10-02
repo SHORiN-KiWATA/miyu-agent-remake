@@ -111,31 +111,6 @@
           },
           "type": "object"
         },
-        "tiers": {
-          "properties": {
-            "cheap": {
-              "description": "便宜的一挡。没配的用主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
-              "title": "便宜挡",
-              "type": "string"
-            },
-            "flagship": {
-              "description": "最强的一挡。没配的用主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
-              "title": "旗舰挡",
-              "type": "string"
-            },
-            "lite": {
-              "description": "最轻、最快的一挡：她派子代理时可以选。没配的用主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
-              "title": "轻量挡",
-              "type": "string"
-            },
-            "standard": {
-              "description": "普通的一挡。没配的用主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
-              "title": "普通挡",
-              "type": "string"
-            }
-          },
-          "type": "object"
-        },
         "vision": {
           "description": "主对话的模型看不了图时，替它看图的模型。写法同主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
           "title": "看图的模型",
@@ -158,6 +133,13 @@
     "pools": {
       "additionalProperties": {
         "properties": {
+          "description": {
+            "description": "她派子代理时看到的一句，接在池名后面。用英文写，一行。能写：最多 60 个字的一行英文。只能写在系统配置或个人设置里。以后开的会话生效。",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "给模型看的说明",
+            "type": "string"
+          },
           "models": {
             "description": "几个模型编成一组，每个写成 供应商/模型。能写：<供应商>/<模型> 的列表。只能写在系统配置或个人设置里。下一轮生效。",
             "items": {
@@ -174,6 +156,12 @@
             ],
             "title": "池的分法",
             "type": "string"
+          },
+          "subagent": {
+            "default": false,
+            "description": "打开以后，新会话里她派子代理时能选这个池。池里有成员才列出来。能写：true 或 false。只能写在系统配置或个人设置里。以后开的会话生效。",
+            "title": "子代理能选",
+            "type": "boolean"
           }
         },
         "type": "object"
@@ -277,6 +265,13 @@
                   "maxLength": 256,
                   "minLength": 1,
                   "title": "对应目录里的",
+                  "type": "string"
+                },
+                "effort": {
+                  "description": "这个模型默认的思考强度，写它的一档，例如 high；能关思考的写 off。不写的照供应商的默认。能写：最多 32 个字的文字。只能写在系统配置或个人设置里。下一轮生效。",
+                  "maxLength": 32,
+                  "minLength": 1,
+                  "title": "默认的思考强度",
                   "type": "string"
                 },
                 "inputs": {

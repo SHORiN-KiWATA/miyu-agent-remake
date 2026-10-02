@@ -170,6 +170,10 @@ pub(crate) fn words(items: &[Item]) -> Fake {
         ),
         ("config/no-provider", "{key} 指的供应商 {name} 没有配"),
         ("config/no-pool", "{key} 指的池 {name} 没有配"),
+        (
+            "config/unknown-effort",
+            "{key} 写的 {name} 不是这个模型现在有的一档：请求照没写发",
+        ),
     ];
     Fake {
         items: items

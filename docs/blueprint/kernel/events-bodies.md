@@ -2,7 +2,7 @@
 
 ### 是什么
 
-内核认识的 23 种事件，每一种的 `body`：每一格叫什么、是什么写法、有没有、没有时怎么写。外壳、一行怎么读写、瞬时事件见 `kernel/events.md`。
+内核认识的 24 种事件，每一种的 `body`：每一格叫什么、是什么写法、有没有、没有时怎么写。外壳、一行怎么读写、瞬时事件见 `kernel/events.md`。
 
 ### 在哪
 
@@ -19,6 +19,7 @@
 | `crates/miyu-kernel/src/event/model.rs` | `model.called`（`FirstDifference`、`Usage`、`BlockSpan`、`CallResult`、`CallError`、`ErrorClass`，辅助请求的用途 `Purpose`、是不是辅助请求 `aside()`，施工 3-8 四补） |
 | `crates/miyu-kernel/src/event/job.rs` | `job.reported`（`JobReason`）、`child.reported`（`ChildReason`）（施工 7-1） |
 | `crates/miyu-kernel/src/event/peer.rs` | `peer.idle`（`PeerIdle`、`IdleReason`，施工 C-1） |
+| `crates/miyu-kernel/src/event/image.rs` | `image.described`（`ImageDescribed`，施工 8-17） |
 
 每一种的样本在 `docs/designs/samples/events/<种类>.jsonl`。
 
@@ -47,7 +48,7 @@
 | `cwd` | 字符串 | 可以没有 | 开会话时实际干活的目录，人看到的那种写法（施工 4-9 再补三上）。之前的日志没有 |
 | `parent` | 会话编号 | 可以没有 | 父会话：派它的那个会话（`agents.md`，施工 7-1）。主会话没有 |
 | `depth` | 整数（`u32`） | 可以没有 | 第几层：父会话的加一。主会话是第 0 层，不写。和 `parent` 同有同无、至少是 1，由账本查（`kernel/history.md`） |
-| `model` | 字符串 | 可以没有 | 会话用哪个模型（施工 8-8，`models.md`「事件」）：造会话时解析好的引用，模型 `<供应商>/<模型>` 或池 `@<池>`，挡位已经换成它那时的值。协议造的照 `session.create` 的 `model`，没写的照那时的 `models.chat`；子会话照 `subagent` 的 `tier`，没写的照父会话那时的。那时连 `models.chat` 都没配的不写。内核只记不解读 |
+| `model` | 字符串 | 可以没有 | 会话用哪个模型（施工 8-8，`models.md`「事件」）：造会话时解析好的引用，模型 `<供应商>/<模型>` 或池 `@<池>`（施工 8-8 造的可能是挡位换成的那时的值）。协议造的照 `session.create` 的 `model`，没写的照那时的 `models.chat`；子会话照 `subagent` 的 `pool`（`@<池>`，施工 8-8 补；8-8 是 `tier`），没写的照父会话那时的。那时连 `models.chat` 都没配的不写。内核只记不解读 |
 
 子会话不写 `oneshot`：`--continue`、`miyu undo` 找「最近一次 `miyu ask` 开的」不会找到它（`agents.md`）。以前的日志没有 `parent`、`depth`、`model` 几格，原样一个字节不变；没有 `model` 的，路由照载入那一刻的 `models.chat`（`models.md`「怎么走」第一条第 7 条）。样本两条都带 `model`（施工 8-8）。
 
@@ -69,7 +70,9 @@
 | `model` | 字符串 | 可以没有 | 换成的模型引用（施工 8-10，`models.md`「事件」）：模型 `<供应商>/<模型>` 或池 `@<池>`，下一个回合开始时生效。人换的 `by` 是人，`cause` 是 `session.configure`；钉着的没了、退回默认的 `by` 是内核，带着回合 |
 | `replaced` | 字符串 | 可以没有 | 钉着的引用没了、内核退回默认时写：原来那个（施工 8-10）。只和 `model` 一起出现，账本查（`replaced comes only with model`） |
 
-几格都没有的 `{}` 也读得进来。内核切权限时只写 `permission`，换模型时只写 `model`，退回默认时写 `model`、`replaced`（`kernel/session.md`「换模型」）。以前的日志没有 `model`、`replaced`，照没有读。样本里 139 号是人换的，144 号是 143 号回合开始时池没了、退回的。
+施工 8-18 曾在这里加过 `effort`（会话给一个模型记的思考强度，`{"model": 字符串, "level": 字符串或 null}`）；8-18（补）去掉了这一层，思考强度改在配置里（`models.md`「怎么走」第十一条）。
+
+几格都没有的 `{}` 也读得进来。内核切权限时只写 `permission`，换模型时只写 `model`，退回默认时写 `model`、`replaced`（`kernel/session.md`「换模型」）。以前的日志没有 `model`、`replaced`，照没有读；带着 8-18 那阵子写的 `effort` 的也照样读得进（格式只加不改，不认识的字段不管），内核不理它。样本里 139 号是人换的，144 号是 143 号回合开始时池没了、退回的。
 
 **`session.meta_changed`**：改了哪项写哪项。
 
@@ -427,7 +430,21 @@
 - 不带回合编号：它是别处来的，撤哪一轮都不拿走（`cross-session.md` 第七条第 2 款）。账本照「带 `turn` 的是正在进行的那个回合」查，不另立规矩，和两种回报一样。
 - 名字不叫 `session.*`：渲染表里 `session.*` 一律不进上下文（`kernel/request.md`「组装」第 3 条）。渲染成带标签的一块（施工 C-6，`kernel/request.md`「空了的通知」）。
 
-**两种回报的 `turn`**：一律不带（2026-09-30 定）：回报不属于哪一轮，带了这一轮的编号，撤这一轮时会跟着被拿走，和「别处来的留着」冲突（`kernel/history.md`「拿走什么」）。账本照「带 `turn` 的是正在进行的那个回合」查，不另立规矩。谁写、到了开不开一轮见 `kernel/session.md`「回报」，渲染成什么样见 `kernel/request.md`「回报」（施工 7-2）。
+**`image.described`**：一张图的转述（施工 8-17，`models.md`「怎么走」第十三条）。主对话的模型看不了图，`models.vision` 替它看过，内核记下；以后每次请求照它把图换成这段字。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `blob` | 内容的哈希 | 必有 | 哪一张图：图片块的 `blob` |
+| `endpoint` | 供应商编号 | 必有 | 替它看的供应商：一次性入口真发给的那一家 |
+| `model` | 模型名 | 必有 | 替它看的模型 |
+| `text` | 字符串 | 必有 | 转述的原文，去掉了前后空白。内核不记空的，读的时候不查 |
+
+- `by` 是内核，`cause` 是发这次转述的那一轮的（那一轮没有 `cause` 的不写）。账本不另查。
+- 不带回合编号：转述挂在图上，不属于哪一轮，撤哪一轮都不拿走。压缩也不拿走它：内核照日志里的每一条算这个会话转述过哪些图，不看有效历史（`kernel/session.md`「替它看图」）。
+- 不渲染：它不是对话的一部分，转述经统一的请求的 `described` 进请求（`kernel/request.md`「替它看的图」）。
+- 同一张图记了两条的（照理不会有），用先记的那一条。
+
+：一律不带（2026-09-30 定）：回报不属于哪一轮，带了这一轮的编号，撤这一轮时会跟着被拿走，和「别处来的留着」冲突（`kernel/history.md`「拿走什么」）。账本照「带 `turn` 的是正在进行的那个回合」查，不另立规矩。谁写、到了开不开一轮见 `kernel/session.md`「回报」，渲染成什么样见 `kernel/request.md`「回报」（施工 7-2）。
 
 ### 怎么走
 
@@ -441,13 +458,14 @@
 
 | 测试 | 守哪几种 |
 |---|---|
-| `crates/miyu-kernel/src/event/session/tests.rs` | 会话的四种：图纸上的写法、一次性的写与不写、每一级读成自己那一种、不认识的级别原样留着、权限两格都要写、坏的说是哪一种；子会话的 `parent`、`depth` 读写一字不差，主会话不写这两格（施工 7-1）；`session.recapped` 两格都要写（施工 3-8 四补）；`session.policy_changed` 的 `model`、`replaced` 读写一字不差、以前的日志照读、`null` 当没有、不是字的读不进来（施工 8-10） |
+| `crates/miyu-kernel/src/event/session/tests.rs` | 会话的四种：图纸上的写法、一次性的写与不写、每一级读成自己那一种、不认识的级别原样留着、权限两格都要写、坏的说是哪一种；子会话的 `parent`、`depth` 读写一字不差，主会话不写这两格（施工 7-1）；`session.recapped` 两格都要写（施工 3-8 四补）；`session.policy_changed` 的 `model`、`replaced` 读写一字不差、以前的日志照读、`null` 当没有、不是字的读不进来（施工 8-10）；以前日志里带 `effort` 的照读得进、内核不理它（施工 8-18 加，8-18（补）去掉） |
 | `crates/miyu-kernel/src/event/turn/tests.rs` | 回合的四种：图纸上的写法、没有 `trigger` 的不写这一格（施工 6-8）、每种结束原因、不认识的原样留着、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/restore/tests.rs` | `files.restored` 的每一格读写一字不差；新的 `action`、`outcome` 原样留着 |
 | `crates/miyu-kernel/src/event/message/tests.rs` | `message.assistant` 图纸上的写法、`seen` 必有、`interrupted` 只在是真时写；`message.withdrawn` 的写法和序号从 1 起 |
 | `crates/miyu-kernel/src/event/tool/tests.rs` | `tool.result` 的五种状态、不认识的原样留着、没真执行过的没有用时、说法怎么记；确认的两种：每种决定、没写规则、说明、理由的不写这几格；坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/effect/tests.rs` | 四种效果读写一字不差；没显示行的不写 `lines`；新建的 `before` 写成 `null`、没写的当新建；不认识的原样留着；`job.started` 不认识的 `what` 原样留着、命令不写 `session`；`job.messaged` 读写一字不差（施工 7-7）；`peer.watch` 读写一字不差（`a_watch_on_another_session_round_trips`，施工 C-1）；坏的读不进来 |
 | `crates/miyu-kernel/src/event/job/tests.rs` | 两种回报（施工 7-1）：图纸上的写法读写一字不差、每种 `reason` 读成自己那一种、不认识的原样留着、不写是假的几格是假时不写、没有的格不写、负的退出码、坏的说是哪一种 |
+| `crates/miyu-kernel/src/event/image/tests.rs`（施工 8-17） | `image.described`：图纸上的一行读写一字不差、四格都要写、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/peer/tests.rs`（施工 C-1） | `peer.idle`：图纸上的两行读写一字不差、每种 `reason` 读成自己那一种、不认识的原样留着、`status` 写成 `null` 的不写、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/question/tests.rs` | 提问的两种：图纸上的写法、没写的格子不写、第 4 条对不对得上题目、坏的说是哪一种 |
 | `crates/miyu-kernel/src/event/context/tests.rs` | 上下文的几种：图纸上的写法、手动压缩带着要求（施工 6-8）、清空的空摘要照样写出 `summary`（施工 6-8 补）、坏的说是哪一种 |
@@ -465,6 +483,7 @@
 - `agents.md`「对外的样子」：效果 `job.started`、`job.reported`、`child.reported`、子会话的 `parent`、`depth`（施工 7-1）；`03-事件模型.md` 第三节：派子代理不另记 `child.spawned`。
 - `04-核心协议.md` 第九节 `session.recap`：那一句另记一条事件推给所有头，不进她的上下文；请求记进 `model.called`（2026-10-01 项目主人定）。`26-提示词.md` J6：辅助请求各自声明用途（`purpose`，施工 3-8 四补）。
 - `cross-session.md`「效果 peer.watch」「事件 peer.idle」（施工 C-1）。
+- `10-自带软件.md` 第三节末尾「替不能看图的模型看图」：转述记进日志、挂在这张图上，同一张图只转述一次（施工 8-17）。
 
 ### 还没有的
 

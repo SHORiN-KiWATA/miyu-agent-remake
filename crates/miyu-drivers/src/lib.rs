@@ -24,7 +24,9 @@ mod texts;
 
 pub use driver::{Decode, Driver, OpenAiChat};
 pub use image_tokens::{DeepSeekImages, deepseek_image_tokens};
-pub use texts::{DriverTextSources, DriverTexts, ImageNameSources, TextFileSources};
+pub use texts::{
+    DriverTextSources, DriverTexts, ImageDescriptionSources, ImageNameSources, TextFileSources,
+};
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -34,7 +36,7 @@ use miyu_kernel::accumulate::Delta;
 use miyu_kernel::event::{CallError, Usage};
 use miyu_kernel::id::{ContentHash, ModelName};
 
-/// 一次调用要定的：发给哪个模型、输出的上限、模型能收哪些输入。
+/// 一次调用要定的：发给哪个模型、输出的上限、模型能收哪些输入、思考强度。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Call {
     /// 模型名，照供应商那边的叫法。
@@ -43,7 +45,16 @@ pub struct Call {
     pub max_output: Option<u32>,
     /// 模型能收哪些输入。
     pub inputs: Inputs,
+    /// 这一次的思考强度（施工 8-18，`docs/blueprint/models.md`「驱动要守的约定」第 13 条）：规整过的名字，[`EFFORT_OFF`]、
+    /// [`EFFORT_ON`]，或者目录里的档位名。没有的什么都不加，请求和以前一个字节不差。
+    pub effort: Option<String>,
 }
+
+/// 思考强度「关」的名字（施工 8-18）：目录里写 `none`、`disabled` 的读成它，有开关的模型多这一档。
+pub const EFFORT_OFF: &str = "off";
+
+/// 思考强度「开」的名字（施工 8-18）：只有开关、没有档位的模型才有这一档。
+pub const EFFORT_ON: &str = "on";
 
 /// 模型能收哪些输入：模型资料（`15-模型与供应商.md` 第三节）。查不到的都当不能收，这是驱动的
 /// 保守默认。

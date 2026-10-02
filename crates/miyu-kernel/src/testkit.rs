@@ -7,7 +7,7 @@
 //! - [`Line`]：模型的一次回复；
 //! - [`Play`]：一次工具调用怎么回；
 //! - [`Stage`]：替身本身，人的每个动作以后一直跑到没事可做；子会话、执行器交来的回报也照样跑（施工 7-2，`jobs.rs`）；别的
-//!   会话发来的话也是（施工 C-2，`peers.rs`）；
+//!   会话发来的话也是（施工 C-2，`peers.rs`）；替它看图的转述照剧本回（施工 8-17，`sight.rs`）；
 //! - [`restored`]：替身改回的一步。
 
 mod aside;
@@ -20,11 +20,13 @@ mod peers;
 mod respond;
 mod routing;
 mod script;
+mod sight;
 mod stage;
 
 pub use opening::{CHILD_SESSION, SESSION};
 pub use respond::model;
 pub use script::{Line, Play};
+pub use sight::vision_model;
 pub use stage::Stage;
 
 use crate::event::{RestoreAction, Restored};

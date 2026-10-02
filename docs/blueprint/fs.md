@@ -20,8 +20,9 @@
 | `crates/miyu-fs/src/trash/recycled.rs` | Windows 回收站里的 `$I` 记录；每个平台都编，测试到处都跑 |
 | `crates/miyu-fs/src/list.rs` | 列一层目录（`fs.list`，施工 W-2） |
 | `crates/miyu-fs/src/find.rs` | 模糊找文件的清单（`Index`）、打分（`score`），`fs.find` 用（施工 W-2） |
+| `crates/miyu-fs/src/range.rs` | 安全地打开以后读一段（`read_range`），`blob.get`、`fs.read` 用（施工 W-6） |
 
-用它的：基础系统的几件工具（`tools/`）；权限策略 `crates/miyu-session/src/guard.rs`（换成真实的位置、查边界；判 `trash` 时最后一段不跟链接）；撤销时改回文件 `crates/miyu-session/src/restore.rs`（`replace`、`trash::put`、`trash::restore`）；开会话时挑工作区 `crates/miyu-endpoint/src/sessions.rs`（`resolve`、`too_wide`）；`blob.put` 读人附的文件 `crates/miyu-endpoint/src/attach.rs`（`resolve`、`tilde`、边界表只拦谁都不能碰的那一片、`open_file`，施工 3-9 三补，`protocol.md`）；`fs.list`、`fs.find` `crates/miyu-endpoint/src/files.rs`（`resolve`、边界表、`list_dir`、`find::Index`、`find::score`，找文件的清单记几份住在 `files/cache.rs`，施工 W-2，`protocol.md`）；`fs.realpath` 同一个 `crates/miyu-endpoint/src/files.rs`（直接用 `resolve`，不查边界，施工 W-3，`protocol.md`）；握手回应的 `host.home`（施工 W-3，`crates/miyu-endpoint/src/hello.rs`）照原样不走这一层，`host.workspace` 只调 `std::fs::canonicalize`，没有 `~`、相对路径要接，不用 `resolve`。
+用它的：基础系统的几件工具（`tools/`）；权限策略 `crates/miyu-session/src/guard.rs`（换成真实的位置、查边界；判 `trash` 时最后一段不跟链接）；撤销时改回文件 `crates/miyu-session/src/restore.rs`（`replace`、`trash::put`、`trash::restore`）；开会话时挑工作区 `crates/miyu-endpoint/src/sessions.rs`（`resolve`、`too_wide`）；`blob.put` 读人附的文件 `crates/miyu-endpoint/src/attach.rs`（`resolve`、`tilde`、边界表只拦谁都不能碰的那一片、`open_file`，施工 3-9 三补，`protocol.md`）；`fs.list`、`fs.find` `crates/miyu-endpoint/src/files.rs`（`resolve`、边界表、`list_dir`、`find::Index`、`find::score`，找文件的清单记几份住在 `files/cache.rs`，施工 W-2，`protocol.md`）；`fs.realpath` 同一个 `crates/miyu-endpoint/src/files.rs`（直接用 `resolve`，不查边界，施工 W-3，`protocol.md`）；握手回应的 `host.home`（施工 W-3，`crates/miyu-endpoint/src/hello.rs`）照原样不走这一层，`host.workspace` 只调 `std::fs::canonicalize`，没有 `~`、相对路径要接，不用 `resolve`。`fs.read` 也是 `crates/miyu-endpoint/src/files.rs`（`resolve`、边界表、`read_range`，施工 W-6，`protocol.md`）；`blob.get` 经 `crates/miyu-store/src/blob.rs` 的 `Blobs::read_range` 调同一个 `read_range`（`crates/miyu-endpoint/src/attach.rs`，施工 W-6）。
 
 ### 对外的样子
 
@@ -247,6 +248,15 @@
 
 - 清单记几份、`fresh` 多久重建、排序、截到多少条、拼成协议回应的 JSON 都在协议端点（`crates/miyu-endpoint/src/files.rs`、`files/cache.rs`），这里只是走目录、打分的底子。
 
+#### 八、读一段（`read_range`，施工 W-6；协议层的参数、边界检查、出错在 `web-module.md`「七、分块读」、`protocol.md`）
+
+1. `read_range(real, offset, length)`：交进来的 `real` 要是已经换过真实位置、查过边界的。照第四节安全地打开，打不开的是 [`OpenError`]（没有、不是普通文件、没有权限）。
+2. 打开了，先看这一刻的大小。`length` 是 0、或者 `offset` 落在结尾（含正好等于大小）：交回空的字节和这个大小，不再找。
+3. 不然定位到 `offset`，最多读 `length` 个字节，读到结尾就停。
+4. 这里不管协议上「一块最多 512 KiB」的上限：那是 `blob.get`、`fs.read` 的事，调用的一方先查。
+
+- 这层函数既给 `fs.read`（真实位置来自头报的路径）用，也给 `blob.get` 用：`Blobs::read_range`（`store.md` 第十条）拿一个 blob 自己的真实位置调它，blob 的路径是服务端按内容哈希算出来的，不是头报的，一样走这一层安全地打开，不另写一套跟链接的判断。
+
 ### 出错
 
 出错写成的字是英文。`ResolveError` 的字她看得到：权限策略拒绝时填进 `reason`（`core/permissions/unresolvable`），工具出错时填进 `error`（`tools/`）。
@@ -287,6 +297,7 @@
 | `crates/miyu-basesystem/tests/write.rs` | 经 `write`：原来的权限照留、不留临时文件、只读的不写 |
 | `crates/miyu-fs/src/list/tests.rs` | 开头对、大小写不论、点开头的打了点才列、目录在前、50 条截断、`partial`；落进「谁都不能碰」那一片的不列、旁边照样列；读不了的目录是错（施工 W-2） |
 | `crates/miyu-fs/src/find/tests.rs` | 打分（照桥的 `score` 测试，一样先在文件名里找、落在一段开头的分高、连着的分高、文件名正好是的分高）；模糊找：认 `.gitignore`（不要求是 git 仓库）、跳过隐藏目录和名单、最深几层、收满就停、落进「谁都不能碰」那一片的不收、工作区在数据根里面照样穿得过去、读不了一层目录的跳过并报给 `on_error`、建到一半也能读（施工 W-2） |
+| `crates/miyu-fs/src/range/tests.rs` | 读一段、`length` 超过剩下的读到结尾就停、`offset` 过了结尾（含正好等于大小）是空的、`length` 是 0 只报大小、整份都读得下、没有这个文件、不是普通文件（施工 W-6） |
 
 没测到的：Linux 另一块盘上的 `.Trash/<uid>`、`.Trash-<uid>`（测试机上造不出另一块盘）；`XDG_DATA_HOME` 那一条（测试里不改环境变量）。
 
@@ -295,6 +306,7 @@
 - `11-权限与沙盒.md` 第四节（边界的默认值、几片重叠时谁说了算、第一版的清单、当前目录太宽）、第七节（核心进程里的文件工具、第一版怎么做）、A4、A9。
 - `10-自带软件.md` 第三节（「`write` 的细则」：先写临时文件再改名盖上去；「`trash` 的细则」：三个平台怎么放）、第七节（「改回文件的细则」：移回来）。
 - `web-module.md`「三、列文件、找文件」（施工 W-2，`fs.list`、`fs.find` 协议层的参数、出错、清单记几份）；打分照 proto/web-demo 分支 `web-demo/bridge/src/mention.rs` 的 `score` 搬过来。
+- `web-module.md`「七、分块读」（施工 W-6，`blob.get`、`fs.read` 协议层的参数、边界检查、出错）。
 
 ### 还没有的
 
