@@ -2,7 +2,6 @@
 //! 它，它的回报送回 actor 的收件箱。3-7（下）接上驱动和 HTTP 执行器，以后资源调度夹在中间；测试里
 //! 照剧本回。
 
-use std::collections::BTreeMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -19,6 +18,7 @@ use miyu_kernel::session::{Limits, Replaced};
 use miyu_store::blob::Blobs;
 
 use crate::config::TurnConfig;
+use crate::route::OneShot;
 
 /// 给一个会话造请求模型的端口（施工 3-7 下）。造会话、载入时，拿到了这个会话的策略快照再造：驱动的
 /// 占位冻结在快照里，核心升级改了字，老会话照样逐字节重现当时的请求（施工 3-6 上）。
@@ -30,6 +30,12 @@ pub trait Models: Send + Sync {
 
     /// 造这个会话的端口。
     fn port(&self, session: ForSession) -> Arc<dyn ModelPort>;
+
+    /// 模型调用口的一次性入口（施工 8-20，`docs/blueprint/models.md`「怎么走」第十二条）：发一次、拿整段回答，和会话的
+    /// 端口共用一份底子（冷却表、池的指针）。路由交它自己；照剧本回的（测试的端口）没有。
+    fn one_shot(&self) -> Option<OneShot> {
+        None
+    }
 }
 
 /// 造端口时交进来的，这个会话自己的。
@@ -50,9 +56,6 @@ pub struct ForSession {
     /// 最近一条发出去了的 `model.called` 发给了谁（施工 8-8，「起草时定的」第 2 条）：引用是钉住的池的，照它认钉着的成员。
     /// 新造的会话、一次都没发出去过的没有。
     pub sent: Option<Model>,
-    /// 会话给每个模型记的思考强度（施工 8-18）：`<供应商>/<模型>` 到那一档。造会话的是空的；载入的是内核从日志拼的
-    /// （`Session::efforts()`）。
-    pub efforts: BTreeMap<String, String>,
 }
 
 /// 请求模型的端口。
@@ -68,15 +71,9 @@ pub trait ModelPort: Send + Sync {
     }
 
     /// 回合开始（施工 8-10，`models.md`「怎么走」第六条第 3 条）：照这一轮的配置 `config` 重新解析会话的引用 `reference`
-    /// （内核交的，以前的会话没有的照端口自己记着的）；端点、限额跟着换。会话给每个模型记的思考强度 `efforts` 换成内核交的
-    /// （施工 8-18）。钉着的没了、退回了这一轮的 `models.chat` 的，交回原来的和退回的，内核记下。不重新解析的（测试的端口）
-    /// 什么都不做。
-    fn turn(
-        &self,
-        _config: &TurnConfig,
-        _reference: Option<&str>,
-        _efforts: &BTreeMap<String, String>,
-    ) -> Option<Replaced> {
+    /// （内核交的，以前的会话没有的照端口自己记着的）；端点、限额跟着换。钉着的没了、退回了这一轮的 `models.chat` 的，
+    /// 交回原来的和退回的，内核记下。不重新解析的（测试的端口）什么都不做。
+    fn turn(&self, _config: &TurnConfig, _reference: Option<&str>) -> Option<Replaced> {
         None
     }
 
@@ -94,7 +91,16 @@ pub trait ModelPort: Send + Sync {
             window: None,
             max_output: None,
             images: None,
+            blind: false,
         }
+    }
+
+    /// 替看不了图的模型看图（施工 8-17，`docs/blueprint/models.md`「怎么走」第十三条第 4 条）：照这一轮的配置 `config` 把
+    /// `request` 经一次性入口发给 `models.vision`，说完了交给 `sight`。马上返回，在别的任务里发，带上当前的 span。没有一次性
+    /// 入口的（测试的端口）当场交没成。
+    fn describe(&self, request: Request, config: &TurnConfig, sight: Sight) {
+        let _ = (request, config);
+        sight.unseen("this model port cannot describe images".to_string());
     }
 
     /// 发一次请求。马上返回，在别的任务里发：actor 不等它。`config` 是这一轮的配置（回合开始时冻结的，施工 8-4）：这一轮
@@ -205,6 +211,40 @@ impl Reports {
     }
 }
 
+/// 一次转述的结果送回哪里（施工 8-17）：成了的交替它看的模型和转述，没成的交为什么。都送回 actor 的收件箱。
+#[derive(Debug)]
+pub struct Sight {
+    blob: ContentHash,
+    back: mpsc::UnboundedSender<Back>,
+}
+
+impl Sight {
+    pub(crate) fn new(blob: ContentHash, back: mpsc::UnboundedSender<Back>) -> Sight {
+        Sight { blob, back }
+    }
+
+    /// 转述成了：替它看的是 `model`，转述是 `text`（去掉了前后空白，不是空的）。
+    pub fn seen(self, model: Model, text: String) {
+        self.send(Ok((model, text)));
+    }
+
+    /// 转述没成：为什么，记进运行日志。
+    pub fn unseen(self, why: String) {
+        self.send(Err(why));
+    }
+
+    #[expect(
+        clippy::let_underscore_must_use,
+        reason = "会话停了就送不进去：转述没人要了，丢掉"
+    )]
+    fn send(self, seen: Result<(Model, String), String>) {
+        let _ = self.back.send(Back::Described {
+            blob: self.blob,
+            seen,
+        });
+    }
+}
+
 /// 叫停一次请求：会话不要这次请求了，或者会话停了（actor 放下了叫停的那一头）。会话停了就没人要
 /// 结果了，接着读只是白花 token。说完了以后放下的，请求已经不在读了，停不停都一样。
 #[derive(Debug)]
@@ -259,6 +299,11 @@ pub(crate) enum Back {
     Tool(crate::tools::ToolBack),
     /// 一条后台命令结束了（施工 7-3）。
     Job(crate::jobs::Ended),
+    /// 替它看图回来了（施工 8-17）：哪一张图，成了的替它看的模型和转述，没成的为什么。
+    Described {
+        blob: ContentHash,
+        seen: Result<(Model, String), String>,
+    },
     /// 等会话 `session` 等不到了（施工 C-6，`peers.rs`）：到点了是 `expired`，订的时候它不在了是 `gone`。
     WatchEnded {
         session: miyu_kernel::id::SessionId,

@@ -12,6 +12,8 @@ publish.workspace = true
 miyu-kernel = { path = "../miyu-kernel" }
 # 资源目录读出来的原文交给它拼策略快照（施工 3-6 上）。
 miyu-policy = { path = "../miyu-policy" }
+# blob 读一段：安全地打开以后读，`blob.get` 用（施工 W-6）。
+miyu-fs = { path = "../miyu-fs" }
 # 给人看的字里配置那一格照它的写法读，读好的字交给它生成文件（施工 8-1）。
 miyu-config = { path = "../miyu-config" }
 # 给人看的字一种语言一份 JSON（施工 4-5 上）。

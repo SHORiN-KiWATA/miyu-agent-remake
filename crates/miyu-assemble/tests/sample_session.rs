@@ -65,6 +65,7 @@ fn texts() -> Texts {
         peers: None,
         recap: None,
         title: None,
+        vision: None,
     }
 }
 

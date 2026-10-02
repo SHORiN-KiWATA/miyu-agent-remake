@@ -167,6 +167,7 @@ impl ModelPort for Script {
             window: self.window,
             max_output: None,
             images: None,
+            blind: false,
         }
     }
 

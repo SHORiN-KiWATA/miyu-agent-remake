@@ -39,7 +39,9 @@
 //! - 别的会话发来的话：防刷屏照规矩拒，收下的照回报的规矩叫不叫醒她（施工 C-2，`watch/peers.rs`、`random/peering.rs`）；
 //!   空了的通知：在等的才收，作废照时刻，叫不叫醒照原因（施工 C-6）；
 //! - 换模型：一样的不记，不一样的记一条，回合开始交的是会话的引用，退回默认的对得上才记、记在注入前面；熔断只看换过去
-//!   以后的（施工 8-10，`watch/configure.rs`、`random/configuring.rs`）。
+//!   以后的（施工 8-10，`watch/configure.rs`、`random/configuring.rs`）；
+//! - 替它看图：看不了图才转述，转述过的、在路上的不再转；转述是内核记的、不带回合编号；请求里换上的正是日志里的转述，
+//!   看不了图的主请求里的图都转述过或者这一轮没成（施工 8-17，`watch/sight.rs`、`random/sighting.rs`）。
 //!
 //! 每一步还照九条不变量查（`watch/invariants.rs`，`02-内核.md` 第九节「不变量怎么查」）。
 //!
@@ -60,6 +62,7 @@ mod reporting;
 mod rereading;
 mod restoring;
 mod rng;
+mod sighting;
 mod stopping;
 mod undoing;
 mod watch;
@@ -328,8 +331,10 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         let (mut redos, redoing) = (Rng(seed ^ 0x2ED0_2ED0), seed % 5 != 2 && !oneshot);
         // 四个种子里有一个换模型（施工 8-10）：另一串随机数、另一串命令编号，挂接点的结果偶尔带着退回。
         let (mut models, configuring, mut model_ids) = (Rng(seed ^ 0x30DE_1000), seed % 4 == 2, 0);
-        // 换思考强度也在这几个种子里（施工 8-18）：再另用一串随机数、一串命令编号，原来的输入不跟着错开。
-        let (mut efforts, mut effort_ids) = (Rng(seed ^ 0xEFF0_1800), 0);
+        // 八个种子里有一个替它看图（施工 8-17）：另一串随机数、另一串命令编号；避开多调写文件的种子，只读拦下写的那几条路
+        // 照原来的走。
+        let sighting = seed % 8 == 5 && !watch.writing;
+        let (mut sights, mut sight_ids) = (Rng(seed ^ 0x5167_0817), 0);
         for _ in 0..300 {
             // 有回顾在路上的不崩：崩了它就丢了，等着的命令收不到回应（施工 3-8 四补）。
             if watch.all_stored() && crashes.below(200) == 0 && watch.recaps_idle() {
@@ -386,8 +391,8 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
             {
                 watch.feed(&mut session, input);
             }
-            if configuring
-                && let Some(input) = configuring::some_effort(&mut efforts, &mut effort_ids)
+            if sighting
+                && let Some(input) = sighting::some_sight(&mut sights, &watch, &mut sight_ids)
             {
                 watch.feed(&mut session, input);
             }

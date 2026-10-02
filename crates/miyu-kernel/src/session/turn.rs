@@ -4,6 +4,8 @@
 //! 开头那一批落了盘，叫执行器跑回合开始的挂接点；挂接点跑完了、追加过的事件都落了盘，
 //! 组装请求，交给执行器去请求模型。请求在路上时的事在 [`super::call`]，调工具在 [`super::tools`]。
 
+use std::collections::BTreeSet;
+
 use super::Session;
 use super::action::Action;
 use super::breaker::Before;
@@ -13,7 +15,7 @@ use super::manual::Manual;
 use super::overflow::Passive;
 use super::step::Step;
 use crate::event::{Body, EndReason, Event, TurnEnded, TurnStarted};
-use crate::id::{CommandId, Seq, TurnId};
+use crate::id::{CommandId, ContentHash, Seq, TurnId};
 use crate::origin::{By, Module};
 use crate::time::Timestamp;
 
@@ -59,6 +61,8 @@ pub(super) struct Turn {
     pub(super) overflowed: bool,
     /// 手动压缩单开的这一轮：替代到哪、人附的要求（施工 6-8，`manual.rs`）。平常的回合没有。
     pub(super) manual: Option<Manual>,
+    /// 这一轮转述没成的图（施工 8-17，`sight.rs`）：这一轮里不再试，用占位那一句；下一轮再试。
+    pub(super) unseen: BTreeSet<ContentHash>,
 }
 
 /// 打断以后在等停着的调用：谁打断的、哪个命令、排着队的怎么办，等的那一次 `Wake` 的记号。
@@ -90,6 +94,11 @@ pub(super) enum Stage {
     Hooking,
     /// 挂接点跑完了：追加过的事件都落了盘，就发请求。
     Ready,
+    /// 看不了图，这一次请求里的这几张图在等转述（施工 8-17，`sight.rs`）：都回来了回到「准备好」，转述落了盘再组装。
+    Looking {
+        /// 还在等的图。
+        waiting: BTreeSet<ContentHash>,
+    },
     /// 请求在路上。
     Asking(Call),
     /// 出了可以重试的错，等着再来（施工 3-5 下）：到点了回到「准备好」，照有效历史再组装一次。
@@ -127,6 +136,7 @@ impl Session {
             passive: None,
             overflowed: false,
             manual: None,
+            unseen: BTreeSet::new(),
         }
     }
 
@@ -225,13 +235,7 @@ impl Session {
                 let turn = turn.id;
                 // 执行器先照这一轮的配置重新解析会话的引用（施工 8-10）。
                 let model = self.reference().map(str::to_string);
-                // 连同会话给每个模型记的思考强度（施工 8-18）。
-                let efforts = self.efforts().clone();
-                vec![Action::RunTurnStartHooks {
-                    turn,
-                    model,
-                    efforts,
-                }]
+                vec![Action::RunTurnStartHooks { turn, model }]
             }
             Stage::Ready if self.unstored.is_empty() => self.ask(at),
             _ => Vec::new(),
@@ -251,6 +255,11 @@ impl Session {
             None => {}
         }
         let request = self.policy.assembler.assemble(&self.history);
+        // 看不了图的，请求里还没转述过的图先转述，落了盘再组装（施工 8-17，`sight.rs`）。
+        if let Some(looking) = self.look(&request) {
+            return looking;
+        }
+        let request = self.with_descriptions(request);
         // 手动压缩单开的那一轮：不问熔断，发摘要请求（施工 6-8，`manual.rs`）。
         if let Some(due) = self.manual_due(&request) {
             return self.start_compaction(due);

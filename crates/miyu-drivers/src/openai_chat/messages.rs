@@ -7,6 +7,7 @@
 //! - 文件发不了 PDF 的：内容是文本的照字放进消息，带着文件名（施工 3-9 三补，[`crate::text_file`]）；别的写一句占位，
 //!   带文件名、媒体类型、大小。
 //! - 带名字的图片（人附的，施工 3-9 四补）：能看图的前后各一段标签，标签是文字，照文字拼；不能看图的占位写上名字。
+//! - 替它看的图（施工 8-17）：不能看图、请求的 `described` 里有这张图的转述的，换成带标签的转述，照文字拼；没有的照旧占位。
 //! - 接着写的：最后那条 user（只有被打断的那一句）不发，半截那条 assistant 加上接着写的字段。
 
 use std::collections::BTreeMap;
@@ -38,6 +39,7 @@ pub(super) fn write(
         texts,
         blobs,
         ids: wire_ids(request),
+        described: &request.described,
     };
     let mut out = Vec::new();
     if !request.system.is_empty() {
@@ -93,6 +95,8 @@ struct Writer<'a> {
     blobs: &'a dyn BlobBytes,
     /// 内核的调用编号到线上的编号。
     ids: BTreeMap<CallId, String>,
+    /// 请求里的图的转述（施工 8-17）：不能看图时照它写。
+    described: &'a BTreeMap<ContentHash, String>,
 }
 
 impl Writer<'_> {
@@ -107,7 +111,7 @@ impl Writer<'_> {
                         pieces.add(part);
                     }
                 }
-                Block::Image(image) => pieces.text(&self.texts.image_omitted(name(image))),
+                Block::Image(image) => pieces.text(&self.unseen(image)),
                 Block::File(file) if self.call.inputs.pdf && is_pdf(file) => {
                     pieces.part(self.file_part(file)?);
                 }
@@ -174,7 +178,7 @@ impl Writer<'_> {
                 Block::Image(image) if self.call.inputs.images => {
                     attachments.extend(self.image(image)?);
                 }
-                Block::Image(image) => join(&mut content, &self.texts.image_omitted(name(image))),
+                Block::Image(image) => join(&mut content, &self.unseen(image)),
                 Block::File(file) if self.call.inputs.pdf && is_pdf(file) => {
                     attachments.push(self.file_part(file)?);
                 }
@@ -210,6 +214,14 @@ impl Writer<'_> {
         out.push(Wire::User {
             content: pieces.content(),
         });
+    }
+
+    /// 不能看图时的一张图：有转述、快照里有标签的写成带标签的转述（施工 8-17），别的写占位那一句。
+    fn unseen(&self, image: &Image) -> String {
+        self.described
+            .get(&image.blob)
+            .and_then(|description| self.texts.image_described(name(image), description))
+            .unwrap_or_else(|| self.texts.image_omitted(name(image)))
     }
 
     /// 能看图时的一张图：data URL；带名字的前后各一段标签（施工 3-9 四补）。

@@ -251,28 +251,3 @@ fn the_model_changes_in_the_samples_follow_one_another() {
     }
     assert_eq!(seen, (1, 1), "人换的、退回的各一条");
 }
-
-/// 换思考强度的那一条（施工 8-18）：人换的，带着命令，只写 `effort`；记的是一个具体的模型（不是池），正是 144 号退回以后
-/// 会话用的那一个，`model.changed` 样本第二条照它带 `effort`。
-#[test]
-fn the_effort_change_in_the_samples_is_a_person_s_for_one_model() {
-    let efforts: Vec<Event> = events()
-        .into_iter()
-        .filter(
-            |event| matches!(&event.body, Body::PolicyChanged(changed) if changed.effort.is_some()),
-        )
-        .collect();
-    assert_eq!(efforts.len(), 1, "样本里一条");
-    let event = &efforts[0];
-    assert!(matches!(event.by, By::Person(_)), "人换的");
-    assert!(event.cause.is_some(), "带着命令");
-    let Body::PolicyChanged(changed) = &event.body else {
-        unreachable!("上面挑的就是它")
-    };
-    assert_eq!((&changed.model, &changed.permission), (&None, &None));
-    let effort = changed.effort.as_ref().expect("有");
-    assert_eq!(
-        (effort.model.as_str(), effort.level.as_deref()),
-        ("deepseek/deepseek-v4", Some("high"))
-    );
-}

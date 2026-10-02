@@ -28,6 +28,7 @@ mod redo;
 mod reports;
 mod restore;
 mod shorten;
+mod sight;
 mod stopping;
 mod transient;
 mod undo;
@@ -112,6 +113,8 @@ pub(super) struct Watch {
     pub(super) recaps: recap::Recaps,
     /// 换模型（施工 8-10）：会话的引用、最近一次换模型写在第几条。
     models: configure::Models,
+    /// 替它看图（施工 8-17）：在路上的、转述过的、每一轮没成的。
+    pub(super) sight: sight::Sight,
 }
 
 impl Watch {
@@ -162,6 +165,7 @@ impl Watch {
             peers: peers::Peers::default(),
             recaps: recap::Recaps::default(),
             models: configure::Models::default(),
+            sight: sight::Sight::default(),
         }
     }
 
@@ -191,6 +195,7 @@ impl Watch {
         self.fed.insert(InputKind::of(&input));
         self.reread_fed(&input);
         self.retry_fed(&input);
+        self.sight_fed(&input);
         let repeated = match &input {
             Input::Command(command) if !self.fresh(&command.id) => Some(command.id.clone()),
             _ => None,
@@ -311,16 +316,13 @@ impl Watch {
                 *self.replied.entry(id.clone()).or_default() += 1;
                 self.replied_at_most_received(&id);
             }
-            Action::RunTurnStartHooks {
-                turn,
-                model,
-                efforts,
-            } => {
+            Action::RunTurnStartHooks { turn, model } => {
                 self.start_hooks(turn);
-                self.hooks_model(model.as_deref(), &efforts);
+                self.hooks_model(model.as_deref());
             }
             Action::CallModel { seen, request, .. } => self.called(seen, &request),
             Action::Aside { upto, request, .. } => self.recap_issued(upto, &request),
+            Action::Describe { blob, request } => self.describe_issued(blob, &request),
             Action::Wake { seen, .. } => self.wake_asked(seen),
             Action::PushTransient(transient) => self.transient(&transient),
             Action::CancelModel { seen } => {
@@ -395,6 +397,7 @@ impl Watch {
                 }
                 Body::ModelCalled(called) => self.model_called(called, &events, k),
                 Body::SessionRecapped(_) => self.recapped_appended(event, &events, k),
+                Body::ImageDescribed(described) => self.described_appended(event, described),
                 Body::ContextCompacted(compacted) => self.compaction_appended(event, compacted),
                 Body::CompactionPaused(paused) => self.pause_appended(event, paused),
                 Body::ToolResult(result) => {

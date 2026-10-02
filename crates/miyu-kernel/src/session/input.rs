@@ -8,8 +8,8 @@ use crate::accumulate::Delta;
 use crate::block::Block;
 use crate::estimate::ImagePrice;
 use crate::event::{
-    CallError, ChildReported, ContextInjected, Decision, Effect, Effort, Event, IdleReason,
-    JobReported, Level, Purpose, Question, Response, Restored, Said, Usage,
+    CallError, ChildReported, ContextInjected, Decision, Effect, Event, IdleReason, JobReported,
+    Level, Purpose, Question, Response, Restored, Said, Usage,
 };
 use crate::facts::Environment;
 use crate::id::{CallId, CommandId, ContentHash, ModuleId, Seq, SessionId, TurnId};
@@ -237,6 +237,16 @@ pub enum Input {
         /// 有头订阅着。
         watched: bool,
     },
+    /// 替它看图回来了（施工 8-17，`docs/blueprint/kernel/session.md`「替它看图」）：[`super::Action::Describe`] 的回报。成了的
+    /// 内核记一条 `image.described`；不是在路上的那一张的不理；读回日志的时候到的先放着。
+    Described {
+        /// 到的时刻，取自执行器的时钟。
+        at: Timestamp,
+        /// 哪一张图。
+        blob: ContentHash,
+        /// 成了的：替它看的端点和模型、转述的原文（去掉了前后空白，不是空的）。没成的没有：原因执行器记在运行日志里。
+        seen: Option<(Model, String)>,
+    },
     /// 执行前的链判完了（`02-内核.md` 第六节「确认怎么走」）。
     ToolGuarded {
         /// 到的时刻，取自执行器的时钟。
@@ -307,13 +317,10 @@ pub enum Command {
         /// 只读开关；不改就没有。
         read_only: Option<bool>,
     },
-    /// `session.configure`：换模型（施工 8-10）、换会话给一个模型记的思考强度（施工 8-18），`configure.rs`。下一个回合开始时
-    /// 生效；和现在的一样的那一样不记，两样都一样的接受、什么都不记。
+    /// `session.configure`：换模型（施工 8-10），`configure.rs`。下一个回合开始时生效；和现在的一样的不记。
     Configure {
-        /// 换成的引用：模型或 `@池`，协议那一头已经查过；不换的没有。内核只存字，不解读。
-        model: Option<String>,
-        /// 换成的思考强度：哪个模型、哪一档（`None` 是清掉），协议那一头已经查过；不换的没有（施工 8-18）。
-        effort: Option<Effort>,
+        /// 换成的引用：模型或 `@池`，协议那一头已经查过。内核只存字，不解读。
+        model: String,
     },
     /// `session.set_meta`：改标题、置顶，改哪样写哪样（施工 3-8 三补，`meta.rs`）。
     SetMeta {
@@ -426,6 +433,9 @@ pub struct Limits {
     pub max_output: Option<u64>,
     /// 一张图怎么算，驱动交的（施工 6-3 上）；没有的照策略里的固定数。
     pub images: Option<Arc<dyn ImagePrice>>,
+    /// 看不了图（施工 8-17，`docs/blueprint/models.md`「怎么走」第十三条第 1 条）：池里有一个成员看不了就算。是真的，请求里有
+    /// 还没转述过的图就先转述。不知道的（测试的端口）是假的。
+    pub blind: bool,
 }
 
 /// 图片的算法是驱动交的对象，打印时只说有没有。
@@ -436,6 +446,7 @@ impl fmt::Debug for Limits {
             .field("window", &self.window)
             .field("max_output", &self.max_output)
             .field("images", &self.images.is_some())
+            .field("blind", &self.blind)
             .finish()
     }
 }
@@ -446,6 +457,7 @@ impl PartialEq for Limits {
         self.model == other.model
             && self.window == other.window
             && self.max_output == other.max_output
+            && self.blind == other.blind
             && match (&self.images, &other.images) {
                 (None, None) => true,
                 (Some(a), Some(b)) => Arc::ptr_eq(a, b),

@@ -9,13 +9,14 @@
 mod anchor;
 mod archive;
 mod sent;
+pub mod sight;
 mod texts;
 mod titled;
 
 pub use anchor::anchored;
 pub use archive::{files, matches_the_archive};
 pub use sent::{Sent, sent};
-pub use texts::{LINES, SUMMARIZE, VENUE, recap, title};
+pub use texts::{LINES, SUMMARIZE, VENUE, recap, title, vision};
 use texts::{driver_texts, texts};
 pub use titled::titled_stage;
 

@@ -81,6 +81,7 @@ fn request(system: &str, messages: Vec<Message>) -> Request {
         messages,
         stable: 0,
         continuation: false,
+        described: Default::default(),
     }
 }
 

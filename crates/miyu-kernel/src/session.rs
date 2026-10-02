@@ -41,6 +41,7 @@ mod retry;
 mod revert;
 mod send;
 mod shorten;
+mod sight;
 mod spans;
 mod step;
 mod summary;
@@ -131,6 +132,8 @@ pub struct Session {
     titling: Option<aside::Aside>,
     /// 会话的引用和最近一次换模型写在第几条（施工 8-10，`configure.rs`）：每追加一条记一次。
     reference: configure::Reference,
+    /// 转述过哪些图、哪些正在转（施工 8-17，`sight.rs`）：转述过的每追加一条记一次。
+    sight: sight::Sight,
 }
 
 impl Session {
@@ -179,6 +182,7 @@ impl Session {
             naming: title::Naming::default(),
             titling: None,
             reference: configure::Reference::default(),
+            sight: sight::Sight::default(),
         };
         let event = session.record(at, by, Some(id.clone()), Body::SessionCreated(created));
         session.accept(id, vec![event.seq]);
@@ -350,6 +354,7 @@ impl Session {
                 session,
                 reason,
             } => self.watch_ended(at, session, reason),
+            Input::Described { at, blob, seen } => self.described(at, blob, seen),
         }
     }
 
@@ -376,7 +381,7 @@ impl Session {
             Command::Send { blocks, urgent } => self.send(id, by, at, blocks, urgent),
             Command::Interrupt { queued } => self.interrupt(id, by, at, queued),
             Command::SetMeta { title, pinned } => self.set_meta(id, by, at, title, pinned),
-            Command::Configure { model, effort } => self.configure(id, by, at, model, effort),
+            Command::Configure { model } => self.configure(id, by, at, model),
             Command::SetPermission { level, read_only } => {
                 self.set_permission(id, by, at, level, read_only)
             }
@@ -427,6 +432,7 @@ impl Session {
         self.duty.note(event);
         self.naming.note(event);
         self.reference.note(event);
+        self.sight.note(event);
         self.history.append(event.clone());
         self.unstored.push(event.clone());
         Ok(())

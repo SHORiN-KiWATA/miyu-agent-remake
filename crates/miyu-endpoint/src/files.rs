@@ -1,17 +1,20 @@
-//! `fs.list`、`fs.find`、`fs.realpath`（施工 W-2、W-3，`docs/blueprint/web-module.md`「三、列文件、找文件」
-//! 「四、路径」）：列一层目录、在一个目录里模糊找文件、把一个路径换成真实的位置。`fs.list`、`fs.find` 的回应一个
-//! 样子：`items` 每一条 `{dir, full, marks, path, size}`；数据根只有账号自己的工作区能列、能找，落进去的
-//! `path_forbidden`，换不成真实的位置、不是目录的 `path_unreadable`。`fs.realpath` 不查边界，只换位置：落在
-//! 数据根里的照样换。
+//! `fs.list`、`fs.find`、`fs.realpath`、`fs.read`（施工 W-2、W-3、W-6，`docs/blueprint/web-module.md`
+//! 「三、列文件、找文件」「四、路径」「七、分块读」）：列一层目录、在一个目录里模糊找文件、把一个路径换成真实的
+//! 位置、分块读一份文件。`fs.list`、`fs.find` 的回应一个样子：`items` 每一条 `{dir, full, marks, path, size}`；
+//! 数据根只有账号自己的工作区能列、能找、能读，落进去的 `path_forbidden`，换不成真实的位置、不是目录的
+//! `path_unreadable`。`fs.realpath` 不查边界，只换位置：落在数据根里的照样换。`fs.read` 的 `path` 相对的
+//! `bad_params`；换不成真实位置、不是普通文件、没有权限 `path_unreadable`。
 //!
-//! 列目录、建清单、打分、换真实位置都住在 `miyu-fs`（[`miyu_fs::list_dir`]、[`miyu_fs::Index`]、
-//! [`miyu_fs::score`]、[`miyu_fs::resolve`]）；这里只管参数、边界表、回应的 JSON，和找文件的清单记几份
-//! （[`Cache`]）。
+//! 列目录、建清单、打分、换真实位置、安全地打开读一段都住在 `miyu-fs`（[`miyu_fs::list_dir`]、
+//! [`miyu_fs::Index`]、[`miyu_fs::score`]、[`miyu_fs::resolve`]、[`miyu_fs::read_range`]）；这里只管参数、
+//! 边界表、回应的 JSON，和找文件的清单记几份（[`Cache`]）。
 
 mod cache;
 
 use std::path::{Path, PathBuf};
 
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
@@ -60,6 +63,23 @@ pub(crate) struct RealpathParams {
     /// `path` 是相对的才要：接在它前面，写法同 `fs.list` 的 `cwd`。
     #[serde(default)]
     cwd: Option<String>,
+}
+
+/// `fs.read` 的参数（施工 W-6）：`path` 必写，绝对的或者 `~`、`~/…`；相对的 `bad_params`。
+#[derive(Debug, Deserialize)]
+pub(crate) struct ReadParams {
+    path: String,
+    /// 不写是 0。
+    #[serde(default)]
+    offset: u64,
+    /// 不写是 [`miyu_fs::MAX_LENGTH`]，最多这个数，写 0 只问大小。
+    #[serde(default = "default_length")]
+    length: u64,
+}
+
+/// `fs.read` 不写 `length` 时读多少（施工 W-6，`blob.get` 同样的默认值在 `attach.rs`）。
+fn default_length() -> u64 {
+    miyu_fs::MAX_LENGTH
 }
 
 /// 读、存要的几样：数据根、管理员、系统的家目录。
@@ -140,6 +160,31 @@ fn realpath_blocking(place: &Place, params: RealpathParams) -> Result<Value, Ref
     let real = resolve(&base, place.home.as_deref(), &params.path)
         .map_err(|_| Refusal::PATH_UNREADABLE)?;
     Ok(json!({"path": real.display().to_string()}))
+}
+
+/// `fs.read`：分块读本机的一份文件（施工 W-6，`web-module.md`「七、分块读」）。`path` 相对的（没有 `cwd` 可接）：
+/// `bad_params`；`length` 超过 [`miyu_fs::MAX_LENGTH`]：`bad_params`；换不成真实位置、不是普通文件、没有权限：
+/// `path_unreadable`；落在数据根里（账号的工作区以外）：`path_forbidden`。
+pub(crate) async fn read(core: &Core, params: ReadParams) -> Result<Value, Refusal> {
+    if params.length > miyu_fs::MAX_LENGTH {
+        return Err(Refusal::BAD_PARAMS);
+    }
+    if tilde(&params.path).is_none() && !Path::new(&params.path).is_absolute() {
+        return Err(Refusal::BAD_PARAMS);
+    }
+    let place = place(core);
+    blocking(move || read_blocking(&place, &params)).await
+}
+
+fn read_blocking(place: &Place, params: &ReadParams) -> Result<Value, Refusal> {
+    let real = resolve(Path::new("/"), place.home.as_deref(), &params.path)
+        .map_err(|_| Refusal::PATH_UNREADABLE)?;
+    if boundary_of(place).zone(&real) == Zone::Forbidden {
+        return Err(Refusal::PATH_FORBIDDEN);
+    }
+    let segment = miyu_fs::read_range(&real, params.offset, params.length)
+        .map_err(|_| Refusal::PATH_UNREADABLE)?;
+    Ok(json!({"data": STANDARD.encode(&segment.data), "size": segment.size}))
 }
 
 /// 打分排过序的一条：路径、是不是目录、对上的字（第几个字）。

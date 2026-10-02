@@ -20,13 +20,15 @@
 | `crates/miyu-assemble/src/peers.rs` | 别的会话发来的话包一层带短编号的标签（施工 C-2）；空了的通知那一块（施工 C-6）；人这边的一条照谁发的包哪种外壳在 `render.rs` 的 `said`，主请求和回顾的请求共用 |
 | `crates/miyu-assemble/src/recap.rs` | 回顾的请求：取最近几轮的对话正文、截到上限、接在回顾的指令后面（施工 3-8 四补，下面「回顾的请求」） |
 | `crates/miyu-assemble/src/title.rs` | 起标题的请求：取第一轮的对话正文，照回顾的写法截到上限、接在起标题的指令后面（施工 3-8 五补，下面「起标题的请求」） |
+| `crates/miyu-assemble/src/vision.rs` | 转述一张图的请求：指令、人这一轮最近说的那一句、这张图（施工 8-17，下面「替它看的图」） |
+| `crates/miyu-kernel/src/session/sight.rs` | 什么时候转述、这个会话转述过哪些图、把转述放进请求（施工 8-17，`kernel/session.md`「替它看图」） |
 | `crates/miyu-assemble/src/tag.rs` | 一块带标签的事实：开头、原话、收尾，字以外的块接在后面（子代理的留言、别的 harness、别的会话发来的话共用，施工 7-10 从 `jobs.rs` 拿出来） |
 | `crates/miyu-kernel/src/facts.rs` | 五份事实模板、会话的环境、一个边界上该注入哪几块（权限比级别、切了用哪份模板） |
 | `crates/miyu-kernel/src/session/turn.rs`、`permission.rs`、`retry.rs`、`tools.rs`、`call.rs` | 什么时候注入事实、什么时候组装、算第一处不同、记进 `model.called` |
 | `crates/miyu-kernel/src/template.rs` | 模板的写法、换字段、转义 |
 | `crates/miyu-kernel/src/accumulate.rs` | 增量、累积器 |
 | `crates/miyu-kernel/src/time.rs` | 环境块里钟点和时区的写法 |
-| `resources/core/` | 给模型看的字：事实的模板、检查点的包装、回合没走完的五句、回报的写法（`jobs/`，施工 7-2）、别的 harness 发来的话的标签（`harness/`，施工 7-10）、别的会话发来的话的标签和空了的通知（`peers/`，施工 C-2、C-6）、回顾的请求的几份（`recap/`，施工 3-8 四补）、起标题的指令（`title/`，施工 3-8 五补） |
+| `resources/core/` | 给模型看的字：事实的模板、检查点的包装、回合没走完的五句、回报的写法（`jobs/`，施工 7-2）、别的 harness 发来的话的标签（`harness/`，施工 7-10）、别的会话发来的话的标签和空了的通知（`peers/`，施工 C-2、C-6）、回顾的请求的几份（`recap/`，施工 3-8 四补）、起标题的指令（`title/`，施工 3-8 五补）、转述一张图的指令和人的话前面那一行（`vision/`，施工 8-17） |
 
 ### 对外的样子
 
@@ -39,6 +41,7 @@
 | `messages` | `Message` 的列表 | 示范对话、检查点、历史，照先后 |
 | `stable` | 整数 | 稳定区有几条消息，就是示范对话的条数 |
 | `continuation` | 布尔 | 接着写的记号（「组装」第 7 条）。是假的不写进字节 |
+| `described` | blob → 字符串 | 请求里出现的图在这个会话里的转述（施工 8-17，下面「替它看的图」）：内核组装完放进来，驱动给看不了图的端点编码时用。空的不写进字节 |
 
 - 端点、模型、输出的上限不在请求里，发请求时才定（`drivers/openai-chat.md` 的 `Call`）。
 - `ToolSpec`：`name`、`description`、`parameters`。`parameters` 是参数的 JSON Schema，原样的 JSON，空格、字段的先后都留着。
@@ -54,7 +57,7 @@
 
 **规范的字节**：`canonical_bytes()` 写成紧凑的 JSON，字段照结构体的先后，参数格式原样照抄。`hash()` 是这串字节的 SHA-256，写成 `sha256:` 加 64 位小写十六进制。
 
-**指纹** `fingerprint()`：三样各算一个 SHA-256。工具面：`tools` 数组的 JSON；system：它写成的 JSON 字符串，带引号；每条消息：那一条的 JSON，另记它的角色。`stable`、`continuation` 不算进指纹。上一次的请求本身不留。
+**指纹** `fingerprint()`：三样各算一个 SHA-256。工具面：`tools` 数组的 JSON；system：它写成的 JSON 字符串，带引号；每条消息：那一条的 JSON，另记它的角色。`stable`、`continuation`、`described` 不算进指纹（`described` 为什么不算见 `models.md`「施工时定的」8-17）。上一次的请求本身不留。
 
 **第一处不同** `first_difference(上一次的指纹)`：交回 `Tools`、`System`、`Message { index, role }`（`index` 从 0 数起），或者没有。
 
@@ -68,6 +71,7 @@
 | `summary(&[Block]) -> Option<String>` | 从摘要请求的回复里取出摘要；取不出来的是 `None`（`compaction.md` 第三条第 6 条）。指令和取法是一对，都归组装 |
 | `recap(&History) -> Option<(Request, Seq)>` | 回顾的请求，和它照到的那一条：喂进去的最新那一条消息（施工 3-8 四补，下面「回顾的请求」）。内核交进来的是这一刻落了盘的有效历史。她一个带正文的回复都没有的是 `None`；默认的实现是 `None`：不做回顾的组装 |
 | `title(&History) -> Option<(Request, Seq)>` | 起标题的请求，和它照到的那一条：第一个回答的序号（施工 3-8 五补，下面「起标题的请求」）。内核交进来的是这一刻落了盘的有效历史。她一个带正文的回复都没有的是 `None`；默认的实现是 `None`：不起标题 |
+| `describe(&Image, said) -> Option<Request>` | 转述一张图的请求（施工 8-17，下面「替它看的图」）：`said` 是人这一轮最近说的那一句，内核找好交进来，没有的是 `None`。快照里没有转述的字的是 `None`：不转述；默认的实现是 `None` |
 
 **默认的组装器** `DefaultAssembler::new(Stable, Texts)`：
 
@@ -84,6 +88,7 @@
 | | `peers` | `PeerTexts`：别的会话发来的话的标签，`core/peers/` 下的两份（施工 C-2，下面「别的会话发来的话」）：`open` 字段 `id`，`close`。以前造的快照里没有的，是没有：那种话照人的话原样渲染。`idle`（施工 C-6，`IdleTexts`，下面「空了的通知」）：`open` 字段 `id`、`reason`，`silent`、`expired`（造快照时照 `peers.watch_hours` 换好了 `hours`）、`gone`、`close`；C-2 时造的快照里没有，是没有：通知不出 |
 | | `recap` | `Recap`：回顾的指令、两种标签、两句记号（`core/recap/` 下的五份），最多几轮 `turns`、整份最多约多少 token `tokens`（施工 3-8 四补，下面「回顾的请求」）。以前造的快照里没有的，是没有：不做回顾 |
 | | `title` | `Title`：起标题的指令（`core/title/instruction.txt`），整份最多约多少 token `tokens`（施工 3-8 五补，下面「起标题的请求」）。标签、截断的记号借 `recap` 的，两样都有才起标题。以前造的快照里没有的，是没有：不起标题 |
+| | `vision` | `Vision`：转述一张图的指令（`core/vision/instruction.txt`）、人的话前面那一行（`question.txt`）（施工 8-17，下面「替它看的图」）。以前造的快照里没有的，是没有：不转述 |
 
 默认的 `summarize`：截到第 `upto` 条照平常组装；最后一条是 user 的，指令并进这一条做最后一块，不是的另起一条 user；`continuation` 是假。指令是一个文本块：`summarize_task`；有要求的接 `summarize_instructions` 和要求（原样，不转义，末尾没有换行的补一个）；最后是 `summarize_end`（施工 6-8，`compaction.md` 第七条第 3 条）。默认的 `summary`：只看正文块，有 `<summary>` 的取到 `</summary>` 或者末尾，没有的去掉 `<analysis>…</analysis>`，前后空白去掉，空的是 `None`（`crates/miyu-assemble/src/summary.rs`）。
 
@@ -117,7 +122,7 @@
 
 | 事件 | 渲染成 |
 |---|---|
-| `message.user` | 它的内容块，攒进人这一边。人附的图片、文件是文字后面的图片块、文件块（施工 3-9 三补，`protocol.md` 的 `session.send`），原样进请求，图片块、文件块都带着文件名（图片的施工 3-9 四补）；它们在线上是什么样（data URL、照字放进来的文本文件、占位，名字写在哪），是驱动的事（`drivers/openai-chat.md` 第 9 条）。`by` 是这个会话派的子代理的，包一层标签（下面「子代理的留言」，施工 7-7）；`by` 是 `harness` 的，包一层带名字的标签（下面「别的 harness 发来的话」，施工 7-10）；`by` 是别的会话的，包一层带短编号的标签（下面「别的会话发来的话」，施工 C-2） |
+| `message.user` | 它的内容块，攒进人这一边。人附的图片、文件是文字后面的图片块、文件块（施工 3-9 三补，`protocol.md` 的 `session.send`），原样进请求，图片块、文件块都带着文件名（图片的施工 3-9 四补）；它们在线上是什么样（data URL、照字放进来的文本文件、占位、替它看的图的转述，名字写在哪），是驱动的事（`drivers/openai-chat.md` 第 9 条）。`by` 是这个会话派的子代理的，包一层标签（下面「子代理的留言」，施工 7-7）；`by` 是 `harness` 的，包一层带名字的标签（下面「别的 harness 发来的话」，施工 7-10）；`by` 是别的会话的，包一层带短编号的标签（下面「别的会话发来的话」，施工 C-2） |
 | `context.injected` | 一个文本块，就是它的原文，攒进人这一边 |
 | `turn.started` | 不出块。记下这个回合开始的地方、触发它的那一条；没有触发的（手动压缩、清空单开的那一轮，施工 6-8、6-8 补）不记 |
 | `turn.ended` | 原因是 `interrupted`、`error`、`step_limit`、`aborted`、`restarted` 的，出一个文本块，就是那一句，攒进人这一边；`completed` 和不认识的原因不出；没有触发的那一轮的不出：她没看到过那一轮，写了她会当成是上一轮没走完（施工 6-8，`compaction.md` 第七条第 8 条） |
@@ -126,6 +131,7 @@
 | `job.reported`、`child.reported` | 一个文本块，带标签的事实（下面「回报」），攒进人这一边；派它的那一轮撤掉了的、没派过的、快照里没有写法的，不出（施工 7-2） |
 | `session.*`、`tool.approval_*`、`question.*`、`model.called`、`files.restored`、不认识的种类 | 不渲染。`session.recapped` 也在这里（施工 3-8 四补）：回顾不进她的上下文；内核起的标题（`session.meta_changed`）也一样（施工 3-8 五补） |
 | `peer.idle` | 一个文本块，带标签的事实（下面「空了的通知」），攒进人这一边；快照里没有通知的字的，不出（施工 C-6） |
+| `image.described` | 不渲染：转述经请求的 `described` 进请求，驱动把图的位置换成它（施工 8-17，下面「替它看的图」） |
 
 4. 内容块里不认识的种类，不进请求。`context.compacted`、`turn.reverted`、`turn.unreverted`、`message.withdrawn` 已经由有效历史用掉了，渲染时碰不到。
 5. **人这一边合成一条 user**：碰到 assistant 或者 tool，攒着的块先合成一条 user，放在它前面；渲染完了，剩下的也合成一条；什么都没攒，不出消息。
@@ -140,7 +146,7 @@
    - 排在检查点前面的 `model.called` 不算（施工 6-2 上）：那是被替代掉的那段的请求和摘要请求自己，压完的第一次请求前缀本来就从头来。回合开头压的，压完再注入的事实照样和触发的那句放在一起，这一轮第一次主请求的最后一块照旧是触发它的那句。
    - 带 `purpose` 的 `model.called`（回顾这类辅助请求，施工 3-8 四补）也不算：它不是这一轮请求过，不带回合编号，可以落在回合开始的那几块中间，算了就挪动了开始时注入的事实，前缀断开。
    - 回合中途注入的事实（第一条回复以后）照先后，排在那一步的工具结果后面。
-7. **接着写的记号**：有效历史照排好的先后倒着看，跳过 `model.called`、`session.recapped`（回顾不进上下文，中途要了照样接着写，施工 3-8 四补）、`session.meta_changed`（上一轮起的标题可能在这一轮中途回来，改标题也不进上下文，施工 3-8 五补）：最后一条是内核记的 `reply_cut` 事实，再往前一条是带 `interrupted` 的回复，`continuation` 就是真。这时最后一条 user 只有被打断的那一句，前面那条 assistant 是半截。那一句后面又来了别的（人的消息、别的事实），就是假。驱动怎么用它见 `drivers/openai-chat.md`。
+7. **接着写的记号**：有效历史照排好的先后倒着看，跳过 `model.called`、`session.recapped`（回顾不进上下文，中途要了照样接着写，施工 3-8 四补）、`session.meta_changed`（上一轮起的标题可能在这一轮中途回来，改标题也不进上下文，施工 3-8 五补）、`image.described`（图的转述不渲染，打断以前发出去的转述可能这时才回来，施工 8-17）：最后一条是内核记的 `reply_cut` 事实，再往前一条是带 `interrupted` 的回复，`continuation` 就是真。这时最后一条 user 只有被打断的那一句，前面那条 assistant 是半截。那一句后面又来了别的（人的消息、别的事实），就是假。驱动怎么用它见 `drivers/openai-chat.md`。
 
 **回报**（施工 7-2，`agents.md` 第九条）
 
@@ -210,6 +216,15 @@
 4. **照到的**：那个回答的序号。
 5. **上限**：整份（连指令）至多 `tokens`（出厂 1024，照回顾的截法定的一个小上限，施工时定）个 token，字节/4 折成字节；放不下的照回顾的第 6 条第 3、4 款：两段各留头尾、截掉中间，夹 `recap/excerpted.txt`，标签、空行本身就超了的整份截到上限，只在字的边界上截。只有一轮，不会整轮去掉。
 6. 快照里没有起标题的字、数的（以前造的），没有回顾的标签的，组装不出来。
+
+**替它看的图**（施工 8-17，`models.md`「怎么走」第十三条，`kernel/session.md`「替它看图」）
+
+1. **请求的 `described`**：组装器不管它。内核组装完（主请求、摘要请求），照请求里 user、tool 消息的图片块的 `blob`，把这个会话转述过的放进去（`Session` 照日志里每一条 `image.described` 算的，撤销、压缩都不删）。没有转述的图不放；没有图的请求是空的，规范字节、哈希和以前一字不差。驱动怎么用见 `drivers/openai-chat.md` 第 9 条。
+2. **转述的请求**（`Assembler::describe`）：工具面、system 空的，`stable` 是 0，`continuation` 是假，一条 user，两块：
+   - 字：`vision/instruction.txt`；`said` 有的，接 `vision/question.txt` 和 `said` 的原话（不转义、不截）。拼的时候不加别的字：换行都在两份文件里（指令以换行结尾，`question.txt` 以空行开头、以换行结尾）。
+   - 图：照原样，只去掉名字（`name` 不写）。
+   - 快照里没有 `vision` 的，交回 `None`。
+3. **`said`**：内核找，不归组装器。这一轮开头的触发那一条起（没有触发的从 `turn.started` 起），有效历史里最后一条字不空的 `message.user`：字块照先后接起来、去掉前后空白；谁发的都算。
 
 **事实**
 
@@ -330,6 +345,13 @@
 | 文件 | 原文 | 什么时候 |
 |---|---|---|
 | `title/instruction.txt` | `Write a title of 3 to 7 words for this conversation, in the language of the conversation. Reply with the title only, without quotes or a final period.`，空一行，`Conversation:`，以一个换行结尾 | 每一次，在最前 |
+
+转述一张图的两份（`core/vision/`，施工 8-17，「替它看的图」），只在那一次辅助请求里，不进主对话；主请求里图的位置写的三份标签归驱动（`drivers/openai-chat.md` 第 9 条）：
+
+| 文件 | 原文 | 什么时候 |
+|---|---|---|
+| `vision/instruction.txt` | `Describe what this image shows for someone who cannot see it. Copy all text in it exactly as written. Reply with the description only.`，以一个换行结尾 | 每一次，在最前 |
+| `vision/question.txt` | 一个空行，`The user's latest message, so you know what matters most:`，以一个换行结尾，后面紧跟人的原话 | 人这一轮说过字不空的话 |
 
 两种回报的写法（`core/jobs/`，施工 7-2，「回报」），标签里的三个字段是 `job`、`title`、`reason`：
 
@@ -507,6 +529,9 @@ Carry on from where the summary leaves off, without redoing work it records as d
 | `crates/miyu-assemble/src/title/tests.rs`（施工 3-8 五补） | 起标题的请求：一条 user、没有 system 和工具面，只有第一轮，照到的是第一个回答；那一轮中间一步说的、工具、思考、事实不要；第一轮没答出正文的，两句人的话并成一段、照到第二轮的回答；别的 harness 的话带外壳；没有回答、没有起标题的字或者回顾的标签的没有；放不下两段各截中间，连指令正好到上限，小到连标签都放不下的整份截到上限 |
 | `crates/miyu-assemble/src/tests.rs` 的 `a_title_after_the_notice_still_continues`（施工 3-8 五补） | 被打断的那一句后面内核起了标题，照样接着写 |
 | `crates/miyu-assemble/tests/probe_title.rs`（施工 3-8 五补） | 起标题这张脸：真内核照剧本跑，起标题的请求（`titles/`）和主请求一样和存档（`docs/designs/samples/probe/title/`）逐字节比；它是单独的一次，一条 user，指令接第一轮的话和回答，工具的输出、中间一步说的不在里面；只起一次；主请求照查五条性质，第二轮接着第一轮往后长 |
+| `crates/miyu-assemble/src/vision/tests.rs`（施工 8-17） | 转述的请求：一条 user、没有 system 和工具面，指令在前、图在后、图去掉了名字；有人的话的接那一行和原话、原样不转义；快照里没有字的没有 |
+| `crates/miyu-kernel/src/request/tests.rs` 的转述那几条（施工 8-17） | `described` 空的不写进字节、哈希不变，有的写在最后；不算进指纹 |
+| `crates/miyu-assemble/tests/probe_vision.rs`（施工 8-17） | 看不了图的那张脸：真内核照剧本跑，人附了一张图、她又读出一张，各转述一次，主请求和存档（`docs/designs/samples/probe/vision/`）逐字节比、线上的字节里图的位置是带标签的转述；第二轮不再转述，前缀照查五条性质 |
 | `crates/miyu-assemble/src/summary/tests.rs` | 摘要指令怎么拼：没附要求的和原来的整份一字不差；附了的夹在中间、原样、补换行；旧快照没有那两份的（施工 6-8）；取摘要的每一种 |
 | `crates/miyu-assemble/tests/random_logs.rs` | 五百份随机会话（有手动压缩单开的那一轮，施工 6-8），每次请求查五条性质：同样的日志同样的字节、前缀延伸（统一的请求和线上的字节两层；中间撤销、恢复、压缩过的那一次不查）、调用和结果成对、没有连着的 user、回合第一次请求的最后一块是触发；CI 长跑两万份；重试的回合里，一半在等着重试时切一下只读 |
 | `crates/miyu-kernel/src/facts/tests.rs` | 模板造的时候查（会话编号的模板只要 `id`）；三块的写法、目录转义、实际生效的级别；一个边界上查哪几块、先后；以前的模板没有会话编号的，边界上只有两块（施工 1-13 再补）；该不该注入的八种情形 |
@@ -531,6 +556,7 @@ Carry on from where the summary leaves off, without redoing work it records as d
 - `26-提示词.md` 第四节（system 的排法）、第八节（东西放在哪）、第十节（登记簿）、J6（辅助请求）。
 - `04-核心协议.md` 第九节 `session.recap`、codex 的 `recap_history.rs`、`recap_prompt.rs`：回顾的请求（施工 3-8 四补）。
 - 起标题的请求：照 Claude Code 没起名的自己起（2026-10-01 项目主人定），写法照回顾的请求（施工 3-8 五补）。
+- 替它看的图：`10-自带软件.md` 第三节末尾、B11；技术细节 2026-10-02 主会话定（施工 8-17，`models.md`「怎么走」第十三条）。
 
 ### 还没有的
 

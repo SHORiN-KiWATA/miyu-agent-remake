@@ -1290,6 +1290,7 @@ name = "miyu-endpoint"
 version = "0.0.0"
 dependencies = [
  "base64 0.22.1",
+ "getrandom 0.4.3",
  "jiff",
  "miyu-basesystem",
  "miyu-config",
@@ -1462,6 +1463,7 @@ name = "miyu-store"
 version = "0.0.0"
 dependencies = [
  "miyu-config",
+ "miyu-fs",
  "miyu-kernel",
  "miyu-policy",
  "notify",

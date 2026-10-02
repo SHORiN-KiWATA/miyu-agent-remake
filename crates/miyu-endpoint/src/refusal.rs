@@ -114,7 +114,8 @@ impl Refusal {
         reason: "attachment_unreadable",
         data: None,
     };
-    /// 附件太大（施工 3-9 三补）：超过 20 MiB；图片超过 5 MiB，或者哪一边超过 8000 像素。
+    /// 附件太大（施工 3-9 三补）：超过 20 MiB；图片超过 5 MiB，或者哪一边超过 8000 像素。分块上传
+    /// `blob.open`、`blob.close` 共用这一种（施工 W-5）。
     pub(crate) const ATTACHMENT_TOO_BIG: Refusal = Refusal {
         code: REFUSED,
         reason: "attachment_too_big",
@@ -134,19 +135,48 @@ impl Refusal {
     };
     /// `fs.list`、`fs.find` 读不了这个路径（施工 W-2）：换不成真实的位置、不在、该是目录的不是目录、没有权限。
     /// `fs.realpath` 也用它（施工 W-3）：换不成真实的位置——一层都不在、路上的链接指向不存在的地方、没有家目录。
+    /// `fs.read` 也用它（施工 W-6）：换不成真实的位置、没有、不是普通文件、没有权限。
     pub(crate) const PATH_UNREADABLE: Refusal = Refusal {
         code: REFUSED,
         reason: "path_unreadable",
         data: None,
     };
-    /// `fs.list`、`fs.find` 的目录落在数据根里、又不在这个账号的工作区里（施工 W-2）。
+    /// `fs.list`、`fs.find` 的目录落在数据根里、又不在这个账号的工作区里（施工 W-2）。`fs.read` 的路径也一样
+    /// （施工 W-6）。
     pub(crate) const PATH_FORBIDDEN: Refusal = Refusal {
         code: REFUSED,
         reason: "path_forbidden",
         data: None,
     };
+    /// `blob.get` 的 blob 这个账号没有（施工 W-6）。
+    pub(crate) const UNKNOWN_BLOB: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_blob",
+        data: None,
+    };
     // `mermaid_too_long`、`mermaid_failed`（施工 W-4）：查询方法（`queries.rs`）只拿得到
     // `queries::QueryError`，这两种拒绝经 `From<QueryError>` 现造，不在这里登记成常量。
+
+    /// 这个连接上同时开着 4 个分块上传了（施工 W-5，`blob.open`）。
+    pub(crate) const TOO_MANY_UPLOADS: Refusal = Refusal {
+        code: REFUSED,
+        reason: "too_many_uploads",
+        data: None,
+    };
+    /// 没有这个上传：编号不对、作废了、不是这个连接开的（施工 W-5，`blob.write`、`blob.close`）。
+    pub(crate) const UPLOAD_UNKNOWN: Refusal = Refusal {
+        code: REFUSED,
+        reason: "upload_unknown",
+        data: None,
+    };
+    /// `blob.write` 的 `offset` 和已经收到的字节数对不上（施工 W-5）：`data.received` 是实际收到的几个。
+    pub(crate) fn upload_offset(received: u64) -> Refusal {
+        Refusal::with("upload_offset", "received", serde_json::json!(received))
+    }
+    /// `blob.close` 时还没收齐（施工 W-5）：`data.received` 是实际收到的几个。
+    pub(crate) fn upload_incomplete(received: u64) -> Refusal {
+        Refusal::with("upload_incomplete", "received", serde_json::json!(received))
+    }
 
     /// `config.trust` 时这个目录找不到项目配置（施工 8-3）。
     pub(crate) const NO_PROJECT_CONFIG: Refusal = Refusal {
@@ -172,12 +202,6 @@ impl Refusal {
     pub(crate) const UNKNOWN_MODEL: Refusal = Refusal {
         code: REFUSED,
         reason: "unknown_model",
-        data: None,
-    };
-    /// `session.configure` 的 `effort.level` 不在那个模型这时的档位里（施工 8-18）。
-    pub(crate) const UNKNOWN_EFFORT: Refusal = Refusal {
-        code: REFUSED,
-        reason: "unknown_effort",
         data: None,
     };
     /// 请求里写了清单里没有的配置项（施工 8-2，`config.schema`、`config.get`、`config.set`）：`data.problems` 里每个不认识的
@@ -217,6 +241,36 @@ impl Refusal {
     /// 版本，文件没有的是 `null`。
     pub(crate) fn config_conflict_version(version: Option<String>) -> Refusal {
         Refusal::with("config_conflict", "version", serde_json::json!(version))
+    }
+
+    /// `model.call` 没有能用的模型（施工 8-20）：`data.message` 是原话。
+    pub(crate) fn no_model(message: String) -> Refusal {
+        Refusal::with("no_model", "message", serde_json::Value::String(message))
+    }
+
+    /// `model.call` 的候选全在冷却，没发（施工 8-20）：`data.message` 是原话，`data.wait_ms` 是最早恢复的还要多久。
+    pub(crate) fn cooling(message: String, wait_ms: u64) -> Refusal {
+        let mut refusal = Refusal::with("cooling", "message", serde_json::Value::String(message));
+        if let Some(data) = &mut refusal.data {
+            data.insert("wait_ms".to_string(), serde_json::json!(wait_ms));
+        }
+        refusal
+    }
+
+    /// `model.call` 发了、出错了（施工 8-20）：`data` 是 `class`、`status`（有状态码的才写）、`message`，和
+    /// `model.called` 的 `error` 一样。
+    pub(crate) fn model_failed(error: &miyu_kernel::event::CallError) -> Refusal {
+        let mut data = serde_json::Map::new();
+        data.insert("class".to_string(), serde_json::json!(error.class.as_str()));
+        if let Some(status) = error.status {
+            data.insert("status".to_string(), serde_json::json!(status));
+        }
+        data.insert("message".to_string(), serde_json::json!(error.message));
+        Refusal {
+            code: REFUSED,
+            reason: "model_failed",
+            data: Some(data),
+        }
     }
 
     /// Miyu 的拒绝，`data` 里除了 `reason` 多一格 `field`。
@@ -299,6 +353,22 @@ impl Refusal {
             // 施工 W-4（`mermaid.md`「给人看的字」）。
             "mermaid_too_long" => ("这张图的源码太长了。", "The diagram source is too long."),
             "mermaid_failed" => ("这张图画不出来。", "The diagram could not be drawn."),
+            // 施工 W-5（`web-module.md`「给人看的字」）。
+            "too_many_uploads" => (
+                "同时传的文件太多了，等前面的传完。",
+                "Too many uploads at once; wait for the others to finish.",
+            ),
+            "upload_unknown" => (
+                "没有这个上传，可能等太久作废了，重新传一次。",
+                "No such upload; it may have expired. Upload the file again.",
+            ),
+            "upload_offset" => (
+                "上传接不上，从核心说的地方接着传。",
+                "The upload is out of step; continue from where the core says.",
+            ),
+            "upload_incomplete" => ("文件还没传完。", "The file is not fully uploaded yet."),
+            // 施工 W-6（`web-module.md`「给人看的字」）。
+            "unknown_blob" => ("找不到这份内容。", "This content cannot be found."),
             "not_running" => (
                 "没有正在进行的回合，打断不了。",
                 "No turn is running, so there is nothing to interrupt.",
@@ -363,15 +433,17 @@ impl Refusal {
                 "配置里没有这个模型或者池。",
                 "There is no such model or pool in the configuration.",
             ),
-            // 施工 8-18（`models.md`「给人看的字」）。
-            "unknown_effort" => (
-                "这个模型没有这一档思考强度。",
-                "This model has no such reasoning effort level.",
-            ),
             "recap_failed" => (
                 "回顾没写成：请求模型出错了。",
                 "The recap could not be written: the model request failed.",
             ),
+            // 施工 8-20（`models.md`「给人看的字」）。
+            "no_model" => ("没有可用的模型。", "No model is available."),
+            "cooling" => (
+                "模型都在冷却，稍后再试。",
+                "All models are cooling down; try again later.",
+            ),
+            "model_failed" => ("请求模型出错了。", "The model request failed."),
             _ => ("被拒绝了。", "Refused."),
         };
         match locale {

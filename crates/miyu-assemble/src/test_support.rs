@@ -10,7 +10,8 @@ use miyu_kernel::request::Message;
 use miyu_kernel::template::Template;
 
 use crate::texts::{
-    HarnessTexts, IdleTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title, TurnEndedTexts,
+    HarnessTexts, IdleTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title,
+    TurnEndedTexts, Vision,
 };
 
 pub(crate) const KERNEL: &str = r#"{"kind":"kernel"}"#;
@@ -58,6 +59,15 @@ pub(crate) fn texts() -> Texts {
         }),
         recap: Some(recap_texts()),
         title: Some(title_texts()),
+        vision: Some(vision_texts()),
+    }
+}
+
+/// 替身的转述一张图的字（施工 8-17）：短，一眼认得出。
+pub(crate) fn vision_texts() -> Vision {
+    Vision {
+        instruction: "<describe>\n".to_string(),
+        question: "\n<asked>\n".to_string(),
     }
 }
 

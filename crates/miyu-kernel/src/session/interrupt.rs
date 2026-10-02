@@ -78,10 +78,11 @@ impl Session {
                     return self.wait(at, id, waiting, step, events, stops);
                 }
             }
-            // 等着重试的：请求还没发，叫醒了也不理，直接结束。
+            // 等着重试的、在等转述的：请求还没发，叫醒了、转述回来了也不理，直接结束（转述回来的照样记，`sight.rs`）。
             Stage::Opening { .. }
             | Stage::Hooking
             | Stage::Ready
+            | Stage::Looking { .. }
             | Stage::Waiting { .. }
             | Stage::Settling => {}
         }

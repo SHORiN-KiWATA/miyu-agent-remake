@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::image_name::ImageNameTexts;
 use crate::text_file::TextFileTexts;
+use crate::vision::ImageDescriptionTexts;
 
 /// 驱动的几句占位。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -28,6 +29,9 @@ pub struct DriverPlaceholders {
     /// 带名字的图片的三句（施工 3-9 四补）。以前造的快照里没有，读成没有：带名字的图片照不带名字的写；没有的不写。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image_name: Option<ImageNameTexts>,
+    /// 替它看的图的三句标签（施工 8-17）。以前造的快照里没有，读成没有：看不了图的照旧写占位；没有的不写。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_description: Option<ImageDescriptionTexts>,
 }
 
 impl DriverPlaceholders {
@@ -45,6 +49,10 @@ impl DriverPlaceholders {
             tool_attachments_only: &self.tool_attachments_only,
             text_file: self.text_file.as_ref().map(TextFileTexts::sources),
             image_name: self.image_name.as_ref().map(ImageNameTexts::sources),
+            image_description: self
+                .image_description
+                .as_ref()
+                .map(ImageDescriptionTexts::sources),
         })
     }
 }

@@ -20,6 +20,7 @@
 | `crates/miyu-policy/src/guard.rs` | 权限策略拒绝时写的三句 |
 | `crates/miyu-policy/src/image_name.rs` | 带名字的图片的三句（施工 3-9 四补） |
 | `crates/miyu-policy/src/recap.rs` | 回顾的字 `RecapTexts`、数 `RecapNumbers` 和出厂的数 `RECAP`，交给组装器的样子（施工 3-8 四补） |
+| `crates/miyu-policy/src/vision.rs` | 替看不了图的模型看图的字（施工 8-17）：转述请求的两份 `VisionTexts`、图的位置的三句标签 `ImageDescriptionTexts`，交给组装器、驱动的样子 |
 | `crates/miyu-policy/src/title.rs` | 起标题的字 `TitleTexts`、数 `TitleNumbers` 和出厂的数 `TITLE`，交给组装器、内核的样子（施工 3-8 五补） |
 | `crates/miyu-policy/src/jobs.rs` | 回报的写法、任务用的数；子会话回报的正文怎么截（`reports()`，施工 3-8 五补从 `snapshot.rs` 挪来，那边放不下了） |
 | `crates/miyu-policy/src/peers.rs` | 别的会话发来的话：防刷屏的数 `PeerNumbers` 和出厂的数 `PEERS`，交给内核的样子；标签的两份 `PeerTexts`，交给组装器的样子（施工 C-2）。「空了告诉我」的两个数和通知的五份字 `PeerIdleTexts`，作废那一句照快照的小时数换好（施工 C-6） |
@@ -56,7 +57,7 @@
 | `turn_ended` | `interrupted`、`error`、`step_limit`、`aborted`、`restarted` | `turn-ended/<同名>.txt` |
 | `facts` | `env`、`permission`、`reply_cut`、`session`、`permission_changed` | `facts/env.txt`、`facts/permission.txt`、`facts/reply-cut.txt`、`facts/session.txt`（施工 1-13 再补，会话编号。以前造的快照里没有，读成没有、不写：那些会话不注入这一块）、`facts/permission-changed.txt`（施工 2-7 补，切了级别以后的权限那一块，读法照 `session`：以前造的快照里没有，读成没有、不写，那些会话切了照旧写平常那一份，快照的字节、请求的前缀都一字不变） |
 | `tool_results` | `unknown`、`not_an_object`、`cancelled_before`、`cancelled_running`、`skipped`、`read_only`、`denied`、`denied_with_reason`、`unattended`、`question_interrupted`、`question_voided`、`question_unattended`、`restarted`、`unavailable`、`crashed` | `tool-results/` 下，下划线换成 `-` 的同名文件 |
-| `drivers` | `image_omitted`、`file_omitted`、`no_output`、`tool_attachments`、`tool_attachments_only`；`text_file` 里的 `file_open`、`file_cut`、`file_close`；`image_name` 里的 `image_open`、`image_close`、`image_omitted_named` | `drivers/` 下，下划线换成 `-` 的同名文件。`text_file`（施工 3-9 三补，文本文件照字放进消息，`drivers/openai-chat.md` 第 9 条）以前造的快照里没有，读成没有、不写：文本文件照别的文件写占位。`image_name`（施工 3-9 四补，带名字的图片，同一条）也是：以前造的快照里没有，读成没有、不写，带名字的图片照不带名字的写 |
+| `drivers` | `image_omitted`、`file_omitted`、`no_output`、`tool_attachments`、`tool_attachments_only`；`text_file` 里的 `file_open`、`file_cut`、`file_close`；`image_name` 里的 `image_open`、`image_close`、`image_omitted_named` | `drivers/` 下，下划线换成 `-` 的同名文件。`text_file`（施工 3-9 三补，文本文件照字放进消息，`drivers/openai-chat.md` 第 9 条）以前造的快照里没有，读成没有、不写：文本文件照别的文件写占位。`image_name`（施工 3-9 四补，带名字的图片，同一条）也是：以前造的快照里没有，读成没有、不写，带名字的图片照不带名字的写。`image_description` 里的 `image_description_open`、`image_description_open_named`、`image_description_close`（施工 8-17，替它看的图的标签，同一条）也是：以前造的快照里没有，读成没有、不写，看不了图的照旧写占位 |
 | `permissions` | `forbidden`、`unresolvable` | `permissions/forbidden.txt`、`permissions/unresolvable.txt` |
 | `compaction` | `summarize_task`、`summarize_instructions`、`summarize_end`、`notes_files`、`notes_files_more`、`notes_retrieve`、`notes_too_large`、`restored_open`、`restored_close`、`truncated`、`notes_uncovered`、`summarize_system` | `compaction/` 下，下划线换成 `-` 的同名文件（摘要指令施工 6-2 上，截短重试的两份施工 6-6 中，隔离式那一句施工 6-6 下，别的施工 6-5；`summarize_instructions`、`summarize_end` 施工 6-8 从摘要指令里拆出来）。以前造的快照里没有，读成没有；没有的不写：没有 `notes_*` 的不写那一段，没有 `restored_*` 的不重读，没有截短重试的两份的不截短，没有 `summarize_system` 的不改走隔离式；有 `summarize_task`、没有 `summarize_instructions`、`summarize_end` 的，那两份读成空的：那时的 `summarize_task` 里本来就带着最后那一句，拼出来一字不差 |
 | `jobs` | `command_open`、`command_exit`、`command_signal`、`command_duration`、`command_output`、`command_close`、`subagent_open`、`subagent_person`、`subagent_truncated`、`subagent_silent`、`subagent_close`、`subagent_omitted`、`stopped_by_user`、`subagent_message_open`、`subagent_message_close` | `jobs/` 下，下划线换成 `-` 的同名文件（施工 7-2，两种回报的写法，`kernel/request.md`「回报」）。以前造的快照里没有，读成没有、不写：回报不渲染，那些会话也派不出任务。`subagent_omitted` 是子会话回报的正文截在中间的那一行，内核截的时候用、不交给组装器（施工 7-6）；7-2 到 7-5 造的没有，读成空的、不写：头尾之间只换一行。`stopped_by_user` 是人停的那一句，两种回报共用（施工 7-2 补，`kernel/request.md`「回报」第 3 条）；以前造的没有，读成空的、不写：人停的照原来的写。`subagent_message_open`、`subagent_message_close` 是子代理发来的留言的标签（施工 7-7，`kernel/request.md`「子代理的留言」）；以前造的没有，读成空的、不写：留言只剩它的话 |
@@ -64,6 +65,7 @@
 | `peers` | `message_open`、`message_close`；`idle_open`、`idle_silent`、`idle_expired`、`idle_gone`、`idle_close` | `peers/` 下，下划线换成 `-` 的同名文件（施工 C-2，别的会话发来的话的标签，`kernel/request.md`「别的会话发来的话」；施工 C-6，空了的通知，「空了的通知」）。排在 `harness` 后面。以前造的快照里没有，读成没有、不写：那种话照人的话原样渲染。通知的五份是一组、和标签平铺在同一层，C-2 时造的快照里没有，读成没有、不写：通知不出 |
 | `recap` | `instruction`、`user`、`assistant`、`omitted`、`excerpted` | `recap/` 下的同名文件（施工 3-8 四补，回顾的请求，`kernel/request.md`「回顾的请求」）。以前造的快照里没有，读成没有、不写：不做回顾 |
 | `title` | `instruction` | `title/instruction.txt`（施工 3-8 五补，起标题的请求，`kernel/request.md`「起标题的请求」）；标签、截断的记号借 `recap` 的。以前造的快照里没有，读成没有、不写：不起标题 |
+| `vision` | `instruction`、`question` | `vision/` 下的同名文件（施工 8-17，转述一张图的请求，`kernel/request.md`「替它看的图」）。以前造的快照里没有，读成没有、不写：不转述 |
 
 **函数**：
 
@@ -123,7 +125,7 @@
 
 **造策略**（`policy()`），照这个先后查，先错的先报：
 
-1. 检查点的包装、回合没走完的五句、摘要指令（没有的是空的）、回顾的字和数（两样都有的才有，缺一样就是没有、不做回顾，施工 3-8 四补）、起标题的字和数（两样都有的才有，施工 3-8 五补；组装时还要有回顾的标签）、回报的写法（没有的是没有；有的，带字段的七份读成模板，拿各自的字段试换一次：标签的两份 `job`、`title`、`reason`，另外四份各一个 `code`、`signal`、`ms`、`chars`，写坏了、要了别的字段的造不出，说是 `job report texts`），交给组装器（`kernel/request.md`）。
+1. 检查点的包装、回合没走完的五句、摘要指令（没有的是空的）、回顾的字和数（两样都有的才有，缺一样就是没有、不做回顾，施工 3-8 四补）、起标题的字和数（两样都有的才有，施工 3-8 五补；组装时还要有回顾的标签）、转述一张图的两份（有的才有，施工 8-17）、回报的写法（没有的是没有；有的，带字段的七份读成模板，拿各自的字段试换一次：标签的两份 `job`、`title`、`reason`，另外四份各一个 `code`、`signal`、`ms`、`chars`，写坏了、要了别的字段的造不出，说是 `job report texts`），交给组装器（`kernel/request.md`）。
 2. 工具面拆成两份，照快照里的先后：组装器的工具面（名字、说明、参数格式），内核的工具规则（名字 → 访问类别、参数格式）。两件同名的，造不出。
 3. 稳定区：工具面、`system`，示范对话是空的。
 4. 事实模板，造的时候试换（`kernel/request.md`）：三份，加上会话编号、切换那两份（有的话）。
@@ -143,7 +145,7 @@
 
 **为什么能逐字节重现**
 
-1. 请求里的字只有两个来处：日志里记下的（人说的、她说的、工具的结果、注入的事实），和快照里的（system、工具面、检查点的包装、回合没走完的五句、驱动的占位）。事实、内核和执行器和权限策略替工具写的几句，照快照里的模板写成字，记进日志。
+1. 请求里的字只有两个来处：日志里记下的（人说的、她说的、工具的结果、注入的事实、图的转述），和快照里的（system、工具面、检查点的包装、回合没走完的五句、驱动的占位和标签）。事实、内核和执行器和权限策略替工具写的几句，照快照里的模板写成字，记进日志。
 2. 快照的字节就是存下来的那一份，取的时候核对过哈希；参数格式原样。
 3. 组装、事实、驱动都是纯函数：同样的快照、同样的日志，出同样的请求。
 
@@ -195,6 +197,7 @@
 | `crates/miyu-policy/src/tools/tests.rs` | 工具面照名字排、读回来一样、交进来的先后不影响字节；没有工具的不写 `tools`，带上空的字节不变；造策略时拆成两份；同名的造不出（读回来的也造不出）；执行器的两句带名字、转义、说法；坏的说是哪一类；缺了这两格的快照读成空的 |
 | `crates/miyu-policy/src/tools/choice/tests.rs` | 拼：一个都没有的拿掉这个参数、和资源去掉它一字不差；有的插 `enum`、说明一行一个、没写说明的只写名字；别的字节不动；读回的和拼进去的一样，没有这一格、写坏的是空的（施工 8-8 补） |
 | `crates/miyu-policy/src/snapshot/tests/recap.rs`（施工 3-8 四补） | 回顾进快照：出厂的快照带着五份字和两个数，造出的组装器回顾得出来；字、数少一样都不回顾；快照里的数照快照的；以前造的快照没有这两格，读进来再写出去一字不差，不回顾 |
+| `crates/miyu-policy/src/snapshot/tests/vision.rs`（施工 8-17） | 替看图进快照：出厂的快照带着两份字和三句标签，造出的组装器交得出转述的请求、驱动写得出带标签的转述；以前造的快照没有这两格，读进来再写出去一字不差，不转述、照旧写占位 |
 | `crates/miyu-policy/src/snapshot/tests/title.rs`（施工 3-8 五补） | 起标题进快照：出厂的快照带着指令和三个数，造出的组装器起得出标题、内核拿到 `tries`、`chars`；字、数少一样都不起，没有回顾的标签的组装器也不起；快照里的数照快照的；以前造的快照没有这两格，读进来再写出去一字不差，不起 |
 | `crates/miyu-policy/src/snapshot/tests/jobs.rs`（施工 3-8 五补从 `tests.rs` 挪出来） | 子会话回报的正文怎么截：出厂的 30000 和截在中间的那一行；以前造的快照没有，读成出厂的数、空的那一行，读写一字不差；快照里的数照快照的 |
 | `crates/miyu-policy/src/peers/tests.rs`（施工 C-2、C-6） | 空了的通知（C-6）：出厂的快照多两个数、通知的五份字（平铺在 `core.peers` 里），作废那一句照快照的小时数换；通知的字坏了照名字报；C-2 时造的快照没有这几格，数照出厂的、通知不出、读回写出一字不差。别的会话发来的话进快照：出厂的快照带着三个数（排在最后）和两份标签，造出的策略照出厂的数、组装器渲染出带短编号的标签；快照里的数照快照的；标签坏了照名字报；以前造的快照没有这两格，读进来再写出去一字不差，照出厂的数防刷屏，那种话和人的话一字不差 |

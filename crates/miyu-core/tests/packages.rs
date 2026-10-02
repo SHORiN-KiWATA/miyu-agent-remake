@@ -8,6 +8,11 @@
 //! 找不到就是 `unknown_method`，这正是 `queries.rs` 的 `Queries::call` 给端点的信号（见
 //! `crates/miyu-endpoint/src/queries.rs` 的 `an_unregistered_method_is_not_found`，那边直接测表；这里走一遍
 //! 真协议，确认端点真的把它翻成了 `unknown_method`）。
+//!
+//! [`clear_uploads`] 也在这个文件（施工 W-5）：和 `register` 一样是「核心起来时做一次」的登记、收拾，不走真
+//! 核心的接连接那一段，直接调这个函数——真正分块写、写不满就拒这些行为，`crates/miyu-endpoint/tests/uploads.rs`
+//! 已经测过了（`blob.open`、`blob.write`、`blob.close`），这里只管「起来时清掉上一回留下的」这一步真的接进了
+//! 起来的先后里。
 
 mod support;
 
@@ -16,6 +21,7 @@ use std::time::Duration;
 
 use miyu_endpoint::queries::Queries;
 use miyu_session::testkit::Script;
+use miyu_store::blob::Blobs;
 use serde_json::json;
 use support::{Head, Home, resources, within};
 
@@ -154,4 +160,29 @@ async fn the_same_source_twice_gets_the_same_svg() {
     );
     drop(head);
     running.abort();
+}
+
+#[tokio::test]
+async fn startup_clears_leftover_upload_temp_files_but_leaves_blobs_alone() {
+    let home = Home::new();
+    let admin = miyu_core::admin();
+    let blobs = Blobs::new(home.root.blobs(&admin));
+    // 崩了、被杀留下的分块上传暂存。
+    blobs.create_upload("leftover").unwrap();
+    // 一份真的 blob，不该被这一步碰到。
+    let kept = blobs.put(b"kept across a restart").unwrap();
+    miyu_core::packages::clear_uploads(&home.root, &admin);
+    assert!(
+        !blobs.upload_path("leftover").exists(),
+        "崩溃留下的暂存清掉了"
+    );
+    assert_eq!(blobs.get(&kept).unwrap(), b"kept across a restart");
+}
+
+#[tokio::test]
+async fn clearing_uploads_is_fine_when_the_account_never_stored_anything() {
+    let home = Home::new();
+    // 这个账号的 blobs/ 目录都还没建过：起来时清暂存不该因为「没有」就出错、也不该把它建出来。
+    miyu_core::packages::clear_uploads(&home.root, &miyu_core::admin());
+    assert!(!home.root.blobs(&miyu_core::admin()).exists());
 }

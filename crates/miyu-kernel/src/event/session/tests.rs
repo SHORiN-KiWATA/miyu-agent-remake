@@ -1,6 +1,6 @@
 //! 会话事件的测试：图纸上的写法读写一字不差、认得出种类；权限两格都要写；
 //! 不认识的级别原样留着；坏的报错说清是哪一种；子会话带着父会话和第几层（施工 7-1）；会话用哪个模型（施工 8-8）；
-//! 换模型的两格（施工 8-10）；换思考强度的一格（施工 8-18）。
+//! 换模型的两格（施工 8-10）；以前的日志带过的思考强度照读得进、内核不理它（施工 8-18 加，8-18（补）去掉）。
 
 use super::*;
 use crate::event::{Body, Event};
@@ -191,49 +191,33 @@ fn a_policy_change_records_the_model_and_what_it_replaced() {
     }
 }
 
-/// 换思考强度（施工 8-18）：`effort` 写在最后，`level` 总是写（清掉的写 `null`），读写一字不差；和 `model` 能在同一条里；
-/// 以前的日志没有这一格，照没有读；`effort` 写 `null` 当没有；`model` 不是字、`level` 不是字也不是 `null` 的读不进来。
+/// 以前（施工 8-18）的日志里 `session.policy_changed` 带过一格 `effort`（会话给一个模型记的思考强度）；8-18（补）去掉了
+/// 这一层，内核不再写它。旧日志里带着的照样读得进（格式只加不改，不认识的字段不管，`event.rs`「读进来的样子」），内核不
+/// 理它：读出来的 `PolicyChanged` 没有这一格，和 `model` 一起来的也只认 `model`。
 #[test]
-fn a_policy_change_records_an_effort_cell() {
+fn an_old_effort_cell_is_read_without_error_and_ignored() {
     for body in [
         r#"{"effort":{"model":"deepseek/deepseek-v4","level":"high"}}"#,
         r#"{"effort":{"model":"deepseek/deepseek-v4","level":null}}"#,
         r#"{"model":"@free","effort":{"model":"a/m","level":"off"}}"#,
     ] {
         let line = event_line("session.policy_changed", body);
-        let event = Event::from_line(&line).unwrap();
-        assert_eq!(event.to_line(), line, "一字不差");
+        Event::from_line(&line).unwrap_or_else(|e| panic!("{body}：应该读得进：{e}"));
     }
-    match read_body(
+    let line = event_line(
         "session.policy_changed",
-        r#"{"effort":{"model":"deepseek/deepseek-v4","level":null}}"#,
-    ) {
+        r#"{"model":"@free","effort":{"model":"a/m","level":"off"}}"#,
+    );
+    match Event::from_line(&line).expect("读得进").body {
         Body::PolicyChanged(changed) => assert_eq!(
-            changed.effort,
-            Some(Effort {
-                model: "deepseek/deepseek-v4".to_string(),
-                level: None,
-            }),
-            "清掉的是 null"
+            changed,
+            PolicyChanged {
+                model: Some("@free".to_string()),
+                ..PolicyChanged::default()
+            },
+            "effort 照读得进，内核不理它"
         ),
         other => panic!("{other:?}"),
-    }
-    match read_body("session.policy_changed", r#"{"model":"a/m"}"#) {
-        Body::PolicyChanged(changed) => assert_eq!(changed.effort, None, "以前的日志"),
-        other => panic!("{other:?}"),
-    }
-    let nulled = event_line("session.policy_changed", r#"{"model":"a/m","effort":null}"#);
-    assert_eq!(
-        Event::from_line(&nulled).unwrap().to_line(),
-        event_line("session.policy_changed", r#"{"model":"a/m"}"#)
-    );
-    for wrong in [
-        r#"{"effort":{"model":3,"level":"high"}}"#,
-        r#"{"effort":{"model":"a/m","level":3}}"#,
-        r#"{"effort":"high"}"#,
-    ] {
-        let line = event_line("session.policy_changed", wrong);
-        rejected::<Event>(&line, "body of session.policy_changed not readable");
     }
 }
 

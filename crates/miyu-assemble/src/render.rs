@@ -105,6 +105,8 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
             | Body::PolicyChanged(_)
             | Body::MetaChanged(_)
             | Body::SessionRecapped(_)
+            // 图的转述经请求的 `described` 进请求，驱动把图的位置换成它（施工 8-17）。
+            | Body::ImageDescribed(_)
             | Body::TurnReverted(_)
             | Body::TurnUnreverted(_)
             | Body::FilesRestored(_)
@@ -313,14 +315,18 @@ impl Group {
 /// 这一次是不是接着写（`05-内核接口.md` 第七节「接着写被打断的回复」，施工 3-5 再补）：有效历史的
 /// 最后，是一条带 `interrupted` 的回复，后面只有一条内核记的 `reply_cut` 事实，中间只隔着
 /// `model.called`、`session.recapped`（施工 3-8 四补：回顾不进上下文，中途要了也照样接着写）、`session.meta_changed`（施工 3-8
-/// 五补：上一轮起的标题可能在这一轮中途回来，改标题也不进上下文）。这时渲染出来的最后一条 user 消息里只有被打断的那一句，前面那条 assistant 是
+/// 五补：上一轮起的标题可能在这一轮中途回来，改标题也不进上下文）、`image.described`（施工 8-17：图的转述不渲染，打断以前发出去的
+/// 转述可能这时才回来）。这时渲染出来的最后一条 user 消息里只有被打断的那一句，前面那条 assistant 是
 /// 半截。那一句之后又来了别的（人的消息、切了级别以后的事实），不算：最后那条 user 里不只有那一句，
 /// 去不掉。
 pub(crate) fn continues(history: &History) -> bool {
     let mut tail = history.ordered().into_iter().rev().filter(|event| {
         !matches!(
             event.body,
-            Body::ModelCalled(_) | Body::SessionRecapped(_) | Body::MetaChanged(_)
+            Body::ModelCalled(_)
+                | Body::SessionRecapped(_)
+                | Body::MetaChanged(_)
+                | Body::ImageDescribed(_)
         )
     });
     let noticed = tail.next().is_some_and(|event| {

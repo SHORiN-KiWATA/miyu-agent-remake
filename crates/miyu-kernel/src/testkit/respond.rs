@@ -32,12 +32,8 @@ impl Stage {
                 self.transients.push(transient);
                 Vec::new()
             }
-            Action::RunTurnStartHooks {
-                turn,
-                model,
-                efforts,
-            } => {
-                let replaced = self.routing.resolve(model, efforts);
+            Action::RunTurnStartHooks { turn, model } => {
+                let replaced = self.routing.resolve(model);
                 vec![Input::TurnStartHooksDone {
                     at: self.tick(),
                     turn,
@@ -52,6 +48,8 @@ impl Stage {
                 upto,
                 request,
             } => self.aside_call(purpose, upto, request),
+            // 替它看图（施工 8-17）：照剧本回，`sight.rs`。
+            Action::Describe { blob, request } => self.describe(blob, request),
             Action::Wake { at, seen } if self.hold_wakes => {
                 self.held_wake = Some((at, seen));
                 Vec::new()

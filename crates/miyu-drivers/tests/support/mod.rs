@@ -10,7 +10,8 @@ use std::path::PathBuf;
 
 use miyu_drivers::openai_chat::Compat;
 use miyu_drivers::{
-    Call, DriverTextSources, DriverTexts, ImageNameSources, Inputs, TextFileSources,
+    Call, DriverTextSources, DriverTexts, ImageDescriptionSources, ImageNameSources, Inputs,
+    TextFileSources,
 };
 use miyu_kernel::block::{Block, File, Image, Private, Reasoning, Text, ToolCall};
 use miyu_kernel::id::{CallId, ContentHash, DriverFamily, FileName, MediaType, ModelName};
@@ -37,6 +38,17 @@ pub fn texts() -> DriverTexts {
             image_close: include_str!("../../../../resources/core/drivers/image-close.txt"),
             image_omitted_named: include_str!(
                 "../../../../resources/core/drivers/image-omitted-named.txt"
+            ),
+        }),
+        image_description: Some(ImageDescriptionSources {
+            image_description_open: include_str!(
+                "../../../../resources/core/drivers/image-description-open.txt"
+            ),
+            image_description_open_named: include_str!(
+                "../../../../resources/core/drivers/image-description-open-named.txt"
+            ),
+            image_description_close: include_str!(
+                "../../../../resources/core/drivers/image-description-close.txt"
             ),
         }),
     })

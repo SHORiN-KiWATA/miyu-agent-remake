@@ -2,8 +2,6 @@
 //!
 //! 会话自己不做 I/O：要追加的事件、要回应的命令、要推送的事件，都写成动作交给执行器。
 
-use std::collections::BTreeMap;
-
 use crate::event::{Event, Permission, Purpose, Response, Transient};
 use crate::id::{CallId, CommandId, ContentHash, JobId, Seq, TurnId};
 use crate::origin::By;
@@ -36,9 +34,6 @@ pub enum Action {
         /// 会话现在的引用（施工 8-10）：执行器先照这一轮的配置重新解析它，退回了默认的随
         /// [`super::Input::TurnStartHooksDone`] 交回。以前的会话没有记下引用的是没有：跟着 `models.chat`。
         model: Option<String>,
-        /// 会话给每个模型记的思考强度（施工 8-18）：`<供应商>/<模型>` 到那一档，照日志拼的。执行器每次请求照真发的那个
-        /// 模型取它的一格，没有的照配置的默认。
-        efforts: BTreeMap<String, String>,
     },
     /// 请求模型：把这份请求交给驱动编码、发出去（`05-内核接口.md` 第七节）。发出去了、
     /// 每一段增量、说完了，都带着 `seen` 回报（`02-内核.md` 第六节「回复怎么收、回合怎么结束」）。
@@ -50,6 +45,14 @@ pub enum Action {
         /// 和这个会话上一次请求比，第一处不同在哪；只是接着加的是 `None`。和记进 `model.called` 的是同一份，
         /// 执行器照它写运行日志：缓存没命中时，一看就知道是不是前缀变了（施工 3-9 下）。
         changed: Option<Difference>,
+    },
+    /// 替看不了图的模型看图（施工 8-17，`docs/blueprint/models.md`「怎么走」第十三条第 4 条）：把这份请求经一次性入口发给这一轮
+    /// 的 `models.vision`，说完了送回 [`super::Input::Described`]。叫不停：之后到的照样收。
+    Describe {
+        /// 哪一张图：也是这一次的名字，回报照它对上。
+        blob: ContentHash,
+        /// 转述的请求：指令、人这一轮最近说的那一句、这张图（`Assembler::describe`）。
+        request: Request,
     },
     /// 把一条瞬时事件推给头：不落盘，不等（`03-事件模型.md` 第五节）。
     PushTransient(Transient),

@@ -106,7 +106,7 @@
 | `core/facts/env.txt`、`permission.txt`、`reply-cut.txt`、`session.txt`、`permission-changed.txt` | 事实的模板（`session.txt` 施工 1-13 再补，`permission-changed.txt` 施工 2-7 补） |
 | `core/tool-results/unknown.txt`、`not-an-object.txt`、`cancelled-before.txt`、`cancelled-running.txt`、`skipped.txt`、`read-only.txt`、`denied.txt`、`denied-with-reason.txt`、`unattended.txt`、`question-interrupted.txt`、`question-voided.txt`、`question-unattended.txt`、`restarted.txt`、`unavailable.txt`、`crashed.txt` | 替工具写的结果 |
 | `core/permissions/forbidden.txt`、`unresolvable.txt` | 权限策略拒绝时的话（`session/guard.md`） |
-| `core/drivers/image-omitted.txt`、`file-omitted.txt`、`no-output.txt`、`tool-attachments.txt`、`tool-attachments-only.txt`、`file-open.txt`、`file-cut.txt`、`file-close.txt`、`image-open.txt`、`image-close.txt`、`image-omitted-named.txt` | 驱动的占位，文本文件照字放进消息的三句（施工 3-9 三补），带名字的图片的三句（施工 3-9 四补，`drivers/openai-chat.md` 第 9 条） |
+| `core/drivers/image-omitted.txt`、`file-omitted.txt`、`no-output.txt`、`tool-attachments.txt`、`tool-attachments-only.txt`、`file-open.txt`、`file-cut.txt`、`file-close.txt`、`image-open.txt`、`image-close.txt`、`image-omitted-named.txt`、`image-description-open.txt`、`image-description-open-named.txt`、`image-description-close.txt` | 驱动的占位，文本文件照字放进消息的三句（施工 3-9 三补），带名字的图片的三句（施工 3-9 四补），替它看的图的三句标签（施工 8-17，`drivers/openai-chat.md` 第 9 条） |
 | `core/compaction/summarize-task.txt`、`summarize-instructions.txt`、`summarize-end.txt`、`notes-files.txt`、`notes-files-more.txt`、`notes-retrieve.txt`、`notes-too-large.txt`、`restored-open.txt`、`restored-close.txt`、`truncated.txt`、`notes-uncovered.txt`、`summarize-system.txt` | 压缩的字：摘要指令（施工 6-2 上；施工 6-8 拆出最后那一句、加上手动压缩的要求前面那一行，`compaction.md` 第七条），检查点里代码写的几段、重读的文件那一块的头尾（施工 6-5，`compaction.md` 第八条），截过的摘要请求前面补的那一条、摘要没看到的那一段（施工 6-6 中，第三条第 10 条），隔离式那一句 system（施工 6-6 下，第四条） |
 | `core/jobs/command-open.txt`、`command-exit.txt`、`command-signal.txt`、`command-duration.txt`、`command-output.txt`、`command-close.txt`、`subagent-open.txt`、`subagent-person.txt`、`subagent-truncated.txt`、`subagent-silent.txt`、`subagent-close.txt` | 两种回报的写法（施工 7-2，`kernel/request.md`「回报」） |
 | `core/jobs/subagent-omitted.txt` | 子会话回报的正文截在中间的那一行，字段 `count`（施工 7-6，`kernel/session.md`「向上回报」第 3 条） |
@@ -117,6 +117,7 @@
 | `core/peers/idle-open.txt`、`idle-silent.txt`、`idle-expired.txt`、`idle-gone.txt`、`idle-close.txt` | 空了的通知：标签（字段 `id`、`reason`）、没说话的、作废了（字段 `hours`）、不在了、收尾（施工 C-6，`kernel/request.md`「空了的通知」） |
 | `core/recap/instruction.txt`、`user.txt`、`assistant.txt`、`omitted.txt`、`excerpted.txt` | 回顾的请求的指令、两种标签、两句记号（施工 3-8 四补，`kernel/request.md`「回顾的请求」） |
 | `core/title/instruction.txt` | 起标题的请求的指令（施工 3-8 五补，`kernel/request.md`「起标题的请求」） |
+| `core/vision/instruction.txt`、`question.txt` | 转述一张图的请求的指令、人的话前面那一行（施工 8-17，`kernel/request.md`「替它看的图」） |
 | `core/models/probe.txt` | `provider.test` 发的那一句（施工 8-11，`models.md`「怎么走」第七条第 4 条），`ResourceRoot::probe` 每试一次读一次 |
 | `personas/<人格>/prompts/persona.md` | 人设 |
 

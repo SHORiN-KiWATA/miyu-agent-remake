@@ -24,7 +24,9 @@ mod texts;
 
 pub use driver::{Decode, Driver, OpenAiChat};
 pub use image_tokens::{DeepSeekImages, deepseek_image_tokens};
-pub use texts::{DriverTextSources, DriverTexts, ImageNameSources, TextFileSources};
+pub use texts::{
+    DriverTextSources, DriverTexts, ImageDescriptionSources, ImageNameSources, TextFileSources,
+};
 
 use std::collections::BTreeMap;
 use std::fmt;

@@ -5,10 +5,17 @@
 //!   给头看的几样。
 //! - [`blocks`]：`session.send` 的 `attachments` 变成内容块：blob 要在，照内容再认一遍，块里的宽高、媒体类型都是核心
 //!   自己量的；图片块、文件块都带着头交回来的名字（图片的施工 3-9 四补）。
+//! - [`images`]：`model.call` 的图照哈希变成图片块（施工 8-20）：blob 要在这个账号里，照内容认，不是图的参数不对；不带
+//!   名字。
+//! - [`get`]：`blob.get`，分块读这个账号的一个 blob，照属主给，不照会话（施工 W-6，`web-module.md`「七、分块读」）。
 //!
 //! 读文件、读 blob、存 blob 都碰磁盘，在阻塞线程里做。
+//!
+//! 认是什么（[`mod@kind`]）、文件名和媒体类型怎么查（[`file_name`]、[`media_type`]）、存好了怎么拼回应
+//! （[`reply`]）、一个最多几个字节（[`LIMIT`]）：这几样和分块上传（`uploads.rs`，施工 W-5）共用一份，不重写
+//! 一遍（`web-module.md`「在哪」）。
 
-mod kind;
+pub(crate) mod kind;
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -28,7 +35,8 @@ use crate::Core;
 use crate::refusal::Refusal;
 use kind::{Kind, kind};
 
-/// 一个附件最多几个字节：20 MiB（`04-核心协议.md` 第十一节；分块上传以后再说）。
+/// 一个附件最多几个字节：20 MiB（`04-核心协议.md` 第十一节）。`blob.open` 的 `size` 也照这个数（施工 W-5，
+/// `uploads.rs`）。
 pub(crate) const LIMIT: u64 = 20 * 1024 * 1024;
 
 /// 运行日志的来源。
@@ -57,6 +65,22 @@ pub(crate) struct Attachment {
     blob: String,
     name: String,
     media_type: String,
+}
+
+/// `blob.get` 的参数（施工 W-6）：`blob` 必写（内容哈希）；`offset` 不写是 0；`length` 不写是
+/// [`miyu_fs::MAX_LENGTH`]，最多这个数，写 0 只问大小。
+#[derive(Debug, Deserialize)]
+pub(crate) struct GetParams {
+    blob: String,
+    #[serde(default)]
+    offset: u64,
+    #[serde(default = "default_length")]
+    length: u64,
+}
+
+/// `blob.get` 不写 `length` 时读多少（施工 W-6，`fs.read` 同样的默认值在 `files.rs`）。
+fn default_length() -> u64 {
+    miyu_fs::MAX_LENGTH
 }
 
 /// 从哪来：本机的路径（文件名可以没写），或者头交来的内容和文件名。
@@ -118,6 +142,80 @@ pub(crate) async fn blocks(
     .await
 }
 
+/// `model.call` 的图（施工 8-20）：每个哈希一块图片，照先后。blob 这个账号没有的 `unknown_attachment`，不是图的
+/// `bad_params`，太大的 `attachment_too_big`。
+pub(crate) async fn images(core: &Core, hashes: Vec<ContentHash>) -> Result<Vec<Block>, Refusal> {
+    if hashes.is_empty() {
+        return Ok(Vec::new());
+    }
+    let place = place(core);
+    blocking(move || {
+        let blobs = Blobs::new(place.root.blobs(&place.admin));
+        hashes
+            .into_iter()
+            .map(|blob| {
+                let bytes = read_blob(&blobs, &blob)?;
+                match kind(&bytes, None).map_err(|_| Refusal::ATTACHMENT_TOO_BIG)? {
+                    Kind::Image {
+                        media_type,
+                        width,
+                        height,
+                    } => Ok(Block::Image(Image {
+                        blob,
+                        name: None,
+                        media_type,
+                        width,
+                        height,
+                    })),
+                    Kind::File { .. } => Err(Refusal::BAD_PARAMS),
+                }
+            })
+            .collect()
+    })
+    .await
+}
+
+/// 取一个 blob：没有的 `unknown_attachment`，读不了的记一行、`internal_error`。
+fn read_blob(blobs: &Blobs, blob: &ContentHash) -> Result<Vec<u8>, Refusal> {
+    blobs.get(blob).map_err(|error| match error {
+        BlobError::Missing(_) => Refusal::UNKNOWN_ATTACHMENT,
+        error => {
+            tracing::warn!(target: TARGET, blob = blob.as_str(), error = %error, "attachment not read");
+            Refusal::INTERNAL
+        }
+    })
+}
+
+/// `blob.get`：分块读这个账号的一个 blob，照属主给，不照会话（施工 W-6，`web-module.md`「七、分块读」第 1、12
+/// 条）。没有这个 blob：`unknown_blob`；`length` 超过 [`miyu_fs::MAX_LENGTH`]：`bad_params`。
+pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal> {
+    if params.length > miyu_fs::MAX_LENGTH {
+        return Err(Refusal::BAD_PARAMS);
+    }
+    let hash = ContentHash::parse(&params.blob).map_err(|_| Refusal::BAD_PARAMS)?;
+    let place = place(core);
+    blocking(move || get_blocking(&place, &hash, params.offset, params.length)).await
+}
+
+fn get_blocking(
+    place: &Place,
+    hash: &ContentHash,
+    offset: u64,
+    length: u64,
+) -> Result<Value, Refusal> {
+    let blobs = Blobs::new(place.root.blobs(&place.admin));
+    let (data, size) = blobs
+        .read_range(hash, offset, length)
+        .map_err(|error| match error {
+            BlobError::Missing(_) => Refusal::UNKNOWN_BLOB,
+            error => {
+                tracing::warn!(target: TARGET, error = %error, "blob not read");
+                Refusal::INTERNAL
+            }
+        })?;
+    Ok(json!({"data": STANDARD.encode(&data), "size": size}))
+}
+
 /// 一个附件造成一块：blob 要在，照内容再认一遍；名字照头交回来的，图片也带（施工 3-9 四补）。
 fn block(
     blobs: &Blobs,
@@ -125,14 +223,7 @@ fn block(
     name: FileName,
     given: MediaType,
 ) -> Result<Block, Refusal> {
-    let bytes = match blobs.get(&blob) {
-        Ok(bytes) => bytes,
-        Err(BlobError::Missing(_)) => return Err(Refusal::UNKNOWN_ATTACHMENT),
-        Err(error) => {
-            tracing::warn!(target: TARGET, blob = blob.as_str(), error = %error, "attachment not read");
-            return Err(Refusal::INTERNAL);
-        }
-    };
+    let bytes = read_blob(blobs, &blob)?;
     Ok(
         match kind(&bytes, Some(given)).map_err(|_| Refusal::ATTACHMENT_TOO_BIG)? {
             Kind::Image {
@@ -178,7 +269,13 @@ fn put_blocking(place: &Place, source: Source, given: Option<MediaType>) -> Resu
             tracing::warn!(target: TARGET, error = %error, "attachment not stored");
             Refusal::INTERNAL
         })?;
-    Ok(match found {
+    Ok(reply(&blob, &name, found))
+}
+
+/// 存好了，拼回应：`blob`、`name`、`media_type`、`kind`，图片另带 `width`、`height`（第 5 条）。分块上传
+/// `blob.close` 共用这一份（施工 W-5）。
+pub(crate) fn reply(blob: &ContentHash, name: &FileName, found: Kind) -> Value {
+    match found {
         Kind::Image {
             media_type,
             width,
@@ -191,7 +288,7 @@ fn put_blocking(place: &Place, source: Source, given: Option<MediaType>) -> Resu
             "blob": blob.as_str(), "name": name.as_str(), "media_type": media_type.as_str(),
             "kind": "file",
         }),
-    })
+    }
 }
 
 /// 读本机的一个文件，交回内容和它真实的位置：换成真实的位置，数据根里（管理员的工作区以外）的不给，路上一层链接都
@@ -224,11 +321,13 @@ fn last_segment(path: &str, real: &Path) -> Result<FileName, Refusal> {
     file_name(&segment.to_string_lossy())
 }
 
-fn file_name(text: &str) -> Result<FileName, Refusal> {
+/// 文件名合不合写法（`kernel/ids.md`）。分块上传 `blob.open` 共用这一份（施工 W-5）。
+pub(crate) fn file_name(text: &str) -> Result<FileName, Refusal> {
     FileName::parse(text).map_err(|_| Refusal::BAD_PARAMS)
 }
 
-fn media_type(text: &str) -> Result<MediaType, Refusal> {
+/// 媒体类型合不合写法（`kernel/ids.md`）。分块上传 `blob.open` 共用这一份（施工 W-5）。
+pub(crate) fn media_type(text: &str) -> Result<MediaType, Refusal> {
     MediaType::parse(text).map_err(|_| Refusal::BAD_PARAMS)
 }
 

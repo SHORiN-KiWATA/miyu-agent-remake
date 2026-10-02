@@ -137,14 +137,14 @@ fn model_changed_is_written_in_the_drawing_order() {
     if let TransientBody::ModelChanged(changed) = &mut transient.body {
         changed.effort = Some(EffortInUse {
             level: "off".to_string(),
-            from: EffortSource::Config,
+            from: EffortSource::Personal,
         });
         changed.why = ChangeWhy::Turn;
     }
     assert_eq!(
         body_of(&transient),
-        r#"{"ref":"@duo","endpoint":"b","model":"y","effort":{"level":"off","from":"config"},"limits":{"window":32000,"compaction_line":12000},"why":"turn"}"#,
-        "思考强度在模型后面、限额前面（施工 8-18）"
+        r#"{"ref":"@duo","endpoint":"b","model":"y","effort":{"level":"off","from":"personal"},"limits":{"window":32000,"compaction_line":12000},"why":"turn"}"#,
+        "思考强度在模型后面、限额前面（施工 8-18）；从哪来是配置的哪一层（8-18 补）"
     );
     transient.body = TransientBody::ModelChanged(Box::new(ModelChanged {
         reference: None,

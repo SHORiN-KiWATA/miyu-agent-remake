@@ -43,6 +43,7 @@ fn request() -> Request {
         ],
         stable: 0,
         continuation: false,
+        described: Default::default(),
     }
 }
 
@@ -135,5 +136,34 @@ fn a_missing_message_counts_from_where_it_went_missing() {
             index: 1,
             role: Role::Assistant
         })
+    );
+}
+
+/// 图的转述（施工 8-17）：空的不写进规范字节，以前的请求字节、哈希不变；有的写在最后，键是 blob；不算进指纹。
+#[test]
+fn descriptions_are_written_last_only_when_there_are_some() {
+    let plain = String::from_utf8(request().canonical_bytes()).unwrap();
+    assert!(!plain.contains("described"), "{plain}");
+    assert!(plain.ends_with(r#""stable":0}"#), "{plain}");
+    let blob = ContentHash::of(b"png");
+    let mut described = request();
+    described
+        .described
+        .insert(blob.clone(), "A red \"sign\".".to_string());
+    let bytes = String::from_utf8(described.canonical_bytes()).unwrap();
+    assert_eq!(
+        bytes,
+        format!(
+            r#"{},"described":{{"{blob}":"A red \"sign\"."}}}}"#,
+            plain.strip_suffix('}').unwrap()
+        )
+    );
+    assert_ne!(described.hash(), request().hash());
+    assert_eq!(
+        described
+            .fingerprint()
+            .first_difference(&request().fingerprint()),
+        None,
+        "转述不算进指纹"
     );
 }

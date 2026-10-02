@@ -11,14 +11,17 @@
 //! - 这一家用不了（推不出驱动、地址，驱动还没有）：驱动、地址照手写的写，没写的是 `null`，带上 `problem` 那一句，没有模型。
 //! - `base_url` 照配置写的样子交（`address_json`，施工 8-6b）：写死的是地址本身，是环境变量的引用的交 `{"env": "…"}`，
 //!   地址本身不解出来，不会进这份回应。
+//! - 思考强度的那一格多 `key`（施工 8-18（补），`models.md`「协议」）：这一项完整的配置键名，头照抄它发 `config.set`。
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{Value, json};
 
 use miyu_config::Address;
+use miyu_config::key as config_key;
 use miyu_kernel::time::Timestamp;
 use miyu_models::cooldown::{Candidate, Cooling};
+use miyu_models::effort;
 use miyu_models::facts::facts;
 use miyu_models::keys;
 use miyu_models::matching::Found;
@@ -104,6 +107,8 @@ pub(crate) fn provider(data: &ModelData, snapshot: &Snapshot, id: &str, now: Tim
                             "listed": places,
                             "facts": facts.json(&|layer| snapshot.file(layer)),
                         });
+                        entry["facts"]["effort"]["key"] =
+                            json!(config_key::fill(effort::ITEM, &[id, &model]));
                         match no_key {
                             true => entry["state"] = json!("no_key"),
                             false => {

@@ -20,6 +20,8 @@
 //! - 可选软件包登记的查询：方法名到怎么答的一张表（[`queries`]，施工 W-4）。核心起来时照编进来的包
 //!   （`miyu-core` 的 cargo 开关）往里登记，`mermaid.render` 就是这样接进来的；没编进来的方法，这张表里
 //!   压根没有它，握手以后的方法里找不到、这张表里也找不到的，一律 `unknown_method`。
+//! - 分块上传：`blob.open`、`blob.write`、`blob.close`，跟着连接走，收齐了存成 blob，回应和 `blob.put` 一样
+//!   （施工 W-5，`uploads.rs`）。连接断了、60 秒没写都作废。
 
 mod attach;
 pub mod config;
@@ -43,6 +45,7 @@ pub mod settings;
 mod spawn;
 mod subscriptions;
 mod undo;
+mod uploads;
 mod wire;
 
 pub use connection::serve;
@@ -115,6 +118,9 @@ pub struct Core {
     files_fresh: Duration,
     /// 可选软件包登记的查询（施工 W-4）：核心起来时照编进来的包往里登记，空表就是没编进来任何一个。
     queries: Queries,
+    /// 分块上传（施工 W-5）：这个连接上的一个上传多久没有 `blob.write` 就作废。出厂 60 秒，测试里设短的，
+    /// 不用真等一分钟。
+    upload_idle: Duration,
 }
 
 /// 空的模型资料：没有档案、没有目录，读完了。
@@ -126,6 +132,9 @@ fn empty_model_data() -> Arc<ModelData> {
 
 /// 连上以后最多等多久握手。
 const HELLO_WAIT: Duration = Duration::from_secs(10);
+
+/// 分块上传多久没写就作废（施工 W-5，`web-module.md`「怎么走」第六条第 4 款）。
+const UPLOAD_IDLE: Duration = Duration::from_secs(60);
 
 impl Core {
     /// 一份家底：会话表是空的，会话用到时再载入；打开管理员的会话列表的索引（施工 3-8 七补），坏了的删掉重建。
@@ -168,6 +177,7 @@ impl Core {
             files: files::Cache::default(),
             files_fresh: Duration::from_secs(miyu_fs::FRESH_SECS),
             queries: Queries::default(),
+            upload_idle: UPLOAD_IDLE,
         }
     }
 
@@ -205,6 +215,13 @@ impl Core {
     #[must_use]
     pub fn with_queries(mut self, queries: Queries) -> Core {
         self.queries = queries;
+        self
+    }
+
+    /// 同一份家底，分块上传多久没写就作废照 `idle`（施工 W-5）：测试里设短的，不用真等 60 秒。
+    #[must_use]
+    pub fn with_upload_idle(mut self, idle: Duration) -> Core {
+        self.upload_idle = idle;
         self
     }
 

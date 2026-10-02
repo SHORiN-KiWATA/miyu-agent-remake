@@ -65,6 +65,7 @@ impl Watch {
             "种子 {seed}：上一步还有调用没结果就请求"
         );
         self.request_from_log(seen, request);
+        self.sight_called(request, Watch::is_summary(request));
         match Watch::is_summary(request) {
             true => self.undo_summary(),
             false => self.undo_request(seen),

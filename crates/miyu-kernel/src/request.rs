@@ -4,6 +4,8 @@
 //! 它和供应商无关，驱动再把它编码成各家的格式（`05-内核接口.md` 第七节）。同样的请求
 //! 写成的字节一定一样（内核不变量 3），所以能算哈希，也能和上一次请求比出第一处不同。
 
+use std::collections::BTreeMap;
+
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
@@ -31,6 +33,11 @@ pub struct Request {
     /// 别的照原样发。是假的不写进规范字节：以前的请求，字节和哈希都不变。
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub continuation: bool,
+    /// 请求里出现的图在这个会话里的转述（施工 8-17，`docs/blueprint/kernel/request.md`「替它看的图」）：blob → 转述原文。
+    /// 内核组装完放进来，驱动给看不了图的端点编码时把图的位置换成它；看得了图的不看。空的不写进规范字节：没有图的请求，
+    /// 字节和哈希都不变。不算进指纹。
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub described: BTreeMap<ContentHash, String>,
 }
 
 /// 工具面上的一件工具：名字、说明、参数格式。存根也是这三样，只是说明短、参数宽松

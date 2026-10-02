@@ -12,8 +12,8 @@ impl Watch {
         let seed = self.seed;
         let event = &events[k];
         match &event.body {
-            // 换模型、换思考强度的不带权限（施工 8-10、8-18，`watch/configure.rs`）。
-            Body::PolicyChanged(changed) if changed.model.is_none() && changed.effort.is_none() => {
+            // 换模型的不带权限（施工 8-10，`watch/configure.rs`）。
+            Body::PolicyChanged(changed) if changed.model.is_none() => {
                 let new = changed
                     .permission
                     .clone()

@@ -25,6 +25,7 @@ mod snapshot;
 mod text_file;
 mod title;
 mod tools;
+mod vision;
 
 #[cfg(test)]
 mod test_support;
@@ -48,3 +49,4 @@ pub use snapshot::{
 pub use text_file::TextFileTexts;
 pub use title::{TITLE, TitleNumbers, TitleTexts};
 pub use tools::{Choice, RunTexts, ToolEntry};
+pub use vision::{ImageDescriptionTexts, VisionTexts};

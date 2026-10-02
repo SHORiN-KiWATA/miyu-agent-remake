@@ -103,8 +103,7 @@ fn model_changes(home: &Home, handle: &Handle) -> Vec<(String, Option<String>, b
 /// 换成 `model`。
 async fn configure(handle: &Handle, command: &str, model: &str) {
     let configure = Command::Configure {
-        model: Some(model.to_string()),
-        effort: None,
+        model: model.to_string(),
     };
     ask(handle, command, configure).await.expect("会话在跑");
 }
