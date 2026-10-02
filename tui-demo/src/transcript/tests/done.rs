@@ -131,3 +131,34 @@ fn the_core_limits_are_kept_for_the_sidebar_and_footer() {
     t.update(Update::Limits(limits), &texts);
     assert_eq!(t.limits, limits);
 }
+
+#[test]
+fn the_last_reply_is_still_read_after_the_turn_ends_until_something_follows() {
+    // 2026-10-02 项目主人报：mermaid 画出来把回答顶上去。写完了以后才画出来的图把回答撑高时，也照「固顶」停在开头
+    // （蓝图「正文」第 1 条）：这一轮的最后一段回答、后面只有收尾那一行，还算在看它。
+    let mut t = Transcript::default();
+    let reply = |index| {
+        vec![
+            Push::BlockStart {
+                index,
+                block: crate::core::Block::Text,
+            },
+            Push::Delta {
+                index,
+                text: "回答".into(),
+            },
+            Push::BlockEnd(index),
+        ]
+    };
+    apply(&mut t, vec![Push::TurnStarted(1, None)]);
+    apply(&mut t, reply(0));
+    let at = t.entries.len() - 1;
+    assert_eq!(t.reading(), Some((at, true)), "在写的那一段");
+    apply(&mut t, vec![Push::TurnEnded(EndReason::Completed)]);
+    assert_eq!(t.entries.last().unwrap().kind, Kind::Done);
+    assert_eq!(t.reading(), Some((at, false)), "写完了、后面只有收尾那一行");
+    // 下一轮开始了：上一轮的那段不再算。
+    apply(&mut t, vec![Push::TurnStarted(2, None)]);
+    apply(&mut t, vec![Push::TurnEnded(EndReason::Completed)]);
+    assert_eq!(t.reading(), None, "最后一段不是回答");
+}

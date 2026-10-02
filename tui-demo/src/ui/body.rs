@@ -54,12 +54,15 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
     if app.transcript.waiting() {
         rows.push(timeline::tail_rows(&ctx).into());
     }
-    // 她正在写的正文，露出来了的是最后一块：长过视口时停在它的开头（`tui.md`「正文」第 1 条）。
-    app.view.reading = app
-        .transcript
-        .writing()
-        .filter(|entry| super::rows::shown(entry))
-        .map(|entry| (entry.id, rows.last_start()));
+    // 还算在看的那段回答：长过视口时停在它的开头（`tui.md`「正文」第 1 条）。在写的那段一律算；写完了的（后面只有收尾
+    // 那一行），上一帧开头还露着才算：后到的图、卡片把它撑高时停住，一口气整段到的、补发来的照旧跟着最新的。
+    let latest = app.transcript.reading().and_then(|(i, writing)| {
+        let entry = &app.transcript.entries[i];
+        let start = rows.start_of(i).filter(|_| super::rows::shown(entry))?;
+        Some((entry.id, start, writing))
+    });
+    app.view.reading = still_reading(&app.view, latest);
+    app.view.latest = latest.map(|(id, start, _)| (id, start));
     let settled = app.row_cache.borrow().stale == 0;
     let first = first_row(&rows, area, &mut app.view, settled);
     let height = usize::from(area.height);
@@ -119,6 +122,19 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
             frame.buffer_mut().set_style(cols, reversed);
         }
     }
+}
+
+/// 最新的那段回答（编号、第一行、还在不在写）算不算在看：在写的算；写完了的，上一帧（`view.latest`、`view.first`）
+/// 它的开头还露着才算（`tui.md`「正文」第 1 条）。
+fn still_reading(
+    view: &crate::body_view::BodyView,
+    latest: Option<(u64, usize, bool)>,
+) -> Option<(u64, usize)> {
+    let (id, start, writing) = latest?;
+    let seen = view
+        .latest
+        .is_some_and(|(was, top)| was == id && top >= view.first);
+    (writing || seen).then_some((id, start))
 }
 
 /// 点开的一块铺底色的范围（从第几列起、多宽）：左边和你说的话前面的 `┃` 同一列（缩进 `indent` 以后那两格槽），

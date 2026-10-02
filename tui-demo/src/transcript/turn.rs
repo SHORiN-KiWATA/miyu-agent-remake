@@ -18,6 +18,20 @@ impl Transcript {
         (last.kind == Kind::Reply && last.turn == self.turn).then_some(last)
     }
 
+    /// 最新的那段回答是第几条、是不是还在写（蓝图 `tui.md`「正文」第 1 条，长过视口时停在它的开头）：在写的那一段；一轮
+    /// 结束了的，这一轮的最后一段回答、后面只有收尾那一行（写完以后才画出来的图、链接卡片会把它撑高）。
+    pub fn reading(&self) -> Option<(usize, bool)> {
+        let tail = self.tail()?;
+        let last = &self.entries[tail];
+        if self.running.is_some() {
+            return (last.kind == Kind::Reply && last.turn == self.turn).then_some((tail, true));
+        }
+        let reply = tail.checked_sub(1)?;
+        let before = &self.entries[reply];
+        (last.kind == Kind::Done && before.kind == Kind::Reply && before.turn == last.turn)
+            .then_some((reply, false))
+    }
+
     /// 一轮开始了（`turn.started`）：开表、清这一轮的用量，把开这一轮的排队消息挪进正文。
     pub(super) fn start(&mut self, turn: u64, trigger: Option<u64>) {
         self.running = Some(self.clock.now());

@@ -338,3 +338,38 @@ fn a_relayout_spread_over_frames_does_not_strand_the_view_at_the_end() {
     let first = first_row(&done, max, &mut view, true);
     assert_eq!(first, 24 - 10, "露最底下一截");
 }
+
+#[test]
+fn a_finished_reply_counts_as_read_only_while_its_top_was_showing() {
+    // 2026-10-02 项目主人报：mermaid 画出来把回答顶上去。写完了的那段，上一帧开头还露着，后到的图把它撑高时停住；
+    // 一口气整段到的（上一帧还没有它、开头已经在视口上面）照旧跟着最新的。
+    let mut view = BodyView::default();
+    view.first = 10;
+    assert_eq!(
+        super::still_reading(&view, Some((7, 3, true))),
+        Some((7, 3)),
+        "在写的一律算"
+    );
+    assert_eq!(
+        super::still_reading(&view, Some((7, 12, false))),
+        None,
+        "上一帧还没有它"
+    );
+    view.latest = Some((7, 12));
+    assert_eq!(
+        super::still_reading(&view, Some((7, 12, false))),
+        Some((7, 12))
+    );
+    view.latest = Some((7, 3));
+    assert_eq!(
+        super::still_reading(&view, Some((7, 3, false))),
+        None,
+        "开头早就顶出去了"
+    );
+    view.latest = Some((6, 12));
+    assert_eq!(
+        super::still_reading(&view, Some((7, 12, false))),
+        None,
+        "不是同一段"
+    );
+}
