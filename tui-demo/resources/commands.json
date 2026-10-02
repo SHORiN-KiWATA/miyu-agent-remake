@@ -109,6 +109,9 @@
     },
     {
       "name": "sessions",
+      "aliases": [
+        "resume"
+      ],
       "summary": {
         "zh": "列出会话，切过去",
         "en": "List sessions and switch to one",

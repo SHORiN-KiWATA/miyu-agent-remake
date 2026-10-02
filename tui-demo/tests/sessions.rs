@@ -178,3 +178,11 @@ fn launching_without_saying_anything_leaves_no_empty_session() {
     tui.say("/sessions");
     tui.wait_for("1 个");
 }
+
+#[test]
+fn the_resume_alias_still_opens_the_list() {
+    // 2026-10-02 项目主人定：名字还是 `/sessions`，加 `/resume` 当别名。
+    let (_home, mut tui) = sessions(1);
+    tui.say("/resume");
+    tui.wait_for("1 个");
+}

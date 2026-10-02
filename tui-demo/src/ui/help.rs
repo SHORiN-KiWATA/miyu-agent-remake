@@ -135,8 +135,9 @@ mod tests {
             "还不做事的假命令不列"
         );
         assert!(
-            text.iter().any(|l| l.contains("/sessions")),
-            "做了的列上（2026-10-01 /sessions 接上了）"
+            text.iter()
+                .any(|l| l.starts_with("  /sessions · /resume") && l.contains("列出会话")),
+            "别名写在一起（2026-10-02 项目主人定加 /resume 别名）"
         );
         let keys = text.iter().position(|l| l == "按键").unwrap();
         assert!(
