@@ -245,12 +245,26 @@ async fn fs_read_unreadable_targets_are_path_unreadable() {
 
     #[cfg(unix)]
     {
-        let path = home.work.join("sock");
+        // 套接字建在 /tmp 下的短目录里：macOS 上套接字的路径最长 104 字节，测试的工作目录太长。
+        let short = std::path::PathBuf::from(format!("/tmp/miyu-w6-{}", std::process::id()));
+        std::fs::create_dir_all(&short).expect("建得了目录");
+        let path = short.join("sock");
+        #[expect(
+            clippy::let_underscore_must_use,
+            reason = "上一次留下的、删不掉的都不要紧：bind 失败会在下一行报出来"
+        )]
+        let _ = std::fs::remove_file(&path);
         let _listening = std::os::unix::net::UnixListener::bind(&path).expect("绑得上");
         let reply = client
             .call("r3", "fs.read", json!({"path": path.display().to_string()}))
             .await;
         assert_eq!(reason(&reply), Some("path_unreadable"), "套接字：{reply}");
+        drop(_listening);
+        #[expect(
+            clippy::let_underscore_must_use,
+            reason = "删不掉就留在 /tmp 里，不影响测试"
+        )]
+        let _ = std::fs::remove_dir_all(&short);
     }
 }
 

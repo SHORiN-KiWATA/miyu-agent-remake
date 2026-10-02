@@ -89,11 +89,19 @@ impl Blobs {
         offset: u64,
         length: u64,
     ) -> Result<(Vec<u8>, u64), BlobError> {
-        let segment =
-            miyu_fs::read_range(&self.path(hash), offset, length).map_err(|error| match error {
-                miyu_fs::OpenError::NotFound => BlobError::Missing(hash.clone()),
-                other => BlobError::Io(io::Error::other(other)),
-            })?;
+        // 先换成真实的位置：数据根本身可能经过一层链接（macOS 的临时目录在 `/var` 下，`/var` 是链接），安全地打开
+        // 路上一层链接都不跟，不换就一个都打不开。blob 在核心自己的数据根里，不是人给的路径（2026-10-02 主会话定）。
+        let real = match std::fs::canonicalize(self.path(hash)) {
+            Ok(real) => real,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                return Err(BlobError::Missing(hash.clone()));
+            }
+            Err(error) => return Err(BlobError::Io(error)),
+        };
+        let segment = miyu_fs::read_range(&real, offset, length).map_err(|error| match error {
+            miyu_fs::OpenError::NotFound => BlobError::Missing(hash.clone()),
+            other => BlobError::Io(io::Error::other(other)),
+        })?;
         Ok((segment.data, segment.size))
     }
 
