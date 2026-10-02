@@ -38,9 +38,37 @@ pub fn rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
         out.push(head);
     }
     let mut prev_end = None;
+    // 独占一行的地址：核心交回了卡片的换成卡片（蓝图「链接卡片」第 1 条）；折成好几行的只画一次。
+    let lone = lone_lines(&text);
+    let mut carded: Option<usize> = None;
+    let mut gap_after = false;
     for line in wrap_words(&text, ctx.width.max(1)) {
+        if let Some((start, url)) = lone
+            .iter()
+            .find(|(s, e, _)| *s <= line.start && line.end <= *e)
+            .map(|(s, _, u)| (*s, u.clone()))
+        {
+            if carded == Some(start) {
+                continue;
+            }
+            let card = ctx.cards.borrow_mut().card(&url).cloned();
+            if let Some(card) = card {
+                // 前后各空一行（只有竖线），已经有空行的不再补。
+                if out.last().is_some_and(|r| !super::link_card::blank(r)) {
+                    out.push(ctx.row(bar.clone(), Vec::new()));
+                }
+                gap_after = true;
+                out.extend(super::link_card::rows(&bar, &[], &url, &card, ctx));
+                carded = Some(start);
+                prev_end = None;
+                continue;
+            }
+        }
         let styled: Vec<(usize, usize, Style)> =
             pieces.iter().map(|p| (p.from, p.to, p.style)).collect();
+        if std::mem::take(&mut gap_after) && line.start < line.end {
+            out.push(ctx.row(bar.clone(), Vec::new()));
+        }
         let mut row = ctx.row(bar.clone(), spans(&text, line.start, line.end, &styled));
         row.links = links(&text, line.start, line.end, &pieces);
         row.joined = prev_end == Some(line.start);
@@ -52,6 +80,19 @@ pub fn rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
         for row in &mut out {
             row.target = Some(Target::Entry(i));
         }
+    }
+    out
+}
+
+/// 字里独占一行的地址：那一行的字节范围、地址。
+fn lone_lines(text: &str) -> Vec<(usize, usize, String)> {
+    let mut out = Vec::new();
+    let mut at = 0;
+    for line in text.split('\n') {
+        if let Some(url) = crate::markdown::lone_url(line) {
+            out.push((at, at + line.len(), url.to_string()));
+        }
+        at += line.len() + 1;
     }
     out
 }

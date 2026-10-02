@@ -31,6 +31,8 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
         screen_rows: frame.area().height,
         md: &app.md_cache,
         figures: &app.figures,
+        cards: &app.cards,
+        writing: app.transcript.writing().map(|e| e.id),
         frame: usize::try_from(app.started.elapsed().as_millis() / u128::from(spinner_ms))
             .unwrap_or(0),
     };
@@ -93,7 +95,14 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
                 let x = area.x + row.content_x + from;
                 let cells = Rect::new(x, y, to - from, 1).intersection(area);
                 let underline = Style::new().add_modifier(Modifier::UNDERLINED);
-                frame.buffer_mut().set_style(cells, underline);
+                // 图占着的格子不画：下划线会叠在图上（链接卡片的封面图，2026-10-02 项目主人报）。
+                let buf = frame.buffer_mut();
+                for cx in cells.left()..cells.right() {
+                    let cell = &mut buf[(cx, y)];
+                    if !super::figure_rows::is_picture(cell) {
+                        cell.set_style(underline);
+                    }
+                }
             }
         }
     }

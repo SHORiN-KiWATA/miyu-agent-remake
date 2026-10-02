@@ -22,6 +22,7 @@ mod input;
 mod jobs;
 mod language;
 mod linebreak;
+mod link_cards;
 mod local;
 mod markdown;
 mod mascot;

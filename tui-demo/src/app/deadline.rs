@@ -29,7 +29,9 @@ impl App {
             .chain(self.mascot_deadline(Instant::now()))
             .chain(self.jobs_deadline())
             .chain(self.drawer_deadline())
-            .chain(self.mention.deadline()) // 核心的清单在建：到点再问（「`@` 文件列表」第 2 条）
+            .chain(self.mention.deadline())
+            // 链接卡片的单子上有没发的：马上醒来发（`cards.rs`）。
+            .chain(self.card_asks_pending().then(Instant::now)) // 核心的清单在建：到点再问（「`@` 文件列表」第 2 条）
             // 整份重排没排完的：下一帧接着排（蓝图「正文」第 8 条）。
             .chain((self.row_cache.borrow().stale > 0).then(Instant::now))
             .min()

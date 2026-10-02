@@ -45,6 +45,14 @@ impl App {
             self.mention.replied(&word, result.as_ref());
             return;
         }
+        // 链接卡片、它的图回来了（`cards.rs`）。
+        let mut held = Some(update);
+        if self.card_update(&mut held) {
+            return;
+        }
+        let Some(update) = held else {
+            return;
+        };
         // 换了模型：底栏照新的模型写思考强度，不等下一轮（2026-10-02 项目主人报）。
         if let Update::Configured(_) = &update {
             self.transcript.update(update, &self.config.text);

@@ -117,6 +117,10 @@ pub struct Layout {
     pub undo_icon: String,
     /// 回到底部的按钮（2026-10-02）。
     pub bottom_mark: String,
+    /// 链接卡片的封面图几行高（蓝图「链接卡片」第 3 条）。
+    pub link_cover_rows: u16,
+    /// 链接卡片的网站图标几列宽。
+    pub link_icon_cols: u16,
     /// 会话列表里正在用的那个标题前面的记号（2026-10-02）。
     pub current_mark: String,
     /// 撤销点开以后，改回了的文件前面的记号，连同它后面的空格（2026-10-02）。

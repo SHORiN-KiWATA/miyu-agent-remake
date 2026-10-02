@@ -240,6 +240,8 @@ fn fingerprint(i: usize, entry: &Entry, ctx: &Ctx, figures: Option<u64>) -> Opti
     let text = entry.text.as_bytes();
     (text.len(), &text[text.len().saturating_sub(64)..]).hash(&mut h);
     (entry.hidden, entry.queued, entry.open, entry.level).hash(&mut h);
+    // 写完了才换链接卡片（蓝图「链接卡片」第 1 条）：写完那一刻字没变，也要重排。
+    (ctx.writing == Some(entry.id)).hash(&mut h);
     (
         entry.undo.is_some(),
         entry.pasted.len(),

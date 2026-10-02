@@ -53,6 +53,8 @@ pub struct Row {
     pub copy: bool,
     /// 这一行是一张图的第几行（蓝图「图片、公式和 mermaid 图」第 2 条）。
     pub figure: Option<FigureCell>,
+    /// 同一行的第二张图（链接卡片标题前面的网站图标）。
+    pub icon: Option<FigureCell>,
     /// 这一行是「正在画图」：图做好了要重排（按条记着的行认它，「正文」第 8 条）。
     pub figure_pending: bool,
 }
@@ -64,6 +66,8 @@ pub struct FigureCell {
     pub key: u64,
     /// 图的第几行。
     pub row: u16,
+    /// 从内容的第几列画起（链接卡片的网站图标在封面图右边）。
+    pub x: u16,
 }
 
 /// 排版要的东西。
@@ -84,6 +88,10 @@ pub struct Ctx<'a> {
     pub md: &'a RefCell<MdCache>,
     /// 做好的图；没有的交给后台做。
     pub figures: &'a RefCell<Figures>,
+    /// 链接卡片的账：没要过的卡片、图记进单子（`link_cards.rs`）。
+    pub cards: &'a RefCell<crate::link_cards::LinkCards>,
+    /// 她正在写的那一条回答：写完了才换卡片（蓝图「链接卡片」第 1 条）。
+    pub writing: Option<u64>,
     /// 现在的权限级别：你说的话没记着级别的（不该有），竖线照它上色。
     pub level: Level,
     /// 窗口有几行高：图最多占它的几分之几（蓝图「图片、公式和 mermaid 图」第 3 条）。
@@ -123,6 +131,7 @@ impl Ctx<'_> {
             links: Vec::new(),
             copy: true,
             figure: None,
+            icon: None,
             figure_pending: false,
         }
     }
@@ -195,13 +204,51 @@ fn reply_rows(index: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
         };
         markdown::render(text, ctx.width, &kit, &entry.details)
     });
-    lines
-        .into_iter()
-        .flat_map(|line| match &line.figure {
-            Some(figure) => figure_rows::rows(line.lead.clone(), figure, ctx),
-            None => vec![details_row(index, line, ctx)],
-        })
-        .collect()
+    // 写完了的回答里独占一行的链接：核心交回了卡片的换成卡片（蓝图「链接卡片」第 1 条）。
+    let cards = ctx.writing != Some(entry.id);
+    let mut out: Vec<Row> = Vec::new();
+    let mut last_card: Option<String> = None;
+    // 卡片前后各空一行，已经有空行的不再补（同一天项目主人报：上下没有空行）。
+    let mut gap_after = false;
+    for line in lines {
+        let card = line
+            .card
+            .clone()
+            .filter(|_| cards)
+            .and_then(|url| ctx.cards.borrow_mut().card(&url).cloned().map(|c| (url, c)));
+        match card {
+            // 一个链接折成好几行的：卡片只画一次，别的行不要。
+            Some((url, _)) if last_card.as_deref() == Some(url.as_str()) => {}
+            Some((url, card)) => {
+                if out.last().is_some_and(|r| !super::link_card::blank(r)) {
+                    out.push(ctx.row(ctx.blank_slot(), Vec::new()));
+                }
+                gap_after = true;
+                out.extend(super::link_card::rows(
+                    &ctx.blank_slot(),
+                    &line.lead,
+                    &url,
+                    &card,
+                    ctx,
+                ));
+                last_card = Some(url);
+            }
+            None => {
+                last_card = None;
+                let rows = match &line.figure {
+                    Some(figure) => figure_rows::rows(line.lead.clone(), figure, ctx),
+                    None => vec![details_row(index, line, ctx)],
+                };
+                if std::mem::take(&mut gap_after)
+                    && rows.first().is_some_and(|r| !super::link_card::blank(r))
+                {
+                    out.push(ctx.row(ctx.blank_slot(), Vec::new()));
+                }
+                out.extend(rows);
+            }
+        }
+    }
+    out
 }
 
 /// 一行 Markdown；是 `<details>` 标题的，整行能点，悬停变亮（蓝图「她的回答：Markdown」第 15 条）。

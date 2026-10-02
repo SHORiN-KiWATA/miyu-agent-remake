@@ -284,6 +284,7 @@ mod tests {
             links: Vec::new(),
             copy: true,
             figure: None,
+            icon: None,
             figure_pending: false,
         }
     }

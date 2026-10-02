@@ -1840,6 +1840,7 @@ dependencies = [
  "miyu-log",
  "miyu-mermaid",
  "miyu-models",
+ "miyu-net",
  "miyu-sandbox",
  "miyu-session",
  "miyu-store",
@@ -1965,6 +1966,21 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.11.0",
+]
+
+[[package]]
+name = "miyu-net"
+version = "0.0.0"
+dependencies = [
+ "http",
+ "hyper-util",
+ "miyu-kernel",
+ "miyu-store",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

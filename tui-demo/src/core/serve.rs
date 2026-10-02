@@ -92,6 +92,13 @@ pub(super) async fn serve(
                     }
                     continue;
                 }
+                // 读一个 blob：一段段读，读完存成文件（`links.rs`）。
+                if let Command::FetchBlob(blob) = &command {
+                    if super::links::fetch(rpc, blob, &mut awaiting).await.is_err() {
+                        return Served::Lost;
+                    }
+                    continue;
+                }
                 match command {
                     // 懒着开（施工会话 09-30 建议）：等第一句话再开，连按几下不留空会话。旧的有任务在跑的照样订阅着。
                     Command::New { keep } => {
@@ -325,6 +332,8 @@ async fn take(
             ) => true,
             Some(Awaiting::Choices) => notify(Update::Choices(Vec::new())),
             Some(Awaiting::Efforts) => notify(Update::Efforts(super::EffortList::default())),
+            Some(Awaiting::LinkPreview(url)) => notify(Update::LinkCard { url, card: None }),
+            Some(Awaiting::Blob(blob, _)) => notify(Update::BlobSaved { blob, path: None }),
             Some(Awaiting::Files(word)) => notify(Update::Files { word, result: None }),
             // 切过去订阅不上（会话删了、日志坏了）：不再当它在补发，照一般的拒绝说。
             Some(Awaiting::Replay(session)) => {
@@ -371,6 +380,13 @@ async fn take(
         Some(Awaiting::Files(word)) => {
             let result = Some(message["result"].clone());
             return notify(Update::Files { word, result });
+        }
+        Some(Awaiting::LinkPreview(url)) => {
+            let card = super::links::card(&message["result"]);
+            return notify(Update::LinkCard { url, card });
+        }
+        Some(Awaiting::Blob(blob, got)) => {
+            return super::links::chunk(rpc, blob, got, &message["result"], awaiting, notify).await;
         }
         Some(Awaiting::Efforts) => {
             return notify(Update::Efforts(super::EffortList::read(&message["result"])));

@@ -21,6 +21,7 @@ mod home;
 mod input_box;
 mod job_rows;
 pub mod languages;
+mod link_card;
 mod margins;
 mod mascot_view;
 mod md_cache;

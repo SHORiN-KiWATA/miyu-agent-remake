@@ -19,6 +19,11 @@ pub(super) fn request(command: &Command) -> Option<(&'static str, Value, Option<
         Command::ListModels => ("model.list", json!({}), Some(Awaiting::Models)),
         Command::ListChoices => ("model.list", json!({}), Some(Awaiting::Choices)),
         Command::SetChat(reference) => ("config.set", config::set_chat(reference), None),
+        Command::LinkPreview(url) => (
+            "link.preview",
+            json!({"url": url}),
+            Some(Awaiting::LinkPreview(url.clone())),
+        ),
         Command::ListEfforts => ("model.list", json!({}), Some(Awaiting::Efforts)),
         Command::SetEffort { key, level } => (
             "config.set",

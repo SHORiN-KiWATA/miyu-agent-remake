@@ -17,6 +17,7 @@ fn rows(n: usize) -> crate::ui::row_cache::Rows {
         links: Vec::new(),
         copy: true,
         figure: None,
+        icon: None,
         figure_pending: false,
     };
     vec![row; n].into()

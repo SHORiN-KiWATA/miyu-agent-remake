@@ -4,6 +4,8 @@
 //! 视图投影做出来以前，解析暂时在头里（蓝图「还没有的」）。
 
 mod blocks;
+mod cards;
+pub use cards::lone_url;
 mod code;
 mod html;
 mod inline;
@@ -41,6 +43,8 @@ pub struct MdLine {
     pub figure: Option<Figure>,
     /// 这一行是第几个 `<details>` 的标题：点它展开、收起。
     pub details: Option<usize>,
+    /// 这一行是独占一行的链接（`cards.rs`）：核心交回了卡片的换成卡片，没有的照这一行画（蓝图「链接卡片」）。
+    pub card: Option<String>,
 }
 
 /// 把一段 Markdown 排成 `width` 列宽的行，照 `kit` 着色、转写公式、写字。`flipped` 是这一条回答里点过的
@@ -316,6 +320,7 @@ impl Renderer<'_> {
                             copy: true,
                             figure: None,
                             details: None,
+                            card: None,
                         });
                     }
                 }
@@ -426,16 +431,30 @@ impl Renderer<'_> {
         self.close_open_tags();
         let pieces = std::mem::take(&mut self.pieces);
         if !pieces.is_empty() {
-            self.emit(links::relink_title(pieces), true);
+            // 独占一行的链接单独排、记下地址，能换成卡片（`cards.rs`）。
+            let mut first = true;
+            for (part, card) in cards::split(links::relink_title(pieces)) {
+                let from = self.out.len();
+                self.emit_from(part, true, first);
+                first = false;
+                for line in &mut self.out[from..] {
+                    line.card.clone_from(&card);
+                }
+            }
         }
         self.flush_images();
     }
 
     fn emit(&mut self, pieces: Vec<Piece>, copy: bool) {
+        self.emit_from(pieces, copy, true);
+    }
+
+    /// 同 [`Renderer::emit`]；`first` 是这一段的头一块（列表的记号只在头一行）。
+    fn emit_from(&mut self, pieces: Vec<Piece>, copy: bool, first: bool) {
         let room = self.room();
         let centered = self.centered.iter().any(|c| *c);
         for (i, folded) in fold(&pieces, room).into_iter().enumerate() {
-            let mut lead = self.lead(i == 0);
+            let mut lead = self.lead(first && i == 0);
             // 居中：左边补空格，放在引子里（复制时不带，链接的列不用挪）。
             if centered {
                 let used = folded.spans.iter().map(Span::width).sum::<usize>();
@@ -448,6 +467,7 @@ impl Renderer<'_> {
                 copy,
                 figure: None,
                 details: None,
+                card: None,
             });
         }
     }

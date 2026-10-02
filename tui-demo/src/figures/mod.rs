@@ -61,6 +61,8 @@ enum Slot {
     /// 做好了：占几行一直记着；编好的图 `drawn` 可能被扔（没露出来、记满了），再露出来时照 `job` 重做一次。
     Ready {
         rows: u16,
+        /// 占几列（链接卡片照它把字排在图右边）。
+        cols: u16,
         drawn: Option<Drawn>,
         job: Job,
         /// 扔了以后又交给后台重做，还没回来。
@@ -165,6 +167,14 @@ impl Figures {
         ready.unwrap_or(Look::Pending)
     }
 
+    /// 做好的一张占几列；没做好的是 `None`。
+    pub fn cols(&self, key: u64) -> Option<u16> {
+        match self.slots.get(&key) {
+            Some(Slot::Ready { cols, .. }) => Some(*cols),
+            _ => None,
+        }
+    }
+
     /// 做好的一张，照键取；编好的图被扔了的是 `None`。
     pub fn get(&self, key: u64) -> Option<&Drawn> {
         match self.slots.get(&key) {
@@ -229,6 +239,7 @@ impl Figures {
                 self.latest.insert(job.same, done.key);
                 *slot = Slot::Ready {
                     rows: drawn.rows,
+                    cols: drawn.protocol.size().width,
                     drawn: Some(drawn),
                     job,
                     redoing: false,
@@ -240,6 +251,7 @@ impl Figures {
             (
                 Slot::Ready {
                     rows,
+                    cols,
                     drawn,
                     job,
                     seen,
@@ -253,6 +265,7 @@ impl Figures {
                 };
                 *slot = Slot::Ready {
                     rows,
+                    cols,
                     drawn,
                     job,
                     redoing: false,

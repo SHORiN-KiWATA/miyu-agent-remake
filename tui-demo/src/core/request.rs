@@ -70,6 +70,8 @@ pub(super) fn request(
         | Command::Files { .. }
         | Command::ListEfforts
         | Command::SetChat(_)
+        | Command::LinkPreview(_)
+        | Command::FetchBlob(_)
         | Command::SetEffort { .. }
         | Command::Output { .. } => {
             return None;

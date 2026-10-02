@@ -247,6 +247,7 @@ impl Renderer<'_> {
                 copy: true,
                 figure: None,
                 details: Some(index),
+                card: None,
             });
         }
         if let Some(details) = self.details.last_mut() {

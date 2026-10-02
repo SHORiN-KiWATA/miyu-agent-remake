@@ -14,6 +14,7 @@ mod connect;
 mod efforts;
 mod kinds;
 mod limits;
+mod links;
 mod models;
 mod output;
 mod push;
@@ -36,6 +37,7 @@ use connect::{connect, subscribe};
 pub use efforts::{EffortList, Efforts};
 pub use kinds::{EndReason, Level, ToolStatus};
 pub use limits::Limits;
+pub use links::{Card, blob_path, cards_dir};
 pub use models::{Choice, ChoiceState, Current};
 pub use output::JobOutput;
 pub use push::{Block, CallError, Compaction, JobEnd, JobReason, JobStart, Push, Sender, Usage};
@@ -91,6 +93,10 @@ pub enum Command {
     Delete(String),
     /// 要 `/model` 框里的一行行（`model.list`），交回 [`Update::Choices`]。
     ListChoices,
+    /// 要一个网址的链接卡片（`link.preview`，核心 W-7）。
+    LinkPreview(String),
+    /// 读回一个 blob 存成文件（卡片的封面图、图标；`blob.get`，核心 W-6）。
+    FetchBlob(String),
     /// 手动换的模型也记成新会话的默认：写个人设置的 `models.chat`（2026-10-02 项目主人定，`models.md`「头的约定」）。
     SetChat(String),
     /// `/effort` 要的：每个模型有哪几级、配置的默认、配置键（`model.list`，核心 8-18 补）。
@@ -182,6 +188,20 @@ pub enum Update {
     Push(Push),
     /// `/model` 框里的一行行（[`Command::ListChoices`] 的回应）；要不到的是空的。
     Choices(Vec<Choice>),
+    /// 一个网址的卡片（[`Command::LinkPreview`]）；要不到的是 `None`。
+    LinkCard {
+        /// 网址。
+        url: String,
+        /// 卡片。
+        card: Option<Card>,
+    },
+    /// 一个 blob 存成了文件（[`Command::FetchBlob`]）；读不成的是 `None`。
+    BlobSaved {
+        /// 哪个 blob。
+        blob: String,
+        /// 存在哪。
+        path: Option<std::path::PathBuf>,
+    },
     /// `/effort` 框里的几级（[`Command::ListEfforts`] 的回应）；要不到的是空的。
     Efforts(EffortList),
     /// `@` 文件列表的回应（[`Command::Files`]）：哪个词问的、回应的 `result`（回了错的是 `None`）。

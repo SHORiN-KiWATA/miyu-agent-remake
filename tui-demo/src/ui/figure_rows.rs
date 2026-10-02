@@ -50,7 +50,7 @@ pub fn rows(lead: Vec<Span<'static>>, figure: &Figure, ctx: &Ctx) -> Vec<Row> {
                 .map(|i| {
                     let mut row = ctx.led_row(ctx.blank_slot(), lead.clone(), Vec::new());
                     row.copy = false;
-                    row.figure = Some(FigureCell { key, row: i });
+                    row.figure = Some(FigureCell { key, row: i, x: 0 });
                     row
                 })
                 .collect();
@@ -77,6 +77,12 @@ fn zoom_row(lead: Vec<Span<'static>>, file: &std::path::Path, ctx: &Ctx) -> Row 
     row
 }
 
+/// 这一格是图占着的：kitty 的占位符，或者别的协议照原样留着不比对的格子。
+pub fn is_picture(cell: &ratatui::buffer::Cell) -> bool {
+    cell.diff_option == ratatui::buffer::CellDiffOption::Skip
+        || cell.symbol().starts_with('\u{10EEEE}')
+}
+
 /// 画视口里露出来的图：每张图从它第 0 行该在的位置画起（在视口上面的是负的），
 /// 视口外的那一截由 `SlicedImage` 切掉。`first` 是视口第一行是正文的第几行。露出来的记下露过：编好的图记满了
 /// 扔没露出来的，被扔了的这一帧先空着、交给后台重做（蓝图「图片、公式和 mermaid 图」第 6 条）。
@@ -85,21 +91,42 @@ pub fn draw(buf: &mut Buffer, area: Rect, rows: &Rows, first: usize, figures: &m
     let mut drawn = HashSet::new();
     let visible = rows.window(first, usize::from(area.height));
     for (i, row) in visible {
-        let Some(FigureCell { key, row: at }) = row.figure else {
-            continue;
-        };
-        if !drawn.insert(key) {
-            continue;
+        for FigureCell { key, row: at, x } in row.figure.into_iter().chain(row.icon) {
+            let top = i64::try_from(i - first).unwrap_or(0) - i64::from(at);
+            // 一张图画一次：同一张图出现在两处（你说的话和她的回答都贴了同一个链接）各画各的，照它第 0 行在哪认。
+            if !drawn.insert((key, top, x)) {
+                continue;
+            }
+            let Some(figure) = figures.shown(key) else {
+                continue;
+            };
+            let position = SignedPosition {
+                x: i16::try_from(row.content_x + x).unwrap_or(i16::MAX),
+                y: i16::try_from(top).unwrap_or(i16::MIN),
+            };
+            SlicedImage::new(&figure.protocol, position).render(area, buf);
         }
-        let Some(figure) = figures.shown(key) else {
-            continue;
-        };
-        let top = i64::try_from(i - first).unwrap_or(0) - i64::from(at);
-        let position = SignedPosition {
-            x: i16::try_from(row.content_x).unwrap_or(i16::MAX),
-            y: i16::try_from(top).unwrap_or(i16::MIN),
-        };
-        SlicedImage::new(&figure.protocol, position).render(area, buf);
+    }
+}
+
+#[cfg(test)]
+mod picture_cells {
+    use ratatui::buffer::{Cell, CellDiffOption};
+
+    use super::is_picture;
+
+    #[test]
+    fn cells_held_by_a_picture_are_known() {
+        // 2026-10-02 项目主人报：悬停链接卡片时下划线叠在封面图上。画下划线时跳过图占着的格子。
+        let mut kitty = Cell::default();
+        kitty.set_symbol("\u{10EEEE}\u{0305}");
+        assert!(is_picture(&kitty));
+        let mut skipped = Cell::default();
+        skipped.set_diff_option(CellDiffOption::Skip);
+        assert!(is_picture(&skipped));
+        let mut text = Cell::default();
+        text.set_symbol("G");
+        assert!(!is_picture(&text));
     }
 }
 
@@ -140,6 +167,7 @@ mod tests {
         let config = Config::builtin().unwrap();
         let human = Human::default();
         let md = RefCell::new(MdCache::new(8));
+        let cards = RefCell::default();
         let ctx = |figures| Ctx {
             config: &config,
             human: &human,
@@ -149,6 +177,8 @@ mod tests {
             frame: 0,
             md: &md,
             figures,
+            cards: &cards,
+            writing: None,
             level: Level::Workspace,
             screen_rows: 40,
         };
@@ -238,6 +268,8 @@ mod tests {
             frame: 0,
             md: &md,
             figures: &figures,
+            cards: &RefCell::default(),
+            writing: None,
             level: Level::Workspace,
             screen_rows: 45,
         };

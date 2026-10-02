@@ -1,5 +1,6 @@
 //! 程序的状态，和把终端事件、核心的消息分给各块。按键在 `keys.rs`，鼠标在 `mouse.rs`。
 
+mod cards;
 mod compose;
 mod deadline;
 mod drawer;
@@ -138,6 +139,8 @@ pub struct App {
     pub session_list: Option<crate::session_list::SessionList>,
     /// `/model` 开着时的框（`models.rs`）。
     pub model_list: Option<crate::model_list::ModelList>,
+    /// 链接卡片的账：排正文时记下要的卡片、图，主循环每一帧以后发（`cards.rs`）。
+    pub cards: std::cell::RefCell<crate::link_cards::LinkCards>,
     /// `/effort` 框里那个模型的几级；还没交回来的是 `None`（`effort.rs`）。
     pub efforts: Option<crate::core::Efforts>,
     /// 确认和提问的抽屉：现在这一个和排着的（蓝图「确认和提问的抽屉」）。
@@ -285,6 +288,11 @@ impl App {
             session_list: None,
             model_list: None,
             efforts: None,
+            cards: std::cell::RefCell::new(
+                miyu_store::root::cache_root(&miyu_store::env::Env::current())
+                    .map(|root| crate::link_cards::LinkCards::open(crate::core::cards_dir(&root)))
+                    .unwrap_or_default(),
+            ),
             drawers: Drawers::default(),
             drawer_rows: Vec::new(),
             caret: crate::caret::Caret::default(),
@@ -441,6 +449,7 @@ impl App {
     /// 到点了：收掉过期的提示。
     pub fn tick(&mut self) {
         self.advance_jobs();
+        self.send_card_asks();
         self.renumber_attachments();
         // 压缩那一行的进度条追一下（`tui.md`「正文」第 9 条）。
         let layout = &self.config.layout;

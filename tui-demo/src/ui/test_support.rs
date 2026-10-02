@@ -15,6 +15,8 @@ pub struct Fixture {
     pub human: Human,
     md: RefCell<MdCache>,
     figures: RefCell<Figures>,
+    /// 链接卡片的账：测试里直接往里放卡片。
+    pub cards: RefCell<crate::link_cards::LinkCards>,
 }
 
 impl Fixture {
@@ -27,6 +29,7 @@ impl Fixture {
             human: Human::default(),
             md,
             figures,
+            cards: RefCell::default(),
         }
     }
 
@@ -40,6 +43,8 @@ impl Fixture {
             frame: 0,
             md: &self.md,
             figures: &self.figures,
+            cards: &self.cards,
+            writing: None,
             level: Level::Workspace,
             screen_rows: self.config.figures.max_rows,
         }

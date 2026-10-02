@@ -88,6 +88,7 @@ impl Renderer<'_> {
             copy: true,
             figure: None,
             details: None,
+            card: None,
         });
     }
 }

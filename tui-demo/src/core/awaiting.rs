@@ -33,6 +33,10 @@ pub(super) enum Awaiting {
     Choices,
     /// 要 `/effort` 框里的几级。
     Efforts,
+    /// 要一个网址的卡片。
+    LinkPreview(String),
+    /// 一段段读一个 blob：哪个、读回来的。
+    Blob(String, Vec<u8>),
     /// `@` 文件列表问的：哪个词。
     Files(crate::mention::Word),
     /// 换模型：成了交给界面（引用）。

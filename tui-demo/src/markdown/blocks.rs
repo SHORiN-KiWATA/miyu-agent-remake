@@ -135,6 +135,7 @@ impl Renderer<'_> {
                 height,
             }),
             details: None,
+            card: None,
         });
     }
 
@@ -181,6 +182,7 @@ impl Renderer<'_> {
             copy: false,
             figure: None,
             details: None,
+            card: None,
         });
     }
 }
