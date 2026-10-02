@@ -4,7 +4,7 @@
 //!
 //! 只在 node 里跑：`node --test web-demo/tests`。时刻按 UTC 读（收尾那一行写本地时间）。
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { res, settle } from '../src/util/res.js';
 
@@ -44,7 +44,8 @@ function human() {
     for (const [k, v] of Object.entries(file.said ?? {})) out.said[`${dir}/${k}`] = v;
   };
   add('core');
-  for (const p of readdirSync(`${root}software`).sort()) add(`software/${p}`);
+  // 没有工具的软件包（mermaid、net 这类）没有给人看的字，跳过（核心也是照有没有这一份读）
+  for (const p of readdirSync(`${root}software`).sort()) if (existsSync(`${root}software/${p}/human/zh.json`)) add(`software/${p}`);
   return out;
 }
 
