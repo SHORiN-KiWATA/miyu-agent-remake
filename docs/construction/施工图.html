@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>181</b><span>/ 193 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 8-5 补贴 key 按 Ctrl+C 恢复回显、W-7 链接卡片；跨会话只剩 C-7 验收</span></li>
-    <li><b class="mono">d045c33c</b><span>最近一步（W-6 分块读）的提交</span></li>
+    <li><b>182</b><span>/ 193 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 8-5 补贴 key 按 Ctrl+C 恢复回显，接着 C-7 跨会话验收、三个驱动的图纸；跨会话只剩 C-7 验收</span></li>
+    <li><b class="mono">b22e2a81</b><span>最近一步（W-7 链接卡片）的提交</span></li>
   </ul>
 </header>
 
@@ -557,7 +557,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sW-4"><span class="n">W-4</span>mermaid<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sW-5"><span class="n">W-5</span>分块上传<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sW-6"><span class="n">W-6</span>分块读<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">W-7</span>链接卡片</span></li>
+        <li><a class="step done" href="#sW-7"><span class="n">W-7</span>链接卡片<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">W-8</span>身份</span></li>
         <li><span class="step"><span class="n">W-9</span>网页软件</span></li>
         <li><span class="step"><span class="n">W-10</span>媒体地址</span></li>
@@ -12253,6 +12253,56 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/W-6-分块读.md</code>；蓝图 <code>web-module.md</code> 第七条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sW-7" aria-labelledby="h-sW7">
+  <div class="sheet-head"><h2 id="h-sW7"><span class="no">W-7</span>链接卡片</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头给一个网址，核心抓下那一页的标题、简介、图，交回一张卡片：<code>link.preview</code>。做成可选的软件包 <code>net</code>（crate <code>miyu-net</code>），照 W-4 立好的查询表登记。卡片的图存成账号的 blob，头照 <code>blob.get</code> 读。以后 <code>web_fetch</code> 用同一份抓取和地址闸。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">链接卡片</span><span class="dir-note">W-7</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>地址闸每一跳都过：样子、解析出的地址都要是公网（<code>198.18.0.0/15</code> 当公网）、IP 段表；跳转自己跟、最多 5 跳</li>
+              <li>代理照环境变量：走代理的先在本机解析过闸再交给代理；不走代理的钉住解析好的地址</li>
+              <li>在后台抓，不挡同一条连接上后面的请求；成的记 6 小时、没卡片 15 分钟、连不上 45 秒</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">测试口子只在测试构建里</span><span class="rl">回环当公网、照表解析、代理照给的值：生产构建里没有这段代码</span></div>
+          <div class="tile"><span class="nm">新依赖</span><span class="rl">hyper-util、http，本来就在依赖图里，MIT</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">W-7</dd></div>
+        <div><dt>名称</dt><dd>链接卡片</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">b22e2a81</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真网络 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>21 个手写变异全逮住（地址闸每一层都有）；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真网络：GitHub 仓库页卡片带图和图标、example.com 没图；三个内网地址都拦下</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/W-7-链接卡片.md</code>；蓝图 <code>net.md</code>（新页）、<code>web-module.md</code> 第八条。</li>
       </ul>
     </div>
   </div>
