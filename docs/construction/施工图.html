@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>179</b><span>/ 193 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 W-6 分块读（等 CI），接着 8-7 补资料来源带层；跨会话只剩 C-7 验收</span></li>
-    <li><b class="mono">5551eca3</b><span>最近一步（8-17 替看不了图的模型看图）的提交</span></li>
+    <li><b>180</b><span>/ 194 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 W-6 分块读（等 CI），接着 W-7 链接卡片；跨会话只剩 C-7 验收</span></li>
+    <li><b class="mono">49a9f752</b><span>最近一步（8-7 补 资料的来源带上哪一层（补））的提交</span></li>
   </ul>
 </header>
 
@@ -518,6 +518,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s8-6"><span class="n">8-6</span>供应商<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-6b"><span class="n">8-6</span>地址也能放在环境变量里（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-7"><span class="n">8-7</span>模型资料<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s8-7b"><span class="n">8-7</span>资料的来源带上哪一层（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-8"><span class="n">8-8</span>用途、挡位、池<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-8b"><span class="n">8-8</span>挡位改成池（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-9"><span class="n">8-9</span>出错换端点<span class="st">✓</span></a></li>
@@ -11099,6 +11100,53 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/8-7-模型资料.md</code>；蓝图 <code>models.md</code> 第二条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-7b" aria-labelledby="h-s87b">
+  <div class="sheet-head"><h2 id="h-s87b"><span class="no">8-7 补</span>资料的来源带上哪一层（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose"><code>model.list</code> 资料里来源是配置的每一格多一格 <code>layer</code>：<code>system</code> 或 <code>personal</code>，照 <code>config.get</code> 说的那一层。网页照它判思考强度是不是人自己在个人设置里改的，不用猜文件路径。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">资料的来源带上哪一层（补）</span><span class="dir-note">8-7 补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>十格资料都带；两层都写时是压在上面的那一层</li>
+              <li>目录、用出来的、驱动的默认不带这一格</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile"><span class="nm">目录来源本来就有 layer</span><span class="rl">那个是数字、意思是第几层对上目录，头先看 from 再看 layer</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-7 补</dd></div>
+        <div><dt>名称</dt><dd>资料的来源带上哪一层（补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">49a9f752</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>10 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-7-资料的来源带上哪一层（补）.md</code>；蓝图 <code>models.md</code>「来源写成一个对象」。</li>
       </ul>
     </div>
   </div>
