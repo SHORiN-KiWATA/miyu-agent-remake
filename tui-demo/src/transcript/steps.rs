@@ -210,8 +210,11 @@ pub struct Tally {
     pub thinking: Duration,
     /// 这一段从第一步开始到最后一步结束的实际时长（收起那一行末尾写它，`tui.md`「时间线」第 17 条）。
     pub span: Duration,
-    /// 做事的只有一条命令（思考不算）时，那条命令的短标题（`shell` 的 `description`）。
-    pub only_command: Option<String>,
+    /// 这一段做事的只有一件（命令、编辑、别的工具、子代理、留言合起来算一件）。
+    pub lone: bool,
+    /// 一段里只有一条命令、它有短标题时，那条命令的短标题：收起那一行打头用它；和编辑、别的工具同段也用
+    /// （蓝图「时间线」第 17 条，2026-10-02 项目主人定）。
+    pub command_title: Option<String>,
 }
 
 impl Tally {
@@ -251,14 +254,25 @@ impl Tally {
             tally.span = end.saturating_duration_since(first);
         }
         // 思考不算做事：先想一下再跑一条命令，照样写这条命令的短标题（项目主人选的 A）。
-        let alone = tally.commands == 1
-            && tally.edits + tally.tools + tally.agents + tally.messages + tally.session_messages
-                == 0;
-        if alone {
-            tally.only_command = segment
+        let doers = tally.commands
+            + tally.edits
+            + tally.tools
+            + tally.agents
+            + tally.messages
+            + tally.session_messages;
+        tally.lone = doers == 1;
+        // 一段里只有一条命令、它有短标题就写它：和编辑、别的工具同段也写（2026-10-02 项目主人定）。
+        // 同段别的工具也可能带 `description`（派子代理），要认准命令那一步。
+        if tally.commands == 1 {
+            tally.command_title = segment
                 .steps
                 .iter()
-                .find_map(|s| s.arg("description"))
+                .find_map(|step| match &step.kind {
+                    StepKind::Tool { name, .. } if kind_of(name) == Some(ToolKind::Command) => {
+                        step.arg("description").filter(|s| !s.trim().is_empty())
+                    }
+                    _ => None,
+                })
                 .map(str::to_string);
         }
         tally

@@ -40,20 +40,12 @@ pub fn line(segment: &Segment, ctx: &Ctx, base: Style) -> Vec<Span<'static>> {
     }
     // 一格一格：字，和这一格要不要接加减的行数。
     let mut parts: Vec<(String, bool)> = Vec::new();
-    if let Some(title) = &tally.only_command {
-        parts.push((title.clone(), false));
-        if tally.thoughts > 0 {
-            parts.push((count(tally.thoughts, &words.thoughts), false));
-        }
-        if tally.errors > 0 {
-            parts.push((count(tally.errors, &words.errors), false));
-        }
-        parts.push((took, false));
-        return clip_title(spans(parts, style, (0, 0)), room(ctx));
-    }
-    // 打头那一格：命令、子代理、留言、别的工具、编辑，先有哪样写哪样（派子代理的不写 Used 1 tool，2026-10-01 项目主人；
+    // 打头那一格：一段里只有一条命令、它有短标题时用短标题（和编辑、别的工具同段也用，2026-10-02 项目主人定）；
+    // 否则命令、子代理、留言、别的工具、编辑，先有哪样写哪样（派子代理的不写 Used 1 tool，2026-10-01 项目主人；
     // 和网页演示一样）；别的类依次跟在后面，打头那一格写过的类不再写。
-    let lead = if tally.commands > 0 {
+    let lead = if let Some(title) = &tally.command_title {
+        Lead::Title(title.clone())
+    } else if tally.commands > 0 {
         Lead::Commands
     } else if tally.agents > 0 {
         Lead::Agents
@@ -66,7 +58,8 @@ pub fn line(segment: &Segment, ctx: &Ctx, base: Style) -> Vec<Span<'static>> {
     } else {
         Lead::Edits
     };
-    parts.push(match lead {
+    parts.push(match &lead {
+        Lead::Title(title) => (title.clone(), false),
         Lead::Commands => (count(tally.commands, &words.ran), false),
         Lead::Agents => (count(tally.agents, &words.spawned), false),
         Lead::Messages => (count(tally.messages, &words.messaged), false),
@@ -112,7 +105,12 @@ pub fn line(segment: &Segment, ctx: &Ctx, base: Style) -> Vec<Span<'static>> {
     {
         span.style = theme::error();
     }
-    clip_spans(out, room(ctx))
+    // 短标题打头的照短标题截，次数、用时留着；别的整行截（「窗口小的时候」第 4 条）。
+    if matches!(&lead, Lead::Title(_)) {
+        clip_title(out, room(ctx))
+    } else {
+        clip_spans(out, room(ctx))
+    }
 }
 
 /// 这一行能写几列：去掉行首两格槽。
@@ -141,9 +139,9 @@ fn clip_title(mut spans: Vec<Span<'static>>, room: usize) -> Vec<Span<'static>> 
     }
 }
 
-/// 只有一条命令、它出错了：整行红。
+/// 只有一条命令、它出错了：整行红。和别的工具、编辑同段时不整行红（`err` 那一格照旧红，第 17 条）。
 fn failed(segment: &Segment, tally: &Tally) -> bool {
-    tally.only_command.is_some() && tally.errors > 0 && !segment.steps.is_empty()
+    tally.command_title.is_some() && tally.lone && tally.errors > 0 && !segment.steps.is_empty()
 }
 
 /// 这一段的编辑、写入一共加了几行、删了几行（照参数排出来的差异）。
@@ -188,8 +186,10 @@ fn spans(
 }
 
 /// 收起那一行打头的是哪一类。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum Lead {
+    /// 一段里只有一条命令、它有短标题：短标题打头（不带 `$`）。
+    Title(String),
     Commands,
     Agents,
     Messages,

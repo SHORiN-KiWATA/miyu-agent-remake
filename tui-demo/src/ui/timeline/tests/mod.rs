@@ -103,6 +103,56 @@ fn a_lone_command_names_the_folded_line_and_turns_red_when_it_failed() {
 }
 
 #[test]
+fn a_lone_command_leads_the_folded_line_beside_an_edit() {
+    // 2026-10-02 项目主人定：一段里只有一条命令、它有短标题，和编辑同段也用短标题打头。
+    let f = Fixture::new();
+    let t0 = Instant::now();
+    let seg = segment(vec![command(t0, 0, ToolStatus::Ok), edit(t0, 1)], None);
+    assert_eq!(
+        text(&rows(0, &seg, &f.ctx())),
+        ["  列目录 · 1 edit +2 -1 · 2s"]
+    );
+}
+
+#[test]
+fn a_command_without_a_title_still_folds_by_counts() {
+    // 没有短标题的命令照旧按类数打头。
+    let f = Fixture::new();
+    let t0 = Instant::now();
+    let mut no_title = command(t0, 0, ToolStatus::Ok);
+    if let StepKind::Tool { parsed, .. } = &mut no_title.kind {
+        *parsed = json!({"command": "ls"});
+    }
+    let seg = segment(vec![no_title, edit(t0, 1)], None);
+    assert_eq!(
+        text(&rows(0, &seg, &f.ctx())),
+        ["  Ran 1 command · 1 edit +2 -1 · 2s"]
+    );
+}
+
+#[test]
+fn a_command_beside_an_edit_is_not_wholly_red() {
+    // 整行红只在「这一段就这一条命令」时；和编辑一起时 `err` 那一格红、整行不红（2026-09-29 项目主人选的 A）。
+    let f = Fixture::new();
+    let t0 = Instant::now();
+    let seg = segment(vec![command(t0, 0, ToolStatus::Error), edit(t0, 1)], None);
+    let got = rows(0, &seg, &f.ctx());
+    assert_eq!(text(&got), ["  列目录 · 1 edit +2 -1 · 1 err · 2s"]);
+    assert_eq!(
+        got[0].line.spans.last().unwrap().style,
+        theme::dim(),
+        "不整行红"
+    );
+    let err = got[0]
+        .line
+        .spans
+        .iter()
+        .find(|s| s.content == "1 err")
+        .unwrap();
+    assert_eq!(err.style, theme::error(), "出错那一格照旧红");
+}
+
+#[test]
 fn an_open_segment_lists_its_steps_with_icons_and_connectors() {
     let f = Fixture::new();
     let icons = &f.config.icons;

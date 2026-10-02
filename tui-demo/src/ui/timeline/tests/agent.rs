@@ -156,7 +156,7 @@ fn messages_to_other_sessions_are_counted_apart_from_messages_to_agents() {
     );
     assert_eq!(
         fold(vec![command(t0, 0, ToolStatus::Ok), message(other, t0, 1)]),
-        ["  Ran 1 command · Messaged 1 session · 2s"],
-        "不打头也写 Messaged（项目主人认的样子）"
+        ["  列目录 · Messaged 1 session · 2s"],
+        "不打头也写 Messaged（项目主人认的样子）；只有一条命令、有短标题时用短标题打头（2026-10-02 项目主人定）"
     );
 }
