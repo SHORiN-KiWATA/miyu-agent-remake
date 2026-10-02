@@ -90,6 +90,8 @@ pub struct Ctx<'a> {
     pub figures: &'a RefCell<Figures>,
     /// 链接卡片的账：没要过的卡片、图记进单子（`link_cards.rs`）。
     pub cards: &'a RefCell<crate::link_cards::LinkCards>,
+    /// mermaid 图的账：没问过核心的记进单子（`diagrams.rs`）。
+    pub diagrams: &'a RefCell<crate::diagrams::Diagrams>,
     /// 她正在写的那一条回答：写完了才换卡片（蓝图「链接卡片」第 1 条）。
     pub writing: Option<u64>,
     /// 现在的权限级别：你说的话没记着级别的（不该有），竖线照它上色。

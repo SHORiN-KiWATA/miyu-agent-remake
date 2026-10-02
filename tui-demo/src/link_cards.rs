@@ -38,6 +38,13 @@ pub struct LinkCards {
 }
 
 impl LinkCards {
+    /// 照机器共用的缓存目录读回以前要到的卡片；找不到缓存目录的当空的。
+    pub fn cached() -> Self {
+        miyu_store::root::cache_root(&miyu_store::env::Env::current())
+            .map(|root| Self::open(crate::core::cards_dir(&root)))
+            .unwrap_or_default()
+    }
+
     /// 照缓存文件（`<缓存目录>/cards.json`）读回以前要到的卡片；读不了的当空的。
     pub fn open(dir: PathBuf) -> Self {
         let file = dir.join("cards.json");

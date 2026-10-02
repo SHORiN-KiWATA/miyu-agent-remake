@@ -32,6 +32,7 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
         md: &app.md_cache,
         figures: &app.figures,
         cards: &app.cards,
+        diagrams: &app.diagrams,
         writing: app.transcript.writing().map(|e| e.id),
         frame: usize::try_from(app.started.elapsed().as_millis() / u128::from(spinner_ms))
             .unwrap_or(0),

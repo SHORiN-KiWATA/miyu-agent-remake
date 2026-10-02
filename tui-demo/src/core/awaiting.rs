@@ -37,6 +37,8 @@ pub(super) enum Awaiting {
     LinkPreview(String),
     /// 一段段读一个 blob：哪个、读回来的。
     Blob(String, Vec<u8>),
+    /// 画一张 mermaid 图：哪份源码。
+    Mermaid(String),
     /// `@` 文件列表问的：哪个词。
     Files(crate::mention::Word),
     /// 换模型：成了交给界面（引用）。

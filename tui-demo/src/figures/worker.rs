@@ -1,4 +1,4 @@
-//! 出图的后台线程（蓝图 `tui.md`「图片、公式和 mermaid 图」第 6 条）：读文件、出 SVG、栅格化、
+//! 出图的后台线程（蓝图 `tui.md`「图片、公式和 mermaid 图」第 6 条）：读文件、栅格化、
 //! 排公式、按终端的协议编码，一张张做，做好了经 `notify` 交回主循环。
 
 use std::panic::{self, AssertUnwindSafe};
@@ -29,7 +29,7 @@ pub struct Job {
     pub same: u64,
     /// 哪一种。
     pub kind: FigureKind,
-    /// 源码。
+    /// 源码；mermaid 是核心画好、换了主题色的 SVG。
     pub source: String,
     /// `<img>` 写的宽高（像素）。
     pub size: crate::markdown::Size,
@@ -39,7 +39,7 @@ pub struct Job {
     pub rows: u16,
     /// 公式的字色。
     pub math: (u8, u8, u8),
-    /// mermaid 图的颜色。
+    /// mermaid 图的颜色（点开看的大图垫的底）。
     pub diagram: DiagramColors,
 }
 
@@ -137,15 +137,13 @@ fn draw(
             file::draw(&job.source, job.size, cell, job.cols, max_rows, &look.fonts)?
         }
         FigureKind::Svg => svg::draw(&job.source, &look.fonts, cell, job.cols, max_rows)?,
+        // 源码是核心画好、换了主题色的 SVG（`diagrams.rs`）。
         FigureKind::Mermaid => {
-            let style = mermaid::Look {
-                colors: job.diagram,
-                fonts: &look.fonts,
-            };
-            let drawn = mermaid::draw(&job.source, &style, cell, job.cols, max_rows)?;
+            let drawn = svg::draw(&job.source, &look.fonts, cell, job.cols, max_rows)?;
             // 大图写不进缓存目录也不要紧：图照画，只是没有「点开看大图」那一行。
-            zoom = zoom_dir
-                .and_then(|dir| mermaid::zoom(&job.source, &style, dir, look.zoom_keep).ok());
+            zoom = zoom_dir.and_then(|dir| {
+                mermaid::zoom(&job.source, job.diagram.backdrop, dir, look.zoom_keep).ok()
+            });
             drawn
         }
         FigureKind::Math => math::draw(

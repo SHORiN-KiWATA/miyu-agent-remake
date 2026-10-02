@@ -36,8 +36,6 @@ base64 = "0.22"
 ratatui-image = { version = "11.1", default-features = false, features = ["crossterm"] }
 # 读图片文件：常见的四种，加上 bmp 和 grim 截图出的 ppm（两种都是小解码）。
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "pnm"] }
-# mermaid 出 SVG：设计 13 第九节定的库（旧版用的也是它）。不要它自带的命令行和 PNG 输出。
-mermaid-rs-renderer = { version = "0.3", default-features = false }
 # SVG 栅格化：按要显示的像素数一次渲到位。
 resvg = { version = "0.47", default-features = false, features = ["text", "system-fonts", "memmap-fonts"] }
 # 块级公式排成图：RaTeX，纯 Rust，带 KaTeX 字体（旧版用的也是它）。

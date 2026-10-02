@@ -47,7 +47,7 @@ impl App {
         }
         // 链接卡片、它的图回来了（`cards.rs`）。
         let mut held = Some(update);
-        if self.card_update(&mut held) {
+        if self.card_update(&mut held) || self.diagram_update(&mut held) {
             return;
         }
         let Some(update) = held else {

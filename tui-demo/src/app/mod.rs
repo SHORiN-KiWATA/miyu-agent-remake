@@ -3,6 +3,7 @@
 mod cards;
 mod compose;
 mod deadline;
+mod diagrams;
 mod drawer;
 mod effort;
 mod jobs;
@@ -141,6 +142,8 @@ pub struct App {
     pub model_list: Option<crate::model_list::ModelList>,
     /// 链接卡片的账：排正文时记下要的卡片、图，主循环每一帧以后发（`cards.rs`）。
     pub cards: std::cell::RefCell<crate::link_cards::LinkCards>,
+    /// mermaid 图的账：排正文时记下要画的，主循环每一帧以后交给核心（`diagrams.rs`）。
+    pub diagrams: std::cell::RefCell<crate::diagrams::Diagrams>,
     /// `/effort` 框里那个模型的几级；还没交回来的是 `None`（`effort.rs`）。
     pub efforts: Option<crate::core::Efforts>,
     /// 确认和提问的抽屉：现在这一个和排着的（蓝图「确认和提问的抽屉」）。
@@ -288,11 +291,8 @@ impl App {
             session_list: None,
             model_list: None,
             efforts: None,
-            cards: std::cell::RefCell::new(
-                miyu_store::root::cache_root(&miyu_store::env::Env::current())
-                    .map(|root| crate::link_cards::LinkCards::open(crate::core::cards_dir(&root)))
-                    .unwrap_or_default(),
-            ),
+            cards: std::cell::RefCell::new(crate::link_cards::LinkCards::cached()),
+            diagrams: std::cell::RefCell::default(),
             drawers: Drawers::default(),
             drawer_rows: Vec::new(),
             caret: crate::caret::Caret::default(),
@@ -450,6 +450,7 @@ impl App {
     pub fn tick(&mut self) {
         self.advance_jobs();
         self.send_card_asks();
+        self.send_diagram_asks();
         self.renumber_attachments();
         // 压缩那一行的进度条追一下（`tui.md`「正文」第 9 条）。
         let layout = &self.config.layout;

@@ -334,6 +334,8 @@ async fn take(
             Some(Awaiting::Efforts) => notify(Update::Efforts(super::EffortList::default())),
             Some(Awaiting::LinkPreview(url)) => notify(Update::LinkCard { url, card: None }),
             Some(Awaiting::Blob(blob, _)) => notify(Update::BlobSaved { blob, path: None }),
+            // 画不出、太长、核心没编进 mermaid（`unknown_method`）：写源码。
+            Some(Awaiting::Mermaid(source)) => notify(Update::Mermaid { source, svg: None }),
             Some(Awaiting::Files(word)) => notify(Update::Files { word, result: None }),
             // 切过去订阅不上（会话删了、日志坏了）：不再当它在补发，照一般的拒绝说。
             Some(Awaiting::Replay(session)) => {
@@ -384,6 +386,10 @@ async fn take(
         Some(Awaiting::LinkPreview(url)) => {
             let card = super::links::card(&message["result"]);
             return notify(Update::LinkCard { url, card });
+        }
+        Some(Awaiting::Mermaid(source)) => {
+            let svg = super::mermaid::read(&message["result"]);
+            return notify(Update::Mermaid { source, svg });
         }
         Some(Awaiting::Blob(blob, got)) => {
             return super::links::chunk(rpc, blob, got, &message["result"], awaiting, notify).await;

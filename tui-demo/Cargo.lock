@@ -2069,7 +2069,6 @@ dependencies = [
  "base64 0.22.1",
  "image",
  "jiff",
- "mermaid-rs-renderer",
  "miyu-core",
  "miyu-endpoint",
  "miyu-ipc",

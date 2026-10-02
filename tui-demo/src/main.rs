@@ -10,6 +10,7 @@ mod commands;
 mod config;
 mod core;
 mod crash;
+mod diagrams;
 mod diff;
 mod drawer;
 mod editor;

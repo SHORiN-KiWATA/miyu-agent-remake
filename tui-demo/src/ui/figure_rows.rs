@@ -11,8 +11,9 @@ use ratatui_image::sliced::{SignedPosition, SlicedImage};
 
 use super::row_cache::Rows;
 use super::rows::{Ctx, FigureCell, Row, md_row};
+use crate::diagrams::{self, Asked};
 use crate::figures::{self, Figures, Look};
-use crate::markdown::Figure;
+use crate::markdown::{Figure, FigureKind};
 use crate::theme;
 
 /// 一张图排成的行。`lead` 是这一行前面的引子（列表缩进、引用的竖线），图接在它后面。
@@ -25,13 +26,16 @@ pub fn rows(lead: Vec<Span<'static>>, figure: &Figure, ctx: &Ctx) -> Vec<Row> {
     // 最多多大照这一种图的比例（图片最多三分之一屏、正文宽的六成，蓝图第 3 条）。
     let (cols, rows) =
         figures::room(&ctx.config.figures, figure.kind).fit(text_cols, ctx.screen_rows);
-    let look = ctx.figures.borrow_mut().look(
-        figure.kind,
-        &figure.source,
-        (figure.width, figure.height),
-        cols,
-        rows,
-    );
+    let look = match figure.kind {
+        FigureKind::Mermaid => diagram(&figure.source, ctx, cols, rows),
+        kind => ctx.figures.borrow_mut().look(
+            kind,
+            &figure.source,
+            (figure.width, figure.height),
+            cols,
+            rows,
+        ),
+    };
     match look {
         Look::Unsupported | Look::Failed => figure
             .fallback
@@ -61,6 +65,22 @@ pub fn rows(lead: Vec<Span<'static>>, figure: &Figure, ctx: &Ctx) -> Vec<Row> {
             out
         }
     }
+}
+
+/// mermaid 图：SVG 由核心画（蓝图第 4 条），没回来是在做，核心拒了的写源码；回来了换成主题色交给后台栅格化。
+/// 终端显示不了图的不问核心。
+fn diagram(source: &str, ctx: &Ctx, cols: u16, rows: u16) -> Look {
+    if !ctx.figures.borrow().shows() {
+        return Look::Unsupported;
+    }
+    let svg = match ctx.diagrams.borrow_mut().diagram(source) {
+        Asked::Waiting => return Look::Pending,
+        Asked::Refused => return Look::Failed,
+        Asked::Got(rendered) => diagrams::paint(rendered, theme::diagram_rgb()),
+    };
+    ctx.figures
+        .borrow_mut()
+        .look(FigureKind::Mermaid, &svg, (None, None), cols, rows)
 }
 
 /// 图下面那一行暗色的「点开看大图」，整行是一个链接，复制时不带（蓝图第 4 条）。
@@ -168,6 +188,7 @@ mod tests {
         let human = Human::default();
         let md = RefCell::new(MdCache::new(8));
         let cards = RefCell::default();
+        let book = RefCell::default();
         let ctx = |figures| Ctx {
             config: &config,
             human: &human,
@@ -178,6 +199,7 @@ mod tests {
             md: &md,
             figures,
             cards: &cards,
+            diagrams: &book,
             writing: None,
             level: Level::Workspace,
             screen_rows: 40,
@@ -227,6 +249,75 @@ mod tests {
         );
     }
 
+    #[test]
+    fn a_mermaid_diagram_waits_for_the_core_then_draws_and_a_refusal_is_source() {
+        let config = Config::builtin().unwrap();
+        let human = Human::default();
+        let md = RefCell::new(MdCache::new(8));
+        let book = RefCell::new(crate::diagrams::Diagrams::default());
+        let mut picker = Picker::halfblocks();
+        picker.set_protocol_type(ProtocolType::Kitty);
+        let (sender, done) = mpsc::channel();
+        let figures = RefCell::new(Figures::start(
+            Some(Graphics { picker }),
+            &config.figures,
+            None,
+            move |d| sender.send(d).is_ok(),
+        ));
+        let ctx = Ctx {
+            config: &config,
+            human: &human,
+            indent: String::new(),
+            width: 60,
+            hover: None,
+            frame: 0,
+            md: &md,
+            figures: &figures,
+            cards: &RefCell::default(),
+            diagrams: &book,
+            writing: None,
+            level: Level::Workspace,
+            screen_rows: 40,
+        };
+        let graph = figure(&config, "```mermaid\ngraph TD\nA-->B\n```");
+        // 没回来：一行占位，单子上有这份源码，只问一次。
+        let pending = std::slice::from_ref(&config.text.figure_pending);
+        assert_eq!(plain(&rows(Vec::new(), &graph, &ctx)), pending);
+        assert_eq!(plain(&rows(Vec::new(), &graph, &ctx)), pending);
+        assert_eq!(
+            book.borrow_mut().take(),
+            std::slice::from_ref(&graph.source)
+        );
+        // 核心拒了（画不出、没编进 mermaid）：照代码块写源码。
+        let bad = figure(&config, "```mermaid\n坏的\n```");
+        rows(Vec::new(), &bad, &ctx);
+        assert_eq!(book.borrow_mut().take(), std::slice::from_ref(&bad.source));
+        book.borrow_mut().got(bad.source.clone(), None);
+        assert_eq!(
+            plain(&rows(Vec::new(), &bad, &ctx)),
+            plain(
+                &bad.fallback
+                    .iter()
+                    .map(|l| crate::ui::rows::md_row(l.clone(), &ctx))
+                    .collect::<Vec<_>>()
+            )
+        );
+        // 回来了：换好色交给后台，画成几行图。
+        let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="80"><rect x="1" y="1" width="198" height="78" fill="none" stroke="#040506"/><text x="10" y="40" fill="#010203">A</text></svg>"##;
+        let marks = crate::core::Marks {
+            label: "#070809".to_string(),
+            line: "#040506".to_string(),
+            text: "#010203".to_string(),
+        };
+        let rendered = crate::core::Rendered {
+            svg: svg.to_string(),
+            marks,
+        };
+        book.borrow_mut().got(graph.source.clone(), Some(rendered));
+        assert!(drawn_rows(&graph, &ctx, &done) >= 1);
+        assert!(!book.borrow().pending(), "回来过的不再问");
+    }
+
     /// 等后台做好这一张，交回占几行。
     fn drawn_rows(
         figure: &Figure,
@@ -269,6 +360,7 @@ mod tests {
             md: &md,
             figures: &figures,
             cards: &RefCell::default(),
+            diagrams: &RefCell::default(),
             writing: None,
             level: Level::Workspace,
             screen_rows: 45,

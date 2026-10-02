@@ -234,7 +234,8 @@ impl Transcript {
             | Update::Files { .. }
             | Update::Efforts(_)
             | Update::LinkCard { .. }
-            | Update::BlobSaved { .. } => {}
+            | Update::BlobSaved { .. }
+            | Update::Mermaid { .. } => {}
             Update::Failed(reason) => {
                 self.link = Link::Down(texts.core_failed.replace("{reason}", &reason));
             }

@@ -24,6 +24,11 @@ pub(super) fn request(command: &Command) -> Option<(&'static str, Value, Option<
             json!({"url": url}),
             Some(Awaiting::LinkPreview(url.clone())),
         ),
+        Command::RenderMermaid(source) => (
+            "mermaid.render",
+            json!({"source": source}),
+            Some(Awaiting::Mermaid(source.clone())),
+        ),
         Command::ListEfforts => ("model.list", json!({}), Some(Awaiting::Efforts)),
         Command::SetEffort { key, level } => (
             "config.set",

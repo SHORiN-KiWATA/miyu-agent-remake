@@ -167,6 +167,11 @@ impl Figures {
         ready.unwrap_or(Look::Pending)
     }
 
+    /// 终端能不能显示图：不能的 mermaid 不用问核心，直接写源码。
+    pub fn shows(&self) -> bool {
+        self.jobs.is_some()
+    }
+
     /// 做好的一张占几列；没做好的是 `None`。
     pub fn cols(&self, key: u64) -> Option<u16> {
         match self.slots.get(&key) {

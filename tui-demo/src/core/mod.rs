@@ -15,6 +15,7 @@ mod efforts;
 mod kinds;
 mod limits;
 mod links;
+mod mermaid;
 mod models;
 mod output;
 mod push;
@@ -38,6 +39,7 @@ pub use efforts::{EffortList, Efforts};
 pub use kinds::{EndReason, Level, ToolStatus};
 pub use limits::Limits;
 pub use links::{Card, blob_path, cards_dir};
+pub use mermaid::{Marks, Rendered};
 pub use models::{Choice, ChoiceState, Current};
 pub use output::JobOutput;
 pub use push::{Block, CallError, Compaction, JobEnd, JobReason, JobStart, Push, Sender, Usage};
@@ -97,6 +99,8 @@ pub enum Command {
     LinkPreview(String),
     /// 读回一个 blob 存成文件（卡片的封面图、图标；`blob.get`，核心 W-6）。
     FetchBlob(String),
+    /// 把一张 mermaid 图的源码交给核心画成 SVG（`mermaid.render`，核心 W-4）。
+    RenderMermaid(String),
     /// 手动换的模型也记成新会话的默认：写个人设置的 `models.chat`（2026-10-02 项目主人定，`models.md`「头的约定」）。
     SetChat(String),
     /// `/effort` 要的：每个模型有哪几级、配置的默认、配置键（`model.list`，核心 8-18 补）。
@@ -201,6 +205,13 @@ pub enum Update {
         blob: String,
         /// 存在哪。
         path: Option<std::path::PathBuf>,
+    },
+    /// 一张 mermaid 图画好了（[`Command::RenderMermaid`]）；核心拒了、没编进 mermaid 的是 `None`。
+    Mermaid {
+        /// 源码。
+        source: String,
+        /// 画好的。
+        svg: Option<Rendered>,
     },
     /// `/effort` 框里的几级（[`Command::ListEfforts`] 的回应）；要不到的是空的。
     Efforts(EffortList),

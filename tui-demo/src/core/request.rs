@@ -72,6 +72,7 @@ pub(super) fn request(
         | Command::SetChat(_)
         | Command::LinkPreview(_)
         | Command::FetchBlob(_)
+        | Command::RenderMermaid(_)
         | Command::SetEffort { .. }
         | Command::Output { .. } => {
             return None;
