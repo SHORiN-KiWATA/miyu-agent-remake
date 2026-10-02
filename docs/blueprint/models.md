@@ -489,7 +489,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 
 #### 驱动要守的约定（给 8-12、8-13）
 
-两个新驱动的内部另画一页，这里是它们对外要做到的。openai-chat 在 8-6、8-7 补上了第 2、3、7 条（`drivers/openai-chat.md`）。
+两个新驱动的内部另画一页（`drivers/anthropic.md`、`drivers/openai-responses.md`，2026-10-02 起草），这里是它们对外要做到的。openai-chat 在 8-6、8-7 补上了第 2、3、7 条（`drivers/openai-chat.md`）。
 
 1. 同一个 `Driver` 接口：`family`、`blobs_needed`、`encode`、`decoder`、`classify`，编码、解码、分类是纯函数（`05-内核接口.md` 第七节）。
 2. **认证头**（8-6 加进接口）：`auth(key)` 交回要带的头。openai-chat、openai-responses 是 `Authorization: Bearer <key>`，Anthropic 是 `x-api-key`，再加它要的版本头。没有 key 的不带。HTTP 执行器照它写，不再自己写 Bearer（`http.md`）。
@@ -708,7 +708,7 @@ opencode Zen 的免费模型只放行 opencode 自己的客户端：流式、工
    - 有这两件的会话（平常的终端会话）什么都不补，请求和别家一样。
    - 补不补照这家冻结的配置定，一个会话在这家上的工具面每次都一样，前缀不受影响。
    - 她真调了占位的那件：内核的工具规则里没有它（快照的工具面里没有），照没有这件工具处理（`kernel/tools.md`），不会多出权限。
-3. **哪一步做**：8-14 做档案里的这两样、HTTP 的模板、占位工具、请求形状探针多一张 Zen 的脸（`docs/designs/samples/probe/zen/`：没有 shell 的会话，补了两件占位）。真端点实测：免费模型不再 403。
+3. **哪一步做**：8-14 做档案里的这两样、HTTP 的模板、占位工具、请求形状探针多一张 Zen 的脸（`docs/designs/samples/probe/zen/`：没有 shell 的会话，补了两件占位）。真端点实测：免费模型不再 403。驱动这边要做的另一半（一家里的模型各走各的驱动、思考照目录的 `interleaved` 回传）见 `drivers/openai-chat.md`「接 opencode Zen」（2026-10-02 起草）。
 
 **九、用量和金额**（8-15）
 
