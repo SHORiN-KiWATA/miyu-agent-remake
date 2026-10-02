@@ -2,7 +2,7 @@
 //! 第 19、20 条，`mermaid.md`「怎么走」，施工 W-4）。加一个包只在这里多登记一行，不改端点的中心逻辑；没编
 //! 进来的包，它的方法压根不在这张表里，端点照 `unknown_method` 处理（`queries.rs`）。
 //!
-//! 现在只有 `mermaid`（发行版默认打开）。`net`（W-7）照它的样子加。
+//! 现在有 `mermaid`（施工 W-4）、`net`（施工 W-7，`net.md`，`packages/net.rs`），发行版都默认打开。
 //!
 //! [`clear_uploads`]：核心起来时清掉管理员分块上传留下的暂存（施工 W-5，`web-module.md`「怎么走」第六条第 6
 //! 款）。和可选软件包无关，放在这里是因为两件事都是「核心起来时做一次的登记、收拾」。
@@ -13,12 +13,17 @@ use miyu_store::blob::Blobs;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
-/// 照编进来的包往一张新的查询表里登记，交给 [`miyu_endpoint::Core::with_queries`]。
-pub fn register(resources: &ResourceRoot) -> Queries {
+/// 照编进来的包往一张新的查询表里登记，交给 [`miyu_endpoint::Core::with_queries`]。`root`、`admin`：`net` 抓到的
+/// 卡片的图存进这个账号的 blob（现在连上来的都是管理员，`net.md`「起草时定的」第 9 条）。
+pub fn register(resources: &ResourceRoot, root: &DataRoot, admin: &AccountId) -> Queries {
     let queries = Queries::new();
     #[cfg(feature = "mermaid")]
     let queries = mermaid::register(resources, queries);
-    #[cfg(not(feature = "mermaid"))]
+    #[cfg(feature = "net")]
+    let queries = net::register(resources, Blobs::new(root.blobs(admin)), queries);
+    #[cfg(not(feature = "net"))]
+    let _ = (root, admin);
+    #[cfg(not(any(feature = "mermaid", feature = "net")))]
     let _ = resources;
     queries
 }
@@ -38,6 +43,9 @@ pub fn clear_uploads(root: &DataRoot, admin: &AccountId) {
         }
     }
 }
+
+#[cfg(feature = "net")]
+mod net;
 
 #[cfg(feature = "mermaid")]
 mod mermaid {

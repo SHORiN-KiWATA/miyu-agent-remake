@@ -1,0 +1,42 @@
+[package]
+name = "miyu-net"
+description = "可选软件包 net：去抓别人家的网页做成链接卡片，地址闸、钉地址、代理、跳转、元数据、认图（施工 W-7，net.md）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# 卡片的图存成这个账号的 blob，回应里写内容哈希。
+miyu-kernel = { path = "../miyu-kernel" }
+miyu-store = { path = "../miyu-store" }
+# 发请求：和 miyu-http 同一个库、同一套功能（TLS 用 rustls，证书认系统的和 webpki 自带的两份，不依赖 OpenSSL）。
+# 跳转自己跟、每一跳钉住解析好的地址，都要它的 `ClientBuilder`。MIT 或 Apache-2.0。
+reqwest = { version = "0.12", default-features = false, features = ["http2", "rustls-tls-native-roots", "rustls-tls-webpki-roots"] }
+# 这一跳走不走代理：reqwest 自己照环境变量走代理用的就是它的 `Matcher`，`NO_PROXY` 的读法和请求模型一字不差
+# （net.md「起草时定的」第 1 条）。本来就在依赖图里（reqwest 带进来的）。MIT。
+hyper-util = { version = "0.1", default-features = false, features = ["client-proxy"] }
+# `Matcher` 收的地址是 `http::Uri`。本来就在依赖图里。MIT 或 Apache-2.0。
+http = "1"
+# 读 link_preview.json。
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# 解析主机名、每一跳的时限、存 blob 放进阻塞线程、图和图标一起抓。
+tokio = { version = "1", features = ["macros", "net", "rt", "time"] }
+# 运行日志：`WARN link preview failed`（net.md「出错」）。
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+
+[features]
+# 测试用的口子（`src/testkit.rs`）：回环当公网、只照给的一张表解析、代理照给的值。只在测试里打开：这个包自己的
+# 测试经下面那一行打开，生产的构建里没有这段代码（net.md「起草时定的」第 3 条）。
+testkit = []
+
+[dev-dependencies]
+# 自己的集成测试用上测试的口子。
+miyu-net = { path = ".", features = ["testkit"] }
+# 测试里本机的假服务器、假代理。
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt", "rt-multi-thread", "sync", "time"] }
+
+[lints]
+workspace = true

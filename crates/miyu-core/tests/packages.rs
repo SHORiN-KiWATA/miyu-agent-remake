@@ -9,6 +9,10 @@
 //! `crates/miyu-endpoint/src/queries.rs` 的 `an_unregistered_method_is_not_found`，那边直接测表；这里走一遍
 //! 真协议，确认端点真的把它翻成了 `unknown_method`）。
 //!
+//! `link.preview`（施工 W-7，`net.md`）：登记了的不碰网络就答得出的几种（读不成地址、参数不对）；在后台答的查询
+//! 不挡这个连接后面的请求、连接断了跟着停（用两个测试的查询，不连网）。真的抓在 `crates/miyu-net/tests/`，真的核心、
+//! 环境变量里的代理在 `crates/miyu/tests/link_preview.rs`。
+//!
 //! [`clear_uploads`] 也在这个文件（施工 W-5）：和 `register` 一样是「核心起来时做一次」的登记、收拾，不走真
 //! 核心的接连接那一段，直接调这个函数——真正分块写、写不满就拒这些行为，`crates/miyu-endpoint/tests/uploads.rs`
 //! 已经测过了（`blob.open`、`blob.write`、`blob.close`），这里只管「起来时清掉上一回留下的」这一步真的接进了
@@ -57,14 +61,103 @@ async fn an_unregistered_method_is_unknown_method() {
         )
         .await;
     assert_eq!(reply["error"]["data"]["reason"], "unknown_method");
+    let reply = head
+        .call("q2", "link.preview", json!({"url": "not a url"}))
+        .await;
+    assert_eq!(reply["error"]["data"]["reason"], "unknown_method");
     drop(head);
+    running.abort();
+}
+
+#[tokio::test]
+async fn link_preview_is_registered_and_answers_without_the_network() {
+    let home = Home::new();
+    let queries = miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin());
+    let (running, mut head) = running_core(&home, queries).await;
+    for (url, why) in [
+        ("not a url", "not_a_url"),
+        ("  ftp://example.com/  ", "unsupported_scheme"),
+        ("javascript:alert(1)", "unsupported_scheme"),
+    ] {
+        let reply = head.call("p1", "link.preview", json!({"url": url})).await;
+        assert_eq!(reply["result"], json!({"card": null, "why": why}), "{url}");
+    }
+    for params in [json!({}), json!({"url": 5}), json!(["http://example.com/"])] {
+        let reply = head.call("p2", "link.preview", params.clone()).await;
+        assert_eq!(reply["error"]["data"]["reason"], "bad_params", "{params}");
+    }
+    drop(head);
+    running.abort();
+}
+
+#[tokio::test]
+async fn a_background_query_does_not_hold_up_the_next_request() {
+    let home = Home::new();
+    let gate = Arc::new(tokio::sync::Notify::new());
+    let opened = Arc::clone(&gate);
+    let queries = Queries::new()
+        .register_background("probe.slow", move |_core, _params| {
+            let opened = Arc::clone(&opened);
+            async move {
+                opened.notified().await;
+                Ok(json!({"slow": true}))
+            }
+        })
+        .register("probe.fast", |_core, _params| async move {
+            Ok(json!({"fast": true}))
+        });
+    let (running, mut head) = running_core(&home, queries).await;
+    head.send("s1", "probe.slow", json!({})).await;
+    // 慢的还没答，后面的先回来
+    let fast = head.call("f1", "probe.fast", json!({})).await;
+    assert_eq!(fast["result"], json!({"fast": true}));
+    gate.notify_one();
+    let slow = head.next_reply().await;
+    assert_eq!(slow["id"], "s1", "回应照 id 对上");
+    assert_eq!(slow["result"], json!({"slow": true}));
+    drop(head);
+    running.abort();
+}
+
+/// 丢掉时说一声：在后台答的任务被停下了。
+struct Dropped(Option<tokio::sync::oneshot::Sender<()>>);
+
+impl Drop for Dropped {
+    fn drop(&mut self) {
+        if let Some(said) = self.0.take() {
+            let _sent = said.send(());
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_background_query_stops_when_its_connection_goes() {
+    let home = Home::new();
+    let (started_tx, started) = tokio::sync::oneshot::channel::<()>();
+    let (dropped_tx, dropped) = tokio::sync::oneshot::channel::<()>();
+    let hooks = Arc::new(std::sync::Mutex::new(Some((started_tx, dropped_tx))));
+    let queries = Queries::new().register_background("probe.hang", move |_core, _params| {
+        let hooks = hooks.lock().unwrap().take();
+        async move {
+            let (started_tx, dropped_tx) = hooks.expect("只调一次");
+            let _guard = Dropped(Some(dropped_tx));
+            let _sent = started_tx.send(());
+            std::future::pending::<()>().await;
+            Ok(json!({}))
+        }
+    });
+    let (running, mut head) = running_core(&home, queries).await;
+    head.send("h1", "probe.hang", json!({})).await;
+    within("后台的任务开始了", started).await.unwrap();
+    drop(head);
+    within("连接断了，后台的任务跟着停", dropped).await.unwrap();
     running.abort();
 }
 
 #[tokio::test]
 async fn the_real_core_draws_a_flowchart_and_a_sequence_diagram() {
     let home = Home::new();
-    let queries = miyu_core::packages::register(&resources());
+    let queries = miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin());
     let (running, mut head) = running_core(&home, queries).await;
     for (name, source) in [
         (
@@ -100,7 +193,7 @@ async fn the_real_core_draws_a_flowchart_and_a_sequence_diagram() {
 #[tokio::test]
 async fn an_empty_source_is_bad_params() {
     let home = Home::new();
-    let queries = miyu_core::packages::register(&resources());
+    let queries = miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin());
     let (running, mut head) = running_core(&home, queries).await;
     let reply = head
         .call("q1", "mermaid.render", json!({"source": "   "}))
@@ -113,7 +206,7 @@ async fn an_empty_source_is_bad_params() {
 #[tokio::test]
 async fn a_source_over_the_limit_is_mermaid_too_long() {
     let home = Home::new();
-    let queries = miyu_core::packages::register(&resources());
+    let queries = miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin());
     let (running, mut head) = running_core(&home, queries).await;
     // 真的 style.json 里 max_source 是 65536（64 KiB）。
     let source = "x".repeat(65537);
@@ -128,7 +221,7 @@ async fn a_source_over_the_limit_is_mermaid_too_long() {
 #[tokio::test]
 async fn an_unparseable_source_is_mermaid_failed_with_the_library_detail() {
     let home = Home::new();
-    let queries = miyu_core::packages::register(&resources());
+    let queries = miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin());
     let (running, mut head) = running_core(&home, queries).await;
     let reply = head
         .call(
@@ -149,7 +242,7 @@ async fn an_unparseable_source_is_mermaid_failed_with_the_library_detail() {
 #[tokio::test]
 async fn the_same_source_twice_gets_the_same_svg() {
     let home = Home::new();
-    let queries = miyu_core::packages::register(&resources());
+    let queries = miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin());
     let (running, mut head) = running_core(&home, queries).await;
     let params = json!({"source": "flowchart TD\nA-->B"});
     let first = head.call("q1", "mermaid.render", params.clone()).await;
