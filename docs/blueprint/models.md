@@ -756,7 +756,7 @@ opencode Zen 的免费模型只放行 opencode 自己的客户端：流式、工
 5. **空闲超时**：照这一次的一档放大，`high` 2 倍、`xhigh` 3 倍、`max` 4 倍，别的（连同 `off`、`on`、没有）照基数 180 秒（`15-模型与供应商.md` 第五节）。
 6. **头看得到**：`model.list` 的 `facts.effort` 是配置的默认，多一格 `key`（这一项完整的配置键名，模型名带点的加好引号，例如 `providers.dev.models."deepseek-v4.1-flash".effort`）；`subscribe`、`model.changed` 的 `effort` 是接下来那个模型照第 3 条算的，`from` 是配置的哪一层（`system` 或 `personal`，照 `config.get` 说的来源），轮换的池没有单一的模型，不带。回合开始重新解析完，强度变了也推 `model.changed`（`why` 是 `turn`）。
 7. **不出提示**：换模型、换强度都没有给模型看的字，也不另推提示；头当场改底栏。核心只给数据。
-8. **头的约定**：选强度照抄 `facts.effort.key` 发 `config.set`（写个人设置）；选「默认」发 `config.set` 的 `unset: true`，删掉这一项。换模型照旧发 `session.configure {model}`（换模型的会话那一层还留着：子代理、不同的任务、池、`miyu ask --model` 都靠它，不属于这一步）；要不要同时记成新会话的默认，项目主人还没定，现在只换当前会话。
+8. **头的约定**：选强度照抄 `facts.effort.key` 发 `config.set`（写个人设置）；选「默认」发 `config.set` 的 `unset: true`，删掉这一项。换模型照旧发 `session.configure {model}`（换模型的会话那一层还留着：子代理、不同的任务、池、`miyu ask --model` 都靠它）。**人在头上手动选的模型也成为新会话的默认**（2026-10-02 项目主人定，终端界面转来）：头在发 `session.configure {model}` 的同时，发 `config.set {layer: "personal", changes: [{key: "models.chat", value: <引用>}]}`，引用写模型或 `@池` 都行（`models.chat` 收池）。由头做、不由核心做（主会话定）：`session.configure` 只管会话，写配置只走 `config.set` 一条路。`miyu ask --model` 是单次命令的参数，不算手动选，不改默认。终端界面、网页照同一条做。
 
 **十二、模型调用口**（8-20；2026-10-01 项目主人定：里面统一、入口分两种）
 
