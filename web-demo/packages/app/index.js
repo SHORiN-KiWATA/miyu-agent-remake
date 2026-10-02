@@ -28,7 +28,7 @@ export function apply(ctx) {
     open: (id) => app.open(id),
     /** 正在看的会话在不在回答；打断它（照两下 `Esc`） */
     running: () => !!app.composer.running,
-    /** 家目录（`web.info`）：路径写成 `~` 用 */
+    /** 家目录（握手回应的 `host.home`）：路径写成 `~` 用 */
     home: () => app.home,
     interrupt: () => app.interrupt(),
     /** 正文末尾（挂载位 `chat.tail`）来了新的：回到跟着最新的、露出它 */

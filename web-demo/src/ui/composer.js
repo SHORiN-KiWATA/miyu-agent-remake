@@ -25,6 +25,7 @@ import { fit } from '../model/footer.js';
 import { read } from '../model/commands.js';
 import { CommandList } from './commands.js';
 import { Picker } from './picker.js';
+import { SessionList } from './session-list.js';
 import { ModelMenu } from './model-menu.js';
 import { HistoryList } from './history.js';
 import { MentionList } from './mention.js';
@@ -91,6 +92,8 @@ export class Composer {
     /** 翻输入历史（蓝图「输入历史」） */
     this.recall = new Recall(on.history.load());
     this.historyList = new HistoryList({ choose: (item) => this.chosen(item), closed: () => this.input.focus() });
+    /** 会话列表（`/sessions`，蓝图「会话列表」）：数据、打开一个由整页给 */
+    this.sessionList = new SessionList({ ...on.sessions, closed: () => this.input.focus() });
     /** `@` 选文件（蓝图「`@` 选文件」）：现在的词（`key` 是位置加字）、`Esc` 关掉的那个词、问到第几次（旧的回来了不要） */
     this.mention = new MentionList({ pick: (entry, how) => this.pickFile(entry, how), dismiss: () => this.dismissMention() });
     this.mentionAt = /** @type {{start: number, end: number, word: string, key: string}|null} */ (null);
@@ -115,7 +118,7 @@ export class Composer {
     this.stashed = /** @type {import('../model/stash.js').Draft|null} */ (null);
     this.stashMark = h('span.composer-stash', { hidden: true, title: t('stash.hint') }, t('stash.mark'));
     this.field = h('div.composer-field', this.backdrop, this.input, this.stashMark);
-    this.box = h('div.composer', this.notice, this.jumpButton, this.takeoverEl, this.head, this.field, this.bar = h('div.composer-bar', this.tools, this.sendButton), this.menu.el, this.picker.el, this.historyList.el, this.mention.el, this.float);
+    this.box = h('div.composer', this.notice, this.jumpButton, this.takeoverEl, this.head, this.field, this.bar = h('div.composer-bar', this.tools, this.sendButton), this.menu.el, this.picker.el, this.historyList.el, this.sessionList.el, this.mention.el, this.float);
     this.el = h('div.composer-dock', this.box, this.footer);
     this.parts = /** @type {{key: string, text: string}[]} */ ([]);
     /** 撤销时放回框里的那句：恢复时还没动过的收回去（`tui.md`「输入框」第 7 条）。 */
@@ -452,6 +455,15 @@ export class Composer {
     this.historyList.show(this.recall.items);
   }
 
+  /** `/sessions`：开会话列表（和命令列表、选语言、输入历史列表不同时开），带着 `/sessions 词` 的词搜。 */
+  openSessions(query = '') {
+    this.picker.close();
+    this.historyList.close();
+    this.menu.menu.dismiss(this.input.value);
+    this.menu.update(this.input.value);
+    this.sessionList.show(query.trim());
+  }
+
   /** 列表里选定了一条：放进框里，带的附件回到框里、留下；框里原来有字的记进输入历史，不丢。 */
   chosen(item) {
     const had = this.input.value;
@@ -470,7 +482,7 @@ export class Composer {
   syncMention() {
     const el = this.input;
     const w = el.selectionStart === el.selectionEnd ? wordAt(el.value, el.selectionStart) : null;
-    if (!w || this.menu.open || this.historyList.open) {
+    if (!w || this.menu.open || this.historyList.open || this.sessionList.open) {
       if (!w) this.mentionDismissed = null;
       this.mentionAt = null;
       this.mentionSeq += 1;

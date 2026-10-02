@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadRes } from './support.js';
-import { menuOf, footerOf, effortLevels, effortRows, effortLabel } from '../src/model/model-menu.js';
+import { menuOf, footerOf, effortLevels, effortRows, effortLabel, effortOf, effortChange, defaultModelChange } from '../src/model/model-menu.js';
 
 loadRes();
 
@@ -17,10 +17,9 @@ const LIST = {
     { id: 'anthropic', models: [model('anthropic', 'claude-sonnet-5', { state: 'no_key' })] },
   ],
   pools: [
-    { name: 'duo', strategy: 'pin', models: ['bigmodel/glm-5.3-flash', 'dev/cline-pass/deepseek-v4.1-flash'] },
-    { name: 'spread', strategy: 'rotate', models: ['dev/deepseek-v4-pro'] },
+    { name: 'duo', strategy: 'pin', models: ['bigmodel/glm-5.3-flash', 'dev/cline-pass/deepseek-v4.1-flash'], subagent: true, description: 'Two fast models.' },
+    { name: 'spread', strategy: 'rotate', models: ['dev/deepseek-v4-pro'], subagent: false, description: '' },
   ],
-  tiers: { lite: null, cheap: 'dev/cline-pass/deepseek-v4.1-flash', standard: null, flagship: null },
   uses: { chat: 'dev/cline-pass/deepseek-v4.1-flash', vision: null },
 };
 
@@ -73,4 +72,37 @@ test('思考强度的子菜单：默认一直有，别的只列这个模型有�
   assert.deepEqual(effortRows([], null).map((r) => r.title), ['默认'], '一档都没报的：只有默认');
   assert.equal(effortLabel('xhigh'), '更高');
   assert.equal(effortLabel(null), '默认');
+});
+
+test('现在那一档照 model.list 的 facts.effort：个人设置里写了的（来源是配置的 personal 那一层）照写；系统配置的、没写的就是默认；键名照抄核心给的', () => {
+  const list = { providers: [{ id: 'dev', models: [
+    model('dev', 'mine', { facts: { effort: { value: 'high', from: 'config', layer: 'personal', file: 'home/admin/settings.toml', line: 4, key: 'providers.dev.models.mine.effort' } } }),
+    model('dev', 'sys', { facts: { effort: { value: 'low', from: 'config', layer: 'system', file: 'system/config.toml', line: 9, key: 'providers.dev.models.sys.effort' } } }),
+    model('dev', 'none', { facts: { effort: { value: null, from: 'default', key: 'providers.dev.models."v4.1".effort' } } }),
+    model('dev', 'old'),
+  ] }] };
+  assert.deepEqual(effortOf(list, 'dev/mine'), { level: 'high', key: 'providers.dev.models.mine.effort' });
+  assert.deepEqual(effortOf(list, 'dev/sys'), { level: null, key: 'providers.dev.models.sys.effort' });
+  assert.deepEqual(effortOf(list, 'dev/none'), { level: null, key: 'providers.dev.models."v4.1".effort' });
+  assert.deepEqual(effortOf(list, 'dev/old'), { level: null, key: null }, '核心没给键名的：选不了');
+  assert.deepEqual(effortOf(list, '@duo'), { level: null, key: null });
+  assert.deepEqual(effortOf(null, 'dev/mine'), { level: null, key: null });
+});
+
+test('选了一档写进个人设置（config.set）；选默认的删掉个人这一项', () => {
+  assert.deepEqual(effortChange('providers.dev.models.mine.effort', 'off'),
+    { layer: 'personal', changes: [{ key: 'providers.dev.models.mine.effort', value: 'off' }] });
+  assert.deepEqual(effortChange('providers.dev.models.mine.effort', null),
+    { layer: 'personal', changes: [{ key: 'providers.dev.models.mine.effort', unset: true }] });
+});
+
+test('开发端点那个 DeepSeek 的档位（off、low、high、max）；目录里叫 default 的那一档照原样写', () => {
+  assert.deepEqual(effortRows(['off', 'low', 'high', 'max'], null).map((r) => r.title), ['关', '默认', '低', '高', '最高']);
+  assert.deepEqual(effortRows(['default', 'low'], 'default').map((r) => [r.level, r.title, r.current]),
+    [[null, '默认', false], ['low', '低', false], ['default', 'default', true]]);
+});
+
+test('手动选的模型记成新会话的默认（2026-10-02 项目主人定）：写个人设置的 models.chat，模型、池照原样', () => {
+  assert.deepEqual(defaultModelChange('dev/deepseek-v4-pro'), { layer: 'personal', changes: [{ key: 'models.chat', value: 'dev/deepseek-v4-pro' }] });
+  assert.deepEqual(defaultModelChange('@duo'), { layer: 'personal', changes: [{ key: 'models.chat', value: '@duo' }] });
 });

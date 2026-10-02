@@ -20,14 +20,8 @@ tokio-tungstenite = "0.29"
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 # 访问口令：32 个随机字节，取系统的随机数（和本机令牌同一个库）。
 getrandom = { version = "0.4", features = ["std"] }
-# mermaid 图画成 SVG：和终端界面同一个库、同一个版本（设计 13 第九节定的，旧版用的也是它），两个头画出来才一样。MIT。
-mermaid-rs-renderer = { version = "=0.3.1", default-features = false }
-# 链接卡片（`web.link_preview`）去抓别人家的页面：和仓库的 `miyu-http` 同一个库、同一套 TLS（rustls，证书认系统的和
-# webpki 自带的两份，不依赖 OpenSSL）。重定向自己跟、每一跳钉住解析好的地址，都要它的 `ClientBuilder`。MIT 或 Apache-2.0。
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots", "rustls-tls-webpki-roots"] }
-# 链接卡片的图按内容的 SHA-256 编号：同一张图（好些页面共用的 favicon）只记一份，编号也不带来源。和 miyu-ipc、
-# miyu-kernel 同一个版本，树里本来就有。MIT 或 Apache-2.0。
-sha2 = { version = "0.11", default-features = false }
+# 核心的 `fs.read`、`blob.get` 回的一段是 base64（`/file`、`/blob` 照它一块块写给浏览器）。和仓库里的同一个版本。MIT 或 Apache-2.0。
+base64 = "0.22"
 
 # 和仓库工作区的 lints 一样（根目录 Cargo.toml），演示程序也照这套规矩。
 [lints.rust]

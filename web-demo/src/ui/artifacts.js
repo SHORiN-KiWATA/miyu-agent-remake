@@ -23,7 +23,7 @@ const WIDTH = 'artifacts_width';
 
 export class Artifacts {
   /**
-   * @param {import('../core/connection.js').Connection} conn 问桥约定目录的真实位置（`web.realpath`）
+   * @param {import('../core/connection.js').Connection} conn 问核心约定目录的真实位置（`fs.realpath`，核心施工 W-3）
    * @param {HTMLElement} shell 整页（`.app-shell`）：开关时换它的类、宽度
    * @param {(text: string, good?: boolean) => void} say 提示（复制了几个字）
    * @param {() => void} changed 开、关以后整页重画（会话概况要让位）
@@ -106,13 +106,13 @@ export class Artifacts {
     if (this.open) this.draw();
   }
 
-  /** 约定目录的真实位置：问过的直接给；没问过的问桥（回来以后整页重画一次），还没回的是 `undefined`。 */
+  /** 约定目录的真实位置：问过的直接给；没问过的问核心（回来以后整页重画一次），还没回的是 `undefined`。 */
   dirOf(session, cwd) {
     if (!cwd) return null;
     const key = `${session}\n${cwd}`;
     if (!this.dirs.has(key)) {
       this.dirs.set(key, undefined);
-      this.conn.request('web.realpath', { path: `${cwd}/${res.artifacts.dir}` })
+      this.conn.request('fs.realpath', { path: res.artifacts.dir, cwd })
         .then((r) => { this.dirs.set(key, r?.path ?? null); this.changed(); })
         .catch((err) => console.error(`问不到产物目录的真实位置：${err.message}`));
     }
@@ -181,8 +181,8 @@ export class Artifacts {
     this.sourceButton.classList.toggle('is-active', mode === 'source');
     this.title.textContent = a.name;
     this.badge.textContent = t(`artifacts.types.${a.kind}`);
-    const url = `${fileUrl(session, a.path)}&v=${a.seq}`;
-    this.download.setAttribute('href', fileUrl(session, a.path, true));
+    const url = `${fileUrl(a.path)}&v=${a.seq}`;
+    this.download.setAttribute('href', fileUrl(a.path, true));
     this.drawMenu();
     const token = ++this.token;
     if (a.kind === 'image' && mode === 'preview') return replace(this.view, imageStage(url, a.name));

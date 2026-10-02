@@ -96,6 +96,8 @@
   /* 一行一块往后接，滚到底（steps.js 的 roll）：不用 flex-end，不然上面溢出的滚不到 */
   cursor: pointer; display: block; max-height: calc(var(--tl-rows) * 1.75em);
   margin: 2px 8px 2px 0; padding-left: var(--tl-indent); overflow: hidden;
+  /* 滚出去的行删掉时 steps.js 自己补位置：不要浏览器再挪一次 */
+  overflow-anchor: none;
   color: var(--tl-think); font-size: 12px; font-weight: 400; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .tl-thought-body {

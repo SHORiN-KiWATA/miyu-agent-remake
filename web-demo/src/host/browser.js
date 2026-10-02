@@ -5,8 +5,8 @@
 //! 现在经桥（`web-demo/bridge/`）：
 //! - 访问口令：桥起来时打出的网址带着 `#k=…`；拿到以后从地址栏抹掉，记在这个标签页的 sessionStorage 里，刷新还能连
 //!   （设计 21 X6：放在 `#` 后面，不发给服务器、不进 Referer）。口令不出这个文件。
-//! - 连核心的线是一条 WebSocket（`/ws`）；本机文件、blob、链接卡片配图的地址是桥的 `/file`、`/blob`、`/link-image`；
-//!   附件先交给桥（`/upload`，蓝图 `web.md`「附件」第 2 条）。
+//! - 连核心的线是一条 WebSocket（`/ws`）；本机文件、blob（链接卡片的配图、图标也是 blob）的地址是桥的 `/file`、`/blob`；
+//!   附件的字节从浏览器的文件里切一段读出来（`files.read`），页面分块传给核心（蓝图 `web.md`「附件」第 2 条，核心施工 W-5）。
 //! - 链接照网页的写法（`target=_blank`、`download`），浏览器自己会办，`intercept` 什么都不做。
 
 /**
@@ -39,20 +39,18 @@ function bridgeKey() {
 export function urls(key) {
   return {
     /** 一个本机文件：`download` 为真的叫浏览器存下来。 */
-    file: (/** @type {string} */ session, /** @type {string} */ path, download = false) => {
-      const q = new URLSearchParams({ k: key, session, path });
+    file: (/** @type {string} */ path, download = false) => {
+      const q = new URLSearchParams({ k: key, path });
       if (download) q.set('download', '1');
       return `/file?${q}`;
     },
     /** 一个 blob（你的话里的附件）：下载的存成 `name`。 */
-    blob: (/** @type {string} */ session, /** @type {string} */ hash, /** @type {string} */ type, /** @type {{download?: boolean, name?: string|null}} */ how = {}) => {
-      const q = new URLSearchParams({ k: key, session, hash, type });
+    blob: (/** @type {string} */ hash, /** @type {string} */ type, /** @type {{download?: boolean, name?: string|null}} */ how = {}) => {
+      const q = new URLSearchParams({ k: key, hash, type });
       if (how.download) q.set('download', '1');
       if (how.download && how.name) q.set('name', how.name);
       return `/blob?${q}`;
     },
-    /** 链接卡片的配图、图标：桥抓来记在内存里的，照编号取。 */
-    linkImage: (/** @type {string} */ id) => `/link-image?${new URLSearchParams({ k: key, id })}`,
   };
 }
 
@@ -130,9 +128,9 @@ function watchDrop(target, on) {
  */
 function preview(key, ref) {
   if (!/^(image|video)\//.test(ref.type)) return null;
-  if (ref.stored) return { url: urls(key).blob(ref.stored.session, ref.stored.hash, ref.type), release: () => {} };
+  if (ref.stored) return { url: urls(key).blob(ref.stored.hash, ref.type), release: () => {} };
   // 本机的文件（`@` 选文件交过来的，只有路径）：照桥的 `/file` 取
-  if (ref.path && !(ref.file instanceof Blob)) return { url: urls(key).file('', ref.path), release: () => {} };
+  if (ref.path && !(ref.file instanceof Blob)) return { url: urls(key).file(ref.path), release: () => {} };
   if (!(ref.file instanceof Blob)) return null;
   const url = URL.createObjectURL(ref.file);
   return { url, release: () => URL.revokeObjectURL(url) };
@@ -147,7 +145,7 @@ async function text(key, ref, max) {
   if (ref.size > max) return null;
   try {
     if (ref.stored || (ref.path && !(ref.file instanceof Blob))) {
-      const url = ref.stored ? urls(key).blob(ref.stored.session, ref.stored.hash, 'text/plain') : urls(key).file('', /** @type {string} */ (ref.path));
+      const url = ref.stored ? urls(key).blob(ref.stored.hash, 'text/plain') : urls(key).file(/** @type {string} */ (ref.path));
       const got = await fetch(url);
       return got.ok ? await got.text() : null;
     }
@@ -156,16 +154,15 @@ async function text(key, ref, max) {
 }
 
 /**
- * 附件变成核心读得到的路径：有路径的就是它；只有内容的交给桥存进临时目录。桥不收的抛出它的原话。
- * @param {string} key
+ * 读附件的一段字节（分块传给核心，`blob.write`，核心施工 W-5）：浏览器的文件切一段读出来。
  * @param {FileRef} ref
- * @returns {Promise<string>}
+ * @param {number} offset
+ * @param {number} length
+ * @returns {Promise<Uint8Array>}
  */
-async function stage(key, ref) {
-  if (ref.path) return ref.path;
-  const res = await fetch(`/upload?${new URLSearchParams({ k: key, name: ref.name })}`, { method: 'POST', body: ref.file });
-  if (!res.ok) throw new Error((await res.text()) || res.statusText);
-  return (await res.json()).path;
+async function read(ref, offset, length) {
+  if (!(ref.file instanceof Blob)) throw new Error('没有内容');
+  return new Uint8Array(await ref.file.slice(offset, offset + length).arrayBuffer());
 }
 
 /** 这台设备上存东西：`localStorage`（隐私窗口、清过数据时读写会抛，由内核的 `storage` 兜着）。 */
@@ -206,7 +203,7 @@ export function browserHost() {
       preview: (/** @type {FileRef} */ ref) => preview(key, ref),
       refs,
       text: (/** @type {FileRef} */ ref, /** @type {number} */ max) => text(key, ref, max),
-      stage: (/** @type {FileRef} */ ref) => stage(key, ref),
+      read,
     },
     /** 外面的链接：新标签页。 */
     open: (/** @type {string} */ url) => { window.open(url, '_blank', 'noopener'); },

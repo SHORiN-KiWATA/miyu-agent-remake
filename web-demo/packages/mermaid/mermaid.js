@@ -1,12 +1,12 @@
 // @ts-check
-//! mermaid 图（软件包 `mermaid`，蓝图 `web.md`「mermaid 图」）：收齐了的 ```` ```mermaid ```` 由桥画成 SVG（`web.mermaid`，以后是
-//! 核心的网页模块），直接画在她的正文上，不加卡片的底。样子照旧版 `app.js:4580-4698`：上面一行暗的小字「图表」，右边切「源码」、
-//! 复制；缩小了的写「· 点开看原图」，点图在灯箱里看。画不出来的整块换成代码块。
+//! mermaid 图（软件包 `mermaid`，蓝图 `web.md`「mermaid 图」）：收齐了的 ```` ```mermaid ```` 由核心画成 SVG（`mermaid.render`，
+//! `draw.js`），直接画在她的正文上，不加卡片的底。样子照旧版 `app.js:4580-4698`：上面一行暗的小字「图表」，右边切「源码」、
+//! 复制；缩小了的写「· 点开看原图」，点图在灯箱里看。画不出来的这一块原地换成代码块。
 //!
-//! - SVG 里的字、线是页面的 CSS 变量（桥换好的），换主题不重画；插进页面前先过一遍：去掉 `<script>`、`on…` 属性、
+//! - SVG 里的字、线是页面的 CSS 变量（`draw.js` 换好的），换主题不重画；插进页面前先过一遍：去掉 `<script>`、`on…` 属性、
 //!   `javascript:` 的链接（图里的字是她写的，渲染器转没转义不归我们管）；
 //! - 灯箱里的那份是一张图片（`blob:` 地址），看不到页面的变量：先照现在的主题把颜色填成定值、铺上底色；
-//! - 用到的都由入口交进来（`Deps`）：问桥画图、代码块、复制、灯箱、这个包的字；没有模块级的状态。
+//! - 用到的都由入口交进来（`Deps`）：问核心画图、代码块、复制、灯箱、这个包的字；没有模块级的状态。
 
 import { h, icon, scaleOf } from '../../src/lib/dom.js';
 
@@ -14,11 +14,11 @@ import { h, icon, scaleOf } from '../../src/lib/dom.js';
  * @typedef {{draw: (source: string) => Promise<string|null>, codeBlock: (block: any, ctx: any) => HTMLElement,
  *   copy: (text: string, say?: (text: string, good?: boolean) => void) => void,
  *   open: (what: {url: string, name?: string, vector?: boolean}) => void, t: (path: string, fields?: any) => string}} Deps
- *   问桥画一张（问过的直接给）、Markdown 的代码块和复制、点开看大图（有灯箱在灯箱里，没有在新标签页）、这个包的字
+ *   问核心画一张（问过的直接给）、Markdown 的代码块和复制、点开看大图（有灯箱在灯箱里，没有在新标签页）、这个包的字
  */
 
 /**
- * 一张图：先写「正在画图…」，画好了换上；画不出来的整块换成代码块。
+ * 一张图：先写「正在画图…」，画好了换上；画不出来的这一块原地换成代码块。
  * @param {string} source mermaid 源码
  * @param {(text: string, good?: boolean) => void} say 提示（复制了几个字）
  * @param {Deps} deps
@@ -45,8 +45,10 @@ export function mermaidBlock(source, say, deps) {
   draw(source).then((svg) => {
     const node = svg && clean(svg);
     if (!node) {
+      // 原地换成代码块：回答重画时这一块会被挪过去重用（`rich.js` 的 `reuse`），把自己换出去的话重画又把「正在画图…」放回来
       code.hidden = false;
-      block.replaceWith(code);
+      block.classList.add('is-plain');
+      block.replaceChildren(code);
       return;
     }
     figure.replaceChildren(node);
@@ -73,7 +75,7 @@ export function mermaidBlock(source, say, deps) {
   return block;
 }
 
-/** 桥给的 SVG 文字 → 一个能插进页面的 `<svg>`：去掉脚本、`on…` 属性、`javascript:` 链接；读不懂的是 `null`。 */
+/** 核心给的 SVG 文字 → 一个能插进页面的 `<svg>`：去掉脚本、`on…` 属性、`javascript:` 链接；读不懂的是 `null`。 */
 function clean(text) {
   const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
   const svg = doc.documentElement;

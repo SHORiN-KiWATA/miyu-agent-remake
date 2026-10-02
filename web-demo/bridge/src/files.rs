@@ -1,5 +1,4 @@
-//! 页面文件：只认 `GET`，路径落在页面目录里才给；别的 404。开发用，不缓存。`/file`、`/blob` 交给 `media.rs`，
-//! `/link-image` 交给 `link_preview/`，`POST /upload` 交给 `upload.rs`。
+//! 页面文件：只认 `GET`，路径落在页面目录里才给；别的 404。开发用，不缓存。`/file`、`/blob` 交给 `media.rs`。
 
 use std::io;
 use std::path::Path;
@@ -7,7 +6,7 @@ use std::path::Path;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
-use crate::{Site, link_preview, media, upload};
+use crate::{Site, media};
 
 /// 读一个请求，回一个文件。
 ///
@@ -25,24 +24,18 @@ pub async fn serve(mut stream: TcpStream, site: &Site) -> io::Result<()> {
         }
         buf.extend_from_slice(&chunk[..n]);
     }
-    // 请求头到空行为止；后面跟着读进来的是正文的开头（`POST /upload` 的）
+    // 请求头到空行为止
     let end = buf.windows(4).position(|w| w == b"\r\n\r\n").map_or(buf.len(), |i| i + 4);
     let head = String::from_utf8_lossy(&buf[..end]);
     let mut parts = head.split_whitespace();
     let (method, target) = (parts.next().unwrap_or(""), parts.next().unwrap_or("/"));
     let path = target.split(['?', '#']).next().unwrap_or("/");
     let query = target.split_once('?').map_or("", |(_, q)| q.split('#').next().unwrap_or(""));
-    if method == "POST" && path == "/upload" {
-        return upload::serve(&mut stream, site, query, &head, &buf[end..]).await;
-    }
     if method != "GET" {
         return reply(&mut stream, "405 Method Not Allowed", "text/plain; charset=utf-8", b"only GET").await;
     }
     if path == "/file" || path == "/blob" {
         return media::serve(&mut stream, site, path, query, &head).await;
-    }
-    if path == "/link-image" {
-        return link_preview::serve(&mut stream, site, query).await;
     }
     if path == "/key" {
         // 页面连不上时问一句口令对不对（蓝图 `web.md`「连核心」第 9 条）：只回对不对，别的不说

@@ -107,23 +107,22 @@ export function endNode(it, on) {
  */
 function attachmentsNode(list, media) {
   if (!list.length) return null;
-  const session = media.session;
   return h('div.user-attachments', { style: `--user-media: ${res.layout.user_media}px` }, ...list.map((a) => {
     if (a.kind === 'image') {
-      const url = session ? blobUrl(session, a.blob, a.media_type) : '';
+      const url = blobUrl(a.blob, a.media_type);
       return imageCard({ url, name: a.name ?? '', width: a.width ?? undefined, height: a.height ?? undefined, lightbox: media.lightbox });
     }
-    const card = fileCard(a, session);
-    return /^video\//.test(a.media_type) && session ? videoThumb(a, session, card) : card;
+    const card = fileCard(a);
+    return /^video\//.test(a.media_type) ? videoThumb(a, card) : card;
   }));
 }
 
 /** 文件的卡（和框里的一样大，蓝图「附件」第 6 条）：名字、一行小字写媒体类型，左下角扩展名大写（没有扩展名的不写）。 */
-function fileCard(a, session) {
+function fileCard(a) {
   const name = a.name ?? a.blob;
   const dot = name.lastIndexOf('.');
   return h('a.user-file', {
-    href: session ? blobUrl(session, a.blob, a.media_type, { download: true, name }) : null,
+    href: blobUrl(a.blob, a.media_type, { download: true, name }),
     title: t('said.download', { name }),
     download: '',
   },
@@ -133,8 +132,8 @@ function fileCard(a, session) {
 }
 
 /** 视频：第一帧加一个播放记号，点了原地换成带控制条的播放器；取不出第一帧的换成文件的小卡。 */
-function videoThumb(a, session, card) {
-  const url = blobUrl(session, a.blob, a.media_type);
+function videoThumb(a, card) {
+  const url = blobUrl(a.blob, a.media_type);
   const video = /** @type {HTMLVideoElement} */ (h('video', { src: `${url}#t=0.1`, muted: true, preload: 'metadata', playsinline: true }));
   const node = h('div.user-video', { role: 'button', tabindex: '0', title: a.name ?? '' }, video, h('span.user-video-play', icon('play')));
   video.addEventListener('error', () => node.replaceWith(card), { once: true });

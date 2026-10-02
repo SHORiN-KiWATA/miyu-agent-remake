@@ -6,6 +6,8 @@
 //! （`quiet_ms`）这一阵才算完，完了换一个词；一个词至少停一会儿（`dwell_ms`，换上时随机定），没停够等停够；
 //! 没有事件时待久了也换（`idle_ms`，随机）。跨档时同样先停够。不连着重复刚才那个，新的一轮从头挑。
 
+import { clock } from '../../src/lib/format.js';
+
 /** @typedef {{after: number, words: string[]}} Tier 这一轮跑了 `after` 秒以后用这些词 */
 /** @typedef {{dwell_ms: number[], quiet_ms: number, idle_ms: number[], tiers: Tier[]}} Words 词库；范围是 `[最小, 最大]` 毫秒 */
 /** @typedef {{id: string, start: number}} Turn 哪一轮（会话加回合，变了就是新的一轮）、什么时候开始的（毫秒） */
@@ -136,4 +138,19 @@ export function beatOf(events, live) {
   const opened = live.blocks.filter(Boolean).length;
   const done = live.blocks.filter((b) => b?.done).length;
   return `${events.length}|${live.seen}|${opened}|${done}`;
+}
+
+/**
+ * 重试那一截写哪句、填什么（蓝图「运行状态行」）：换端点当场再来的写「换端点重试」；还在等的写还要等多久（往上取整到秒，
+ * 写法同用时），等到了、不知道等多久的写「重试」。原话里的换行压成空格。
+ * @param {{attempt: number, limit: number, message: string, failover?: boolean, due?: number}|null} retry
+ * @param {number} now
+ * @returns {{key: string, fields: Record<string, any>}|null}
+ */
+export function retryLine(retry, now) {
+  if (!retry) return null;
+  const fields = { attempt: retry.attempt, limit: retry.limit, message: retry.message.replace(/\s+/g, ' ').trim() };
+  if (retry.failover) return { key: 'retry_failover', fields };
+  if (typeof retry.due === 'number' && retry.due > now) return { key: 'retry_wait', fields: { ...fields, wait: clock(Math.ceil((retry.due - now) / 1000)) } };
+  return { key: 'retry', fields };
 }

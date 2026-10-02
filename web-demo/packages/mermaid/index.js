@@ -1,22 +1,14 @@
 // @ts-check
 //! mermaid 图（软件包 `mermaid`，蓝图 `web.md`「mermaid 图」）：挂进 Markdown 的按键分派挂载位 `markdown.code`，键是 `mermaid`；
-//! 停用了没人接这个键，照代码块写（拿掉不留坑）。画过的图照源码记在这个包的这一次加载里，同一份整页只问一次桥。
+//! 停用了没人接这个键，照代码块写（拿掉不留坑）。画过的图照源码记在这个包的这一次加载里，同一份整页只问一次核心。
 
 import { mermaidBlock } from './mermaid.js';
+import { drawer } from './draw.js';
 
 /** @param {any} ctx */
 export function apply(ctx) {
-  /** 源码 → 画好的 SVG 文字（画不出来的是 `null`） */
-  const drawn = new Map();
-  const draw = (source) => {
-    if (!drawn.has(source)) {
-      drawn.set(source, ctx.core.request('web.mermaid', { source }).then((r) => r?.svg ?? null).catch((err) => {
-        console.error(`mermaid 画不出来：${err.message}`);
-        return null;
-      }));
-    }
-    return drawn.get(source);
-  };
+  // 问核心画（`mermaid.render`），回的记号色换成设置项 `colors` 里的页面颜色
+  const draw = drawer((method, params) => ctx.core.request(method, params), () => ctx.config.colors, (m) => console.error(m));
   const deps = {
     draw,
     codeBlock: ctx.markdown.codeBlock,

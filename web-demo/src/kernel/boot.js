@@ -3,7 +3,7 @@
 //! 加载软件包。内核自己站得住：一个包都起不来时，页面上列出哪个包卡在哪，不白屏。
 //!
 //! 编进内核的服务（宏内核：决定快慢、彼此紧挨着的放在一起，像编进内核的驱动）：
-//! `core` 连核心（线是宿主给的）、`sessions` 会话仓库、`host` 宿主（平台有关的：这个页面登录成的账号、起桥的目录和家目录、
+//! `core` 连核心（线是宿主给的）、`sessions` 会话仓库、`host` 宿主（平台有关的：这个页面登录成的账号、新会话的工作目录（账号的工作区）和家目录、
 //! 附件从哪来、外链、剪贴板；蓝图「宿主」）、`page` 页面的根、`slots` 挂载位、`seams` 职能、`packages` 软件包（状态、停用、
 //! 启用、改配置）、`storage` 这台设备上存的东西（键带账号，「多用户、多终端」）、`language` 界面语言（内核自己的设置项，
 //! 蓝图 `web.md`「界面语言」）。
@@ -22,6 +22,7 @@ import { pick, settingOf, options, languageSpec, fromConfig } from './language.j
 import { Connection } from '../core/connection.js';
 import { Store } from '../core/store.js';
 import { loadHuman } from '../core/human.js';
+import { placeOf } from '../model/paths.js';
 import { useHost } from '../core/host.js';
 import { browserHost } from '../host/browser.js';
 import { accountStorage } from './storage.js';
@@ -96,8 +97,8 @@ export async function boot(root) {
   language = chosen;
   // 包的字照它取
   useLanguage(language);
-  // 新会话在哪个目录里干活：桥报的起桥的目录（绝对路径）
-  const info = await conn.request('web.info', {});
+  // 新会话在哪个目录里干活、家目录：握手回应的 `host`（核心施工 W-3；新会话默认在账号的工作区）
+  const info = placeOf(hello);
   // 给人看的字（工具的显示名、结果那一句）：问核心的 `human.get`；拿不到的照工具名写
   res.human = await loadHuman(conn, language.code).catch((err) => {
     console.error(`拿不到给人看的字：${err.message}`);
@@ -194,7 +195,7 @@ export async function boot(root) {
         kind: host.kind,
         account,
         cwd: info.cwd,
-        home: info.home ?? null,
+        home: info.home,
         files: host.files,
         open: host.open,
         clipboard: host.clipboard,

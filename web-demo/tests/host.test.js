@@ -41,17 +41,17 @@ test('平台的 API、桥的地址只在 src/host/ 里用', () => {
   assert.deepEqual(bad, []);
 });
 
-test('浏览器那一份的地址：带口令和会话；下载的带 download，blob 另带原来的名字', () => {
+test('浏览器那一份的地址：带口令，不带会话（核心照账号、照路径给，W-6）；下载的带 download，blob 另带原来的名字', () => {
   const u = urls('k1');
-  const file = new URL(u.file('s1', '/home/a b/x.png'), 'http://x');
+  const file = new URL(u.file('/home/a b/x.png'), 'http://x');
   assert.equal(file.pathname, '/file');
-  assert.deepEqual(Object.fromEntries(file.searchParams), { k: 'k1', session: 's1', path: '/home/a b/x.png' });
-  assert.equal(new URL(u.file('s1', '/x', true), 'http://x').searchParams.get('download'), '1');
-  const blob = new URL(u.blob('s1', 'sha256:ab', 'application/pdf', { download: true, name: '报告.pdf' }), 'http://x');
+  assert.deepEqual(Object.fromEntries(file.searchParams), { k: 'k1', path: '/home/a b/x.png' });
+  assert.equal(new URL(u.file('/x', true), 'http://x').searchParams.get('download'), '1');
+  const blob = new URL(u.blob('sha256:ab', 'application/pdf', { download: true, name: '报告.pdf' }), 'http://x');
   assert.equal(blob.pathname, '/blob');
-  assert.deepEqual(Object.fromEntries(blob.searchParams), { k: 'k1', session: 's1', hash: 'sha256:ab', type: 'application/pdf', download: '1', name: '报告.pdf' });
-  assert.equal(new URL(u.blob('s1', 'sha256:ab', 'image/png'), 'http://x').searchParams.has('name'), false, '不下载的不带名字');
-  assert.deepEqual(Object.fromEntries(new URL(u.linkImage('7'), 'http://x').searchParams), { k: 'k1', id: '7' });
+  assert.deepEqual(Object.fromEntries(blob.searchParams), { k: 'k1', hash: 'sha256:ab', type: 'application/pdf', download: '1', name: '报告.pdf' });
+  assert.equal(new URL(u.blob('sha256:ab', 'image/png'), 'http://x').searchParams.has('name'), false, '不下载的不带名字');
+  assert.equal('linkImage' in u, false, '链接卡片的图是 blob，照 /blob 取（核心施工 W-7）');
 });
 
 /** 一个假的存法：一张表，`broken` 时读写都抛（隐私窗口、清过数据） */

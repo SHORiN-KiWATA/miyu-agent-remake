@@ -6,6 +6,7 @@
 //! 点开、收起记在这一步里，人点过的照人点的；没点过的照 `timeline.json` 的 `expand`。
 
 import { h, icon, replace } from './dom.js';
+import { spring } from '../lib/motion.js';
 import { res, t } from '../util/res.js';
 import { row, peek, messagePeek, thinkingTail, commandLines, details, kindOf } from '../model/words.js';
 import { imageCard } from './media.js';
@@ -136,20 +137,20 @@ export class StepView {
   }
 
   /**
-   * 在想时滚着的那几行（蓝图「时间线」思考的预览）：一行一块，只往后接，前面的只留两屏（滚出去的去掉，浏览器的滚动锚定
-   * 保着看得见的几行不动）；来了新的一行，原来的几行一起往上滑（平滑地滚到底），不一下跳上去（2026-10-01 项目主人指出）。
-   * 刚露出来的那一下直接到底。
+   * 在想时滚着的那几行（蓝图「时间线」思考的预览）：一行一块，只往后接，前面的只留两屏。来了新字，每一帧自己往底下追一截
+   * （临界阻尼的弹簧 `spring`，时间常数 `roll_ms`），起步不猛、字一阵阵来也是连着滑，不一下跳上去（2026-10-01、10-02 项目主人指出：原来每来一段重开一次
+   * 浏览器的平滑滚动，Firefox 里接不上）。滚出去的行删掉时自己把位置补回来（CSS 关了滚动锚定）。刚露出来的那一下直接到底。
    * @param {string} text
    */
   roll(text) {
     const box = this.window;
     const keep = res.timeline.thinking_rows * 2;
-    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!this.rollText || !text.startsWith(this.rollText)) {
       // 刚露出来、字不是接着原来的：只排最后两屏，直接到底
       this.rollText = text;
       box.replaceChildren(...thinkingTail(text, keep).split('\n').map((line) => h('div.tl-think-line', line)));
       box.scrollTop = box.scrollHeight;
+      this.rollAt = { pos: box.scrollTop, vel: 0 };
       return;
     }
     const added = text.slice(this.rollText.length);
@@ -160,8 +161,33 @@ export class StepView {
     if (tail.firstChild) /** @type {Text} */ (tail.firstChild).appendData(parts[0]);
     else tail.append(parts[0]);
     for (const part of parts.slice(1)) box.append(h('div.tl-think-line', part));
-    while (box.childElementCount > keep) box.firstElementChild?.remove();
-    box.scrollTo({ top: box.scrollHeight, behavior: reduced ? 'auto' : 'smooth' });
+    if (box.childElementCount > keep) {
+      const before = box.scrollHeight;
+      while (box.childElementCount > keep) box.firstElementChild?.remove();
+      const at = this.rollAt ?? { pos: box.scrollTop, vel: 0 };
+      this.rollAt = { pos: Math.max(0, at.pos - (before - box.scrollHeight)), vel: at.vel };
+      box.scrollTop = this.rollAt.pos;
+    }
+    this.follow();
+  }
+
+  /** 往底下追：一帧走一截，到了停；这一块不在页面上了也停。少动画的直接到底。 */
+  follow() {
+    if (this.rollFrame) return;
+    const box = this.window;
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const tau = reduced ? 0 : res.timeline.roll_ms;
+    let last = performance.now();
+    const step = (now) => {
+      this.rollFrame = 0;
+      if (!box.isConnected || box.hidden) return;
+      const target = box.scrollHeight - box.clientHeight;
+      this.rollAt = spring(this.rollAt ?? { pos: box.scrollTop, vel: 0 }, target, now - last, tau);
+      last = now;
+      box.scrollTop = this.rollAt.pos;
+      if (this.rollAt.pos !== target || this.rollAt.vel !== 0) this.rollFrame = requestAnimationFrame(step);
+    };
+    this.rollFrame = requestAnimationFrame(step);
   }
 
   /**
@@ -242,12 +268,10 @@ export class StepView {
   /** 结果里的图：小一点（`result_image_max`），照核心收下的 blob 取，点开是灯箱（蓝图「图片」第 2 条）。 */
   imagesNode(s) {
     const name = String(this.step.parsed?.file_path ?? '').split('/').pop() || undefined;
-    const session = this.where.session;
     return h('div.tl-detail', s.label ? h('div.tl-label', s.label) : null,
-      h('div.tl-images', { style: `--media-max: ${res.layout.result_image_max}px` }, s.images.map((img) => (session
+      h('div.tl-images', { style: `--media-max: ${res.layout.result_image_max}px` }, s.images.map((img) =>
         // 不照记的宽高先占地方：记的是原图的，blob 可能缩过、比例对不上，框会多出一截空（照图自己的比例画）
-        ? imageCard({ url: blobUrl(session, img.blob, img.media_type), name, lightbox: this.where.lightbox })
-        : null))));
+        imageCard({ url: blobUrl(img.blob, img.media_type), name, lightbox: this.where.lightbox }))));
   }
 
   /** 节点里的图标：变了才换（在想的原子图标在呼吸，别打断）。 */

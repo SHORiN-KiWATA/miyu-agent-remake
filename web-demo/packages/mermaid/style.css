@@ -18,5 +18,7 @@
 .mermaid-figure.is-zoomable { cursor: zoom-in; }
 .mermaid-figure:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* 切到源码：代码块照图的高度（mermaid.js 量好写上），长了在里面滚，下面不跳 */
-.mermaid-block > .code-block { display: flex; flex-direction: column; margin: 0; }
-.mermaid-block > .code-block > pre { flex: 1; min-height: 0; overflow: auto; }
+/* 画不出来的：原地只剩一个平常的代码块，外面这层不占地方 */
+.mermaid-block.is-plain { margin: 0; }
+.mermaid-block:not(.is-plain) > .code-block { display: flex; flex-direction: column; margin: 0; }
+.mermaid-block:not(.is-plain) > .code-block > pre { flex: 1; min-height: 0; overflow: auto; }

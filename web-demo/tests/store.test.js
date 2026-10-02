@@ -85,6 +85,9 @@ test('出错换了模型（瞬时的 model.changed，8-9）：限额跟着换；
   const transient = (at, kind, body) => { const { seq, ...e } = ev(0, at, kind, 5, body, { kind: 'kernel' }); return e; };
   push(store, transient(2, 'status', { seen: 5, retry: { attempt: 1, limit: 5, wait_ms: 0, class: 'rate_limited', message: '429', failover: true } }));
   assert.equal(s.retry?.failover, true);
+  assert.equal(s.retry?.due, ms(2), '换端点当场再来：等 0');
+  push(store, transient(4, 'status', { seen: 5, retry: { attempt: 2, limit: 5, wait_ms: 3000, class: 'server', message: '524' } }));
+  assert.equal(s.retry?.due, ms(4) + 3000, '什么时候重试：这条事件的时刻加上 wait_ms');
   push(store, transient(3, 'model.changed', { ref: '@duo', endpoint: 'bigmodel', model: 'glm-5.3-flash', limits: { window: 200000 }, why: 'failover' }));
   assert.deepEqual(s.limits, { window: 200000, compaction_line: 250000 });
   assert.equal(s.changes.length, 1);

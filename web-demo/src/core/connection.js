@@ -7,11 +7,12 @@
 
 /** 核心拒绝的一个请求：`reason` 是稳定的原因码（蓝图 `protocol.md`「出错」），`message` 是核心按头的语言写的话。 */
 export class Refusal extends Error {
-  /** @param {string} message @param {number} code @param {string|null} reason */
-  constructor(message, code, reason) {
+  /** @param {string} message @param {number} code @param {string|null} reason @param {any} [data] 拒绝里别的几格（`data`，比如分块上传的 `received`） */
+  constructor(message, code, reason, data = null) {
     super(message);
     this.code = code;
     this.reason = reason;
+    this.data = data;
   }
 }
 
@@ -95,7 +96,7 @@ export class Connection {
     const waiter = m.id != null ? this.waiting.get(m.id) : undefined;
     if (waiter) {
       this.waiting.delete(m.id);
-      if (m.error) waiter.reject(new Refusal(m.error.message, m.error.code, m.error.data?.reason ?? null));
+      if (m.error) waiter.reject(new Refusal(m.error.message, m.error.code, m.error.data?.reason ?? null, m.error.data ?? null));
       else waiter.resolve(m.result);
       return;
     }

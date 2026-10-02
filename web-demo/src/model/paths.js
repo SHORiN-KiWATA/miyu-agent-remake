@@ -4,7 +4,7 @@
 
 /**
  * @param {string} target 她写的地址
- * @param {{home: string|null, cwd: string|null}} where 家目录（`web.info`）、这个会话的工作目录（`session.created`）
+ * @param {{home: string|null, cwd: string|null}} where 家目录（握手回应的 `host.home`）、这个会话的工作目录（`session.created`）
  * @returns {string|null} 绝对路径；不是本机路径的是 `null`
  */
 export function localPath(target, where) {
@@ -28,4 +28,15 @@ function normalize(path) {
     else out.push(part);
   }
   return `/${out.join('/')}`;
+}
+
+/**
+ * 握手回应里的路径信息（`host`，核心施工 W-3）：新会话默认的工作目录是这个账号的工作区（设计 11 第四节，网页上开的会话默认在
+ * 账号的工作区），家目录拿来把路径写成 `~/…`。没有的是 `null`。
+ * @param {any} hello `hello` 的回应
+ * @returns {{cwd: string|null, home: string|null}}
+ */
+export function placeOf(hello) {
+  const host = hello?.host;
+  return { cwd: typeof host?.workspace === 'string' ? host.workspace : null, home: typeof host?.home === 'string' ? host.home : null };
 }

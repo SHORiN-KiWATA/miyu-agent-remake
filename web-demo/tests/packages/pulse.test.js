@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { Pulse, widest, columns, dotCount, beatOf, localWords } from '../../packages/pulse/model.js';
+import { Pulse, widest, columns, dotCount, beatOf, localWords, retryLine } from '../../packages/pulse/model.js';
 import { local } from '../../src/lib/text.js';
 
 /** 这个包的设置项的出厂值 */
@@ -127,4 +127,18 @@ test('词库每一档按语言写：日文照 TUI 的原样；个人改成只写
   assert.deepEqual(ja.tiers.map((t) => t.after), [0, 30, 90]);
   const old = { ...WORDS, tiers: [{ after: 0, words: ['一串'] }] };
   assert.deepEqual(localWords(old, (v) => local(v, { code: 'ja', fallback: 'zh' })).tiers[0].words, ['一串']);
+});
+
+test('重试那一截：还在等的写还要等多久（一秒走一格）；等到了写在重试；换端点当场再来的照旧', () => {
+  const r = { attempt: 1, limit: 5, message: 'HTTP 524:\n error code: 524', due: 10_000 };
+  assert.deepEqual(retryLine(r, 6_500), { key: 'retry_wait', fields: { attempt: 1, limit: 5, message: 'HTTP 524: error code: 524', wait: '4s' } });
+  assert.deepEqual(retryLine(r, 9_001).fields.wait, '1s');
+  assert.deepEqual(retryLine({ ...r, due: 80_000 }, 0).fields.wait, '1m 20s');
+  assert.deepEqual(retryLine(r, 10_000), { key: 'retry', fields: { attempt: 1, limit: 5, message: 'HTTP 524: error code: 524' } });
+  assert.equal(retryLine({ ...r, failover: true }, 0).key, 'retry_failover');
+  assert.equal(retryLine({ ...r, due: undefined }, 0).key, 'retry', '不知道等多久的：照旧');
+  assert.equal(retryLine(null, 0), null);
+  const manifest = JSON.parse(readFileSync(new URL('../../packages/pulse/manifest.json', import.meta.url), 'utf8'));
+  assert.equal(local(manifest.text, { code: 'zh', fallback: 'zh' }).retry_wait, ' · {wait} 后重试 {attempt}/{limit}：{message}');
+  assert.ok(manifest.text.ja.retry_wait.includes('{wait}'));
 });

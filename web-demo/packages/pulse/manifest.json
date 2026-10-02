@@ -145,10 +145,12 @@
   "text": {
     "zh": {
       "retry": " · 重试 {attempt}/{limit}：{message}",
+      "retry_wait": " · {wait} 后重试 {attempt}/{limit}：{message}",
       "retry_failover": " · 换端点重试 {attempt}/{limit}：{message}"
     },
     "ja": {
       "retry": " · 再試行 {attempt}/{limit}：{message}",
+      "retry_wait": " · {wait}後に再試行 {attempt}/{limit}：{message}",
       "retry_failover": " · エンドポイントを替えて再試行 {attempt}/{limit}：{message}"
     }
   }

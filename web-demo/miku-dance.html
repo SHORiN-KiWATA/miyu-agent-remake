@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="zh-CN" translate="no">
+<head>
+<meta charset="utf-8">
+<meta name="google" content="notranslate">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>初音未来 · 跳舞</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:radial-gradient(1200px 720px at 50% 18%, #182349 0%, #0b1024 46%, #04060d 100%);
+    color:#e8f6ff;overflow:hidden;
+    font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic","PingFang SC","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .scene{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+
+  .floor{
+    position:absolute;left:50%;bottom:3%;transform:translateX(-50%);
+    width:min(820px,94vw);height:210px;border-radius:50%;
+    background:radial-gradient(ellipse at center, rgba(63,224,208,.30), rgba(63,224,208,.06) 55%, transparent 74%);
+    filter:blur(8px);pointer-events:none;
+  }
+  .spotlight{
+    position:absolute;left:50%;top:-14%;transform:translateX(-50%);
+    width:min(1000px,130vw);height:126%;
+    background:radial-gradient(ellipse 42% 52% at 50% 32%, rgba(90,255,238,.20), transparent 70%);
+    pointer-events:none;will-change:opacity,transform;
+  }
+  .vignette{
+    position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(0,0,0,.55) 100%);
+  }
+  .notes{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+  .note{
+    position:absolute;color:#7ff5e7;font-size:22px;opacity:0;
+    text-shadow:0 0 14px rgba(63,224,208,.9);
+    animation:rise linear forwards;will-change:transform,opacity;
+  }
+  @keyframes rise{
+    0%{opacity:0;transform:translate(0,0) rotate(0deg) scale(.55)}
+    12%{opacity:.95}
+    70%{opacity:.65}
+    100%{opacity:0;transform:translate(var(--dx),-46vh) rotate(var(--rot)) scale(1.15)}
+  }
+
+  .stage{position:relative;z-index:2;display:flex;align-items:center;justify-content:center}
+  .stage svg{
+    height:min(84vh,86vw);width:auto;max-width:96vw;display:block;
+    filter:drop-shadow(0 24px 40px rgba(0,0,0,.55));
+  }
+
+  .title{
+    position:absolute;left:clamp(14px,3vw,40px);top:clamp(12px,3vh,34px);z-index:4;margin:0;
+    font-size:clamp(20px,3.4vw,34px);font-weight:800;letter-spacing:.06em;line-height:1.15;
+    color:#eafffb;text-shadow:0 0 18px rgba(63,224,208,.75),0 0 46px rgba(63,224,208,.35);
+  }
+  .title span{
+    display:block;margin-top:.35em;font-size:.42em;font-weight:600;letter-spacing:.36em;
+    color:#6fd9d0;text-shadow:none;
+  }
+  .title em{
+    display:block;margin-top:.5em;font-size:.3em;font-style:normal;font-weight:500;
+    letter-spacing:.14em;color:#7f93b5;
+  }
+
+  .hud{
+    position:absolute;right:clamp(14px,3vw,40px);top:clamp(12px,3vh,34px);z-index:4;
+    display:flex;align-items:center;gap:12px;
+    padding:10px 14px;border-radius:999px;
+    background:rgba(16,24,46,.62);border:1px solid rgba(99,229,214,.28);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    box-shadow:0 8px 30px rgba(0,0,0,.35);
+  }
+  .hud button{
+    width:38px;height:38px;flex:none;border-radius:50%;cursor:pointer;
+    border:1px solid rgba(99,229,214,.45);background:rgba(63,224,208,.14);
+    color:#9ff6ea;font-size:15px;line-height:1;display:grid;place-items:center;
+    transition:background .18s,transform .12s;
+  }
+  .hud button:hover{background:rgba(63,224,208,.28)}
+  .hud button:active{transform:scale(.92)}
+  .hud input[type=range]{
+    -webkit-appearance:none;appearance:none;width:clamp(80px,13vw,150px);height:4px;border-radius:4px;
+    background:linear-gradient(90deg,#3fe0d0,#2a7f9c);outline:none;cursor:pointer;
+  }
+  .hud input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+    background:#c9fff6;box-shadow:0 0 10px rgba(63,224,208,.9);cursor:pointer;
+  }
+  .hud input[type=range]::-moz-range-thumb{
+    width:15px;height:15px;border:0;border-radius:50%;
+    background:#c9fff6;box-shadow:0 0 10px rgba(63,224,208,.9);cursor:pointer;
+  }
+  .hud .bpm{font-variant-numeric:tabular-nums;font-size:12px;color:#8fe6da;min-width:60px;text-align:right}
+
+  .eq{
+    position:absolute;left:50%;bottom:clamp(10px,2.4vh,26px);transform:translateX(-50%);
+    z-index:4;display:flex;align-items:flex-end;gap:5px;height:46px;
+  }
+  .eq i{
+    width:5px;height:100%;border-radius:3px;transform-origin:50% 100%;transform:scaleY(.12);
+    background:linear-gradient(180deg,#8ffff2,#2bb6c9);box-shadow:0 0 12px rgba(63,224,208,.55);
+  }
+
+  @media (max-width:620px){
+    .hud{gap:8px;padding:8px 10px}
+    .hud .bpm{display:none}
+    .stage svg{height:min(76vh,104vw);max-width:100vw}
+  }
+</style>
+</head>
+<body>
+<div class="scene">
+  <div class="spotlight" id="spot"></div>
+  <div class="floor" id="floorGlow"></div>
+  <div class="notes" id="notes"></div>
+
+  <h1 class="title">初音未来<span>HATSUNE MIKU</span><em>♪ DANCE LOOP ♪</em></h1>
+
+  <div class="hud">
+    <button id="playBtn" title="播放 / 暂停（空格）" aria-label="播放或暂停">❚❚</button>
+    <input id="tempo" type="range" min="70" max="180" step="1" value="120" aria-label="速度">
+    <span class="bpm" id="bpmLabel">120 BPM</span>
+  </div>
+
+  <div class="stage">
+    <svg id="rig" viewBox="0 0 400 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="初音未来跳舞">
+      <defs>
+        <linearGradient id="hairGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#79f2e4"/>
+          <stop offset="42%" stop-color="#41cdc4"/>
+          <stop offset="100%" stop-color="#25908f"/>
+        </linearGradient>
+        <linearGradient id="hairGrad2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#4fd8ce"/>
+          <stop offset="100%" stop-color="#1f7b7c"/>
+        </linearGradient>
+        <linearGradient id="skinGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fff0e6"/>
+          <stop offset="100%" stop-color="#ffdcc9"/>
+        </linearGradient>
+        <linearGradient id="topGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#3d4468"/>
+          <stop offset="100%" stop-color="#222741"/>
+        </linearGradient>
+        <linearGradient id="skirtGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#2c3255"/>
+          <stop offset="100%" stop-color="#161a2d"/>
+        </linearGradient>
+        <radialGradient id="auraGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0" stop-color="#3fe0d0" stop-opacity=".38"/>
+          <stop offset="55%" stop-color="#1f9f9c" stop-opacity=".12"/>
+          <stop offset="100%" stop-color="#0b1024" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="soften" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="7"/>
+        </filter>
+        <filter id="glow" x="-70%" y="-70%" width="240%" height="240%">
+          <feGaussianBlur stdDeviation="5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      <!-- 舞台光晕 -->
+      <ellipse id="aura" cx="200" cy="300" rx="170" ry="215" fill="url(#auraGrad)"/>
+      <ellipse id="ring" cx="200" cy="566" rx="70" ry="15" fill="none" stroke="#4ff0dd" stroke-width="3"/>
+
+      <!-- 地面投影 -->
+      <ellipse id="shadow" cx="200" cy="572" rx="80" ry="16" fill="#000" opacity=".4" filter="url(#soften)"/>
+
+      <g id="root">
+        <g id="hip">
+
+          <!-- ================= 腿 ================= -->
+          <g id="legLu">
+            <path d="M183,352 L176,452" stroke="#ffdcc9" stroke-width="22" stroke-linecap="round" fill="none"/>
+            <g id="legLf">
+              <path d="M176,452 L172,540" stroke="#242a3d" stroke-width="26" stroke-linecap="round" fill="none"/>
+              <rect x="163.5" y="452" width="25" height="8" rx="4" fill="#3fe0d0" transform="rotate(-2.6 176 456)"/>
+              <ellipse cx="166" cy="552" rx="17" ry="11" fill="#1b2030" transform="rotate(-10 166 552)"/>
+            </g>
+          </g>
+          <g id="legRu">
+            <path d="M217,352 L224,452" stroke="#ffdcc9" stroke-width="22" stroke-linecap="round" fill="none"/>
+            <g id="legRf">
+              <path d="M224,452 L228,540" stroke="#242a3d" stroke-width="26" stroke-linecap="round" fill="none"/>
+              <rect x="211.5" y="452" width="25" height="8" rx="4" fill="#3fe0d0" transform="rotate(2.6 224 456)"/>
+              <ellipse cx="234" cy="552" rx="17" ry="11" fill="#1b2030" transform="rotate(10 234 552)"/>
+            </g>
+          </g>
+
+          <g id="torso">
+
+            <!-- ============ 双马尾（在身体之后） ============ -->
+            <g id="tails">
+              <g id="tailL1">
+                <path d="M152,178 Q110,250 112,332" stroke="#1f7b7c" stroke-width="36" stroke-linecap="round" fill="none"/>
+                <path d="M152,178 Q110,250 112,332" stroke="#3ec9c0" stroke-width="27" stroke-linecap="round" fill="none"/>
+                <g id="tailL2">
+                  <path d="M112,332 Q86,420 80,500" stroke="#1f7b7c" stroke-width="31" stroke-linecap="round" fill="none"/>
+                  <path d="M112,332 Q86,420 80,500" stroke="#37bcb5" stroke-width="22" stroke-linecap="round" fill="none"/>
+                </g>
+              </g>
+              <g id="tailR1">
+                <path d="M248,178 Q290,250 288,332" stroke="#1f7b7c" stroke-width="36" stroke-linecap="round" fill="none"/>
+                <path d="M248,178 Q290,250 288,332" stroke="#3ec9c0" stroke-width="27" stroke-linecap="round" fill="none"/>
+                <g id="tailR2">
+                  <path d="M288,332 Q314,420 320,500" stroke="#1f7b7c" stroke-width="31" stroke-linecap="round" fill="none"/>
+                  <path d="M288,332 Q314,420 320,500" stroke="#37bcb5" stroke-width="22" stroke-linecap="round" fill="none"/>
+                </g>
+              </g>
+            </g>
+
+            <!-- ============ 裙子 ============ -->
+            <g id="skirt">
+              <path d="M168,326 L232,326 L266,398 Q200,414 134,398 Z"
+                    fill="url(#skirtGrad)" stroke="#101427" stroke-width="3" stroke-linejoin="round"/>
+              <g stroke="#0d1122" stroke-width="2" opacity=".55" fill="none">
+                <path d="M200,330 L200,404"/>
+                <path d="M182,330 L170,402"/>
+                <path d="M218,330 L230,402"/>
+                <path d="M166,330 L148,398"/>
+                <path d="M234,330 L252,398"/>
+              </g>
+              <path d="M168,326 L232,326" stroke="#3fe0d0" stroke-width="3" opacity=".75"/>
+            </g>
+
+            <!-- ============ 上衣 ============ -->
+            <path d="M170,266 Q200,282 230,266 L234,332 Q200,348 166,332 Z"
+                  fill="url(#topGrad)" stroke="#101427" stroke-width="3" stroke-linejoin="round"/>
+            <path d="M176,270 Q200,286 224,270" stroke="#3fe0d0" stroke-width="4" fill="none" opacity=".85" stroke-linecap="round"/>
+            <!-- 领带 -->
+            <path d="M192,272 L200,278 L208,272 L200,266 Z" fill="#5cf0e0"/>
+            <path d="M200,280 L192,302 L200,334 L208,302 Z" fill="#2fd0c2" stroke="#1b7f7a" stroke-width="1.5"/>
+
+            <!-- ============ 手臂 ============ -->
+            <g id="armLu">
+              <path d="M168,276 L146,338" stroke="#2b3145" stroke-width="21" stroke-linecap="round" fill="none"/>
+              <g id="armLf">
+                <path d="M146,338 L136,392" stroke="#2b3145" stroke-width="19" stroke-linecap="round" fill="none"/>
+                <path d="M137,380 L136,392" stroke="#3fe0d0" stroke-width="20" stroke-linecap="round" fill="none"/>
+                <circle cx="135" cy="399" r="11" fill="#ffdcc9" stroke="#e9b8a1" stroke-width="1.5"/>
+              </g>
+            </g>
+            <g id="armRu">
+              <path d="M232,276 L254,338" stroke="#2b3145" stroke-width="21" stroke-linecap="round" fill="none"/>
+              <g id="armRf">
+                <path d="M254,338 L264,392" stroke="#2b3145" stroke-width="19" stroke-linecap="round" fill="none"/>
+                <path d="M263,380 L264,392" stroke="#3fe0d0" stroke-width="20" stroke-linecap="round" fill="none"/>
+                <circle cx="265" cy="399" r="11" fill="#ffdcc9" stroke="#e9b8a1" stroke-width="1.5"/>
+              </g>
+            </g>
+
+            <!-- ============ 头 ============ -->
+            <g id="head">
+              <!-- 后发 -->
+              <ellipse cx="200" cy="198" rx="60" ry="58" fill="url(#hairGrad2)"/>
+              <!-- 脸 -->
+              <ellipse cx="200" cy="206" rx="46" ry="49" fill="url(#skinGrad)"/>
+              <!-- 耳 -->
+              <ellipse cx="157" cy="214" rx="7" ry="11" fill="#ffd9c6"/>
+              <ellipse cx="243" cy="214" rx="7" ry="11" fill="#ffd9c6"/>
+
+              <!-- 腮红 -->
+              <ellipse cx="171" cy="230" rx="11" ry="6" fill="#ff9aa8" opacity=".45"/>
+              <ellipse cx="229" cy="230" rx="11" ry="6" fill="#ff9aa8" opacity=".45"/>
+
+              <!-- 眉毛 -->
+              <path d="M170,196 Q180,190 190,195" stroke="#2f9a94" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <path d="M230,196 Q220,190 210,195" stroke="#2f9a94" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+              <!-- 眼睛 -->
+              <g transform="rotate(-6 180 215)">
+                <ellipse cx="180" cy="215" rx="11" ry="12.5" fill="#eef7fb"/>
+                <ellipse cx="180" cy="216" rx="10" ry="11.6" fill="#2ec9bd"/>
+                <ellipse cx="180" cy="219" rx="6.6" ry="7.2" fill="#0e2530"/>
+                <circle cx="176.6" cy="210" r="3.6" fill="#fff"/>
+                <circle cx="184" cy="220" r="1.8" fill="#fff" opacity=".85"/>
+                <path d="M168,206 Q180,197 192,207" stroke="#20303f" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+              </g>
+              <g transform="rotate(6 220 215)">
+                <ellipse cx="220" cy="215" rx="11" ry="12.5" fill="#eef7fb"/>
+                <ellipse cx="220" cy="216" rx="10" ry="11.6" fill="#2ec9bd"/>
+                <ellipse cx="220" cy="219" rx="6.6" ry="7.2" fill="#0e2530"/>
+                <circle cx="216.6" cy="210" r="3.6" fill="#fff"/>
+                <circle cx="224" cy="220" r="1.8" fill="#fff" opacity=".85"/>
+                <path d="M208,206 Q220,197 232,207" stroke="#20303f" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+              </g>
+
+              <!-- 嘴 -->
+              <path d="M193,236 Q200,246 207,236 Q200,240 193,236 Z" fill="#b4504f"/>
+              <path d="M195,238 Q200,242 205,238" stroke="#ff9a99" stroke-width="1.6" fill="none" opacity=".8"/>
+
+              <!-- 刘海 -->
+              <path d="M152,204
+                       C145,148 168,132 200,132
+                       C232,132 255,148 248,204
+                       Q240,186 230,189
+                       Q220,206 210,206
+                       Q200,189 190,189
+                       Q180,206 170,206
+                       Q160,188 152,204 Z"
+                    fill="url(#hairGrad)" stroke="#22817f" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M170,158 Q186,148 204,148" stroke="#a8fff2" stroke-width="4" fill="none" opacity=".55" stroke-linecap="round"/>
+              <path d="M218,150 Q232,154 240,164" stroke="#a8fff2" stroke-width="3.5" fill="none" opacity=".45" stroke-linecap="round"/>
+
+              <!-- 鬓发 -->
+              <path d="M156,192 Q146,232 152,272 Q162,250 166,200 Z" fill="url(#hairGrad)" stroke="#22817f" stroke-width="2"/>
+              <path d="M244,192 Q254,232 248,272 Q238,250 234,200 Z" fill="url(#hairGrad)" stroke="#22817f" stroke-width="2"/>
+
+              <!-- 呆毛 -->
+              <g id="ahoge">
+                <path d="M199,145 C203,122 214,108 230,102 C219,113 210,128 205,147 Z"
+                      fill="#4fd8ce" stroke="#22817f" stroke-width="2" stroke-linejoin="round"/>
+              </g>
+
+              <!-- 发饰 -->
+              <rect x="135" y="185.5" width="24" height="13" rx="6.5" fill="#242a3d" stroke="#0f1322" stroke-width="2" transform="rotate(28 147 192)"/>
+              <rect x="241" y="185.5" width="24" height="13" rx="6.5" fill="#242a3d" stroke="#0f1322" stroke-width="2" transform="rotate(-28 253 192)"/>
+            </g>
+
+          </g>
+        </g>
+      </g>
+    </svg>
+  </div>
+
+  <div class="eq" id="eq"></div>
+  <div class="vignette"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var byId = function(id){ return document.getElementById(id); };
+  var J = {
+    root: byId('root'), hip: byId('hip'), torso: byId('torso'), skirt: byId('skirt'),
+    head: byId('head'), ahoge: byId('ahoge'),
+    aLu: byId('armLu'), aLf: byId('armLf'), aRu: byId('armRu'), aRf: byId('armRf'),
+    lLu: byId('legLu'), lLf: byId('legLf'), lRu: byId('legRu'), lRf: byId('legRf'),
+    tL1: byId('tailL1'), tL2: byId('tailL2'), tR1: byId('tailR1'), tR2: byId('tailR2'),
+    shadow: byId('shadow'), ring: byId('ring'), aura: byId('aura'), spot: byId('spot')
+  };
+
+  var n = function(v){ return (Math.round(v*100)/100).toFixed(2); };
+  function R(el, deg, cx, cy){
+    el.setAttribute('transform', 'rotate(' + n(deg) + ' ' + cx + ' ' + cy + ')');
+  }
+  function RT(el, tx, ty, deg, cx, cy){
+    el.setAttribute('transform', 'translate(' + n(tx) + ' ' + n(ty) + ') rotate(' + n(deg) + ' ' + cx + ' ' + cy + ')');
+  }
+
+  /* ---------- 节拍器 ---------- */
+  var bpm = 120, playing = true, phase = 0, lastTs = 0;
+
+  function pose(ph){
+    var s2   = Math.sin(ph / 2);          // 两拍一个来回的摆动
+    var b1   = Math.sin(ph);              // 每拍一次的抖动
+    var bump = Math.abs(Math.sin(ph / 2));// 0..1，每拍一次弹跳
+    var sway = s2;
+
+    /* 重心：上下弹跳 + 左右移动 */
+    var up = 9 * Math.pow(bump, 1.5);
+    J.root.setAttribute('transform', 'translate(' + n(3 * sway) + ' ' + n(-up) + ')');
+
+    /* 胯 / 上身反向扭动 */
+    R(J.hip,   7 * sway + 2.5 * b1, 200, 350);
+    R(J.torso, -6 * sway - 3 * b1, 200, 352);
+
+    /* 头（相对上身回正）与双马尾的跟随延迟 */
+    var headRot = 6 * sway + 2.5 * Math.sin(ph / 2 - 0.9);
+    R(J.head, headRot, 200, 262);
+    R(J.ahoge, 12 * Math.sin(ph / 2 - 1.2), 200, 140);
+
+    R(J.skirt, 3 * Math.sin(ph / 2 - 0.4), 200, 330);
+
+    /* 手臂：左右交替举起 */
+    var rL = 0.5 + 0.5 * Math.sin(ph / 2);
+    var rR = 1 - rL;
+    R(J.aLu,   12 + 95 * rL + 5 * b1, 168, 276);
+    R(J.aLf,   22 + 28 * rL, 146, 338);
+    R(J.aRu, -(12 + 95 * rR + 5 * b1), 232, 276);
+    R(J.aRf, -(22 + 28 * rR), 254, 338);
+
+    /* 腿：交替踏步 + 抬腿 */
+    var tapL = Math.max(0, Math.sin(ph / 2));
+    var tapR = Math.max(0, -Math.sin(ph / 2));
+    RT(J.lLu, 0, -7 * tapL,  6 * sway + 3 * b1 - 4 * tapL, 183, 352);
+    R(J.lLf,  15 * tapL, 176, 452);
+    RT(J.lRu, 0, -7 * tapR,  6 * sway - 3 * b1 + 4 * tapR, 217, 352);
+    R(J.lRf, -15 * tapR, 224, 452);
+
+    /* 马尾摆动（逐级延迟，做出跟随感） */
+    var tailA = -10 * Math.sin(ph / 2 - 0.55) - 3 * b1;
+    var tailB = -7 * Math.sin(ph / 2 - 1.45);
+    R(J.tL1, tailA, 158, 178);
+    R(J.tR1, tailA, 242, 178);
+    R(J.tL2, tailB, 112, 332);
+    R(J.tR2, tailB, 288, 332);
+
+    /* 地面与灯光随节拍呼吸 */
+    var sc = 1 - 0.2 * bump;
+    J.shadow.setAttribute('transform', 'translate(200 572) scale(' + n(sc) + ' 1) translate(-200 -572)');
+    J.shadow.setAttribute('opacity', n(0.42 - 0.2 * bump));
+
+    var pulse = (ph / (2 * Math.PI)) % 1;
+    if (pulse < 0) pulse += 1;
+    J.ring.setAttribute('rx', n(62 + 105 * pulse));
+    J.ring.setAttribute('ry', n(13 + 22 * pulse));
+    J.ring.setAttribute('opacity', n(0.55 * (1 - pulse)));
+    J.aura.setAttribute('rx', n(170 + 9 * bump));
+    J.aura.setAttribute('ry', n(215 + 7 * bump));
+    J.spot.style.opacity = (0.55 + 0.45 * bump).toFixed(3);
+    J.spot.style.transform = 'translateX(-50%) scale(' + (0.97 + 0.05 * bump).toFixed(3) + ')';
+  }
+
+  /* ---------- 均衡器 ---------- */
+  var eq = byId('eq');
+  var bars = [];
+  for (var i = 0; i < 11; i++){
+    var b = document.createElement('i');
+    eq.appendChild(b);
+    bars.push(b);
+  }
+
+  function eqPose(ph){
+    for (var k = 0; k < bars.length; k++){
+      var v = 0.18 + 0.82 * Math.abs(Math.sin(ph / 2 + k * 0.55));
+      bars[k].style.transform = 'scaleY(' + v.toFixed(3) + ')';
+    }
+  }
+
+  /* ---------- 飘浮音符 ---------- */
+  var glyphs = ['♪','♫','♩','✦','✧','♬'];
+  var notes = byId('notes');
+  function spawn(){
+    var s = document.createElement('span');
+    s.className = 'note';
+    s.textContent = glyphs[(Math.random() * glyphs.length) | 0];
+    s.style.left = (12 + Math.random() * 76) + '%';
+    s.style.bottom = (16 + Math.random() * 26) + '%';
+    s.style.fontSize = (14 + Math.random() * 20) + 'px';
+    s.style.setProperty('--dx', ((Math.random() * 2 - 1) * 90).toFixed(0) + 'px');
+    s.style.setProperty('--rot', ((Math.random() * 2 - 1) * 220).toFixed(0) + 'deg');
+    var dur = 3.2 + Math.random() * 2.2;
+    s.style.animationDuration = dur.toFixed(2) + 's';
+    s.addEventListener('animationend', function(){ s.remove(); });
+    notes.appendChild(s);
+  }
+  setInterval(function(){ if (playing) spawn(); }, 360);
+  for (var q = 0; q < 6; q++) spawn();
+
+  /* ---------- 主循环 ---------- */
+  function frame(ts){
+    if (!lastTs) lastTs = ts;
+    var dt = (ts - lastTs) / 1000;
+    lastTs = ts;
+    if (dt > 0.1) dt = 0.1;          // 切页面回来别跳帧
+    if (playing){
+      phase += dt * (bpm / 60) * Math.PI * 2;
+      if (phase > 1e6) phase = 0;
+    }
+    pose(phase);
+    eqPose(phase);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  /* ---------- 控件 ---------- */
+  var playBtn = byId('playBtn');
+  var tempo   = byId('tempo');
+  var label   = byId('bpmLabel');
+
+  playBtn.addEventListener('click', function(){
+    playing = !playing;
+    playBtn.textContent = playing ? '❚❚' : '▶';
+  });
+  tempo.addEventListener('input', function(){
+    bpm = parseInt(tempo.value, 10) || 120;
+    label.textContent = bpm + ' BPM';
+  });
+  window.addEventListener('keydown', function(e){
+    if (e.code === 'Space'){
+      e.preventDefault();
+      playBtn.click();
+    }
+  });
+})();
+</script>
+</body>
+</html>

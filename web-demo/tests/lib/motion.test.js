@@ -61,3 +61,23 @@ test('snapToPixels：高度对齐到整的屏幕像素（屏幕上一像素是 1
   assert.ok(Math.abs(h - 123.456) <= unit / 2 + 1e-9, '离原来的不到半个屏幕像素');
   assert.equal(snapToPixels(10, 1), 10);
 });
+
+test('追着滚（思考的预览）：临界阻尼的弹簧，从静止起步先慢后快、不越过目标、最后停在目标上；帧长不同走到的一样', async () => {
+  const { spring } = await import('../../src/lib/motion.js');
+  let s = { pos: 0, vel: 0 };
+  const steps = [];
+  for (let i = 0; i < 200 && (s.pos !== 100 || s.vel !== 0); i += 1) {
+    const next = spring(s, 100, 16, 180);
+    steps.push(next.pos - s.pos);
+    assert.ok(next.pos <= 100, '不越过');
+    s = next;
+  }
+  assert.deepEqual(s, { pos: 100, vel: 0 }, '停在目标上');
+  assert.ok(steps[0] < steps[3], '起步慢：头一帧比后面几帧走得少');
+  assert.ok(Math.max(...steps) < 100 * 16 / 180, '最快的一帧也比直线追的头一帧慢');
+  let a = { pos: 0, vel: 0 };
+  for (let i = 0; i < 6; i += 1) a = spring(a, 100, 30, 180);
+  const b = spring(spring({ pos: 0, vel: 0 }, 100, 90, 180), 100, 90, 180);
+  assert.ok(Math.abs(a.pos - b.pos) < 1e-9 && Math.abs(a.vel - b.vel) < 1e-9, '帧率不同，走到的地方一样');
+  assert.deepEqual(spring({ pos: 0, vel: 0 }, 100, 16, 0), { pos: 100, vel: 0 }, '时间常数是 0（少动画）：直接到');
+});

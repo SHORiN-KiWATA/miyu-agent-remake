@@ -7,7 +7,7 @@
   },
   "kind": "optional",
   "description": {
-    "zh": "她回答里收齐了的 mermaid 代码块画成图（桥画 SVG），能切源码、复制、点开看大图；停用了照代码块写。"
+    "zh": "她回答里收齐了的 mermaid 代码块画成图（核心画 SVG），能切源码、复制、点开看大图；停用了、核心没带画图的软件包，照代码块写。"
   },
   "inject": [
     "slots",
@@ -24,6 +24,18 @@
       "integer": true,
       "name": {
         "zh": "图最高多少（px，不超过视口的六成）"
+      }
+    },
+    "colors": {
+      "type": "json",
+      "default": {
+        "text": "var(--text)",
+        "line": "var(--text-soft)",
+        "label": "var(--surface)"
+      },
+      "name": {
+        "zh": "图里的颜色：核心画的三种记号色（字、线、连线标签的垫底）各换成什么",
+        "ja": "図の色：コアが描く三つの目印色（文字・線・ラベルの下地）をそれぞれ何に置き換えるか"
       }
     }
   },

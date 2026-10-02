@@ -7,7 +7,7 @@
   },
   "kind": "optional",
   "description": {
-    "zh": "输入框里放图片和文件：回形针、拖进来、粘贴；先交给桥，再 blob.put，跟着话一起发。"
+    "zh": "输入框里放图片和文件：回形针、拖进来、粘贴；分块传给核心存好（有本机路径的直接 blob.put），跟着话一起发。"
   },
   "inject": [
     "slots",
@@ -42,6 +42,27 @@
       "name": {
         "zh": "文字文件多大以内数有几行（字节）"
       }
+    },
+    "chunk_bytes": {
+      "type": "number",
+      "default": 524288,
+      "min": 1024,
+      "max": 524288,
+      "integer": true,
+      "name": {
+        "zh": "分块传给核心时一块多少字节（核心收的上限 512 KiB）",
+        "ja": "コアへ分割して送るときの 1 ブロックのバイト数（コアの上限 512 KiB）"
+      }
+    },
+    "resume_tries": {
+      "type": "number",
+      "default": 3,
+      "min": 1,
+      "integer": true,
+      "name": {
+        "zh": "传的时候接不上，连着几次没往前走就算传不上",
+        "ja": "送信が続かないとき、何回連続で進まなければ失敗とみなすか"
+      }
     }
   },
   "styles": [
@@ -58,7 +79,9 @@
       "reasons": {
         "attachment_too_big": "太大了（最多 20 MiB，图片最多 5 MiB、每边 8000 像素）",
         "attachment_unreadable": "读不了",
-        "attachment_in_data_root": "Miyu 的数据目录里的文件不能当附件"
+        "attachment_in_data_root": "Miyu 的数据目录里的文件不能当附件",
+        "upload_unknown": "上传作废了：连接断过，或者停了太久",
+        "too_many_uploads": "同时在传的太多了"
       },
       "drop_here": "把文件拖到这里",
       "lines": "{count} 行"
@@ -73,7 +96,9 @@
       "reasons": {
         "attachment_too_big": "大きすぎます（最大 20 MiB、画像は最大 5 MiB・各辺 8000 ピクセルまで）",
         "attachment_unreadable": "読み込めません",
-        "attachment_in_data_root": "Miyu のデータディレクトリにあるファイルは添付できません"
+        "attachment_in_data_root": "Miyu のデータディレクトリにあるファイルは添付できません",
+        "upload_unknown": "アップロードが無効になりました：接続が切れたか、長く止まっていました",
+        "too_many_uploads": "同時にアップロードしている数が多すぎます"
       },
       "drop_here": "ここにファイルをドロップ",
       "lines": "{count} 行"

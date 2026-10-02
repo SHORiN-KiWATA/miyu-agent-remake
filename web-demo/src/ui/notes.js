@@ -67,10 +67,10 @@ function detailNode(detail, where, markdown) {
     return h('div.tl-body.note-detail', h('div', md, detail.truncated ? h('div.note-detail-head', n.truncated) : null));
   }
   const command = detail.command ? section(n.command_label, h('pre', detail.command)) : null;
-  if (!detail.hash || !where.session) return h('div.tl-body.note-detail', command, section(n.output_label, h('div.note-detail-head', n.no_output)));
+  if (!detail.hash) return h('div.tl-body.note-detail', command, section(n.output_label, h('div.note-detail-head', n.no_output)));
   const pre = h('pre', n.loading);
   const head = h('div.note-detail-head', { hidden: true });
-  fetch(blobUrl(where.session, detail.hash, 'text/plain'))
+  fetch(blobUrl(detail.hash, 'text/plain'))
     .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`${r.status} ${r.statusText}`))))
     .then((text) => {
       const lines = text.replace(/\n$/, '').split('\n');

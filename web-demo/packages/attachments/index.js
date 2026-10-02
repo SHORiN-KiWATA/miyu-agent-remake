@@ -4,8 +4,8 @@
 //! - 放进来：回形针按钮（挂进 `composer.bar`，只在用手指点的设备上露，`style.css`）打开选文件；把文件拖进窗口（整页盖一层，正中一个文件加号和一句话，在哪松开都收，
 //!   照 Claude 网页端）；在输入框里粘贴文件。
 //!   选文件、拖放、缩略图都经宿主（服务 `host` 的 `files`，蓝图 `web/architecture.md`「宿主」）：浏览器给内容，桌面端给路径。
-//! - 传：宿主把它变成核心读得到的路径（浏览器交给桥存进临时目录，桌面端本来就有路径），再 `blob.put`；桥存的那一份存好了
-//!   `web.upload_done` 让桥删掉。
+//! - 传：有本机路径的（`@` 选文件交过来的、桌面端）直接 `blob.put` 的 `path`；只有内容的（浏览器）分块传给核心
+//!   （`blob.open`、`blob.write`、`blob.close`，核心施工 W-5，`src/lib/upload.js`），字节由宿主读（`files.read`）。
 //! - 框里那一排挂进 `composer.head`（`tray.js`）；发的时候经 `composer.payload` 交出去，核心拒了放回来（`model.js` 的 `Tray`）；
 //!   记进输入历史的是核心存好的那一份，翻出来的照它回到框里（蓝图「输入历史」）。
 //!
@@ -15,6 +15,7 @@ import { h, icon } from '../../src/lib/dom.js';
 import { show, hide } from '../../src/lib/motion.js';
 import { Tray, admit, mediaType, attachable } from './model.js';
 import { TrayView } from './tray.js';
+import { upload, serial } from '../../src/lib/upload.js';
 
 /** @param {any} ctx */
 export function apply(ctx) {
@@ -25,19 +26,21 @@ export function apply(ctx) {
   ctx.effect(() => () => view.destroy());
   ctx.effect(() => tray.watch(() => ctx.composer.changed()));
 
-  /** 传一个：宿主给出路径、核心存好；出错的那一块拿掉，提示一句。桥存的那一份总是删掉（本来就有路径的不删）。 */
+  // 分块传的一个接一个（核心一条连接同时开的上传有上限）
+  const queue = serial();
+  /** 传一个：有路径的核心照路径存，只有内容的分块传；出错的那一块拿掉，提示一句。 */
   const put = async (/** @type {import('./model.js').Item} */ item) => {
-    let path = null;
-    const own = !!item.file.path;
+    const type = mediaType(item.file.type);
+    const request = (method, params) => ctx.core.request(method, params);
     try {
-      path = await files.stage(item.file);
-      const type = mediaType(item.file.type);
-      const got = await ctx.core.request('blob.put', type ? { path, media_type: type } : { path });
+      const path = item.file.path;
+      const got = path
+        ? await request('blob.put', type ? { path, media_type: type } : { path })
+        : await queue(() => upload(request, { name: item.name, size: item.size }, type, (offset, length) => files.read(item.file, offset, length),
+          { chunk: ctx.config.chunk_bytes, tries: ctx.config.resume_tries }));
       tray.ready(item.id, got);
     } catch (err) {
       if (tray.remove(item.id)) ctx.composer.say(t('failed', { name: item.name, reason: reasonOf(err, t) }));
-    } finally {
-      if (path && !own) ctx.core.request('web.upload_done', { path }).catch(() => {});
     }
   };
 

@@ -231,6 +231,15 @@
     "attachments": " · 添付 {count} 件",
     "attachments_only": "添付 {count} 件"
   },
+  "session_list": {
+    "title": "セッション",
+    "count": "{count} 件",
+    "count_of": "{shown} / {total} 件",
+    "search": "タイトル・ID を検索",
+    "no_match": "一致するセッションはありません",
+    "loading": "セッションを読み込み中…",
+    "hint": "↑↓ 選択 · Enter 開く · Esc 閉じる"
+  },
   "mention": {
     "title": "@{word} · {count} 件",
     "partial": "一部のみ表示、/ でフォルダを探せます",
@@ -261,7 +270,7 @@
     "nothing_to_clear": "コンテキストは空です",
     "nothing_to_recap": "まだ振り返る内容がありません",
     "recap_failed": "振り返りを書けませんでした。もう一度どうぞ",
-    "unknown_model": "設定にそのモデル・プール・ティアがありません"
+    "unknown_model": "設定にそのモデル・プールがありません"
   },
   "said": {
     "copy": "コピー",

@@ -230,7 +230,7 @@ const RUNS = {
     }
     setLanguage(app, want);
   },
-  // 换模型（蓝图「换模型的菜单」第 6 条）：不带参数的开菜单；写了的原样交给核心认（`供应商/模型`、`@池`、挡位名）
+  // 换模型（蓝图「换模型的菜单」第 6 条）：不带参数的开菜单；写了的原样交给核心认（`供应商/模型` 或 `@池`）
   model: (app, spec, words) => {
     const want = (words ?? '').trim();
     if (want) return app.setModel(want);
@@ -243,8 +243,8 @@ const RUNS = {
   edit: (app) => {
     if (latestTurn(app)) app.chat.editLatest();
   },
-  // 全部会话那一页（蓝图「全部会话」）
-  sessions: (app) => app.sessionsPage.open(),
+  // 会话列表（蓝图「会话列表」）：输入框上面的浮层，`/sessions 词` 带着搜；全部会话那一页从左栏「查看全部」进
+  sessions: (app, spec, words) => app.composer.openSessions(words ?? ''),
   new: (app) => {
     app.open(null);
     app.composer.focus();

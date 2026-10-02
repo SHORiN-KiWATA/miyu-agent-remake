@@ -60,7 +60,7 @@ function hooksFor(scope, where, say, made, ext) {
   /** 地址 → 浏览器能取的：本机的换成桥的地址；网上的照原样；别的（取不了的）是 `null`。 */
   const url = (target, download = false) => {
     const path = localPath(target, where);
-    if (path) return where.session ? fileUrl(where.session, path, download) : null;
+    if (path) return fileUrl(path, download);
     return /^https?:\/\//i.test(target) ? target : null;
   };
   /** 不当图的地址照链接写：本机的点一下复制路径，网上的新标签页打开；别的（取不了的）照原文。 */

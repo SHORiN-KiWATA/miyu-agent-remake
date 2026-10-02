@@ -37,7 +37,7 @@ function why(m) {
 }
 
 /**
- * 框下面那一截：引用照第一个 `/` 拆成模型名和供应商（模型名里可以带 `/`）；池、挡位名照原样写，不写供应商。
+ * 框下面那一截：引用照第一个 `/` 拆成模型名和供应商（模型名里可以带 `/`）；池照原样写，不写供应商。
  * @param {string} ref
  * @returns {{model: string, endpoint: string|null}}
  */
@@ -60,6 +60,41 @@ export function effortLevels(list, ref) {
     if (m) return Array.isArray(m.facts?.reasoning?.value) ? m.facts.reasoning.value : [];
   }
   return [];
+}
+
+/**
+ * 这个模型现在那一档和它在配置里的键名（`model.list` 里它的 `facts.effort` `{value, from, layer, key}`，核心施工 8-18 补）：个人设置里写了的
+ * （`from` 是 `config`、`layer` 是 `personal`）照写；系统配置的、没写的就是默认（`null`，框下面不写、菜单里勾默认）。池、列表里没有的、核心没给键名的
+ * `key` 是 `null`：选不了。
+ * @param {any} list
+ * @param {string|null} ref
+ * @returns {{level: string|null, key: string|null}}
+ */
+export function effortOf(list, ref) {
+  if (!list || !ref || ref.startsWith('@')) return { level: null, key: null };
+  for (const p of list.providers ?? []) {
+    const e = (p.models ?? []).find((x) => x.ref === ref)?.facts?.effort;
+    if (e) return { level: e.from === 'config' && e.layer === 'personal' ? e.value ?? null : null, key: typeof e.key === 'string' ? e.key : null };
+  }
+  return { level: null, key: null };
+}
+
+/**
+ * 选了一档写进个人设置的 `config.set` 参数（蓝图「换模型的菜单」第 2 条）：选默认（`null`）的删掉个人这一项。
+ * @param {string} key 完整键名，照抄核心给的
+ * @param {string|null} level
+ */
+export function effortChange(key, level) {
+  return { layer: 'personal', changes: [level === null ? { key, unset: true } : { key, value: level }] };
+}
+
+/**
+ * 手动选的模型记成新会话的默认（蓝图「换模型的菜单」第 5 条，2026-10-02 项目主人定，照 `models.md`「头的约定」）：
+ * 写个人设置的 `models.chat` 的 `config.set` 参数。
+ * @param {string} ref 模型或 `@池`
+ */
+export function defaultModelChange(ref) {
+  return { layer: 'personal', changes: [{ key: 'models.chat', value: ref }] };
 }
 
 /** 一档怎么写：`null` 是默认；表里没有的照原样。 @param {string|null} level */

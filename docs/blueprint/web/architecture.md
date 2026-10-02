@@ -49,12 +49,12 @@ flowchart TB
 | 能力 | 浏览器 | 桌面端 |
 |---|---|---|
 | `channel()` 连核心的一条线 | WebSocket（`/ws?k=口令`） | 包一层进程间通道，样子照 WebSocket：`send(一行)`、`readyState`（1 是通着）、`onopen`、`onmessage({data})`、`onclose`、`onerror`。JSON-RPC 那一层（`core/connection.js`）两边同一份 |
-| `urls` 本机文件、blob、链接卡片配图的地址 | 桥的 `/file`、`/blob`、`/link-image`，带口令 | 外壳注册的自定义协议（`miyu://file?…`，Windows 上是 `http://miyu.localhost/…`），规矩和桥一样：数据根不给、只给这个会话日志里出现过的哈希 |
+| `urls` 本机文件、blob（链接卡片的配图、图标也是 blob）的地址 | 桥的 `/file`、`/blob`，带口令 | 外壳注册的自定义协议（`miyu://file?…`，Windows 上是 `http://miyu.localhost/…`），规矩和桥一样：照核心的 `fs.read`、`blob.get` 读（数据根不给、照账号的 blob）（原来只给这个会话日志里出现过的哈希） |
 | `files.pick()` 选文件 | `<input type=file>`，交回浏览器的文件 | 系统的选文件对话框，交回路径 |
 | `files.watchDrop(目标, 进、到上面、出、放下)` 拖进来 | 页面上的拖放事件：拖进窗口、到了目标上面、离开，只在目标上松开才收（附件给的目标是整页：在哪松开都收），别处松开不让页面去打开那个文件 | 窗口的拖放事件（网页视图里的拖放拿不到路径）照落点算在不在目标上，交回路径 |
 | `files.text(文件, 最多多大)` 读文字文件的内容（框里的卡写有几行） | 浏览器文件的内容；核心存好的那一份（输入历史翻出来的附件，文件上带 `stored`：会话、编号）照桥的 `/blob` 读，本机的文件照 `/file` 读；超过的、读不了的交 `null` | 外壳读那个路径，超过的、读不了的交 `null` |
 | `files.preview(文件)` 框里的缩略图 | 浏览器文件的临时地址；核心存好的那一份是桥的 `/blob` 地址；本机的文件（`@` 选文件交过来的，只有路径）是桥的 `/file` 地址 | 本机路径换成的地址 |
-| `files.stage(文件)` 附件变成核心读得到的路径 | 交给桥存进临时目录（`/upload`），交回路径 | 有路径的就是它，不传；粘贴来的（只有内容）由外壳写进临时目录 |
+| `files.read(文件, 从哪, 多长)` 读附件的一段字节（分块传给核心，`blob.write`，核心施工 W-5） | 浏览器文件切一段读出来 | 有路径的不用读（直接 `blob.put` 的 `path`）；粘贴来的（只有内容）照浏览器 |
 | `open(地址)` 外面的链接 | 新标签页 | 系统的浏览器 |
 | `intercept(根)` 接住页面里的链接 | 什么都不做 | 点 `target=_blank` 的链接改走 `open`，点带 `download` 的改走存文件的对话框（网页视图不一定管下载） |
 | `clipboard.write(字)` | `navigator.clipboard` | 同（网页视图大多给），不给的走外壳 |
@@ -63,7 +63,7 @@ flowchart TB
 
 **页面自己守的**（两个宿主都成立，由测试和评审守）：
 
-1. 平台的 API 只在 `src/host/` 里用：`WebSocket`、`location.hash`、`localStorage`、`sessionStorage`、`window.open`、`navigator.clipboard`、`dataTransfer`，写死的桥的地址（`/ws`、`/upload`、`/file?`、`/blob?`、`/link-image?`）。测试照源码查（「守着它的」）。存东西经内核的 `storage`（键带账号，「多用户、多终端」第 5 条），存法是宿主给的。
+1. 平台的 API 只在 `src/host/` 里用：`WebSocket`、`location.hash`、`localStorage`、`sessionStorage`、`window.open`、`navigator.clipboard`、`dataTransfer`，写死的桥的地址（`/ws`、`/file?`、`/blob?`）。测试照源码查（「守着它的」）。存东西经内核的 `storage`（键带账号，「多用户、多终端」第 5 条），存法是宿主给的。
 2. 链接照网页的写法写（外链 `target=_blank`、下载 `download`），由宿主在最外层接住，页面各处不分平台。
 3. 不往外取：字体、库都在本地；网上的东西（链接卡片的图）经宿主转。桌面端的内容安全策略由 Tauri 强制，照浏览器现在的一样严（回答里网上的图片以后也经宿主转，`web.md`「图片」第 1 条待拍板）。
 4. 一个窗口一份状态：模块级的状态只放在宿主、资源这些一个窗口一份的地方；软件包不留模块级的状态（「软件包」已经是规矩）。桌面端一个会话能开一个窗口。
@@ -186,7 +186,7 @@ flowchart TB
 
 2026-09-30 起一件件搬（「怎么搬」第 3 步进行中）。这张表跟着搬，拆出一个包改一行。
 
-**编进内核的服务**：`core`（连核心，现在经桥）、`sessions`（会话仓库）、`host`（宿主，见「宿主」：`kind`、这个页面登录成的账号 `account`、起桥的目录 `cwd`、家目录 `home`、`files`、`open`、`clipboard`；口令不出宿主）、`page`（页面的根）、`slots`、`seams`、`storage`（这台设备上存的：宿主给的存法，键带账号，读写兜着）、`packages`（列出每个包的状态和清单、停用启用、改个人那一层的配置：按项合，写 `null` 的删掉那一项）。名字列在 `src/kernel/services.js`，内核起来时查一遍都提供了。
+**编进内核的服务**：`core`（连核心，现在经桥）、`sessions`（会话仓库）、`host`（宿主，见「宿主」：`kind`、这个页面登录成的账号 `account`、新会话的工作目录 `cwd`（握手回应的 `host.workspace`，核心施工 W-3；原来是起桥的目录）、家目录 `home`（`host.home`）、`files`、`open`、`clipboard`；口令不出宿主）、`page`（页面的根）、`slots`、`seams`、`storage`（这台设备上存的：宿主给的存法，键带账号，读写兜着）、`packages`（列出每个包的状态和清单、停用启用、改个人那一层的配置：按项合，写 `null` 的删掉那一项）。名字列在 `src/kernel/services.js`，内核起来时查一遍都提供了。
 
 | 包 | 种类 | 要（`inject`） | 提供的服务 | 声明的挂载位 | 挂进 | 设置项 |
 |---|---|---|---|---|---|---|

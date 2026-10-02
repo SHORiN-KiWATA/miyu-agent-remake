@@ -1,5 +1,5 @@
 {
-  "note": "界面上的数和记号（蓝图 web.md「样子」）。权限级别的图标、收尾行的空格照 TUI 演示的 layout.json。 history_max 是输入历史最多记几条，history_rows 是输入历史列表最多露几行，history_preview_rows 是列表里一条展开成全文最多几行（蓝图 web.md「输入历史」）。 follow_keep 是跟着最新的时，一段收起让最新的内容往上退，底边最多退到视口从上往下几成的地方（再往上视口跟着走，蓝图 web.md「滚动」）。 mention_delay_ms 是打着 @ 词停多久才问核心列、找文件，find_poll_ms 是核心的清单没建完时隔多久再问（蓝图 web.md「`@` 选文件」）。 model_menu_width、model_menu_min_width 是换模型的菜单最宽、最窄（宽照最长的名字），model_menu_rows 是列表最多露几行，model_menu_leave_ms 是鼠标移走多久收起，model_menu_hover_ms 是悬停在思考强度上多久展开，effort_order 是思考强度的子菜单照什么先后排（null 是默认，蓝图 web.md「换模型的菜单」）。 block_name_max 是框里文件块的名字最多几个字，长的中间截掉（蓝图 web.md「`@` 选文件」第 5 条）。",
+  "note": "界面上的数和记号（蓝图 web.md「样子」）。权限级别的图标、收尾行的空格照 TUI 演示的 layout.json。 history_max 是输入历史最多记几条，history_rows 是输入历史列表最多露几行，session_list_rows 是会话列表（/sessions）最多露几行，history_preview_rows 是列表里一条展开成全文最多几行（蓝图 web.md「输入历史」）。 follow_keep 是跟着最新的时，一段收起让最新的内容往上退，底边最多退到视口从上往下几成的地方（再往上视口跟着走，蓝图 web.md「滚动」）。 mention_delay_ms 是打着 @ 词停多久才问核心列、找文件，find_poll_ms 是核心的清单没建完时隔多久再问（蓝图 web.md「`@` 选文件」）。 model_menu_width、model_menu_min_width 是换模型的菜单最宽、最窄（宽照最长的名字），model_menu_rows 是列表最多露几行，model_menu_leave_ms 是鼠标移走多久收起，model_menu_hover_ms 是悬停在思考强度上多久展开，effort_order 是思考强度的子菜单照什么先后排（null 是默认，蓝图 web.md「换模型的菜单」）。 block_name_max 是框里文件块的名字最多几个字，长的中间截掉（蓝图 web.md「`@` 选文件」第 5 条）。",
   "level_icons": {
     "workspace": "▣ ",
     "full": "⏵⏵ ",
@@ -54,6 +54,7 @@
   "command_rows": 6,
   "history_max": 100,
   "history_rows": 8,
+  "session_list_rows": 8,
   "history_preview_rows": 12,
   "mention_delay_ms": 80,
   "find_poll_ms": 200,

@@ -22,12 +22,14 @@ function fresh() {
 
 const push = (store, event) => store.push('event', { session: 'S', event });
 
-test('status 带着 retry：记下第几次、一共几次、原话和哪一轮', () => {
+test('status 带着 retry：记下第几次、一共几次、原话、哪一轮、什么时候重试（事件的时刻加 wait_ms）', () => {
   const store = fresh();
   push(store, SAMPLE);
-  assert.deepEqual(store.sessions.get('S')?.retry, { turn: 42, attempt: 1, limit: 5, message: 'connection reset by peer', failover: false });
+  assert.deepEqual(store.sessions.get('S')?.retry, { turn: 42, attempt: 1, limit: 5, message: 'connection reset by peer', failover: false,
+    due: Date.parse(SAMPLE.at) + SAMPLE.body.retry.wait_ms });
   push(store, LIMITED);
-  assert.deepEqual(store.sessions.get('S')?.retry, { turn: 117, attempt: 1, limit: 5, message: 'HTTP 429: Rate limit reached', failover: false });
+  assert.deepEqual(store.sessions.get('S')?.retry, { turn: 117, attempt: 1, limit: 5, message: 'HTTP 429: Rate limit reached', failover: false,
+    due: Date.parse(LIMITED.at) + LIMITED.body.retry.wait_ms });
 });
 
 test('下一段 model.delta 来了：重试过去了', () => {

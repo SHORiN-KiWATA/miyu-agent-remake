@@ -137,3 +137,23 @@ export function parseBezier(text) {
 export function snapToPixels(height, scale) {
   return scale > 0 ? Math.round(height * scale) / scale : height;
 }
+
+/**
+ * 追着一个会变的目标走一帧（思考的预览滚到底，蓝图「时间线」）：临界阻尼的弹簧，起步从现在的速度慢慢加上去、到了不越过，
+ * 字一阵一阵来也连成一条滑动，不在每一阵开头猛地一动。用的是精确解，帧长不同、走过同样的时间到的地方一样。
+ * 离目标不到半个像素、也几乎不动了的直接到；`tau` 是 0（少动画）直接到。
+ * @param {{pos: number, vel: number}} now 现在的位置、速度（像素每毫秒）
+ * @param {number} to 目标
+ * @param {number} dt 这一帧过了多久（毫秒）
+ * @param {number} tau 时间常数（毫秒）
+ * @returns {{pos: number, vel: number}}
+ */
+export function spring(now, to, dt, tau) {
+  if (tau <= 0) return { pos: to, vel: 0 };
+  const w = 1 / tau;
+  const x = now.pos - to;
+  const k = Math.exp(-w * dt);
+  const pos = to + (x + (now.vel + w * x) * dt) * k;
+  const vel = (now.vel - w * (now.vel + w * x) * dt) * k;
+  return Math.abs(pos - to) < 0.5 && Math.abs(vel) * dt < 0.5 ? { pos: to, vel: 0 } : { pos, vel };
+}

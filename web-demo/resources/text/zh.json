@@ -231,6 +231,15 @@
     "attachments": " · {count} 个附件",
     "attachments_only": "{count} 个附件"
   },
+  "session_list": {
+    "title": "会话",
+    "count": "{count} 个",
+    "count_of": "{shown} / {total} 个",
+    "search": "搜索标题、编号",
+    "no_match": "没有对得上的会话",
+    "loading": "正在读会话…",
+    "hint": "↑↓ 选 · Enter 打开 · Esc 关"
+  },
   "mention": {
     "title": "@{word} · {count} 个",
     "partial": "只列了一部分，打 / 按目录找",
@@ -261,7 +270,7 @@
     "nothing_to_clear": "上下文为空",
     "nothing_to_recap": "还没有可回顾的内容",
     "recap_failed": "回顾没写成，再要一次就是",
-    "unknown_model": "配置里没有这个模型、池或者挡位"
+    "unknown_model": "配置里没有这个模型或者池"
   },
   "said": {
     "copy": "复制",

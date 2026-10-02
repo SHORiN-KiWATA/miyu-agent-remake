@@ -24,7 +24,7 @@ MIYU_HOME=<同一个目录> MIYU_RESOURCES=$PWD/resources MIYU_CORE_BIN=$PWD/tar
 - 核心没在跑时桥用 `MIYU_CORE_BIN` 拉起来；核心只在起来那一刻读环境变量，改了变量先停核心。桥停了核心不跟着停。
 - 新会话在起桥的那个目录里干活。
 - 时间线上工具的显示名、结果那一句由桥照 `MIYU_RESOURCES` 读（`web.human`）；换了桥的代码要重新编、重启桥。
-- 桥还顶着核心以后的网页模块做几样（蓝图 `web.md` 最后一节）：画 mermaid 图（`web.mermaid`）、给本机文件和 blob（`/file`、`/blob`，带口令，数据根不给）、抓链接卡片（`web.link_preview`、`/link-image`，要能联网，内网地址不抓）。
+- 桥还顶着核心以后的网页模块做几样（蓝图 `web.md` 最后一节）：给本机文件和 blob（`/file`、`/blob`，带口令，数据根不给）、抓链接卡片（`web.link_preview`、`/link-image`，要能联网，内网地址不抓）。
 - 预览工作区：让她用 `write` 把产物写进这个会话工作目录下的 `artifacts/`，写完右边自动打开（窗口够宽时）。
 
 ### 测试

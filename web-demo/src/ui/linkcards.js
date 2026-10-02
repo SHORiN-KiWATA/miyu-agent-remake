@@ -1,8 +1,8 @@
 // @ts-check
 //! 链接卡片（蓝图 `web.md`「链接卡片」，照旧版 `linkcards.js`）：一段里只有一个 `http(s)` 链接的，换成一张卡片；句子中间的链接不换。
 //!
-//! 元数据由桥去抓（`web.link_preview`，以后是核心的 `link.preview`）：页面自己不去别的网站取东西，配图、图标也经桥转一道
-//! （`/link-image`）。几条规矩，出问题一律照普通链接、不让正文变样：
+//! 元数据由核心去抓（`link.preview`，核心施工 W-7）：页面自己不去别的网站取东西；配图、图标核心存成 blob，照 `/blob` 取。
+//! 几条规矩，出问题一律照普通链接、不让正文变样（核心没带 `net` 软件包的也是）：
 //!
 //! - 一条回答最多换 3 张（真做成了的才算名额），最多试 6 个；同一个地址只换第一次出现的；
 //! - 取不到、超时、不是网页的，什么都不做，不画「载入中」；
@@ -11,7 +11,7 @@
 
 import { h, icon } from './dom.js';
 import { res } from '../util/res.js';
-import { linkImageUrl } from '../core/host.js';
+import { blobUrl } from '../core/host.js';
 
 /** @type {import('../core/connection.js').Connection|null} */
 let conn = null;
@@ -45,11 +45,11 @@ function soleLink(p) {
   return link && /^https?:\/\//i.test(link.getAttribute('href') ?? '') ? link : null;
 }
 
-/** 问桥要一个地址的元数据；问过的直接给。 */
+/** 问核心要一个地址的卡片；问过的直接给。没做成的（`card` 是 `null`）、拒了的是 `null`。 */
 function previewFor(url) {
   if (!lookups.has(url)) {
     const ask = conn
-      ? conn.request('web.link_preview', { url }).then((r) => (r?.ok ? r.preview : null)).catch((err) => {
+      ? conn.request('link.preview', { url }).then((r) => r?.card ?? null).catch((err) => {
         console.error(`取不到链接卡片 ${url}：${err.message}`);
         return null;
       }).then((preview) => { known.set(url, preview); return preview; })
@@ -62,10 +62,10 @@ function previewFor(url) {
 /** 一张卡片：配图（有的话）、图标和标题、描述、站名和外链图标。 */
 function card(preview, href) {
   const media = preview.image
-    ? h('div.link-card-media', h('img', { src: linkImageUrl(preview.image), alt: '', loading: 'lazy', decoding: 'async', onerror: (e) => e.target.parentElement?.remove() }))
+    ? h('div.link-card-media', h('img', { src: blobUrl(preview.image.blob, preview.image.media_type), alt: '', loading: 'lazy', decoding: 'async', onerror: (e) => e.target.parentElement?.remove() }))
     : null;
   const mark = preview.icon
-    ? h('img.link-card-icon', { src: linkImageUrl(preview.icon), alt: '', loading: 'lazy', onerror: (e) => e.target.remove() })
+    ? h('img.link-card-icon', { src: blobUrl(preview.icon.blob, preview.icon.media_type), alt: '', loading: 'lazy', onerror: (e) => e.target.remove() })
     : h('span.link-card-icon.is-letter', (preview.site || preview.title || '?').trim().charAt(0).toUpperCase());
   let host = href;
   try { host = new URL(href).host; } catch { /* 写坏了的地址照原样当站名 */ }

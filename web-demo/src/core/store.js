@@ -256,7 +256,9 @@ export class Store {
     }
     if (e.kind === 'status' && e.body?.retry && typeof e.body.retry === 'object') {
       const r = e.body.retry;
-      s.retry = { turn: e.turn, attempt: r.attempt, limit: r.limit, message: r.message ?? '', failover: r.failover === true };
+      // 什么时候重试：这条事件的时刻加上 `wait_ms`（运行状态行倒数）
+      const due = typeof r.wait_ms === 'number' ? Date.parse(e.at) + r.wait_ms : undefined;
+      s.retry = { turn: e.turn, attempt: r.attempt, limit: r.limit, message: r.message ?? '', failover: r.failover === true, ...(due === undefined || Number.isNaN(due) ? {} : { due }) };
       return;
     }
     // 出错换了模型（核心施工 8-9）：限额跟着换（框下面那一行的窗口）；换模型的记下来，时间线上出一行（`withChanges`）
