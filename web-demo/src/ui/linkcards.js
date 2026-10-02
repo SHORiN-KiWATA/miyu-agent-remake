@@ -12,6 +12,7 @@
 import { h, icon } from './dom.js';
 import { res } from '../util/res.js';
 import { blobUrl } from '../core/host.js';
+import { cardView } from '../model/linkcard.js';
 
 /** @type {import('../core/connection.js').Connection|null} */
 let conn = null;
@@ -59,10 +60,14 @@ function previewFor(url) {
   return lookups.get(url);
 }
 
-/** 一张卡片：配图（有的话）、图标和标题、描述、站名和外链图标。 */
+/** 一张卡片：配图（有的话；视频的叠播放记号和时长）、图标和标题、描述、站名（· 作者）和外链图标。 */
 function card(preview, href) {
+  const view = cardView(preview);
   const media = preview.image
-    ? h('div.link-card-media', h('img', { src: blobUrl(preview.image.blob, preview.image.media_type), alt: '', loading: 'lazy', decoding: 'async', onerror: (e) => e.target.parentElement?.remove() }))
+    ? h(`div.link-card-media${view.video ? '.is-video' : ''}`,
+      h('img', { src: blobUrl(preview.image.blob, preview.image.media_type), alt: '', loading: 'lazy', decoding: 'async', onerror: (e) => e.target.parentElement?.remove() }),
+      view.video ? h('span.link-card-play', icon('play')) : null,
+      view.duration ? h('span.link-card-time', view.duration) : null)
     : null;
   const mark = preview.icon
     ? h('img.link-card-icon', { src: blobUrl(preview.icon.blob, preview.icon.media_type), alt: '', loading: 'lazy', onerror: (e) => e.target.remove() })
@@ -74,7 +79,7 @@ function card(preview, href) {
     h('div.link-card-body',
       h('div.link-card-head', mark, h('strong.link-card-title', preview.title || href)),
       preview.description ? h('p.link-card-desc', preview.description) : null,
-      h('div.link-card-foot', h('span.link-card-site', preview.site || host), withClass(icon('external-link'), 'link-card-arrow'))));
+      h('div.link-card-foot', h('span.link-card-site', view.site || host), withClass(icon('external-link'), 'link-card-arrow'))));
 }
 
 /** 给图标加一个类。 */
