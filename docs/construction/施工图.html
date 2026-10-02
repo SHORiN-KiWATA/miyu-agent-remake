@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>182</b><span>/ 193 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 8-5 补贴 key 按 Ctrl+C 恢复回显，接着 C-7 跨会话验收、三个驱动的图纸；跨会话只剩 C-7 验收</span></li>
-    <li><b class="mono">b22e2a81</b><span>最近一步（W-7 链接卡片）的提交</span></li>
+    <li><b>183</b><span>/ 196 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 8-15 用量与金额（合并中）、W-7 补，接着 W-7 再补；跨会话只剩 C-7 验收</span></li>
+    <li><b class="mono">67401c72</b><span>最近一步（8-5 补 按 Ctrl+C 也把回显开回来（补））的提交</span></li>
   </ul>
 </header>
 
@@ -515,6 +515,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s8-3"><span class="n">8-3</span>写配置<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-4"><span class="n">8-4</span>监视与生效<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-5"><span class="n">8-5</span>密钥<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s8-5b"><span class="n">8-5</span>按 Ctrl+C 也把回显开回来（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-6"><span class="n">8-6</span>供应商<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-6b"><span class="n">8-6</span>地址也能放在环境变量里（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-7"><span class="n">8-7</span>模型资料<span class="st">✓</span></a></li>
@@ -558,6 +559,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sW-5"><span class="n">W-5</span>分块上传<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sW-6"><span class="n">W-6</span>分块读<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sW-7"><span class="n">W-7</span>链接卡片<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">W-7</span>压缩的页面和 head 后面的标签（补）</span></li>
+        <li><span class="step"><span class="n">W-7</span>按网站取卡片（再补）</span></li>
         <li><span class="step"><span class="n">W-8</span>身份</span></li>
         <li><span class="step"><span class="n">W-9</span>网页软件</span></li>
         <li><span class="step"><span class="n">W-10</span>媒体地址</span></li>
@@ -10948,6 +10951,55 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/8-5-密钥.md</code>；蓝图 <code>config.md</code> 第九、十一条，<code>cli/login.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-5b" aria-labelledby="h-s85b">
+  <div class="sheet-head"><h2 id="h-s85b"><span class="no">8-5 补</span>按 Ctrl+C 也把回显开回来（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose"><code>miyu login</code>、<code>miyu setup</code> 贴 key 时关掉了回显，按 Ctrl+C 进程被信号直接打断，回显开不回来，人得自己敲 <code>reset</code>。改成读 key 那一段自己管终端的设置，Ctrl+C 当取消，回显照原样开回来。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">按 Ctrl+C 也把回显开回来（补）</span><span class="dir-note">8-5 补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>Unix 照 termios 关回显、信号键、整行，自己一个字节一个字节读；Windows 照控制台模式</li>
+              <li>守卫在 Drop 里照原样写回，panic 也写回；取消印一句、退出码 130、什么都不存</li>
+              <li>去掉 <code>rpassword</code>，没加新的第三方包</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">CI 撞出的平台差异</span><span class="rl">macOS 伪终端主端不认 tcgetattr、子进程退出丢未读字节、termios 多出 PENDIN 位；Windows 两个测试抢控制台状态</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-5 补</dd></div>
+        <div><dt>名称</dt><dd>按 Ctrl+C 也把回显开回来（补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-01</dd></div>
+        <div><dt>提交</dt><dd class="mono">67401c72</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真终端 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>11 个手写变异全逮住；三台机器的 CI 和长跑全绿（推了五轮修平台差异）</span></li>
+        <li><span class="ok">✓</span><span>真伪终端：贴半截 key 按 Ctrl+C，退出码 130、回显照原样、key 没显示也没存</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-5-按 Ctrl+C 也把回显开回来（补）.md</code>；蓝图 <code>cli/login.md</code>、<code>cli/setup.md</code>。</li>
       </ul>
     </div>
   </div>
