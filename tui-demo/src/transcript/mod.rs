@@ -172,7 +172,12 @@ impl Transcript {
     }
 
     /// 在正文末尾写一句旁白，不属于哪一轮。
+    ///
+    /// 插进正文的信息（后台任务的回报、子代理的回报、回顾、换模型这些旁白）画在收起的段下面：前面在进行的那一段
+    /// 先收起，接着的步另起一段（蓝图 `tui.md`「时间线」第 21 条；2026-10-02 项目主人报：回报直接插进展开的
+    /// 一段里，连接线断、前面那段一直不收）。
     pub fn note(&mut self, kind: Kind, text: String) {
+        self.finish_segment();
         let id = self.fresh_id();
         self.entries.push(Entry {
             id,
