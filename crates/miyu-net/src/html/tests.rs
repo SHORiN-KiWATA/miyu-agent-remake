@@ -135,6 +135,37 @@ fn entities_are_decoded() {
 }
 
 #[test]
+fn an_og_title_past_the_head_boundary_is_still_found_when_the_head_had_nothing() {
+    // YouTube 的样子：<head> 里什么都没有，og:* 挪到了 </head> 后面（W-7 补）
+    let html = r#"<html><head></head><body><meta property="og:title" content="Channel - YouTube">
+        <meta property="og:image" content="/thumb.jpg"></body></html>"#;
+    let found = read(html, &url("https://www.youtube.com/@x"), &CLIP);
+    assert_eq!(found.title, "Channel - YouTube");
+    assert_eq!(found.image, Some(url("https://www.youtube.com/thumb.jpg")));
+}
+
+#[test]
+fn a_plain_title_in_head_stops_the_scan_before_the_body() {
+    // <head> 里已经有 <title>：够了，不去正文找 og:title（正文里的不算）
+    let html = r#"<head><title>Plain</title></head><body>
+        <meta property="og:title" content="正文里的不算"></body>"#;
+    let found = read(html, &url("https://example.com/"), &CLIP);
+    assert_eq!(found.title, "Plain");
+}
+
+#[test]
+fn meta_is_og_title_checks_the_key_and_a_non_empty_content() {
+    assert!(meta_is_og_title(r#"meta property="og:title" content="Hi""#));
+    // name 是 property 的退路；大小写、属性先后都不管
+    assert!(meta_is_og_title(r#"meta content="Hi" name="OG:TITLE""#));
+    assert!(!meta_is_og_title(r#"meta property="og:title" content="""#));
+    assert!(!meta_is_og_title(r#"meta property="og:title""#));
+    assert!(!meta_is_og_title(
+        r#"meta property="og:description" content="Hi""#
+    ));
+}
+
+#[test]
 fn malformed_markup_does_not_panic() {
     for html in [
         "<meta property=og:title content=",

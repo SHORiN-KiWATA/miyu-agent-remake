@@ -100,7 +100,9 @@
    - 本机解析不出来、代理那头解析得出来的（被污染的域名常这样）：照样交给代理，第 1 层、第 3 层照常过。
    - 测性能的段 `198.18.0.0/15` 当公网：Clash、mihomo、sing-box、Surge 的假地址（fake-ip）默认就在这一段，开着这类代理的机器上每个域名都解析到这里，连上的其实是代理软件，它照域名去连。不放过这一段，这些机器上一张卡片都出不来。
    - 代理本身在哪不过闸：它是人自己设的，常在本机。
-6. 页面：一跳 12 秒（连上、发出、读完都算在里面）；对方回 4xx、5xx 的 `unreachable`；回的不是 HTML（`Content-Type` 里没有 `html`，没写的也算）的 `no_preview`；读到 `</head>` 或者 `<body` 就停（不分大小写，跨在两块之间的也认得），最多 2 MiB。照 UTF-8 读，读不了的字换成替换符。
+6. 页面：一跳 12 秒（连上、发出、读完都算在里面）；对方回 4xx、5xx 的 `unreachable`；回的不是 HTML（`Content-Type` 里没有 `html`，没写的也算）的 `no_preview`；读到 `</head>` 或者 `<body` 就停（不分大小写，跨在两块之间的也认得），最多 2 MiB（**照解开以后的字节算**，W-7 补）。照 UTF-8 读，读不了的字换成替换符。
+   - 读到 `</head>`、`<body` 这个记号时：这一截里已经有 `<title>` 或者不空的 `og:title` 了，就在那儿截住，跟以前一样；两个都没有的，不截，接着往下读，只看 `<meta …>`、`<link rel=icon …>`，找到不空的 `og:title` 就停，最多读到上限（YouTube 把 `og:*` 放在 `</head>` 后面，`</head>` 在第 71.8 万字节、`og:title` 在第 77.3 万字节上，W-7 补 2026-10-02 施工时定）。这个判断边读边做，不会为了判断把整段重新扫一遍。
+   - B 站不管请求带不带 `Accept-Encoding` 都压着发页面：`miyu-net` 的客户端开着 reqwest 的 `gzip`、`brotli`、`deflate`、`zstd` 特性，自动带上 `Accept-Encoding`、自动解开（W-7 补）。字节上限照**解开以后**的算，一个压得很小、解开很大的包照样在上限停，不会先整份解开再截（async-compression 的解码器本身是边读边解的流，不是一口气摊开）。
 7. 挖元数据：标题、简介、图照 `og:*`、`twitter:*`、`<title>` 和 `<meta name=description>` 的先后（`og:*` 不管写在第几行都先算）；同一样写了好几遍的，排在前面的算。站名照 `og:site_name`，没有用主机名去掉 `www.`；图标照 `rel` 里有 `icon` 的、`apple-touch-icon`，都没有试 `/favicon.ico`；相对地址照最后落到的那一页算；常见的实体（`&amp;`、`&#8212;` 这些）解开；空白收拢，标题最多 120 个字、简介 300、站名 60，超出的截断加 `…`。没有标题的 `no_preview`。
 8. 图：一张 8 秒、最多 3 MiB（对方报的长度超了的不读，读的超了整张不要），跳转、闸、代理照页面一样走。只收照开头的魔数认得出的五种（PNG、JPEG、GIF、WebP、ICO），对方说是什么类型不算；不收 SVG（它能带脚本）。存成这个账号的 blob，回应里写哈希和认出来的类型。图和图标一起抓。抓不到、认不出、存不进的那一格是 `null`，卡片照样成立。
 9. 抓过的记在核心的内存里，照地址（读成网址以后的写法）记：抓到了的记 6 小时，`no_preview` 记 15 分钟，`unreachable` 记 45 秒；最多 512 条，满了整个清空。记着的卡片指的 blob 没了的，那一格交 `null`。
@@ -128,11 +130,11 @@
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-net/src/guard/tests.rs` | IP 段的表（照桥的 `guard.rs` 测试，`198.18.0.0/15` 改成公网，映射、NAT64、6to4 照里面那个 IPv4 判）；地址的样子；主机写的就是 IP 的不查 DNS；解析出一个不是公网的整个不去 |
-| `crates/miyu-net/src/html/tests.rs` | 元数据的先后、站名、图标、相对地址、截断、实体；坏的标记不崩 |
-| `crates/miyu-net/src/body/tests.rs` | 只收五种图、不收 SVG；读到 `</head>`、`<body` 就停 |
+| `crates/miyu-net/src/html/tests.rs` | 元数据的先后、站名、图标、相对地址、截断、实体；坏的标记不崩；`<head>` 里没挖到东西时接着往正文找 `og:title`；`<head>` 里已经有 `<title>` 的不去正文找；`meta_is_og_title` 的键、`name` 退路、内容不空 |
+| `crates/miyu-net/src/body/tests.rs` | 只收五种图、不收 SVG；读到 `</head>`、`<body` 就停；`HeadSignals` 边读边找 `<title>`、不空的 `og:title`，标签跨在接缝上不丢、处理过的不重扫 |
 | `crates/miyu-net/src/remember/tests.rs` | 三种结果各记多久；满了整个清空 |
 | `crates/miyu-net/src/rules/tests.rs` | 出厂的 `link_preview.json` 读得进、数对得上；多一格、是 0 的读不了 |
-| `crates/miyu-net/tests/preview.rs` | 本机的假服务器上整条走通：钉住的地址（系统解析不了的名字照样到了）、元数据、图存成 blob、`blob` 没了交 `null`、记着的不再抓；跳转每一跳过闸（内网、`localhost`、`ftp`、云的元数据地址）、最多 5 跳、没写 `Location`；不是 HTML、没写类型、没有标题、4xx、5xx；读到 `</head>`、`<body` 就停，最多 2 MiB；图只收五种、不收 SVG、最多 3 MiB（报了长度的、没报的）；`link_preview.json` 读不了 |
+| `crates/miyu-net/tests/preview.rs` | 本机的假服务器上整条走通：钉住的地址（系统解析不了的名字照样到了）、元数据、图存成 blob、`blob` 没了交 `null`、记着的不再抓；跳转每一跳过闸（内网、`localhost`、`ftp`、云的元数据地址）、最多 5 跳、没写 `Location`；不是 HTML、没写类型、没有标题、4xx、5xx；读到 `</head>`、`<body` 就停，最多 2 MiB；图只收五种、不收 SVG、最多 3 MiB（报了长度的、没报的）；`link_preview.json` 读不了。gzip、br 压过的页面不带 `Accept-Encoding` 也解得开（W-7 补）；一个压得很小解开很大的包照上限停，标题在上限前面的找得到、后面的找不到；`og:title` 挪到 `</head>` 后面的找得到，挪到上限以后的找不到；`og:title` 排在 `<head>` 里靠前、别的字段排在后面隔着一截填料的，不会因为先找到 `og:title` 就提前收手丢了后面的字段 |
 | `crates/miyu-net/tests/proxy.rs` | 代理（照测试的口子给的值）：页面和图都经假代理、请求行写着整个地址；本机解析不出来的照样交给代理；解析出内网的、写的就是内网和回环的一律不交；`NO_PROXY` 里的直连、钉地址；不走代理、解析不出来的 `unreachable`；没开测试的口子时，回环上真在听的服务器也不去 |
 | `crates/miyu-endpoint/src/queries.rs` 里的测试 | 在后台答的只有照 `register_background` 登记的；同一个名字两种登记也 panic |
 | `crates/miyu-core/tests/packages.rs` | 查询表没登记 `link.preview` 回 `unknown_method`；登记了的读不成地址、不是 http 不碰网络就答；`url` 没写、不是字符串 `bad_params`；在后台答的不挡后面的请求、回应照 `id` 对上、连接断了它跟着停 |
@@ -168,3 +170,4 @@
 | 8 | 在后台答做成查询表的一种登记（`register_background`），端点照登记分；后台任务放在连接自己的一个 `JoinSet` 里，连接断了一起停 | 加东西只登记，不改中心（`web-module.md` 第 19 条）；连接走了还接着抓，核心就一直不算空闲 | 端点里写死 `link.preview` 这个名字；后台任务不管，抓完自己结束（连接断了还占着最多一分多钟） |
 | 9 | 图存进哪个账号，核心起来时登记就定了：`packages::register` 多收数据根和账号，现在是 `admin` | 现在连上来的都是管理员；端点的家底不用多公开一个方法 | `Core` 公开一个取 blob 的方法，每次照连接取（多用户来了再做） |
 | 10 | 运行日志只在真抓过、没做成时记 `link preview failed`；图存不进 blob 另记一行 | 记着的再记一遍只是刷屏；读不成地址的不是「抓」；存不进是磁盘出了事，不吞 | 每次都记 |
+| 11 | `miyu-net` 开 reqwest 的 gzip/brotli/deflate/zstd 特性（整个工作区合起来的），`miyu-http` 的客户端明确关掉（`no_gzip`/`no_brotli`/`no_deflate`/`no_zstd`，这几个方法不管特性开没开都存在）。`</head>`、`<body` 这个记号的「要不要接着往下读」判断边读边做，一个标签只处理一次，不整段重扫（W-7 补，2026-10-02 施工时定） | B 站不管请求带不带 `Accept-Encoding` 都压着发；YouTube 把 `og:*` 放在 `</head>` 后面；请求模型那条路要一个字节不变；边读边判断才不会把一次判断变成对着攒大的 `<head>` 整段重扫几十万次（压缩炸弹、慢速攻击都靠它防） | 只给 `miyu-net` 单独开一份不同版本的 reqwest（两份证书栈、两套 TLS 初始化，没必要）；读完整个 `<head>` 再判断一次要不要接着读（正常页面也要等读完才能判断，变慢） |

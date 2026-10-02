@@ -74,6 +74,23 @@ impl Reply {
         }
     }
 
+    /// 200，`text/html`，身子照 `encoding`（`"gzip"` 或者 `"br"`）压过，带上 `Content-Encoding`
+    /// （W-7 补：测不带 `Accept-Encoding` 的请求，对方也照样压着发）。
+    pub fn html_encoded(text: &str, encoding: &str) -> Reply {
+        let body = match encoding {
+            "gzip" => gzip(text.as_bytes()),
+            "br" => brotli(text.as_bytes()),
+            other => panic!("不认得的编码：{other}"),
+        };
+        Reply::bytes("text/html; charset=utf-8", &body).with_header("Content-Encoding", encoding)
+    }
+
+    /// 另加一个响应头，照先后排在后面。
+    pub fn with_header(mut self, name: &str, value: &str) -> Reply {
+        self.headers.push((name.to_string(), value.to_string()));
+        self
+    }
+
     /// 不写 `Content-Length`：身子写完关连接。
     pub fn without_length(mut self) -> Reply {
         self.sized = false;
@@ -88,12 +105,14 @@ impl Reply {
     }
 }
 
-/// 收到的一个请求：请求行里的地址（直连的是路径，经代理的是整个地址）、`Host`、`User-Agent`。
+/// 收到的一个请求：请求行里的地址（直连的是路径，经代理的是整个地址）、`Host`、`User-Agent`、`Accept-Encoding`
+/// （没写的是空字，W-7 补：查客户端是不是自己带上了它）。
 #[derive(Debug, Clone)]
 pub struct Seen {
     pub target: String,
     pub host: String,
     pub user_agent: String,
+    pub accept_encoding: String,
 }
 
 /// 跑着的假服务器：照请求行里的地址回，没有的回 404。收到的请求都记下来。
@@ -173,6 +192,7 @@ async fn serve(mut socket: TcpStream, routes: &[(String, Reply)], log: &Mutex<Ve
             target: target.clone(),
             host: header("host"),
             user_agent: header("user-agent"),
+            accept_encoding: header("accept-encoding"),
         });
     let reply = routes
         .iter()
@@ -283,4 +303,25 @@ pub async fn miss(links: &LinkPreview, url: &str) -> Why {
 /// 一页带着标题的 HTML，`head` 里另加 `extra`。
 pub fn page(title: &str, extra: &str) -> String {
     format!("<html><head><title>{title}</title>{extra}</head><body>hello</body></html>")
+}
+
+/// gzip 压一份（W-7 补：假服务器用它造「不管请求带不带 Accept-Encoding 都压着发」的页面）。
+pub fn gzip(bytes: &[u8]) -> Vec<u8> {
+    use std::io::Write;
+    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    encoder.write_all(bytes).expect("压得进");
+    encoder.finish().expect("压得完")
+}
+
+/// br（brotli）压一份。
+pub fn brotli(bytes: &[u8]) -> Vec<u8> {
+    let mut input = std::io::Cursor::new(bytes);
+    let mut output = Vec::new();
+    brotli::BrotliCompress(
+        &mut input,
+        &mut output,
+        &brotli::enc::BrotliEncoderParams::default(),
+    )
+    .expect("压得完");
+    output
 }

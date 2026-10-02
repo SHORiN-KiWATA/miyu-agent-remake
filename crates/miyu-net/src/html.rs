@@ -112,8 +112,12 @@ fn extract(html: &str) -> Head {
             .next()
             .unwrap_or_default()
             .to_ascii_lowercase();
-        // `</head>` 之后是正文，正文里的 meta 和卡片无关
-        if name == "/head" || name == "body" {
+        // `</head>` 之后是正文，正文里的 meta 和卡片无关——除非 `<head>` 里什么都没挖到：那是 `body.rs` 判断要
+        // 接着往下读的时候（YouTube 把 `og:*` 放在 `</head>` 后面），这时候就继续找，还是只看 meta、link
+        // （W-7 补，net.md「怎么走」第 6 条）。
+        if (name == "/head" || name == "body")
+            && (!head.title.is_empty() || !document_title.is_empty())
+        {
             break;
         }
         if name != "meta" && name != "link" {
@@ -175,6 +179,17 @@ fn attribute<'a>(attributes: &'a [(String, String)], name: &str) -> Option<&'a s
         .iter()
         .find(|(key, _)| key == name)
         .map(|(_, value)| value.as_str())
+}
+
+/// 这个 `<meta ...>` 标签（不带尖括号）是不是 `og:title`，内容不空：`body.rs` 边读边判断要不要接着往下读
+/// 时用它（W-7 补，net.md「怎么走」第 6 条）。
+pub(crate) fn meta_is_og_title(tag: &str) -> bool {
+    let attrs = attributes(tag);
+    let key = attribute(&attrs, "property")
+        .or_else(|| attribute(&attrs, "name"))
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    key == "og:title" && attribute(&attrs, "content").is_some_and(|value| !value.trim().is_empty())
 }
 
 /// 一个标签的属性表：键转小写，值解码了常见的实体。引号可有可无，单双都认。

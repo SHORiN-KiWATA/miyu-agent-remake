@@ -121,6 +121,13 @@ async fn the_request_is_what_the_driver_encoded() {
     );
     assert_eq!(request.header("x-title"), Some("miyu"));
     assert_eq!(request.body, BODY);
+    // miyu-net 开了 reqwest 的 gzip/brotli/deflate/zstd 特性，cargo 的特性是整个工作区合起来的；这个客户端
+    // 自己关掉了（client.rs「照连接的时限造」），不然请求模型这条路的字节就变了（W-7 补）。
+    assert_eq!(
+        request.header("accept-encoding"),
+        None,
+        "没开自动解压，不该自己带 Accept-Encoding"
+    );
 }
 
 #[tokio::test]

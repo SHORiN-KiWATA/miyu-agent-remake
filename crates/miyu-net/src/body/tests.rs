@@ -37,6 +37,64 @@ fn only_real_image_bytes_are_kept() {
 }
 
 #[test]
+fn head_signals_catch_a_title_tag() {
+    let mut signals = HeadSignals::default();
+    signals.feed(b"<html><head><title>Hi</title>");
+    assert!(signals.enough());
+    assert!(signals.title);
+    assert!(!signals.og_title, "标题够了，不用管 og:title");
+}
+
+#[test]
+fn head_signals_catch_a_non_empty_og_title() {
+    let mut signals = HeadSignals::default();
+    signals.feed(br#"<meta property="og:title" content="Hi">"#);
+    assert!(signals.enough());
+    assert!(signals.og_title);
+}
+
+#[test]
+fn head_signals_ignore_an_empty_og_title() {
+    let mut signals = HeadSignals::default();
+    signals.feed(br#"<meta property="og:title" content="">"#);
+    assert!(!signals.enough(), "内容是空的，不算够");
+}
+
+#[test]
+fn head_signals_accept_name_and_reordered_attributes() {
+    // name 是 property 的退路；属性先后不管
+    let mut signals = HeadSignals::default();
+    signals.feed(br#"<meta content="Hi" name="OG:TITLE">"#);
+    assert!(signals.og_title, "大小写、先后都不该拦住");
+}
+
+#[test]
+fn head_signals_do_not_rescan_a_tag_already_processed() {
+    // 先喂一个不相干的标签，游标往前挪；再喂同一截 + 多出来的 og:title，只该看到新收尾的那个
+    let mut signals = HeadSignals::default();
+    signals.feed(b"<meta name=\"description\" content=\"d\">");
+    assert!(!signals.enough());
+    let scanned_after_first = signals.scanned;
+    signals
+        .feed(br#"<meta name="description" content="d"><meta property="og:title" content="Hi">"#);
+    assert!(signals.og_title);
+    assert!(
+        signals.scanned > scanned_after_first,
+        "游标该往前挪，不是从头再扫一遍"
+    );
+}
+
+#[test]
+fn head_signals_hold_an_unterminated_tag_for_the_next_feed() {
+    // 标签跨在两次喂的接缝上：第一次没收尾不该算，第二次收了尾才算
+    let mut signals = HeadSignals::default();
+    signals.feed(br#"<meta property="og:titl"#);
+    assert!(!signals.enough());
+    signals.feed(br#"<meta property="og:title" content="Hi">"#);
+    assert!(signals.og_title);
+}
+
+#[test]
 fn a_head_is_cut_at_its_end() {
     let html = b"<html><head><title>x</title></head><body>aaaaaaaa</body></html>";
     assert_eq!(
