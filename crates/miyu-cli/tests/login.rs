@@ -34,6 +34,8 @@ struct Fake {
     hidden: usize,
     /// 整份读过几次。
     piped: usize,
+    /// 关掉回显读的时候，照取消办（按了 `Ctrl+C`），不照 `key`（施工 8-5 补）。
+    cancelled: bool,
 }
 
 impl Console for Fake {
@@ -55,7 +57,10 @@ impl Console for Fake {
 
     fn hidden(&mut self) -> io::Result<Option<String>> {
         self.hidden += 1;
-        Ok(Some(self.key.clone()))
+        match self.cancelled {
+            true => Err(io::Error::new(io::ErrorKind::Interrupted, "test cancel")),
+            false => Ok(Some(self.key.clone())),
+        }
     }
 
     fn all(&mut self) -> io::Result<String> {
@@ -78,6 +83,15 @@ fn typing(answers: &[&'static str], key: &str) -> Fake {
 fn piping(key: &str) -> Fake {
     Fake {
         key: key.to_string(),
+        ..Fake::default()
+    }
+}
+
+/// 在终端里，关掉回显读的时候照取消办（施工 8-5 补：按了 `Ctrl+C`、或者空行按了 `Ctrl+D`）。
+fn cancelling() -> Fake {
+    Fake {
+        terminal: true,
+        cancelled: true,
         ..Fake::default()
     }
 }
@@ -140,6 +154,40 @@ async fn a_named_login_reads_the_key_hidden_and_says_saved_or_replaced() {
     assert_eq!(
         asked.err,
         "Paste the key for deepseek (it will not show): · Replaced the key for deepseek\n"
+    );
+}
+
+/// 贴 key 时取消了（施工 8-5 补：`Console::hidden` 报 [`io::ErrorKind::Interrupted`]，不管是 `Ctrl+C` 还是空行
+/// `Ctrl+D`）：说「没存，取消了」，退出码 130，密钥文件一个字都不写。真的终端里按 `Ctrl+C`、终端设置照原样开回回显，
+/// 这一条在 `crates/miyu/tests/login_tty.rs` 里用真的伪终端测。
+#[tokio::test]
+async fn cancelling_the_key_paste_saves_nothing_and_exits_130() {
+    let home = home();
+    let asked = run(
+        &home,
+        Language::Chinese,
+        login("deepseek"),
+        &mut cancelling(),
+    )
+    .await;
+    assert_eq!(
+        (asked.code, asked.err.as_str()),
+        (130, "粘贴 deepseek 的 key（不显示）：没存，取消了\n")
+    );
+    assert_eq!(secrets(&home), "", "密钥文件一个字都没写");
+    let asked = run(
+        &home,
+        Language::English,
+        login("deepseek"),
+        &mut cancelling(),
+    )
+    .await;
+    assert_eq!(
+        (asked.code, asked.err.as_str()),
+        (
+            130,
+            "Paste the key for deepseek (it will not show): Not saved, cancelled\n"
+        )
     );
 }
 
