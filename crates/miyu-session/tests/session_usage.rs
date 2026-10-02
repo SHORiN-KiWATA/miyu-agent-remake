@@ -119,7 +119,18 @@ async fn the_cost_is_recorded_and_she_reads_her_own_usage() {
         session: Some((handle.id().clone(), false)),
         offset: miyu_kernel::time::UtcOffset::UTC,
     };
-    let totals = home.usage.query(&query).expect("查得了");
+    // 汇总是会话在 `model.called` 落了盘以后、另起阻塞线程写的：看完结果的那一次可能还没写进去，等它写完再比
+    // （慢的 CI 机器上撞过，2026-10-02）。最多等一分钟，断言结果不断言耗时。
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    let totals = loop {
+        let totals = home.usage.query(&query).expect("查得了");
+        if totals.first().is_some_and(|row| row.requests >= 3)
+            || std::time::Instant::now() > deadline
+        {
+            break totals;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    };
     assert_eq!(totals[0].requests, 3);
     assert_eq!(totals[0].unpriced, 0);
 }
