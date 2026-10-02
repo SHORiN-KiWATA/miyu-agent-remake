@@ -9,9 +9,11 @@ publish.workspace = true
 
 [features]
 # 可选软件包，发行版默认打开（`10-自带软件.md` 第四节，施工 W-4）。画 mermaid：源码画成 SVG，经
-# `mermaid.render` 给头，没开这个开关的核心里没有这块代码，这个方法回 `unknown_method`。
-default = ["mermaid"]
+# `mermaid.render` 给头，没开这个开关的核心里没有这块代码，这个方法回 `unknown_method`。链接卡片（施工 W-7，
+# `net.md`）：抓别人家的网页，经 `link.preview` 给头，没开的同样回 `unknown_method`。
+default = ["mermaid", "net"]
 mermaid = ["dep:miyu-mermaid"]
+net = ["dep:miyu-net"]
 
 [dependencies]
 # 驱动：DeepSeek 那一套写法、一次调用要定的（施工 3-4）。
@@ -20,6 +22,8 @@ miyu-drivers = { path = "../miyu-drivers" }
 miyu-endpoint = { path = "../miyu-endpoint" }
 # 可选软件包 mermaid：mermaid 源码画成 SVG（施工 W-4，`packages.rs`）。
 miyu-mermaid = { path = "../miyu-mermaid", optional = true }
+# 可选软件包 net：链接卡片（施工 W-7，`packages/net.rs`）。
+miyu-net = { path = "../miyu-net", optional = true }
 # 发请求的客户端、端点（施工 3-5）。
 miyu-http = { path = "../miyu-http" }
 # 单实例锁、在套接字上等连接、说「好了」的那一行（施工 3-8 下、3-9 上）。

@@ -20,7 +20,7 @@
 | 8. `web.files` | 核心 | `fs.list`、`fs.find` | W-2 |
 | 9. 核心没在跑时拉起它 | 网页软件，照别的头 | 无 | W-9 |
 
-状态：图纸，2026-10-01 项目主人批准。「网页界面是一个软件，网页的东西不放进核心」是项目主人 2026-10-01 定的，重开了设计 04 的 P5（末尾「要改的设计」）；「画 mermaid 在核心里，做成可选的软件包」也是同一天项目主人定的。技术细节照推荐定了，写在末尾「起草时定的」；项目主人拍板的六题单列一节。施工步子 W-1 到 W-11，W 是和 M8 并行的一条线，不占里程碑的号。W-1 做好了：`human.get`（`crates/miyu-endpoint/src/human.rs`、`crates/miyu-store/src/human.rs` 交出模板原文，`crates/miyu-endpoint/tests/human.rs`）。 W-2 做好了：`fs.list`、`fs.find`（`crates/miyu-fs/src/list.rs`、`find.rs`；`crates/miyu-endpoint/src/files.rs`、`files/cache.rs`；`crates/miyu-fs/src/list/tests.rs`、`find/tests.rs`；`crates/miyu-endpoint/tests/files.rs`）。W-3 做好了：握手回应的 `host`、`fs.realpath`（`crates/miyu-endpoint/src/hello.rs`、`files.rs`；`crates/miyu-endpoint/tests/hello.rs`）；施工时发现「从最近在的一层换成真实的位置」这段逻辑 4-3 就有了（`crates/miyu-fs/src/resolve.rs` 的 `resolve()`），没有新开 `real.rs`，改成直接复用它（「在哪」「起草时定的」第 38 条）。W-5 做好了：`blob.open`、`blob.write`、`blob.close`（`crates/miyu-endpoint/src/uploads.rs`，和 `attach.rs` 共用认是什么、文件名和媒体类型怎么查、存好了怎么拼回应这几样；`crates/miyu-store/src/blob.rs` 多分块暂存、改名进位置、扔掉、起来时清；`crates/miyu-core/src/packages.rs` 多 `clear_uploads`；`crates/miyu-endpoint/tests/uploads.rs`、`crates/miyu-core/tests/packages.rs`）。W-6 做好了：`blob.get`、`fs.read`（`crates/miyu-fs/src/range.rs` 新开的安全地打开以后读一段，`blob.get`、`fs.read` 共用；`crates/miyu-store/src/blob.rs` 多 `Blobs::read_range`；`crates/miyu-endpoint/src/attach.rs` 的 `get`、`files.rs` 的 `read`；`crates/miyu-fs/src/range/tests.rs`、`crates/miyu-endpoint/tests/reads.rs`）。
+状态：图纸，2026-10-01 项目主人批准。「网页界面是一个软件，网页的东西不放进核心」是项目主人 2026-10-01 定的，重开了设计 04 的 P5（末尾「要改的设计」）；「画 mermaid 在核心里，做成可选的软件包」也是同一天项目主人定的。技术细节照推荐定了，写在末尾「起草时定的」；项目主人拍板的六题单列一节。施工步子 W-1 到 W-11，W 是和 M8 并行的一条线，不占里程碑的号。W-1 做好了：`human.get`（`crates/miyu-endpoint/src/human.rs`、`crates/miyu-store/src/human.rs` 交出模板原文，`crates/miyu-endpoint/tests/human.rs`）。 W-2 做好了：`fs.list`、`fs.find`（`crates/miyu-fs/src/list.rs`、`find.rs`；`crates/miyu-endpoint/src/files.rs`、`files/cache.rs`；`crates/miyu-fs/src/list/tests.rs`、`find/tests.rs`；`crates/miyu-endpoint/tests/files.rs`）。W-3 做好了：握手回应的 `host`、`fs.realpath`（`crates/miyu-endpoint/src/hello.rs`、`files.rs`；`crates/miyu-endpoint/tests/hello.rs`）；施工时发现「从最近在的一层换成真实的位置」这段逻辑 4-3 就有了（`crates/miyu-fs/src/resolve.rs` 的 `resolve()`），没有新开 `real.rs`，改成直接复用它（「在哪」「起草时定的」第 38 条）。W-5 做好了：`blob.open`、`blob.write`、`blob.close`（`crates/miyu-endpoint/src/uploads.rs`，和 `attach.rs` 共用认是什么、文件名和媒体类型怎么查、存好了怎么拼回应这几样；`crates/miyu-store/src/blob.rs` 多分块暂存、改名进位置、扔掉、起来时清；`crates/miyu-core/src/packages.rs` 多 `clear_uploads`；`crates/miyu-endpoint/tests/uploads.rs`、`crates/miyu-core/tests/packages.rs`）。W-6 做好了：`blob.get`、`fs.read`（`crates/miyu-fs/src/range.rs` 新开的安全地打开以后读一段，`blob.get`、`fs.read` 共用；`crates/miyu-store/src/blob.rs` 多 `Blobs::read_range`；`crates/miyu-endpoint/src/attach.rs` 的 `get`、`files.rs` 的 `read`；`crates/miyu-fs/src/range/tests.rs`、`crates/miyu-endpoint/tests/reads.rs`）。W-7 做好了：`link.preview`（可选软件包 `net`、crate `miyu-net`，细节搬到 `net.md`；在后台答的查询 `crates/miyu-endpoint/src/queries.rs` 的 `register_background`、`connection.rs`；`crates/miyu-core/src/packages/net.rs`；`crates/miyu-net/src/guard/tests.rs`、`html/tests.rs`、`tests/preview.rs`、`tests/proxy.rs`、`crates/miyu/tests/link_preview.rs`）。
 
 - W-1 到 W-7（核心的通用方法）现在就做，和 M8 并行。
 - W-8 到 W-11（身份、网页软件、媒体地址、打包）等用户系统：项目主人要的是第一次用一次性码进网页、建管理员账号，码当场作废，以后用用户名和密码登录（第 1、3 题）。用户系统照约定 M8 做完以后专门过一遍（「多用户、多终端」那次讨论），这几步的细节那时重画。这一页第一条、第十一条和 W-8 那几行写的是起草时的样子，只当参考；第九条、第十条的大部分不受影响。
@@ -173,6 +173,7 @@
 
 - `image`、`icon` 可以是 `null`。图是这个账号的 blob，头照 `blob.get` 读，网页照 `/media` 给。
 - `why`：`not_a_url`（读不成地址）、`unsupported_scheme`（不是 http、https）、`no_preview`（不是网页、没有标题、地址过不了闸、跳转太多，下次也一样）、`unreachable`（超时、连不上、对方回 4xx、5xx，过会儿可能就好了）。做不出卡片是正常的结果之一，不是出错。
+- 细节（地址闸、代理、在后台答）见 `net.md`。
 
 **`account.login_code`**（W-8）：没有参数。回应 `{"code": <登录码>, "expires": <时刻>}`。
 
@@ -300,26 +301,9 @@ sequenceDiagram
 4. 一段一段读不重新核对哈希：核对整个 blob 的哈希在核心自己用它的时候（`store.md` 第 10 条）。
 5. 在阻塞线程里读。
 
-**八、链接预览**（`link.preview`，W-7；规矩照桥的 `link_preview/`，桥照的是旧版）
+**八、链接预览**（`link.preview`，W-7）
 
-1. 可选软件包 `net`：抓取和地址闸在 crate `miyu-net`，经 `miyu-core` 的 cargo 开关 `net` 编进来，发行版默认打开；没编进来的 `link.preview` 回 `unknown_method`，头照原样留着链接。以后 `web_fetch` 用同一份抓取和地址闸（设计 10 第四节）。
-2. 地址：去掉前后空白读成网址，读不成 `not_a_url`；不是 `http`、`https` 的 `unsupported_scheme`。
-3. 地址闸，每一跳都过：
-   1. 样子：只认 `http`、`https`；不带用户名、密码；`localhost`、`*.localhost`、`*.local` 不去；主机写的就是 IP 的照第 3 层判。
-   2. 解析：每一个解析出来的地址都要是公网的，有一个不是就整个不去。解析好的地址钉进这一跳的连接：查过的就是连上的，中间没有第二次解析（防 DNS rebinding）。
-   3. IP 段：回环、私网、链路本地、运营商级 NAT、唯一本地、组播、未指定、广播、保留、文档的段都不是公网（测性能的段 `198.18.0.0/15` 算公网，见第 5 条）；里面嵌着 IPv4 的 IPv6（映射、NAT64、6to4）照那个 IPv4 判，IPv4 兼容的写法不去。表照桥的 `guard.rs`，测试一起搬过来。
-4. 跳转自己跟，最多 5 跳，每一跳重新过闸。
-5. 代理（2026-10-01 项目主人定，第 5 题）：和请求模型一样照环境变量走（`HTTPS_PROXY`、`HTTP_PROXY`、`ALL_PROXY`、`NO_PROXY`，小写的也认，`http.md`「客户端」第 5 条）。
-   - 这一跳要走代理的：先在本机解析一遍，过第 2 层（有一个不是公网的就不去），再交给代理连。代理那头怎么解析我们管不着，这个口子项目主人认了。
-   - 不走代理的（没设，或者在 `NO_PROXY` 里）：照第 2 层钉住解析好的地址。
-   - 本机解析不出来、代理那头解析得出来的（被污染的域名常这样）：照样交给代理，第 1 层、第 3 层照常过。
-   - 测性能的段 `198.18.0.0/15` 当公网：Clash、mihomo、sing-box、Surge 的假地址（fake-ip）默认就在这一段，开着这类代理的机器上每个域名都解析到这里，连上的其实是代理软件，它照域名去连。不放过这一段，这些机器上一张卡片都出不来。
-6. 页面：一跳 12 秒；回的不是 HTML 的 `no_preview`；读到 `</head>` 或者 `<body` 就停，最多 2 MiB。
-7. 挖元数据：标题、简介、图照 `og:*`、`twitter:*`、`<title>` 和 `<meta name=description>` 的先后；站名照 `og:site_name`，没有用主机名去掉 `www.`；图标照 `rel=icon`、`apple-touch-icon`，都没有试 `/favicon.ico`；相对地址照最后落到的那一页算；空白收拢，标题最多 120 个字、简介 300、站名 60，超出的截断加 `…`。没有标题的 `no_preview`。
-8. 图：一张 8 秒、最多 3 MiB，只收照开头的魔数认得出的五种（PNG、JPEG、GIF、WebP、ICO），不收 SVG（它能带脚本）。存成这个账号的 blob，回应里写哈希和认出来的类型。抓不到的那一格是 `null`，卡片照样成立。
-9. 抓过的记在核心的内存里：抓到了的记 6 小时，`no_preview` 记 15 分钟，`unreachable` 记 45 秒；最多 512 条，满了整个清空。记着的卡片指的 blob 没了的，那一格交 `null`。
-10. 请求头、时限、上限都在 `resources/software/net/link_preview.json`，照桥的那份搬。
-11. 不碰会话。在后台的任务里抓，不挡这个连接上后面的请求的读：回应照 `id` 对上（`protocol.md`「一个连接」第 1 条要改成这一种例外，「要跟着改的别的页」）。
+另见 `net.md`：施工 W-7 时这一节的内容搬过去了，连同「在哪」`crates/miyu-net/`、`link_preview.json` 那两行的细节、「守着它的」对应的那一行。
 
 **九、网页软件：起停、端口、页面、WebSocket**（W-9）
 
@@ -488,7 +472,7 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 | `crates/miyu-mermaid/src/tests.rs`、`crates/miyu-core/tests/packages.rs` | 记号色都换得掉、底和框不填色；同一份源码第二次不重画；空的、太长、画不出各说一句；没编进来回 `unknown_method`；第一次调之前不读字体 | W-4 |
 | `crates/miyu-endpoint/tests/uploads.rs` | 分块传完和 `blob.put` 同一个回应、同一个 blob；接不上回 `received`；没收齐不收；别的连接用不了；断开、60 秒不写作废并删暂存；超过 20 MiB 当场拒；同时 4 个；起来时清暂存 | W-5 |
 | `crates/miyu-endpoint/tests/reads.rs` | 读一段、读到结尾、过了结尾是空的、只问大小；没有这个 blob；`fs.read` 数据根拒、工作区能读、链接不跟、不是普通文件 | W-6 |
-| `crates/miyu-net/src/guard/tests.rs`、`html/tests.rs`、`tests/preview.rs` | 地址闸的表（照桥的 `guard.rs` 测试）；元数据的先后、截断；跳转每一跳过闸；不是 HTML、没有标题；图只收五种、不收 SVG；记多久、满了清空；本机的假服务器上整条走通 | W-7 |
+| `crates/miyu-net/src/guard/tests.rs`、`html/tests.rs`、`tests/preview.rs`、`tests/proxy.rs` 等 | 地址闸的表、元数据、跳转、图、记多久、代理、在后台答：细节见 `net.md`「守着它的」 | W-7 |
 | `crates/miyu-endpoint/tests/login.rs` | 登录码只给本机令牌的连接、一次、5 分钟；换出登录令牌、落了盘才回；登录令牌认得、过期不认、作废不认；凭据写两种拒；`logout` 一个、全部、断开连接；`logins.json` 坏了当空的；日志里没有码和令牌 | W-8 |
 | `crates/miyu-ipc/tests/socket.rs`、`pipe.rs` | `connect_bare` 连得上、不读 `run/token` | W-8 |
 | `crates/miyu-web/tests/serve.rs` | 单实例、`run/web`、那一行；Host、Origin 不对 403；页面文件不出页面目录；响应头；不设 cookie；空闲退出 | W-9 |
@@ -592,7 +576,7 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 2. **网址和登录记多久**：固定端口（出厂值写在网页软件的数据里，`--port` 能换），浏览器记住登录 30 天。
 3. **登录码怎么交给浏览器**：不用跳转页。一次性码只用一次、建了管理员账号就作废，在命令行里出现没关系；以后用用户名和密码登录，命令行里没有能登录的东西。
 4. **网页能看本机哪些文件**：和她读文件一样，整盘能看，数据根不行（账号的工作区可以）。
-5. **链接卡片走不走代理**：走，和请求模型一样照环境变量（「怎么走」第八条第 5 款）。代理那头把名字解析到内网的口子认了。
+5. **链接卡片走不走代理**：走，和请求模型一样照环境变量（`net.md`「怎么走」第 5 条，原来是这一页「怎么走」第八条第 5 款）。代理那头把名字解析到内网的口子认了。
 6. **网页软件怎么装**：同一个仓库，单独的程序 `miyu-web` 加页面文件，发行时单独一个包（AUR、deb、rpm、Homebrew 各一个 `miyu-web`），安装脚本问一句装不装。
 
 先后：W-1 到 W-7 现在做，W-8 到 W-11 等用户系统（项目主人 2026-10-01 定）。

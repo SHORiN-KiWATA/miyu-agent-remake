@@ -2,7 +2,7 @@
 
 ### 是什么
 
-头和核心之间说的话：一个连接上一行一条 JSON-RPC 2.0。连上先握手，之后能造会话、列出会话、传附件、说话（可以带附件）、打断、撤销、恢复、重做、手动压缩、切权限级别、清空上下文、要一句回顾、停掉派出去的任务、读后台命令的输出、改标题、置顶、删除会话，订阅会话的事件流（能补发订阅以前的事件），查配置（施工 8-2）、改配置、信任项目配置（施工 8-3），叫一次模型、不进任何会话（`model.call`，施工 8-20）。连接从哪来不管：本机的套接字、命名管道（`ipc.md`），测试里的内存管道。
+头和核心之间说的话：一个连接上一行一条 JSON-RPC 2.0。连上先握手，之后能造会话、列出会话、传附件、说话（可以带附件）、打断、撤销、恢复、重做、手动压缩、切权限级别、清空上下文、要一句回顾、停掉派出去的任务、读后台命令的输出、改标题、置顶、删除会话，订阅会话的事件流（能补发订阅以前的事件），查配置（施工 8-2）、改配置、信任项目配置（施工 8-3），叫一次模型、不进任何会话（`model.call`，施工 8-20），要一个链接的卡片（`link.preview`，施工 W-7）。连接从哪来不管：本机的套接字、命名管道（`ipc.md`），测试里的内存管道。
 
 撤销、恢复、重做的回应另写一页：`protocol/undo.md`。配置的五个方法写在 `config.md`「协议」，这一页只列进方法表、出错表。
 
@@ -12,7 +12,7 @@
 |---|---|
 | `crates/miyu-endpoint/src/lib.rs` | `Core`：核心的家底（数据根、资源目录、请求模型的端口、工具目录、系统的家目录、沙盒的助手（施工 5-4 上）、管理员、本机令牌、会话表、配置（施工 8-2））；数着几个连接；空不空闲；停下全部会话 |
 | `crates/miyu-endpoint/src/listen.rs` | `run`：在监听器上一个个接连接 |
-| `crates/miyu-endpoint/src/connection.rs` | `serve`：一个连接，读写分开；握手以前拦住；`subscribe`（回应带会话的限额、接下来请求的模型（施工 8-10）；带 `after` 的先补发，施工 3-8 六补）、`unsubscribe` |
+| `crates/miyu-endpoint/src/connection.rs` | `serve`：一个连接，读写分开；握手以前拦住；登记成在后台答的查询交给这个连接的一组后台任务，连接断了一起停（施工 W-7）；`subscribe`（回应带会话的限额、接下来请求的模型（施工 8-10）；带 `after` 的先补发，施工 3-8 六补）、`unsubscribe` |
 | `crates/miyu-endpoint/src/wire.rs` | 读一行、认成请求、回应写成一行 |
 | `crates/miyu-endpoint/src/hello.rs` | 握手 |
 | `crates/miyu-endpoint/src/methods.rs` | 握手以后的方法 |
@@ -37,7 +37,7 @@
 | `crates/miyu-endpoint/src/secrets.rs`、`secrets/` | `secret.set`、`secret.delete`、`secret.list`：只能写、删、列名字，从不交出值；手改密钥文件被看到的、留痕（施工 8-5，`config.md` 第九条） |
 | `crates/miyu-endpoint/src/models.rs`、`models/` | `model.list`：配好的供应商、模型、每一格资料的值和来源（施工 8-7，`models.md`「协议」），池、用途（施工 8-8；挡位 8-8 补去掉了），模型和 key 的冷却（施工 8-9），`facts.effort` 多 `key`（8-18（补））；`session.create`、`session.configure` 的 `model` 怎么解析（`record`，施工 8-8、8-10）；`session.configure` 的参数（`ConfigureParams`）、`subscribe` 回应的 `model`（施工 8-10）；`subscribe` 的 `model` 多 `effort`（施工 8-18，`from` 是配置的哪一层，8-18（补）起）；`model.call`（`models/call.rs`，施工 8-20）：读参数、认图、调一次性入口（`miyu_session::OneShot`）、出错写成拒绝 |
 | `crates/miyu-endpoint/src/providers.rs`、`providers/trial.rs` | 第一次接入的 `provider.detect`、`provider.catalog`、`provider.test`（施工 8-11，`models.md`「协议」、「怎么走」第七条）；探本机、试一次在会话那一层（`miyu_session::find_local`、`probe`） |
-| `crates/miyu-endpoint/src/queries.rs` | 可选软件包登记的查询：方法名到怎么答的一张表，`QueryError`；`mermaid.render` 经它接进来（施工 W-4，`mermaid.md`） |
+| `crates/miyu-endpoint/src/queries.rs` | 可选软件包登记的查询：方法名到怎么答的一张表，`QueryError`；`mermaid.render` 经它接进来（施工 W-4，`mermaid.md`）；在后台答的一种登记 `register_background`，`link.preview` 照它接进来（施工 W-7，`net.md`） |
 
 ### 对外的样子
 
@@ -157,6 +157,7 @@
 | `model.call` | 经一次性入口叫一次模型或池，拿整段回答和用量；不进任何会话；会花额度（施工 8-20，`models.md`「协议」、「怎么走」第十二条） |
 | `human.get` | 给人看的字：工具的样子、说法的模板原文，照这个连接的语言；不带 `config`（施工 W-1） |
 | `mermaid.render` | mermaid 源码画成 SVG。编进了 `mermaid` 包才有，没编进来回 `unknown_method`（施工 W-4，`mermaid.md`） |
+| `link.preview` | 一个链接的卡片：标题、简介、图（存成 blob）。编进了 `net` 包才有，没编进来回 `unknown_method`；在后台答（施工 W-7，`net.md`） |
 | `subscribe`、`unsubscribe` | 订阅、取消订阅会话的事件流 |
 
 带 `session` 的，它要合会话编号的写法：UUID 的标准写法，小写十六进制，8-4-4-4-12；不合的 `bad_params`。找会话照下面「会话表」。
@@ -504,6 +505,18 @@
 1. 编进了 `mermaid` 包才有（核心起来时经 `crates/miyu-core/src/packages.rs` 往查询表 `crates/miyu-endpoint/src/queries.rs` 里登记）；没编进来的回 `unknown_method`，和没有这个方法一样。
 2. 查询，不改会话：不推送。
 
+**`link.preview`**（施工 W-7，`net.md`）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `url` | 字符串，必写 | 网址 |
+
+回应二选一：`{"card": {"description", "icon", "image", "site", "title", "url"}}`，`icon`、`image` 是 `{"blob": <内容哈希>, "media_type": <类型>}` 或者 `null`；`{"card": null, "why": <原因>}`，`why` 是 `not_a_url`、`unsupported_scheme`、`no_preview`、`unreachable` 之一。做不出卡片不是拒绝。地址闸、代理、记多久都在 `net.md`，这一页只列进方法表、出错表（照 `mermaid.render` 的先例）。
+
+1. 编进了 `net` 包才有，登记的路子同 `mermaid.render`；没编进来的回 `unknown_method`。
+2. 在后台答：这个连接上后面的请求不等它，回应照 `id` 对上（「一个连接」第 1 条的例外）。不碰会话，不推送。
+3. 卡片的图是管理员的 blob，头照 `blob.get` 读。
+
 **`model.call`**（施工 8-20，`models.md`「协议」、「怎么走」第十二条）
 
 | 参数 | 类型 | 说明 |
@@ -638,7 +651,7 @@
 
 **一个连接**
 
-1. 请求一条条办：上一条的回应放进了写队列（订阅着的会话的，交给了它的转发任务，下面「先见结果，后见回应」），才读下一行。要等的（`session.send` 等落盘，撤销等改完文件，载入会话）等着的时候，这个连接上的下一条也等着。
+1. 请求一条条办：上一条的回应放进了写队列（订阅着的会话的，交给了它的转发任务，下面「先见结果，后见回应」），才读下一行。要等的（`session.send` 等落盘，撤销等改完文件，载入会话）等着的时候，这个连接上的下一条也等着。例外是登记成在后台答的查询（现在只有 `link.preview`，施工 W-7）：交给这个连接的一个后台任务，接着读下一行；办完了回应照 `id` 对上，直接放进写队列，不经会话的订阅；连接断了，这些任务一起停。
 2. 读和写分开：写的一头从写队列里一行行写出去，队列最多攒 256 行。写不出去就停；读的一头往写队列放回应、放不进去时发现，断开（交给转发任务的那一条放得进，要到再下一条）。
 3. 断开：一行太长的，回 `parse_error`（`id` 是 `null`）；`protocol_mismatch`、`bad_token` 回完；对方关了、读出错。
 4. 断开以后，这个连接的订阅都停了。会话照常跑：头走了，在跑的那一轮照样跑完。
@@ -703,8 +716,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `parse_error` | -32700 | 不是 JSON；一行太长（之后断开） |
 | `invalid_request` | -32600 | 是 JSON，不是请求（「请求」的表） |
 | `unknown_method` | -32601 | 握手以后，没有这个方法 |
-| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`、`config`，`config` 带了 `session`、`after`（施工 8-4）；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；`session.send` 的 `from` 不是字符串、去掉控制字符以后是空的（施工 7-10）；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字；`job.stop`、`job.output` 的任务编号不合写法（施工 7-4），`job.output` 的 `tail` 不是 1 到 2000 的整数（施工 7-4 补）；`human.get` 的 `language` 不合写法（施工 W-1）；`fs.realpath` 的 `path` 是相对的、没给 `cwd`（施工 W-3）；`mermaid.render` 的源码是空的（去掉前后空白以后，施工 W-4）；`blob.write` 的 `data` 不是 base64、解出来超过 512 KiB、加上它超过 `size`（施工 W-5）；`model.call` 的 `purpose` 不合写法、`messages` 不是那个样子、`max_tokens` 是 0 或者太大、`model` 是空字、图的 blob 不是图（施工 8-20）；`fs.read` 的 `path` 是相对的；`blob.get`、`fs.read` 的 `length` 超过 512 KiB（施工 W-6） |
-| `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了；附件存不下来、读不出来；删会话时读不了放会话的目录、挪不进回收处、崩了；读后台命令的输出时崩了（施工 7-4 补）；给人看的字读不懂（施工 W-1）；画图的库初始化不了：`style.json` 读不懂，或者这台机器上一种字体都读不到（施工 W-4）；分块上传的暂存文件建不了、写不进（施工 W-5） |
+| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`、`config`，`config` 带了 `session`、`after`（施工 8-4）；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；`session.send` 的 `from` 不是字符串、去掉控制字符以后是空的（施工 7-10）；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字；`job.stop`、`job.output` 的任务编号不合写法（施工 7-4），`job.output` 的 `tail` 不是 1 到 2000 的整数（施工 7-4 补）；`human.get` 的 `language` 不合写法（施工 W-1）；`fs.realpath` 的 `path` 是相对的、没给 `cwd`（施工 W-3）；`mermaid.render` 的源码是空的（去掉前后空白以后，施工 W-4）；`blob.write` 的 `data` 不是 base64、解出来超过 512 KiB、加上它超过 `size`（施工 W-5）；`model.call` 的 `purpose` 不合写法、`messages` 不是那个样子、`max_tokens` 是 0 或者太大、`model` 是空字、图的 blob 不是图（施工 8-20）；`fs.read` 的 `path` 是相对的；`blob.get`、`fs.read` 的 `length` 超过 512 KiB（施工 W-6）；`link.preview` 的 `url` 没写、不是字符串（施工 W-7） |
+| `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了；附件存不下来、读不出来；删会话时读不了放会话的目录、挪不进回收处、崩了；读后台命令的输出时崩了（施工 7-4 补）；给人看的字读不懂（施工 W-1）；画图的库初始化不了：`style.json` 读不懂，或者这台机器上一种字体都读不到（施工 W-4）；分块上传的暂存文件建不了、写不进（施工 W-5）；`link_preview.json` 读不懂（施工 W-7） |
 | `hello_first` | -32010 | 握手以前发了别的方法 |
 | `protocol_mismatch` | -32010 | 头支持的主版本里没有 1（之后断开） |
 | `bad_token` | -32010 | 本机令牌没带、不对（之后断开） |
@@ -802,6 +815,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 
 `mermaid.render` 的日志目标是 `miyu::mermaid`，不是 `miyu::endpoint`：`WARN not ready error=…`，画图的库初始化不了。见 `mermaid.md`「出错」。
 
+`link.preview` 的日志目标是 `miyu::net`：`WARN link preview failed host=… why=…`、`WARN link image not stored error=…`、`WARN not ready error=…`，见 `net.md`「出错」。在后台答的任务崩了（它的回应永远不会来了）记 `ERROR background request panicked error=…`，目标 `miyu::endpoint`（施工 W-7）。
+
 `model.call` 的 `model` 解析不出记 `DEBUG unknown model why=…`（目标 `miyu::endpoint`）；调一次记一行 `INFO model call …` 或 `INFO model call failed …`，目标 `miyu::session`，不带会话编号（施工 8-20，`models.md`「出错」）。
 
 撤销、恢复的回应写不成的两行见 `protocol/undo.md`。
@@ -893,6 +908,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/src/job_output/tests.rs` | 取尾巴（施工 7-4 补）：照 `jobs` 数行、只照换行切；最后几行；上限正好 131,072 字节的一行整行给、多一个字节只留末尾；超了从前面按整行去掉；最后一行太长只交末尾、前面的不接上（前面那一行正好放得下也不接），读的时候就去掉过前面的也一样；中间太长的一行、截过的一行后面又来了行，整行去掉；截处从一个字的开头起，剩半个字的跳过；解不开的字节换成 `�`；读不下去的读到多少算多少；最坏的回应（每个字节都转义成六个、编号全是引号）放得进一行；回应的格 |
 | `crates/miyu-endpoint/tests/human.rs`（施工 W-1） | 协议上 `human.get`：和 `Human::load` 读到的一样，工具的样子一样、说法的编号带位置（`core/…`、`software/<包>/…`）、模板是原文一个字不换；软件包盖掉内核的同名工具；没有这种语言照英文；不写 `language` 照握手的语言；`language` 不合写法参数不对；回应里没有 `config` 那一格；读不懂 `internal_error`；改了资源，核心不重启下一次调就是新的；真核心照源码树的资源，`zh`、`en`、`ja` 三种都交得出 `tools`、`said` |
 | `crates/miyu-endpoint/src/queries/tests.rs`、`crates/miyu-core/tests/packages.rs`（施工 W-4） | 查询表：没登记的方法交回 `None`、照协议是 `unknown_method`；登记过的名字正好对上才找得到。`mermaid.render`：真核心走一遍，一张流程图、一张时序图都出 SVG，回应的 `marks` 和 SVG 里用的三种记号色对得上，同一份源码两次拿到一样的回应；空的 `bad_params`、超过 64 KiB `mermaid_too_long`、画不出 `mermaid_failed`（`data.detail` 不是空的）。细节见 `mermaid.md`「守着它的」 |
+| `crates/miyu-endpoint/src/queries.rs` 里的测试、`crates/miyu-core/tests/packages.rs`、`crates/miyu/tests/link_preview.rs`（施工 W-7） | 在后台答的只有照 `register_background` 登记的；同一个名字两种登记也 panic。`link.preview`：没登记回 `unknown_method`；登记了的读不成地址、不是 http 不碰网络就答；`url` 没写、不是字符串、`params` 是数组 `bad_params`；在后台答的不挡后面的请求、回应照 `id` 对上、连接断了它跟着停；真的核心照环境变量里的代理做出卡片、图用 `blob.get` 读得回来。细节见 `net.md`「守着它的」 |
 | `crates/miyu-endpoint/tests/redo.rs` | 协议上重做（施工 4-7 再补）：回应带撤销的几样和重发的那一句、推送里是一批撤销、原话、新的一轮，新的一轮的请求和撤掉的那一轮的一字不差；换了话的推送里是新的话、`said` 是原来的；改过文件的先改回、回应带 `files`；重做以后恢复不了；最后一轮是清空、没说过话的，有回合在进行、换成空的拒绝，中文、英文；`text` 不是字符串、会话编号不对的参数不对，写 `null` 当没写；附件照带、换掉、不要，没有的 blob `unknown_attachment` 什么都不写 |
 | `crates/miyu-endpoint/tests/compact.rs` | 协议上手动压缩（施工 6-8）：回应是那一轮的开头、推送里压好了；要求原样到了摘要请求里；撤掉那一轮的回应里没有 `said`；有回合在进行、没有能压的两种拒绝，中文、英文；`instructions` 不是字符串的参数不对 |
 | `crates/miyu-endpoint/tests/recap.rs`（施工 3-8 四补） | 协议上要回顾：回应是那一句、照到的、不是交回的；推送里先有回顾的 `model.called`、`session.recapped`，都不带回合编号、`cause` 是这一条，再是回应，别的头也收到；请求是一条 user、没有 system 和工具面；没有新内容再要一次交回上一句、不请求；有回合在进行时照收、照到的是这一轮那句话；没有能回顾的、没写成的两种拒绝，中文、英文，没写成的不再来；会话编号不对、没写、不是字符串的参数不对，没有的会话找不到 |
@@ -931,6 +947,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 - `04-核心协议.md` 第九节 `blob.put`、`22-命令行.md` 第三节 `--file`、`03-事件模型.md` 第四节（量不出尺寸的不当图片）、E4：附件（施工 3-9 三补）。
 - `04-核心协议.md` 第九节 `session.set_meta`、`session.delete`，`03-事件模型.md` 第三节 `session.meta_changed`：改标题、置顶、删除会话；删了的进回收处、留 7 天（2026-09-30 项目主人定）。
 - `04-核心协议.md` 第九节 `mermaid.render`：mermaid 源码画成 SVG，细节见 `mermaid.md`（施工 W-4）。
+- `04-核心协议.md` 第九节、`10-自带软件.md` 第四节 `net`：`link.preview`，细节见 `net.md`（施工 W-7）。
 - `04-核心协议.md` 第十节「后续再定」（分块上传）：`blob.open`、`blob.write`、`blob.close`，细节见 `web-module.md`「六、分块上传」（施工 W-5）。
 - `blob.get`、`fs.read`：分块读，细节见 `web-module.md`「七、分块读」（施工 W-6）。
 - `02-内核.md` 第四节（拒绝附原因码）、不变量 9（同一个编号只生效一次）。

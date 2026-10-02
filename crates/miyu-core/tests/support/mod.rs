@@ -80,7 +80,7 @@ impl Home {
     }
 
     /// 同 [`Home::core_with`]，可选软件包登记的查询表换成 `queries`（施工 W-4，`packages.rs`）：默认开的几个包
-    /// 不是这里测的，用得上真的那张表的测试照 `miyu_core::packages::register(&resources())` 造。
+    /// 不是这里测的，用得上真的那张表的测试照 `miyu_core::packages::register` 造。
     pub fn core_with_queries(
         &self,
         models: Arc<dyn Models>,
@@ -176,13 +176,35 @@ impl Head {
         head
     }
 
-    /// 发一条请求，读到它的回应为止：中间的推送不要。
-    pub async fn call(&mut self, id: &str, method: &str, params: Value) -> Value {
+    /// 发一条请求，不等回应（施工 W-7：在后台答的不挡后面的）。
+    pub async fn send(&mut self, id: &str, method: &str, params: Value) {
         let request = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
         self.writer
             .write_all(format!("{request}\n").as_bytes())
             .await
             .expect("写得进");
+    }
+
+    /// 读下一条回应：中间的推送不要。最多等一分钟。
+    pub async fn next_reply(&mut self) -> Value {
+        tokio::time::timeout(Duration::from_secs(60), async {
+            loop {
+                let mut line = String::new();
+                let read = self.reader.read_line(&mut line).await.expect("读得了");
+                assert!(read > 0, "核心断开了");
+                let reply: Value = serde_json::from_str(&line).expect("是 JSON");
+                if reply.get("id").is_some() {
+                    return reply;
+                }
+            }
+        })
+        .await
+        .unwrap_or_else(|_| panic!("一分钟内没等到回应"))
+    }
+
+    /// 发一条请求，读到它的回应为止：中间的推送不要。
+    pub async fn call(&mut self, id: &str, method: &str, params: Value) -> Value {
+        self.send(id, method, params).await;
         // 等得久一点：第一次画 mermaid 要扫系统的字体库，CI 的 Windows 机器上几个测试一起扫会过十秒。
         tokio::time::timeout(Duration::from_secs(60), async {
             loop {

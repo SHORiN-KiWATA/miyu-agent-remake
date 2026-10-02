@@ -62,6 +62,7 @@
 | `config.md` | 配置和密钥：清单、分层、项目配置的信任、校验和报错、写盘、留痕、监视和生效、密钥、`config.*`、`secret.*`、`miyu config`、`miyu login`、`miyu logout`：图纸，定稿（2026-10-01 项目主人批准），M8 的 8-1 到 8-5 照它施工 |
 | `web-module.md` | 网页界面这个软件和核心给它的通用方法：网页软件 `miyu-web`（端口、页面、WebSocket 照转、一次性登录、媒体地址），核心给所有头的 `human.get`、`fs.*`、`mermaid.render`、分块传和读 blob、`link.preview`：图纸，2026-10-01 项目主人批准；W-1 到 W-7 现在做，身份、网页软件等用户系统 |
 | `mermaid.md` | mermaid 源码画成 SVG：可选软件包 `mermaid`、crate `miyu-mermaid`、`mermaid.render`，懒初始化、缓存、三种记号色（施工 W-4，2026-10-02 从 `web-module.md` 搬出来独立成页） |
+| `net.md` | 链接卡片：可选软件包 `net`、crate `miyu-net`、`link.preview`，地址闸、钉地址、代理、跳转、元数据、图存成 blob、在后台答（施工 W-7，2026-10-02 从 `web-module.md` 搬出来独立成页） |
 | `licenses.md` | 仓库用什么许可证；门禁查依赖的许可证能不能和它合在一起发（施工 4-12） |
 | `prompts.md` | 给模型看的每一份字的原文，按进到请求的哪里分组，带 token 数、什么时候出现；由门禁从 `resources/` 和登记簿生成（施工 4-9 三补） |
 

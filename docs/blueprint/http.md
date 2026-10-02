@@ -53,6 +53,7 @@ HTTP 执行器：照驱动编码好的字节发一次请求，流式地读回来
 3. `User-Agent` 是 `miyu/<版本>`，版本是这个包的版本号。
 4. 连上一个地址最多等 30 秒，连不上是可重试的错。
 5. `FromEnvironment` 照环境变量 `HTTPS_PROXY`、`HTTP_PROXY`、`ALL_PROXY`、`NO_PROXY`（小写的也认），这是 reqwest 的默认做法；不读 Windows、macOS 的系统代理设置。`Off` 一概不走代理。**地址落在本机的一律直连**（施工 8-11 补）：照 `is_loopback_url` 判，不管 `FromEnvironment` 还是 `Off`，主机是 `localhost`（大小写不论）、`*.localhost`，或者是回环的 IP（`127.0.0.0/8`、`::1`，IPv4 映射的也算）的都不走代理——环境变量里的代理不会自动放行回环地址，`NO_PROXY` 没写回环地址的机器探不到本机的服务。挑哪个客户端（照环境变量的、不走代理的）由上一层照每次请求的地址选（`miyu-session` 的 `ModelData::fetcher_for`、`Routes::client`/`Routes::direct`），`miyu-http` 本身不挑，只给判断的方法（`is_loopback_host`、`is_loopback_url`）。不改 `NO_PROXY` 的读法，也不读系统的代理设置。
+6. 链接卡片（`miyu-net`，施工 W-7）另有自己的客户端，不经 `miyu-http`：每一跳先过地址闸；不走代理的钉住本机解析好的地址，走代理的先在本机解析一遍过闸再交给代理；走不走代理照同一套环境变量，判法也是 reqwest 用的那一份（`hyper-util` 的 `Matcher`）。见 `net.md`「怎么走」第 3、5 条。
 
 **发一次**
 
