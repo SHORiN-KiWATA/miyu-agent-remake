@@ -74,6 +74,7 @@ fn grep_comes_from_the_resources() {
         messages: None,
         jobs: None,
         sessions: None,
+        usage: None,
     });
     assert_eq!(targets[0].path, "src");
     assert!(!targets[0].write);

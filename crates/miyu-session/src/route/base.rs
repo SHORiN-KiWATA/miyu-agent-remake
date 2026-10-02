@@ -6,7 +6,7 @@
 //!   没在冷却的（`choice::pick`）。交回挑中的这一次（[`Picked`]，`route/ended.rs`）：发给谁、别的候选是谁，说完了照它记
 //!   冷却、说换没换端点。
 //! - 备好（[`Routes::ready`]）：照真发的那个模型查资料、取配置的默认思考强度、挑客户端（地址落在本机的不走代理），造驱动
-//!   和这一次的调用（[`Ready`]）。
+//!   和这一次的调用（[`Ready`]），带上它的价格（施工 8-15：说完了照用量算金额）。
 //! - 发：`route/exchange.rs`。
 //!
 //! 底子不认会话，只认「谁在挑」（[`Seat`]）：会话交它自己的，一次性的种子是用途，别的都没有。
@@ -23,6 +23,7 @@ use miyu_kernel::origin::Model;
 use miyu_models::cooldown::Candidate;
 use miyu_models::facts::{Facts, facts};
 use miyu_models::pools::{Member, Strategy};
+use miyu_models::price::Tariff;
 use miyu_models::provider::NoModel;
 use miyu_models::reference::{Resolved, resolve};
 
@@ -61,6 +62,8 @@ pub(super) struct Ready {
     pub(super) idle: Duration,
     /// 报了上限时记到哪。
     pub(super) learn: Learn,
+    /// 这个模型的价格（施工 8-15）：说完了照用量算金额。资料里没有价格的没有。
+    pub(super) tariff: Option<Tariff>,
 }
 
 impl Routes {
@@ -134,6 +137,8 @@ impl Routes {
                 model: target.model.clone(),
                 window: facts.window.value,
             },
+            // 价格照这一轮冻结的配置、真发的那个模型的资料（施工 8-15）：手写的照配置服务说的文件写出处。
+            tariff: Tariff::of(&facts, &|layer| config.file(layer)),
         })
     }
 }

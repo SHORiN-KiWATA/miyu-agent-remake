@@ -66,6 +66,10 @@
       "name": "セッション一覧",
       "icon": "≡"
     },
+    "session_usage": {
+      "name": "使用量",
+      "icon": "≡"
+    },
     "send_message": {
       "name": "メッセージ",
       "subject": "to",
@@ -172,6 +176,8 @@
     "sessions/listed": "{count} 件のセッション",
     "sessions/none": "ほかのセッションはありません",
     "sessions/past-end": "ほかのセッション {total} 件はすべて表示済みです",
-    "sessions/failed": "一覧を取得できませんでした：{error}"
+    "sessions/failed": "一覧を取得できませんでした：{error}",
+    "session_usage/shown": "使用量を確認しました",
+    "session_usage/failed": "使用量を読めませんでした：{error}"
   }
 }

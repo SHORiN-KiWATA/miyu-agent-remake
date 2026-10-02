@@ -53,6 +53,7 @@ fn aside_ended(purpose: Purpose, upto: u64) -> Input {
         purpose,
         upto: seq(upto),
         usage: None,
+        cost: None,
         error: None,
     }
 }
@@ -149,4 +150,40 @@ fn reports_for_another_request_are_ignored() {
         session.handle(aside_ended(Purpose::Title, 6)).is_empty(),
         "说完了的再报一次不理"
     );
+}
+
+/// 起标题的请求带着金额说完了（施工 8-15）：照样记进它的 `model.called`。
+#[test]
+fn the_title_request_keeps_its_cost() {
+    use crate::event::{Cost, Prices, Real};
+    let mut session = answered();
+    session.handle(stored(8));
+    session.handle(aside_sent(Purpose::Title, 6));
+    for input in aside_said(&Purpose::Title, 6, "打招呼") {
+        session.handle(input);
+    }
+    let cost = Cost {
+        amount: Real::new(0.002),
+        currency: "CNY".to_string(),
+        price: Prices::default(),
+        multiplier: Real::new(0.5),
+        source: "config:system/config.toml:3".to_string(),
+        above: None,
+    };
+    let done = session.handle(Input::AsideEnded {
+        at: at(45),
+        purpose: Purpose::Title,
+        upto: seq(6),
+        usage: Some(usage()),
+        cost: Some(cost.clone()),
+        error: None,
+    });
+    let called = appended_events(&done)
+        .into_iter()
+        .find_map(|event| match event.body {
+            Body::ModelCalled(called) => Some(called),
+            _ => None,
+        })
+        .expect("记了 model.called");
+    assert_eq!(called.cost.as_deref(), Some(&cost));
 }

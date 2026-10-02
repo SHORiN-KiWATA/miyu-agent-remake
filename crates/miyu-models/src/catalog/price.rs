@@ -1,6 +1,6 @@
 //! 价格（`docs/blueprint/models.md`「模型的资料」`price` 那一行，施工 8-7）：每一百万 token 的价，四项、币种，目录里的另带
 //! 按上下文分的档（`tiers`）、超过 20 万的价（`context_over_200k`）、思考的价。价格是一整格：从哪一层来，四项和币种就都
-//! 照那一层的。怎么照它算金额随 8-15。
+//! 照那一层的。怎么照它算金额在 [`crate::price`]（施工 8-15）。
 
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
@@ -18,10 +18,10 @@ pub struct Rates {
     pub cache_write: Option<f64>,
 }
 
-/// 按上下文分的一档：输入到了 `size` 起照这一档的价。
+/// 按上下文分的一档：输入超过 `size` 的照这一档的价（施工 8-15，[`crate::price`]）。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Tier {
-    /// 从多少 token 起。
+    /// 门槛：超过多少 token。
     pub size: u64,
     /// 这一档的价。
     pub rates: Rates,

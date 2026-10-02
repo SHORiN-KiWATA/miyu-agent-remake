@@ -9,6 +9,7 @@
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu-store/src/index.rs` | 打开（坏了的删掉重建）、读全部的行、写回一行、会话落盘时往上盖、删行、用着用着坏了的重建 |
+| `crates/miyu-store/src/sqlite.rs` | 怎么开、查版本和 `quick_check`、WAL、坏了连同 `-wal`、`-shm` 删掉：施工 8-15 从 `index.rs` 挪出来，和用量汇总共用；`IndexError`、`Opened` 是它的 `DbError`、`Opened` |
 | `crates/miyu-store/src/index/row.rs` | 一行记什么，照一条事件怎么盖（`Row::see`）；这一条记下的工作目录（`cwd`） |
 | `crates/miyu-store/src/log.rs`、`log/open.rs` | 日志里的一个位置 `Mark`；会话日志写到哪了（`SessionLog::mark`）；从记下的位置读起（`read_marked`，`store.md` 第 7 条） |
 | `crates/miyu-session/src/store.rs` | `Indexed`：会话日志每落一批，顺手更新索引（`session/actor.md` 第 5 条第 7 点） |
@@ -128,6 +129,6 @@
 
 - 别的账号的索引：现在只有管理员（`06-多用户与身份.md`）。
 - `history` 的全文索引：随记忆、知识库（`07-存储.md` 第七节）。
-- 用量总表的索引：随 M8 的 8-15。
+- 用量总表：8-15 做了，照这一页的办法（`models.md`「怎么走」第九条第 4 条，`state/usage.db`）。
 - 会话列表流 `sessions.changed`：M9。
 - 删会话时没删掉的行，现在留在表里不碍事，不清。

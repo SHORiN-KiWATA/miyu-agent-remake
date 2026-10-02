@@ -16,12 +16,15 @@ pub(super) struct Reply {
     accumulator: Accumulator,
     /// 第一处对不上的；有了以后不再收。
     broken: Option<DeltaError>,
+    /// 发出去了（施工 8-15）：发出去了的才记账。
+    sent: bool,
 }
 
 impl Reply {
-    /// 收下一样：增量照累积器拼，「发出去了」不用。
+    /// 收下一样：增量照累积器拼，「发出去了」只记下发出去了。
     pub(super) fn take(&mut self, progress: Progress) {
         let Progress::Delta(delta) = progress else {
+            self.sent = true;
             return;
         };
         if self.broken.is_none()
@@ -29,6 +32,11 @@ impl Reply {
         {
             self.broken = Some(error);
         }
+    }
+
+    /// 发出去了没有（施工 8-15）。
+    pub(super) fn sent(&self) -> bool {
+        self.sent
     }
 
     /// 正常说完了：发给了 `target`，用量 `usage`。

@@ -10,6 +10,7 @@ use miyu_kernel::origin::By;
 use miyu_store::index::SessionIndex;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
+use miyu_store::usage::UsageIndex;
 use miyu_tool::Catalog;
 
 use crate::config::Configs;
@@ -66,6 +67,9 @@ pub struct Create<'a> {
     pub jobs: &'a Arc<Jobs>,
     /// 属主的会话列表的索引（施工 3-8 七补）：日志每落一批，顺手更新这个会话的那一行。没有的（测试里自己造的）不更新。
     pub index: Option<Arc<SessionIndex>>,
+    /// 用量汇总（施工 8-15）：日志每落一批，顺手写这一批发出去了的请求；`session_usage` 照它查。没有的（测试里自己造的）
+    /// 不写，`session_usage` 照什么都没花答。
+    pub usage: Option<Arc<UsageIndex>>,
     /// 从哪取配置（施工 8-4）：回合开始时照它冻结这一轮的配置。没有配置服务的（测试里）给 [`crate::fixed`] 的一份。
     pub configs: Configs,
     /// 会话用哪个模型（施工 8-8）：已经查过的引用，模型或 `@池`（协议的 `session.create` 的 `model`、派子代理时照 `pool`
@@ -101,6 +105,8 @@ pub struct Load<'a> {
     pub jobs: &'a Arc<Jobs>,
     /// 同 [`Create::index`]。
     pub index: Option<Arc<SessionIndex>>,
+    /// 同 [`Create::usage`]。
+    pub usage: Option<Arc<UsageIndex>>,
     /// 同 [`Create::configs`]。
     pub configs: Configs,
 }

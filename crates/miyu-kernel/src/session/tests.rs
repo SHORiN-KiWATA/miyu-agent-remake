@@ -10,6 +10,7 @@ mod approval;
 mod clear;
 mod compact;
 mod configure;
+mod cost;
 mod difference;
 mod dirs;
 mod executor;

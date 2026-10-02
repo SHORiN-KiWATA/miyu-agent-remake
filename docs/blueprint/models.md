@@ -6,7 +6,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 
 驱动的内部（Anthropic 消息接口、OpenAI Responses 接口怎么编码、解码）不在这一页：开工前另画 `drivers/anthropic.md`、`drivers/openai-responses.md`。这一页只写它们要守的约定（「对外的样子」最后一节）。配置怎么读、怎么分层、怎么校验、密钥怎么存，归 `config.md`。这一页只写模型这一块有哪些键、每个键是什么意思。
 
-状态：图纸，定稿（2026-10-01 起草，起草时要拍板的几题同一天定了，见「定的（2026-10-01）」；主会话审过，项目主人同一天批准），M8 的 8-6 到 8-11、8-14 的一部分、8-15 照它施工（施工方案第三节 M8 那张表）。每一节标着由哪一步做。做完一步，这一页照做好的样子改写那几节，「要跟着改的别的页」里列的几页跟着改。8-6 做完了（2026-10-01）：标 8-6 的几节照做好的样子写，施工时定的记在「施工时定的」。8-7 做完了（2026-10-01，施工完，待主会话审）：标 8-7 的几节照做好的样子写，施工时定的记在「施工时定的」8-7 那张表。8-6b 做完了（2026-10-01）：`base_url` 一行、`model.list` 的 `providers`、第十条、「样子」里的例子照做好的样子写，施工时定的记在「施工时定的」8-6b 那张表。8-9 做完了（2026-10-01，施工完，待主会话实测）：标 8-9 的几节照做好的样子写，施工时定的记在「施工时定的」8-9 那张表。8-10 做完了（2026-10-01，施工完，待主会话实测）：标 8-10 的几节照做好的样子写，施工时定的记在「施工时定的」8-10 那张表。8-11 做完了（2026-10-01，施工完，待主会话实测）：标 8-11 的几节照做好的样子写，施工时定的记在「施工时定的」8-11 那张表。8-8 补做完了（2026-10-01，施工完，待主会话实测）：挡位去掉、池多两项，标 8-8 补的几节照做好的样子写，施工时定的记在「施工时定的」8-8 补那张表。8-18 做完了（2026-10-02，施工完，待主会话实测）：思考强度，标 8-18 的几节照做好的样子写，施工时定的记在「施工时定的」8-18 那张表。8-20 做完了（2026-10-02，施工完，待主会话实测）：模型调用口，「怎么走」第十二条，标 8-20 的几节照做好的样子写，施工时定的记在「施工时定的」8-20 那张表。8-18（补）做完了（2026-10-02，施工完，待主会话实测）：去掉思考强度的会话那一层，标 8-18（补）的几节照做好的样子写，施工时定的记在「施工时定的」8-18（补）那张表。
+状态：图纸，定稿（2026-10-01 起草，起草时要拍板的几题同一天定了，见「定的（2026-10-01）」；主会话审过，项目主人同一天批准），M8 的 8-6 到 8-11、8-14 的一部分、8-15 照它施工（施工方案第三节 M8 那张表）。每一节标着由哪一步做。做完一步，这一页照做好的样子改写那几节，「要跟着改的别的页」里列的几页跟着改。8-6 做完了（2026-10-01）：标 8-6 的几节照做好的样子写，施工时定的记在「施工时定的」。8-7 做完了（2026-10-01，施工完，待主会话审）：标 8-7 的几节照做好的样子写，施工时定的记在「施工时定的」8-7 那张表。8-6b 做完了（2026-10-01）：`base_url` 一行、`model.list` 的 `providers`、第十条、「样子」里的例子照做好的样子写，施工时定的记在「施工时定的」8-6b 那张表。8-9 做完了（2026-10-01，施工完，待主会话实测）：标 8-9 的几节照做好的样子写，施工时定的记在「施工时定的」8-9 那张表。8-10 做完了（2026-10-01，施工完，待主会话实测）：标 8-10 的几节照做好的样子写，施工时定的记在「施工时定的」8-10 那张表。8-11 做完了（2026-10-01，施工完，待主会话实测）：标 8-11 的几节照做好的样子写，施工时定的记在「施工时定的」8-11 那张表。8-8 补做完了（2026-10-01，施工完，待主会话实测）：挡位去掉、池多两项，标 8-8 补的几节照做好的样子写，施工时定的记在「施工时定的」8-8 补那张表。8-18 做完了（2026-10-02，施工完，待主会话实测）：思考强度，标 8-18 的几节照做好的样子写，施工时定的记在「施工时定的」8-18 那张表。8-20 做完了（2026-10-02，施工完，待主会话实测）：模型调用口，「怎么走」第十二条，标 8-20 的几节照做好的样子写，施工时定的记在「施工时定的」8-20 那张表。8-18（补）做完了（2026-10-02，施工完，待主会话实测）：去掉思考强度的会话那一层，标 8-18（补）的几节照做好的样子写，施工时定的记在「施工时定的」8-18（补）那张表。8-15 做完了（2026-10-02，施工完，待主会话实测）：用量与金额，「怎么走」第九条，标 8-15 的几节照做好的样子写，施工时定的记在「施工时定的」8-15 那张表。
 
 ### 在哪
 
@@ -29,7 +29,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | `crates/miyu-models/src/keys.rs` | 一个会话钉在哪一个 key 上、候选的先后 | 8-6 |
 | `crates/miyu-models/src/pools.rs` | 池：认得出的成员、不写分法时怎么分、钉住的照发过的认回来、候选怎么绕、指针（`Pointers`，`pools.json` 的字）怎么往前走（8-8）；派子代理能选哪几个（`offered`，8-8 补，`Offer`） | 8-8 |
 | `crates/miyu-models/src/cooldown.rs` | 冷却：按分类、翻倍、封顶、成功清零 | 8-9 |
-| `crates/miyu-models/src/price.rs` | 金额：挑哪一档价格、乘倍率、缺一项不算 | 8-15 |
+| `crates/miyu-models/src/price.rs` | 金额（`Tariff`）：照资料造（价格、倍率、出处），挑哪一档价格、乘倍率、缺一项不算；几种币种排先后（`ordered`）。`usage.currency` 在 `settings.rs` 的 `UsageSettings` | 8-15 |
 | `crates/miyu-session/src/route.rs`、`route/` | 每个会话的路由：实现 `ModelPort`，挑候选、钉 key、出错换、记冷却、交限额。取代 `http.rs` 里的 `HttpModels`（8-6：`route.rs` 挑、`route/send.rs` 发；8-8：`route/pool.rs` 池里挑成员、池的限额；8-9：`route/choice.rs` 排候选、挑没在冷却的，`route/ended.rs` 说完了记冷却、换端点、成了才钉；8-18：`route/effort.rs` 给头看的那一档从配置的哪一层来、空闲超时跟着放大，8-18（补）去掉会话那一层以后不再有会话给每个模型记的一格）。8-20 起它是模型调用口的会话入口（第十二条）：解析引用、退回 `models.chat`、钉 key、钉成员、说到一半断了、交限额留在 `route.rs`、`route/send.rs`（会话的发、说完了记会话的那几样 `Tried`），挑、发、记冷却调底子 | 8-6、8-8、8-9、8-18、8-20 |
 | `crates/miyu-session/src/route/base.rs`、`route/choice.rs`、`route/pool.rs`、`route/exchange.rs`、`route/ended.rs` | 模型调用口的底子（8-20 从会话的路由里拆出来，第十二条）：`Routes` 的几个方法，不认会话，只认「谁在挑」（`Seat`：钉 key 的种子、换过去的 key、钉着的成员、说到一半断了的）。照引用排候选、跳过冷却的、钉住的池从钉着的成员起、轮换的池走指针（`base.rs` 的 `pick`，`choice.rs`、`pool.rs` 排）；照真发的模型查资料、取配置的默认思考强度、挑客户端（`base.rs` 的 `ready`）；取 blob、编码、发、记用出来的窗口（`exchange.rs`）；出错照分类记冷却、说换没换端点，成了清零（`ended.rs` 的 `Attempt`） | 8-20 |
 | `crates/miyu-session/src/route/once.rs`、`once/reply.rs` | 一次性入口 `OneShot`（8-20，第十二条）：交进去 `Ask`（引用、用途、system、几条消息、`max_tokens`），交回 `Answer`（正文、真发给的供应商和模型、用量）或 `Unanswered`（四种出错）；出错换了端点的当场再来，最多 5 次；正文照增量拼（`once/reply.rs`）。核心经 `Models::one_shot()` 拿到它，和会话的路由是同一个 `Routes` | 8-20 |
@@ -41,18 +41,18 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | `crates/miyu-session/src/route/probe.rs` | `provider.test` 试一次（8-11）：推驱动、地址、key，列模型（列不出的照目录），挑模型，发一句、收到第一段正文就停 | 8-11 |
 | `crates/miyu-session/src/route/local.rs` | `provider.detect` 探本机的服务（8-11）：几家一起发，各等 300 毫秒，不走代理 | 8-11 |
 | `crates/miyu-core/src/models.rs`、`models/` | 起来时读档案、认原厂的表（TOML 读成 JSON），造路由；写了 `ready` 以后读目录、用出来的、供应商的列表、池的指针（`models/catalog.rs`：快照和缓存挑新的），后台更新（`models/refresh.rs`，8-8：地址可以是环境变量的引用，`Schedule`）；`[models.cooldown]` 照配置当场换（`follow_cooldown`，8-9）；多造一个不走代理的 GET 客户端，探本机的服务用（8-11） | 8-6 起 |
-| `crates/miyu-endpoint/src/models.rs`、`models/entry.rs` | 协议：`model.list`（8-7，`entry.rs` 写一家；8-8 加 `pools`、`uses.vision`，8-8 补去掉 `tiers`、池多 `subagent`、`description`；8-9 加模型、key 的冷却；8-18（补）起 `facts.effort` 多 `key`），`session.create` 的 `model` 怎么解析（`record`，8-8，`methods.rs` 调它）；`session.configure` 的参数（`methods.rs` 先查参数、再找会话、再 `record`，`ConfigureParams`，写了 `effort` 的 8-18（补）起 `bad_params`）、`subscribe` 回应的 `model`（`connection.rs` 调它，8-10；8-18 多 `effort`）；`provider.detect`、`provider.catalog`、`provider.test` 在 `providers.rs`、`providers/trial.rs`（8-11）；`model.call` 在 `models/call.rs`（8-20：参数、照这个账号的 blob 认图（`attach.rs` 的 `images`）、调一次性入口、出错写成拒绝）；`usage.query` 随后 | 8-7 到 8-11、8-15、8-20 |
+| `crates/miyu-endpoint/src/models.rs`、`models/entry.rs` | 协议：`model.list`（8-7，`entry.rs` 写一家；8-8 加 `pools`、`uses.vision`，8-8 补去掉 `tiers`、池多 `subagent`、`description`；8-9 加模型、key 的冷却；8-18（补）起 `facts.effort` 多 `key`），`session.create` 的 `model` 怎么解析（`record`，8-8，`methods.rs` 调它）；`session.configure` 的参数（`methods.rs` 先查参数、再找会话、再 `record`，`ConfigureParams`，写了 `effort` 的 8-18（补）起 `bad_params`）、`subscribe` 回应的 `model`（`connection.rs` 调它，8-10；8-18 多 `effort`）；`provider.detect`、`provider.catalog`、`provider.test` 在 `providers.rs`、`providers/trial.rs`（8-11）；`model.call` 在 `models/call.rs`（8-20：参数、照这个账号的 blob 认图（`attach.rs` 的 `images`）、调一次性入口、出错写成拒绝；8-15 记在这个连接的账号上）；`usage.query` 在 `usage.rs`（8-15：开 `state/usage.db`、参数、先补再查、写成 `rows`） | 8-7 到 8-11、8-15、8-20 |
 | `crates/miyu-session/src/config.rs` | `Turn::new`：一次性调用照这一刻不算项目配置的最终值冻结一份（8-20） | 8-20 |
 | `crates/miyu-kernel/src/session/configure.rs` | 换模型的命令，会话的引用和最近一次换模型写在第几条（`Reference`，熔断照它），回合开始交出引用（`RunTurnStartHooks` 的 `model`），记 `replaced`（8-10）。8-18 曾在这里加过会话给每个模型记的一格思考强度，8-18（补）去掉了 | 8-10 |
 | `crates/miyu-kernel/src/session/retry.rs`、`event/model.rs`、`event/transient.rs` | 分类多 `no_model`（8-6，不再来）；`failover`、`cooling`（8-9）；瞬时的 `model.changed`、`status` 的 `failover`（8-9） | 8-6、8-9 |
-| `crates/miyu-kernel/src/event/` | `session.created`（8-8 多 `model`）、`session.policy_changed`、`model.called` 多的几格 | 8-8、8-10、8-15 |
+| `crates/miyu-kernel/src/event/` | `session.created`（8-8 多 `model`）、`session.policy_changed`、`model.called` 多的几格（8-15 的 `cost` 在 `event/cost.rs`：`Cost`、`Prices`、照位比相等的 `Real`）；内核收 `ModelEnded`、`AsideEnded` 的 `cost` 原样记下（`session/call.rs`、`session/aside.rs`），这时的上下文用量 `Session::context_used()`（`session/limits.rs`） | 8-8、8-10、8-15 |
 | `crates/miyu-drivers/src/driver.rs` | 驱动接口多的两样：认证头、列模型 | 8-6、8-7 |
 | `crates/miyu-drivers/src/lib.rs`、`openai_chat/effort.rs` | 调用多一格 `Call.effort`；`openai-chat` 照它发 `reasoning_effort` 或档案写的开关（`Compat.toggle`），没有的什么都不加（8-18） | 8-18 |
 | `crates/miyu-endpoint/src/config/effort.rs` | 配置里写的 `effort` 不在档位里的：读进来以后另查，报 `unknown_effort`（照 `bad_reference` 的办法，目录读完以前不查，8-18） | 8-18 |
 | `crates/miyu-http/src/get.rs` | 一次 GET：拉目录、拉模型列表、探本机的服务（8-7）；`get_full` 出错时另交回状态码、响应头、最多 64 KiB 的响应体，`provider.test` 列模型失败时照驱动分类（8-11） | 8-7、8-11 |
-| `crates/miyu-store/src/usage.rs` | 用量汇总 `state/usage.db` | 8-15 |
+| `crates/miyu-store/src/usage.rs`、`usage/` | 用量汇总 `state/usage.db`：一行的样子（`spent.rs`）、写和补（`catch_up.rs`：会话每落一批、补会话和账号日志、一次性调用记账）、删掉的会话的合计（`purged.rs`）、查（`query.rs`）。怎么开、坏了删掉重建和会话列表的索引共用 `sqlite.rs`；清回收处之前留底在 `trash.rs`；账号日志的锁、从记下的字节读起在 `journal.rs` | 8-15 |
 | `crates/miyu-basesystem/src/subagent.rs` | 派子代理的工具 `subagent` 多一格 `pool`（8-8 补，取代 8-8 的 `tier`）：只认这个会话列着的池，交给端口；执行器那一头 `crates/miyu-session/src/agents.rs` 造会话时照那时的配置拼参数（`Agents::face`），派的时候子会话记 `@池`，没写的抄父会话的引用（`Inherit`）；拼参数的那一段 JSON 在 `crates/miyu-policy/src/tools/choice.rs` | 8-8、8-8 补 |
-| `crates/miyu-basesystem/src/session_usage.rs` | 她自己查用量的工具 | 8-15 |
+| `crates/miyu-basesystem/src/session_usage.rs` | 她自己查用量的工具：经端口（`miyu_tool::UsagePort`）要用量、金额、上下文，写成几句；执行器那一头在 `crates/miyu-session/src/usage.rs`（派出去那一刻向内核要上下文，先补这个会话再查） | 8-15 |
 | `crates/miyu-cli/src/setup.rs`、`setup/` | `miyu setup`（`cli/setup.md`）；`miyu ask` 没模型时先走它（`ask.rs` 的 `model_ready_on`） | 8-11 |
 | `crates/miyu-cli/src/ask.rs`、`ask/talk.rs` | `miyu ask --model`：新开的会话 `session.create` 带上，接着的先 `session.configure`（`talk.rs` 的「找会话」） | 8-10 |
 | `xtask/src/dev_home.rs` | `cargo xtask dev-home`：开发时照环境变量造一个带配置的数据根；测试在 `crates/miyu/tests/dev_home.rs`（原样编进去） | 8-6 |
@@ -236,6 +236,8 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | `source` | 字符串 | 价格从哪来：`catalog:<目录里的供应商>/<模型>`、`config:<文件>:<行>`，或者 `local`（本机的服务，`amount` 是 0，`price` 四项都是 0，`currency` 是 `USD`） |
 | `above` | 整数，可以没有 | 用了按上下文分档的价格：是超过多少 token 的那一档 |
 
+这几个数是整数值的写成整数（`1` 不写 `1.0`），别的照最短能读回原值的写法（「施工时定的」8-15）。主请求、摘要请求、辅助请求（回顾、起标题）都带；出错了、报了用量的照样算（钱已经花了）；被打断的、没报用量的没有。
+
 `error.class` 多两种（8-6、8-9），都是执行器没发出去就说完的，`model.called` 没有 `endpoint`、`model`、`request`：
 
 - `no_model`：没有能用的模型，`models.chat` 没配、会话的引用解析不出也退不回去。不再来。
@@ -391,12 +393,16 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | `from`、`until` | 时刻，可以不写 | 只算这一段，左闭右开 |
-| `group` | 数组，可以不写 | 照这几样分组：`account`、`venue`、`model`、`day`、`session`。不写是一行总计 |
+| `group` | 数组，可以不写 | 照这几样分组：`account`、`venue`、`model`、`day`、`session`、`purpose`（8-15 加：辅助请求、一次性调用的用途，主请求、摘要请求的是 `null`）。不写是一行总计 |
 | `session` | 字符串，可以不写 | 只算这个会话 |
 | `tree` | 布尔，不写是 `false` | 写了 `session` 的，连它派的子会话一起算 |
 | `offset` | 时区，可以不写 | 分天照哪个时区，写法 `+09:00`。不写是核心所在机器此刻的 |
 
-回应 `rows`，照分组的几样排。每一行：分组的那几格（`model` 写成 `供应商/模型`，`day` 写成 `2026-10-01`），`requests` 发出去的请求数，`usage` 四项加起来，`amounts` 有金额的照币种各加各的（`[{"currency":"USD","amount":0.42},{"currency":"CNY","amount":1.3}]`，照 `usage.currency` 排，一个都没有的是空的），`unpriced` 有用量、没金额的有几次。不同币种不换算、不相加（2026-10-01 项目主人定）。
+回应 `rows`，照分组的几样排，`null` 在前。每一行：分组的那几格（`model` 写成 `供应商/模型`，`day` 写成 `2026-10-01`，没有的写 `null`：一次性调用没有会话、场所），`requests` 发出去的请求数，`usage` 四项加起来，`amounts` 有金额的照币种各加各的（`[{"currency":"USD","amount":0.42},{"currency":"CNY","amount":1.3}]`，照 `usage.currency` 排，一个都没有的是空的），`unpriced` 有用量、没金额的有几次。不同币种不换算、不相加（2026-10-01 项目主人定）。不分组的总有一行，一次请求都没有的是 0；分组的一组都没有的 `rows` 是空的。
+
+- 参数不对（不认识的分组、时刻和时区写法不对、会话编号写法不对、类型不对）回 `bad_params`；查不到的会话回空的。不认识的格不理，「可以不写」的写 `null` 等于没写。
+- 先补再查（第九条第 4 条）；汇总读出坏了的，删掉重建再补一次，还不行回 `internal`。`usage.currency` 照这一刻的配置。
+- 例子：`{"group":["purpose","model"]}` 回 `{"rows":[{"purpose":"vision","model":"deepseek/deepseek-flash","requests":2,"usage":{"uncached":1624,"cache_read":0,"cache_write":0,"output":18},"amounts":[{"currency":"USD","amount":0.0002544}],"unpriced":0}]}`。
 
 **原因码**多这几个：
 
@@ -433,7 +439,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 - 2026-10-02 主会话照开发端点、`deepseek-v4.1-flash` 量（十二件一起时的边际份量，登记在 `26-提示词.md` 第十节）：一个池都没列的，`subagent` 189 → 141、整个 tools 数组 2195 → 2147，和 8-8 以前一样；列一个带说明的池（上面例子里的 `fast`）是 182、tools 数组 2188，每多列一个池约再多十几个 token。资源文件 697 → 628 字节，工具说明合计 7360 → 7291 字节，还在预算里（`crates/miyu-basesystem/tests/budget.rs`）。
 - 工具把池名交给派子代理的端口（`AgentPort::spawn` 的 `pool`，`tools/interface.md`）。
 
-**`session_usage`**（8-15）：零参数，访问类别 `read`，只查这个会话。草稿（待量 token）：
+**`session_usage`**（8-15，整页在 `tools/session_usage.md`）：零参数，访问类别 `read`，只查这个会话（不带子会话）。只给本机的会话（主会话、子会话），群里的会话没有（「施工时定的」8-15）。资源里的原文：
 
 ```json
 {
@@ -442,17 +448,21 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 }
 ```
 
-结果的几句（`session_usage/*.txt`，草稿，待量）：
+结果一句一行（`session_usage/*.txt`）：
 
 | 文件 | 原文 | 什么时候 |
 |---|---|---|
 | `usage.txt` | `Usage so far: {requests} requests, {input} input tokens ({cached} from cache), {output} output tokens.` | 总有 |
-| `cost.txt` | `Cost: {amounts}.` | 有金额的。`{amounts}` 照币种各写一段 `<金额> <币种>`，用 ` + ` 接起来，照 `usage.currency` 排，例如 `0.42 USD + 1.30 CNY` |
+| `cost.txt` | `Cost: {amounts}.` | 有金额的。`{amounts}` 照币种各写一段 `<金额> <币种>`，用 ` + ` 接起来，照 `usage.currency` 排，例如 `0.42 USD + 1.30 CNY`；金额三位有效数字、至少两位小数（`0.000292`） |
 | `unpriced.txt` | `{count} requests have no price, so the cost leaves them out.` | 有没金额的 |
-| `context.txt` | `Context: {used} of {window} tokens. Compaction starts at {line}.` | 有窗口的 |
-| `context-no-window.txt` | `Context: about {used} tokens. This model reports no window.` | 没有窗口的 |
+| `context.txt` | `Context: {used} of {window} tokens.` | 算得出上下文、有窗口的 |
+| `compaction.txt` | `Compaction starts at {line}.` | 有压缩线的，接在 `context.txt` 下一行 |
+| `context-no-window.txt` | `Context: about {used} tokens. This model reports no window.` | 算得出上下文、没有窗口的 |
+| `failed.txt` | `Could not read the usage: {error}` | 用量汇总读不了，这一次调用出错 |
 
-一件还是两件（另一种是 `session_usage` 只管用量、`context_usage` 只管上下文）在 8-15 实测定（第九条第 7 条）。
+- 草稿的 `context.txt` 一句带着压缩线，窗口有、压缩线没有的会话（以前造的快照、窗口不到 33000）写不对，施工时拆成 `context.txt`、`compaction.txt` 两份；读不了汇总时要有一句，多了 `failed.txt`（照 `sessions/failed.txt`）。
+- 2026-10-02 主会话照开发端点、`deepseek-v4.1-flash` 量（十三件一起时的边际份量，登记在 `26-提示词.md` 第十节）：`session_usage` 48；发给模型的 tools 数组不列池的 2147 → 2195。结果的几句：`usage.txt` 25、`cost.txt` 9、`unpriced.txt` 13、`context.txt` 11、`compaction.txt` 8、`context-no-window.txt` 14、`failed.txt` 10。工具说明合计 7291 → 7465 字节，在预算里。
+- 一件还是两件（另一种是 `session_usage` 只管用量、`context_usage` 只管上下文）：先做一件（主会话定）。合并前主会话用真模型问六句（还剩多少上下文、这次花了多少钱、快压缩了吗……），挑对、答对就定一件；挑错、答错再开一步试两件（第九条第 7 条）。
 
 #### 命令行
 
@@ -703,28 +713,30 @@ opencode Zen 的免费模型只放行 opencode 自己的客户端：流式、工
 **九、用量和金额**（8-15）
 
 1. **用量永远记**：`model.called` 的 `usage` 照旧（`03-事件模型.md` 第三节）。
-2. **金额**（`15-模型与供应商.md` M9）：
-   1. 价格照这一次真发给的模型的资料（第二条），这一回合冻结的那一份。
-   2. 按上下文分档的：这一次的输入（`uncached` + `cache_read` + `cache_write`）超过哪一档的门槛，用门槛最高的那一档。目录的 `context_over_200k` 当作门槛 200000 的一档。档里没写的项用底价的。
+2. **金额**（`15-模型与供应商.md` M9，`miyu_models::price::Tariff`）：
+   1. 价格照这一次真发给的模型的资料（第二条），这一回合冻结的那一份：路由备好这一次时（`Routes::ready`）照资料造一份价格、倍率、出处。
+   2. 按上下文分档的：这一次的输入（`uncached` + `cache_read` + `cache_write`）严格大于哪一档的门槛，用门槛最高的那一档。目录的 `context_over_200k` 当作门槛 200000 的一档，排在 `tiers` 后面，门槛一样的取先写的。档里没写的项用底价的。
    3. 金额 = (`uncached` × 输入价 + `cache_read` × 缓存读价 + `cache_write` × 缓存写价 + `output` × 输出价) ÷ 1000000 × 倍率，照这个先后，用双精度浮点数算。
-   4. 这一次用量不是 0 的哪一项没有价格，不算金额。价格里单写了思考价、又和输出价不一样的，也不算：思考算在输出里，拆不开，算出来就不是准数。
-   5. 没有用量的（打断了、没报的），没有金额。
+   4. 这一次用量不是 0 的哪一项没有价格，不算金额。价格里单写了思考价、又和这一档的输出价不一样的，也不算：思考算在输出里，拆不开，算出来就不是准数。
+   5. 没有用量的（打断了、没报的），没有金额。出错了、报了用量的照算：钱已经花了。
    6. **币种**（2026-10-01 项目主人定）：金额的币种就是那一份价格的币种。目录的价格是 `USD`。手写的照它的 `currency`，不写是 `USD`。倍率照乘。不换算。
    7. 本机的服务：价格是 0（第二条第 12 条），这一次金额是 0、`USD`，来源 `local`。
-3. **冻结**：端口照上面算好，连同用的那一档价格、币种、倍率、出处、分档的门槛，随「说完了」交给内核（`ModelEnded` 的 `cost`），写进 `model.called` 的 `cost`。以后目录更新、人改倍率，已经记下的不重算。内核不碰价格：金额在执行器算，内核只记。
-4. **用量汇总**（`07-存储.md` 第六节，S3）：`state/usage.db`，SQLite。
-   - 一次请求一行：会话、序号、时刻、属主、场所、父会话、供应商、模型、四项用量、金额和币种（没有的空着）、是不是摘要请求。以（会话、序号）为主键，重复写不出两行。
-   - 一个会话一行：它记到了第几条。
-   - actor 在 `model.called` 落了盘以后写它，在阻塞线程里。写不进去的记一行 `WARN`，不影响会话。
-   - `usage.query` 之前先补：会话的日志比它记到的多的，读多出来的那一截补上。回收处里的会话照样读（`07-存储.md` 第六节）。
-   - 表的版本和程序的不一样、打不开、坏了：删掉重建，读全部会话、回收处、账号日志里的 `usage.purged`。
+   8. 出处：目录的写 `catalog:<目录里的供应商>/<模型>`，手写的写 `config:<文件>:<行>`（文件照配置服务说的那一层的文件，`ConfigSource::file`；行是写了的第一项价格那一行），本机的写 `local`。
+3. **冻结**：端口把价格交给回报（`Reports::billed`），说完了照报的用量算好，连同用的那一档价格、币种、倍率、出处、分档的门槛，随「说完了」交给内核（`ModelEnded`、`AsideEnded` 的 `cost`），写进 `model.called` 的 `cost`。以后目录更新、人改倍率，已经记下的不重算。内核不碰价格：金额在执行器算，内核只记。测试的剧本端口不交价格，不写 `cost`（要的照 `Script::priced`）。
+4. **用量汇总**（`07-存储.md` 第六节，S3）：`state/usage.db`，SQLite，核心起来时开（`Core::new`），一个连接一直开着；怎么开、坏了删掉重建和会话列表的索引一样（`store/index.md`）。
+   - 一张表 `spent`，一行是发出去了的一次请求（`model.called` 带 `endpoint`、`model`）：来处、序号、时刻、属主、场所、会话、父会话、用途、是不是摘要请求、供应商、模型、请求数（1）、没金额的次数、四项用量（没报的是 0）、金额和币种（没有的空着）。主键（来处、序号）：会话的请求是（会话编号、`model.called` 的序号），一次性调用是（`journal:<账号>`、账号日志里那一条的序号），删掉的会话的合计是（`purged:<会话编号>`、第几格）。重复写不出两行。打断了、没报用量的照样算一次请求，不算没金额。
+   - 一张表 `marks`，一份日志一行：读到了哪里（会话的照日志的位置，账号日志照字节）、属主、场所、父会话，删掉的会话标 `purged`。
+   - 会话每落一批（`Indexed`，`session/actor.md` 第 5 条），actor 在同一个阻塞线程里写这一批的行；记到的位置正好是这一批之前的才挪到这一批之后，这一批从第 1 条起的新起一行。写不进去的记一行 `WARN usage not indexed`，不影响会话。
+   - 查之前先补（`usage.query` 补管理员的全部，`session_usage` 只补这个会话）：先读账号日志记到以后的几条，再看会话、回收处里的会话：标了 `purged` 的不读，记到的读多出来的那一截，没记过的、对不上的整份读。日志后面坏了的照坏的那一段以前的写，位置不挪，记一行 `WARN usage not indexed`。
+   - 表的版本和程序的不一样、打不开、坏了：删掉建一份空的，空的照上面补满，就是重建：全部会话、回收处、账号日志里的 `usage.purged`、`usage.oneshot`。
    - 撤掉的回合里的请求也算：钱已经花了。
-5. **删掉的会话**：回收处清掉一个会话（`core.md` 第 14 步）之前，往属主的 `journal.jsonl` 追加一条 `usage.purged`：会话、属主、场所、父会话，和它按（供应商、模型、UTC 的整点小时）分好的四项用量、照币种分开的金额、请求数、没金额的次数，写完整的值。写进去了才删目录。重建时和还在的会话、回收处加起来，一个会话只在一处。按小时存，分天时整点时区的一分不差。半点的时区（`+05:30` 这类）按小时的开头归到哪天。账号日志的写法由 `config.md` 那一步（8-3）定。
+   - **一次性调用**（第十二条，`model.call`、替看图）：每发出去一次（换端点再来的也算一次），照真发的那个模型的价格算好金额，往调的那个账号的 `journal.jsonl` 追加一条 `usage.oneshot`（用途、供应商、模型、用量、金额，没有的不写），再写一行，没有会话、场所，记用途。写不进账号日志的不写行，记一行 `WARN usage not indexed purpose=… error=…`，照样交回答。`model.call` 记在这个连接的账号上（M8 是管理员），替看图记在会话的属主上（`ForSession.owner`）。
+5. **删掉的会话**：回收处清掉一个会话（`core.md` 第 14 步）之前，照它的日志算好合计，往属主的 `journal.jsonl` 追加一条 `usage.purged`：会话、属主、场所、父会话，和它按（供应商、模型、用途、UTC 的整点小时）分好的四项用量、照币种分开的金额、请求数、没金额的次数，写完整的值。写进去了才删目录；写不进去的留着，下次再清。一次请求都没有的不写。日志后面坏了的照坏的那一段以前的算。汇总读到它时删掉这个会话的单次行（连同以前的合计），换成这一份，`marks` 标上 `purged`，以后不再读它的目录：重建时和还在的会话、回收处加起来，一个会话只在一处；崩在写完、删目录之前的，下次又写一条，照最后一条换，不加两遍。按小时存，分天时整点时区的一分不差；半点的时区（`+05:30` 这类）按小时的开头归到哪天。按用途分是施工时加的：照用途分组的查询删了会话以后对得上。账号日志的写法由 `config.md` 那一步（8-3）定，8-15 起一个核心里几个写的（配置服务、清回收处、一次性调用）照一把锁一条一条来。
 6. **`usage.query`**：照汇总表算。分组照参数，`day` 照 `offset` 把时刻换成那个时区的日期。金额照币种各加各的，不换算，照 `usage.currency` 排（2026-10-01 项目主人定）。头显示成「$0.42 + ¥1.30」这样，没有价格的那几次注明「另有 N 次没有价格」（「给人看的字」）。子代理的会话属主就是派它的人（`agents.md` 第一条），按人分组自然算在他头上。M8 只有管理员，谁能查别人的随多用户。
-7. **她自己查**：`session_usage`，只查这个会话（不带子会话），不给账号的汇总（`15-模型与供应商.md` 第八节）。
-   - 用量、金额照 `usage.query`（`session` 是这个会话）：和头读的是同一份。
-   - 上下文照内核这时的估算（和压缩线同一个算法，`compaction.md` 第一条）、窗口、压缩线：经端口向会话要一份（`Session::context_used()`，只读）。
-   - 一件还是两件，8-15 实测：开发端点上问六句（还剩多少上下文、这次花了多少钱、快压缩了吗……），各跑一件和两件，看她挑没挑对、tools 数组多多少 token。一样对的，一件：工具少、token 少。结果写进施工单和登记簿。
+7. **她自己查**：`session_usage`，只查这个会话（不带子会话），不给账号的汇总（`15-模型与供应商.md` 第八节）。只给本机的会话，群里的没有（「施工时定的」8-15）。
+   - 用量、金额照汇总（先补这个会话，`session` 是这个会话、不带子会话）：和头经 `usage.query` 读的是同一份。金额照这一轮配置的 `usage.currency` 排。
+   - 上下文照内核这时的估算（和压缩线同一个算法，`compaction.md` 第一条）、窗口、压缩线：派这一次调用时 actor 向内核要一份（`Session::context_used()`、`context_limits()`，只读），交给端口；算不了的（没交过限额、策略里没有压缩）不写上下文。
+   - 一件还是两件：先做一件（主会话定）。合并前主会话在开发端点上问六句（还剩多少上下文、这次花了多少钱、快压缩了吗……），挑对、答对就定一件；挑错、答错再开一步试两件。结果写进施工单和登记簿。
 
 **十、开发怎么测**（8-6）
 
@@ -781,7 +793,7 @@ opencode Zen 的免费模型只放行 opencode 自己的客户端：流式、工
    | `cooling` | 候选不止一个、全在冷却，没发（第五条第 6 条） | 原话、最早恢复的那一个还要多久 |
    | `model_failed` | 发了、出错了：换不了、换够了；模型不收图；增量对不上（`bad_stream`）；编码要的 blob 取不出来 | 分类、HTTP 状态、原话，和 `model.called` 的一样 |
 
-6. **用量**：现在记运行日志一行 `INFO model call purpose=… provider=… model=… input=… output=…`（`input` 是没命中、命中、写进缓存三项加起来；没报用量的不写这两格），没成的记 `INFO model call failed purpose=… reason=…`（`model_failed` 另带 `class`）。目标 `miyu::session`，不属于哪个会话，不带会话编号；挑端点时记的 `endpoint cooling`、`failover` 也不带。用量和金额的账本随 8-15，那时两个入口一起记进去。
+6. **用量**：记运行日志一行 `INFO model call purpose=… provider=… model=… input=… output=…`（`input` 是没命中、命中、写进缓存三项加起来；没报用量的不写这两格），没成的记 `INFO model call failed purpose=… reason=…`（`model_failed` 另带 `class`）。目标 `miyu::session`，不属于哪个会话，不带会话编号；挑端点时记的 `endpoint cooling`、`failover` 也不带。8-15 起每发出去一次另记一笔账：属主的账号日志一条 `usage.oneshot`、用量汇总一行（第九条第 4 条）。
 7. **不进会话**：一次性调用不进任何会话的日志、不推送。没有打断：调的一方等它说完，协议上这个连接的下一条请求排在它后面（和 `provider.test` 一样，一个连接的请求一条一条答）。
 8. **`provider.test` 不走一次性入口**：它试的可能是还没写进配置的一家（一次性入口只认配置里的引用）；它要试这一家的第一个 key，不换别的 key、不看也不记冷却（换了就试不出这个 key 坏了，也不该因为试一次让会话避开它）；它收到第一段正文就停、量第一段的毫秒数，一次性入口交的是整段。
 9. 协议 `model.call` 只开一次性的那种（「协议」）。流式的 `model.call`：第一版只交整段。扩展的能力检查：随扩展那一段。
@@ -856,6 +868,13 @@ subagent = true
 ```
 
 第四行的金额：1843 × 0.15 + 26 × 0.6 = 292.05，除以一百万是 0.00029205。`cache_read`、`cache_write` 是 0，没有缓存写价也照算。
+
+账号日志里用量的两种（8-15，`home/<账号>/journal.jsonl`，外壳照 `config.md`「系统日志、账号日志」）：删掉的会话留的底，一次性调用的一笔：
+
+```json
+{"seq":7,"at":"2026-10-09T03:00:00.000Z","kind":"usage.purged","by":{"kind":"kernel"},"body":{"session":"0192f3a0-2222-7abc-8def-000000000002","owner":"admin","venue":"local","spent":[{"provider":"deepseek","model":"deepseek-flash","hour":"2026-10-01T08:00:00.000Z","requests":3,"unpriced":0,"usage":{"uncached":5529,"cache_read":0,"cache_write":0,"output":78},"amounts":[{"currency":"USD","amount":0.00087615}]},{"provider":"deepseek","model":"deepseek-flash","purpose":"title","hour":"2026-10-01T08:00:00.000Z","requests":1,"unpriced":1,"usage":{"uncached":412,"cache_read":0,"cache_write":0,"output":9},"amounts":[]}]}}
+{"seq":8,"at":"2026-10-09T03:05:12.400Z","kind":"usage.oneshot","by":{"kind":"kernel"},"body":{"purpose":"vision","endpoint":"bigmodel","model":"glm-5.3-flash","usage":{"uncached":812,"cache_read":0,"cache_write":0,"output":9},"cost":{"amount":0,"currency":"USD","price":{"input":0,"output":0},"multiplier":1,"source":"catalog:zhipuai/glm-5.3-flash"}}}
+```
 
 `model.list` 的一家（例子，截了一个模型、几格资料；`crates/miyu-endpoint/tests/models.rs` 照这个样子查一字不差）：
 
@@ -958,7 +977,11 @@ mimo = ["xiaomi"]
 | `INFO` | `model call purpose=… provider=… model=… input=… output=…` | 一次性入口成了一次（8-20，第十二条第 6 条；没报用量的没有 `input`、`output`） |
 | `INFO` | `model call failed purpose=… reason=…`（`model_failed` 另带 `class`） | 一次性入口没成（8-20）：`reason` 是 `unknown_model`、`no_model`、`cooling`、`model_failed` |
 | `INFO` | `image not described blob=… why=…` | 替看不了图的模型看图没成（8-17，第十三条第 7 条）：会话的 actor 记，带会话编号；这张图这一轮写占位 |
-| `WARN` | `usage not indexed session=… error=…` | 用量汇总写不进去 |
+| `WARN` | `usage not indexed session=… error=…` | 用量汇总写不进去（会话落一批时，actor 记，目标 `miyu::session`）；补的时候哪一份日志读不完（`session` 是会话编号或者 `journal:<账号>`，`usage.query` 记在 `miyu::endpoint`，`session_usage` 记在 `miyu::session`）（8-15） |
+| `WARN` | `usage not indexed purpose=… error=…` | 一次性调用记不进账号日志、汇总（8-15，目标 `miyu::session`）：照样交回答 |
+| `INFO` | `usage index created` | 核心起来时新建了用量汇总（8-15，目标 `miyu::endpoint`） |
+| `WARN` | `usage index rebuilt reason=…`、`usage index unusable error=…` | 读不了、坏了、版本不对的删掉重建；重建也打不开，这一回不记账（8-15） |
+| `WARN` | `usage not read error=…` | `usage.query` 读汇总出错：删掉重建再补一次（8-15） |
 
 `request` 那一行（`session/actor.md` 第 7 条）照旧写真发给的端点、模型。
 
@@ -1025,7 +1048,10 @@ mimo = ["xiaomi"]
 | `crates/miyu-models/src/pools/tests.rs` | 钉住从发过的认回（`find`）、候选绕一圈、轮换指针、成员变了取余、指针的字读写、默认的分法（全是按次计费的才轮换）、认不出的成员跳过、没写成员和一个都不剩的解析不出（8-8）；派子代理能选的：开关开着、有认得出的成员的才列，照名字的字节序排，说明照写的（8-8 补） | 8-8 |
 | `crates/miyu-models/src/cooldown/tests.rs` | 翻倍、封顶、连着很多次不溢出，供应商说的更长、更短，成功清零，到期先试、次数不清零，认证失败停整个 key、别的 key 和别的一家不停、成了一起清，key 和模型都在冷却的取晚的，只有三类记冷却，规矩照配置、`base` 比 `max` 大的照 `max` | 8-9 |
 | `crates/miyu-models/src/keys/tests.rs`（8-9 那几条） | 出错换过去、成了的 key 在前，不在了的照钉着的；key 的名字照引用的写法 | 8-9 |
-| `crates/miyu-models/src/price/tests.rs` | 金额的算式、分档、缺项不算、思考价不同不算、倍率谁盖谁、用量是 0 的项不要价、币种照价格、本机的是 0 | 8-15 |
+| `crates/miyu-models/src/price/tests.rs` | 金额的算式、分档（严格大于、门槛一样取先写的、档里没写的用底价）、缺项不算、思考价不同不算、倍率照资料、用量是 0 的项不要价、币种照价格、本机的是 0、出处的写法、几种币种排先后 | 8-15 |
+| `crates/miyu-kernel/src/event/cost/tests.rs`、`event/model/tests.rs`、`session/tests/cost.rs`、`session/tests/title.rs`（那一条）、`session/tests/limits.rs`（那一条） | `cost` 读写一字不差、整数写成整数、照位比相等、写坏的读不进；`model.called` 的 `cost` 排在 `usage` 后面、以前的日志照读；交来的原样记下、出错的照记、没交的不写、被打断的没有，辅助请求也记；`context_used()` 没限额、没压缩的没有，照压缩线的算法 | 8-15 |
+| `crates/miyu-kernel/src/session/tests/random/watch/model.rs` | 随机测试：说完了的 `model.called` 带的就是最近一次喂进去的金额，被打断的没有（新路「记下金额」） | 8-15 |
+| `crates/miyu-session/tests/route_cost.rs`、`session_usage.rs`、`route_vision.rs`（那一条） | 路由照真发的模型手写的价格、倍率算金额，出处写层和行，缺项不写；剧本带价格的会话记金额、落盘写进汇总，她调 `session_usage` 看到用量、金额、上下文和压缩线；替看图记在属主的账号日志上、不进会话 | 8-15 |
 | `crates/miyu-session/tests/route.rs`、`route_pools.rs` | 两台假服务器：key 照会话编号挑、重启还是它（8-6，连同：取不到的跳过、几种 `no_model` 不发、没写 key 不带认证头、开着的会话钉着造它时的模型、钉着的那一家没了退回这一轮的 `models.chat` 以后钉在它上面、造的时候没配的配好以后用上、窗口照配置）；池（8-8，`route_pools.rs`）：钉住的一个会话一直发给一个成员、新会话照指针分开、认不出的成员跳过，载入照日志认回钉着的、指针写进 `pools.json` 重启读回来，轮换的一次一个，这时用不了的跳过、钉到下一个，池没了退回 `chat` 以后钉在它上面，限额照钉着的、轮换的取小的，`session.created` 记下会话的引用；429 换 key、换池里的下一个、当场再来，说到一半断了还发给它，全在冷却交 `cooling`，只有一个候选照发，限额变了交内核、推 `model.changed`（8-9，放在 `route_failover.rs`：另有成了以后一直用换过去的 key、轮换的池跳过冷却的、不推，换端点数进 5 次，请求本身有错的不换不记；`failover_log.rs`：两行运行日志） | 8-6、8-8、8-9 |
 | `crates/miyu-kernel/src/session/tests/scenario/models.rs`、`session/tests/configure.rs`、`scenario/breaker.rs`、`scenario/manual.rs` | `Configure`：一样的不记、落了盘才回应、回合进行中的下一轮生效、撤掉的回合里的也算、载入照日志算，回合开始交引用，`replaced` 记在注入前面、对不上的不理，`models.chat` 也没有的不记，`failover` 不管分类当场再来、数进 5 次，`cooling`、`no_model`，换模型解除压缩的暂停、失败从 0 数（`breaker.rs`），手动压缩、清空那一轮不交引用（`manual.rs`） | 8-6、8-9、8-10 |
 | `crates/miyu-session/tests/route_turn.rs`、`fallback_log.rs` | 回合开始重新解析：换了模型的下一轮发给新的、推 `model.changed`（`turn`）、`Handle` 跟着换；钉着的没了退回 `models.chat`、内核记下、以后钉在它上面；`models.chat` 也没有的不记、`no_model`；只改窗口的下一轮用上；换成轮换的池推的没有端点；载入照换过的引用；`model fallback` 那一行 | 8-10 |
@@ -1040,17 +1066,19 @@ mimo = ["xiaomi"]
 | `crates/miyu-http/src/send/tests.rs` | 头的模板换对、重试时 `call_digest` 不变 | 8-14 |
 | `crates/miyu-core/src/models/tests.rs`、`crates/miyu-core/tests/serve.rs` | 出厂的档案读得进来、DeepSeek 那一套和请求形状探针用的一样、TOML 读成 JSON、写坏的说是档案；真核心没配模型的每次请求 `no_model`、没发出去 | 8-6 |
 | `crates/miyu/tests/dev_home.rs` | `xtask dev-home` 的三个变量怎么读、哪些不收；造的配置照清单读一处错都没有；已经有配置的不盖、别人的目录不动；真核心在这个数据根上照配置连上假服务器，带着 `DEEPSEEK_API_KEY` 的值、发给写的那个模型，`miyu ask` 答得上来 | 8-6 |
-| `crates/miyu-store/tests/usage.rs`、`crates/miyu-endpoint/tests/usage.rs` | 一次一行、重复不出两行、补多出来的、重建、回收处、`usage.purged`、分组和时区、币种各加各的、照 `usage.currency` 排 | 8-15 |
+| `crates/miyu-store/tests/usage.rs`、`usage_purged.rs`、`crates/miyu-endpoint/tests/usage.rs`、`crates/miyu-endpoint/src/usage/tests.rs` | 一次一行、没发出去的不算、重复不出两行、补多出来的（连同换了段的、从没写过的）、重建（版本不对、乱写的文件、用着用着坏了）、回收处、撤掉的回合也算、分组（`null` 在前）、`tree`、左闭右开；`usage.purged` 按小时按用途的合计一字不差、写进去了才删、写不进去的留着、写两遍只算一次、重建照账号日志读回来、整点时区一分不差、半点时区照小时开头；一次性调用记进账号日志、照用途分组、重建以后还在；协议上照分组、币种各加各的、照 `usage.currency` 排、参数不对的 `bad_params` | 8-15 |
 | `crates/miyu-basesystem/tests/subagent.rs` | `pool` 只认端口列着的、交给端口，不写的、`null` 交没有，不在列表里的、大小写不对的、带 `@` 的、不是字的照参数不对、端口不派、原话列出能写的几个，一个都没列的照样拒；`tier` 不报错、不理它；资源里 `pool` 没有 `enum`（8-8 补） | 8-8、8-8 补 |
 | `crates/miyu-session/tests/spawn/pool.rs` | 子会话的引用：写了 `pool` 的记 `@池`，没写的、写 `tier` 的抄父会话钉着的；工具面照造会话时的配置拼，开着开关、有成员的才列，配置改了这个会话（连同载入以后）一字不变、新会话变，拿新会话才列的池在老会话里照参数不对；一个都没有的不出现 `pool`（8-8 补，取代 8-8 的 `tier.rs`） | 8-8 补 |
 | `crates/miyu-policy/src/tools/choice/tests.rs` | 拼 `pool`：一个都没有的拿掉、和资源去掉它一字不差，有的插 `enum`、说明一行一个，别的字节不动；照快照读回列着的，读回的和拼进去的一样，没有这一格的是空的（8-8 补） | 8-8 补 |
 | `crates/miyu-core/tests/settings.rs`（8-8 补那一条） | `models.tiers.*` 不认识了：警告、原样留着 | 8-8 补 |
 | `crates/miyu-config/src/dangling/tests.rs` | `bad_reference`：供应商、池没配的一处一条、带名字、指到值那一行，配了的、不算数的那一层不报，说成话；类型「模型」只收 `<供应商>/<模型>` | 8-8 |
 | `crates/miyu-core/tests/catalog.rs` | 目录的地址写成环境变量的引用的照核心的环境取、后台照它拉，没设、设成空的没有地址、照失败算（8-8） | 8-7、8-8 |
-| `crates/miyu-basesystem/tests/session_usage.rs`、`budget.rs` | 查用量的输出一字不差、几种情形（8-15），工具面的预算（8-8 加了 `tier`、8-8 补换成 `pool`，还在预算里） | 8-8、8-15 |
+| `crates/miyu-basesystem/tests/session_usage.rs`、`src/session_usage/tests.rs`、`budget.rs` | 查用量的输出一字不差、几种情形（有没有金额、没价格的、窗口、压缩线，没有端口、查不了、叫停），金额的写法（8-15）；工具面的预算（8-8 加了 `tier`、8-8 补换成 `pool`，8-15 加了 `session_usage`，十三件，还在预算里） | 8-8、8-15 |
+| `crates/miyu-session/tests/sessions.rs`、`read.rs` | 工具面：群里的会话没有 `session_usage`，本机的有（8-15） | C-3、8-15 |
 | `crates/miyu-cli/tests/setup.rs`、`setup_skip.rs` | `miyu setup` 走一遍（假终端照剧本回，假服务器，`cli/setup.md`「守着它的」）；`miyu ask` 没模型：终端里先走 setup 再说，不是终端退出码 5、不造会话（8-11）；空的配置里写出三个预设的池，已经有池的不写（8-8 补） | 8-11、8-8 补 |
 | `crates/miyu-http/tests/get.rs`（8-11 那一条） | `get_full` 出错时交回状态码、头、响应体，原话和 `get` 的一样 | 8-11 |
-| `xtask/src/ledger.rs` | 新的几句和登记簿对得上（8-8、8-8 补：`subagent.json` 换了指纹） | 8-8、8-11、8-14、8-15 |
+| `xtask/src/ledger.rs` | 新的几句和登记簿对得上（8-8、8-8 补：`subagent.json` 换了指纹；8-15：`session_usage.json` 和七句） | 8-8、8-11、8-14、8-15 |
+| `crates/miyu-core/tests/settings.rs`、`crates/miyu/tests/config.rs` | `usage.currency` 登记进清单、三种语言有名字和说明、生成的样本跟着变（8-15） | 8-15 |
 | `crates/miyu-models/src/effort/tests.rs` | 思考强度：`none`、`disabled` 读成 `off`、重复的去掉；目录的开关只在档案写了开关时多 `off`、只有开关的是 `off`、`on`；给头看的那一档从配置的哪一层来（`in_use`：系统、个人、都没有）；空闲超时放大几倍；配置里写的不在档位里的报在值那一行、那一家用不了的和不算数的那一层不查 | 8-18；8-18（补）去掉会话的 `pick` 测试 |
 | `crates/miyu-models/src/facts/tests.rs`、`catalog/tests.rs`、`profile/tests.rs`（8-18 那几条） | 资料的 `effort` 只认档位里的、来源写文件和行；个人设置压着系统配置：两层都写、只写一层、都不写各一条（8-18（补））；`reasoning` 照档案算开关、手写的盖过目录照样规整；目录的开关、`none`、只有预算的读法；档案的 `toggle` | 8-18 |
 | `crates/miyu-drivers/tests/openai_chat_effort.rs` | 没写思考强度的一个字节不加；档位发 `reasoning_effort`；`off`、`on` 照档案的开关，没有开关的 `off` 发 `none`、`on` 不加；都接在最后 | 8-18 |
@@ -1085,7 +1113,7 @@ mimo = ["xiaomi"]
 - 借 agent CLI 的订阅（Claude Code、Codex、Antigravity、CodeBuddy）和订阅的额度：以后再说（施工方案第三节 M8 下第一条）。「找现成的」那时加上已登录的 CLI。
 - 成员自带的供应商、成员家目录的密钥（M6）：随多用户。
 - 用途 `embedding`、`speech_in`、`speech_out`：随记忆、语音。
-- 替看图（8-17）没做的：给她留一个追问的口子（先实测转述够不够细）；视频、音频；头上显示转述；本地估算的用量照转述的字算（现在照图算，看不了图的端点上估多了）；转述的用量进账本（随 8-15，一次性入口那一行）。
+- 替看图（8-17）没做的：给她留一个追问的口子（先实测转述够不够细）；视频、音频；头上显示转述；本地估算的用量照转述的字算（现在照图算，看不了图的端点上估多了）。转述的用量 8-15 记进了账本（属主的账号日志、用量汇总，用途 `vision`）。
 - 币种之间换算：以后另说（「定的」第 3 条）。
 - 思考强度的菜单：头那边（M9）。Anthropic、Responses 怎么写思考强度：随 8-12、8-13（「驱动要守的约定」第 13 条）。思考预算（`budget_tokens`）：不读。
 - 存根能用不能用这一格（`08-上下文投影.md` C5）：随工具加载。
@@ -1096,7 +1124,7 @@ mimo = ["xiaomi"]
 - 用出来的：工具结果里收不收图。现在只学窗口。
 - 目录里模型的 `provider.api`、`shape`（Azure 这类带模板的地址）：只认 `provider.npm`。
 - 辅助请求各自默认用哪个模型或池：随各子系统。
-- 模型调用口（8-20）没做的：流式的 `model.call`（第一版只交整段）；一次性入口带工具（谁要再加）；`model.call` 前面的能力检查（随扩展那一段）；一次性入口的用量进账本（8-15，两个入口一起记）。
+- 模型调用口（8-20）没做的：流式的 `model.call`（第一版只交整段）；一次性入口带工具（谁要再加）；`model.call` 前面的能力检查（随扩展那一段）；一次性入口的用量 8-15 记进了账本（第九条第 4 条）。
 - 池的别的开关（例如给哪个人用）：随多用户。
 - 模型下架的认法：供应商的列表不一定全，报错的说法各家不一样，现在只认配置里删掉的。
 - 设置页里供应商、池的专门编辑器，`/models` 抽屉，底栏：M9。
@@ -1389,37 +1417,67 @@ mimo = ["xiaomi"]
 | 没成的由 actor 记一行 `INFO image not described`；成了的不另记 | 施工单要记一行；成了的一次性入口那一行已经带着会话编号（在会话的 span 里发） | 成了也记一行：两行说一件事 |
 | 8-7（补）：来源是配置的那一格多 `layer`，直接用 `Layer::as_str()`，和 `config.get` 的 `origin()`（`crates/miyu-endpoint/src/config/wire.rs`）写法一样 | `Source::Config` 本来就带着 `layer: Layer` 这一格（8-7 造的），`model.list` 没把它写进 JSON；项目配置进不了这清单（`layers: [System, Personal]`），所以只会出现 `system`、`personal` | 另造一套系统/个人的映射：已经有 `Layer::as_str()`，多造一套是抄一遍 |
 
+8-15 施工时照推荐定的技术细节（2026-10-02 施工时定，写进了正文「怎么走」第九条、「事件」、「协议」`usage.query`、「工具」`session_usage`）：
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| 金额照 `miyu_models::price::Tariff` 算：挑路由备好这一次时（`Routes::ready`）照真发的那个模型的资料造一份（价格、倍率、出处），交给回报（`Reports::billed`），说完了照用量算好随 `ModelEnded`、`AsideEnded` 交给内核 | 价格要照真发的那个模型、这一轮冻结的配置；回报在说完那一刻才有用量；测试的剧本端口不带价格，照旧不写 `cost` | `Reports::ended` 多一个参数：十几处调用跟着改，剧本端口也得算 |
+| 分档：输入（`uncached` + `cache_read` + `cache_write`）严格大于门槛才算这一档，`tiers` 照写的先后、`context_over_200k` 排在最后当门槛 200000 的一档；门槛一样的取先写的 | 「超过」和 `context_over_200k` 的名字对得上；models.dev 的 `tiers` 都写在 `context_over_200k` 前面 | 到了门槛就算：和「超过 20 万」差一个 token |
+| `cost` 里的数（金额、价格四项、倍率）是整数的写成整数（`1` 不写 `1.0`），别的照最短能读回原值的写法 | 样本里倍率写 `1`；照 `serde_json` 写浮点会多出 `.0` | 一律写浮点：样本、头都要认 `1.0` |
+| 内核里这几个数是 `Real`（双精度，照位比相等）：`ModelCalled`、输入都要 `Eq` | 照 `miyu-config` 的 `Number`；读进来的 JSON 没有 `nan` | 改成去掉 `Eq`：几十处比较的测试要改 |
+| `cost` 装在盒子里（`Option<Box<Cost>>`） | 照 `first_difference`：`model.called` 再大，clippy 的 `large_enum_variant` 拦 | 平铺：每条事件都多占一百多字节 |
+| 出处里手写的配置写成 `config:<文件>:<行>`，文件照配置服务说的那一层的文件（`ConfigSource::file`），测试里不变的配置写层的名字 | 和 `model.list` 的来源同一份文件名；会话那一层不认数据根 | 写层的名字：人对不上是哪个文件 |
+| 用量汇总一张表 `spent`，一行是一次请求，或者删掉的会话一个小时里一个（供应商、模型、用途）的合计；主键（`source`、`seq`）：会话的请求是（会话编号、`model.called` 的序号），一次性的是（`journal:<账号>`、账号日志里那一条的序号），删掉的会话是（`purged:<会话编号>`、第几格）。另一张表 `marks` 记每一份日志读到了哪里（会话的照 `Mark`，账号日志照字节和下一条的序号）、属主、场所、父会话，删掉的会话标 `purged` | 一张表一种查法，按小时的合计和单次的请求加起来一样；记到哪照会话列表的索引（3-8 七补） | 每种一张表：查询要拼三张 |
+| 一行另有 `requests`（请求数）、`unpriced`（有用量、没金额的次数）；删掉的会话一格里几种币种的，金额各占一行（别的格是 0） | 单次的和合计的照同一个 `SUM` 加 | 金额写成 JSON：查询里拆不开 |
+| 只记发出去了的请求（`model.called` 带 `endpoint`、`model`）；打断了、没报用量的照样算一次请求，用量记 0，不算没金额的 | 「发出去的请求数」；没发出去的不花钱 | 没发出去的也记：账上多出供应商是空的行 |
+| 会话的属主、场所、父会话照 `session.created`：actor 写时照造会话、载入时的，补的时候照日志第一条，记在 `marks` | 补的时候从记下的位置读起，读不到第一条 | 每一行都从日志第一条读：补一截要读两处 |
+| actor 写：先写这一批的行（重复的不出两行），记到的位置正好是这一批之前的才往前挪；这一批从第 1 条起的新起一行。写不进去记 `WARN usage not indexed session=… error=…` | 照会话列表的索引：落后的停在原处，等补的时候读多出来的一截；行本身重复写不出两行，先写不丢 | 位置对不上就不写行：落后的那一截要等查询才补上 |
+| 补（`usage.query`、`session_usage` 之前）：管理员的会话、回收处里的会话，记到的照 `read_marked` 读多出来的，没记过的、对不上的整份读；标了 `purged` 的不读；再读账号日志从记到的字节起的几条 | 照会话列表的补法；`session_usage` 只补这个会话 | 每次整份读：几百个会话每次几十毫秒 |
+| 删了的会话：回收处清它之前，照它的日志算好按（供应商、模型、用途、UTC 的整点小时）分的合计，写进属主的 `journal.jsonl`（`usage.purged`），写进去了才删目录；没有一次请求的不写。汇总读到 `usage.purged` 时删掉这个会话的单次行、换成合计，`marks` 标 `purged`，以后补的时候不再读它的目录 | 按用途分：照用途分组的查询删了会话以后对得上；写完整的值，崩在写完、删目录之前的，下次照样再写一条，汇总照最后一条换，不会加两遍 | 只按供应商、模型、小时分：删了以后回顾、起标题的用量算进主请求 |
+| 一次性调用（`model.call`、替看图）每发出去一次，往调的那个账号的 `journal.jsonl` 追加一条 `usage.oneshot`（用途、供应商、模型、用量、金额，没有的不写），再写进汇总；唯一编号是（这个账号的日志、那一条的序号） | 真相只有事件（S1）：汇总删掉重建时，一次性调用照样读得回来；会话的日志装不下不属于会话的请求 | 只写进汇总：表一重建，一次性调用的账就没了 |
+| 账号日志多了几个写的（配置服务、清回收处、一次性调用）：一个核心里一把锁，追加一条一条来 | 每次追加读最后一行接着数 `seq`，两个同时写会撞号 | 每个写的各开一份文件：账号日志就不止一份了 |
+| 替看图的属主照会话的（`ForSession.owner`）；`model.call` 的是这个连接的账号（M8 是管理员）；都不记会话 | 主会话定一次性调用不属于哪个会话；钱记在谁头上照属主 | 记会话：会话的用量就多出一截日志里没有的 |
+| 汇总在 `state/usage.db`，核心起来时开（`Core::new`），一个连接一直开着；交给会话（写）、模型资料（一次性入口写，`ModelData::keep_ledger`）、协议（查） | 照会话列表的索引，一个进程一个连接；一次性入口在会话那一层，拿不到端点的家底 | 一次性调用交回用量、调的一方记：替看图的回报要多带一截 |
+| 怎么开库、查版本、`quick_check`、WAL、坏了连同 `-wal`、`-shm` 删掉，从 `index.rs` 挪进 `miyu-store` 的 `sqlite.rs`，索引和汇总共用；`IndexError`、`Opened` 照旧叫这两个名字 | 两份库一样的开法写两遍，改一边忘一边 | 抄一份：一百来行一样的代码 |
+| 重建：版本不对、读不了、`quick_check` 不过的删掉建空的，记 `WARN usage index rebuilt reason=…`；空的照补的办法填满 | 照会话列表的索引：「空的照日志补就是重建」 | 起来时整份重建：起来慢 |
+| `usage.query` 的 `group` 多一样 `purpose`（用途：辅助请求、一次性调用的，主请求、摘要请求的是 `null`）；分组的格没有的写 `null`（一次性调用没有会话、场所）；`rows` 照分组的格的先后排，`null` 在前 | 主会话定一次性调用照用途分组 | 用途单开一个方法：头要调两次 |
+| `usage.query` 的参数不对（不认识的分组、时刻和时区写法不对、会话编号写法不对）回 `bad_params`；查不到的会话回空的 `rows` | 和别的方法一样 | 查不到的回 `unknown_session`：删了的会话查不到，可账还在 |
+| 时区写成 `+09:00`、`-05:30`，`±14:00` 以内；分天照时刻加上它取日期 | 和事实里的写法一样 | 认时区的名字：要带时区库的数据 |
+| `session_usage` 只给本机的会话（主会话、子会话），群里的会话没有 | 群里的人不可信，花了多少钱是属主的事 | 都给：群里谁都能问到属主花了多少 |
+| `session_usage` 的上下文在派出去那一刻照内核算（`Session::context_used()`，和压缩线同一个算法），交给端口；用量、金额照汇总，先补这个会话 | 工具在别的任务里跑，拿不到内核；派出去和跑起来之间内核不变 | 端口回头问 actor：多一来一回 |
+| 金额给她看时写三位有效数字、至少两位小数（`0.42`、`1.30`、`0.000292`），币种照 `usage.currency` 排，用这一轮冻结的配置 | 一次请求花的常常不到一分钱，两位小数会写成 0 | 照四位小数：小的照样写成 0 |
+
 ### 要跟着改的别的页
 
 这一页不改它们，施工时各步照这里改：
 
 | 页 | 改什么 | 哪一步 |
 |---|---|---|
-| `config.md`（另一个分身起草） | 清单里登记这一页的每个键，连同 `providers.*.local`、`usage.currency`（类型、默认、范围、生效时机、谁能改、项目配置不能写）。`miyu login` 存的 key 就是 `{ secret }` 取的那些。`{ secret }`、`{ env }` 怎么解开、核心的环境。`config.set` 写整张表（供应商、池）。每个值的文件、行（`model.list` 的来源要它）。回合开始冻结的快照交给路由。账号日志（`usage.purged` 要写它） | 8-1 到 8-5 |
-| `protocol.md` | `session.create` 的 `model`。`session.configure`、`model.list`、`provider.detect`、`provider.catalog`、`provider.test`、`usage.query`。`subscribe` 回应的 `model`、限额会变（第 5、7 条改）。`model.changed`。`status` 的 `failover`。两个原因码。「还没有的」删掉换模型那条。8-11 改了：方法表加 `provider.detect`、`provider.catalog`、`provider.test`，`unknown_provider` 也是 `provider.test` 的，「在哪」「守着它的」加 `providers.rs`。8-10 改了：方法表、`session.configure` 一节，`subscribe` 回应的 `model`（例子换了）、第 5 条，「在哪」「守着它的」，「还没有的」删掉换模型、`session.configure` 两处。8-7 改了：方法表加 `model.list`，原因码、给人看的字加 `unknown_provider`，「在哪」「守着它的」加 `models.rs`。8-8 改了：`session.create` 的 `model`，原因码、给人看的字加 `unknown_model`，守着它的加 `models_pools.rs`。8-9 改了：`subscribe` 第 5、7 条（限额会变、照 `model.changed` 换），推送那一段加 `model.changed`、`status` 的 `failover`，`model.list` 的冷却，「还没有的」换模型那条改成只剩 `turn` 那一半 | 8-7 到 8-11、8-15 |
-| `kernel/events.md`、`kernel/events-bodies.md` | `session.created.model`、`session.policy_changed.model`、`replaced`（账本查只和 `model` 一起）、`model.called.cost`、分类 `cooling`、`no_model`。瞬时的 `model.changed`。样本。8-8 改了：`events-bodies.md` 的 `session.created` 多 `model`，样本两条都带它。8-9 改了：`events-bodies.md` 的分类加 `cooling`；`events.md` 瞬时事件加 `model.changed`、`status` 的 `failover`，样本 `status.jsonl` 多一条、新的 `model.changed.jsonl`。8-10 改了：`events-bodies.md` 的 `session.policy_changed` 多 `model`、`replaced`，样本多 139、144 号两条；`events.md` 的表、`model.changed` 的 `why` 多 `turn`、推的时机第 20 条，样本 `model.changed.jsonl` 多一条；`kernel/history.md` 账本查的规矩多一行 | 8-8、8-9、8-10、8-15 |
-| `kernel/session.md` | `Configure`。`RunTurnStartHooks` 带 `model`。`TurnStartHooksDone` 带 `replaced`。`ModelEnded` 带 `cost`、`failover`。「出错再来」认 `failover`、`cooling`。「载入」算引用。`Session::context_used()`。8-6 改了：「出错再来」写明 `no_model` 不再来，「守着它的」加 `scenario/models.rs`。8-9 改了：`ModelEnded` 带 `failover`，「出错再来」认 `failover`、`cooling`（换了端点没说等多久的等 0 毫秒、状态带 `failover`），多一个只读的 `turn_cause()`，「守着它的」`scenario/models.rs`、随机测试那两行。8-10 改了：命令 `Configure`、新的一节「换模型」，`RunTurnStartHooks` 带 `model`，`TurnStartHooksDone` 带 `replaced`，只读的 `reference()`，「载入和崩溃」第 2 条算引用，「在哪」加 `configure.rs`、`send.rs`，「守着它的」`tests/configure.rs`、`scenario/models.rs`、`breaker.rs`、`manual.rs`、随机测试 | 8-6、8-9、8-10、8-15 |
+| `config.md`（另一个分身起草） | 清单里登记这一页的每个键，连同 `providers.*.local`、`usage.currency`（类型、默认、范围、生效时机、谁能改、项目配置不能写）。`miyu login` 存的 key 就是 `{ secret }` 取的那些。`{ secret }`、`{ env }` 怎么解开、核心的环境。`config.set` 写整张表（供应商、池）。每个值的文件、行（`model.list` 的来源要它）。回合开始冻结的快照交给路由。账号日志（`usage.purged` 要写它）。8-15 改了：配置项表加 `usage.currency`，登记的先后、文字那一行，账号日志多用量的两种和锁，两份样本块跟着生成的样本 | 8-1 到 8-5、8-15 |
+| `protocol.md` | `session.create` 的 `model`。`session.configure`、`model.list`、`provider.detect`、`provider.catalog`、`provider.test`、`usage.query`。`subscribe` 回应的 `model`、限额会变（第 5、7 条改）。`model.changed`。`status` 的 `failover`。两个原因码。「还没有的」删掉换模型那条。8-11 改了：方法表加 `provider.detect`、`provider.catalog`、`provider.test`，`unknown_provider` 也是 `provider.test` 的，「在哪」「守着它的」加 `providers.rs`。8-10 改了：方法表、`session.configure` 一节，`subscribe` 回应的 `model`（例子换了）、第 5 条，「在哪」「守着它的」，「还没有的」删掉换模型、`session.configure` 两处。8-7 改了：方法表加 `model.list`，原因码、给人看的字加 `unknown_provider`，「在哪」「守着它的」加 `models.rs`。8-8 改了：`session.create` 的 `model`，原因码、给人看的字加 `unknown_model`，守着它的加 `models_pools.rs`。8-9 改了：`subscribe` 第 5、7 条（限额会变、照 `model.changed` 换），推送那一段加 `model.changed`、`status` 的 `failover`，`model.list` 的冷却，「还没有的」换模型那条改成只剩 `turn` 那一半8-15 改了：方法表加 `usage.query`，新的一节，`bad_params` 多一种，「在哪」加 `usage.rs`，`model.call` 记账一句。 | 8-7 到 8-11、8-15 |
+| `kernel/events.md`、`kernel/events-bodies.md` | `session.created.model`、`session.policy_changed.model`、`replaced`（账本查只和 `model` 一起）、`model.called.cost`、分类 `cooling`、`no_model`。瞬时的 `model.changed`。样本。8-8 改了：`events-bodies.md` 的 `session.created` 多 `model`，样本两条都带它。8-9 改了：`events-bodies.md` 的分类加 `cooling`；`events.md` 瞬时事件加 `model.changed`、`status` 的 `failover`，样本 `status.jsonl` 多一条、新的 `model.changed.jsonl`。8-10 改了：`events-bodies.md` 的 `session.policy_changed` 多 `model`、`replaced`，样本多 139、144 号两条；`events.md` 的表、`model.changed` 的 `why` 多 `turn`、推的时机第 20 条，样本 `model.changed.jsonl` 多一条；`kernel/history.md` 账本查的规矩多一行8-15 改了：`events-bodies.md` 的 `model.called` 多 `cost` 和金额那张表；`events.md` 样本说明里 46 号带金额。 | 8-8、8-9、8-10、8-15 |
+| `kernel/session.md` | `Configure`。`RunTurnStartHooks` 带 `model`。`TurnStartHooksDone` 带 `replaced`。`ModelEnded` 带 `cost`、`failover`。「出错再来」认 `failover`、`cooling`。「载入」算引用。`Session::context_used()`。8-6 改了：「出错再来」写明 `no_model` 不再来，「守着它的」加 `scenario/models.rs`。8-9 改了：`ModelEnded` 带 `failover`，「出错再来」认 `failover`、`cooling`（换了端点没说等多久的等 0 毫秒、状态带 `failover`），多一个只读的 `turn_cause()`，「守着它的」`scenario/models.rs`、随机测试那两行。8-10 改了：命令 `Configure`、新的一节「换模型」，`RunTurnStartHooks` 带 `model`，`TurnStartHooksDone` 带 `replaced`，只读的 `reference()`，「载入和崩溃」第 2 条算引用，「在哪」加 `configure.rs`、`send.rs`，「守着它的」`tests/configure.rs`、`scenario/models.rs`、`breaker.rs`、`manual.rs`、随机测试8-15 改了：`ModelEnded`、`AsideEnded` 带 `cost`，`model.called` 的 `cost` 那一行，只读的 `context_used()`。 | 8-6、8-9、8-10、8-15 |
 | `compaction.md` | 「模型的资料」那段换成指到这一页。第十条第 6 条：换模型解除暂停。「还没有的」删掉那一条。8-7 改了：「在哪」「模型的资料」指到这一页。8-10 改了：第十条第 6 条「换一个模型」、「模型的资料」开着的会话下一轮重交、「在哪」`breaker.rs`、「守着它的」、「还没有的」删掉那一条 | 8-7、8-10 |
 | `drivers/openai-chat.md` | 开关来自档案和配置，`Compat::deepseek()` 删掉。「现在接的是哪一家」重写。认证头、列模型两样接口。`Classified` 多 `limit`。「还没有的」删掉 Zen 那条。8-6 改了：开关来自档案，`Compat::deepseek()` 留在 `testkit` 后面；「现在接的是哪一家」重写；`auth` 加进接口。8-7 改了：列模型两样接口、`models.rs`，`Classified` 多 `limit`（第 8 条），「现在接的是哪一家」能收什么照资料、驱动照目录的 `npm` | 8-6、8-7、8-14 |
 | `drivers/anthropic.md`、`drivers/openai-responses.md` | 新页，照「驱动要守的约定」 | 8-12、8-13 |
 | `http.md` | 认证头照驱动。另配的头的模板。一次 GET。「会话怎么用它」改成路由。8-6 改了：认证头照驱动、`Endpoint::keyless`、「会话怎么用它」指到路由、`tests/auth.rs`。8-7 改了：一次 GET（`get.rs`、`fetcher`、`tests/get.rs`） | 8-6、8-7、8-14 |
-| `session/actor.md` | 端口照引用造、回合开始重新解析、限额会变、推 `model.changed`。写用量汇总。第 8 条 `HttpModels` 换成路由。8-6 改了：第 8 条换成路由，`ForSession` 带编号和配置，`model()` 交回一份，测试表加 `route.rs`。8-8 改了：`ForSession` 多 `reference`、`sent`，端口多 `reference()`，路由的池，测试表加 `route_pools.rs`。8-9 改了：第 7 条第 8 款跟着端口的限额、推 `model.changed`，`Handle` 的限额会变，第 8 条出错换 key、换端点、说完了先交给路由记，测试表加 `route_failover.rs`、`failover_log.rs`。8-10 改了：`Handle` 的 `next()`、`Shown`，载入先交给内核再照它算的引用造端口，第 4 条「跑回合开始的挂接点」重新解析、推 `model.changed`（`turn`），第 7 条第 8 款写 `Shown`，第 8 条第 2 款回合开始重新解析，测试表加 `route_turn.rs`、`fallback_log.rs` | 8-6、8-8、8-9、8-10、8-15 |
+| `session/actor.md` | 端口照引用造、回合开始重新解析、限额会变、推 `model.changed`。写用量汇总。第 8 条 `HttpModels` 换成路由。8-6 改了：第 8 条换成路由，`ForSession` 带编号和配置，`model()` 交回一份，测试表加 `route.rs`。8-8 改了：`ForSession` 多 `reference`、`sent`，端口多 `reference()`，路由的池，测试表加 `route_pools.rs`。8-9 改了：第 7 条第 8 款跟着端口的限额、推 `model.changed`，`Handle` 的限额会变，第 8 条出错换 key、换端点、说完了先交给路由记，测试表加 `route_failover.rs`、`failover_log.rs`。8-10 改了：`Handle` 的 `next()`、`Shown`，载入先交给内核再照它算的引用造端口，第 4 条「跑回合开始的挂接点」重新解析、推 `model.changed`（`turn`），第 7 条第 8 款写 `Shown`，第 8 条第 2 款回合开始重新解析，测试表加 `route_turn.rs`、`fallback_log.rs`8-15 改了：第 5 条第 8 点写用量汇总，运行日志加 `usage not indexed`。 | 8-6、8-8、8-9、8-10、8-15 |
 | `session/tools.md` | 派子代理照 `tier` 解析模型、写进子会话。8-8 改了：「派子代理」多子会话用哪个模型（`Inherit`），测试表加 `spawn/tier.rs` | 8-8 |
 | `tools/subagent.md`（改名以后的页） | `tier` 参数，「还没有的」删掉它。8-8 改了：样本、参数表、怎么走、出错、守着它的 | 8-8 |
-| `tools/session_usage.md` | 新页 | 8-15 |
-| `tools/interface.md` | 查用量的端口。派子代理的端口带挡位（8-8 改了：`spawn(description, prompt, tier)`） | 8-8、8-15 |
-| `policy.md` | 快照不变。工具面里 `subagent` 的参数、新的 `session_usage` 跟着新会话进快照（8-8 改了：`subagent` 多 `tier` 那一句） | 8-8、8-15 |
-| `core.md` | 「模型」一节重写。起来的先后加上读目录、后台更新。环境变量表删掉 `DEEPSEEK_API_KEY`、`MIYU_DEV_*`。第 14 步清回收处之前记 `usage.purged`。8-6 改了：「模型」一节重写，环境变量表删掉那几个，第 9 步读档案，运行日志加 `model profiles loaded`。8-7 改了：起来的先后第 9、13 步，「模型」第 1、5、6 条，环境变量表加 `MIYU_CATALOG_UPDATE`、缓存目录，运行日志加目录那几行 | 8-6、8-7、8-15 |
-| `store.md`、`store/resources.md` | 缓存目录里的 `models/`。`state/models/`、`state/usage.db`。资源目录的 `models/` 四份，刷新快照的办法换成下载原样的 `api.json`。8-7 改了：缓存目录的 `models/`、`state/models/`；资源目录 `models/` 的五份（快照、`meta`、许可证、档案、认原厂的表）、刷新快照的办法。8-8 改了：`state/models/pools.json` | 8-7、8-8、8-15 |
+| `tools/session_usage.md` | 新页8-15 加了。 | 8-15 |
+| `tools/interface.md` | 查用量的端口。派子代理的端口带挡位（8-8 改了：`spawn(description, prompt, tier)`）8-15 改了：`Call.usage`、查用量的端口 `UsagePort` 那一段、造 `Call` 那一句、「在哪」加 `usage.rs`。 | 8-8、8-15 |
+| `policy.md` | 快照不变。工具面里 `subagent` 的参数、新的 `session_usage` 跟着新会话进快照（8-8 改了：`subagent` 多 `tier` 那一句）8-15 改了：「造会话」第 1 条多 `session_usage` 一句（施工 8-15 没改 `choice.rs`，零参数不用拼）。 | 8-8、8-15 |
+| `core.md` | 「模型」一节重写。起来的先后加上读目录、后台更新。环境变量表删掉 `DEEPSEEK_API_KEY`、`MIYU_DEV_*`。第 14 步清回收处之前记 `usage.purged`。8-6 改了：「模型」一节重写，环境变量表删掉那几个，第 9 步读档案，运行日志加 `model profiles loaded`。8-7 改了：起来的先后第 9、13 步，「模型」第 1、5、6 条，环境变量表加 `MIYU_CATALOG_UPDATE`、缓存目录，运行日志加目录那几行8-15 改了：第 12 步开用量汇总，第 14 步删之前留用量的底。 | 8-6、8-7、8-15 |
+| `store.md`、`store/resources.md` | 缓存目录里的 `models/`。`state/models/`、`state/usage.db`。资源目录的 `models/` 四份，刷新快照的办法换成下载原样的 `api.json`。8-7 改了：缓存目录的 `models/`、`state/models/`；资源目录 `models/` 的五份（快照、`meta`、许可证、档案、认原厂的表）、刷新快照的办法。8-8 改了：`state/models/pools.json`8-15 改了：「在哪」加 `usage.rs`、`sqlite.rs`，`journal.rs`、`trash.rs` 两行，数据根里加 `state/usage.db`，第 12 条第 2 款留底；`store/index.md` 的「在哪」加 `sqlite.rs`、「还没有的」删掉用量总表那条。 | 8-7、8-8、8-15 |
 | `cli/ask.md`、`cli/main.md`、新页 `cli/setup.md` | `--model`。退出码 5 认 `no_model`、`cooling`。没模型时走 setup。子命令 `setup`。8-11 改了：新页 `cli/setup.md`；`cli/ask.md` 第 2 条连核心以后先看有没有模型、没有模型那一句、「守着它的」；`cli/main.md` 子命令表、帮助页样本、帮助页十四页。8-9 改了：`cli/ask.md` 退出码 5 认没发出去的 `cooling`。8-10 改了：`cli/ask.md` 参数表、「找会话」第 1、4 条、帮助页样本、「守着它的」、「还没有的」删掉 `--model`；`cli/main.md` 帮助页样本 | 8-9、8-10、8-11 |
 | `log.md` | 新的几行（「出错」那张表）。8-11 改了：`provider tested`、`probe text unreadable`。8-7 改了：目录、用出来的、列表、`state/models/` 那几行。8-8 改了：`pool member skipped`、`unknown model`、目录没有地址的 `catalog refresh failed`。8-9 改了：`endpoint cooling`、`failover`。8-10 改了：`model fallback`，`unknown model` 也是 `session.configure` 的 | 8-7 到 8-11 |
-| `licenses.md` | 引入 SQLite 的依赖（例如 `rusqlite` 带 `bundled`，MIT，SQLite 是公有领域），门禁照查 | 8-15 |
-| `26-提示词.md` 第十节、`prompts.md` | 登记 `subagent.json` 的新参数、`session_usage.json` 和结果的几句、`placeholder-tool.txt`、`probe.txt`，各量 token（8-8 改了：`subagent.json` 那一行 141 → 189，`prompts.md` 重新生成；8-11 改了：登记 `probe.txt`，`prompts.md` 重新生成） | 8-8、8-11、8-14、8-15 |
+| `licenses.md` | 引入 SQLite 的依赖（例如 `rusqlite` 带 `bundled`，MIT，SQLite 是公有领域），门禁照查8-15：没加新依赖，`rusqlite` 3-8 七补已经引入、门禁照查，这一页不改。 | 8-15 |
+| `26-提示词.md` 第十节、`prompts.md` | 登记 `subagent.json` 的新参数、`session_usage.json` 和结果的几句、`placeholder-tool.txt`、`probe.txt`，各量 token（8-8 改了：`subagent.json` 那一行 141 → 189，`prompts.md` 重新生成；8-11 改了：登记 `probe.txt`，`prompts.md` 重新生成）8-15 改了：登记 `session_usage.json` 和七句（48、25、9、13、11、8、14、10），一段量法，`prompts.md` 重新生成。 | 8-8、8-11、8-14、8-15 |
 | `01-架构.md` 第九节 | 第 2 层登记 `miyu-models`（8-6 登记了） | 8-6 |
 | `15-模型与供应商.md` | 「后续再定」里定了的：第一版的驱动、第 3 层怎么认原厂（`vendors.toml`）、`usage.query` 的形状。「定的」那几条（这一次已补进第四、六、七、八节和 M9） | 图纸批准时 |
 | `22-命令行.md` | `miyu setup` 的问法（8-11 开工前定）、`--model` 接旧会话是永久换。8-10 改了：第三节 `--model` 那一行。8-11 改了：第三节「还没配模型时」、第五节 `miyu setup` 那一行 | 8-10、8-11 |
-| `07-存储.md` 第六节 | `usage.purged` 按小时、按币种记 | 8-15 |
-| `docs/blueprint/README.md` | 分页表加 `models.md`（这一次已加）。新的驱动页、`tools/session_usage.md`、`cli/setup.md` 随各步（8-11 加了 `cli/setup.md`） | 各步 |
+| `07-存储.md` 第六节 | `usage.purged` 按小时、按币种记8-15 改了：第六节「删掉的会话」后面两条：`usage.purged` 按小时、按用途、按币种，一次性调用的 `usage.oneshot`。 | 8-15 |
+| `docs/blueprint/README.md` | 分页表加 `models.md`（这一次已加）。新的驱动页、`tools/session_usage.md`、`cli/setup.md` 随各步（8-11 加了 `cli/setup.md`）8-15 加了 `tools/session_usage.md`。 | 各步 |
 | 8-18 跟着改的几页 | 思考强度：`config.md`（清单、原因码、样本）、`protocol.md`（`session.configure`、`subscribe`、`model.list`、`unknown_effort`）、`kernel/events-bodies.md`（`session.policy_changed` 的 `effort`）、`kernel/events.md`（`model.changed` 的 `effort`）、`kernel/session.md`（`Configure`、`RunTurnStartHooks`）、`session/actor.md`、`drivers/openai-chat.md`（`toggle`、`Call.effort`）、`http.md`（「还没有的」删掉空闲超时那一条），设计 `15-模型与供应商.md` 第五、六节。8-18 都改了 | 8-18 |
 | 8-8 补跟着改的几页 | 挡位去掉、池多两项、`subagent` 的 `pool`：`config.md`（清单、类型「给模型看的字」、样本）、`protocol.md`、`tools/subagent.md`、`tools/interface.md`、`session/tools.md`、`session/actor.md`、`policy.md`、`agents.md`、`kernel/events-bodies.md`、`kernel/session.md`、`cli/ask.md`、`cli/setup.md`、`README.md`，设计 `15-模型与供应商.md`、`26-提示词.md` 第十节、`10-自带软件.md` 第九节，`prompts.md` 重新生成。8-8 补都改了 | 8-8 补 |
 | 8-20 跟着改的几页 | 模型调用口：`protocol.md`（方法表、`model.call` 一段、出错多三个原因码、`bad_params`、`unknown_model`、`unknown_attachment` 多 `model.call` 的、运行日志、给人看的字、「在哪」「守着它的」）、`session/actor.md`（「在哪」、端口的表、第 8 条路由调底子、测试表）、`log.md`（`model call` 两行，`endpoint cooling`、`failover` 一次性的不带会话编号）。8-20 都改了 | 8-20 |

@@ -243,3 +243,40 @@ async fn a_pinned_pool_is_blind_again_next_turn_after_moving_to_a_member_that_se
     show(&handle, "cmd-2", "这是什么？", &blob).await;
     assert_eq!(bodies(&second).len(), 1, "钉到看得了图的 n 以后照样先转述");
 }
+
+/// 替看图的用量记在会话属主的账上（施工 8-15，`models.md`「怎么走」第九条第 4 条）：属主的账号日志里一条 `usage.oneshot`，
+/// 用途 `vision`，真发给的是看图的模型；不进会话的日志。
+#[tokio::test]
+async fn describing_is_billed_to_the_session_owner() {
+    let (first, second) = (
+        Server::start(hellos(4)).await,
+        Server::start(hellos(1)).await,
+    );
+    let mut home = Home::new();
+    home.configs = configs(&config(&first, &second, "", "vision = \"b/v\"\n"), &[]);
+    let routes = plain();
+    routes.data.keep_ledger(std::sync::Arc::clone(&home.usage));
+    let handle = home.create(&routes).await;
+    let blob = stored(&home);
+    show(&handle, "cmd-1", "看看", &blob).await;
+    let journal = std::fs::read_to_string(
+        home.root
+            .account_dir(&alice_account())
+            .join(miyu_store::journal::FILE),
+    )
+    .expect("有账号日志");
+    assert_eq!(
+        journal.matches(r#""kind":"usage.oneshot""#).count(),
+        1,
+        "{journal}"
+    );
+    assert!(
+        journal.contains(r#""body":{"purpose":"vision","endpoint":"b","model":"v","usage":"#),
+        "{journal}"
+    );
+    let logged = home.log(handle.id());
+    assert!(
+        !logged.iter().any(|event| matches!(&event.body, Body::ModelCalled(called) if called.endpoint.as_ref().is_some_and(|endpoint| endpoint.as_str() == "b"))),
+        "不进会话的日志"
+    );
+}

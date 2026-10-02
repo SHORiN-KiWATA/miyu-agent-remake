@@ -46,6 +46,7 @@ mod spawn;
 mod subscriptions;
 mod undo;
 mod uploads;
+mod usage;
 mod wire;
 
 pub use connection::serve;
@@ -65,6 +66,7 @@ use miyu_session::{Jobs, ModelData, Models, Observed, SandboxCache};
 use miyu_store::index::SessionIndex;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
+use miyu_store::usage::UsageIndex;
 use miyu_tool::Catalog;
 
 use config::Config;
@@ -98,6 +100,9 @@ pub struct Core {
     sessions: Sessions,
     /// 管理员的会话列表的索引（施工 3-8 七补）：起来时开一次，一直开着；会话落盘时更新、删会话时删行、列会话时读。
     index: Arc<SessionIndex>,
+    /// 用量汇总（施工 8-15，`state/usage.db`）：起来时开一次，一直开着；会话落盘时写、一次性入口记账（交给模型资料）、
+    /// `usage.query` 和 `session_usage` 查之前补。
+    usage: Arc<UsageIndex>,
     /// 执行器的任务表（施工 7-3）：所有会话的后台命令，核心里一张。
     jobs: Arc<Jobs>,
     /// 连着几个连接：`serve` 开始时加一，走的时候减一（施工 3-9 上）。
@@ -156,8 +161,11 @@ impl Core {
         let model_data = empty_model_data();
         config.set_models(Arc::clone(&model_data));
         let index = Arc::new(list::open_index(&root, &admin));
+        let usage = Arc::new(usage::open(&root));
+        model_data.keep_ledger(Arc::clone(&usage));
         Core {
             index,
+            usage,
             hub: Hub::new(&config),
             config: std::sync::Mutex::new(config),
             root,
@@ -191,6 +199,8 @@ impl Core {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         config.set_models(Arc::clone(&data));
         self.hub = Hub::new(config);
+        // 一次性入口记账（施工 8-15）：和会话写的是同一份汇总。
+        data.keep_ledger(Arc::clone(&self.usage));
         self.model_data = data;
         self
     }
@@ -276,6 +286,11 @@ impl Core {
     /// 账号 `owner` 的会话列表的索引，交给造的、载入的会话（施工 3-8 七补）：现在只开了管理员的，别的账号的没有。
     pub(crate) fn index_for(&self, owner: &AccountId) -> Option<Arc<SessionIndex>> {
         (*owner == self.admin).then(|| Arc::clone(&self.index))
+    }
+
+    /// 账号 `owner` 的会话写哪份用量汇总（施工 8-15）：核心一份，现在只有管理员的会话写。
+    pub(crate) fn usage_for(&self, owner: &AccountId) -> Option<Arc<UsageIndex>> {
+        (*owner == self.admin).then(|| Arc::clone(&self.usage))
     }
 
     /// 连着几个连接。

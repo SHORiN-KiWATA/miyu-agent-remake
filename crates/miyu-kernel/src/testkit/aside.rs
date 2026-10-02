@@ -143,6 +143,7 @@ impl Stage {
                     output: 10,
                 })
             }),
+            cost: None,
             error: line.error.clone(),
         }
     }

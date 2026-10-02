@@ -26,6 +26,7 @@ use miyu_store::index::{FILE, SessionIndex};
 use miyu_store::log::{read_events, read_segments};
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
+use miyu_store::usage::UsageIndex;
 use miyu_tool::{Catalog, Log, ReadLog};
 
 /// 一个用完就删的临时目录。
@@ -73,6 +74,8 @@ pub struct Home {
     pub jobs: Arc<Jobs>,
     /// alice 的会话列表的索引（施工 3-8 七补）：这个场地里造的、载入的会话都往里写，和核心里一样。
     pub index: Arc<SessionIndex>,
+    /// 用量汇总（施工 8-15）：这个场地里造的、载入的会话都往里写，和核心里一样。
+    pub usage: Arc<UsageIndex>,
     /// 造的、载入的会话从这里取配置（施工 8-4）：默认是全空的一份，测试换成自己的。
     pub configs: Configs,
 }
@@ -172,7 +175,9 @@ impl Home {
         let home = scratch.0.join("home");
         std::fs::create_dir_all(&home).expect("建得了假的家");
         let (index, _) = SessionIndex::open(&root.index(&alice_account()).join(FILE));
+        let (usage, _) = UsageIndex::open(&root);
         Home {
+            usage: Arc::new(usage),
             scratch,
             root,
             home,
@@ -240,6 +245,7 @@ impl Home {
             sessions: lines.sessions,
             jobs: &self.jobs,
             index: Some(Arc::clone(&self.index)),
+            usage: Some(Arc::clone(&self.usage)),
             configs: self.configs.clone(),
             model: lines.model,
         });
@@ -299,6 +305,7 @@ impl Home {
             sessions,
             jobs: &self.jobs,
             index: Some(Arc::clone(&self.index)),
+            usage: Some(Arc::clone(&self.usage)),
             configs: self.configs.clone(),
         });
         within("载入", loaded).await.expect("载入得了会话")

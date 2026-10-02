@@ -41,6 +41,7 @@ fn the_registered_list_is_well_formed() {
         keys,
         [
             "ui.language",
+            "usage.currency",
             "tui.startup",
             "permission.start_read_only",
             "models.chat",

@@ -18,6 +18,8 @@
 //! - [`Jobs`]：执行器的任务表，核心里一张：后台命令活过起它的那次调用（施工 7-3）；
 //! - [`Configs`]、[`ConfigSource`]：会话从哪取配置，回合开始时冻结一份（[`TurnConfig`]），这一轮的请求都照它（施工 8-4），
 //!   连同取 key 的办法（[`Turn`]，施工 8-6）。
+//! - 用量（施工 8-15）：日志每落一批顺手写进用量汇总（`store.rs`），`session_usage` 的端口在 `usage.rs`；金额在路由备好
+//!   这一次时照价格算（[`Reports::billed`]）。
 
 mod actor;
 mod agents;
@@ -49,6 +51,7 @@ mod store;
 #[cfg(feature = "testkit")]
 pub mod testkit;
 mod tools;
+mod usage;
 
 pub use agents::job_in;
 pub use backlog::Backlog;

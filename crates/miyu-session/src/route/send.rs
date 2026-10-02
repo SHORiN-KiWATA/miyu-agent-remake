@@ -92,9 +92,10 @@ pub(super) fn spawn(chosen: Chosen, request: Request, reports: Reports, cancel: 
     tokio::spawn(ask(chosen, request, reports, cancel).instrument(tracing::Span::current()));
 }
 
-/// 请求一次：经底子发，把回报交回 actor。被叫停的什么都不再报。
+/// 请求一次：经底子发，把回报交回 actor。被叫停的什么都不再报。说完了照这个模型的价格算金额（施工 8-15）。
 async fn ask(chosen: Chosen, request: Request, reports: Reports, cancel: Cancel) {
     let ready = &chosen.ready;
+    let reports = reports.billed(ready.tariff.clone());
     let mut received = false;
     let exchanged =
         exchange(

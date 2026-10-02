@@ -12,7 +12,7 @@
 | `crates/miyu-store/src/config_file.rs` | 读配置文件（施工 8-2，`config.md`「怎么走」第二条第 2 条）：没有的是空的，1 MiB 的上限，去掉开头的 BOM（记下有没有），不是 UTF-8 的报错，版本是整份字节的 SHA-256。写（施工 8-3，第五条第 4 到 7 条）：顺着链接写本体、临时文件在本体旁边、带上原来的权限位、替换前再读一次（和调用的一方读的版本不一样的放弃）、Windows 上改名失败歇 20 毫秒再试、最多 5 次 |
 | `crates/miyu-store/src/watch.rs` | 监视几份文件（施工 8-4，`config.md`「怎么走」第七条）：看它们所在的目录（链接的另看本体所在的目录），照真实的位置和文件名认，只读的动静不理，一份 200 毫秒里没有新的变动了才交出去；系统的监视起不来的退回每 2 秒轮询，交回原因 |
 | `crates/miyu-store/src/secrets.rs` | 密钥文件 `system/secrets.toml`（施工 8-5，`config.md` 第九条）：照配置文件的规矩读，另看组、别人读不读得到；照配置文件的规矩写，Unix 上一律 0600，临时文件建的时候就是 |
-| `crates/miyu-store/src/journal.rs` | 系统日志、账号日志 `journal.jsonl`（施工 8-3，`config.md`「系统日志、账号日志」）：每追加一条都重新打开、截掉最后那半行、读最后一行接着数 `seq`，外壳照事件的写法，追加、同步 |
+| `crates/miyu-store/src/journal.rs` | 系统日志、账号日志 `journal.jsonl`（施工 8-3，`config.md`「系统日志、账号日志」）：每追加一条都重新打开、截掉最后那半行、读最后一行接着数 `seq`，外壳照事件的写法，追加、同步；8-15 起一个核心里照一把锁一条一条追加（写的不止配置服务），用量汇总从记下的字节往后读（`read_from`） |
 | `crates/miyu-store/src/root.rs` | 数据根在哪、建骨架、认标记；账号的目录；缓存目录在哪 |
 | `crates/miyu-store/src/durable.rs` | 建目录、同步目录；新建临时文件（只许新建，撞名换下一个；施工 8-5 起能建成 Unix 上 0600 的，`create_temp_with`）、删用不上的临时文件（施工 8-1 从 `blob.rs` 挪来，两处共用） |
 | `crates/miyu-store/src/generated.rs` | 核心生成的派生文件：一样的不写，不一样的先写临时文件再替换（施工 8-1，`config.md`「怎么走」第一条第 7 条） |
@@ -20,9 +20,11 @@
 | `crates/miyu-store/src/log/open.rs` | 打开时自检、截半行；只读地读；从记下的位置读起（施工 3-8 七补）；只读第一条 |
 | `crates/miyu-store/src/blob.rs` | blob：存、取、核对哈希；分块暂存、改名进位置、扔掉、核心起来时清（施工 W-5）；读一段（施工 W-6） |
 | `crates/miyu-store/src/jobs.rs` | 会话目录下后台命令的输出：`jobs/<编号>.out`（施工 7-3） |
-| `crates/miyu-store/src/trash.rs` | 回收处：删掉的会话挪进来、满了时限的真删（施工 3-8 三补） |
+| `crates/miyu-store/src/trash.rs` | 回收处：删掉的会话挪进来、满了时限的真删（施工 3-8 三补）；真删之前往账号日志留用量的底（施工 8-15） |
 | `crates/miyu-store/src/resources.rs`、`human.rs` | 资源目录、给人看的字（`store/resources.md`） |
 | `crates/miyu-store/src/index.rs`、`index/` | 会话列表的索引（`store/index.md`，施工 3-8 七补） |
+| `crates/miyu-store/src/usage.rs`、`usage/` | 用量汇总 `state/usage.db`（施工 8-15，`models.md`「怎么走」第九条第 4、5 条） |
+| `crates/miyu-store/src/sqlite.rs` | 派生数据的 SQLite 库怎么开、坏了怎么删掉重建（施工 8-15 从 `index.rs` 挪出来，索引和用量汇总共用） |
 
 ### 对外的样子
 
@@ -96,7 +98,8 @@
 │           └── <前两位>/<64 位十六进制>
 ├── state/
 │   ├── logs/core.log、core.log.1 …     运行日志（log.md）
-│   └── config/                         核心起来时生成：config.schema.json、settings.schema.json、reference.toml（config.md，施工 8-1）
+│   ├── config/                         核心起来时生成：config.schema.json、settings.schema.json、reference.toml（config.md，施工 8-1）
+│   └── usage.db、usage.db-wal、usage.db-shm  用量汇总，派生的（models.md 第九条，施工 8-15）
 └── run/                                core.lock、spawn.lock、token、socket；没有能用的 XDG_RUNTIME_DIR 的 Linux、macOS 上还有套接字 core.sock（ipc.md）
 ```
 
@@ -203,7 +206,7 @@
    5. 会话目录不在的：写 `deleted_at` 时就出错（找不到），什么都没建。
 2. 清（`purge`）：核心起来时清一次（`core.md`「起来的先后」第 14 条），只清管理员的。
    1. 回收处里名字合会话编号写法的才看，别的不是这里放的。回收处还没有的，什么都不做。
-   2. 读它的 `deleted_at`：现在减去删的时刻，满了留的时限（7 天，`miyu-core` 的 `KEEP`）的，连目录整个删掉；正好满的也删。没满的、删的时刻比现在还晚的（时钟往回拨过）留着。
+   2. 读它的 `deleted_at`：现在减去删的时刻，满了留的时限（7 天，`miyu-core` 的 `KEEP`）的，连目录整个删掉；正好满的也删。删之前先留用量的底（施工 8-15，`models.md`「怎么走」第九条第 5 条）：照它的日志算好按小时的合计，往这个账号的 `journal.jsonl` 追加一条 `usage.purged`（时刻是现在，`by` 是内核）；一次请求都没有的不写。日志读不了（磁盘出错）、账号日志写不进去的：留着，报出来，下次再清。没满的、删的时刻比现在还晚的（时钟往回拨过）留着。
    3. `deleted_at` 读不了、写法不对的：留着，报出来（`Purged::failed`）。说不清它删了多久，不猜。
    4. 删不掉的：留着，报出来，下次起来再清。回收处本身读不了：报错。
 3. blob 不动：删会话以后没人引用的 blob 随存储的回收那一步（第五节，「还没有的」）。找回删了的会话以后再做：回收处里的文件留着，挪回去就是。

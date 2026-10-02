@@ -64,7 +64,7 @@ use miyu_drivers::{DeepSeekImages, DriverTexts};
 use miyu_http::Client;
 use miyu_kernel::estimate::ImagePrice;
 use miyu_kernel::event::{CallError, EffortInUse, ErrorClass};
-use miyu_kernel::id::{ModelName, ProviderId, Seq, SessionId};
+use miyu_kernel::id::{AccountId, ModelName, ProviderId, Seq, SessionId};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
 use miyu_kernel::session::{Limits, Replaced};
@@ -125,6 +125,7 @@ impl Models for Routes {
         Arc::new(Route {
             shared: self.clone(),
             session: session.id,
+            owner: session.owner,
             texts: session.texts,
             blobs: session.blobs,
             pinned: Arc::new(Mutex::new(Pinned {
@@ -164,6 +165,8 @@ impl Routes {
 struct Route {
     shared: Routes,
     session: SessionId,
+    /// 会话的属主（施工 8-15）：替它看图的一次性调用记在他的账上。
+    owner: AccountId,
     texts: DriverTexts,
     blobs: Blobs,
     /// 钉着的：引用、池里的成员、上一次解析出来的模型、限额、换过去的 key、要接着说的那一个。发出去的任务说完了也要改它
@@ -213,7 +216,7 @@ impl ModelPort for Route {
     /// 替看不了图的模型看图（施工 8-17，`route/sight.rs`）：经一次性入口发给这一轮的 `models.vision`。
     fn describe(&self, request: Request, config: &TurnConfig, sight: Sight) {
         sight::spawn(
-            self.shared.clone(),
+            (self.shared.clone(), self.owner.clone()),
             self.blobs.clone(),
             request,
             config,

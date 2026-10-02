@@ -13,6 +13,7 @@ use std::sync::Arc;
 
 use tokio::sync::watch;
 
+use miyu_config::Layer;
 use miyu_config::merge::Resolved;
 use miyu_config::secret::{Reference, Secret};
 
@@ -26,6 +27,12 @@ pub trait ConfigSource: Send + Sync + std::fmt::Debug {
 
     /// 照引用取一个密钥（施工 8-6）：`{ secret }` 照密钥文件，`{ env }` 照核心的环境。没设的、设成空的是空的。
     fn secret(&self, reference: &Reference) -> Option<Secret>;
+
+    /// 一层的配置是哪份文件，数据根里的相对路径（施工 8-15）：手写的价格记进 `cost.source` 时照它写
+    /// （`config:<文件>:<行>`），和 `model.list` 的来源同一份。不认数据根的（测试里不变的配置）写层的名字。
+    fn file(&self, layer: Layer) -> String {
+        layer.as_str().to_string()
+    }
 }
 
 /// 当前的配置：配置服务换一次，这里就是新的一份。
@@ -52,6 +59,11 @@ impl Turn {
     /// 照引用取一个密钥：这一轮开始时的那一份。
     pub fn secret(&self, reference: &Reference) -> Option<Secret> {
         self.source.secret(reference)
+    }
+
+    /// 一层的配置是哪份文件（施工 8-15，[`ConfigSource::file`]）。
+    pub fn file(&self, layer: Layer) -> String {
+        self.source.file(layer)
     }
 }
 

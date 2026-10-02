@@ -4,7 +4,8 @@
 //!
 //! 交给 `history` 的日志只读入口也在这里（施工 6-4）：照会话的目录一段一段读。
 //!
-//! 平时写的是 [`Indexed`]：会话日志，每落一批顺手更新会话列表的索引里这个会话的那一行（施工 3-8 七补）。
+//! 平时写的是 [`Indexed`]：会话日志，每落一批顺手更新会话列表的索引里这个会话的那一行（施工 3-8 七补），写进用量汇总
+//! （施工 8-15）。
 
 use std::io;
 use std::path::PathBuf;
@@ -14,6 +15,7 @@ use miyu_kernel::event::Event;
 use miyu_kernel::id::{Seq, SessionId};
 use miyu_store::index::SessionIndex;
 use miyu_store::log::{SessionLog, read_events, read_segments};
+use miyu_store::usage::{UsageIndex, Who};
 use miyu_tool::ReadLog;
 
 use crate::TARGET;
@@ -50,38 +52,54 @@ impl Store for SessionLog {
     }
 }
 
-/// 会话日志，和会话列表的索引里这个会话的那一行（施工 3-8 七补，`session/actor.md` 第 5 条第 7 点）。
+/// 会话日志，和会话列表的索引里这个会话的那一行（施工 3-8 七补，`session/actor.md` 第 5 条第 7 点）、用量汇总里这一批
+/// 发出去了的请求（施工 8-15）。
 pub(crate) struct Indexed {
     log: SessionLog,
-    /// 索引和会话编号：没有的不更新。
-    row: Option<(Arc<SessionIndex>, SessionId)>,
+    /// 会话编号。
+    id: SessionId,
+    /// 索引：没有的不更新。
+    index: Option<Arc<SessionIndex>>,
+    /// 用量汇总，和这个会话的属主、场所、父会话：没有的不写。
+    usage: Option<(Arc<UsageIndex>, Who)>,
 }
 
 impl Indexed {
-    /// 日志 `log` 落了盘的每一批，照会话 `id` 更新 `index` 里的那一行。
+    /// 日志 `log` 落了盘的每一批，照会话 `id` 更新 `index` 里的那一行，写进用量汇总 `usage`（属主等照 `who`）。
     pub(crate) fn new(
         log: SessionLog,
-        index: Option<Arc<SessionIndex>>,
         id: &SessionId,
+        index: Option<Arc<SessionIndex>>,
+        usage: Option<(Arc<UsageIndex>, Who)>,
     ) -> Indexed {
         Indexed {
             log,
-            row: index.map(|index| (index, id.clone())),
+            id: id.clone(),
+            index,
+            usage,
         }
     }
 }
 
 impl Store for Indexed {
-    /// 先落盘，再更新索引。更新失败只记一行 `session index not updated`，照样算写成了：索引是派生的，那一行停在上一次
-    /// 照到的地方，下次列会话照日志补上。
+    /// 先落盘，再更新索引、写用量汇总。更新失败只记一行 `session index not updated`、`usage not indexed`，照样算写成了：
+    /// 两样都是派生的，停在上一次照到的地方，下次列会话、查用量照日志补上。
     fn append(&mut self, events: &[Event]) -> io::Result<()> {
         let before = self.log.mark();
         self.log.append(events)?;
-        if let Some((index, id)) = &self.row
-            && !events.is_empty()
-            && let Err(error) = index.advance(id, &before, events, &self.log.mark())
+        if events.is_empty() {
+            return Ok(());
+        }
+        let after = self.log.mark();
+        if let Some(index) = &self.index
+            && let Err(error) = index.advance(&self.id, &before, events, &after)
         {
             tracing::warn!(target: TARGET, error = %error, "session index not updated");
+        }
+        if let Some((usage, who)) = &self.usage
+            && let Err(error) = usage.advance(&self.id, who, &before, events, &after)
+        {
+            tracing::warn!(target: TARGET, error = %error, "usage not indexed");
         }
         Ok(())
     }

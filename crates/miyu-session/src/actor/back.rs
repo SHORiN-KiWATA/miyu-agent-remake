@@ -46,6 +46,7 @@ impl Actor {
                 Report::Delta(delta) => Input::ModelDelta { at, seen, delta },
                 Report::Ended {
                     usage,
+                    cost,
                     error,
                     wait_ms,
                     excess,
@@ -56,6 +57,7 @@ impl Actor {
                         at,
                         seen,
                         usage,
+                        cost: cost.map(|cost| *cost),
                         error,
                         wait_ms,
                         excess,

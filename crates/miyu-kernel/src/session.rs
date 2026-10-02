@@ -266,6 +266,7 @@ impl Session {
                 at,
                 seen,
                 usage,
+                cost,
                 error,
                 wait_ms,
                 excess,
@@ -273,7 +274,7 @@ impl Session {
             } => self.model_ended(
                 at,
                 seen,
-                usage,
+                (usage, cost),
                 error,
                 retry::Said { wait_ms, failover },
                 excess,
@@ -343,8 +344,9 @@ impl Session {
                 purpose,
                 upto,
                 usage,
+                cost,
                 error,
-            } => self.aside_ended(at, &purpose, upto, usage, error),
+            } => self.aside_ended(at, &purpose, upto, (usage, cost), error),
             Input::Watched { watched } => {
                 self.watched = watched;
                 Vec::new()

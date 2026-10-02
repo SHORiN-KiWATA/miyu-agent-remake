@@ -11,6 +11,9 @@
 //! 5. 出错了、底子说换了端点、别的候选这时就能用的：当场换下一个，最多换 [`FAILOVERS`] 次。只剩等的、只有一个候选的、
 //!    不换的分类：不等，交 `model_failed`。收到过增量才出错的也换（交给底子的「说到一半断了」是假的）：半截没人看到。
 //! 6. 记一行 `INFO model call`（成了）或 `INFO model call failed`（没成），目标 `miyu::session`，不带会话编号。
+//! 7. 记账（施工 8-15，`models.md`「怎么走」第九条第 4 条）：每发出去一次（换端点再来的也算一次），照真发的那个模型的
+//!    价格算好金额，记进调的那个账号的账号日志和用量汇总（`usage.oneshot`），不记会话。写不进去的记一行
+//!    `WARN usage not indexed purpose=… error=…`，照样交回答。
 
 mod reply;
 
@@ -18,11 +21,14 @@ use std::collections::BTreeMap;
 
 use miyu_kernel::block::Block;
 use miyu_kernel::event::{CallError, ErrorClass, Usage};
+use miyu_kernel::id::AccountId;
 use miyu_kernel::request::{Message, Request};
 use miyu_models::pools::Member;
-use miyu_models::provider::{self, NOT_CONFIGURED, NoModel};
+use miyu_models::price::Tariff;
+use miyu_models::provider::{self, NOT_CONFIGURED, NoModel, Target};
 use miyu_models::reference::record;
 use miyu_store::blob::Blobs;
+use miyu_store::usage::OneShotCall;
 
 use super::Routes;
 use super::base::Seat;
@@ -30,6 +36,8 @@ use super::choice::{Choice, Unsent};
 use super::exchange::{Exchanged, exchange};
 use super::lists::listing_texts;
 use crate::TARGET;
+use crate::blocking::blocking;
+use crate::clock::wall_now;
 use crate::config::TurnConfig;
 use reply::Reply;
 
@@ -55,6 +63,8 @@ pub struct Ask {
     pub messages: Vec<Message>,
     /// 最多输出多少 token；没有的照供应商的默认。
     pub max_tokens: Option<u32>,
+    /// 谁付钱（施工 8-15）：`model.call` 是这个连接的账号，替看图是会话的属主。用量记在他的账号日志里。
+    pub owner: AccountId,
 }
 
 /// 交回的：整段回答。
@@ -220,6 +230,14 @@ impl OneShot {
                 |progress| reply.take(progress),
             )
             .await;
+            if let (true, Exchanged::Ended { usage, .. }) = (reply.sent(), &exchanged) {
+                let spent = Spent {
+                    owner: &ask.owner,
+                    purpose: &ask.purpose,
+                    target: &picked.choice.target,
+                };
+                spent.record(routes, *usage, ready.tariff.as_ref()).await;
+            }
             let classified = match exchanged {
                 Exchanged::Missing(error) => {
                     picked.failed(&error.class, None, false);
@@ -241,6 +259,39 @@ impl OneShot {
             }
             switched += 1;
         }
+    }
+}
+
+/// 发出去了的一次：记在谁的账上、用途、真发给的。
+struct Spent<'a> {
+    owner: &'a AccountId,
+    purpose: &'a str,
+    target: &'a Target,
+}
+
+impl Spent<'_> {
+    /// 记账：照价格算好金额，在阻塞线程里写进账号日志和用量汇总。没交用量汇总的（测试里）不记。
+    async fn record(&self, routes: &Routes, usage: Option<Usage>, tariff: Option<&Tariff>) {
+        let Some(ledger) = routes.data.ledger() else {
+            return;
+        };
+        let call = OneShotCall {
+            purpose: self.purpose.to_string(),
+            endpoint: self.target.provider.id.clone(),
+            model: self.target.model.clone(),
+            usage,
+            cost: tariff
+                .zip(usage.as_ref())
+                .and_then(|(tariff, usage)| tariff.cost(usage)),
+        };
+        let owner = self.owner.clone();
+        let purpose = self.purpose.to_string();
+        blocking(move || {
+            if let Err(error) = ledger.one_shot(&owner, wall_now(), &call) {
+                tracing::warn!(target: TARGET, purpose = purpose.as_str(), error = %error, "usage not indexed");
+            }
+        })
+        .await;
     }
 }
 

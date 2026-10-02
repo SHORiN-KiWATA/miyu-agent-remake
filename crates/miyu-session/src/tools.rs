@@ -38,6 +38,7 @@ use crate::pictures;
 use crate::port::Back;
 use crate::sandbox::{Sandbox, SandboxCache};
 use crate::sessions;
+use crate::usage::{Asked, Ledger};
 
 /// 执行工具要的：工具目录、替工具写的两句、系统的家目录（施工 4-4 上，交给每次调用）。
 pub(crate) struct ToolKit {
@@ -65,6 +66,8 @@ pub(crate) struct ToolKit {
     pub(crate) job_ids: Arc<JobIds>,
     /// 派子代理要的（施工 7-5）：会话表交进来了端口才有。
     pub(crate) agents: Option<Arc<Agents>>,
+    /// 用量汇总里的这个会话（施工 8-15）：`session_usage` 的端口照它造。没开汇总的没有。
+    pub(crate) ledger: Option<Ledger>,
 }
 
 /// 执行工具的端口：一个会话一份。
@@ -86,6 +89,8 @@ pub(crate) struct Tools {
     job_ids: Arc<JobIds>,
     /// 派子代理要的（施工 7-5）：交给每一次调用一个照这一轮抄好的端口。
     agents: Option<Arc<Agents>>,
+    /// 用量汇总里的这个会话（施工 8-15）。
+    ledger: Option<Ledger>,
     /// 在跑的调用：掐掉它的那一头、它的旗、开始跑的那一刻、工具名。
     running: BTreeMap<CallId, Running>,
     backs: mpsc::UnboundedSender<Back>,
@@ -138,6 +143,8 @@ pub(crate) struct Dispatch {
     pub(crate) subagents: BTreeMap<JobId, Subagent>,
     /// 派子代理时子会话用哪个模型要的（施工 8-8）：会话这时的引用、这一轮的配置。
     pub(crate) inherit: Inherit,
+    /// 派的是 `session_usage` 的：那一刻内核算的上下文、这一轮的 `usage.currency`（施工 8-15）。
+    pub(crate) usage: Option<Asked>,
 }
 
 impl Tools {
@@ -168,6 +175,7 @@ impl Tools {
             offset: kit.offset,
             job_ids: kit.job_ids,
             agents: kit.agents,
+            ledger: kit.ledger,
             running: BTreeMap::new(),
             backs,
         }
@@ -221,6 +229,7 @@ impl Tools {
             jobs,
             subagents,
             inherit,
+            usage,
         } = dispatch;
         let stop = Stop::default();
         // 派子代理的端口照这一轮的目录、这一刻的权限抄（施工 7-5）：沙盒下面照样要用它们。
@@ -254,6 +263,7 @@ impl Tools {
             messages,
             jobs: Some(jobs),
             sessions,
+            usage: crate::usage::for_call(self.ledger.as_ref(), usage),
         };
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name).cloned() else {

@@ -91,6 +91,7 @@ fn ended(upto: u64, error: Option<ErrorClass>) -> Input {
         purpose: Purpose::Recap,
         upto: seq(upto),
         usage: None,
+        cost: None,
         error: error.map(|class| CallError {
             class,
             message: "503".to_string(),

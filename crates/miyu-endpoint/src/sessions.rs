@@ -139,6 +139,7 @@ impl Sessions {
             sessions: Some(spawn::port(core)),
             jobs: &core.jobs,
             index: core.index_for(&core.admin),
+            usage: core.usage_for(&core.admin),
             configs: core.hub.configs(),
             model: who.model,
         })
@@ -222,6 +223,7 @@ impl Sessions {
             venue: child.venue,
             sandbox_cache: core.sandbox_cache_of(&child.owner),
             index: core.index_for(&child.owner),
+            usage: core.usage_for(&child.owner),
             configs: core.hub.configs(),
             owner: child.owner,
             permission: child.permission,
@@ -406,7 +408,7 @@ fn workspace(core: &Core, cwd: &str) -> String {
 }
 
 /// 核心所在的机器现在的时区偏移，到分钟。读不出来的当 UTC。
-fn offset() -> UtcOffset {
+pub(crate) fn offset() -> UtcOffset {
     let minutes = jiff::Zoned::now().offset().seconds() / 60;
     UtcOffset::from_minutes(minutes)
         .or_else(|| UtcOffset::from_minutes(0))

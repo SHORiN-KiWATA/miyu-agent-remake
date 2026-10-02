@@ -411,6 +411,19 @@
         }
       },
       "type": "object"
+    },
+    "usage": {
+      "properties": {
+        "currency": {
+          "default": "USD",
+          "description": "用量的金额照币种各加各的，不换算；这一种排在最前，别的照代码的字母先后。三个大写字母，例如 USD、CNY。能写：最多 3 个字的文字。只能写在系统配置或个人设置里。当场生效。",
+          "maxLength": 3,
+          "minLength": 1,
+          "title": "显示的币种",
+          "type": "string"
+        }
+      },
+      "type": "object"
     }
   },
   "type": "object"
