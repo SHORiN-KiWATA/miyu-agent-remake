@@ -1,7 +1,10 @@
-//! 终端光标（蓝图 `tui.md`「每一帧」）：界面自己管，不交给 ratatui。每一帧画的时候记下光标该在哪、显不显示，
-//! 画完由 [`place`] 一次写出去：先挪到那里，要显示时再显示。
+//! 终端光标（蓝图 `tui.md`「每一帧」）：界面自己管，不交给 ratatui。显示着的这一帧由 `frame.set_cursor_position`
+//! 交给 ratatui，画完它挪过去、显示；藏着的光标由 [`park`] 挪到插入点。
 //!
-//! 不显示时也挪到同一个地方（输入框的插入点）：不挪的话光标停在这一帧最后写的格子，转轮、token 数、吉祥物轮流变，
+//! 不每帧先藏再显：输入法的预编辑挂在光标上，跟着藏/显会和输入框里的提示来回闪（2026-10-02 项目主人报的 fcitx5：
+//! 打字时提示和候选来回切；原来 ratatui 每帧 `Hide`、画完再 `Show`）。
+//!
+//! 藏着时也挪到同一个地方（输入框的插入点）：不挪的话光标停在这一帧最后写的格子，转轮、token 数、吉祥物轮流变，
 //! 藏着的光标跟着跳，开了拖尾的终端（kitty 的 `cursor_trail`）照样给它画拖尾。
 
 use std::io::{self, Write};
@@ -31,46 +34,29 @@ impl Caret {
     }
 }
 
-/// 画完一帧、同步输出结尾之前写：挪过去，要显示时再显示。ratatui 那边这一帧没设光标，已经藏起来了。
+/// 画完一帧：藏着的光标挪到 `caret.at`。显示着的这一帧已经交给 ratatui（`frame.set_cursor_position`），
+/// 它画完会先显示、再挪过去；这里不写，免得每帧多藏/显一次。
 ///
 /// # Errors
 ///
 /// 写不出去。
-pub fn place(caret: Caret, out: &mut impl Write) -> io::Result<()> {
-    queue!(out, cursor::MoveTo(caret.at.x, caret.at.y))?;
+pub fn park(caret: Caret, out: &mut impl Write) -> io::Result<()> {
     if caret.shown {
-        queue!(out, cursor::Show)?;
+        return Ok(());
     }
-    Ok(())
+    queue!(out, cursor::MoveTo(caret.at.x, caret.at.y))
 }
 
 #[cfg(test)]
 mod tests {
     use ratatui::layout::Position;
 
-    use super::{Caret, place};
+    use super::{Caret, park};
 
     #[test]
-    fn it_moves_before_it_shows() {
+    fn a_hidden_caret_parks_at_the_insertion_point() {
         let mut out = Vec::new();
-        place(
-            Caret {
-                at: Position::new(4, 2),
-                shown: true,
-            },
-            &mut out,
-        )
-        .unwrap();
-        assert_eq!(
-            out, b"\x1b[3;5H\x1b[?25h",
-            "先挪后显示：不认同步输出的终端也不在最后写的格子闪一下"
-        );
-    }
-
-    #[test]
-    fn hidden_it_still_parks_at_the_same_place() {
-        let mut out = Vec::new();
-        place(
+        park(
             Caret {
                 at: Position::new(4, 2),
                 shown: false,
@@ -78,7 +64,21 @@ mod tests {
             &mut out,
         )
         .unwrap();
-        assert_eq!(out, b"\x1b[3;5H", "不显示也挪回插入点，不留在最后写的格子");
+        assert_eq!(out, b"\x1b[3;5H", "只挪，不写藏/显");
+    }
+
+    #[test]
+    fn a_shown_caret_is_left_to_ratatui() {
+        let mut out = Vec::new();
+        park(
+            Caret {
+                at: Position::new(4, 2),
+                shown: true,
+            },
+            &mut out,
+        )
+        .unwrap();
+        assert!(out.is_empty(), "显示着的交给 ratatui，不重复写");
     }
 
     #[test]

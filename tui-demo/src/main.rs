@@ -318,12 +318,18 @@ fn frame(
     let drawn = terminal.draw(|frame| {
         let at = started.map(|_| Instant::now());
         ui::draw(frame, app);
+        // 光标交给 ratatui：这一帧要显示时由它挪过去、显示。别每帧先藏再显：kitty 的输入法预编辑挂在
+        // 光标上，跟着藏/显，和输入框里的提示来回闪（2026-10-02 项目主人报的 fcitx5）。
+        if app.caret.shown {
+            frame.set_cursor_position(app.caret.at);
+        }
         ui::wide::tidy(frame.buffer_mut());
         theme::degrade(frame.buffer_mut(), depth);
         prep = at.map_or(Duration::ZERO, |t| t.elapsed());
     });
-    // 光标最后挪：先挪到插入点、要显示时再显示，不显示也停在那里（蓝图「每一帧」）。
-    caret::place(app.caret, &mut stdout())?;
+    // 藏着的光标也挪到插入点：不留在这一帧最后写的格子（kitty 开了 `cursor_trail` 会拖尾）；显示着的
+    // 那一下 ratatui 已经挪过、显示过了。
+    caret::park(app.caret, &mut stdout())?;
     pointer.set(app.pointing(), &mut stdout())?;
     execute!(stdout(), terminal::EndSynchronizedUpdate)?;
     // 系统通知的转义序列（kitty 的 OSC 99、OSC 9）：画完一帧再写，一条一次写完，不被别的输出劈开（「系统通知」第 4 条）。

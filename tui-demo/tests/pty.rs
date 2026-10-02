@@ -352,3 +352,26 @@ fn ctrl_end_goes_back_to_the_bottom() {
     tui.pump(Duration::from_millis(300));
     assert!(tui.shows("第 80 行"), "{}", tui.lines().join("\n"));
 }
+
+#[test]
+fn typing_does_not_toggle_the_cursor_off_and_on_every_frame() {
+    // 2026-10-02 项目主人报：fcitx5 打字时预编辑和输入框里的提示疯狂闪。查到原来每帧都先藏光标、画完再显示，
+    // kitty 的预编辑挂在光标上，跟着藏/显。显示着的这一帧交给 ratatui 挪过去、显示，不再每帧藏一下。
+    let home = Home::new(Script::new([]));
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    let _ = tui.record_from_here();
+    tui.type_text("abc");
+    tui.pump(Duration::from_millis(300));
+    let recorded = tui.recorded();
+    assert!(
+        !recorded.windows(6).any(|w| w == b"\x1b[?25l"),
+        "打字时不该每帧藏光标：{}",
+        String::from_utf8_lossy(&recorded)
+    );
+    assert!(
+        recorded.windows(6).any(|w| w == b"\x1b[?25h"),
+        "光标还是显示着：{}",
+        String::from_utf8_lossy(&recorded)
+    );
+}
