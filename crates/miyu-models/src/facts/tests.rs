@@ -80,7 +80,7 @@ fn each_fact_is_looked_up_on_its_own() {
     assert_eq!(facts.window.value, Some(60_000));
     assert_eq!(
         facts.window.source.json(&file),
-        json!({"from": "config", "file": "system/config.toml", "line": 5})
+        json!({"from": "config", "file": "system/config.toml", "line": 5, "layer": "system"})
             .as_object()
             .cloned()
             .expect("对象")
@@ -117,7 +117,7 @@ fn reasoning_levels_follow_the_profile_and_the_default_must_be_one_of_them() {
     assert_eq!(facts.effort.value.as_deref(), Some("off"));
     assert_eq!(
         Json::Object(facts.effort.source.json(&file)),
-        json!({"from": "config", "file": "system/config.toml", "line": 5})
+        json!({"from": "config", "file": "system/config.toml", "line": 5, "layer": "system"})
     );
     let (facts, _) = facts_of(&held(), written, "deepseek", "deepseek-flash");
     assert_eq!(
@@ -200,6 +200,58 @@ fn effort_default_is_personal_over_system_or_whichever_is_written() {
     let (value, source) = effort_of(&held, DEEPSEEK, "");
     assert_eq!(value, None, "都不写：没有默认");
     assert_eq!(source, Source::Default);
+}
+
+/// 来源是配置的，`layer` 格说是哪一层：系统配置 `system`，个人设置 `personal`，两层都写时跟着真的来源走（个人设置压着
+/// 系统配置，施工 8-7（补），照 `config.get` 说的来源一样写法）。
+#[test]
+fn facts_json_says_which_config_layer_a_value_came_from() {
+    let held = held();
+    let system = "[providers.deepseek]\nkeys = []\n\n[providers.deepseek.models.\"deepseek-flash\"]\nwindow = 60000\n";
+    let personal = "[providers.deepseek.models.\"deepseek-flash\"]\nwindow = 70000\n";
+
+    let window_of = |system: &str, personal: &str| {
+        let resolved = two_layers(system, personal);
+        let knowledge = held.knowledge();
+        let provider = provider(&resolved.values(), &knowledge, "deepseek").expect("配了");
+        let (facts, _) = facts(&resolved, &knowledge, &provider, "deepseek-flash");
+        facts.window
+    };
+
+    let both = window_of(system, personal);
+    assert_eq!(both.value, Some(70_000), "两层都写：个人设置压着系统配置");
+    assert_eq!(
+        Json::Object(both.source.json(&file)),
+        json!({"from": "config", "file": "personal/config.toml", "line": 2, "layer": "personal"})
+    );
+
+    let system_only = window_of(system, "");
+    assert_eq!(system_only.value, Some(60_000), "只写了系统配置");
+    assert_eq!(
+        Json::Object(system_only.source.json(&file)),
+        json!({"from": "config", "file": "system/config.toml", "line": 5, "layer": "system"})
+    );
+}
+
+/// 别的来源不带 `layer`：学来的、供应商列表、本机的、驱动默认都没有这一格，只有手写的配置区分系统、个人两层。
+#[test]
+fn non_config_sources_carry_no_layer_field() {
+    let sources = [
+        Source::Learned {
+            at: at("2026-10-01T08:12:30.000Z"),
+        },
+        Source::Provider {
+            fetched: at("2026-10-01T03:00:00.000Z"),
+        },
+        Source::Local,
+        Source::Default,
+    ];
+    for source in sources {
+        assert!(
+            !source.json(&file).contains_key("layer"),
+            "{source:?} 不该带 layer"
+        );
+    }
 }
 
 /// 窗口：手写的、用出来的、供应商的列表、目录，先有的算。

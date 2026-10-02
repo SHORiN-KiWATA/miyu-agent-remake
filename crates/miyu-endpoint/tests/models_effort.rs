@@ -198,7 +198,7 @@ async fn model_list_shows_the_default_effort_and_its_full_config_key() {
         facts("m")["effort"],
         json!({
             "value": "low", "from": "config", "file": "system/config.toml", "line": line,
-            "key": "providers.a.models.m.effort",
+            "layer": "system", "key": "providers.a.models.m.effort",
         })
     );
     assert_eq!(
