@@ -430,6 +430,19 @@
         }
       },
       "type": "object"
+    },
+    "usage": {
+      "properties": {
+        "currency": {
+          "default": "USD",
+          "description": "Amounts are added up per currency, never converted. This one is listed first, the others by code. Three capital letters such as USD or CNY. Allowed: text of at most 3 characters. Only in the system config or personal settings. Takes effect at once.",
+          "maxLength": 3,
+          "minLength": 1,
+          "title": "Currency shown first",
+          "type": "string"
+        }
+      },
+      "type": "object"
     }
   },
   "type": "object"

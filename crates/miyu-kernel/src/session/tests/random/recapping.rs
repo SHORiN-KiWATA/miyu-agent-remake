@@ -89,6 +89,7 @@ fn ended(upto: Seq, error: Option<CallError>) -> Input {
         purpose: Purpose::Recap,
         upto,
         usage: None,
+        cost: None,
         error,
     }
 }

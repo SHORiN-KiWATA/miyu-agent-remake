@@ -16,7 +16,7 @@ use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
 use miyu_tool::{
     AgentPort, Background, Call, Done, JobPort, Log, MessagePort, Progress, ReadLog, Seen,
-    SessionsPort, Stop, Tool,
+    SessionsPort, Stop, Tool, UsagePort,
 };
 
 /// 源码树里的资源目录。
@@ -212,6 +212,21 @@ impl Site {
         tool(name).run(call, Progress::new(|_| {})).await
     }
 
+    /// 在 `work/` 里调一次工具，查用量的端口是 `usage`、叫停的旗是 `stop`（施工 8-15：`session_usage` 经它查）。
+    pub async fn done_with_usage(
+        &self,
+        name: &str,
+        args: serde_json::Value,
+        usage: Option<Arc<dyn UsagePort>>,
+        stop: Stop,
+    ) -> Done {
+        let call = Call {
+            usage,
+            ..self.call_for("work", args, Seen::new(), stop)
+        };
+        tool(name).run(call, Progress::new(|_| {})).await
+    }
+
     /// 在 `work/` 里调一次工具，发话的端口是 `messages`、列会话的端口是 `sessions`（施工 C-5：`send_message` 的 `to`
     /// 认会话编号要两个端口一起给）。
     pub async fn done_with_messages_and_sessions(
@@ -245,6 +260,7 @@ impl Site {
             messages: None,
             jobs: None,
             sessions: None,
+            usage: None,
         }
     }
 }

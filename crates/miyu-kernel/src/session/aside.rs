@@ -10,7 +10,9 @@ use super::action::Action;
 use super::spans::millis;
 use crate::accumulate::{Accumulator, Delta};
 use crate::block::Block;
-use crate::event::{Body, CallError, CallResult, ErrorClass, Event, ModelCalled, Purpose, Usage};
+use crate::event::{
+    Body, CallError, CallResult, Cost, ErrorClass, Event, ModelCalled, Purpose, Usage,
+};
 use crate::id::{CommandId, ContentHash, Seq};
 use crate::origin::{By, Model};
 use crate::time::Timestamp;
@@ -79,7 +81,7 @@ impl Aside {
         self,
         at: Timestamp,
         purpose: Purpose,
-        usage: Option<Usage>,
+        (usage, cost): (Option<Usage>, Option<Cost>),
         error: Option<CallError>,
         next: Seq,
         empty: &str,
@@ -115,6 +117,7 @@ impl Aside {
             messages: self.messages as u64,
             first_difference: None,
             usage,
+            cost: cost.map(Box::new),
             first_token_ms: sent
                 .zip(self.first_token)
                 .map(|((asked, _, _), first)| millis(*asked, first)),
@@ -187,12 +190,12 @@ impl Session {
         at: Timestamp,
         purpose: &Purpose,
         upto: Seq,
-        usage: Option<Usage>,
+        spent: (Option<Usage>, Option<Cost>),
         error: Option<CallError>,
     ) -> Vec<Action> {
         match purpose {
-            Purpose::Recap => self.recap_ended(at, upto, usage, error),
-            Purpose::Title => self.title_ended(at, upto, usage, error),
+            Purpose::Recap => self.recap_ended(at, upto, spent, error),
+            Purpose::Title => self.title_ended(at, upto, spent, error),
             Purpose::Other(_) => Vec::new(),
         }
     }
@@ -223,8 +226,8 @@ impl Session {
     }
 }
 
-/// 增量对不上、回报的先后不对：驱动或执行器的错。
-fn bad_stream(message: &str) -> CallError {
+/// 增量对不上、回报的先后不对：驱动或执行器的错。主请求（`call.rs`）、辅助请求共用（施工 8-15 从 `call.rs` 并过来）。
+pub(super) fn bad_stream(message: &str) -> CallError {
     CallError {
         class: ErrorClass::BadStream,
         message: message.to_string(),

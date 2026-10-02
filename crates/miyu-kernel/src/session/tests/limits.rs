@@ -98,3 +98,31 @@ fn without_compaction_in_the_policy_only_the_window() {
     hand(&mut session, Some(1_000_000), Some(393_216));
     assert_eq!(session.context_limits(), limits(Some(1_000_000), None));
 }
+
+/// 这时的上下文用量（施工 8-15）：没交过限额的、策略里没有压缩的算不了；还没请求过的照本地估算；答完了照供应商报的那一次
+/// 起算（锚盖住了整份请求和回复），加上后来进来的那一点。
+#[test]
+fn the_context_used_follows_the_compaction_estimate() {
+    assert_eq!(compacting().context_used(), None, "没交过限额");
+    let mut plain = session();
+    hand(&mut plain, Some(1_000_000), None);
+    assert_eq!(plain.context_used(), None, "策略里没有压缩");
+    let mut session = compacting();
+    hand(&mut session, Some(1_000_000), None);
+    let empty = session.context_used().expect("交了限额就算得出");
+    session.handle(send(1, "hi"));
+    session.handle(stored(5));
+    session.handle(hooks_done(turn3(), Vec::new()));
+    let asked = session.context_used().expect("算得出");
+    assert!(asked > empty, "多了人说的一句：{asked} > {empty}");
+    let reply = super::executor::answer(&mut session, 5, "好");
+    assert!(!reply.is_empty());
+    let reported = super::executor::usage();
+    let total = reported.uncached + reported.cache_read + reported.cache_write + reported.output;
+    // 锚是供应商报的这一次，锚以后新进有效历史的（这一轮结束时记的几样）照本地估算加上去。
+    let used = session.context_used().expect("算得出");
+    assert!(
+        (total..total + 50).contains(&used),
+        "照供应商报的那一次起算：{used}，报的 {total}"
+    );
+}

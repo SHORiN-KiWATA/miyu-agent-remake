@@ -181,6 +181,7 @@ impl Stage {
                     output: 10,
                 })
             }),
+            cost: None,
             error: line.error.clone(),
             wait_ms: line.wait_ms,
             excess: line.excess,

@@ -367,6 +367,7 @@ impl Actor {
             } => {
                 let at = self.clock.now();
                 let jobs = self.jobs.port(call_id, cause);
+                let usage = crate::usage::asked(&name, &self.session, self.config.current());
                 self.tools.run(
                     at,
                     Dispatch {
@@ -379,6 +380,7 @@ impl Actor {
                         jobs,
                         subagents: self.session.subagents(),
                         inherit: Inherit::of(&*self.model),
+                        usage,
                     },
                 )
             }

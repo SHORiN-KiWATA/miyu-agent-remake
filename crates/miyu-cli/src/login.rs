@@ -299,6 +299,10 @@ impl Keys<'_> {
                 say(self.err, language.no_key_given());
                 return exit::ERROR;
             }
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {
+                say(self.err, language.key_paste_cancelled());
+                return exit::CANCELLED;
+            }
             Err(error) => {
                 say(self.err, &error.to_string());
                 return exit::ERROR;

@@ -198,6 +198,7 @@
 5. 写不进去（磁盘满了、没有权限这类）：记一行 `write failed, stopped`，`kind` 写出错的种类，会话停下（第 9 条）。没落盘的不算发生：没回应过，也没推送过，下次载入照磁盘上的来。不在原地重试：内存里的会话已经往前走了，和磁盘对不上。
 6. 写盘的线程 panic 了：记一行 `panicked, stopped`，会话停下。
 7. 会话列表的索引（施工 3-8 七补，`store/index.md`「怎么走」第 2 条）：这一批落了盘，在同一个阻塞线程里顺手更新这个会话在索引里的那一行：`session.created` 新起一行；别的，那一行照到的正好是这一批之前的，才照这一批盖上最近一次动静、工作目录、标题、置顶，照到这一批之后。更新失败只记一行 `session index not updated`，照样算落了盘，送「落盘了」：索引是派生的，那一行停在原处，下次列会话照日志补上。没有索引的（`Create::index` 是空的）不更新。写盘的阻塞线程带着会话的 span，这一行也有会话编号。
+8. 用量汇总（施工 8-15，`models.md`「怎么走」第九条第 4 条）：同一个阻塞线程里接着写这一批里发出去了的请求（`model.called` 带 `endpoint`、`model` 的），属主、场所、父会话照 `session.created`（造会话时照 `Create`，载入时照日志第一条）；记到的位置正好是这一批之前的才挪到这一批之后，这一批从第 1 条起的新起一行。写不进去只记一行 `usage not indexed`，照样算落了盘。没有汇总的（`Create::usage` 是空的）不写。
 
 **6. 推送和订阅**
 
@@ -300,6 +301,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | WARN | `subagent not woken` | `child`、`error` | 父会话载入以后叫不起子会话 |
 | WARN | `seen files not rebuilt` | `error` | 第 5 条第 4 点 |
 | WARN | `session index not updated` | `error` | 落了盘，会话列表的索引更新失败（第 5 条第 7 点，施工 3-8 七补） |
+| WARN | `usage not indexed` | `error` | 落了盘，用量汇总写不进去（第 5 条第 8 点，施工 8-15）；`session_usage` 补这个会话时日志读不完（`session` 另带） |
 | WARN | `write failed, stopped` | `kind` | 写不进去 |
 | WARN | `read back failed, stopped` | `error` | 读回日志读不了（第 4 条，施工 6-9） |
 | WARN | `abandoned session not removed` | `error` | 造会话那一条没落盘，收拾会话目录时删不掉（第 1 条第 6 点，施工 4-9 再补四下） |

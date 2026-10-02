@@ -22,18 +22,26 @@ miyu-config = { path = "../miyu-config" }
 miyu-store = { path = "../miyu-store" }
 # `miyu sandbox setup`、`remove`：Windows 上装好、撤掉沙盒用户（施工 5-8）。
 miyu-sandbox = { path = "../miyu-sandbox" }
-# `miyu login` 贴 key 时关掉回显读一行（施工 8-5，`config.md` 第十一条第 4 条）：三个平台一份，读完照原样开回回显。
-rpassword = "7.4"
+# `miyu login`、`miyu setup` 贴 key 时自己管终端的设置（施工 8-5 补，`config.md` 第十一条第 4 条）：Unix 上关
+# ECHO、ISIG、ICANON 读 termios；工作区里本来就有（`miyu-basesystem`、`miyu-fs`、`miyu-ipc` 用过别的功能）。
+rustix = { version = "1", features = ["termios"] }
 # 协议是 JSON-RPC 2.0，一行一条（04-核心协议.md P1）。
 serde_json = "1.0"
+# 终端、控制台的设置写不回去时记一行，不吞掉也不 panic（施工 8-5 补）；工作区里本来就有。
+tracing = { version = "0.1", default-features = false, features = ["std"] }
 # 连接是异步的；Ctrl+C；`--timeout` 的钟（施工 7-9）。
 tokio = { version = "1", features = ["io-util", "macros", "rt", "signal", "sync", "time"] }
 
 [target.'cfg(windows)'.dependencies]
 # `miyu sandbox setup` 替谁装：当前用户的 SID（施工 5-8）。
 miyu-pipe = { path = "../miyu-pipe" }
+# 贴 key 时关控制台的回显、行输入、`Ctrl+C` 的处理（施工 8-5 补）：工作区里本来就有（`miyu-ipc`、`miyu-pipe`、
+# `miyu-sandbox` 用别的功能）。
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Console"] }
 
 [dev-dependencies]
+# 测试贴 key 的真实现：守卫本身的单元测试要一对真的伪终端（施工 8-5 补）。
+rustix = { version = "1", features = ["termios", "pty"] }
 # 测试里在进程里起核心：照出厂档案造的路由（施工 8-6，没配模型时的端口）。
 miyu-core = { path = "../miyu-core" }
 # 测试里在进程里起核心：协议端点。
@@ -50,5 +58,19 @@ miyu-models = { path = "../miyu-models" }
 miyu-sandbox = { path = "../miyu-sandbox", features = ["testkit"] }
 tokio = { version = "1", features = ["io-util", "macros", "rt", "signal", "sync", "time"] }
 
-[lints]
-workspace = true
+# Cargo 不许 `workspace = true` 以后再单改一条：这里照抄工作区的（改那边的，记得同步这里），只把 `unsafe_code` 从
+# `forbid` 改成 `deny`：整个 crate 仍然不许，只有 Windows 上关控制台回显、`Ctrl+C` 处理那一处单独放开，写明为什么安全
+# （施工 8-5 补：`src/config/console/windows.rs`）。
+[lints.rust]
+unsafe_code = "deny"
+unused_must_use = "deny"
+missing_docs = "warn"
+
+[lints.clippy]
+let_underscore_must_use = "deny"
+unused_result_ok = "deny"
+unwrap_used = "deny"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+# 每个 unsafe 块都写清为什么安全。
+undocumented_unsafe_blocks = "deny"

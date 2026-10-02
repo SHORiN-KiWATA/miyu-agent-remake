@@ -157,6 +157,7 @@ async fn a_write_that_fails_stops_the_session() {
             offset: miyu_kernel::time::UtcOffset::UTC,
             job_ids: Arc::new(crate::job_ids::JobIds::starting_after(None, 0)),
             agents: None,
+            ledger: None,
         },
         crate::actor::JobKit {
             table: Arc::new(crate::jobs::Jobs::new()),

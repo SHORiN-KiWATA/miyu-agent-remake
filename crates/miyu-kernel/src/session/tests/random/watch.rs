@@ -16,7 +16,7 @@ mod jobs;
 mod load;
 mod lookup;
 mod manual;
-mod model;
+pub(super) mod model;
 mod overflow;
 mod peers;
 mod permission;

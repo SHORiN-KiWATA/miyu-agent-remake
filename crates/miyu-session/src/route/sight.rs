@@ -8,7 +8,7 @@
 
 use tracing::Instrument;
 
-use miyu_kernel::id::{ModelName, ProviderId};
+use miyu_kernel::id::{AccountId, ModelName, ProviderId};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
 use miyu_models::settings::UseSettings;
@@ -28,9 +28,9 @@ const NO_VISION: &str = "no vision model configured: set models.vision";
 /// 回答是空的时的原话。
 const EMPTY: &str = "the vision reply has no text";
 
-/// 发一次转述：照这一轮的配置 `config`，结果交给 `sight`。马上返回。
+/// 发一次转述：照这一轮的配置 `config`，结果交给 `sight`。马上返回。用量记在会话的属主 `owner` 的账上（施工 8-15）。
 pub(super) fn spawn(
-    routes: Routes,
+    (routes, owner): (Routes, AccountId),
     blobs: Blobs,
     request: Request,
     config: &TurnConfig,
@@ -47,6 +47,7 @@ pub(super) fn spawn(
         system: request.system,
         messages: request.messages,
         max_tokens: None,
+        owner,
     };
     let config = TurnConfig::clone(config);
     let task = async move {

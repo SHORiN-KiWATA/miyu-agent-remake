@@ -39,6 +39,12 @@ impl ConfigSource for Config {
     ) -> Option<miyu_config::secret::Secret> {
         Config::secret(self, reference)
     }
+
+    /// 手写的价格记进 `cost.source` 时写哪份文件（施工 8-15）：和 `model.list` 的来源同一份（`Config::file` 的
+    /// `shown`，系统配置是 `system/config.toml`，个人设置是 `home/<账号>/settings.toml`）。
+    fn file(&self, layer: miyu_config::Layer) -> String {
+        Config::file(self, layer).shown.clone()
+    }
 }
 
 impl Hub {

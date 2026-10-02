@@ -67,7 +67,7 @@
 | 仓库里的 `.miyu/config.toml` | 项目配置 | 仓库的作者，只手改 | 8-2 |
 | `system/secrets.toml` | 密钥 | 管理员，只经核心 | 8-5 |
 | `system/journal.jsonl` | 系统日志：系统配置、系统密钥的改动 | 核心 | 8-3 |
-| `home/<账号>/journal.jsonl` | 账号日志：个人设置的改动、项目配置的信任 | 核心 | 8-3 |
+| `home/<账号>/journal.jsonl` | 账号日志：个人设置的改动、项目配置的信任；删掉的会话的用量 `usage.purged`、一次性调用的用量 `usage.oneshot`（8-15，`models.md`「怎么走」第九条） | 核心 | 8-3、8-15 |
 | `home/<账号>/trust.toml` | 信任过、不信任的项目配置：仓库在哪、哪一份内容 | 核心，经 `config.trust` | 8-3 |
 | `state/config/config.schema.json` | 系统配置的 JSON Schema | 核心生成 | 8-1 |
 | `state/config/settings.schema.json` | 个人设置的 JSON Schema | 核心生成 | 8-1 |
@@ -151,7 +151,7 @@ trusted = true
 | 选项 `option` | `"zh"` | 只能是列出的几个之一，区分大小写 | 8-1（`ui.language`、`log.level`） |
 | 整数 `int` | `3` | 必写最小、最大；不在范围里的 `out_of_range` | 8-6（模型的 `window`） |
 | 小数 `float` | `1.5`，整数也收（`1` 读成 `1.0`） | 必写最小、最大，宏里写成整数 `float [0, 1000]`。`nan`、`inf`、不在范围里的 `out_of_range`；写回 TOML 的整数带 `.0` | 8-7（倍率、价格，`models.md`） |
-| 文字 `text` | `"…"` | 必写最多几个字符，宏里写 `text [3]`；空的、超了的、有控制字符的 `bad_format` | 8-7（币种、对目录里的哪一个；`texts [32]` 是文字的列表：思考强度）；8-18（模型默认的思考强度 `text [32]`） |
+| 文字 `text` | `"…"` | 必写最多几个字符，宏里写 `text [3]`；空的、超了的、有控制字符的 `bad_format` | 8-7（币种、对目录里的哪一个；`texts [32]` 是文字的列表：思考强度）；8-18（模型默认的思考强度 `text [32]`）；8-15（显示的币种 `usage.currency`，有默认值的文字：宏的默认值那一格多认 `text`） |
 | 时长 `duration` | `"30s"`、`"10m"`、`"1h"` | 写法照 `miyu ask --timeout`（`cli/ask.md`）：正整数后面跟 `s`、`m`、`h`，不写是秒；读不成的 `bad_format`。必写最短、最长（秒），宏里写 `duration [3600, 2592000]`，不在范围里的 `out_of_range`。设置类型的字段是 `Duration` | 8-7（目录多久拉一次） |
 | 路径 `path` | `"~/notes"` | 绝对路径，或者 `~`、`~/` 开头 | 同上 |
 | 网址 `url` | `"https://…"`，或者 `{ env = "DEEPSEEK_API_URL" }`（施工 8-6b，照「密钥」这一行的读法、查法：行内表、有表头的表都认，没有 `{ secret = … }`：地址不进密钥文件） | `http://`、`https://` 开头（不分大小写），后面有主机名，没有空白、控制字符；不对的 `bad_format`；`{ env = … }` 取不到的（没设、设成空的）照第九条报 `env_not_set`，指的东西在不在由用它的一方当场说（8-6b 由会话的路由当场说 `no_model`） | 8-6（供应商的 `base_url`），8-6b 加引用 |
@@ -241,13 +241,14 @@ miyu_config::settings! {
 - `LogSettings::ITEMS`：清单里的这几项，照声明的先后。
 - `LogSettings::from(&最终值)`（`From<&Values>`）：带类型的设置，代码只经它读值，不自己读文件、不另写常量（`14-配置.md` 第十节）。最终值 `Values` 是键到值，8-2 的分层合并交出它；8-1 还不读配置，用的是 `Values::defaults(清单)`，全是默认值。最终值里没有的项照默认值，最终值都校验过，这一步不会出错。字段的类型要能从值变过来（`From<&Value>`）：选项用 `String`，拿到的就是那个选项。
 
-**登记**（`crates/miyu-core/src/settings.rs`）：`MODULES` 一个模块一行，照这个先后：`UiSettings::ITEMS`、`TuiSettings::ITEMS`（8-3，终端界面还没进工作区，先在这个文件里替它声明，并进来以后挪进它自己的 crate）、`PermissionSettings::ITEMS`（`miyu-endpoint`，8-2）、`UseSettings::ITEMS`、`PoolSettings::ITEMS`（8-8；8-8 的 `TierSettings::ITEMS` 8-8 补去掉了）、`ProviderSettings::ITEMS`、`ModelSettings::ITEMS`（`miyu-models`，8-6）、`PriceSettings::ITEMS`、`CatalogSettings::ITEMS`（8-7）、`LogSettings::ITEMS`（`miyu-log`）。`items()` 把它们接成一张表。设置页的页照第一次出现的先后排：通用、界面、权限、模型、高级；模型那一页先「用途」、再「池」（8-8；「挡位」那一组 8-8 补去掉了）、再「供应商」、再「目录」。
+**登记**（`crates/miyu-core/src/settings.rs`）：`MODULES` 一个模块一行，照这个先后：`UiSettings::ITEMS`、`UsageSettings::ITEMS`（`miyu-models`，8-15：`usage.currency`，通用页的「显示」组，排在界面语言后面）、`TuiSettings::ITEMS`（8-3，终端界面还没进工作区，先在这个文件里替它声明，并进来以后挪进它自己的 crate）、`PermissionSettings::ITEMS`（`miyu-endpoint`，8-2）、`UseSettings::ITEMS`、`PoolSettings::ITEMS`（8-8；8-8 的 `TierSettings::ITEMS` 8-8 补去掉了）、`ProviderSettings::ITEMS`、`ModelSettings::ITEMS`（`miyu-models`，8-6）、`PriceSettings::ITEMS`、`CatalogSettings::ITEMS`（8-7）、`LogSettings::ITEMS`（`miyu-log`）。`items()` 把它们接成一张表。设置页的页照第一次出现的先后排：通用、界面、权限、模型、高级；模型那一页先「用途」、再「池」（8-8；「挡位」那一组 8-8 补去掉了）、再「供应商」、再「目录」。
 
 **M8 的配置项**：
 
 | 键 | 类型 | 默认 | 层 | 项目配置 | 生效 | 哪一步 |
 |---|---|---|---|---|---|---|
 | `ui.language` | 选项 `auto`、`zh`、`en`、`ja` | `auto`，跟着系统 | 系统、个人 | 不能写 | `now` | 8-1 声明，8-2 用上 |
+| `usage.currency` | 文字，最多 3 个字符 | `USD` | 系统、个人 | 不能写 | `now`：下一次 `usage.query` 照新的排；`session_usage` 照这一轮冻结的 | 8-15（`models.md`「对外的样子」） |
 | `log.level` | 选项 `error`、`warn`、`info`、`debug`、`trace`、`off` | `info` | 系统 | 不能写 | `now`，`MIYU_LOG` 压过 | 8-1 声明，8-2 读，8-4 当场换 |
 | `permission.start_read_only` | 开关 | `false` | 系统、个人、项目 | `true_only` | `new_session` | 8-2 |
 | `tui.startup` | 选项 `new`、`recent` | `new`，开一个新会话 | 系统、个人 | 不能写 | `head_start` | 8-3 |
@@ -519,7 +520,7 @@ miyu_config::settings! {
 
 - 两份都是 JSONL，一行一条，外壳照事件的写法（`kernel/events.md`：`seq`、`at`、`kind`、`by`、`cause`、`body`，没有 `turn`）。种类不进内核的种类表，内核读到照不认识的种类处理。
 - `seq` 一份文件里从 1 数起。一份文件只有一个写者：M8 是配置服务。
-- 系统配置、系统的密钥改动记进 `system/journal.jsonl`。个人设置的改动、项目配置的信任记进 `home/<账号>/journal.jsonl`。项目配置文件本身的改动不记：核心不写它，也不监视它。
+- 系统配置、系统的密钥改动记进 `system/journal.jsonl`。个人设置的改动、项目配置的信任记进 `home/<账号>/journal.jsonl`；8-15 起账号日志另有用量的两种（`usage.purged`、`usage.oneshot`，`models.md`「怎么走」第九条第 4、5 条），用量汇总照它们重建。项目配置文件本身的改动不记：核心不写它，也不监视它。
 
 `config.changed`：
 
@@ -702,7 +703,7 @@ miyu_config::settings! {
 **六、留痕**（8-3，G5 第 6 条）
 
 1. 改动落了盘，照「系统日志、账号日志」的写法追加一条：系统配置的进系统日志，个人设置的进账号日志。一次 `config.set` 一条，`changes` 里是这一层真变了的那几项。`config.trust` 记一条 `trust.changed`，进账号日志。
-2. 日志的写法（`miyu-store` 的 `journal.rs`）：打开时照会话日志的规矩截掉最后那半行（`store.md` 第 6 条），读最后一行拿 `seq`。追加一行、`sync_data`。每追加一条都重新打开一次：改配置是很少的事，不用在内存里留一个开着的文件，手改过的也认得（8-3）。最后一行完整、却读不懂的（手改坏了）不往后写，当写不进去。
+2. 日志的写法（`miyu-store` 的 `journal.rs`）：打开时照会话日志的规矩截掉最后那半行（`store.md` 第 6 条），读最后一行拿 `seq`。追加一行、`sync_data`。每追加一条都重新打开一次：改配置是很少的事，不用在内存里留一个开着的文件，手改过的也认得（8-3）。最后一行完整、却读不懂的（手改坏了）不往后写，当写不进去。8-15 起写的不止配置服务（清回收处、一次性调用也写）：一个核心里照一把锁一条一条追加，两个同时读最后一行不会撞号。用量汇总从记下的字节往后读（`read_from`）。
 3. 先写配置，后写日志：配置文件是真相，日志是留痕。日志写不进去（坏了、磁盘满了），记一条 `WARN journal not written file=… error=…`，配置照改、照推送、照回应。
 4. 手改被看到的（8-4），照样记一条，`via` 是 `file`，`by` 是内核，没有 `cause`。只动了注释、空行的不记；项没变、问题变了的（改坏了、改好了）记一条，`changes` 是空的。核心没在跑时的手改看不到，不记。
 
@@ -1111,6 +1112,11 @@ startup = "new"
 # 界面语言：终端、网页、命令行给你看的字用哪种话。auto 跟着终端或浏览器的语言。
 # 能写：auto、zh、en 或 ja。只能写在系统配置或个人设置里。当场生效。
 language = "auto"
+
+[usage]
+# 显示的币种：用量的金额照币种各加各的，不换算；这一种排在最前，别的照代码的字母先后。三个大写字母，例如 USD、CNY。
+# 能写：最多 3 个字的文字。只能写在系统配置或个人设置里。当场生效。
+currency = "USD"
 ```
 
 样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `models.chat`、`models.vision`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`models.cooldown.*`（8-9）、`permission.start_read_only`、`providers.<id>.*`、`tui.startup`、`ui.language`）：
@@ -1525,6 +1531,19 @@ language = "auto"
             "ja"
           ],
           "title": "界面语言",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "usage": {
+      "properties": {
+        "currency": {
+          "default": "USD",
+          "description": "用量的金额照币种各加各的，不换算；这一种排在最前，别的照代码的字母先后。三个大写字母，例如 USD、CNY。能写：最多 3 个字的文字。只能写在系统配置或个人设置里。当场生效。",
+          "maxLength": 3,
+          "minLength": 1,
+          "title": "显示的币种",
           "type": "string"
         }
       },

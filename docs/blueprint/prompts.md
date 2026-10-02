@@ -1592,6 +1592,83 @@ You have no other sessions.
 Could not list the sessions: {error}
 ```
 
+#### `software/basesystem/session_usage/usage.txt`
+
+- 什么时候加进来：`session_usage` 的第一行，总有
+- token：25（字段按 `12`、`48210`、`40122`、`3120` 算，2026-10-02 量）
+- 为什么加：请求数、输入（其中命中缓存的）、输出：和头经 `usage.query` 读的是同一份，只算这个会话、不带子会话（施工 8-15）
+- 指纹：`b360abda`
+
+```text
+Usage so far: {requests} requests, {input} input tokens ({cached} from cache), {output} output tokens.
+```
+
+#### `software/basesystem/session_usage/cost.txt`
+
+- 什么时候加进来：`session_usage`：有金额的
+- token：9（`{amounts}` 按 `0.0123 USD` 算，2026-10-02 量）
+- 为什么加：金额照币种各写一段、用 ` + ` 接起来，不换算；三位有效数字、至少两位小数，一次请求花的常常不到一分钱（施工 8-15）
+- 指纹：`4d6c4521`
+
+```text
+Cost: {amounts}.
+```
+
+#### `software/basesystem/session_usage/unpriced.txt`
+
+- 什么时候加进来：`session_usage`：有用量、没价格的请求
+- token：13（`{count}` 按 `2` 算，2026-10-02 量）
+- 为什么加：不说的话她把只算了一部分的金额当成全部（施工 8-15，「算不准的钱不显示」）
+- 指纹：`f98d5ecd`
+
+```text
+{count} requests have no price, so the cost leaves them out.
+```
+
+#### `software/basesystem/session_usage/context.txt`
+
+- 什么时候加进来：`session_usage`：算得出上下文、有窗口的
+- token：11（字段按 `23110`、`128000` 算，2026-10-02 量）
+- 为什么加：她问「还剩多少上下文」：用量照内核派出去那一刻的估算，和压缩线同一个算法（施工 8-15）
+- 指纹：`b8c3f65f`
+
+```text
+Context: {used} of {window} tokens.
+```
+
+#### `software/basesystem/session_usage/compaction.txt`
+
+- 什么时候加进来：`session_usage`：有压缩线的，接在 `context.txt` 下一行
+- token：8（`{line}` 按 `95000` 算，2026-10-02 量）
+- 为什么加：她问「快压缩了吗」。图纸草稿和 `context.txt` 是一句；窗口有、压缩线没有的会话（以前造的快照、窗口不到 33000）那一句写不对，施工 8-15 拆成两份
+- 指纹：`3ca677ea`
+
+```text
+Compaction starts at {line}.
+```
+
+#### `software/basesystem/session_usage/context-no-window.txt`
+
+- 什么时候加进来：`session_usage`：算得出上下文、模型没报窗口的
+- token：14（`{used}` 按 `23110` 算，2026-10-02 量）
+- 为什么加：没窗口的说不出几成、也不主动压：说大约多少，说清没有窗口（施工 8-15）
+- 指纹：`c281b2ad`
+
+```text
+Context: about {used} tokens. This model reports no window.
+```
+
+#### `software/basesystem/session_usage/failed.txt`
+
+- 什么时候加进来：`session_usage`：用量汇总读不了
+- token：10（`{error}` 按 `database is locked` 算，2026-10-02 量）
+- 为什么加：每次调用都要有结果，不能当成什么都没花答：照 `sessions/failed.txt` 的写法（施工 8-15）
+- 指纹：`8bcae0b0`
+
+```text
+Could not read the usage: {error}
+```
+
 #### `software/basesystem/common/not-read.txt`
 
 - 什么时候加进来：`write`、`edit` 要改的文件已经在了、她这个会话里没看过
@@ -2388,6 +2465,20 @@ Reply with OK.
 {
   "description": "List your other sessions, most recently active first. Each row gives the id to use with send_message and history, the title, working directory, whether it is busy and when it was last active.",
   "parameters": {"type":"object","properties":{"limit":{"type":"integer","description":"Default 20."},"offset":{"type":"integer","description":"How many sessions to skip."}}}
+}
+```
+
+#### `software/basesystem/tools/session_usage.json`
+
+- 什么时候加进来：会话的工具面里有 `session_usage`：本机的会话，主会话、子会话都有（每次请求都带）
+- token：48（2026-10-02 主会话照开发端点、`deepseek-v4.1-flash` 量，十三件一起时的边际份量）
+- 为什么加：她自己查这个会话用了多少、花了多少钱、上下文还剩多少（施工 8-15，`models.md`「工具」，`15-模型与供应商.md` 第八节）：零参数，一句说明。用量、金额只在日志里，上下文的估算只在内核里，她问「快压缩了吗」「这次花了多少」答不上来。一件管用量、金额和上下文，不拆两件（主会话定，合并前真模型问六句再定）
+- 指纹：`40cc23af`
+
+```json
+{
+  "description": "Show how many tokens and how much money this session has used so far, and how full your context is.",
+  "parameters": {"type":"object","properties":{}}
 }
 ```
 

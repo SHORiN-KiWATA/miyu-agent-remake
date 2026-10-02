@@ -180,6 +180,19 @@ miyu_config::settings! {
 }
 
 miyu_config::settings! {
+    /// 用量（施工 8-15，`models.md`「对外的样子」`usage.currency`）：当场生效。
+    pub struct UsageSettings in "usage" {
+        /// 显示用的币种：汇总里几种币种的先后，它排最前，别的照币种代码的字母先后（[`crate::price::ordered`]）。不换算。
+        currency: String = "USD" {
+            kind: text [3],
+            layers: [System, Personal],
+            applies: now,
+            ui: { page: "general", group: "display", control: text },
+        },
+    }
+}
+
+miyu_config::settings! {
     /// models.dev 的目录怎么更新（`models.md`「对外的样子」`[models.catalog]`、「怎么走」第二条第 3 条，施工 8-7）：当场生效。
     pub struct CatalogSettings in "models.catalog" {
         /// 后台去拉新的。关掉只用安装包带的和缓存里已有的。环境变量 `MIYU_CATALOG_UPDATE` 压过（离线的机器、测试拉起的核心）。

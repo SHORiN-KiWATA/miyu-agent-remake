@@ -14,7 +14,8 @@ use miyu_models::catalog::{Catalog, CatalogSource, Loaded};
 use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
 use miyu_models::settings::{
-    CatalogSettings, ModelSettings, PoolSettings, PriceSettings, ProviderSettings, UseSettings,
+    CatalogSettings, ModelSettings, PoolSettings, PriceSettings, ProviderSettings, UsageSettings,
+    UseSettings,
 };
 use miyu_session::testkit::Script;
 use miyu_session::{ModelData, Models, Observed, Routes};
@@ -77,6 +78,11 @@ pub fn routed(home: &Home, env: &[(&str, &str)], data: Arc<ModelData>) -> Arc<Co
     assembled(home, env, data, Arc::new(routes))
 }
 
+/// 同 [`core`]，请求模型照剧本 `script`（施工 8-15：剧本带价格，会话的请求记金额）。
+pub fn scripted(home: &Home, data: Arc<ModelData>, script: Script) -> Arc<Core> {
+    assembled(home, &[], data, Arc::new(script))
+}
+
 /// 说 `text` 的一份流：一段正文、说完、用量（输入 12，输出 3）。
 pub fn said(text: &str) -> Reply {
     let chunk = |choices: Value, usage: Value| {
@@ -118,6 +124,7 @@ fn assembled(
         PriceSettings::ITEMS,
         CatalogSettings::ITEMS,
         PoolSettings::ITEMS,
+        UsageSettings::ITEMS,
     ]
     .concat();
     let config = Config::load(&home.root, &alice(), None, items, Environment::of(env));

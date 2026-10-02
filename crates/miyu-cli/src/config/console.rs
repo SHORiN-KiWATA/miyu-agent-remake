@@ -1,11 +1,19 @@
 //! 人那一头（施工 8-3，`config.md` 第十条第 6、11 条）：`edit`、`trust` 要看是不是在终端里、问人一句、开编辑器。做成一个
 //! 接口：真的一份照标准输入、标准错误和 `VISUAL`、`EDITOR`；测试换成照剧本回的，不用真的终端、真的编辑器。
 //!
-//! `miyu login` 也用它（施工 8-5，第十一条第 4 条）：标准输入是终端的，关掉回显读一行 key（`rpassword`，读的是终端本身）；
-//! 是管道的，整份读进来。
+//! `miyu login`、`miyu setup` 也用它（施工 8-5、8-5 补，第十一条第 4 条）：标准输入是终端的，关掉回显读一行 key；是
+//! 管道的，整份读进来。关掉回显这一段自己管终端的设置（`unix`、`windows` 两个子模块，各管各的平台），不交给信号打断：按 `Ctrl+C` 当取消
+//! （[`io::ErrorKind::Interrupted`]），不管读到哪一步退出，终端的设置都照原样写回去（[`hidden::read_line`] 的调用方各自
+//! 守着）。
 //!
 //! 编辑器照 `VISUAL`，没有照 `EDITOR`，都没有（或者是空的）的 Unix 上是 `vi`、Windows 上是 `notepad`。Unix 上经 `sh -c`
 //! 跑，Windows 上经 `cmd /c`：带参数的（`code --wait`）也行，和 git 一样。
+
+mod hidden;
+#[cfg(unix)]
+mod unix;
+#[cfg(windows)]
+mod windows;
 
 use std::io::{self, BufRead, IsTerminal, Read};
 use std::path::Path;
@@ -33,7 +41,8 @@ pub trait Console {
     ///
     /// # Errors
     ///
-    /// 读不了终端、关不掉回显。
+    /// 读不了终端、关不掉回显；按了 `Ctrl+C`，或者还没攒到字时按了 `Ctrl+D`：当人不要了，`kind()` 是
+    /// [`io::ErrorKind::Interrupted`]（施工 8-5 补）。
     fn hidden(&mut self) -> io::Result<Option<String>>;
     /// 把标准输入整份读进来（施工 8-5：`echo "$KEY" | miyu login deepseek`）。
     ///
@@ -84,12 +93,10 @@ impl Console for Terminal {
     }
 
     fn hidden(&mut self) -> io::Result<Option<String>> {
-        // rpassword 读的是终端本身（Unix 上 /dev/tty，Windows 上 CONIN$），读完把回显照原样开回来。
-        match rpassword::read_password() {
-            Ok(line) => Ok(Some(line)),
-            Err(error) if error.kind() == io::ErrorKind::UnexpectedEof => Ok(None),
-            Err(error) => Err(error),
-        }
+        #[cfg(unix)]
+        return unix::read_hidden();
+        #[cfg(windows)]
+        return windows::read_hidden();
     }
 
     fn all(&mut self) -> io::Result<String> {

@@ -13,7 +13,7 @@
 //! （施工 W-2、W-3、W-6）。第一次接入的
 //! `provider.detect`、`provider.catalog`、`provider.test` 在 `providers.rs`（施工 8-11）。分块上传
 //! `blob.open`、`blob.write`、`blob.close` 在 `uploads.rs`（施工 W-5），要这个连接的上传表 `uploads`。分块读一个 blob
-//! `blob.get` 在 `attach.rs`（施工 W-6）。
+//! `blob.get` 在 `attach.rs`（施工 W-6）。用量汇总的 `usage.query` 在 `usage.rs`（施工 8-15）。
 //! 各方法的参数在 `methods/params.rs`（W-5 合并时这一份过了 500 行，挪出去的）。
 
 use std::sync::Arc;
@@ -258,6 +258,7 @@ pub(crate) async fn call(
         "provider.catalog" => providers::catalog(core, params(request)?).await,
         "provider.test" => providers::test(core, params(request)?).await,
         "model.call" => models::call(core, params(request)?).await,
+        "usage.query" => crate::usage::query(core, params(request)?).await,
         "blob.put" => attach::put(core, params(request)?).await,
         "blob.open" => uploads::open(core, uploads, params(request)?).await,
         "blob.write" => uploads::write(core, uploads, params(request)?).await,

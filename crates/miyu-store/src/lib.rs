@@ -16,6 +16,8 @@
 //! - [`jobs`]：会话目录下后台命令的输出（施工 7-3）；
 //! - [`trash`]：回收处，删掉的会话挪进来、满了时限再真删（施工 3-8 三补）；
 //! - [`index`]：会话列表的索引，SQLite，派生的，随时可以删掉照日志重建（施工 3-8 七补）；
+//! - [`usage`]：用量汇总，SQLite，派生的：会话日志里的请求、账号日志里删掉的会话和一次性调用（施工 8-15）；两份库怎么开、
+//!   坏了怎么删掉重建在 [`mod@sqlite`]；
 //! - [`watch`]：监视配置文件所在的目录，按文件名认，合并连着来的变动（施工 8-4）。
 
 pub mod blob;
@@ -31,7 +33,9 @@ pub mod log;
 pub mod resources;
 pub mod root;
 pub mod secrets;
+pub mod sqlite;
 pub mod trash;
+pub mod usage;
 pub mod watch;
 
 #[cfg(test)]

@@ -35,6 +35,8 @@ pub struct Typist {
     pub lines: usize,
     pub hidden: usize,
     pub all: usize,
+    /// 关掉回显读的时候照取消办（按了 `Ctrl+C`），不照 `keys`（施工 8-5 补）。
+    pub cancel_key: bool,
 }
 
 impl Typist {
@@ -77,7 +79,10 @@ impl Console for Typist {
 
     fn hidden(&mut self) -> io::Result<Option<String>> {
         self.hidden += 1;
-        Ok(self.keys.pop_front())
+        match self.cancel_key {
+            true => Err(io::Error::new(io::ErrorKind::Interrupted, "test cancel")),
+            false => Ok(self.keys.pop_front()),
+        }
     }
 
     fn all(&mut self) -> io::Result<String> {

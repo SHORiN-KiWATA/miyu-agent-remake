@@ -66,6 +66,10 @@
       "name": "Sessions",
       "icon": "≡"
     },
+    "session_usage": {
+      "name": "Usage",
+      "icon": "≡"
+    },
     "send_message": {
       "name": "Message",
       "subject": "to",
@@ -191,6 +195,8 @@
     "sessions/none": "No other sessions",
     "sessions/past-end": "All {total} other sessions are listed",
     "sessions/past-end/one": "{total} other session is listed",
-    "sessions/failed": "Could not list sessions: {error}"
+    "sessions/failed": "Could not list sessions: {error}",
+    "session_usage/shown": "Checked the usage",
+    "session_usage/failed": "Could not read the usage: {error}"
   }
 }
