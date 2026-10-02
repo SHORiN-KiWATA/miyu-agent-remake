@@ -11,6 +11,7 @@ mod awaiting;
 mod backoff;
 mod config;
 mod connect;
+mod efforts;
 mod kinds;
 mod limits;
 mod models;
@@ -32,6 +33,7 @@ use tokio::sync::mpsc;
 use backoff::Backoff;
 use connect::{connect, subscribe};
 
+pub use efforts::{EffortList, Efforts};
 pub use kinds::{EndReason, Level, ToolStatus};
 pub use limits::Limits;
 pub use models::{Choice, ChoiceState, Current};
@@ -89,6 +91,17 @@ pub enum Command {
     Delete(String),
     /// 要 `/model` 框里的一行行（`model.list`），交回 [`Update::Choices`]。
     ListChoices,
+    /// 手动换的模型也记成新会话的默认：写个人设置的 `models.chat`（2026-10-02 项目主人定，`models.md`「头的约定」）。
+    SetChat(String),
+    /// `/effort` 要的：每个模型有哪几级、配置的默认、配置键（`model.list`，核心 8-18 补）。
+    ListEfforts,
+    /// 写个人设置里一个模型的思考强度：配置键、哪一级（`None` 是去掉这一项，回到供应商定）。
+    SetEffort {
+        /// 配置键（照 `facts.effort.key` 抄）。
+        key: String,
+        /// 哪一级。
+        level: Option<String>,
+    },
     /// `@` 文件列表问核心（`fs.list`、`fs.find`，核心 W-2）：哪个词问的、方法、参数。
     Files {
         /// 哪个词问的：回应照它认。
@@ -169,6 +182,8 @@ pub enum Update {
     Push(Push),
     /// `/model` 框里的一行行（[`Command::ListChoices`] 的回应）；要不到的是空的。
     Choices(Vec<Choice>),
+    /// `/effort` 框里的几级（[`Command::ListEfforts`] 的回应）；要不到的是空的。
+    Efforts(EffortList),
     /// `@` 文件列表的回应（[`Command::Files`]）：哪个词问的、回应的 `result`（回了错的是 `None`）。
     Files {
         /// 哪个词问的。

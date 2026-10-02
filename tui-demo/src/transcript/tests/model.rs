@@ -45,6 +45,7 @@ fn a_failover_changes_the_model_and_says_why_in_a_dim_line() {
                 }),
                 failover: true,
                 reference: Some("@duo".into()),
+                effort: None,
             },
         ],
     );
@@ -80,6 +81,7 @@ fn a_change_that_is_not_a_failover_writes_nothing() {
             limits: None,
             failover: false,
             reference: Some("bigmodel/glm-5.3-flash".into()),
+            effort: None,
         }],
     );
     assert!(t.entries.is_empty());
@@ -108,6 +110,7 @@ fn the_reference_in_use_follows_subscribe_turns_and_switches() {
             endpoint: Some("dev".into()),
             model: Some("m1".into()),
             reference: "dev/m1".into(),
+            effort: None,
         }),
         &texts,
     );

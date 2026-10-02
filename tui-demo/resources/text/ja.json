@@ -312,6 +312,10 @@
         "本文をスクロール"
       ],
       [
+        "Ctrl+End",
+        "本文のいちばん下へ戻る"
+      ],
+      [
         "Ctrl+L",
         "画面をクリア"
       ],
@@ -454,6 +458,15 @@
     "ticked": " · {count} 件選択",
     "delete_many": "もう一度 Ctrl+D で {count} 件のセッションを削除",
     "deleted_many": "{count} 件のセッションを削除しました"
+  },
+  "effort": {
+    "title": "思考の強さ · {model}",
+    "loading_title": "思考の強さ",
+    "hint": "↑/↓ 選択 · Enter 切替 · Esc 閉じる",
+    "default": "デフォルト（プロバイダーが決める）",
+    "loading": "モデルを読み込み中…",
+    "none": "このモデルには選べる強さがありません",
+    "need_model": "モデルプールを使用中です"
   },
   "model_panel": {
     "title": "モデル",

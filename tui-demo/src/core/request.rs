@@ -68,6 +68,9 @@ pub(super) fn request(
         | Command::ListModels
         | Command::ListChoices
         | Command::Files { .. }
+        | Command::ListEfforts
+        | Command::SetChat(_)
+        | Command::SetEffort { .. }
         | Command::Output { .. } => {
             return None;
         }

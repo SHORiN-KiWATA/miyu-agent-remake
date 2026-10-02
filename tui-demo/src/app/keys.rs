@@ -142,6 +142,11 @@ impl App {
             }
             return Action::None;
         }
+        // Ctrl+End：回到正文最底下，跟着最新的（`tui.md`「按键」，2026-10-02 项目主人要）。
+        if ctrl && key.code == KeyCode::End {
+            self.view.follow();
+            return Action::None;
+        }
         // Ctrl+G：用编辑器写输入框里的话（`compose.rs`，`tui.md`「按键」）。
         if ctrl && key.code == KeyCode::Char('g') {
             self.compose();
@@ -297,6 +302,7 @@ impl App {
             Run::Rename => self.rename(words),
             Run::Sessions => self.open_sessions(),
             Run::Model => self.open_models(),
+            Run::Effort => self.open_effort(),
             Run::Copy => self.copy_reply(),
             Run::New => self.new_session(),
             Run::Revert => self.core.send(Command::Revert),

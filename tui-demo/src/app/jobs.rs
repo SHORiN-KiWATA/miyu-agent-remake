@@ -38,6 +38,11 @@ pub enum Panel {
     Sessions,
     /// 换模型（`/model`）：框的状态在 [`App::model_list`](super::App) 上。
     Models,
+    /// 思考强度（`/effort`）：选中第几行（第 0 行默认）；几级在 [`App::efforts`](super::App) 上。
+    Effort {
+        /// 选中第几行。
+        selected: usize,
+    },
 }
 
 impl App {
@@ -183,6 +188,7 @@ impl App {
             Panel::Language { selected } => return self.language_key(selected, key),
             Panel::Sessions => return self.sessions_key(key),
             Panel::Models => return self.models_key(key),
+            Panel::Effort { selected } => return self.effort_key(selected, key),
         };
         let items = self.board.panel_items(all);
         let at = |selected| {
@@ -236,6 +242,7 @@ impl App {
             || self.language_mouse(mouse, at)
             || self.sessions_mouse(mouse, at)
             || self.models_mouse(mouse, at)
+            || self.effort_mouse(mouse, at)
         {
             return true;
         }

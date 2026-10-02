@@ -61,6 +61,8 @@ pub enum Run {
     Sessions,
     /// 换这个会话的模型（蓝图「配置与模型」第 1 条）。
     Model,
+    /// 换正在用的模型的思考强度（蓝图「配置与模型」思考强度）。
+    Effort,
     /// 开新会话：清界面回首页，第一句话时再开（蓝图「斜杠命令」`/new`）。
     New,
     /// 清空上下文，会话不变（`session.clear`，蓝图「正文」第 9 条）。
@@ -211,8 +213,8 @@ mod tests {
             .map(|s| s.name.as_str())
             .collect();
         assert_eq!(
-            names[..2],
-            ["edit", "exit"],
+            names[..3],
+            ["edit", "effort", "exit"],
             "开头对得上的在前，照登记的先后"
         );
         assert!(names.contains(&"level"), "含着 e 的也在：{names:?}");

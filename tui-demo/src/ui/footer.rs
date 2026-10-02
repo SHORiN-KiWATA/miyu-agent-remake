@@ -152,6 +152,12 @@ fn left(app: &App) -> Vec<Span<'_>> {
                 spans.push(Span::styled(" · ", theme::dim()));
                 spans.push(Span::styled(model.as_str(), theme::model()));
                 spans.push(Span::styled(format!(" {endpoint}"), theme::dim()));
+                // 思考强度（`/effort`）：什么都不发的不写。
+                if let Some(effort) = t.effort() {
+                    // 强调色（2026-10-02 项目主人：和「工作区」那个蓝一样）。
+                    spans.push(Span::styled(" · ", theme::dim()));
+                    spans.push(Span::styled(effort.to_string(), theme::accent()));
+                }
             }
             spans
         }

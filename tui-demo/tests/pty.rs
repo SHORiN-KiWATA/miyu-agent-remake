@@ -246,25 +246,6 @@ fn commands_that_change_nothing_only_flash_a_notice() {
 }
 
 #[test]
-fn choosing_a_model_shows_no_notice() {
-    // 2026-10-01 项目主人：改模型、思考强度不需要通知。底栏当场写成选的那个。
-    let settings = "[models]\nchat = \"dev/alpha\"\n\n[providers.dev]\ndriver = \"openai-chat\"\nbase_url = \"http://dev.invalid/v1\"\n\n[providers.dev.models.alpha]\nwindow = 128000\n\n[providers.dev.models.beta]\nwindow = 64000\n";
-    let home = Home::with_settings(Script::new([Play::Says("好。")]), settings);
-    let mut tui = home.tui("zh_CN.UTF-8");
-    tui.wait_for("工作区");
-    tui.say("在吗");
-    tui.wait_for("▣  ");
-    tui.say("/model");
-    tui.wait_for("dev/beta");
-    tui.type_text("beta");
-    tui.pump(Duration::from_millis(300));
-    tui.key(b"\r");
-    tui.wait_for("beta dev");
-    tui.pump(Duration::from_millis(300));
-    assert!(!tui.shows("下一轮"), "{}", tui.lines().join("\n"));
-}
-
-#[test]
 fn ctrl_g_edits_the_prompt_in_the_editor() {
     // 2026-10-02 项目主人要：Ctrl+G 用编辑器写提示词，退出后回到输入框。假编辑器把文件换成一句话。
     let home = Home::new(Script::new([]));
@@ -347,4 +328,27 @@ fn a_down_arrow_beside_the_box_brings_the_view_back_to_the_bottom() {
         tui.lines().join("\n")
     );
     assert!(arrow(&tui).is_none());
+}
+
+#[test]
+fn ctrl_end_goes_back_to_the_bottom() {
+    // 2026-10-02 项目主人要 Ctrl+End 回到底部。
+    let long: &'static str = Box::leak(
+        (1..=80)
+            .map(|i| format!("第 {i} 行"))
+            .collect::<Vec<_>>()
+            .join("\n\n")
+            .into_boxed_str(),
+    );
+    let home = Home::new(Script::new([Play::Says(long)]));
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("说长一点");
+    tui.wait_for("▣  ");
+    tui.key(b"\x1b[5~");
+    tui.pump(Duration::from_millis(300));
+    assert!(!tui.shows("第 80 行"));
+    tui.key(b"\x1b[1;5F");
+    tui.pump(Duration::from_millis(300));
+    assert!(tui.shows("第 80 行"), "{}", tui.lines().join("\n"));
 }

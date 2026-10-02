@@ -31,6 +31,8 @@ pub(super) enum Awaiting {
     Models,
     /// 要 `/model` 框里的一行行。
     Choices,
+    /// 要 `/effort` 框里的几级。
+    Efforts,
     /// `@` 文件列表问的：哪个词。
     Files(crate::mention::Word),
     /// 换模型：成了交给界面（引用）。

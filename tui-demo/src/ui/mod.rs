@@ -11,6 +11,7 @@ mod compaction_rows;
 mod diff_rows;
 mod done_row;
 mod drawer;
+pub mod effort_list;
 mod figure_rows;
 mod footer;
 mod foreign_rows;
@@ -366,6 +367,13 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             ),
             None => Default::default(),
         },
+        Some(crate::app::Panel::Effort { selected }) => effort_list::lines(
+            app.efforts.as_ref(),
+            selected,
+            &app.config,
+            width,
+            usize::from(inner),
+        ),
         Some(crate::app::Panel::Language { selected }) => languages::lines(
             &app.config,
             &app.system_language,

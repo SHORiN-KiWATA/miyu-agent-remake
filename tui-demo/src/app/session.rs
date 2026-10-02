@@ -22,8 +22,14 @@ impl App {
     pub(super) fn new_session(&mut self) {
         self.leave_child();
         let keep = self.busy_here();
+        // 底栏先照旧写原来的模型、思考强度，等核心交回默认的再换（2026-10-02 项目主人报：开新会话底栏闪一下；手动
+        // 换的就是新会话的默认，多半一样）。
+        let shown = self.transcript.footer_model();
         self.core.send(Command::New { keep });
         self.park_current(keep);
+        self.transcript.keep_footer_model(shown);
+        // 空会话的底栏照默认的聊天模型写（`effort.rs`）。
+        self.refresh_effort();
     }
 
     /// 正在看的会话换下来：还忙着的（`keep`）停放着，等它空下来再退订；不然连它的子代理一起不要了。换上一份空的正文。

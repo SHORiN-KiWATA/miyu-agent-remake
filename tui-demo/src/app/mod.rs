@@ -3,6 +3,7 @@
 mod compose;
 mod deadline;
 mod drawer;
+mod effort;
 mod jobs;
 
 pub use jobs::Panel;
@@ -137,6 +138,8 @@ pub struct App {
     pub session_list: Option<crate::session_list::SessionList>,
     /// `/model` 开着时的框（`models.rs`）。
     pub model_list: Option<crate::model_list::ModelList>,
+    /// `/effort` 框里那个模型的几级；还没交回来的是 `None`（`effort.rs`）。
+    pub efforts: Option<crate::core::Efforts>,
     /// 确认和提问的抽屉：现在这一个和排着的（蓝图「确认和提问的抽屉」）。
     pub drawers: Drawers,
     /// 抽屉每一行是第几项（点哪一行点中哪一项）；上一帧排出来的。
@@ -281,6 +284,7 @@ impl App {
             panel: None,
             session_list: None,
             model_list: None,
+            efforts: None,
             drawers: Drawers::default(),
             drawer_rows: Vec::new(),
             caret: crate::caret::Caret::default(),

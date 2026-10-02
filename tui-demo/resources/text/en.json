@@ -312,6 +312,10 @@
         "Scroll the conversation"
       ],
       [
+        "Ctrl+End",
+        "Back to the bottom of the transcript"
+      ],
+      [
         "Ctrl+L",
         "Clear the screen"
       ],
@@ -454,6 +458,15 @@
     "ticked": " · {count} ticked",
     "delete_many": "Press Ctrl+D again to delete {count} sessions",
     "deleted_many": "Deleted {count} sessions"
+  },
+  "effort": {
+    "title": "Thinking effort · {model}",
+    "loading_title": "Thinking effort",
+    "hint": "↑/↓ select · Enter switch · Esc close",
+    "default": "Default (provider decides)",
+    "loading": "Reading models…",
+    "none": "This model has no effort levels to choose",
+    "need_model": "A model pool is in use"
   },
   "model_panel": {
     "title": "Models",

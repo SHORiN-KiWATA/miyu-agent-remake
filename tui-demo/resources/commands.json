@@ -126,6 +126,15 @@
       "run": "model"
     },
     {
+      "name": "effort",
+      "summary": {
+        "zh": "换正在用的模型的思考强度",
+        "en": "Change the thinking effort of the model in use",
+        "ja": "使用中のモデルの思考の強さを変更する"
+      },
+      "run": "effort"
+    },
+    {
       "name": "readonly",
       "summary": {
         "zh": "开关只读，和 Shift+Tab 一样",

@@ -98,6 +98,8 @@ pub struct Current {
     pub model: Option<String>,
     /// 引用：模型、`@池` 或挡位。
     pub reference: String,
+    /// 接下来那个模型真用的思考强度（核心 8-18）；什么都不发的、轮换的池是 `None`。
+    pub effort: Option<String>,
 }
 
 /// 订阅回应（`result`）里的 `model`；什么都没配的没有。
@@ -107,6 +109,7 @@ pub fn current(result: &Value) -> Option<Current> {
         endpoint: model["endpoint"].as_str().map(str::to_string),
         model: model["model"].as_str().map(str::to_string),
         reference: model["ref"].as_str()?.to_string(),
+        effort: model["effort"]["level"].as_str().map(str::to_string),
     })
 }
 

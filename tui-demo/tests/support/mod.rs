@@ -283,6 +283,14 @@ impl Tui {
         self.recording.take().unwrap_or_default()
     }
 
+    /// 从现在起录，交回现在的屏幕：交给 [`frames`] 一帧一帧重放录下的字节（只读屏幕看不到中间闪过的帧）。
+    pub fn record_from_here(&mut self) -> vt100::Parser {
+        let mut start = vt100::Parser::new(ROWS, COLS, 0);
+        start.process(&self.screen.screen().contents_formatted());
+        self.record();
+        start
+    }
+
     /// 屏幕上的字，一行一行。
     pub fn lines(&self) -> Vec<String> {
         self.screen
@@ -327,4 +335,23 @@ impl Drop for Tui {
         drop(self.child.kill());
         drop(self.child.wait());
     }
+}
+
+/// 从 `start` 那一屏起，把录下的字节照同步输出的结尾（`CSI ? 2026 l`）一帧一帧放出来，交回每一帧的屏幕，一行一行。
+pub fn frames(mut start: vt100::Parser, recorded: &[u8]) -> Vec<Vec<String>> {
+    const END: &[u8] = b"\x1b[?2026l";
+    let mut out = Vec::new();
+    let mut rest = recorded;
+    while let Some(at) = rest.windows(END.len()).position(|w| w == END) {
+        start.process(&rest[..at + END.len()]);
+        out.push(
+            start
+                .screen()
+                .rows(0, COLS)
+                .map(|l| l.trim_end().to_string())
+                .collect(),
+        );
+        rest = &rest[at + END.len()..];
+    }
+    out
 }

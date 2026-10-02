@@ -18,6 +18,13 @@ pub(super) fn request(command: &Command) -> Option<(&'static str, Value, Option<
         Command::Delete(session) => ("session.delete", json!({"session": session}), None),
         Command::ListModels => ("model.list", json!({}), Some(Awaiting::Models)),
         Command::ListChoices => ("model.list", json!({}), Some(Awaiting::Choices)),
+        Command::SetChat(reference) => ("config.set", config::set_chat(reference), None),
+        Command::ListEfforts => ("model.list", json!({}), Some(Awaiting::Efforts)),
+        Command::SetEffort { key, level } => (
+            "config.set",
+            config::set_effort(key, level.as_deref()),
+            None,
+        ),
         Command::Files {
             word,
             method,

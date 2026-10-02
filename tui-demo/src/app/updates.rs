@@ -31,6 +31,10 @@ impl App {
             return;
         }
         // 配置里的界面语言：照它换（`language.rs`）。
+        // 连上核心都会读一次界面语言：顺手要一次模型资料，底栏照它写模型和思考强度（`effort.rs`）。
+        if matches!(update, Update::UiLanguage(_)) {
+            self.refresh_effort();
+        }
         if let Update::UiLanguage(code) = update {
             self.language_from_config(&code);
             return;
@@ -39,6 +43,17 @@ impl App {
         // `@` 文件列表的回应：交给列表，照哪个词问的认（`mention/`）。
         if let Update::Files { word, result } = update {
             self.mention.replied(&word, result.as_ref());
+            return;
+        }
+        // 换了模型：底栏照新的模型写思考强度，不等下一轮（2026-10-02 项目主人报）。
+        if let Update::Configured(_) = &update {
+            self.transcript.update(update, &self.config.text);
+            self.refresh_effort();
+            return;
+        }
+        // `/effort` 的几级：交给开着的框（`effort.rs`）。
+        if let Update::Efforts(list) = update {
+            self.efforts_listed(list);
             return;
         }
         if let Update::Choices(all) = update {

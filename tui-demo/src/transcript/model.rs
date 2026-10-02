@@ -18,6 +18,8 @@ pub struct ModelWatch {
     reference: Option<String>,
     /// 都在冷却：最早什么时候恢复，还不知道的是 `None`；没在冷却是外面那层 `None`。
     cooling: Option<Option<Timestamp>>,
+    /// 接下来那个模型真用的思考强度：底栏写在模型名后面（核心 8-18，`/effort`）。
+    effort: Option<String>,
 }
 
 impl Transcript {
@@ -42,6 +44,7 @@ impl Transcript {
     }
 
     /// 换了模型：底栏的模型、限额当场换；出错换的写一行暗色的「↻ 换了模型：原来的 → 换成的」，下一行写为什么。
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn model_changed(
         &mut self,
         endpoint: Option<String>,
@@ -49,11 +52,13 @@ impl Transcript {
         limits: Option<Limits>,
         failover: bool,
         reference: Option<String>,
+        effort: Option<String>,
         texts: &Texts,
     ) {
         if reference.is_some() {
             self.models.reference = reference;
         }
+        self.models.effort = effort;
         let current = self.model.as_ref().map(|(m, e)| format!("{e}/{m}"));
         let from = self.models.tried.take().or(current);
         if let (Some(model), Some(endpoint)) = (model, endpoint) {
@@ -96,12 +101,48 @@ impl Transcript {
         self.models.reference.as_deref()
     }
 
+    /// 还没开会话：底栏照默认的聊天模型（`models.chat`）写模型和这一档；开了会话的不动（照推来的）。
+    pub fn show_default(&mut self, reference: &str, effort: Option<String>) {
+        if self.models.reference.is_some() {
+            return;
+        }
+        if let Some((endpoint, model)) = reference.split_once('/') {
+            self.model = Some((model.to_string(), endpoint.to_string()));
+        }
+        self.models.effort = effort;
+    }
+
+    /// 底栏现在写的模型、思考强度：开新会话时带过去，等核心交回默认的再换（不闪一下空的）。
+    pub fn footer_model(&self) -> (Option<(String, String)>, Option<String>) {
+        (self.model.clone(), self.models.effort.clone())
+    }
+
+    /// 接着写带过来的模型、思考强度（[`Transcript::footer_model`]）。
+    pub fn keep_footer_model(
+        &mut self,
+        (model, effort): (Option<(String, String)>, Option<String>),
+    ) {
+        self.model = model;
+        self.models.effort = effort;
+    }
+
+    /// 换了思考强度（`/effort` 写完再要的 `model.list`）：底栏当场照新的最终值写。
+    pub fn set_effort(&mut self, effort: Option<String>) {
+        self.models.effort = effort;
+    }
+
+    /// 接下来那个模型真用的思考强度；什么都不发的是 `None`（底栏，`/effort`）。
+    pub fn effort(&self) -> Option<&str> {
+        self.models.effort.as_deref()
+    }
+
     /// 订阅回应里会话现在用的模型：底栏照它画，记下引用。
     pub(super) fn current_model(&mut self, current: Current) {
         if let (Some(model), Some(endpoint)) = (current.model, current.endpoint) {
             self.model = Some((model, endpoint));
         }
         self.models.reference = Some(current.reference);
+        self.models.effort = current.effort;
     }
 
     /// `/model` 换成了（下一个回合开始生效）：记下引用，底栏当场写成选的那个（`供应商/模型` 的分开写，池、挡位照写）。
@@ -114,6 +155,8 @@ impl Transcript {
         };
         self.model = Some(shown);
         self.models.reference = Some(reference);
+        // 原来那个模型的思考强度不是这个的：先不写，等 `model.list`、推来的（池的照推来的）。
+        self.models.effort = None;
     }
 
     /// 会话换了模型（`session.policy_changed`）：记下引用；钉着的没了、内核退回默认的写一行暗色的（第 8 条）。

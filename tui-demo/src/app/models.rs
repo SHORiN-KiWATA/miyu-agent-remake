@@ -117,8 +117,10 @@ impl App {
                 if self.transcript.model_ref() == Some(choice.reference.as_str()) {
                     return;
                 }
-                // 不弹提示：底栏当场就写成选的那个（2026-10-01 项目主人：改模型、思考强度不要通知）。
+                // 不弹提示：底栏当场就写成选的那个（2026-10-01 项目主人：改模型、思考强度不要通知）。核心答应了再照新的
+                // 模型刷新思考强度（`updates.rs`）。手动换的也记成新会话的默认（2026-10-02 项目主人定）。
                 self.core.send(Command::Configure(choice.reference.clone()));
+                self.core.send(Command::SetChat(choice.reference.clone()));
             }
         }
     }

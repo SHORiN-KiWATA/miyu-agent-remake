@@ -208,6 +208,8 @@ pub enum Push {
         failover: bool,
         /// 引用（模型、`@池`、挡位）。
         reference: Option<String>,
+        /// 接下来那个模型真用的思考强度（核心 8-18）；什么都不发的、轮换的池是 `None`。
+        effort: Option<String>,
     },
     /// 会话换了模型（`session.policy_changed` 的 `model`，核心 8-10）：人换的，或者钉着的没了内核退回默认（`replaced`
     /// 是原来的）。
@@ -316,6 +318,7 @@ pub fn read(event: &Value, mine: &dyn Fn(&str) -> bool) -> Vec<Push> {
             limits: body.get("limits").map(Limits::read),
             failover: body["why"] == "failover",
             reference: body["ref"].as_str().map(str::to_string),
+            effort: body["effort"]["level"].as_str().map(str::to_string),
         }),
         "peer.idle" => out.push(Push::PeerIdle {
             session: text(&body["session"]),

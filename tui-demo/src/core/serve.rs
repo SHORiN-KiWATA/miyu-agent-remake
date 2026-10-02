@@ -324,6 +324,7 @@ async fn take(
                 Awaiting::Watch(_) | Awaiting::UiLanguage | Awaiting::Human | Awaiting::Models,
             ) => true,
             Some(Awaiting::Choices) => notify(Update::Choices(Vec::new())),
+            Some(Awaiting::Efforts) => notify(Update::Efforts(super::EffortList::default())),
             Some(Awaiting::Files(word)) => notify(Update::Files { word, result: None }),
             // 切过去订阅不上（会话删了、日志坏了）：不再当它在补发，照一般的拒绝说。
             Some(Awaiting::Replay(session)) => {
@@ -370,6 +371,9 @@ async fn take(
         Some(Awaiting::Files(word)) => {
             let result = Some(message["result"].clone());
             return notify(Update::Files { word, result });
+        }
+        Some(Awaiting::Efforts) => {
+            return notify(Update::Efforts(super::EffortList::read(&message["result"])));
         }
         Some(Awaiting::Configure(reference)) => return notify(Update::Configured(reference)),
         Some(Awaiting::Models) => {

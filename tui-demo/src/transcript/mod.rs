@@ -230,7 +230,7 @@ impl Transcript {
             Update::CoolingUntil(until) => self.cooling_until(until),
             Update::CurrentModel(current) => self.current_model(current),
             Update::Configured(reference) => self.configured(reference),
-            Update::Choices(_) | Update::Files { .. } => {}
+            Update::Choices(_) | Update::Files { .. } | Update::Efforts(_) => {}
             Update::Failed(reason) => {
                 self.link = Link::Down(texts.core_failed.replace("{reason}", &reason));
             }
@@ -303,7 +303,8 @@ impl Transcript {
                 limits,
                 failover,
                 reference,
-            } => self.model_changed(endpoint, model, limits, failover, reference, texts),
+                effort,
+            } => self.model_changed(endpoint, model, limits, failover, reference, effort, texts),
             Push::ModelSet {
                 reference,
                 replaced,

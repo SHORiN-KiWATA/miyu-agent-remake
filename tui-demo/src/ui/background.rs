@@ -30,9 +30,13 @@ pub fn lines(
     let words = &config.text.jobs;
     match panel {
         None
-        | Some(Panel::Help { .. } | Panel::Language { .. } | Panel::Sessions | Panel::Models) => {
-            (Chrome::default(), Vec::new(), Vec::new())
-        }
+        | Some(
+            Panel::Help { .. }
+            | Panel::Language { .. }
+            | Panel::Sessions
+            | Panel::Models
+            | Panel::Effort { .. },
+        ) => (Chrome::default(), Vec::new(), Vec::new()),
         Some(Panel::Background {
             selected,
             open,

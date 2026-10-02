@@ -200,6 +200,8 @@ pub struct Texts {
     pub sessions: crate::ui::session_list::Texts,
     /// `/model` 开的框里的字（「配置与模型」第 1 条）。
     pub model_panel: crate::ui::model_list::Texts,
+    /// `/effort` 的框（`ui/effort_list.rs`）。
+    pub effort: crate::ui::effort_list::Texts,
     /// 没有这个斜杠命令，`{name}`。
     pub unknown_command: String,
     /// 演示用的假命令，`{name}`。

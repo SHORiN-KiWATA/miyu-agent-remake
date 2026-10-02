@@ -312,6 +312,10 @@
         "翻正文"
       ],
       [
+        "Ctrl+End",
+        "回到正文最底下"
+      ],
+      [
         "Ctrl+L",
         "清屏"
       ],
@@ -454,6 +458,15 @@
     "ticked": " · 已勾 {count}",
     "delete_many": "再按一次 Ctrl+D 删除 {count} 个会话",
     "deleted_many": "已删除 {count} 个会话"
+  },
+  "effort": {
+    "title": "思考强度 · {model}",
+    "loading_title": "思考强度",
+    "hint": "↑/↓ 选 · Enter 换 · Esc 关闭",
+    "default": "默认（供应商定）",
+    "loading": "正在读模型…",
+    "none": "这个模型没有可选的思考强度",
+    "need_model": "当前使用的是模型池"
   },
   "model_panel": {
     "title": "模型",

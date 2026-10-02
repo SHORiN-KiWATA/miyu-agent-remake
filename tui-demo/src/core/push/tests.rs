@@ -420,7 +420,8 @@ fn a_failover_model_change_is_read_with_its_limits() {
     // 核心 8-9：瞬时的 `model.changed`，`why` 是 `failover`；没值的格不写。
     let changed = json!({"at":"2026-09-25T08:20:44.900Z","kind":"model.changed","turn":131,"by":{"kind":"kernel"},
         "body":{"ref":"@duo","endpoint":"bigmodel","model":"glm-5.3-flash",
-            "limits":{"window":200000,"compaction_line":167000},"why":"failover"}});
+            "limits":{"window":200000,"compaction_line":167000},"why":"failover",
+            "effort":{"level":"high","from":"personal"}}});
     assert_eq!(
         read_mine(&changed),
         vec![Push::ModelChanged {
@@ -432,6 +433,7 @@ fn a_failover_model_change_is_read_with_its_limits() {
             }),
             failover: true,
             reference: Some("@duo".into()),
+            effort: Some("high".into()),
         }]
     );
 }

@@ -34,6 +34,20 @@ pub(super) fn touches_language(params: &Value) -> bool {
     params["keys"].get(LANGUAGE).is_some()
 }
 
+/// 新会话默认用哪个（手动换的模型，`/model`）：写进个人设置的 `models.chat`。
+pub(super) fn set_chat(reference: &str) -> Value {
+    json!({"layer": "personal", "changes": [{"key": "models.chat", "value": reference}]})
+}
+
+/// 把一个模型的思考强度写进个人设置（`key` 照 `facts.effort.key` 抄）；`level` 是 `None` 的去掉这一项（回到供应商定）。
+pub(super) fn set_effort(key: &str, level: Option<&str>) -> Value {
+    let change = match level {
+        Some(level) => json!({"key": key, "value": level}),
+        None => json!({"key": key, "unset": true}),
+    };
+    json!({"layer": "personal", "changes": [change]})
+}
+
 /// 把界面语言写进个人设置（`code` 是 `auto` 或者语言代码）。
 pub(super) fn set_language(code: &str) -> Value {
     json!({"layer": "personal", "changes": [{"key": LANGUAGE, "value": code}]})
