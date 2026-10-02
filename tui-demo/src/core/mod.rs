@@ -39,7 +39,7 @@ pub use output::JobOutput;
 pub use push::{Block, CallError, Compaction, JobEnd, JobReason, JobStart, Push, Sender, Usage};
 use rpc::Rpc;
 pub use sessions::SessionInfo;
-pub use undo::Report;
+pub use undo::{Report, UndoFile};
 
 /// 界面要核心做的事。
 #[derive(Debug)]

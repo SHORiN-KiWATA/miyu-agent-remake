@@ -56,12 +56,23 @@
   "done": "{time} · {endpoint}/{model} · {elapsed}",
   "speed": "{rate} tok/s",
   "context": "{used}/{window}({percent}%)",
-  "undone": "已撤销 · /restore 恢复",
+  "undone": "已撤销",
+  "undo_restore": "/restore 恢复",
   "undo_compactions": "撤掉了压缩，上下文回到了压缩前",
   "undo_clears": "撤掉了清空，上下文回到了清空以前",
   "restored": "改回 {count} 个文件",
-  "untouched": "{count} 个文件没动：之后又被改过，或者已经不在了",
-  "commands": "{count} 条命令的改动撤不回",
+  "undo_files": {
+    "restored": "已改回",
+    "changed": "没动：之后又被改过",
+    "missing": "没动：已经不在了",
+    "occupied": "没动：原处被占了",
+    "gone": "没动：回收站里已经没有了",
+    "unsaved": "没动：改之前的内容没存下来",
+    "unavailable": "没动：回收站收不了",
+    "failed": "没动：出错了",
+    "other": "没动",
+    "more": "⋯ 还有 {count} 行"
+  },
   "unknown_command": "命令不存在",
   "fake_command": "/{name} 是演示用的假命令，还不做事",
   "thinking": "思考中",
@@ -273,6 +284,14 @@
         "复制选中的；清空输入框（↑ 找回）；在回答时打断"
       ],
       [
+        "Ctrl+G",
+        "用编辑器写这句话（$VISUAL、$EDITOR）"
+      ],
+      [
+        "Ctrl+Enter",
+        "在回答时马上发出排着的（连输入框里的）"
+      ],
+      [
         "Esc Esc",
         "在回答时打断，排着的接着发；不在回答时清空输入框"
       ],
@@ -423,8 +442,6 @@
     "hint": "↑/↓ 选 · Enter 切过去 · 空格 勾选 · Ctrl+P 置顶 · Ctrl+D 删除 · Esc 关闭",
     "loading": "正在读会话…",
     "empty": "没有对得上的会话",
-    "current": "当前",
-    "busy": "在忙",
     "now": "刚才",
     "minutes": "{n} 分钟前",
     "hours": "{n} 小时前",

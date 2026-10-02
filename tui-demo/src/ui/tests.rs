@@ -70,7 +70,7 @@ fn the_narrow_todo_list_sits_above_the_box_with_a_blank_between() {
     assert_eq!((a.todo.height, a.todo.bottom() + 1), (6, a.frame.y));
     assert_eq!(a.todo.y, a.body.bottom() + 1);
     assert_eq!(a.todo.x, a.text.x, "和框里的字左对齐");
-    // 开着列表：列表在待办和输入框之间。
+    // 开着列表：列表是覆盖层，贴着输入框盖在待办上，待办不挪（2026-10-02）。
     let b = areas(
         Rect::new(0, 0, 100, 40),
         &|w| input.rows(w),
@@ -82,7 +82,7 @@ fn the_narrow_todo_list_sits_above_the_box_with_a_blank_between() {
         6,
     );
     assert_eq!(b.menu.bottom(), b.frame.y);
-    assert_eq!(b.todo.bottom() + 1, b.menu.y);
+    assert_eq!(b.todo, a.todo, "待办不挪");
     // 在回答：运行状态行那一块在待办上面。
     let c = areas(
         Rect::new(0, 0, 100, 40),
@@ -149,7 +149,6 @@ fn nothing_above_the_box_covers_it_in_a_short_window() {
             a.frame
         );
     }
-    assert!(!a.todo.intersects(a.menu), "待办盖住了列表");
     // 在回答、还排着两条：运行状态行那一块放不下的不盖输入框。
     let b = areas(Rect::new(0, 0, 30, 6), &rows, &layout, 0, true, 2, 0, 0);
     for (name, r) in [("运行状态行", b.pulse), ("排队的", b.queued)] {
@@ -228,5 +227,29 @@ fn the_agent_circles_line_up_with_the_level_icon() {
     ] {
         assert_eq!(a.agents.x + lead, a.footer.x, "{name}：圆圈和 ▣ 同一列");
         assert_eq!(a.agents.right(), a.footer.right(), "{name}：右边照旧");
+    }
+}
+
+#[test]
+fn an_open_list_covers_the_body_instead_of_pushing_it_up() {
+    // 2026-10-02 项目主人：输入框上面的框改成覆盖层，盖在正文底部上；原来把正文往上推，高度一变正文就上下跳。
+    let layout = Config::builtin().unwrap().layout;
+    let input = InputBox::new(8, Duration::from_millis(400));
+    let rows = |w: u16| input.rows(w);
+    let area = Rect::new(0, 0, 100, 40);
+    for running in [false, true] {
+        let shut = areas(area, &rows, &layout, 0, running, 2, 0, 3);
+        let open = areas(area, &rows, &layout, 7, running, 2, 0, 3);
+        assert_eq!(open.body, shut.body, "正文一行不动（在回答：{running}）");
+        assert_eq!(
+            (open.pulse, open.queued, open.todo),
+            (shut.pulse, shut.queued, shut.todo),
+            "运行状态行、排队的、待办照没开框时的位置"
+        );
+        assert_eq!(open.menu.bottom(), open.frame.y, "框贴着输入框");
+        assert_eq!(open.menu.height, 7);
+        if !running {
+            assert!(open.menu.intersects(open.body), "盖在正文底部上");
+        }
     }
 }

@@ -263,3 +263,88 @@ fn choosing_a_model_shows_no_notice() {
     tui.pump(Duration::from_millis(300));
     assert!(!tui.shows("下一轮"), "{}", tui.lines().join("\n"));
 }
+
+#[test]
+fn ctrl_g_edits_the_prompt_in_the_editor() {
+    // 2026-10-02 项目主人要：Ctrl+G 用编辑器写提示词，退出后回到输入框。假编辑器把文件换成一句话。
+    let home = Home::new(Script::new([]));
+    let script = home.work.join("fake-editor.sh");
+    std::fs::write(
+        &script,
+        "#!/bin/sh\nprintf '编辑器里写的\\n第二行\\n' > \"$1\"\n",
+    )
+    .unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    let editor = script.display().to_string();
+    let mut tui = home.tui_with("zh_CN.UTF-8", &[("VISUAL", &editor), ("EDITOR", &editor)]);
+    tui.wait_for("工作区");
+    tui.type_text("原来的话");
+    tui.pump(Duration::from_millis(300));
+    tui.key(b"\x07");
+    tui.wait_for("编辑器里写的");
+    tui.wait_for("第二行");
+    assert!(!tui.shows("原来的话"), "{}", tui.lines().join("\n"));
+}
+
+#[test]
+fn ctrl_enter_interrupts_and_sends_what_is_queued_now() {
+    // 2026-10-02 项目主人要：Ctrl+Enter 立马发排着的（连输入框里的），不用提示，不用按两下。
+    let home = Home::new(Script::new([Play::Holds, Play::Says("收到插的那句。")]));
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("第一句");
+    tui.pump(Duration::from_millis(800));
+    tui.type_text("插一句");
+    tui.pump(Duration::from_millis(300));
+    // kitty 键盘协议里的 Ctrl+Enter。
+    tui.key(b"\x1b[13;5u");
+    tui.wait_for("收到插的那句。");
+    assert!(tui.shows("┃ 插一句"), "{}", tui.lines().join("\n"));
+    assert!(!tui.shows("再按一次"), "不提示");
+}
+
+#[test]
+fn a_down_arrow_beside_the_box_brings_the_view_back_to_the_bottom() {
+    // 2026-10-02 项目主人要：不在底部时输入框右边框外面那两列空白里一个 ↓，点了回到底部。
+    let long: &'static str = Box::leak(
+        (1..=80)
+            .map(|i| format!("第 {i} 行"))
+            .collect::<Vec<_>>()
+            .join("\n\n")
+            .into_boxed_str(),
+    );
+    let home = Home::new(Script::new([Play::Says(long)]));
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("说长一点");
+    tui.wait_for("▣  ");
+    let arrow = |tui: &support::Tui| {
+        tui.lines()
+            .iter()
+            .enumerate()
+            .find_map(|(y, l)| l.trim_end().ends_with("│ ↓").then_some(y))
+    };
+    assert!(
+        arrow(&tui).is_none(),
+        "在底部时没有：\n{}",
+        tui.lines().join("\n")
+    );
+    tui.key(b"\x1b[5~");
+    tui.pump(Duration::from_millis(300));
+    let y = arrow(&tui).unwrap_or_else(|| panic!("翻上去以后有：\n{}", tui.lines().join("\n")));
+    let line = &tui.lines()[y];
+    let x = unicode_width::UnicodeWidthStr::width(line.trim_end()) - 1;
+    tui.key(format!("\x1b[<0;{};{}M", x + 1, y + 1).as_bytes());
+    tui.key(format!("\x1b[<0;{};{}m", x + 1, y + 1).as_bytes());
+    tui.pump(Duration::from_millis(300));
+    assert!(
+        tui.shows("第 80 行"),
+        "回到底部：\n{}",
+        tui.lines().join("\n")
+    );
+    assert!(arrow(&tui).is_none());
+}

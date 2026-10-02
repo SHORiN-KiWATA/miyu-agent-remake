@@ -49,6 +49,10 @@
     "read_only"
   ],
   "undo_icon": "↶ ",
+  "bottom_mark": "↓",
+  "current_mark": "●",
+  "undo_restored_mark": "✓ ",
+  "undo_left_mark": "✗ ",
   "esc_window_ms": 1500,
   "drawer_keep_rows": 6,
   "dots": {

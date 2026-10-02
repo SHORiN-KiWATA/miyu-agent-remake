@@ -21,6 +21,7 @@ mod redo;
 mod reply;
 mod steps;
 mod turn;
+mod undo;
 mod words;
 
 #[cfg(test)]
@@ -249,27 +250,9 @@ impl Transcript {
             Update::Undone {
                 restore: false,
                 report,
-            } => {
-                let said = self
-                    .entries
-                    .iter()
-                    .find(|e| {
-                        e.kind == Kind::User && e.turn.is_some_and(|t| self.reverted.contains(&t))
-                    })
-                    .map(|e| e.text.clone())
-                    .or_else(|| report.said.clone())
-                    .unwrap_or_default();
-                self.note(Kind::Undo, said);
-                if let Some(last) = self.entries.last_mut() {
-                    last.undo = Some(report);
-                }
-            }
+            } => self.undo_line(report),
             // 恢复：那几轮已经照 `turn.unreverted` 显示回来了，去掉最近的那一行撤销说明，不另写一句。
-            Update::Undone { restore: true, .. } => {
-                if let Some(i) = self.entries.iter().rposition(|e| e.kind == Kind::Undo) {
-                    self.entries.remove(i);
-                }
-            }
+            Update::Undone { restore: true, .. } => self.undo_gone(),
         }
     }
 
@@ -307,6 +290,9 @@ impl Transcript {
                 self.reverted = turns;
             }
             Push::Unreverted(turns) => self.hide(&turns, false),
+            Push::UndoLine => self.undo_line(crate::core::Report::default()),
+            Push::UndoFiles(files) => self.undo_files(files),
+            Push::UndoGone => self.undo_gone(),
             Push::Model { endpoint, model } => self.model = Some((model, endpoint)),
             Push::Heard(seen) => self.heard(seen),
             Push::Clock(at) => self.clock.set(at),

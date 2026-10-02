@@ -142,10 +142,36 @@ impl App {
             }
             return Action::None;
         }
+        // Ctrl+G：用编辑器写输入框里的话（`compose.rs`，`tui.md`「按键」）。
+        if ctrl && key.code == KeyCode::Char('g') {
+            self.compose();
+            return Action::None;
+        }
         // Ctrl+Z：挂起到后台；主循环照 `suspend` 还原终端、发信号（`tui.md`「按键」）。Windows 没有作业控制。
         if ctrl && key.code == KeyCode::Char('z') {
             self.suspend = cfg!(unix);
             return Action::None;
+        }
+        // Ctrl+Enter：输入框有字先发（在回答时排进队），在回答的当场打断、排着的马上发（`tui.md`「按键」，
+        // 2026-10-02 项目主人要；不提示）。没在回答时同 Enter。
+        if ctrl && key.code == KeyCode::Enter && self.menu_matches().is_none() {
+            let running = self.transcript.running.is_some();
+            let plain = KeyEvent::new(
+                KeyCode::Enter,
+                ratatui::crossterm::event::KeyModifiers::NONE,
+            );
+            let action = self.input.key(plain);
+            if running {
+                if let Action::Submit(text) = action {
+                    self.submit(text);
+                }
+                // 没有排着的（输入框也是空的）：什么都不做，不当打断用。
+                if self.transcript.entries.iter().any(|e| e.queued) {
+                    self.core.send(Command::Interrupt { send: true });
+                }
+                return Action::None;
+            }
+            return action;
         }
         // `@` 文件列表开着：选、进目录、收成块、关（「`@` 文件列表」第 5 条）；别的键照常打字。
         if let Some(found) = self.mention_found()

@@ -3,6 +3,8 @@
 //! 头不读核心的存储（`01-架构.md` 第五节第 1 条），所以只照参数：写入的全部是加上的，带行号；编辑的每一处
 //! 按行比，不知道在文件的第几行，不带行号。完整的差异等核心经协议交出来（蓝图「还没有的」）。
 
+pub mod unified;
+
 use serde::Deserialize;
 use similar::{ChangeTag, TextDiff};
 

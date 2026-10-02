@@ -422,3 +422,19 @@ fn transcript_pieces_keep_english_words_whole() {
         .collect();
     assert_eq!(editor.len(), 2, "输入框照字素簇折，不动");
 }
+
+#[test]
+fn blocks_follow_their_labels_after_editing_in_the_editor() {
+    // 2026-10-02 Ctrl+G：编辑器里改过的字，块照原来的样子接回去；删掉了的块不要。
+    use crate::input::Draft;
+    let before = Draft::from_pasted(
+        "看 [粘贴 #1] 和 [粘贴 #2]",
+        &[
+            ("[粘贴 #1]".into(), "第一段原文".into()),
+            ("[粘贴 #2]".into(), "第二段原文".into()),
+        ],
+    );
+    let after = Draft::rebind("先看 [粘贴 #2]，别的不要", &before);
+    assert_eq!(after.blocks.len(), 1);
+    assert_eq!(after.expand(), "先看 第二段原文，别的不要");
+}

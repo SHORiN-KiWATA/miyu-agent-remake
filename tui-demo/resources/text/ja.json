@@ -56,12 +56,23 @@
   "done": "{time} · {endpoint}/{model} · {elapsed}",
   "speed": "{rate} tok/s",
   "context": "{used}/{window}({percent}%)",
-  "undone": "取り消しました · /restore で復元",
+  "undone": "取り消しました",
+  "undo_restore": "/restore で復元",
   "undo_compactions": "圧縮を取り消しました。コンテキストは圧縮前の状態に戻りました",
   "undo_clears": "クリアを取り消しました。コンテキストはクリア前の状態に戻りました",
   "restored": "{count} 個のファイルを元に戻しました",
-  "untouched": "{count} 個のファイルはそのまま：その後さらに変更されたか、既に存在しません",
-  "commands": "{count} 件のコマンドによる変更は取り消せません",
+  "undo_files": {
+    "restored": "元に戻しました",
+    "changed": "そのまま：その後さらに変更された",
+    "missing": "そのまま：既に存在しない",
+    "occupied": "そのまま：元の場所が使われている",
+    "gone": "そのまま：ゴミ箱に既にない",
+    "unsaved": "そのまま：変更前の内容が保存されていない",
+    "unavailable": "そのまま：ゴミ箱に入れられない",
+    "failed": "そのまま：失敗しました",
+    "other": "そのまま",
+    "more": "⋯ あと {count} 行"
+  },
   "unknown_command": "そのコマンドはありません",
   "fake_command": "/{name} はこのデモ用の仮コマンドで、まだ何もしません",
   "thinking": "考え中",
@@ -273,6 +284,14 @@
         "選択部分をコピー。入力欄をクリア（↑ で復元）。返信中は中断"
       ],
       [
+        "Ctrl+G",
+        "エディタでこのメッセージを書く（$VISUAL、$EDITOR）"
+      ],
+      [
+        "Ctrl+Enter",
+        "回答中、待機中のメッセージ（入力欄の分も）をすぐ送る"
+      ],
+      [
         "Esc Esc",
         "返信中は中断（待機中のメッセージはすぐ後に送信）。それ以外は入力欄をクリア"
       ],
@@ -423,8 +442,6 @@
     "hint": "↑/↓ 選択 · Enter 切り替え · Space チェック · Ctrl+P ピン留め · Ctrl+D 削除 · Esc 閉じる",
     "loading": "セッションを読み込み中…",
     "empty": "一致するセッションがありません",
-    "current": "使用中",
-    "busy": "実行中",
     "now": "たった今",
     "minutes": "{n} 分前",
     "hours": "{n} 時間前",

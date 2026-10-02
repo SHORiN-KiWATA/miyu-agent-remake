@@ -39,24 +39,18 @@ pub enum ChoiceState {
     NoKey,
 }
 
-/// 照 `model.list` 排出 `/model` 的一行行：配了的挡位、池、模型，照这个先后。
+/// 照 `model.list` 排出 `/model` 的一行行：池、模型，照这个先后。没有挡位（核心 8-8 补）；一个成员都没有的池不列：
+/// 选了核心也只会拒。
 pub fn choices(result: &Value) -> Vec<Choice> {
     let mut out = Vec::new();
-    for tier in ["lite", "cheap", "standard", "flagship"] {
-        if let Some(target) = result["tiers"][tier].as_str() {
-            out.push(Choice {
-                reference: tier.to_string(),
-                name: tier.to_string(),
-                detail: format!("→ {target}"),
-                state: ChoiceState::Ok,
-            });
-        }
-    }
     for pool in result["pools"].as_array().into_iter().flatten() {
         let Some(name) = pool["name"].as_str() else {
             continue;
         };
         let members = pool["models"].as_array().map_or(0, Vec::len);
+        if members == 0 {
+            continue;
+        }
         out.push(Choice {
             reference: format!("@{name}"),
             name: format!("@{name}"),
@@ -137,11 +131,12 @@ mod tests {
     }
 
     #[test]
-    fn choices_list_tiers_pools_then_models_with_their_state() {
-        // 「配置与模型」第 1 条，核心 8-7 到 8-9。
+    fn choices_list_pools_with_members_then_models_with_their_state() {
+        // 「配置与模型」第 1 条，核心 8-7 到 8-9；8-8 补起没有挡位（2026-10-01 项目主人定），空的池不列。
         let list = json!({
-            "tiers": {"lite": null, "cheap": null, "standard": "dev/m1", "flagship": null},
-            "pools": [{"name": "duo", "strategy": "pin", "models": ["a/m", "dev/m1"]}],
+            "pools": [
+                {"name": "duo", "strategy": "pin", "models": ["a/m", "dev/m1"], "subagent": false, "description": null},
+                {"name": "lite", "strategy": "pin", "models": [], "subagent": true, "description": null}],
             "providers": [{"id": "dev", "models": [
                 {"model": "m1", "ref": "dev/m1", "state": "ok",
                  "facts": {"window": {"value": 300000}, "name": {"value": "DeepSeek V4.1 Flash"}}},
@@ -151,17 +146,16 @@ mod tests {
         let refs: Vec<&str> = got.iter().map(|c| c.reference.as_str()).collect();
         assert_eq!(
             refs,
-            ["standard", "@duo", "dev/m1", "dev/m2", "dev/m3"],
-            "没配的挡位不列"
+            ["@duo", "dev/m1", "dev/m2", "dev/m3"],
+            "没有挡位，空的池不列"
         );
-        assert_eq!(got[0].detail, "→ dev/m1");
-        assert_eq!(got[1].detail, "pin · 2");
+        assert_eq!(got[0].detail, "pin · 2");
         assert_eq!(
-            (got[2].name.as_str(), got[2].detail.as_str()),
+            (got[1].name.as_str(), got[1].detail.as_str()),
             ("DeepSeek V4.1 Flash", "dev/m1 · 300k")
         );
-        assert!(matches!(got[3].state, ChoiceState::Cooling(Some(_))));
-        assert_eq!(got[4].state, ChoiceState::NoKey);
-        assert_eq!(got[4].name, "m3", "没有显示名的写模型名");
+        assert!(matches!(got[2].state, ChoiceState::Cooling(Some(_))));
+        assert_eq!(got[3].state, ChoiceState::NoKey);
+        assert_eq!(got[3].name, "m3", "没有显示名的写模型名");
     }
 }

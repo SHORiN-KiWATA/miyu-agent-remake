@@ -1,6 +1,8 @@
 //! 会话列表的框（蓝图 `tui.md`「会话列表 `/sessions`」第 1、2 条）：和输入历史列表一个位置、一个样子。上边框写「会话」、
 //! 几个、打的字；一行一个会话：置顶的打头一个记号，标题（没起名的暗色），暗色短编号，有工作目录的接着写；右边写
-//! 「当前」「在忙」或者多久以前有过动静。勾上的行首一个紫色的勾（主题的 `picked`，2026-10-01 项目主人要紫色）。
+//! 多久以前有过动静。勾上的行首一个紫色的勾（主题的 `picked`，2026-10-01 项目主人要紫色）。标题前面一个记号：正在用的
+//! 强调色的 `●`，在跑的转着的盲文（照时间线的转圈，正在用的转圈也是强调色），别的空着（2026-10-02 项目主人：在跑的
+//! 看不出来，右边的「当前」不够显眼）。
 
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
@@ -29,10 +31,6 @@ pub struct Texts {
     pub loading: String,
     /// 一个都对不上。
     pub empty: String,
-    /// 正在用的这个右边写的。
-    pub current: String,
-    /// 有一轮在跑的右边写的。
-    pub busy: String,
     /// 多久以前：一分钟以内、几分钟、几小时、几天。
     pub now: String,
     /// `{n}` 分钟前。
@@ -60,6 +58,7 @@ pub struct Texts {
 }
 
 /// 框（标题、提示）、排好的行、每一行是对得上的第几个；`current` 是正在用的会话，放不下 `max` 行时离选中的远的少露。
+/// `frame` 是转圈转到第几帧。
 pub fn lines(
     list: &SessionList,
     current: Option<&str>,
@@ -67,6 +66,7 @@ pub fn lines(
     config: &Config,
     width: u16,
     max: usize,
+    frame: usize,
 ) -> (Chrome, Vec<Line<'static>>, Vec<Option<usize>>) {
     let texts = &config.text.sessions;
     let found = list.matches();
@@ -134,6 +134,7 @@ pub fn lines(
                 };
                 content.push(Span::styled(mark, theme::picked()));
             }
+            content.push(marker(info, current, frame, config));
             content.extend(head(info, config, column));
             content.push(Span::styled(
                 format!("  #{}", short(&info.session)),
@@ -149,6 +150,30 @@ pub fn lines(
     let rows = panel::fit(rows, Some(list.selected), max);
     let (map, lines) = rows.into_iter().unzip();
     (chrome, lines, map)
+}
+
+/// 标题前面的记号：在跑的转圈，正在用的 `●`（都是的转圈、强调色），别的空着，占一样宽。
+fn marker(
+    info: &SessionInfo,
+    current: Option<&str>,
+    frame: usize,
+    config: &Config,
+) -> Span<'static> {
+    let spinner = &config.timeline.spinner;
+    let is_current = current == Some(info.session.as_str());
+    let mark = if info.busy {
+        spinner[frame % spinner.len().max(1)].clone()
+    } else if is_current {
+        config.layout.current_mark.clone()
+    } else {
+        " ".to_string()
+    };
+    let style = if is_current {
+        theme::accent()
+    } else {
+        theme::dim()
+    };
+    Span::styled(format!("{mark} "), style)
 }
 
 /// 标题那一列有多宽：置顶的记号加标题（没起名的写「未命名会话」）。
@@ -189,10 +214,9 @@ fn right(
     config: &Config,
 ) -> String {
     let texts = &config.text.sessions;
-    let when = if current == Some(info.session.as_str()) {
-        texts.current.clone()
-    } else if info.busy {
-        texts.busy.clone()
+    // 正在用的、在跑的标题前面有记号，右边不再写「当前」「在忙」。
+    let when = if current == Some(info.session.as_str()) || info.busy {
+        String::new()
     } else {
         info.last_active
             .map(|at| ago(at, now, texts))
@@ -270,7 +294,15 @@ mod tests {
             info("0000-bbbbbbbb", None, "~/src/miyu"),
             info("0000-cccccccc", Some("短"), "~/src/app"),
         ]);
-        let (_, rows, _) = lines(&list, Some("0000-aaaaaaaa"), "~/src/miyu", &config, 90, 20);
+        let (_, rows, _) = lines(
+            &list,
+            Some("0000-aaaaaaaa"),
+            "~/src/miyu",
+            &config,
+            90,
+            20,
+            0,
+        );
         let text: Vec<String> = rows.iter().map(ToString::to_string).collect();
         let column = |l: &str| l.find(" #").map(|at| l[..at].width());
         let at: Vec<_> = text.iter().map(|l| column(l)).collect();
@@ -294,6 +326,45 @@ mod tests {
             style_of(1, "未命名会话"),
             style_of(2, "短"),
             "未命名的和起了名的一个颜色"
+        );
+    }
+
+    #[test]
+    fn the_current_one_gets_a_dot_and_a_busy_one_a_spinner_before_its_title() {
+        // 2026-10-02 项目主人：在跑的会话要看得出来，右边的「当前」不够显眼。标题前面加记号：正在用的 ●，在跑的转盲文。
+        let config = Config::builtin().unwrap();
+        let mut list = SessionList::default();
+        let mut busy = info("0000-bbbbbbbb", Some("在跑的"), "~/src/miyu");
+        busy.busy = true;
+        list.replace(vec![
+            info("0000-aaaaaaaa", Some("正在用的"), "~/src/miyu"),
+            busy,
+            info("0000-cccccccc", Some("别的"), "~/src/miyu"),
+        ]);
+        let (_, rows, _) = lines(
+            &list,
+            Some("0000-aaaaaaaa"),
+            "~/src/miyu",
+            &config,
+            90,
+            20,
+            0,
+        );
+        let text: Vec<String> = rows.iter().map(ToString::to_string).collect();
+        let spin = &config.timeline.spinner[0];
+        assert!(text[0].contains("● 正在用的"), "{text:#?}");
+        assert!(text[1].contains(&format!("{spin} 在跑的")), "{text:#?}");
+        assert!(
+            !text
+                .iter()
+                .any(|l| l.contains("当前") || l.contains("在忙")),
+            "右边不再写：{text:#?}"
+        );
+        let column = |l: &str, word: &str| l.find(word).map(|at| l[..at].width());
+        assert_eq!(
+            column(&text[0], "正在用的"),
+            column(&text[2], "别的"),
+            "标题照样对齐"
         );
     }
 

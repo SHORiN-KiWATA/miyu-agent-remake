@@ -344,6 +344,7 @@ impl App {
             || over(self.areas.button)
             || over(self.areas.session_id)
             || over(self.areas.todo)
+            || over(self.areas.bottom)
             || self.agents_hover.is_some_and(|r| r >= 2)
     }
 }

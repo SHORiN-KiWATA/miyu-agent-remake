@@ -77,8 +77,13 @@ impl Rows {
         self.owners.get(k..)?.iter().find_map(|o| *o)
     }
 
+    /// 第 `entry` 条的最后一行后面是第几行（不含）；没有这一条的是 `None`。
+    pub fn end_of(&self, entry: usize) -> Option<usize> {
+        let k = self.owners.iter().rposition(|o| *o == Some(entry))?;
+        Some(self.ends[k])
+    }
+
     /// 第 `entry` 条从第几行起。
-    #[cfg(test)]
     pub fn start_of(&self, entry: usize) -> Option<usize> {
         let k = self.owners.iter().position(|o| *o == Some(entry))?;
         Some(if k == 0 { 0 } else { self.ends[k - 1] })
@@ -278,5 +283,7 @@ fn owner(target: Target) -> usize {
     }
 }
 
+#[cfg(test)]
+mod test_support;
 #[cfg(test)]
 mod tests;

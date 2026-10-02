@@ -137,3 +137,46 @@ pub struct ModelTexts {
     /// 钉着的模型没了、退回默认，`{from}` → `{to}`（引用）。
     pub replaced: String,
 }
+
+/// 撤销点开以后，改回的每个文件后面写的：照结局（`protocol/undo.md` 的 `outcome`）。
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UndoFileTexts {
+    /// 改回了。
+    pub restored: String,
+    /// 之后又被改过。
+    pub changed: String,
+    /// 已经不在了。
+    pub missing: String,
+    /// 原处被占了。
+    pub occupied: String,
+    /// 回收站里已经没有了。
+    pub gone: String,
+    /// 改之前的内容没存下来。
+    pub unsaved: String,
+    /// 回收站收不了。
+    pub unavailable: String,
+    /// 出错了（后面接系统的原话）。
+    pub failed: String,
+    /// 认不出的结局。
+    pub other: String,
+    /// 差异没交全，`{count}` 行。
+    pub more: String,
+}
+
+impl UndoFileTexts {
+    /// 这个结局写什么。
+    pub fn outcome(&self, outcome: &str) -> &str {
+        match outcome {
+            "restored" => &self.restored,
+            "changed" => &self.changed,
+            "missing" => &self.missing,
+            "occupied" => &self.occupied,
+            "gone" => &self.gone,
+            "unsaved" => &self.unsaved,
+            "unavailable" => &self.unavailable,
+            "failed" => &self.failed,
+            _ => &self.other,
+        }
+    }
+}

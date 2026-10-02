@@ -42,7 +42,7 @@ pub use notify::{NotifyLook, NotifyTexts};
 pub use open::OpenTexts;
 pub use panels::{HistoryTexts, MenuTexts};
 pub use timeline::{Summary, Timeline, ToolKind};
-pub use words::{JobTexts, ModelTexts, RecapTexts, RenameTexts};
+pub use words::{JobTexts, ModelTexts, RecapTexts, RenameTexts, UndoFileTexts};
 
 /// 界面上给人看的字。`{count}` 这样的占位由代码填。
 #[derive(Debug, Clone, Deserialize)]
@@ -178,18 +178,18 @@ pub struct Texts {
     pub theme_changed: String,
     /// 换了图标，`{name}` 是那一套的名字。
     pub icons_changed: String,
-    /// 撤销那一行：`已撤销 · /restore 恢复`（不写几轮：撤销只能一轮一轮撤）。
+    /// 撤销那一行打头的：`已撤销`（不写几轮：撤销只能一轮一轮撤）。
     pub undone: String,
+    /// 撤销那一行接着写的：`/restore 恢复`。
+    pub undo_restore: String,
     /// 撤掉的几轮里有压缩时，撤销那一行下面那一句（施工 6-9）。
     pub undo_compactions: String,
     /// 撤掉的几轮里有清空：撤销那一行下面说一句（`/clear`，照 `miyu undo`）。
     pub undo_clears: String,
     /// 改回了几个文件，`{count}`。
     pub restored: String,
-    /// 几个文件没动，`{count}`。
-    pub untouched: String,
-    /// 几条命令的改动撤不回，`{count}`。
-    pub commands: String,
+    /// 撤销点开以后，改回的每个文件后面写的（2026-10-02 项目主人要文件清单）。
+    pub undo_files: UndoFileTexts,
     /// 撤销点开以后：停掉了几个后台任务，`{count}`（施工 7-8）。
     pub stopped_jobs: String,
     /// `/language` 换了语言以后提示的一句（蓝图「界面语言」）。

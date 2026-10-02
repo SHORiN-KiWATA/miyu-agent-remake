@@ -56,12 +56,23 @@
   "done": "{time} · {endpoint}/{model} · {elapsed}",
   "speed": "{rate} tok/s",
   "context": "{used}/{window}({percent}%)",
-  "undone": "Undone · /restore to bring it back",
+  "undone": "Undone",
+  "undo_restore": "/restore to bring it back",
   "undo_compactions": "Undid a compaction: the context is back to before it",
   "undo_clears": "Undid a clear: the context is back to before it",
   "restored": "Restored {count} file(s)",
-  "untouched": "Left {count} file(s) alone: changed again since, or gone",
-  "commands": "Changes by {count} command(s) can't be undone",
+  "undo_files": {
+    "restored": "restored",
+    "changed": "left alone: changed again since",
+    "missing": "left alone: no longer there",
+    "occupied": "left alone: something else is there now",
+    "gone": "left alone: no longer in the trash",
+    "unsaved": "left alone: the earlier content was not saved",
+    "unavailable": "left alone: the trash could not take it",
+    "failed": "left alone: failed",
+    "other": "left alone",
+    "more": "⋯ {count} more lines"
+  },
   "unknown_command": "No such command",
   "fake_command": "/{name} is a placeholder in this demo and does nothing yet",
   "thinking": "Thinking",
@@ -273,6 +284,14 @@
         "Copy the selection; clear the input (↑ to bring it back); interrupt while she's replying"
       ],
       [
+        "Ctrl+G",
+        "Write this message in your editor ($VISUAL, $EDITOR)"
+      ],
+      [
+        "Ctrl+Enter",
+        "While answering, send what is queued now (and the input)"
+      ],
+      [
         "Esc Esc",
         "Interrupt while she's replying, queued messages go right after; otherwise clear the input"
       ],
@@ -423,8 +442,6 @@
     "hint": "↑/↓ select · Enter switch · Space tick · Ctrl+P pin · Ctrl+D delete · Esc close",
     "loading": "Reading sessions…",
     "empty": "No matching sessions",
-    "current": "current",
-    "busy": "busy",
     "now": "just now",
     "minutes": "{n} min ago",
     "hours": "{n} h ago",

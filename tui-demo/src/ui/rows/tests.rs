@@ -189,3 +189,77 @@ fn a_new_theme_redraws_cached_replies() {
     theme::set(palette);
     assert_ne!(cache_key("**粗**", &[], "zh"), before);
 }
+
+#[test]
+fn an_opened_undo_lists_each_file_and_opens_a_diff_on_click() {
+    // 2026-10-02 项目主人：撤销改回了文件时，要看得到是哪几个、改了什么；「命令的改动撤不回」不要。
+    use crate::core::{Report, UndoFile};
+    use crate::transcript::{Kind, Transcript};
+    use crate::ui::rows::Target;
+    use crate::ui::test_support::Fixture;
+    let f = Fixture::new();
+    let mut t = Transcript::default();
+    t.note(Kind::Undo, "改一下".into());
+    t.entries[0].undo = Some(Report {
+        turns: 1,
+        cwd: Some("/w".into()),
+        files: vec![
+            UndoFile {
+                path: "/w/src/a.rs".into(),
+                outcome: "restored".into(),
+                diff: vec!["@@ -1 +1 @@".into(), "-new".into(), "+old".into()],
+                ..Default::default()
+            },
+            UndoFile {
+                path: "/w/README.md".into(),
+                outcome: "changed".into(),
+                ..Default::default()
+            },
+            // 同一个文件的另一步（先写、再编辑）：并进上面那一行。
+            UndoFile {
+                path: "/w/src/a.rs".into(),
+                outcome: "restored".into(),
+                ..Default::default()
+            },
+        ],
+        ..Default::default()
+    });
+    let rows = super::entry_rows(0, &t.entries[0], &f.ctx());
+    let head = rows[0].line.to_string();
+    assert!(
+        head.contains("已撤销 · 改回 1 个文件 · /restore 恢复 · 改一下"),
+        "{head}"
+    );
+    t.entries[0].open = true;
+    let rows = super::entry_rows(0, &t.entries[0], &f.ctx());
+    let text: Vec<String> = rows.iter().map(|r| r.line.to_string()).collect();
+    let a = text
+        .iter()
+        .position(|l| l.contains("✓ src/a.rs  已改回  +1 −1"));
+    assert!(a.is_some(), "{text:#?}");
+    assert!(
+        text.iter()
+            .any(|l| l.contains("✗ README.md  没动：之后又被改过")),
+        "{text:#?}"
+    );
+    assert!(!text.iter().any(|l| l.contains("命令")), "{text:#?}");
+    assert_eq!(
+        text.iter().filter(|l| l.contains("src/a.rs")).count(),
+        1,
+        "同一个文件一行：{text:#?}"
+    );
+    let a = a.unwrap();
+    assert_eq!(
+        rows[a].target,
+        Some(Target::Details(0, 0)),
+        "有差异的那一行点了展开差异"
+    );
+    assert!(!text.iter().any(|l| l.contains("- new")), "没点开不露差异");
+    t.entries[0].details.push(0);
+    let rows = super::entry_rows(0, &t.entries[0], &f.ctx());
+    let text: Vec<String> = rows.iter().map(|r| r.line.to_string()).collect();
+    assert!(
+        text.iter().any(|l| l.contains("- new")) && text.iter().any(|l| l.contains("+ old")),
+        "{text:#?}"
+    );
+}

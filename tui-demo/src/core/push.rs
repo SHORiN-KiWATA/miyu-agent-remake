@@ -128,6 +128,12 @@ pub enum Push {
     Reverted(Vec<u64>),
     /// 这几轮恢复了（`turn.unreverted`）。
     Unreverted(Vec<u64>),
+    /// 补发来的撤销：画那一行撤销说明（看着撤的照回应画，`core/replay.rs`）。
+    UndoLine,
+    /// 补发来的撤销改回的文件（`files.restored`）：接在最近那一行撤销说明上。
+    UndoFiles(Vec<super::UndoFile>),
+    /// 补发来的恢复、重做：去掉最近那一行撤销说明。
+    UndoGone,
     /// 这一句是哪个模型说的：端点和模型名，照 `by`。
     Model {
         /// 端点，例如 `deepseek`。

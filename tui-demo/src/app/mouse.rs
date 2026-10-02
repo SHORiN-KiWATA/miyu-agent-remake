@@ -18,6 +18,13 @@ impl App {
         if self.jobs_mouse(mouse, at) {
             return Action::None;
         }
+        // 回到底部的按钮（`ui/bottom_button.rs`）。
+        if self.areas.bottom.contains(at) {
+            if matches!(mouse.kind, MouseEventKind::Down(_)) {
+                self.view.follow();
+            }
+            return Action::None;
+        }
         // 抽屉开着：悬停选中那一项，点一下等于 `Enter`（`tui.md`「确认和提问的抽屉」第 4 条）。
         if self.drawers.open() && self.areas.text.contains(at) {
             let row = usize::from(at.y - self.areas.text.y);
@@ -106,6 +113,10 @@ impl App {
     /// 编辑器用完了、回到界面：起不来的提示一句。
     pub fn edited(&mut self, result: std::io::Result<()>) {
         self.figures.borrow_mut().forget();
+        // `Ctrl+G` 开的：读回输入框（`compose.rs`）。
+        if self.composed() && result.is_ok() {
+            return;
+        }
         if let Err(e) = result {
             let note = self
                 .config

@@ -54,6 +54,8 @@ pub struct BodyView {
     pub paused: Option<u64>,
     /// 现在钉着的地方是替人停的（不是人滚的）：她开始下一步时放开，见 [`BodyView::resume`]。
     pub auto: bool,
+    /// 最后一次跟着最新的时一共有几行：离开底部以后多出来的，回到底部的按钮变成强调色（`ui/bottom_button.rs`）。
+    pub seen_end: usize,
     /// 上一帧的全部行（引用按条缓存的那一份，不复制）。
     pub rows: Rows,
     /// 上一帧正文区的位置。

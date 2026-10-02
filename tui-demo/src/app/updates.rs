@@ -106,6 +106,11 @@ impl App {
                 self.view.hold();
             }
         }
+        // 撤销藏起了几轮：放开一次「只往下走」，上面的内容落下来补满，撤销那一行贴着底部（2026-10-02 项目主人定：
+        // 原来停在上面、底下空着，点开以后又掉到下面）。
+        if matches!(update, Update::Push(Push::Reverted(_))) {
+            self.view.settle();
+        }
         // 她开始下一步：长正文替人停着的，回到最底下接着跟（`tui.md`「正文」第 1 条）。
         if let Update::Push(Push::BlockStart { block, .. }) = &update
             && *block != Block::Text

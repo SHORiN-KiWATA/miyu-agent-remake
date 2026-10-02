@@ -6,6 +6,7 @@
 mod agents;
 mod background;
 mod body;
+mod bottom_button;
 mod compaction_rows;
 mod diff_rows;
 mod done_row;
@@ -35,6 +36,7 @@ pub mod row_cache;
 pub mod rows;
 mod status;
 mod timeline;
+mod undo_rows;
 pub use timeline::release_on_fold;
 mod user_rows;
 pub mod wide;
@@ -81,6 +83,8 @@ pub struct Areas {
     pub agents: Rect,
     /// 右边的侧边栏（不含竖线）；窗口窄时宽是 0（第 7 条）。
     pub sidebar: Rect,
+    /// 回到底部的按钮；在底部、放不下时是空的（`bottom_button.rs`）。
+    pub bottom: Rect,
     /// 侧边栏里的短编号那一行：点它复制完整的会话编号（第 7 条）。
     pub session_id: Rect,
 }
@@ -113,15 +117,16 @@ pub fn areas(
     let inner_x = frame.x + 1 + pad_left;
     let text = Rect::new(inner_x, frame.y + 1, text_width, rows).intersection(frame);
     let footer = Rect::new(inner_x, footer_y, text_width, 1).intersection(area);
-    // 列表出现时把正文往上推，不盖住正文（13-终端界面.md H4）；只用输入框上面剩下的行（`tui.md`「窗口小的时候」
+    // 列表是覆盖层：贴着输入框、盖在正文底部上，正文和下面那几样照没开框时的位置（`tui.md`「斜杠命令列表」第 1 条，
+    // 2026-10-02 项目主人定：原来把正文往上推，高度一变正文就上下跳）。只用输入框上面剩下的行（「窗口小的时候」
     // 第 1 条）。
     let menu = above(frame.y, area.y, menu_rows);
     let menu = Rect::new(frame.x, menu.0, frame.width, menu.1);
     // 正文和下面那一块之间：在回答时是 空一行 · 运行状态行 · 排队的消息 · 空一行，再接输入框；没在回答时只空一行
     // （`tui.md`「运行状态行和排队的消息」）。
     // 窄屏的待办常驻在列表（没开时是输入框）上面，下面空一行（`tui.md`「后台命令、子代理和侧边栏」第 4 条）。
-    let (todo_y, todo_rows) = above(menu.y.saturating_sub(1), area.y, todo_rows);
-    let todo_y = if todo_rows > 0 { todo_y } else { menu.y };
+    let (todo_y, todo_rows) = above(frame.y.saturating_sub(1), area.y, todo_rows);
+    let todo_y = if todo_rows > 0 { todo_y } else { frame.y };
     let block = if running { 3 + queued } else { 1 };
     let block_y = todo_y.saturating_sub(block).max(area.y);
     // 运行状态行那一块放不下的不画，不盖到下面去。
@@ -357,6 +362,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
                 &app.config,
                 width,
                 usize::from(inner),
+                spin_frame(app),
             ),
             None => Default::default(),
         },
@@ -401,6 +407,10 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         section("body", || body::draw(frame, areas, app));
         section("input", || input_box::draw_box(frame, areas, app, home));
     }
+    // 待办、运行状态行、排队的消息先画：输入框上面的框是覆盖层，开着时盖在它们上面（「斜杠命令列表」第 1 条）。
+    frame.render_widget(ratatui::widgets::Paragraph::new(todo_lines), areas.todo);
+    section("status", || status::draw(frame, areas.pulse, app));
+    status::queued(frame, areas.queued, &queued, &app.config.layout.queued_mark);
     if let Some(matches) = &matches {
         let rows = menu::rows(app.config.layout.menu_rows, areas.menu_text.height);
         let (chrome, lines) = menu::lines(
@@ -442,19 +452,34 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         panel_lines,
     );
     app.areas.button = section("footer", || footer::draw(frame, areas.footer, app));
-    frame.render_widget(ratatui::widgets::Paragraph::new(todo_lines), areas.todo);
+    // 不在首页才有正文可翻。
+    app.areas.bottom = if home {
+        Rect::default()
+    } else {
+        // 只用正文那一边（有侧边栏时不碰它的竖线）。
+        bottom_button::draw(frame, app, main)
+    };
     section("agents", || agents::draw(frame, areas.agents, app));
     section("sidebar", || sidebar::draw(frame, sidebar, app));
-    section("status", || status::draw(frame, areas.pulse, app));
-    status::queued(frame, areas.queued, &queued, &app.config.layout.queued_mark);
-    // 提示最后画，浮在正文上面；底边紧贴输入框，在回答时紧贴运行状态行（`tui.md`「提示」）。
+    // 提示最后画，浮在正文上面；底边紧贴输入框，在回答时紧贴运行状态行（`tui.md`「提示」）；开着框时贴着框的上边。
     let toast_bottom = if running {
         areas.pulse.y.saturating_sub(1)
     } else {
         areas.body.bottom()
+    };
+    let toast_bottom = if areas.menu.height > 0 {
+        toast_bottom.min(areas.menu.y)
+    } else {
+        toast_bottom
     };
     status::toast(frame, areas.text.x, toast_bottom, areas.text.width, app);
 }
 
 #[cfg(test)]
 mod tests;
+
+/// 转圈转到第几帧：照界面起来以后过了多久，一帧 `timeline.spinner_ms`。
+fn spin_frame(app: &App) -> usize {
+    let spinner_ms = app.config.timeline.spinner_ms.max(1);
+    usize::try_from(app.started.elapsed().as_millis() / u128::from(spinner_ms)).unwrap_or(0)
+}

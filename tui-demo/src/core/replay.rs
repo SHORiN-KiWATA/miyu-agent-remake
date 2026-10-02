@@ -14,6 +14,8 @@ use super::push::{self, Block, Push};
 #[derive(Debug, Default)]
 pub struct Replay {
     pending: Option<Value>,
+    /// 最近一次撤销的命令编号：重做的撤销后面跟着同一个编号重发的话，那一行撤销说明不要（`undo_events`）。
+    undo_cause: Option<String>,
 }
 
 impl Replay {
@@ -30,6 +32,8 @@ impl Replay {
                 return out;
             }
         }
+        // 撤销说明排在这一条自己的推送后面：先藏起撤掉的几轮，再照藏起的那几轮画那一行。
+        let undo = self.undo_events(event);
         match kind {
             "message.assistant" => self.pending = Some(event.clone()),
             // 人发的算你说的（哪个头发的补发时认不出来）；别的会话、别的 harness 发的照平常画成别处来的话。
@@ -45,7 +49,34 @@ impl Replay {
                 out.extend(push::read(event, &|_| false));
             }
         }
+        out.extend(undo);
         out
+    }
+
+    /// 撤销说明那一行（蓝图 `tui.md`「正文」第 5 条）：看着撤的照回应画，补发时没有回应，照事件画：撤销画一行、
+    /// 改回的文件接在它上面，恢复去掉它；重做的撤销后面跟着同一个编号重发的话，也去掉它（重做不留撤销说明）。
+    fn undo_events(&mut self, event: &Value) -> Vec<Push> {
+        let cause = event["cause"].as_str().map(str::to_string);
+        match event["kind"].as_str().unwrap_or_default() {
+            "turn.reverted" => {
+                self.undo_cause = cause;
+                vec![Push::UndoLine]
+            }
+            "files.restored" if cause.is_some() && cause == self.undo_cause => {
+                vec![Push::UndoFiles(super::UndoFile::read_all(
+                    &event["body"]["files"],
+                ))]
+            }
+            "turn.unreverted" => {
+                self.undo_cause = None;
+                vec![Push::UndoGone]
+            }
+            "message.user" if cause.is_some() && cause == self.undo_cause => {
+                self.undo_cause = None;
+                vec![Push::UndoGone]
+            }
+            _ => Vec::new(),
+        }
     }
 
     /// 补完了：还记着的回答照它自己的时刻读，钟回到现在。

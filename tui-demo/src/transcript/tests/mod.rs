@@ -259,7 +259,6 @@ fn undo_is_one_line_with_the_full_prompt_and_restore_removes_it() {
     let report = crate::core::Report {
         turns: 1,
         said: Some("第一行".into()),
-        restored: 2,
         ..Default::default()
     };
     t.update(
@@ -288,17 +287,17 @@ fn undo_is_one_line_with_the_full_prompt_and_restore_removes_it() {
 }
 
 #[test]
-fn undo_counts_skip_zero() {
+fn undo_counts_only_say_how_many_jobs_stopped() {
+    // 2026-10-02 项目主人：改回的文件一个一行列出来，「N 条命令的改动撤不回」不要。
     let texts = Config::builtin().unwrap().text;
     let report = crate::core::Report {
         turns: 1,
-        restored: 2,
-        commands: 1,
+        jobs: 1,
         ..Default::default()
     };
     assert_eq!(
         super::words::undo_counts(&report, &texts).as_deref(),
-        Some("改回 2 个文件 · 1 条命令的改动撤不回")
+        Some("停掉了 1 个任务")
     );
     assert_eq!(super::words::undo_counts(&Default::default(), &texts), None);
 }

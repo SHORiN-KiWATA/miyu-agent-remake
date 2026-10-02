@@ -17,7 +17,7 @@ use crate::figures::Figures;
 use crate::input::pieces;
 use crate::markdown::{self, MdLine};
 use crate::theme;
-use crate::transcript::{Entry, Kind, undo_counts};
+use crate::transcript::{Entry, Kind};
 
 /// 点一行时点中的东西。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -137,7 +137,7 @@ impl Ctx<'_> {
 pub fn entry_rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
     match (&entry.segment, entry.kind.clone()) {
         (Some(segment), _) => timeline::rows(i, segment, ctx),
-        (None, Kind::Undo) => undo_rows(i, entry, ctx),
+        (None, Kind::Undo) => super::undo_rows::rows(i, entry, ctx),
         (None, Kind::Job) => job_rows::rows(i, entry, ctx),
         (None, Kind::Reply) => reply_rows(i, entry, ctx),
         (None, Kind::User) => super::user_rows::rows(i, entry, ctx),
@@ -154,75 +154,6 @@ pub fn shown(entry: &Entry) -> bool {
             Some(segment) => !segment.steps.is_empty(),
             None => entry.kind == Kind::Undo || !entry.text.trim().is_empty(),
         }
-}
-
-/// 撤销那一行：`↶ 已撤销 · /restore 恢复 · 那一句的预览…`，只占一行。点开铺底色：全文、改回几个文件那一行。
-fn undo_rows(i: usize, entry: &Entry, ctx: &Ctx) -> Vec<Row> {
-    let target = Target::Entry(i);
-    let style = if ctx.hover == Some(target) {
-        theme::hover()
-    } else {
-        theme::dim()
-    };
-    let text = &ctx.config.text;
-    let mut head = format!("{}{}", ctx.config.layout.undo_icon, text.undone);
-    let peek: String = entry.text.split_whitespace().collect::<Vec<_>>().join(" ");
-    if !peek.is_empty() {
-        head.push_str(" · ");
-        head.push_str(&peek);
-    }
-    let mut out = vec![ctx.row(
-        ctx.blank_slot(),
-        vec![Span::styled(clip(&head, ctx.width), style)],
-    )];
-    // 撤掉的几轮里有压缩：下面一行说一句，和「已撤销」对齐（施工 6-9，照 `miyu undo`）。
-    // 撤掉的几轮里有清空：一样说一句（`/clear`，照 `miyu undo`）。
-    let report = entry.undo.as_ref();
-    for (count, said) in [
-        (report.map_or(0, |r| r.compactions), &text.undo_compactions),
-        (report.map_or(0, |r| r.clears), &text.undo_clears),
-    ] {
-        if count == 0 {
-            continue;
-        }
-        let indent = " ".repeat(ctx.config.layout.undo_icon.width());
-        out.push(ctx.led_row(
-            ctx.blank_slot(),
-            vec![Span::raw(indent)],
-            vec![Span::styled(said.clone(), style)],
-        ));
-    }
-    if entry.open {
-        let width = ctx.width.saturating_sub(2).max(1);
-        let blank = || ctx.row(ctx.blank_slot(), Vec::new());
-        out.push(blank());
-        for (piece, joined) in pieces(entry.text.trim(), width) {
-            let mut row = ctx.led_row(
-                ctx.blank_slot(),
-                vec![Span::raw("  ")],
-                vec![Span::raw(piece)],
-            );
-            row.joined = joined;
-            out.push(row);
-        }
-        let counts = entry.undo.as_ref().and_then(|r| undo_counts(r, text));
-        if let Some(counts) = counts {
-            out.push(blank());
-            out.push(ctx.led_row(
-                ctx.blank_slot(),
-                vec![Span::raw("  ")],
-                vec![Span::styled(counts, theme::dim())],
-            ));
-        }
-        out.push(blank());
-        for row in &mut out {
-            row.shade = true;
-        }
-    }
-    for row in &mut out {
-        row.target = Some(target);
-    }
-    out
 }
 
 /// 太长就截掉，末尾写 `…`，不折行（`13-终端界面.md` 第三节第 1 条）。

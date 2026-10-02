@@ -116,6 +116,29 @@ impl Draft {
         }
     }
 
+    /// 在编辑器里改过的字（`text`）照原来那一份（`before`）把块接回去：每一块照先后在新的字里往后找它原来的样子，
+    /// 找到的留着、挪到新的位置，删掉了的块不要（蓝图「按键」`Ctrl+G`）。
+    pub fn rebind(text: &str, before: &Draft) -> Self {
+        let mut blocks = Vec::new();
+        let mut from = 0;
+        for block in &before.blocks {
+            let label = &before.text[block.start..block.end];
+            if let Some(at) = text[from..].find(label) {
+                let start = from + at;
+                blocks.push(Block {
+                    start,
+                    end: start + label.len(),
+                    ..block.clone()
+                });
+                from = start + label.len();
+            }
+        }
+        Self {
+            text: text.to_string(),
+            blocks,
+        }
+    }
+
     /// 发出去的全文：每一块换回原文。
     pub fn expand(&self) -> String {
         self.expand_range(0, self.text.len())

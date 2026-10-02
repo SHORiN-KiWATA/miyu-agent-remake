@@ -115,6 +115,14 @@ pub struct Layout {
     pub title_max: usize,
     /// 撤销那一行前面的符号，连同它后面的空格。
     pub undo_icon: String,
+    /// 回到底部的按钮（2026-10-02）。
+    pub bottom_mark: String,
+    /// 会话列表里正在用的那个标题前面的记号（2026-10-02）。
+    pub current_mark: String,
+    /// 撤销点开以后，改回了的文件前面的记号，连同它后面的空格（2026-10-02）。
+    pub undo_restored_mark: String,
+    /// 撤销点开以后，没动的文件前面的记号，连同它后面的空格。
+    pub undo_left_mark: String,
     /// 一轮做完的收尾行前面的符号，连同它后面的空格。
     pub done_icon: String,
     /// 收尾行里图标后面多空的，按级别写；没写的级别不多空（现在只有工作区的 `▣` 多空一格，`tui.md`「正文」第 4 条）。

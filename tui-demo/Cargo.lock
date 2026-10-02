@@ -1807,7 +1807,6 @@ dependencies = [
  "ignore",
  "miyu-fs",
  "miyu-kernel",
- "miyu-models",
  "miyu-sandbox",
  "miyu-tool",
  "rustix 1.1.5",
@@ -1839,6 +1838,7 @@ dependencies = [
  "miyu-ipc",
  "miyu-kernel",
  "miyu-log",
+ "miyu-mermaid",
  "miyu-models",
  "miyu-sandbox",
  "miyu-session",
@@ -1940,6 +1940,18 @@ dependencies = [
  "miyu-config",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "miyu-mermaid"
+version = "0.0.0"
+dependencies = [
+ "fontdb",
+ "mermaid-rs-renderer",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tracing",
 ]
 
 [[package]]

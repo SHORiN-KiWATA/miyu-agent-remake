@@ -115,3 +115,50 @@ fn finishing_reads_what_is_left_and_goes_back_to_now() {
     assert_eq!(shape.last().map(String::as_str), Some("clock now"));
     assert!(shape.iter().any(|s| s == "start 1 Text"));
 }
+
+#[test]
+fn a_replayed_undo_draws_its_line_and_a_restore_or_redo_takes_it_away() {
+    // 2026-10-02 项目主人报：重启界面以后撤销那一行没了，/restore 照常。看着撤的照回应画，补发时没有回应，照事件画。
+    let undo = |pushes: Vec<Push>| -> Vec<String> {
+        pushes
+            .into_iter()
+            .filter_map(|p| match p {
+                Push::Reverted(t) => Some(format!("reverted {t:?}")),
+                Push::Unreverted(t) => Some(format!("unreverted {t:?}")),
+                Push::UndoLine => Some("line".into()),
+                Push::UndoFiles(f) => Some(format!("files {}", f.len())),
+                Push::UndoGone => Some("gone".into()),
+                Push::Said { .. } => Some("said".into()),
+                _ => None,
+            })
+            .collect()
+    };
+    let mut r = Replay::default();
+    let ev = |seq: u64, kind: &str, cause: &str, body: Value| {
+        json!({"seq": seq, "at": "2026-10-02T01:00:00Z", "kind": kind, "by": {"kind": "person", "account": "admin"},
+            "cause": cause, "body": body})
+    };
+    assert_eq!(
+        undo(r.read(&ev(10, "turn.reverted", "u1", json!({"turns": [7]})))),
+        ["reverted [7]", "line"]
+    );
+    let files = json!({"files": [{"result": 3, "effect": 0, "path": "/w/a.rs", "action": "write", "outcome": "restored"}]});
+    assert_eq!(
+        undo(r.read(&ev(11, "files.restored", "u1", files))),
+        ["files 1"]
+    );
+    assert_eq!(
+        undo(r.read(&ev(12, "turn.unreverted", "u2", json!({"turns": [7]})))),
+        ["unreverted [7]", "gone"]
+    );
+    // 重做：撤销后面跟着同一个编号重发的话，不留撤销说明。
+    assert_eq!(
+        undo(r.read(&ev(13, "turn.reverted", "r1", json!({"turns": [7]})))),
+        ["reverted [7]", "line"]
+    );
+    let again = json!({"blocks": [{"type": "text", "text": "再来"}]});
+    assert_eq!(
+        undo(r.read(&ev(14, "message.user", "r1", again))),
+        ["said", "gone"]
+    );
+}

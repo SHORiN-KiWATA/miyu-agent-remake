@@ -1,5 +1,7 @@
 //! 程序的状态，和把终端事件、核心的消息分给各块。按键在 `keys.rs`，鼠标在 `mouse.rs`。
 
+mod compose;
+mod deadline;
 mod drawer;
 mod jobs;
 
@@ -191,8 +193,10 @@ pub struct App {
     pub suspend: bool,
     /// 本机的文本文件用哪个编辑器开（`$VISUAL`、`$EDITOR`）；没有的交给系统（`editor.rs`）。
     editor: Option<String>,
-    /// 点了本机的文本文件：主循环让出终端给编辑器，编辑器和文件。
+    /// 点了本机的文本文件、按了 `Ctrl+G`：主循环让出终端给编辑器，编辑器和文件。
     pub edit: Option<(String, std::path::PathBuf)>,
+    /// `Ctrl+G` 正在编辑器里写的那句（`compose.rs`）。
+    composing: Option<compose::Composing>,
 }
 
 impl App {
@@ -315,6 +319,7 @@ impl App {
             quit: false,
             suspend: false,
             editor: crate::editor::command(|name| std::env::var(name).ok()),
+            composing: None,
             edit: None,
         }
     }
@@ -415,30 +420,6 @@ impl App {
             until: Instant::now() + Duration::from_millis(self.config.layout.notice_ms),
             good,
         });
-    }
-
-    /// 下一次要自己醒来的时刻：提示到点消失；在跑时每秒走一下用时。没有就是 `None`，一直等事件。
-    pub fn deadline(&self) -> Option<Instant> {
-        let notice = self.notice.as_ref().map(|n| n.until);
-        let clock = self.transcript.running.map(|start| {
-            let next = start.elapsed().as_secs() + 1;
-            start + Duration::from_secs(next)
-        });
-        // 有步骤在转圈、运行状态行的流光在走，照转圈的节拍重画。
-        let moving = self.transcript.busy() || self.transcript.running.is_some();
-        let spin =
-            moving.then(|| Instant::now() + Duration::from_millis(self.config.timeline.spinner_ms));
-        notice
-            .into_iter()
-            .chain(clock)
-            .chain(spin)
-            .chain(self.mascot_deadline(Instant::now()))
-            .chain(self.jobs_deadline())
-            .chain(self.drawer_deadline())
-            .chain(self.mention.deadline()) // 核心的清单在建：到点再问（「`@` 文件列表」第 2 条）
-            // 整份重排没排完的：下一帧接着排（蓝图「正文」第 8 条）。
-            .chain((self.row_cache.borrow().stale > 0).then(Instant::now))
-            .min()
     }
 
     /// 吉祥物画着：在首页或宽屏的侧边栏里，而且那里的开关开着（`tui.md`「后台命令、子代理和侧边栏」第 7 条）。

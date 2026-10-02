@@ -68,7 +68,7 @@ fn switching_draws_the_other_ones_past_without_flashing_an_empty_session() {
     let (_home, mut tui) = sessions(2);
     tui.say("/sessions");
     tui.wait_for("2 个");
-    tui.wait_for("当前");
+    tui.wait_for("● ");
     tui.key(CTRL_D);
     tui.wait_for("正在用的会话不能删");
     tui.key(DOWN);
@@ -118,8 +118,8 @@ fn pinning_moves_it_to_the_top() {
     tui.key(CTRL_P);
     tui.wait_for("已置顶");
     let shown = rows(&tui);
-    assert!(!shown[0].contains("当前"), "置顶的旧会话排第一：{shown:?}");
-    assert!(shown[1].contains("当前"), "{shown:?}");
+    assert!(!shown[0].contains("● "), "置顶的旧会话排第一：{shown:?}");
+    assert!(shown[1].contains("● "), "{shown:?}");
 }
 
 #[test]
