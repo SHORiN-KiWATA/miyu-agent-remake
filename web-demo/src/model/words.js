@@ -268,12 +268,20 @@ export function summary(steps, now) {
     tail();
     return { spans: join(parts, null), failed: false };
   }
-  // 做事的只有一条命令（思考不算）、有短标题：短标题打头
-  const only = n.commands === 1 && n.agents + n.messages + n.sessions + n.edits + n.tools === 0 ? steps.map((s) => arg(s, 'description')).find(Boolean) : null;
+  // 一段里只有一条命令、它有短标题：短标题打头，不管同段还有没有编辑、别的工具（2026-10-02 项目主人定，和 TUI 一样）。
+  // 同段别的工具也可能带 `description`（派子代理），认准命令那一步。
+  const command = n.commands === 1 ? steps.find((s) => kindOf(s.name) === 'command') : null;
+  const only = command ? arg(command, 'description') : null;
   if (only) {
     parts.push([only, false]);
+    if (n.edits) parts.push([count(n.edits, words.edits), true]);
+    if (n.agents) parts.push([count(n.agents, words.agents), false]);
+    if (n.messages) parts.push([count(n.messages, words.messages), false]);
+    if (n.sessions) parts.push([count(n.sessions, words.messaged_sessions), false]);
+    if (n.tools) parts.push([count(n.tools, words.tools), false]);
     tail();
-    return { spans: join(parts, null), failed: n.errors > 0 };
+    const lone = n.commands + n.agents + n.messages + n.sessions + n.edits + n.tools === 1;
+    return { spans: join(parts, changed(steps)), failed: lone && n.errors > 0 };
   }
   // 打头那一格：命令、子代理、留言、发给别的会话的留言、别的工具、编辑，先有哪样写哪样（派子代理的不写 Used 1 tool，
   // 蓝图「时间线」）；别的类跟在后面，打头那一格已经写过的类不再写一遍。发给别的会话的打不打头都写 Messaged 1 session

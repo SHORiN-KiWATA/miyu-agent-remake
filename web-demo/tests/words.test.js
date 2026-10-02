@@ -189,7 +189,22 @@ test('收起那一行：派子代理写 Spawned，给子代理留言写 Messaged
   assert.equal(line([agent]), 'Spawned 1 agent · 1s');
   assert.equal(line([agent, agent, message]), 'Spawned 2 agents · 1 message · 1s');
   assert.equal(line([message]), 'Messaged 1 agent · 1s');
-  assert.equal(line([tool('shell', { command: 'ls', description: 'List' }), agent]), 'Ran 1 command · 1 agent · 1s');
+  assert.equal(line([tool('shell', { command: 'ls', description: 'List' }), agent]), 'List · 1 agent · 1s');
+});
+
+test('收起那一行：一段里只有一条命令、有短标题时，和编辑、别的工具同段也用短标题打头（2026-10-02 项目主人定，和 TUI 一样）', () => {
+  const edit = tool('edit', { file_path: '/a', edits: [{ old_string: 'a\n', new_string: 'b\nc\nd\n' }] });
+  assert.equal(line([tool('shell', { command: 'ls', description: 'List' }), edit]), 'List · 1 edit +3 -1 · 1s');
+  assert.equal(line([tool('shell', { command: 'ls', description: 'List' }), tool('read', {})]), 'List · 1 tool · 1s');
+  // 短标题认准命令那一步：同段的子代理也带 `description`，不取它
+  assert.equal(line([tool('subagent', { description: '查文档', prompt: 'x' }), tool('shell', { command: 'ls', description: 'List' })]), 'List · 1 agent · 1s');
+  // 命令没有短标题、或者不止一条命令的照旧按类数
+  assert.equal(line([tool('shell', { command: 'ls' }), edit]), 'Ran 1 command · 1 edit +3 -1 · 1s');
+  assert.equal(line([tool('shell', { command: 'a', description: '一' }), tool('shell', { command: 'b', description: '二' })]), 'Ran 2 commands · 1s');
+  // 和别的工具同段、命令出错的：不整行红，`err` 那一格照旧红
+  const failed = [tool('shell', { command: 'ls', description: 'List' }, { status: 'error' }), edit];
+  assert.equal(summary(failed, ms(100)).failed, false);
+  assert.equal(line(failed), 'List · 1 edit +3 -1 · 1 err · 1s');
 });
 
 test('派子代理那一步：写「派子代理 · 编号 · 标题」（编号照结果里的 job.started），不写结果那一句；点开是完整的提示词', () => {

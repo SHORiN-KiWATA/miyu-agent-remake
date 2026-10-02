@@ -19,6 +19,7 @@ test('出厂的清单照蓝图：去掉 /icons、/exit，加 /pkg、/clear、/re
   assert.deepEqual(runs, { undo: 'revert', restore: 'unrevert', redo: 'redo', edit: 'edit', compact: 'compact', clear: 'clear', recap: 'recap', theme: 'theme', new: 'new', sessions: 'sessions', copy: 'copy',
     pkg: 'packages', language: 'language', model: 'model' });
   assert.deepEqual(names(list.filter((s) => s.run === 'fake')), ['readonly', 'level', 'tools', 'settings', 'help']);
+  assert.deepEqual(find(list, 'resume')?.name, 'sessions', '2026-10-02：/sessions 加 /resume 别名');
 });
 
 test('像命令名的才算：英文字母打头，只有字母、数字、-、_；刚打一个 / 也算；路径、中文不算', () => {
@@ -52,6 +53,7 @@ test('回车时这一行是什么：命令带着参数；没有这个命令的�
   assert.equal(read(list, '/compact   ').words, null, '只有空白：没写');
   assert.equal(read(list, '/undo').spec?.name, 'undo');
   assert.equal(read(list, '/rewind').spec?.name, 'undo', '别名一样执行');
+  assert.equal(read(list, '/resume').spec?.name, 'sessions', '别名一样执行（2026-10-02）');
   assert.equal(read(list, '/theme 深色').kind, 'talk', '不带参数的命令后面跟了字：一句话');
   assert.equal(read(list, '/etc 目录是干什么的').kind, 'talk', '不弹命令不存在');
   assert.equal(read(list, '/nosuch').kind, 'unknown');
@@ -63,7 +65,7 @@ test('回车时这一行是什么：命令带着参数；没有这个命令的�
 });
 
 test('边打边筛：名字（或别名）开头的排前面，含着的排后面，各照清单的先后；不分大小写', () => {
-  assert.deepEqual(names(filter(list, 're')), ['undo', 'restore', 'redo', 'clear', 'recap', 'readonly'], 'rewind、reset（别名）、restore、redo、recap、readonly 开头');
+  assert.deepEqual(names(filter(list, 're')), ['undo', 'restore', 'redo', 'clear', 'recap', 'sessions', 'readonly'], 'rewind、reset（别名）、restore、redo、recap、resume（别名）、readonly 开头');
   assert.deepEqual(names(filter(list, 'e')), ['edit', 'undo', 'restore', 'redo', 'clear', 'recap', 'theme', 'new', 'sessions', 'language', 'model', 'readonly', 'level',
     'settings', 'help'], 'e 开头的只有 /edit，排前面；别的都是含着的，照清单的先后');
   assert.deepEqual(names(filter(list, 'rew')), ['undo'], '筛的时候别名也算，列表里写正名');
@@ -76,6 +78,7 @@ test('名字或别名正好对上的那一条；/redo 是重做（原来恢复�
   assert.equal(find(list, 'restore')?.run, 'unrevert');
   assert.equal(find(list, 'rewind')?.run, 'revert');
   assert.equal(find(list, 'redo')?.run, 'redo');
+  assert.equal(find(list, 'resume')?.name, 'sessions', '2026-10-02：/resume 别名');
   assert.equal(find(list, ''), null);
 });
 

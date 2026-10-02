@@ -274,6 +274,22 @@ test('她正在回答时来的回报：上面那段时间线收起，回报接�
   assert.deepEqual(blocks[1].items.map((it) => it.type), ['steps', 'note', 'steps', 'reply', 'done']);
 });
 
+test('她正在回答时来的回顾、压缩行：前面那段先收起，行画在下面，接着的步另起一段（2026-10-02 项目主人定，和 TUI 一样）', () => {
+  const head = [
+    ev(1, 0, 'session.created', undefined, { permission: { level: 'workspace', read_only: false } }),
+    ev(2, 0, 'message.user', undefined, { blocks: [{ type: 'text', text: '干活' }] }, me),
+    ev(3, 0, 'turn.started', 3, { trigger: 2 }),
+    ev(4, 1, 'message.assistant', 3, { seen: 3, blocks: [{ type: 'tool_call', call_id: 'c1', name: 'shell', args: '{"command":"ls"}' }] }),
+  ];
+  const kinds = (list) => list.map((it) => (it.type === 'steps' ? `steps${it.finished ? '✓' : ''}` : it.type));
+  const recap = [...head, ev(5, 3, 'session.recapped', undefined, { text: '在干活。', upto: 2 }),
+    ev(6, 4, 'message.assistant', 3, { seen: 5, blocks: [{ type: 'tool_call', call_id: 'c2', name: 'read', args: '{"file_path":"/a"}' }] })];
+  assert.deepEqual(kinds(project(recap).items), ['user', 'steps✓', 'note', 'steps'], '回顾前面那段先收起，接着的步另起一段');
+  const compacted = [...head, ev(5, 3, 'context.compacted', 3, { before: 1000, after: 100, trigger: 'auto', summary: '' }),
+    ev(6, 4, 'message.assistant', 3, { seen: 5, blocks: [{ type: 'tool_call', call_id: 'c2', name: 'read', args: '{"file_path":"/a"}' }] })];
+  assert.deepEqual(kinds(project(compacted).items), ['user', 'steps✓', 'note', 'steps'], '压缩那一行前面那段先收起，接着的步另起一段');
+});
+
 test('她正在回答时插进来的话（子代理发来的）：上面那段一听到就收起；接在它后面的她那一块不再画头像和名字', () => {
   const kid = { kind: 'session', id: CHILD };
   const log = [

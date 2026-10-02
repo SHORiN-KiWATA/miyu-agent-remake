@@ -143,6 +143,8 @@ export function project(events, live = null, marks = new Map(), stats = new Map(
         items.push(peerNote(e));
         break;
       case 'context.compacted': {
+        // 她正在回答时来的：前面那段收起，这一行接在下面，接着的步另起一段（和回报一样，2026-10-02 项目主人定）
+        timeline.speak(Date.parse(e.at));
         const note = compactedNote(e, stats.get(e.seq) ?? null);
         items.push(note);
         if (turns.has(e.turn)) turns.get(e.turn).note = note;
@@ -153,6 +155,7 @@ export function project(events, live = null, marks = new Map(), stats = new Map(
         if (b.purpose) break;
         // 压缩没压成：红色实心圆点一行；手动压缩那一轮不另起「出错了」的收尾行（蓝图「压缩的进度」第 6 条）
         if (b.compaction && b.result === 'error') {
+          timeline.speak(Date.parse(e.at));
           items.push(compactFailedNote(e));
           if (turns.has(e.turn)) turns.get(e.turn).compactFailed = true;
         }
@@ -160,6 +163,8 @@ export function project(events, live = null, marks = new Map(), stats = new Map(
         timeline.called(e);
         break;
       case 'session.recapped':
+        // 她正在回答时也能要（`tui.md`「回顾」）：前面那段收起，回顾画在下面，接着的步另起一段
+        timeline.speak(Date.parse(e.at));
         // 记下它讲到的那一轮（那时最后一轮没撤销的）：那一轮撤了回顾跟着藏（蓝图「回顾」第 6 条）
         items.push({ ...recapNote(e, !!e.local), covers: started.findLast((n) => !reverted.has(n)) ?? null });
         break;
