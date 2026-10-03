@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>185</b><span>/ 196 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；在做 W-7 再补按网站取卡片，接着 C-7 跨会话验收、三个驱动（等项目主人给 key）；跨会话只剩 C-7 验收</span></li>
-    <li><b class="mono">3f0f08a1</b><span>最近一步（W-7 补 压缩的页面和 head 后面的标签（补））的提交</span></li>
+    <li><b>186</b><span>/ 196 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；接着 C-7 跨会话验收、三个驱动（等项目主人给 key）；跨会话只剩 C-7 验收</span></li>
+    <li><b class="mono">721422ad</b><span>最近一步（W-7 再补 按网站取卡片）的提交</span></li>
   </ul>
 </header>
 
@@ -560,7 +560,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sW-6"><span class="n">W-6</span>分块读<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sW-7"><span class="n">W-7</span>链接卡片<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sW-7b"><span class="n">W-7</span>压缩的页面和 head 后面的标签（补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">W-7</span>按网站取卡片（再补）</span></li>
+        <li><a class="step done" href="#sW-7c"><span class="n">W-7</span>按网站取卡片（再补）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">W-8</span>身份</span></li>
         <li><span class="step"><span class="n">W-9</span>网页软件</span></li>
         <li><span class="step"><span class="n">W-10</span>媒体地址</span></li>
@@ -12455,6 +12455,75 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/W-7-压缩的页面和 head 后面的标签（补）.md</code>；蓝图 <code>net.md</code>、<code>http.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sW-7c" aria-labelledby="h-sW7c">
+  <div class="sheet-head"><h2 id="h-sW7c"><span class="no">W-7 再补</span>按网站取卡片（再补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">项目主人要链接卡片认得 B 站、YouTube、维基百科和 ArchWiki 这类站：卡片多出是视频还是文章、视频多长、作者是谁；人机验证页不再出一张假卡片。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-net/src/sites/</span><span class="dir-note">按站取的一层</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">sites.rs</span><span class="rl">认站、挑读页面的办法、人机验证页的标题、合卡片的字</span></div>
+              <div class="tile new"><span class="nm">bilibili.rs</span><span class="rl">BV、av、短链；读页面脚本里的 videoData</span></div>
+              <div class="tile new"><span class="nm">youtube.rs</span><span class="rl">读过 &lt;/head&gt;；ISO 8601 的时长、频道名</span></div>
+              <div class="tile new"><span class="nm">mediawiki.rs</span><span class="rl">generator 认站、api.php、正文最外层的第一段</span></div>
+              <div class="tile new"><span class="nm">rules/sites.rs</span><span class="rl">link_preview.json 的 api、sites、challenge 三段</span></div>
+              <div class="tile new"><span class="nm">tests/live.rs</span><span class="rl">真网络实测，#[ignore] 加 MIYU_NET_LIVE=1</span></div>
+            </div>
+          </div>
+          <ol class="pipe" aria-label="卡片多的三格">
+            <li class="cmd">link.preview 的回应</li>
+            <li><code>kind</code>：video、article、page</li>
+            <li><code>duration</code>：秒，没有不写</li>
+            <li><code>author</code>：UP 主、频道名，没有不写</li>
+          </ol>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">B 站不调接口</span><span class="rl">没登录的请求接口回 412；页面脚本里的数据字段一样</span></div>
+          <div class="tile new"><span class="nm">MediaWiki 都走 api.php</span><span class="rl">维基百科也是；没装 TextExtracts 的照 parse 找第一段</span></div>
+          <div class="tile new"><span class="nm">读到时长才算视频</span><span class="rl">YouTube 的频道、列表页是 page</span></div>
+          <div class="tile new"><span class="nm">人机验证页 no_preview</span><span class="rl">标题、cf-mitigated、403/503 的 HTML，表在 json 里</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">W-7 再补</dd></div>
+        <div><dt>名称</dt><dd>按网站取卡片（再补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-03</dd></div>
+        <div><dt>提交</dt><dd class="mono">721422ad</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 真网络实测通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真网络 6 条：B 站、YouTube、中英维基、ArchWiki、GitHub；删了的 B 站视频不出卡片</span></li>
+        <li><span class="ok">✓</span><span>17 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="wait">–</span><span>被人机验证拦住的真站没找到能稳定复现的，只在假服务器上测</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>实测改的</h3>
+      <ul>
+        <li>ArchWiki 没装 TextExtracts，「Related articles」框里也有 &lt;p&gt;：只认正文最外层。</li>
+        <li>B 站接口 412：改成读页面。</li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/W-7-按网站取卡片（再补）.md</code>；蓝图 <code>net.md</code>、<code>protocol.md</code>。</li>
       </ul>
     </div>
   </div>
