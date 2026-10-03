@@ -25,6 +25,8 @@ pub struct Icons {
     pub pin: String,
     /// 暂存着东西时的提示符，连同它后面的空格。
     pub stash: String,
+    /// 视频卡片封面下的播放标记（蓝图「链接卡片」第 3 条）。
+    pub video: String,
 }
 
 impl Icons {
@@ -84,6 +86,7 @@ mod tests {
             icons.tool.as_str(),
             icons.think.as_str(),
             icons.error.as_str(),
+            icons.video.as_str(),
         ]);
         all
     }

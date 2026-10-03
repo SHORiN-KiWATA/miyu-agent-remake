@@ -16,9 +16,32 @@ use super::rpc::Rpc;
 /// 一次读多少字节（核心的上限，`blob.get` 的 `length`）。
 const CHUNK: usize = 512 * 1024;
 
+/// 链接卡片的内容种类；旧缓存或未知种类照普通页面显示。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CardKind {
+    /// 视频：B 站、已读到时长的 YouTube 页面。
+    Video,
+    /// 文章：MediaWiki 站点。
+    Article,
+    /// 普通页面，也是旧卡片的默认值。
+    #[default]
+    #[serde(other)]
+    Page,
+}
+
 /// 核心交回的一张卡片。记进界面的缓存（`link_cards.rs`），重启以后照它画。
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Card {
+    /// 内容种类；旧缓存没有这一格时照页面。
+    #[serde(default)]
+    pub kind: CardKind,
+    /// 视频时长，单位秒；没有或不是正整数的为无。
+    #[serde(default)]
+    pub duration: Option<u64>,
+    /// 作者、UP 主或频道名；没有的为无。
+    #[serde(default)]
+    pub author: Option<String>,
     /// 标题。
     pub title: String,
     /// 简介。
@@ -37,6 +60,17 @@ pub fn card(result: &Value) -> Option<Card> {
     let text = |k: &str| card[k].as_str().unwrap_or_default().trim().to_string();
     let blob = |k: &str| card[k]["blob"].as_str().map(str::to_string);
     let out = Card {
+        kind: match card["kind"].as_str() {
+            Some("video") => CardKind::Video,
+            Some("article") => CardKind::Article,
+            _ => CardKind::Page,
+        },
+        duration: card["duration"].as_u64().filter(|seconds| *seconds > 0),
+        author: card["author"]
+            .as_str()
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(str::to_string),
         title: text("title"),
         description: text("description"),
         site: text("site"),
@@ -130,5 +164,49 @@ mod tests {
         assert_eq!(got.image.as_deref(), Some("sha256:aa"));
         assert_eq!(got.icon, None);
         assert_eq!(card(&json!({"card": null, "why": "no_preview"})), None);
+    }
+}
+
+#[cfg(test)]
+mod site_card_tests {
+    use super::{Card, card};
+    use serde_json::json;
+
+    #[test]
+    fn site_card_reads_video_metadata_and_rejects_invalid_duration() {
+        let base = json!({"card":{"title":"视频", "site":"哔哩哔哩", "kind":"video", "duration":408, "author":" 明日方舟 "}});
+        let got = serde_json::to_value(card(&base).unwrap()).unwrap();
+        assert_eq!(got["kind"], "video");
+        assert_eq!(got["duration"], 408);
+        assert_eq!(got["author"], "明日方舟");
+        for duration in [
+            json!(0),
+            json!(-1),
+            json!(2.5),
+            json!("408"),
+            json!(null),
+            json!(true),
+        ] {
+            let mut bad = base.clone();
+            bad["card"]["duration"] = duration;
+            let got = serde_json::to_value(card(&bad).unwrap()).unwrap();
+            assert!(got["duration"].is_null());
+        }
+    }
+
+    #[test]
+    fn old_card_fields_still_deserialize_and_missing_metadata_defaults() {
+        let old =
+            json!({"title":"旧卡片", "description":"", "site":"旧网站", "image":null, "icon":null});
+        let got: Card = serde_json::from_value(old).unwrap();
+        let got = serde_json::to_value(got).unwrap();
+        assert_eq!(got["kind"], "page");
+        assert!(got["duration"].is_null());
+        assert!(got["author"].is_null());
+        let got =
+            serde_json::to_value(card(&json!({"card":{"title":"标题", "author":"  "}})).unwrap())
+                .unwrap();
+        assert_eq!(got["kind"], "page");
+        assert!(got["author"].is_null());
     }
 }
