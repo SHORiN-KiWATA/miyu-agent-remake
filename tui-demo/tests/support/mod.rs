@@ -131,12 +131,17 @@ impl Home {
 
     /// 在伪终端里起界面，连这份核心；`lang` 是系统语言（`LANG`）。
     pub fn tui(&self, lang: &str) -> Tui {
-        Tui::spawn(&self.dir, &self.work, lang, &[])
+        Tui::spawn(&self.dir, &self.work, lang, &[], &[])
+    }
+
+    /// 同 [`Home::tui`]，指定启动参数。
+    pub fn tui_args(&self, lang: &str, args: &[&str]) -> Tui {
+        Tui::spawn(&self.dir, &self.work, lang, &[], args)
     }
 
     /// 同 [`Home::tui`]，另外带几个环境变量。
     pub fn tui_with(&self, lang: &str, env: &[(&str, &str)]) -> Tui {
-        Tui::spawn(&self.dir, &self.work, lang, env)
+        Tui::spawn(&self.dir, &self.work, lang, env, &[])
     }
 }
 
@@ -159,7 +164,26 @@ pub struct Tui {
 }
 
 impl Tui {
-    fn spawn(home: &Path, work: &Path, lang: &str, env: &[(&str, &str)]) -> Tui {
+    fn spawn(home: &Path, work: &Path, lang: &str, env: &[(&str, &str)], args: &[&str]) -> Tui {
+        Self::program(
+            home,
+            work,
+            lang,
+            env,
+            args,
+            env!("CARGO_BIN_EXE_miyu-tui-demo"),
+        )
+    }
+
+    /// 在伪终端运行指定程序，仅供隔离的 herdr 恢复实测。
+    pub fn program(
+        home: &Path,
+        work: &Path,
+        lang: &str,
+        env: &[(&str, &str)],
+        args: &[&str],
+        program: &str,
+    ) -> Tui {
         let pty = native_pty_system()
             .openpty(PtySize {
                 rows: ROWS,
@@ -168,7 +192,8 @@ impl Tui {
                 pixel_height: 0,
             })
             .expect("开得了伪终端");
-        let mut command = CommandBuilder::new(env!("CARGO_BIN_EXE_miyu-tui-demo"));
+        let mut command = CommandBuilder::new(program);
+        command.args(args);
         command.cwd(work);
         for name in [
             "MIYU_CORE_BIN",

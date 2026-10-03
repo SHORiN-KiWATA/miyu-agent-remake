@@ -4,7 +4,8 @@
 use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use super::system::spawn;
+use std::sync::mpsc;
+use std::thread;
 
 /// 报给 herdr 的来源、名字：herdr 按来源记序号水位。
 const SOURCE: &str = "custom:miyu";
@@ -33,7 +34,10 @@ impl State {
 
 /// 坐在 herdr 的哪个窗格里、怎么叫它。
 pub struct Herdr {
-    binary: String,
+    reports: Option<mpsc::Sender<Vec<String>>>,
+    worker: Option<thread::JoinHandle<()>>,
+    session: Option<String>,
+    command: String,
     pane: String,
     /// 下一个序号：从进程启动那一刻的毫秒数起往上加。herdr 丢掉比水位小的，每次从 1 数的话第二次开界面的上报
     /// 全被丢掉（旧版 09-20 踩过）。
@@ -54,8 +58,26 @@ impl Herdr {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_or(0, |d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX));
+        // 单个工作线程按顺序发：resume 需要先取得窗格，release 不能被新状态越过。
+        let (reports, receiver) = mpsc::channel::<Vec<String>>();
+        let worker = thread::spawn(move || {
+            for args in receiver {
+                let result = Command::new(&binary)
+                    .args(&args)
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status();
+                if !result.is_ok_and(|status| status.success()) {
+                    eprintln!("herdr report failed");
+                }
+            }
+        });
         Some(Self {
-            binary,
+            reports: Some(reports),
+            worker: Some(worker),
+            session: None,
+            command: env!("CARGO_PKG_NAME").into(),
             pane,
             next: now,
             last: None,
@@ -69,12 +91,37 @@ impl Herdr {
         }
         self.last = Some(state);
         let args = self.report_args(state);
-        spawn(&self.binary, &args);
+        self.send(args);
+    }
+
+    /// 更新主会话恢复命令；清空时先释放旧绑定，再取得窗格状态。
+    pub fn session(&mut self, session: Option<&str>) {
+        if self.session.as_deref() == session {
+            return;
+        }
+        self.session = session.map(str::to_string);
+        let state = self.last.unwrap_or(State::Idle);
+        if session.is_none() {
+            let args = self.release_args();
+            self.send(args);
+        }
+        let args = self.report_args(state);
+        self.send(args);
+    }
+
+    fn send(&self, args: Vec<String>) {
+        if self
+            .reports
+            .as_ref()
+            .is_some_and(|tx| tx.send(args).is_err())
+        {
+            eprintln!("herdr reporter disconnected");
+        }
     }
 
     fn report_args(&mut self, state: State) -> Vec<String> {
         let seq = self.seq();
-        [
+        let mut args: Vec<String> = [
             "pane",
             "report-agent",
             &self.pane,
@@ -88,7 +135,16 @@ impl Herdr {
             &seq,
         ]
         .map(str::to_string)
-        .to_vec()
+        .to_vec();
+        if let Some(session) = &self.session {
+            args.extend([
+                "--".into(),
+                self.command.clone(),
+                "--resume".into(),
+                session.clone(),
+            ]);
+        }
+        args
     }
 
     /// 退还这个窗格：带序号（不带的 herdr 不认，侧栏一直挂着）。
@@ -120,13 +176,11 @@ impl Herdr {
 impl Drop for Herdr {
     fn drop(&mut self) {
         let args = self.release_args();
-        // 退还不了也只能这样：herdr 那边照它自己的超时收。
-        let _released = Command::new(&self.binary)
-            .args(&args)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
+        self.send(args);
+        self.reports.take();
+        if let Some(worker) = self.worker.take() {
+            let _joined = worker.join();
+        }
     }
 }
 
@@ -189,5 +243,57 @@ mod tests {
             seq + 1,
             "退还也带序号，往上加"
         );
+    }
+}
+
+#[cfg(test)]
+mod resume_tests {
+    use super::{Herdr, State};
+    use std::sync::mpsc;
+
+    #[test]
+    fn switches_clear_and_exit_are_queued_in_order() {
+        let (tx, rx) = mpsc::channel();
+        let mut h = Herdr {
+            reports: Some(tx),
+            worker: None,
+            session: None,
+            command: "miyu-tui-demo".into(),
+            pane: "p1".into(),
+            next: 100,
+            last: None,
+        };
+        h.report(State::Idle);
+        h.session(Some("first"));
+        h.report(State::Working);
+        h.session(Some("second"));
+        h.session(None);
+        drop(h);
+        let reports: Vec<_> = rx.into_iter().collect();
+        assert_eq!(reports.len(), 7);
+        assert_eq!(
+            &reports[1][11..],
+            ["--", "miyu-tui-demo", "--resume", "first"]
+        );
+        assert_eq!(
+            &reports[2][11..],
+            ["--", "miyu-tui-demo", "--resume", "first"]
+        );
+        assert_eq!(
+            &reports[3][11..],
+            ["--", "miyu-tui-demo", "--resume", "second"]
+        );
+        assert_eq!(reports[4][1], "release-agent");
+        assert_eq!(reports[5].len(), 11);
+        assert_eq!(reports[6][1], "release-agent");
+        let seq: Vec<u64> = reports
+            .iter()
+            .map(|r| {
+                r[r.iter().position(|s| s == "--seq").unwrap() + 1]
+                    .parse()
+                    .unwrap()
+            })
+            .collect();
+        assert!(seq.windows(2).all(|s| s[0] < s[1]));
     }
 }

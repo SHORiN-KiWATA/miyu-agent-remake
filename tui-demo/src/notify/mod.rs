@@ -129,6 +129,13 @@ impl Notifier {
         }
     }
 
+    /// 主会话变了：更新 herdr 恢复命令，空会话清除旧绑定。
+    pub fn session(&mut self, session: Option<&str>) {
+        if let Some(herdr) = self.herdr.as_mut() {
+            herdr.session(session);
+        }
+    }
+
     /// 出了一件要通知的事。
     pub fn tell(&mut self, event: Event) {
         let plan = plan(&self.look, self.route, self.focused, self.herdr.is_some());

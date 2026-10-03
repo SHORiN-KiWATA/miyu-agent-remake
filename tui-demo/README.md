@@ -21,3 +21,11 @@ DEEPSEEK_API_KEY=<key> MIYU_HOME=$HOME/.cache/miyu-tui-home MIYU_RESOURCES=$PWD/
 ### 按键、鼠标、版式
 
 都写在蓝图 `docs/blueprint/tui.md` 里（「对外的样子」「怎么走」「样子」），这里不再抄一份。
+
+### herdr 中恢复会话
+
+`miyu-tui-demo --resume <完整会话 ID>` 恢复指定会话，优先于 `tui.startup=recent`。在 herdr 中创建或切换主会话后自动上报恢复命令；服务重启后每个窗格恢复各自的会话。`/new` 清掉旧绑定。只退出 herdr 客户端时原进程继续运行。
+
+恢复程序 `miyu-tui-demo` 必须在恢复 shell 的 PATH 中，MIYU_HOME、MIYU_RESOURCES、MIYU_CORE_BIN 也须可用；临时写在原启动命令前的环境变量不会被 herdr 保存。demo 试用可用固定这些环境的启动脚本，放到 PATH 中；独立命名 herdr 会话先试，不停止默认服务。
+
+Linux 隔离验收（需要 herdr）：`cargo test --test herdr_resume -- --ignored`。使用临时数据根、假模型和独立 XDG 配置，验证两窗格各自恢复、/new 清掉旧绑定，不读写真实会话。

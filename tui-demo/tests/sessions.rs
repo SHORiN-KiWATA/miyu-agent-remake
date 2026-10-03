@@ -13,10 +13,14 @@ const CTRL_P: &[u8] = b"\x10";
 
 /// 开 `n` 个会话，第 i 个说「第 i 号的话」、答「第 i 号的回答。」，最后停在第 n 个。
 fn sessions(n: usize) -> (Home, Tui) {
+    sessions_settings(n, "")
+}
+
+fn sessions_settings(n: usize, settings: &str) -> (Home, Tui) {
     let plays: Vec<Play> = (1..=n)
         .map(|i| Play::Says(Box::leak(format!("第 {i} 号的回答。").into_boxed_str())))
         .collect();
-    let home = Home::new(Script::new(plays));
+    let home = Home::with_settings(Script::new(plays), settings);
     let mut tui = home.tui("zh_CN.UTF-8");
     tui.wait_for("工作区");
     for i in 1..=n {
@@ -185,4 +189,45 @@ fn the_resume_alias_still_opens_the_list() {
     let (_home, mut tui) = sessions(1);
     tui.say("/resume");
     tui.wait_for("1 个");
+}
+
+#[test]
+fn explicit_resume_restores_each_session_instead_of_global_recent() {
+    let (home, first) = sessions_settings(2, "[tui]\nstartup = \"recent\"\n");
+    drop(first);
+    let mut ids: Vec<String> = std::fs::read_dir(home.root().join("home/alice/sessions"))
+        .expect("会话目录")
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    ids.sort();
+    assert_eq!(ids.len(), 2);
+    for (i, id) in ids.iter().enumerate() {
+        let mut resumed = home.tui_args("zh_CN.UTF-8", &["--resume", id]);
+        resumed.wait_for(&format!("第 {} 号的回答。", i + 1));
+        assert!(!resumed.shows(&format!("第 {} 号的回答。", 2 - i)));
+    }
+}
+
+#[test]
+fn missing_explicit_session_does_not_fall_back_to_recent() {
+    let (home, first) = sessions_settings(1, "[tui]\nstartup = \"recent\"\n");
+    drop(first);
+    let mut resumed = home.tui_args(
+        "zh_CN.UTF-8",
+        &["--resume", "00000000-0000-7000-8000-000000000001"],
+    );
+    resumed.pump(Duration::from_secs(2));
+    assert!(!resumed.shows("第 1 号的回答。"));
+    let all = std::fs::read_dir(home.root().join("home/alice/sessions"))
+        .unwrap()
+        .count();
+    assert_eq!(all, 1);
+    assert!(
+        resumed
+            .lines()
+            .iter()
+            .any(|l| l.contains("会话") || l.contains("session")),
+        "{}",
+        resumed.lines().join("\n")
+    );
 }

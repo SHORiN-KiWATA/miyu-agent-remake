@@ -286,14 +286,20 @@ impl Core {
 
 /// 起一个线程去连核心。`reconnect` 是连不上时隔多久再试（`layout.json` 的 `reconnect_ms`）；`notify` 把消息
 /// 交给界面，界面那头关了就交回 `false`，这边跟着停。
-pub fn spawn(reconnect: [u64; 2], notify: impl Fn(Update) -> bool + Send + 'static) -> Core {
+pub fn spawn(
+    reconnect: [u64; 2],
+    resume: Option<String>,
+    notify: impl Fn(Update) -> bool + Send + 'static,
+) -> Core {
     let (commands, receiver) = mpsc::unbounded_channel();
     thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build();
         match runtime {
-            Ok(runtime) => runtime.block_on(run(receiver, Backoff::new(reconnect), &notify)),
+            Ok(runtime) => {
+                runtime.block_on(run(receiver, Backoff::new(reconnect), resume, &notify))
+            }
             Err(e) => {
                 notify(Update::Failed(e.to_string()));
             }
@@ -312,6 +318,7 @@ enum Served {
 async fn run(
     mut commands: mpsc::UnboundedReceiver<Command>,
     mut wait: Backoff,
+    resume: Option<String>,
     notify: &impl Fn(Update) -> bool,
 ) {
     // 主会话、另外订阅着的、命令对着哪个：断了重连也记着（`serve.rs`）。
@@ -321,7 +328,14 @@ async fn run(
     loop {
         // 连不上一直试；这期间界面发的命令在通道里排着，连上再发（第 1、7 条）。
         let mut rpc = loop {
-            match open(link.main.as_deref(), first).await {
+            match open(
+                link.main
+                    .as_deref()
+                    .or(if first { resume.as_deref() } else { None }),
+                first,
+            )
+            .await
+            {
                 Ok((rpc, opened, limits)) => {
                     // 进了已有的会话：订阅留给收发时带 `after` 做，以前的补发过来。
                     link.replay_main = limits.is_none() && opened.is_some();
@@ -360,12 +374,18 @@ async fn run(
 
 /// 连上；有会话的订阅它。还没有的（刚启动、`/new` 以后）不开，和 `/new` 一样等第一句话时才开（蓝图「连核心」第 4 条：
 /// 没说话就退出的不留空会话）。`first`：头一次连上，配置 `tui.startup` 是 `recent` 的进最近的那个已有会话，不在这里
-/// 订阅（限额交回 `None`），收发时带 `after` 订阅；一个都没有的照样等第一句话。交回连接、会话和限额。
+/// 订阅（限额交回 `None`），收发时带 `after` 订阅；一个都没有的照样等第一句话。显式恢复的先验证 ID，
+/// 成功后从头补发，失败不回退到 recent。交回连接、会话和限额。
 async fn open(
     session: Option<&str>,
     first: bool,
 ) -> Result<(Rpc, Option<String>, Option<(Limits, Option<Current>)>), Update> {
     let mut rpc = connect().await?;
+    if first && let Some(id) = session {
+        // 先验证指定会话可载入，成功以后统一从头补发；失败留在原 ID，不挑 recent。
+        subscribe(&mut rpc, id).await?;
+        return Ok((rpc, Some(id.to_string()), None));
+    }
     if session.is_none() && first && switch::wants_recent(&mut rpc).await {
         let list = rpc
             .call("session.list", serde_json::json!({}))
