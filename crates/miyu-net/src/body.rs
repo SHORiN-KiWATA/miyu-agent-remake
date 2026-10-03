@@ -8,6 +8,9 @@
 //! - 读到 `</head>`、`<body` 时，`<head>` 里要是什么都没挖到（没有 `<title>`、没有 `og:title`），接着往下读，只找
 //!   `og:title`，找到就停（YouTube 把 `og:*` 放在 `</head>` 后面，W-7 补）。这个判断是边读边做的（[`HeadSignals`]），
 //!   不会整段重扫：一个标签只收尾一次就处理一次，不管喂了多少次、喂的是不是从头开始的那一整截。
+//! - YouTube 不照这一条在 `</head>` 停（[`Until::Video`]）：它的 `<head>` 里有 `<title>`，`og:*`、时长、频道名却都在
+//!   `</head>` 后面。读到不空的 `og:title`、`itemprop="duration"`、`<link itemprop="name">` 三样都见到了为止，三样
+//!   不齐的读到完或者读到上限（W-7 再补，`net.md`「怎么走」第 12 条）。
 //! - `response.chunk()` 已经是解压过的字节（`miyu-net` 的客户端开着 gzip/brotli/deflate/zstd），这里的字节上限
 //!   天然照解压以后的算：每次只多攒一块，攒够了就停，不会先把整个压缩炸弹解开再截。
 
@@ -33,11 +36,27 @@ pub(crate) async fn read_prefix(mut response: Response, max: usize) -> Result<Ve
     Ok(body)
 }
 
-/// 读到 `</head>` 或 `<body` 就停，最多 `max` 个字节：交回读到的、截在记号那里的一截。
+/// 页面读到哪儿为止。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Until {
+    /// 普通网页：读到 `</head>`、`<body` 为止（`<head>` 里什么都没挖到的接着找 `og:title`）。
+    Head,
+    /// YouTube：读到 `og:title`、时长、频道名都见到了为止。
+    Video,
+    /// B 站的视频页：读到完（视频数据在页面后半截的脚本里，整页一二百 KB）。
+    End,
+}
+
+/// 读页面，最多 `max` 个字节，读到哪儿为止照 `until`。
 ///
-/// 到了记号那里，要是已经看到够做卡片的东西（`<title>` 或者不空的 `og:title`）就在那儿截住，照旧；两个都没有的，
-/// 不截，接着往下读，只找 `og:title`，找到就停（W-7 补，net.md「怎么走」第 6 条）。
-pub(crate) async fn read_head(mut response: Response, max: usize) -> Result<Vec<u8>, Broken> {
+/// [`Until::Head`]：到了 `</head>`、`<body` 这个记号那里，要是已经看到够做卡片的东西（`<title>` 或者不空的
+/// `og:title`）就在那儿截住，照旧；两个都没有的，不截，接着往下读，只找 `og:title`，找到就停（W-7 补，net.md
+/// 「怎么走」第 6 条）。[`Until::Video`]：不看记号，三样都见到了就停；[`Until::End`]：读到完（W-7 再补）。
+pub(crate) async fn read_head(
+    mut response: Response,
+    max: usize,
+    until: Until,
+) -> Result<Vec<u8>, Broken> {
     let mut body = Vec::new();
     let mut signals = HeadSignals::default();
     let mut marker = None;
@@ -47,18 +66,31 @@ pub(crate) async fn read_head(mut response: Response, max: usize) -> Result<Vec<
         let room = max.saturating_sub(body.len());
         let full = chunk.len() >= room;
         body.extend_from_slice(&chunk[..chunk.len().min(room)]);
+        if until == Until::End {
+            if full {
+                break;
+            }
+            continue;
+        }
+        if until == Until::Video {
+            signals.feed(&body, HeadSignals::video_done);
+            if signals.video_done() || full {
+                break;
+            }
+            continue;
+        }
         if marker.is_none()
             && let Some(end) = find_head_end(&body[scan_from..]).map(|at| scan_from + at)
         {
             // 只喂到记号那儿：这一步的判断不能算上记号后面（正文）的标签
-            signals.feed(&body[..end]);
+            signals.feed(&body[..end], HeadSignals::enough);
             if signals.enough() {
                 body.truncate(end);
                 break;
             }
             marker = Some(end);
         }
-        signals.feed(&body);
+        signals.feed(&body, HeadSignals::enough);
         if marker.is_some() && signals.og_title {
             break;
         }
@@ -79,6 +111,10 @@ struct HeadSignals {
     title: bool,
     /// 看到不空的 `og:title` 了。
     og_title: bool,
+    /// 看到不空的 `<meta itemprop="duration">` 了（YouTube）。
+    duration: bool,
+    /// 看到不空的 `<link itemprop="name">` 了（YouTube 的频道名）。
+    author: bool,
 }
 
 impl HeadSignals {
@@ -87,9 +123,14 @@ impl HeadSignals {
         self.title || self.og_title
     }
 
-    /// 喂目前攒到的全部字节（从头算，不是只新增的那一截）：处理这以后新收尾的标签。
-    fn feed(&mut self, body: &[u8]) {
-        if self.enough() {
+    /// YouTube 要的三样都见到了没有。
+    fn video_done(&self) -> bool {
+        self.og_title && self.duration && self.author
+    }
+
+    /// 喂目前攒到的全部字节（从头算，不是只新增的那一截）：处理这以后新收尾的标签，`done` 了就不再看。
+    fn feed(&mut self, body: &[u8], done: fn(&HeadSignals) -> bool) {
+        if done(self) {
             return;
         }
         while let Some(open) = body[self.scanned..].iter().position(|&b| b == b'<') {
@@ -102,13 +143,13 @@ impl HeadSignals {
             let tag = &body[start + 1..end];
             self.scanned = end + 1;
             self.inspect(tag);
-            if self.enough() {
+            if done(self) {
                 break;
             }
         }
     }
 
-    /// 一个收了尾的标签（不带尖括号）：是不是 `<title`，是不是不空的 `og:title`。
+    /// 一个收了尾的标签（不带尖括号）：是不是 `<title`，是不是不空的 `og:title`、时长、频道名。
     fn inspect(&mut self, tag: &[u8]) {
         let name_end = tag
             .iter()
@@ -117,10 +158,18 @@ impl HeadSignals {
         let name = &tag[..name_end];
         if name.eq_ignore_ascii_case(b"title") {
             self.title = true;
-        } else if name.eq_ignore_ascii_case(b"meta")
-            && html::meta_is_og_title(&String::from_utf8_lossy(tag))
-        {
-            self.og_title = true;
+        } else if name.eq_ignore_ascii_case(b"meta") {
+            let tag = String::from_utf8_lossy(tag);
+            if html::meta_is_og_title(&tag) {
+                self.og_title = true;
+            } else if html::tag_value(&tag, "itemprop", "duration", "content").is_some() {
+                self.duration = true;
+            }
+        } else if name.eq_ignore_ascii_case(b"link") {
+            let tag = String::from_utf8_lossy(tag);
+            if html::tag_value(&tag, "itemprop", "name", "content").is_some() {
+                self.author = true;
+            }
         }
     }
 }

@@ -91,6 +91,12 @@ impl Reply {
         self
     }
 
+    /// 换一个状态码（W-7 再补：人机验证页回 403、503 也带着页面）。
+    pub fn with_status(mut self, status: u16) -> Reply {
+        self.status = status;
+        self
+    }
+
     /// 不写 `Content-Length`：身子写完关连接。
     pub fn without_length(mut self) -> Reply {
         self.sized = false;
@@ -115,7 +121,8 @@ pub struct Seen {
     pub accept_encoding: String,
 }
 
-/// 跑着的假服务器：照请求行里的地址回，没有的回 404。收到的请求都记下来。
+/// 跑着的假服务器：照请求行里的地址回，没有的回 404；路由以 `*` 结尾的照前缀对（W-7 再补：接口的查询参数长）。
+/// 收到的请求都记下来。
 pub struct Site {
     pub port: u16,
     seen: Arc<Mutex<Vec<Seen>>>,
@@ -196,7 +203,10 @@ async fn serve(mut socket: TcpStream, routes: &[(String, Reply)], log: &Mutex<Ve
         });
     let reply = routes
         .iter()
-        .find(|(path, _)| *path == target)
+        .find(|(path, _)| match path.strip_suffix('*') {
+            Some(prefix) => target.starts_with(prefix),
+            None => *path == target,
+        })
         .map_or_else(|| Reply::status(404), |(_, reply)| reply.clone());
     let mut out = format!("HTTP/1.1 {} X\r\n", reply.status);
     for (name, value) in &reply.headers {
@@ -324,4 +334,13 @@ pub fn brotli(bytes: &[u8]) -> Vec<u8> {
     )
     .expect("压得完");
     output
+}
+
+/// 测试的口子，再加上这几个名字都解析到回环：站的测试用真的主机名（认站照主机名），连的是本机的假服务器。
+pub fn local_with(names: &[&str]) -> Testing {
+    let mut testing = local();
+    for name in names {
+        testing.hosts.push(((*name).to_string(), ip("127.0.0.1")));
+    }
+    testing
 }

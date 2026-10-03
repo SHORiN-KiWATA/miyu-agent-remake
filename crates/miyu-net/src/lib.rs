@@ -7,6 +7,7 @@
 //!   不再试（照 `mermaid.md` 第 2 条）。
 //! - 抓过的记在内存里（`remember.rs`）；记着的卡片指的 blob 没了的，那一格交 `None`。
 //! - 测试的口子在 `testkit.rs`，只在 `testkit` 开关打开时编进去。
+//! - 认得的站（B 站、YouTube、MediaWiki 站）照各自的办法取，人机验证页不出卡片（`sites.rs`，W-7 再补）。
 
 mod body;
 mod fetch;
@@ -15,6 +16,7 @@ mod html;
 mod proxy;
 mod remember;
 mod rules;
+mod sites;
 #[cfg(any(test, feature = "testkit"))]
 pub mod testkit;
 
@@ -30,7 +32,7 @@ use fetch::Fetcher;
 use guard::Guard;
 use proxy::Proxies;
 use remember::{Keep, Remember};
-use rules::Clip;
+use rules::{Clip, Sites};
 
 /// 运行日志的目标。
 const TARGET: &str = "miyu::net";
@@ -50,6 +52,35 @@ pub struct Card {
     pub image: Option<Picture>,
     /// 站点的图标。
     pub icon: Option<Picture>,
+    /// 是什么（W-7 再补）。
+    pub kind: Kind,
+    /// 视频多少秒：B 站接口给的、YouTube 页面上读到的；没有的是 `None`。
+    pub duration: Option<u64>,
+    /// 作者：B 站的 UP 主、YouTube 的频道名；没有的是 `None`。
+    pub author: Option<String>,
+}
+
+/// 卡片是什么（`net.md`「对外的样子」，W-7 再补）。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Kind {
+    /// 一个视频：B 站的视频、YouTube 上读到了时长的页。
+    Video,
+    /// 一篇文章：MediaWiki 站上的页。
+    Article,
+    /// 别的网页。
+    #[default]
+    Page,
+}
+
+impl Kind {
+    /// 协议上的写法：`video`、`article`、`page`。
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Kind::Video => "video",
+            Kind::Article => "article",
+            Kind::Page => "page",
+        }
+    }
 }
 
 /// 卡片上的一张图：这个账号的 blob。
@@ -88,6 +119,10 @@ impl Why {
 
 /// 一次 [`LinkPreview::preview`] 的结果：做不出卡片是正常的结果之一，不是出错。
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "一次 preview 交回一个，马上写成回应；记着的放的是 Card，不是它"
+)]
 pub enum Preview {
     /// 做成了。
     Card(Card),
@@ -102,6 +137,8 @@ pub struct NotReady;
 /// 第一次调时备好的：抓取、截断、记着的。
 struct Ready {
     fetcher: Fetcher,
+    sites: Sites,
+    challenge_titles: Vec<String>,
     clip: Clip,
     remember: Remember,
 }
@@ -173,25 +210,26 @@ impl LinkPreview {
         })
     }
 
-    /// 抓一页做成卡片：一张卡至少要有个标题，不然不如留着原来的链接。
+    /// 抓一页做成卡片（认得的站照它的办法）：一张卡至少要有个标题，不然不如留着原来的链接。
     async fn fetch(&self, ready: &Ready, url: &Url) -> Result<Card, Why> {
-        let (page, head) = ready.fetcher.page(url).await?;
-        let found = html::read(&head, &page, &ready.clip);
-        if found.title.is_empty() {
-            return Err(Why::NoPreview);
-        }
+        let (page, draft) =
+            sites::draft(&ready.fetcher, &ready.sites, &ready.challenge_titles, url).await?;
+        let texts = sites::finish(&draft, &page, &ready.clip)?;
         // 两张图互不相干，一起抓
         let (image, icon) = tokio::join!(
-            self.keep(ready, found.image.as_ref()),
-            self.keep(ready, found.icon.as_ref())
+            self.keep(ready, draft.found.image.as_ref()),
+            self.keep(ready, draft.found.icon.as_ref())
         );
         Ok(Card {
             url: page.to_string(),
-            title: found.title,
-            description: found.description,
-            site: found.site,
+            title: texts.title,
+            description: texts.description,
+            site: texts.site,
             image,
             icon,
+            kind: draft.kind,
+            duration: draft.duration,
+            author: texts.author,
         })
     }
 
@@ -239,6 +277,8 @@ impl LinkPreview {
                     let (guard, proxies) = self.network();
                     Ok(Ready {
                         fetcher: Fetcher::new(&rules, guard, proxies),
+                        sites: rules.sites.clone(),
+                        challenge_titles: rules.challenge.titles.clone(),
                         clip: rules.clip,
                         remember: Remember::new(Keep {
                             found: rules.found,

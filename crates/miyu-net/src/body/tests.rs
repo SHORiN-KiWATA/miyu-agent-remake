@@ -39,7 +39,7 @@ fn only_real_image_bytes_are_kept() {
 #[test]
 fn head_signals_catch_a_title_tag() {
     let mut signals = HeadSignals::default();
-    signals.feed(b"<html><head><title>Hi</title>");
+    signals.feed(b"<html><head><title>Hi</title>", HeadSignals::enough);
     assert!(signals.enough());
     assert!(signals.title);
     assert!(!signals.og_title, "标题够了，不用管 og:title");
@@ -48,7 +48,10 @@ fn head_signals_catch_a_title_tag() {
 #[test]
 fn head_signals_catch_a_non_empty_og_title() {
     let mut signals = HeadSignals::default();
-    signals.feed(br#"<meta property="og:title" content="Hi">"#);
+    signals.feed(
+        br#"<meta property="og:title" content="Hi">"#,
+        HeadSignals::enough,
+    );
     assert!(signals.enough());
     assert!(signals.og_title);
 }
@@ -56,7 +59,10 @@ fn head_signals_catch_a_non_empty_og_title() {
 #[test]
 fn head_signals_ignore_an_empty_og_title() {
     let mut signals = HeadSignals::default();
-    signals.feed(br#"<meta property="og:title" content="">"#);
+    signals.feed(
+        br#"<meta property="og:title" content="">"#,
+        HeadSignals::enough,
+    );
     assert!(!signals.enough(), "内容是空的，不算够");
 }
 
@@ -64,7 +70,10 @@ fn head_signals_ignore_an_empty_og_title() {
 fn head_signals_accept_name_and_reordered_attributes() {
     // name 是 property 的退路；属性先后不管
     let mut signals = HeadSignals::default();
-    signals.feed(br#"<meta content="Hi" name="OG:TITLE">"#);
+    signals.feed(
+        br#"<meta content="Hi" name="OG:TITLE">"#,
+        HeadSignals::enough,
+    );
     assert!(signals.og_title, "大小写、先后都不该拦住");
 }
 
@@ -72,11 +81,16 @@ fn head_signals_accept_name_and_reordered_attributes() {
 fn head_signals_do_not_rescan_a_tag_already_processed() {
     // 先喂一个不相干的标签，游标往前挪；再喂同一截 + 多出来的 og:title，只该看到新收尾的那个
     let mut signals = HeadSignals::default();
-    signals.feed(b"<meta name=\"description\" content=\"d\">");
+    signals.feed(
+        b"<meta name=\"description\" content=\"d\">",
+        HeadSignals::enough,
+    );
     assert!(!signals.enough());
     let scanned_after_first = signals.scanned;
-    signals
-        .feed(br#"<meta name="description" content="d"><meta property="og:title" content="Hi">"#);
+    signals.feed(
+        br#"<meta name="description" content="d"><meta property="og:title" content="Hi">"#,
+        HeadSignals::enough,
+    );
     assert!(signals.og_title);
     assert!(
         signals.scanned > scanned_after_first,
@@ -88,9 +102,12 @@ fn head_signals_do_not_rescan_a_tag_already_processed() {
 fn head_signals_hold_an_unterminated_tag_for_the_next_feed() {
     // 标签跨在两次喂的接缝上：第一次没收尾不该算，第二次收了尾才算
     let mut signals = HeadSignals::default();
-    signals.feed(br#"<meta property="og:titl"#);
+    signals.feed(br#"<meta property="og:titl"#, HeadSignals::enough);
     assert!(!signals.enough());
-    signals.feed(br#"<meta property="og:title" content="Hi">"#);
+    signals.feed(
+        br#"<meta property="og:title" content="Hi">"#,
+        HeadSignals::enough,
+    );
     assert!(signals.og_title);
 }
 
@@ -111,4 +128,27 @@ fn a_head_is_cut_at_its_end() {
     let body_first = b"<head><body></head>";
     assert_eq!(find_head_end(body_first), Some(6));
     assert_eq!(find_head_end(b"<html><head><title>x</title>"), None);
+}
+
+#[test]
+fn video_signals_need_the_og_title_the_duration_and_the_channel() {
+    // YouTube 读到三样都见到了为止（W-7 再补）：少一样都不算完，<title> 不算
+    let mut signals = HeadSignals::default();
+    signals.feed(
+        br#"<title>t</title><meta property="og:title" content="V"><meta itemprop="duration" content="PT1S">"#,
+        HeadSignals::video_done,
+    );
+    assert!(!signals.video_done(), "还没见到频道名");
+    signals.feed(
+        br#"<title>t</title><meta property="og:title" content="V"><meta itemprop="duration" content="PT1S"><link itemprop="url" href="/x"><link itemprop="name" content="C">"#,
+        HeadSignals::video_done,
+    );
+    assert!(signals.video_done());
+    // 空的不算
+    let mut empty = HeadSignals::default();
+    empty.feed(
+        br#"<meta property="og:title" content="V"><meta itemprop="duration" content=""><link itemprop="name" content=" ">"#,
+        HeadSignals::video_done,
+    );
+    assert!(!empty.video_done());
 }
