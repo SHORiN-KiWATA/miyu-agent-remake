@@ -725,3 +725,5 @@ TUI 三平台测试（2026-10-03）：独立工作流 tui-demo.yml 检查 TUI；
 拖文件测试构造 shell 转义路径时同时转义反斜杠和空格；Windows 路径分隔符也是 shell 转义字符。运行时路径解析规则不变。
 
 Windows PTY 测具使用 ConPTY；crossterm Windows 输入边界读取 Win32 输入记录，不直接解析 Unix/kitty 输入字节。Ctrl+J/K 字节、kitty Ctrl+Enter、括号粘贴加 OSC52 原始输出、逐帧原始光标字节这四项端到端测试在 Windows 明确 ignore，并说明测具限制。对应单元测试仍在三平台执行，其他 PTY 测试继续跑；这不代表这四项的原生 Windows 端到端行为已验收。Unix 仍执行全部四项。
+
+长回答的滚动 PTY 测试先回到底部、等收尾行，再准备人工滚动场景：正常分帧到达时正文会停在回答开头（「正文」第 1 条），不能假定测试回答总是一帧到齐。等待仍受 WAIT 限制，原有翻页和回底断言保留。
