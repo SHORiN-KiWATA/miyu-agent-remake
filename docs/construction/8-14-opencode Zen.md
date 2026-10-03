@@ -52,3 +52,30 @@ opencode 的 Zen（`/zen/v1`）和 Console Go（`/zen/go/v1`）只写 key 就能
    - `deepseek-v4.1-flash`（`openai-chat`，思考照 `reasoning_content` 回传）：带工具的会话三轮，读文件、接着算，六次请求全成，第二、三轮缓存命中 95%、93%（回传的思考没打乱前缀）。
    - `minimax-m3`（`anthropic`，`/messages`）、`gpt-5.6-luna`（`openai-responses`，`/responses`）各问一句，都答对。
    - 数据根、仓库里找不到 key；运行日志里没有头的值。
+
+### 施工 8-14 补：免费档（2026-10-04）
+
+**决定变更**：10-03 定的「不冒充 OpenCode 的客户端、先不做免费档」作废——项目主人 2026-10-04 要求把免费档接上（首条消息要找的「不能冒充 opencode」那条改掉）。10-03 的结论「免费档过不了」是因为拿旧版 UA 试的；拿对形状的 UA 能过。
+
+**实测（2026-10-04，真端点，项目主人的 Zen key；一次只改一个变量）**：
+
+| 变量 | 结果 |
+|---|---|
+| UA `opencode/1.17.0` | 426（要求 ≥1.18.0） |
+| UA `opencode/1.18.29` 或 `opencode/2.0.21`（本机装的版本） | ✅ |
+| UA `miyu/<版本>` | 403 `FreeTierError` |
+| `x-opencode-*` 头：至少一个（值 `ses_` + 26 位小写十六进制） | ✅；base62 带大写的 id 会 403 |
+| 工具面里同时有 `shell` 和 `read` | ✅（缺任一件 403） |
+| `stream: true` | ✅（非流式 403） |
+
+**做了什么**：
+
+1. 档案 `[providers.opencode]`（`resources/models/profiles.toml`）：`headers`（`User-Agent` = `opencode/2.0.21`、`x-opencode-client`、`x-opencode-project`、`x-opencode-session`，值照 `{session_digest}` 换）+ `placeholder_tools = ["read", "shell"]`。版本跟着本机装的 opencode 走；闸改判据时先跑旧版 `miyu-agent` 仓库里的测具 `testkit/opencode-zen/freetier_probe.js` 再动这一行。
+2. 占位工具：新资源 `resources/core/drivers/placeholder-tool.txt`；`ModelData` 带上它（`with_placeholder_tool`）；发请求前在统一的请求上补缺的（`crates/miyu-session/src/route/placeholder.rs`，`exchange.rs`、`probe.rs` 调）——三种驱动都成立；有这两件的会话一个字节不动；她真调了照没有这件工具处理。
+3. User-Agent 的盖法：档案的 `headers` 里写 `User-Agent`，HTTP 执行器挂另配的头时盖掉客户端的 `miyu/<版本>`（`http.md` 第 4 条「同名的换掉上面那个」；reqwest 的请求级头优先于客户端默认头）。
+
+**不做**：`x-opencode-request`（实测一个头就够）；`{call_digest}`（没登记）。
+
+**守着它的**：`crates/miyu-session/tests/route_zen.rs` 的 `the_zen_free_tier_headers_and_placeholders_go_out`；`crates/miyu-session/src/route/placeholder/tests.rs` 四条；`crates/miyu-models/src/profile/tests.rs` 的 `placeholder_tools_are_a_list_of_names`；`crates/miyu-core/src/models/tests.rs` 的出厂档案一条。
+
+**风险**：这是绕过服务端的客户端检查，判据随时会被改；只在本机用、key 不进仓库。

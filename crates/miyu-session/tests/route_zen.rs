@@ -1,6 +1,7 @@
 //! 路由接 opencode 的 Go、Zen（`docs/blueprint/models.md`「怎么走」第八条、`drivers/openai-chat.md`「接 opencode Zen」，施工
 //! 8-14）：只写 key，驱动、地址照档案和目录推；同一家的模型照目录各走各的驱动，发到各自的路径；没有驱动的模型当场 `no_model`，
-//! 别的照常；请求带档案另配的头，值照种子换（会话是会话编号，一次性的是用途）；交错思考的照目录回传。
+//! 别的照常；请求带档案另配的头，值照种子换（会话是会话编号，一次性的是用途）；交错思考的照目录回传；8-14 补：Zen 免费档的
+//! `User-Agent` 和占位工具（工具面里缺 `shell`、`read` 时补）照档案。
 //!
 //! 假服务器在本机回环上，手写的地址指着它；编号和目录里一样，照编号认出是目录里的那一家。
 
@@ -38,12 +39,22 @@ fn zen_routes() -> Routes {
     let profiles = json!({
         "npm": {"@ai-sdk/openai-compatible": "openai-chat", "@ai-sdk/anthropic": "anthropic",
                 "@ai-sdk/openai": "openai-responses"},
-        "providers": {"opencode-go": {"headers": {"x-opencode-session": "ses_{session_digest}"}}}
+        "providers": {
+            "opencode-go": {"headers": {"x-opencode-session": "ses_{session_digest}"}},
+            "opencode": {
+                "headers": {"User-Agent": "opencode/2.0.21", "x-opencode-client": "cli",
+                            "x-opencode-project": "global", "x-opencode-session": "ses_{session_digest}"},
+                "placeholder_tools": ["read", "shell"]
+            }
+        }
     });
     let data = ModelData::new(
         Profiles::parse(&profiles).expect("档案写法对"),
         Vendors::default(),
         None,
+    )
+    .with_placeholder_tool(
+        include_str!("../../../resources/core/drivers/placeholder-tool.txt").to_string(),
     );
     data.loaded(Some(trimmed()), Observed::default());
     routes_with(Arc::new(data), Duration::from_secs(60))
@@ -194,17 +205,34 @@ async fn a_model_without_a_driver_is_no_model_and_the_rest_still_work() {
         server.received()[0].header("x-opencode-session"),
         Some(format!("ses_{}", digest("title")).as_str())
     );
-    // 没写头的一家不带。
+    // 没写头、没写占位的一家：不带头，也不补（另造一份两样都没有的档案）。
+    let plain_profiles =
+        json!({"npm": {"@ai-sdk/openai-compatible": "openai-chat"}, "providers": {}});
+    let plain_data = ModelData::new(
+        Profiles::parse(&plain_profiles).expect("档案写法对"),
+        Vendors::default(),
+        None,
+    );
+    plain_data.loaded(Some(trimmed()), Observed::default());
+    let plain_routes = routes_with(Arc::new(plain_data), Duration::from_secs(60));
     let plain = Server::start(vec![hello("openai-chat")]).await;
     let config = frozen(
         &source(&plain.base_url, "opencode/deepseek-v4.1-flash"),
         &key(),
     );
-    entry
+    let plain_entry = support::calling::entry(&plain_routes);
+    plain_entry
         .call(&config, &blobs, asking(None, "title", "hi"))
         .await
         .expect("答得上来");
     assert_eq!(plain.received()[0].header("x-opencode-session"), None);
+    assert!(
+        plain.received()[0]
+            .header("user-agent")
+            .is_some_and(|ua| ua.starts_with("miyu/")),
+        "没写头照客户端的默认"
+    );
+    assert!(body(&plain, 0).get("tools").is_none(), "没点名的不补");
 }
 
 #[tokio::test]
@@ -221,5 +249,49 @@ async fn a_session_sends_its_own_digest() {
         session_header(&server, 0),
         Some(format!("ses_{}", digest(handle.id().as_str()))),
         "会话照会话编号"
+    );
+}
+
+/// Zen 免费档（施工 8-14 补，2026-10-04 实测）：User-Agent 盖成 opencode 的形状，另配三个头；工具面里没有
+/// `shell`、`read` 的补占位——免费档要这两件才放行。
+#[tokio::test]
+async fn the_zen_free_tier_headers_and_placeholders_go_out() {
+    let server = Server::start(vec![hello("openai-chat")]).await;
+    let config = frozen(
+        &source(&server.base_url, "opencode/deepseek-v4.1-flash"),
+        &key(),
+    );
+    let routes = zen_routes();
+    let (_scratch, blobs) = blobs();
+    entry(&routes)
+        .call(&config, &blobs, asking(None, "title", "hi"))
+        .await
+        .expect("答得上来");
+    let received = &server.received()[0];
+    assert_eq!(
+        received.header("user-agent"),
+        Some("opencode/2.0.21"),
+        "User-Agent 盖掉客户端默认的 miyu/<版本>"
+    );
+    assert_eq!(received.header("x-opencode-client"), Some("cli"));
+    assert_eq!(received.header("x-opencode-project"), Some("global"));
+    assert_eq!(
+        received.header("x-opencode-session"),
+        Some(format!("ses_{}", digest("title")).as_str()),
+        "一次性的照用途"
+    );
+    let sent = body(&server, 0);
+    let tools = sent["tools"].as_array().expect("补了占位，工具面在");
+    let names: Vec<&str> = tools
+        .iter()
+        .map(|tool| tool["function"]["name"].as_str().expect("名字"))
+        .collect();
+    assert_eq!(names, ["read", "shell"], "缺的两件照名字排着补上");
+    let description = tools[0]["function"]["description"].as_str().expect("说明");
+    assert!(description.starts_with("Placeholder"), "{description}");
+    assert_eq!(
+        tools[0]["function"]["parameters"],
+        json!({"type": "object", "properties": {}}),
+        "占位的参数格式是空的"
     );
 }

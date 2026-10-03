@@ -64,6 +64,8 @@ pub(super) struct Ready {
     pub(super) learn: Learn,
     /// 这个模型的价格（施工 8-15）：说完了照用量算金额。资料里没有价格的没有。
     pub(super) tariff: Option<Tariff>,
+    /// 占位工具（施工 8-14 补）：档案点名的名字 + 给模型看的说明。工具面里缺哪件补哪件（`placeholder.rs`）；空的不动。
+    pub(super) placeholders: Vec<(String, String)>,
 }
 
 impl Routes {
@@ -97,7 +99,8 @@ impl Routes {
         Ok((picked, pins))
     }
 
-    /// 挑定了 `choice`：照真发的那个模型查资料、换驱动（施工 8-14），思考强度照配置的默认，驱动的占位是 `texts`，输出上限 `max_output`
+    /// 挑定了 `choice`：照真发的那个模型查资料、换驱动（施工 8-14），思考强度照配置的默认，驱动的占位是 `texts`，占位工具照档案
+    /// （8-14 补），输出上限 `max_output`
     /// （没有的照供应商的默认；一定要写的驱动照模型资料的最大输出，资料也没有的驱动自己兜底，施工 8-12）。
     pub(super) fn ready(
         &self,
@@ -130,6 +133,8 @@ impl Routes {
             client,
             model: model_of(target),
             endpoint,
+            // 占位工具（施工 8-14 补）：档案点名了哪几件，说明是资源目录里那一句。
+            placeholders: speaking.placeholder_specs(self.data.placeholder_tool()),
             driver: speaking.build(texts),
             idle: effort::idle(self.idle, effort.as_deref()),
             call: Call {

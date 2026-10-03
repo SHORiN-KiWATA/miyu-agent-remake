@@ -353,6 +353,16 @@ impl ResourceRoot {
         self.read(&["models", "profiles.toml"])
     }
 
+    /// 占位工具的说明（`core/drivers/placeholder-tool.txt`，施工 8-14 补）：档案点名了占位工具的供应商，工具面里缺
+    /// 这几件时补上，给模型看的说明就是这一句。怎么用由核心定。
+    ///
+    /// # Errors
+    ///
+    /// 读不出来：写明是哪个文件。
+    pub fn placeholder_tool(&self) -> Result<String, SourceError> {
+        self.read(&["core", "drivers", "placeholder-tool.txt"])
+    }
+
     /// 读资源目录下的一份文件，路径一段一段地接上（三个平台一样）。
     fn read(&self, parts: &[&str]) -> Result<String, SourceError> {
         let path = parts

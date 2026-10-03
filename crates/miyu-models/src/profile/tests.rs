@@ -133,3 +133,23 @@ fn headers_are_templates_with_only_the_session_digest() {
         "{error}"
     );
 }
+
+/// 占位工具（施工 8-14 补）：档案点名的名字列表，没写的是空的。
+#[test]
+fn placeholder_tools_are_a_list_of_names() {
+    let profiles = Profiles::parse(&json!({"providers": {"opencode": {
+        "placeholder_tools": ["read", "shell"]
+    }}}))
+    .expect("读得进来");
+    assert_eq!(
+        profiles.providers["opencode"].placeholder_tools,
+        ["read", "shell"]
+    );
+    assert!(
+        Profiles::parse(&json!({"providers": {"x": {}}}))
+            .expect("读得进来")
+            .providers["x"]
+            .placeholder_tools
+            .is_empty()
+    );
+}

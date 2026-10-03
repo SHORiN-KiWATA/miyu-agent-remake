@@ -184,6 +184,7 @@ fn resolving_the_address_follows_the_reference_or_fails_cleanly() {
         driver_written: false,
         reasoning_written: false,
         headers: std::collections::BTreeMap::new(),
+        placeholders: Vec::new(),
     };
     assert_eq!(
         resolve_base_url(&literal, &|_| None),

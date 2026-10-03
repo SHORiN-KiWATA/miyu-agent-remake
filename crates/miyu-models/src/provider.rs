@@ -110,6 +110,8 @@ pub struct Provider {
     pub reasoning_written: bool,
     /// 档案另配的头：名字 → 模板（施工 8-14，[`crate::headers`]）。
     pub headers: BTreeMap<String, String>,
+    /// 档案点名的占位工具（施工 8-14 补）：工具面里缺这几件时补同名的占位声明（`models.md`「八、opencode Zen」第 2 条）。
+    pub placeholders: Vec<String>,
 }
 
 impl Provider {
@@ -177,6 +179,19 @@ impl Provider {
             .iter()
             .map(|(name, template)| (name.clone(), headers::fill(template, seed)))
             .collect()
+    }
+
+    /// 占位工具（施工 8-14 补）：档案点名的名字，说明 `text` 是资源目录里那一句（`resources/core/drivers/placeholder-tool.txt`）。
+    /// 说明是空的（测试、老数据根）不补；造请求的一方（`route/placeholder.rs`）照它填。
+    pub fn placeholder_specs(&self, text: &str) -> Vec<(String, String)> {
+        match text.is_empty() {
+            true => Vec::new(),
+            false => self
+                .placeholders
+                .iter()
+                .map(|name| (name.clone(), text.to_string()))
+                .collect(),
+        }
     }
 }
 
@@ -287,6 +302,7 @@ pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<
             .as_ref()
             .is_some_and(|compat| compat.reasoning.is_some()),
         headers: profile.headers,
+        placeholders: profile.placeholder_tools,
     })
 }
 

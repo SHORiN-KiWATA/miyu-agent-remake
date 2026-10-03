@@ -57,10 +57,11 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | `crates/miyu-cli/src/ask.rs`、`ask/talk.rs` | `miyu ask --model`：新开的会话 `session.create` 带上，接着的先 `session.configure`（`talk.rs` 的「找会话」） | 8-10 |
 | `xtask/src/dev_home.rs` | `cargo xtask dev-home`：开发时照环境变量造一个带配置的数据根；测试在 `crates/miyu/tests/dev_home.rs`（原样编进去） | 8-6 |
 | `resources/models/models-dev.json`、`models-dev.meta.json`、`models-dev.LICENSE` | 安装包带的完整目录快照，原样的 `api.json`，和它是什么时候拉的；models.dev 的 MIT 许可证原文（`licenses.md`） | 8-7 |
-| `resources/models/profiles.toml` | 驱动怎么认（`[npm]`：包名 → 驱动，8-7），认得出的供应商的档案：开关、另配的头、找 key 的环境变量、本机服务探哪里。现在有 `[npm]`、`[providers.deepseek]`：驱动、地址、开关（8-18 多开关思考的 `toggle`）、一张图怎么算（「能收哪些输入」8-7 拿掉，照模型资料）；`[providers.ollama]`：名字、驱动、地址，只为「找现成的」（8-11，档案多一格 `name`）；`anthropic`、`openai` 两段（8-12、8-13）；`[providers.opencode-go]`：只有另配的头（8-14，档案多一格 `headers`） | 8-6 起 |
+| `resources/models/profiles.toml` | 驱动怎么认（`[npm]`：包名 → 驱动，8-7），认得出的供应商的档案：开关、另配的头、占位工具、找 key 的环境变量、本机服务探哪里。现在有 `[npm]`、`[providers.deepseek]`：驱动、地址、开关（8-18 多开关思考的 `toggle`）、一张图怎么算（「能收哪些输入」8-7 拿掉，照模型资料）；`[providers.ollama]`：名字、驱动、地址，只为「找现成的」（8-11，档案多一格 `name`）；`anthropic`、`openai` 两段（8-12、8-13）；`[providers.opencode-go]`：只有另配的头（8-14，档案多一格 `headers`）；`[providers.opencode]`：另配的头（`User-Agent` 也在里头）+ `placeholder_tools`（8-14 补，第八条） | 8-6 起 |
 | `crates/miyu-models/src/headers.rs` | 另配的头的模板：只认 `{session_digest}`，读档案时查、发之前照种子换（8-14） | 8-14 |
 | `resources/models/vendors.toml` | 认原厂：家族的第一段 → 原厂在目录里的编号 | 8-7 |
 | `resources/core/models/probe.txt` | `provider.test` 发的那一句：核心每试一次照 `ResourceRoot::probe` 读一次，去掉行尾的空白 | 8-11 |
+| `resources/core/drivers/placeholder-tool.txt` | 占位工具的说明（8-14 补）：工具面里缺 `read`、`shell` 的请求补一条同名占位声明，说明就是这一句 | 8-14 补 |
 | `resources/software/basesystem/tools/session_usage.json`、`session_usage/*.txt` | 查用量的说明和结果的几句 | 8-15 |
 
 分层照 `01-架构.md` 第九节：`miyu-models` 是新的第 2 层 crate，登记进那张表（门禁的真相源）。它只用白名单里的 `serde`、`serde_json`、`sha2`，同一层用 `miyu-config`（声明配置项）、`miyu-drivers`（开关、输入的类型）。TOML 的资源文件由 `miyu-core` 读成 JSON 再交进去（8-6）。
@@ -83,6 +84,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | `price_multiplier` | 不小于 0 的数 | 1 | 倍率（第二条第 11 条） |
 | `cache` | `contract`、`best_effort`、`per_request` | 驱动的默认 | 缓存属于哪一类（`08-上下文投影.md` 第六节）。8-8 登记，现在只用来定池不写分法时怎么分（`[pools.<名字>]`）；key 默认钉不钉随用到它的那一步。没有哪种驱动的默认是 `per_request` |
 | `compat` | 表，见下 | 档案的，档案没有的是驱动的默认 | `openai-chat` 的开关。别的驱动写了是错 |
+| `placeholder_tools` | 工具名的列表 | 档案的，没有是空的 | 工具面里缺这几件时补同名的占位声明（第八条第 2 条） |
 | `local` | 布尔 | 地址在本机（`127.0.0.1`、`localhost`、`::1`）的，或者档案标了 `local` 的，是 `true` | 本机的模型服务（Ollama、LM Studio 这类）：价格默认是 0，当免费（第二条第 12 条）。放在局域网别的机器上的，要当免费就写 `true` |
 | `models` | 表：模型名 → 手写的资料 | 空 | 见下 |
 
@@ -684,21 +686,23 @@ flowchart TB
    7. `config.set` 写系统配置的 `[providers.<编号>]`（只写 `keys`：驱动、地址推得出的不写；本机的服务写空的 `keys = []`）和 `models.chat`，经核心写（`14-配置.md` G4）。选的是已经配好的那一家的，只写 `models.chat`。配置里一个池都没有的（写之前问一次 `config.get`，不带 `cwd`：`items` 里没有 `pools.` 开头的键），同一次 `config.set` 一起写三个预设的池 `[pools.lite]`、`[pools.standard]`、`[pools.flagship]`：`models = []`、`subagent = true`，不带说明（8-8 补，2026-10-01 项目主人定）。看图的模型不问（`15-模型与供应商.md` 第七节）。
 6. **`miyu ask` 没有模型时**：没写 `--model` 的，连上核心以后先问 `config.get` 的 `models.chat`（不带 `cwd`，和 `model.list` 的 `uses.chat` 是同一个值；`model.list` 会顺手在后台拉供应商的列表，「施工时定的」8-11），没有值就是没有模型。标准输入、标准错误都是终端的，先走一遍 `miyu setup`（同一条连接），写好了再连一次、照常发这条消息；setup 没走完的照它的退出码退出。不是终端的，说没有模型那一句，退出码 5，不造会话（`22-命令行.md` 第三节）。不再照 `DEEPSEEK_API_KEY` 认。
 
-**八、opencode Zen**（8-14；2026-10-03 主会话照实测收窄，项目主人同意先不做免费档）
+**八、opencode Zen**（8-14；2026-10-03 主会话照实测收窄，2026-10-04 项目主人定：接上免费档）
 
 opencode 有两个端点：Zen（`https://opencode.ai/zen/v1`，按量付费）和 Console Go（`https://opencode.ai/zen/go/v1`，订阅）。两个都在目录里，地址、驱动照目录推，只写 key 就能用。
 
-1. **Go 要的头**：Go 缺 `x-opencode-session` 回 400（`MissingSessionID`）。官方文档（`opencode.ai/docs/go`「Where can I use it」）写明 Go 给第三方编码 agent 用：用自己的 User-Agent、每段对话发一个稳定的 `x-opencode-session`。档案的 `[providers.opencode-go]` 带：
+1. **头**：档案 `[providers.opencode]`（Zen）和 `[providers.opencode-go]`（Go）各带几个头，值里的 `{session_digest}` 是种子的 SHA-256 写成十六进制的前 26 位——种子是会话编号（同一个会话重启以后还是它）；一次性调用是用途；`provider.test` 是固定的 `provider.test`。值里只认这一个字段，别的 `{…}` 读档案时就报错（档案读不进来）。头由 HTTP 执行器照端点另配的头发（`http.md`），和驱动无关；名字和上面同名的（`User-Agent`）换掉上面那个。
 
-   | 头 | 值 |
-   |---|---|
-   | `x-opencode-session` | `ses_{session_digest}` |
+   | 哪一家 | 头 | 值 |
+   |---|---|---|
+   | `opencode-go` | `x-opencode-session` | `ses_{session_digest}` |
+   | `opencode` | `User-Agent` | `opencode/2.0.21`（跟着本机装的 opencode 走） |
+   | `opencode` | `x-opencode-client` | `cli` |
+   | `opencode` | `x-opencode-project` | `global` |
+   | `opencode` | `x-opencode-session` | `ses_{session_digest}` |
 
-   - `{session_digest}`：种子的 SHA-256 写成十六进制的前 26 位。种子是会话编号（同一个会话重启以后还是它）；一次性调用是用途；`provider.test` 是固定的 `provider.test`。
-   - 值里只认这一个字段，别的 `{…}` 读档案时就报错（档案读不进来）。
-   - User-Agent 照旧是 `miyu/<版本>`（`http.md`）。
-   - 头由 HTTP 执行器照端点另配的头发（`http.md`），和驱动无关。
-2. **Zen 的免费档不做**：2026-10-03 实测，带不带 `x-opencode-*` 头、补不补 `read`、`shell` 工具，免费模型都回 403，原话 `OpenCode's free tier can only be used from within OpenCode`；User-Agent 写成 `opencode/1.3.0` 回 426，要求 1.18.0 以上。免费档照 User-Agent 认 OpenCode 自己的客户端，要用就得冒充它，不做。图纸原来的 `x-opencode-client`、`-project`、`-request` 三个头和占位工具只为过这道检查，一起不做。
+   - **Go**：缺 `x-opencode-session` 回 400（`MissingSessionID`）。官方文档（`opencode.ai/docs/go`「Where can I use it」）写明 Go 给第三方编码 agent 用：用自己的 User-Agent、每段对话发一个稳定的 `x-opencode-session`；`miyu/<版本>` 照旧。
+   - **Zen 免费档**（2026-10-04 实测，一次只改一个变量）：免费模型要求三件同时成立，还要流式——User-Agent 是 `opencode/<版本≥1.18>` 的形状（`miyu/<版本>` 一律 403 `FreeTierError`，`opencode/1.17.0` 回 426）；至少一个 `x-opencode-*` 头，值里的 id 是小写十六进制（base62 带大写的 403）；工具面里同时有 `shell` 和 `read`。这是绕过服务端的客户端检查，判据随时会被改——改了先跑旧版 `miyu-agent` 仓库里留下的测具 `testkit/opencode-zen/freetier_probe.js`，再动档案里那一行 UA。
+2. **占位工具**：档案给 Zen 写 `placeholder_tools = ["read", "shell"]`。发请求之前，统一的请求的工具面里缺哪件，补一件同名的：说明是 `resources/core/drivers/placeholder-tool.txt` 那一句，参数 `{"type":"object","properties":{}}`，照名字排进工具面。补在统一的请求上、驱动编码之前（`miyu-session` 的 `route/placeholder.rs`，`exchange.rs`、`probe.rs` 调），所以三种驱动都成立；有这两件的会话一个字节都不动。她真调了占位的那件：内核的工具规则里没有它（快照的工具面里没有），照没有这件工具处理（`kernel/tools.md`），不会多出权限。
 3. **一家几种驱动、思考回传**：见 `drivers/openai-chat.md`「接 opencode Zen」。Go 上的 Claude、MiniMax 这几个走 `anthropic`，GPT、Grok 走 `openai-responses`，别的走 `openai-chat`；交错思考的照目录的 `interleaved` 回传。
 
 **九、用量和金额**（8-15）
@@ -928,7 +932,7 @@ minimax = ["minimax", "minimax-cn"]
 mimo = ["xiaomi"]
 ```
 
-给模型看的几句都待量、待登记（`26-提示词.md` 第十节）：`probe.txt` 草稿 `Reply with OK.`（占位工具的那一句 8-14 不做了），`subagent` 的 `pool`、`session_usage` 见上面「工具」。
+给模型看的几句都待量、待登记（`26-提示词.md` 第十节）：`probe.txt` 草稿 `Reply with OK.`，`subagent` 的 `pool`、`session_usage` 见上面「工具」。
 
 ### 出错
 
@@ -1051,8 +1055,8 @@ mimo = ["xiaomi"]
 | `crates/miyu-models/src/onboard/tests.rs` | 找哪些变量（只有一个名字的、几家同名一家一条）、只探本机能用的几家、档案的一家也列、名字档案的先；搜（编号、名字、不分大小写）、排（能用的先、名字不分大小写）、`limit`；推荐（够格的里发布最晚的、没日期的排后、一样的取靠前的、都不够格取第一个、`deprecated`、窗口、工具）；候选写成的最终值和写进配置的一样推、`{value}` 的引用不和真的密钥撞名 | 8-11 |
 | `crates/miyu-endpoint/tests/providers.rs`、`providers_test.rs` | `provider.detect` 照交进来的环境找、值不交、空白的不算设了，本机的服务几家一起探（假服务器等三家都到了才回，挨个探的一家都探不到）、300 毫秒没回的、回错的、读不出的当没有，配好的写 `configured`（变量、地址），`looked_for` 不带值；`provider.catalog` 搜、排、`supported`、`local` 的标法、`limit`、参数不对；`provider.test`（`providers_test.rs`）对假服务器：成了交 `first_token_ms`、收到第一段正文就停（假服务器停住不动也照样成了）、只有一条 user 没有工具、配好的存列表、候选不存、`{value}` 去掉前后空白，列不出的照目录列，认证失败交分类、状态、原话，推荐的不是列表第一个，推不出的 `config`，没有模型可试的 `list`，参数不对、`unknown_provider` | 8-11 |
 | `crates/miyu-core/tests/catalog.rs`、`crates/miyu-core/src/models/tests.rs` | 快照和缓存挑新的、坏的退回另一份、没有 `meta` 的当最旧、都坏照样起来，后台拉（写缓存、换上）、304、失败一小时后再试，关掉 `update` 不拉、打开当场拉；出厂的快照、`meta`、认原厂的表读得进、表里的原厂都在目录里 | 8-7 |
-| `crates/miyu-models/src/headers/tests.rs`、`profile/tests.rs`、`catalog/tests.rs`、`facts/tests.rs`、`provider/tests.rs` 的 8-14 那几条 | 摘要怎么算、同一个种子同一个值、值里只认 `{session_digest}`；目录读模型的包名、交错思考的字段；只取第 1、2 层；同一家的模型照目录走三种驱动、没有驱动的 `no_model`、手写的供应商驱动压过目录；交错思考照目录回传、档案写了的照档案、不走 openai-chat 的不管 | 8-14 |
-| `crates/miyu-session/tests/route_zen.rs` | 只写 key：Go 的模型各发各的路径、认证头照各自的驱动、输出上限照模型的驱动填；请求带 `x-opencode-session`，一次性的照用途、会话照会话编号；DeepSeek 回传空串；没有驱动的模型 `no_model`、没发、别的照常；没写头的一家不带 | 8-14 |
+| `crates/miyu-models/src/headers/tests.rs`、`profile/tests.rs`、`catalog/tests.rs`、`facts/tests.rs`、`provider/tests.rs` 的 8-14 那几条 | 摘要怎么算、同一个种子同一个值、值里只认 `{session_digest}`；目录读模型的包名、交错思考的字段；只取第 1、2 层；同一家的模型照目录走三种驱动、没有驱动的 `no_model`、手写的供应商驱动压过目录；交错思考照目录回传、档案写了的照档案、不走 openai-chat 的不管；8-14 补：档案的 `placeholder_tools` 读成名字列表 | 8-14、8-14 补 |
+| `crates/miyu-session/tests/route_zen.rs` | 只写 key：Go 的模型各发各的路径、认证头照各自的驱动、输出上限照模型的驱动填；请求带 `x-opencode-session`，一次性的照用途、会话照会话编号；DeepSeek 回传空串；没有驱动的模型 `no_model`、没发、别的照常；没写头的一家不带；8-14 补：Zen 的 User-Agent 盖成 `opencode/2.0.21`、三个头照用途换、工具面里缺的补占位（空参数、说明照资源）、没写头的照客户端默认；`route/placeholder.rs` 的三条单测：缺的照名字排着补、已经有的一字节不动、空的不补 | 8-14、8-14 补 |
 | `crates/miyu-http/tests/auth.rs` | 认证头照驱动（`Bearer`、`x-api-key` 加版本头），没有 key 的不带，打印端点不漏 key（8-6，放在用假服务器的集成测试里） | 8-6 |
 | `crates/miyu-core/src/models/tests.rs`、`crates/miyu-core/tests/serve.rs` | 出厂的档案读得进来、DeepSeek 那一套和请求形状探针用的一样、TOML 读成 JSON、写坏的说是档案；真核心没配模型的每次请求 `no_model`、没发出去 | 8-6 |
 | `crates/miyu/tests/dev_home.rs` | `xtask dev-home` 的三个变量怎么读、哪些不收；造的配置照清单读一处错都没有；已经有配置的不盖、别人的目录不动；真核心在这个数据根上照配置连上假服务器，带着 `DEEPSEEK_API_KEY` 的值、发给写的那个模型，`miyu ask` 答得上来 | 8-6 |
@@ -1151,8 +1155,8 @@ mimo = ["xiaomi"]
 | 23 | 按上下文分档的价格照这一次的输入挑档，`context_over_200k` 当门槛 200000 | 目录里 569 个模型有 `tiers`、487 个有 `context_over_200k` | 只用底价：长上下文少算 |
 | 24 | 用量汇总是 SQLite（`state/usage.db`），一次请求一行，查之前补多出来的。删掉的会话按 UTC 小时记进账号日志 | S3 定了 SQLite。一次一行分天、分模型都能算。按小时的记录够整点时区分天 | 每次查都扫全部日志：会话多了慢。删掉的逐次记：账号日志太大 |
 | 25 | `usage.query` 多 `tree`、`offset` 两个参数 | 头看一棵子代理树花了多少、照自己的时区分天 | 头自己加：要先知道有哪些子会话 |
-| 26 | opencode Zen 的头、占位工具做成供应商的档案，占位补在统一的请求上（8-14 照实测收窄：只做 Go 的一个头，占位工具不做，第八条） | Zen 的 Claude、GPT 走另外两种驱动，补在 openai-chat 的开关里管不到它们。头是 HTTP 的事，和驱动无关 | 照施工方案写成 openai-chat 的开关：另两种驱动要再做一遍 |
-| 27 | 不冒充 opencode 的 `User-Agent`，只带四个 `x-opencode-*` 头 | 旧版实测 UA 的内容不参与判定。少冒充一样是一样 | 连 UA 一起抄 |
+| 26 | opencode Zen 的头、占位工具做成供应商的档案，占位补在统一的请求上（8-14 收窄成只做 Go 的会话头；8-14 补恢复：Zen 的头和占位都做，第八条） | Zen 的 Claude、GPT 走另外两种驱动，补在 openai-chat 的开关里管不到它们。头是 HTTP 的事，和驱动无关 | 照施工方案写成 openai-chat 的开关：另两种驱动要再做一遍 |
+| 27 | Zen 端点把 `User-Agent` 盖成 `opencode/<版本≥1.18>` 的形状，另带三个 `x-opencode-*` 头（2026-10-04 项目主人定：接上免费档，推翻 10-03 的「不冒充」） | 2026-10-04 实测：免费档照 User-Agent 认客户端——`miyu/<版本>` 一律 403；版本、`x-opencode-*` 里 id 的形状、工具面里的 `shell`/`read` 都参与判定。判据会被服务端改，改了就重跑探针 | 不冒充：免费档用不了（10-03 的做法） |
 | 28 | `provider.detect` 只探本机的地址，300 毫秒。不在起来时自动探 | 找现成的不该往外发请求。人要的时候才探 | 起来时就探：每次拉起核心都多几次连接 |
 | 29 | 供应商的列表人要时才拉（`provider.test`、`refresh`、`model.list` 缺了在后台拉） | 列表只给 `/models` 看，不值得每次起来带着 key 去请求 | 起来时拉一遍配好的每一家 |
 | 30 | 用出来的只学窗口，从超长的报错里解析上限 | 解析已经有了（`excess` 那一套），驱动多交一个数。别的（收不收图）靠报错的原话猜不准 | 也学图：原话五花八门 |
@@ -1489,7 +1493,7 @@ mimo = ["xiaomi"]
 | `cli/ask.md`、`cli/main.md`、新页 `cli/setup.md` | `--model`。退出码 5 认 `no_model`、`cooling`。没模型时走 setup。子命令 `setup`。8-11 改了：新页 `cli/setup.md`；`cli/ask.md` 第 2 条连核心以后先看有没有模型、没有模型那一句、「守着它的」；`cli/main.md` 子命令表、帮助页样本、帮助页十四页。8-9 改了：`cli/ask.md` 退出码 5 认没发出去的 `cooling`。8-10 改了：`cli/ask.md` 参数表、「找会话」第 1、4 条、帮助页样本、「守着它的」、「还没有的」删掉 `--model`；`cli/main.md` 帮助页样本 | 8-9、8-10、8-11 |
 | `log.md` | 新的几行（「出错」那张表）。8-11 改了：`provider tested`、`probe text unreadable`。8-7 改了：目录、用出来的、列表、`state/models/` 那几行。8-8 改了：`pool member skipped`、`unknown model`、目录没有地址的 `catalog refresh failed`。8-9 改了：`endpoint cooling`、`failover`。8-10 改了：`model fallback`，`unknown model` 也是 `session.configure` 的 | 8-7 到 8-11 |
 | `licenses.md` | 引入 SQLite 的依赖（例如 `rusqlite` 带 `bundled`，MIT，SQLite 是公有领域），门禁照查8-15：没加新依赖，`rusqlite` 3-8 七补已经引入、门禁照查，这一页不改。 | 8-15 |
-| `26-提示词.md` 第十节、`prompts.md` | 登记 `subagent.json` 的新参数、`session_usage.json` 和结果的几句、`placeholder-tool.txt`（8-14 不做了）、`probe.txt`，各量 token（8-8 改了：`subagent.json` 那一行 141 → 189，`prompts.md` 重新生成；8-11 改了：登记 `probe.txt`，`prompts.md` 重新生成）8-15 改了：登记 `session_usage.json` 和七句（48、25、9、13、11、8、14、10），一段量法，`prompts.md` 重新生成。 | 8-8、8-11、8-14、8-15 |
+| `26-提示词.md` 第十节、`prompts.md` | 登记 `subagent.json` 的新参数、`session_usage.json` 和结果的几句、`placeholder-tool.txt`（8-14 补做了：29 token）、`probe.txt`，各量 token（8-8 改了：`subagent.json` 那一行 141 → 189，`prompts.md` 重新生成；8-11 改了：登记 `probe.txt`，`prompts.md` 重新生成）8-15 改了：登记 `session_usage.json` 和七句（48、25、9、13、11、8、14、10），一段量法，`prompts.md` 重新生成。 | 8-8、8-11、8-14、8-15 |
 | `01-架构.md` 第九节 | 第 2 层登记 `miyu-models`（8-6 登记了） | 8-6 |
 | `15-模型与供应商.md` | 「后续再定」里定了的：第一版的驱动、第 3 层怎么认原厂（`vendors.toml`）、`usage.query` 的形状。「定的」那几条（这一次已补进第四、六、七、八节和 M9） | 图纸批准时 |
 | `22-命令行.md` | `miyu setup` 的问法（8-11 开工前定）、`--model` 接旧会话是永久换。8-10 改了：第三节 `--model` 那一行。8-11 改了：第三节「还没配模型时」、第五节 `miyu setup` 那一行 | 8-10、8-11 |

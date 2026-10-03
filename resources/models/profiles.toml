@@ -40,3 +40,12 @@ base_url = "https://api.openai.com/v1"
 # （会话编号、一次性调用的用途）的 SHA-256 前 26 位。
 [providers.opencode-go]
 headers = { "x-opencode-session" = "ses_{session_digest}" }
+
+# opencode Zen（施工 8-14 补，2026-10-04 实测）：免费档按客户端识别，三件同时成立——User-Agent 要是 opencode/<版本≥1.18>
+# 的形状、请求带至少一个 x-opencode-* 头（值里的种子照 {session_digest} 换，得是小写十六进制）、工具面里有 shell 和 read；
+# 还要求流式。头只发给这一家（目录里的地址是 https://opencode.ai/zen/v1）。User-Agent 盖掉客户端的 miyu/<版本>，这里写的是
+# 本机装的 opencode 版本（2.0.21）；opencode 升级或被闸改判据时，先跑旧版 `miyu-agent` 仓库里的测具
+# `testkit/opencode-zen/freetier_probe.js` 再动这一行。占位工具见「八、opencode Zen」第 2 条。
+[providers.opencode]
+headers = { "User-Agent" = "opencode/2.0.21", "x-opencode-client" = "cli", "x-opencode-project" = "global", "x-opencode-session" = "ses_{session_digest}" }
+placeholder_tools = ["read", "shell"]

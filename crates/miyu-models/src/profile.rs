@@ -50,6 +50,10 @@ pub struct Profile {
     /// 另配的头（施工 8-14）：名字 → 模板，值里只认 `{session_digest}`（[`crate::headers`]）。
     #[serde(default)]
     pub headers: BTreeMap<String, String>,
+    /// 工具面里缺这几件时补同名的占位声明（施工 8-14 补，`models.md`「八、opencode Zen」第 2 条）：说明是
+    /// `resources/core/drivers/placeholder-tool.txt` 那一句。
+    #[serde(default)]
+    pub placeholder_tools: Vec<String>,
 }
 
 /// 一张图怎么算 token 的算法。

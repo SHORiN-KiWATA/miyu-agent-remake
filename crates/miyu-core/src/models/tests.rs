@@ -53,7 +53,7 @@ fn the_shipped_profiles_keep_what_was_in_the_code() {
     );
     assert!(openai.compat.is_none());
     assert_eq!(profiles.npm["@ai-sdk/openai"], "openai-responses");
-    // 施工 8-14：opencode Go 只多一个头，驱动、地址照目录；Zen 不写档案（免费档不做）。
+    // 施工 8-14：opencode Go 只多一个头，驱动、地址照目录。
     let go = &profiles.providers["opencode-go"];
     assert_eq!(
         go.headers.iter().collect::<Vec<_>>(),
@@ -64,9 +64,20 @@ fn the_shipped_profiles_keep_what_was_in_the_code() {
     );
     assert_eq!((go.driver.as_deref(), go.base_url.as_deref()), (None, None));
     assert!(go.compat.is_none());
-    assert!(!profiles.providers.contains_key("opencode"));
+    // 施工 8-14 补（2026-10-04 实测）：Zen 免费档按客户端识别——User-Agent 盖成 opencode 的形状，另配三个头，
+    // 工具面里缺 `read`、`shell` 的补占位；说明是 `resources/core/drivers/placeholder-tool.txt` 那一句。
+    let zen = &profiles.providers["opencode"];
+    assert_eq!(zen.headers["User-Agent"], "opencode/2.0.21");
+    assert_eq!(zen.headers["x-opencode-client"], "cli");
+    assert_eq!(zen.headers["x-opencode-project"], "global");
+    assert_eq!(zen.headers["x-opencode-session"], "ses_{session_digest}");
+    assert_eq!(zen.placeholder_tools, ["read", "shell"]);
+    assert!(
+        !include_str!("../../../../resources/core/drivers/placeholder-tool.txt").is_empty(),
+        "占位说明在资源里"
+    );
     for (id, profile) in &profiles.providers {
-        if id != "opencode-go" {
+        if id != "opencode-go" && id != "opencode" {
             assert!(profile.headers.is_empty(), "{id}");
         }
     }

@@ -202,7 +202,16 @@ async fn run(
         .fold(endpoint, |endpoint, (name, value)| {
             endpoint.with_header(name, value)
         });
-    let first_token_ms = ask(&client, asking.as_ref(), &endpoint, &model, probe.text).await?;
+    let placeholders = speaking.placeholder_specs(data.placeholder_tool());
+    let first_token_ms = ask(
+        &client,
+        asking.as_ref(),
+        &endpoint,
+        &model,
+        probe.text,
+        &placeholders,
+    )
+    .await?;
     Ok(Probed::Worked {
         models,
         from_catalog,
@@ -218,10 +227,11 @@ async fn ask(
     endpoint: &Endpoint,
     model: &str,
     text: &str,
+    placeholders: &[(String, String)],
 ) -> Result<u64, Probed> {
     let name = ModelName::parse(model)
         .map_err(|error| failed(Stage::Request, ErrorClass::Unclassified, error.to_string()))?;
-    let request = Request {
+    let mut request = Request {
         tools: Vec::new(),
         system: String::new(),
         messages: vec![Message::User {
@@ -233,6 +243,8 @@ async fn ask(
         continuation: false,
         described: Default::default(),
     };
+    // 占位工具（施工 8-14 补）：试一家时工具面里缺 `shell`、`read` 的照档案补上（Zen 免费档要这两件）。
+    super::placeholder::fill(&mut request, placeholders);
     let call = Call {
         model: name,
         max_output: None,
