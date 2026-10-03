@@ -17,6 +17,7 @@ mod editor;
 mod figures;
 mod focus;
 mod frame_log;
+mod frame_output;
 mod history;
 mod human;
 mod input;
@@ -63,6 +64,10 @@ use app::App;
 use config::Config;
 use core::Update;
 
+/// 全屏终端：每一帧的输出由 frame_output 暂存到准备完成。
+type Screen =
+    ratatui::Terminal<ratatui::backend::CrosstermBackend<frame_output::Output<io::Stdout>>>;
+
 fn main() -> io::Result<()> {
     let resume = startup::resume(std::env::args().skip(1))?;
     // 配置先读：读不懂就别进全屏，错误照原样打在终端里。
@@ -71,7 +76,9 @@ fn main() -> io::Result<()> {
     let language = table.detect(|name| std::env::var(name).ok());
     // 启动时是自动：照系统语言（蓝图「界面语言」）。
     let config = Config::load(&language, true).map_err(io::Error::other)?;
-    let mut terminal = ratatui::init();
+    // 初始化原始模式、备用屏及 panic 收尾；自定义 writer 用来收齐一帧。
+    drop(ratatui::init());
+    let mut terminal = screen().inspect_err(|_| ratatui::restore())?;
     let keyboard = match enter() {
         Ok(keyboard) => keyboard,
         Err(e) => {
@@ -100,6 +107,13 @@ fn main() -> io::Result<()> {
     leave(keyboard)?;
     ratatui::restore();
     result
+}
+
+/// 换一块新画布；帧外的输出不暂存。
+fn screen() -> io::Result<Screen> {
+    ratatui::Terminal::new(ratatui::backend::CrosstermBackend::new(
+        frame_output::Output::new(stdout()),
+    ))
 }
 
 /// 打开鼠标、括号粘贴；终端认得 kitty 键盘协议就打开，Shift+Enter 才分得出来。
@@ -152,7 +166,7 @@ enum Incoming {
 ///
 /// 终端的事件在一个线程里读，核心在另一个线程里连，都送进同一个通道，主循环只等这一个口子。
 fn run(
-    terminal: &mut ratatui::DefaultTerminal,
+    terminal: &mut Screen,
     config: Config,
     graphics: Option<figures::Graphics>,
     keyboard: bool,
@@ -255,7 +269,7 @@ fn dispatch(app: &mut App, message: Incoming) {
 /// Ctrl+Z：还原终端、挂起自己；`fg` 回来以后重新进全屏，下一帧整屏重画（蓝图 `tui.md`「按键」）。
 /// 只停自己：核心在自己的进程组里，照常在后台跑。
 #[cfg(unix)]
-fn suspend(screen: &mut ratatui::DefaultTerminal, keyboard: bool) -> io::Result<()> {
+fn suspend(screen: &mut Screen, keyboard: bool) -> io::Result<()> {
     leave(keyboard)?;
     ratatui::restore();
     rustix::process::kill_process(rustix::process::getpid(), rustix::process::Signal::TSTP)?;
@@ -265,7 +279,7 @@ fn suspend(screen: &mut ratatui::DefaultTerminal, keyboard: bool) -> io::Result<
 
 /// 回全屏：不能调 ratatui 的 `clear`、不能重新探测键盘协议：它们都要读终端的回话，而读按键的线程一直占着读的锁，
 /// 读不到就超时报错。所以自己清屏、换一块新画布（下一帧整屏重画），键盘协议照启动时探到的开回去。
-fn reenter(screen: &mut ratatui::DefaultTerminal, keyboard: bool) -> io::Result<()> {
+fn reenter(screen: &mut Screen, keyboard: bool) -> io::Result<()> {
     terminal::enable_raw_mode()?;
     execute!(
         stdout(),
@@ -273,7 +287,7 @@ fn reenter(screen: &mut ratatui::DefaultTerminal, keyboard: bool) -> io::Result<
         terminal::Clear(terminal::ClearType::All)
     )?;
     modes_on(keyboard)?;
-    *screen = ratatui::Terminal::new(ratatui::backend::CrosstermBackend::new(stdout()))?;
+    *screen = self::screen()?;
     Ok(())
 }
 
@@ -281,7 +295,7 @@ fn reenter(screen: &mut ratatui::DefaultTerminal, keyboard: bool) -> io::Result<
 /// 马上进回去）、接着读（蓝图「她的回答：Markdown」第 10 条）。
 /// 核心在别的线程，推来的攒在通道里，回来再画。
 fn edit(
-    screen: &mut ratatui::DefaultTerminal,
+    screen: &mut Screen,
     keyboard: bool,
     reader: &reader::Reader,
     editor: &str,
@@ -300,7 +314,7 @@ fn edit(
 }
 
 #[cfg(not(unix))]
-fn suspend(_screen: &mut ratatui::DefaultTerminal, _keyboard: bool) -> io::Result<()> {
+fn suspend(_screen: &mut Screen, _keyboard: bool) -> io::Result<()> {
     Ok(())
 }
 
@@ -309,7 +323,7 @@ fn suspend(_screen: &mut ratatui::DefaultTerminal, _keyboard: bool) -> io::Resul
 /// 顺手照这一帧悬停的是不是链接，换鼠标指针的样子。画完、交给终端之前把宽字后面那格清空，再照色深统一换色
 /// （蓝图「每一帧」、「主题」第 6 条）。
 fn frame(
-    terminal: &mut ratatui::DefaultTerminal,
+    terminal: &mut Screen,
     app: &mut App,
     pointer: &mut pointer::Pointer,
     depth: theme::Depth,
@@ -318,7 +332,7 @@ fn frame(
     let started = log.on().then(Instant::now);
     log.begin();
     let mut prep = Duration::ZERO;
-    execute!(stdout(), terminal::BeginSynchronizedUpdate)?;
+    terminal.backend_mut().writer_mut().begin()?;
     let drawn = terminal.draw(|frame| {
         let at = started.map(|_| Instant::now());
         ui::draw(frame, app);
@@ -333,9 +347,13 @@ fn frame(
     });
     // 藏着的光标也挪到插入点：不留在这一帧最后写的格子（kitty 开了 `cursor_trail` 会拖尾）；显示着的
     // 那一下 ratatui 已经挪过、显示过了。
-    caret::park(app.caret, &mut stdout())?;
-    pointer.set(app.pointing(), &mut stdout())?;
-    execute!(stdout(), terminal::EndSynchronizedUpdate)?;
+    let drawn = drawn.map(|_| ()).and_then(|()| {
+        let out = terminal.backend_mut().writer_mut();
+        caret::park(app.caret, out)?;
+        pointer.set(app.pointing(), out)
+    });
+    // 画面、图片和光标都准备好了才送出；画失败了也带上同步结尾。
+    terminal.backend_mut().writer_mut().finish()?;
     // 系统通知的转义序列（kitty 的 OSC 99、OSC 9）：画完一帧再写，一条一次写完，不被别的输出劈开（「系统通知」第 4 条）。
     let mut out = stdout();
     for sequence in app.notifier.outbox() {
@@ -345,5 +363,5 @@ fn frame(
     if let Some(started) = started {
         log.record(prep, started.elapsed());
     }
-    drawn.map(|_| ())
+    drawn
 }

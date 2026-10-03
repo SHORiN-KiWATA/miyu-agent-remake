@@ -24,7 +24,8 @@ similar = { version = "2", default-features = false, features = ["text"] }
 # 连接是异步的；界面主循环照旧同步，连核心的活在单独的线程里跑一个运行时。
 tokio = { version = "1", features = ["io-util", "macros", "rt", "sync"] }
 # 全屏界面的框架；按键、鼠标经它转出来的 crossterm 读。
-ratatui = "0.30"
+# writer_mut 用来提交已经准备好的完整帧；版本由 Cargo.lock 钉住。
+ratatui = { version = "0.30", features = ["unstable-backend-writer"] }
 # 字素簇：光标、删除都按用户看到的一个字走，不切开 emoji 和组合字符。
 unicode-segmentation = "1"
 # 显示宽度：中文占两列。
