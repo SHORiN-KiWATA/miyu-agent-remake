@@ -310,3 +310,64 @@ async fn wrong_params_and_unknown_providers_are_refused() {
     let reply = test(&home, &[], fresh(), json!({"provider": "nope"})).await;
     assert_eq!(reason(&reply), Some("unknown_provider"));
 }
+
+/// 施工 8-14：发的那一句照挑的模型的驱动（Go 上的 MiniMax 走 `anthropic`），档案另配的头照固定的种子 `provider.test` 换；
+/// 列模型不带它。模型没有驱动的是 `config`。
+#[tokio::test]
+async fn the_probe_speaks_through_the_model_driver_with_the_profile_headers() {
+    let anthropic = std::fs::read(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../docs/designs/samples/drivers/anthropic/streams/text.sse"),
+    )
+    .expect("样本读得到");
+    let server = Server::start(vec![
+        listing(&["minimax-m3", "gemini-3-pro"]),
+        Reply::stream(vec![Piece::Bytes(anthropic)]),
+        listing(&["minimax-m3", "gemini-3-pro"]),
+    ])
+    .await;
+    let home = Home::new();
+    home.write(
+        "system/config.toml",
+        &format!(
+            "[providers.opencode-go]\nbase_url = \"{0}\"\nkeys = [{{ env = \"GO_KEY\" }}]\n\n[providers.opencode]\nbase_url = \"{0}\"\nkeys = [{{ env = \"GO_KEY\" }}]\n",
+            server.base_url
+        ),
+    );
+    let shared = data(profiles(
+        json!({"opencode-go": {"headers": {"x-opencode-session": "ses_{session_digest}"}}}),
+    ));
+    let reply = test(
+        &home,
+        &[("GO_KEY", FAKE)],
+        Arc::clone(&shared),
+        json!({"provider": "opencode-go", "model": "minimax-m3"}),
+    )
+    .await;
+    assert_eq!(reply["result"]["ok"], true, "{reply}");
+    let received = server.received();
+    assert_eq!(received[0].header("x-opencode-session"), None, "列模型不带");
+    assert_eq!(received[1].path, "/v1/messages");
+    assert_eq!(received[1].header("x-api-key"), Some(FAKE));
+    let wanted = format!("ses_{}", miyu_models::headers::digest("provider.test"));
+    assert_eq!(
+        received[1].header("x-opencode-session"),
+        Some(wanted.as_str())
+    );
+    let reply = test(
+        &home,
+        &[("GO_KEY", FAKE)],
+        shared,
+        json!({"provider": "opencode", "model": "gemini-3-pro"}),
+    )
+    .await;
+    let result = &reply["result"];
+    assert_eq!(result["ok"], false, "{reply}");
+    assert_eq!(result["stage"], "config");
+    assert_eq!(result["error"]["class"], "no_model");
+    assert_eq!(
+        result["error"]["message"],
+        r#"model "opencode/gemini-3-pro" needs driver "@ai-sdk/google", which is not available yet"#
+    );
+    assert_eq!(server.received().len(), 3, "没发");
+}

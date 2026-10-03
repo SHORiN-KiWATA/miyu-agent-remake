@@ -4,8 +4,10 @@
 use serde_json::json;
 
 use super::*;
+use crate::facts::Wire;
 use crate::matching::How;
 use crate::test_support::{Held, resolved};
+use miyu_drivers::openai_chat::{ReasoningField, ReasoningReplay};
 
 fn values(source: &str) -> Values {
     resolved(source).values()
@@ -179,6 +181,9 @@ fn resolving_the_address_follows_the_reference_or_fails_cleanly() {
         catalog: "a".to_string(),
         recognized: None,
         local: false,
+        driver_written: false,
+        reasoning_written: false,
+        headers: std::collections::BTreeMap::new(),
     };
     assert_eq!(
         resolve_base_url(&literal, &|_| None),
@@ -260,4 +265,182 @@ fn texts() -> miyu_drivers::DriverTexts {
         image_description: None,
     })
     .expect("造得出")
+}
+
+/// 档案：opencode Go 的头、`[npm]` 的三种驱动外加一个还没有的（施工 8-14）；`catalog` 为真的带上裁出来的目录。
+fn go_held(catalog: bool) -> Held {
+    Held::new(
+        json!({
+            "npm": {"@ai-sdk/openai-compatible": "openai-chat", "@ai-sdk/anthropic": "anthropic",
+                    "@ai-sdk/openai": "openai-responses", "@ai-sdk/google": "google"},
+            "providers": {
+                "opencode-go": {"headers": {"x-opencode-session": "ses_{session_digest}"}},
+                "deepseek": {"compat": {"reasoning": "drop"}}
+            }
+        }),
+        catalog,
+    )
+}
+
+fn wire(npm: Option<&str>, interleaved: Option<&str>) -> Wire {
+    Wire {
+        npm: npm.map(str::to_string),
+        interleaved: interleaved.map(str::to_string),
+    }
+}
+
+/// 同一家的模型照目录走三种驱动；模型没写包名的照这一家的；手写的供应商驱动压过模型的包名（施工 8-14）。
+#[test]
+fn each_model_speaks_through_its_own_driver() {
+    let held = go_held(true);
+    let npm = &held.profiles.npm;
+    let values = values(
+        "[providers.opencode-go]\nkeys = []\n\n[providers.fixed]\ndriver = \"openai-chat\"\nbase_url = \"https://opencode.ai/zen/go/v1\"\nkeys = []\n",
+    );
+    let go = provider(&values, &held.knowledge(), "opencode-go").expect("目录推得出");
+    assert_eq!(go.driver, Driver::OpenAiChat, "这一家的包名");
+    assert!(!go.driver_written);
+    let speak = |provider: &Provider, wire: Wire| {
+        provider.for_model("m", &wire, npm).expect("驱动有").driver
+    };
+    assert_eq!(
+        speak(&go, wire(Some("@ai-sdk/anthropic"), None)),
+        Driver::Anthropic
+    );
+    assert_eq!(
+        speak(&go, wire(Some("@ai-sdk/openai"), None)),
+        Driver::OpenAiResponses
+    );
+    assert_eq!(speak(&go, wire(None, None)), Driver::OpenAiChat);
+    assert_eq!(
+        speak(&go, wire(Some("@ai-sdk/openai-compatible"), None)),
+        Driver::OpenAiChat
+    );
+    let fixed = provider(&values, &held.knowledge(), "fixed").expect("手写的");
+    assert!(fixed.driver_written);
+    assert_eq!(
+        speak(&fixed, wire(Some("@ai-sdk/anthropic"), None)),
+        Driver::OpenAiChat,
+        "手写的供应商驱动压过模型的包名"
+    );
+    let google = go.for_model("gemini-3-pro", &wire(Some("@ai-sdk/google"), None), npm);
+    assert_eq!(
+        google,
+        Err(NoModel(
+            r#"model "opencode-go/gemini-3-pro" needs driver "google", which is not available yet"#
+                .to_string()
+        ))
+    );
+    let unknown = go.for_model("x", &wire(Some("@vendor/odd"), None), npm);
+    assert_eq!(
+        unknown,
+        Err(NoModel(
+            r#"model "opencode-go/x" needs driver "@vendor/odd", which is not available yet"#
+                .to_string()
+        )),
+        "表里没有的写包名本身"
+    );
+    let anthropic = go
+        .for_model("m", &wire(Some("@ai-sdk/anthropic"), None), npm)
+        .expect("有");
+    assert!(anthropic.switchable(), "能不能关思考照模型的驱动");
+    assert!(anthropic.driver.needs_max_output());
+    assert_eq!(anthropic.id, go.id, "别的照这一家");
+    assert_eq!(anthropic.keys, go.keys);
+}
+
+/// 交错思考（施工 8-14）：走 openai-chat 的照目录的字段回传、`always` 是真的；档案写了 `reasoning` 的照档案；认不出的字段、
+/// 不走 openai-chat 的不管。
+#[test]
+fn interleaved_thinking_is_replayed_unless_the_profile_says_otherwise() {
+    let held = go_held(false);
+    let npm = &held.profiles.npm;
+    let written = values(
+        "[providers.opencode-go]\ndriver = \"openai-chat\"\nbase_url = \"https://opencode.ai/zen/go/v1\"\nkeys = []\n\n[providers.deepseek]\ndriver = \"openai-chat\"\nbase_url = \"https://api.deepseek.com\"\nkeys = []\n",
+    );
+    let go = provider(&written, &held.knowledge(), "opencode-go").expect("手写的");
+    assert!(!go.reasoning_written);
+    let reasoning = |provider: &Provider, wire: Wire| {
+        provider
+            .for_model("m", &wire, npm)
+            .expect("驱动有")
+            .compat
+            .reasoning
+    };
+    assert_eq!(
+        reasoning(&go, wire(None, Some("reasoning_content"))),
+        ReasoningReplay::Replay {
+            field: ReasoningField::ReasoningContent,
+            always: true
+        }
+    );
+    assert_eq!(
+        reasoning(&go, wire(None, Some("reasoning"))),
+        ReasoningReplay::Replay {
+            field: ReasoningField::Reasoning,
+            always: true
+        }
+    );
+    for odd in [Some("reasoning_details"), None] {
+        assert_eq!(
+            reasoning(&go, wire(None, odd)),
+            ReasoningReplay::Drop,
+            "{odd:?}"
+        );
+    }
+    let deepseek = provider(&written, &held.knowledge(), "deepseek").expect("手写的");
+    assert!(deepseek.reasoning_written);
+    assert_eq!(
+        reasoning(&deepseek, wire(None, Some("reasoning_content"))),
+        ReasoningReplay::Drop,
+        "档案写了 drop 的照档案"
+    );
+    // 驱动手写成 openai-chat：模型包名不管用，交错思考照样回传。
+    assert_eq!(
+        reasoning(
+            &go,
+            wire(Some("@ai-sdk/anthropic"), Some("reasoning_content"))
+        ),
+        ReasoningReplay::Replay {
+            field: ReasoningField::ReasoningContent,
+            always: true
+        }
+    );
+    let free = provider(
+        &values("[providers.opencode-go]\nkeys = []\n"),
+        &go_held(true).knowledge(),
+        "opencode-go",
+    )
+    .expect("目录推得出");
+    let claude = free
+        .for_model(
+            "m",
+            &wire(Some("@ai-sdk/anthropic"), Some("reasoning_content")),
+            npm,
+        )
+        .expect("有");
+    assert_eq!(
+        claude.compat.reasoning,
+        ReasoningReplay::Drop,
+        "不走 openai-chat 的不管"
+    );
+}
+
+/// 另配的头照档案，值照种子换（施工 8-14）：同一个种子同一个值，没写头的一家什么都不加。
+#[test]
+fn headers_come_from_the_profile_and_fill_with_the_seed() {
+    let held = go_held(true);
+    let values = values("[providers.opencode-go]\nkeys = []\n\n[providers.deepseek]\nkeys = []\n");
+    let go = provider(&values, &held.knowledge(), "opencode-go").expect("目录推得出");
+    assert_eq!(
+        go.headers("ses-1"),
+        [(
+            "x-opencode-session".to_string(),
+            "ses_09df36791e54c51f7be063867e".to_string()
+        )]
+    );
+    assert_eq!(go.headers("ses-1"), go.headers("ses-1"));
+    assert_ne!(go.headers("ses-1"), go.headers("ses-2"));
+    let deepseek = provider(&values, &held.knowledge(), "deepseek").expect("目录推得出");
+    assert!(deepseek.headers("ses-1").is_empty());
 }

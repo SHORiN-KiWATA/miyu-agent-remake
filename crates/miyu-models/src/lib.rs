@@ -2,7 +2,8 @@
 //!
 //! - [`settings`]：模型这一块的配置项，登记进核心的清单（供应商、模型手写的资料、用途、目录怎么更新）；
 //! - [`mod@reference`]：两种写法：读、哪里能写哪几种，池解析到端点（施工 8-8）；
-//! - [`profile`]：认得出的供应商的档案（资源目录的 `models/profiles.toml`，核心读好交进来）；
+//! - [`profile`]：认得出的供应商的档案（资源目录的 `models/profiles.toml`，核心读好交进来）；[`headers`]：档案里另配的头的
+//!   模板（施工 8-14）；
 //! - [`provider`]：一家供应商照这一轮的配置、档案、目录合出来的样子，一个引用这一轮发给谁，没有模型时说什么；
 //! - [`keys`]：一个会话钉在哪一个 key 上，候选的先后；
 //! - [`pools`]：池的成员、怎么分、指针怎么走（施工 8-8），派子代理能选哪几个（施工 8-8 补）；
@@ -22,6 +23,7 @@ pub mod catalog;
 pub mod cooldown;
 pub mod effort;
 pub mod facts;
+pub mod headers;
 pub mod keys;
 mod knowledge;
 pub mod matching;

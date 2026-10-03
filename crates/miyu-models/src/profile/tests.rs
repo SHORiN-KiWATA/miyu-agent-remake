@@ -98,3 +98,38 @@ fn the_npm_table_names_drivers() {
     assert_eq!(profiles.npm["@ai-sdk/openai-compatible"], "openai-chat");
     assert!(profiles.providers.is_empty());
 }
+
+/// 另配的头（施工 8-14）：名字 → 模板，值里只认 `{session_digest}`，别的读档案时就报错、说是哪一家的哪个头。
+#[test]
+fn headers_are_templates_with_only_the_session_digest() {
+    let profiles = Profiles::parse(&json!({"providers": {"opencode-go": {
+        "headers": {"x-opencode-session": "ses_{session_digest}", "x-plain": "cli"}
+    }}}))
+    .expect("读得进来");
+    let go = &profiles.providers["opencode-go"];
+    assert_eq!(go.headers["x-opencode-session"], "ses_{session_digest}");
+    assert_eq!(go.headers["x-plain"], "cli");
+    assert!(
+        Profiles::parse(&json!({"providers": {"x": {}}}))
+            .expect("读得进来")
+            .providers["x"]
+            .headers
+            .is_empty()
+    );
+    let error = Profiles::parse(&json!({"providers": {"opencode": {
+        "headers": {"x-opencode-request": "msg_{call_digest}"}
+    }}}))
+    .expect_err("别的字段读不进来");
+    assert!(
+        error.starts_with("models/profiles.toml not readable: "),
+        "{error}"
+    );
+    assert!(error.contains("opencode"), "{error}");
+    assert!(error.contains("x-opencode-request"), "{error}");
+    let error =
+        Profiles::parse(&json!({"providers": {"x": {"headers": {"h": 1}}}})).expect_err("值是字");
+    assert!(
+        error.starts_with("models/profiles.toml not readable: "),
+        "{error}"
+    );
+}

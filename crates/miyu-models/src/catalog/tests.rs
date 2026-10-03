@@ -11,7 +11,7 @@ fn the_trimmed_real_catalog_reads_with_the_broken_model_skipped() {
     assert_eq!(read.skipped, ["deepseek/deepseek-broken"]);
     let catalog = read.catalog;
     assert_eq!(catalog.providers().count(), 10);
-    assert_eq!(catalog.model_count(), 19);
+    assert_eq!(catalog.model_count(), 22);
     let deepseek = catalog.provider("deepseek").expect("有 DeepSeek");
     assert_eq!(deepseek.name.as_deref(), Some("DeepSeek"));
     assert_eq!(deepseek.env, ["DEEPSEEK_API_KEY"]);
@@ -160,4 +160,53 @@ fn a_catalog_that_is_not_a_table_of_providers_is_unreadable() {
             .model_count(),
         0
     );
+}
+
+/// 模型自己的包名、交错思考（施工 8-14）：`provider.npm`、`interleaved` 写成 `{"field": …}` 的取字段名，`true` 和别的写法当没写。
+#[test]
+fn a_model_carries_its_own_package_and_interleaved_field() {
+    let catalog = Catalog::parse(TRIMMED).expect("读得进").catalog;
+    let model = |provider: &str, name: &str| catalog.model(provider, name).expect("有").clone();
+    assert_eq!(
+        model("opencode-go", "minimax-m3").npm.as_deref(),
+        Some("@ai-sdk/anthropic")
+    );
+    assert_eq!(
+        model("opencode-go", "gpt-5.6-luna").npm.as_deref(),
+        Some("@ai-sdk/openai")
+    );
+    assert_eq!(
+        model("opencode", "gemini-3-pro").npm.as_deref(),
+        Some("@ai-sdk/google")
+    );
+    let flash = model("opencode-go", "deepseek-v4.1-flash");
+    assert_eq!(flash.npm, None, "没写的照这一家的");
+    assert_eq!(flash.interleaved.as_deref(), Some("reasoning_content"));
+    assert_eq!(model("opencode-go", "minimax-m3").interleaved, None);
+    assert_eq!(
+        model("aihubmix", "claude-sonnet-4-5").interleaved,
+        None,
+        "写成 true 的说不出字段"
+    );
+    let odd = Catalog::parse(
+        &json!({"p": {"models": {
+            "details": {"interleaved": {"field": "reasoning_details"}},
+            "number": {"interleaved": {"field": 3}},
+            "no-npm": {"provider": {"api": "https://x.invalid"}}
+        }}})
+        .to_string(),
+    )
+    .expect("读得进");
+    assert!(odd.skipped.is_empty(), "{:?}", odd.skipped);
+    let odd = odd.catalog;
+    assert_eq!(
+        odd.model("p", "details")
+            .expect("有")
+            .interleaved
+            .as_deref(),
+        Some("reasoning_details"),
+        "认不认交给合资料的一方"
+    );
+    assert_eq!(odd.model("p", "number").expect("有").interleaved, None);
+    assert_eq!(odd.model("p", "no-npm").expect("有").npm, None);
 }

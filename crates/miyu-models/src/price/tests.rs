@@ -72,6 +72,7 @@ fn facts(price: Option<Price>, source: Source, multiplier: f64) -> Facts {
             source: Source::Default,
         },
         status: none(),
+        wire: crate::facts::Wire::default(),
     }
 }
 

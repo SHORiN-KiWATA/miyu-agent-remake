@@ -308,35 +308,31 @@ A file was attached here (报告.pdf, application/pdf, 15 bytes), but this model
 
 ### 接 opencode Zen（8-14 驱动这边的一半）
 
-状态：图纸，2026-10-02 起草，待主会话审。档案里的头、占位工具、请求形状探针的 Zen 那张脸在 `models.md`「八、opencode Zen」，这里不重复；这里只写驱动这边要做的。
+状态：2026-10-02 起草，2026-10-03 主会话审过、照实测收窄（免费档不做，见 `models.md`「八、opencode Zen」）。头在 `models.md` 第八条，这里只写驱动这边要做的。
 
-1. **编码、解码、分类不加新写法**：Zen 的 OpenAI 兼容那一路是标准的 `/chat/completions`（地址 `https://opencode.ai/zen/v1`，Console Go 是 `https://opencode.ai/zen/go/v1`），照这一页走。头由 HTTP 执行器照端点另配的头发，占位工具补在统一的请求上，都不进驱动。
-2. **一家三种驱动**：目录里 Zen 的模型各自写着 `provider.npm`（2026-10-02 的快照：Zen 114 个，51 个走这一页，32 个 `@ai-sdk/openai` 走 `openai-responses`，23 个 `@ai-sdk/anthropic` 走 `anthropic`，8 个 `@ai-sdk/google` 没有驱动；Go 33 个，23、7、3）。
-   - 怎么挑是模型资料的 `driver` 那一格（`models.md`「模型的资料」，8-14 做）：路由照真发的那个模型造驱动，不再一律照供应商造 `OpenAiChat`（`route/base.rs`）。没有驱动的模型照「这一家用不了」那样当场 `no_model`（`models.md` 第一条第 2 条），只是这个模型用不了，同一家的别的照常。
-   - 三种驱动接同一个地址，各发各的路径（`/chat/completions`、`/messages`、`/responses`），key 一样，认证头照各自的驱动（`drivers/anthropic.md`、`drivers/openai-responses.md`）。
+1. **编码、解码、分类不加新写法**：Zen、Go 的 OpenAI 兼容那一路是标准的 `/chat/completions`，照这一页走。头由 HTTP 执行器照端点另配的头发，不进驱动。
+2. **一家三种驱动**：目录里 Zen、Go 的模型各自写着 `provider.npm`（2026-10-02 的快照：Zen 114 个，51 个走这一页，32 个 `@ai-sdk/openai` 走 `openai-responses`，23 个 `@ai-sdk/anthropic` 走 `anthropic`，8 个 `@ai-sdk/google` 没有驱动；Go 33 个，23、7、3）。
+   - 怎么挑是模型资料的 `driver` 那一格（`models.md`「模型的资料」）：先后是手写的供应商 `driver`、第 1、2 层对上的模型的 `provider.npm`（照档案的 `[npm]` 表换成驱动）、档案的、目录里那一家的 `npm`。路由照真发的那个模型造驱动（`route/base.rs`）。模型的 `npm` 换不出驱动的（Google 那几个），这个模型当场 `no_model`，原话 `model "<供应商>/<模型>" needs driver "<它>", which is not available yet`，同一家的别的照常。
+   - 能不能关思考、要不要替它填输出上限，照模型的驱动算（Zen 上的 Claude 走 `anthropic`，开关是接口自带的）。
+   - 三种驱动接同一个地址，各发各的路径（`/chat/completions`、`/messages`、`/responses`），key 一样，认证头照各自的驱动。
    - 列模型照供应商的驱动：这一页的 `GET /models`。
-3. **开关**：档案的 `[providers.opencode]`、`[providers.opencode-go]` 不写 `compat`，照默认（没实测过的不开）：`max_tokens`、发 `stream_options`、不接着写、没有思考的开关（目录写着 `toggle` 的模型不多 `off`）。思考回传照第 4 条。
+3. **开关**：照默认（没实测过的不开）：`max_tokens`、发 `stream_options`、不接着写、没有思考的开关（目录写着 `toggle` 的模型不多 `off`）。思考回传照第 4 条。
 4. **思考回传照目录的 `interleaved`**（对所有走这一页的供应商都成立，不只 Zen）：
-   - 目录给交错思考的模型（工具循环里要把思考带回去的）写了 `interleaved`。`{"field":"reasoning_content"}` 的，`reasoning` 开关当 `Replay { ReasoningContent, always: true }`；`{"field":"reasoning"}` 的当 `Replay { Reasoning, always: true }`；别的写法（`true`、`{"field":"reasoning_details"}`）不认，照档案。
+   - 目录给交错思考的模型写了 `interleaved`。`{"field":"reasoning_content"}` 的，`reasoning` 开关当 `Replay { ReasoningContent, always: true }`；`{"field":"reasoning"}` 的当 `Replay { Reasoning, always: true }`；别的写法（`true`、`{"field":"reasoning_details"}`）不认，照档案。
    - 只认第 1、2 层对上的（手写指定的、供应商对上了的）：字段名是供应商接口的写法，不是模型的性质，按名字对上的中转不借。
-   - 档案写了 `reasoning` 的照档案（DeepSeek 官方），手写的 `compat` 随用到它的那一步（「还没有的」）。
-   - 为什么：Zen 的 OpenAI 兼容模型 51 个里 39 个写着 `reasoning_content`（DeepSeek、Kimi、GLM、MiniMax、big-pickle 这些），Go 是 23 个里 17 个。照默认不回传，工具循环里她每一步都丢了上一步的思路；DeepSeek 官方带工具时不回传直接 400，Zen 转发它的也一样（要实测确认）。
-   - `always` 是真的：照 DeepSeek 官方实测过的那一种，示范对话里没有思考的 assistant 也带空串。别家收不收空串要实测确认。
-   - 这是 `miyu_models` 的事：资料多一格 `interleaved`（目录原样，只取第 1、2 层），路由造 `Compat` 时盖在档案的开关上。驱动本身一行不改，开关的写法照上面那张表。
-5. **出错**：免费档不合格时 Zen 回 403，错误类型 `FreeTierError`，照分类表是 `auth`（换端点、记冷却）；头和占位补齐了就不会遇到。Go 缺 `x-opencode-session` 回 400，是 `other`。错误体的样子要实测确认。
-6. **用量**：照「解码」那张表。Zen 报不报 `prompt_tokens_details.cached_tokens` 要实测确认，不报的命中记 0。
-7. **守着它的**：`miyu-models` 的资料测试（`interleaved` 第 1、2 层取、第 3、4 层不取、档案写了的照档案、认不得的写法不取）；路由的测试（同一家的模型照资料造三种驱动、没有驱动的模型 `no_model`、别的照常）；Zen 那张探针的脸（`models.md` 第八条第 3 条）里放一个交错思考的模型，assistant 带 `reasoning_content`。
-8. **真模型实测**：要一个 opencode Zen 的 key（仓库里没有，要项目主人给）。
-   - 免费模型（照当时目录里价格是 0 的挑）跑一轮带工具的会话：不再 403（`models.md` 第八条的那一条）。
-   - 交错思考的模型（Zen 上的 DeepSeek、GLM、Kimi 各一个）工具循环跑三步以上，不报 400；关掉第 4 条再跑一次 DeepSeek，确认不回传真的会 400（证明这一条要做）。
-   - 走 `anthropic`、走 `openai-responses` 的模型各跑一轮（8-12、8-13 合进去以后）。
+   - 档案写了 `reasoning` 的照档案（DeepSeek 官方）；只管走这一页的模型。
+   - 为什么：Zen 的 OpenAI 兼容模型 51 个里 39 个写着 `reasoning_content`，Go 是 23 个里 17 个。照默认不回传，工具循环里她每一步都丢了上一步的思路。2026-10-03 实测 Go 上的 `deepseek-v4.1-flash`：不带、带空串、带字都不报 400，回传是为了接上思路。
+   - `always` 是真的：照 DeepSeek 官方实测过的那一种，没有思考的 assistant 也带空串（Go 上实测收）。
+   - 这是 `miyu_models` 的事：资料多一格 `interleaved`（只取第 1、2 层），路由造驱动时盖在档案的开关上（`Provider::for_model`）。驱动本身一行不改。
+5. **出错**：Go 缺 `x-opencode-session` 回 400 `MissingSessionID`，是 `other`；带上了就不会遇到。Zen 免费档的 403 `FreeTierError` 照分类表是 `auth`。
+6. **用量**：照「解码」那张表。
+7. **守着它的**：`miyu-models` 的资料测试（`driver` 照模型、`interleaved` 第 1、2 层取、第 3、4 层不取、档案写了的照档案、认不得的写法不取）；档案的头（值里只认 `{session_digest}`）；路由的测试（同一家的模型照资料造三种驱动、没有驱动的模型 `no_model`、别的照常、请求带头）。
+8. **真模型实测**：项目主人给的 Go key：`deepseek-v4.1-flash` 带工具的会话跑三轮，思考回传；走 `anthropic`、`openai-responses` 的 Go 模型各问一句。
 
-**起草时定的**（2026-10-02）：
+**起草时定的**（2026-10-02，10-03 收窄时照改）：
 
 | # | 定了什么 | 为什么 | 别的选法 |
 |---|---|---|---|
 | 1 | 思考回传照目录的 `interleaved`，按模型 | Zen 一家里的模型各有各的上游，档案只能按供应商写一份；目录本来就按模型写了，代码里不用有模型表 | Zen 的档案一律回传：不交错思考的上游收到多出来的字段，有的会拒 |
 | 2 | `always` 是真的 | DeepSeek 官方实测要它；空串对不用它的模型没有意思 | 假的：DeepSeek 一类的示范对话那几条会被拒 |
 | 3 | 驱动按模型挑，列模型照供应商的 | 目录写的就是按模型的；列表接口只有一个 | 一家一个驱动：Zen 上的 Claude、GPT 用不了 |
-
-**要跟着改的别的页**：`models.md`「模型的资料」多 `interleaved` 一行（只取第 1、2 层），`driver` 那一格照第 2 条落到路由；`route/base.rs` 照模型造驱动。

@@ -5,7 +5,8 @@
 //! 2. 列模型（[`list_models`]，和拉列表一样整个 30 秒）。拉到了的，`save` 的（配好了的一家）存进供应商的列表；拉不到的
 //!    照目录里对上的那一家列，出错照驱动分类留着。
 //! 3. 挑模型：写了的用它；没写的照推荐挑（`miyu_models::onboard::recommend`）。列表是空的：`list`，交第 2 步的出错。
-//! 4. 发：只有一条 user，没有 system、没有工具面；收到正文那一块的第一段字就叫停，空闲 60 秒。客户端和列模型用同一个
+//! 4. 发：只有一条 user，没有 system、没有工具面；收到正文那一块的第一段字就叫停，空闲 60 秒。驱动照挑的那个模型（施工
+//!    8-14，没有驱动的是 `config`），档案另配的头照固定的种子 `provider.test` 换。客户端和列模型用同一个
 //!    （照地址挑，施工 8-11 补：地址落在本机的不走代理，别的照环境变量，和会话真发时一样）。请求发了就报请求的结果
 //!    （「施工时定的」8-11）。
 //! 5. 不记会话日志、不记用量；记一行 `INFO provider tested`。key、地址不进任何一行。
@@ -28,6 +29,7 @@ use miyu_kernel::event::{CallError, ErrorClass};
 use miyu_kernel::id::ModelName;
 use miyu_kernel::request::{Message, Request};
 use miyu_models::facts::facts;
+use miyu_models::headers::PROBE_SEED;
 use miyu_models::observed::ProviderList;
 use miyu_models::onboard::{Offered, recommend, released};
 use miyu_models::provider::{self, NoModel, Provider};
@@ -182,11 +184,25 @@ async fn run(
         })?,
     };
     *tried = Some(model.clone());
+    // 发那一句照这个模型的驱动（施工 8-14：同一家里的模型可以各走各的），没有驱动的是 `config`；另配的头照固定的种子换。
+    let speaking = data
+        .with(|knowledge| {
+            let (facts, _) = facts(probe.resolved, knowledge, &provider, &model);
+            provider.for_model(&model, &facts.wire, &knowledge.profiles.npm)
+        })
+        .map_err(config)?;
+    let asking = speaking.build(listing_texts().map_err(unready)?);
     let endpoint = match &key {
         Some(key) => Endpoint::new(base_url, key.expose()),
         None => Endpoint::keyless(base_url),
     };
-    let first_token_ms = ask(&client, driver.as_ref(), &endpoint, &model, probe.text).await?;
+    let endpoint = provider
+        .headers(PROBE_SEED)
+        .into_iter()
+        .fold(endpoint, |endpoint, (name, value)| {
+            endpoint.with_header(name, value)
+        });
+    let first_token_ms = ask(&client, asking.as_ref(), &endpoint, &model, probe.text).await?;
     Ok(Probed::Worked {
         models,
         from_catalog,

@@ -33,3 +33,10 @@ base_url = "https://api.anthropic.com/v1"
 [providers.openai]
 driver = "openai-responses"
 base_url = "https://api.openai.com/v1"
+
+# opencode Console Go（施工 8-14）：驱动、地址照目录（https://opencode.ai/zen/go/v1，模型各自写着包名：Claude、MiniMax 这几个走
+# anthropic，GPT、Grok 走 openai-responses，别的走 openai-chat）。缺 x-opencode-session 回 400 MissingSessionID（2026-10-03 实测）；
+# 官方文档写明给第三方 agent 用：用自己的 User-Agent，每段对话发一个稳定的 x-opencode-session。值里的 {session_digest} 是种子
+# （会话编号、一次性调用的用途）的 SHA-256 前 26 位。
+[providers.opencode-go]
+headers = { "x-opencode-session" = "ses_{session_digest}" }
