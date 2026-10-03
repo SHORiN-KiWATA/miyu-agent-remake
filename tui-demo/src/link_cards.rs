@@ -1,7 +1,7 @@
 //! 链接卡片的账（蓝图 `tui.md`「链接卡片」第 2、4 条）：每个网址的卡片要过没有、要回来什么，每个 blob 存成了哪份文件。
 //! 排正文时问一声，没要过的记进要发的单子；主循环每一帧以后把单子交给核心（`app/cards.rs`）。
 //!
-//! 要到的卡片记进缓存目录里的 `cards.json`（最近的 [`KEEP`] 个网址），图照内容的哈希存成文件（`core/links.rs`）：重启
+//! 要到的卡片记进缓存目录里的 `cards-v2.json`（最近的 [`KEEP`] 个网址），图照内容的哈希存成文件（`core/links.rs`）：重启
 //! 以后照记着的直接画，不先显示成链接再换（2026-10-02 项目主人报）。
 
 use std::collections::HashMap;
@@ -31,7 +31,7 @@ pub struct LinkCards {
     ask_cards: Vec<String>,
     /// 还没发的：要读的 blob。
     ask_blobs: Vec<String>,
-    /// 缓存文件（`cards.json`）；测试里没有。
+    /// 缓存文件（`cards-v2.json`）；测试里没有。
     file: Option<PathBuf>,
     /// 记着的卡片的网址，照要到的先后（多了从前面丢）。
     order: Vec<String>,
@@ -45,9 +45,9 @@ impl LinkCards {
             .unwrap_or_default()
     }
 
-    /// 照缓存文件（`<缓存目录>/cards.json`）读回以前要到的卡片；读不了的当空的。
+    /// 照缓存文件（`<缓存目录>/cards-v2.json`）读回以前要到的卡片；读不了的当空的。
     pub fn open(dir: PathBuf) -> Self {
-        let file = dir.join("cards.json");
+        let file = dir.join("cards-v2.json");
         let saved: Vec<(String, Card)> = std::fs::read(&file)
             .ok()
             .and_then(|b| serde_json::from_slice(&b).ok())
@@ -165,6 +165,7 @@ mod tests {
             site: "a.dev".into(),
             image: None,
             icon: None,
+            ..Card::default()
         };
         let mut book = LinkCards::open(dir.clone());
         book.card("https://a.dev");
@@ -199,6 +200,7 @@ mod tests {
             site: "a.dev".into(),
             image: None,
             icon: None,
+            ..Card::default()
         };
         book.got_card("https://a.dev".into(), Some(card));
         assert_eq!(
@@ -208,5 +210,68 @@ mod tests {
         book.saved("sha256:aa".into(), Some(PathBuf::from("/tmp/x")));
         assert_eq!(book.file("sha256:aa"), Some(std::path::Path::new("/tmp/x")));
         assert!(!book.pending());
+    }
+}
+
+#[cfg(test)]
+mod site_cache_tests {
+    use super::LinkCards;
+    use serde_json::json;
+
+    #[test]
+    fn site_cache_does_not_reuse_old_five_field_cards() {
+        let dir = std::env::temp_dir().join(format!("miyu-old-card-cache-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let saved = json!([["https://www.bilibili.com/video/BV1Rxam6kEtU", {"title":"旧标题", "description":"", "site":"哔哩哔哩", "image":null, "icon":null}]]);
+        std::fs::write(dir.join("cards.json"), serde_json::to_vec(&saved).unwrap()).unwrap();
+        let mut book = LinkCards::open(dir.clone());
+        assert!(
+            book.card("https://www.bilibili.com/video/BV1Rxam6kEtU")
+                .is_none()
+        );
+        assert_eq!(
+            book.take().0,
+            ["https://www.bilibili.com/video/BV1Rxam6kEtU"]
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod cache_compat_tests {
+    use super::LinkCards;
+    use crate::core::{Card, CardKind};
+    use serde_json::json;
+
+    #[test]
+    fn old_entries_in_the_new_cache_are_read_and_video_metadata_survives_restart() {
+        let dir =
+            std::env::temp_dir().join(format!("miyu-compatible-cards-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let saved = json!([["https://old.test", {"title":"旧卡片", "description":"", "site":"网站", "image":null, "icon":null}]]);
+        std::fs::write(
+            dir.join("cards-v2.json"),
+            serde_json::to_vec(&saved).unwrap(),
+        )
+        .unwrap();
+        let mut book = LinkCards::open(dir.clone());
+        let old = book.card("https://old.test").unwrap();
+        assert_eq!(
+            (old.kind, old.duration, old.author.as_deref()),
+            (CardKind::Page, None, None)
+        );
+        assert!(book.take().0.is_empty());
+        let video = Card {
+            title: "视频".into(),
+            kind: CardKind::Video,
+            duration: Some(213),
+            author: Some("作者".into()),
+            ..Card::default()
+        };
+        book.got_card("https://video.test".into(), Some(video.clone()));
+        let mut reopened = LinkCards::open(dir.clone());
+        assert_eq!(reopened.card("https://video.test"), Some(&video));
+        assert_eq!(reopened.card("https://old.test").unwrap().title, "旧卡片");
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

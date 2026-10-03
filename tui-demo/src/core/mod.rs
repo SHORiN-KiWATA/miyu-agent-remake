@@ -38,7 +38,7 @@ use connect::{connect, subscribe};
 pub use efforts::{EffortList, Efforts};
 pub use kinds::{EndReason, Level, ToolStatus};
 pub use limits::Limits;
-pub use links::{Card, blob_path, cards_dir};
+pub use links::{Card, CardKind, blob_path, cards_dir};
 pub use mermaid::{Marks, Rendered};
 pub use models::{Choice, ChoiceState, Current};
 pub use output::JobOutput;
