@@ -308,7 +308,7 @@ A file was attached here (报告.pdf, application/pdf, 15 bytes), but this model
 
 ### 接 opencode Zen（8-14 驱动这边的一半）
 
-状态：2026-10-02 起草，2026-10-03 主会话审过、照实测收窄（免费档不做，见 `models.md`「八、opencode Zen」）。头在 `models.md` 第八条，这里只写驱动这边要做的。
+状态：2026-10-02 起草，2026-10-03 主会话审过、照实测收窄。头在 `models.md` 第八条，这里只写驱动这边要做的。
 
 1. **编码、解码、分类不加新写法**：Zen、Go 的 OpenAI 兼容那一路是标准的 `/chat/completions`，照这一页走。头由 HTTP 执行器照端点另配的头发，不进驱动。
 2. **一家三种驱动**：目录里 Zen、Go 的模型各自写着 `provider.npm`（2026-10-02 的快照：Zen 114 个，51 个走这一页，32 个 `@ai-sdk/openai` 走 `openai-responses`，23 个 `@ai-sdk/anthropic` 走 `anthropic`，8 个 `@ai-sdk/google` 没有驱动；Go 33 个，23、7、3）。

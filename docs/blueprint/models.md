@@ -912,7 +912,7 @@ driver = "openai-chat"
 base_url = "http://127.0.0.1:11434/v1"
 ```
 
-出厂的档案现在是上面几段（8-7、8-11、8-12、8-13、8-14）：DeepSeek 的驱动、地址留在档案里（目录推得出，留着是为了目录读不了时照样能用，「施工时定的」8-7），`image_tokens` 是 8-6 加的一格；8-6 加的 `inputs` 8-7 拿掉了，照模型资料。`ollama` 那一段 8-11 加了（档案多一格 `name`）；`anthropic` 那一段 8-12 加了：目录里这一家没写地址，档案补上驱动和地址 `https://api.anthropic.com/v1`，没有开关。`openai` 那一段 8-13 加了：目录里这一家也没写地址，档案补上驱动 `openai-responses` 和地址 `https://api.openai.com/v1`。`opencode-go` 那一段 8-14 加了：驱动、地址照目录，只多一个头（第八条第 1 条）；Zen（`opencode`）不写档案，免费档不做（第八条第 2 条）。`ollama` 目录里没有（目录里的 `ollama-cloud` 是云端的），档案补上，只为「找现成的」。
+出厂的档案现在是上面几段（8-7、8-11、8-12、8-13、8-14）：DeepSeek 的驱动、地址留在档案里（目录推得出，留着是为了目录读不了时照样能用，「施工时定的」8-7），`image_tokens` 是 8-6 加的一格；8-6 加的 `inputs` 8-7 拿掉了，照模型资料。`ollama` 那一段 8-11 加了（档案多一格 `name`）；`anthropic` 那一段 8-12 加了：目录里这一家没写地址，档案补上驱动和地址 `https://api.anthropic.com/v1`，没有开关。`openai` 那一段 8-13 加了：目录里这一家也没写地址，档案补上驱动 `openai-responses` 和地址 `https://api.openai.com/v1`。`opencode-go` 那一段 8-14 加了：驱动、地址照目录，只多一个头（第八条第 1 条）。`ollama` 目录里没有（目录里的 `ollama-cloud` 是云端的），档案补上，只为「找现成的」。
 
 `vendors.toml`（例子）：
 

@@ -24,7 +24,6 @@ opencode 的 Zen（`/zen/v1`）和 Console Go（`/zen/go/v1`）只写 key 就能
 
 ### 不做什么
 
-- Zen 免费档：要冒充 OpenCode 的客户端，不做。
 - 配置里手写的 `headers`、`compat`、模型的 `driver`：随用到它的那一步。
 - 占位工具：不做（见上）。
 
