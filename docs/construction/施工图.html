@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>187</b><span>/ 196 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；接着三个驱动（等项目主人给 key）；跨会话只剩 C-7 验收</span></li>
-    <li><b class="mono">721422ad</b><span>最近一步（W-7 再补 按网站取卡片）的提交</span></li>
+    <li><b>188</b><span>/ 196 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；8-12 Anthropic 合了，接着 8-13、8-14 两个驱动；跨会话做完了</span></li>
+    <li><b class="mono">f73cfb5d</b><span>最近一步（8-12 Anthropic 消息接口）的提交</span></li>
   </ul>
 </header>
 
@@ -526,7 +526,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s8-10"><span class="n">8-10</span>会话里换模型<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-11"><span class="n">8-11</span>第一次接入<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-11b"><span class="n">8-11</span>本机的服务不走代理（补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">8-12</span>Anthropic 消息接口</span></li>
+        <li><a class="step done" href="#s8-12"><span class="n">8-12</span>Anthropic 消息接口<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">8-13</span>OpenAI Responses 接口</span></li>
         <li><span class="step"><span class="n">8-14</span>opencode Zen</span></li>
         <li><a class="step done" href="#s8-15"><span class="n">8-15</span>用量与金额<span class="st">✓</span></a></li>
@@ -11753,6 +11753,65 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/8-11-本机的服务不走代理（补）.md</code>；蓝图 <code>http.md</code>「客户端」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-12" aria-labelledby="h-s812">
+  <div class="sheet-head"><h2 id="h-s812"><span class="no">8-12</span>Anthropic 消息接口</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">多一个驱动家族 <code>anthropic</code>：Anthropic 官方、Zen 上的 Claude、走这种写法的兼容接口能直接配上用。缓存照前缀契约打四处点，带签名的思考原样回传，工具、图片、PDF、思考强度照这一家的写法；请求形状探针多一张 Anthropic 的脸。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-drivers/src/anthropic/</span><span class="dir-note">新驱动</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">messages.rs</span><span class="rl">相邻同角色的合成一条；思考块回传；结果里的图、PDF 放在 tool_result 里</span></div>
+              <div class="tile new"><span class="nm">marks.rs</span><span class="rl">四处打点：工具和 system、稳定区、上一次、这一次的末尾</span></div>
+              <div class="tile new"><span class="nm">effort.rs</span><span class="rl">档位 adaptive + effort；off 是 disabled；没配的不加</span></div>
+              <div class="tile new"><span class="nm">decode.rs、usage.rs</span><span class="rl">SSE 解成四种增量；签名、编号进私有数据；用量四项</span></div>
+              <div class="tile new"><span class="nm">media.rs</span><span class="rl">换成字的几步从 openai-chat 挪出来共用，样本一个字节不变</span></div>
+            </div>
+          </div>
+          <ol class="pipe" aria-label="接上了哪些">
+            <li class="cmd">供应商 driver = "anthropic"</li>
+            <li>模型资料：开关是接口自带的，目录有开关的多 <code>off</code></li>
+            <li>路由：照 driver 造驱动，替它照资料填输出上限</li>
+            <li>档案加 <code>[providers.anthropic]</code></li>
+          </ol>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不用自动缓存</span><span class="rl">打点位置自己定、样本里看得见</span></div>
+          <div class="tile new"><span class="nm">没配强度什么都不加</span><span class="rl">照供应商的默认</span></div>
+          <div class="tile new"><span class="nm">保留思考的校验</span><span class="rl">先原样回传；有官方 key 实测后另开 8-12 补</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-12</dd></div>
+        <div><dt>名称</dt><dd>Anthropic 消息接口</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-03</dd></div>
+        <div><dt>提交</dt><dd class="mono">f73cfb5d</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>19 个手写变异逮住 18 个，没逮住的是多余的一行，删了；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型（DeepSeek 的兼容接口）：工具循环、思考强度、附图、打断再接着说、写错 key 都对；缓存打点命中待官方 key</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-12-Anthropic消息接口.md</code>；蓝图 <code>drivers/anthropic.md</code>、<code>models.md</code>。</li>
       </ul>
     </div>
   </div>
