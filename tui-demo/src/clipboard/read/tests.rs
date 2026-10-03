@@ -1,8 +1,11 @@
 //! 读剪贴板：按平台挑命令，第一个读得到的算数，卡住的放弃。
 
+#[cfg(unix)]
 use std::time::{Duration, Instant};
 
-use super::{Os, Unreadable, candidates, read_with};
+use super::{Os, candidates};
+#[cfg(unix)]
+use super::{Unreadable, read_with};
 
 fn names(list: &[(&str, &[&str])]) -> Vec<String> {
     list.iter().map(|(cmd, _)| (*cmd).to_string()).collect()

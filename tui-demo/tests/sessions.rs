@@ -2,7 +2,7 @@
 
 mod support;
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use miyu_session::testkit::{Play, Script};
 use support::{Home, Tui};
@@ -41,6 +41,19 @@ fn rows(tui: &Tui) -> Vec<String> {
         .into_iter()
         .filter(|l| l.contains(" #"))
         .collect()
+}
+
+/// 终端一帧可分成几个管道片段；标题先到了不代表列表的行也已收到，等完整条件而不是固定停多久。
+fn wait_rows(tui: &mut Tui, count: usize) {
+    let until = Instant::now() + support::WAIT;
+    while rows(tui).len() != count {
+        assert!(
+            Instant::now() < until,
+            "等不到 {count} 行：\n{}",
+            tui.lines().join("\n")
+        );
+        tui.pump(Duration::from_millis(50));
+    }
 }
 
 #[test]
@@ -101,6 +114,7 @@ fn a_long_list_shows_ten_rows_and_scrolls_with_the_pick() {
     let (_home, mut tui) = sessions(12);
     tui.say("/sessions");
     tui.wait_for("12 个");
+    wait_rows(&mut tui, 10);
     assert_eq!(rows(&tui).len(), 10, "{}", tui.lines().join("\n"));
     for _ in 0..11 {
         tui.key(DOWN);

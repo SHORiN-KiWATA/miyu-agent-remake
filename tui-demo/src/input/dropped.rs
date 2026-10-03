@@ -182,7 +182,7 @@ mod tests {
             Some(vec![file(&shot, "image")])
         );
         assert_eq!(
-            found(&shot_text.replace(' ', r"\ ")),
+            found(&shot_text.replace('\\', r"\\").replace(' ', r"\ ")),
             Some(vec![file(&shot, "image")])
         );
         let uri = format!("file://{}", shot_text.replace(' ', "%20"));

@@ -201,6 +201,7 @@ fn the_at_list_asks_the_core_and_the_data_root_stays_closed() {
     assert!(!tui.shows("home/"), "{}", tui.lines().join("\n"));
 }
 
+#[cfg_attr(windows, ignore = "ConPTY 不保证 LF 字节转换成 Ctrl+J Win32 输入记录")]
 #[test]
 fn ctrl_j_and_k_move_in_an_open_list() {
     // 2026-10-01 项目主人：能搜的列表里要用 vim 的 Ctrl+J、Ctrl+K 上下。
@@ -245,6 +246,7 @@ fn commands_that_change_nothing_only_flash_a_notice() {
     assert!(!tui.shows("没有能恢复的撤销"), "{}", tui.lines().join("\n"));
 }
 
+#[cfg(unix)]
 #[test]
 fn ctrl_g_edits_the_prompt_in_the_editor() {
     // 2026-10-02 项目主人要：Ctrl+G 用编辑器写提示词，退出后回到输入框。假编辑器把文件换成一句话。
@@ -271,6 +273,10 @@ fn ctrl_g_edits_the_prompt_in_the_editor() {
     assert!(!tui.shows("原来的话"), "{}", tui.lines().join("\n"));
 }
 
+#[cfg_attr(
+    windows,
+    ignore = "ConPTY 测具不能注入 kitty Ctrl+Enter 对应的 Win32 输入记录"
+)]
 #[test]
 fn ctrl_enter_interrupts_and_sends_what_is_queued_now() {
     // 2026-10-02 项目主人要：Ctrl+Enter 立马发排着的（连输入框里的），不用提示，不用按两下。
@@ -302,7 +308,7 @@ fn a_down_arrow_beside_the_box_brings_the_view_back_to_the_bottom() {
     let mut tui = home.tui("zh_CN.UTF-8");
     tui.wait_for("工作区");
     tui.say("说长一点");
-    tui.wait_for("▣  ");
+    wait_for_done_at_bottom(&mut tui);
     let arrow = |tui: &support::Tui| {
         tui.lines()
             .iter()
@@ -344,7 +350,7 @@ fn ctrl_end_goes_back_to_the_bottom() {
     let mut tui = home.tui("zh_CN.UTF-8");
     tui.wait_for("工作区");
     tui.say("说长一点");
-    tui.wait_for("▣  ");
+    wait_for_done_at_bottom(&mut tui);
     tui.key(b"\x1b[5~");
     tui.pump(Duration::from_millis(300));
     assert!(!tui.shows("第 80 行"));
@@ -353,6 +359,10 @@ fn ctrl_end_goes_back_to_the_bottom() {
     assert!(tui.shows("第 80 行"), "{}", tui.lines().join("\n"));
 }
 
+#[cfg_attr(
+    windows,
+    ignore = "ConPTY 重新渲染输出，录到的光标序列不是程序原始字节"
+)]
 #[test]
 fn typing_does_not_toggle_the_cursor_off_and_on_every_frame() {
     // 2026-10-02 项目主人报：fcitx5 打字时预编辑和输入框里的提示疯狂闪。查到原来每帧都先藏光标、画完再显示，
@@ -377,6 +387,7 @@ fn typing_does_not_toggle_the_cursor_off_and_on_every_frame() {
 }
 
 /// 真界面处理鼠标事件后必须发出原文的 OSC 52；仅选区取字单测守不住这条链。
+#[cfg_attr(windows, ignore = "ConPTY 测具不支持括号粘贴事件与 OSC52 原始字节透传")]
 #[test]
 fn mouse_selection_copies_expanded_text_to_osc52() {
     use base64::Engine;
@@ -451,4 +462,18 @@ fn mouse_selection_copies_expanded_text_to_osc52() {
         "正文松开只复制一次原文"
     );
     assert!(tui.shows("[已粘贴 12 行]"), "复制不展开屏幕内容");
+}
+
+/// 分帧长回答会正常停在开头；准备滚动场景时明确回底，等待收尾行可见。
+fn wait_for_done_at_bottom(tui: &mut support::Tui) {
+    let end = std::time::Instant::now() + support::WAIT;
+    while !tui.shows("▣  ") {
+        assert!(
+            std::time::Instant::now() < end,
+            "收尾没到：{}",
+            tui.lines().join("\n")
+        );
+        tui.send(b"\x1b[1;5F");
+        tui.pump(Duration::from_millis(50));
+    }
 }
