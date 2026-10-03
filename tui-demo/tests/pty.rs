@@ -201,6 +201,7 @@ fn the_at_list_asks_the_core_and_the_data_root_stays_closed() {
     assert!(!tui.shows("home/"), "{}", tui.lines().join("\n"));
 }
 
+#[cfg_attr(windows, ignore = "ConPTY 不保证 LF 字节转换成 Ctrl+J Win32 输入记录")]
 #[test]
 fn ctrl_j_and_k_move_in_an_open_list() {
     // 2026-10-01 项目主人：能搜的列表里要用 vim 的 Ctrl+J、Ctrl+K 上下。
@@ -272,6 +273,10 @@ fn ctrl_g_edits_the_prompt_in_the_editor() {
     assert!(!tui.shows("原来的话"), "{}", tui.lines().join("\n"));
 }
 
+#[cfg_attr(
+    windows,
+    ignore = "ConPTY 测具不能注入 kitty Ctrl+Enter 对应的 Win32 输入记录"
+)]
 #[test]
 fn ctrl_enter_interrupts_and_sends_what_is_queued_now() {
     // 2026-10-02 项目主人要：Ctrl+Enter 立马发排着的（连输入框里的），不用提示，不用按两下。
@@ -354,6 +359,10 @@ fn ctrl_end_goes_back_to_the_bottom() {
     assert!(tui.shows("第 80 行"), "{}", tui.lines().join("\n"));
 }
 
+#[cfg_attr(
+    windows,
+    ignore = "ConPTY 重新渲染输出，录到的光标序列不是程序原始字节"
+)]
 #[test]
 fn typing_does_not_toggle_the_cursor_off_and_on_every_frame() {
     // 2026-10-02 项目主人报：fcitx5 打字时预编辑和输入框里的提示疯狂闪。查到原来每帧都先藏光标、画完再显示，
@@ -378,6 +387,7 @@ fn typing_does_not_toggle_the_cursor_off_and_on_every_frame() {
 }
 
 /// 真界面处理鼠标事件后必须发出原文的 OSC 52；仅选区取字单测守不住这条链。
+#[cfg_attr(windows, ignore = "ConPTY 测具不支持括号粘贴事件与 OSC52 原始字节透传")]
 #[test]
 fn mouse_selection_copies_expanded_text_to_osc52() {
     use base64::Engine;
