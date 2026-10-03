@@ -276,8 +276,8 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>186</b><span>/ 196 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；接着 C-7 跨会话验收、三个驱动（等项目主人给 key）；跨会话只剩 C-7 验收</span></li>
+    <li><b>187</b><span>/ 196 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；接着三个驱动（等项目主人给 key）；跨会话只剩 C-7 验收</span></li>
     <li><b class="mono">721422ad</b><span>最近一步（W-7 再补 按网站取卡片）的提交</span></li>
   </ul>
 </header>
@@ -546,7 +546,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sC-4"><span class="n">C-4</span>读别的会话<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sC-5"><span class="n">C-5</span>发给别的会话<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sC-6"><span class="n">C-6</span>空了告诉我<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">C-7</span>跨会话验收</span></li>
+        <li><a class="step done" href="#sC-7"><span class="n">C-7</span>跨会话验收<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -12057,6 +12057,37 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/C-6-空了告诉我.md</code>；蓝图 <code>cross-session.md</code> 第六条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sC-7" aria-labelledby="h-sC7">
+  <div class="sheet-head"><h2 id="h-sC7"><span class="no">C-7</span>跨会话验收</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">跨会话 C-1 到 C-6 在真模型上用一遍：列会话、读、发、回话、空了告诉我。不改代码、不改蓝图。</p>
+  <figure class="frame">
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">C-7</dd></div>
+        <div><dt>名称</dt><dd>跨会话验收</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-03</dd></div>
+        <div><dt>提交</dt><dd class="mono">—</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>项目主人确认：列会话、读、发、回话、空了告诉我都能用</span></li>
+        <li><span class="wait">–</span><span>没单独记真模型实测：子代理被拒、互发停下、不当人的许可、缓存、防刷屏的数（由 C-2 到 C-6 的测试守着）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/C-7-跨会话验收.md</code>；蓝图 <code>cross-session.md</code>。</li>
       </ul>
     </div>
   </div>
