@@ -13,7 +13,10 @@ miyu-kernel = { path = "../miyu-kernel" }
 miyu-store = { path = "../miyu-store" }
 # 发请求：和 miyu-http 同一个库、同一套功能（TLS 用 rustls，证书认系统的和 webpki 自带的两份，不依赖 OpenSSL）。
 # 跳转自己跟、每一跳钉住解析好的地址，都要它的 `ClientBuilder`。MIT 或 Apache-2.0。
-reqwest = { version = "0.12", default-features = false, features = ["http2", "rustls-tls-native-roots", "rustls-tls-webpki-roots"] }
+# gzip/brotli/deflate/zstd：B 站不管请求带不带 Accept-Encoding 都压着发页面，开了这几个才解得开（W-7 补，
+# net.md「怎么走」第 6 条）；上限照解开以后的字节算，照样挡压缩炸弹。这几个特性在整个工作区是合起来的，
+# miyu-http 的客户端为了请求模型那条路一个字节不变，明确关掉了（http.md「客户端」）。
+reqwest = { version = "0.12", default-features = false, features = ["http2", "rustls-tls-native-roots", "rustls-tls-webpki-roots", "gzip", "brotli", "deflate", "zstd"] }
 # 这一跳走不走代理：reqwest 自己照环境变量走代理用的就是它的 `Matcher`，`NO_PROXY` 的读法和请求模型一字不差
 # （net.md「起草时定的」第 1 条）。本来就在依赖图里（reqwest 带进来的）。MIT。
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy"] }
@@ -37,6 +40,10 @@ testkit = []
 miyu-net = { path = ".", features = ["testkit"] }
 # 测试里本机的假服务器、假代理。
 tokio = { version = "1", features = ["io-util", "macros", "net", "rt", "rt-multi-thread", "sync", "time"] }
+# 测试用的假服务器压一份 gzip 的页面：reqwest 的 gzip 特性带进来的同一个包，本来就在依赖图里。MIT 或 Apache-2.0。
+flate2 = "1"
+# 测试用的假服务器压一份 br 的页面：reqwest 的 brotli 特性带进来的同一个包。BSD-3-Clause 和 MIT。
+brotli = "8"
 
 [lints]
 workspace = true

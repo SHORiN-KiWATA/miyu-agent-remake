@@ -1,5 +1,5 @@
 //! 可选软件包 `net` 的登记（施工 W-7，`net.md`）：`link.preview` 在后台答（「怎么走」第 11 条）；参数怎么读、
-//! 卡片怎么写成回应。
+//! 卡片怎么写成回应（`kind` 一定写，`duration`、`author` 没有的不写，W-7 再补）。
 
 use std::sync::Arc;
 
@@ -32,14 +32,25 @@ pub(super) fn register(resources: &ResourceRoot, blobs: Blobs, queries: Queries)
 async fn preview(links: &LinkPreview, params: Value) -> Result<Value, QueryError> {
     let params: Params = serde_json::from_value(params).map_err(|_| QueryError::BadParams)?;
     match links.preview(&params.url).await {
-        Ok(Preview::Card(card)) => Ok(json!({"card": {
-            "description": card.description,
-            "icon": picture(card.icon.as_ref()),
-            "image": picture(card.image.as_ref()),
-            "site": card.site,
-            "title": card.title,
-            "url": card.url,
-        }})),
+        Ok(Preview::Card(card)) => {
+            let mut written = json!({
+                "description": card.description,
+                "icon": picture(card.icon.as_ref()),
+                "image": picture(card.image.as_ref()),
+                "kind": card.kind.as_str(),
+                "site": card.site,
+                "title": card.title,
+                "url": card.url,
+            });
+            // 没有的不写（W-7 再补，net.md「对外的样子」）
+            if let Some(duration) = card.duration {
+                written["duration"] = json!(duration);
+            }
+            if let Some(author) = card.author {
+                written["author"] = json!(author);
+            }
+            Ok(json!({"card": written}))
+        }
         Ok(Preview::Miss(why)) => Ok(json!({"card": null, "why": why.as_str()})),
         // `link_preview.json` 读不懂：`LinkPreview` 自己已经记了 `WARN not ready`。
         Err(NotReady) => Err(QueryError::Internal),

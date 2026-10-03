@@ -52,6 +52,8 @@ async fn a_body_comes_back_with_its_etag_and_the_request_carries_the_headers() {
         Some("Bearer sk-secret")
     );
     assert_eq!(received[0].header("if-none-match"), Some("\"v1\""));
+    // 同一个理由：fetcher() 走的是同一个 build()，也不该自己带 Accept-Encoding（W-7 补）。
+    assert_eq!(received[0].header("accept-encoding"), None);
 }
 
 #[tokio::test]

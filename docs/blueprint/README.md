@@ -28,6 +28,8 @@
 | `kernel/history.md` | 账本、有效历史、撤销和恢复、改回文件的几步 |
 | `kernel/request.md` | 统一的请求、组装、事实注入、模板、流式累积 |
 | `drivers/openai-chat.md` | OpenAI 兼容接口：编码、解码、出错分类 |
+| `drivers/anthropic.md` | Anthropic 的消息接口：编码、缓存打点、思考、解码、出错分类：图纸，2026-10-02 起草，待主会话审 |
+| `drivers/openai-responses.md` | OpenAI 的 Responses 接口：编码、思考、解码、出错分类：图纸，2026-10-02 起草，待主会话审 |
 | `http.md` | 发请求、读流 |
 | `policy.md` | 策略快照 |
 | `store.md` | 数据根、会话日志、blob |
