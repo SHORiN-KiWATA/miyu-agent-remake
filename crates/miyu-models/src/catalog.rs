@@ -3,8 +3,8 @@
 //!
 //! - 供应商：`id`、`name`、`env`、`npm`、`api`、`doc`、`models`；
 //! - 模型：`id`、`name`、`family`、`tool_call`、`modalities.input`、`limit`（`context`、`input`、`output`）、`cost`、
-//!   `reasoning_options`、`status`、`release_date`（施工 8-11，推荐模型用）。窗口取 `limit.context` 和 `limit.input` 里小的
-//!   那个。
+//!   `reasoning_options`、`status`、`release_date`（施工 8-11，推荐模型用）、`provider.npm`、`interleaved`（施工 8-14：这个模型
+//!   走哪种驱动、交错思考写在哪个字段）。窗口取 `limit.context` 和 `limit.input` 里小的那个。
 //!
 //! 一个模型的格坏了（类型不对、数是负的），跳过它，交回它的名字由读的一方记一行；一家供应商自己的格坏了，整家跳过。
 //! 整份不是 JSON 对象的，算读不了。读好以后照名字建两份索引：一模一样的名字、规整以后的名字（[`crate::matching`]）。
@@ -75,6 +75,11 @@ pub struct CatalogModel {
     pub status: Option<String>,
     /// 发布日期，原样（`2026-09-10`）：照字比新旧（施工 8-11，第一次接入推荐模型用）。
     pub release_date: Option<String>,
+    /// 这个模型自己的 AI SDK 包名（`provider.npm`，施工 8-14）：和这一家的不一样的才写，照档案的 `[npm]` 认驱动。
+    pub npm: Option<String>,
+    /// 交错思考写回哪个字段（`interleaved` 写成 `{"field": …}` 的那个字段名，施工 8-14）：`true` 这类说不出字段的没有。认不
+    /// 认这个字段名归合资料的一方（[`crate::provider::Provider::for_model`]）。
+    pub interleaved: Option<String>,
 }
 
 /// 目录里一个模型的思考强度（施工 8-18，`models.md`「模型的资料」）：开关算不算、能不能关，合资料时照这一家的档案定
@@ -167,6 +172,18 @@ struct RawModel {
     status: Option<String>,
     #[serde(default)]
     release_date: Option<String>,
+    #[serde(default)]
+    provider: Option<ModelProvider>,
+    /// 写法不一（`true`、`{"field": …}`），原样收下再看，不为它跳过整个模型。
+    #[serde(default)]
+    interleaved: Option<serde_json::Value>,
+}
+
+/// 模型上的 `provider`：只用 `npm`。
+#[derive(Deserialize)]
+struct ModelProvider {
+    #[serde(default)]
+    npm: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -317,6 +334,12 @@ impl From<RawModel> for CatalogModel {
             reasoning: raw.reasoning_options.and_then(reasoning),
             status: raw.status,
             release_date: raw.release_date,
+            npm: raw.provider.and_then(|provider| provider.npm),
+            interleaved: raw
+                .interleaved
+                .as_ref()
+                .and_then(|interleaved| interleaved.get("field")?.as_str())
+                .map(str::to_string),
         }
     }
 }

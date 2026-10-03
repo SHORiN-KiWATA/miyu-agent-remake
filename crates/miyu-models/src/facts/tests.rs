@@ -413,6 +413,9 @@ fn a_missing_hand_pick_borrows_nothing() {
         catalog: "deepseek".to_string(),
         recognized: None,
         local: false,
+        driver_written: false,
+        reasoning_written: false,
+        headers: std::collections::BTreeMap::new(),
     };
     let (facts, found) = super::facts(&resolved, &empty.knowledge(), &deepseek, "deepseek-flash");
     assert_eq!(found, Found::Nothing);
@@ -450,3 +453,5 @@ fn anthropic_can_switch_thinking_off_without_a_profile() {
     let (responses, _) = facts_of(&held, source, "gpt", "claude-sonnet-5");
     assert_eq!(responses.levels(), ["low", "high"]);
 }
+
+mod wire;

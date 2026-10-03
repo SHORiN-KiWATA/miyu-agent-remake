@@ -53,6 +53,23 @@ fn the_shipped_profiles_keep_what_was_in_the_code() {
     );
     assert!(openai.compat.is_none());
     assert_eq!(profiles.npm["@ai-sdk/openai"], "openai-responses");
+    // 施工 8-14：opencode Go 只多一个头，驱动、地址照目录；Zen 不写档案（免费档不做）。
+    let go = &profiles.providers["opencode-go"];
+    assert_eq!(
+        go.headers.iter().collect::<Vec<_>>(),
+        [(
+            &"x-opencode-session".to_string(),
+            &"ses_{session_digest}".to_string()
+        )]
+    );
+    assert_eq!((go.driver.as_deref(), go.base_url.as_deref()), (None, None));
+    assert!(go.compat.is_none());
+    assert!(!profiles.providers.contains_key("opencode"));
+    for (id, profile) in &profiles.providers {
+        if id != "opencode-go" {
+            assert!(profile.headers.is_empty(), "{id}");
+        }
+    }
 }
 
 #[test]

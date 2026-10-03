@@ -16,12 +16,21 @@
 //! 解出来（`route.rs`、`route/lists.rs`），地址因此不会被这一层的任何输出（`model.list`、`config.get`）带出去。
 //!
 //! 模型的资料照 [`crate::facts`]。
+//!
+//! 一家里的模型可以各走各的驱动（施工 8-14，`drivers/openai-chat.md`「接 opencode Zen」）：真发的那个模型照
+//! [`Provider::for_model`] 换成它的样子——驱动照「手写的供应商 `driver` > 第 1、2 层对上的模型的 `npm` > 档案 > 目录里那一家的
+//! `npm`」，`openai-chat` 的思考回传照目录的 `interleaved`（档案写了 `reasoning` 的照档案）。另配的头照档案，值是模板
+//! （[`crate::headers`]）。
 
 use miyu_config::secret::{Reference as KeyRef, Secret};
 use miyu_config::{Address, Values};
-use miyu_drivers::openai_chat::Compat;
+use std::collections::BTreeMap;
+
+use miyu_drivers::openai_chat::{Compat, ReasoningField, ReasoningReplay};
 use miyu_drivers::{Anthropic, DriverTexts, OpenAiChat, OpenAiResponses};
 
+use crate::facts::Wire;
+use crate::headers;
 use crate::knowledge::Knowledge;
 use crate::matching::{Recognized, recognize};
 use crate::profile::ImageTokens;
@@ -95,6 +104,12 @@ pub struct Provider {
     pub recognized: Option<Recognized>,
     /// 本机的模型服务：价格当 0（8-7）。
     pub local: bool,
+    /// 驱动是配置里手写的（施工 8-14）：压过目录里模型的 `npm`。
+    pub driver_written: bool,
+    /// 档案写了思考怎么回传（施工 8-14）：压过目录的 `interleaved`。
+    pub reasoning_written: bool,
+    /// 档案另配的头：名字 → 模板（施工 8-14，[`crate::headers`]）。
+    pub headers: BTreeMap<String, String>,
 }
 
 impl Provider {
@@ -111,6 +126,57 @@ impl Provider {
     /// 照这一家的驱动和开关造一个驱动，占位是 `texts`（施工 8-12）。
     pub fn build(&self, texts: DriverTexts) -> Box<dyn miyu_drivers::Driver> {
         self.driver.build(self.compat.clone(), texts)
+    }
+
+    /// 发给模型 `model` 时这一家的样子（施工 8-14）：`wire` 是这个模型照目录怎么说话（只取第 1、2 层对上的，
+    /// [`crate::facts::Facts::wire`]），`npm` 是档案的 `[npm]` 表。
+    ///
+    /// - 驱动：手写的照手写的；不然模型写了自己的包名的照它换，换不出现在有的驱动的，这个模型用不了；都没有的照这一家的。
+    /// - 开关：走 `openai-chat`、档案没写 `reasoning` 的，目录写了交错思考的照它回传（`always` 是真的），认不出的字段照旧。
+    ///
+    /// # Errors
+    ///
+    /// 模型的包名换不出现在有的驱动：`model "<供应商>/<模型>" needs driver "<它>", which is not available yet`（「它」是 `[npm]`
+    /// 换出来的名字，表里没有的是包名本身）。
+    pub fn for_model(
+        &self,
+        model: &str,
+        wire: &Wire,
+        npm: &BTreeMap<String, String>,
+    ) -> Result<Provider, NoModel> {
+        let mut speaking = self.clone();
+        if let Some(package) = wire.npm.as_deref().filter(|_| !self.driver_written) {
+            let name = npm.get(package).map_or(package, String::as_str);
+            speaking.driver = Driver::parse(name).ok_or_else(|| {
+                NoModel(format!(
+                    "model \"{}/{model}\" needs driver {name:?}, which is not available yet",
+                    self.id
+                ))
+            })?;
+        }
+        let field = match wire.interleaved.as_deref() {
+            Some("reasoning_content") => Some(ReasoningField::ReasoningContent),
+            Some("reasoning") => Some(ReasoningField::Reasoning),
+            _ => None,
+        };
+        if let Some(field) =
+            field.filter(|_| speaking.driver == Driver::OpenAiChat && !self.reasoning_written)
+        {
+            speaking.compat.reasoning = ReasoningReplay::Replay {
+                field,
+                always: true,
+            };
+        }
+        Ok(speaking)
+    }
+
+    /// 另配的头，照种子 `seed` 换好模板（施工 8-14，[`crate::headers`]）：会话的是会话编号，一次性的是用途，`provider.test`
+    /// 是 [`headers::PROBE_SEED`]。照名字排。
+    pub fn headers(&self, seed: &str) -> Vec<(String, String)> {
+        self.headers
+            .iter()
+            .map(|(name, template)| (name.clone(), headers::fill(template, seed)))
+            .collect()
     }
 }
 
@@ -179,6 +245,7 @@ pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<
     let from_npm = listed
         .and_then(|listed| listed.npm.as_ref())
         .and_then(|npm| knowledge.profiles.npm.get(npm).cloned());
+    let driver_written = settings.driver.is_some();
     let (Some(driver), Some(base_url)) = (
         settings.driver.or(profile.driver.clone()).or(from_npm),
         written_url.or_else(|| {
@@ -214,6 +281,12 @@ pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<
         catalog,
         recognized,
         local,
+        driver_written,
+        reasoning_written: profile
+            .compat
+            .as_ref()
+            .is_some_and(|compat| compat.reasoning.is_some()),
+        headers: profile.headers,
     })
 }
 

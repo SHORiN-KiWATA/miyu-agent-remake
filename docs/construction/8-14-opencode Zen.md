@@ -1,6 +1,6 @@
 ## 施工单 8-14：opencode Zen
 
-状态：施工中（2026-10-03 开工；图纸是 `drivers/openai-chat.md`「接 opencode Zen」和 `models.md`「八、opencode Zen」，10-02 起草，10-03 主会话审过、照实测收窄）。
+状态：已完成（2026-10-03 开工、施工完，项目主人同一天验收通过；图纸是 `drivers/openai-chat.md`「接 opencode Zen」和 `models.md`「八、opencode Zen」，10-02 起草，10-03 主会话审过、照实测收窄）。
 
 ### 目的
 
@@ -40,3 +40,15 @@ opencode 的 Zen（`/zen/v1`）和 Console Go（`/zen/go/v1`）只写 key 就能
 
 - 改了路由造驱动的地方：会话、一次性入口、`provider.test` 都走一遍。
 - key 是项目主人在对话里给的：只放在本机临时文件，不进仓库、日志、提交、施工单。
+
+### 施工结果（2026-10-03 主会话）
+
+1. 测试先写：`miyu-models` 九条（`headers/tests.rs` 三条；`profile`、`catalog`、`facts/tests/wire.rs` 各一条；`provider` 三条），`miyu-session/tests/route_zen.rs` 四条，`miyu-endpoint/tests/providers_test.rs` 一条（`provider.test` 照模型的驱动发、带头、没有驱动的是 `config`），`miyu-core` 出厂档案一条。裁出来的目录多三个真条目（Go 的 `minimax-m3`、`gpt-5.6-luna`，Zen 的 `gemini-3-pro`）。
+2. 请求形状探针：存档没动，`git diff` 是空的。
+3. 给模型看的字：没有新的。
+4. 手写变异 21 个，全被逮住：摘要的位数、模板全放行、不换、读档案不查；目录丢包名、`interleaved` 写成 `true` 也认；第 3 层也取；能不能关思考照供应商；手写驱动不管用、一律当手写；换不出驱动退回供应商的；`always` 写假、档案写了也盖、别的驱动也回传、字段写反；挑候选不挂头、种子写死；路由照供应商造驱动、照供应商填上限；`provider.test` 照供应商的驱动发、不带头。
+5. `cargo xtask check`：格式、clippy、文档、分层、纯逻辑、行数、许可证过；测试除容器里 root 跑的 `config_set` `a_write_that_fails_changes_nothing`（和这一步无关，CI 上过）全过（`--no-fail-fast` 跑全）。
+6. 真模型实测（项目主人给的 Go key，只放在本机临时文件，照环境变量取；数据根是临时目录；配置只写 `[providers.opencode-go] keys`）：
+   - `deepseek-v4.1-flash`（`openai-chat`，思考照 `reasoning_content` 回传）：带工具的会话三轮，读文件、接着算，六次请求全成，第二、三轮缓存命中 95%、93%（回传的思考没打乱前缀）。
+   - `minimax-m3`（`anthropic`，`/messages`）、`gpt-5.6-luna`（`openai-responses`，`/responses`）各问一句，都答对。
+   - 数据根、仓库里找不到 key；运行日志里没有头的值。

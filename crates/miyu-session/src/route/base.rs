@@ -54,7 +54,7 @@ pub(super) struct Ready {
     pub(super) model: Model,
     /// 地址和 key 的值。
     pub(super) endpoint: Endpoint,
-    /// 驱动：照这一家的驱动造（施工 8-12），开关照档案，占位照交进来的。
+    /// 驱动：照真发的那个模型的驱动造（施工 8-12、8-14），开关照档案和目录，占位照交进来的。
     pub(super) driver: Box<dyn Driver>,
     /// 这一次的调用：模型名、输出上限、能收什么、思考强度。
     pub(super) call: Call,
@@ -97,7 +97,7 @@ impl Routes {
         Ok((picked, pins))
     }
 
-    /// 挑定了 `choice`：照真发的那个模型查资料，思考强度照配置的默认，驱动的占位是 `texts`，输出上限 `max_output`
+    /// 挑定了 `choice`：照真发的那个模型查资料、换驱动（施工 8-14），思考强度照配置的默认，驱动的占位是 `texts`，输出上限 `max_output`
     /// （没有的照供应商的默认；一定要写的驱动照模型资料的最大输出，资料也没有的驱动自己兜底，施工 8-12）。
     pub(super) fn ready(
         &self,
@@ -108,9 +108,16 @@ impl Routes {
     ) -> Result<Ready, NoModel> {
         let target = &choice.target;
         let model = ModelName::parse(&target.model).map_err(|error| NoModel(error.to_string()))?;
-        let (facts, _): (Facts, _) = self
-            .data
-            .with(|knowledge| facts(&config.resolved, knowledge, &target.provider, &target.model));
+        // 驱动、开关照真发的那个模型（施工 8-14）：同一家里的模型可以各走各的驱动，没有驱动的这个模型当场 `no_model`。
+        let (facts, speaking): (Facts, _) = self.data.with(|knowledge| {
+            let (facts, _) = facts(&config.resolved, knowledge, &target.provider, &target.model);
+            let speaking =
+                target
+                    .provider
+                    .for_model(&target.model, &facts.wire, &knowledge.profiles.npm);
+            (facts, speaking)
+        });
+        let speaking = speaking?;
         let endpoint = choice.endpoint.clone();
         // 思考强度照这个模型配置的默认（施工 8-18；8-18（补）起不认会话那一层，已经照档位查过）。
         let effort = facts.effort.value.clone();
@@ -123,12 +130,12 @@ impl Routes {
             client,
             model: model_of(target),
             endpoint,
-            driver: target.provider.build(texts),
+            driver: speaking.build(texts),
             idle: effort::idle(self.idle, effort.as_deref()),
             call: Call {
                 model,
                 max_output: max_output.or_else(|| {
-                    let driver = target.provider.driver;
+                    let driver = speaking.driver;
                     let written = facts
                         .max_output
                         .value
