@@ -18,8 +18,8 @@ use miyu_kernel::request::Message;
 use miyu_kernel::session::Queued;
 use miyu_kernel::testkit::{CHILD_SESSION, Line, Play, SESSION, Stage};
 use support::{
-    LINES, PARENT, VENUE, anchored, check, child_stage, files, matches_the_archive, sent, stage,
-    summarizes,
+    LINES, PARENT, VENUE, anchored, check, child_stage, files, matches_the_archive,
+    matches_the_archive_with_anthropic, sent, stage, summarizes,
 };
 
 /// 终端会话的剧本，十一个回合，1-12、1-13 画过的走法都走一遍，最后两段是自动压缩（施工 6-2 上）。照真内核会怎么走写（施工 2-9 下）：
@@ -233,7 +233,7 @@ fn cleared() -> Stage {
 
 #[test]
 fn the_terminal_session_matches_the_archive() {
-    matches_the_archive("terminal", &terminal());
+    matches_the_archive_with_anthropic("terminal", &terminal());
 }
 
 #[test]

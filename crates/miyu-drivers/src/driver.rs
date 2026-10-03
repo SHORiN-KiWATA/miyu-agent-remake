@@ -11,6 +11,7 @@ use miyu_kernel::accumulate::Delta;
 use miyu_kernel::id::ContentHash;
 use miyu_kernel::request::Request;
 
+use crate::anthropic;
 use crate::classify::{self, Classified, Failure};
 use crate::openai_chat::{self, Compat, Decoder};
 use crate::{BlobBytes, Call, DriverTexts, EncodeError, Encoded, Ending, Listed};
@@ -142,5 +143,83 @@ impl Decode for Decoder {
 
     fn finish(self: Box<Self>) -> Ending {
         Decoder::finish(*self)
+    }
+}
+
+/// Anthropic 的消息接口（施工 8-12，`docs/blueprint/drivers/anthropic.md`）：写法只有一套，没有开关，只带占位的几句。
+#[derive(Debug, Clone)]
+pub struct Anthropic {
+    texts: DriverTexts,
+}
+
+impl Anthropic {
+    /// 照会话冻结的占位造一个。
+    pub fn new(texts: DriverTexts) -> Anthropic {
+        Anthropic { texts }
+    }
+}
+
+impl Driver for Anthropic {
+    fn family(&self) -> &'static str {
+        anthropic::FAMILY
+    }
+
+    fn blobs_needed(&self, request: &Request, call: &Call) -> BTreeSet<ContentHash> {
+        anthropic::blobs_needed(request, call)
+    }
+
+    fn encode(
+        &self,
+        request: &Request,
+        call: &Call,
+        blobs: &dyn BlobBytes,
+    ) -> Result<Encoded, EncodeError> {
+        anthropic::encode(request, call, &self.texts, blobs)
+    }
+
+    fn decoder(&self) -> Box<dyn Decode> {
+        Box::new(anthropic::Decoder::new())
+    }
+
+    fn classify(&self, failure: &Failure<'_>) -> Classified {
+        classify::classify(failure)
+    }
+
+    /// `x-api-key: <key>`、`anthropic-version: 2023-06-01`，照这个先后。
+    fn auth(&self, key: &str) -> Vec<(String, String)> {
+        vec![
+            ("x-api-key".to_string(), key.to_string()),
+            (
+                "anthropic-version".to_string(),
+                anthropic::VERSION.to_string(),
+            ),
+        ]
+    }
+
+    /// `/models?limit=1000`。
+    fn models_path(&self) -> &'static str {
+        anthropic::MODELS_PATH
+    }
+
+    fn parse_models(&self, bytes: &[u8]) -> Result<Vec<Listed>, String> {
+        anthropic::parse_models(bytes)
+    }
+}
+
+impl Decode for anthropic::Decoder {
+    fn feed(&mut self, bytes: &[u8]) -> Vec<Delta> {
+        anthropic::Decoder::feed(self, bytes)
+    }
+
+    fn done(&self) -> bool {
+        anthropic::Decoder::done(self)
+    }
+
+    fn finished(&self) -> bool {
+        anthropic::Decoder::finished(self)
+    }
+
+    fn finish(self: Box<Self>) -> Ending {
+        anthropic::Decoder::finish(*self)
     }
 }

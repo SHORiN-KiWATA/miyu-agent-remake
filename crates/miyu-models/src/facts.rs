@@ -162,8 +162,8 @@ pub fn facts(
             .texts(&["reasoning"])
             .map(|(names, source)| (effort::levels(&names), source))
             .or_else(|| {
-                let switchable = provider.compat.toggle.is_some();
-                let offered = effort::offered(model_data?.reasoning.as_ref()?, switchable)?;
+                let offered =
+                    effort::offered(model_data?.reasoning.as_ref()?, provider.switchable())?;
                 Some((offered, borrowed.clone()?))
             }),
     );

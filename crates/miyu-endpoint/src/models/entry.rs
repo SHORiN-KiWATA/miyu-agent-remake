@@ -25,7 +25,7 @@ use miyu_models::effort;
 use miyu_models::facts::facts;
 use miyu_models::keys;
 use miyu_models::matching::Found;
-use miyu_models::provider::{self, Driver, NoModel};
+use miyu_models::provider::{self, NoModel};
 use miyu_models::reference::named;
 use miyu_models::settings::ProviderSettings;
 use miyu_session::ModelData;
@@ -121,9 +121,7 @@ pub(crate) fn provider(data: &ModelData, snapshot: &Snapshot, id: &str, now: Tim
                         entry
                     })
                     .collect();
-                let driver = match found.driver {
-                    Driver::OpenAiChat => "openai-chat",
-                };
+                let driver = found.driver.as_str();
                 let mut entry = json!({
                     "id": id,
                     "driver": driver,

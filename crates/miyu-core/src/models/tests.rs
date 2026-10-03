@@ -37,6 +37,14 @@ fn the_shipped_profiles_keep_what_was_in_the_code() {
             Some("http://127.0.0.1:11434/v1")
         )
     );
+    // 施工 8-12：Anthropic 官方的地址目录里没有，档案补上；没有开关。
+    let anthropic = &profiles.providers["anthropic"];
+    assert_eq!(
+        (anthropic.driver.as_deref(), anthropic.base_url.as_deref()),
+        (Some("anthropic"), Some("https://api.anthropic.com/v1"))
+    );
+    assert!(anthropic.compat.is_none());
+    assert_eq!(profiles.npm["@ai-sdk/anthropic"], "anthropic");
 }
 
 #[test]

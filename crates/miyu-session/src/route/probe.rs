@@ -20,7 +20,7 @@ use miyu_config::Values;
 use miyu_config::merge::Resolved;
 use miyu_config::secret::{Reference, Secret};
 use miyu_drivers::classify::Failure;
-use miyu_drivers::{Call, Driver, Inputs, OpenAiChat};
+use miyu_drivers::{Call, Driver, Inputs};
 use miyu_http::{Attempt, Endpoint, Failed, Outcome, Progress, send};
 use miyu_kernel::accumulate::{Delta, Kind};
 use miyu_kernel::block::{Block, Text};
@@ -143,12 +143,12 @@ async fn run(
         .cloned()
         .ok_or_else(|| unready("no client to send with".to_string()))?;
     let texts = listing_texts().map_err(unready)?;
-    let driver = OpenAiChat::new(provider.compat.clone(), texts);
+    let driver = provider.build(texts);
     let headers = key
         .as_ref()
         .map(|key| driver.auth(key.expose()))
         .unwrap_or_default();
-    let listed = list_models(&client, &driver, &base_url, &headers, TIMEOUT).await;
+    let listed = list_models(&client, driver.as_ref(), &base_url, &headers, TIMEOUT).await;
     let (models, from_catalog, unlisted) = match listed {
         Ok(listed) => {
             let mut models: Vec<String> = listed.iter().map(|model| model.id.clone()).collect();
@@ -167,7 +167,7 @@ async fn run(
         Err(why) => (
             catalog_models(data, &provider),
             true,
-            Some(classify(&driver, &why)),
+            Some(classify(driver.as_ref(), &why)),
         ),
     };
     let model = match probe.model {
@@ -186,7 +186,7 @@ async fn run(
         Some(key) => Endpoint::new(base_url, key.expose()),
         None => Endpoint::keyless(base_url),
     };
-    let first_token_ms = ask(&client, &driver, &endpoint, &model, probe.text).await?;
+    let first_token_ms = ask(&client, driver.as_ref(), &endpoint, &model, probe.text).await?;
     Ok(Probed::Worked {
         models,
         from_catalog,
@@ -198,7 +198,7 @@ async fn run(
 /// 发那一句：收到正文那一块的第一段字就叫停。交回第一段增量的毫秒数。
 async fn ask(
     client: &miyu_http::Client,
-    driver: &OpenAiChat,
+    driver: &dyn Driver,
     endpoint: &Endpoint,
     model: &str,
     text: &str,
@@ -295,7 +295,7 @@ impl Seen {
 }
 
 /// 列模型没成：照驱动分类（状态码、头、响应体；连不上的只有原话），和 `model.called` 的一样。
-fn classify(driver: &OpenAiChat, failed: &Failed) -> CallError {
+fn classify(driver: &dyn Driver, failed: &Failed) -> CallError {
     let headers: Vec<(&str, &str)> = failed
         .headers
         .iter()

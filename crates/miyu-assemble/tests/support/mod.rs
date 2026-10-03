@@ -14,7 +14,9 @@ mod texts;
 mod titled;
 
 pub use anchor::anchored;
-pub use archive::{files, matches_the_archive};
+pub use archive::{
+    anthropic_files, files, matches_the_archive, matches_the_archive_with_anthropic,
+};
 pub use sent::{Sent, sent};
 pub use texts::{LINES, SUMMARIZE, VENUE, recap, title, vision};
 use texts::{driver_texts, texts};
@@ -23,6 +25,7 @@ pub use titled::titled_stage;
 use std::collections::BTreeMap;
 
 use miyu_assemble::{DefaultAssembler, Stable};
+use miyu_drivers::anthropic;
 use miyu_drivers::openai_chat::{self, Compat, Encoded};
 use miyu_drivers::{Call, Inputs};
 use miyu_kernel::block::{Block, Text};
@@ -161,7 +164,8 @@ pub fn lines(stage: &Stage) -> Vec<String> {
 /// 没有连着的两条 user 消息；每个回合第一次请求的最后一块，是触发它的那条消息。
 ///
 /// 前缀延伸在线上这一层也查：编码成 OpenAI 兼容接口的字节（[`wire`]），也是上一次的前缀延伸
-/// （施工 3-4 上）。缓存命中看的是真发出去的字节。
+/// （施工 3-4 上）；编码成 Anthropic 消息接口的字节去掉打点（[`anthropic_wire`]、`anthropic::unmarked`）也是（施工 8-12）。
+/// 缓存命中看的是真发出去的字节。
 ///
 /// # Errors
 ///
@@ -196,7 +200,10 @@ pub fn check(sent: &[Sent]) -> Result<(), String> {
 /// 这一次是上一次的前缀延伸：统一的请求和线上的字节两层。
 fn grown(now: &Request, before: &Request) -> Result<(), String> {
     extends(now, before)?;
-    wire_extends(&wire(now), &baseline(before)).map_err(|why| format!("编码以后：{why}"))
+    wire_extends(&wire(now), &baseline(before)).map_err(|why| format!("编码以后：{why}"))?;
+    let plain = |request: &Request| anthropic::unmarked(&anthropic_wire(request));
+    wire_extends(&plain(now), &plain(before))
+        .map_err(|why| format!("编码成 Anthropic 的、去掉打点以后：{why}"))
 }
 
 /// 摘要请求：接着上一次往下长；或者去掉摘要指令以后，是上一次的前缀。
@@ -283,6 +290,19 @@ pub fn wire(request: &Request) -> Encoded {
         &BTreeMap::new(),
     )
     .expect("探针里没有图片、文件，不要 blob")
+}
+
+/// 编码成 Anthropic 消息接口的字节（施工 8-12）：模型 `claude-opus-5`，输出上限 8192，没有思考强度。这一家不会接着写，带着
+/// 接着写记号的照原样发，所以不另找比的那一份。
+pub fn anthropic_wire(request: &Request) -> Encoded {
+    let call = Call {
+        model: ModelName::parse("claude-opus-5").expect("模型名合写法"),
+        max_output: Some(8192),
+        inputs: Inputs::default(),
+        effort: None,
+    };
+    anthropic::encode(request, &call, &driver_texts(), &BTreeMap::new())
+        .expect("探针里没有图片、文件，不要 blob")
 }
 
 /// 查线上的前缀延伸时拿来比的那一份：接着写的请求，照不接着写的编码。接着写的那一次去掉了最后那句

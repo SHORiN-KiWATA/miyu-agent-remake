@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use miyu_config::Values;
-use miyu_drivers::{Call, DriverTexts, OpenAiChat};
+use miyu_drivers::{Call, Driver, DriverTexts};
 use miyu_http::{Client, Endpoint, is_loopback_url};
 use miyu_kernel::id::ModelName;
 use miyu_kernel::origin::Model;
@@ -54,8 +54,8 @@ pub(super) struct Ready {
     pub(super) model: Model,
     /// 地址和 key 的值。
     pub(super) endpoint: Endpoint,
-    /// 驱动：开关照这一家的档案，占位照交进来的。
-    pub(super) driver: OpenAiChat,
+    /// 驱动：照这一家的驱动造（施工 8-12），开关照档案，占位照交进来的。
+    pub(super) driver: Box<dyn Driver>,
     /// 这一次的调用：模型名、输出上限、能收什么、思考强度。
     pub(super) call: Call,
     /// 空闲超时，照思考强度放大过。
@@ -98,7 +98,7 @@ impl Routes {
     }
 
     /// 挑定了 `choice`：照真发的那个模型查资料，思考强度照配置的默认，驱动的占位是 `texts`，输出上限 `max_output`
-    /// （没有的照供应商的默认）。
+    /// （没有的照供应商的默认；一定要写的驱动照模型资料的最大输出，资料也没有的驱动自己兜底，施工 8-12）。
     pub(super) fn ready(
         &self,
         config: &TurnConfig,
@@ -123,11 +123,18 @@ impl Routes {
             client,
             model: model_of(target),
             endpoint,
-            driver: OpenAiChat::new(target.provider.compat.clone(), texts),
+            driver: target.provider.build(texts),
             idle: effort::idle(self.idle, effort.as_deref()),
             call: Call {
                 model,
-                max_output,
+                max_output: max_output.or_else(|| {
+                    let driver = target.provider.driver;
+                    let written = facts
+                        .max_output
+                        .value
+                        .filter(|_| driver.needs_max_output())?;
+                    Some(u32::try_from(written).unwrap_or(u32::MAX))
+                }),
                 inputs: facts.driver_inputs(),
                 effort,
             },

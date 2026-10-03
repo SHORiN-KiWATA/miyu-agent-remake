@@ -1,6 +1,6 @@
 ## Anthropic 的消息接口
 
-状态：图纸，2026-10-02 起草，待主会话审。施工 8-12 照它做；做完照做好的样子改写，施工时定的另记一节。
+状态：2026-10-02 起草，2026-10-03 主会话审过（改了第 2 处打点的说法、思考强度第 1 条、加了「保留思考的校验」；拍板的两题都定了，见「起草时定的」第 17、18 条）。施工 8-12 做完了（2026-10-03，项目主人验收通过；真模型在 DeepSeek 的兼容接口上实测过，缓存打点命中、保留思考的校验待官方 key，见施工单）：这一页照做好的样子写，施工时定的记在「施工时定的」。
 
 ### 是什么
 
@@ -12,7 +12,8 @@
 
 | 代码 | 管什么 |
 |---|---|
-| `crates/miyu-drivers/src/anthropic.rs` | 家族名、路径、`Anthropic` 和它的 `impl Driver`、顶层怎么写、输出上限、要哪些 blob |
+| `crates/miyu-drivers/src/anthropic.rs` | 家族名、路径、版本、顶层怎么写、输出上限、打点怎么接、要哪些 blob、`unmarked`（只在 `testkit`） |
+| `crates/miyu-drivers/src/driver.rs` | `Anthropic` 和它的 `impl Driver`、`impl Decode` |
 | `crates/miyu-drivers/src/anthropic/messages.rs` | 每条消息怎么写：块、合并相邻同角色的、工具调用和结果、思考块回传 |
 | `crates/miyu-drivers/src/anthropic/marks.rs` | 缓存打点放在哪几块 |
 | `crates/miyu-drivers/src/anthropic/effort.rs` | 思考强度换成 `thinking`、`output_config` |
@@ -20,7 +21,7 @@
 | `crates/miyu-drivers/src/anthropic/decode.rs` | 解码：事件、块、签名、`stop_reason`、流里的错 |
 | `crates/miyu-drivers/src/anthropic/usage.rs` | 用量归成四项 |
 | `crates/miyu-drivers/src/anthropic/models.rs` | 列模型：`GET /models?limit=1000` 读出模型名和窗口 |
-| `crates/miyu-drivers/src/media.rs` | 图片、文件发不了时换成的字（占位、替它看的图、文本文件、带名字的图片的标签）：从 `openai_chat/messages.rs` 挪出来，三个驱动共用，openai-chat 的样本一个字节不变 |
+| `crates/miyu-drivers/src/media.rs` | 图片、文件发不了时换成的字（占位、替它看的图、文本文件、带名字的图片的标签）、要哪些 blob：从 `openai_chat/messages.rs`、`openai_chat.rs` 挪出来，几个驱动共用，openai-chat 的样本一个字节不变 |
 | `crates/miyu-drivers/src/sse.rs`、`classify.rs`、`texts.rs`、`text_file.rs`、`base64.rs` | 和 openai-chat 共用（`drivers/openai-chat.md`） |
 
 每个文件不超过 500 行。
@@ -78,7 +79,7 @@
 
 1. **打几处，打在哪**，照这个先后算，同一块只打一次，最多 4 处：
    1. **工具和 system 的末尾**：system 那一块；system 是空的打在最后一件工具上；两样都没有的不打。
-   2. **稳定区的末尾**：统一的请求 `stable` 大于 0 的，第 `stable` 条消息（示范对话的最后一条）在线上落在哪一条，打在那一条它自己的最后一块上。`stable` 是 0 的不打（和第 1 处是同一个位置）。
+   2. **稳定区的末尾**：统一的请求 `stable` 大于 0 的，前 `stable` 条消息（示范对话）写出的最后一块。合并以后一条线上的消息可能装着几条统一的消息，空的消息不写块，所以照写出的块算，不照第几条线上的消息算。`stable` 是 0 的不打（和第 1 处是同一个位置）。
    3. **上一次请求的末尾**：稳定区以后最后一条 assistant 前面那一条线上消息的最后一块。稳定区以后没有 assistant 的（会话的第一次请求）不打。
    4. **这一次请求的末尾**：最后一条线上消息的最后一块。
 2. **打在哪一块**：那一条消息里最后一个能打的块：`text`、`image`、`document`、`tool_use`、`tool_result`。思考块（`thinking`、`redacted_thinking`）不能打，往前找；整条都没有能打的，这一处不打。
@@ -113,7 +114,7 @@
 | `off` | `"thinking":{"type":"disabled"}` |
 | `on` | `"thinking":{"type":"adaptive","display":"summarized"}` |
 
-1. **开关是接口自带的**：`thinking` 写 `disabled` 就是关。所以这一家不用档案写 `compat.toggle`，目录有 `toggle` 的模型（例如 Sonnet 5）就多一档 `off`；只有开关、没有档位的是 `off`、`on`。这要改 `miyu_models` 认开关的地方：openai-chat 照档案的 `compat.toggle`，anthropic 自带，openai-responses 没有（「要跟着改的别的页」）。
+1. **开关是接口自带的**：`thinking` 写 `disabled` 就是关。目录里标了开关的只有 Sonnet 5；Opus 5.5、Sonnet 5.5、Fable 收 `disabled` 报 400，它们目录里没有开关，不会多出 `off`（2026-10-03 审图时照官方文档查的）。所以这一家不用档案写 `compat.toggle`，目录有 `toggle` 的模型（例如 Sonnet 5）就多一档 `off`；只有开关、没有档位的是 `off`、`on`。这要改 `miyu_models` 认开关的地方：openai-chat 照档案的 `compat.toggle`，anthropic 自带，openai-responses 没有（「要跟着改的别的页」）。
 2. **`display`**：Opus 4.7 起默认不给思考的字（`omitted`），只给签名。写了思考的就写 `summarized`，头上看得到思考的摘要。不多花钱：思考照样算钱，`display` 只管给不给看。
 3. **思考预算**（`budget_tokens`）：不读、不写（`models.md`「还没有的」）。只有预算的模型（Haiku 4.5、Sonnet 4.5）目录里没有档位，请求里不带思考。
 4. **思考块怎么回传**：见「编码」第 5 条。同一家的原样带签名回传，每一轮都带，不剥；别家的、没签名的丢掉。工具循环里最后那条 assistant 开着思考时一定以思考块开头，原样回传就满足。
@@ -147,7 +148,7 @@ SSE 分帧共用 `sse.rs`（`drivers/openai-chat.md`「解码」）。一条事�
 | `tool_use` | 工具调用 `ToolCall { name }`；私有数据 `{"driver":"anthropic","data":{"id":<id>}}`。`input` 在这里是空对象，不理，参数从 `input_json_delta` 来 |
 
 4. 块照第一次出现的先后编号，从 0 数起，不认的块不占编号。线上的 `index` 只拿来找是哪一块。
-5. 思考的私有数据是 `{"driver":"anthropic","data":{"signature":<签名>}}`，一块一份（内核的规矩）：签名来了才交，来两次的照最后一次（不会发生）。断在思考里的，这一块没有签名，编码时丢掉（「编码」第 5 条）。
+5. 思考的私有数据是 `{"driver":"anthropic","data":{"signature":<签名>}}`，一块一份（内核的规矩，累积器一块只收一份）：签名来了才交，来两次的只认第一次（不会发生）。断在思考里的，这一块没有签名，编码时丢掉（「编码」第 5 条）。同一个线上 `index` 的 `content_block_start` 来第二次的不理。
 
 **收尾**（`finish`）：
 
@@ -244,7 +245,10 @@ SSE 分帧共用 `sse.rs`（`drivers/openai-chat.md`「解码」）。一条事�
 | `crates/miyu-drivers/tests/anthropic_streams.rs` | 流的样本；从哪里切开喂都一样；解出来的编码回去：编号、签名原样；驱动的接口走一遍；`finished()` 在 `stop_reason` 到了以后才说是 |
 | `crates/miyu-drivers/src/anthropic/models/tests.rs` | 列模型：名字和窗口、坏的跳过、回应坏了说是模型列表 |
 | `crates/miyu-drivers/src/classify/tests.rs` | 加：`exceed context limit` 算超长；这一家的错误体几类各一个例子 |
-| `crates/miyu-assemble/tests/probe.rs`、`random_logs.rs` | 加 Anthropic 的脸：编码以后去掉打点，是上一次的前缀延伸 |
+| `crates/miyu-assemble/tests/probe.rs`、`random_logs.rs`、`tests/support` | 加 Anthropic 的脸：每个探针、每段随机日志的每一次请求编码以后去掉打点，是上一次的前缀延伸；主会话（`terminal`）的存档多 `anthropic/` |
+| `crates/miyu-session/tests/route_anthropic.rs` | 路由照供应商的 `driver` 造驱动：发到 `/messages`、带 `x-api-key` 和版本头、不带 `Bearer`；输出上限照一次性入口写的、模型资料的、8192，openai-chat 照旧不写；思考强度照这一家的写法；回来的流照这一家解 |
+| `crates/miyu-models/src/provider/tests.rs`、`facts/tests.rs` | `anthropic` 认得了；能不能关思考 openai-chat 照档案、anthropic 自带，目录有开关的模型多 `off`；要不要替它填输出上限 |
+| `crates/miyu-core/src/models/tests.rs` | 出厂的档案有 `[providers.anthropic]` |
 
 ### 真模型实测
 
@@ -267,6 +271,7 @@ SSE 分帧共用 `sse.rs`（`drivers/openai-chat.md`「解码」）。一条事�
 - 对话里第一次出现图片的那一次，对话部分的缓存是不是重来。
 - 走这种写法的别家（Zen 上的 MiniMax、Qwen，DeepSeek 的兼容接口）认不认 `display`、`adaptive`；思考块带不带签名。
 - Zen 上的 Claude 认 `x-api-key` 还是 `Authorization`。
+- **保留思考的校验**：Fable 5.1、Opus 5.5、Sonnet 5.5 的思考块签名绑着产生它时的前缀（system、工具面、它前面的每条消息），2026-08-31 以后建的账号默认查：发回去的思考块前面被改过的，整个请求 400 `invalid_request_error`（原话带 `bound to a different conversation`）。我们会改前缀的地方：压缩留尾巴（尾巴里的思考块绑着压缩前的历史）、回合开始换了工具面或 system。撤销只删后面的，不碰；去掉打点不算改。要官方 key、新建的账号才测得出（2026-10-03 主会话审图时查的官方文档）。
 
 ### 起草时定的
 
@@ -290,12 +295,8 @@ SSE 分帧共用 `sse.rs`（`drivers/openai-chat.md`「解码」）。一条事�
 | 14 | 媒体类型不是那四种的图换成占位 | 发过去也报 400 | 照发 |
 | 15 | 一张图算多少 token 照策略的固定数 | 官方公式随模型变（新模型分辨率更高），先不做 | 照官方公式另写一份（「还没有的」） |
 | 16 | 接着写不开 | 4.6 起不收结尾是 assistant 的请求，开着思考也不收 | 给老模型开：只有不思考的老模型用得上 |
-
-### 要项目主人拍板的
-
-1. **没配思考强度时，要不要让 Claude 的思考看得见**（GPT 那一页同一题）。
-   - A（推荐）：照现在的约定，没配就什么都不加（`models.md` 定的第 12 条）。代价：Opus 5 这一代默认会思考，可是不给字，头上只看到「在想」、看不到想了什么；4.7、4.8 默认不思考。想看就在头上选一档。
-   - B：会思考的模型没配也写 `thinking: adaptive, display: summarized`。看得到；代价是 4.7、4.8 因此默认会思考，多花钱，也不再是「照供应商的默认」。
+| 17 | 没配思考强度的什么都不加，照供应商的默认（2026-10-03 定，原「要项目主人拍板的」第 1 题的 A，项目主人没反对） | 照 `models.md` 定的第 12 条；想看思考的在头上选一档 | 会思考的模型没配也写 `adaptive`、`summarized`：4.7、4.8 因此默认会思考，多花钱 |
+| 18 | 保留思考的校验撞上以后怎么办（2026-10-03 项目主人定）：这一步照原样回传，不加 beta 头；有官方 key 实测以后另开一步（8-12 补），这一种 400 去掉全部思考块重发一次 | 只影响 2026-08-31 以后建的账号上的三个模型；修法要动执行器，要实测出真的报错原话才写得准 | 只回传这一轮的思考块：每一轮第一次请求都要重写上一轮那段对话的缓存，所有人都付 |
 
 ### 还没有的
 
@@ -304,8 +305,25 @@ SSE 分帧共用 `sse.rs`（`drivers/openai-chat.md`「解码」）。一条事�
 - 1M 上下文的 beta 头：要头才给 1M 的模型（Sonnet 4.5 这类）不发头，撞一次超长以后照「用出来的」窗口算（`models.md` 第二条第 9 条）。
 - 工具参数边生成边流（`eager_input_streaming`）、服务端工具、引用（citations）、文件接口（`file_id`）、思考预算。
 - 接着写：见「起草时定的」第 16 条。
+- 保留思考的校验撞上以后怎么办（「要实测确认的」）：这一步照原样回传；撞上的这个会话每次请求都 400，直到尾巴被下一次压缩压掉。有官方 key 实测以后另开一步：这一种 400 去掉全部思考块重发一次（官方文档给的恢复办法）。
+
+### 施工时定的
+
+8-12 施工时照推荐定的（2026-10-03 主会话施工时定，写进了正文）：
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| 打点不进线上的结构体：一块照紧凑的 JSON 写好，打了点的去掉最后的 `}`，接上 `,"cache_control":{"type":"ephemeral"}}` | 每一块都是 JSON 对象；打点只有一种写法，`unmarked` 照同一串字节去掉 | 每种块多一格 `cache_control`：七种块各加一格，`unmarked` 要重新编码 |
+| 第 2 处照「前 `stable` 条消息写出的最后一块」算（审图时改的）：写到第 `stable` 条时记下线上的位置 | 合并以后一条线上的消息装着几条统一的消息，前缀的边界在块上 | 照线上第几条消息的最后一块：后面合进来的块会把打点带走 |
+| 第 3 处的「稳定区以后的 assistant」照线上这一条从统一的请求第几条开始算 | 示范对话里的 assistant 不算上一次请求的回复 | 照线上的位置算：合并以后数不准 |
+| 能看图、媒体类型这一家不收的图，照「不能看图」写：有转述的写转述，没有的写占位 | 和 `media.rs` 一套写法；转述只有看不了图的端点才有，一般是占位 | 另写一句「这种图发不了」：要新加给模型看的字 |
+| 调用的参数原文前后的空白不算：嵌进请求的是那个对象本身（`serde_json` 读原样 JSON 的读法），中间一个字节不改 | `input` 是嵌进去的 JSON，不是字符串；同样的历史出同样的字节就够了 | 原文整段照抄：前后有空白的嵌不进去 |
+| 签名来两次只认第一次（图纸原写「照最后一次」） | 累积器一块只收一份私有数据，交第二次这次响应就算出错；不会发生 | 等 `content_block_stop` 再交：打断在中间的丢了签名 |
+| `blobs_needed` 挪进 `media.rs` 共用，openai-chat 的那个转过去 | 两家一样：图片（能看图时）、每一个文件 | 各写一份 |
 
 ### 要跟着改的别的页
+
+8-12 都改了：`models.md`（「施工时定的」8-12 那张表、正文几处）、`drivers/openai-chat.md`、`http.md`、`kernel/request.md`（`stable` 那一行、「还没有的」删掉缓存标记）、`05-内核接口.md` 第七节、探针；施工图合进 main 时补。下表是起草时列的：
 
 | 页 | 改什么 |
 |---|---|

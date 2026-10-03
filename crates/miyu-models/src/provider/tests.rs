@@ -77,7 +77,7 @@ fn hand_written_values_win_and_the_profile_is_found_by_catalog() {
 #[test]
 fn a_provider_that_cannot_be_worked_out_says_why() {
     let values = values(
-        "[providers.newapi]\nkeys = []\n\n[providers.claude]\ndriver = \"anthropic\"\nbase_url = \"https://a.invalid\"\n",
+        "[providers.newapi]\nkeys = []\n\n[providers.gpt]\ndriver = \"openai-responses\"\nbase_url = \"https://a.invalid\"\n",
     );
     let held = held(true);
     assert_eq!(
@@ -88,9 +88,9 @@ fn a_provider_that_cannot_be_worked_out_says_why() {
         ))
     );
     assert_eq!(
-        provider(&values, &held.knowledge(), "claude"),
+        provider(&values, &held.knowledge(), "gpt"),
         Err(NoModel(
-            r#"driver "anthropic" of provider "claude" is not available yet"#.to_string()
+            r#"driver "openai-responses" of provider "gpt" is not available yet"#.to_string()
         ))
     );
     assert_eq!(
@@ -205,4 +205,45 @@ fn resolving_the_address_follows_the_reference_or_fails_cleanly() {
             r#"provider "a" has no usable base_url"#.to_string()
         ))
     );
+}
+
+/// 施工 8-12：`anthropic` 认得了；能不能关思考 openai-chat 照档案、anthropic 自带；一定要写输出上限的只有 anthropic。
+#[test]
+fn anthropic_is_a_driver_now() {
+    assert_eq!(Driver::parse("anthropic"), Some(Driver::Anthropic));
+    assert_eq!(Driver::parse("openai-responses"), None);
+    for driver in [Driver::OpenAiChat, Driver::Anthropic] {
+        assert_eq!(Driver::parse(driver.as_str()), Some(driver));
+    }
+    assert!(Driver::Anthropic.needs_max_output());
+    assert!(!Driver::OpenAiChat.needs_max_output());
+    let values = values(
+        "[providers.claude]\ndriver = \"anthropic\"\nbase_url = \"https://api.anthropic.com/v1\"\nkeys = []\n\n[providers.deepseek]\nkeys = []\n",
+    );
+    let held = held(false);
+    let claude = provider(&values, &held.knowledge(), "claude").expect("认得了");
+    assert_eq!(claude.driver, Driver::Anthropic);
+    assert!(claude.switchable(), "开关是接口自带的");
+    assert_eq!(claude.build(texts()).family(), "anthropic");
+    let deepseek = provider(&values, &held.knowledge(), "deepseek").expect("档案推得出");
+    assert!(!deepseek.switchable(), "这份档案没写开关");
+    assert_eq!(deepseek.build(texts()).family(), "openai-chat");
+    let mut toggled = deepseek.clone();
+    toggled.compat = Compat::deepseek();
+    assert!(toggled.switchable());
+}
+
+/// 出厂的占位：测试里只要造得出驱动。
+fn texts() -> miyu_drivers::DriverTexts {
+    miyu_drivers::DriverTexts::new(miyu_drivers::DriverTextSources {
+        image_omitted: "x",
+        file_omitted: "x",
+        no_output: "x",
+        tool_attachments: "x",
+        tool_attachments_only: "x",
+        text_file: None,
+        image_name: None,
+        image_description: None,
+    })
+    .expect("造得出")
 }

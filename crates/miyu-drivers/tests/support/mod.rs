@@ -1,7 +1,8 @@
 //! 驱动测试用的：出厂的占位、造块、造一次调用、和样本逐字节比对。
 //!
-//! 样本在 `docs/designs/samples/drivers/openai-chat/`，一种写法一个文件，写的是请求字节，末尾一个
+//! 样本在 `docs/designs/samples/drivers/<驱动家族>/`，一种写法一个文件，写的是请求字节，末尾一个
 //! 换行。字节变了必须是有意的：设上 `MIYU_PROBE_WRITE=1` 跑一遍，重写样本，提交说明里写为什么变。
+//! `sample`、`sample_file`、`dir` 是 openai-chat 的，`anthropic_*` 是 Anthropic 的（施工 8-12）。
 
 #![allow(dead_code, reason = "几个测试文件各用其中一部分")]
 
@@ -94,15 +95,49 @@ pub fn thought(text: &str) -> Block {
 
 /// 一次工具调用；`provider` 是供应商自己的编号，记在这个驱动的私有数据里。
 pub fn tool_call(call_id: &str, name: &str, args: &str, provider: Option<&str>) -> Block {
+    family_call("openai-chat", call_id, name, args, provider)
+}
+
+/// 一次工具调用；`provider` 是供应商自己的编号，记在驱动家族 `family` 的私有数据里。
+pub fn family_call(
+    family: &str,
+    call_id: &str,
+    name: &str,
+    args: &str,
+    provider: Option<&str>,
+) -> Block {
     Block::ToolCall(ToolCall {
         call_id: id(call_id),
         name: name.to_string(),
         args: args.to_string(),
-        private: provider.map(|provider| Private {
-            driver: DriverFamily::parse("openai-chat").expect("驱动家族合写法"),
-            data: raw(&format!(r#"{{"id":"{provider}"}}"#)),
-        }),
+        private: provider.map(|provider| private(family, &format!(r#"{{"id":"{provider}"}}"#))),
     })
+}
+
+/// 一块带私有数据的思考：`family` 的，数据是 `data`（一段 JSON）。
+pub fn private_thought(text: &str, family: &str, data: &str) -> Block {
+    Block::Reasoning(Reasoning {
+        text: text.to_string(),
+        private: Some(private(family, data)),
+    })
+}
+
+/// 驱动家族 `family` 的私有数据。
+pub fn private(family: &str, data: &str) -> Private {
+    Private {
+        driver: DriverFamily::parse(family).expect("驱动家族合写法"),
+        data: raw(data),
+    }
+}
+
+/// 发给 `claude-opus-5`，能收哪些输入照 `inputs`（施工 8-12）。
+pub fn claude(inputs: Inputs, max_output: Option<u32>) -> Call {
+    Call {
+        model: ModelName::parse("claude-opus-5").expect("模型名合写法"),
+        max_output,
+        inputs,
+        effort: None,
+    }
 }
 
 /// 不带名字的图：`read` 读出来的、以前的日志里的。
@@ -161,13 +196,17 @@ pub fn sample(name: &str, body: &[u8]) {
 
 /// 样本目录下的一个文件，和 `content` 逐字节比对；设上 `MIYU_PROBE_WRITE=1` 时重写它。
 pub fn sample_file(name: &str, content: &[u8]) {
-    let path = dir().join(name);
+    compare(&dir().join(name), name, content);
+}
+
+/// `path` 和 `content` 逐字节比；设上 `MIYU_PROBE_WRITE=1` 时重写它。
+fn compare(path: &std::path::Path, name: &str, content: &[u8]) {
     if std::env::var_os("MIYU_PROBE_WRITE").is_some() {
         fs::create_dir_all(path.parent().expect("样本在样本目录里")).expect("建得了样本目录");
-        fs::write(&path, content).expect("写得了样本");
+        fs::write(path, content).expect("写得了样本");
         return;
     }
-    let archived = fs::read(&path).unwrap_or_else(|e| panic!("读不了 {}：{e}", path.display()));
+    let archived = fs::read(path).unwrap_or_else(|e| panic!("读不了 {}：{e}", path.display()));
     assert!(
         archived == content,
         "{name} 和样本不一样。要是有意改的，设上 MIYU_PROBE_WRITE=1 跑一遍重写样本，提交说明里写为什么变\n样本：{}\n这次：{}",
@@ -178,5 +217,24 @@ pub fn sample_file(name: &str, content: &[u8]) {
 
 /// 样本目录：这个 crate 的目录往上两级是仓库根。
 pub fn dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs/designs/samples/drivers/openai-chat")
+    family_dir("openai-chat")
+}
+
+/// 驱动家族 `family` 的样本目录。
+pub fn family_dir(family: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../docs/designs/samples/drivers")
+        .join(family)
+}
+
+/// Anthropic 的样本（施工 8-12）：和 [`sample`] 一样，放在 `anthropic/` 下。
+pub fn anthropic_sample(name: &str, body: &[u8]) {
+    let mut content = body.to_vec();
+    content.push(b'\n');
+    anthropic_file(&format!("{name}.json"), &content);
+}
+
+/// Anthropic 样本目录下的一个文件，和 [`sample_file`] 一样比。
+pub fn anthropic_file(name: &str, content: &[u8]) {
+    compare(&family_dir("anthropic").join(name), name, content);
 }

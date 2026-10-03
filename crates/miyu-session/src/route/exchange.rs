@@ -7,8 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::sync::Arc;
 
+use miyu_drivers::EncodeError;
 use miyu_drivers::classify::Classified;
-use miyu_drivers::{Driver, EncodeError};
 use miyu_http::{Attempt, Outcome, Progress, send};
 use miyu_kernel::event::{CallError, ErrorClass, Usage};
 use miyu_kernel::id::ContentHash;
@@ -74,7 +74,7 @@ pub(super) async fn exchange(
     let attempt = Attempt {
         client: &ready.client,
         endpoint: &ready.endpoint,
-        driver: &ready.driver,
+        driver: ready.driver.as_ref(),
         body: &encoded.body,
         path: &encoded.path,
         idle: ready.idle,

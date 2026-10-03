@@ -20,14 +20,13 @@ pub use models::{MODELS_PATH, parse_models};
 
 use std::collections::BTreeSet;
 
-use miyu_kernel::block::Block;
 use miyu_kernel::id::ContentHash;
-use miyu_kernel::request::{Message, Request};
+use miyu_kernel::request::Request;
 use serde::Serialize;
 
 pub use crate::{EncodeError, Encoded};
 
-use crate::{BlobBytes, Call, DriverTexts};
+use crate::{BlobBytes, Call, DriverTexts, media};
 
 /// 驱动家族：私有数据里写的是它的，才是这个驱动的（`03-事件模型.md` 第九节）。
 pub const FAMILY: &str = "openai-chat";
@@ -234,25 +233,7 @@ pub fn encode(
 /// 这份请求编码时要用哪些 blob：模型能看图的，要图片；文件每一个都要（施工 3-9 三补）：能读 PDF 的发 PDF，别的
 /// 要认是不是文本、要写有多大。执行器照着先取出来。
 pub fn blobs_needed(request: &Request, call: &Call) -> BTreeSet<ContentHash> {
-    let mut needed = BTreeSet::new();
-    for message in &request.messages {
-        let blocks = match message {
-            Message::User { blocks } | Message::Tool { blocks, .. } => blocks,
-            Message::Assistant { .. } => continue,
-        };
-        for block in blocks {
-            match block {
-                Block::Image(image) if call.inputs.images => {
-                    needed.insert(image.blob.clone());
-                }
-                Block::File(file) => {
-                    needed.insert(file.blob.clone());
-                }
-                _ => {}
-            }
-        }
-    }
-    needed
+    media::blobs_needed(request, call)
 }
 
 /// 写成紧凑的 JSON，接在后面。

@@ -20,27 +20,52 @@
 use miyu_config::secret::{Reference as KeyRef, Secret};
 use miyu_config::{Address, Values};
 use miyu_drivers::openai_chat::Compat;
+use miyu_drivers::{Anthropic, DriverTexts, OpenAiChat};
 
 use crate::knowledge::Knowledge;
 use crate::matching::{Recognized, recognize};
 use crate::profile::ImageTokens;
 use crate::settings::{ProviderSettings, UseSettings};
 
-/// 认得的驱动。8-6 只有 OpenAI 兼容的对话接口；另两种随 8-12、8-13。
+/// 认得的驱动。8-6 有 OpenAI 兼容的对话接口，8-12 加 Anthropic 的消息接口；`openai-responses` 随 8-13。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Driver {
     /// `openai-chat`。
     OpenAiChat,
+    /// `anthropic`（施工 8-12）。
+    Anthropic,
 }
 
 impl Driver {
     /// 配置、档案里驱动的写法认成现在有的哪一种（施工 8-11 从 [`provider`] 里拿出来，`provider.catalog` 的 `supported` 也照
-    /// 它）；还没有的（`anthropic`、`openai-responses`）、不认识的是空的。
+    /// 它）；还没有的（`openai-responses`）、不认识的是空的。
     pub fn parse(name: &str) -> Option<Driver> {
         match name {
             "openai-chat" => Some(Driver::OpenAiChat),
+            "anthropic" => Some(Driver::Anthropic),
             _ => None,
         }
+    }
+
+    /// 配置、档案里的写法。
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Driver::OpenAiChat => "openai-chat",
+            Driver::Anthropic => "anthropic",
+        }
+    }
+
+    /// 造这种驱动（施工 8-12）：`openai-chat` 照开关 `compat`，`anthropic` 没有开关；占位是 `texts`。
+    pub fn build(self, compat: Compat, texts: DriverTexts) -> Box<dyn miyu_drivers::Driver> {
+        match self {
+            Driver::OpenAiChat => Box::new(OpenAiChat::new(compat, texts)),
+            Driver::Anthropic => Box::new(Anthropic::new(texts)),
+        }
+    }
+
+    /// 一定要写输出上限（`models.md`「驱动要守的约定」第 11 条，施工 8-12）：`anthropic` 是，路由替它照模型资料填。
+    pub fn needs_max_output(self) -> bool {
+        self == Driver::Anthropic
     }
 }
 
@@ -65,6 +90,22 @@ pub struct Provider {
     pub recognized: Option<Recognized>,
     /// 本机的模型服务：价格当 0（8-7）。
     pub local: bool,
+}
+
+impl Provider {
+    /// 能不能照开关关思考（「怎么走」第十一条第 1 条，施工 8-12）：`openai-chat` 照档案写没写开关（`compat.toggle`），
+    /// `anthropic` 的开关是接口自带的（`thinking` 写 `disabled`）。
+    pub fn switchable(&self) -> bool {
+        match self.driver {
+            Driver::OpenAiChat => self.compat.toggle.is_some(),
+            Driver::Anthropic => true,
+        }
+    }
+
+    /// 照这一家的驱动和开关造一个驱动，占位是 `texts`（施工 8-12）。
+    pub fn build(&self, texts: DriverTexts) -> Box<dyn miyu_drivers::Driver> {
+        self.driver.build(self.compat.clone(), texts)
+    }
 }
 
 /// 一次请求发给谁：哪一家、哪个模型。

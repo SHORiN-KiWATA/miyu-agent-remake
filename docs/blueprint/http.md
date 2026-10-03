@@ -60,7 +60,7 @@ HTTP 执行器：照驱动编码好的字节发一次请求，流式地读回来
 
 1. 地址是 `base_url` 去掉末尾的 `/`，接上 `path`：地址后面多写了斜杠，也不会成两个。
 2. `POST`，请求体就是那串字节，一个字节不改。头照这个先后加：
-   - 认证头：有 key 的，照驱动交回的（`Driver::auth(key)`，施工 8-6：`openai-chat` 是 `Authorization: Bearer <key>`）；没有 key 的不带。头的值写得不对的，不发，出错 `other`，原话只说是认证头。
+   - 认证头：有 key 的，照驱动交回的（`Driver::auth(key)`，施工 8-6：`openai-chat` 是 `Authorization: Bearer <key>`；施工 8-12：`anthropic` 是 `x-api-key: <key>`、`anthropic-version: 2023-06-01`，照这个先后，`drivers/anthropic.md`）；没有 key 的不带。头的值写得不对的，不发，出错 `other`，原话只说是认证头。
    - `Content-Type: application/json`
    - `Accept: text/event-stream`
    - 端点另配的头，照先后；和上面同名的，换掉上面那个，不是再加一个（施工 4-9 再补三下）。名字、值写得不对的，不发，出错 `other`（下面「出错」）。

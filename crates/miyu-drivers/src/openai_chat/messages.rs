@@ -4,10 +4,7 @@
 //!   文件的分成几段，连着的文字照样拼成一段。
 //! - assistant：正文、思考各自直接接上，它们本来就是一整段；工具调用的编号用供应商自己的。
 //! - tool：文字照 user 的拼法；图片、PDF 挪到这一串 tool 消息后面的一条 user 消息里。
-//! - 文件发不了 PDF 的：内容是文本的照字放进消息，带着文件名（施工 3-9 三补，[`crate::text_file`]）；别的写一句占位，
-//!   带文件名、媒体类型、大小。
-//! - 带名字的图片（人附的，施工 3-9 四补）：能看图的前后各一段标签，标签是文字，照文字拼；不能看图的占位写上名字。
-//! - 替它看的图（施工 8-17）：不能看图、请求的 `described` 里有这张图的转述的，换成带标签的转述，照文字拼；没有的照旧占位。
+//! - 图片、文件发不了时换成的字（文本文件、占位、带名字的图片的标签、替它看的图）照 [`crate::media`]，照文字拼。
 //! - 接着写的：最后那条 user（只有被打断的那一句）不发，半截那条 assistant 加上接着写的字段。
 
 use std::collections::BTreeMap;
@@ -21,7 +18,8 @@ use serde::de::IgnoredAny;
 
 use super::wire::{Content, FileData, FunctionCall, Part, ToolCall as WireCall, Url, Wire};
 use super::{Compat, ContinuationField, EncodeError, FAMILY, ReasoningField, ReasoningReplay};
-use crate::{BlobBytes, Call, DriverTexts, base64, text_file};
+use crate::media::{Media, is_pdf};
+use crate::{BlobBytes, Call, DriverTexts, base64};
 
 /// 写全部消息：system 在最前，每条 tool 消息串后面跟着挪出来的图片、文件。`continuing` 有的是
 /// 接着写：最后那条 user 不发，半截那条加上这个字段。
@@ -37,9 +35,12 @@ pub(super) fn write(
         call,
         compat,
         texts,
-        blobs,
+        media: Media {
+            texts,
+            blobs,
+            described: &request.described,
+        },
         ids: wire_ids(request),
-        described: &request.described,
     };
     let mut out = Vec::new();
     if !request.system.is_empty() {
@@ -82,21 +83,14 @@ pub(super) fn write(
     Ok(out)
 }
 
-/// 这是不是一个 PDF：只有 PDF 能作为文件发。
-fn is_pdf(file: &File) -> bool {
-    file.media_type.as_str() == "application/pdf"
-}
-
-/// 写消息要用的：一次调用定的、供应商的开关、占位的几句、blob 的字节，和调用编号的对照。
+/// 写消息要用的：一次调用定的、供应商的开关、占位的几句、换成字要用的，和调用编号的对照。
 struct Writer<'a> {
     call: &'a Call,
     compat: &'a Compat,
     texts: &'a DriverTexts,
-    blobs: &'a dyn BlobBytes,
+    media: Media<'a>,
     /// 内核的调用编号到线上的编号。
     ids: BTreeMap<CallId, String>,
-    /// 请求里的图的转述（施工 8-17）：不能看图时照它写。
-    described: &'a BTreeMap<ContentHash, String>,
 }
 
 impl Writer<'_> {
@@ -111,11 +105,11 @@ impl Writer<'_> {
                         pieces.add(part);
                     }
                 }
-                Block::Image(image) => pieces.text(&self.unseen(image)),
+                Block::Image(image) => pieces.text(&self.media.unseen(image)),
                 Block::File(file) if self.call.inputs.pdf && is_pdf(file) => {
                     pieces.part(self.file_part(file)?);
                 }
-                Block::File(file) => pieces.text(&self.file_text(file)?),
+                Block::File(file) => pieces.text(&self.media.file_text(file)?),
                 Block::Reasoning(_) | Block::ToolCall(_) | Block::Unknown(_) => {}
             }
         }
@@ -178,11 +172,11 @@ impl Writer<'_> {
                 Block::Image(image) if self.call.inputs.images => {
                     attachments.extend(self.image(image)?);
                 }
-                Block::Image(image) => join(&mut content, &self.unseen(image)),
+                Block::Image(image) => join(&mut content, &self.media.unseen(image)),
                 Block::File(file) if self.call.inputs.pdf && is_pdf(file) => {
                     attachments.push(self.file_part(file)?);
                 }
-                Block::File(file) => join(&mut content, &self.file_text(file)?),
+                Block::File(file) => join(&mut content, &self.media.file_text(file)?),
                 Block::Reasoning(_) | Block::ToolCall(_) | Block::Unknown(_) => {}
             }
         }
@@ -216,18 +210,10 @@ impl Writer<'_> {
         });
     }
 
-    /// 不能看图时的一张图：有转述、快照里有标签的写成带标签的转述（施工 8-17），别的写占位那一句。
-    fn unseen(&self, image: &Image) -> String {
-        self.described
-            .get(&image.blob)
-            .and_then(|description| self.texts.image_described(name(image), description))
-            .unwrap_or_else(|| self.texts.image_omitted(name(image)))
-    }
-
     /// 能看图时的一张图：data URL；带名字的前后各一段标签（施工 3-9 四补）。
     fn image(&self, image: &Image) -> Result<Vec<Part>, EncodeError> {
         let picture = image_part(self.data_url(&image.media_type, &image.blob)?);
-        Ok(match self.texts.image_tags(name(image)) {
+        Ok(match self.media.image_tags(image) {
             Some((open, close)) => vec![
                 Part::Text { text: open },
                 picture,
@@ -254,32 +240,13 @@ impl Writer<'_> {
         })
     }
 
-    /// 发不了 PDF 的文件写成字：内容是文本的、快照里有那三句的，照字放进来；别的写一句占位，带文件名、媒体类型、
-    /// 大小（施工 3-9 三补）。
-    fn file_text(&self, file: &File) -> Result<String, EncodeError> {
-        let bytes = self.bytes(&file.blob)?;
-        let name = file.name.as_str();
-        let text = text_file::as_text(bytes).and_then(|text| self.texts.text_file(name, text));
-        Ok(text.unwrap_or_else(|| {
-            self.texts
-                .file_omitted(name, file.media_type.as_str(), bytes.len())
-        }))
-    }
-
     /// `data:<类型>;base64,<内容>`。
     fn data_url(&self, media_type: &MediaType, blob: &ContentHash) -> Result<String, EncodeError> {
         Ok(format!(
             "data:{};base64,{}",
             media_type.as_str(),
-            base64::encode(self.bytes(blob)?)
+            base64::encode(self.media.bytes(blob)?)
         ))
-    }
-
-    /// 执行器照 [`super::blobs_needed`] 先取好的字节；没交进来的报缺了哪一个。
-    fn bytes(&self, blob: &ContentHash) -> Result<&[u8], EncodeError> {
-        self.blobs
-            .bytes(blob)
-            .ok_or_else(|| EncodeError::MissingBlob(blob.clone()))
     }
 }
 
@@ -335,11 +302,6 @@ fn join(into: &mut String, next: &str) {
         into.push('\n');
     }
     into.push_str(next);
-}
-
-/// 图片块的名字：人附的有，`read` 读出来的没有。
-fn name(image: &Image) -> Option<&str> {
-    image.name.as_ref().map(|name| name.as_str())
 }
 
 fn image_part(url: String) -> Part {

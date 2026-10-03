@@ -42,7 +42,8 @@ pub fn levels(names: &[String]) -> Vec<String> {
     levels
 }
 
-/// 目录里一个模型的思考强度，这一家能给的几档：`switchable` 是这一家的档案写了开关（`compat.toggle`）。目录有开关、能开关
+/// 目录里一个模型的思考强度，这一家能给的几档：`switchable` 是这一家能照开关关思考（`openai-chat` 的档案写了开关
+/// `compat.toggle`，`anthropic` 自带，[`crate::provider::Provider::switchable`]）。目录有开关、能开关
 /// 的，没有 `off` 的在最前面加一档 `off`，一档都没有的是 `off`、`on`；别的照目录的档位。一档都没有的没有。
 pub fn offered(reasoning: &Reasoning, switchable: bool) -> Option<Vec<String>> {
     let mut levels = reasoning.levels.clone();
