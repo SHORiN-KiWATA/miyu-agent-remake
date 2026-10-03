@@ -1,0 +1,18 @@
+event: response.output_item.added
+data: {"type":"response.output_item.added","output_index":0,"item":{"id":"fc_a","type":"function_call","arguments":"","call_id":"call_a","name":"read"}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","output_index":1,"item":{"id":"fc_b","type":"function_call","arguments":"","call_id":"call_b","name":"shell"}}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","output_index":0,"delta":"{\"path\":"}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","output_index":1,"delta":"{\"command\":\"ls\"}"}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","output_index":0,"delta":"\"a.txt\"}"}
+
+event: response.completed
+data: {"type":"response.completed","response":{"status":"completed","usage":{"input_tokens":30,"output_tokens":40}}}
+

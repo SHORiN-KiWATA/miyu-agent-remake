@@ -45,6 +45,14 @@ fn the_shipped_profiles_keep_what_was_in_the_code() {
     );
     assert!(anthropic.compat.is_none());
     assert_eq!(profiles.npm["@ai-sdk/anthropic"], "anthropic");
+    // 施工 8-13：OpenAI 官方一样，目录里没有地址，档案补上。
+    let openai = &profiles.providers["openai"];
+    assert_eq!(
+        (openai.driver.as_deref(), openai.base_url.as_deref()),
+        (Some("openai-responses"), Some("https://api.openai.com/v1"))
+    );
+    assert!(openai.compat.is_none());
+    assert_eq!(profiles.npm["@ai-sdk/openai"], "openai-responses");
 }
 
 #[test]

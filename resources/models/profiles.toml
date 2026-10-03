@@ -1,8 +1,8 @@
 # 认得出的供应商的档案（docs/blueprint/models.md「在哪」，施工 8-6）：配置里写了这一家（或者 catalog 指着它），没写的
 # 驱动、地址、开关照这里推。只给实测过的开（05-内核接口.md 第七节）。
 
-# 目录里的 AI SDK 包名 → 驱动（施工 8-7）：档案没有的一家，照它对上的目录里那一家的 npm 推驱动、照 api 推地址。还没有的
-# 驱动（openai-responses）照写，用到时当场说还没有。
+# 目录里的 AI SDK 包名 → 驱动（施工 8-7）：档案没有的一家，照它对上的目录里那一家的 npm 推驱动、照 api 推地址。这里没列的
+# 包（Google 这些）推不出驱动。
 [npm]
 "@ai-sdk/openai-compatible" = "openai-chat"
 "@ai-sdk/anthropic" = "anthropic"
@@ -28,3 +28,8 @@ base_url = "http://127.0.0.1:11434/v1"
 [providers.anthropic]
 driver = "anthropic"
 base_url = "https://api.anthropic.com/v1"
+
+# OpenAI 官方（施工 8-13）：目录里这一家没写地址，档案补上。Responses 接口，没有开关；思考强度照目录的档位。
+[providers.openai]
+driver = "openai-responses"
+base_url = "https://api.openai.com/v1"

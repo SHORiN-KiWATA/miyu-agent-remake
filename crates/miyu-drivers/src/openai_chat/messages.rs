@@ -18,7 +18,7 @@ use serde::de::IgnoredAny;
 
 use super::wire::{Content, FileData, FunctionCall, Part, ToolCall as WireCall, Url, Wire};
 use super::{Compat, ContinuationField, EncodeError, FAMILY, ReasoningField, ReasoningReplay};
-use crate::media::{Media, is_pdf};
+use crate::media::{Media, is_pdf, join};
 use crate::{BlobBytes, Call, DriverTexts, base64};
 
 /// 写全部消息：system 在最前，每条 tool 消息串后面跟着挪出来的图片、文件。`continuing` 有的是
@@ -291,17 +291,6 @@ impl Pieces {
         self.end_text();
         Content::Parts(self.parts)
     }
-}
-
-/// 接上一块文字：前面有字、又不是以换行结尾的，先补一个换行。空的一块什么都不接。
-fn join(into: &mut String, next: &str) {
-    if next.is_empty() {
-        return;
-    }
-    if !into.is_empty() && !into.ends_with('\n') {
-        into.push('\n');
-    }
-    into.push_str(next);
 }
 
 fn image_part(url: String) -> Part {

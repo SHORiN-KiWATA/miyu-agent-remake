@@ -6,6 +6,7 @@
 //! - [`Driver`]：驱动的接口，执行器照着它调：家族、路径、要哪些 blob、编码、解码器、分类、认证头、列模型（[`Listed`]）；
 //! - [`openai_chat`]：OpenAI 兼容的对话接口（DeepSeek、智谱、OpenRouter、本机的 Ollama 这些）；
 //! - [`anthropic`]：Anthropic 的消息接口（官方、opencode Zen 上的 Claude，施工 8-12）；
+//! - [`openai_responses`]：OpenAI 的 Responses 接口（官方、opencode Zen 上的 GPT，施工 8-13）；
 //! - [`sse`]：SSE 分帧；[`classify`]：出错分类；[`base64`]：图片、文件写成 data URL 要用的编码；
 //! - [`DeepSeekImages`]：一张图在 DeepSeek 上算多少 token（施工 6-3 上）；
 //! - [`text_file`]：人附的文本文件照字放进消息，什么算文本、最多给多少（施工 3-9 三补）。
@@ -21,11 +22,12 @@ mod driver;
 mod image_tokens;
 mod media;
 pub mod openai_chat;
+pub mod openai_responses;
 pub mod sse;
 pub mod text_file;
 mod texts;
 
-pub use driver::{Anthropic, Decode, Driver, OpenAiChat};
+pub use driver::{Anthropic, Decode, Driver, OpenAiChat, OpenAiResponses};
 pub use image_tokens::{DeepSeekImages, deepseek_image_tokens};
 pub use texts::{
     DriverTextSources, DriverTexts, ImageDescriptionSources, ImageNameSources, TextFileSources,
@@ -97,7 +99,8 @@ pub struct Encoded {
     /// 请求字节：发出去的就是它，它的 SHA-256 记进 `model.called`。
     pub body: Vec<u8>,
     /// 每条线上的消息在字节里的位置，照先后。openai-chat 的 system 和挪出来的那条 user 消息也各算一条；anthropic 的
-    /// system 在顶层、不算，相邻同角色的合成一条（施工 8-12）。所以条数不一定和统一的请求一样。
+    /// system 在顶层、不算，相邻同角色的合成一条（施工 8-12）；openai-responses 是 `input` 里的每一项，system 在
+    /// `instructions`、不算（施工 8-13）。所以条数不一定和统一的请求一样。
     pub messages: Vec<Range<usize>>,
     /// 发到供应商地址后面的哪一截：平时是驱动的那一条，接着写的另有一条（施工 3-5 再补）。
     pub path: String,

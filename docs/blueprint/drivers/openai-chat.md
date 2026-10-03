@@ -12,7 +12,7 @@
 | `crates/miyu-drivers/src/driver.rs` | 驱动的接口 `Driver`、`Decode`；`OpenAiChat`（`Anthropic` 也在这里，`drivers/anthropic.md`） |
 | `crates/miyu-drivers/src/openai_chat.rs` | 家族名、路径、`Compat` 的开关、顶层怎么写、要哪些 blob |
 | `crates/miyu-drivers/src/openai_chat/messages.rs` | 每条消息怎么写、附件挪到后面、接着写 |
-| `crates/miyu-drivers/src/media.rs` | 图片、文件发不了时换成的字（占位、替它看的图、文本文件、带名字的图片的标签）和要哪些 blob：施工 8-12 从 `openai_chat/messages.rs`、`openai_chat.rs` 挪出来，和 `anthropic` 共用，这一页的样本一个字节没变 |
+| `crates/miyu-drivers/src/media.rs` | 图片、文件发不了时换成的字（占位、替它看的图、文本文件、带名字的图片的标签）和要哪些 blob：施工 8-12 从 `openai_chat/messages.rs`、`openai_chat.rs` 挪出来，和 `anthropic` 共用；施工 8-13 把拼字（`join`）也挪进来，和 `openai-responses` 共用。这一页的样本一个字节没变 |
 | `crates/miyu-drivers/src/openai_chat/wire.rs` | 线上的 JSON 结构、工具面 |
 | `crates/miyu-drivers/src/openai_chat/decode.rs` | 解码：块、工具调用、`finish_reason`、流里的错 |
 | `crates/miyu-drivers/src/openai_chat/usage.rs` | 各家的用量归成四项 |
@@ -302,7 +302,7 @@ A file was attached here (报告.pdf, application/pdf, 15 bytes), but this model
 
 - 驱动规格里的 `cache`（缓存类型）、子进程的 `transport`（`05-内核接口.md` 第七节）。列模型分页的几家（随它们自己的驱动）。
 - 配置里手写的 `compat` 一格格盖在档案上面（`models.md`「对外的样子」）：随用到它的那一步。
-- 别的驱动家族：OpenAI 的 Responses 接口、借用 agent CLI 的子进程（`15-模型与供应商.md` 第二节）。前一样的图纸是 `drivers/openai-responses.md`（2026-10-02 起草）。Anthropic 的消息接口施工 8-12 做了（`drivers/anthropic.md`）。
+- 别的驱动家族：借用 agent CLI 的子进程（`15-模型与供应商.md` 第二节）。Anthropic 的消息接口施工 8-12 做了（`drivers/anthropic.md`），OpenAI 的 Responses 接口施工 8-13 做了（`drivers/openai-responses.md`）。
 - 接 opencode Zen 要的：工具面缺 `read`、`shell` 时补同名的占位声明，带 `x-opencode-*` 头（`15-模型与供应商.md` 第二节）。驱动这边要做的见末尾「接 opencode Zen」。
 - Kimi、通义的 `partial`、Mistral 的 `prefix`：写法有了，出厂没开，等实测（`05-内核接口.md` 第七节）。
 

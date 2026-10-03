@@ -59,6 +59,18 @@ impl Media<'_> {
     }
 }
 
+/// 接上一块文字（`openai-chat.md` 第 4 条，施工 8-13 从 `openai_chat/messages.rs` 挪来，`openai-responses` 也照它拼）：前面有字、
+/// 又不是以换行结尾的，先补一个换行。空的一块什么都不接。
+pub(crate) fn join(into: &mut String, next: &str) {
+    if next.is_empty() {
+        return;
+    }
+    if !into.is_empty() && !into.ends_with('\n') {
+        into.push('\n');
+    }
+    into.push_str(next);
+}
+
 /// 这是不是一个 PDF：文件只有 PDF 能照原样发。
 pub(crate) fn is_pdf(file: &File) -> bool {
     file.media_type.as_str() == "application/pdf"

@@ -21,7 +21,9 @@ fn held(catalog: bool) -> Held {
                 "base_url": "https://api.deepseek.com",
                 "image_tokens": "deepseek",
                 "compat": {"reasoning": {"replay": "reasoning_content", "always": true}}
-            }}
+            },
+            // 档案里写了还没有的驱动（施工 8-13：配置里只能写有的三种，还没有的只会从档案、目录来）。
+            "gemini": {"driver": "google", "base_url": "https://g.invalid"}}
         }),
         catalog,
     )
@@ -76,9 +78,7 @@ fn hand_written_values_win_and_the_profile_is_found_by_catalog() {
 
 #[test]
 fn a_provider_that_cannot_be_worked_out_says_why() {
-    let values = values(
-        "[providers.newapi]\nkeys = []\n\n[providers.gpt]\ndriver = \"openai-responses\"\nbase_url = \"https://a.invalid\"\n",
-    );
+    let values = values("[providers.newapi]\nkeys = []\n\n[providers.gemini]\nkeys = []\n");
     let held = held(true);
     assert_eq!(
         provider(&values, &held.knowledge(), "newapi"),
@@ -88,9 +88,9 @@ fn a_provider_that_cannot_be_worked_out_says_why() {
         ))
     );
     assert_eq!(
-        provider(&values, &held.knowledge(), "gpt"),
+        provider(&values, &held.knowledge(), "gemini"),
         Err(NoModel(
-            r#"driver "openai-responses" of provider "gpt" is not available yet"#.to_string()
+            r#"driver "google" of provider "gemini" is not available yet"#.to_string()
         ))
     );
     assert_eq!(
@@ -207,12 +207,22 @@ fn resolving_the_address_follows_the_reference_or_fails_cleanly() {
     );
 }
 
-/// 施工 8-12：`anthropic` 认得了；能不能关思考 openai-chat 照档案、anthropic 自带；一定要写输出上限的只有 anthropic。
+/// 施工 8-12、8-13：`anthropic`、`openai-responses` 认得了；能不能关思考 openai-chat 照档案、anthropic 自带、openai-responses
+/// 没有；一定要写输出上限的只有 anthropic。
 #[test]
-fn anthropic_is_a_driver_now() {
+fn anthropic_and_responses_are_drivers_now() {
     assert_eq!(Driver::parse("anthropic"), Some(Driver::Anthropic));
-    assert_eq!(Driver::parse("openai-responses"), None);
-    for driver in [Driver::OpenAiChat, Driver::Anthropic] {
+    assert_eq!(
+        Driver::parse("openai-responses"),
+        Some(Driver::OpenAiResponses)
+    );
+    assert_eq!(Driver::parse("google"), None);
+    assert!(!Driver::OpenAiResponses.needs_max_output());
+    for driver in [
+        Driver::OpenAiChat,
+        Driver::Anthropic,
+        Driver::OpenAiResponses,
+    ] {
         assert_eq!(Driver::parse(driver.as_str()), Some(driver));
     }
     assert!(Driver::Anthropic.needs_max_output());
@@ -231,6 +241,10 @@ fn anthropic_is_a_driver_now() {
     let mut toggled = deepseek.clone();
     toggled.compat = Compat::deepseek();
     assert!(toggled.switchable());
+    let mut gpt = toggled.clone();
+    gpt.driver = Driver::OpenAiResponses;
+    assert!(!gpt.switchable(), "这一家没有开关，档案写了也不算");
+    assert_eq!(gpt.build(texts()).family(), "openai-responses");
 }
 
 /// 出厂的占位：测试里只要造得出驱动。

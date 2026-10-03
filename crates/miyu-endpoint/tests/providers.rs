@@ -122,7 +122,7 @@ async fn local_services_are_probed_together_and_slow_ones_count_as_none() {
         "lab-a": local("Lab A", &a), "lab-b": local("Lab B", &b), "lab-c": local("Lab C", &c),
         "lab-slow": local("Slow", &slow), "lab-broken": local("Broken", &broken),
         "lab-garbled": local("Garbled", &garbled),
-        "lab-later": {"driver": "openai-responses", "base_url": "http://127.0.0.1:9/v1"}
+        "lab-later": {"driver": "google", "base_url": "http://127.0.0.1:9/v1"}
     });
     let home = Home::new();
     home.write(

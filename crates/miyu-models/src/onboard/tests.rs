@@ -21,7 +21,7 @@ fn held() -> Held {
                 "lab": {"driver": "openai-chat", "base_url": "http://LOCALHOST:8080/v1"},
                 "six": {"driver": "openai-chat", "base_url": "http://[::1]:9/v1"},
                 "remote": {"driver": "openai-chat", "base_url": "https://remote.invalid/v1"},
-                "gpt-here": {"driver": "openai-responses", "base_url": "http://127.0.0.1:7/v1"}
+                "gemini-here": {"driver": "google", "base_url": "http://127.0.0.1:7/v1"}
             }
         }),
         true,
@@ -73,7 +73,7 @@ fn every_provider_of_the_catalog_and_the_profiles_is_listed_once() {
     assert!(!deepinfra.supported);
     let aihubmix = find(&listed, "aihubmix");
     assert_eq!(aihubmix.name, "AIHubMix");
-    assert!(!find(&listed, "gpt-here").supported, "驱动还没有");
+    assert!(!find(&listed, "gemini-here").supported, "驱动还没有");
 }
 
 #[test]

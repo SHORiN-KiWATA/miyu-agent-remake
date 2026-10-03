@@ -435,7 +435,8 @@ fn anthropic_can_switch_thinking_off_without_a_profile() {
         fetched: "2026-10-03T00:00:00.000Z".to_string(),
     });
     let source = "[providers.anthropic]\ndriver = \"anthropic\"\nbase_url = \"https://api.anthropic.com/v1\"\nkeys = []\n\n\
-        [providers.relay]\ndriver = \"openai-chat\"\nbase_url = \"https://relay.invalid/v1\"\ncatalog = \"anthropic\"\nkeys = []\n";
+        [providers.relay]\ndriver = \"openai-chat\"\nbase_url = \"https://relay.invalid/v1\"\ncatalog = \"anthropic\"\nkeys = []\n\n\
+        [providers.gpt]\ndriver = \"openai-responses\"\nbase_url = \"https://gpt.invalid/v1\"\ncatalog = \"anthropic\"\nkeys = []\n";
     let (claude, _) = facts_of(&held, source, "anthropic", "claude-sonnet-5");
     assert_eq!(claude.levels(), ["off", "low", "high"]);
     assert_eq!(claude.max_output.value, Some(128_000));
@@ -445,4 +446,7 @@ fn anthropic_can_switch_thinking_off_without_a_profile() {
         ["low", "high"],
         "openai-chat 照档案的开关"
     );
+    // 施工 8-13：openai-responses 没有开关，目录的开关不算。
+    let (responses, _) = facts_of(&held, source, "gpt", "claude-sonnet-5");
+    assert_eq!(responses.levels(), ["low", "high"]);
 }

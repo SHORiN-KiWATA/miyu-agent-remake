@@ -1,0 +1,4 @@
+start 0 text
+text 0 "好"
+usage none
+error retryable "流断了：没等到 response.completed"

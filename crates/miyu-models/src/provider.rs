@@ -20,29 +20,32 @@
 use miyu_config::secret::{Reference as KeyRef, Secret};
 use miyu_config::{Address, Values};
 use miyu_drivers::openai_chat::Compat;
-use miyu_drivers::{Anthropic, DriverTexts, OpenAiChat};
+use miyu_drivers::{Anthropic, DriverTexts, OpenAiChat, OpenAiResponses};
 
 use crate::knowledge::Knowledge;
 use crate::matching::{Recognized, recognize};
 use crate::profile::ImageTokens;
 use crate::settings::{ProviderSettings, UseSettings};
 
-/// 认得的驱动。8-6 有 OpenAI 兼容的对话接口，8-12 加 Anthropic 的消息接口；`openai-responses` 随 8-13。
+/// 认得的驱动。8-6 有 OpenAI 兼容的对话接口，8-12 加 Anthropic 的消息接口，8-13 加 OpenAI 的 Responses 接口。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Driver {
     /// `openai-chat`。
     OpenAiChat,
     /// `anthropic`（施工 8-12）。
     Anthropic,
+    /// `openai-responses`（施工 8-13）。
+    OpenAiResponses,
 }
 
 impl Driver {
     /// 配置、档案里驱动的写法认成现在有的哪一种（施工 8-11 从 [`provider`] 里拿出来，`provider.catalog` 的 `supported` 也照
-    /// 它）；还没有的（`openai-responses`）、不认识的是空的。
+    /// 它）；不认识的（档案里写了别的、目录的包名换出来的还没有的）是空的。
     pub fn parse(name: &str) -> Option<Driver> {
         match name {
             "openai-chat" => Some(Driver::OpenAiChat),
             "anthropic" => Some(Driver::Anthropic),
+            "openai-responses" => Some(Driver::OpenAiResponses),
             _ => None,
         }
     }
@@ -52,14 +55,16 @@ impl Driver {
         match self {
             Driver::OpenAiChat => "openai-chat",
             Driver::Anthropic => "anthropic",
+            Driver::OpenAiResponses => "openai-responses",
         }
     }
 
-    /// 造这种驱动（施工 8-12）：`openai-chat` 照开关 `compat`，`anthropic` 没有开关；占位是 `texts`。
+    /// 造这种驱动（施工 8-12）：`openai-chat` 照开关 `compat`，`anthropic`、`openai-responses` 没有开关；占位是 `texts`。
     pub fn build(self, compat: Compat, texts: DriverTexts) -> Box<dyn miyu_drivers::Driver> {
         match self {
             Driver::OpenAiChat => Box::new(OpenAiChat::new(compat, texts)),
             Driver::Anthropic => Box::new(Anthropic::new(texts)),
+            Driver::OpenAiResponses => Box::new(OpenAiResponses::new(texts)),
         }
     }
 
@@ -94,11 +99,12 @@ pub struct Provider {
 
 impl Provider {
     /// 能不能照开关关思考（「怎么走」第十一条第 1 条，施工 8-12）：`openai-chat` 照档案写没写开关（`compat.toggle`），
-    /// `anthropic` 的开关是接口自带的（`thinking` 写 `disabled`）。
+    /// `anthropic` 的开关是接口自带的（`thinking` 写 `disabled`）；`openai-responses` 没有开关，`off` 只从目录的 `none` 来（8-13）。
     pub fn switchable(&self) -> bool {
         match self.driver {
             Driver::OpenAiChat => self.compat.toggle.is_some(),
             Driver::Anthropic => true,
+            Driver::OpenAiResponses => false,
         }
     }
 

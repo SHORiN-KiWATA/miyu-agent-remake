@@ -39,7 +39,7 @@
 | `tools` | `ToolSpec` 的列表 | 工具面 |
 | `system` | 字符串 | 系统提示词，一整段 |
 | `messages` | `Message` 的列表 | 示范对话、检查点、历史，照先后 |
-| `stable` | 整数 | 稳定区有几条消息，就是示范对话的条数。缓存标记照它落：`anthropic` 打四处缓存点，第 2 处在稳定区的末尾（施工 8-12，`drivers/anthropic.md`「缓存打点」）；`openai-chat` 不打点 |
+| `stable` | 整数 | 稳定区有几条消息，就是示范对话的条数。缓存标记照它落：`anthropic` 打四处缓存点，第 2 处在稳定区的末尾（施工 8-12，`drivers/anthropic.md`「缓存打点」）；`openai-chat`、`openai-responses` 不打点（后者是自动缓存，施工 8-13，`drivers/openai-responses.md`「缓存」） |
 | `continuation` | 布尔 | 接着写的记号（「组装」第 7 条）。是假的不写进字节 |
 | `described` | blob → 字符串 | 请求里出现的图在这个会话里的转述（施工 8-17，下面「替它看的图」）：内核组装完放进来，驱动给看不了图的端点编码时用。空的不写进字节 |
 

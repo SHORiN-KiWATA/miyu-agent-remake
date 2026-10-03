@@ -1,0 +1,24 @@
+event: response.output_item.added
+data: {"type":"response.output_item.added","output_index":0,"item":{"id":"ws_1","type":"web_search_call","status":"in_progress"}}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","output_index":0,"item":{"id":"ws_1","type":"web_search_call","status":"completed"}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","output_index":1,"item":{"id":"msg_9","type":"message","role":"assistant","content":[]}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","output_index":1,"delta":"查到了"}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","output_index":5,"delta":"没开的项"}
+
+event: response.something_new
+data: {"type":"response.something_new","x":1}
+
+event: response.completed
+data: {"type":"response.completed","response":{"status":"completed","usage":{"input_tokens":10,"output_tokens":3}}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","output_index":1,"delta":"说完以后的不理"}
+

@@ -1,0 +1,9 @@
+event: response.output_item.added
+data: {"type":"response.output_item.added","output_index":0,"item":{"id":"msg_11","type":"message","role":"assistant","content":[]}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta",oops}
+
+event: response.completed
+data: {"type":"response.completed","response":{"status":"completed"}}
+

@@ -2,7 +2,8 @@
 //!
 //! 样本在 `docs/designs/samples/drivers/<驱动家族>/`，一种写法一个文件，写的是请求字节，末尾一个
 //! 换行。字节变了必须是有意的：设上 `MIYU_PROBE_WRITE=1` 跑一遍，重写样本，提交说明里写为什么变。
-//! `sample`、`sample_file`、`dir` 是 openai-chat 的，`anthropic_*` 是 Anthropic 的（施工 8-12）。
+//! `sample`、`sample_file`、`dir` 是 openai-chat 的，`anthropic_*` 是 Anthropic 的（施工 8-12），`responses_*` 是 Responses 的
+//! （施工 8-13）。
 
 #![allow(dead_code, reason = "几个测试文件各用其中一部分")]
 
@@ -130,6 +131,16 @@ pub fn private(family: &str, data: &str) -> Private {
     }
 }
 
+/// 发给 `gpt-5.4`，能收哪些输入照 `inputs`（施工 8-13）。
+pub fn gpt(inputs: Inputs, max_output: Option<u32>) -> Call {
+    Call {
+        model: ModelName::parse("gpt-5.4").expect("模型名合写法"),
+        max_output,
+        inputs,
+        effort: None,
+    }
+}
+
 /// 发给 `claude-opus-5`，能收哪些输入照 `inputs`（施工 8-12）。
 pub fn claude(inputs: Inputs, max_output: Option<u32>) -> Call {
     Call {
@@ -232,6 +243,18 @@ pub fn anthropic_sample(name: &str, body: &[u8]) {
     let mut content = body.to_vec();
     content.push(b'\n');
     anthropic_file(&format!("{name}.json"), &content);
+}
+
+/// Responses 的样本（施工 8-13）：和 [`sample`] 一样，放在 `openai-responses/` 下。
+pub fn responses_sample(name: &str, body: &[u8]) {
+    let mut content = body.to_vec();
+    content.push(b'\n');
+    responses_file(&format!("{name}.json"), &content);
+}
+
+/// Responses 样本目录下的一个文件，和 [`sample_file`] 一样比。
+pub fn responses_file(name: &str, content: &[u8]) {
+    compare(&family_dir("openai-responses").join(name), name, content);
 }
 
 /// Anthropic 样本目录下的一个文件，和 [`sample_file`] 一样比。

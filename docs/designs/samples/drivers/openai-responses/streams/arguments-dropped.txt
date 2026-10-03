@@ -1,0 +1,6 @@
+start 0 tool_call read
+private 0 openai-responses {"call_id":"call_9"}
+text 0 "{\"path\":\"a.txt\"}"
+end 0
+usage uncached=20 cache_read=0 cache_write=0 output=9
+ok

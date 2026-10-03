@@ -1,0 +1,10 @@
+start 0 tool_call read
+private 0 openai-responses {"call_id":"call_a"}
+start 1 tool_call shell
+private 1 openai-responses {"call_id":"call_b"}
+text 0 "{\"path\":\"a.txt\"}"
+text 1 "{\"command\":\"ls\"}"
+end 0
+end 1
+usage uncached=30 cache_read=0 cache_write=0 output=40
+ok
