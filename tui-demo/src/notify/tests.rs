@@ -104,3 +104,24 @@ fn kitty_gets_its_sequence_in_the_outbox_with_what_happened() {
     assert!(out[0].starts_with("\x1b]99;"), "{:?}", out[0]);
     assert!(n.outbox().is_empty(), "取走就空了");
 }
+
+#[test]
+fn herdr_keeps_desktop_notifications_and_owns_only_sound() {
+    let look = Config::builtin().unwrap().notify;
+    assert_eq!(
+        plan(&look, Route::System, Some(false), true),
+        Plan {
+            route: Some(Route::System),
+            sound: false
+        }
+    );
+    for focus in [None, Some(true)] {
+        assert_eq!(
+            plan(&look, Route::System, focus, true),
+            Plan {
+                route: None,
+                sound: false
+            }
+        );
+    }
+}

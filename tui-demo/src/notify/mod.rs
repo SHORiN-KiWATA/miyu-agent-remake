@@ -67,7 +67,7 @@ pub struct Plan {
 
 /// 弹不弹、怎么弹、响不响（第 2、4、5 条）。`focused` 是终端报的在不在前台，一次都没报过是 `None`（当在前台）。
 /// kitty 不管在不在前台都交给它（`o=unfocused` 它自己判），别的只在报过「离开」时弹；响只在报过「离开」时，
-/// 在 herdr 里不响（herdr 来响）。
+/// 在 herdr 里仍弹桌面通知，声音由 herdr 发出。
 pub fn plan(look: &NotifyLook, route: Route, focused: Option<bool>, in_herdr: bool) -> Plan {
     if !look.enabled {
         return Plan {
