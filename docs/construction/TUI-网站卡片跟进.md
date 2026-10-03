@@ -23,8 +23,10 @@
 风险：旧核心进程仍活着时重编不会替换它；真实网络受到代理及站点限制，不能用失败站点冒充UI失败。图片上直接叠终端字符会被后画的图片覆盖；推荐单独文字脚注。
 
 
-验证记录（2026-10-03）：作者行、视频脚注和时长测试在旧渲染中失败，实现后通过。视频与文章的 60 列样本存于 tui-demo/src/ui/link_card/samples/；图片阴影格记录真实占位。额外覆盖空作者、无时长、图片失败、1/3/8/20/60 列宽、缓存兼容及重启保留元数据。Linux 完整 TUI 测试 642 项通过，11 项 ignored；fmt、clippy 通过（整合通知改动后复跑最终确认）。
+验证记录（2026-10-03）：作者行、视频脚注和时长测试在旧渲染中失败，实现后通过。视频与文章的 60 列样本存于 tui-demo/src/ui/link_card/samples/；图片阴影格记录真实占位。额外覆盖空作者、无时长、图片失败、1/3/8/20/60 列宽、缓存兼容及重启保留元数据。整合通知改动后 Linux 完整 TUI 测试 644 项通过，11 项 ignored；fmt、clippy 通过（整合通知改动后已复跑确认）。
 
 真站：临时 MIYU_HOME 下启动同步后的核心，link.preview→blob.get 取回 Bilibili 1920×1080 JPEG，作者明日方舟、duration=408；kitty/Xvfb 真 TUI 截图确认封面、作者与 ▶ 6:48 实际显示，ArchWiki 文章无播放脚注。过程没有模型 key，不发模型请求；测试产生的 no_model 收尾不属于卡片故障。截图及原始 card 保存在 ~/.cache/miyu-tui-site-cards/evidence/。
 
 TUI 原先不进入根 workspace CI，本步新增独立 .github/workflows/tui-demo.yml，三平台 fmt、clippy、完整 TUI 测试；原仓库门禁与长跑仍单独运行，未完成不报告通过。待真人验收，不合入 proto/tui-demo。
+
+首次独立 TUI CI：Linux 全绿；macOS 卡片新增测试通过，会话列表旧 PTY 测试在收齐一帧前断言导致失败；Windows 在旧剪贴板测试的 Unix 专用导入上被 clippy 拦下。修正另记 TUI-三平台测试补齐.md，不改运行行为。

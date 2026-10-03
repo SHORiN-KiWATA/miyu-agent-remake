@@ -245,6 +245,7 @@ fn commands_that_change_nothing_only_flash_a_notice() {
     assert!(!tui.shows("没有能恢复的撤销"), "{}", tui.lines().join("\n"));
 }
 
+#[cfg(unix)]
 #[test]
 fn ctrl_g_edits_the_prompt_in_the_editor() {
     // 2026-10-02 项目主人要：Ctrl+G 用编辑器写提示词，退出后回到输入框。假编辑器把文件换成一句话。
