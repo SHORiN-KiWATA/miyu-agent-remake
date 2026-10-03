@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>188</b><span>/ 196 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；8-12 Anthropic 合了，接着 8-13、8-14 两个驱动；跨会话做完了</span></li>
-    <li><b class="mono">f73cfb5d</b><span>最近一步（8-12 Anthropic 消息接口）的提交</span></li>
+    <li><b>189</b><span>/ 196 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；8-12 Anthropic、8-13 Responses 合了，接着 8-14 opencode Zen；跨会话做完了</span></li>
+    <li><b class="mono">14b4cbc0</b><span>最近一步（8-13 OpenAI Responses 接口）的提交</span></li>
   </ul>
 </header>
 
@@ -527,7 +527,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s8-11"><span class="n">8-11</span>第一次接入<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-11b"><span class="n">8-11</span>本机的服务不走代理（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-12"><span class="n">8-12</span>Anthropic 消息接口<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">8-13</span>OpenAI Responses 接口</span></li>
+        <li><a class="step done" href="#s8-13"><span class="n">8-13</span>OpenAI Responses 接口<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">8-14</span>opencode Zen</span></li>
         <li><a class="step done" href="#s8-15"><span class="n">8-15</span>用量与金额<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-20"><span class="n">8-20</span>模型调用口<span class="st">✓</span></a></li>
@@ -11812,6 +11812,63 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/8-12-Anthropic消息接口.md</code>；蓝图 <code>drivers/anthropic.md</code>、<code>models.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-13" aria-labelledby="h-s813">
+  <div class="sheet-head"><h2 id="h-s813"><span class="no">8-13</span>OpenAI Responses 接口</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">多一个驱动家族 <code>openai-responses</code>：OpenAI 官方、Zen 上的 GPT 能直接配上用。不存对话、每次带全部历史；工具、图片、PDF 照这一家的写法；配了思考强度的要摘要、要加密的思考并原样回传；缓存自动按前缀。请求形状探针多一张 Responses 的脸。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-drivers/src/openai_responses/</span><span class="dir-note">新驱动</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">input.rs</span><span class="rl">user、assistant 几项、function_call、function_call_output；结果里的图放在 output 里</span></div>
+              <div class="tile new"><span class="nm">effort.rs</span><span class="rl">档位要摘要和加密思考；off 是 effort none；没配的不加</span></div>
+              <div class="tile new"><span class="nm">decode.rs、usage.rs</span><span class="rl">一项开一块；参数攒到这一项完了照整段交；用量减命中</span></div>
+              <div class="tile new"><span class="nm">wire.rs</span><span class="rl">store:false、strict:false、instructions</span></div>
+            </div>
+          </div>
+          <ol class="pipe" aria-label="接上了哪些">
+            <li class="cmd">供应商 driver = "openai-responses"</li>
+            <li>模型资料：没有开关，off 只从目录的 none 来</li>
+            <li>档案加 <code>[providers.openai]</code></li>
+          </ol>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不存对话</span><span class="rl">真相只在我们的日志里</span></div>
+          <div class="tile new"><span class="nm">参数照整段交</span><span class="rl">实测中转站的增量丢了开头的字</span></div>
+          <div class="tile new"><span class="nm">没配强度什么都不加</span><span class="rl">和 Anthropic 一个规矩</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-13</dd></div>
+        <div><dt>名称</dt><dd>OpenAI Responses 接口</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-03</dd></div>
+        <div><dt>提交</dt><dd class="mono">14b4cbc0</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>19 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型（中转站）：工具循环、思考强度、附图、打断、写错 key 都对；加密思考的回传、官方缓存命中待官方 key</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-13-OpenAI Responses接口.md</code>；蓝图 <code>drivers/openai-responses.md</code>、<code>models.md</code>。</li>
       </ul>
     </div>
   </div>
