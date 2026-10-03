@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>189</b><span>/ 196 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；8-12 Anthropic、8-13 Responses 合了，接着 8-14 opencode Zen；跨会话做完了</span></li>
-    <li><b class="mono">14b4cbc0</b><span>最近一步（8-13 OpenAI Responses 接口）的提交</span></li>
+    <li><b>190</b><span>/ 196 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
+    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；三个驱动和 8-14 opencode 合了，接着 8-16 M8 验收；跨会话做完了</span></li>
+    <li><b class="mono">4dd627a0</b><span>最近一步（8-14 opencode Zen）的提交</span></li>
   </ul>
 </header>
 
@@ -528,7 +528,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s8-11b"><span class="n">8-11</span>本机的服务不走代理（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-12"><span class="n">8-12</span>Anthropic 消息接口<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-13"><span class="n">8-13</span>OpenAI Responses 接口<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">8-14</span>opencode Zen</span></li>
+        <li><a class="step done" href="#s8-14"><span class="n">8-14</span>opencode Zen<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-15"><span class="n">8-15</span>用量与金额<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-20"><span class="n">8-20</span>模型调用口<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-17"><span class="n">8-17</span>替看不了图的模型看图<span class="st">✓</span></a></li>
@@ -11869,6 +11869,62 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/8-13-OpenAI Responses接口.md</code>；蓝图 <code>drivers/openai-responses.md</code>、<code>models.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-14" aria-labelledby="h-s814">
+  <div class="sheet-head"><h2 id="h-s814"><span class="no">8-14</span>opencode Zen</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">opencode 的 Zen、Console Go 只写 key 就能用：同一家里的模型照目录的包名各走各的驱动（Claude、MiniMax 走 Anthropic，GPT 走 Responses，别的走 OpenAI 兼容），交错思考的照目录回传思考，Go 的请求带它要的 <code>x-opencode-session</code>。Zen 的免费档只给 OpenCode 自己的客户端用，不做。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-models/src/</span><span class="dir-note">资料和供应商</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">headers.rs</span><span class="rl">头的模板：只认 {session_digest}，种子的 SHA-256 前 26 位</span></div>
+              <div class="tile"><span class="nm">catalog.rs、facts.rs</span><span class="rl">模型自己的包名、交错思考的字段，只取第 1、2 层</span></div>
+              <div class="tile"><span class="nm">provider.rs</span><span class="rl">for_model：照模型换驱动和开关；没有驱动的这个模型 no_model</span></div>
+            </div>
+          </div>
+          <ol class="pipe" aria-label="接上了哪些">
+            <li class="cmd">档案加 <code>[providers.opencode-go]</code> 的头</li>
+            <li>路由照真发的模型造驱动、填上限</li>
+            <li>挑候选时照种子挂头；provider.test 也照模型</li>
+          </ol>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">驱动按模型</span><span class="rl">手写的供应商驱动 &gt; 模型的包名 &gt; 档案 &gt; 那一家的包名</span></div>
+          <div class="tile new"><span class="nm">种子</span><span class="rl">会话编号、一次性的用途、provider.test</span></div>
+          <div class="tile new"><span class="nm">不冒充客户端</span><span class="rl">User-Agent 照旧是 miyu</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-14</dd></div>
+        <div><dt>名称</dt><dd>opencode Zen</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-03</dd></div>
+        <div><dt>提交</dt><dd class="mono">4dd627a0</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>21 个手写变异全逮住；三台机器的 CI 和长跑全绿；请求形状探针的存档没动</span></li>
+        <li><span class="ok">✓</span><span>真模型（Go）：deepseek-v4.1-flash 带工具三轮、缓存命中九成以上；minimax-m3 走 /messages、gpt-5.6-luna 走 /responses 都答对</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-14-opencode Zen.md</code>；蓝图 <code>models.md</code> 第八条、<code>drivers/openai-chat.md</code>「接 opencode Zen」。</li>
       </ul>
     </div>
   </div>
