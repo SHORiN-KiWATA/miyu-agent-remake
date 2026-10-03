@@ -5,24 +5,25 @@
 //!
 //! - 标题、简介、图：`og:*` 最先（不管它在文档里排第几），没有的照 `twitter:*`，再没有的照 `<title>`、
 //!   `<meta name=description>`；
-//! - 站名：`og:site_name`，没有的用主机名（去掉 `www.`）；
+//! - 站名：`og:site_name`，没有的由合卡片的一方退到主机名（`sites.rs`，MediaWiki 站中间还有两层）；
 //! - 图标：`rel` 里有 `icon` 的，没有的照 `apple-touch-icon`，再没有的试 `/favicon.ico`；
-//! - 相对地址照最后落到的那一页（跟完跳转）的地址算；字收拢空白，超出的截断加省略号。
+//! - 相对地址照最后落到的那一页（跟完跳转）的地址算。
+//!
+//! 这里交回原样的字（实体解开、两头空白去掉）；收拢空白、截断、没填的模板（[`tidy`]）由合卡片的一方做，接口取到
+//! 的字也走同一道（W-7 再补）。站要的那几样（时长、作者、`generator`、`EditURI`）用 [`first`] 找。
 //!
 //! 纯函数，好测；网络那半在 `fetch.rs`。
 
 use reqwest::Url;
 
-use crate::rules::Clip;
-
-/// 一页挖出来的：字已经收拢、截好；图和图标是算好的绝对地址（还没抓）。
-#[derive(Debug, PartialEq, Eq)]
+/// 一页挖出来的：原样的字（还没收拢、截断）；图和图标是算好的绝对地址（还没抓）。
+#[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct Found {
     /// 标题：空的就做不成卡片。
     pub(crate) title: String,
     /// 简介，可以是空的。
     pub(crate) description: String,
-    /// 站名。
+    /// `og:site_name`，没写的是空的。
     pub(crate) site: String,
     /// 卡片的图。
     pub(crate) image: Option<Url>,
@@ -30,17 +31,10 @@ pub(crate) struct Found {
     pub(crate) icon: Option<Url>,
 }
 
-/// 挖一页：`html` 是读到 `</head>` 为止的那一截，`page` 是最后落到的地址。
-pub(crate) fn read(html: &str, page: &Url, clip: &Clip) -> Found {
-    let head = extract(html);
-    let site = if head.site_name.is_empty() {
-        page.host_str()
-            .unwrap_or_default()
-            .trim_start_matches("www.")
-            .to_string()
-    } else {
-        head.site_name
-    };
+/// 挖一页：`html` 是读到的那一截，`page` 是最后落到的地址。`whole` 的整段都看，不在 `</head>` 停（YouTube，
+/// `net.md`「怎么走」第 12 条）。
+pub(crate) fn scan(html: &str, page: &Url, whole: bool) -> Found {
+    let head = extract(html, whole);
     let image = if head.image.is_empty() {
         None
     } else {
@@ -55,16 +49,33 @@ pub(crate) fn read(html: &str, page: &Url, clip: &Clip) -> Found {
         })
         .ok();
     Found {
-        title: clip_text(&head.title, clip.title),
-        description: clip_text(&head.description, clip.description),
-        site: clip_text(&site, clip.site),
+        title: head.title,
+        description: head.description,
+        site: head.site_name,
         image,
         icon,
     }
 }
 
+/// 主机名去掉 `www.`：没有站名时的站名。
+pub(crate) fn host_name(page: &Url) -> String {
+    page.host_str()
+        .unwrap_or_default()
+        .trim_start_matches("www.")
+        .to_string()
+}
+
+/// 卡片上的一格字：留着没填的模板（`{$0}` 这样）的当没有；空白收拢成一个空格；超过 `limit` 个字的截断，加一个
+/// 省略号（`net.md`「怎么走」第 7、14 条）。
+pub(crate) fn tidy(text: &str, limit: usize) -> String {
+    if has_template(text) {
+        return String::new();
+    }
+    clip_text(text, limit)
+}
+
 /// 空白收拢成一个空格；超过 `limit` 个字的截断，加一个省略号。
-pub(crate) fn clip_text(text: &str, limit: usize) -> String {
+fn clip_text(text: &str, limit: usize) -> String {
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
     if text.chars().count() <= limit {
         return text;
@@ -72,6 +83,15 @@ pub(crate) fn clip_text(text: &str, limit: usize) -> String {
     let mut out: String = text.chars().take(limit).collect();
     out.push('…');
     out
+}
+
+/// 有没有没填的模板：`{$` 加一个以上的数字加 `}`（W-7 再补：B 站删了的视频页，og 的简介就是这样）。
+fn has_template(text: &str) -> bool {
+    text.match_indices("{$").any(|(at, _)| {
+        let rest = &text[at + 2..];
+        let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
+        digits > 0 && rest[digits..].starts_with('}')
+    })
 }
 
 /// `<head>` 里原样取到的几样（实体已解码、两头空白已去掉）。
@@ -84,8 +104,8 @@ struct Head {
     icon: String,
 }
 
-/// 扫一遍 `<head>`：`og:*` 直接填，别的先记着，扫完再按次序补空着的。
-fn extract(html: &str) -> Head {
+/// 扫一遍 `<head>`：`og:*` 直接填，别的先记着，扫完再按次序补空着的。`whole` 的不在 `</head>` 停。
+fn extract(html: &str, whole: bool) -> Head {
     let mut head = Head::default();
     let (mut twitter_title, mut twitter_description, mut twitter_image) =
         (String::new(), String::new(), String::new());
@@ -99,21 +119,14 @@ fn extract(html: &str) -> Head {
     {
         document_title = decode_entities(html[start..close].trim());
     }
-    let mut cursor = 0;
-    while let Some(offset) = lower[cursor..].find('<') {
-        let start = cursor + offset;
-        let Some(length) = html[start..].find('>') else {
-            break;
-        };
-        let tag = &html[start + 1..start + length];
-        cursor = start + length + 1;
-        let name = tag
-            .split(|c: char| c.is_whitespace() || c == '/')
-            .next()
-            .unwrap_or_default()
-            .to_ascii_lowercase();
-        // `</head>` 之后是正文，正文里的 meta 和卡片无关
-        if name == "/head" || name == "body" {
+    for (name, tag) in tags(html) {
+        // `</head>` 之后是正文，正文里的 meta 和卡片无关——除非 `<head>` 里什么都没挖到：那是 `body.rs` 判断要
+        // 接着往下读的时候（YouTube 把 `og:*` 放在 `</head>` 后面），这时候就继续找，还是只看 meta、link
+        // （W-7 补，net.md「怎么走」第 6 条）。
+        if !whole
+            && (name == "/head" || name == "body")
+            && (!head.title.is_empty() || !document_title.is_empty())
+        {
             break;
         }
         if name != "meta" && name != "link" {
@@ -158,6 +171,40 @@ fn extract(html: &str) -> Head {
     head
 }
 
+/// 一个个标签：（小写的标签名，尖括号里面的原文）。没收尾的标签到那儿为止。
+fn tags(html: &str) -> impl Iterator<Item = (String, &str)> {
+    let mut cursor = 0;
+    std::iter::from_fn(move || {
+        let start = cursor + html[cursor..].find('<')?;
+        let length = html[start..].find('>')?;
+        let tag = &html[start + 1..start + length];
+        cursor = start + length + 1;
+        let name = tag
+            .split(|c: char| c.is_whitespace() || c == '/')
+            .next()
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        Some((name, tag))
+    })
+}
+
+/// 整段里第一个 `<tag key="value" …>` 的 `wanted` 那一格：站要的那几样用它找，例如
+/// `first(html, "meta", "itemprop", "duration", "content")`（`net.md`「怎么走」第 12 条）。比法见 [`tag_value`]。
+pub(crate) fn first(html: &str, tag: &str, key: &str, value: &str, wanted: &str) -> Option<String> {
+    tags(html)
+        .filter(|(name, _)| name == tag)
+        .find_map(|(_, raw)| tag_value(raw, key, value, wanted))
+}
+
+/// 一个标签（尖括号里面的原文）的 `key` 是 `value`（不分大小写）的话，交回它 `wanted` 那一格（去掉两头空白，空的
+/// 不算）。不看标签名：调的一方自己看。
+pub(crate) fn tag_value(raw: &str, key: &str, value: &str, wanted: &str) -> Option<String> {
+    let attrs = attributes(raw);
+    let matched = attribute(&attrs, key).is_some_and(|got| got.eq_ignore_ascii_case(value));
+    let got = attribute(&attrs, wanted).map(str::trim).unwrap_or_default();
+    (matched && !got.is_empty()).then(|| got.to_string())
+}
+
 /// 已经有值的不覆盖：同一样东西写了好几遍的，文档里排在前面的算。
 fn fill(slot: &mut String, value: Option<&str>) {
     if !slot.is_empty() {
@@ -175,6 +222,17 @@ fn attribute<'a>(attributes: &'a [(String, String)], name: &str) -> Option<&'a s
         .iter()
         .find(|(key, _)| key == name)
         .map(|(_, value)| value.as_str())
+}
+
+/// 这个 `<meta ...>` 标签（不带尖括号）是不是 `og:title`，内容不空：`body.rs` 边读边判断要不要接着往下读
+/// 时用它（W-7 补，net.md「怎么走」第 6 条）。
+pub(crate) fn meta_is_og_title(tag: &str) -> bool {
+    let attrs = attributes(tag);
+    let key = attribute(&attrs, "property")
+        .or_else(|| attribute(&attrs, "name"))
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    key == "og:title" && attribute(&attrs, "content").is_some_and(|value| !value.trim().is_empty())
 }
 
 /// 一个标签的属性表：键转小写，值解码了常见的实体。引号可有可无，单双都认。
@@ -239,7 +297,7 @@ fn attributes(tag: &str) -> Vec<(String, String)> {
 const ENTITY_WINDOW: usize = 12;
 
 /// 只解常见的几个命名实体和数字实体：页面标题里出现的基本就这些；认不出的原样留着。
-fn decode_entities(value: &str) -> String {
+pub(crate) fn decode_entities(value: &str) -> String {
     if !value.contains('&') {
         return value.to_string();
     }

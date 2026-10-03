@@ -15,16 +15,47 @@
     "max_bytes": 3145728,
     "accept": "image/webp,image/png,image/jpeg,image/gif,image/x-icon,image/*;q=0.8,*/*;q=0.5"
   },
+  "api": {
+    "timeout_seconds": 12,
+    "max_bytes": 2097152,
+    "accept": "application/json"
+  },
   "redirects": 5,
   "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
   "accept_language": "zh-CN,zh;q=0.9,en;q=0.8",
   "clip": {
     "title": 120,
     "description": 300,
-    "site": 60
+    "site": 60,
+    "author": 60
   },
   "clients": {
     "seconds": 120,
     "keep": 32
+  },
+  "sites": {
+    "bilibili": {
+      "hosts": ["bilibili.com"],
+      "short_hosts": ["b23.tv"],
+      "site": "哔哩哔哩",
+      "gone_titles": ["视频去哪了呢？_哔哩哔哩_bilibili"]
+    },
+    "youtube": {
+      "hosts": ["youtube.com", "youtu.be"]
+    },
+    "mediawiki": {
+      "hosts": {
+        "wikipedia.org": "/w/api.php",
+        "wiki.archlinux.org": "/api.php"
+      },
+      "thumbnail": 640
+    }
+  },
+  "challenge": {
+    "titles": ["Just a moment...", "Attention Required! | Cloudflare", "安全检查", "Access denied"],
+    "headers": {
+      "cf-mitigated": "challenge"
+    },
+    "statuses": [403, 503]
   }
 }

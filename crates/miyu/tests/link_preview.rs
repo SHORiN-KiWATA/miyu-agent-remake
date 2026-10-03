@@ -155,6 +155,12 @@ async fn a_card_comes_through_the_proxy_in_the_environment() {
     assert_eq!(card["title"], "Through the proxy", "{reply}");
     assert_eq!(card["url"], "http://198.18.0.1/page");
     assert_eq!(card["site"], "198.18.0.1");
+    // W-7 再补：`kind` 一定写；`duration`、`author` 没有的不写
+    assert_eq!(card["kind"], "page");
+    assert!(
+        card.get("duration").is_none() && card.get("author").is_none(),
+        "{card}"
+    );
     assert_eq!(card["image"]["media_type"], "image/png");
     let blob = card["image"]["blob"]
         .as_str()
