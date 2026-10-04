@@ -43,6 +43,8 @@ pub enum Line<'a> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Run {
+    /// 全屏供应商和模型配置页。
+    Config,
     /// 撤销上一轮（`session.revert`）。
     Revert,
     /// 恢复刚才的撤销（`session.unrevert`）。

@@ -235,6 +235,15 @@
         "ja": "デモ：ダミーの権限確認を発生させて、確認ドロワーを表示する"
       },
       "run": "demo_approve"
+    },
+    {
+      "name": "config",
+      "summary": {
+        "zh": "配置供应商、模型与模型池",
+        "en": "Configure providers, models and model pools",
+        "ja": "プロバイダー、モデル、モデルプールを設定"
+      },
+      "run": "config"
     }
   ]
 }

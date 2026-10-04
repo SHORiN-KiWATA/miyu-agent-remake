@@ -265,7 +265,9 @@ impl App {
             None => format!("/{}", spec.name),
         };
         self.input.remember(Draft::plain(&line));
-        self.view.follow();
+        if spec.run != Run::Config {
+            self.view.follow();
+        }
         match spec.run {
             Run::Revert
             | Run::Unrevert
@@ -302,6 +304,7 @@ impl App {
             Run::Rename => self.rename(words),
             Run::Sessions => self.open_sessions(),
             Run::Model => self.open_models(),
+            Run::Config => self.open_settings(false),
             Run::Effort => self.open_effort(),
             Run::Copy => self.copy_reply(),
             Run::New => self.new_session(),

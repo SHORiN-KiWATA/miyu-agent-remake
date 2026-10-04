@@ -9,6 +9,11 @@ use super::{Command, config};
 /// 这个命令是不是一条不对着会话的请求：方法、参数、回应要不要另外办。不是的交回 `None`。
 pub(super) fn request(command: &Command) -> Option<(&'static str, Value, Option<Awaiting>)> {
     Some(match command {
+        Command::SettingsRpc {
+            tag,
+            method,
+            params,
+        } => (method, params.clone(), Some(Awaiting::SettingsRpc(*tag))),
         Command::ListSessions => ("session.list", json!({}), Some(Awaiting::List)),
         Command::Pin { session, pinned } => (
             "session.set_meta",

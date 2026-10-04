@@ -8,6 +8,13 @@ use crate::transcript::Kind;
 impl App {
     /// 收一条核心那边的消息。撤销成了、排队的消息被退回了，字放回输入框（`tui.md`「输入框」第 7、8 条）。
     pub fn core(&mut self, update: Update) {
+        let mut held = Some(update);
+        if self.settings_update(&mut held) {
+            return;
+        }
+        let Some(update) = held else {
+            return;
+        };
         // 命令的输出：记进任务表，不经正文（`output.rs`）。
         if let Update::Output {
             session,

@@ -24,6 +24,7 @@ mod request;
 mod rpc;
 mod serve;
 mod sessions;
+mod settings;
 mod switch;
 mod undo;
 mod upload;
@@ -48,8 +49,16 @@ pub use sessions::SessionInfo;
 pub use undo::{Report, UndoFile};
 
 /// 界面要核心做的事。
-#[derive(Debug)]
 pub enum Command {
+    /// 配置页的异步 IPC，不对着会话；参数可能带密钥，不写调试输出。
+    SettingsRpc {
+        /// 界面的请求编号。
+        tag: u64,
+        /// 核心协议方法。
+        method: &'static str,
+        /// 原样交给核心的参数。
+        params: serde_json::Value,
+    },
     /// 说一句话，带着附件（本机的文件，发之前先 `blob.put`；蓝图「输入框」第 12 条）。
     Send {
         /// 说的字。
@@ -164,9 +173,35 @@ pub enum Command {
     },
 }
 
+impl std::fmt::Debug for Command {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // 配置参数可能带明文 key；只写意图，不写请求内容。
+        match self {
+            Self::SettingsRpc { tag, method, .. } => f
+                .debug_struct("SettingsRpc")
+                .field("tag", tag)
+                .field("method", method)
+                .finish_non_exhaustive(),
+            _ => f
+                .debug_tuple("Command")
+                .field(&std::mem::discriminant(self))
+                .finish(),
+        }
+    }
+}
+
 /// 核心那边的消息，交给界面。
 #[derive(Debug)]
 pub enum Update {
+    /// 配置页请求的原始回应；拒绝保留核心原话，不另发 Refused。
+    SettingsRpc {
+        /// 界面的请求编号。
+        tag: u64,
+        /// 原始 result 或拒绝/失联原因。
+        result: Result<serde_json::Value, String>,
+    },
+    /// 配置流发生变更或重同步，配置页应重读，保留编辑草稿。
+    SettingsChanged,
     /// 连上了，会话开好了，带着会话编号。
     Ready(String),
     /// 核心没在跑，也没给 `MIYU_CORE_BIN`，拉不起来。
@@ -291,15 +326,33 @@ pub fn spawn(
     resume: Option<String>,
     notify: impl Fn(Update) -> bool + Send + 'static,
 ) -> Core {
+    spawn_mode(reconnect, resume, false, notify)
+}
+
+/// 独立启动配置页的连接；不恢复、读取或订阅任何会话。
+pub fn spawn_config(reconnect: [u64; 2], notify: impl Fn(Update) -> bool + Send + 'static) -> Core {
+    spawn_mode(reconnect, None, true, notify)
+}
+
+fn spawn_mode(
+    reconnect: [u64; 2],
+    resume: Option<String>,
+    config_only: bool,
+    notify: impl Fn(Update) -> bool + Send + 'static,
+) -> Core {
     let (commands, receiver) = mpsc::unbounded_channel();
     thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build();
         match runtime {
-            Ok(runtime) => {
-                runtime.block_on(run(receiver, Backoff::new(reconnect), resume, &notify))
-            }
+            Ok(runtime) => runtime.block_on(run(
+                receiver,
+                Backoff::new(reconnect),
+                resume,
+                config_only,
+                &notify,
+            )),
             Err(e) => {
                 notify(Update::Failed(e.to_string()));
             }
@@ -319,6 +372,7 @@ async fn run(
     mut commands: mpsc::UnboundedReceiver<Command>,
     mut wait: Backoff,
     resume: Option<String>,
+    config_only: bool,
     notify: &impl Fn(Update) -> bool,
 ) {
     // 主会话、另外订阅着的、命令对着哪个：断了重连也记着（`serve.rs`）。
@@ -333,6 +387,7 @@ async fn run(
                     .as_deref()
                     .or(if first { resume.as_deref() } else { None }),
                 first,
+                config_only,
             )
             .await
             {
@@ -379,8 +434,10 @@ async fn run(
 async fn open(
     session: Option<&str>,
     first: bool,
+    config_only: bool,
 ) -> Result<(Rpc, Option<String>, Option<(Limits, Option<Current>)>), Update> {
     let mut rpc = connect().await?;
+    let (session, first) = initial_session(session, first, config_only);
     if first && let Some(id) = session {
         // 先验证指定会话可载入，成功以后统一从头补发；失败留在原 ID，不挑 recent。
         subscribe(&mut rpc, id).await?;
@@ -400,6 +457,15 @@ async fn open(
     };
     let (limits, current) = subscribe(&mut rpc, session).await?;
     Ok((rpc, Some(session.to_string()), Some((limits, current))))
+}
+
+/// 配置启动不读取 recent，不恢复显式会话。
+fn initial_session(session: Option<&str>, first: bool, config_only: bool) -> (Option<&str>, bool) {
+    if config_only {
+        (None, false)
+    } else {
+        (session, first)
+    }
 }
 
 #[cfg(test)]

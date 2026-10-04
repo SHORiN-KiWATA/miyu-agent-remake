@@ -282,6 +282,14 @@ a.step:hover{border-color:var(--primary)}
   </ul>
 </header>
 
+<section class="board" aria-label="TUI 全屏配置页">
+  <h2>TUI 全屏配置页 · 待验收 · 2026-10-04</h2>
+  <p class="sub">供应商和模型、默认文本、默认视觉、自定义模型池共用四分页。对话内 /config 打开；独立 --page config 启动不恢复或创建会话。核心 8-21 到 8-24 后续接入。</p>
+  <svg viewBox="0 0 960 110" role="img" aria-label="启动页面意图交给 TUI，配置经异步接口写入核心">
+    <g fill="none" stroke="currentColor"><rect x="20" y="15" width="250" height="80" rx="8"/><rect x="340" y="15" width="280" height="80" rx="8"/><rect x="690" y="15" width="250" height="80" rx="8"/><path d="M270 55h70m280 0h70"/></g>
+    <g fill="currentColor" text-anchor="middle" font-size="16"><text x="145" y="50">启动参数 / 对话命令</text><text x="145" y="75">--page config / /config</text><text x="480" y="50">同一套四分页</text><text x="480" y="75">个人层草稿 · 掩码密钥</text><text x="815" y="50">核心异步 IPC</text><text x="815" y="75">expect 保存 · secret 引用</text></g>
+  </svg>
+</section>
 <section class="board" aria-label="TUI 预编辑同步刷新">
   <h2>TUI 预编辑同步刷新 · 已验收 · 2026-10-04</h2>
   <p class="sub">2026-10-04 · 准备完整帧以后才发送同步首尾，避免计算过程中露出不含预编辑的旧快照。</p>

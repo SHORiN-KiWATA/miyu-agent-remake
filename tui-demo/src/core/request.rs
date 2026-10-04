@@ -55,7 +55,8 @@ pub(super) fn request(
             }
             ("session.redo", params)
         }
-        Command::New { .. }
+        Command::SettingsRpc { .. }
+        | Command::New { .. }
         | Command::Watch(_)
         | Command::Unwatch(_)
         | Command::View(_)

@@ -47,6 +47,8 @@ pub use words::{JobTexts, ModelTexts, RecapTexts, RenameTexts, UndoFileTexts};
 /// 界面上给人看的字。`{count}` 这样的占位由代码填。
 #[derive(Debug, Clone, Deserialize)]
 pub struct Texts {
+    /// 全屏配置页的字段、分页和提示，三种语言使用同一组键。
+    pub settings: std::collections::HashMap<String, String>,
     /// 输入框空着时轮换的提示（蓝图「输入框」第 9 条）。
     pub tips: Vec<String>,
     /// 回答里 Markdown 要写的几个字（蓝图「她的回答：Markdown」第 12、15 条）。

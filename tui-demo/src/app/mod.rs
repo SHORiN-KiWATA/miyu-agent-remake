@@ -22,6 +22,7 @@ mod paste;
 mod redo;
 mod session;
 mod sessions;
+mod settings;
 mod switch;
 mod takeback;
 mod updates;
@@ -86,6 +87,8 @@ struct Unsent {
 
 /// 整个程序的状态。
 pub struct App {
+    /// 全屏配置页，开关不改变会话和聊天草稿。
+    pub settings: Option<crate::settings::Settings>,
     /// 界面上的字和布局的数值。
     pub config: Config,
     /// 系统通知、报给 herdr（蓝图「系统通知」）。
@@ -253,6 +256,7 @@ impl App {
         // 界面一开就报空闲：herdr 侧栏上马上看得到（「系统通知」第 6 条）。
         notifier.state(crate::notify::State::Idle);
         Self {
+            settings: None,
             config,
             notifier,
             input,
@@ -350,6 +354,9 @@ impl App {
 
     /// 处理一个终端事件。
     pub fn handle(&mut self, event: Event) {
+        if self.settings_event(&event) {
+            return;
+        }
         // 有人按键、动鼠标、粘贴：吉祥物停下待机的晃（`tui.md`「空会话的首页」第 8 条）。
         if matches!(event, Event::Key(_) | Event::Mouse(_) | Event::Paste(_)) {
             self.idle.poke(Instant::now());

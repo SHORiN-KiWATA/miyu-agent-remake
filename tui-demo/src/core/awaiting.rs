@@ -3,6 +3,8 @@
 /// 等着回应、回应要另外办的请求（记着请求的编号）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Awaiting {
+    /// 配置页请求：保留界面编号，回应原样返回。
+    SettingsRpc(u64),
     /// 撤销：回应里给人看的几样交给界面。
     Revert,
     /// 恢复：同上。

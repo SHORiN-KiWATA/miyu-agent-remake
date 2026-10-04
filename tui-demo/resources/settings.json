@@ -1,0 +1,18 @@
+{
+  "drivers": [
+    "",
+    "openai-chat",
+    "anthropic",
+    "openai-responses"
+  ],
+  "inputs": [
+    "text",
+    "image",
+    "pdf"
+  ],
+  "strategies": [
+    "pin",
+    "rotate"
+  ],
+  "identifier_max": 32
+}

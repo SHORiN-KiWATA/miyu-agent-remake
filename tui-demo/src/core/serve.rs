@@ -53,8 +53,23 @@ pub(super) async fn serve(
     commands: &mut mpsc::UnboundedReceiver<Command>,
     notify: &impl Fn(Update) -> bool,
 ) -> Served {
+    let mut awaiting = HashMap::new();
+    let outcome = connected(rpc, link, commands, &mut awaiting, notify).await;
+    if matches!(outcome, Served::Lost) {
+        super::settings::lost(&mut awaiting, notify);
+    }
+    outcome
+}
+
+/// 一条连接内的收发；等待表交给外层，失联时统一结束设置请求。
+async fn connected(
+    rpc: &mut Rpc,
+    link: &mut Link,
+    commands: &mut mpsc::UnboundedReceiver<Command>,
+    awaiting: &mut HashMap<String, Awaiting>,
+    notify: &impl Fn(Update) -> bool,
+) -> Served {
     let cwd = cwd();
-    let mut awaiting: HashMap<String, Awaiting> = HashMap::new();
     // 订阅配置流、读一次界面语言（「界面语言」）。
     match config::follow(rpc).await {
         Ok(id) => awaiting.insert(id, Awaiting::UiLanguage),
@@ -88,13 +103,19 @@ pub(super) async fn serve(
                                 awaiting.insert(id, kind);
                             }
                         }
-                        Err(_) => return Served::Lost,
+                        Err(_) => {
+                            if let Some(Awaiting::SettingsRpc(tag)) = kind
+                                && !notify(super::settings::disconnected(tag)) {
+                                return Served::Quit;
+                            }
+                            return Served::Lost;
+                        }
                     }
                     continue;
                 }
                 // 读一个 blob：一段段读，读完存成文件（`links.rs`）。
                 if let Command::FetchBlob(blob) = &command {
-                    if super::links::fetch(rpc, blob, &mut awaiting).await.is_err() {
+                    if super::links::fetch(rpc, blob, awaiting).await.is_err() {
                         return Served::Lost;
                     }
                     continue;
@@ -214,7 +235,7 @@ pub(super) async fn serve(
             }
             message = rpc.next() => {
                 let Some(message) = message else { return Served::Lost };
-                if !take(rpc, link, &message, &mut awaiting, notify).await {
+                if !take(rpc, link, &message, awaiting, notify).await {
                     return Served::Quit;
                 }
             }
@@ -321,6 +342,9 @@ async fn take(
     notify: &impl Fn(Update) -> bool,
 ) -> bool {
     let kind = message["id"].as_str().and_then(|id| awaiting.remove(id));
+    if let Some(Awaiting::SettingsRpc(tag)) = kind {
+        return notify(super::settings::reply(tag, message));
+    }
     if let Some(error) = message.get("error") {
         let reason = error["data"]["reason"].as_str().map(str::to_string);
         let message = error["message"].as_str().unwrap_or_default().to_string();
@@ -436,6 +460,7 @@ async fn take(
                 notify(Update::Elsewhere { session, update })
             });
         }
+        Some(Awaiting::SettingsRpc(_)) => unreachable!("settings responses handled above"),
         None => {}
     }
     // 掉队后重新订阅主会话的回应：限额照样带着，照它更新（核心重启以后载入的也是这样）。
@@ -444,6 +469,11 @@ async fn take(
     }
     // 配置流：动了界面语言的再读一次最终值；掉了队重新订阅、再读一次（「界面语言」）。
     let params = &message["params"];
+    let settings_changed = message["method"] == "config.changed"
+        || (message["method"] == "resync" && params["stream"] == "config");
+    if settings_changed && !notify(Update::SettingsChanged) {
+        return false;
+    }
     let reread = match message["method"].as_str() {
         Some("config.changed") => config::touches_language(params),
         Some("resync") => params["stream"] == "config",

@@ -231,7 +231,9 @@ impl Transcript {
             | Update::Renamed(_)
             | Update::Sessions(_)
             | Update::UiLanguage(_)
-            | Update::Human(_) => {}
+            | Update::Human(_)
+            | Update::SettingsRpc { .. }
+            | Update::SettingsChanged => {}
             Update::CoolingUntil(until) => self.cooling_until(until),
             Update::CurrentModel(current) => self.current_model(current),
             Update::Configured(reference) => self.configured(reference),
