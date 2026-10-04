@@ -10,7 +10,7 @@
 
 | 桥现在干的 | 以后谁干 | 协议上叫什么 | 步 |
 |---|---|---|---|
-| 1. 页面文件、WebSocket、访问口令、核对 Origin | 网页软件；身份由核心验：第一次用一次性码建管理员账号，以后用户名和密码登录 | 随用户系统定 | W-8、W-9 |
+| 1. 页面文件、WebSocket、访问口令、核对 Origin | 网页软件；身份由核心验：第一次用一次性码给管理员设用户名和密码，以后用它们登录 | 握手的 `code`、`user`、`password`、`login`，`account.setup_code`、`account.setup`、`account.logout` | W-8、W-9 |
 | 2. `web.human` 给人看的字 | 核心 | `human.get` | W-1 |
 | 3. `web.info`、`web.realpath` | 核心 | 握手回应的 `host`，`fs.realpath` | W-3 |
 | 4. `/file`、`/blob` | 内容由核心给，地址由网页软件给 | `blob.get`、`fs.read`；网页软件的 `/media` | W-6、W-10 |
@@ -20,10 +20,10 @@
 | 8. `web.files` | 核心 | `fs.list`、`fs.find` | W-2 |
 | 9. 核心没在跑时拉起它 | 网页软件，照别的头 | 无 | W-9 |
 
-状态：图纸，2026-10-01 项目主人批准。「网页界面是一个软件，网页的东西不放进核心」是项目主人 2026-10-01 定的，重开了设计 04 的 P5（末尾「要改的设计」）；「画 mermaid 在核心里，做成可选的软件包」也是同一天项目主人定的。技术细节照推荐定了，写在末尾「起草时定的」；项目主人拍板的六题单列一节。施工步子 W-1 到 W-11，W 是和 M8 并行的一条线，不占里程碑的号。W-1 做好了：`human.get`（`crates/miyu-endpoint/src/human.rs`、`crates/miyu-store/src/human.rs` 交出模板原文，`crates/miyu-endpoint/tests/human.rs`）。 W-2 做好了：`fs.list`、`fs.find`（`crates/miyu-fs/src/list.rs`、`find.rs`；`crates/miyu-endpoint/src/files.rs`、`files/cache.rs`；`crates/miyu-fs/src/list/tests.rs`、`find/tests.rs`；`crates/miyu-endpoint/tests/files.rs`）。W-3 做好了：握手回应的 `host`、`fs.realpath`（`crates/miyu-endpoint/src/hello.rs`、`files.rs`；`crates/miyu-endpoint/tests/hello.rs`）；施工时发现「从最近在的一层换成真实的位置」这段逻辑 4-3 就有了（`crates/miyu-fs/src/resolve.rs` 的 `resolve()`），没有新开 `real.rs`，改成直接复用它（「在哪」「起草时定的」第 38 条）。W-5 做好了：`blob.open`、`blob.write`、`blob.close`（`crates/miyu-endpoint/src/uploads.rs`，和 `attach.rs` 共用认是什么、文件名和媒体类型怎么查、存好了怎么拼回应这几样；`crates/miyu-store/src/blob.rs` 多分块暂存、改名进位置、扔掉、起来时清；`crates/miyu-core/src/packages.rs` 多 `clear_uploads`；`crates/miyu-endpoint/tests/uploads.rs`、`crates/miyu-core/tests/packages.rs`）。W-6 做好了：`blob.get`、`fs.read`（`crates/miyu-fs/src/range.rs` 新开的安全地打开以后读一段，`blob.get`、`fs.read` 共用；`crates/miyu-store/src/blob.rs` 多 `Blobs::read_range`；`crates/miyu-endpoint/src/attach.rs` 的 `get`、`files.rs` 的 `read`；`crates/miyu-fs/src/range/tests.rs`、`crates/miyu-endpoint/tests/reads.rs`）。W-7 做好了：`link.preview`（可选软件包 `net`、crate `miyu-net`，细节搬到 `net.md`；在后台答的查询 `crates/miyu-endpoint/src/queries.rs` 的 `register_background`、`connection.rs`；`crates/miyu-core/src/packages/net.rs`；`crates/miyu-net/src/guard/tests.rs`、`html/tests.rs`、`tests/preview.rs`、`tests/proxy.rs`、`crates/miyu/tests/link_preview.rs`）。
+状态：图纸，2026-10-01 项目主人批准；W-8（第一条）2026-10-04 照项目主人定的重画，项目主人同一天批准。「网页界面是一个软件，网页的东西不放进核心」是项目主人 2026-10-01 定的，重开了设计 04 的 P5（末尾「要改的设计」）；「画 mermaid 在核心里，做成可选的软件包」也是同一天项目主人定的。技术细节照推荐定了，写在末尾「起草时定的」；项目主人拍板的六题单列一节。施工步子 W-1 到 W-11，W 是和 M8 并行的一条线，不占里程碑的号。W-1 做好了：`human.get`（`crates/miyu-endpoint/src/human.rs`、`crates/miyu-store/src/human.rs` 交出模板原文，`crates/miyu-endpoint/tests/human.rs`）。 W-2 做好了：`fs.list`、`fs.find`（`crates/miyu-fs/src/list.rs`、`find.rs`；`crates/miyu-endpoint/src/files.rs`、`files/cache.rs`；`crates/miyu-fs/src/list/tests.rs`、`find/tests.rs`；`crates/miyu-endpoint/tests/files.rs`）。W-3 做好了：握手回应的 `host`、`fs.realpath`（`crates/miyu-endpoint/src/hello.rs`、`files.rs`；`crates/miyu-endpoint/tests/hello.rs`）；施工时发现「从最近在的一层换成真实的位置」这段逻辑 4-3 就有了（`crates/miyu-fs/src/resolve.rs` 的 `resolve()`），没有新开 `real.rs`，改成直接复用它（「在哪」「起草时定的」第 38 条）。W-5 做好了：`blob.open`、`blob.write`、`blob.close`（`crates/miyu-endpoint/src/uploads.rs`，和 `attach.rs` 共用认是什么、文件名和媒体类型怎么查、存好了怎么拼回应这几样；`crates/miyu-store/src/blob.rs` 多分块暂存、改名进位置、扔掉、起来时清；`crates/miyu-core/src/packages.rs` 多 `clear_uploads`；`crates/miyu-endpoint/tests/uploads.rs`、`crates/miyu-core/tests/packages.rs`）。W-6 做好了：`blob.get`、`fs.read`（`crates/miyu-fs/src/range.rs` 新开的安全地打开以后读一段，`blob.get`、`fs.read` 共用；`crates/miyu-store/src/blob.rs` 多 `Blobs::read_range`；`crates/miyu-endpoint/src/attach.rs` 的 `get`、`files.rs` 的 `read`；`crates/miyu-fs/src/range/tests.rs`、`crates/miyu-endpoint/tests/reads.rs`）。W-7 做好了：`link.preview`（可选软件包 `net`、crate `miyu-net`，细节搬到 `net.md`；在后台答的查询 `crates/miyu-endpoint/src/queries.rs` 的 `register_background`、`connection.rs`；`crates/miyu-core/src/packages/net.rs`；`crates/miyu-net/src/guard/tests.rs`、`html/tests.rs`、`tests/preview.rs`、`tests/proxy.rs`、`crates/miyu/tests/link_preview.rs`）。 W-8 做好了：身份的核心这一半（`crates/miyu-endpoint/src/login.rs`、`login/files.rs`，握手 `hello.rs`、连接 `connection.rs`；`crates/miyu-store/src/accounts.rs`、`logins.rs`；`crates/miyu-ipc` 的 `connect_bare`、`connect_or_start_bare`；`crates/miyu-endpoint/tests/login.rs`、`login_log.rs`，`crates/miyu-ipc/tests/bare.rs`），`miyu web` 随 W-9。
 
 - W-1 到 W-7（核心的通用方法）现在就做，和 M8 并行。
-- W-8 到 W-11（身份、网页软件、媒体地址、打包）等用户系统：项目主人要的是第一次用一次性码进网页、建管理员账号，码当场作废，以后用用户名和密码登录（第 1、3 题）。用户系统照约定 M8 做完以后专门过一遍（「多用户、多终端」那次讨论），这几步的细节那时重画。这一页第一条、第十一条和 W-8 那几行写的是起草时的样子，只当参考；第九条、第十条的大部分不受影响。
+- W-8（身份）2026-10-04 照项目主人定的重画（第一条）：只有一个账号 `admin`，网页第一次用本机终端给的一次性码进来、设登录用的用户名和密码，以后用它们登录；成员随多用户那一段。W-9 到 W-11（网页软件、媒体地址、打包）在 W-8 以后，第十一条的 `miyu web` 跟着第一条改了。
 - 在那之前网页照旧用桥，桥的活随 W-1 到 W-7 一样样挪进核心。
 
 ### 在哪
@@ -40,10 +40,13 @@
 | `crates/miyu-endpoint/src/uploads.rs` | `blob.open`、`blob.write`、`blob.close`：跟着连接走的上传表、60 秒不写作废 | W-5 |
 | `crates/miyu-endpoint/src/attach.rs` | `blob.put` 认是什么、上限，挪成和分块上传共用的一份（W-5）；`blob.get`（W-6） | W-5、W-6 |
 | `crates/miyu-endpoint/src/queries.rs` | 可选软件包登记的查询：方法名到怎么答的一张表 | W-4 |
-| `crates/miyu-endpoint/src/login.rs`、`login/` | 登录码、登录令牌、`account.login_code`、`account.logout`，用登录令牌连着的连接 | W-8 |
+| `crates/miyu-endpoint/src/login.rs`、`login/` | 一次性码、设密码、密码登录和限流、登录令牌，`account.setup_code`、`account.setup`、`account.logout`，握手认四种凭据，用一次性码连着的只能设密码 | W-8 |
 | `crates/miyu-store/src/human.rs` | 交出模板的原文，不只是换好的字 | W-1 |
 | `crates/miyu-store/src/blob.rs` | 分块暂存、改名进位置；读一段 | W-5、W-6 |
 | `crates/miyu-store/src/logins.rs` | `home/<账号>/logins.json`：读、写、删过期的 | W-8 |
+| `crates/miyu-store/src/accounts.rs`、`private_json.rs` | `system/accounts.json`：用户名、argon2id 的密码哈希；读、写。只给自己看的 JSON 小文件读写共用 `private_json.rs` | W-8 |
+| `crates/miyu-endpoint/src/login/files.rs` | 凭据文件怎么读、改、写，坏了的当空的、照现在的字节盖掉；系统日志的 `account.password_set` | W-8 |
+| `crates/miyu-endpoint/src/refusal/message.rs` | 拒绝时给人看的话，从 `refusal.rs` 挪出来（W-8 时过了 500 行） | W-8 |
 | `crates/miyu-fs/src/list.rs`、`find.rs` | 列一层；建清单、打分 | W-2 |
 | `crates/miyu-fs/src/resolve.rs` | 从最近一层在的目录换成真实的位置：`resolve()`，4-3 就有了，`fs.realpath` 直接复用，没有新开文件（「起草时定的」第 38 条） | W-3 |
 | `crates/miyu-fs/src/range.rs` | 安全地打开以后读一段 | W-6 |
@@ -63,7 +66,7 @@
 | `crates/miyu-web/`（新，第 5 层，头） | 程序 `miyu-web` | W-9 |
 | `crates/miyu-web/src/main.rs` | 子命令 `open`、`serve` | W-9 |
 | `crates/miyu-web/src/open.rs` | 确保 `serve` 在跑；第一次没有管理员账号的，照终端的样子出示本机令牌要一次性码；开浏览器 | W-9 |
-| `crates/miyu-web/src/serve.rs` | 单实例、听端口、写那一行、空闲退出、清过期的跳转页 | W-9 |
+| `crates/miyu-web/src/serve.rs` | 单实例、听端口、写那一行、空闲退出 | W-9 |
 | `crates/miyu-web/src/pages.rs` | 页面文件、响应头 | W-9 |
 | `crates/miyu-web/src/ws.rs` | 核对 Host、Origin；WebSocket 和核心连接两头照转 | W-9 |
 | `crates/miyu-web/src/media.rs`、`media/tickets.rs` | `POST /media` 换票据，`GET /media/<票据>` 分段给 | W-10 |
@@ -92,25 +95,28 @@
 | `blob.get` | 分块读这个账号的一个 blob | 都能 | W-6 |
 | `fs.read` | 分块读本机的一份文件 | 都能 | W-6 |
 | `link.preview` | 一个链接的卡片。编进了 `net` 包才有 | 都能 | W-7 |
-| `account.login_code` | 要一个一次性登录码 | 只有出示本机令牌连上的 | W-8 |
+| `account.setup_code` | 要一个一次性码：第一次建账号、忘了密码重设 | 只有出示本机令牌连上的 | W-8 |
+| `account.setup` | 设登录用的用户名和密码，换一个登录令牌 | 只有用一次性码连上的 | W-8 |
 | `account.logout` | 作废登录令牌 | 都能 | W-8 |
 
 #### 握手多的
 
-参数（W-8）：`token`、`code`、`login` 正好写一个。
+参数（W-8）：凭据正好写一种：`token`、`code`、`login`，或者 `user` 加 `password`。
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | `token` | 字符串 | 本机令牌，照旧（`ipc.md`） |
-| `code` | 字符串 | 一次性登录码：64 位小写十六进制 |
+| `code` | 字符串 | 一次性码：64 位小写十六进制 |
 | `login` | 字符串 | 登录令牌：64 位小写十六进制 |
+| `user`、`password` | 字符串 | 登录用的用户名、密码 |
 
 回应多两格：
 
 | 格 | 值 | 步 |
 |---|---|---|
 | `host` | `{"home": <系统的家目录>, "platform": "linux" 或 "macos" 或 "windows", "workspace": <这个账号的工作区>}`，总有 | W-3 |
-| `login` | `{"expires": <时刻>, "token": <登录令牌>}`：只在用登录码握手时有 | W-8 |
+| `login` | `{"expires": <时刻>, "token": <登录令牌>}`：只在用密码握手时有（用一次性码的在 `account.setup` 的回应里） | W-8 |
+| `setup` | `true`：用一次性码连上的，只能设密码 | W-8 |
 
 ```json
 {"id":"h1","jsonrpc":"2.0","result":{"account":"admin","core":{"version":"0.1.0"},"host":{"home":"<家目录>","platform":"macos","workspace":"<家目录>/.miyu/home/admin/workspace"},"language":"zh","login":{"expires":"2026-10-31T06:00:00.000Z","token":"9f…"},"protocol":1,"sandbox":{"usable":true}}}
@@ -175,7 +181,9 @@
 - `why`：`not_a_url`（读不成地址）、`unsupported_scheme`（不是 http、https）、`no_preview`（不是网页、没有标题、地址过不了闸、跳转太多，下次也一样）、`unreachable`（超时、连不上、对方回 4xx、5xx，过会儿可能就好了）。做不出卡片是正常的结果之一，不是出错。
 - 细节（地址闸、代理、在后台答）见 `net.md`。
 
-**`account.login_code`**（W-8）：没有参数。回应 `{"code": <登录码>, "expires": <时刻>}`。
+**`account.setup_code`**（W-8）：没有参数。回应 `{"code": <一次性码>, "expires": <时刻>, "first": <还没设过密码>}`。
+
+**`account.setup`**（W-8）：`username`、`password`，都是字符串。回应 `{"username": …, "login": {"expires": <时刻>, "token": <登录令牌>}}`。
 
 **`account.logout`**（W-8）：`all` 布尔，不写是 `false`。回应 `{"revoked": <作废了几个>}`。
 
@@ -185,10 +193,11 @@
 
 | 命令 | 做什么 |
 |---|---|
-| `miyu web` | 打开网页：确保网页软件在跑，要一个登录码，开浏览器 |
-| `miyu web --print` | 不开浏览器，印出带登录码的网址，人自己开 |
+| `miyu web` | 打开网页：确保网页软件在跑，开浏览器。还没设过密码的，先要一个一次性码，带着它开 |
+| `miyu web --reset` | 忘了密码：要一个一次性码带着它开浏览器，重设用户名和密码；设好了以前的浏览器登录全部作废 |
+| `miyu web --print` | 不开浏览器，印出网址（要一次性码的连码一起），人自己开 |
 | `miyu web --port <端口>` | 网页软件这一次在哪个端口上听；`0` 是随便挑一个空的 |
-| `miyu web --logout` | 作废这个账号全部的登录令牌：所有浏览器都要再 `miyu web` |
+| `miyu web --logout` | 作废这个账号全部的登录令牌：所有浏览器都要用密码再登一次 |
 | `miyu-web open …`、`miyu-web serve` | `miyu web` 交给的程序本身；`serve` 是 `open` 拉起来的，不写进帮助 |
 
 HTTP（W-9、W-10）：
@@ -206,52 +215,49 @@ HTTP（W-9、W-10）：
 |---|---|---|
 | `run/web.lock` | 空文件，网页软件的单实例锁在它上面 | 网页软件 |
 | `run/web` | 一行：网页的地址，`http://127.0.0.1:<端口>` | 网页软件，每次起来 |
-| `run/web-open-<16 位十六进制>.html` | 跳转页：带着登录码跳到网页；Unix 上 0600；5 分钟后删 | `miyu-web open` |
 | `home/<账号>/logins.json` | 登录令牌的哈希、什么时候造的、什么时候过期（W-8） | 核心 |
+| `system/accounts.json` | 登录用的用户名、argon2id 的密码哈希（W-8） | 核心 |
 
 ### 怎么走
 
-**一、身份：本机的浏览器怎么进来**（W-8，随用户系统重画）
+**一、身份：本机的浏览器怎么进来**（W-8，2026-10-04 照项目主人定的重画，项目主人同一天批准）
 
-项目主人 2026-10-01 定的方向：
+项目主人 2026-10-01 定的方向（第 1 到 3 题），2026-10-04 定的细节：
 
-- 身份由核心验，网页软件只转发、不读本机令牌（第 1 题）。
-- 第一次：`miyu web` 给一个一次性码（命令行里出现就出现，它只用一次），进网页是一个引导，建管理员账号（用户名、密码）；建好了码当场作废（第 1、3 题）。
-- 以后：用用户名和密码登录，浏览器记住 30 天（第 2 题）。
-- 本机的头（终端界面、`miyu ask`）照旧用本机令牌。
-
-带进用户系统那次讨论的：管理员账号和现在的 `admin` 账号是不是同一个；密码照设计 06 U4（argon2id、失败限流）；忘了密码怎么从本机终端重设；`miyu web --logout` 还要不要。
-
-下面是起草时的样子（登录码换登录令牌、跳转页），只当参考：
+- 只有一个账号 `admin`，编号、家目录 `home/admin/` 不变（设计 06 U13）。网页第一次进来，是给 `admin` 设登录用的用户名和密码；用户名只用来登录，默认 `admin`，日志、家目录里照旧是 `admin`。成员（编号就是用户名）随多用户那一段。
+- 本机的头（终端界面、`miyu ask`）照旧出示本机令牌，就是 `admin`。网页登录的也是 `admin`：两边看到的是同一批会话。
+- 一次性码只从本机的终端来（`miyu web`）：第一次建、忘了密码重设，都用它；用过就作废，在命令行里出现没关系（第 3 题）。
+- 以后用用户名和密码登录，浏览器记住 30 天（第 2 题）。密码用 argon2id（设计 06 U4，依赖加 `argon2`）。
+- `miyu web --logout` 要：在本机作废全部浏览器的登录。
 
 ```mermaid
 sequenceDiagram
     participant T as miyu web
     participant C as 核心
-    participant W as 网页软件
-    participant B as 浏览器
+    participant B as 浏览器（经网页软件照转）
     T->>C: hello（本机令牌）
-    T->>C: account.login_code
-    C-->>T: 登录码，5 分钟、一次
-    T->>B: 打开数据根里的跳转页（命令行里只有它的路径）
-    B->>W: GET /（跳转到 #code=登录码）
-    B->>W: WebSocket /ws（核对 Host、Origin）
-    W->>C: 连核心，不带本机令牌
-    B->>C: hello（登录码），网页软件照转
-    C-->>B: 回应带登录令牌，30 天
-    Note over B: 以后握手出示登录令牌
+    T->>C: account.setup_code
+    C-->>T: 一次性码，5 分钟
+    T->>B: 打开 <地址>/#setup=<码>
+    B->>C: hello（code）
+    C-->>B: setup: true，只能设密码
+    B->>C: account.setup（用户名、密码）
+    C-->>B: 登录令牌，30 天
+    Note over B: 以后握手出示登录令牌；过期了用用户名、密码
 ```
 
-1. 本机令牌只给本机的头：终端界面、`miyu ask`，还有 `miyu-web open` 要登录码的那一下，都照终端的样子出示它（`ipc.md`）。网页软件转发浏览器的那些连接不读、不出示本机令牌：它用 `connect_bare` 连核心，那条路不读 `run/token`。
-2. `account.login_code`：只给出示本机令牌连上的连接，别的回 `local_only`。登录码是 32 个系统给的随机字节，写成 64 位小写十六进制；5 分钟内有效、只能用一次（设计 21 X6）；只在核心的内存里，核心重启全部作废；同时最多 16 个，多了丢掉最早的。
-3. 握手带 `code`：在内存里、没过期，这个连接就是要它的那个账号；登录码当场作废。接着造一个登录令牌（32 个随机字节，64 位小写十六进制），把它的 SHA-256 和造的时刻、过期的时刻（30 天后，设计 06 U4）写进 `home/<账号>/logins.json`，落了盘才回应，回应带 `login`。对不上、过期了、用过了：`bad_code`，回完断开。
-4. 握手带 `login`：它的 SHA-256 在这个账号的 `logins.json` 里、没过期，这个连接就是这个账号。对不上、过期了、作废了：`bad_login`，回完断开。查的时候照哈希找，不逐字节比原文：哈希是 32 个随机字节算出来的，比的快慢透露不了什么。
-5. 三个都没写：`bad_token`，照旧。写了不止一个：`bad_params`，回完断开。
-6. 用登录码、登录令牌连上的，和出示本机令牌的一样是这个账号，命令照账号判（设计 06）。只差一样：不能要登录码。浏览器拿到登录令牌也换不出新的登录码，登录码只能从本机的终端来。
-7. `account.logout`：用登录令牌连上的，`all` 不写，作废这一个，回完断开这个连接；`all` 写 `true`，作废这个账号全部的登录令牌，断开所有用登录令牌连着的连接（这个连接回完再断）。出示本机令牌的只能写 `all: true`，不然 `bad_params`。作废就是从 `logins.json` 里删掉那一行。
-8. `logins.json` 的写法：`{"version":1,"tokens":[{"created":<时刻>,"expires":<时刻>,"hash":"sha256:<64 位>"}]}`，照写配置文件的办法（`crates/miyu-store/src/config_file.rs`）先写临时文件再改名，Unix 上 0600。每次写都把过期的删掉；最多 64 行，多了删最早造的。读不了、坏了：当是空的，记一行 `WARN logins not read`，用登录令牌的都进不来，再 `miyu web` 一次就是。
-9. 登录码、登录令牌一个字都不进运行日志。握手过了记 `INFO connected head=… version=… protocol=1 via=token`（`code`、`login`）。
-10. 别的进程（包括沙盒里的命令）连上核心的套接字、网页软件的端口，都没有凭据：本机令牌、`logins.json` 在数据根里，沙盒读不到（设计 11 第五节）；登录码不进命令行（第十一条第 4 款）；登录令牌只在浏览器里，和网页软件转发、换票据时的内存里（第十条第 2 款），不落盘。
+1. **凭据放在哪**：`system/accounts.json`（照 Linux 的 `/etc/shadow`）：`{"version":1,"accounts":[{"id":"admin","username":<用户名>,"password":"$argon2id$v=19$m=19456,t=2,p=1$…","changed":<时刻>}]}`。照写配置文件的办法（`crates/miyu-store/src/config_file.rs`）先写临时文件再改名，Unix 上 0600。没有这个文件、没有 `admin` 那一行：还没设密码。读不了、坏了：当是没设，记一行 `WARN accounts not read`，只有一次性码进得来。
+2. **`account.setup_code`**：只给出示本机令牌连上的连接，别的回 `local_only`。码是 32 个系统给的随机字节，写成 64 位小写十六进制；5 分钟内有效（设计 21 X6）；只在核心的内存里，核心重启全部作废；同时最多 16 个，多了丢掉最早的。回应 `{"code": …, "expires": …, "first": <还没设过密码>}`，`miyu web` 照 `first` 说「建账号」还是「重设密码」。
+3. **握手带 `code`**：在内存里、没过期，当场作废，这个连接是 `admin`，回应多 `"setup": true`。这样的连接只能调 `hello`、`human.get`（页面要字）、`account.setup`，别的回 `setup_first`。对不上、过期了、用过了：`bad_code`，回完断开。页面中途刷新了：码已经用掉，再运行一次 `miyu web`。
+4. **`account.setup`**：参数 `username`、`password`。用户名照「路径里的名字」的写法（`kernel/ids.md`：小写字母开头，只有小写字母、数字、`-`、`_`，最长 32 个字符）；密码 8 到 1024 个字节，不能全是空白。不合的 `bad_params`，连接照旧是设密码的样子，可以再来。合了：在阻塞线程里算 argon2id，写 `accounts.json`，作废这个账号全部的登录令牌（重设的时候把以前的浏览器都踢出去），造一个新的登录令牌（第 7 条）。落了盘才回应 `{"username": …, "login": {"expires": …, "token": …}}`，这个连接从此是完整的 `admin`。系统日志记一条 `account.password_set`（`by` 是 `admin`，不带用户名以外的东西）。
+5. **握手带 `user`、`password`**：用户名对上 `accounts.json` 里的、密码验得过（阻塞线程里验）：这个连接是那个账号，回应带新造的登录令牌 `login`。对不上（用户名不对和密码不对一样说）：`bad_password`，回完断开。同一个用户名 60 秒内错 5 次，这 60 秒里剩下的都回 `login_throttled`（`data.retry_after_ms`），连密码都不验（设计 06 U4 的初值，策略数据）。计数只在内存里。现在只有本机的浏览器经网页软件进来，看不到来源，按用户名数；远程访问做的时候再加按来源。
+6. **握手带 `login`**：登录令牌的 SHA-256 在这个账号的 `home/admin/logins.json` 里、没过期，这个连接就是这个账号。对不上、过期了、作废了：`bad_login`，回完断开，页面改问用户名、密码。查的时候照哈希找，不逐字节比原文。
+7. **登录令牌**：32 个随机字节，64 位小写十六进制，30 天（设计 06 U4）。`logins.json` 的写法：`{"version":1,"tokens":[{"created":<时刻>,"expires":<时刻>,"hash":"sha256:<64 位>"}]}`，先写临时文件再改名，Unix 上 0600。每次写都把过期的删掉；最多 64 行，多了删最早造的。读不了、坏了：当是空的，记一行 `WARN logins not read`，用登录令牌的都进不来，用密码再登一次就是。
+8. **凭据只能写一种**：`token`、`code`、`login`、`user` 加 `password`。都没写：`bad_token`，照旧。写了不止一种、`user` 和 `password` 只写了一个：`bad_params`，回完断开。
+9. 用一次性码、密码、登录令牌连上的，和出示本机令牌的一样是 `admin`，命令照账号判（设计 06）。只差一样：不能要一次性码。浏览器拿到登录令牌、知道密码，也换不出一次性码，一次性码只能从本机的终端来。
+10. **`account.logout`**：用登录令牌连上的，`all` 不写，作废这一个，回完断开这个连接；`all` 写 `true`，作废这个账号全部的登录令牌，断开所有用登录令牌、密码连着的连接（这个连接回完再断）。出示本机令牌的只能写 `all: true`，不然 `bad_params`。作废就是从 `logins.json` 里删掉那一行。密码不动。
+11. 一次性码、密码、登录令牌一个字都不进运行日志。握手过了记 `INFO connected head=… version=… protocol=1 via=token`（`code`、`password`、`login`）。
+12. 别的进程（包括沙盒里的命令）连上核心的套接字、网页软件的端口，都没有凭据：本机令牌、`accounts.json`、`logins.json` 在数据根里，沙盒读不到（设计 11 第五节）；一次性码只在终端里印出、5 分钟、用一次；登录令牌只在浏览器里，和网页软件转发、换票据时的内存里（第十条第 2 款），不落盘。
 
 **二、给人看的字**（`human.get`，W-1）
 
@@ -316,7 +322,7 @@ sequenceDiagram
 7. `GET /ws`：Origin 要正好是 `http://` 加上第 4 款三种之一（带端口），不然 403。接了以后连核心：`connect_or_start_bare`，核心没在跑就拉起来（命令是主程序 `miyu` 加 `core`，主程序在 `miyu-web` 的真实位置旁边）。连不上：往 WebSocket 发一条通知 `{"jsonrpc":"2.0","method":"web.error","params":{"message":<原因>}}`，再关。
 8. 一个标签页一条核心连接，不合并（proto/web-demo 分支 `docs/blueprint/web/architecture.md`「多用户、多终端」第 7 条）。两头照转：文字帧加一个 `\n` 是一行，一行去掉 `\n` 是一个文字帧。不读、不改、不加：握手的凭据、命令、推送原样过去。二进制帧：关，1003。一帧超过 1 MiB：关，1009（核心那头一行也就这么长）。
 9. 一头断了另一头跟着关。核心那头断了（重启、退出）：WebSocket 关，1012，页面照自己的规矩重连（proto/web-demo 分支 `docs/blueprint/web.md`「连核心」第 1 条）。
-10. 运行日志 `state/logs/web.log`，满了照核心的换法（`log.md`）。只记连上、断开、出错，不记一行的内容、登录码、登录令牌、票据。
+10. 运行日志 `state/logs/web.log`，满了照核心的换法（`log.md`）。只记连上、断开、出错，不记一行的内容、一次性码、密码、登录令牌、票据。
 
 **十、网页软件：媒体地址**（`/media`，W-10；2026-09-30 定的「小的经协议，大的由网页给带令牌的地址」，那时说的网页模块现在是网页软件）
 
@@ -330,23 +336,21 @@ sequenceDiagram
 8. 链接卡片的图、附件、她写到的本机图片和音视频，都走这一条。网页软件不另开图片代理：抓网上东西的只有核心的 `net` 包，地址闸只有一处。
 9. 有 `/media` 在给，网页软件不算空闲。
 
-**十一、`miyu web`**（W-9。登录码、跳转页那几款随用户系统照第一条的方向重画：第一次印一次性码、开浏览器进引导，以后开浏览器登录）
+**十一、`miyu web`**（W-9，2026-10-04 照第一条改）
 
 1. 主程序的 `miyu web` 找主程序真实位置旁边的 `miyu-web`（Windows 上是 `miyu-web.exe`），把 `web` 后面的参数原样交给 `miyu-web open`，等它退出，退出码照它的。没有：印「没装网页界面」和每种装法怎么装，退出码 1。
 2. `miyu-web open`：`run/web` 在、锁有人拿着，网页软件就在跑，照 `run/web` 的地址。不然拉起 `miyu-web serve`：和头拉起核心一样（`ipc.md`「连不上就拉起」第 4、5 条），跟终端脱开，工作目录是数据根，等那一行最多 10 秒。
-3. 照终端的样子连核心（`connect_or_start`，出示本机令牌），`account.login_code` 要一个登录码。网址是 `<地址>/#code=<登录码>`：登录码在 `#` 后面，不发给服务器、不进 Referer，页面拿到以后从地址栏抹掉（设计 21 X6）。
-4. 把网址写进数据根里的跳转页 `run/web-open-<16 位十六进制>.html`（Unix 上建的时候就是 0600），用系统的办法打开这个文件：Linux 是 `xdg-open`，macOS 是 `open`，Windows 是 `cmd /C start "" "<路径>"`。命令行里只有跳转页的路径，登录码不进进程列表：同一个用户的程序（包括沙盒里的命令）读得到别的进程的命令行，读不到数据根（起草时的样子，第 3 题没用它）。
-5. 跳转页：一行 `<meta http-equiv="refresh" content="0;url=…">`，加一个同样地址的链接，浏览器不自动跳时点它。`miyu-web serve` 起来时和之后每分钟删掉 5 分钟以前的跳转页（登录码也就 5 分钟）。
-6. 交给了浏览器：印网页的地址（不带登录码），再印一句「浏览器没打开登录页的话，用 miyu web --print」（第 3 题说的 snap 装的 Firefox），退出码 0。浏览器开没开、登没登上，`miyu web` 看不到。交不出去（没有 `xdg-open`、没有图形界面）：照 `--print` 办。
-7. `--print`：不开浏览器，印带登录码的整个网址，下一行提醒「5 分钟内有效，只能用一次，别发给别人」。终端里印的字别的进程读不到。
-8. `--logout`：照终端的样子连核心，`account.logout`，`all: true`，印作废了几个。不碰网页软件。
-9. 已经登录着的浏览器（存着登录令牌）打开这个网址：页面先用存着的登录令牌，被拒了才用登录码；没用上的登录码 5 分钟后自己作废。
+3. 照终端的样子连核心（`connect_or_start`，出示本机令牌）。写了 `--reset` 的，或者还没设过密码的（问一次 `account.setup_code`，`first` 是真的）：网址是 `<地址>/#setup=<一次性码>`，码在 `#` 后面，不发给服务器、不进 Referer，页面拿到以后从地址栏抹掉（设计 21 X6）。别的：网址就是 `<地址>/`，页面用存着的登录令牌，没有、过期了的问用户名和密码；这时不要一次性码（要了不用，5 分钟后自己作废）。
+4. 用系统的办法打开网址：Linux 是 `xdg-open`，macOS 是 `open`，Windows 是 `cmd /C start "" "<网址>"`。一次性码会出现在进程列表里：它只用一次、5 分钟，用过就作废（第 3 题），不另开跳转页。
+5. 交给了浏览器：印网页的地址（不带码）；带了码的再印一句「浏览器没打开的话，用 miyu web --print」（第 3 题说的 snap 装的 Firefox），退出码 0。浏览器开没开、设没设好，`miyu web` 看不到。交不出去（没有 `xdg-open`、没有图形界面）：照 `--print` 办。
+6. `--print`：不开浏览器，印整个网址；带了码的，下一行提醒「5 分钟内有效，只能用一次，别发给别人」。
+7. `--logout`：照终端的样子连核心，`account.logout`，`all: true`，印作废了几个。不碰网页软件，不改密码。
 
 **十二、三个平台**
 
 1. 网页软件连核心走 `miyu-ipc`：Linux、macOS 是 Unix 域套接字，Windows 是命名管道，照 `ipc.md`。`connect_bare` 在三个平台上都只是不读 `run/token`，核对目录、核对管道另一头照旧。
 2. 拉起 `serve` 照拉起核心的办法跟终端脱开：Unix 上自成一个进程组，Windows 上 `DETACHED_PROCESS`、`CREATE_NEW_PROCESS_GROUP`。
-3. 跳转页的路径里可能有空格（Windows 的用户名）：`xdg-open`、`open` 收一个参数，不经 shell；Windows 照 `cmd` 的规矩加引号。
+3. 打开网址：`xdg-open`、`open` 收一个参数，不经 shell；Windows 照 `cmd` 的规矩加引号。
 4. `fs.list`、`fs.find` 的 `path` 一律用 `/`，`full` 照平台；`dir` 在 Windows 上 `\` 和 `/` 都认。点开头的算藏起来，三个平台一样，不看 Windows 的隐藏属性。
 5. 测试里的临时目录先换成真实的位置再比（macOS 的 `/var` 是链接）。
 6. 端口只听 `127.0.0.1`。浏览器把 `localhost` 解析成 `::1` 的连不上，所以网址一律写 `127.0.0.1`；Host 认 `localhost`、`[::1]` 只为人自己敲地址的时候。
@@ -359,22 +363,32 @@ sequenceDiagram
 
 ```text
 $ miyu web
+还没设过网页的登录密码：带着一次性码打开网页，在网页上设用户名和密码。
 网页开在 http://127.0.0.1:<端口>，已经交给浏览器打开。
-浏览器没打开登录页的话，用 miyu web --print。
+浏览器没打开的话，用 miyu web --print。
 
-$ miyu web --print
-在浏览器里打开：
-http://127.0.0.1:<端口>/#code=9f03b21c…
+$ miyu web
+网页开在 http://127.0.0.1:<端口>，已经交给浏览器打开。
+
+$ miyu web --reset --print
+在浏览器里打开，重设用户名和密码：
+http://127.0.0.1:<端口>/#setup=9f03b21c…
 这个链接 5 分钟内有效，只能用一次，别发给别人。
 ```
 
-**跳转页**，例子：
+**握手**，例子（页面第一次，经网页软件照转）：
 
-```html
-<!doctype html>
-<meta charset="utf-8">
-<meta http-equiv="refresh" content="0;url=http://127.0.0.1:<端口>/#code=9f03b21c…">
-<a href="http://127.0.0.1:<端口>/#code=9f03b21c…">打开 Miyu</a>
+```json
+{"id":"h1","jsonrpc":"2.0","method":"hello","params":{"protocol":[1,1],"head":{"kind":"web","version":"0.1.0"},"locale":"zh-CN","code":"9f03b21c…"}}
+{"id":"h1","jsonrpc":"2.0","result":{"account":"admin","core":{"version":"0.1.0"},"host":{…},"language":"zh","protocol":1,"sandbox":{"usable":true},"setup":true}}
+{"id":"s1","jsonrpc":"2.0","method":"account.setup","params":{"username":"shorin","password":"…"}}
+{"id":"s1","jsonrpc":"2.0","result":{"login":{"expires":"2026-11-03T06:00:00.000Z","token":"5c1e…"},"username":"shorin"}}
+```
+
+以后（登录令牌过期了的）：
+
+```json
+{"id":"h1","jsonrpc":"2.0","method":"hello","params":{"protocol":[1,1],"head":{"kind":"web","version":"0.1.0"},"user":"shorin","password":"…"}}
 ```
 
 ### 出错
@@ -383,9 +397,12 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 
 | 原因码 | 什么时候 | 步 |
 |---|---|---|
-| `bad_code` | 握手的登录码对不上、过期了、用过了（之后断开） | W-8 |
+| `bad_code` | 握手的一次性码对不上、过期了、用过了（之后断开） | W-8 |
 | `bad_login` | 握手的登录令牌对不上、过期了、作废了（之后断开） | W-8 |
-| `local_only` | 不是出示本机令牌连上的，要登录码 | W-8 |
+| `bad_password` | 握手的用户名、密码对不上（之后断开） | W-8 |
+| `login_throttled` | 这个用户名 60 秒内错了 5 次；`data.retry_after_ms`（之后断开） | W-8 |
+| `setup_first` | 用一次性码连上的，先设密码 | W-8 |
+| `local_only` | 不是出示本机令牌连上的，要一次性码 | W-8 |
 | `path_unreadable` | 换不成真实的位置、不在、该是目录的不是目录、该是普通文件的不是、没有权限 | W-2、W-3、W-6 |
 | `path_forbidden` | 落在数据根里、又不在这个账号的工作区里 | W-2、W-6 |
 | `mermaid_too_long` | 源码超过 64 KiB | W-4 |
@@ -396,9 +413,9 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 | `upload_incomplete` | `close` 时没收齐；`data.received` | W-5 |
 | `unknown_blob` | 这个账号没有这个 blob | W-6 |
 
-- `bad_params` 多几种：握手写了不止一种凭据；`language` 不合写法；`fs.realpath` 相对的没给 `cwd`；`fs.read` 是相对的；`length` 超过 512 KiB；`blob.write` 的 `data` 不是 base64、太大、超过 `size`；`account.logout` 出示本机令牌的没写 `all: true`；mermaid 源码是空的。
+- `bad_params` 多几种：握手写了不止一种凭据、`user` 和 `password` 只写了一个；不是用一次性码连上的调 `account.setup`；`account.setup` 的用户名不合写法、密码不到 8 个字节、超过 1024 个字节、全是空白；`language` 不合写法；`fs.realpath` 相对的没给 `cwd`；`fs.read` 是相对的；`length` 超过 512 KiB；`blob.write` 的 `data` 不是 base64、太大、超过 `size`；`account.logout` 出示本机令牌的没写 `all: true`；mermaid 源码是空的。
 - `attachment_too_big` 多一种：`blob.open` 的 `size` 超过 20 MiB；`blob.close` 认出是图、超了图的上限。
-- `internal_error` 多几种：给人看的字读不懂；`logins.json` 写不下；暂存文件建不了、写不进；画图的库初始化不了（读不到字体）。
+- `internal_error` 多几种：给人看的字读不懂；`accounts.json`、`logins.json` 写不下；暂存文件建不了、写不进；画图的库初始化不了（读不到字体）。
 
 网页软件的 HTTP：
 
@@ -419,10 +436,14 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 | `WARN` | `files index failed dir=… error=…` | 建清单时读不了一层目录，跳过它接着建（W-2） |
 | `WARN` | `mermaid not ready error=…` | 画图的库初始化不了（W-4） |
 | `WARN` | `upload not stored error=…` | 暂存、改名进位置没成（W-5） |
-| `INFO` | `login issued` | 用登录码换了一个登录令牌（W-8） |
-| `INFO` | `logins revoked count=…` | `account.logout`（W-8） |
+| `INFO` | `password set first=…` | `account.setup` 设好了密码（W-8） |
+| `INFO` | `login issued via=…` | 造了一个登录令牌：`setup`、`password`（W-8） |
+| `INFO` | `logins revoked count=…` | `account.logout`、重设密码（W-8） |
+| `WARN` | `accounts not read error=…`、`accounts not written error=…` | `accounts.json` 读不了、写不下（W-8） |
 | `WARN` | `logins not read error=…`、`logins not written error=…` | `logins.json` 读不了、写不下（W-8） |
-| `WARN` | `bad code`、`bad login` | 握手被拒（W-8） |
+| `WARN` | `bad code`、`bad login`、`bad password`、`login throttled` | 握手被拒（W-8；只写 `head`） |
+| `INFO` | `login revoked, closed` | 连接靠的登录令牌作废了，断开（W-8） |
+| `WARN` | `password not hashed error=…`、`no random bytes error=…` | 算不出密码哈希、系统给不出随机字节（W-8），回 `internal_error` |
 | `INFO` | `listening url=…`、`stopped reason=…` | 网页软件起来、退出（W-9） |
 | `WARN` | `rejected host=… origin=…` | Host、Origin 不对（W-9） |
 | `WARN` | `core unreachable error=…` | 连不上核心（W-9） |
@@ -434,9 +455,12 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 
 | 原因码 | 中文 | 英文 |
 |---|---|---|
-| `bad_code` | 登录链接用不了了：过期了，或者已经用过。再运行一次 miyu web。 | The login link no longer works: it expired or was already used. Run miyu web again. |
-| `bad_login` | 登录过期了，或者被退出了。再运行一次 miyu web。 | The login expired or was signed out. Run miyu web again. |
-| `local_only` | 只有本机的终端能要登录码。 | Only a terminal on this machine can ask for a login code. |
+| `bad_code` | 这个一次性码用不了了：过期了，或者已经用过。再运行一次 miyu web。 | This one-time code no longer works: it expired or was already used. Run miyu web again. |
+| `bad_login` | 登录过期了，或者被退出了，用用户名和密码再登录一次。 | The login expired or was signed out. Sign in with your username and password. |
+| `bad_password` | 用户名或者密码不对。 | Wrong username or password. |
+| `login_throttled` | 错的次数太多了，过一分钟再试。忘了密码的话，在本机运行 miyu web --reset。 | Too many failed attempts. Try again in a minute. Forgot the password? Run miyu web --reset on this machine. |
+| `setup_first` | 先设好用户名和密码。 | Set a username and password first. |
+| `local_only` | 只有本机的终端能要一次性码。 | Only a terminal on this machine can ask for a one-time code. |
 | `path_unreadable` | 读不了这个路径。 | This path cannot be read. |
 | `path_forbidden` | 这是 Miyu 自己的数据，不给看。 | This is Miyu's own data and is not shown. |
 | `mermaid_too_long` | 这张图的源码太长了。 | The diagram source is too long. |
@@ -473,11 +497,12 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 | `crates/miyu-endpoint/tests/uploads.rs` | 分块传完和 `blob.put` 同一个回应、同一个 blob；接不上回 `received`；没收齐不收；别的连接用不了；断开、60 秒不写作废并删暂存；超过 20 MiB 当场拒；同时 4 个；起来时清暂存 | W-5 |
 | `crates/miyu-endpoint/tests/reads.rs` | 读一段、读到结尾、过了结尾是空的、只问大小；没有这个 blob；`fs.read` 数据根拒、工作区能读、链接不跟、不是普通文件 | W-6 |
 | `crates/miyu-net/src/guard/tests.rs`、`html/tests.rs`、`tests/preview.rs`、`tests/proxy.rs` 等 | 地址闸的表、元数据、跳转、图、记多久、代理、在后台答：细节见 `net.md`「守着它的」 | W-7 |
-| `crates/miyu-endpoint/tests/login.rs` | 登录码只给本机令牌的连接、一次、5 分钟；换出登录令牌、落了盘才回；登录令牌认得、过期不认、作废不认；凭据写两种拒；`logout` 一个、全部、断开连接；`logins.json` 坏了当空的；日志里没有码和令牌 | W-8 |
+| `crates/miyu-endpoint/tests/login.rs` | 一次性码只给本机令牌的连接、一次、5 分钟、`first`；用码连上的只能设密码；用户名、密码的写法；设好了换出登录令牌、落了盘才回、以前的登录全部作废；密码登录对、错一样的话、60 秒错 5 次就拒、不验；登录令牌认得、过期不认、作废不认；凭据写两种、只写用户名拒；`logout` 一个、全部、断开连接；`accounts.json`、`logins.json` 坏了的样子；日志里没有码、密码、令牌 | W-8 |
+| `crates/miyu-store/src/accounts/tests.rs` | `accounts.json` 读写一字不差、0600、改名落盘；argon2id 的参数照写的、验得过、错的验不过 | W-8 |
 | `crates/miyu-ipc/tests/socket.rs`、`pipe.rs` | `connect_bare` 连得上、不读 `run/token` | W-8 |
 | `crates/miyu-web/tests/serve.rs` | 单实例、`run/web`、那一行；Host、Origin 不对 403；页面文件不出页面目录；响应头；不设 cookie；空闲退出 | W-9 |
 | `crates/miyu-web/tests/ws.rs` | 真核心：一帧一行两头照转、一个字节都不改；握手的凭据照原样到核心；核心断了 WebSocket 关 1012；网页软件的代码里不读本机令牌（照源码查） | W-9 |
-| `crates/miyu-web/tests/open.rs`、`crates/miyu/tests/web.rs` | 跳转页在数据根里、0600、5 分钟删；命令行里没有登录码；`--print`；没装时说怎么装 | W-9 |
+| `crates/miyu-web/tests/open.rs`、`crates/miyu/tests/web.rs` | 没设过密码、`--reset` 的带一次性码，别的不带；`--print`；`--logout`；没装时说怎么装 | W-9 |
 | `crates/miyu-web/tests/media.rs` | 换票据要登录令牌；同一个资源交回同一张；`Range` 206、416；类型照表、`nosniff`、`sandbox`；下载的名字转义；票据作废 404 | W-10 |
 | 真机实测 | 三个平台各开一次网页、登录、发一句带附件的话、看一张图和一段视频拖进度、一张链接卡片、一张 mermaid 图；终端演示经核心出 mermaid 图、`@` 选文件 | W-9、W-10 |
 
@@ -515,8 +540,8 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 | W-5 | 分块上传 `blob.open`、`blob.write`、`blob.close` | `upload.rs`、`/upload`、`web.upload_done`：页面经桥的 WebSocket 直接分块传 | W-1 以后 |
 | W-6 | 分块读 `blob.get`、`fs.read` | 桥的 `media.rs` 改用它们，`history.rs` 删掉（不再读会话日志） | W-5 以后（同改 `blob.rs`） |
 | W-7 | 链接卡片：可选软件包 `net`、crate `miyu-net`、`link.preview`，图存成 blob | `link_preview/` 四个文件、`resources/link_preview.json`、`web.link_preview`、`/link-image`：卡片的图照 W-6 经桥的 `/blob` 给 | W-4（查询表）、W-6 以后 |
-| W-8 | 身份：第一次的一次性码、建管理员账号的引导、用户名和密码登录、记住 30 天、`connect_bare`（随用户系统重画） | 不去掉：桥还替页面出示本机令牌。用测试的头验 | 用户系统以后 |
-| W-9 | 网页软件：crate `miyu-web`、`serve` 和 `open`、单实例、端口、页面文件、Host 和 Origin、WebSocket 照转、空闲退出、跳转页、主程序的 `miyu web` | 页面能经网页软件打开、登录、连核心。本机文件、blob 还靠桥（W-10），这一步演示两边都能开 | W-8 以后 |
+| W-8 | 身份：一次性码（`account.setup_code`）、设用户名和密码（`account.setup`）、密码登录和限流、登录令牌 30 天、`account.logout`、`connect_bare`（2026-10-04 重画） | 桥不再替页面出示本机令牌：页面照第一条握手，一次性码先由桥从终端要（W-9 换成 `miyu web`）。用测试的头验 | 现在 |
+| W-9 | 网页软件：crate `miyu-web`、`serve` 和 `open`、单实例、端口、页面文件、Host 和 Origin、WebSocket 照转、空闲退出、主程序的 `miyu web` | 页面能经网页软件打开、登录、连核心。本机文件、blob 还靠桥（W-10），这一步演示两边都能开 | W-8 以后 |
 | W-10 | 网页软件的媒体地址 `/media`：票据、分段给 | 桥整个删掉（`web-demo/bridge/`）；页面宿主的 `browser.js` 改用 `/media` | W-6、W-9 以后 |
 | W-11 | 打包和安装：发行时网页软件单独一个包（第 6 题），发布前检查包里有程序和页面、程序报的版本对 | 无 | W-10 以后；页面随 M9 进主仓库，没进之前只备好打包，不发 |
 
@@ -529,11 +554,11 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 | 1 | 网页软件是一个独立的头进程，自己起停（单实例、空闲退出），不是核心拉起的扩展 | 核心重启时页面不断：网页软件接着连回核心，页面的 WebSocket 一直在（项目主人 2026-09-30 要的「核心重启以后页面自己连回来」）。核心不管它的起停，核心里也就没有它 | 核心拉起它当扩展（核心一退它也退，页面跟着断；核心要管它的命） |
 | 2 | 主程序留一个 `miyu web`，只找主程序旁边的 `miyu-web`、把参数交给它 | 设计 22 第五节有这条命令；主程序里不放网页的代码。没装的说怎么装 | 主程序里写全部（主程序就带着网页的代码）。只有 `miyu-web` 一个命令（和别的命令不在一处） |
 | 3 | 一个标签页一条核心连接，网页软件不合并 | 照桥；核心分得清是哪个终端做的（web/architecture.md「多用户、多终端」第 7 条） | 合成一条（核心分不出终端，回应要网页软件自己分） |
-| 4 | （随用户系统重看）网页软件转发的连接用 `connect_bare`，代码里不读本机令牌；只有 `miyu-web open` 要登录码那一下照终端出示 | 第 1 题推荐的做法落到代码上：网页软件被攻破、有 bug，也成不了你。测试照源码查 | 照 `connect` 读出令牌、不用它（拿在手里就可能被用） |
-| 5 | （随用户系统重看）登录码、登录令牌都是 32 个随机字节、64 位小写十六进制；登录令牌只存 SHA-256 | 随机的 256 位猜不到，哈希够了；设计 06 U4 的 argon2id 是给人起的密码的 | 登录令牌也用 argon2id（慢，白花力气） |
-| 6 | （随用户系统重看）握手三选一：`token`、`code`、`login` | 身份只在握手时定，一处验（`protocol.md`「握手」）；网页软件原样转，不用懂 | 先连上、再 `account.login`（握手以后还有一段没认人的状态） |
-| 7 | （随用户系统重看）设计 04 方法表的 `account.login_link` 改叫 `account.login_code`，只交登录码 | 核心不知道网页开在哪个端口，出不了链接；链接由网页软件拼 | 核心出整个链接（核心要知道网页的事） |
-| 8 | （随用户系统重看）登录令牌存在 `home/<账号>/logins.json` | 人的数据放进人的家目录（设计 07 第二节第 1 条）；核心重启不丢，页面自己连得回来 | 只在内存（核心一重启，开着的页面都要重新 `miyu web`） |
+| 4 | 网页软件转发的连接用 `connect_bare`，代码里不读本机令牌；只有 `miyu-web open` 要一次性码那一下照终端出示 | 第 1 题推荐的做法落到代码上：网页软件被攻破、有 bug，也成不了你。测试照源码查 | 照 `connect` 读出令牌、不用它（拿在手里就可能被用） |
+| 5 | 一次性码、登录令牌都是 32 个随机字节、64 位小写十六进制；登录令牌只存 SHA-256 | 随机的 256 位猜不到，哈希够了；设计 06 U4 的 argon2id 是给人起的密码的 | 登录令牌也用 argon2id（慢，白花力气） |
+| 6 | 握手的凭据只写一种：`token`、`code`、`login`，或者 `user` 加 `password`（2026-10-04 加了密码） | 身份只在握手时定，一处验（`protocol.md`「握手」）；网页软件原样转，不用懂 | 先连上、再 `account.login`（握手以后还有一段没认人的状态） |
+| 7 | 设计 04 方法表的 `account.login_link` 换成 `account.setup_code`，只交一次性码 | 核心不知道网页开在哪个端口，出不了链接；链接由网页软件拼 | 核心出整个链接（核心要知道网页的事） |
+| 8 | 登录令牌存在 `home/<账号>/logins.json` | 人的数据放进人的家目录（设计 07 第二节第 1 条）；核心重启不丢，页面自己连得回来 | 只在内存（核心一重启，开着的页面都要重新 `miyu web`） |
 | 9 | 附件由页面经核心的分块上传直接传，网页软件不收附件 | 一条路：远程的头、桌面端都一样；网页软件不存临时文件、不用「传完删」 | 页面 POST 给网页软件、它再分块转给核心（多一份代码、多一份临时文件，原来的交代写着网页软件收附件，这里改了） |
 | 10 | 分块上传三个方法，顺序写，跟着连接走，60 秒不写作废，暂存在 `blobs/tmp/`，一块最多 512 KiB | 顺序写最简单，断了照 `received` 接着传；跟着连接走就不会留下没人管的暂存；放在 `blobs/tmp/` 改名进位置和 `Blobs::put` 同一个办法；512 KiB 的 base64 放得进 1 MiB 的一行 | 一个 `blob.put` 加分块的格（一个方法两种用法）。乱序写 |
 | 11 | 分块读也是一块最多 512 KiB，`length` 写 0 只问大小 | 同上；问大小不另开方法 | 另开 `blob.stat`、`fs.stat` |
@@ -567,6 +592,12 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 | 39 | `fs.realpath` 把 `ResolveError` 的几种（`NoHome`、`DanglingLink`、`ParentOfMissing`、`Io`）一律映射成 `path_unreadable`（施工 W-3） | 协议上只有一种「换不成真实的位置」的原因码，和 `fs.list`、`fs.find` 的 `path_unreadable` 是同一个；头不需要分清是哪一种换不成，换一条路径再试就是了 | 按错误种类拆成几个原因码（头用不上这么细，`path_unreadable` 的消息已经够说明白） |
 | 40 | 握手回应 `host.home`：系统的家目录读不出来时写 `null`，不省略这一格（施工 W-3） | `host` 这一格「总有」，三个子格也总有，省略 `home` 会让头多判一次「这一格在不在」；读不出来是真实状态，`null` 如实说 | 整个 `host.home` 省掉（和「总有」的说法矛盾，头还要多写一层 `.get()`） |
 | 41 | 「核心起来时清暂存」的测试分两处（施工 W-5）：`crates/miyu-endpoint/tests/uploads.rs` 直接测 `Blobs::clear_uploads`（分块写、`offset` 这些协议行为已经在这个文件测过），`crates/miyu-core/tests/packages.rs` 测调用它的那一层 `packages::clear_uploads` | `clear_uploads` 照「在哪」放在 `crates/miyu-core/src/packages.rs`，比 `miyu-endpoint` 高一层（`arch_dep_check.py` 的层序），`miyu-endpoint` 的测试够不到它；蓝图起草时「守着它的」把这条整个写进了 `uploads.rs`，施工时照分层拆成两处 | 只在 `uploads.rs` 测 `Blobs::clear_uploads`（没人验这个函数真的接进了起来的先后）；或者给 `miyu-endpoint` 加一个它够不到的依赖（破坏层序） |
+| 42 | 凭据放在 `system/accounts.json`，照 Linux 的 `/etc/shadow`：一个账号一行，用户名、argon2id 的整串（带参数和盐）、改的时刻（2026-10-04 起草） | 密码属于系统怎么认人，不是人的数据；以后加成员照样一行一个，查用户名不用一个个家目录翻 | 放在 `home/admin/` 里（加了成员以后登录要先知道去哪个家目录找）；放进配置文件（配置会被 `config.get` 交出去） |
+| 43 | argon2id 的参数 `m=19456`（KiB）、`t=2`、`p=1`（2026-10-04 起草） | OWASP 密码存储的推荐值之一，验一次几十毫秒；参数写进哈希串里，以后调了旧的照样验得过 | 照库的默认（版本一换默认值可能跟着变） |
+| 44 | 一次性码在握手时当场作废，用码连上的连接只能设密码（2026-10-04 起草） | 码只用一次说到做到：码漏在浏览器历史、终端回滚里也再进不来；设到一半刷新了，再 `miyu web` 一次就是 | 设好密码才作废（码在 5 分钟里能开好几条连接）；用码连上的就是完整的管理员（没设密码也能用，引导形同虚设） |
+| 45 | 用户名照「路径里的名字」的写法，密码 8 到 1024 个字节、不能全是空白（2026-10-04 起草） | 用户名以后就是成员的编号（项目主人定的），一开始就照它的写法；密码只设下限，不要求大小写、符号（NIST 800-63B 的意思），上限挡住拿超长的串耗 argon2 | 用户名随便写（以后成员的编号要再转一次）；密码规则一大串 |
+| 46 | 登录失败按用户名数，60 秒 5 次，计数只在内存里（2026-10-04 起草） | 设计 06 U4 写的是「同一来源」；本机的浏览器都经网页软件进来，核心看到的来源是一样的，按用户名数才挡得住猜密码；核心重启清零没关系，重启本身比 60 秒长 | 按来源（现在看不到）；落盘（多一份文件，好处不大） |
+| 47 | 设好、重设密码时，这个账号的登录令牌全部作废（2026-10-04 起草） | 忘了密码来重设，多半是怀疑别人知道了：以前的浏览器都该踢出去 | 只改密码不动令牌（30 天里旧的浏览器还进得来） |
 
 ### 项目主人拍板的
 
@@ -581,6 +612,13 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 
 先后：W-1 到 W-7 现在做，W-8 到 W-11 等用户系统（项目主人 2026-10-01 定）。
 
+2026-10-04 项目主人定的（W-8 照它重画）：
+
+7. **网页登录的是谁**：只有一个账号 `admin`。网页第一次进来是给 `admin` 设登录用的用户名和密码，用户名只用来登录（可以就叫 `admin`），家目录、日志照旧是 `admin`；本机的终端照旧是 `admin`，两边是同一批会话。成员以后另做，编号就是用户名。
+8. **密码哈希**：argon2id，依赖白名单加 `argon2`（RustCrypto）。
+9. **忘了密码**：在本机终端 `miyu web --reset`，要一个一次性码进网页重设。
+10. **`miyu web --logout`**：要。
+
 ### 要改的设计
 
 项目主人批准以后照这个改，这一页不改设计文件本身。
@@ -591,9 +629,9 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 
 **`04-核心协议.md` 其余几处**
 - 第二节传输表「浏览器、远程：WebSocket，每帧一条」改成：浏览器连网页软件（WebSocket，每帧一条），网页软件连核心（本机套接字、命名管道，一行一条）。「各平台的坑」最后一条「核心必须自己检查 Origin 头」改成：网页软件检查 Origin 和 Host。
-- 第四节身份：「本机连接要…出示本机令牌」改成：本机的头出示本机令牌；浏览器出示一次性登录码或者登录令牌；都由核心在握手时验，网页软件只转发、不读本机令牌。
+- 第四节身份：「本机连接要…出示本机令牌」改成：本机的头出示本机令牌；浏览器出示一次性码、用户名和密码、或者登录令牌；都由核心在握手时验，网页软件只转发、不读本机令牌。
 - 第五节 mermaid：「头经 `view.detail` 按需取」后面补：视图投影做出来以前经 `mermaid.render` 取；画图是可选的软件包 `mermaid`，没装的头显示源码。
-- 第九节方法表：加 `human.get`、`fs.list`、`fs.find`、`fs.realpath`、`fs.read`、`blob.open`、`blob.write`、`blob.close`、`blob.get`、`mermaid.render`、`link.preview`；`account.login_link` 改叫 `account.login_code`；`account.logout`（表里已经有）写明多一格 `all`。
+- 第九节方法表：加 `human.get`、`fs.list`、`fs.find`、`fs.realpath`、`fs.read`、`blob.open`、`blob.write`、`blob.close`、`blob.get`、`mermaid.render`、`link.preview`；`account.login_link` 换成 `account.setup_code`、`account.setup`（2026-10-04）；`account.logout`（表里已经有）写明多一格 `all`。
 - 第十节「后续再定」的「附件的大小上限，以及分块上传」：定了，上限照 `blob.put` 的 20 MiB，分块三个方法。
 
 **`21-网页.md` 第一节第 3 条**
@@ -606,7 +644,7 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 
 **`21-网页.md` X6「本机怎么证明是你」**（随用户系统改，照第 1、3 题重写）
 - 原文要点：`miyu web` 打开一条一次性的登录链接，用过就换成登录令牌；远程用账号密码；链接 5 分钟、一次；令牌在 `#` 后面，页面拿到就从地址栏抹掉；未选本机不设防。
-- 改成：保留这几条，写明谁做哪一段：`miyu web` 照终端的样子出示本机令牌，向核心要一次性登录码（`account.login_code`）；网页软件拼成链接，经数据根里的跳转页交给浏览器，登录码不进命令行（第 3 题）；页面握手时出示登录码，核心验过换成登录令牌，30 天（第 2 题）；网页软件只转发，不读本机令牌（第 1 题）。
+- 改成（2026-10-04 照第一条）：本机的浏览器第一次、忘了密码时，用 `miyu web` 从本机终端要来的一次性码进来（`account.setup_code`，5 分钟、一次），给管理员设登录用的用户名和密码（`account.setup`）；以后用用户名和密码登录，换一个登录令牌，浏览器记住 30 天（第 2 题）。码放在网址 `#` 的后面，不发给服务器、不进 Referer，页面拿到就从地址栏抹掉；码出现在进程列表、终端里没关系，它只用一次（第 3 题）。网页软件只转发，凭据由核心验，不读本机令牌（第 1 题）。未选：本机不设防（照旧）；用过的码直接换成登录令牌、不设密码（起草时的样子，2026-10-04 项目主人改）。
 
 **`21-网页.md` 第七节「本机打开」「远程」**
 - 原文要点：本机打开靠 `miyu web` 的一次性链接（浏览器读不到本机令牌）；远程必须登录，核心检查 WebSocket 的 Origin 头。
@@ -615,11 +653,11 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 **别的设计**（照改，细节见「要跟着改的别的页」）
 - `12-进程形态与分发.md`：第一节的图里「浏览器里的网页 → 核心」改成经网页软件，「网页头的页面由核心顺带提供」改掉；第三节 R2 加「网页界面是单独的程序 `miyu-web`，随网页软件装」，资源目录那一句的「网页」改成网页软件自己的资源。
 - `22-命令行.md` 第五节 `miyu web`：交给网页软件，没装的说怎么装。
-- `06-多用户与身份.md` 第二节、U4：随用户系统那次讨论改（第一次一次性码建管理员、以后密码登录、记住 30 天）。
+- `06-多用户与身份.md` 第二节：「只有开启远程访问时，管理员才需要设置密码。本机的浏览器读不到本机令牌，由 `miyu web` 打开一次性的登录链接」改成：本机的头不要密码（本机令牌）；浏览器要：第一次和忘了密码时用本机终端给的一次性码设用户名和密码，以后用它们登录（2026-10-04 项目主人定）。用户名只用来登录，账号编号照旧是 `admin`（U13）。U4 不改（argon2id、30 天、60 秒 5 次）；限流现在按用户名数，远程访问时再加按来源。
 - `10-自带软件.md` 第四节：可选软件包加「画 mermaid」；`net` 多一样「链接卡片 `link.preview`」。
 - `13-终端界面.md` 第九节：SVG 由核心经 `mermaid.render` 出（`view.detail` 随 M9）。
 - `01-架构.md` 第九节：登记 `miyu-mermaid`、`miyu-net`（第 3 层）、`miyu-web`（第 5 层）。
-- `07-存储.md` 第二节：`home/<账号>/logins.json`，`run/web.lock`、`run/web`、跳转页。
+- `07-存储.md` 第二节：`system/accounts.json`、`home/<账号>/logins.json`，`run/web.lock`、`run/web`。
 - `24-威胁模型.md` 第二节：加三行。本机别的进程（包括沙盒里的命令）连网页软件的端口：页面谁都拿得到、里面没有秘密，WebSocket、媒体要登录令牌或票据，Host、Origin 挡 DNS rebinding 和别的网站；挡不住：浏览器里的页面有能执行脚本的漏洞。进程列表里的一次性码：只用一次、建了管理员就作废（第 3 题，随用户系统）。网页软件被攻破：它没有本机令牌，只看得到经它转的登录令牌。
 
 ### 要跟着改的别的页
@@ -629,12 +667,12 @@ http://127.0.0.1:<端口>/#code=9f03b21c…
 - `protocol.md`：握手（参数三选一、回应的 `host` 和 `login`、第 3 条）；方法表、每个新方法一段；「一个连接」第 1 条（`link.preview` 在后台答的例外）；出错的表、给人看的字、运行日志、守着它的。W-1 到 W-8。
 - `ipc.md`：`connect_bare`、`connect_or_start_bare`；「还没有的」第 1 条改成指到这一页（WebSocket、Origin 在网页软件）。W-8。
 - `core.md`：起来的先后里登记可选软件包、清分块上传的暂存；「在哪」加 `packages.rs`。W-4、W-5、W-7。
-- `store.md`：blob 的分块暂存和读一段（第 9、10 条）；`logins.json`；`run/` 下网页软件的三样。W-5、W-6、W-8、W-9。
+- `store.md`：blob 的分块暂存和读一段（第 9、10 条）；`accounts.json`、`logins.json`；`run/` 下网页软件的三样。W-5、W-6、W-8、W-9。
 - `store/resources.md`：`Human` 交出模板原文；资源目录里多 `software/mermaid/`、`software/net/`、`web/`；「还没有的」那条「网页、字体这类资源」改掉。W-1、W-4、W-7、W-9。
 - `fs.md`：列一层、建清单、打分、从最近在的一层换真实位置、读一段。W-2、W-3、W-6。
 - `http.md`：写明 `miyu-net` 另有自己的客户端（不走代理的钉地址；走代理的先在本机解析过闸），不经 `miyu-http`；代理照同一套环境变量。W-7。
 - `log.md`：目标多 `miyu::web`、`miyu::net`、`miyu::mermaid`；网页软件自己的 `state/logs/web.log`。W-4、W-7、W-9。
-- `licenses.md`：新依赖 `mermaid-rs-renderer` 和它带的字体库、`hyper`、`tokio-tungstenite`，`ignore` 挪进 `miyu-fs`。W-2、W-4、W-9。
+- `licenses.md`：新依赖 `mermaid-rs-renderer` 和它带的字体库、`hyper`、`tokio-tungstenite`，`ignore` 挪进 `miyu-fs`，`argon2`（W-8）。W-2、W-4、W-8、W-9。
 - `cli/main.md` 加子命令 `web`；新页 `cli/web.md`。W-9。
 - 新页：`mermaid.md`（W-4，这一页第五条挪过去）、`net.md`（W-7，第八条挪过去）、网页软件一页 `web-ui.md`（W-9，第九、十、十一条挪过去；名字施工时定，不和 proto/web-demo 分支的 `web.md` 撞）。README 的页表跟着加。
 - README 的页表：这一页一行（这次加了），施工时照做好的改状态。

@@ -2,6 +2,10 @@
 //! 都支持的最高的；本机连接出示本机令牌（第四节）。握手以后这个连接就是管理员（`06-多用户与身份.md`
 //! 第二节）。
 //!
+//! 施工 W-8 起凭据正好写一种（`web-module.md`「怎么走」第一条）：本机令牌 `token`、一次性码 `code`、登录令牌 `login`，
+//! 或者用户名 `user` 加密码 `password`。用一次性码的回应多 `"setup": true`，用密码的多一个登录令牌 `login`。写了不止一种、
+//! 用户名和密码只写了一个：`bad_params`，回完断开。
+//!
 //! 回应带这个连接给人看的字用哪种语言 `language`，和配置里有几处错误 `config_errors`（施工 8-2，`config.md`
 //! 「协议」）：语言照 `ui.language` 的最终值，是 `auto` 的照头报的系统语言 `locale`。
 //!
@@ -17,8 +21,11 @@ use serde_json::{Value, json};
 
 use miyu_sandbox::Availability;
 
+use std::sync::Arc;
+
 use crate::Core;
 use crate::config::Config;
+use crate::login::{self, Via};
 use crate::refusal::{Locale, Refusal};
 use crate::settings::UiSettings;
 
@@ -41,6 +48,18 @@ struct Params {
     /// 本机令牌。
     #[serde(default)]
     token: Option<String>,
+    /// 一次性码（施工 W-8）。
+    #[serde(default)]
+    code: Option<String>,
+    /// 登录令牌（施工 W-8）。
+    #[serde(default)]
+    login: Option<String>,
+    /// 用户名（施工 W-8）。
+    #[serde(default)]
+    user: Option<String>,
+    /// 密码（施工 W-8）。
+    #[serde(default)]
+    password: Option<String>,
 }
 
 /// 头的种类和版本。
@@ -105,8 +124,11 @@ pub(crate) struct Peer {
     pub(crate) input: bool,
 }
 
-/// 握手：交回这个连接记下的和回应。拒绝的，交回拒绝和要不要断开。
-pub(crate) fn hello(core: &Core, params: Value) -> Result<(Shaken, Value), (Refusal, bool)> {
+/// 握手：交回这个连接记下的、它是怎么认出来的（施工 W-8）和回应。拒绝的，交回拒绝和要不要断开。
+pub(crate) async fn hello(
+    core: &Arc<Core>,
+    params: Value,
+) -> Result<(Shaken, Via, Value), (Refusal, bool)> {
     let params: Params =
         serde_json::from_value(params).map_err(|_| (Refusal::BAD_PARAMS, false))?;
     let [low, high] = params.protocol;
@@ -120,19 +142,21 @@ pub(crate) fn hello(core: &Core, params: Value) -> Result<(Shaken, Value), (Refu
         );
         return Err((Refusal::PROTOCOL, true));
     }
-    if !params
-        .token
-        .as_deref()
-        .is_some_and(|token| same(token, &core.token))
-    {
-        tracing::warn!(target: "miyu::endpoint", head = params.head.kind.as_str(), "bad token");
-        return Err((Refusal::BAD_TOKEN, true));
-    }
+    let head = params.head.kind.as_str();
+    let (via, login) = credentials(core, &params)
+        .await
+        .map_err(|(refusal, said)| {
+            if let Some(said) = said {
+                tracing::warn!(target: "miyu::endpoint", head, "{said}");
+            }
+            (refusal, true)
+        })?;
     tracing::info!(
         target: "miyu::endpoint",
-        head = params.head.kind.as_str(),
+        head,
         version = params.head.version.as_str(),
         protocol = PROTOCOL,
+        via = via.label(),
         "connected"
     );
     let shaken = Shaken {
@@ -152,7 +176,62 @@ pub(crate) fn hello(core: &Core, params: Value) -> Result<(Shaken, Value), (Refu
     if errors > 0 {
         result["config_errors"] = json!(errors);
     }
-    Ok((shaken, result))
+    if via == Via::Code {
+        result["setup"] = json!(true);
+    }
+    if let Some(login) = login {
+        result["login"] = login;
+    }
+    Ok((shaken, via, result))
+}
+
+/// 照写的凭据认这个连接（施工 W-8）：交回它是怎么认出来的、用密码登录的另交登录令牌。不认的交回拒绝和运行日志里记哪一句
+/// （`bad_params` 不记）。
+async fn credentials(
+    core: &Arc<Core>,
+    params: &Params,
+) -> Result<(Via, Option<Value>), (Refusal, Option<&'static str>)> {
+    let written = [
+        params.token.is_some(),
+        params.code.is_some(),
+        params.login.is_some(),
+        params.user.is_some() || params.password.is_some(),
+    ];
+    if written.iter().filter(|written| **written).count() > 1 {
+        return Err((Refusal::BAD_PARAMS, None));
+    }
+    if let Some(token) = &params.token {
+        return match same(token, &core.token) {
+            true => Ok((Via::Token, None)),
+            false => Err((Refusal::BAD_TOKEN, Some("bad token"))),
+        };
+    }
+    if let Some(code) = &params.code {
+        return match core.identity.take_code(code) {
+            true => Ok((Via::Code, None)),
+            false => Err((Refusal::BAD_CODE, Some("bad code"))),
+        };
+    }
+    if let Some(token) = &params.login {
+        return login::login(core, token)
+            .map(|via| (via, None))
+            .ok_or((Refusal::BAD_LOGIN, Some("bad login")));
+    }
+    match (&params.user, &params.password) {
+        (None, None) => Err((Refusal::BAD_TOKEN, Some("bad token"))),
+        (Some(user), Some(password)) => login::password(core, user, password.clone())
+            .await
+            .map(|(issued, via)| (via, Some(issued)))
+            .map_err(|refusal| {
+                let said = match refusal.reason {
+                    "login_throttled" => Some("login throttled"),
+                    "bad_password" => Some("bad password"),
+                    _ => None,
+                };
+                (refusal, said)
+            }),
+        _ => Err((Refusal::BAD_PARAMS, None)),
+    }
 }
 
 /// 头报的系统语言 `locale` 照 `auto` 算出的那一种（`config.md` 第二条第 8 条）：`zh` 开头的是 `zh`，`ja` 开头的是 `ja`，

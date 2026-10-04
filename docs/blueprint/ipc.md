@@ -16,7 +16,7 @@
 | `crates/miyu-ipc/src/unix.rs` | Unix 域套接字：只有自己能进的目录、旧套接字、跟终端脱开 |
 | `crates/miyu-ipc/src/windows.rs` | 命名管道：等连接、连过去、核对另一头、跟终端脱开 |
 | `crates/miyu-ipc/src/ready.rs` | 核心说「好了」的那一行 |
-| `crates/miyu-ipc/src/start.rs` | `connect_or_start`：连不上就拉起核心 |
+| `crates/miyu-ipc/src/start.rs` | `connect_or_start`：连不上就拉起核心；`connect_or_start_bare` 同样拉起、不读本机令牌（施工 W-8） |
 | `crates/miyu-ipc/src/error.rs` | 起不来、连不上、拉不起的几种情形和它们的话 |
 | `crates/miyu-pipe/src/lib.rs`、`windows.rs` | Windows 的安全接口：只对本人开放的管道实例，当前用户和管道另一头的 SID。整个仓库只有这个 crate 放开了 `unsafe`，每个 `unsafe` 块都写着为什么安全 |
 
@@ -97,6 +97,8 @@
 3. Windows：连管道。管道忙（核心刚接走一个、下一个实例还没建好），歇 50 毫秒再连，最多再连 100 次，一共 5 秒，还忙的出错；没有这个管道：`NotRunning`。连上以后问出管道服务端的进程，取它的用户 SID，和自己的比：不一样：`NotPrivate`，不交令牌。
 4. 连上以后才读 `run/token`，去掉末尾的空白：核心刚换过令牌的，读到的是新的。
 5. 交回连接和令牌；令牌在握手时出示（`protocol.md`）。
+
+**不读本机令牌地连**（`connect_bare`、`connect_or_start_bare`，施工 W-8）：同上，只是第 4 步不读 `run/token`，只交回连接。网页软件转发浏览器的连接用它：浏览器的凭据由页面在握手时自己出示，网页软件的代码里拿不到本机令牌（`web-module.md`「起草时定的」第 4 条）。核对目录、核对管道另一头照旧；拉起照「连不上就拉起」。
 
 **连不上就拉起**（`connect_or_start`）
 

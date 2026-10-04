@@ -28,6 +28,9 @@ sys-locale = "0.3"
 notify = "8.2"
 # 会话列表的索引（施工 3-8 七补，`07-存储.md` S3）：SQLite，`bundled` 自己带 SQLite 的源码编，三个平台一样。
 rusqlite = { version = "0.40", features = ["bundled"] }
+# 网页登录的密码哈希（施工 W-8，设计 06 U4）：argon2id，RustCrypto 的实现，MIT 或 Apache-2.0。盐由 getrandom 给。
+argon2 = { version = "0.6", default-features = false, features = ["alloc", "password-hash"] }
+getrandom = { version = "0.4", features = ["std"] }
 
 [dev-dependencies]
 # 测试里拿执行器替身跑一段真会话，写进日志、读回来、载入（施工 3-2）。

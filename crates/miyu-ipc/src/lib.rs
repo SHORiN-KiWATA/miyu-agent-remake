@@ -39,7 +39,7 @@ pub use listener::{Connection, Listener};
 pub use lock::Lock;
 pub use place::{Dirs, fingerprint};
 pub use ready::Ready;
-pub use start::connect_or_start;
+pub use start::{connect_or_start, connect_or_start_bare};
 
 use std::fmt;
 use std::io;
@@ -108,6 +108,18 @@ pub fn open_locked(root: &DataRoot, dirs: &Dirs, lock: Lock) -> Result<Opened, O
 ///
 /// 核心没在跑；套接字所在的目录不是只有自己能进，或者管道另一头不是自己的进程；读写出错。
 pub async fn connect(root: &DataRoot) -> Result<(Connection, String), ConnectError> {
+    let connection = connect_bare(root).await?;
+    let token = files::read_token(root)?;
+    Ok((connection, token))
+}
+
+/// 同 [`connect`]，只是不读本机令牌（施工 W-8，`web-module.md`「起草时定的」第 4 条）：网页软件转发浏览器的连接用它，
+/// 浏览器的凭据由页面在握手时自己出示，网页软件的代码里拿不到本机令牌。核对目录、核对管道另一头照旧。
+///
+/// # Errors
+///
+/// 核心没在跑；套接字所在的目录不是只有自己能进，或者管道另一头不是自己的进程；读写出错。
+pub async fn connect_bare(root: &DataRoot) -> Result<Connection, ConnectError> {
     let path = match files::read_location(root) {
         Ok(path) => path,
         Err(error) if error.kind() == io::ErrorKind::NotFound => {
@@ -116,6 +128,5 @@ pub async fn connect(root: &DataRoot) -> Result<(Connection, String), ConnectErr
         Err(error) => return Err(ConnectError::Io(error)),
     };
     let stream = sys::connect(&path).await?;
-    let token = files::read_token(root)?;
-    Ok((Connection::new(stream), token))
+    Ok(Connection::new(stream))
 }
