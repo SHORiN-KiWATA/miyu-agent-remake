@@ -69,7 +69,7 @@
 | `crates/miyu-web/src/serve.rs` | 单实例、听端口、写那一行、空闲退出 | W-9 |
 | `crates/miyu-web/src/pages.rs` | 页面文件、响应头 | W-9 |
 | `crates/miyu-web/src/ws.rs` | 核对 Host、Origin；WebSocket 和核心连接两头照转 | W-9 |
-| `crates/miyu-web/src/media.rs`、`media/tickets.rs` | `POST /media` 换票据，`GET /media/<票据>` 分段给 | W-10 |
+| `crates/miyu-web/src/media.rs`、`media/` | `POST /media` 换票据，`GET /media/<票据>` 分段给；细的见 `web-ui.md`「在哪」 | W-10 |
 | `resources/web/web.json` | 出厂的端口、空闲多久、票据记多久、媒体类型的表、页面的内容安全策略 | W-9、W-10 |
 | `resources/web/pages/` | 页面文件。M9 的网页搬进主仓库以前，开发时设 `MIYU_WEB_PAGES` 指到网页演示的 `web-demo/` | W-9 |
 
@@ -313,17 +313,7 @@ sequenceDiagram
 
 **九、网页软件：起停、端口、页面、WebSocket**（W-9）：挪到 `web-ui.md`「怎么走」第一条（施工 W-9）。
 
-**十、网页软件：媒体地址**（`/media`，W-10；2026-09-30 定的「小的经协议，大的由网页给带令牌的地址」，那时说的网页模块现在是网页软件）
-
-1. `POST /media`：`Authorization: Bearer <登录令牌>`；正文是 JSON：`blob`（内容哈希）或者 `path`（绝对路径），正好一个；可以带 `type`（媒体类型）、`name`（存下来叫什么）、`download`（布尔，叫浏览器存下来）。
-2. 网页软件照这个登录令牌连核心：同一个令牌的连接留着复用，60 秒不用就关。握手被拒（`bad_login`）回 401。
-3. 先问核心有没有、能不能读：`blob.get` 或者 `fs.read`，`length` 写 0。`unknown_blob`、`path_unreadable` 回 404，`path_forbidden` 回 403。
-4. 造一张票据：32 个随机字节，64 位小写十六进制。记在内存里：哪个登录令牌、哪个资源、多大、`type`、`name`、`download`。同一个令牌、同一个资源、同样三格的，交回原来那一张。12 小时没用过的作废；最多 4096 张，多了丢最久没用的。网页软件重启，票据全作废，页面照 404 重新换。
-5. 回应 `{"url":"/media/<票据>"}`。
-6. `GET /media/<票据>`：不认识的 404。带 `Range: bytes=…` 的只认一段，回 206；超出的回 416；不带的回全部。照 `blob.get`、`fs.read` 一块 512 KiB 地读，读一块写一块，不整个读进内存。
-7. 类型：`type` 在 `web.json` 的 blob 类型表里的照它；`path` 的照扩展名查表；都没有的 `application/octet-stream`。响应头带 `nosniff`、`Cache-Control: private, no-cache`、`Content-Security-Policy: sandbox; default-src 'none'; img-src data:; media-src data:; style-src 'unsafe-inline'`：有人直接打开这个地址（一个 SVG、一个 HTML），它在一个空的来源里跑，碰不到页面。`download` 的加 `Content-Disposition: attachment`，名字照 `name`（只留最后一段），UTF-8 照 RFC 5987 转义。
-8. 链接卡片的图、附件、她写到的本机图片和音视频，都走这一条。网页软件不另开图片代理：抓网上东西的只有核心的 `net` 包，地址闸只有一处。
-9. 有 `/media` 在给，网页软件不算空闲。
+**十、网页软件：媒体地址**（W-10）：挪到 `web-ui.md`「怎么走」第三条（施工 W-10）。
 
 **十一、`miyu web`**（W-9）：挪到 `web-ui.md`「怎么走」第二条（施工 W-9）。
 
@@ -403,7 +393,8 @@ http://127.0.0.1:<端口>/#setup=9f03b21c…
 | 状态 | 什么时候 |
 |---|---|
 | 403 | Host 不对；`/ws` 的 Origin 不对；`/media` 的路径在数据根里 |
-| 401 | `/media` 没带、带错了登录令牌 |
+| 400 | `/media` 的正文不是 JSON 对象、`blob` 和 `path` 不是正好一个、`type`、`name` 不是字符串、`download` 不是布尔（施工 W-10） |
+| 401 | `/media` 没带、带错了登录令牌；令牌作废了、过期了（这个令牌的票据一起作废，施工 W-10） |
 | 404 | 页面文件没有；票据不认识；blob、文件没有 |
 | 405 | 页面文件、`/media/<票据>` 不是 `GET`；`/media` 不是 `POST` |
 | 416 | `Range` 超出 |
@@ -427,6 +418,8 @@ http://127.0.0.1:<端口>/#setup=9f03b21c…
 | `WARN` | `password not hashed error=…`、`no random bytes error=…` | 算不出密码哈希、系统给不出随机字节（W-8），回 `internal_error` |
 | `INFO` | `listening url=…`、`stopped reason=…` | 网页软件起来、退出（W-9） |
 | `WARN` | `rejected host=… origin=…` | Host、Origin 不对（W-9） |
+| `WARN` | `media cut short offset=… error=…` | `/media` 给到一半核心那头断了、给得比说的少（W-10） |
+| `WARN` | `no random bytes for a ticket` | 系统给不出随机字节，票据造不成，回 500（W-10） |
 | `WARN` | `core unreachable error=…` | 连不上核心（W-9） |
 | `WARN` | `link preview failed host=… why=…` | 抓卡片没成，只写主机名（W-7，目标 `miyu::net`） |
 
@@ -487,7 +480,7 @@ http://127.0.0.1:<端口>/#setup=9f03b21c…
 | `crates/miyu-web/tests/serve.rs` | 单实例、`run/web`、那一行；Host、Origin 不对 403；页面文件不出页面目录；响应头；不设 cookie；空闲退出 | W-9 |
 | `crates/miyu-web/tests/ws.rs` | 真核心：一帧一行两头照转、一个字节都不改；握手的凭据照原样到核心；核心断了 WebSocket 关 1012；网页软件的代码里不读本机令牌（照源码查） | W-9 |
 | `crates/miyu-web/tests/open.rs`、`crates/miyu/tests/web.rs` | 没设过密码、`--reset` 的带一次性码，别的不带；`--print`；`--logout`；没装时说怎么装 | W-9 |
-| `crates/miyu-web/tests/media.rs` | 换票据要登录令牌；同一个资源交回同一张；`Range` 206、416；类型照表、`nosniff`、`sandbox`；下载的名字转义；票据作废 404 | W-10 |
+| `crates/miyu-web/tests/media.rs`、`src/media/tests.rs` | 换票据要登录令牌；同一个资源交回同一张；`Range` 206、416；类型照表、`nosniff`、`sandbox`；下载的名字转义；票据作废 404（细的见 `web-ui.md`「守着它的」） | W-10 |
 | 真机实测 | 三个平台各开一次网页、登录、发一句带附件的话、看一张图和一段视频拖进度、一张链接卡片、一张 mermaid 图；终端演示经核心出 mermaid 图、`@` 选文件 | W-9、W-10 |
 
 ### 出处

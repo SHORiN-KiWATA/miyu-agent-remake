@@ -4,7 +4,7 @@
 
 网页界面是一个单独的程序 `miyu-web` 加一套页面文件，装了才有。它是核心的一个头：自己开一个只听本机的 HTTP 端口，给页面，把浏览器的 WebSocket 一帧一条转成核心协议的一行一条，经本机套接字（Windows 上是命名管道）连核心，不读本机令牌。主程序的 `miyu web` 找到它、把参数交给它。
 
-状态：施工 W-9 做好了起停、页面、WebSocket 照转和 `miyu web`；媒体地址 `/media` 随 W-10（`web-module.md` 第十条），打包随 W-11。这一页从 `web-module.md` 搬出来（第九条、第十一条，「要跟着改的别的页」里定的「网页软件一页」）；核心给网页的通用方法、身份还在那一页。
+状态：施工 W-9 做好了起停、页面、WebSocket 照转和 `miyu web`；施工 W-10 做好了媒体地址 `/media`；打包随 W-11。这一页从 `web-module.md` 搬出来（第九条、第十一条，W-10 又搬了第十条；「要跟着改的别的页」里定的「网页软件一页」）；核心给网页的通用方法、身份还在那一页。
 
 ### 在哪
 
@@ -15,8 +15,12 @@
 | `crates/miyu-web/src/serve.rs` | 单实例、听端口、写 `run/web` 和那一行、空闲退出；核对 Host、给页面 |
 | `crates/miyu-web/src/pages.rs` | 页面文件：`/` 是 `index.html`，不出页面目录 |
 | `crates/miyu-web/src/ws.rs` | 核对 Origin；WebSocket 和核心连接两头照转 |
+| `crates/miyu-web/src/media.rs` | `/media`：换票据、照票据一块块给、响应头（施工 W-10） |
+| `crates/miyu-web/src/media/tickets.rs` | 票据：造、找、作废、过期、上限 |
+| `crates/miyu-web/src/media/link.rs` | 照登录令牌连核心：一个令牌一条，同时问、照编号分回去，60 秒没人用就关 |
+| `crates/miyu-web/src/media/range.rs` | `Range` 要哪一段；下载的名字照 RFC 5987 转义 |
 | `crates/miyu-web/src/open.rs`、`texts.rs` | `open`：确保 `serve` 在跑；要一次性码；开浏览器；给人看的字 |
-| `crates/miyu-web/src/settings.rs`、`resources/web/web.json` | 出厂的端口（8300）、空闲多久、内容安全策略、页面的媒体类型 |
+| `crates/miyu-web/src/settings.rs`、`resources/web/web.json` | 出厂的端口（8300）、空闲多久、内容安全策略、页面的媒体类型；票据多久不用作废、最多几张（W-10） |
 | `resources/web/pages/` | 页面文件。M9 的网页搬进主仓库以前是空的，开发时设 `MIYU_WEB_PAGES` 指到网页演示的 `web-demo/` |
 | `crates/miyu-cli/src/web.rs`、`help/{zh,en}/web.txt` | 主程序的 `miyu web` 和它的帮助页 |
 | `crates/miyu-ipc/src/start.rs` 的 `spawn_detached` | 拉起、跟终端脱开、等那一行：核心和 `serve` 共用 |
@@ -50,6 +54,19 @@
 6. `--print`：不开浏览器，印整个网址；带了码的，下一行提醒「5 分钟内有效，只能用一次，别发给别人」。
 7. `--logout`：照终端的样子连核心，`account.logout`，`all: true`，印作废了几个。不碰网页软件，不改密码。
 
+**三、媒体地址**（W-10，原来是 `web-module.md` 第十条；2026-09-30 定的「小的经协议，大的由网页给带令牌的地址」，那时说的网页模块现在是网页软件）
+
+1. `POST /media`：`Authorization: Bearer <登录令牌>`；正文是 JSON：`blob`（内容哈希）或者 `path`（绝对路径），正好一个；可以带 `type`（媒体类型）、`name`（存下来叫什么）、`download`（布尔，叫浏览器存下来）。
+2. 网页软件照这个登录令牌连核心：同一个令牌的连接留着复用，60 秒不用就关。握手被拒（`bad_login`）回 401。
+3. 先问核心有没有、能不能读：`blob.get` 或者 `fs.read`，`length` 写 0。`unknown_blob`、`path_unreadable` 回 404，`path_forbidden` 回 403。
+4. 造一张票据：32 个随机字节，64 位小写十六进制。记在内存里：哪个登录令牌、哪个资源、多大、`type`、`name`、`download`。同一个令牌、同一个资源、同样三格的，交回原来那一张。12 小时没用过的作废；最多 4096 张，多了丢最久没用的。网页软件重启，票据全作废，页面照 404 重新换。
+5. 回应 `{"url":"/media/<票据>"}`。
+6. `GET /media/<票据>`：不认识的 404。带 `Range: bytes=…` 的只认一段，回 206；超出的回 416；不带的回全部。照 `blob.get`、`fs.read` 一块 512 KiB 地读，读一块写一块，不整个读进内存。
+7. 类型：`type` 在 `web.json` 的 blob 类型表里的照它；`path` 的照扩展名查表；都没有的 `application/octet-stream`。响应头带 `nosniff`、`Cache-Control: private, no-cache`、`Content-Security-Policy: sandbox; default-src 'none'; img-src data:; media-src data:; style-src 'unsafe-inline'`：有人直接打开这个地址（一个 SVG、一个 HTML），它在一个空的来源里跑，碰不到页面。`download` 的加 `Content-Disposition: attachment`，名字照 `name`（只留最后一段），UTF-8 照 RFC 5987 转义。
+8. 链接卡片的图、附件、她写到的本机图片和音视频，都走这一条。网页软件不另开图片代理：抓网上东西的只有核心的 `net` 包，地址闸只有一处。
+9. 有 `/media` 在给，网页软件不算空闲。
+10. 施工 W-10 定的细处见「施工时定的」第 11 到 16 条：「blob 类型表」就是 `types` 那张表的值；一个令牌一条核心连接、同时问；`Range` 只认一段，好几段、写法不对的照没写；`GET` 时照这时的大小算；令牌作废了票据一起作废；方法只认 `POST`、`GET`。没写名字的下载，本机文件照文件名，blob 只写 `attachment`。
+
 ### 出错、运行日志
 
 | 级别 | 这件事 | 什么时候 |
@@ -58,6 +75,10 @@
 | `WARN` | `rejected host=… origin=…` | Host、Origin 不对 |
 | `WARN` | `core unreachable error=…` | 连不上核心 |
 | `DEBUG` | `websocket connected`、`websocket closed` | 一个标签页连上、断开 |
+| `WARN` | `media cut short offset=… error=…` | `/media` 给到一半核心那头断了、给得比说的少：连接照 HTTP 的规矩断掉，浏览器知道没收全 |
+| `WARN` | `no random bytes for a ticket` | 票据造不成，回 500 |
+
+`/media` 的状态码见 `web-module.md`「出错」网页软件的 HTTP 那张表。
 
 ### 给人看的字
 
@@ -69,6 +90,8 @@
 |---|---|
 | `crates/miyu-web/tests/serve.rs` | 单实例、`run/web`、那一行；端口被占说清楚；Host 只认三种写法；页面文件不出页面目录（`..`、`%2e%2e`、链接、目录）；响应头一个不少、从不设 cookie；`HEAD`、别的方法 405；空闲到点退出、删 `run/web`、放锁 |
 | `crates/miyu-web/tests/ws.rs` | 一帧一行两头照转，一个字节不改（凭据、中文、空白、很长的一行）；Origin 不对 403；二进制 1003、超过 1 MiB 1009，照原始字节发的超长帧读得到 1009、读到头不是被重置；核心断了 1012；连不上核心发 `web.error` 再关；转发的代码里不读本机令牌（照源码查） |
+| `crates/miyu-web/tests/media.rs` | 核心用替身（照登录令牌握手、答 `blob.get`、`fs.read`，同一条连接上乱序答）：换票据要登录令牌（没带、带错 401）；正文 `blob`、`path` 正好一个，不对 400；没有的 404、数据根里的 403、连不上核心 502；同一个令牌、资源、三格交回同一张，连接复用；全部、`Range` 206 和 `Content-Range`、超出 416、好几段和写法不对的照没写；一块不超过 512 KiB、拼起来一个字节不差；同一条连接上同时几问各拿各的；类型照表、表里没有的不认、`sandbox`、`nosniff`、`private, no-cache`；下载的名字；令牌作废了 401、票据一起作废；在给不算空闲；票据过期、满了丢最久没用的 |
+| `crates/miyu-web/src/media/tests.rs` | `Range` 每种写法（大小写、超出、好几段、写法不对、空的资源）；下载的名字只留最后一段、`attr-char` 以外都转义 |
 | `crates/miyu-web/tests/open.rs` | 拉起真的 `miyu-web serve`；没设过密码、`--reset` 的带 `#setup=`，别的不带；`--print`、交不给浏览器的印网址和提醒；`--logout`；端口被占照人的语言说 |
 | `crates/miyu-cli/src/web/tests.rs` | 参数照原样交给 `miyu-web open`；没装时说怎么装、退出码 1；装了的照它的退出码 |
 
@@ -86,3 +109,14 @@
 | 8 | `cli/web.md` 不另开，`miyu web` 写在这一页 | `miyu web` 只是找程序、交参数，怎么走都在 `miyu-web open` | 另开一页（两页说同一件事） |
 | 9 | 资源目录最上一层的 `web/`（`web.json`，以后的页面）不进提示词登记簿（`xtask/src/ledger.rs` 豁免，和 `models/` 一样） | 给浏览器的，不发给模型 | 登记进 26 第十节（登记簿里混进不发给模型的东西） |
 | 10 | 关了以后先关写的一半、把浏览器还在发的读掉再放套接字，最多等 2 秒（W-9 验收时补，2026-10-04） | 带着没读的数据关，系统回 RST，刚写出去的关闭帧可能被对面丢掉：超过 1 MiB 的帧正文没读，Windows 上浏览器收不到 1009、只看到连接被重置（CI 上稳定复现）；读掉再关就是正常的 FIN | 只改测试让客户端边发边读（真浏览器也是边发边读，但 RST 和关闭帧照样赛跑）；把那一帧读完再关（帧可能很大，要另加上限） |
+
+### 施工时定的（施工 W-10，2026-10-04）
+
+| # | 定了什么 | 为什么 | 别的选法 |
+|---|---|---|---|
+| 11 | 第三条第 7 款说的「blob 类型表」就是 `web.json` 里 `types` 那张表的值：`type` 是表里出现过的才照它，别的不认、照没写 | 一张表两头用，不会一边加了一边忘 | `web.json` 另开一张允许的媒体类型表 |
+| 12 | 连核心：一个登录令牌一条连接，几个请求在同一条上同时问，照编号把回应分回去；60 秒没人用就关；用着的断了（核心重启、令牌作废了核心断开）重连再问一次 | 一个视频拖进度会同时来好几个分段请求，一问一答会排队 | 每个请求单开一条连接（每次都要握手） |
+| 13 | `Range` 只认一段（`bytes=a-b`、`bytes=a-`、`bytes=-n`）；好几段的、写法不对的照没写，回全部（RFC 9110 允许不理）；超出的 416 带 `Content-Range: bytes */<大小>`；回应都带 `Accept-Ranges: bytes` | 浏览器放音视频只发一段；好几段要拼 multipart，没人用 | 好几段的回 416 |
+| 14 | `GET` 时再问一次大小，照这时的大小算 `Range`、`Content-Length`；给得比说的少就断开连接 | 票据活 12 小时，文件可能变了 | 照换票据时记下的大小 |
+| 15 | 握手被拒（令牌作废了、过期了）：`POST`、`GET` 都回 401，这个令牌的票据一起作废 | 退出登录、`miyu web --logout` 以后，旧票据不该还能拿到东西 | 票据活到 12 小时 |
+| 16 | 票据多久不用、最多几张写进 `web.json`（`ticket_idle_seconds`、`most_tickets`），连核心的 60 秒写在代码里 | 「起草时定的」第 25 条：网页软件的数放在 `web.json`；60 秒只是省一条连接，不是给人调的 | 都写进 `web.json` |

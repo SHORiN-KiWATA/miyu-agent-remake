@@ -19,8 +19,12 @@ pub struct Settings {
     pub idle_seconds: u64,
     /// 页面的 `Content-Security-Policy`。
     pub csp: String,
-    /// 扩展名（小写）→ 媒体类型。
+    /// 扩展名（小写）→ 媒体类型。`/media` 认页面说的类型也照它：表里出现过的才认（施工 W-10）。
     pub types: BTreeMap<String, String>,
+    /// `/media` 的票据多少秒没用过就作废（施工 W-10）。
+    pub ticket_idle_seconds: u64,
+    /// `/media` 的票据最多几张，满了丢最久没用的（施工 W-10）。
+    pub most_tickets: usize,
 }
 
 impl Settings {

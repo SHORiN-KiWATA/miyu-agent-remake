@@ -1,10 +1,10 @@
-//! `miyu-web serve`（`web-module.md`「怎么走」第九条）：单实例、只听 `127.0.0.1`、写 `run/web` 和那一行、空闲退出；每个
-//! 请求先核对 Host，`/ws` 交给 `ws`，别的当页面文件（`pages`）。
+//! `miyu-web serve`（`web-ui.md`「怎么走」第一条）：单实例、只听 `127.0.0.1`、写 `run/web` 和那一行、空闲退出；每个
+//! 请求先核对 Host，`/ws` 交给 `ws`，`/media` 交给 `media`（施工 W-10），别的当页面文件（`pages`）。
 //!
 //! 1. 先拿 `run/web.lock`，拿不到写 `running` 走。
 //! 2. 听端口：被占了写 `error port <端口> in use`（`open` 认这个前缀，照人的语言说），别的起不来写 `error <原因>`。
 //! 3. 地址写进 `run/web`（先写临时文件再改名），写一行 `ready`。
-//! 4. 没有 WebSocket 连着、连续空闲到点就退出；收到停的信号也退出。退出时先删 `run/web`、再放锁。
+//! 4. 没有 WebSocket 连着、没有 `/media` 在给，连续空闲到点就退出；收到停的信号也退出。退出时先删 `run/web`、再放锁。
 
 use std::convert::Infallible;
 use std::fs::{File, OpenOptions, TryLockError};
@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
-use http_body_util::Full;
+use http_body_util::{BodyExt, Full};
 use hyper::body::{Bytes, Incoming};
 use hyper::header::{self, HeaderValue};
 use hyper::{Method, Request, Response, StatusCode};
@@ -24,14 +24,18 @@ use tokio::net::TcpListener;
 use miyu_ipc::Ready;
 use miyu_store::root::DataRoot;
 
+use crate::media::Media;
 use crate::settings::Settings;
-use crate::{TARGET, pages, ws};
+use crate::{TARGET, media, pages, ws};
 
 /// 单实例的锁，在 `run/` 里。
 pub const LOCK: &str = "web.lock";
 
 /// 网页的地址，在 `run/` 里：一行，`http://127.0.0.1:<端口>`。
 pub const ADDRESS: &str = "web";
+
+/// 回应的正文：整段的，或者 `/media` 一块块给的。
+pub(crate) type Body = http_body_util::combinators::BoxBody<Bytes, std::io::Error>;
 
 /// 拉起核心的命令：主程序 `miyu` 加 `core`。
 pub type CoreCommand = Arc<dyn Fn() -> Command + Send + Sync>;
@@ -57,7 +61,9 @@ pub(crate) struct Site {
     pub(crate) pages: PathBuf,
     pub(crate) settings: Settings,
     pub(crate) core: CoreCommand,
-    /// 连着几个 WebSocket。
+    /// `/media` 的票据、连着的核心。
+    pub(crate) media: Media,
+    /// 连着几个 WebSocket、几个 `/media` 在给。
     active: AtomicUsize,
     /// 最后一个走的时候。
     quiet_since: Mutex<Instant>,
@@ -157,12 +163,14 @@ pub async fn run(serve: Serve, said: impl FnOnce(Ready)) -> Result<(), String> {
     }
     said(Ready::Ready);
     tracing::info!(target: TARGET, url = %url, "listening");
+    let media = Media::new(&serve.settings);
     let site = Arc::new(Site {
         root: serve.root,
         port,
         pages: serve.pages,
         settings: serve.settings,
         core: serve.core,
+        media,
         active: AtomicUsize::new(0),
         quiet_since: Mutex::new(Instant::now()),
     });
@@ -197,6 +205,7 @@ async fn accept(listener: &TcpListener, site: &Arc<Site>) -> &'static str {
                 }
             }
             _ = tick.tick() => {
+                site.media.sweep();
                 if site.idle_for().is_some_and(|quiet| quiet >= idle) {
                     return "idle";
                 }
@@ -206,11 +215,8 @@ async fn accept(listener: &TcpListener, site: &Arc<Site>) -> &'static str {
     }
 }
 
-/// 一个请求：先核对 Host；`/ws` 交给 WebSocket；`GET`、`HEAD` 当页面文件；别的方法 405。
-async fn handle(
-    request: Request<Incoming>,
-    site: Arc<Site>,
-) -> Result<Response<Full<Bytes>>, Infallible> {
+/// 一个请求：先核对 Host；`/ws` 交给 WebSocket；`/media` 换票据、照票据给；`GET`、`HEAD` 当页面文件；别的方法 405。
+async fn handle(request: Request<Incoming>, site: Arc<Site>) -> Result<Response<Body>, Infallible> {
     let host = request
         .headers()
         .get(header::HOST)
@@ -224,8 +230,15 @@ async fn handle(
         tracing::warn!(target: TARGET, host = host.unwrap_or_default(), origin, "rejected");
         return Ok(empty(StatusCode::FORBIDDEN));
     }
-    if request.uri().path() == "/ws" {
+    let path = request.uri().path();
+    if path == "/ws" {
         return Ok(ws::accept(request, site));
+    }
+    if path == "/media" {
+        return Ok(media::post(request, site).await);
+    }
+    if path.starts_with("/media/") {
+        return Ok(media::get(request, site).await);
     }
     if request.method() != Method::GET && request.method() != Method::HEAD {
         return Ok(empty(StatusCode::METHOD_NOT_ALLOWED));
@@ -240,7 +253,7 @@ async fn handle(
         true => Bytes::new(),
         false => Bytes::from(bytes),
     };
-    let mut response = Response::new(Full::new(body));
+    let mut response = Response::new(full(body));
     let headers = response.headers_mut();
     headers.insert(header::CONTENT_TYPE, value(site.settings.type_of(&file)));
     headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
@@ -249,16 +262,23 @@ async fn handle(
     Ok(response)
 }
 
+/// 整段的正文。
+pub(crate) fn full(bytes: impl Into<Bytes>) -> Body {
+    Full::new(bytes.into())
+        .map_err(|never| match never {})
+        .boxed()
+}
+
 /// 没有内容的回应，带两个一律有的头。
-pub(crate) fn empty(status: StatusCode) -> Response<Full<Bytes>> {
-    let mut response = Response::new(Full::new(Bytes::new()));
+pub(crate) fn empty(status: StatusCode) -> Response<Body> {
+    let mut response = Response::new(full(Bytes::new()));
     *response.status_mut() = status;
     secure(response.headers_mut());
     response
 }
 
 /// 一律带的：不猜类型、不带 Referer。从来不设 cookie（「起草时定的」第 13 条）。
-fn secure(headers: &mut hyper::HeaderMap) {
+pub(crate) fn secure(headers: &mut hyper::HeaderMap) {
     headers.insert(
         header::X_CONTENT_TYPE_OPTIONS,
         HeaderValue::from_static("nosniff"),
