@@ -483,6 +483,7 @@
     "refuse_no_key": "这个模型没有 key"
   },
   "settings": {
+    "inputs_hint": "Tab/Space 选择 · 取消全部恢复默认 · Enter 确认",
     "pdf": "PDF",
     "image": "图像",
     "text": "文字",

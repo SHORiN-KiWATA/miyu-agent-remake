@@ -483,6 +483,7 @@
     "refuse_no_key": "このモデルにはキーがありません"
   },
   "settings": {
+    "inputs_hint": "Tab/Space 選択 · 全解除で既定に戻す · Enter 確定",
     "pdf": "PDF",
     "image": "画像",
     "text": "テキスト",

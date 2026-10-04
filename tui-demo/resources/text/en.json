@@ -483,6 +483,7 @@
     "refuse_no_key": "This model has no key"
   },
   "settings": {
+    "inputs_hint": "Tab/Space select · Clear all to inherit · Enter confirm",
     "pdf": "PDF",
     "image": "Images",
     "text": "Text",

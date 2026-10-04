@@ -75,6 +75,7 @@ pub struct Settings {
     config_loaded: bool,
     outbox: Vec<Command>,
     pending: HashMap<u64, Pending>,
+    refresh_pending: Option<bool>,
 }
 
 /// 鼠标命中的动作。
@@ -115,6 +116,7 @@ impl Settings {
             config_loaded: false,
             outbox: Vec::new(),
             pending: HashMap::new(),
+            refresh_pending: None,
         };
         page.fetch(false);
         page
@@ -141,6 +143,13 @@ impl Settings {
 
     /// 初次、重连或外部修改后重读；保存中的草稿仍用原快照。
     pub fn fetch(&mut self, refresh: bool) {
+        if self
+            .pending
+            .values()
+            .any(|p| matches!(p, Pending::Models | Pending::Config))
+        {
+            self.refresh_pending = Some(self.refresh_pending.unwrap_or(false) || refresh);
+        }
         if !self.pending.values().any(|p| matches!(p, Pending::Models)) {
             self.ask("model.list", json!({"refresh":refresh}), Pending::Models);
         }
@@ -181,8 +190,9 @@ impl Settings {
                     && let Some(f) = &mut self.form
                     && let Some(key) = f.fields.iter_mut().find(|f| matches!(f.kind, Kind::Key))
                 {
-                    key.value.clear();
+                    key.value = key.original.clone();
                 }
+                self.followup();
                 return;
             }
         };
@@ -226,6 +236,19 @@ impl Settings {
                     );
                 }
             }
+        }
+        self.followup();
+    }
+
+    // 读请求在变更通知以前取到了旧快照，也要在完成后再取一次，不丢掉刷新意图。
+    fn followup(&mut self) {
+        if !self
+            .pending
+            .values()
+            .any(|p| matches!(p, Pending::Models | Pending::Config))
+            && let Some(refresh) = self.refresh_pending.take()
+        {
+            self.fetch(refresh);
         }
     }
 
@@ -322,5 +345,63 @@ mod tests {
             &texts,
         );
         assert!(page.note.contains("模型不存在"));
+    }
+    #[test]
+    fn a_failed_secret_save_does_not_remove_the_existing_provider_key_on_retry() {
+        let mut page = Settings::new(false, true);
+        page.loaded = true;
+        page.outgoing();
+        let config = json!({"items":{"providers.p.keys":{"value":[{"env":"OLD_KEY"}],"origin":{"layer":"personal"}}}});
+        let provider = Provider {
+            id: "p".into(),
+            name: "p".into(),
+            models: vec![],
+        };
+        let mut form = forms::provider(&config, Some(&provider));
+        form.fields[1].value = "https://new.invalid/v1".into();
+        form.fields[3].value = "replacement-key".into();
+        page.form = Some(form);
+        page.save(&HashMap::new());
+        let Command::SettingsRpc { tag, method, .. } = page.outgoing().pop().unwrap() else {
+            panic!()
+        };
+        assert_eq!(method, "secret.set");
+        page.replied(tag, Err("secret write failed".into()), &HashMap::new());
+        let changes = page.form.as_ref().unwrap().changes();
+        assert!(changes.iter().all(|c| c["key"] != "providers.p.keys"));
+        assert!(changes.iter().any(|c| c["key"] == "providers.p.base_url"));
+    }
+
+    #[test]
+    fn changes_received_during_a_read_trigger_a_followup_snapshot() {
+        let mut page = Settings::new(false, true);
+        let reads = page.outgoing();
+        page.fetch(false);
+        for request in reads {
+            let Command::SettingsRpc { tag, method, .. } = request else {
+                panic!()
+            };
+            let response = if method == "model.list" {
+                json!({"providers":[]})
+            } else {
+                json!({"items":{}})
+            };
+            page.replied(tag, Ok(response), &HashMap::new());
+        }
+        let followup = page.outgoing();
+        assert!(followup.iter().any(|r| matches!(
+            r,
+            Command::SettingsRpc {
+                method: "config.get",
+                ..
+            }
+        )));
+        assert!(followup.iter().any(|r| matches!(
+            r,
+            Command::SettingsRpc {
+                method: "model.list",
+                ..
+            }
+        )));
     }
 }

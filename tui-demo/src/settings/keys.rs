@@ -117,7 +117,11 @@ impl Settings {
                             .filter(|(_, v)| **v)
                             .map(|(s, _)| s)
                             .collect();
-                        json!(selected).to_string()
+                        if selected.is_empty() {
+                            String::new()
+                        } else {
+                            json!(selected).to_string()
+                        }
                     } else {
                         edit.options[edit.selected].clone()
                     };
@@ -217,5 +221,30 @@ mod tests {
         assert!(!s.key(key(KeyCode::Esc), &HashMap::new()));
         assert!(s.form.is_none());
         assert!(s.key(key(KeyCode::Esc), &HashMap::new()));
+    }
+    #[test]
+    fn clearing_all_input_tags_restores_the_inherited_capabilities() {
+        let mut page = Settings::new(false, true);
+        page.loaded = true;
+        let provider = data::Provider {
+            id: "p".into(),
+            name: "p".into(),
+            models: vec![],
+        };
+        let model = data::Model {
+            id: "a".into(),
+            reference: "p/a".into(),
+            facts: json!({"inputs":{"value":["text"]}}),
+        };
+        page.form = Some(forms::model(&json!({}), &provider, &model));
+        page.open(&HashMap::new());
+        page.key(key(KeyCode::Char(' ')), &HashMap::new());
+        page.key(key(KeyCode::Enter), &HashMap::new());
+        let changes = page.form.unwrap().changes();
+        assert!(
+            changes
+                .iter()
+                .any(|c| c["key"] == "providers.p.models.a.inputs" && c["unset"] == true)
+        );
     }
 }

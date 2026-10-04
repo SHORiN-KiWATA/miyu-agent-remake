@@ -44,6 +44,17 @@ pub(super) fn draw(frame: &mut Frame, page: &mut Settings, config: &Config, area
         return caret;
     }
     if !edit.options.is_empty() {
+        let options_area = if edit.checked.is_some() && inside.height > 1 {
+            line(
+                frame,
+                Rect::new(inside.x, inside.bottom() - 1, inside.width, 1),
+                text(&config.text.settings, "inputs_hint"),
+                theme::dim(),
+            );
+            Rect::new(inside.x, inside.y, inside.width, inside.height - 1)
+        } else {
+            inside
+        };
         let options: Vec<_> = edit
             .options
             .iter()
@@ -60,12 +71,16 @@ pub(super) fn draw(frame: &mut Frame, page: &mut Settings, config: &Config, area
                 (format!("{mark}{value}"), i == edit.selected)
             })
             .collect();
-        let start = top(edit.selected, options.len(), usize::from(inside.height));
+        let start = top(
+            edit.selected,
+            options.len(),
+            usize::from(options_area.height),
+        );
         for (offset, (i, (value, selected))) in options
             .iter()
             .enumerate()
             .skip(start)
-            .take(usize::from(inside.height))
+            .take(usize::from(options_area.height))
             .enumerate()
         {
             row(

@@ -58,8 +58,7 @@ impl App {
             Update::Disconnected | Update::Failed(_) | Update::NoCoreBin | Update::Missing(_) => {
                 if let Some(settings) = &mut self.settings {
                     settings.connected = false;
-                    settings.note =
-                        crate::settings::text(&self.config.text.settings, "not_connected").into();
+                    settings.note = connection_note(incoming, &self.config.text);
                 }
                 false
             }
@@ -160,5 +159,36 @@ impl App {
         }
         self.flush_settings();
         true
+    }
+}
+
+fn connection_note(update: &Update, texts: &crate::config::Texts) -> String {
+    match update {
+        Update::Failed(reason) => texts.core_failed.replace("{reason}", reason),
+        Update::Missing(path) => texts.missing_core.replace("{path}", path),
+        Update::NoCoreBin => texts.no_core_bin.clone(),
+        Update::Disconnected => texts.reconnecting.clone(),
+        _ => crate::settings::text(&texts.settings, "not_connected").into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn config_connection_failures_keep_the_original_reason_or_missing_program_path() {
+        let config = crate::config::Config::builtin().unwrap();
+        assert!(
+            connection_note(&Update::Failed("核心拒绝握手".into()), &config.text)
+                .contains("核心拒绝握手")
+        );
+        assert!(
+            connection_note(&Update::Missing("/not-installed/miyu".into()), &config.text)
+                .contains("/not-installed/miyu")
+        );
+        assert_eq!(
+            connection_note(&Update::NoCoreBin, &config.text),
+            config.text.no_core_bin
+        );
     }
 }

@@ -116,6 +116,7 @@ impl Settings {
     }
 
     /// 池的选择顺序就是调用先后，不按显示顺序重新排序。
+    /// 切换选中模型是否入池，新增成员排在末尾。
     pub(super) fn toggle_member(&mut self) {
         let Some(f) = &self.form else {
             return;
@@ -205,6 +206,7 @@ impl Settings {
         }
     }
 
+    /// 普通配置一次提交；原快照提供个人层逐项 expect。
     pub(super) fn write(&mut self, texts: &HashMap<String, String>) {
         let changes = self.form.as_ref().map_or_else(Vec::new, Form::changes);
         if changes.is_empty() {
