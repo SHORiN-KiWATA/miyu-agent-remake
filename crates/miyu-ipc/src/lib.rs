@@ -39,7 +39,7 @@ pub use listener::{Connection, Listener};
 pub use lock::Lock;
 pub use place::{Dirs, fingerprint};
 pub use ready::Ready;
-pub use start::{connect_or_start, connect_or_start_bare};
+pub use start::{connect_or_start, connect_or_start_bare, spawn_detached};
 
 use std::fmt;
 use std::io;

@@ -20,7 +20,7 @@
 | 8. `web.files` | 核心 | `fs.list`、`fs.find` | W-2 |
 | 9. 核心没在跑时拉起它 | 网页软件，照别的头 | 无 | W-9 |
 
-状态：图纸，2026-10-01 项目主人批准；W-8（第一条）2026-10-04 照项目主人定的重画，项目主人同一天批准。「网页界面是一个软件，网页的东西不放进核心」是项目主人 2026-10-01 定的，重开了设计 04 的 P5（末尾「要改的设计」）；「画 mermaid 在核心里，做成可选的软件包」也是同一天项目主人定的。技术细节照推荐定了，写在末尾「起草时定的」；项目主人拍板的六题单列一节。施工步子 W-1 到 W-11，W 是和 M8 并行的一条线，不占里程碑的号。W-1 做好了：`human.get`（`crates/miyu-endpoint/src/human.rs`、`crates/miyu-store/src/human.rs` 交出模板原文，`crates/miyu-endpoint/tests/human.rs`）。 W-2 做好了：`fs.list`、`fs.find`（`crates/miyu-fs/src/list.rs`、`find.rs`；`crates/miyu-endpoint/src/files.rs`、`files/cache.rs`；`crates/miyu-fs/src/list/tests.rs`、`find/tests.rs`；`crates/miyu-endpoint/tests/files.rs`）。W-3 做好了：握手回应的 `host`、`fs.realpath`（`crates/miyu-endpoint/src/hello.rs`、`files.rs`；`crates/miyu-endpoint/tests/hello.rs`）；施工时发现「从最近在的一层换成真实的位置」这段逻辑 4-3 就有了（`crates/miyu-fs/src/resolve.rs` 的 `resolve()`），没有新开 `real.rs`，改成直接复用它（「在哪」「起草时定的」第 38 条）。W-5 做好了：`blob.open`、`blob.write`、`blob.close`（`crates/miyu-endpoint/src/uploads.rs`，和 `attach.rs` 共用认是什么、文件名和媒体类型怎么查、存好了怎么拼回应这几样；`crates/miyu-store/src/blob.rs` 多分块暂存、改名进位置、扔掉、起来时清；`crates/miyu-core/src/packages.rs` 多 `clear_uploads`；`crates/miyu-endpoint/tests/uploads.rs`、`crates/miyu-core/tests/packages.rs`）。W-6 做好了：`blob.get`、`fs.read`（`crates/miyu-fs/src/range.rs` 新开的安全地打开以后读一段，`blob.get`、`fs.read` 共用；`crates/miyu-store/src/blob.rs` 多 `Blobs::read_range`；`crates/miyu-endpoint/src/attach.rs` 的 `get`、`files.rs` 的 `read`；`crates/miyu-fs/src/range/tests.rs`、`crates/miyu-endpoint/tests/reads.rs`）。W-7 做好了：`link.preview`（可选软件包 `net`、crate `miyu-net`，细节搬到 `net.md`；在后台答的查询 `crates/miyu-endpoint/src/queries.rs` 的 `register_background`、`connection.rs`；`crates/miyu-core/src/packages/net.rs`；`crates/miyu-net/src/guard/tests.rs`、`html/tests.rs`、`tests/preview.rs`、`tests/proxy.rs`、`crates/miyu/tests/link_preview.rs`）。 W-8 做好了：身份的核心这一半（`crates/miyu-endpoint/src/login.rs`、`login/files.rs`，握手 `hello.rs`、连接 `connection.rs`；`crates/miyu-store/src/accounts.rs`、`logins.rs`；`crates/miyu-ipc` 的 `connect_bare`、`connect_or_start_bare`；`crates/miyu-endpoint/tests/login.rs`、`login_log.rs`，`crates/miyu-ipc/tests/bare.rs`），`miyu web` 随 W-9。
+状态：图纸，2026-10-01 项目主人批准；W-8（第一条）2026-10-04 照项目主人定的重画，项目主人同一天批准。「网页界面是一个软件，网页的东西不放进核心」是项目主人 2026-10-01 定的，重开了设计 04 的 P5（末尾「要改的设计」）；「画 mermaid 在核心里，做成可选的软件包」也是同一天项目主人定的。技术细节照推荐定了，写在末尾「起草时定的」；项目主人拍板的六题单列一节。施工步子 W-1 到 W-11，W 是和 M8 并行的一条线，不占里程碑的号。W-1 做好了：`human.get`（`crates/miyu-endpoint/src/human.rs`、`crates/miyu-store/src/human.rs` 交出模板原文，`crates/miyu-endpoint/tests/human.rs`）。 W-2 做好了：`fs.list`、`fs.find`（`crates/miyu-fs/src/list.rs`、`find.rs`；`crates/miyu-endpoint/src/files.rs`、`files/cache.rs`；`crates/miyu-fs/src/list/tests.rs`、`find/tests.rs`；`crates/miyu-endpoint/tests/files.rs`）。W-3 做好了：握手回应的 `host`、`fs.realpath`（`crates/miyu-endpoint/src/hello.rs`、`files.rs`；`crates/miyu-endpoint/tests/hello.rs`）；施工时发现「从最近在的一层换成真实的位置」这段逻辑 4-3 就有了（`crates/miyu-fs/src/resolve.rs` 的 `resolve()`），没有新开 `real.rs`，改成直接复用它（「在哪」「起草时定的」第 38 条）。W-5 做好了：`blob.open`、`blob.write`、`blob.close`（`crates/miyu-endpoint/src/uploads.rs`，和 `attach.rs` 共用认是什么、文件名和媒体类型怎么查、存好了怎么拼回应这几样；`crates/miyu-store/src/blob.rs` 多分块暂存、改名进位置、扔掉、起来时清；`crates/miyu-core/src/packages.rs` 多 `clear_uploads`；`crates/miyu-endpoint/tests/uploads.rs`、`crates/miyu-core/tests/packages.rs`）。W-6 做好了：`blob.get`、`fs.read`（`crates/miyu-fs/src/range.rs` 新开的安全地打开以后读一段，`blob.get`、`fs.read` 共用；`crates/miyu-store/src/blob.rs` 多 `Blobs::read_range`；`crates/miyu-endpoint/src/attach.rs` 的 `get`、`files.rs` 的 `read`；`crates/miyu-fs/src/range/tests.rs`、`crates/miyu-endpoint/tests/reads.rs`）。W-7 做好了：`link.preview`（可选软件包 `net`、crate `miyu-net`，细节搬到 `net.md`；在后台答的查询 `crates/miyu-endpoint/src/queries.rs` 的 `register_background`、`connection.rs`；`crates/miyu-core/src/packages/net.rs`；`crates/miyu-net/src/guard/tests.rs`、`html/tests.rs`、`tests/preview.rs`、`tests/proxy.rs`、`crates/miyu/tests/link_preview.rs`）。 W-8 做好了：身份的核心这一半（`crates/miyu-endpoint/src/login.rs`、`login/files.rs`，握手 `hello.rs`、连接 `connection.rs`；`crates/miyu-store/src/accounts.rs`、`logins.rs`；`crates/miyu-ipc` 的 `connect_bare`、`connect_or_start_bare`；`crates/miyu-endpoint/tests/login.rs`、`login_log.rs`，`crates/miyu-ipc/tests/bare.rs`），`miyu web` 随 W-9。 W-9 做好了：网页软件 `miyu-web`（起停、页面、WebSocket 照转）和主程序的 `miyu web`，搬到新页 `web-ui.md`。
 
 - W-1 到 W-7（核心的通用方法）现在就做，和 M8 并行。
 - W-8（身份）2026-10-04 照项目主人定的重画（第一条）：只有一个账号 `admin`，网页第一次用本机终端给的一次性码进来、设登录用的用户名和密码，以后用它们登录；成员随多用户那一段。W-9 到 W-11（网页软件、媒体地址、打包）在 W-8 以后，第十一条的 `miyu web` 跟着第一条改了。
@@ -54,7 +54,7 @@
 | `crates/miyu-net/`（新，第 3 层） | 地址闸、钉住解析好的地址、自己跟重定向、读到 `</head>`、挖元数据、认图。可选软件包 `net`，以后 `web_fetch` 用同一份 | W-7 |
 | `crates/miyu-core/src/packages.rs` | 照编进来的可选软件包往查询表里登记（cargo 开关 `mermaid`、`net`）；起来时清掉分块上传留下的暂存 | W-4、W-5、W-7 |
 | `crates/miyu-ipc/src/lib.rs`、`start.rs` | 不读本机令牌的连法：`connect_bare`、`connect_or_start_bare` | W-8 |
-| `crates/miyu-cli/src/web.rs` | `miyu web`：照装了的清单找网页软件，把参数交给它（2026-10-01 项目主人定的清单登记，施工方案 M9 那一段第 4 条；原来写的「找主程序旁边的 `miyu-web`」作废） | W-9 |
+| `crates/miyu-cli/src/web.rs` | `miyu web`：现在找主程序真实位置旁边的 `miyu-web`，把参数交给它；有了软件包的清单（M9 那一段第 4 条）照清单找（施工 W-9 定：清单还没有） | W-9 |
 | `resources/software/mermaid/style.json` | 字体、三种记号色 | W-4 |
 | `resources/software/net/link_preview.json` | 抓链接卡片的规矩：时限、上限、请求头、记多久（照桥的那份） | W-7 |
 | `resources/core/human/{zh,en,ja}.json` | 新原因码的话 | 各步 |
@@ -311,18 +311,7 @@ sequenceDiagram
 
 另见 `net.md`：施工 W-7 时这一节的内容搬过去了，连同「在哪」`crates/miyu-net/`、`link_preview.json` 那两行的细节、「守着它的」对应的那一行。
 
-**九、网页软件：起停、端口、页面、WebSocket**（W-9）
-
-1. 单实例：`miyu-web serve` 先拿 `run/web.lock`，拿不到写 `running` 走。拿到了听端口，把地址写进 `run/web`（先写临时文件再改名），往标准输出写一行 `ready`，和核心那一行同一个写法（`ipc.md`「那一行」，复用 `miyu-ipc` 的 `Ready`）。起不来写 `error <原因>`。
-2. 端口：照 `--port`，没写照 `resources/web/web.json` 的出厂值（固定端口，第 2 题）；`0` 是系统挑一个空的。只听回环地址 `127.0.0.1`，不听别的网卡。端口被占了：`error 端口 <端口> 被占了`，`miyu web` 照原样印出来，后面接一句怎么换。
-3. 空闲退出：没有 WebSocket 连着、没有 `/media` 在给，连续 10 分钟就退出（`web.json` 的出厂值），先删 `run/web`、再放锁。收到停的信号照样先删再放。
-4. 每个请求先核对 Host：只认 `127.0.0.1:<端口>`、`localhost:<端口>`、`[::1]:<端口>`，别的回 403。别的网站把自己的域名解析到回环地址也进不来（DNS rebinding）。
-5. 页面文件：`GET /` 给 `index.html`，别的照路径在页面目录里找。带 `..` 的、换成真实位置以后跑到页面目录外的、不是普通文件的，404。类型照扩展名（`web.json` 的表）。响应头一律带：`X-Content-Type-Options: nosniff`、`Referrer-Policy: no-referrer`、`Cache-Control: no-cache`、`Content-Security-Policy`（照 `web.json`，至少有 `connect-src 'self'`、`frame-ancestors 'none'`）。从来不设 cookie（「起草时定的」第 13 条）。
-6. 页面目录：`MIYU_WEB_PAGES` 设了照它，不然是资源目录下的 `web/pages/`。资源目录照 `store/resources.md` 第 1 条找，和核心同一个办法。
-7. `GET /ws`：Origin 要正好是 `http://` 加上第 4 款三种之一（带端口），不然 403。接了以后连核心：`connect_or_start_bare`，核心没在跑就拉起来（命令是主程序 `miyu` 加 `core`，主程序在 `miyu-web` 的真实位置旁边）。连不上：往 WebSocket 发一条通知 `{"jsonrpc":"2.0","method":"web.error","params":{"message":<原因>}}`，再关。
-8. 一个标签页一条核心连接，不合并（proto/web-demo 分支 `docs/blueprint/web/architecture.md`「多用户、多终端」第 7 条）。两头照转：文字帧加一个 `\n` 是一行，一行去掉 `\n` 是一个文字帧。不读、不改、不加：握手的凭据、命令、推送原样过去。二进制帧：关，1003。一帧超过 1 MiB：关，1009（核心那头一行也就这么长）。
-9. 一头断了另一头跟着关。核心那头断了（重启、退出）：WebSocket 关，1012，页面照自己的规矩重连（proto/web-demo 分支 `docs/blueprint/web.md`「连核心」第 1 条）。
-10. 运行日志 `state/logs/web.log`，满了照核心的换法（`log.md`）。只记连上、断开、出错，不记一行的内容、一次性码、密码、登录令牌、票据。
+**九、网页软件：起停、端口、页面、WebSocket**（W-9）：挪到 `web-ui.md`「怎么走」第一条（施工 W-9）。
 
 **十、网页软件：媒体地址**（`/media`，W-10；2026-09-30 定的「小的经协议，大的由网页给带令牌的地址」，那时说的网页模块现在是网页软件）
 
@@ -336,15 +325,7 @@ sequenceDiagram
 8. 链接卡片的图、附件、她写到的本机图片和音视频，都走这一条。网页软件不另开图片代理：抓网上东西的只有核心的 `net` 包，地址闸只有一处。
 9. 有 `/media` 在给，网页软件不算空闲。
 
-**十一、`miyu web`**（W-9，2026-10-04 照第一条改）
-
-1. 主程序的 `miyu web` 找主程序真实位置旁边的 `miyu-web`（Windows 上是 `miyu-web.exe`），把 `web` 后面的参数原样交给 `miyu-web open`，等它退出，退出码照它的。没有：印「没装网页界面」和每种装法怎么装，退出码 1。
-2. `miyu-web open`：`run/web` 在、锁有人拿着，网页软件就在跑，照 `run/web` 的地址。不然拉起 `miyu-web serve`：和头拉起核心一样（`ipc.md`「连不上就拉起」第 4、5 条），跟终端脱开，工作目录是数据根，等那一行最多 10 秒。
-3. 照终端的样子连核心（`connect_or_start`，出示本机令牌）。写了 `--reset` 的，或者还没设过密码的（问一次 `account.setup_code`，`first` 是真的）：网址是 `<地址>/#setup=<一次性码>`，码在 `#` 后面，不发给服务器、不进 Referer，页面拿到以后从地址栏抹掉（设计 21 X6）。别的：网址就是 `<地址>/`，页面用存着的登录令牌，没有、过期了的问用户名和密码；这时不要一次性码（要了不用，5 分钟后自己作废）。
-4. 用系统的办法打开网址：Linux 是 `xdg-open`，macOS 是 `open`，Windows 是 `cmd /C start "" "<网址>"`。一次性码会出现在进程列表里：它只用一次、5 分钟，用过就作废（第 3 题），不另开跳转页。
-5. 交给了浏览器：印网页的地址（不带码）；带了码的再印一句「浏览器没打开的话，用 miyu web --print」（第 3 题说的 snap 装的 Firefox），退出码 0。浏览器开没开、设没设好，`miyu web` 看不到。交不出去（没有 `xdg-open`、没有图形界面）：照 `--print` 办。
-6. `--print`：不开浏览器，印整个网址；带了码的，下一行提醒「5 分钟内有效，只能用一次，别发给别人」。
-7. `--logout`：照终端的样子连核心，`account.logout`，`all: true`，印作废了几个。不碰网页软件，不改密码。
+**十一、`miyu web`**（W-9）：挪到 `web-ui.md`「怎么走」第二条（施工 W-9）。
 
 **十二、三个平台**
 
@@ -476,12 +457,15 @@ http://127.0.0.1:<端口>/#setup=9f03b21c…
 | 什么时候 | 中文 | 英文 |
 |---|---|---|
 | 交给了浏览器 | 网页开在 {url}，已经交给浏览器打开。 | The web UI is at {url} and has been opened in your browser. |
-| 提示 | 浏览器没打开登录页的话，用 miyu web --print。 | If the browser did not open the login page, use miyu web --print. |
+| 带了码的提示 | 浏览器没打开的话，用 miyu web --print。 | If the browser did not open, use miyu web --print. |
+| 第一次 | 还没设过网页的登录密码：带着一次性码打开网页，在网页上设用户名和密码。 | No web password yet: opening the web UI with a one-time code to set a username and password. |
+| `--print --reset` | 在浏览器里打开，重设用户名和密码： | Open this in a browser to reset the username and password: |
+| 起不来、连不上核心 | 网页软件起不来：{原因}；连不上核心：{原因} | The web UI could not start: {reason}; Could not reach the core: {reason} |
 | `--print` | 在浏览器里打开： | Open this in a browser: |
 | `--print` 的提醒 | 这个链接 5 分钟内有效，只能用一次，别发给别人。 | This link works once within 5 minutes. Do not share it. |
-| 没装 | 没装网页界面。装法：{怎么装} | The web UI is not installed. To install it: {how} |
+| 没装 | 没装网页界面。装法：装和 miyu 同一个版本的 miyu-web 包（各发行版怎么装），它装在 miyu 旁边。 | The web UI is not installed. Install the miyu-web package of the same version as miyu (…); it goes next to miyu. |
 | 端口被占 | 端口 {port} 被占了。换一个：miyu web --port <端口> | Port {port} is in use. Pick another: miyu web --port <port> |
-| `--logout` | 作废了 {count} 个登录，浏览器要再运行 miyu web 才能进来。 | Signed out {count} logins; browsers need miyu web again. |
+| `--logout` | 作废了 {count} 个登录，浏览器要用密码再登一次。 | Signed out {count} logins; browsers need to sign in with the password again. |
 
 ### 守着它的
 
@@ -680,3 +664,4 @@ http://127.0.0.1:<端口>/#setup=9f03b21c…
 - proto/tui-demo 分支的 `docs/blueprint/tui.md`：「图片、公式和 mermaid 图」（SVG 由核心出，「和设计 13 的出入」里 mermaid 在头里出图那一条删掉）、「`@` 文件列表」（经 `fs.list`、`fs.find`）、给人看的字（经 `human.get`，`src/language.rs` 不再照 `MIYU_RESOURCES` 读）。终端演示的会话改。
 - 设计文件：见「要改的设计」。`docs/designs/26-提示词.md` 不动：这条线不加给模型看的字。
 - `docs/construction/README.md` 第三节、`施工图.html`：这条线的步子。批准以后。
+- 施工 W-9：网页软件挪到新页 `web-ui.md`（第九、十一条），`cli/web.md` 不另开（`web-ui.md`「施工时定的」第 8 条）。

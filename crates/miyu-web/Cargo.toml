@@ -1,0 +1,40 @@
+[package]
+name = "miyu-web"
+description = "网页软件：只听本机的 HTTP 端口给页面文件，把浏览器的 WebSocket 转成核心协议，经本机传输连核心（施工 W-9，web-module.md）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "miyu-web"
+path = "src/main.rs"
+
+[dependencies]
+# 连核心：转发浏览器的连接不读本机令牌（connect_or_start_bare），`open` 要一次性码那一下照终端出示；拉起 `serve` 照
+# 拉起核心的办法（spawn_detached），那一行照核心的写法（Ready）。
+miyu-ipc = { path = "../miyu-ipc" }
+# 数据根、资源目录在哪。
+miyu-store = { path = "../miyu-store" }
+# 运行日志 `state/logs/web.log`，满了照核心的换法。
+miyu-log = { path = "../miyu-log" }
+# HTTP/1 的服务端（「起草时定的」第 24 条：正式的软件不手写协议）。本来就在依赖图里（reqwest 带进来的）。MIT。
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }
+http-body-util = "0.1"
+# WebSocket：一帧一条消息。只开握手（算 Sec-WebSocket-Accept），连接由 hyper 升级好交给它。MIT。
+tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+# 读 web.json。
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time", "fs", "signal"] }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+# 测试里照浏览器的样子连 `/ws`（客户端的握手）。
+tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }

@@ -1,0 +1,25 @@
+{
+  "port": 8300,
+  "idle_seconds": 600,
+  "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+  "types": {
+    "html": "text/html; charset=utf-8",
+    "js": "text/javascript; charset=utf-8",
+    "mjs": "text/javascript; charset=utf-8",
+    "css": "text/css; charset=utf-8",
+    "json": "application/json",
+    "map": "application/json",
+    "txt": "text/plain; charset=utf-8",
+    "svg": "image/svg+xml",
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "gif": "image/gif",
+    "webp": "image/webp",
+    "ico": "image/x-icon",
+    "woff2": "font/woff2",
+    "woff": "font/woff",
+    "ttf": "font/ttf",
+    "wasm": "application/wasm"
+  }
+}

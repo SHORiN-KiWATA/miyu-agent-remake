@@ -102,7 +102,7 @@
 │   ├── logs/core.log、core.log.1 …     运行日志（log.md）
 │   ├── config/                         核心起来时生成：config.schema.json、settings.schema.json、reference.toml（config.md，施工 8-1）
 │   └── usage.db、usage.db-wal、usage.db-shm  用量汇总，派生的（models.md 第九条，施工 8-15）
-└── run/                                core.lock、spawn.lock、token、socket；没有能用的 XDG_RUNTIME_DIR 的 Linux、macOS 上还有套接字 core.sock（ipc.md）
+└── run/                                core.lock、spawn.lock、token、socket；没有能用的 XDG_RUNTIME_DIR 的 Linux、macOS 上还有套接字 core.sock（ipc.md）；网页软件的 web.lock、web（地址，web-ui.md，施工 W-9）
 ```
 
 - 这一页的代码新建的目录，Unix 上权限都是 0700；已经有的不改。Windows 上照系统默认的，靠用户目录本身的访问控制。
