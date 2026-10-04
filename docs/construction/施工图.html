@@ -282,6 +282,14 @@ a.step:hover{border-color:var(--primary)}
   </ul>
 </header>
 
+<section class="board" aria-label="TUI 预编辑同步刷新">
+  <h2>TUI 预编辑同步刷新 · 已验收 · 2026-10-04</h2>
+  <p class="sub">2026-10-04 · 准备完整帧以后才发送同步首尾，避免计算过程中露出不含预编辑的旧快照。</p>
+  <svg viewBox="0 0 960 110" role="img" aria-label="画面、图片和光标先进入单帧缓冲，再一起写给终端">
+    <g fill="none" stroke="currentColor"><rect x="20" y="15" width="250" height="80" rx="8"/><rect x="340" y="15" width="280" height="80" rx="8"/><rect x="690" y="15" width="250" height="80" rx="8"/><path d="M270 55h70m280 0h70"/></g>
+    <g fill="currentColor" text-anchor="middle" font-size="16"><text x="145" y="50">画面、图片、光标</text><text x="145" y="75">保留现有刷新节拍</text><text x="480" y="50">内存中的完整一帧</text><text x="480" y="75">中途 flush 不发送</text><text x="815" y="50">同步首尾一起发送</text><text x="815" y="75">缩短预编辑消失窗口</text></g>
+  </svg>
+</section>
 <section class="board" aria-label="TUI 网站卡片">
   <h2>TUI 网站卡片 · 已验收 · 2026-10-04</h2>
   <p class="sub">2026-10-03 · 同步 W-7、Bilibili 封面、作者与视频脚注；核心无新增修改。</p>
