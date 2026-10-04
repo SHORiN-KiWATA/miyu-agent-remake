@@ -37,6 +37,8 @@
 - 验收运行：`~/.cache/miyu-tui-config/try --page config`；对话入口 `~/.cache/miyu-tui-config/try`，再输入 `/config`。隔离目录带原有模型配置和环境变量引用，不复制会话。
 - 按键：`[`/`]` 切分页，方向键或 hjkl 移动，Enter 编辑/确认，供应商页 p 测试、a 添加；模型池 Tab/Space 选成员，表单 s 保存、Esc 取消。
 
-- 本地结果：TUI 单元与端到端 680 项通过，11 项量尺/人工测试忽略；格式和 clippy 无警告。根 workspace `cargo xtask check` 八项门禁通过。三平台 CI 在草稿分支运行，真人验收后才合入 proto/tui-demo。
+- 本地结果：TUI 单元与端到端 681 项通过，11 项量尺/人工测试忽略；格式和 clippy 无警告。根 workspace `cargo xtask check` 八项门禁通过。三平台 CI 在草稿分支运行，真人验收后才合入 proto/tui-demo。
 
 - 最后审查补守：失联/缺主程序显示具体原因；secret.set 失败恢复原引用；读取期间收到变更在结束后再补读；取消全部输入能力恢复继承资料。四项均先用回归测试复现，再修正。
+
+- p 测试在模型栏指定当前模型，供应商栏由核心挑模型；回归测试证明不会选中了 beta 却试 alpha。

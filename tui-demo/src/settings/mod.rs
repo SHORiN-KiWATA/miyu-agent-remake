@@ -404,4 +404,19 @@ mod tests {
             }
         )));
     }
+    #[test]
+    fn testing_a_selected_model_targets_that_model_and_provider() {
+        let mut page = Settings::new(false, true);
+        page.providers = data::providers(&json!({"providers":[{"id":"p","models":[
+            {"model":"alpha","ref":"p/alpha"},{"model":"beta","ref":"p/beta"}]}]}));
+        page.outgoing();
+        page.column = 1;
+        page.selected = 1;
+        page.test(&HashMap::new());
+        let Command::SettingsRpc { method, params, .. } = page.outgoing().pop().unwrap() else {
+            panic!()
+        };
+        assert_eq!(method, "provider.test");
+        assert_eq!(params, json!({"provider":"p","model":"beta"}));
+    }
 }

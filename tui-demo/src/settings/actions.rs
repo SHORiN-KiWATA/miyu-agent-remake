@@ -221,7 +221,7 @@ impl Settings {
         self.note = text(texts, "saving").into();
     }
 
-    /// 测试只面向已保存的供应商，不携带输入中的明文。
+    /// 测试已保存的供应商；焦点在模型栏时指定当前模型，不携带明文密钥。
     pub fn test(&mut self, texts: &HashMap<String, String>) {
         if !self.connected {
             self.note = text(texts, "not_connected").into();
@@ -231,7 +231,13 @@ impl Settings {
             return;
         }
         if let Some(p) = self.providers.get(self.provider) {
-            self.ask("provider.test", json!({"provider":p.id}), Pending::Test);
+            let mut params = json!({"provider":p.id});
+            if self.column == 1
+                && let Some(model) = p.models.get(self.selected)
+            {
+                params["model"] = json!(model.id);
+            }
+            self.ask("provider.test", params, Pending::Test);
             self.note = text(texts, "loading").into();
         }
     }
