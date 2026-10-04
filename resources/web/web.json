@@ -1,6 +1,8 @@
 {
   "port": 8300,
   "idle_seconds": 600,
+  "ticket_idle_seconds": 43200,
+  "most_tickets": 4096,
   "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
   "types": {
     "html": "text/html; charset=utf-8",
@@ -20,6 +22,22 @@
     "woff2": "font/woff2",
     "woff": "font/woff",
     "ttf": "font/ttf",
-    "wasm": "application/wasm"
+    "wasm": "application/wasm",
+    "avif": "image/avif",
+    "bmp": "image/bmp",
+    "mp4": "video/mp4",
+    "m4v": "video/mp4",
+    "webm": "video/webm",
+    "mov": "video/quicktime",
+    "mp3": "audio/mpeg",
+    "m4a": "audio/mp4",
+    "ogg": "audio/ogg",
+    "oga": "audio/ogg",
+    "opus": "audio/ogg",
+    "wav": "audio/wav",
+    "flac": "audio/flac",
+    "pdf": "application/pdf",
+    "md": "text/markdown; charset=utf-8",
+    "csv": "text/csv; charset=utf-8"
   }
 }

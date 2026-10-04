@@ -77,11 +77,15 @@ pub fn settings(idle_seconds: u64) -> Settings {
         "text/javascript; charset=utf-8".to_string(),
     );
     types.insert("css".to_string(), "text/css; charset=utf-8".to_string());
+    types.insert("png".to_string(), "image/png".to_string());
+    types.insert("mp4".to_string(), "video/mp4".to_string());
     Settings {
         port: 0,
         idle_seconds,
         csp: "default-src 'self'; connect-src 'self'; frame-ancestors 'none'".to_string(),
         types,
+        ticket_idle_seconds: 43_200,
+        most_tickets: 4096,
     }
 }
 
@@ -96,12 +100,21 @@ pub async fn start(
     port: u16,
     idle_seconds: u64,
 ) -> (Ready, u16, JoinHandle<Result<(), String>>) {
+    start_with(home, port, settings(idle_seconds)).await
+}
+
+/// 同 [`start`]，设置照给的。
+pub async fn start_with(
+    home: &Home,
+    port: u16,
+    settings: Settings,
+) -> (Ready, u16, JoinHandle<Result<(), String>>) {
     let (said, heard) = oneshot::channel();
     let serve = Serve {
         root: home.root.clone(),
         port,
         pages: home.pages.clone(),
-        settings: settings(idle_seconds),
+        settings,
         core: no_core(),
     };
     let running = tokio::spawn(run(serve, move |ready| {
@@ -143,6 +156,18 @@ pub async fn request(
     host: &str,
     extra: &[(&str, &str)],
 ) -> Answer {
+    send(port, method, path, host, extra, b"").await
+}
+
+/// 同 [`request`]，带正文 `body`（有正文的写 `Content-Length`）。
+pub async fn send(
+    port: u16,
+    method: &str,
+    path: &str,
+    host: &str,
+    extra: &[(&str, &str)],
+    body: &[u8],
+) -> Answer {
     let mut stream = TcpStream::connect(("127.0.0.1", port))
         .await
         .expect("连得上");
@@ -150,8 +175,13 @@ pub async fn request(
     for (name, value) in extra {
         text.push_str(&format!("{name}: {value}\r\n"));
     }
+    if !body.is_empty() {
+        text.push_str(&format!("Content-Length: {}\r\n", body.len()));
+    }
     text.push_str("\r\n");
-    stream.write_all(text.as_bytes()).await.expect("写得进");
+    let mut bytes = text.into_bytes();
+    bytes.extend_from_slice(body);
+    stream.write_all(&bytes).await.expect("写得进");
     let mut bytes = Vec::new();
     tokio::time::timeout(Duration::from_secs(10), stream.read_to_end(&mut bytes))
         .await

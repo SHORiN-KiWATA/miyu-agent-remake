@@ -14,8 +14,7 @@
 use std::sync::Arc;
 
 use futures_util::{SinkExt, StreamExt};
-use http_body_util::Full;
-use hyper::body::{Bytes, Incoming};
+use hyper::body::Incoming;
 use hyper::header::{self, HeaderValue};
 use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
@@ -28,7 +27,7 @@ use tokio_tungstenite::tungstenite::protocol::{CloseFrame, Role, WebSocketConfig
 use tokio_tungstenite::tungstenite::{Error, Message};
 
 use crate::TARGET;
-use crate::serve::{Site, empty};
+use crate::serve::{Body, Site, empty};
 
 /// 一帧最大多少字节：核心那头一行最长 1 MiB（`protocol.md`「一行一条」）。
 const LIMIT: usize = 1 << 20;
@@ -37,7 +36,7 @@ const LIMIT: usize = 1 << 20;
 const LINGER: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// 接一个 WebSocket：Origin 不对 403，不是升级请求 400；对的回 101，升级好以后在别的任务里转。
-pub(crate) fn accept(request: Request<Incoming>, site: Arc<Site>) -> Response<Full<Bytes>> {
+pub(crate) fn accept(request: Request<Incoming>, site: Arc<Site>) -> Response<Body> {
     let headers = request.headers();
     let origin = headers
         .get(header::ORIGIN)

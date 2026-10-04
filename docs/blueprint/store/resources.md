@@ -73,7 +73,7 @@
 | `software/basesystem/` 下别的 | `miyu-basesystem` | 核心起来时登记工具（`tools/*.md`） |
 | `software/mermaid/style.json` | `miyu-mermaid` | `mermaid.render` 第一次调时读一次，之后留着（施工 W-4，`mermaid.md`） |
 | `software/net/link_preview.json` | `miyu-net` | `link.preview` 第一次调时读一次，之后留着（施工 W-7，`net.md`）。是数据，不发给模型，不进登记簿 |
-| `web/web.json` | `miyu-web` 的 `Settings::load` | `miyu-web serve` 起来时读一次：出厂端口、空闲多久退出、`Content-Security-Policy`、扩展名到媒体类型（施工 W-9，`web-ui.md`）。是数据，不发给模型，不进登记簿 |
+| `web/web.json` | `miyu-web` 的 `Settings::load` | `miyu-web serve` 起来时读一次：出厂端口、空闲多久退出、`Content-Security-Policy`、扩展名到媒体类型（施工 W-9，`web-ui.md`）；`/media` 的票据多久不用作废、最多几张（施工 W-10）。是数据，不发给模型，不进登记簿 |
 | `models/models-dev.json`、`models-dev.meta.json` | `ResourceRoot::catalog_snapshot` | 核心写了 `ready` 以后读一次，和缓存目录里后台拉的那一份挑新的（施工 8-7，`models.md`）。原样的 `api.json` 和它是什么时候拉的。是数据，不发给模型，不进登记簿 |
 | `models/models-dev.LICENSE` | 没人读 | models.dev 的 MIT 许可证原文，跟着快照一起发（`licenses.md`「资源里的第三方数据」） |
 | `models/profiles.toml` | `ResourceRoot::profiles` | 核心起来时读一次，`[npm]`（包名 → 驱动，施工 8-7）、认得出的供应商的驱动、地址、开关、一张图怎么算（施工 8-6，`models.md`）。是数据，不发给模型，不进登记簿 |

@@ -53,6 +53,7 @@ GPL-3.0-or-later，见 `LICENSE`。
 
 ### 依赖记录
 
+- 施工 W-10 给 `miyu-web` 直接加了 `getrandom` 0.4（票据的 32 个随机字节）、`base64` 0.22（核心一块块给的内容是 base64）：两个本来就在依赖图里，和别的 crate 用的同一份，没给图里添新的第三方包。门禁过了。
 - 施工 W-9 给 `miyu-web`（新 crate，网页软件，`web-ui.md`）直接用了 `hyper` 1（MIT，开 `server`、`http1`：只听本机的 HTTP 端口）、`hyper-util`（开 `tokio`）、`http-body-util`、`futures-util`、`tokio`、`serde`、`serde_json`、`tracing`（都原来就在依赖图里）；新加 `tokio-tungstenite` 0.29（MIT，关掉默认功能只开 `handshake`：WebSocket 一帧一帧收发），它带进来的 `tungstenite`（MIT OR Apache-2.0）、`sha1` 0.10 和它的 `digest`、`block-buffer`、`crypto-common`、`generic-array`、`cpufeatures`（MIT 或 Apache-2.0）、`data-encoding`（MIT）、`httpdate`（MIT OR Apache-2.0）、`rand` 0.9、`rand_chacha`、`rand_core`、`ppv-lite86`、`zerocopy`（MIT 或 Apache-2.0，`zerocopy` 另可选 BSD-2-Clause）、`getrandom` 0.3（MIT OR Apache-2.0）。`getrandom` 0.3 在 wasm、UEFI 上才要的 `wasip2`、`wit-bindgen`、`r-efi` 不在发布的四个平台的依赖图里。都在能用的名单里，门禁过了。
 - 施工 W-8 给 `miyu-store` 加了 `argon2` 0.6（MIT OR Apache-2.0，网页登录的密码哈希，`web-module.md`「怎么走」第一条），关掉默认功能、只开 `alloc`、`password-hash`，盐由原来就有的 `getrandom` 给；它带进来的 `password-hash`、`phc`、`base64ct`、`blake2`、`ctutils`、`cmov`（都是 MIT OR Apache-2.0）。都在能用的名单里。开发、测试编的也给 `argon2`、`blake2` 开优化（工作区 `Cargo.toml` 的 `[profile.dev.package.*]`），不然算一次要零点几秒。
 - 施工 W-7 给 `miyu-net`（新 crate，可选软件包 `net`，默认打开）直接用了 `hyper-util` 0.1（MIT，开 `client-proxy`：判这一跳走不走代理，reqwest 自己照环境变量走代理用的就是它的 `Matcher`）、`http` 1（MIT OR Apache-2.0，`Matcher` 收的地址类型）；`reqwest`、`tokio`、`serde`、`serde_json`、`tracing` 照 `miyu-http` 的写法。这几个本来就在依赖图里（reqwest 带进来的），没给图里添新的第三方包。门禁过了。

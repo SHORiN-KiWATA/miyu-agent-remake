@@ -355,7 +355,9 @@ async fn attachments_go_along_or_are_replaced() {
         words_at(&home, &session, resent),
         json!([{"type": "text", "text": "再看看"}])
     );
-    // 这个核心里没有的 blob：照 `session.send` 拒绝，什么都不写。
+    // 这个核心里没有的 blob：照 `session.send` 拒绝，什么都不写。先等上一次重做开的那一轮说完（第 4 轮），不然它还在往
+    // 日志里写，量出来的「之前」不准（施工 W-10 时查出来的偶发失败：差的正好是那一轮的 3 条）。
+    home.until_turns(&session, 4).await;
     let before = home.log(&session).len();
     let mut missing = small.clone();
     missing["blob"] = json!(format!("sha256:{}", "0".repeat(64)));
