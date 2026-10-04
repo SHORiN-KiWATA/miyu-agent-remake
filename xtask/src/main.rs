@@ -1,4 +1,5 @@
-//! 门禁程序，和开发用的几样小工具（`cargo xtask dev-home`：造一个带配置的数据根，施工 8-6）。`cargo xtask check` 依次跑格式、clippy、文档、三道门禁、许可证和测试，最后打一张结果表。
+//! 门禁程序，和开发用的几样小工具（`cargo xtask dev-home`：造一个带配置的数据根，施工 8-6；`cargo xtask package-web`：
+//! 照装好的样子摆出网页软件、做发布前检查，施工 W-11）。`cargo xtask check` 依次跑格式、clippy、文档、三道门禁、许可证和测试，最后打一张结果表。
 //!
 //! 三道门禁都照图纸查：`docs/designs/01-架构.md` 第九节「代码的分层」。「文档」那一项还查登记簿：
 //! 给模型看的字和 `docs/designs/26-提示词.md` 第十节一一对上（施工 3-5 再补）；「给模型看的字」那一页和资源、登记簿
@@ -12,6 +13,7 @@ mod files;
 mod layers;
 mod ledger;
 mod licenses;
+mod package;
 mod prompts;
 mod purity;
 mod samples;
@@ -27,6 +29,7 @@ fn main() -> ExitCode {
     match std::env::args().nth(1).as_deref() {
         Some("check") => check(),
         Some("dev-home") => dev_home::run(std::env::args().nth(2).as_deref()),
+        Some("package-web") => package::run(&root(), &std::env::args().skip(2).collect::<Vec<_>>()),
         Some("prompts") => match prompts::write(&root()) {
             Ok(()) => {
                 println!("写好了 {}", prompts::PATH);
@@ -39,7 +42,7 @@ fn main() -> ExitCode {
         },
         _ => {
             eprintln!(
-                "用法：cargo xtask check | cargo xtask prompts | cargo xtask dev-home <目录>"
+                "用法：cargo xtask check | cargo xtask prompts | cargo xtask dev-home <目录> | cargo xtask package-web …"
             );
             ExitCode::from(2)
         }

@@ -3,6 +3,7 @@
 //!
 //! - `miyu-web serve [--port <端口>]`
 //! - `miyu-web open [--port <端口>] [--print] [--reset] [--logout]`
+//! - `miyu-web --version`、`-V`：印 `miyu-web <版本>`，不碰数据根（发布前检查对版本，施工 W-11）
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
@@ -23,6 +24,10 @@ fn main() -> ExitCode {
     let Some((command, rest)) = args.split_first() else {
         return usage();
     };
+    if rest.is_empty() && (command == "--version" || command == "-V") {
+        println!("miyu-web {}", env!("CARGO_PKG_VERSION"));
+        return ExitCode::SUCCESS;
+    }
     let Some(parsed) = parse(rest) else {
         return usage();
     };
