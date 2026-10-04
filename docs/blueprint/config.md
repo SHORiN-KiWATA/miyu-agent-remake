@@ -258,6 +258,7 @@ miyu_config::settings! {
 | `pools.<id>.strategy` | 选项 `pin`、`rotate` | 没有：照成员的缓存类别定 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
 | `pools.<id>.subagent` | 开关 | `false`：不在派子代理的选项里 | 系统、个人 | 不能写 | `new_session` | 8-8 补 |
 | `pools.<id>.description` | 给模型看的字，最多 60 个字符 | 没有：只列池名 | 系统、个人 | 不能写 | `new_session` | 8-8 补 |
+| `providers.<id>.name` | 文字，最多 64 个字符 | 没有：照目录里那一家的名字，再没有的照编号 | 系统、个人 | 不能写 | `now`（只给界面看，不进请求） | 8-21 |
 | `providers.<id>.driver` | 选项 `openai-chat`、`anthropic`、`openai-responses` | 没有：照档案推 | 系统、个人 | 不能写 | `next_turn` | 8-6 |
 | `providers.<id>.base_url` | 网址 | 没有：照档案推 | 系统、个人 | 不能写 | `next_turn` | 8-6 |
 | `providers.<id>.keys` | 密钥的列表 | `[]`：不带认证头 | 系统、个人 | 不能写 | `next_turn` | 8-6 |
@@ -1045,6 +1046,10 @@ keys = []
 # 能写：true 或 false。只能写在系统配置或个人设置里。下一轮生效。
 # local =
 
+# 显示名：界面上给人看的名字。编号只用来引用模型；不写的照资料里那一家的名字，再没有的照编号。
+# 能写：最多 64 个字的文字。只能写在系统配置或个人设置里。当场生效。
+# name =
+
 # 倍率：这家的价格照它乘，不写是 1。模型上写的盖过它。
 # 能写：0 到 1000 之间的数。只能写在系统配置或个人设置里。下一轮生效。
 # price_multiplier =
@@ -1491,6 +1496,13 @@ currency = "USD"
               "type": "object"
             },
             "type": "object"
+          },
+          "name": {
+            "description": "界面上给人看的名字。编号只用来引用模型；不写的照资料里那一家的名字，再没有的照编号。能写：最多 64 个字的文字。只能写在系统配置或个人设置里。当场生效。",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "显示名",
+            "type": "string"
           },
           "price_multiplier": {
             "description": "这家的价格照它乘，不写是 1。模型上写的盖过它。能写：0 到 1000 之间的数。只能写在系统配置或个人设置里。下一轮生效。",

@@ -84,6 +84,10 @@
         "name": "key",
         "description": "写 { secret = \"名字\" }（用 miyu login 存）或 { env = \"环境变量\" }，一个会话钉在其中一个上。空的不带认证头。"
       },
+      "providers.<id>.name": {
+        "name": "显示名",
+        "description": "界面上给人看的名字。编号只用来引用模型；不写的照资料里那一家的名字，再没有的照编号。"
+      },
       "providers.<id>.catalog": {
         "name": "对应的供应商",
         "description": "这家对应资料里的哪一家，例如只转 DeepSeek 的中转写 deepseek。"

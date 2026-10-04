@@ -12,13 +12,17 @@
 //! - `base_url` 照配置写的样子交（`address_json`，施工 8-6b）：写死的是地址本身，是环境变量的引用的交 `{"env": "…"}`，
 //!   地址本身不解出来，不会进这份回应。
 //! - 思考强度的那一格多 `key`（施工 8-18（补），`models.md`「协议」）：这一项完整的配置键名，头照抄它发 `config.set`。
+//! - 显示名 `name`（施工 8-21）：写了的照写的（带文件、行、层），只有空白的当没写；没写的、对上了目录的照目录里那一家
+//!   的名字；都没有的照编号。用不了的那一家也有。也带 `key`。
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{Value, json};
 
 use miyu_config::Address;
+use miyu_config::Value as ConfigValue;
 use miyu_config::key as config_key;
+use miyu_config::merge::Origin;
 use miyu_kernel::time::Timestamp;
 use miyu_models::cooldown::{Candidate, Cooling};
 use miyu_models::effort;
@@ -65,6 +69,7 @@ pub(crate) fn provider(data: &ModelData, snapshot: &Snapshot, id: &str, now: Tim
         |knowledge| match provider::provider(&values, knowledge, id) {
             Err(NoModel(problem)) => json!({
                 "id": id,
+                "name": name(snapshot, id, None),
                 "driver": settings.driver,
                 "base_url": settings.base_url.as_ref().map(address_json),
                 "keys": keys,
@@ -122,8 +127,13 @@ pub(crate) fn provider(data: &ModelData, snapshot: &Snapshot, id: &str, now: Tim
                     })
                     .collect();
                 let driver = found.driver.as_str();
+                let catalog_name = recognized
+                    .zip(knowledge.catalog)
+                    .and_then(|(recognized, loaded)| loaded.catalog.provider(&recognized.provider))
+                    .and_then(|entry| entry.name.as_deref());
                 let mut entry = json!({
                     "id": id,
+                    "name": name(snapshot, id, catalog_name),
                     "driver": driver,
                     "base_url": address_json(&found.base_url),
                     "keys": keys,
@@ -138,6 +148,29 @@ pub(crate) fn provider(data: &ModelData, snapshot: &Snapshot, id: &str, now: Tim
         },
     )
 }
+
+/// 这一家给人看的名字：写了的（去掉两头空白不是空的）、目录里那一家的、编号，照这个先后（施工 8-21）。
+fn name(snapshot: &Snapshot, id: &str, catalog: Option<&str>) -> Value {
+    let key = config_key::fill(NAME, &[id]);
+    let written = snapshot
+        .resolved
+        .get(&key)
+        .and_then(|(value, origin)| match (value, origin) {
+            (ConfigValue::Text(text), Origin::File { layer, line }) if !text.trim().is_empty() => {
+                Some(json!({"value": text.trim(), "from": "config", "file": snapshot.file(*layer), "line": line, "layer": layer.as_str()}))
+            }
+            _ => None,
+        });
+    let mut name = written.unwrap_or_else(|| match catalog {
+        Some(name) => json!({"value": name, "from": "catalog"}),
+        None => json!({"value": id, "from": "id"}),
+    });
+    name["key"] = json!(key);
+    name
+}
+
+/// 显示名在清单里的键。
+const NAME: &str = "providers.<id>.name";
 
 /// 写上状态：不在冷却的 `ok`；在冷却的 `cooling`，带 `until`、`class`（施工 8-9）。
 fn state(entry: &mut Value, cooling: Option<&Cooling>) {

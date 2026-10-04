@@ -72,10 +72,11 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 
 配置怎么读、分层、校验、`{ secret = … }` 和 `{ env = … }` 怎么解开，见 `config.md`。这里是每个键的意思。生效照 `14-配置.md` G7：会改请求的，下一个回合开始时生效（K3）。
 
-**`[providers.<编号>]`**：一家供应商（8-6）。8-6 登记进清单的是 `driver`、`base_url`、`keys`、`catalog` 四格，8-7 加 `price_multiplier`、`local`，8-8 加 `cache`（`config.md`「M8 的配置项」，清单里写成 `providers.<id>.*`），别的格随用到它的那一步（「施工时定的」8-6、8-7、8-8）。编号照「路径里的名字」的写法（`kernel/ids.md`：小写字母开头，只有小写字母、数字、`-`、`_`，最长 32 个字符），它要当 `state/` 下的文件名。
+**`[providers.<编号>]`**：一家供应商（8-6）。8-6 登记进清单的是 `driver`、`base_url`、`keys`、`catalog` 四格，8-7 加 `price_multiplier`、`local`，8-8 加 `cache`，8-21 加 `name`（`config.md`「M8 的配置项」，清单里写成 `providers.<id>.*`），别的格随用到它的那一步（「施工时定的」8-6、8-7、8-8）。编号照「路径里的名字」的写法（`kernel/ids.md`：小写字母开头，只有小写字母、数字、`-`、`_`，最长 32 个字符），它要当 `state/` 下的文件名。
 
 | 键 | 取值 | 不写是 | 是什么 |
 |---|---|---|---|
+| `name` | 文字，最多 64 个字符 | 照目录里对上的那一家的名字（models.dev 的 `name`），再没有的照编号 | 界面上给人看的名字（施工 8-21）。编号只用来引用模型（`<编号>/<模型>`、池的成员、用量记账）；名字只给界面看，不进请求、会话日志，改了当场生效。只有空白的当没写 |
 | `driver` | `openai-chat`、`anthropic`、`openai-responses` | 照档案、目录推（第一条第 2 条） | 怎么说话。推不出来的必写 |
 | `base_url` | 网址，或者 `{ env = "…" }`（施工 8-6b，照密钥一样的读法，没有 `{ secret = … }`：地址不进密钥文件） | 照档案、目录推 | 地址，路径由驱动接在后面。推不出来的必写。是引用的，真要连供应商的那一刻才照核心的环境解出来（`config.md` 第九条第 5 条），没设、设成空的这一家没有地址（`no_model`）；`config.get`、`model.list` 都照写的样子交，不交解出来的地址 |
 | `keys` | 列表，每一项 `{ secret = "…" }` 或 `{ env = "…" }` | 空 | 几个 key。空的不带认证头：本机的服务 |
@@ -302,7 +303,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 
 | 格 | 是什么 |
 |---|---|
-| `providers` | 配好的供应商，照编号排。每一家：`id`、`driver`、`base_url`（照配置写的样子交：写死的是地址本身，是 `{ env = … }` 的交 `{"env": "…"}`，不解出地址，施工 8-6b）、`keys`（每个 key 的 `ref`：`secret:<名字>` 或 `env:<变量>`，`set` 有没有值，`state`）、`catalog`（对上了目录里的哪一家，`how` 是怎么对上的：`config` 手写、`id` 编号一样、`similar_id` 去掉分隔以后一样、`url` 地址一样，没对上的不写）、`models`。这一家用不了的（推不出驱动、地址，驱动还没有）：`driver`、`base_url` 照手写的，没写的是 `null`，多一格 `problem`（`no_model` 的那一句原话），`models` 是空的（8-7） |
+| `providers` | 配好的供应商，照编号排。每一家：`id`、`name`（显示名，施工 8-21：`{"value", "from", "key"}`，`from` 是 `config`（写了的，另带 `file`、`line`、`layer`，照资料那一格的写法）、`catalog`（目录里对上的那一家的名字）、`id`（都没有，照编号）；`key` 是完整的配置键名 `providers.<编号>.name`，头照抄它发 `config.set`；用不了的那一家也有）、`driver`、`base_url`（照配置写的样子交：写死的是地址本身，是 `{ env = … }` 的交 `{"env": "…"}`，不解出地址，施工 8-6b）、`keys`（每个 key 的 `ref`：`secret:<名字>` 或 `env:<变量>`，`set` 有没有值，`state`）、`catalog`（对上了目录里的哪一家，`how` 是怎么对上的：`config` 手写、`id` 编号一样、`similar_id` 去掉分隔以后一样、`url` 地址一样，没对上的不写）、`models`。这一家用不了的（推不出驱动、地址，驱动还没有）：`driver`、`base_url` 照手写的，没写的是 `null`，多一格 `problem`（`no_model` 的那一句原话），`models` 是空的（8-7） |
 | `models` 里的每一个 | `model` 模型名、`ref` 写成引用的样子、`listed` 从哪几处列出来的（`config`、`provider`、`catalog`，照这个先后）、`facts` 每一格的 `value` 和来源（上面「模型的资料」，十格都在：`window`、`max_output`、`inputs`、`tools`、`reasoning`、`effort`（8-18：配置的默认；没写的、写的不在档位里的是 `{"value":null,"from":"default"}`；多一格 `key`，8-18（补）：这一项完整的配置键名，模型名带点的加好引号，例如 `providers.dev.models."deepseek-v4.1-flash".effort`，头照抄它发 `config.set`（个人设置），选「默认」就发 `unset: true`）、`price`、`multiplier`、`name`、`status`）、`state`。手写指定的目录条目不存在的，多一格 `catalog_missing`：写的那个条目（8-7） |
 | `pools` | 每个池，照名字排：`name`、`strategy`（生效的分法：写了的照写的，没写的照成员定，一个成员都认不出的照写的或 `pin`）、`models`（照配置写的原样，认不出的也在）（8-8）；`subagent`（开关，没写的是 `false`）、`description`（没写的是 `null`）（8-8 补）。8-8 的 `tiers` 8-8 补去掉了 |
 | `uses` | `chat`、`vision` 各配的引用，没配的是 `null`（8-7 只有 `chat`，8-8 加 `vision`） |
@@ -1078,6 +1079,7 @@ mimo = ["xiaomi"]
 | `crates/miyu-drivers/tests/openai_chat_effort.rs` | 没写思考强度的一个字节不加；档位发 `reasoning_effort`；`off`、`on` 照档案的开关，没有开关的 `off` 发 `none`、`on` 不加；都接在最后 | 8-18 |
 | `crates/miyu-kernel/src/event/session/tests.rs`、`tests/samples.rs`、`tests/transient_sample.rs` | 以前日志里带 `effort` 的 `session.policy_changed` 照读得进、内核不理它（8-18（补），替掉了 8-18 的 `session/tests/effort.rs`、随机测试里那一串命令编号，整份删掉）；`model.changed` 第二条的 `effort.from` 是 `system` | 8-18；8-18（补）删会话那一层 |
 | `crates/miyu-session/tests/route_effort.rs` | 一次请求照配置的默认、都没有；换模型以后用新模型自己的；轮换的池每个成员各用各的；个人设置压着系统配置、下一轮生效，`from` 跟着从 `system` 换成 `personal`；空闲超时照那一档放大（`effort_log.rs` 的 `WARN` 测试随会话那一层 8-18（补）删掉了） | 8-18；8-18（补）去掉会话那一层 |
+| `crates/miyu-endpoint/tests/models_name.rs` | `model.list` 的 `name`：写了的照写的（带文件、行、层）、只有空白的当没写、照目录的名字、照编号、用不了的那一家也有、`key`；`config.set` 改了当场照新的答，超过 64 个字符拒 | 8-21 |
 | `crates/miyu-endpoint/tests/models_effort.rs` | `session.configure` 写了 `effort` 回 `bad_params`、不写 `model` 回 `bad_params`（8-18（补），替掉了 8-18 的「记下、清掉、和模型一起换」那几条）；`subscribe` 的 `effort.from`；`model.list` 的 `facts.effort.key`（普通的、模型名带点的）、`facts.effort` 来源是配置的带 `layer`（8-7（补））；配置里写错的 `unknown_effort`、算进 `config_errors`、`config.check` 照新的字查 | 8-18；8-18（补）；8-7（补） |
 | `crates/miyu-session/tests/route*.rs`、`http.rs`、`*_log.rs`（8-6 到 8-18 的） | 拆出底子以后一个不改照旧全过：会话入口的行为、请求的字节一个不变 | 8-20 |
 | `crates/miyu-session/tests/once.rs`、`once_pools.rs`、`once_shared.rs` | 一次性入口：模型、`@池`、不写照 `models.chat`；system 和几条消息照先后发、不带工具、`max_tokens` 照写的发；带图照字节发、模型不收图的不发；四种出错（`unknown_model`、`no_model`、`cooling`、`model_failed`）；配置的默认强度；key 照用途钉、取不到的跳过；429 当场换下一个 key、说到一半断了也换、只有一个候选的不再来、最多换 5 次、成了清掉冷却；钉住的池照指针取成员、出错换下一个成员，轮换的池指针一次走一个、跳过冷却的（`once_pools.rs`）；冷却两个入口共用：会话撞了 429 一次性的立刻避开，反过来也一样（`once_shared.rs`） | 8-20 |
@@ -1467,6 +1469,15 @@ mimo = ["xiaomi"]
 | 头在挑候选时照「谁在挑」的种子换好挂到端点上（`route/choice.rs`），`provider.test` 照固定的种子 `provider.test` | 种子本来就在 `Seat` 里（钉 key 也照它）；HTTP 执行器不认模板 | 执行器换模板：要把种子一路交到 HTTP，执行器多认一样东西 |
 | 列模型不带另配的头 | Go 的 `GET /models` 不带也列得出（2026-10-03 实测）；头只为对话 | 列模型也带：多一个种子要定 |
 | 出厂的档案只写 `[providers.opencode-go]` 的头；Zen（`opencode`）不写 | 驱动、地址目录推得出；Zen 按量付费的模型不要头 | 两家都写：Zen 多发一个没用的头 |
+
+8-21 施工时照推荐定的（2026-10-04 主会话，写进了正文；项目主人转来的要求是「可配置的显示名称，在 `model.list` 中返回，未填写时回退到供应商名称或 ID」）：
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| `providers.<id>.name`：文字，最多 64 个字符，系统、个人，当场生效 | 只给界面看，不改请求 | 下一轮生效 |
+| 回退：写了的（去掉两头空白不是空的）→ 目录里对上的那一家的名字 → 编号 | 项目主人说的「供应商名称或 ID」 | 档案里本机服务的名字也算一层（本机服务的编号本来就是它的名字） |
+| `model.list` 的 `name` 写成 `{"value", "from", "key"}`，写了的另带 `file`、`line`、`layer`；用不了的那一家也有 | 和资料的格、思考强度的 `key` 一个样子，头少写一种读法；照 `from` 知道是不是写了的 | 只交一个字符串 |
+| 名字不进请求、会话日志、用量记账，引用只认编号 | 名字改了不该让任何记录对不上 | — |
 
 ### 要跟着改的别的页
 

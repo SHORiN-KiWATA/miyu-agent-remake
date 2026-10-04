@@ -84,6 +84,10 @@
         "name": "Keys",
         "description": "Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Each session sticks to one of them. Empty means no auth header."
       },
+      "providers.<id>.name": {
+        "name": "Display name",
+        "description": "The name people see. The id is only for referring to models; without one, the model data's name for this provider is used, then the id."
+      },
       "providers.<id>.catalog": {
         "name": "Catalog provider",
         "description": "Which provider in the model data this one is, for example deepseek for a relay that only forwards DeepSeek."

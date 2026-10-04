@@ -84,6 +84,10 @@
         "name": "キー",
         "description": "{ secret = \"名前\" }（miyu login で保存）か { env = \"環境変数\" } を書きます。セッションはそのうちの一つを使い続けます。空なら認証ヘッダーを付けません。"
       },
+      "providers.<id>.name": {
+        "name": "表示名",
+        "description": "画面に出す名前。ID はモデルの参照にだけ使います。書かなければモデル資料のプロバイダー名、それもなければ ID を使います。"
+      },
       "providers.<id>.catalog": {
         "name": "対応するプロバイダー",
         "description": "モデル資料のどのプロバイダーに当たるか。DeepSeek だけを中継するなら deepseek と書きます。"

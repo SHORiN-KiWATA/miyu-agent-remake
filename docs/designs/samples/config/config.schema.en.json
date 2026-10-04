@@ -387,6 +387,13 @@
             },
             "type": "object"
           },
+          "name": {
+            "description": "The name people see. The id is only for referring to models; without one, the model data's name for this provider is used, then the id. Allowed: text of at most 64 characters. Only in the system config or personal settings. Takes effect at once.",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Display name",
+            "type": "string"
+          },
           "price_multiplier": {
             "description": "Prices of this provider are multiplied by it. 1 if left out. A multiplier on the model wins. Allowed: a number from 0 to 1000. Only in the system config or personal settings. Takes effect next turn.",
             "maximum": 1000,

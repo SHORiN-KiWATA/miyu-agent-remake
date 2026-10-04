@@ -50,6 +50,7 @@ fn the_registered_list_is_well_formed() {
             "pools.<id>.strategy",
             "pools.<id>.subagent",
             "pools.<id>.description",
+            "providers.<id>.name",
             "providers.<id>.driver",
             "providers.<id>.base_url",
             "providers.<id>.keys",
