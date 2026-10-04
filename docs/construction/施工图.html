@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>193</b><span>/ 200 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
-    <li><b>W-10</b><span>下一步：媒体地址 W-10 等验收（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做；M8 要补 8-21 到 8-24（网页演示转来的三项；<code>miyu config</code> 拉起终端界面停在配置页）</span></li>
-    <li><b class="mono">e9e300e3</b><span>最近一步（W-9 网页软件）的提交</span></li>
+    <li><b>194</b><span>/ 200 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>8-21</b><span>下一步：网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做；M8 要补 8-21 到 8-24（网页演示转来的三项；<code>miyu config</code> 拉起终端界面停在配置页）</span></li>
+    <li><b class="mono">dec1451c</b><span>最近一步（W-10 媒体地址）的提交</span></li>
   </ul>
 </header>
 
@@ -567,7 +567,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sW-7c"><span class="n">W-7</span>按网站取卡片（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sW-8"><span class="n">W-8</span>身份<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sW-9"><span class="n">W-9</span>网页软件<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">W-10</span>媒体地址</span></li>
+        <li><a class="step done" href="#sW-10"><span class="n">W-10</span>媒体地址<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">W-11</span>打包（暂停）</span></li>
       </ol>
     </li>
@@ -12905,6 +12905,63 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sW-10" aria-labelledby="h-sW10">
+  <div class="sheet-head"><h2 id="h-sW10"><span class="no">W-10</span>媒体地址</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">网页上的图、附件、她写到的本机图片和音视频怎么给浏览器：页面带登录令牌换一张票据，照票据拿，能分段拿（视频拖进度）。内容由核心一块 512 KiB 地给，网页软件读一块写一块，不整个读进内存；回应关在一个空的来源里，直接打开碰不到页面。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-web/src/media/</span><span class="dir-note">网页软件多的 /media</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">media.rs</span><span class="rl">POST /media 换票据，GET /media/&lt;票据&gt; 一块块给、响应头</span></div>
+              <div class="tile new"><span class="nm">tickets.rs</span><span class="rl">64 位十六进制，同样的交回同一张，12 小时不用作废，最多 4096 张</span></div>
+              <div class="tile new"><span class="nm">link.rs、range.rs</span><span class="rl">一个登录令牌一条核心连接，同时问；Range 只认一段；下载名照 RFC 5987</span></div>
+            </div>
+          </div>
+          <ol class="pipe" aria-label="接上了哪些">
+            <li class="cmd"><code>blob.get</code>、<code>fs.read</code>（W-6）一块 512 KiB</li>
+            <li><code>web.json</code>：票据多久作废、最多几张；音视频、PDF 的类型</li>
+            <li>令牌作废了（<code>miyu web --logout</code>），票据一起作废</li>
+          </ol>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">关在空的来源里</span><span class="rl">sandbox、nosniff、private, no-cache</span></div>
+          <div class="tile new"><span class="nm">类型只认表里的</span><span class="rl">页面说的类型不在 web.json 的表里不认</span></div>
+          <div class="tile new"><span class="nm">在给不算空闲</span><span class="rl">换票据不算，一块块给的时候算</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">W-10</dd></div>
+        <div><dt>名称</dt><dd>媒体地址</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-04</dd></div>
+        <div><dt>提交</dt><dd class="mono">dec1451c</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真机 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>14 条测试先写（核心的替身同一条连接上乱序答）；21 个手写变异全逮住（查出两处测试漏洞，删了三处多余的代码）；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真机（Chromium）：传一张图、一段 5 MB 的视频，图显示，视频拖到 15 秒（5 次 206）；本机文件、数据根里的 403、下载名、直接打开关在 sandbox 里；退出登录以后 401、再要 404</span></li>
+        <li><span class="ok">✓</span><span>顺手修了 <code>redo.rs</code> 一个量早了的偶发失败（15 次错 2 次 → 30 次全过）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/W-10-媒体地址.md</code>；蓝图 <code>web-ui.md</code>「怎么走」第三条（<code>web-module.md</code> 第十条挪过去）。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 
 
 
@@ -13098,7 +13155,7 @@ const BUILD = {
   n_models: { by: '3-9', how: 'frame', note: '配置系统做出来之前只认环境变量 DEEPSEEK_API_KEY：设了就接 DeepSeek 官方的 deepseek-flash，key 只在内存里；没设的，每次请求都当场回「没有可用的模型」（3-9 上，项目主人定）；开发用的 MIYU_DEV_BASE_URL、MIYU_DEV_MODEL 替换地址和模型（3-9 再补）' },
   n_cli: { by: '3-9', how: 'frame', note: 'miyu ask：连上核心（没在跑就拉起），开一次性会话或者 --continue、--session 接着说；思考灰色印在标准错误上，回答印在标准输出上，问完一行用量；Ctrl+C 一次打断、两次就走；--format json 给脚本（3-9 下）' },
   n_compact: { by: '6-1', how: 'frame', note: '用量和压缩线（6-1）：锚是最近一次压缩以后、说完了、带用量的 model.called，盖住工具面、system 和前 messages+1 条；后面新增的照 UTF-8 字节除以 4 估（照 codex）；报的比估的小取估的、换过模型整份估（照 dsh）；压缩线 = 窗口 − min(最大输出, 20000) − 13000。摘要请求（6-2 上）：发主请求之前过了线，在这一轮里先压：有效历史到第 N 条的投影加摘要指令，取出摘要写检查点，这一轮要回应的话留在尾巴里，一组不拆；执行器交了限额才主动压。留尾巴（6-2 下）：照投影的先后一组一组地留，至多 min(16000, 线的四分之一)，只在切得开的地方切；一步至多压一次。模型资料和限额（6-3 上）：models.dev 的快照查窗口，DeepSeek 的图片照官方计算器，会话 actor 造会话、载入以后交给内核，真的会话到线就压。接上真模型（6-3 下）：miyu ask 印压缩那一行（原地刷新进度，压好了换成压前 → 压后），日志记度量；检查点包装的结尾加一句接着做、别重做（J12 实测）；取摘要先去草稿。检查点里的几段和压后重建（6-5）：清单、取回指路、太大没重读的由代码写；发摘要请求之前先重读最近的文件，原文存成 blob 放进检查点。失败和熔断（6-6 上）：连续失败 3 次、压完 3 个回合内又到线连着 3 次，暂停自动压缩，暂停着放不下的请求不发。截短重试（6-6 中）：摘要请求自己超长，截掉最老的几组再试，最多 3 次，截过的写明摘要没看到哪一段。撤销能撤掉压缩（6-9）：压缩跟着它所在的那一轮撤，撤到压缩以前时从磁盘读回更早的一段。隔离式回退（6-6 下）：摘要回复里调了工具，改发不带工具面的摘要请求。截过的、隔离式的出错再来照记下的发（6-6 补）。被动压缩（6-7）：主请求报超长，先压再重发一次。手动压缩（6-8）：session.compact、miyu compact 单开一轮只做压缩，要求夹在摘要指令里，暂停着也能压' },
-  n_web: { by: 'W-9', how: 'frame', note: '网页软件 miyu-web（W-9）：只听本机的 HTTP 端口（出厂 8300），给页面文件，/ws 把浏览器的 WebSocket 一帧一条转成核心协议的一行一条，不读本机令牌；单实例、空闲退出；miyu web 找旁边的它、确保在跑、带一次性码打开浏览器。页面还在网页演示里' },
+  n_web: { by: 'W-9', how: 'frame', note: '网页软件 miyu-web（W-9）：只听本机的 HTTP 端口（出厂 8300），给页面文件，/ws 把浏览器的 WebSocket 一帧一条转成核心协议的一行一条，不读本机令牌；单实例、空闲退出；miyu web 找旁边的它、确保在跑、带一次性码打开浏览器。/media（W-10）：带登录令牌换票据，照票据一块块给 blob、本机文件，能分段拖进度。页面还在网页演示里' },
   n_bus: { by: '3-8', how: 'frame', note: '连接上一行一条 JSON-RPC 2.0：握手（主版本、本机令牌）、造会话、说话、打断，拒绝附原因码（3-8 上）；订阅事件流，回应排在它产生的推送后面，掉队推 resync（3-8 中）；核心在本机的 Unix 套接字上等连接：一个数据根一个核心（锁），本机令牌写进 run/token，实际位置记在 run/socket，套接字放在只有自己能进的目录里（3-8 下）；Windows 上是命名管道，只对本人开放，头连上以后核对另一头是自己的（3-8 补）' },
 };
 
